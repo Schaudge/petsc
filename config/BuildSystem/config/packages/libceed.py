@@ -3,7 +3,7 @@ import config.package
 class Configure(config.package.Package):
   def __init__(self, framework):
     config.package.Package.__init__(self, framework)
-    self.gitcommit              = 'origin/main'
+    self.gitcommit              = 'c5fbda681b280c9c826da7afffcb465658d8a54c' # main on May 31, 2021
     self.download               = ['git://https://github.com/CEED/libceed.git']
     self.functions              = ['CeedRegister']
     self.includes               = ['ceed.h']
@@ -34,9 +34,7 @@ class Configure(config.package.Package):
       raise RuntimeError('Error running make on libceed: '+str(e))
     try:
       self.logPrintBox('Installing libceed; this may take several minutes')
-      output,err,ret  = config.package.Package.executeShellCommand(self.make.make_sudo_list + ['install', 'prefix='+self.installDir], cwd=self.packageDir, timeout=250, log=self.log)
+      output,err,ret  = config.package.Package.executeShellCommand(self.make.make_jnp_list + ['install', 'prefix='+self.installDir], cwd=self.packageDir, timeout=250, log=self.log)
     except RuntimeError as e:
       raise RuntimeError('Error running install on libceed: '+str(e))
     return self.installDir
-
-

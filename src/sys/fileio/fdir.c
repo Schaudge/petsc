@@ -46,6 +46,13 @@ PetscErrorCode PetscMkdir(const char dir[])
   PetscFunctionReturn(0);
 }
 
+#if defined(PETSC_USING_DARWIN)
+/*
+    Apple's mkdtemp() crashes under Valgrind so this replaces it with a version that does not crash under valgrind
+*/
+#include "apple_fdir.h"
+#endif
+
 /*@C
   PetscMkdtemp - Create a folder with a unique name given a filename template.
 
@@ -82,7 +89,7 @@ PetscErrorCode PetscMkdtemp(char dir[])
   }
 #else
   dir = mkdtemp(dir);
-  if (!dir) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Could not create temporary dir using the template: %s",dir);
+  if (PetscUnlikely(!dir)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Could not create temporary dir");
 #endif
   PetscFunctionReturn(0);
 }

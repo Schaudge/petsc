@@ -16,7 +16,7 @@ int main(int argc,char **argv)
   PetscMPIInt          size;
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
   if (size != 1) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"This is a uniprocessor example only!");
 
   /* Create seqaij A */
@@ -77,7 +77,7 @@ int main(int argc,char **argv)
   ierr = MatAssemblyBegin(Rt_dense,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(Rt_dense,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatGetLocalSize(Rt_dense,&m,&n);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_SELF,"Rt_dense: %D,%D\n",m,n);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_SELF,"Rt_dense: %" PetscInt_FMT ",%" PetscInt_FMT "\n",m,n);CHKERRQ(ierr);
 
   /* Get Rt_dense by Apply MatTransposeColoring to R */
   ierr = MatTransColoringApplySpToDen(matcoloring,R,Rt_dense);CHKERRQ(ierr);
@@ -122,7 +122,6 @@ int main(int argc,char **argv)
   ierr = PetscFinalize();
   return ierr;
 }
-
 
 /*TEST
 

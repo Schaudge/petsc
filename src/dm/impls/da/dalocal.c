@@ -56,6 +56,10 @@ PetscErrorCode  DMCreateLocalVector_DA(DM da,Vec *g)
   ierr = VecSetSizes(*g,dd->nlocal,PETSC_DETERMINE);CHKERRQ(ierr);
   ierr = VecSetBlockSize(*g,dd->w);CHKERRQ(ierr);
   ierr = VecSetType(*g,da->vectype);CHKERRQ(ierr);
+  if (dd->nlocal < da->bind_below) {
+    ierr = VecSetBindingPropagates(*g,PETSC_TRUE);CHKERRQ(ierr);
+    ierr = VecBindToCPU(*g,PETSC_TRUE);CHKERRQ(ierr);
+  }
   ierr = VecSetDM(*g, da);CHKERRQ(ierr);
 #if defined(PETSC_HAVE_MATLAB_ENGINE)
   if (dd->w == 1  && da->dim == 2) {
@@ -299,7 +303,6 @@ PetscErrorCode DMDAGetConeSize(DM dm, PetscInt p, PetscInt *coneSize)
     break;
   case 3:
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "Too lazy to do 3D");
-    break;
   }
   PetscFunctionReturn(0);
 }
@@ -345,7 +348,6 @@ PetscErrorCode DMDAGetCone(DM dm, PetscInt p, PetscInt *cone[])
     break;
   case 3:
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "Too lazy to do 3D");
-    break;
   }
   PetscFunctionReturn(0);
 }
@@ -422,7 +424,7 @@ PetscErrorCode DMDASetVertexCoordinates(DM dm, PetscReal xl, PetscReal xu, Petsc
 /*@C
      DMDAGetArray - Gets a work array for a DMDA
 
-    Input Parameter:
+    Input Parameters:
 +    da - information about my local patch
 -    ghosted - do you want arrays for the ghosted or nonghosted patch
 
@@ -548,7 +550,7 @@ done:
 /*@C
      DMDARestoreArray - Restores an array of derivative types for a DMDA
 
-    Input Parameter:
+    Input Parameters:
 +    da - information about my local patch
 .    ghosted - do you want arrays for the ghosted or nonghosted patch
 -    vptr - array data structured

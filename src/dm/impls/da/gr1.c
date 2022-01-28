@@ -85,7 +85,7 @@ PetscErrorCode  DMDASetUniformCoordinates(DM da,PetscReal xmin,PetscReal xmax,Pe
       }
     }
     ierr = VecRestoreArray(xcoor,&coors);CHKERRQ(ierr);
-  } else SETERRQ1(PetscObjectComm((PetscObject)da),PETSC_ERR_SUP,"Cannot create uniform coordinates for this dimension %D\n",dim);
+  } else SETERRQ1(PetscObjectComm((PetscObject)da),PETSC_ERR_SUP,"Cannot create uniform coordinates for this dimension %D",dim);
   ierr = DMSetCoordinates(da,xcoor);CHKERRQ(ierr);
   ierr = PetscLogObjectParent((PetscObject)da,(PetscObject)xcoor);CHKERRQ(ierr);
   ierr = VecDestroy(&xcoor);CHKERRQ(ierr);
@@ -172,8 +172,8 @@ PetscErrorCode VecView_MPI_Draw_DA1d(Vec xin,PetscViewer v)
   ierr = VecGetDM(xin,&da);CHKERRQ(ierr);
   if (!da) SETERRQ(PetscObjectComm((PetscObject)xin),PETSC_ERR_ARG_WRONG,"Vector not generated from a DMDA");
   ierr = PetscObjectGetComm((PetscObject)xin,&comm);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(comm,&size);CHKERRMPI(ierr);
+  ierr = MPI_Comm_rank(comm,&rank);CHKERRMPI(ierr);
 
   ierr = PetscOptionsGetBool(NULL,NULL,"-draw_vec_use_markers",&showmarkers,NULL);CHKERRQ(ierr);
 
@@ -193,10 +193,10 @@ PetscErrorCode VecView_MPI_Draw_DA1d(Vec xin,PetscViewer v)
   ierr = DMDAGetCoordinateName(da,0,&xlabel);CHKERRQ(ierr);
 
   /* Determine the min and max coordinate in plot */
-  if (!rank) xmin = PetscRealPart(xg[0]);
+  if (rank == 0) xmin = PetscRealPart(xg[0]);
   if (rank == size-1) xmax = PetscRealPart(xg[n-1]);
-  ierr = MPI_Bcast(&xmin,1,MPIU_REAL,0,comm);CHKERRQ(ierr);
-  ierr = MPI_Bcast(&xmax,1,MPIU_REAL,size-1,comm);CHKERRQ(ierr);
+  ierr = MPI_Bcast(&xmin,1,MPIU_REAL,0,comm);CHKERRMPI(ierr);
+  ierr = MPI_Bcast(&xmax,1,MPIU_REAL,size-1,comm);CHKERRMPI(ierr);
 
   ierr = DMDASelectFields(da,&ndisplayfields,&displayfields);CHKERRQ(ierr);
   ierr = PetscViewerGetFormat(v,&format);CHKERRQ(ierr);
@@ -246,12 +246,12 @@ PetscErrorCode VecView_MPI_Draw_DA1d(Vec xin,PetscViewer v)
     /* draw local part of vector */
     ierr = PetscObjectGetNewTag((PetscObject)xin,&tag);CHKERRQ(ierr);
     if (rank < size-1) { /*send value to right */
-      ierr = MPI_Send((void*)&xg[n-1],1,MPIU_REAL,rank+1,tag,comm);CHKERRQ(ierr);
-      ierr = MPI_Send((void*)&array[j+(n-1)*dof],1,MPIU_REAL,rank+1,tag,comm);CHKERRQ(ierr);
+      ierr = MPI_Send((void*)&xg[n-1],1,MPIU_REAL,rank+1,tag,comm);CHKERRMPI(ierr);
+      ierr = MPI_Send((void*)&array[j+(n-1)*dof],1,MPIU_REAL,rank+1,tag,comm);CHKERRMPI(ierr);
     }
     if (rank) { /* receive value from left */
-      ierr = MPI_Recv(&xgtmp,1,MPIU_REAL,rank-1,tag,comm,&status);CHKERRQ(ierr);
-      ierr = MPI_Recv(&tmp,1,MPIU_REAL,rank-1,tag,comm,&status);CHKERRQ(ierr);
+      ierr = MPI_Recv(&xgtmp,1,MPIU_REAL,rank-1,tag,comm,&status);CHKERRMPI(ierr);
+      ierr = MPI_Recv(&tmp,1,MPIU_REAL,rank-1,tag,comm,&status);CHKERRMPI(ierr);
     }
     ierr = PetscDrawCollectiveBegin(draw);CHKERRQ(ierr);
     if (rank) {

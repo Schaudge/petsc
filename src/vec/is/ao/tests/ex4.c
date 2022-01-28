@@ -12,10 +12,10 @@ int main(int argc,char **argv)
   PetscMPIInt    rank;
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
   ierr = PetscMalloc1(4,&localvert);CHKERRQ(ierr);
 
-  if (!rank) {
+  if (rank == 0) {
     nlocal       = 4;
     localvert[0] = 0;
     localvert[1] = 1;
@@ -37,7 +37,6 @@ int main(int argc,char **argv)
   ierr = PetscFinalize();
   return ierr;
 }
-
 
 /*TEST
 

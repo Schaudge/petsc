@@ -39,7 +39,6 @@ static PetscErrorCode DMSNESDuplicate_DMDA(DMSNES oldsdm,DMSNES sdm)
   PetscFunctionReturn(0);
 }
 
-
 static PetscErrorCode DMDASNESGetContext(DM dm,DMSNES sdm,DMSNES_DA  **dmdasnes)
 {
   PetscErrorCode ierr;
@@ -139,7 +138,6 @@ static PetscErrorCode SNESComputeObjective_DMDA(SNES snes,Vec X,PetscReal *ob,vo
   PetscFunctionReturn(0);
 }
 
-
 /* Routine is called by example, hence must be labeled PETSC_EXTERN */
 PETSC_EXTERN PetscErrorCode SNESComputeJacobian_DMDA(SNES snes,Vec X,Mat A,Mat B,void *ctx)
 {
@@ -209,7 +207,7 @@ PETSC_EXTERN PetscErrorCode SNESComputeJacobian_DMDA(SNES snes,Vec X,Mat A,Mat B
 
    Logically Collective
 
-   Input Arguments:
+   Input Parameters:
 +  dm - DM to associate callback with
 .  imode - INSERT_VALUES if local function computes owned part, ADD_VALUES if it contributes to ghosted part
 .  func - local residual evaluation
@@ -253,7 +251,7 @@ PetscErrorCode DMDASNESSetFunctionLocal(DM dm,InsertMode imode,PetscErrorCode (*
 
    Logically Collective
 
-   Input Arguments:
+   Input Parameters:
 +  dm - DM to associate callback with
 .  func - local Jacobian evaluation
 -  ctx - optional context for local Jacobian evaluation
@@ -288,13 +286,12 @@ PetscErrorCode DMDASNESSetJacobianLocal(DM dm,PetscErrorCode (*func)(DMDALocalIn
   PetscFunctionReturn(0);
 }
 
-
 /*@C
    DMDASNESSetObjectiveLocal - set a local residual evaluation function
 
    Logically Collective
 
-   Input Arguments:
+   Input Parameters:
 +  dm - DM to associate callback with
 .  func - local objective evaluation
 -  ctx - optional context for local residual evaluation
@@ -411,7 +408,7 @@ static PetscErrorCode SNESComputePicardJacobian_DMDA(SNES snes,Vec X,Mat A,Mat B
 
    Logically Collective
 
-   Input Arguments:
+   Input Parameters:
 +  dm - DM to associate callback with
 .  imode - INSERT_VALUES if local function computes owned part, ADD_VALUES if it contributes to ghosted part
 .  func - local residual evaluation
@@ -427,7 +424,6 @@ static PetscErrorCode SNESComputePicardJacobian_DMDA(SNES snes,Vec X,Mat A,Mat B
     The user must use
     ierr = SNESSetFunction(snes,NULL,SNESPicardComputeFunction,&user);CHKERRQ(ierr);
     in their code before calling this routine.
-
 
    Level: beginner
 
@@ -451,5 +447,6 @@ PetscErrorCode DMDASNESSetPicardLocal(DM dm,InsertMode imode,PetscErrorCode (*fu
   dmdasnes->picardlocalctx     = ctx;
 
   ierr = DMSNESSetPicard(dm,SNESComputePicard_DMDA,SNESComputePicardJacobian_DMDA,dmdasnes);CHKERRQ(ierr);
+  ierr = DMSNESSetMFFunction(dm,SNESComputeFunction_DMDA,dmdasnes);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

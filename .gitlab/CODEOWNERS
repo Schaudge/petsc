@@ -19,16 +19,22 @@ src/ts/event/             @abhyshr @caidao22 @BarrySmith
 /src/ksp/pc/impls/hpddm/  @prj- @stefanozampini
 /src/ksp/ksp/impls/hpddm/ @prj- @stefanozampini
 
-/src/binding/petsc4py/    @dalcinl @wence @pefarrell @joseroman
+/src/binding/petsc4py/    @dalcinl @wence @pefarrell @joseroman @jedbrown @knepley @psanan
 
 /src/sys/classes/viewer/  @petsc/integrators @haplav
+
+/src/sys/objects/device/  @Jfaibussowitsch
 
 /src/vec/is/sf/           @jedbrown @jczhang07
 /src/vec/vscat/           @jczhang07 @BarrySmith
 
-/src/docs/                @psanan @sbalay @BarrySmith @knepley @jedbrown
+/doc/                     @psanan @sbalay @BarrySmith @knepley @jedbrown
 
 /config/*                 @krugers @knepley @sbalay @BarrySmith
 gmakefile*                @krugers @jedbrown @BarrySmith
 .gitlab*.yml              @sbalay @jedbrown
 /lib/petsc                @krugers @sbalay
+
+**/*.kokkos.cxx           @jczhang07 @jedbrown @stefanozampini @markadams4
+**/*.hip.cpp              @jczhang07 @jedbrown @stefanozampini @markadams4 @krugers
+**/*.cu                   @jczhang07 @stefanozampini @markadams4 @karlrupp

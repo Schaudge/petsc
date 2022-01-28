@@ -28,7 +28,6 @@ typedef struct {
   TSStepStatus status;
 } TS_BDF;
 
-
 /* Compute Lagrange polynomials on T[:n] evaluated at t.
  * If one has data (T[i], Y[i]), then the interpolation/extrapolation is f(t) = \sum_i L[i]*Y[i].
  */
@@ -557,7 +556,7 @@ PETSC_EXTERN PetscErrorCode TSCreate_BDF(TS ts)
 
   Logically Collective on TS
 
-  Input Parameter:
+  Input Parameters:
 +  ts - timestepping context
 -  order - order of the method
 

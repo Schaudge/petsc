@@ -1,5 +1,3 @@
-
-
 /*
    Implements the higher-level options database querying methods. These are self-documenting and can attach at runtime to
    GUI code to display the options and get values from the users.
@@ -18,7 +16,6 @@
     Eventually we'll attach this beast to a MPI_Comm
 */
 
-
 /*
     Handles setting up the data structure in a call to PetscOptionsBegin()
 */
@@ -27,9 +24,9 @@ PetscErrorCode PetscOptionsBegin_Private(PetscOptionItems *PetscOptionsObject,MP
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (prefix) PetscValidCharPointer(prefix,2);
-  PetscValidCharPointer(title,3);
-  if (mansec) PetscValidCharPointer(mansec,4);
+  if (prefix) PetscValidCharPointer(prefix,3);
+  PetscValidCharPointer(title,4);
+  if (mansec) PetscValidCharPointer(mansec,5);
   if (!PetscOptionsObject->alreadyprinted) {
     if (!PetscOptionsHelpPrintedSingleton) {
       ierr = PetscOptionsHelpPrintedCreate(&PetscOptionsHelpPrintedSingleton);CHKERRQ(ierr);
@@ -62,7 +59,7 @@ PetscErrorCode PetscObjectOptionsBegin_Private(PetscOptionItems *PetscOptionsObj
   PetscBool      flg;
 
   PetscFunctionBegin;
-  PetscValidHeader(obj,1);
+  PetscValidHeader(obj,2);
   PetscOptionsObject->object         = obj;
   PetscOptionsObject->alreadyprinted = obj->optionsprinted;
 
@@ -130,8 +127,8 @@ static PetscErrorCode PetscScanString(MPI_Comm comm,size_t n,char str[])
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
-  if (!rank) {
+  ierr = MPI_Comm_rank(comm,&rank);CHKERRMPI(ierr);
+  if (rank == 0) {
     c = (char) getchar();
     i = 0;
     while (c != '\n' && i < n-1) {
@@ -141,7 +138,7 @@ static PetscErrorCode PetscScanString(MPI_Comm comm,size_t n,char str[])
     str[i] = 0;
   }
   ierr = PetscMPIIntCast(n,&nm);CHKERRQ(ierr);
-  ierr = MPI_Bcast(str,nm,MPI_CHAR,0,comm);CHKERRQ(ierr);
+  ierr = MPI_Bcast(str,nm,MPI_CHAR,0,comm);CHKERRMPI(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -164,7 +161,6 @@ static PetscErrorCode  PetscStrdup(const char s[],char *t[])
   *t = tmp;
   PetscFunctionReturn(0);
 }
-
 
 /*
     PetscOptionsGetFromTextInput - Presents all the PETSc Options processed by the program so the user may change them at runtime
@@ -205,7 +201,7 @@ PetscErrorCode PetscOptionsGetFromTextInput(PetscOptionItems *PetscOptionsObject
       ierr = PetscPrintf(PETSC_COMM_WORLD,"-%s%s <",PetscOptionsObject->prefix ? PetscOptionsObject->prefix : "",next->option+1);CHKERRQ(ierr);
       vald = (PetscInt*) next->data;
       for (i=0; i<next->arraylength; i++) {
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"%d",vald[i]);CHKERRQ(ierr);
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"%" PetscInt_FMT,vald[i]);CHKERRQ(ierr);
         if (i < next->arraylength-1) {
           ierr = PetscPrintf(PETSC_COMM_WORLD,",");CHKERRQ(ierr);
         }
@@ -233,12 +229,12 @@ PetscErrorCode PetscOptionsGetFromTextInput(PetscOptionItems *PetscOptionsObject
           else i=1;
           for (;i<len; i++) {
             if (value[i] == '-') {
-              if (i == len-1) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_USER,"Error in %D-th array entry %s\n",n,value);
+              if (i == len-1) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_USER,"Error in %" PetscInt_FMT "-th array entry %s",n,value);
               value[i] = 0;
               ierr     = PetscOptionsStringToInt(value,&start);CHKERRQ(ierr);
               ierr     = PetscOptionsStringToInt(value+i+1,&end);CHKERRQ(ierr);
-              if (end <= start) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_USER,"Error in %D-th array entry, %s-%s cannot have decreasing list",n,value,value+i+1);
-              if (n + end - start - 1 >= nmax) SETERRQ4(PETSC_COMM_SELF,PETSC_ERR_USER,"Error in %D-th array entry, not enough space in left in array (%D) to contain entire range from %D to %D",n,nmax-n,start,end);
+              if (end <= start) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_USER,"Error in %" PetscInt_FMT "-th array entry, %s-%s cannot have decreasing list",n,value,value+i+1);
+              if (n + end - start - 1 >= nmax) SETERRQ4(PETSC_COMM_SELF,PETSC_ERR_USER,"Error in %" PetscInt_FMT "-th array entry, not enough space in left in array (%" PetscInt_FMT ") to contain entire range from %" PetscInt_FMT " to %" PetscInt_FMT,n,nmax-n,start,end);
               for (; start<end; start++) {
                 *dvalue = start; dvalue++;n++;
               }
@@ -260,7 +256,7 @@ PetscErrorCode PetscOptionsGetFromTextInput(PetscOptionItems *PetscOptionsObject
       ierr = PetscPrintf(PETSC_COMM_WORLD,"-%s%s <",PetscOptionsObject->prefix ? PetscOptionsObject->prefix : "",next->option+1);CHKERRQ(ierr);
       valr = (PetscReal*) next->data;
       for (i=0; i<next->arraylength; i++) {
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"%g",valr[i]);CHKERRQ(ierr);
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"%g",(double)valr[i]);CHKERRQ(ierr);
         if (i < next->arraylength-1) {
           ierr = PetscPrintf(PETSC_COMM_WORLD,",");CHKERRQ(ierr);
         }
@@ -394,7 +390,6 @@ static const char *OptionsBodyBottom = "<div id=\"variablesInfo\" style=\"backgr
 +    All processes must traverse through the exact same set of option queries do to the call to PetscScanString()
 .    Internal strings have arbitrary length and string copies are not checked that they fit into string space
 -    Only works for PetscInt == int, PetscReal == double etc
-
 
 */
 PetscErrorCode PetscOptionsSAWsInput(PetscOptionItems *PetscOptionsObject)
@@ -626,7 +621,7 @@ PetscErrorCode PetscOptionsEnd_Private(PetscOptionItems *PetscOptionsObject)
     ierr   = PetscFree(PetscOptionsObject->next->man);CHKERRQ(ierr);
     ierr   = PetscFree(PetscOptionsObject->next->edata);CHKERRQ(ierr);
 
-    if ((PetscOptionsObject->next->type == OPTION_STRING) || (PetscOptionsObject->next->type == OPTION_FLIST) || (PetscOptionsObject->next->type == OPTION_ELIST)){
+    if ((PetscOptionsObject->next->type == OPTION_STRING) || (PetscOptionsObject->next->type == OPTION_FLIST) || (PetscOptionsObject->next->type == OPTION_ELIST)) {
       free(PetscOptionsObject->next->data);
     } else {
       ierr   = PetscFree(PetscOptionsObject->next->data);CHKERRQ(ierr);
@@ -648,7 +643,7 @@ PetscErrorCode PetscOptionsEnd_Private(PetscOptionItems *PetscOptionsObject)
 
    Synopsis:
    #include "petscsys.h"
-   PetscErrorCode  PetscOptionsEnum(PetscOptionItems *PetscOptionsObject,const char opt[],const char text[],const char man[],const char *const *list,PetscEnum currentvalue,PetscEnum *value,PetscBool  *set)
+   PetscErrorCode  PetscOptionsEnum(const char opt[],const char text[],const char man[],const char *const *list,PetscEnum currentvalue,PetscEnum *value,PetscBool  *set)
 
    Input Parameters:
 +  opt - option name
@@ -661,7 +656,7 @@ $                 value = defaultvalue
 $                 PetscOptionsEnum(..., value,&value,&flg);
 $                 if (flg) {
 
-   Output Parameter:
+   Output Parameters:
 +  value - the  value to return
 -  set - PETSC_TRUE if found, else PETSC_FALSE
 
@@ -678,7 +673,7 @@ $                 if (flg) {
           The default/currentvalue passed into this routine does not get transferred to the output value variable automatically.
 
 .seealso: PetscOptionsGetReal(), PetscOptionsHasName(), PetscOptionsGetString(), PetscOptionsGetInt(),
-          PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsBool()
+          PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsGetBool(),
           PetscOptionsInt(), PetscOptionsString(), PetscOptionsReal(), PetscOptionsBool(),
           PetscOptionsName(), PetscOptionsBegin(), PetscOptionsEnd(), PetscOptionsHead(),
           PetscOptionsStringArray(),PetscOptionsRealArray(), PetscOptionsScalar(),
@@ -714,7 +709,7 @@ PetscErrorCode  PetscOptionsEnum_Private(PetscOptionItems *PetscOptionsObject,co
 
    Synopsis:
    #include "petscsys.h"
-   PetscErrorCode  PetscOptionsEnumArray(PetscOptionItems *PetscOptionsObject,const char opt[],const char text[],const char man[],const char *const *list,PetscEnum value[],PetscInt *n,PetscBool  *set)
+   PetscErrorCode  PetscOptionsEnumArray(const char opt[],const char text[],const char man[],const char *const *list,PetscEnum value[],PetscInt *n,PetscBool  *set)
 
    Input Parameters:
 +  opt - the option one is seeking
@@ -723,7 +718,7 @@ PetscErrorCode  PetscOptionsEnum_Private(PetscOptionItems *PetscOptionsObject,co
 .  list - array containing the list of choices, followed by the enum name, followed by the enum prefix, followed by a null
 -  n - maximum number of values
 
-   Output Parameter:
+   Output Parameters:
 +  value - location to copy values
 .  n - actual number of values found
 -  set - PETSC_TRUE if found, else PETSC_FALSE
@@ -738,7 +733,7 @@ PetscErrorCode  PetscOptionsEnum_Private(PetscOptionItems *PetscOptionsObject,co
    Must be between a PetscOptionsBegin() and a PetscOptionsEnd()
 
 .seealso: PetscOptionsGetInt(), PetscOptionsGetReal(),
-          PetscOptionsHasName(), PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsBool(),
+          PetscOptionsHasName(), PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsGetBool(),
           PetscOptionsName(), PetscOptionsBegin(), PetscOptionsEnd(), PetscOptionsHead(),
           PetscOptionsStringArray(),PetscOptionsRealArray(), PetscOptionsScalar(),
           PetscOptionsBoolGroupBegin(), PetscOptionsBoolGroup(), PetscOptionsBoolGroupEnd(),
@@ -783,7 +778,7 @@ PetscErrorCode  PetscOptionsEnumArray_Private(PetscOptionItems *PetscOptionsObje
 
    Synopsis:
    #include "petscsys.h"
-   PetscErrorCode  PetscOptionsBoundInt(PetscOptionItems *PetscOptionsObject,const char opt[],const char text[],const char man[],PetscInt currentvalue,PetscInt *value,PetscBool *flg,PetscInt bound)
+   PetscErrorCode  PetscOptionsBoundInt(const char opt[],const char text[],const char man[],PetscInt currentvalue,PetscInt *value,PetscBool *flg,PetscInt bound)
 
    Input Parameters:
 +  opt - option name
@@ -796,7 +791,7 @@ $                 PetscOptionsInt(..., value,&value,&flg);
 $                 if (flg) {
 -  bound - the requested value should be greater than or equal this bound or an error is generated
 
-   Output Parameter:
+   Output Parameters:
 +  value - the integer value to return
 -  flg - PETSC_TRUE if found, else PETSC_FALSE
 
@@ -811,7 +806,7 @@ $                 if (flg) {
    Level: beginner
 
 .seealso: PetscOptionsInt(), PetscOptionsGetReal(), PetscOptionsHasName(), PetscOptionsGetString(), PetscOptionsGetInt(),
-          PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsBool(), PetscOptionsRangeInt()
+          PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsGetBool(), PetscOptionsRangeInt()
           PetscOptionsInt(), PetscOptionsString(), PetscOptionsReal(), PetscOptionsBool(),
           PetscOptionsName(), PetscOptionsBegin(), PetscOptionsEnd(), PetscOptionsHead(),
           PetscOptionsStringArray(),PetscOptionsRealArray(), PetscOptionsScalar(),
@@ -826,7 +821,7 @@ M*/
 
    Synopsis:
    #include "petscsys.h"
-PetscErrorCode  PetscOptionsRangeInt(PetscOptionItems *PetscOptionsObject,const char opt[],const char text[],const char man[],PetscInt currentvalue,PetscInt *value,PetscBool *flg,PetscInt lb,PetscInt ub)
+PetscErrorCode  PetscOptionsRangeInt(const char opt[],const char text[],const char man[],PetscInt currentvalue,PetscInt *value,PetscBool *flg,PetscInt lb,PetscInt ub)
 
    Input Parameters:
 +  opt - option name
@@ -840,7 +835,7 @@ $                 if (flg) {
 .  lb - the lower bound, provided value must be greater than or equal to this value or an error is generated
 -  ub - the upper bound, provided value must be less than or equal to this value or an error is generated
 
-   Output Parameter:
+   Output Parameters:
 +  value - the integer value to return
 -  flg - PETSC_TRUE if found, else PETSC_FALSE
 
@@ -855,7 +850,7 @@ $                 if (flg) {
    Level: beginner
 
 .seealso: PetscOptionsInt(), PetscOptionsGetReal(), PetscOptionsHasName(), PetscOptionsGetString(), PetscOptionsGetInt(),
-          PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsBool(), PetscOptionsBoundedInt()
+          PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsGetBool(), PetscOptionsBoundedInt()
           PetscOptionsInt(), PetscOptionsString(), PetscOptionsReal(), PetscOptionsBool(),
           PetscOptionsName(), PetscOptionsBegin(), PetscOptionsEnd(), PetscOptionsHead(),
           PetscOptionsStringArray(),PetscOptionsRealArray(), PetscOptionsScalar(),
@@ -870,8 +865,7 @@ M*/
 
    Synopsis:
    #include "petscsys.h"
-PetscErrorCode  PetscOptionsInt(PetscOptionItems *PetscOptionsObject,const char opt[],const char text[],const char man[],PetscInt currentvalue,PetscInt *value,PetscBool *flg))
-
+PetscErrorCode  PetscOptionsInt(const char opt[],const char text[],const char man[],PetscInt currentvalue,PetscInt *value,PetscBool *flg))
 
    Input Parameters:
 +  opt - option name
@@ -883,7 +877,7 @@ $                 value = defaultvalue
 $                 PetscOptionsInt(..., value,&value,&flg);
 $                 if (flg) {
 
-   Output Parameter:
+   Output Parameters:
 +  value - the integer value to return
 -  flg - PETSC_TRUE if found, else PETSC_FALSE
 
@@ -898,7 +892,7 @@ $                 if (flg) {
    Level: beginner
 
 .seealso: PetscOptionsBoundedInt(), PetscOptionsGetReal(), PetscOptionsHasName(), PetscOptionsGetString(), PetscOptionsGetInt(),
-          PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsBool(), PetscOptionsRangeInt()
+          PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsGetBool(), PetscOptionsRangeInt()
           PetscOptionsInt(), PetscOptionsString(), PetscOptionsReal(), PetscOptionsBool(),
           PetscOptionsName(), PetscOptionsBegin(), PetscOptionsEnd(), PetscOptionsHead(),
           PetscOptionsStringArray(),PetscOptionsRealArray(), PetscOptionsScalar(),
@@ -913,8 +907,8 @@ PetscErrorCode  PetscOptionsInt_Private(PetscOptionItems *PetscOptionsObject,con
   PetscBool       wasset;
 
   PetscFunctionBegin;
-  if (currentvalue < lb) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Current value %D less than allowed bound %D",currentvalue,lb);
-  if (currentvalue > ub) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Current value %D greater than allowed bound %D",currentvalue,ub);
+  if (currentvalue < lb) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Current value %" PetscInt_FMT " less than allowed bound %" PetscInt_FMT,currentvalue,lb);
+  if (currentvalue > ub) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Current value %" PetscInt_FMT " greater than allowed bound %" PetscInt_FMT,currentvalue,ub);
      if (!PetscOptionsObject->count) {
     ierr = PetscOptionItemCreate_Private(PetscOptionsObject,opt,text,man,OPTION_INT,&amsopt);CHKERRQ(ierr);
     ierr = PetscMalloc(sizeof(PetscInt),&amsopt->data);CHKERRQ(ierr);
@@ -926,11 +920,11 @@ PetscErrorCode  PetscOptionsInt_Private(PetscOptionItems *PetscOptionsObject,con
     }
   }
   ierr = PetscOptionsGetInt(PetscOptionsObject->options,PetscOptionsObject->prefix,opt,value,&wasset);CHKERRQ(ierr);
-  if (wasset && *value < lb) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Newly set value %D less than allowed bound %D",*value,lb);
-  if (wasset && *value > ub) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Newly set value %D greater than allowed bound %D",*value,ub);
+  if (wasset && *value < lb) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Newly set value %" PetscInt_FMT " less than allowed bound %" PetscInt_FMT,*value,lb);
+  if (wasset && *value > ub) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Newly set value %" PetscInt_FMT " greater than allowed bound %" PetscInt_FMT,*value,ub);
   if (set) *set = wasset;
   if (PetscOptionsObject->printhelp && PetscOptionsObject->count == 1 && !PetscOptionsObject->alreadyprinted) {
-    ierr = (*PetscHelpPrintf)(PetscOptionsObject->comm,"  -%s%s <now %D : formerly %D>: %s (%s)\n",PetscOptionsObject->prefix ? PetscOptionsObject->prefix : "",opt+1,wasset && value ? *value : currentvalue,currentvalue,text,ManSection(man));CHKERRQ(ierr);
+    ierr = (*PetscHelpPrintf)(PetscOptionsObject->comm,"  -%s%s <now %" PetscInt_FMT " : formerly %" PetscInt_FMT ">: %s (%s)\n",PetscOptionsObject->prefix ? PetscOptionsObject->prefix : "",opt+1,wasset && value ? *value : currentvalue,currentvalue,text,ManSection(man));CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -942,7 +936,7 @@ PetscErrorCode  PetscOptionsInt_Private(PetscOptionItems *PetscOptionsObject,con
 
    Synopsis:
    #include "petscsys.h"
-   PetscErrorCode  PetscOptionsString(PetscOptionItems *PetscOptionsObject,const char opt[],const char text[],const char man[],const char currentvalue[],char value[],size_t len,PetscBool  *set)
+   PetscErrorCode  PetscOptionsString(const char opt[],const char text[],const char man[],const char currentvalue[],char value[],size_t len,PetscBool  *set)
 
    Input Parameters:
 +  opt - option name
@@ -951,7 +945,7 @@ PetscErrorCode  PetscOptionsInt_Private(PetscOptionItems *PetscOptionsObject,con
 .  currentvalue - the current value; caller is responsible for setting this value correctly. This is not used to set value
 -  len - length of the result string including null terminator
 
-   Output Parameter:
+   Output Parameters:
 +  value - the value to return
 -  flg - PETSC_TRUE if found, else PETSC_FALSE
 
@@ -967,9 +961,8 @@ PetscErrorCode  PetscOptionsInt_Private(PetscOptionItems *PetscOptionsObject,con
 
           The default/currentvalue passed into this routine does not get transferred to the output value variable automatically.
 
-
 .seealso: PetscOptionsGetReal(), PetscOptionsHasName(), PetscOptionsGetString(), PetscOptionsGetInt(),
-          PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsBool()
+          PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsGetBool(),
           PetscOptionsInt(), PetscOptionsReal(), PetscOptionsBool(),
           PetscOptionsName(), PetscOptionsBegin(), PetscOptionsEnd(), PetscOptionsHead(),
           PetscOptionsStringArray(),PetscOptionsRealArray(), PetscOptionsScalar(),
@@ -1004,7 +997,7 @@ PetscErrorCode  PetscOptionsString_Private(PetscOptionItems *PetscOptionsObject,
 
    Synopsis:
    #include "petscsys.h"
-   PetscErrorCode  PetscOptionsReal(PetscOptionItems *PetscOptionsObject,const char opt[],const char text[],const char man[],PetscReal currentvalue,PetscReal *value,PetscBool  *set)
+   PetscErrorCode  PetscOptionsReal(const char opt[],const char text[],const char man[],PetscReal currentvalue,PetscReal *value,PetscBool  *set)
 
    Input Parameters:
 +  opt - option name
@@ -1016,7 +1009,7 @@ $                 value = defaultvalue
 $                 PetscOptionsReal(..., value,&value,&flg);
 $                 if (flg) {
 
-   Output Parameter:
+   Output Parameters:
 +  value - the value to return
 -  flg - PETSC_TRUE if found, else PETSC_FALSE
 
@@ -1031,7 +1024,7 @@ $                 if (flg) {
    Level: beginner
 
 .seealso: PetscOptionsGetReal(), PetscOptionsHasName(), PetscOptionsGetString(), PetscOptionsGetInt(),
-          PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsBool()
+          PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsGetBool(),
           PetscOptionsInt(), PetscOptionsString(), PetscOptionsReal(), PetscOptionsBool(),
           PetscOptionsName(), PetscOptionsBegin(), PetscOptionsEnd(), PetscOptionsHead(),
           PetscOptionsStringArray(),PetscOptionsRealArray(), PetscOptionsScalar(),
@@ -1067,7 +1060,7 @@ PetscErrorCode  PetscOptionsReal_Private(PetscOptionItems *PetscOptionsObject,co
 
    Synopsis:
    #include "petscsys.h"
-   PetscErrorCode PetscOptionsScalar(PetscOptionItems *PetscOptionsObject,const char opt[],const char text[],const char man[],PetscScalar currentvalue,PetscScalar *value,PetscBool  *set)
+   PetscErrorCode PetscOptionsScalar(const char opt[],const char text[],const char man[],PetscScalar currentvalue,PetscScalar *value,PetscBool  *set)
 
    Input Parameters:
 +  opt - option name
@@ -1079,8 +1072,7 @@ $                 value = defaultvalue
 $                 PetscOptionsScalar(..., value,&value,&flg);
 $                 if (flg) {
 
-
-   Output Parameter:
+   Output Parameters:
 +  value - the value to return
 -  flg - PETSC_TRUE if found, else PETSC_FALSE
 
@@ -1095,7 +1087,7 @@ $                 if (flg) {
    Level: beginner
 
 .seealso: PetscOptionsGetReal(), PetscOptionsHasName(), PetscOptionsGetString(), PetscOptionsGetInt(),
-          PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsBool()
+          PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsGetBool(),
           PetscOptionsInt(), PetscOptionsString(), PetscOptionsReal(), PetscOptionsBool(),
           PetscOptionsName(), PetscOptionsBegin(), PetscOptionsEnd(), PetscOptionsHead(),
           PetscOptionsStringArray(),PetscOptionsRealArray(), PetscOptionsScalar(),
@@ -1124,7 +1116,7 @@ PetscErrorCode  PetscOptionsScalar_Private(PetscOptionItems *PetscOptionsObject,
 
    Synopsis:
    #include "petscsys.h"
-   PetscErrorCode PetscOptionsName(PetscOptionItems *PetscOptionsObject,const char opt[],const char text[],const char man[],PetscBool  *flg)
+   PetscErrorCode PetscOptionsName(const char opt[],const char text[],const char man[],PetscBool  *flg)
 
    Input Parameters:
 +  opt - option name
@@ -1140,7 +1132,7 @@ PetscErrorCode  PetscOptionsScalar_Private(PetscOptionItems *PetscOptionsObject,
     Must be between a PetscOptionsBegin() and a PetscOptionsEnd()
 
 .seealso: PetscOptionsGetReal(), PetscOptionsHasName(), PetscOptionsGetString(), PetscOptionsGetInt(),
-          PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsBool()
+          PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsGetBool(),
           PetscOptionsInt(), PetscOptionsString(), PetscOptionsReal(), PetscOptionsBool(),
           PetscOptionsName(), PetscOptionsBegin(), PetscOptionsEnd(), PetscOptionsHead(),
           PetscOptionsStringArray(),PetscOptionsRealArray(), PetscOptionsScalar(),
@@ -1174,7 +1166,7 @@ PetscErrorCode  PetscOptionsName_Private(PetscOptionItems *PetscOptionsObject,co
 
    Synopsis:
    #include "petscsys.h"
-   PetscErrorCode  PetscOptionsFList(PetscOptionItems *PetscOptionsObject,const char opt[],const char ltext[],const char man[],PetscFunctionList list,const char currentvalue[],char value[],size_t len,PetscBool  *set)
+   PetscErrorCode  PetscOptionsFList(const char opt[],const char ltext[],const char man[],PetscFunctionList list,const char currentvalue[],char value[],size_t len,PetscBool  *set)
 
    Input Parameters:
 +  opt - option name
@@ -1186,7 +1178,7 @@ $                 PetscOptionsFlist(..., obj->value,value,len,&flg);
 $                 if (flg) {
 -  len - the length of the character array value
 
-   Output Parameter:
+   Output Parameters:
 +  value - the value to return
 -  set - PETSC_TRUE if found, else PETSC_FALSE
 
@@ -1243,7 +1235,7 @@ PetscErrorCode  PetscOptionsFList_Private(PetscOptionItems *PetscOptionsObject,c
 
    Synopsis:
    #include "petscsys.h"
-   PetscErrorCode  PetscOptionsEList(PetscOptionItems *PetscOptionsObject,const char opt[],const char ltext[],const char man[],const char *const *list,PetscInt ntext,const char currentvalue[],PetscInt *value,PetscBool  *set)
+   PetscErrorCode  PetscOptionsEList(const char opt[],const char ltext[],const char man[],const char *const *list,PetscInt ntext,const char currentvalue[],PetscInt *value,PetscBool  *set)
 
    Input Parameters:
 +  opt - option name
@@ -1255,8 +1247,7 @@ PetscErrorCode  PetscOptionsFList_Private(PetscOptionItems *PetscOptionsObject,c
 $                 PetscOptionsElist(..., obj->value,&value,&flg);
 $                 if (flg) {
 
-
-   Output Parameter:
+   Output Parameters:
 +  value - the index of the value to return
 -  set - PETSC_TRUE if found, else PETSC_FALSE
 
@@ -1313,7 +1304,7 @@ PetscErrorCode  PetscOptionsEList_Private(PetscOptionItems *PetscOptionsObject,c
 
    Synopsis:
    #include "petscsys.h"
-   PetscErrorCode PetscOptionsBoolGroupBegin(PetscOptionItems *PetscOptionsObject,const char opt[],const char text[],const char man[],PetscBool  *flg)
+   PetscErrorCode PetscOptionsBoolGroupBegin(const char opt[],const char text[],const char man[],PetscBool  *flg)
 
    Input Parameters:
 +  opt - option name
@@ -1367,7 +1358,7 @@ PetscErrorCode  PetscOptionsBoolGroupBegin_Private(PetscOptionItems *PetscOption
 
    Synopsis:
    #include "petscsys.h"
-   PetscErrorCode PetscOptionsBoolGroup(PetscOptionItems *PetscOptionsObject,const char opt[],const char text[],const char man[],PetscBool  *flg)
+   PetscErrorCode PetscOptionsBoolGroup(const char opt[],const char text[],const char man[],PetscBool  *flg)
 
    Input Parameters:
 +  opt - option name
@@ -1420,7 +1411,7 @@ PetscErrorCode  PetscOptionsBoolGroup_Private(PetscOptionItems *PetscOptionsObje
 
    Synopsis:
    #include "petscsys.h"
-   PetscErrorCode PetscOptionsBoolGroupEnd(PetscOptionItems *PetscOptionsObject,const char opt[],const char text[],const char man[],PetscBool  *flg)
+   PetscErrorCode PetscOptionsBoolGroupEnd(const char opt[],const char text[],const char man[],PetscBool  *flg)
 
    Input Parameters:
 +  opt - option name
@@ -1472,7 +1463,7 @@ PetscErrorCode  PetscOptionsBoolGroupEnd_Private(PetscOptionItems *PetscOptionsO
 
    Synopsis:
    #include "petscsys.h"
-   PetscErrorCode PetscOptionsBool(PetscOptionItems *PetscOptionsObject,const char opt[],const char text[],const char man[],PetscBool currentvalue,PetscBool  *flg,PetscBool  *set)
+   PetscErrorCode PetscOptionsBool(const char opt[],const char text[],const char man[],PetscBool currentvalue,PetscBool  *flg,PetscBool  *set)
 
    Input Parameters:
 +  opt - option name
@@ -1480,7 +1471,7 @@ PetscErrorCode  PetscOptionsBoolGroupEnd_Private(PetscOptionItems *PetscOptionsO
 .  man - manual page with additional information on option
 -  currentvalue - the current value
 
-   Output Parameter:
+   Output Parameters:
 +  flg - PETSC_TRUE or PETSC_FALSE
 -  set - PETSC_TRUE if found, else PETSC_FALSE
 
@@ -1499,8 +1490,8 @@ PetscErrorCode  PetscOptionsBoolGroupEnd_Private(PetscOptionItems *PetscOptionsO
    Level: beginner
 
 .seealso: PetscOptionsGetReal(), PetscOptionsHasName(), PetscOptionsGetString(), PetscOptionsGetInt(),
-          PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsBool()
-          PetscOptionsInt(), PetscOptionsString(), PetscOptionsReal(), PetscOptionsBool(),
+          PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsGetBool(),
+          PetscOptionsInt(), PetscOptionsString(), PetscOptionsReal(),
           PetscOptionsName(), PetscOptionsBegin(), PetscOptionsEnd(), PetscOptionsHead(),
           PetscOptionsStringArray(),PetscOptionsRealArray(), PetscOptionsScalar(),
           PetscOptionsBoolGroupBegin(), PetscOptionsBoolGroup(), PetscOptionsBoolGroupEnd(),
@@ -1538,7 +1529,7 @@ PetscErrorCode  PetscOptionsBool_Private(PetscOptionItems *PetscOptionsObject,co
 
    Synopsis:
    #include "petscsys.h"
-   PetscErrorCode PetscOptionsRealArray(PetscOptionItems *PetscOptionsObject,const char opt[],const char text[],const char man[],PetscReal value[],PetscInt *n,PetscBool  *set)
+   PetscErrorCode PetscOptionsRealArray(const char opt[],const char text[],const char man[],PetscReal value[],PetscInt *n,PetscBool  *set)
 
    Input Parameters:
 +  opt - the option one is seeking
@@ -1546,7 +1537,7 @@ PetscErrorCode  PetscOptionsBool_Private(PetscOptionItems *PetscOptionsObject,co
 .  man - manual page for option
 -  nmax - maximum number of values
 
-   Output Parameter:
+   Output Parameters:
 +  value - location to copy values
 .  nmax - actual number of values found
 -  set - PETSC_TRUE if found, else PETSC_FALSE
@@ -1602,7 +1593,7 @@ PetscErrorCode PetscOptionsRealArray_Private(PetscOptionItems *PetscOptionsObjec
 
    Synopsis:
    #include "petscsys.h"
-   PetscErrorCode PetscOptionsScalarArray(PetscOptionItems *PetscOptionsObject,const char opt[],const char text[],const char man[],PetscScalar value[],PetscInt *n,PetscBool  *set)
+   PetscErrorCode PetscOptionsScalarArray(const char opt[],const char text[],const char man[],PetscScalar value[],PetscInt *n,PetscBool  *set)
 
    Input Parameters:
 +  opt - the option one is seeking
@@ -1610,7 +1601,7 @@ PetscErrorCode PetscOptionsRealArray_Private(PetscOptionItems *PetscOptionsObjec
 .  man - manual page for option
 -  nmax - maximum number of values
 
-   Output Parameter:
+   Output Parameters:
 +  value - location to copy values
 .  nmax - actual number of values found
 -  set - PETSC_TRUE if found, else PETSC_FALSE
@@ -1665,7 +1656,7 @@ PetscErrorCode PetscOptionsScalarArray_Private(PetscOptionItems *PetscOptionsObj
 
    Synopsis:
    #include "petscsys.h"
-   PetscErrorCode PetscOptionsIntArray(PetscOptionItems *PetscOptionsObject,const char opt[],const char text[],const char man[],PetscInt value[],PetscInt *n,PetscBool  *set)
+   PetscErrorCode PetscOptionsIntArray(const char opt[],const char text[],const char man[],PetscInt value[],PetscInt *n,PetscBool  *set)
 
    Input Parameters:
 +  opt - the option one is seeking
@@ -1673,7 +1664,7 @@ PetscErrorCode PetscOptionsScalarArray_Private(PetscOptionItems *PetscOptionsObj
 .  man - manual page for option
 -  n - maximum number of values
 
-   Output Parameter:
+   Output Parameters:
 +  value - location to copy values
 .  n - actual number of values found
 -  set - PETSC_TRUE if found, else PETSC_FALSE
@@ -1717,9 +1708,9 @@ PetscErrorCode  PetscOptionsIntArray_Private(PetscOptionItems *PetscOptionsObjec
   }
   ierr = PetscOptionsGetIntArray(PetscOptionsObject->options,PetscOptionsObject->prefix,opt,value,n,set);CHKERRQ(ierr);
   if (PetscOptionsObject->printhelp && PetscOptionsObject->count == 1 && !PetscOptionsObject->alreadyprinted) {
-    ierr = (*PetscHelpPrintf)(PetscOptionsObject->comm,"  -%s%s <%d",PetscOptionsObject->prefix ? PetscOptionsObject->prefix : "",opt+1,value[0]);CHKERRQ(ierr);
+    ierr = (*PetscHelpPrintf)(PetscOptionsObject->comm,"  -%s%s <%" PetscInt_FMT,PetscOptionsObject->prefix ? PetscOptionsObject->prefix : "",opt+1,value[0]);CHKERRQ(ierr);
     for (i=1; i<*n; i++) {
-      ierr = (*PetscHelpPrintf)(PetscOptionsObject->comm,",%d",value[i]);CHKERRQ(ierr);
+      ierr = (*PetscHelpPrintf)(PetscOptionsObject->comm,",%" PetscInt_FMT,value[i]);CHKERRQ(ierr);
     }
     ierr = (*PetscHelpPrintf)(PetscOptionsObject->comm,">: %s (%s)\n",text,ManSection(man));CHKERRQ(ierr);
   }
@@ -1735,7 +1726,7 @@ PetscErrorCode  PetscOptionsIntArray_Private(PetscOptionItems *PetscOptionsObjec
 
    Synopsis:
    #include "petscsys.h"
-   PetscErrorCode PetscOptionsStringArray(PetscOptionItems *PetscOptionsObject,const char opt[],const char text[],const char man[],char *value[],PetscInt *nmax,PetscBool  *set)
+   PetscErrorCode PetscOptionsStringArray(const char opt[],const char text[],const char man[],char *value[],PetscInt *nmax,PetscBool  *set)
 
    Input Parameters:
 +  opt - the option one is seeking
@@ -1743,7 +1734,7 @@ PetscErrorCode  PetscOptionsIntArray_Private(PetscOptionItems *PetscOptionsObjec
 .  man - manual page for option
 -  nmax - maximum number of strings
 
-   Output Parameter:
+   Output Parameters:
 +  value - location to copy strings
 .  nmax - actual number of strings found
 -  set - PETSC_TRUE if found, else PETSC_FALSE
@@ -1795,7 +1786,7 @@ PetscErrorCode  PetscOptionsStringArray_Private(PetscOptionItems *PetscOptionsOb
 
    Synopsis:
    #include "petscsys.h"
-   PetscErrorCode PetscOptionsBoolArray(PetscOptionItems *PetscOptionsObject,const char opt[],const char text[],const char man[],PetscBool value[],PetscInt *n,PetscBool *set)
+   PetscErrorCode PetscOptionsBoolArray(const char opt[],const char text[],const char man[],PetscBool value[],PetscInt *n,PetscBool *set)
 
    Input Parameters:
 +  opt - the option one is seeking
@@ -1803,7 +1794,7 @@ PetscErrorCode  PetscOptionsStringArray_Private(PetscOptionItems *PetscOptionsOb
 .  man - manual page for option
 -  nmax - maximum number of values
 
-   Output Parameter:
+   Output Parameters:
 +  value - location to copy values
 .  nmax - actual number of values found
 -  set - PETSC_TRUE if found, else PETSC_FALSE
@@ -1857,14 +1848,14 @@ PetscErrorCode  PetscOptionsBoolArray_Private(PetscOptionItems *PetscOptionsObje
 
    Synopsis:
    #include "petscsys.h"
-   PetscErrorCode PetscOptionsViewer(PetscOptionItems *PetscOptionsObject,const char opt[],const char text[],const char man[],PetscViewer *viewer,PetscViewerFormat *format,PetscBool  *set)
+   PetscErrorCode PetscOptionsViewer(const char opt[],const char text[],const char man[],PetscViewer *viewer,PetscViewerFormat *format,PetscBool  *set)
 
    Input Parameters:
 +  opt - option name
 .  text - short string that describes the option
 -  man - manual page with additional information on option
 
-   Output Parameter:
+   Output Parameters:
 +  viewer - the viewer
 -  set - PETSC_TRUE if found, else PETSC_FALSE
 
@@ -1911,11 +1902,10 @@ PetscErrorCode  PetscOptionsViewer_Private(PetscOptionItems *PetscOptionsObject,
    Input Parameter:
 .   head - the heading text
 
-
    Level: intermediate
 
    Notes:
-    Must be between a PetscOptionsBegin() and a PetscOptionsEnd()
+    Must be between a PetscOptionsBegin() and a PetscOptionsEnd(), and PetscOptionsObject created in PetscOptionsBegin() should be the first argument
 
           Can be followed by a call to PetscOptionsTail() in the same function.
 
@@ -1936,9 +1926,4 @@ PetscErrorCode  PetscOptionsHead(PetscOptionItems *PetscOptionsObject,const char
   }
   PetscFunctionReturn(0);
 }
-
-
-
-
-
 

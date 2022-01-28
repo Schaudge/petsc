@@ -305,7 +305,7 @@ static PetscErrorCode TSAdaptSetFromOptions_DSP(PetscOptionItems *PetscOptionsOb
 
    Collective on TSAdapt
 
-   Input Arguments:
+   Input Parameters:
 +  adapt - adaptive controller context
 -  name - filter name
 
@@ -332,7 +332,7 @@ PetscErrorCode TSAdaptDSPSetFilter(TSAdapt adapt,const char *name)
   PetscErrorCode ierr;
   PetscFunctionBegin;
   PetscValidHeaderSpecific(adapt,TSADAPT_CLASSID,1);
-  PetscValidCharPointer(name,1);
+  PetscValidCharPointer(name,2);
   ierr = PetscTryMethod(adapt,"TSAdaptDSPSetFilter_C",(TSAdapt,const char*),(adapt,name));CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -340,7 +340,7 @@ PetscErrorCode TSAdaptDSPSetFilter(TSAdapt adapt,const char *name)
 /*@
    TSAdaptDSPSetPID - Set the PID controller parameters
 
-   Input Arguments:
+   Input Parameters:
 +  adapt - adaptive controller context
 .  kkI - Integral parameter
 .  kkP - Proportional parameter

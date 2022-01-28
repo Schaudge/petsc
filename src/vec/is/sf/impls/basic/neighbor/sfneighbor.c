@@ -1,19 +1,49 @@
 #include <../src/vec/is/sf/impls/basic/sfpack.h>
 #include <../src/vec/is/sf/impls/basic/sfbasic.h>
 
-#if defined(PETSC_HAVE_MPI_NEIGHBORHOOD_COLLECTIVES)
+/* A convenience temporary type */
+#if defined(PETSC_HAVE_MPI_LARGE_COUNT) && defined(PETSC_USE_64BIT_INDICES)
+  typedef PetscInt     PetscSFCount;
+#else
+  typedef PetscMPIInt  PetscSFCount;
+#endif
 
 typedef struct {
   SFBASICHEADER;
   MPI_Comm      comms[2];       /* Communicators with distributed topology in both directions */
   PetscBool     initialized[2]; /* Are the two communicators initialized? */
-  PetscMPIInt   *rootdispls,*rootcounts,*leafdispls,*leafcounts; /* displs/counts for non-distinguished ranks */
+  PetscSFCount  *rootdispls,*rootcounts,*leafdispls,*leafcounts; /* displs/counts for non-distinguished ranks */
+  PetscMPIInt   *rootweights,*leafweights;
   PetscInt      rootdegree,leafdegree;
 } PetscSF_Neighbor;
 
 /*===================================================================================*/
 /*              Internal utility routines                                            */
 /*===================================================================================*/
+
+PETSC_STATIC_INLINE PetscErrorCode PetscLogMPIMessages(PetscInt nsend,PetscSFCount *sendcnts,MPI_Datatype sendtype,PetscInt nrecv,PetscSFCount* recvcnts,MPI_Datatype recvtype)
+{
+  PetscFunctionBegin;
+#if defined(PETSC_USE_LOG)
+  petsc_isend_ct += (PetscLogDouble)nsend;
+  petsc_irecv_ct += (PetscLogDouble)nrecv;
+
+  if (sendtype != MPI_DATATYPE_NULL) {
+    PetscErrorCode    ierr;
+    PetscMPIInt       i,typesize;
+    ierr = MPI_Type_size(sendtype,&typesize);CHKERRMPI(ierr);
+    for (i=0; i<nsend; i++) petsc_isend_len += (PetscLogDouble)(sendcnts[i]*typesize);
+  }
+
+  if (recvtype != MPI_DATATYPE_NULL) {
+    PetscErrorCode    ierr;
+    PetscMPIInt       i,typesize;
+    ierr = MPI_Type_size(recvtype,&typesize);CHKERRMPI(ierr);
+    for (i=0; i<nrecv; i++) petsc_irecv_len += (PetscLogDouble)(recvcnts[i]*typesize);
+  }
+#endif
+  PetscFunctionReturn(0);
+}
 
 /* Get the communicator with distributed graph topology, which is not cheap to build so we do it on demand (instead of at PetscSFSetUp time) */
 static PetscErrorCode PetscSFGetDistComm_Neighbor(PetscSF sf,PetscSFDirection direction,MPI_Comm *distcomm)
@@ -34,9 +64,9 @@ static PetscErrorCode PetscSFGetDistComm_Neighbor(PetscSF sf,PetscSFDirection di
     MPI_Comm          *mycomm   = &dat->comms[direction];
     ierr = PetscObjectGetComm((PetscObject)sf,&comm);CHKERRQ(ierr);
     if (direction == PETSCSF_LEAF2ROOT) {
-      ierr = MPI_Dist_graph_create_adjacent(comm,indegree,sources,dat->rootcounts/*src weights*/,outdegree,destinations,dat->leafcounts/*dest weights*/,MPI_INFO_NULL,1/*reorder*/,mycomm);CHKERRQ(ierr);
+      ierr = MPI_Dist_graph_create_adjacent(comm,indegree,sources,dat->rootweights,outdegree,destinations,dat->leafweights,MPI_INFO_NULL,1/*reorder*/,mycomm);CHKERRMPI(ierr);
     } else { /* PETSCSF_ROOT2LEAF, reverse src & dest */
-      ierr = MPI_Dist_graph_create_adjacent(comm,outdegree,destinations,dat->leafcounts/*src weights*/,indegree,sources,dat->rootcounts/*dest weights*/,MPI_INFO_NULL,1/*reorder*/,mycomm);CHKERRQ(ierr);
+      ierr = MPI_Dist_graph_create_adjacent(comm,outdegree,destinations,dat->leafweights,indegree,sources,dat->rootweights,MPI_INFO_NULL,1/*reorder*/,mycomm);CHKERRMPI(ierr);
     }
     dat->initialized[direction] = PETSC_TRUE;
   }
@@ -62,22 +92,39 @@ static PetscErrorCode PetscSFSetUp_Neighbor(PetscSF sf)
   sf->persistent  = PETSC_FALSE;
   ierr = PetscSFGetRootInfo_Basic(sf,&nrootranks,&ndrootranks,NULL,&rootoffset,NULL);CHKERRQ(ierr);
   ierr = PetscSFGetLeafInfo_Basic(sf,&nleafranks,&ndleafranks,NULL,&leafoffset,NULL,NULL);CHKERRQ(ierr);
-  dat->rootdegree = nrootranks-ndrootranks;
-  dat->leafdegree = nleafranks-ndleafranks;
+  dat->rootdegree = m = (PetscMPIInt)(nrootranks-ndrootranks);
+  dat->leafdegree = n = (PetscMPIInt)(nleafranks-ndleafranks);
   sf->nleafreqs   = 0;
   dat->nrootreqs  = 1;
 
   /* Only setup MPI displs/counts for non-distinguished ranks. Distinguished ranks use shared memory */
-  ierr = PetscMalloc4(dat->rootdegree,&dat->rootdispls,dat->rootdegree,&dat->rootcounts,dat->leafdegree,&dat->leafdispls,dat->leafdegree,&dat->leafcounts);CHKERRQ(ierr);
+  ierr = PetscMalloc6(m,&dat->rootdispls,m,&dat->rootcounts,m,&dat->rootweights,n,&dat->leafdispls,n,&dat->leafcounts,n,&dat->leafweights);CHKERRQ(ierr);
+
+ #if defined(PETSC_HAVE_MPI_LARGE_COUNT) && defined(PETSC_USE_64BIT_INDICES)
+  for (i=ndrootranks,j=0; i<nrootranks; i++,j++) {
+    dat->rootdispls[j]  = rootoffset[i]-rootoffset[ndrootranks];
+    dat->rootcounts[j]  = rootoffset[i+1]-rootoffset[i];
+    dat->rootweights[j] = (PetscMPIInt)((PetscReal)dat->rootcounts[j]/(PetscReal)PETSC_MAX_INT*2147483647); /* Scale to range of PetscMPIInt */
+  }
+
+  for (i=ndleafranks,j=0; i<nleafranks; i++,j++) {
+    dat->leafdispls[j]  = leafoffset[i]-leafoffset[ndleafranks];
+    dat->leafcounts[j]  = leafoffset[i+1]-leafoffset[i];
+    dat->leafweights[j] = (PetscMPIInt)((PetscReal)dat->leafcounts[j]/(PetscReal)PETSC_MAX_INT*2147483647);
+  }
+ #else
   for (i=ndrootranks,j=0; i<nrootranks; i++,j++) {
     ierr = PetscMPIIntCast(rootoffset[i]-rootoffset[ndrootranks],&m);CHKERRQ(ierr); dat->rootdispls[j] = m;
     ierr = PetscMPIIntCast(rootoffset[i+1]-rootoffset[i],        &n);CHKERRQ(ierr); dat->rootcounts[j] = n;
+    dat->rootweights[j] = n;
   }
 
   for (i=ndleafranks,j=0; i<nleafranks; i++,j++) {
     ierr = PetscMPIIntCast(leafoffset[i]-leafoffset[ndleafranks],&m);CHKERRQ(ierr); dat->leafdispls[j] = m;
     ierr = PetscMPIIntCast(leafoffset[i+1]-leafoffset[i],        &n);CHKERRQ(ierr); dat->leafcounts[j] = n;
+    dat->leafweights[j] = n;
   }
+ #endif
   PetscFunctionReturn(0);
 }
 
@@ -89,10 +136,10 @@ static PetscErrorCode PetscSFReset_Neighbor(PetscSF sf)
 
   PetscFunctionBegin;
   if (dat->inuse) SETERRQ(PetscObjectComm((PetscObject)sf),PETSC_ERR_ARG_WRONGSTATE,"Outstanding operation has not been completed");
-  ierr = PetscFree4(dat->rootdispls,dat->rootcounts,dat->leafdispls,dat->leafcounts);CHKERRQ(ierr);
+  ierr = PetscFree6(dat->rootdispls,dat->rootcounts,dat->rootweights,dat->leafdispls,dat->leafcounts,dat->leafweights);CHKERRQ(ierr);
   for (i=0; i<2; i++) {
     if (dat->initialized[i]) {
-      ierr = MPI_Comm_free(&dat->comms[i]);CHKERRQ(ierr);
+      ierr = MPI_Comm_free(&dat->comms[i]);CHKERRMPI(ierr);
       dat->initialized[i] = PETSC_FALSE;
     }
   }
@@ -110,12 +157,12 @@ static PetscErrorCode PetscSFDestroy_Neighbor(PetscSF sf)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscSFBcastAndOpBegin_Neighbor(PetscSF sf,MPI_Datatype unit,PetscMemType rootmtype,const void *rootdata,PetscMemType leafmtype,void *leafdata,MPI_Op op)
+static PetscErrorCode PetscSFBcastBegin_Neighbor(PetscSF sf,MPI_Datatype unit,PetscMemType rootmtype,const void *rootdata,PetscMemType leafmtype,void *leafdata,MPI_Op op)
 {
   PetscErrorCode       ierr;
   PetscSFLink          link;
   PetscSF_Neighbor     *dat = (PetscSF_Neighbor*)sf->data;
-  MPI_Comm             distcomm;
+  MPI_Comm             distcomm = MPI_COMM_NULL;
   void                 *rootbuf = NULL,*leafbuf = NULL;
   MPI_Request          *req;
 
@@ -123,10 +170,16 @@ static PetscErrorCode PetscSFBcastAndOpBegin_Neighbor(PetscSF sf,MPI_Datatype un
   ierr = PetscSFLinkCreate(sf,unit,rootmtype,rootdata,leafmtype,leafdata,op,PETSCSF_BCAST,&link);CHKERRQ(ierr);
   ierr = PetscSFLinkPackRootData(sf,link,PETSCSF_REMOTE,rootdata);CHKERRQ(ierr);
   /* Do neighborhood alltoallv for remote ranks */
+  ierr = PetscSFLinkCopyRootBufferInCaseNotUseGpuAwareMPI(sf,link,PETSC_TRUE/* device2host before sending */);CHKERRQ(ierr);
   ierr = PetscSFGetDistComm_Neighbor(sf,PETSCSF_ROOT2LEAF,&distcomm);CHKERRQ(ierr);
   ierr = PetscSFLinkGetMPIBuffersAndRequests(sf,link,PETSCSF_ROOT2LEAF,&rootbuf,&leafbuf,&req,NULL);CHKERRQ(ierr);
-  ierr = MPI_Start_ineighbor_alltoallv(dat->rootdegree,dat->leafdegree,rootbuf,dat->rootcounts,dat->rootdispls,unit,leafbuf,dat->leafcounts,dat->leafdispls,unit,distcomm,req);CHKERRQ(ierr);
-  ierr = PetscSFLinkBcastAndOpLocal(sf,link,rootdata,leafdata,op);
+  ierr = PetscSFLinkSyncStreamBeforeCallMPI(sf,link,PETSCSF_ROOT2LEAF);CHKERRQ(ierr);
+  /* OpenMPI-3.0 ran into error with rootdegree = leafdegree = 0, so we skip the call in this case */
+  if (dat->rootdegree || dat->leafdegree) {
+    ierr = MPIU_Ineighbor_alltoallv(rootbuf,dat->rootcounts,dat->rootdispls,unit,leafbuf,dat->leafcounts,dat->leafdispls,unit,distcomm,req);CHKERRMPI(ierr);
+  }
+  ierr = PetscLogMPIMessages(dat->rootdegree,dat->rootcounts,unit,dat->leafdegree,dat->leafcounts,unit);CHKERRQ(ierr);
+  ierr = PetscSFLinkScatterLocal(sf,link,PETSCSF_ROOT2LEAF,(void*)rootdata,leafdata,op);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -143,9 +196,14 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFLeafToRootBegin_Neighbor(PetscSF sf,MP
   ierr = PetscSFLinkCreate(sf,unit,rootmtype,rootdata,leafmtype,leafdata,op,sfop,&link);CHKERRQ(ierr);
   ierr = PetscSFLinkPackLeafData(sf,link,PETSCSF_REMOTE,leafdata);CHKERRQ(ierr);
   /* Do neighborhood alltoallv for remote ranks */
+  ierr = PetscSFLinkCopyLeafBufferInCaseNotUseGpuAwareMPI(sf,link,PETSC_TRUE/* device2host before sending */);CHKERRQ(ierr);
   ierr = PetscSFGetDistComm_Neighbor(sf,PETSCSF_LEAF2ROOT,&distcomm);CHKERRQ(ierr);
   ierr = PetscSFLinkGetMPIBuffersAndRequests(sf,link,PETSCSF_LEAF2ROOT,&rootbuf,&leafbuf,&req,NULL);CHKERRQ(ierr);
-  ierr = MPI_Start_ineighbor_alltoallv(dat->leafdegree,dat->rootdegree,leafbuf,dat->leafcounts,dat->leafdispls,unit,rootbuf,dat->rootcounts,dat->rootdispls,unit,distcomm,req);CHKERRQ(ierr);
+  ierr = PetscSFLinkSyncStreamBeforeCallMPI(sf,link,PETSCSF_LEAF2ROOT);CHKERRQ(ierr);
+  if (dat->rootdegree || dat->leafdegree) {
+    ierr = MPIU_Ineighbor_alltoallv(leafbuf,dat->leafcounts,dat->leafdispls,unit,rootbuf,dat->rootcounts,dat->rootdispls,unit,distcomm,req);CHKERRMPI(ierr);
+  }
+  ierr = PetscLogMPIMessages(dat->leafdegree,dat->leafcounts,unit,dat->rootdegree,dat->rootcounts,unit);CHKERRQ(ierr);
   *out = link;
   PetscFunctionReturn(0);
 }
@@ -157,7 +215,7 @@ static PetscErrorCode PetscSFReduceBegin_Neighbor(PetscSF sf,MPI_Datatype unit,P
 
   PetscFunctionBegin;
   ierr = PetscSFLeafToRootBegin_Neighbor(sf,unit,leafmtype,leafdata,rootmtype,rootdata,op,PETSCSF_REDUCE,&link);CHKERRQ(ierr);
-  ierr = PetscSFLinkReduceLocal(sf,link,leafdata,rootdata,op);
+  ierr = PetscSFLinkScatterLocal(sf,link,PETSCSF_LEAF2ROOT,rootdata,(void*)leafdata,op);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -168,7 +226,7 @@ static PetscErrorCode PetscSFFetchAndOpBegin_Neighbor(PetscSF sf,MPI_Datatype un
 
   PetscFunctionBegin;
   ierr = PetscSFLeafToRootBegin_Neighbor(sf,unit,leafmtype,leafdata,rootmtype,rootdata,op,PETSCSF_FETCH,&link);CHKERRQ(ierr);
-  ierr = PetscSFLinkFetchAndOpLocal(sf,link,rootdata,leafdata,leafupdate,op);
+  ierr = PetscSFLinkFetchAndOpLocal(sf,link,rootdata,leafdata,leafupdate,op);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -182,15 +240,20 @@ static PetscErrorCode PetscSFFetchAndOpEnd_Neighbor(PetscSF sf,MPI_Datatype unit
 
   PetscFunctionBegin;
   ierr = PetscSFLinkGetInUse(sf,unit,rootdata,leafdata,PETSC_OWN_POINTER,&link);CHKERRQ(ierr);
-  ierr = PetscSFLinkMPIWaitall(sf,link,PETSCSF_LEAF2ROOT);CHKERRQ(ierr);
+  ierr = PetscSFLinkFinishCommunication(sf,link,PETSCSF_LEAF2ROOT);CHKERRQ(ierr);
   /* Process remote fetch-and-op */
-  ierr = PetscSFLinkFetchRootData(sf,link,PETSCSF_REMOTE,rootdata,op);CHKERRQ(ierr);
-
+  ierr = PetscSFLinkFetchAndOpRemote(sf,link,rootdata,op);CHKERRQ(ierr);
   /* Bcast the updated rootbuf back to leaves */
+  ierr = PetscSFLinkCopyRootBufferInCaseNotUseGpuAwareMPI(sf,link,PETSC_TRUE/* device2host before sending */);CHKERRQ(ierr);
   ierr = PetscSFGetDistComm_Neighbor(sf,PETSCSF_ROOT2LEAF,&comm);CHKERRQ(ierr);
   ierr = PetscSFLinkGetMPIBuffersAndRequests(sf,link,PETSCSF_ROOT2LEAF,&rootbuf,&leafbuf,NULL,NULL);CHKERRQ(ierr);
-  ierr = MPI_Start_neighbor_alltoallv(dat->rootdegree,dat->leafdegree,rootbuf,dat->rootcounts,dat->rootdispls,unit,leafbuf,dat->leafcounts,dat->leafdispls,unit,comm);CHKERRQ(ierr);
-  ierr = PetscSFLinkUnpackLeafData(sf,link,PETSCSF_REMOTE,leafupdate,MPIU_REPLACE);CHKERRQ(ierr);
+  ierr = PetscSFLinkSyncStreamBeforeCallMPI(sf,link,PETSCSF_ROOT2LEAF);CHKERRQ(ierr);
+  if (dat->rootdegree || dat->leafdegree) {
+    ierr = MPIU_Neighbor_alltoallv(rootbuf,dat->rootcounts,dat->rootdispls,unit,leafbuf,dat->leafcounts,dat->leafdispls,unit,comm);CHKERRMPI(ierr);
+  }
+  ierr = PetscLogMPIMessages(dat->rootdegree,dat->rootcounts,unit,dat->leafdegree,dat->leafcounts,unit);CHKERRQ(ierr);
+  ierr = PetscSFLinkCopyLeafBufferInCaseNotUseGpuAwareMPI(sf,link,PETSC_FALSE/* host2device after recving */);CHKERRQ(ierr);
+  ierr = PetscSFLinkUnpackLeafData(sf,link,PETSCSF_REMOTE,leafupdate,MPI_REPLACE);CHKERRQ(ierr);
   ierr = PetscSFLinkReclaim(sf,&link);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -201,8 +264,8 @@ PETSC_INTERN PetscErrorCode PetscSFCreate_Neighbor(PetscSF sf)
   PetscSF_Neighbor *dat;
 
   PetscFunctionBegin;
-  sf->ops->CreateEmbeddedSF     = PetscSFCreateEmbeddedSF_Basic;
-  sf->ops->BcastAndOpEnd        = PetscSFBcastAndOpEnd_Basic;
+  sf->ops->CreateEmbeddedRootSF = PetscSFCreateEmbeddedRootSF_Basic;
+  sf->ops->BcastEnd             = PetscSFBcastEnd_Basic;
   sf->ops->ReduceEnd            = PetscSFReduceEnd_Basic;
   sf->ops->GetLeafRanks         = PetscSFGetLeafRanks_Basic;
   sf->ops->View                 = PetscSFView_Basic;
@@ -210,7 +273,7 @@ PETSC_INTERN PetscErrorCode PetscSFCreate_Neighbor(PetscSF sf)
   sf->ops->SetUp                = PetscSFSetUp_Neighbor;
   sf->ops->Reset                = PetscSFReset_Neighbor;
   sf->ops->Destroy              = PetscSFDestroy_Neighbor;
-  sf->ops->BcastAndOpBegin      = PetscSFBcastAndOpBegin_Neighbor;
+  sf->ops->BcastBegin           = PetscSFBcastBegin_Neighbor;
   sf->ops->ReduceBegin          = PetscSFReduceBegin_Neighbor;
   sf->ops->FetchAndOpBegin      = PetscSFFetchAndOpBegin_Neighbor;
   sf->ops->FetchAndOpEnd        = PetscSFFetchAndOpEnd_Neighbor;
@@ -219,4 +282,3 @@ PETSC_INTERN PetscErrorCode PetscSFCreate_Neighbor(PetscSF sf)
   sf->data = (void*)dat;
   PetscFunctionReturn(0);
 }
-#endif

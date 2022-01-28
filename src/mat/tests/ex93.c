@@ -21,8 +21,8 @@ int main(int argc,char **argv)
 #if defined(PETSC_HAVE_HYPRE)
   ierr = PetscOptionsGetBool(NULL,NULL,"-test_hypre",&test_hypre,NULL);CHKERRQ(ierr);
 #endif
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
 
   ierr = MatCreate(PETSC_COMM_WORLD,&A);CHKERRQ(ierr);
   ierr = MatSetSizes(A,PETSC_DECIDE,PETSC_DECIDE,3,3);CHKERRQ(ierr);
@@ -31,7 +31,7 @@ int main(int argc,char **argv)
   ierr = MatSetUp(A);CHKERRQ(ierr);
   ierr = MatSetOption(A,MAT_IGNORE_ZERO_ENTRIES,PETSC_TRUE);CHKERRQ(ierr);
 
-  if (!rank) {
+  if (rank == 0) {
     ierr = MatSetValues(A,3,ij,3,ij,a,ADD_VALUES);CHKERRQ(ierr);
   }
   ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
@@ -139,8 +139,7 @@ PetscErrorCode testPTAPRectangular(void)
   actualC = 0.0;
   for (int i=0; i<cols; i++) {
     for (int j=0; j<cols; j++) {
-      ierr = MatGetValues(C, 1, &i, 1, &j, &actualC(i,j));
-      CHKERRQ(ierr); ;
+      ierr = MatGetValues(C, 1, &i, 1, &j, &actualC(i,j));CHKERRQ(ierr);
     }
   }
   blitz::Array<double,2> expectedC(cols, cols);

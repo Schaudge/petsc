@@ -30,8 +30,8 @@ int main(int argc,char **argv)
   Vec            x,xend;
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
 
   /*
      Create a parallel vector.
@@ -46,7 +46,7 @@ int main(int argc,char **argv)
   ierr   = VecSet(x,result);CHKERRQ(ierr);
   ierr   = VecDuplicate(x,&xend);CHKERRQ(ierr);
   result = 0.5;
-  if (!rank) {
+  if (rank == 0) {
     i    = 0;
     ierr = VecSetValues(xend,1,&i,&result,INSERT_VALUES);CHKERRQ(ierr);
   }

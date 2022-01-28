@@ -21,7 +21,7 @@ M*/
 
    Collective
 
-   Input Arguments:
+   Input Parameters:
 + viewer - VTK viewer
 . dm - DM on which Vec lives
 . PetscViewerVTKWriteFunction - function to write this Vec
@@ -44,7 +44,7 @@ PetscErrorCode PetscViewerVTKAddField(PetscViewer viewer,PetscObject dm,PetscErr
   PetscFunctionBegin;
   PetscValidHeaderSpecific(viewer,PETSC_VIEWER_CLASSID,1);
   PetscValidHeader(dm,2);
-  PetscValidHeader(vec,4);
+  PetscValidHeader(vec,7);
   ierr = PetscUseMethod(viewer,"PetscViewerVTKAddField_C",(PetscViewer,PetscObject,PetscErrorCode (*)(PetscObject,PetscViewer),PetscInt,PetscViewerVTKFieldType,PetscBool,PetscObject),(viewer,dm,PetscViewerVTKWriteFunction,fieldnum,fieldtype,checkdm,vec));CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -54,7 +54,7 @@ PetscErrorCode PetscViewerVTKAddField(PetscViewer viewer,PetscObject dm,PetscErr
 
    Collective
 
-   Input Arguments:
+   Input Parameters:
 + viewer - VTK viewer
 - dm - DM associated with the viewer (as PetscObject)
 
@@ -210,7 +210,6 @@ PetscErrorCode PetscViewerVTKGetDM_VTK(PetscViewer viewer,PetscObject *dm)
 /*MC
    PETSCVIEWERVTK - A viewer that writes to a VTK file
 
-
 .seealso:  PetscViewerVTKOpen(), PetscViewerHDF5Open(), PetscViewerStringSPrintf(), PetscViewerSocketOpen(), PetscViewerDrawOpen(), PETSCVIEWERSOCKET,
            PetscViewerCreate(), PetscViewerASCIIOpen(), PetscViewerBinaryOpen(), PETSCVIEWERBINARY, PETSCVIEWERDRAW, PETSCVIEWERSTRING,
            PetscViewerMatlabOpen(), VecView(), DMView(), PetscViewerMatlabPutArray(), PETSCVIEWERASCII, PETSCVIEWERMATLAB,
@@ -230,7 +229,7 @@ PETSC_EXTERN PetscErrorCode PetscViewerCreate_VTK(PetscViewer v)
   v->data         = (void*)vtk;
   v->ops->destroy = PetscViewerDestroy_VTK;
   v->ops->flush   = PetscViewerFlush_VTK;
-  vtk->btype      = (PetscFileMode) -1;
+  vtk->btype      = FILE_MODE_UNDEFINED;
   vtk->filename   = NULL;
 
   ierr = PetscObjectComposeFunction((PetscObject)v,"PetscViewerFileSetName_C",PetscViewerFileSetName_VTK);CHKERRQ(ierr);
@@ -262,7 +261,6 @@ $    FILE_MODE_APPEND - open existing file for binary output (not currently supp
 
    Note:
    This PetscViewer should be destroyed with PetscViewerDestroy().
-
 
 .seealso: PetscViewerASCIIOpen(), PetscViewerPushFormat(), PetscViewerDestroy(),
           VecView(), MatView(), VecLoad(), MatLoad(),
@@ -297,7 +295,6 @@ PetscErrorCode PetscViewerVTKOpen(MPI_Comm comm,const char name[],PetscFileMode 
    Notes:
     If PetscScalar is __float128 then the binary files are written in double precision
 
-
 .seealso: DMDAVTKWriteAll(), DMComplexVTKWriteAll(), PetscViewerPushFormat(), PetscViewerVTKOpen(), PetscBinaryWrite()
 @*/
 PetscErrorCode PetscViewerVTKFWrite(PetscViewer viewer,FILE *fp,const void *data,PetscInt n,MPI_Datatype dtype)
@@ -312,10 +309,10 @@ PetscErrorCode PetscViewerVTKFWrite(PetscViewer viewer,FILE *fp,const void *data
 #endif
 
   PetscFunctionBegin;
-  if (n < 0) SETERRQ1(PetscObjectComm((PetscObject)viewer),PETSC_ERR_ARG_OUTOFRANGE,"Trying to write a negative amount of data %D",n);
+  if (n < 0) SETERRQ1(PetscObjectComm((PetscObject)viewer),PETSC_ERR_ARG_OUTOFRANGE,"Trying to write a negative amount of data %" PetscInt_FMT,n);
   if (!n) PetscFunctionReturn(0);
-  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)viewer),&rank);CHKERRQ(ierr);
-  if (!rank) {
+  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)viewer),&rank);CHKERRMPI(ierr);
+  if (rank == 0) {
     size_t      count;
     PetscMPIInt dsize;
     PetscVTKInt bytes;
@@ -328,13 +325,13 @@ PetscErrorCode PetscViewerVTKFWrite(PetscViewer viewer,FILE *fp,const void *data
       vdtype = MPI_DOUBLE;
     }
 #endif
-    ierr  = MPI_Type_size(vdtype,&dsize);CHKERRQ(ierr);
+    ierr  = MPI_Type_size(vdtype,&dsize);CHKERRMPI(ierr);
     bytes = PetscVTKIntCast(dsize*n);
 
     count = fwrite(&bytes,sizeof(int),1,fp);
     if (count != 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_WRITE,"Error writing byte count");
     count = fwrite(data,dsize,(size_t)n,fp);
-    if ((PetscInt)count != n) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_FILE_WRITE,"Wrote %D/%D array members of size %d",(PetscInt)count,n,dsize);
+    if ((PetscInt)count != n) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_FILE_WRITE,"Wrote %" PetscInt_FMT "/%" PetscInt_FMT " array members of size %d",(PetscInt)count,n,dsize);
 #if defined(PETSC_USE_REAL___FLOAT128)
     if (dtype == MPIU___FLOAT128) {
       ierr = PetscFree(tmp);CHKERRQ(ierr);

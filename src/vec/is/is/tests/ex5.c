@@ -10,12 +10,11 @@ int main(int argc,char **argv)
   PetscInt               nlocal,local[5],nneigh,*neigh,**ineigh,*numneigh;
   ISLocalToGlobalMapping mapping;
 
-
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
   if (size != 3) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_WRONG_MPI_SIZE,"Must run with three processors");
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
-  if (!rank) {
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
+  if (rank == 0) {
     nlocal = 4; local[0] = 0; local[1] = 3; local[2] = 2; local[3] = 1;
   } else if (rank == 1) {
     nlocal = 4; local[0] = 3; local[1] = 5; local[2] = 4; local[3] = 2;

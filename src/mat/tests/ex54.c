@@ -17,8 +17,8 @@ int main(int argc,char **args)
   PetscBool      flg,test_nd0=PETSC_FALSE;
 
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
 
   ierr = PetscOptionsGetInt(NULL,NULL,"-mat_block_size",&bs,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,NULL,"-mat_size",&m,NULL);CHKERRQ(ierr);
@@ -84,7 +84,7 @@ int main(int argc,char **args)
   ierr = PetscMalloc1(nd,&is1);CHKERRQ(ierr);
   ierr = PetscMalloc1(nd,&is2);CHKERRQ(ierr);
 
-  if (!rank && test_nd0) nd = 0; /* test case */
+  if (rank == 0 && test_nd0) nd = 0; /* test case */
 
   for (i=0; i<nd; i++) {
     ierr = PetscRandomGetValue(rdm,&rval);CHKERRQ(ierr);
@@ -104,7 +104,7 @@ int main(int argc,char **args)
     ierr = ISEqual(is1[i],is2[i],&flg);CHKERRQ(ierr);
 
     if (!flg) {
-      ierr = PetscPrintf(PETSC_COMM_SELF,"i=%D, flg=%d :bs=%D m=%D ov=%D nd=%D np=%D\n",i,flg,bs,m,ov,nd,size);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"i=%" PetscInt_FMT ", flg=%d :bs=%" PetscInt_FMT " m=%" PetscInt_FMT " ov=%" PetscInt_FMT " nd=%" PetscInt_FMT " np=%d\n",i,flg,bs,m,ov,nd,size);CHKERRQ(ierr);
     }
   }
 
@@ -130,7 +130,7 @@ int main(int argc,char **args)
       ierr  = VecNorm(s2,NORM_2,&s2norm);CHKERRQ(ierr);
       rnorm = s2norm-s1norm;
       if (rnorm<-tol || rnorm>tol) {
-        ierr = PetscPrintf(PETSC_COMM_SELF,"[%d]Error:MatMult - Norm1=%16.14e Norm2=%16.14e\n",rank,s1norm,s2norm);CHKERRQ(ierr);
+        ierr = PetscPrintf(PETSC_COMM_SELF,"[%d]Error:MatMult - Norm1=%16.14e Norm2=%16.14e\n",rank,(double)s1norm,(double)s2norm);CHKERRQ(ierr);
       }
     }
     ierr = VecDestroy(&xx);CHKERRQ(ierr);
@@ -156,7 +156,7 @@ int main(int argc,char **args)
       ierr  = VecNorm(s2,NORM_2,&s2norm);CHKERRQ(ierr);
       rnorm = s2norm-s1norm;
       if (rnorm<-tol || rnorm>tol) {
-        ierr = PetscPrintf(PETSC_COMM_SELF,"[%d]Error:MatMult - Norm1=%16.14e Norm2=%16.14e\n",rank,s1norm,s2norm);CHKERRQ(ierr);
+        ierr = PetscPrintf(PETSC_COMM_SELF,"[%d]Error:MatMult - Norm1=%16.14e Norm2=%16.14e\n",rank,(double)s1norm,(double)s2norm);CHKERRQ(ierr);
       }
     }
     ierr = VecDestroy(&xx);CHKERRQ(ierr);
@@ -184,7 +184,6 @@ int main(int argc,char **args)
   ierr = PetscFinalize();
   return ierr;
 }
-
 
 /*TEST
 

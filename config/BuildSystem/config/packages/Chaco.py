@@ -3,7 +3,7 @@ import config.package
 class Configure(config.package.Package):
   def __init__(self, framework):
     config.package.Package.__init__(self, framework)
-    self.gitcommit         = 'v2.2-p3'
+    self.gitcommit         = 'v2.2-p4'
     self.download          = ['git://https://bitbucket.org/petsc/pkg-chaco.git',
                               'https://bitbucket.org/petsc/pkg-chaco/get/'+self.gitcommit+'.tar.gz']
     self.downloaddirnames  = ['petsc-pkg-chaco','Chaco']
@@ -38,15 +38,14 @@ class Configure(config.package.Package):
     if self.installNeeded(mkfile):
       try:
         self.logPrintBox('Compiling and installing chaco; this may take several minutes')
-        self.installDirProvider.printSudoPasswordMessage()
         output,err,ret  = config.package.Package.executeShellCommandSeq(
           ['make clean',
            'make',
            self.setCompilers.AR+' '+self.setCompilers.AR_FLAGS+' '+'libchaco.'+
            self.setCompilers.AR_LIB_SUFFIX+' `ls */*.o |grep -v main/main.o`',
            self.setCompilers.RANLIB+' libchaco.'+self.setCompilers.AR_LIB_SUFFIX,
-           self.installSudo+'mkdir -p '+os.path.join(self.installDir,self.libdir),
-           self.installSudo+'cp libchaco.'+self.setCompilers.AR_LIB_SUFFIX+' '+os.path.join(self.installDir,self.libdir)
+           'mkdir -p '+os.path.join(self.installDir,self.libdir),
+           'cp libchaco.'+self.setCompilers.AR_LIB_SUFFIX+' '+os.path.join(self.installDir,self.libdir)
           ], cwd=os.path.join(self.packageDir, 'code'), timeout=2500, log = self.log)
 
       except RuntimeError as e:

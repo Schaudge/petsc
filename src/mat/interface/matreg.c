@@ -11,6 +11,46 @@ PetscBool MatRegisterAllCalled = PETSC_FALSE;
 */
 PetscFunctionList MatList = NULL;
 
+/* MatGetRootType_Private - Gets the root type of the input matrix's type (e.g., MATAIJ for MATSEQAIJ)
+
+   Not Collective
+
+   Input Parameters:
+.  mat      - the input matrix, could be sequential or MPI
+
+   Output Parameters:
+.  rootType  - the root matrix type
+
+   Level: developer
+
+.seealso: MatGetType(), MatSetType(), MatType, Mat
+*/
+PetscErrorCode MatGetRootType_Private(Mat mat, MatType *rootType)
+{
+  PetscErrorCode ierr;
+  PetscBool      found = PETSC_FALSE;
+  MatRootName    names = MatRootNameList;
+  MatType        inType;
+  PetscMPIInt    size;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(mat,MAT_CLASSID,1);
+  ierr = MatGetType(mat,&inType);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)mat),&size);CHKERRMPI(ierr);
+  while (names) {
+    if (size > 1) {ierr = PetscStrcmp(inType,names->mname,&found);CHKERRQ(ierr);}
+    else {ierr = PetscStrcmp(inType,names->sname,&found);CHKERRQ(ierr);}
+    if (found) {
+      found     = PETSC_TRUE;
+      *rootType = names->rname;
+      break;
+    }
+    names = names->next;
+  }
+  if (!found) *rootType = inType;
+  PetscFunctionReturn(0);
+}
+
 /*@C
    MatSetType - Builds matrix object for a particular matrix type
 
@@ -44,7 +84,7 @@ PetscErrorCode  MatSetType(Mat mat, MatType matype)
     ierr = PetscStrcmp(matype,names->rname,&found);CHKERRQ(ierr);
     if (found) {
       PetscMPIInt size;
-      ierr = MPI_Comm_size(PetscObjectComm((PetscObject)mat),&size);CHKERRQ(ierr);
+      ierr = MPI_Comm_size(PetscObjectComm((PetscObject)mat),&size);CHKERRMPI(ierr);
       if (size == 1) matype = names->sname;
       else matype = names->mname;
       break;
@@ -192,7 +232,6 @@ $     -mat_type my_mat
    Level: advanced
 
 .seealso: MatRegisterAll()
-
 
   Level: advanced
 @*/

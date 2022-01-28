@@ -79,7 +79,7 @@ PETSC_EXTERN PetscErrorCode PCModifySubMatrices(PC,PetscInt,const IS[],const IS[
 
 PETSC_EXTERN PetscErrorCode PCSetOperators(PC,Mat,Mat);
 PETSC_EXTERN PetscErrorCode PCGetOperators(PC,Mat*,Mat*);
-PETSC_EXTERN PetscErrorCode PCGetOperatorsSet(PC,PetscBool *,PetscBool *);
+PETSC_EXTERN PetscErrorCode PCGetOperatorsSet(PC,PetscBool*,PetscBool*);
 
 PETSC_EXTERN PetscErrorCode PCView(PC,PetscViewer);
 PETSC_EXTERN PetscErrorCode PCLoad(PC,PetscViewer);
@@ -118,6 +118,8 @@ PETSC_EXTERN PetscErrorCode PCJacobiSetType(PC,PCJacobiType);
 PETSC_EXTERN PetscErrorCode PCJacobiGetType(PC,PCJacobiType*);
 PETSC_EXTERN PetscErrorCode PCJacobiSetUseAbs(PC,PetscBool);
 PETSC_EXTERN PetscErrorCode PCJacobiGetUseAbs(PC,PetscBool*);
+PETSC_EXTERN PetscErrorCode PCJacobiSetFixDiagonal(PC,PetscBool);
+PETSC_EXTERN PetscErrorCode PCJacobiGetFixDiagonal(PC,PetscBool*);
 PETSC_EXTERN PetscErrorCode PCSORSetSymmetric(PC,MatSORType);
 PETSC_EXTERN PetscErrorCode PCSORGetSymmetric(PC,MatSORType*);
 PETSC_EXTERN PetscErrorCode PCSORSetOmega(PC,PetscReal);
@@ -146,7 +148,7 @@ PETSC_EXTERN PetscErrorCode PCShellSetApplyRichardson(PC,PetscErrorCode (*)(PC,V
 PETSC_EXTERN PetscErrorCode PCShellSetView(PC,PetscErrorCode (*)(PC,PetscViewer));
 PETSC_EXTERN PetscErrorCode PCShellSetDestroy(PC,PetscErrorCode (*)(PC));
 PETSC_EXTERN PetscErrorCode PCShellSetContext(PC,void*);
-PETSC_EXTERN PetscErrorCode PCShellGetContext(PC,void**);
+PETSC_EXTERN PetscErrorCode PCShellGetContext(PC,void*);
 PETSC_EXTERN PetscErrorCode PCShellSetName(PC,const char[]);
 PETSC_EXTERN PetscErrorCode PCShellGetName(PC,const char*[]);
 
@@ -217,7 +219,8 @@ PETSC_EXTERN PetscErrorCode PCGASMGetSubmatrices(PC,PetscInt*,Mat*[]);
 
 PETSC_EXTERN PetscErrorCode PCCompositeSetType(PC,PCCompositeType);
 PETSC_EXTERN PetscErrorCode PCCompositeGetType(PC,PCCompositeType*);
-PETSC_EXTERN PetscErrorCode PCCompositeAddPC(PC,PCType);
+PETSC_EXTERN PetscErrorCode PCCompositeAddPCType(PC,PCType);
+PETSC_EXTERN PetscErrorCode PCCompositeAddPC(PC,PC);
 PETSC_EXTERN PetscErrorCode PCCompositeGetNumberPC(PC,PetscInt *);
 PETSC_EXTERN PetscErrorCode PCCompositeGetPC(PC,PetscInt,PC *);
 PETSC_EXTERN PetscErrorCode PCCompositeSpecialSetAlpha(PC,PetscScalar);
@@ -279,15 +282,6 @@ PETSC_EXTERN PetscErrorCode PCGalerkinSetInterpolation(PC,Mat);
 PETSC_EXTERN PetscErrorCode PCGalerkinSetComputeSubmatrix(PC,PetscErrorCode (*)(PC,Mat,Mat,Mat*,void*),void*);
 
 PETSC_EXTERN PetscErrorCode PCPythonSetType(PC,const char[]);
-
-PETSC_EXTERN PetscErrorCode PCBiCGStabCUSPSetTolerance(PC,PetscReal);
-PETSC_EXTERN PetscErrorCode PCBiCGStabCUSPSetIterations(PC,PetscInt);
-PETSC_EXTERN PetscErrorCode PCBiCGStabCUSPSetUseVerboseMonitor(PC,PetscBool);
-
-PETSC_EXTERN PetscErrorCode PCAINVCUSPSetDropTolerance(PC,PetscReal);
-PETSC_EXTERN PetscErrorCode PCAINVCUSPUseScaling(PC,PetscBool);
-PETSC_EXTERN PetscErrorCode PCAINVCUSPSetNonzeros(PC,PetscInt);
-PETSC_EXTERN PetscErrorCode PCAINVCUSPSetLinParameter(PC,PetscInt);
 
 PETSC_EXTERN PetscErrorCode PCPARMSSetGlobal(PC,PCPARMSGlobalType);
 PETSC_EXTERN PetscErrorCode PCPARMSSetLocal(PC,PCPARMSLocalType);
@@ -372,6 +366,8 @@ PETSC_EXTERN PetscErrorCode PCMGSetGalerkin(PC,PCMGGalerkinType);
 PETSC_EXTERN PetscErrorCode PCMGGetGalerkin(PC,PCMGGalerkinType*);
 PETSC_EXTERN PetscErrorCode PCMGSetAdaptInterpolation(PC,PetscBool);
 PETSC_EXTERN PetscErrorCode PCMGGetAdaptInterpolation(PC,PetscBool*);
+PETSC_EXTERN PetscErrorCode PCMGSetAdaptCR(PC,PetscBool);
+PETSC_EXTERN PetscErrorCode PCMGGetAdaptCR(PC,PetscBool*);
 
 PETSC_EXTERN PetscErrorCode PCMGSetRhs(PC,PetscInt,Vec);
 PETSC_EXTERN PetscErrorCode PCMGSetX(PC,PetscInt,Vec);
@@ -387,7 +383,11 @@ PETSC_EXTERN PetscErrorCode PCMGGetInterpolation(PC,PetscInt,Mat*);
 PETSC_EXTERN PetscErrorCode PCMGSetRScale(PC,PetscInt,Vec);
 PETSC_EXTERN PetscErrorCode PCMGGetRScale(PC,PetscInt,Vec*);
 PETSC_EXTERN PetscErrorCode PCMGSetResidual(PC,PetscInt,PetscErrorCode (*)(Mat,Vec,Vec,Vec),Mat);
+PETSC_EXTERN PetscErrorCode PCMGSetResidualTranspose(PC,PetscInt,PetscErrorCode (*)(Mat,Vec,Vec,Vec),Mat);
 PETSC_EXTERN PetscErrorCode PCMGResidualDefault(Mat,Vec,Vec,Vec);
+PETSC_EXTERN PetscErrorCode PCMGResidualTransposeDefault(Mat,Vec,Vec,Vec);
+PETSC_EXTERN PetscErrorCode PCMGMatResidualDefault(Mat,Mat,Mat,Mat);
+PETSC_EXTERN PetscErrorCode PCMGMatResidualTransposeDefault(Mat,Mat,Mat,Mat);
 
 PETSC_EXTERN PetscErrorCode PCHMGSetReuseInterpolation(PC,PetscBool);
 PETSC_EXTERN PetscErrorCode PCHMGSetUseSubspaceCoarsening(PC,PetscBool);
@@ -413,8 +413,6 @@ PETSC_EXTERN PetscErrorCode PCPatchSetPrecomputeElementTensors(PC, PetscBool);
 PETSC_EXTERN PetscErrorCode PCPatchGetPrecomputeElementTensors(PC, PetscBool *);
 PETSC_EXTERN PetscErrorCode PCPatchSetPartitionOfUnity(PC, PetscBool);
 PETSC_EXTERN PetscErrorCode PCPatchGetPartitionOfUnity(PC, PetscBool *);
-PETSC_EXTERN PetscErrorCode PCPatchSetMultiplicative(PC, PetscBool);
-PETSC_EXTERN PetscErrorCode PCPatchGetMultiplicative(PC, PetscBool *);
 PETSC_EXTERN PetscErrorCode PCPatchSetSubMatType(PC, MatType);
 PETSC_EXTERN PetscErrorCode PCPatchGetSubMatType(PC, MatType *);
 PETSC_EXTERN PetscErrorCode PCPatchSetCellNumbering(PC, PetscSection);
@@ -449,6 +447,7 @@ PETSC_EXTERN PetscErrorCode PCHPDDMSetRHSMat(PC,Mat);
 PETSC_EXTERN PetscErrorCode PCHPDDMHasNeumannMat(PC,PetscBool);
 PETSC_EXTERN PetscErrorCode PCHPDDMSetCoarseCorrectionType(PC,PCHPDDMCoarseCorrectionType);
 PETSC_EXTERN PetscErrorCode PCHPDDMGetCoarseCorrectionType(PC,PCHPDDMCoarseCorrectionType*);
+PETSC_EXTERN PetscErrorCode PCHPDDMGetSTShareSubKSP(PC,PetscBool*);
 PETSC_EXTERN PetscErrorCode PCHPDDMFinalizePackage(void);
 PETSC_EXTERN PetscErrorCode PCHPDDMInitializePackage(void);
 

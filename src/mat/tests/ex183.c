@@ -7,7 +7,6 @@ static char help[] = "Example of extracting an array of MPI submatrices from a g
    Processors: n
 T*/
 
-
 #include <petscmat.h>
 
 int main(int argc, char **args)
@@ -25,8 +24,8 @@ int main(int argc, char **args)
   PetscErrorCode  ierr;
 
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
 
   ierr = PetscOptionsBegin(PETSC_COMM_WORLD,NULL,"ex183","Mat");CHKERRQ(ierr);
   m = 5;
@@ -41,9 +40,9 @@ int main(int argc, char **args)
   ierr = PetscOptionsInt("-rep","Number of times to carry out submatrix extractions; currently only 1 & 2 are supported",NULL,rep,&rep,&flg);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
-  if (total_subdomains > size) SETERRQ2(PETSC_COMM_WORLD,PETSC_ERR_ARG_WRONG,"Number of subdomains %D must not exceed comm size %D",total_subdomains,size);
-  if (total_subdomains < 1 || total_subdomains > size) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"number of subdomains must be > 0 and <= %D (comm size), got total_subdomains = %D",size,total_subdomains);
-  if (rep != 1 && rep != 2) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Invalid number of test repetitions: %D; must be 1 or 2",rep);
+  if (total_subdomains > size) SETERRQ2(PETSC_COMM_WORLD,PETSC_ERR_ARG_WRONG,"Number of subdomains %" PetscInt_FMT " must not exceed comm size %d",total_subdomains,size);
+  if (total_subdomains < 1 || total_subdomains > size) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"number of subdomains must be > 0 and <= %d (comm size), got total_subdomains = %" PetscInt_FMT,size,total_subdomains);
+  if (rep != 1 && rep != 2) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Invalid number of test repetitions: %" PetscInt_FMT "; must be 1 or 2",rep);
 
   viewer = PETSC_VIEWER_STDOUT_WORLD;
   /* Create logically sparse, but effectively dense matrix for easy verification of submatrix extraction correctness. */
@@ -77,7 +76,6 @@ int main(int argc, char **args)
   ierr = PetscViewerASCIIPrintf(viewer,"Initial matrix:\n");CHKERRQ(ierr);
   ierr = MatView(A,viewer);CHKERRQ(ierr);
 
-
   /*
      Create subcomms and ISs so that each rank participates in one IS.
      The IS either coalesces adjacent rank indices (contiguous),
@@ -85,9 +83,9 @@ int main(int argc, char **args)
   */
   k = size/total_subdomains + (size%total_subdomains>0); /* There are up to k ranks to a color */
   color = rank/k;
-  ierr = MPI_Comm_split(PETSC_COMM_WORLD,color,rank,&subcomm);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(subcomm,&subsize);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(subcomm,&subrank);CHKERRQ(ierr);
+  ierr = MPI_Comm_split(PETSC_COMM_WORLD,color,rank,&subcomm);CHKERRMPI(ierr);
+  ierr = MPI_Comm_size(subcomm,&subsize);CHKERRMPI(ierr);
+  ierr = MPI_Comm_rank(subcomm,&subrank);CHKERRMPI(ierr);
   ierr = MatGetOwnershipRange(A,&rstart,&rend);CHKERRQ(ierr);
   nis = 1;
   ierr = PetscMalloc2(rend-rstart,&rowindices,rend-rstart,&colindices);CHKERRQ(ierr);
@@ -113,7 +111,7 @@ int main(int argc, char **args)
   */
   ierr = PetscViewerASCIIPrintf(viewer,"Subdomains");CHKERRQ(ierr);
   if (permute_indices) {
-    ierr = PetscViewerASCIIPrintf(viewer," (hash=%D)",hash);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer," (hash=%" PetscInt_FMT ")",hash);CHKERRQ(ierr);
   }
   ierr = PetscViewerASCIIPrintf(viewer,":\n");CHKERRQ(ierr);
   ierr = PetscViewerFlush(viewer);CHKERRQ(ierr);
@@ -129,16 +127,16 @@ int main(int argc, char **args)
       if (gs == gsubdomainnums[ss]) { /* Global subdomain gs being viewed is my subdomain with local number ss. */
         PetscViewer subviewer = NULL;
         ierr = PetscViewerGetSubViewer(viewer,PetscObjectComm((PetscObject)rowis[ss]),&subviewer);CHKERRQ(ierr);
-        ierr = PetscViewerASCIIPrintf(subviewer,"Row IS %D\n",gs);CHKERRQ(ierr);
+        ierr = PetscViewerASCIIPrintf(subviewer,"Row IS %" PetscInt_FMT "\n",gs);CHKERRQ(ierr);
         ierr = ISView(rowis[ss],subviewer);CHKERRQ(ierr);
         ierr = PetscViewerFlush(subviewer);CHKERRQ(ierr);
-        ierr = PetscViewerASCIIPrintf(subviewer,"Col IS %D\n",gs);CHKERRQ(ierr);
+        ierr = PetscViewerASCIIPrintf(subviewer,"Col IS %" PetscInt_FMT "\n",gs);CHKERRQ(ierr);
         ierr = ISView(colis[ss],subviewer);CHKERRQ(ierr);
         ierr = PetscViewerRestoreSubViewer(viewer,PetscObjectComm((PetscObject)rowis[ss]),&subviewer);CHKERRQ(ierr);
         ++s;
       }
     }
-    ierr = MPI_Barrier(PETSC_COMM_WORLD);CHKERRQ(ierr);
+    ierr = MPI_Barrier(PETSC_COMM_WORLD);CHKERRMPI(ierr);
   }
   ierr = PetscViewerFlush(viewer);CHKERRQ(ierr);
   ierr = ISSort(rowis[0]);CHKERRQ(ierr);
@@ -166,7 +164,7 @@ int main(int argc, char **args)
         ++s;
       }
     }
-    ierr = MPI_Barrier(PETSC_COMM_WORLD);CHKERRQ(ierr);
+    ierr = MPI_Barrier(PETSC_COMM_WORLD);CHKERRMPI(ierr);
   }
   ierr = PetscViewerFlush(viewer);CHKERRQ(ierr);
   if (rep == 1) goto cleanup;
@@ -193,7 +191,7 @@ int main(int argc, char **args)
         ++s;
       }
     }
-    ierr = MPI_Barrier(PETSC_COMM_WORLD);CHKERRQ(ierr);
+    ierr = MPI_Barrier(PETSC_COMM_WORLD);CHKERRMPI(ierr);
   }
   ierr = PetscViewerFlush(viewer);CHKERRQ(ierr);
   cleanup:
@@ -206,11 +204,10 @@ int main(int argc, char **args)
     ierr = ISDestroy(colis+k);CHKERRQ(ierr);
   }
   ierr = MatDestroy(&A);CHKERRQ(ierr);
-  ierr = MPI_Comm_free(&subcomm);CHKERRQ(ierr);
+  ierr = MPI_Comm_free(&subcomm);CHKERRMPI(ierr);
   ierr = PetscFinalize();
   return ierr;
 }
-
 
 /*TEST
 

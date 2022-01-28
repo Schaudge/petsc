@@ -28,7 +28,7 @@ int main(int argc,char **args)
   if (!flg) { /* Create a matrix and test MatSetValues */
     PetscMPIInt size;
 
-    ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
+    ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
     ierr = PetscOptionsGetInt(NULL,NULL,"-M",&M,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL,NULL,"-N",&N,NULL);CHKERRQ(ierr);
     ierr = MatSetSizes(A,PETSC_DECIDE,PETSC_DECIDE,M,N);CHKERRQ(ierr);
@@ -66,12 +66,12 @@ int main(int argc,char **args)
       PetscInt  rows[2];
       PetscBool test_offproc = PETSC_FALSE;
 
-      ierr = PetscOptionsGetBool(NULL,NULL,"-test_offproc",&test_offproc,NULL);
+      ierr = PetscOptionsGetBool(NULL,NULL,"-test_offproc",&test_offproc,NULL);CHKERRQ(ierr);
       if (test_offproc) {
         const PetscInt *ranges;
         PetscMPIInt    rank;
 
-        ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+        ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
         ierr = MatGetOwnershipRanges(A,&ranges);CHKERRQ(ierr);
         rows[0] = ranges[(rank+1)%size];
         rows[1] = ranges[(rank+1)%size + 1];
@@ -265,7 +265,7 @@ int main(int argc,char **args)
     for (i=0;i<3;i++) {
       MatStructure str;
 
-      ierr = PetscPrintf(PETSC_COMM_WORLD,"Dup/Copy tests: %D %D\n",j,i);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"Dup/Copy tests: %" PetscInt_FMT " %" PetscInt_FMT "\n",j,i);CHKERRQ(ierr);
 
       str = DIFFERENT_NONZERO_PATTERN;
       if (i==1) str = SAME_NONZERO_PATTERN;
@@ -284,7 +284,7 @@ int main(int argc,char **args)
         ierr = MatViewFromOptions(A,NULL,"-view_duplicate_diff");CHKERRQ(ierr);
         ierr = MatViewFromOptions(B,NULL,"-view_duplicate_diff");CHKERRQ(ierr);
         ierr = MatViewFromOptions(C,NULL,"-view_duplicate_diff");CHKERRQ(ierr);
-        SETERRQ3(PetscObjectComm((PetscObject)A),PETSC_ERR_PLIB,"Error test 1 MatDuplicate/MatCopy %g (%D,%D)",err,j,i);
+        SETERRQ3(PetscObjectComm((PetscObject)A),PETSC_ERR_PLIB,"Error test 1 MatDuplicate/MatCopy %g (%" PetscInt_FMT ",%" PetscInt_FMT ")",err,j,i);
       }
       /* AXPY with HYPRE and HYPRE */
       ierr = MatAXPY(D,-1.0,B,str);CHKERRQ(ierr);
@@ -292,7 +292,7 @@ int main(int argc,char **args)
         ierr = MatViewFromOptions(A,NULL,"-view_duplicate_diff");CHKERRQ(ierr);
         ierr = MatViewFromOptions(B,NULL,"-view_duplicate_diff");CHKERRQ(ierr);
         ierr = MatViewFromOptions(D,NULL,"-view_duplicate_diff");CHKERRQ(ierr);
-        SETERRQ3(PetscObjectComm((PetscObject)A),PETSC_ERR_PLIB,"Error test 2 MatDuplicate/MatCopy %g (%D,%D)",err,j,i);
+        SETERRQ3(PetscObjectComm((PetscObject)A),PETSC_ERR_PLIB,"Error test 2 MatDuplicate/MatCopy %g (%" PetscInt_FMT ",%" PetscInt_FMT ")",err,j,i);
       }
       /* Copy from HYPRE to AIJ */
       ierr = MatCopy(B,C,str);CHKERRQ(ierr);
@@ -309,7 +309,7 @@ int main(int argc,char **args)
         ierr = MatViewFromOptions(A,NULL,"-view_duplicate_diff");CHKERRQ(ierr);
         ierr = MatViewFromOptions(C,NULL,"-view_duplicate_diff");CHKERRQ(ierr);
         ierr = MatViewFromOptions(D,NULL,"-view_duplicate_diff");CHKERRQ(ierr);
-        SETERRQ3(PetscObjectComm((PetscObject)A),PETSC_ERR_PLIB,"Error test 3 MatDuplicate/MatCopy %g (%D,%D)",err,j,i);
+        SETERRQ3(PetscObjectComm((PetscObject)A),PETSC_ERR_PLIB,"Error test 3 MatDuplicate/MatCopy %g (%" PetscInt_FMT ",%" PetscInt_FMT ")",err,j,i);
       }
       ierr = MatDestroy(&C);CHKERRQ(ierr);
       ierr = MatDestroy(&D);CHKERRQ(ierr);
@@ -344,60 +344,68 @@ int main(int argc,char **args)
   return ierr;
 }
 
-
 /*TEST
 
    build:
       requires: hypre
 
    test:
+      requires: !defined(PETSC_HAVE_HYPRE_DEVICE)
       suffix: 1
       args: -N 11 -M 11
       output_file: output/ex115_1.out
 
    test:
+      requires: !defined(PETSC_HAVE_HYPRE_DEVICE)
       suffix: 2
       nsize: 3
       args: -N 13 -M 13 -matmatmult_via hypre
       output_file: output/ex115_1.out
 
    test:
+      requires: !defined(PETSC_HAVE_HYPRE_DEVICE)
       suffix: 3
       nsize: 4
       args: -M 13 -N 7 -matmatmult_via hypre
       output_file: output/ex115_1.out
 
    test:
+      requires: !defined(PETSC_HAVE_HYPRE_DEVICE)
       suffix: 4
       nsize: 2
       args: -M 12 -N 19
       output_file: output/ex115_1.out
 
    test:
+      requires: !defined(PETSC_HAVE_HYPRE_DEVICE)
       suffix: 5
       nsize: 3
       args: -M 13 -N 13 -matptap_via hypre -matptap_hypre_outtype hypre
       output_file: output/ex115_1.out
 
    test:
+      requires: !defined(PETSC_HAVE_HYPRE_DEVICE)
       suffix: 6
       nsize: 3
       args: -M 12 -N 19 -test_offproc
       output_file: output/ex115_1.out
 
    test:
+      requires: !defined(PETSC_HAVE_HYPRE_DEVICE)
       suffix: 7
       nsize: 3
       args: -M 19 -N 12 -test_offproc -view_B ::ascii_info_detail
       output_file: output/ex115_7.out
 
    test:
+      requires: !defined(PETSC_HAVE_HYPRE_DEVICE)
       suffix: 8
       nsize: 3
       args: -M 1 -N 12 -test_offproc
       output_file: output/ex115_1.out
 
    test:
+      requires: !defined(PETSC_HAVE_HYPRE_DEVICE)
       suffix: 9
       nsize: 3
       args: -M 1 -N 2 -test_offproc

@@ -241,7 +241,6 @@ PetscErrorCode PetscObjectTypeCompareAny(PetscObject obj,PetscBool *match,const 
   PetscFunctionReturn(0);
 }
 
-
 /*@C
    PetscObjectBaseTypeCompareAny - Determines whether a PETSc object has the base type of any of a list of types.
 
@@ -266,7 +265,7 @@ PetscErrorCode PetscObjectBaseTypeCompareAny(PetscObject obj,PetscBool *match,co
   va_list        Argp;
 
   PetscFunctionBegin;
-  PetscValidPointer(match,3);
+  PetscValidPointer(match,2);
   *match = PETSC_FALSE;
   va_start(Argp,type_name);
   while (type_name && type_name[0]) {
@@ -310,7 +309,7 @@ PetscErrorCode  PetscObjectRegisterDestroy(PetscObject obj)
   PetscFunctionBegin;
   PetscValidHeader(obj,1);
   if (PetscObjectRegisterDestroy_Count < MAXREGDESOBJS) PetscObjectRegisterDestroy_Objects[PetscObjectRegisterDestroy_Count++] = obj;
-  else SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"No more room in array, limit %d \n recompile src/sys/objects/destroy.c with larger value for MAXREGDESOBJS\n",MAXREGDESOBJS);
+  else SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"No more room in array, limit %d \n recompile src/sys/objects/destroy.c with larger value for MAXREGDESOBJS",MAXREGDESOBJS);
   PetscFunctionReturn(0);
 }
 
@@ -336,7 +335,6 @@ PetscErrorCode  PetscObjectRegisterDestroyAll(void)
   PetscObjectRegisterDestroy_Count = 0;
   PetscFunctionReturn(0);
 }
-
 
 #define MAXREGFIN 256
 static int PetscRegisterFinalize_Count = 0;
@@ -366,7 +364,7 @@ PetscErrorCode  PetscRegisterFinalize(PetscErrorCode (*f)(void))
     if (f == PetscRegisterFinalize_Functions[i]) PetscFunctionReturn(0);
   }
   if (PetscRegisterFinalize_Count < MAXREGFIN) PetscRegisterFinalize_Functions[PetscRegisterFinalize_Count++] = f;
-  else SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"No more room in array, limit %d \n recompile src/sys/objects/destroy.c with larger value for MAXREGFIN\n",MAXREGFIN);
+  else SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"No more room in array, limit %d \n recompile src/sys/objects/destroy.c with larger value for MAXREGFIN",MAXREGFIN);
   PetscFunctionReturn(0);
 }
 

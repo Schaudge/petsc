@@ -19,7 +19,7 @@ static inline PetscErrorCode DMatrix_Invert_2x2_Internal(const PetscReal *inmat,
     outmat[3] = inmat[0] / det;
   }
   if (determinant) *determinant = det;
-  PetscFunctionReturn(0);
+  return 0;
 }
 
 static inline PetscReal DMatrix_Determinant_3x3_Internal(const PetscReal inmat[3 * 3])
@@ -44,7 +44,7 @@ static inline PetscErrorCode DMatrix_Invert_3x3_Internal (const PetscReal *inmat
     outmat[8] = (inmat[4] * inmat[0] - inmat[3] * inmat[1]) / det;
   }
   if (determinant) *determinant = det;
-  PetscFunctionReturn(0);
+  return 0;
 }
 
 inline PetscReal DMatrix_Determinant_4x4_Internal(PetscReal inmat[4 * 4])
@@ -90,7 +90,7 @@ inline PetscErrorCode DMatrix_Invert_4x4_Internal (PetscReal *inmat, PetscReal *
     outmat[15] = (inmat[0] * inmat[5] * inmat[10] + inmat[1] * inmat[6] * inmat[8] + inmat[2] * inmat[4] * inmat[9] - inmat[0] * inmat[6] * inmat[9] - inmat[1] * inmat[4] * inmat[10] - inmat[2] * inmat[5] * inmat[8]) / det;
   }
   if (determinant) *determinant = det;
-  PetscFunctionReturn(0);
+  return 0;
 }
 
 /*@C
@@ -109,17 +109,20 @@ inline PetscErrorCode DMatrix_Invert_4x4_Internal (PetscReal *inmat, PetscReal *
       EDGE2             EDGE3
 .ve
 
-  Input Parameter:
+  Input Parameters:
 +  PetscInt  nverts -          the number of element vertices
 .  PetscReal coords[3*nverts] - the physical coordinates of the vertices (in canonical numbering)
 .  PetscInt  npts -            the number of evaluation points (quadrature points)
 -  PetscReal quad[3*npts] -    the evaluation points (quadrature points) in the reference space
 
-  Output Parameter:
+  Output Parameters:
 +  PetscReal phypts[3*npts] -  the evaluation points (quadrature points) transformed to the physical space
 .  PetscReal jxw[npts] -       the jacobian determinant * quadrature weight necessary for assembling discrete contributions
 .  PetscReal phi[npts] -       the bases evaluated at the specified quadrature points
--  PetscReal dphidx[npts] -    the derivative of the bases wrt X-direction evaluated at the specified quadrature points
+.  PetscReal dphidx[npts] -    the derivative of the bases wrt X-direction evaluated at the specified quadrature points
+.  jacobian -
+.  ijacobian -
+-  volume
 
   Level: advanced
 
@@ -225,18 +228,21 @@ PetscErrorCode Compute_Lagrange_Basis_1D_Internal(const PetscInt nverts, const P
     1------2        0-------r
 .ve
 
-  Input Parameter:
+  Input Parameters:
 +  PetscInt  nverts -          the number of element vertices
 .  PetscReal coords[3*nverts] - the physical coordinates of the vertices (in canonical numbering)
 .  PetscInt  npts -            the number of evaluation points (quadrature points)
 -  PetscReal quad[3*npts] -    the evaluation points (quadrature points) in the reference space
 
-  Output Parameter:
+  Output Parameters:
 +  PetscReal phypts[3*npts] -  the evaluation points (quadrature points) transformed to the physical space
 .  PetscReal jxw[npts] -       the jacobian determinant * quadrature weight necessary for assembling discrete contributions
 .  PetscReal phi[npts] -       the bases evaluated at the specified quadrature points
 .  PetscReal dphidx[npts] -    the derivative of the bases wrt X-direction evaluated at the specified quadrature points
--  PetscReal dphidy[npts] -    the derivative of the bases wrt Y-direction evaluated at the specified quadrature points
+.  PetscReal dphidy[npts] -    the derivative of the bases wrt Y-direction evaluated at the specified quadrature points
+.  jacobian -
+.  ijacobian -
+-  volume
 
   Level: advanced
 
@@ -293,7 +299,7 @@ PetscErrorCode Compute_Lagrange_Basis_2D_Internal(const PetscInt nverts, const P
 
       /* invert the jacobian */
       ierr = DMatrix_Invert_2x2_Internal(jacobian, ijacobian, volume);CHKERRQ(ierr);
-      if (*volume < 1e-12) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Quadrangular element has zero volume: %g. Degenerate element or invalid connectivity\n", *volume);
+      if (*volume < 1e-12) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Quadrangular element has zero volume: %g. Degenerate element or invalid connectivity", *volume);
 
       if (jxw) jxw[j] *= *volume;
 
@@ -319,7 +325,7 @@ PetscErrorCode Compute_Lagrange_Basis_2D_Internal(const PetscInt nverts, const P
 
     /* invert the jacobian */
     ierr = DMatrix_Invert_2x2_Internal(jacobian, ijacobian, volume);CHKERRQ(ierr);
-    if (*volume < 1e-12) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Triangular element has zero volume: %g. Degenerate element or invalid connectivity\n", (double)*volume);
+    if (*volume < 1e-12) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Triangular element has zero volume: %g. Degenerate element or invalid connectivity", (double)*volume);
 
     const PetscReal Dx[3] = { ijacobian[0], ijacobian[2], - ijacobian[0] - ijacobian[2] };
     const PetscReal Dy[3] = { ijacobian[1], ijacobian[3], - ijacobian[1] - ijacobian[3] };
@@ -383,19 +389,22 @@ PetscErrorCode Compute_Lagrange_Basis_2D_Internal(const PetscInt nverts, const P
     1------2
 .ve
 
-  Input Parameter:
+  Input Parameters:
 +  PetscInt  nverts -          the number of element vertices
 .  PetscReal coords[3*nverts] - the physical coordinates of the vertices (in canonical numbering)
 .  PetscInt  npts -            the number of evaluation points (quadrature points)
 -  PetscReal quad[3*npts] -    the evaluation points (quadrature points) in the reference space
 
-  Output Parameter:
+  Output Parameters:
 +  PetscReal phypts[3*npts] -  the evaluation points (quadrature points) transformed to the physical space
 .  PetscReal jxw[npts] -       the jacobian determinant * quadrature weight necessary for assembling discrete contributions
 .  PetscReal phi[npts] -       the bases evaluated at the specified quadrature points
 .  PetscReal dphidx[npts] -    the derivative of the bases wrt X-direction evaluated at the specified quadrature points
 .  PetscReal dphidy[npts] -    the derivative of the bases wrt Y-direction evaluated at the specified quadrature points
--  PetscReal dphidz[npts] -    the derivative of the bases wrt Z-direction evaluated at the specified quadrature points
+.  PetscReal dphidz[npts] -    the derivative of the bases wrt Z-direction evaluated at the specified quadrature points
+.  jacobian -
+.  ijacobian -
+-  volume
 
   Level: advanced
 
@@ -491,7 +500,7 @@ PetscErrorCode Compute_Lagrange_Basis_3D_Internal(const PetscInt nverts, const P
 
       /* invert the jacobian */
       ierr = DMatrix_Invert_3x3_Internal(jacobian, ijacobian, volume);CHKERRQ(ierr);
-      if (*volume < 1e-8) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Hexahedral element has zero volume: %g. Degenerate element or invalid connectivity\n", *volume);
+      if (*volume < 1e-8) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Hexahedral element has zero volume: %g. Degenerate element or invalid connectivity", *volume);
 
       if (jxw) jxw[j] *= (*volume);
 
@@ -518,7 +527,7 @@ PetscErrorCode Compute_Lagrange_Basis_3D_Internal(const PetscInt nverts, const P
 
     /* invert the jacobian */
     ierr = DMatrix_Invert_3x3_Internal(jacobian, ijacobian, volume);CHKERRQ(ierr);
-    if (*volume < 1e-8) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Tetrahedral element has zero volume: %g. Degenerate element or invalid connectivity\n", (double)*volume);
+    if (*volume < 1e-8) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Tetrahedral element has zero volume: %g. Degenerate element or invalid connectivity", (double)*volume);
 
     if (dphidx) {
       Dx[0] =   ( coords[1 + 2 * 3] * ( coords[2 + 1 * 3] - coords[2 + 3 * 3])
@@ -604,13 +613,13 @@ PetscErrorCode Compute_Lagrange_Basis_3D_Internal(const PetscInt nverts, const P
   The routine takes the coordinates of the vertices of an element and computes basis functions associated with
   each quadrature point provided, and their derivatives with respect to X, Y and Z as appropriate.
 
-  Input Parameter:
+  Input Parameters:
 +  PetscInt  nverts,           the number of element vertices
 .  PetscReal coords[3*nverts], the physical coordinates of the vertices (in canonical numbering)
 .  PetscInt  npts,             the number of evaluation points (quadrature points)
 -  PetscReal quad[3*npts],     the evaluation points (quadrature points) in the reference space
 
-  Output Parameter:
+  Output Parameters:
 +  PetscReal phypts[3*npts],   the evaluation points (quadrature points) transformed to the physical space
 .  PetscReal jxw[npts],        the jacobian determinant * quadrature weight necessary for assembling discrete contributions
 .  PetscReal fe_basis[npts],        the bases values evaluated at the specified quadrature points
@@ -637,7 +646,7 @@ PetscErrorCode DMMoabFEMComputeBasis(const PetscInt dim, const PetscInt nverts, 
 
   /* Get the quadrature points and weights for the given quadrature rule */
   ierr = PetscQuadratureGetData(quadrature, &idim, NULL, &npoints, &quadpts, &quadwts);CHKERRQ(ierr);
-  if (idim != dim) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, "Dimension mismatch: provided (%D) vs quadrature (%D)\n",idim,dim);
+  if (idim != dim) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, "Dimension mismatch: provided (%D) vs quadrature (%D)",idim,dim);
   if (jacobian_quadrature_weight_product) {
     ierr = PetscArraycpy(jacobian_quadrature_weight_product, quadwts, npoints);CHKERRQ(ierr);
   }
@@ -674,7 +683,7 @@ PetscErrorCode DMMoabFEMComputeBasis(const PetscInt dim, const PetscInt nverts, 
   DMMoabFEMCreateQuadratureDefault - Create default quadrature rules for integration over an element with a given
   dimension and polynomial order (deciphered from number of element vertices).
 
-  Input Parameter:
+  Input Parameters:
 
 +  PetscInt  dim   -   the element dimension (1=EDGE, 2=QUAD/TRI, 3=HEX/TET)
 -  PetscInt nverts -   the number of vertices in the physical element
@@ -910,11 +919,10 @@ PetscErrorCode ComputeJacobian_Internal (const PetscInt dim, const PetscInt nver
     }
 
   }
-  if (volume < 1e-12) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Element has zero volume: %g. Degenerate element or invalid connectivity\n", volume);
+  if (volume < 1e-12) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Element has zero volume: %g. Degenerate element or invalid connectivity", volume);
   if (dvolume) *dvolume = volume;
   PetscFunctionReturn(0);
 }
-
 
 PetscErrorCode FEMComputeBasis_JandF(const PetscInt dim, const PetscInt nverts, const PetscReal *coordinates, const PetscReal *quadrature, PetscReal *phypts,
                                      PetscReal *phibasis, PetscReal *jacobian, PetscReal *ijacobian, PetscReal* volume)
@@ -946,13 +954,13 @@ PetscErrorCode FEMComputeBasis_JandF(const PetscInt dim, const PetscInt nverts, 
   canonical reference element. In addition to finding the inverse mapping evaluation through Newton iteration,
   the basis function at the parametric point is also evaluated optionally.
 
-  Input Parameter:
+  Input Parameters:
 +  PetscInt  dim -         the element dimension (1=EDGE, 2=QUAD/TRI, 3=HEX/TET)
 .  PetscInt nverts -       the number of vertices in the physical element
 .  PetscReal coordinates - the coordinates of vertices in the physical element
 -  PetscReal[3] xphy -     the coordinates of physical point for which natural coordinates (in reference frame) are sought
 
-  Output Parameter:
+  Output Parameters:
 +  PetscReal[3] natparam - the natural coordinates (in reference frame) corresponding to xphy
 -  PetscReal[nverts] phi - the basis functions evaluated at the natural coordinates (natparam)
 

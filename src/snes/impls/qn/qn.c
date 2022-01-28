@@ -345,10 +345,10 @@ static PetscErrorCode SNESSetFromOptions_QN(PetscOptionItems *PetscOptionsObject
   ierr = PetscOptionsReal("-snes_qn_powell_gamma","Powell angle tolerance",          "SNESQN", qn->powell_gamma, &qn->powell_gamma, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-snes_qn_monitor",         "Monitor for the QN methods",      "SNESQN", qn->monflg, &qn->monflg, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnum("-snes_qn_scale_type","Scaling type","SNESQNSetScaleType",SNESQNScaleTypes,(PetscEnum)stype,(PetscEnum*)&stype,&flg);CHKERRQ(ierr);
-  if (flg) ierr = SNESQNSetScaleType(snes,stype);CHKERRQ(ierr);
+  if (flg) {ierr = SNESQNSetScaleType(snes,stype);CHKERRQ(ierr);}
 
   ierr = PetscOptionsEnum("-snes_qn_restart_type","Restart type","SNESQNSetRestartType",SNESQNRestartTypes,(PetscEnum)rtype,(PetscEnum*)&rtype,&flg);CHKERRQ(ierr);
-  if (flg) ierr = SNESQNSetRestartType(snes,rtype);CHKERRQ(ierr);
+  if (flg) {ierr = SNESQNSetRestartType(snes,rtype);CHKERRQ(ierr);}
 
   ierr = PetscOptionsEnum("-snes_qn_type","Quasi-Newton update type","",SNESQNTypes,(PetscEnum)qtype,(PetscEnum*)&qtype,&flg);CHKERRQ(ierr);
   if (flg) {ierr = SNESQNSetType(snes,qtype);CHKERRQ(ierr);}
@@ -434,12 +434,12 @@ PetscErrorCode SNESQNSetRestartType(SNES snes, SNESQNRestartType rtype)
 
     SNESQNScaleTypes:
 +   SNES_QN_SCALE_NONE - don't scale the problem
-.   SNES_QN_SCALE_SCALAR - use shanno scaling
+.   SNES_QN_SCALE_SCALAR - use Shanno scaling
 .   SNES_QN_SCALE_DIAGONAL - scale with a diagonalized BFGS formula (see Gilbert and Lemarechal 1989), available
 -   SNES_QN_SCALE_JACOBIAN - scale by solving a linear system coming from the Jacobian you provided with SNESSetJacobian() computed at the first iteration
                              of QN and at ever restart.
 
-.seealso: SNES, SNESQN, SNESLineSearch, SNESQNScaleType, SNESetJacobian()
+.seealso: SNES, SNESQN, SNESLineSearch, SNESQNScaleType, SNESSetJacobian()
 @*/
 
 PetscErrorCode SNESQNSetScaleType(SNES snes, SNESQNScaleType stype)
@@ -458,6 +458,7 @@ PetscErrorCode SNESQNSetScaleType_QN(SNES snes, SNESQNScaleType stype)
 
   PetscFunctionBegin;
   qn->scale_type = stype;
+  if (stype == SNES_QN_SCALE_JACOBIAN) snes->usesksp = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
 

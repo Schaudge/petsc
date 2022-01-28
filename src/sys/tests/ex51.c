@@ -7,8 +7,6 @@ static char help[] = "Demonstrates PetscFileRetrieve().\n\n";
    Processors: n
 T*/
 
-
-
 #include <petscsys.h>
 int main(int argc,char **argv)
 {
@@ -30,16 +28,15 @@ int main(int argc,char **argv)
   ierr = PetscFileRetrieve(PETSC_COMM_WORLD,url,localname,PETSC_MAX_PATH_LEN,&found);CHKERRQ(ierr);
   if (found) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Successfully download file %s\n",localname);CHKERRQ(ierr);
-  } else SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_PLIB,"Unable to download url %s\n",url);
+  } else SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_PLIB,"Unable to download url %s",url);
 
   ierr = PetscFinalize();
   return ierr;
 }
 
-
 /*TEST
 
    test:
-     requires: define(PETSC_HAVE_POPEN)
+     requires: defined(PETSC_HAVE_POPEN)
 
 TEST*/

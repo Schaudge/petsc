@@ -14,7 +14,6 @@ class ViewerType(object):
     SAWS        = S_(PETSCVIEWERSAWS)
     GLVIS       = S_(PETSCVIEWERGLVIS)
     ADIOS       = S_(PETSCVIEWERADIOS)
-    ADIOS2      = S_(PETSCVIEWERADIOS2)
     EXODUSII    = S_(PETSCVIEWEREXODUSII)
 
 class ViewerFormat(object):
@@ -126,7 +125,7 @@ cdef class Viewer(Object):
         cdef const char *cname = NULL
         name = str2bytes(name, &cname)
         cdef PetscFileMode cmode = PETSC_FILE_MODE_WRITE
-        if mode is not None: filemode(mode)
+        if mode is not None: cmode = filemode(mode)
         cdef PetscViewer newvwr = NULL
         CHKERR( PetscViewerCreate(ccomm, &newvwr) )
         PetscCLEAR(self.obj); self.vwr = newvwr
@@ -307,12 +306,12 @@ cdef class Viewer(Object):
     def printfASCII(self, msg):
         cdef const char *cmsg = NULL
         msg = str2bytes(msg, &cmsg)
-        CHKERR( PetscViewerASCIIPrintf(self.vwr, cmsg) )
+        CHKERR( PetscViewerASCIIPrintf(self.vwr, '%s', cmsg) )
 
     def printfASCIISynchronized(self, msg):
         cdef const char *cmsg = NULL
         msg = str2bytes(msg, &cmsg)
-        CHKERR( PetscViewerASCIISynchronizedPrintf(self.vwr, cmsg) )
+        CHKERR( PetscViewerASCIISynchronizedPrintf(self.vwr, '%s', cmsg) )
 
     # --- methods specific to file viewers ---
 
@@ -376,6 +375,12 @@ cdef class ViewerHDF5(Viewer):
         CHKERR( PetscViewerFileSetMode(self.vwr, cmode) )
         CHKERR( PetscViewerFileSetName(self.vwr, cname) )
         return self
+
+    def pushTimestepping(self):
+        CHKERR( PetscViewerHDF5PushTimestepping(self.vwr) )
+
+    def popTimestepping(self):
+        CHKERR( PetscViewerHDF5PopTimestepping(self.vwr) )
 
     def getTimestep(self):
         cdef PetscInt ctimestep = 0

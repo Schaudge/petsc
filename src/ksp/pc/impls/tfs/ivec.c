@@ -1,5 +1,4 @@
 
-
 /**********************************ivec.c**************************************
 
 Author: Henry M. Tufo III
@@ -20,7 +19,6 @@ Last Modification:
 /* sorting args ivec.c ivec.c ... */
 #define   SORT_OPT     6
 #define   SORT_STACK   50000
-
 
 /* allocate an address and size stack for sorter(s) */
 static void     *offset_stack[2*SORT_STACK];
@@ -162,11 +160,17 @@ PetscInt PCTFS_ivec_sum(PetscInt *arg1,  PetscInt n)
 }
 
 /***********************************ivec.c*************************************/
-PetscErrorCode PCTFS_ivec_non_uniform(PetscInt *arg1, PetscInt *arg2,  PetscInt n,  PetscInt *arg3)
+PetscErrorCode PCTFS_ivec_non_uniform(PetscInt *arg1, PetscInt *arg2,  PetscInt n, ...)
 {
   PetscInt i, j, type;
+  PetscInt *arg3;
+  va_list  ap;
 
   PetscFunctionBegin;
+  va_start(ap, n);
+  arg3 = va_arg(ap, PetscInt*);
+  va_end(ap);
+
   /* LATER: if we're really motivated we can sort and then unsort */
   for (i=0; i<n;) {
     /* clump 'em for now */
@@ -221,7 +225,7 @@ PetscErrorCode PCTFS_ivec_sort(PetscInt *ar,  PetscInt size)
   PetscInt **top_a = (PetscInt**) offset_stack;
   PetscInt *top_s  = size_stack, *bottom_s = size_stack;
 
-
+  PetscFunctionBegin;
   /* we're really interested in the offset of the last element */
   /* ==> length of the list is now size + 1                    */
   size--;
@@ -293,7 +297,6 @@ PetscErrorCode PCTFS_ivec_sort(PetscInt *ar,  PetscInt size)
       size = *(--top_s);
     }
   }
-  PetscFunctionReturn(0);
 }
 
 /******************************************************************************/
@@ -393,7 +396,6 @@ PetscErrorCode PCTFS_ivec_sort_companion(PetscInt *ar,  PetscInt *ar2,  PetscInt
       size = *(--top_s);
     }
   }
-  PetscFunctionReturn(0);
 }
 
 /******************************************************************************/
@@ -493,7 +495,6 @@ PetscErrorCode PCTFS_ivec_sort_companion_hack(PetscInt *ar,  PetscInt **ar2, Pet
       size = *(--top_s);
     }
   }
-  PetscFunctionReturn(0);
 }
 
 /******************************************************************************/
@@ -515,7 +516,6 @@ PetscInt PCTFS_ivec_linear_search(PetscInt item,  PetscInt *list,  PetscInt n)
 {
   PetscInt tmp = n-1;
 
-  PetscFunctionBegin;
   while (n--) {
     if (*list++ == item) return(tmp-n);
   }
@@ -700,9 +700,4 @@ vfp PCTFS_rvec_fct_addr(PetscInt type)
   /* catch all ... not good if we get here */
   return(NULL);
 }
-
-
-
-
-
 

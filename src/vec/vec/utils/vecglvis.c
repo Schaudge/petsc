@@ -78,7 +78,7 @@ PetscErrorCode VecView_GLVis(Vec U,PetscViewer viewer)
   if (g2lfields) {
     ierr = (*g2lfields)((PetscObject)U,nfields,(PetscObject*)Ufield,userctx);CHKERRQ(ierr);
   } else {
-    if (nfields > 1) SETERRQ1(PetscObjectComm((PetscObject)U),PETSC_ERR_SUP,"Don't know how to sample %D fields",nfields);
+    if (nfields > 1) SETERRQ1(PetscObjectComm((PetscObject)U),PETSC_ERR_SUP,"Don't know how to sample %" PetscInt_FMT " fields",nfields);
     ierr = VecCopy(U,Ufield[0]);CHKERRQ(ierr);
   }
 
@@ -94,8 +94,8 @@ PetscErrorCode VecView_GLVis(Vec U,PetscViewer viewer)
       PetscMPIInt size,rank;
       const char *name;
 
-      ierr = MPI_Comm_size(PetscObjectComm(dm),&size);CHKERRQ(ierr);
-      ierr = MPI_Comm_rank(PetscObjectComm(dm),&rank);CHKERRQ(ierr);
+      ierr = MPI_Comm_size(PetscObjectComm(dm),&size);CHKERRMPI(ierr);
+      ierr = MPI_Comm_rank(PetscObjectComm(dm),&rank);CHKERRMPI(ierr);
       ierr = PetscObjectGetName((PetscObject)Ufield[i],&name);CHKERRQ(ierr);
 
       ierr = PetscGLVisCollectiveBegin(PetscObjectComm(dm),&view);CHKERRQ(ierr);

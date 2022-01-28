@@ -10,8 +10,8 @@ class Configure(config.package.CMakePackage):
     self.downloaddirnames = ['trilinos']
     self.includes         = ['Trilinos_version.h']
     self.functions        = ['Zoltan_Create']   # one of the very few C routines in Trilinos
-    self.cxx              = 1
-    self.requirescxx11    = 1
+    self.buildLanguages   = ['Cxx']
+    self.minCxxVersion    = 'c++11'
     self.downloadonWindows= 0
     self.hastests         = 1
     self.requiresrpath    = 1
@@ -76,7 +76,7 @@ class Configure(config.package.CMakePackage):
 
   # older versions of Trilinos require passing rpath with the various library paths
   # this caused problems on Apple with cmake generating command lines that are too long
-  # Trilinos was fixed to handled the rpath internally using cmake 
+  # Trilinos was fixed to handled the rpath internally using cmake
   def toStringNoDupes(self,string):
     string    = self.libraries.toStringNoDupes(string)
     if self.requiresrpath: return string
@@ -129,10 +129,8 @@ class Configure(config.package.CMakePackage):
     args = config.package.CMakePackage.formCMakeConfigureArgs(self)
     args.append('-DUSE_XSDK_DEFAULTS=YES')
     if self.compilerFlags.debugging:
-      args.append('-DCMAKE_BUILD_TYPE=DEBUG')
       args.append('-DTrilinos_ENABLE_DEBUG=YES')
     else:
-      args.append('-DCMAKE_BUILD_TYPE=RELEASE')
       args.append('-DXSDK_ENABLE_DEBUG=NO')
 
     # Roscoe says I should to this
@@ -149,9 +147,6 @@ class Configure(config.package.CMakePackage):
     args.append('-DTpetra_INST_FLOAT=OFF')
     args.append('-DTpetra_INST_COMPLEX_FLOAT=OFF')
     args.append('-DTpetra_INST_COMPLEX_DOUBLE=OFF')
-
-    # Trilinos cmake does not set this variable (as it should) so cmake install does not properly reset the -id and rpath of --prefix installed Trilinos libraries
-    args.append('-DCMAKE_INSTALL_NAME_DIR:STRING="'+os.path.join(self.installDir,self.libdir)+'"')
 
     if self.boost.found:
       args.append('-DTPL_ENABLE_Boost=ON')

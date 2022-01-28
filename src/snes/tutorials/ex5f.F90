@@ -13,7 +13,6 @@
 !  Processors: n
 !T*/
 
-
 !
 !  --------------------------------------------------------------------------
 !
@@ -182,7 +181,6 @@
          write(6,100) its
       endif
   100 format('Number of SNES iterations = ',i5)
-
 
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  Free work space.  All PETSc objects should be destroyed when they
@@ -422,7 +420,6 @@
       PetscErrorCode  ierr
       DMDALocalInfo info(DMDA_LOCAL_INFO_SIZE)
 
-
 !  Local variables:
       PetscInt  row,col(5),i,j,i1,i5
       PetscScalar two,one,hx,hy,v(5)
@@ -514,7 +511,8 @@
 !
 !   test:
 !      nsize: 4
-!      args: -snes_mf -pc_type none -da_processors_x 4 -da_processors_y 1 -snes_monitor_short -ksp_gmres_cgs_refinement_type refine_always
+!      args: -snes_mf -pc_type none -da_processors_x 4 -da_processors_y 1 -snes_monitor_short \
+!            -ksp_gmres_cgs_refinement_type refine_always
 !
 !   test:
 !      suffix: 2

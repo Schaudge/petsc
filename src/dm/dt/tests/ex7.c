@@ -98,7 +98,7 @@ int main(int argc, char **argv)
   ierr = PetscOptionsBegin(PETSC_COMM_WORLD,"","Options for exterior algebra tests","none");CHKERRQ(ierr);
   ierr = PetscOptionsIntArray("-N", "Up to 5 vector space dimensions to test","ex7.c",n,&numTests,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-verbose", "Verbose test output","ex7.c",verbose,&verbose,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsEnd();
+  ierr = PetscOptionsEnd();CHKERRQ(ierr);
   ierr = PetscRandomCreate(PETSC_COMM_SELF, &rand);CHKERRQ(ierr);
   ierr = PetscRandomSetInterval(rand, -1., 1.);CHKERRQ(ierr);
   ierr = PetscRandomSetFromOptions(rand);CHKERRQ(ierr);
@@ -130,7 +130,7 @@ int main(int argc, char **argv)
         }
         ierr = PetscPrintf(PETSC_COMM_WORLD, ", %s\n", isOdd ? "odd" : "even");CHKERRQ(ierr);
         ierr = PetscDTPermIndex(N, perm, &kCheck, &isOddCheck);CHKERRQ(ierr);
-        if (kCheck != k || isOddCheck != isOdd) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "PetscDTEnumPerm / PetscDTPermIndex mismatch for (%D, %D)\n", N, k);
+        if (kCheck != k || isOddCheck != isOdd) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "PetscDTEnumPerm / PetscDTPermIndex mismatch for (%D, %D)", N, k);
       }
       ierr = PetscViewerASCIIPopTab(viewer);CHKERRQ(ierr);
       ierr = PetscFree(perm);CHKERRQ(ierr);

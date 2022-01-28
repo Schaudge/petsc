@@ -13,7 +13,7 @@ int main(int argc,char **argv)
   PetscMPIInt     rank;
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
   dof0 = 1;
   dof1 = 1;
   dof2 = 1;
@@ -63,8 +63,8 @@ int main(int argc,char **argv)
   ierr = DMStagVecRestoreArrayRead(dm,vecLocal1,&a1);CHKERRQ(ierr);
   ierr = DMStagVecRestoreArray(dm,vecLocal2,&a2);CHKERRQ(ierr);
 
-  DMLocalToGlobalBegin(dm,vecLocal2,INSERT_VALUES,vec);CHKERRQ(ierr);
-  DMLocalToGlobalEnd(dm,vecLocal2,INSERT_VALUES,vec);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dm,vecLocal2,INSERT_VALUES,vec);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(dm,vecLocal2,INSERT_VALUES,vec);CHKERRQ(ierr);
 
   /* For the all-periodic case, some additional checks */
   ierr = DMStagGetBoundaryTypes(dm,&boundaryTypex,&boundaryTypey,&boundaryTypez);CHKERRQ(ierr);

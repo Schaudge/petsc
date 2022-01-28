@@ -23,9 +23,6 @@ int main(int argc,char **args)
 #if defined(PETSC_HAVE_ADIOS)
   PetscBool         isadios = PETSC_FALSE;
 #endif
-#if defined(PETSC_HAVE_ADIOS2)
-  PetscBool         isadios2 = PETSC_FALSE;
-#endif
   PetscScalar const *values;
 #if defined(PETSC_USE_LOG)
   PetscLogEvent  VECTOR_GENERATE,VECTOR_READ;
@@ -41,15 +38,12 @@ int main(int argc,char **args)
 #if defined(PETSC_HAVE_ADIOS)
   ierr = PetscOptionsGetBool(NULL,NULL,"-adios",&isadios,NULL);CHKERRQ(ierr);
 #endif
-#if defined(PETSC_HAVE_ADIOS2)
-  ierr = PetscOptionsGetBool(NULL,NULL,"-adios2",&isadios2,NULL);CHKERRQ(ierr);
-#endif
   ierr = PetscOptionsGetBool(NULL,NULL,"-mpiio",&mpiio_use,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(NULL,NULL,"-sizes_set",&vstage2,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(NULL,NULL,"-type_set",&vstage3,NULL);CHKERRQ(ierr);
 
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
   ierr = PetscOptionsGetInt(NULL,NULL,"-m",&m,NULL);CHKERRQ(ierr);
 
   /* PART 1:  Generate vector, then write it in the given data format */
@@ -85,16 +79,10 @@ int main(int argc,char **args)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"writing vector in adios to vector.dat ...\n");CHKERRQ(ierr);
     ierr = PetscViewerADIOSOpen(PETSC_COMM_WORLD,"vector.dat",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
 #endif
-#if defined(PETSC_HAVE_ADIOS2)
-  } else if (isadios2) {
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"writing vector in adios to vector.dat ...\n");CHKERRQ(ierr);
-    ierr = PetscViewerADIOS2Open(PETSC_COMM_WORLD,"vector.dat",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-#endif
-  } else SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"No data format specified, run with either -binary or -hdf5 -adios -adios2 option\n");
+  } else SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"No data format specified, run with one of -binary -hdf5 -adios options");
   ierr = VecView(u,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
   ierr = VecDestroy(&u);CHKERRQ(ierr);
-
 
   ierr = PetscLogEventEnd(VECTOR_GENERATE,0,0,0,0);CHKERRQ(ierr);
 
@@ -121,11 +109,6 @@ int main(int argc,char **args)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"reading vector in adios from vector.dat ...\n");CHKERRQ(ierr);
     ierr = PetscViewerADIOSOpen(PETSC_COMM_WORLD,"vector.dat",FILE_MODE_READ,&viewer);CHKERRQ(ierr);
 #endif
-#if defined(PETSC_HAVE_ADIOS2)
-  } else if (isadios2) {
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"reading vector in adios2 from vector.dat ...\n");CHKERRQ(ierr);
-    ierr = PetscViewerADIOS2Open(PETSC_COMM_WORLD,"vector.dat",FILE_MODE_READ,&viewer);CHKERRQ(ierr);
-#endif
   }
   ierr = VecCreate(PETSC_COMM_WORLD,&u);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) u,"Test_Vec");CHKERRQ(ierr);
@@ -133,7 +116,7 @@ int main(int argc,char **args)
   if (vstage2) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Setting vector sizes...\n");CHKERRQ(ierr);
     if (size > 1) {
-      if (!rank) {
+      if (rank == 0) {
         lsize = m/size + size;
         ierr  = VecSetSizes(u,lsize,m);CHKERRQ(ierr);
       } else if (rank == size-1) {
@@ -160,7 +143,7 @@ int main(int argc,char **args)
   ierr = VecGetLocalSize(u,&ldim);CHKERRQ(ierr);
   ierr = VecGetOwnershipRange(u,&low,NULL);CHKERRQ(ierr);
   for (i=0; i<ldim; i++) {
-    if (values[i] != (PetscScalar)(i + low)) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Data check failed!\n");
+    if (values[i] != (PetscScalar)(i + low)) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Data check failed!");
   }
   ierr = VecRestoreArrayRead(u,&values);CHKERRQ(ierr);
 
@@ -202,6 +185,5 @@ int main(int argc,char **args)
        requires: hdf5
        nsize: 4
        args: -hdf5 -sizes_set
-
 
 TEST*/

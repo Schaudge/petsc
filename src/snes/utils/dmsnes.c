@@ -133,7 +133,7 @@ static PetscErrorCode DMInterpolateHook_DMSNES(DM dm,Mat Interp,DM dmf,void *ctx
 
    Not Collective
 
-   Input Argument:
+   Input Parameters:
 +  kdm - Original DMSNES
 -  nkdm - DMSNES to receive the data, should have been created with DMSNESCreate()
 
@@ -180,10 +180,10 @@ PetscErrorCode DMSNESCopy(DMSNES kdm,DMSNES nkdm)
 
    Not Collective
 
-   Input Argument:
+   Input Parameter:
 .  dm - DM to be used with SNES
 
-   Output Argument:
+   Output Parameter:
 .  snesdm - private DMSNES context
 
    Level: developer
@@ -218,10 +218,10 @@ PetscErrorCode DMGetDMSNES(DM dm,DMSNES *snesdm)
 
    Not Collective
 
-   Input Argument:
+   Input Parameter:
 .  dm - DM to be used with SNES
 
-   Output Argument:
+   Output Parameter:
 .  snesdm - private DMSNES context
 
    Level: developer
@@ -255,7 +255,7 @@ PetscErrorCode DMGetDMSNESWrite(DM dm,DMSNES *snesdm)
 
    Logically Collective
 
-   Input Arguments:
+   Input Parameters:
 +  dmsrc - DM to obtain context from
 -  dmdest - DM to add context to
 
@@ -286,7 +286,7 @@ PetscErrorCode DMCopyDMSNES(DM dmsrc,DM dmdest)
 
    Not Collective
 
-   Input Arguments:
+   Input Parameters:
 +  dm - DM to be used with SNES
 .  f - residual evaluation function; see SNESFunction for details
 -  ctx - context for residual evaluation
@@ -316,14 +316,42 @@ PetscErrorCode DMSNESSetFunction(DM dm,PetscErrorCode (*f)(SNES,Vec,Vec,void*),v
 }
 
 /*@C
+   DMSNESSetMFFunction - set SNES residual evaluation function used in applying the matrix-free Jacobian with -snes_mf_operator
+
+   Logically Collective on dm
+
+   Input Parameters:
++  dm - DM to be used with SNES
+-  f - residual evaluation function; see SNESFunction for details
+
+   Level: advanced
+
+.seealso: DMSNESSetContext(), SNESSetFunction(), DMSNESSetJacobian(), SNESFunction, DMSNESSetFunction()
+@*/
+PetscErrorCode DMSNESSetMFFunction(DM dm,PetscErrorCode (*f)(SNES,Vec,Vec,void*),void *ctx)
+{
+  PetscErrorCode ierr;
+  DMSNES         sdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
+  if (f || ctx) {
+    ierr = DMGetDMSNESWrite(dm,&sdm);CHKERRQ(ierr);
+  }
+  if (f) sdm->ops->computemffunction = f;
+  if (ctx) sdm->mffunctionctx = ctx;
+  PetscFunctionReturn(0);
+}
+
+/*@C
    DMSNESGetFunction - get SNES residual evaluation function
 
    Not Collective
 
-   Input Argument:
+   Input Parameter:
 .  dm - DM to be used with SNES
 
-   Output Arguments:
+   Output Parameters:
 +  f - residual evaluation function; see SNESFunction for details
 -  ctx - context for residual evaluation
 
@@ -353,7 +381,7 @@ PetscErrorCode DMSNESGetFunction(DM dm,PetscErrorCode (**f)(SNES,Vec,Vec,void*),
 
    Not Collective
 
-   Input Arguments:
+   Input Parameters:
 +  dm - DM to be used with SNES
 .  obj - objective evaluation function; see SNESObjectiveFunction for details
 -  ctx - context for residual evaluation
@@ -382,10 +410,10 @@ PetscErrorCode DMSNESSetObjective(DM dm,PetscErrorCode (*obj)(SNES,Vec,PetscReal
 
    Not Collective
 
-   Input Argument:
+   Input Parameter:
 .  dm - DM to be used with SNES
 
-   Output Arguments:
+   Output Parameters:
 +  obj- residual evaluation function; see SNESObjectiveFunction for details
 -  ctx - context for residual evaluation
 
@@ -415,7 +443,7 @@ PetscErrorCode DMSNESGetObjective(DM dm,PetscErrorCode (**obj)(SNES,Vec,PetscRea
 
    Not Collective
 
-   Input Argument:
+   Input Parameters:
 +  dm - DM to be used with SNES
 .  f  - relaxation function, see SNESGSFunction
 -  ctx - context for residual evaluation
@@ -449,10 +477,10 @@ PetscErrorCode DMSNESSetNGS(DM dm,PetscErrorCode (*f)(SNES,Vec,Vec,void*),void *
 
    Not Collective
 
-   Input Argument:
+   Input Parameter:
 .  dm - DM to be used with SNES
 
-   Output Arguments:
+   Output Parameters:
 +  f - relaxation function which performs Gauss-Seidel sweeps, see SNESGSFunction
 -  ctx - context for residual evaluation
 
@@ -483,7 +511,7 @@ PetscErrorCode DMSNESGetNGS(DM dm,PetscErrorCode (**f)(SNES,Vec,Vec,void*),void 
 
    Not Collective
 
-   Input Argument:
+   Input Parameters:
 +  dm - DM to be used with SNES
 .  J - Jacobian evaluation function
 -  ctx - context for residual evaluation
@@ -517,10 +545,10 @@ PetscErrorCode DMSNESSetJacobian(DM dm,PetscErrorCode (*J)(SNES,Vec,Mat,Mat,void
 
    Not Collective
 
-   Input Argument:
+   Input Parameter:
 .  dm - DM to be used with SNES
 
-   Output Arguments:
+   Output Parameters:
 +  J - Jacobian evaluation function; see SNESJacobianFunction for all calling sequence
 -  ctx - context for residual evaluation
 
@@ -551,7 +579,7 @@ PetscErrorCode DMSNESGetJacobian(DM dm,PetscErrorCode (**J)(SNES,Vec,Mat,Mat,voi
 
    Not Collective
 
-   Input Argument:
+   Input Parameters:
 +  dm - DM to be used with SNES
 .  b - RHS evaluation function
 .  J - Picard matrix evaluation function
@@ -580,10 +608,10 @@ PetscErrorCode DMSNESSetPicard(DM dm,PetscErrorCode (*b)(SNES,Vec,Vec,void*),Pet
 
    Not Collective
 
-   Input Argument:
+   Input Parameter:
 .  dm - DM to be used with SNES
 
-   Output Arguments:
+   Output Parameters:
 +  b - RHS evaluation function; see SNESFunction for details
 .  J  - RHS evaluation function; see SNESJacobianFunction for detailsa
 -  ctx - context for residual evaluation

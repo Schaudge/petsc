@@ -15,8 +15,8 @@ int main(int argc,char **args)
   const PetscScalar *values;
 
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
   n    = 2*size;
 
   /* create the matrix for the five point stencil, YET AGAIN*/
@@ -45,9 +45,9 @@ int main(int argc,char **args)
   ierr = MatGetOwnershipRange(C,&rstart,&rend);CHKERRQ(ierr);
   for (i=rstart; i<rend; i++) {
     ierr = MatGetRow(C,i,&nz,&idx,&values);CHKERRQ(ierr);
-    ierr = PetscSynchronizedFPrintf(PETSC_COMM_WORLD,stdout,"[%d] get row %D: ",rank,i);CHKERRQ(ierr);
+    ierr = PetscSynchronizedFPrintf(PETSC_COMM_WORLD,stdout,"[%d] get row %" PetscInt_FMT ": ",rank,i);CHKERRQ(ierr);
     for (j=0; j<nz; j++) {
-      ierr = PetscSynchronizedFPrintf(PETSC_COMM_WORLD,stdout,"%D %g  ",idx[j],(double)PetscRealPart(values[j]));CHKERRQ(ierr);
+      ierr = PetscSynchronizedFPrintf(PETSC_COMM_WORLD,stdout,"%" PetscInt_FMT " %g  ",idx[j],(double)PetscRealPart(values[j]));CHKERRQ(ierr);
     }
     ierr = PetscSynchronizedFPrintf(PETSC_COMM_WORLD,stdout,"\n");CHKERRQ(ierr);
     ierr = MatRestoreRow(C,i,&nz,&idx,&values);CHKERRQ(ierr);
@@ -65,7 +65,6 @@ int main(int argc,char **args)
   ierr = PetscFinalize();
   return ierr;
 }
-
 
 /*TEST
 

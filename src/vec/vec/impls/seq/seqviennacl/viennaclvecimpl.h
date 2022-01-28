@@ -3,6 +3,7 @@
 
 #include <petscviennacl.h>
 #include <petsc/private/vecimpl.h>
+#include <petsc/private/deviceimpl.h>
 
 #include <algorithm>
 #include <vector>
@@ -46,6 +47,9 @@ PETSC_EXTERN PetscErrorCode VecView_Seq(Vec,PetscViewer);
 PETSC_INTERN PetscErrorCode VecDestroy_SeqViennaCL(Vec);
 PETSC_INTERN PetscErrorCode VecAYPX_SeqViennaCL(Vec,PetscScalar,Vec);
 PETSC_INTERN PetscErrorCode VecSetRandom_SeqViennaCL(Vec,PetscRandom);
+PETSC_INTERN PetscErrorCode VecGetArrayWrite_SeqViennaCL(Vec,PetscScalar**);
+PETSC_INTERN PetscErrorCode VecGetArray_SeqViennaCL(Vec,PetscScalar**);
+PETSC_INTERN PetscErrorCode VecRestoreArray_SeqViennaCL(Vec,PetscScalar**);
 
 PETSC_INTERN PetscErrorCode VecCreate_MPIViennaCL_Private(Vec,PetscBool,PetscInt,const ViennaCLVector *);
 
@@ -56,7 +60,5 @@ struct Vec_ViennaCL {
   viennacl::vector<PetscScalar> *GPUarray;           // this always holds the GPU data
   viennacl::vector<PetscScalar> *GPUarray_allocated; // if the array was allocated by PETSc this is its pointer
 };
-
-
 
 #endif

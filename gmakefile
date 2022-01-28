@@ -63,7 +63,7 @@ $(generated) : $(petscconf) $(petscvariables) config/gmakegen.py
 	$(PYTHON) ./config/gmakegen.py --petsc-arch=$(PETSC_ARCH)
 
 # Skip including generated files (which triggers rebuilding them) when we're just going to clean anyway.
-ifneq ($(filter-out clean check,$(MAKECMDGOALS:clean%=clean)),)
+ifneq ($(filter-out clean check info,$(MAKECMDGOALS:clean%=clean)),)
 include $(generated)
 endif
 
@@ -71,16 +71,17 @@ endif
 ifeq ($(PETSC_DLL_EXPORTS),1)
 $(OBJDIR)/%.o : CCPPFLAGS+=-Dpetsc_EXPORTS
 $(OBJDIR)/%.o : CXXCPPFLAGS+=-Dpetsc_EXPORTS
+$(OBJDIR)/%.o : CUDACPPFLAGS+=-Dpetsc_EXPORTS
 endif
 
 langs := F F90 cxx c
 ifneq ($(CUDAC),)
 langs += cu
 endif
-ifneq ($(HIPCC),)
+ifneq ($(HIPC),)
 langs += hip.cpp
 endif
-ifneq ($(SYCLCPP),)
+ifneq ($(SYCLC),)
 langs += sycl.cxx
 endif
 ifneq ($(KOKKOS_LIB),)
@@ -123,6 +124,14 @@ define ARCHIVE_RECIPE_WIN32FE_LIB
   @$(RM) $@.args
 endef
 
+define ARCHIVE_RECIPE_ARGFILE
+  @$(RM) $@
+  $(file > $@.args,$^)
+  $(call quiet,AR) $(AR_FLAGS) $@ @$@.args
+  @$(RM) $@.args
+  $(call quiet,RANLIB) $@
+endef
+
 define ARCHIVE_RECIPE_DEFAULT
   @$(RM) $@
   $(call quiet,AR) $(AR_FLAGS) $@ $^
@@ -130,7 +139,7 @@ define ARCHIVE_RECIPE_DEFAULT
 endef
 
 %.$(AR_LIB_SUFFIX) : $$(obj) | $$(@D)/.DIR
-	$(if $(findstring win32fe lib,$(AR)),$(ARCHIVE_RECIPE_WIN32FE_LIB),$(ARCHIVE_RECIPE_DEFAULT))
+	$(if $(findstring win32fe lib,$(AR)),$(ARCHIVE_RECIPE_WIN32FE_LIB),$(if $(findstring yes,$(AR_ARGFILE)),$(if $(findstring 3.99,$(firstword $(sort 3.99 $(MAKE_VERSION)))),$(ARCHIVE_RECIPE_ARGFILE),$(ARCHIVE_RECIPE_DEFAULT)),$(ARCHIVE_RECIPE_DEFAULT)))
 
 # with-single-library=0
 libpkg = $(foreach pkg, $1, $(LIBDIR)/libpetsc$(pkg).$(SL_LINKER_SUFFIX))
@@ -172,6 +181,9 @@ $(call soname_function,%) : $(call libname_function,%)
 
 .PRECIOUS: $(call soname_function,%)
 
+$(OBJDIR)/%.o : src/%.sycl.cxx | $$(@D)/.DIR
+	$(PETSC_COMPILE.sycl.cxx) $(abspath $<) -o $@
+
 $(OBJDIR)/%.o : src/%.c | $$(@D)/.DIR
 	$(PETSC_COMPILE.c) $(abspath $<) -o $@
 
@@ -181,11 +193,9 @@ $(OBJDIR)/%.o : src/%.kokkos.cxx | $$(@D)/.DIR
 $(OBJDIR)/%.o : src/%.cxx | $$(@D)/.DIR
 	$(PETSC_COMPILE.cxx) $(abspath $<) -o $@
 
+#$(OBJDIR)/%.hip.o : src/%.hip.cpp | $$(@D)/.DIR
 $(OBJDIR)/%.o : src/%.hip.cpp | $$(@D)/.DIR
 	$(PETSC_COMPILE.hip.cpp) $(abspath $<) -o $@
-
-$(OBJDIR)/%.o : src/%.sycl.cxx | $$(@D)/.DIR
-	$(PETSC_COMPILE.sycl.cxx) $(abspath $<) -o $@
 
 $(OBJDIR)/%.o : src/%.cu | $$(@D)/.DIR
 	$(PETSC_COMPILE.cu) $(abspath $<) -o $@ # Compile first so that if there is an error, it comes from a normal compile

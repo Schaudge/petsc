@@ -14,7 +14,7 @@
 
   Level: intermediate
 
-.seealso: DMSTAG, DMDAGetBoundaryTypes()
+.seealso: DMSTAG
 @*/
 PetscErrorCode DMStagGetBoundaryTypes(DM dm,DMBoundaryType *boundaryTypeX,DMBoundaryType *boundaryTypeY,DMBoundaryType *boundaryTypeZ)
 {
@@ -103,7 +103,7 @@ static PetscErrorCode DMStagGetProductCoordinateArrays_Private(DM dm,void* arrX,
   representing coordinates on elements and vertices (element boundaries)
   for a 1-dimensional DMStag in each coordinate direction.
 
-  One should use DMStagGetProductCoordinateSlot() to determine appropriate
+  One should use DMStagGetProductCoordinateLocationSlot() to determine appropriate
   indices for the second dimension in these returned arrays. This function
   checks that the coordinate array is a suitable product of 1-dimensional
   DMStag objects.
@@ -169,8 +169,13 @@ PetscErrorCode DMStagGetProductCoordinateArraysRead(DM dm,void* arrX,void* arrY,
 . slot - the index to use in local arrays
 
   Notes:
-  Checks that the coordinates are actually set up so that using the
-  slots from the first 1d coordinate sub-DM is valid for all the 1D coordinate sub-DMs.
+  For loc, one should use DMSTAG_LEFT, DMSTAG_ELEMENT, or DMSTAG_RIGHT for "previous", "center" and "next"
+  locations, respectively, in each dimension.
+  One can equivalently use DMSTAG_DOWN or DMSTAG_BACK in place of DMSTAG_LEFT,
+  and DMSTAG_UP or DMSTACK_FRONT in place of DMSTAG_RIGHT;
+
+  This function checks that the coordinates are actually set up so that using the
+  slots from any of the 1D coordinate sub-DMs are valid for all the 1D coordinate sub-DMs.
 
   Level: intermediate
 
@@ -230,9 +235,15 @@ PETSC_EXTERN PetscErrorCode DMStagGetProductCoordinateLocationSlot(DM dm,DMStagS
 . dm - the DMStag object
 
   Output Parameters:
-+ x,y,z - starting element indices in each direction
-. m,n,p - element widths in each direction
-- nExtrax,nExtray,nExtraz - number of extra partial elements in each direction.
++ x     - starting element index in first direction
+. y     - starting element index in second direction
+. z     - starting element index in third direction
+. m     - element width in first direction
+. n     - element width in second direction
+. p     - element width in third direction
+. nExtrax - number of extra partial elements in first direction
+. nExtray - number of extra partial elements in second direction
+- nExtraz - number of extra partial elements in third direction
 
   Notes:
   Arguments corresponding to higher dimensions are ignored for 1D and 2D grids. These arguments may be set to NULL in this case.
@@ -279,7 +290,7 @@ PetscErrorCode DMStagGetCorners(DM dm,PetscInt *x,PetscInt *y,PetscInt *z,PetscI
 
   Level: beginner
 
-.seealso: DMSTAG, DMStagGetCorners(), DMStagGetGhostCorners(), DMStagGetGlobalSizes(), DMStagGetStencilWidth(), DMStagGetBoundaryTypes(), DMStagGetLocationDof(), DMDAGetDof()
+.seealso: DMSTAG, DMStagGetCorners(), DMStagGetGhostCorners(), DMStagGetGlobalSizes(), DMStagGetStencilWidth(), DMStagGetBoundaryTypes(), DMStagGetLocationDOF(), DMDAGetDof()
 @*/
 PetscErrorCode DMStagGetDOF(DM dm,PetscInt *dof0,PetscInt *dof1,PetscInt *dof2,PetscInt *dof3)
 {
@@ -299,12 +310,16 @@ PetscErrorCode DMStagGetDOF(DM dm,PetscInt *dof0,PetscInt *dof1,PetscInt *dof2,P
 
   Not Collective
 
-  Input Argument:
+  Input Parameter:
 . dm - the DMStag object
 
-  Output Arguments:
-+ x,y,z - starting element indices in each direction
-- m,n,p - element widths in each direction
+  Output Parameters:
++ x - the starting element index in the first direction
+. y - the starting element index in the second direction
+. z - the starting element index in the third direction
+. m - the element width in the first direction
+. n - the element width in the second direction
+- p - the element width in the third direction
 
   Notes:
   Arguments corresponding to higher dimensions are ignored for 1D and 2D grids. These arguments may be set to NULL in this case.
@@ -551,7 +566,7 @@ PetscErrorCode DMStagGetEntriesPerElement(DM dm,PetscInt *entriesPerElement)
 
   Level: beginner
 
-.seealso: DMSTAG, DMStagSetStencilType(), DMStagStencilType, DMDAGetInfo()
+.seealso: DMSTAG, DMStagSetStencilType(), DMStagGetStencilWidth, DMStagStencilType
 @*/
 PetscErrorCode DMStagGetStencilType(DM dm,DMStagStencilType *stencilType)
 {
@@ -576,7 +591,7 @@ PetscErrorCode DMStagGetStencilType(DM dm,DMStagStencilType *stencilType)
 
   Level: beginner
 
-.seealso: DMSTAG, DMDAGetStencilWidth(), DMDAGetInfo()
+.seealso: DMSTAG, DMStagSetStencilWidth(), DMStagGetStencilType(), DMDAGetStencilType()
 @*/
 PetscErrorCode DMStagGetStencilWidth(DM dm,PetscInt *stencilWidth)
 {
@@ -1115,7 +1130,7 @@ PetscErrorCode DMStagSetNumRanks(DM dm,PetscInt nRanks0,PetscInt nRanks1,PetscIn
 
   Level: beginner
 
-.seealso: DMSTAG, DMStagGetStencilType(), DMStagStencilType, DMDASetStencilType()
+.seealso: DMSTAG, DMStagGetStencilType(), DMStagSetStencilWidth(), DMStagStencilType
 @*/
 PetscErrorCode DMStagSetStencilType(DM dm,DMStagStencilType stencilType)
 {
@@ -1138,9 +1153,12 @@ PetscErrorCode DMStagSetStencilType(DM dm,DMStagStencilType stencilType)
 + dm - the DMStag object
 - stencilWidth - stencil/halo/ghost width in elements
 
+  Notes:
+  The width value is not used when DMSTAG_STENCIL_NONE is specified.
+
   Level: beginner
 
-.seealso: DMSTAG, DMDASetStencilWidth()
+.seealso: DMSTAG, DMStagGetStencilWidth(), DMStagGetStencilType(), DMStagStencilType
 @*/
 PetscErrorCode DMStagSetStencilWidth(DM dm,PetscInt stencilWidth)
 {
@@ -1243,9 +1261,17 @@ PetscErrorCode DMStagSetOwnershipRanges(DM dm,PetscInt const *lx,PetscInt const 
   DMStag supports 2 different types of coordinate DM: DMSTAG and DMPRODUCT.
   Arguments corresponding to higher dimensions are ignored for 1D and 2D grids.
 
+  Local coordinates are populated (using DMSetCoordinatesLocal()), linearly
+  extrapolated to ghost cells, including those outside the physical domain.
+  This is also done in case of periodic boundaries, meaning that the same
+  global point may have different coordinates in different local representations,
+  which are equivalent assuming a periodicity implied by the arguments to this function,
+  i.e. two points are equivalent if their difference is a multiple of (xmax - xmin)
+  in the x direction, (ymax - ymin) in the y direction, and (zmax - zmin) in the z direction.
+
   Level: advanced
 
-.seealso: DMSTAG, DMPRODUCT, DMStagSetUniformCoordinatesExplicit(), DMStagSetUniformCoordinatesProduct(), DMStagSetCoordinateDMType(), DMGetCoordinateDM(), DMGetCoordinates(), DMDASetUniformCoordinates()
+.seealso: DMSTAG, DMPRODUCT, DMStagSetUniformCoordinatesExplicit(), DMStagSetUniformCoordinatesProduct(), DMStagSetCoordinateDMType(), DMGetCoordinateDM(), DMGetCoordinates(), DMDASetUniformCoordinates(), DMBoundaryType
 @*/
 PetscErrorCode DMStagSetUniformCoordinates(DM dm,PetscReal xmin,PetscReal xmax,PetscReal ymin,PetscReal ymax,PetscReal zmin,PetscReal zmax)
 {
@@ -1279,7 +1305,11 @@ PetscErrorCode DMStagSetUniformCoordinates(DM dm,PetscReal xmin,PetscReal xmax,P
   Notes:
   DMStag supports 2 different types of coordinate DM: either another DMStag, or a DMProduct.
   If the grid is orthogonal, using DMProduct should be more efficient.
+
   Arguments corresponding to higher dimensions are ignored for 1D and 2D grids.
+
+  See the manual page for DMStagSetUniformCoordinates() for information on how
+  coordinates for dummy cells outside the physical domain boundary are populated.
 
   Level: beginner
 
@@ -1326,6 +1356,9 @@ PetscErrorCode DMStagSetUniformCoordinatesExplicit(DM dm,PetscReal xmin,PetscRea
   always have active 0-cells (vertices, element boundaries) and 1-cells
   (element centers).
 
+  See the manual page for DMStagSetUniformCoordinates() for information on how
+  coordinates for dummy cells outside the physical domain boundary are populated.
+
   Level: intermediate
 
 .seealso: DMSTAG, DMPRODUCT, DMStagSetUniformCoordinates(), DMStagSetUniformCoordinatesExplicit(), DMStagSetCoordinateDMType()
@@ -1365,7 +1398,7 @@ PetscErrorCode DMStagSetUniformCoordinatesProduct(DM dm,PetscReal xmin,PetscReal
       case 2: color =            stag->rank[0]       +            stag->nRanks[0]*stag->rank[1]     ; break;
       default: SETERRQ1(PetscObjectComm((PetscObject)dm), PETSC_ERR_SUP,"Unsupported dimension index %D",d);
     }
-    ierr = MPI_Comm_split(PetscObjectComm((PetscObject)dm),color,key,&subcomm);CHKERRQ(ierr);
+    ierr = MPI_Comm_split(PetscObjectComm((PetscObject)dm),color,key,&subcomm);CHKERRMPI(ierr);
 
     /* Create sub-DMs living on these new communicators (which are destroyed by DMProduct) */
     ierr = DMStagCreate1d(subcomm,stag->boundaryType[d],stag->N[d],dof0,dof1,stag->stencilType,stag->stencilWidth,stag->l[d],&subdm);CHKERRQ(ierr);
@@ -1385,7 +1418,7 @@ PetscErrorCode DMStagSetUniformCoordinatesProduct(DM dm,PetscReal xmin,PetscReal
     ierr = DMProductSetDM(dmc,d,subdm);CHKERRQ(ierr);
     ierr = DMProductSetDimensionIndex(dmc,d,0);CHKERRQ(ierr);
     ierr = DMDestroy(&subdm);CHKERRQ(ierr);
-    ierr = MPI_Comm_free(&subcomm);CHKERRQ(ierr);
+    ierr = MPI_Comm_free(&subcomm);CHKERRMPI(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -1439,7 +1472,7 @@ PetscErrorCode DMStagVecGetArray(DM dm,Vec vec,void *array)
   PetscValidHeaderSpecific(vec,VEC_CLASSID,2);
   ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
   ierr = VecGetLocalSize(vec,&nLocal);CHKERRQ(ierr);
-  if (nLocal != stag->entriesGhost) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Vector local size %D is not compatible with DMStag local size %D\n",nLocal,stag->entriesGhost);
+  if (nLocal != stag->entriesGhost) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Vector local size %D is not compatible with DMStag local size %D",nLocal,stag->entriesGhost);
   switch (dim) {
     case 1:
       ierr = VecGetArray2d(vec,stag->nGhost[0],stag->entriesPerElement,stag->startGhost[0],0,(PetscScalar***)array);CHKERRQ(ierr);
@@ -1488,7 +1521,7 @@ PetscErrorCode DMStagVecGetArrayRead(DM dm,Vec vec,void *array)
   PetscValidHeaderSpecific(vec,VEC_CLASSID,2);
   ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
   ierr = VecGetLocalSize(vec,&nLocal);CHKERRQ(ierr);
-  if (nLocal != stag->entriesGhost) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Vector local size %D is not compatible with DMStag local size %D\n",nLocal,stag->entriesGhost);
+  if (nLocal != stag->entriesGhost) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Vector local size %D is not compatible with DMStag local size %D",nLocal,stag->entriesGhost);
   switch (dim) {
     case 1:
       ierr = VecGetArray2dRead(vec,stag->nGhost[0],stag->entriesPerElement,stag->startGhost[0],0,(PetscScalar***)array);CHKERRQ(ierr);
@@ -1532,7 +1565,7 @@ PetscErrorCode DMStagVecRestoreArray(DM dm,Vec vec,void *array)
   PetscValidHeaderSpecific(vec,VEC_CLASSID,2);
   ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
   ierr = VecGetLocalSize(vec,&nLocal);CHKERRQ(ierr);
-  if (nLocal != stag->entriesGhost) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Vector local size %D is not compatible with DMStag local size %D\n",nLocal,stag->entriesGhost);
+  if (nLocal != stag->entriesGhost) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Vector local size %D is not compatible with DMStag local size %D",nLocal,stag->entriesGhost);
   switch (dim) {
     case 1:
       ierr = VecRestoreArray2d(vec,stag->nGhost[0],stag->entriesPerElement,stag->startGhost[0],0,(PetscScalar***)array);CHKERRQ(ierr);
@@ -1576,7 +1609,7 @@ PetscErrorCode DMStagVecRestoreArrayRead(DM dm,Vec vec,void *array)
   PetscValidHeaderSpecific(vec,VEC_CLASSID,2);
   ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
   ierr = VecGetLocalSize(vec,&nLocal);CHKERRQ(ierr);
-  if (nLocal != stag->entriesGhost) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Vector local size %D is not compatible with DMStag local size %D\n",nLocal,stag->entriesGhost);
+  if (nLocal != stag->entriesGhost) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Vector local size %D is not compatible with DMStag local size %D",nLocal,stag->entriesGhost);
   switch (dim) {
     case 1:
       ierr = VecRestoreArray2dRead(vec,stag->nGhost[0],stag->entriesPerElement,stag->startGhost[0],0,(PetscScalar***)array);CHKERRQ(ierr);

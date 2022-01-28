@@ -1,7 +1,6 @@
 
 static const char help[] = "Solves PDE optimization problem using full-space method, interlaces state and adjoint variables.\n\n";
 
-
 #include <petscdm.h>
 #include <petscdmda.h>
 #include <petscdmredundant.h>
@@ -274,7 +273,7 @@ PetscErrorCode Monitor(SNES snes,PetscInt its,PetscReal rnorm,void *dummy)
   ierr = DMCompositeGetAccess(packer,Uexact,&dw,&u_lambda);CHKERRQ(ierr);
   ierr = VecStrideNorm(u_lambda,0,NORM_2,&norm);CHKERRQ(ierr);
   norm = norm/PetscSqrtReal((PetscReal)N-1.);
-  if (dw) ierr = PetscPrintf(PETSC_COMM_WORLD,"Norm of error %g Error at x = 0 %g\n",(double)norm,(double)PetscRealPart(dw[0]));CHKERRQ(ierr);
+  if (dw) {ierr = PetscPrintf(PETSC_COMM_WORLD,"Norm of error %g Error at x = 0 %g\n",(double)norm,(double)PetscRealPart(dw[0]));CHKERRQ(ierr);}
   ierr = VecView(u_lambda,user->fu_lambda_viewer);CHKERRQ(ierr);
   ierr = DMCompositeRestoreAccess(packer,Uexact,&dw,&u_lambda);CHKERRQ(ierr);
   ierr = VecDestroy(&Uexact);CHKERRQ(ierr);
@@ -306,7 +305,6 @@ PetscErrorCode ComputeJacobian_MF(SNES snes,Vec x,Mat A,Mat B,void *ctx)
   ierr = MatMFFDSetBase(A,x,NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-
 
 /*TEST
 

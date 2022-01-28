@@ -45,8 +45,8 @@ int main(int argc, char *argv[])
   ierr = PetscRandomCreate(PETSC_COMM_WORLD,&ran);CHKERRQ(ierr);
   ierr = PetscRandomSetFromOptions(ran);CHKERRQ(ierr);
 
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD, &size);CHKERRQ(ierr);       /* number of nodes */
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD, &rank);CHKERRQ(ierr);     /* my ranking */
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD, &size);CHKERRMPI(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD, &rank);CHKERRMPI(ierr);
 
   hinfo.n           = 31;
   hinfo.r           = 0.04;
@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
   hinfo.totalNumSim = 1000;
 
   ierr = PetscOptionsGetInt(NULL,NULL,"-num_of_stocks",&(hinfo.n),NULL);CHKERRQ(ierr);
-  if (hinfo.n <1 || hinfo.n > 31) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Only 31 stocks listed in stock.txt. num_of_stocks %D must between 1 and 31",hinfo.n);
+  if (hinfo.n <1 || hinfo.n > 31) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Only 31 stocks listed in stock.txt. num_of_stocks %" PetscInt_FMT " must between 1 and 31",hinfo.n);
   ierr = PetscOptionsGetReal(NULL,NULL,"-interest_rate",&(hinfo.r),NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetReal(NULL,NULL,"-time_interval",&(hinfo.dt),NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,NULL,"-num_of_simulations",&(hinfo.totalNumSim),NULL);CHKERRQ(ierr);
@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
     x += basketPayoff(vol,St0,n,r,dt,eps);
   }
 
-  ierr = MPI_Reduce(&x, &totalx, 1, MPIU_REAL, MPIU_SUM,0,PETSC_COMM_WORLD);CHKERRQ(ierr);
+  ierr = MPI_Reduce(&x, &totalx, 1, MPIU_REAL, MPIU_SUM,0,PETSC_COMM_WORLD);CHKERRMPI(ierr);
   /* payoff = exp(-r*dt*n)*(totalx/totalNumSim);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Option price = $%.3f using %ds of %s computation with %d %s for %d stocks, %d trading period per year, %.2f%% interest rate\n",
    payoff,(int)(stop - start),"parallel",size,"processors",n,(int)(1/dt),r);CHKERRQ(ierr); */
@@ -110,7 +110,6 @@ PetscErrorCode stdNormalArray(PetscReal *eps, PetscInt numdim, PetscRandom ran)
   }
   PetscFunctionReturn(0);
 }
-
 
 PetscReal basketPayoff(PetscReal vol[], PetscReal St0[], PetscInt n, PetscReal r,PetscReal dt, PetscReal eps[])
 {
@@ -151,18 +150,18 @@ PetscErrorCode readData(MPI_Comm comm,himaInfo *hinfo)
   PetscInt       num=hinfo->n;
 
   PetscFunctionBeginUser;
-  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
-  if (!rank) {
+  ierr = MPI_Comm_rank(comm,&rank);CHKERRMPI(ierr);
+  if (rank == 0) {
     ierr = PetscFOpen(PETSC_COMM_SELF,DATAFILENAME,"r",&fd);CHKERRQ(ierr);
     for (i=0;i<num;i++) {
       double vv,tt;
-      if (fscanf(fd,"%s%lf%lf",temp,&vv,&tt) != 3) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Badly formatted input file\n");
+      if (fscanf(fd,"%s%lf%lf",temp,&vv,&tt) != 3) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Badly formatted input file");
       v[i] = vv;
       t[i] = tt;
     }
     fclose(fd);
   }
-  ierr = MPI_Bcast(v,2*num,MPIU_REAL,0,PETSC_COMM_WORLD);CHKERRQ(ierr);
+  ierr = MPI_Bcast(v,2*num,MPIU_REAL,0,PETSC_COMM_WORLD);CHKERRMPI(ierr);
   /* ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] vol %g, ... %g; St0 %g, ... %g\n",rank,hinfo->vol[0],hinfo->vol[num-1],hinfo->St0 [0],hinfo->St0[num-1]); */
   PetscFunctionReturn(0);
 }
@@ -191,10 +190,6 @@ PetscInt divWork(PetscMPIInt id, PetscInt num, PetscMPIInt size)
 }
 
 /*TEST
-
-   build:
-      requires: !comple
-      output_file: output/ex1_1.out
 
    test:
       nsize: 2

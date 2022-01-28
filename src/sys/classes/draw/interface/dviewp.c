@@ -11,13 +11,17 @@
    Collective on PetscDraw
 
    Input Parameters:
-+  xl,yl,xr,yr - upper right and lower left corners of subwindow
-                 These numbers must always be between 0.0 and 1.0.
-                 Lower left corner is (0,0).
++  xl - the horizontal coordinate of the lower left corner of the subwindow.
+.  yl - the vertical coordinate of the lower left corner of the subwindow.
+.  xr - the horizontal coordinate of the upper right corner of the subwindow.
+.  yr - the vertical coordinate of the upper right corner of the subwindow.
 -  draw - the drawing context
 
-   Level: advanced
+   Notes:
+   These numbers must always be between 0.0 and 1.0.
+   Lower left corner is (0,0).
 
+   Level: advanced
 
 @*/
 PetscErrorCode  PetscDrawSetViewPort(PetscDraw draw,PetscReal xl,PetscReal yl,PetscReal xr,PetscReal yr)
@@ -44,13 +48,17 @@ PetscErrorCode  PetscDrawSetViewPort(PetscDraw draw,PetscReal xl,PetscReal yl,Pe
    Input Parameter:
 .  draw - the drawing context
 
-   Output Parameter:
-.  xl,yl,xr,yr - upper right and lower left corners of subwindow
-                 These numbers must always be between 0.0 and 1.0.
-                 Lower left corner is (0,0).
+   Output Parameters:
++  xl - the horizontal coordinate of the lower left corner of the subwindow.
+.  yl - the vertical coordinate of the lower left corner of the subwindow.
+.  xr - the horizontal coordinate of the upper right corner of the subwindow.
+-  yr - the vertical coordinate of the upper right corner of the subwindow.
+
+   Notes:
+   These numbers must always be between 0.0 and 1.0.
+   Lower left corner is (0,0).
 
    Level: advanced
-
 
 @*/
 PetscErrorCode  PetscDrawGetViewPort(PetscDraw draw,PetscReal *xl,PetscReal *yl,PetscReal *xr,PetscReal *yr)
@@ -94,8 +102,8 @@ PetscErrorCode  PetscDrawSplitViewPort(PetscDraw draw)
   PetscValidHeaderSpecific(draw,PETSC_DRAW_CLASSID,1);
   ierr = PetscDrawIsNull(draw,&isnull);CHKERRQ(ierr);
   if (isnull) PetscFunctionReturn(0);
-  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)draw),&rank);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)draw),&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)draw),&rank);CHKERRMPI(ierr);
+  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)draw),&size);CHKERRMPI(ierr);
 
   n = (PetscInt)(.1 + PetscSqrtReal((PetscReal)size));
   while (n*n < size) n++;
@@ -156,11 +164,11 @@ PetscErrorCode  PetscDrawViewPortsCreate(PetscDraw draw,PetscInt nports,PetscDra
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw,PETSC_DRAW_CLASSID,1);
-  if (nports < 1) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE, "Number of divisions must be positive: %d", nports);
+  if (PetscUnlikely(nports < 1)) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE, "Number of divisions must be positive: %" PetscInt_FMT, nports);
   PetscValidPointer(newports,3);
   ierr = PetscDrawIsNull(draw,&isnull);CHKERRQ(ierr);
   if (isnull) {*newports = NULL; PetscFunctionReturn(0);}
-  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)draw),&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)draw),&rank);CHKERRMPI(ierr);
 
   ierr = PetscNew(&ports);CHKERRQ(ierr); *newports = ports;
   ports->draw = draw;
@@ -187,7 +195,7 @@ PetscErrorCode  PetscDrawViewPortsCreate(PetscDraw draw,PetscInt nports,PetscDra
     yl[i] = (i / n)*h;
     yr[i] = yl[i] + h;
 
-    if (!rank) {
+    if (rank == 0) {
       ierr = PetscDrawLine(draw,xl[i],yl[i],xl[i],yr[i],PETSC_DRAW_BLACK);CHKERRQ(ierr);
       ierr = PetscDrawLine(draw,xl[i],yr[i],xr[i],yr[i],PETSC_DRAW_BLACK);CHKERRQ(ierr);
       ierr = PetscDrawLine(draw,xr[i],yr[i],xr[i],yl[i],PETSC_DRAW_BLACK);CHKERRQ(ierr);
@@ -235,11 +243,11 @@ PetscErrorCode  PetscDrawViewPortsCreateRect(PetscDraw draw,PetscInt nx,PetscInt
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw,PETSC_DRAW_CLASSID,1);
-  if ((nx < 1) || (ny < 1)) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE, "Number of divisions must be positive: %d x %d", nx, ny);
-  PetscValidPointer(newports,3);
+  if (PetscUnlikely((nx < 1) || (ny < 1))) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE, "Number of divisions must be positive: %" PetscInt_FMT " x %" PetscInt_FMT, nx, ny);
+  PetscValidPointer(newports,4);
   ierr = PetscDrawIsNull(draw,&isnull);CHKERRQ(ierr);
   if (isnull) {*newports = NULL; PetscFunctionReturn(0);}
-  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)draw),&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)draw),&rank);CHKERRMPI(ierr);
 
   n  = nx*ny;
   hx = 1.0/nx;
@@ -268,7 +276,7 @@ PetscErrorCode  PetscDrawViewPortsCreateRect(PetscDraw draw,PetscInt nx,PetscInt
       yl[k] = j*hy;
       yr[k] = yl[k] + hy;
 
-      if (!rank) {
+      if (rank == 0) {
         ierr = PetscDrawLine(draw,xl[k],yl[k],xl[k],yr[k],PETSC_DRAW_BLACK);CHKERRQ(ierr);
         ierr = PetscDrawLine(draw,xl[k],yr[k],xr[k],yr[k],PETSC_DRAW_BLACK);CHKERRQ(ierr);
         ierr = PetscDrawLine(draw,xr[k],yr[k],xr[k],yl[k],PETSC_DRAW_BLACK);CHKERRQ(ierr);
@@ -319,7 +327,7 @@ PetscErrorCode  PetscDrawViewPortsDestroy(PetscDrawViewPorts *ports)
 
    Logically Collective on PetscDraw inside PetscDrawViewPorts
 
-   Input Parameter:
+   Input Parameters:
 +  ports - the PetscDrawViewPorts object
 -  port - the port number, from 0 to nports-1
 
@@ -335,7 +343,7 @@ PetscErrorCode  PetscDrawViewPortsSet(PetscDrawViewPorts *ports,PetscInt port)
   PetscFunctionBegin;
   if (!ports) PetscFunctionReturn(0);
   PetscValidPointer(ports,1);
-  if (port < 0 || port > ports->nports-1) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Port is out of range requested %d from 0 to %d\n",port,ports->nports-1);
+  if (PetscUnlikely(port < 0 || port > ports->nports-1)) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Port is out of range requested %" PetscInt_FMT " from 0 to %" PetscInt_FMT,port,ports->nports-1);
   ierr = PetscDrawSetViewPort(ports->draw,ports->xl[port],ports->yl[port],ports->xr[port],ports->yr[port]);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

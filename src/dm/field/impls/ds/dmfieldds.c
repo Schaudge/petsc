@@ -42,17 +42,14 @@ static PetscErrorCode DMFieldView_DS(DMField field,PetscViewer viewer)
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
   disc = dsfield->disc[0];
   if (iascii) {
-    PetscViewerASCIIPrintf(viewer, "PetscDS field %D\n",dsfield->fieldNum);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "PetscDS field %D\n",dsfield->fieldNum);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPushTab(viewer);CHKERRQ(ierr);
     ierr = PetscObjectView(disc,viewer);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPopTab(viewer);CHKERRQ(ierr);
   }
   ierr = PetscViewerASCIIPushTab(viewer);CHKERRQ(ierr);
-  if (dsfield->multifieldVec) {
-    SETERRQ(PetscObjectComm((PetscObject)field),PETSC_ERR_SUP,"View of subfield not implemented yet");
-  } else {
-    ierr = VecView(dsfield->vec,viewer);CHKERRQ(ierr);
-  }
+  if (dsfield->multifieldVec) SETERRQ(PetscObjectComm((PetscObject)field),PETSC_ERR_SUP,"View of subfield not implemented yet");
+  ierr = VecView(dsfield->vec,viewer);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPopTab(viewer);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -77,6 +74,7 @@ static PetscErrorCode DMFieldDSGetHeightDisc(DMField field, PetscInt height, Pet
   PetscFunctionReturn(0);
 }
 
+/* y[m,c] = A[m,n,c] . b[n] */
 #define DMFieldDSdot(y,A,b,m,n,c,cast)                                           \
   do {                                                                           \
     PetscInt _i, _j, _k;                                                         \
@@ -139,6 +137,7 @@ static PetscErrorCode DMFieldEvaluateFE_DS(DMField field, IS pointIS, PetscQuadr
 
       ierr = DMPlexVecGetClosure(dm,section,dsfield->vec,c,&closureSize,&elem);CHKERRQ(ierr);
       if (B) {
+        /* field[c] = T[q,b,c] . coef[b], so v[c] = T[q,b,c] . coords[b] */
         if (type == PETSC_SCALAR) {
           PetscScalar *cB = &((PetscScalar *) B)[nc * nq * i];
 
@@ -208,7 +207,7 @@ static PetscErrorCode DMFieldEvaluate_DS(DMField field, Vec points, PetscDataTyp
   ierr = DMGetLocalSection(field->dm,&section);CHKERRQ(ierr);
   ierr = DMFieldDSGetHeightDisc(field,0,&cellDisc);CHKERRQ(ierr);
   ierr = PetscObjectGetClassId(cellDisc, &discID);CHKERRQ(ierr);
-  if (discID != PETSCFE_CLASSID) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB, "Discretization type not supported\n");
+  if (discID != PETSCFE_CLASSID) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB, "Discretization type not supported");
   cellFE = (PetscFE) cellDisc;
   ierr = PetscFEGetDimension(cellFE,&feDim);CHKERRQ(ierr);
   ierr = DMGetCoordinateDim(field->dm, &dim);CHKERRQ(ierr);
@@ -216,7 +215,7 @@ static PetscErrorCode DMFieldEvaluate_DS(DMField field, Vec points, PetscDataTyp
   ierr = DMLocatePoints(field->dm, points, DM_POINTLOCATION_NONE, &cellSF);CHKERRQ(ierr);
   ierr = PetscSFGetGraph(cellSF, &numCells, &nFound, NULL, &cells);CHKERRQ(ierr);
   for (c = 0; c < nFound; c++) {
-    if (cells[c].index < 0) SETERRQ1(PetscObjectComm((PetscObject)points),PETSC_ERR_ARG_WRONG, "Point %D could not be located\n", c);
+    if (cells[c].index < 0) SETERRQ1(PetscObjectComm((PetscObject)points),PETSC_ERR_ARG_WRONG, "Point %D could not be located", c);
   }
   ierr = PetscSFComputeDegreeBegin(cellSF,&cellDegrees);CHKERRQ(ierr);
   ierr = PetscSFComputeDegreeEnd(cellSF,&cellDegrees);CHKERRQ(ierr);
@@ -232,8 +231,8 @@ static PetscErrorCode DMFieldEvaluate_DS(DMField field, Vec points, PetscDataTyp
     ierr = PetscMalloc3(B ? nc * gatherSize : 0, &cellBr, D ? nc * dim * gatherSize : 0, &cellDr, H ? nc * dim * dim * gatherSize : 0, &cellHr);CHKERRQ(ierr);
   }
 
-  ierr = MPI_Type_contiguous(dim,MPIU_SCALAR,&pointType);CHKERRQ(ierr);
-  ierr = MPI_Type_commit(&pointType);CHKERRQ(ierr);
+  ierr = MPI_Type_contiguous(dim,MPIU_SCALAR,&pointType);CHKERRMPI(ierr);
+  ierr = MPI_Type_commit(&pointType);CHKERRMPI(ierr);
   ierr = VecGetArrayRead(points,&pointsArray);CHKERRQ(ierr);
   ierr = PetscSFGatherBegin(cellSF, pointType, pointsArray, cellPoints);CHKERRQ(ierr);
   ierr = PetscSFGatherEnd(cellSF, pointType, pointsArray, cellPoints);CHKERRQ(ierr);
@@ -393,36 +392,36 @@ static PetscErrorCode DMFieldEvaluate_DS(DMField field, Vec points, PetscDataTyp
     if (B) {
       MPI_Datatype Btype;
 
-      ierr = MPI_Type_contiguous(nc, origtype, &Btype);CHKERRQ(ierr);
-      ierr = MPI_Type_commit(&Btype);CHKERRQ(ierr);
+      ierr = MPI_Type_contiguous(nc, origtype, &Btype);CHKERRMPI(ierr);
+      ierr = MPI_Type_commit(&Btype);CHKERRMPI(ierr);
       ierr = PetscSFScatterBegin(cellSF,Btype,(datatype == PETSC_SCALAR) ? (void *) cellBs : (void *) cellBr, B);CHKERRQ(ierr);
       ierr = PetscSFScatterEnd(cellSF,Btype,(datatype == PETSC_SCALAR) ? (void *) cellBs : (void *) cellBr, B);CHKERRQ(ierr);
-      ierr = MPI_Type_free(&Btype);CHKERRQ(ierr);
+      ierr = MPI_Type_free(&Btype);CHKERRMPI(ierr);
     }
     if (D) {
       MPI_Datatype Dtype;
 
-      ierr = MPI_Type_contiguous(nc * dim, origtype, &Dtype);CHKERRQ(ierr);
-      ierr = MPI_Type_commit(&Dtype);CHKERRQ(ierr);
+      ierr = MPI_Type_contiguous(nc * dim, origtype, &Dtype);CHKERRMPI(ierr);
+      ierr = MPI_Type_commit(&Dtype);CHKERRMPI(ierr);
       ierr = PetscSFScatterBegin(cellSF,Dtype,(datatype == PETSC_SCALAR) ? (void *) cellDs : (void *) cellDr, D);CHKERRQ(ierr);
       ierr = PetscSFScatterEnd(cellSF,Dtype,(datatype == PETSC_SCALAR) ? (void *) cellDs : (void *) cellDr, D);CHKERRQ(ierr);
-      ierr = MPI_Type_free(&Dtype);CHKERRQ(ierr);
+      ierr = MPI_Type_free(&Dtype);CHKERRMPI(ierr);
     }
     if (H) {
       MPI_Datatype Htype;
 
-      ierr = MPI_Type_contiguous(nc * dim * dim, origtype, &Htype);CHKERRQ(ierr);
-      ierr = MPI_Type_commit(&Htype);CHKERRQ(ierr);
+      ierr = MPI_Type_contiguous(nc * dim * dim, origtype, &Htype);CHKERRMPI(ierr);
+      ierr = MPI_Type_commit(&Htype);CHKERRMPI(ierr);
       ierr = PetscSFScatterBegin(cellSF,Htype,(datatype == PETSC_SCALAR) ? (void *) cellHs : (void *) cellHr, H);CHKERRQ(ierr);
       ierr = PetscSFScatterEnd(cellSF,Htype,(datatype == PETSC_SCALAR) ? (void *) cellHs : (void *) cellHr, H);CHKERRQ(ierr);
-      ierr = MPI_Type_free(&Htype);CHKERRQ(ierr);
+      ierr = MPI_Type_free(&Htype);CHKERRMPI(ierr);
     }
   }
   ierr = PetscFree4(v,J,invJ,detJ);CHKERRQ(ierr);
   ierr = PetscFree3(cellBr, cellDr, cellHr);CHKERRQ(ierr);
   ierr = PetscFree3(cellBs, cellDs, cellHs);CHKERRQ(ierr);
   ierr = PetscFree3(cellPoints,coordsReal,coordsRef);CHKERRQ(ierr);
-  ierr = MPI_Type_free(&pointType);CHKERRQ(ierr);
+  ierr = MPI_Type_free(&pointType);CHKERRMPI(ierr);
   ierr = PetscSFDestroy(&cellSF);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -460,21 +459,21 @@ static PetscErrorCode DMFieldEvaluateFV_DS(DMField field, IS pointIS, PetscDataT
   dim -= h;
   ierr = DMFieldDSGetHeightDisc(field,h,&disc);CHKERRQ(ierr);
   ierr = PetscObjectGetClassId(disc,&id);CHKERRQ(ierr);
-  if (id != PETSCFE_CLASSID) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Discretization not supported\n");
+  if (id != PETSCFE_CLASSID) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Discretization not supported");
   ierr = DMGetCoordinateField(field->dm, &coordField);CHKERRQ(ierr);
   ierr = DMFieldGetDegree(coordField, pointIS, NULL, &maxDegree);CHKERRQ(ierr);
   if (maxDegree <= 1) {
     ierr = DMFieldCreateDefaultQuadrature(coordField, pointIS, &quad);CHKERRQ(ierr);
   }
   if (!quad) {ierr = DMFieldCreateDefaultQuadrature(field, pointIS, &quad);CHKERRQ(ierr);}
-  if (!quad) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Could not determine quadrature for cell averages\n");
+  if (!quad) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Could not determine quadrature for cell averages");
   ierr = DMFieldCreateFEGeom(coordField,pointIS,quad,PETSC_FALSE,&geom);CHKERRQ(ierr);
   ierr = PetscQuadratureGetData(quad, NULL, &qNc, &Nq, NULL, &weights);CHKERRQ(ierr);
-  if (qNc != 1) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Expected scalar quadrature components\n");
+  if (qNc != 1) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Expected scalar quadrature components");
   N = numPoints * Nq * Nc;
-  if (B) ierr = DMGetWorkArray(field->dm, N, mpitype, &qB);CHKERRQ(ierr);
-  if (D) ierr = DMGetWorkArray(field->dm, N * dimC, mpitype, &qD);CHKERRQ(ierr);
-  if (H) ierr = DMGetWorkArray(field->dm, N * dimC * dimC, mpitype, &qH);CHKERRQ(ierr);
+  if (B) {ierr = DMGetWorkArray(field->dm, N, mpitype, &qB);CHKERRQ(ierr);}
+  if (D) {ierr = DMGetWorkArray(field->dm, N * dimC, mpitype, &qD);CHKERRQ(ierr);}
+  if (H) {ierr = DMGetWorkArray(field->dm, N * dimC * dimC, mpitype, &qH);CHKERRQ(ierr);}
   ierr = DMFieldEvaluateFE(field,pointIS,quad,type,qB,qD,qH);CHKERRQ(ierr);
   if (B) {
     PetscInt i, j, k;
@@ -493,7 +492,7 @@ static PetscErrorCode DMFieldEvaluateFV_DS(DMField field, IS pointIS, PetscDataT
             sB[i * Nc + j] += geom->detJ[i * Nq + k] * weights[k] * sqB[ (i * Nq + k) * Nc + j];
           }
         }
-        for (k = 0; k < Nq * Nc; k++) sB[i * Nq * Nc + k] /= vol;
+        for (k = 0; k < Nc; k++) sB[i * Nc + k] /= vol;
       }
     } else {
       PetscReal * rB  = (PetscReal *) B;
@@ -641,9 +640,9 @@ static PetscErrorCode DMFieldEvaluateFV_DS(DMField field, IS pointIS, PetscDataT
       }
     }
   }
-  if (B) ierr = DMRestoreWorkArray(field->dm, N, mpitype, &qB);CHKERRQ(ierr);
-  if (D) ierr = DMRestoreWorkArray(field->dm, N * dimC, mpitype, &qD);CHKERRQ(ierr);
-  if (H) ierr = DMRestoreWorkArray(field->dm, N * dimC * dimC, mpitype, &qH);CHKERRQ(ierr);
+  if (B) {ierr = DMRestoreWorkArray(field->dm, N, mpitype, &qB);CHKERRQ(ierr);}
+  if (D) {ierr = DMRestoreWorkArray(field->dm, N * dimC, mpitype, &qD);CHKERRQ(ierr);}
+  if (H) {ierr = DMRestoreWorkArray(field->dm, N * dimC * dimC, mpitype, &qH);CHKERRQ(ierr);}
   ierr = PetscFEGeomDestroy(&geom);CHKERRQ(ierr);
   ierr = PetscQuadratureDestroy(&quad);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -691,7 +690,6 @@ static PetscErrorCode DMFieldCreateDefaultQuadrature_DS(DMField field, IS pointI
   PetscFE        fe;
   PetscClassId   id;
   PetscErrorCode ierr;
-
 
   PetscFunctionBegin;
   dm = field->dm;
@@ -746,7 +744,7 @@ static PetscErrorCode DMFieldComputeFaceData_DS(DMField field, IS pointIS, Petsc
     ierr = DMPlexGetTreeChildren(dm, point, &numChildren, NULL);CHKERRQ(ierr);
     if (numChildren) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Face data not valid for facets with children");
     ierr = DMPlexGetSupportSize(dm, point, &suppSize);CHKERRQ(ierr);
-    if (suppSize > 2) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Point %D has %D support, expected at most 2\n", point, suppSize);
+    if (suppSize > 2) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Point %D has %D support, expected at most 2", point, suppSize);
     if (!suppSize) continue;
     ierr = DMPlexGetSupport(dm, point, &supp);CHKERRQ(ierr);
     for (s = 0; s < suppSize; ++s) {
@@ -767,9 +765,7 @@ static PetscErrorCode DMFieldComputeFaceData_DS(DMField field, IS pointIS, Petsc
     PetscInt        numCells, offset, *cells;
     PetscFEGeom     *cellGeom;
     IS              suppIS;
-    PetscQuadrature cellQuad = NULL;
 
-    ierr = DMFieldCreateDefaultQuadrature(field,cellIS,&cellQuad);CHKERRQ(ierr);
     for (p = 0, numCells = 0; p < numFaces; p++) {
       PetscInt        point = points[p];
       PetscInt        numSupp, numChildren;
@@ -777,7 +773,7 @@ static PetscErrorCode DMFieldComputeFaceData_DS(DMField field, IS pointIS, Petsc
       ierr = DMPlexGetTreeChildren(dm, point, &numChildren, NULL);CHKERRQ(ierr);
       if (numChildren) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Face data not valid for facets with children");
       ierr = DMPlexGetSupportSize(dm, point,&numSupp);CHKERRQ(ierr);
-      if (numSupp > 2) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Point %D has %D support, expected at most 2\n", point, numSupp);
+      if (numSupp > 2) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Point %D has %D support, expected at most 2", point, numSupp);
       numCells += numSupp;
     }
     ierr = PetscMalloc1(numCells, &cells);CHKERRQ(ierr);
@@ -793,7 +789,7 @@ static PetscErrorCode DMFieldComputeFaceData_DS(DMField field, IS pointIS, Petsc
       }
     }
     ierr = ISCreateGeneral(PETSC_COMM_SELF,numCells,cells,PETSC_USE_POINTER, &suppIS);CHKERRQ(ierr);
-    ierr = DMFieldCreateFEGeom(field,suppIS,cellQuad,PETSC_FALSE,&cellGeom);CHKERRQ(ierr);
+    ierr = DMFieldCreateFEGeom(field,suppIS,quad,PETSC_FALSE,&cellGeom);CHKERRQ(ierr);
     for (p = 0, offset = 0; p < numFaces; p++) {
       PetscInt        point = points[p];
       PetscInt        numSupp, s, q;
@@ -812,7 +808,6 @@ static PetscErrorCode DMFieldComputeFaceData_DS(DMField field, IS pointIS, Petsc
     ierr = PetscFEGeomDestroy(&cellGeom);CHKERRQ(ierr);
     ierr = ISDestroy(&suppIS);CHKERRQ(ierr);
     ierr = PetscFree(cells);CHKERRQ(ierr);
-    ierr = PetscQuadratureDestroy(&cellQuad);CHKERRQ(ierr);
   } else {
     PetscObject          faceDisc, cellDisc;
     PetscClassId         faceId, cellId;
@@ -835,7 +830,7 @@ static PetscErrorCode DMFieldComputeFaceData_DS(DMField field, IS pointIS, Petsc
     ierr = DMFieldDSGetHeightDisc(field, 0, &cellDisc);CHKERRQ(ierr);
     ierr = PetscObjectGetClassId(faceDisc,&faceId);CHKERRQ(ierr);
     ierr = PetscObjectGetClassId(cellDisc,&cellId);CHKERRQ(ierr);
-    if (faceId != PETSCFE_CLASSID || cellId != PETSCFE_CLASSID) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Not supported\n");
+    if (faceId != PETSCFE_CLASSID || cellId != PETSCFE_CLASSID) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Not supported");
     ierr = PetscFEGetDualSpace((PetscFE)cellDisc, &dsp);CHKERRQ(ierr);
     ierr = PetscDualSpaceGetDM(dsp, &K);CHKERRQ(ierr);
     ierr = DMPlexGetHeightStratum(K, 1, &eStart, NULL);CHKERRQ(ierr);
@@ -857,7 +852,7 @@ static PetscErrorCode DMFieldComputeFaceData_DS(DMField field, IS pointIS, Petsc
       ierr = DMPlexGetTreeChildren(dm, point, &numChildren, NULL);CHKERRQ(ierr);
       if (numChildren) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Face data not valid for facets with children");
       ierr = DMPlexGetSupportSize(dm, point,&numSupp);CHKERRQ(ierr);
-      if (numSupp > 2) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Point %D has %D support, expected at most 2\n", point, numSupp);
+      if (numSupp > 2) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Point %D has %D support, expected at most 2", point, numSupp);
       ierr = DMPlexGetSupport(dm, point, &supp);CHKERRQ(ierr);
       for (s = 0; s < numSupp; s++) {
         PetscInt        cell = supp[s];
@@ -970,7 +965,7 @@ static PetscErrorCode DMFieldComputeFaceData_DS(DMField field, IS pointIS, Petsc
             orientPoints[o][2 * q + 1] = xio[1];
           }
           break;
-        default: SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Cell type %s not yet supported\n", DMPolytopeTypes[ct]);
+        default: SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Cell type %s not yet supported", DMPolytopeTypes[ct]);
         }
       }
     }
@@ -1104,7 +1099,7 @@ PetscErrorCode DMFieldCreateDS(DM dm, PetscInt fieldNum, Vec vec,DMField *field)
     if (cEnd > cStart) {
       ierr = DMPlexGetConeSize(dm, cStart, &localConeSize);CHKERRQ(ierr);
     }
-    ierr = MPI_Allreduce(&localConeSize,&coneSize,1,MPIU_INT,MPI_MAX,comm);CHKERRQ(ierr);
+    ierr = MPI_Allreduce(&localConeSize,&coneSize,1,MPIU_INT,MPI_MAX,comm);CHKERRMPI(ierr);
     isSimplex = (coneSize == (dim + 1)) ? PETSC_TRUE : PETSC_FALSE;
     ierr = PetscSpaceCreate(PETSC_COMM_SELF, &P);CHKERRQ(ierr);
     ierr = PetscSpaceSetType(P,PETSCSPACEPOLYNOMIAL);CHKERRQ(ierr);

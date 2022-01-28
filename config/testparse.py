@@ -423,7 +423,7 @@ def parseTest(testStr,srcfile,verbosity):
     indentcount=lsplit[0].count(" ")
     var=lsplit[0].strip()
     val=line[line.find(':')+1:].strip()
-    if not var in acceptedkeys: raise Exception("Not a defined key: "+var+" from:  "+line)
+    if not var in acceptedkeys: raise Exception("Keyword: "+var+" from: "+line+" is not valid")
     # Start by seeing if we are in a subtest
     if line.startswith(" "):
       if var in subdict[subtestname]:
@@ -524,6 +524,8 @@ def parseTestFile(srcfile,verbosity):
 
   testDict={}
   sh=open(basename,"r"); fileStr=sh.read(); sh.close()
+  # Handle Windows issues
+  if not os.linesep == "\n": fileStr=fileStr.replace(os.linesep,"\n")
 
   ## Start with doing the tests
   #

@@ -18,7 +18,7 @@ static PetscErrorCode CheckSymmetry(PetscInt dim, PetscInt order, PetscBool tens
 
   PetscFunctionBegin;
   ierr = PetscDualSpaceCreate(PETSC_COMM_SELF,&sp);CHKERRQ(ierr);
-  ierr = DMPlexCreateReferenceCell(PETSC_COMM_SELF,dim,tensor ? PETSC_FALSE : PETSC_TRUE,&dm);CHKERRQ(ierr);
+  ierr = DMPlexCreateReferenceCell(PETSC_COMM_SELF, DMPolytopeTypeSimpleShape(dim, tensor ? PETSC_FALSE : PETSC_TRUE), &dm);CHKERRQ(ierr);
   ierr = PetscDualSpaceSetType(sp,PETSCDUALSPACELAGRANGE);CHKERRQ(ierr);
   ierr = PetscDualSpaceSetDM(sp,dm);CHKERRQ(ierr);
   ierr = PetscDualSpaceSetOrder(sp,order);CHKERRQ(ierr);
@@ -43,7 +43,7 @@ static PetscErrorCode CheckSymmetry(PetscInt dim, PetscInt order, PetscBool tens
 
     ierr = PetscDualSpaceGetFunctional(sp,i,&q);CHKERRQ(ierr);
     ierr = PetscQuadratureGetData(q,NULL,&Nc,&numPoints,&points,&weights);CHKERRQ(ierr);
-    if (Nc != 1) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Only support scalar quadrature, not %D components\n",Nc);
+    if (Nc != 1) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Only support scalar quadrature, not %D components",Nc);
     for (j = 0; j < dim; j++) vals[dim * i + j] = valsCopy2[dim * i + j] = (PetscScalar) points[j];
   }
   ierr = PetscDualSpaceGetNumDof(sp,&numDofs);CHKERRQ(ierr);
@@ -51,16 +51,20 @@ static PetscErrorCode CheckSymmetry(PetscInt dim, PetscInt order, PetscBool tens
   ierr = DMPlexGetTransitiveClosure(dm,0,PETSC_TRUE,&closureSize,&closure);CHKERRQ(ierr);
   ierr = DMPlexGetDepthLabel(dm,&depthLabel);CHKERRQ(ierr);
   for (i = 0, offset = 0; i < closureSize; i++, offset += numDofs[depth]) {
-    PetscInt          point = closure[2 * i], coneSize, j;
+    PetscInt          point = closure[2 * i], numFaces, j;
     const PetscInt    **pointPerms = perms ? perms[i] : NULL;
     const PetscScalar **pointFlips = flips ? flips[i] : NULL;
     PetscBool         anyPrinted = PETSC_FALSE;
 
-    ierr = DMLabelGetValue(depthLabel,point,&depth);CHKERRQ(ierr);
-    ierr = DMPlexGetConeSize(dm,point,&coneSize);CHKERRQ(ierr);
-
     if (!pointPerms && !pointFlips) continue;
-    for (j = -coneSize; j < coneSize; j++) {
+    ierr = DMLabelGetValue(depthLabel,point,&depth);CHKERRQ(ierr);
+    {
+      DMPolytopeType ct;
+      /* The number of arrangements is no longer based on the number of faces */
+      ierr = DMPlexGetCellType(dm, point, &ct);CHKERRQ(ierr);
+      numFaces = DMPolytopeTypeGetNumArrangments(ct) / 2;
+    }
+    for (j = -numFaces; j < numFaces; j++) {
       PetscInt          k, l;
       const PetscInt    *perm = pointPerms ? pointPerms[j] : NULL;
       const PetscScalar *flip = pointFlips ? pointFlips[j] : NULL;

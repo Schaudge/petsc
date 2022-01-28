@@ -27,7 +27,7 @@ int main(int argc,char **argv)
   IS             is;
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
 
   /*
      Create an index set with 5 entries. Each processor creates
@@ -64,7 +64,7 @@ int main(int argc,char **argv)
      Now any code that needs access to the list of integers
    has access to it here through indices[].
    */
-  ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] First index %D\n",rank,nindices[0]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] First index %" PetscInt_FMT "\n",rank,nindices[0]);CHKERRQ(ierr);
 
   /*
      Once we no longer need access to the indices they should
@@ -80,8 +80,6 @@ int main(int argc,char **argv)
   ierr = PetscFinalize();
   return ierr;
 }
-
-
 
 /*TEST
 

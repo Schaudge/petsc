@@ -19,8 +19,8 @@ int main(int argc,char **args)
   PetscScalar    one=1.0;
 
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
   ierr = PetscOptionsGetString(NULL,NULL,"-f",file,sizeof(file),NULL);CHKERRQ(ierr);
 
   /* Load matrix A */
@@ -48,14 +48,14 @@ int main(int argc,char **args)
   /* Compute AtA = A^T*B*A, B = identity matrix */
   ierr = MatPtAP(B,A,MAT_INITIAL_MATRIX,fill,&AtA);CHKERRQ(ierr);
   ierr = MatPtAP(B,A,MAT_REUSE_MATRIX,fill,&AtA);CHKERRQ(ierr);
-  if (!rank) printf("C = A^T*B*A is done...\n");
+  if (rank == 0) printf("C = A^T*B*A is done...\n");
   ierr = MatDestroy(&B);CHKERRQ(ierr);
 
   /* Compute C = A^T*A */
   ierr = MatTransposeMatMult(A,A,MAT_INITIAL_MATRIX,fill,&C);CHKERRQ(ierr);
-  if (!rank) printf("C = A^T*A is done...\n");
+  if (rank == 0) printf("C = A^T*A is done...\n");
   ierr = MatTransposeMatMult(A,A,MAT_REUSE_MATRIX,fill,&C);CHKERRQ(ierr);
-  if (!rank) printf("REUSE C = A^T*A is done...\n");
+  if (rank == 0) printf("REUSE C = A^T*A is done...\n");
 
   /* Compare C and AtA */
   ierr = MatMultEqual(C,AtA,20,&equal);CHKERRQ(ierr);
@@ -68,17 +68,16 @@ int main(int argc,char **args)
   return ierr;
 }
 
-
 /*TEST
 
    test:
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       args: -f ${DATAFILESPATH}/matrices/arco1
 
    test:
       suffix: 2
       nsize: 4
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       args: -f ${DATAFILESPATH}/matrices/arco1 -matptap_via nonscalable
 
 TEST*/

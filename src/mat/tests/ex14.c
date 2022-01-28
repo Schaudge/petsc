@@ -33,13 +33,13 @@ int main(int argc,char **args)
   ierr = MatAssemblyEnd(C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatView(C,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
   ierr = MatGetOwnershipRange(C,&rstart,&rend);CHKERRQ(ierr);
   for (i=rstart; i<rend; i++) {
     ierr = MatGetRow(C,i,&nz,&idx,&values);CHKERRQ(ierr);
-    if (!rank) {
+    if (rank == 0) {
       for (j=0; j<nz; j++) {
-        ierr = PetscPrintf(PETSC_COMM_SELF,"%D %g ",idx[j],(double)PetscRealPart(values[j]));CHKERRQ(ierr);
+        ierr = PetscPrintf(PETSC_COMM_SELF,"%" PetscInt_FMT " %g ",idx[j],(double)PetscRealPart(values[j]));CHKERRQ(ierr);
       }
       ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
     }
@@ -50,7 +50,6 @@ int main(int argc,char **args)
   ierr = PetscFinalize();
   return ierr;
 }
-
 
 /*TEST
 

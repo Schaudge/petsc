@@ -6,14 +6,14 @@
 #include "../src/dm/impls/swarm/data_bucket.h"
 
 /*
- Error chceking macto to ensure the swarm type is correct and that a cell DM has been set
+ Error checking to ensure the swarm type is correct and that a cell DM has been set
 */
 #define DMSWARMPICVALID(dm) \
 { \
   DM_Swarm *_swarm = (DM_Swarm*)(dm)->data; \
-  if (_swarm->swarm_type != DMSWARM_PIC) SETERRQ(PetscObjectComm((PetscObject)(dm)),PETSC_ERR_SUP,"Only valid for DMSwarm-PIC. You must call DMSwarmSetType(dm,DMSWARM_PIC)"); \
+  if (_swarm->swarm_type != DMSWARM_PIC) SETERRQ(PetscObjectComm((PetscObject)(dm)),PETSC_ERR_SUP,"Valid only for DMSwarm-PIC. You must call DMSwarmSetType(dm,DMSWARM_PIC)"); \
   else \
-    if (!_swarm->dmcell) SETERRQ(PetscObjectComm((PetscObject)(dm)),PETSC_ERR_SUP,"Only valid for DMSwarmPIC if the cell DM is set. You must call DMSwarmSetCellDM(dm,celldm)"); \
+    if (!_swarm->dmcell) SETERRQ(PetscObjectComm((PetscObject)(dm)),PETSC_ERR_SUP,"Valid only for DMSwarmPIC if the cell DM is set. You must call DMSwarmSetCellDM(dm,celldm)"); \
 }
 
 /* Coordinate insertition/addition API */
@@ -78,7 +78,6 @@ PETSC_EXTERN PetscErrorCode DMSwarmSetPointsUniformCoordinates(DM dm,PetscReal m
     } else {
       dx[b] = 0.0;
     }
-
     _npoints[b] = npoints[b];
   }
 
@@ -144,7 +143,6 @@ PETSC_EXTERN PetscErrorCode DMSwarmSetPointsUniformCoordinates(DM dm,PetscReal m
 
   /* locate points */
   ierr = DMLocatePoints(celldm,pos,DM_POINTLOCATION_NONE,&sfcell);CHKERRQ(ierr);
-
   ierr = PetscSFGetGraph(sfcell, NULL, NULL, NULL, &LA_sfcell);CHKERRQ(ierr);
   n_found = 0;
   for (p=0; p<n_estimate; p++) {
@@ -185,7 +183,6 @@ PETSC_EXTERN PetscErrorCode DMSwarmSetPointsUniformCoordinates(DM dm,PetscReal m
 
   ierr = PetscSFDestroy(&sfcell);CHKERRQ(ierr);
   ierr = VecDestroy(&pos);CHKERRQ(ierr);
-
   PetscFunctionReturn(0);
 }
 
@@ -233,7 +230,7 @@ PETSC_EXTERN PetscErrorCode DMSwarmSetPointCoordinates(DM dm,PetscInt npoints,Pe
   PetscFunctionBegin;
   DMSWARMPICVALID(dm);
   ierr = PetscObjectGetComm((PetscObject)dm,&comm);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm,&rank);CHKERRMPI(ierr);
 
   ierr = DMSwarmGetCellDM(dm,&celldm);CHKERRQ(ierr);
   ierr = DMGetCoordinatesLocal(celldm,&coorlocal);CHKERRQ(ierr);
@@ -252,14 +249,14 @@ PETSC_EXTERN PetscErrorCode DMSwarmSetPointCoordinates(DM dm,PetscInt npoints,Pe
   /* broadcast points from rank 0 if requested */
   if (redundant) {
     my_npoints = npoints;
-    ierr = MPI_Bcast(&my_npoints,1,MPIU_INT,0,comm);CHKERRQ(ierr);
+    ierr = MPI_Bcast(&my_npoints,1,MPIU_INT,0,comm);CHKERRMPI(ierr);
 
     if (rank > 0) { /* allocate space */
       ierr = PetscMalloc1(bs*my_npoints,&my_coor);CHKERRQ(ierr);
     } else {
       my_coor = coor;
     }
-    ierr = MPI_Bcast(my_coor,bs*my_npoints,MPIU_REAL,0,comm);CHKERRQ(ierr);
+    ierr = MPI_Bcast(my_coor,bs*my_npoints,MPIU_REAL,0,comm);CHKERRMPI(ierr);
   } else {
     my_npoints = npoints;
     my_coor = coor;
@@ -349,7 +346,6 @@ PETSC_EXTERN PetscErrorCode DMSwarmSetPointCoordinates(DM dm,PetscInt npoints,Pe
   }
   ierr = PetscSFDestroy(&sfcell);CHKERRQ(ierr);
   ierr = VecDestroy(&pos);CHKERRQ(ierr);
-
   PetscFunctionReturn(0);
 }
 
@@ -397,10 +393,8 @@ PETSC_EXTERN PetscErrorCode DMSwarmInsertPointsUsingCellDM(DM dm,DMSwarmPICLayou
   } else if (isPLEX) {
     ierr = private_DMSwarmInsertPointsUsingCellDM_PLEX(dm,celldm,layout_type,fill_param);CHKERRQ(ierr);
   } else SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Only supported for cell DMs of type DMDA and DMPLEX");
-
   PetscFunctionReturn(0);
 }
-
 
 extern PetscErrorCode private_DMSwarmSetPointCoordinatesCellwise_PLEX(DM,DM,PetscInt,PetscReal*);
 
@@ -444,10 +438,8 @@ PETSC_EXTERN PetscErrorCode DMSwarmSetPointCoordinatesCellwise(DM dm,PetscInt np
   else if (isPLEX) {
     ierr = private_DMSwarmSetPointCoordinatesCellwise_PLEX(dm,celldm,npoints,xi);CHKERRQ(ierr);
   } else SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Only supported for cell DMs of type DMDA and DMPLEX");
-
   PetscFunctionReturn(0);
 }
-
 
 /* Field projection API */
 extern PetscErrorCode private_DMSwarmProjectFields_DA(DM swarm,DM celldm,PetscInt project_type,PetscInt nfields,DMSwarmDataField dfield[],Vec vecs[]);
@@ -496,7 +488,7 @@ PETSC_EXTERN PetscErrorCode DMSwarmProjectFields(DM dm,PetscInt nfields,const ch
   Vec              *vecs;
   PetscInt         f,nvecs;
   PetscInt         project_type = 0;
-  PetscErrorCode ierr;
+  PetscErrorCode   ierr;
 
   PetscFunctionBegin;
   DMSWARMPICVALID(dm);
@@ -531,7 +523,6 @@ PETSC_EXTERN PetscErrorCode DMSwarmProjectFields(DM dm,PetscInt nfields,const ch
   if (!reuse) {
     *fields = vecs;
   }
-
   PetscFunctionReturn(0);
 }
 

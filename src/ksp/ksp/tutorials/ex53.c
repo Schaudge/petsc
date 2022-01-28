@@ -18,8 +18,8 @@ int main(int argc,char **args)
   PetscScalar    one = 1.0,value[3];
 
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
   ierr = PetscOptionsGetInt(NULL,NULL,"-n",&n,NULL);CHKERRQ(ierr);
 
   /* Create vectors.*/
@@ -38,7 +38,7 @@ int main(int argc,char **args)
   ierr = MatSetFromOptions(A);CHKERRQ(ierr);
   ierr = MatSetUp(A);CHKERRQ(ierr);
 
-  if (!rank) {
+  if (rank == 0) {
     value[0] = -1.0; value[1] = 2.0; value[2] = -1.0;
     for (i=1; i<n-1; i++) {
       col[0] = i-1; col[1] = i; col[2] = i+1;
@@ -95,7 +95,7 @@ int main(int argc,char **args)
   }
 
   /* 3. Change A and solve A x = b with an iterative solver using A=LU as a preconditioner*/
-  if (!rank) {
+  if (rank == 0) {
     i    = 0; col[0] = n-1; value[0] = 1.e-2;
     ierr = MatSetValues(A,1,&i,1,col,value,ADD_VALUES);CHKERRQ(ierr);
   }
@@ -124,7 +124,6 @@ int main(int argc,char **args)
   ierr = PetscFinalize();
   return ierr;
 }
-
 
 /*TEST
 

@@ -41,7 +41,7 @@ static const char help[] = "Integrate chemistry using TChem.\n";
         Save the images in a .gif (movie) file
         -draw_save -draw_save_single_file
 
-        Compute the sensitivies of the solution of the first tempature on the initial conditions
+        Compute the sensitivies of the solution of the first temperature on the initial conditions
         -ts_adjoint_solve  -ts_dt 1.e-5 -ts_type cn -ts_adjoint_view_solution draw
 
         Turn off diffusion
@@ -49,7 +49,6 @@ static const char help[] = "Integrate chemistry using TChem.\n";
 
         Turn off reactions
         -reactions no
-
 
     The solution for component i = 0 is the temperature.
 
@@ -81,7 +80,7 @@ static PetscErrorCode FormRHSFunction(TS,PetscReal,Vec,Vec,void*);
 static PetscErrorCode FormRHSJacobian(TS,PetscReal,Vec,Mat,Mat,void*);
 static PetscErrorCode FormInitialSolution(TS,Vec,void*);
 
-#define TCCHKERRQ(ierr) do {if (ierr) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error in TChem library, return code %d",ierr);} while (0)
+#define CHKERRTC(ierr) do {if (ierr) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error in TChem library, return code %d",ierr);} while (0)
 
 int main(int argc,char **argv)
 {
@@ -116,7 +115,7 @@ int main(int argc,char **argv)
   ierr = PetscOptionsBool("-reactions","Have reactions","",user.reactions,&user.reactions,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
-  ierr = TC_initChem(chemfile, thermofile, 0, 1.0);TCCHKERRQ(ierr);
+  ierr = TC_initChem(chemfile, thermofile, 0, 1.0);CHKERRTC(ierr);
   user.Nspec = TC_getNspec();
   user.Nreac = TC_getNreac();
 
@@ -130,14 +129,13 @@ int main(int argc,char **argv)
   /* set the names of each field in the DMDA based on the species name */
   ierr = PetscMalloc1((user.Nspec+1)*LENGTHOFSPECNAME,&names);CHKERRQ(ierr);
   ierr = PetscStrcpy(names,"Temp");CHKERRQ(ierr);
-  TC_getSnames(user.Nspec,names+LENGTHOFSPECNAME);CHKERRQ(ierr);
+  TC_getSnames(user.Nspec,names+LENGTHOFSPECNAME);
   ierr = PetscMalloc1((user.Nspec+2),&snames);CHKERRQ(ierr);
   for (i=0; i<user.Nspec+1; i++) snames[i] = names+i*LENGTHOFSPECNAME;
   snames[user.Nspec+1] = NULL;
   ierr = DMDASetFieldNames(user.dm,(const char * const *)snames);CHKERRQ(ierr);
   ierr = PetscFree(snames);CHKERRQ(ierr);
   ierr = PetscFree(names);CHKERRQ(ierr);
-
 
   ierr = DMCreateMatrix(user.dm,&J);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(user.dm,&X);CHKERRQ(ierr);
@@ -169,7 +167,6 @@ int main(int argc,char **argv)
   ierr = TSGetAdapt(ts,&adapt);CHKERRQ(ierr);
   ierr = TSAdaptSetStepLimits(adapt,1e-12,1e-4);CHKERRQ(ierr); /* Also available with -ts_adapt_dt_min/-ts_adapt_dt_max */
   ierr = TSSetMaxSNESFailures(ts,-1);CHKERRQ(ierr);            /* Retry step an unlimited number of times */
-
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Pass information to graphical monitoring routine
@@ -328,7 +325,7 @@ static PetscErrorCode FormRHSFunction(TS ts,PetscReal t,Vec X,Vec F,void *ptr)
     for (i=xs; i<xs+xm; i++) {
       ierr = PetscArraycpy(user->tchemwork,x[i],user->Nspec+1);CHKERRQ(ierr);
       user->tchemwork[0] *= user->Tini; /* Dimensionalize */
-      ierr = TC_getSrc(user->tchemwork,user->Nspec+1,f[i]);TCCHKERRQ(ierr);
+      ierr = TC_getSrc(user->tchemwork,user->Nspec+1,f[i]);CHKERRTC(ierr);
       f[i][0] /= user->Tini;           /* Non-dimensionalize */
     }
 
@@ -480,7 +477,7 @@ static PetscErrorCode MonitorCell(TS ts,User user,PetscInt cell)
   ierr = DMDAGetCoordinateArray(user->dm,&xc);CHKERRQ(ierr);
   temp = 1.0 + .05*PetscSinScalar(2.*PETSC_PI*xc[cell]);  /* Non-dimensionalized by user->Tini */
   ierr = DMDARestoreCoordinateArray(user->dm,&xc);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
   ierr = PetscSNPrintf(label,sizeof(label),"Initial Temperature %g Cell %d Rank %d",(double)user->Tini*temp,(int)cell,rank);CHKERRQ(ierr);
   ierr = TSMonitorLGCtxCreate(PETSC_COMM_SELF,NULL,label,PETSC_DECIDE,PETSC_DECIDE,600,400,1,&ctx);CHKERRQ(ierr);
   ierr = DMDAGetFieldNames(user->dm,(const char * const **)&snames);CHKERRQ(ierr);

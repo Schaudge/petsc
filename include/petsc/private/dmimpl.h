@@ -1,9 +1,11 @@
 
-
 #if !defined(_DMIMPL_H)
 #define _DMIMPL_H
 
 #include <petscdm.h>
+#ifdef PETSC_HAVE_LIBCEED
+#include <petscdmceed.h>
+#endif
 #include <petsc/private/petscimpl.h>
 #include <petsc/private/petscdsimpl.h>
 #include <petsc/private/sectionimpl.h>     /* for inline access to atlasOff */
@@ -11,6 +13,27 @@
 PETSC_EXTERN PetscBool DMRegisterAllCalled;
 PETSC_EXTERN PetscErrorCode DMRegisterAll(void);
 typedef PetscErrorCode (*NullSpaceFunc)(DM dm, PetscInt origField, PetscInt field, MatNullSpace *nullSpace);
+
+typedef struct _PetscHashAuxKey
+{
+  DMLabel  label;
+  PetscInt value;
+} PetscHashAuxKey;
+
+#define PetscHashAuxKeyHash(key) PetscHashCombine(PetscHashPointer((key).label),PetscHashInt((key).value))
+
+#define PetscHashAuxKeyEqual(k1,k2) (((k1).label == (k2).label) ? ((k1).value == (k2).value) : 0)
+
+PETSC_HASH_MAP(HMapAux, PetscHashAuxKey, Vec, PetscHashAuxKeyHash, PetscHashAuxKeyEqual, NULL)
+
+struct _n_DMGeneratorFunctionList {
+  PetscErrorCode (*generate)(DM, PetscBool, DM *);
+  PetscErrorCode (*refine)(DM, PetscReal *, DM *);
+  PetscErrorCode (*adapt)(DM, Vec, DMLabel, DMLabel, DM *);
+  char            *name;
+  PetscInt         dim;
+  DMGeneratorFunctionList next;
+};
 
 typedef struct _DMOps *DMOps;
 struct _DMOps {
@@ -40,8 +63,7 @@ struct _DMOps {
   PetscErrorCode (*coarsen)(DM,MPI_Comm,DM*);
   PetscErrorCode (*refinehierarchy)(DM,PetscInt,DM*);
   PetscErrorCode (*coarsenhierarchy)(DM,PetscInt,DM*);
-  PetscErrorCode (*adaptlabel)(DM,DMLabel,DM*);
-  PetscErrorCode (*adaptmetric)(DM,Vec,DMLabel,DM*);
+  PetscErrorCode (*extrude)(DM,PetscInt,DM*);
 
   PetscErrorCode (*globaltolocalbegin)(DM,Vec,InsertMode,Vec);
   PetscErrorCode (*globaltolocalend)(DM,Vec,InsertMode,Vec);
@@ -160,6 +182,7 @@ typedef struct _n_Field {
   PetscObject disc;         /* Field discretization, or a PetscContainer with the field name */
   DMLabel     label;        /* Label defining the domain of definition of the field */
   PetscBool   adjacency[2]; /* Flags for defining variable influence (adjacency) for each field [use cone() or support() first, use the transitive closure] */
+  PetscBool   avoidTensor;  /* Flag to avoid defining field over tensor cells */
 } RegionField;
 
 typedef struct _n_Space {
@@ -167,6 +190,18 @@ typedef struct _n_Space {
   DMLabel label;  /* Label defining the domain of definition of the discretization */
   IS      fields; /* Map from DS field numbers to original field numbers in the DM */
 } DMSpace;
+
+struct _p_UniversalLabel {
+  DMLabel    label;   /* The universal label */
+  PetscInt   Nl;      /* Number of labels encoded */
+  char     **names;   /* The label names */
+  PetscInt  *indices; /* The original indices in the input DM */
+  PetscInt   Nv;      /* Total number of values in all the labels */
+  PetscInt  *bits;    /* Starting bit for values of each label */
+  PetscInt  *masks;   /* Masks to pull out label value bits for each label */
+  PetscInt  *offsets; /* Starting offset for label values for each label */
+  PetscInt  *values;  /* Original label values before renumbering */
+};
 
 PETSC_INTERN PetscErrorCode DMDestroyLabelLinkList_Internal(DM);
 
@@ -188,6 +223,7 @@ struct _p_DM {
   MatFDColoring           fd;
   VecType                 vectype;  /* type of vector created with DMCreateLocalVector() and DMCreateGlobalVector() */
   MatType                 mattype;  /* type of matrix created with DMCreateMatrix() */
+  PetscInt                bind_below; /* Local size threshold (in entries/rows) below which Vec/Mat objects are bound to CPU */
   PetscInt                bs;
   ISLocalToGlobalMapping  ltogmap;
   PetscBool               prealloc_only; /* Flag indicating the DMCreateMatrix() should only preallocate, not fill the matrix */
@@ -206,6 +242,8 @@ struct _p_DM {
   DMLocalToGlobalHookLink ltoghook;
   /* Topology */
   PetscInt                dim;                  /* The topological dimension */
+  /* Auxiliary data */
+  PetscHMapAux            auxData;              /* Auxiliary DM and Vec for region denoted by the key */
   /* Flexible communication */
   PetscSF                 sfMigration;          /* SF for point distribution created during distribution */
   PetscSF                 sf;                   /* SF for parallel point overlap */
@@ -255,6 +293,10 @@ struct _p_DM {
   PetscInt                numbermonitors;
 
   PetscObject             dmksp,dmsnes,dmts;
+#ifdef PETSC_HAVE_LIBCEED
+  Ceed                    ceed;                 /* LibCEED context */
+  CeedElemRestriction     ceedERestrict;        /* Map from the local vector (Lvector) to the cells (Evector) */
+#endif
 };
 
 PETSC_EXTERN PetscLogEvent DM_Convert;
@@ -303,7 +345,6 @@ PETSC_EXTERN PetscErrorCode DMView_GLVis(DM,PetscViewer,PetscErrorCode(*)(DM,Pet
        DMCompositeAddDM(dm,(DM)dm_velocities);
        DMCompositeAddDM(dm,(DM)dm_p);
 
-
     Access parts of composite vectors (Composite only)
     ---------------------------------
       DMCompositeGetAccess  - access the global vector as subvectors and array (for redundant arrays)
@@ -336,8 +377,7 @@ PETSC_EXTERN PetscErrorCode DMView_GLVis(DM,PetscViewer,PetscErrorCode(*)(DM,Pet
       DMGetGlobal/Local
       DMCompositeGetLocalVectors   - gives individual local work vectors and arrays
 
-
-?????   individual global vectors   ????
+    ?????   individual global vectors   ????
 
 */
 
@@ -469,5 +509,13 @@ PETSC_INTERN PetscErrorCode DMConstructBasisTransform_Internal(DM);
 
 PETSC_INTERN PetscErrorCode DMGetLocalBoundingIndices_DMDA(DM, PetscReal[], PetscReal[]);
 PETSC_INTERN PetscErrorCode DMSetField_Internal(DM, PetscInt, DMLabel, PetscObject);
+
+PETSC_INTERN PetscErrorCode DMSetLabelValue_Fast(DM, DMLabel*, const char[], PetscInt, PetscInt);
+
+PETSC_EXTERN PetscErrorCode DMUniversalLabelCreate(DM, DMUniversalLabel *);
+PETSC_EXTERN PetscErrorCode DMUniversalLabelDestroy(DMUniversalLabel *);
+PETSC_EXTERN PetscErrorCode DMUniversalLabelGetLabel(DMUniversalLabel, DMLabel *);
+PETSC_EXTERN PetscErrorCode DMUniversalLabelCreateLabels(DMUniversalLabel, PetscBool, DM);
+PETSC_EXTERN PetscErrorCode DMUniversalLabelSetLabelValue(DMUniversalLabel, DM, PetscBool, PetscInt, PetscInt);
 
 #endif

@@ -65,8 +65,8 @@ PetscErrorCode maxIndSetAgg(IS perm,Mat Gmat,PetscBool strict_aggs,PetscCoarsenD
     ierr = PetscSFCreate(PetscObjectComm((PetscObject)Gmat),&sf);CHKERRQ(ierr);
     ierr = MatGetLayouts(Gmat,&layout,NULL);CHKERRQ(ierr);
     ierr = PetscSFSetGraphLayout(sf,layout,num_fine_ghosts,NULL,PETSC_COPY_VALUES,mpimat->garray);CHKERRQ(ierr);
-    ierr = PetscSFBcastBegin(sf,MPIU_INT,lid_gid,cpcol_gid);CHKERRQ(ierr);
-    ierr = PetscSFBcastEnd(sf,MPIU_INT,lid_gid,cpcol_gid);CHKERRQ(ierr);
+    ierr = PetscSFBcastBegin(sf,MPIU_INT,lid_gid,cpcol_gid,MPI_REPLACE);CHKERRQ(ierr);
+    ierr = PetscSFBcastEnd(sf,MPIU_INT,lid_gid,cpcol_gid,MPI_REPLACE);CHKERRQ(ierr);
     for (kk=0;kk<num_fine_ghosts;kk++) {
       cpcol_state[kk]=MIS_NOT_DONE;
     }
@@ -182,8 +182,8 @@ PetscErrorCode maxIndSetAgg(IS perm,Mat Gmat,PetscBool strict_aggs,PetscCoarsenD
     /* update ghost states and count todos */
     if (mpimat) {
       /* scatter states, check for done */
-      ierr = PetscSFBcastBegin(sf,MPIU_INT,lid_state,cpcol_state);CHKERRQ(ierr);
-      ierr = PetscSFBcastEnd(sf,MPIU_INT,lid_state,cpcol_state);CHKERRQ(ierr);
+      ierr = PetscSFBcastBegin(sf,MPIU_INT,lid_state,cpcol_state,MPI_REPLACE);CHKERRQ(ierr);
+      ierr = PetscSFBcastEnd(sf,MPIU_INT,lid_state,cpcol_state,MPI_REPLACE);CHKERRQ(ierr);
       ii   = matB->compressedrow.i;
       for (ix=0; ix<matB->compressedrow.nrows; ix++) {
         lid   = matB->compressedrow.rindex[ix]; /* local boundary node */
@@ -212,12 +212,12 @@ PetscErrorCode maxIndSetAgg(IS perm,Mat Gmat,PetscBool strict_aggs,PetscCoarsenD
       }
       /* all done? */
       t1   = nloc - nDone;
-      ierr = MPIU_Allreduce(&t1, &t2, 1, MPIU_INT, MPI_SUM, comm);CHKERRQ(ierr); /* synchronous version */
+      ierr = MPIU_Allreduce(&t1, &t2, 1, MPIU_INT, MPI_SUM, comm);CHKERRMPI(ierr); /* synchronous version */
       if (!t2) break;
     } else break; /* all done */
   } /* outer parallel MIS loop */
   ierr = ISRestoreIndices(perm,&perm_ix);CHKERRQ(ierr);
-  ierr = PetscInfo3(Gmat,"\t removed %D of %D vertices.  %D selected.\n",nremoved,nloc,nselected);CHKERRQ(ierr);
+  ierr = PetscInfo3(Gmat,"\t removed %" PetscInt_FMT " of %" PetscInt_FMT " vertices.  %" PetscInt_FMT " selected.\n",nremoved,nloc,nselected);CHKERRQ(ierr);
 
   /* tell adj who my lid_parent_gid vertices belong to - fill in agg_lists selected ghost lists */
   if (strict_aggs && matB) {
@@ -227,8 +227,8 @@ PetscErrorCode maxIndSetAgg(IS perm,Mat Gmat,PetscBool strict_aggs,PetscCoarsenD
     for (cpid=0; cpid<num_fine_ghosts; cpid++) icpcol_gid[cpid] = cpcol_gid[cpid];
 
     /* get proc of deleted ghost */
-    ierr = PetscSFBcastBegin(sf,MPIU_INT,lid_parent_gid,cpcol_sel_gid);CHKERRQ(ierr);
-    ierr = PetscSFBcastEnd(sf,MPIU_INT,lid_parent_gid,cpcol_sel_gid);CHKERRQ(ierr);
+    ierr = PetscSFBcastBegin(sf,MPIU_INT,lid_parent_gid,cpcol_sel_gid,MPI_REPLACE);CHKERRQ(ierr);
+    ierr = PetscSFBcastEnd(sf,MPIU_INT,lid_parent_gid,cpcol_sel_gid,MPI_REPLACE);CHKERRQ(ierr);
     for (cpid=0; cpid<num_fine_ghosts; cpid++) {
       sgid = cpcol_sel_gid[cpid];
       gid  = icpcol_gid[cpid];
@@ -287,7 +287,7 @@ PetscErrorCode MatCoarsenView_MIS(MatCoarsen coarse,PetscViewer viewer)
   PetscBool      iascii;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)coarse),&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)coarse),&rank);CHKERRMPI(ierr);
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
   if (iascii) {
     ierr = PetscViewerASCIIPushSynchronized(viewer);CHKERRQ(ierr);

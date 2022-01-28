@@ -64,7 +64,6 @@ int main(int argc,char **argv)
 
   ierr = KSPSetDM(ksp,da);CHKERRQ(ierr);
 
-
   ierr        = PetscOptionsBegin(PETSC_COMM_WORLD, "", "Options for the inhomogeneous Poisson equation", "DM");CHKERRQ(ierr);
   user.nu     = 0.1;
   ierr        = PetscOptionsScalar("-nu", "The width of the Gaussian source", "ex29.c", 0.1, &user.nu, NULL);CHKERRQ(ierr);
@@ -120,7 +119,6 @@ PetscErrorCode ComputeRHS(KSP ksp,Vec b,void *ctx)
   PetscFunctionReturn(0);
 }
 
-
 PetscErrorCode ComputeMatrix(KSP ksp, Mat J,Mat jac, void *ctx)
 {
   UserContext    *user = (UserContext*)ctx;
@@ -145,7 +143,7 @@ PetscErrorCode ComputeMatrix(KSP ksp, Mat J,Mat jac, void *ctx)
         if (user->bcType == DIRICHLET) {
           v[0] = 2.0*(HxdHy + HydHx);
           ierr = MatSetValuesStencil(jac,1,&row,1,&row,v,INSERT_VALUES);CHKERRQ(ierr);
-          SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Dirichlet boundary conditions not supported !\n");
+          SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Dirichlet boundary conditions not supported !");
         } else if (user->bcType == NEUMANN) {
           num = 0; numi=0; numj=0;
           if (j!=0) {
@@ -197,7 +195,6 @@ PetscErrorCode ComputeMatrix(KSP ksp, Mat J,Mat jac, void *ctx)
   }
   PetscFunctionReturn(0);
 }
-
 
 /*TEST
 

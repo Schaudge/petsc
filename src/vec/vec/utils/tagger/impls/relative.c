@@ -2,7 +2,7 @@
 #include <petsc/private/vecimpl.h> /*I "petscvec.h" I*/
 #include "../src/vec/vec/utils/tagger/impls/simple.h"
 
-static PetscErrorCode VecTaggerComputeBoxes_Relative(VecTagger tagger,Vec vec,PetscInt *numBoxes,VecTaggerBox **boxes)
+static PetscErrorCode VecTaggerComputeBoxes_Relative(VecTagger tagger,Vec vec,PetscInt *numBoxes,VecTaggerBox **boxes,PetscBool *listed)
 {
   VecTagger_Simple *smpl = (VecTagger_Simple *)tagger->data;
   PetscInt          bs, i, j, k, n;
@@ -39,7 +39,7 @@ static PetscErrorCode VecTaggerComputeBoxes_Relative(VecTagger tagger,Vec vec,Pe
   }
   for (i = 0; i < bs; i++) bxs[i].max = -bxs[i].max;
   ierr = VecRestoreArrayRead(vec, &vArray);CHKERRQ(ierr);
-  ierr = MPI_Allreduce(MPI_IN_PLACE,(PetscReal *) bxs,2*(sizeof(PetscScalar)/sizeof(PetscReal))*bs,MPIU_REAL,MPIU_MIN,PetscObjectComm((PetscObject)tagger));CHKERRQ(ierr);
+  ierr = MPIU_Allreduce(MPI_IN_PLACE,(PetscReal *) bxs,2*(sizeof(PetscScalar)/sizeof(PetscReal))*bs,MPIU_REAL,MPIU_MIN,PetscObjectComm((PetscObject)tagger));CHKERRMPI(ierr);
   for (i = 0; i < bs; i++) {
     PetscScalar mins = bxs[i].min;
     PetscScalar difs = -bxs[i].max - mins;
@@ -52,6 +52,7 @@ static PetscErrorCode VecTaggerComputeBoxes_Relative(VecTagger tagger,Vec vec,Pe
 #endif
   }
   *boxes = bxs;
+  if (listed) *listed = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
 
@@ -60,7 +61,7 @@ static PetscErrorCode VecTaggerComputeBoxes_Relative(VecTagger tagger,Vec vec,Pe
 
   Logically Collective
 
-  Input Arguments:
+  Input Parameters:
 + tagger - the VecTagger context
 - box - a blocksize list of VecTaggerBox boxes
 
@@ -82,10 +83,10 @@ PetscErrorCode VecTaggerRelativeSetBox(VecTagger tagger,VecTaggerBox *box)
 
   Logically Collective
 
-  Input Arguments:
+  Input Parameter:
 . tagger - the VecTagger context
 
-  Output Arguments:
+  Output Parameter:
 . box - a blocksize list of VecTaggerBox boxes
 
   Level: advanced

@@ -1,9 +1,9 @@
 DM Object: Mesh 1 MPI processes
   type: plex
 Mesh in 2 dimensions:
-  0-cells: 14
-  1-cells: 20
-  2-cells: 19 (12) [12]
+  Number of 0-cells per rank: 14
+  Number of 1-cells per rank: 20
+  Number of 2-cells per rank: 19 (12) [12]
 Labels:
   depth: 3 strata with value/size (0 (14), 1 (20), 2 (19))
   celltype: 4 strata with value/size (0 (14), 1 (20), 4 (7), 12 (12))
@@ -21,6 +21,7 @@ TS Object: 1 MPI processes
     Scheme: rks2
   maximum steps=1000
   maximum time=2.
+  total number of RHS function evaluations=15
   total number of rejected steps=0
   using relative error tolerance of 0.0001,   using absolute error tolerance of 0.0001
   TSAdapt Object: 1 MPI processes

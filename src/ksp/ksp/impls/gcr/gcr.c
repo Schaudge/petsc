@@ -1,5 +1,5 @@
 
-#include <petsc/private/kspimpl.h>
+#include <petsc/private/kspimpl.h> /*I "petscksp.h" I*/
 
 typedef struct {
   PetscInt    restart;
@@ -116,7 +116,7 @@ static PetscErrorCode KSPSolve_GCR(KSP ksp)
   do {
     ierr = KSPSolve_GCR_cycle(ksp);CHKERRQ(ierr);
     if (ksp->reason) PetscFunctionReturn(0); /* catch case when convergence occurs inside the cycle */
-  } while (ksp->its < ksp->max_it);CHKERRQ(ierr);
+  } while (ksp->its < ksp->max_it);
 
   if (ksp->its >= ksp->max_it) ksp->reason = KSP_DIVERGED_ITS;
   PetscFunctionReturn(0);
@@ -136,7 +136,6 @@ static PetscErrorCode KSPView_GCR(KSP ksp, PetscViewer viewer)
   }
   PetscFunctionReturn(0);
 }
-
 
 static PetscErrorCode KSPSetUp_GCR(KSP ksp)
 {
@@ -181,6 +180,9 @@ static PetscErrorCode KSPDestroy_GCR(KSP ksp)
   PetscFunctionBegin;
   ierr = KSPReset_GCR(ksp);CHKERRQ(ierr);
   ierr = KSPDestroyDefault(ksp);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)ksp,"KSPGCRSetRestart_C",NULL);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)ksp,"KSPGCRGetRestart_C",NULL);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)ksp,"KSPGCRSetModifyPC_C",NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -223,7 +225,7 @@ static PetscErrorCode  KSPGCRSetModifyPC_GCR(KSP ksp,KSPGCRModifyPCFunction func
  Input Parameters:
  +  ksp      - iterative context obtained from KSPCreate()
  .  function - user defined function to modify the preconditioner
- .  ctx      - user provided contex for the modify preconditioner function
+ .  ctx      - user provided context for the modify preconditioner function
  -  destroy  - the function to use to destroy the user provided application context.
 
  Calling Sequence of function:
@@ -261,12 +263,63 @@ static PetscErrorCode KSPGCRSetRestart_GCR(KSP ksp,PetscInt restart)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode  KSPGCRSetRestart(KSP ksp, PetscInt restart)
+static PetscErrorCode KSPGCRGetRestart_GCR(KSP ksp,PetscInt *restart)
+{
+  KSP_GCR *ctx;
+
+  PetscFunctionBegin;
+  ctx      = (KSP_GCR*)ksp->data;
+  *restart = ctx->restart;
+  PetscFunctionReturn(0);
+}
+
+/*@
+   KSPGCRSetRestart - Sets number of iterations at which GCR restarts.
+
+   Not Collective
+
+   Input Parameters:
++  ksp - the Krylov space context
+-  restart - integer restart value
+
+   Note: The default value is 30.
+
+   Level: intermediate
+
+.seealso: KSPSetTolerances(), KSPGCRGetRestart(), KSPGMRESSetRestart()
+@*/
+PetscErrorCode KSPGCRSetRestart(KSP ksp, PetscInt restart)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   ierr = PetscTryMethod(ksp,"KSPGCRSetRestart_C",(KSP,PetscInt),(ksp,restart));CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*@
+   KSPGCRGetRestart - Gets number of iterations at which GCR restarts.
+
+   Not Collective
+
+   Input Parameter:
+.  ksp - the Krylov space context
+
+   Output Parameter:
+.   restart - integer restart value
+
+   Note: The default value is 30.
+
+   Level: intermediate
+
+.seealso: KSPSetTolerances(), KSPGCRSetRestart(), KSPGMRESGetRestart()
+@*/
+PetscErrorCode KSPGCRGetRestart(KSP ksp, PetscInt *restart)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscTryMethod(ksp,"KSPGCRGetRestart_C",(KSP,PetscInt*),(ksp,restart));CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -336,7 +389,6 @@ static PetscErrorCode  KSPBuildResidual_GCR(KSP ksp, Vec t, Vec v, Vec *V)
 .          1. - S. C. Eisenstat, H. C. Elman, and H. C. Schultz. Variational iterative methods for
            nonsymmetric systems of linear equations. SIAM J. Numer. Anal., 20, 1983
 
-
 .seealso:  KSPCreate(), KSPSetType(), KSPType (for list of available types), KSP,
            KSPGCRSetRestart(), KSPGCRSetModifyPC(), KSPGMRES, KSPFGMRES
 
@@ -366,6 +418,7 @@ PETSC_EXTERN PetscErrorCode KSPCreate_GCR(KSP ksp)
   ksp->ops->buildresidual  = KSPBuildResidual_GCR;
 
   ierr = PetscObjectComposeFunction((PetscObject)ksp,"KSPGCRSetRestart_C",KSPGCRSetRestart_GCR);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)ksp,"KSPGCRGetRestart_C",KSPGCRGetRestart_GCR);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)ksp,"KSPGCRSetModifyPC_C",KSPGCRSetModifyPC_GCR);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

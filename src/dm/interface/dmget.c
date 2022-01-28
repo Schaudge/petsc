@@ -70,7 +70,7 @@ alldone:
 
    Not Collective
 
-   Input Parameter:
+   Input Parameters:
 +  dm - the dm
 -  g - the local vector
 
@@ -259,7 +259,7 @@ PetscErrorCode  DMClearLocalVectors(DM dm)
 
    Not Collective
 
-   Input Parameter:
+   Input Parameters:
 +  dm - the dm
 -  g - the global vector
 
@@ -305,11 +305,11 @@ alldone:
 
    Not Collective
 
-   Input Arguments:
+   Input Parameters:
 +  dm - DM to hold named vectors
 -  name - unique name for Vec
 
-   Output Arguments:
+   Output Parameter:
 .  exists - true if the vector was previously created
 
    Level: developer
@@ -344,11 +344,11 @@ PetscErrorCode DMHasNamedGlobalVector(DM dm,const char *name,PetscBool *exists)
 
    Collective on dm
 
-   Input Arguments:
+   Input Parameters:
 +  dm - DM to hold named vectors
 -  name - unique name for Vec
 
-   Output Arguments:
+   Output Parameter:
 .  X - named Vec
 
    Level: developer
@@ -399,12 +399,10 @@ found:
 
    Collective on dm
 
-   Input Arguments:
+   Input Parameters:
 +  dm - DM on which the vector was gotten
 .  name - name under which the vector was gotten
 -  X - Vec to restore
-
-   Output Arguments:
 
    Level: developer
 
@@ -439,7 +437,6 @@ PetscErrorCode DMRestoreNamedGlobalVector(DM dm,const char *name,Vec *X)
     }
   }
   SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_INCOMP,"Could not find Vec name '%s' to restore",name);
-  PetscFunctionReturn(0);
 }
 
 /*@C
@@ -447,11 +444,11 @@ PetscErrorCode DMRestoreNamedGlobalVector(DM dm,const char *name,Vec *X)
 
    Not Collective
 
-   Input Arguments:
+   Input Parameters:
 +  dm - DM to hold named vectors
 -  name - unique name for Vec
 
-   Output Arguments:
+   Output Parameter:
 .  exists - true if the vector was previously created
 
    Level: developer
@@ -486,11 +483,11 @@ PetscErrorCode DMHasNamedLocalVector(DM dm,const char *name,PetscBool *exists)
 
    Not Collective
 
-   Input Arguments:
+   Input Parameters:
 +  dm - DM to hold named vectors
 -  name - unique name for Vec
 
-   Output Arguments:
+   Output Parameter:
 .  X - named Vec
 
    Level: developer
@@ -541,12 +538,10 @@ found:
 
    Not Collective
 
-   Input Arguments:
+   Input Parameters:
 +  dm - DM on which the vector was gotten
 .  name - name under which the vector was gotten
 -  X - Vec to restore
-
-   Output Arguments:
 
    Level: developer
 
@@ -581,5 +576,4 @@ PetscErrorCode DMRestoreNamedLocalVector(DM dm,const char *name,Vec *X)
     }
   }
   SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_INCOMP,"Could not find Vec name '%s' to restore",name);
-  PetscFunctionReturn(0);
 }

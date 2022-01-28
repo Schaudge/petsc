@@ -20,7 +20,7 @@ int main(int argc,char **args)
   PetscReal      norm1,norm2,tol=10*PETSC_SMALL;
 
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
   if (size != 1) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_WRONG_MPI_SIZE,"This is a uniprocessor example only!");
   ierr = PetscOptionsGetInt(NULL,NULL,"-bs",&bs,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,NULL,"-mbs",&mbs,NULL);CHKERRQ(ierr);
@@ -133,13 +133,13 @@ int main(int argc,char **args)
   ierr   = MatNorm(sA,NORM_FROBENIUS,&norm2);CHKERRQ(ierr);
   norm1 -= norm2;
   if (norm1<-tol || norm1>tol) {
-    ierr = PetscPrintf(PETSC_COMM_SELF,"Error: MatNorm(), fnorm1-fnorm2=%16.14e\n",norm1);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"Error: MatNorm(), fnorm1-fnorm2=%16.14e\n",(double)norm1);CHKERRQ(ierr);
   }
   ierr   = MatNorm(A,NORM_INFINITY,&norm1);CHKERRQ(ierr);
   ierr   = MatNorm(sA,NORM_INFINITY,&norm2);CHKERRQ(ierr);
   norm1 -= norm2;
   if (norm1<-tol || norm1>tol) {
-    ierr = PetscPrintf(PETSC_COMM_SELF,"Error: MatNorm(), inf_norm1-inf_norm2=%16.14e\n",norm1);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"Error: MatNorm(), inf_norm1-inf_norm2=%16.14e\n",(double)norm1);CHKERRQ(ierr);
   }
 
   /* Test MatGetInfo(), MatGetSize(), MatGetBlockSize() */
@@ -154,7 +154,7 @@ int main(int argc,char **args)
   ierr = MatGetSize(A,&Ii,&J);CHKERRQ(ierr);
   ierr = MatGetSize(sA,&i,&j);CHKERRQ(ierr);
   if (i-Ii || j-J) {
-    PetscPrintf(PETSC_COMM_SELF,"Error: MatGetSize()\n");CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"Error: MatGetSize()\n");CHKERRQ(ierr);
   }
 
   ierr = MatGetBlockSize(A, &Ii);CHKERRQ(ierr);

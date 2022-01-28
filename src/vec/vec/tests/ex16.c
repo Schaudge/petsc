@@ -11,8 +11,8 @@ int main(int argc,char **argv)
   Vec            x;
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
 
   if (size != 2) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_WRONG_MPI_SIZE,"Must be run with two processors");
 
@@ -22,7 +22,7 @@ int main(int argc,char **argv)
   ierr = VecSetBlockSize(x,bs);CHKERRQ(ierr);
   ierr = VecSetFromOptions(x);CHKERRQ(ierr);
 
-  if (!rank) {
+  if (rank == 0) {
     for (i=0; i<4; i++) values[i] = i+1;
     indices[0] = 0;
     indices[1] = 2;
@@ -38,7 +38,7 @@ int main(int argc,char **argv)
 
   /* test insertion with negative indices */
   ierr = VecSetOption(x,VEC_IGNORE_NEGATIVE_INDICES,PETSC_TRUE);CHKERRQ(ierr);
-  if (!rank) {
+  if (rank == 0) {
     for (i=0; i<4; i++) values[i] = -(i+1);
     indices[0] = -1;
     indices[1] = 3;
@@ -57,8 +57,6 @@ int main(int argc,char **argv)
   ierr = PetscFinalize();
   return ierr;
 }
-
-
 
 /*TEST
 

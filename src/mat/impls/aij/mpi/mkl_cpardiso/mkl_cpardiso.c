@@ -73,7 +73,7 @@ typedef struct {
    */
   void         *pt[IPARM_SIZE];
 
-  MPI_Comm     comm_mkl_cpardiso;
+  MPI_Fint     comm_mkl_cpardiso;
 
   /* Basic mkl_cpardiso info*/
   INT_TYPE     phase, maxfct, mnum, mtype, n, nrhs, msglvl, err;
@@ -316,6 +316,7 @@ PetscErrorCode MatConvertToTriples_mpisbaij_mpisbaij_MKL_CPARDISO(Mat A, MatReus
 PetscErrorCode MatDestroy_MKL_CPARDISO(Mat A)
 {
   Mat_MKL_CPARDISO *mat_mkl_cpardiso=(Mat_MKL_CPARDISO*)A->data;
+  MPI_Comm         comm;
   PetscErrorCode   ierr;
 
   PetscFunctionBegin;
@@ -346,7 +347,8 @@ PetscErrorCode MatDestroy_MKL_CPARDISO(Mat A)
   if (mat_mkl_cpardiso->ConvertToTriples != MatCopy_seqaij_seqaij_MKL_CPARDISO) {
     ierr = PetscFree3(mat_mkl_cpardiso->ia,mat_mkl_cpardiso->ja,mat_mkl_cpardiso->a);CHKERRQ(ierr);
   }
-  ierr = MPI_Comm_free(&(mat_mkl_cpardiso->comm_mkl_cpardiso));CHKERRQ(ierr);
+  comm = MPI_Comm_f2c(mat_mkl_cpardiso->comm_mkl_cpardiso);
+  ierr = MPI_Comm_free(&comm);CHKERRMPI(ierr);
   ierr = PetscFree(A->data);CHKERRQ(ierr);
 
   /* clear composed functions */
@@ -392,7 +394,7 @@ PetscErrorCode MatSolve_MKL_CPARDISO(Mat A,Vec b,Vec x)
     &mat_mkl_cpardiso->comm_mkl_cpardiso,
     (PetscInt*)&mat_mkl_cpardiso->err);
 
-  if (mat_mkl_cpardiso->err < 0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error reported by MKL_CPARDISO: err=%d, msg = \"%s\". Please check manual\n",mat_mkl_cpardiso->err,Err_MSG_CPardiso(mat_mkl_cpardiso->err));
+  if (mat_mkl_cpardiso->err < 0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error reported by MKL_CPARDISO: err=%d, msg = \"%s\". Please check manual",mat_mkl_cpardiso->err,Err_MSG_CPardiso(mat_mkl_cpardiso->err));
 
   ierr = VecRestoreArray(x,&xarray);CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(b,&barray);CHKERRQ(ierr);
@@ -427,8 +429,8 @@ PetscErrorCode MatMatSolve_MKL_CPARDISO(Mat A,Mat B,Mat X)
   ierr = MatGetSize(B,NULL,(PetscInt*)&mat_mkl_cpardiso->nrhs);CHKERRQ(ierr);
 
   if (mat_mkl_cpardiso->nrhs > 0) {
-    ierr = MatDenseGetArrayRead(B,&barray);
-    ierr = MatDenseGetArray(X,&xarray);
+    ierr = MatDenseGetArrayRead(B,&barray);CHKERRQ(ierr);
+    ierr = MatDenseGetArray(X,&xarray);CHKERRQ(ierr);
 
     if (barray == xarray) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"B and X cannot share the same memory location");
 
@@ -453,9 +455,9 @@ PetscErrorCode MatMatSolve_MKL_CPARDISO(Mat A,Mat B,Mat X)
       (void*)xarray,
       &mat_mkl_cpardiso->comm_mkl_cpardiso,
       (PetscInt*)&mat_mkl_cpardiso->err);
-    if (mat_mkl_cpardiso->err < 0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error reported by MKL_CPARDISO: err=%d, msg = \"%s\". Please check manual\n",mat_mkl_cpardiso->err,Err_MSG_CPardiso(mat_mkl_cpardiso->err));
-    ierr = MatDenseRestoreArrayRead(B,&barray);
-    ierr = MatDenseRestoreArray(X,&xarray);
+    if (mat_mkl_cpardiso->err < 0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error reported by MKL_CPARDISO: err=%d, msg = \"%s\". Please check manual",mat_mkl_cpardiso->err,Err_MSG_CPardiso(mat_mkl_cpardiso->err));
+    ierr = MatDenseRestoreArrayRead(B,&barray);CHKERRQ(ierr);
+    ierr = MatDenseRestoreArray(X,&xarray);CHKERRQ(ierr);
 
   }
   mat_mkl_cpardiso->CleanUp = PETSC_TRUE;
@@ -493,7 +495,7 @@ PetscErrorCode MatFactorNumeric_MKL_CPARDISO(Mat F,Mat A,const MatFactorInfo *in
     NULL,
     &mat_mkl_cpardiso->comm_mkl_cpardiso,
     &mat_mkl_cpardiso->err);
-  if (mat_mkl_cpardiso->err < 0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error reported by MKL_CPARDISO: err=%d, msg = \"%s\". Please check manual\n",mat_mkl_cpardiso->err,Err_MSG_CPardiso(mat_mkl_cpardiso->err));
+  if (mat_mkl_cpardiso->err < 0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error reported by MKL_CPARDISO: err=%d, msg = \"%s\". Please check manual",mat_mkl_cpardiso->err,Err_MSG_CPardiso(mat_mkl_cpardiso->err));
 
   mat_mkl_cpardiso->matstruc = SAME_NONZERO_PATTERN;
   mat_mkl_cpardiso->CleanUp  = PETSC_TRUE;
@@ -510,7 +512,7 @@ PetscErrorCode PetscSetMKL_CPARDISOFromOptions(Mat F, Mat A)
 
   PetscFunctionBegin;
   ierr = PetscOptionsBegin(PetscObjectComm((PetscObject)A),((PetscObject)A)->prefix,"MKL_CPARDISO Options","Mat");CHKERRQ(ierr);
-  ierr = PetscOptionsInt("-mat_mkl_cpardiso_65","Number of threads to use","None",threads,&threads,&flg);CHKERRQ(ierr);
+  ierr = PetscOptionsInt("-mat_mkl_cpardiso_65","Suggested number of threads to use within MKL_CPARDISO","None",threads,&threads,&flg);CHKERRQ(ierr);
   if (flg) mkl_set_num_threads((int)threads);
 
   ierr = PetscOptionsInt("-mat_mkl_cpardiso_66","Maximum number of factors with identical sparsity structure that must be kept in memory at the same time","None",mat_mkl_cpardiso->maxfct,&icntl,&flg);CHKERRQ(ierr);
@@ -594,11 +596,13 @@ PetscErrorCode PetscInitialize_MKL_CPARDISO(Mat A, Mat_MKL_CPARDISO *mat_mkl_cpa
   PetscInt        bs;
   PetscBool       match;
   PetscMPIInt     size;
+  MPI_Comm        comm;
 
   PetscFunctionBegin;
 
-  ierr = MPI_Comm_dup(PetscObjectComm((PetscObject)A),&(mat_mkl_cpardiso->comm_mkl_cpardiso));CHKERRQ(ierr);
-  ierr = MPI_Comm_size(mat_mkl_cpardiso->comm_mkl_cpardiso, &size);CHKERRQ(ierr);
+  ierr = MPI_Comm_dup(PetscObjectComm((PetscObject)A),&comm);CHKERRMPI(ierr);
+  ierr = MPI_Comm_size(comm, &size);CHKERRMPI(ierr);
+  mat_mkl_cpardiso->comm_mkl_cpardiso = MPI_Comm_c2f(comm);
 
   mat_mkl_cpardiso->CleanUp = PETSC_FALSE;
   mat_mkl_cpardiso->maxfct = 1;
@@ -696,7 +700,7 @@ PetscErrorCode MatLUFactorSymbolic_AIJMKL_CPARDISO(Mat F,Mat A,IS r,IS c,const M
     &mat_mkl_cpardiso->comm_mkl_cpardiso,
     (PetscInt*)&mat_mkl_cpardiso->err);
 
-  if (mat_mkl_cpardiso->err < 0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error reported by MKL_CPARDISO: err=%d, msg = \"%s\".Check manual\n",mat_mkl_cpardiso->err,Err_MSG_CPardiso(mat_mkl_cpardiso->err));
+  if (mat_mkl_cpardiso->err < 0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error reported by MKL_CPARDISO: err=%d, msg = \"%s\".Check manual",mat_mkl_cpardiso->err,Err_MSG_CPardiso(mat_mkl_cpardiso->err));
 
   mat_mkl_cpardiso->CleanUp = PETSC_TRUE;
   F->ops->lufactornumeric = MatFactorNumeric_MKL_CPARDISO;
@@ -713,7 +717,6 @@ PetscErrorCode MatCholeskyFactorSymbolic_AIJMKL_CPARDISO(Mat F,Mat A,IS perm,con
 
   PetscFunctionBegin;
   mat_mkl_cpardiso->matstruc = DIFFERENT_NONZERO_PATTERN;
-
 
   /* Set MKL_CPARDISO options from the options database */
   ierr = PetscSetMKL_CPARDISOFromOptions(F,A);CHKERRQ(ierr);
@@ -750,7 +753,7 @@ PetscErrorCode MatCholeskyFactorSymbolic_AIJMKL_CPARDISO(Mat F,Mat A,IS perm,con
     &mat_mkl_cpardiso->comm_mkl_cpardiso,
     (PetscInt*)&mat_mkl_cpardiso->err);
 
-  if (mat_mkl_cpardiso->err < 0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error reported by MKL_CPARDISO: err=%d, msg = \"%s\".Check manual\n",mat_mkl_cpardiso->err,Err_MSG_CPardiso(mat_mkl_cpardiso->err));
+  if (mat_mkl_cpardiso->err < 0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error reported by MKL_CPARDISO: err=%d, msg = \"%s\".Check manual",mat_mkl_cpardiso->err,Err_MSG_CPardiso(mat_mkl_cpardiso->err));
 
   mat_mkl_cpardiso->CleanUp = PETSC_TRUE;
   F->ops->choleskyfactornumeric = MatFactorNumeric_MKL_CPARDISO;
@@ -859,6 +862,51 @@ PetscErrorCode MatMkl_CPardisoSetCntl(Mat F,PetscInt icntl,PetscInt ival)
   PetscFunctionReturn(0);
 }
 
+/*MC
+  MATSOLVERMKL_CPARDISO -  A matrix type providing direct solvers (LU) for parallel matrices via the external package MKL_CPARDISO.
+
+  Works with MATMPIAIJ matrices
+
+  Use -pc_type lu -pc_factor_mat_solver_type mkl_cpardiso to use this direct solver
+
+  Options Database Keys:
++ -mat_mkl_cpardiso_65 - Suggested number of threads to use within MKL_CPARDISO
+. -mat_mkl_cpardiso_66 - Maximum number of factors with identical sparsity structure that must be kept in memory at the same time
+. -mat_mkl_cpardiso_67 - Indicates the actual matrix for the solution phase
+. -mat_mkl_cpardiso_68 - Message level information, use 1 to get detailed information on the solver options
+. -mat_mkl_cpardiso_69 - Defines the matrix type. IMPORTANT: When you set this flag, iparm parameters are going to be set to the default ones for the matrix type
+. -mat_mkl_cpardiso_1  - Use default values
+. -mat_mkl_cpardiso_2  - Fill-in reducing ordering for the input matrix
+. -mat_mkl_cpardiso_4  - Preconditioned CGS/CG
+. -mat_mkl_cpardiso_5  - User permutation
+. -mat_mkl_cpardiso_6  - Write solution on x
+. -mat_mkl_cpardiso_8  - Iterative refinement step
+. -mat_mkl_cpardiso_10 - Pivoting perturbation
+. -mat_mkl_cpardiso_11 - Scaling vectors
+. -mat_mkl_cpardiso_12 - Solve with transposed or conjugate transposed matrix A
+. -mat_mkl_cpardiso_13 - Improved accuracy using (non-) symmetric weighted matching
+. -mat_mkl_cpardiso_18 - Numbers of non-zero elements
+. -mat_mkl_cpardiso_19 - Report number of floating point operations
+. -mat_mkl_cpardiso_21 - Pivoting for symmetric indefinite matrices
+. -mat_mkl_cpardiso_24 - Parallel factorization control
+. -mat_mkl_cpardiso_25 - Parallel forward/backward solve control
+. -mat_mkl_cpardiso_27 - Matrix checker
+. -mat_mkl_cpardiso_31 - Partial solve and computing selected components of the solution vectors
+. -mat_mkl_cpardiso_34 - Optimal number of threads for conditional numerical reproducibility (CNR) mode
+- -mat_mkl_cpardiso_60 - Intel MKL_CPARDISO mode
+
+  Level: beginner
+
+  Notes:
+    Use -mat_mkl_cpardiso_68 1 to display the number of threads the solver is using. MKL does not provide a way to directly access this
+    information.
+
+    For more information on the options check the MKL_CPARDISO manual
+
+.seealso: PCFactorSetMatSolverType(), MatSolverType
+
+M*/
+
 static PetscErrorCode MatFactorGetSolverType_mkl_cpardiso(Mat A, MatSolverType *type)
 {
   PetscFunctionBegin;
@@ -887,10 +935,10 @@ static PetscErrorCode MatGetFactor_mpiaij_mkl_cpardiso(Mat A,MatFactorType ftype
 
   ierr = PetscNewLog(B,&mat_mkl_cpardiso);CHKERRQ(ierr);
 
-  if (isSeqAIJ) mat_mkl_cpardiso->ConvertToTriples = MatCopy_seqaij_seqaij_MKL_CPARDISO;
-  else if (isMPIBAIJ) mat_mkl_cpardiso->ConvertToTriples = MatConvertToTriples_mpibaij_mpibaij_MKL_CPARDISO;
+  if (isSeqAIJ)        mat_mkl_cpardiso->ConvertToTriples = MatCopy_seqaij_seqaij_MKL_CPARDISO;
+  else if (isMPIBAIJ)  mat_mkl_cpardiso->ConvertToTriples = MatConvertToTriples_mpibaij_mpibaij_MKL_CPARDISO;
   else if (isMPISBAIJ) mat_mkl_cpardiso->ConvertToTriples = MatConvertToTriples_mpisbaij_mpisbaij_MKL_CPARDISO;
-  else          mat_mkl_cpardiso->ConvertToTriples = MatConvertToTriples_mpiaij_mpiaij_MKL_CPARDISO;
+  else                 mat_mkl_cpardiso->ConvertToTriples = MatConvertToTriples_mpiaij_mpiaij_MKL_CPARDISO;
 
   if (ftype == MAT_FACTOR_LU) B->ops->lufactorsymbolic = MatLUFactorSymbolic_AIJMKL_CPARDISO;
   else B->ops->choleskyfactorsymbolic = MatCholeskyFactorSymbolic_AIJMKL_CPARDISO;

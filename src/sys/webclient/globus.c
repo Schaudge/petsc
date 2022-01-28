@@ -117,8 +117,8 @@ PetscErrorCode PetscGlobusAuthorize(MPI_Comm comm,char access_token[],size_t tok
   PetscBool      found;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
-  if (!rank) {
+  ierr = MPI_Comm_rank(comm,&rank);CHKERRMPI(ierr);
+  if (rank == 0) {
     if (!isatty(fileno(PETSC_STDOUT))) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"Requires users input/output");
     ierr = PetscPrintf(comm,"Enter globus username:");CHKERRQ(ierr);
     ptr  = fgets(buff, 1024, stdin);
@@ -151,7 +151,6 @@ PetscErrorCode PetscGlobusAuthorize(MPI_Comm comm,char access_token[],size_t tok
   PetscFunctionReturn(0);
 }
 
-
 /*@C
      PetscGlobusGetTransfers - Get a record of current transfers requested from Globus
 
@@ -181,8 +180,8 @@ PetscErrorCode PetscGlobusGetTransfers(MPI_Comm comm,const char access_token[],c
   PetscMPIInt    rank;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
-  if (!rank) {
+  ierr = MPI_Comm_rank(comm,&rank);CHKERRMPI(ierr);
+  if (rank == 0) {
     ierr = PetscStrcpy(head,"Authorization : Globus-Goauthtoken ");CHKERRQ(ierr);
     if (access_token) {
       ierr = PetscStrcat(head,access_token);CHKERRQ(ierr);
@@ -215,7 +214,7 @@ PetscErrorCode PetscGlobusGetTransfers(MPI_Comm comm,const char access_token[],c
 -   filename - file to upload
 
   Options Database:
-.  -globus_access_token   XXX
+.  -globus_access_token XXX - the Globus token
 
    Level: intermediate
 
@@ -233,8 +232,8 @@ PetscErrorCode PetscGlobusUpload(MPI_Comm comm,const char access_token[],const c
   PetscBool      flg,found;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
-  if (!rank) {
+  ierr = MPI_Comm_rank(comm,&rank);CHKERRMPI(ierr);
+  if (rank == 0) {
     ierr = PetscTestFile(filename,'r',&flg);CHKERRQ(ierr);
     if (!flg) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Unable to find file: %s",filename);
 
@@ -289,5 +288,4 @@ PetscErrorCode PetscGlobusUpload(MPI_Comm comm,const char access_token[],const c
   }
   PetscFunctionReturn(0);
 }
-
 

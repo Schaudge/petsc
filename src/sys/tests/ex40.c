@@ -13,12 +13,8 @@ static Point origin = {0.0, 0.0, 0.0};
 PETSC_HASH_MAP(HMapIS, PetscInt, Point, PetscHashInt, PetscHashEqual, origin)
 
 #define PetscAssert(expr) do {            \
-if (PetscUnlikely(!(expr)))               \
-  SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB, \
-           "Assertion: `%s' failed.",     \
-           PetscStringize(expr));         \
+if (PetscUnlikely(!(expr))) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB, "Assertion: `%s' failed.", PetscStringize(expr)); \
 } while (0)
-
 
 int main(int argc,char **argv)
 {
@@ -83,7 +79,7 @@ int main(int argc,char **argv)
   ierr = PetscHMapIGetSize(ht,&n);CHKERRQ(ierr);
   PetscAssert(n == 2);
 
-  koff = 0; keys[0] = keys[1] = 0;CHKERRQ(ierr);
+  koff = 0; keys[0] = keys[1] = 0;
   ierr = PetscHMapIGetKeys(ht,&koff,keys);CHKERRQ(ierr);
   ierr = PetscSortInt(koff,keys);CHKERRQ(ierr);
   PetscAssert(koff == 2);
@@ -166,7 +162,6 @@ int main(int argc,char **argv)
   ierr = PetscFinalize();
   return ierr;
 }
-
 
 /*TEST
 

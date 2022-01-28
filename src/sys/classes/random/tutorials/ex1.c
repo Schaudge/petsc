@@ -22,7 +22,7 @@ int main(int argc,char **argv)
 #endif
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
   ierr = PetscOptionsGetInt(NULL,NULL,"-n",&n,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,NULL,"-view_randomvalues",&view_rank,NULL);CHKERRQ(ierr);
 
@@ -36,7 +36,7 @@ int main(int argc,char **argv)
     ierr = PetscRandomGetValue(rnd,&value);CHKERRQ(ierr);
     avg += value;
     if (view_rank == (PetscInt)rank) {
-      ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] value[%D] = %6.4e\n",rank,i,(double)PetscRealPart(value));CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] value[%" PetscInt_FMT "] = %6.4e\n",rank,i,(double)PetscRealPart(value));CHKERRQ(ierr);
     }
     values[i] = (PetscInt)(n*PetscRealPart(value) + 2.0);
   }
@@ -68,8 +68,6 @@ int main(int argc,char **argv)
   ierr = PetscFinalize();
   return ierr;
 }
-
-
 
 /*TEST
 

@@ -21,7 +21,7 @@ int main(int argc, char **argv)
   ierr = PetscOptionsRangeInt("-dim", "The spatial dimension","ex5.c",dim,&dim,NULL,1,3);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-simplex", "Test simplex element","ex5.c",simplex,&simplex,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBoundedInt("-num_comp", "Number of components in space","ex5.c",Nc,&Nc,NULL,1);CHKERRQ(ierr);
-  ierr = PetscOptionsEnd();
+  ierr = PetscOptionsEnd();CHKERRQ(ierr);
   ierr = DMShellCreate(comm,&dm);CHKERRQ(ierr);
   ierr = PetscFECreateDefault(comm,dim,Nc,simplex,NULL,PETSC_DEFAULT,&fe);CHKERRQ(ierr);
   ierr = DMDestroy(&dm);CHKERRQ(ierr);
@@ -109,7 +109,7 @@ int main(int argc, char **argv)
       }
       err = PetscSqrtReal(err);
       if (err > PETSC_SMALL) {
-        SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Trace FE error %g\n",err);
+        SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Trace FE error %g",err);
       }
       ierr = VecRestoreArray(vecFull,&arrayFull);CHKERRQ(ierr);
       ierr = PetscTabulationDestroy(&Tfull);CHKERRQ(ierr);

@@ -169,7 +169,7 @@ PetscErrorCode TSBasicSymplecticRegister(TSRosWType name,PetscInt order,PetscInt
   PetscFunctionBegin;
   PetscValidCharPointer(name,1);
   PetscValidPointer(c,4);
-  PetscValidPointer(d,4);
+  PetscValidPointer(d,5);
 
   ierr = TSBasicSymplecticInitializePackage();CHKERRQ(ierr);
   ierr = PetscNew(&link);CHKERRQ(ierr);
@@ -374,7 +374,7 @@ static PetscErrorCode TSComputeLinearStability_BasicSymplectic(TS ts,PetscReal x
 
   Logically Collective on TS
 
-  Input Parameter:
+  Input Parameters:
 +  ts - timestepping context
 -  bsymptype - type of the symplectic scheme
 
@@ -401,7 +401,7 @@ PetscErrorCode TSBasicSymplecticSetType(TS ts,TSBasicSymplecticType bsymptype)
 
   Logically Collective on TS
 
-  Input Parameter:
+  Input Parameters:
 +  ts - timestepping context
 -  bsymptype - type of the basic symplectic scheme
 
@@ -437,7 +437,6 @@ static PetscErrorCode TSBasicSymplecticSetType_BasicSymplectic(TS ts,TSBasicSymp
     }
   }
   SETERRQ1(PetscObjectComm((PetscObject)ts),PETSC_ERR_ARG_UNKNOWN_TYPE,"Could not find '%s'",bsymptype);
-  PetscFunctionReturn(0);
 }
 
 static PetscErrorCode  TSBasicSymplecticGetType_BasicSymplectic(TS ts,TSBasicSymplecticType *bsymptype)

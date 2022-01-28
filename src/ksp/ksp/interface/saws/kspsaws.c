@@ -13,10 +13,10 @@ typedef struct {
 
    Collective
 
-   Input Arguments:
+   Input Parameter:
 .  ksp - KSP to monitor
 
-   Output Arguments:
+   Output Parameter:
 .  ctx - context for monitor
 
    Level: developer
@@ -41,7 +41,7 @@ PetscErrorCode KSPMonitorSAWsCreate(KSP ksp,void **ctx)
 
    Collective
 
-   Input Arguments:
+   Input Parameter:
 .  ctx - monitor context
 
    Level: developer
@@ -90,8 +90,8 @@ PetscErrorCode KSPMonitorSAWs(KSP ksp,PetscInt n,PetscReal rnorm,void *ctx)
   if (n) {
     ierr = KSPComputeEigenvalues(ksp,n,mon->eigr,mon->eigi,&mon->neigs);CHKERRQ(ierr);
 
-    ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
-    if (!rank) {
+    ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
+    if (rank == 0) {
       SAWs_Delete("/PETSc/ksp_monitor_saws/eigr");
       SAWs_Delete("/PETSc/ksp_monitor_saws/eigi");
 

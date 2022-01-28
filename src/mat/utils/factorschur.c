@@ -49,7 +49,7 @@ PETSC_INTERN PetscErrorCode MatFactorUpdateSchurStatus_Private(Mat F)
   case MAT_FACTOR_SCHUR_FACTORED:
     break;
   default:
-    SETERRQ1(PetscObjectComm((PetscObject)F),PETSC_ERR_SUP,"Unhandled MatFactorSchurStatus %D",F->schur_status);
+    SETERRQ1(PetscObjectComm((PetscObject)F),PETSC_ERR_SUP,"Unhandled MatFactorSchurStatus %d",F->schur_status);
   }
   PetscFunctionReturn(0);
 }
@@ -82,7 +82,7 @@ PETSC_INTERN PetscErrorCode MatFactorInvertSchurComplement_Private(Mat F)
     PetscBool      isdense,isdensecuda;
     PetscErrorCode ierr;
 
-    ierr = MPI_Comm_size(PetscObjectComm((PetscObject)S),&size);CHKERRQ(ierr);
+    ierr = MPI_Comm_size(PetscObjectComm((PetscObject)S),&size);CHKERRMPI(ierr);
     if (size > 1) SETERRQ(PetscObjectComm((PetscObject)S),PETSC_ERR_SUP,"Not yet implemented");
     ierr = PetscObjectTypeCompare((PetscObject)S,MATSEQDENSE,&isdense);CHKERRQ(ierr);
     ierr = PetscObjectTypeCompare((PetscObject)S,MATSEQDENSECUDA,&isdensecuda);CHKERRQ(ierr);

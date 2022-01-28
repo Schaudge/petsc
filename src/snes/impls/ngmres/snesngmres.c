@@ -110,7 +110,7 @@ PetscErrorCode SNESSetFromOptions_NGMRES(PetscOptionItems *PetscOptionsObject,SN
   ierr = PetscOptionsInt("-snes_ngmres_restart_it", "Tolerance iterations before restart","SNES",ngmres->restart_it,&ngmres->restart_it,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-snes_ngmres_monitor",   "Monitor actions of NGMRES",          "SNES",ngmres->monitor ? PETSC_TRUE : PETSC_FALSE,&debug,NULL);CHKERRQ(ierr);
   if (debug) {
-    ngmres->monitor = PETSC_VIEWER_STDOUT_(PetscObjectComm((PetscObject)snes));CHKERRQ(ierr);
+    ngmres->monitor = PETSC_VIEWER_STDOUT_(PetscObjectComm((PetscObject)snes));
   }
   ierr = PetscOptionsReal("-snes_ngmres_gammaA",    "Residual selection constant",   "SNES",ngmres->gammaA,&ngmres->gammaA,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-snes_ngmres_gammaC",    "Residual restart constant",     "SNES",ngmres->gammaC,&ngmres->gammaC,NULL);CHKERRQ(ierr);
@@ -282,7 +282,7 @@ PetscErrorCode SNESSolve_NGMRES(SNES snes)
       else restart_count = 0;
     } else if (ngmres->restart_type == SNES_NGMRES_RESTART_PERIODIC) {
       if (k_restart > ngmres->restart_periodic) {
-        if (ngmres->monitor) ierr = PetscViewerASCIIPrintf(ngmres->monitor,"periodic restart after %D iterations\n",k_restart);CHKERRQ(ierr);
+        if (ngmres->monitor) {ierr = PetscViewerASCIIPrintf(ngmres->monitor,"periodic restart after %D iterations\n",k_restart);CHKERRQ(ierr);}
         restart_count = ngmres->restart_it;
       }
     }
@@ -387,7 +387,6 @@ PetscErrorCode SNESNGMRESGetRestartFmRise_NGMRES(SNES snes,PetscBool *flg)
   *flg = ngmres->restart_fm_rise;
   PetscFunctionReturn(0);
 }
-
 
 /*@
     SNESNGMRESSetRestartType - Sets the restart type for SNESNGMRES.
@@ -507,7 +506,6 @@ PetscErrorCode SNESNGMRESSetRestartType_NGMRES(SNES snes,SNESNGMRESRestartType r
    SIAM Journal on Scientific Computing, 21(5), 2000.
 -  2. - Peter R. Brune, Matthew G. Knepley, Barry F. Smith, and Xuemin Tu, "Composing Scalable Nonlinear Algebraic Solvers",
    SIAM Review, 57(4), 2015
-
 
 .seealso: SNESCreate(), SNES, SNESSetType(), SNESType (for list of available types)
 M*/

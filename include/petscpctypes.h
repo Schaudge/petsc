@@ -27,6 +27,7 @@ typedef const char* PCType;
 #define PCJACOBI          "jacobi"
 #define PCSOR             "sor"
 #define PCLU              "lu"
+#define PCQR              "qr"
 #define PCSHELL           "shell"
 #define PCBJACOBI         "bjacobi"
 #define PCMG              "mg"
@@ -71,7 +72,7 @@ typedef const char* PCType;
 #define PCHMG             "hmg"
 #define PCDEFLATION       "deflation"
 #define PCHPDDM           "hpddm"
-#define PCHARA            "hara"
+#define PCH2OPUS          "h2opus"
 
 /*E
     PCSide - If the preconditioner is to be applied to the left, right

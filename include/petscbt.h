@@ -28,7 +28,6 @@
 S*/
 typedef char* PetscBT;
 
-
 PETSC_STATIC_INLINE PetscInt PetscBTLength(PetscInt m)
 {
   return  m/PETSC_BITS_PER_BYTE+1;
@@ -63,7 +62,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscBTView(PetscInt m,const PetscBT bt,Petsc
   if (!viewer) {ierr = PetscViewerASCIIGetStdout(PETSC_COMM_SELF,&viewer);CHKERRQ(ierr);}
   ierr = PetscViewerASCIIPushSynchronized(viewer);CHKERRQ(ierr);
   for (i=0; i<m; i++) {
-    ierr = PetscViewerASCIISynchronizedPrintf(viewer,"%D %d\n",i,(int)PetscBTLookup(bt,i));CHKERRQ(ierr);
+    ierr = PetscViewerASCIISynchronizedPrintf(viewer,"%" PetscInt_FMT " %d\n",i,(int)PetscBTLookup(bt,i));CHKERRQ(ierr);
   }
   ierr = PetscViewerFlush(viewer);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPopSynchronized(viewer);CHKERRQ(ierr);
@@ -131,6 +130,5 @@ PETSC_STATIC_INLINE PetscErrorCode PetscBTClear(PetscBT array,PetscInt index)
   array[BT_idx] = (char)(BT_c & ~BT_mask);
  return 0;
 }
-
 
 #endif

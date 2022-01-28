@@ -5,8 +5,6 @@ static char help[] = "Newton's method to solve a two-variable system that comes 
    Concepts: SNES^basic example
 T*/
 
-
-
 /*
    Include "petscsnes.h" so that we can use SNES solvers.  Note that this
    file automatically includes:
@@ -199,12 +197,16 @@ PetscErrorCode FormJacobian1(SNES snes,Vec x,Mat jac,Mat B,void *dummy)
   return 0;
 }
 
-
-
 /*TEST
 
    test:
+      suffix: 1
       args: -snes_monitor_short -snes_max_it 1000
+      requires: !single
+
+   test:
+      suffix: 2
+      args: -snes_monitor_short -snes_max_it 1000 -snes_type newtontrdc -snes_trdc_use_cauchy false
       requires: !single
 
 TEST*/

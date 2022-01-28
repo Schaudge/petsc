@@ -9,8 +9,7 @@ class Configure(config.package.CMakePackage):
     self.functions         = []
     self.includes          = []
     self.hastests          = 1
-    self.fc                = 1    # 1 means requires fortran
-    self.cxx               = 1    # 1 means requires C++
+    self.buildLanguages    = ['Cxx','FC']   # requires C++ and Fortran
     self.linkedbypetsc     = 0
     self.makerulename      = 'alquimia'    # make on the alquimia directory tries to build executables that will fail so force only building the libraries
     self.useddirectly      = 0
@@ -53,10 +52,8 @@ class Configure(config.package.CMakePackage):
     args = config.package.CMakePackage.formCMakeConfigureArgs(self)
     args.append('-DUSE_XSDK_DEFAULTS=YES')
     if self.compilerFlags.debugging:
-      args.append('-DCMAKE_BUILD_TYPE=DEBUG')
       args.append('-DXSDK_ENABLE_DEBUG=YES')
     else:
-      args.append('-DCMAKE_BUILD_TYPE=RELEASE')
       args.append('-DXSDK_ENABLE_DEBUG=NO')
 
 

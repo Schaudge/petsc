@@ -16,7 +16,7 @@ PetscErrorCode MatMatMultNumeric_SeqAIJ_SeqAIJ(Mat A,Mat B,Mat C)
 
   PetscFunctionBegin;
   if (C->ops->matmultnumeric) {
-    if (C->ops->matmultnumeric == MatMatMultNumeric_SeqAIJ_SeqAIJ) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Recursive call");
+    if (PetscUnlikely(C->ops->matmultnumeric == MatMatMultNumeric_SeqAIJ_SeqAIJ)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Recursive call");
     ierr = (*C->ops->matmultnumeric)(A,B,C);CHKERRQ(ierr);
   } else {
     ierr = MatMatMultNumeric_SeqAIJ_SeqAIJ_Sorted(A,B,C);CHKERRQ(ierr);
@@ -33,7 +33,7 @@ PETSC_INTERN PetscErrorCode MatSetSeqAIJWithArrays_private(MPI_Comm comm,PetscIn
   PetscBool      isseqaij;
 
   PetscFunctionBegin;
-  if (m > 0 && i[0]) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"i (row indices) must start with 0");
+  if (PetscUnlikely(m > 0 && i[0])) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"i (row indices) must start with 0");
   ierr = MatSetSizes(mat,m,n,m,n);CHKERRQ(ierr);
 
   if (!mtype) {
@@ -58,7 +58,6 @@ PETSC_INTERN PetscErrorCode MatSetSeqAIJWithArrays_private(MPI_Comm comm,PetscIn
   for (ii=0; ii<m; ii++) {
     aij->ilen[ii] = aij->imax[ii] = i[ii+1] - i[ii];
   }
-
   PetscFunctionReturn(0);
 }
 
@@ -133,7 +132,6 @@ PetscErrorCode MatMatMultSymbolic_SeqAIJ_SeqAIJ(Mat A,Mat B,PetscReal fill,Mat C
 #endif
 
   SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Mat Product Algorithm is not supported");
-  PetscFunctionReturn(0);
 }
 
 PetscErrorCode MatMatMultSymbolic_SeqAIJ_SeqAIJ_LLCondensed(Mat A,Mat B,PetscReal fill,Mat C)
@@ -179,6 +177,10 @@ PetscErrorCode MatMatMultSymbolic_SeqAIJ_SeqAIJ_LLCondensed(Mat A,Mat B,PetscRea
       bj   = b->j + bi[brow];
       /* add non-zero cols of B into the sorted linked list lnk */
       ierr = PetscLLCondensedAddSorted(bnzj,bj,lnk,lnkbt);CHKERRQ(ierr);
+    }
+    /* add possible missing diagonal entry */
+    if (C->force_diagonals) {
+      ierr = PetscLLCondensedAddSorted(1,&i,lnk,lnkbt);CHKERRQ(ierr);
     }
     cnzi = lnk[0];
 
@@ -231,7 +233,7 @@ PetscErrorCode MatMatMultSymbolic_SeqAIJ_SeqAIJ_LLCondensed(Mat A,Mat B,PetscRea
 
 #if defined(PETSC_USE_INFO)
   if (ci[am]) {
-    ierr = PetscInfo3(C,"Reallocs %D; Fill ratio: given %g needed %g.\n",ndouble,(double)fill,(double)afill);CHKERRQ(ierr);
+    ierr = PetscInfo3(C,"Reallocs %" PetscInt_FMT "; Fill ratio: given %g needed %g.\n",ndouble,(double)fill,(double)afill);CHKERRQ(ierr);
     ierr = PetscInfo1(C,"Use MatMatMult(A,B,MatReuse,%g,&C) for best performance.;\n",(double)afill);CHKERRQ(ierr);
   } else {
     ierr = PetscInfo(C,"Empty matrix product\n");CHKERRQ(ierr);
@@ -242,19 +244,22 @@ PetscErrorCode MatMatMultSymbolic_SeqAIJ_SeqAIJ_LLCondensed(Mat A,Mat B,PetscRea
 
 PetscErrorCode MatMatMultNumeric_SeqAIJ_SeqAIJ_Sorted(Mat A,Mat B,Mat C)
 {
-  PetscErrorCode ierr;
-  PetscLogDouble flops=0.0;
-  Mat_SeqAIJ     *a   = (Mat_SeqAIJ*)A->data;
-  Mat_SeqAIJ     *b   = (Mat_SeqAIJ*)B->data;
-  Mat_SeqAIJ     *c   = (Mat_SeqAIJ*)C->data;
-  PetscInt       *ai  =a->i,*aj=a->j,*bi=b->i,*bj=b->j,*bjj,*ci=c->i,*cj=c->j;
-  PetscInt       am   =A->rmap->n,cm=C->rmap->n;
-  PetscInt       i,j,k,anzi,bnzi,cnzi,brow;
-  PetscScalar    *aa=a->a,*ba=b->a,*baj,*ca,valtmp;
-  PetscScalar    *ab_dense;
-  PetscContainer cab_dense;
+  PetscErrorCode    ierr;
+  PetscLogDouble    flops=0.0;
+  Mat_SeqAIJ        *a   = (Mat_SeqAIJ*)A->data;
+  Mat_SeqAIJ        *b   = (Mat_SeqAIJ*)B->data;
+  Mat_SeqAIJ        *c   = (Mat_SeqAIJ*)C->data;
+  PetscInt          *ai  =a->i,*aj=a->j,*bi=b->i,*bj=b->j,*bjj,*ci=c->i,*cj=c->j;
+  PetscInt          am   =A->rmap->n,cm=C->rmap->n;
+  PetscInt          i,j,k,anzi,bnzi,cnzi,brow;
+  PetscScalar       *ca,valtmp;
+  PetscScalar       *ab_dense;
+  PetscContainer    cab_dense;
+  const PetscScalar *aa,*ba,*baj;
 
   PetscFunctionBegin;
+  ierr = MatSeqAIJGetArrayRead(A,&aa);CHKERRQ(ierr);
+  ierr = MatSeqAIJGetArrayRead(B,&ba);CHKERRQ(ierr);
   if (!c->a) { /* first call of MatMatMultNumeric_SeqAIJ_SeqAIJ, allocate ca and matmult_abdense */
     ierr      = PetscMalloc1(ci[cm]+1,&ca);CHKERRQ(ierr);
     c->a      = ca;
@@ -305,26 +310,34 @@ PetscErrorCode MatMatMultNumeric_SeqAIJ_SeqAIJ_Sorted(Mat A,Mat B,Mat C)
     flops += cnzi;
     cj    += cnzi; ca += cnzi;
   }
+#if defined(PETSC_HAVE_DEVICE)
+  if (C->offloadmask != PETSC_OFFLOAD_UNALLOCATED) C->offloadmask = PETSC_OFFLOAD_CPU;
+#endif
   ierr = MatAssemblyBegin(C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = PetscLogFlops(flops);CHKERRQ(ierr);
+  ierr = MatSeqAIJRestoreArrayRead(A,&aa);CHKERRQ(ierr);
+  ierr = MatSeqAIJRestoreArrayRead(B,&ba);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 PetscErrorCode MatMatMultNumeric_SeqAIJ_SeqAIJ_Scalable(Mat A,Mat B,Mat C)
 {
-  PetscErrorCode ierr;
-  PetscLogDouble flops=0.0;
-  Mat_SeqAIJ     *a   = (Mat_SeqAIJ*)A->data;
-  Mat_SeqAIJ     *b   = (Mat_SeqAIJ*)B->data;
-  Mat_SeqAIJ     *c   = (Mat_SeqAIJ*)C->data;
-  PetscInt       *ai  = a->i,*aj=a->j,*bi=b->i,*bj=b->j,*bjj,*ci=c->i,*cj=c->j;
-  PetscInt       am   = A->rmap->N,cm=C->rmap->N;
-  PetscInt       i,j,k,anzi,bnzi,cnzi,brow;
-  PetscScalar    *aa=a->a,*ba=b->a,*baj,*ca=c->a,valtmp;
-  PetscInt       nextb;
+  PetscErrorCode    ierr;
+  PetscLogDouble    flops=0.0;
+  Mat_SeqAIJ        *a   = (Mat_SeqAIJ*)A->data;
+  Mat_SeqAIJ        *b   = (Mat_SeqAIJ*)B->data;
+  Mat_SeqAIJ        *c   = (Mat_SeqAIJ*)C->data;
+  PetscInt          *ai  = a->i,*aj=a->j,*bi=b->i,*bj=b->j,*bjj,*ci=c->i,*cj=c->j;
+  PetscInt          am   = A->rmap->N,cm=C->rmap->N;
+  PetscInt          i,j,k,anzi,bnzi,cnzi,brow;
+  PetscScalar       *ca=c->a,valtmp;
+  const PetscScalar *aa,*ba,*baj;
+  PetscInt          nextb;
 
   PetscFunctionBegin;
+  ierr = MatSeqAIJGetArrayRead(A,&aa);CHKERRQ(ierr);
+  ierr = MatSeqAIJGetArrayRead(B,&ba);CHKERRQ(ierr);
   if (!ca) { /* first call of MatMatMultNumeric_SeqAIJ_SeqAIJ, allocate ca and matmult_abdense */
     ierr      = PetscMalloc1(ci[cm]+1,&ca);CHKERRQ(ierr);
     c->a      = ca;
@@ -357,9 +370,14 @@ PetscErrorCode MatMatMultNumeric_SeqAIJ_SeqAIJ_Scalable(Mat A,Mat B,Mat C)
     aj += anzi; aa += anzi;
     cj += cnzi; ca += cnzi;
   }
+#if defined(PETSC_HAVE_DEVICE)
+  if (C->offloadmask != PETSC_OFFLOAD_UNALLOCATED) C->offloadmask = PETSC_OFFLOAD_CPU;
+#endif
   ierr = MatAssemblyBegin(C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = PetscLogFlops(flops);CHKERRQ(ierr);
+  ierr = MatSeqAIJRestoreArrayRead(A,&aa);CHKERRQ(ierr);
+  ierr = MatSeqAIJRestoreArrayRead(B,&ba);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -404,6 +422,10 @@ PetscErrorCode MatMatMultSymbolic_SeqAIJ_SeqAIJ_Scalable_fast(Mat A,Mat B,PetscR
       bj   = b->j + bi[brow];
       /* add non-zero cols of B into the sorted linked list lnk */
       ierr = PetscLLCondensedAddSorted_fast(bnzj,bj,lnk);CHKERRQ(ierr);
+    }
+    /* add possible missing diagonal entry */
+    if (C->force_diagonals) {
+      ierr = PetscLLCondensedAddSorted_fast(1,&i,lnk);CHKERRQ(ierr);
     }
     cnzi = lnk[1];
 
@@ -459,7 +481,7 @@ PetscErrorCode MatMatMultSymbolic_SeqAIJ_SeqAIJ_Scalable_fast(Mat A,Mat B,PetscR
 
 #if defined(PETSC_USE_INFO)
   if (ci[am]) {
-    ierr = PetscInfo3(C,"Reallocs %D; Fill ratio: given %g needed %g.\n",ndouble,(double)fill,(double)afill);CHKERRQ(ierr);
+    ierr = PetscInfo3(C,"Reallocs %" PetscInt_FMT "; Fill ratio: given %g needed %g.\n",ndouble,(double)fill,(double)afill);CHKERRQ(ierr);
     ierr = PetscInfo1(C,"Use MatMatMult(A,B,MatReuse,%g,&C) for best performance.;\n",(double)afill);CHKERRQ(ierr);
   } else {
     ierr = PetscInfo(C,"Empty matrix product\n");CHKERRQ(ierr);
@@ -495,7 +517,7 @@ PetscErrorCode MatMatMultSymbolic_SeqAIJ_SeqAIJ_Scalable(Mat A,Mat B,PetscReal f
   ierr = PetscLLCondensedCreate_Scalable(Crmax,&lnk);CHKERRQ(ierr);
 
   /* Initial FreeSpace size is fill*(nnz(A)+nnz(B)) */
-  ierr          = PetscFreeSpaceGet(PetscRealIntMultTruncate(fill,PetscIntSumTruncate(ai[am],bi[bm])),&free_space);CHKERRQ(ierr);
+  ierr = PetscFreeSpaceGet(PetscRealIntMultTruncate(fill,PetscIntSumTruncate(ai[am],bi[bm])),&free_space);CHKERRQ(ierr);
   current_space = free_space;
 
   /* Determine ci and cj */
@@ -509,6 +531,11 @@ PetscErrorCode MatMatMultSymbolic_SeqAIJ_SeqAIJ_Scalable(Mat A,Mat B,PetscReal f
       /* add non-zero cols of B into the sorted linked list lnk */
       ierr = PetscLLCondensedAddSorted_Scalable(bnzj,bj,lnk);CHKERRQ(ierr);
     }
+    /* add possible missing diagonal entry */
+    if (C->force_diagonals) {
+      ierr = PetscLLCondensedAddSorted_Scalable(1,&i,lnk);CHKERRQ(ierr);
+    }
+
     cnzi = lnk[0];
 
     /* If free space is not available, make more free space */
@@ -564,7 +591,7 @@ PetscErrorCode MatMatMultSymbolic_SeqAIJ_SeqAIJ_Scalable(Mat A,Mat B,PetscReal f
 
 #if defined(PETSC_USE_INFO)
   if (ci[am]) {
-    ierr = PetscInfo3(C,"Reallocs %D; Fill ratio: given %g needed %g.\n",ndouble,(double)fill,(double)afill);CHKERRQ(ierr);
+    ierr = PetscInfo3(C,"Reallocs %" PetscInt_FMT "; Fill ratio: given %g needed %g.\n",ndouble,(double)fill,(double)afill);CHKERRQ(ierr);
     ierr = PetscInfo1(C,"Use MatMatMult(A,B,MatReuse,%g,&C) for best performance.;\n",(double)afill);CHKERRQ(ierr);
   } else {
     ierr = PetscInfo(C,"Empty matrix product\n");CHKERRQ(ierr);
@@ -670,7 +697,7 @@ PetscErrorCode MatMatMultSymbolic_SeqAIJ_SeqAIJ_Heap(Mat A,Mat B,PetscReal fill,
 
 #if defined(PETSC_USE_INFO)
   if (ci[am]) {
-    ierr = PetscInfo3(C,"Reallocs %D; Fill ratio: given %g needed %g.\n",ndouble,(double)fill,(double)afill);CHKERRQ(ierr);
+    ierr = PetscInfo3(C,"Reallocs %" PetscInt_FMT "; Fill ratio: given %g needed %g.\n",ndouble,(double)fill,(double)afill);CHKERRQ(ierr);
     ierr = PetscInfo1(C,"Use MatMatMult(A,B,MatReuse,%g,&C) for best performance.;\n",(double)afill);CHKERRQ(ierr);
   } else {
     ierr = PetscInfo(C,"Empty matrix product\n");CHKERRQ(ierr);
@@ -790,7 +817,7 @@ PetscErrorCode MatMatMultSymbolic_SeqAIJ_SeqAIJ_BTHeap(Mat A,Mat B,PetscReal fil
 
 #if defined(PETSC_USE_INFO)
   if (ci[am]) {
-    ierr = PetscInfo3(C,"Reallocs %D; Fill ratio: given %g needed %g.\n",ndouble,(double)fill,(double)afill);CHKERRQ(ierr);
+    ierr = PetscInfo3(C,"Reallocs %" PetscInt_FMT "; Fill ratio: given %g needed %g.\n",ndouble,(double)fill,(double)afill);CHKERRQ(ierr);
     ierr = PetscInfo1(C,"Use MatMatMult(A,B,MatReuse,%g,&C) for best performance.;\n",(double)afill);CHKERRQ(ierr);
   } else {
     ierr = PetscInfo(C,"Empty matrix product\n");CHKERRQ(ierr);
@@ -798,7 +825,6 @@ PetscErrorCode MatMatMultSymbolic_SeqAIJ_SeqAIJ_BTHeap(Mat A,Mat B,PetscReal fil
 #endif
   PetscFunctionReturn(0);
 }
-
 
 PetscErrorCode MatMatMultSymbolic_SeqAIJ_SeqAIJ_RowMerge(Mat A,Mat B,PetscReal fill,Mat C)
 {
@@ -1041,15 +1067,15 @@ PetscErrorCode MatMatMultSymbolic_SeqAIJ_SeqAIJ_RowMerge(Mat A,Mat B,PetscReal f
   /* set MatInfo */
   afill = (PetscReal)ci[am]/(ai[am]+bi[bm]) + 1.e-5;
   if (afill < 1.0) afill = 1.0;
-  c->maxnz                     = ci[am];
-  c->nz                        = ci[am];
+  c->maxnz                  = ci[am];
+  c->nz                     = ci[am];
   C->info.mallocs           = ndouble;
   C->info.fill_ratio_given  = fill;
   C->info.fill_ratio_needed = afill;
 
 #if defined(PETSC_USE_INFO)
   if (ci[am]) {
-    ierr = PetscInfo3(C,"Reallocs %D; Fill ratio: given %g needed %g.\n",ndouble,(double)fill,(double)afill);CHKERRQ(ierr);
+    ierr = PetscInfo3(C,"Reallocs %" PetscInt_FMT "; Fill ratio: given %g needed %g.\n",ndouble,(double)fill,(double)afill);CHKERRQ(ierr);
     ierr = PetscInfo1(C,"Use MatMatMult(A,B,MatReuse,%g,&C) for best performance.;\n",(double)afill);CHKERRQ(ierr);
   } else {
     ierr = PetscInfo(C,"Empty matrix product\n");CHKERRQ(ierr);
@@ -1069,7 +1095,7 @@ PetscErrorCode MatMatMultSymbolic_SeqAIJ_SeqAIJ_Sorted(Mat A,Mat B,PetscReal fil
   PetscErrorCode ierr;
   Mat_SeqAIJ     *a  = (Mat_SeqAIJ*)A->data,*b=(Mat_SeqAIJ*)B->data,*c;
   const PetscInt *ai = a->i,*bi=b->i,*aj=a->j,*bj=b->j;
-  PetscInt       *ci,*cj;
+  PetscInt       *ci,*cj,bcol;
   PetscInt       am=A->rmap->N,bn=B->cmap->N,bm=B->rmap->N;
   PetscReal      afill;
   PetscInt       i,j,ndouble = 0;
@@ -1090,11 +1116,12 @@ PetscErrorCode MatMatMultSymbolic_SeqAIJ_SeqAIJ_Sorted(Mat A,Mat B,PetscReal fil
     const PetscInt anzi  = ai[i+1] - ai[i]; /* number of nonzeros in this row of A, this is the number of rows of B that we merge */
     const PetscInt *acol = aj + ai[i]; /* column indices of nonzero entries in this row */
     PetscInt packlen = 0,*PETSC_RESTRICT crow;
+
     /* Pack segrow */
     for (j=0; j<anzi; j++) {
       PetscInt brow = acol[j],bjstart = bi[brow],bjend = bi[brow+1],k;
       for (k=bjstart; k<bjend; k++) {
-        PetscInt bcol = bj[k];
+        bcol = bj[k];
         if (!seen[bcol]) { /* new entry */
           PetscInt *PETSC_RESTRICT slot;
           ierr = PetscSegBufferGetInts(segrow,1,&slot);CHKERRQ(ierr);
@@ -1104,6 +1131,16 @@ PetscErrorCode MatMatMultSymbolic_SeqAIJ_SeqAIJ_Sorted(Mat A,Mat B,PetscReal fil
         }
       }
     }
+
+    /* Check i-th diagonal entry */
+    if (C->force_diagonals && !seen[i]) {
+      PetscInt *PETSC_RESTRICT slot;
+      ierr = PetscSegBufferGetInts(segrow,1,&slot);CHKERRQ(ierr);
+      *slot   = i;
+      seen[i] = 1;
+      packlen++;
+    }
+
     ierr = PetscSegBufferGetInts(seg,packlen,&crow);CHKERRQ(ierr);
     ierr = PetscSegBufferExtractTo(segrow,crow);CHKERRQ(ierr);
     ierr = PetscSortInt(packlen,crow);CHKERRQ(ierr);
@@ -1141,7 +1178,7 @@ PetscErrorCode MatMatMultSymbolic_SeqAIJ_SeqAIJ_Sorted(Mat A,Mat B,PetscReal fil
 
 #if defined(PETSC_USE_INFO)
   if (ci[am]) {
-    ierr = PetscInfo3(C,"Reallocs %D; Fill ratio: given %g needed %g.\n",ndouble,(double)fill,(double)afill);CHKERRQ(ierr);
+    ierr = PetscInfo3(C,"Reallocs %" PetscInt_FMT "; Fill ratio: given %g needed %g.\n",ndouble,(double)fill,(double)afill);CHKERRQ(ierr);
     ierr = PetscInfo1(C,"Use MatMatMult(A,B,MatReuse,%g,&C) for best performance.;\n",(double)afill);CHKERRQ(ierr);
   } else {
     ierr = PetscInfo(C,"Empty matrix product\n");CHKERRQ(ierr);
@@ -1173,8 +1210,8 @@ PetscErrorCode MatMatTransposeMultSymbolic_SeqAIJ_SeqAIJ(Mat A,Mat B,PetscReal f
   char                *alg;
 
   PetscFunctionBegin;
-  if (!product) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Missing product struct");
-  if (product->data) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Extra product struct not empty");
+  if (PetscUnlikely(!product)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Missing product struct");
+  if (PetscUnlikely(product->data)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Extra product struct not empty");
 
   /* create symbolic Bt */
   ierr = MatGetSymbolicTranspose_SeqAIJ(B,&bti,&btj);CHKERRQ(ierr);
@@ -1189,7 +1226,7 @@ PetscErrorCode MatMatTransposeMultSymbolic_SeqAIJ_SeqAIJ(Mat A,Mat B,PetscReal f
   ierr = MatProductSetAlgorithm(C,alg);CHKERRQ(ierr); /* resume original algorithm for ABt product */
   ierr = PetscFree(alg);CHKERRQ(ierr);
 
-  /* create a supporting struct for reuse intermidiate dense matrices with matcoloring */
+  /* create a supporting struct for reuse intermediate dense matrices with matcoloring */
   ierr = PetscNew(&abt);CHKERRQ(ierr);
 
   product->data    = abt;
@@ -1241,7 +1278,7 @@ PetscErrorCode MatMatTransposeMultSymbolic_SeqAIJ_SeqAIJ(Mat A,Mat B,PetscReal f
 #if defined(PETSC_USE_INFO)
     {
       Mat_SeqAIJ *c = (Mat_SeqAIJ*)C->data;
-      ierr = PetscInfo7(C,"Use coloring of C=A*B^T; B^T: %D %D, Bt_dense: %D,%D; Cnz %D / (cm*ncolors %D) = %g\n",B->cmap->n,B->rmap->n,Bt_dense->rmap->n,Bt_dense->cmap->n,c->nz,A->rmap->n*matcoloring->ncolors,(PetscReal)(c->nz)/(A->rmap->n*matcoloring->ncolors));CHKERRQ(ierr);
+      ierr = PetscInfo7(C,"Use coloring of C=A*B^T; B^T: %" PetscInt_FMT " %" PetscInt_FMT ", Bt_dense: %" PetscInt_FMT ",%" PetscInt_FMT "; Cnz %" PetscInt_FMT " / (cm*ncolors %" PetscInt_FMT ") = %g\n",B->cmap->n,B->rmap->n,Bt_dense->rmap->n,Bt_dense->cmap->n,c->nz,A->rmap->n*matcoloring->ncolors,(double)(((PetscReal)(c->nz))/((PetscReal)(A->rmap->n*matcoloring->ncolors))));CHKERRQ(ierr);
     }
 #endif
   }
@@ -1263,9 +1300,9 @@ PetscErrorCode MatMatTransposeMultNumeric_SeqAIJ_SeqAIJ(Mat A,Mat B,Mat C)
   Mat_Product         *product = C->product;
 
   PetscFunctionBegin;
-  if (!product) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Missing product struct");
+  if (PetscUnlikely(!product)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Missing product struct");
   abt = (Mat_MatMatTransMult *)product->data;
-  if (!abt) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Missing product struct");
+  if (PetscUnlikely(!abt)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Missing product struct");
   /* clear old values in C */
   if (!c->a) {
     ierr      = PetscCalloc1(ci[cm]+1,&ca);CHKERRQ(ierr);
@@ -1382,7 +1419,7 @@ PetscErrorCode MatTransposeMatMultSymbolic_SeqAIJ_SeqAIJ(Mat A,Mat B,PetscReal f
   if (flg || def) {
     Mat_MatTransMatMult *atb;
 
-    if (product->data) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Extra product struct not empty");
+    if (PetscUnlikely(product->data)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Extra product struct not empty");
     ierr = PetscNew(&atb);CHKERRQ(ierr);
     if (!square) {
       ierr = MatTranspose_SeqAIJ(A,MAT_INITIAL_MATRIX,&At);CHKERRQ(ierr);
@@ -1400,7 +1437,6 @@ PetscErrorCode MatTransposeMatMultSymbolic_SeqAIJ_SeqAIJ(Mat A,Mat B,PetscReal f
   }
 
   SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Mat Product Algorithm is not supported");
-  PetscFunctionReturn(0);
 }
 
 PetscErrorCode MatTransposeMatMultNumeric_SeqAIJ_SeqAIJ(Mat A,Mat B,Mat C)
@@ -1591,9 +1627,9 @@ PetscErrorCode MatMatMultNumeric_SeqAIJ_SeqDense(Mat A,Mat B,Mat C)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (B->rmap->n != A->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Number columns in A %D not equal rows in B %D\n",A->cmap->n,B->rmap->n);
-  if (A->rmap->n != C->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Number rows in C %D not equal rows in A %D\n",C->rmap->n,A->rmap->n);
-  if (B->cmap->n != C->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Number columns in B %D not equal columns in C %D\n",B->cmap->n,C->cmap->n);
+  if (PetscUnlikely(B->rmap->n != A->cmap->n)) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Number columns in A %" PetscInt_FMT " not equal rows in B %" PetscInt_FMT,A->cmap->n,B->rmap->n);
+  if (PetscUnlikely(A->rmap->n != C->rmap->n)) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Number rows in C %" PetscInt_FMT " not equal rows in A %" PetscInt_FMT,C->rmap->n,A->rmap->n);
+  if (PetscUnlikely(B->cmap->n != C->cmap->n)) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Number columns in B %" PetscInt_FMT " not equal columns in C %" PetscInt_FMT,B->cmap->n,C->cmap->n);
 
   ierr = MatMatMultNumericAdd_SeqAIJ_SeqDense(A,B,C,PETSC_FALSE);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -1660,7 +1696,7 @@ static PetscErrorCode MatProductSetFromOptions_SeqXBAIJ_SeqDense_AB(Mat C)
   if (!baij) { /* A is seqsbaij */
     PetscBool sbaij;
     ierr = PetscObjectTypeCompare((PetscObject)A,MATSEQSBAIJ,&sbaij);CHKERRQ(ierr);
-    if (!sbaij) SETERRQ(PetscObjectComm((PetscObject)C),PETSC_ERR_ARG_WRONGSTATE,"Mat must be either seqbaij or seqsbaij format");
+    if (PetscUnlikely(!sbaij)) SETERRQ(PetscObjectComm((PetscObject)C),PETSC_ERR_ARG_WRONGSTATE,"Mat must be either seqbaij or seqsbaij format");
 
     C->ops->matmultsymbolic = MatMatMultSymbolic_SeqSBAIJ_SeqDense;
   } else { /* A is seqbaij */
@@ -1678,7 +1714,7 @@ PETSC_INTERN PetscErrorCode MatProductSetFromOptions_SeqXBAIJ_SeqDense(Mat C)
 
   PetscFunctionBegin;
   MatCheckProduct(C,1);
-  if (!product->A) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Missing A");
+  if (PetscUnlikely(!product->A)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Missing A");
   if (product->type == MATPRODUCT_AB || (product->type == MATPRODUCT_AtB && product->A->symmetric)) {
     ierr = MatProductSetFromOptions_SeqXBAIJ_SeqDense_AB(C);CHKERRQ(ierr);
   }
@@ -1793,7 +1829,7 @@ PetscErrorCode MatTransColoringApplyDenToSp_SeqAIJ(MatTransposeColoring matcolor
   ierr = MatDenseRestoreArrayRead(Cden,&ca_den);CHKERRQ(ierr);
 #if defined(PETSC_USE_INFO)
   if (matcoloring->brows > 0) {
-    ierr = PetscInfo1(Csp,"Loop over %D row blocks for den2sp\n",brows);CHKERRQ(ierr);
+    ierr = PetscInfo1(Csp,"Loop over %" PetscInt_FMT " row blocks for den2sp\n",brows);CHKERRQ(ierr);
   } else {
     ierr = PetscInfo(Csp,"Loop over colors/columns of Cden, inefficient for large sparse matrix product \n");CHKERRQ(ierr);
   }
@@ -1899,7 +1935,7 @@ PetscErrorCode MatTransposeColoringCreate_SeqAIJ(Mat mat,ISColoring iscoloring,M
   ierr = MatRestoreColumnIJ_SeqAIJ_Color(mat,0,PETSC_FALSE,PETSC_FALSE,&ncols,&ci,&cj,&spidx,NULL);CHKERRQ(ierr);
   ierr = PetscFree(rowhit);CHKERRQ(ierr);
   ierr = ISColoringRestoreIS(iscoloring,PETSC_USE_POINTER,&isa);CHKERRQ(ierr);
-  if (csp->nz != colorforrow[nis]) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_PLIB,"csp->nz %d != colorforrow[nis] %d",csp->nz,colorforrow[nis]);
+  if (PetscUnlikely(PetscUnlikely(csp->nz != colorforrow[nis]))) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_PLIB,"csp->nz %" PetscInt_FMT " != colorforrow[nis] %" PetscInt_FMT,csp->nz,colorforrow[nis]);
 
   c->colorforrow = colorforrow;
   c->rows        = rows;
@@ -1927,7 +1963,7 @@ static PetscErrorCode MatProductNumeric_AtB_SeqAIJ_SeqAIJ(Mat C)
     Mat_MatTransMatMult *atb = (Mat_MatTransMatMult *)product->data;
     Mat                 At;
 
-    if (!atb) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Missing product struct");
+    if (PetscUnlikely(!atb)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Missing product struct");
     At = atb->At;
     if (atb->updateAt && At) { /* At is computed in MatTransposeMatMultSymbolic_SeqAIJ_SeqAIJ() */
       ierr = MatTranspose_SeqAIJ(A,MAT_REUSE_MATRIX,&At);CHKERRQ(ierr);
@@ -2064,11 +2100,11 @@ static PetscErrorCode MatProductSetFromOptions_SeqAIJ_PtAP(Mat C)
   PetscBool      flg = PETSC_FALSE;
   PetscInt       alg = 0; /* default algorithm -- alg=1 should be default!!! */
 #if !defined(PETSC_HAVE_HYPRE)
-  const char      *algTypes[2] = {"scalable","rap"};
-  PetscInt        nalg = 2;
+  const char     *algTypes[2] = {"scalable","rap"};
+  PetscInt       nalg = 2;
 #else
-  const char      *algTypes[3] = {"scalable","rap","hypre"};
-  PetscInt        nalg = 3;
+  const char     *algTypes[3] = {"scalable","rap","hypre"};
+  PetscInt       nalg = 3;
 #endif
 
   PetscFunctionBegin;

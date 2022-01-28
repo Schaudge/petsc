@@ -86,7 +86,7 @@ PetscErrorCode XXT_factor(xxt_ADT xxt_handle,     /* prev. allocated xxt  handle
   check_handle(xxt_handle);
 
   /* only 2^k for now and all nodes participating */
-  if ((1<<(xxt_handle->level=PCTFS_i_log2_num_nodes))!=PCTFS_num_nodes) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_PLIB,"only 2^k for now and MPI_COMM_WORLD!!! %D != %D\n",1<<PCTFS_i_log2_num_nodes,PCTFS_num_nodes);
+  if ((1<<(xxt_handle->level=PCTFS_i_log2_num_nodes))!=PCTFS_num_nodes) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_PLIB,"only 2^k for now and MPI_COMM_WORLD!!! %D != %D",1<<PCTFS_i_log2_num_nodes,PCTFS_num_nodes);
 
   /* space for X info */
   xxt_handle->info = (xxt_info*)malloc(sizeof(xxt_info));
@@ -300,7 +300,7 @@ static PetscErrorCode xxt_generate(xxt_ADT xxt_handle)
   for (dim=i=j=0; i<m; i++) {
     /* time to move to the next level? */
     while (i==segs[dim]) {
-      if (dim==level) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"dim about to exceed level\n");
+      if (dim==level) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"dim about to exceed level");
       stages[dim++]=i;
       end         +=lnsep[dim];
     }
@@ -325,7 +325,7 @@ static PetscErrorCode xxt_generate(xxt_ADT xxt_handle)
       idex=PCTFS_ivec_linear_search(col, a_local2global, a_n);
       if (idex!=-1) {
         v[idex] = 1.0; j++;
-      } else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"NOT FOUND!\n");
+      } else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"NOT FOUND!");
     } else {
       idex=PCTFS_ivec_linear_search(col, a_local2global, a_m);
       if (idex!=-1) v[idex] = 1.0;
@@ -348,7 +348,6 @@ static PetscErrorCode xxt_generate(xxt_ADT xxt_handle)
       PetscStackCallBLAS("BLASdot",uu[k] = BLASdot_(&dlen,u+off,&i1,x_ptr,&i1));
       x_ptr+=len;
     }
-
 
     /* uu = X^T.u_l (comm portion) */
     ierr = PCTFS_ssgl_radd  (uu, w, dim, stages);CHKERRQ(ierr);
@@ -385,7 +384,7 @@ static PetscErrorCode xxt_generate(xxt_ADT xxt_handle)
 
     /* check for small alpha                             */
     /* LATER use this to detect and determine null space */
-    if (PetscAbsScalar(alpha)<1.0e-14) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"bad alpha! %g\n",alpha);
+    if (PetscAbsScalar(alpha)<1.0e-14) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"bad alpha! %g",alpha);
 
     /* compute v_l = v_l/sqrt(alpha) */
     PCTFS_rvec_scale(v,1.0/alpha,n);
@@ -519,11 +518,11 @@ static PetscErrorCode check_handle(xxt_ADT xxt_handle)
   PetscInt vals[2], work[2], op[] = {NON_UNIFORM,GL_MIN,GL_MAX};
 
   PetscFunctionBegin;
-  if (!xxt_handle) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"check_handle() :: bad handle :: NULL %D\n",xxt_handle);
+  if (!xxt_handle) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"check_handle() :: bad handle :: NULL %D",xxt_handle);
 
   vals[0]=vals[1]=xxt_handle->id;
   PCTFS_giop(vals,work,sizeof(op)/sizeof(op[0])-1,op);
-  if ((vals[0]!=vals[1])||(xxt_handle->id<=0)) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_PLIB,"check_handle() :: bad handle :: id mismatch min/max %D/%D %D\n",vals[0],vals[1], xxt_handle->id);
+  if ((vals[0]!=vals[1])||(xxt_handle->id<=0)) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_PLIB,"check_handle() :: bad handle :: id mismatch min/max %D/%D %D",vals[0],vals[1], xxt_handle->id);
   PetscFunctionReturn(0);
 }
 
@@ -634,7 +633,7 @@ static PetscErrorCode det_separators(xxt_ADT xxt_handle)
           if ((!used[i])&&(lhs[i]!=0.0)) {
             ct++; nfo++;
 
-            if (nfo>n) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"nfo about to exceed n\n");
+            if (nfo>n) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"nfo about to exceed n");
 
             *--iptr = local2global[i];
             used[i] = edge;
@@ -653,7 +652,7 @@ static PetscErrorCode det_separators(xxt_ADT xxt_handle)
           if ((!used[i])&&(rhs[i]!=0.0)) {
             ct++; nfo++;
 
-            if (nfo>n) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"nfo about to exceed n\n");
+            if (nfo>n) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"nfo about to exceed n");
 
             *--iptr = local2global[i];
             used[i] = edge;
@@ -738,7 +737,6 @@ static PetscErrorCode det_separators(xxt_ADT xxt_handle)
     }
   }
 
-
   /* level 0 is on processor case - so mark the remainder */
   for (ct=i=0; i<n; i++) {
     if (!used[i]) {
@@ -768,7 +766,6 @@ static PetscErrorCode det_separators(xxt_ADT xxt_handle)
 static mv_info *set_mvi(PetscInt *local2global,PetscInt n,PetscInt m,PetscErrorCode (*matvec)(mv_info*,PetscScalar*,PetscScalar*),void *grid_data)
 {
   mv_info *mvi;
-
 
   mvi               = (mv_info*)malloc(sizeof(mv_info));
   mvi->n            = n;

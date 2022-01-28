@@ -17,8 +17,8 @@ int main(int argc,char **argv)
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
   ierr = PetscOptionsGetInt(NULL,NULL,"-m",&m,NULL);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
   n    = m;
   ierr = PetscOptionsHasName(NULL,NULL,"-rect1",&flg);CHKERRQ(ierr);
   if (flg) {n += 2; rect = 1;}
@@ -42,7 +42,7 @@ int main(int argc,char **argv)
 
   /* Print info about original matrix */
   ierr = MatGetInfo(mat,MAT_GLOBAL_SUM,&info);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"original matrix nonzeros = %D, allocated nonzeros = %D\n",
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"original matrix nonzeros = %" PetscInt_FMT ", allocated nonzeros = %" PetscInt_FMT "\n",
                      (PetscInt)info.nz_used,(PetscInt)info.nz_allocated);CHKERRQ(ierr);
   ierr = MatNorm(mat,NORM_FROBENIUS,&normf);CHKERRQ(ierr);
   ierr = MatNorm(mat,NORM_1,&norm1);CHKERRQ(ierr);
@@ -61,14 +61,13 @@ int main(int argc,char **argv)
 
   /* Print info about transpose matrix */
   ierr = MatGetInfo(tmat,MAT_GLOBAL_SUM,&info);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"transpose matrix nonzeros = %D, allocated nonzeros = %D\n",
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"transpose matrix nonzeros = %" PetscInt_FMT ", allocated nonzeros = %" PetscInt_FMT "\n",
                      (PetscInt)info.nz_used,(PetscInt)info.nz_allocated);CHKERRQ(ierr);
   ierr = MatNorm(tmat,NORM_FROBENIUS,&normf);CHKERRQ(ierr);
   ierr = MatNorm(tmat,NORM_1,&norm1);CHKERRQ(ierr);
   ierr = MatNorm(tmat,NORM_INFINITY,&normi);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"transpose: Frobenious norm = %g, one norm = %g, infinity norm = %g\n",(double)normf,(double)norm1,(double)normi);CHKERRQ(ierr);
   ierr = MatView(tmat,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-
 
   /* Test MatAXPY */
   if (mat && !rect) {

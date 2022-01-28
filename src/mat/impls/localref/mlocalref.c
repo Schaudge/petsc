@@ -172,18 +172,17 @@ static PetscErrorCode MatDestroy_LocalRef(Mat B)
   PetscFunctionReturn(0);
 }
 
-
 /*@
    MatCreateLocalRef - Gets a logical reference to a local submatrix, for use in assembly
 
    Not Collective
 
-   Input Arguments:
+   Input Parameters:
 + A - Full matrix, generally parallel
 . isrow - Local index set for the rows
 - iscol - Local index set for the columns
 
-   Output Arguments:
+   Output Parameter:
 . newmat - New serial Mat
 
    Level: developer

@@ -41,7 +41,7 @@ PetscErrorCode VecSetType(Vec vec, VecType method)
   /* Return if asked for VECSTANDARD and Vec is already VECSEQ on 1 process or VECMPI on more.
      Otherwise, we free the Vec array in the call to destroy below and never reallocate it,
      since the VecType will be the same and VecSetType(v,VECSEQ) will return when called from VecCreate_Standard */
-  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)vec),&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)vec),&size);CHKERRMPI(ierr);
   ierr = PetscStrcmp(method,VECSTANDARD,&match);CHKERRQ(ierr);
   if (match) {
 
@@ -53,6 +53,13 @@ PetscErrorCode VecSetType(Vec vec, VecType method)
   ierr = PetscStrcmp(method,VECCUDA,&match);CHKERRQ(ierr);
   if (match) {
     ierr = PetscObjectTypeCompare((PetscObject) vec, size > 1 ? VECMPICUDA : VECSEQCUDA, &match);CHKERRQ(ierr);
+    if (match) PetscFunctionReturn(0);
+  }
+#endif
+#if defined(PETSC_HAVE_HIP)
+  ierr = PetscStrcmp(method,VECHIP,&match);CHKERRQ(ierr);
+  if (match) {
+    ierr = PetscObjectTypeCompare((PetscObject) vec, size > 1 ? VECMPIHIP : VECSEQHIP, &match);CHKERRQ(ierr);
     if (match) PetscFunctionReturn(0);
   }
 #endif
@@ -77,6 +84,8 @@ PetscErrorCode VecSetType(Vec vec, VecType method)
     vec->ops->destroy = NULL;
   }
   ierr = PetscMemzero(vec->ops,sizeof(struct _VecOps));CHKERRQ(ierr);
+  ierr = PetscFree(vec->defaultrandtype);CHKERRQ(ierr);
+  ierr = PetscStrallocpy(PETSCRANDER48,&vec->defaultrandtype);CHKERRQ(ierr);
   if (vec->map->n < 0 && vec->map->N < 0) {
     vec->ops->create = r;
     vec->ops->load   = VecLoad_Default;
@@ -113,6 +122,25 @@ PetscErrorCode VecGetType(Vec vec, VecType *type)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode VecGetRootType_Private(Vec vec, VecType *vtype)
+{
+  PetscErrorCode ierr;
+  PetscBool      iscuda, iship, iskokkos, isvcl;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(vec,VEC_CLASSID,1);
+  PetscValidPointer(vtype,2);
+  ierr = PetscObjectTypeCompareAny((PetscObject)vec,&iscuda,VECCUDA,VECMPICUDA,VECSEQCUDA,"");CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompareAny((PetscObject)vec,&iship,VECHIP,VECMPIHIP,VECSEQHIP,"");CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompareAny((PetscObject)vec,&iskokkos,VECKOKKOS,VECMPIKOKKOS,VECSEQKOKKOS,"");CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompareAny((PetscObject)vec,&isvcl,VECVIENNACL,VECMPIVIENNACL,VECSEQVIENNACL,"");CHKERRQ(ierr);
+  if (iscuda)        { *vtype = VECCUDA;     }
+  else if (iship)    { *vtype = VECHIP;      }
+  else if (iskokkos) { *vtype = VECKOKKOS;   }
+  else if (isvcl)    { *vtype = VECVIENNACL; }
+  else               { *vtype = VECSTANDARD; }
+  PetscFunctionReturn(0);
+}
 
 /*--------------------------------------------------------------------------------------------------------------------*/
 

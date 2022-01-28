@@ -79,7 +79,7 @@ cdef class Sys:
             message = ''
         cdef const char *m = NULL
         message = str2bytes(message, &m)
-        CHKERR( PetscPrintf(ccomm, m) )
+        CHKERR( PetscPrintf(ccomm, '%s', m) )
 
     @classmethod
     def syncPrint(cls, *args, **kargs):
@@ -94,7 +94,7 @@ cdef class Sys:
         message = ''.join(format) % args
         cdef const char *m = NULL
         message = str2bytes(message, &m)
-        CHKERR( PetscSynchronizedPrintf(ccomm, m) )
+        CHKERR( PetscSynchronizedPrintf(ccomm, '%s', m) )
         if flush: CHKERR( PetscSynchronizedFlush(ccomm, PETSC_STDOUT) )
 
     @classmethod
@@ -176,6 +176,14 @@ cdef class Sys:
         cdef PetscBool flag = get_citation(citation)
         CHKERR( PetscCitationsRegister(cit, &flag) )
         set_citation(citation, toBool(flag))
+
+    @classmethod
+    def hasExternalPackage(cls, package):
+        cdef const char *cpackage = NULL
+        package = str2bytes(package, &cpackage)
+        cdef PetscBool has = PETSC_FALSE
+        CHKERR( PetscHasExternalPackage(cpackage, &has) )
+        return toBool(has)
 
 cdef dict citations_registry = { }
 

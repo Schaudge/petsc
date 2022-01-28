@@ -30,11 +30,16 @@ configure_options = [
   '--download-parms=1',
   #'--download-elemental=1', breaks with solaris compilers
   #'--download-hdf5',
-  #'--download-sundials=1', breaks when built via ssh - but not on terminal?
+  #'--download-sundials2=1', breaks when built via ssh - but not on terminal?
   '--download-hypre=1',
   '--download-suitesparse=1',
   '--download-chaco=1',
   '--download-spai=1',
+  '--with-mpi-f90module-visibility=0',
+  # opensolaris throws warning
+  # CC: Warning: Option -std=c++03 passed to ld, if ld is invoked, ignored otherwise
+  # to stderr, so don't use flag at all
+  '--with-cxx-dialect=0',
   ]
 
 if __name__ == '__main__':

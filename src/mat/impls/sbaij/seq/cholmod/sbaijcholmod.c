@@ -168,7 +168,7 @@ static PetscErrorCode MatWrapCholmod_seqsbaij(Mat A,PetscBool values,cholmod_spa
 #define GET_ARRAY_READ 0
 #define GET_ARRAY_WRITE 1
 
-static PetscErrorCode VecWrapCholmod(Vec X,PetscInt rw,cholmod_dense *Y)
+PetscErrorCode VecWrapCholmod(Vec X,PetscInt rw,cholmod_dense *Y)
 {
   PetscErrorCode ierr;
   PetscScalar    *x;
@@ -184,7 +184,7 @@ static PetscErrorCode VecWrapCholmod(Vec X,PetscInt rw,cholmod_dense *Y)
     ierr = VecGetArrayWrite(X,&x);CHKERRQ(ierr);
     break;
   default:
-    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Case %D not handled",rw);
+    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Case %" PetscInt_FMT " not handled",rw);
     break;
   }
   ierr = VecGetSize(X,&n);CHKERRQ(ierr);
@@ -199,7 +199,7 @@ static PetscErrorCode VecWrapCholmod(Vec X,PetscInt rw,cholmod_dense *Y)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode VecUnWrapCholmod(Vec X,PetscInt rw,cholmod_dense *Y)
+PetscErrorCode VecUnWrapCholmod(Vec X,PetscInt rw,cholmod_dense *Y)
 {
   PetscErrorCode    ierr;
 
@@ -212,13 +212,13 @@ static PetscErrorCode VecUnWrapCholmod(Vec X,PetscInt rw,cholmod_dense *Y)
     ierr = VecRestoreArrayWrite(X,(PetscScalar**)&Y->x);CHKERRQ(ierr);
     break;
   default:
-    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Case %D not handled",rw);
+    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Case %" PetscInt_FMT " not handled",rw);
     break;
   }
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatDenseWrapCholmod(Mat X,PetscInt rw,cholmod_dense *Y)
+PetscErrorCode MatDenseWrapCholmod(Mat X,PetscInt rw,cholmod_dense *Y)
 {
   PetscErrorCode ierr;
   PetscScalar    *x;
@@ -234,7 +234,7 @@ static PetscErrorCode MatDenseWrapCholmod(Mat X,PetscInt rw,cholmod_dense *Y)
     ierr = MatDenseGetArrayWrite(X,&x);CHKERRQ(ierr);
     break;
   default:
-    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Case %D not handled",rw);
+    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Case %" PetscInt_FMT " not handled",rw);
     break;
   }
   ierr = MatDenseGetLDA(X,&lda);CHKERRQ(ierr);
@@ -250,7 +250,7 @@ static PetscErrorCode MatDenseWrapCholmod(Mat X,PetscInt rw,cholmod_dense *Y)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatDenseUnWrapCholmod(Mat X,PetscInt rw,cholmod_dense *Y)
+PetscErrorCode MatDenseUnWrapCholmod(Mat X,PetscInt rw,cholmod_dense *Y)
 {
   PetscErrorCode    ierr;
 
@@ -264,7 +264,7 @@ static PetscErrorCode MatDenseUnWrapCholmod(Mat X,PetscInt rw,cholmod_dense *Y)
     ierr = MatDenseRestoreArray(X,(PetscScalar**)&Y->x);CHKERRQ(ierr);
     break;
   default:
-    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Case %D not handled",rw);
+    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Case %" PetscInt_FMT " not handled",rw);
     break;
   }
   PetscFunctionReturn(0);
@@ -276,8 +276,17 @@ PETSC_INTERN PetscErrorCode  MatDestroy_CHOLMOD(Mat F)
   Mat_CHOLMOD    *chol=(Mat_CHOLMOD*)F->data;
 
   PetscFunctionBegin;
-  ierr = !cholmod_X_free_factor(&chol->factor,chol->common);CHKERRQ(ierr);
-  ierr = !cholmod_X_finish(chol->common);CHKERRQ(ierr);
+  if (chol->spqrfact) {
+    ierr = !SuiteSparseQR_C_free(&chol->spqrfact, chol->common);CHKERRQ(ierr);
+  }
+  if (chol->factor) {
+    ierr = !cholmod_X_free_factor(&chol->factor,chol->common);CHKERRQ(ierr);
+  }
+  if (chol->common->itype == CHOLMOD_INT) {
+    ierr = !cholmod_finish(chol->common);CHKERRQ(ierr);
+  } else {
+    ierr = !cholmod_l_finish(chol->common);CHKERRQ(ierr);
+  }
   ierr = PetscFree(chol->common);CHKERRQ(ierr);
   ierr = PetscFree(chol->matrix);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)F,"MatFactorGetSolverType_C",NULL);CHKERRQ(ierr);
@@ -320,7 +329,7 @@ static PetscErrorCode MatView_Info_CHOLMOD(Mat F,PetscViewer viewer)
   ierr = PetscViewerASCIIPrintf(viewer,"Common.prefer_upper      %d\n",c->prefer_upper);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"Common.print             %d\n",c->print);CHKERRQ(ierr);
   for (i=0; i<c->nmethods; i++) {
-    ierr = PetscViewerASCIIPrintf(viewer,"Ordering method %D%s:\n",i,i==c->selected ? " [SELECTED]" : "");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"Ordering method %" PetscInt_FMT "%s:\n",i,i==c->selected ? " [SELECTED]" : "");CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"  lnz %g, fl %g, prune_dense %g, prune_dense2 %g\n",
                                   c->method[i].lnz,c->method[i].fl,c->method[i].prune_dense,c->method[i].prune_dense2);CHKERRQ(ierr);
   }
@@ -532,7 +541,7 @@ PETSC_INTERN PetscErrorCode MatGetFactor_seqsbaij_cholmod(Mat A,MatFactorType ft
 
   PetscFunctionBegin;
   ierr = MatGetBlockSize(A,&bs);CHKERRQ(ierr);
-  if (bs != 1) SETERRQ1(PetscObjectComm((PetscObject)A),PETSC_ERR_SUP,"CHOLMOD only supports block size=1, given %D",bs);
+  if (bs != 1) SETERRQ1(PetscObjectComm((PetscObject)A),PETSC_ERR_SUP,"CHOLMOD only supports block size=1, given %" PetscInt_FMT,bs);
 #if defined(PETSC_USE_COMPLEX)
   if (!A->hermitian) SETERRQ(PetscObjectComm((PetscObject)A),PETSC_ERR_SUP,"Only for Hermitian matrices");
 #endif
@@ -561,7 +570,8 @@ PETSC_INTERN PetscErrorCode MatGetFactor_seqsbaij_cholmod(Mat A,MatFactorType ft
 
   ierr = PetscFree(B->solvertype);CHKERRQ(ierr);
   ierr = PetscStrallocpy(MATSOLVERCHOLMOD,&B->solvertype);CHKERRQ(ierr);
-  B->useordering = PETSC_TRUE;
+  B->canuseordering = PETSC_TRUE;
+  ierr = PetscStrallocpy(MATORDERINGEXTERNAL,(char**)&B->preferredordering[MAT_FACTOR_CHOLESKY]);CHKERRQ(ierr);
   *F   = B;
   PetscFunctionReturn(0);
 }

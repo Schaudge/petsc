@@ -701,7 +701,6 @@ PetscErrorCode IJacobian_Hull1972B5(TS ts, PetscReal t, Vec Y, Vec Ydot, PetscRe
   PetscFunctionReturn(0);
 }
 
-
 /* Kulikov, 2013, Problem I */
 
 PetscErrorCode RHSFunction_Kulikov2013I(TS ts, PetscReal t, Vec Y, Vec F, void *s)
@@ -790,7 +789,6 @@ PetscErrorCode IJacobian_Kulikov2013I(TS ts, PetscReal t, Vec Y, Vec Ydot, Petsc
   ierr = VecRestoreArrayRead(Y,&y);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-
 
 /* Hull, 1972, Problem C1 */
 
@@ -1120,14 +1118,14 @@ PetscErrorCode Initialize(Vec Y, void* s)
     IFunction   = IFunction_Hull1972C2;
     IJacobian   = IJacobian_Hull1972C2;
   } else if ((!strcmp(p,"hull1972c3"))
-           ||(!strcmp(p,"hull1972c4"))){
+           ||(!strcmp(p,"hull1972c4"))) {
     y[0] = 1.0;
     RHSFunction = RHSFunction_Hull1972C34;
     IFunction   = IFunction_Hull1972C34;
     IJacobian   = IJacobian_Hull1972C34;
   }
   ierr = PetscOptionsGetScalarArray(NULL,NULL,"-yinit",y,&N,&flg);CHKERRQ(ierr);
-  if ((N != GetSize((const char*)s)) && flg) SETERRQ2(PETSC_COMM_WORLD,PETSC_ERR_ARG_SIZ,"Number of initial values %D does not match problem size %D.\n",N,GetSize((const char*)s));
+  if ((N != GetSize((const char*)s)) && flg) SETERRQ2(PETSC_COMM_WORLD,PETSC_ERR_ARG_SIZ,"Number of initial values %D does not match problem size %D.",N,GetSize((const char*)s));
   ierr = VecRestoreArray(Y,&y);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -1191,7 +1189,7 @@ PetscErrorCode SolveODE(char* ptype, PetscReal dt, PetscReal tfinal, PetscInt ma
 
   PetscFunctionBegin;
   N = GetSize((const char *)&ptype[0]);
-  if (N < 0) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_ARG_SIZ,"Illegal problem specification.\n");
+  if (N < 0) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_ARG_SIZ,"Illegal problem specification.");
   ierr = VecCreate(PETSC_COMM_WORLD,&Y);CHKERRQ(ierr);
   ierr = VecSetSizes(Y,N,PETSC_DECIDE);CHKERRQ(ierr);
   ierr = VecSetUp(Y);CHKERRQ(ierr);
@@ -1286,7 +1284,7 @@ int main(int argc, char **argv)
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
 
   /* Check if running with only 1 proc */
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
   if (size>1) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Only for sequential runs");
 
   ierr = PetscOptionsBegin(PETSC_COMM_WORLD,NULL,"ex31",NULL);CHKERRQ(ierr);

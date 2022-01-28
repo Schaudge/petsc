@@ -25,7 +25,6 @@ typedef struct {
 
 } DMMoabMeshGeneratorCtx;
 
-
 PetscInt DMMoab_SetTensorElementConnectivity_Private(DMMoabMeshGeneratorCtx& genCtx, PetscInt offset, PetscInt corner, std::vector<PetscInt>& subent_conn, moab::EntityHandle *connectivity)
 {
   switch (genCtx.dim) {
@@ -59,7 +58,6 @@ PetscInt DMMoab_SetTensorElementConnectivity_Private(DMMoabMeshGeneratorCtx& gen
   }
   return subent_conn.size();
 }
-
 
 PetscInt DMMoab_SetSimplexElementConnectivity_Private(DMMoabMeshGeneratorCtx& genCtx, PetscInt subelem, PetscInt offset, PetscInt corner, std::vector<PetscInt>& subent_conn, moab::EntityHandle *connectivity)
 {
@@ -182,7 +180,6 @@ PetscInt DMMoab_SetSimplexElementConnectivity_Private(DMMoabMeshGeneratorCtx& ge
   return subent_conn.size();
 }
 
-
 std::pair<PetscInt, PetscInt> DMMoab_SetElementConnectivity_Private(DMMoabMeshGeneratorCtx& genCtx, PetscInt offset, PetscInt corner, moab::EntityHandle *connectivity)
 {
   PetscInt vcount = 0;
@@ -203,7 +200,6 @@ std::pair<PetscInt, PetscInt> DMMoab_SetElementConnectivity_Private(DMMoabMeshGe
   }
   return std::pair<PetscInt, PetscInt>(vcount * subelem, subelem);
 }
-
 
 PetscErrorCode DMMoab_GenerateVertices_Private(moab::Interface *mbImpl, moab::ReadUtilIface *iface, DMMoabMeshGeneratorCtx& genCtx, PetscInt m, PetscInt n, PetscInt k,
     PetscInt a, PetscInt b, PetscInt c, moab::Tag& global_id_tag, moab::EntityHandle& startv, moab::Range& uverts)
@@ -470,12 +466,12 @@ PetscErrorCode DMMBUtil_InitializeOptions(DMMoabMeshGeneratorCtx& genCtx, PetscI
   }
 
   /* Lets check for some valid input */
-  if (genCtx.dim < 1 || genCtx.dim > 3) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Invalid topological dimension specified: %d.\n", genCtx.dim);
-  if (genCtx.M * genCtx.N * genCtx.K != nprocs) SETERRQ4(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Invalid [m, n, k] data: %d, %d, %d. Product must be equal to global size = %d.\n", genCtx.M, genCtx.N, genCtx.K, nprocs);
+  if (genCtx.dim < 1 || genCtx.dim > 3) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Invalid topological dimension specified: %d.", genCtx.dim);
+  if (genCtx.M * genCtx.N * genCtx.K != nprocs) SETERRQ4(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Invalid [m, n, k] data: %d, %d, %d. Product must be equal to global size = %d.", genCtx.M, genCtx.N, genCtx.K, nprocs);
   /* validate the bounds data */
-  if (genCtx.xyzbounds[0] >= genCtx.xyzbounds[1]) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "X-dim: Left boundary cannot be greater than right. [%G >= %G]\n", genCtx.xyzbounds[0], genCtx.xyzbounds[1]);
-  if (genCtx.dim > 1 && (genCtx.xyzbounds[2] >= genCtx.xyzbounds[3])) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Y-dim: Left boundary cannot be greater than right. [%G >= %G]\n", genCtx.xyzbounds[2], genCtx.xyzbounds[3]);
-  if (genCtx.dim > 2 && (genCtx.xyzbounds[4] >= genCtx.xyzbounds[5])) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Z-dim: Left boundary cannot be greater than right. [%G >= %G]\n", genCtx.xyzbounds[4], genCtx.xyzbounds[5]);
+  if (genCtx.xyzbounds[0] >= genCtx.xyzbounds[1]) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "X-dim: Left boundary cannot be greater than right. [%G >= %G]", genCtx.xyzbounds[0], genCtx.xyzbounds[1]);
+  if (genCtx.dim > 1 && (genCtx.xyzbounds[2] >= genCtx.xyzbounds[3])) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Y-dim: Left boundary cannot be greater than right. [%G >= %G]", genCtx.xyzbounds[2], genCtx.xyzbounds[3]);
+  if (genCtx.dim > 2 && (genCtx.xyzbounds[4] >= genCtx.xyzbounds[5])) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Z-dim: Left boundary cannot be greater than right. [%G >= %G]", genCtx.xyzbounds[4], genCtx.xyzbounds[5]);
 
   PetscInfo3(NULL, "Local elements:= %d, %d, %d\n", genCtx.blockSizeElementXYZ[0], genCtx.blockSizeElementXYZ[1], genCtx.blockSizeElementXYZ[2]);
   PetscInfo3(NULL, "Local vertices:= %d, %d, %d\n", genCtx.blockSizeVertexXYZ[0], genCtx.blockSizeVertexXYZ[1], genCtx.blockSizeVertexXYZ[2]);
@@ -527,21 +523,21 @@ PetscErrorCode DMMoabCreateBoxMesh(MPI_Comm comm, PetscInt dim, PetscBool useSim
   PetscInt               ml = 0, nl = 0, kl = 0;
 
   PetscFunctionBegin;
-  if (dim < 1 || dim > 3) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Invalid dimension argument for mesh: dim=[1,3].\n");
+  if (dim < 1 || dim > 3) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Invalid dimension argument for mesh: dim=[1,3].");
 
   ierr = PetscLogEventRegister("GenerateMesh", DM_CLASSID,   &genCtx.generateMesh);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("AddVertices", DM_CLASSID,   &genCtx.generateVertices);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("AddElements", DM_CLASSID,   &genCtx.generateElements);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("ParResolve", DM_CLASSID,   &genCtx.parResolve);CHKERRQ(ierr);
   ierr = PetscLogEventBegin(genCtx.generateMesh, 0, 0, 0, 0);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(comm, &global_size);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(comm, &global_size);CHKERRMPI(ierr);
   /* total number of vertices in all dimensions */
   n = pow(npts, dim);
 
   /* do some error checking */
-  if (n < 2) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Number of points must be >= 2.\n");
-  if (global_size > n) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Number of processors must be less than or equal to number of elements.\n");
-  if (nghost < 0) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Number of ghost layers cannot be negative.\n");
+  if (n < 2) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Number of points must be >= 2.");
+  if (global_size > n) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Number of processors must be less than or equal to number of elements.");
+  if (nghost < 0) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Number of ghost layers cannot be negative.");
 
   /* Create the basic DMMoab object and keep the default parameters created by DM impls */
   ierr = DMMoabCreateMoab(comm, NULL, NULL, NULL, dm);CHKERRQ(ierr);
@@ -585,7 +581,7 @@ PetscErrorCode DMMoabCreateBoxMesh(MPI_Comm comm, PetscInt dim, PetscBool useSim
   if (dim > 2) {ierr = PetscOptionsInt("-dmb_processors_z", "Number of processors in z direction", "DMMoabSetNumProcs", genCtx.K, &genCtx.K, &genCtx.usrprocgrid);CHKERRQ(ierr);}
 
   /* Handle DMMoab block refinement */
-  ierr = PetscOptionsInt("-dmb_refine_x", "Number of refinement blocks in x direction", "DMMoabSetRefinement", genCtx.A, &genCtx.A, &genCtx.usrrefgrid);
+  ierr = PetscOptionsInt("-dmb_refine_x", "Number of refinement blocks in x direction", "DMMoabSetRefinement", genCtx.A, &genCtx.A, &genCtx.usrrefgrid);CHKERRQ(ierr);
   if (dim > 1) {ierr = PetscOptionsInt("-dmb_refine_y", "Number of refinement blocks in y direction", "DMMoabSetRefinement", genCtx.B, &genCtx.B, &genCtx.usrrefgrid);CHKERRQ(ierr);}
   if (dim > 2) {ierr = PetscOptionsInt("-dmb_refine_z", "Number of refinement blocks in z direction", "DMMoabSetRefinement", genCtx.C, &genCtx.C, &genCtx.usrrefgrid);CHKERRQ(ierr);}
   PetscOptionsEnd();
@@ -761,7 +757,6 @@ PetscErrorCode DMMoabCreateBoxMesh(MPI_Comm comm, PetscInt dim, PetscBool useSim
   PetscFunctionReturn(0);
 }
 
-
 PetscErrorCode DMMoab_GetReadOptions_Private(PetscBool by_rank, PetscInt numproc, PetscInt dim, PetscInt nghost, MoabReadMode mode, PetscInt dbglevel, const char* dm_opts, const char* extra_opts, const char** read_opts)
 {
   char           *ropts;
@@ -797,7 +792,6 @@ PetscErrorCode DMMoab_GetReadOptions_Private(PetscBool by_rank, PetscInt numproc
   *read_opts = ropts;
   PetscFunctionReturn(0);
 }
-
 
 /*@C
   DMMoabLoadFromFile - Creates a DM object by loading the mesh from a user specified file.
@@ -891,7 +885,6 @@ PetscErrorCode DMMoabLoadFromFile(MPI_Comm comm, PetscInt dim, PetscInt nghost, 
   ierr = PetscFree(readopts);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-
 
 /*@C
   DMMoabRenumberMeshEntities - Order and number all entities (vertices->elements) to be contiguously ordered

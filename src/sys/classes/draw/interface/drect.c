@@ -4,13 +4,12 @@
 */
 #include <petsc/private/drawimpl.h>  /*I "petscdraw.h" I*/
 
-
 /*@C
    PetscDrawIndicatorFunction - Draws an indicator function (where a relationship is true) on a PetscDraw
 
    Not collective
 
-   Input Parameter:
+   Input Parameters:
 +  draw - a PetscDraw
 .  xmin,xmax,ymin,ymax - region to draw indicator function
 -  f - the indicator function
@@ -46,7 +45,6 @@ PetscErrorCode PetscDrawIndicatorFunction(PetscDraw draw,PetscReal xmin,PetscRea
   PetscFunctionReturn(0);
 }
 
-
 /*@C
    PetscDrawCoordinateToPixel - given a coordinate in a PetscDraw returns the pixel location
 
@@ -54,10 +52,12 @@ PetscErrorCode PetscDrawIndicatorFunction(PetscDraw draw,PetscReal xmin,PetscRea
 
    Input Parameters:
 +  draw - the draw where the coordinates are defined
--  x,y - the coordinate location
+.  x - the horizontal coordinate
+-  y - the vertical coordinate
 
    Output Parameters:
--  i,j - the pixel location
++  i - the horizontal pixel location
+-  j - the vertical pixel location
 
    Level: developer
 
@@ -80,10 +80,12 @@ PetscErrorCode PetscDrawCoordinateToPixel(PetscDraw draw,PetscReal x,PetscReal y
 
    Input Parameters:
 +  draw - the draw where the coordinates are defined
--  i,j - the pixel location
+.  i - the horizontal pixel location
+-  j - the vertical pixel location
 
    Output Parameters:
-.  x,y - the coordinate location
++  x - the horizontal coordinate
+-  y - the vertical coordinate
 
    Level: developer
 

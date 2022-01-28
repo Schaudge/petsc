@@ -15,7 +15,6 @@ typedef struct {
   PetscBool      workout;
 } TS_SSP;
 
-
 static PetscErrorCode TSSSPGetWorkVectors(TS ts,PetscInt n,Vec **work)
 {
   TS_SSP         *ssp = (TS_SSP*)ts->data;
@@ -184,7 +183,6 @@ static PetscErrorCode TSSSPStep_RK_10_4(TS ts,PetscReal t0,PetscReal dt,Vec sol)
   PetscFunctionReturn(0);
 }
 
-
 static PetscErrorCode TSSetUp_SSP(TS ts)
 {
   PetscErrorCode ierr;
@@ -253,9 +251,9 @@ static PetscErrorCode TSDestroy_SSP(TS ts)
 
    Logically Collective
 
-   Input Arguments:
-   ts - time stepping object
-   ssptype - type of scheme to use
+   Input Parameters:
++  ts - time stepping object
+-  ssptype - type of scheme to use
 
    Options Database Keys:
    -ts_ssp_type <rks2>: Type of SSP method (one of) rks2 rks3 rk104
@@ -281,11 +279,11 @@ PetscErrorCode TSSSPSetType(TS ts,TSSSPType ssptype)
 
    Logically Collective
 
-   Input Argument:
-   ts - time stepping object
+   Input Parameter:
+.  ts - time stepping object
 
-   Output Argument:
-   type - type of scheme being used
+   Output Parameter:
+.  type - type of scheme being used
 
    Level: beginner
 
@@ -306,9 +304,9 @@ PetscErrorCode TSSSPGetType(TS ts,TSSSPType *type)
 
    Logically Collective
 
-   Input Arguments:
-   ts - time stepping object
-   nstages - number of stages
+   Input Parameters:
++  ts - time stepping object
+-  nstages - number of stages
 
    Options Database Keys:
    -ts_ssp_type <rks2>: NumStages of SSP method (one of) rks2 rks3 rk104
@@ -333,11 +331,11 @@ PetscErrorCode TSSSPSetNumStages(TS ts,PetscInt nstages)
 
    Logically Collective
 
-   Input Argument:
-   ts - time stepping object
+   Input Parameter:
+.  ts - time stepping object
 
-   Output Argument:
-   nstages - number of stages
+   Output Parameter:
+.  nstages - number of stages
 
    Level: beginner
 

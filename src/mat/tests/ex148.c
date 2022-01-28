@@ -20,8 +20,8 @@ int main(int argc,char **args)
   SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP, "This example requires real numbers");
 #endif
 
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD, &size);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD, &rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD, &size);CHKERRMPI(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD, &rank);CHKERRMPI(ierr);
 
   /* Create and set PETSc vectors 'input' and 'output' */
   ierr = PetscRandomCreate(PETSC_COMM_WORLD, &rdm);CHKERRQ(ierr);
@@ -58,7 +58,7 @@ int main(int argc,char **args)
   ierr = VecScale(output,fac);CHKERRQ(ierr);
   ierr = VecAXPY(output,-1.0,input);CHKERRQ(ierr);
   ierr = VecNorm(output,NORM_1,&enorm);CHKERRQ(ierr);
-  if (enorm > 1.e-11 && !rank) {
+  if (enorm > 1.e-11 && rank == 0) {
     ierr = PetscPrintf(PETSC_COMM_SELF,"  Error norm of |x - z| %e\n",enorm);CHKERRQ(ierr);
   }
 
@@ -74,10 +74,6 @@ int main(int argc,char **args)
   ierr = PetscFinalize();
   return ierr;
 }
-
-
-
-
 
 /*TEST
 

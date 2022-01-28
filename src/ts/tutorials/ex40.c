@@ -176,7 +176,7 @@ int main(int argc,char **argv)
      Initialize program
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
   if (size > 1) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Only for sequential runs");
 
   app.nbounces = 0;
@@ -236,8 +236,8 @@ int main(int argc,char **argv)
   ierr = TSSetMaxTime(ts,30.0);CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_STEPOVER);CHKERRQ(ierr);
   ierr = TSSetTimeStep(ts,0.1);CHKERRQ(ierr);
-  /* The adapative time step controller could take very large timesteps resulting in
-     the same event occuring multiple times in the same interval. A maximum step size
+  /* The adaptive time step controller could take very large timesteps resulting in
+     the same event occurring multiple times in the same interval. A maximum step size
      limit is enforced here to avoid this issue. */
   ierr = TSGetAdapt(ts,&adapt);CHKERRQ(ierr);
   ierr = TSAdaptSetStepLimits(adapt,0.0,0.5);CHKERRQ(ierr);
@@ -371,4 +371,9 @@ int main(int argc,char **argv)
       args: -ts_dt 0.25 -ts_adapt_type basic -ts_adapt_wnormtype INFINITY -ts_adapt_monitor
       args: -ts_max_steps 1 -ts_max_reject {{0 1 2}separate_output} -ts_error_if_step_fails false
 
+    test:
+      requires: !single
+      suffix: o
+      args: -rhs-form -ts_type rk -ts_rk_type 2b -ts_trajectory_dirname ex40_o_dir
+      output_file: output/ex40.out
 TEST*/

@@ -3,13 +3,21 @@ import config.package
 class Configure(config.package.Package):
   def __init__(self, framework):
     config.package.Package.__init__(self, framework)
-    self.gitcommit    = 'v1.99p1'
-    self.download     = ['git://https://bitbucket.org/petsc/pkg-party.git','http://ftp.mcs.anl.gov/pub/petsc/externalpackages/PARTY_1.99p1.tar.gz']
-    self.functions    = ['party_lib']
-    self.includes     = ['party_lib.h']
-    self.liblist      = [['libparty.a']]
-    self.license      = 'http://www2.cs.uni-paderborn.de/cs/robsy/party.html'
+    self.versionname       = 'VERSION'
+    self.gitcommit         = 'v1.99p2'
+    self.download          = ['git://https://bitbucket.org/petsc/pkg-party.git',
+                              'https://bitbucket.org/petsc/pkg-party/get/'+self.gitcommit+'.tar.gz']
+    self.downloaddirnames  = ['petsc-pkg-party','PARTY']
+    self.functions         = ['party_lib']
+    self.includes          = ['party_lib.h']
+    self.liblist           = [['libparty.a']]
+    self.license           = 'http://www2.cs.uni-paderborn.de/cs/robsy/party.html'
+    self.requires32bitint  = 1
     return
+
+  def versionToStandardForm(self,ver):
+    import re
+    return re.compile('[=A-Za-z]([\.0-9]*),').search(ver).group(1)
 
   def Install(self):
     import os
@@ -23,8 +31,7 @@ class Configure(config.package.Package):
     if self.installNeeded('make.inc'):
       try:
         self.logPrintBox('Compiling party; this may take several minutes')
-        self.installDirProvider.printSudoPasswordMessage()
-        output,err,ret  = config.package.Package.executeShellCommand('cd '+os.path.join(self.packageDir,'src')+' && make clean && make all && cd .. && '+self.installSudo+'mkdir -p '+os.path.join(self.installDir,self.libdir)+'&& '+self.installSudo+'cp -f *.a '+os.path.join(self.installDir,self.libdir,'')+' && '+self.installSudo+'mkdir -p '+os.path.join(self.installDir,self.includedir)+' && '+self.installSudo+'cp -f party_lib.h '+os.path.join(self.installDir,self.includedir,''), timeout=2500, log = self.log)
+        output,err,ret  = config.package.Package.executeShellCommand('cd '+os.path.join(self.packageDir,'src')+' && make clean && make all && cd .. && mkdir -p '+os.path.join(self.installDir,self.libdir)+'&& cp -f *.a '+os.path.join(self.installDir,self.libdir,'')+' && mkdir -p '+os.path.join(self.installDir,self.includedir)+' && cp -f party_lib.h '+os.path.join(self.installDir,self.includedir,''), timeout=2500, log = self.log)
       except RuntimeError as e:
         raise RuntimeError('Error running make on PARTY: '+str(e))
       self.postInstall(output+err,'make.inc')

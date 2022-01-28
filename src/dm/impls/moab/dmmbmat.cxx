@@ -61,7 +61,6 @@ PETSC_EXTERN PetscErrorCode DMCreateMatrix_Moab(DM dm, Mat *J)
   PetscFunctionReturn(0);
 }
 
-
 PETSC_EXTERN PetscErrorCode DMMoab_Compute_NNZ_From_Connectivity(DM dm, PetscInt* innz, PetscInt* nnz, PetscInt* ionz, PetscInt* onz, PetscBool isbaij)
 {
   PetscInt        i, f, nloc, vpere, bs, n_nnz, n_onz, ivtx = 0;
@@ -187,7 +186,6 @@ PETSC_EXTERN PetscErrorCode DMMoab_Compute_NNZ_From_Connectivity(DM dm, PetscInt
   PetscFunctionReturn(0);
 }
 
-
 static PetscErrorCode DMMoabSetBlockFills_Private(PetscInt w, const PetscInt *fill, PetscInt **rfill)
 {
   PetscErrorCode ierr;
@@ -205,14 +203,13 @@ static PetscErrorCode DMMoabSetBlockFills_Private(PetscInt w, const PetscInt *fi
   PetscFunctionReturn(0);
 }
 
-
 /*@C
     DMMoabSetBlockFills - Sets the fill pattern in each block for a multi-component problem
     of the matrix returned by DMCreateMatrix().
 
     Logically Collective on da
 
-    Input Parameter:
+    Input Parameters:
 +   dm - the DMMoab object
 .   dfill - the fill pattern in the diagonal block (may be NULL, means use dense block)
 -   ofill - the fill pattern in the off-diagonal blocks

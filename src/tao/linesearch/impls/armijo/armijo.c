@@ -60,16 +60,16 @@ static PetscErrorCode TaoLineSearchView_Armijo(TaoLineSearch ls, PetscViewer pv)
   PetscFunctionBegin;
   ierr = PetscObjectTypeCompare((PetscObject)pv, PETSCVIEWERASCII, &isascii);CHKERRQ(ierr);
   if (isascii) {
-    ierr=PetscViewerASCIIPrintf(pv,"  Armijo linesearch",armP->alpha);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(pv,"  Armijo linesearch",armP->alpha);CHKERRQ(ierr);
     if (armP->nondescending) {
       ierr = PetscViewerASCIIPrintf(pv, " (nondescending)");CHKERRQ(ierr);
     }
     if (ls->bounded) {
       ierr = PetscViewerASCIIPrintf(pv," (projected)");CHKERRQ(ierr);
     }
-    ierr=PetscViewerASCIIPrintf(pv,": alpha=%g beta=%g ",(double)armP->alpha,(double)armP->beta);CHKERRQ(ierr);
-    ierr=PetscViewerASCIIPrintf(pv,"sigma=%g ",(double)armP->sigma);CHKERRQ(ierr);
-    ierr=PetscViewerASCIIPrintf(pv,"memsize=%D\n",armP->memorySize);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(pv,": alpha=%g beta=%g ",(double)armP->alpha,(double)armP->beta);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(pv,"sigma=%g ",(double)armP->sigma);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(pv,"memsize=%D\n",armP->memorySize);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -315,8 +315,9 @@ PETSC_EXTERN PetscErrorCode TaoLineSearchCreate_Armijo(TaoLineSearch ls)
   armP->replacementPolicy = REPLACE_MRU;
   armP->nondescending=PETSC_FALSE;
   ls->data = (void*)armP;
-  ls->initstep=1.0;
+  ls->initstep = 1.0;
   ls->ops->setup = NULL;
+  ls->ops->monitor = NULL;
   ls->ops->apply = TaoLineSearchApply_Armijo;
   ls->ops->view = TaoLineSearchView_Armijo;
   ls->ops->destroy = TaoLineSearchDestroy_Armijo;

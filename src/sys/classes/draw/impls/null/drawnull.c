@@ -107,7 +107,6 @@ static PetscErrorCode PetscDrawRestoreSingleton_Null(PetscDraw draw,PetscDraw *s
   PetscFunctionReturn(0);
 }
 
-
 static struct _PetscDrawOps DvOps = { NULL,/* PetscDrawSetDoubleBuffer_Null */
                                       NULL,/* PetscDrawFlush_Null */
                                       PetscDrawLine_Null,
@@ -145,7 +144,6 @@ static struct _PetscDrawOps DvOps = { NULL,/* PetscDrawSetDoubleBuffer_Null */
                                       PetscDrawPointPixel_Null,
                                       PetscDrawStringBoxed_Null};
 
-
 /*MC
      PETSC_DRAW_NULL - PETSc graphics device that ignores all draw commands
 
@@ -174,6 +172,9 @@ PETSC_EXTERN PetscErrorCode PetscDrawCreate_Null(PetscDraw draw)
 /*@
    PetscDrawOpenNull - Opens a null drawing context. All draw commands to
    it are ignored.
+
+   Input Parameter:
+.  comm - MPI communicator
 
    Output Parameter:
 .  draw - the drawing context
@@ -209,7 +210,7 @@ PetscErrorCode  PetscDrawIsNull(PetscDraw draw,PetscBool *yes)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw,PETSC_DRAW_CLASSID,1);
-  PetscValidIntPointer(yes,2);
+  PetscValidBoolPointer(yes,2);
   ierr = PetscObjectTypeCompare((PetscObject)draw,PETSC_DRAW_NULL,yes);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

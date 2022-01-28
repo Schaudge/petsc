@@ -1,4 +1,3 @@
-
 static char help[] = "Tests MatSolve() and MatMatSolve() with MUMPS or MKL_PARDISO sequential solvers in Schur complement mode.\n\
 Example: mpiexec -n 1 ./ex192 -f <matrix binary file> -nrhs 4 -symmetric_solve -hermitian_solve -schur_ratio 0.3\n\n";
 
@@ -22,7 +21,7 @@ int main(int argc,char **args)
   char           file[PETSC_MAX_PATH_LEN]; /* input file name */
 
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD, &size);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD, &size);CHKERRMPI(ierr);
   if (size > 1) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_WRONG_MPI_SIZE,"This is a uniprocessor test");
   /* Determine which type of solver we want to test for */
   herm = PETSC_FALSE;
@@ -67,9 +66,9 @@ int main(int argc,char **args)
   ierr = MatLoad(A,fd);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
   ierr = MatGetSize(A,&m,&n);CHKERRQ(ierr);
-  if (m != n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ, "This example is not intended for rectangular matrices (%d, %d)", m, n);
+  if (m != n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ, "This example is not intended for rectangular matrices (%" PetscInt_FMT ", %" PetscInt_FMT ")", m, n);
 
-  /* Create dense matrix C and X; C holds true solution with identical colums */
+  /* Create dense matrix C and X; C holds true solution with identical columns */
   nrhs = 2;
   ierr = PetscOptionsGetInt(NULL,NULL,"-nrhs",&nrhs,NULL);CHKERRQ(ierr);
   ierr = MatCreate(PETSC_COMM_WORLD,&C);CHKERRQ(ierr);
@@ -119,12 +118,10 @@ int main(int argc,char **args)
 #endif
 
   ierr = PetscOptionsGetReal(NULL,NULL,"-schur_ratio",&sratio,NULL);CHKERRQ(ierr);
-  if (sratio < 0. || sratio > 1.) {
-    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ, "Invalid ratio for schur degrees of freedom %f", sratio);
-  }
+  if (sratio < 0. || sratio > 1.) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ, "Invalid ratio for schur degrees of freedom %g", (double)sratio);
   size_schur = (PetscInt)(sratio*m);
 
-  ierr = PetscPrintf(PETSC_COMM_SELF,"Solving with %s: nrhs %D, sym %d, herm %d, size schur %D, size mat %D\n",solver,nrhs,symm,herm,size_schur,m);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_SELF,"Solving with %s: nrhs %" PetscInt_FMT ", sym %d, herm %d, size schur %" PetscInt_FMT ", size mat %" PetscInt_FMT "\n",solver,nrhs,symm,herm,size_schur,m);CHKERRQ(ierr);
 
   /* Test LU/Cholesky Factorization */
   use_lu = PETSC_FALSE;
@@ -214,9 +211,9 @@ int main(int argc,char **args)
         ierr = VecAXPY(u,-1.0,b);CHKERRQ(ierr);  /* u <- (-1.0)b + u */
         ierr = VecNorm(u,NORM_2,&resi);CHKERRQ(ierr);
         if (nsolve) {
-          ierr = PetscPrintf(PETSC_COMM_SELF,"(f %D, s %D) MatSolve error: Norm of error %g, residual %f\n",nfact,nsolve,norm,resi);CHKERRQ(ierr);
+          ierr = PetscPrintf(PETSC_COMM_SELF,"(f %" PetscInt_FMT ", s %" PetscInt_FMT ") MatSolve error: Norm of error %g, residual %g\n",nfact,nsolve,(double)norm,(double)resi);CHKERRQ(ierr);
         } else {
-          ierr = PetscPrintf(PETSC_COMM_SELF,"(f %D, s %D) MatSolveTranspose error: Norm of error %g, residual %f\n",nfact,nsolve,norm,resi);CHKERRQ(ierr);
+          ierr = PetscPrintf(PETSC_COMM_SELF,"(f %" PetscInt_FMT ", s %" PetscInt_FMT ") MatSolveTranspose error: Norm of error %g, residual %f\n",nfact,nsolve,(double)norm,(double)resi);CHKERRQ(ierr);
         }
       }
       ierr = VecSetRandom(xschur,rand);CHKERRQ(ierr);
@@ -241,9 +238,9 @@ int main(int argc,char **args)
         ierr = VecAXPY(uschur,-1.0,bschur);CHKERRQ(ierr);  /* u <- (-1.0)b + u */
         ierr = VecNorm(uschur,NORM_2,&resi);CHKERRQ(ierr);
         if (nsolve) {
-          ierr = PetscPrintf(PETSC_COMM_SELF,"(f %D, s %D) MatFactorSolveSchurComplement error: Norm of error %g, residual %f\n",nfact,nsolve,norm,resi);CHKERRQ(ierr);
+          ierr = PetscPrintf(PETSC_COMM_SELF,"(f %" PetscInt_FMT ", s %" PetscInt_FMT ") MatFactorSolveSchurComplement error: Norm of error %g, residual %g\n",nfact,nsolve,(double)norm,(double)resi);CHKERRQ(ierr);
         } else {
-          ierr = PetscPrintf(PETSC_COMM_SELF,"(f %D, s %D) MatFactorSolveSchurComplementTranspose error: Norm of error %g, residual %f\n",nfact,nsolve,norm,resi);CHKERRQ(ierr);
+          ierr = PetscPrintf(PETSC_COMM_SELF,"(f %" PetscInt_FMT ", s %" PetscInt_FMT ") MatFactorSolveSchurComplementTranspose error: Norm of error %g, residual %f\n",nfact,nsolve,(double)norm,(double)resi);CHKERRQ(ierr);
         }
       }
     }
@@ -261,7 +258,7 @@ int main(int argc,char **args)
       ierr = MatAXPY(X,-1.0,C,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
       ierr = MatNorm(X,NORM_FROBENIUS,&norm);CHKERRQ(ierr);
       if (norm > tol) {
-        ierr = PetscPrintf(PETSC_COMM_SELF,"(f %D, s %D) MatMatSolve: Norm of error %g\n",nfact,nsolve,norm);CHKERRQ(ierr);
+        ierr = PetscPrintf(PETSC_COMM_SELF,"(f %" PetscInt_FMT ", s %" PetscInt_FMT ") MatMatSolve: Norm of error %g\n",nfact,nsolve,(double)norm);CHKERRQ(ierr);
       }
     }
     if (isolver == 0) {
@@ -277,7 +274,7 @@ int main(int argc,char **args)
         ierr = MatAXPY(X,-1.0,C,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
         ierr = MatNorm(X,NORM_FROBENIUS,&norm);CHKERRQ(ierr);
         if (norm > tol) {
-          ierr = PetscPrintf(PETSC_COMM_SELF,"(f %D, s %D) sparse MatMatSolve: Norm of error %g\n",nfact,nsolve,norm);CHKERRQ(ierr);
+          ierr = PetscPrintf(PETSC_COMM_SELF,"(f %" PetscInt_FMT ", s %" PetscInt_FMT ") sparse MatMatSolve: Norm of error %g\n",nfact,nsolve,(double)norm);CHKERRQ(ierr);
         }
       }
       ierr = MatDestroy(&spRHST);CHKERRQ(ierr);
@@ -303,11 +300,10 @@ int main(int argc,char **args)
   return ierr;
 }
 
-
 /*TEST
 
    testset:
-     requires: mkl_pardiso double !complex !define(PETSC_USE_64BIT_INDICES)
+     requires: mkl_pardiso double !complex
      args: -solver 1
 
      test:
@@ -331,7 +327,7 @@ int main(int argc,char **args)
        args: -symmetric_solve -hermitian_solve
        output_file: output/ex192_mkl_pardiso_3.out
      test:
-       requires: cuda
+       requires: cuda defined(PETSC_HAVE_CUSOLVERDNDPOTRI)
        suffix: mkl_pardiso_cuda_3
        args: -symmetric_solve -hermitian_solve -cuda_solve
        output_file: output/ex192_mkl_pardiso_3.out
@@ -361,7 +357,7 @@ int main(int argc,char **args)
        args: -symmetric_solve -hermitian_solve
        output_file: output/ex192_mumps_3.out
      test:
-       requires: cuda
+       requires: cuda defined(PETSC_HAVE_CUSOLVERDNDPOTRI)
        suffix: mumps_cuda_3
        args: -symmetric_solve -hermitian_solve -cuda_solve
        output_file: output/ex192_mumps_3.out

@@ -106,7 +106,6 @@ PetscErrorCode  AODestroy(AO *ao)
   PetscFunctionReturn(0);
 }
 
-
 #include <../src/vec/is/is/impls/general/general.h>
 /* ---------------------------------------------------------------------*/
 
@@ -379,7 +378,7 @@ PetscErrorCode  AOPetscToApplicationPermuteReal(AO ao, PetscInt block, PetscReal
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ao, AO_CLASSID,1);
-  PetscValidIntPointer(array,3);
+  PetscValidRealPointer(array,3);
   ierr = (*ao->ops->petsctoapplicationpermutereal)(ao, block, array);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -415,7 +414,7 @@ PetscErrorCode  AOApplicationToPetscPermuteReal(AO ao, PetscInt block, PetscReal
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ao, AO_CLASSID,1);
-  PetscValidIntPointer(array,3);
+  PetscValidRealPointer(array,3);
   ierr = (*ao->ops->applicationtopetscpermutereal)(ao, block, array);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -482,7 +481,7 @@ PetscErrorCode AOSetIS(AO ao,IS isapp,IS ispetsc)
     PetscInt napp,npetsc;
     ierr = ISGetLocalSize(isapp,&napp);CHKERRQ(ierr);
     ierr = ISGetLocalSize(ispetsc,&npetsc);CHKERRQ(ierr);
-    if (napp != npetsc) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"napp %D != npetsc %D. Local IS lengths must match",napp,npetsc);
+    if (napp != npetsc) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"napp %" PetscInt_FMT " != npetsc %" PetscInt_FMT ". Local IS lengths must match",napp,npetsc);
   }
   if (isapp) {ierr = PetscObjectReference((PetscObject)isapp);CHKERRQ(ierr);}
   if (ispetsc) {ierr = PetscObjectReference((PetscObject)ispetsc);CHKERRQ(ierr);}

@@ -31,8 +31,8 @@ int main(int argc,char **args)
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
   ierr = PetscOptionsGetBool(NULL,NULL,"-use_FFTW_interface",&use_interface,NULL);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD, &size);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD, &rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD, &size);CHKERRMPI(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD, &rank);CHKERRMPI(ierr);
 
   ierr = PetscRandomCreate(PETSC_COMM_WORLD, &rdm);CHKERRQ(ierr);
   ierr = PetscRandomSetFromOptions(rdm);CHKERRQ(ierr);
@@ -45,8 +45,8 @@ int main(int argc,char **args)
     ptrdiff_t    alloc_local,local_n0,local_0_start;
 
     DIM = 2;
-    if (!rank) {
-      ierr = PetscPrintf(PETSC_COMM_SELF,"Use FFTW without PETSc-FFTW interface, DIM %D\n",DIM);CHKERRQ(ierr);
+    if (rank == 0) {
+      ierr = PetscPrintf(PETSC_COMM_SELF,"Use FFTW without PETSc-FFTW interface, DIM %" PetscInt_FMT "\n",DIM);CHKERRQ(ierr);
     }
     fftw_mpi_init();
     N           = N0*N1;
@@ -80,7 +80,7 @@ int main(int argc,char **args)
     if (view) {ierr = VecView(z, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);}
     ierr = VecAXPY(z,-1.0,x);CHKERRQ(ierr);
     ierr = VecNorm(z,NORM_1,&enorm);CHKERRQ(ierr);
-    if (enorm > 1.e-11 && !rank) {
+    if (enorm > 1.e-11 && rank == 0) {
       ierr = PetscPrintf(PETSC_COMM_SELF,"  Error norm of |x - z| %g\n",(double)enorm);CHKERRQ(ierr);
     }
 
@@ -106,9 +106,8 @@ int main(int argc,char **args)
       }
       N *= dim[i-1];
 
-
       /* Create FFTW object */
-      if (!rank) printf("Use PETSc-FFTW interface...%d-DIM: %d\n",(int)DIM,(int)N);
+      if (rank == 0) printf("Use PETSc-FFTW interface...%d-DIM: %d\n",(int)DIM,(int)N);
 
       ierr = MatCreateFFT(PETSC_COMM_WORLD,DIM,dim,MATFFTW,&A);CHKERRQ(ierr);
 
@@ -136,7 +135,7 @@ int main(int argc,char **args)
       if (view) {ierr = VecView(z,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);}
       ierr = VecAXPY(z,-1.0,x);CHKERRQ(ierr);
       ierr = VecNorm(z,NORM_1,&enorm);CHKERRQ(ierr);
-      if (enorm > 1.e-9 && !rank) {
+      if (enorm > 1.e-9 && rank == 0) {
         ierr = PetscPrintf(PETSC_COMM_SELF,"  Error norm of |x - z| %e\n",enorm);CHKERRQ(ierr);
       }
 
@@ -154,11 +153,10 @@ int main(int argc,char **args)
   return ierr;
 }
 
-
 /*TEST
 
    build:
-      requires: fftw complex
+      requires: !mpiuni fftw complex
 
    test:
       output_file: output/ex143.out

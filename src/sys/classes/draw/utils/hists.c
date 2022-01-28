@@ -104,7 +104,7 @@ PetscErrorCode  PetscDrawHGCreate(PetscDraw draw,int bins,PetscDrawHG *hist)
 
    Logically Collective on PetscDrawHG
 
-   Input Parameter:
+   Input Parameters:
 +  hist - The histogram context.
 -  bins  - The number of bins.
 
@@ -219,7 +219,7 @@ PetscErrorCode  PetscDrawHGAddValue(PetscDrawHG hist, PetscReal value)
   }
   /* I disagree with the original Petsc implementation here. There should be no overshoot, but rather the
      stated convention of using half-open intervals (always the way to go) */
-  if (!hist->numValues) {
+  if (!hist->numValues && (hist->xmin == PETSC_MAX_REAL) && (hist->xmax == PETSC_MIN_REAL)) {
     hist->xmin = value;
     hist->xmax = value;
 #if 1
@@ -274,7 +274,7 @@ PetscErrorCode  PetscDrawHGDraw(PetscDrawHG hist)
   PetscValidHeaderSpecific(hist,PETSC_DRAWHG_CLASSID,1);
   ierr = PetscDrawIsNull(hist->win,&isnull);CHKERRQ(ierr);
   if (isnull) PetscFunctionReturn(0);
-  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)hist),&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)hist),&rank);CHKERRMPI(ierr);
 
   if ((hist->xmin >= hist->xmax) || (hist->ymin >= hist->ymax)) PetscFunctionReturn(0);
   if (hist->numValues < 1) PetscFunctionReturn(0);
@@ -314,12 +314,12 @@ PetscErrorCode  PetscDrawHGDraw(PetscDrawHG hist)
       if (numValues > 1) var = (var - numValues*mean*mean) / (numValues-1);
       else var = 0.0;
       ierr = PetscSNPrintf(title, 256, "Mean: %g  Var: %g", (double)mean, (double)var);CHKERRQ(ierr);
-      ierr = PetscSNPrintf(xlabel,256, "Total: %D", numValues);CHKERRQ(ierr);
+      ierr = PetscSNPrintf(xlabel,256, "Total: %" PetscInt_FMT, numValues);CHKERRQ(ierr);
       ierr = PetscDrawAxisSetLabels(hist->axis, title, xlabel, NULL);CHKERRQ(ierr);
     }
     ierr = PetscDrawAxisDraw(hist->axis);CHKERRQ(ierr);
     ierr = PetscDrawCollectiveBegin(draw);CHKERRQ(ierr);
-    if (!rank) { /* Draw bins */
+    if (rank == 0) { /* Draw bins */
       binLeft  = xmin;
       binRight = xmax;
       ierr = PetscDrawRectangle(draw,binLeft,ymin,binRight,bins[0],bcolor,bcolor,bcolor,bcolor);CHKERRQ(ierr);
@@ -367,12 +367,12 @@ PetscErrorCode  PetscDrawHGDraw(PetscDrawHG hist)
       if (numValues > 1) var = (var - numValues*mean*mean) / (numValues-1);
       else var = 0.0;
       ierr = PetscSNPrintf(title, 256,"Mean: %g  Var: %g", (double)mean, (double)var);CHKERRQ(ierr);
-      ierr = PetscSNPrintf(xlabel,256, "Total: %D", numValues);CHKERRQ(ierr);
+      ierr = PetscSNPrintf(xlabel,256, "Total: %" PetscInt_FMT, numValues);CHKERRQ(ierr);
       ierr = PetscDrawAxisSetLabels(hist->axis, title, xlabel, NULL);CHKERRQ(ierr);
     }
     ierr = PetscDrawAxisDraw(hist->axis);CHKERRQ(ierr);
     ierr = PetscDrawCollectiveBegin(draw);CHKERRQ(ierr);
-    if (!rank) { /* Draw bins */
+    if (rank == 0) { /* Draw bins */
       for (i = 0; i < numBins; i++) {
         binLeft  = xmin + binSize*i;
         binRight = xmin + binSize*(i+1);
@@ -440,7 +440,7 @@ PetscErrorCode  PetscDrawHGView(PetscDrawHG hist,PetscViewer viewer)
   if ((hist->xmin > hist->xmax) || (hist->ymin >= hist->ymax)) PetscFunctionReturn(0);
   if (hist->numValues < 1) PetscFunctionReturn(0);
 
-  if (!viewer){
+  if (!viewer) {
     ierr = PetscViewerASCIIGetStdout(PetscObjectComm((PetscObject)hist),&viewer);CHKERRQ(ierr);
   }
   ierr = PetscObjectPrintClassNamePrefixType((PetscObject)hist,viewer);CHKERRQ(ierr);
@@ -504,7 +504,7 @@ PetscErrorCode  PetscDrawHGView(PetscDrawHG hist,PetscViewer viewer)
     if (numValues > 1) var = (var - numValues*mean*mean) / (numValues-1);
     else var = 0.0;
     ierr = PetscViewerASCIIPrintf(viewer, "Mean: %g  Var: %g\n", (double)mean, (double)var);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer, "Total: %D\n", numValues);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Total: %" PetscInt_FMT "\n", numValues);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }

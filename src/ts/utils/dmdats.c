@@ -62,8 +62,8 @@ static PetscErrorCode TSComputeIFunction_DMDA(TS ts,PetscReal ptime,Vec X,Vec Xd
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ts,TS_CLASSID,1);
-  PetscValidHeaderSpecific(X,VEC_CLASSID,2);
-  PetscValidHeaderSpecific(F,VEC_CLASSID,3);
+  PetscValidHeaderSpecific(X,VEC_CLASSID,3);
+  PetscValidHeaderSpecific(F,VEC_CLASSID,5);
   if (!dmdats->ifunctionlocal) SETERRQ(PetscObjectComm((PetscObject)ts),PETSC_ERR_PLIB,"Corrupt context");
   ierr = TSGetDM(ts,&dm);CHKERRQ(ierr);
   ierr = DMGetLocalVector(dm,&Xdotloc);CHKERRQ(ierr);
@@ -152,8 +152,8 @@ static PetscErrorCode TSComputeRHSFunction_DMDA(TS ts,PetscReal ptime,Vec X,Vec 
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ts,TS_CLASSID,1);
-  PetscValidHeaderSpecific(X,VEC_CLASSID,2);
-  PetscValidHeaderSpecific(F,VEC_CLASSID,3);
+  PetscValidHeaderSpecific(X,VEC_CLASSID,3);
+  PetscValidHeaderSpecific(F,VEC_CLASSID,4);
   if (!dmdats->rhsfunctionlocal) SETERRQ(PetscObjectComm((PetscObject)ts),PETSC_ERR_PLIB,"Corrupt context");
   ierr = TSGetDM(ts,&dm);CHKERRQ(ierr);
   ierr = DMGetLocalVector(dm,&Xloc);CHKERRQ(ierr);
@@ -223,13 +223,12 @@ static PetscErrorCode TSComputeRHSJacobian_DMDA(TS ts,PetscReal ptime,Vec X,Mat 
   PetscFunctionReturn(0);
 }
 
-
 /*@C
    DMDATSSetRHSFunctionLocal - set a local residual evaluation function
 
    Logically Collective
 
-   Input Arguments:
+   Input Parameters:
 +  dm - DM to associate callback with
 .  imode - insert mode for the residual
 .  func - local residual evaluation
@@ -271,7 +270,7 @@ PetscErrorCode DMDATSSetRHSFunctionLocal(DM dm,InsertMode imode,DMDATSRHSFunctio
 
    Logically Collective
 
-   Input Arguments:
+   Input Parameters:
 +  dm    - DM to associate callback with
 .  func  - local RHS Jacobian evaluation routine
 -  ctx   - optional context for local jacobian evaluation
@@ -307,13 +306,12 @@ PetscErrorCode DMDATSSetRHSJacobianLocal(DM dm,DMDATSRHSJacobianLocal func,void 
   PetscFunctionReturn(0);
 }
 
-
 /*@C
    DMDATSSetIFunctionLocal - set a local residual evaluation function
 
    Logically Collective
 
-   Input Arguments:
+   Input Parameters:
 +  dm   - DM to associate callback with
 .  func - local residual evaluation
 -  ctx  - optional context for local residual evaluation
@@ -352,7 +350,7 @@ PetscErrorCode DMDATSSetIFunctionLocal(DM dm,InsertMode imode,DMDATSIFunctionLoc
 
    Logically Collective
 
-   Input Arguments:
+   Input Parameters:
 +  dm   - DM to associate callback with
 .  func - local residual evaluation
 -  ctx   - optional context for local residual evaluation

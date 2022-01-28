@@ -15,22 +15,22 @@ int main(int argc,char **argv)
   VecScatter     ctx;
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
 
   /* create two vectors */
   N    = size*n;
   ierr = VecCreate(PETSC_COMM_WORLD,&y);CHKERRQ(ierr);
   ierr = VecSetSizes(y,PETSC_DECIDE,N);CHKERRQ(ierr);
   ierr = VecSetFromOptions(y);CHKERRQ(ierr);
-  if (!rank) {
+  if (rank == 0) {
     ierr = VecCreateSeq(PETSC_COMM_SELF,N,&x);CHKERRQ(ierr);
   } else {
     ierr = VecCreateSeq(PETSC_COMM_SELF,0,&x);CHKERRQ(ierr);
   }
 
   /* create two index sets */
-  if (!rank) {
+  if (rank == 0) {
     ierr = ISCreateStride(PETSC_COMM_SELF,N,0,1,&is1);CHKERRQ(ierr);
     ierr = ISCreateStride(PETSC_COMM_SELF,N,0,1,&is2);CHKERRQ(ierr);
   } else {
@@ -53,7 +53,7 @@ int main(int argc,char **argv)
   ierr = VecScatterEnd(ctx,y,x,ADD_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
   ierr = VecScatterDestroy(&ctx);CHKERRQ(ierr);
 
-  if (!rank) {
+  if (rank == 0) {
     printf("----\n");
     ierr = VecView(x,PETSC_VIEWER_STDOUT_SELF);CHKERRQ(ierr);
   }
@@ -66,8 +66,6 @@ int main(int argc,char **argv)
   ierr = PetscFinalize();
   return ierr;
 }
-
-
 
 /*TEST
 

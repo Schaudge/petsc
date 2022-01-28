@@ -50,8 +50,8 @@ int main(int argc,char **argv)
   const PetscInt *ia,*ja;
 
   ierr = PetscInitialize(&argc,&argv,NULL,help);if (ierr) return ierr;
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
 
   /* Get size of fine grids and coarse grids */
   user.ratio     = 2;
@@ -67,11 +67,11 @@ int main(int argc,char **argv)
   user.fine.my = user.ratio*(user.coarse.my-1)+1;
   user.fine.mz = user.ratio*(user.coarse.mz-1)+1;
 
-  if (!rank) {
+  if (rank == 0) {
     if (!Test_3D) {
-      ierr = PetscPrintf(PETSC_COMM_SELF,"coarse grids: %D %D; fine grids: %D %D\n",user.coarse.mx,user.coarse.my,user.fine.mx,user.fine.my);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"coarse grids: %" PetscInt_FMT " %" PetscInt_FMT "; fine grids: %" PetscInt_FMT " %" PetscInt_FMT "\n",user.coarse.mx,user.coarse.my,user.fine.mx,user.fine.my);CHKERRQ(ierr);
     } else {
-      ierr = PetscPrintf(PETSC_COMM_SELF,"coarse grids: %D %D %D; fine grids: %D %D %D\n",user.coarse.mx,user.coarse.my,user.coarse.mz,user.fine.mx,user.fine.my,user.fine.mz);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"coarse grids: %" PetscInt_FMT " %" PetscInt_FMT " %" PetscInt_FMT "; fine grids: %" PetscInt_FMT " %" PetscInt_FMT " %" PetscInt_FMT "\n",user.coarse.mx,user.coarse.my,user.coarse.mz,user.fine.mx,user.fine.my,user.fine.mz);CHKERRQ(ierr);
     }
   }
 

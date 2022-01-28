@@ -32,12 +32,24 @@ static RKTableauLink RKTableauList;
 .seealso: TSRK, TSRKType, TSRKSetType()
 M*/
 /*MC
-     TSRK2A - Second order RK scheme.
+     TSRK2A - Second order RK scheme (Heun's method).
 
      This method has two stages.
 
      Options database:
 .     -ts_rk_type 2a
+
+     Level: advanced
+
+.seealso: TSRK, TSRKType, TSRKSetType()
+M*/
+/*MC
+     TSRK2B - Second order RK scheme (the midpoint method).
+
+     This method has two stages.
+
+     Options database:
+.     -ts_rk_type 2b
 
      Level: advanced
 
@@ -138,7 +150,7 @@ M*/
 /*MC
      TSRK7VR - Seventh order robust Verner RK scheme with sixth order embedded method.
 
-     This method has ten stages with the First Same As Last (FSAL) property.
+     This method has ten stages.
 
      Options database:
 .     -ts_rk_type 7vr
@@ -152,7 +164,7 @@ M*/
 /*MC
      TSRK8VR - Eigth order robust Verner RK scheme with seventh order embedded method.
 
-     This method has thirteen stages with the First Same As Last (FSAL) property.
+     This method has thirteen stages.
 
      Options database:
 .     -ts_rk_type 8vr
@@ -195,6 +207,13 @@ PetscErrorCode TSRKRegisterAll(void)
       b[2]      =  {RC(0.5),RC(0.5)},
       bembed[2] =  {RC(1.0),0};
     ierr = TSRKRegister(TSRK2A,2,2,&A[0][0],b,NULL,bembed,0,NULL);CHKERRQ(ierr);
+  }
+  {
+    const PetscReal
+      A[2][2]   = {{0,0},
+                   {RC(0.5),0}},
+      b[2]      =  {0,RC(1.0)},
+    ierr = TSRKRegister(TSRK2B,2,2,&A[0][0],b,NULL,NULL,0,NULL);CHKERRQ(ierr);
   }
   {
     const PetscReal
@@ -483,7 +502,7 @@ PetscErrorCode TSRKGetTableau_RK(TS ts, PetscInt *s, const PetscReal **A, const 
 
    Not Collective
 
-   Input Parameters:
+   Input Parameter:
 .  ts - timestepping context
 
    Output Parameters:
@@ -1102,9 +1121,6 @@ static PetscErrorCode TSRKTableauReset(TS ts)
   ierr = PetscFree(rk->work);CHKERRQ(ierr);
   ierr = VecDestroyVecs(tab->s,&rk->Y);CHKERRQ(ierr);
   ierr = VecDestroyVecs(tab->s,&rk->YdotRHS);CHKERRQ(ierr);
-  ierr = VecDestroyVecs(tab->s*ts->numcost,&rk->VecsDeltaLam);CHKERRQ(ierr);
-  ierr = VecDestroyVecs(ts->numcost,&rk->VecsSensiTemp);CHKERRQ(ierr);
-  ierr = VecDestroy(&rk->VecDeltaMu);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1133,7 +1149,6 @@ static PetscErrorCode DMRestrictHook_TSRK(DM fine,Mat restrct,Vec rscale,Mat inj
   PetscFunctionBegin;
   PetscFunctionReturn(0);
 }
-
 
 static PetscErrorCode DMSubDomainHook_TSRK(DM dm,DM subdm,void *ctx)
 {
@@ -1285,7 +1300,7 @@ PetscErrorCode TSRKGetOrder(TS ts,PetscInt *order)
 
   Logically collective
 
-  Input Parameter:
+  Input Parameters:
 +  ts - timestepping context
 -  rktype - type of RK-scheme
 
@@ -1294,7 +1309,7 @@ PetscErrorCode TSRKGetOrder(TS ts,PetscInt *order)
 
   Level: intermediate
 
-.seealso: TSRKGetType(), TSRK, TSRKType, TSRK1FE, TSRK2A, TSRK3, TSRK3BS, TSRK4, TSRK5F, TSRK5DP, TSRK5BS, TSRK6VR, TSRK7VR, TSRK8VR
+.seealso: TSRKGetType(), TSRK, TSRKType, TSRK1FE, TSRK2A, TSRK2B, TSRK3, TSRK3BS, TSRK4, TSRK5F, TSRK5DP, TSRK5BS, TSRK6VR, TSRK7VR, TSRK8VR
 @*/
 PetscErrorCode TSRKSetType(TS ts,TSRKType rktype)
 {
@@ -1373,7 +1388,6 @@ static PetscErrorCode TSRKSetType_RK(TS ts,TSRKType rktype)
     }
   }
   SETERRQ1(PetscObjectComm((PetscObject)ts),PETSC_ERR_ARG_UNKNOWN_TYPE,"Could not find '%s'",rktype);
-  PetscFunctionReturn(0);
 }
 
 static PetscErrorCode  TSGetStages_RK(TS ts,PetscInt *ns,Vec **Y)
@@ -1446,7 +1460,7 @@ static PetscErrorCode SNESTSFormJacobian_RK(SNES snes,Vec x,Mat A,Mat B,TS ts)
 
   Logically collective
 
-  Input Parameter:
+  Input Parameters:
 +  ts - timestepping context
 -  use_multirate - PETSC_TRUE enables the multirate RK method, sets the basic method to be RK2A and sets the ratio between slow stepsize and fast stepsize to be 2
 

@@ -1,7 +1,6 @@
 
 static char help[] = "Tests various routines in MatMPIBAIJ format.\n";
 
-
 #include <petscmat.h>
 #define IMAX 15
 int main(int argc,char **args)
@@ -21,12 +20,12 @@ int main(int argc,char **args)
   PetscBool         flg;
 
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
 
   /* Check out if MatLoad() works */
   ierr = PetscOptionsGetString(NULL,NULL,"-f",file,sizeof(file),&flg);CHKERRQ(ierr);
-  if (!flg) SETERRQ(PETSC_COMM_WORLD,1,"Input file not specified");
+  if (!flg) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_USER_INPUT,"Input file not specified");
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,file,FILE_MODE_READ,&fd);CHKERRQ(ierr);
   ierr = MatCreate(PETSC_COMM_WORLD,&A);CHKERRQ(ierr);
   ierr = MatSetType(A,MATBAIJ);CHKERRQ(ierr);
@@ -51,19 +50,19 @@ int main(int argc,char **args)
   ierr  = MatNorm(B,NORM_FROBENIUS,&s2norm);CHKERRQ(ierr);
   rnorm = PetscAbsScalar(s2norm-s1norm)/s2norm;
   if (rnorm>tol) {
-    ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] Error: MatNorm_FROBENIUS()- NormA=%16.14e NormB=%16.14e bs = %D\n",rank,s1norm,s2norm,bs);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] Error: MatNorm_FROBENIUS()- NormA=%16.14e NormB=%16.14e bs = %" PetscInt_FMT "\n",rank,(double)s1norm,(double)s2norm,bs);CHKERRQ(ierr);
   }
   ierr  = MatNorm(A,NORM_INFINITY,&s1norm);CHKERRQ(ierr);
   ierr  = MatNorm(B,NORM_INFINITY,&s2norm);CHKERRQ(ierr);
   rnorm = PetscAbsScalar(s2norm-s1norm)/s2norm;
   if (rnorm>tol) {
-    ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] Error: MatNorm_INFINITY()- NormA=%16.14e NormB=%16.14e bs = %D\n",rank,s1norm,s2norm,bs);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] Error: MatNorm_INFINITY()- NormA=%16.14e NormB=%16.14e bs = %" PetscInt_FMT "\n",rank,(double)s1norm,(double)s2norm,bs);CHKERRQ(ierr);
   }
   ierr  = MatNorm(A,NORM_1,&s1norm);CHKERRQ(ierr);
   ierr  = MatNorm(B,NORM_1,&s2norm);CHKERRQ(ierr);
   rnorm = PetscAbsScalar(s2norm-s1norm)/s2norm;
   if (rnorm>tol) {
-    ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] Error: MatNorm_NORM_1()- NormA=%16.14e NormB=%16.14e bs = %D\n",rank,s1norm,s2norm,bs);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] Error: MatNorm_NORM_1()- NormA=%16.14e NormB=%16.14e bs = %" PetscInt_FMT "\n",rank,(double)s1norm,(double)s2norm,bs);CHKERRQ(ierr);
   }
 
   /* Test MatMult() */
@@ -74,7 +73,7 @@ int main(int argc,char **args)
     ierr = VecAXPY(s2,-1.0,s1);CHKERRQ(ierr);
     ierr = VecNorm(s2,NORM_2,&rnorm);CHKERRQ(ierr);
     if (rnorm>tol) {
-      ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] Error: MatMult - Norm2=%16.14e bs = %D\n",rank,rnorm,bs);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] Error: MatMult - Norm2=%16.14e bs = %" PetscInt_FMT "\n",rank,(double)rnorm,bs);CHKERRQ(ierr);
     }
   }
 
@@ -87,7 +86,7 @@ int main(int argc,char **args)
     ierr = VecAXPY(s2,-1.0,s1);CHKERRQ(ierr);
     ierr = VecNorm(s2,NORM_2,&rnorm);CHKERRQ(ierr);
     if (rnorm>tol) {
-      ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] Error: MatMultAdd - Norm2=%16.14e bs = %D\n",rank,rnorm,bs);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] Error: MatMultAdd - Norm2=%16.14e bs = %" PetscInt_FMT "\n",rank,(double)rnorm,bs);CHKERRQ(ierr);
     }
   }
 
@@ -100,7 +99,7 @@ int main(int argc,char **args)
     ierr  = VecNorm(s2,NORM_2,&s2norm);CHKERRQ(ierr);
     rnorm = s2norm-s1norm;
     if (rnorm<-tol || rnorm>tol) {
-      ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] Error: MatMultTranspose - Norm1=%16.14e Norm2=%16.14e bs = %D\n",rank,s1norm,s2norm,bs);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] Error: MatMultTranspose - Norm1=%16.14e Norm2=%16.14e bs = %" PetscInt_FMT "\n",rank,(double)s1norm,(double)s2norm,bs);CHKERRQ(ierr);
     }
   }
   /* Test MatMultTransposeAdd() */
@@ -113,14 +112,13 @@ int main(int argc,char **args)
     ierr  = VecNorm(s2,NORM_2,&s2norm);CHKERRQ(ierr);
     rnorm = s2norm-s1norm;
     if (rnorm<-tol || rnorm>tol) {
-      ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] Error: MatMultTransposeAdd - Norm1=%16.14e Norm2=%16.14e bs = %D\n",rank,s1norm,s2norm,bs);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] Error: MatMultTransposeAdd - Norm1=%16.14e Norm2=%16.14e bs = %" PetscInt_FMT "\n",rank,(double)s1norm,(double)s2norm,bs);CHKERRQ(ierr);
     }
   }
 
   /* Check MatGetValues() */
   ierr = MatGetOwnershipRange(A,&rstart,&rend);CHKERRQ(ierr);
   ierr = MatGetSize(A,&M,&N);CHKERRQ(ierr);
-
 
   for (i=0; i<IMAX; i++) {
     /* Create random row numbers ad col numbers */
@@ -136,10 +134,9 @@ int main(int argc,char **args)
     ierr = MatGetValues(A,2,rows,2,cols,vals1);CHKERRQ(ierr);
     ierr = MatGetValues(B,2,rows,2,cols,vals2);CHKERRQ(ierr);
 
-
     for (j=0; j<4; j++) {
       if (vals1[j] != vals2[j]) {
-        ierr = PetscPrintf(PETSC_COMM_SELF,"[%d]: Error: MatGetValues rstart = %2d  row = %2d col = %2d val1 = %e val2 = %e bs = %D\n",rank,rstart,rows[j/2],cols[j%2],PetscRealPart(vals1[j]),PetscRealPart(vals2[j]),bs);CHKERRQ(ierr);
+        ierr = PetscPrintf(PETSC_COMM_SELF,"[%d]: Error: MatGetValues rstart = %2" PetscInt_FMT "  row = %2" PetscInt_FMT " col = %2" PetscInt_FMT " val1 = %e val2 = %e bs = %" PetscInt_FMT "\n",rank,rstart,rows[j/2],cols[j%2],(double)PetscRealPart(vals1[j]),(double)PetscRealPart(vals2[j]),bs);CHKERRQ(ierr);
       }
     }
   }
@@ -147,7 +144,7 @@ int main(int argc,char **args)
   /* Test MatGetRow()/ MatRestoreRow() */
   for (ct=0; ct<100; ct++) {
     ierr = PetscRandomGetValue(rand,&v);CHKERRQ(ierr);
-    row  = rstart + (int)(PetscRealPart(v)*m);
+    row  = rstart + (PetscInt)(PetscRealPart(v)*m);
     ierr = MatGetRow(A,row,&ncols1,&cols1,&v1);CHKERRQ(ierr);
     ierr = MatGetRow(B,row,&ncols2,&cols2,&v2);CHKERRQ(ierr);
 
@@ -173,7 +170,7 @@ int main(int argc,char **args)
     ierr  = VecNorm(s2,NORM_2,&s2norm);CHKERRQ(ierr);
     rnorm = s2norm-s1norm;
     if (rnorm<-tol || rnorm>tol) {
-      ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] Error in MatConvert: MatMult - Norm1=%16.14e Norm2=%16.14e bs = %D\n",rank,s1norm,s2norm,bs);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] Error in MatConvert: MatMult - Norm1=%16.14e Norm2=%16.14e bs = %" PetscInt_FMT "\n",rank,(double)s1norm,(double)s2norm,bs);CHKERRQ(ierr);
     }
   }
   ierr = MatDestroy(&C);CHKERRQ(ierr);
@@ -189,7 +186,7 @@ int main(int argc,char **args)
     ierr  = VecNorm(s2,NORM_2,&s2norm);CHKERRQ(ierr);
     rnorm = s2norm-s1norm;
     if (rnorm<-tol || rnorm>tol) {
-      ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] Error in MatConvert:MatMult - Norm1=%16.14e Norm2=%16.14e bs = %D\n",rank,s1norm,s2norm,bs);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] Error in MatConvert:MatMult - Norm1=%16.14e Norm2=%16.14e bs = %" PetscInt_FMT "\n",rank,(double)s1norm,(double)s2norm,bs);CHKERRQ(ierr);
     }
   }
   ierr = MatDestroy(&At);CHKERRQ(ierr);
@@ -206,27 +203,26 @@ int main(int argc,char **args)
   return ierr;
 }
 
-
 /*TEST
 
    build:
       requires: !complex
 
    test:
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       nsize: 3
       args: -matload_block_size 1 -f ${DATAFILESPATH}/matrices/small
 
    test:
       suffix: 2
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       nsize: 3
       args: -matload_block_size 2 -f ${DATAFILESPATH}/matrices/small
       output_file: output/ex53_1.out
 
    test:
       suffix: 3
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       nsize: 3
       args: -matload_block_size 4 -f ${DATAFILESPATH}/matrices/small
       output_file: output/ex53_1.out
@@ -234,14 +230,14 @@ int main(int argc,char **args)
    test:
       TODO: Matrix row/column sizes are not compatible with block size
       suffix: 4
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       nsize: 3
       args: -matload_block_size 5 -f ${DATAFILESPATH}/matrices/small
       output_file: output/ex53_1.out
 
    test:
       suffix: 5
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       nsize: 3
       args: -matload_block_size 6 -f ${DATAFILESPATH}/matrices/small
       output_file: output/ex53_1.out
@@ -249,7 +245,7 @@ int main(int argc,char **args)
    test:
       TODO: Matrix row/column sizes are not compatible with block size
       suffix: 6
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       nsize: 3
       args: -matload_block_size 7 -f ${DATAFILESPATH}/matrices/small
       output_file: output/ex53_1.out
@@ -257,14 +253,14 @@ int main(int argc,char **args)
    test:
       TODO: Matrix row/column sizes are not compatible with block size
       suffix: 7
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       nsize: 3
       args: -matload_block_size 8 -f ${DATAFILESPATH}/matrices/small
       output_file: output/ex53_1.out
 
    test:
       suffix: 8
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       nsize: 4
       args: -matload_block_size 3 -f ${DATAFILESPATH}/matrices/small
       output_file: output/ex53_1.out

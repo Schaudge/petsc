@@ -32,13 +32,15 @@
 .seealso: PetscMemcpy(), PetscMemcmp(), PetscArrayzero(), PetscMemzero(), PetscArraycmp(), PetscArraycpy(), PetscStrallocpy(),
           PetscArraymove()
 @*/
-PetscErrorCode  PetscMemcmp(const void *str1,const void *str2,size_t len,PetscBool  *e)
+PetscErrorCode PetscMemcmp(const void *str1,const void *str2,size_t len,PetscBool  *e)
 {
   int r;
 
+  if (!len) {*e = PETSC_TRUE; return 0;}
+
   PetscFunctionBegin;
-  if (len > 0 && !str1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_NULL,"Trying to compare at a null pointer");
-  if (len > 0 && !str2) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_NULL,"Trying to compare at a null pointer");
+  if (!str1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_NULL,"Trying to compare at a null pointer");
+  if (!str2) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_NULL,"Trying to compare at a null pointer");
   r = memcmp((char*)str1,(char*)str2,len);
   if (!r) *e = PETSC_TRUE;
   else    *e = PETSC_FALSE;
@@ -74,7 +76,7 @@ PetscErrorCode PetscProcessPlacementView(PetscViewer viewer)
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&isascii);CHKERRQ(ierr);
   if (!isascii) SETERRQ(PetscObjectComm((PetscObject)viewer),PETSC_ERR_SUP,"Only ASCII viewer is supported");
 
-  ierr = MPI_Comm_rank(MPI_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(MPI_COMM_WORLD,&rank);CHKERRMPI(ierr);
   hwloc_topology_init ( &topology);
   hwloc_topology_load ( topology);
   set = hwloc_bitmap_alloc();

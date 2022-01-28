@@ -15,9 +15,8 @@ int main(int argc,char **argv)
   DM               da;
   Vec              global,local;
 
-
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
   ierr = PetscOptionsGetInt(NULL,NULL,"-M",&M,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,NULL,"-N",&N,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,NULL,"-P",&P,NULL);CHKERRQ(ierr);
@@ -37,7 +36,7 @@ int main(int argc,char **argv)
   ierr = VecSet(local,-1);CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(da,global,INSERT_VALUES,local);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(da,global,INSERT_VALUES,local);CHKERRQ(ierr);
-  if (!rank) {ierr = VecView(local,0);CHKERRQ(ierr);}
+  if (rank == 0) {ierr = VecView(local,0);CHKERRQ(ierr);}
   ierr = DMDestroy(&da);CHKERRQ(ierr);
   ierr = VecDestroy(&local);CHKERRQ(ierr);
   ierr = VecDestroy(&global);CHKERRQ(ierr);

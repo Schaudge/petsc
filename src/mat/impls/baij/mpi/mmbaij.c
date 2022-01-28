@@ -37,7 +37,7 @@ PetscErrorCode MatSetUpMultiply_MPIBAIJ(Mat mat)
     }
   }
   /* form array of columns we need */
-  ierr = PetscMalloc1(ec+1,&garray);CHKERRQ(ierr);
+  ierr = PetscMalloc1(ec,&garray);CHKERRQ(ierr);
   ierr = PetscTableGetHeadPosition(gid1_lid1,&tpos);CHKERRQ(ierr);
   while (tpos) {
     ierr = PetscTableGetNext(gid1_lid1,&tpos,&gid,&lid);CHKERRQ(ierr);
@@ -65,7 +65,7 @@ PetscErrorCode MatSetUpMultiply_MPIBAIJ(Mat mat)
 #else
   /* Make an array as long as the number of columns */
   /* mark those columns that are in baij->B */
-  ierr = PetscCalloc1(Nbs+1,&indices);CHKERRQ(ierr);
+  ierr = PetscCalloc1(Nbs,&indices);CHKERRQ(ierr);
   for (i=0; i<B->mbs; i++) {
     for (j=0; j<B->ilen[i]; j++) {
       if (!indices[aj[B->i[i] + j]]) ec++;
@@ -74,7 +74,7 @@ PetscErrorCode MatSetUpMultiply_MPIBAIJ(Mat mat)
   }
 
   /* form array of columns we need */
-  ierr = PetscMalloc1(ec+1,&garray);CHKERRQ(ierr);
+  ierr = PetscMalloc1(ec,&garray);CHKERRQ(ierr);
   ec   = 0;
   for (i=0; i<Nbs; i++) {
     if (indices[i]) {
@@ -105,7 +105,7 @@ PetscErrorCode MatSetUpMultiply_MPIBAIJ(Mat mat)
   /* create two temporary index sets for building scatter-gather */
   ierr = ISCreateBlock(PETSC_COMM_SELF,bs,ec,garray,PETSC_COPY_VALUES,&from);CHKERRQ(ierr);
 
-  ierr = PetscMalloc1(ec+1,&stmp);CHKERRQ(ierr);
+  ierr = PetscMalloc1(ec,&stmp);CHKERRQ(ierr);
   for (i=0; i<ec; i++) stmp[i] = i;
   ierr = ISCreateBlock(PETSC_COMM_SELF,bs,ec,stmp,PETSC_OWN_POINTER,&to);CHKERRQ(ierr);
 
@@ -113,6 +113,7 @@ PetscErrorCode MatSetUpMultiply_MPIBAIJ(Mat mat)
   ierr = VecCreateMPIWithArray(PetscObjectComm((PetscObject)mat),1,mat->cmap->n,mat->cmap->N,NULL,&gvec);CHKERRQ(ierr);
 
   ierr = VecScatterCreate(gvec,from,baij->lvec,to,&baij->Mvctx);CHKERRQ(ierr);
+  ierr = VecScatterViewFromOptions(baij->Mvctx,(PetscObject)mat,"-matmult_vecscatter_view");CHKERRQ(ierr);
 
   ierr = PetscLogObjectParent((PetscObject)mat,(PetscObject)baij->Mvctx);CHKERRQ(ierr);
   ierr = PetscLogObjectParent((PetscObject)mat,(PetscObject)baij->lvec);CHKERRQ(ierr);
@@ -121,7 +122,7 @@ PetscErrorCode MatSetUpMultiply_MPIBAIJ(Mat mat)
 
   baij->garray = garray;
 
-  ierr = PetscLogObjectMemory((PetscObject)mat,(ec+1)*sizeof(PetscInt));CHKERRQ(ierr);
+  ierr = PetscLogObjectMemory((PetscObject)mat,ec*sizeof(PetscInt));CHKERRQ(ierr);
   ierr = ISDestroy(&from);CHKERRQ(ierr);
   ierr = ISDestroy(&to);CHKERRQ(ierr);
   ierr = VecDestroy(&gvec);CHKERRQ(ierr);
@@ -147,7 +148,6 @@ PetscErrorCode MatDisAssemble_MPIBAIJ(Mat A)
   PetscInt       bs2 = baij->bs2,*nz,ec,m = A->rmap->n;
   MatScalar      *a  = Bbaij->a;
   MatScalar      *atmp;
-
 
   PetscFunctionBegin;
   /* free stuff related to matrix-vec multiply */
@@ -213,7 +213,6 @@ PetscErrorCode MatDisAssemble_MPIBAIJ(Mat A)
 static PetscInt *uglyrmapd = NULL,*uglyrmapo = NULL;  /* mapping from the local ordering to the "diagonal" and "off-diagonal" parts of the local matrix */
 static Vec      uglydd     = NULL,uglyoo     = NULL;  /* work vectors used to scale the two parts of the local matrix */
 
-
 PetscErrorCode MatMPIBAIJDiagonalScaleLocalSetUp(Mat inA,Vec scale)
 {
   Mat_MPIBAIJ    *ina = (Mat_MPIBAIJ*) inA->data; /*access private part of matrix */
@@ -233,7 +232,7 @@ PetscErrorCode MatMPIBAIJDiagonalScaleLocalSetUp(Mat inA,Vec scale)
       r_rmapd[i] = inA->rmap->mapping->indices[i] + 1;
     }
   }
-  if (nt*bs != n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Hmm nt*bs %D n %D",nt*bs,n);
+  if (nt*bs != n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Hmm nt*bs %" PetscInt_FMT " n %" PetscInt_FMT,nt*bs,n);
   ierr = PetscMalloc1(n+1,&uglyrmapd);CHKERRQ(ierr);
   for (i=0; i<inA->rmap->mapping->n; i++) {
     if (r_rmapd[i]) {
@@ -258,7 +257,7 @@ PetscErrorCode MatMPIBAIJDiagonalScaleLocalSetUp(Mat inA,Vec scale)
       r_rmapo[i] = lindices[inA->rmap->mapping->indices[i]];
     }
   }
-  if (nt > no) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Hmm nt %D no %D",nt,n);
+  if (nt > no) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Hmm nt %" PetscInt_FMT " no %" PetscInt_FMT,nt,n);
   ierr = PetscFree(lindices);CHKERRQ(ierr);
   ierr = PetscMalloc1(nt*bs+1,&uglyrmapo);CHKERRQ(ierr);
   for (i=0; i<inA->rmap->mapping->n; i++) {

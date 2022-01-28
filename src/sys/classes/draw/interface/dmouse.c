@@ -15,8 +15,10 @@
 
     Output Parameters:
 +   button - one of PETSC_BUTTON_LEFT, PETSC_BUTTON_CENTER, PETSC_BUTTON_RIGHT, PETSC_BUTTON_WHEEL_UP, PETSC_BUTTON_WHEEL_DOWN
-.   x_user, y_user - user coordinates of location (user may pass in NULL).
--   x_phys, y_phys - window coordinates (user may pass in NULL).
+.   x_user - horizontal user coordinate of location (user may pass in NULL).
+.   y_user - vertical user coordinate of location (user may pass in NULL).
+.   x_phys - horizontal window coordinate (user may pass in NULL).
+-   y_phys - vertical window coordinate (user may pass in NULL).
 
     Notes:
     Only processor 0 actually waits for the button to be pressed.
@@ -36,21 +38,16 @@ PetscErrorCode  PetscDrawGetMouseButton(PetscDraw draw,PetscDrawButton *button,P
 
   ierr = (*draw->ops->getmousebutton)(draw,button,x_user,y_user,x_phys,y_phys);CHKERRQ(ierr);
 
-  ierr = MPI_Bcast((PetscEnum*)button,1,MPIU_ENUM,0,PetscObjectComm((PetscObject)draw));CHKERRQ(ierr);
+  ierr = MPI_Bcast((PetscEnum*)button,1,MPIU_ENUM,0,PetscObjectComm((PetscObject)draw));CHKERRMPI(ierr);
   if (x_user) bcast[0] = *x_user;
   if (y_user) bcast[1] = *y_user;
   if (x_phys) bcast[2] = *x_phys;
   if (y_phys) bcast[3] = *y_phys;
-  ierr = MPI_Bcast(bcast,4,MPIU_REAL,0,PetscObjectComm((PetscObject)draw));CHKERRQ(ierr);
+  ierr = MPI_Bcast(bcast,4,MPIU_REAL,0,PetscObjectComm((PetscObject)draw));CHKERRMPI(ierr);
   if (x_user) *x_user = bcast[0];
   if (y_user) *y_user = bcast[1];
   if (x_phys) *x_phys = bcast[2];
   if (y_phys) *y_phys = bcast[3];
   PetscFunctionReturn(0);
 }
-
-
-
-
-
 

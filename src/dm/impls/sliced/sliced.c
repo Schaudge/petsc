@@ -179,7 +179,7 @@ static PetscErrorCode DMSlicedSetBlockFills_Private(PetscInt bs,const PetscInt *
 
     Logically Collective on dm
 
-    Input Parameter:
+    Input Parameters:
 +   sliced - the DM object
 .   dfill - the fill pattern in the diagonal block (may be NULL, means use dense block)
 -   ofill - the fill pattern in the off-diagonal blocks
@@ -289,7 +289,7 @@ PETSC_EXTERN PetscErrorCode DMCreate_Sliced(DM p)
 
     Collective
 
-    Input Parameter:
+    Input Parameters:
 +   comm - the processors that will share the global vector
 .   bs - the block size
 .   nlocal - number of vector entries on this process
@@ -319,7 +319,7 @@ PetscErrorCode  DMSlicedCreate(MPI_Comm comm,PetscInt bs,PetscInt nlocal,PetscIn
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  PetscValidPointer(dm,2);
+  PetscValidPointer(dm,8);
   ierr = DMCreate(comm,dm);CHKERRQ(ierr);
   ierr = DMSetType(*dm,DMSLICED);CHKERRQ(ierr);
   ierr = DMSlicedSetGhosts(*dm,bs,nlocal,Nghosts,ghosts);CHKERRQ(ierr);

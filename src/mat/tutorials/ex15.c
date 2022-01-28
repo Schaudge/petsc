@@ -22,7 +22,7 @@ int main(int argc, char **args)
   ierr = PetscInitialize(&argc, &args, (char*) 0, help);if (ierr) return ierr;
   comm = PETSC_COMM_WORLD;
   ierr = PetscOptionsGetInt(NULL,NULL, "-N", &N, NULL);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm,&rank);CHKERRMPI(ierr);
   ierr = MatCreate(comm, &A);CHKERRQ(ierr);
   ierr = MatSetSizes(A, PETSC_DECIDE, PETSC_DECIDE, N, N);CHKERRQ(ierr);
   ierr = MatSetFromOptions(A);CHKERRQ(ierr);
@@ -79,7 +79,7 @@ int main(int argc, char **args)
     ierr = MatPartitioningSetUseEdgeWeights(part,use_edge_weights);CHKERRQ(ierr);
 
     ierr = MatPartitioningGetUseEdgeWeights(part,&use_edge_weights);CHKERRQ(ierr);
-    if (!use_edge_weights) SETERRQ(comm,PETSC_ERR_ARG_INCOMP, "use_edge_weights flag does not setup correctly \n");
+    if (!use_edge_weights) SETERRQ(comm,PETSC_ERR_ARG_INCOMP, "use_edge_weights flag does not setup correctly ");
   }
   ierr = MatPartitioningSetFromOptions(part);CHKERRQ(ierr);
   ierr = MatPartitioningApply(part, &is);CHKERRQ(ierr);
@@ -91,7 +91,6 @@ int main(int argc, char **args)
   ierr = PetscFinalize();
   return ierr;
 }
-
 
 /*TEST
 

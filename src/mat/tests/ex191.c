@@ -12,7 +12,7 @@ int main(int argc,char **args)
   PetscInt       i;
 
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
 
   ierr = MatCreateDense(PETSC_COMM_WORLD,6,6,12,12,NULL,&A);CHKERRQ(ierr);
   ierr = MatDenseGetArray(A,&Av);CHKERRQ(ierr);
@@ -29,7 +29,7 @@ int main(int argc,char **args)
 
   ierr = MatCreate(PETSC_COMM_WORLD,&A);CHKERRQ(ierr);
   ierr = MatSetType(A,MATDENSE);CHKERRQ(ierr);
-  if (!rank) {
+  if (rank == 0) {
     ierr = MatSetSizes(A, 4, PETSC_DETERMINE, PETSC_DETERMINE,PETSC_DETERMINE);CHKERRQ(ierr);
   } else {
     ierr = MatSetSizes(A, 8, PETSC_DETERMINE, PETSC_DETERMINE,PETSC_DETERMINE);CHKERRQ(ierr);
@@ -45,7 +45,6 @@ int main(int argc,char **args)
   ierr = PetscFinalize();
   return ierr;
 }
-
 
 /*TEST
 

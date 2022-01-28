@@ -23,13 +23,13 @@ int main(int argc,char **argv)
   PetscViewer    subviewer;
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
 
   if (size != 2) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_WRONG_MPI_SIZE,"Must run with 2 processors");
 
   /* create two vectors */
-  if (!rank) nlocal = 8;
+  if (rank == 0) nlocal = 8;
   else nlocal = 4;
   ierr = VecCreate(PETSC_COMM_WORLD,&x);CHKERRQ(ierr);
   ierr = VecSetSizes(x,nlocal,12);CHKERRQ(ierr);
@@ -39,7 +39,7 @@ int main(int argc,char **argv)
   ierr = VecSetFromOptions(y);CHKERRQ(ierr);
 
   /* create two index sets */
-  if (!rank) {
+  if (rank == 0) {
     blocks[0] = 0; blocks[1] = 2;
   } else {
     blocks[0] = 1; blocks[1] = 2;
@@ -72,14 +72,13 @@ int main(int argc,char **argv)
   return ierr;
 }
 
-
-
 /*TEST
 
    testset:
       nsize: 2
       output_file: output/ex23_1.out
       filter: grep -v "  type:"
+      diff_args: -j
       test:
         suffix: standard
         args: -vec_type standard
@@ -92,7 +91,12 @@ int main(int argc,char **argv)
         suffix:  viennacl
         args: -vec_type viennacl
       test:
-        requires: kokkos_kernels
+        requires: !sycl kokkos_kernels
         suffix: kokkos
         args: -vec_type kokkos
+      test:
+        requires: hip
+        suffix: hip
+        args: -vec_type hip
+
 TEST*/

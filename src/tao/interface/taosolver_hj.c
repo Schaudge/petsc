@@ -1,6 +1,5 @@
 #include <petsc/private/taoimpl.h> /*I "petsctao.h" I*/
 
-
 /*@C
    TaoSetHessianRoutine - Sets the function to compute the Hessian as well as the location to store the matrix.
 
@@ -348,8 +347,9 @@ PetscErrorCode TaoComputeResidualJacobian(Tao tao, Vec X, Mat J, Mat Jpre)
 -  X   - input vector
 
    Output Parameters:
-+  Jpre - Jacobian matrix
--  Jinv - Preconditioning matrix
++  J    - Jacobian matrix
+.  Jpre - Preconditioning matrix
+-  Jinv -
 
    Notes:
    Most users should not need to explicitly call this routine, as it
@@ -806,7 +806,7 @@ $    func(Tao tao,Vec x,Mat J,Mat Jpre,void *ctx);
 
 .seealso: TaoComputeJacobianEquality(), TaoSetJacobianDesignRoutine(), TaoSetEqualityDesignIS()
 @*/
-PetscErrorCode TaoSetJacobianEqualityRoutine(Tao tao, Mat J, Mat Jpre, PetscErrorCode (*func)(Tao, Vec, Mat, Mat,void*), void *ctx)
+PetscErrorCode TaoSetJacobianEqualityRoutine(Tao tao, Mat J, Mat Jpre, PetscErrorCode (*func)(Tao, Vec, Mat, Mat, void*), void *ctx)
 {
   PetscErrorCode ierr;
 

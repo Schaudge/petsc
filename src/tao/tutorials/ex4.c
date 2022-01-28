@@ -409,7 +409,6 @@ static PetscErrorCode ObjectiveRegularizationADMM(Tao tao, Vec z, PetscReal *J, 
   PetscFunctionReturn(0);
 }
 
-
 /* NORM_2 Case: x - mu*(x + u - z)
  * NORM_1 Case: x/(|x| + eps) - mu*(x + u - z)
  * Else: TODO */
@@ -547,7 +546,7 @@ static PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
   for (i=0; i<ctx->iter; i++) {
     ierr = VecCopy(z,zold);CHKERRQ(ierr);
     ierr = TaoSolve(tao1);CHKERRQ(ierr); /* Updates xk */
-    if (ctx->p == NORM_1){
+    if (ctx->p == NORM_1) {
       ierr = VecWAXPY(temp,1.,xk,u);CHKERRQ(ierr);
       ierr = TaoSoftThreshold(temp,-ctx->alpha/mu,ctx->alpha/mu,z);CHKERRQ(ierr);
     } else {
@@ -691,11 +690,11 @@ int main(int argc, char ** argv)
 
   test:
     suffix: hessian_1
-    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -tao_type nls -tao_nls_ksp_monitor
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -tao_type nls
 
   test:
     suffix: hessian_2
-    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -tao_type nls -tao_nls_ksp_monitor
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -tao_type nls
 
   test:
     suffix: nm_1

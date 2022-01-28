@@ -14,14 +14,14 @@ int main(int argc,char **argv)
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
   ierr = PetscOptionsGetInt(NULL,NULL,"-n",&n,NULL);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr); n = rank + 2;
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);n = rank + 2;
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
 
   /* create the orderings */
   ierr = PetscMalloc2(n,&ispetsc,n,&isapp);CHKERRQ(ierr);
 
-  ierr   = MPI_Scan(&n,&start,1,MPIU_INT,MPI_SUM,PETSC_COMM_WORLD);CHKERRQ(ierr);
-  ierr   = MPI_Allreduce(&n,&N,1,MPIU_INT,MPI_SUM,PETSC_COMM_WORLD);CHKERRQ(ierr);
+  ierr   = MPI_Scan(&n,&start,1,MPIU_INT,MPI_SUM,PETSC_COMM_WORLD);CHKERRMPI(ierr);
+  ierr   = MPI_Allreduce(&n,&N,1,MPIU_INT,MPI_SUM,PETSC_COMM_WORLD);CHKERRMPI(ierr);
   start -= n;
 
   for (i=0; i<n; i++) {
@@ -37,7 +37,7 @@ int main(int argc,char **argv)
   ierr = AOPetscToApplication(ao,n,ispetsc);CHKERRQ(ierr);
   for (i=0; i<n; i++) {
     if (ispetsc[i] != isapp[i]) {
-      ierr = PetscPrintf(PETSC_COMM_WORLD,"[%d] Problem with mapping %D to %D\n",rank,i,ispetsc[i]);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"[%d] Problem with mapping %" PetscInt_FMT " to %" PetscInt_FMT "\n",rank,i,ispetsc[i]);CHKERRQ(ierr);
     }
   }
   ierr = PetscFree2(ispetsc,isapp);CHKERRQ(ierr);
@@ -46,10 +46,6 @@ int main(int argc,char **argv)
   ierr = PetscFinalize();
   return ierr;
 }
-
-
-
-
 
 /*TEST
 

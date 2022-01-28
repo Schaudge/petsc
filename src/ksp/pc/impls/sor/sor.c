@@ -118,7 +118,6 @@ PetscErrorCode PCView_SOR(PC pc,PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
-
 /* ------------------------------------------------------------------------------*/
 static PetscErrorCode  PCSORSetSymmetric_SOR(PC pc,MatSORType flag)
 {
@@ -262,7 +261,7 @@ PetscErrorCode  PCSORGetOmega(PC pc,PetscReal *omega)
    Input Parameter:
 .  pc - the preconditioner context
 
-   Output Parameter:
+   Output Parameters:
 +  lits - number of local iterations, smoothings over just variables on processor
 -  its - number of parallel iterations to use; each parallel iteration has lits local iterations
 
@@ -350,7 +349,6 @@ PetscErrorCode  PCSORSetSymmetric(PC pc,MatSORType flag)
 
    Note:
    If omega != 1, you will need to set the MAT_USE_INODES option to PETSC_FALSE on the matrix.
-
 
 .seealso: PCSORSetSymmetric(), PCSORSetIterations(), PCEisenstatSetOmega(), MatSetOption()
 @*/

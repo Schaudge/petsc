@@ -15,7 +15,7 @@ int main(int argc,char **argv)
   IS             is,newis;
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
 
   /*
      Create IS
@@ -31,7 +31,7 @@ int main(int argc,char **argv)
   */
   ierr = ISAllGather(is,&newis);CHKERRQ(ierr);
 
-  if (!rank) {
+  if (rank == 0) {
     ierr = ISView(newis,PETSC_VIEWER_STDOUT_SELF);CHKERRQ(ierr);
   }
 

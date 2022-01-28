@@ -73,6 +73,7 @@ PetscErrorCode  DMRegisterAll(void)
 #include <petscfe.h>     /*I  "petscfe.h"  I*/
 
 PETSC_EXTERN PetscErrorCode PetscSpaceCreate_Polynomial(PetscSpace);
+PETSC_EXTERN PetscErrorCode PetscSpaceCreate_Ptrimmed(PetscSpace);
 PETSC_EXTERN PetscErrorCode PetscSpaceCreate_Tensor(PetscSpace);
 PETSC_EXTERN PetscErrorCode PetscSpaceCreate_Sum(PetscSpace);
 PETSC_EXTERN PetscErrorCode PetscSpaceCreate_Point(PetscSpace);
@@ -99,6 +100,7 @@ PetscErrorCode PetscSpaceRegisterAll(void)
   PetscSpaceRegisterAllCalled = PETSC_TRUE;
 
   ierr = PetscSpaceRegister(PETSCSPACEPOLYNOMIAL, PetscSpaceCreate_Polynomial);CHKERRQ(ierr);
+  ierr = PetscSpaceRegister(PETSCSPACEPTRIMMED,   PetscSpaceCreate_Ptrimmed);CHKERRQ(ierr);
   ierr = PetscSpaceRegister(PETSCSPACETENSOR,     PetscSpaceCreate_Tensor);CHKERRQ(ierr);
   ierr = PetscSpaceRegister(PETSCSPACESUM,        PetscSpaceCreate_Sum);CHKERRQ(ierr);
   ierr = PetscSpaceRegister(PETSCSPACEPOINT,      PetscSpaceCreate_Point);CHKERRQ(ierr);

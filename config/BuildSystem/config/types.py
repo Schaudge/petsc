@@ -85,6 +85,9 @@ class Configure(config.base.Configure):
     body     = 'double _Complex x;\n x = I;\n'
     if not self.checkCompile(includes, body): return    # checkLink can succeed even if checkCompile fails
     if self.checkLink(includes, body):
+      # recheck with _GNU_SOURCE active (Issues with crayCC on aarch64)
+      includes = '#define _GNU_SOURCE\n#include <complex.h>\n'
+      if not self.checkCompile(includes, body): return
       self.addDefine('HAVE_C99_COMPLEX', 1)
       self.c99_complex = 1
     return
@@ -268,6 +271,8 @@ char petsc_max_path_len[] = xstr(PETSC_MAX_PATH_LEN);
                      'enum': (4, 8),
                      'size_t': (8, 4)}.items():
       self.executeTest(self.checkSizeof, args=[t, sizes])
+    if self.sizes['void-p'] == 8:
+      self.addDefine('USING_64BIT_PTR',1)
     self.executeTest(self.checkVisibility)
     self.executeTest(self.checkMaxPathLen)
     return

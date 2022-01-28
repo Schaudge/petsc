@@ -9,7 +9,7 @@ Input parameters are:\n\
 
 /*
 Example: ./ex78 -Ain Ain -rhs rhs -solu solu -noshift -mat_view
- with the datafiles in the followig format:
+ with the datafiles in the following format:
 Ain (I and J start at 0):
 ------------------------
 3 3 6
@@ -33,7 +33,6 @@ solu
 0 1.0
 */
 
-
 #include <petscmat.h>
 
 int main(int argc,char **args)
@@ -52,7 +51,7 @@ int main(int argc,char **args)
   PetscMPIInt    size;
 
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
   if (size != 1) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"This is a uniprocessor example only!");
 
   /* Read in matrix, rhs and exact solution from ascii files */
@@ -70,10 +69,10 @@ int main(int argc,char **args)
       n  = sizes[1];
       nz = sizes[2];
     } else {
-      if (fscanf(Afile,"%d %d %d\n",&m,&n,&nz) != 3)  SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Badly formatted input file\n");
+      if (fscanf(Afile,"%d %d %d\n",&m,&n,&nz) != 3)  SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Badly formatted input file");
     }
     ierr = PetscPrintf(PETSC_COMM_SELF,"m: %d, n: %d, nz: %d \n", m,n,nz);CHKERRQ(ierr);
-    if (m != n) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ, "Number of rows, cols must be same for this example\n");
+    if (m != n) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ, "Number of rows, cols must be same for this example");
     ierr = MatCreate(PETSC_COMM_SELF,&A);CHKERRQ(ierr);
     ierr = MatSetSizes(A,PETSC_DECIDE,PETSC_DECIDE,m,n);CHKERRQ(ierr);
     ierr = MatSetFromOptions(A);CHKERRQ(ierr);
@@ -81,7 +80,7 @@ int main(int argc,char **args)
     ierr = MatSetOption(A,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE);CHKERRQ(ierr);
 
     for (i=0; i<nz; i++) {
-      if (fscanf(Afile,"%d %d %le\n",&row,&col,(double*)&val) != 3) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Badly formatted input file\n");
+      if (fscanf(Afile,"%d %d %le\n",&row,&col,(double*)&val) != 3) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Badly formatted input file");
       row -= shift; col -= shift;  /* set index set starts at 0 */
       ierr = MatSetValues(A,1,&row,1,&col,&val,INSERT_VALUES);CHKERRQ(ierr);
     }
@@ -98,7 +97,7 @@ int main(int argc,char **args)
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n Read rhs in ascii format ...\n");CHKERRQ(ierr);
     ierr = PetscFOpen(PETSC_COMM_SELF,rhs,"r",&bfile);CHKERRQ(ierr);
     for (i=0; i<n; i++) {
-      if (fscanf(bfile,"%d %le\n",&dummy,(double*)&val) != 2) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Badly formatted input file\n");
+      if (fscanf(bfile,"%d %le\n",&dummy,(double*)&val) != 2) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Badly formatted input file");
       ierr = VecSetValues(b,1,&i,&val,INSERT_VALUES);CHKERRQ(ierr);
     }
     ierr = VecAssemblyBegin(b);CHKERRQ(ierr);
@@ -114,7 +113,7 @@ int main(int argc,char **args)
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n Read exact solution in ascii format ...\n");CHKERRQ(ierr);
     ierr = PetscFOpen(PETSC_COMM_SELF,solu,"r",&ufile);CHKERRQ(ierr);
     for (i=0; i<n; i++) {
-      if (fscanf(ufile,"%d  %le\n",&dummy,(double*)&val) != 2) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Badly formatted input file\n");
+      if (fscanf(ufile,"%d  %le\n",&dummy,(double*)&val) != 2) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Badly formatted input file");
       ierr = VecSetValues(u,1,&i,&val,INSERT_VALUES);CHKERRQ(ierr);
     }
     ierr = VecAssemblyBegin(u);CHKERRQ(ierr);
@@ -157,7 +156,7 @@ int main(int argc,char **args)
 /*TEST
 
    build:
-      requires:  !define(PETSC_USE_64BIT_INDICES) double !complex
+      requires:  !defined(PETSC_USE_64BIT_INDICES) double !complex
 
    test:
       requires: datafilespath

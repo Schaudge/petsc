@@ -19,8 +19,8 @@ int main(int argc,char **args)
   char           file[PETSC_MAX_PATH_LEN]; /* input file name */
 
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD, &rank);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD, &size);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD, &rank);CHKERRMPI(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD, &size);CHKERRMPI(ierr);
 
   /* Determine file from which we read the matrix A */
   ierr = PetscOptionsGetString(NULL,NULL,"-f",file,sizeof(file),&flg);CHKERRQ(ierr);
@@ -44,14 +44,14 @@ int main(int argc,char **args)
   /* Test Cholesky Factorization */
   ierr = MatGetOrdering(A,MATORDERINGNATURAL,&perm,&iperm);CHKERRQ(ierr);
 
-  if (!rank) printf(" Clique Cholesky:\n");
+  if (rank == 0) printf(" Clique Cholesky:\n");
   ierr = MatGetFactor(A,MATSOLVERCLIQUE,MAT_FACTOR_CHOLESKY,&F);CHKERRQ(ierr);
 
   info.fill = 5.0;
   ierr      = MatCholeskyFactorSymbolic(F,A,perm,&info);CHKERRQ(ierr);
 
   for (nfact = 0; nfact < 1; nfact++) {
-    if (!rank) printf(" %d-the Cholesky numfactorization \n",nfact);
+    if (rank == 0) printf(" %d-the Cholesky numfactorization \n",nfact);
     ierr = MatCholeskyFactorNumeric(F,A,&info);CHKERRQ(ierr);
 
     /* Test MatSolve() */
@@ -63,7 +63,7 @@ int main(int argc,char **args)
       ierr = VecAXPY(u,-1.0,b);CHKERRQ(ierr);
       ierr = VecNorm(u,NORM_INFINITY,&norm);CHKERRQ(ierr);
       /* if (norm > tol) { */
-      if (!rank) {
+      if (rank == 0) {
         ierr = PetscPrintf(PETSC_COMM_SELF,"MatSolve: rel residual %g/%g = %g, LU numfact %d\n",norm,Anorm,norm/Anorm,nfact);CHKERRQ(ierr);
       }
       /*} */

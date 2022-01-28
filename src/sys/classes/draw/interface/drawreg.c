@@ -77,8 +77,8 @@ PetscErrorCode  PetscDrawView(PetscDraw indraw,PetscViewer viewer)
     PetscMPIInt rank;
 
     ierr = PetscObjectName((PetscObject)indraw);CHKERRQ(ierr);
-    ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
-    if (!((PetscObject)indraw)->amsmem && !rank) {
+    ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
+    if (!((PetscObject)indraw)->amsmem && rank == 0) {
       ierr = PetscObjectViewSAWs((PetscObject)indraw,viewer);CHKERRQ(ierr);
     }
 #endif
@@ -116,7 +116,7 @@ PetscErrorCode  PetscDrawViewFromOptions(PetscDraw A,PetscObject obj,const char 
 
    Collective
 
-   Input Parameter:
+   Input Parameters:
 +  comm - MPI communicator
 .  display - X display when using X windows
 .  title - optional title added to top of window
@@ -129,14 +129,13 @@ PetscErrorCode  PetscDrawViewFromOptions(PetscDraw A,PetscObject obj,const char 
 
    Level: beginner
 
-
 .seealso: PetscDrawSetType(), PetscDrawSetFromOptions(), PetscDrawDestroy(), PetscDrawSetType(), PetscDrawLGCreate(), PetscDrawSPCreate(),
           PetscDrawViewPortsCreate(), PetscDrawViewPortsSet(), PetscDrawAxisCreate(), PetscDrawHGCreate(), PetscDrawBarCreate(),
           PetscViewerDrawGetDraw(), PetscDrawSetFromOptions(), PetscDrawSetSave(), PetscDrawSetSaveMovie(), PetscDrawSetSaveFinalImage(),
           PetscDrawOpenX(), PetscDrawOpenImage(), PetscDrawIsNull(), PetscDrawGetPopup(), PetscDrawCheckResizedWindow(), PetscDrawResizeWindow(),
           PetscDrawGetWindowSize(), PetscDrawLine(), PetscDrawArrow(), PetscDrawLineSetWidth(), PetscDrawLineGetWidth(), PetscDrawMarker(),
           PetscDrawPoint(), PetscDrawRectangle(), PetscDrawTriangle(), PetscDrawEllipse(), PetscDrawString(), PetscDrawStringCentered(),
-          PetscDrawStringBoxed(), PetscDrawStringBoxed(), PetscDrawStringVertical(), PetscDrawSetViewPort(), PetscDrawGetViewPort(),
+          PetscDrawStringBoxed(), PetscDrawStringVertical(), PetscDrawSetViewPort(), PetscDrawGetViewPort(),
           PetscDrawSplitViewPort(), PetscDrawSetTitle(), PetscDrawAppendTitle(), PetscDrawGetTitle(), PetscDrawSetPause(), PetscDrawGetPause(),
           PetscDrawPause(), PetscDrawSetDoubleBuffer(), PetscDrawClear(), PetscDrawFlush(), PetscDrawGetSingleton(), PetscDrawGetMouseButton(),
           PetscDrawZoom(), PetscDrawGetBoundingBox()
@@ -198,7 +197,7 @@ PetscErrorCode  PetscDrawCreate(MPI_Comm comm,const char display[],const char ti
 
    Collective on PetscDraw
 
-   Input Parameter:
+   Input Parameters:
 +  draw      - the graphics context
 -  type      - for example, PETSC_DRAW_X
 
@@ -319,7 +318,6 @@ $     PetscDrawSetType(ksp,"my_draw_type")
    or at runtime via the option
 $     -draw_type my_draw_type
 
-
 .seealso: PetscDrawRegisterAll(), PetscDrawRegisterDestroy(), PetscDrawType, PetscDrawSetType()
 @*/
 PetscErrorCode  PetscDrawRegister(const char *sname,PetscErrorCode (*function)(PetscDraw))
@@ -338,7 +336,7 @@ PetscErrorCode  PetscDrawRegister(const char *sname,PetscErrorCode (*function)(P
 
    Logically Collective on PetscDraw
 
-   Input Parameter:
+   Input Parameters:
 +  draw - the draw context
 -  prefix - the prefix to prepend to all option names
 
@@ -381,7 +379,6 @@ PetscErrorCode  PetscDrawSetOptionsPrefix(PetscDraw draw,const char prefix[])
 
    Notes:
     Must be called after PetscDrawCreate() before the PetscDraw is used.
-
 
 .seealso: PetscDrawCreate(), PetscDrawSetType(), PetscDrawSetSave(), PetscDrawSetSaveFinalImage(), PetscDrawPause(), PetscDrawSetPause()
 

@@ -34,7 +34,6 @@ typedef struct xyt_solver_info {
   PetscScalar tot_solve_time;
 } xyt_info;
 
-
 typedef struct matvec_info {
   PetscInt     n, m, n_global, m_global;
   PetscInt     *local2global;
@@ -91,7 +90,7 @@ PetscErrorCode XYT_factor(xyt_ADT xyt_handle,     /* prev. allocated xyt  handle
   check_handle(xyt_handle);
 
   /* only 2^k for now and all nodes participating */
-  if ((1<<(xyt_handle->level=PCTFS_i_log2_num_nodes))!=PCTFS_num_nodes) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_PLIB,"only 2^k for now and MPI_COMM_WORLD!!! %D != %D\n",1<<PCTFS_i_log2_num_nodes,PCTFS_num_nodes);
+  if ((1<<(xyt_handle->level=PCTFS_i_log2_num_nodes))!=PCTFS_num_nodes) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_PLIB,"only 2^k for now and MPI_COMM_WORLD!!! %D != %D",1<<PCTFS_i_log2_num_nodes,PCTFS_num_nodes);
 
   /* space for X info */
   xyt_handle->info = (xyt_info*)malloc(sizeof(xyt_info));
@@ -147,7 +146,6 @@ PetscErrorCode XYT_free(xyt_ADT xyt_handle)
   free(xyt_handle->mvi);
   free(xyt_handle);
 
-
   /* if the check fails we nuke */
   /* if NULL pointer passed to free we nuke */
   /* if the calls to free fail that's not my problem */
@@ -200,7 +198,6 @@ PetscErrorCode XYT_stats(xyt_ADT xyt_handle)
 
   return(0);
 }
-
 
 /*************************************xyt.c************************************
 
@@ -326,7 +323,7 @@ static PetscErrorCode xyt_generate(xyt_ADT xyt_handle)
   for (dim=i=j=0; i<m; i++) {
     /* time to move to the next level? */
     while (i==segs[dim]) {
-      if (dim==level) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"dim about to exceed level\n");
+      if (dim==level) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"dim about to exceed level");
       stages[dim++]=i;
       end         +=lnsep[dim];
     }
@@ -352,7 +349,7 @@ static PetscErrorCode xyt_generate(xyt_ADT xyt_handle)
       if (idx!=-1) {
         v[idx] = 1.0;
         j++;
-      } else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"NOT FOUND!\n");
+      } else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"NOT FOUND!");
     } else {
       idx=PCTFS_ivec_linear_search(col, a_local2global, a_m);
       if (idx!=-1) v[idx] = 1.0;
@@ -411,7 +408,7 @@ static PetscErrorCode xyt_generate(xyt_ADT xyt_handle)
 
     /* check for small alpha                             */
     /* LATER use this to detect and determine null space */
-    if (PetscAbsScalar(alpha)<1.0e-14) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"bad alpha! %g\n",alpha);
+    if (PetscAbsScalar(alpha)<1.0e-14) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"bad alpha! %g",alpha);
 
     /* compute v_l = v_l/sqrt(alpha) */
     PCTFS_rvec_scale(v,1.0/alpha,n);
@@ -460,7 +457,6 @@ static PetscErrorCode xyt_generate(xyt_ADT xyt_handle)
       xcol_sz[i]        = xcol_indices[2*i+1] = 0;
       xcol_vals[i]      = x_ptr;
     }
-
 
     /* add newly generated column, u_l, to Y */
     flag = 1;
@@ -593,11 +589,11 @@ static PetscErrorCode check_handle(xyt_ADT xyt_handle)
   PetscInt vals[2], work[2], op[] = {NON_UNIFORM,GL_MIN,GL_MAX};
 
   PetscFunctionBegin;
-  if (!xyt_handle) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"check_handle() :: bad handle :: NULL %D\n",xyt_handle);
+  if (!xyt_handle) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"check_handle() :: bad handle :: NULL %D",xyt_handle);
 
   vals[0]=vals[1]=xyt_handle->id;
   PCTFS_giop(vals,work,sizeof(op)/sizeof(op[0])-1,op);
-  if ((vals[0]!=vals[1])||(xyt_handle->id<=0)) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_PLIB,"check_handle() :: bad handle :: id mismatch min/max %D/%D %D\n", vals[0],vals[1], xyt_handle->id);
+  if ((vals[0]!=vals[1])||(xyt_handle->id<=0)) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_PLIB,"check_handle() :: bad handle :: id mismatch min/max %D/%D %D", vals[0],vals[1], xyt_handle->id);
   PetscFunctionReturn(0);
 }
 
@@ -660,7 +656,7 @@ static PetscErrorCode det_separators(xyt_ADT xyt_handle)
     /* pick the sub-hc with the most free dofs and do a mat-vec   */
     /* and pick up the responses on the other sub-hc from the     */
     /* initial separator set obtained from the symm. shared case  */
-    SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"shared dof separator determination not ready ... see hmt!!!\n");
+    SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"shared dof separator determination not ready ... see hmt!!!");
     /* [dead code deleted since it is unlikely to be completed] */
   } else {
     for (iptr=fo+n,id=PCTFS_my_id,mask=PCTFS_num_nodes>>1,edge=level;edge>0;edge--,mask>>=1) {
@@ -780,6 +776,4 @@ static PetscErrorCode do_matvec(mv_info *A, PetscScalar *v, PetscScalar *u)
   A->matvec((mv_info*)A->grid_data,v,u);
   PetscFunctionReturn(0);
 }
-
-
 

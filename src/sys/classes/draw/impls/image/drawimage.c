@@ -3,7 +3,7 @@
 
 #if defined(PETSC_USE_DEBUG)
 #define PetscDrawValidColor(color) \
-do { if (PetscUnlikely((color)<0||(color)>=256)) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Color value %D out of range [0..255]",(PetscInt)(color)); } while (0)
+do { if (PetscUnlikely((color)<0||(color)>=256)) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Color value %" PetscInt_FMT " out of range [0..255]",(PetscInt)(color)); } while (0)
 #else
 #define PetscDrawValidColor(color) do {} while (0)
 #endif
@@ -13,7 +13,6 @@ do { if (PetscUnlikely((color)<0||(color)>=256)) SETERRQ1(PETSC_COMM_SELF,PETSC_
 
 #define ITRANS(draw,img,i)  ((draw)->coor_xl + (((PetscReal)(i))*((draw)->coor_xr - (draw)->coor_xl)/((img)->w-1) - (draw)->port_xl)/((draw)->port_xr - (draw)->port_xl))
 #define JTRANS(draw,img,j)  ((draw)->coor_yl + (((PetscReal)(j))/((img)->h-1) + (draw)->port_yl - 1)*((draw)->coor_yr - (draw)->coor_yl)/((draw)->port_yl - (draw)->port_yr))
-
 
 static PetscErrorCode PetscDrawSetViewport_Image(PetscDraw draw,PetscReal xl,PetscReal yl,PetscReal xr,PetscReal yr)
 {
@@ -447,17 +446,17 @@ static PetscErrorCode PetscDrawGetImage_Image(PetscDraw draw,unsigned char palet
   if (w) *w = (unsigned int)img->w;
   if (h) *h = (unsigned int)img->h;
   if (pixels) *pixels = NULL;
-  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)draw),&rank);CHKERRQ(ierr);
-  if (!rank) {
+  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)draw),&rank);CHKERRMPI(ierr);
+  if (rank == 0) {
     ierr = PetscMemcpy(palette,img->palette,sizeof(img->palette));CHKERRQ(ierr);
     ierr = PetscMalloc1((size_t)(img->w*img->h),&buffer);CHKERRQ(ierr);
     if (pixels) *pixels = buffer;
   }
-  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)draw),&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)draw),&size);CHKERRMPI(ierr);
   if (size == 1) {
     ierr = PetscArraycpy(buffer,img->buffer,img->w*img->h);CHKERRQ(ierr);
   } else {
-    ierr = MPI_Reduce(img->buffer,buffer,img->w*img->h,MPI_UNSIGNED_CHAR,MPI_MAX,0,PetscObjectComm((PetscObject)draw));CHKERRQ(ierr);
+    ierr = MPI_Reduce(img->buffer,buffer,img->w*img->h,MPI_UNSIGNED_CHAR,MPI_MAX,0,PetscObjectComm((PetscObject)draw));CHKERRMPI(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -536,7 +535,6 @@ static const unsigned char BasicColors[PETSC_DRAW_BASIC_COLORS][3] = {
   { 255, 240, 245 }, /* lavenderblush */
   { 221, 160, 221 }, /* plum */
 };
-
 
 /*MC
    PETSC_DRAW_IMAGE - PETSc graphics device that uses a raster buffer

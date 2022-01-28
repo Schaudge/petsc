@@ -218,6 +218,41 @@ PETSC_INTERN PetscErrorCode MatProductSetFromOptions_Transpose(Mat D)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode MatGetDiagonal_Transpose(Mat A,Vec v)
+{
+  Mat_Transpose  *Aa = (Mat_Transpose*)A->data;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = MatGetDiagonal(Aa->A,v);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode MatConvert_Transpose(Mat A,MatType newtype,MatReuse reuse,Mat *newmat)
+{
+  Mat_Transpose  *Aa = (Mat_Transpose*)A->data;
+  PetscErrorCode ierr;
+  PetscBool      flg;
+
+  PetscFunctionBegin;
+  ierr = MatHasOperation(Aa->A,MATOP_TRANSPOSE,&flg);CHKERRQ(ierr);
+  if (flg) {
+    Mat B;
+
+    ierr = MatTranspose(Aa->A,MAT_INITIAL_MATRIX,&B);CHKERRQ(ierr);
+    if (reuse != MAT_INPLACE_MATRIX) {
+      ierr = MatConvert(B,newtype,reuse,newmat);CHKERRQ(ierr);
+      ierr = MatDestroy(&B);CHKERRQ(ierr);
+    } else {
+      ierr = MatConvert(B,newtype,MAT_INPLACE_MATRIX,&B);CHKERRQ(ierr);
+      ierr = MatHeaderReplace(A,&B);CHKERRQ(ierr);
+    }
+  } else { /* use basic converter as fallback */
+    ierr = MatConvert_Basic(A,newtype,reuse,newmat);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode MatTransposeGetMat_Transpose(Mat A,Mat *M)
 {
   Mat_Transpose  *Aa = (Mat_Transpose*)A->data;
@@ -306,6 +341,8 @@ PetscErrorCode  MatCreateTranspose(Mat A,Mat *N)
   (*N)->ops->axpy                  = MatAXPY_Transpose;
   (*N)->ops->hasoperation          = MatHasOperation_Transpose;
   (*N)->ops->productsetfromoptions = MatProductSetFromOptions_Transpose;
+  (*N)->ops->getdiagonal           = MatGetDiagonal_Transpose;
+  (*N)->ops->convert               = MatConvert_Transpose;
   (*N)->assembled                  = PETSC_TRUE;
 
   ierr = PetscObjectComposeFunction((PetscObject)(*N),"MatTransposeGetMat_C",MatTransposeGetMat_Transpose);CHKERRQ(ierr);
@@ -313,6 +350,9 @@ PetscErrorCode  MatCreateTranspose(Mat A,Mat *N)
   ierr = MatSetBlockSizes(*N,PetscAbs(A->cmap->bs),PetscAbs(A->rmap->bs));CHKERRQ(ierr);
   ierr = MatGetVecType(A,&vtype);CHKERRQ(ierr);
   ierr = MatSetVecType(*N,vtype);CHKERRQ(ierr);
+#if defined(PETSC_HAVE_DEVICE)
+  ierr = MatBindToCPU(*N,A->boundtocpu);CHKERRQ(ierr);
+#endif
   ierr = MatSetUp(*N);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

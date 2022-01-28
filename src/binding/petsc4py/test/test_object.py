@@ -1,5 +1,6 @@
-from petsc4py import PETSc
 import unittest
+
+from petsc4py import PETSc
 
 # --------------------------------------------------------------------
 
@@ -146,6 +147,16 @@ class BaseTestObject(object):
         self.assertEqual(obj.getRefCount(), 1)
         del obj
 
+    def testStateInspection(self):
+        state = self.obj.stateGet()
+        self.obj.stateIncrease()
+        self.assertTrue(state < self.obj.stateGet())
+        self.obj.stateSet(0)
+        self.assertTrue(self.obj.stateGet() == 0)
+        self.obj.stateSet(state)
+        self.assertTrue(self.obj.stateGet() == state)
+
+
 # --------------------------------------------------------------------
 
 class TestObjectRandom(BaseTestObject, unittest.TestCase):
@@ -189,15 +200,6 @@ class TestObjectVec(BaseTestObject, unittest.TestCase):
         BaseTestObject.setUp(self)
         self.obj.assemble()
 
-class TestObjectScatter(BaseTestObject, unittest.TestCase):
-    CLASS  = PETSc.Scatter
-    FACTORY = 'create'
-    def setUp(self):
-        v1, v2 = PETSc.Vec().createSeq(0), PETSc.Vec().createSeq(0)
-        i1, i2 = PETSc.IS().createGeneral([]), PETSc.IS().createGeneral([])
-        self.obj = PETSc.Scatter().create(v1, i1, v2, i2)
-        del v1, v2, i1, i2
-
 class TestObjectMat(BaseTestObject, unittest.TestCase):
     CLASS  = PETSc.Mat
     FACTORY = 'createAIJ'
@@ -207,6 +209,10 @@ class TestObjectMat(BaseTestObject, unittest.TestCase):
     def setUp(self):
         BaseTestObject.setUp(self)
         self.obj.assemble()
+
+class TestObjectMatPartitioning(BaseTestObject, unittest.TestCase):
+    CLASS  = PETSc.MatPartitioning
+    FACTORY = 'create'
 
 class TestObjectNullSpace(BaseTestObject, unittest.TestCase):
     CLASS  = PETSc.NullSpace
@@ -263,6 +269,7 @@ class TestObjectDMLabel(BaseTestObject, unittest.TestCase):
 # --------------------------------------------------------------------
 
 import numpy
+
 if numpy.iscomplexobj(PETSc.ScalarType()):
     del TestObjectTAO
 

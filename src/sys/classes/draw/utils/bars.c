@@ -2,29 +2,11 @@
 /*
   Contains the data structure for plotting a bargraph in a window with an axis.
 */
-#include <petscdraw.h>                       /*I "petscdraw.h" I*/
-#include <petsc/private/petscimpl.h>         /*I "petscsys.h" I*/
-#include <petscviewer.h>                     /*I "petscviewer.h" I*/
-#include <../src/sys/classes/draw/utils/axisimpl.h>   /* so we can directly modify axis xticks */
+
+#include <petsc/private/drawimpl.h> /*I "petscdraw.h" I*/
+#include <petscviewer.h>            /*I "petscviewer.h" I*/
 
 PetscClassId PETSC_DRAWBAR_CLASSID = 0;
-
-struct _p_PetscDrawBar {
-  PETSCHEADER(int);
-  PetscErrorCode (*destroy)(PetscDrawSP);
-  PetscErrorCode (*view)(PetscDrawSP,PetscViewer);
-  PetscDraw      win;
-  PetscDrawAxis  axis;
-  PetscReal      ymin,ymax;
-  int            numBins;
-  PetscReal      *values;
-  int            color;
-  char           **labels;
-  PetscBool      sort;
-  PetscReal      sorttolerance;
-};
-
-#define CHUNKSIZE 100
 
 /*@C
    PetscDrawBarCreate - Creates a bar graph data structure.
@@ -85,7 +67,7 @@ PetscErrorCode  PetscDrawBarCreate(PetscDraw draw,PetscDrawBar *bar)
 
    Logically Collective on PetscDrawBar
 
-   Input Parameter:
+   Input Parameters:
 +  bar - The bar graph context.
 .  bins  - number of items
 .  values - values of each item
@@ -175,7 +157,7 @@ PetscErrorCode  PetscDrawBarDraw(PetscDrawBar bar)
   PetscValidHeaderSpecific(bar,PETSC_DRAWBAR_CLASSID,1);
   ierr = PetscDrawIsNull(bar->win,&isnull);CHKERRQ(ierr);
   if (isnull) PetscFunctionReturn(0);
-  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)bar),&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)bar),&rank);CHKERRMPI(ierr);
 
   if (bar->numBins < 1) PetscFunctionReturn(0);
 
@@ -224,7 +206,7 @@ PetscErrorCode  PetscDrawBarDraw(PetscDrawBar bar)
   ierr = PetscDrawAxisDraw(bar->axis);CHKERRQ(ierr);
 
   ierr = PetscDrawCollectiveBegin(draw);CHKERRQ(ierr);
-  if (!rank) { /* Draw bins */
+  if (rank == 0) { /* Draw bins */
     for (i=0; i<nplot; i++) {
       idx = (bar->sort ? perm[numValues - i - 1] : i);
       binLeft  = xmin + i;
@@ -402,7 +384,6 @@ PetscErrorCode  PetscDrawBarGetDraw(PetscDrawBar bar,PetscDraw *draw)
 .  -bar_sort - sort the entries before drawing the bar graph
 
     Level: intermediate
-
 
 .seealso:  PetscDrawBarDestroy(), PetscDrawBarCreate(), PetscDrawBarSort()
 @*/

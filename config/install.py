@@ -142,7 +142,7 @@ class Installer(script.Script):
     except (IOError, os.error) as why:
       errors.append((srcname, dstname, str(why)))
     except shutil.Error as err:
-      errors.extend((srcname,dstname,str(err.args[0])))
+      errors.append((srcname,dstname,str(err.args[0])))
     if errors:
       raise shutil.Error(errors)
     return copies
@@ -181,7 +181,7 @@ class Installer(script.Script):
     newConfigDir=os.path.join(dst,'config')  # Am not renaming at present
     if not os.path.isdir(newConfigDir): os.mkdir(newConfigDir)
     testConfFiles="gmakegentest.py gmakegen.py testparse.py example_template.py".split()
-    testConfFiles+="petsc_harness.sh report_tests.py".split()
+    testConfFiles+="petsc_harness.sh report_tests.py query_tests.py".split()
     for tf in testConfFiles:
       self.copies.extend(self.copyfile(os.path.join('config',tf),newConfigDir))
     return
@@ -238,7 +238,7 @@ class Installer(script.Script):
       # catch the Error from the recursive copytree so that we can
       # continue with other files
       except shutil.Error as err:
-        errors.extend((srcname,dstname,str(err.args[0])))
+        errors.append((srcname,dstname,str(err.args[0])))
     for srcname, dstname in zip(srclinks, dstlinks):
       try:
         copyFunc(srcname, dstname)
@@ -248,7 +248,7 @@ class Installer(script.Script):
       # catch the Error from the recursive copytree so that we can
       # continue with other files
       except shutil.Error as err:
-        errors.extend((srcname,dstname,str(err.args[0])))
+        errors.append((srcname,dstname,str(err.args[0])))
     try:
       shutil.copystat(src, dst)
     except OSError as e:
@@ -256,7 +256,7 @@ class Installer(script.Script):
         # Copying file access times may fail on Windows
         pass
       else:
-        errors.extend((src, dst, str(e)))
+        errors.append((src, dst, str(e)))
     if errors:
       raise shutil.Error(errors)
     return copies
@@ -274,6 +274,8 @@ class Installer(script.Script):
       line = line.replace('${PETSC_DIR}/${PETSC_ARCH}', self.installDir)
       line = line.replace('PETSC_ARCH=${PETSC_ARCH}', '')
       line = line.replace('${PETSC_DIR}', self.installDir)
+      # replace PETSC_DIR/lib/petsc/bin with prefix/lib/petsc/bin
+      line = line.replace(self.rootBinDir,self.destBinDir)
       lines.append(line)
     oldFile.close()
     newFile = open(src, 'w')
@@ -333,7 +335,7 @@ for file in files:
     if not self.mpi.usingMPIUni:
       exclude.append('petsc-mpiexec.uni')
     self.setCompilers.pushLanguage('C')
-    if not self.setCompilers.isWindows(self.setCompilers.getCompiler(),self.log):
+    if self.setCompilers.getCompiler().find('win32fe') < 0:
       exclude.append('win32fe')
     self.setCompilers.popLanguage()
     self.copies.extend(self.copytree(self.rootBinDir, self.destBinDir, exclude = exclude ))
@@ -363,7 +365,7 @@ for file in files:
       os.symlink(linkto, dst)
       return
     shutil.copy2(src, dst)
-    if os.path.splitext(dst)[1] == '.'+self.arLibSuffix:
+    if self.setCompilers.getCompiler().find('win32fe') < 0 and os.path.splitext(dst)[1] == '.'+self.arLibSuffix:
       self.executeShellCommand(self.ranlib+' '+dst)
     if os.path.splitext(dst)[1] == '.dylib' and os.path.isfile('/usr/bin/install_name_tool'):
       [output,err,flg] = self.executeShellCommand("otool -D "+src)

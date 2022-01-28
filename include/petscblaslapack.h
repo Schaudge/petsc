@@ -34,11 +34,10 @@
     PetscStackPop;                                              \
   } while (0)
 
-PETSC_STATIC_INLINE void PetscMissingLapack(const char *fname,...)
+static inline void PetscMissingLapack(const char *fname,...)
 {
-  char mesg[1024];
-  PetscSNPrintf(mesg,1024,"%s - Lapack routine is unavailable.",fname);
-  SETERRABORT(PETSC_COMM_SELF,PETSC_ERR_SUP,mesg);
+  PetscError(PETSC_COMM_SELF,__LINE__,PETSC_FUNCTION_NAME,__FILE__,PETSC_ERR_SUP,PETSC_ERROR_INITIAL,"%s - Lapack routine is unavailable.",fname);
+  MPI_Abort(PETSC_COMM_SELF,PETSC_ERR_SUP);
 }
 
 #include <petscblaslapack_mangle.h>
@@ -242,19 +241,12 @@ BLAS_EXTERN void LAPACKhseqr_(const char*,const char*,PetscBLASInt*,PetscBLASInt
 #endif
 #endif /* defined(PETSC_USE_COMPLEX) */
 
-/* ESSL uses a different calling sequence for dgeev(), zgeev() than LAPACK; */
-#if defined(PETSC_HAVE_ESSL) && defined(PETSC_USE_COMPLEX)
-BLAS_EXTERN void LAPACKgeev_(PetscBLASInt*,PetscScalar*,PetscBLASInt*,PetscScalar*,PetscScalar*,PetscBLASInt*,PetscBLASInt*,PetscBLASInt*,PetscReal*,PetscBLASInt*);
-BLAS_EXTERN void LAPACKgesvd_(const char*,const char*,PetscBLASInt *,PetscBLASInt*,PetscScalar *,PetscBLASInt*,PetscReal*,PetscScalar*,PetscBLASInt*,PetscScalar*,PetscBLASInt*,PetscScalar*,PetscBLASInt*,PetscReal*,PetscBLASInt*);
-#elif defined(PETSC_HAVE_ESSL)
-BLAS_EXTERN void LAPACKgeev_(PetscBLASInt*,PetscScalar*,PetscBLASInt*,PetscScalar*,PetscScalar*,PetscBLASInt*,PetscBLASInt*,PetscBLASInt*,PetscReal*,PetscBLASInt*);
-BLAS_EXTERN void LAPACKgesvd_(const char*,const char*,PetscBLASInt *,PetscBLASInt*,PetscScalar *,PetscBLASInt*,PetscReal*,PetscScalar*,PetscBLASInt*,PetscScalar*,PetscBLASInt*,PetscScalar*,PetscBLASInt*,PetscBLASInt*);
-#elif defined(PETSC_USE_COMPLEX)
+#if defined(PETSC_USE_COMPLEX)
 BLAS_EXTERN void LAPACKgeev_(const char*,const char*,PetscBLASInt *,PetscScalar *,PetscBLASInt*,PetscScalar*,PetscScalar*,PetscBLASInt*,PetscScalar*,PetscBLASInt*,PetscScalar*,PetscBLASInt*,PetscReal*,PetscBLASInt*);
-BLAS_EXTERN void LAPACKgesvd_(const char*,const char*,PetscBLASInt *,PetscBLASInt*,PetscScalar *,PetscBLASInt*,PetscReal*,PetscScalar*,PetscBLASInt*,PetscScalar*,PetscBLASInt*,PetscScalar*,PetscBLASInt*,PetscReal*,PetscBLASInt*);
+BLAS_EXTERN void LAPACKgesvd_(const char*,const char*,const PetscBLASInt *,const PetscBLASInt*,PetscScalar *,const PetscBLASInt*,PetscReal*,PetscScalar*,const PetscBLASInt*,PetscScalar*,const PetscBLASInt*,PetscScalar*,const PetscBLASInt*,PetscReal*,PetscBLASInt*);
 #else
 BLAS_EXTERN void LAPACKgeev_(const char*,const char*,PetscBLASInt *,PetscScalar *,PetscBLASInt*,PetscReal*,PetscReal*,PetscScalar*,PetscBLASInt*,PetscScalar*,PetscBLASInt*,PetscScalar*,PetscBLASInt*,PetscBLASInt*);
-BLAS_EXTERN void LAPACKgesvd_(const char*,const char*,PetscBLASInt *,PetscBLASInt*,PetscScalar *,PetscBLASInt*,PetscReal*,PetscScalar*,PetscBLASInt*,PetscScalar*,PetscBLASInt*,PetscScalar*,PetscBLASInt*,PetscBLASInt*);
+BLAS_EXTERN void LAPACKgesvd_(const char*,const char*,const PetscBLASInt *,const PetscBLASInt*,PetscScalar *,const PetscBLASInt*,PetscReal*,PetscScalar*,const PetscBLASInt*,PetscScalar*,const PetscBLASInt*,PetscScalar*,const PetscBLASInt*,PetscBLASInt*);
 #endif
 
 #endif

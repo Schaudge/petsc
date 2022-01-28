@@ -14,7 +14,7 @@ int main(int argc,char **args)
   PetscInt       dim,Ii,J,n = 3,rstart,rend;
 
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
   ierr = PetscOptionsGetReal(NULL,NULL,"-sigma1",&sigma1,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,NULL,"-n",&n,NULL);CHKERRQ(ierr);
   dim  = n*n;
@@ -101,7 +101,7 @@ int main(int argc,char **args)
     ierr = MatCholeskyFactorNumeric(F,A,&info);CHKERRQ(ierr);
 
     ierr = MatGetInertia(F,&nneg,&nzero,&npos);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_WORLD," MatInertia: nneg: %D, nzero: %D, npos: %D\n",nneg,nzero,npos);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD," MatInertia: nneg: %" PetscInt_FMT ", nzero: %" PetscInt_FMT ", npos: %" PetscInt_FMT "\n",nneg,nzero,npos);CHKERRQ(ierr);
     ierr = MatDestroy(&F);CHKERRQ(ierr);
     ierr = ISDestroy(&perm);CHKERRQ(ierr);
     ierr = ISDestroy(&iperm);CHKERRQ(ierr);
@@ -125,7 +125,6 @@ int main(int argc,char **args)
   return ierr;
 }
 
-
 /*TEST
 
    build:
@@ -140,7 +139,6 @@ int main(int argc,char **args)
       nsize: 3
       args: -n 1000
       output_file: output/ex127.out
-
 
    test:
       suffix: superlu_dist

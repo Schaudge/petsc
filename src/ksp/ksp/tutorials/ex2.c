@@ -254,6 +254,17 @@ int main(int argc,char **args)
       args: -pc_type bjacobi -pc_bjacobi_blocks 4 -ksp_monitor_short -sub_pc_type jacobi -sub_ksp_type gmres
 
    test:
+      suffix: qmrcgs
+      args: -ksp_type qmrcgs -pc_type ilu
+      output_file: output/ex2_fbcgs.out
+
+   test:
+      suffix: qmrcgs_2
+      nsize: 3
+      args: -ksp_type qmrcgs -pc_type bjacobi
+      output_file: output/ex2_fbcgs_2.out
+
+   test:
       suffix: fbcgs
       args: -ksp_type fbcgs -pc_type ilu
 
@@ -315,6 +326,11 @@ int main(int argc,char **args)
       suffix: umfpack
       requires: suitesparse
       args: -ksp_type preonly -pc_type lu -pc_factor_mat_solver_type umfpack
+
+   test:
+      suffix: spqr
+      requires: suitesparse
+      args: -ksp_type preonly -pc_type qr -pc_factor_mat_solver_type spqr
 
    test:
      suffix: pc_symmetric

@@ -11,7 +11,7 @@ static PetscErrorCode CreateIS(MPI_Comm comm, PetscInt n, PetscInt first, PetscI
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm,&rank);CHKERRMPI(ierr);
   *is = NULL;
   first += rank;
   ierr = PetscMalloc1(n,&idx);CHKERRQ(ierr);
@@ -30,7 +30,7 @@ int main(int argc,char **argv)
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
   comm = PETSC_COMM_WORLD;
-  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm,&rank);CHKERRMPI(ierr);
   ierr = PetscOptionsGetInt(NULL,NULL,"-n",&n,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,NULL,"-first",&first,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,NULL,"-step",&step,NULL);CHKERRQ(ierr);
@@ -42,14 +42,12 @@ int main(int argc,char **argv)
   ierr = ISGeneralFilter(is, start, end);CHKERRQ(ierr);
   ierr = ISView(is,PETSC_VIEWER_STDOUT_(comm));CHKERRQ(ierr);
   ierr = ISGetSize(is, &N);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(PETSC_VIEWER_STDOUT_(comm), "global size: %D\n", N);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(PETSC_VIEWER_STDOUT_(comm), "global size: %" PetscInt_FMT "\n", N);CHKERRQ(ierr);
 
   ierr = ISDestroy(&is);CHKERRQ(ierr);
   ierr = PetscFinalize();
   return ierr;
 }
-
-
 
 /*TEST
 

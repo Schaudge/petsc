@@ -17,8 +17,8 @@ int main(int argc,char **args)
   PetscBool      upwind = PETSC_FALSE, nonlocalBC = PETSC_FALSE, zerorhs = PETSC_TRUE, convert = PETSC_FALSE;
 
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
   n = nlocal*size;
 
   ierr = PetscOptionsGetInt(NULL,NULL, "-bs", &bs, NULL);CHKERRQ(ierr);
@@ -91,7 +91,7 @@ int main(int argc,char **args)
 
   if (nonlocalBC) {
     /*version where boundary conditions are set by processes that don't necessarily own the nodes */
-    if (!rank) {
+    if (rank == 0) {
       nboundary_nodes = size>m ? nlocal : m-size+nlocal;
       ierr = PetscMalloc1(nboundary_nodes,&boundary_nodes);CHKERRQ(ierr);
       k = 0;
@@ -131,7 +131,7 @@ int main(int argc,char **args)
     for (b=0; b<bs; b++, Ii++) {
       boundary_indices[k*bs+b] = Ii;
       boundary_values[k*bs+b] = v;
-      ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD, "%d %D %f\n", rank, Ii, (double)PetscRealPart(v));CHKERRQ(ierr);
+      ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD, "%d %" PetscInt_FMT " %f\n", rank, Ii, (double)PetscRealPart(v));CHKERRQ(ierr);
       v += 0.1;
     }
   }
@@ -174,7 +174,6 @@ int main(int argc,char **args)
   ierr = PetscFinalize();
   return ierr;
 }
-
 
 /*TEST
 

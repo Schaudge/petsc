@@ -45,8 +45,8 @@ int main(int argc,char **args)
   Mat            Cdensetest,Pdense,Cdense,Adense;
 
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
 
   ierr = PetscOptionsGetReal(NULL,NULL,"-fill",&fill,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(NULL,NULL,"-matops_view",&view,NULL);CHKERRQ(ierr);
@@ -110,7 +110,7 @@ int main(int argc,char **args)
     ierr = MatScale(A,-1.0);CHKERRQ(ierr); /* A = -A = B - A_save */
     ierr = MatAXPY(Btmp,-1.0,A,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr); /* Btmp = -A + B = A_save */
     ierr = MatMultEqual(A_save,Btmp,10,&flg);CHKERRQ(ierr);
-    if (!flg) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"MatAXPY() is incorrect\n");
+    if (!flg) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"MatAXPY() is incorrect");
     ierr = MatDestroy(&A);CHKERRQ(ierr);
     ierr = MatDestroy(&Btmp);CHKERRQ(ierr);
 
@@ -154,7 +154,7 @@ int main(int argc,char **args)
 
     ierr = MatMatMult(ATT,BTT,MAT_INITIAL_MATRIX,fill,&C);CHKERRQ(ierr);
     ierr = MatMatMultEqual(A,B,C,10,&flg);CHKERRQ(ierr);
-    if (!flg) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Error: MatMatMult()\n");
+    if (!flg) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Error: MatMatMult()");
     ierr = MatDestroy(&C);CHKERRQ(ierr);
 
     ierr = MatDestroy(&BTT);CHKERRQ(ierr);
@@ -174,7 +174,7 @@ int main(int argc,char **args)
       ierr   = MatMatMult(A,B,MAT_REUSE_MATRIX,fill,&C);CHKERRQ(ierr);
     }
     ierr = MatMatMultEqual(A,B,C,10,&flg);CHKERRQ(ierr);
-    if (!flg) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Error: MatMatMult()\n");
+    if (!flg) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Error: MatMatMult()");
     ierr = MatDestroy(&A);CHKERRQ(ierr);
 
     /* Test MatDuplicate() of C=A*B */
@@ -238,7 +238,7 @@ int main(int argc,char **args)
     /* Compare P^T*B and R*B */
     ierr = MatMatMult(R,B,MAT_INITIAL_MATRIX,fill,&C1);CHKERRQ(ierr);
     ierr = MatNormDifference(C,C1,&norm);CHKERRQ(ierr);
-    if (norm > PETSC_SMALL) SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_PLIB,"Error in MatTransposeMatMult(): %g\n",(double)norm);
+    if (norm > PETSC_SMALL) SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_PLIB,"Error in MatTransposeMatMult(): %g",(double)norm);
     ierr = MatDestroy(&C1);CHKERRQ(ierr);
 
     /* Test MatDuplicate() of C=P^T*B */
@@ -259,7 +259,7 @@ int main(int argc,char **args)
       /* Check */
       ierr = MatMatMult(B,P,MAT_INITIAL_MATRIX,fill,&C1);CHKERRQ(ierr);
       ierr = MatNormDifference(C,C1,&norm);CHKERRQ(ierr);
-      if (norm > PETSC_SMALL) SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_PLIB,"Error in MatMatTransposeMult() %g\n",(double)norm);
+      if (norm > PETSC_SMALL) SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_PLIB,"Error in MatMatTransposeMult() %g",(double)norm);
       ierr = MatDestroy(&C1);CHKERRQ(ierr);
       ierr = MatDestroy(&C);CHKERRQ(ierr);
     }
@@ -421,7 +421,7 @@ int main(int argc,char **args)
       norm_tmp /= norm_abs;
       if (norm_tmp > norm) norm = norm_tmp;
     }
-    if (norm >= PETSC_SMALL) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Error: MatPtAP(), |v1 - v2|: %g\n",(double)norm);
+    if (norm >= PETSC_SMALL) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Error: MatPtAP(), |v1 - v2|: %g",(double)norm);
 
     ierr = MatDestroy(&A);CHKERRQ(ierr);
     ierr = MatDestroy(&P);CHKERRQ(ierr);
@@ -445,93 +445,91 @@ int main(int argc,char **args)
   return ierr;
 }
 
-
-
 /*TEST
 
    test:
       suffix: 2_mattransposematmult_matmatmult
       nsize: 3
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       args: -f0 ${DATAFILESPATH}/matrices/medium -f1 ${DATAFILESPATH}/matrices/medium -mattransposematmult_via at*b> ex94_2.tmp 2>&1
 
    test:
       suffix: 2_mattransposematmult_scalable
       nsize: 3
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       args: -f0 ${DATAFILESPATH}/matrices/medium -f1 ${DATAFILESPATH}/matrices/medium -mattransposematmult_via scalable> ex94_2.tmp 2>&1
       output_file: output/ex94_1.out
 
    test:
       suffix: axpy_mpiaij
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       nsize: 8
       args: -f0 ${DATAFILESPATH}/matrices/poisson_2d5p -f1 ${DATAFILESPATH}/matrices/poisson_2d13p -test_MatAXPY
       output_file: output/ex94_1.out
 
    test:
       suffix: axpy_mpibaij
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       nsize: 8
       args: -f0 ${DATAFILESPATH}/matrices/poisson_2d5p -f1 ${DATAFILESPATH}/matrices/poisson_2d13p -test_MatAXPY -mat_type baij
       output_file: output/ex94_1.out
 
    test:
       suffix: axpy_mpisbaij
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       nsize: 8
       args: -f0 ${DATAFILESPATH}/matrices/poisson_2d5p -f1 ${DATAFILESPATH}/matrices/poisson_2d13p -test_MatAXPY -mat_type sbaij
       output_file: output/ex94_1.out
 
    test:
       suffix: matmatmult
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       args: -f0 ${DATAFILESPATH}/matrices/arco1 -f1 ${DATAFILESPATH}/matrices/arco1 -viewer_binary_skip_info
       output_file: output/ex94_1.out
 
    test:
       suffix: matmatmult_2
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       args: -f0 ${DATAFILESPATH}/matrices/arco1 -f1 ${DATAFILESPATH}/matrices/arco1 -mat_type mpiaij -viewer_binary_skip_info
       output_file: output/ex94_1.out
 
    test:
       suffix: matmatmult_scalable
       nsize: 4
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       args: -f0 ${DATAFILESPATH}/matrices/arco1 -f1 ${DATAFILESPATH}/matrices/arco1 -matmatmult_via scalable
       output_file: output/ex94_1.out
 
    test:
       suffix: ptap
       nsize: 3
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       args: -f0 ${DATAFILESPATH}/matrices/medium -f1 ${DATAFILESPATH}/matrices/medium -matptap_via scalable
       output_file: output/ex94_1.out
 
    test:
       suffix: rap
       nsize: 3
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       args: -f0 ${DATAFILESPATH}/matrices/medium -f1 ${DATAFILESPATH}/matrices/medium
       output_file: output/ex94_1.out
 
    test:
       suffix: scalable0
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       args: -f0 ${DATAFILESPATH}/matrices/arco1 -f1 ${DATAFILESPATH}/matrices/arco1 -viewer_binary_skip_info
       output_file: output/ex94_1.out
 
    test:
       suffix: scalable1
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       args: -f0 ${DATAFILESPATH}/matrices/arco1 -f1 ${DATAFILESPATH}/matrices/arco1 -viewer_binary_skip_info -matptap_via scalable
       output_file: output/ex94_1.out
 
    test:
       suffix: view
       nsize: 2
-      requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
+      requires: datafilespath !complex double !defined(PETSC_USE_64BIT_INDICES)
       args: -f0 ${DATAFILESPATH}/matrices/tiny -f1 ${DATAFILESPATH}/matrices/tiny -viewer_binary_skip_info -matops_view
       output_file: output/ex94_2.out
 

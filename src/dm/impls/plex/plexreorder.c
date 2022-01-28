@@ -50,7 +50,7 @@ static PetscErrorCode DMPlexCreateOrderingClosure_Static(DM dm, PetscInt numPoin
 
   Collective on dm
 
-  Input Parameter:
+  Input Parameters:
 + dm - The DMPlex object
 . otype - type of reordering, one of the following:
 $     MATORDERINGNATURAL - Natural
@@ -59,7 +59,6 @@ $     MATORDERING1WD - One-way Dissection
 $     MATORDERINGRCM - Reverse Cuthill-McKee
 $     MATORDERINGQMD - Quotient Minimum Degree
 - label - [Optional] Label used to segregate ordering into sets, or NULL
-
 
   Output Parameter:
 . perm - The point permutation as an IS, perm[old point number] = new point number
@@ -79,7 +78,7 @@ PetscErrorCode DMPlexGetOrdering(DM dm, MatOrderingType otype, DMLabel label, IS
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-  PetscValidPointer(perm, 3);
+  PetscValidPointer(perm, 4);
   ierr = DMPlexCreateNeighborCSR(dm, 0, &numCells, &start, &adjacency);CHKERRQ(ierr);
   ierr = PetscMalloc3(numCells,&cperm,numCells,&mask,numCells*2,&xls);CHKERRQ(ierr);
   if (numCells) {
@@ -143,7 +142,7 @@ PetscErrorCode DMPlexGetOrdering(DM dm, MatOrderingType otype, DMLabel label, IS
 
   Collective on dm
 
-  Input Parameter:
+  Input Parameters:
 + dm - The DMPlex object
 - perm - The point permutation, perm[old point number] = new point number
 
@@ -157,8 +156,8 @@ PetscErrorCode DMPlexGetOrdering(DM dm, MatOrderingType otype, DMLabel label, IS
 PetscErrorCode DMPlexPermute(DM dm, IS perm, DM *pdm)
 {
   DM_Plex       *plex = (DM_Plex *) dm->data, *plexNew;
-  PetscSection   section, sectionNew;
-  PetscInt       dim;
+  PetscInt       dim, cdim;
+  const char    *name;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -167,11 +166,17 @@ PetscErrorCode DMPlexPermute(DM dm, IS perm, DM *pdm)
   PetscValidPointer(pdm, 3);
   ierr = DMCreate(PetscObjectComm((PetscObject) dm), pdm);CHKERRQ(ierr);
   ierr = DMSetType(*pdm, DMPLEX);CHKERRQ(ierr);
+  ierr = PetscObjectGetName((PetscObject) dm, &name);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) *pdm, name);CHKERRQ(ierr);
   ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
   ierr = DMSetDimension(*pdm, dim);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDim(dm, &cdim);CHKERRQ(ierr);
+  ierr = DMSetCoordinateDim(*pdm, cdim);CHKERRQ(ierr);
   ierr = DMCopyDisc(dm, *pdm);CHKERRQ(ierr);
-  ierr = DMGetLocalSection(dm, &section);CHKERRQ(ierr);
-  if (section) {
+  if (dm->localSection) {
+    PetscSection section, sectionNew;
+
+    ierr = DMGetLocalSection(dm, &section);CHKERRQ(ierr);
     ierr = PetscSectionPermute(section, perm, &sectionNew);CHKERRQ(ierr);
     ierr = DMSetLocalSection(*pdm, sectionNew);CHKERRQ(ierr);
     ierr = PetscSectionDestroy(&sectionNew);CHKERRQ(ierr);

@@ -141,7 +141,7 @@ PetscErrorCode TaoComputeGradient(Tao tao, Vec X, Vec G)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tao,TAO_CLASSID,1);
   PetscValidHeaderSpecific(X,VEC_CLASSID,2);
-  PetscValidHeaderSpecific(G,VEC_CLASSID,2);
+  PetscValidHeaderSpecific(G,VEC_CLASSID,3);
   PetscCheckSameComm(tao,1,X,2);
   PetscCheckSameComm(tao,1,G,3);
   ierr = VecLockReadPush(X);CHKERRQ(ierr);
@@ -228,7 +228,7 @@ PetscErrorCode TaoComputeObjective(Tao tao, Vec X, PetscReal *f)
 + tao - the Tao context
 - X - input vector
 
-  Output Parameter:
+  Output Parameters:
 + f - Objective value at X
 - g - Gradient vector at X
 
@@ -289,7 +289,7 @@ PetscErrorCode TaoComputeObjectiveAndGradient(Tao tao, Vec X, PetscReal *f, Vec 
 
   Logically collective on Tao
 
-  Input Parameter:
+  Input Parameters:
 + tao - the Tao context
 . func - the objective function
 - ctx - [optional] user-defined context for private data for the function evaluation
@@ -320,7 +320,7 @@ PetscErrorCode TaoSetObjectiveRoutine(Tao tao, PetscErrorCode (*func)(Tao, Vec, 
 
   Logically collective on Tao
 
-  Input Parameter:
+  Input Parameters:
 + tao - the Tao context
 . func - the residual evaluation routine
 - ctx - [optional] user-defined context for private data for the function evaluation
@@ -367,8 +367,6 @@ PetscErrorCode TaoSetResidualRoutine(Tao tao, Vec res, PetscErrorCode (*func)(Ta
 . rows    - index list of rows for sigma_w
 . cols    - index list of columns for sigma_w
 - vals - array of weights
-
-
 
   Note: Either sigma_v or sigma_w (or both) should be NULL
 
@@ -460,7 +458,7 @@ PetscErrorCode TaoComputeResidual(Tao tao, Vec X, Vec F)
 
   Logically collective on Tao
 
-  Input Parameter:
+  Input Parameters:
 + tao - the Tao context
 . func - the gradient function
 - ctx - [optional] user-defined context for private data for the gradient evaluation
@@ -491,7 +489,7 @@ PetscErrorCode TaoSetGradientRoutine(Tao tao, PetscErrorCode (*func)(Tao, Vec, V
 
   Logically collective on Tao
 
-  Input Parameter:
+  Input Parameters:
 + tao - the Tao context
 . func - the gradient function
 - ctx - [optional] user-defined context for private data for the gradient evaluation
@@ -526,7 +524,7 @@ PetscErrorCode TaoSetObjectiveAndGradientRoutine(Tao tao, PetscErrorCode (*func)
 
   Collective on Tao
 
-  Input Parameter:
+  Input Parameters:
 + tao - the Tao context
 - ctx - PETSC_TRUE if objective function routine is set by user,
         PETSC_FALSE otherwise
@@ -551,7 +549,7 @@ PetscErrorCode TaoIsObjectiveDefined(Tao tao, PetscBool *flg)
 
   Not Collective
 
-  Input Parameter:
+  Input Parameters:
 + tao - the Tao context
 - ctx - PETSC_TRUE if gradient routine is set by user, PETSC_FALSE otherwise
   Level: developer
@@ -575,7 +573,7 @@ PetscErrorCode TaoIsGradientDefined(Tao tao, PetscBool *flg)
 
   Not Collective
 
-  Input Parameter:
+  Input Parameters:
 + tao - the Tao context
 - ctx - PETSC_TRUE if objective/gradient routine is set by user, PETSC_FALSE otherwise
   Level: developer

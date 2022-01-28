@@ -4,11 +4,13 @@ import os
 class Configure(config.package.GNUPackage):
   def __init__(self, framework):
     config.package.GNUPackage.__init__(self, framework)
-    self.download  = ['http://ftp.mcs.anl.gov/pub/petsc/externalpackages/zoltan_distrib_v3.83.tar.gz']
-    self.functions = ['Zoltan_LB_Partition']
-    self.includes  = ['zoltan.h']
-    self.liblist   = [['libzoltan.a']]
-    self.license   = 'http://www.cs.sandia.gov/Zoltan/Zoltan.html'
+    self.version     = '3.83'
+    self.versionname = 'ZOLTAN_VERSION_NUMBER'
+    self.download    = ['http://ftp.mcs.anl.gov/pub/petsc/externalpackages/zoltan_distrib_v'+self.version+'.tar.gz']
+    self.functions   = ['Zoltan_LB_Partition']
+    self.includes    = ['zoltan.h']
+    self.liblist     = [['libzoltan.a']]
+    self.license     = 'http://www.cs.sandia.gov/Zoltan/Zoltan.html'
 
   def setupDependencies(self, framework):
     config.package.GNUPackage.setupDependencies(self, framework)
@@ -62,8 +64,7 @@ class Configure(config.package.GNUPackage):
 
       output2,err2,ret2  = config.base.Configure.executeShellCommand('cd '+packageDir+' && '+self.make.make+' everything', timeout=6000, log = self.log)
       self.logPrintBox('Running make install on '+self.PACKAGE+'; this may take several minutes')
-      self.installDirProvider.printSudoPasswordMessage(self.installSudo)
-      output3,err3,ret3  = config.base.Configure.executeShellCommand('cd '+packageDir+' && '+self.installSudo+self.make.make+' install', timeout=300, log = self.log)
+      output3,err3,ret3  = config.base.Configure.executeShellCommand('cd '+packageDir+' && '+self.make.make+' install', timeout=300, log = self.log)
     except RuntimeError as e:
       raise RuntimeError('Error running make; make install on '+self.PACKAGE+': '+str(e))
     self.postInstall(output1+err1+output2+err2+output3+err3, conffile)

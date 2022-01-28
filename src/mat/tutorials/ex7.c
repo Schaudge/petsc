@@ -36,21 +36,21 @@ int main(int argc, char **argv)
   ierr = VecCreate(PETSC_COMM_WORLD, &b);CHKERRQ(ierr);
 
   ierr = PetscInfo(A, "Mat info on PETSC_COMM_WORLD with no arguments\n");CHKERRQ(ierr);
-  ierr = PetscInfo1(A, "Mat info on PETSC_COMM_WORLD with 1 argument equal to 1234: %D\n", testarg);CHKERRQ(ierr);
+  ierr = PetscInfo1(A, "Mat info on PETSC_COMM_WORLD with 1 argument equal to 1234: %" PetscInt_FMT "\n", testarg);CHKERRQ(ierr);
   ierr = PetscInfo(b, "Vec info on PETSC_COMM_WORLD with no arguments\n");CHKERRQ(ierr);
-  ierr = PetscInfo1(b, "Vec info on PETSC_COMM_WORLD with 1 argument equal to 1234: %D\n", testarg);CHKERRQ(ierr);
+  ierr = PetscInfo1(b, "Vec info on PETSC_COMM_WORLD with 1 argument equal to 1234: %" PetscInt_FMT "\n", testarg);CHKERRQ(ierr);
   ierr = PetscInfo(NULL, "Sys info on PETSC_COMM_WORLD with no arguments\n");CHKERRQ(ierr);
-  ierr = PetscInfo1(NULL, "Sys info on PETSC_COMM_WORLD with 1 argument equal to 1234: %D\n", testarg);CHKERRQ(ierr);
+  ierr = PetscInfo1(NULL, "Sys info on PETSC_COMM_WORLD with 1 argument equal to 1234: %" PetscInt_FMT "\n", testarg);CHKERRQ(ierr);
 
   ierr = MatCreate(PETSC_COMM_SELF, &Aself);CHKERRQ(ierr);
   ierr = VecCreate(PETSC_COMM_SELF, &bself);CHKERRQ(ierr);
 
   ierr = PetscInfo(Aself, "Mat info on PETSC_COMM_SELF with no arguments\n");CHKERRQ(ierr);
-  ierr = PetscInfo1(Aself, "Mat info on PETSC_COMM_SELF with 1 argument equal to 1234: %D\n", testarg);CHKERRQ(ierr);
+  ierr = PetscInfo1(Aself, "Mat info on PETSC_COMM_SELF with 1 argument equal to 1234: %" PetscInt_FMT "\n", testarg);CHKERRQ(ierr);
   ierr = PetscInfo(bself, "Vec info on PETSC_COMM_SELF with no arguments\n");CHKERRQ(ierr);
-  ierr = PetscInfo1(bself, "Vec info on PETSC_COMM_SELF with 1 argument equal to 1234: %D\n", testarg);CHKERRQ(ierr);
+  ierr = PetscInfo1(bself, "Vec info on PETSC_COMM_SELF with 1 argument equal to 1234: %" PetscInt_FMT "\n", testarg);CHKERRQ(ierr);
   ierr = PetscInfo(NULL, "Sys info on PETSC_COMM_SELF with no arguments\n");CHKERRQ(ierr);
-  ierr = PetscInfo1(NULL, "Sys info on PETSC_COMM_SELF with 1 argument equal to 1234: %D\n", testarg);CHKERRQ(ierr);
+  ierr = PetscInfo1(NULL, "Sys info on PETSC_COMM_SELF with 1 argument equal to 1234: %" PetscInt_FMT "\n", testarg);CHKERRQ(ierr);
 
   ierr = MatDestroy(&Aself);CHKERRQ(ierr);
   ierr = VecDestroy(&bself);CHKERRQ(ierr);
@@ -171,45 +171,45 @@ int main(int argc, char **argv)
 /*TEST
 
    test:
-      requires: define(PETSC_USE_INFO)
+      requires: defined(PETSC_USE_INFO)
       suffix: 1
       args: -info
-      filter: grep -h -ve Running -ve communicator -ve MPI_Comm -ve OpenMP -ve PetscGetHostName -ve PetscDetermineInitialFPTrap -ve libpetscbamg
+      filter: grep -h -ve Running -ve communicator -ve MPI_Comm -ve OpenMP -ve PetscGetHostName -ve PetscDetermineInitialFPTrap -ve libpetscbamg -ve PetscDeviceContext -ve PetscDeviceType
 
    test:
-      requires: define(PETSC_USE_INFO)
+      requires: defined(PETSC_USE_INFO)
       suffix: 2
       args: -info ex7info.2
-      filter: grep -h -ve Running -ve communicator -ve MPI_Comm -ve OpenMP -ve PetscGetHostName -ve PetscDetermineInitialFPTrap -ve libpetscbamg "ex7info.2.0"
+      filter: grep -h -ve Running -ve communicator -ve MPI_Comm -ve OpenMP -ve PetscGetHostName -ve PetscDetermineInitialFPTrap -ve libpetscbamg -ve PetscDeviceContext -ve PetscDeviceType "ex7info.2.0"
 
    test:
-      requires: define(PETSC_USE_INFO)
+      requires: defined(PETSC_USE_INFO)
       suffix: 3
       nsize: 2
       args: -info ex7info.3
-      filter: grep -h -ve Running -ve communicator -ve MPI_Comm -ve OpenMP -ve PetscGetHostName  -ve PetscDetermineInitialFPTrap -ve libpetscbamg "ex7info.3.0" | sort -b
+      filter: grep -h -ve Running -ve communicator -ve MPI_Comm -ve OpenMP -ve PetscGetHostName  -ve PetscDetermineInitialFPTrap -ve libpetscbamg -ve PetscDeviceContext -ve PetscDeviceType "ex7info.3.0" | sort -b
 
    test:
-      requires: define(PETSC_USE_INFO)
+      requires: defined(PETSC_USE_INFO)
       suffix: 4
       args: -info :mat,vec:
       filter: grep -h -ve Running -ve communicator -ve MPI_Comm -ve OpenMP -ve PetscGetHostName -ve PetscDetermineInitialFPTrap
 
    test:
-      requires: define(PETSC_USE_INFO)
+      requires: defined(PETSC_USE_INFO)
       suffix: 5
       args: -info :~sys:
       filter: grep -h  -ve PetscDetermineInitialFPTrap
 
    test:
-      requires: define(PETSC_USE_INFO)
+      requires: defined(PETSC_USE_INFO)
       suffix: 6
       nsize: 2
       args: -info ex7info.6:mat:self
       filter: grep -h "ex7info.6.0" | sort -b
 
    test:
-      requires: define(PETSC_USE_INFO)
+      requires: defined(PETSC_USE_INFO)
       suffix: 7
       nsize: 2
       args: -info ex7info.7:mat:~self

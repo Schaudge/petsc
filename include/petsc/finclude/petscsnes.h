@@ -33,6 +33,7 @@
 !
 #define SNESNEWTONLS         'newtonls'
 #define SNESNEWTONTR         'newtontr'
+#define SNESNEWTONTRDC       'newtontrdc'
 #define SNESPYTHON           'python'
 #define SNESNRICHARDSON      'nrichardson'
 #define SNESKSPONLY          'ksponly'
@@ -65,7 +66,6 @@
 #define SNES_LINESEARCH_ORDER_QUADRATIC 2
 #define SNES_LINESEARCH_ORDER_CUBIC     3
 
-
 !
 !  SNESMSType
 !
@@ -78,7 +78,5 @@
 #define SNESMSVLTP41    'vltp41'
 #define SNESMSVLTP51    'vltp51'
 #define SNESMSVLTP61    'vltp61'
-
-
 
 #endif

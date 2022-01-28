@@ -8,7 +8,7 @@
 
    Collective on IS
 
-   Input Parameter:
+   Input Parameters:
 +  is1 - first index, to have items removed from it
 -  is2 - index values to be removed
 
@@ -97,7 +97,7 @@ PetscErrorCode  ISDifference(IS is1,IS is2,IS *isout)
 
    Only sequential version (at the moment)
 
-   Input Parameter:
+   Input Parameters:
 +  is1 - index set to be extended
 -  is2 - index values to be added
 
@@ -113,7 +113,6 @@ PetscErrorCode  ISDifference(IS is1,IS is2,IS *isout)
 
 .seealso: ISDestroy(), ISView(), ISDifference(), ISExpand()
 
-
 @*/
 PetscErrorCode  ISSum(IS is1,IS is2,IS *is3)
 {
@@ -128,7 +127,7 @@ PetscErrorCode  ISSum(IS is1,IS is2,IS *is3)
   PetscValidHeaderSpecific(is1,IS_CLASSID,1);
   PetscValidHeaderSpecific(is2,IS_CLASSID,2);
   ierr = PetscObjectGetComm((PetscObject)(is1),&comm);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(comm,&size);CHKERRMPI(ierr);
   if (size>1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Currently only for uni-processor IS");
 
   ierr = ISSorted(is1,&f);CHKERRQ(ierr);
@@ -223,7 +222,7 @@ PetscErrorCode  ISSum(IS is1,IS is2,IS *is3)
 
    Collective on IS
 
-   Input Parameter:
+   Input Parameters:
 +  is1 - first index set
 -  is2 - index values to be added
 
@@ -240,7 +239,6 @@ PetscErrorCode  ISSum(IS is1,IS is2,IS *is3)
    Level: intermediate
 
 .seealso: ISDestroy(), ISView(), ISDifference(), ISSum()
-
 
 @*/
 PetscErrorCode ISExpand(IS is1,IS is2,IS *isout)
@@ -309,7 +307,7 @@ PetscErrorCode ISExpand(IS is1,IS is2,IS *isout)
 
    Collective on IS
 
-   Input Parameter:
+   Input Parameters:
 +  is1 - first index set
 -  is2 - second index set
 
@@ -354,7 +352,7 @@ PetscErrorCode ISIntersect(IS is1,IS is2,IS *isout)
     n2  = ntemp;
   }
   ierr = ISSorted(is1,&lsorted);CHKERRQ(ierr);
-  ierr = MPIU_Allreduce(&lsorted,&sorted,1,MPIU_BOOL,MPI_LAND,comm);CHKERRQ(ierr);
+  ierr = MPIU_Allreduce(&lsorted,&sorted,1,MPIU_BOOL,MPI_LAND,comm);CHKERRMPI(ierr);
   if (!sorted) {
     ierr = ISDuplicate(is1,&is1sorted);CHKERRQ(ierr);
     ierr = ISSort(is1sorted);CHKERRQ(ierr);
@@ -365,7 +363,7 @@ PetscErrorCode ISIntersect(IS is1,IS is2,IS *isout)
     ierr = ISGetIndices(is1,&i1);CHKERRQ(ierr);
   }
   ierr = ISSorted(is2,&lsorted);CHKERRQ(ierr);
-  ierr = MPIU_Allreduce(&lsorted,&sorted,1,MPIU_BOOL,MPI_LAND,comm);CHKERRQ(ierr);
+  ierr = MPIU_Allreduce(&lsorted,&sorted,1,MPIU_BOOL,MPI_LAND,comm);CHKERRMPI(ierr);
   if (!sorted) {
     ierr = ISDuplicate(is2,&is2sorted);CHKERRQ(ierr);
     ierr = ISSort(is2sorted);CHKERRQ(ierr);
@@ -412,7 +410,7 @@ PetscErrorCode ISIntersect_Caching_Internal(IS is1, IS is2, IS *isect)
     PetscObjectId  is2id;
 
     ierr = PetscObjectGetId((PetscObject)is2,&is2id);CHKERRQ(ierr);
-    ierr = PetscSNPrintf(composeStr,32,"ISIntersect_Caching_%x",is2id);CHKERRQ(ierr);
+    ierr = PetscSNPrintf(composeStr,32,"ISIntersect_Caching_%" PetscInt64_FMT,is2id);CHKERRQ(ierr);
     ierr = PetscObjectQuery((PetscObject) is1, composeStr, (PetscObject *) isect);CHKERRQ(ierr);
     if (*isect == NULL) {
       ierr = ISIntersect(is1, is2, isect);CHKERRQ(ierr);
@@ -427,10 +425,9 @@ PetscErrorCode ISIntersect_Caching_Internal(IS is1, IS is2, IS *isect)
 /*@
    ISConcatenate - Forms a new IS by locally concatenating the indices from an IS list without reordering.
 
-
    Collective.
 
-   Input Parameter:
+   Input Parameters:
 +  comm    - communicator of the concatenated IS.
 .  len     - size of islist array (nonnegative)
 -  islist  - array of index sets
@@ -444,7 +441,6 @@ PetscErrorCode ISIntersect_Caching_Internal(IS is1, IS is2, IS *isect)
    Level: intermediate
 
 .seealso: ISDifference(), ISSum(), ISExpand()
-
 
 @*/
 PetscErrorCode ISConcatenate(MPI_Comm comm, PetscInt len, const IS islist[], IS *isout)
@@ -464,7 +460,7 @@ PetscErrorCode ISConcatenate(MPI_Comm comm, PetscInt len, const IS islist[], IS 
     ierr = ISCreateStride(comm, 0,0,0, isout);CHKERRQ(ierr);
     PetscFunctionReturn(0);
   }
-  if (len < 0) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Negative array length: %D", len);
+  if (len < 0) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Negative array length: %" PetscInt_FMT, len);
   N = 0;
   for (i = 0; i < len; ++i) {
     if (islist[i]) {
@@ -491,7 +487,6 @@ PetscErrorCode ISConcatenate(MPI_Comm comm, PetscInt len, const IS islist[], IS 
    ISListToPair     -    convert an IS list to a pair of ISs of equal length defining an equivalent integer multimap.
                         Each IS on the input list is assigned an integer j so that all of the indices of that IS are
                         mapped to j.
-
 
   Collective.
 
@@ -553,7 +548,6 @@ PetscErrorCode ISListToPair(MPI_Comm comm, PetscInt listlen, IS islist[], IS *xi
   PetscFunctionReturn(0);
 }
 
-
 /*@
    ISPairToList   -   convert an IS pair encoding an integer map to a list of ISs.
                      Each IS on the output list contains the preimage for each index on the second input IS.
@@ -596,12 +590,12 @@ PetscErrorCode ISPairToList(IS xis, IS yis, PetscInt *listlen, IS **islist)
   PetscValidIntPointer(listlen,3);
   PetscValidPointer(islist,4);
   ierr = PetscObjectGetComm((PetscObject)xis,&comm);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(comm, &size);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm, &rank);CHKERRMPI(ierr);
+  ierr = MPI_Comm_rank(comm, &size);CHKERRMPI(ierr);
   /* Extract, copy and sort the local indices and colors on the color. */
   ierr = ISGetLocalSize(coloris, &llen);CHKERRQ(ierr);
   ierr = ISGetLocalSize(indis,   &ilen);CHKERRQ(ierr);
-  if (llen != ilen) SETERRQ2(comm, PETSC_ERR_ARG_SIZ, "Incompatible IS sizes: %D and %D", ilen, llen);
+  if (llen != ilen) SETERRQ2(comm, PETSC_ERR_ARG_SIZ, "Incompatible IS sizes: %" PetscInt_FMT " and %" PetscInt_FMT, ilen, llen);
   ierr = ISGetIndices(coloris, &ccolors);CHKERRQ(ierr);
   ierr = ISGetIndices(indis, &cinds);CHKERRQ(ierr);
   ierr = PetscMalloc2(ilen,&inds,llen,&colors);CHKERRQ(ierr);
@@ -618,8 +612,8 @@ PetscErrorCode ISPairToList(IS xis, IS yis, PetscInt *listlen, IS **islist)
     lhigh = PetscMax(lhigh,colors[lstart]);
     ++lcount;
   }
-  ierr     = MPIU_Allreduce(&llow,&low,1,MPI_INT,MPI_MIN,comm);CHKERRQ(ierr);
-  ierr     = MPIU_Allreduce(&lhigh,&high,1,MPI_INT,MPI_MAX,comm);CHKERRQ(ierr);
+  ierr     = MPIU_Allreduce(&llow,&low,1,MPI_INT,MPI_MIN,comm);CHKERRMPI(ierr);
+  ierr     = MPIU_Allreduce(&lhigh,&high,1,MPI_INT,MPI_MAX,comm);CHKERRMPI(ierr);
   *listlen = 0;
   if (low <= high) {
     if (lcount > 0) {
@@ -647,17 +641,17 @@ PetscErrorCode ISPairToList(IS xis, IS yis, PetscInt *listlen, IS **islist)
           while (lend < llen && colors[lend] == colors[lstart]) ++lend;
         }
         /* Now check whether the identified color segment matches l. */
-        if (colors[lstart] < l) SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Locally owned color %D at location %D is < than the next global color %D", colors[lstart], lcount, l);
+        if (colors[lstart] < l) SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Locally owned color %" PetscInt_FMT " at location %" PetscInt_FMT " is < than the next global color %" PetscInt_FMT, colors[lstart], lcount, l);
       }
       color = (PetscMPIInt)(colors[lstart] == l);
       /* Check whether a proper subcommunicator exists. */
-      ierr = MPIU_Allreduce(&color,&subsize,1,MPI_INT,MPI_SUM,comm);CHKERRQ(ierr);
+      ierr = MPIU_Allreduce(&color,&subsize,1,MPI_INT,MPI_SUM,comm);CHKERRMPI(ierr);
 
       if (subsize == 1) subcomm = PETSC_COMM_SELF;
       else if (subsize == size) subcomm = comm;
       else {
         /* a proper communicator is necessary, so we create it. */
-        ierr = MPI_Comm_split(comm, color, rank, &subcomm);CHKERRQ(ierr);
+        ierr = MPI_Comm_split(comm, color, rank, &subcomm);CHKERRMPI(ierr);
       }
       if (colors[lstart] == l) {
         /* If we have l among the local colors, we create an IS to hold the corresponding indices. */
@@ -673,14 +667,13 @@ PetscErrorCode ISPairToList(IS xis, IS yis, PetscInt *listlen, IS **islist)
          a subcomm used in the IS creation above is duplicated
          into a proper PETSc comm.
          */
-        ierr = MPI_Comm_free(&subcomm);CHKERRQ(ierr);
+        ierr = MPI_Comm_free(&subcomm);CHKERRMPI(ierr);
       }
     } /* for (l = low; l < high; ++l) */
   } /* if (low <= high) */
   ierr = PetscFree2(inds,colors);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-
 
 /*@
    ISEmbed   -   embed IS a into IS b by finding the locations in b that have the same indices as in a.
@@ -737,7 +730,6 @@ PetscErrorCode ISEmbed(IS a, IS b, PetscBool drop, IS *c)
   PetscFunctionReturn(0);
 }
 
-
 /*@
   ISSortPermutation  -  calculate the permutation of the indices into a nondecreasing order.
 
@@ -749,7 +741,6 @@ PetscErrorCode ISEmbed(IS a, IS b, PetscBool drop, IS *c)
 
   Output argument:
 . h    -  permutation or NULL, if f is nondecreasing and always == PETSC_FALSE.
-
 
   Note: Indices in f are unchanged. f[h[i]] is the i-th smallest f index.
         If always == PETSC_FALSE, an extra check is peformed to see whether

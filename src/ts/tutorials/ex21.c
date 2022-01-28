@@ -319,9 +319,9 @@ PetscErrorCode SetBounds(Vec xl, Vec xu, PetscScalar ul, PetscScalar uh,AppCtx *
   ierr = VecGetArray(xl,&l);CHKERRQ(ierr);
   ierr = VecGetArray(xu,&u);CHKERRQ(ierr);
 
-  ierr = MPI_Comm_rank(appctx->comm,&rank);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(appctx->comm,&size);CHKERRQ(ierr);
-  if (!rank) {
+  ierr = MPI_Comm_rank(appctx->comm,&rank);CHKERRMPI(ierr);
+  ierr = MPI_Comm_size(appctx->comm,&size);CHKERRMPI(ierr);
+  if (rank == 0) {
     l[0] = -PETSC_INFINITY;
     u[0] =  PETSC_INFINITY;
   }
@@ -526,9 +526,9 @@ PetscErrorCode RHSFunction(TS ts,PetscReal t,Vec global_in,Vec global_out,void *
      In our case, u(t,0) = t + 1, so that u_{t}(t,0) = 1
              and  u(t,1) = 2t+ 2, so that u_{t}(t,1) = 2
   */
-  ierr = MPI_Comm_rank(appctx->comm,&rank);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(appctx->comm,&size);CHKERRQ(ierr);
-  if (!rank) copyptr[0] = 1.0;
+  ierr = MPI_Comm_rank(appctx->comm,&rank);CHKERRMPI(ierr);
+  ierr = MPI_Comm_size(appctx->comm,&size);CHKERRMPI(ierr);
+  if (rank == 0) copyptr[0] = 1.0;
   if (rank == size-1) copyptr[localsize-1] = (t < .5) ? 2.0 : 0.0;
 
   /*

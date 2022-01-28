@@ -18,7 +18,6 @@
 .seealso:   SNESSetFunction(), SNESGetFunction(), SNESSetObjective(), SNESGetObjective(), SNESJacobianFunction, SNESFunction
 M*/
 
-
 /*@C
    SNESSetObjective - Sets the objective function minimized by some of the SNES linesearch methods.
 
@@ -58,7 +57,7 @@ PetscErrorCode  SNESSetObjective(SNES snes,PetscErrorCode (*obj)(SNES,Vec,PetscR
    Input Parameter:
 .  snes - the SNES context
 
-   Output Parameter:
+   Output Parameters:
 +  obj - objective evaluation routine (or NULL); see SNESObjectFunction for details
 -  ctx - the function context (or NULL)
 
@@ -83,7 +82,7 @@ PetscErrorCode SNESGetObjective(SNES snes,PetscErrorCode (**obj)(SNES,Vec,PetscR
 
    Collective on SNES
 
-   Input Parameter:
+   Input Parameters:
 +  snes - the SNES context
 -  X    - the state vector
 
@@ -114,13 +113,12 @@ PetscErrorCode SNESComputeObjective(SNES snes,Vec X,PetscReal *ob)
   PetscFunctionReturn(0);
 }
 
-
 /*@C
    SNESObjectiveComputeFunctionDefaultFD - Computes the gradient of a user provided objective
 
    Collective on SNES
 
-   Input Parameter:
+   Input Parameters:
 +  snes - the SNES context
 .  X    - the state vector
 -  ctx  - the (ignored) function context

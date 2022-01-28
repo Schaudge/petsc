@@ -29,8 +29,8 @@ int main(int argc,char **args)
   ierr = PetscOptionsBool("-use_FFTW_interface", "Use PETSc-FFTW interface", "ex158",use_interface, &use_interface, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD, &size);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD, &rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD, &size);CHKERRMPI(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD, &rank);CHKERRMPI(ierr);
 
   ierr = PetscRandomCreate(PETSC_COMM_WORLD, &rdm);CHKERRQ(ierr);
   ierr = PetscRandomSetFromOptions(rdm);CHKERRQ(ierr);
@@ -42,7 +42,7 @@ int main(int argc,char **args)
     fftw_complex *data_in,*data_out,*data_out2;
     ptrdiff_t    alloc_local,local_n0,local_0_start;
 
-    if (!rank) printf("Use FFTW without PETSc-FFTW interface\n");
+    if (rank == 0) printf("Use FFTW without PETSc-FFTW interface\n");
     fftw_mpi_init();
     N           = N0*N1;
     alloc_local = fftw_mpi_local_size_2d(N0,N1,PETSC_COMM_WORLD,&local_n0,&local_0_start);
@@ -103,7 +103,7 @@ int main(int argc,char **args)
       N *= dim[i-1];
 
       /* Create FFTW object */
-      if (!rank) {
+      if (rank == 0) {
         ierr = PetscPrintf(PETSC_COMM_SELF,"Use PETSc-FFTW interface...%d-DIM:%d \n",DIM,N);CHKERRQ(ierr);
       }
       ierr = MatCreateFFT(PETSC_COMM_WORLD,DIM,dim,MATFFTW,&A);CHKERRQ(ierr);
@@ -145,7 +145,7 @@ int main(int argc,char **args)
       if (view) {ierr = VecView(output,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);}
       ierr = VecAXPY(output,-1.0,input);CHKERRQ(ierr);
       ierr = VecNorm(output,NORM_1,&enorm);CHKERRQ(ierr);
-      if (enorm > 1.e-09 && !rank) {
+      if (enorm > 1.e-09 && rank == 0) {
         ierr = PetscPrintf(PETSC_COMM_SELF,"  Error norm of |x - z| %e\n",enorm);CHKERRQ(ierr);
       }
 
@@ -164,11 +164,10 @@ int main(int argc,char **args)
   return ierr;
 }
 
-
 /*TEST
 
    build:
-      requires: fftw !complex
+      requires: !mpiuni fftw !complex
 
    test:
       output_file: output/ex158.out

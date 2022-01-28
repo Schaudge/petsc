@@ -12,7 +12,7 @@ PetscBool         PFRegisterAllCalled = PETSC_FALSE;
 
    Collective on PF
 
-   Input Parameter:
+   Input Parameters:
 +  pf - the function context
 .  apply - function to apply to an array
 .  applyvec - function to apply to a Vec
@@ -71,7 +71,7 @@ PetscErrorCode  PFDestroy(PF *pf)
 
    Collective
 
-   Input Parameter:
+   Input Parameters:
 +  comm - MPI communicator
 .  dimin - dimension of the space you are mapping from
 -  dimout - dimension of the space you are mapping to
@@ -89,7 +89,7 @@ PetscErrorCode  PFCreate(MPI_Comm comm,PetscInt dimin,PetscInt dimout,PF *pf)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  PetscValidPointer(pf,1);
+  PetscValidPointer(pf,4);
   *pf = NULL;
   ierr = PFInitializePackage();CHKERRQ(ierr);
 
@@ -153,9 +153,9 @@ PetscErrorCode  PFApplyVec(PF pf,Vec x,Vec y)
 
   ierr = VecGetLocalSize(x,&n);CHKERRQ(ierr);
   ierr = VecGetLocalSize(y,&p);CHKERRQ(ierr);
-  if ((pf->dimin*(n/pf->dimin)) != n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Local input vector length %D not divisible by dimin %D of function",n,pf->dimin);
-  if ((pf->dimout*(p/pf->dimout)) != p) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Local output vector length %D not divisible by dimout %D of function",p,pf->dimout);
-  if ((n/pf->dimin) != (p/pf->dimout)) SETERRQ4(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Local vector lengths %D %D are wrong for dimin and dimout %D %D of function",n,p,pf->dimin,pf->dimout);
+  if ((pf->dimin*(n/pf->dimin)) != n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Local input vector length %" PetscInt_FMT " not divisible by dimin %" PetscInt_FMT " of function",n,pf->dimin);
+  if ((pf->dimout*(p/pf->dimout)) != p) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Local output vector length %" PetscInt_FMT " not divisible by dimout %" PetscInt_FMT " of function",p,pf->dimout);
+  if ((n/pf->dimin) != (p/pf->dimout)) SETERRQ4(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Local vector lengths %" PetscInt_FMT " %" PetscInt_FMT " are wrong for dimin and dimout %" PetscInt_FMT " %" PetscInt_FMT " of function",n,p,pf->dimin,pf->dimout);
 
   if (pf->ops->applyvec) {
     ierr = (*pf->ops->applyvec)(pf->data,x,y);CHKERRQ(ierr);
@@ -204,8 +204,8 @@ PetscErrorCode  PFApply(PF pf,PetscInt n,const PetscScalar *x,PetscScalar *y)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(pf,PF_CLASSID,1);
-  PetscValidScalarPointer(x,2);
-  PetscValidScalarPointer(y,3);
+  PetscValidScalarPointer(x,3);
+  PetscValidScalarPointer(y,4);
   if (x == y) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_IDN,"x and y must be different arrays");
   if (!pf->ops->apply) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"No function has been provided for this PF");
 
@@ -287,7 +287,6 @@ PetscErrorCode  PFView(PF pf,PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
-
 /*@C
    PFRegister - Adds a method to the mathematical function package.
 
@@ -350,20 +349,18 @@ PetscErrorCode  PFGetType(PF pf,PFType *type)
   PetscFunctionReturn(0);
 }
 
-
 /*@C
    PFSetType - Builds PF for a particular function
 
    Collective on PF
 
-   Input Parameter:
+   Input Parameters:
 +  pf - the function context.
 .  type - a known method
 -  ctx - optional type dependent context
 
    Options Database Key:
 .  -pf_type <type> - Sets PF type
-
 
   Notes:
   See "petsc/include/petscpf.h" for available methods (for instance,
@@ -505,12 +502,4 @@ PetscErrorCode  PFInitializePackage(void)
   ierr = PetscRegisterFinalize(PFFinalizePackage);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-
-
-
-
-
-
-
-
 

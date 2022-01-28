@@ -24,7 +24,7 @@ static PetscErrorCode MatColoringApply_Natural(MatColoring mc,ISColoring *iscolo
   }
 
   ierr = PetscObjectGetComm((PetscObject)mat,&comm);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(comm,&size);CHKERRMPI(ierr);
   if (size > 1) {
     /* create a sequential iscoloring on all processors */
     ierr = MatGetSeqNonzeroStructure(mat,&mat_seq);CHKERRQ(ierr);
@@ -65,6 +65,13 @@ static PetscErrorCode MatColoringApply_Natural(MatColoring mc,ISColoring *iscolo
   PetscFunctionReturn(0);
 }
 
+/*MC
+  MATCOLORINGNATURAL - implements a trivial coloring routine with one color per column
+
+  Level: beginner
+
+.seealso: MatColoringCreate(), MatColoring, MatColoringSetType(), MatColoringType
+M*/
 PETSC_EXTERN PetscErrorCode MatColoringCreate_Natural(MatColoring mc)
 {
     PetscFunctionBegin;

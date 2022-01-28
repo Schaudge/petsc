@@ -59,7 +59,6 @@ static PetscErrorCode DMDAGetElements_2D(DM dm,PetscInt *nel,PetscInt *nen,const
       break;
     default:
       SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unknown element type %d",da->elementtype);
-      break;
     }
     nn = da->nen;
 
@@ -128,7 +127,6 @@ static PetscErrorCode DMDAGetElements_3D(DM dm,PetscInt *nel,PetscInt *nen,const
       break;
     default:
       SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unknown element type %d",da->elementtype);
-      break;
     }
     nn = da->nen;
 
@@ -406,7 +404,7 @@ PetscErrorCode  DMDAGetElements(DM dm,PetscInt *nel,PetscInt *nen,const PetscInt
     ierr = DMDAGetElements_2D(dm,nel,nen,e);CHKERRQ(ierr);
   } else if (dim==3) {
     ierr = DMDAGetElements_3D(dm,nel,nen,e);CHKERRQ(ierr);
-  } else SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_CORRUPT,"DMDA dimension not 1, 2, or 3, it is %D\n",dim);
+  } else SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_CORRUPT,"DMDA dimension not 1, 2, or 3, it is %D",dim);
   PetscFunctionReturn(0);
 }
 
@@ -457,7 +455,7 @@ PetscErrorCode  DMDAGetSubdomainCornersIS(DM dm,IS *is)
 
     Not Collective
 
-   Input Parameter:
+   Input Parameters:
 +     dm - the DM object
 .     nel - number of local elements
 .     nen - number of element nodes
@@ -491,7 +489,7 @@ PetscErrorCode  DMDARestoreElements(DM dm,PetscInt *nel,PetscInt *nen,const Pets
 
     Not Collective
 
-   Input Parameter:
+   Input Parameters:
 +     dm - the DM object
 -     is - the index set
 

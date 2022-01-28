@@ -1156,7 +1156,6 @@ PetscErrorCode MatMultAdd_SeqSBAIJ_N(Mat A,Vec xx,Vec yy,Vec zz)
   }
   work = a->mult_work;
 
-
   for (i=0; i<mbs; i++) {
     n           = ii[1] - ii[0]; ncols = n*bs;
     workt       = work; idx=aj+ii[0];
@@ -1386,7 +1385,7 @@ PetscErrorCode MatDiagonalScale_SeqSBAIJ(Mat A,Vec ll,Vec rr)
   PetscFunctionBegin;
   if (ll != rr) {
     ierr = VecEqual(ll,rr,&flg);CHKERRQ(ierr);
-    if (!flg) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"For symmetric format, left and right scaling vectors must be same\n");
+    if (!flg) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"For symmetric format, left and right scaling vectors must be same");
   }
   if (!ll) PetscFunctionReturn(0);
   ai  = a->i;
@@ -1716,27 +1715,27 @@ PetscErrorCode MatMatMultNumeric_SeqSBAIJ_SeqDense(Mat A,Mat B,Mat C)
 
   PetscFunctionBegin;
   if (!cm || !cn) PetscFunctionReturn(0);
-  if (B->rmap->n != A->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Number columns in A %D not equal rows in B %D\n",A->cmap->n,B->rmap->n);
-  if (A->rmap->n != C->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Number rows in C %D not equal rows in A %D\n",C->rmap->n,A->rmap->n);
-  if (B->cmap->n != C->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Number columns in B %D not equal columns in C %D\n",B->cmap->n,C->cmap->n);
+  if (B->rmap->n != A->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Number columns in A %" PetscInt_FMT " not equal rows in B %" PetscInt_FMT,A->cmap->n,B->rmap->n);
+  if (A->rmap->n != C->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Number rows in C %" PetscInt_FMT " not equal rows in A %" PetscInt_FMT,C->rmap->n,A->rmap->n);
+  if (B->cmap->n != C->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Number columns in B %" PetscInt_FMT " not equal columns in C %" PetscInt_FMT,B->cmap->n,C->cmap->n);
   b = bd->v;
   ierr = MatZeroEntries(C);CHKERRQ(ierr);
   ierr = MatDenseGetArray(C,&c);CHKERRQ(ierr);
   switch (bs) {
   case 1:
-    ierr = MatMatMult_SeqSBAIJ_1_Private(A, b, bm, c, cm, cn);
+    ierr = MatMatMult_SeqSBAIJ_1_Private(A, b, bm, c, cm, cn);CHKERRQ(ierr);
     break;
   case 2:
-    ierr = MatMatMult_SeqSBAIJ_2_Private(A, b, bm, c, cm, cn);
+    ierr = MatMatMult_SeqSBAIJ_2_Private(A, b, bm, c, cm, cn);CHKERRQ(ierr);
     break;
   case 3:
-    ierr = MatMatMult_SeqSBAIJ_3_Private(A, b, bm, c, cm, cn);
+    ierr = MatMatMult_SeqSBAIJ_3_Private(A, b, bm, c, cm, cn);CHKERRQ(ierr);
     break;
   case 4:
-    ierr = MatMatMult_SeqSBAIJ_4_Private(A, b, bm, c, cm, cn);
+    ierr = MatMatMult_SeqSBAIJ_4_Private(A, b, bm, c, cm, cn);CHKERRQ(ierr);
     break;
   case 5:
-    ierr = MatMatMult_SeqSBAIJ_5_Private(A, b, bm, c, cm, cn);
+    ierr = MatMatMult_SeqSBAIJ_5_Private(A, b, bm, c, cm, cn);CHKERRQ(ierr);
     break;
   default: /* block sizes larger than 5 by 5 are handled by BLAS */
     ierr = PetscBLASIntCast(bs,&bbs);CHKERRQ(ierr);

@@ -2,7 +2,7 @@
 #include <petsc/private/dmstagimpl.h>
 
 /*@C
-  DMStagCreate3d - Create an object to manage data living on the faces, edges, and vertices of a parallelized regular 3D grid.
+  DMStagCreate3d - Create an object to manage data living on the elements, faces, edges, and vertices of a parallelized regular 3D grid.
 
   Collective
 
@@ -11,13 +11,13 @@
 . bndx,bndy,bndz - boundary type: DM_BOUNDARY_NONE, DM_BOUNDARY_PERIODIC, or DM_BOUNDARY_GHOSTED
 . M,N,P - global number of grid points in x,y directions
 . m,n,p - number of ranks in the x,y directions (may be PETSC_DECIDE)
-. dof0 - number of degrees of freedom per vertex/point/node/0-cell
+. dof0 - number of degrees of freedom per vertex/0-cell
 . dof1 - number of degrees of freedom per edge/1-cell
 . dof2 - number of degrees of freedom per face/2-cell
 . dof3 - number of degrees of freedom per element/3-cell
 . stencilType - ghost/halo region type: DMSTAG_STENCIL_NONE, DMSTAG_STENCIL_BOX, or DMSTAG_STENCIL_STAR
 . stencilWidth - width, in elements, of halo/ghost region
-- lx,ly,lz - array sof local x,y,z element counts, of length equal to m,n,p, summing to M,N,P
+- lx,ly,lz - arrays of local x,y,z element counts, of length equal to m,n,p, summing to M,N,P
 
   Output Parameter:
 . dm - the new DMStag object
@@ -60,10 +60,10 @@ PETSC_INTERN PetscErrorCode DMStagSetUniformCoordinatesExplicit_3d(DM dm,PetscRe
   PetscErrorCode ierr;
   DM_Stag        *stagCoord;
   DM             dmCoord;
-  Vec            coordLocal,coord;
+  Vec            coordLocal;
   PetscReal      h[3],min[3];
   PetscScalar    ****arr;
-  PetscInt       ind[3],start[3],n[3],nExtra[3],s,c;
+  PetscInt       ind[3],start_ghost[3],n_ghost[3],s,c;
   PetscInt       ibackdownleft,ibackdown,ibackleft,iback,idownleft,idown,ileft,ielement;
 
   PetscFunctionBegin;
@@ -72,7 +72,7 @@ PETSC_INTERN PetscErrorCode DMStagSetUniformCoordinatesExplicit_3d(DM dm,PetscRe
   for (s=0; s<4; ++s) {
     if (stagCoord->dof[s] !=0 && stagCoord->dof[s] != 3) SETERRQ2(PetscObjectComm((PetscObject)dm),PETSC_ERR_PLIB,"Coordinate DM in 3 dimensions must have 0 or 3 dof on each stratum, but stratum %d has %d dof",s,stagCoord->dof[s]);
   }
-  ierr = DMGetLocalVector(dmCoord,&coordLocal);CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dmCoord,&coordLocal);CHKERRQ(ierr);
   ierr = DMStagVecGetArray(dmCoord,coordLocal,&arr);CHKERRQ(ierr);
   if (stagCoord->dof[0]) {
     ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_BACK_DOWN_LEFT,0,&ibackdownleft);CHKERRQ(ierr);
@@ -89,16 +89,16 @@ PETSC_INTERN PetscErrorCode DMStagSetUniformCoordinatesExplicit_3d(DM dm,PetscRe
   }
   if (stagCoord->dof[3]) {
     ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_ELEMENT       ,0,&ielement);CHKERRQ(ierr);
-    ierr = DMStagGetCorners(dmCoord,&start[0],&start[1],&start[2],&n[0],&n[1],&n[2],&nExtra[0],&nExtra[1],&nExtra[2]);CHKERRQ(ierr);
   }
+  ierr = DMStagGetGhostCorners(dmCoord,&start_ghost[0],&start_ghost[1],&start_ghost[2],&n_ghost[0],&n_ghost[1],&n_ghost[2]);CHKERRQ(ierr);
   min[0] = xmin; min[1]= ymin; min[2] = zmin;
   h[0] = (xmax-xmin)/stagCoord->N[0];
   h[1] = (ymax-ymin)/stagCoord->N[1];
   h[2] = (zmax-zmin)/stagCoord->N[2];
 
-  for (ind[2]=start[2]; ind[2]<start[2] + n[2] + nExtra[2]; ++ind[2]) {
-    for (ind[1]=start[1]; ind[1]<start[1] + n[1] + nExtra[1]; ++ind[1]) {
-      for (ind[0]=start[0]; ind[0]<start[0] + n[0] + nExtra[0]; ++ind[0]) {
+  for (ind[2]=start_ghost[2]; ind[2]<start_ghost[2] + n_ghost[2]; ++ind[2]) {
+    for (ind[1]=start_ghost[1]; ind[1]<start_ghost[1] + n_ghost[1]; ++ind[1]) {
+      for (ind[0]=start_ghost[0]; ind[0]<start_ghost[0] + n_ghost[0]; ++ind[0]) {
         if (stagCoord->dof[0]) {
           const PetscReal offs[3] = {0.0,0.0,0.0};
           for (c=0; c<3; ++c) {
@@ -151,13 +151,9 @@ PETSC_INTERN PetscErrorCode DMStagSetUniformCoordinatesExplicit_3d(DM dm,PetscRe
     }
   }
   ierr = DMStagVecRestoreArray(dmCoord,coordLocal,&arr);CHKERRQ(ierr);
-  ierr = DMCreateGlobalVector(dmCoord,&coord);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(dmCoord,coordLocal,INSERT_VALUES,coord);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd(dmCoord,coordLocal,INSERT_VALUES,coord);CHKERRQ(ierr);
-  ierr = DMSetCoordinates(dm,coord);CHKERRQ(ierr);
-  ierr = PetscLogObjectParent((PetscObject)dm,(PetscObject)coord);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmCoord,&coordLocal);CHKERRQ(ierr);
-  ierr = VecDestroy(&coord);CHKERRQ(ierr);
+  ierr = DMSetCoordinatesLocal(dm,coordLocal);CHKERRQ(ierr);
+  ierr = PetscLogObjectParent((PetscObject)dm,(PetscObject)coordLocal);CHKERRQ(ierr);
+  ierr = VecDestroy(&coordLocal);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -179,7 +175,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_3d(DM dm)
   const PetscInt  dim = 3;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)dm),&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)dm),&rank);CHKERRMPI(ierr);
 
   /* Rank grid sizes (populates stag->nRanks) */
   ierr = DMStagSetUpBuildRankGrid_3d(dm);CHKERRQ(ierr);
@@ -201,7 +197,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_3d(DM dm)
     if (!stag->l[i]) {
       const PetscInt Ni = stag->N[i], nRanksi = stag->nRanks[i];
       ierr = PetscMalloc1(stag->nRanks[i],&stag->l[i]);CHKERRQ(ierr);
-      for (j=0; j<stag->nRanks[i]; ++j){
+      for (j=0; j<stag->nRanks[i]; ++j) {
         stag->l[i][j] = Ni/nRanksi + ((Ni % nRanksi) > j);
       }
     }
@@ -214,14 +210,14 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_3d(DM dm)
       PetscInt Ncheck,j;
       Ncheck = 0;
       for (j=0; j<stag->nRanks[i]; ++j) Ncheck += stag->l[i][j];
-      if (Ncheck != stag->N[i]) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Local sizes in dimension %d don't add up. %d != %d\n",i,Ncheck,stag->N[i]);
+      if (Ncheck != stag->N[i]) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Local sizes in dimension %d don't add up. %d != %d",i,Ncheck,stag->N[i]);
     }
   }
 
   /* Compute starting elements */
   for (i=0; i<dim; ++i) {
     stag->start[i] = 0;
-    for (j=0;j<stag->rank[i];++j){
+    for (j=0;j<stag->rank[i];++j) {
       stag->start[i] += stag->l[i][j];
     }
   }
@@ -262,7 +258,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_3d(DM dm)
   */
   ierr = DMStagSetUpBuildGlobalOffsets_3d(dm,&globalOffsets);CHKERRQ(ierr);
 
-  for (d=0; d<dim; ++d) if (stag->boundaryType[d] != DM_BOUNDARY_NONE && stag->boundaryType[d] != DM_BOUNDARY_PERIODIC && stag->boundaryType[d] != DM_BOUNDARY_GHOSTED) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Unsupported boundary type");
+  for (d=0; d<dim; ++d) if (stag->boundaryType[d] != DM_BOUNDARY_NONE && stag->boundaryType[d] != DM_BOUNDARY_PERIODIC && stag->boundaryType[d] != DM_BOUNDARY_GHOSTED) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unsupported boundary type");
 
   /* Define ghosted/local sizes */
   for (d=0; d<dim; ++d) {
@@ -290,7 +286,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_3d(DM dm)
             }
             break;
           default :
-            SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Unrecognized ghost stencil type %d",stag->stencilType);
+            SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unrecognized ghost stencil type %d",stag->stencilType);
         }
         break;
       case DM_BOUNDARY_GHOSTED:
@@ -305,7 +301,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_3d(DM dm)
             stag->nGhost[d]     = stag->n[d] + 2*stag->stencilWidth + (stag->lastRank[d] && stag->stencilWidth == 0 ? 1 : 0);
             break;
           default :
-            SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Unrecognized ghost stencil type %d",stag->stencilType);
+            SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unrecognized ghost stencil type %d",stag->stencilType);
         }
         break;
       case DM_BOUNDARY_PERIODIC:
@@ -320,10 +316,10 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_3d(DM dm)
             stag->startGhost[d] = stag->start[d] - stag->stencilWidth;
             break;
           default :
-            SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Unrecognized ghost stencil type %d",stag->stencilType);
+            SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unrecognized ghost stencil type %d",stag->stencilType);
         }
         break;
-      default: SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Unsupported boundary type in dimension %D",d);
+      default: SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unsupported boundary type in dimension %D",d);
     }
   }
   stag->entriesGhost = stag->nGhost[0]*stag->nGhost[1]*stag->nGhost[2]*stag->entriesPerElement;
@@ -363,8 +359,8 @@ static PetscErrorCode DMStagSetUpBuildRankGrid_3d(DM dm)
   const PetscInt P = stag->N[2];
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)dm),&size);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)dm),&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)dm),&size);CHKERRMPI(ierr);
+  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)dm),&rank);CHKERRMPI(ierr);
 
   m = stag->nRanks[0];
   n = stag->nRanks[1];
@@ -478,7 +474,7 @@ static PetscErrorCode DMStagSetUpBuildNeighbors_3d(DM dm)
   const PetscInt  dim = 3;
 
   PetscFunctionBegin;
-  for (d=0; d<dim; ++d) if (stag->boundaryType[d] != DM_BOUNDARY_NONE && stag->boundaryType[d] != DM_BOUNDARY_PERIODIC && stag->boundaryType[d] != DM_BOUNDARY_GHOSTED) SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Neighbor determination not implemented for %s",DMBoundaryTypes[stag->boundaryType[d]]);
+  for (d=0; d<dim; ++d) if (stag->boundaryType[d] != DM_BOUNDARY_NONE && stag->boundaryType[d] != DM_BOUNDARY_PERIODIC && stag->boundaryType[d] != DM_BOUNDARY_GHOSTED) SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Neighbor determination not implemented for %s",DMBoundaryTypes[stag->boundaryType[d]]);
 
   /* Assemble some convenience variables */
   for (d=0; d<dim; ++d) {
@@ -601,7 +597,7 @@ static PetscErrorCode DMStagSetUpBuildNeighbors_3d(DM dm)
 
   /* Then, compute the rank of each in the linear ordering */
   ierr = PetscMalloc1(27,&stag->neighbors);CHKERRQ(ierr);
-  for (i=0; i<27; ++i){
+  for (i=0; i<27; ++i) {
     if  (neighborRank[i][0] >= 0 && neighborRank[i][1] >=0 && neighborRank[i][2] >=0) {
       stag->neighbors[i] = neighborRank[i][0] + n[0]*neighborRank[i][1] + n[0]*n[1]*neighborRank[i][2];
     } else {
@@ -625,12 +621,12 @@ static PetscErrorCode DMStagSetUpBuildGlobalOffsets_3d(DM dm,PetscInt **pGlobalO
   for (d=0; d<3; ++d) extra[d] = (PetscBool)(stag->boundaryType[d] != DM_BOUNDARY_PERIODIC); /* Extra points in global rep */
   entriesPerFace               = stag->dof[0] + 2*stag->dof[1] + stag->dof[2];
   entriesPerEdge               = stag->dof[0] + stag->dof[1];
-  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)dm),&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)dm),&size);CHKERRMPI(ierr);
   ierr = PetscMalloc1(size,pGlobalOffsets);CHKERRQ(ierr);
   globalOffsets = *pGlobalOffsets;
   globalOffsets[0] = 0;
   count = 1; /* note the count is offset by 1 here. We add the size of the previous rank */
-  for (k=0; k<stag->nRanks[2]-1; ++k){
+  for (k=0; k<stag->nRanks[2]-1; ++k) {
     const PetscInt nnk = stag->l[2][k];
     for (j=0; j<stag->nRanks[1]-1; ++j) {
       const PetscInt nnj = stag->l[1][j];
@@ -862,15 +858,14 @@ static PetscErrorCode DMStagSetUpBuildScatter_3d(DM dm,const PetscInt *globalOff
   PetscBool      star,nextToDummyEnd[3],dummyStart[3],dummyEnd[3];
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)dm),&rank);CHKERRQ(ierr);
-  if (stag->n[0] < stag->stencilWidth || stag->n[1] < stag->stencilWidth || stag->n[2] < stag->stencilWidth) {
+  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)dm),&rank);CHKERRMPI(ierr);
+  if (stag->stencilType != DMSTAG_STENCIL_NONE && (stag->n[0] < stag->stencilWidth || stag->n[1] < stag->stencilWidth || stag->n[2] < stag->stencilWidth)) {
     SETERRQ4(PETSC_COMM_SELF,PETSC_ERR_SUP,"DMStag 3d setup does not support local sizes (%D x %D x %D) smaller than the elementwise stencil width (%D)",stag->n[0],stag->n[1],stag->n[2],stag->stencilWidth);
   }
 
   /* Check stencil type */
   if (stag->stencilType != DMSTAG_STENCIL_NONE && stag->stencilType != DMSTAG_STENCIL_BOX && stag->stencilType != DMSTAG_STENCIL_STAR) SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unsupported stencil type %s",DMStagStencilTypes[stag->stencilType]);
-  if (stag->stencilType == DMSTAG_STENCIL_NONE && stag->stencilWidth != 0) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"DMStag 3d setup requires stencil width 0 with stencil type none");
-  star = (PetscBool)(stag->stencilType == DMSTAG_STENCIL_STAR);
+  star = (PetscBool)(stag->stencilType == DMSTAG_STENCIL_STAR || stag->stencilType == DMSTAG_STENCIL_NONE);
 
   /* Compute numbers of elements on each neighbor */
   {
@@ -1568,8 +1563,7 @@ static PetscErrorCode DMStagSetUpBuildL2G_3d(DM dm,const PetscInt *globalOffsets
 
   /* Check stencil type */
   if (stag->stencilType != DMSTAG_STENCIL_NONE && stag->stencilType != DMSTAG_STENCIL_BOX && stag->stencilType != DMSTAG_STENCIL_STAR) SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unsupported stencil type %s",DMStagStencilTypes[stag->stencilType]);
-  if (stag->stencilType == DMSTAG_STENCIL_NONE && stag->stencilWidth != 0) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"DMStag 3d setup requires stencil width 0 with stencil type none");
-  star = (PetscBool)(stag->stencilType == DMSTAG_STENCIL_STAR);
+  star = (PetscBool)(stag->stencilType == DMSTAG_STENCIL_STAR || stag->stencilType == DMSTAG_STENCIL_NONE);
 
   /* Convenience variables */
   entriesPerFace                      = stag->dof[0] + 2*stag->dof[1] + stag->dof[2];
@@ -2386,7 +2380,7 @@ static PetscErrorCode DMStagSetUpBuildL2G_3d(DM dm,const PetscInt *globalOffsets
         /* Up (Middle) partial dummy row */
         PetscInt j = stag->n[1];
 
-        /* Up (Middle) partial dummy row: colums 1/3: Left Up (Middle), on Left (Middle) (Middle) rank */
+        /* Up (Middle) partial dummy row: columns 1/3: Left Up (Middle), on Left (Middle) (Middle) rank */
         if (!dummyStart[0]) {
           const PetscInt neighbor = 12;
           for (ighost = 0; ighost<ghostOffsetStart[0]; ++ighost) {
@@ -2885,7 +2879,7 @@ static PetscErrorCode DMStagSetUpBuildL2G_3d(DM dm,const PetscInt *globalOffsets
       for (jghost = 0; jghost<ghostOffsetStart[1]; ++jghost) {
         const PetscInt j = nNeighbors[10][1] - ghostOffsetStart[1] + jghost; /* wrt down neighbor (10) */
 
-        /* Down Front partial ghost row: colums 1/3: Left Down Front, on  Left Down (Middle) */
+        /* Down Front partial ghost row: columns 1/3: Left Down Front, on  Left Down (Middle) */
         if (!star && !dummyStart[0]) {
           const PetscInt neighbor = 9;
           const PetscInt epFaceRow         = entriesPerFace * nNeighbors[neighbor][0]; /* Note that we can't be a right boundary */
@@ -3110,7 +3104,7 @@ static PetscErrorCode DMStagSetUpBuildL2G_3d(DM dm,const PetscInt *globalOffsets
         }
 
         if (!star && !dummyEnd[0]) {
-          /* Up Front partial dummy row: columsn 3/3: Right Up Front, on Right Up (Middle) */
+          /* Up Front partial dummy row: columns 3/3: Right Up Front, on Right Up (Middle) */
           const PetscInt neighbor = 17;
           const PetscInt epFaceRow = entriesPerFace * nNeighbors[neighbor][0] + (nextToDummyEnd[0] ? entriesPerEdge : 0); /* Neighbor may be a right boundary */
           PetscInt       i;
@@ -3358,6 +3352,380 @@ PETSC_INTERN PetscErrorCode DMStagPopulateLocalToGlobalInjective_3d(DM dm)
   ierr = ISDestroy(&isGlobal);CHKERRQ(ierr);
   if (globalOffsetsRecomputed) {
     ierr = PetscFree(globalOffsetsRecomputed);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+PETSC_INTERN PetscErrorCode DMCreateMatrix_Stag_3D_AIJ(DM dm,Mat *mat)
+{
+  PetscErrorCode         ierr;
+  PetscInt               entries,dof[DMSTAG_MAX_STRATA],epe,stencil_width,max_nz_per_row,N[3],start[3],n[3],n_extra[3];
+  DMStagStencilType      stencil_type;
+  ISLocalToGlobalMapping ltogmap;
+  DMBoundaryType         boundary_type[3];
+
+  /* This implementation gives a very dense stencil, which is likely unsuitable for
+     (typical) applications which have fewer couplings */
+  PetscFunctionBegin;
+  ierr = DMStagGetDOF(dm,&dof[0],&dof[1],&dof[2],&dof[3]);CHKERRQ(ierr);
+  ierr = DMStagGetStencilType(dm,&stencil_type);CHKERRQ(ierr);
+  ierr = DMStagGetStencilWidth(dm,&stencil_width);CHKERRQ(ierr);
+  ierr = DMStagGetEntries(dm,&entries);CHKERRQ(ierr);
+  ierr = DMStagGetEntriesPerElement(dm,&epe);CHKERRQ(ierr);
+  ierr = DMStagGetCorners(dm,&start[0],&start[1],&start[2],&n[0],&n[1],&n[2],&n_extra[0],&n_extra[1],&n_extra[2]);CHKERRQ(ierr);
+  ierr = DMStagGetGlobalSizes(dm,&N[0],&N[1],&N[2]);CHKERRQ(ierr);
+  ierr = DMStagGetBoundaryTypes(dm,&boundary_type[0],&boundary_type[1],&boundary_type[2]);CHKERRQ(ierr);
+
+  if (stencil_type == DMSTAG_STENCIL_NONE) {
+    max_nz_per_row = PetscMax(PetscMax(dof[0],dof[1]),PetscMax(dof[2],dof[3]));CHKERRQ(ierr);
+  } else if (stencil_type == DMSTAG_STENCIL_STAR) {
+    max_nz_per_row = (1 + 6 * stencil_width) * epe;
+  } else if (stencil_type == DMSTAG_STENCIL_BOX) {
+    const PetscInt box_size = 1 + 2 * stencil_width;
+    max_nz_per_row = box_size * box_size * box_size * epe;
+  } else SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_OUTOFRANGE,"Unsupported stencil type %s",DMStagStencilTypes[stencil_type]);
+  ierr = MatCreateAIJ(PetscObjectComm((PetscObject)dm),entries,entries,PETSC_DETERMINE,PETSC_DETERMINE,max_nz_per_row,NULL,max_nz_per_row,NULL,mat);CHKERRQ(ierr);
+  ierr = DMGetLocalToGlobalMapping(dm,&ltogmap);CHKERRQ(ierr);
+  ierr = MatSetLocalToGlobalMapping(*mat,ltogmap,ltogmap);CHKERRQ(ierr);
+  ierr = MatSetDM(*mat,dm);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(*mat);CHKERRQ(ierr);
+
+  if (!dm->prealloc_only) {
+    if (stencil_type == DMSTAG_STENCIL_NONE) {
+      /* Couple all DOF at each location to each other */
+      DMStagStencil row_vertex,row_edge_down_left,row_edge_back_down,row_edge_back_left,row_face_down,row_face_left,row_face_back,row_element;
+      DMStagStencil *col_vertex,*col_edge_down_left,*col_edge_back_down,*col_edge_back_left,*col_face_down,*col_face_left,*col_face_back,*col_element;
+
+      row_vertex.loc=DMSTAG_BACK_DOWN_LEFT;
+      ierr = PetscMalloc1(dof[0],&col_vertex);CHKERRQ(ierr);
+      for (PetscInt c2=0; c2<dof[0]; ++c2) {
+        col_vertex[c2].loc = DMSTAG_BACK_DOWN_LEFT;
+      }
+
+      row_edge_down_left.loc=DMSTAG_DOWN_LEFT;
+      ierr = PetscMalloc1(dof[1],&col_edge_down_left);CHKERRQ(ierr);
+      for (PetscInt c2=0; c2<dof[1]; ++c2) {
+        col_edge_down_left[c2].loc = DMSTAG_DOWN_LEFT;
+      }
+
+      row_edge_back_left.loc=DMSTAG_BACK_LEFT;
+      ierr = PetscMalloc1(dof[1],&col_edge_back_left);CHKERRQ(ierr);
+      for (PetscInt c2=0; c2<dof[1]; ++c2) {
+        col_edge_back_left[c2].loc = DMSTAG_BACK_LEFT;
+      }
+
+      row_edge_back_down.loc=DMSTAG_BACK_DOWN;
+      ierr = PetscMalloc1(dof[1],&col_edge_back_down);CHKERRQ(ierr);
+      for (PetscInt c2=0; c2<dof[1]; ++c2) {
+        col_edge_back_down[c2].loc = DMSTAG_BACK_DOWN;
+      }
+
+      row_face_left.loc=DMSTAG_LEFT;
+      ierr = PetscMalloc1(dof[2],&col_face_left);CHKERRQ(ierr);
+      for (PetscInt c2=0; c2<dof[2]; ++c2) {
+        col_face_left[c2].loc = DMSTAG_LEFT;
+      }
+
+      row_face_down.loc=DMSTAG_DOWN;
+      ierr = PetscMalloc1(dof[2],&col_face_down);CHKERRQ(ierr);
+      for (PetscInt c2=0; c2<dof[2]; ++c2) {
+        col_face_down[c2].loc = DMSTAG_DOWN;
+      }
+
+      row_face_back.loc=DMSTAG_BACK;
+      ierr = PetscMalloc1(dof[2],&col_face_back);CHKERRQ(ierr);
+      for (PetscInt c2=0; c2<dof[2]; ++c2) {
+        col_face_back[c2].loc = DMSTAG_BACK;
+      }
+
+      row_element.loc = DMSTAG_ELEMENT;
+      ierr = PetscMalloc1(dof[3],&col_element);CHKERRQ(ierr);
+      for (PetscInt c2=0; c2<dof[3]; ++c2) {
+        col_element[c2].loc = DMSTAG_ELEMENT;
+      }
+
+      for (PetscInt ez=start[2]; ez<start[2]+n[2]+n_extra[2]; ++ez) {
+        for (PetscInt ey=start[1]; ey<start[1]+n[1]+n_extra[1]; ++ey) {
+          for (PetscInt ex=start[0]; ex<start[0]+n[0]+n_extra[0]; ++ex) {
+            {
+              row_vertex.i = ex;
+              row_vertex.j = ey;
+              row_vertex.k = ez;
+              for (PetscInt c=0; c<dof[0]; ++c) {
+                row_vertex.c = c;
+                for (PetscInt c2=0; c2<dof[0]; ++c2) {
+                  col_vertex[c2].i = ex;
+                  col_vertex[c2].j = ey;
+                  col_vertex[c2].k = ez;
+                  col_vertex[c2].c = c2;
+                }
+                ierr = DMStagMatSetValuesStencil(dm,*mat,1,&row_vertex,dof[0],col_vertex,NULL,INSERT_VALUES);CHKERRQ(ierr);
+              }
+            }
+
+            if (ez < N[2]) {
+              row_edge_down_left.i = ex;
+              row_edge_down_left.j = ey;
+              row_edge_down_left.k = ez;
+              for (PetscInt c=0; c<dof[1]; ++c) {
+                row_edge_down_left.c = c;
+                for (PetscInt c2=0; c2<dof[1]; ++c2) {
+                  col_edge_down_left[c2].i = ex;
+                  col_edge_down_left[c2].j = ey;
+                  col_edge_down_left[c2].k = ez;
+                  col_edge_down_left[c2].c = c2;
+                }
+                ierr = DMStagMatSetValuesStencil(dm,*mat,1,&row_edge_down_left,dof[1],col_edge_down_left,NULL,INSERT_VALUES);CHKERRQ(ierr);
+              }
+            }
+
+            if (ey < N[1]) {
+              row_edge_back_left.i = ex;
+              row_edge_back_left.j = ey;
+              row_edge_back_left.k = ez;
+              for (PetscInt c=0; c<dof[1]; ++c) {
+                row_edge_back_left.c = c;
+                for (PetscInt c2=0; c2<dof[1]; ++c2) {
+                  col_edge_back_left[c2].i = ex;
+                  col_edge_back_left[c2].j = ey;
+                  col_edge_back_left[c2].k = ez;
+                  col_edge_back_left[c2].c = c2;
+                }
+                ierr = DMStagMatSetValuesStencil(dm,*mat,1,&row_edge_back_left,dof[1],col_edge_back_left,NULL,INSERT_VALUES);CHKERRQ(ierr);
+              }
+            }
+
+            if (ey < N[0]) {
+              row_edge_back_down.i = ex;
+              row_edge_back_down.j = ey;
+              row_edge_back_down.k = ez;
+              for (PetscInt c=0; c<dof[1]; ++c) {
+                row_edge_back_down.c = c;
+                for (PetscInt c2=0; c2<dof[1]; ++c2) {
+                  col_edge_back_down[c2].i = ex;
+                  col_edge_back_down[c2].j = ey;
+                  col_edge_back_down[c2].k = ez;
+                  col_edge_back_down[c2].c = c2;
+                }
+                ierr = DMStagMatSetValuesStencil(dm,*mat,1,&row_edge_back_down,dof[1],col_edge_back_down,NULL,INSERT_VALUES);CHKERRQ(ierr);
+              }
+            }
+
+            if (ey < N[1] && ez < N[2]) {
+              row_face_left.i = ex;
+              row_face_left.j = ey;
+              row_face_left.k = ez;
+              for (PetscInt c=0; c<dof[2]; ++c) {
+                row_face_left.c = c;
+                for (PetscInt c2=0; c2<dof[2]; ++c2) {
+                  col_face_left[c2].i = ex;
+                  col_face_left[c2].j = ey;
+                  col_face_left[c2].k = ez;
+                  col_face_left[c2].c = c2;
+                }
+                ierr = DMStagMatSetValuesStencil(dm,*mat,1,&row_face_left,dof[2],col_face_left,NULL,INSERT_VALUES);CHKERRQ(ierr);
+              }
+            }
+
+            if (ex < N[0] && ez < N[2]) {
+              row_face_down.i = ex;
+              row_face_down.j = ey;
+              row_face_down.k = ez;
+              for (PetscInt c=0; c<dof[2]; ++c) {
+                row_face_down.c = c;
+                for (PetscInt c2=0; c2<dof[2]; ++c2) {
+                  col_face_down[c2].i = ex;
+                  col_face_down[c2].j = ey;
+                  col_face_down[c2].k = ez;
+                  col_face_down[c2].c = c2;
+                }
+                ierr = DMStagMatSetValuesStencil(dm,*mat,1,&row_face_down,dof[2],col_face_down,NULL,INSERT_VALUES);CHKERRQ(ierr);
+              }
+            }
+
+            if (ex < N[0] && ey < N[1]) {
+              row_face_back.i = ex;
+              row_face_back.j = ey;
+              row_face_back.k = ez;
+              for (PetscInt c=0; c<dof[2]; ++c) {
+                row_face_back.c = c;
+                for (PetscInt c2=0; c2<dof[2]; ++c2) {
+                  col_face_back[c2].i = ex;
+                  col_face_back[c2].j = ey;
+                  col_face_back[c2].k = ez;
+                  col_face_back[c2].c = c2;
+                }
+                ierr = DMStagMatSetValuesStencil(dm,*mat,1,&row_face_back,dof[2],col_face_back,NULL,INSERT_VALUES);CHKERRQ(ierr);
+              }
+            }
+
+            if (ex < N[0] && ey < N[1] && ez < N[2]) {
+              row_element.i = ex;
+              row_element.j = ey;
+              row_element.k = ez;
+              for (PetscInt c=0; c<dof[3]; ++c) {
+                row_element.c = c;
+                for (PetscInt c2=0; c2<dof[3]; ++c2){
+                  col_element[c2].i = ex;
+                  col_element[c2].j = ey;
+                  col_element[c2].k = ez;
+                  col_element[c2].c = c2;
+                }
+                ierr = DMStagMatSetValuesStencil(dm,*mat,1,&row_element,dof[3],col_element,NULL,INSERT_VALUES);CHKERRQ(ierr);
+              }
+            }
+          }
+        }
+      }
+      ierr = PetscFree(col_vertex);CHKERRQ(ierr);
+      ierr = PetscFree(col_edge_back_left);CHKERRQ(ierr);
+      ierr = PetscFree(col_edge_back_down);CHKERRQ(ierr);
+      ierr = PetscFree(col_edge_down_left);CHKERRQ(ierr);
+      ierr = PetscFree(col_face_left);CHKERRQ(ierr);
+      ierr = PetscFree(col_face_back);CHKERRQ(ierr);
+      ierr = PetscFree(col_face_down);CHKERRQ(ierr);
+      ierr = PetscFree(col_element);CHKERRQ(ierr);
+    } else if (stencil_type == DMSTAG_STENCIL_STAR || stencil_type == DMSTAG_STENCIL_BOX) {
+      DMStagStencil *col,*row;
+
+      ierr = PetscMalloc1(epe,&row);CHKERRQ(ierr);
+      {
+        PetscInt nrows = 0;
+
+        for (PetscInt c=0; c<dof[0]; ++c) {
+          row[nrows].c = c;
+          row[nrows].loc = DMSTAG_BACK_DOWN_LEFT;
+          ++nrows;
+        }
+        for (PetscInt c=0; c<dof[1]; ++c) {
+          row[nrows].c = c;
+          row[nrows].loc = DMSTAG_DOWN_LEFT;
+          ++nrows;
+        }
+        for (PetscInt c=0; c<dof[1]; ++c) {
+          row[nrows].c = c;
+          row[nrows].loc = DMSTAG_BACK_LEFT;
+          ++nrows;
+        }
+        for (PetscInt c=0; c<dof[1]; ++c) {
+          row[nrows].c = c;
+          row[nrows].loc = DMSTAG_BACK_DOWN;
+          ++nrows;
+        }
+        for (PetscInt c=0; c<dof[2]; ++c) {
+          row[nrows].c = c;
+          row[nrows].loc = DMSTAG_LEFT;
+          ++nrows;
+        }
+        for (PetscInt c=0; c<dof[2]; ++c) {
+          row[nrows].c = c;
+          row[nrows].loc = DMSTAG_DOWN;
+          ++nrows;
+        }
+        for (PetscInt c=0; c<dof[2]; ++c) {
+          row[nrows].c = c;
+          row[nrows].loc = DMSTAG_BACK;
+          ++nrows;
+        }
+        for (PetscInt c=0; c<dof[3]; ++c) {
+          row[nrows].c = c;
+          row[nrows].loc = DMSTAG_ELEMENT;
+          ++nrows;
+        }
+      }
+
+      ierr = PetscMalloc1(epe,&col);CHKERRQ(ierr);
+      {
+        PetscInt ncols = 0;
+
+        for (PetscInt c=0; c<dof[0]; ++c) {
+          col[ncols].c = c;
+          col[ncols].loc = DMSTAG_BACK_DOWN_LEFT;
+          ++ncols;
+        }
+        for (PetscInt c=0; c<dof[1]; ++c) {
+          col[ncols].c = c;
+          col[ncols].loc = DMSTAG_DOWN_LEFT;
+          ++ncols;
+        }
+        for (PetscInt c=0; c<dof[1]; ++c) {
+          col[ncols].c = c;
+          col[ncols].loc = DMSTAG_BACK_LEFT;
+          ++ncols;
+        }
+        for (PetscInt c=0; c<dof[1]; ++c) {
+          col[ncols].c = c;
+          col[ncols].loc = DMSTAG_BACK_DOWN;
+          ++ncols;
+        }
+        for (PetscInt c=0; c<dof[2]; ++c) {
+          col[ncols].c = c;
+          col[ncols].loc = DMSTAG_LEFT;
+          ++ncols;
+        }
+        for (PetscInt c=0; c<dof[2]; ++c) {
+          col[ncols].c = c;
+          col[ncols].loc = DMSTAG_DOWN;
+          ++ncols;
+        }
+        for (PetscInt c=0; c<dof[2]; ++c) {
+          col[ncols].c = c;
+          col[ncols].loc = DMSTAG_BACK;
+          ++ncols;
+        }
+        for (PetscInt c=0; c<dof[3]; ++c) {
+          col[ncols].c = c;
+          col[ncols].loc = DMSTAG_ELEMENT;
+          ++ncols;
+        }
+      }
+
+      for (PetscInt ez=start[2]; ez<start[2]+n[2]+n_extra[2]; ++ez) {
+        for (PetscInt ey=start[1]; ey<start[1]+n[1]+n_extra[1]; ++ey) {
+          for (PetscInt ex=start[0]; ex<start[0]+n[0]+n_extra[0]; ++ex) {
+            for (PetscInt i=0; i<epe; ++i) {
+              row[i].i = ex;
+              row[i].j = ey;
+              row[i].k = ez;
+            }
+            for (PetscInt offset_z = -stencil_width; offset_z<=stencil_width; ++offset_z) {
+              const PetscInt ez_offset = ez + offset_z;
+              for (PetscInt offset_y = -stencil_width; offset_y<=stencil_width; ++offset_y) {
+                const PetscInt ey_offset = ey + offset_y;
+                for (PetscInt offset_x = -stencil_width; offset_x<=stencil_width; ++offset_x) {
+                  const PetscInt ex_offset = ex + offset_x;
+                  const PetscBool is_star_point = (PetscBool) (((offset_x == 0) && (offset_y == 0 || offset_z == 0)) || (offset_y == 0 && offset_z == 0));
+                  /* Only set values corresponding to elements which can have non-dummy entries,
+                     meaning those that map to unknowns in the global representation. In the periodic
+                     case, this is the entire stencil, but in all other cases, only includes a single
+                     "extra" element which is partially outside the physical domain (those points in the
+                     global representation */
+                  if ((stencil_type == DMSTAG_STENCIL_BOX || is_star_point) &&
+                      (boundary_type[0] == DM_BOUNDARY_PERIODIC || (ex_offset < N[0]+1 && ex_offset >= 0)) &&
+                      (boundary_type[1] == DM_BOUNDARY_PERIODIC || (ey_offset < N[1]+1 && ey_offset >= 0)) &&
+                      (boundary_type[2] == DM_BOUNDARY_PERIODIC || (ez_offset < N[2]+1 && ez_offset >= 0)))
+                  {
+                    for (PetscInt i=0; i<epe; ++i) {
+                      col[i].i = ex_offset;
+                      col[i].j = ey_offset;
+                      col[i].k = ez_offset;
+                    }
+                    ierr = DMStagMatSetValuesStencil(dm,*mat,epe,row,epe,col,NULL,INSERT_VALUES);CHKERRQ(ierr);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      ierr = PetscFree(row);CHKERRQ(ierr);
+      ierr = PetscFree(col);CHKERRQ(ierr);
+    } else SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_OUTOFRANGE,"Unsupported stencil type %s",DMStagStencilTypes[stencil_type]);
+    ierr = MatAssemblyBegin(*mat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    ierr = MatAssemblyEnd(*mat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+
+    /* Note: GPU-related logic, e.g. at the end of DMCreateMatrix_DA_3d_MPIAIJ, is not included here
+       but might be desirable */
   }
   PetscFunctionReturn(0);
 }

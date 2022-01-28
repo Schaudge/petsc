@@ -48,7 +48,6 @@ static PetscErrorCode DMDASetBlockFills_Private(const PetscInt *dfill,PetscInt w
   PetscFunctionReturn(0);
 }
 
-
 static PetscErrorCode DMDASetBlockFillsSparse_Private(const PetscInt *dfillsparse,PetscInt w,PetscInt **rfill)
 {
   PetscErrorCode ierr;
@@ -65,7 +64,6 @@ static PetscErrorCode DMDASetBlockFillsSparse_Private(const PetscInt *dfillspars
   ierr = PetscArraycpy(*rfill,dfillsparse,nz+w+1);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-
 
 static PetscErrorCode DMDASetBlockFills_Private2(DM_DA *dd)
 {
@@ -88,19 +86,16 @@ static PetscErrorCode DMDASetBlockFills_Private2(DM_DA *dd)
   PetscFunctionReturn(0);
 }
 
-
-
 /*@
     DMDASetBlockFills - Sets the fill pattern in each block for a multi-component problem
     of the matrix returned by DMCreateMatrix().
 
     Logically Collective on da
 
-    Input Parameter:
+    Input Parameters:
 +   da - the distributed array
 .   dfill - the fill pattern in the diagonal block (may be NULL, means use dense block)
 -   ofill - the fill pattern in the off-diagonal blocks
-
 
     Level: developer
 
@@ -141,7 +136,6 @@ PetscErrorCode  DMDASetBlockFills(DM da,const PetscInt *dfill,const PetscInt *of
   PetscFunctionReturn(0);
 }
 
-
 /*@
     DMDASetBlockFillsSparse - Sets the fill pattern in each block for a multi-component problem
     of the matrix returned by DMCreateMatrix(), using sparse representations
@@ -149,11 +143,10 @@ PetscErrorCode  DMDASetBlockFills(DM da,const PetscInt *dfill,const PetscInt *of
 
     Logically Collective on da
 
-    Input Parameter:
+    Input Parameters:
 +   da - the distributed array
 .   dfill - the sparse fill pattern in the diagonal block (may be NULL, means use dense block)
 -   ofill - the sparse fill pattern in the off-diagonal blocks
-
 
     Level: developer
 
@@ -198,7 +191,6 @@ PetscErrorCode  DMDASetBlockFillsSparse(DM da,const PetscInt *dfillsparse,const 
   PetscFunctionReturn(0);
 }
 
-
 PetscErrorCode  DMCreateColoring_DA(DM da,ISColoringType ctype,ISColoring *coloring)
 {
   PetscErrorCode   ierr;
@@ -235,7 +227,7 @@ PetscErrorCode  DMCreateColoring_DA(DM da,ISColoringType ctype,ISColoring *color
   ierr = DMDAGetInfo(da,&dim,NULL,NULL,NULL,&m,&n,&p,&nc,NULL,&bx,&by,&bz,NULL);CHKERRQ(ierr);
 
   ierr = PetscObjectGetComm((PetscObject)da,&comm);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(comm,&size);CHKERRMPI(ierr);
   if (ctype == IS_COLORING_LOCAL) {
     if (size == 1) {
       ctype = IS_COLORING_GLOBAL;
@@ -581,7 +573,7 @@ PetscErrorCode MatSetupDM(Mat mat,DM da)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(mat,MAT_CLASSID,1);
-  PetscValidHeaderSpecificType(da,DM_CLASSID,1,DMDA);
+  PetscValidHeaderSpecificType(da,DM_CLASSID,2,DMDA);
   ierr = PetscTryMethod(mat,"MatSetupDM_C",(Mat,DM),(mat,da));CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -716,6 +708,10 @@ PetscErrorCode DMCreateMatrix_DA(DM da, Mat *J)
   ierr = MatSetSizes(A,dof*nx*ny*nz,dof*nx*ny*nz,dof*M*N*P,dof*M*N*P);CHKERRQ(ierr);
   ierr = MatSetType(A,mtype);CHKERRQ(ierr);
   ierr = MatSetFromOptions(A);CHKERRQ(ierr);
+  if (dof*nx*ny*nz < da->bind_below) {
+    ierr = MatSetBindingPropagates(A,PETSC_TRUE);CHKERRQ(ierr);
+    ierr = MatBindToCPU(A,PETSC_TRUE);CHKERRQ(ierr);
+  }
   ierr = MatSetDM(A,da);CHKERRQ(ierr);
   if (da->structure_only) {
     ierr = MatSetOption(A,MAT_STRUCTURE_ONLY,PETSC_TRUE);CHKERRQ(ierr);
@@ -764,7 +760,7 @@ PetscErrorCode DMCreateMatrix_DA(DM da, Mat *J)
         DMBoundaryType bx;
         PetscMPIInt  size;
         ierr = DMDAGetInfo(da,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,&bx,NULL,NULL,NULL);CHKERRQ(ierr);
-        ierr = MPI_Comm_size(PetscObjectComm((PetscObject)da),&size);CHKERRQ(ierr);
+        ierr = MPI_Comm_size(PetscObjectComm((PetscObject)da),&size);CHKERRMPI(ierr);
         if (size == 1 && bx == DM_BOUNDARY_NONE) {
           ierr = DMCreateMatrix_DA_1d_SeqAIJ_NoPreallocation(da,A,PETSC_FALSE);CHKERRQ(ierr);
         } else {
@@ -815,7 +811,7 @@ PetscErrorCode DMCreateMatrix_DA(DM da, Mat *J)
   ierr = DMDAGetGhostCorners(da,&starts[0],&starts[1],&starts[2],&dims[0],&dims[1],&dims[2]);CHKERRQ(ierr);
   ierr = MatSetStencil(A,dim,dims,starts,dof);CHKERRQ(ierr);
   ierr = MatSetDM(A,da);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(comm,&size);CHKERRMPI(ierr);
   if (size > 1) {
     /* change viewer to display matrix in natural ordering */
     ierr = MatSetOperation(A, MATOP_VIEW, (void (*)(void))MatView_MPI_DA);CHKERRQ(ierr);
@@ -906,7 +902,6 @@ PetscErrorCode DMCreateMatrix_DA_IS(DM dm,Mat J)
     break;
   default:
     SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unhandled dimension %d",dim);
-    break;
   }
   dm->prealloc_only = flg;
   PetscFunctionReturn(0);
@@ -1139,7 +1134,7 @@ PetscErrorCode DMCreateMatrix_DA_2d_MPIAIJ(DM da,Mat J,PetscBool isIS)
   DMBoundaryType         bx,by;
   ISLocalToGlobalMapping ltog,mltog;
   DMDAStencilType        st;
-  PetscBool              removedups = PETSC_FALSE;
+  PetscBool              removedups = PETSC_FALSE,alreadyboundtocpu = PETSC_TRUE;
 
   PetscFunctionBegin;
   /*
@@ -1239,10 +1234,11 @@ PetscErrorCode DMCreateMatrix_DA_2d_MPIAIJ(DM da,Mat J,PetscBool isIS)
       }
     }
     /* do not copy values to GPU since they are all zero and not yet needed there */
+    ierr = MatBoundToCPU(J,&alreadyboundtocpu);CHKERRQ(ierr);
     ierr = MatBindToCPU(J,PETSC_TRUE);CHKERRQ(ierr);
     ierr = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     ierr = MatAssemblyEnd(J,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-    ierr = MatBindToCPU(J,PETSC_FALSE);CHKERRQ(ierr);
+    if (!alreadyboundtocpu) {ierr = MatBindToCPU(J,PETSC_FALSE);CHKERRQ(ierr);}
     ierr = MatSetOption(J,MAT_NEW_NONZERO_LOCATION_ERR,PETSC_TRUE);CHKERRQ(ierr);
     if (bx == DM_BOUNDARY_NONE && by == DM_BOUNDARY_NONE) {
       ierr = MatSetOption(J,MAT_SORTED_FULL,PETSC_FALSE);CHKERRQ(ierr);
@@ -1533,8 +1529,8 @@ PetscErrorCode DMCreateMatrix_DA_1d_MPIAIJ_Fill(DM da,Mat J)
   PetscMPIInt            rank,size;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)da),&rank);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)da),&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)da),&rank);CHKERRMPI(ierr);
+  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)da),&size);CHKERRMPI(ierr);
 
   /*
          nc - number of components per grid point
@@ -1556,9 +1552,9 @@ PetscErrorCode DMCreateMatrix_DA_1d_MPIAIJ_Fill(DM da,Mat J)
   /* coupling with process to the left */
   for (i=0; i<s; i++) {
     for (j=0; j<nc; j++) {
-      ocols[cnt] = ((!rank) ? 0 : (s - i)*(ofill[j+1] - ofill[j]));
+      ocols[cnt] = ((rank == 0) ? 0 : (s - i)*(ofill[j+1] - ofill[j]));
       cols[cnt]  = dfill[j+1] - dfill[j] + (s + i)*(ofill[j+1] - ofill[j]);
-      if (!rank && (dd->bx == DM_BOUNDARY_PERIODIC)) {
+      if (rank == 0 && (dd->bx == DM_BOUNDARY_PERIODIC)) {
         if (size > 1) ocols[cnt] += (s - i)*(ofill[j+1] - ofill[j]);
         else cols[cnt] += (s - i)*(ofill[j+1] - ofill[j]);
       }
@@ -1611,7 +1607,7 @@ PetscErrorCode DMCreateMatrix_DA_1d_MPIAIJ_Fill(DM da,Mat J)
             for (k=ofill[j]; k<ofill[j+1]; k++) cols[cnt++] = (i - s + l)*nc + ofill[k];
           }
         }
-        if (!rank && (dd->bx == DM_BOUNDARY_PERIODIC)) {
+        if (rank == 0 && (dd->bx == DM_BOUNDARY_PERIODIC)) {
           for (l=0; l<s; l++) {
             for (k=ofill[j]; k<ofill[j+1]; k++) cols[cnt++] = (m + i - s - l)*nc + ofill[k];
           }

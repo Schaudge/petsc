@@ -57,8 +57,7 @@ PetscErrorCode ISInvertPermutation_Stride(IS is,PetscInt nlocal,IS *perm)
 }
 
 /*@
-   ISStrideGetInfo - Returns the first index in a stride index set and
-   the stride width.
+   ISStrideGetInfo - Returns the first index in a stride index set and the stride width.
 
    Not Collective
 
@@ -75,8 +74,7 @@ PetscErrorCode ISInvertPermutation_Stride(IS is,PetscInt nlocal,IS *perm)
    Returns info on stride index set. This is a pseudo-public function that
    should not be needed by most users.
 
-
-.seealso: ISCreateStride(), ISGetSize()
+.seealso: ISCreateStride(), ISGetSize(), ISSTRIDE
 @*/
 PetscErrorCode  ISStrideGetInfo(IS is,PetscInt *first,PetscInt *step)
 {
@@ -180,8 +178,8 @@ PetscErrorCode ISView_Stride(IS is,PetscViewer viewer)
   if (iascii) {
     PetscBool matl, isperm;
 
-    ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)is),&rank);CHKERRQ(ierr);
-    ierr = MPI_Comm_size(PetscObjectComm((PetscObject)is),&size);CHKERRQ(ierr);
+    ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)is),&rank);CHKERRMPI(ierr);
+    ierr = MPI_Comm_size(PetscObjectComm((PetscObject)is),&size);CHKERRMPI(ierr);
     ierr = PetscViewerGetFormat(viewer,&fmt);CHKERRQ(ierr);
     matl = (PetscBool)(fmt == PETSC_VIEWER_ASCII_MATLAB);
     ierr = ISGetInfo(is,IS_PERMUTATION,IS_GLOBAL,PETSC_FALSE,&isperm);CHKERRQ(ierr);
@@ -191,11 +189,11 @@ PetscErrorCode ISView_Stride(IS is,PetscViewer viewer)
         const char* name;
 
         ierr = PetscObjectGetName((PetscObject)is,&name);CHKERRQ(ierr);
-        ierr = PetscViewerASCIIPrintf(viewer,"%s = [%D : %D : %D];\n",name,sub->first+1,sub->step,sub->first + sub->step*(n-1)+1);CHKERRQ(ierr);
+        ierr = PetscViewerASCIIPrintf(viewer,"%s = [%" PetscInt_FMT " : %" PetscInt_FMT " : %" PetscInt_FMT "];\n",name,sub->first+1,sub->step,sub->first + sub->step*(n-1)+1);CHKERRQ(ierr);
       } else {
-        ierr = PetscViewerASCIIPrintf(viewer,"Number of indices in (stride) set %D\n",n);CHKERRQ(ierr);
+        ierr = PetscViewerASCIIPrintf(viewer,"Number of indices in (stride) set %" PetscInt_FMT "\n",n);CHKERRQ(ierr);
         for (i=0; i<n; i++) {
-          ierr = PetscViewerASCIIPrintf(viewer,"%D %D\n",i,sub->first + i*sub->step);CHKERRQ(ierr);
+          ierr = PetscViewerASCIIPrintf(viewer,"%" PetscInt_FMT " %" PetscInt_FMT "\n",i,sub->first + i*sub->step);CHKERRQ(ierr);
         }
       }
       ierr = PetscViewerFlush(viewer);CHKERRQ(ierr);
@@ -205,11 +203,11 @@ PetscErrorCode ISView_Stride(IS is,PetscViewer viewer)
         const char* name;
 
         ierr = PetscObjectGetName((PetscObject)is,&name);CHKERRQ(ierr);
-        ierr = PetscViewerASCIISynchronizedPrintf(viewer,"%s_%d = [%D : %D : %D];\n",name,rank,sub->first+1,sub->step,sub->first + sub->step*(n-1)+1);CHKERRQ(ierr);
+        ierr = PetscViewerASCIISynchronizedPrintf(viewer,"%s_%d = [%" PetscInt_FMT " : %" PetscInt_FMT " : %" PetscInt_FMT "];\n",name,rank,sub->first+1,sub->step,sub->first + sub->step*(n-1)+1);CHKERRQ(ierr);
       } else {
-        ierr = PetscViewerASCIISynchronizedPrintf(viewer,"[%d] Number of indices in (stride) set %D\n",rank,n);CHKERRQ(ierr);
+        ierr = PetscViewerASCIISynchronizedPrintf(viewer,"[%d] Number of indices in (stride) set %" PetscInt_FMT "\n",rank,n);CHKERRQ(ierr);
         for (i=0; i<n; i++) {
-          ierr = PetscViewerASCIISynchronizedPrintf(viewer,"[%d] %D %D\n",rank,i,sub->first + i*sub->step);CHKERRQ(ierr);
+          ierr = PetscViewerASCIISynchronizedPrintf(viewer,"[%d] %" PetscInt_FMT " %" PetscInt_FMT "\n",rank,i,sub->first + i*sub->step);CHKERRQ(ierr);
         }
       }
       ierr = PetscViewerFlush(viewer);CHKERRQ(ierr);
@@ -288,7 +286,7 @@ static PetscErrorCode ISSetBlockSize_Stride(IS is,PetscInt bs)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (sub->step != 1 && bs != 1) SETERRQ2(PetscObjectComm((PetscObject)is),PETSC_ERR_ARG_SIZ,"ISSTRIDE has stride %D, cannot be blocked of size %D",sub->step,bs);
+  if (sub->step != 1 && bs != 1) SETERRQ2(PetscObjectComm((PetscObject)is),PETSC_ERR_ARG_SIZ,"ISSTRIDE has stride %" PetscInt_FMT ", cannot be blocked of size %" PetscInt_FMT,sub->step,bs);
   ierr = PetscLayoutSetBlockSize(is->map, bs);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -307,7 +305,6 @@ static PetscErrorCode ISContiguousLocal_Stride(IS is,PetscInt gstart,PetscInt ge
   }
   PetscFunctionReturn(0);
 }
-
 
 static struct _ISOps myops = { ISGetIndices_Stride,
                                ISRestoreIndices_Stride,
@@ -334,7 +331,6 @@ static struct _ISOps myops = { ISGetIndices_Stride,
                                ISIntervalLocal_Stride,
                                NULL};
 
-
 /*@
    ISStrideSetStride - Sets the stride information for a stride index set.
 
@@ -348,14 +344,14 @@ static struct _ISOps myops = { ISGetIndices_Stride,
 
    Level: beginner
 
-.seealso: ISCreateGeneral(), ISCreateBlock(), ISAllGather()
+.seealso: ISCreateGeneral(), ISCreateBlock(), ISAllGather(), ISSTRIDE, ISCreateStride(), ISStrideGetInfo()
 @*/
 PetscErrorCode  ISStrideSetStride(IS is,PetscInt n,PetscInt first,PetscInt step)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (n < 0) SETERRQ1(PetscObjectComm((PetscObject)is), PETSC_ERR_ARG_OUTOFRANGE, "Negative length %D not valid", n);
+  if (n < 0) SETERRQ1(PetscObjectComm((PetscObject)is), PETSC_ERR_ARG_OUTOFRANGE, "Negative length %" PetscInt_FMT " not valid", n);
   ierr = ISClearInfoCache(is,PETSC_FALSE);CHKERRQ(ierr);
   ierr = PetscUseMethod(is,"ISStrideSetStride_C",(IS,PetscInt,PetscInt,PetscInt),(is,n,first,step));CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -406,7 +402,7 @@ PetscErrorCode  ISStrideSetStride_Stride(IS is,PetscInt n,PetscInt first,PetscIn
 
    Level: beginner
 
-.seealso: ISCreateGeneral(), ISCreateBlock(), ISAllGather()
+.seealso: ISCreateGeneral(), ISCreateBlock(), ISAllGather(), ISSTRIDE
 @*/
 PetscErrorCode  ISCreateStride(MPI_Comm comm,PetscInt n,PetscInt first,PetscInt step,IS *is)
 {

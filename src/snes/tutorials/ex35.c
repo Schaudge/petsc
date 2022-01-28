@@ -7,8 +7,6 @@ static const char help[] = "-Laplacian u = b as a nonlinear problem.\n\n";
    Processors: n
 T*/
 
-
-
 /*
 
     The linear and nonlinear versions of these should give almost identical results on this problem
@@ -242,8 +240,6 @@ PetscErrorCode FormMatrix(DM da,Mat jac)
   PetscFunctionReturn(0);
 }
 
-
-
 /* ------------------------------------------------------------------- */
 /*
       Applies some sweeps on nonlinear Gauss-Seidel on each process
@@ -260,7 +256,7 @@ PetscErrorCode NonlinearGS(SNES snes,Vec X)
 
   PetscFunctionBeginUser;
   ierr = SNESGetTolerances(snes,NULL,NULL,NULL,&its,NULL);CHKERRQ(ierr);
-  ierr = SNESShellGetContext(snes,(void**)&da);CHKERRQ(ierr);
+  ierr = SNESShellGetContext(snes,&da);CHKERRQ(ierr);
 
   ierr = DMDAGetInfo(da,PETSC_IGNORE,&Mx,&My,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE);CHKERRQ(ierr);
 
@@ -268,7 +264,6 @@ PetscErrorCode NonlinearGS(SNES snes,Vec X)
   hy    = 1.0/(PetscReal)(My-1);
   hxdhy = hx/hy;
   hydhx = hy/hx;
-
 
   ierr = DMGetLocalVector(da,&localX);CHKERRQ(ierr);
 
@@ -322,7 +317,6 @@ PetscErrorCode NonlinearGS(SNES snes,Vec X)
   PetscFunctionReturn(0);
 }
 
-
 /*TEST
 
    test:
@@ -358,5 +352,13 @@ PetscErrorCode NonlinearGS(SNES snes,Vec X)
    test:
       suffix: 8
       args: -da_refine 2 -snes_monitor_short -snes_type fas -fas_levels_snes_monitor_short -fas_coarse_snes_type newtonls -fas_coarse_pc_type lu -fas_coarse_ksp_type preonly -snes_type fas -snes_rtol 1.e-5
+
+   test:
+      suffix: 9
+      args: -snes_monitor_short -ksp_type gmres -ksp_monitor_short -pc_type none -snes_type newtontrdc
+
+   test:
+      suffix: 10
+      args: -snes_monitor_short -ksp_type gmres -ksp_monitor_short -pc_type none -snes_type newtontrdc -snes_trdc_use_cauchy false
 
 TEST*/

@@ -61,14 +61,14 @@ PetscErrorCode  PetscDrawScalePopup(PetscDraw popup,PetscReal min,PetscReal max)
   PetscValidHeaderSpecific(popup,PETSC_DRAW_CLASSID,1);
   ierr = PetscDrawIsNull(popup,&isnull);CHKERRQ(ierr);
   if (isnull) PetscFunctionReturn(0);
-  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)popup),&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)popup),&rank);CHKERRMPI(ierr);
 
   ierr = PetscDrawCheckResizedWindow(popup);CHKERRQ(ierr);
   ierr = PetscDrawClear(popup);CHKERRQ(ierr);
   ierr = PetscDrawSetTitle(popup,"Contour Scale");CHKERRQ(ierr);
   ierr = PetscDrawSetCoordinates(popup,xl,yl,xr,yr);CHKERRQ(ierr);
   ierr = PetscDrawCollectiveBegin(popup);CHKERRQ(ierr);
-  if (!rank) {
+  if (rank == 0) {
     for (i=0; i<10; i++) {
       int c = PetscDrawRealToColor((PetscReal)i/9,0,1);
       ierr = PetscDrawRectangle(popup,xl,yl,xr,yr,c,c,c,c);CHKERRQ(ierr);
@@ -132,7 +132,6 @@ static PetscErrorCode PetscDrawTensorContour_Zoom(PetscDraw win,void *dctx)
 
    Level: intermediate
 
-
 .seealso: PetscDrawTensorContourPatch(), PetscDrawScalePopup()
 
 @*/
@@ -151,7 +150,7 @@ PetscErrorCode  PetscDrawTensorContour(PetscDraw draw,int m,int n,const PetscRea
   PetscValidHeaderSpecific(draw,PETSC_DRAW_CLASSID,1);
   ierr = PetscDrawIsNull(draw,&isnull);CHKERRQ(ierr);
   if (isnull) PetscFunctionReturn(0);
-  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)draw),&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)draw),&size);CHKERRMPI(ierr);
   if (size > 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"May only be used with single processor PetscDraw");
   if (N <= 0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"n %d and m %d must be positive",m,n);
 

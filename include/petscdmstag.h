@@ -80,6 +80,7 @@ PETSC_EXTERN PetscErrorCode DMStagCreate1d(MPI_Comm,DMBoundaryType,PetscInt,Pets
 PETSC_EXTERN PetscErrorCode DMStagCreate2d(MPI_Comm,DMBoundaryType,DMBoundaryType,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,DMStagStencilType,PetscInt,const PetscInt[],const PetscInt[],DM*);
 PETSC_EXTERN PetscErrorCode DMStagCreate3d(MPI_Comm,DMBoundaryType,DMBoundaryType,DMBoundaryType,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,DMStagStencilType,PetscInt,const PetscInt[],const PetscInt[],const PetscInt[],DM*);
 PETSC_EXTERN PetscErrorCode DMStagCreateCompatibleDMStag(DM,PetscInt,PetscInt,PetscInt,PetscInt,DM*);
+PETSC_EXTERN PetscErrorCode DMStagCreateISFromStencils(DM,PetscInt,DMStagStencil*,IS*);
 PETSC_EXTERN PetscErrorCode DMStagGetBoundaryTypes(DM,DMBoundaryType*,DMBoundaryType*,DMBoundaryType*);
 PETSC_EXTERN PetscErrorCode DMStagGetCorners(DM,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*);
 PETSC_EXTERN PetscErrorCode DMStagGetDOF(DM,PetscInt*,PetscInt*,PetscInt*,PetscInt*);
@@ -116,6 +117,7 @@ PETSC_EXTERN PetscErrorCode DMStagSetStencilWidth(DM,PetscInt);
 PETSC_EXTERN PetscErrorCode DMStagSetUniformCoordinates(DM,PetscReal,PetscReal,PetscReal,PetscReal,PetscReal,PetscReal);
 PETSC_EXTERN PetscErrorCode DMStagSetUniformCoordinatesExplicit(DM,PetscReal,PetscReal,PetscReal,PetscReal,PetscReal,PetscReal);
 PETSC_EXTERN PetscErrorCode DMStagSetUniformCoordinatesProduct(DM,PetscReal,PetscReal,PetscReal,PetscReal,PetscReal,PetscReal);
+PETSC_EXTERN PetscErrorCode DMStagStencilToIndexLocal(DM,PetscInt,PetscInt,const DMStagStencil*,PetscInt*);
 PETSC_EXTERN PetscErrorCode DMStagVecGetArray(DM,Vec,void*);
 PETSC_EXTERN PetscErrorCode DMStagVecGetArrayRead(DM,Vec,void*);
 PETSC_EXTERN PetscErrorCode DMStagVecGetValuesStencil(DM,Vec,PetscInt,const DMStagStencil*,PetscScalar*);

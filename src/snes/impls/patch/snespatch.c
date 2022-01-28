@@ -313,8 +313,8 @@ static PetscErrorCode SNESSolve_Patch(SNES snes)
        in PCApply_PATCH_Nonlinear. */
     ierr = VecGetArrayRead(state, &globalState);CHKERRQ(ierr);
     ierr = VecGetArray(pcpatch->localState, &localState);CHKERRQ(ierr);
-    ierr = PetscSFBcastBegin(pcpatch->sectionSF, MPIU_SCALAR, globalState, localState);CHKERRQ(ierr);
-    ierr = PetscSFBcastEnd(pcpatch->sectionSF, MPIU_SCALAR, globalState, localState);CHKERRQ(ierr);
+    ierr = PetscSFBcastBegin(pcpatch->sectionSF, MPIU_SCALAR, globalState, localState,MPI_REPLACE);CHKERRQ(ierr);
+    ierr = PetscSFBcastEnd(pcpatch->sectionSF, MPIU_SCALAR, globalState, localState,MPI_REPLACE);CHKERRQ(ierr);
     ierr = VecRestoreArray(pcpatch->localState, &localState);CHKERRQ(ierr);
     ierr = VecRestoreArrayRead(state, &globalState);CHKERRQ(ierr);
 
@@ -406,7 +406,7 @@ PetscErrorCode SNESPatchSetDiscretisationInfo(SNES snes, PetscInt nsubspaces, DM
 
   PetscFunctionBegin;
   ierr = SNESGetDM(snes, &dm);CHKERRQ(ierr);
-  if (!dm) SETERRQ(PetscObjectComm((PetscObject)snes), PETSC_ERR_ARG_WRONGSTATE, "DM not yet set on patch SNES\n");
+  if (!dm) SETERRQ(PetscObjectComm((PetscObject)snes), PETSC_ERR_ARG_WRONGSTATE, "DM not yet set on patch SNES");
   ierr = PCSetDM(patch->pc, dm);CHKERRQ(ierr);
   ierr = PCPatchSetDiscretisationInfo(patch->pc, nsubspaces, dms, bs, nodesPerCell, cellNodeMap, subspaceOffsets, numGhostBcs, ghostBcNodes, numGlobalBcs, globalBcNodes);CHKERRQ(ierr);
   PetscFunctionReturn(0);

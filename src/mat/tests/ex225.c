@@ -15,7 +15,7 @@ int main(int argc,char **args)
 
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
   comm = PETSC_COMM_WORLD;
-  ierr = MPI_Comm_size(comm,&NP);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(comm,&NP);CHKERRMPI(ierr);
   ierr = PetscOptionsGetInt(NULL,NULL,"-M",&M,NULL);CHKERRQ(ierr);
   if (M < 6) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Matrix has to have more than 6 columns");
   /* Hypre matrix */
@@ -114,12 +114,12 @@ int main(int argc,char **args)
     for (i=rstart; i<rend; i++) {
       ierr = MatGetRow(A,i,&nzA,&idxA,&vA);CHKERRQ(ierr);
       ierr = MatGetRow(B,i,&nzB,&idxB,&vB);CHKERRQ(ierr);
-      if (nzA!=nzB) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Error MatGetRow %D", nzA-nzB);
+      if (nzA!=nzB) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Error MatGetRow %" PetscInt_FMT, nzA-nzB);
       ierr = PetscSortIntWithScalarArray(nzB,(PetscInt*)idxB,(PetscScalar*)vB);CHKERRQ(ierr);
       ierr = PetscArraycmp(idxA,idxB,nzA,&flg);CHKERRQ(ierr);
-      if (!flg) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Error MatGetRow %D (indices)",i);
+      if (!flg) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Error MatGetRow %" PetscInt_FMT " (indices)",i);
       ierr = PetscArraycmp(vA,vB,nzA,&flg);CHKERRQ(ierr);
-      if (!flg) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Error MatGetRow %D (values)",i);
+      if (!flg) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Error MatGetRow %" PetscInt_FMT " (values)",i);
       ierr = MatRestoreRow(A,i,&nzA,&idxA,&vA);CHKERRQ(ierr);
       ierr = MatRestoreRow(B,i,&nzB,&idxB,&vB);CHKERRQ(ierr);
     }
@@ -133,7 +133,7 @@ int main(int argc,char **args)
 
     for (i=0; i<(rend-rstart); i++) {
       ierr = PetscArraycmp(valuesA + 6*i,valuesB + 6*i,6,&flg);CHKERRQ(ierr);
-      if (!flg) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Error MatGetValues %D",i + rstart);
+      if (!flg) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Error MatGetValues %" PetscInt_FMT,i + rstart);
     }
     ierr = PetscFree3(valuesA,valuesB,rows);CHKERRQ(ierr);
   }
@@ -152,7 +152,6 @@ int main(int argc,char **args)
   return ierr;
 }
 
-
 /*TEST
 
    build:
@@ -160,10 +159,12 @@ int main(int argc,char **args)
 
    test:
       suffix: 1
+      requires: !defined(PETSC_HAVE_HYPRE_DEVICE)
 
    test:
+      suffix: 2
+      requires: !defined(PETSC_HAVE_HYPRE_DEVICE)
       output_file: output/ex225_1.out
       nsize: 2
-      suffix: 2
 
 TEST*/

@@ -208,12 +208,20 @@ cdef extern from * nogil:
     int TSMonitorCancel(PetscTS)
     int TSMonitor(PetscTS,PetscInt,PetscReal,PetscVec)
 
+    ctypedef int (*PetscTSEventHandler)(PetscTS,PetscReal,PetscVec,PetscScalar[],void*) except PETSC_ERR_PYTHON
+    ctypedef int (*PetscTSPostEvent)(PetscTS,PetscInt,PetscInt[],PetscReal,PetscVec, PetscBool, void*) except PETSC_ERR_PYTHON
+
+    int TSSetEventHandler(PetscTS, PetscInt, PetscInt[], PetscBool[], PetscTSEventHandler, PetscTSPostEvent, void*)
+    int TSSetEventTolerances(PetscTS, PetscReal, PetscReal[])
+    int TSGetNumEvents(PetscTS, PetscInt*)
+
     ctypedef int (*PetscTSAdjointR)(PetscTS,PetscReal,PetscVec,PetscVec,void*) except PETSC_ERR_PYTHON
     ctypedef int (*PetscTSAdjointDRDY)(PetscTS,PetscReal,PetscVec,PetscVec[],void*) except PETSC_ERR_PYTHON
     ctypedef int (*PetscTSAdjointDRDP)(PetscTS,PetscReal,PetscVec,PetscVec[],void*) except PETSC_ERR_PYTHON
     ctypedef int (*PetscTSRHSJacobianP)(PetscTS,PetscReal,PetscVec,PetscMat,void*) except PETSC_ERR_PYTHON
 
     int TSSetSaveTrajectory(PetscTS)
+    int TSRemoveTrajectory(PetscTS)
     int TSSetCostGradients(PetscTS,PetscInt,PetscVec*,PetscVec*)
     int TSGetCostGradients(PetscTS,PetscInt*,PetscVec**,PetscVec**)
     int TSCreateQuadratureTS(PetscTS,PetscBool,PetscTS*)
@@ -227,6 +235,7 @@ cdef extern from * nogil:
     int TSAdjointSetSteps(PetscTS,PetscInt)
     int TSAdjointStep(PetscTS)
     int TSAdjointSetUp(PetscTS)
+    int TSAdjointReset(PetscTS)
     int TSAdjointComputeDRDPFunction(PetscTS,PetscReal,PetscVec,PetscVec*)
     int TSAdjointComputeDRDYFunction(PetscTS,PetscReal,PetscVec,PetscVec*)
     int TSAdjointCostIntegral(PetscTS)
@@ -264,6 +273,7 @@ cdef extern from * nogil:
     ctypedef const char* PetscTSRKType "TSRKType"
     PetscTSRKType TSRK1FE
     PetscTSRKType TSRK2A
+    PetscTSRKType TSRK2B
     PetscTSRKType TSRK3
     PetscTSRKType TSRK3BS
     PetscTSRKType TSRK4
@@ -294,6 +304,14 @@ cdef extern from * nogil:
 
     int TSARKIMEXGetType(PetscTS ts,PetscTSRKType*)
     int TSARKIMEXSetType(PetscTS ts,PetscTSRKType)
+    int TSARKIMEXSetFullyImplicit(PetscTS ts,PetscBool)
+
+cdef extern from * nogil:
+    struct _p_TSAdapt
+    ctypedef _p_TSAdapt *PetscTSAdapt "TSAdapt"
+    int TSGetAdapt(PetscTS,PetscTSAdapt*)
+    int TSAdaptGetStepLimits(PetscTSAdapt,PetscReal*,PetscReal*)
+    int TSAdaptSetStepLimits(PetscTSAdapt,PetscReal,PetscReal)
 
 cdef extern from "custom.h" nogil:
     int TSSetTimeStepNumber(PetscTS,PetscInt)
@@ -477,6 +495,44 @@ cdef int TS_Monitor(
     return 0
 
 # -----------------------------------------------------------------------------
+
+cdef int TS_EventHandler(
+    PetscTS     ts,
+    PetscReal   time,
+    PetscVec    u,
+    PetscScalar fvalue[],
+    void*       ctx,
+    ) except PETSC_ERR_PYTHON with gil:
+    cdef TS  Ts = ref_TS(ts)
+    cdef Vec Vu = ref_Vec(u)
+    cdef object context = Ts.get_attr('__eventhandler__')
+    if context is None: return 0
+    (eventhandler, args, kargs) = context
+    cdef PetscInt nevents = 0
+    CHKERR( TSGetNumEvents(ts, &nevents) )
+    cdef npy_intp s = <npy_intp> nevents
+    fvalue_array = PyArray_SimpleNewFromData(1, &s, NPY_PETSC_SCALAR, fvalue)
+    eventhandler(Ts, toReal(time), Vu, fvalue_array, *args, **kargs)
+    return 0
+
+cdef int TS_PostEvent(
+    PetscTS   ts,
+    PetscInt  nevents_zero,
+    PetscInt  events_zero[],
+    PetscReal time,
+    PetscVec  u,
+    PetscBool forward,
+    void*     ctx,
+    ) except PETSC_ERR_PYTHON with gil:
+    cdef TS  Ts = ref_TS(ts)
+    cdef Vec Vu = ref_Vec(u)
+    cdef object context = Ts.get_attr('__postevent__')
+    if context is None: return 0
+    (postevent, args, kargs) = context
+    cdef npy_intp s = <npy_intp> nevents_zero
+    events_zero_array = PyArray_SimpleNewFromData(1, &s, NPY_PETSC_INT, events_zero)
+    postevent(Ts, events_zero_array, toReal(time), Vu, toBool(forward), *args, **kargs)
+    return 0
 
 cdef int TS_PreStep(
     PetscTS ts,

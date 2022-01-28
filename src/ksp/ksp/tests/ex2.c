@@ -31,15 +31,15 @@ int main(int argc,char **args)
   PetscScalar    v;
 
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
 
   /* create stiffness matrix C = [1 2; 2 3] */
   ierr = MatCreate(PETSC_COMM_WORLD,&C);CHKERRQ(ierr);
   ierr = MatSetSizes(C,PETSC_DECIDE,PETSC_DECIDE,N,N);CHKERRQ(ierr);
   ierr = MatSetFromOptions(C);CHKERRQ(ierr);
   ierr = MatSetUp(C);CHKERRQ(ierr);
-  if (!rank) {
+  if (rank == 0) {
     rowidx = 0; colidx = 0; v = 1.0;
     ierr   = MatSetValues(C,1,&rowidx,1,&colidx,&v,INSERT_VALUES);CHKERRQ(ierr);
     rowidx = 0; colidx = 1; v = 2.0;

@@ -3,7 +3,7 @@ import config.package
 class Configure(config.package.Package):
   def __init__(self, framework):
     config.package.Package.__init__(self, framework)
-    self.version          = '6.1.0'
+    self.version          = '6.1.2'
     self.versionname      = 'SCOTCH_VERSION.SCOTCH_RELEASE.SCOTCH_PATCHLEVEL'
     self.gitcommit        = 'v'+self.version
     self.download         = ['git://https://gitlab.inria.fr/scotch/scotch.git',
@@ -55,7 +55,7 @@ class Configure(config.package.Package):
     g.write('CCD        = '+self.getCompiler()+'\n')
 
     # Building cflags/ldflags
-    self.cflags = self.updatePackageCFlags(self.getCompilerFlags())+' '+self.headers.toString(self.mpi.include)
+    self.cflags = self.updatePackageCFlags(self.getCompilerFlags())+' '+self.headers.toString(self.dinclude)
     functions = self.framework.require('config.functions', self)
     if not functions.haveFunction('FORK') and not functions.haveFunction('_PIPE'):
       raise RuntimeError('Error building PTScotch: no pipe function')
@@ -115,8 +115,7 @@ class Configure(config.package.Package):
       libDir     = os.path.join(self.installDir, self.libdir)
       includeDir = os.path.join(self.installDir, self.includedir)
       self.logPrintBox('Installing PTScotch; this may take several minutes')
-      self.installDirProvider.printSudoPasswordMessage()
-      output,err,ret = config.package.Package.executeShellCommand(self.installSudo+'mkdir -p '+os.path.join(self.installDir,includeDir)+' && '+self.installSudo+'mkdir -p '+os.path.join(self.installDir,self.libdir)+' && cd '+self.packageDir+' && '+self.installSudo+'cp -f lib/*.a '+libDir+'/. && '+self.installSudo+' cp -f include/*.h '+includeDir+'/.', timeout=60, log = self.log)
+      output,err,ret = config.package.Package.executeShellCommand('mkdir -p '+os.path.join(self.installDir,includeDir)+' && mkdir -p '+os.path.join(self.installDir,self.libdir)+' && cd '+self.packageDir+' && cp -f lib/*.a '+libDir+'/. && cp -f include/*.h '+includeDir+'/.', timeout=60, log = self.log)
       self.postInstall(output+err,os.path.join('src','Makefile.inc'))
     return self.installDir
 
