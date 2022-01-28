@@ -5927,3 +5927,68 @@ PetscErrorCode DMPlexComputeJacobian_Action_Internal(DM dm, PetscFormKey key, IS
   ierr = PetscLogEventEnd(DMPLEX_JacobianFEM,dm,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
+/*
+  DMPlexComputeHessianLocal - Compute the Hessian of the local input field
+
+  Input Parameters:
++ dm   - The mesh
+- locU - A local input vector
+
+  Output Parameter:
+. locH - Local output vector containing the Hessian of locU
+
+  Note:
+  We use Clement interpolation, an averaging operator [1], in order to project the discontinuous field we get after differentiation into a continuous space again.
+
+  [1] Finite Element Quasi-Iinterpolation and Best Approximation, Ern and Guermond
+*/
+PetscErrorCode DMPlexComputeHessianLocal(DM dm, Vec locU, Vec *locH)
+{
+  DM             dmGrad, dmHess;
+  Vec            locGrad, locHess;
+  PetscDS        ds;
+  PetscInt       dim, Nf, f, dE;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  /* Setup finite element space for derivative */
+  ierr = DMClone(dm, &dmGrad);CHKERRQ(ierr);
+  ierr = DMClone(dm, &dmHess);CHKERRQ(ierr);
+  /* TODO We need to loop through all DSes */
+  ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDim(dm, &dE);CHKERRQ(ierr);
+  ierr = DMGetDS(dm, &ds);CHKERRQ(ierr);
+  ierr = PetscDSGetNumFields(ds, &Nf);CHKERRQ(ierr);
+  for (f = 0; f < Nf; ++f) {
+    PetscFE         fe, feGrad, feHess;
+    PetscQuadrature q;
+    PetscInt        Nc, qorder;
+    const char     *prefix;
+
+    ierr = PetscDSGetDiscretization(ds, f, (PetscObject *) &fe);CHKERRQ(ierr);
+    ierr = PetscFEGetNumComponents(fe, &Nc);CHKERRQ(ierr);
+    ierr = PetscFEGetQuadrature(fe, &q);CHKERRQ(ierr);
+    ierr = PetscQuadratureGetOrder(q, &qorder);CHKERRQ(ierr);
+    ierr = PetscObjectGetOptionsPrefix((PetscObject) fe, &prefix);CHKERRQ(ierr);
+    ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dmGrad), dim, Nc*dE,    PETSC_TRUE, prefix, qorder, &feGrad);CHKERRQ(ierr);
+    ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dmHess), dim, Nc*dE*dE, PETSC_TRUE, prefix, qorder, &feHess);CHKERRQ(ierr);
+    ierr = DMSetField(dmGrad, f, NULL, (PetscObject) feGrad);CHKERRQ(ierr);
+    ierr = DMSetField(dmHess, f, NULL, (PetscObject) feHess);CHKERRQ(ierr);
+    ierr = DMCreateDS(dmGrad);CHKERRQ(ierr);
+    ierr = DMCreateDS(dmHess);CHKERRQ(ierr);
+    ierr = PetscFEDestroy(&feGrad);CHKERRQ(ierr);
+    ierr = PetscFEDestroy(&feHess);CHKERRQ(ierr);
+  }
+  /* Compute vertexwise gradients from cellwise gradients */
+  ierr = DMGetLocalVector(dmGrad, &locGrad);CHKERRQ(ierr);
+  ierr = DMPlexComputeGradientClementInterpolant(dm, locU, locGrad);CHKERRQ(ierr);
+  /* Compute vertexwise Hessians from cellwise Hessians */
+  ierr = DMCreateLocalVector(dmHess, &locHess);CHKERRQ(ierr);
+  ierr = DMPlexComputeGradientClementInterpolant(dmGrad, locGrad, locHess);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmGrad, &locGrad);CHKERRQ(ierr);
+  ierr = DMDestroy(&dmGrad);CHKERRQ(ierr);
+  ierr = DMDestroy(&dmHess);CHKERRQ(ierr);
+  *locH = locHess;
+  PetscFunctionReturn(0);
+}

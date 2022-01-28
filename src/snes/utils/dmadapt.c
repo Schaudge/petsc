@@ -644,6 +644,7 @@ static PetscErrorCode DMAdaptorAdapt_Sequence_Private(DMAdaptor adaptor, Vec inx
     break;
     case DM_ADAPTATION_METRIC:
     {
+      /* Move check for Nf < 2 and Nc < 2 up to here */
       DM           dmGrad, dmHess, dmMetric;
       Vec          xGrad, xHess, metric;
       PetscReal    N;
