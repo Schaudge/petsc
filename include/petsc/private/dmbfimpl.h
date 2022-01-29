@@ -4,6 +4,10 @@
 #include <petscdmbf.h> /*I "petscdmbf.h" I*/
 #include <petscdm.h>   /*I "petscdm.h" I*/
 
+//#if defined(PETSC_USE_DEBUG)
+//#define PETSC_USE_DMBF_VERBOSE_HI // this flag is normally deactivated; use only for development purposes
+//#endif
+
 PETSC_EXTERN PetscErrorCode DMBFGetP4est(DM,void*);
 PETSC_EXTERN PetscErrorCode DMBFGetGhost(DM,void*);
 

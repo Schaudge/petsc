@@ -1087,6 +1087,11 @@ PetscErrorCode DMBF_XD_IterateFVMatAssembly(DM dm, DM_BF_Cell *cells, size_t cel
 #else
   PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,NULL,_p_iterFVMatAssembly,NULL));
 #endif
+
+  /* destroy */
+  ierr = PetscFree(iterCtx.cellCoeff);CHKERRQ(ierr);
+  ierr = PetscFree(iterCtx.rowIndices);CHKERRQ(ierr);
+  ierr = PetscFree(iterCtx.colIndices);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
