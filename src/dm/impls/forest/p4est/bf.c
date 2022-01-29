@@ -365,6 +365,9 @@ static PetscErrorCode DMSetUp_BF(DM dm)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+#if defined(PETSC_USE_DMBF_VERBOSE_HI)
+  PetscPrintf(PETSC_COMM_WORLD,"%s\n",__func__);
+#endif
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   bf   = _p_getBF(dm);
   ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
@@ -405,6 +408,9 @@ static PetscErrorCode DMBFClear(DM dm)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+#if defined(PETSC_USE_DMBF_VERBOSE_HI)
+  PetscPrintf(PETSC_COMM_WORLD,"%s\n",__func__);
+#endif
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   bf   = _p_getBF(dm);
   ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
@@ -835,6 +841,9 @@ PetscErrorCode DMCreate_BF(DM dm)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+#if defined(PETSC_USE_DMBF_VERBOSE_HI)
+  PetscPrintf(PETSC_COMM_WORLD,"%s\n",__func__);
+#endif
   PetscValidHeaderSpecific(dm,DM_CLASSID,1);
   /* create Forest object */
   ierr = PetscP4estInitialize();CHKERRQ(ierr);
@@ -861,6 +870,9 @@ static PetscErrorCode DMForestDestroy_BF(DM dm)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+#if defined(PETSC_USE_DMBF_VERBOSE_HI)
+  PetscPrintf(PETSC_COMM_WORLD,"%s\n",__func__);
+#endif
   /* destroy contents of BF */
   ierr = DMBFClear(dm);CHKERRQ(ierr);
   /* destroy BF object */
@@ -875,18 +887,11 @@ static PetscErrorCode DMBFCloneInit(DM dm, DM *newdm)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  /* clone Forest object */
+  /* clone Forest object (will implicitly call DMCreate_BF) */
   ierr = DMForestTemplate(dm,_p_comm(dm),newdm);CHKERRQ(ierr);
-  ierr = DMInitialize_BF(*newdm);CHKERRQ(ierr);
-  /* create BF object */
-  ierr = PetscNewLog(*newdm,&newbf);CHKERRQ(ierr);
-  /* set data and functions of Forest object */
-  {
-    DM_Forest *forest = (DM_Forest*) (*newdm)->data;
-
-    forest->data    = newbf;
-    forest->destroy = DMForestDestroy_BF;
-  }
+  /* check BF object */
+  newbf = _p_getBF(*newdm);
+  if (!newbf) SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"BF object does not exist");
   /* copy operators */
   ierr = PetscMemcpy((*newdm)->ops,dm->ops,sizeof(*(dm->ops)));CHKERRQ(ierr);
   /* copy options */
@@ -941,6 +946,9 @@ static PetscErrorCode DMClone_BF(DM dm, DM *newdm)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+#if defined(PETSC_USE_DMBF_VERBOSE_HI)
+  PetscPrintf(PETSC_COMM_WORLD,"%s\n",__func__);
+#endif
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   ierr = DMBFCloneInit(dm,newdm);CHKERRQ(ierr);
   ierr = DMBFCloneForestOfTrees(dm,*newdm);CHKERRQ(ierr);
@@ -1277,6 +1285,9 @@ static PetscErrorCode DMCoarsen_BF(DM dm, MPI_Comm comm, DM *coarseDm)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+#if defined(PETSC_USE_DMBF_VERBOSE_HI)
+  PetscPrintf(PETSC_COMM_WORLD,"%s\n",__func__);
+#endif
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   CHKERRQ( DMBFCheck(dm) );
   {
@@ -1315,6 +1326,9 @@ static PetscErrorCode DMRefine_BF(DM dm, MPI_Comm comm, DM *fineDm)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+#if defined(PETSC_USE_DMBF_VERBOSE_HI)
+  PetscPrintf(PETSC_COMM_WORLD,"%s\n",__func__);
+#endif
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   CHKERRQ( DMBFCheck(dm) );
   {
@@ -1386,6 +1400,9 @@ PetscErrorCode DMBFAMRAdapt(DM dm, DM *adaptedDm)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+#if defined(PETSC_USE_DMBF_VERBOSE_HI)
+  PetscPrintf(PETSC_COMM_WORLD,"%s\n",__func__);
+#endif
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   CHKERRQ( DMBFCheck(dm) );
   ierr = DMBFCloneInit(dm,adaptedDm);CHKERRQ(ierr);
@@ -1650,16 +1667,15 @@ PetscErrorCode DMBFFVMatAssemble(DM dm, Mat mat, PetscErrorCode (*iterFace)(DM,D
 
 PetscErrorCode DMView_BF(DM dm, PetscViewer viewer)
 {
-
   PetscBool      isvtk, ishdf5, isdraw, isglvis;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
-  ierr = PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERVTK,   &isvtk);CHKERRQ(ierr);
-  ierr = PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERHDF5,  &ishdf5);CHKERRQ(ierr);
-  ierr = PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERDRAW,  &isdraw);CHKERRQ(ierr);
-  ierr = PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERGLVIS, &isglvis);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERVTK,  &isvtk);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERHDF5, &ishdf5);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERDRAW, &isdraw);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERGLVIS,&isglvis);CHKERRQ(ierr);
   if (isvtk) {
     ierr = DMBFVTKWriteAll((PetscObject)dm,viewer);CHKERRQ(ierr);
   } else if (ishdf5 || isdraw || isglvis) {
@@ -1679,20 +1695,19 @@ PetscErrorCode VecView_BF(Vec v, PetscViewer viewer)
   Vec            locv;
   const char     *name;
 
-
   PetscFunctionBegin;
   ierr = VecGetDM(v,&dm);CHKERRQ(ierr);
   if (!dm) SETERRQ(_p_comm(v),PETSC_ERR_ARG_WRONG,"Vector not generated from a DM");
-  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERVTK,   &isvtk);CHKERRQ(ierr);
-  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERHDF5,  &ishdf5);CHKERRQ(ierr);
-  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERDRAW,  &isdraw);CHKERRQ(ierr);
-  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERGLVIS, &isglvis);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERVTK,  &isvtk);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERHDF5, &ishdf5);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERDRAW, &isdraw);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERGLVIS,&isglvis);CHKERRQ(ierr);
   if(isvtk) {
     /* create a copy and store it in the viewer */
-    ierr = DMCreateLocalVector(dm,&locv);CHKERRQ(ierr);                /* we store local vectors in the viewer. done't know why, since we don't need ghost values */
+    ierr = DMCreateLocalVector(dm,&locv);CHKERRQ(ierr); /* we store local vectors in the viewer. done't know why, since we don't need ghost values */
     ierr = DMGlobalToLocal(dm,v,INSERT_VALUES,locv);CHKERRQ(ierr);
-    ierr = PetscObjectGetName((PetscObject) v, &name);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) locv, name);CHKERRQ(ierr);
+    ierr = PetscObjectGetName((PetscObject)v,&name);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject)locv,name);CHKERRQ(ierr);
     ierr = DMBFGetLocalSize(dm,&locDof);CHKERRQ(ierr);
     ierr = DMBFGetGhostSize(dm,&ng);CHKERRQ(ierr);
     ierr = VecGetSize(locv,&vsize);CHKERRQ(ierr);
@@ -1702,7 +1717,9 @@ PetscErrorCode VecView_BF(Vec v, PetscViewer viewer)
     //if(vsize == P4EST_DIM*size)                { ft = PETSC_VTK_CELL_VECTOR_FIELD; } /* right now this is not actually supported (dm local to global is only for cell fields) */
     //else if(vsize == size)                     { ft = PETSC_VTK_CELL_FIELD;        }
     if(vsize == locDof)                    { ft = PETSC_VTK_CELL_FIELD;        } /* if it's a local vector field, there will be an error before this in the dmlocaltoglobal */
-    else  SETERRQ(_p_comm(locv), PETSC_ERR_SUP, "Only scalar cell fields currently supported");
+    else {
+      SETERRQ(_p_comm(locv), PETSC_ERR_SUP, "Only scalar cell fields currently supported");
+    }
 
     ierr = PetscViewerVTKAddField(viewer,(PetscObject)dm,DMBFVTKWriteAll,PETSC_DEFAULT,ft,PETSC_TRUE,(PetscObject)locv);CHKERRQ(ierr);
   } else if(ishdf5 || isdraw || isglvis) {

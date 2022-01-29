@@ -39,12 +39,12 @@ PetscErrorCode DMBFShapeClear(DM_BF_Shape *shape)
 
   PetscFunctionBegin;
   PetscValidPointer(shape,1);
-  ierr = DMBFShapeIsSetUp(shape,&isSetUp);CHKERRQ(ierr);
-  if (isSetUp) {
-    if (!shape->list || !shape->list[0]) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Shape list is not been properly initialized");
+  if (shape->list && !shape->list[0]) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Shape list is not been properly initialized");
+  if (shape->list && shape->list[0]) {
     ierr = PetscFree(shape->list[0]);CHKERRQ(ierr);
     ierr = PetscFree(shape->list);CHKERRQ(ierr);
-    if (!shape->pad) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Shape padding is not been properly initialized");
+  }
+  if (shape->pad) {
     ierr = PetscFree(shape->pad);CHKERRQ(ierr);
   }
   shape->list = PETSC_NULL;
@@ -85,7 +85,13 @@ PetscErrorCode DMBFShapeIsSetUp(const DM_BF_Shape *shape, PetscBool *isSetUp)
   PetscFunctionBegin;
   PetscValidPointer(shape,1);
   PetscValidBoolPointer(isSetUp,2);
-  *isSetUp = (shape->list != PETSC_NULL && shape->pad != PETSC_NULL && 0 < shape->n && 0 < shape->dim);
+  if (shape->list && shape->pad && 0 < shape->n && 0 < shape->dim) {
+    *isSetUp = PETSC_TRUE;
+  } else if (!shape->list || !shape->list[0] || !shape->pad || shape->n <= 0 || shape->dim <= 0) {
+    SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Shape is not properly initialized or cleared");
+  } else {
+    *isSetUp = PETSC_FALSE;
+  }
   PetscFunctionReturn(0);
 }
 
