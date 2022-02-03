@@ -1351,7 +1351,7 @@ Z_dimension:
 
 finish:
   /* If not optimizable, free arrays to save memory */
-  if (!n || !optimizable) {
+  if (1 || !n || !optimizable) {
     ierr = PetscFree(opt->array);CHKERRQ(ierr);
     ierr = PetscFree(opt);CHKERRQ(ierr);
     *out = NULL;
