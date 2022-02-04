@@ -26,6 +26,8 @@ else
     PETSC_RAJACOMPILE_SINGLE = ${CXX} -o $*.o -c ${CXX_FLAGS} ${CXXFLAGS} ${CXXCPPFLAGS}
 endif
 
+LINK.hip.cpp =  $(HIPC)  $(HIPC_FLAGS)  $(HIPPP_FLAGS)  $(HIPOPTFLAGS)  $(CXXFLAGS) $(CXXCPPFLAGS) $(LDFLAGS) $(MPICXX_INCLUDES) $(MPICXX_LIBS)
+
 LDLIBS += $(PETSC_LIB)
 
 % : %.F90
@@ -34,6 +36,8 @@ LDLIBS += $(PETSC_LIB)
 	$(LINK.kokkos.cxx) $^ $(LOADLIBES) $(LDLIBS) -o $@
 % : %.cxx
 	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o $@
+% : %.hip.cpp
+	$(LINK.hip.cpp) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 ifneq (,$(findstring -TP,$(PCC_FLAGS)))
 % : %.c

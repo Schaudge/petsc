@@ -220,7 +220,7 @@ getautoconfargs:
 #
 #
 
-.SUFFIXES: .F  .F90 .f90 ${SUFFIXES} .PETSc .C .cc .cpp .cxx .r .rm .so .html .ad .m .tex .make  .fig .svg .eps .pdf .jpg .png .dvi .ps .F95 .f95 .fiat .cu .kokkos.cxx .raja.cxx *.sycl.cxx
+.SUFFIXES: .F  .F90 .f90 ${SUFFIXES} .PETSc .C .cc .cpp .cxx .r .rm .so .html .ad .m .tex .make  .fig .svg .eps .pdf .jpg .png .dvi .ps .F95 .f95 .fiat .cu .kokkos.cxx .raja.cxx *.sycl.cxx *.hip.cpp
 
 #
 #
@@ -300,7 +300,7 @@ getautoconfargs:
 .cpp.rm .cxx.rm .cc.rm .C.rm .F.rm .F90.rm .f.rm .c.rm .cu.rm:
 	-@${RM} $* *.o $*.mon.* gmon.out mon.out
 	-@${RM} *.exe *.ilk *.pdb *.tds
-.cu.PETSc .kokkos.cxx.PETSc .c.PETSc .cxx.PETSc:
+.cu.PETSc .kokkos.cxx.PETSc .c.PETSc .cxx.PETSc .hip.cpp.PETSc:
 	-+@${OMAKE}  PETSC_ARCH=${PETSC_ARCH}  $* > trashz 2>&1
 	-@grep -v clog trashz | grep -v "information sections" | \
           grep -v "warning C4003: not enough actual parameters for macro 'PETSC_PASTE3_" | \
