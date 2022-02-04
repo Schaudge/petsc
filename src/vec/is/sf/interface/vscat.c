@@ -35,8 +35,14 @@ static PetscErrorCode VecScatterBegin_Internal(VecScatter sf,Vec x,Vec y,InsertM
 
   PetscFunctionBegin;
   if (x != y) {ierr = VecLockReadPush(x);CHKERRQ(ierr);}
-  ierr = VecGetArrayReadAndMemType(x,&sf->vscat.xdata,&xmtype);CHKERRQ(ierr);
-  ierr = VecGetArrayAndMemType(y,&sf->vscat.ydata,&ymtype);CHKERRQ(ierr);
+  if (sf->use_gpu_aware_mpi) {
+    ierr = VecGetArrayReadAndMemType(x,&sf->vscat.xdata,&xmtype);CHKERRQ(ierr);
+    ierr = VecGetArrayAndMemType(y,&sf->vscat.ydata,&ymtype);CHKERRQ(ierr);
+  } else {
+    ierr = VecGetArrayRead(x,&sf->vscat.xdata);CHKERRQ(ierr);
+    ierr = VecGetArray(y,&sf->vscat.ydata);CHKERRQ(ierr);
+  }
+
   ierr = VecLockWriteSet_Private(y,PETSC_TRUE);CHKERRQ(ierr);
 
   /* SCATTER_LOCAL indicates ignoring inter-process communication */
@@ -87,9 +93,15 @@ static PetscErrorCode VecScatterEnd_Internal(VecScatter sf,Vec x,Vec y,InsertMod
     ierr = PetscSFBcastEnd(wsf,sf->vscat.unit,sf->vscat.xdata,sf->vscat.ydata,mop);CHKERRQ(ierr);
   }
 
-  ierr = VecRestoreArrayReadAndMemType(x,&sf->vscat.xdata);CHKERRQ(ierr);
+  if (sf->use_gpu_aware_mpi) {
+    ierr = VecRestoreArrayReadAndMemType(x,&sf->vscat.xdata);CHKERRQ(ierr);
+    ierr = VecRestoreArrayAndMemType(y,&sf->vscat.ydata);CHKERRQ(ierr);
+  } else {
+    ierr = VecRestoreArrayRead(x,&sf->vscat.xdata);CHKERRQ(ierr);
+    ierr = VecRestoreArray(y,&sf->vscat.ydata);CHKERRQ(ierr);
+  }
   if (x != y) {ierr = VecLockReadPop(x);CHKERRQ(ierr);}
-  ierr = VecRestoreArrayAndMemType(y,&sf->vscat.ydata);CHKERRQ(ierr);
+
   ierr = VecLockWriteSet_Private(y,PETSC_FALSE);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
