@@ -65,7 +65,7 @@ int main(int argc,char **argv)
   ierr = hipMalloc(&vec_d,vecLen*2*sizeof(double));CHKERRQ(ierr);
   ierr = hipMalloc(&buf_d,bufLen*sizeof(double));CHKERRQ(ierr);
 
-  for (int k=0; k<10; k++) {
+  for (int k=0; k<2; k++) {
     for (int i=0; i<vecLen; i++) {
       memset(vec_h,0,vecLen*sizeof(double));
       vec_h[i] = 1.0;
