@@ -34,7 +34,6 @@ PetscErrorCode DMBFShapeSetUp(DM_BF_Shape *shape, size_t n, size_t dim)
 
 PetscErrorCode DMBFShapeClear(DM_BF_Shape *shape)
 {
-  PetscBool      isSetUp;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
