@@ -41,7 +41,28 @@ int main(int argc,char **argv)
 
 /*TEST
 
-  test:
+  testset:
     requires: hip
+    output_file: output/ex255_1.out
 
+    test:
+      suffix: debug1
+    test:
+      suffix: debug2
+    test:
+      suffix: debug3
+    test:
+      suffix: debug4
+    test:
+      suffix: debug5
+    test:
+      suffix: debug6
+    test:
+      suffix: debug7
+    test:
+      suffix: debug8
+    test:
+      suffix: debug9
+    test:
+      suffix: debug10
 TEST*/

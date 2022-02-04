@@ -478,7 +478,7 @@ linux-hip-double:
   variables:
     TEST_ARCH: arch-ci-linux-hip-double
    #TEST_OPTS: search='mat_tests-ex2_debug*'
-    TEST_OPTS: search='mat_tests-ex255_1'
+    TEST_OPTS: search='mat_tests-ex255*'
 
 linux-sycl-double:
   extends:
