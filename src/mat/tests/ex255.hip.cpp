@@ -1,5 +1,6 @@
 #include<hip/hip_runtime.h>
 #include<hip/hip_runtime_api.h>
+#include <mpi.h>
 
 #define CHKERRQ(ierr) assert(ierr == hipSuccess)
 
@@ -20,6 +21,7 @@ int main(int argc,char **argv)
   double      vec_h[vecLen],buf_h[bufLen];
   double      *buf_d,*vec_d;
 
+  MPI_Init(&argc,&argv);
   ierr = hipMalloc(&vec_d,vecLen*2*sizeof(double));CHKERRQ(ierr);
   ierr = hipMalloc(&buf_d,bufLen*sizeof(double));CHKERRQ(ierr);
 
@@ -36,12 +38,14 @@ int main(int argc,char **argv)
   }
   ierr = hipFree(vec_d);CHKERRQ(ierr);
   ierr = hipFree(buf_d);CHKERRQ(ierr);
+  MPI_Finalize();
   return ierr;
 }
 
 /*TEST
 
   testset:
+    nsize: 3
     requires: hip
     output_file: output/ex255_1.out
 
