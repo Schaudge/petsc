@@ -71,15 +71,13 @@ PetscErrorCode DMBFGetVTKVertexCoordinates(DM dm, PetscVTUReal **point_data, Pet
   const PetscVTUReal   *v;
   const PetscVTUReal   intsize = 1.0 / P4EST_ROOT_LEN;
   PetscVTUReal         scale   = .999999;
-  PetscInt             bs,bs0,bs1,bs2,blockSize[3] = {1,1,1};
+  PetscInt             bs0,bs1,blockSize[3] = {1,1,1};
   PetscFunctionBegin;
 
   ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr);
   ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
   bs0  = blockSize[0];
   bs1  = blockSize[1];
-  bs2  = blockSize[2];
-  bs   = bs0*bs1*bs2;
 
   first_local_tree = p4est->first_local_tree;
   last_local_tree = p4est->last_local_tree;
