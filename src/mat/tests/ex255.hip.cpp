@@ -73,7 +73,14 @@ int main(int argc,char **argv)
       hipLaunchKernelGGL(Pack,dim3((vecLen+255)/256),dim3(256),0,0,vecLen,vec_d,buf_d);
       ierr = hipMemcpyAsync(buf_h,buf_d,bufLen*sizeof(double),hipMemcpyDeviceToHost,NULL);CHKERRQ(ierr);
       ierr = hipStreamSynchronize(NULL);CHKERRQ(ierr);
-      assert(buf_h[i] == 1.0 && buf_h[i+vecLen] == 1.0);
+      double sum = 0.0;
+      for (int j=0; j<bufLen; j++) {
+        sum += buf_h[j];
+      }
+      if (sum != 2.0) {
+        printf("Error in Pack\n");
+        exit(1);
+      }
       stat = hipblasDgemm(handle, HIPBLAS_OP_N, HIPBLAS_OP_N, m, m, m, alpha, A_d, m, B_d, m, beta, C_d, m);CHKBLAS(stat);
     }
   }
@@ -105,4 +112,7 @@ int main(int argc,char **argv)
       suffix: debug2
     test:
       suffix: debug3
+    test:
+      suffix: debug4
+    
 TEST*/
