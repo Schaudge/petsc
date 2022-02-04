@@ -1109,7 +1109,7 @@ PetscErrorCode DMGetLocalToGlobalMapping(DM dm,ISLocalToGlobalMapping *ltog)
       ierr = PetscSectionGetStorageSize(section, &n);CHKERRQ(ierr);
       ierr = PetscMalloc1(n, &ltog);CHKERRQ(ierr); /* We want the local+overlap size */
       for (p = pStart, l = 0; p < pEnd; ++p) {
-        PetscInt bdof, cdof, dof, off, c, cind = 0;
+        PetscInt bdof, cdof, dof, off, c, cind;
 
         /* Should probably use constrained dofs */
         ierr = PetscSectionGetDof(section, p, &dof);CHKERRQ(ierr);
@@ -1122,9 +1122,13 @@ PetscErrorCode DMGetLocalToGlobalMapping(DM dm,ISLocalToGlobalMapping *ltog)
           if (bs < 0)          {bs = bdof;}
           else if (bs != bdof) {bs = 1;}
         }
-        for (c = 0; c < dof; ++c, ++l) {
-          if ((cind < cdof) && (c == cdofs[cind])) ltog[l] = off < 0 ? off-c : off+c;
-          else                                     ltog[l] = (off < 0 ? -(off+1) : off) + c;
+        for (c = 0, cind = 0; c < dof; ++c, ++l) {
+          if ((cind < cdof) && (c == cdofs[cind])) {
+            ltog[l] = off < 0 ? off-c : -(off+c+1);
+            cind++;
+          } else {
+            ltog[l] = (off < 0 ? -(off+1) : off) + c;
+          }
         }
       }
       /* Must have same blocksize on all procs (some might have no points) */
@@ -1342,26 +1346,53 @@ PetscErrorCode  DMCreateInjection(DM dac,DM daf,Mat *mat)
   Collective on dac
 
   Input Parameters:
-+ dac - the DM object
-- daf - the second, finer DM object
++ dmc - the target DM object
+- dmf - the source DM object
 
   Output Parameter:
-. mat - the interpolation
+. mat - the mass matrix
 
   Level: developer
 
-.seealso DMCreateMatrix(), DMRefine(), DMCoarsen(), DMCreateRestriction(), DMCreateInterpolation(), DMCreateInjection()
+.seealso DMCreateMassMatrixLumped(), DMCreateMatrix(), DMRefine(), DMCoarsen(), DMCreateRestriction(), DMCreateInterpolation(), DMCreateInjection()
 @*/
-PetscErrorCode DMCreateMassMatrix(DM dac, DM daf, Mat *mat)
+PetscErrorCode DMCreateMassMatrix(DM dmc, DM dmf, Mat *mat)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dac, DM_CLASSID, 1);
-  PetscValidHeaderSpecific(daf, DM_CLASSID, 2);
+  PetscValidHeaderSpecific(dmc, DM_CLASSID, 1);
+  PetscValidHeaderSpecific(dmf, DM_CLASSID, 2);
   PetscValidPointer(mat,3);
-  if (!dac->ops->createmassmatrix) SETERRQ1(PetscObjectComm((PetscObject)dac),PETSC_ERR_SUP,"DM type %s does not implement DMCreateMassMatrix",((PetscObject)dac)->type_name);
-  ierr = (*dac->ops->createmassmatrix)(dac, daf, mat);CHKERRQ(ierr);
+  if (!dmc->ops->createmassmatrix) SETERRQ1(PetscObjectComm((PetscObject)dmc),PETSC_ERR_SUP,"DM type %s does not implement DMCreateMassMatrix",((PetscObject)dmc)->type_name);
+  ierr = (*dmc->ops->createmassmatrix)(dmc, dmf, mat);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*@
+  DMCreateMassMatrixLumped - Gets the lumped mass matrix for a given DM
+
+  Collective on dm
+
+  Input Parameter:
+. dm - the DM object
+
+  Output Parameter:
+. lm - the lumped mass matrix
+
+  Level: developer
+
+.seealso DMCreateMassMatrix(), DMCreateMatrix(), DMRefine(), DMCoarsen(), DMCreateRestriction(), DMCreateInterpolation(), DMCreateInjection()
+@*/
+PetscErrorCode DMCreateMassMatrixLumped(DM dm, Vec *lm)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscValidPointer(lm,2);
+  if (!dm->ops->createmassmatrixlumped) SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"DM type %s does not implement DMCreateMassMatrixLumped",((PetscObject)dm)->type_name);
+  ierr = (*dm->ops->createmassmatrixlumped)(dm, lm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -5438,7 +5469,10 @@ PetscErrorCode DMGetCellDS(DM dm, PetscInt point, PetscDS *prob)
 + fields - The IS containing the DM field numbers for the fields in this DS, or NULL
 - prob - The PetscDS defined on the given region, or NULL
 
-  Note: If the label is missing, this function returns an error
+  Note:
+  If a non-NULL label is given, but there is no PetscDS on that specific label,
+  the PetscDS for the full domain (if present) is returned. Returns with
+  fields=NULL and prob=NULL if there is no PetscDS for the full domain.
 
   Level: advanced
 
@@ -5454,10 +5488,10 @@ PetscErrorCode DMGetRegionDS(DM dm, DMLabel label, IS *fields, PetscDS *ds)
   if (fields) {PetscValidPointer(fields, 3); *fields = NULL;}
   if (ds)     {PetscValidPointer(ds, 4);     *ds     = NULL;}
   for (s = 0; s < Nds; ++s) {
-    if (dm->probs[s].label == label) {
+    if (dm->probs[s].label == label || !dm->probs[s].label) {
       if (fields) *fields = dm->probs[s].fields;
       if (ds)     *ds     = dm->probs[s].ds;
-      PetscFunctionReturn(0);
+      if (dm->probs[s].label) PetscFunctionReturn(0);
     }
   }
   PetscFunctionReturn(0);

@@ -64,6 +64,7 @@ Changes: Development
 .. rubric:: VecScatter / PetscSF:
 
 - Add MPI-4.0 large count support. With an MPI-4.0 compliant MPI implementation and 64-bit indices, one can now pass over 2 billion elements in a single message in either VecScatter or PetscSF
+- Add ``PetscSFFetchAndOpWithMemTypeBegin()``, which is similar to ``PetscSFFetchAndOpBegin()``, but with explicit memory types
 
 .. rubric:: PF:
 
@@ -88,6 +89,8 @@ Changes: Development
 -  Add ``MatCUSPARSESetUseCPUSolve()`` Use CPU solve with cuSparse for LU factorization that are on the CPU
 -  Change ``MatCreateIS()`` behavior when NULL is passed for the mappings. Now a NULL map implies matching local and global spaces
 -  Add ``MatMultHermitianTransposeEqual()`` and ``MatMultHermitianTransposeAddEqual()``
+-  Add support of ``MatSetValuesCOO()`` and ``MatSetPreallocationCOO()`` for matrix type AIJKOKKOS. Additionally, for AIJKOKKOS, they support negative indices and remote entries
+-  Add ``MatSetPreallocationCOOLocal()`` to set preallocation for matrices using a coordinate format of the entries with local indices
 
 .. rubric:: PC:
 
@@ -119,6 +122,7 @@ Changes: Development
 -  Add ``DMCompareLabels()`` comparing ``DMLabel``\s of two ``DM``\s
 -  ``DMCopyLabels()`` now takes DMCopyLabelsMode argument determining duplicity handling
 -  Add ``-dm_bind_below`` option for specifying size threshold below which GPU is not used for ``Vec`` and ``Mat`` objects associated with a DM
+-  Add ``DMCreateMassMatrixLumped()`` to support explicit timestepping, also add ``DMTSCreateRHSMassMatrix()``, ``DMTSCreateRHSMassMatrixLumped()``, and ``DMTSDestroyRHSMassMatrix()``
 
 .. rubric:: DMSwarm:
 
@@ -133,6 +137,8 @@ Changes: Development
     - Add ``DMPlexMetricSetFromOptions()`` to assign values to ``DMPlexMetricCtx``
     - Add ``DMPlexMetricSetIsotropic()`` for declaring whether a metric is isotropic
     - Add ``DMPlexMetricIsIsotropic()`` for determining whether a metric is isotropic
+    - Add ``DMPlexMetricSetUniform()`` for declaring whether a metric is uniform
+    - Add ``DMPlexMetricIsUniform()`` for determining whether a metric is uniform
     - Add ``DMPlexMetricSetRestrictAnisotropyFirst()`` for declaring whether anisotropy should be restricted before normalization
     - Add ``DMPlexMetricRestrictAnisotropyFirst()`` for determining whether anisotropy should be restricted before normalization
     - Add ``DMPlexMetricSetMinimumMagnitude()`` for specifying the minimum tolerated metric magnitude
@@ -174,6 +180,7 @@ Changes: Development
 - Change ``DMTransformAdaptLabel`` so that it takes an additional argument for cell tags
 - Change ``DMGenerateRegister`` so that it registers routines that take an additional argument for cell tags
 - Change ``DMPlexFindVertices()`` to take ``Vec`` and ``IS`` arguments instead of arrays
+- Add ``DMPlexTSComputeRHSFunctionFEM()`` to support explicit timestepping
 
 .. rubric:: FE/FV:
 
@@ -193,5 +200,6 @@ Changes: Development
 .. rubric:: DT:
 
 - Add ``PetscDTPTrimmedEvalJet()`` to evaluate a stable basis for trimmed polynomials, and ``PetscDTPTrimmedSize()`` for the size of that space
+- Add ``PetscDSGetRHSResidual()`` and ``PetscDSSetRHSResidual()`` to support explicit timestepping
 
 .. rubric:: Fortran:
