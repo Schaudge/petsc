@@ -477,7 +477,8 @@ linux-hip-double:
     - gpu:amd, os:linux, name:hip-txcorp
   variables:
     TEST_ARCH: arch-ci-linux-hip-double
-    TEST_OPTS: search='mat_tests-ex2_debug*'
+   #TEST_OPTS: search='mat_tests-ex2_debug*'
+    TEST_OPTS: search='mat_tests-ex255_1'
 
 linux-sycl-double:
   extends:
