@@ -35,7 +35,7 @@ int main(int argc,char **argv)
   hipblasHandle_t handle;
   double          *A_h,*B_h,*C_h;
   double          *A_d,*B_d,*C_d;
-  int             m = 64;
+  int             m = 8;
   const double    alf = 1.0f;
   const double    bet = 0.0f;
   const double    *alpha = &alf;
@@ -65,7 +65,7 @@ int main(int argc,char **argv)
   ierr = hipMalloc(&vec_d,vecLen*2*sizeof(double));CHKERRQ(ierr);
   ierr = hipMalloc(&buf_d,bufLen*sizeof(double));CHKERRQ(ierr);
 
-  for (int k=0; k<2; k++) {
+  for (int k=0; k<1; k++) {
     for (int i=0; i<vecLen; i++) {
       memset(vec_h,0,vecLen*sizeof(double));
       vec_h[i] = 1.0;
@@ -105,18 +105,4 @@ int main(int argc,char **argv)
       suffix: debug2
     test:
       suffix: debug3
-    test:
-      suffix: debug4
-    test:
-      suffix: debug5
-    test:
-      suffix: debug6
-    test:
-      suffix: debug7
-    test:
-      suffix: debug8
-    test:
-      suffix: debug9
-    test:
-      suffix: debug10
 TEST*/
