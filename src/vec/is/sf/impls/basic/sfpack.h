@@ -392,7 +392,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFLinkSyncStreamBeforeCallMPI(PetscSF sf
   }
 
   if (PetscMemTypeDevice(mtype) && buflen) {
-    ierr = (*link->SyncStream)(link);CHKERRQ(ierr);
+    ierr = (*link->SyncDevice)(link);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
