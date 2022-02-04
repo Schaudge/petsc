@@ -863,16 +863,45 @@ PetscErrorCode VecGetArrayWrite_SeqKokkos(Vec v,PetscScalar **a)
   PetscFunctionReturn(0);
 }
 
+#include <petscmat.h>
 PetscErrorCode VecGetArrayAndMemType_SeqKokkos(Vec v,PetscScalar** a,PetscMemType *mtype)
 {
   Vec_Kokkos     *veckok = static_cast<Vec_Kokkos*>(v->spptr);
+  PetscMPIInt     rank,size;
+  static PetscInt gcol = 0;
+  PetscInt        cstart,cend;
+  PetscErrorCode  ierr;
 
   PetscFunctionBegin;
+  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)v),&rank);CHKERRMPI(ierr);
+  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)v),&size);CHKERRMPI(ierr);
+
+  if (PetscEnableCIDebug) {
+    if (rank == 0) {
+      cstart = 0; cend = 3;
+    } else if (rank == 1) {
+      cstart = 3; cend = 5;
+    } else if (rank == 2) {
+      cstart = 5; cend = 7;
+    }
+  }
+
   if (std::is_same<DefaultMemorySpace,Kokkos::HostSpace>::value) {
     *a = veckok->v_dual.view_host().data();
     if (mtype) *mtype = PETSC_MEMTYPE_HOST;
   } else {
     /* When there is device, we always return up-to-date device data */
+    if (PetscEnableCIDebug && size == 3) {
+      PetscScalar sum = 0, *lvec = (PetscScalar*)veckok->v_dual.view_host().data();
+      PetscInt    n = veckok->v_dual.view_host().extent(0);
+      for (PetscInt i = 0; i < n; i++) sum += lvec[i];
+      if (gcol >= cstart && gcol < cend) {
+        if (sum != 1.0) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_PLIB,"sum %g != 1.0 when syncing vector with global column %d with %d entries",(double)sum,gcol,n);
+      } else {
+        if (sum != 0) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_PLIB,"sum %g != 0 when syncing vector with global column %d with %d entries",(double)sum,gcol,n);
+      }
+      gcol++;
+    }
     veckok->v_dual.sync_device();
     *a = veckok->v_dual.view_device().data();
     if (mtype) *mtype = PETSC_MEMTYPE_DEVICE;
