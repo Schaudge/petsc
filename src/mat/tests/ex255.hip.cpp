@@ -103,7 +103,7 @@ int main(int argc,char **argv)
 
   testset:
     nsize: 3
-    requires: hip
+    requires: kokkos_kernels
     output_file: output/ex255_1.out
 
     test:
@@ -114,5 +114,5 @@ int main(int argc,char **argv)
       suffix: debug3
     test:
       suffix: debug4
-    
+
 TEST*/
