@@ -478,7 +478,8 @@ linux-hip-double:
   variables:
     TEST_ARCH: arch-ci-linux-hip-double
    #TEST_OPTS: search='mat_tests-ex2_debug*'
-    TEST_OPTS: search='mat_tests-ex255*'
+    TEST_OPTS: query=requires queryval=kokkos_kernels
+    #TEST_OPTS: search='mat_tests-ex255*'
 
 linux-sycl-double:
   extends:
