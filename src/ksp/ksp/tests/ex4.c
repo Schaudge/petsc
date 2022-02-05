@@ -44,11 +44,7 @@ int main(int argc,char **args)
   ierr = MatCreate(PETSC_COMM_WORLD,&C);CHKERRQ(ierr);
   ierr = MatSetSizes(C,PETSC_DECIDE,PETSC_DECIDE,N,N);CHKERRQ(ierr);
   ierr = MatSetFromOptions(C);CHKERRQ(ierr);
-  ierr = MatMPIAIJSetPreallocation(C,9,NULL,9,NULL);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(C,9,NULL);CHKERRQ(ierr);
-#if defined(PETSC_HAVE_HYPRE)
-  ierr = MatHYPRESetPreallocation(C,9,NULL,9,NULL);CHKERRQ(ierr);
-#endif
+  ierr = MatXAIJSetPreallocation(C,9,NULL,9,NULL);CHKERRQ(ierr);
 
   /* forms the element stiffness for the Laplacian */
   ierr = FormElementStiffness(h*h,Ke);CHKERRQ(ierr);

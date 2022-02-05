@@ -113,8 +113,7 @@ int main(int argc,char **args)
     ierr = MatSetType(Amat,MATAIJ);CHKERRQ(ierr);
     ierr = MatSetOption(Amat,MAT_SPD,PETSC_TRUE);CHKERRQ(ierr);
     ierr = MatSetFromOptions(Amat);CHKERRQ(ierr);
-    ierr = MatSeqAIJSetPreallocation(Amat,0,d_nnz);CHKERRQ(ierr);
-    ierr = MatMPIAIJSetPreallocation(Amat,0,d_nnz,0,o_nnz);CHKERRQ(ierr);
+    ierr = MatXAIJSetPreallocation(Amat,0,d_nnz);CHKERRQ(ierr);
 
     ierr = PetscFree(d_nnz);CHKERRQ(ierr);
     ierr = PetscFree(o_nnz);CHKERRQ(ierr);
