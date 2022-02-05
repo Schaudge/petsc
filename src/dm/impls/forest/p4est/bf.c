@@ -1447,6 +1447,8 @@ PetscErrorCode DMBFAMRAdapt(DM dm, DM *adaptedDm)
   //TODO create nodes
   /* check resulting DM */
   CHKERRQ( DMBFCheck(*adaptedDm) );
+  /* mark that adapted DM is set up */
+  (*adaptedDm)->setupcalled = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
 
