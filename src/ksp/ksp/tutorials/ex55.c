@@ -52,7 +52,7 @@ int main(int argc,char **args)
   ierr = MatSetOption(Amat,MAT_SPD,PETSC_TRUE);CHKERRQ(ierr);
   ierr = MatSetFromOptions(Amat);CHKERRQ(ierr);
   ierr = MatSetBlockSize(Amat,2);CHKERRQ(ierr);
-  ierr = MatXAIJSetPreallocation(Amat,18,NULL);CHKERRQ(ierr);
+  ierr = MatXAIJSetPreallocation(Amat,2,18,NULL,18,NULL);CHKERRQ(ierr);
 
   ierr = MatGetOwnershipRange(Amat,&Istart,&Iend);CHKERRQ(ierr);
   if (m != Iend - Istart) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_PLIB,"m %D does not equal Iend %D - Istart %D",m,Iend,Istart);
