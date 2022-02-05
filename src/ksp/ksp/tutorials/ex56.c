@@ -114,9 +114,9 @@ int main(int argc,char **args)
     ierr = MatSetOption(Amat,MAT_SPD,PETSC_TRUE);CHKERRQ(ierr);
     ierr = MatSetFromOptions(Amat);CHKERRQ(ierr);
     if (!test_late_bs) {
-      ierr = MatXAIJSetPreallocation(Amat,3,0,d_nnz,0,o_nnz);CHKERRQ(ierr);
+      ierr = MatXAIJSetPreallocation(Amat,3,d_nnz,o_nnz,NULL,NULL);CHKERRQ(ierr);
     } else {
-      ierr = MatXAIJSetPreallocation(Amat,1,0,d_nnz,0,o_nnz);CHKERRQ(ierr);
+      ierr = MatXAIJSetPreallocation(Amat,1,d_nnz,o_nnz,NULL,NULL);CHKERRQ(ierr);
     }
     ierr = PetscFree(d_nnz);CHKERRQ(ierr);
     ierr = PetscFree(o_nnz);CHKERRQ(ierr);

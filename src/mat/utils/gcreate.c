@@ -272,9 +272,9 @@ PetscErrorCode  MatSetFromOptions(Mat B)
 +  A - matrix being preallocated
 .  bs - block size
 .  dnnz - number of nonzero column blocks per block row of diagonal part of parallel matrix
-.  onnz - number of nonzero column blocks per block row of off-diagonal part of parallel matrix
-.  dnnzu - number of nonzero column blocks per block row of upper-triangular part of diagonal part of parallel matrix
--  onnzu - number of nonzero column blocks per block row of upper-triangular part of off-diagonal part of parallel matrix
+.  onnz - number of nonzero column blocks per block row of off-diagonal part of parallel matrix (can be NULL for a serial matrix)
+.  dnnzu - number of nonzero column blocks per block row of upper-triangular part of diagonal part of parallel matrix (can be NULL)
+-  onnzu - number of nonzero column blocks per block row of upper-triangular part of off-diagonal part of parallel matrix (can be NULL)
 
    Level: beginner
 
