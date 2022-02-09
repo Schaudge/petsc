@@ -839,7 +839,7 @@ static PetscErrorCode TSStep_MPRKSPLIT(TS ts)
   PetscInt        s = tab->s;
   const PetscReal *Af = tab->Af,*cf = tab->cf,*Asb = tab->Asb,*csb = tab->csb;
   PetscScalar     *wf = mprk->work_fast,*ws = mprk->work_slow,*wsb = mprk->work_slowbuffer;
-  PetscInt        i,j,computedstages;
+  PetscInt        i,j,computedstages_rsb,computedstages_rmb;
   PetscReal       next_time_step = ts->time_step,t = ts->ptime,h = ts->time_step;
   PetscErrorCode  ierr;
 
@@ -859,13 +859,13 @@ static PetscErrorCode TSStep_MPRKSPLIT(TS ts)
         ierr = VecRestoreSubVector(Y[i],mprk->is_slowbuffer,&Yslowbuffer);CHKERRQ(ierr);
       } else {
         PetscScalar *wm = mprk->work_medium;
-        computedstages = 0;
+        computedstages_rmb = 0;
         for (j=0; j<i; j++) {
-          if (tab->rmb[j]) wm[computedstages-tab->sbase+(tab->rmb[j]-1)%tab->sbase] += wsb[j];
-          else wm[computedstages++] = wsb[j];
+          if (tab->rmb[j]) wm[computedstages_rmb-tab->sbase+(tab->rmb[j]-1)%tab->sbase] += wsb[j];
+          else wm[computedstages_rmb++] = wsb[j];
         }
         ierr = VecGetSubVector(Y[i],mprk->is_slowbuffer,&Yslowbuffer);CHKERRQ(ierr);
-        ierr = VecMAXPY(Yslowbuffer,computedstages,wm,YdotRHS_slowbuffer);CHKERRQ(ierr);
+        ierr = VecMAXPY(Yslowbuffer,computedstages_rmb,wm,YdotRHS_slowbuffer);CHKERRQ(ierr);
         ierr = VecRestoreSubVector(Y[i],mprk->is_slowbuffer,&Yslowbuffer);CHKERRQ(ierr);
       }
     } else {
@@ -881,16 +881,14 @@ static PetscErrorCode TSStep_MPRKSPLIT(TS ts)
         ierr = VecISCopy(Y[tab->rsb[i]-1],mprk->is_slow,SCATTER_REVERSE,Yslow);CHKERRQ(ierr);
         ierr = VecRestoreSubVector(Y[i],mprk->is_slow,&Yslow);CHKERRQ(ierr);
       } else {
-        computedstages = 0;
+        computedstages_rsb = 0;
         for (j=0; j<i; j++) {
           if (tab->rsb[j]) ws[tab->rsb[j]-1] += wsb[j];
-          else ws[computedstages++] = wsb[j];
+          else ws[computedstages_rsb++] = wsb[j];
         }
         ierr = VecGetSubVector(Y[i],mprk->is_slow,&Yslow);CHKERRQ(ierr);
-        ierr = VecMAXPY(Yslow,computedstages,ws,YdotRHS_slow);CHKERRQ(ierr);
+        ierr = VecMAXPY(Yslow,computedstages_rsb,ws,YdotRHS_slow);CHKERRQ(ierr);
         ierr = VecRestoreSubVector(Y[i],mprk->is_slow,&Yslow);CHKERRQ(ierr);
-        /* only depends on the slow buffer region */
-        ierr = TSComputeRHSFunction(mprk->subts_slow,t+h*csb[i],Y[i],YdotRHS_slow[computedstages]);CHKERRQ(ierr);
       }
     }
 
@@ -918,19 +916,19 @@ static PetscErrorCode TSStep_MPRKSPLIT(TS ts)
           ierr = VecISCopy(Y[tab->rmb[i]-1],mprk->is_medium,SCATTER_REVERSE,Ymedium);CHKERRQ(ierr);
           ierr = VecRestoreSubVector(Y[i],mprk->is_medium,&Ymedium);CHKERRQ(ierr);
         } else {
-          computedstages = 0;
+          computedstages_rmb = 0;
           for (j=0; j<i; j++) {
-            if (tab->rmb[j]) wm[computedstages-tab->sbase+(tab->rmb[j]-1)%tab->sbase] += wmb[j];
-            else wm[computedstages++] = wmb[j];
+            if (tab->rmb[j]) wm[computedstages_rmb-tab->sbase+(tab->rmb[j]-1)%tab->sbase] += wmb[j];
+            else wm[computedstages_rmb++] = wmb[j];
 
           }
           ierr = VecGetSubVector(Y[i],mprk->is_medium,&Ymedium);CHKERRQ(ierr);
-          ierr = VecMAXPY(Ymedium,computedstages,wm,YdotRHS_medium);CHKERRQ(ierr);
+          ierr = VecMAXPY(Ymedium,computedstages_rmb,wm,YdotRHS_medium);CHKERRQ(ierr);
           ierr = VecRestoreSubVector(Y[i],mprk->is_medium,&Ymedium);CHKERRQ(ierr);
           /* only depends on the medium buffer region */
-          ierr = TSComputeRHSFunction(mprk->subts_medium,t+h*cmb[i],Y[i],YdotRHS_medium[computedstages]);CHKERRQ(ierr);
+          ierr = TSComputeRHSFunction(mprk->subts_medium,t+h*cmb[i],Y[i],YdotRHS_medium[computedstages_rmb]);CHKERRQ(ierr);
           /* must be computed after all regions are updated in Y */
-          ierr = TSComputeRHSFunction(mprk->subts_slowbuffer,t+h*csb[i],Y[i],YdotRHS_slowbuffer[computedstages]);CHKERRQ(ierr);
+          ierr = TSComputeRHSFunction(mprk->subts_slowbuffer,t+h*csb[i],Y[i],YdotRHS_slowbuffer[computedstages_rmb]);CHKERRQ(ierr);
         }
       }
       /* must be computed after fast region and slow region are updated in Y */
@@ -938,6 +936,10 @@ static PetscErrorCode TSStep_MPRKSPLIT(TS ts)
     }
     if (!(tab->np == 3 && mprk->is_medium)) {
       ierr = TSComputeRHSFunction(mprk->subts_slowbuffer,t+h*csb[i],Y[i],YdotRHS_slowbuffer[i]);CHKERRQ(ierr);
+    }
+    if (!tab->rsb[i] && mprk->is_slow) {
+      /* only depends on the slow buffer region */
+      ierr = TSComputeRHSFunction(mprk->subts_slow,t+h*csb[i],Y[i],YdotRHS_slow[computedstages_rsb]);CHKERRQ(ierr);
     }
     ierr = TSComputeRHSFunction(mprk->subts_fast,t+h*cf[i],Y[i],YdotRHS_fast[i]);CHKERRQ(ierr);
   }
