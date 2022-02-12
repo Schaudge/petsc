@@ -286,7 +286,7 @@ function petsc_mpiexec_cudamemcheck() {
     shift
     if [[ $i =~ $re ]]; then
       # found it, put cuda memcheck command in
-      pre_args+=("${PETSC_CUDAMEMCHECK_COMMAND:-cuda-memcheck} --leak-check full --flush-to-disk yes")
+      pre_args+=("${PETSC_CUDAMEMCHECK_COMMAND:-cuda-memcheck} --leak-check full --flush-to-disk yes --report-api-errors no")
       break
     fi
   done
