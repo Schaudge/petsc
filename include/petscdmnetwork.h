@@ -21,6 +21,7 @@ PETSC_EXTERN PetscErrorCode DMNetworkSetNumSubNetworks(DM,PetscInt,PetscInt);
 PETSC_EXTERN PetscErrorCode DMNetworkGetNumSubNetworks(DM,PetscInt*,PetscInt*);
 PETSC_EXTERN PetscErrorCode DMNetworkLayoutSetUp(DM);
 PETSC_EXTERN PetscErrorCode DMNetworkGetOriginalVertexNumber(DM,PetscInt,PetscInt*);
+PETSC_EXTERN PetscErrorCode DMNetworkGetOriginalEdgeNumber(DM,PetscInt,PetscInt*);
 PETSC_EXTERN PetscErrorCode DMNetworkRegisterComponent(DM,const char*,size_t,PetscInt*);
 PETSC_EXTERN PetscErrorCode DMNetworkGetVertexRange(DM,PetscInt*,PetscInt*);
 PETSC_EXTERN PetscErrorCode DMNetworkGetEdgeRange(DM,PetscInt*,PetscInt*);

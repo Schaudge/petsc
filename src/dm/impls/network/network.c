@@ -939,6 +939,25 @@ PetscErrorCode DMNetworkGetEdgeRange(DM dm,PetscInt *eStart,PetscInt *eEnd)
   PetscFunctionReturn(0);
 }
 
+/*@
+  DMNetworkGetIndex - Gets the global numbering for the vertex or edge on the network
+
+  Not Collective
+
+  Input Parameters:
++ dm - DMNetwork object
+- p  - vertex or edge point
+
+  Output Parameters:
+. index - the global numbering for the vertex or edge
+
+  Notes:
+    Must be called after DMNetworkSetup()
+
+  Level: intermediate
+
+.seealso: DMNetworkGetGlobalVertexIndex(), DMNetworkGetGlobalEdgeIndex()
+@*/
 static PetscErrorCode DMNetworkGetIndex(DM dm,PetscInt p,PetscInt *index)
 {
   PetscErrorCode           ierr;
@@ -984,6 +1003,35 @@ PetscErrorCode DMNetworkGetOriginalVertexNumber(DM dm,PetscInt v,PetscInt *index
 }
 
 /*@
+  DMNetworkGetOriginalEdgeNumber - Gets the original edge number for a local edge point that was passed to DMNetworkAddSubnetwork()
+    in the edge list
+
+  Not Collective
+
+  Input Parameters:
++ dm - DMNetwork object
+- p - edge point
+
+  Output Parameters:
+. index - the original global numbering for the edge
+
+  Notes:
+    Must be called after DMNetworkLayoutSetup()
+
+  Level: intermediate
+
+.seealso: DMNetworkGetGlobalEdgeIndex()
+@*/
+PetscErrorCode DMNetworkGetOriginalEdgeNumber(DM dm,PetscInt e,PetscInt *index)
+{
+  DM_Network *network = (DM_Network*)dm->data;
+
+  PetscFunctionBegin;
+  *index = network->header[e].index;
+  PetscFunctionReturn(0);
+}
+
+/*@
   DMNetworkGetGlobalEdgeIndex - Get the global numbering for the edge on the network
 
   Not Collective
@@ -995,9 +1043,12 @@ PetscErrorCode DMNetworkGetOriginalVertexNumber(DM dm,PetscInt v,PetscInt *index
   Output Parameters:
 . index - the global numbering for the edge
 
+  Notes:
+    Must be called after DMNetworkSetup()
+
   Level: intermediate
 
-.seealso: DMNetworkGetGlobalVertexIndex()
+.seealso: DMNetworkGetGlobalVertexIndex(),DMNetworkGetOriginalEdgeNumber()
 @*/
 PetscErrorCode DMNetworkGetGlobalEdgeIndex(DM dm,PetscInt p,PetscInt *index)
 {
@@ -1019,6 +1070,9 @@ PetscErrorCode DMNetworkGetGlobalEdgeIndex(DM dm,PetscInt p,PetscInt *index)
 
   Output Parameters:
 . index - the global numbering for the vertex
+
+  Notes:
+    Must be called after DMNetworkSetup()
 
   Level: intermediate
 
@@ -1359,7 +1413,6 @@ PetscErrorCode DMNetworkComponentSetUp(DM dm)
   PetscFunctionBegin;
   ierr = PetscSectionSetUp(network->DataSection);CHKERRQ(ierr);
   ierr = PetscSectionGetStorageSize(network->DataSection,&arr_size);CHKERRQ(ierr);
-  /* arr_size+1 fixes pipeline test of opensolaris-misc for src/dm/tests/ex10.c -- Do not know why */
   ierr = PetscCalloc1(arr_size+1,&network->componentdataarray);CHKERRQ(ierr);
 
   componentdataarray = network->componentdataarray;
