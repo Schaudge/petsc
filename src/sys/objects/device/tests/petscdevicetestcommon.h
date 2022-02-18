@@ -108,6 +108,15 @@
     );                                                                                         \
   } while (0)
 
+/*
+  This CHKERR() exists only to work around CI not handling stderr reliably. Do not use this in
+  your own code!
+
+  It does everything that PetscError() would normally do -- i.e. printing stack trace, cleaning
+  up -- but instead of calling MPI_Abort() it calls MPI_Finalize() and returns 0. The net
+  effect is that the test system still picks up everything but it is now printed to stdout
+  instead.
+ */
 #define CHKERRDEVICE(ierr) do {                                                                \
     PetscErrorCode device_ierr_;                                                               \
     if (PetscDefined(USE_DEBUG)) {                                                             \
