@@ -1,5 +1,7 @@
 /*
-    Simple example demonstrating that creating a one sub-network DMNetwork in parallel.
+    Simple example demonstrating creating a one sub-network DMNetwork in parallel.
+
+    In this example vertices 0 and 1 are not connected to any edges.
 */
 
 #include <petscdmnetwork.h>
@@ -37,11 +39,19 @@ int main(int argc,char ** argv)
   /* There are three nodes on each rank and two edges. The edges only connect nodes on the given rank */
   nedge = k * Ni;
 
-  ierr = PetscCalloc1(2*nedge,&edgelist);CHKERRQ(ierr);
-  edgelist[0] = nodeOffset + 0;
-  edgelist[1] = nodeOffset + 2;
-  edgelist[2] = nodeOffset + 1;
-  edgelist[3] = nodeOffset + 2;
+  if (rank == 0) {
+    nedge = 1;
+    ierr = PetscCalloc1(2*nedge,&edgelist);CHKERRQ(ierr);
+    edgelist[0] = nodeOffset + 2;
+    edgelist[1] = nodeOffset + 3;
+  } else {
+    nedge = 2;
+    ierr = PetscCalloc1(2*nedge,&edgelist);CHKERRQ(ierr);
+    edgelist[0] = nodeOffset + 0;
+    edgelist[1] = nodeOffset + 2;
+    edgelist[2] = nodeOffset + 1;
+    edgelist[3] = nodeOffset + 2;
+  }
 
   ierr = DMNetworkSetNumSubNetworks(network,PETSC_DECIDE,1);CHKERRQ(ierr);
   ierr = DMNetworkAddSubnetwork(network,"Subnetwork 1",nedge,edgelist,NULL);CHKERRQ(ierr);

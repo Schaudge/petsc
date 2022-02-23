@@ -204,6 +204,7 @@ PetscErrorCode DMNetworkAddSubnetwork(DM dm,const char* name,PetscInt ne,PetscIn
   ierr = MPIU_Allreduce(&nvtx,&Nvtx,1,MPIU_INT,MPI_MAX,PetscObjectComm((PetscObject)dm));CHKERRMPI(ierr);
 
   /* Get local nvtx for this subnet */
+  /* TODO: Make this more scalable by using a local min and max for vertex numbering and only counting values between the min and max */
   ierr = PetscBTCreate(Nvtx,&table);CHKERRQ(ierr);
   ierr = PetscBTMemzero(Nvtx,table);CHKERRQ(ierr);
   i = 0;
@@ -597,9 +598,9 @@ PetscErrorCode DMNetworkLayoutSetUp(DM dm)
   ierr = DMSetDimension(network->plex,1);CHKERRQ(ierr);
 
   if (size == 1) {
-    ierr = DMPlexBuildFromCellList(network->plex,network->nEdges,network->nVertices-nmerged,2,edges);CHKERRQ(ierr);
+    ierr = DMPlexBuildFromCellList(network->plex,network->nEdges,PETSC_DECIDE,2,edges);CHKERRQ(ierr);
   } else {
-    ierr = DMPlexBuildFromCellListParallel(network->plex,network->nEdges,network->nVertices-nmerged,PETSC_DECIDE,2,edges,NULL, NULL);CHKERRQ(ierr);
+    ierr = DMPlexBuildFromCellListParallel(network->plex,network->nEdges,PETSC_DECIDE,PETSC_DECIDE,2,edges,NULL, NULL);CHKERRQ(ierr);
   }
 
   ierr = DMPlexGetChart(network->plex,&network->pStart,&network->pEnd);CHKERRQ(ierr);
