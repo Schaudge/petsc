@@ -3257,8 +3257,8 @@ static PetscErrorCode MatMultAddKernel_SeqAIJCUSPARSE(Mat A, Vec xx, Vec yy, Vec
   PetscFunctionBegin;
   PetscCheck(!herm || trans, PetscObjectComm((PetscObject)A), PETSC_ERR_GPU, "Hermitian and not transpose not supported");
   if (!a->nz) {
-    if (!yy) PetscCall(VecSet_SeqCUDA(zz, 0));
-    else PetscCall(VecCopy_SeqCUDA(yy, zz));
+    if (!yy) PetscCall(VecSeq_CUDA::set_async(zz,0));
+    else PetscCall(VecSeq_CUDA::copy_async(yy,zz));
     PetscFunctionReturn(0);
   }
   /* The line below is necessary due to the operations that modify the matrix on the CPU (axpy, scale, etc) */
@@ -3361,14 +3361,14 @@ static PetscErrorCode MatMultAddKernel_SeqAIJCUSPARSE(Mat A, Vec xx, Vec yy, Vec
     PetscCall(PetscLogGpuTimeEnd());
 
     if (opA == CUSPARSE_OPERATION_NON_TRANSPOSE) {
-      if (yy) {                                    /* MatMultAdd: zz = A*xx + yy */
-        if (compressed) {                          /* A is compressed. We first copy yy to zz, then ScatterAdd the work vector to zz */
-          PetscCall(VecCopy_SeqCUDA(yy, zz));      /* zz = yy */
-        } else if (zz != yy) {                     /* A is not compressed. zz already contains A*xx, and we just need to add yy */
-          PetscCall(VecAXPY_SeqCUDA(zz, 1.0, yy)); /* zz += yy */
+      if (yy) { /* MatMultAdd: zz = A*xx + yy */
+        if (compressed) { /* A is compressed. We first copy yy to zz, then ScatterAdd the work vector to zz */
+          PetscCall(VecSeq_CUDA::copy_async(yy,zz)); /* zz = yy */
+        } else if (zz != yy) { /* A is not compressed. zz already contains A*xx, and we just need to add yy */
+          PetscCall(VecSeq_CUDA::axpy_async(zz,1.0,yy)); /* zz += yy */
         }
       } else if (compressed) { /* MatMult: zz = A*xx. A is compressed, so we zero zz first, then ScatterAdd the work vector to zz */
-        PetscCall(VecSet_SeqCUDA(zz, 0));
+        PetscCall(VecSeq_CUDA::set_async(zz,0));
       }
 
       /* ScatterAdd the result from work vector into the full vector when A is compressed */
@@ -3390,13 +3390,13 @@ static PetscErrorCode MatMultAddKernel_SeqAIJCUSPARSE(Mat A, Vec xx, Vec yy, Vec
 #endif
         PetscCall(PetscLogGpuTimeEnd());
       }
-    } else {
-      if (yy && yy != zz) { PetscCall(VecAXPY_SeqCUDA(zz, 1.0, yy)); /* zz += yy */ }
-    }
-    PetscCall(VecCUDARestoreArrayRead(xx, (const PetscScalar **)&xarray));
-    if (yy == zz) PetscCall(VecCUDARestoreArray(zz, &zarray));
-    else PetscCall(VecCUDARestoreArrayWrite(zz, &zarray));
-  } catch (char *ex) { SETERRQ(PETSC_COMM_SELF, PETSC_ERR_LIB, "CUSPARSE error: %s", ex); }
+    } else if (yy && yy != zz) PetscCall(VecSeq_CUDA::axpy_async(zz,1.0,yy)); /* zz += yy */
+    PetscCall(VecCUDARestoreArrayRead(xx,(const PetscScalar**)&xarray));
+    if (yy == zz) PetscCall(VecCUDARestoreArray(zz,&zarray));
+    else PetscCall(VecCUDARestoreArrayWrite(zz,&zarray));
+  } catch(char *ex) {
+    SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"CUSPARSE error: %s", ex);
+  }
   if (yy) {
     PetscCall(PetscLogGpuFlops(2.0 * a->nz));
   } else {
@@ -3840,11 +3840,11 @@ static PetscErrorCode MatSeqAIJCUSPARSE_Destroy(Mat_SeqAIJCUSPARSE **cusparsestr
 static PetscErrorCode CsrMatrix_Destroy(CsrMatrix **mat) {
   PetscFunctionBegin;
   if (*mat) {
-    delete (*mat)->values;
-    delete (*mat)->column_indices;
-    delete (*mat)->row_offsets;
-    delete *mat;
-    *mat = 0;
+    CHKERRCXX(delete (*mat)->values);
+    CHKERRCXX(delete (*mat)->column_indices);
+    CHKERRCXX(delete (*mat)->row_offsets);
+    CHKERRCXX(delete *mat);
+    *mat = nullptr;
   }
   PetscFunctionReturn(0);
 }

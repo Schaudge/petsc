@@ -16,11 +16,11 @@ namespace CUPM {
 namespace Impl {
 
 // Forward declare
-template <DeviceType T>
-class PETSC_VISIBILITY_INTERNAL DeviceContext;
+template <DeviceType>
+class PETSC_TEMPLATE_VISIBILITY_INTERNAL DeviceContext;
 
 template <DeviceType T>
-class DeviceContext : Impl::BlasInterface<T> {
+class DeviceContext : BlasInterface<T> {
 public:
   PETSC_CUPMBLAS_INHERIT_INTERFACE_TYPEDEFS_USING(cupmBlasInterface_t, T);
 
@@ -50,15 +50,9 @@ public:
     cupmBlasHandle_t   blas;
     cupmSolverHandle_t solver;
 
-    PETSC_NODISCARD auto get(stream_tag) const -> decltype(this->stream) {
-      return this->stream;
-    }
-    PETSC_NODISCARD auto get(blas_tag) const -> decltype(this->blas) {
-      return this->blas;
-    }
-    PETSC_NODISCARD auto get(solver_tag) const -> decltype(this->solver) {
-      return this->solver;
-    }
+    PETSC_NODISCARD auto get(stream_tag) const noexcept PETSC_DECLTYPE_AUTO_RETURNS(this->stream);
+    PETSC_NODISCARD auto get(blas_tag) const noexcept PETSC_DECLTYPE_AUTO_RETURNS(this->blas);
+    PETSC_NODISCARD auto get(solver_tag) const noexcept PETSC_DECLTYPE_AUTO_RETURNS(this->solver);
   };
 
 private:
@@ -66,9 +60,8 @@ private:
   static std::array<cupmBlasHandle_t, PETSC_DEVICE_MAX_DEVICES>   blashandles_;
   static std::array<cupmSolverHandle_t, PETSC_DEVICE_MAX_DEVICES> solverhandles_;
 
-  PETSC_CXX_COMPAT_DECL(constexpr PetscDeviceContext_IMPLS *impls_cast_(PetscDeviceContext ptr)) {
-    return static_cast<PetscDeviceContext_IMPLS *>(ptr->data);
-  }
+  PETSC_CXX_COMPAT_DECL(constexpr auto impls_cast_(PetscDeviceContext ptr))
+  PETSC_DECLTYPE_AUTO_RETURNS(static_cast<PetscDeviceContext_IMPLS *>(ptr->data));
 
   PETSC_CXX_COMPAT_DECL(constexpr PetscLogEvent CUPMBLAS_HANDLE_CREATE()) {
     return T == DeviceType::CUDA ? CUBLAS_HANDLE_CREATE : HIPBLAS_HANDLE_CREATE;
@@ -159,10 +152,6 @@ private:
   }
 
 public:
-  const struct _DeviceContextOps ops = {
-    destroy, changeStreamType, setUp, query, waitForContext, synchronize, getHandle<blas_tag>, getHandle<solver_tag>, getHandle<stream_tag>, beginTimer, endTimer,
-  };
-
   // All of these functions MUST be static in order to be callable from C, otherwise they
   // get the implicit 'this' pointer tacked on
   PETSC_CXX_COMPAT_DECL(PetscErrorCode destroy(PetscDeviceContext));
@@ -178,6 +167,7 @@ public:
 
   // not a PetscDeviceContext method, this registers the class
   PETSC_CXX_COMPAT_DECL(PetscErrorCode initialize());
+  const struct _DeviceContextOps ops = {destroy, changeStreamType, setUp, query, waitForContext, synchronize, getHandle<blas_tag>, getHandle<solver_tag>, getHandle<stream_tag>, beginTimer, endTimer};
 };
 
 template <DeviceType T>
@@ -236,7 +226,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::setUp(PetscDeviceContext 
   case PETSC_STREAM_GLOBAL_NONBLOCKING: PetscCallCUPM(cupmStreamCreateWithFlags(&stream, cupmStreamNonBlocking)); break;
   default: SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_CORRUPT, "Invalid PetscStreamType %s", PetscStreamTypes[util::integral_value(stype)]); break;
   }
-  if (!dci->event) PetscCallCUPM(cupmEventCreate(&dci->event));
+  if (!dci->event) PetscCallCUPM(cupmEventCreateWithFlags(&dci->event, cupmEventDisableTiming));
 #if PetscDefined(USE_DEBUG)
   dci->timerInUse = PETSC_FALSE;
 #endif
@@ -260,7 +250,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::query(PetscDeviceContext 
 
 template <DeviceType T>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::waitForContext(PetscDeviceContext dctxa, PetscDeviceContext dctxb)) {
-  auto dcib = impls_cast_(dctxb);
+  const auto dcib = impls_cast_(dctxb);
 
   PetscFunctionBegin;
   PetscCallCUPM(cupmEventRecord(dcib->event, dcib->stream));
@@ -270,7 +260,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::waitForContext(PetscDevic
 
 template <DeviceType T>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::synchronize(PetscDeviceContext dctx)) {
-  auto dci = impls_cast_(dctx);
+  const auto dci = impls_cast_(dctx);
 
   PetscFunctionBegin;
   // in case anything was queued on the event
@@ -290,7 +280,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::getHandle(PetscDeviceCont
 
 template <DeviceType T>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::beginTimer(PetscDeviceContext dctx)) {
-  auto dci = impls_cast_(dctx);
+  const auto dci = impls_cast_(dctx);
 
   PetscFunctionBegin;
 #if PetscDefined(USE_DEBUG)
@@ -307,8 +297,8 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::beginTimer(PetscDeviceCon
 
 template <DeviceType T>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::endTimer(PetscDeviceContext dctx, PetscLogDouble *elapsed)) {
-  float gtime;
-  auto  dci = impls_cast_(dctx);
+  float      gtime;
+  const auto dci = impls_cast_(dctx);
 
   PetscFunctionBegin;
 #if PetscDefined(USE_DEBUG)

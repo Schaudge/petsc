@@ -1,12 +1,12 @@
 -include ../../../../../../petsckdir.mk
-#requirespackage 'PETSC_HAVE_HIP'
+#requirespackage 'PETSC_HAVE_CUDA'
 
-SOURCEHIP = mpihip.hip.cpp
+SOURCECU = vecseqcupm.cu
 SOURCEF  =
-SOURCEH  =
 LIBBASE  = libpetscvec
 MANSEC   = Vec
-LOCDIR   = src/vec/vec/impls/mpi/mpihip/
+LOCDIR   = src/vec/vec/impls/seq/cupm/cuda/
+DIRS     =
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
