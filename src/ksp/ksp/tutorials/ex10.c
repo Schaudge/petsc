@@ -28,7 +28,7 @@ typedef enum {
 } RHSType;
 const char *const RHSTypes[] = {"FILE", "ONE", "RANDOM", "RHSType", "RHS_", NULL};
 
-PetscErrorCode CheckResult(KSP *ksp, Mat *A, Vec *b, Vec *x)
+PetscErrorCode CheckResult(KSP *ksp, Mat *A, Vec *b, Vec *x, IS *rowperm)
 {
   PetscErrorCode    ierr;
   PetscReal         norm;        /* norm of solution error */
@@ -48,7 +48,7 @@ PetscErrorCode CheckResult(KSP *ksp, Mat *A, Vec *b, Vec *x)
   ierr = MatDestroy(A);CHKERRQ(ierr);
   ierr = VecDestroy(x);CHKERRQ(ierr);
   ierr = VecDestroy(b);CHKERRQ(ierr);
-
+  ierr = ISDestroy(rowperm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -233,7 +233,7 @@ int main(int argc,char **args)
 
   if (permute) {ierr = VecPermute(x,rowperm,PETSC_TRUE);CHKERRQ(ierr);}
 
-  ierr = CheckResult(&ksp,&A,&b,&x);CHKERRQ(ierr);
+  ierr = CheckResult(&ksp,&A,&b,&x,&rowperm);CHKERRQ(ierr);
 
   /*=========================
     solve a large system
@@ -263,9 +263,7 @@ int main(int argc,char **args)
 
   if (permute) {ierr = VecPermute(x,rowperm,PETSC_TRUE);CHKERRQ(ierr);}
 
-  ierr = CheckResult(&ksp,&A,&b,&x);CHKERRQ(ierr);
-
-  ierr = ISDestroy(&rowperm);CHKERRQ(ierr);
+  ierr = CheckResult(&ksp,&A,&b,&x,&rowperm);CHKERRQ(ierr);
 
   PetscPreLoadEnd();
   /*
