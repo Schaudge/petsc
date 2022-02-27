@@ -4,7 +4,7 @@
 SOURCEC	  =
 SOURCECXX = dcontext.cxx device.cxx devicereg.cxx
 SOURCEF	  =
-SOURCEH   = objpool.hpp cupmdevice.hpp sycldevice.hpp
+SOURCEH   = objpool.hpp cupmdevice.hpp sycldevice.hpp hostdevice.hpp
 MANSEC	  = Sys
 LIBBASE	  = libpetscsys
 DIRS	  =

@@ -247,23 +247,9 @@ struct InterfaceBase {
     return std::get<util::integral_value(T)>(DeviceTypes);
   }
 
-  PETSC_CXX_COMPAT_DECL(PETSC_CONSTEXPR_14 PetscDeviceType cupmDeviceTypeToPetscDeviceType()) {
-    switch (T) {
-    case DeviceType::CUDA: return PETSC_DEVICE_CUDA;
-    case DeviceType::HIP: return PETSC_DEVICE_HIP;
-    }
-    PetscUnreachable();
-    return PETSC_DEVICE_INVALID;
-  }
+  PETSC_CXX_COMPAT_DECL(constexpr PetscDeviceType cupmDeviceTypeToPetscDeviceType()) { return T == DeviceType::CUDA ? PETSC_DEVICE_CUDA : PETSC_DEVICE_HIP; }
 
-  PETSC_CXX_COMPAT_DECL(PETSC_CONSTEXPR_14 PetscMemType cupmDeviceTypeToPetscMemType()) {
-    switch (T) {
-    case DeviceType::CUDA: return PETSC_MEMTYPE_CUDA;
-    case DeviceType::HIP: return PETSC_MEMTYPE_HIP;
-    }
-    PetscUnreachable();
-    return PETSC_MEMTYPE_HOST;
-  }
+  PETSC_CXX_COMPAT_DECL(constexpr PetscMemType cupmDeviceTypeToPetscMemType()) { return T == DeviceType::CUDA ? PETSC_MEMTYPE_CUDA : PETSC_MEMTYPE_HIP; }
 };
 
 // declare the base class static member variables
