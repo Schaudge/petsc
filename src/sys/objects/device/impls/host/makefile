@@ -1,12 +1,16 @@
--include ../../../../../petsckdir.mk
+ALL: lib
 
+CFLAGS    =
+FFLAGS    =
+CPPFLAGS  =
 SOURCEC	  =
+SOURCECXX = hostdevice.cxx hostcontext.cxx
 SOURCEF	  =
-SOURCEH	  = impldevicebase.hpp
+SOURCEH   =
 MANSEC	  = Sys
 LIBBASE	  = libpetscsys
-DIRS	  = cupm sycl host
-LOCDIR	  = src/sys/objects/device/impls/
+DIRS	  =
+LOCDIR	  = src/sys/objects/device/impls/host/
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
