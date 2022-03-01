@@ -497,6 +497,16 @@ cdef class Vec(Object):
         cdef PetscDLDeviceType dltype = device_type
         cdef PetscInt state = 0
         CHKERR ( VecLockGet(self.vec, &state) )
+        # The tensor libraries such as PyTorch do not have the concept of read
+        # or write access to values so we assume it needs write access unless
+        # the vector has already been read locked. This is not ideal because
+        # users may incorrectly change values that are read only, but we hope
+        # that the caller of the routine uses it correctly and so it will only
+        # write into values when it is allowed to. Immediately restoring the
+        # array access is incorrect but since we do not have access to objects
+        # after the values are used or changed we need to immediately restore
+        # the array and hope that users do not change or access the values
+        # incorrectly later in the run.
         if dltype in [kDLCUDA,kDLCUDAManaged] and cval == self.Type.CUDA or cval == self.Type.SEQCUDA or cval == self.Type.MPICUDA:
             if state > 0:
                 CHKERR( VecCUDAGetArrayRead(self.vec, <const PetscScalar**>&a) )
