@@ -376,6 +376,8 @@ PetscErrorCode MatHeaderMerge(Mat A,Mat *C)
   ((PetscObject)A)->type_name = NULL;
   ((PetscObject)A)->name      = NULL;
 
+  PetscCheck(!((PetscObject)A)->olist,PetscObjectComm((PetscObject)A),PETSC_ERR_ARG_WRONG,"MatHeaderMerge to a matrix having composed objects");
+
   /* free all the interior data structures from mat */
   ierr = (*A->ops->destroy)(A);CHKERRQ(ierr);
 
