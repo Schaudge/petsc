@@ -11,7 +11,7 @@ int main(int argc,char ** argv)
   DM                network;
   PetscMPIInt       size,rank;
   MPI_Comm          comm;
-  PetscInt          e,ne,nv,v,ecompkey,vcompkey;
+  PetscInt          e,ne,nv,v,ecompkey,vcompkey,itest=0;
   PetscInt          *edgelist = NULL;
   const PetscInt    *nodes,*edges;
   DM                plex;
@@ -31,6 +31,7 @@ int main(int argc,char ** argv)
   PetscCall(DMNetworkRegisterComponent(network,"ecomp",0,&ecompkey));
   PetscCall(DMNetworkRegisterComponent(network,"vcomp",0,&vcompkey));
 
+  PetscCall(PetscOptionsGetInt(NULL,NULL,"-test",&itest,NULL));
   Ne = 2;
   Ni = 1;
   nodeOffset = (Ne+Ni)*rank;   /* The global node index of the first node defined on this process */
@@ -41,10 +42,23 @@ int main(int argc,char ** argv)
   if (rank == 0) {
     nedge = 1;
     PetscCall(PetscCalloc1(2*nedge,&edgelist));
-    edgelist[0] = nodeOffset + 2;
-    edgelist[1] = nodeOffset + 3;
+    switch (itest) {
+    case 0:
+      /* v0, v1 are isolated vertices */
+      nv = 4;
+      edgelist[0] = nodeOffset + 2;
+      edgelist[1] = nodeOffset + 3;
+      break;
+    case 1:
+      /* v2 is an isolated vertex */
+      nv = 3;
+      edgelist[0] = nodeOffset + 0;
+      edgelist[1] = nodeOffset + 1;
+      break;
+    default: PetscCheck(itest < 2,PETSC_COMM_SELF,PETSC_ERR_SUP,"Test case %" PetscInt_FMT " not supported.",itest);
+    }
   } else {
-    nedge = 2;
+    nedge = 2; nv = 3;
     PetscCall(PetscCalloc1(2*nedge,&edgelist));
     edgelist[0] = nodeOffset + 0;
     edgelist[1] = nodeOffset + 2;
@@ -61,6 +75,7 @@ int main(int argc,char ** argv)
 
   /* Add components and variables for the network */
   PetscCall(DMNetworkGetSubnetwork(network,0,&nv,&ne,&nodes,&edges));
+
   for (e = 0; e < ne; e++) {
     /* The edges have no degrees of freedom */
     PetscCall(DMNetworkAddComponent(network,edges[e],ecompkey,NULL,1));
