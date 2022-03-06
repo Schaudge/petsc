@@ -73,6 +73,20 @@ void assert_never_put_petsc_headers_inside_an_extern_c(int); void assert_never_p
 #  define PETSC_SINGLE_LIBRARY_INTERN PETSC_EXTERN
 #endif
 
+#define PETSC_DEPRECATED_MACRO_317(mess)  PETSC_DEPRECATED_MACRO_INTERNAL(mess)
+#define PETSC_DEPRECATED_MACRO_(mess,tag) PetscConcat(PETSC_DEPRECATED_MACRO_,tag)(mess)
+
+#define PETSC_DEPRECATED_MACRO(macro_name,repl_name,major,minor)                               \
+  PETSC_DEPRECATED_MACRO_(                                                                     \
+    PetscStringize(                                                                            \
+      GCC warning PetscStringize(                                                              \
+        macro PetscStringize(macro_name) is deprecated use PetscStringize(repl_name) instead   \
+        (since major.minor)                                                                    \
+      )                                                                                        \
+    ),                                                                                         \
+    PetscConcat(major,minor)                                                                   \
+  )
+
 /*MC
   PetscHasAttribute - Determine whether a particular __attribute__ is supported by the compiler
 
