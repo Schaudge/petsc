@@ -45,8 +45,8 @@ if __name__ == '__main__':
     # KOKKOS_IMPL_MATH_UNARY_PREDICATE(isinf)
     '--SYCLPPFLAGS=-Wno-tautological-constant-compare',
     # use prebuilt Kokkos and KK as it takes a long time to build them from source
-    '--with-kokkos-dir=/nfs/gce/projects/petsc/soft/kokkos',
-    '--with-kokkos-kernels-dir=/nfs/gce/projects/petsc/soft/kokkos',
+    '--download-kokkos=1',
+    '--download-kokkos-kernels=1',
     '--with-cuda=0',
     '--with-sycl=1',
     '--with-syclc=dpcpp',

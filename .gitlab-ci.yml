@@ -477,10 +477,10 @@ linux-sycl-double:
     - .stage-3
     - .linux_test_noflags
   tags:
-    - gce-nfs, linux-fast
+    - name:pj02
   variables:
     TEST_ARCH: arch-ci-linux-sycl-double
-    LOAD_MODULES: compiler/latest mpi/latest
+    INIT_SCRIPT: /home/glci/bin/ci-inteloneapi.sh
     TEST_OPTS: query=requires queryval=kokkos_kernels
 
 linux-c-exodus-dbg:
