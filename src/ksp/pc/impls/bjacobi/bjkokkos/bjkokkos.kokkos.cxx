@@ -16,7 +16,7 @@ typedef Kokkos::TeamPolicy<>::member_type team_member;
 #define PCBJKOKKOS_TEAM_SIZE 16
 #define PCBJKOKKOS_VERBOSE_LEVEL 0
 
-typedef enum {BATCH_KSP_BICG_IDX,BATCH_KSP_TFQMR_IDX,BATCH_KSP_GMRES_IDX,NUM_BATCH_TYPES} KSPIndex;
+typedef enum {BATCH_KSP_BICG_IDX,BATCH_KSP_TFQMR_IDX,BATCH_KSP_KK_IDX,NUM_BATCH_TYPES} KSPIndex;
 typedef struct {
   Vec                                              vec_diag;
   PetscInt                                         nBlocks; /* total number of blocks */
@@ -35,6 +35,7 @@ typedef struct {
   PetscBool                                        reason;
   PetscBool                                        monitor;
   PetscInt                                         batch_target;
+  PetscInt                                         solves_team;
 } PC_PCBJKOKKOS;
 
 static PetscErrorCode  PCBJKOKKOSCreateKSP_BJKOKKOS(PC pc)
@@ -59,7 +60,7 @@ static PetscErrorCode  PCBJKOKKOSCreateKSP_BJKOKKOS(PC pc)
   jac->reason = PETSC_FALSE;
   jac->monitor = PETSC_FALSE;
   jac->batch_target = 0;
-
+  jac->solves_team = 1;
   PetscFunctionReturn(0);
 }
 
@@ -372,26 +373,18 @@ static PetscErrorCode PCApply_BJKOKKOS(PC pc,Vec bin,Vec xout)
   if (!aijkok) {
     SETERRQ(PetscObjectComm((PetscObject)pc),PETSC_ERR_USER,"No aijkok");
   } else {
-    using scr_mem_t  = Kokkos::DefaultExecutionSpace::scratch_memory_space;
-    using vect2D_scr_t = Kokkos::View<PetscScalar**, Kokkos::LayoutLeft, scr_mem_t>;
-    PetscInt          *d_bid_eqOffset, maxit = jac->ksp->max_it, scr_bytes_team, stride, global_buff_size;
-    const PetscInt    conc = Kokkos::DefaultExecutionSpace().concurrency(), openmp = !!(conc < 1000), team_size = (openmp==0 && PCBJKOKKOS_VEC_SIZE != 1) ? PCBJKOKKOS_TEAM_SIZE : 1;
-    const PetscInt    nwork = jac->nwork, nBlk = jac->nBlocks;
     PetscScalar       *glb_xdata=NULL;
     PetscReal         rtol = jac->ksp->rtol, atol = jac->ksp->abstol, dtol = jac->ksp->divtol;
     const PetscScalar *glb_idiag =jac->d_idiag_k->data(), *glb_bdata=NULL;
-    const PetscInt    *glb_Aai = aijkok->i_device_data(), *glb_Aaj = aijkok->j_device_data();
+    const PetscInt    *glb_Aai = aijkok->i_device_data(), *glb_Aaj = aijkok->j_device_data(), nBlk = jac->nBlocks;
     const PetscScalar *glb_Aaa = aijkok->a_device_data();
-    Kokkos::View<Batch_MetaData*, Kokkos::DefaultExecutionSpace> d_metadata("solver meta data", nBlk);
     PCFailedReason    pcreason;
-    KSPIndex          ksp_type_idx = jac->ksp_type_idx;
+    KSPIndex          ksp_type_idx = jac->ksp_type_idx; // captured
     PetscMemType      mtype;
     PetscContainer    container;
     PetscInt          batch_sz;
     VecScatter        plex_batch=NULL;
     Vec               bvec;
-    PetscBool         monitor = jac->monitor; // captured
-    PetscInt          view_bid = jac->batch_target;
     // get field major is to map plex IO to/from block/field major
     ierr = PetscObjectQuery((PetscObject) A, "plex_batch_is", (PetscObject *) &container);CHKERRQ(ierr);
     ierr = VecDuplicate(bin,&bvec);CHKERRQ(ierr);
@@ -419,110 +412,141 @@ static PetscErrorCode PCApply_BJKOKKOS(PC pc,Vec bin,Vec xout)
       batch_sz = *pNf;
     } else batch_sz = 1;
     PetscCheck(nBlk%batch_sz == 0,PetscObjectComm((PetscObject) pc),PETSC_ERR_ARG_WRONG,"batch_sz = %" PetscInt_FMT ", nBlk = %" PetscInt_FMT,batch_sz,nBlk);
-    d_bid_eqOffset = jac->d_bid_eqOffset_k->data();
-    // solve each block independently
-    if (jac->const_block_size) { // use shared memory for work vectors only if constant block size - todo: test efficiency loss
-      scr_bytes_team = jac->const_block_size*nwork*sizeof(PetscScalar);
-      stride = jac->const_block_size; // captured
-      global_buff_size = 0;
+    if (ksp_type_idx==BATCH_KSP_KK_IDX) { // Kokkos kernel solver
+      PetscReal r0,rnorm;
+      ierr = VecNorm(bin,NORM_2,&r0);CHKERRQ(ierr);
+      if (r0==0.0) {
+        ierr = VecZeroEntries(xout);CHKERRQ(ierr);
+        ierr = PetscInfo(pc,"Zero RHS");CHKERRQ(ierr);
+      }else {
+        MatInfo matinfo;
+        ierr = MatGetInfo(A,MAT_LOCAL,&matinfo);CHKERRQ(ierr);
+        {
+          const int nnz_tot = (int)matinfo.nz_used, nnz = nnz_tot / nBlk, N = A->rmap->n;
+          Kokkos::View<const PetscScalar**,Kokkos::LayoutRight, Kokkos::MemoryTraits<Kokkos::Unmanaged> > d_aa_k(glb_Aaa, nBlk, nnz);
+          Kokkos::View<const PetscInt**,   Kokkos::LayoutRight, Kokkos::MemoryTraits<Kokkos::Unmanaged> > d_aj_k(glb_Aaj, nBlk, nnz);
+          Kokkos::View<const PetscInt*,    Kokkos::LayoutRight, Kokkos::MemoryTraits<Kokkos::Unmanaged> > d_ai_k(glb_Aai, N+1);
+          Kokkos::View<      PetscScalar*, Kokkos::LayoutRight, Kokkos::MemoryTraits<Kokkos::Unmanaged> > d_x_k(glb_xdata,N);
+          Kokkos::View<const PetscScalar*, Kokkos::LayoutRight, Kokkos::MemoryTraits<Kokkos::Unmanaged> > d_b_k(glb_bdata,N);
+          Kokkos::View<const PetscScalar*, Kokkos::LayoutRight, Kokkos::MemoryTraits<Kokkos::Unmanaged> > d_id_k(glb_idiag,N);
+          PetscCheck(nnz_tot%nBlk == 0,PetscObjectComm((PetscObject) pc),PETSC_ERR_ARG_WRONG,"nnz = %d blatch size = %" PetscInt_FMT "\n",nnz_tot,jac->const_block_size);
+          ierr = PetscInfo(pc,"KK solver total nnz = %d, nnz/solve = %d, nBlk=%" PetscInt_FMT ", solves / league member = %" PetscInt_FMT "\n",nnz_tot,nnz,nBlk,jac->solves_team);CHKERRQ(ierr);
+          // solve: in: jac->solves_team <jac->monitor> rtol atol dtol jac->ksp->max_it. out: num_its[nBlk], reason[nBlk]
+          SETERRQ(PetscObjectComm((PetscObject)A),PETSC_ERR_USER,"Need to implement KK version");
+          ierr = MatMult(A,xout,bvec);CHKERRQ(ierr);
+          ierr = VecAXPY(bvec,-1.0,bin);CHKERRQ(ierr);
+          ierr = VecNorm(bvec,NORM_2,&rnorm);CHKERRQ(ierr);
+          ierr = PetscPrintf(PETSC_COMM_WORLD,"\t\t *** Kokkos |b| = %e, |b-Ax|/|b| = %e\n",r0,rnorm/r0);CHKERRQ(ierr);
+        }
+      }
     } else {
-      scr_bytes_team = 0;
-      stride = jac->n; // captured
-      global_buff_size = jac->n*nwork;
-    }
-    Kokkos::View<PetscScalar*, Kokkos::DefaultExecutionSpace> d_work_vecs_k("workvectors", global_buff_size); // global work vectors
-    PetscInfo(pc,"\tn = %" PetscInt_FMT ". %d shared mem words/team. %" PetscInt_FMT " global mem words, rtol=%e, num blocks %" PetscInt_FMT ", team_size=%" PetscInt_FMT ", %" PetscInt_FMT " vector threads\n",jac->n,scr_bytes_team/sizeof(PetscScalar),global_buff_size,rtol,nBlk,
-               team_size, PCBJKOKKOS_VEC_SIZE);
-    PetscScalar  *d_work_vecs = scr_bytes_team ? NULL : d_work_vecs_k.data();
-    const PetscInt *d_isicol = jac->d_isicol_k->data(), *d_isrow = jac->d_isrow_k->data();
-    Kokkos::parallel_for("Solve", Kokkos::TeamPolicy<>(nBlk, team_size, PCBJKOKKOS_VEC_SIZE).set_scratch_size(PCBJKOKKOS_SHARED_LEVEL, Kokkos::PerTeam(scr_bytes_team)),
+      using scr_mem_t  = Kokkos::DefaultExecutionSpace::scratch_memory_space;
+      using vect2D_scr_t = Kokkos::View<PetscScalar**, Kokkos::LayoutLeft, scr_mem_t>;
+      PetscInt          *d_bid_eqOffset, maxit = jac->ksp->max_it, scr_bytes_team, stride, global_buff_size;
+      const PetscInt    conc = Kokkos::DefaultExecutionSpace().concurrency(), openmp = !!(conc < 1000), team_size = (openmp==0 && PCBJKOKKOS_VEC_SIZE != 1) ? PCBJKOKKOS_TEAM_SIZE : 1;
+      const PetscInt    nwork = jac->nwork;
+      Kokkos::View<Batch_MetaData*, Kokkos::DefaultExecutionSpace> d_metadata("solver meta data", nBlk);
+      PetscBool         monitor = jac->monitor; // captured
+      PetscInt          view_bid = jac->batch_target;
+      d_bid_eqOffset = jac->d_bid_eqOffset_k->data();
+      // solve each block independently
+      if (jac->const_block_size) { // use shared memory for work vectors only if constant block size - todo: test efficiency loss
+        scr_bytes_team = jac->const_block_size*nwork*sizeof(PetscScalar);
+        stride = jac->const_block_size; // captured
+        global_buff_size = 0;
+      } else {
+        scr_bytes_team = 0;
+        stride = jac->n; // captured
+        global_buff_size = jac->n*nwork;
+        PetscCheck(ksp_type_idx!=BATCH_KSP_KK_IDX,PetscObjectComm((PetscObject) pc),PETSC_ERR_ARG_WRONG,"can not use Kokkos (gmres) solver with non-constant grid sizes");
+      }
+      Kokkos::View<PetscScalar*, Kokkos::DefaultExecutionSpace> d_work_vecs_k("workvectors", global_buff_size); // global work vectors
+      ierr = PetscInfo(pc,"\tn = %" PetscInt_FMT ". %d shared mem words/team. %" PetscInt_FMT " global mem words, rtol=%e, num blocks %" PetscInt_FMT ", team_size=%" PetscInt_FMT ", %" PetscInt_FMT " vector threads\n",jac->n,scr_bytes_team/sizeof(PetscScalar),global_buff_size,rtol,nBlk,
+                team_size, PCBJKOKKOS_VEC_SIZE);CHKERRQ(ierr);
+      PetscScalar  *d_work_vecs = scr_bytes_team ? NULL : d_work_vecs_k.data();
+      const PetscInt *d_isicol = jac->d_isicol_k->data(), *d_isrow = jac->d_isrow_k->data();
+      Kokkos::parallel_for("Solve", Kokkos::TeamPolicy<>(nBlk, team_size, PCBJKOKKOS_VEC_SIZE).set_scratch_size(PCBJKOKKOS_SHARED_LEVEL, Kokkos::PerTeam(scr_bytes_team)),
         KOKKOS_LAMBDA (const team_member team) {
-        const int    blkID = team.league_rank(), start = d_bid_eqOffset[blkID], end = d_bid_eqOffset[blkID+1];
-        vect2D_scr_t work_vecs(team.team_scratch(PCBJKOKKOS_SHARED_LEVEL), scr_bytes_team ? (end-start) : 0, nwork);
-        PetscScalar *work_buff = (scr_bytes_team) ? work_vecs.data() : &d_work_vecs[start];
-        bool        print = monitor && (blkID==view_bid);
-        switch (ksp_type_idx) {
-        case BATCH_KSP_BICG_IDX:
-          BJSolve_BICG(team, glb_Aai, glb_Aaj, glb_Aaa, d_isrow, d_isicol, work_buff, stride, rtol, atol, dtol, maxit, &d_metadata[blkID], start, end, glb_idiag, glb_bdata, glb_xdata, print);
-          break;
-        case BATCH_KSP_TFQMR_IDX:
-          BJSolve_TFQMR(team, glb_Aai, glb_Aaj, glb_Aaa, d_isrow, d_isicol, work_buff, stride, rtol, atol, dtol, maxit, &d_metadata[blkID], start, end, glb_idiag, glb_bdata, glb_xdata, print);
-          break;
-        case BATCH_KSP_GMRES_IDX:
-#if defined(PETSC_USE_DEBUG)
-          printf("GMRES not implemented %d\n",ksp_type_idx);
-#else
-          /* void */
-#endif
-          break;
-        default:
+          const int    blkID = team.league_rank(), start = d_bid_eqOffset[blkID], end = d_bid_eqOffset[blkID+1];
+          vect2D_scr_t work_vecs(team.team_scratch(PCBJKOKKOS_SHARED_LEVEL), scr_bytes_team ? (end-start) : 0, nwork);
+          PetscScalar *work_buff = (scr_bytes_team) ? work_vecs.data() : &d_work_vecs[start];
+          bool        print = monitor && (blkID==view_bid);
+          switch (ksp_type_idx) {
+          case BATCH_KSP_BICG_IDX:
+            BJSolve_BICG(team, glb_Aai, glb_Aaj, glb_Aaa, d_isrow, d_isicol, work_buff, stride, rtol, atol, dtol, maxit, &d_metadata[blkID], start, end, glb_idiag, glb_bdata, glb_xdata, print);
+            break;
+          case BATCH_KSP_TFQMR_IDX:
+            BJSolve_TFQMR(team, glb_Aai, glb_Aaj, glb_Aaa, d_isrow, d_isicol, work_buff, stride, rtol, atol, dtol, maxit, &d_metadata[blkID], start, end, glb_idiag, glb_bdata, glb_xdata, print);
+            break;
+          default:
 #if defined(PETSC_USE_DEBUG)
           printf("Unknown KSP type %d\n",ksp_type_idx);
 #else
           /* void */;
 #endif
-        }
-    });
-    auto h_metadata = Kokkos::create_mirror(Kokkos::HostSpace::memory_space(), d_metadata);
-    Kokkos::fence();
-    Kokkos::deep_copy (h_metadata, d_metadata);
+          }
+        });
+      auto h_metadata = Kokkos::create_mirror(Kokkos::HostSpace::memory_space(), d_metadata);
+      Kokkos::fence();
+      Kokkos::deep_copy (h_metadata, d_metadata);
 #if PCBJKOKKOS_VERBOSE_LEVEL >= 3
 #if PCBJKOKKOS_VERBOSE_LEVEL >= 4
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Iterations\n");CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"Iterations\n");CHKERRQ(ierr);
 #endif
-    // assume species major
+      // assume species major
 #if PCBJKOKKOS_VERBOSE_LEVEL < 4
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"max iterations per species (%s) :",ksp_type_idx==BATCH_KSP_BICG_IDX ? "bicg" : "tfqmr");CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"max iterations per species (%s) :",ksp_type_idx==BATCH_KSP_BICG_IDX ? "bicg" : "tfqmr");CHKERRQ(ierr);
 #endif
-    for (PetscInt dmIdx=0, s=0, head=0 ; dmIdx < jac->num_dms; dmIdx += batch_sz) {
-      for (PetscInt f=0, idx=head ; f < jac->dm_Nf[dmIdx] ; f++,s++,idx++) {
+      for (PetscInt dmIdx=0, s=0, head=0 ; dmIdx < jac->num_dms; dmIdx += batch_sz) {
+        for (PetscInt f=0, idx=head ; f < jac->dm_Nf[dmIdx] ; f++,s++,idx++) {
 #if PCBJKOKKOS_VERBOSE_LEVEL >= 4
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"%2D:", s);CHKERRQ(ierr);
-        for (int bid=0 ; bid<batch_sz ; bid++) {
-         ierr = PetscPrintf(PETSC_COMM_WORLD,"%3D ", h_metadata[idx + bid*jac->dm_Nf[dmIdx]].its);CHKERRQ(ierr);
-        }
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
+          ierr = PetscPrintf(PETSC_COMM_WORLD,"%2D:", s);CHKERRQ(ierr);
+          for (int bid=0 ; bid<batch_sz ; bid++) {
+            ierr = PetscPrintf(PETSC_COMM_WORLD,"%3D ", h_metadata[idx + bid*jac->dm_Nf[dmIdx]].its);CHKERRQ(ierr);
+          }
+          ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
 #else
-        PetscInt count=0;
-        for (int bid=0 ; bid<batch_sz ; bid++) {
-          if (h_metadata[idx + bid*jac->dm_Nf[dmIdx]].its > count) count = h_metadata[idx + bid*jac->dm_Nf[dmIdx]].its;
-        }
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"%3D ", count);CHKERRQ(ierr);
+          PetscInt count=0;
+          for (int bid=0 ; bid<batch_sz ; bid++) {
+            if (h_metadata[idx + bid*jac->dm_Nf[dmIdx]].its > count) count = h_metadata[idx + bid*jac->dm_Nf[dmIdx]].its;
+          }
+          ierr = PetscPrintf(PETSC_COMM_WORLD,"%3D ", count);CHKERRQ(ierr);
 #endif
+        }
+        head += batch_sz*jac->dm_Nf[dmIdx];
       }
-      head += batch_sz*jac->dm_Nf[dmIdx];
-    }
 #if PCBJKOKKOS_VERBOSE_LEVEL < 4
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
 #endif
 #endif
-    PetscInt count=0, mbid=0;
-    for (int blkID=0;blkID<nBlk;blkID++) {
-      ierr = PetscLogGpuFlops((PetscLogDouble)h_metadata[blkID].flops);CHKERRQ(ierr);
-      if (jac->reason) {
-        if (jac->batch_target==blkID) {
-          ierr = PetscPrintf(PETSC_COMM_SELF,  "    Linear solve converged due to %s iterations %d, batch %" PetscInt_FMT ", species %" PetscInt_FMT "\n", KSPConvergedReasons[h_metadata[blkID].reason], h_metadata[blkID].its, blkID%batch_sz, blkID/batch_sz);CHKERRQ(ierr);
-        } else if (jac->batch_target==-1 && h_metadata[blkID].its > count) {
-          count = h_metadata[blkID].its;
-          mbid = blkID;
-        }
-        if (h_metadata[blkID].reason < 0) {
-          ierr = PetscPrintf(PETSC_COMM_SELF, "ERROR reason=%s, its=%" PetscInt_FMT ". species %" PetscInt_FMT ", batch %" PetscInt_FMT "\n",
-                             KSPConvergedReasons[h_metadata[blkID].reason],h_metadata[blkID].its,blkID/batch_sz,blkID%batch_sz);CHKERRQ(ierr);
+      PetscInt count=0, mbid=0;
+      for (int blkID=0;blkID<nBlk;blkID++) {
+        ierr = PetscLogGpuFlops((PetscLogDouble)h_metadata[blkID].flops);CHKERRQ(ierr);
+        if (jac->reason) {
+          if (jac->batch_target==blkID) {
+            ierr = PetscPrintf(PETSC_COMM_SELF,  "    Linear solve converged due to %s iterations %d, batch %" PetscInt_FMT ", species %" PetscInt_FMT "\n", KSPConvergedReasons[h_metadata[blkID].reason], h_metadata[blkID].its, blkID%batch_sz, blkID/batch_sz);CHKERRQ(ierr);
+          } else if (jac->batch_target==-1 && h_metadata[blkID].its > count) {
+            count = h_metadata[blkID].its;
+            mbid = blkID;
+          }
+          if (h_metadata[blkID].reason < 0) {
+            ierr = PetscPrintf(PETSC_COMM_SELF, "ERROR reason=%s, its=%" PetscInt_FMT ". species %" PetscInt_FMT ", batch %" PetscInt_FMT "\n",
+                               KSPConvergedReasons[h_metadata[blkID].reason],h_metadata[blkID].its,blkID/batch_sz,blkID%batch_sz);CHKERRQ(ierr);
+          }
         }
       }
-    }
-    if (jac->batch_target==-1 && jac->reason) {
-      ierr = PetscPrintf(PETSC_COMM_SELF,  "    Linear solve converged due to %s iterations %d, batch %" PetscInt_FMT ", specie %" PetscInt_FMT "\n", KSPConvergedReasons[h_metadata[mbid].reason], h_metadata[mbid].its,mbid%batch_sz,mbid/batch_sz);CHKERRQ(ierr);
-    }
-    ierr = VecRestoreArrayAndMemType(xout,&glb_xdata);CHKERRQ(ierr);
-    ierr = VecRestoreArrayReadAndMemType(bvec,&glb_bdata);CHKERRQ(ierr);
-    {
-      int errsum;
-      Kokkos::parallel_reduce(nBlk, KOKKOS_LAMBDA (const int idx, int& lsum) {
-          if (d_metadata[idx].reason < 0) ++lsum;
-        }, errsum);
-      pcreason = errsum ? PC_SUBPC_ERROR : PC_NOERROR;
+      if (jac->batch_target==-1 && jac->reason) {
+        ierr = PetscPrintf(PETSC_COMM_SELF,  "    Linear solve converged due to %s iterations %d, batch %" PetscInt_FMT ", specie %" PetscInt_FMT "\n", KSPConvergedReasons[h_metadata[mbid].reason], h_metadata[mbid].its,mbid%batch_sz,mbid/batch_sz);CHKERRQ(ierr);
+      }
+      ierr = VecRestoreArrayAndMemType(xout,&glb_xdata);CHKERRQ(ierr);
+      ierr = VecRestoreArrayReadAndMemType(bvec,&glb_bdata);CHKERRQ(ierr);
+      {
+        int errsum;
+        Kokkos::parallel_reduce(nBlk, KOKKOS_LAMBDA (const int idx, int& lsum) {
+            if (d_metadata[idx].reason < 0) ++lsum;
+          }, errsum);
+        pcreason = errsum ? PC_SUBPC_ERROR : PC_NOERROR;
+      }
     }
     ierr = PCSetFailedReason(pc,pcreason);CHKERRQ(ierr);
     // map back to Plex space
@@ -603,9 +627,13 @@ static PetscErrorCode PCSetUp_BJKOKKOS(PC pc)
         ierr = PetscObjectTypeCompareAny((PetscObject)jac->ksp,&flg,KSPTFQMR,"");CHKERRQ(ierr);
         if (flg) {jac->ksp_type_idx = BATCH_KSP_TFQMR_IDX; jac->nwork = 10;}
         else {
-          ierr = PetscObjectTypeCompareAny((PetscObject)jac->ksp,&flg,KSPGMRES,"");CHKERRQ(ierr);
-          if (flg) {jac->ksp_type_idx = BATCH_KSP_GMRES_IDX; jac->nwork = 0;}
-          SETERRQ(PetscObjectComm((PetscObject)jac->ksp),PETSC_ERR_ARG_WRONG,"unsupported type %s", ((PetscObject)jac->ksp)->type_name);
+          ierr = PetscObjectTypeCompareAny((PetscObject)jac->ksp,&flg,KSPGMRES,"");CHKERRQ(ierr); // use gmres as code for kokkos kernels
+          if (flg) {
+            jac->ksp_type_idx = BATCH_KSP_KK_IDX; jac->nwork = 0;
+            PetscCheck(container,PetscObjectComm((PetscObject)pc),PETSC_ERR_SUP,"Must use field major ordering with Kokkos (gmres) solver");
+          } else {
+            SETERRQ(PetscObjectComm((PetscObject)jac->ksp),PETSC_ERR_ARG_WRONG,"unsupported type %s", ((PetscObject)jac->ksp)->type_name);
+          }
         }
       }
       {
@@ -619,6 +647,7 @@ static PetscErrorCode PCSetUp_BJKOKKOS(PC pc)
         jac->monitor = flg;
         ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
         ierr = PetscOptionsGetInt(((PetscObject)jac->ksp)->options,((PetscObject)jac->ksp)->prefix,"-ksp_batch_target",&jac->batch_target,&flg);CHKERRQ(ierr);
+        ierr = PetscOptionsGetInt(((PetscObject)jac->ksp)->options,((PetscObject)jac->ksp)->prefix,"-ksp_batch_solves_team",&jac->solves_team,&flg);CHKERRQ(ierr);
         PetscCheckFalse(jac->batch_target >= jac->num_dms,PETSC_COMM_WORLD,PETSC_ERR_ARG_WRONG,"-ksp_batch_target (%" PetscInt_FMT ") >= number of DMs (%" PetscInt_FMT ")",jac->batch_target,jac->num_dms);
         if (!jac->monitor && !flg) jac->batch_target = -1; // turn it off
       }
