@@ -292,7 +292,7 @@ int main(int argc,char ** argv)
 
   /* Assembly system of equations */
   ierr = FormOperator(dmnetwork,A,b);CHKERRQ(ierr);
-  VecView(b,0);
+  ierr = VecView(b, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   /* Solve linear system: A x = b */
   ierr = KSPCreate(PETSC_COMM_WORLD, &ksp);CHKERRQ(ierr);
   ierr = KSPSetOperators(ksp, A, A);CHKERRQ(ierr);
@@ -319,6 +319,7 @@ int main(int argc,char ** argv)
       args: -ksp_monitor_short
 
    test:
+      requires: parmetis
       suffix: 2
       nsize: 2
       args: -petscpartitioner_type simple -ksp_converged_reason
