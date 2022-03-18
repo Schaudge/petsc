@@ -241,7 +241,7 @@ int main(int argc,char **args)
      output_file: output/ex123_1.out
 
    test:
-     requires: kokkos_kernels !sycl
+     requires: kokkos_kernels
      suffix: 1_kokkos
      filter: grep -v type
      diff_args: -j
@@ -265,7 +265,7 @@ int main(int argc,char **args)
      output_file: output/ex123_2.out
 
    test:
-     requires: kokkos_kernels !sycl
+     requires: kokkos_kernels
      suffix: 2_kokkos
      nsize: 7
      filter: grep -v type
@@ -290,7 +290,7 @@ int main(int argc,char **args)
      output_file: output/ex123_3.out
 
    test:
-     requires: !sycl kokkos_kernels
+     requires: kokkos_kernels
      suffix: 3_kokkos
      nsize: 3
      filter: grep -v type
@@ -315,7 +315,7 @@ int main(int argc,char **args)
      output_file: output/ex123_4.out
 
    test:
-     requires: !sycl kokkos_kernels
+     requires: kokkos_kernels
      suffix: 4_kokkos
      nsize: 4
      filter: grep -v type

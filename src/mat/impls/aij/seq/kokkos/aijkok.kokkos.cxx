@@ -1016,7 +1016,7 @@ static PetscErrorCode MatAXPY_SeqAIJKokkos(Mat Y,PetscScalar alpha,Mat X,MatStru
             /* If not found, it indicates the input is wrong (X is not a SUBSET_NONZERO_PATTERN of Y).
                Just insert a NaN at the beginning of row i if it is not empty, to make the result wrong.
             */
-            if (Yi(i) != Yi(i+1)) Ya(Yi(i)) = Kokkos::Experimental::nan("1"); /* auto promote the double NaN if needed */
+            if (Yi(i) != Yi(i+1)) Ya(Yi(i)) = Kokkos::nan("1"); /* auto promote the double NaN if needed */
           }
         }
       });
