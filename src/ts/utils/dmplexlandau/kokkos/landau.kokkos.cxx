@@ -7,11 +7,15 @@
 #include <petsclandau.h>
 #include <petscts.h>
 
+/* #define LAND_HAVE_OLD_ASSEM */
+
 #include <Kokkos_Core.hpp>
 #include <cstdio>
 typedef Kokkos::TeamPolicy<>::member_type team_member;
 #include "../land_tensors.h"
+#if defined(LAND_HAVE_OLD_ASSEM)
 #include <petscaijdevice.h>
+#endif
 
 namespace landau_inner_red {  // namespace helps with name resolution in reduction identity
   template< class ScalarType >
@@ -312,12 +316,16 @@ PetscErrorCode LandauKokkosStaticDataClear(LandauStaticData *SData_d)
 
 #define KOKKOS_SHARED_LEVEL 1
 KOKKOS_INLINE_FUNCTION
-PetscErrorCode landau_mat_assemble(PetscSplitCSRDataStructure d_mat, PetscScalar *coo_vals, const PetscScalar Aij, const PetscInt f, const PetscInt g, const PetscInt Nb,
+PetscErrorCode landau_mat_assemble(
+#if defined(LAND_HAVE_OLD_ASSEM)
+                                   PetscSplitCSRDataStructure d_mat,
+#endif
+                                   PetscScalar *coo_vals, const PetscScalar Aij, const PetscInt f, const PetscInt g, const PetscInt Nb,
                                    PetscInt moffset, const PetscInt elem, const PetscInt fieldA, const P4estVertexMaps *d_maps,
                                    const LandauIdx coo_elem_offsets[], const LandauIdx coo_elem_fullNb[], Kokkos::View<LandauIdx**, Kokkos::LayoutRight> &coo_elem_point_offsets_k,
                                    const PetscInt glb_elem_idx, const PetscInt bid_coo_sz_batch)
 {
-  PetscInt               idx,q,nr,nc,d;
+  PetscInt               idx,q,nr,nc;
   const LandauIdx *const Idxs = &d_maps->gIdx[elem][fieldA][0];
   PetscScalar            row_scale[LANDAU_MAX_Q_FACE]={0},col_scale[LANDAU_MAX_Q_FACE]={0};
   if (coo_vals) { // mirror (i,j) in CreateStaticGPUData
@@ -352,6 +360,7 @@ PetscErrorCode landau_mat_assemble(PetscSplitCSRDataStructure d_mat, PetscScalar
       }
     }
   } else {
+#if defined(LAND_HAVE_OLD_ASSEM)
     PetscScalar            vals[LANDAU_MAX_Q_FACE*LANDAU_MAX_Q_FACE]={0};
     PetscInt               rows[LANDAU_MAX_Q_FACE],cols[LANDAU_MAX_Q_FACE];
     idx = Idxs[f];
@@ -384,11 +393,12 @@ PetscErrorCode landau_mat_assemble(PetscSplitCSRDataStructure d_mat, PetscScalar
     for (q = 0; q < nr; q++) rows[q] = rows[q] + moffset;
     for (q = 0; q < nc; q++) cols[q] = cols[q] + moffset;
     for (q = 0; q < nr; q++) {
-      for (d = 0; d < nc; d++) {
+      for (int d = 0; d < nc; d++) {
         vals[q*nc + d] = row_scale[q]*col_scale[d]*Aij;
       }
     }
     MatSetValuesDevice(d_mat,nr,rows,nc,cols,vals,ADD_VALUES);
+#endif
   }
   return 0;
 }
@@ -408,7 +418,9 @@ PetscErrorCode LandauKokkosJacobian(DM plex[], const PetscInt Nq, const PetscInt
   PetscReal         *d_Eq_m=NULL;
   PetscScalar       *d_vertex_f=NULL;
   P4estVertexMaps   *maps[LANDAU_MAX_GRIDS]; // this gets captured
+#if defined(LAND_HAVE_OLD_ASSEM)
   PetscSplitCSRDataStructure d_mat;
+#endif
   PetscContainer    container;
   const int         conc = Kokkos::DefaultExecutionSpace().concurrency(), openmp = !!(conc < 1000), team_size = (openmp==0) ? Nq : 1;
   const PetscInt    coo_sz_batch = SData_d->coo_size/batch_sz; // capture
@@ -477,17 +489,21 @@ PetscErrorCode LandauKokkosJacobian(DM plex[], const PetscInt Nq, const PetscInt
           SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "GPU assembly but no metadata in container");
         }
       }
+#if defined(LAND_HAVE_OLD_ASSEM)
       if (!d_coo_vals) {
         // this does the setup the first time called
         ierr = MatKokkosGetDeviceMatWrite(JacP,&d_mat);CHKERRQ(ierr);
       } else {
         d_mat = NULL;
       }
+#endif
     } else SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "GPU assembly but no metadata in container");
   } else {
     for (PetscInt grid=0 ; grid<num_grids ; grid++) maps[grid] = NULL;
     nfaces = 0;
+#if defined(LAND_HAVE_OLD_ASSEM)
     d_mat = NULL;
+#endif
     container = NULL;
   }
   num_cells_batch = Nf_max = num_cells_max = 0;
@@ -720,7 +736,11 @@ PetscErrorCode LandauKokkosJacobian(DM plex[], const PetscInt Nq, const PetscInt
                       const PetscInt fOff = (fieldA*Nb + f)*totDim + fieldA*Nb + g;
                       d_elem_mats(b_id,grid,loc_elem,fOff) = t;
                     } else {
-                      landau_mat_assemble (d_mat, d_coo_vals, t, f, g, Nb, moffset, loc_elem, fieldA, maps[grid], d_coo_elem_offsets_k->data(), d_coo_elem_fullNb_k->data(), *d_coo_elem_point_offsets_k, b_elem_idx, b_id*coo_sz_batch);
+                      landau_mat_assemble (
+#if defined(LAND_HAVE_OLD_ASSEM)
+                                           d_mat,
+#endif
+                                           d_coo_vals, t, f, g, Nb, moffset, loc_elem, fieldA, maps[grid], d_coo_elem_offsets_k->data(), d_coo_elem_fullNb_k->data(), *d_coo_elem_point_offsets_k, b_elem_idx, b_id*coo_sz_batch);
                     }
                   });
               });
@@ -805,7 +825,11 @@ PetscErrorCode LandauKokkosJacobian(DM plex[], const PetscInt Nq, const PetscInt
                           }
                         }
                       } else {
-                        landau_mat_assemble (d_mat, d_coo_vals, t, f, g, Nb, moffset, loc_elem, fieldA, maps[grid], d_coo_elem_offsets_k->data(), d_coo_elem_fullNb_k->data(), *d_coo_elem_point_offsets_k, b_elem_idx, b_id*coo_sz_batch);
+                        landau_mat_assemble (
+#if defined(LAND_HAVE_OLD_ASSEM)
+                                             d_mat,
+#endif
+                                             d_coo_vals, t, f, g, Nb, moffset, loc_elem, fieldA, maps[grid], d_coo_elem_offsets_k->data(), d_coo_elem_fullNb_k->data(), *d_coo_elem_point_offsets_k, b_elem_idx, b_id*coo_sz_batch);
                       }
                     }
                   });
