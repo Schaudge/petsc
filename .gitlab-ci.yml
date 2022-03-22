@@ -224,7 +224,7 @@ pause-for-approval:
     - make updatedatafiles
     - if [ -z ${DISABLE_PETSC4PY_TESTS+x} ]; then if [ -z ${ENABLE_PETSC4PY_LDPRELOAD+x} ]; then echo "NOT using LD_PRELOAD"; make petsc4pytest; else echo "using LD_PRELOAD"; LD_PRELOAD=${PWD}/${TEST_ARCH}/lib/libpetsc.so make petsc4pytest; fi; fi
     - if [ -z ${DISABLE_TESTS+x} ]; then make CFLAGS="${MAKE_CFLAGS}" CXXFLAGS="${MAKE_CXXFLAGS}" FFLAGS="${MAKE_FFLAGS}" cleantest allgtests-tap TIMEOUT=${TIMEOUT}  ${TEST_OPTS}; fi
-    - if [ ! -z ${RUN_GCOV+x} ]; then make gcov; fi
+    - grep "with-gcov=1" ./config/examples/${TEST_ARCH}.py ; if [ $? = 0 ]; then make gcov; fi ; true
   artifacts:
     reports:
       junit: ${TEST_ARCH}/tests/testresults.xml
@@ -491,7 +491,6 @@ linux-c-exodus-dbg:
     - gpu:nvidia, os:linux, name:frog
   variables:
     TEST_ARCH: arch-ci-linux-c-exodus-dbg
-    RUN_GCOV: 1
     TEST_OPTS: -j1 query=requires queryval=cuda
 
 linux-cuda11-double:
@@ -672,7 +671,6 @@ linux-pkgs-gcov:
     - gce-nfs, linux-gcov
   variables:
     TEST_ARCH: arch-ci-linux-pkgs-gcov
-    RUN_GCOV: 1
 
 linux-cmplx-gcov:
   extends:
@@ -684,7 +682,6 @@ linux-cmplx-gcov:
     PETSC_OPTIONS:  -vecscatter_mpi1 false -options_left false -checkstack
     TEST_ARCH: arch-ci-linux-cmplx-gcov
     LOAD_MODULES: gcc/8.3.0-fjpc5ys
-    RUN_GCOV: 1
 
 linux-matlab-ilp64-gcov:
   extends:
@@ -695,7 +692,6 @@ linux-matlab-ilp64-gcov:
   variables:
     TEST_ARCH: arch-ci-linux-matlab-ilp64-gcov
     LOAD_MODULES: matlab/R2018a
-    RUN_GCOV: 1
   allow_failure: true
 
 linux-gcov:
@@ -706,7 +702,6 @@ linux-gcov:
     - gce-nfs, linux-gcov
   variables:
     TEST_ARCH: arch-ci-linux-gcov
-    RUN_GCOV: 1
 
 linux-pgi:
   extends:
