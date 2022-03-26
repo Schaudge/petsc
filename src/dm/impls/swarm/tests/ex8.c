@@ -74,10 +74,13 @@ static PetscErrorCode CreateSwarm(DM dm, AppCtx *user, DM *sw)
 
 static PetscErrorCode TestDistribution(DM sw, PetscReal confidenceLevel, AppCtx *user)
 {
-  Vec            locv;
+  Vec            locv, locsv;
   PetscProbFunc  cdf;
+  PetscScalar   *a;
+  PetscReal     *velocity;
   PetscReal      alpha;
-  PetscInt       dim;
+  PetscInt      *sn, *species;
+  PetscInt       dim, d, n, p, Ns, s, off;
   MPI_Comm       comm;
 
   PetscFunctionBeginUser;
@@ -89,11 +92,36 @@ static PetscErrorCode TestDistribution(DM sw, PetscReal confidenceLevel, AppCtx 
     case 3: cdf = PetscCDFMaxwellBoltzmann3D;break;
     default: SETERRQ(comm, PETSC_ERR_ARG_OUTOFRANGE, "Dimension %D not supported", dim);
   }
-  PetscCall(DMSwarmCreateLocalVectorFromField(sw, "velocity", &locv));
-  PetscCall(PetscProbComputeKSStatistic(locv, cdf, &alpha));
-  PetscCall(DMSwarmDestroyLocalVectorFromField(sw, "velocity", &locv));
-  if (alpha < confidenceLevel) PetscCall(PetscPrintf(comm, "The KS test accepts the null hypothesis at level %.2g\n", (double) confidenceLevel));
-  else                         PetscCall(PetscPrintf(comm, "The KS test rejects the null hypothesis at level %.2g (%.2g)\n", (double) confidenceLevel, (double) alpha));
+  PetscCall(DMSwarmGetNumSpecies(sw, &Ns));
+  PetscCall(DMSwarmGetLocalSize(sw, &n));
+  if (Ns <= 1) {
+    PetscCall(DMSwarmCreateLocalVectorFromField(sw, "velocity", &locv));
+    PetscCall(PetscProbComputeKSStatistic(locv, cdf, &alpha));
+    PetscCall(DMSwarmDestroyLocalVectorFromField(sw, "velocity", &locv));
+    if (alpha < confidenceLevel) PetscCall(PetscPrintf(comm, "The KS test accepts the null hypothesis at level %.2g\n", (double) confidenceLevel));
+    else                         PetscCall(PetscPrintf(comm, "The KS test rejects the null hypothesis at level %.2g (%.2g)\n", (double) confidenceLevel, (double) alpha));
+  } else {
+    PetscCall(PetscCalloc1(Ns, &sn));
+    PetscCall(DMSwarmGetField(sw, "velocity", NULL, NULL, (void **) &velocity));
+    PetscCall(DMSwarmGetField(sw, "species", NULL, NULL, (void **) &species));
+    for (p = 0; p < n; ++p) ++sn[species[p]];
+    for (s = 0; s < Ns; ++s) {
+      PetscCall(VecCreateSeq(PETSC_COMM_SELF, sn[s]*dim, &locsv));
+      PetscCall(VecSetBlockSize(locsv, dim));
+      PetscCall(VecGetArray(locsv, &a));
+      for (p = 0, off = 0; p < n; ++p) {
+        if (species[p] == s) for (d = 0; d < dim; ++d) a[off++] = (user->v0[0]/user->v0[s]) * velocity[p*dim+d];
+      }
+      PetscCall(VecRestoreArray(locsv, &a));
+      PetscCall(PetscProbComputeKSStatistic(locsv, cdf, &alpha));
+      PetscCall(VecDestroy(&locsv));
+      if (alpha < confidenceLevel) PetscCall(PetscPrintf(comm, "The KS test accepts the null hypothesis for species %" PetscInt_FMT " at level %.2g\n", s, (double) confidenceLevel));
+      else                         PetscCall(PetscPrintf(comm, "The KS test rejects the null hypothesis for species %" PetscInt_FMT " at level %.2g (%.2g)\n", s, (double) confidenceLevel, (double) alpha));
+    }
+    PetscCall(DMSwarmRestoreField(sw, "velocity", NULL, NULL, (void **) &velocity));
+    PetscCall(DMSwarmRestoreField(sw, "species", NULL, NULL, (void **) &species));
+    PetscCall(PetscFree(sn));
+  }
   PetscFunctionReturn(0);
 }
 
@@ -119,5 +147,10 @@ int main(int argc, char **argv)
     suffix: 0
     requires: ks !complex
     args: -dm_plex_dim 1 -dm_plex_box_lower -1 -dm_plex_box_upper 1 -dm_swarm_num_particles 300 -dm_swarm_coordinate_density {{constant gaussian}}
+
+  test:
+    suffix: 1
+    requires: ks !complex
+    args: -dm_plex_dim 1 -dm_plex_box_lower -1 -dm_plex_box_upper 1 -dm_swarm_num_species 2 -dm_swarm_num_particles 375 -dm_swarm_coordinate_density {{constant gaussian}}
 
 TEST*/
