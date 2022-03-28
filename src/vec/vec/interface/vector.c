@@ -1799,16 +1799,17 @@ PetscErrorCode VecSetLayout(Vec x,PetscLayout map)
 
 PetscErrorCode VecSetInf(Vec xin)
 {
-  PetscInt       i,n = xin->map->n;
-  PetscScalar    *xx;
-  PetscScalar    inf=INFINITY;
+  PetscScalar inf = INFINITY;
 
   PetscFunctionBegin;
   if (xin->ops->set) { /* can be called by a subset of processes, do not use collective routines */
     PetscCall((*xin->ops->set)(xin,inf));
   } else {
+    const PetscInt  n = xin->map->n;
+    PetscScalar    *xx;
+
     PetscCall(VecGetArrayWrite(xin,&xx));
-    for (i=0; i<n; i++) xx[i] = inf;
+    for (PetscInt i = 0; i < n; ++i) xx[i] = inf;
     PetscCall(VecRestoreArrayWrite(xin,&xx));
   }
   PetscFunctionReturn(0);
