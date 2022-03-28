@@ -1801,7 +1801,7 @@ PetscErrorCode VecSetInf(Vec xin)
 {
   PetscInt       i,n = xin->map->n;
   PetscScalar    *xx;
-  PetscScalar    zero=0.0,one=1.0,inf=one/zero;
+  PetscScalar    inf=INFINITY;
 
   PetscFunctionBegin;
   if (xin->ops->set) { /* can be called by a subset of processes, do not use collective routines */
