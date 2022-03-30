@@ -680,8 +680,8 @@ static inline PetscErrorCode PetscLogGpuTimeAdd(PetscLogDouble t)
   PetscFunctionReturn(0);
 }
 
-PETSC_EXTERN PetscErrorCode PetscPushGpuLogger(PetscErrorCode(*)(void),PetscErrorCode(*)(void));
-PETSC_EXTERN PetscErrorCode PetscPopGpuLogger(void);
+PETSC_EXTERN PetscErrorCode PetscPushGpuLogger(PetscInt,PetscErrorCode(*)(void),PetscErrorCode(*)(void));
+PETSC_EXTERN PetscErrorCode PetscPopGpuLogger(PetscInt);
 PETSC_EXTERN PetscErrorCode PetscLogGpuTimeBegin(void);
 PETSC_EXTERN PetscErrorCode PetscLogGpuTimeEnd(void);
 
@@ -695,8 +695,8 @@ PETSC_EXTERN PetscErrorCode PetscLogGpuTimeEnd(void);
 #define PetscLogGpuTimeAdd(a)              0
 #define PetscLogGpuTimeBegin()             0
 #define PetscLogGpuTimeEnd()               0
-#define PetscPushGpuLogger(...)            0
-#define PetscPopGpuLogger()                0
+#define PetscPushGpuLogger(l,...)          0
+#define PetscPopGpuLogger(l)               0
 
 #endif /* PETSC_USE_LOG && PETSC_HAVE_DEVICE */
 
