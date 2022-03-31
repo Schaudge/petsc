@@ -743,26 +743,14 @@ PetscErrorCode DMNetworkLayoutSetUp(DM dm)
   PetscCall(DMSetDimension(network->plex,1));
 
   if (size == 1) {
-<<<<<<< HEAD
     PetscCall(DMPlexBuildFromCellList(network->plex,network->nEdges,PETSC_DECIDE,2,edges));
-=======
-    ierr = DMPlexBuildFromCellList(network->plex,network->nEdges,network->nVertices,2,edges);CHKERRQ(ierr);
->>>>>>> f72dfd46ba (add test case to src/dm/tests/ex10.c for isolated vertices -- incorrect for parallel run yet)
   } else {
     PetscCall(DMPlexBuildFromCellListParallel(network->plex,network->nEdges,PETSC_DECIDE,PETSC_DECIDE,2,edges,NULL, NULL));
   }
 
-<<<<<<< HEAD
   PetscCall(DMPlexGetChart(network->plex,&network->pStart,&network->pEnd));
   PetscCall(DMPlexGetHeightStratum(network->plex,0,&network->eStart,&network->eEnd));
   PetscCall(DMPlexGetHeightStratum(network->plex,1,&network->vStart,&network->vEnd));
-=======
-  ierr = DMPlexGetChart(network->plex,&network->pStart,&network->pEnd);CHKERRQ(ierr);
-  ierr = DMPlexGetHeightStratum(network->plex,0,&network->eStart,&network->eEnd);CHKERRQ(ierr);
-  ierr = DMPlexGetHeightStratum(network->plex,1,&network->vStart,&network->vEnd);CHKERRQ(ierr);
-  //printf("[%d] DMNetworkLayoutSetUp: nv %d, ne %d; np %d\n",rank,network->vEnd - network->vStart,network->eEnd-network->eStart,network->pEnd - network->pStart);
-  //printf("[%d] DMNetworkLayoutSetUp: nVertices %d\n",rank,network->nVertices);
->>>>>>> f72dfd46ba (add test case to src/dm/tests/ex10.c for isolated vertices -- incorrect for parallel run yet)
 
   PetscCall(PetscSectionCreate(comm,&network->DataSection));
   PetscCall(PetscSectionCreate(comm,&network->DofSection));
@@ -847,9 +835,9 @@ PetscErrorCode DMNetworkLayoutSetUp(DM dm)
     DM subplex = network->subnet[i].plex;
     if (subplex) {
       PetscInt vStart,vEnd,nedges;
-      ierr = DMPlexGetHeightStratum(subplex,1,&vStart,&vEnd);CHKERRQ(ierr);
+      PetscCall(DMPlexGetHeightStratum(subplex,1,&vStart,&vEnd));
       for (j=vStart; j<vEnd; j++) {
-        ierr = DMPlexGetSupportSize(subplex,j,&nedges);CHKERRQ(ierr);
+        PetscCall(DMPlexGetSupportSize(subplex,j,&nedges));
         if (!nedges) {
           if (size == 1 && Nsubnet == 1) {
             v = j-vStart;
@@ -2698,21 +2686,14 @@ PetscErrorCode DMDestroy_Network(DM dm)
   PetscCall(PetscFree(network->svtx));
   PetscCall(PetscFree2(network->subnetedge,network->subnetvtx));
 
-<<<<<<< HEAD
   PetscCall(PetscTableDestroy(&network->svtable));
+
+  for (j=0; j<network->nsubnet; j++) {
+    PetscCall(DMDestroy(&network->subnet[j].plex));
+  }
   PetscCall(PetscFree(network->subnet));
   PetscCall(PetscFree(network->component));
   PetscCall(PetscFree(network->componentdataarray));
-=======
-  ierr = PetscTableDestroy(&network->svtable);CHKERRQ(ierr);
-
-  for (j=0; j<network->nsubnet; j++) {
-    ierr = DMDestroy(&network->subnet[j].plex);CHKERRQ(ierr);
-  }
-  ierr = PetscFree(network->subnet);CHKERRQ(ierr);
-  ierr = PetscFree(network->component);CHKERRQ(ierr);
-  ierr = PetscFree(network->componentdataarray);CHKERRQ(ierr);
->>>>>>> f72dfd46ba (add test case to src/dm/tests/ex10.c for isolated vertices -- incorrect for parallel run yet)
 
   if (network->header) {
     np = network->pEnd - network->pStart;

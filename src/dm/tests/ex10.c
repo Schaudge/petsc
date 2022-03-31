@@ -29,28 +29,19 @@ int main(int argc,char ** argv)
   PetscCall(DMNetworkRegisterComponent(network,"ecomp",0,&ecompkey));
   PetscCall(DMNetworkRegisterComponent(network,"vcomp",0,&vcompkey));
 
-<<<<<<< HEAD
   PetscCall(PetscOptionsGetInt(NULL,NULL,"-test",&itest,NULL));
-=======
-  ierr = PetscOptionsGetInt(NULL,NULL,"-test",&itest,NULL);CHKERRQ(ierr);
 
   /* nodeOffset for rank > 0 */
->>>>>>> f72dfd46ba (add test case to src/dm/tests/ex10.c for isolated vertices -- incorrect for parallel run yet)
   Ne = 2;
   Ni = 1;
   nodeOffset = (Ne+Ni)*rank;   /* The global node index of the first node defined on this process */
 
   /* There are three nodes on each rank and two edges. The edges only connect nodes on the given rank */
   nedge = 2 * Ni;
-  ierr = PetscCalloc1(2*nedge,&edgelist);CHKERRQ(ierr);
+  PetscCall(PetscCalloc1(2*nedge,&edgelist));
 
   if (rank == 0) {
-<<<<<<< HEAD
-    nedge = 1;
-    PetscCall(PetscCalloc1(2*nedge,&edgelist));
-=======
     nedge = 1; nv = 4;
->>>>>>> f72dfd46ba (add test case to src/dm/tests/ex10.c for isolated vertices -- incorrect for parallel run yet)
     switch (itest) {
     case 0:
       /* v0, v1 are isolated vertices */
@@ -94,16 +85,6 @@ int main(int argc,char ** argv)
       break;
     default: PetscCheck(itest < 3,PETSC_COMM_SELF,PETSC_ERR_SUP,"Test case %" PetscInt_FMT " not supported.",itest);
     }
-<<<<<<< HEAD
-  } else {
-    nedge = 2; nv = 3;
-    PetscCall(PetscCalloc1(2*nedge,&edgelist));
-    edgelist[0] = nodeOffset + 0;
-    edgelist[1] = nodeOffset + 2;
-    edgelist[2] = nodeOffset + 1;
-    edgelist[3] = nodeOffset + 2;
-=======
->>>>>>> f72dfd46ba (add test case to src/dm/tests/ex10.c for isolated vertices -- incorrect for parallel run yet)
   }
 
   PetscCall(DMNetworkSetNumSubNetworks(network,PETSC_DECIDE,1));
@@ -114,12 +95,8 @@ int main(int argc,char ** argv)
   PetscCall(DMView(network,PETSC_VIEWER_STDOUT_WORLD));
 
   /* Add components and variables for the network */
-<<<<<<< HEAD
   PetscCall(DMNetworkGetSubnetwork(network,0,&nv,&ne,&nodes,&edges));
 
-=======
-  ierr = DMNetworkGetSubnetwork(network,0,&nv,&ne,&nodes,&edges);CHKERRQ(ierr);
->>>>>>> f72dfd46ba (add test case to src/dm/tests/ex10.c for isolated vertices -- incorrect for parallel run yet)
   for (e = 0; e < ne; e++) {
     /* The edges have no degrees of freedom */
     PetscCall(DMNetworkAddComponent(network,edges[e],ecompkey,NULL,1));
