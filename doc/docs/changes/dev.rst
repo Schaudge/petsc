@@ -29,6 +29,8 @@ Changes: Development
 
 .. rubric:: IS:
 
+- Add ``DMLabelPermuteValues()``
+
 .. rubric:: VecScatter / PetscSF:
 
 .. rubric:: PF:

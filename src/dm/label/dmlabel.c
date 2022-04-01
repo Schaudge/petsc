@@ -1628,14 +1628,14 @@ PetscErrorCode DMLabelFilter(DMLabel label, PetscInt start, PetscInt end)
 
   Input Parameters:
 + label - the DMLabel
-- permutation - the point permutation
+- permutation - the point permutation, permutation[old point] = new point
 
   Output Parameter:
 . labelnew - the new label containing the permuted points
 
   Level: intermediate
 
-.seealso: `DMLabelCreate()`, `DMLabelGetValue()`, `DMLabelSetValue()`, `DMLabelClearValue()`
+.seealso: `DMLabelPermuteValues()`, `DMLabelCreate()`, `DMLabelGetValue()`, `DMLabelSetValue()`, `DMLabelClearValue()`
 @*/
 PetscErrorCode DMLabelPermute(DMLabel label, IS permutation, DMLabel *labelNew)
 {
@@ -1680,6 +1680,50 @@ PetscErrorCode DMLabelPermute(DMLabel label, IS permutation, DMLabel *labelNew)
     PetscCall(PetscBTDestroy(&label->bt));
     PetscCall(DMLabelCreateIndex(label, label->pStart, label->pEnd));
   }
+  PetscFunctionReturn(0);
+}
+
+/*@
+  DMLabelPermuteValues - Permute the values in a label
+
+  Not collective
+
+  Input Parameters:
++ label - the `DMLabel`
+- permutation - the value permutation, permutation[old value] = new value
+
+  Output Parameter:
+. label - the label now with permuted values
+
+  Note:
+
+  The modification is done in-place
+
+  Level: intermediate
+
+.seealso: `DMLabelPermute()`, `DMLabelCreate()`, `DMLabelGetValue()`, `DMLabelSetValue()`, `DMLabelClearValue()`
+@*/
+PetscErrorCode DMLabelPermuteValues(DMLabel label, IS permutation)
+{
+  const PetscInt *perm;
+  PetscInt        Nv, v, Np;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(label, DMLABEL_CLASSID, 1);
+  PetscValidHeaderSpecific(permutation, IS_CLASSID, 2);
+  PetscCall(DMLabelMakeAllValid_Private(label));
+  PetscCall(DMLabelGetNumValues(label, &Nv));
+  PetscCall(ISGetLocalSize(permutation, &Np));
+  PetscCall(ISGetIndices(permutation, &perm));
+  for (v = 0; v < Nv; ++v) {
+    const PetscInt val = label->stratumValues[v];
+
+    PetscCheck((val >= 0) && (val < Np), PetscObjectComm((PetscObject)label), PETSC_ERR_ARG_INCOMP, "Value %" PetscInt_FMT " not in [0, %" PetscInt_FMT ")", val, Np);
+    label->stratumValues[v] = perm[val];
+  }
+  PetscCall(ISRestoreIndices(permutation, &perm));
+  PetscCall(PetscHMapIReset(label->hmap));
+  for (v = 0; v < Nv; ++v) PetscCall(PetscHMapISet(label->hmap, label->stratumValues[v], v));
   PetscFunctionReturn(0);
 }
 
