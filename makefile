@@ -334,8 +334,8 @@ allgtags:
 
 allfortranstubs:
 	-@${RM} -rf ${PETSC_ARCH}/include/petsc/finclude/ftn-auto/*-tmpdir
-	@${PYTHON} lib/petsc/bin/maint/generatefortranstubs.py ${BFORT}  ${VERBOSE}
-	-@${PYTHON} lib/petsc/bin/maint/generatefortranstubs.py -merge  ${VERBOSE}
+	@${PYTHON} share/petsc/scripts/generatefortranstubs.py ${BFORT}  ${VERBOSE}
+	-@${PYTHON} share/petsc/scripts/generatefortranstubs.py -merge  ${VERBOSE}
 	-@${RM} -rf ${PETSC_ARCH}/include/petsc/finclude/ftn-auto/*-tmpdir
 deletefortranstubs:
 	-@find . -type d -name ftn-auto | xargs rm -rf

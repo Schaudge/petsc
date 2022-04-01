@@ -135,7 +135,7 @@ and run configure again\n')
         self.logPrintBox('Running '+self.bfort+' to generate fortran stubs')
         try:
           import os,sys
-          sys.path.insert(0, os.path.abspath(os.path.join('lib','petsc','bin','maint')))
+          sys.path.insert(0, os.path.abspath(os.path.join('share','petsc','scripts')))
           import generatefortranstubs
           del sys.path[0]
           generatefortranstubs.main(self.petscdir.dir, self.bfort, self.petscdir.dir,0)
