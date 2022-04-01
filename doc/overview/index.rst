@@ -22,6 +22,7 @@ parallel distributed arrays useful for finite difference methods.
    linear_solve_table
    nonlinear_solve_table
    tao_solve_table
+   dmnetwork
 
 *   :doc:`/docs/manual/index`
 *   :doc:`/docs/manualpages/index`
