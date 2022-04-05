@@ -748,9 +748,13 @@ If the problem persists, please send your configure.log to petsc-maint@mcs.anl.g
       try:
         gitcommit_hash,err,ret = config.base.Configure.executeShellCommand([self.sourceControl.git, 'rev-parse', self.gitcommit], cwd=self.packageDir, log = self.log)
       except:
-        raise RuntimeError('Unable to locate commit: '+self.gitcommit+' in repository: '+self.packageDir+'.\n\
-If its a commit/tag that is not found - perhaps the repo URL changed. If so, delete '+self.packageDir+' and rerun configure.\n\
-If its a remote branch, use: origin/'+self.gitcommit+' for commit.')
+         self.logPrint('Unable to locate commit: '+self.gitcommit+' in repository: '+self.packageDir+'\nTrying again with origin/'+self.gitcommit)
+         commit = 'origin/'+self.gitcommit
+         try:
+           gitcommit_hash,err,ret = config.base.Configure.executeShellCommand([self.sourceControl.git, 'rev-parse', commit], cwd=self.packageDir, log = self.log)
+         except:
+           raise RuntimeError('Unable to locate commit: '+self.gitcommit+' in repository: '+self.packageDir+'.\n\
+If its a commit/tag that is not found - perhaps the repo URL changed. If so, delete '+self.packageDir+' and rerun configure.\n')
       if self.gitcommit != 'HEAD':
         try:
           config.base.Configure.executeShellCommand([self.sourceControl.git, '-c', 'user.name=petsc-configure', '-c', 'user.email=petsc@configure', 'stash'], cwd=self.packageDir, log = self.log)
