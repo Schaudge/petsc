@@ -305,6 +305,8 @@ cdef extern from * nogil:
     int PCHPDDMGetCoarseCorrectionType(PetscPC,PetscPCHPDDMCoarseCorrectionType*)
     int PCHPDDMGetSTShareSubKSP(PetscPC,PetscBool*)
 
+    int PCSPAISetEpsilon(PetscPC,PetscReal)
+
 # --------------------------------------------------------------------
 
 cdef extern from "libpetsc4py.h":

@@ -863,6 +863,12 @@ cdef class PC(Object):
         CHKERR( PCHPDDMGetSTShareSubKSP(self.pc, &cval) )
         return toBool(cval)
 
+    # --- SPAI ---
+
+    def setSPAIEpsilon(self,val):
+        cdef PetscReal cval = asReal(val)
+        CHKERR( PCSPAISetEpsilon(self.pc, cval) )
+
 # --------------------------------------------------------------------
 
 del PCType
