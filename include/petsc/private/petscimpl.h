@@ -468,7 +468,7 @@ void PetscValidLogicalCollectiveEnum(Ta,Tb,int);
    Notes:
      This handles error handling directly and does not return an error code.
 
-.seealso: PetscUseMethod(), PetscObjectComposeFunction(), PetscObjectQueryFunction()
+.seealso: PetscUseMethod(), PetscObjectComposeFunction(), PetscObjectQueryFunction(), PetscCallMethod()
 @*/
 #define PetscTryMethod(obj,A,B,C) do {                             \
     PetscErrorCode (*_7_f)B;                                       \
@@ -493,7 +493,7 @@ void PetscValidLogicalCollectiveEnum(Ta,Tb,int);
    Notes:
      This handles error handling directly and does not return an error code.
 
-.seealso: PetscTryMethod(), PetscObjectComposeFunction(), PetscObjectQueryFunction()
+.seealso: PetscTryMethod(), PetscObjectComposeFunction(), PetscObjectQueryFunction(), PetscCallMethod()
 @*/
 #define PetscUseMethod(obj,A,B,C) do {                                                         \
     PetscErrorCode (*_7_f)B;                                                                   \
@@ -501,6 +501,30 @@ void PetscValidLogicalCollectiveEnum(Ta,Tb,int);
     PetscCheck(_7_f,PetscObjectComm((PetscObject)(obj)),PETSC_ERR_SUP,"Cannot locate function %s in object",A); \
     PetscCall((*_7_f)C);                                                                         \
   } while (0)
+
+#define Petsc_arg_first(a,...) a
+/*@C
+   PetscCallMethod - If the object contains the method in the function table, then calls it, otherwise generates an error.
+              These are intended to be used only inside PETSc functions.
+
+ Collective on the second argument
+
+   Input Parameters:
++    name - the name of the method, not as a string
+.    object - the first argument of the method, it must be a PETSc object
+.    o2 - the second argument of the method, if it exists
+-    on - the nth argument of the method
+
+   Level: developer
+
+   Notes:
+     This handles error handling directly and does not return an error code.
+
+.seealso: PetscTryMethod(), PetscUseMethod(), PetscObjectComposeFunction(), PetscObjectQueryFunction()
+@*/
+#define PetscCallMethod(name,...)  do { \
+  PetscCheck((Petsc_arg_first(__VA_ARGS__))->ops->name,PetscObjectComm((PetscObject)(Petsc_arg_first(__VA_ARGS__))),PETSC_ERR_SUP,"Type %s does not have a " # name "operations defined",((PetscObject)(Petsc_arg_first(__VA_ARGS__)))->type_name); \
+  PetscCall((*Petsc_arg_first(__VA_ARGS__)->ops->name)(__VA_ARGS__)); } while (0)
 
 /*MC
    PetscObjectStateIncrease - Increases the state of any PetscObject
