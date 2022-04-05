@@ -451,28 +451,50 @@ void PetscValidLogicalCollectiveEnum(Ta,Tb,int);
 #define PetscCheckSorted(n,idx)
 #endif /* PETSC_CLANG_STATIC_ANALYZER */
 
-/*
-   PetscTryMethod - Queries an object for a method, if it exists then calls it.
+/*@C
+   PetscTryMethod - Queries an object for a composed method, if it exists then calls it.
               These are intended to be used only inside PETSc functions.
+
+   Collective on the first argument
+
+   Input Parameters:
++    obj - the object potentially containing the method
+.    A - the name of the method, as a string
+.    B - the names of the arguments to the method, in the format, for example (Vec,PetscInt)
+-    C - the arguments of the method, in the format, for example, (x,22)
 
    Level: developer
 
-.seealso: PetscUseMethod()
-*/
+   Notes:
+     This handles error handling directly and does not return an error code.
+
+.seealso: PetscUseMethod(), PetscObjectComposeFunction(), PetscObjectQueryFunction()
+@*/
 #define PetscTryMethod(obj,A,B,C) do {                             \
     PetscErrorCode (*_7_f)B;                                       \
     PetscCall(PetscObjectQueryFunction((PetscObject)(obj),A,&_7_f)); \
     if (_7_f) PetscCall((*_7_f)C);                                   \
   } while (0)
 
-/*
-   PetscUseMethod - Queries an object for a method, if it exists then calls it, otherwise generates an error.
+/*@C
+   PetscUseMethod - Queries an object for a composed method, if it exists then calls it, otherwise generates an error.
               These are intended to be used only inside PETSc functions.
+
+ Collective on the first argument
+
+   Input Parameters:
++    obj - the object potentially containing the method
+.    A - the name of the method, as a string
+.    B - the names of the arguments to the method, in the format, for example (Vec,PetscInt)
+-    C - the arguments of the method, in the format, for example, (x,22)
 
    Level: developer
 
-.seealso: PetscTryMethod()
-*/
+   Notes:
+     This handles error handling directly and does not return an error code.
+
+.seealso: PetscTryMethod(), PetscObjectComposeFunction(), PetscObjectQueryFunction()
+@*/
 #define PetscUseMethod(obj,A,B,C) do {                                                         \
     PetscErrorCode (*_7_f)B;                                                                   \
     PetscCall(PetscObjectQueryFunction((PetscObject)(obj),A,&_7_f));                             \
