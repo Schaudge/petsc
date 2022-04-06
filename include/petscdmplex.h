@@ -180,7 +180,12 @@ PETSC_EXTERN PetscErrorCode DMPlexCreateWedgeCylinderMesh(MPI_Comm, PetscInt, Pe
 PETSC_EXTERN PetscErrorCode DMPlexCreateWedgeBoxMesh(MPI_Comm, const PetscInt[], const PetscReal[], const PetscReal[], const DMBoundaryType[], PetscBool, PetscBool, DM *);
 PETSC_EXTERN PetscErrorCode DMPlexExtrude(DM, PetscInt, PetscReal, PetscBool, PetscBool, const PetscReal[], const PetscReal[], DM *);
 PETSC_EXTERN PetscErrorCode DMPlexCreateConeSection(DM, PetscSection *);
-PETSC_EXTERN PetscErrorCode DMPlexInflateToGeomModel(DM);
+PETSC_EXTERN PetscErrorCode DMPlexInflateToEGADSGeomModel(DM);
+PETSC_EXTERN PetscErrorCode DMPlexComputeSurfaceGradient(DM);
+PETSC_EXTERN PetscErrorCode DMPlexGeomDataAndGrads(DM, PetscBool);
+PETSC_EXTERN PetscErrorCode DMPlexEGADSModifyGeomModel(DM, PetscScalar[], PetscScalar[], PetscBool, PetscBool, const char[]);
+PETSC_EXTERN PetscErrorCode DMPlexGetEGADSGeomModel_tuv(DM);
+PETSC_EXTERN PetscErrorCode DMPlexInflateToEGADSGeomModel_tuv(DM);
 
 PETSC_EXTERN PetscErrorCode DMPlexCheck(DM);
 PETSC_EXTERN PetscErrorCode DMPlexCheckSymmetry(DM);

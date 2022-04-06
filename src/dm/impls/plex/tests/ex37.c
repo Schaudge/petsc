@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
     PetscCall(DMPlexSetRefinementUniform(dm, PETSC_TRUE));
     PetscCall(DMViewFromOptions(dm, NULL, "-pre_dm_view"));
 
-    PetscCall(DMPlexInflateToGeomModel(dm));
+    PetscCall(DMPlexInflateToEGADSGeomModel(dm));
     PetscCall(DMViewFromOptions(dm, NULL, "-inf_dm_view"));
 
     PetscCall(DMSetFromOptions(dm));
