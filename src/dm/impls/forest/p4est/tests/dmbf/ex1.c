@@ -23,18 +23,34 @@ stencils of convergence order O(h^p), we refer to p as the order of the stencil
 #define ORDER_2_STENCIL {-1.0,2.0,-1.0}
 #define ORDER_4_STENCIL {1.0/12.0,-4.0/3.0,5.0/2.0,-4.0/3.0,1.0/12.0}
 #define ORDER_6_STENCIL {-1.0/90.0,3.0/20.0,-3.0/2.0,49.0/18.0,-3.0/2.0,3.0/20.0,-1.0/90.0}
-// JR these stencils are not used
 
-typedef enum {GUARD_W, GUARD_E, GUARD_S, GUARD_N, GUARD_C} guardloc;
-// JR the name GUARD_C is misleading since it is not actually a guard entry, but the interior of the cell
+#define STENCIL_LEN 5
+typedef enum {GUARD_W, GUARD_E, GUARD_S, GUARD_N, CENTER} unkLoc;
+#define N_FACE_COORDS_X 4
+#define N_FACE_COORDS_Y 4
+typedef enum {FACE_W, FACE_E, FACE_S, FACE_N} faceLoc;
+#define N_CENTER_COORDS_X 1
+#define N_CENTER_COORDS_Y 1
+typedef enum {STENCIL,CENTER_COORD_X,CENTER_COORD_Y,FACE_COORD_X,FACE_COORD_Y} cellDat;
 
-typedef PetscScalar (*BndryConditionFn)(PetscReal,PetscReal);
-typedef PetscScalar (*SourceFn)(PetscReal,PetscReal);
-// JR these two function declarations follow the same pattern.  only one is needed actually
+
+#define nCellDataFields     5
+#define maxCellDataFieldDim 1
+#define maxCellDataFieldLen 1
+static const PetscInt CELLDATA_SHAPE[nCellDataFields*2] =
+{
+   STENCIL_LEN,       1,
+   N_CENTER_COORDS_X, 1,
+   N_CENTER_COORDS_Y, 1,
+   N_FACE_COORDS_X,   1,          
+   N_FACE_COORDS_Y,   1,          
+};
+
+typedef PetscScalar (*SpatialFn_2D)(PetscReal,PetscReal);
 
 typedef struct {
-  BndryConditionFn g;
-  SourceFn         f;
+  SpatialFn_2D bc;
+  SpatialFn_2D src;
 } AppCtx;
 
 typedef struct {
@@ -42,144 +58,159 @@ typedef struct {
 } cellData_t;
 // PetscErrorCode get(Boundary)FaceMidpoint()
 
-// JR clearing something usually has am association of destroying/deleting; but in `clear_cell_data` the data seems to be initialized/zeroed
-PetscErrorCode clear_cell_data(DM dm, DM_BF_Cell *cell, void *ctx) {
+PetscErrorCode init_cell_data(DM dm, DM_BF_Cell *cell, void *ctx) {
+  PetscErrorCode ierr;
+  
   PetscFunctionBegin;
-  cell->data[0][0]=0.0;
+
+  ierr = PetscArrayzero(cell->data[STENCIL],STENCIL_LEN);CHKERRQ(ierr);
+
+  cell->data[CENTER_COORD_X][0]=cell->corner[0]+.5*cell->sidelength[0];
+  cell->data[CENTER_COORD_Y][0]=cell->corner[1]+.5*cell->sidelength[1];
+
+  cell->data[FACE_COORD_X][FACE_W] = cell->corner[0];
+  cell->data[FACE_COORD_X][FACE_E] = cell->corner[0]+cell->sidelength[0];
+  cell->data[FACE_COORD_X][FACE_S] = cell->data[CENTER_COORD_X][0];
+  cell->data[FACE_COORD_X][FACE_N] = cell->data[CENTER_COORD_X][0];
+
+  cell->data[FACE_COORD_Y][FACE_W] = cell->data[CENTER_COORD_Y][0];
+  cell->data[FACE_COORD_Y][FACE_E] = cell->data[CENTER_COORD_Y][0];
+  cell->data[FACE_COORD_Y][FACE_S] = cell->corner[1];
+  cell->data[FACE_COORD_Y][FACE_N] = cell->corner[1]+cell->sidelength[1];
+
   PetscFunctionReturn(0);
 }
+
 PetscErrorCode set_up_boundary_condition(DM dm, DM_BF_Face *face, void *ctx) {
-  AppCtx          *user      = ctx;
-  DM_BF_Cell      *cell      = (face->cellL[0] ? face->cellL[0] : face->cellR[0]);
-  PetscBool       isBoundary = (DM_BF_FACEBOUNDARY_NONE != face->boundary);
-  PetscScalar     h, bndryFaceMidpoint_x, bndryFaceMidpoint_y;
+  AppCtx      *user      = ctx;
+  DM_BF_Cell  *cell      = (face->cellL[0] ? face->cellL[0] : face->cellR[0]);
+  PetscBool   isBoundary = (DM_BF_FACEBOUNDARY_NONE != face->boundary);
 
   PetscFunctionBegin;
 
-  if (isBoundary) {
-    switch(face->dir) {
-      case DM_BF_FACEDIR_XNEG:
-        h = cell->sidelength[0];
-        bndryFaceMidpoint_x = cell->corner[0];
-        bndryFaceMidpoint_y = cell->corner[1] + .5*h;
-        break;
-      case DM_BF_FACEDIR_XPOS:
-        h = cell->sidelength[0];
-        bndryFaceMidpoint_x = cell->corner[0] + h;
-        bndryFaceMidpoint_y = cell->corner[1] + .5*h;
-        break;
-      case DM_BF_FACEDIR_YNEG:
-        h = cell->sidelength[1];
-        bndryFaceMidpoint_x = cell->corner[0] + .5*h;
-        bndryFaceMidpoint_y = cell->corner[1];
-        break;
-      case DM_BF_FACEDIR_YPOS:
-        h = cell->sidelength[1];
-        bndryFaceMidpoint_x = cell->corner[0] + .5*h;
-        bndryFaceMidpoint_y = cell->corner[1] + h;
-        break;
-      default:
-        SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Unknown or incorrect face direction %i",face->dir);
-    }
-    // JR looking at these many cases, it seems it would be better to store the coordinates of cell centers and face centers in the DMBF cell data
+  if(isBoundary) {
+    PetscScalar h,bndryFaceMidpoint_x,bndryFaceMidpoint_y;
+    bndryFaceMidpoint_x = cell->data[FACE_COORD_X][face->dir];
+    bndryFaceMidpoint_y = cell->data[FACE_COORD_Y][face->dir];
 
-    cell->data[0][0] += -2*user->g(bndryFaceMidpoint_x,bndryFaceMidpoint_y) / (h*h);
-    // JR here cell data is accessed with a slightly different code than in, eg, line 120
-    //    i think it's important to unify this so a new user can quickly understand our design and the intended use of DMBF
+    h = (face->dir < 2 ? cell->sidelength[0] : cell->sidelength[1]);
+    cell->data[STENCIL][CENTER] += -2*user->bc(bndryFaceMidpoint_x,bndryFaceMidpoint_y) / (h*h);
   }
 
   PetscFunctionReturn(0);
 }
 
 PetscErrorCode interpolate_source(DM dm, DM_BF_Cell *cell, void *ctx) {
-  AppCtx    *user      = ctx;
-  PetscReal *cell_val  = cell->vecViewReadWrite[0];
-  PetscReal x          = cell->corner[0]+.5*cell->sidelength[0];
-  PetscReal y          = cell->corner[1]+.5*cell->sidelength[1];
+  AppCtx      *user         = ctx;
+  PetscScalar *readWriteVal = cell->vecViewReadWrite[0];
+  PetscScalar x             = cell->data[CENTER_COORD_X][0];
+  PetscScalar y             = cell->data[CENTER_COORD_Y][0];
 
   PetscFunctionBegin;
-  *cell_val = user->f(x,y) + cell->data[0][0];
+
+  *readWriteVal = user->src(x,y) + cell->data[STENCIL][CENTER];
+
   PetscFunctionReturn(0);
 }
 
 PetscErrorCode interpolate_exact(DM dm, DM_BF_Cell *cell, void *ctx) {
-  AppCtx    *user      = ctx;
-  PetscReal *cell_val  = cell->vecViewReadWrite[0];
-  PetscReal x          = cell->corner[0]+.5*cell->sidelength[0];
-  PetscReal y          = cell->corner[1]+.5*cell->sidelength[1];
+  AppCtx      *user         = ctx;
+  PetscScalar *readWriteVal = cell->vecViewReadWrite[0];
+  PetscScalar x             = cell->data[CENTER_COORD_X][0];
+  PetscScalar y             = cell->data[CENTER_COORD_Y][0];
 
   PetscFunctionBegin;
-  *cell_val = user->g(x,y);
+
+  *readWriteVal = user->bc(x,y);
+
   PetscFunctionReturn(0);
 }
 
 static PetscErrorCode _p_dmbf_poisson_set_unk_cellfn(DM dm, DM_BF_Cell *cell, void *ctx) {
-  const PetscScalar *vec_unk   = cell->vecViewRead[0];
-  PetscReal         *cell_unk  = cell->data[0];
+  const PetscScalar *vecReadVal = cell->vecViewRead[0];
 
   PetscFunctionBegin;
-  cell_unk[GUARD_C] = *vec_unk;
+
+  cell->data[STENCIL][CENTER] = *vecReadVal;
+
   PetscFunctionReturn(0);
+}
+
+/* In addition to the usual domain boundaries, the strip {(x,y) : y = 0, -1 <= x <= 0} is part of the boundary.
+   The square domain naturally conforms to this boundary so that the interior of each edge either lies completely
+   inside the strip or completely outside. This function checks if an interior face lies inside the strip or not
+   by checking the coordinates of a point on the face. 
+ */
+PETSC_STATIC_INLINE PetscBool InteriorFaceIsBndry(DM_BF_Face *face) {
+  return (        face->cellR[0]->data[FACE_COORD_X][FACE_S]  < 0.0 
+      && PetscAbs(face->cellR[0]->data[FACE_COORD_Y][FACE_S]) < PETSC_SMALL);
 }
 
 static PetscErrorCode _p_dmbf_poisson_set_guards_facefn(DM dm, DM_BF_Face *face, void *ctx) {
   const PetscInt  nCellsL    = face->nCellsL;
   const PetscInt  nCellsR    = face->nCellsR;
-  const PetscBool isBoundary = (!nCellsL || !nCellsR);//(DM_BF_FACEBOUNDARY_NONE != face->boundary);
+  const PetscBool isBoundary = (DM_BF_FACEBOUNDARY_NONE != face->boundary);
   const PetscBool isHangingL = (1 < nCellsL);
   const PetscBool isHangingR = (1 < nCellsR);
-  const PetscBool X_DIR = (face->dir == DM_BF_FACEDIR_XNEG || face->dir == DM_BF_FACEDIR_XPOS);
+  const PetscBool X_DIR      = (face->dir == DM_BF_FACEDIR_XNEG || face->dir == DM_BF_FACEDIR_XPOS);
 
   PetscFunctionBegin;
 
   if (isBoundary) {
     DM_BF_Cell *cell = face->cellL[0] ? face->cellL[0] : face->cellR[0];
-    cell->data[0][face->dir] = -cell->data[0][GUARD_C];
-  } else if (!X_DIR && face->cellL[0]->corner[1] +.5*face->cellL[0]->sidelength[1] < 0 && face->cellR[0]->corner[1]+.5*face->cellR[0]->sidelength[1] > 0
-                  && face->cellL[0]->corner[0] + .5*face->cellL[0]->sidelength[0] < 0) { /* the strip {(x,y) : y = 0, -1 <= x <= 0} is part of the boundary */
-                  // JR what are all these conditions?
+    cell->data[STENCIL][face->dir] = -cell->data[STENCIL][CENTER];
+  } else if (!X_DIR && InteriorFaceIsBndry(face)) {
     DM_BF_Cell *cell;
     for(PetscInt i=0;i<nCellsL;i++) {
       cell = face->cellL[i];
-      cell->data[0][GUARD_N] = -cell->data[0][GUARD_C];
+      cell->data[STENCIL][GUARD_N] = -cell->data[STENCIL][CENTER];
     }
     for(PetscInt i=0;i<nCellsR;i++) {
       cell = face->cellR[i];
-      cell->data[0][GUARD_S] = -cell->data[0][GUARD_C];
+      cell->data[STENCIL][GUARD_S] = -cell->data[STENCIL][CENTER];
     }
   } else {
     if (isHangingL) {
       DM_BF_Cell **cellL = face->cellL;
       DM_BF_Cell *cellR  = face->cellR[0];
-      cellL[0]->data[0][X_DIR ? GUARD_E : GUARD_N] = (2./3.)*cellR->data[0][GUARD_C]    + (2./3.)*cellL[0]->data[0][GUARD_C] - (1./3.)*cellL[1]->data[0][GUARD_C];
-      cellL[1]->data[0][X_DIR ? GUARD_E : GUARD_N] = (2./3.)*cellR->data[0][GUARD_C]    + (2./3.)*cellL[1]->data[0][GUARD_C] - (1./3.)*cellL[0]->data[0][GUARD_C];
-      cellR->data[0][X_DIR ? GUARD_W : GUARD_S]    = (2./3.)*cellL[0]->data[0][GUARD_C] + (2./3.)*cellL[1]->data[0][GUARD_C] - (1./3.)*cellR->data[0][GUARD_C];
+      cellL[0]->data[STENCIL][X_DIR ? GUARD_E : GUARD_N] = (2./3.)*cellR->data[STENCIL][CENTER]    + (2./3.)*cellL[0]->data[STENCIL][CENTER] - (1./3.)*cellL[1]->data[STENCIL][CENTER];
+      cellL[1]->data[STENCIL][X_DIR ? GUARD_E : GUARD_N] = (2./3.)*cellR->data[STENCIL][CENTER]    + (2./3.)*cellL[1]->data[STENCIL][CENTER] - (1./3.)*cellL[0]->data[STENCIL][CENTER];
+      cellR->data[STENCIL][X_DIR ? GUARD_W : GUARD_S]    = (2./3.)*cellL[0]->data[STENCIL][CENTER] + (2./3.)*cellL[1]->data[STENCIL][CENTER] - (1./3.)*cellR->data[STENCIL][CENTER];
     } else if (isHangingR) {
       DM_BF_Cell **cellR  = face->cellR;
       DM_BF_Cell *cellL = face->cellL[0];
-      cellR[0]->data[0][X_DIR ? GUARD_W : GUARD_S] = (2./3.)*cellL->data[0][GUARD_C]    + (2./3.)*cellR[0]->data[0][GUARD_C] - (1./3.)*cellR[1]->data[0][GUARD_C];
-      cellR[1]->data[0][X_DIR ? GUARD_W : GUARD_S] = (2./3.)*cellL->data[0][GUARD_C]    + (2./3.)*cellR[1]->data[0][GUARD_C] - (1./3.)*cellR[0]->data[0][GUARD_C];
-      cellL->data[0][X_DIR ? GUARD_E : GUARD_N]    = (2./3.)*cellR[0]->data[0][GUARD_C] + (2./3.)*cellR[1]->data[0][GUARD_C] - (1./3.)*cellL->data[0][GUARD_C];
+      cellR[0]->data[STENCIL][X_DIR ? GUARD_W : GUARD_S] = (2./3.)*cellL->data[STENCIL][CENTER]    + (2./3.)*cellR[0]->data[STENCIL][CENTER] - (1./3.)*cellR[1]->data[STENCIL][CENTER];
+      cellR[1]->data[STENCIL][X_DIR ? GUARD_W : GUARD_S] = (2./3.)*cellL->data[STENCIL][CENTER]    + (2./3.)*cellR[1]->data[STENCIL][CENTER] - (1./3.)*cellR[0]->data[STENCIL][CENTER];
+      cellL->data[STENCIL][X_DIR ? GUARD_E : GUARD_N]    = (2./3.)*cellR[0]->data[STENCIL][CENTER] + (2./3.)*cellR[1]->data[STENCIL][CENTER] - (1./3.)*cellL->data[STENCIL][CENTER];
     } else {
       DM_BF_Cell *cellL = face->cellL[0];
       DM_BF_Cell *cellR = face->cellR[0];
-      cellL->data[0][X_DIR ? GUARD_E : GUARD_N]    = cellR->data[0][GUARD_C];
-      cellR->data[0][X_DIR ? GUARD_W : GUARD_S]    = cellL->data[0][GUARD_C];
+      cellL->data[STENCIL][X_DIR ? GUARD_E : GUARD_N]    = cellR->data[STENCIL][CENTER];
+      cellR->data[STENCIL][X_DIR ? GUARD_W : GUARD_S]    = cellL->data[STENCIL][CENTER];
     }
   }
 
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode apply_mass_matrix(DM dm, DM_BF_Cell *cell, void *ctx) {
+  PetscScalar *valReadWrite  = cell->vecViewReadWrite[0];
+  PetscScalar mass           = cell->sidelength[0]*cell->sidelength[1];
+
+  PetscFunctionBegin;
+  *valReadWrite *= mass;
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode _p_dmbf_poisson_apply_operator_cellfn(DM dm, DM_BF_Cell *cell, void *ctx) {
-  PetscReal *vec_out = cell->vecViewReadWrite[0];
-  PetscReal hx       = cell->sidelength[0];
-  PetscReal hy       = cell->sidelength[1];
+  PetscReal *valReadWrite = cell->vecViewReadWrite[0];
+  PetscReal hx            = cell->sidelength[0];
+  PetscReal hy            = cell->sidelength[1];
 
   PetscFunctionBegin;
 
-  *vec_out = (cell->data[0][GUARD_W] - 2*cell->data[0][GUARD_C] + cell->data[0][GUARD_E])/(hx*hx)
-           + (cell->data[0][GUARD_N] - 2*cell->data[0][GUARD_C] + cell->data[0][GUARD_S])/(hy*hy);
+  *valReadWrite = (cell->data[STENCIL][GUARD_W] - 2*cell->data[STENCIL][CENTER] + cell->data[STENCIL][GUARD_E])/(hx*hx)
+                + (cell->data[STENCIL][GUARD_N] - 2*cell->data[STENCIL][CENTER] + cell->data[STENCIL][GUARD_S])/(hy*hy);
 
   PetscFunctionReturn(0);
 }
@@ -196,6 +227,7 @@ PetscErrorCode apply_operator_dm(DM dm, Vec in, Vec out)
   ierr = DMBFCommunicateGhostCells(dm);CHKERRQ(ierr);
   ierr = DMBFIterateOverFaces(dm,_p_dmbf_poisson_set_guards_facefn,user);CHKERRQ(ierr);
   ierr = DMBFIterateOverCellsVectors(dm,_p_dmbf_poisson_apply_operator_cellfn,user,PETSC_NULL,0,&out,1);CHKERRQ(ierr);
+  ierr = DMBFIterateOverCellsVectors(dm,apply_mass_matrix,user,PETSC_NULL,0,&out,1);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -225,35 +257,28 @@ PETSC_STATIC_INLINE PetscScalar f(PetscReal x, PetscReal y) {
 }
 
 PetscErrorCode amr_refine_center(DM dm, DM_BF_Cell *cell, void *ctx) {
-  PetscReal   x = cell->corner[0] + .5*cell->sidelength[0];
-  PetscReal   y = cell->corner[1] + .5*cell->sidelength[1];
+  PetscScalar x = PetscMin(PetscAbs(cell->corner[0]),PetscAbs(cell->corner[0] + cell->sidelength[0]));
+  PetscScalar y = PetscMin(PetscAbs(cell->corner[1]),PetscAbs(cell->corner[1] + cell->sidelength[1]));
   PetscScalar r = PetscSqrtReal(PetscSqr(x) + PetscSqr(y));
 
   PetscFunctionBegin;
 
-  if (r < 5e-2) {
+  if (r < 5*1e-2) {
     cell->adaptFlag=DM_ADAPT_REFINE;
   } else {
     cell->adaptFlag=DM_ADAPT_KEEP;
   }
 
-  // JR i think refining along the slit is also necessary
-
   PetscFunctionReturn(0);
 }
 
 PetscErrorCode proj2coarse(DM dm, DM_BF_Cell **cellsFine, PetscInt i, DM_BF_Cell **cellsCoarse, PetscInt j, void *ctx) {
-  PetscFunctionReturn(0);
-}
-
-PetscErrorCode apply_mass_matrix(DM dm, DM_BF_Cell *cell, void *ctx) {
-  PetscReal *cell_val  = cell->vecViewReadWrite[0];
-  PetscReal h          = cell->sidelength[0];
 
   PetscFunctionBegin;
-  *cell_val *= h; // JR should this be h^2
   PetscFunctionReturn(0);
 }
+
+
 
 int main(int argc, char **argv)
 {
@@ -263,7 +288,6 @@ int main(int argc, char **argv)
   Mat             A;
   KSP             ksp;
   PetscInt        blockSize[2]; /* basic three point Laplacian */ // JR blockSize is never actually used (aside from reading it)
-  PetscInt        dataShape[2] = { 5}; // JR why is there only one value?
   PetscReal       inf_norm,l2_norm;
   AppCtx          ctx;
   PetscViewer     viewer;
@@ -285,7 +309,7 @@ int main(int argc, char **argv)
   ierr = DMSetFromOptions(dm);CHKERRQ(ierr);
   ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
   // set cell data shapes
-  ierr = DMBFSetCellDataShape(dm,dataShape,1,1);CHKERRQ(ierr);
+  ierr = DMBFSetCellDataShape(dm,CELLDATA_SHAPE,nCellDataFields,2);CHKERRQ(ierr);
   //ierr = DMBFSetCellDataVSize(dm,sizeof(cellData_t));CHKERRQ(ierr);
 
   // set application-specific data
@@ -319,8 +343,10 @@ int main(int argc, char **argv)
     }
   }
 
-  ctx.f = f;
-  ctx.g = g;
+  ierr = DMBFIterateOverCells(dm,init_cell_data,PETSC_NULL);CHKERRQ(ierr);
+
+  ctx.src = f;
+  ctx.bc = g;
 
   // create vectors
   ierr = DMCreateGlobalVector(dm,&sol);CHKERRQ(ierr);
@@ -331,14 +357,13 @@ int main(int argc, char **argv)
   ierr = PetscObjectSetName((PetscObject)rhs,"rhs");CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)exact,"exact");CHKERRQ(ierr);
 
-  ierr = DMBFIterateOverCells(dm,clear_cell_data,PETSC_NULL);CHKERRQ(ierr);
   ierr = DMBFIterateOverFaces(dm,set_up_boundary_condition,&ctx);CHKERRQ(ierr);
   ierr = DMBFIterateOverCellsVectors(dm,interpolate_source,&ctx,PETSC_NULL,0,&rhs,1);CHKERRQ(ierr);
 
   ierr = DMSetMatType(dm,MATSHELL);CHKERRQ(ierr);
   ierr = DMCreateMatrix(dm,&A);CHKERRQ(ierr);
   ierr = MatSetOperation(A,MATOP_MULT,(void(*)(void))apply_operator_mf);CHKERRQ(ierr);
-  ierr = apply_operator_dm(dm,rhs,sol);CHKERRQ(ierr); //JR why computing sol = A*rhs
+  //ierr = apply_operator_dm(dm,rhs,sol);CHKERRQ(ierr); //JR why computing sol = A*rhs
   ierr = PetscViewerCreate(PETSC_COMM_WORLD,&viewer);CHKERRQ(ierr);
   ierr = PetscViewerSetType(viewer,PETSCVIEWERVTK);CHKERRQ(ierr);
   ierr = PetscViewerFileSetMode(viewer,FILE_MODE_WRITE);CHKERRQ(ierr);
@@ -349,6 +374,7 @@ int main(int argc, char **argv)
   ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
   // JR since it is a poissson problem, we need a preconditioner, at least a diag matrix
   ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);
+  ierr = DMBFIterateOverCellsVectors(dm,apply_mass_matrix,&ctx,PETSC_NULL,0,&rhs,1);CHKERRQ(ierr);
   ierr = KSPSolve(ksp,rhs,sol);CHKERRQ(ierr);
 
   ierr = VecView(sol,viewer);CHKERRQ(ierr);
@@ -357,12 +383,15 @@ int main(int argc, char **argv)
   ierr = VecAXPY(exact,-1,sol);CHKERRQ(ierr);
   error = exact;
   ierr = PetscObjectSetName((PetscObject)error,"error");CHKERRQ(ierr);
+  ierr = VecAbs(error);CHKERRQ(ierr);
   ierr = VecView(error,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   ierr = VecNorm(error,NORM_INFINITY,&inf_norm);CHKERRQ(ierr);
+  ierr = VecCopy(error,rhs);CHKERRQ(ierr);
   ierr = DMBFIterateOverCellsVectors(dm,apply_mass_matrix,&ctx,PETSC_NULL,0,&error,1);CHKERRQ(ierr);
-  ierr = VecNorm(error,NORM_2,&l2_norm);CHKERRQ(ierr);
+  ierr = VecDot(error,rhs,&l2_norm);CHKERRQ(ierr);
+  l2_norm = PetscSqrtReal(l2_norm);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"[%s] Linf error: %1.15f\n",funcname,inf_norm);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"[%s] L2 error:   %1.15f\n",funcname,l2_norm);CHKERRQ(ierr);
 
@@ -386,10 +415,10 @@ int main(int argc, char **argv)
       -dm_p4est_brick_size 2,2  \
       -dm_p4est_brick_bounds -1.0,1.0,-1.0,1.0 \
       -dm_p4est_brick_periodicity 0,0 \
+      -ksp_type cg -ksp_max_it 10000 -ksp_atol 1e-10 -ksp_rtol 1e-11 \
+      -ksp_monitor -ksp_view -ksp_converged_reason \
       -dm_forest_initial_refinement 5 \
-      -dm_forest_maximum_refinement 9 \
-      -ksp_type gmres -ksp_max_it 10000 -ksp_atol 1e-10 -ksp_rtol 1e-11 \
-      -ksp_monitor -ksp_view -ksp_converged_reason
+      -dm_forest_maximum_refinement 8 
 
 JR this problem has way too many krylov iterations
    why is the krylov method GMRES, because the poissson problem should be symmetric, CG is more natural
