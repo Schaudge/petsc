@@ -230,7 +230,7 @@ getautoconfargs:
 #
 #
 
-.SUFFIXES: .F  .F90 .f90 ${SUFFIXES} .PETSc .C .cc .cpp .cxx .r .rm .so .html .ad .m .tex .make  .fig .svg .eps .pdf .jpg .png .dvi .ps .F95 .f95 .fiat .cu .hip.cxx .kokkos.cxx .raja.cxx *.sycl.cxx
+.SUFFIXES: .F  .F90 .f90 ${SUFFIXES} .PETSc .C .cc .cpp .cxx .r .rm .so .html .ad .m .tex .make  .fig .svg .eps .pdf .jpg .png .dvi .ps .F95 .f95 .fiat .cu .hip.cxx .hip.cpp .kokkos.cxx .kokkos.cpp .raja.cxx .raja.cpp .sycl.cxx .sycl.cpp
 
 #
 #
@@ -293,16 +293,16 @@ getautoconfargs:
 .cu.o:
 	${PETSC_CUCOMPILE_SINGLE} `pwd`/$<
 
-.hip.cxx.o:
+.hip.cxx.o .hip.cpp.o:
 	${PETSC_HIPCOMPILE_SINGLE} `pwd`/$<
 
-.kokkos.cxx.o:
+.kokkos.cxx.o .kokkos.cpp.o:
 	${PETSC_KOKKOSCOMPILE_SINGLE} `pwd`/$<
 
-.sycl.cxx.o:
+.sycl.cxx.o .sycl.cpp.o:
 	${PETSC_SYCLCOMPILE_SINGLE} `pwd`/$<
 
-.raja.cxx.o:
+.raja.cxx.o .raja.cpp.o:
 	${PETSC_RAJACOMPILE_SINGLE} `pwd`/$<
 
 .F.o .F90.o .F95.o:
