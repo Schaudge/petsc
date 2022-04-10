@@ -670,6 +670,7 @@ PetscErrorCode DMSwarmCreateGlobalVectorFromField(DM dm,const char fieldname[],V
   MPI_Comm       comm = PetscObjectComm((PetscObject) dm);
 
   PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm, DM_CLASSID, 1, DMSWARM);
   PetscCall(DMSwarmCreateVectorFromField_Private(dm, fieldname, comm, vec));
   PetscFunctionReturn(0);
 }
@@ -693,6 +694,7 @@ PetscErrorCode DMSwarmCreateGlobalVectorFromField(DM dm,const char fieldname[],V
 PetscErrorCode DMSwarmDestroyGlobalVectorFromField(DM dm,const char fieldname[],Vec *vec)
 {
   PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm, DM_CLASSID, 1, DMSWARM);
   PetscCall(DMSwarmDestroyVectorFromField_Private(dm, fieldname, vec));
   PetscFunctionReturn(0);
 }
@@ -721,6 +723,7 @@ PetscErrorCode DMSwarmCreateLocalVectorFromField(DM dm,const char fieldname[],Ve
   MPI_Comm       comm = PETSC_COMM_SELF;
 
   PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm, DM_CLASSID, 1, DMSWARM);
   PetscCall(DMSwarmCreateVectorFromField_Private(dm, fieldname, comm, vec));
   PetscFunctionReturn(0);
 }
@@ -744,6 +747,7 @@ PetscErrorCode DMSwarmCreateLocalVectorFromField(DM dm,const char fieldname[],Ve
 PetscErrorCode DMSwarmDestroyLocalVectorFromField(DM dm,const char fieldname[],Vec *vec)
 {
   PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm, DM_CLASSID, 1, DMSWARM);
   PetscCall(DMSwarmDestroyVectorFromField_Private(dm, fieldname, vec));
   PetscFunctionReturn(0);
 }
@@ -1067,6 +1071,7 @@ PetscErrorCode DMSwarmGetField(DM dm,const char fieldname[],PetscInt *blocksize,
   DMSwarmDataField gfield;
 
   PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm, DM_CLASSID, 1, DMSWARM);
   if (!swarm->issetup) PetscCall(DMSetUp(dm));
   PetscCall(DMSwarmDataBucketGetDMSwarmDataFieldByName(swarm->db,fieldname,&gfield));
   PetscCall(DMSwarmDataFieldGetAccess(gfield));
@@ -1103,6 +1108,7 @@ PetscErrorCode DMSwarmRestoreField(DM dm,const char fieldname[],PetscInt *blocks
   DMSwarmDataField gfield;
 
   PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm, DM_CLASSID, 1, DMSWARM);
   PetscCall(DMSwarmDataBucketGetDMSwarmDataFieldByName(swarm->db,fieldname,&gfield));
   PetscCall(DMSwarmDataFieldRestoreAccess(gfield));
   if (data) *data = NULL;
