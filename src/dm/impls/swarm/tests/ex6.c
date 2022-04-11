@@ -172,7 +172,7 @@ static PetscErrorCode ComputeFieldAtParticles(SNES snes, DM sw, PetscReal E[])
   PetscFE    fe;
   Mat        M_p;
   Vec        phi, locPhi, rho, f;
-  PetscReal *coords;
+  PetscReal *coords, chargeTol = 1e-13;
   PetscInt   dim, d, cStart, cEnd, c, Np;
 
   PetscFunctionBegin;
@@ -206,7 +206,7 @@ static PetscErrorCode ComputeFieldAtParticles(SNES snes, DM sw, PetscReal E[])
     PetscCall(VecSum(rho, &sum));
     PetscCall(VecShift(rho, -sum/n));
     PetscCall(VecSum(rho, &sum));
-    PetscCheck(PetscAbsScalar(sum) < 1.0e-14, PetscObjectComm((PetscObject) sw), PETSC_ERR_PLIB, "Charge should have no DC component: %g", sum);
+    PetscCheck(PetscAbsScalar(sum) < chargeTol, PetscObjectComm((PetscObject) sw), PETSC_ERR_PLIB, "Charge should have no DC component: %g", sum);
     // Nondimensionalize rho
     PetscCall(VecScale(rho, phi_0));
   }
@@ -761,7 +761,8 @@ int main(int argc, char **argv)
    testset:
      args: -dm_plex_dim 2 -dm_plex_simplex 0 -dm_plex_box_faces 1,1 -dm_plex_box_lower -5,-5 -dm_plex_box_upper 5,5 \
            -dm_swarm_num_particles 2 -dm_swarm_coordinate_function circleSingleX -dm_swarm_velocity_function circleSingleV \
-           -ts_type basicsymplectic -ts_convergence_estimate\
+           -ts_type basicsymplectic -ts_convergence_estimate \
+             -pc_type lu \
            -dm_view -output_step 50 -error\
            -petscspace_degree 2 -petscfe_default_quadrature_order 3 -pc_type svd -sigma 1.0e-8 -timeScale 2.0e-14
      test:
@@ -791,6 +792,7 @@ int main(int argc, char **argv)
      args: -dm_plex_dim 2 -dm_plex_simplex 0 -dm_plex_box_faces 10,10 -dm_plex_box_lower -5,-5 -dm_plex_box_upper 5,5 -petscpartitioner_type simple \
            -dm_swarm_num_particles 2 -dm_swarm_coordinate_function circleSingleX -dm_swarm_velocity_function circleSingleV \
            -ts_type basicsymplectic -ts_convergence_estimate -convest_num_refine 2 \
+             -pc_type lu \
            -dm_view -output_step 50\
            -petscspace_degree 2 -petscfe_default_quadrature_order 3 -pc_type svd -sigma 1.0e-8 -timeScale 2.0e-14
      test:
@@ -813,6 +815,7 @@ int main(int argc, char **argv)
      args: -dm_plex_dim 2 -dm_plex_simplex 0 -dm_plex_box_faces 10,10 -dm_plex_box_lower -5,-5 -dm_plex_box_upper 5,5 \
            -dm_swarm_num_particles 10 -dm_swarm_coordinate_function circleMultipleX -dm_swarm_velocity_function circleMultipleV \
            -ts_convergence_estimate -convest_num_refine 2 \
+             -pc_type lu \
            -dm_view -output_step 50 -error\
            -petscspace_degree 2 -petscfe_default_quadrature_order 3 -pc_type svd -sigma 1.0e-8 -timeScale 2.0e-14
      test:
