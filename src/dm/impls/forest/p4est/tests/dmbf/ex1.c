@@ -39,11 +39,11 @@ typedef enum {STENCIL,CENTER_COORD_X,CENTER_COORD_Y,FACE_COORD_X,FACE_COORD_Y} c
 #define maxCellDataFieldLen 1
 static const PetscInt CELLDATA_SHAPE[nCellDataFields*2] =
 {
-   STENCIL_LEN,       1,
-   N_CENTER_COORDS_X, 1,
-   N_CENTER_COORDS_Y, 1,
-   N_FACE_COORDS_X,   1,          
-   N_FACE_COORDS_Y,   1,          
+   /* STENCIL        */ STENCIL_LEN,       1,
+   /* CENTER_COORD_X */ N_CENTER_COORDS_X, 1,
+   /* CENTER_COORD_Y */ N_CENTER_COORDS_Y, 1,
+   /* FACE_COORD_X   */ N_FACE_COORDS_X,   1,
+   /* FACE_COORD_Y   */ N_FACE_COORDS_Y,   1,
 };
 
 typedef PetscScalar (*SpatialFn_2D)(PetscReal,PetscReal);
@@ -58,15 +58,14 @@ typedef struct {
 } cellData_t;
 // PetscErrorCode get(Boundary)FaceMidpoint()
 
-PetscErrorCode init_cell_data(DM dm, DM_BF_Cell *cell, void *ctx) {
-  PetscErrorCode ierr;
-  
+PetscErrorCode init_cell_data(DM dm, DM_BF_Cell *cell, void *ctx)
+{
   PetscFunctionBegin;
 
-  ierr = PetscArrayzero(cell->data[STENCIL],STENCIL_LEN);CHKERRQ(ierr);
+  CHKERRQ( PetscArrayzero(cell->data[STENCIL],STENCIL_LEN) );
 
-  cell->data[CENTER_COORD_X][0]=cell->corner[0]+.5*cell->sidelength[0];
-  cell->data[CENTER_COORD_Y][0]=cell->corner[1]+.5*cell->sidelength[1];
+  cell->data[CENTER_COORD_X][0]    = cell->corner[0]+.5*cell->sidelength[0];
+  cell->data[CENTER_COORD_Y][0]    = cell->corner[1]+.5*cell->sidelength[1];
 
   cell->data[FACE_COORD_X][FACE_W] = cell->corner[0];
   cell->data[FACE_COORD_X][FACE_E] = cell->corner[0]+cell->sidelength[0];
@@ -81,7 +80,47 @@ PetscErrorCode init_cell_data(DM dm, DM_BF_Cell *cell, void *ctx) {
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode set_up_boundary_condition(DM dm, DM_BF_Face *face, void *ctx) {
+PetscErrorCode print_cell_data(DM dm, DM_BF_Cell *cell, void *ctx)
+{
+  size_t          i, j;
+
+  PetscFunctionBegin;
+
+  PetscPrintf(PETSC_COMM_SELF,"%s: cell global index %i\n",__func__,cell->indexGlobal);
+  PetscPrintf(PETSC_COMM_SELF,"  adaptFlag %i\n",cell->adaptFlag);
+  PetscPrintf(PETSC_COMM_SELF,"  corner (%g,%g), side (%g,%g)\n",
+              cell->corner[0],cell->corner[1],
+              cell->sidelength[0],cell->sidelength[1]);
+
+  PetscPrintf(PETSC_COMM_SELF,"  STENCIL        ");
+  for (i=0; i<STENCIL_LEN; i++) {
+    PetscPrintf(PETSC_COMM_SELF,"%g ",cell->data[STENCIL][i]);
+  }
+
+  PetscPrintf(PETSC_COMM_SELF,"\n  CENTER_COORD_X ");
+  for (i=0; i<N_CENTER_COORDS_X; i++) {
+    PetscPrintf(PETSC_COMM_SELF,"%g ",cell->data[CENTER_COORD_X][i]);
+  }
+  PetscPrintf(PETSC_COMM_SELF,"\n  CENTER_COORD_Y ");
+  for (j=0; j<N_CENTER_COORDS_Y; j++) {
+    PetscPrintf(PETSC_COMM_SELF,"%g ",cell->data[CENTER_COORD_Y][j]);
+  }
+
+  PetscPrintf(PETSC_COMM_SELF,"\n  FACE_COORD_X   ");
+  for (i=0; i<N_FACE_COORDS_X; i++) {
+    PetscPrintf(PETSC_COMM_SELF,"%g ",cell->data[FACE_COORD_X][i]);
+  }
+  PetscPrintf(PETSC_COMM_SELF,"\n  FACE_COORD_Y   ");
+  for (j=0; j<N_FACE_COORDS_Y; j++) {
+    PetscPrintf(PETSC_COMM_SELF,"%g ",cell->data[FACE_COORD_Y][j]);
+  }
+  PetscPrintf(PETSC_COMM_SELF,"\n");
+
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode set_up_boundary_condition(DM dm, DM_BF_Face *face, void *ctx)
+{
   AppCtx      *user      = ctx;
   DM_BF_Cell  *cell      = (face->cellL[0] ? face->cellL[0] : face->cellR[0]);
   PetscBool   isBoundary = (DM_BF_FACEBOUNDARY_NONE != face->boundary);
@@ -139,10 +178,10 @@ static PetscErrorCode _p_dmbf_poisson_set_unk_cellfn(DM dm, DM_BF_Cell *cell, vo
 /* In addition to the usual domain boundaries, the strip {(x,y) : y = 0, -1 <= x <= 0} is part of the boundary.
    The square domain naturally conforms to this boundary so that the interior of each edge either lies completely
    inside the strip or completely outside. This function checks if an interior face lies inside the strip or not
-   by checking the coordinates of a point on the face. 
+   by checking the coordinates of a point on the face.
  */
 PETSC_STATIC_INLINE PetscBool InteriorFaceIsBndry(DM_BF_Face *face) {
-  return (        face->cellR[0]->data[FACE_COORD_X][FACE_S]  < 0.0 
+  return (        face->cellR[0]->data[FACE_COORD_X][FACE_S]  < 0.0
       && PetscAbs(face->cellR[0]->data[FACE_COORD_Y][FACE_S]) < PETSC_SMALL);
 }
 
@@ -272,13 +311,11 @@ PetscErrorCode amr_refine_center(DM dm, DM_BF_Cell *cell, void *ctx) {
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode proj2coarse(DM dm, DM_BF_Cell **cellsFine, PetscInt i, DM_BF_Cell **cellsCoarse, PetscInt j, void *ctx) {
+PetscErrorCode proj_no_op(DM dm, DM_BF_Cell **cellsFine, PetscInt i, DM_BF_Cell **cellsCoarse, PetscInt j, void *ctx) {
 
   PetscFunctionBegin;
   PetscFunctionReturn(0);
 }
-
-
 
 int main(int argc, char **argv)
 {
@@ -287,7 +324,6 @@ int main(int argc, char **argv)
   Vec             sol,rhs,exact,error;
   Mat             A;
   KSP             ksp;
-  PetscInt        blockSize[2]; /* basic three point Laplacian */ // JR blockSize is never actually used (aside from reading it)
   PetscReal       inf_norm,l2_norm;
   AppCtx          ctx;
   PetscViewer     viewer;
@@ -307,7 +343,6 @@ int main(int argc, char **argv)
   // set DM options
   ierr = DMSetDimension(dm,2);CHKERRQ(ierr);
   ierr = DMSetFromOptions(dm);CHKERRQ(ierr);
-  ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
   // set cell data shapes
   ierr = DMBFSetCellDataShape(dm,CELLDATA_SHAPE,nCellDataFields,2);CHKERRQ(ierr);
   //ierr = DMBFSetCellDataVSize(dm,sizeof(cellData_t));CHKERRQ(ierr);
@@ -318,31 +353,37 @@ int main(int argc, char **argv)
   // setup DM
   ierr = DMSetUp(dm);CHKERRQ(ierr);
 
+  // run initial AMR
   {
     DM_BF_AmrOps    amrOps;
-    PetscInt        maxRefinement,initRefinement;
+    PetscInt        maxRefinement,initRefinement,l;
     DM              adapt;
 
-    amrOps.setAmrFlag      = amr_refine_center;
-    amrOps.setAmrFlagCtx   = &ctx;
-    amrOps.projectToCoarse = proj2coarse;
-    amrOps.projectToFine   = proj2coarse;
-    amrOps.projectToFineCtx= PETSC_NULL;
-    amrOps.projectToCoarseCtx= PETSC_NULL;
+    amrOps.setAmrFlag         = amr_refine_center;
+    amrOps.setAmrFlagCtx      = &ctx;
+    amrOps.projectToCoarse    = proj_no_op;
+    amrOps.projectToFine      = proj_no_op;
+    amrOps.projectToFineCtx   = PETSC_NULL;
+    amrOps.projectToCoarseCtx = PETSC_NULL;
 
     ierr = DMBFAMRSetOperators(dm,&amrOps);CHKERRQ(ierr);
 
     ierr = DMForestGetInitialRefinement(dm,&initRefinement);CHKERRQ(ierr);
     ierr = DMForestGetMaximumRefinement(dm,&maxRefinement);CHKERRQ(ierr);
 
-    for(PetscInt l=initRefinement;l<maxRefinement;l++) {
+    for(l=0; l<maxRefinement-initRefinement; l++) {
+      PetscPrintf(PETSC_COMM_WORLD,"[%s] Run initial AMR (step %i of max %i)\n",funcname,l+1,maxRefinement-initRefinement);
       ierr = DMBFAMRFlag(dm);CHKERRQ(ierr);
       ierr = DMBFAMRAdapt(dm,&adapt);CHKERRQ(ierr);
       ierr = DMDestroy(&dm);CHKERRQ(ierr);
       dm=adapt;
     }
+    if (l) {
+      PetscPrintf(PETSC_COMM_WORLD,"[%s] Finished initial AMR (%i steps)\n",funcname,l);
+    }
   }
 
+  // initialize cell data
   ierr = DMBFIterateOverCells(dm,init_cell_data,PETSC_NULL);CHKERRQ(ierr);
 
   ctx.src = f;
@@ -418,7 +459,7 @@ int main(int argc, char **argv)
       -ksp_type cg -ksp_max_it 10000 -ksp_atol 1e-10 -ksp_rtol 1e-11 \
       -ksp_monitor -ksp_view -ksp_converged_reason \
       -dm_forest_initial_refinement 5 \
-      -dm_forest_maximum_refinement 8 
+      -dm_forest_maximum_refinement 8
 
 JR this problem has way too many krylov iterations
    why is the krylov method GMRES, because the poissson problem should be symmetric, CG is more natural
