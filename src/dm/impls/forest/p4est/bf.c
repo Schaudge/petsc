@@ -698,6 +698,9 @@ static PetscErrorCode DMBFSetDefaultOptions(DM dm)
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
 
   ierr = DMSetDimension(dm,2);CHKERRQ(ierr);
+  ierr = DMSetVecType(dm,VECSTANDARD);CHKERRQ(ierr);
+  ierr = DMSetMatType(dm,MATSHELL);CHKERRQ(ierr);
+
   ierr = DMForestSetTopology(dm,"unit");CHKERRQ(ierr);
   ierr = DMForestSetMinimumRefinement(dm,0);CHKERRQ(ierr);
   ierr = DMForestSetInitialRefinement(dm,0);CHKERRQ(ierr);
@@ -705,9 +708,6 @@ static PetscErrorCode DMBFSetDefaultOptions(DM dm)
   ierr = DMForestSetGradeFactor(dm,2);CHKERRQ(ierr);
   ierr = DMForestSetAdjacencyDimension(dm,0);CHKERRQ(ierr);
   ierr = DMForestSetPartitionOverlap(dm,0);CHKERRQ(ierr);
-
-  ierr = DMSetVecType(dm,VECSTANDARD);CHKERRQ(ierr);
-  ierr = DMSetMatType(dm,MATSHELL);CHKERRQ(ierr);
 
   bf = _p_getBF(dm);
 
@@ -742,12 +742,24 @@ static PetscErrorCode DMBFSetDefaultOptions(DM dm)
 static PetscErrorCode DMBFCopyOptions(DM srcdm, DM trgdm)
 {
   DM_BF          *srcbf, *trgbf;
+  PetscInt       dim;
+  VecType        vecType;
+  MatType        matType;
   PetscBool      isSetUp;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(srcdm,DM_CLASSID,1,DMBF);
   PetscValidHeaderSpecificType(trgdm,DM_CLASSID,2,DMBF);
+
+  ierr = DMGetDimension(srcdm,&dim);CHKERRQ(ierr);
+  ierr = DMSetDimension(trgdm,dim);CHKERRQ(ierr);
+  ierr = DMGetVecType(srcdm,&vecType);CHKERRQ(ierr);
+  ierr = DMSetVecType(trgdm,vecType);CHKERRQ(ierr);
+  ierr = DMGetMatType(srcdm,&matType);CHKERRQ(ierr);
+  ierr = DMSetMatType(trgdm,matType);CHKERRQ(ierr);
+
+  /* Note: Assume options via `DMForest[GS]et<Name>()` were copied already. */
 
   srcbf = _p_getBF(srcdm);
   trgbf = _p_getBF(trgdm);
