@@ -6,6 +6,9 @@
 #endif
 
 #include <petscdmbf.h> /*I "petscdmbf.h" I*/
+#if defined(PETSC_HAVE_P4EST)
+#include <p4est_to_p8est.h> /* convert to p8est for 3D domains */
+#endif
 #include "bf_xd.h"
 
 PetscErrorCode DMBF_3D_AmrCoarsenUniformly(p4est_t*,PetscInt);

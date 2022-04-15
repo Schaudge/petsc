@@ -2,8 +2,6 @@
 
 #if defined(PETSC_HAVE_P4EST)
 
-#include "bf_xd.h"
-
 typedef struct _p_DM_BF_AmrCtx {
   int minLevel;
   int maxLevel;
@@ -115,7 +113,8 @@ _p_refine_via_flag (p4est_t *p4est, p4est_topidx_t tree, p4est_quadrant_t *quadr
     return 0;
   }
   /* if this quadrant is flagged for refinement */
-  return (DM_ADAPT_REFINE == cell->adaptFlag) && (0 <= amrCtx->maxLevel && quadrant->level < amrCtx->maxLevel);
+  return (DM_ADAPT_REFINE == cell->adaptFlag) &&
+         (0 <= amrCtx->maxLevel && quadrant->level < amrCtx->maxLevel);
 }
 
 PetscErrorCode DMBF_XD_AmrAdapt(p4est_t *p4est, PetscInt minLevel, PetscInt maxLevel)
@@ -125,8 +124,8 @@ PetscErrorCode DMBF_XD_AmrAdapt(p4est_t *p4est, PetscInt minLevel, PetscInt maxL
 
   PetscFunctionBegin;
   /* set AMR context */
-  amrCtx.minLevel = (int) minLevel;
-  amrCtx.maxLevel = (int) maxLevel;
+  amrCtx.minLevel     = (int) minLevel;
+  amrCtx.maxLevel     = (int) maxLevel;
   p4est->user_pointer = (void*) &amrCtx;
   /* run AMR */
   PetscStackCallP4est(p4est_coarsen,(p4est,0/*!recursively*/,_p_coarsen_via_flag,NULL/*init_fn*/));
