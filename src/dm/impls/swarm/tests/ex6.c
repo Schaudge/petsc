@@ -827,7 +827,7 @@ static PetscErrorCode EnergyMonitor(TS ts, PetscInt step, PetscReal t, Vec U, vo
     if (!step) PetscCall(PetscPrintf(PetscObjectComm((PetscObject) ts), "Time     Step Part     Energy\n"));
     for (p = 0; p < Np; ++p) {
       const PetscReal v2 = DMPlex_DotRealD_Internal(dim, &u[(p*2+1)*dim], &u[(p*2+1)*dim]);
-      PetscReal      *pcoord = &coords[p*dim];
+      PetscReal *pcoord = &coords[p*dim];
 
       PetscCall(PetscSynchronizedPrintf(PetscObjectComm((PetscObject) ts), "%.6lf %4D %5D %10.4lf\n", t, step, p, (double) 0.5*v2));
       enKin += 0.5*v2;
