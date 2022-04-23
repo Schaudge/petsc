@@ -253,3 +253,31 @@ PetscErrorCode  PetscObjectListDuplicate(PetscObjectList fl,PetscObjectList *nl)
   }
   PetscFunctionReturn(0);
 }
+
+/*@C
+  PetscObjectListRemoveBasename - Removes any object with name that begins with the provided string
+
+  Input Parameters:
++ fl   - the object list
+- name - the name prefix
+
+  Kevel: developer
+
+.seealso: PetscObjectListAdd(), PetscObjectListFind(), PetscObjectListDuplicate(), PetscObjectListReverseFind(), PetscObjectListDuplicate()
+@*/
+PetscErrorCode PetscObjectListRemoveBasename(PetscObjectList fl, const char basename[])
+{
+  PetscFunctionBegin;
+  start:
+  while (fl) {
+    PetscBool match;
+
+    PetscCall(PetscStrbeginswith(fl->name, basename, &match));
+    if (match) {
+      PetscCall(PetscObjectListAdd(fl, fl->name, NULL));
+      goto start;
+    }
+    fl = fl->next;
+  }
+  PetscFunctionReturn(0);
+}

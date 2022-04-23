@@ -1351,6 +1351,7 @@ PETSC_EXTERN PetscErrorCode PetscObjectListReverseFind(PetscObjectList,PetscObje
 PETSC_EXTERN PetscErrorCode PetscObjectListAdd(PetscObjectList *,const char[],PetscObject);
 PETSC_EXTERN PetscErrorCode PetscObjectListRemoveReference(PetscObjectList *,const char[]);
 PETSC_EXTERN PetscErrorCode PetscObjectListDuplicate(PetscObjectList,PetscObjectList *);
+PETSC_EXTERN PetscErrorCode PetscObjectListRemoveBasename(PetscObjectList, const char[]);
 
 /*
     Dynamic library lists. Lists of names of routines in objects or in dynamic
