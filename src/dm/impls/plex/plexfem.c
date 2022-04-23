@@ -85,6 +85,13 @@ static PetscErrorCode DMPlexRestoreFEGeom(DMField coordField, IS pointIS, PetscQ
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode DMPlexInvalidateFEGeom(IS pointIS)
+{
+  PetscFunctionBegin;
+  PetscCall(PetscObjectListRemoveBasename(((PetscObject) pointIS)->olist, "DMPlexGetFEGeom_"));
+  PetscFunctionReturn(0);
+}
+
 /*@
   DMPlexGetScale - Get the scale for the specified fundamental unit
 
