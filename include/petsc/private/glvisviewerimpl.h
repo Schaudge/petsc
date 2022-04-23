@@ -2,7 +2,7 @@
 #define _GLVISIMPL_H
 
 #include <petscviewer.h>
-#include <petscsys.h>
+#include <petsc/private/petscimpl.h>
 
 struct _n_PetscViewerGLVisVecInfo {
   char* fec_type; /* the output of FiniteElementCollection::Name() */

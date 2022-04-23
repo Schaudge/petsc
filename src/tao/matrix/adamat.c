@@ -1,3 +1,4 @@
+#include <petsc/private/petscimpl.h>
 #include <petscmat.h>              /*I  "mat.h"  I*/
 
 PETSC_INTERN PetscErrorCode MatCreateADA(Mat,Vec, Vec, Mat*);

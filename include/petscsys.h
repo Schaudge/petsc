@@ -2472,7 +2472,7 @@ PETSC_EXTERN PetscErrorCode PetscCommBuildTwoSidedGetType(MPI_Comm,PetscBuildTwo
 
 PETSC_EXTERN PetscErrorCode PetscSSEIsEnabled(MPI_Comm,PetscBool*,PetscBool*);
 
-PETSC_EXTERN MPI_Comm PetscObjectComm(PetscObject);
+PETSC_DEPRECATED_FUNCTION("Use PetscObjectGetComm() (since v3.17)") PETSC_EXTERN MPI_Comm PetscObjectComm(PetscObject);
 
 PETSC_EXTERN const char *const PetscSubcommTypes[];
 

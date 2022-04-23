@@ -1,3 +1,4 @@
+#include <petsc/private/petscimpl.h>
 #include <petscmat.h> /*I <petscmat.h> I*/
 #include <petscblaslapack.h>
 

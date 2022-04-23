@@ -72,8 +72,12 @@ PETSC_EXTERN PetscErrorCode PetscSpaceGetHeightSubspace(PetscSpace, PetscInt, Pe
 
 static inline PETSC_DEPRECATED_FUNCTION("Property not used (since v3.17)") PetscErrorCode PetscSpacePolynomialSetSymmetric(PetscSpace sp, PetscBool s)
 {
-  PetscCheck(!s,PetscObjectComm((PetscObject)sp),PETSC_ERR_SUP,"PETSCSPACEPOLYNOMIAL does not support symmetric polynomials");
-  return 0;
+  MPI_Comm comm;
+
+  PetscFunctionBegin;
+  PetscCall(PetscObjectGetComm((PetscObject)sp,&comm));
+  PetscCheck(!s,comm,PETSC_ERR_SUP,"PETSCSPACEPOLYNOMIAL does not support symmetric polynomials");
+  PetscFunctionReturn(0);
 }
 static inline PETSC_DEPRECATED_FUNCTION("Property not used (since v3.17)") PetscErrorCode PetscSpacePolynomialGetSymmetric(PETSC_UNUSED PetscSpace sp, PetscBool *s) {*s = PETSC_FALSE; return 0;}
 PETSC_EXTERN PetscErrorCode PetscSpacePolynomialSetTensor(PetscSpace, PetscBool);

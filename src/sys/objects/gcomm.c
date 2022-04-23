@@ -5,33 +5,6 @@
 #include <petsc/private/petscimpl.h>  /*I   "petscsys.h"    I*/
 
 /*@C
-   PetscObjectComm - Gets the MPI communicator for any PetscObject   regardless of the type.
-
-   Not Collective
-
-   Input Parameter:
-.  obj - any PETSc object, for example a Vec, Mat or KSP. Thus must be
-         cast with a (PetscObject), for example,
-         SETERRQ(PetscObjectComm((PetscObject)mat,...);
-
-   Output Parameter:
-.  comm - the MPI communicator or MPI_COMM_NULL if object is not valid
-
-   Level: advanced
-
-   Notes:
-    Never use this in the form
-$       comm = PetscObjectComm((PetscObject)obj);
-        instead use PetscObjectGetComm()
-
-.seealso: PetscObjectGetComm()
-@*/
-MPI_Comm  PetscObjectComm(PetscObject obj)
-{
-  return obj ? obj->comm : MPI_COMM_NULL;
-}
-
-/*@C
    PetscObjectGetComm - Gets the MPI communicator for any PetscObject,
    regardless of the type.
 
@@ -47,7 +20,7 @@ MPI_Comm  PetscObjectComm(PetscObject obj)
 
    Level: advanced
 
-.seealso: PetscObjectComm()
+.seealso: PetscObject
 @*/
 PetscErrorCode  PetscObjectGetComm(PetscObject obj,MPI_Comm *comm)
 {
@@ -147,4 +120,31 @@ PetscErrorCode  PetscObjectIncrementTabLevel(PetscObject obj,PetscObject oldobj,
   if (oldobj) PetscValidHeader(oldobj,2);
   obj->tablevel = (oldobj ? oldobj->tablevel : 0)+tab;
   PetscFunctionReturn(0);
+}
+
+/* put this one far out of reach of any other potential uses */
+#undef PetscObjectComm
+/*@C
+   PetscObjectComm - Gets the MPI communicator for any PetscObject   regardless of the type.
+
+   Not Collective
+
+   Input Parameter:
+.  obj - any PETSc object, for example a Vec, Mat or KSP. Thus must be
+         cast with a (PetscObject), for example,
+         SETERRQ(PetscObjectComm((PetscObject)mat,...);
+
+   Output Parameter:
+.  comm - the MPI communicator or MPI_COMM_NULL if object is not valid
+
+   Level: deprecated
+
+   Notes:
+   Use PetscObjectGetComm() instead
+
+.seealso: PetscObjectGetComm()
+@*/
+MPI_Comm PetscObjectComm(PetscObject obj)
+{
+  return obj ? obj->comm : MPI_COMM_NULL;
 }

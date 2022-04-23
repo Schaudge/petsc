@@ -1,3 +1,4 @@
+#include <petsc/private/petscimpl.h>
 #include <petsctao.h>   /*I "petsctao.h" I*/
 #include <../src/tao/matrix/submatfree.h> /*I "submatfree.h" I*/
 
