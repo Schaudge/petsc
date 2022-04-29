@@ -16,4 +16,18 @@ cdef extern from * nogil:
     int PetscFESetQuadrature(PetscFE, PetscQuadrature)
     int PetscFESetFaceQuadrature(PetscFE, PetscQuadrature)
     int PetscFEDestroy(PetscFE*)
+    int PetscFEGetBasisSpace(PetscFE, PetscSpace*)
+    int PetscFESetBasisSpace(PetscFE, PetscSpace)
+    int PetscFEGetDimension(PetscFE, PetscInt*)
+    int PetscFEGetNumComponents(PetscFE, PetscInt*)
+    int PetscFESetNumComponents(PetscFE, PetscInt)
+    int PetscFEGetNumDof(PetscFE, PetscInt**)
+    int PetscFEGetSpatialDimension(PetscFE, PetscInt*)
+    int PetscFEGetTileSizes(PetscFE, PetscInt*, PetscInt*, PetscInt*, PetscInt*)
+    int PetscFESetTileSizes(PetscFE, PetscInt, PetscInt, PetscInt, PetscInt)
+    int PetscFESetFromOptions(PetscFE)
+    int PetscFESetUp(PetscFE)
+
+    int PetscFEView(PetscFE, PetscViewer)
+    int PetscFEViewFromOptions(PetscFE, PetscObject, char[])
     
