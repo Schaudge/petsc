@@ -10,13 +10,20 @@ static const char help[] = "Tests The DGNet Tabulation Generation";
 #include <petscdm.h>
 #include <petscdmnetwork.h>
 #include "../dgnet.h"
+PetscErrorCode PhysicsDestroy_NoFree_Net(void *vctx)
+{
+  PetscErrorCode ierr;
 
+  PetscFunctionBeginUser;
+  ierr = PetscFree(vctx);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
 static PetscErrorCode Physics_CreateDummy(DGNetwork dgnet,PetscInt dof, PetscInt *order)
 {
   PetscFunctionBeginUser;
   dgnet->physics.dof            = dof;
   dgnet->physics.order          = order; 
-  dgnet->physics.destroy        = PhysicsDestroy_SimpleFree_Net;
+  dgnet->physics.destroy        = PhysicsDestroy_NoFree_Net;
   PetscFunctionReturn(0);
 }
 static PetscErrorCode OrderCopyTest(PetscInt dof, PetscInt *order,PetscInt maxdegree)

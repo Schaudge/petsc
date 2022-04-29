@@ -202,7 +202,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
       junctions[1].x = 0.0;
       junctions[1].y = 0.0;
       /* Edge */
-      fvedges[0].nnodes = dgnet->hratio*Mx;
+      fvedges[0].nnodes = Mx;
       for(i=1; i<dgnet->ndaughters+1; ++i) {
         fvedges[i].nnodes = Mx;
       }
@@ -462,12 +462,12 @@ PetscErrorCode DGNetworkBuildDynamic(DGNetwork dgnet)
     ierr = DMNetworkGetLocalVecOffset(dgnet->network,v,FLUX,&offset);CHKERRQ(ierr);
     /* Iterate through the (local) connected edges. Each ghost vertex of a vertex connects to a
        a non-overlapping set of local edges. This is why we can iterate in this way without
-       potentially conflicting our scatters.*/
+       potentially conflicting our scatters. */
     for (i=0; i<nedges; i++) {
       e     = edges[i];
       ierr  = DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void **)&edgefe,NULL);CHKERRQ(ierr);
       ierr  = DMNetworkGetConnectedVertices(dgnet->network,e,&cone);CHKERRQ(ierr);
-      vfrom = cone[0];
+      vfrom = cone[0]; 
       vto   = cone[1];
       if (v==vto) {
         xarr[offset+edgefe->offset_vto]   = EDGEIN;
@@ -592,7 +592,7 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
     /* Find maximum ordeer */
     n = 0;
     for(i=0; i<dgnet->tabordersize; i++) {
-      if(n < PetscCeilReal(dgnet->taborder[i])+1) n =  PetscCeilReal(dgnet->taborder[i])+1;
+      if(n < PetscCeilReal(dgnet->taborder[i])+1) n =  ceil(dgnet->taborder[i])+1;
     }
     ierr = PetscMalloc2(n,&xnodes,n,&w);CHKERRQ(ierr);
     ierr = PetscDTGaussQuadrature(n,-1,1,xnodes,w);CHKERRQ(ierr);
@@ -835,11 +835,12 @@ PetscErrorCode DGNetworkDestroyPhysics(DGNetwork dgnet)
   PetscInt       i;
 
   PetscFunctionBegin;
-    ierr = (*dgnet->physics.destroy)(dgnet->physics.user);CHKERRQ(ierr);
+  
+  ierr = (*dgnet->physics.destroy)(dgnet->physics.user);CHKERRQ(ierr);
+  
   for (i=0; i<dgnet->physics.dof; i++) {
     ierr = PetscFree(dgnet->physics.fieldname[i]);CHKERRQ(ierr);
   }
-  if(dgnet->physics.lowbound) {ierr = PetscFree2(dgnet->physics.lowbound,dgnet->physics.upbound);CHKERRQ(ierr);}
   PetscFunctionReturn(0);
 }
 

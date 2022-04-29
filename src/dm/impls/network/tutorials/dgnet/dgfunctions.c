@@ -300,6 +300,137 @@ PetscErrorCode DGNetworkProject(DGNetwork dgnet,Vec X0,PetscReal t)
   ierr = DMLocalToGlobalEnd(dgnet->network,localX,INSERT_VALUES,X0);CHKERRQ(ierr); 
   PetscFunctionReturn(0);
 }
+
+
+/* Project between a coarse and fine dgnet network. Assume same network, but different meshes for each edge */
+
+
+/* only will work for implicit fem geometry and assumes that the physical geometry has dimension 1 */
+/* very hacked together, thrown out and replace as I implement a better hieracherical dm format */ 
+PetscErrorCode DGNetworkProject_Coarse_To_Fine(DGNetwork dgnet_fine,DGNetwork dgnet_coarse, Vec Coarse, Vec projection) 
+{
+  PetscErrorCode ierr;
+  PetscInt       type,offset_fine,offset_coarse,e,eStart,eEnd,dof = dgnet_fine->physics.dof;
+  PetscInt       i,j,c_fine,cStart_fine,cEnd_fine,field,deg_fine,ndeg_fine,tab,tab_coarse,fieldoff_fine,quadsize,q,order_fine,order_coarse;
+  PetscInt       ndeg_coarse,fieldoff_coarse,deg_coarse,c_coarse,cStart_coarse,cEnd_coarse;
+  PetscInt       **degs_coarse; 
+  PetscScalar    *xarr_proj,*xarr_coarse,*coeff,*coeff_coarse,qeval;
+  PetscScalar    *coords_coarse= NULL;
+  EdgeFE         edgefe_fine, edgefe_coarse;
+  Vec            coord_coarse;
+  PetscReal      J_fine,invJ_fine,detJ_fine,v0_fine,xend,q_geom,q_coarse,J_coarse,invJ_coarse,detJ_coarse,v0_coarse;
+  PetscReal       **q_coarse_Eval;
+  const PetscReal *qpoint,*qweight;
+  PetscSection   section_fine,section_coarse,sec_coord_coarse;
+  DM             geom_coarse; 
+  
+  PetscFunctionBegin;
+  ierr = VecZeroEntries(projection);CHKERRQ(ierr);
+  ierr = VecGetArray(projection,&xarr_proj);CHKERRQ(ierr);
+  ierr = VecGetArray(Coarse,&xarr_coarse);CHKERRQ(ierr);
+  ierr = DMNetworkGetEdgeRange(dgnet_fine->network,&eStart,&eEnd);CHKERRQ(ierr); /* assume same for coarse */ 
+
+  /* pick the finer quadrature for the evaluation */
+  ierr = PetscQuadratureGetOrder(dgnet_fine->quad,&order_fine);CHKERRQ(ierr); 
+  ierr = PetscQuadratureGetOrder(dgnet_fine->quad,&order_coarse);CHKERRQ(ierr); 
+  if (order_fine >= order_coarse) 
+  {
+    ierr = PetscQuadratureGetData(dgnet_fine->quad,NULL,NULL,&quadsize,&qpoint,&qweight);CHKERRQ(ierr); 
+  } else {
+    ierr = PetscQuadratureGetData(dgnet_coarse->quad,NULL,NULL,&quadsize,&qpoint,&qweight);CHKERRQ(ierr); 
+  }
+
+  /* allocate array for legendre evaluations at the fine qaudarture points */ 
+  ierr = PetscMalloc2(dgnet_coarse->tabordersize,&q_coarse_Eval,dgnet_coarse->tabordersize,&degs_coarse);CHKERRQ(ierr);
+  for(i=0;i<dgnet_coarse->tabordersize;i++) {
+    ierr = PetscMalloc2(dgnet_coarse->taborder[i]+1,&q_coarse_Eval[i],dgnet_coarse->taborder[i]+1,&degs_coarse[i]);CHKERRQ(ierr);
+    for(j=0; j<=dgnet_coarse->taborder[i]; j++) { degs_coarse[i][j] = j; }
+  }
+  /* project the mesh on each edge */
+  for (e=eStart; e<eEnd; e++) {
+    ierr  = DMNetworkGetComponent(dgnet_fine->network,e,FVEDGE,&type,(void**)&edgefe_fine,NULL);CHKERRQ(ierr);
+    ierr  = DMNetworkGetComponent(dgnet_coarse->network,e,FVEDGE,&type,(void**)&edgefe_coarse,NULL);CHKERRQ(ierr);
+
+    ierr  = DMNetworkGetLocalVecOffset(dgnet_fine->network,e,FVEDGE,&offset_fine);CHKERRQ(ierr);
+    ierr  = DMPlexGetHeightStratum(edgefe_fine->dm,0,&cStart_fine,&cEnd_fine);CHKERRQ(ierr);
+    ierr  = DMGetSection(edgefe_fine->dm,&section_fine);CHKERRQ(ierr);
+
+    ierr  = DMNetworkGetLocalVecOffset(dgnet_coarse->network,e,FVEDGE,&offset_coarse);CHKERRQ(ierr);
+    ierr  = DMPlexGetHeightStratum(edgefe_coarse->dm,0,&cStart_coarse,&cEnd_coarse);CHKERRQ(ierr);
+    ierr  = DMGetSection(edgefe_coarse->dm,&section_coarse);CHKERRQ(ierr);
+
+    ierr  = DMGetCoordinateDM(edgefe_coarse->dm,&geom_coarse);CHKERRQ(ierr); 
+    ierr  = DMGetCoordinatesLocal(edgefe_coarse->dm,&coord_coarse);CHKERRQ(ierr);
+    ierr  = DMGetCoordinateSection(edgefe_coarse->dm,&sec_coord_coarse);CHKERRQ(ierr);
+
+    c_coarse = cStart_coarse;
+    /* asssuming implicit geometry and 1d meshes henceforth */
+    /* assume numcoords == 2 */
+    ierr = DMPlexVecGetClosure(edgefe_coarse->dm, sec_coord_coarse, coord_coarse, c_coarse, NULL, &coords_coarse);CHKERRQ(ierr);
+    xend = coords_coarse[1]; 
+    ierr = DMPlexVecRestoreClosure(edgefe_coarse->dm, sec_coord_coarse, coord_coarse, c_coarse, NULL, &coords_coarse);CHKERRQ(ierr);
+    ierr = DMPlexComputeCellGeometryAffineFEM(edgefe_coarse->dm,c_coarse,&v0_coarse,&J_coarse,&invJ_coarse,&detJ_coarse);CHKERRQ(ierr);
+    for (c_fine=cStart_fine; c_fine<cEnd_fine; c_fine++) {
+      ierr = DMPlexComputeCellGeometryAffineFEM(edgefe_fine->dm,c_fine,&v0_fine,&J_fine,&invJ_fine,&detJ_fine);CHKERRQ(ierr);
+      /* We can compute points in real space by Jx + v0, the affine transformation */
+      for (q=0; q< quadsize; q++) {
+        q_geom = J_fine*qpoint[q]+v0_fine;
+      /* Find the cell on the coarse mesh the q_geom point belongs to. Simple Search as we are in 1D */
+        while(q_geom > xend) {
+          c_coarse++; 
+          ierr = DMPlexVecGetClosure(edgefe_coarse->dm, sec_coord_coarse, coord_coarse, c_coarse, NULL, &coords_coarse);CHKERRQ(ierr);
+          xend = coords_coarse[1]; 
+          ierr = DMPlexVecRestoreClosure(edgefe_coarse->dm, sec_coord_coarse, coord_coarse, c_coarse, NULL, &coords_coarse);CHKERRQ(ierr);
+          ierr = DMPlexComputeCellGeometryAffineFEM(edgefe_coarse->dm,c_coarse,&v0_coarse,&J_coarse,&invJ_coarse,&detJ_coarse);CHKERRQ(ierr);
+        }
+      /* Find the q_geom point on the coarse reference cell [-1,1] and evaluate the coarse legendre basis at that point */ 
+        q_coarse = invJ_coarse*(q_geom-v0_coarse);
+        for(i=0;i<dgnet_coarse->tabordersize;i++) {
+          ierr = PetscDTLegendreEval(1,&q_coarse,dgnet_coarse->taborder[i]+1,degs_coarse[i],q_coarse_Eval[i],NULL,NULL);CHKERRQ(ierr);
+        }
+
+
+        for(field=0; field<dof; field++){
+          ierr = PetscSectionGetFieldOffset(section_fine,c_fine,field,&fieldoff_fine);CHKERRQ(ierr);
+          ierr = PetscSectionGetFieldOffset(section_coarse,c_coarse,field,&fieldoff_coarse);CHKERRQ(ierr);
+          tab = dgnet_fine->fieldtotab[field];
+          tab_coarse = dgnet_coarse->fieldtotab[field];
+          ndeg_fine = dgnet_fine->taborder[tab]+1;
+          ndeg_coarse = dgnet_coarse->taborder[tab_coarse]+1;
+          coeff_coarse = xarr_coarse+offset_coarse+fieldoff_coarse;
+          qeval = 0.0;
+          for(deg_coarse = 0; deg_coarse<ndeg_coarse; deg_coarse++) {
+            qeval += q_coarse_Eval[tab_coarse][deg_coarse]*coeff_coarse[deg_coarse];
+          }
+          /* projection for all fields at the quadrature point */ 
+          for (deg_fine = 0; deg_fine<ndeg_fine; deg_fine++) {
+            coeff  = xarr_proj+offset_fine+fieldoff_fine+deg_fine;
+            *coeff += qweight[q]*qeval*dgnet_fine->LegEval[tab][ndeg_fine*q+deg_fine]; 
+          }
+        }
+      }
+      /* normalization */
+      for(field=0; field<dof; field++) {
+        tab = dgnet_fine->fieldtotab[field];
+        ndeg_fine = dgnet_fine->taborder[tab]+1;
+        ierr = PetscSectionGetFieldOffset(section_fine,c_fine,field,&fieldoff_fine);CHKERRQ(ierr);
+        for (deg_fine = 0; deg_fine<ndeg_fine; deg_fine++) {
+              coeff  = xarr_proj+offset_fine+fieldoff_fine+deg_fine;
+              *coeff *= dgnet_fine->Leg_L2[tab][deg_fine];
+        }
+      }
+    }
+  }
+  ierr = VecRestoreArray(projection,&xarr_proj);CHKERRQ(ierr);
+  ierr = VecRestoreArray(Coarse,&xarr_coarse);CHKERRQ(ierr);
+
+  /* free allocated memory */ 
+  for(i=0;i<dgnet_coarse->tabordersize;i++) {
+   ierr = PetscFree2(q_coarse_Eval[i],degs_coarse[i]);CHKERRQ(ierr);
+  } 
+  ierr = PetscFree2(q_coarse_Eval,degs_coarse);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
 /* Compute the L2 Norm of the Vector X associated with the DGNetwork dgnet */
 PetscErrorCode DGNetworkNormL2(DGNetwork dgnet, Vec X,PetscReal *norm) 
 {
@@ -321,7 +452,7 @@ PetscErrorCode DGNetworkNormL2(DGNetwork dgnet, Vec X,PetscReal *norm)
     norm[field] = 0.0; 
   }
   ierr = PetscMalloc2(dof,&cellint,dof,&norm_wrk);CHKERRQ(ierr);
-  for (e=eStart; e<eEnd; e++) {
+  for (e=eStart; e<eStart+1; e++) {
     ierr  = DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
     ierr  = DMNetworkGetLocalVecOffset(dgnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
     ierr  = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);
@@ -483,7 +614,7 @@ PetscErrorCode TVDLimit_1D(DGNetwork dgnet,const PetscScalar *uL,const PetscScal
   input 
   
   */
-PetscErrorCode TVDLimit_1D_2(DGNetwork dgnet,const PetscScalar *uL,const PetscScalar *uM,const PetscScalar *uR, PetscScalar *ubdryL, PetscScalar *ubdryR, PetscReal *uCoeff, PetscSection sec, PetscInt c)
+PetscErrorCode TVDLimit_1D_2(DGNetwork dgnet,const PetscScalar *uL,const PetscScalar *uM,const PetscScalar *uR, PetscScalar *ubdryL, PetscScalar *ubdryR, PetscReal *uCoeff, PetscSection sec, PetscInt c,PetscReal M)
 {
   PetscErrorCode ierr; 
   PetscScalar    *cjmpL,*cjmpR,*uLtmp,*uRtmp,*cuLtmp,*cuRtmp; 
@@ -511,7 +642,7 @@ PetscErrorCode TVDLimit_1D_2(DGNetwork dgnet,const PetscScalar *uL,const PetscSc
     //ierr = PetscPrintf(dgnet->comm,"uL -   jmpL: %e jmpR: %e bdryL: %e  minmod: %e uLtmp: %e diff: %e   \n",cjmpL[j],cjmpR[j],uM[j]-ubdryL[j], slope,uLtmp[j],uLtmp[j] - ubdryL[j]);CHKERRQ(ierr);
     slope    = MinMod3(cjmpL[j],cjmpR[j], ubdryR[j]-uM[j]);
     uRtmp[j] = uM[j] + slope;
-    dgnet->limitactive[j] = (PetscAbs(uRtmp[j] - ubdryR[j]) > 1e-12 || PetscAbs(uLtmp[j] - ubdryL[j]) > 1e-12); 
+    dgnet->limitactive[j] = (PetscAbs(uRtmp[j] - ubdryR[j]) > M || PetscAbs(uLtmp[j] - ubdryL[j]) > M); 
     if (dgnet->limitactive[j]) {
       limiteractivated = PETSC_TRUE;
     }
@@ -604,7 +735,7 @@ PetscErrorCode DGNetlimiter_ctx(Vec Y,void* ctx) {
   PetscScalar    *xarr;
   PetscInt       e,c,eStart,eEnd,cStart,cEnd;
   PetscInt       offset,dof,field,fieldoff;
-  PetscReal      detJ;
+  PetscReal      detJ,M;
   Vec            localX;
   EdgeFE         edgefe; 
   PetscSection   section;
@@ -636,7 +767,9 @@ PetscErrorCode DGNetlimiter_ctx(Vec Y,void* ctx) {
         ierr = PetscSectionGetFieldOffset(section,c+1,field,&fieldoff);CHKERRQ(ierr);
         dgnet->uavgs[field+2*dof] = xarr[offset+fieldoff]; 
       }
-      ierr = TVDLimit_1D_2(dgnet,dgnet->uavgs, dgnet->uavgs+dof,dgnet->uavgs+2*dof,dgnet->uLR,dgnet->uLR+dof,xarr+offset,section,c);CHKERRQ(ierr);
+      ierr = DMPlexComputeCellGeometryAffineFEM(edgefe->dm,c,NULL,NULL,NULL,&detJ);CHKERRQ(ierr);
+      M = detJ*detJ*dgnet->M;
+      ierr = TVDLimit_1D_2(dgnet,dgnet->uavgs, dgnet->uavgs+dof,dgnet->uavgs+2*dof,dgnet->uLR,dgnet->uLR+dof,xarr+offset,section,c,M);CHKERRQ(ierr);
       /* 
         TODO : Could print out the limited cells here 
       */ 
@@ -668,7 +801,7 @@ PetscErrorCode DGNetlimiter_ctx(Vec Y,void* ctx) {
   PetscFunctionReturn(0);
 }
 
-/* All this does is call the ctx version with a the ts ctx, and limit the current stage vector */ 
+/* All this does is call the ctx version with the ts ctx, and limit the current stage vector */ 
 PetscErrorCode DGNetlimiter(TS ts, PetscReal stagetime, PetscInt stageindex, Vec* Y) {
   PetscErrorCode ierr; 
   DGNetwork      dgnet;

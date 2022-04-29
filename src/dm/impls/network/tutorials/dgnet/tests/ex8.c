@@ -70,7 +70,7 @@ static PetscErrorCode MakeOrder(PetscInt dof, PetscInt *order,PetscInt maxdegree
 
 int main(int argc,char *argv[])
 {
-  char              physname[256] = "shallow", errorestimator[256] = "lax" ;
+  char              physname[256] = "shallow", errorestimator[256] = "lax", outputfile[256];
   PetscFunctionList physics = 0,errest = 0;
   MPI_Comm          comm;
   TS                ts;
@@ -79,10 +79,11 @@ int main(int argc,char *argv[])
   PetscReal         maxtime;
   PetscErrorCode    ierr;
   PetscMPIInt       size,rank;
-  PetscBool         limit=PETSC_TRUE,view3d=PETSC_FALSE,viewglvis=PETSC_FALSE,glvismode=PETSC_FALSE,viewfullnet=PETSC_FALSE;
+  PetscBool         limit=PETSC_TRUE,view3d=PETSC_FALSE,viewglvis=PETSC_FALSE,glvismode=PETSC_FALSE,viewfullnet=PETSC_FALSE,savefinal=PETSC_FALSE;
   DGNetworkMonitor  monitor=NULL;
   NRSErrorEstimator errorest;
   DGNetworkMonitor_Glvis monitor_gl;
+  PetscViewer       vecbinary; 
 
   ierr = PetscInitialize(&argc,&argv,0,help); if (ierr) return ierr;
   comm = PETSC_COMM_WORLD;
@@ -103,7 +104,7 @@ int main(int argc,char *argv[])
   dgnet->cfl            = 0.9;
   dgnet->networktype    = 6;
   dgnet->hratio         = 1;
-  maxtime               = 2.0;
+  maxtime               = 0.1;
   dgnet->Mx             = 10;
   dgnet->initial        = 1;
   dgnet->ndaughters     = 2;
@@ -112,7 +113,8 @@ int main(int argc,char *argv[])
   dgnet->jumptol        = 0.5;
   dgnet->diagnosticlow  = 0.5;
   dgnet->diagnosticup   = 1e-4;
-
+  dgnet->linearcoupling   = PETSC_FALSE;
+  dgnet->M                = 50;
   /* Command Line Options */
   ierr = PetscOptionsBegin(comm,NULL,"DGNetwork solver options","");CHKERRQ(ierr);
     ierr = PetscOptionsFList("-physics","Name of physics model to use","",physics,physname,physname,sizeof(physname),NULL);CHKERRQ(ierr);
@@ -125,12 +127,13 @@ int main(int argc,char *argv[])
     ierr = PetscOptionsInt("-ndaughters","Number of daughter branches for network type 3","",dgnet->ndaughters,&dgnet->ndaughters,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsInt("-order", "Order of the DG Basis","",maxorder,&maxorder,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-view","View the DG solution","",dgnet->view,&dgnet->view,NULL);CHKERRQ(ierr);
-    ierr = PetscOptionsBool("-uselimiter","Use a limiter for the DG solution","",limit,&limit,NULL);CHKERRQ(ierr);    ierr = PetscOptionsBool("-uselimiter","Use a limiter for the DG solution","",limit,&limit,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-uselimiter","Use a limiter for the DG solution","",limit,&limit,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsReal("-jumptol","Set jump tolerance for lame one-sided limiter","",dgnet->jumptol,&dgnet->jumptol,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-lincouple","Use lax curve diagnostic for coupling","",dgnet->linearcoupling,&dgnet->linearcoupling,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-view_dump","Dump the Glvis view or socket","",glvismode,&glvismode,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-view_3d","View a 3d version of edge","",view3d,&view3d,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-view_glvis","View GLVis of Edge","",viewglvis,&viewglvis,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-savefinal","View GLVis of Edge","",savefinal,&savefinal,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-view_full_net","View GLVis of Entire Network","",viewfullnet,&viewfullnet,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
   /* Choose the physics from the list of registered models */
@@ -226,6 +229,14 @@ int main(int argc,char *argv[])
 
   ierr = TSSolve(ts,dgnet->X);CHKERRQ(ierr);
 
+
+  if(savefinal) {
+    ierr = PetscSNPrintf(outputfile,256,"ex8output_P%i_%i",maxorder,dgnet->Mx);CHKERRQ(ierr);
+
+    ierr = PetscViewerBinaryOpen(comm,outputfile,FILE_MODE_WRITE,&vecbinary);CHKERRQ(ierr);
+    ierr = VecView(dgnet->X,vecbinary);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&vecbinary);CHKERRQ(ierr);
+  }
   /* Clean up */
   if (dgnet->view && size==1) {
     if (viewglvis) {

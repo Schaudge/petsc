@@ -174,14 +174,14 @@ static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx,PetscInt initial,P
       break;
     case 2:
       if (edgeid == 0) {
-        u[0] = 1.0+PetscExpReal(-20.0*(x+1.0)*(x+1.0));
+        u[0] = 1.0 + PetscExpReal(-5.0*(x-5.0)*(x-5.0));
         u[1] = u[0]/2.0;
       } else if (edgeid == 1) {
         u[0] = 1.0;
-        u[1] = 0.0;
+        u[1] = u[0]/4.0;
       } else  {
-        u[0] = 0.5;
-        u[1] = 0.0;
+        u[0] = 1.0;
+        u[1] = u[0]/4.0;
       }
       break;
     case 3:
@@ -306,14 +306,10 @@ PetscErrorCode PhysicsCreate_Shallow(DGNetwork fvnet)
   user->parenth = 2.0;
   user->parentv = 0.0;
 
-  ierr = PetscMalloc2(2,&fvnet->physics.lowbound,2,&fvnet->physics.upbound);CHKERRQ(ierr);
-  fvnet->physics.lowbound[0] = 0;   fvnet->physics.lowbound[1] = -100;
-  fvnet->physics.upbound[0] = 100;   fvnet->physics.upbound[1] = 100;
-
-  ierr = PetscOptionsBegin(fvnet->comm,fvnet->prefix,"Options for Shallow","");CHKERRQ(ierr);
-    ierr = PetscOptionsReal("-parh","","",user->parenth,&user->parenth,NULL);CHKERRQ(ierr);
-    ierr = PetscOptionsReal("-parv","","",user->parenth,&user->parenth,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsEnd();CHKERRQ(ierr);
+  // ierr = PetscOptionsBegin(fvnet->comm,fvnet->prefix,"Options for Shallow","");CHKERRQ(ierr);
+  //   ierr = PetscOptionsReal("-parh","","",user->parenth,&user->parenth,NULL);CHKERRQ(ierr);
+  //   ierr = PetscOptionsReal("-parv","","",user->parenth,&user->parenth,NULL);CHKERRQ(ierr);
+  // ierr = PetscOptionsEnd();CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

@@ -103,7 +103,7 @@ struct _p_DGNetwork
   PetscInt    moni;
   PetscBool   view,linearcoupling,lincouplediff,tabulated,laxcurve,adaptivecouple;
   PetscBool   viewglvis,viewfullnet;
-  PetscReal   ymin,ymax,length, diagnosticlow, diagnosticup;
+  PetscReal   ymin,ymax,length, diagnosticlow, diagnosticup,M;
   char        prefix[256];
   void        (*limit)(const PetscScalar*,const PetscScalar*,PetscScalar*,PetscInt);
   PetscErrorCode (*gettimestep)(TS ts, PetscReal *dt);
@@ -279,6 +279,8 @@ extern PetscErrorCode DGNetworkDestroyPhysics(DGNetwork);
 
 
 extern PetscErrorCode DGNetworkProject(DGNetwork,Vec,PetscReal);
+extern PetscErrorCode DGNetworkProject_Coarse_To_Fine(DGNetwork,DGNetwork, Vec, Vec); 
+
 
 extern PetscErrorCode PhysicsDestroy_SimpleFree_Net(void*);
 extern PetscErrorCode RiemannListAdd_Net(PetscFunctionList*,const char*,RiemannFunction);
@@ -318,6 +320,7 @@ extern PetscErrorCode TVDLimit_1D(DGNetwork,const PetscScalar*,const PetscScalar
 extern PetscErrorCode Limit_1D_onesided(DGNetwork,const PetscScalar*,const PetscScalar*, PetscReal*, PetscSection, PetscInt,PetscReal);
 
 extern PetscErrorCode DGNetlimiter(TS, PetscReal, PetscInt, Vec*);
+
 
 /* Nest stuff. For use with concurrent simulations. WIP */
 extern PetscErrorCode DGNetlimiter_Nested(TS, PetscReal,PetscInt,Vec*);

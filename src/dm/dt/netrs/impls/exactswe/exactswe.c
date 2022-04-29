@@ -75,6 +75,7 @@ static PetscErrorCode NRSEvaluate_ExactSWE(NetRS netrs,const PetscScalar *u,cons
     x[i*dof+1] = u[i*dof+1];
   }
   ierr = VecRestoreArray(exactswe->x,&x);CHKERRQ(ierr);
+  ierr = SNESSetTolerances(exactswe->snes,1e-10,1e-14,1e-12,10000,-1);CHKERRQ(ierr);
   ierr = SNESSolve(exactswe->snes,NULL,exactswe->x);CHKERRQ(ierr);
   ierr = VecGetArray(exactswe->x,&x);CHKERRQ(ierr);
 

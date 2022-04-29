@@ -6,7 +6,7 @@ FFLAGS          =
 CPPFLAGS        =
 FPPFLAGS        =
 LOCDIR          = src/dm/impls/network/tutorials/dgnet/tests/
-EXAMPLESC       = ex1.c ex2.c ex3.c ex4.c ex5.c ex6.c ex7.c ex8.c
+EXAMPLESC       = ex1.c ex2.c ex3.c ex4.c ex5.c ex6.c ex7.c ex8.c ex9.c ex10.c
 EXAMPLESF       =
 EXAMPLESCH      = 
 MANSEC          = DM
@@ -26,6 +26,7 @@ ex5 : $(OBJECTS_DGNET)
 ex6 : $(OBJECTS_DGNET)
 ex7 : $(OBJECTS_DGNET)
 ex8 : $(OBJECTS_DGNET)
-
+ex9 : $(OBJECTS_DGNET)
+ex10 : $(OBJECTS_DGNET)
 .PHONY: all 
-all : ex1 ex2 ex3 ex4 ex5 ex6 ex7 ex8
+all : ex1 ex2 ex3 ex4 ex5 ex6 ex7 ex8 ex9 ex10
