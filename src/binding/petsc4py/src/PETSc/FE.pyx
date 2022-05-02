@@ -132,6 +132,14 @@ cdef class FE(Object):
     def setUp(self):
         CHKERR( PetscFESetUp(self.fe) )
 
+    def getDualSpace(self):
+        cdef DualSpace dspace = DualSpace()
+        CHKERR( PetscFEGetDualSpace(self.fe, &dspace.dualspace) )
+        return dspace
+    
+    def setDualSpace(self, DualSpace dspace):
+        CHKERR( PetscFESetDualSpace(self.fe, dspace.dualspace) )
+
     def viewFromOptions(self, name, Object obj=None):
         cdef const char *cname = NULL
         _ = str2bytes(name, &cname)

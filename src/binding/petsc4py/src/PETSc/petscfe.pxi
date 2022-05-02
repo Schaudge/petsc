@@ -25,6 +25,8 @@ cdef extern from * nogil:
     int PetscFEGetSpatialDimension(PetscFE, PetscInt*)
     int PetscFEGetTileSizes(PetscFE, PetscInt*, PetscInt*, PetscInt*, PetscInt*)
     int PetscFESetTileSizes(PetscFE, PetscInt, PetscInt, PetscInt, PetscInt)
+    int PetscFEGetDualSpace(PetscFE, PetscDualSpace*)
+    int PetscFESetDualSpace(PetscFE, PetscDualSpace)
     int PetscFESetFromOptions(PetscFE)
     int PetscFESetUp(PetscFE)
 
