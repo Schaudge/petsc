@@ -1,139 +1,14 @@
 # -*- mode: makefile-gmake -*-
 -include petscdir.mk
 
-.SUFFIXES: .F  .F90 .f90 ${SUFFIXES} .PETSc .C .cc .cpp .cxx .r .rm .so .html .ad .m .tex .make  .fig .svg .eps .pdf .jpg .png .dvi .ps .F95 .f95 .fiat .cu .kokkos.cxx .raja.cxx .hip.cpp .sycl.cxx
-
-CONFIGDIR := $(PETSC_DIR)/config
-
-# TESTSRCDIR is always relative to gmakefile.test
-#  This must be before includes
-mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
-TESTSRCDIR := $(dir $(mkfile_path))src
-
--include $(PETSC_DIR)/$(PETSC_ARCH)/lib/petsc/conf/petscvariables
--include $(PETSC_DIR)/lib/petsc/conf/variables
-
-TESTDIR ?= ./$(PETSC_ARCH)/tests
-MODDIR := $(PETSC_DIR)/$(PETSC_ARCH)/include
-TESTLOGTAPFILE ?= $(TESTDIR)/test_$(PETSC_ARCH)_tap.log
-TESTLOGERRFILE ?= $(TESTDIR)/test_$(PETSC_ARCH)_err.log
-EXAMPLESDIR := $(TESTSRCDIR)
-
-pkgs := sys vec mat dm ksp snes ts tao
-
-petscconf      := $(PETSC_DIR)/$(PETSC_ARCH)/include/petscconf.h
-petscvariables := $(PETSC_DIR)/$(PETSC_ARCH)/lib/petsc/conf/petscvariables
-generatedtest  := $(TESTDIR)/testfiles
-
-.SECONDEXPANSION:		# to expand $$(@D)/.DIR
-
-TESTFLAGS :=             # Initialize as simple variable
-
-#workaround old cygwin versions
-ifeq ($(PETSC_CYGWIN_BROKEN_PIPE),1)
-ifeq ($(shell basename $(AR)),ar)
-  V ?=1
-endif
-endif
-V ?= $(if $(findstring s,$(MAKEFLAGS)),0)
-ifeq ($(V),)  # Default
-  quiet_HELP := "Use \"$(MAKE) V=1\" to see verbose compile lines, \"$(MAKE) V=0\" to suppress.\n"
-  quiet = @printf $(quiet_HELP)$(eval quiet_HELP:=)"  %10s %s\n" "$1$2" "$@"; $($1)
-  quiettest = @printf "  %10s %s\n" "TEST" "$(@:$(TESTDIR)/counts/%.counts=%)";
-else ifeq ($(V),0)		# Suppress entire command
-  quiet = @$($1)
-  quiettest = @
-  TESTFLAGS += -o err_only
-else				# Show the full command line
-  quiet = $($1)
-  quiettest =
-  TESTFLAGS += -v
-endif
-
-ifeq ($(FORCE),1)
-  TESTFLAGS += -f    # force test execution
-endif
-ifeq ($(CUDAMEMCHECK),1)
-  TESTFLAGS += -U    # Add cuda-memcheck option to the flags
-endif
-ifeq ($(VALGRIND),1)
-  TESTFLAGS += -V    # Add valgrind option to the flags
-endif
-ifeq ($(DEBUG),1)
-  TESTFLAGS += -d    # Launch test in debugger
-endif
-ifeq ($(REPLACE),1)
-  TESTFLAGS += -m    # Replace results by passing -m to petscdiff
-endif
-ifeq ($(OUTPUT),1)
-  TESTFLAGS += -o 'err_only'    # Show only the errors on stdout
-endif
-ifeq ($(ALT),1)
-  TESTFLAGS += -M    # Replace alt files by passing -M to petscdiff
-endif
-PRINTONLY ?= 0
-ifeq ($(PRINTONLY),1)
-  TESTFLAGS += -p    # Pass -p to petscdiff to print only command
-endif
-ifeq ($(DIFF_NUMBERS),1)
-  TESTFLAGS += -j    # Pass -j to petscdiff to diff the actual numbers
-endif
-ifdef OPTIONS
-  TESTFLAGS += -a '$(OPTIONS)'   # override arguments
-endif
-ifdef EXTRA_OPTIONS
-  TESTFLAGS += -e '$(EXTRA_OPTIONS)'  # add extra arguments
-endif
-ifdef NP
-  TESTFLAGS += -n $(NP)  # set number of processes
-endif
-# Override the default timeout that may be found at the top of config/petsc_harness.sh
-# This must be an integer.  It is given in seconds.
-ifdef TIMEOUT
-  TESTFLAGS += -t $(TIMEOUT)  # Override the default timeout
-endif
+# Test framework includes rules and variables relevant to both build and test
+include ./gmakefile.rules
 
 $(generatedtest) : $(petscconf) $(petscvariables) $(CONFIGDIR)/gmakegentest.py $(TESTDIR)/.DIR | $$(@D)/.DIR
 	$(PYTHON) $(CONFIGDIR)/gmakegentest.py --petsc-dir=$(PETSC_DIR) --petsc-arch=$(PETSC_ARCH) --testdir=$(TESTDIR)
 
 ifneq ($(filter-out clean check info,$(MAKECMDGOALS:clean%=clean)),)
 include $(generatedtest)
-endif
-
-ifeq ($(PETSC_LANGUAGE),CXXONLY)
-  cc_name := CXX
-else
-  cc_name := CC
-endif
-
-PETSC_COMPILE.c = $(call quiet,$(cc_name)) -c $(PCC_FLAGS) $($(CLANGUAGE)FLAGS) $(CCPPFLAGS) $(C_DEPFLAGS)
-PETSC_COMPILE.cxx = $(call quiet,CXX) -c $(CXX_FLAGS) $(CXXFLAGS) $(CXXCPPFLAGS) $(CXX_DEPFLAGS)
-PETSC_COMPILE.cu = $(call quiet,CUDAC) -c $(MPICXX_INCLUDES) $(CUDAC_FLAGS) $(CUFLAGS) --compiler-options="${PETSC_CCPPFLAGS} $(CUDACPPFLAGS) $(CUDA_CXXFLAGS)"
-PETSC_COMPILE.hip.cpp = $(call quiet,HIPC)   -c $(MPICXX_INCLUDES) $(HIPC_FLAGS) $(HIPPP_FLAGS) $(HIPFLAGS) $(HIPPPFLAGS) $(HIPOPTFLAGS) $(HIPC_DEPFLAGS) $(CXXFLAGS) $(CXXCPPFLAGS) $(HIP_DEPFLAGS)
-PETSC_COMPILE.sycl.cxx = $(call quiet,SYCLC) -c $(MPICXX_INCLUDES) $(SYCLC_FLAGS) $(SYCLPP_FLAGS) $(SYCLFLAGS) $(SYCLPPFLAGS) $(SYCLOPTFLAGS) $(CXXFLAGS) $(CXXCPPFLAGS) $(SYCL_DEPFLAGS)
-PETSC_GENDEPS.cu = $(call quiet,CUDAC,.dep) --generate-dependencies --output-directory=$(@D) $(MPICXX_INCLUDES) $(CUDAC_FLAGS) $(CUFLAGS)  --compiler-options="${PETSC_CCPPFLAGS} $(CUDA_CXXFLAGS)"
-PETSC_COMPILE.F = $(call quiet,FC) -c $(FC_FLAGS) $(FFLAGS) $(FCPPFLAGS) $(FC_DEPFLAGS)
-
-ifneq ($(KOKKOS_USE_CUDA_COMPILER),)
-  # Kokkos requires nvcc to be in PATH and the C++ compiler to be given in an environmental variable
-  KOKC = PATH=`dirname $(CUDAC)`:$(PATH) NVCC_WRAPPER_DEFAULT_COMPILER="$(CUDA_CXX)" $(KOKKOS_BIN)/nvcc_wrapper --expt-extended-lambda
-  PETSC_COMPILE.kokkos.cxx = $(call quiet,KOKC) -c $(CUDAC_FLAGS) ${PETSC_CCPPFLAGS} $(CUDACPPFLAGS) $(CUDA_CXXFLAGS) $(MPICXX_INCLUDES)
-  PETSC_LINK.kokkos.cxx = $(KOKC) $(CUDAC_FLAGS) $(MPICXX_INCLUDES) ${PETSC_CCPPFLAGS} $(CUDA_CXXFLAGS) $(CUDA_CXXLIBS) $(MPICXX_LIBS) $(LDFLAGS)
-else ifneq ($(KOKKOS_USE_HIP_COMPILER),)
-  PETSC_COMPILE.kokkos.cxx = $(PETSC_COMPILE.hip.cpp)
-  PETSC_LINK.kokkos.cxx = $(HIPC) $(HIPFLAGS) $(CXXFLAGS) $(PETSC_CCPPFLAGS) $(CPPFLAGS) $(LDFLAGS) $(MPICXX_INCLUDES) $(MPICXX_LIBS)
-else ifneq ($(KOKKOS_USE_SYCL_COMPILER),)
-  PETSC_COMPILE.kokkos.cxx = $(PETSC_COMPILE.sycl.cxx)
-  PETSC_LINK.kokkos.cxx = $(SYCLC) $(SYCLFLAGS) $(CXXFLAGS) $(PETSC_CCPPFLAGS) $(CPPFLAGS) $(LDFLAGS) $(MPICXX_INCLUDES) $(MPICXX_LIBS)
-else
-  PETSC_COMPILE.kokkos.cxx = $(PETSC_COMPILE.cxx)
-  PETSC_LINK.kokkos.cxx = $(CXXLINKER) $(CXXFLAGS) $(PETSC_CCPPFLAGS) $(CPPFLAGS) $(LDFLAGS)
-endif
-
-ifneq ($(RAJA_USE_CUDA_COMPILER),)
-  PETSC_COMPILE.raja.cxx  = ${CUDAC} $(MPICXX_INCLUDES) ${CUDAC_FLAGS} ${CUFLAGS} -x cu -Xcudafe "--display_error_number" -c --compiler-options="${PETSC_CCPPFLAGS} ${PETSC_CC_INCLUDES} ${CUDA_CXXFLAGS}" --expt-extended-lambda --expt-relaxed-constexpr
-else
-  PETSC_COMPILE.raja.cxx = ${CXX} -o $*.o -c ${CXX_FLAGS} ${CXXFLAGS} ${CXXCPPFLAGS}
 endif
 
 testlangs := c cu cxx F F90 kokkos.cxx hip.cpp sycl.cxx raja.cxx
@@ -203,13 +78,6 @@ define GFORTRAN_DEP_CLEANUP
     mv $(@:%.o=%.dtemp) $(@:%.o=%.d); \
   fi
 endef
-
-# link line constructed differently for gmakefile vs gmakefile.test invocation
-ifeq ($(libpetscall),)
-PETSC_TEST_LIB = $(PETSC_LIB)
-else
-PETSC_TEST_LIB = $(C_SH_LIB_PATH) $(PETSC_EXTERNAL_LIB_BASIC)
-endif
 
 # manually list some some library dependencies to check for circular dependencies
 $(TESTDIR)/sys/tests/ex9: PETSC_TEST_LIB = $(PETSC_SYS_LIB)
@@ -315,15 +183,6 @@ endif
 
 # all sources should get recompiled when petscvariables changes (i.e when configure is rerun or when petscvariables is manually edited.)
 $(testsrcs.o) : $(petscvariables)
-
-%/.DIR :
-	@mkdir -p $(@D)
-	@touch $@
-
-.PRECIOUS: %/.DIR
-
-.SUFFIXES: # Clear .SUFFIXES because we don't use implicit rules
-.DELETE_ON_ERROR:               # Delete likely-corrupt target file if rule fails
 
 .PHONY: clean cleantest all
 
