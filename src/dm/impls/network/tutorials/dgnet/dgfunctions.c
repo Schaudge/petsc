@@ -369,6 +369,9 @@ PetscErrorCode DGNetworkProject_Coarse_To_Fine(DGNetwork dgnet_fine,DGNetwork dg
     ierr = DMPlexVecGetClosure(edgefe_coarse->dm, sec_coord_coarse, coord_coarse, c_coarse, NULL, &coords_coarse);CHKERRQ(ierr);
     xend = coords_coarse[1]; 
     ierr = DMPlexVecRestoreClosure(edgefe_coarse->dm, sec_coord_coarse, coord_coarse, c_coarse, NULL, &coords_coarse);CHKERRQ(ierr);
+
+    ierr = DMPlexComputeCellGeometryFEM(DM dm, PetscInt cell, PetscQuadrature quad, PetscReal *v, PetscReal *J, PetscReal *invJ, PetscReal *detJ)
+
     ierr = DMPlexComputeCellGeometryAffineFEM(edgefe_coarse->dm,c_coarse,&v0_coarse,&J_coarse,&invJ_coarse,&detJ_coarse);CHKERRQ(ierr);
     for (c_fine=cStart_fine; c_fine<cEnd_fine; c_fine++) {
       ierr = DMPlexComputeCellGeometryAffineFEM(edgefe_fine->dm,c_fine,&v0_fine,&J_fine,&invJ_fine,&detJ_fine);CHKERRQ(ierr);
@@ -377,13 +380,13 @@ PetscErrorCode DGNetworkProject_Coarse_To_Fine(DGNetwork dgnet_fine,DGNetwork dg
         q_geom = J_fine*qpoint[q]+v0_fine;
       /* Find the cell on the coarse mesh the q_geom point belongs to. Simple Search as we are in 1D */
         while(q_geom > xend) {
-          c_coarse++; 
+          c_coarse++;
           ierr = DMPlexVecGetClosure(edgefe_coarse->dm, sec_coord_coarse, coord_coarse, c_coarse, NULL, &coords_coarse);CHKERRQ(ierr);
           xend = coords_coarse[1]; 
           ierr = DMPlexVecRestoreClosure(edgefe_coarse->dm, sec_coord_coarse, coord_coarse, c_coarse, NULL, &coords_coarse);CHKERRQ(ierr);
           ierr = DMPlexComputeCellGeometryAffineFEM(edgefe_coarse->dm,c_coarse,&v0_coarse,&J_coarse,&invJ_coarse,&detJ_coarse);CHKERRQ(ierr);
         }
-      /* Find the q_geom point on the coarse reference cell [-1,1] and evaluate the coarse legendre basis at that point */ 
+      /* Find the q_geom point on the coarse reference cell [-1,1] and evaluate the coarse legendre basis at that point */
         q_coarse = invJ_coarse*(q_geom-v0_coarse);
         for(i=0;i<dgnet_coarse->tabordersize;i++) {
           ierr = PetscDTLegendreEval(1,&q_coarse,dgnet_coarse->taborder[i]+1,degs_coarse[i],q_coarse_Eval[i],NULL,NULL);CHKERRQ(ierr);

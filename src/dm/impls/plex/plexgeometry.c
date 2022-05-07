@@ -1182,7 +1182,7 @@ static PetscErrorCode DMPlexComputePointGeometry_Internal(DM dm, PetscInt e, Pet
   }
   PetscFunctionReturn(0);
 }
-/* BUG HERE - AIDAN */
+
 static PetscErrorCode DMPlexComputeLineGeometry_Internal(DM dm, PetscInt e, PetscReal v0[], PetscReal J[], PetscReal invJ[], PetscReal *detJ)
 {
   PetscSection   coordSection;
@@ -1204,7 +1204,7 @@ static PetscErrorCode DMPlexComputeLineGeometry_Internal(DM dm, PetscInt e, Pets
     const PetscInt dim = 3;
     PetscReal      R[9], J0;
 
-    if (v0)   {for (d = 0; d < dim; d++) v0[d] = PetscRealPart(0.5*(coords[d]+coords[d+dim]));}
+    if (v0)   {for (d = 0; d < dim; d++) v0[d] = PetscRealPart(coords[d]);}
     ierr = DMPlexComputeProjection3Dto1D(coords, R);CHKERRQ(ierr);
     if (J)    {
       J0   = 0.5*PetscRealPart(coords[1]);
@@ -1218,7 +1218,7 @@ static PetscErrorCode DMPlexComputeLineGeometry_Internal(DM dm, PetscInt e, Pets
     const PetscInt dim = 2;
     PetscReal      R[4], J0;
 
-    if (v0)   {for (d = 0; d < dim; d++) v0[d] = PetscRealPart(0.5*(coords[d]+coords[d+dim]));}
+    if (v0)   {for (d = 0; d < dim; d++) v0[d] = PetscRealPart(coords[d]);}
     ierr = DMPlexComputeProjection2Dto1D(coords, R);CHKERRQ(ierr);
     if (J)    {
       J0   = 0.5*PetscRealPart(coords[1]);
@@ -1230,8 +1230,7 @@ static PetscErrorCode DMPlexComputeLineGeometry_Internal(DM dm, PetscInt e, Pets
   } else if (numCoords == 2) {
     const PetscInt dim = 1;
 
-    if (v0)   {for (d = 0; d < dim; d++) v0[d] = PetscRealPart(0.5*(coords[d]+coords[d+dim]));} /* incorrect translation, the previous  is the translation for [0,1] reference but the
-    jacobian assumes a [-1,1] reference (or [0,2] I guess...) , Needs to specify what the reference domain is for this function in general */
+    if (v0)   {for (d = 0; d < dim; d++) v0[d] = PetscRealPart(coords[d]);} 
     if (J)    {
       J[0]  = 0.5*(PetscRealPart(coords[1]) - PetscRealPart(coords[0]));
       *detJ = J[0];
