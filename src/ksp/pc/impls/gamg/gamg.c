@@ -625,13 +625,16 @@ PetscErrorCode PCSetUp_GAMG(PC pc)
 #endif
     { /* construct prolongator */
       Mat              Gmat;
-      PetscCoarsenData *agg_lists;
+      PetscCoarsenData *agg_lists = NULL;
       Mat              Prol11;
 
       PetscCall(pc_gamg->ops->graph(pc,Aarr[level], &Gmat));
-      PetscCall(pc_gamg->ops->coarsen(pc, &Gmat, &agg_lists));
-      PetscCall(pc_gamg->ops->prolongator(pc,Aarr[level],Gmat,agg_lists,&Prol11));
+      if (1) {
+        PetscCall(pc_gamg->ops->coarsen(pc, &Gmat, &agg_lists));
+        PetscCall(pc_gamg->ops->prolongator(pc,Aarr[level],Gmat,agg_lists,&Prol11));
+      } else { // new agg way
 
+      }
       /* could have failed to create new level */
       if (Prol11) {
         const char *prefix;
@@ -645,7 +648,7 @@ PetscErrorCode PCSetUp_GAMG(PC pc)
           PetscCall(pc_gamg->ops->optprolongator(pc, Aarr[level], &Prol11));
         }
 
-        if (pc_gamg->use_aggs_in_asm) {
+        if (pc_gamg->use_aggs_in_asm && agg_lists) {
           PetscInt bs;
           PetscCall(MatGetBlockSizes(Prol11, &bs, NULL)); // not timed directly, ugly, could remove, but good ASM method
           PetscCall(PetscCDGetASMBlocks(agg_lists, bs, Gmat, &nASMBlocksArr[level], &ASMLocalIDsArr[level]));
