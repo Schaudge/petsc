@@ -4797,6 +4797,76 @@ PetscErrorCode DMPlexCreateFromCellListPetsc(MPI_Comm comm, PetscInt dim, PetscI
 }
 
 /*@
+  DMPlexBuildFromDAG -  Create DMPLEX topology from the adjacency-list representation of the Directed Acyclic Graph (Hasse Diagram) encoding the mesh.
+
+  Input Parameters:
++ dm - The empty DM object, usually from DMCreate() and DMSetDimension()
+. depth - The depth of the DAG
+. numPoints - Array of size depth + 1 containing the number of points at each depth
+. coneSize - The cone size of each point
+. cones - The concatenation of the cone points for each point, the cone list must be oriented correctly for each point
+. coneOrientations - The orientation of each cone point
+
+  Output Parameter:
+. dm - The DM
+
+  Note: Two triangles sharing a face would have input
+$  depth = 1, numPoints = [4 2], coneSize = [3 3 0 0 0 0]
+$  cones = [2 3 4  3 5 4], coneOrientations = [0 0 0  0 0 0]
+$
+which would result in the DMPlex topology 
+$
+$        4
+$      / | \
+$     /  |  \
+$    /   |   \
+$   2  0 | 1  5
+$    \   |   /
+$     \  |  /
+$      \ | /
+$        3
+$
+$ Notice that all points are numbered consecutively, unlike DMPlexCreateFromCellListPetsc()
+
+  Level: advanced
+
+.seealso: `DMPlexCreateFromCellListPetsc()`, `DMPlexCreate()`, `DMPlexCreateFromDAG`, `DMPlexBuildCoordinatesFromCellList`
+@*/
+PetscErrorCode DMPlexBuildFromDAG(DM dm, PetscInt depth, const PetscInt numPoints[], const PetscInt coneSize[], const PetscInt cones[], const PetscInt coneOrientations[])
+{
+<<<<<<< HEAD
+  Vec          coordinates;
+  PetscSection coordSection;
+  PetscScalar *coords;
+  PetscInt     coordSize, firstVertex = -1, pStart = 0, pEnd = 0, p, v, dim, dimEmbed, d, off;
+
+  PetscFunctionBegin;
+  PetscCall(DMGetDimension(dm, &dim));
+  PetscCall(DMGetCoordinateDim(dm, &dimEmbed));
+  PetscCheck(dimEmbed >= dim, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Embedding dimension %" PetscInt_FMT " cannot be less than intrinsic dimension %" PetscInt_FMT, dimEmbed, dim);
+=======
+  PetscInt       firstVertex = -1, pStart = 0, pEnd = 0, p, v, d, off;
+
+  PetscFunctionBegin;
+>>>>>>> Added DMPlexBuildFromDAG, which in line with the FromCellList family is the topology only version of CreateFromDAG. CreateFromDAG is refactored to be the topology only versions followed with the geometry from vertex creation function
+  for (d = 0; d <= depth; ++d) pEnd += numPoints[d];
+  PetscCall(DMPlexSetChart(dm, pStart, pEnd));
+  for (p = pStart; p < pEnd; ++p) {
+    PetscCall(DMPlexSetConeSize(dm, p, coneSize[p - pStart]));
+    if (firstVertex < 0 && !coneSize[p - pStart]) firstVertex = p - pStart;
+  }
+  PetscCheck(firstVertex >= 0 || !numPoints[0], PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Expected %" PetscInt_FMT " vertices but could not find any", numPoints[0]);
+  PetscCall(DMSetUp(dm)); /* Allocate space for cones */
+  for (p = pStart, off = 0; p < pEnd; off += coneSize[p - pStart], ++p) {
+    PetscCall(DMPlexSetCone(dm, p, &cones[off]));
+    PetscCall(DMPlexSetConeOrientation(dm, p, &coneOrientations[off]));
+  }
+  PetscCall(DMPlexSymmetrize(dm));
+  PetscCall(DMPlexStratify(dm));
+  PetscFunctionReturn(0);
+}
+
+/*@
   DMPlexCreateFromDAG - This takes as input the adjacency-list representation of the Directed Acyclic Graph (Hasse Diagram) encoding a mesh, and produces a DM
 
   Input Parameters:
@@ -4836,29 +4906,13 @@ $ Notice that all points are numbered consecutively, unlike DMPlexCreateFromCell
 @*/
 PetscErrorCode DMPlexCreateFromDAG(DM dm, PetscInt depth, const PetscInt numPoints[], const PetscInt coneSize[], const PetscInt cones[], const PetscInt coneOrientations[], const PetscScalar vertexCoords[])
 {
-  Vec          coordinates;
-  PetscSection coordSection;
-  PetscScalar *coords;
-  PetscInt     coordSize, firstVertex = -1, pStart = 0, pEnd = 0, p, v, dim, dimEmbed, d, off;
+  PetscInt    dim, dimEmbed;
 
   PetscFunctionBegin;
   PetscCall(DMGetDimension(dm, &dim));
   PetscCall(DMGetCoordinateDim(dm, &dimEmbed));
-  PetscCheck(dimEmbed >= dim, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Embedding dimension %" PetscInt_FMT " cannot be less than intrinsic dimension %" PetscInt_FMT, dimEmbed, dim);
-  for (d = 0; d <= depth; ++d) pEnd += numPoints[d];
-  PetscCall(DMPlexSetChart(dm, pStart, pEnd));
-  for (p = pStart; p < pEnd; ++p) {
-    PetscCall(DMPlexSetConeSize(dm, p, coneSize[p - pStart]));
-    if (firstVertex < 0 && !coneSize[p - pStart]) firstVertex = p - pStart;
-  }
-  PetscCheck(firstVertex >= 0 || !numPoints[0], PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Expected %" PetscInt_FMT " vertices but could not find any", numPoints[0]);
-  PetscCall(DMSetUp(dm)); /* Allocate space for cones */
-  for (p = pStart, off = 0; p < pEnd; off += coneSize[p - pStart], ++p) {
-    PetscCall(DMPlexSetCone(dm, p, &cones[off]));
-    PetscCall(DMPlexSetConeOrientation(dm, p, &coneOrientations[off]));
-  }
-  PetscCall(DMPlexSymmetrize(dm));
-  PetscCall(DMPlexStratify(dm));
+  PetscCheck(dimEmbed >= dim,PETSC_COMM_SELF,PETSC_ERR_PLIB,"Embedding dimension %" PetscInt_FMT " cannot be less than intrinsic dimension %" PetscInt_FMT,dimEmbed,dim);
+  PetscCall(DMPlexBuildFromDAG(dm,depth,numPoints,coneSize,cones,coneOrientations));
   /* Build coordinates */
   PetscCall(DMPlexBuildCoordinatesFromCellList(dm, dimEmbed, vertexCoords));
   PetscFunctionReturn(0);
