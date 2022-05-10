@@ -4860,33 +4860,7 @@ PetscErrorCode DMPlexCreateFromDAG(DM dm, PetscInt depth, const PetscInt numPoin
   PetscCall(DMPlexSymmetrize(dm));
   PetscCall(DMPlexStratify(dm));
   /* Build coordinates */
-  PetscCall(DMGetCoordinateSection(dm, &coordSection));
-  PetscCall(PetscSectionSetNumFields(coordSection, 1));
-  PetscCall(PetscSectionSetFieldComponents(coordSection, 0, dimEmbed));
-  PetscCall(PetscSectionSetChart(coordSection, firstVertex, firstVertex + numPoints[0]));
-  for (v = firstVertex; v < firstVertex + numPoints[0]; ++v) {
-    PetscCall(PetscSectionSetDof(coordSection, v, dimEmbed));
-    PetscCall(PetscSectionSetFieldDof(coordSection, v, 0, dimEmbed));
-  }
-  PetscCall(PetscSectionSetUp(coordSection));
-  PetscCall(PetscSectionGetStorageSize(coordSection, &coordSize));
-  PetscCall(VecCreate(PETSC_COMM_SELF, &coordinates));
-  PetscCall(PetscObjectSetName((PetscObject)coordinates, "coordinates"));
-  PetscCall(VecSetSizes(coordinates, coordSize, PETSC_DETERMINE));
-  PetscCall(VecSetBlockSize(coordinates, dimEmbed));
-  PetscCall(VecSetType(coordinates, VECSTANDARD));
-  if (vertexCoords) {
-    PetscCall(VecGetArray(coordinates, &coords));
-    for (v = 0; v < numPoints[0]; ++v) {
-      PetscInt off;
-
-      PetscCall(PetscSectionGetOffset(coordSection, v + firstVertex, &off));
-      for (d = 0; d < dimEmbed; ++d) coords[off + d] = vertexCoords[v * dimEmbed + d];
-    }
-  }
-  PetscCall(VecRestoreArray(coordinates, &coords));
-  PetscCall(DMSetCoordinatesLocal(dm, coordinates));
-  PetscCall(VecDestroy(&coordinates));
+  PetscCall(DMPlexBuildCoordinatesFromCellList(dm, dimEmbed, vertexCoords));
   PetscFunctionReturn(0);
 }
 
