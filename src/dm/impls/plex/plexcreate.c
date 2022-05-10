@@ -4834,21 +4834,9 @@ $ Notice that all points are numbered consecutively, unlike DMPlexCreateFromCell
 @*/
 PetscErrorCode DMPlexBuildFromDAG(DM dm, PetscInt depth, const PetscInt numPoints[], const PetscInt coneSize[], const PetscInt cones[], const PetscInt coneOrientations[])
 {
-<<<<<<< HEAD
-  Vec          coordinates;
-  PetscSection coordSection;
-  PetscScalar *coords;
-  PetscInt     coordSize, firstVertex = -1, pStart = 0, pEnd = 0, p, v, dim, dimEmbed, d, off;
-
-  PetscFunctionBegin;
-  PetscCall(DMGetDimension(dm, &dim));
-  PetscCall(DMGetCoordinateDim(dm, &dimEmbed));
-  PetscCheck(dimEmbed >= dim, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Embedding dimension %" PetscInt_FMT " cannot be less than intrinsic dimension %" PetscInt_FMT, dimEmbed, dim);
-=======
   PetscInt       firstVertex = -1, pStart = 0, pEnd = 0, p, v, d, off;
 
   PetscFunctionBegin;
->>>>>>> Added DMPlexBuildFromDAG, which in line with the FromCellList family is the topology only version of CreateFromDAG. CreateFromDAG is refactored to be the topology only versions followed with the geometry from vertex creation function
   for (d = 0; d <= depth; ++d) pEnd += numPoints[d];
   PetscCall(DMPlexSetChart(dm, pStart, pEnd));
   for (p = pStart; p < pEnd; ++p) {
