@@ -140,6 +140,9 @@ PETSC_EXTERN PetscErrorCode PetscFECreate_Composite(PetscFE);
 #if defined(PETSC_HAVE_OPENCL)
 PETSC_EXTERN PetscErrorCode PetscFECreate_OpenCL(PetscFE);
 #endif
+#if defined(PETSC_HAVE_MFEM)
+PETSC_EXTERN PetscErrorCode PetscFECreate_MFEM(PetscFE);
+#endif
 
 /*@C
   PetscFERegisterAll - Registers all of the PetscFE components in the PetscFE package.
@@ -163,6 +166,9 @@ PetscErrorCode PetscFERegisterAll(void)
   PetscCall(PetscFERegister(PETSCFECOMPOSITE, PetscFECreate_Composite));
 #if defined(PETSC_HAVE_OPENCL)
   PetscCall(PetscFERegister(PETSCFEOPENCL, PetscFECreate_OpenCL));
+#endif
+#if defined(PETSC_HAVE_MFEM)
+  PetscCall(PetscFERegister(PETSCFEMFEM, PetscFECreate_MFEM));
 #endif
   PetscFunctionReturn(0);
 }

@@ -2,7 +2,7 @@
 ALL: lib
 
 LIBBASE  = libpetscdm
-DIRS     = basic opencl composite
+DIRS     = basic opencl composite mfem
 LOCDIR   = src/dm/dt/fe/impls/
 
 include ${PETSC_DIR}/lib/petsc/conf/variables

@@ -32,13 +32,22 @@ static PetscErrorCode PetscFEView_Basic_Ascii(PetscFE fe, PetscViewer v)
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode PetscFEView_Basic_GLVis(PetscFE fe, PetscViewer v)
+{
+
+  PetscFunctionBegin;
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode PetscFEView_Basic(PetscFE fe, PetscViewer v)
 {
-  PetscBool      iascii;
+  PetscBool      iascii, iglvis;
 
   PetscFunctionBegin;
   PetscCall(PetscObjectTypeCompare((PetscObject) v, PETSCVIEWERASCII, &iascii));
+  PetscCall(PetscObjectTypeCompare((PetscObject) v, PETSCVIEWERGLVIS, &iglvis));
   if (iascii) PetscCall(PetscFEView_Basic_Ascii(fe, v));
+  if (iascii) PetscCall(PetscFEView_Basic_GLVis(fe, v));
   PetscFunctionReturn(0);
 }
 

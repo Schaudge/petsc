@@ -226,6 +226,7 @@ typedef const char *PetscFEType;
 #define PETSCFEBASIC     "basic"
 #define PETSCFEOPENCL    "opencl"
 #define PETSCFECOMPOSITE "composite"
+#define PETSCFEMFEM      "mfem"
 
 PETSC_EXTERN PetscFunctionList PetscFEList;
 PETSC_EXTERN PetscErrorCode PetscFECreate(MPI_Comm, PetscFE *);
