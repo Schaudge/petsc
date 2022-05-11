@@ -94,6 +94,7 @@ In addition to the changes above
 .. rubric:: Mat:
 
 - Change ``MatPreallocateInitialize()`` and ``MatPreallocateFinalize()`` to ``MatPreallocateBegin()`` and ``MatPreallocateEnd()`` and to not return an error code
+- Add ``MatMapStencilToGlobal()`` to map DMDA grid points to global indices
 
 .. rubric:: PC:
 

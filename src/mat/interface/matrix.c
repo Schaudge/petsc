@@ -1759,6 +1759,66 @@ PetscErrorCode MatSetStencil(Mat mat,PetscInt dim,const PetscInt dims[],const Pe
   PetscFunctionReturn(0);
 }
 
+/*@
+   MatMapStencilToGlobal - Map a list of row grid points and a list of column grid points to global row and column indices respectively.
+
+   Not Collective
+
+   Input Parameters:
++  mat - the matrix
+.  m - number of rows
+.  idxm - grid points (and component number when dof > 1) for matrix rows
+.  n - number of columns
+-  idxn - grid points (and component number when dof > 1) for matrix columns
+
+   Output Parameters:
++  gidxm - global row indices
+-  gidxn - global column indices
+
+   Level: beginner
+
+.seealso: `MatSetOption()`, `MatAssemblyBegin()`, `MatAssemblyEnd()`, `MatSetValuesBlocked()`, `MatSetValuesLocal()`
+          `MatSetValues()`, `MatSetValuesBlockedStencil()`, `MatSetValuesStencil()`
+@*/
+PetscErrorCode MatMapStencilToGlobal(Mat mat,PetscInt m,const MatStencil idxm[],PetscInt n,const MatStencil idxn[],PetscInt gidxm[],PetscInt gidxn[])
+{
+  const PetscInt *starts = mat->stencil.starts,*dims = mat->stencil.dims+1,*dxm = (const PetscInt*)idxm,*dxn = (const PetscInt*)idxn;
+  PetscInt       i,j,dim = mat->stencil.dim,sdim,tmp;
+
+  PetscFunctionBegin;
+  /* Map stencils to local indices (code adapted from MatSetValuesStencil()) */
+  sdim = dim - (1 - mat->stencil.noc ? 1 : 0);
+
+  for (i=0; i<m; i++) {
+    for (j=0; j<3-sdim; j++) dxm++;
+    tmp = *dxm++ - starts[0];
+    for (j=0; j<dim-1; j++) {
+      if (tmp < 0 || (*dxm - starts[j+1]) < 0) tmp = -1; /* beyond the ghost region, therefore ignored with negative indices */
+      else                                     tmp = tmp*dims[j] + (*dxm - starts[j+1]);
+      dxm++;
+    }
+    if (mat->stencil.noc) dxm++;
+    gidxm[i] = tmp;
+  }
+
+  for (i=0; i<n; i++) {
+    for (j=0; j<3-sdim; j++) dxn++;
+    tmp = *dxn++ - starts[0];
+    for (j=0; j<dim-1; j++) {
+      if (tmp < 0 || (*dxn - starts[j+1]) < 0) tmp = -1;
+      else                                     tmp = tmp*dims[j] + (*dxn - starts[j+1]);
+      dxn++;
+    }
+    if (mat->stencil.noc) dxn++;
+    gidxn[i] = tmp;
+  }
+
+  /* Map local indices to global indices */
+  if (m && mat->rmap->mapping) PetscCall(ISLocalToGlobalMappingApply(mat->rmap->mapping,m,gidxm,gidxm));
+  if (n && mat->cmap->mapping) PetscCall(ISLocalToGlobalMappingApply(mat->cmap->mapping,n,gidxn,gidxn));
+  PetscFunctionReturn(0);
+}
+
 /*@C
    MatSetValuesBlocked - Inserts or adds a block of values into a matrix.
 

@@ -441,6 +441,7 @@ typedef struct {
 PETSC_EXTERN PetscErrorCode MatSetValuesStencil(Mat,PetscInt,const MatStencil[],PetscInt,const MatStencil[],const PetscScalar[],InsertMode);
 PETSC_EXTERN PetscErrorCode MatSetValuesBlockedStencil(Mat,PetscInt,const MatStencil[],PetscInt,const MatStencil[],const PetscScalar[],InsertMode);
 PETSC_EXTERN PetscErrorCode MatSetStencil(Mat,PetscInt,const PetscInt[],const PetscInt[],PetscInt);
+PETSC_EXTERN PetscErrorCode MatMapStencilToGlobal(Mat,PetscInt,const MatStencil[],PetscInt,const MatStencil[],PetscInt[],PetscInt[]);
 
 /*E
     MatAssemblyType - Indicates if the matrix is now to be used, or if you plan
