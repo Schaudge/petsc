@@ -8,6 +8,8 @@
 #include "bf_3d_cells.h"
 #include "bf_2d_iterate.h"
 #include "bf_3d_iterate.h"
+#include "bf_2d_vtu.h"
+#include "bf_3d_vtu.h"
 #if defined(PETSC_HAVE_P4EST)
 #include "petsc_p4est_package.h"
 #endif
@@ -1713,7 +1715,11 @@ PetscErrorCode DMView_BF(DM dm, PetscViewer viewer)
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERDRAW, &isdraw);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERGLVIS,&isglvis);CHKERRQ(ierr);
   if (isvtk) {
-    ierr = DMBFVTKWriteAll((PetscObject)dm,viewer);CHKERRQ(ierr);
+    switch (_p_dim(dm)) {
+      case 2: ierr = DMBFVTKWriteAll_2D((PetscObject)dm,viewer);CHKERRQ(ierr); break;
+      case 3: ierr = DMBFVTKWriteAll_3D((PetscObject)dm,viewer);CHKERRQ(ierr); break;
+      default: _p_SETERRQ_UNREACHABLE(dm);
+    }
   } else if (ishdf5 || isdraw || isglvis) {
     SETERRQ(_p_comm(dm),PETSC_ERR_SUP,"non-VTK viewer currently not supported by BF");
   }
@@ -1756,8 +1762,11 @@ PetscErrorCode VecView_BF(Vec v, PetscViewer viewer)
     else {
       SETERRQ(_p_comm(locv), PETSC_ERR_SUP, "Only scalar cell fields currently supported");
     }
-
-    ierr = PetscViewerVTKAddField(viewer,(PetscObject)dm,DMBFVTKWriteAll,PETSC_DEFAULT,ft,PETSC_TRUE,(PetscObject)locv);CHKERRQ(ierr);
+    switch (_p_dim(dm)) {
+      case 2: ierr = PetscViewerVTKAddField(viewer,(PetscObject)dm,DMBFVTKWriteAll_2D,PETSC_DEFAULT,ft,PETSC_TRUE,(PetscObject)locv);CHKERRQ(ierr); break;
+      case 3: ierr = PetscViewerVTKAddField(viewer,(PetscObject)dm,DMBFVTKWriteAll_3D,PETSC_DEFAULT,ft,PETSC_TRUE,(PetscObject)locv);CHKERRQ(ierr); break;
+      default: _p_SETERRQ_UNREACHABLE(dm);
+    }
   } else if(ishdf5 || isdraw || isglvis) {
     SETERRQ(_p_comm(dm),PETSC_ERR_SUP,"non-VTK viewer currently not supported by BF");
   }

@@ -1,52 +1,6 @@
-#include <petscdmbf.h>                  /*I "petscdmbf.h" I*/
 #include <petsc/private/dmbfimpl.h>
-#include <../src/sys/classes/viewer/impls/vtk/vtkvimpl.h>
-#include <petsc/private/dmforestimpl.h> /*I "petscdmforest.h" I*/
-#include <petsc/private/dmimpl.h>       /*I "petscdm.h" I*/
-#include "petsc_p4est_package.h"
-
-#if defined(PETSC_HAVE_P4EST)
-
-//TODO the way it's implemented now, only 2d domains are supported
-#if !defined(P4_TO_P8)
-#include <p4est.h>
-#include <p4est_extended.h>
-#include <p4est_geometry.h>
-#include <p4est_ghost.h>
-#include <p4est_lnodes.h>
-#include <p4est_vtk.h>
-#include <p4est_plex.h>
-#include <p4est_bits.h>
-#include <p4est_algorithms.h>
-#else
-#include <p8est.h>
-#include <p8est_extended.h>
-#include <p8est_geometry.h>
-#include <p8est_ghost.h>
-#include <p8est_lnodes.h>
-#include <p8est_vtk.h>
-#include <p8est_plex.h>
-#include <p8est_bits.h>
-#include <p8est_algorithms.h>
-#endif /* !defined(P4_TO_P8) */
-
-#if defined(PETSC_USE_REAL_SINGLE) || defined(PETSC_USE_REAL___FP16)
-/* output in float if single or half precision in memory */
-static const char precision[] = "Float32";
-typedef float PetscVTUReal;
-#define MPIU_VTUREAL MPI_FLOAT
-#elif defined(PETSC_USE_REAL_DOUBLE) || defined(PETSC_USE_REAL___FLOAT128)
-/* output in double if double or quad precision in memory */
-static const char precision[] = "Float64";
-typedef double PetscVTUReal;
-#define MPIU_VTUREAL MPI_DOUBLE
-#else
-static const char precision[] = "UnknownPrecision";
-typedef PetscReal PetscVTUReal;
-#define MPIU_VTUREAL MPIU_REAL
-#endif
-
-#define P4EST_VTK_CELL_TYPE      8      /* VTK_PIXEL */
+#include "bf_xd.h"
+#include "bf_xd_vtu.h"
 
 PetscErrorCode DMBFGetVTKVertexCoordinates(DM dm, PetscVTUReal *point_data, PetscInt nPoints) {
 
@@ -54,30 +8,42 @@ PetscErrorCode DMBFGetVTKVertexCoordinates(DM dm, PetscVTUReal *point_data, Pets
 
   PetscErrorCode       ierr;
 
-  PetscVTUReal         hx, hy, eta_x, eta_y;
+  PetscVTUReal         hx, hy, eta_x, eta_y, eta_z=1.0;
 
   PetscVTUReal         xyz[3];   /* 3 not P4EST_DIM */
 
-  p4est_locidx_t       xi, yi, i, j, k, l;
+  p4est_locidx_t       xi, yi, i, j, k, l, m;
   sc_array_t           *quadrants; /* use p4est data types here */
   sc_array_t           *trees;
   p4est_tree_t         *tree;
   p4est_quadrant_t     *quad;
   p4est_topidx_t       first_local_tree, last_local_tree, jt, vt[P4EST_CHILDREN];
   p4est_locidx_t       quad_count;
-  size_t               num_quads, zz;
+  size_t               num_quads,zz;
   p4est_qcoord_t       x,y;
   const p4est_topidx_t *tree_to_vertex;
   const PetscVTUReal   *v;
   const PetscVTUReal   intsize = 1.0 / P4EST_ROOT_LEN;
   PetscVTUReal         scale   = .999999;
   PetscInt             bs0,bs1,blockSize[3] = {1,1,1};
+
+  #ifdef P4_TO_P8
+  p4est_qcoord_t       z;
+  p4est_locidx_t       zi;
+  PetscVTUReal         hz;
+  PetscInt             bs2;
+  #endif
+
   PetscFunctionBegin;
 
   ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr);
   ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
+
   bs0  = blockSize[0];
   bs1  = blockSize[1];
+  #ifdef P4_TO_P8
+  bs2  = blockSize[2];
+  #endif
 
   first_local_tree = p4est->first_local_tree;
   last_local_tree = p4est->last_local_tree;
@@ -100,28 +66,50 @@ PetscErrorCode DMBFGetVTKVertexCoordinates(DM dm, PetscVTUReal *point_data, Pets
       quad = p4est_quadrant_array_index (quadrants, zz);
       hx = .5 * P4EST_QUADRANT_LEN (quad->level) / bs0;
       hy = .5 * P4EST_QUADRANT_LEN (quad->level) / bs1;
-      for(j = 0; j < bs1; j++) {
-        y = quad->y + 2.*j*hy;
-        for(i = 0; i < bs0; i++, quad_count++) {
-          x = quad->x + 2.*i*hx;
-          l = 0;
-          for (yi = 0; yi < 2; ++yi) {
-            eta_y = intsize * y + intsize * hy * (1. + (yi * 2 - 1) * scale);
-            for (xi = 0; xi < 2; ++xi) {
-              P4EST_ASSERT (0 <= l && l < P4EST_CHILDREN);
-              eta_x = intsize * x + intsize * hx * (1. + (xi * 2 - 1) * scale);
-              for(k = 0; k < 3; ++k) {
-                xyz[k] = (1. - eta_y) * ((1. - eta_x) * v[3 * vt[0] + k]
-                                             + eta_x  * v[3 * vt[1] + k])
-                             + eta_y  * ((1. - eta_x) * v[3 * vt[2] + k]
-                                             + eta_x  * v[3 * vt[3] + k]);
-                point_data[3 * (P4EST_CHILDREN * quad_count + l) + k] = (PetscVTUReal) xyz[k];
+      #ifdef P4_TO_P8
+      hz = .5 * P4EST_QUADRANT_LEN (quad->level) / bs2;
+      for(k = 0; k < bs2; k++) {
+        z = quad->z + 2.*k*hz;
+      #endif
+        for(j = 0; j < bs1; j++) {
+          y = quad->y + 2.*j*hy;
+          for(i = 0; i < bs0; i++, quad_count++) {
+            x = quad->x + 2.*i*hx;
+            l = 0;
+            #ifdef P4_TO_P8
+            for(zi = 0; zi < 2; ++zi) {
+              eta_z = intsize * z + intsize * hz * (1. + (zi * 2 - 1) * scale);
+            #endif
+              for (yi = 0; yi < 2; ++yi) {
+                eta_y = intsize * y + intsize * hy * (1. + (yi * 2 - 1) * scale);
+                for (xi = 0; xi < 2; ++xi) {
+                  P4EST_ASSERT (0 <= l && l < P4EST_CHILDREN);
+                  eta_x = intsize * x + intsize * hx * (1. + (xi * 2 - 1) * scale);
+                  for(m = 0; m < 3; ++m) {
+                    xyz[m] =  eta_z * ((1. - eta_y) * ((1. - eta_x) * v[3 * vt[0] + m] +
+                                                             eta_x  * v[3 * vt[1] + m]) +
+                                             eta_y  * ((1. - eta_x) * v[3 * vt[2] + m] +
+                                                             eta_x  * v[3 * vt[3] + m]))
+                #ifdef P4_TO_P8
+                 +     (1. - eta_z)  * ((1. - eta_y) * ((1. - eta_x) * v[3 * vt[4] + m]
+                                                            + eta_x  * v[3 * vt[5] + m]) 
+                                            + eta_y  * ((1. - eta_x) * v[3 * vt[6] + m]
+                                                            + eta_x  * v[3 * vt[7] + m]))
+                #endif
+                ;
+                    point_data[3 * (P4EST_CHILDREN * quad_count + l) + m] = (PetscVTUReal) xyz[m];
+                  }
+                  l++;
+                }
               }
-            l++;
+            #ifdef P4_TO_P8
             }
+            #endif
           }
         }
+      #ifdef P4_TO_P8
       }
+      #endif
     }
   }
   P4EST_ASSERT(P4EST_CHILDREN * quad_count == nPoints);
@@ -605,8 +593,5 @@ PetscErrorCode DMBFVTKWriteAll(PetscObject odm,PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
-
-
-#endif /* defined(PETSC_HAVE_P4EST) */
 
 
