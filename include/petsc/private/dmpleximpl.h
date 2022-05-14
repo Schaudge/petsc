@@ -103,6 +103,22 @@ typedef struct {
   PetscInt  verbosity;               /* Level of verbosity for remesher (-1 = no output, 10 = maximum) */
 } DMPlexMetricCtx;
 
+typedef struct _n_DMPlexNumberingCtx* DMPlexNumberingCtx;
+struct _n_DMPlexNumberingCtx {
+  MPI_Comm            comm;
+  PetscBool           distributed;
+  PetscInt            nStrata;
+
+  DMPlexNumberingCtx *strata;
+
+  IS                  numbering;
+  PetscBool          *ghostMask;
+  PetscBool          *ghostMaskAllocated;
+  PetscLayout         ownedLayout;
+  PetscLayout         ghostLayout;
+  PetscInt            start, end;
+};
+
 /* Point Numbering in Plex:
 
    Points are numbered contiguously by stratum. Strate are organized as follows:
@@ -167,6 +183,7 @@ typedef struct {
   PetscObjectState     celltypeState;     /* State of celltype label, so that we can determine if a user changes it */
   IS                   globalVertexNumbers;
   IS                   globalCellNumbers;
+  DMPlexNumberingCtx   numberingCtx;
 
   /* Constraints */
   PetscSection         anchorSection;      /* maps constrained points to anchor points */
@@ -315,6 +332,13 @@ PETSC_EXTERN PetscErrorCode DMPlexOrientInterface_Internal(DM);
 
 /* Applications may use this function */
 PETSC_EXTERN PetscErrorCode DMPlexCreateNumbering_Plex(DM, PetscInt, PetscInt, PetscInt, PetscInt *, PetscSF, IS *);
+
+/* Support for global numbering */
+/*   Some functions are PETSC_EXTERN just due to src/dm/impls/plex/tests/ex47.c
+     and can be turned to PETSC_INTERN once that testing example is deleted */
+PETSC_EXTERN PetscErrorCode DMPlexGetNumberingCtx_Internal(DM, DMPlexNumberingCtx *);
+PETSC_INTERN PetscErrorCode DMPlexNumberingCtxCreate_Internal(DM, IS, PetscSF, DMPlexNumberingCtx *);
+PETSC_INTERN PetscErrorCode DMPlexNumberingCtxDestroy_Internal(DMPlexNumberingCtx *);
 
 PETSC_INTERN PetscErrorCode DMPlexCreateCellNumbering_Internal(DM, PetscBool, IS *);
 PETSC_INTERN PetscErrorCode DMPlexCreateVertexNumbering_Internal(DM, PetscBool, IS *);

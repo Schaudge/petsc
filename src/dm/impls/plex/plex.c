@@ -2467,6 +2467,7 @@ PetscErrorCode DMDestroy_Plex(DM dm)
   PetscCall(ISDestroy(&mesh->subpointIS));
   PetscCall(ISDestroy(&mesh->globalVertexNumbers));
   PetscCall(ISDestroy(&mesh->globalCellNumbers));
+  PetscCall(DMPlexNumberingCtxDestroy_Internal(&mesh->numberingCtx));
   PetscCall(PetscSectionDestroy(&mesh->anchorSection));
   PetscCall(ISDestroy(&mesh->anchorIS));
   PetscCall(PetscSectionDestroy(&mesh->parentSection));
@@ -8041,6 +8042,167 @@ PetscErrorCode DMPlexCreateNumbering_Plex(DM dm, PetscInt pStart, PetscInt pEnd,
   }
   PetscCall(PetscSectionDestroy(&section));
   PetscCall(PetscSectionDestroy(&globalSection));
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMPlexNumberingCtxDestroy_Internal(DMPlexNumberingCtx *ctx)
+{
+  PetscInt d;
+
+  PetscFunctionBegin;
+  PetscValidPointer(ctx, 1);
+  if (!*ctx) PetscFunctionReturn(0);
+  for (d = 0; d < (*ctx)->nStrata; d++) {
+    PetscCall(DMPlexNumberingCtxDestroy_Internal(&(*ctx)->strata[d]));
+  }
+  PetscCall(PetscFree((*ctx)->strata));
+  PetscCall(ISDestroy(&(*ctx)->numbering));
+  PetscCall(PetscLayoutDestroy(&(*ctx)->ghostLayout));
+  PetscCall(PetscLayoutDestroy(&(*ctx)->ownedLayout));
+  PetscFree((*ctx)->ghostMaskAllocated);
+  PetscCall(PetscFree(*ctx));
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMPlexNumberingCtxCreate_Internal(DM dm, IS numberingIS, PetscSF pointSF, DMPlexNumberingCtx *gnNew)
+{
+  DMPlexNumberingCtx      gn;
+  PetscInt                nGhosts = 0, chartStart, chartEnd, d, p;
+  PetscInt               *numbers_new = NULL;
+  const PetscInt         *numbers = NULL;
+  PetscLayout             allLayout;
+
+  PetscFunctionBegin;
+  if (!pointSF) PetscCall(DMGetPointSF(dm, &pointSF));
+  if (PetscDefined(USE_DEBUG)) PetscCall(DMPlexCheckPointSF(dm, pointSF));
+  PetscCall(PetscNew(&gn));
+  PetscCall(PetscObjectGetComm((PetscObject)dm, &gn->comm));
+  PetscCall(DMPlexGetChart(dm, &chartStart, &chartEnd));
+  PetscCall(DMPlexIsDistributed(dm, &gn->distributed));
+  PetscCall(DMPlexGetDepth(dm, &gn->nStrata));
+  PetscCheck(gn->nStrata >= 0, PETSC_COMM_SELF, PETSC_ERR_SUP, "Only stratified meshes are supported");
+  gn->nStrata++;
+
+  /* Take input numbering IS or create new one */
+  if (numberingIS) {
+    gn->numbering = numberingIS;
+    PetscCall(PetscObjectReference((PetscObject)numberingIS));
+    PetscCall(ISGetIndices(numberingIS, &numbers));
+  } else {
+    PetscInt n = chartEnd - chartStart;
+
+    PetscCall(PetscMalloc1(n, &numbers_new));
+    for (p = 0; p < n; p++) numbers_new[p] = PETSC_MIN_INT;
+    PetscCall(ISCreateGeneral(PetscObjectComm((PetscObject)dm), n, numbers_new, PETSC_OWN_POINTER, &gn->numbering));
+    numbers = numbers_new;
+  }
+  PetscCall(ISGetLayout(gn->numbering, &allLayout));
+  gn->start     = 0;
+  gn->end       = allLayout->n;
+  PetscCheck(allLayout->n == chartEnd - chartStart, gn->comm, PETSC_ERR_PLIB, "numberingIS n = %" PetscInt_FMT " != %" PetscInt_FMT " - %" PetscInt_FMT " = chartEnd - chartStart", allLayout->n, chartEnd, chartStart);
+
+  /* Generate new ghost mask */
+  {
+    PetscInt        nRoots;
+    const PetscInt *ilocal=NULL;
+
+    PetscCall(PetscCalloc1(allLayout->n, &gn->ghostMaskAllocated));
+    gn->ghostMask = gn->ghostMaskAllocated;
+    if (gn->distributed) {
+      PetscCall(PetscSFGetGraph(pointSF, &nRoots, &nGhosts, &ilocal, NULL));
+      PetscCheck(nRoots == allLayout->n, gn->comm, PETSC_ERR_PLIB, "pointSF nRoots = %" PetscInt_FMT " != %" PetscInt_FMT " = (output numbering local size)", nRoots, allLayout->n);
+      PetscCheck(nGhosts >= 0, gn->comm, PETSC_ERR_PLIB, "Assertion failed: g->nGhosts >= 0");
+      for (p = 0; p < nGhosts; p++) gn->ghostMask[ilocal ? ilocal[p] : p] = PETSC_TRUE;
+    }
+  }
+
+  /* Create main layouts */
+  PetscCall(PetscLayoutCreateFromSizes(gn->comm, nGhosts, PETSC_DECIDE, 1, &gn->ghostLayout));
+  PetscCall(PetscLayoutCreateFromSizes(gn->comm, allLayout->n - gn->ghostLayout->n, allLayout->N - gn->ghostLayout->N, 1, &gn->ownedLayout));
+
+  /* Create strata numberings from the main numbering */
+  PetscCall(PetscCalloc1(gn->nStrata, &gn->strata));
+  for (d = 0; d < gn->nStrata; d++) {
+    PetscInt            pStart, pEnd, nsGhosts;
+    DMPlexNumberingCtx  sn;
+    PetscLayout         sAllLayout;
+
+    PetscCall(PetscNew(&sn));
+    PetscCall(DMPlexGetDepthStratum(dm, d, &pStart, &pEnd));
+    PetscAssert(pStart <= pEnd, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Stratum %" PetscInt_FMT " has wrong range: start = %" PetscInt_FMT " > end = %" PetscInt_FMT, d, pStart, pEnd);
+    sn->comm        = gn->comm;
+    sn->distributed = gn->distributed;
+    sn->start       = pStart - chartStart;
+    sn->end         = pEnd   - chartStart;
+    sn->ghostMask   = &gn->ghostMask[sn->start];
+    PetscCall(ISCreateGeneral(gn->comm, pEnd - pStart, &numbers_new[sn->start], PETSC_USE_POINTER, &sn->numbering));
+    PetscCall(ISGetLayout(sn->numbering, &sAllLayout));
+    for (p = sn->start, nsGhosts = 0; p < sn->end; p++) if (gn->ghostMask[p]) nsGhosts++;
+    PetscCall(PetscLayoutCreateFromSizes(gn->comm, nsGhosts, PETSC_DECIDE, 1, &sn->ghostLayout));
+    PetscCall(PetscLayoutCreateFromSizes(gn->comm, sAllLayout->n - sn->ghostLayout->n, sAllLayout->N - sn->ghostLayout->N, 1, &sn->ownedLayout));
+    gn->strata[d] = sn;
+  }
+
+  if (numbers_new) {
+    for (d = 0; d < gn->nStrata; d++) {
+      PetscInt            nOwn, offset;
+      DMPlexNumberingCtx  sn = gn->strata[d];
+
+      PetscCall(PetscLayoutGetRange(sn->ownedLayout, &offset, NULL));
+      /* Assign globally unique number to owned points */
+      for (p = sn->start, nOwn = 0; p < sn->end; p++) {
+        if (!gn->ghostMask[p]) numbers_new[p] = offset + nOwn++;
+      }
+      PetscAssert(nOwn == sn->ownedLayout->n, sn->comm, PETSC_ERR_PLIB, "Assertion failed: nOwn == sn->ownedLayout->n");
+    }
+    /* Migrate numbering from owned points to ghost points */
+    if (gn->distributed) {
+      PetscCall(PetscSFBcastBegin(pointSF, MPIU_INT, numbers_new, numbers_new, MPI_REPLACE));
+      PetscCall(PetscSFBcastEnd(pointSF, MPIU_INT, numbers_new, numbers_new, MPI_REPLACE));
+    }
+  }
+
+  if (PetscDefined(USE_DEBUG)) {
+    PetscInt nGho = 0, nOwn = 0, nAll = 0;
+
+    for (p = 0; p < allLayout->n; p++) PetscAssert(numbers[p] >= 0, PETSC_COMM_SELF, PETSC_ERR_PLIB, "SF leaves do not cover all points");
+    for (d = 0; d < gn->nStrata; d++) {
+      PetscInt            ng, no, na;
+      DMPlexNumberingCtx  sn = gn->strata[d];
+      PetscLayout         sAllLayout;
+
+      PetscCall(ISGetLayout(sn->numbering, &sAllLayout));
+      ng = sn->ghostLayout->n;
+      no = sn->ownedLayout->n;
+      na = sAllLayout->n;
+      PetscAssert(ng + no == na, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Assertion failed: ng + no == na");
+      PetscAssert(na == sn->end - sn->start, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Assertion failed: na == sn->end - sn->start");
+      nGho += ng;
+      nOwn += no;
+      nAll += na;
+    }
+    PetscAssert(nGho == gn->ghostLayout->n, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Assertion failed: sum(gn->strata[d]->ghostLayout->n) == gn->ghostLayout->n");
+    PetscAssert(nOwn == gn->ownedLayout->n, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Assertion failed: sum(gn->strata[d]->ownedLayout->n) == gn->ownedLayout->n");
+    PetscAssert(nAll   == allLayout->n, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Assertion failed: sum(gn->strata[d]->numbering->map->n) == gn->numbering->map->n");
+    PetscAssert(nAll   == gn->end - gn->start, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Assertion failed: nAll == gn->end - gn->start");
+  }
+
+  if (numberingIS) {
+    PetscCall(ISRestoreIndices(numberingIS, &numbers));
+  }
+  *gnNew = gn;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMPlexGetNumberingCtx_Internal(DM dm, DMPlexNumberingCtx *gn)
+{
+  DM_Plex *plex = (DM_Plex*) dm->data;
+
+  PetscFunctionBegin;
+  if (!plex->numberingCtx) {
+    PetscCall(DMPlexNumberingCtxCreate_Internal(dm, NULL, NULL, &plex->numberingCtx));
+  }
+  *gn = plex->numberingCtx;
   PetscFunctionReturn(0);
 }
 
