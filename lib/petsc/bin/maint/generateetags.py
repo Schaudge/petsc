@@ -76,10 +76,8 @@ def createTagsBlock(flist,etagfile,ctagfile):
   subprocess.check_call('etags -a -o '+etagfile+' '+' '.join(frlist), shell=True)
 
   # linux can use '--tag-relative=yes --langmap=c:+.cu'. For others [Mac,bsd] try running ctags in root directory - with relative path to file
-  print(ctagfile)
   if ctagfile:
-    status = subprocess.call('ctags --output-format=e-ctags --fields=+l --tag-relative=yes --langmap=c:+.cu  -a -f '+ctagfile+' '+' '.join(frlist), shell=True)
-    print(status)
+    status = subprocess.call('ctags --output-format=e-ctags --fields=+l --tag-relative=yes --langmap=c:+.cu  -a -f '+ctagfile+' '+' '.join(frlist), shell=True, stdout=DEVNULL, stderr=subprocess.STDOUT)
     if status:
       status = subprocess.call('/usr/local/bin/ctags -a -f '+ctagfile+' '+' '.join(frlist), shell=True, stdout=DEVNULL, stderr=subprocess.STDOUT)
       if status:
