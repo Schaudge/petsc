@@ -344,6 +344,7 @@ PETSC_EXTERN PetscErrorCode DMPlexGetPointNumbering_Internal(DM, DMPlexNumbering
 PETSC_EXTERN PetscErrorCode DMPlexGetNumberingCtx_Internal(DM, DMPlexNumberingCtx *);
 PETSC_INTERN PetscErrorCode DMPlexNumberingCtxCreate_Internal(DM, IS, PetscSF, DMPlexNumberingCtx *);
 PETSC_INTERN PetscErrorCode DMPlexNumberingCtxDestroy_Internal(DMPlexNumberingCtx *);
+PETSC_INTERN PetscErrorCode DMPlexNumberingCtxGetStratumNumbering_Internal(DMPlexNumberingCtx, PetscInt, IS *, const PetscBool *[], PetscLayout *, PetscLayout *);
 
 PETSC_INTERN PetscErrorCode DMPlexCreateCellNumbering_Internal(DM, PetscBool, IS *);
 PETSC_INTERN PetscErrorCode DMPlexCreateVertexNumbering_Internal(DM, PetscBool, IS *);

@@ -112,6 +112,8 @@ PETSC_EXTERN PetscErrorCode DMPlexGetCellNumbering(DM, IS *);
 PETSC_EXTERN PetscErrorCode DMPlexGetVertexNumbering(DM, IS *);
 PETSC_EXTERN PETSC_DEPRECATED_FUNCTION("Use DMPlexGetPointNumbering (since v3.18)") PetscErrorCode DMPlexCreatePointNumbering(DM, IS *);
 PETSC_EXTERN PetscErrorCode DMPlexGetPointNumbering(DM, IS *, const PetscBool*[], PetscLayout *, PetscLayout *);
+PETSC_EXTERN PetscErrorCode DMPlexGetDepthStratumNumbering(DM, PetscInt, IS *, const PetscBool*[], PetscLayout *, PetscLayout *);
+PETSC_EXTERN PetscErrorCode DMPlexGetHeightStratumNumbering(DM, PetscInt, IS *, const PetscBool*[], PetscLayout *, PetscLayout *);
 PETSC_EXTERN PetscErrorCode DMPlexCreateRankField(DM, Vec *);
 PETSC_EXTERN PetscErrorCode DMPlexCreateLabelField(DM, DMLabel, Vec *);
 

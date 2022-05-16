@@ -8213,6 +8213,18 @@ PetscErrorCode ISMakeGhostsNegative_Internal(IS numbering, const PetscBool ghost
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode DMPlexNumberingCtxGetStratumNumbering_Internal(DMPlexNumberingCtx gn, PetscInt depth, IS *numbering, const PetscBool *ghostMask[], PetscLayout *ownedLayout, PetscLayout *ghostLayout)
+{
+  DMPlexNumberingCtx sn = gn->strata[depth];
+
+  PetscFunctionBegin;
+  if (numbering)   *numbering   = sn->numbering;
+  if (ghostMask)   *ghostMask   = sn->ghostMask;
+  if (ownedLayout) *ownedLayout = sn->ownedLayout;
+  if (ghostLayout) *ghostLayout = sn->ghostLayout;
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode DMPlexGetNumberingCtx_Internal(DM dm, DMPlexNumberingCtx *gn)
 {
   DM_Plex *plex = (DM_Plex*) dm->data;
@@ -8222,6 +8234,93 @@ PetscErrorCode DMPlexGetNumberingCtx_Internal(DM dm, DMPlexNumberingCtx *gn)
     PetscCall(DMPlexNumberingCtxCreate_Internal(dm, NULL, NULL, &plex->numberingCtx));
   }
   *gn = plex->numberingCtx;
+  PetscFunctionReturn(0);
+}
+
+/*@C
+  DMPlexGetDepthStratumNumbering - Get a global numbering for all points of given depth on this process
+
+  Collective
+
+  Input Parameter:
++ dm   - The DMPlex object
+- depth - The depth
+
+  Output Parameter:
++ numbering   - (optional) Global numbers for all points of given depth on this process
+. ghostsMask  - (optional) Boolean array indicating ghost points
+. ownedLayout - (optional) Layout of owned points
+- ghostLayout - (optional) Layout of ghost points
+
+  Level: developer
+
+  Notes:
+  Outputs are stashed in the `DM` and must not be deallocated by the user.
+  Output boolean array ghostsMask has the same length as `IS` numbering.
+  The p-th value of ghostsMask is `PETSC_TRUE` iff the p-th point is a ghost point (is owned by a different process),
+  otherwise `PETSC_FALSE`.
+  Local size of numbering is a sum of local sizes of ownedLayout and ghostLayout; the same holds for global sizes.
+
+.seealso `DMPlexGetCellNumbering()`, `DMPlexGetGhostMask()`, `DMPlexGetHeightStratumNumbering()`
+@*/
+PetscErrorCode DMPlexGetDepthStratumNumbering(DM dm, PetscInt depth, IS *numbering, const PetscBool *ghostMask[],PetscLayout *ownedLayout, PetscLayout *ghostLayout)
+{
+  DMPlexNumberingCtx gn;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscValidLogicalCollectiveInt(dm, depth, 2);
+  if (numbering)    PetscValidPointer(numbering, 3);
+  if (ghostMask)    PetscValidPointer(ghostMask, 4);
+  if (ownedLayout)  PetscValidPointer(ownedLayout, 5);
+  if (ghostLayout)  PetscValidPointer(ghostLayout, 6);
+  PetscCall(DMPlexGetNumberingCtx_Internal(dm, &gn));
+  PetscCall(DMPlexNumberingCtxGetStratumNumbering_Internal(gn, depth, numbering, ghostMask, ownedLayout, ghostLayout));
+  PetscFunctionReturn(0);
+}
+
+/*@C
+  DMPlexGetHeightStratumNumbering - Get a global numbering for all points of given height on this process
+
+  Collective
+
+  Input Parameter:
++ dm   - The DMPlex object
+- depth - The depth
+
+  Output Parameter:
++ numbering   - (optional) Global numbers for all points of given height on this process
+. ghostsMask  - (optional) Boolean array indicating ghost points
+. ownedLayout - (optional) Layout of owned points
+- ghostLayout - (optional) Layout of ghost points
+
+  Level: developer
+
+  Notes:
+  Outputs are stashed in the `DM` and must not be deallocated by the user.
+  Output boolean array ghostsMask has the same length as `IS` numbering.
+  The p-th value of ghostsMask is `PETSC_TRUE` iff the p-th point is a ghost point (is owned by a different process),
+  otherwise `PETSC_FALSE`.
+  Local size of numbering is a sum of local sizes of ownedLayout and ghostLayout; the same holds for global sizes.
+
+.seealso `DMPlexGetCellNumbering()`, `DMPlexGetGhostMask()`, `DMPlexGetDepthStratumNumbering()`
+@*/
+PetscErrorCode DMPlexGetHeightStratumNumbering(DM dm, PetscInt height, IS *numbering, const PetscBool *ghostMask[], PetscLayout *ownedLayout, PetscLayout *ghostLayout)
+{
+  PetscInt           depth;
+  DMPlexNumberingCtx gn;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscValidLogicalCollectiveInt(dm, height, 2);
+  if (numbering)    PetscValidPointer(numbering, 3);
+  if (ghostMask)    PetscValidPointer(ghostMask, 4);
+  if (ownedLayout)  PetscValidPointer(ownedLayout, 5);
+  if (ghostLayout)  PetscValidPointer(ghostLayout, 6);
+  PetscCall(DMPlexGetDepth(dm, &depth));
+  depth -= height;
+  PetscCall(DMPlexGetNumberingCtx_Internal(dm, &gn));
+  PetscCall(DMPlexNumberingCtxGetStratumNumbering_Internal(gn, depth, numbering, ghostMask, ownedLayout, ghostLayout));
   PetscFunctionReturn(0);
 }
 

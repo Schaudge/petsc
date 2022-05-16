@@ -342,6 +342,24 @@ cdef class DMPlex(DM):
         CHKERR( ISGetLocalSize(iset.iset, &n) )
         return iset, array_b(n, mask)
 
+    def getDepthStratumNumbering(self, depth):
+        cdef IS iset = IS()
+        cdef PetscInt cdepth = asInt(depth)
+        cdef PetscInt n = 0
+        cdef const PetscBool *mask = NULL
+        CHKERR( DMPlexGetDepthStratumNumbering(self.dm, cdepth, &iset.iset, &mask, NULL, NULL) )
+        CHKERR( ISGetLocalSize(iset.iset, &n) )
+        return iset, array_b(n, mask)
+
+    def getHeightStratumNumbering(self, height):
+        cdef IS iset = IS()
+        cdef PetscInt cheight = asInt(height)
+        cdef PetscInt n = 0
+        cdef const PetscBool *mask = NULL
+        CHKERR( DMPlexGetHeightStratumNumbering(self.dm, cheight, &iset.iset, &mask, NULL, NULL) )
+        CHKERR( ISGetLocalSize(iset.iset, &n) )
+        return iset, array_b(n, mask)
+
     def getDepth(self):
         cdef PetscInt depth = 0
         CHKERR( DMPlexGetDepth(self.dm,&depth) )

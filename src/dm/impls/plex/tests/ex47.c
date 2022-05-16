@@ -10,7 +10,7 @@ typedef struct {
   PetscViewer       verbose;
 } AppCtx;
 
-static PetscErrorCode DMPlexCreatePointNumbering_Old(DM dm, IS *globalPointNumbers)
+static PetscErrorCode DMPlexCreatePointNumbering_Old(DM dm, IS *globalPointNumbers, PetscInt *globalSize)
 {
   IS             nums[4];
   PetscInt       depths[4], gdepths[4], starts[4];
@@ -44,6 +44,7 @@ static PetscErrorCode DMPlexCreatePointNumbering_Old(DM dm, IS *globalPointNumbe
   }
   PetscCall(ISConcatenate(PetscObjectComm((PetscObject) dm), depth+1, nums, globalPointNumbers));
   for (d = 0; d <= depth; ++d) PetscCall(ISDestroy(&nums[d]));
+  if (globalSize) *globalSize = shift;
   PetscFunctionReturn(0);
 }
 
@@ -174,13 +175,79 @@ static PetscErrorCode Compare(AppCtx *ctx, IS numbering0, PetscBool nonnegative0
   PetscFunctionReturn(0);
 }
 
+typedef enum {
+  ALL,
+  DEPTH,
+  HEIGHT,
+  N_MODES
+} Test1Mode;
+
+const char * const Test1Modes[] = {"all", "depth", "height", NULL};
+
+static PetscErrorCode Test1_Private(AppCtx *ctx, DM dm, Test1Mode mode, PetscInt stratum)
+{
+  IS                  numbering0 = NULL, numbering1 = NULL;
+  PetscInt            globalSize0 = -1, globalSize1 = -1;
+  PetscLayout         ownedLayout1 = NULL, ghostLayout1 = NULL;
+  const PetscBool    *ghostMask1;
+
+  PetscFunctionBeginUser;
+  if (ctx->verbose) PetscCall(PetscViewerASCIIPrintf(ctx->verbose, "# Test1: mode %s stratum %" PetscInt_FMT "\n", Test1Modes[mode], stratum));
+  {
+    PetscSF   pointSF;
+    PetscInt  pStart = -1, pEnd = -1;
+
+    PetscCall(DMGetPointSF(dm, &pointSF));
+    switch (mode) {
+      case ALL:     break;
+      case DEPTH:   PetscCall(DMPlexGetDepthStratum(dm, stratum, &pStart, &pEnd)); break;
+      case HEIGHT:  PetscCall(DMPlexGetHeightStratum(dm, stratum, &pStart, &pEnd)); break;
+      default: SETERRQ(ctx->comm, PETSC_ERR_ARG_OUTOFRANGE, "Invalid mode %d", mode);
+    }
+    switch (mode) {
+      case DEPTH:
+      case HEIGHT:
+        PetscCall(DMPlexCreateNumbering_Plex(dm, pStart, pEnd, 0, &globalSize0, pointSF, &numbering0)); break;
+      default:
+        PetscCall(DMPlexCreatePointNumbering_Old(dm, &numbering0, &globalSize0));
+    }
+  }
+  switch (mode) {
+    case DEPTH:     PetscCall(DMPlexGetDepthStratumNumbering(dm, stratum, &numbering1, &ghostMask1, &ownedLayout1, &ghostLayout1)); break;
+    case HEIGHT:    PetscCall(DMPlexGetHeightStratumNumbering(dm, stratum, &numbering1, &ghostMask1, &ownedLayout1, &ghostLayout1)); break;
+    default:        PetscCall(DMPlexGetPointNumbering(dm, &numbering1, &ghostMask1, &ownedLayout1, &ghostLayout1)); break;
+  }
+  globalSize1 = ownedLayout1->N;
+  PetscCheck(globalSize0 == globalSize1, ctx->comm, PETSC_ERR_PLIB, "globalSize0 = %" PetscInt_FMT " != globalSize1 = %" PetscInt_FMT, globalSize0, globalSize1);
+  PetscCall(Compare(ctx, numbering0, PETSC_FALSE, NULL, -1, numbering1, PETSC_TRUE, ghostMask1, ghostLayout1->n));
+  PetscCall(ISDestroy(&numbering0));
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode Test1(AppCtx *ctx)
+{
+  DM                  dm = ctx->dm;
+  PetscInt            d, depth;
+
+  PetscFunctionBeginUser;
+  PetscCall(DMPlexGetDepth(dm, &depth));
+  PetscCall(Test1_Private(ctx, dm, ALL, -1));
+  for (d=0; d<=depth; d++) {
+    PetscCall(Test1_Private(ctx, dm, DEPTH, d));
+  }
+  for (d=0; d<=depth; d++) {
+    PetscCall(Test1_Private(ctx, dm, HEIGHT, d));
+  }
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode Test2(AppCtx *ctx)
 {
   DM                  dm = ctx->dm;
   IS                  is0;
 
   PetscFunctionBeginUser;
-  PetscCall(DMPlexCreatePointNumbering_Old(dm, &is0));
+  PetscCall(DMPlexCreatePointNumbering_Old(dm, &is0, NULL));
   {
     IS is1;
 
@@ -208,6 +275,7 @@ int main(int argc, char **argv)
 
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
   PetscCall(Initialize(PETSC_COMM_WORLD, &ctx));
+  PetscCall(Test1(&ctx));
   PetscCall(Test2(&ctx));
   PetscCall(Finalize(&ctx));
   PetscCall(PetscFinalize());
