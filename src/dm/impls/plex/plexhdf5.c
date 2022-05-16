@@ -522,9 +522,9 @@ PetscErrorCode DMPlexTopologyView_HDF5_Internal(DM dm, PetscViewer viewer)
 
 static PetscErrorCode CreateConesIS_Private(DM dm, PetscInt cStart, PetscInt cEnd, PetscInt *numCorners, IS *cellIS)
 {
-  PetscSF         sfPoint;
   DMLabel         cutLabel, cutVertexLabel = NULL;
   IS              globalVertexNumbers, cutvertices = NULL;
+  DMPlexNumberingCtx cutVerticesNumbCtx = NULL;
   const PetscBool*ghostMask;
   const PetscInt *gvertex, *cutverts = NULL;
   PetscInt       *vertices;
@@ -558,15 +558,15 @@ static PetscErrorCode CreateConesIS_Private(DM dm, PetscInt cStart, PetscInt cEn
   PetscCall(DMPlexCreateCutVertexLabel_Private(dm, cutLabel, &cutVertexLabel));
   if (cutVertexLabel) PetscCall(DMLabelGetStratumIS(cutVertexLabel, 1, &cutvertices));
   if (cutvertices) {
-    PetscCall(ISGetIndices(cutvertices, &cutverts));
-    PetscCall(ISGetLocalSize(cutvertices, &vExtra));
-  }
-  PetscCall(DMGetPointSF(dm, &sfPoint));
-  if (cutLabel) {
+    PetscSF            sfPoint;
     const PetscInt    *ilocal;
     const PetscSFNode *iremote;
     PetscInt           nroots, nleaves;
 
+    PetscCall(ISGetIndices(cutvertices, &cutverts));
+    PetscCall(ISGetLocalSize(cutvertices, &vExtra));
+
+    PetscCall(DMGetPointSF(dm, &sfPoint));
     PetscCall(PetscSFGetGraph(sfPoint, &nroots, &nleaves, &ilocal, &iremote));
     if (nleaves < 0) {
       PetscCall(PetscObjectReference((PetscObject) sfPoint));
@@ -574,12 +574,19 @@ static PetscErrorCode CreateConesIS_Private(DM dm, PetscInt cStart, PetscInt cEn
       PetscCall(PetscSFCreate(PetscObjectComm((PetscObject) sfPoint), &sfPoint));
       PetscCall(PetscSFSetGraph(sfPoint, nroots+vExtra, nleaves, (PetscInt*)ilocal, PETSC_COPY_VALUES, (PetscSFNode*)iremote, PETSC_COPY_VALUES));
     }
+
+    PetscCall(DMPlexNumberingCtxCreate_Internal(dm, NULL, sfPoint, &cutVerticesNumbCtx));
+    PetscCall(DMPlexNumberingCtxGetStratumNumbering_Internal(cutVerticesNumbCtx, 0, &globalVertexNumbers, NULL, NULL, NULL));
+    if (PetscDefined(USE_DEBUG)) {
+      PetscInt n;
+
+      PetscCall(ISGetLocalSize(globalVertexNumbers, &n));
+      PetscAssert(n == vEnd + vExtra, PETSC_COMM_SELF, PETSC_ERR_PLIB, "n != vEnd + vExtra");
+    }
+    PetscCall(PetscSFDestroy(&sfPoint));
   } else {
-    PetscCall(PetscObjectReference((PetscObject) sfPoint));
+    PetscCall(DMPlexGetDepthStratumNumbering(dm, 0, &globalVertexNumbers, NULL, NULL, NULL));
   }
-  /* Number all vertices */
-  PetscCall(DMPlexCreateNumbering_Plex(dm, vStart, vEnd+vExtra, 0, NULL, sfPoint, &globalVertexNumbers));
-  PetscCall(PetscSFDestroy(&sfPoint));
   /* Create cones */
   PetscCall(ISGetIndices(globalVertexNumbers, &gvertex));
   PetscCall(PetscMalloc1(conesSize, &vertices));
@@ -589,7 +596,7 @@ static PetscErrorCode CreateConesIS_Private(DM dm, PetscInt cStart, PetscInt cEn
     PetscBool replace;
 
     if (ghostMask[cell]) continue;
-    if (cutLabel) PetscCall(DMLabelGetValue(cutLabel, cell, &value));
+    if (cutvertices) PetscCall(DMLabelGetValue(cutLabel, cell, &value));
     replace = (value == 2) ? PETSC_TRUE : PETSC_FALSE;
     PetscCall(DMPlexGetTransitiveClosure(dm, cell, PETSC_TRUE, &closureSize, &closure));
     for (p = 0; p < closureSize*2; p += 2) {
@@ -605,13 +612,15 @@ static PetscErrorCode CreateConesIS_Private(DM dm, PetscInt cStart, PetscInt cEn
         PetscCall(PetscFindInt(closure[p], vExtra, cutverts, &nv));
         if (nv >= 0) gv = gvertex[vEnd - vStart + nv];
       }
-      vertices[v++] = gv < 0 ? -(gv+1) : gv;
+      vertices[v++] = gv;
     }
     PetscCall(DMPlexRestoreTransitiveClosure(dm, cell, PETSC_TRUE, &closureSize, &closure));
   }
   PetscCall(ISRestoreIndices(globalVertexNumbers, &gvertex));
-  PetscCall(ISDestroy(&globalVertexNumbers));
-  if (cutvertices) PetscCall(ISRestoreIndices(cutvertices, &cutverts));
+  if (cutvertices) {
+    PetscCall(ISRestoreIndices(cutvertices, &cutverts));
+    PetscCall(DMPlexNumberingCtxDestroy_Internal(&cutVerticesNumbCtx));
+  }
   PetscCall(ISDestroy(&cutvertices));
   PetscCall(DMLabelDestroy(&cutVertexLabel));
   PetscCheck(v == conesSize,PETSC_COMM_SELF, PETSC_ERR_LIB, "Total number of cell vertices %" PetscInt_FMT " != %" PetscInt_FMT, v, conesSize);
