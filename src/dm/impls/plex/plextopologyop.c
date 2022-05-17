@@ -74,7 +74,7 @@ PetscErrorCode DMPlexDisjointUnion_Topological_Section(DM *plexlist, PetscInt nu
     for(stratum=0;stratum <= depth_temp; stratum++) {
       PetscCall(PetscSectionSetFieldDof(offsets,i,stratum,1));
       PetscCall(DMPlexGetDepthStratum(plexlist[i],stratum,&pStart,&pEnd));
-      PetscCall(PetscSectionSetFieldOffset(offsets,i,stratum,numpoints_g[stratum]));
+      PetscCall(PetscSectionSetFieldOffset(offsets,i,stratum,numpoints_g[stratum]-pStart));
       numpoints_g[stratum] += (pEnd-pStart);
     }
   }
@@ -83,7 +83,7 @@ PetscErrorCode DMPlexDisjointUnion_Topological_Section(DM *plexlist, PetscInt nu
   for (i=0; i<numplex; i++) {
     PetscCall(DMPlexGetDepth(plexlist[i],&depth_temp));
     for(stratum=0;stratum <= depth_temp; stratum++) {
-      prevtotal=0;
+      prevtotal = 0;
       for(j=0; j<stratum; j++) prevtotal += numpoints_g[j];
       PetscCall(DMPlexGetDepthStratum(plexlist[i],stratum,&pStart,&pEnd));
       PetscCall(PetscSectionGetFieldOffset(offsets,i,stratum,&off));
@@ -98,7 +98,7 @@ PetscErrorCode DMPlexDisjointUnion_Topological_Section(DM *plexlist, PetscInt nu
   PetscCall(PetscMalloc2(totalconesize,&cones_g,totalconesize,&coneOrientations_g));
   k=0;
   for(stratum=0;stratum <= depth; stratum++) {
-    prevtotal=0;
+    prevtotal = 0;
     for(j=0; j<stratum-1; j++) prevtotal += numpoints_g[j];
     for(i=0; i<numplex; i++){
       PetscCall(DMPlexGetDepth(plexlist[i],&depth_temp));
@@ -127,6 +127,10 @@ PetscErrorCode DMPlexDisjointUnion_Topological_Section(DM *plexlist, PetscInt nu
   PetscCall(PetscFree(coneSize_g));
   PetscCall(PetscFree2(cones_g,coneOrientations_g));
   *dmunion    = dm_sum;
-  *stratumoff = offsets;
+  if( stratumoff ) {
+    *stratumoff = offsets;
+  } else {
+    PetscCall(PetscSectionDestroy(&offsets));
+  }
   PetscFunctionReturn(0);
 }
