@@ -99,75 +99,75 @@ cdef class Space(Object):
         CHKERR( PetscSpaceSetType(self.space, cval) )
         return self
 
-    def sumGetConcatenate(self):
+    def getSumConcatenate(self):
         cdef PetscBool concatenate
         CHKERR( PetscSpaceSumGetConcatenate(self.space, &concatenate))
         return toBool(concatenate)
 
-    def sumSetConcatenate(self, concatenate):
+    def setSumConcatenate(self, concatenate):
         cdef PetscBool cconcatenate = asBool(concatenate)
         CHKERR( PetscSpaceSumSetConcatenate(self.space, concatenate))
     
-    def sumGetNumSubspaces(self):
+    def getSumNumSubspaces(self):
         cdef PetscInt numSumSpaces
         CHKERR( PetscSpaceSumGetNumSubspaces(self.space, &numSumSpaces))
         return toInt(numSumSpaces)
 
-    def sumGetSubspace(self, s):
+    def getSumSubspace(self, s):
         cdef Space subsp = Space()
         cdef PetscInt cs = asInt(s)
         CHKERR( PetscSpaceSumGetSubspace(self.space, s, &subsp.space) )
         return subsp
     
-    def sumSetSubspace(self, s, Space subsp):
+    def setSumSubspace(self, s, Space subsp):
         cdef PetscInt cs = asInt(s)
         CHKERR( PetscSpaceSumSetSubspace(self.space, cs, subsp.space) )
 
-    def sumSetNumSubspaces(self, numSumSpaces):
+    def setSumNumSubspaces(self, numSumSpaces):
         cdef PetscInt cnumSumSpaces = asInt(numSumSpaces)
         CHKERR( PetscSpaceSumSetNumSubspaces(self.space, cnumSumSpaces) )
 
-    def tensorGetNumSubspaces(self):
+    def getTensorNumSubspaces(self):
         cdef PetscInt cnumTensSpaces = 0
         CHKERR( PetscSpaceTensorGetNumSubspaces(self.space, &cnumTensSpaces) )
         return toInt(cnumTensSpaces)
     
-    def tensorSetSubspace(self, s, Space subsp):
+    def setTensorSubspace(self, s, Space subsp):
         cdef PetscInt cs = asInt(s)
         CHKERR( PetscSpaceTensorSetSubspace(self.space, cs, subsp.space) )
 
-    def tensorGetSubspace(self, s):
+    def getTensorSubspace(self, s):
         cdef PetscInt cs = asInt(s)
         cdef Space subsp = Space()
         CHKERR( PetscSpaceTensorGetSubspace(self.space, cs, &subsp.space) )
         return subsp
 
-    def tensorSetNumSubspaces(self, numTensSpaces):
+    def setTensorNumSubspaces(self, numTensSpaces):
         cdef PetscInt cnumTensSpaces = asInt(numTensSpaces)
         CHKERR( PetscSpaceTensorSetNumSubspaces(self.space, cnumTensSpaces) )
 
-    def polynomialGetTensor(self):
+    def getPolynomialTensor(self):
         cdef PetscBool ctensor
         CHKERR( PetscSpacePolynomialGetTensor(self.space, &ctensor) )
         return toBool(ctensor)
 
-    def polynomialSetTensor(self, tensor):
+    def setPolynomialTensor(self, tensor):
         cdef PetscBool ctensor = asBool(tensor)
         CHKERR( PetscSpacePolynomialSetTensor(self.space, ctensor) )
 
-    def pointSetPoints(self, Quad quad):
+    def setPointPoints(self, Quad quad):
         CHKERR( PetscSpacePointSetPoints(self.space, quad.quad))
 
-    def pointGetPoints(self):
+    def getPointPoints(self):
         cdef Quad quad = Quad()
         CHKERR( PetscSpacePointGetPoints(self.space, &quad.quad))
         return quad
 
-    def pTrimmedSetFormDegree(self, formDegree):
+    def setPTrimmedFormDegree(self, formDegree):
         cdef PetscInt cformDegree = asInt(formDegree)
         CHKERR( PetscSpacePTrimmedSetFormDegree(self.space, cformDegree) )
 
-    def pTrimmedGetFormDegree(self):
+    def getPTrimmedFormDegree(self):
         cdef PetscInt cformDegree = 0
         CHKERR( PetscSpacePTrimmedGetFormDegree(self.space, &cformDegree) )
         return toInt(cformDegree)
@@ -280,30 +280,30 @@ cdef class DualSpace(Object):
         CHKERR( PetscDualSpaceGetInteriorDimension(self.dualspace, &cintdim) )
         return toInt(cintdim)
 
-    def lagrangeGetContinuity(self):
+    def getLagrangeContinuity(self):
         cdef PetscBool ccontinuous = PETSC_FALSE
         CHKERR( PetscDualSpaceLagrangeGetContinuity(self.dualspace, &ccontinuous))
         return toBool(ccontinuous)
     
-    def lagrangeSetContinuity(self, continuous):
+    def setLagrangeContinuity(self, continuous):
         cdef PetscBool ccontinuous = asBool(continuous)
         CHKERR( PetscDualSpaceLagrangeSetContinuity(self.dualspace, ccontinuous))
     
-    def lagrangeGetTensor(self):
+    def getLagrangeTensor(self):
         cdef PetscBool ctensor = PETSC_FALSE
         CHKERR( PetscDualSpaceLagrangeGetTensor(self.dualspace, &ctensor))
         return toBool(ctensor)
     
-    def lagrangeSetTensor(self, tensor):
+    def setLagrangeTensor(self, tensor):
         cdef PetscBool ctensor = asBool(tensor)
         CHKERR( PetscDualSpaceLagrangeSetTensor(self.dualspace, ctensor))
 
-    def lagrangeGetTrimmed(self):
+    def getLagrangeTrimmed(self):
         cdef PetscBool ctrimmed = PETSC_FALSE
         CHKERR( PetscDualSpaceLagrangeGetTrimmed(self.dualspace, &ctrimmed))
         return toBool(ctrimmed)
     
-    def lagrangeSetTrimmed(self, trimmed):
+    def setLagrangeTrimmed(self, trimmed):
         cdef PetscBool ctrimmed = asBool(trimmed)
         CHKERR( PetscDualSpaceLagrangeSetTrimmed(self.dualspace, ctrimmed))
     
@@ -314,11 +314,11 @@ cdef class DualSpace(Object):
         if obj is not None: cobj = obj.obj[0]
         CHKERR( PetscDualSpaceViewFromOptions(self.dualspace, cobj, cname) )
 
-    def simpleSetDimension(self, dim):
+    def setSimpleDimension(self, dim):
         cdef PetscInt cdim = asInt(dim)
         CHKERR( PetscDualSpaceSimpleSetDimension(self.dualspace, cdim) )
 
-    def simpleSetFunctional(self, func, Quad functional):
+    def setSimpleFunctional(self, func, Quad functional):
         cdef PetscInt cfunc = asInt(func)
         CHKERR( PetscDualSpaceSimpleSetFunctional(self.dualspace, cfunc, functional.quad) )
 
