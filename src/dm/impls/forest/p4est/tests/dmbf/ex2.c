@@ -12,7 +12,7 @@
     3. Apply operator by looping over cells, using guard layer for fluxes.
  */
 
-// JR need a chart how cell data is organized
+// TODO need a chart how cell data is organized
 
 static char help[] = "";
 
@@ -33,24 +33,22 @@ typedef enum {FACE_XL, FACE_XR, FACE_YL, FACE_YR, FACE_ZL, FACE_ZR} faceLoc;
 #define N_CENTER_COORDS_X 1
 #define N_CENTER_COORDS_Y 1
 #define N_CENTER_COORDS_Z 1
-typedef enum {STENCIL,CENTER_COORD_X,CENTER_COORD_Y,CENTER_COORD_Z,FACE_COORD_X,FACE_COORD_Y,FACE_COORD_Z} cellDat;
+typedef enum {STENCIL,CENTER_COORD_X,CENTER_COORD_Y,CENTER_COORD_Z,FACE_COORD_X,FACE_COORD_Y,FACE_COORD_Z,CELLDATA_N_FIELDS} cellDat;
 
-
-#define nCellDataFields     7
 #define maxCellDataFieldDim 1
 #define maxCellDataFieldLen 1
-static const PetscInt CELLDATA_SHAPE[nCellDataFields*2] =
+static const PetscInt CELLDATA_SHAPE[CELLDATA_N_FIELDS*2] =
 {
-   /* STENCIL        */ STENCIL_LEN,       1,
-   /* CENTER_COORD_X */ N_CENTER_COORDS_X, 1,
-   /* CENTER_COORD_Y */ N_CENTER_COORDS_Y, 1,
-   /* CENTER_COORD_Y */ N_CENTER_COORDS_Z, 1,
-   /* FACE_COORD_X   */ N_FACE_COORDS_X,   1,
-   /* FACE_COORD_Y   */ N_FACE_COORDS_Y,   1,
-   /* FACE_COORD_Z   */ N_FACE_COORDS_Z,   1
+  /* STENCIL        */ STENCIL_LEN,       1,
+  /* CENTER_COORD_X */ N_CENTER_COORDS_X, 1,
+  /* CENTER_COORD_Y */ N_CENTER_COORDS_Y, 1,
+  /* CENTER_COORD_Y */ N_CENTER_COORDS_Z, 1,
+  /* FACE_COORD_X   */ N_FACE_COORDS_X,   1,
+  /* FACE_COORD_Y   */ N_FACE_COORDS_Y,   1,
+  /* FACE_COORD_Z   */ N_FACE_COORDS_Z,   1
 };
 
-typedef PetscScalar (*SpatialFn_3D)(PetscReal,PetscReal,PetscReal);
+typedef PetscScalar (*SpatialFn_3D)(PetscScalar,PetscScalar,PetscScalar);
 
 typedef struct {
   SpatialFn_3D bc;
@@ -145,9 +143,12 @@ PetscErrorCode print_cell_data(DM dm, DM_BF_Cell *cell, void *ctx)
 
 PetscErrorCode set_up_boundary_condition(DM dm, DM_BF_Face *face, void *ctx)
 {
-  AppCtx      *user      = ctx;
-  DM_BF_Cell  *cell      = (face->nCellsL ? face->cellL[0] : face->cellR[0]);
-  PetscBool   isBoundary = (DM_BF_FACEBOUNDARY_NONE != face->boundary);
+  AppCtx            *user      = ctx;
+  DM_BF_Cell        *cell      = (face->nCellsL ? face->cellL[0] : face->cellR[0]);
+  const PetscScalar hx         = cell->data[FACE_COORD_X][FACE_XR] - cell->data[FACE_COORD_X][FACE_XL];
+  const PetscScalar hy         = cell->data[FACE_COORD_Y][FACE_YR] - cell->data[FACE_COORD_Y][FACE_YL];
+  const PetscScalar hz         = cell->data[FACE_COORD_Z][FACE_ZR] - cell->data[FACE_COORD_Z][FACE_ZL];
+  PetscBool         isBoundary = (DM_BF_FACEBOUNDARY_NONE != face->boundary);
 
   PetscFunctionBegin;
 
@@ -157,7 +158,22 @@ PetscErrorCode set_up_boundary_condition(DM dm, DM_BF_Face *face, void *ctx)
     bndryFaceMidpoint_y = cell->data[FACE_COORD_Y][face->dir];
     bndryFaceMidpoint_z = cell->data[FACE_COORD_Z][face->dir];
 
-    h = (face->dir < 2 ? cell->sidelength[0] : (face->dir < 4 ? cell->sidelength[1] : cell->sidelength[2]));
+    switch (face->dir) {
+      case DM_BF_FACEDIR_XNEG:
+      case DM_BF_FACEDIR_XPOS:
+        h = hx;
+        break;
+      case DM_BF_FACEDIR_YNEG:
+      case DM_BF_FACEDIR_YPOS:
+        h = hy;
+        break;
+      case DM_BF_FACEDIR_ZNEG:
+      case DM_BF_FACEDIR_ZPOS:
+        h = hz;
+        break;
+      default:
+        SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Unknown face direction %i",face->dir);
+    }
     cell->data[STENCIL][CENTER] += -2*user->bc(bndryFaceMidpoint_x,bndryFaceMidpoint_y,bndryFaceMidpoint_z) / (h*h);
   }
 
@@ -202,7 +218,7 @@ static PetscErrorCode _p_dmbf_poisson_set_unk_cellfn(DM dm, DM_BF_Cell *cell, vo
   PetscFunctionReturn(0);
 }
 
-/* 
+/*
 
   In addition to the usual domain boundaries, the strip {(x,y) : y = 0, -1 <= x <= 0} is part of the boundary.
    The square domain naturally conforms to this boundary so that the interior of each edge either lies completely
@@ -243,38 +259,38 @@ static PetscErrorCode _p_dmbf_poisson_set_guards_facefn(DM dm, DM_BF_Face *face,
     if (isHangingL) {
       DM_BF_Cell **cellL = face->cellL;
       DM_BF_Cell *cellR  = face->cellR[0];
-      cellL[0]->data[STENCIL][X_DIR ? GUARD_XR : (Z_DIR ? GUARD_ZR : GUARD_YR)] = (2./3.)*cellR->data[STENCIL][CENTER]    + (2./3.)*cellL[0]->data[STENCIL][CENTER] 
-                                                                                //+ (1./3.)*cellL[2]->data[STENCIL][CENTER] + (1./3.)*cellL[3]->data[STENCIL][CENTER] 
+      cellL[0]->data[STENCIL][X_DIR ? GUARD_XR : (Z_DIR ? GUARD_ZR : GUARD_YR)] = (2./3.)*cellR->data[STENCIL][CENTER]    + (2./3.)*cellL[0]->data[STENCIL][CENTER]
+                                                                                //+ (1./3.)*cellL[2]->data[STENCIL][CENTER] + (1./3.)*cellL[3]->data[STENCIL][CENTER]
                                                                                                                           - (1./3.)*cellL[2]->data[STENCIL][CENTER];
-      cellL[1]->data[STENCIL][X_DIR ? GUARD_XR : (Z_DIR ? GUARD_ZR : GUARD_YR)] = (2./3.)*cellR->data[STENCIL][CENTER]    + (2./3.)*cellL[1]->data[STENCIL][CENTER] 
-                                                                                //+ (1./3.)*cellL[2]->data[STENCIL][CENTER] + (1./3.)*cellL[3]->data[STENCIL][CENTER] 
+      cellL[1]->data[STENCIL][X_DIR ? GUARD_XR : (Z_DIR ? GUARD_ZR : GUARD_YR)] = (2./3.)*cellR->data[STENCIL][CENTER]    + (2./3.)*cellL[1]->data[STENCIL][CENTER]
+                                                                                //+ (1./3.)*cellL[2]->data[STENCIL][CENTER] + (1./3.)*cellL[3]->data[STENCIL][CENTER]
                                                                                                                           - (1./3.)*cellL[3]->data[STENCIL][CENTER];
-      cellL[2]->data[STENCIL][X_DIR ? GUARD_XR : (Z_DIR ? GUARD_ZR : GUARD_YR)] = (2./3.)*cellR->data[STENCIL][CENTER]    + (2./3.)*cellL[2]->data[STENCIL][CENTER] 
-                                                                                //+ (1./3.)*cellL[1]->data[STENCIL][CENTER] + (1./3.)*cellL[3]->data[STENCIL][CENTER] 
+      cellL[2]->data[STENCIL][X_DIR ? GUARD_XR : (Z_DIR ? GUARD_ZR : GUARD_YR)] = (2./3.)*cellR->data[STENCIL][CENTER]    + (2./3.)*cellL[2]->data[STENCIL][CENTER]
+                                                                                //+ (1./3.)*cellL[1]->data[STENCIL][CENTER] + (1./3.)*cellL[3]->data[STENCIL][CENTER]
                                                                                                                           - (1./3.)*cellL[0]->data[STENCIL][CENTER];
-      cellL[3]->data[STENCIL][X_DIR ? GUARD_XR : (Z_DIR ? GUARD_ZR : GUARD_YR)] = (2./3.)*cellR->data[STENCIL][CENTER]    + (2./3.)*cellL[3]->data[STENCIL][CENTER] 
-                                                                                //+ (1./3.)*cellL[1]->data[STENCIL][CENTER] + (1./3.)*cellL[2]->data[STENCIL][CENTER] 
+      cellL[3]->data[STENCIL][X_DIR ? GUARD_XR : (Z_DIR ? GUARD_ZR : GUARD_YR)] = (2./3.)*cellR->data[STENCIL][CENTER]    + (2./3.)*cellL[3]->data[STENCIL][CENTER]
+                                                                                //+ (1./3.)*cellL[1]->data[STENCIL][CENTER] + (1./3.)*cellL[2]->data[STENCIL][CENTER]
                                                                                                                           - (1./3.)*cellL[1]->data[STENCIL][CENTER];
-      cellR->data[STENCIL][X_DIR ? GUARD_XL : (Z_DIR ? GUARD_ZL : GUARD_YL)]    = (1./3.)*cellL[0]->data[STENCIL][CENTER] + (1./3.)*cellL[1]->data[STENCIL][CENTER] 
-                                                                                + (1./3.)*cellL[2]->data[STENCIL][CENTER] + (1./3.)*cellL[3]->data[STENCIL][CENTER] 
+      cellR->data[STENCIL][X_DIR ? GUARD_XL : (Z_DIR ? GUARD_ZL : GUARD_YL)]    = (1./3.)*cellL[0]->data[STENCIL][CENTER] + (1./3.)*cellL[1]->data[STENCIL][CENTER]
+                                                                                + (1./3.)*cellL[2]->data[STENCIL][CENTER] + (1./3.)*cellL[3]->data[STENCIL][CENTER]
                                                                                                                           - (1./3.)*cellR->data[STENCIL][CENTER];
     } else if (isHangingR) {
       DM_BF_Cell **cellR  = face->cellR;
       DM_BF_Cell *cellL = face->cellL[0];
-      cellR[0]->data[STENCIL][X_DIR ? GUARD_XL : (Z_DIR ? GUARD_ZL : GUARD_YL)] = (2./3.)*cellL->data[STENCIL][CENTER]    + (2./3.)*cellR[0]->data[STENCIL][CENTER] 
-                                                                                //+ (1./3.)*cellR[2]->data[STENCIL][CENTER] + (1./3.)*cellR[3]->data[STENCIL][CENTER] 
+      cellR[0]->data[STENCIL][X_DIR ? GUARD_XL : (Z_DIR ? GUARD_ZL : GUARD_YL)] = (2./3.)*cellL->data[STENCIL][CENTER]    + (2./3.)*cellR[0]->data[STENCIL][CENTER]
+                                                                                //+ (1./3.)*cellR[2]->data[STENCIL][CENTER] + (1./3.)*cellR[3]->data[STENCIL][CENTER]
                                                                                                                           - (1./3.)*cellR[2]->data[STENCIL][CENTER];
-      cellR[1]->data[STENCIL][X_DIR ? GUARD_XL : (Z_DIR ? GUARD_ZL : GUARD_YL)] = (2./3.)*cellL->data[STENCIL][CENTER]    + (2./3.)*cellR[1]->data[STENCIL][CENTER] 
-                                                                                //+ (1./3.)*cellR[2]->data[STENCIL][CENTER] + (1./3.)*cellR[3]->data[STENCIL][CENTER] 
+      cellR[1]->data[STENCIL][X_DIR ? GUARD_XL : (Z_DIR ? GUARD_ZL : GUARD_YL)] = (2./3.)*cellL->data[STENCIL][CENTER]    + (2./3.)*cellR[1]->data[STENCIL][CENTER]
+                                                                                //+ (1./3.)*cellR[2]->data[STENCIL][CENTER] + (1./3.)*cellR[3]->data[STENCIL][CENTER]
                                                                                                                           - (1./3.)*cellR[3]->data[STENCIL][CENTER];
-      cellR[2]->data[STENCIL][X_DIR ? GUARD_XL : (Z_DIR ? GUARD_ZL : GUARD_YL)] = (2./3.)*cellL->data[STENCIL][CENTER]    + (2./3.)*cellR[2]->data[STENCIL][CENTER] 
-                                                                                //+ (1./3.)*cellR[1]->data[STENCIL][CENTER] + (1./3.)*cellR[3]->data[STENCIL][CENTER] 
+      cellR[2]->data[STENCIL][X_DIR ? GUARD_XL : (Z_DIR ? GUARD_ZL : GUARD_YL)] = (2./3.)*cellL->data[STENCIL][CENTER]    + (2./3.)*cellR[2]->data[STENCIL][CENTER]
+                                                                                //+ (1./3.)*cellR[1]->data[STENCIL][CENTER] + (1./3.)*cellR[3]->data[STENCIL][CENTER]
                                                                                                                           - (1./3.)*cellR[0]->data[STENCIL][CENTER];
-      cellR[3]->data[STENCIL][X_DIR ? GUARD_XL : (Z_DIR ? GUARD_ZL : GUARD_YL)] = (2./3.)*cellL->data[STENCIL][CENTER]    + (2./3.)*cellR[3]->data[STENCIL][CENTER] 
-                                                                                //+ (1./3.)*cellR[1]->data[STENCIL][CENTER] + (1./3.)*cellR[2]->data[STENCIL][CENTER] 
+      cellR[3]->data[STENCIL][X_DIR ? GUARD_XL : (Z_DIR ? GUARD_ZL : GUARD_YL)] = (2./3.)*cellL->data[STENCIL][CENTER]    + (2./3.)*cellR[3]->data[STENCIL][CENTER]
+                                                                                //+ (1./3.)*cellR[1]->data[STENCIL][CENTER] + (1./3.)*cellR[2]->data[STENCIL][CENTER]
                                                                                                                           - (1./3.)*cellR[1]->data[STENCIL][CENTER];
-      cellL->data[STENCIL][X_DIR ? GUARD_XR : (Z_DIR ? GUARD_ZR : GUARD_YR)]    = (1./3.)*cellR[0]->data[STENCIL][CENTER] + (1./3.)*cellR[1]->data[STENCIL][CENTER] 
-                                                                                + (1./3.)*cellR[2]->data[STENCIL][CENTER] + (1./3.)*cellR[3]->data[STENCIL][CENTER] 
+      cellL->data[STENCIL][X_DIR ? GUARD_XR : (Z_DIR ? GUARD_ZR : GUARD_YR)]    = (1./3.)*cellR[0]->data[STENCIL][CENTER] + (1./3.)*cellR[1]->data[STENCIL][CENTER]
+                                                                                + (1./3.)*cellR[2]->data[STENCIL][CENTER] + (1./3.)*cellR[3]->data[STENCIL][CENTER]
                                                                                                                           - (1./3.)*cellL->data[STENCIL][CENTER];
     } else {
       DM_BF_Cell *cellL = face->cellL[0];
@@ -287,27 +303,30 @@ static PetscErrorCode _p_dmbf_poisson_set_guards_facefn(DM dm, DM_BF_Face *face,
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode apply_mass_matrix(DM dm, DM_BF_Cell *cell, void *ctx) {
-  PetscScalar *valReadWrite  = cell->vecViewReadWrite[0];
-  PetscScalar mass           = cell->sidelength[0]*cell->sidelength[1]*cell->sidelength[2];
+PetscErrorCode apply_mass_matrix(DM dm, DM_BF_Cell *cell, void *ctx)
+{
+  const PetscScalar hx            = cell->data[FACE_COORD_X][FACE_XR] - cell->data[FACE_COORD_X][FACE_XL];
+  const PetscScalar hy            = cell->data[FACE_COORD_Y][FACE_YR] - cell->data[FACE_COORD_Y][FACE_YL];
+  const PetscScalar hz            = cell->data[FACE_COORD_Z][FACE_ZR] - cell->data[FACE_COORD_Z][FACE_ZL];
+  const PetscScalar mass          = hx*hy*hz;
+  PetscScalar       *valReadWrite = cell->vecViewReadWrite[0];
 
   PetscFunctionBegin;
   *valReadWrite *= mass;
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode _p_dmbf_poisson_apply_operator_cellfn(DM dm, DM_BF_Cell *cell, void *ctx) {
-  PetscReal *valReadWrite = cell->vecViewReadWrite[0];
-  PetscReal hx            = cell->sidelength[0];
-  PetscReal hy            = cell->sidelength[1];
-  PetscReal hz            = cell->sidelength[2];
+static PetscErrorCode _p_dmbf_poisson_apply_operator_cellfn(DM dm, DM_BF_Cell *cell, void *ctx)
+{
+  const PetscScalar hx            = cell->data[FACE_COORD_X][FACE_XR] - cell->data[FACE_COORD_X][FACE_XL];
+  const PetscScalar hy            = cell->data[FACE_COORD_Y][FACE_YR] - cell->data[FACE_COORD_Y][FACE_YL];
+  const PetscScalar hz            = cell->data[FACE_COORD_Z][FACE_ZR] - cell->data[FACE_COORD_Z][FACE_ZL];
+  PetscScalar       *valReadWrite = cell->vecViewReadWrite[0];
 
   PetscFunctionBegin;
-
   *valReadWrite = (cell->data[STENCIL][GUARD_XL] - 2*cell->data[STENCIL][CENTER] + cell->data[STENCIL][GUARD_XR])/(hx*hx)
                 + (cell->data[STENCIL][GUARD_YL] - 2*cell->data[STENCIL][CENTER] + cell->data[STENCIL][GUARD_YR])/(hy*hy)
                 + (cell->data[STENCIL][GUARD_ZL] - 2*cell->data[STENCIL][CENTER] + cell->data[STENCIL][GUARD_ZR])/(hz*hz);
-
   PetscFunctionReturn(0);
 }
 
@@ -317,14 +336,12 @@ PetscErrorCode apply_operator_dm(DM dm, Vec in, Vec out)
   PetscErrorCode  ierr;
 
   PetscFunctionBegin;
-
   ierr = DMGetApplicationContext(dm,&user);CHKERRQ(ierr);
   ierr = DMBFIterateOverCellsVectors(dm,_p_dmbf_poisson_set_unk_cellfn,user,&in,1,PETSC_NULL,0);CHKERRQ(ierr);
   ierr = DMBFCommunicateGhostCells(dm);CHKERRQ(ierr);
   ierr = DMBFIterateOverFaces(dm,_p_dmbf_poisson_set_guards_facefn,user);CHKERRQ(ierr);
   ierr = DMBFIterateOverCellsVectors(dm,_p_dmbf_poisson_apply_operator_cellfn,user,PETSC_NULL,0,&out,1);CHKERRQ(ierr);
   ierr = DMBFIterateOverCellsVectors(dm,apply_mass_matrix,user,PETSC_NULL,0,&out,1);CHKERRQ(ierr);
-
   PetscFunctionReturn(0);
 }
 
@@ -334,49 +351,46 @@ PetscErrorCode apply_operator_mf(Mat K, Vec in, Vec out)
   PetscErrorCode  ierr;
 
   PetscFunctionBegin;
-
   ierr = MatGetDM(K,&dm);CHKERRQ(ierr);
   ierr = apply_operator_dm(dm,in,out);CHKERRQ(ierr);
-
   PetscFunctionReturn(0);
 }
 
-PETSC_STATIC_INLINE PetscScalar g(PetscReal x, PetscReal y, PetscReal z) {
-  PetscReal theta = PetscAtan2Real(y,x) + PETSC_PI;
-  PetscReal rsqr  = PetscSqr(x) + PetscSqr(y);
+PETSC_STATIC_INLINE PetscScalar g(PetscScalar x, PetscScalar y, PetscScalar z) {
+  PetscScalar theta = PetscAtan2Real(y,x) + PETSC_PI;
+  PetscScalar rsqr  = PetscSqr(x) + PetscSqr(y);
 
   return PetscPowReal(rsqr,.25)*PetscSinReal(.5*theta)*PetscSinReal(2*PETSC_PI*z);
 }
 
-PETSC_STATIC_INLINE PetscScalar f(PetscReal x, PetscReal y, PetscReal z) {
+PETSC_STATIC_INLINE PetscScalar f(PetscScalar x, PetscScalar y, PetscScalar z) {
   return -4*PetscSqr(PETSC_PI)*g(x,y,z);
 }
 
-PetscErrorCode amr_refine_center(DM dm, DM_BF_Cell *cell, void *ctx) {
+PetscErrorCode amr_refine_center(DM dm, DM_BF_Cell *cell, void *ctx)
+{
   PetscScalar x = PetscMin(PetscAbs(cell->corner[0]),PetscAbs(cell->corner[0] + cell->sidelength[0]));
   PetscScalar y = PetscMin(PetscAbs(cell->corner[1]),PetscAbs(cell->corner[1] + cell->sidelength[1]));
   PetscScalar r = PetscSqrtReal(PetscSqr(x) + PetscSqr(y));
 
   PetscFunctionBegin;
-
   if (r < 5*1e-2) {
     cell->adaptFlag=DM_ADAPT_REFINE;
   } else {
     cell->adaptFlag=DM_ADAPT_KEEP;
   }
-
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode proj_no_op(DM dm, DM_BF_Cell **cellsFine, PetscInt i, DM_BF_Cell **cellsCoarse, PetscInt j, void *ctx) {
-
+PetscErrorCode proj_no_op(DM dm, DM_BF_Cell **cellsFine, PetscInt i, DM_BF_Cell **cellsCoarse, PetscInt j, void *ctx)
+{
   PetscFunctionBegin;
   PetscFunctionReturn(0);
 }
 
 int main(int argc, char **argv)
 {
-  const char      funcname[] = "DMBF-Poisson-2D";
+  const char      funcname[] = "DMBF-Poisson-3D";
   DM              dm;
   Vec             sol,rhs,exact,error;
   Mat             A;
@@ -401,8 +415,8 @@ int main(int argc, char **argv)
   ierr = DMSetDimension(dm,3);CHKERRQ(ierr);
   ierr = DMSetFromOptions(dm);CHKERRQ(ierr);
   // set cell data shapes
-  ierr = DMBFSetCellDataShape(dm,CELLDATA_SHAPE,nCellDataFields,2);CHKERRQ(ierr);
-  //ierr = DMBFSetCellDataVSize(dm,sizeof(cellData_t));CHKERRQ(ierr);
+  ierr = DMBFSetCellDataShape(dm,CELLDATA_SHAPE,CELLDATA_N_FIELDS,2);CHKERRQ(ierr);
+  //ierr = DMBFSetCellDataVSize(dm,sizeof(cellData_t));CHKERRQ(ierr); //TODO unused at the moment
 
   // set application-specific data
   ierr = DMSetApplicationContext(dm,&ctx);CHKERRQ(ierr);
@@ -433,7 +447,7 @@ int main(int argc, char **argv)
       ierr = DMBFAMRFlag(dm);CHKERRQ(ierr);
       ierr = DMBFAMRAdapt(dm,&adapt);CHKERRQ(ierr);
       ierr = DMDestroy(&dm);CHKERRQ(ierr);
-      dm=adapt;
+      dm   = adapt;
     }
     if (l) {
       PetscPrintf(PETSC_COMM_WORLD,"[%s] Finished initial AMR (%i steps)\n",funcname,l);
@@ -444,7 +458,7 @@ int main(int argc, char **argv)
   ierr = DMBFIterateOverCells(dm,init_cell_data,PETSC_NULL);CHKERRQ(ierr);
 
   ctx.src = f;
-  ctx.bc = g;
+  ctx.bc  = g;
 
   // create vectors
   ierr = DMCreateGlobalVector(dm,&sol);CHKERRQ(ierr);
@@ -461,20 +475,18 @@ int main(int argc, char **argv)
   ierr = DMSetMatType(dm,MATSHELL);CHKERRQ(ierr);
   ierr = DMCreateMatrix(dm,&A);CHKERRQ(ierr);
   ierr = MatSetOperation(A,MATOP_MULT,(void(*)(void))apply_operator_mf);CHKERRQ(ierr);
-  //ierr = apply_operator_dm(dm,rhs,sol);CHKERRQ(ierr); //JR why computing sol = A*rhs
   ierr = PetscViewerCreate(PETSC_COMM_WORLD,&viewer);CHKERRQ(ierr);
   ierr = PetscViewerSetType(viewer,PETSCVIEWERVTK);CHKERRQ(ierr);
   ierr = PetscViewerFileSetMode(viewer,FILE_MODE_WRITE);CHKERRQ(ierr);
-  ierr = PetscViewerFileSetName(viewer,"ex1_solution.vtu");CHKERRQ(ierr);
+  ierr = PetscViewerFileSetName(viewer,"ex2_solution.vtu");CHKERRQ(ierr);
   ierr = VecView(rhs,viewer);CHKERRQ(ierr);
 
   ierr = KSPCreate(PETSC_COMM_WORLD,&ksp);CHKERRQ(ierr);
   ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
-  // JR since it is a poissson problem, we need a preconditioner, at least a diag matrix
   ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);
   ierr = DMBFIterateOverCellsVectors(dm,apply_mass_matrix,&ctx,PETSC_NULL,0,&rhs,1);CHKERRQ(ierr);
   ierr = KSPSolve(ksp,rhs,sol);CHKERRQ(ierr);
-  
+
   ierr = VecView(sol,viewer);CHKERRQ(ierr);
   ierr = DMBFIterateOverCellsVectors(dm,interpolate_exact,&ctx,PETSC_NULL,0,&exact,1);CHKERRQ(ierr);
   ierr = VecView(exact,viewer);CHKERRQ(ierr);
@@ -484,7 +496,7 @@ int main(int argc, char **argv)
   ierr = VecAbs(error);CHKERRQ(ierr);
   ierr = VecView(error,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-  
+
   ierr = VecNorm(error,NORM_INFINITY,&inf_norm);CHKERRQ(ierr);
   ierr = VecCopy(error,rhs);CHKERRQ(ierr);
   ierr = DMBFIterateOverCellsVectors(dm,apply_mass_matrix,&ctx,PETSC_NULL,0,&error,1);CHKERRQ(ierr);
@@ -517,9 +529,6 @@ int main(int argc, char **argv)
       -ksp_monitor -ksp_view -ksp_converged_reason \
       -dm_forest_initial_refinement 2 \
       -dm_forest_maximum_refinement 4
-
-JR this problem has way too many krylov iterations
-   why is the krylov method GMRES, because the poissson problem should be symmetric, CG is more natural
 
 TODO check if all objects are destroyed
 */

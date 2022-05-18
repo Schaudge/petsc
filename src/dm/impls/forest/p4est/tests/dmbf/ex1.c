@@ -12,7 +12,7 @@
     3. Apply operator by looping over cells, using guard layer for fluxes.
  */
 
-// JR need a chart how cell data is organized
+// TODO need a chart how cell data is organized
 
 static char help[] = "";
 
@@ -31,22 +31,20 @@ typedef enum {GUARD_W, GUARD_E, GUARD_S, GUARD_N, CENTER} unkLoc;
 typedef enum {FACE_W, FACE_E, FACE_S, FACE_N} faceLoc;
 #define N_CENTER_COORDS_X 1
 #define N_CENTER_COORDS_Y 1
-typedef enum {STENCIL,CENTER_COORD_X,CENTER_COORD_Y,FACE_COORD_X,FACE_COORD_Y} cellDat;
+typedef enum {STENCIL,CENTER_COORD_X,CENTER_COORD_Y,FACE_COORD_X,FACE_COORD_Y,CELLDATA_N_FIELDS} cellDat;
 
-
-#define nCellDataFields     5
 #define maxCellDataFieldDim 1
 #define maxCellDataFieldLen 1
-static const PetscInt CELLDATA_SHAPE[nCellDataFields*2] =
+static const PetscInt CELLDATA_SHAPE[CELLDATA_N_FIELDS*2] =
 {
-   /* STENCIL        */ STENCIL_LEN,       1,
-   /* CENTER_COORD_X */ N_CENTER_COORDS_X, 1,
-   /* CENTER_COORD_Y */ N_CENTER_COORDS_Y, 1,
-   /* FACE_COORD_X   */ N_FACE_COORDS_X,   1,
-   /* FACE_COORD_Y   */ N_FACE_COORDS_Y,   1,
+  /* STENCIL        */ STENCIL_LEN,       1,
+  /* CENTER_COORD_X */ N_CENTER_COORDS_X, 1,
+  /* CENTER_COORD_Y */ N_CENTER_COORDS_Y, 1,
+  /* FACE_COORD_X   */ N_FACE_COORDS_X,   1,
+  /* FACE_COORD_Y   */ N_FACE_COORDS_Y,   1,
 };
 
-typedef PetscScalar (*SpatialFn_2D)(PetscReal,PetscReal);
+typedef PetscScalar (*SpatialFn_2D)(PetscScalar,PetscScalar);
 
 typedef struct {
   SpatialFn_2D bc;
@@ -121,9 +119,11 @@ PetscErrorCode print_cell_data(DM dm, DM_BF_Cell *cell, void *ctx)
 
 PetscErrorCode set_up_boundary_condition(DM dm, DM_BF_Face *face, void *ctx)
 {
-  AppCtx      *user      = ctx;
-  DM_BF_Cell  *cell      = (face->nCellsL ? face->cellL[0] : face->cellR[0]);
-  PetscBool   isBoundary = (DM_BF_FACEBOUNDARY_NONE != face->boundary);
+  AppCtx            *user      = ctx;
+  DM_BF_Cell        *cell      = (face->nCellsL ? face->cellL[0] : face->cellR[0]);
+  const PetscScalar hx         = cell->data[FACE_COORD_X][FACE_E] - cell->data[FACE_COORD_X][FACE_W];
+  const PetscScalar hy         = cell->data[FACE_COORD_Y][FACE_N] - cell->data[FACE_COORD_Y][FACE_S];
+  PetscBool         isBoundary = (DM_BF_FACEBOUNDARY_NONE != face->boundary);
 
   PetscFunctionBegin;
 
@@ -132,7 +132,18 @@ PetscErrorCode set_up_boundary_condition(DM dm, DM_BF_Face *face, void *ctx)
     bndryFaceMidpoint_x = cell->data[FACE_COORD_X][face->dir];
     bndryFaceMidpoint_y = cell->data[FACE_COORD_Y][face->dir];
 
-    h = (face->dir < 2 ? cell->sidelength[0] : cell->sidelength[1]);
+    switch (face->dir) {
+      case DM_BF_FACEDIR_XNEG:
+      case DM_BF_FACEDIR_XPOS:
+        h = hx;
+        break;
+      case DM_BF_FACEDIR_YNEG:
+      case DM_BF_FACEDIR_YPOS:
+        h = hy;
+        break;
+      default:
+        SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Unknown face direction %i",face->dir);
+    }
     cell->data[STENCIL][CENTER] += -2*user->bc(bndryFaceMidpoint_x,bndryFaceMidpoint_y) / (h*h);
   }
 
@@ -175,7 +186,7 @@ static PetscErrorCode _p_dmbf_poisson_set_unk_cellfn(DM dm, DM_BF_Cell *cell, vo
   PetscFunctionReturn(0);
 }
 
-/* 
+/*
 
   In addition to the usual domain boundaries, the strip {(x,y) : y = 0, -1 <= x <= 0} is part of the boundary.
    The square domain naturally conforms to this boundary so that the interior of each edge either lies completely
@@ -235,25 +246,27 @@ static PetscErrorCode _p_dmbf_poisson_set_guards_facefn(DM dm, DM_BF_Face *face,
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode apply_mass_matrix(DM dm, DM_BF_Cell *cell, void *ctx) {
-  PetscScalar *valReadWrite  = cell->vecViewReadWrite[0];
-  PetscScalar mass           = cell->sidelength[0]*cell->sidelength[1];
+PetscErrorCode apply_mass_matrix(DM dm, DM_BF_Cell *cell, void *ctx)
+{
+  const PetscScalar hx            = cell->data[FACE_COORD_X][FACE_E] - cell->data[FACE_COORD_X][FACE_W];
+  const PetscScalar hy            = cell->data[FACE_COORD_Y][FACE_N] - cell->data[FACE_COORD_Y][FACE_S];
+  const PetscScalar mass          = hx*hy;
+  PetscScalar       *valReadWrite = cell->vecViewReadWrite[0];
 
   PetscFunctionBegin;
   *valReadWrite *= mass;
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode _p_dmbf_poisson_apply_operator_cellfn(DM dm, DM_BF_Cell *cell, void *ctx) {
-  PetscReal *valReadWrite = cell->vecViewReadWrite[0];
-  PetscReal hx            = cell->sidelength[0];
-  PetscReal hy            = cell->sidelength[1];
+static PetscErrorCode _p_dmbf_poisson_apply_operator_cellfn(DM dm, DM_BF_Cell *cell, void *ctx)
+{
+  const PetscScalar hx            = cell->data[FACE_COORD_X][FACE_E] - cell->data[FACE_COORD_X][FACE_W];
+  const PetscScalar hy            = cell->data[FACE_COORD_Y][FACE_N] - cell->data[FACE_COORD_Y][FACE_S];
+  PetscScalar       *valReadWrite = cell->vecViewReadWrite[0];
 
   PetscFunctionBegin;
-
   *valReadWrite = (cell->data[STENCIL][GUARD_W] - 2*cell->data[STENCIL][CENTER] + cell->data[STENCIL][GUARD_E])/(hx*hx)
                 + (cell->data[STENCIL][GUARD_N] - 2*cell->data[STENCIL][CENTER] + cell->data[STENCIL][GUARD_S])/(hy*hy);
-
   PetscFunctionReturn(0);
 }
 
@@ -263,14 +276,12 @@ PetscErrorCode apply_operator_dm(DM dm, Vec in, Vec out)
   PetscErrorCode  ierr;
 
   PetscFunctionBegin;
-
   ierr = DMGetApplicationContext(dm,&user);CHKERRQ(ierr);
   ierr = DMBFIterateOverCellsVectors(dm,_p_dmbf_poisson_set_unk_cellfn,user,&in,1,PETSC_NULL,0);CHKERRQ(ierr);
   ierr = DMBFCommunicateGhostCells(dm);CHKERRQ(ierr);
   ierr = DMBFIterateOverFaces(dm,_p_dmbf_poisson_set_guards_facefn,user);CHKERRQ(ierr);
   ierr = DMBFIterateOverCellsVectors(dm,_p_dmbf_poisson_apply_operator_cellfn,user,PETSC_NULL,0,&out,1);CHKERRQ(ierr);
   ierr = DMBFIterateOverCellsVectors(dm,apply_mass_matrix,user,PETSC_NULL,0,&out,1);CHKERRQ(ierr);
-
   PetscFunctionReturn(0);
 }
 
@@ -280,42 +291,39 @@ PetscErrorCode apply_operator_mf(Mat K, Vec in, Vec out)
   PetscErrorCode  ierr;
 
   PetscFunctionBegin;
-
   ierr = MatGetDM(K,&dm);CHKERRQ(ierr);
   ierr = apply_operator_dm(dm,in,out);CHKERRQ(ierr);
-
   PetscFunctionReturn(0);
 }
 
-PETSC_STATIC_INLINE PetscScalar g(PetscReal x, PetscReal y) {
-  PetscReal theta = PetscAtan2Real(y,x) + PETSC_PI;
-  PetscReal rsqr  = PetscSqr(x) + PetscSqr(y);
+PETSC_STATIC_INLINE PetscScalar g(PetscScalar x, PetscScalar y) {
+  PetscScalar theta = PetscAtan2Real(y,x) + PETSC_PI;
+  PetscScalar rsqr  = PetscSqr(x) + PetscSqr(y);
 
   return PetscPowReal(rsqr,.25)*PetscSinReal(.5*theta);
 }
 
-PETSC_STATIC_INLINE PetscScalar f(PetscReal x, PetscReal y) {
+PETSC_STATIC_INLINE PetscScalar f(PetscScalar x, PetscScalar y) {
   return 0.0;
 }
 
-PetscErrorCode amr_refine_center(DM dm, DM_BF_Cell *cell, void *ctx) {
+PetscErrorCode amr_refine_center(DM dm, DM_BF_Cell *cell, void *ctx)
+{
   PetscScalar x = PetscMin(PetscAbs(cell->corner[0]),PetscAbs(cell->corner[0] + cell->sidelength[0]));
   PetscScalar y = PetscMin(PetscAbs(cell->corner[1]),PetscAbs(cell->corner[1] + cell->sidelength[1]));
   PetscScalar r = PetscSqrtReal(PetscSqr(x) + PetscSqr(y));
 
   PetscFunctionBegin;
-
   if (r < 5*1e-2) {
     cell->adaptFlag=DM_ADAPT_REFINE;
   } else {
     cell->adaptFlag=DM_ADAPT_KEEP;
   }
-
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode proj_no_op(DM dm, DM_BF_Cell **cellsFine, PetscInt i, DM_BF_Cell **cellsCoarse, PetscInt j, void *ctx) {
-
+PetscErrorCode proj_no_op(DM dm, DM_BF_Cell **cellsFine, PetscInt i, DM_BF_Cell **cellsCoarse, PetscInt j, void *ctx)
+{
   PetscFunctionBegin;
   PetscFunctionReturn(0);
 }
@@ -344,11 +352,11 @@ int main(int argc, char **argv)
   ierr = DMSetType(dm,"bf");CHKERRQ(ierr);
 
   // set DM options
-  ierr = DMSetDimension(dm,3);CHKERRQ(ierr);
+  ierr = DMSetDimension(dm,2);CHKERRQ(ierr);
   ierr = DMSetFromOptions(dm);CHKERRQ(ierr);
   // set cell data shapes
-  ierr = DMBFSetCellDataShape(dm,CELLDATA_SHAPE,nCellDataFields,2);CHKERRQ(ierr);
-  //ierr = DMBFSetCellDataVSize(dm,sizeof(cellData_t));CHKERRQ(ierr);
+  ierr = DMBFSetCellDataShape(dm,CELLDATA_SHAPE,CELLDATA_N_FIELDS,2);CHKERRQ(ierr);
+  //ierr = DMBFSetCellDataVSize(dm,sizeof(cellData_t));CHKERRQ(ierr); //TODO unused at the moment
 
   // set application-specific data
   ierr = DMSetApplicationContext(dm,&ctx);CHKERRQ(ierr);
@@ -379,7 +387,7 @@ int main(int argc, char **argv)
       ierr = DMBFAMRFlag(dm);CHKERRQ(ierr);
       ierr = DMBFAMRAdapt(dm,&adapt);CHKERRQ(ierr);
       ierr = DMDestroy(&dm);CHKERRQ(ierr);
-      dm=adapt;
+      dm   = adapt;
     }
     if (l) {
       PetscPrintf(PETSC_COMM_WORLD,"[%s] Finished initial AMR (%i steps)\n",funcname,l);
@@ -390,7 +398,7 @@ int main(int argc, char **argv)
   ierr = DMBFIterateOverCells(dm,init_cell_data,PETSC_NULL);CHKERRQ(ierr);
 
   ctx.src = f;
-  ctx.bc = g;
+  ctx.bc  = g;
 
   // create vectors
   ierr = DMCreateGlobalVector(dm,&sol);CHKERRQ(ierr);
@@ -407,7 +415,6 @@ int main(int argc, char **argv)
   ierr = DMSetMatType(dm,MATSHELL);CHKERRQ(ierr);
   ierr = DMCreateMatrix(dm,&A);CHKERRQ(ierr);
   ierr = MatSetOperation(A,MATOP_MULT,(void(*)(void))apply_operator_mf);CHKERRQ(ierr);
-  //ierr = apply_operator_dm(dm,rhs,sol);CHKERRQ(ierr); //JR why computing sol = A*rhs
   ierr = PetscViewerCreate(PETSC_COMM_WORLD,&viewer);CHKERRQ(ierr);
   ierr = PetscViewerSetType(viewer,PETSCVIEWERVTK);CHKERRQ(ierr);
   ierr = PetscViewerFileSetMode(viewer,FILE_MODE_WRITE);CHKERRQ(ierr);
@@ -416,7 +423,6 @@ int main(int argc, char **argv)
 
   ierr = KSPCreate(PETSC_COMM_WORLD,&ksp);CHKERRQ(ierr);
   ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
-  // JR since it is a poissson problem, we need a preconditioner, at least a diag matrix
   ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);
   ierr = DMBFIterateOverCellsVectors(dm,apply_mass_matrix,&ctx,PETSC_NULL,0,&rhs,1);CHKERRQ(ierr);
   ierr = KSPSolve(ksp,rhs,sol);CHKERRQ(ierr);
@@ -456,16 +462,13 @@ int main(int argc, char **argv)
 
 /*
 ./ex1 -dm_forest_topology brick \
-      -dm_p4est_brick_size 2,2,2  \
-      -dm_p4est_brick_bounds -1.0,1.0,-1.0,1.0,-1.0,1.0 \
-      -dm_p4est_brick_periodicity 0,0,0 \
+      -dm_p4est_brick_size 2,2  \
+      -dm_p4est_brick_bounds -1.0,1.0,-1.0,1.0 \
+      -dm_p4est_brick_periodicity 0,0 \
       -ksp_type cg -ksp_max_it 10000 -ksp_atol 1e-10 -ksp_rtol 1e-11 \
       -ksp_monitor -ksp_view -ksp_converged_reason \
-      -dm_forest_initial_refinement 2 \
-      -dm_forest_maximum_refinement 4
-
-JR this problem has way too many krylov iterations
-   why is the krylov method GMRES, because the poissson problem should be symmetric, CG is more natural
+      -dm_forest_initial_refinement 3 \
+      -dm_forest_maximum_refinement 6
 
 TODO check if all objects are destroyed
 */
