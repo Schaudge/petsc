@@ -463,7 +463,7 @@ SWIG_From_dec(Type)(Type v) {
 %define SWIG_TYPECHECK_PETSC_FE               550 %enddef
 %define SWIG_TYPECHECK_PETSC_QUADRATURE       551 %enddef
 %define SWIG_TYPECHECK_PETSC_SPACE            552 %enddef
-%define SWIG_TYPECHECK_PETSCDUAL_SPACE        553 %enddef
+%define SWIG_TYPECHECK_PETSC_DUALSPACE        553 %enddef
 
 %define SWIG_TYPECHECK_PETSC_DMLABEL          560 %enddef
 
