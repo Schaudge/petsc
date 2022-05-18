@@ -21,7 +21,7 @@ cdef extern from * nogil:
     int PetscFEGetDimension(PetscFE, PetscInt*)
     int PetscFEGetNumComponents(PetscFE, PetscInt*)
     int PetscFESetNumComponents(PetscFE, PetscInt)
-    int PetscFEGetNumDof(PetscFE, PetscInt**)
+    int PetscFEGetNumDof(PetscFE, const PetscInt**)
     int PetscFEGetSpatialDimension(PetscFE, PetscInt*)
     int PetscFEGetTileSizes(PetscFE, PetscInt*, PetscInt*, PetscInt*, PetscInt*)
     int PetscFESetTileSizes(PetscFE, PetscInt, PetscInt, PetscInt, PetscInt)

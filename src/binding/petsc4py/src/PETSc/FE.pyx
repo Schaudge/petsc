@@ -82,7 +82,7 @@ cdef class FE(Object):
         CHKERR( PetscFESetNumComponents(self.fe, comp) )
 
     def getNumDof(self):
-        cdef PetscInt *numDof = NULL
+        cdef const PetscInt *numDof = NULL
         cdef PetscInt cdim = 0
         CHKERR( PetscFEGetDimension(self.fe, &cdim) )
         CHKERR( PetscFEGetNumDof(self.fe, &numDof) )

@@ -263,7 +263,7 @@ cdef class DualSpace(Object):
         CHKERR( PetscDualSpaceSetOrder(self.dualspace, corder) )
 
     def getNumDof(self):
-        cdef PetscInt *cndof = NULL
+        cdef const PetscInt *cndof = NULL
         cdef PetscInt cdim = 0
         CHKERR( PetscDualSpaceGetDimension(self.dualspace, &cdim) )
         CHKERR( PetscDualSpaceGetNumDof(self.dualspace, &cndof) )
