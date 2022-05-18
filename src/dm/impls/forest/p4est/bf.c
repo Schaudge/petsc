@@ -1716,8 +1716,8 @@ PetscErrorCode DMView_BF(DM dm, PetscViewer viewer)
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERGLVIS,&isglvis);CHKERRQ(ierr);
   if (isvtk) {
     switch (_p_dim(dm)) {
-      case 2: ierr = DMBFVTKWriteAll_2D((PetscObject)dm,viewer);CHKERRQ(ierr); break;
-      case 3: ierr = DMBFVTKWriteAll_3D((PetscObject)dm,viewer);CHKERRQ(ierr); break;
+      case 2: ierr = DMBF_2D_VTKWriteAll((PetscObject)dm,viewer);CHKERRQ(ierr); break;
+      case 3: ierr = DMBF_3D_VTKWriteAll((PetscObject)dm,viewer);CHKERRQ(ierr); break;
       default: _p_SETERRQ_UNREACHABLE(dm);
     }
   } else if (ishdf5 || isdraw || isglvis) {
@@ -1763,8 +1763,8 @@ PetscErrorCode VecView_BF(Vec v, PetscViewer viewer)
       SETERRQ(_p_comm(locv), PETSC_ERR_SUP, "Only scalar cell fields currently supported");
     }
     switch (_p_dim(dm)) {
-      case 2: ierr = PetscViewerVTKAddField(viewer,(PetscObject)dm,DMBFVTKWriteAll_2D,PETSC_DEFAULT,ft,PETSC_TRUE,(PetscObject)locv);CHKERRQ(ierr); break;
-      case 3: ierr = PetscViewerVTKAddField(viewer,(PetscObject)dm,DMBFVTKWriteAll_3D,PETSC_DEFAULT,ft,PETSC_TRUE,(PetscObject)locv);CHKERRQ(ierr); break;
+      case 2: ierr = PetscViewerVTKAddField(viewer,(PetscObject)dm,DMBF_2D_VTKWriteAll,PETSC_DEFAULT,ft,PETSC_TRUE,(PetscObject)locv);CHKERRQ(ierr); break;
+      case 3: ierr = PetscViewerVTKAddField(viewer,(PetscObject)dm,DMBF_3D_VTKWriteAll,PETSC_DEFAULT,ft,PETSC_TRUE,(PetscObject)locv);CHKERRQ(ierr); break;
       default: _p_SETERRQ_UNREACHABLE(dm);
     }
   } else if(ishdf5 || isdraw || isglvis) {

@@ -1,5 +1,5 @@
-#if !defined(PETSCDMBF_CELLS_2D_H)
-#define PETSCDMBF_CELLS_2D_H
+#if !defined(PETSCDMBF_2D_CELLS_H)
+#define PETSCDMBF_2D_CELLS_H
 
 #include "bf_2d_topology.h"
 
@@ -21,4 +21,4 @@ PetscErrorCode DMBF_2D_GetLocalToGlobalIndices(DM,DM_BF_2D_Cells*,PetscInt*,Pets
 PetscErrorCode DMBF_2D_CellsGetP4est(DM_BF_2D_Cells*,void*);
 PetscErrorCode DMBF_2D_CellsGetGhost(DM_BF_2D_Cells*,void*);
 
-#endif /* defined(PETSCDMBF_CELLS_2D_H) */
+#endif /* defined(PETSCDMBF_2D_CELLS_H) */

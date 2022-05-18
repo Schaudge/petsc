@@ -1,5 +1,5 @@
-#if !defined(PETSCDMBF_TOPOLOGY_2D_H)
-#define PETSCDMBF_TOPOLOGY_2D_H
+#if !defined(PETSCDMBF_2D_TOPOLOGY_H)
+#define PETSCDMBF_2D_TOPOLOGY_H
 
 #include <petscdmbf.h> /*I "petscdmbf.h" I*/
 
@@ -11,4 +11,4 @@ PetscErrorCode DMBF_2D_TopologyClone(DM_BF_2D_Topology*,DM_BF_2D_Topology**,DM);
 
 PetscErrorCode DMBF_2D_TopologyGetConnectivity(DM_BF_2D_Topology*,void*);
 
-#endif /* defined(PETSCDMBF_TOPOLOGY_2D_H) */
+#endif /* defined(PETSCDMBF_2D_TOPOLOGY_H) */

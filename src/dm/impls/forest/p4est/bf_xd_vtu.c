@@ -1,9 +1,25 @@
 #include <petsc/private/dmbfimpl.h>
 #include "bf_xd.h"
-#include "bf_xd_vtu.h"
+#include <../src/sys/classes/viewer/impls/vtk/vtkvimpl.h>
 
-PetscErrorCode DMBFGetVTKVertexCoordinates(DM dm, PetscVTUReal *point_data, PetscInt nPoints) {
+#if defined(PETSC_USE_REAL_SINGLE) || defined(PETSC_USE_REAL___FP16)
+/* output in float if single or half precision in memory */
+static const char precision[] = "Float32";
+typedef float PetscVTUReal;
+#define MPIU_VTUREAL MPI_FLOAT
+#elif defined(PETSC_USE_REAL_DOUBLE) || defined(PETSC_USE_REAL___FLOAT128)
+/* output in double if double or quad precision in memory */
+static const char precision[] = "Float64";
+typedef double PetscVTUReal;
+#define MPIU_VTUREAL MPI_DOUBLE
+#else
+static const char precision[] = "UnknownPrecision";
+typedef PetscReal PetscVTUReal;
+#define MPIU_VTUREAL MPIU_REAL
+#endif
 
+static PetscErrorCode DMBFGetVTKVertexCoordinates(DM dm, PetscVTUReal *point_data, PetscInt nPoints)
+{
   p4est_t              *p4est;
 
   PetscErrorCode       ierr;
@@ -27,23 +43,22 @@ PetscErrorCode DMBFGetVTKVertexCoordinates(DM dm, PetscVTUReal *point_data, Pets
   PetscVTUReal         scale   = .999999;
   PetscInt             bs0,bs1,blockSize[3] = {1,1,1};
 
-  #ifdef P4_TO_P8
+#ifdef P4_TO_P8
   p4est_qcoord_t       z;
   p4est_locidx_t       zi;
   PetscVTUReal         hz;
   PetscInt             bs2;
-  #endif
+#endif
 
   PetscFunctionBegin;
-
   ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr);
   ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
 
   bs0  = blockSize[0];
   bs1  = blockSize[1];
-  #ifdef P4_TO_P8
+#ifdef P4_TO_P8
   bs2  = blockSize[2];
-  #endif
+#endif
 
   first_local_tree = p4est->first_local_tree;
   last_local_tree = p4est->last_local_tree;
@@ -66,71 +81,75 @@ PetscErrorCode DMBFGetVTKVertexCoordinates(DM dm, PetscVTUReal *point_data, Pets
       quad = p4est_quadrant_array_index (quadrants, zz);
       hx = .5 * P4EST_QUADRANT_LEN (quad->level) / bs0;
       hy = .5 * P4EST_QUADRANT_LEN (quad->level) / bs1;
-      #ifdef P4_TO_P8
+#ifdef P4_TO_P8
       hz = .5 * P4EST_QUADRANT_LEN (quad->level) / bs2;
-      for(k = 0; k < bs2; k++) {
+      for (k = 0; k < bs2; k++) {
         z = quad->z + 2.*k*hz;
-      #endif
-        for(j = 0; j < bs1; j++) {
+#endif
+        for (j = 0; j < bs1; j++) {
           y = quad->y + 2.*j*hy;
-          for(i = 0; i < bs0; i++, quad_count++) {
+          for (i = 0; i < bs0; i++, quad_count++) {
             x = quad->x + 2.*i*hx;
             l = 0;
-            #ifdef P4_TO_P8
+#ifdef P4_TO_P8
             for(zi = 0; zi < 2; ++zi) {
               eta_z = intsize * z + intsize * hz * (1. + (zi * 2 - 1) * scale);
-            #endif
+#endif
               for (yi = 0; yi < 2; ++yi) {
                 eta_y = intsize * y + intsize * hy * (1. + (yi * 2 - 1) * scale);
                 for (xi = 0; xi < 2; ++xi) {
-                  P4EST_ASSERT (0 <= l && l < P4EST_CHILDREN);
+#if defined(PETSC_USE_DEBUG)
+                  if ( !(0 <= l && l < P4EST_CHILDREN) ) {
+                    SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Index out of bounds: %i, bounds=[0,%i)",(int)l,P4EST_CHILDREN);
+                  }
+#endif
                   eta_x = intsize * x + intsize * hx * (1. + (xi * 2 - 1) * scale);
-                  for(m = 0; m < 3; ++m) {
-                    xyz[m] =  eta_z * ((1. - eta_y) * ((1. - eta_x) * v[3 * vt[0] + m] +
+                  for(m = 0; m < 3 /* 3 not P4EST_DIM */; ++m) {
+                    xyz[m] = eta_z  * ((1. - eta_y) * ((1. - eta_x) * v[3 * vt[0] + m] +
                                                              eta_x  * v[3 * vt[1] + m]) +
                                              eta_y  * ((1. - eta_x) * v[3 * vt[2] + m] +
                                                              eta_x  * v[3 * vt[3] + m]))
-                #ifdef P4_TO_P8
-                 +     (1. - eta_z)  * ((1. - eta_y) * ((1. - eta_x) * v[3 * vt[4] + m]
-                                                            + eta_x  * v[3 * vt[5] + m]) 
-                                            + eta_y  * ((1. - eta_x) * v[3 * vt[6] + m]
-                                                            + eta_x  * v[3 * vt[7] + m]))
-                #endif
-                ;
+#ifdef P4_TO_P8
+                     + (1. - eta_z) * ((1. - eta_y) * ((1. - eta_x) * v[3 * vt[4] + m] +
+                                                             eta_x  * v[3 * vt[5] + m]) +
+                                             eta_y  * ((1. - eta_x) * v[3 * vt[6] + m] +
+                                                             eta_x  * v[3 * vt[7] + m]))
+#endif
+                    ;
                     point_data[3 * (P4EST_CHILDREN * quad_count + l) + m] = (PetscVTUReal) xyz[m];
                   }
                   l++;
-                }
-              }
-            #ifdef P4_TO_P8
-            }
-            #endif
-          }
-        }
-      #ifdef P4_TO_P8
-      }
-      #endif
+                } /* end for `xi` */
+              } /* end for `yi` */
+#ifdef P4_TO_P8
+            } /* end for `zi` */
+#endif
+          } /* end for `i` */
+        } /* end for `j` */
+#ifdef P4_TO_P8
+      } /* end for `k` */
+#endif
     }
   }
-  P4EST_ASSERT(P4EST_CHILDREN * quad_count == nPoints);
+  if ((P4EST_CHILDREN*quad_count) != nPoints) {
+    SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Counts mismatch: %i != %i (nPoints)",(int)(P4EST_CHILDREN*quad_count),(int)nPoints);
+  }
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBFGetVTKConnectivity(DM dm, PetscVTKInt *conn_data, PetscInt nPoints) {
-
-  p4est_locidx_t il;
+static PetscErrorCode DMBFGetVTKConnectivity(DM dm, PetscVTKInt *conn_data, PetscInt nPoints)
+{
+  PetscInt       il;
 
   PetscFunctionBegin;
-
-  for (il = 0; il < nPoints; ++il) {
-    conn_data[il] = (PetscVTKInt) il;
+  for (il=0; il<nPoints; il++) {
+    conn_data[il] = (PetscVTKInt)il;
   }
-
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBFGetVTKCellOffsets(DM dm, PetscVTKInt *offset_data, PetscInt nCells) {
-
+static PetscErrorCode DMBFGetVTKCellOffsets(DM dm, PetscVTKInt *offset_data, PetscInt nCells)
+{
   PetscInt       il;
 
   PetscFunctionBegin;
@@ -142,21 +161,25 @@ PetscErrorCode DMBFGetVTKCellOffsets(DM dm, PetscVTKInt *offset_data, PetscInt n
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBFGetVTKCellTypes(DM dm, PetscVTKType *type_data, PetscInt nCells) {
-
+static PetscErrorCode DMBFGetVTKCellTypes(DM dm, PetscVTKType *type_data, PetscInt nCells)
+{
   PetscInt       il;
 
   PetscFunctionBegin;
 
   for(il = 0; il < nCells; ++il) {
-    type_data[il] = P4EST_VTK_CELL_TYPE;  /* offsets */
+#ifdef P4_TO_P8
+    type_data[il] = 11; /* VTK_VOXEL */
+#else
+    type_data[il] = 8;  /* VTK_PIXEL */
+#endif
   }
 
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBFGetVTKTreeIDs(DM dm, PetscVTKInt *treeids, PetscInt nCells) {
-
+static PetscErrorCode DMBFGetVTKTreeIDs(DM dm, PetscVTKInt *treeids, PetscInt nCells)
+{
   PetscErrorCode  ierr;
   PetscInt        il, num_quads, zz;
   p4est_t        *p4est;
@@ -192,8 +215,8 @@ PetscErrorCode DMBFGetVTKTreeIDs(DM dm, PetscVTKInt *treeids, PetscInt nCells) {
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBFGetVTKMPIRank(DM dm, PetscVTKInt *mpirank, PetscInt nCells) {
-
+static PetscErrorCode DMBFGetVTKMPIRank(DM dm, PetscVTKInt *mpirank, PetscInt nCells)
+{
   PetscErrorCode ierr;
   PetscMPIInt    rank;
   PetscInt       il;
@@ -208,8 +231,8 @@ PetscErrorCode DMBFGetVTKMPIRank(DM dm, PetscVTKInt *mpirank, PetscInt nCells) {
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBFGetVTKQuadRefinementLevel(DM dm, PetscVTKInt *quadlevel, PetscInt nCells) {
-
+static PetscErrorCode DMBFGetVTKQuadRefinementLevel(DM dm, PetscVTKInt *quadlevel, PetscInt nCells)
+{
   PetscErrorCode    ierr;
   PetscInt          i, k, Q, q;
 
@@ -254,7 +277,7 @@ PetscErrorCode DMBFGetVTKQuadRefinementLevel(DM dm, PetscVTKInt *quadlevel, Pets
   Write all fields that have been provided to the viewer
   Multi-block XML format with binary appended data.
 */
-PetscErrorCode DMBFVTKWritePiece_VTU(DM dm,PetscViewer viewer)
+static PetscErrorCode DMBFVTKWritePiece_VTU(DM dm,PetscViewer viewer)
 {
   PetscViewer_VTK          *vtk = (PetscViewer_VTK*)viewer->data;
   PetscViewerVTKObjectLink link;
@@ -402,9 +425,9 @@ PetscErrorCode DMBFVTKWritePiece_VTU(DM dm,PetscViewer viewer)
 
   }
 
-  PetscFPrintf(PETSC_COMM_SELF,f, "      </CellData>\n");
-  PetscFPrintf(PETSC_COMM_SELF,f, "    </Piece>\n");
-  PetscFPrintf(PETSC_COMM_SELF,f, "  </UnstructuredGrid>\n");
+  PetscFPrintf(PETSC_COMM_SELF,f,"      </CellData>\n");
+  PetscFPrintf(PETSC_COMM_SELF,f,"    </Piece>\n");
+  PetscFPrintf(PETSC_COMM_SELF,f,"  </UnstructuredGrid>\n");
   PetscFPrintf(PETSC_COMM_SELF,f,"  <AppendedData encoding=\"raw\">\n");
 
   PetscFPrintf(PETSC_COMM_SELF,f,"_");
@@ -521,7 +544,7 @@ PetscErrorCode DMBFVTKWritePiece_VTU(DM dm,PetscViewer viewer)
 }
 
 
-PetscErrorCode DMBFVTKWriteAll(PetscObject odm,PetscViewer viewer)
+PetscErrorCode DMBF_XD_VTKWriteAll(PetscObject odm,PetscViewer viewer)
 {
   DM dm = (DM) odm;
   PetscViewer_VTK           *vtk = (PetscViewer_VTK*)viewer->data;
@@ -592,6 +615,3 @@ PetscErrorCode DMBFVTKWriteAll(PetscObject odm,PetscViewer viewer)
 
   PetscFunctionReturn(0);
 }
-
-
-

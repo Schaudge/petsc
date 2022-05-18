@@ -3,16 +3,10 @@
 #if defined(PETSC_HAVE_P4EST)
 #include <p4est_to_p8est.h> /* convert to p8est for 3D domains */
 
-#define DMBFVTKWriteAll               DMBFVTKWriteAll_3D
-#define DMBFGetVTKConnectivity        DMBFGetVTKConnectivity_3D
-#define DMBFGetVTKCellOffsets         DMBFGetVTKCellOffsets_3D
-#define DMBFGetVTKVertexCoordinates   DMBFGetVTKVertexCoordinates_3D
-#define DMBFGetVTKCellTypes           DMBFGetVTKCellTypes_3D
-#define DMBFGetVTKTreeIDs             DMBFGetVTKTreeIDs_3D
-#define DMBFGetVTKQuadRefinementLevel DMBFGetVTKQuadRefinementLevel_3D
-#define DMBFGetVTKMPIRank             DMBFGetVTKMPIRank_3D
-#define DMBFVTKWritePiece_VTU         DMBFVTKWritePiece_VTU_3D
+/* rename generic functions that are the same for 2D and 3D */
+#define DMBF_XD_VTKWriteAll DMBF_3D_VTKWriteAll
 
+/* include generic functions */
 #include "bf_xd_vtu.c"
 
 #endif /* defined(PETSC_HAVE_P4EST) */
