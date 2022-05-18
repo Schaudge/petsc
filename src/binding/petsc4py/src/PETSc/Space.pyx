@@ -108,7 +108,7 @@ cdef class Space(Object):
         cdef PetscBool cconcatenate = asBool(concatenate)
         CHKERR( PetscSpaceSumSetConcatenate(self.space, concatenate))
     
-    def getNumSubspaces(self):
+    def sumGetNumSubspaces(self):
         cdef PetscInt numSumSpaces
         CHKERR( PetscSpaceSumGetNumSubspaces(self.space, &numSumSpaces))
         return toInt(numSumSpaces)
