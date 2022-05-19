@@ -30,8 +30,12 @@ A contingency analysis done on U.S. power grid system using an AC power flow mod
 
   .. _Poster: https://www.mcs.anl.gov/petsc/OLD/dmnetwork/documents/Application1_Betrie_etal-2019_poster.pdf
 
-.. image:: /images/overviews/dmnetwork/power.svg
-   :alt: Power Flow Simulation
+.. image:: /images/overviews/dmnetwork/power_topology.svg
+   :alt: Power Network Topology
+   :align: center
+
+.. image:: /images/overviews/dmnetwork/power_scaling.svg
+   :alt: Power Network Topology
    :align: center
 
 Case Study 2: River Flow Simulation
@@ -43,7 +47,11 @@ A river flow simulation done on the U.S. river networks using DMNetwork. The inp
 
   .. _Poster: https://www.mcs.anl.gov/petsc/OLD/dmnetwork/documents/Application1_Betrie_etal-2019_poster.pdf
 
-.. image:: /images/overviews/dmnetwork/river.svg
+.. image:: /images/overviews/dmnetwork/river_topology.svg
+   :alt: River Flow Simulation
+   :align: center
+
+.. image:: /images/overviews/dmnetwork/river_scaling.svg
    :alt: River Flow Simulation
    :align: center
 
