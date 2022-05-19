@@ -24,7 +24,7 @@ static PetscErrorCode DMBFGetVTKVertexCoordinates(DM dm, PetscVTUReal *point_dat
 
   PetscErrorCode       ierr;
 
-  PetscVTUReal         hx, hy, eta_x, eta_y, eta_z=1.0;
+  PetscVTUReal         hx, hy, eta_x, eta_y, eta_z=0.0;
 
   PetscVTUReal         xyz[3];   /* 3 not P4EST_DIM */
 
@@ -105,15 +105,15 @@ static PetscErrorCode DMBFGetVTKVertexCoordinates(DM dm, PetscVTUReal *point_dat
 #endif
                   eta_x = intsize * x + intsize * hx * (1. + (xi * 2 - 1) * scale);
                   for(m = 0; m < 3 /* 3 not P4EST_DIM */; ++m) {
-                    xyz[m] = eta_z  * ((1. - eta_y) * ((1. - eta_x) * v[3 * vt[0] + m] +
-                                                             eta_x  * v[3 * vt[1] + m]) +
-                                             eta_y  * ((1. - eta_x) * v[3 * vt[2] + m] +
-                                                             eta_x  * v[3 * vt[3] + m]))
+                    xyz[m] = (1. - eta_z) * ((1. - eta_y) * ((1. - eta_x) * v[3 * vt[0] + m]  +
+                                                                   eta_x  * v[3 * vt[1] + m]) +
+                                                   eta_y  * ((1. - eta_x) * v[3 * vt[2] + m]  +
+                                                                   eta_x  * v[3 * vt[3] + m]))
 #ifdef P4_TO_P8
-                     + (1. - eta_z) * ((1. - eta_y) * ((1. - eta_x) * v[3 * vt[4] + m] +
-                                                             eta_x  * v[3 * vt[5] + m]) +
-                                             eta_y  * ((1. - eta_x) * v[3 * vt[6] + m] +
-                                                             eta_x  * v[3 * vt[7] + m]))
+                                 + eta_z  * ((1. - eta_y) * ((1. - eta_x) * v[3 * vt[4] + m]  +
+                                                                   eta_x  * v[3 * vt[5] + m]) +
+                                                   eta_y  * ((1. - eta_x) * v[3 * vt[6] + m]  +
+                                                                   eta_x  * v[3 * vt[7] + m]))
 #endif
                     ;
                     point_data[3 * (P4EST_CHILDREN * quad_count + l) + m] = (PetscVTUReal) xyz[m];
