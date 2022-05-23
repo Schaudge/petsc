@@ -952,15 +952,6 @@ static PetscErrorCode DMPlexDistributeCones(DM dm, PetscSF migrationSF, ISLocalT
     PetscCall(PetscSectionGetStorageSize(originalConeSection,&numCones));
     PetscCall(PetscMalloc1(numCones,&globCones));
     PetscCall(ISLocalToGlobalMappingApplyBlock(original, numCones, cones, globCones));
-#if 1
-    {
-      IS globConeIS;
-
-      PetscCall(ISCreateGeneral(PetscObjectComm((PetscObject)dm), numCones, globCones, PETSC_COPY_VALUES, &globConeIS));
-      PetscCall(ISView(globConeIS, NULL));
-      PetscCall(ISDestroy(&globConeIS));
-    }
-#endif
   } else {
     globCones = cones;
   }
@@ -971,14 +962,6 @@ static PetscErrorCode DMPlexDistributeCones(DM dm, PetscSF migrationSF, ISLocalT
     PetscCall(PetscFree(globCones));
   }
   PetscCall(PetscSectionGetStorageSize(newConeSection, &newConesSize));
-  {
-    IS globConeIS;
-
-    PetscCall(ISCreateGeneral(PetscObjectComm((PetscObject)dm), newConesSize, newCones, PETSC_COPY_VALUES, &globConeIS));
-    PetscCall(ISView(globConeIS, NULL));
-    PetscCall(ISDestroy(&globConeIS));
-  }
-  PetscCallMPI(MPI_Barrier(PetscObjectComm((PetscObject)dm)));
   PetscCall(ISGlobalToLocalMappingApplyBlock(renumbering, IS_GTOLM_MASK, newConesSize, newCones, NULL, newCones));
   if (PetscDefined(USE_DEBUG)) {
     PetscInt  p;
@@ -1527,9 +1510,7 @@ PetscErrorCode DMPlexMigrate(DM dm, PetscSF sf, DM targetDM)
     PetscInt  *numbering_orig, *numbering_new;
 
     /* Get the original point numbering */
-    PetscCall(PetscSFView(dm->sf, NULL));
     PetscCall(DMPlexCreatePointNumbering(dm, &isOriginal));
-    PetscCall(ISView(isOriginal, NULL));
     PetscCall(ISLocalToGlobalMappingCreateIS(isOriginal, &ltogOriginal));
     PetscCall(ISLocalToGlobalMappingGetSize(ltogOriginal, &size));
     PetscCall(ISLocalToGlobalMappingGetBlockIndices(ltogOriginal, (const PetscInt**)&numbering_orig));
@@ -1543,8 +1524,6 @@ PetscErrorCode DMPlexMigrate(DM dm, PetscSF sf, DM targetDM)
     PetscCall(ISLocalToGlobalMappingCreate(comm, 1, nleaves, numbering_new, PETSC_OWN_POINTER, &ltogMigration));
     PetscCall(ISLocalToGlobalMappingRestoreIndices(ltogOriginal, (const PetscInt**)&numbering_orig));
     PetscCall(ISDestroy(&isOriginal));
-    PetscCall(PetscObjectSetName((PetscObject)ltogOriginal, "Point renumbering for original DM"));
-    PetscCall(ISLocalToGlobalMappingViewFromOptions(ltogOriginal, (PetscObject)dm, "-partition_view"));
   } else {
     /* One-to-all distribution pattern: We can derive LToG from SF */
     PetscCall(ISLocalToGlobalMappingCreateSF(sf, 0, &ltogMigration));
@@ -1813,7 +1792,6 @@ PetscErrorCode DMPlexDistributeOverlap(DM dm, PetscInt overlap, PetscSF *sf, DM 
   /* Build the overlapping DM */
   PetscCall(DMPlexCreate(comm, dmOverlap));
   PetscCall(PetscObjectSetName((PetscObject) *dmOverlap, "Parallel Mesh"));
-  PetscCall(PetscSFView(sfOverlap, NULL));
   PetscCall(DMPlexMigrate(dm, sfOverlap, *dmOverlap));
   /* Store the overlap in the new DM */
   PetscCall(DMPlexSetOverlap_Plex(*dmOverlap, dm, overlap));

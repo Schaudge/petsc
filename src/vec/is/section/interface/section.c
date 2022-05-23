@@ -1273,7 +1273,6 @@ PetscErrorCode PetscSectionCreateGlobalSection(PetscSection s, PetscSF sf, Petsc
   PetscValidLogicalCollectiveBool(s, includeConstraints, 3);
   PetscValidLogicalCollectiveBool(s, localOffsets, 4);
   PetscValidPointer(gsection, 5);
-  PetscCall(PetscSFView(sf, NULL));
   PetscCheck(s->pointMajor,PETSC_COMM_SELF,PETSC_ERR_SUP, "No support for field major ordering");
   PetscCall(PetscSectionCreate(PetscObjectComm((PetscObject) s), &gs));
   PetscCall(PetscSectionGetNumFields(s, &numFields));
@@ -1298,24 +1297,37 @@ PetscErrorCode PetscSectionCreateGlobalSection(PetscSection s, PetscSF sf, Petsc
     PetscCall(PetscSectionGetConstraintDof(s, p, &cdof));
     if (!includeConstraints && cdof > 0) PetscCall(PetscSectionSetConstraintDof(gs, p, cdof));
     if (neg) neg[p] = -(dof+1);
-    if (neg) printf("[%d] neg[%d] = %d\n", PetscGlobalRank, p, neg[p]);
   }
   PetscCall(PetscSectionSetUpBC(gs));
   if (gs->bcIndices) PetscCall(PetscArraycpy(gs->bcIndices, s->bcIndices, gs->bc->atlasOff[gs->bc->pEnd-gs->bc->pStart-1] + gs->bc->atlasDof[gs->bc->pEnd-gs->bc->pStart-1]));
   if (nroots >= 0) {
+    IS rootData;
+    IS leafData;
+
     PetscCall(PetscArrayzero(recv,nlocal));
+
+    PetscCall(ISCreateGeneral(PetscObjectComm((PetscObject)s), nroots, neg, PETSC_USE_POINTER, &rootData));
+    PetscCall(PetscObjectSetName((PetscObject)rootData, "root data"));
+    PetscCall(ISCreateGeneral(PetscObjectComm((PetscObject)s), nroots, recv, PETSC_USE_POINTER, &leafData));
+    PetscCall(PetscObjectSetName((PetscObject)leafData, "leaf data pre"));
+    PetscCall(ISView(rootData, NULL));
+    PetscCall(ISView(leafData, NULL));
+    PetscCall(PetscSFView(sf, NULL));
+
     PetscCall(PetscSFBcastBegin(sf, MPIU_INT, neg, recv,MPI_REPLACE));
     PetscCall(PetscSFBcastEnd(sf, MPIU_INT, neg, recv,MPI_REPLACE));
-    for (p = 0; p < nroots; p++) {
-      printf("[%d] recv[%d] = %d\n", PetscGlobalRank, p, recv[p]);
-    }
+
+    PetscCall(PetscObjectSetName((PetscObject)leafData, "leaf data post"));
+    PetscCall(ISView(leafData, NULL));
+    PetscCall(ISDestroy(&leafData));
+    PetscCall(ISDestroy(&rootData));
+
     for (p = pStart; p < pEnd; ++p) {
       if (recv[p] < 0) {
         gs->atlasDof[p-pStart] = recv[p];
         PetscCall(PetscSectionGetDof(s, p, &dof));
         PetscCheck(-(recv[p]+1) == dof,PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Global dof %" PetscInt_FMT " for point %" PetscInt_FMT " is not the unconstrained %" PetscInt_FMT, -(recv[p]+1), p, dof);
       }
-      printf("[%d] gs->atlasDof[%d] = %d\n", PetscGlobalRank, p - pStart, gs->atlasDof[p-pStart]);
     }
   }
   /* Calculate new sizes, get process offset, and calculate point offsets */
@@ -1329,7 +1341,6 @@ PetscErrorCode PetscSectionCreateGlobalSection(PetscSection s, PetscSF sf, Petsc
   }
   if (!localOffsets) {
     PetscCallMPI(MPI_Scan(&off, &globalOff, 1, MPIU_INT, MPI_SUM, PetscObjectComm((PetscObject) s)));
-    printf("[%d] %d %d\n", PetscGlobalRank, off, globalOff);
     globalOff -= off;
   }
   for (p = pStart, off = 0; p < pEnd; ++p) {

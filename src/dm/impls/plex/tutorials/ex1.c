@@ -93,6 +93,6 @@ int main(int argc, char **argv)
   test:
     suffix: 2
     nsize: 3
-    args: -dm_plex_dim 1 -dm_plex_box_faces 3 -dm_refine_pre 1 -petscpartitioner_type simple -test_local_to_local -dm_view ascii::ascii_info_detail -dm_distribute_overlap 1 -partition_view -dm_distribute_overlap 1 -dm_view ascii:ascii_info_detail -malloc 0
+    args: -dm_plex_dim 1 -dm_plex_box_faces 3 -dm_refine_pre 1 -petscpartitioner_type simple -test_local_to_local -dm_distribute_overlap 1 -malloc 0
 
 TEST*/
