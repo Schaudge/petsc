@@ -135,21 +135,21 @@ int main(int argc,char **argv)
   ctx->eta_characteristic = PetscMin(PetscRealPart(ctx->eta1),PetscRealPart(ctx->eta2));
   for (PetscInt level=0; level<ctx->n_levels; ++level) {
     PetscInt  N[3];
-    //PetscReal hx_avg_inv; // TODO use this or be more explicit that you won't
+    PetscReal hx_avg_inv;
 
     PetscCall(DMStagGetGlobalSizes(ctx->levels[level]->dm_stokes,&N[0],&N[1],&N[2]));
     ctx->levels[level]->hx_characteristic = (ctx->xmax-ctx->xmin)/N[0];
     ctx->levels[level]->hy_characteristic = (ctx->ymax-ctx->ymin)/N[1];
     ctx->levels[level]->hz_characteristic = (ctx->zmax-ctx->zmin)/N[2];
-    //if (ctx->dim == 2) {
-    //  hx_avg_inv = 2.0/(ctx->levels[level]->hx_characteristic + ctx->levels[level]->hy_characteristic);
-    //} else if (ctx->dim == 3) {
-    //  hx_avg_inv = 3.0/(ctx->levels[level]->hx_characteristic + ctx->levels[level]->hy_characteristic + ctx->levels[level]->hz_characteristic);
-    //} else SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Not Implemented for dimension %" PetscInt_FMT,ctx->dim);
-    //ctx->levels[level]->K_cont = ctx->eta_characteristic*hx_avg_inv;
-    ctx->levels[level]->K_cont = 1.0; // !!
-    //ctx->levels[level]->K_bound = ctx->eta_characteristic*hx_avg_inv*hx_avg_inv;
-    ctx->levels[level]->K_bound = 1.0; // !!
+    if (ctx->dim == 2) {
+      hx_avg_inv = 2.0/(ctx->levels[level]->hx_characteristic + ctx->levels[level]->hy_characteristic);
+    } else if (ctx->dim == 3) {
+      hx_avg_inv = 3.0/(ctx->levels[level]->hx_characteristic + ctx->levels[level]->hy_characteristic + ctx->levels[level]->hz_characteristic);
+    } else SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Not Implemented for dimension %" PetscInt_FMT,ctx->dim);
+    ctx->levels[level]->K_cont = ctx->eta_characteristic*hx_avg_inv;
+    //ctx->levels[level]->K_cont = 1.0; // !!
+    ctx->levels[level]->K_bound = ctx->eta_characteristic*hx_avg_inv*hx_avg_inv;
+    //ctx->levels[level]->K_bound = 1.0; // !!
   }
 
   /* Populate coefficient data */
@@ -1748,13 +1748,13 @@ static PetscErrorCode DumpOperator(Mat A, const char *name)
       suffix: direct_umfpack
       requires: suitesparse !complex
       nsize: 1
-      args: -dim 2 -coefficients layers -nondimensional 0 -stag_grid_x 12 -stag_grid_y 7 -pc_type lu -pc_factor_mat_solver_type umfpack
+      args: -dim 2 -coefficients layers -nondimensional 0 -stag_grid_x 12 -stag_grid_y 7 -pc_type lu -pc_factor_mat_solver_type umfpack -ksp_converged_reason
 
    test:
       suffix: direct_mumps
       requires: mumps !complex
       nsize: 9
-      args: -dim 2 -coefficients layers -nondimensional 0 -stag_grid_x 13 -stag_grid_y 8 -pc_type lu -pc_factor_mat_solver_type mumps
+      args: -dim 2 -coefficients layers -nondimensional 0 -stag_grid_x 13 -stag_grid_y 8 -pc_type lu -pc_factor_mat_solver_type mumps -ksp_converged_reason
 
    test:
       suffix: isovisc_nondim_abf_mg
@@ -1764,7 +1764,7 @@ static PetscErrorCode DumpOperator(Mat A, const char *name)
    test:
       suffix: isovisc_nondim_abf_mg_2
       nsize: 1
-      args: -dim 2 -coefficients layers -nondimensional -isoviscous -eta1 1.0 -stag_grid_x 32 -stag_grid_y 32 -ksp_type fgmres -pc_type fieldsplit -pc_fieldsplit_type schur -pc_fieldsplit_schur_fact_type upper -build_auxiliary_operator -fieldsplit_element_ksp_type preonly -fieldsplit_element_pc_type jacobi -fieldsplit_face_pc_type mg -fieldsplit_face_pc_mg_levels 3 -fieldsplit_face_pc_mg_galerkin -fieldsplit_face_mg_levels_pc_type jacobi -fieldsplit_face_mg_levels_ksp_type chebyshev
+      args: -dim 2 -coefficients layers -nondimensional -isoviscous -eta1 1.0 -stag_grid_x 32 -stag_grid_y 32 -ksp_type fgmres -pc_type fieldsplit -pc_fieldsplit_type schur -pc_fieldsplit_schur_fact_type upper -build_auxiliary_operator -fieldsplit_element_ksp_type preonly -fieldsplit_element_pc_type jacobi -fieldsplit_face_pc_type mg -fieldsplit_face_pc_mg_levels 3 -fieldsplit_face_pc_mg_galerkin -fieldsplit_face_mg_levels_pc_type jacobi -fieldsplit_face_mg_levels_ksp_type chebyshev -ksp_converged_reason
 
    test:
       suffix: nondim_abf_mg
@@ -1788,7 +1788,7 @@ static PetscErrorCode DumpOperator(Mat A, const char *name)
       suffix: monolithic
       nsize: 4
       requires: !single !complex
-      args: -dim {{2 3}separate output} -s 16 -custom_pc_mat -pc_type mg -pc_mg_levels 3 -pc_mg_galerkin -mg_levels_ksp_type gmres -mg_levels_ksp_norm_type unpreconditioned -mg_levels_ksp_max_it 10 -mg_levels_pc_type jacobi
+      args: -dim {{2 3}separate output} -s 16 -custom_pc_mat -pc_type mg -pc_mg_levels 3 -pc_mg_galerkin -mg_levels_ksp_type gmres -mg_levels_ksp_norm_type unpreconditioned -mg_levels_ksp_max_it 10 -mg_levels_pc_type jacobi -ksp_converged_reason
 
    test:
       suffix: 3d_nondim_isovisc_sinker_abf_mg
@@ -1800,6 +1800,6 @@ static PetscErrorCode DumpOperator(Mat A, const char *name)
       suffix: 3d_nondim_mono_mg_lamemstyle
       nsize: 1
       requires: suitesparse
-      args: -dim 3 -coefficients layers -nondimensional -s 16 -custom_pc_mat -pc_type mg -pc_mg_galerkin -pc_mg_levels 2 -mg_levels_ksp_type richardson -mg_levels_pc_type jacobi -mg_levels_ksp_richardson_scale 0.5 -mg_levels_ksp_max_it 20 -mg_coarse_pc_type lu -mg_coarse_pc_factor_mat_solver_type umfpack
+      args: -dim 3 -coefficients layers -nondimensional -s 16 -custom_pc_mat -pc_type mg -pc_mg_galerkin -pc_mg_levels 2 -mg_levels_ksp_type richardson -mg_levels_pc_type jacobi -mg_levels_ksp_richardson_scale 0.5 -mg_levels_ksp_max_it 20 -mg_coarse_pc_type lu -mg_coarse_pc_factor_mat_solver_type umfpack -ksp_converged_reason
 
 TEST*/
