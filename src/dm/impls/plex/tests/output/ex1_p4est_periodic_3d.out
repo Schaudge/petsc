@@ -5,7 +5,7 @@ Generated Mesh in 3 dimensions:
   Number of 1-cells per rank: 32976
   Number of 2-cells per rank: 26928
   Number of 3-cells per rank: 7109
-Periodic mesh (PERIODIC, PERIODIC, NONE) coordinates localized
+Periodic mesh coordinates localized
 Labels:
   marker: 1 strata with value/size (1 (3150))
   Face Sets: 2 strata with value/size (1 (1365), 2 (1194))

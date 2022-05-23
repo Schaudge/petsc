@@ -604,7 +604,7 @@ static PetscErrorCode DMView_Stag(DM dm,PetscViewer viewer)
       PetscCall(PetscViewerASCIIPrintf(viewer,"%" PetscInt_FMT " DOF per face (%" PetscInt_FMT "D)\n",stag->dof[dim-1],dim-1));
     }
     PetscCall(PetscViewerASCIIPrintf(viewer,"%" PetscInt_FMT " DOF per element (%" PetscInt_FMT "D)\n",stag->dof[dim],dim));
-    if (dm->coordinateDM) {
+    if (dm->coordinates[0].dm) {
       PetscCall(PetscViewerASCIIPrintf(viewer,"Has coordinate DM\n"));
     }
     maxRanksToView = 16;

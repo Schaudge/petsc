@@ -715,5 +715,7 @@ PETSC_INTERN PetscErrorCode DMView_Plex(DM dm, PetscViewer viewer);
 PETSC_INTERN PetscErrorCode DMLoad_Plex(DM dm, PetscViewer viewer);
 PETSC_INTERN PetscErrorCode DMCreateSubDM_Plex(DM dm, PetscInt numFields, const PetscInt fields[], IS *is, DM *subdm);
 PETSC_INTERN PetscErrorCode DMCreateSuperDM_Plex(DM dms[], PetscInt len, IS **is, DM *superdm);
+PETSC_INTERN PetscErrorCode DMPlexGetCellCoordinates_Internal(DM, PetscInt, PetscBool *, PetscInt *, const PetscScalar *[], PetscScalar *[]);
+PETSC_INTERN PetscErrorCode DMPlexRestoreCellCoordinates_Internal(DM, PetscInt, PetscBool *, PetscInt *, const PetscScalar *[], PetscScalar *[]);
 
 #endif /* _PLEXIMPL_H */

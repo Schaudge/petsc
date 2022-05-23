@@ -308,8 +308,8 @@ PetscErrorCode  DMDASetOffset(DM da, PetscInt xo, PetscInt yo, PetscInt zo, Pets
   dd->No = No;
   dd->Po = Po;
 
-  if (da->coordinateDM) {
-    PetscCall(DMDASetOffset(da->coordinateDM,xo,yo,zo,Mo,No,Po));
+  if (da->coordinates[0].dm) {
+    PetscCall(DMDASetOffset(da->coordinates[0].dm,xo,yo,zo,Mo,No,Po));
   }
   PetscFunctionReturn(0);
 }
@@ -896,11 +896,12 @@ static PetscErrorCode DMDACoarsenOwnershipRanges(DM da,PetscBool periodic,PetscI
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode  DMRefine_DA(DM da,MPI_Comm comm,DM *daref)
+PetscErrorCode DMRefine_DA(DM da,MPI_Comm comm,DM *daref)
 {
-  PetscInt       M,N,P,i,dim;
-  DM             da2;
-  DM_DA          *dd = (DM_DA*)da->data,*dd2;
+  PetscInt M,N,P,i,dim;
+  Vec      coordsc, coordsf;
+  DM       da2;
+  DM_DA   *dd = (DM_DA*)da->data,*dd2;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(da,DM_CLASSID,1,DMDA);
@@ -1029,13 +1030,12 @@ PetscErrorCode  DMRefine_DA(DM da,MPI_Comm comm,DM *daref)
   PetscCall(DMSetUp(da2));
 
   /* interpolate coordinates if they are set on the coarse grid */
-  if (da->coordinates) {
+  PetscCall(DMGetCoordinates(da, &coordsc));
+  if (coordsc) {
     DM  cdaf,cdac;
-    Vec coordsc,coordsf;
     Mat II;
 
     PetscCall(DMGetCoordinateDM(da,&cdac));
-    PetscCall(DMGetCoordinates(da,&coordsc));
     PetscCall(DMGetCoordinateDM(da2,&cdaf));
     /* force creation of the coordinate vector */
     PetscCall(DMDASetUniformCoordinates(da2,0.0,1.0,0.0,1.0,0.0,1.0));
@@ -1058,6 +1058,7 @@ PetscErrorCode  DMRefine_DA(DM da,MPI_Comm comm,DM *daref)
 PetscErrorCode  DMCoarsen_DA(DM dmf, MPI_Comm comm,DM *dmc)
 {
   PetscInt       M,N,P,i,dim;
+  Vec            coordsc, coordsf;
   DM             dmc2;
   DM_DA          *dd = (DM_DA*)dmf->data,*dd2;
 
@@ -1188,14 +1189,13 @@ PetscErrorCode  DMCoarsen_DA(DM dmf, MPI_Comm comm,DM *dmc)
   PetscCall(DMSetUp(dmc2));
 
   /* inject coordinates if they are set on the fine grid */
-  if (dmf->coordinates) {
+  PetscCall(DMGetCoordinates(dmf, &coordsf));
+  if (coordsf) {
     DM         cdaf,cdac;
-    Vec        coordsc,coordsf;
     Mat        inject;
     VecScatter vscat;
 
     PetscCall(DMGetCoordinateDM(dmf,&cdaf));
-    PetscCall(DMGetCoordinates(dmf,&coordsf));
     PetscCall(DMGetCoordinateDM(dmc2,&cdac));
     /* force creation of the coordinate vector */
     PetscCall(DMDASetUniformCoordinates(dmc2,0.0,1.0,0.0,1.0,0.0,1.0));

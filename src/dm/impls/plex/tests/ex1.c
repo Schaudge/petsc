@@ -49,11 +49,12 @@ PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 
 PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
 {
-  PetscInt       dim           = user->dim;
-  PetscBool      testp4est_seq = user->testp4est[0];
-  PetscBool      testp4est_par = user->testp4est[1];
-  PetscMPIInt    rank, size;
-  PetscBool      periodic;
+  PetscInt         dim           = user->dim, d;
+  PetscBool        testp4est_seq = user->testp4est[0];
+  PetscBool        testp4est_par = user->testp4est[1];
+  PetscReal        maxCell[3], L[3];
+  const PetscReal *maxCellTmp, *LTmp;
+  PetscMPIInt      rank, size;
 
   PetscFunctionBegin;
   PetscCall(PetscLogEventBegin(user->createMeshEvent,0,0,0,0));
@@ -64,15 +65,11 @@ PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
   PetscCall(DMSetType(*dm, DMPLEX));
   PetscCall(DMPlexDistributeSetDefault(*dm, PETSC_FALSE));
   PetscCall(DMSetFromOptions(*dm));
-
-  /* For topologically periodic meshes, we first localize coordinates,
-     and then remove any information related with the
-     automatic computation of localized vertices.
-     This way, refinement operations and conversions to p4est
-     will preserve the shape of the domain in physical space */
   PetscCall(DMLocalizeCoordinates(*dm));
-  PetscCall(DMGetPeriodicity(*dm, &periodic, NULL, NULL, NULL));
-  if (periodic) PetscCall(DMSetPeriodicity(*dm, PETSC_TRUE, NULL, NULL, NULL));
+
+  /* Must preserve information in order to determine coordinates of new vertices on edge/faces */
+  PetscCall(DMGetPeriodicity(*dm, &maxCellTmp, &LTmp));
+  for (d = 0; d < dim; ++d) {maxCell[d] = maxCellTmp ? maxCellTmp[d] : 0.0; L[d] = LTmp ? LTmp[d] : -1.0;}
 
   PetscCall(DMViewFromOptions(*dm,NULL,"-init_dm_view"));
   PetscCall(DMGetDimension(*dm, &dim));
@@ -102,6 +99,13 @@ PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
     PetscCall(DMPlexCheckGeometry(*dm));
     PetscCall(DMPlexCheckPointSF(*dm));
     PetscCall(DMPlexCheckInterfaceCones(*dm));
+
+    /* For topologically periodic meshes, we first localize coordinates,
+       and then remove any information related with the
+       automatic computation of localized vertices.
+       This way, refinement operations and conversions to p4est
+       will preserve the shape of the domain in physical space */
+    PetscCall(DMSetPeriodicity(*dm, NULL, NULL));
 
     PetscCall(DMConvert(*dm,dim == 2 ? DMP4EST : DMP8EST,&dmConv));
     if (dmConv) {
