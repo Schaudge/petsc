@@ -366,6 +366,7 @@ PetscErrorCode PetscSFCreateSectionSF(PetscSF sf, PetscSection rootSection, Pets
   PetscInt          numRoots, numSectionRoots, numPoints, numIndices = 0;
   PetscInt          *localIndices;
   PetscSFNode       *remoteIndices;
+  PetscBool         remoteOffNull = (remoteOffsets == NULL);
   PetscInt          i, ind;
 
   PetscFunctionBegin;
@@ -392,6 +393,20 @@ PetscErrorCode PetscSFCreateSectionSF(PetscSF sf, PetscSection rootSection, Pets
   }
   PetscCall(PetscMalloc1(numIndices, &localIndices));
   PetscCall(PetscMalloc1(numIndices, &remoteIndices));
+  if (remoteOffNull) { // default: broadcast offsets
+    PetscInt *localOffsets;
+    PetscInt  rStart, rEnd;
+
+    PetscCall(PetscMalloc1(lpEnd-lpStart, &remoteOffsets));
+    PetscCall(PetscMalloc1(numRoots, &localOffsets));
+    PetscCall(PetscSectionGetChart(rootSection, &rStart, &rEnd));
+    for (PetscInt r = rStart; r < rEnd; r++) {
+      PetscCall(PetscSectionGetOffset(rootSection, r, &localOffsets[r-rStart]));
+    }
+    PetscCall(PetscSFBcastBegin(sf, MPIU_INT, localOffsets, remoteOffsets, MPI_REPLACE));
+    PetscCall(PetscSFBcastEnd(sf, MPIU_INT, localOffsets, remoteOffsets, MPI_REPLACE));
+    PetscCall(PetscFree(localOffsets));
+  }
   /* Create new index graph */
   for (i = 0, ind = 0; i < numPoints; ++i) {
     PetscInt localPoint = localPoints ? localPoints[i] : i;
@@ -413,6 +428,9 @@ PetscErrorCode PetscSFCreateSectionSF(PetscSF sf, PetscSection rootSection, Pets
   PetscCheck(numIndices == ind,comm, PETSC_ERR_PLIB, "Inconsistency in indices, %" PetscInt_FMT " should be %" PetscInt_FMT, ind, numIndices);
   PetscCall(PetscSFSetGraph(*sectionSF, numSectionRoots, numIndices, localIndices, PETSC_OWN_POINTER, remoteIndices, PETSC_OWN_POINTER));
   PetscCall(PetscSFSetUp(*sectionSF));
+  if (remoteOffNull) {
+    PetscCall(PetscFree(remoteOffsets));
+  }
   PetscCall(PetscLogEventEnd(PETSCSF_SectSF,sf,0,0,0));
   PetscFunctionReturn(0);
 }

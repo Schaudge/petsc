@@ -7998,6 +7998,7 @@ PetscErrorCode DMPlexCreateNumbering_Plex(DM dm, PetscInt pStart, PetscInt pEnd,
   PetscInt      *numbers, p;
 
   PetscFunctionBegin;
+  PetscCall(PetscPrintf(PetscObjectComm((PetscObject)dm), "shift %d\n", shift));
   if (PetscDefined(USE_DEBUG)) PetscCall(DMPlexCheckPointSF(dm, sf));
   PetscCall(PetscSectionCreate(PetscObjectComm((PetscObject)dm), &section));
   PetscCall(PetscSectionSetChart(section, pStart, pEnd));
@@ -8006,6 +8007,7 @@ PetscErrorCode DMPlexCreateNumbering_Plex(DM dm, PetscInt pStart, PetscInt pEnd,
   }
   PetscCall(PetscSectionSetUp(section));
   PetscCall(PetscSectionCreateGlobalSection(section, sf, PETSC_FALSE, PETSC_FALSE, &globalSection));
+  PetscCall(PetscSectionView(globalSection, NULL));
   PetscCall(PetscMalloc1(pEnd - pStart, &numbers));
   for (p = pStart; p < pEnd; ++p) {
     PetscCall(PetscSectionGetOffset(globalSection, p, &numbers[p-pStart]));
@@ -8135,6 +8137,7 @@ PetscErrorCode DMPlexCreatePointNumbering(DM dm, IS *globalPointNumbers)
     PetscInt pStart, pEnd, gsize;
 
     PetscCall(DMPlexGetDepthStratum(dm, gdepths[d], &pStart, &pEnd));
+    PetscCall(PetscPrintf(PetscObjectComm((PetscObject)dm), "gdepths[%d] = %d\n", d, gdepths[d]));
     PetscCall(DMPlexCreateNumbering_Plex(dm, pStart, pEnd, shift, &gsize, dm->sf, &nums[d]));
     shift += gsize;
   }
