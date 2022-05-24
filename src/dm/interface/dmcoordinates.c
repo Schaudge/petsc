@@ -747,7 +747,7 @@ PetscErrorCode DMGetCellCoordinatesLocal(DM dm, Vec *c)
 }
 
 /*@
-  DMGetCoordinatesLocalNoncollective - Non-collective version of DMGetCellCoordinatesLocal(). Fails if global cellwise coordinates have been set and DMGetCellCoordinatesLocalSetUp() not called.
+  DMGetCellCoordinatesLocalNoncollective - Non-collective version of DMGetCellCoordinatesLocal(). Fails if global cellwise coordinates have been set and DMGetCellCoordinatesLocalSetUp() not called.
 
   Not collective
 
