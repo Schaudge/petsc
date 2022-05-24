@@ -2,7 +2,7 @@
 #include <petsc/private/dmstagimpl.h>
 
 /*@C
-  DMStagCreate2d - Create an object to manage data living on the elements, edges, and vertices of a parallelized regular 2D grid.
+  DMStagCreate2d - Create an object to manage data living on the elements, faces, and vertices of a parallelized regular 2D grid.
 
   Collective
 
@@ -303,9 +303,9 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_2d(DM dm)
   for (d=0; d<dim; ++d) {
     switch (stag->boundaryType[d]) {
       case DM_BOUNDARY_NONE:
-        /* Note: for a elements-only DMStag, the extra elements on the edges aren't necessary but we include them anyway */
+        /* Note: for a elements-only DMStag, the extra elements on the faces aren't necessary but we include them anyway */
         switch (stag->stencilType) {
-          case DMSTAG_STENCIL_NONE : /* only the extra one on the right/top edges */
+          case DMSTAG_STENCIL_NONE : /* only the extra one on the right/top faces */
             stag->nGhost[d] = stag->n[d];
             stag->startGhost[d] = stag->start[d];
             if (stag->lastRank[d]) stag->nGhost[d] += 1;
@@ -345,7 +345,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_2d(DM dm)
         break;
       case DM_BOUNDARY_PERIODIC:
         switch (stag->stencilType) {
-          case DMSTAG_STENCIL_NONE : /* only the extra one on the right/top edges */
+          case DMSTAG_STENCIL_NONE : /* only the extra one on the right/top faces */
             stag->nGhost[d] = stag->n[d];
             stag->startGhost[d] = stag->start[d];
             break;
@@ -542,8 +542,8 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_2d(DM dm)
         const PetscInt j = stag->n[1];
         for (ighost = 0; ighost<ghostOffsetStart[0]; ++ighost) {
           const PetscInt i = nNeighbor[0] - ghostOffsetStart[0] + ighost;
-          for (d=0; d<entriesPerFace; ++d, ++count) { /* only vertices and horizontal edge (which are the first dof) */
-            idxGlobal[count] = globalOffset + j     *entriesPerElementRowNeighbor + i     *entriesPerFace          + d; /* i moves by edge here */
+          for (d=0; d<entriesPerFace; ++d, ++count) { /* only vertices and horizontal face (which are the first dof) */
+            idxGlobal[count] = globalOffset + j     *entriesPerElementRowNeighbor + i     *entriesPerFace          + d; /* i moves by face here */
             idxLocal[count]  =                jghost*entriesPerElementRowGhost    + ighost*stag->entriesPerElement + d;
           }
         }
@@ -571,7 +571,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_2d(DM dm)
             idxGlobal[count] = globalOffset + j     *entriesPerElementRow      + i     *stag->entriesPerElement + d;
             idxLocal[count]  =                jghost*entriesPerElementRowGhost + ighost*stag->entriesPerElement + d;
           }
-          for (d=0; d<stag->dof[1]; ++d, ++count) { /* then left ege (skipping bottom edge) */
+          for (d=0; d<stag->dof[1]; ++d, ++count) { /* then left ege (skipping bottom face) */
             idxGlobal[count] = globalOffset + j     *entriesPerElementRow       + i     *stag->entriesPerElement + stag->dof[0]                + d;
             idxLocal[count]  =                jghost*entriesPerElementRowGhost  + ighost*stag->entriesPerElement + stag->dof[0] + stag->dof[1] + d;
           }
@@ -582,7 +582,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_2d(DM dm)
         j = stag->n[1];
         for (i=0; i<stag->n[0]; ++i) {
           const PetscInt ighost = i + ghostOffsetStart[0];
-          for (d=0; d<entriesPerFace; ++d, ++count) { /* vertex and bottom edge (which are the first entries) */
+          for (d=0; d<entriesPerFace; ++d, ++count) { /* vertex and bottom face (which are the first entries) */
             idxGlobal[count] = globalOffset + j     *entriesPerElementRow +      i*entriesPerFace               + d; /* note i increment by entriesPerFace */
             idxLocal[count]  =                jghost*entriesPerElementRowGhost + ighost*stag->entriesPerElement + d;
           }
@@ -620,7 +620,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_2d(DM dm)
         const PetscInt j = nNeighbor[1];
         for (i=0; i<ghostOffsetEnd[0]; ++i) {
           const PetscInt ighost = stag->nGhost[0] - ghostOffsetEnd[0] + i;
-          for (d=0; d<entriesPerFace; ++d, ++count) { /* only vertices and horizontal edge (which are the first dof) */
+          for (d=0; d<entriesPerFace; ++d, ++count) { /* only vertices and horizontal face (which are the first dof) */
             idxGlobal[count] = globalOffset+ j     *entriesPerElementRowNeighbor    + i     *entriesPerFace    + d; /* Note i increment by entriesPerFace */
             idxLocal[count]  =               jghost*entriesPerElementRowGhost + ighost*stag->entriesPerElement + d;
           }
@@ -790,7 +790,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_2d(DM dm)
             idxGlobalAll[countAll] = globalOffset + j*eprNeighbor + i*stag->entriesPerElement + dGlobal;
           }
           for (; d<stag->dof[0] + stag->dof[1]; ++d, ++countAll) {
-            idxGlobalAll[countAll] = -1; /* dummy down edge point */
+            idxGlobalAll[countAll] = -1; /* dummy down face point */
           }
           for (; d<stag->dof[0] + 2*stag->dof[1]; ++d, ++dGlobal, ++countAll) {
             idxGlobalAll[countAll] = globalOffset + j*eprNeighbor + i*stag->entriesPerElement + dGlobal;
@@ -881,7 +881,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_2d(DM dm)
           idxGlobalAll[countAll] = globalOffset + j*eprNeighbor + i*stag->entriesPerElement + dGlobal;
         }
         for (; d<stag->dof[0] + stag->dof[1]; ++d, ++countAll) {
-          idxGlobalAll[countAll] = -1; /* dummy down edge point */
+          idxGlobalAll[countAll] = -1; /* dummy down face point */
         }
         for (; d<stag->dof[0] + 2*stag->dof[1]; ++d, ++dGlobal, ++countAll) {
           idxGlobalAll[countAll] = globalOffset + j*eprNeighbor + i*stag->entriesPerElement + dGlobal;
@@ -958,7 +958,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_2d(DM dm)
             idxGlobalAll[countAll] = globalOffset + j*eprNeighbor + i*stag->entriesPerElement + dGlobal;
           }
           for (; d<stag->dof[0] + stag->dof[1]; ++d, ++countAll) {
-            idxGlobalAll[countAll] = -1; /* dummy down edge point */
+            idxGlobalAll[countAll] = -1; /* dummy down face point */
           }
           for (; d<stag->dof[0] + 2*stag->dof[1]; ++d, ++dGlobal, ++countAll) {
             idxGlobalAll[countAll] = globalOffset + j*eprNeighbor + i*stag->entriesPerElement + dGlobal;
@@ -996,7 +996,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_2d(DM dm)
             idxGlobalAll[countAll] = globalOffset + j*eprNeighbor + i*entriesPerFace + d; /* Note entriesPerFace here */
           }
           for (; d<stag->entriesPerElement; ++d, ++countAll) {
-            idxGlobalAll[countAll] = -1; /* dummy left edge and element points */
+            idxGlobalAll[countAll] = -1; /* dummy left face and element points */
           }
         }
       } else {
@@ -1017,7 +1017,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_2d(DM dm)
             idxGlobalAll[countAll] = globalOffset + j*eprNeighbor + i*entriesPerFace + d; /* Note entriesPerFace here */
           }
           for (; d<stag->entriesPerElement; ++d, ++countAll) {
-            idxGlobalAll[countAll] = -1; /* dummy left edge and element points */
+            idxGlobalAll[countAll] = -1; /* dummy left face and element points */
           }
         }
       }
@@ -1033,7 +1033,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_2d(DM dm)
             idxGlobalAll[countAll] = globalOffset + j*eprNeighbor + i*entriesPerFace + d; /* Note entriesPerFace here */
           }
           for (; d<stag->entriesPerElement; ++d, ++countAll) {
-            idxGlobalAll[countAll] = -1; /* dummy left edge and element points */
+            idxGlobalAll[countAll] = -1; /* dummy left face and element points */
           }
         }
       } else {
@@ -1046,7 +1046,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_2d(DM dm)
           idxGlobalAll[countAll] = globalOffset + j*eprNeighbor + i*entriesPerFace + d; /* Note entriesPerFace here */
         }
         for (; d<stag->entriesPerElement; ++d, ++countAll) {
-          idxGlobalAll[countAll] = -1; /* dummy bottom edge, left edge and element points */
+          idxGlobalAll[countAll] = -1; /* dummy bottom face, left face and element points */
         }
         ++i;
         for (; i<stag->n[0] + ghostOffsetEnd[0]; ++i) {
@@ -1224,7 +1224,7 @@ static PetscErrorCode DMStagSetUpBuildGlobalOffsets_2d(DM dm,PetscInt **pGlobalO
       /* i = stag->nRanks[0]-1; */
       const PetscInt nni = stag->l[0][i];
       globalOffsets[count] = globalOffsets[count-1] + nnj*nni*stag->entriesPerElement
-                             + (extra[0] ? nnj*entriesPerFace : 0); /* Extra edges on the right */
+                             + (extra[0] ? nnj*entriesPerFace : 0); /* Extra faces on the right */
       ++count;
     }
   }
@@ -1234,7 +1234,7 @@ static PetscErrorCode DMStagSetUpBuildGlobalOffsets_2d(DM dm,PetscInt **pGlobalO
     for (i=0; i<stag->nRanks[0]-1; ++i) {
       const PetscInt nni = stag->l[0][i];
       globalOffsets[count] = globalOffsets[count-1] + nni*nnj*stag->entriesPerElement
-                             + (extra[1] ? nni*entriesPerFace : 0); /* Extra edges on the top */
+                             + (extra[1] ? nni*entriesPerFace : 0); /* Extra faces on the top */
       ++count;
     }
     /* Don't need to compute entries in last element */
@@ -1302,7 +1302,7 @@ PETSC_INTERN PetscErrorCode DMStagPopulateLocalToGlobalInjective_2d(DM dm)
           idxGlobal[count] = globalOffset + j     *entriesPerElementRow      + i     *stag->entriesPerElement + d;
           idxLocal[count]  =                jghost*entriesPerElementRowGhost + ighost*stag->entriesPerElement + d;
         }
-        for (d=0; d<stag->dof[1]; ++d, ++count) { /* then left ege (skipping bottom edge) */
+        for (d=0; d<stag->dof[1]; ++d, ++count) { /* then left ege (skipping bottom face) */
           idxGlobal[count] = globalOffset + j     *entriesPerElementRow       + i     *stag->entriesPerElement + stag->dof[0]                + d;
           idxLocal[count]  =                jghost*entriesPerElementRowGhost  + ighost*stag->entriesPerElement + stag->dof[0] + stag->dof[1] + d;
         }
@@ -1313,7 +1313,7 @@ PETSC_INTERN PetscErrorCode DMStagPopulateLocalToGlobalInjective_2d(DM dm)
       j = stag->n[1];
       for (i=0; i<stag->n[0]; ++i) {
         const PetscInt ighost = i + ghostOffsetStart[0];
-        for (d=0; d<entriesPerFace; ++d, ++count) { /* vertex and bottom edge (which are the first entries) */
+        for (d=0; d<entriesPerFace; ++d, ++count) { /* vertex and bottom face (which are the first entries) */
           idxGlobal[count] = globalOffset + j     *entriesPerElementRow +      i*entriesPerFace               + d; /* note i increment by entriesPerFace */
           idxLocal[count]  =                jghost*entriesPerElementRowGhost + ighost*stag->entriesPerElement + d;
         }
@@ -1364,7 +1364,7 @@ PETSC_INTERN PetscErrorCode DMCreateMatrix_Stag_2D_AIJ_Assemble(DM dm,Mat A)
 
   if (stencil_type == DMSTAG_STENCIL_NONE) {
     /* Couple all DOF at each location to each other */
-    DMStagStencil *row_vertex,*row_edge_down,*row_edge_left,*row_element;
+    DMStagStencil *row_vertex,*row_face_down,*row_face_left,*row_element;
 
     PetscCall(PetscMalloc1(dof[0],&row_vertex));
     for (PetscInt c=0; c<dof[0]; ++c) {
@@ -1372,16 +1372,16 @@ PETSC_INTERN PetscErrorCode DMCreateMatrix_Stag_2D_AIJ_Assemble(DM dm,Mat A)
       row_vertex[c].c = c;
     }
 
-    PetscCall(PetscMalloc1(dof[1],&row_edge_down));
+    PetscCall(PetscMalloc1(dof[1],&row_face_down));
     for (PetscInt c=0; c<dof[1]; ++c) {
-      row_edge_down[c].loc = DMSTAG_DOWN;
-      row_edge_down[c].c = c;
+      row_face_down[c].loc = DMSTAG_DOWN;
+      row_face_down[c].c = c;
     }
 
-    PetscCall(PetscMalloc1(dof[1],&row_edge_left));
+    PetscCall(PetscMalloc1(dof[1],&row_face_left));
     for (PetscInt c=0; c<dof[1]; ++c) {
-      row_edge_left[c].loc = DMSTAG_LEFT;
-      row_edge_left[c].c = c;
+      row_face_left[c].loc = DMSTAG_LEFT;
+      row_face_left[c].c = c;
     }
 
     PetscCall(PetscMalloc1(dof[2],&row_element));
@@ -1401,17 +1401,17 @@ PETSC_INTERN PetscErrorCode DMCreateMatrix_Stag_2D_AIJ_Assemble(DM dm,Mat A)
         }
         if (ex < N[0]) {
           for (PetscInt c=0; c<dof[1]; ++c){
-            row_edge_down[c].i = ex;
-            row_edge_down[c].j = ey;
+            row_face_down[c].i = ex;
+            row_face_down[c].j = ey;
           }
-          PetscCall(DMStagMatSetValuesStencil(dm,A,dof[1],row_edge_down,dof[1],row_edge_down,NULL,INSERT_VALUES));
+          PetscCall(DMStagMatSetValuesStencil(dm,A,dof[1],row_face_down,dof[1],row_face_down,NULL,INSERT_VALUES));
         }
         if (ey < N[1]) {
           for (PetscInt c=0; c<dof[1]; ++c){
-            row_edge_left[c].i = ex;
-            row_edge_left[c].j = ey;
+            row_face_left[c].i = ex;
+            row_face_left[c].j = ey;
           }
-          PetscCall(DMStagMatSetValuesStencil(dm,A,dof[1],row_edge_left,dof[1],row_edge_left,NULL,INSERT_VALUES));
+          PetscCall(DMStagMatSetValuesStencil(dm,A,dof[1],row_face_left,dof[1],row_face_left,NULL,INSERT_VALUES));
         }
         if (ex < N[0] && ey < N[1]) {
           for (PetscInt c=0; c<dof[2]; ++c) {
@@ -1423,8 +1423,8 @@ PETSC_INTERN PetscErrorCode DMCreateMatrix_Stag_2D_AIJ_Assemble(DM dm,Mat A)
       }
     }
     PetscCall(PetscFree(row_vertex));
-    PetscCall(PetscFree(row_edge_left));
-    PetscCall(PetscFree(row_edge_down));
+    PetscCall(PetscFree(row_face_left));
+    PetscCall(PetscFree(row_face_down));
     PetscCall(PetscFree(row_element));
   } else if (stencil_type == DMSTAG_STENCIL_STAR || stencil_type == DMSTAG_STENCIL_BOX) {
     DMStagStencil *col,*row;
