@@ -1294,7 +1294,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
 
     /* Get connectivity */
     PetscCall(DMPlexGetVTKCellHeight(dm,&cellHeight));
-    PetscCall(DMPlexCreatePartitionerGraph(dm,cellHeight,&numVertices,&start,&adjacency,NULL));
+    PetscCall(DMPlexCreatePartitionerGraph(dm,cellHeight,&numVertices,&start,&adjacency));
 
     /* filter overlapped local cells */
     PetscCall(DMPlexGetHeightStratumNumbering(dm,cellHeight,&gid,&ghostCellMask,&ownedLayout,NULL));

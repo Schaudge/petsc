@@ -169,6 +169,7 @@ In addition to the changes above
 - Add ``DMPlexGetCellCoordinates()`` and ``DMPlexRestoreCellCoordinates()`` for clean interface for periodicity
 - Add ``DMPlexGetPointNumbering()``, ``DMPlexGetDepthStratumNumbering``, ``DMPlexGetHeightStratumNumbering``
 - Deprecate ``DMPlexCreatePointNumbering()``
+- Change ``DMPlexCreatePartitionerGraph()``: remove parameter ``IS *globalNumbering``
 
 .. rubric:: FE/FV:
 

@@ -217,7 +217,7 @@ PETSC_EXTERN PetscErrorCode PetscViewerExodusIIGetOrder(PetscViewer,PetscInt*);
 PETSC_EXTERN PetscErrorCode DMPlexCreateNeighborCSR(DM, PetscInt, PetscInt *, PetscInt **, PetscInt **);
 PETSC_EXTERN PetscErrorCode DMPlexGetPartitioner(DM, PetscPartitioner *);
 PETSC_EXTERN PetscErrorCode DMPlexSetPartitioner(DM, PetscPartitioner);
-PETSC_EXTERN PetscErrorCode DMPlexCreatePartitionerGraph(DM, PetscInt, PetscInt *, PetscInt **, PetscInt **, IS *);
+PETSC_EXTERN PetscErrorCode DMPlexCreatePartitionerGraph(DM, PetscInt, PetscInt *, PetscInt **, PetscInt **);
 PETSC_EXTERN PetscErrorCode DMPlexPartitionLabelInvert(DM, DMLabel, PetscSF, DMLabel);
 PETSC_EXTERN PetscErrorCode DMPlexPartitionLabelClosure(DM, DMLabel);
 PETSC_EXTERN PetscErrorCode DMPlexPartitionLabelAdjacency(DM, DMLabel);
