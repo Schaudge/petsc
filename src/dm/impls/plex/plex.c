@@ -1265,13 +1265,15 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     VecScatter             sct;
     ISLocalToGlobalMapping g2l;
     IS                     gid,acis;
+    const PetscBool        *ghostCellMask;
     MPI_Comm               comm,ncomm = MPI_COMM_NULL;
     MPI_Group              ggroup,ngroup;
     PetscScalar            *array,nid;
     const PetscInt         *idxs;
     PetscInt               *idxs2,*start,*adjacency,*work;
     PetscInt64             lm[3],gm[3];
-    PetscInt               i,c,cStart,cEnd,cum,numVertices,ect,ectn,cellHeight;
+    PetscInt               i,c,nc,noc,nec,numVertices,ect,ectn,cellHeight;
+    PetscLayout            ownedLayout;
     PetscMPIInt            d1,d2,rank;
 
     PetscCall(PetscObjectGetComm((PetscObject)dm,&comm));
@@ -1292,20 +1294,19 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
 
     /* Get connectivity */
     PetscCall(DMPlexGetVTKCellHeight(dm,&cellHeight));
-    PetscCall(DMPlexCreatePartitionerGraph(dm,cellHeight,&numVertices,&start,&adjacency,&gid));
+    PetscCall(DMPlexCreatePartitionerGraph(dm,cellHeight,&numVertices,&start,&adjacency,NULL));
 
     /* filter overlapped local cells */
-    PetscCall(DMPlexGetHeightStratum(dm,cellHeight,&cStart,&cEnd));
+    PetscCall(DMPlexGetHeightStratumNumbering(dm,cellHeight,&gid,&ghostCellMask,&ownedLayout,NULL));
     PetscCall(ISGetIndices(gid,&idxs));
-    PetscCall(ISGetLocalSize(gid,&cum));
-    PetscCall(PetscMalloc1(cum,&idxs2));
-    for (c = cStart, cum = 0; c < cEnd; c++) {
-      if (idxs[c-cStart] < 0) continue;
-      idxs2[cum++] = idxs[c-cStart];
+    PetscCall(ISGetLocalSize(gid,&nc));
+    PetscCall(PetscMalloc1(ownedLayout->n,&idxs2));
+    for (c = 0, noc = 0; c < nc; c++) {
+      if (!ghostCellMask[c]) idxs2[noc++] = idxs[c];
     }
     PetscCall(ISRestoreIndices(gid,&idxs));
-    PetscCheck(numVertices == cum,PETSC_COMM_SELF,PETSC_ERR_PLIB,"Unexpected %" PetscInt_FMT " != %" PetscInt_FMT,numVertices,cum);
-    PetscCall(ISDestroy(&gid));
+    PetscCheck(numVertices    == noc,PETSC_COMM_SELF,PETSC_ERR_PLIB,"Unexpected numVertices = %" PetscInt_FMT " != %" PetscInt_FMT,numVertices,noc);
+    PetscCheck(ownedLayout->n == noc,PETSC_COMM_SELF,PETSC_ERR_PLIB,"Unexpected ownedLayout->n = %" PetscInt_FMT " != %" PetscInt_FMT,ownedLayout->n,noc);
     PetscCall(ISCreateGeneral(comm,numVertices,idxs2,PETSC_OWN_POINTER,&gid));
 
     /* support for node-aware cell locality */
@@ -1323,8 +1324,8 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     PetscCall(VecDestroy(&cown));
 
     /* compute edgeCut */
-    for (c = 0, cum = 0; c < numVertices; c++) cum = PetscMax(cum,start[c+1]-start[c]);
-    PetscCall(PetscMalloc1(cum,&work));
+    for (c = 0, nec = 0; c < numVertices; c++) nec = PetscMax(nec,start[c+1]-start[c]);
+    PetscCall(PetscMalloc1(nec,&work));
     PetscCall(ISLocalToGlobalMappingCreateIS(gid,&g2l));
     PetscCall(ISLocalToGlobalMappingSetType(g2l,ISLOCALTOGLOBALMAPPINGHASH));
     PetscCall(ISDestroy(&gid));
