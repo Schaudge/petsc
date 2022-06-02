@@ -680,6 +680,10 @@ PetscErrorCode PetscLogEventSynchronize(PetscLogEvent event,MPI_Comm comm)
   PetscFunctionReturn(0);
 }
 
+#if defined(PETSC_HAVE_CUDA)
+#include <nvToolsExt.h>
+#endif
+
 PetscErrorCode PetscLogEventBeginDefault(PetscLogEvent event,int t,PetscObject o1,PetscObject o2,PetscObject o3,PetscObject o4)
 {
   PetscStageLog     stageLog;
@@ -695,6 +699,11 @@ PetscErrorCode PetscLogEventBeginDefault(PetscLogEvent event,int t,PetscObject o
   /* Check for double counting */
   eventLog->eventInfo[event].depth++;
   if (eventLog->eventInfo[event].depth > 1) PetscFunctionReturn(0);
+#if defined(PETSC_HAVE_CUDA)
+  PetscEventRegLog  eventRegLog;
+  PetscCall(PetscStageLogGetEventRegLog(stageLog,&eventRegLog));
+  nvtxRangePushA(eventRegLog->eventInfo[event].name);
+#endif
   /* Log the performance info */
   eventLog->eventInfo[event].count++;
   eventLog->eventInfo[event].timeTmp = 0.0;
@@ -767,6 +776,9 @@ PetscErrorCode PetscLogEventEndDefault(PetscLogEvent event,int t,PetscObject o1,
   eventLog->eventInfo[event].GpuFlops      += petsc_gflops;
   eventLog->eventInfo[event].GpuTime       += petsc_gtime;
   #endif
+#if defined(PETSC_HAVE_CUDA)
+  nvtxRangePop();
+#endif
   PetscFunctionReturn(0);
 }
 
