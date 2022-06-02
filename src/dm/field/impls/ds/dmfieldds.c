@@ -780,54 +780,8 @@ static PetscErrorCode DMFieldComputeFaceData_DS(DMField field, IS pointIS, Petsc
       for (q = 0; q < Np; ++q) for (d = 0; d < dE; ++d) geom->n[(p*Np + q)*dE + d] = -geom->n[(p*Np + q)*dE + d];
     }
   }
-  if (maxDegree <= 1) {
-    PetscInt        numCells, offset, *cells;
-    PetscFEGeom     *cellGeom;
-    IS              suppIS;
-
-    for (p = 0, numCells = 0; p < numFaces; p++) {
-      PetscInt        point = points[p];
-      PetscInt        numSupp, numChildren;
-
-      PetscCall(DMPlexGetTreeChildren(dm, point, &numChildren, NULL));
-      PetscCheck(!numChildren,PETSC_COMM_SELF, PETSC_ERR_PLIB, "Face data not valid for facets with children");
-      PetscCall(DMPlexGetSupportSize(dm, point,&numSupp));
-      PetscCheck(numSupp <= 2,PETSC_COMM_SELF, PETSC_ERR_PLIB, "Point %" PetscInt_FMT " has %" PetscInt_FMT " support, expected at most 2", point, numSupp);
-      numCells += numSupp;
-    }
-    PetscCall(PetscMalloc1(numCells, &cells));
-    for (p = 0, offset = 0; p < numFaces; p++) {
-      PetscInt        point = points[p];
-      PetscInt        numSupp, s;
-      const PetscInt *supp;
-
-      PetscCall(DMPlexGetSupportSize(dm, point,&numSupp));
-      PetscCall(DMPlexGetSupport(dm, point, &supp));
-      for (s = 0; s < numSupp; s++, offset++) {
-        cells[offset] = supp[s];
-      }
-    }
-    PetscCall(ISCreateGeneral(PETSC_COMM_SELF,numCells,cells,PETSC_USE_POINTER, &suppIS));
-    PetscCall(DMFieldCreateFEGeom(field,suppIS,quad,PETSC_FALSE,&cellGeom));
-    for (p = 0, offset = 0; p < numFaces; p++) {
-      PetscInt        point = points[p];
-      PetscInt        numSupp, s, q;
-      const PetscInt *supp;
-
-      PetscCall(DMPlexGetSupportSize(dm, point,&numSupp));
-      PetscCall(DMPlexGetSupport(dm, point, &supp));
-      for (s = 0; s < numSupp; s++, offset++) {
-        for (q = 0; q < Nq * dE * dE; q++) {
-          geom->suppJ[s][p * Nq * dE * dE + q]    = cellGeom->J[offset * Nq * dE * dE + q];
-          geom->suppInvJ[s][p * Nq * dE * dE + q] = cellGeom->invJ[offset * Nq * dE * dE + q];
-        }
-        for (q = 0; q < Nq; q++) geom->suppDetJ[s][p * Nq + q] = cellGeom->detJ[offset * Nq + q];
-      }
-    }
-    PetscCall(PetscFEGeomDestroy(&cellGeom));
-    PetscCall(ISDestroy(&suppIS));
-    PetscCall(PetscFree(cells));
-  } else {
+  // The optimized path for maxDegree <= 1 did not correctly transform the quadrature points
+  {
     PetscObject          faceDisc, cellDisc;
     PetscClassId         faceId, cellId;
     PetscDualSpace       dsp;
