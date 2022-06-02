@@ -541,7 +541,7 @@ PetscErrorCode DMPlexBasisTransformPoint_Internal(DM dm, DM tdm, Vec tv, PetscIn
   PetscFunctionBegin;
   PetscCall(DMGetLocalSection(dm, &s));
   PetscCall(PetscSectionGetNumFields(s, &Nf));
-  PetscCall(DMPlexGetCompressedClosure(dm, s, p, &Np, &points, &clSection, &clPoints, &clp));
+  PetscCall(DMPlexGetCompressedClosure(dm, s, p, 0, &Np, &points, &clSection, &clPoints, &clp));
   for (f = 0; f < Nf; ++f) {
     for (cp = 0; cp < Np*2; cp += 2) {
       PetscCall(PetscSectionGetFieldDof(s, points[cp], f, &dof));
@@ -550,7 +550,7 @@ PetscErrorCode DMPlexBasisTransformPoint_Internal(DM dm, DM tdm, Vec tv, PetscIn
       d += dof;
     }
   }
-  PetscCall(DMPlexRestoreCompressedClosure(dm, s, p, &Np, &points, &clSection, &clPoints, &clp));
+  PetscCall(DMPlexRestoreCompressedClosure(dm, s, p, 0, &Np, &points, &clSection, &clPoints, &clp));
   PetscFunctionReturn(0);
 }
 
@@ -566,7 +566,7 @@ PetscErrorCode DMPlexBasisTransformPointTensor_Internal(DM dm, DM tdm, Vec tv, P
   PetscFunctionBegin;
   PetscCall(DMGetLocalSection(dm, &s));
   PetscCall(PetscSectionGetNumFields(s, &Nf));
-  PetscCall(DMPlexGetCompressedClosure(dm, s, p, &Np, &points, &clSection, &clPoints, &clp));
+  PetscCall(DMPlexGetCompressedClosure(dm, s, p, 0, &Np, &points, &clSection, &clPoints, &clp));
   for (f = 0, r = 0; f < Nf; ++f) {
     for (cpf = 0; cpf < Np*2; cpf += 2) {
       PetscCall(PetscSectionGetFieldDof(s, points[cpf], f, &fdof));
@@ -582,7 +582,7 @@ PetscErrorCode DMPlexBasisTransformPointTensor_Internal(DM dm, DM tdm, Vec tv, P
     }
   }
   PetscCheck(r == lda,PETSC_COMM_SELF, PETSC_ERR_PLIB, "Invalid number of rows %" PetscInt_FMT " should be %" PetscInt_FMT, c, lda);
-  PetscCall(DMPlexRestoreCompressedClosure(dm, s, p, &Np, &points, &clSection, &clPoints, &clp));
+  PetscCall(DMPlexRestoreCompressedClosure(dm, s, p, 0, &Np, &points, &clSection, &clPoints, &clp));
   PetscFunctionReturn(0);
 }
 
@@ -3427,7 +3427,6 @@ static PetscErrorCode DMPlexGetHybridAuxFields(DM dm, DM dmAux[], PetscDS dsAux[
 
     PetscCall(DMPlexGetCone(dm, cell, &cone));
     PetscCall(DMPlexGetConeOrientation(dm, cell, &ornt));
-    PetscCheck(!ornt[0],PETSC_COMM_SELF, PETSC_ERR_SUP, "Face %" PetscInt_FMT " in hybrid cell %" PetscInt_FMT " has orientation %" PetscInt_FMT " != 0", cone[0], cell, ornt[0]);
     for (s = 0; s < 2; ++s) {
       const PetscInt *support;
       PetscScalar    *x = NULL, *al = a[s];

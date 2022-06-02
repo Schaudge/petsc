@@ -5586,13 +5586,14 @@ static inline PetscErrorCode CompressPoints_Private(PetscSection section, PetscI
 }
 
 /* Compressed closure does not apply closure permutation */
-PetscErrorCode DMPlexGetCompressedClosure(DM dm, PetscSection section, PetscInt point, PetscInt *numPoints, PetscInt **points, PetscSection *clSec, IS *clPoints, const PetscInt **clp)
+PetscErrorCode DMPlexGetCompressedClosure(DM dm, PetscSection section, PetscInt point, PetscInt ornt, PetscInt *numPoints, PetscInt **points, PetscSection *clSec, IS *clPoints, const PetscInt **clp)
 {
   const PetscInt *cla = NULL;
   PetscInt       np, *pts = NULL;
 
   PetscFunctionBeginHot;
-  PetscCall(PetscSectionGetClosureIndex(section, (PetscObject) dm, clSec, clPoints));
+  *clPoints = NULL;
+  if (!ornt) PetscCall(PetscSectionGetClosureIndex(section, (PetscObject) dm, clSec, clPoints));
   if (*clPoints) {
     PetscInt dof, off;
 
@@ -5602,7 +5603,7 @@ PetscErrorCode DMPlexGetCompressedClosure(DM dm, PetscSection section, PetscInt 
     np   = dof/2;
     pts  = (PetscInt *) &cla[off];
   } else {
-    PetscCall(DMPlexGetTransitiveClosure(dm, point, PETSC_TRUE, &np, &pts));
+    PetscCall(DMPlexGetTransitiveClosure_Internal(dm, point, ornt, PETSC_TRUE, &np, &pts));
     PetscCall(CompressPoints_Private(section, &np, pts));
   }
   *numPoints = np;
@@ -5611,7 +5612,7 @@ PetscErrorCode DMPlexGetCompressedClosure(DM dm, PetscSection section, PetscInt 
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMPlexRestoreCompressedClosure(DM dm, PetscSection section, PetscInt point, PetscInt *numPoints, PetscInt **points, PetscSection *clSec, IS *clPoints, const PetscInt **clp)
+PetscErrorCode DMPlexRestoreCompressedClosure(DM dm, PetscSection section, PetscInt point, PetscInt ornt, PetscInt *numPoints, PetscInt **points, PetscSection *clSec, IS *clPoints, const PetscInt **clp)
 {
   PetscFunctionBeginHot;
   if (!*clPoints) {
@@ -5711,6 +5712,48 @@ static inline PetscErrorCode DMPlexVecGetClosure_Fields_Static(DM dm, PetscSecti
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode DMPlexVecGetClosure_Internal(DM dm, PetscSection section, Vec v, PetscInt point, PetscInt ornt, PetscInt *csize, PetscScalar *values[])
+{
+  PetscSection    clSection;
+  IS              clPoints;
+  PetscInt       *points = NULL;
+  const PetscInt *clp, *perm;
+  PetscInt        depth, numFields, numPoints, asize;
+
+  PetscFunctionBeginHot;
+  PetscCall(DMPlexGetDepth(dm, &depth));
+  PetscCall(PetscSectionGetNumFields(section, &numFields));
+  /* Get points */
+  PetscCall(DMPlexGetCompressedClosure(dm,section,point,0,&numPoints,&points,&clSection,&clPoints,&clp));
+  /* Get sizes */
+  asize = 0;
+  for (PetscInt p = 0; p < numPoints*2; p += 2) {
+    PetscInt dof;
+    PetscCall(PetscSectionGetDof(section, points[p], &dof));
+    asize += dof;
+  }
+  if (values) {
+    const PetscScalar *vArray;
+    PetscInt          size;
+
+    if (*values) {
+      PetscCheck(*csize >= asize,PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Provided array size %" PetscInt_FMT " not sufficient to hold closure size %" PetscInt_FMT, *csize, asize);
+    } else PetscCall(DMGetWorkArray(dm, asize, MPIU_SCALAR, values));
+    PetscCall(PetscSectionGetClosureInversePermutation_Internal(section, (PetscObject) dm, depth, asize, &perm));
+    PetscCall(VecGetArrayRead(v, &vArray));
+    /* Get values */
+    if (numFields > 0) PetscCall(DMPlexVecGetClosure_Fields_Static(dm, section, numPoints, points, numFields, perm, vArray, &size, *values));
+    else               PetscCall(DMPlexVecGetClosure_Static(dm, section, numPoints, points, perm, vArray, &size, *values));
+    PetscCheck(asize == size,PETSC_COMM_SELF, PETSC_ERR_PLIB, "Section size %" PetscInt_FMT " does not match Vec closure size %" PetscInt_FMT, asize, size);
+    /* Cleanup array */
+    PetscCall(VecRestoreArrayRead(v, &vArray));
+  }
+  if (csize) *csize = asize;
+  /* Cleanup points */
+  PetscCall(DMPlexRestoreCompressedClosure(dm,section,point,0,&numPoints,&points,&clSection,&clPoints,&clp));
+  PetscFunctionReturn(0);
+}
+
 /*@C
   DMPlexVecGetClosure - Get an array of the values on the closure of 'point'
 
@@ -5764,11 +5807,7 @@ $  PetscFree(values);
 @*/
 PetscErrorCode DMPlexVecGetClosure(DM dm, PetscSection section, Vec v, PetscInt point, PetscInt *csize, PetscScalar *values[])
 {
-  PetscSection       clSection;
-  IS                 clPoints;
-  PetscInt          *points = NULL;
-  const PetscInt    *clp, *perm;
-  PetscInt           depth, numFields, numPoints, asize;
+  PetscInt depth, numFields;
 
   PetscFunctionBeginHot;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
@@ -5781,34 +5820,7 @@ PetscErrorCode DMPlexVecGetClosure(DM dm, PetscSection section, Vec v, PetscInt 
     PetscCall(DMPlexVecGetClosure_Depth1_Static(dm, section, v, point, csize, values));
     PetscFunctionReturn(0);
   }
-  /* Get points */
-  PetscCall(DMPlexGetCompressedClosure(dm,section,point,&numPoints,&points,&clSection,&clPoints,&clp));
-  /* Get sizes */
-  asize = 0;
-  for (PetscInt p = 0; p < numPoints*2; p += 2) {
-    PetscInt dof;
-    PetscCall(PetscSectionGetDof(section, points[p], &dof));
-    asize += dof;
-  }
-  if (values) {
-    const PetscScalar *vArray;
-    PetscInt          size;
-
-    if (*values) {
-      PetscCheck(*csize >= asize,PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Provided array size %" PetscInt_FMT " not sufficient to hold closure size %" PetscInt_FMT, *csize, asize);
-    } else PetscCall(DMGetWorkArray(dm, asize, MPIU_SCALAR, values));
-    PetscCall(PetscSectionGetClosureInversePermutation_Internal(section, (PetscObject) dm, depth, asize, &perm));
-    PetscCall(VecGetArrayRead(v, &vArray));
-    /* Get values */
-    if (numFields > 0) PetscCall(DMPlexVecGetClosure_Fields_Static(dm, section, numPoints, points, numFields, perm, vArray, &size, *values));
-    else               PetscCall(DMPlexVecGetClosure_Static(dm, section, numPoints, points, perm, vArray, &size, *values));
-    PetscCheck(asize == size,PETSC_COMM_SELF, PETSC_ERR_PLIB, "Section size %" PetscInt_FMT " does not match Vec closure size %" PetscInt_FMT, asize, size);
-    /* Cleanup array */
-    PetscCall(VecRestoreArrayRead(v, &vArray));
-  }
-  if (csize) *csize = asize;
-  /* Cleanup points */
-  PetscCall(DMPlexRestoreCompressedClosure(dm,section,point,&numPoints,&points,&clSection,&clPoints,&clp));
+  PetscCall(DMPlexVecGetClosure_Internal(dm, section, v, point, 0, csize, values));
   PetscFunctionReturn(0);
 }
 
@@ -5836,7 +5848,7 @@ PetscErrorCode DMPlexVecGetClosureAtDepth_Internal(DM dm, PetscSection section, 
     PetscFunctionReturn(0);
   }
   /* Get points */
-  PetscCall(DMPlexGetCompressedClosure(dm,section,point,&numPoints,&points,&clSection,&clPoints,&clp));
+  PetscCall(DMPlexGetCompressedClosure(dm,section,point,0,&numPoints,&points,&clSection,&clPoints,&clp));
   for (clsize=0,p=0; p<Np; p++) {
     PetscInt dof;
     PetscCall(PetscSectionGetDof(section, points[2*p], &dof));
@@ -5862,7 +5874,7 @@ PetscErrorCode DMPlexVecGetClosureAtDepth_Internal(DM dm, PetscSection section, 
       asize += dof;
     }
     if (!values) {
-      PetscCall(DMPlexRestoreCompressedClosure(dm,section,point,&numPoints,&points,&clSection,&clPoints,&clp));
+      PetscCall(DMPlexRestoreCompressedClosure(dm,section,point,0,&numPoints,&points,&clSection,&clPoints,&clp));
       if (csize) *csize = asize;
       PetscFunctionReturn(0);
     }
@@ -5875,7 +5887,7 @@ PetscErrorCode DMPlexVecGetClosureAtDepth_Internal(DM dm, PetscSection section, 
   if (numFields > 0) PetscCall(DMPlexVecGetClosure_Fields_Static(dm, section, Np, points, numFields, perm, vArray, &size, array));
   else               PetscCall(DMPlexVecGetClosure_Static(dm, section, Np, points, perm, vArray, &size, array));
   /* Cleanup points */
-  PetscCall(DMPlexRestoreCompressedClosure(dm,section,point,&numPoints,&points,&clSection,&clPoints,&clp));
+  PetscCall(DMPlexRestoreCompressedClosure(dm,section,point,0,&numPoints,&points,&clSection,&clPoints,&clp));
   /* Cleanup array */
   PetscCall(VecRestoreArrayRead(v, &vArray));
   if (!*values) {
@@ -6268,7 +6280,7 @@ PetscErrorCode DMPlexVecSetClosure(DM dm, PetscSection section, Vec v, PetscInt 
     PetscFunctionReturn(0);
   }
   /* Get points */
-  PetscCall(DMPlexGetCompressedClosure(dm,section,point,&numPoints,&points,&clSection,&clPoints,&clp));
+  PetscCall(DMPlexGetCompressedClosure(dm,section,point,0,&numPoints,&points,&clSection,&clPoints,&clp));
   for (clsize=0,p=0; p<numPoints; p++) {
     PetscInt dof;
     PetscCall(PetscSectionGetDof(section, points[2*p], &dof));
@@ -6394,7 +6406,7 @@ PetscErrorCode DMPlexVecSetClosure(DM dm, PetscSection section, Vec v, PetscInt 
     PetscCall(PetscSectionRestorePointSyms(section,numPoints,points,&perms,&flips));
   }
   /* Cleanup points */
-  PetscCall(DMPlexRestoreCompressedClosure(dm,section,point,&numPoints,&points,&clSection,&clPoints,&clp));
+  PetscCall(DMPlexRestoreCompressedClosure(dm,section,point,0,&numPoints,&points,&clSection,&clPoints,&clp));
   /* Cleanup array */
   PetscCall(VecRestoreArray(v, &array));
   PetscFunctionReturn(0);
@@ -6440,7 +6452,7 @@ PetscErrorCode DMPlexVecSetFieldClosure_Internal(DM dm, PetscSection section, Ve
   PetscValidHeaderSpecific(v, VEC_CLASSID, 3);
   PetscCall(PetscSectionGetNumFields(section, &numFields));
   /* Get points */
-  PetscCall(DMPlexGetCompressedClosure(dm,section,point,&numPoints,&points,&clSection,&clPoints,&clp));
+  PetscCall(DMPlexGetCompressedClosure(dm,section,point,0,&numPoints,&points,&clSection,&clPoints,&clp));
   /* Get array */
   PetscCall(VecGetArray(v, &array));
   /* Get values */
@@ -6504,7 +6516,7 @@ PetscErrorCode DMPlexVecSetFieldClosure_Internal(DM dm, PetscSection section, Ve
     PetscCall(PetscSectionRestoreFieldPointSyms(section,f,numPoints,points,&perms,&flips));
   }
   /* Cleanup points */
-  PetscCall(DMPlexRestoreCompressedClosure(dm,section,point,&numPoints,&points,&clSection,&clPoints,&clp));
+  PetscCall(DMPlexRestoreCompressedClosure(dm,section,point,0,&numPoints,&points,&clSection,&clPoints,&clp));
   /* Cleanup array */
   PetscCall(VecRestoreArray(v, &array));
   PetscFunctionReturn(0);
@@ -7312,7 +7324,7 @@ PetscErrorCode DMPlexGetClosureIndices(DM dm, PetscSection section, PetscSection
   PetscCheck(Nf <= 31,PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_OUTOFRANGE, "Number of fields %" PetscInt_FMT " limited to 31", Nf);
   PetscCall(PetscArrayzero(offsets, 32));
   /* 1) Get points in closure */
-  PetscCall(DMPlexGetCompressedClosure(dm, section, point, &Ncl, &points, &clSection, &clPoints, &clp));
+  PetscCall(DMPlexGetCompressedClosure(dm, section, point, 0, &Ncl, &points, &clSection, &clPoints, &clp));
   if (useClPerm) {
     PetscInt depth, clsize;
     PetscCall(DMPlexGetPointDepth(dm, point, &depth));
@@ -7383,7 +7395,7 @@ PetscErrorCode DMPlexGetClosureIndices(DM dm, PetscSection section, PetscSection
       if (Nf) PetscCall(PetscSectionGetFieldPointSyms(section, f, NclC, pointsC, &perms[f], &flips[f]));
       else    PetscCall(PetscSectionGetPointSyms(section, NclC, pointsC, &perms[f], &flips[f]));
     }
-    PetscCall(DMPlexRestoreCompressedClosure(dm, section, point, &Ncl, &points, &clSection, &clPoints, &clp));
+    PetscCall(DMPlexRestoreCompressedClosure(dm, section, point, 0, &Ncl, &points, &clSection, &clPoints, &clp));
     Ncl     = NclC;
     Ni      = NiC;
     points  = pointsC;
@@ -7435,7 +7447,7 @@ PetscErrorCode DMPlexGetClosureIndices(DM dm, PetscSection section, PetscSection
   if (NclC) {
     PetscCall(DMRestoreWorkArray(dm, NclC*2, MPIU_INT, &pointsC));
   } else {
-    PetscCall(DMPlexRestoreCompressedClosure(dm, section, point, &Ncl, &points, &clSection, &clPoints, &clp));
+    PetscCall(DMPlexRestoreCompressedClosure(dm, section, point, 0, &Ncl, &points, &clSection, &clPoints, &clp));
   }
 
   if (numIndices) *numIndices = Ni;
