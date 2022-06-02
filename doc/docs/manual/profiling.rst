@@ -535,7 +535,7 @@ disabling some of the events that occur many times in a code (e.g.,
 
 .. _sec_PetscLoginfo:
 
-Interpreting ``-log_info`` Output: Informative Messages
+Interpreting ``-info`` Output: Informative Messages
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Users can activate the printing of verbose information about algorithms,
