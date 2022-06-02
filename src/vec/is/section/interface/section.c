@@ -3526,3 +3526,4 @@ PetscErrorCode PetscSectionExtractDofsFromArray(PetscSection origSection, MPI_Da
   PetscCall(ISRestoreIndices(points, &points_));
   PetscFunctionReturn(0);
 }
+

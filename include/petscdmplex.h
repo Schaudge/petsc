@@ -147,6 +147,7 @@ PETSC_EXTERN PetscErrorCode DMPlexGetCompressedClosure(DM, PetscSection, PetscIn
 PETSC_EXTERN PetscErrorCode DMPlexRestoreCompressedClosure(DM, PetscSection, PetscInt, PetscInt *, PetscInt **, PetscSection *, IS *, const PetscInt **);
 
 PETSC_EXTERN PetscErrorCode DMPlexDisjointUnion_Topological_Section(DM *, PetscInt, DM *, PetscSection *);
+PETSC_EXTERN PetscErrorCode DMPlexDisjointUnion_Geometric_Section(DM *, PetscInt, DM *, PetscSection *);
 
 /*E
    DMPlexTPSType - Type of triply-periodic surface for a `DMPLEX`

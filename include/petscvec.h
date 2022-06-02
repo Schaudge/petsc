@@ -724,6 +724,8 @@ PETSC_EXTERN PetscErrorCode VecStepBoundInfo(Vec, Vec, Vec, Vec, PetscReal *, Pe
 PETSC_EXTERN PetscErrorCode VecStepMax(Vec, Vec, PetscReal *);
 PETSC_EXTERN PetscErrorCode VecStepMaxBounded(Vec, Vec, Vec, Vec, PetscReal *);
 
+PETSC_EXTERN PetscErrorCode VecSectionCopy(Vec, PetscSection, IS, ScatterMode, PetscSection, Vec);
+
 PETSC_EXTERN PetscErrorCode PetscViewerMathematicaGetVector(PetscViewer, Vec);
 PETSC_EXTERN PetscErrorCode PetscViewerMathematicaPutVector(PetscViewer, Vec);
 

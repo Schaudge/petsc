@@ -1,4 +1,4 @@
-static char help[] = "Test for Disjoint Union of DMPlexes \n\n";
+static char help[] = "Test for Disjoint Topological Union of DMPlexes \n\n";
 
 #include <petscdmplex.h>
 
@@ -15,6 +15,7 @@ PetscErrorCode UnionTwoRefTriangles()
   PetscCall(DMPlexDisjointUnion_Topological_Section(dm,2,&dmunion,&unionmapping));
 
   PetscCall(DMViewFromOptions(dmunion,NULL,"-viewunion"));
+  PetscCall(PetscSectionViewFromOptions(unionmapping,NULL,"-viewunion"));
   PetscCall(DMDestroy(&dm[0]));
   PetscCall(DMDestroy(&dm[1]));
   PetscCall(DMDestroy(&dmunion));
