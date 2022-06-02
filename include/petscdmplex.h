@@ -184,6 +184,8 @@ PETSC_EXTERN PetscErrorCode DMPlexCreateWedgeBoxMesh(MPI_Comm, const PetscInt[],
 PETSC_EXTERN PetscErrorCode DMPlexExtrude(DM, PetscInt, PetscReal, PetscBool, PetscBool, const PetscReal[], const PetscReal[], DM *);
 PETSC_EXTERN PetscErrorCode DMPlexCreateConeSection(DM, PetscSection *);
 PETSC_EXTERN PetscErrorCode DMPlexInflateToGeomModel(DM);
+PETSC_EXTERN PetscErrorCode DMPlexCreateEmbeddedLineMesh(MPI_Comm, PetscInt, const PetscInt, const PetscReal[], const PetscReal[], DM *);
+
 
 PETSC_EXTERN PetscErrorCode DMPlexCheck(DM);
 PETSC_EXTERN PetscErrorCode DMPlexCheckSymmetry(DM);

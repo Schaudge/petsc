@@ -330,7 +330,107 @@ PetscErrorCode DMPlexCreateDoublet(MPI_Comm comm, PetscInt dim, PetscBool simple
   }
   PetscFunctionReturn(0);
 }
+static PetscErrorCode DMPlexCreateEmbeddedLineMesh_Internal(DM dm, PetscInt dim, const PetscReal lower[], const PetscReal upper[], const PetscInt edges)
+{
+  const PetscInt numVertices    = edges+1;
+  const PetscInt numEdges       = edges;
+  PetscInt       markerRight    = 1;
+  PetscInt       markerLeft     = 1;
+  PetscBool      markerSeparate = PETSC_FALSE;
+  Vec            coordinates;
+  PetscSection   coordSection;
+  PetscScalar   *coords;
+  PetscInt       coordSize;
+  PetscMPIInt    rank;
+  PetscInt       v,e,d;
 
+  PetscFunctionBegin;
+  PetscCall(PetscOptionsGetBool(((PetscObject) dm)->options,((PetscObject) dm)->prefix, "-dm_plex_separate_marker", &markerSeparate, NULL));
+  if (markerSeparate) {
+    markerRight  = 2;
+    markerLeft   = 1;
+  }
+  PetscCallMPI(MPI_Comm_rank(PetscObjectComm((PetscObject)dm), &rank));
+  if (!rank) {
+    PetscInt cone[2],vertex; 
+
+    PetscCall(DMPlexSetChart(dm, 0, numEdges+numVertices));
+    for (e = 0; e < numEdges; ++e) {
+      PetscCall(DMPlexSetConeSize(dm, e, 2));
+    }
+    PetscCall(DMSetUp(dm)); /* Allocate space for cones */
+    for (e=0; e<numEdges; e++) {
+      vertex = e+numEdges; 
+      cone[0] = vertex; cone[1] = vertex+1;
+      PetscCall(DMPlexSetCone(dm, e, cone));
+    }
+    PetscCall(DMSetLabelValue(dm, "marker", numEdges, markerLeft));
+    PetscCall(DMSetLabelValue(dm, "marker", numEdges+numVertices-1, markerRight));
+  }
+  PetscCall(DMPlexSymmetrize(dm));
+  PetscCall(DMPlexStratify(dm));
+  /* Build coordinates */
+  PetscCall(DMSetCoordinateDim(dm, dim));
+  if (!rank) {
+    PetscCall(DMGetCoordinateSection(dm, &coordSection));
+    PetscCall(PetscSectionSetNumFields(coordSection, 1));
+    PetscCall(PetscSectionSetChart(coordSection, 0, numVertices+numEdges));
+    PetscCall(PetscSectionSetFieldComponents(coordSection, 0, dim));
+    for (v = numEdges; v < numVertices+numEdges; ++v) {
+      PetscCall(PetscSectionSetDof(coordSection, v, dim));
+      PetscCall(PetscSectionSetFieldDof(coordSection, v, 0, dim));
+    }
+    PetscCall(PetscSectionSetUp(coordSection));
+    PetscCall(PetscSectionGetStorageSize(coordSection, &coordSize));
+    PetscCall(VecCreate(PETSC_COMM_SELF, &coordinates));
+    PetscCall(PetscObjectSetName((PetscObject) coordinates, "coordinates"));
+    PetscCall(VecSetSizes(coordinates, coordSize, PETSC_DETERMINE));
+    PetscCall(VecSetBlockSize(coordinates, dim));
+    PetscCall(VecSetType(coordinates,VECSTANDARD));
+    PetscCall(VecGetArray(coordinates, &coords));
+    for(v = 0; v < numVertices; v++){
+      for(d=0; d<dim; d++){
+        coords[d+v*dim] = lower[d] + (PetscReal) v/ (PetscReal) numEdges * upper[d];
+      }
+    }
+    PetscCall(VecRestoreArray(coordinates, &coords));
+    PetscCall(DMSetCoordinatesLocal(dm, coordinates));
+    PetscCall(VecDestroy(&coordinates));
+  }
+  PetscFunctionReturn(0);
+}
+/*@C
+  DMPlexCreateEmbeddedLineMesh - Creates a mesh on the surface of the tensor product of unit intervals (box) using tensor cells (hexahedra).
+
+  Collective
+
+  Input Parameters:
++ comm        - The communicator for the DM object
+. dim         - The spatial dimension of the line
+. cells       - Number of cells in the line
+. lower       - The lower left corner, or NULL for (0, 0, 0)
+. upper       - The upper right corner, or NULL for (1, 1, 1)
+
+  Output Parameter:
+. dm  - The DM object
+
+  Level: beginner
+
+.seealso: `DMSetFromOptions()`, `DMPlexCreateBoxMesh()`, `DMPlexCreateFromFile()`, `DMSetType()`, `DMCreate()`
+@*/
+PetscErrorCode DMPlexCreateEmbeddedLineMesh(MPI_Comm comm, PetscInt dim, const PetscInt cells, const PetscReal lower[], const PetscReal upper[], DM *dm)
+{
+  PetscInt       fac = 1;
+  PetscReal      low[3] = {0, 0, 0};
+  PetscReal      upp[3] = {1, 1, 1};
+
+  PetscFunctionBegin;
+  PetscCall(DMCreate(comm,dm));
+  PetscCall(DMSetType(*dm,DMPLEX));
+  PetscCall(DMSetDimension(*dm,1));
+  PetscCall(DMPlexCreateEmbeddedLineMesh_Internal(*dm, dim, lower ? lower : low, upper ? upper : upp, cells ? cells : fac));
+  PetscFunctionReturn(0);
+}
 static PetscErrorCode DMPlexCreateBoxSurfaceMesh_Tensor_1D_Internal(DM dm, const PetscReal lower[], const PetscReal upper[], const PetscInt edges[])
 {
   const PetscInt numVertices    = 2;
