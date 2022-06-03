@@ -436,14 +436,15 @@ PetscErrorCode DMPlexTopologyView_HDF5_Internal(DM dm, PetscViewer viewer)
   PetscInt             *points, *coneSizes, *cones, *orientations;
   IS                    globalPointNumbers;
   const PetscInt       *gpoint;
-  PetscInt              pStart, pEnd, nPoints = 0, conesSize = 0;
+  const PetscBool      *ghostMask;
+  PetscInt              pStart, pEnd, nPoints, conesSize = 0;
+  PetscLayout           ownedLayout;
   PetscInt              p, c, s;
   DMPlexStorageVersion  version;
   char                  group[PETSC_MAX_PATH_LEN];
   MPI_Comm              comm;
 
   PetscFunctionBegin;
-  PetscCall(DMPlexCreatePointNumbering(dm, &globalPointNumbers));
   PetscCall(PetscObjectGetComm((PetscObject) dm, &comm));
   pointsName        = "order";
   coneSizesName     = "cones";
@@ -458,13 +459,14 @@ PetscErrorCode DMPlexTopologyView_HDF5_Internal(DM dm, PetscViewer viewer)
   }
   PetscCall(PetscViewerHDF5PushGroup(viewer, group));
   PetscCall(DMPlexGetChart(dm, &pStart, &pEnd));
+  PetscCall(DMPlexGetPointNumbering(dm, &globalPointNumbers, &ghostMask, &ownedLayout, NULL));
+  nPoints = ownedLayout->n;
   PetscCall(ISGetIndices(globalPointNumbers, &gpoint));
   for (p = pStart; p < pEnd; ++p) {
-    if (gpoint[p] >= 0) {
+    if (!ghostMask[p]) {
       PetscInt coneSize;
 
       PetscCall(DMPlexGetConeSize(dm, p, &coneSize));
-      nPoints += 1;
       conesSize += coneSize;
     }
   }
@@ -473,7 +475,7 @@ PetscErrorCode DMPlexTopologyView_HDF5_Internal(DM dm, PetscViewer viewer)
   PetscCall(PetscMalloc1(conesSize, &cones));
   PetscCall(PetscMalloc1(conesSize, &orientations));
   for (p = pStart, c = 0, s = 0; p < pEnd; ++p) {
-    if (gpoint[p] >= 0) {
+    if (!ghostMask[p]) {
       const PetscInt *cone, *ornt;
       PetscInt        coneSize, cp;
 
@@ -483,7 +485,7 @@ PetscErrorCode DMPlexTopologyView_HDF5_Internal(DM dm, PetscViewer viewer)
       points[s]    = gpoint[p];
       coneSizes[s] = coneSize;
       for (cp = 0; cp < coneSize; ++cp, ++c) {
-        cones[c] = gpoint[cone[cp]] < 0 ? -(gpoint[cone[cp]]+1) : gpoint[cone[cp]];
+        cones[c] = gpoint[cone[cp]];
         orientations[c] = ornt[cp];
       }
       ++s;
@@ -508,7 +510,6 @@ PetscErrorCode DMPlexTopologyView_HDF5_Internal(DM dm, PetscViewer viewer)
   PetscCall(ISDestroy(&conesIS));
   PetscCall(ISDestroy(&orientationsIS));
   PetscCall(ISRestoreIndices(globalPointNumbers, &gpoint));
-  PetscCall(ISDestroy(&globalPointNumbers));
   {
     PetscInt dim;
 
@@ -519,12 +520,13 @@ PetscErrorCode DMPlexTopologyView_HDF5_Internal(DM dm, PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode CreateConesIS_Private(DM dm, PetscInt cStart, PetscInt cEnd, IS globalPointNumbers, PetscInt *numCorners, IS *cellIS)
+static PetscErrorCode CreateConesIS_Private(DM dm, PetscInt cStart, PetscInt cEnd, PetscInt *numCorners, IS *cellIS)
 {
   PetscSF         sfPoint;
   DMLabel         cutLabel, cutVertexLabel = NULL;
   IS              globalVertexNumbers, cutvertices = NULL;
-  const PetscInt *gcell, *gvertex, *cutverts = NULL;
+  const PetscBool*ghostMask;
+  const PetscInt *gvertex, *cutverts = NULL;
   PetscInt       *vertices;
   PetscInt        conesSize = 0;
   PetscInt        dim, numCornersLocal = 0, cell, vStart, vEnd, vExtra = 0, v;
@@ -533,13 +535,13 @@ static PetscErrorCode CreateConesIS_Private(DM dm, PetscInt cStart, PetscInt cEn
   *numCorners = 0;
   PetscCall(DMGetDimension(dm, &dim));
   PetscCall(DMPlexGetDepthStratum(dm, 0, &vStart, &vEnd));
-  PetscCall(ISGetIndices(globalPointNumbers, &gcell));
+  PetscCall(DMPlexGetPointNumbering(dm, NULL, &ghostMask, NULL, NULL));
 
   for (cell = cStart; cell < cEnd; ++cell) {
     PetscInt *closure = NULL;
     PetscInt  closureSize, v, Nc = 0;
 
-    if (gcell[cell] < 0) continue;
+    if (ghostMask[cell]) continue;
     PetscCall(DMPlexGetTransitiveClosure(dm, cell, PETSC_TRUE, &closureSize, &closure));
     for (v = 0; v < closureSize*2; v += 2) {
       if ((closure[v] >= vStart) && (closure[v] < vEnd)) ++Nc;
@@ -586,7 +588,7 @@ static PetscErrorCode CreateConesIS_Private(DM dm, PetscInt cStart, PetscInt cEn
     PetscInt  closureSize, Nc = 0, p, value = -1;
     PetscBool replace;
 
-    if (gcell[cell] < 0) continue;
+    if (ghostMask[cell]) continue;
     if (cutLabel) PetscCall(DMLabelGetValue(cutLabel, cell, &value));
     replace = (value == 2) ? PETSC_TRUE : PETSC_FALSE;
     PetscCall(DMPlexGetTransitiveClosure(dm, cell, PETSC_TRUE, &closureSize, &closure));
@@ -609,7 +611,6 @@ static PetscErrorCode CreateConesIS_Private(DM dm, PetscInt cStart, PetscInt cEn
   }
   PetscCall(ISRestoreIndices(globalVertexNumbers, &gvertex));
   PetscCall(ISDestroy(&globalVertexNumbers));
-  PetscCall(ISRestoreIndices(globalPointNumbers, &gcell));
   if (cutvertices) PetscCall(ISRestoreIndices(cutvertices, &cutverts));
   PetscCall(ISDestroy(&cutvertices));
   PetscCall(DMLabelDestroy(&cutVertexLabel));
@@ -625,7 +626,6 @@ static PetscErrorCode DMPlexTopologyView_HDF5_XDMF_Private(DM dm, PetscViewer vi
   DM              cdm;
   DMLabel         depthLabel, ctLabel;
   IS              cellIS;
-  IS              globalPointNumbers;
   PetscInt        dim, depth, cellHeight, c;
   hid_t           fileId, groupId;
 
@@ -635,7 +635,6 @@ static PetscErrorCode DMPlexTopologyView_HDF5_XDMF_Private(DM dm, PetscViewer vi
   PetscStackCallHDF5(H5Gclose,(groupId));
   PetscCall(PetscViewerHDF5PopGroup(viewer));
 
-  PetscCall(DMPlexCreatePointNumbering(dm, &globalPointNumbers));
   PetscCall(DMGetDimension(dm, &dim));
   PetscCall(DMPlexGetDepth(dm, &depth));
   PetscCall(DMGetCoordinateDM(dm, &cdm));
@@ -655,7 +654,7 @@ static PetscErrorCode DMPlexTopologyView_HDF5_XDMF_Private(DM dm, PetscViewer vi
     }
     PetscCallMPI(MPI_Allreduce(&output, &doOutput, 1, MPIU_BOOL, MPI_LOR, PetscObjectComm((PetscObject) dm)));
     if (!doOutput) continue;
-    PetscCall(CreateConesIS_Private(dm, pStart, pEnd, globalPointNumbers, &numCorners, &cellIS));
+    PetscCall(CreateConesIS_Private(dm, pStart, pEnd, &numCorners, &cellIS));
     if (!n) {
       PetscCall(PetscViewerHDF5PushGroup(viewer, "/viz/topology"));
     } else {
@@ -671,7 +670,6 @@ static PetscErrorCode DMPlexTopologyView_HDF5_XDMF_Private(DM dm, PetscViewer vi
     PetscCall(PetscViewerHDF5PopGroup(viewer));
     ++n;
   }
-  PetscCall(ISDestroy(&globalPointNumbers));
   PetscFunctionReturn(0);
 }
 
@@ -892,6 +890,7 @@ static PetscErrorCode DMPlexCoordinatesView_HDF5_XDMF_Private(DM dm, PetscViewer
 PetscErrorCode DMPlexLabelsView_HDF5_Internal(DM dm, PetscViewer viewer)
 {
   const char           *topologydm_name;
+  const PetscBool      *ghostMask;
   const PetscInt       *gpoint;
   IS                    globalPointNumbers;
   PetscInt              numLabels, l;
@@ -900,7 +899,7 @@ PetscErrorCode DMPlexLabelsView_HDF5_Internal(DM dm, PetscViewer viewer)
 
   PetscFunctionBegin;
   PetscCall(DMPlexStorageVersionSetUpWriting_Private(dm, viewer, &version));
-  PetscCall(DMPlexCreatePointNumbering(dm, &globalPointNumbers));
+  PetscCall(DMPlexGetPointNumbering(dm, &globalPointNumbers, &ghostMask, NULL, NULL));
   PetscCall(ISGetIndices(globalPointNumbers, &gpoint));
   PetscCall(DMPlexGetHDF5Name_Private(dm, &topologydm_name));
   if (version.major <= 1) {
@@ -948,9 +947,9 @@ PetscErrorCode DMPlexLabelsView_HDF5_Internal(DM dm, PetscViewer viewer)
 
       if (stratumIS) PetscCall(ISGetLocalSize(stratumIS, &n));
       if (stratumIS) PetscCall(ISGetIndices(stratumIS, &spoints));
-      for (gn = 0, p = 0; p < n; ++p) if (gpoint[spoints[p]] >= 0) ++gn;
+      for (gn = 0, p = 0; p < n; ++p) if (!ghostMask[spoints[p]]) ++gn;
       PetscCall(PetscMalloc1(gn,&gspoints));
-      for (gn = 0, p = 0; p < n; ++p) if (gpoint[spoints[p]] >= 0) gspoints[gn++] = gpoint[spoints[p]];
+      for (gn = 0, p = 0; p < n; ++p) if (!ghostMask[spoints[p]]) gspoints[gn++] = gpoint[spoints[p]];
       if (stratumIS) PetscCall(ISRestoreIndices(stratumIS, &spoints));
       PetscCall(ISCreateGeneral(PetscObjectComm((PetscObject) dm), gn, gspoints, PETSC_OWN_POINTER, &globalStratumIS));
       PetscCall(PetscObjectSetName((PetscObject) globalStratumIS, iname));
@@ -966,7 +965,6 @@ PetscErrorCode DMPlexLabelsView_HDF5_Internal(DM dm, PetscViewer viewer)
     PetscCall(PetscViewerHDF5PopGroup(viewer));
   }
   PetscCall(ISRestoreIndices(globalPointNumbers, &gpoint));
-  PetscCall(ISDestroy(&globalPointNumbers));
   PetscCall(PetscViewerHDF5PopGroup(viewer));
   PetscFunctionReturn(0);
 }
@@ -1031,23 +1029,24 @@ PetscErrorCode DMPlexSectionView_HDF5_Internal(DM dm, PetscViewer viewer, DM sec
   PetscCall(PetscSectionView(gsection, viewer));
   /* Save plex wrapper */
   {
-    PetscInt        pStart, pEnd, p, n;
-    IS              globalPointNumbers;
-    const PetscInt *gpoints;
-    IS              orderIS;
-    PetscInt       *order;
+    PetscInt          pStart, pEnd, p, n;
+    IS                globalPointNumbers;
+    const PetscInt   *gpoints;
+    const PetscBool  *ghostMask;
+    IS                orderIS;
+    PetscInt         *order;
 
     PetscCall(PetscSectionGetChart(gsection, &pStart, &pEnd));
-    PetscCall(DMPlexCreatePointNumbering(dm, &globalPointNumbers));
+    //TODO could returned layouts be used to get n?
+    PetscCall(DMPlexGetPointNumbering(dm, &globalPointNumbers, &ghostMask, NULL, NULL));
     PetscCall(ISGetIndices(globalPointNumbers, &gpoints));
-    for (p = pStart, n = 0; p < pEnd; ++p) if (gpoints[p] >= 0) n++;
+    for (p = pStart, n = 0; p < pEnd; ++p) if (!ghostMask[p]) n++;
     /* "order" is an array of global point numbers.
        When loading, it is used with topology/order array
        to match section points with plex topology points. */
     PetscCall(PetscMalloc1(n, &order));
-    for (p = pStart, n = 0; p < pEnd; ++p) if (gpoints[p] >= 0) order[n++] = gpoints[p];
+    for (p = pStart, n = 0; p < pEnd; ++p) if (!ghostMask[p]) order[n++] = gpoints[p];
     PetscCall(ISRestoreIndices(globalPointNumbers, &gpoints));
-    PetscCall(ISDestroy(&globalPointNumbers));
     PetscCall(ISCreateGeneral(comm, n, order, PETSC_OWN_POINTER, &orderIS));
     PetscCall(PetscObjectSetName((PetscObject)orderIS, "order"));
     PetscCall(ISView(orderIS, viewer));
