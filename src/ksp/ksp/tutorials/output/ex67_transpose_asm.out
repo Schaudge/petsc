@@ -28,7 +28,7 @@ PC Object: 1 MPI process
       matrix ordering: nd
       factor fill ratio given 5., needed 1.4
         Factored matrix follows:
-          Mat Object: 1 MPI process
+          Mat Object: (sub_) 1 MPI process
             type: seqaij
             rows=10, cols=10
             package used to perform factorization: petsc
@@ -51,7 +51,7 @@ PC Object: 1 MPI process
       has attached transposed null space
       not using I-node routines
   0 KSP Residual norm 4.716750439283e-02 
-  1 KSP Residual norm 7.423680515748e-18 
+  1 KSP Residual norm 1.172085248839e-17 
 Linear solve converged due to CONVERGED_RTOL iterations 1
 KSP Object: 1 MPI process
   type: gmres
@@ -80,7 +80,7 @@ PC Object: 1 MPI process
       matrix ordering: nd
       factor fill ratio given 5., needed 1.4
         Factored matrix follows:
-          Mat Object: 1 MPI process
+          Mat Object: (sub_) 1 MPI process
             type: seqaij
             rows=10, cols=10
             package used to perform factorization: petsc

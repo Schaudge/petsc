@@ -105,7 +105,7 @@ TS Object: 2 MPI processes
                 matrix ordering: natural
                 factor fill ratio given 1., needed 1.
                   Factored matrix follows:
-                    Mat Object: 1 MPI process
+                    Mat Object: (npc_fas_coarse_sub_) 1 MPI process
                       type: seqaij
                       rows=15, cols=15
                       package used to perform factorization: petsc
@@ -125,7 +125,7 @@ TS Object: 2 MPI processes
         Down solver (pre-smoother) on level 1 -------------------------------
         SNES Object: (npc_fas_levels_1_) 2 MPI processes
           type: ngs
-            Use finite difference secant approximation with coloring with h = 1e-08 
+            Use finite difference secant approximation with coloring with h = 1.49012e-08 
           maximum iterations=5, maximum function evaluations=30000
           tolerances: relative=0., absolute=0., solution=0.
           norm schedule FINALONLY
@@ -133,7 +133,7 @@ TS Object: 2 MPI processes
         Down solver (pre-smoother) on level 2 -------------------------------
         SNES Object: (npc_fas_levels_2_) 2 MPI processes
           type: ngs
-            Use finite difference secant approximation with coloring with h = 1e-08 
+            Use finite difference secant approximation with coloring with h = 1.49012e-08 
           maximum iterations=5, maximum function evaluations=30000
           tolerances: relative=0., absolute=0., solution=0.
           norm schedule FINALONLY

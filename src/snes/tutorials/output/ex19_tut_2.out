@@ -7,31 +7,31 @@ lid velocity = 0.000106281, prandtl # = 1., grashof # = 1.
     4 KSP Residual norm 2.015139840224e-03 
     5 KSP Residual norm 4.356196119798e-04 
     6 KSP Residual norm 4.240953066710e-05 
-    7 KSP Residual norm 8.848315297175e-06 
-  1 SNES Function norm 9.854304971115e-06 
-    0 KSP Residual norm 3.868049496775e-05 
-    1 KSP Residual norm 7.693574326868e-06 
-    2 KSP Residual norm 1.059429116239e-06 
-    3 KSP Residual norm 4.004524784804e-07 
-    4 KSP Residual norm 1.050186948327e-07 
-    5 KSP Residual norm 5.073180513583e-08 
-    6 KSP Residual norm 2.510513776297e-08 
-    7 KSP Residual norm 1.211886495400e-08 
-    8 KSP Residual norm 1.911963112131e-09 
-    9 KSP Residual norm 3.005260864225e-10 
-  2 SNES Function norm 3.117674497824e-10 
-    0 KSP Residual norm 3.005042584730e-10 
-    1 KSP Residual norm 1.120673922713e-10 
-    2 KSP Residual norm 3.288439453292e-11 
-    3 KSP Residual norm 5.822504321413e-12 
-    4 KSP Residual norm 2.486684466178e-12 
-    5 KSP Residual norm 1.198858055503e-12 
-    6 KSP Residual norm 6.255669709502e-13 
-    7 KSP Residual norm 1.544647758005e-13 
-    8 KSP Residual norm 4.592122224907e-14 
-    9 KSP Residual norm 4.984149547392e-15 
-   10 KSP Residual norm 8.905129652955e-16 
-  3 SNES Function norm 1.045594761851e-14 
+    7 KSP Residual norm 8.848315297186e-06 
+  1 SNES Function norm 9.854304971107e-06 
+    0 KSP Residual norm 3.868049495478e-05 
+    1 KSP Residual norm 7.693574326307e-06 
+    2 KSP Residual norm 1.059429115936e-06 
+    3 KSP Residual norm 4.004524783908e-07 
+    4 KSP Residual norm 1.050186948746e-07 
+    5 KSP Residual norm 5.073180514344e-08 
+    6 KSP Residual norm 2.510513776782e-08 
+    7 KSP Residual norm 1.211886496336e-08 
+    8 KSP Residual norm 1.911963112654e-09 
+    9 KSP Residual norm 3.005260865149e-10 
+  2 SNES Function norm 3.117674546520e-10 
+    0 KSP Residual norm 3.005047833568e-10 
+    1 KSP Residual norm 1.120674669659e-10 
+    2 KSP Residual norm 3.288447494723e-11 
+    3 KSP Residual norm 5.822522912597e-12 
+    4 KSP Residual norm 2.486687801849e-12 
+    5 KSP Residual norm 1.198859996139e-12 
+    6 KSP Residual norm 6.255698794428e-13 
+    7 KSP Residual norm 1.544698385666e-13 
+    8 KSP Residual norm 4.592129040908e-14 
+    9 KSP Residual norm 4.984112973437e-15 
+   10 KSP Residual norm 8.905095459746e-16 
+  3 SNES Function norm 1.039788195918e-14 
 SNES Object: 4 MPI processes
   type: newtonls
   maximum iterations=50, maximum function evaluations=10000
@@ -84,14 +84,14 @@ SNES Object: 4 MPI processes
               matrix ordering: nd
               factor fill ratio given 5., needed 1.875
                 Factored matrix follows:
-                  Mat Object: 1 MPI process
+                  Mat Object: (mg_coarse_redundant_) 1 MPI process
                     type: seqaij
                     rows=64, cols=64, bs=4
                     package used to perform factorization: petsc
                     total: nonzeros=1920, allocated nonzeros=1920
                       using I-node routines: found 16 nodes, limit used is 5
             linear system matrix = precond matrix:
-            Mat Object: (mg_coarse_redundant_) 1 MPI process
+            Mat Object: 1 MPI process
               type: seqaij
               rows=64, cols=64, bs=4
               total: nonzeros=1024, allocated nonzeros=1024

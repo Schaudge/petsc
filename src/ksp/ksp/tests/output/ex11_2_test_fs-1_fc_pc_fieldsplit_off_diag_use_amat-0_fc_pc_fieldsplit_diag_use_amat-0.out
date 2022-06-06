@@ -33,23 +33,23 @@
     2 KSP Residual norm 0.219772 
     Linear fc_fieldsplit_pressure_lsc_ solve converged due to CONVERGED_RTOL iterations 28
     Linear fc_fieldsplit_pressure_lsc_ solve converged due to CONVERGED_RTOL iterations 18
-    3 KSP Residual norm 0.0566766 
+    3 KSP Residual norm 0.0566767 
     Linear fc_fieldsplit_pressure_lsc_ solve converged due to CONVERGED_RTOL iterations 27
     Linear fc_fieldsplit_pressure_lsc_ solve converged due to CONVERGED_RTOL iterations 15
-    4 KSP Residual norm 0.0143372 
+    4 KSP Residual norm 0.0143373 
     Linear fc_fieldsplit_pressure_lsc_ solve converged due to CONVERGED_RTOL iterations 27
     Linear fc_fieldsplit_pressure_lsc_ solve converged due to CONVERGED_RTOL iterations 12
-    5 KSP Residual norm 0.00215169 
+    5 KSP Residual norm 0.0021517 
     Linear fc_fieldsplit_pressure_lsc_ solve converged due to CONVERGED_RTOL iterations 21
     Linear fc_fieldsplit_pressure_lsc_ solve converged due to CONVERGED_RTOL iterations 9
-    6 KSP Residual norm 0.000294116 
+    6 KSP Residual norm 0.000294118 
     Linear fc_fieldsplit_pressure_lsc_ solve converged due to CONVERGED_RTOL iterations 21
     Linear fc_fieldsplit_pressure_lsc_ solve converged due to CONVERGED_RTOL iterations 12
-    7 KSP Residual norm 5.72041e-05 
+    7 KSP Residual norm 5.72046e-05 
     Linear fc_fieldsplit_pressure_lsc_ solve converged due to CONVERGED_RTOL iterations 21
     Linear fc_fieldsplit_pressure_lsc_ solve converged due to CONVERGED_RTOL iterations 10
-    8 KSP Residual norm 3.68232e-06 
-  2 KSP Residual norm 8.84386e-07 
+    8 KSP Residual norm 3.68236e-06 
+  2 KSP Residual norm 8.90353e-07 
 KSP Object: (fc_) 4 MPI processes
   type: fgmres
     restart=30, using Classical (unmodified) Gram-Schmidt Orthogonalization with no iterative refinement
@@ -91,7 +91,7 @@ PC Object: (fc_) 4 MPI processes
             matrix ordering: nd
             factor fill ratio given 5., needed 2.84512
               Factored matrix follows:
-                Mat Object: 1 MPI process
+                Mat Object: (fc_fieldsplit_velocity_sub_) 1 MPI process
                   type: seqsbaij
                   rows=512, cols=512
                   package used to perform factorization: petsc
@@ -148,7 +148,7 @@ PC Object: (fc_) 4 MPI processes
                 matrix ordering: natural
                 factor fill ratio given 1., needed 1.
                   Factored matrix follows:
-                    Mat Object: 1 MPI process
+                    Mat Object: (fc_fieldsplit_pressure_lsc_sub_) 1 MPI process
                       type: seqsbaij
                       rows=256, cols=256
                       package used to perform factorization: petsc
@@ -214,7 +214,7 @@ PC Object: (fc_) 4 MPI processes
                     matrix ordering: nd
                     factor fill ratio given 5., needed 2.84512
                       Factored matrix follows:
-                        Mat Object: 1 MPI process
+                        Mat Object: (fc_fieldsplit_velocity_sub_) 1 MPI process
                           type: seqsbaij
                           rows=512, cols=512
                           package used to perform factorization: petsc
@@ -272,17 +272,17 @@ PC Object: (fc_) 4 MPI processes
   Min(u)  = -0.017280 [loc=2035]
   Max(u)  = 0.018577 [loc=2024]
   Norm(u) = 0.249725 
-  Sum(u)  = 0.189621 
+  Sum(u)  = 0.189435 
 -- pressure vector values --
-  Min(p)  = -6.120912 [loc=844]
-  Max(p)  = 4.836587 [loc=16]
-  Norm(p) = 94.133704 
+  Min(p)  = -6.120947 [loc=844]
+  Max(p)  = 4.836585 [loc=16]
+  Norm(p) = 94.133648 
   Sum(p)  = 0.000000 
 -- Full vector values --
-  Min(u,p)  = -6.120912 [loc=2890]
-  Max(u,p)  = 4.836587 [loc=528]
-  Norm(u,p) = 94.134036 
-  Sum(u,p)  = 0.189621 
+  Min(u,p)  = -6.120947 [loc=2890]
+  Max(u,p)  = 4.836585 [loc=528]
+  Norm(u,p) = 94.133979 
+  Sum(u,p)  = 0.189435 
   Residual norms for fc_ solve.
   0 KSP Residual norm 0.0747999 
     Residual norms for fc_fieldsplit_pressure_ solve.
@@ -295,10 +295,10 @@ PC Object: (fc_) 4 MPI processes
     1 KSP Residual norm 0.61226 
     Linear fc_fieldsplit_pressure_lsc_ solve converged due to CONVERGED_RTOL iterations 23
     Linear fc_fieldsplit_pressure_lsc_ solve converged due to CONVERGED_RTOL iterations 15
-    2 KSP Residual norm 0.204669 
+    2 KSP Residual norm 0.20467 
     Linear fc_fieldsplit_pressure_lsc_ solve converged due to CONVERGED_RTOL iterations 28
     Linear fc_fieldsplit_pressure_lsc_ solve converged due to CONVERGED_RTOL iterations 18
-    3 KSP Residual norm 0.0698981 
+    3 KSP Residual norm 0.0698982 
     Linear fc_fieldsplit_pressure_lsc_ solve converged due to CONVERGED_RTOL iterations 27
     Linear fc_fieldsplit_pressure_lsc_ solve converged due to CONVERGED_RTOL iterations 17
     4 KSP Residual norm 0.0140512 
@@ -310,11 +310,11 @@ PC Object: (fc_) 4 MPI processes
     6 KSP Residual norm 0.000284037 
     Linear fc_fieldsplit_pressure_lsc_ solve converged due to CONVERGED_RTOL iterations 20
     Linear fc_fieldsplit_pressure_lsc_ solve converged due to CONVERGED_RTOL iterations 12
-    7 KSP Residual norm 5.89015e-05 
+    7 KSP Residual norm 5.89016e-05 
     Linear fc_fieldsplit_pressure_lsc_ solve converged due to CONVERGED_RTOL iterations 21
     Linear fc_fieldsplit_pressure_lsc_ solve converged due to CONVERGED_RTOL iterations 10
-    8 KSP Residual norm 5.09296e-06 
-  2 KSP Residual norm 4.75869e-07 
+    8 KSP Residual norm 5.09295e-06 
+  2 KSP Residual norm 4.81231e-07 
 KSP Object: (fc_) 4 MPI processes
   type: fgmres
     restart=30, using Classical (unmodified) Gram-Schmidt Orthogonalization with no iterative refinement
@@ -356,7 +356,7 @@ PC Object: (fc_) 4 MPI processes
             matrix ordering: nd
             factor fill ratio given 5., needed 2.84512
               Factored matrix follows:
-                Mat Object: 1 MPI process
+                Mat Object: (fc_fieldsplit_velocity_sub_) 1 MPI process
                   type: seqsbaij
                   rows=512, cols=512
                   package used to perform factorization: petsc
@@ -413,7 +413,7 @@ PC Object: (fc_) 4 MPI processes
                 matrix ordering: natural
                 factor fill ratio given 1., needed 1.
                   Factored matrix follows:
-                    Mat Object: 1 MPI process
+                    Mat Object: (fc_fieldsplit_pressure_lsc_sub_) 1 MPI process
                       type: seqsbaij
                       rows=256, cols=256
                       package used to perform factorization: petsc
@@ -479,7 +479,7 @@ PC Object: (fc_) 4 MPI processes
                     matrix ordering: nd
                     factor fill ratio given 5., needed 2.84512
                       Factored matrix follows:
-                        Mat Object: 1 MPI process
+                        Mat Object: (fc_fieldsplit_velocity_sub_) 1 MPI process
                           type: seqsbaij
                           rows=512, cols=512
                           package used to perform factorization: petsc

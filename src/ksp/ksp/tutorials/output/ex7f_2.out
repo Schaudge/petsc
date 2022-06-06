@@ -90,7 +90,7 @@ PC Object: 2 MPI processes
         matrix ordering: natural
         factor fill ratio given 1., needed 1.
           Factored matrix follows:
-            Mat Object: 1 MPI process
+            Mat Object: (sub_) 1 MPI process
               type: seqaij
               rows=6, cols=6
               package used to perform factorization: petsc
@@ -111,4 +111,4 @@ PC Object: 2 MPI processes
     total: nonzeros=100, allocated nonzeros=240
     total number of mallocs used during MatSetValues calls=0
       not using I-node (on process 0) routines
- Norm of error   1.3551999095955061E-015 Iterations           6
+ Norm of error   1.35519988E-15 Iterations           6  

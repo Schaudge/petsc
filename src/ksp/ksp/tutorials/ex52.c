@@ -104,6 +104,7 @@ int main(int argc,char **args)
   */
   PetscCall(MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY));
   PetscCall(MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY));
+  PetscCall(MatSetOptionsPrefixFactor(A,"A_"));
   PetscCall(PetscLogStagePop());
 
   /* A is symmetric. Set symmetric flag to enable ICC/Cholesky preconditioner */
@@ -454,14 +455,14 @@ int main(int argc,char **args)
       suffix: mumps_omp_2
       nsize: 4
       requires: mumps hwloc openmp pthread defined(PETSC_HAVE_MPI_PROCESS_SHARED_MEMORY)
-      args: -use_mumps_lu -mat_mumps_use_omp_threads 2
+      args: -use_mumps_lu -A_mat_mumps_use_omp_threads 2
       output_file: output/ex52_1.out
 
    test:
       suffix: mumps_omp_3
       nsize: 4
       requires: mumps hwloc openmp pthread defined(PETSC_HAVE_MPI_PROCESS_SHARED_MEMORY)
-      args: -use_mumps_ch -mat_mumps_use_omp_threads 3
+      args: -use_mumps_ch -A_mat_mumps_use_omp_threads 3
       # Ignore the warning since we are intentionally testing the imbalanced case
       filter: grep -v "Warning: number of OpenMP threads"
       output_file: output/ex52_1.out
@@ -471,7 +472,7 @@ int main(int argc,char **args)
       nsize: 4
       requires: mumps hwloc openmp pthread defined(PETSC_HAVE_MPI_PROCESS_SHARED_MEMORY)
       # let petsc guess a proper number for threads
-      args: -use_mumps_ch -mat_type sbaij -mat_mumps_use_omp_threads
+      args: -use_mumps_ch -mat_type sbaij -A_mat_mumps_use_omp_threads
       output_file: output/ex52_1.out
 
    test:

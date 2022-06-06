@@ -11,30 +11,30 @@
 10 TS dt 0.0134319 time 0.0890911
 11 TS dt 0.0134682 time 0.102523
 12 TS dt 0.0134977 time 0.115991
-13 TS dt 0.0135237 time 0.129489
-14 TS dt 0.00491431 time 0.133773
-15 TS dt 0.0100893 time 0.138687
-16 TS dt 0.0135711 time 0.148777
-17 TS dt 0.0136066 time 0.162348
-18 TS dt 0.00442413 time 0.165974
-19 TS dt 0.00848341 time 0.170398
-20 TS dt 0.0135303 time 0.178881
-21 TS dt 0.0136941 time 0.192411
-22 TS dt 0.0053962 time 0.197183
-23 TS dt 0.010941 time 0.20258
-24 TS dt 0.0137452 time 0.213521
-25 TS dt 0.0137594 time 0.227266
-26 TS dt 0.0035759 time 0.229752
-27 TS dt 0.00563902 time 0.233328
-28 TS dt 0.0108807 time 0.238967
-29 TS dt 0.0138263 time 0.249848
-30 TS dt 0.0138145 time 0.263674
-31 TS dt 0.00325521 time 0.2658
-32 TS dt 0.00480587 time 0.269055
-33 TS dt 0.0087816 time 0.273861
-34 TS dt 0.0138188 time 0.282642
-35 TS dt 0.0139722 time 0.296461
-36 TS dt 0.00473778 time 0.300051
+13 TS dt 0.0135236 time 0.129489
+14 TS dt 0.00491532 time 0.133791
+15 TS dt 0.0100884 time 0.138707
+16 TS dt 0.013571 time 0.148795
+17 TS dt 0.0136063 time 0.162366
+18 TS dt 0.00442247 time 0.165985
+19 TS dt 0.00846809 time 0.170407
+20 TS dt 0.0135282 time 0.178875
+21 TS dt 0.0136938 time 0.192404
+22 TS dt 0.00540085 time 0.197146
+23 TS dt 0.0109811 time 0.202547
+24 TS dt 0.0137461 time 0.213528
+25 TS dt 0.0137561 time 0.227274
+26 TS dt 0.00356535 time 0.229735
+27 TS dt 0.00560121 time 0.233301
+28 TS dt 0.0108003 time 0.238902
+29 TS dt 0.0138261 time 0.249702
+30 TS dt 0.0138162 time 0.263528
+31 TS dt 0.00331016 time 0.265692
+32 TS dt 0.0049224 time 0.269002
+33 TS dt 0.00908228 time 0.273924
+34 TS dt 0.0138439 time 0.283007
+35 TS dt 0.013972 time 0.296851
+36 TS dt 0.00449515 time 0.300149
 TS Object: 1 MPI process
   type: arkimex
     ARK IMEX 3
@@ -96,14 +96,14 @@ TS Object: 1 MPI process
             matrix ordering: nd
             factor fill ratio given 5., needed 1.63333
               Factored matrix follows:
-                Mat Object: 1 MPI process
+                Mat Object: (mg_coarse_) 1 MPI process
                   type: seqaij
                   rows=60, cols=60
                   package used to perform factorization: petsc
                   total: nonzeros=294, allocated nonzeros=294
                     not using I-node routines
           linear system matrix = precond matrix:
-          Mat Object: (mg_coarse_) 1 MPI process
+          Mat Object: 1 MPI process
             type: seqaij
             rows=60, cols=60
             total: nonzeros=180, allocated nonzeros=180
