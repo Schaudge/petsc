@@ -1273,6 +1273,6 @@ int main(int argc, char **argv) {
       suffix: 4
       args: -ts_type glee -final_time 5 -ts_adapt_type glee -ts_adapt_monitor  -ts_max_steps 50  -problem hull1972a3  -ts_max_reject 100 -ts_adapt_glee_use_local 0
       timeoutfactor: 3
-      requires: !single !__float128
+      requires: !single !__float128 !defined(PETSC_USE_AVX512_KERNELS)
 
 TEST*/
