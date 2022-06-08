@@ -8194,6 +8194,24 @@ PetscErrorCode DMPlexNumberingCtxCreate_Internal(DM dm, IS numberingIS, PetscSF 
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode ISMakeGhostsNegative_Internal(IS numbering, const PetscBool ghostMask[], IS *newIS)
+{
+  PetscInt          n, q;
+  PetscInt         *numbers;
+  IS                is;
+
+  PetscFunctionBegin;
+  PetscCall(ISDuplicate(numbering, &is));
+  PetscCall(ISGetLocalSize(is, &n));
+  PetscCall(ISGetIndices(is, (const PetscInt **) &numbers));
+  for (q = 0; q < n; ++q) {
+    if (ghostMask[q]) numbers[q] = -(numbers[q]+1);
+  }
+  PetscCall(ISRestoreIndices(is, (const PetscInt **) &numbers));
+  *newIS = is;
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode DMPlexGetNumberingCtx_Internal(DM dm, DMPlexNumberingCtx *gn)
 {
   DM_Plex *plex = (DM_Plex*) dm->data;

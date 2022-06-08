@@ -336,6 +336,7 @@ PETSC_EXTERN PetscErrorCode DMPlexCreateNumbering_Plex(DM, PetscInt, PetscInt, P
 /* Support for global numbering */
 /*   Some functions are PETSC_EXTERN just due to src/dm/impls/plex/tests/ex47.c
      and can be turned to PETSC_INTERN once that testing example is deleted */
+PETSC_EXTERN PetscErrorCode ISMakeGhostsNegative_Internal(IS, const PetscBool[], IS *);
 PETSC_EXTERN PetscErrorCode DMPlexGetNumberingCtx_Internal(DM, DMPlexNumberingCtx *);
 PETSC_INTERN PetscErrorCode DMPlexNumberingCtxCreate_Internal(DM, IS, PetscSF, DMPlexNumberingCtx *);
 PETSC_INTERN PetscErrorCode DMPlexNumberingCtxDestroy_Internal(DMPlexNumberingCtx *);
