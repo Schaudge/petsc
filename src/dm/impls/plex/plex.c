@@ -8327,13 +8327,21 @@ PetscErrorCode DMPlexGetHeightStratumNumbering(DM dm, PetscInt height, IS *numbe
 
 PetscErrorCode DMPlexCreateCellNumbering_Internal(DM dm, PetscBool includeHybrid, IS *globalCellNumbers)
 {
-  PetscInt       cellHeight, cStart, cEnd;
+  PetscInt       cellHeight;
 
   PetscFunctionBegin;
   PetscCall(DMPlexGetVTKCellHeight(dm, &cellHeight));
-  if (includeHybrid) PetscCall(DMPlexGetHeightStratum(dm, cellHeight, &cStart, &cEnd));
-  else               PetscCall(DMPlexGetSimplexOrBoxCells(dm, cellHeight, &cStart, &cEnd));
-  PetscCall(DMPlexCreateNumbering_Plex(dm, cStart, cEnd, 0, NULL, dm->sf, globalCellNumbers));
+  if (includeHybrid) {
+    const PetscBool *ghostMask;
+
+    PetscCall(DMPlexGetHeightStratumNumbering(dm, cellHeight, globalCellNumbers, &ghostMask, NULL, NULL));
+    PetscCall(ISMakeGhostsNegative_Internal(*globalCellNumbers, ghostMask, globalCellNumbers));
+  } else {
+    PetscInt cStart, cEnd;
+
+    PetscCall(DMPlexGetSimplexOrBoxCells(dm, cellHeight, &cStart, &cEnd));
+    PetscCall(DMPlexCreateNumbering_Plex(dm, cStart, cEnd, 0, NULL, dm->sf, globalCellNumbers));
+  }
   PetscFunctionReturn(0);
 }
 
