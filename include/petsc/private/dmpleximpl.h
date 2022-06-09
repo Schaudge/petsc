@@ -347,7 +347,7 @@ PETSC_INTERN PetscErrorCode DMPlexNumberingCtxDestroy_Internal(DMPlexNumberingCt
 PETSC_INTERN PetscErrorCode DMPlexNumberingCtxGetStratumNumbering_Internal(DMPlexNumberingCtx, PetscInt, IS *, const PetscBool *[], PetscLayout *, PetscLayout *);
 
 PETSC_INTERN PetscErrorCode DMPlexCreateCellNumbering_Internal(DM, PetscBool, IS *);
-PETSC_INTERN PetscErrorCode DMPlexCreateVertexNumbering_Internal(DM, PetscBool, IS *);
+PETSC_INTERN PetscErrorCode DMPlexCreateVertexNumbering_Internal(DM, IS *);
 PETSC_INTERN PetscErrorCode DMPlexRefine_Internal(DM, Vec, DMLabel, DMLabel, DM *);
 PETSC_INTERN PetscErrorCode DMPlexCoarsen_Internal(DM, Vec, DMLabel, DMLabel, DM *);
 PETSC_INTERN PetscErrorCode DMCreateMatrix_Plex(DM, Mat*);

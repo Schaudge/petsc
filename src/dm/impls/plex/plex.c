@@ -8361,7 +8361,7 @@ PetscErrorCode DMPlexGetCellNumbering(DM dm, IS *globalCellNumbers)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMPlexCreateVertexNumbering_Internal(DM dm, PetscBool includeHybrid, IS *globalVertexNumbers)
+PetscErrorCode DMPlexCreateVertexNumbering_Internal(DM dm, IS *globalVertexNumbers)
 {
   PetscInt       vStart, vEnd;
 
@@ -8391,7 +8391,7 @@ PetscErrorCode DMPlexGetVertexNumbering(DM dm, IS *globalVertexNumbers)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-  if (!mesh->globalVertexNumbers) PetscCall(DMPlexCreateVertexNumbering_Internal(dm, PETSC_FALSE, &mesh->globalVertexNumbers));
+  if (!mesh->globalVertexNumbers) PetscCall(DMPlexCreateVertexNumbering_Internal(dm, &mesh->globalVertexNumbers));
   *globalVertexNumbers = mesh->globalVertexNumbers;
   PetscFunctionReturn(0);
 }
