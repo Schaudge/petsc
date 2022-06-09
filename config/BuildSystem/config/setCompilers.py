@@ -2636,10 +2636,23 @@ if (dlclose(handle)) {
     self.executeTest(self.checkCCompiler)
     self.executeTest(self.checkCPreprocessor)
 
+    def compilerIsEnabled(compilerName):
+      """Returns True is compiler is enabled, False otherwise"""
+      clFlag = self.argDB.get('with-'+compilerName.lower(),default=None)
+      if isinstance(clFlag,str):
+        if clFlag.strip() in {'0','n','no','none','f','false',''}:
+          # compiler was disabled by user from command line
+          return False
+      macro = self.getMakeMacro(compilerName)
+      if isinstance(macro,str):
+        if macro.strip() == '':
+          # compiler was disabled by a previous run through configure
+          return False
+      return True
+
     for LANG in ['Cxx','CUDA','HIP','SYCL']:
       compilerName = LANG.upper() if LANG == 'Cxx' else LANG+'C'
-      # check if compiler was disabled from command line
-      if self.argDB.get('with-'+compilerName.lower()) != '0':
+      if compilerIsEnabled(compilerName):
         self.executeTest(getattr(self,LANG.join(('check','Compiler'))))
         try:
           self.executeTest(self.checkDeviceHostCompiler,args=[LANG])
@@ -2657,6 +2670,7 @@ if (dlclose(handle)) {
           else:
             self.executeTest(getattr(self,LANG.join(('check','Preprocessor'))))
       if not hasattr(self,compilerName):
+        self.logPrint('Disabling '+LANG)
         # compiler is not usable for some reason or another
         if compilerName in self.argDB:
           del self.argDB[compilerName]
