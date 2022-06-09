@@ -3,7 +3,7 @@ import config.package
 class Configure(config.package.GNUPackage):
   def __init__(self, framework):
     config.package.GNUPackage.__init__(self, framework)
-    self.gitcommit         = '5915b54fc53cf56fe68b4527ab7156bbc6c1bef4'
+    self.gitcommit         = '822e15e0c16ee9fb08fe5a74c1b2996b8a036972'
     self.download          = ['git://https://github.com/tisaac/p4est','https://github.com/tisaac/p4est/archive/'+self.gitcommit+'.tar.gz']
     self.functions         = ['p4est_init']
     self.includes          = ['p4est_bits.h']
