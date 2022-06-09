@@ -107,6 +107,7 @@ html_context = {
     "github_repo": "petsc",
     "github_version": edit_branch,
     "doc_path": "doc",
+    "default_mode": "light"
 }
 
 html_logo = os.path.join('images', 'logos', 'PETSc_TAO_logos', 'PETSc-TAO', 'web', 'PETSc-TAO_RGB.svg')
