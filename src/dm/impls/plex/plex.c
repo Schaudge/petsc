@@ -8363,12 +8363,12 @@ PetscErrorCode DMPlexGetCellNumbering(DM dm, IS *globalCellNumbers)
 
 PetscErrorCode DMPlexCreateVertexNumbering_Internal(DM dm, IS *globalVertexNumbers)
 {
-  PetscInt       vStart, vEnd;
+  const PetscBool *ghostMask;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-  PetscCall(DMPlexGetDepthStratum(dm, 0, &vStart, &vEnd));
-  PetscCall(DMPlexCreateNumbering_Plex(dm, vStart, vEnd, 0, NULL, dm->sf, globalVertexNumbers));
+  PetscCall(DMPlexGetDepthStratumNumbering(dm, 0, globalVertexNumbers, &ghostMask, NULL, NULL));
+  PetscCall(ISMakeGhostsNegative_Internal(*globalVertexNumbers, ghostMask, globalVertexNumbers));
   PetscFunctionReturn(0);
 }
 
