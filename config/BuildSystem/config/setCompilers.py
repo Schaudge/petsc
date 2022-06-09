@@ -2636,21 +2636,10 @@ if (dlclose(handle)) {
     self.executeTest(self.checkCCompiler)
     self.executeTest(self.checkCPreprocessor)
 
-    def compilerIsDisabledFromOptions(compiler):
-      """
-      Return True if compiler is disabled via configure options (and delete it from the argdb),
-      False otherwise
-      """
-      disabled = self.argDB.get('with-'+compiler.lower()) == '0'
-      if disabled:
-        COMPILER = compiler.upper()
-        if COMPILER in self.argDB:
-          del self.argDB[COMPILER]
-      return disabled
-
     for LANG in ['Cxx','CUDA','HIP','SYCL']:
       compilerName = LANG.upper() if LANG == 'Cxx' else LANG+'C'
-      if not compilerIsDisabledFromOptions(compilerName):
+      # check if compiler was disabled from command line
+      if self.argDB.get('with-'+compilerName.lower()) != '0':
         self.executeTest(getattr(self,LANG.join(('check','Compiler'))))
         try:
           self.executeTest(self.checkDeviceHostCompiler,args=[LANG])
@@ -2664,10 +2653,15 @@ if (dlclose(handle)) {
           except RuntimeError as e:
             self.mesg = str(e)
             self.logPrint(' '.join(('Error testing',LANG,'compiler:',self.mesg)))
-            self.delMakeMacro(compilerName)
             delattr(self,compilerName)
           else:
             self.executeTest(getattr(self,LANG.join(('check','Preprocessor'))))
+      if not hasattr(self,compilerName):
+        # compiler is not usable for some reason or another
+        if compilerName in self.argDB:
+          del self.argDB[compilerName]
+        self.addMakeMacro(compilerName,'')
+
     self.executeTest(self.checkFortranCompiler)
     if hasattr(self, 'FC'):
       self.executeTest(self.checkFortranPreprocessor)
