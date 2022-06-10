@@ -8,17 +8,17 @@
 
 #define PetscTypeSuffix   Scalar
 #define PetscTypeSuffix_L scalar
-#include "managedtype.inl"
+#include "../interface/managedtype.inl"
 
 /* -------------------------------------------------------------------------------- */
 
 #define PetscTypeSuffix   Real
 #define PetscTypeSuffix_L real
-#include "managedtype.inl"
+#include "../interface/managedtype.inl"
 
 /* -------------------------------------------------------------------------------- */
 
 #define PetscTypeSuffix   Int
 #define PetscTypeSuffix_L int
-#include "managedtype.inl"
+#include "../interface/managedtype.inl"
 #endif /* !PETSC_HAVE_CXX */
