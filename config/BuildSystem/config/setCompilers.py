@@ -2636,23 +2636,40 @@ if (dlclose(handle)) {
     self.executeTest(self.checkCCompiler)
     self.executeTest(self.checkCPreprocessor)
 
-    def compilerIsEnabled(compilerName):
+    def compilerIsEnabled(lang,compilerName):
       """Returns True is compiler is enabled, False otherwise"""
-      clFlag = self.argDB.get('with-'+compilerName.lower(),default=None)
-      if isinstance(clFlag,str):
-        if clFlag.strip() in {'0','n','no','none','f','false',''}:
-          # compiler was disabled by user from command line
-          return False
-      macro = self.getMakeMacro(compilerName)
-      if isinstance(macro,str):
-        if macro.strip() == '':
-          # compiler was disabled by a previous run through configure
-          return False
-      return True
+      enabled = True
+      for base in ('with-'+compilerName.lower(),compilerName.upper(),'with-'+lang.lower()):
+        clFlag = self.argDB.get(base)
+        # check if compiler (or language) was disabled by user from command line
+        if isinstance(clFlag,str):
+          if clFlag.strip() in {'0','n','no','none','f','false',''}:
+            enabled = False
+        elif isinstance(clFlag,int):
+          if clFlag == 0:
+            enabled = False
+        if not enabled:
+          reason = ['ArgDB entry',base,'had value =',str(clFlag) if clFlag != '' else '(empty)']
+          break
+      if enabled:
+        macro = self.getMakeMacro(compilerName)
+        if isinstance(macro,str):
+          if macro.strip() == '':
+            # compiler was disabled by a previous run through configure
+            enabled = False
+            reason  = ['make macro',compilerName,'had value =',macro if macro else '(empty)']
+      mess = ['Compiler',compilerName,'for language',LANG]
+      if enabled:
+        mess.append('appears to be enabled')
+      else:
+        mess.extend(['was disabled from command-line because:']+reason)
+      self.logPrint(' '.join(mess))
+      return enabled
 
     for LANG in ['Cxx','CUDA','HIP','SYCL']:
       compilerName = LANG.upper() if LANG == 'Cxx' else LANG+'C'
-      if compilerIsEnabled(compilerName):
+      enabled      = self.executeTest(compilerIsEnabled,args=[LANG,compilerName])
+      if enabled:
         self.executeTest(getattr(self,LANG.join(('check','Compiler'))))
         try:
           self.executeTest(self.checkDeviceHostCompiler,args=[LANG])
