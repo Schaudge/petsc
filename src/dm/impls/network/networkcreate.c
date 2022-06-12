@@ -325,7 +325,6 @@ PetscErrorCode DMCreateCoordinateDM_Network(DM dm, DM *cdm)
 PetscErrorCode DMInitialize_Network(DM dm)
 {
   PetscFunctionBegin;
-<<<<<<< HEAD
   PetscCall(DMSetDimension(dm, 1));
   dm->ops->view                    = DMView_Network;
   dm->ops->setfromoptions          = DMSetFromOptions_Network;
@@ -379,33 +378,6 @@ static PetscErrorCode DMNetworkCopyHeaderTopological(DM dm, DM newdm)
     newnetwork->header[i].maxcomps     = DMNETWORK_MAX_COMP_AT_POINT_DEFAULT;
     newnetwork->header[i].hsize        = sizeof(struct _p_DMNetworkComponentHeader) / sizeof(sizeof(DMNetworkComponentGenericDataType));
   }
-=======
-  PetscCall(DMSetDimension(dm,1));
-  dm->ops->view                            = DMView_Network;
-  dm->ops->setfromoptions                  = DMSetFromOptions_Network;
-  dm->ops->clone                           = DMClone_Network;
-  dm->ops->setup                           = DMSetUp_Network;
-  dm->ops->createglobalvector              = DMCreateGlobalVector_Network;
-  dm->ops->createlocalvector               = DMCreateLocalVector_Network;
-  dm->ops->getlocaltoglobalmapping         = NULL;
-  dm->ops->createfieldis                   = NULL;
-  dm->ops->createcoordinatedm              = DMCreateCoordinateDM_Network;
-  dm->ops->getcoloring                     = NULL;
-  dm->ops->creatematrix                    = DMCreateMatrix_Network;
-  dm->ops->createinterpolation             = NULL;
-  dm->ops->createinjection                 = NULL;
-  dm->ops->refine                          = NULL;
-  dm->ops->coarsen                         = NULL;
-  dm->ops->refinehierarchy                 = NULL;
-  dm->ops->coarsenhierarchy                = NULL;
-  dm->ops->globaltolocalbegin              = DMGlobalToLocalBegin_Network;
-  dm->ops->globaltolocalend                = DMGlobalToLocalEnd_Network;
-  dm->ops->localtoglobalbegin              = DMLocalToGlobalBegin_Network;
-  dm->ops->localtoglobalend                = DMLocalToGlobalEnd_Network;
-  dm->ops->destroy                         = DMDestroy_Network;
-  dm->ops->createsubdm                     = NULL;
-  dm->ops->locatepoints                    = NULL;
->>>>>>> WIP, squash later
   PetscFunctionReturn(0);
 }
 
