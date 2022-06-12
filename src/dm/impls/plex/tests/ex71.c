@@ -354,14 +354,35 @@ PetscErrorCode UnionTwoHigherOrderShifted()
   PetscFunctionReturn(0);
 }
 
+/* Check for network like structure */
+PetscErrorCode UnionTwoBoxMesh2D()
+{
+  DM             dm[2],dmunion;
+  PetscReal      lower[2] = {-1,-1}, middle[2] = {0,1}, upper[2] = {1,-1};
+  const PetscInt faces[3] = {10,1,1};
+  PetscSection unionmapping; 
 
+  PetscFunctionBegin; 
+  PetscCall(DMPlexCreateBoxMesh(PETSC_COMM_SELF, 2, PETSC_FALSE, faces, lower, middle, NULL, PETSC_TRUE, &dm[0]));
+  PetscCall(DMPlexCreateBoxMesh(PETSC_COMM_SELF, 2, PETSC_FALSE, faces, upper, middle, NULL, PETSC_TRUE, &dm[1]));
+  PetscCall(DMPlexDisjointUnion_Geometric_Section(dm,2,&dmunion,&unionmapping));
+
+  PetscCall(DMViewFromOptions(dmunion,NULL,"-viewunion_dm"));
+  PetscCall(PetscSectionViewFromOptions(unionmapping,NULL,"-viewunion_section"));
+  PetscCall(DMDestroy(&dm[0]));
+  PetscCall(DMDestroy(&dm[1]));
+  PetscCall(DMDestroy(&dmunion));
+  PetscCall(PetscSectionDestroy(&unionmapping));
+  PetscFunctionReturn(0);
+}
 
 int main(int argc, char **argv)
 {
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
-  PetscCall(UnionTwoRefTrianglesShifted()); 
-  PetscCall(UnionTwoBallsShifted()); 
-  PetscCall(UnionTwoHigherOrderShifted());
-  PetscCall(UnionTwoTopDims());
+  //PetscCall(UnionTwoRefTrianglesShifted()); 
+  //PetscCall(UnionTwoBallsShifted()); 
+  //PetscCall(UnionTwoHigherOrderShifted());
+  //PetscCall(UnionTwoTopDims());
+  PetscCall(UnionTwoBoxMesh2D());
   PetscCall(PetscFinalize());
 }

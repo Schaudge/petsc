@@ -1994,7 +1994,7 @@ PetscErrorCode DMNetworkIsGhostVertex(DM dm, PetscInt p, PetscBool *isghost)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMSetUp_Network(DM dm)
+PetscErrorCode  DMSetUp_Network(DM dm)
 {
   PetscFunctionBegin;
   PetscCall(PetscLogEventBegin(DMNetwork_SetUpNetwork, dm, 0, 0, 0));
@@ -3101,13 +3101,21 @@ PetscErrorCode DMNetworkCreateLocalIS(DM dm, PetscInt numkeys, PetscInt keys[], 
   PetscCall(PetscFree(idx));
   PetscFunctionReturn(0);
 }
+<<<<<<< HEAD
 /*@
   DMNetworkFinalizeComponents - Sets up interal data structures for the sections and components. It is called after registering new components and adding all components
   to the cloned network. After calling this subroutine, no new components can be added to the network.
+=======
+
+/*@
+  DMNetworkResetData - Maintain the Network Topology and the components on a DMNetwork but reseting all Dof data associated with edges/vertices.
+  The DMNetwork will have to be redistributed/setup after adding new dofs to the network. 
+>>>>>>> WIP, squash later
 
   Collective
 
   Input Parameters:
+<<<<<<< HEAD
 . dm - the dmnetwork object
 
   Level: beginner
@@ -3127,3 +3135,24 @@ PetscErrorCode DMNetworkFinalizeComponents(DM dm)
   network->componentsetup = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
+=======
++ dm - DMNetwork object
+
+  Level: Intermediate
+
+  Developer Note: This is mainly needed as internally DMNetwork has some non-standard representations of interal data, and so 
+  simply replacing the local/global sections for DMNetwork is note garuanteed to work as it would for a different DM like DMPlex. Ideally 
+  this would be refactored so DMNetwork has the same standard formulation as say DMPlex, and a user can expect the same behavior, but for 
+  now this is hopefully good enough. 
+
+.seealso: `DMNetworkCreate()`, 'DMSetLocalSection()`
+@*/
+PetscErrorCode DMNetworkResetData(DM dm)
+{
+  DM_Network *network  = (DM_Network*) dm->data; 
+
+  PetscFunctionBegin; 
+  
+  PetscFunctionReturn(0); 
+}
+>>>>>>> WIP, squash later
