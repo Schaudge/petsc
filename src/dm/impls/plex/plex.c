@@ -8014,6 +8014,7 @@ PetscErrorCode DMPlexGetGhostCellStratum(DM dm, PetscInt *gcStart, PetscInt *gcE
   PetscFunctionReturn(0);
 }
 
+//TODO This can almost be removed. Still used only in DMPlexCreateCellNumbering_Internal() and ex47
 PetscErrorCode DMPlexCreateNumbering_Plex(DM dm, PetscInt pStart, PetscInt pEnd, PetscInt shift, PetscInt *globalSize, PetscSF sf, IS *numbering)
 {
   PetscSection   section, globalSection;
