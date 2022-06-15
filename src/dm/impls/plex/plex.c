@@ -8055,6 +8055,7 @@ PetscErrorCode DMPlexNumberingCtxDestroy_Internal(DMPlexNumberingCtx *ctx)
   for (d = 0; d < (*ctx)->nStrata; d++) {
     PetscCall(DMPlexNumberingCtxDestroy_Internal(&(*ctx)->strata[d]));
   }
+  PetscCall(DMPlexNumberingCtxDestroy_Internal(&(*ctx)->global));
   PetscCall(PetscFree((*ctx)->strata));
   PetscCall(ISDestroy(&(*ctx)->numbering));
   PetscCall(PetscLayoutDestroy(&(*ctx)->ghostLayout));
@@ -8296,29 +8297,34 @@ PetscErrorCode DMPlexGetVertexNumbering(DM dm, IS *globalVertexNumbers)
 }
 
 /*@
-  DMPlexCreatePointNumbering - Create a global numbering for all points on this process
+  DMPlexCreatePointNumbering - Deprecated, use DMPlexGetPointNumbering() instead.
 
-  Input Parameter:
-. dm   - The DMPlex object
+  Level: deprecated
 
-  Output Parameter:
-. globalPointNumbers - Global numbers for all points on this process
-
-  Level: developer
-
-.seealso `DMPlexGetCellNumbering()`
+.seealso `DMPlexGetPointNumbering()`
 @*/
 PetscErrorCode DMPlexCreatePointNumbering(DM dm, IS *globalPointNumbers)
 {
-  IS             nums[4];
-  PetscInt       depths[4], gdepths[4], starts[4];
-  PetscInt       depth, d, shift = 0;
+  const PetscBool   *mask;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMPlexGetPointNumbering(dm, globalPointNumbers, &mask, NULL, NULL));
+  PetscCall(ISMakeGhostsNegative_Internal(*globalPointNumbers, mask, globalPointNumbers));
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMPlexGetDepthPermutation_Internal(DM dm, PetscInt *depths_[])
+{
+  PetscInt   *depths, *gdepths, *starts;
+  PetscInt    depth, d;
+
+  PetscFunctionBegin;
   PetscCall(DMPlexGetDepth(dm, &depth));
   /* For unstratified meshes use dim instead of depth */
   if (depth < 0) PetscCall(DMGetDimension(dm, &depth));
+  PetscCall(PetscMalloc1(depth+1, &gdepths));
+  PetscCall(PetscMalloc2(depth+1, &starts, depth+1, &depths));
   for (d = 0; d <= depth; ++d) {
     PetscInt end;
 
@@ -8331,15 +8337,110 @@ PetscErrorCode DMPlexCreatePointNumbering(DM dm, IS *globalPointNumbers)
   for (d = 0; d <= depth; ++d) {
     PetscCheck(starts[d] < 0 || depths[d] == gdepths[d],PETSC_COMM_SELF,PETSC_ERR_PLIB,"Expected depth %" PetscInt_FMT ", found %" PetscInt_FMT,depths[d],gdepths[d]);
   }
-  for (d = 0; d <= depth; ++d) {
-    PetscInt pStart, pEnd, gsize;
+  PetscCall(PetscFree2(starts, depths));
+  *depths_  = gdepths;
+  PetscFunctionReturn(0);
+}
 
-    PetscCall(DMPlexGetDepthStratum(dm, gdepths[d], &pStart, &pEnd));
-    PetscCall(DMPlexCreateNumbering_Plex(dm, pStart, pEnd, shift, &gsize, dm->sf, &nums[d]));
+PetscErrorCode DMPlexCreatePointNumbering_Internal(DM dm, DMPlexNumberingCtx *global)
+{
+  DMPlexNumberingCtx  gn, pn;
+  IS                 *nums;
+  PetscInt           *depths;
+  PetscInt            d, shift = 0;
+
+  PetscFunctionBegin;
+  PetscCall(DMPlexGetNumberingCtx_Internal(dm, &gn));
+  PetscCall(DMPlexGetDepthPermutation_Internal(dm, &depths));
+  PetscCall(PetscNew(&pn));
+  pn->comm          = gn->comm;
+  pn->distributed   = gn->distributed;
+  pn->end           = gn->end;
+  pn->ghostMask     = gn->ghostMask;
+  pn->start         = gn->start;
+  PetscCall(PetscLayoutReference(gn->ghostLayout, &pn->ghostLayout));
+  PetscCall(PetscLayoutReference(gn->ownedLayout, &pn->ownedLayout));
+
+  PetscCall(PetscCalloc1(gn->nStrata, &nums));
+  for (d = 0; d < gn->nStrata; ++d) {
+    const PetscInt  e = depths[d];
+    PetscLayout     ol;
+    IS              sn;
+    PetscInt        gsize;
+
+    if (e < 0) {
+      nums[d] = NULL;
+      continue;
+    }
+    ol  = gn->strata[e]->ownedLayout;
+    sn  = gn->strata[e]->numbering;
+    PetscCall(PetscLayoutGetSize(ol, &gsize));
+    PetscCall(ISDuplicate(sn, &nums[d]));
+    PetscCall(ISShift(sn, shift, nums[d]));
     shift += gsize;
   }
-  PetscCall(ISConcatenate(PetscObjectComm((PetscObject) dm), depth+1, nums, globalPointNumbers));
-  for (d = 0; d <= depth; ++d) PetscCall(ISDestroy(&nums[d]));
+  PetscCall(ISConcatenate(gn->comm, gn->nStrata, nums, &pn->numbering));
+
+  for (d = 0; d < gn->nStrata; ++d) PetscCall(ISDestroy(&nums[d]));
+  PetscCall(PetscFree(nums));
+  PetscCall(PetscFree(depths));
+  *global = pn;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMPlexGetPointNumbering_Internal(DM dm, DMPlexNumberingCtx *gn)
+{
+  DMPlexNumberingCtx ctx;
+
+  PetscFunctionBegin;
+  PetscCall(DMPlexGetNumberingCtx_Internal(dm, &ctx));
+  if (!ctx->global) {
+    PetscCall(DMPlexCreatePointNumbering_Internal(dm, &ctx->global));
+  }
+  *gn = ctx->global;
+  PetscFunctionReturn(0);
+}
+
+/*@C
+  DMPlexGetPointNumbering - Get a global numbering for all points on this process
+
+  Collective
+
+  Input Parameter:
+. dm   - The DMPlex object
+
+  Output Parameter:
++ numbering   - (optional) Global numbers for all points on this process
+. ghostsMask  - (optional) Boolean array indicating ghost points
+. ownedLayout - (optional) Layout of owned points
+- ghostLayout - (optional) Layout of ghost points
+
+  Level: developer
+
+  Notes:
+  Outputs are stashed in the `DM` and must not be deallocated by the user.
+  Output boolean array ghostsMask has the same length as `IS` numbering.
+  The p-th value of ghostsMask is `PETSC_TRUE` iff the p-th point is a ghost point (is owned by a different process),
+  otherwise `PETSC_FALSE`.
+  Local size of numbering is a sum of local sizes of ownedLayout and ghostLayout; the same holds for global sizes.
+
+.seealso `DMPlexGetCellNumbering()`, `DMPlexGetGhostMask()`
+@*/
+PetscErrorCode DMPlexGetPointNumbering(DM dm, IS *numbering, const PetscBool *ghostMask[], PetscLayout *ownedLayout, PetscLayout *ghostLayout)
+{
+  DMPlexNumberingCtx  gn;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  if (numbering)    PetscValidPointer(numbering, 2);
+  if (ghostMask)    PetscValidPointer(ghostMask, 3);
+  if (ownedLayout)  PetscValidPointer(ownedLayout, 4);
+  if (ghostLayout)  PetscValidPointer(ghostLayout, 5);
+  PetscCall(DMPlexGetPointNumbering_Internal(dm, &gn));
+  if (numbering)   *numbering   = gn->numbering;
+  if (ghostMask)   *ghostMask   = gn->ghostMask;
+  if (ownedLayout) *ownedLayout = gn->ownedLayout;
+  if (ghostLayout) *ghostLayout = gn->ghostLayout;
   PetscFunctionReturn(0);
 }
 

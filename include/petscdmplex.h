@@ -110,7 +110,8 @@ PETSC_EXTERN PetscErrorCode DMPlexIsInterpolatedCollective(DM, DMPlexInterpolate
 PETSC_EXTERN PetscErrorCode DMPlexFilter(DM, DMLabel, PetscInt, DM *);
 PETSC_EXTERN PetscErrorCode DMPlexGetCellNumbering(DM, IS *);
 PETSC_EXTERN PetscErrorCode DMPlexGetVertexNumbering(DM, IS *);
-PETSC_EXTERN PetscErrorCode DMPlexCreatePointNumbering(DM, IS *);
+PETSC_EXTERN PETSC_DEPRECATED_FUNCTION("Use DMPlexGetPointNumbering (since v3.18)") PetscErrorCode DMPlexCreatePointNumbering(DM, IS *);
+PETSC_EXTERN PetscErrorCode DMPlexGetPointNumbering(DM, IS *, const PetscBool*[], PetscLayout *, PetscLayout *);
 PETSC_EXTERN PetscErrorCode DMPlexCreateRankField(DM, Vec *);
 PETSC_EXTERN PetscErrorCode DMPlexCreateLabelField(DM, DMLabel, Vec *);
 
