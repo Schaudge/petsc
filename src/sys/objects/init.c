@@ -625,6 +625,7 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(const char help[])
     PetscCall((*PetscHelpPrintf)(comm," -log_exclude <list,of,classnames>: exclude given classes from logging\n"));
 #if defined(PETSC_HAVE_DEVICE)
     PetscCall((*PetscHelpPrintf)(comm," -log_view_gpu_time: log the GPU time for each and event\n"));
+    PetscCall((*PetscHelpPrintf)(comm," -log_view_show_gpu_time: shows GPU methods that are not registered to show without -log_view_gpu_time\n"));
 #endif
 #if defined(PETSC_HAVE_MPE)
     PetscCall((*PetscHelpPrintf)(comm," -log_mpe: Also create logfile viewable through Jumpshot\n"));

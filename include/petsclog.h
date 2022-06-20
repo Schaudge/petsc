@@ -683,6 +683,7 @@ static inline PetscErrorCode PetscLogGpuTimeAdd(PetscLogDouble t)
 }
 
 PETSC_EXTERN PetscErrorCode PetscLogGpuTime(void);
+PETSC_EXTERN PetscErrorCode PetscLogShowGpuTime(void);
 PETSC_EXTERN PetscErrorCode PetscLogGpuTimeBegin(void);
 PETSC_EXTERN PetscErrorCode PetscLogGpuTimeEnd(void);
 

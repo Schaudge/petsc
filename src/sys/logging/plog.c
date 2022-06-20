@@ -1448,9 +1448,9 @@ static PetscErrorCode PetscLogViewWarnGpuTime(MPI_Comm comm,FILE *fd)
      PetscCall(PetscFPrintf(comm, fd, "      #                                                        #\n"));
      PetscCall(PetscFPrintf(comm, fd, "      #   This code was not run with -log_view_gpu_time, which #\n"));
      PetscCall(PetscFPrintf(comm, fd, "      #   adds barrier to get accurate GPU timing, but was     #\n"));
-     PetscCall(PetscFPrintf(comm, fd, "      #   run with -log_view_show_gpu_time to print timing data#\n"));
-     PetscCall(PetscFPrintf(comm, fd, "      #   for all methods, not only ones registered as         #\n"));
-     PetscCall(PetscFPrintf(comm, fd, "      #   accurate.                                            #\n"));
+     PetscCall(PetscFPrintf(comm, fd, "      #   run with -log_view_show_gpu_time to print timing     #\n"));
+     PetscCall(PetscFPrintf(comm, fd, "      #   data for all methods, not only ones registered as    #\n"));
+     PetscCall(PetscFPrintf(comm, fd, "      #   accurate without barriers.                           #\n"));
      PetscCall(PetscFPrintf(comm, fd, "      #                                                        #\n"));
      PetscCall(PetscFPrintf(comm, fd, "      ##########################################################\n\n\n"));
      PetscFunctionReturn(0);
@@ -2335,7 +2335,7 @@ PetscErrorCode PetscLogGpuTime(void)
 PetscBool PetscLogShowGpuTimeFlag = PETSC_FALSE;
 
 /*
-
+  There is no need to finalize this, so not used
 */
 static PetscErrorCode PetscLogShowGpuTime_Off(void)
 {
