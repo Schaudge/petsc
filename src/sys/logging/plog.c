@@ -1446,12 +1446,11 @@ static PetscErrorCode PetscLogViewWarnGpuTime(MPI_Comm comm,FILE *fd)
      PetscCall(PetscFPrintf(comm, fd, "      #                                                        #\n"));
      PetscCall(PetscFPrintf(comm, fd, "      #                       WARNING!!!                       #\n"));
      PetscCall(PetscFPrintf(comm, fd, "      #                                                        #\n"));
-     PetscCall(PetscFPrintf(comm, fd, "      #   This code was not run with -log_view_gpu_time and    #\n"));
-     PetscCall(PetscFPrintf(comm, fd, "      #   was run with -log_view_show_gpu_time                 #\n"));
-     PetscCall(PetscFPrintf(comm, fd, "      #   This does not provides accurate timing within the    #\n"));
-     PetscCall(PetscFPrintf(comm, fd, "      #   GPU kernels but methods that do not simply wrap a    #\n"));
-     PetscCall(PetscFPrintf(comm, fd, "      #   GPU kernels can provide useful data, but the         #\n"));
-     PetscCall(PetscFPrintf(comm, fd, "      #   results may not be accurate. User discretion advised.#\n"));
+     PetscCall(PetscFPrintf(comm, fd, "      #   This code was not run with -log_view_gpu_time, which #\n"));
+     PetscCall(PetscFPrintf(comm, fd, "      #   adds barrier to get accurate GPU timing, but was     #\n"));
+     PetscCall(PetscFPrintf(comm, fd, "      #   run with -log_view_show_gpu_time to print timing data#\n"));
+     PetscCall(PetscFPrintf(comm, fd, "      #   for all methods, not only ones registered as         #\n"));
+     PetscCall(PetscFPrintf(comm, fd, "      #   accurate.                                            #\n"));
      PetscCall(PetscFPrintf(comm, fd, "      #                                                        #\n"));
      PetscCall(PetscFPrintf(comm, fd, "      ##########################################################\n\n\n"));
      PetscFunctionReturn(0);
