@@ -134,6 +134,7 @@ PETSC_INTERN PetscErrorCode PetscLogView_Flamegraph(PetscViewer);
 
 #if defined(PETSC_HAVE_DEVICE)
 PETSC_EXTERN PetscBool PetscLogGpuTimeFlag;
+PETSC_EXTERN PetscBool PetscLogShowGpuTimeFlag;
 #endif
 
 #endif /* PETSC_USE_LOG */

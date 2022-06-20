@@ -1440,6 +1440,22 @@ static PetscErrorCode PetscLogViewWarnGpuTime(MPI_Comm comm,FILE *fd)
 #if defined(PETSC_HAVE_DEVICE)
 
    PetscFunctionBegin;
+   if (!PetscLogGpuTimeFlag && petsc_gflops != 0 && PetscLogShowGpuTimeFlag) {
+     PetscCall(PetscFPrintf(comm, fd, "\n\n"));
+     PetscCall(PetscFPrintf(comm, fd, "      ##########################################################\n"));
+     PetscCall(PetscFPrintf(comm, fd, "      #                                                        #\n"));
+     PetscCall(PetscFPrintf(comm, fd, "      #                       WARNING!!!                       #\n"));
+     PetscCall(PetscFPrintf(comm, fd, "      #                                                        #\n"));
+     PetscCall(PetscFPrintf(comm, fd, "      #   This code was not run with -log_view_gpu_time and    #\n"));
+     PetscCall(PetscFPrintf(comm, fd, "      #   was run with -log_view_show_gpu_time                 #\n"));
+     PetscCall(PetscFPrintf(comm, fd, "      #   This does not provides accurate timing within the    #\n"));
+     PetscCall(PetscFPrintf(comm, fd, "      #   GPU kernels but methods that do not simply wrap a    #\n"));
+     PetscCall(PetscFPrintf(comm, fd, "      #   GPU kernels can provide useful data, but the         #\n"));
+     PetscCall(PetscFPrintf(comm, fd, "      #   results may not be accurate. User discretion advised.#\n"));
+     PetscCall(PetscFPrintf(comm, fd, "      #                                                        #\n"));
+     PetscCall(PetscFPrintf(comm, fd, "      ##########################################################\n\n\n"));
+     PetscFunctionReturn(0);
+   }
    if (!PetscLogGpuTimeFlag || petsc_gflops == 0) PetscFunctionReturn(0);
    PetscCall(PetscFPrintf(comm, fd, "\n\n"));
    PetscCall(PetscFPrintf(comm, fd, "      ##########################################################\n"));
@@ -1834,7 +1850,7 @@ PetscErrorCode  PetscLogView_Default(PetscViewer viewer)
       PetscCheck(minf >= 0.0,PETSC_COMM_SELF,PETSC_ERR_PLIB,"Minimum flop %g over all processors for %s is negative! Not possible!",minf,name);
       /* Put NaN into the time for all events that may not be time accurately since they may happen asynchronously on the GPU */
       #if defined(PETSC_HAVE_DEVICE)
-      if (!PetscLogGpuTimeFlag && petsc_gflops > 0) {
+      if (!PetscLogGpuTimeFlag && petsc_gflops > 0 && !PetscLogShowGpuTimeFlag) {
         memcpy(&gmaxt,&nas,sizeof(PetscLogDouble));
         PetscCall(PetscEventRegLogGetEvent(stageLog->eventLog, name, &eventid));
         if (eventid != SNES_Solve && eventid != KSP_Solve && eventid != TS_Step && eventid != TAO_Solve) {
@@ -2013,6 +2029,7 @@ PetscErrorCode  PetscLogView_Default(PetscViewer viewer)
 .  -log_view :filename.txt:ascii_flamegraph - Saves logging information in a format suitable for visualising as a Flame Graph (see below for how to view it)
 .  -log_view_memory - Also display memory usage in each event
 .  -log_view_gpu_time - Also display time in each event for GPU kernels (Note this may slow the computation)
+.  -log_view_show_gpu_time - Display time in each event for GPU kernels
 .  -log_all - Saves a file Log.rank for each MPI process with details of each step of the computation
 -  -log_trace [filename] - Displays a trace of what each process is doing
 
@@ -2313,6 +2330,40 @@ PetscErrorCode PetscLogGpuTime(void)
 {
   if (!PetscLogGpuTimeFlag) PetscCall(PetscRegisterFinalize(PetscLogGpuTime_Off));
   PetscLogGpuTimeFlag = PETSC_TRUE;
+  return 0;
+}
+
+PetscBool PetscLogShowGpuTimeFlag = PETSC_FALSE;
+
+/*
+
+*/
+static PetscErrorCode PetscLogShowGpuTime_Off(void)
+{
+  PetscLogShowGpuTimeFlag = PETSC_FALSE;
+  return 0;
+}
+
+/*@C
+     PetscLogShowGpuTime - Show times that may not be accurate due to lack of blocking around GPU methods
+
+  Options Database:
+.   -log_view_show_gpu_time - provide the GPU times in the -log_view output
+
+  Notes:
+    Because the logging of GPU time requires blocking the CPU execution for each kernel, turning on the timing of the
+    GPU kernels can slow down the entire computation and should only be used when studying the performance
+    of operations on GPU such as vector operations and matrix-vector operations.
+
+    This routine sets a flag to show timing for users that want the data. Not all methods that can produce useful timing without blocking are allowed to print due to the difficulty in compiling this list
+
+   Level: advanced
+
+.seealso: `PetscLogView()`, `PetscLogGpuFlops()`
+@*/
+PetscErrorCode PetscLogShowGpuTime(void)
+{
+  PetscLogShowGpuTimeFlag = PETSC_TRUE;
   return 0;
 }
 

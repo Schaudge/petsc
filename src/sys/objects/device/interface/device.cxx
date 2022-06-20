@@ -439,6 +439,10 @@ PetscErrorCode PetscDeviceInitializeFromOptions_Internal(MPI_Comm comm)
   PetscBool gtime;
   PetscCall(PetscOptionsHasName(NULL,NULL,"-log_view_gpu_time",&gtime));
   if (gtime) PetscCall(PetscLogGpuTime());
+  else {
+    PetscCall(PetscOptionsHasName(NULL,NULL,"-log_view_show_gpu_time",&gtime));
+    if (gtime) PetscCall(PetscLogShowGpuTime());
+  }
 #endif
   {
     PetscInt initIdx = flg ? PETSC_DEVICE_INIT_EAGER : PETSC_DEVICE_INIT_LAZY;
