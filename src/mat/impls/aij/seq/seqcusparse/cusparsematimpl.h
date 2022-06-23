@@ -196,6 +196,12 @@ struct Mat_SeqAIJCUSPARSETriFactorStruct {
   size_t                      csr2cscBufferSize; /* to transpose the triangular factor (only used for CUDA >= 11.0) */
   void                        *csr2cscBuffer;
   PetscScalar                 *AA_h; /* managed host buffer for moving values to the GPU */
+ #if CUSPARSE_VERSION >= 11500
+  cusparseSpMatDescr_t        spMatDescr;
+  cusparseSpSVDescr_t         spsvDescr;
+  size_t                      spsvBufferSize;
+
+ #endif
 };
 
 /* This is a larger struct holding all the triangular factors for a solve, transpose solve, and any indices used in a reordering */
@@ -214,6 +220,12 @@ struct Mat_SeqAIJCUSPARSETriFactors {
   cudaDeviceProp                    dev_prop;
   PetscBool                         init_dev_prop;
 
+  /* Temp work vectors used in SpSV */
+ #if CUSPARSE_VERSION >= 11500
+  cusparseDnVecDescr_t  dnVecDescr_X,dnVecDescr_Y;
+  PetscScalar           *X,*Y; /* data array of dnVec X and Y */
+ #endif
+
  /* csrilu0 appeared in cusparse-8.0, but we use it along with cusparseSpSV, which first appeared in cusparse-11.5
     with cuda-11.3. Put these several fields out of the #if-endif so that we can have less #ifdef at other places.
  */
@@ -225,8 +237,6 @@ struct Mat_SeqAIJCUSPARSETriFactors {
   cusparseMatDescr_t    matDescr_M = 0;
   cusparseSpMatDescr_t  spMatDescr_L,spMatDescr_U;
   cusparseSpSVDescr_t   spsvDescr_L,spsvDescr_U;
-  cusparseDnVecDescr_t  dnVecDescr_X,dnVecDescr_Y;
-  PetscScalar           *X,*Y; /* data array of dnVec X and Y */
 
   /* Mixed size types? yes, CUDA-11.7.0 declared cusparseDcsrilu02_bufferSizeExt() that returns size_t but did not implement it! */
   int                   ilu0BufferSize_M; /* M ~= LU */
