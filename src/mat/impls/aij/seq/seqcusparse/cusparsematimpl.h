@@ -30,13 +30,28 @@
   #if defined(PETSC_USE_REAL_SINGLE)
     const cuComplex PETSC_CUSPARSE_ONE        = {1.0f, 0.0f};
     const cuComplex PETSC_CUSPARSE_ZERO       = {0.0f, 0.0f};
+    #define cusparseXcsrilu02_bufferSize(a,b,c,d,e,f,g,h,i)     cusparseCcsrilu02_bufferSize(a,b,c,d,(cuComplex*)e,f,g,h,i)
+    #define cusparseXcsrilu02_analysis(a,b,c,d,e,f,g,h,i,j)     cusparseCcsrilu02_analysis(a,b,c,d,(cuComplex*)e,f,g,h,i,j)
+    #define cusparseXcsrilu02(a,b,c,d,e,f,g,h,i,j)              cusparseCcsrilu02(a,b,c,d,(cuComplex*)e,f,g,h,i,j)
   #elif defined(PETSC_USE_REAL_DOUBLE)
     const cuDoubleComplex PETSC_CUSPARSE_ONE  = {1.0, 0.0};
     const cuDoubleComplex PETSC_CUSPARSE_ZERO = {0.0, 0.0};
+    #define cusparseXcsrilu02_bufferSize(a,b,c,d,e,f,g,h,i)     cusparseZcsrilu02_bufferSize(a,b,c,d,(cuDoubleComplex*)e,f,g,h,i)
+    #define cusparseXcsrilu02_analysis(a,b,c,d,e,f,g,h,i,j)     cusparseZcsrilu02_analysis(a,b,c,d,(cuDoubleComplex*)e,f,g,h,i,j)
+    #define cusparseXcsrilu02(a,b,c,d,e,f,g,h,i,j)              cusparseZcsrilu02(a,b,c,d,(cuDoubleComplex*)e,f,g,h,i,j)
   #endif
 #else
   const PetscScalar PETSC_CUSPARSE_ONE        = 1.0;
   const PetscScalar PETSC_CUSPARSE_ZERO       = 0.0;
+  #if defined(PETSC_USE_REAL_SINGLE)
+    #define cusparseXcsrilu02_bufferSize    cusparseScsrilu02_bufferSize
+    #define cusparseXcsrilu02_analysis      cusparseScsrilu02_analysis
+    #define cusparseXcsrilu02               cusparseScsrilu02
+  #elif defined(PETSC_USE_REAL_DOUBLE)
+    #define cusparseXcsrilu02_bufferSize    cusparseDcsrilu02_bufferSize
+    #define cusparseXcsrilu02_analysis      cusparseDcsrilu02_analysis
+    #define cusparseXcsrilu02               cusparseDcsrilu02
+  #endif
 #endif
 
 #if PETSC_PKG_CUDA_VERSION_GE(9,0,0)
@@ -198,6 +213,37 @@ struct Mat_SeqAIJCUSPARSETriFactors {
   int                               *i_band_d; /* this could be optimized away */
   cudaDeviceProp                    dev_prop;
   PetscBool                         init_dev_prop;
+
+ /* csrilu0 appeared in cusparse-8.0, but we use it along with cusparseSpSV, which first appeared in cusparse-11.5
+    with cuda-11.3. Put these several fields out of the #if-endif so that we can have less #ifdef at other places.
+ */
+  PetscBool             builtILU0; /* To easily know whether we are using cusparse csrilu0 */
+  int                   *csrRowPtr,*csrColIdx; /* a,i,j of M. Using int since some cusparse APIs only support 32-bit indices */
+  PetscScalar           *csrVal;
+ #if CUSPARSE_VERSION >= 11500
+  /* Mixed mat descriptor types? yes, different cusparse APIs use different types */
+  cusparseMatDescr_t    matDescr_M = 0;
+  cusparseSpMatDescr_t  spMatDescr_L,spMatDescr_U;
+  cusparseSpSVDescr_t   spsvDescr_L,spsvDescr_U;
+  cusparseDnVecDescr_t  dnVecDescr_X,dnVecDescr_Y;
+  PetscScalar           *X,*Y; /* data array of dnVec X and Y */
+
+  /* Mixed size types? yes, CUDA-11.7.0 declared cusparseDcsrilu02_bufferSizeExt() that returns size_t but did not implement it! */
+  int                   ilu0BufferSize_M; /* M ~= LU */
+  size_t                spsvBufferSize_L,spsvBufferSize_U;
+  void                  *ilu0Buffer_M;
+  void                  *spsvBuffer_L,*spsvBuffer_U;
+
+  csrilu02Info_t        info_M;
+  int                   structural_zero,numerical_zero;
+  cusparseSolvePolicy_t policy_M,policy_L,policy_U;
+
+  /* For MatSolveTranspose(). These fields are built on-demand */
+  PetscBool             builtSolveTranspose; /* Have we ever called MatSolveTranspose()? */
+  cusparseSpSVDescr_t   spsvDescr_Lt,spsvDescr_Ut;
+  size_t                spsvBufferSize_Lt,spsvBufferSize_Ut;
+  void                  *spsvBuffer_Lt,*spsvBuffer_Ut;
+ #endif
 };
 
 struct Mat_CusparseSpMV {
