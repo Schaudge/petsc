@@ -4,6 +4,7 @@
 #include <petscsys.h>
 
 #if defined(__cplusplus)
+#include <petsc/private/cpp/register_finalize.hpp>
 
 #include <stack>
 #include <type_traits>
