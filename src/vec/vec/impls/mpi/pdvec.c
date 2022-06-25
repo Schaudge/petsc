@@ -23,19 +23,19 @@ static PetscErrorCode VecResetPreallocationCOO_MPI(Vec v) {
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode VecDestroy_MPI(Vec v) {
+PetscErrorCode VecDestroy_MPI(Vec v, PetscDeviceContext dctx) {
   Vec_MPI *x = (Vec_MPI *)v->data;
 
   PetscFunctionBegin;
 #if defined(PETSC_USE_LOG)
-  PetscLogObjectState((PetscObject)v, "Length=%" PetscInt_FMT, v->map->N);
+  PetscCall(PetscLogObjectState((PetscObject)v, "Length=%" PetscInt_FMT, v->map->N));
 #endif
   if (!x) PetscFunctionReturn(0);
   PetscCall(PetscFree(x->array_allocated));
 
   /* Destroy local representation of vector if it exists */
   if (x->localrep) {
-    PetscCall(VecDestroy(&x->localrep));
+    PetscCall(VecDestroyAsync(dctx, &x->localrep));
     PetscCall(VecScatterDestroy(&x->localupdate));
   }
   PetscCall(VecAssemblyReset_MPI(v));
@@ -985,7 +985,7 @@ PetscErrorCode VecAssemblyEnd_MPI(Vec vec) {
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode VecSetPreallocationCOO_MPI(Vec x, PetscCount coo_n, const PetscInt coo_i[]) {
+PetscErrorCode VecSetPreallocationCOO_MPI(Vec x, PetscCount coo_n, const PetscInt coo_i[], PetscDeviceContext PETSC_UNUSED dctx) {
   PetscInt    m, M, rstart, rend;
   Vec_MPI    *vmpi = (Vec_MPI *)x->data;
   PetscCount  k, p, q, rem; /* Loop variables over coo arrays */
@@ -1211,7 +1211,7 @@ PetscErrorCode VecSetPreallocationCOO_MPI(Vec x, PetscCount coo_n, const PetscIn
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode VecSetValuesCOO_MPI(Vec x, const PetscScalar v[], InsertMode imode) {
+PetscErrorCode VecSetValuesCOO_MPI(Vec x, const PetscScalar v[], InsertMode imode, PetscDeviceContext PETSC_UNUSED dctx) {
   Vec_MPI          *vmpi = (Vec_MPI *)x->data;
   PetscInt          m;
   PetscScalar      *a, *sendbuf = vmpi->sendbuf, *recvbuf = vmpi->recvbuf;

@@ -1,24 +1,18 @@
 #include "../vecseqcupm.hpp" /*I <petscvec.h> I*/
 
-namespace Petsc {
-namespace Vector {
-namespace CUPM {
-namespace Impl {
-
-template struct VecSeq_CUPM<Petsc::Device::CUPM::DeviceType::HIP>;
-
-} // namespace Impl
-} // namespace CUPM
-} // namespace Vector
-} // namespace Petsc
-
 using namespace Petsc::Vector::CUPM::Impl;
 
-static const auto VecSeq_HIP = VecSeq_CUPM<Petsc::Device::CUPM::DeviceType::HIP>{};
+static constexpr auto VecSeq_HIP = VecSeq_CUPM<Petsc::Device::CUPM::DeviceType::HIP>{};
 
-PetscErrorCode VecCreate_SeqHIP(Vec v) {
+PetscErrorCode VecCreate_SeqHIP(Vec v, PetscDeviceContext dctx) {
   PetscFunctionBegin;
-  PetscCall(VecSeq_HIP.create_async(v));
+  PetscCall(VecSeq_HIP.create_async(v, dctx));
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode VecCreateSeqHIPAsync(MPI_Comm comm, PetscInt n, PetscDeviceContext dctx, Vec *v) {
+  PetscFunctionBegin;
+  PetscCall(VecCreateSeqCUPMAsync(VecSeq_HIP, comm, n, dctx, v));
   PetscFunctionReturn(0);
 }
 
@@ -47,8 +41,13 @@ VecCreateMPI(), VecCreateMPIHIP(), VecDuplicate(), VecDuplicateVecs(), VecCreate
 @*/
 PetscErrorCode VecCreateSeqHIP(MPI_Comm comm, PetscInt n, Vec *v) {
   PetscFunctionBegin;
-  PetscValidPointer(v, 3);
-  PetscCall(VecSeq_HIP.createseqcupm_async(comm, 0, n, v, PETSC_TRUE));
+  PetscCall(VecCreateSeqHIPAsync(comm, n, nullptr, v));
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode VecCreateSeqHIPWithArraysAsync(MPI_Comm comm, PetscInt bs, PetscInt n, const PetscScalar cpuarray[], const PetscScalar gpuarray[], PetscDeviceContext dctx, Vec *v) {
+  PetscFunctionBegin;
+  PetscCall(VecCreateSeqCUPMWithArraysAsync(VecSeq_HIP, comm, bs, n, cpuarray, gpuarray, dctx, v));
   PetscFunctionReturn(0);
 }
 
@@ -89,9 +88,7 @@ VecCreateMPIHIPWithArrays(), VecHIPPlaceArray()
 C@*/
 PetscErrorCode VecCreateSeqHIPWithArrays(MPI_Comm comm, PetscInt bs, PetscInt n, const PetscScalar cpuarray[], const PetscScalar gpuarray[], Vec *v) {
   PetscFunctionBegin;
-  if (n && cpuarray) PetscValidScalarPointer(cpuarray, 4);
-  PetscValidPointer(v, 6);
-  PetscCall(VecSeq_HIP.createseqcupmwithbotharrays_async(comm, bs, n, cpuarray, gpuarray, v));
+  PetscCall(VecCreateSeqHIPWithArraysAsync(comm, bs, n, cpuarray, gpuarray, nullptr, v));
   PetscFunctionReturn(0);
 }
 
@@ -135,6 +132,12 @@ PetscErrorCode VecCreateSeqHIPWithArray(MPI_Comm comm, PetscInt bs, PetscInt n, 
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode VecHIPGetArrayAsync(Vec v, PetscScalar **a, PetscDeviceContext dctx) {
+  PetscFunctionBegin;
+  PetscCall(VecCUPMGetArrayAsync(VecSeq_HIP, v, a, dctx));
+  PetscFunctionReturn(0);
+}
+
 /*@C
   VecHIPGetArray - Provides access to the device buffer inside a vector
 
@@ -171,10 +174,18 @@ PetscErrorCode VecCreateSeqHIPWithArray(MPI_Comm comm, PetscInt bs, PetscInt n, 
 VecGetArrayRead(), VecGetArrayWrite()
 @*/
 PetscErrorCode VecHIPGetArray(Vec v, PetscScalar **a) {
+  PetscDeviceContext dctx;
+
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(v, VEC_CLASSID, 1);
-  PetscValidPointer(a, 2);
-  PetscCall(VecSeq_HIP.getarray_async<PETSC_MEMTYPE_DEVICE, MemoryAccess::READ_WRITE>(v, a));
+  PetscCall(PetscDeviceContextGetNullContext_Internal(&dctx));
+  PetscCall(VecHIPGetArrayAsync(v, a, dctx));
+  PetscCall(PetscDeviceContextSynchronize(dctx));
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode VecHIPRestoreArrayAsync(Vec v, PetscScalar **a, PetscDeviceContext dctx) {
+  PetscFunctionBegin;
+  PetscCall(VecCUPMRestoreArrayAsync(VecSeq_HIP, v, a, dctx));
   PetscFunctionReturn(0);
 }
 
@@ -202,9 +213,13 @@ VecRestoreArray(), VecGetArrayRead()
 @*/
 PetscErrorCode VecHIPRestoreArray(Vec v, PetscScalar **a) {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(v, VEC_CLASSID, 1);
-  PetscValidPointer(a, 2);
-  PetscCall(VecSeq_HIP.restorearray_async<PETSC_MEMTYPE_DEVICE, MemoryAccess::READ_WRITE>(v, a));
+  PetscCall(VecHIPRestoreArrayAsync(v, a, nullptr));
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode VecHIPGetArrayReadAsync(Vec v, const PetscScalar **a, PetscDeviceContext dctx) {
+  PetscFunctionBegin;
+  PetscCall(VecCUPMGetArrayReadAsync(VecSeq_HIP, v, a, dctx));
   PetscFunctionReturn(0);
 }
 
@@ -239,8 +254,18 @@ PetscErrorCode VecHIPRestoreArray(Vec v, PetscScalar **a) {
 VecGetArrayRead()
 @*/
 PetscErrorCode VecHIPGetArrayRead(Vec v, const PetscScalar **a) {
+  PetscDeviceContext dctx;
+
   PetscFunctionBegin;
-  PetscCall(VecSeq_HIP.getarray_async<PETSC_MEMTYPE_DEVICE, MemoryAccess::READ>(v, const_cast<PetscScalar **>(a)));
+  PetscCall(PetscDeviceContextGetNullContext_Internal(&dctx));
+  PetscCall(VecHIPGetArrayReadAsync(v, a, dctx));
+  PetscCall(PetscDeviceContextSynchronize(dctx));
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode VecHIPRestoreArrayReadAsync(Vec v, const PetscScalar **a, PetscDeviceContext dctx) {
+  PetscFunctionBegin;
+  PetscCall(VecCUPMRestoreArrayReadAsync(VecSeq_HIP, v, a, dctx));
   PetscFunctionReturn(0);
 }
 
@@ -266,9 +291,13 @@ VecRestoreArray(), VecGetArrayRead()
 @*/
 PetscErrorCode VecHIPRestoreArrayRead(Vec v, const PetscScalar **a) {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(v, VEC_CLASSID, 1);
-  PetscValidPointer(a, 2);
-  PetscCall(VecSeq_HIP.restorearray_async<PETSC_MEMTYPE_DEVICE, MemoryAccess::READ>(v, const_cast<PetscScalar **>(a)));
+  PetscCall(VecHIPRestoreArrayReadAsync(v, a, nullptr));
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode VecHIPGetArrayWriteAsync(Vec v, PetscScalar **a, PetscDeviceContext dctx) {
+  PetscFunctionBegin;
+  PetscCall(VecCUPMGetArrayWriteAsync(VecSeq_HIP, v, a, dctx));
   PetscFunctionReturn(0);
 }
 
@@ -300,10 +329,18 @@ PetscErrorCode VecHIPRestoreArrayRead(Vec v, const PetscScalar **a) {
 VecHIPGetArrayWrite(), VecGetArray(), VecGetArrayRead()
 @*/
 PetscErrorCode VecHIPGetArrayWrite(Vec v, PetscScalar **a) {
+  PetscDeviceContext dctx;
+
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(v, VEC_CLASSID, 1);
-  PetscValidPointer(a, 2);
-  PetscCall(VecSeq_HIP.getarray_async<PETSC_MEMTYPE_DEVICE, MemoryAccess::WRITE>(v, a));
+  PetscCall(PetscDeviceContextGetNullContext_Internal(&dctx));
+  PetscCall(VecHIPGetArrayWriteAsync(v, a, dctx));
+  PetscCall(PetscDeviceContextSynchronize(dctx));
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode VecHIPRestoreArrayWriteAsync(Vec v, PetscScalar **a, PetscDeviceContext dctx) {
+  PetscFunctionBegin;
+  PetscCall(VecCUPMRestoreArrayWriteAsync(VecSeq_HIP, v, a, dctx));
   PetscFunctionReturn(0);
 }
 
@@ -329,9 +366,13 @@ VecHIPGetArrayWrite(), VecGetArray(), VecRestoreArray(), VecGetArrayRead()
 @*/
 PetscErrorCode VecHIPRestoreArrayWrite(Vec v, PetscScalar **a) {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(v, VEC_CLASSID, 1);
-  PetscValidPointer(a, 2);
-  PetscCall(VecSeq_HIP.restorearray_async<PETSC_MEMTYPE_DEVICE, MemoryAccess::WRITE>(v, a));
+  PetscCall(VecHIPRestoreArrayWriteAsync(v, a, nullptr));
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode VecHIPPlaceArrayAsync(Vec vin, const PetscScalar a[], PetscDeviceContext dctx) {
+  PetscFunctionBegin;
+  PetscCall(VecCUPMPlaceArrayAsync(VecSeq_HIP, vin, a, dctx));
   PetscFunctionReturn(0);
 }
 
@@ -364,8 +405,13 @@ VecResetArray(), VecHIPResetArray(), VecHIPReplaceArray()
 @*/
 PetscErrorCode VecHIPPlaceArray(Vec vin, const PetscScalar a[]) {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(vin, VEC_CLASSID, 1);
-  PetscCall(VecSeq_HIP.placearray_async<PETSC_MEMTYPE_DEVICE>(vin, a));
+  PetscCall(VecHIPPlaceArrayAsync(vin, a, nullptr));
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode VecHIPReplaceArrayAsync(Vec vin, const PetscScalar a[], PetscDeviceContext dctx) {
+  PetscFunctionBegin;
+  PetscCall(VecCUPMReplaceArrayAsync(VecSeq_HIP, vin, a, dctx));
   PetscFunctionReturn(0);
 }
 
@@ -396,8 +442,13 @@ VecHIPResetArray(), VecHIPPlaceArray(), VecReplaceArray()
 @*/
 PetscErrorCode VecHIPReplaceArray(Vec vin, const PetscScalar a[]) {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(vin, VEC_CLASSID, 1);
-  PetscCall(VecSeq_HIP.replacearray_async<PETSC_MEMTYPE_DEVICE>(vin, a));
+  PetscCall(VecHIPReplaceArrayAsync(vin, a, nullptr));
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode VecHIPResetArrayAsync(Vec vin, PetscDeviceContext dctx) {
+  PetscFunctionBegin;
+  PetscCall(VecCUPMResetArrayAsync(VecSeq_HIP, vin, dctx));
   PetscFunctionReturn(0);
 }
 
@@ -419,7 +470,6 @@ VecResetArray(), VecHIPPlaceArray(), VecHIPReplaceArray()
 @*/
 PetscErrorCode VecHIPResetArray(Vec vin) {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(vin, VEC_CLASSID, 1);
-  PetscCall(VecSeq_HIP.resetarray_async<PETSC_MEMTYPE_DEVICE>(vin));
+  PetscCall(VecHIPResetArrayAsync(vin, nullptr));
   PetscFunctionReturn(0);
 }

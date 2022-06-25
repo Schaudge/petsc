@@ -44,14 +44,16 @@ static PetscErrorCode TestPetscDeviceContextDuplicate(PetscDeviceContext dctx) {
 }
 
 int main(int argc, char *argv[]) {
+  MPI_Comm           comm;
   PetscDeviceContext dctx;
 
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
+  comm = PETSC_COMM_WORLD;
 
   /* basic creation and destruction */
   PetscCall(PetscDeviceContextCreate(&dctx));
-  PetscCall(PetscDeviceContextSetFromOptions(PETSC_COMM_WORLD, "local_", dctx));
+  PetscCall(PetscDeviceContextSetFromOptions(comm, "local_", dctx));
   PetscCall(PetscDeviceContextSetUp(dctx));
   PetscCall(TestPetscDeviceContextDuplicate(dctx));
   PetscCall(PetscDeviceContextDestroy(&dctx));
@@ -59,7 +61,7 @@ int main(int argc, char *argv[]) {
   PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
   PetscCall(TestPetscDeviceContextDuplicate(dctx));
 
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "EXIT_SUCCESS\n"));
+  PetscCall(PetscPrintf(comm, "EXIT_SUCCESS\n"));
   PetscCall(PetscFinalize());
   return 0;
 }

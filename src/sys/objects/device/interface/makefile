@@ -1,10 +1,8 @@
 -include ../../../../../petsckdir.mk
-#requiresdefine 'PETSC_HAVE_CXX'
 
-SOURCEC	  =
-SOURCECXX = dcontext.cxx device.cxx devicereg.cxx
-SOURCEF	  =
-SOURCEH   = objpool.hpp cupmdevice.hpp sycldevice.hpp hostdevice.hpp
+SOURCEC   = devicereg.c managedtype_c.c
+SOURCECXX = dcontext.cxx device.cxx managedtype_cxx.cxx
+SOURCEH   = objpool.hpp managedtype.inl
 MANSEC	  = Sys
 LIBBASE	  = libpetscsys
 DIRS	  =

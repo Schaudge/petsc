@@ -27,9 +27,7 @@ static PetscErrorCode PetscDeviceRegisterEvent_Private(const char name[], PetscC
 .seealso: `PetscFinalize()`, `PetscDeviceInitializePackage()`
 @*/
 PetscErrorCode PetscDeviceFinalizePackage(void) {
-  PetscFunctionBegin;
-  PetscDevicePackageInitialized = PETSC_FALSE;
-  PetscFunctionReturn(0);
+  return 0;
 }
 
 /*@C
@@ -45,7 +43,7 @@ PetscErrorCode PetscDeviceFinalizePackage(void) {
 PetscErrorCode PetscDeviceInitializePackage(void) {
   PetscFunctionBegin;
   if (PetscLikely(PetscDevicePackageInitialized)) PetscFunctionReturn(0);
-  PetscCheck(PetscDeviceConfiguredFor_Internal(PETSC_DEVICE_DEFAULT), PETSC_COMM_SELF, PETSC_ERR_SUP, "PETSc is not configured with device support (PETSC_DEVICE_DEFAULT = '%s')", PetscDeviceTypes[PETSC_DEVICE_DEFAULT]);
+  PetscCheck(PetscDeviceConfiguredFor_Internal(PETSC_DEVICE_DEFAULT()), PETSC_COMM_SELF, PETSC_ERR_SUP, "PETSc is not configured with device support (PETSC_DEVICE_DEFAULT = '%s')", PetscDeviceTypes[PETSC_DEVICE_DEFAULT()]);
   PetscDevicePackageInitialized = PETSC_TRUE;
   PetscCall(PetscRegisterFinalize(PetscDeviceFinalizePackage));
   // class registration

@@ -2,7 +2,7 @@
 #define CUSPARSEMATIMPL
 
 #include <petscpkg_version.h>
-#include <../src/vec/vec/impls/seq/seqcupm/vecseqcupm.hpp>
+#include <../src/vec/vec/impls/seq/cupm/vecseqcupm.hpp>
 #include <petsc/private/legacycublasapi.h>
 #include <petscaijdevice.h>
 

@@ -1,4 +1,4 @@
-#include "../../interface/hostdevice.hpp"
+#include "hostdevice.hpp"
 
 namespace Petsc {
 
@@ -70,16 +70,18 @@ PetscErrorCode Device::viewDevice(PetscDevice device, PetscViewer viewer) noexce
 
     PetscCall(PetscViewerGetSubViewer(viewer, PETSC_COMM_SELF, &sviewer));
     if (device) {
+      PetscInt id;
+
       // it is secretely possible to call this without a device, otherwise the initialization
       // sequence can't view from options
-      PetscCall(PetscViewerASCIIPrintf(sviewer, "[%d] device %d\n", rank, device->deviceId));
+      PetscCall(PetscDeviceGetDeviceId(device, &id));
+      PetscCall(PetscViewerASCIIPrintf(sviewer, "[%d] device %" PetscInt_FMT "\n", rank, id));
     }
     PetscCall(PetscViewerASCIIPrintf(sviewer, "[%d] %s on a %s named %s with %d processor(s), by %s %s\n", rank, pname, arch, hostname, size, username, date));
 #if PetscDefined(HAVE_OPENMP)
     PetscCall(PetscViewerASCIIPrintf(sviewer, "Using %" PetscInt_FMT " OpenMP threads\n", PetscNumOMPThreads));
 #endif
     PetscCall(PetscViewerRestoreSubViewer(viewer, PETSC_COMM_SELF, &sviewer));
-
     PetscCall(PetscViewerFlush(viewer));
   }
   PetscFunctionReturn(0);

@@ -197,6 +197,7 @@ int main(int argc, char **argv) {
     args: -dm_plex_dim 2 -dm_refine 1 -benchmark_it 0 -dmsnes_check -potential_petscspace_degree 2 -dm_ds_jet_degree 2 -strong
 
   test:
+    requires: defined(PETSC_HAVE_MPI_GPU_AWARE)
     suffix: bench
     nsize: 4
     args: -dm_plex_dim 3 -dm_plex_simplex 0 -dm_plex_box_faces 2,2,1 -dm_refine 2 -dm_view -ksp_monitor \

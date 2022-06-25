@@ -1,7 +1,7 @@
 #ifndef HOSTDEVICE_HPP
 #define HOSTDEVICE_HPP
 
-#include "../impls/impldevicebase.hpp" /*I "petscdevice.h" I*/
+#include "../impldevicebase.hpp" /*I "petscdevice.h" I*/
 
 namespace Petsc {
 
@@ -17,11 +17,8 @@ private:
 
 public:
   PETSC_NODISCARD static PetscErrorCode initialize(MPI_Comm, PetscInt *, PetscDeviceInitType *) noexcept;
-
-  PETSC_NODISCARD PetscErrorCode getDevice(PetscDevice, PetscInt) const noexcept;
-
+  PETSC_NODISCARD PetscErrorCode        getDevice(PetscDevice, PetscInt) const noexcept;
   PETSC_NODISCARD static PetscErrorCode configureDevice(PetscDevice) noexcept;
-
   PETSC_NODISCARD static PetscErrorCode viewDevice(PetscDevice, PetscViewer) noexcept;
 };
 

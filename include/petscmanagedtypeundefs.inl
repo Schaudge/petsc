@@ -1,0 +1,24 @@
+#undef _n_PetscManagedType
+
+#undef PetscManagedTypeCreate
+#undef PetscManageHostType
+#undef PetscManageDeviceType
+#undef PetscManagedTypeCreateDefault
+#undef PetscManagedTypeDestroy
+#undef PetscManagedHostTypeDestroy
+#undef PetscManagedTypeGetValues
+#undef PetscManagedTypeSetValues
+#undef PetscManagedTypeGetPointerAndMemType
+#undef PetscManagedTypeEnsureOffload
+#undef PetscManagedTypeCopy
+#undef PetscManagedTypeApplyOperator
+#undef PetscManagedTypeGetSubRange
+#undef PetscManagedTypeRestoreSubRange
+#undef PetscManagedTypeEqual
+#undef PetscManagedTypeGetSize
+#undef PetscManagedTypeKnownAndEqual
+#undef PetscManagedTypeValuesAvailable
+
+#undef PetscTypeSuffix
+#undef PetscType
+#undef PetscManagedType

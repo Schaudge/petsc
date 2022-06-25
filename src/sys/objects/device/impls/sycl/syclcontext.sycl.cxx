@@ -1,4 +1,4 @@
-#include "../../interface/sycldevice.hpp"
+#include "sycldevice.hpp"
 #include <CL/sycl.hpp>
 
 namespace Petsc {

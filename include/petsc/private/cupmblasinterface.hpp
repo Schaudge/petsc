@@ -7,12 +7,6 @@
 
 #if defined(__cplusplus)
 
-// icc (and for that matter any windows compiler) is only fully compliant to the letter of
-// the standard up to C++03, while supporting the vast majority of later standards
-#if (__cplusplus < 201103L) && !PetscDefined(HAVE_WINDOWS_COMPILERS)
-#error "CUPMBlasInterface requires C++11"
-#endif
-
 namespace Petsc {
 
 namespace Device {
@@ -30,9 +24,8 @@ namespace Impl {
                 "%s error %d (%s). Reports not initialized or alloc failed; " \
                 "this indicates the GPU may have run out resources", \
                 cupmBlasName(), static_cast<PetscErrorCode>(cberr_p_), cupmBlasGetErrorName(cberr_p_)); \
-      } else { \
-        SETERRQ(PETSC_COMM_SELF, PETSC_ERR_GPU, "%s error %d (%s)", cupmBlasName(), static_cast<PetscErrorCode>(cberr_p_), cupmBlasGetErrorName(cberr_p_)); \
       } \
+      SETERRQ(PETSC_COMM_SELF, PETSC_ERR_GPU, "%s error %d (%s)", cupmBlasName(), static_cast<PetscErrorCode>(cberr_p_), cupmBlasGetErrorName(cberr_p_)); \
     } \
   } while (0)
 
@@ -233,14 +226,7 @@ namespace Impl {
 
 template <DeviceType T>
 struct BlasInterfaceBase : Interface<T> {
-  PETSC_CXX_COMPAT_DECL(PETSC_CONSTEXPR_14 const char *cupmBlasName()) {
-    switch (T) {
-    case DeviceType::CUDA: return "cuBLAS";
-    case DeviceType::HIP: return "hipBLAS";
-    }
-    PetscUnreachable();
-    return "invalid";
-  }
+  PETSC_CXX_COMPAT_DECL(constexpr const char *cupmBlasName()) { return T == DeviceType::CUDA ? "cuBLAS" : "hipBLAS"; }
 };
 
 #define PETSC_CUPMBLAS_BASE_CLASS_HEADER(DEV_TYPE) \
@@ -250,7 +236,7 @@ struct BlasInterfaceBase : Interface<T> {
   PETSC_CUPM_ALIAS_FUNCTION_EXACT(cupmBlas, GetErrorName, PetscConcat(Petsc, PETSC_CUPMBLAS_PREFIX_U), GetErrorName)
 
 template <DeviceType>
-struct PETSC_TEMPLATE_VISIBILITY_SINGLE_LIBRARY_INTERNAL BlasInterfaceImpl;
+struct BlasInterfaceImpl;
 
 #if PetscDefined(HAVE_CUDA)
 #define PETSC_CUPMBLAS_PREFIX         cublas
@@ -472,20 +458,23 @@ struct BlasInterfaceImpl<DeviceType::HIP> : BlasInterfaceBase<DeviceType::HIP> {
   /* BLAS extensions */ \
   using base_name::cupmBlasXgeam
 
-template <DeviceType>
-struct PETSC_TEMPLATE_VISIBILITY_SINGLE_LIBRARY_INTERNAL BlasInterface;
-
 // The actual interface class
 template <DeviceType T>
 struct BlasInterface : BlasInterfaceImpl<T> {
   PETSC_CUPMBLAS_IMPL_CLASS_HEADER(blasinterface_type, T);
 
   PETSC_CXX_COMPAT_DECL(PetscErrorCode cupmBlasSetPointerModeFromPointer(cupmBlasHandle_t handle, const void *ptr)) {
-    PetscMemType mtype;
+    PetscMemType mtype = PETSC_MEMTYPE_HOST;
 
     PetscFunctionBegin;
-    CHKERRQ(cupmGetMemType(ptr, &mtype));
-    CHKERRCUPMBLAS(cupmBlasSetPointerMode(handle, PetscMemTypeDevice(mtype) ? CUPMBLAS_POINTER_MODE_DEVICE : CUPMBLAS_POINTER_MODE_HOST));
+    PetscCall(cupmGetMemType(ptr, &mtype));
+    PetscCallCUPMBLAS(cupmBlasSetPointerMode(handle, PetscMemTypeDevice(mtype) ? CUPMBLAS_POINTER_MODE_DEVICE : CUPMBLAS_POINTER_MODE_HOST));
+    PetscFunctionReturn(0);
+  }
+
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode cupmBlasSetPointerModeFromPointer(cupmBlasHandle_t handle, const PetscManagedScalar ptr)) {
+    PetscFunctionBegin;
+    PetscCallCUPMBLAS(cupmBlasSetPointerMode(handle, ptr->dtype == PETSC_DEVICE_HOST ? CUPMBLAS_POINTER_MODE_HOST : CUPMBLAS_POINTER_MODE_DEVICE));
     PetscFunctionReturn(0);
   }
 };

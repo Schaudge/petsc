@@ -1,5 +1,6 @@
 
 #include <petsc/private/vecimpl.h> /*I "petscvec.h"  I*/
+#include <petsc/private/deviceimpl.h>
 
 PetscFunctionList VecList              = NULL;
 PetscBool         VecRegisterAllCalled = PETSC_FALSE;
@@ -7,7 +8,7 @@ PetscBool         VecRegisterAllCalled = PETSC_FALSE;
 /*@C
   VecSetType - Builds a vector, for a particular vector implementation.
 
-  Collective on Vec
+  Collective on Vec, Synchronous
 
   Input Parameters:
 + vec    - The vector object
@@ -27,9 +28,10 @@ PetscBool         VecRegisterAllCalled = PETSC_FALSE;
 .seealso: `VecGetType()`, `VecCreate()`
 @*/
 PetscErrorCode VecSetType(Vec vec, VecType method) {
-  PetscErrorCode (*r)(Vec);
-  PetscBool   match;
-  PetscMPIInt size;
+  PetscErrorCode (*r)(Vec, PetscDeviceContext);
+  PetscDeviceContext dctx = NULL;
+  PetscBool          match;
+  PetscMPIInt        size;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(vec, VEC_CLASSID, 1);
@@ -74,9 +76,10 @@ PetscErrorCode VecSetType(Vec vec, VecType method) {
     if (match) PetscFunctionReturn(0);
   }
 #endif
+  PetscCall(PetscDeviceContextGetOptionalNullContext_Internal(&dctx));
   PetscCall(PetscFunctionListFind(VecList, method, &r));
   PetscCheck(r, PETSC_COMM_SELF, PETSC_ERR_ARG_UNKNOWN_TYPE, "Unknown vector type: %s", method);
-  PetscTryTypeMethod(vec, destroy);
+  PetscTryTypeMethod(vec, destroy, dctx);
   vec->ops->destroy = NULL;
   PetscCall(PetscMemzero(vec->ops, sizeof(struct _VecOps)));
   PetscCall(PetscFree(vec->defaultrandtype));
@@ -85,7 +88,7 @@ PetscErrorCode VecSetType(Vec vec, VecType method) {
     vec->ops->create = r;
     vec->ops->load   = VecLoad_Default;
   } else {
-    PetscCall((*r)(vec));
+    PetscCall((*r)(vec, dctx));
   }
   PetscFunctionReturn(0);
 }
@@ -93,7 +96,7 @@ PetscErrorCode VecSetType(Vec vec, VecType method) {
 /*@C
   VecGetType - Gets the vector type name (as a string) from the Vec.
 
-  Not Collective
+  Not Collective, Synchronous
 
   Input Parameter:
 . vec  - The vector
@@ -143,7 +146,7 @@ PetscErrorCode VecGetRootType_Private(Vec vec, VecType *vtype) {
 /*@C
   VecRegister -  Adds a new vector component implementation
 
-  Not Collective
+  Not Collective, Synchronous
 
   Input Parameters:
 + name        - The name of a new user-defined creation routine
@@ -171,7 +174,7 @@ PetscErrorCode VecGetRootType_Private(Vec vec, VecType *vtype) {
 
 .seealso: `VecRegisterAll()`, `VecRegisterDestroy()`
 @*/
-PetscErrorCode VecRegister(const char sname[], PetscErrorCode (*function)(Vec)) {
+PetscErrorCode VecRegister(const char sname[], PetscErrorCode (*function)(Vec, PetscDeviceContext)) {
   PetscFunctionBegin;
   PetscCall(VecInitializePackage());
   PetscCall(PetscFunctionListAdd(&VecList, sname, function));

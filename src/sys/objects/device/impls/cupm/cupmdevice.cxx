@@ -1,4 +1,4 @@
-#include "../../interface/cupmdevice.hpp"
+#include "cupmdevice.hpp"
 #include <algorithm>
 #include <csetjmp> // for cuda mpi awareness
 #include <csignal> // SIGSEGV
@@ -19,7 +19,7 @@ class Device<T>::DeviceInternal {
   cupmDeviceProp_t dprop_; // cudaDeviceProp appears to be an actual struct, i.e. you can't
                            // initialize it with nullptr or NULL (i've tried)
 
-  PETSC_CXX_COMPAT_DECL(bool CUPMAwareMPI_());
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode CUPMAwareMPI_(bool *));
 
 public:
   // default constructor
@@ -52,9 +52,7 @@ PetscErrorCode Device<T>::DeviceInternal::initialize() noexcept {
   if (cupmSetDeviceFlags(cupmDeviceMapHost) == cupmErrorSetOnActiveProcess) {
     // reset the error if it was cupmErrorSetOnActiveProcess
     const auto PETSC_UNUSED unused = cupmGetLastError();
-  } else {
-    PetscCallCUPM(cupmGetLastError());
-  }
+  } else PetscCallCUPM(cupmGetLastError());
   // cuda 5.0+ will create a context when cupmSetDevice is called
   if (cupmSetDevice(id_) != cupmErrorDeviceAlreadyInUse) PetscCallCUPM(cupmGetLastError());
   // forces cuda < 5.0 to initialize a context
@@ -63,13 +61,16 @@ PetscErrorCode Device<T>::DeviceInternal::initialize() noexcept {
   // at this point. either way, each device must make this check since I guess MPI might not be
   // aware of all of them?
   if (use_gpu_aware_mpi) {
+    bool aware;
+
+    PetscCall(CUPMAwareMPI_(&aware));
     // For OpenMPI, we could do a compile time check with
     // "defined(PETSC_HAVE_OMPI_MAJOR_VERSION) && defined(MPIX_CUDA_AWARE_SUPPORT) &&
     // MPIX_CUDA_AWARE_SUPPORT" to see if it is CUDA-aware. However, recent versions of IBM
     // Spectrum MPI (e.g., 10.3.1) on Summit meet above conditions, but one has to use jsrun
     // --smpiargs=-gpu to really enable GPU-aware MPI. So we do the check at runtime with a
     // code that works only with GPU-aware MPI.
-    if (PetscUnlikely(!CUPMAwareMPI_())) {
+    if (PetscUnlikely(!aware)) {
       (*PetscErrorPrintf)("PETSc is configured with GPU support, but your MPI is not GPU-aware. For better performance, please use a GPU-aware MPI.\n");
       (*PetscErrorPrintf)("If you do not care, add option -use_gpu_aware_mpi 0. To not see the message again, add the option to your .petscrc, OR add it to the env var PETSC_OPTIONS.\n");
       (*PetscErrorPrintf)("If you do care, for IBM Spectrum MPI on OLCF Summit, you may need jsrun --smpiargs=-gpu.\n");
@@ -145,30 +146,28 @@ void SilenceVariableIsNotNeededAndWillNotBeEmittedWarning_ThisFunctionShouldNeve
   if (cupmMPIAwareJumpBufferSet) (void)cupmMPIAwareJumpBuffer;
 }
 
-#define CHKCUPMAWARE(...) \
-  if (PetscUnlikely((__VA_ARGS__) != cupmSuccess)) return false
-
 template <DeviceType T>
-PETSC_CXX_COMPAT_DEFN(bool Device<T>::DeviceInternal::CUPMAwareMPI_()) {
+PETSC_CXX_COMPAT_DEFN(PetscErrorCode Device<T>::DeviceInternal::CUPMAwareMPI_(bool *awareness)) {
   constexpr int  bufSize           = 2;
   constexpr int  hbuf[bufSize]     = {1, 0};
   int           *dbuf              = nullptr;
   constexpr auto bytes             = bufSize * sizeof(*dbuf);
-  auto           awareness         = false;
   const auto     cupmSignalHandler = [](int signal, void *ptr) -> PetscErrorCode {
     if ((signal == SIGSEGV) && cupmMPIAwareJumpBufferSet) std::longjmp(cupmMPIAwareJumpBuffer, 1);
     return PetscSignalHandlerDefault(signal, ptr);
   };
 
   PetscFunctionBegin;
-  CHKCUPMAWARE(cupmMalloc(reinterpret_cast<void **>(&dbuf), bytes));
-  CHKCUPMAWARE(cupmMemcpy(dbuf, hbuf, bytes, cupmMemcpyHostToDevice));
-  PetscCallAbort(PETSC_COMM_SELF, PetscPushSignalHandler(cupmSignalHandler, nullptr));
+  *awareness = false;
+  PetscCallCUPM(cupmMalloc(reinterpret_cast<void **>(&dbuf), bytes));
+  PetscCallCUPM(cupmMemcpy(dbuf, hbuf, bytes, cupmMemcpyHostToDevice));
+  PetscCallCUPM(cupmDeviceSynchronize());
+  PetscCall(PetscPushSignalHandler(cupmSignalHandler, nullptr));
   cupmMPIAwareJumpBufferSet = true;
   if (setjmp(cupmMPIAwareJumpBuffer)) {
     // if a segv was triggered in the MPI_Allreduce below, it is very likely due to MPI not
     // being GPU-aware
-    awareness = false;
+
     // control flow up until this point:
     // 1. CUPMDevice<T>::CUPMDeviceInternal::MPICUPMAware__()
     // 2. MPI_Allreduce
@@ -187,11 +186,11 @@ PETSC_CXX_COMPAT_DEFN(bool Device<T>::DeviceInternal::CUPMAwareMPI_()) {
     // so for safety (since we don't know what PetscStackPop may try to read/declare) we do it
     // outside of the longjmp control flow
     PetscStackPop;
-  } else if (!MPI_Allreduce(dbuf, dbuf + 1, 1, MPI_INT, MPI_SUM, PETSC_COMM_SELF)) awareness = true;
+  } else if (!MPI_Allreduce(dbuf, dbuf + 1, 1, MPI_INT, MPI_SUM, PETSC_COMM_SELF)) *awareness = true;
   cupmMPIAwareJumpBufferSet = false;
-  PetscCallAbort(PETSC_COMM_SELF, PetscPopSignalHandler());
-  CHKCUPMAWARE(cupmFree(dbuf));
-  PetscFunctionReturn(awareness);
+  PetscCall(PetscPopSignalHandler());
+  PetscCallCUPM(cupmFree(dbuf));
+  PetscFunctionReturn(0);
 }
 
 #undef CHKCUPMAWARE
