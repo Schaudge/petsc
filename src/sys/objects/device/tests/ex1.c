@@ -11,7 +11,7 @@ int main(int argc, char *argv[]) {
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
 
   /* normal create and destroy */
-  PetscCall(PetscDeviceCreate(PETSC_DEVICE_DEFAULT, PETSC_DECIDE, &device));
+  PetscCall(PetscDeviceCreate(PETSC_DEVICE_DEFAULT(), PETSC_DECIDE, &device));
   PetscCall(AssertDeviceExists(device));
   PetscCall(PetscDeviceDestroy(&device));
   PetscCall(AssertDeviceDoesNotExist(device));
@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
   /* test reference counting */
   device = NULL;
   PetscCall(PetscArrayzero(devices, n));
-  PetscCall(PetscDeviceCreate(PETSC_DEVICE_DEFAULT, PETSC_DECIDE, &device));
+  PetscCall(PetscDeviceCreate(PETSC_DEVICE_DEFAULT(), PETSC_DECIDE, &device));
   PetscCall(AssertDeviceExists(device));
   for (int i = 0; i < n; ++i) {
     PetscCall(PetscDeviceReference_Internal(device));

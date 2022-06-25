@@ -1,8 +1,6 @@
+-include ../../../../../../petsckdir.mk
 #requirespackage 'PETSC_HAVE_HIP'
-ALL: lib
 
-CFLAGS    =
-FFLAGS    =
 SOURCEHIP = vecseqcupm.hip.cpp
 SOURCEF   =
 LIBBASE   = libpetscvec

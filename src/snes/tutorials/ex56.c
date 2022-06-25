@@ -468,7 +468,7 @@ int main(int argc, char **args) {
     suffix: 0
     nsize: 4
     requires: !single
-    args: -cells 2,2,1 -max_conv_its 2 -petscspace_degree 3 -snes_max_it 1 -ksp_max_it 100 -ksp_type cg -ksp_rtol 1.e-10 -ksp_norm_type unpreconditioned -pc_type gamg -pc_gamg_coarse_eq_limit 10 -pc_gamg_reuse_interpolation true -pc_gamg_aggressive_coarsening 0 -pc_gamg_threshold 0.001 -ksp_converged_reason -snes_converged_reason -use_mat_nearnullspace true -mg_levels_ksp_max_it 2 -mg_levels_ksp_type chebyshev -mg_levels_ksp_chebyshev_esteig 0,0.2,0,1.1 -mg_levels_pc_type jacobi -petscpartitioner_type simple -ex56_dm_view -snes_lag_jacobian -2 -snes_type ksponly -use_gpu_aware_mpi true
+    args: -cells 2,2,1 -max_conv_its 2 -petscspace_degree 3 -snes_max_it 1 -ksp_max_it 100 -ksp_type cg -ksp_rtol 1.e-10 -ksp_norm_type unpreconditioned -pc_type gamg -pc_gamg_coarse_eq_limit 10 -pc_gamg_reuse_interpolation true -pc_gamg_aggressive_coarsening 0 -pc_gamg_threshold 0.001 -ksp_converged_reason -snes_converged_reason -use_mat_nearnullspace true -mg_levels_ksp_max_it 2 -mg_levels_ksp_type chebyshev -mg_levels_ksp_chebyshev_esteig 0,0.2,0,1.1 -mg_levels_pc_type jacobi -petscpartitioner_type simple -ex56_dm_view -snes_lag_jacobian -2 -snes_type ksponly
     timeoutfactor: 2
 
   # HYPRE PtAP broken with complex numbers

@@ -196,7 +196,14 @@ PetscErrorCode MatMult_SeqAIJViennaCL(Mat A, Vec xx, Vec yy) {
     PetscCall(VecViennaCLRestoreArrayWrite(yy, &ygpu));
     PetscCall(PetscLogGpuFlops(2.0 * a->nz - a->nonzerorowcnt));
   } else {
-    PetscCall(VecSet_SeqViennaCL(yy, 0));
+    PetscDeviceContext dctx;
+    PetscManagedScalar scalzero;
+    PetscScalar        zero = 0;
+
+    PetscCall(PetscDeviceContextGetNullContext_Internal(&dctx));
+    PetscCall(PetscManageHostScalar(dctx, &zero, 1, &scalzero));
+    PetscCall(VecSet_SeqViennaCL(yy, scalzero, dctx));
+    PetscCall(PetscManagedScalarDestroy(dctx, &scalzero));
   }
   PetscFunctionReturn(0);
 }
@@ -229,7 +236,10 @@ PetscErrorCode MatMultAdd_SeqAIJViennaCL(Mat A, Vec xx, Vec yy, Vec zz) {
     } catch (std::exception const &ex) { SETERRQ(PETSC_COMM_SELF, PETSC_ERR_LIB, "ViennaCL error: %s", ex.what()); }
     PetscCall(PetscLogGpuFlops(2.0 * a->nz));
   } else {
-    PetscCall(VecCopy_SeqViennaCL(yy, zz));
+    PetscDeviceContext dctx;
+
+    PetscCall(PetscDeviceContextGetNullContext_Internal(&dctx));
+    PetscCall(VecCopy_SeqViennaCL(yy, zz, dctx));
   }
   PetscFunctionReturn(0);
 }

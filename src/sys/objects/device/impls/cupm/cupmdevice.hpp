@@ -1,7 +1,7 @@
 #ifndef PETSCCUPMDEVICE_HPP
 #define PETSCCUPMDEVICE_HPP
 
-#include "../impls/impldevicebase.hpp" /* I "petscdevice.h" */
+#include "../impldevicebase.hpp" /* I "petscdevice.h" */
 #include <petsc/private/cupminterface.hpp>
 #include <memory>
 

@@ -1,4 +1,4 @@
-#include "../../interface/sycldevice.hpp"
+#include "sycldevice.hpp"
 #include <limits> // for std::numeric_limits
 #include <csetjmp> // for MPI sycl device awareness
 #include <csignal> // SIGSEGV

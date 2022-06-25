@@ -1,5 +1,4 @@
 -include ../../../../petsckdir.mk
-#requiresdefine 'PETSC_HAVE_CXX'
 
 SOURCEC	  =
 SOURCEF	  =

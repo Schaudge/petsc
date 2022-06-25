@@ -39,22 +39,22 @@ M*/
 VecType, VecCreateMPI(), VecSetPinnedMemoryMin()
 M*/
 
-PetscErrorCode VecCreate_HIP(Vec v) {
+PetscErrorCode VecCreate_HIP(Vec v, PetscDeviceContext dctx) {
   PetscFunctionBegin;
-  PetscCall(VecMPI_HIP.Create_CUPM(v));
+  PetscCall(VecMPI_HIP.Create_CUPM(v, dctx));
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode VecCreate_MPIHIP(Vec v) {
+PetscErrorCode VecCreate_MPIHIP(Vec v, PetscDeviceContext dctx) {
   PetscFunctionBegin;
-  PetscCall(VecMPI_HIP.create_async(v));
+  PetscCall(VecMPI_HIP.create_async(v, dctx));
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode VecHIPGetArrays_Private(Vec v, const PetscScalar **host_array, const PetscScalar **device_array, PetscOffloadMask *mask) {
+PetscErrorCode VecHIPGetArrays_Private(Vec v, const PetscScalar **host_array, const PetscScalar **device_array, PetscOffloadMask *mask, PetscDeviceContext dctx) {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(v, VEC_CLASSID, 1);
-  PetscCall(VecMPI_HIP.GetArrays_CUPMBase(v, host_array, device_array, mask));
+  PetscCall(VecMPI_HIP.GetArrays_CUPMBase(v, host_array, device_array, mask, dctx));
   PetscFunctionReturn(0);
 }
 
@@ -86,7 +86,7 @@ VecCreateGhost(), VecCreateMPIWithArray(), VecCreateGhostWithArray(), VecMPISetG
 PetscErrorCode VecCreateMPIHIP(MPI_Comm comm, PetscInt n, PetscInt N, Vec *v) {
   PetscFunctionBegin;
   PetscValidPointer(v, 4);
-  PetscCall(VecMPI_HIP.creatempicupm_async(comm, 0, n, N, v, PETSC_TRUE));
+  PetscCall(VecMPI_HIP.creatempicupm_async(comm, 0, n, N, nullptr, v, PETSC_TRUE));
   PetscFunctionReturn(0);
 }
 
@@ -121,7 +121,7 @@ PetscErrorCode VecCreateMPIHIPWithArrays(MPI_Comm comm, PetscInt bs, PetscInt n,
   PetscFunctionBegin;
   if (n && cpuarray) PetscValidScalarPointer(cpuarray, 5);
   PetscValidPointer(v, 7);
-  PetscCall(VecMPI_HIP.creatempicupmwitharrays_async(comm, bs, n, N, cpuarray, gpuarray, v));
+  PetscCall(VecMPI_HIP.creatempicupmwitharrays_async(comm, bs, n, N, cpuarray, gpuarray, nullptr, v));
   PetscFunctionReturn(0);
 }
 

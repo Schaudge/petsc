@@ -1,7 +1,7 @@
 #ifndef PETSCSYCLDEVICE_HPP
 #define PETSCSYCLDEVICE_HPP
 
-#include "../impls/impldevicebase.hpp" /* I "petscdevice.h" */
+#include "../impldevicebase.hpp" /* I "petscdevice.h" */
 
 namespace Petsc {
 
@@ -16,7 +16,7 @@ class Device : ::Petsc::Device::Impl::DeviceBase<Device> {
 public:
   PETSC_DEVICE_IMPL_BASE_CLASS_HEADER(base_type, Device);
 
-  ~Device() { static_cast<void>(finalize_()); }
+  ~Device() { auto PETSC_UNUSED _ = finalize_(); }
 
   PETSC_NODISCARD static PetscErrorCode initialize(MPI_Comm, PetscInt *, PetscDeviceInitType *) noexcept;
   PETSC_NODISCARD PetscErrorCode        getDevice(PetscDevice, PetscInt) const noexcept;

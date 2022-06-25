@@ -1,8 +1,11 @@
+#include <petsc/private/deviceimpl.h> /*I <petscdevice.h> I*/
 #include <petsc/private/petscadvancedmacros.h>
-#include <petsc/private/deviceimpl.h> /* I "petscdevice.h" */
-#include "hostdevice.hpp"
-#include "cupmdevice.hpp"
-#include <limits> // for std::numeric_limits
+#include "../impls/host/hostdevice.hpp"
+#include "../impls/cupm/cupmdevice.hpp"
+#include "../impls/sycl/sycldevice.hpp"
+
+#include <limits>  // std::numeric_limits
+#include <utility> // std::make_pair
 
 // REVIEW ME: this should probably go somewhere better
 #define PETSC_HAVE_HOST 1
@@ -21,7 +24,6 @@ static CUPM::Device<CUPM::DeviceType::CUDA> CUDADevice{PetscDeviceContextCreate_
 static CUPM::Device<CUPM::DeviceType::HIP> HIPDevice{PetscDeviceContextCreate_HIP};
 #endif
 #if PetscDefined(HAVE_SYCL)
-#include "sycldevice.hpp"
 static SYCL::Device SYCLDevice{PetscDeviceContextCreate_SYCL};
 #endif
 
@@ -78,19 +80,21 @@ static_assert(sizeof(PetscDeviceInitTypes) / sizeof(*PetscDeviceInitTypes) == 6,
   Not Collective, Possibly Synchronous
 
   Input Parameters:
-+ type  - The type of PetscDevice
-- devid - The numeric ID# of the device (pass PETSC_DECIDE to assign automatically)
++ type  - The type of `PetscDevice`
+- devid - The numeric ID# of the device (pass `PETSC_DECIDE` to assign automatically)
 
   Output Parameter:
-. device - The PetscDevice
+. device - The `PetscDevice`
 
   Notes:
-  This routine may initialize PetscDevice. If this is the case, this will most likely cause
+  This routine may initialize `PetscDevice`. If this is the case, this will most likely cause
   some sort of device synchronization.
 
-  devid is what you might pass to cudaSetDevice() for example.
+  `devid` is what you might pass to `cudaSetDevice()` for example.
 
   Level: beginner
+
+.N ASYNC_API
 
 .seealso: `PetscDevice`, `PetscDeviceInitType`,
 `PetscDeviceInitialize()`,`PetscDeviceInitialized()`, `PetscDeviceConfigure()`,
@@ -125,14 +129,16 @@ PetscErrorCode PetscDeviceCreate(PetscDeviceType type, PetscInt devid, PetscDevi
 }
 
 /*@C
-  PetscDeviceDestroy - Free a PetscDevice
+  PetscDeviceDestroy - Free a `PetscDevice`
 
   Not Collective, Asynchronous
 
   Input Parameter:
-. device - The PetscDevice
+. device - The `PetscDevice`
 
   Level: beginner
+
+.N ASYNC_API
 
 .seealso: `PetscDevice`, `PetscDeviceCreate()`, `PetscDeviceConfigure()`, `PetscDeviceView()`,
 `PetscDeviceGetType()`, `PetscDeviceGetDeviceId()`
@@ -152,17 +158,19 @@ PetscErrorCode PetscDeviceDestroy(PetscDevice *device) {
 }
 
 /*@C
-  PetscDeviceConfigure - Configure a particular PetscDevice
+  PetscDeviceConfigure - Configure a particular `PetscDevice`
 
   Not Collective, Asynchronous
 
   Input Parameter:
-. device - The PetscDevice to configure
+. device - The `PetscDevice` to configure
 
   Notes:
-  The user should not assume that this is a cheap operation
+  The user should not assume that this is a cheap operation.
 
   Level: beginner
+
+.N ASYNC_API
 
 .seealso: `PetscDevice`, `PetscDeviceCreate()`, `PetscDeviceView()`, `PetscDeviceDestroy()`,
 `PetscDeviceGetType()`, `PetscDeviceGetDeviceId()`
@@ -190,15 +198,17 @@ PetscErrorCode PetscDeviceConfigure(PetscDevice device) {
 }
 
 /*@C
-  PetscDeviceView - View a PetscDevice
+  PetscDeviceView - View a `PetscDevice`
 
-  Collective on viewer, Asynchronous
+  Collective on viewer, Synchronous
 
   Input Parameters:
-+ device - The PetscDevice to view
-- viewer - The PetscViewer to view the device with (NULL for PETSC_VIEWER_STDOUT_WORLD)
++ device - The `PetscDevice` to view
+- viewer - The `PetscViewer` to view the device with (`NULL` for `PETSC_VIEWER_STDOUT_WORLD`)
 
   Level: beginner
+
+.N ASYNC_API
 
 .seealso: `PetscDevice`, `PetscDeviceCreate()`, `PetscDeviceConfigure()`,
 `PetscDeviceDestroy()`, `PetscDeviceGetType()`, `PetscDeviceGetDeviceId()`
@@ -215,18 +225,21 @@ PetscErrorCode PetscDeviceView(PetscDevice device, PetscViewer viewer) {
 /*@C
   PetscDeviceGetType - Get the type of device
 
-  Asynchronous
+  Not Collective, Synchronous
 
   Input Parameter:
-. device - The PetscDevice
+. device - The `PetscDevice`
 
   Output Parameter:
-. type - The PetscDeviceType
+. type - The `PetscDeviceType`
 
   Level: beginner
 
-.seealso: `PetscDevice`, `PetscDeviceType`, `PetscDeviceCreate()`, `PetscDeviceConfigure()`,
-`PetscDeviceDestroy()`, `PetscDeviceGetDeviceId()`
+.N ASYNC_API
+
+.seealso: `PetscDevice`, `PetscDeviceType`, `PetscDeviceSetDefaultDeviceType()`,
+`PetscDeviceCreate()`, `PetscDeviceConfigure()`, `PetscDeviceDestroy()`,
+`PetscDeviceGetDeviceId()`
 @*/
 PetscErrorCode PetscDeviceGetType(PetscDevice device, PetscDeviceType *type) {
   PetscFunctionBegin;
@@ -236,23 +249,84 @@ PetscErrorCode PetscDeviceGetType(PetscDevice device, PetscDeviceType *type) {
   PetscFunctionReturn(0);
 }
 
-/*@C
-  PetscDeviceGetDeviceId - Get the device ID for a PetscDevice
+// current default PetscDeviceType -> <the type, needs resetting in PetscFinalize()>
+constexpr static auto initDefaultDeviceType = std::make_pair(PETSC_DEVICE_INITIAL_DEFAULT_TYPE, false);
+static auto           defaultDeviceType     = initDefaultDeviceType;
 
-  Asynchronous
+/*@C
+  PETSC_DEVICE_DEFAULT - Retrieve the current default `PetscDeviceType`
+
+  Synchronous
+
+  Notes:
+  Unless selected by the user, the default device is selected in the following order\:
+  `PETSC_DEVICE_HIP`, `PETSC_DEVICE_CUDA`, `PETSC_DEVICE_SYCL`, `PETSC_DEVICE_HOST`.
+
+  Level: beginner
+
+.N ASYNC_API
+
+.seealso: `PetscDeviceType`, `PetscDeviceSetDefaultDeviceType()`
+@*/
+PetscDeviceType PETSC_DEVICE_DEFAULT(void) {
+  return defaultDeviceType.first;
+}
+
+static PetscErrorCode PetscDeviceResetDefaultDeviceType(void) {
+  PetscFunctionBegin;
+  defaultDeviceType = initDefaultDeviceType;
+  PetscFunctionReturn(0);
+}
+
+/*@C
+  PetscDeviceSetDefaultDeviceType - Set the default device type for `PetscDevice`
+
+  Synchronous
 
   Input Parameter:
-. device - The PetscDevice
+. type - the new default device type
+
+  Notes:
+  This sets the `PetscDeviceType` returned by `PETSC_DEVICE_DEFAULT()`.
+
+  Level: beginner
+
+.N ASYNC_API
+
+.seealso: `PetscDeviceType`, `PetscDeviceGetType`,
+@*/
+PetscErrorCode PetscDeviceSetDefaultDeviceType(PetscDeviceType type) {
+  PetscFunctionBegin;
+  PetscValidDeviceType(type, 1);
+  if (defaultDeviceType.first != type) {
+    defaultDeviceType.first = type;
+    if (PetscUnlikely(!defaultDeviceType.second)) {
+      defaultDeviceType.second = true;
+      PetscCall(PetscRegisterFinalize(PetscDeviceResetDefaultDeviceType));
+    }
+  }
+  PetscFunctionReturn(0);
+}
+
+/*@C
+  PetscDeviceGetDeviceId - Get the device ID for a `PetscDevice`
+
+  Synchronous
+
+  Input Parameter:
+. device - The `PetscDevice`
 
   Output Parameter:
 . id - The id
 
   Notes:
   The returned ID may have been assigned by the underlying device backend. For example if the
-  backend is CUDA then id is exactly the value returned by cudaGetDevice() at the time when
+  backend is CUDA then id is exactly the value returned by `cudaGetDevice()` at the time when
   this device was configured.
 
   Level: beginner
+
+.N ASYNC_API
 
 .seealso: `PetscDevice`, `PetscDeviceCreate()`, `PetscDeviceGetType()`
 @*/
@@ -267,17 +341,19 @@ PetscErrorCode PetscDeviceGetDeviceId(PetscDevice device, PetscInt *id) {
 static std::array<std::pair<PetscDevice, bool>, PETSC_DEVICE_MAX> defaultDevices = {};
 
 /*@C
-  PetscDeviceInitialize - Initialize PetscDevice
+  PetscDeviceInitialize - Initialize `PetscDevice`
 
   Not Collective, Possibly Synchronous
 
   Input Parameter:
-. type - The PetscDeviceType to initialize
+. type - The `PetscDeviceType` to initialize
 
   Notes:
-  Eagerly initializes the corresponding PetscDeviceType if needed.
+  Eagerly initializes the corresponding `PetscDeviceType` if needed.
 
   Level: beginner
+
+.N ASYNC_API
 
 .seealso: `PetscDevice`, `PetscDeviceInitType`, `PetscDeviceInitialized()`,
 `PetscDeviceCreate()`, `PetscDeviceDestroy()`
@@ -290,28 +366,39 @@ PetscErrorCode PetscDeviceInitialize(PetscDeviceType type) {
 }
 
 /*@C
-  PetscDeviceInitialized - Determines whether PetscDevice is initialized for a particular
-  PetscDeviceType
+  PetscDeviceInitialized - Determines whether `PetscDevice` is initialized for a particular
+  `PetscDeviceType`
 
-  Not Collective, Asynchronous
+  Not Collective, Synchronous
 
   Input Parameter:
-. type - The PetscDeviceType to check
+. type - The `PetscDeviceType` to check
 
   Output Parameter:
-. [return value] - PETSC_TRUE if type is initialized, PETSC_FALSE otherwise
+. [return value] - `PETSC_TRUE` if type is initialized, `PETSC_FALSE` otherwise
 
   Notes:
-  If one has not configured PETSc for a particular PetscDeviceType then this routine will
-  return PETSC_FALSE for that PetscDeviceType.
+  If one has not configured PETSc for a particular `PetscDeviceType` then this routine will
+  return `PETSC_FALSE` for that `PetscDeviceType`.
 
   Level: beginner
+
+.N ASYNC_API
 
 .seealso: `PetscDevice`, `PetscDeviceInitType`, `PetscDeviceInitialize()`,
 `PetscDeviceCreate()`, `PetscDeviceDestroy()`
 @*/
 PetscBool PetscDeviceInitialized(PetscDeviceType type) {
   return static_cast<PetscBool>(PetscDeviceConfiguredFor_Internal(type) && defaultDevices[type].second);
+}
+
+/* Get the default PetscDevice for a particular type and constructs them if lazily initialized. */
+PetscErrorCode PetscDeviceGetDefaultForType_Internal(PetscDeviceType type, PetscDevice *device) {
+  PetscFunctionBegin;
+  PetscValidPointer(device, 2);
+  PetscCall(PetscDeviceInitialize(type));
+  *device = defaultDevices[type].first;
+  PetscFunctionReturn(0);
 }
 
 /*
@@ -375,7 +462,7 @@ static PetscErrorCode PetscDeviceInitializeTypeFromOptions_Private(MPI_Comm comm
 }
 
 /* called from PetscFinalize() do not call yourself! */
-static PetscErrorCode PetscDeviceFinalize_Private(void) {
+static PetscErrorCode PetscDeviceFinalize_Private() {
   PetscFunctionBegin;
   if (PetscDefined(USE_DEBUG)) {
     const auto PetscDeviceCheckAllDestroyedAfterFinalize = [] {
@@ -439,7 +526,7 @@ PetscErrorCode PetscDeviceInitializeFromOptions_Internal(MPI_Comm comm) {
   auto                defaultView                    = PETSC_FALSE;
   auto                initializeDeviceContextEagerly = PETSC_FALSE;
   auto                defaultDevice                  = PetscInt{PETSC_DECIDE};
-  auto                deviceContextInitDevice        = PETSC_DEVICE_DEFAULT;
+  auto                deviceContextInitDevice        = PETSC_DEVICE_DEFAULT();
   PetscDeviceInitType defaultInitType;
 
   PetscFunctionBegin;
@@ -460,7 +547,8 @@ PetscErrorCode PetscDeviceInitializeFromOptions_Internal(MPI_Comm comm) {
   comm = PETSC_COMM_WORLD; /* from this point on we assume we're on PETSC_COMM_WORLD */
   PetscCall(PetscRegisterFinalize(PetscDeviceFinalize_Private));
   {
-    PetscInt  initIdx = PETSC_DEVICE_INIT_LAZY;
+    PetscInt  initIdx       = PETSC_DEVICE_INIT_LAZY;
+    PetscInt  initDeviceIdx = static_cast<PetscInt>(deviceContextInitDevice);
     PetscBool flg;
 
     PetscCall(PetscOptionsHasName(nullptr, nullptr, "-log_view_gpu_time", &flg));
@@ -468,19 +556,22 @@ PetscErrorCode PetscDeviceInitializeFromOptions_Internal(MPI_Comm comm) {
 
     PetscOptionsBegin(comm, nullptr, "PetscDevice Options", "Sys");
     PetscCall(PetscOptionsEList("-device_enable", "How (or whether) to initialize PetscDevices", "PetscDeviceInitialize()", PetscDeviceInitTypes, 3, PetscDeviceInitTypes[initIdx], &initIdx, nullptr));
-    PetscCall(PetscOptionsRangeInt("-device_select", "Which device to use. Pass " PetscStringize(PETSC_DECIDE) " to have PETSc decide or (given they exist) [0-NUM_DEVICE) for a specific device", "PetscDeviceCreate()", defaultDevice, &defaultDevice, nullptr, PETSC_DECIDE, PETSC_DEVICE_MAX_DEVICES));
+    PetscCall(PetscOptionsEList("-default_device_type", "Set the PetscDeviceType returned by PETSC_DEVICE_DEFAULT()", "PetscDeviceSetDefaultDeviceType()", PetscDeviceTypes, PETSC_DEVICE_MAX, PetscDeviceTypes[initDeviceIdx], &initDeviceIdx, nullptr));
+    PetscCall(PetscOptionsRangeInt("-device_select", "Which device to use. Pass " PetscStringize(PETSC_DECIDE) " to have PETSc decide or (given they exist) [0-" PetscStringize(PETSC_DEVICE_MAX_DEVICES) ") for a specific device", "PetscDeviceCreate()", defaultDevice, &defaultDevice, nullptr, PETSC_DECIDE, PETSC_DEVICE_MAX_DEVICES));
     PetscCall(PetscOptionsBool("-device_view", "Display device information and assignments (forces eager initialization)", "PetscDeviceView()", defaultView, &defaultView, &flg));
     PetscOptionsEnd();
 
     if (initIdx == PETSC_DEVICE_INIT_NONE) {
       /* disabled all device initialization if devices are globally disabled */
       PetscCheck(defaultDevice == PETSC_DECIDE, comm, PETSC_ERR_USER_INPUT, "You have disabled devices but also specified a particular device to use, these options are mutually exlusive");
-      defaultView = PETSC_FALSE;
+      defaultView   = PETSC_FALSE;
+      initDeviceIdx = PETSC_DEVICE_HOST;
     } else {
       defaultView = static_cast<decltype(defaultView)>(defaultView && flg);
       if (defaultView) initIdx = PETSC_DEVICE_INIT_EAGER;
     }
-    defaultInitType = static_cast<decltype(defaultInitType)>(initIdx);
+    defaultInitType         = PetscDeviceInitTypeCast(initIdx);
+    deviceContextInitDevice = PetscDeviceTypeCast(initDeviceIdx);
   }
 
   static_assert((PETSC_DEVICE_HOST < PETSC_DEVICE_CUDA) && (PETSC_DEVICE_MAX < std::numeric_limits<int>::max()), "PETSC_DEVICE_HOST must be the lowest device and be < INT_MAX");
@@ -489,13 +580,21 @@ PetscErrorCode PetscDeviceInitializeFromOptions_Internal(MPI_Comm comm) {
     auto       initType   = defaultInitType;
 
     PetscCall(PetscDeviceInitializeTypeFromOptions_Private(comm, deviceType, defaultDevice, defaultView, &initType));
-    if (PetscDeviceConfiguredFor_Internal(deviceType) && (initType == PETSC_DEVICE_INIT_EAGER)) {
-      initializeDeviceContextEagerly = PETSC_TRUE;
-      deviceContextInitDevice        = deviceType;
-      PetscCall(PetscInfo(nullptr, "PetscDevice %s set as default device type due to eager initialization\n", PetscDeviceTypes[deviceType]));
+    if (PetscDeviceConfiguredFor_Internal(deviceType)) {
+      if (initType == PETSC_DEVICE_INIT_EAGER) {
+        initializeDeviceContextEagerly = PETSC_TRUE;
+        deviceContextInitDevice        = deviceType;
+        PetscCall(PetscInfo(nullptr, "PetscDevice %s set as default device type due to eager initialization\n", PetscDeviceTypes[deviceType]));
+      } else if (initType == PETSC_DEVICE_INIT_NONE) {
+        if (deviceType != PETSC_DEVICE_HOST) { PetscCheck(deviceType != deviceContextInitDevice, PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot explicitly disable the device set as default device type (%s)", PetscDeviceTypes[deviceType]); }
+      }
     }
   }
 
+  PetscCall(PetscDeviceSetDefaultDeviceType(deviceContextInitDevice));
+  /* ----------------------------------------------------------------------------------- */
+  /*                       PetscDevice is now fully initialized                          */
+  /* ----------------------------------------------------------------------------------- */
   {
     /*
       query the options db to get the root settings from the user (if any).
@@ -519,14 +618,5 @@ PetscErrorCode PetscDeviceInitializeFromOptions_Internal(MPI_Comm comm) {
     PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
     PetscCall(PetscDeviceContextSetUp(dctx));
   }
-  PetscFunctionReturn(0);
-}
-
-/* Get the default PetscDevice for a particular type and constructs them if lazily initialized. */
-PetscErrorCode PetscDeviceGetDefaultForType_Internal(PetscDeviceType type, PetscDevice *device) {
-  PetscFunctionBegin;
-  PetscValidPointer(device, 2);
-  PetscCall(PetscDeviceInitialize(type));
-  *device = defaultDevices[type].first;
   PetscFunctionReturn(0);
 }
