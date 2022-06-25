@@ -4,8 +4,8 @@
     Testing examples can be found in ~src/mat/tests
 */
 
-#include <petscdevice.h>
-#include <petsc/private/matimpl.h> /*I "petscmat.h" I*/
+#include <petscdevice_cuda.h>
+#include <petsc/private/matimpl.h>          /*I "petscmat.h" I*/
 
 typedef struct {
   PetscInt      ndim;
