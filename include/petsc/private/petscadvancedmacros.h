@@ -39,7 +39,7 @@
 
 .seealso: `PetscIfPetscDefined()`, `PetscConcat()`, `PetscExpandToNothing()`, `PetscCompl()`
 */
-#define PetscIf(cond, result_if_true, ...) PetscConcat_(PETSC_IF_INTERNAL_, cond)(result_if_true, __VA_ARGS__)
+#define PetscIf(cond, result_if_true, ...) PetscConcat(PETSC_IF_INTERNAL_, cond)(result_if_true, __VA_ARGS__)
 
 /*
   PetscIfPetscDefined - Like PetscIf(), but passes cond through PetscDefined() first
@@ -70,5 +70,22 @@
 .seealso: `PetscIf()`, `PetscDefined()`, `PetscConcat()`, `PetscExpand()`, `PetscCompl()`
 */
 #define PetscIfPetscDefined(cond, result_if_true, ...) PetscIf(PetscDefined(cond), result_if_true, __VA_ARGS__)
+
+// like PetscIfPetscDefined() but no result_if_true. equivalent to
+// if (cond) {
+//   *nothing*
+// } else {
+//   your_args...;
+// }
+#define PetscUnlessPetscDefined(cond, ...) PetscIfPetscDefined(cond, , __VA_ARGS__)
+// like PetscIfPetscDefined() but no result_if_false. equivalent to
+// if (cond) {
+//   you_args...;
+// } else {
+//   *nothing*
+// }
+// the implementation is a bit of a hack. since PetscIf() has the false condition as the
+// variadic part we need to first invert cond, then pass __VA_ARGS__ to the false condition
+#define PetscWhenPetscDefined(cond, ...) PetscIf(PetscCompl(PetscDefined(cond)), , __VA_ARGS__)
 
 #endif /* PETSCADVANCEDMACROS_H */
