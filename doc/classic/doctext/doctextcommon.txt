@@ -1,0 +1,62 @@
+/*N ASYNC_API
+  Asynchronous API Contract:
+  This routine is explicitly marked as synchronous, possibly synchronous, or asynchronous. If this
+  routine takes a `PetscDevice` or `PetscDeviceContext` argument other asynchronous routines called
+  with the same `PetscDevice` or `PetscDeviceContext` will execute sequentially.
+
+  Synchronous\:
+  Routines explicitly marked as synchronous are fully coherent with the host and guarantee
+  sequential consistency. The user may assume that any indirect memory (e.g. pointers, objects,
+  arrays) is immediately valid and dereferenceable on function return. Note this does not imply
+  that a routine performs any device synchronization in the literal sense.
+
+  Possibly Synchronous\:
+  Routines marked as possibly synchronous may exhibit synchronous behavior under certain
+  circumstances. These may be backend, state, or implementation dependent or may not be known at all.
+  The reason this identifier exists is to warn the user about calling such a routine in performance
+  critical sections (where synchronization may be unacceptable).
+
+  Asynchronous\:
+  Routines marked as asynchronous execute in an undefined order w.r.t. the host, and may return before
+  work has completed. If a routine takes a `PetscDeviceContext` as an argument, then the routine will
+  be sequentially consistent on that stream. Consequently, in order to ensure sequential consistency
+  with routines that do not take an explicit `PetscDeviceContext` the user must call
+  `PetscDeviceContextSynchronize()` on the corresponding `PetscDeviceContext`. Unless explicitly
+  stated, data indirectly accessible via a pointer (such as the contents of an array, or struct
+  members) is considered to be in an undefined state until the user synchronizes. Note that the
+  value of the *pointer itself* is always valid. that is\:
+.vb
+  void increment_async(PetscDeviceContext,void*);
+  void decrement_async(PetscDeviceContext,void*);
+  int get_count_sync(void*);
+  int get_count(void*);
+
+  struct {
+    int count;
+  } UserObject       object{0}; // some data
+  PetscDeviceContext dctx;      // initialization not shown
+
+  // may return before completion
+  increment_async(dctx,&object);
+  // may return before completion, but guaranteed to begin after increment_async() completes
+  decrement_async(dctx,&object);
+
+  // ERROR, object.count is in an undefined state without synchronizing
+  int count = object.count;
+
+  // OK, we have synchronized before explicitly accessing
+  PetscDeviceContextSynchronize(dctx);
+  int count = object.count
+
+  // ERROR, routine is not marked as synchronous and does not take a PetscDeviceContext.
+  // object.count is in an undefined state without synchronizing
+  int count = get_count(&object);
+
+  // OK, we have synchronized before calling
+  PetscDeviceContextSynchronize(dctx);
+  int count = get_count(&object);
+
+  // OK, no need to synchronize before calling a routine marked as synchronous.
+  int count = get_count_sync(&object);
+.ve
+N*/
