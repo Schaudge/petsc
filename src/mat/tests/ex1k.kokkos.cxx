@@ -28,11 +28,12 @@ Examples:
     srun -N1 -n8 -c2 --gpus-per-node=8 --gpu-bind=closest ./ex1k -f HV15R.aij -mat_type aijkokkos
 */
 #include <petscmat.h>
-#include <petscdevice.h>
 
 #if defined(PETSC_HAVE_CUDA)
+#include <petscdevice_cuda.h>
 #define SyncDevice() PetscCallCUDA(cudaDeviceSynchronize())
 #elif defined(PETSC_HAVE_HIP)
+#include <petscdevice_hip.h>
 #define SyncDevice() PetscCallHIP(hipDeviceSynchronize())
 #elif defined(PETSC_HAVE_KOKKOS)
 #include <Kokkos_Core.hpp>
