@@ -29,11 +29,20 @@ struct _n_PetscFEPlotlyLink
 // TODO: if PetscInt != int
 static PetscErrorCode ReferenceElementView_SAWs(DM refel, PetscViewer viewer)
 {
+  Vec coord_vec;
+  PetscInt vec_size;
+  const PetscScalar *coords;
+
   PetscFunctionBegin;
   if (((PetscObject) refel)->amsmem) PetscFunctionReturn(0);
   PetscCall(PetscObjectName((PetscObject) refel));
   PetscCall(PetscObjectViewSAWs((PetscObject)refel, viewer));
   PetscCall(PetscObjectSAWsWriteProperty((PetscObject)refel, "coordinate_dimension", &(refel->dimEmbed), 1, SAWs_READ, SAWs_INT));
+  PetscCall(DMGetCoordinatesLocalNoncollective(refel, &coord_vec));
+  PetscCall(VecGetSize(coord_vec, &vec_size));
+  PetscCall(VecGetArrayRead(coord_vec, &coords));
+  PetscCall(PetscObjectSAWsWriteProperty((PetscObject)refel, "coordinates", (void *) coords, vec_size, SAWs_READ, SAWs_DOUBLE));
+  PetscCall(VecRestoreArrayRead(coord_vec, &coords));
   PetscFunctionReturn(0);
 }
 
@@ -173,5 +182,6 @@ int main(int argc, char **argv)
 
   test:
     suffix: 0
+    args: -saws_port 8000
 
 TEST*/
