@@ -1,0 +1,64 @@
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextSyncClearMap(): ctx 2 remaining deps for obj 6: {[ctx 3, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
+[0] PetscDeviceContextSyncClearMap(): ctx 2 remaining deps for obj 5: {[ctx 3, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
+==== sync ====
+[0] PetscDeviceContextSyncClearMap(): ctx 3 remaining deps for obj 6: {}
+[0] PetscDeviceContextSyncClearMap(): ctx 3 remaining deps for obj 5: {}
+==== sync ====
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextSyncClearMap(): ctx 3 remaining deps for obj 6: {[ctx 2, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
+[0] PetscDeviceContextSyncClearMap(): ctx 3 remaining deps for obj 5: {[ctx 2, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
+==== sync ====
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 found old self PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18) -> PETSC_MEMORY_ACCESS_READ (dot() at /Users/jacobfaibussowitsch/soft/petsc/src/sys/objects/device/tests/ex16.c:18)
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 6 found old self PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18) -> PETSC_MEMORY_ACCESS_READ (dot() at /Users/jacobfaibussowitsch/soft/petsc/src/sys/objects/device/tests/ex16.c:18)
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 found old self PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18) -> PETSC_MEMORY_ACCESS_READ_WRITE (axpy() at /Users/jacobfaibussowitsch/soft/petsc/src/sys/objects/device/tests/ex16.c:26)
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 6 found old self PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18) -> PETSC_MEMORY_ACCESS_READ (axpy() at /Users/jacobfaibussowitsch/soft/petsc/src/sys/objects/device/tests/ex16.c:26)
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - 5 other context 2 intent PETSC_MEMORY_ACCESS_READ_WRITE conflicts with PETSC_MEMORY_ACCESS_READ_WRITE -> serializing
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ_WRITE
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextSyncClearMap(): ctx 3 remaining deps for obj 6: {}
+[0] PetscDeviceContextSyncClearMap(): ctx 3 remaining deps for obj 5: {}
+==== sync ====
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextSyncClearMap(): ctx 4 remaining deps for obj 6: {[ctx 2, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)], [ctx 3, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
+[0] PetscDeviceContextSyncClearMap(): ctx 4 remaining deps for obj 5: {[ctx 2, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)], [ctx 3, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
+==== sync ====
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 5 found old self PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18) -> PETSC_MEMORY_ACCESS_WRITE (set() at /Users/jacobfaibussowitsch/soft/petsc/src/sys/objects/device/tests/ex16.c:41)
+[0] PetscDeviceContextMarkIntentFromID(): dctx 4 - 5 other context 3 intent PETSC_MEMORY_ACCESS_WRITE conflicts with PETSC_MEMORY_ACCESS_WRITE -> serializing
+[0] PetscDeviceContextMarkIntentFromID(): dctx 4 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_WRITE
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 found old self PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18) -> PETSC_MEMORY_ACCESS_WRITE (set() at /Users/jacobfaibussowitsch/soft/petsc/src/sys/objects/device/tests/ex16.c:41)
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - 5 other context 4 intent PETSC_MEMORY_ACCESS_WRITE conflicts with PETSC_MEMORY_ACCESS_WRITE -> serializing
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 rotating to leaf position with intent PETSC_MEMORY_ACCESS_WRITE
+[0] PetscDeviceContextMarkIntentFromID(): dctx 4 - obj 5 found old self PETSC_MEMORY_ACCESS_WRITE (set() at petsc/src/sys/objects/device/tests/ex16.c:41) -> PETSC_MEMORY_ACCESS_READ_WRITE (scale() at /Users/jacobfaibussowitsch/soft/petsc/src/sys/objects/device/tests/ex16.c:34)
+[0] PetscDeviceContextMarkIntentFromID(): dctx 4 - 5 other context 2 intent PETSC_MEMORY_ACCESS_WRITE conflicts with PETSC_MEMORY_ACCESS_READ_WRITE -> serializing
+[0] PetscDeviceContextMarkIntentFromID(): dctx 4 - obj 5 rotating to leaf position with intent PETSC_MEMORY_ACCESS_READ_WRITE
+[0] PetscDeviceContextSyncClearMap(): ctx 4 remaining deps for obj 6: {[ctx 2, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)], [ctx 3, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
+[0] PetscDeviceContextSyncClearMap(): ctx 4 remaining deps for obj 5: {}
+[0] PetscDeviceContextSyncClearMap(): ctx 2 remaining deps for obj 6: {[ctx 3, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
+[0] PetscDeviceContextSyncClearMap(): ctx 4 remaining deps for obj 6: {[ctx 3, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
+[0] PetscDeviceContextSyncClearMap(): ctx 3 remaining deps for obj 6: {}
+==== sync ====
+==== sync ====
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextSyncClearMap(): ctx 4 remaining deps for obj 6: {[ctx 2, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)], [ctx 3, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
+[0] PetscDeviceContextSyncClearMap(): ctx 4 remaining deps for obj 5: {[ctx 2, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)], [ctx 3, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
+[0] PetscDeviceContextSyncClearMap(): ctx 3 remaining deps for obj 6: {[ctx 2, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
+[0] PetscDeviceContextSyncClearMap(): ctx 3 remaining deps for obj 5: {[ctx 2, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
+==== sync ====
+[0] PetscDeviceContextSyncClearMap(): ctx 2 remaining deps for obj 6: {}
+[0] PetscDeviceContextSyncClearMap(): ctx 2 remaining deps for obj 5: {}
+==== sync ====
+EXIT_SUCCESS
+[0] PetscFinalize(): PetscFinalize() called

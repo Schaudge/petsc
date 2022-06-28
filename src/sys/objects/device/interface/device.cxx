@@ -520,7 +520,7 @@ static PetscErrorCode PetscDeviceFinalize_Private() {
 */
 
 /* can't put this in a header since its not C-portable and only used here and in dcontext.cxx */
-extern PETSC_VISIBILITY_INTERNAL PetscErrorCode PetscDeviceContextQueryOptions_Internal(MPI_Comm, const char[], std::pair<PetscDeviceType, PetscBool> &, std::pair<PetscStreamType, PetscBool> &);
+extern PETSC_VISIBILITY_INTERNAL PetscErrorCode PetscDeviceContextQueryOptions_Internal(MPI_Comm, const char[], std::pair<PetscDeviceType, PetscBool> &, std::pair<PetscStreamType, PetscBool> &, std::pair<PetscBool, PetscBool> &);
 
 PetscErrorCode PetscDeviceInitializeFromOptions_Internal(MPI_Comm comm) {
   auto                defaultView                    = PETSC_FALSE;
@@ -603,10 +603,11 @@ PetscErrorCode PetscDeviceInitializeFromOptions_Internal(MPI_Comm comm) {
       PetscDeviceContextSetFromOptions() before we even have one, then set a few static
       variables in that file with the results.
     */
-    auto dtype = std::make_pair(deviceContextInitDevice, PETSC_FALSE);
-    auto stype = std::make_pair(PETSC_STREAM_GLOBAL_BLOCKING, PETSC_FALSE);
+    auto dtype   = std::make_pair(deviceContextInitDevice, PETSC_FALSE);
+    auto stype   = std::make_pair(PETSC_STREAM_GLOBAL_BLOCKING, PETSC_FALSE);
+    auto orphans = std::make_pair(PETSC_FALSE, PETSC_FALSE);
 
-    PetscCall(PetscDeviceContextQueryOptions_Internal(comm, "root_", dtype, stype));
+    PetscCall(PetscDeviceContextQueryOptions_Internal(comm, "root_", dtype, stype, orphans));
     if (initializeDeviceContextEagerly || dtype.second) { PetscCall(PetscDeviceContextSetRootDeviceType_Internal(dtype.first)); }
     if (stype.second) PetscCall(PetscDeviceContextSetRootStreamType_Internal(stype.first));
   }

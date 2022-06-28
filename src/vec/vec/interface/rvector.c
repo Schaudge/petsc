@@ -231,13 +231,11 @@ PetscErrorCode VecNormAsync(Vec x, NormType type, PetscManagedReal scal, PetscDe
   PetscCall(PetscLogEventEnd(VEC_Norm, x, 0, 0, 0));
   PetscCall(VecLockReadPop(x));
 
-  PetscCall(PetscManagedRealValuesAvailable(scal, PETSC_MEMTYPE_HOST, &flg));
-  if (type != NORM_1_AND_2 && flg) {
+  if (type != NORM_1_AND_2) {
     PetscReal *values;
 
-    // if avail we can do a no-sync get
-    PetscCall(PetscManagedRealGetValues(dctx, scal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &values));
-    PetscCall(PetscObjectComposedDataSetReal((PetscObject)x, NormIds[type], *values));
+    PetscCall(PetscManagedRealGetValuesAvailable(dctx, scal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, &values, &flg));
+    if (flg) PetscCall(PetscObjectComposedDataSetReal((PetscObject)x, NormIds[type], *values));
   }
   PetscFunctionReturn(0);
 }
@@ -551,6 +549,7 @@ PetscErrorCode VecTDot(Vec x, Vec y, PetscScalar *val) {
 
 PetscErrorCode VecScaleAsync(Vec x, PetscManagedScalar alpha, PetscDeviceContext dctx) {
   const PetscObject xobj = (PetscObject)x;
+  PetscScalar      *alpha_ptr;
   PetscReal         norms[4];
   PetscBool         flags[4];
   PetscBool         avail;
@@ -571,13 +570,10 @@ PetscErrorCode VecScaleAsync(Vec x, PetscManagedScalar alpha, PetscDeviceContext
   PetscCall(PetscLogEventEnd(VEC_Scale, x, 0, 0, 0));
 
   PetscCall(PetscObjectStateIncrease(xobj));
-  PetscCall(PetscManagedScalarValuesAvailable(alpha, PETSC_MEMTYPE_HOST, &avail));
+  PetscCall(PetscManagedScalarGetValuesAvailable(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, &alpha_ptr, &avail));
   if (avail) {
-    PetscScalar *alpha_ptr;
-    PetscReal    alpha_abs;
+    const PetscReal alpha_abs = PetscAbsScalar(*alpha_ptr);
 
-    PetscCall(PetscManagedScalarGetValues(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &alpha_ptr));
-    alpha_abs = PetscAbsScalar(*alpha_ptr);
     for (PetscInt i = 0; i < 4; ++i) {
       if (flags[i]) PetscCall(PetscObjectComposedDataSetReal(xobj, NormIds[i], alpha_abs * norms[i]));
     }

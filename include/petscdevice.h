@@ -10,8 +10,9 @@ PETSC_EXTERN PetscErrorCode PetscDeviceFinalizePackage(void);
 PETSC_EXTERN PetscErrorCode PetscGetMemType(const void *, PetscMemType *);
 
 /* Cannot use the device context api without C++ */
-#if PetscDefined(HAVE_CXX)
+
 /* PetscDevice */
+#if PetscDefined(HAVE_CXX)
 PETSC_EXTERN PetscErrorCode PetscDeviceInitialize(PetscDeviceType);
 PETSC_EXTERN PetscBool      PetscDeviceInitialized(PetscDeviceType);
 PETSC_EXTERN PetscErrorCode PetscDeviceCreate(PetscDeviceType, PetscInt, PetscDevice *);
@@ -22,8 +23,21 @@ PETSC_EXTERN PetscErrorCode PetscDeviceGetDeviceId(PetscDevice, PetscInt *);
 PETSC_EXTERN PetscErrorCode  PetscDeviceDestroy(PetscDevice *);
 PETSC_EXTERN PetscErrorCode  PetscDeviceSetDefaultDeviceType(PetscDeviceType);
 PETSC_EXTERN PetscDeviceType PETSC_DEVICE_DEFAULT(void);
+#else
+#define PetscDeviceInitialize(PetscDeviceType)            0
+#define PetscDeviceInitialized(dtype)                     ((dtype) == PETSC_DEVICE_HOST)
+#define PetscDeviceCreate(PetscDeviceType, PetscInt, dev) (*(dev) = PETSC_NULLPTR, 0)
+#define PetscDeviceConfigure(PetscDevice)                 0
+#define PetscDeviceView(PetscDevice, PetscViewer)         0
+#define PetscDeviceGetType(PetscDevice, type)             (*(type) = PETSC_DEVICE_DEFAULT(), 0)
+#define PetscDeviceGetDeviceId(PetscDevice, id)           (*(id) = 0)
+#define PetscDeviceSetDefaultDeviceType(PetscDeviceType)  0
+#define PETSC_DEVICE_DEFAULT()                            PETSC_DEVICE_HOST
+#define PetscDeviceDestroy(dev)                           (*(dev) = PETSC_NULLPTR, 0)
+#endif /* PetscDefined(HAVE_CXX) */
 
 /* PetscDeviceContext */
+#if PetscDefined(HAVE_CXX)
 PETSC_EXTERN PetscErrorCode PetscDeviceContextCreate(PetscDeviceContext *);
 PETSC_EXTERN PetscErrorCode PetscDeviceContextDestroy(PetscDeviceContext *);
 PETSC_EXTERN PetscErrorCode PetscDeviceContextSetDevice(PetscDeviceContext, PetscDevice);
@@ -41,24 +55,9 @@ PETSC_EXTERN PetscErrorCode PetscDeviceContextSynchronize(PetscDeviceContext);
 PETSC_EXTERN PetscErrorCode PetscDeviceContextGetCurrentContext(PetscDeviceContext *);
 PETSC_EXTERN PetscErrorCode PetscDeviceContextSetCurrentContext(PetscDeviceContext);
 PETSC_EXTERN PetscErrorCode PetscDeviceContextSetFromOptions(MPI_Comm, const char[], PetscDeviceContext);
-
-/* memory */
-PETSC_EXTERN PetscErrorCode PetscDeviceAllocate(PetscDeviceContext, PetscBool, PetscMemType, size_t, void **PETSC_RESTRICT);
-PETSC_EXTERN PetscErrorCode PetscDeviceDeallocate(PetscDeviceContext, void *PETSC_RESTRICT);
-PETSC_EXTERN PetscErrorCode PetscDeviceMemcpy(PetscDeviceContext, void *PETSC_RESTRICT, const void *PETSC_RESTRICT, size_t, PetscDeviceCopyMode);
-PETSC_EXTERN PetscErrorCode PetscDeviceMemset(PetscDeviceContext, PetscMemType, void *PETSC_RESTRICT, PetscInt, size_t);
+PETSC_EXTERN PetscErrorCode PetscDeviceContextMarkIntentFromID(PetscDeviceContext, PetscObjectId, PetscMemoryAccessMode);
+PETSC_EXTERN PetscErrorCode PetscDeviceContextSetOption(PetscDeviceContext, PetscDeviceContextOption, PetscBool);
 #else
-#define PetscDeviceInitialize(PetscDeviceType)            0
-#define PetscDeviceInitialized(dtype)                     ((dtype) == PETSC_DEVICE_HOST)
-#define PetscDeviceCreate(PetscDeviceType, PetscInt, dev) (*(dev) = PETSC_NULLPTR, 0)
-#define PetscDeviceConfigure(PetscDevice)                 0
-#define PetscDeviceView(PetscDevice, PetscViewer)         0
-#define PetscDeviceGetType(PetscDevice, type)             (*(type) = PETSC_DEVICE_DEFAULT(), 0)
-#define PetscDeviceGetDeviceId(PetscDevice, id)           (*(id) = 0)
-#define PetscDeviceSetDefaultDeviceType(PetscDeviceType)  0
-#define PETSC_DEVICE_DEFAULT()                            PETSC_DEVICE_HOST
-#define PetscDeviceDestroy(dev)                           (*(dev) = PETSC_NULLPTR, 0)
-
 #define PetscDeviceContextCreate(dctx)                                                                         (*(dctx) = PETSC_NULLPTR, 0)
 #define PetscDeviceContextDestroy(dctx)                                                                        (*(dctx) = PETSC_NULLPTR, 0)
 #define PetscDeviceContextSetDevice(PetscDeviceContext, PetscDevice)                                           0
@@ -76,11 +75,23 @@ PETSC_EXTERN PetscErrorCode PetscDeviceMemset(PetscDeviceContext, PetscMemType, 
 #define PetscDeviceContextGetCurrentContext(dctx)                                                              (*(dctx) = PETSC_NULLPTR, 0)
 #define PetscDeviceContextSetCurrentContext(PetscDeviceContext)                                                0
 #define PetscDeviceContextSetFromOptions(MPI_Comm, const_char, PetscDeviceContext)                             0
-#define PetscDeviceAllocate(PetscDeviceContext, clear, PetscMemType, size, ptr)                                PetscMallocA(1, (clear), __LINE__, PETSC_FUNCTION_NAME, __FILE__, (size), (ptr))
-#define PetscDeviceDeallocate(PetscDeviceContext, ptr)                                                         PetscFree((ptr))
-#define PetscDeviceMemcpy(PetscDeviceContext, dest, src, size, PetscDeviceCopyMode)                            PetscMemcpy((dest), (src), (size))
-#define PetscDeviceMemset(PetscDeviceContext, PetscMemType, ptr, v, size)                                      ((void)memset((ptr), (unsigned char)(v), (size)), 0)
-#endif /* PETSC_HAVE_CXX */
+#define PetscDeviceContextMarkIntentFromID(PetscDeviceContext, PetscObjectId, PetscMemoryAccessMode)           0
+#define PetscDeviceContextSetOption(PetscDeviceContext, PetscDeviceContextOption, PetscBool)                   0
+#endif /* PetscDefined(HAVE_CXX) */
+
+/* memory */
+#if PetscDefined(HAVE_CXX)
+PETSC_EXTERN PetscErrorCode PetscDeviceAllocate(PetscDeviceContext, PetscBool, PetscMemType, size_t, void **PETSC_RESTRICT);
+PETSC_EXTERN PetscErrorCode PetscDeviceDeallocate(PetscDeviceContext, void *PETSC_RESTRICT);
+PETSC_EXTERN PetscErrorCode PetscDeviceMemcpy(PetscDeviceContext, void *PETSC_RESTRICT, const void *PETSC_RESTRICT, size_t, PetscDeviceCopyMode);
+PETSC_EXTERN PetscErrorCode PetscDeviceMemset(PetscDeviceContext, PetscMemType, void *PETSC_RESTRICT, PetscInt, size_t);
+#else
+#include <string.h> // memset()
+#define PetscDeviceAllocate(PetscDeviceContext, clear, PetscMemType, size, ptr)     PetscMallocA(1, (clear), __LINE__, PETSC_FUNCTION_NAME, __FILE__, (size), (ptr))
+#define PetscDeviceDeallocate(PetscDeviceContext, ptr)                              PetscFree((ptr))
+#define PetscDeviceMemcpy(PetscDeviceContext, dest, src, size, PetscDeviceCopyMode) PetscMemcpy((dest), (src), (size))
+#define PetscDeviceMemset(PetscDeviceContext, PetscMemType, ptr, v, size)           ((void)memset((ptr), (unsigned char)(v), (size)), 0)
+#endif /* PetscDefined(HAVE_CXX) */
 
 /*MC
   PetscDeviceMalloc - Allocate device-aware memory
@@ -204,8 +215,9 @@ M*/
 - mode - The direction in which to copy
 
   Notes:
-  This uses the `sizeof()` of the memory type requested to determine the total memory to be
-  copied, therefore you should not multiply the number of elements by the `sizeof()` the type\:
+  This uses the `sizeof()` of the `src` memory type requested to determine the total memory to
+  be copied, therefore you should not multiply the number of elements by the `sizeof()` the
+  type\:
 
 .vb
   PetscInt *to,*from;

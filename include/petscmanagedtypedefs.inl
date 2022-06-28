@@ -32,4 +32,4 @@
 #define PetscManagedTypeEqual                PetscConcat(PetscManagedType,Equal)
 #define PetscManagedTypeGetSize              PetscConcat(PetscManagedType,GetSize)
 #define PetscManagedTypeKnownAndEqual        PetscConcat(PetscManagedType,KnownAndEqual)
-#define PetscManagedTypeValuesAvailable      PetscConcat(PetscManagedType,ValuesAvailable)
+#define PetscManagedTypeGetValuesAvailable   PetscConcat(PetscManagedType,GetValuesAvailable)

@@ -22,6 +22,8 @@ int main(int argc, char *argv[])
 
   m = bucket_size/size;
   PetscCall(PetscDeviceContextGetCurrentContext(dctx));
+  // we absolutely want to orphan some of the transfers, this is the point of this test
+  PetscCall(PetscDeviceContextSetOption(dctx[0],PETSC_DEVICE_CONTEXT_ALLOW_ORPHANS,PETSC_TRUE));
   PetscCall(PetscDeviceContextDuplicate(dctx[0],dctx+1));
   PetscCall(PetscDeviceContextGetDeviceType(dctx[0],&dtype));
   PetscCall(PetscDeviceMalloc(dctx[0],dtype == PETSC_DEVICE_HOST ? PETSC_MEMTYPE_HOST : PETSC_MEMTYPE_DEVICE,1,&global_now));

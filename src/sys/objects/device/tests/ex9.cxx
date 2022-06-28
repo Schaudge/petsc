@@ -49,12 +49,11 @@ class TestManagedTypeCopy : ManagedTypeInterface<T...> {
     // test self-copy is OK
     PetscCall(PetscManagedTypeCopy(dctx, reference, reference));
     PetscCall(PetscManagedTypeGetSize(reference, &n));
-    PetscCall(PetscDeviceMalloc(dctx, PETSC_MEMTYPE_HOST, n, &refcpy));
     // set up the real test
     PetscCall(PetscManagedTypeGetValues(dctx, reference, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_WRITE, PETSC_FALSE, &refarr));
     // zero out the memory
     PetscCall(PetscDeviceArrayZero(dctx, PETSC_MEMTYPE_HOST, refarr, n));
-    PetscCall(PetscDeviceArrayCopy(dctx, refcpy, refarr, n, PETSC_DEVICE_COPY_HTOH));
+    PetscCall(PetscDeviceCalloc(dctx, PETSC_MEMTYPE_HOST, n, &refcpy));
     PetscCall(this->TestCreateAndOpGroup(dctx, op, n));
     PetscCall(PetscDeviceFree(dctx, refcpy));
     PetscFunctionReturn(0);
@@ -97,6 +96,8 @@ int main(int argc, char *argv[]) {
 
   // test on current context (whatever that may be)
   PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+  // we want to ensure memcopies can still be in flight
+  PetscCall(PetscDeviceContextSetOption(dctx, PETSC_DEVICE_CONTEXT_ALLOW_ORPHANS, PETSC_TRUE));
 
   PetscCall(make_managed_scalar_test<TestManagedTypeCopy>()->run(dctx, rand));
   PetscCall(make_managed_real_test<TestManagedTypeCopy>()->run(dctx, rand));

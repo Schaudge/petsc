@@ -14,6 +14,7 @@ struct _n_PetscManagedType
 #endif
   PetscCopyMode     h_cmode;
   PetscInt          n;
+  PetscObjectId     id;
   PetscManagedType  parent;
 #if PetscDefined(USE_DEBUG)
   PetscInt          lock; // >1  = locked, 0 = unlocked
@@ -73,11 +74,14 @@ static inline PetscBool PetscManagedTypeKnownAndEqual(PetscManagedType scal, Pet
   PetscFunctionReturn(known);
 }
 
-static inline PetscErrorCode PetscManagedTypeValuesAvailable(PetscManagedType scal, PetscMemType mtype, PetscBool *avail)
+static inline PetscErrorCode PetscManagedTypeGetValuesAvailable(PetscDeviceContext dctx, PetscManagedType scal, PetscMemType mtype, PetscMemoryAccessMode mode, PetscType **ptr, PetscBool *avail)
 {
   PetscFunctionBegin;
   // todo
-  *avail = PetscMemTypeHost(mtype) ? scal->pure : PETSC_FALSE;
+  *ptr = PETSC_NULLPTR;
+  if ((*avail = PetscMemTypeHost(mtype) ? scal->pure : PETSC_FALSE)) {
+    PetscCall(PetscManagedTypeGetValues(dctx,scal,mtype,mode,PETSC_FALSE,ptr));
+  }
   PetscFunctionReturn(0);
 }
 

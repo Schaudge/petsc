@@ -1,0 +1,43 @@
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+==== sync ====
+==== sync ====
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+==== sync ====
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 found old self PETSC_MEMORY_ACCESS_READ (unknown_function() at unknown_file:1) -> PETSC_MEMORY_ACCESS_READ (unknown_function() at unknown_file:1)
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 6 found old self PETSC_MEMORY_ACCESS_READ (unknown_function() at unknown_file:1) -> PETSC_MEMORY_ACCESS_READ (unknown_function() at unknown_file:1)
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 found old self PETSC_MEMORY_ACCESS_READ (unknown_function() at unknown_file:1) -> PETSC_MEMORY_ACCESS_READ_WRITE (unknown_function() at unknown_file:1)
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 6 found old self PETSC_MEMORY_ACCESS_READ (unknown_function() at unknown_file:1) -> PETSC_MEMORY_ACCESS_READ (unknown_function() at unknown_file:1)
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - 5 other context 2 intent PETSC_MEMORY_ACCESS_READ_WRITE conflicts with PETSC_MEMORY_ACCESS_READ_WRITE -> serializing
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ_WRITE
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+==== sync ====
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+==== sync ====
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 5 found old self PETSC_MEMORY_ACCESS_READ (unknown_function() at unknown_file:1) -> PETSC_MEMORY_ACCESS_WRITE (unknown_function() at unknown_file:1)
+[0] PetscDeviceContextMarkIntentFromID(): dctx 4 - 5 other context 3 intent PETSC_MEMORY_ACCESS_WRITE conflicts with PETSC_MEMORY_ACCESS_WRITE -> serializing
+[0] PetscDeviceContextMarkIntentFromID(): dctx 4 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_WRITE
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 found old self PETSC_MEMORY_ACCESS_READ (unknown_function() at unknown_file:1) -> PETSC_MEMORY_ACCESS_WRITE (unknown_function() at unknown_file:1)
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - 5 other context 4 intent PETSC_MEMORY_ACCESS_WRITE conflicts with PETSC_MEMORY_ACCESS_WRITE -> serializing
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 rotating to leaf position with intent PETSC_MEMORY_ACCESS_WRITE
+[0] PetscDeviceContextMarkIntentFromID(): dctx 4 - obj 5 found old self PETSC_MEMORY_ACCESS_WRITE (unknown_function() at unknown_file:1) -> PETSC_MEMORY_ACCESS_READ_WRITE (unknown_function() at unknown_file:1)
+[0] PetscDeviceContextMarkIntentFromID(): dctx 4 - 5 other context 2 intent PETSC_MEMORY_ACCESS_WRITE conflicts with PETSC_MEMORY_ACCESS_READ_WRITE -> serializing
+[0] PetscDeviceContextMarkIntentFromID(): dctx 4 - obj 5 rotating to leaf position with intent PETSC_MEMORY_ACCESS_READ_WRITE
+==== sync ====
+==== sync ====
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
+==== sync ====
+==== sync ====
+EXIT_SUCCESS
+[0] PetscFinalize(): PetscFinalize() called

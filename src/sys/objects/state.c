@@ -218,6 +218,8 @@ PetscErrorCode PetscObjectComposedDataIncreaseScalarstar(PetscObject obj) {
 @*/
 PetscErrorCode PetscObjectGetId(PetscObject obj, PetscObjectId *id) {
   PetscFunctionBegin;
+  PetscValidHeader(obj, 1);
+  PetscValidIntPointer(id, 2);
   *id = obj->id;
   PetscFunctionReturn(0);
 }

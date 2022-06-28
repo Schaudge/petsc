@@ -349,6 +349,19 @@ PETSC_NODISCARD static inline PETSC_CONSTEXPR_14 const char *PetscMemoryAccessMo
   return "invalid";
 }
 
+/*E
+  PetscDeviceContextOption
+
+$ PETSC_DEVICE_CONTEXT_ALLOW_ORPHANS - Allow a `PetscDeviceContext` to be destroyed with dangling dependencies
+
+  Level: intermediate
+
+.seealso: `PetscDeviceContextSetOption()`
+E*/
+typedef enum {
+  PETSC_DEVICE_CONTEXT_ALLOW_ORPHANS,
+} PetscDeviceContextOption;
+
 typedef enum {
   PETSC_OPERATOR_PLUS,
   PETSC_OPERATOR_MINUS,

@@ -10,6 +10,7 @@
 #include <petsc/private/cpp/tuple.hpp>
 #include <petsc/private/cpp/array.hpp>
 #include <petsc/private/cpp/functional.hpp>
+#include <petsc/private/cpp/register_finalize.hpp>
 
 // PETSC_CXX_COMPAT_DECL() - Helper macro to declare a C++ class member function or
 // free-standing function guaranteed to be compatible with C
