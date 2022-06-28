@@ -7,6 +7,10 @@ static char help[] = "Runaway electron model with Landau collision operator\n\n"
 #include <petscdmcomposite.h>
 #include "petsc/private/petscimpl.h"
 
+#if defined(PETSC_HAVE_CUDA)
+#include <nvToolsExt.h>
+#endif
+
 /* data for runaway electron model */
 typedef struct REctx_struct {
   PetscErrorCode (*test)(TS, Vec, PetscInt, PetscReal, PetscBool,  LandauCtx *, struct REctx_struct *);
@@ -739,7 +743,13 @@ int main(int argc, char **argv)
 #if defined(PETSC_HAVE_THREADSAFETY)
   starttime = MPI_Wtime();
 #endif
+#if defined(PETSC_HAVE_CUDA)
+  nvtxRangePushA("ex2-TSSolve-warm");
+#endif
   PetscCall(TSSolve(ts,X));
+#if defined(PETSC_HAVE_CUDA)
+  nvtxRangePop();
+#endif
   PetscCall(PetscLogStagePop());
 #if defined(PETSC_HAVE_THREADSAFETY)
   endtime = MPI_Wtime();
