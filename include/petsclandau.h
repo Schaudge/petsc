@@ -34,7 +34,7 @@ typedef int LandauIdx;
 #if defined(PETSC_USE_DMLANDAU_2D)
 #define LANDAU_MAX_Q 4
 #else
-#define LANDAU_MAX_Q 3
+#define LANDAU_MAX_Q 4
 #endif
 #else
 #undef LANDAU_MAX_NQ
@@ -43,12 +43,12 @@ typedef int LandauIdx;
 #if defined(PETSC_USE_DMLANDAU_2D)
 #define LANDAU_MAX_Q_FACE LANDAU_MAX_Q
 #define LANDAU_MAX_NQ (LANDAU_MAX_Q*LANDAU_MAX_Q)
-#define LANDAU_MAX_BATCH_SZ 256
+#define LANDAU_MAX_BATCH_SZ 1024
 #define LANDAU_DIM 2
 #else
 #define LANDAU_MAX_Q_FACE (LANDAU_MAX_Q*LANDAU_MAX_Q)
 #define LANDAU_MAX_NQ (LANDAU_MAX_Q*LANDAU_MAX_Q*LANDAU_MAX_Q)
-#define LANDAU_MAX_BATCH_SZ 32
+#define LANDAU_MAX_BATCH_SZ 64
 #define LANDAU_DIM 3
 #endif
 
