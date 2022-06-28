@@ -1,4 +1,3 @@
-
 /*
       PETSc code to log object creation and destruction and PETSc events.
 
@@ -1833,16 +1832,16 @@ PetscErrorCode  PetscLogView_Default(PetscViewer viewer)
       }
       PetscCheck(minf >= 0.0,PETSC_COMM_SELF,PETSC_ERR_PLIB,"Minimum flop %g over all processors for %s is negative! Not possible!",minf,name);
       /* Put NaN into the time for all events that may not be time accurately since they may happen asynchronously on the GPU */
-      #if defined(PETSC_HAVE_DEVICE)
-      if (!PetscLogGpuTimeFlag && petsc_gflops > 0) {
-        memcpy(&gmaxt,&nas,sizeof(PetscLogDouble));
-        PetscCall(PetscEventRegLogGetEvent(stageLog->eventLog, name, &eventid));
-        if (eventid != SNES_Solve && eventid != KSP_Solve && eventid != TS_Step && eventid != TAO_Solve) {
-          memcpy(&mint,&nas,sizeof(PetscLogDouble));
-          memcpy(&maxt,&nas,sizeof(PetscLogDouble));
-        }
-      }
-      #endif
+      /* #if defined(PETSC_HAVE_DEVICE) */
+      /* if (!PetscLogGpuTimeFlag && petsc_gflops > 0) { */
+      /*   memcpy(&gmaxt,&nas,sizeof(PetscLogDouble)); */
+      /*   PetscCall(PetscEventRegLogGetEvent(stageLog->eventLog, name, &eventid)); */
+      /*   if (eventid != SNES_Solve && eventid != KSP_Solve && eventid != TS_Step && eventid != TAO_Solve) { */
+      /*     memcpy(&mint,&nas,sizeof(PetscLogDouble)); */
+      /*     memcpy(&maxt,&nas,sizeof(PetscLogDouble)); */
+      /*   } */
+      /* } */
+      /* #endif */
       totm *= 0.5; totml *= 0.5; totr /= size;
 
       if (maxC != 0) {
