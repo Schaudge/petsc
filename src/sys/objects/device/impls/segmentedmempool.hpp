@@ -187,7 +187,7 @@ inline PetscErrorCode MemoryBlock<T, A>::try_get_chunk(size_type size, T **ptr, 
 - stream - (optional) stream to restore the pointer on
 
   Notes:
-  ptr is set to nullptr on successful        restore, and is unchanged otherwise. If the ptr is owned
+  ptr is set to nullptr on successful restore, and is unchanged otherwise. If the ptr is owned
   by this MemoryBlock then it is restored on stream, that is, the pointer is not fully restored
   until stream is idle again.
 */
@@ -298,8 +298,8 @@ struct SegmentedMemoryPoolAllocatorBase {
 
   template <typename StreamType>
   PETSC_CXX_COMPAT_DECL(PetscErrorCode setCanary(value_type *ptr, std::size_t n, StreamType)) {
-    using limit_t           = std::numeric_limits<real_value_type>;
-    const value_type canary = limit_t::has_signaling_NaN ? limit_t::signaling_NaN() : limit_t::max();
+    using limit_type            = std::numeric_limits<real_value_type>;
+    constexpr value_type canary = limit_type::has_signaling_NaN ? limit_type::signaling_NaN() : limit_type::max();
 
     PetscFunctionBegin;
     for (std::size_t i = 0; i < n; ++i) ptr[i] = canary;
@@ -320,7 +320,7 @@ class SegmentedMemoryPool;
 
 // The actual memory pool class. It is in essence just a wrapper for a list of MemoryBlocks.
 template <typename MemType, typename AllocType, std::size_t DefaultChunkSize>
-class SegmentedMemoryPool {
+class SegmentedMemoryPool : public RegisterFinalizeable<SegmentedMemoryPool<MemType, AllocType, DefaultChunkSize>> {
 public:
   using value_type     = MemType;
   using allocator_type = AllocType;
@@ -328,10 +328,10 @@ public:
   using pool_type      = std::deque<block_type>;
   using size_type      = typename block_type::size_type;
 
-  explicit SegmentedMemoryPool(allocator_type alloc = allocator_type{}, size_type size = DefaultChunkSize) noexcept(noexcept(std::is_nothrow_default_constructible<pool_type>::value)) : allocator_(std::move(alloc)), pool_(), chunk_size_(size) { }
+  explicit SegmentedMemoryPool(allocator_type alloc = allocator_type{}, size_type size = DefaultChunkSize) noexcept(noexcept(std::is_nothrow_default_constructible<pool_type>::value)) : allocator_(std::move(alloc)), chunk_size_(size) { }
 
-  PETSC_NODISCARD PetscErrorCode finalize() noexcept;
-  PETSC_NODISCARD PetscErrorCode initialize() noexcept;
+  PETSC_NODISCARD PetscErrorCode finalize_() noexcept;
+  PETSC_NODISCARD PetscErrorCode register_finalize_() noexcept;
   template <typename StreamType = std::nullptr_t>
   PETSC_NODISCARD PetscErrorCode get(PetscInt, MemType **, StreamType = StreamType{}) noexcept;
   template <typename StreamType = std::nullptr_t>
@@ -342,9 +342,8 @@ public:
 
 private:
   allocator_type allocator_;
-  pool_type      pool_;
   size_type      chunk_size_;
-  bool           init_ = false;
+  pool_type      pool_;
 
   PETSC_NODISCARD PetscErrorCode make_block_(size_type size) noexcept {
     PetscFunctionBegin;
@@ -360,35 +359,31 @@ private:
 };
 
 /*
-  SegmentedMemoryPool::finalize - clears the internal memory pool and cleans up
+  SegmentedMemoryPool::finalize_ - clears the internal memory pool and cleans up
 
   Notes:
   This routine is automatically registerd for and called from PetscFinalize()
 */
 template <typename MemType, typename AllocType, std::size_t DefaultChunkSize>
-inline PetscErrorCode SegmentedMemoryPool<MemType, AllocType, DefaultChunkSize>::finalize() noexcept {
+inline PetscErrorCode SegmentedMemoryPool<MemType, AllocType, DefaultChunkSize>::finalize_() noexcept {
   PetscFunctionBegin;
   PetscCallCXX(pool_.clear());
   PetscCallCXX(pool_.shrink_to_fit());
   chunk_size_ = DefaultChunkSize;
-  init_       = false;
   PetscFunctionReturn(0);
 }
 
 /*
-  SegmentedMemoryPool::initialize - initializes the memory pool
+  SegmentedMemoryPool::register_finalize_ - initializes the memory pool when it is registered
+  for the first time
 
   Notes:
   Creates the first MemoryBlock and registers the pool for finalization in PetscFinalize()
 */
 template <typename MemType, typename AllocType, std::size_t DefaultChunkSize>
-inline PetscErrorCode SegmentedMemoryPool<MemType, AllocType, DefaultChunkSize>::initialize() noexcept {
+inline PetscErrorCode SegmentedMemoryPool<MemType, AllocType, DefaultChunkSize>::register_finalize_() noexcept {
   PetscFunctionBegin;
-  if (PetscUnlikely(!init_)) {
-    init_ = true;
-    PetscCall(make_block_());
-    PetscCall(PetscCxxObjectRegisterFinalize(this));
-  }
+  PetscCall(make_block_());
   PetscFunctionReturn(0);
 }
 
@@ -415,7 +410,7 @@ inline PetscErrorCode SegmentedMemoryPool<MemType, AllocType, DefaultChunkSize>:
   PetscAssert(sizein >= 0, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Requested memory amount (%" PetscInt_FMT ") must be >= 0", sizein);
   *ptr = nullptr;
   if (!sizein) PetscFunctionReturn(0);
-  PetscCall(initialize());
+  PetscCall(this->register_finalize());
   for (auto &block : pool_) {
     PetscCall(block.try_get_chunk(size, ptr, stream));
     if (*ptr) PetscFunctionReturn(0);
@@ -473,7 +468,6 @@ template <typename MemType, typename AllocType, std::size_t DefaultChunkSize>
 template <typename StreamType>
 inline PetscErrorCode SegmentedMemoryPool<MemType, AllocType, DefaultChunkSize>::pruneEmptyBlocks(StreamType stream) noexcept {
   PetscFunctionBegin;
-  if (pool_.empty()) PetscFunctionReturn(0);
   // try to prune the pool in case of large allocations
   while (pool_.size() > 1) {
     auto &end = pool_.back();

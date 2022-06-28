@@ -108,7 +108,7 @@ void PetscCheckCompatibleDeviceContexts(T, int, U, int);
                  "PetscDeviceContext is setup but has no PetscDevice", \
                  pvdc_argno_); \
     } \
-    PetscCheck(pvdc_dctx_->id >= 1, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Invalid PetscDeviceContext: Argument #%d; id %" PetscInt_FMT " < 1", pvdc_argno_, pvdc_dctx_->id); \
+    PetscCheck(pvdc_dctx_->id >= 1, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Invalid PetscDeviceContext: Argument #%d; id %" PetscInt64_FMT " < 1", pvdc_argno_, pvdc_dctx_->id); \
     PetscCheck(pvdc_dctx_->numChildren <= pvdc_dctx_->maxNumChildren, PETSC_COMM_SELF, PETSC_ERR_ARG_CORRUPT, "Invalid PetscDeviceContext: Argument #%d; number of children %" PetscInt_FMT " > max number of children %" PetscInt_FMT, pvdc_argno_, \
                pvdc_dctx_->numChildren, pvdc_dctx_->maxNumChildren); \
   } while (0)
@@ -229,16 +229,23 @@ struct _DeviceContextOps {
 #undef PetscManagedTypeOps
 #undef PetscManagedTypeOps_
 
+typedef struct {
+  PetscBool allow_orphans;
+} DeviceContextOptions;
+
 struct _n_PetscDeviceContext {
   struct _DeviceContextOps ops[1];
   PetscDevice              device;         /* the device this context stems from */
   void                    *data;           /* solver contexts, event, stream */
-  PetscInt                 id;             /* unique id per created context */
+  PetscObjectId            id;             /* unique id per created context */
   PetscInt                *childIDs;       /* array containing ids of contexts currently forked from this one */
   PetscInt                 numChildren;    /* how many children does this context expect to destroy */
   PetscInt                 maxNumChildren; /* how many children can this context have room for without realloc'ing */
   PetscStreamType          streamType;     /* how should this contexts stream behave around other streams? */
+  void                    *cxxdata;
   PetscBool                setup;
+  PetscBool                contained;
+  DeviceContextOptions     options;
 };
 
 /* PetscDevice Internal Functions */
@@ -314,6 +321,7 @@ static inline PetscErrorCode PetscDeviceContextGetHandle_Internal(PetscDeviceCon
   PetscValidPointer(handle, 2);
   PetscValidFunction(gethandle_op, 3);
   PetscCall((*gethandle_op)(dctx, handle));
+  dctx->contained = PETSC_FALSE; // getting a handle implies work being done
   PetscFunctionReturn(0);
 }
 
@@ -397,16 +405,19 @@ static inline PetscErrorCode PetscDeviceContextGetOptionalNullContext_Internal(P
 
 static inline PetscErrorCode PetscDeviceContextAllReduceManagedType_Internal(PetscDeviceContext dctx, void *ptr, const PetscInt *nin, MPI_Datatype dtype, MPI_Op op, PetscObject obj) {
   MPI_Comm    comm;
-  PetscMPIInt n;
+  PetscMPIInt n, size;
 
   PetscFunctionBegin;
   PetscValidDeviceContext(dctx, 1);
   PetscValidIntPointer(nin, 3);
   PetscValidHeader(obj, 6);
-  PetscCall(PetscDeviceContextSynchronize(dctx));
   PetscCall(PetscMPIIntCast(*nin, &n));
   PetscCall(PetscObjectGetComm(obj, &comm));
-  PetscCall(MPIU_Allreduce(MPI_IN_PLACE, ptr, n, dtype, op, comm));
+  PetscCallMPI(MPI_Comm_size(comm, &size));
+  if (size > 1) {
+    PetscCall(PetscDeviceContextSynchronize(dctx));
+    PetscCall(MPIU_Allreduce(MPI_IN_PLACE, ptr, n, dtype, op, comm));
+  }
   PetscFunctionReturn(0);
 }
 

@@ -26,6 +26,7 @@ class TestManagedTypeGetPointerAndMemType : ManagedTypeInterface<T...> {
       } else {
         PetscCheck(PetscMemTypeDevice(mtype_explicit_check), PETSC_COMM_SELF, PETSC_ERR_PLIB, "Expected some kind of device PetscMemType but PetscGetMemType() returned %d (PetscMemTypeDevice(ptr) = %d)", mtype_explicit_check, PetscMemTypeDevice(mtype_explicit_check));
       }
+      PetscCall(PetscDeviceContextSynchronize(dctx));
       PetscFunctionReturn(0);
     };
 

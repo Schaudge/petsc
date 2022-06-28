@@ -74,7 +74,7 @@ static PetscErrorCode PetscManagedTypeSetOffloadMask_Private(PetscManagedType sc
 #else
   (void)mask;
 #endif
-  if (scal->parent) PetscCall(PetscManagedTypeSetOffloadMask_Private(scal,mask));
+  if (scal->parent) PetscCall(PetscManagedTypeSetOffloadMask_Private(scal->parent,mask));
   PetscFunctionReturn(0);
 }
 
@@ -192,6 +192,7 @@ PetscErrorCode PetscManagedTypeCreate(PetscDeviceContext dctx, PetscType *host_p
   PetscCall(PetscManagedTypeAllocate(scal));
 
   // populate known quantities
+  PetscCall(PetscObjectNewId(&(*scal)->id));
   (*scal)->n = n;
   PetscCall(PetscManagedTypeSetOffloadMask_Private(*scal,mask));
 #if PetscDefined(HAVE_CXX)
@@ -240,7 +241,7 @@ PetscErrorCode PetscManagedTypeDestroy(PetscDeviceContext dctx, PetscManagedType
   if ((*scal)->host && ((*scal)->h_cmode == PETSC_OWN_POINTER)) PetscCall(PetscFree((*scal)->host));
   // cannot handle device pointers though
 #if PetscDefined(HAVE_CXX)
-  PetscAssert(!(*scal)->device || ((*scal)->d_cmode != PETSC_OWN_POINTER),PETSC_COMM_SELF,PETSC_ERR_PLIB,"PetscDeviceContext (id %" PetscInt_FMT ", device type %s) failed to free the owned device pointer",dctx->id,PetscDeviceTypes[dctx->device->type]);
+  PetscAssert(!(*scal)->device || ((*scal)->d_cmode != PETSC_OWN_POINTER),PETSC_COMM_SELF,PETSC_ERR_PLIB,"PetscDeviceContext (id %" PetscInt64_FMT ", device type %s) failed to free the owned device pointer",dctx->id,PetscDeviceTypes[dctx->device->type]);
 #endif
   PetscCall(PetscManagedTypeDeallocate(*scal));
   *scal = PETSC_NULLPTR;
@@ -257,14 +258,15 @@ PetscErrorCode PetscManagedTypeGetValues(PetscDeviceContext dctx, PetscManagedTy
   PetscValidPointer(ptr,6);
   PetscCall(PetscManagedTypeCheckLock_Private(scal,PETSC_FALSE));
   PetscCall(PetscManagedTypeGetOffloadMask_Private(scal,&mask));
-  PetscCheck(!(PetscOffloadUnallocated(mask) && PetscMemoryAccessRead(mode)),PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Trying to read (using %s) from a managed type that has not been written to (with %s)",PetscMemoryAccessModes(mode),PetscOffloadMasks(mask));
+  PetscCheck(!(PetscOffloadUnallocated(mask) && PetscMemoryAccessRead(mode)),PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Trying to read (using %s) from a managed type (id %" PetscInt64_FMT ") that has not been written to (has offload mask %s)",PetscMemoryAccessModes(mode),scal->id,PetscOffloadMasks(mask));
+  PetscCall(PetscDeviceContextMarkIntentFromID(dctx,scal->id,mode));
   if (PetscDefined(HAVE_CXX)) {
     PetscManagedTypeCallMethod(dctx->ops->getmanagedvaluestype,dctx,scal,mtype,mode,ptr);
   } else {
     if (!scal->host) {
       PetscInt n;
 
-      PetscAssert(PetscOffloadUnallocated(mask),PETSC_COMM_SELF,PETSC_ERR_PLIB,"Managed type has offload mask %s, but no valid pointer %p",PetscOffloadMasks(mask),scal->host);
+      PetscAssert(PetscOffloadUnallocated(mask),PETSC_COMM_SELF,PETSC_ERR_PLIB,"Managed type (id %" PetscInt64_FMT ") has offload mask %s, but no valid pointer %p",scal->id,PetscOffloadMasks(mask),scal->host);
       PetscCall(PetscManagedTypeGetSize(scal,&n));
       PetscCall(PetscMalloc1(n,&scal->host));
       scal->h_cmode = PETSC_OWN_POINTER;
@@ -281,7 +283,7 @@ PetscErrorCode PetscManagedTypeGetValues(PetscDeviceContext dctx, PetscManagedTy
     if (PetscMemTypeHost(mtype)) PetscCall(PetscManagedTypeSetPurity_Private(scal,PETSC_TRUE));
     PetscCall(PetscDeviceContextSynchronize(dctx));
   }
-  PetscAssert(*ptr,PETSC_COMM_SELF,PETSC_ERR_PLIB,"Returned null pointer for mtype %s",PetscMemTypes(mtype));
+  PetscAssert(*ptr,PETSC_COMM_SELF,PETSC_ERR_PLIB,"ManagedType (id %" PetscInt64_FMT ") Returned null pointer for mtype %s",scal->id,PetscMemTypes(mtype));
   if (scal->parent) {
     PetscCall(PetscManagedTypeGetOffloadMask_Private(scal,&mask));
     PetscCall(PetscManagedTypeSetOffloadMask_Private(scal->parent,mask));
@@ -291,30 +293,38 @@ PetscErrorCode PetscManagedTypeGetValues(PetscDeviceContext dctx, PetscManagedTy
 
 PetscErrorCode PetscManagedTypeApplyOperator(PetscDeviceContext dctx, PetscManagedType scal, PetscOperatorType otype, PetscMemType mtype, const PetscType *rhs, PetscManagedType ret)
 {
-  PetscBool        avail;
-  PetscOffloadMask mask;
+  PetscBool                   src_avail  = PETSC_FALSE;
+  const PetscBool             in_place   = (PetscBool)(!ret || ret == scal);
+  const PetscMemoryAccessMode src_access = in_place ? PETSC_MEMORY_ACCESS_READ_WRITE : PETSC_MEMORY_ACCESS_READ;
+  const PetscMemoryAccessMode ret_access = PETSC_MEMORY_ACCESS_WRITE;
+  PetscType                   *ptr;
 
   PetscFunctionBegin;
   PetscCall(PetscDeviceContextGetOptionalNullContext_Internal(&dctx));
   PetscCheckManagedTypeCompatibleDeviceContext(dctx,1,scal,2);
   PetscCall(PetscManagedTypeCheckLock_Private(scal,PETSC_FALSE));
-  if (PetscMemTypeHost(mtype)) PetscValidTypePointer(rhs,5);
-  PetscCall(PetscManagedTypeGetOffloadMask_Private(scal,&mask));
-  PetscCall(PetscManagedTypeValuesAvailable(scal,PETSC_MEMTYPE_HOST,&avail));
-  if (avail) {
-    const PetscMemoryAccessMode  src_access = ret && ret != scal ? PETSC_MEMORY_ACCESS_READ : PETSC_MEMORY_ACCESS_READ_WRITE;
-    const PetscType              rhsv       = *rhs;
-    PetscType                   *ptr,*retptr;
+  if (ret) {
+    PetscCheckManagedTypeCompatibleDeviceContext(dctx,1,ret,6);
+    PetscCall(PetscManagedTypeCheckLock_Private(ret,PETSC_FALSE));
+  }
+  if (PetscMemTypeHost(mtype)) {
+    PetscValidTypePointer(rhs,5);
+    // if rhs is host, check if we can short circuit and evade a copy
+    PetscCall(PetscManagedTypeGetValuesAvailable(dctx,scal,mtype,src_access,&ptr,&src_avail));
+  }
+  if (src_avail) {
+    const PetscType  rhsv = *rhs;
+    PetscType       *retptr;
+    PetscInt         n;
 
-    PetscCall(PetscManagedTypeGetValues(dctx,scal,PETSC_MEMTYPE_HOST,src_access,PETSC_FALSE,&ptr));
-    if (ret && ret != scal) {
-      PetscCall(PetscManagedTypeGetValues(dctx,ret,PETSC_MEMTYPE_HOST,PETSC_MEMORY_ACCESS_WRITE,PETSC_TRUE,&retptr));
-    } else {
-      // in place
+    if (in_place) {
       retptr = ptr;
+    } else {
+      PetscCall(PetscManagedTypeGetValues(dctx,ret,PETSC_MEMTYPE_HOST,ret_access,PETSC_TRUE,&retptr));
     }
 
-    for (PetscInt i = 0; i < scal->n; ++i) {
+    PetscCall(PetscManagedTypeGetSize(scal,&n));
+    for (PetscInt i = 0; i < n; ++i) {
       switch (otype) {
       case PETSC_OPERATOR_PLUS:     retptr[i] = ptr[i]+rhsv; break;
       case PETSC_OPERATOR_MINUS:    retptr[i] = ptr[i]-rhsv; break;
@@ -325,6 +335,8 @@ PetscErrorCode PetscManagedTypeApplyOperator(PetscDeviceContext dctx, PetscManag
     }
   } else {
     PetscCheck(PetscDefined(HAVE_CXX),PETSC_COMM_SELF,PETSC_ERR_PLIB,"Should not get here if PetscDefined(HAVE_CXX) is false");
+    PetscCall(PetscDeviceContextMarkIntentFromID(dctx,scal->id,src_access));
+    if (ret && !in_place) PetscCall(PetscDeviceContextMarkIntentFromID(dctx,ret->id,ret_access));
     PetscManagedTypeCallMethod(dctx->ops->applyoperatortype,dctx,scal,otype,mtype,rhs,ret);
   }
   PetscFunctionReturn(0);
@@ -358,10 +370,11 @@ PetscErrorCode PetscManagedTypeSetValues(PetscDeviceContext dctx, PetscManagedTy
     PetscCheck(n <= scaln,PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Trying to write %" PetscInt_FMT " values to " PetscStringize(PetscManagedType) " but it only holds %" PetscInt_FMT " entries",n,scaln);
   }
   if (n) {
-    PetscMemType  scalmtype;
-    PetscType    *scalptr;
+    const PetscMemoryAccessMode  mode = PETSC_MEMORY_ACCESS_WRITE;
+    PetscMemType                 scalmtype;
+    PetscType                   *scalptr;
 
-    PetscCall(PetscManagedTypeGetPointerAndMemType(dctx,scal,PETSC_MEMORY_ACCESS_WRITE,&scalptr,&scalmtype));
+    PetscCall(PetscManagedTypeGetPointerAndMemType(dctx,scal,mode,&scalptr,&scalmtype));
     PetscCall(PetscDeviceArrayCopy(dctx,scalptr,ptr,n,PetscMemTypeToDeviceCopyMode(scalmtype,mtype)));
   }
   PetscFunctionReturn(0);

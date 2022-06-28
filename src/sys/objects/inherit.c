@@ -23,12 +23,20 @@ PETSC_EXTERN PetscErrorCode PetscObjectQuery_Petsc(PetscObject, const char[], Pe
 PETSC_EXTERN PetscErrorCode PetscObjectComposeFunction_Petsc(PetscObject, const char[], void (*)(void));
 PETSC_EXTERN PetscErrorCode PetscObjectQueryFunction_Petsc(PetscObject, const char[], void (**)(void));
 
+PetscErrorCode PetscObjectNewId(PetscObjectId *id) {
+  static PetscObjectId idcnt = 1;
+
+  PetscFunctionBegin;
+  PetscValidIntPointer(id, 1);
+  *id = idcnt++;
+  PetscFunctionReturn(0);
+}
+
 /*
    PetscHeaderCreate_Private - Creates a base PETSc object header and fills
    in the default values.  Called by the macro PetscHeaderCreate().
 */
 PetscErrorCode PetscHeaderCreate_Private(PetscObject h, PetscClassId classid, const char class_name[], const char descr[], const char mansec[], MPI_Comm comm, PetscObjectDestroyFunction destroy, PetscObjectViewFunction view) {
-  static PetscInt idcnt = 1;
 #if defined(PETSC_USE_LOG)
   PetscObject *newPetscObjects;
   PetscInt     newPetscObjectsMaxCounts, i;
@@ -45,7 +53,7 @@ PetscErrorCode PetscHeaderCreate_Private(PetscObject h, PetscClassId classid, co
 #if defined(PETSC_HAVE_SAWS)
   h->amsmem = PETSC_FALSE;
 #endif
-  h->id                    = idcnt++;
+  PetscCall(PetscObjectNewId(&h->id));
   h->parentid              = 0;
   h->qlist                 = NULL;
   h->olist                 = NULL;

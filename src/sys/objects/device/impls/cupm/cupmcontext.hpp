@@ -137,7 +137,7 @@ private:
     const auto devidl = dctxl->device->deviceId, devidr = dctxr->device->deviceId;
 
     PetscFunctionBegin;
-    PetscCheck(devidl == devidr, PETSC_COMM_SELF, PETSC_ERR_GPU, "Device contexts must be on the same device; dctx A (id %" PetscInt_FMT " device id %" PetscInt_FMT ") dctx B (id %" PetscInt_FMT " device id %" PetscInt_FMT ")", dctxl->id, devidl,
+    PetscCheck(devidl == devidr, PETSC_COMM_SELF, PETSC_ERR_GPU, "Device contexts must be on the same device; dctx A (id %" PetscInt64_FMT " device id %" PetscInt_FMT ") dctx B (id %" PetscInt64_FMT " device id %" PetscInt_FMT ")", dctxl->id, devidl,
                dctxr->id, devidr);
     PetscCall(PetscDeviceCheckDeviceCount_Internal(devidl));
     PetscCall(PetscDeviceCheckDeviceCount_Internal(devidr));
@@ -457,6 +457,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::beginTimer(PetscDeviceCon
   dci->timerInUse = PETSC_TRUE;
 #endif
   if (!dci->begin) {
+    PetscAssert(!dci->end, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Don't have a 'begin' event, but somehow have an end event");
     PetscCallCUPM(cupmEventCreate(&dci->begin));
     PetscCallCUPM(cupmEventCreate(&dci->end));
   }
@@ -491,14 +492,17 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::memAlloc(PetscDeviceConte
     PetscCallCUPM(cupmMallocHost(dest, n));
     if (clear) std::memset(*dest, 0, n);
   } else {
-    auto stream = impls_cast_(dctx)->stream;
+    const auto stream = impls_cast_(dctx)->stream;
 
     PetscCallCUPM(cupmMallocAsync(dest, n, stream));
     if (clear) {
       PetscCallCUPM(cupmMemsetAsync(*dest, 0, n, stream));
       // cudaMemsetAsync() is actually still fully async w.r.t. the host even on the null
       // stream so we have to do a sync here
-      if (dctx->streamType == PETSC_STREAM_GLOBAL_BLOCKING) PetscCall(synchronize(dctx));
+      if (dctx->streamType == PETSC_STREAM_GLOBAL_BLOCKING) {
+        // need to call global variant since it needs to prune off the dependency graph
+        PetscCall(PetscDeviceContextSynchronize(dctx));
+      }
     }
   }
   PetscFunctionReturn(0);
@@ -534,7 +538,8 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::memSet(PetscDeviceContext
   PetscCall(check_current_device_(dctx));
   PetscCall(check_memtype_(mtype, "zeroing"));
   if (PetscMemTypeHost(mtype)) {
-    PetscCall(synchronize(dctx));
+    // must call public sync to prune the dependency graph
+    PetscCall(PetscDeviceContextSynchronize(dctx));
     std::memset(ptr, static_cast<int>(v), n);
   } else {
     PetscCallCUPM(cupmMemsetAsync(ptr, static_cast<int>(v), n, impls_cast_(dctx)->stream));
@@ -615,19 +620,20 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::getManagedTypeValues(Pets
 template <DeviceType T>
 template <typename PetscType, typename PetscManagedType>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::applyOperatorType(PetscDeviceContext dctx, PetscManagedType scal, PetscOperatorType otype, PetscMemType mtype, const PetscType *rhs, PetscManagedType ret)) {
-  const auto src_access = ret ? PETSC_MEMORY_ACCESS_READ : PETSC_MEMORY_ACCESS_READ_WRITE;
+  const auto in_place   = !ret || ret == scal;
+  const auto get_mtype  = PETSC_MEMTYPE_DEVICE;
+  const auto src_access = in_place ? PETSC_MEMORY_ACCESS_READ_WRITE : PETSC_MEMORY_ACCESS_READ;
   const auto n          = scal->n;
   auto       stream     = impls_cast_(dctx)->stream;
   PetscType *ptr = nullptr, *retptr = nullptr;
 
   PetscFunctionBegin;
   PetscCall(check_current_device_(dctx));
-  PetscCall(getManagedTypeValues(dctx, scal, PETSC_MEMTYPE_DEVICE, src_access, &ptr));
-  if (ret) {
-    PetscCall(getManagedTypeValues(dctx, ret, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_WRITE, &retptr));
-  } else {
-    // in place
+  PetscCall(getManagedTypeValues(dctx, scal, get_mtype, src_access, &ptr));
+  if (in_place) {
     retptr = ptr;
+  } else {
+    PetscCall(getManagedTypeValues(dctx, ret, get_mtype, PETSC_MEMORY_ACCESS_WRITE, &retptr));
   }
   // REVIEW ME: need to somehow handle having rhs be host or device memory!
   switch (otype) {

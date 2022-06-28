@@ -61,6 +61,8 @@ static PetscErrorCode CheckHost(PetscDeviceContext dctx, PetscInt n) {
   if (dtype != PETSC_DEVICE_HOST) {
     PetscInt *device_values;
 
+    // we will be orphaning the device values
+    PetscCall(PetscDeviceContextSetOption(dctx, PETSC_DEVICE_CONTEXT_ALLOW_ORPHANS, PETSC_TRUE));
     PetscCall(PetscManagedIntGetValues(dctx, mint, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &device_values));
     // should be unchanged
     PetscCall(CheckEqual(mint, -1, PETSC_TRUE, PETSC_TRUE));

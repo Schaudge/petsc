@@ -21,6 +21,9 @@ int main(int argc, char *argv[]) {
   // test
   PetscCall(PetscDeviceContextCreate(&dctxa));
   PetscCall(PetscDeviceContextSetStreamType(dctxa, PETSC_STREAM_DEFAULT_BLOCKING));
+  // we want to leave one of the managed scalars "dangling" below, and hence won't be
+  // synchronizing on the context before it is destroyed
+  PetscCall(PetscDeviceContextSetOption(dctxa, PETSC_DEVICE_CONTEXT_ALLOW_ORPHANS, PETSC_TRUE));
   PetscCall(PetscDeviceContextSetFromOptions(comm, "dctxa_", dctxa));
   PetscCall(PetscDeviceContextGetDeviceType(dctxa, &dtype));
 

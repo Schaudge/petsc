@@ -17,7 +17,7 @@
 #undef PetscManagedTypeEqual
 #undef PetscManagedTypeGetSize
 #undef PetscManagedTypeKnownAndEqual
-#undef PetscManagedTypeValuesAvailable
+#undef PetscManagedTypeGetValuesAvailable
 
 #undef PetscTypeSuffix
 #undef PetscType
