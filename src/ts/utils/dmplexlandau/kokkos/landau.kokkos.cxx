@@ -605,14 +605,14 @@ PetscErrorCode LandauKokkosJacobian(DM plex[], const PetscInt Nq, const PetscInt
     // Jacobian
 #if defined(PETSC_HAVE_CUDA)
     int device;
-    cudaDeviceProp prop;
+    int maximum_shared_mem_size;
     cudaError_t ier = cudaGetDevice(&device);
-    ier = cudaGetDeviceProperties(&prop,device);
-    int maximum_shared_mem_size = prop.sharedMemPerBlock;
+    ier = cudaDeviceGetAttribute(&maximum_shared_mem_size, cudaDevAttrMaxSharedMemoryPerBlock, device);
 #elif defined(PETSC_HAVE_HIP)
-    hipDeviceProp_t devProp;
-    hipGetDeviceProperties(&devProp, 0);
-    int maximum_shared_mem_size = devProp.sharedMemPerBlock;
+    int device;
+    int maximum_shared_mem_size;
+    hipGetDevice(&device);
+    hipDeviceGetAttribute(&maximum_shared_mem_size, hipDeviceAttributeMaxSharedMemoryPerBlock, device);
 #elif defined(PETSC_HAVE_SYCL)
     int maximum_shared_mem_size = 64000;
 #else
