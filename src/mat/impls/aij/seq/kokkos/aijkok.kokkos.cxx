@@ -226,7 +226,7 @@ static PetscErrorCode MatSeqAIJKokkosGenerateTranspose_Private(Mat A, KokkosCsrM
     /* FIXME: KK does not separate symbolic/numeric transpose. We could have a permutation array to help value-only update */
     PetscCallCXX(aijkok->a_dual.sync_device());
     PetscCallCXX(aijkok->csrmatT = KokkosKernels::Impl::transpose_matrix(aijkok->csrmat));
-    PetscCallCXX(KokkosKernels::sort_crs_matrix(aijkok->csrmatT));
+    PetscCallCXX(KokkosSparse::sort_crs_matrix(aijkok->csrmatT));
     aijkok->transpose_updated = PETSC_TRUE;
   }
   *csrmatT = &aijkok->csrmatT;
@@ -244,7 +244,7 @@ static PetscErrorCode MatSeqAIJKokkosGenerateHermitian_Private(Mat A, KokkosCsrM
   if (!aijkok->csrmatH.nnz() || !aijkok->hermitian_updated) { /* Generate Ah for the first time OR just update its values */
     PetscCallCXX(aijkok->a_dual.sync_device());
     PetscCallCXX(aijkok->csrmatH = KokkosKernels::Impl::transpose_matrix(aijkok->csrmat));
-    PetscCallCXX(KokkosKernels::sort_crs_matrix(aijkok->csrmatH));
+    PetscCallCXX(KokkosSparse::sort_crs_matrix(aijkok->csrmatH));
    #if defined(PETSC_USE_COMPLEX)
     const auto& a = aijkok->csrmatH.values;
     Kokkos::parallel_for(a.extent(0),KOKKOS_LAMBDA(MatRowMapType i) {a(i) = PetscConj(a(i));});
@@ -730,7 +730,7 @@ static PetscErrorCode MatProductNumeric_SeqAIJKokkos_SeqAIJKokkos(Mat C)
   }
   PetscCall(PetscLogGpuTimeBegin());
   PetscCallCXX(KokkosSparse::spgemm_numeric(pdata->kh,*csrmatA,transA,*csrmatB,transB,ckok->csrmat));
-  PetscCallCXX(KokkosKernels::sort_crs_matrix(ckok->csrmat)); /* without the sort, mat_tests-ex62_14_seqaijkokkos failed */
+  PetscCallCXX(KokkosSparse::sort_crs_matrix(ckok->csrmat)); /* without the sort, mat_tests-ex62_14_seqaijkokkos failed */
   PetscCall(PetscLogGpuTimeEnd());
   PetscCall(MatSeqAIJKokkosModifyDevice(C));
   /* shorter version of MatAssemblyEnd_SeqAIJ */
@@ -810,7 +810,7 @@ static PetscErrorCode MatProductSymbolic_SeqAIJKokkos_SeqAIJKokkos(Mat C)
     TODO: Remove the fake spgemm_numeric() after KK fixed this problem.
   */
   PetscCallCXX(KokkosSparse::spgemm_numeric(pdata->kh,*csrmatA,transA,*csrmatB,transB,csrmatC));
-  PetscCallCXX(KokkosKernels::sort_crs_matrix(csrmatC));
+  PetscCallCXX(KokkosSparse::sort_crs_matrix(csrmatC));
   PetscCall(PetscLogGpuTimeEnd());
 
   PetscCallCXX(ckok = new Mat_SeqAIJKokkos(csrmatC));
