@@ -1558,13 +1558,14 @@ static PetscErrorCode MatSeqAIJKokkosTransposeSolveCheck(Mat A)
         n,n,factors->iL_d,factors->jL_d,factors->aL_d,
         factors->iLt_d,factors->jLt_d,factors->aLt_d);
 
-    /* TODO: KK transpose_matrix() does not sort column indices, however cusparse requires sorted indices.
-      We have to sort the indices, until KK provides finer control options.
-    */
-    KokkosKernels::sort_crs_matrix<DefaultExecutionSpace,
-      MatRowMapKokkosView,MatColIdxKokkosView,MatScalarKokkosView>(
-        factors->iLt_d,factors->jLt_d,factors->aLt_d);
+    /* KK transpose_matrix() does not sort column indices. cusparse-11.5.1 release notes say:
 
+      "CSR, CSC, and COO format descriptions wrongly reported sorted column indices requirement.
+       All routines support unsorted column indices, except where strictly indicated"
+
+      But we don't know which cupsarse version started to support unsorted column indices. It seems
+      cusparse actually supported that long time ago. So we don't sort column indices here.
+    */
     KokkosSparse::Experimental::sptrsv_symbolic(&factors->khLt,factors->iLt_d,factors->jLt_d,factors->aLt_d);
 
     /* Update U^T and do sptrsv symbolic */
@@ -1578,11 +1579,6 @@ static PetscErrorCode MatSeqAIJKokkosTransposeSolveCheck(Mat A)
       MatRowMapKokkosView,MatColIdxKokkosView,MatScalarKokkosView,
       MatRowMapKokkosView,DefaultExecutionSpace>(
         n,n,factors->iU_d, factors->jU_d, factors->aU_d,
-        factors->iUt_d,factors->jUt_d,factors->aUt_d);
-
-    /* Sort indices. See comments above */
-    KokkosKernels::sort_crs_matrix<DefaultExecutionSpace,
-      MatRowMapKokkosView,MatColIdxKokkosView,MatScalarKokkosView>(
         factors->iUt_d,factors->jUt_d,factors->aUt_d);
 
     KokkosSparse::Experimental::sptrsv_symbolic(&factors->khUt,factors->iUt_d,factors->jUt_d,factors->aUt_d);
