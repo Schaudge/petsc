@@ -160,7 +160,6 @@ static PetscErrorCode PetscFEView_SAWs_Plotly(PetscFE fe, PetscViewer viewer)
 
 int main(int argc, char **argv)
 {
-
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
   PetscCall(PetscClassIdRegister("PetscFE Plotly Manager",&PETSCFEPLOTLY_CLASSID));
   for (PetscInt dim = 1; dim <= 3; dim++) {
