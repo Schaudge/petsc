@@ -3711,7 +3711,7 @@ static PetscErrorCode DMSetFromOptions_Plex(PetscOptionItems *PetscOptionsObject
     PetscObject  obj;
     PetscClassId id = PETSC_OBJECT_CLASSID;
     IS           perm;
-    PetscInt     Nf;
+    PetscInt     Nf, deg = 1;
     PetscBool    distributed;
 
     PetscCall(DMPlexIsDistributed(dm, &distributed));
@@ -3721,8 +3721,14 @@ static PetscErrorCode DMSetFromOptions_Plex(PetscOptionItems *PetscOptionsObject
     if (Nf) {
       PetscCall(PetscDSGetDiscretization(cds, 0, &obj));
       PetscCall(PetscObjectGetClassId(obj, &id));
+      if (id == PETSCFE_CLASSID) {
+        PetscSpace sp;
+
+        PetscCall(PetscFEGetBasisSpace((PetscFE) obj, &sp));
+        PetscCall(PetscSpaceGetDegree(sp, &deg, NULL));
+      }
     }
-    if (!distributed && id != PETSCFE_CLASSID) {
+    if (!distributed && deg <= 1) {
       PetscCall(DMPlexGetOrdering1D(dm, &perm));
       PetscCall(DMPlexPermute(dm, perm, &rdm));
       PetscCall(DMPlexReplace_Static(dm, &rdm));
