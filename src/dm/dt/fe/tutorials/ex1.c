@@ -180,72 +180,65 @@ PetscFESAWs PetscFESAWsManager = NULL;
 
 static PetscErrorCode PetscFESAWsViewReferenceElement(PetscFESAWs fes, DM refel)
 {
+  PetscInt num_points;
   PetscInt v_start, v_end;
-  DMPolytopeType ptype;
-  PetscInt num_verts, dim;
+  PetscInt dim;
+  int num_coords, offset;
   int *i_array;
   Vec coord_vec;
-  float *vertex_coords;
+  float *coords;
   PetscScalar *these_coords;
   DM coord_dm;
 
   PetscFunctionBegin;
-  PetscCall(DMPlexGetCellType(refel, 0, &ptype));
-  PetscCall(PetscFESAWsWriteProperty(fes, "polytope", &DMPolytopeTypes[ptype], 1, SAWs_READ, SAWs_STRING));
-
-  PetscCall(DMPlexGetDepthStratum(refel, 0, &v_start, &v_end));
-  PetscCall(PetscFESAWsCreateArray(fes, SAWs_INT, 4, &i_array));
-  i_array[0] = num_verts = v_end - v_start;
-  PetscCall(PetscFESAWsWriteProperty(fes, "number_of_vertices", &i_array[0], 1, SAWs_READ, SAWs_INT));
+  PetscCall(DMPlexGetChart(refel, NULL, &num_points));
+  PetscCall(PetscFESAWsCreateArray(fes, SAWs_INT, 2*num_points + 1, &i_array));
+  i_array[2*num_points] = num_points;
+  PetscCall(PetscFESAWsWriteProperty(fes, "number_of_mesh_points", &i_array[2*num_points], 1, SAWs_READ, SAWs_INT));
 
   PetscCall(DMGetCoordinateDim(refel, &dim));
-  PetscCall(PetscFESAWsCreateArray(fes, SAWs_FLOAT, num_verts * dim, &vertex_coords));
+  PetscCall(DMPlexGetDepthStratum(refel, 0, &v_start, &v_end));
+  num_coords = 0;
+  for (PetscInt v = v_start; v < v_end; v++) {
+    PetscInt star_size = 0;
+    PetscInt *star = NULL;
+
+    PetscCall(DMPlexGetTransitiveClosure(refel, v, PETSC_FALSE, &star_size, &star));
+    num_coords += star_size * dim;
+    PetscCall(DMPlexRestoreTransitiveClosure(refel, v, PETSC_FALSE, &star_size, &star));
+  }
+  PetscCall(PetscFESAWsCreateArray(fes, SAWs_FLOAT, num_coords * dim, &coords));
   PetscCall(DMGetCoordinatesLocalNoncollective(refel, &coord_vec));
   PetscCall(DMGetCoordinateDM(refel, &coord_dm));
-  PetscCall(PetscMalloc1(dim, &these_coords));
-  for (PetscInt v = v_start; v < v_end; v++) {
-    PetscInt csize = dim;
+  PetscCall(PetscMalloc1(num_coords * dim, &these_coords));
+  offset = 0;
+  for (PetscInt p = 0; p < num_points; p++) {
+    DMPolytopeType ptype;
+    char point_string[3];
+    PetscInt csize = num_coords * dim;
+    PetscInt p_num_verts;
+    PetscInt p_dim;
+    PetscInt coord_start = offset;
 
-    PetscCall(DMPlexVecGetClosure(coord_dm, NULL, coord_vec, v, &csize, &these_coords));
+    PetscCall(PetscSNPrintf(point_string, 3, "%d", p));
+    PetscCall(PetscFESAWsDirectoryPush(fes, point_string));
+    PetscCall(DMPlexGetCellType(refel, p, &ptype));
+    PetscCall(DMPlexGetPointDepth(refel, p, &p_dim));
+    PetscCall(PetscFESAWsWriteProperty(fes, "polytope", &DMPolytopeTypes[ptype], 1, SAWs_READ, SAWs_STRING));
+    PetscCall(DMPlexVecGetClosure(coord_dm, NULL, coord_vec, p, &csize, &these_coords));
+    i_array[2*p] = p_num_verts = csize / dim;
+    i_array[2*p+1] = p_dim;
     for (PetscInt d = 0; d < dim; d++) {
-      // vertex coords are stores with point as the leading dimension
-      vertex_coords[d * num_verts + (v - v_start)] = PetscRealPart(these_coords[d]);
+      for (PetscInt v = 0; v < p_num_verts; v++) {
+        coords[offset++] = PetscRealPart(these_coords[v * dim + d]);
+      }
     }
+    PetscCall(PetscFESAWsWriteProperty(fes, "number_of_vertices", &i_array[2*p], 1, SAWs_READ, SAWs_INT));
+    PetscCall(PetscFESAWsWriteProperty(fes, "dimension", &i_array[2*p+1], 1, SAWs_READ, SAWs_INT));
+    PetscCall(PetscFESAWsWriteProperty(fes, "coordinates", &coords[coord_start], csize, SAWs_READ, SAWs_FLOAT));
+    PetscCall(PetscFESAWsDirectoryPop(fes));
   }
   PetscCall(PetscFree(these_coords));
-  PetscCall(PetscFESAWsWriteProperty(fes, "vertex_coordinates", vertex_coords, dim * num_verts, SAWs_READ, SAWs_FLOAT));
-
-  if (dim > 0) {
-    PetscInt e_start, e_end;
-    PetscInt num_edges;
-    float *edge_coords;
-
-    PetscCall(DMPlexGetDepthStratum(refel, 1, &e_start, &e_end));
-    i_array[1] = num_edges = e_end - e_start;
-    PetscCall(PetscFESAWsWriteProperty(fes, "number_of_edges", &i_array[1], 1, SAWs_READ, SAWs_INT));
-    PetscCall(PetscFESAWsCreateArray(fes, SAWs_FLOAT, num_edges * 2 * dim, &edge_coords));
-    PetscCall(PetscFESAWsDirectoryPush(fes, "edges"));
-    for (PetscInt e = e_start; e < e_end; e++) {
-      char edge_string[3];
-      const PetscInt *verts;
-
-      PetscCall(PetscSNPrintf(edge_string, 3, "%d", e - e_start));
-      PetscCall(PetscFESAWsDirectoryPush(fes, edge_string));
-      PetscCall(DMPlexGetCone(coord_dm, e, &verts));
-      for (PetscInt c = 0; c < 2; c++) {
-        PetscInt v = verts[c];
-        for (PetscInt d = 0; d < dim; d++) {
-          edge_coords[(e-e_start) * dim * 2 + d * 2 + c] = vertex_coords[d * num_verts + (v-v_start)];
-        }
-      }
-      PetscCall(PetscFESAWsWriteProperty(fes, "coordinates", &edge_coords[(e-e_start)*dim*2], dim * 2, SAWs_READ, SAWs_FLOAT));
-      PetscCall(PetscFESAWsDirectoryPop(fes));
-    }
-    PetscCall(PetscFESAWsDirectoryPop(fes));
-  } else {
-    i_array[1] = 0;
-    PetscCall(PetscFESAWsWriteProperty(fes, "number_of_edges", &i_array[1], 1, SAWs_READ, SAWs_INT));
-  }
   PetscFunctionReturn(0);
 }
 

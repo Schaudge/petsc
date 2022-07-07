@@ -30,36 +30,60 @@
       const replot = (fe) => {
               const dim = fe.spatial_dimension[0];
               const refel = fe.reference_element;
-              const num_vertices = refel.number_of_vertices[0];
-              let x = dim > 0 ? refel.vertex_coordinates.slice(0,num_vertices) : new Float32Array(num_vertices).fill(0.0);
-              let y = dim > 1 ? refel.vertex_coordinates.slice(num_vertices,2*num_vertices) : new Float32Array(num_vertices).fill(0.0);
-              let z = dim > 2 ? refel.vertex_coordinates.slice(2*num_vertices,3*num_vertices) : new Float32Array(num_vertices).fill(0.0);
-
-              let vert_text = new Array(num_vertices);
-              for (let i = 0; i < num_vertices; i++) {
-                      vert_text[i] = 'vertex ' + i;
+              const num_points = refel.number_of_mesh_points[0];
+              let traces = [];
+              for (let p = 0; p < num_points; p++) {
+                      const point = refel[p];
+                      const point_dim = point.dimension[0];
+                      const num_vertices = point.number_of_vertices[0];
+                      let x = dim > 0 ? point.coordinates.slice(0,num_vertices) : new Float32Array(num_vertices).fill(0.0);
+                      let y = dim > 1 ? point.coordinates.slice(num_vertices,2*num_vertices) : new Float32Array(num_vertices).fill(0.0);
+                      let z = dim > 2 ? point.coordinates.slice(2*num_vertices,3*num_vertices) : new Float32Array(num_vertices).fill(0.0);
+                      console.log(x);
+                      console.log(y);
+                      console.log(z);
+                      let data = {
+                              type: dim < 3 ? 'scatter' : (point_dim < 2 ? 'scatter3d' : 'mesh3d'),
+                              x: x,
+                              y: y,
+                              z: z,
+                              hoverinfo: 'skip'
+                            };
+                      switch (point_dim) {
+                              case 0:
+                                data.mode = 'markers';
+                                break;
+                              case 1:
+                                data.mode = 'line';
+                                break;
+                              case 2:
+                                data.mode = 'none';
+                                data.fill = 'toself';
+                                data.opacity = 0.1;
+                                data.alphahull = -1; // TODO: figure out the best delaunay axis of each face
+                                data.visible = true;
+                                break;
+                              case 3:
+                                data.opacity = 0.1;
+                                data.alphahull = 0; // use convex hull algorithm
+                                data.visible = false;
+                                break;
+                              default:
+                                data.mode = 'none';
+                                break;
+                            }
+                      traces.push(data);
                     }
-
-              console.log(x);
-              console.log(y);
-              console.log(z);
               const plot_div = document.getElementById('feplotly_plot');
               const layout = {
+                      showlegend: false,
                       title: fe.name,
                       margin: { l: 0, r: 0, t: 0, b: 0 },
                       xaxis: { showgrid: false, zeroline: false },
                       yaxis: { showgrid: false, zeroline: false, scaleanchor: 'x', scaleratio: 1 },
                       zaxis: { showgrid: false, zeroline: false, scaleanchor: 'x', scaleratio: 1 },
                     };
-              const data = {
-                      type: dim == 3 ? 'scatter3d' : 'scatter',
-                      mode: 'markers',
-                      x: x,
-                      y: y,
-                      z: z,
-                      text: vert_text,
-                    };
-              Plotly.newPlot(plot_div, [data], layout);
+              Plotly.newPlot(plot_div, traces, layout);
             }
 
       const refresh_properties = (fe) => {
@@ -78,7 +102,7 @@
                       dof_options += '<option>' + b + '</option>';
                     }
               document.getElementById("feplotly_dof_select").innerHTML = dof_options;
-              document.getElementById("fe_refel").innerHTML = fe.reference_element.polytope;
+              document.getElementById("fe_refel").innerHTML = fe.reference_element[0].polytope;
               document.getElementById("fe_min_degree").innerHTML = fe.basis_space.minimum_degree;
               document.getElementById("fe_max_degree").innerHTML = fe.basis_space.maximum_degree;
               document.getElementById("fe_variance").innerHTML = fe.dual_space.variance;
