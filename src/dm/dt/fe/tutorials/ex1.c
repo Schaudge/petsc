@@ -63,14 +63,15 @@ static PetscErrorCode PetscFESAWsCreateArray(PetscFESAWs fes, SAWs_Data_type dty
 
   PetscFunctionBegin;
   switch (dtype) {
+  case SAWs_STRING:
   case SAWs_CHAR:
     mpi_dtype = MPI_CHAR;
     break;
   case SAWs_INT:
     mpi_dtype = MPI_INT;
     break;
-  case SAWs_DOUBLE:
-    mpi_dtype = MPI_DOUBLE;
+  case SAWs_FLOAT:
+    mpi_dtype = MPI_FLOAT;
     break;
   default:
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "PetscFESAWs does not create arrays of this type");
@@ -80,7 +81,11 @@ static PetscErrorCode PetscFESAWsCreateArray(PetscFESAWs fes, SAWs_Data_type dty
   link->next = fes->arrays;
   fes->arrays = link;
   PetscCall(PetscMalloc(count*dsize, &(link->mem)));
-  *((void **) data_pointer) = link->mem;
+  if (dtype == SAWs_STRING) {
+    *((void **) data_pointer) = &(link->mem);
+  } else {
+    *((void **) data_pointer) = link->mem;
+  }
   PetscFunctionReturn(0);
 }
 
@@ -177,18 +182,141 @@ static PetscErrorCode PetscFESAWsViewReferenceElement(PetscFESAWs fes, DM refel)
 {
   PetscInt v_start, v_end;
   DMPolytopeType ptype;
-  size_t type_name_len;
-  char *type_name;
+  PetscInt num_verts, dim;
   int *i_array;
+  Vec coord_vec;
+  float *vertex_coords;
+  PetscScalar *these_coords;
+  DM coord_dm;
 
   PetscFunctionBegin;
-  PetscCall(DMPlexGetDepthStratum(refel, 0, &v_start, &v_end));
-  PetscCall(PetscFESAWsCreateArray(fes, SAWs_INT, 1, &i_array));
-  i_array[0] = v_end - v_start;
-  PetscCall(PetscFESAWsWriteProperty(fes, "number_of_vertices", &i_array[0], 1, SAWs_READ, SAWs_INT));
   PetscCall(DMPlexGetCellType(refel, 0, &ptype));
-  PetscCall(PetscStrlen(DMPolytopeTypes[ptype], &type_name_len));
-  PetscCall(PetscFESAWsWriteProperty(fes, "polytope", DMPolytopeTypes[ptype], type_name_len, SAWs_READ, SAWs_CHAR));
+  PetscCall(PetscFESAWsWriteProperty(fes, "polytope", &DMPolytopeTypes[ptype], 1, SAWs_READ, SAWs_STRING));
+
+  PetscCall(DMPlexGetDepthStratum(refel, 0, &v_start, &v_end));
+  PetscCall(PetscFESAWsCreateArray(fes, SAWs_INT, 4, &i_array));
+  i_array[0] = num_verts = v_end - v_start;
+  PetscCall(PetscFESAWsWriteProperty(fes, "number_of_vertices", &i_array[0], 1, SAWs_READ, SAWs_INT));
+
+  PetscCall(DMGetCoordinateDim(refel, &dim));
+  PetscCall(PetscFESAWsCreateArray(fes, SAWs_FLOAT, num_verts * dim, &vertex_coords));
+  PetscCall(DMGetCoordinatesLocalNoncollective(refel, &coord_vec));
+  PetscCall(DMGetCoordinateDM(refel, &coord_dm));
+  PetscCall(PetscMalloc1(dim, &these_coords));
+  for (PetscInt v = v_start; v < v_end; v++) {
+    PetscInt csize = dim;
+
+    PetscCall(DMPlexVecGetClosure(coord_dm, NULL, coord_vec, v, &csize, &these_coords));
+    for (PetscInt d = 0; d < dim; d++) {
+      // vertex coords are stores with point as the leading dimension
+      vertex_coords[d * num_verts + (v - v_start)] = PetscRealPart(these_coords[d]);
+    }
+  }
+  PetscCall(PetscFree(these_coords));
+  PetscCall(PetscFESAWsWriteProperty(fes, "vertex_coordinates", vertex_coords, dim * num_verts, SAWs_READ, SAWs_FLOAT));
+
+  if (dim > 0) {
+    PetscInt e_start, e_end;
+    PetscInt num_edges;
+    float *edge_coords;
+
+    PetscCall(DMPlexGetDepthStratum(refel, 1, &e_start, &e_end));
+    i_array[1] = num_edges = e_end - e_start;
+    PetscCall(PetscFESAWsWriteProperty(fes, "number_of_edges", &i_array[1], 1, SAWs_READ, SAWs_INT));
+    PetscCall(PetscFESAWsCreateArray(fes, SAWs_FLOAT, num_edges * 2 * dim, &edge_coords));
+    PetscCall(PetscFESAWsDirectoryPush(fes, "edges"));
+    for (PetscInt e = e_start; e < e_end; e++) {
+      char edge_string[3];
+      const PetscInt *verts;
+
+      PetscCall(PetscSNPrintf(edge_string, 3, "%d", e - e_start));
+      PetscCall(PetscFESAWsDirectoryPush(fes, edge_string));
+      PetscCall(DMPlexGetCone(coord_dm, e, &verts));
+      for (PetscInt c = 0; c < 2; c++) {
+        PetscInt v = verts[c];
+        for (PetscInt d = 0; d < dim; d++) {
+          edge_coords[(e-e_start) * dim * 2 + d * 2 + c] = vertex_coords[d * num_verts + (v-v_start)];
+        }
+      }
+      PetscCall(PetscFESAWsWriteProperty(fes, "coordinates", &edge_coords[(e-e_start)*dim*2], dim * 2, SAWs_READ, SAWs_FLOAT));
+      PetscCall(PetscFESAWsDirectoryPop(fes));
+    }
+    PetscCall(PetscFESAWsDirectoryPop(fes));
+  } else {
+    i_array[1] = 0;
+    PetscCall(PetscFESAWsWriteProperty(fes, "number_of_edges", &i_array[1], 1, SAWs_READ, SAWs_INT));
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFESAWsViewBasisSpace(PetscFESAWs fes, PetscSpace sp)
+{
+  PetscInt min_degree, max_degree;
+  PetscInt *i_array;
+
+  PetscFunctionBegin;
+  PetscCall(PetscSpaceGetDegree(sp, &min_degree, &max_degree));
+  PetscCall(PetscFESAWsCreateArray(fes, SAWs_INT, 2, &i_array));
+  i_array[0] = min_degree;
+  i_array[1] = max_degree;
+  PetscCall(PetscFESAWsWriteProperty(fes, "minimum_degree", &i_array[0], 1, SAWs_READ, SAWs_INT));
+  PetscCall(PetscFESAWsWriteProperty(fes, "maximum_degree", &i_array[1], 1, SAWs_READ, SAWs_INT));
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFESAWsViewDualSpace(PetscFESAWs fes, PetscDualSpace dsp)
+{
+  DM          dm;
+  PetscInt    form_degree, dim;
+  PetscBool   continuous;
+  size_t      var_len;
+  char      **variance;
+  const char *variance_static;
+  const char *variances[] = {
+    "invariant | \\\\(H^1\\\\) | \\\\(0\\\\)-form",
+    "covariant | \\\\(H(\\\\mathrm{curl})\\\\) | \\\\(1\\\\)-form", 
+    "contravariant | \\\\(H(\\\\mathrm{div})\\\\) | \\\\((\\\\star X)\\\\)-form", 
+    "\\\\(L^2\\\\) | \\\\(X\\\\)-form",
+    "\\\\(X\\\\)-form"
+  };
+  int          continuity_index;
+  static const char *continuities[] = {
+    "discontinuous", 
+    "continuous", 
+    "tangentially continuous", 
+    "normally continuous", 
+    "trace continuous", 
+  };
+  const char  dims[] = "0123456789";
+
+  PetscFunctionBegin;
+  PetscCall(PetscDualSpaceGetDM(dsp, &dm));
+  PetscCall(DMGetCoordinateDim(dm, &dim));
+  PetscCall(PetscDualSpaceGetFormDegree(dsp, &form_degree));
+  PetscCall(PetscDualSpaceLagrangeGetContinuity(dsp, &continuous));
+  variance_static =
+    (form_degree == 0) ? variances[0] :
+    (form_degree == dim) ? variances[3] :
+    (form_degree == 1) ? variances[1] :
+    (form_degree == -(dim-1)) ? variances[2] :
+    variances[4];
+  PetscCall(PetscStrlen(variance_static, &var_len));
+  PetscCall(PetscFESAWsCreateArray(fes, SAWs_STRING, var_len + 1, &variance));
+  PetscCall(PetscArraycpy(*variance, variance_static, var_len));
+  (*variance)[var_len] = '\0';
+  for (size_t i = 0; i < var_len; i++) {
+    if ((*variance)[i] == 'X') (*variance)[i] = dims[PetscAbsInt(form_degree)];
+  }
+  PetscCall(PetscFESAWsWriteProperty(fes, "variance", variance, 1, SAWs_READ, SAWs_STRING));
+
+  continuity_index =
+    (!continuous) ? 0 :
+    (form_degree == 0) ? 1 :
+    (form_degree == 1) ? 2 :
+    (form_degree == -(dim-1)) ? 3 :
+    4;
+  PetscCall(PetscFESAWsWriteProperty(fes, "continuity", &continuities[continuity_index], 1, SAWs_READ, SAWs_STRING));
+
   PetscFunctionReturn(0);
 }
 
@@ -202,27 +330,29 @@ static PetscErrorCode PetscFESAWsAddFE(PetscFESAWs fes, PetscFE fe)
   fes->number_of_elements++;
   {
     PetscInt dim, Nb, Nc;
+    PetscSpace space;
     PetscDualSpace dsp;
     DM refel;
     int *i_dim_Nb_Nc;
     const char *name;
     const char *prefix;
-    char *aname, *aprefix;
+    char **aname, **aprefix;
     size_t name_len, prefix_len;
 
     PetscCall(PetscObjectName((PetscObject) fe));
     PetscCall(PetscObjectGetName((PetscObject) fe, &name));
     PetscCall(PetscStrlen(name, &name_len));
-    PetscCall(PetscFESAWsCreateArray(fes, SAWs_CHAR, name_len+1, &aname));
-    PetscCall(PetscArraycpy(aname, name, name_len+1));
-    PetscCall(PetscFESAWsWriteProperty(fes, "name", aname, name_len, SAWs_READ, SAWs_CHAR));
+    PetscCall(PetscFESAWsCreateArray(fes, SAWs_STRING, name_len+1, &aname));
+    PetscCall(PetscArraycpy(*aname, name, name_len+1));
+    (*aname)[name_len] = '\0';
+    PetscCall(PetscFESAWsWriteProperty(fes, "name", aname, 1, SAWs_READ, SAWs_STRING));
 
     PetscCall(PetscObjectGetOptionsPrefix((PetscObject) fe, &prefix));
     PetscCall(PetscStrlen(prefix, &prefix_len));
-    PetscCall(PetscFESAWsCreateArray(fes, SAWs_CHAR, prefix_len+1, &aprefix));
-    aprefix[prefix_len] = '\0';
-    PetscCall(PetscArraycpy(aprefix, prefix, prefix_len));
-    PetscCall(PetscFESAWsWriteProperty(fes, "options_prefix", aprefix, prefix_len, SAWs_READ, SAWs_CHAR));
+    PetscCall(PetscFESAWsCreateArray(fes, SAWs_STRING, prefix_len+1, &aprefix));
+    PetscCall(PetscArraycpy(*aprefix, prefix, prefix_len));
+    (*aprefix)[prefix_len] = '\0';
+    PetscCall(PetscFESAWsWriteProperty(fes, "options_prefix", aprefix, 1, SAWs_READ, SAWs_STRING));
 
     PetscCall(PetscFESAWsCreateArray(fes, SAWs_INT, 3, &i_dim_Nb_Nc));
 
@@ -239,9 +369,18 @@ static PetscErrorCode PetscFESAWsAddFE(PetscFESAWs fes, PetscFE fe)
     PetscCall(PetscFESAWsWriteProperty(fes, "number_of_components", &i_dim_Nb_Nc[2], 1, SAWs_READ, SAWs_INT));
 
     PetscCall(PetscFEGetDualSpace(fe, &dsp));
+    PetscCall(PetscFESAWsDirectoryPush(fes, "dual_space"));
+    PetscCall(PetscFESAWsViewDualSpace(fes, dsp));
+    PetscCall(PetscFESAWsDirectoryPop(fes));
+
     PetscCall(PetscDualSpaceGetDM(dsp, &refel));
     PetscCall(PetscFESAWsDirectoryPush(fes, "reference_element"));
     PetscCall(PetscFESAWsViewReferenceElement(fes, refel));
+    PetscCall(PetscFESAWsDirectoryPop(fes));
+
+    PetscCall(PetscFEGetBasisSpace(fe, &space));
+    PetscCall(PetscFESAWsDirectoryPush(fes, "basis_space"));
+    PetscCall(PetscFESAWsViewBasisSpace(fes, space));
     PetscCall(PetscFESAWsDirectoryPop(fes));
   }
   PetscCall(PetscFESAWsDirectoryPop(fes));
@@ -272,7 +411,10 @@ int main(int argc, char **argv)
     PetscBool isSimplex = PETSC_TRUE;
     PetscInt  qorder = PETSC_DETERMINE;
 
-    PetscCall(PetscFECreateDefault(PETSC_COMM_WORLD, dim, Nc, isSimplex, dim == 3 ? "threeD_" : NULL, qorder, &fe));
+    PetscCall(PetscFECreateLagrange(PETSC_COMM_WORLD, dim, Nc, isSimplex, 0, qorder, &fe));
+    if (dim == 3) {
+      PetscCall(PetscObjectSetOptionsPrefix((PetscObject)fe, "threeD_"));
+    }
     PetscCall(PetscFEView_SAWs(fe, PETSC_VIEWER_SAWS_(PETSC_COMM_WORLD)));
     PetscCall(PetscFEDestroy(&fe));
   }

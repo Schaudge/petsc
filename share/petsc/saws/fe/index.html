@@ -3,11 +3,16 @@
   <head>
     <title>PETSc Finite Element Viewer</title>
     <script src="https://cdn.plot.ly/plotly-2.12.1.min.js"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>
 
       var fe_data = {};
+      var state = {};
+      state.selected_element = {};
+      state.selected_dof = {};
 
-      function saws_to_plain_json(saws_json) {
+      const saws_to_plain_json = (saws_json) => {
               let plain = {};
               if (typeof saws_json.directories != "undefined") {
                       for (const key in saws_json.directories) {
@@ -16,34 +21,113 @@
                     }
               if (typeof saws_json.variables != "undefined") {
                       for (const key in saws_json.variables) {
-                              const is_char_array = (v) => ((typeof v === 'string') && v.length == 1);
-                              if (saws_json.variables[key].data.every(is_char_array)) {
-                                      plain[key] = saws_json.variables[key].data.join("");
-                                    }
-                              else {
-                                      plain[key] = saws_json.variables[key].data;
-                                    }
+                              plain[key] = saws_json.variables[key].data;
                             }
                     }
               return plain;
+            };
+
+      const replot = (fe) => {
+              const dim = fe.spatial_dimension[0];
+              const refel = fe.reference_element;
+              const num_vertices = refel.number_of_vertices[0];
+              let x = dim > 0 ? refel.vertex_coordinates.slice(0,num_vertices) : new Float32Array(num_vertices).fill(0.0);
+              let y = dim > 1 ? refel.vertex_coordinates.slice(num_vertices,2*num_vertices) : new Float32Array(num_vertices).fill(0.0);
+              let z = dim > 2 ? refel.vertex_coordinates.slice(2*num_vertices,3*num_vertices) : new Float32Array(num_vertices).fill(0.0);
+
+              let vert_text = new Array(num_vertices);
+              for (let i = 0; i < num_vertices; i++) {
+                      vert_text[i] = 'vertex ' + i;
+                    }
+
+              console.log(x);
+              console.log(y);
+              console.log(z);
+              const plot_div = document.getElementById('feplotly_plot');
+              const layout = {
+                      title: fe.name,
+                      margin: { l: 0, r: 0, t: 0, b: 0 },
+                      xaxis: { showgrid: false, zeroline: false },
+                      yaxis: { showgrid: false, zeroline: false, scaleanchor: 'x', scaleratio: 1 },
+                      zaxis: { showgrid: false, zeroline: false, scaleanchor: 'x', scaleratio: 1 },
+                    };
+              const data = {
+                      type: dim == 3 ? 'scatter3d' : 'scatter',
+                      mode: 'markers',
+                      x: x,
+                      y: y,
+                      z: z,
+                      text: vert_text,
+                    };
+              Plotly.newPlot(plot_div, [data], layout);
             }
 
-      const plot_fe = (fe_saws_json) => {
+      const refresh_properties = (fe) => {
+              document.getElementById("fe_name").innerHTML = fe.name;
+              if (fe.options_prefix != "") {
+                      document.getElementById("fe_prefix").innerHTML = '<code>-' + fe.options_prefix + '</code>';
+                    }
+              else {
+                      document.getElementById("fe_prefix").innerHTML = "&nbsp;";
+                    }
+              document.getElementById("fe_spatial_dimension").innerHTML = fe.spatial_dimension;
+
+              document.getElementById("fe_dimension").innerHTML = fe.dimension;
+              let dof_options = '<option>all</option>';
+              for (let b = 0; b < fe.dimension; b++) {
+                      dof_options += '<option>' + b + '</option>';
+                    }
+              document.getElementById("feplotly_dof_select").innerHTML = dof_options;
+              document.getElementById("fe_refel").innerHTML = fe.reference_element.polytope;
+              document.getElementById("fe_min_degree").innerHTML = fe.basis_space.minimum_degree;
+              document.getElementById("fe_max_degree").innerHTML = fe.basis_space.maximum_degree;
+              document.getElementById("fe_variance").innerHTML = fe.dual_space.variance;
+              document.getElementById("fe_continuity").innerHTML = fe.dual_space.continuity;
+              MathJax.typeset();
+            };
+
+      const feviewer_refresh = () => {
+              let selected_element = document.querySelector("input[name=feviewer_element_select]:checked").value;
+              if (state.selected_element != selected_element) {
+                      state.selected_element = selected_element;
+                      refresh_properties(fe_data[selected_element]);
+                      state.selected_dof = {};
+                    }
+              let selected_dof = document.getElementById("feplotly_dof_select").value;
+              if (state.selected_dof != selected_dof) {
+                      state.selected_dof = selected_dof;
+                      replot(fe_data[selected_element]);
+                    }
+            };
+
+      const feviewer_init = (fe_saws_json) => {
               try {
+                      console.log(fe_saws_json);
                       fe_data = saws_to_plain_json(fe_saws_json).FE;
+                      console.log(fe_data);
                       const number_of_elements = fe_data.number_of_elements[0];
                       console.log("Plotting " + number_of_elements + " finite elements");
-                      const tabs_div = document.getElementById('feviewer_tabs');
+                      const tabs_div = document.getElementById('feviewer_radio_tabs');
                       for (let i = 0; i < number_of_elements; i++) {
+                              let radio_tab = document.createElement("INPUT");
+                              radio_tab.id = 'feviewer_radio_tab' + i;
+                              radio_tab.type = 'radio';
+                              radio_tab.classList.add('feviewer_radio_tab');
+                              radio_tab.value = i;
+                              radio_tab.name = 'feviewer_element_select';
+                              radio_tab.checked = (i == 0);
+                              radio_tab.addEventListener("click", feviewer_refresh);
+                              let tab_label = document.createElement("LABEL");
+                              tab_label.id = 'feviewer_radio_tab_label' + i;
+                              tab_label.htmlFor = radio_tab.id;
                               if (fe_data[i].options_prefix != "") {
-                                      tabs_div.innerHTML += '<button class="feviewer_tab"' + 'id="feviewer_tab_' + i + '" onclick="open_tab(event,' + i + ')"/><h3>' + fe_data[i].name.toString() + ' (' + fe_data[i].options_prefix.toString() + ')</h3></button>';
+                                      tab_label.innerHTML = '<h2>' + fe_data[i].name + ' (<code>-' + fe_data[i].options_prefix + '</code>)</h2>';
                                     }
-                               else {
-                                      tabs_div.innerHTML += '<button class="feviewer_tab"' + 'id="feviewer_tab_' + i + '" onclick="open_tab(event,' + i + ')"/><h3>' + fe_data[i].name + '</h3></button>';
-                                     }
-                            }
-                      if (number_of_elements > 0) {
-                              document.getElementById('feviewer_tab_0').click();
+                              else {
+                                      tab_label.innerHTML = '<h2>' + fe_data[i].name + '</h2>';
+                                    }
+                              tabs_div.appendChild(radio_tab);
+                              tabs_div.appendChild(tab_label);
                             }
                       const plot_div = document.getElementById('feplotly_plot');
                       Plotly.newPlot( plot_div, [{
@@ -56,25 +140,6 @@
                       document.getElementById('feviewer_status').innerHTML = "FE error, see console log";
                     }
             };
-
-      function open_tab(evt, j) {
-              let tabs = document.getElementsByClassName("feviewer_tab");
-              let this_fe = fe_data[j];
-              for (let i = 0; i < tabs.length; i++) {
-                      tabs[i].className = tabs[i].className.replace(" active", "");
-                    }
-              evt.currentTarget.className += " active";
-              document.getElementById("fe_name").innerHTML = this_fe.name;
-              if (this_fe.options_prefix != "") {
-                      document.getElementById("fe_prefix").innerHTML = '<code>-' + this_fe.options_prefix + '</code>';
-                    }
-              else {
-                      document.getElementById("fe_prefix").innerHTML = "&nbsp;";
-                    }
-              document.getElementById("fe_spatial_dimension").innerHTML = this_fe.spatial_dimension;
-              document.getElementById("fe_dimension").innerHTML = this_fe.dimension;
-              document.getElementById("fe_refel").innerHTML = this_fe.reference_element.polytope;
-            }
 
       const no_fe_network_error = (err) => {
               console.log(err);
@@ -109,67 +174,99 @@
      `;
             };
 
-      window.onload = () => {
-              const f = fetch('/SAWs/PETSc/FE/')
-                .then(result => result.json()
-                        .then(data => plot_fe(data))
-                        .catch(err => no_fe_json_error(err))
-                      )
+      window.addEventListener("load", () => {
+              fetch('/SAWs/PETSc/FE/')
+                .then(result => {
+                        console.log(result);
+                        return result.json()
+                        .then(data => feviewer_init(data))
+                        .catch(err => no_fe_json_error(err));
+                      })
                 .catch(err => no_fe_network_error(err))
-            };
+                .then(_ => feviewer_refresh());
+            });
+
+      window.addEventListener("change", feviewer_refresh);
     </script>
     <style>
       html {
-        font-family:sans-serif;
+        font-family: sans-serif;
+        box-sizing: border-box;
       }
-      .feviewer_tabs {
-        overflow: hidden;
-        border: 1px;
+
+      h1 {
+        color: #404243;
       }
+
+      *,
+      *:before,
+      *:after {
+        box-sizing: inherit;
+      }
+
+      .feviewer_radio_tabs {
+        clear: both;
+        display: inline-block;
+        width: 100%;
+        border-bottom: 1px solid #305e89;
+        padding: 0 10px;
+        position: relative;
+      }
+
+      input.feviewer_radio_tab {
+        position: absolute;
+        left: -99999em;
+        top: -99999em;
+      }
+
+      input.feviewer_radio_tab + label {
+        cursor: pointer;
+        float: left;
+        border: 1px solid #aaa;
+        border-bottom: 0;
+        background-color: #fff;
+        margin-right: -1px;
+        padding: .5em 1em;
+        position: relative;
+      }
+
+      h2 {
+        margin-bottom: 0;
+        margin-top: 0;
+      }
+
+      input.feviewer_radio_tab + label:hover {
+        background-color: #eee;
+      }
+
+      input.feviewer_radio_tab:checked + label {
+        box-shadow: 0 3px 0 -1px #fff, inset 0 5px 0 -1px #305e89;
+        background-color: #fff;
+        border-color: #305e89;
+        z-index: 1;
+      }
+
       .feviewer_main {
-        display: table-row;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1em;
       }
       .feviewer_properties {
-        width: 50%;
-        display: table-cell;
+        min-width: 320px;
       }
-      .feviewer_properties dl {
-        width: 100%;
-        overflow: hidden;
-        padding: 0;
-        margin: 0;
-      }
-      .feviewer_properties dt {
+      .feviewer_property {
         font-weight: bold;
-        width: 50%;
-        float: left;
-        padding: 0;
-        margin: 0;
-      }
-      .feviewer_properties dd {
-        width: 50%;
-        float: left;
-        padding: 0;
-        margin: 0;
       }
       .feplotly {
-        width: 50%;
-        display: table-cell;
+        min-width: 320px;
       }
-      .feplotly_plot {
-        width: 600px;
-        height: 371px;
+      .feplotly_control_row {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 1em;
       }
-      .feviewer_tabs button {
-        background-color: inherit;
-        border: none;
-        outline: none;
-      }
-      .feviewer_tabs button:hover {
-        background-color: #ddd;
-      }
-      .feviewer_tabs button.active {
-        background-color: #ccc;
+      .feplotly_control {
+        display: inline;
       }
     </style>
     <link rel="icon" href="images/petsc_favicon.png"/>
@@ -182,22 +279,28 @@
 
     <div id="feviewer" class="feviewer">
       <div id="feviewer_status"></div>
-      <div id="feviewer_tabs" class="feviewer_tabs"></div>
+      <div id="feviewer_radio_tabs" class="feviewer_radio_tabs"></div>
       <div id="feviewer_main" class="feviewer_main">
         <div id="feviewer_properties" class="feviewer_properties">
-          <dl>
-            <dt>name</dt><dd id="fe_name"></dd>
-            <dt>options prefix</dt><dd id="fe_prefix"></dd>
-            <dt>spatial dimension</dt><dd id="fe_spatial_dimension"></dd>
-            <dt>number of basis functions</dt><dd id="fe_dimension"></dd>
-            <dt>reference element</dt><dd id="fe_refel"></dd>
+          <table><tbody>
+            <tr><td class="feviewer_property">name</td><td id="fe_name">&nbsp;</td></tr>
+            <tr><td class="feviewer_property">options prefix</td><td id="fe_prefix">&nbsp;</td></tr>
+            <tr><td class="feviewer_property">spatial dimension</td><td id="fe_spatial_dimension">&nbsp;</td></tr>
+            <tr><td class="feviewer_property">number of basis functions</td><td id="fe_dimension">&nbsp;</td></tr>
+            <tr><td class="feviewer_property">reference domain</td><td id="fe_refel">&nbsp;</td></tr>
+            <tr><td class="feviewer_property">contains all polynomials up to degree</td><td id="fe_min_degree">&nbsp;</td></tr>
+            <tr><td class="feviewer_property">maximum polynomial degree</td><td id="fe_max_degree">&nbsp;</td></tr>
+            <tr><td class="feviewer_property">variance</td><td id="fe_variance">&nbsp;</td></tr>
+            <tr><td class="feviewer_property">inter-element continuity</td><td id="fe_continuity">&nbsp;</td></tr>
+            <tr><td class="feviewer_property">functional type</td><td id="fe_functional_type">nodal</td></tr>
+          </tbody></table>
         </div>
         <div id="feplotly" class="feplotly">
-          <div id="feplotly_control_row">
-            Degree of freedom: <select></select>
-            Reference cell: <input type="checkbox"/>
-            Dual functional: <input type="checkbox"/>
-            Shape function: <input type="checkbox"/>
+          <div class="feplotly_control_row">
+            <div class="feplotly_control">degree of freedom: <select id="feplotly_dof_select"></select></div>
+            <div class="feplotly_control">reference cell: <input type="checkbox" id="feplotly_plot_refe" checked/></div>
+            <div class="feplotly_control">dual functional: <input type="checkbox"/></div>
+            <div class="feplotly_control">shape function: <input type="checkbox"/></div>
           </div>
           <div id="feplotly_plot"></div>
         </div>
