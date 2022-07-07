@@ -608,9 +608,7 @@ PetscErrorCode SNESLineSearchApply(SNESLineSearch linesearch, Vec X, Vec F, Pets
   if (!linesearch->keeplambda) linesearch->lambda = linesearch->damping; /* set the initial guess to lambda */
 
   if (fnorm) linesearch->fnorm = *fnorm;
-  else {
-    PetscCall(VecNorm(F, NORM_2, &linesearch->fnorm));
-  }
+  else PetscCall(VecNorm(F, NORM_2, &linesearch->fnorm));
 
   PetscCall(PetscLogEventBegin(SNESLINESEARCH_Apply,linesearch,X,F,Y));
 
