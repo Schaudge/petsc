@@ -208,6 +208,9 @@ cdef extern from * nogil:
     int TSSetTolerances(PetscTS,PetscReal,PetscVec,PetscReal,PetscVec)
     int TSGetTolerances(PetscTS,PetscReal*,PetscVec*,PetscReal*,PetscVec*)
 
+    int TSSetApplicationContext(PetscTS,void*)
+    int TSGetApplicationContext(PetscTS,void*)
+
     int TSMonitorSet(PetscTS,PetscTSMonitorFunction,void*,PetscTSCtxDel*)
     int TSMonitorCancel(PetscTS)
     int TSMonitor(PetscTS,PetscInt,PetscReal,PetscVec)

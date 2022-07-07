@@ -108,6 +108,9 @@ cdef extern from * nogil:
     int TaoComputeHessian(PetscTAO,PetscVec,PetscMat,PetscMat)
     int TaoComputeJacobian(PetscTAO,PetscVec,PetscMat,PetscMat)
 
+    int TaoSetApplicationContext(PetscTAO,void*)
+    int TaoGetApplicationContext(PetscTAO,void*)
+
     int TaoSetSolution(PetscTAO,PetscVec)
     int TaoSetConstraintsVec(PetscTAO,PetscVec)
     int TaoSetVariableBounds(PetscTAO,PetscVec,PetscVec)

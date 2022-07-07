@@ -152,10 +152,21 @@ cdef class TAO(Object):
     # --------------
 
     def setAppCtx(self, appctx):
-        self.set_attr("__appctx__", appctx)
+        self.set_attr('__appctx__', appctx)
+        if appctx is not None:
+            CHKERR( TaoSetApplicationContext(self.tao, <void*>appctx) )
+        else:
+            CHKERR( TaoSetApplicationContext(self.tao, NULL) )
 
     def getAppCtx(self):
-        return self.get_attr("__appctx__")
+        cdef void *ctx
+        appctx = self.get_attr('__appctx__')
+        if appctx is None:
+            CHKERR( TaoGetApplicationContext(self.tao, &ctx ) )
+            if ctx != NULL:
+                appctx = <object>ctx
+                self.setAppCtx(appctx)
+        return appctx
 
     def setSolution(self, Vec x):
         """

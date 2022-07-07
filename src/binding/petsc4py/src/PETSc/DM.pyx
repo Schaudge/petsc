@@ -141,9 +141,20 @@ cdef class DM(Object):
 
     def setAppCtx(self, appctx):
         self.set_attr('__appctx__', appctx)
+        if appctx is not None:
+            CHKERR( DMSetApplicationContext(self.dm, <void*>appctx) )
+        else:
+            CHKERR( DMSetApplicationContext(self.dm, NULL) )
 
     def getAppCtx(self):
-        return self.get_attr('__appctx__')
+        cdef void *ctx
+        appctx = self.get_attr('__appctx__')
+        if appctx is None:
+            CHKERR( DMGetApplicationContext(self.dm, &ctx ) )
+            if ctx != NULL:
+                appctx = <object>ctx
+                self.setAppCtx(appctx)
+        return appctx
 
     #
 

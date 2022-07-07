@@ -215,9 +215,20 @@ cdef class TS(Object):
 
     def setAppCtx(self, appctx):
         self.set_attr('__appctx__', appctx)
+        if appctx is not None:
+            CHKERR( TSSetApplicationContext(self.ts, <void*>appctx) )
+        else:
+            CHKERR( TSSetApplicationContext(self.ts, NULL) )
 
     def getAppCtx(self):
-        return self.get_attr('__appctx__')
+        cdef void *ctx
+        appctx = self.get_attr('__appctx__')
+        if appctx is None:
+            CHKERR( TSGetApplicationContext(self.ts, &ctx ) )
+            if ctx != NULL:
+                appctx = <object>ctx
+                self.setAppCtx(appctx)
+        return appctx
 
     # --- user RHS Function/Jacobian routines ---
 

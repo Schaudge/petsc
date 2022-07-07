@@ -183,6 +183,9 @@ cdef extern from * nogil:
 
     int DMCoarsenHookAdd(PetscDM,PetscDMCoarsenHook,PetscDMRestrictHook,void*)
 
+    int DMSetApplicationContext(PetscDM,void*)
+    int DMGetApplicationContext(PetscDM,void*)
+
 # --------------------------------------------------------------------
 
 cdef inline PetscDMBoundaryType asBoundaryType(object boundary) \

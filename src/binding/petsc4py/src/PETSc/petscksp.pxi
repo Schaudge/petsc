@@ -188,6 +188,9 @@ cdef extern from * nogil:
 
     int KSPGMRESSetRestart(PetscKSP,PetscInt)
 
+    int KSPSetApplicationContext(PetscKSP,void*)
+    int KSPGetApplicationContext(PetscKSP,void*)
+
 cdef extern from "custom.h" nogil:
     int KSPSetIterationNumber(PetscKSP,PetscInt)
     int KSPSetResidualNorm(PetscKSP,PetscReal)

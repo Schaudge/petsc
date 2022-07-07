@@ -160,9 +160,20 @@ cdef class KSP(Object):
 
     def setAppCtx(self, appctx):
         self.set_attr('__appctx__', appctx)
+        if appctx is not None:
+            CHKERR( KSPSetApplicationContext(self.ksp, <void*>appctx) )
+        else:
+            CHKERR( KSPSetApplicationContext(self.ksp, NULL) )
 
     def getAppCtx(self):
-        return self.get_attr('__appctx__')
+        cdef void *ctx
+        appctx = self.get_attr('__appctx__')
+        if appctx is None:
+            CHKERR( KSPGetApplicationContext(self.ksp, &ctx ) )
+            if ctx != NULL:
+                appctx = <object>ctx
+                self.setAppCtx(appctx)
+        return appctx
 
     # --- discretization space ---
 

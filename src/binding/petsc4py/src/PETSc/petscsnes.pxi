@@ -193,6 +193,9 @@ cdef extern from * nogil:
     int SNESGetMaxLinearSolveFailures(PetscSNES,PetscInt*)
     int SNESGetLinearSolveFailures(PetscSNES,PetscInt*)
 
+    int SNESSetApplicationContext(PetscSNES,void*)
+    int SNESGetApplicationContext(PetscSNES,void*)
+
     int SNESKSPSetUseEW(PetscSNES,PetscBool)
     int SNESKSPGetUseEW(PetscSNES,PetscBool*)
     int SNESKSPSetParametersEW(PetscSNES,PetscInt,PetscReal,PetscReal,
