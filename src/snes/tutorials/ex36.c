@@ -182,7 +182,7 @@ static PetscErrorCode SetupPrimalProblem(DM dm, AppCtx *user)
       PetscCall(PetscDSSetJacobian(ds, 0, 0, NULL, NULL, NULL, g3_oscillatory_uu));
       PetscCall(DMGetLabel(dm, "marker", &label));
       ex   = oscillatory_u;
-      PetscCall(DMAddBoundary(dm, DM_BC_ESSENTIAL, "wall", label, 1, &id, 0, 0, NULL, (void (*)(void)) ex, NULL, ctx, NULL));
+      //PetscCall(DMAddBoundary(dm, DM_BC_ESSENTIAL, "wall", label, 1, &id, 0, 0, NULL, (void (*)(void)) ex, NULL, ctx, NULL));
       break;
     default: SETERRQ(PetscObjectComm((PetscObject) ds), PETSC_ERR_ARG_WRONG, "Unsupported model type: %s (%d)", modTypes[PetscMin(user->modType, NUM_MOD_TYPES)], user->modType);
   }
@@ -295,7 +295,7 @@ static PetscErrorCode DestroyCoarseProjection(Mat Pi)
 
 static PetscErrorCode CoarseProjection(Mat Pi, Vec x, Vec y)
 {
-  ProjStruct    *ctx;
+  ProjStruct *ctx;
 
   PetscFunctionBegin;
   PetscCall(MatShellGetContext(Pi, (void **) &ctx));
@@ -306,8 +306,6 @@ static PetscErrorCode CoarseProjection(Mat Pi, Vec x, Vec y)
   PetscCall(MatMultTranspose(ctx->Ifine, ctx->tmpfine, ctx->tmpcoarse));
   PetscCall(PetscObjectSetName((PetscObject) ctx->tmpcoarse, "Coarse DG RHS"));
   PetscCall(PetscObjectSetOptionsPrefix((PetscObject) ctx->tmpcoarse, "coarse_dg_"));
-  PetscCall(VecViewFromOptions(ctx->tmpcoarse, NULL, "-rhs_view"));
-  PetscCall(VecPointwiseMult(ctx->tmpcoarse, ctx->Iscale, ctx->tmpcoarse));
   PetscCall(VecViewFromOptions(ctx->tmpcoarse, NULL, "-rhs_view"));
   PetscCall(KSPSolve(ctx->kspCoarse, ctx->tmpcoarse, y));
   PetscFunctionReturn(0);
@@ -329,8 +327,12 @@ static PetscErrorCode CreateCoarseProjection(DM dmc, DM dmf, Mat *Pi)
   PetscCall(DMCreateMassMatrix(dmc, dmc, &ctx->Mcoarse));
   PetscCall(DMCreateMassMatrix(dmf, dmf, &ctx->Mfine));
   PetscCall(DMCreateInterpolation(dmc, dmf, &ctx->Ifine, &ctx->Iscale));
+  PetscCall(PetscObjectSetOptionsPrefix((PetscObject) ctx->Ifine, "interp_"));
+  PetscCall(PetscObjectSetOptionsPrefix((PetscObject) ctx->Iscale, "interp_"));
+  PetscCall(MatViewFromOptions(ctx->Ifine, NULL, "-mat_view"));
+  PetscCall(VecViewFromOptions(ctx->Iscale, NULL, "-vec_view"));
   PetscCall(KSPCreate(PetscObjectComm((PetscObject) dmc), &ctx->kspCoarse));
-  PetscCall(PetscObjectSetOptionsPrefix((PetscObject) ctx->kspCoarse, "coarse_"));
+  PetscCall(KSPSetOptionsPrefix(ctx->kspCoarse, "coarse_"));
   PetscCall(KSPSetOperators(ctx->kspCoarse, ctx->Mcoarse, ctx->Mcoarse));
   PetscCall(KSPSetFromOptions(ctx->kspCoarse));
   PetscCall(MatCreateShell(PetscObjectComm((PetscObject) dmc), m, n, M, N, ctx, Pi));
@@ -370,12 +372,14 @@ static PetscErrorCode QuasiInterpolate(Mat P, Vec x, Vec y)
 
   PetscFunctionBegin;
   PetscCall(MatShellGetContext(P, (void **) &ctx));
+  PetscCall(PetscObjectSetOptionsPrefix((PetscObject) ctx->Ifdg, "fine_dg_"));
+  PetscCall(MatViewFromOptions(ctx->Ifdg, NULL, "-mat_view"));
   PetscCall(MatMult(ctx->Ifdg, x, ctx->tmpf));
 
   PetscCall(PetscObjectSetName((PetscObject) ctx->tmpf, "Fine DG Potential"));
   PetscCall(PetscObjectSetOptionsPrefix((PetscObject) ctx->tmpf, "fine_dg_"));
   PetscCall(VecViewFromOptions(ctx->tmpf, NULL, "-vec_view"));
-  PetscCall(MatMult(ctx->Pi, x, ctx->tmpc));
+  PetscCall(MatMult(ctx->Pi, ctx->tmpf, ctx->tmpc));
 
   PetscCall(PetscObjectSetName((PetscObject) ctx->tmpc, "Coarse DG Potential"));
   PetscCall(PetscObjectSetOptionsPrefix((PetscObject) ctx->tmpc, "coarse_dg_"));
@@ -421,7 +425,6 @@ static PetscErrorCode CreateQuasiInterpolator(DM dmc, DM dmf, Mat *P)
   PetscCall(DMCreateDS(dmfdg));
   PetscCall(DMCreateInterpolation(dmf, dmfdg, &ctx->Ifdg, NULL));
   PetscCall(DMCreateGlobalVector(dmfdg, &ctx->tmpf));
-  PetscCall(DMDestroy(&dmfdg));
 
   PetscCall(DMClone(dmc, &dmcdg));
   PetscCall(DMGetDimension(dmcdg, &dim));
@@ -432,8 +435,9 @@ static PetscErrorCode CreateQuasiInterpolator(DM dmc, DM dmf, Mat *P)
   PetscCall(PetscFEDestroy(&fe));
   PetscCall(DMCreateDS(dmcdg));
 
-  PetscCall(CreateCoarseProjection(dmcdg, dmf, &ctx->Pi));
+  PetscCall(CreateCoarseProjection(dmcdg, dmfdg, &ctx->Pi));
   PetscCall(DMCreateGlobalVector(dmcdg, &ctx->tmpc));
+  PetscCall(DMDestroy(&dmfdg));
   PetscCall(DMDestroy(&dmcdg));
 
   PetscCall(MatCreateShell(PetscObjectComm((PetscObject) dmc), m, n, M, N, ctx, P));
@@ -463,8 +467,12 @@ static PetscErrorCode CoarseTest(DM dm, Vec u, AppCtx *user)
   PetscCall(PetscObjectSetOptionsPrefix((PetscObject) uc, "coarse_"));
 
   PetscCall(CreateQuasiInterpolator(dmc, dm, &P));
+  // Test constant function
+  PetscCall(VecSet(u, 5.0));
+  PetscCall(VecViewFromOptions(u, NULL, "-test_view"));
 #if 1
   PetscCall(MatMult(P, u, uc));
+  PetscCall(VecViewFromOptions(uc, NULL, "-test_view"));
 #else
   {
     Mat In;
@@ -537,7 +545,8 @@ int main(int argc, char **argv)
     args: -mod_type oscillatory -epsilon 0.03125 \
           -dm_plex_dim 1 -dm_plex_box_faces 4 -potential_petscspace_degree 1 -dm_refine 2 -dmsnes_check \
           -coarse_dm_plex_dim 1 -coarse_dm_plex_box_faces 4 -coarse_dm_plex_hash_location \
-          -fine_dg_petscspace_degree 1 -fine_dg_petscdualspace_lagrange_continuity 0 \
-          -coarse_dg_petscspace_degree 1 -coarse_dg_petscdualspace_lagrange_continuity 0
+          -fine_dg_petscspace_degree 1 -fine_dg_petscdualspace_lagrange_continuity 0 -fine_dg_petscdualspace_lagrange_node_endpoints 0 \
+          -coarse_dg_petscspace_degree 1 -coarse_dg_petscdualspace_lagrange_continuity 0 -coarse_dg_petscdualspace_lagrange_node_endpoints 0 \
+          -coarse_pc_type lu
 
 TEST*/
