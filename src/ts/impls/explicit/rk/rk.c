@@ -458,7 +458,10 @@ PetscErrorCode TSRKRegister(TSRKType name,PetscInt order,PetscInt s,
   if (b)  PetscCall(PetscArraycpy(t->b,b,s));
   else for (i=0; i<s; i++) t->b[i] = A[(s-1)*s+i];
   if (c)  PetscCall(PetscArraycpy(t->c,c,s));
-  else for (i=0; i<s; i++) for (j=0,t->c[i]=0; j<s; j++) t->c[i] += A[i*s+j];
+  else {
+    for (i=0; i<s; i++) for (j=0,t->c[i]=0; j<s; j++) t->c[i] += A[i*s+j];
+    PetscCall(PetscLogFlops(s));
+  }
   t->FSAL = PETSC_TRUE;
   for (i=0; i<s; i++) if (t->A[(s-1)*s+i] != t->b[i]) t->FSAL = PETSC_FALSE;
 
@@ -564,6 +567,7 @@ static PetscErrorCode TSEvaluateStep_RK(TS ts,PetscInt order,Vec X,PetscBool *do
     if (rk->status == TS_STEP_INCOMPLETE) {
       PetscCall(VecCopy(ts->vec_sol,X));
       for (j=0; j<s; j++) w[j] = h*tab->b[j]/rk->dtratio;
+      PetscCall(PetscLogFlops(2*s));
       PetscCall(VecMAXPY(X,s,w,rk->YdotRHS));
     } else PetscCall(VecCopy(ts->vec_sol,X));
     PetscFunctionReturn(0);
@@ -572,10 +576,12 @@ static PetscErrorCode TSEvaluateStep_RK(TS ts,PetscInt order,Vec X,PetscBool *do
     if (rk->status == TS_STEP_INCOMPLETE) { /*Complete with the embedded method (be)*/
       PetscCall(VecCopy(ts->vec_sol,X));
       for (j=0; j<s; j++) w[j] = h*tab->bembed[j];
+      PetscCall(PetscLogFlops(s));
       PetscCall(VecMAXPY(X,s,w,rk->YdotRHS));
     } else {  /*Rollback and re-complete using (be-b) */
       PetscCall(VecCopy(ts->vec_sol,X));
       for (j=0; j<s; j++) w[j] = h*(tab->bembed[j] - tab->b[j]);
+      PetscCall(PetscLogFlops(2*s));
       PetscCall(VecMAXPY(X,s,w,rk->YdotRHS));
     }
     if (done) *done = PETSC_TRUE;
@@ -648,6 +654,7 @@ static PetscErrorCode TSRollBack_RK(TS ts)
   default: SETERRQ(PetscObjectComm((PetscObject)ts),PETSC_ERR_PLIB,"Invalid TSStepStatus");
   }
   for (j=0; j<s; j++) w[j] = -h*b[j];
+  PetscCall(PetscLogFlops(s));
   PetscCall(VecMAXPY(ts->vec_sol,s,w,YdotRHS));
   if (quadts && ts->costintegralfwd) {
     for (j=0; j<s; j++) {
@@ -712,6 +719,7 @@ static PetscErrorCode TSForwardStep_RK(TS ts)
   for (i=0; i<s; i++) {
     PetscCall(MatAXPY(ts->mat_sensip,h*b[i],rk->MatsFwdSensipTemp[i],SAME_NONZERO_PATTERN));
   }
+  PetscCall(PetscLogFlops(2*s + (s-1)*s/2));
   rk->status = TS_STEP_COMPLETE;
   PetscFunctionReturn(0);
 }
@@ -807,6 +815,7 @@ static PetscErrorCode TSStep_RK(TS ts)
       if (FSAL && !i) continue;
       PetscCall(TSComputeRHSFunction(ts,t+h*c[i],Y[i],YdotRHS[i]));
     }
+    PetscCall(PetscLogFlops(s*(s+1)/2 + 2*s));
 
     rk->status = TS_STEP_INCOMPLETE;
     PetscCall(TSEvaluateStep(ts,tab->order,ts->vec_sol,NULL));
@@ -910,6 +919,7 @@ static PetscErrorCode TSAdjointStep_RK(TS ts)
 
     if (b[i]) {
       for (j=i+1; j<s; j++) w[j-i-1] = A[j*s+i]/b[i]; /* coefficients for computing VecsSensiTemp */
+      PetscCall(PetscLogFlops(s));
     } else {
       for (j=i+1; j<s; j++) w[j-i-1] = A[j*s+i]; /* coefficients for computing VecsSensiTemp */
     }
@@ -1086,6 +1096,7 @@ static PetscErrorCode TSInterpolate_RK(TS ts,PetscReal itime,Vec X)
       b[i]  += h * B[i*p+j] * tt;
     }
   }
+  PetscCall(PetscLogFlops(3.0*p*s));
   PetscCall(VecCopy(rk->Y[0],X));
   PetscCall(VecMAXPY(X,s,b,rk->YdotRHS));
   PetscCall(PetscFree(b));

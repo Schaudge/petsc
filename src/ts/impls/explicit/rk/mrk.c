@@ -46,6 +46,7 @@ static PetscErrorCode TSInterpolate_RK_MultirateNonsplit(TS ts,PetscReal itime,V
       b[i]  += h * B[i*p+j] * tt;
     }
   }
+  PetscCall(PetscLogFlops(3*p*s));
   PetscCall(VecCopy(rk->X0,X));
   PetscCall(VecMAXPY(X,s,b,rk->YdotRHS_slow));
   PetscCall(PetscFree(b));
@@ -115,6 +116,7 @@ static PetscErrorCode TSStepRefine_RK_MultirateNonsplit(TS ts)
       PetscCall(VecDestroyVecs(s,&YdotRHS_copy));
     }
   }
+  PetscCall(PetscLogFlops(rk->dtratio*(10*s + s*(s+1)/2 + (subts ? 4 : 0))));
   PetscCall(VecDestroy(&vec_fast));
   PetscFunctionReturn(0);
 }
@@ -148,6 +150,7 @@ static PetscErrorCode TSStep_RK_MultirateNonsplit(TS ts)
     /* compute the stage RHS */
     PetscCall(TSComputeRHSFunction(ts,t+h*c[i],Y[i],YdotRHS_slow[i]));
   }
+  PetscCall(PetscLogFlops(3*s));
   /* update the slow components in the solution */
   rk->YdotRHS = YdotRHS_slow;
   rk->dtratio = 1;
@@ -265,6 +268,7 @@ static PetscErrorCode TSInterpolate_RK_MultirateSplit(TS ts,PetscReal itime,Vec 
       b[i]  += h * B[i*p+j] * tt;
     }
   }
+  PetscCall(PetscLogFlops(3*p*s));
   for (i=0; i<s; i++) {
     PetscCall(VecGetSubVector(rk->YdotRHS[i],rk->is_slow,&rk->YdotRHS_slow[i]));
   }
@@ -304,6 +308,7 @@ static PetscErrorCode TSEvaluateStep_RK_MultirateSplit(TS ts,PetscInt order,Vec 
     PetscCall(VecRestoreSubVector(ts->vec_sol,rk->is_slow,&Xslow));
   } else {
     for (j=0; j<s; j++) w[j] = h/rk->dtratio*tab->b[j];
+    PetscCall(PetscLogFlops(s));
     PetscCall(VecGetSubVector(X,rk->is_fast,&Xfast));
     PetscCall(VecMAXPY(Xfast,s,w,rk->YdotRHS_fast));
     PetscCall(VecRestoreSubVector(X,rk->is_fast,&Xfast));
@@ -371,6 +376,7 @@ static PetscErrorCode TSStepRefine_RK_MultirateSplit(TS ts)
     PetscCall(VecISCopy(rk->X0,rk->is_fast,SCATTER_FORWARD,Xfast));
     PetscCall(VecRestoreSubVector(ts->vec_sol,rk->is_fast,&Xfast));
   }
+  PetscCall(PetscLogFlops(rk->dtratio*(12*s + s*(s+1)/2 + 4)));
   PetscFunctionReturn(0);
 }
 
@@ -410,6 +416,7 @@ static PetscErrorCode TSStep_RK_MultirateSplit(TS ts)
     PetscCall(TSComputeRHSFunction(rk->subts_slow,t+h*c[i],Y[i],YdotRHS_slow[i]));
     PetscCall(TSComputeRHSFunction(rk->subts_fast,t+h*c[i],Y[i],YdotRHS_fast[i]));
   }
+  PetscCall(PetscLogFlops(2*s + s*(s+1)/2));
   rk->slow = PETSC_TRUE;
   /* update the slow components of the solution using slow time step */
   PetscCall(TSEvaluateStep_RK_MultirateSplit(ts,tab->order,ts->vec_sol,NULL));
