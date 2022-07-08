@@ -257,6 +257,28 @@ static PetscErrorCode PetscFESAWsViewBasisSpace(PetscFESAWs fes, PetscSpace sp)
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode PetscDualSpaceGetFunctionalPoint(PetscDualSpace dsp, PetscInt f, PetscInt *point)
+{
+  PetscInt     p_start, p_end;
+  PetscSection sec;
+
+  PetscFunctionBegin;
+  PetscCall(PetscDualSpaceGetSection(dsp, &sec));
+  PetscCall(PetscSectionGetChart(sec, &p_start, &p_end));
+  for (PetscInt p = p_start; p < p_end; p++) {
+    PetscInt dof, off;
+
+    PetscCall(PetscSectionGetDof(sec, p, &dof));
+    PetscCall(PetscSectionGetOffset(sec, p, &off));
+    if (off <= f && f < off + dof) {
+      *point = p;
+      PetscFunctionReturn(0);
+    }
+  }
+  SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Functional out of range");
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode PetscFESAWsViewDualSpace(PetscFESAWs fes, PetscDualSpace dsp)
 {
   DM          dm;
@@ -286,7 +308,7 @@ static PetscErrorCode PetscFESAWsViewDualSpace(PetscFESAWs fes, PetscDualSpace d
   };
   const char  dims[] = "0123456789";
   float *points_and_weights;
-  int *sizes;
+  int *sizes_and_points;
   PetscInt Nb, Nc;
   PetscInt Np;
 
@@ -332,21 +354,24 @@ static PetscErrorCode PetscFESAWsViewDualSpace(PetscFESAWs fes, PetscDualSpace d
     Np += fNp;
   }
   PetscCall(PetscFESAWsCreateArray(fes, SAWs_FLOAT, (Nc + dim) * Np, &points_and_weights));
-  PetscCall(PetscFESAWsCreateArray(fes, SAWs_INT, Np, &sizes));
+  PetscCall(PetscFESAWsCreateArray(fes, SAWs_INT, 2* Np, &sizes_and_points));
   for (PetscInt i = 0; i < Nb; i++) {
     PetscQuadrature f;
     char functional_string[5];
     const PetscReal *f_points;
     const PetscReal *f_weights;
-    PetscInt fNp;
+    PetscInt fNp, mesh_point;
     float *points, *weights;
 
     PetscCall(PetscSNPrintf(functional_string, 5, "%d", i));
     PetscCall(PetscFESAWsDirectoryPush(fes, functional_string));
     PetscCall(PetscDualSpaceGetFunctional(dsp, i, &f));
     PetscCall(PetscQuadratureGetData(f, NULL, NULL, &fNp, &f_points, &f_weights));
-    sizes[i] = fNp;
-    PetscCall(PetscFESAWsWriteProperty(fes, "number_of_nodes", &sizes[i], 1, SAWs_READ, SAWs_INT));
+    PetscCall(PetscDualSpaceGetFunctionalPoint(dsp, i, &mesh_point));
+    sizes_and_points[2*i] = fNp;
+    sizes_and_points[2*i + 1] = mesh_point;
+    PetscCall(PetscFESAWsWriteProperty(fes, "number_of_nodes", &sizes_and_points[2*i], 1, SAWs_READ, SAWs_INT));
+    PetscCall(PetscFESAWsWriteProperty(fes, "mesh_point", &sizes_and_points[2*i+1], 1, SAWs_READ, SAWs_INT));
 
     points = &points_and_weights[0];
     points_and_weights += fNp * dim;

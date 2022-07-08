@@ -107,7 +107,7 @@
                               x: x,
                               y: y,
                               z: z,
-                              marker: { size: (dim < 3 ) ? 9 : 4, color: "#d86035" },
+                              marker: { size: (dim < 3 ) ? 9 : 3, color: "#d86035" },
                               visible: false,
                             };
                       traces.push(data);
@@ -137,11 +137,16 @@
               let invisible_vertex = { opacity: 0.1 };
               let invisible_list = [];
               let invisible_vertex_list = [];
+
+              const selected_dof = document.getElementById("feplotly_select_dof").value;
+              console.log(selected_dof);
+              const selected_mesh_point = (selected_dof == 'all') ? 'all' : fe.dual_space[selected_dof].mesh_point;
+
               const refel = fe.reference_element;
               const num_points = refel.number_of_mesh_points[0];
               const plot_refel = document.getElementById("feplotly_plot_refel").checked;
               for (let p = 0; p < num_points; p++) {
-                      if (plot_refel) {
+                      if (plot_refel && (selected_mesh_point == 'all' || selected_mesh_point == p)) {
                               if (refel[p].dimension[0] == 0) {
                                       visible_vertex_list.push(p + state.trace_offsets.refel);
                                     }
@@ -160,9 +165,7 @@
                     }
 
               const num_basis = fe.dimension[0];
-              const selected_dof = document.getElementById("feplotly_select_dof").value;
               const plot_dual = document.getElementById("feplotly_plot_dual").checked;
-              console.log(selected_dof);
               for (let b = 0; b < num_basis; b++) {
                       if (plot_dual && (selected_dof == 'all' || selected_dof == b)) {
                               visible_list.push(b + state.trace_offsets.dual);
@@ -426,7 +429,7 @@
           <div class="feplotly_control_row">
             <div class="feplotly_control">degree of freedom: <select id="feplotly_select_dof"></select></div>
             <div class="feplotly_control">reference cell: <input type="checkbox" id="feplotly_plot_refel" checked/></div>
-            <div class="feplotly_control">dual functional: <input type="checkbox" id="feplotly_plot_dual" /></div>
+            <div class="feplotly_control">dual functional: <input type="checkbox" id="feplotly_plot_dual" checked/></div>
             <div class="feplotly_control"><span class="disabled">shape function: </span><input type="checkbox" disabled="disabled"/></div>
           </div>
           <div id="feplotly_plot"></div>
