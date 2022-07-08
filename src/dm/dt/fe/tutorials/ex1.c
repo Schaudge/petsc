@@ -280,7 +280,15 @@ static PetscErrorCode PetscFESAWsViewDualSpace(PetscFESAWs fes, PetscDualSpace d
     "normally continuous", 
     "trace continuous", 
   };
+  static const char *types[] = {
+    "nodal",
+    "modal"
+  };
   const char  dims[] = "0123456789";
+  float *points_and_weights;
+  int *sizes;
+  PetscInt Nb, Nc;
+  PetscInt Np;
 
   PetscFunctionBegin;
   PetscCall(PetscDualSpaceGetDM(dsp, &dm));
@@ -301,6 +309,8 @@ static PetscErrorCode PetscFESAWsViewDualSpace(PetscFESAWs fes, PetscDualSpace d
     if ((*variance)[i] == 'X') (*variance)[i] = dims[PetscAbsInt(form_degree)];
   }
   PetscCall(PetscFESAWsWriteProperty(fes, "variance", variance, 1, SAWs_READ, SAWs_STRING));
+  // TODO: detect modal
+  PetscCall(PetscFESAWsWriteProperty(fes, "type", &types[0], 1, SAWs_READ, SAWs_STRING));
 
   continuity_index =
     (!continuous) ? 0 :
@@ -310,6 +320,53 @@ static PetscErrorCode PetscFESAWsViewDualSpace(PetscFESAWs fes, PetscDualSpace d
     4;
   PetscCall(PetscFESAWsWriteProperty(fes, "continuity", &continuities[continuity_index], 1, SAWs_READ, SAWs_STRING));
 
+  PetscCall(PetscDualSpaceGetDimension(dsp, &Nb));
+  PetscCall(PetscDualSpaceGetNumComponents(dsp, &Nc));
+  Np = 0;
+  for (PetscInt i = 0; i < Nb; i++) {
+    PetscQuadrature f;
+    PetscInt        fNp;
+
+    PetscCall(PetscDualSpaceGetFunctional(dsp, i, &f));
+    PetscCall(PetscQuadratureGetData(f, NULL, NULL, &fNp, NULL, NULL));
+    Np += fNp;
+  }
+  PetscCall(PetscFESAWsCreateArray(fes, SAWs_FLOAT, (Nc + dim) * Np, &points_and_weights));
+  PetscCall(PetscFESAWsCreateArray(fes, SAWs_INT, Np, &sizes));
+  for (PetscInt i = 0; i < Nb; i++) {
+    PetscQuadrature f;
+    char functional_string[5];
+    const PetscReal *f_points;
+    const PetscReal *f_weights;
+    PetscInt fNp;
+    float *points, *weights;
+
+    PetscCall(PetscSNPrintf(functional_string, 5, "%d", i));
+    PetscCall(PetscFESAWsDirectoryPush(fes, functional_string));
+    PetscCall(PetscDualSpaceGetFunctional(dsp, i, &f));
+    PetscCall(PetscQuadratureGetData(f, NULL, NULL, &fNp, &f_points, &f_weights));
+    sizes[i] = fNp;
+    PetscCall(PetscFESAWsWriteProperty(fes, "number_of_nodes", &sizes[i], 1, SAWs_READ, SAWs_INT));
+
+    points = &points_and_weights[0];
+    points_and_weights += fNp * dim;
+    for (PetscInt d = 0; d < dim; d++) {
+      for (PetscInt p = 0; p < fNp; p++) {
+        points[d * fNp + p] = f_points[p * dim + d];
+      }
+    }
+    PetscCall(PetscFESAWsWriteProperty(fes, "nodes", points, dim * fNp, SAWs_READ, SAWs_FLOAT));
+
+    weights = &points_and_weights[0];
+    points_and_weights += fNp * Nc;
+    for (PetscInt w = 0; w < Nc; w++) {
+      for (PetscInt p = 0; p < fNp; p++) {
+        weights[w * fNp + p] = f_weights[p * dim + w];
+      }
+    }
+    PetscCall(PetscFESAWsWriteProperty(fes, "weights", weights, Nc * fNp, SAWs_READ, SAWs_FLOAT));
+    PetscCall(PetscFESAWsDirectoryPop(fes));
+  }
   PetscFunctionReturn(0);
 }
 
@@ -404,7 +461,7 @@ int main(int argc, char **argv)
     PetscBool isSimplex = PETSC_TRUE;
     PetscInt  qorder = PETSC_DETERMINE;
 
-    PetscCall(PetscFECreateLagrange(PETSC_COMM_WORLD, dim, Nc, isSimplex, 0, qorder, &fe));
+    PetscCall(PetscFECreateLagrange(PETSC_COMM_WORLD, dim, Nc, isSimplex, dim + 1, qorder, &fe));
     if (dim == 3) {
       PetscCall(PetscObjectSetOptionsPrefix((PetscObject)fe, "threeD_"));
     }

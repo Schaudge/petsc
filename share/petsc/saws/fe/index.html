@@ -10,7 +10,7 @@
       var fe_data = {};
       var state = {};
       state.selected_element = {};
-      state.selected_dof = {};
+      state.trace_offsets = {refel: 0, dual: 0, shape: 0};
 
       const saws_to_plain_json = (saws_json) => {
               let plain = {};
@@ -27,11 +27,14 @@
               return plain;
             };
 
-      const replot = (fe) => {
+      const generate_traces = (fe) => {
+              console.log("Generating element traces");
               const dim = fe.spatial_dimension[0];
+
+              let traces = [];
+              state.trace_offsets = {refel: 0, dual: 0, shape: 0};
               const refel = fe.reference_element;
               const num_points = refel.number_of_mesh_points[0];
-              let traces = [];
               for (let p = 0; p < num_points; p++) {
                       const point = refel[p];
                       const point_dim = point.dimension[0];
@@ -39,34 +42,47 @@
                       let x = dim > 0 ? point.coordinates.slice(0,num_vertices) : new Float32Array(num_vertices).fill(0.0);
                       let y = dim > 1 ? point.coordinates.slice(num_vertices,2*num_vertices) : new Float32Array(num_vertices).fill(0.0);
                       let z = dim > 2 ? point.coordinates.slice(2*num_vertices,3*num_vertices) : new Float32Array(num_vertices).fill(0.0);
-                      console.log(x);
-                      console.log(y);
-                      console.log(z);
                       let data = {
                               type: dim < 3 ? 'scatter' : (point_dim < 2 ? 'scatter3d' : 'mesh3d'),
                               x: x,
                               y: y,
                               z: z,
-                              hoverinfo: 'skip'
+                              hoverinfo: 'skip',
+                              marker: { size: (dim < 3 ) ? 8 : 3, color: "#305e89" },
+                              color: "#305e89",
+                              visible: (point_dim == 0) ? true : false,
                             };
                       switch (point_dim) {
                               case 0:
                                 data.mode = 'markers';
                                 break;
                               case 1:
-                                data.mode = 'line';
+                                data.mode = 'lines';
                                 break;
                               case 2:
                                 data.mode = 'none';
                                 data.fill = 'toself';
                                 data.opacity = 0.1;
-                                data.alphahull = -1; // TODO: figure out the best delaunay axis of each face
-                                data.visible = true;
+                                {
+                                        const range = (a) => (Math.max(...a) - Math.min(...a));
+                                        let minaxis = 'x';
+                                        let minrange = range(x);
+                                        let yrange = range(y);
+                                        if (yrange < minrange) {
+                                                minrange = yrange;
+                                                minaxis = 'y';
+                                              }
+                                        let zrange = range(z);
+                                        if (zrange < minrange) {
+                                                minrange = zrange;
+                                                minaxis = 'z';
+                                              }
+                                        data.delaunayaxis = minaxis;
+                                      }
                                 break;
                               case 3:
                                 data.opacity = 0.1;
                                 data.alphahull = 0; // use convex hull algorithm
-                                data.visible = false;
                                 break;
                               default:
                                 data.mode = 'none';
@@ -74,7 +90,29 @@
                             }
                       traces.push(data);
                     }
-              const plot_div = document.getElementById('feplotly_plot');
+              state.trace_offsets.dual = num_points;
+              const num_basis = fe.dimension[0];
+              const dual_basis = fe.dual_space;
+              for (let b = 0; b < num_basis; b++) {
+                      const functional = dual_basis[b];
+                      // TODO: handle modal
+                      const num_nodes = functional.number_of_nodes;
+                      const nodes = functional.nodes;
+                      let x = dim > 0 ? nodes.slice(0,num_nodes) : new Float32Array(num_nodes).fill(0.0);
+                      let y = dim > 1 ? nodes.slice(num_nodes,2*num_nodes) : new Float32Array(num_nodes).fill(0.0);
+                      let z = dim > 2 ? nodes.slice(2*num_nodes,3*num_nodes) : new Float32Array(num_nodes).fill(0.0);
+                      // TODO: color by weights
+                      let data = {
+                              type: dim < 3 ? 'scatter' : 'scatter3d',
+                              x: x,
+                              y: y,
+                              z: z,
+                              marker: { size: (dim < 3 ) ? 9 : 4, color: "#d86035" },
+                              visible: false,
+                            };
+                      traces.push(data);
+                    }
+              state.trace_offsets.shape = num_points + num_basis;
               const layout = {
                       showlegend: false,
                       title: fe.name,
@@ -83,10 +121,76 @@
                       yaxis: { showgrid: false, zeroline: false, scaleanchor: 'x', scaleratio: 1 },
                       zaxis: { showgrid: false, zeroline: false, scaleanchor: 'x', scaleratio: 1 },
                     };
+              const plot_div = document.getElementById('feplotly_plot');
               Plotly.newPlot(plot_div, traces, layout);
+            };
+
+      const replot = (fe) => {
+              console.log("Updating plotly plot");
+              console.log(state.trace_offsets);
+
+              let visible = { visible: true };
+              let visible_vertex = { opacity: 1.0 };
+              let visible_list = [];
+              let visible_vertex_list = [];
+              let invisible = { visible: false };
+              let invisible_vertex = { opacity: 0.1 };
+              let invisible_list = [];
+              let invisible_vertex_list = [];
+              const refel = fe.reference_element;
+              const num_points = refel.number_of_mesh_points[0];
+              const plot_refel = document.getElementById("feplotly_plot_refel").checked;
+              for (let p = 0; p < num_points; p++) {
+                      if (plot_refel) {
+                              if (refel[p].dimension[0] == 0) {
+                                      visible_vertex_list.push(p + state.trace_offsets.refel);
+                                    }
+                              else {
+                                      visible_list.push(p + state.trace_offsets.refel);
+                                    }
+                            }
+                      else {
+                              if (refel[p].dimension[0] == 0) {
+                                      invisible_vertex_list.push(p + state.trace_offsets.refel);
+                                    }
+                              else {
+                                      invisible_list.push(p + state.trace_offsets.refel);
+                                    }
+                            }
+                    }
+
+              const num_basis = fe.dimension[0];
+              const selected_dof = document.getElementById("feplotly_select_dof").value;
+              const plot_dual = document.getElementById("feplotly_plot_dual").checked;
+              console.log(selected_dof);
+              for (let b = 0; b < num_basis; b++) {
+                      if (plot_dual && (selected_dof == 'all' || selected_dof == b)) {
+                              visible_list.push(b + state.trace_offsets.dual);
+                            }
+                      else {
+                              invisible_list.push(b + state.trace_offsets.dual);
+                            }
+                    }
+
+              const plot_div = document.getElementById('feplotly_plot');
+              console.log(visible_list);
+              console.log(invisible_list);
+              if (visible_vertex_list.length > 0) {
+                      Plotly.restyle(plot_div, visible_vertex, visible_vertex_list);
+                    }
+              if (invisible_vertex_list.length > 0) {
+                      Plotly.restyle(plot_div, invisible_vertex, invisible_vertex_list);
+                    }
+              if (visible_list.length > 0) {
+                      Plotly.restyle(plot_div, visible, visible_list);
+                    }
+              if (invisible_list.length > 0) {
+                      Plotly.restyle(plot_div, invisible, invisible_list);
+                    }
             }
 
       const refresh_properties = (fe) => {
+              console.log("Loading element properties");
               document.getElementById("fe_name").innerHTML = fe.name;
               if (fe.options_prefix != "") {
                       document.getElementById("fe_prefix").innerHTML = '<code>-' + fe.options_prefix + '</code>';
@@ -101,7 +205,7 @@
               for (let b = 0; b < fe.dimension; b++) {
                       dof_options += '<option>' + b + '</option>';
                     }
-              document.getElementById("feplotly_dof_select").innerHTML = dof_options;
+              document.getElementById("feplotly_select_dof").innerHTML = dof_options;
               document.getElementById("fe_refel").innerHTML = fe.reference_element[0].polytope;
               document.getElementById("fe_min_degree").innerHTML = fe.basis_space.minimum_degree;
               document.getElementById("fe_max_degree").innerHTML = fe.basis_space.maximum_degree;
@@ -113,15 +217,12 @@
       const feviewer_refresh = () => {
               let selected_element = document.querySelector("input[name=feviewer_element_select]:checked").value;
               if (state.selected_element != selected_element) {
+                      console.log("Switch to element " + selected_element);
                       state.selected_element = selected_element;
                       refresh_properties(fe_data[selected_element]);
-                      state.selected_dof = {};
+                      generate_traces(fe_data[selected_element]);
                     }
-              let selected_dof = document.getElementById("feplotly_dof_select").value;
-              if (state.selected_dof != selected_dof) {
-                      state.selected_dof = selected_dof;
-                      replot(fe_data[selected_element]);
-                    }
+              replot(fe_data[selected_element]);
             };
 
       const feviewer_init = (fe_saws_json) => {
@@ -130,7 +231,7 @@
                       fe_data = saws_to_plain_json(fe_saws_json).FE;
                       console.log(fe_data);
                       const number_of_elements = fe_data.number_of_elements[0];
-                      console.log("Plotting " + number_of_elements + " finite elements");
+                      console.log("Loading " + number_of_elements + " finite elements");
                       const tabs_div = document.getElementById('feviewer_radio_tabs');
                       for (let i = 0; i < number_of_elements; i++) {
                               let radio_tab = document.createElement("INPUT");
@@ -153,11 +254,11 @@
                               tabs_div.appendChild(radio_tab);
                               tabs_div.appendChild(tab_label);
                             }
-                      const plot_div = document.getElementById('feplotly_plot');
-                      Plotly.newPlot( plot_div, [{
-                              x: [1, 2, 3, 4, 5],
-                              y: [1, 2, 4, 8, 16] }], {
-                                      margin: { t: 0 } } );
+                      document.getElementById("feplotly_select_dof").addEventListener("change", feviewer_refresh);
+                      document.getElementById("feplotly_plot_refel").addEventListener("change", feviewer_refresh);
+                      document.getElementById("feplotly_plot_dual").addEventListener("change", feviewer_refresh);
+                      window.addEventListener("resize", feviewer_refresh());
+                      feviewer_refresh();
                     }
               catch (e) {
                       console.log(e);
@@ -198,19 +299,18 @@
      `;
             };
 
+
       window.addEventListener("load", () => {
               fetch('/SAWs/PETSc/FE/')
                 .then(result => {
                         console.log(result);
                         return result.json()
-                        .then(data => feviewer_init(data))
-                        .catch(err => no_fe_json_error(err));
+                          .then(data => feviewer_init(data))
+                          .catch(err => no_fe_json_error(err));
                       })
-                .catch(err => no_fe_network_error(err))
-                .then(_ => feviewer_refresh());
+                .catch(err => no_fe_network_error(err));
             });
 
-      window.addEventListener("change", feviewer_refresh);
     </script>
     <style>
       html {
@@ -292,6 +392,9 @@
       .feplotly_control {
         display: inline;
       }
+      .disabled {
+        color: #888;
+      }
     </style>
     <link rel="icon" href="images/petsc_favicon.png"/>
   </head>
@@ -321,10 +424,10 @@
         </div>
         <div id="feplotly" class="feplotly">
           <div class="feplotly_control_row">
-            <div class="feplotly_control">degree of freedom: <select id="feplotly_dof_select"></select></div>
-            <div class="feplotly_control">reference cell: <input type="checkbox" id="feplotly_plot_refe" checked/></div>
-            <div class="feplotly_control">dual functional: <input type="checkbox"/></div>
-            <div class="feplotly_control">shape function: <input type="checkbox"/></div>
+            <div class="feplotly_control">degree of freedom: <select id="feplotly_select_dof"></select></div>
+            <div class="feplotly_control">reference cell: <input type="checkbox" id="feplotly_plot_refel" checked/></div>
+            <div class="feplotly_control">dual functional: <input type="checkbox" id="feplotly_plot_dual" /></div>
+            <div class="feplotly_control"><span class="disabled">shape function: </span><input type="checkbox" disabled="disabled"/></div>
           </div>
           <div id="feplotly_plot"></div>
         </div>
