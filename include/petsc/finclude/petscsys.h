@@ -202,6 +202,8 @@
 #define PetscRandomType character*(80)
 #define PetscBinarySeekType PetscEnum
 
+#define PetscBench type(tPetscBench)
+
 #define PetscBuildTwoSidedType PetscEnum
 
 #define PetscSubcomm type(tPetscSubcomm)
