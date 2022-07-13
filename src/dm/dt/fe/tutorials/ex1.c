@@ -38,23 +38,6 @@ struct _p_PetscFESAWs
 
 PetscClassId PETSCFESAWS_CLASSID;
 
-static PetscErrorCode PetscFESAWsDestroy(PetscFESAWs *fes)
-{
-  PetscFunctionBegin;
-  PetscCall(PetscObjectSAWsBlock((PetscObject) *fes));
-  {
-    PetscFESAWsArrayLink head = (*fes)->arrays;
-    while (head) {
-      PetscFESAWsArrayLink next = head->next;
-      PetscCall(PetscFESAWsArrayLinkDestroy(&head));
-      head = next;
-    }
-  }
-  PetscCall(PetscObjectSAWsViewOff((PetscObject) *fes));
-  PetscCall(PetscHeaderDestroy(fes));
-  PetscFunctionReturn(0);
-}
-
 static PetscErrorCode PetscFESAWsCreateArray(PetscFESAWs fes, SAWs_Data_type dtype, size_t count, void *data_pointer)
 {
   MPI_Datatype mpi_dtype = MPI_BYTE;
@@ -109,6 +92,25 @@ static PetscErrorCode PetscFESAWsWriteProperty(PetscFESAWs fes, const char *prop
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode PetscFESAWsDestroy(PetscFESAWs *fes)
+{
+  PetscBool completed = PETSC_TRUE;
+
+  PetscFunctionBegin;
+  PetscCall(PetscFESAWsWriteProperty(*fes, "completed", &completed, 1, SAWs_READ, SAWs_BOOLEAN));
+  PetscCall(PetscObjectSAWsBlock((PetscObject) *fes));
+  {
+    PetscFESAWsArrayLink head = (*fes)->arrays;
+    while (head) {
+      PetscFESAWsArrayLink next = head->next;
+      PetscCall(PetscFESAWsArrayLinkDestroy(&head));
+      head = next;
+    }
+  }
+  PetscCall(PetscObjectSAWsViewOff((PetscObject) *fes));
+  PetscCall(PetscHeaderDestroy(fes));
+  PetscFunctionReturn(0);
+}
 
 static PetscErrorCode PetscFESAWsView_SAWs(PetscFESAWs fes, PetscViewer viewer)
 {
@@ -643,23 +645,6 @@ int main(int argc, char **argv)
     }
     PetscCall(DMDestroy(&refel));
   }
-#if 0
-  for (PetscInt dim = 1; dim <= 3; dim++) {
-    PetscFE   fe;
-    PetscInt  Nc = 1;
-    PetscInt  k = dim + 1;
-    PetscBool isSimplex = PETSC_TRUE;
-    PetscInt  qorder = PETSC_DETERMINE;
-
-    PetscCall(PetscFECreateLagrange(PETSC_COMM_WORLD, dim, Nc, isSimplex, k, qorder, &fe));
-    if (dim == 3) {
-      PetscCall(PetscObjectSetOptionsPrefix((PetscObject)fe, "threeD_"));
-    }
-    PetscCall(PetscFEView_SAWs(fe, PETSC_VIEWER_SAWS_(PETSC_COMM_WORLD)));
-    PetscCall(PetscFEDestroy(&fe));
-  }
-#endif
-  printf("all viewed\n");
   PetscCall(PetscFinalize());
   return 0;
 }

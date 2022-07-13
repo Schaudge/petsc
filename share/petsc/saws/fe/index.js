@@ -501,7 +501,6 @@ const generate_traces = (fe) => {
 
 const replot = (fe) => {
   console.log("Updating plotly plot");
-  console.log(state.trace_offsets);
 
   let visible = { visible: true };
   let visible_vertex = { opacity: 1.0 };
@@ -513,7 +512,6 @@ const replot = (fe) => {
   let invisible_vertex_list = [];
 
   const selected_dof = document.getElementById("feplotly_select_dof").value;
-  console.log(selected_dof);
   const selected_mesh_point = (selected_dof == 'all') ? 'all' : fe.dual_space[selected_dof].mesh_point;
 
   const refel = fe.reference_element;
@@ -550,7 +548,6 @@ const replot = (fe) => {
   }
 
   const plot_div = document.getElementById('feplotly_plot');
-  console.log(visible_list);
   console.log(invisible_list);
   if (visible_vertex_list.length > 0) {
     Plotly.restyle(plot_div, visible_vertex, visible_vertex_list);
@@ -564,7 +561,6 @@ const replot = (fe) => {
   if (invisible_list.length > 0) {
     Plotly.restyle(plot_div, invisible, invisible_list);
   }
-  console.log(document.getElementById('feplotly_plot').layout);
 }
 
 const refresh_properties = (fe) => {
@@ -603,11 +599,36 @@ const feviewer_refresh = () => {
   replot(fe_data[selected_element]);
 };
 
+const hangup_json = {
+  directories: {
+    SAWs_ROOT_DIRECTORY: {
+      variables: {
+        __Block: {
+          data: ["false"],
+          dtype: "SAWs_BOOLEAN",
+          length: 1,
+          mtype: "SAWs_WRITE"
+        }
+      }
+    }
+  }
+};
+
+const hangup_options = {
+  method: "POST",
+  body: "input=" + JSON.stringify(hangup_json),
+  headers: {
+    "Content-Type": "application/json"
+  }
+};
+
+
 const feviewer_init = (fe_saws_json) => {
   try {
-    console.log(fe_saws_json);
     fe_data = saws_to_plain_json(fe_saws_json).FE;
-    console.log(fe_data);
+    if (fe_data.hasOwnProperty("completed")) {
+      fetch("/SAWs/*", hangup_options);
+    }
     const number_of_elements = fe_data.number_of_elements[0];
     console.log("Loading " + number_of_elements + " finite elements");
     const tabs_div = document.getElementById('feviewer_radio_tabs');
@@ -677,11 +698,9 @@ const no_fe_json_error = (err) => {
      `;
 };
 
-
 window.addEventListener("load", () => {
   fetch('/SAWs/PETSc/FE/')
     .then(result => {
-      console.log(result);
       return result.json()
         .then(data => feviewer_init(data))
         .catch(err => no_fe_json_error(err));
