@@ -6,6 +6,11 @@
 #include <petsc/private/dmpleximpl.h>  /*I  "petscdmplex.h"  I*/
 #include <petscctable.h>
 
+PETSC_EXTERN PetscLogEvent DMNetwork_LayoutSetUp;
+PETSC_EXTERN PetscLogEvent DMNetwork_SetUpNetwork;
+PETSC_EXTERN PetscLogEvent DMNetwork_Distribute;
+PETSC_EXTERN PetscLogEvent DMNetwork_SetUpHeaderCValue;
+
 typedef struct _p_DMNetworkComponentHeader *DMNetworkComponentHeader;
 struct _p_DMNetworkComponentHeader {
   PetscInt index;    /* index for user input global edge and vertex */
