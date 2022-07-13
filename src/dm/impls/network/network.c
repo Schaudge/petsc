@@ -1,5 +1,9 @@
 #include <petsc/private/dmnetworkimpl.h>  /*I  "petscdmnetwork.h"  I*/
 
+PetscLogEvent DMNetwork_LayoutSetUp;
+PetscLogEvent DMNetwork_SetUpNetwork;
+PetscLogEvent DMNetwork_Distribute;
+PetscLogEvent DMNetwork_SetUpHeaderCValue;
 /*
   Creates the component header and value objects for a network point
 */
@@ -602,6 +606,7 @@ PetscErrorCode DMNetworkLayoutSetUp(DM dm)
   PetscInt       nmerged=0;
 
   PetscFunctionBegin;
+  PetscCall(PetscLogEventBegin(DMNetwork_LayoutSetUp,dm,0,0,0));
   PetscCheck(network->nsubnet == Nsubnet,PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Must call DMNetworkAddSubnetwork() %" PetscInt_FMT " times",Nsubnet);
 
   /* This implementation requires user input each subnet by a single processor when Nsubnet>1, thus subnet[net].nvtx=subnet[net].Nvtx when net>0 */
@@ -648,12 +653,13 @@ PetscErrorCode DMNetworkLayoutSetUp(DM dm)
   PetscCall(PetscSectionSetChart(network->DofSection,network->pStart,network->pEnd));
 
   np = network->pEnd - network->pStart;
+  PetscCall(PetscLogEventBegin(DMNetwork_SetUpHeaderCValue,dm,0,0,0));
   PetscCall(PetscCalloc2(np,&network->header,np,&network->cvalue));
   for (i=0; i < np; i++) {
     network->header[i].maxcomps = 1;
     PetscCall(SetUpNetworkHeaderComponentValue(dm,&network->header[i],&network->cvalue[i]));
   }
-
+  PetscCall(PetscLogEventEnd(DMNetwork_SetUpHeaderCValue,dm,0,0,0));
   /* Create edge and vertex arrays for the subnetworks
      This implementation assumes that DMNetwork reads
      (1) a single subnetwork in parallel; or
@@ -737,6 +743,7 @@ PetscErrorCode DMNetworkLayoutSetUp(DM dm)
   /* Create a global section to be used by DMNetworkIsGhostVertex() which is a non-collective routine */
   /* see snes_tutorials_network-ex1_4 */
   PetscCall(DMGetGlobalSection(network->plex,&sectiong));
+  PetscCall(PetscLogEventEnd(DMNetwork_LayoutSetUp,dm,0,0,0));
   PetscFunctionReturn(0);
 }
 
@@ -1338,6 +1345,8 @@ PetscErrorCode DMNetworkGetComponent(DM dm,PetscInt p,PetscInt compnum,PetscInt 
   header = (DMNetworkComponentHeader)(network->componentdataarray+offset);
 
   if (compnum >= 0) {
+    fprintf(stderr,"p %d offset %d comp %p %p %p %d %p\n",(int)p,(int)offset,network->componentdataarray,header,header->key,(int)compnum,&header->key[compnum]);
+    //fflush(stdout);
     if (compkey) *compkey = header->key[compnum];
     if (component) {
       offset += header->hsize+header->offset[compnum];
@@ -1361,13 +1370,15 @@ PetscErrorCode DMNetworkComponentSetUp(DM dm)
   DMNetworkComponentHeader header;
   DMNetworkComponentValue  cvalue;
   DMNetworkComponentHeader headerinfo;
-  DMNetworkComponentGenericDataType *componentdataarray;
+  DMNetworkComponentGenericDataType * restrict componentdataarray;
+  PetscInt t=0;
 
   PetscFunctionBegin;
   PetscCall(PetscSectionSetUp(network->DataSection));
   PetscCall(PetscSectionGetStorageSize(network->DataSection,&arr_size));
   /* arr_size+1 fixes pipeline test of opensolaris-misc for src/dm/tests/ex10.c -- Do not know why */
   PetscCall(PetscCalloc1(arr_size+1,&network->componentdataarray));
+  fprintf(stderr,"p %d\n",(int)arr_size);
 
   componentdataarray = network->componentdataarray;
   for (p = network->pStart; p < network->pEnd; p++) {
@@ -1386,7 +1397,7 @@ PetscErrorCode DMNetworkComponentSetUp(DM dm)
     PetscCall(PetscMemcpy(headerarr,header->nvar,header->maxcomps*sizeof(PetscInt)));
     headerarr += header->maxcomps;
     PetscCall(PetscMemcpy(headerarr,header->offsetvarrel,header->maxcomps*sizeof(PetscInt)));
-
+    fprintf(stderr,"point %d %d %d %d %d %d\n",(int)p,(int)(*header->size),(int)(*header->key),(int)(*header->offset),(int)(*header->nvar),(int)(*header->offsetvarrel));
     /* Copy data */
     cvalue = &network->cvalue[p];
     ncomp  = header->ndata;
@@ -1395,6 +1406,27 @@ PetscErrorCode DMNetworkComponentSetUp(DM dm)
       offset = offsetp + header->hsize + header->offset[i];
       PetscCall(PetscMemcpy(componentdataarray+offset,cvalue->data[i],header->size[i]*sizeof(DMNetworkComponentGenericDataType)));
     }
+
+    t=PetscMax(t,offsetp+header->hsize+header->offset[0]+header->size[0]);
+  }
+  fprintf(stderr,"arr_size %d %d\n",(int)arr_size,(int)(t));
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMNetworkFreeComponentHeaderValue(DM dm)
+{
+  DM_Network               *network = (DM_Network*)dm->data;
+  PetscInt                 p;
+
+  PetscFunctionBegin;
+  if (network->header) {
+#if 0
+    for (p = network->pStart; p < network->pEnd; p++) {
+      PetscCall(PetscFree5(network->header[p].size,network->header[p].key,network->header[p].offset,network->header[p].nvar,network->header[p].offsetvarrel));
+      PetscCall(PetscFree(network->cvalue[p].data));
+    }
+#endif
+    PetscCall(PetscFree2(network->header,network->cvalue));
   }
   PetscFunctionReturn(0);
 }
@@ -1567,6 +1599,7 @@ PetscErrorCode DMNetworkDistribute(DM *dm,PetscInt overlap)
   PetscCheck(!overlap,PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"overlap %" PetscInt_FMT " != 0 is not supported yet",overlap);
 
   /* This routine moves the component data to the appropriate processors. It makes use of the DataSection and the componentdataarray to move the component data to appropriate processors and returns a new DataSection and new componentdataarray. */
+  PetscCall(PetscLogEventBegin(DMNetwork_Distribute,dm,0,0,0));
   PetscCall(DMNetworkCreate(PetscObjectComm((PetscObject)*dm),&newDM));
   newDMnetwork = (DM_Network*)newDM->data;
   newDMnetwork->max_comps_registered = oldDMnetwork->max_comps_registered;
@@ -1737,6 +1770,7 @@ PetscErrorCode DMNetworkDistribute(DM *dm,PetscInt overlap)
   PetscCall(DMViewFromOptions(newDM,NULL,"-dmnetwork_view_distributed"));
 
   *dm  = newDM;
+  PetscCall(PetscLogEventEnd(DMNetwork_Distribute,dm,0,0,0));
   PetscFunctionReturn(0);
 }
 
@@ -1940,6 +1974,7 @@ PetscErrorCode DMSetUp_Network(DM dm)
   DM_Network     *network=(DM_Network*)dm->data;
 
   PetscFunctionBegin;
+  PetscCall(PetscLogEventBegin(DMNetwork_SetUpNetwork,dm,0,0,0));
   PetscCall(DMNetworkComponentSetUp(dm));
   PetscCall(DMNetworkVariablesSetUp(dm));
 
@@ -1950,6 +1985,7 @@ PetscErrorCode DMSetUp_Network(DM dm)
 
   /* View dmnetwork */
   PetscCall(DMViewFromOptions(dm,NULL,"-dmnetwork_view"));
+  PetscCall(PetscLogEventEnd(DMNetwork_SetUpNetwork,dm,0,0,0));
   PetscFunctionReturn(0);
 }
 
@@ -2556,7 +2592,7 @@ PetscErrorCode DMDestroy_Network(DM dm)
   PetscCall(PetscFree(network->subnet));
   PetscCall(PetscFree(network->component));
   PetscCall(PetscFree(network->componentdataarray));
-
+  
   if (network->header) {
     np = network->pEnd - network->pStart;
     for (j=0; j < np; j++) {
