@@ -210,12 +210,13 @@ static PetscErrorCode PetscFESAWsViewReferenceElement(PetscFESAWs fes, DM refel)
   PetscCall(PetscFESAWsCreateArray(fes, SAWs_FLOAT, num_coords * dim, &coords));
   PetscCall(DMGetCoordinatesLocalNoncollective(refel, &coord_vec));
   PetscCall(DMGetCoordinateDM(refel, &coord_dm));
-  PetscCall(PetscMalloc1(num_coords * dim, &these_coords));
+  PetscCall(PetscMalloc1(dim == 0 ? 1 : num_coords * dim, &these_coords));
   offset = 0;
   for (PetscInt p = 0; p < num_points; p++) {
     DMPolytopeType ptype;
     char point_string[3];
-    PetscInt csize = num_coords * dim;
+    PetscInt these_coords_size = dim == 0 ? 1 : num_coords * dim;
+    PetscInt csize = these_coords_size;
     PetscInt p_num_verts;
     PetscInt p_dim;
     PetscInt coord_start = offset;
@@ -226,7 +227,7 @@ static PetscErrorCode PetscFESAWsViewReferenceElement(PetscFESAWs fes, DM refel)
     PetscCall(DMPlexGetPointDepth(refel, p, &p_dim));
     PetscCall(PetscFESAWsWriteProperty(fes, "polytope", &DMPolytopeTypes[ptype], 1, SAWs_READ, SAWs_STRING));
     PetscCall(DMPlexVecGetClosure(coord_dm, NULL, coord_vec, p, &csize, &these_coords));
-    i_array[2*p] = p_num_verts = csize / dim;
+    i_array[2*p] = p_num_verts = (dim == 0 ? 1 : (csize / dim));
     i_array[2*p+1] = p_dim;
     for (PetscInt d = 0; d < dim; d++) {
       for (PetscInt v = 0; v < p_num_verts; v++) {
@@ -476,24 +477,189 @@ static PetscErrorCode PetscFEView_SAWs(PetscFE fe, PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode CreateSpace(DMPolytopeType tope, const char prefix[], PetscInt Nc, PetscSpace *sp)
+{
+  PetscSpace scalar_sp;
+  PetscInt dim = DMPolytopeTypeGetDim(tope);
+
+  PetscFunctionBegin;
+  PetscCall(PetscSpaceCreate(PETSC_COMM_WORLD, &scalar_sp));
+  PetscCall(PetscSpaceSetNumVariables(scalar_sp, dim));
+  PetscCall(PetscSpaceSetNumComponents(scalar_sp, 1));
+  switch (tope) {
+  case DM_POLYTOPE_POINT:
+    PetscCall(PetscSpaceSetDegree(scalar_sp, 0, 0));
+    break;
+  case DM_POLYTOPE_SEGMENT:
+  case DM_POLYTOPE_TRIANGLE:
+  case DM_POLYTOPE_TETRAHEDRON:
+    PetscCall(PetscSpaceSetDegree(scalar_sp, 1 + dim, 1 + dim));
+    break;
+  case DM_POLYTOPE_QUADRILATERAL:
+  case DM_POLYTOPE_HEXAHEDRON:
+    {
+      PetscSpace space_1d;
+      PetscCall(PetscSpaceSetType(scalar_sp, PETSCSPACETENSOR));
+      PetscCall(PetscSpaceTensorSetNumSubspaces(scalar_sp, dim));
+      PetscCall(PetscSpaceCreate(PETSC_COMM_WORLD, &space_1d));
+      PetscCall(PetscSpaceSetNumVariables(space_1d, 1));
+      PetscCall(PetscSpaceSetNumComponents(space_1d, 1));
+      PetscCall(PetscSpaceSetDegree(space_1d, 2, 2));
+      for (PetscInt d = 0; d < dim; d++) {
+        PetscCall(PetscSpaceTensorSetSubspace(scalar_sp, d, space_1d));
+      }
+      PetscCall(PetscSpaceDestroy(&space_1d));
+    }
+    break;
+  case DM_POLYTOPE_TRI_PRISM:
+    {
+      PetscSpace space_1d, space_2d;
+      PetscCall(PetscSpaceSetType(scalar_sp, PETSCSPACETENSOR));
+      PetscCall(PetscSpaceTensorSetNumSubspaces(scalar_sp, 2));
+
+      PetscCall(PetscSpaceCreate(PETSC_COMM_WORLD, &space_1d));
+      PetscCall(PetscSpaceSetNumVariables(space_1d, 1));
+      PetscCall(PetscSpaceSetNumComponents(space_1d, 1));
+      PetscCall(PetscSpaceSetDegree(space_1d, 2, 2));
+
+      PetscCall(PetscSpaceCreate(PETSC_COMM_WORLD, &space_2d));
+      PetscCall(PetscSpaceSetNumVariables(space_2d, 2));
+      PetscCall(PetscSpaceSetNumComponents(space_2d, 1));
+      PetscCall(PetscSpaceSetDegree(space_2d, 2, 2));
+
+      PetscCall(PetscSpaceTensorSetSubspace(scalar_sp, 0, space_1d));
+      PetscCall(PetscSpaceTensorSetSubspace(scalar_sp, 1, space_2d));
+
+      PetscCall(PetscSpaceDestroy(&space_1d));
+      PetscCall(PetscSpaceDestroy(&space_2d));
+    }
+    break;
+  default:
+    SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "unhandled polytope %s", DMPolytopeTypes[tope]);
+  }
+  if (Nc == 1) {
+    *sp = scalar_sp;
+  } else {
+    PetscCall(PetscSpaceCreate(PETSC_COMM_WORLD, sp));
+    PetscCall(PetscSpaceSetType(*sp, PETSCSPACESUM));
+    PetscCall(PetscSpaceSetNumVariables(*sp, dim));
+    PetscCall(PetscSpaceSetNumComponents(*sp, Nc));
+    PetscCall(PetscSpaceSumSetNumSubspaces(*sp, dim));
+    PetscCall(PetscSpaceSumSetConcatenate(*sp, PETSC_TRUE));
+    for (PetscInt d = 0; d < dim; d++) {
+      PetscCall(PetscSpaceSumSetSubspace(*sp, d, scalar_sp));
+    }
+    PetscCall(PetscSpaceDestroy(&scalar_sp));
+  }
+  PetscCall(PetscObjectSetOptionsPrefix((PetscObject)*sp, prefix));
+  PetscCall(PetscSpaceSetFromOptions(*sp));
+  PetscCall(PetscSpaceSetUp(*sp));
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode CreateDualSpace(DM refel, DMPolytopeType tope, const char prefix[], PetscInt Nc, PetscInt form_degree, PetscDualSpace *dsp)
+{
+  PetscInt dim = DMPolytopeTypeGetDim(tope);
+
+  PetscFunctionBegin;
+  PetscCall(PetscDualSpaceCreate(PETSC_COMM_WORLD, dsp));
+  PetscCall(PetscDualSpaceSetDM(*dsp, refel));
+  PetscCall(PetscDualSpaceSetType(*dsp, PETSCDUALSPACELAGRANGE));
+  PetscCall(PetscDualSpaceSetFormDegree(*dsp, form_degree));
+  PetscCall(PetscDualSpaceSetNumComponents(*dsp, Nc));
+  switch (tope) {
+  case DM_POLYTOPE_POINT:
+    PetscCall(PetscDualSpaceSetOrder(*dsp, 0));
+    break;
+  case DM_POLYTOPE_SEGMENT:
+  case DM_POLYTOPE_TRIANGLE:
+  case DM_POLYTOPE_TETRAHEDRON:
+    PetscCall(PetscDualSpaceSetOrder(*dsp, 1 + dim));
+    PetscCall(PetscDualSpaceLagrangeSetTensor(*dsp, PETSC_FALSE));
+    break;
+  case DM_POLYTOPE_QUADRILATERAL:
+  case DM_POLYTOPE_HEXAHEDRON:
+  case DM_POLYTOPE_TRI_PRISM:
+    PetscCall(PetscDualSpaceSetOrder(*dsp, 2));
+    PetscCall(PetscDualSpaceLagrangeSetTensor(*dsp, PETSC_TRUE));
+    break;
+  default:
+    SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "unhandled polytope %s", DMPolytopeTypes[tope]);
+  }
+  PetscCall(PetscObjectSetOptionsPrefix((PetscObject)*dsp, prefix));
+  PetscCall(PetscDualSpaceSetFromOptions(*dsp));
+  PetscCall(PetscDualSpaceSetUp(*dsp));
+  PetscFunctionReturn(0);
+}
+
 int main(int argc, char **argv)
 {
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
   PetscCall(PetscClassIdRegister("PetscFE SAWs Manager",&PETSCFESAWS_CLASSID));
+  DMPolytopeType topes[] = {
+    DM_POLYTOPE_POINT,
+    DM_POLYTOPE_SEGMENT,
+    DM_POLYTOPE_TRIANGLE,
+    DM_POLYTOPE_QUADRILATERAL,
+    DM_POLYTOPE_TETRAHEDRON,
+    DM_POLYTOPE_HEXAHEDRON,
+    DM_POLYTOPE_TRI_PRISM
+  };
+  size_t num_topes = sizeof(topes) / sizeof(topes[0]);
+  for (size_t t = 0; t < num_topes; t++) {
+    DM refel;
+    PetscInt dim;
+    PetscInt lo;
+
+    PetscCall(DMPlexCreateReferenceCell(PETSC_COMM_WORLD, topes[t], &refel));
+    PetscCall(DMGetCoordinateDim(refel, &dim));
+    lo = (dim > 1) ? -1 : 0;
+    for (PetscInt form_degree = lo; form_degree <= dim; form_degree++) {
+      PetscInt fd = form_degree == -1 ? -(dim - 1) : form_degree;
+      PetscInt Nc;
+      PetscSpace sp;
+      PetscDualSpace dsp;
+      PetscFE fe;
+      char prefix[BUFSIZ];
+      char name[BUFSIZ];
+
+      PetscCall(PetscSNPrintf(prefix, BUFSIZ, "%s_%" PetscInt_FMT "_", DMPolytopeTypes[topes[t]], fd));
+      PetscCall(PetscSNPrintf(name, BUFSIZ, "%s(%" PetscInt_FMT ")", DMPolytopeTypes[topes[t]], fd));
+      PetscCall(PetscDTBinomialInt(dim, PetscAbsInt(fd), &Nc));
+      PetscCall(CreateSpace(topes[t], prefix, Nc, &sp));
+      PetscCall(CreateDualSpace(refel, topes[t], prefix, Nc, fd, &dsp));
+      PetscCall(PetscFECreate(PETSC_COMM_WORLD, &fe));
+      PetscCall(PetscObjectSetName((PetscObject) fe, name));
+      PetscCall(PetscFESetNumComponents(fe, Nc));
+      PetscCall(PetscFESetBasisSpace(fe, sp));
+      PetscCall(PetscFESetDualSpace(fe, dsp));
+      PetscCall(PetscObjectSetOptionsPrefix((PetscObject)fe, prefix));
+      PetscCall(PetscFESetFromOptions(fe));
+      PetscCall(PetscFESetUp(fe));
+      PetscCall(PetscFEView_SAWs(fe, PETSC_VIEWER_SAWS_(PETSC_COMM_WORLD)));
+      PetscCall(PetscFEDestroy(&fe));
+      PetscCall(PetscDualSpaceDestroy(&dsp));
+      PetscCall(PetscSpaceDestroy(&sp));
+    }
+    PetscCall(DMDestroy(&refel));
+  }
+#if 0
   for (PetscInt dim = 1; dim <= 3; dim++) {
     PetscFE   fe;
     PetscInt  Nc = 1;
+    PetscInt  k = dim + 1;
     PetscBool isSimplex = PETSC_TRUE;
     PetscInt  qorder = PETSC_DETERMINE;
 
-    PetscCall(PetscFECreateLagrange(PETSC_COMM_WORLD, dim, Nc, isSimplex, dim + 1, qorder, &fe));
+    PetscCall(PetscFECreateLagrange(PETSC_COMM_WORLD, dim, Nc, isSimplex, k, qorder, &fe));
     if (dim == 3) {
       PetscCall(PetscObjectSetOptionsPrefix((PetscObject)fe, "threeD_"));
     }
     PetscCall(PetscFEView_SAWs(fe, PETSC_VIEWER_SAWS_(PETSC_COMM_WORLD)));
     PetscCall(PetscFEDestroy(&fe));
   }
-  printf("here\n");
+#endif
+  printf("all viewed\n");
   PetscCall(PetscFinalize());
   return 0;
 }
