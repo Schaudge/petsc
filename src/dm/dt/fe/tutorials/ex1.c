@@ -357,7 +357,9 @@ static PetscErrorCode PetscFESAWsViewDualSpace(PetscFESAWs fes, PetscDualSpace d
     Np += fNp;
   }
   PetscCall(PetscFESAWsCreateArray(fes, SAWs_FLOAT, (Nc + dim) * Np, &points_and_weights));
-  PetscCall(PetscFESAWsCreateArray(fes, SAWs_INT, 2* Np, &sizes_and_points));
+  PetscCall(PetscFESAWsCreateArray(fes, SAWs_INT, 2* Nb + 1, &sizes_and_points));
+  sizes_and_points[2*Nb] = form_degree;
+  PetscCall(PetscFESAWsWriteProperty(fes, "form_degree", &sizes_and_points[2*Nb], 1, SAWs_READ, SAWs_INT));
   for (PetscInt i = 0; i < Nb; i++) {
     PetscQuadrature f;
     char functional_string[5];
@@ -653,6 +655,6 @@ int main(int argc, char **argv)
 
   test:
     suffix: 0
-    args: -saws_port 8000
+    args: -saws_root $PETSC_DIR/share/petsc/saws/
 
 TEST*/
