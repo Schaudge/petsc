@@ -38,6 +38,80 @@ struct _p_PetscFESAWs
 
 PetscClassId PETSCFESAWS_CLASSID;
 
+static PetscErrorCode CreateEvaluationGrid(DMPolytopeType tope, PetscInt points_per_direction, PetscQuadrature *points)
+{
+  PetscFunctionBegin;
+  switch (tope) {
+  case DM_POLYTOPE_POINT:
+    PetscCall(PetscQuadratureCreate(PETSC_COMM_SELF, points));
+    PetscCall(PetscQuadratureSetData(*points, 0, 0, 0, NULL, NULL));
+    break;
+  case DM_POLYTOPE_SEGMENT:
+  case DM_POLYTOPE_TRIANGLE:
+  case DM_POLYTOPE_TETRAHEDRON:
+    {
+      PetscInt dim = DMPolytopeTypeGetDim(tope);
+      PetscInt num_points;
+      PetscInt k = points_per_direction - 1;
+      PetscReal *x;
+      PetscInt *bary;
+
+      PetscCall(PetscDTBinomialInt(dim+k, k, &num_points));
+      PetscCall(PetscCalloc1(num_points * dim, &x));
+      PetscCall(PetscCalloc1(dim + 1, &bary));
+      bary[dim] = k;
+      for (PetscInt i = 0; i < num_points; i++) {
+        // apply barycentric to biunit simplex transform
+        for (PetscInt a = 0; a < dim+1; a++) {
+          PetscReal val = (PetscReal) bary[a] / (PetscReal) k;
+          for (PetscInt b = 0; b < dim; b++) {
+            PetscReal mult = (a == b) ? 1. : -1.;
+            x[i * dim + b] += val * mult;
+          }
+        }
+        { // get the next barycentric coordinate
+          PetscInt sum = k - bary[0] - bary[1];
+          PetscInt d = 1;
+          PetscInt tot;
+
+          while (sum) {
+            sum -= bary[++d];
+          }
+          tot = bary[d];
+          bary[d-1]++;
+          for (; d < dim; d++) {
+            bary[d] = 0;
+          }
+          bary[dim] = tot-1;
+        }
+      }
+      PetscCall(PetscFree(bary));
+      PetscCall(PetscQuadratureCreate(PETSC_COMM_SELF, points));
+      PetscCall(PetscQuadratureSetData(*points, dim, 0, num_points, x, NULL));
+    }
+    break;
+  case DM_POLYTOPE_QUADRILATERAL:
+  case DM_POLYTOPE_HEXAHEDRON:
+  case DM_POLYTOPE_TRI_PRISM:
+    {
+      PetscQuadrature sub_quad, line_quad;
+      DMPolytopeType sub_tope =
+        (tope == DM_POLYTOPE_QUADRILATERAL) ? DM_POLYTOPE_SEGMENT :
+        (tope == DM_POLYTOPE_HEXAHEDRON) ? DM_POLYTOPE_QUADRILATERAL :
+        DM_POLYTOPE_TRIANGLE;
+      PetscCall(CreateEvaluationGrid(sub_tope, points_per_direction, &sub_quad));
+      PetscCall(CreateEvaluationGrid(DM_POLYTOPE_SEGMENT, points_per_direction, &line_quad));
+      PetscCall(PetscDTTensorQuadratureCreate(sub_quad, line_quad, points));
+      PetscCall(PetscQuadratureDestroy(&sub_quad));
+      PetscCall(PetscQuadratureDestroy(&line_quad));
+    }
+    break;
+  default:
+    SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "PetscFESAWs does not create arrays of this type");
+  }
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode PetscFESAWsCreateArray(PetscFESAWs fes, SAWs_Data_type dtype, size_t count, void *data_pointer)
 {
   MPI_Datatype mpi_dtype = MPI_BYTE;
@@ -245,18 +319,38 @@ static PetscErrorCode PetscFESAWsViewReferenceElement(PetscFESAWs fes, DM refel)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFESAWsViewBasisSpace(PetscFESAWs fes, PetscSpace sp)
+static PetscErrorCode PetscFESAWsViewBasisSpace(PetscFESAWs fes, PetscSpace sp, DMPolytopeType tope)
 {
   PetscInt min_degree, max_degree;
+  PetscQuadrature evaluation_points;
+  PetscInt dim, num_points;
   PetscInt *i_array;
+  const PetscReal *points;
+  float *i_points;
 
   PetscFunctionBegin;
   PetscCall(PetscSpaceGetDegree(sp, &min_degree, &max_degree));
-  PetscCall(PetscFESAWsCreateArray(fes, SAWs_INT, 2, &i_array));
+  PetscCall(PetscFESAWsCreateArray(fes, SAWs_INT, 3, &i_array));
   i_array[0] = min_degree;
   i_array[1] = max_degree;
   PetscCall(PetscFESAWsWriteProperty(fes, "minimum_degree", &i_array[0], 1, SAWs_READ, SAWs_INT));
   PetscCall(PetscFESAWsWriteProperty(fes, "maximum_degree", &i_array[1], 1, SAWs_READ, SAWs_INT));
+  PetscCall(CreateEvaluationGrid(tope, PetscMax(2,1 + 2*max_degree), &evaluation_points));
+  PetscCall(PetscQuadratureView(evaluation_points, NULL));
+  PetscCall(PetscQuadratureGetData(evaluation_points, &dim, NULL, &num_points, &points, NULL));
+  i_array[2] = num_points;
+  PetscCall(PetscFESAWsWriteProperty(fes, "number_of_grid_points", &i_array[2], 1, SAWs_READ, SAWs_INT));
+  printf("num_points %d dim %d\n", num_points, dim);
+  PetscCall(PetscFESAWsCreateArray(fes, SAWs_FLOAT, num_points * dim, &i_points));
+  for (PetscInt p = 0; p < num_points; p++) {
+    for (PetscInt d = 0; d < dim; d++) {
+      i_points[d * num_points + p] = points[p * dim + d];
+      printf("%+7.2g ", points[p * dim + d]);
+    }
+    printf("\n");
+  }
+  PetscCall(PetscFESAWsWriteProperty(fes, "grid_points", &i_points, num_points *dim, SAWs_READ, SAWs_FLOAT));
+  PetscCall(PetscQuadratureDestroy(&evaluation_points));
   PetscFunctionReturn(0);
 }
 
@@ -412,6 +506,7 @@ static PetscErrorCode PetscFESAWsAddFE(PetscFESAWs fes, PetscFE fe)
     PetscInt dim, Nb, Nc;
     PetscSpace space;
     PetscDualSpace dsp;
+    DMPolytopeType tope;
     DM refel;
     int *i_dim_Nb_Nc;
     const char *name;
@@ -454,13 +549,14 @@ static PetscErrorCode PetscFESAWsAddFE(PetscFESAWs fes, PetscFE fe)
     PetscCall(PetscFESAWsDirectoryPop(fes));
 
     PetscCall(PetscDualSpaceGetDM(dsp, &refel));
+    PetscCall(DMPlexGetCellType(refel, 0, &tope));
     PetscCall(PetscFESAWsDirectoryPush(fes, "reference_element"));
     PetscCall(PetscFESAWsViewReferenceElement(fes, refel));
     PetscCall(PetscFESAWsDirectoryPop(fes));
 
     PetscCall(PetscFEGetBasisSpace(fe, &space));
     PetscCall(PetscFESAWsDirectoryPush(fes, "basis_space"));
-    PetscCall(PetscFESAWsViewBasisSpace(fes, space));
+    PetscCall(PetscFESAWsViewBasisSpace(fes, space, tope));
     PetscCall(PetscFESAWsDirectoryPop(fes));
   }
   PetscCall(PetscFESAWsDirectoryPop(fes));
