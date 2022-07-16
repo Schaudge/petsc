@@ -1419,7 +1419,6 @@ PetscErrorCode MatTransposeMatMultSymbolic_SeqAIJ_SeqAIJ(Mat A,Mat B,PetscReal f
     product->data    = atb;
     product->destroy = MatDestroy_SeqAIJ_MatTransMatMult;
     atb->At          = At;
-    atb->updateAt    = PETSC_FALSE; /* because At is computed here */
 
     C->ops->mattransposemultnumeric = NULL; /* see MatProductNumeric_AtB_SeqAIJ_SeqAIJ */
     PetscFunctionReturn(0);
@@ -1942,11 +1941,10 @@ static PetscErrorCode MatProductNumeric_AtB_SeqAIJ_SeqAIJ(Mat C)
 
     PetscCheck(atb,PETSC_COMM_SELF,PETSC_ERR_PLIB,"Missing product struct");
     At = atb->At;
-    if (atb->updateAt && At) { /* At is computed in MatTransposeMatMultSymbolic_SeqAIJ_SeqAIJ() */
+    if (At) { /* At is created in MatTransposeMatMultSymbolic_SeqAIJ_SeqAIJ(), but needs to be numerically updated */
       PetscCall(MatTranspose_SeqAIJ(A,MAT_REUSE_MATRIX,&At));
     }
     PetscCall(MatMatMultNumeric_SeqAIJ_SeqAIJ(At ? At : A,B,C));
-    atb->updateAt = PETSC_TRUE;
   }
   PetscFunctionReturn(0);
 }

@@ -63,7 +63,6 @@ typedef struct { /* used by MatTransposeMatMult() */
   Mat          At;           /* transpose of the first matrix */
   Mat          mA;           /* maij matrix of A */
   Vec          bt,ct;        /* vectors to hold locally transposed arrays of B and C */
-  PetscBool    updateAt;     /* flg to avoid recomputing At in MatProductNumeric_AtB_SeqAIJ_SeqAIJ() */
   /* used by PtAP */
   void           *data;
   PetscErrorCode (*destroy)(void*);
