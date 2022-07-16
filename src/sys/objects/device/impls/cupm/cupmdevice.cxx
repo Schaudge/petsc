@@ -7,9 +7,9 @@
 
 namespace Petsc {
 
-namespace Device {
+namespace device {
 
-namespace CUPM {
+namespace cupm {
 
 // internal "impls" class for CUPMDevice. Each instance represents a single cupm device
 template <DeviceType T>
@@ -325,8 +325,8 @@ template class Device<DeviceType::CUDA>;
 template class Device<DeviceType::HIP>;
 #endif
 
-} // namespace CUPM
+} // namespace cupm
 
-} // namespace Device
+} // namespace device
 
 } // namespace Petsc

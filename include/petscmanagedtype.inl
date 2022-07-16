@@ -34,6 +34,7 @@ PETSC_EXTERN PetscErrorCode PetscManagedTypeGetSubRange(PetscDeviceContext,Petsc
 PETSC_EXTERN PetscErrorCode PetscManagedTypeRestoreSubRange(PetscDeviceContext,PetscManagedType,PetscManagedType*);
 PETSC_EXTERN PetscErrorCode PetscManagedTypeEqual(PetscManagedType,PetscType,PetscBool*,PetscBool*);
 PETSC_EXTERN PetscErrorCode PetscManagedHostTypeDestroy(PetscDeviceContext,PetscManagedType*);
+PETSC_EXTERN PetscErrorCode PetscManagedDeviceTypeDestroy(PetscDeviceContext,PetscManagedType*);
 
 static inline PetscErrorCode PetscManageHostType(PetscDeviceContext dctx, PetscType *host_ptr, PetscInt n, PetscManagedType *scal)
 {
@@ -42,10 +43,24 @@ static inline PetscErrorCode PetscManageHostType(PetscDeviceContext dctx, PetscT
   PetscFunctionReturn(0);
 }
 
+static inline PetscErrorCode PetscCopyHostType(PetscDeviceContext dctx, PetscType *host_ptr, PetscInt n, PetscManagedType *scal)
+{
+  PetscFunctionBegin;
+  PetscCall(PetscManagedTypeCreate(dctx,host_ptr,PETSC_NULLPTR,n,PETSC_COPY_VALUES,PETSC_OWN_POINTER,PETSC_OFFLOAD_CPU,scal));
+  PetscFunctionReturn(0);
+}
+
 static inline PetscErrorCode PetscManageDeviceType(PetscDeviceContext dctx, PetscType *device_ptr, PetscInt n, PetscManagedType *scal)
 {
   PetscFunctionBegin;
   PetscCall(PetscManagedTypeCreate(dctx,PETSC_NULLPTR,device_ptr,n,PETSC_OWN_POINTER,PETSC_USE_POINTER,PETSC_OFFLOAD_GPU,scal));
+  PetscFunctionReturn(0);
+}
+
+static inline PetscErrorCode PetscCopyDeviceType(PetscDeviceContext dctx, PetscType *device_ptr, PetscInt n, PetscManagedType *scal)
+{
+  PetscFunctionBegin;
+  PetscCall(PetscManagedTypeCreate(dctx,PETSC_NULLPTR,device_ptr,n,PETSC_OWN_POINTER,PETSC_COPY_VALUES,PETSC_OFFLOAD_GPU,scal));
   PetscFunctionReturn(0);
 }
 
@@ -78,10 +93,9 @@ static inline PetscErrorCode PetscManagedTypeGetValuesAvailable(PetscDeviceConte
 {
   PetscFunctionBegin;
   // todo
-  *ptr = PETSC_NULLPTR;
-  if ((*avail = PetscMemTypeHost(mtype) ? scal->pure : PETSC_FALSE)) {
-    PetscCall(PetscManagedTypeGetValues(dctx,scal,mtype,mode,PETSC_FALSE,ptr));
-  }
+  *ptr   = PETSC_NULLPTR;
+  *avail = PetscMemTypeHost(mtype) ? scal->pure : PETSC_FALSE;
+  if (*avail) PetscCall(PetscManagedTypeGetValues(dctx,scal,mtype,mode,PETSC_FALSE,ptr));
   PetscFunctionReturn(0);
 }
 

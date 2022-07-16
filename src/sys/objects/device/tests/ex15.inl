@@ -8,8 +8,8 @@ int main(int argc, char *argv[])
   PetscManagedReal   *scal_arr;
   PetscDeviceContext  dctx[2];
   PetscDeviceType     dtype;
-  const PetscInt      bucket_size = 200;
-  PetscInt            n           = 524,size = 100,ncycles = 10000,m;
+  const PetscInt      bucket_size = 256;
+  PetscInt            n           = 524,size = bucket_size/2,ncycles = 10000,m;
   clock_t            *global_now;
 
   PetscCall(PetscInitialize(&argc,&argv,NULL,help));
@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
   PetscCall(PetscMalloc1(n*m,&scal_arr));
   // Internally the managedtype allocator relies on a std::deque<std::deque<MemoryChunk>>. The
   // MemoryChunks are not copyable and will error if is attempted. The goal here is to try and
-  // trigger that erorr when the std::deque implementation allocates new buckets on
+  // trigger that error when the std::deque implementation allocates new buckets on
   // expansion. If it extends and copies, then the error will fire.
   //
   // By default std::deque buckets are the following sizes:

@@ -5,7 +5,7 @@ PetscClassId PETSC_DEVICE_CLASSID, PETSC_DEVICE_CONTEXT_CLASSID;
 PetscLogEvent CUBLAS_HANDLE_CREATE, CUSOLVER_HANDLE_CREATE;
 PetscLogEvent HIPSOLVER_HANDLE_CREATE, HIPBLAS_HANDLE_CREATE;
 
-static PetscBool PetscDevicePackageInitialized = PETSC_FALSE;
+static auto registered = false;
 
 static PetscErrorCode PetscDeviceRegisterEvent_Private(const char name[], PetscClassId id, PetscLogEvent *event) {
   PetscFunctionBegin;
@@ -27,6 +27,7 @@ static PetscErrorCode PetscDeviceRegisterEvent_Private(const char name[], PetscC
 .seealso: `PetscFinalize()`, `PetscDeviceInitializePackage()`
 @*/
 PetscErrorCode PetscDeviceFinalizePackage(void) {
+  registered = false;
   return 0;
 }
 
@@ -42,9 +43,9 @@ PetscErrorCode PetscDeviceFinalizePackage(void) {
 @*/
 PetscErrorCode PetscDeviceInitializePackage(void) {
   PetscFunctionBegin;
-  if (PetscLikely(PetscDevicePackageInitialized)) PetscFunctionReturn(0);
   PetscCheck(PetscDeviceConfiguredFor_Internal(PETSC_DEVICE_DEFAULT()), PETSC_COMM_SELF, PETSC_ERR_SUP, "PETSc is not configured with device support (PETSC_DEVICE_DEFAULT = '%s')", PetscDeviceTypes[PETSC_DEVICE_DEFAULT()]);
-  PetscDevicePackageInitialized = PETSC_TRUE;
+  if (PetscLikely(registered)) PetscFunctionReturn(0);
+  registered = true;
   PetscCall(PetscRegisterFinalize(PetscDeviceFinalizePackage));
   // class registration
   PetscCall(PetscClassIdRegister("PetscDevice", &PETSC_DEVICE_CLASSID));
@@ -58,5 +59,17 @@ PetscErrorCode PetscDeviceInitializePackage(void) {
     PetscCall(PetscDeviceRegisterEvent_Private("hipBLAS Init", PETSC_DEVICE_CONTEXT_CLASSID, &HIPBLAS_HANDLE_CREATE));
     PetscCall(PetscDeviceRegisterEvent_Private("hipSolver Init", PETSC_DEVICE_CONTEXT_CLASSID, &HIPSOLVER_HANDLE_CREATE));
   }
+  PetscCall(PetscDeviceRegisterEvent_Private("DCtxCreate", PETSC_DEVICE_CONTEXT_CLASSID, &DCONTEXT_Create));
+  PetscCall(PetscDeviceRegisterEvent_Private("DCtxDestroy", PETSC_DEVICE_CONTEXT_CLASSID, &DCONTEXT_Destroy));
+  PetscCall(PetscDeviceRegisterEvent_Private("DCtxChangeStream", PETSC_DEVICE_CONTEXT_CLASSID, &DCONTEXT_ChangeStream));
+  PetscCall(PetscDeviceRegisterEvent_Private("DCtxSetUp", PETSC_DEVICE_CONTEXT_CLASSID, &DCONTEXT_SetUp));
+  PetscCall(PetscDeviceRegisterEvent_Private("DCtxSetDevice", PETSC_DEVICE_CONTEXT_CLASSID, &DCONTEXT_SetDevice));
+  PetscCall(PetscDeviceRegisterEvent_Private("DCtxDuplicate", PETSC_DEVICE_CONTEXT_CLASSID, &DCONTEXT_Duplicate));
+  PetscCall(PetscDeviceRegisterEvent_Private("DCtxQueryIdle", PETSC_DEVICE_CONTEXT_CLASSID, &DCONTEXT_QueryIdle));
+  PetscCall(PetscDeviceRegisterEvent_Private("DCtxWaitForCtx", PETSC_DEVICE_CONTEXT_CLASSID, &DCONTEXT_WaitForCtx));
+  PetscCall(PetscDeviceRegisterEvent_Private("DCtxFork", PETSC_DEVICE_CONTEXT_CLASSID, &DCONTEXT_Fork));
+  PetscCall(PetscDeviceRegisterEvent_Private("DCtxJoin", PETSC_DEVICE_CONTEXT_CLASSID, &DCONTEXT_Join));
+  PetscCall(PetscDeviceRegisterEvent_Private("DCtxMarkIntent", PETSC_DEVICE_CONTEXT_CLASSID, &DCONTEXT_Mark));
+  PetscCall(PetscDeviceRegisterEvent_Private("DCtxSync", PETSC_DEVICE_CONTEXT_CLASSID, &DCONTEXT_Sync));
   PetscFunctionReturn(0);
 }

@@ -1,6 +1,7 @@
 #ifndef PETSCVECMPICUPM_HPP
 #define PETSCVECMPICUPM_HPP
 
+#if defined(__cplusplus)
 #include <petsc/private/veccupmimpl.h> /*I <petscvec.h> I*/
 #include <../src/vec/vec/impls/seq/cupm/vecseqcupm.hpp>
 #include <../src/vec/vec/impls/mpi/pvecimpl.h>
@@ -8,13 +9,13 @@
 
 namespace Petsc {
 
-namespace Vector {
+namespace vec {
 
-namespace CUPM {
+namespace cupm {
 
-namespace Impl {
+namespace impl {
 
-template <Device::CUPM::DeviceType T>
+template <device::cupm::DeviceType T>
 struct VecMPI_CUPM : Vec_CUPMBase<T, VecMPI_CUPM<T>> {
   PETSC_VEC_CUPM_BASE_CLASS_HEADER(base_type, T, VecMPI_CUPM<T>);
   using VecSeq_T = VecSeq_CUPM<T>;
@@ -50,7 +51,7 @@ public:
   PETSC_CXX_COMPAT_DEFN(PetscErrorCode setvaluescoo_async(Vec, const PetscScalar[], InsertMode, PetscDeviceContext));
 };
 
-template <Device::CUPM::DeviceType T>
+template <device::cupm::DeviceType T>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::creatempicupm_async_(Vec v, PetscDeviceContext dctx, PetscBool allocate_missing, PetscInt nghost, PetscScalar *host_array, PetscScalar *device_array)) {
   PetscFunctionBegin;
   // REVIEW ME: remove me
@@ -70,7 +71,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::creatempicupm_async_(Vec v,
 //                             constructors/destructors                               //
 
 // v->ops->create
-template <Device::CUPM::DeviceType T>
+template <device::cupm::DeviceType T>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::create_async(Vec v, PetscDeviceContext dctx)) {
   PetscFunctionBegin;
   PetscCall(creatempicupm_async_(v, dctx));
@@ -78,7 +79,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::create_async(Vec v, PetscDe
 }
 
 // VecCreateMPICUPM()
-template <Device::CUPM::DeviceType T>
+template <device::cupm::DeviceType T>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::creatempicupm_async(MPI_Comm comm, PetscInt bs, PetscInt n, PetscInt N, PetscDeviceContext dctx, Vec *v, PetscBool call_set_type)) {
   PetscFunctionBegin;
   PetscCall(Create_CUPMBase(comm, bs, n, N, dctx, v, call_set_type));
@@ -86,7 +87,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::creatempicupm_async(MPI_Com
 }
 
 // VecCreateMPICUPMWithArray[s]()
-template <Device::CUPM::DeviceType T>
+template <device::cupm::DeviceType T>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::creatempicupmwitharrays_async(MPI_Comm comm, PetscInt bs, PetscInt n, PetscInt N, const PetscScalar host_array[], const PetscScalar device_array[], PetscDeviceContext dctx, Vec *v)) {
   PetscFunctionBegin;
   // do NOT call VecSetType(), otherwise ops->create() -> create_async() ->
@@ -97,7 +98,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::creatempicupmwitharrays_asy
 }
 
 // v->ops->duplicate
-template <Device::CUPM::DeviceType T>
+template <device::cupm::DeviceType T>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::duplicate_async(Vec v, Vec *y, PetscDeviceContext dctx)) {
   const auto vimpl  = VecIMPLCast(v);
   const auto nghost = vimpl->nghost;
@@ -123,7 +124,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::duplicate_async(Vec v, Vec 
 }
 
 // v->ops->destroy
-template <Device::CUPM::DeviceType T>
+template <device::cupm::DeviceType T>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::destroy_async(Vec v, PetscDeviceContext dctx)) {
   PetscFunctionBegin;
   PetscCall(Destroy_CUPMBase(v, dctx, VecDestroy_MPI));
@@ -131,7 +132,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::destroy_async(Vec v, PetscD
 }
 
 // v->ops->bintocpu
-template <Device::CUPM::DeviceType T>
+template <device::cupm::DeviceType T>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::bindtocpu_async(Vec v, PetscBool usehost, PetscDeviceContext dctx)) {
   PetscFunctionBegin;
   PetscCall(BindToCPU_CUPMBase(v, usehost, dctx));
@@ -151,7 +152,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::bindtocpu_async(Vec v, Pets
 //                                    mutatators                                      //
 
 // v->ops->resetarray or VecCUPMResetArray()
-template <Device::CUPM::DeviceType T>
+template <device::cupm::DeviceType T>
 template <PetscMemType mtype>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::resetarray_async(Vec v, PetscDeviceContext dctx)) {
   PetscFunctionBegin;
@@ -160,7 +161,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::resetarray_async(Vec v, Pet
 }
 
 // v->ops->placearray or VecCUPMPlaceArray()
-template <Device::CUPM::DeviceType T>
+template <device::cupm::DeviceType T>
 template <PetscMemType mtype>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::placearray_async(Vec v, const PetscScalar *a, PetscDeviceContext dctx)) {
   PetscFunctionBegin;
@@ -171,42 +172,42 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::placearray_async(Vec v, con
 // ================================================================================== //
 //                                   compute methods                                  //
 
-template <Device::CUPM::DeviceType T>
+template <device::cupm::DeviceType T>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::norm_async(Vec v, NormType type, PetscManagedReal z, PetscDeviceContext dctx)) {
   PetscFunctionBegin;
   PetscCall(VecNorm_MPI_Standard(v, type, z, dctx, VecSeq_T::norm_async));
   PetscFunctionReturn(0);
 }
 
-template <Device::CUPM::DeviceType T>
+template <device::cupm::DeviceType T>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::dot_async(Vec x, Vec y, PetscManagedScalar z, PetscDeviceContext dctx)) {
   PetscFunctionBegin;
   PetscCall(VecXDot_MPI_Standard(x, y, z, dctx, VecSeq_T::dot_async));
   PetscFunctionReturn(0);
 }
 
-template <Device::CUPM::DeviceType T>
+template <device::cupm::DeviceType T>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::tdot_async(Vec x, Vec y, PetscManagedScalar z, PetscDeviceContext dctx)) {
   PetscFunctionBegin;
   PetscCall(VecXDot_MPI_Standard(x, y, z, dctx, VecSeq_T::tdot_async));
   PetscFunctionReturn(0);
 }
 
-template <Device::CUPM::DeviceType T>
+template <device::cupm::DeviceType T>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::mdot_async(Vec x, PetscManagedInt nv, const Vec y[], PetscManagedScalar z, PetscDeviceContext dctx)) {
   PetscFunctionBegin;
   PetscCall(VecMXDot_MPI_Standard(x, nv, y, z, dctx, VecSeq_T::mdot_async));
   PetscFunctionReturn(0);
 }
 
-template <Device::CUPM::DeviceType T>
+template <device::cupm::DeviceType T>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::dotnorm2_async(Vec x, Vec y, PetscManagedScalar dp, PetscManagedScalar nm, PetscDeviceContext dctx)) {
   PetscFunctionBegin;
   PetscCall(VecDotNorm2_MPI_Standard(x, y, dp, nm, dctx, VecSeq_T::dotnorm2_async));
   PetscFunctionReturn(0);
 }
 
-template <Device::CUPM::DeviceType T>
+template <device::cupm::DeviceType T>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::max_async(Vec x, PetscManagedInt idx, PetscManagedReal z, PetscDeviceContext dctx)) {
   const MPI_Op ops[] = {MPIU_MAXLOC, MPIU_MAX};
 
@@ -215,7 +216,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::max_async(Vec x, PetscManag
   PetscFunctionReturn(0);
 }
 
-template <Device::CUPM::DeviceType T>
+template <device::cupm::DeviceType T>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::min_async(Vec x, PetscManagedInt idx, PetscManagedReal z, PetscDeviceContext dctx)) {
   const MPI_Op ops[] = {MPIU_MINLOC, MPIU_MIN};
 
@@ -224,7 +225,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::min_async(Vec x, PetscManag
   PetscFunctionReturn(0);
 }
 
-template <Device::CUPM::DeviceType T>
+template <device::cupm::DeviceType T>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::setpreallocationcoo_async(Vec x, PetscCount ncoo, const PetscInt coo_i[], PetscDeviceContext dctx)) {
   PetscFunctionBegin;
   PetscCall(VecSetPreallocationCOO_MPI(x, ncoo, coo_i, dctx));
@@ -245,8 +246,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::setpreallocationcoo_async(V
 namespace kernels {
 
 PETSC_KERNEL_DECL static void pack_coo_values(const PetscScalar *PETSC_RESTRICT vv, PetscCount nnz, const PetscCount *PETSC_RESTRICT perm, PetscScalar *PETSC_RESTRICT buf) {
-  const PetscCount grid_size = gridDim.x * blockDim.x;
-  for (PetscCount i = blockIdx.x * blockDim.x + threadIdx.x; i < nnz; i += grid_size) buf[i] = vv[perm[i]];
+  ::Petsc::device::cupm::kernels::util::grid_stride_1D(nnz, [=](PetscCount i) { buf[i] = vv[perm[i]]; });
   return;
 }
 
@@ -257,7 +257,7 @@ PETSC_KERNEL_DECL static void add_remote_coo_values(const PetscScalar *PETSC_RES
 
 } // namespace kernels
 
-template <Device::CUPM::DeviceType T>
+template <device::cupm::DeviceType T>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::setvaluescoo_async(Vec x, const PetscScalar v[], InsertMode imode, PetscDeviceContext dctx)) {
   constexpr auto mtype     = cupmDeviceTypeToPetscMemType();
   const auto     vmpi      = VecIMPLCast(x);
@@ -303,12 +303,14 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::setvaluescoo_async(Vec x, c
   PetscFunctionReturn(0);
 }
 
-} // namespace Impl
+} // namespace impl
 
-} // namespace CUPM
+} // namespace cupm
 
-} // namespace Vector
+} // namespace vec
 
 } // namespace Petsc
+
+#endif // __cplusplus
 
 #endif // PETSCVECMPICUPM_HPP

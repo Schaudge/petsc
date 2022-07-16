@@ -4,8 +4,10 @@
 #include <petscsys.h>
 
 #if defined(__cplusplus)
+#include <petsc/private/cpp/macros.hpp>
+
 template <typename T>
-PETSC_NODISCARD static inline PetscErrorCode PetscCxxObjectRegisterFinalize(T *obj, MPI_Comm comm = PETSC_COMM_SELF) noexcept {
+PETSC_CXX_COMPAT_DECL(PetscErrorCode PetscCxxObjectRegisterFinalize(T *obj, MPI_Comm comm = PETSC_COMM_SELF)) {
   const auto finalizer = [](void *ptr) {
     PetscFunctionBegin;
     PetscCall(static_cast<T *>(ptr)->finalize());
@@ -24,7 +26,8 @@ PETSC_NODISCARD static inline PetscErrorCode PetscCxxObjectRegisterFinalize(T *o
 namespace Petsc {
 
 template <typename Derived>
-struct RegisterFinalizeable {
+class RegisterFinalizeable {
+public:
   using derived_type = Derived;
 
   PETSC_NODISCARD PetscErrorCode finalize() noexcept;
@@ -35,14 +38,14 @@ private:
   friend derived_type;
 
   // default implementations if the derived class does not want to implement them
-  PETSC_NODISCARD static PetscErrorCode finalize_() noexcept { return 0; }
-  PETSC_NODISCARD static PetscErrorCode register_finalize_() noexcept { return 0; }
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode finalize_()) { return 0; }
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode register_finalize_()) { return 0; }
 
   bool registered_ = false;
 };
 
 template <typename D>
-inline PetscErrorCode RegisterFinalizeable<D>::finalize() noexcept {
+PETSC_CXX_COMPAT_DEFN(PetscErrorCode RegisterFinalizeable<D>::finalize()) {
   PetscFunctionBegin;
   PetscCall(static_cast<derived_type *>(this)->finalize_());
   registered_ = false;
@@ -50,7 +53,7 @@ inline PetscErrorCode RegisterFinalizeable<D>::finalize() noexcept {
 }
 
 template <typename D>
-inline PetscErrorCode RegisterFinalizeable<D>::register_finalize(MPI_Comm comm) noexcept {
+PETSC_CXX_COMPAT_DEFN(PetscErrorCode RegisterFinalizeable<D>::register_finalize(MPI_Comm comm)) {
   PetscFunctionBegin;
   if (PetscLikely(registered_)) PetscFunctionReturn(0);
   registered_ = true;

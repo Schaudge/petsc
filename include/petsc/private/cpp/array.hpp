@@ -2,8 +2,10 @@
 #define PETSC_CPP_ARRAY_HPP
 
 #if defined(__cplusplus)
-#include <petsc/private/cpp/type_traits.hpp>
+#include <petsc/private/cpp/macros.hpp>
 #include <petsc/private/cpp/utility.hpp>
+#include <petsc/private/cpp/type_traits.hpp>
+
 #include <array>
 
 namespace Petsc {

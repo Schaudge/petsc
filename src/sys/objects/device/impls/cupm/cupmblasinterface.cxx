@@ -2,11 +2,11 @@
 
 namespace Petsc {
 
-namespace Device {
+namespace device {
 
-namespace CUPM {
+namespace cupm {
 
-namespace Impl {
+namespace impl {
 
 #define PETSC_CUPMBLAS_STATIC_VARIABLE_DEFN(THEIRS, DEVICE, OURS) const decltype(THEIRS) BlasInterfaceImpl<DeviceType::DEVICE>::OURS;
 
@@ -41,10 +41,10 @@ template struct BlasInterface<DeviceType::CUDA>;
 template struct BlasInterface<DeviceType::HIP>;
 #endif
 
-} // namespace Impl
+} // namespace impl
 
-} // namespace CUPM
+} // namespace cupm
 
-} // namespace Device
+} // namespace device
 
 } // namespace Petsc

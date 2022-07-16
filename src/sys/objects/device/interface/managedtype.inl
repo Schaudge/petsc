@@ -13,7 +13,8 @@
 #endif
 
 #ifndef PetscConcat3
-#define PetscConcat3(a,b,c) PetscConcat(PetscConcat(a,b),c)
+#define PetscConcat3_(a,b,c) a ## b ## c
+#define PetscConcat3(a,b,c) PetscConcat3_(a,b,c)
 #endif
 
 #ifndef PetscManagedTypeCallMethod
@@ -37,6 +38,7 @@
 #define PetscManagedTypeCopyValues_Private        PetscConcat(PetscManagedType,CopyValues_Private)
 #define PetscManagedTypeCheckCopyMode_Private     PetscConcat(PetscManagedType,CheckCopyMode_Private)
 #define PetscManagedTypeCheckSuperOwnsSub_Private PetscConcat(PetscManagedType,CheckSuperOwnsSub_Private)
+#define PetscManagedTypeDestroySpecific_Private   PetscConcat(PetscManagedType,DestroySpecific_Private)
 #define destroymanagedtype                        PetscConcat(destroymanaged,PetscTypeSuffix_L)
 #define getmanagedvaluestype                      PetscConcat(getmanagedvalues,PetscTypeSuffix_L)
 #define applyoperatortype                         PetscConcat(applyoperator,PetscTypeSuffix_L)
@@ -70,11 +72,15 @@ static PetscErrorCode PetscManagedTypeSetOffloadMask_Private(PetscManagedType sc
 {
   PetscFunctionBegin;
 #if PetscDefined(HAVE_CXX)
-  scal->mask = mask;
+  if (scal->mask != mask) {
+    scal->mask = mask;
+    // should not update the parent if our mask did not change!
+    if (scal->parent) PetscCall(PetscManagedTypeSetOffloadMask_Private(scal->parent,mask));
+  }
 #else
+  (void)scal;
   (void)mask;
 #endif
-  if (scal->parent) PetscCall(PetscManagedTypeSetOffloadMask_Private(scal->parent,mask));
   PetscFunctionReturn(0);
 }
 
@@ -84,6 +90,7 @@ static PetscErrorCode PetscManagedTypeSetLock_Private(PetscManagedType scal, Pet
 #if PetscDefined(USE_DEBUG)
   scal->lock = (PetscInt)lock;
 #else
+  (void)scal;
   (void)lock;
 #endif
   PetscFunctionReturn(0);
@@ -95,6 +102,7 @@ static PetscErrorCode PetscManagedTypeGetLock_Private(PetscManagedType scal, Pet
 #if PetscDefined(USE_DEBUG)
   *lock = scal->lock ? PETSC_TRUE : PETSC_FALSE;
 #else
+  (void)scal;
   *lock = PETSC_FALSE;
 #endif
   PetscFunctionReturn(0);
@@ -115,18 +123,17 @@ static PetscErrorCode PetscManagedTypeCheckLock_Private(PetscManagedType scal, P
 
 static PetscErrorCode PetscManagedTypeCopyValues_Private(PetscDeviceContext dctx, PetscManagedType scal, PetscOffloadMask src_mask, const PetscType *src_ptr)
 {
-  PetscOffloadMask mask;
-  PetscInt         n;
+  PetscInt n;
 
   PetscFunctionBegin;
   PetscCall(PetscManagedTypeGetSize(scal,&n));
-  PetscCall(PetscManagedTypeGetOffloadMask_Private(scal,&mask));
   if (PetscLikely(n)) {
-    const PetscMemType   mtype = PetscOffloadMaskToMemType(mask);
     PetscDeviceCopyMode  mode;
+    PetscOffloadMask     mask;
     PetscType           *ptr;
 
-    PetscCall(PetscManagedTypeGetValues(dctx,scal,mtype,PETSC_MEMORY_ACCESS_WRITE,PETSC_FALSE,&ptr));
+    PetscCall(PetscManagedTypeGetOffloadMask_Private(scal,&mask));
+    PetscCall(PetscManagedTypeGetValues(dctx,scal,PetscOffloadMaskToMemType(mask),PETSC_MEMORY_ACCESS_WRITE,PETSC_FALSE,&ptr));
     PetscCall(PetscOffloadMaskToDeviceCopyMode(mask,src_mask,&mode));
     PetscCall(PetscDeviceArrayCopy(dctx,ptr,src_ptr,n,mode));
   }
@@ -157,6 +164,16 @@ static PetscErrorCode PetscManagedTypeCheckSuperOwnsSub_Private(const PetscType*
   } else {
     PetscAssert(!super_begin,PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"%s sub-range begin is NULL while super-begin is not (%p)",base_mess,super_begin);
   }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscManagedTypeDestroySpecific_Private(PetscDeviceContext dctx, PetscManagedType *scal, PetscOffloadMask mask)
+{
+  PetscFunctionBegin;
+  PetscCall(PetscDeviceContextGetOptionalNullContext_Internal(&dctx));
+  PetscValidPointer(scal,2);
+  if (*scal) PetscCall(PetscManagedTypeEnsureOffload(dctx,*scal,mask,PETSC_TRUE));
+  PetscCall(PetscManagedTypeDestroy(dctx,scal));
   PetscFunctionReturn(0);
 }
 
@@ -192,7 +209,7 @@ PetscErrorCode PetscManagedTypeCreate(PetscDeviceContext dctx, PetscType *host_p
   PetscCall(PetscManagedTypeAllocate(scal));
 
   // populate known quantities
-  PetscCall(PetscObjectNewId(&(*scal)->id));
+  PetscCall(PetscObjectNewId_Internal(&(*scal)->id));
   (*scal)->n = n;
   PetscCall(PetscManagedTypeSetOffloadMask_Private(*scal,mask));
 #if PetscDefined(HAVE_CXX)
@@ -201,7 +218,7 @@ PetscErrorCode PetscManagedTypeCreate(PetscDeviceContext dctx, PetscType *host_p
 #endif
   (*scal)->h_cmode = host_cmode;
   // unallocated is technically a "pure" state
-  PetscCall(PetscManagedTypeSetPurity_Private(*scal,(PetscBool)!PetscOffloadDevice(mask)));
+  PetscCall(PetscManagedTypeSetPurity_Private(*scal,PetscOffloadDevice(mask) ? PETSC_FALSE : PETSC_TRUE));
 
   if (host_cmode == PETSC_COPY_VALUES) {
     PetscCall(PetscManagedTypeCopyValues_Private(dctx,*scal,PETSC_OFFLOAD_CPU,host_ptr));
@@ -217,6 +234,9 @@ PetscErrorCode PetscManagedTypeCreate(PetscDeviceContext dctx, PetscType *host_p
   } else {
     (*scal)->device = device_ptr;
   }
+#else
+  (void)device_ptr;
+  (void)device_cmode;
 #endif
   PetscFunctionReturn(0);
 }
@@ -259,10 +279,17 @@ PetscErrorCode PetscManagedTypeGetValues(PetscDeviceContext dctx, PetscManagedTy
   PetscCall(PetscManagedTypeCheckLock_Private(scal,PETSC_FALSE));
   PetscCall(PetscManagedTypeGetOffloadMask_Private(scal,&mask));
   PetscCheck(!(PetscOffloadUnallocated(mask) && PetscMemoryAccessRead(mode)),PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Trying to read (using %s) from a managed type (id %" PetscInt64_FMT ") that has not been written to (has offload mask %s)",PetscMemoryAccessModes(mode),scal->id,PetscOffloadMasks(mask));
-  PetscCall(PetscDeviceContextMarkIntentFromID(dctx,scal->id,mode));
+  PetscCall(PetscDeviceContextMarkIntentFromID(dctx,scal->id,mode,PETSC_NULLPTR));
   if (PetscDefined(HAVE_CXX)) {
     PetscManagedTypeCallMethod(dctx->ops->getmanagedvaluestype,dctx,scal,mtype,mode,ptr);
+    // if user intends to write to device in any capacity then we are impure
+    if (PetscMemTypeDevice(mtype) && PetscMemoryAccessWrite(mode)) {
+      PetscCall(PetscManagedTypeSetPurity_Private(scal,PETSC_FALSE));
+    }
+    // get the updated mask
+    PetscCall(PetscManagedTypeGetOffloadMask_Private(scal,&mask));
   } else {
+    PetscAssert(PetscMemTypeHost(mtype),PETSC_COMM_SELF,PETSC_ERR_SUP,"Cannot request memory of type %s (device memory), reconfigure with device support",PetscMemTypes(mtype));
     if (!scal->host) {
       PetscInt n;
 
@@ -271,23 +298,19 @@ PetscErrorCode PetscManagedTypeGetValues(PetscDeviceContext dctx, PetscManagedTy
       PetscCall(PetscMalloc1(n,&scal->host));
       scal->h_cmode = PETSC_OWN_POINTER;
       PetscCall(PetscManagedTypeSetPurity_Private(scal,PETSC_TRUE));
-      PetscCall(PetscManagedTypeSetOffloadMask_Private(scal,PETSC_OFFLOAD_CPU));
+      mask = PETSC_OFFLOAD_CPU;
     }
     *ptr = scal->host;
   }
-  // if user intends to write to device in any capacity then we are impure
-  if (PetscMemTypeDevice(mtype) && PetscMemoryAccessWrite(mode)) {
-    PetscCall(PetscManagedTypeSetPurity_Private(scal,PETSC_FALSE));
-  }
-  if (sync) {
-    if (PetscMemTypeHost(mtype)) PetscCall(PetscManagedTypeSetPurity_Private(scal,PETSC_TRUE));
+  // also sets the parents mask if needed
+  PetscCall(PetscManagedTypeSetOffloadMask_Private(scal,mask));
+  // REVIEW ME:
+  // if we are pure, there is no need to synchronize (I think)
+  if (sync && !scal->pure) {
     PetscCall(PetscDeviceContextSynchronize(dctx));
+    if (PetscMemTypeHost(mtype)) PetscCall(PetscManagedTypeSetPurity_Private(scal,PETSC_TRUE));
   }
   PetscAssert(*ptr,PETSC_COMM_SELF,PETSC_ERR_PLIB,"ManagedType (id %" PetscInt64_FMT ") Returned null pointer for mtype %s",scal->id,PetscMemTypes(mtype));
-  if (scal->parent) {
-    PetscCall(PetscManagedTypeGetOffloadMask_Private(scal,&mask));
-    PetscCall(PetscManagedTypeSetOffloadMask_Private(scal->parent,mask));
-  }
   PetscFunctionReturn(0);
 }
 
@@ -335,8 +358,10 @@ PetscErrorCode PetscManagedTypeApplyOperator(PetscDeviceContext dctx, PetscManag
     }
   } else {
     PetscCheck(PetscDefined(HAVE_CXX),PETSC_COMM_SELF,PETSC_ERR_PLIB,"Should not get here if PetscDefined(HAVE_CXX) is false");
-    PetscCall(PetscDeviceContextMarkIntentFromID(dctx,scal->id,src_access));
-    if (ret && !in_place) PetscCall(PetscDeviceContextMarkIntentFromID(dctx,ret->id,ret_access));
+    PetscCall(PetscDeviceContextMarkIntentFromID(dctx,scal->id,src_access,PETSC_NULLPTR));
+    if (ret && !in_place) {
+      PetscCall(PetscDeviceContextMarkIntentFromID(dctx,ret->id,ret_access,PETSC_NULLPTR));
+    }
     PetscManagedTypeCallMethod(dctx->ops->applyoperatortype,dctx,scal,otype,mtype,rhs,ret);
   }
   PetscFunctionReturn(0);
@@ -349,10 +374,14 @@ PetscErrorCode PetscManagedTypeApplyOperator(PetscDeviceContext dctx, PetscManag
 PetscErrorCode PetscManagedHostTypeDestroy(PetscDeviceContext dctx, PetscManagedType *scal)
 {
   PetscFunctionBegin;
-  PetscCall(PetscDeviceContextGetOptionalNullContext_Internal(&dctx));
-  PetscValidPointer(scal,2);
-  if (*scal) PetscCall(PetscManagedTypeEnsureOffload(dctx,*scal,PETSC_OFFLOAD_CPU,PETSC_TRUE));
-  PetscCall(PetscManagedTypeDestroy(dctx,scal));
+  PetscCall(PetscManagedTypeDestroySpecific_Private(dctx,scal,PETSC_OFFLOAD_CPU));
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscManagedDeviceTypeDestroy(PetscDeviceContext dctx, PetscManagedType *scal)
+{
+  PetscFunctionBegin;
+  PetscCall(PetscManagedTypeDestroySpecific_Private(dctx,scal,PETSC_OFFLOAD_GPU));
   PetscFunctionReturn(0);
 }
 
@@ -371,11 +400,32 @@ PetscErrorCode PetscManagedTypeSetValues(PetscDeviceContext dctx, PetscManagedTy
   }
   if (n) {
     const PetscMemoryAccessMode  mode = PETSC_MEMORY_ACCESS_WRITE;
-    PetscMemType                 scalmtype;
+    PetscOffloadMask             mask;
+    PetscMemType                 scalmtype = mtype;
     PetscType                   *scalptr;
 
-    PetscCall(PetscManagedTypeGetPointerAndMemType(dctx,scal,mode,&scalptr,&scalmtype));
-    PetscCall(PetscDeviceArrayCopy(dctx,scalptr,ptr,n,PetscMemTypeToDeviceCopyMode(scalmtype,mtype)));
+    PetscCall(PetscManagedTypeGetOffloadMask_Private(scal,&mask));
+    // if scal is unallocated or in both locations we defer to the given mtype, otherwise we
+    // copy to wherever scal is currently up to date
+    if (mask == PETSC_OFFLOAD_UNALLOCATED || mask == PETSC_OFFLOAD_BOTH) {
+      PetscCall(PetscManagedTypeGetValues(dctx,scal,mtype,mode,PETSC_FALSE,&scalptr));
+    } else {
+      PetscCall(PetscManagedTypeGetPointerAndMemType(dctx,scal,mode,&scalptr,&scalmtype));
+    }
+
+    if (PetscMemTypeHost(mtype) && PetscMemTypeHost(scalmtype) && scal->pure) {
+      for (PetscInt i = 0; i < n; ++i) scalptr[i] = ptr[i];
+    } else {
+      // expensive!
+      PetscCall(PetscDeviceArrayCopy(dctx,scalptr,ptr,n,PetscMemTypeToDeviceCopyMode(scalmtype,mtype)));
+    }
+    if (PetscMemTypeHost(mtype) && PetscMemTypeHost(scalmtype)) {
+      // both on host? we are pure again
+      PetscCall(PetscManagedTypeSetPurity_Private(scal,PETSC_TRUE));
+    } else if (PetscMemTypeDevice(mtype)) {
+      // unless we are on device, in which case we are very much not pure
+      PetscCall(PetscManagedTypeSetPurity_Private(scal,PETSC_FALSE));
+    }
   }
   PetscFunctionReturn(0);
 }
@@ -393,10 +443,11 @@ PetscErrorCode PetscManagedTypeGetPointerAndMemType(PetscDeviceContext dctx, Pet
   if (mtype) PetscValidPointer(mtype,5);
   PetscCall(PetscManagedTypeGetOffloadMask_Private(scal,&mask));
   switch (mask) {
+    // if both prefer CPU, since we may be able to set purity
+  case PETSC_OFFLOAD_BOTH:
   case PETSC_OFFLOAD_CPU:
     retmtype = PETSC_MEMTYPE_HOST;
     break;
-  case PETSC_OFFLOAD_BOTH:
   case PETSC_OFFLOAD_GPU:
     retmtype = PETSC_MEMTYPE_DEVICE;
     break;
@@ -426,7 +477,7 @@ PetscErrorCode PetscManagedTypeCopy(PetscDeviceContext dctx, PetscManagedType de
   PetscCall(PetscManagedTypeGetSize(dest,&dn));
   PetscCall(PetscManagedTypeGetSize(src,&sn));
   PetscAssert(dn >= sn,PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Destination size %" PetscInt_FMT " not large enough for source size %" PetscInt_FMT,dn,sn);
-  if (dest != src && sn) {
+  if ((dest != src) && sn) {
     PetscMemType  dest_mtype = PETSC_MEMTYPE_DEVICE,src_mtype = PETSC_MEMTYPE_DEVICE;
     PetscType    *dest_ptr,*src_ptr;
 
@@ -449,35 +500,66 @@ PetscErrorCode PetscManagedTypeEnsureOffload(PetscDeviceContext dctx, PetscManag
   PetscCheckManagedTypeCompatibleDeviceContext(dctx,1,scal,2);
   PetscAssert(omask != PETSC_OFFLOAD_UNALLOCATED,PETSC_COMM_SELF,PETSC_ERR_USER,"Cannot request %s as offload mask",PetscOffloadMasks(omask));
   PetscCall(PetscManagedTypeGetOffloadMask_Private(scal,&mask));
-  if (mask != omask && mask != PETSC_OFFLOAD_BOTH) {
+  if (mask != omask) {
     // if we are unallocated, the first access should "write" since we cannot "read"
     // unallocated memory, the second will write
-    PetscMemoryAccessMode  mode     = PetscOffloadUnallocated(mask) ? PETSC_MEMORY_ACCESS_WRITE : PETSC_MEMORY_ACCESS_READ;
+    PetscMemoryAccessMode  mode     = PETSC_MEMORY_ACCESS_READ;
+    // small optimization, we don't want the individal get_values calls to sync in case we do
+    // it twice!
     const PetscBool        sub_sync = PETSC_FALSE;
     PetscType             *ptr;
 
-    switch (omask) {
-    case PETSC_OFFLOAD_BOTH:
-    case PETSC_OFFLOAD_CPU:
-      PetscCall(PetscManagedTypeGetValues(dctx,scal,PETSC_MEMTYPE_HOST,mode,sub_sync,&ptr));
-      if (omask == PETSC_OFFLOAD_CPU) break;
-      mode = PETSC_MEMORY_ACCESS_READ;
-    case PETSC_OFFLOAD_GPU:
-      PetscCall(PetscManagedTypeGetValues(dctx,scal,PETSC_MEMTYPE_DEVICE,mode,sub_sync,&ptr));
-    default:
+    switch (mask) {
+    case PETSC_OFFLOAD_BOTH: // we are already offloaded, so do nothing
       break;
+    case PETSC_OFFLOAD_CPU:
+      if (PetscOffloadDevice(omask)) {
+        OFFLOAD_TO_GPU: // currently on CPU but want it on GPU
+        PetscCall(PetscManagedTypeGetValues(dctx,scal,PETSC_MEMTYPE_DEVICE,mode,sub_sync,&ptr));
+      }
+      break;
+    case PETSC_OFFLOAD_GPU:
+      if (PetscOffloadHost(omask)) {
+        OFFLOAD_TO_CPU: // currently on GPU but also want it on CPU
+        PetscCall(PetscManagedTypeGetValues(dctx,scal,PETSC_MEMTYPE_HOST,mode,sub_sync,&ptr));
+      }
+      break;
+    case PETSC_OFFLOAD_UNALLOCATED:
+      mode = PETSC_MEMORY_ACCESS_WRITE;
+      switch (omask) {
+        // any of the "simple" requests we can just delegate to above (but instead of reading
+        // we "write")
+      case PETSC_OFFLOAD_CPU: goto OFFLOAD_TO_CPU;
+      case PETSC_OFFLOAD_GPU: goto OFFLOAD_TO_GPU;
+      case PETSC_OFFLOAD_BOTH:
+        // The only complex configuration is when user wants both but we have neither. We
+        // create some dummy host values first, then pipe them to device. The fact that we
+        // "write" from host *first* is important! This allows us to maintain a "pure" state
+        // since we "read" on the device-side
+        PetscCall(PetscManagedTypeGetValues(dctx,scal,PETSC_MEMTYPE_HOST,mode,sub_sync,&ptr));
+        PetscCall(PetscManagedTypeGetValues(dctx,scal,PETSC_MEMTYPE_DEVICE,PETSC_MEMORY_ACCESS_READ,sub_sync,&ptr));
+        break;
+      default:
+        SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Unsupported offloadmask %s",PetscOffloadMasks(omask));
+      }
+      break;
+      default:
+        SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Unsupported offloadmask %s",PetscOffloadMasks(mask));
     }
 
     PetscCall(PetscManagedTypeGetOffloadMask_Private(scal,&mask));
     PetscAssert(mask == omask || mask == PETSC_OFFLOAD_BOTH,PETSC_COMM_SELF,PETSC_ERR_PLIB,"Managed type offload mask %s != requested mask %s",PetscOffloadMasks(mask),PetscOffloadMasks(omask));
+  } else {
+    // even if we don't alter the offloadmask we still count this context as "reading"
+    PetscCall(PetscDeviceContextMarkIntentFromID(dctx,scal->id,PETSC_MEMORY_ACCESS_READ,PETSC_NULLPTR));
   }
+  // we're going to assume that the user has properly serialized the device contexts here.
+  // it is possible for the user to have changed the offload mask on one stream, then call
+  // this routine with another and hence pass the mask check above. But this event is
+  // unlikely enough that it doesn't warrant throwing away the purity optimization
   if (sync) {
-    // we're going to assume that the user has properly serialized the device contexts here.
-    // it is possible for the user to have changed the offload mask on one stream, then call
-    // this routine with another and hence pass the mask check above. But this event is
-    // unlikely enough that it doesn't warrant throwing away the purity optimization
+    if (!scal->pure) PetscCall(PetscDeviceContextSynchronize(dctx));
     if (PetscOffloadHost(omask)) PetscCall(PetscManagedTypeSetPurity_Private(scal,PETSC_TRUE));
-    PetscCall(PetscDeviceContextSynchronize(dctx));
   }
   PetscFunctionReturn(0);
 }
@@ -578,7 +660,7 @@ PetscErrorCode PetscManagedTypeEqual(PetscManagedType scal, PetscType val, Petsc
   // REVIEW ME:
   // it if is unknown we can technically just forgo the equal check since it is worthless
   // anyways
-  if (scal->host) {
+  if (*known && (scal->host)) {
     PetscInt n;
 
     PetscCall(PetscManagedTypeGetSize(scal,&n));
@@ -599,6 +681,7 @@ PetscErrorCode PetscManagedTypeEqual(PetscManagedType scal, PetscType val, Petsc
 #undef PetscManagedTypeCopyValues_Private
 #undef PetscManagedTypeCheckCopyMode_Private
 #undef PetscManagedTypeCheckSuperOwnsSub_Private
+#undef PetscManagedTypeDestroySpecific_Private
 #undef destroymanagedtype
 #undef getmanagedvaluestype
 #undef applyoperatortype

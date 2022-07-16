@@ -180,7 +180,7 @@ PETSC_EXTERN_TYPEDEF typedef PetscErrorCode (*PetscObjectViewFunction)(PetscObje
 
 PETSC_EXTERN PetscErrorCode PetscComposedQuantitiesDestroy(PetscObject obj);
 PETSC_EXTERN PetscErrorCode PetscHeaderCreate_Private(PetscObject, PetscClassId, const char[], const char[], const char[], MPI_Comm, PetscObjectDestroyFunction, PetscObjectViewFunction);
-PETSC_INTERN PetscErrorCode PetscObjectNewId(PetscObjectId *);
+PETSC_INTERN PetscErrorCode PetscObjectNewId_Internal(PetscObjectId *);
 
 /*@C
     PetscHeaderDestroy - Final step in destroying a PetscObject

@@ -1,8 +1,5 @@
 ALL: lib
 
-CFLAGS    =
-FFLAGS    =
-CPPFLAGS  =
 SOURCEC	  =
 SOURCECXX = hostdevice.cxx hostcontext.cxx
 SOURCEF	  =

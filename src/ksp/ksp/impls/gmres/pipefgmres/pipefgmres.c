@@ -2,7 +2,9 @@
   Contributed by Patrick Sanan and Sascha M. Schnepp
 */
 
+#include "petscsys.h"
 #include <../src/ksp/ksp/impls/gmres/pipefgmres/pipefgmresimpl.h> /*I  "petscksp.h"  I*/
+#include <petscdevice.h>
 
 static PetscBool  cited      = PETSC_FALSE;
 static const char citation[] = "@article{SSM2016,\n"
@@ -25,6 +27,7 @@ static PetscErrorCode KSPPIPEFGMRESGetNewVectors(KSP, PetscInt);
 static PetscErrorCode KSPPIPEFGMRESUpdateHessenberg(KSP, PetscInt, PetscBool *, PetscReal *);
 static PetscErrorCode KSPPIPEFGMRESBuildSoln(PetscScalar *, Vec, Vec, KSP, PetscInt);
 extern PetscErrorCode KSPReset_PIPEFGMRES(KSP);
+static PetscErrorCode KSPDestroy_PIPEFGMRES(KSP);
 
 /*
 
@@ -60,10 +63,388 @@ static PetscErrorCode KSPSetUp_PIPEFGMRES(KSP ksp) {
   PetscCall(KSPCreateVecs(ksp, pipefgmres->vv_allocated, &pipefgmres->zvecs_user_work[0], 0, NULL));
   PetscCall(PetscLogObjectParents(ksp, pipefgmres->vv_allocated, pipefgmres->zvecs_user_work[0]));
   for (k = 0; k < pipefgmres->vv_allocated; k++) { pipefgmres->zvecs[k] = pipefgmres->zvecs_user_work[0][k]; }
-
   PetscFunctionReturn(0);
 }
 
+typedef struct {
+  KSP_PIPEFGMRES     gmres;
+  PetscManagedScalar scal_work;
+  PetscManagedReal   real_work;
+  PetscManagedInt    int_work;
+  PetscBool          setup;
+} KSP_PIPEFGMRES_ASYNC;
+
+static PetscErrorCode KSPDestroy_PIPEFGMRES_Async(KSP ksp) {
+  PetscDeviceContext    dctx;
+  KSP_PIPEFGMRES_ASYNC *async = (KSP_PIPEFGMRES_ASYNC *)ksp->data;
+
+  PetscFunctionBegin;
+  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+  PetscCall(PetscManagedScalarDestroy(dctx, &async->scal_work));
+  PetscCall(PetscManagedRealDestroy(dctx, &async->real_work));
+  PetscCall(PetscManagedIntDestroy(dctx, &async->int_work));
+  PetscCall(KSPDestroy_PIPEFGMRES(ksp));
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode KSPSetUp_PIPEFGMRES_Async(KSP ksp) {
+  PetscDeviceContext    dctx;
+  KSP_PIPEFGMRES_ASYNC *async = (KSP_PIPEFGMRES_ASYNC *)ksp->data;
+
+  PetscFunctionBegin;
+  PetscCall(KSPSetUp_PIPEFGMRES(ksp));
+  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+  PetscCall(PetscManagedScalarCreateDefault(dctx, 1, &async->scal_work));
+  PetscCall(PetscManagedRealCreateDefault(dctx, 1, &async->real_work));
+  PetscCall(PetscManagedIntCreateDefault(dctx, 1, &async->int_work));
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode KSPPIPEFGMRESBuildSoln_Async(PetscScalar *nrs, Vec vguess, Vec vdest, KSP ksp, PetscInt it, PetscDeviceContext dctx) {
+  PetscScalar           tt;
+  PetscInt              k, j;
+  KSP_PIPEFGMRES_ASYNC *async      = (KSP_PIPEFGMRES_ASYNC *)(ksp->data);
+  KSP_PIPEFGMRES       *pipefgmres = &async->gmres;
+
+  PetscFunctionBegin;
+  /* Solve for solution vector that minimizes the residual */
+  if (it < 0) {                                   /* no pipefgmres steps have been performed */
+    PetscCall(VecCopyAsync(vguess, vdest, dctx)); /* VecCopy() is smart, exits immediately if vguess == vdest */
+    PetscFunctionReturn(0);
+  }
+
+  /* add solution to previous solution */
+  PetscManagedScalar nrs_scal;
+  PetscCall(PetscManageHostScalar(dctx, nrs, it + 1, &nrs_scal));
+  //PetscCall(PetscManagedScalarSetValues(dctx,async->scal_work,PETSC_MEMTYPE_HOST,nrs,it));
+  /* Accumulate the correction to the solution of the preconditioned problem in VEC_TEMP */
+  PetscCall(VecZeroEntriesAsync(VEC_TEMP, dctx));
+  /* solve the upper triangular system - RS is the right side and HH is
+     the upper triangular matrix  - put soln in nrs */
+  if (*HH(it, it) != 0.0) nrs[it] = *RS(it) / *HH(it, it);
+  else nrs[it] = 0.0;
+
+  for (k = it - 1; k >= 0; k--) {
+    tt = *RS(k);
+    for (j = k + 1; j <= it; j++) tt -= *HH(k, j) * nrs[j];
+    nrs[k] = tt / *HH(k, k);
+  }
+
+  PetscCall(PetscManagedScalarSetValues(dctx, async->scal_work, PETSC_MEMTYPE_HOST, (PetscScalar[]){1.0}, 1));
+  PetscCall(PetscManagedIntSetValues(dctx, async->int_work, PETSC_MEMTYPE_HOST, (PetscInt[]){++it}, 1));
+  PetscCall(VecMAXPYAsync(VEC_TEMP, async->int_work, nrs_scal, &PREVEC(0), dctx));
+  //PetscCall(VecMAXPYAsync(VEC_TEMP,it+1,nrs,&PREVEC(0),dctx));
+  if (vdest == vguess) {
+    PetscCall(VecAXPYAsync(vdest, async->scal_work, VEC_TEMP, dctx));
+  } else {
+    PetscCall(VecWAXPYAsync(vdest, async->scal_work, VEC_TEMP, vguess, dctx));
+  }
+  PetscCall(PetscManagedScalarDestroy(dctx, &nrs_scal));
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode KSPPIPEFGMRESCycle_Async(PetscInt *itcount, KSP ksp) {
+  KSP_PIPEFGMRES_ASYNC *async      = (KSP_PIPEFGMRES_ASYNC *)(ksp->data);
+  KSP_PIPEFGMRES       *pipefgmres = &async->gmres;
+  PetscReal             res_norm;
+  PetscReal             hapbnd, tt;
+  PetscScalar          *hh, *hes, shift = pipefgmres->shift;
+  PetscManagedScalar    lhh;
+  PetscBool             hapend = PETSC_FALSE;      /* indicates happy breakdown ending */
+  PetscInt              loc_it;                    /* local count of # of dir. in Krylov space */
+  PetscInt              max_k = pipefgmres->max_k; /* max # of directions Krylov space */
+  Mat                   Amat, Pmat;
+  Vec                   Q, W;                      /* Pipelining vectors */
+  Vec                  *redux = pipefgmres->redux; /* workspace for single reduction */
+  PetscDeviceContext    dctx;
+
+  PetscFunctionBegin;
+  if (PetscDefined(USE_DEBUG)) PetscCall(PetscPrintf(PETSC_COMM_WORLD, "xxx ========================================= LOOP BEGIN ========================================= xxx\n"));
+  if (itcount) *itcount = 0;
+  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+
+  /* Assign simpler names to these vectors, allocated as pipelining workspace */
+  Q = VEC_Q;
+  W = VEC_W;
+
+  /* Allocate memory for orthogonalization work (freed in the GMRES Destroy routine)*/
+  /* Note that we add an extra value here to allow for a single reduction */
+  PetscCall(PetscManagedScalarCreateDefault(dctx, pipefgmres->max_k + 2, &lhh));
+
+  /* Number of pseudo iterations since last restart is the number
+     of prestart directions */
+  loc_it = 0;
+
+  /* note: (pipefgmres->it) is always set one less than (loc_it) It is used in
+     KSPBUILDSolution_PIPEFGMRES, where it is passed to KSPPIPEFGMRESBuildSoln.
+     Note that when KSPPIPEFGMRESBuildSoln is called from this function,
+     (loc_it -1) is passed, so the two are equivalent */
+  pipefgmres->it = (loc_it - 1);
+
+  /* initial residual is in VEC_VV(0)  - compute its norm*/
+  //PetscCall(VecNormalize(VEC_VV(0),&res_norm));
+  PetscManagedReal real_work = async->real_work;
+  PetscCall(VecNormAsync(VEC_VV(0), NORM_2, real_work, dctx));
+
+  /* first entry in right-hand-side of hessenberg system is just
+     the initial residual norm */
+  PetscReal *ptr;
+  PetscCall(PetscManagedRealGetValues(dctx, real_work, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &ptr));
+  *RS(0) = res_norm = *ptr;
+
+  PetscCall(PetscObjectSAWsTakeAccess((PetscObject)ksp));
+  if (ksp->normtype != KSP_NORM_NONE) ksp->rnorm = res_norm;
+  else ksp->rnorm = 0;
+  PetscCall(PetscObjectSAWsGrantAccess((PetscObject)ksp));
+  PetscCall(KSPLogResidualHistory(ksp, ksp->rnorm));
+  PetscCall(KSPMonitor(ksp, ksp->its, ksp->rnorm));
+
+  /* check for the convergence - maybe the current guess is good enough */
+  PetscCall((*ksp->converged)(ksp, ksp->its, ksp->rnorm, &ksp->reason, ksp->cnvP));
+  if (ksp->reason) PetscFunctionReturn(0);
+
+  /* scale VEC_VV (the initial residual) */
+  PetscManagedScalar tt_inv = async->scal_work;
+  PetscCall(PetscManagedScalarSetValues(dctx, tt_inv, PETSC_MEMTYPE_HOST, (PetscScalar[]){1.0 / res_norm}, 1));
+  PetscCall(VecScaleAsync(VEC_VV(0), tt_inv, dctx));
+  //PetscCall(VecNormalize(VEC_VV(0),NULL));
+
+  /* Fill the pipeline */
+  PetscCall(KSP_PCApply(ksp, VEC_VV(loc_it), PREVEC(loc_it)));
+  PetscCall(PCGetOperators(ksp->pc, &Amat, &Pmat));
+  PetscCall(KSP_MatMult(ksp, Amat, PREVEC(loc_it), ZVEC(loc_it)));
+  PetscCall(PetscManagedScalarSetValues(dctx, tt_inv, PETSC_MEMTYPE_HOST, (PetscScalar[]){-shift}, 1));
+  PetscCall(VecAXPYAsync(ZVEC(loc_it), tt_inv, VEC_VV(loc_it), dctx)); /* Note shift */
+
+  PetscManagedInt loc_it_tmp = async->int_work;
+  /* MAIN ITERATION LOOP BEGINNING*/
+  /* keep iterating until we have converged OR generated the max number
+     of directions OR reached the max number of iterations for the method */
+  while (!ksp->reason && loc_it < max_k && ksp->its < ksp->max_it) {
+    const PetscInt cur_it = loc_it + 1;
+
+    if (loc_it) {
+      PetscCall(KSPLogResidualHistory(ksp, res_norm));
+      PetscCall(KSPMonitor(ksp, ksp->its, res_norm));
+    }
+    pipefgmres->it = (loc_it - 1);
+
+    /* see if more space is needed for work vectors */
+    if (pipefgmres->vv_allocated <= cur_it + VEC_OFFSET) {
+      PetscCall(KSPPIPEFGMRESGetNewVectors(ksp, cur_it));
+      /* (loc_it+1) is passed in as number of the first vector that should
+         be allocated */
+    }
+
+    /* Note that these inner products are with "Z" now, so
+       in particular, lhh[loc_it] is the 'barred' or 'shifted' value,
+       not the value from the equivalent FGMRES run (even in exact arithmetic)
+       That is, the H we need for the Arnoldi relation is different from the
+       coefficients we use in the orthogonalization process,because of the shift */
+
+    /* Do some local twiddling to allow for a single reduction */
+    PetscCall(PetscArraycpy(redux, &VEC_VV(0), cur_it));
+    //for (i=0;i<loc_it+1;i++) redux[i] = VEC_VV(i);
+    redux[cur_it] = ZVEC(loc_it);
+
+    /* note the extra dot product which ends up in lh[loc_it+1], which computes ||z||^2 */
+    PetscCall(PetscManagedIntSetValues(dctx, loc_it_tmp, PETSC_MEMTYPE_HOST, (PetscInt[]){cur_it + 1}, 1));
+    PetscCall(VecMDotBeginAsync(ZVEC(loc_it), loc_it_tmp, redux, lhh, dctx));
+
+    /* Start the split reduction (This actually calls the MPI_Iallreduce, otherwise, the reduction is simply delayed until the "end" call)*/
+    PetscCall(PetscCommSplitReductionBegin(PetscObjectComm((PetscObject)ZVEC(loc_it))));
+
+    /* The work to be overlapped with the inner products follows.
+       This is application of the preconditioner and the operator
+       to compute intermediate quantites which will be combined (locally)
+       with the results of the inner products.
+       */
+    PetscCall(KSP_PCApply(ksp, ZVEC(loc_it), Q));
+    PetscCall(PCGetOperators(ksp->pc, &Amat, &Pmat));
+    PetscCall(KSP_MatMult(ksp, Amat, Q, W));
+
+    /* Compute inner products of the new direction with previous directions,
+       and the norm of the to-be-orthogonalized direction "Z".
+       This information is enough to build the required entries
+       of H. The inner product with VEC_VV(it_loc) is
+       *different* than in the standard FGMRES and need to be dealt with specially.
+       That is, for standard FGMRES the orthogonalization coefficients are the same
+       as the coefficients used in the Arnoldi relation to reconstruct, but here this
+       is not true (albeit only for the one entry of H which we "unshift" below. */
+
+    /* Finish the dot product, retrieving the extra entry */
+    PetscCall(VecMDotEndAsync(ZVEC(loc_it), loc_it_tmp, redux, lhh, dctx));
+
+    /* Hessenberg entries, and entries for (naive) classical Graham-Schmidt
+      Note that the Hessenberg entries require a shift, as these are for the
+      relation AU = VH, which is wrt unshifted basis vectors */
+    hh  = HH(0, loc_it);
+    hes = HES(0, loc_it);
+    PetscScalar *lhh_array;
+    PetscMemType mtype;
+    PetscCall(PetscManagedScalarGetPointerAndMemType(dctx, lhh, PETSC_MEMORY_ACCESS_READ, &lhh_array, &mtype));
+    const PetscDeviceCopyMode mode = PetscMemTypeToDeviceCopyMode(PETSC_MEMTYPE_HOST, mtype);
+    PetscDeviceContext       *subctx;
+
+    PetscCall(PetscDeviceContextFork(dctx, 1, &subctx));
+    PetscCall(PetscDeviceArrayCopy(dctx, hh, lhh_array, cur_it, mode));
+    PetscCall(PetscDeviceArrayCopy(*subctx, hes, lhh_array, cur_it, mode));
+    PetscCall(PetscDeviceContextJoin(dctx, 1, PETSC_DEVICE_CONTEXT_JOIN_DESTROY, &subctx));
+
+    /* we delay applying the shift here */
+    PetscCall(PetscManagedScalarGetValues(dctx, lhh, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &lhh_array));
+    tt = PetscRealPart(lhh_array[cur_it]);
+    hh[loc_it] += shift;
+    hes[loc_it] += shift;
+    for (PetscInt j = 0; j < cur_it; ++j) {
+      lhh_array[j] = -lhh_array[j]; /* flip sign */
+      /* Compute the norm of the un-normalized new direction using the rearranged formula
+       Note that these are shifted ("barred") quantities */
+      tt -= PetscSqr(PetscAbsScalar(lhh_array[j]));
+    }
+
+    /* On AVX512 this is accumulating roundoff errors for eg: tt=-2.22045e-16 */
+    if ((tt < 0.0) && tt > -PETSC_SMALL) tt = 0.0;
+    if (tt < 0.0) {
+      /* If we detect square root breakdown in the norm, we must restart the algorithm.
+         Here this means we simply break the current loop and reconstruct the solution
+         using the basis we have computed thus far. Note that by breaking immediately,
+         we do not update the iteration count, so computation done in this iteration
+         should be disregarded.
+         */
+      PetscCall(PetscInfo(ksp, "Restart due to square root breakdown at it = %" PetscInt_FMT ", tt=%g\n", ksp->its, (double)tt));
+      break;
+    }
+    tt = PetscSqrtReal(tt);
+
+    /* new entry in hessenburg is the 2-norm of our new direction */
+    hh[cur_it]  = tt;
+    hes[cur_it] = tt;
+
+    /* The recurred computation for the new direction
+       The division by tt is delayed to the happy breakdown check later
+       Note placement BEFORE the unshift
+       */
+    PetscCall(PetscManagedScalarSetValues(dctx, tt_inv, PETSC_MEMTYPE_HOST, (PetscScalar[]){1.0 / tt}, 1));
+    PetscCall(PetscManagedIntSetValues(dctx, loc_it_tmp, PETSC_MEMTYPE_HOST, &cur_it, 1));
+    PetscCall(PetscDeviceContextFork(dctx, 1, &subctx));
+
+#define GET_ID(v)  ((PetscObject)v)->id
+#define SHOW_ID(v) PetscPrintf(PETSC_COMM_WORLD, #v " id %" PetscInt64_FMT "\n", GET_ID(v))
+    if (PetscDefined(USE_DEBUG)) {
+      PetscCall(SHOW_ID(ZVEC(loc_it)));
+      PetscCall(SHOW_ID(ZVEC(cur_it)));
+      PetscCall(SHOW_ID(ZVEC(0)));
+      PetscCall(SHOW_ID(W));
+      PetscCall(SHOW_ID(VEC_VV(cur_it)));
+      PetscCall(SHOW_ID(VEC_VV(0)));
+      PetscCall(SHOW_ID(Q));
+      PetscCall(SHOW_ID(PREVEC(cur_it)));
+      PetscCall(SHOW_ID(PREVEC(0)));
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD, "-----\n"));
+      PetscObjectId idlist[] = {GET_ID(ZVEC(loc_it)), GET_ID(ZVEC(cur_it)), GET_ID(ZVEC(0)), GET_ID(W), GET_ID(VEC_VV(cur_it)), GET_ID(VEC_VV(0)), GET_ID(Q), GET_ID(PREVEC(cur_it)), GET_ID(PREVEC(0))};
+      for (PetscInt i = 0; i < sizeof(idlist) / sizeof(*idlist); ++i) {
+        for (PetscInt j = 0; j < sizeof(idlist) / sizeof(*idlist); ++j) {
+          if (i != j) PetscCheck(idlist[i] != idlist[j], PETSC_COMM_SELF, PETSC_ERR_PLIB, "Matching ids i %d j %d", i, j);
+        }
+      }
+    }
+#undef GET_ID
+#undef SHOW_ID
+
+    PetscCall(VecCopyAsync(ZVEC(loc_it), VEC_VV(cur_it), *subctx));
+    PetscCall(VecMAXPYAsync(VEC_VV(cur_it), loc_it_tmp, lhh, &VEC_VV(0), *subctx));
+    /* (VEC_VV(loc_it+1) is not normalized yet) */
+
+    /* The recurred computation for the preconditioned vector (u) */
+    PetscCall(VecCopyAsync(Q, PREVEC(cur_it), dctx));
+    PetscCall(VecMAXPYAsync(PREVEC(cur_it), loc_it_tmp, lhh, &PREVEC(0), dctx));
+    PetscCall(VecScaleAsync(PREVEC(cur_it), tt_inv, dctx)); // 1.0/tt
+
+    /* Unshift an entry in the GS coefficients ("removing the bar") */
+    PetscCall(PetscDeviceContextJoin(dctx, 1, PETSC_DEVICE_CONTEXT_JOIN_DESTROY, &subctx));
+    PetscCall(PetscManagedScalarGetValues(dctx, lhh, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &lhh_array));
+    lhh_array[loc_it] -= shift;
+
+    /* The recurred computation for z (Au)
+       Note placement AFTER the "unshift" */
+    PetscCall(VecCopyAsync(W, ZVEC(cur_it), dctx));
+    PetscCall(VecMAXPYAsync(ZVEC(cur_it), loc_it_tmp, lhh, &ZVEC(0), dctx));
+    PetscCall(VecScaleAsync(ZVEC(cur_it), tt_inv, dctx));
+
+    /* Happy Breakdown Check */
+    hapbnd = PetscAbsScalar((tt) / *RS(loc_it));
+    /* RS(loc_it) contains the res_norm from the last iteration  */
+    hapbnd = PetscMin(pipefgmres->haptol, hapbnd);
+    if (tt > hapbnd) {
+      /* scale new direction by its norm  */
+      PetscCall(VecScaleAsync(VEC_VV(cur_it), tt_inv, dctx));
+    } else {
+      /* This happens when the solution is exactly reached. */
+      /* So there is no new direction... */
+      PetscCall(VecSet(VEC_TEMP, 0.0)); /* set VEC_TEMP to 0 */
+      hapend = PETSC_TRUE;
+    }
+
+    /* note that for pipefgmres we could get HES(loc_it+1, loc_it)  = 0 and the
+       current solution would not be exact if HES was singular.  Note that
+       HH non-singular implies that HES is not singular, and HES is guaranteed
+       to be nonsingular when PREVECS are linearly independent and A is
+       nonsingular (in GMRES, the nonsingularity of A implies the nonsingularity
+       of HES). So we should really add a check to verify that HES is nonsingular.*/
+
+    /* Note that to be thorough, in debug mode, one could call a LAPACK routine
+       here to check that the hessenberg matrix is indeed non-singular (since
+       FGMRES does not guarantee this) */
+
+    /* Now apply rotations to new col of hessenberg (and right side of system),
+       calculate new rotation, and get new residual norm at the same time*/
+    PetscCall(KSPPIPEFGMRESUpdateHessenberg(ksp, loc_it, &hapend, &res_norm));
+    if (ksp->reason) break;
+
+    /* Add this here in case it has converged */
+    pipefgmres->it = loc_it++;
+    PetscCall(PetscObjectSAWsTakeAccess((PetscObject)ksp));
+    ksp->its++;
+    if (ksp->normtype != KSP_NORM_NONE) ksp->rnorm = res_norm;
+    else ksp->rnorm = 0;
+    PetscCall(PetscObjectSAWsGrantAccess((PetscObject)ksp));
+
+    PetscCall((*ksp->converged)(ksp, ksp->its, ksp->rnorm, &ksp->reason, ksp->cnvP));
+
+    /* Catch error in happy breakdown and signal convergence and break from loop */
+    if (hapend) {
+      if (!ksp->reason) {
+        PetscCheck(!ksp->errorifnotconverged, PetscObjectComm((PetscObject)ksp), PETSC_ERR_NOT_CONVERGED, "You reached the happy break down, but convergence was not indicated. Residual norm = %g", (double)res_norm);
+        ksp->reason = KSP_DIVERGED_BREAKDOWN;
+        break;
+      }
+    }
+  }
+  /* END OF ITERATION LOOP */
+  PetscCall(PetscManagedScalarDestroy(dctx, &lhh));
+  PetscCall(KSPLogResidualHistory(ksp, ksp->rnorm));
+
+  /*
+     Monitor if we know that we will not return for a restart */
+  if (loc_it && (ksp->reason || ksp->its >= ksp->max_it)) { PetscCall(KSPMonitor(ksp, ksp->its, ksp->rnorm)); }
+
+  if (itcount) *itcount = loc_it;
+
+  /*
+    Down here we have to solve for the "best" coefficients of the Krylov
+    columns, add the solution values together, and possibly unwind the
+    preconditioning from the solution
+   */
+
+  /* Form the solution (or the solution so far) */
+  /* Note: must pass in (loc_it-1) for iteration count so that KSPPIPEGMRESIIBuildSoln
+     properly navigates */
+
+  PetscCall(KSPPIPEFGMRESBuildSoln_Async(RS(0), ksp->vec_sol, ksp->vec_sol, ksp, loc_it - 1, dctx));
+  if (PetscDefined(USE_DEBUG)) PetscCall(PetscPrintf(PETSC_COMM_WORLD, "xxx ========================================= LOOP END ========================================= xxx\n"));
+  PetscFunctionReturn(0);
+}
 /*
 
     KSPPIPEFGMRESCycle - Run pipefgmres, possibly with restart.  Return residual
@@ -364,7 +745,7 @@ static PetscErrorCode KSPSolve_PIPEFGMRES(KSP ksp) {
   ksp->reason = KSP_CONVERGED_ITERATING;
   while (!ksp->reason) {
     PetscCall(KSPInitialResidual(ksp, ksp->vec_sol, VEC_TEMP, VEC_TEMP_MATOP, VEC_VV(0), ksp->vec_rhs));
-    PetscCall(KSPPIPEFGMRESCycle(&its, ksp));
+    PetscCall((*pipefgmres->cycle)(&its, ksp));
     itcount += its;
     if (itcount >= ksp->max_it) {
       if (!ksp->reason) ksp->reason = KSP_DIVERGED_ITS;
@@ -663,6 +1044,7 @@ PETSC_EXTERN PetscErrorCode KSPCreate_PIPEFGMRES(KSP ksp) {
   PetscCall(PetscNewLog(ksp, &pipefgmres));
 
   ksp->data                              = (void *)pipefgmres;
+  pipefgmres->cycle                      = KSPPIPEFGMRESCycle;
   ksp->ops->buildsolution                = KSPBuildSolution_PIPEFGMRES;
   ksp->ops->setup                        = KSPSetUp_PIPEFGMRES;
   ksp->ops->solve                        = KSPSolve_PIPEFGMRES;
@@ -692,6 +1074,21 @@ PETSC_EXTERN PetscErrorCode KSPCreate_PIPEFGMRES(KSP ksp) {
   pipefgmres->orthogwork     = NULL;
   pipefgmres->cgstype        = KSP_GMRES_CGS_REFINE_NEVER;
   pipefgmres->shift          = 1.0;
+  PetscFunctionReturn(0);
+}
+
+PETSC_EXTERN PetscErrorCode KSPCreate_PIPEFGMRES_Async(KSP ksp) {
+  KSP_PIPEFGMRES_ASYNC *async;
+
+  PetscFunctionBegin;
+  PetscCall(KSPCreate_PIPEFGMRES(ksp));
+  PetscCall(PetscNewLog(ksp, &async));
+  // save the regular gmres info
+  async->gmres       = *(KSP_PIPEFGMRES *)ksp->data;
+  ksp->data          = async;
+  ksp->ops->destroy  = KSPDestroy_PIPEFGMRES_Async;
+  ksp->ops->setup    = KSPSetUp_PIPEFGMRES_Async;
+  async->gmres.cycle = KSPPIPEFGMRESCycle_Async;
   PetscFunctionReturn(0);
 }
 

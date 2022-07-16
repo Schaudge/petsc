@@ -2,27 +2,14 @@
 #define PETSC_CPP_UTILITY_HPP
 
 #if defined(__cplusplus)
+#include <petsc/private/cpp/macros.hpp>
 #include <petsc/private/cpp/type_traits.hpp>
+
 #include <utility>
 
 namespace Petsc {
 
 namespace util {
-
-// basic building blocks
-#define PETSC_DECLTYPE_AUTO(...) ->decltype(__VA_ARGS__)
-#define PETSC_NOEXCEPT_AUTO(...) noexcept(noexcept(__VA_ARGS__))
-#define PETSC_RETURNS(...) \
-  { return __VA_ARGS__; }
-
-// one without the other
-#define PETSC_DECLTYPE_AUTO_RETURNS(...) PETSC_DECLTYPE_AUTO(__VA_ARGS__) PETSC_RETURNS(__VA_ARGS__)
-#define PETSC_NOEXCEPT_AUTO_RETURNS(...) PETSC_NOEXCEPT_AUTO(__VA_ARGS__) PETSC_RETURNS(__VA_ARGS__)
-
-// both
-#define PETSC_DECLTYPE_NOEXCEPT_AUTO(...) PETSC_NOEXCEPT_AUTO(__VA_ARGS__) PETSC_DECLTYPE_AUTO(__VA_ARGS__)
-// all
-#define PETSC_DECLTYPE_NOEXCEPT_AUTO_RETURNS(...) PETSC_DECLTYPE_NOEXCEPT_AUTO(__VA_ARGS__) PETSC_RETURNS(__VA_ARGS__)
 
 #if __cplusplus >= 201402L // C++14
 using std::integer_sequence;

@@ -2,9 +2,9 @@
 
 namespace Petsc {
 
-namespace Device {
+namespace device {
 
-namespace Host {
+namespace host {
 
 PetscErrorCode Device::initialize(MPI_Comm comm, PetscInt *defaultDeviceId, PetscDeviceInitType *defaultInitType) noexcept {
   auto initType = std::make_pair(*defaultInitType, PETSC_FALSE);
@@ -87,8 +87,8 @@ PetscErrorCode Device::viewDevice(PetscDevice device, PetscViewer viewer) noexce
   PetscFunctionReturn(0);
 }
 
-} // namespace Host
+} // namespace host
 
-} // namespace Device
+} // namespace device
 
 } // namespace Petsc

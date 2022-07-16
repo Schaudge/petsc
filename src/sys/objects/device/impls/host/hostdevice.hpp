@@ -1,15 +1,16 @@
 #ifndef HOSTDEVICE_HPP
 #define HOSTDEVICE_HPP
 
+#if defined(__cplusplus)
 #include "../impldevicebase.hpp" /*I "petscdevice.h" I*/
 
 namespace Petsc {
 
-namespace Device {
+namespace device {
 
-namespace Host {
+namespace host {
 
-struct Device : ::Petsc::Device::Impl::DeviceBase<Device> {
+struct Device : ::Petsc::device::impl::DeviceBase<Device> {
 private:
   PETSC_DEVICE_IMPL_BASE_CLASS_HEADER(base_type, Device);
 
@@ -22,10 +23,12 @@ public:
   PETSC_NODISCARD static PetscErrorCode viewDevice(PetscDevice, PetscViewer) noexcept;
 };
 
-} // namespace Host
+} // namespace host
 
-} // namespace Device
+} // namespace device
 
 } // namespace Petsc
+
+#endif // __cplusplus
 
 #endif // HOSTDEVICE_HPP

@@ -1,9 +1,12 @@
 #ifndef IMPLDEVICEBASE_HPP
 #define IMPLDEVICEBASE_HPP
 
+#if defined(__cplusplus)
 #include <petsc/private/deviceimpl.h>
 #include <petsc/private/cpputil.hpp>
 #include <petsc/private/viewerimpl.h>
+
+#include <utility>
 #include <array>
 #include <cstring> // for std::strlen
 
@@ -15,9 +18,9 @@ PETSC_INTERN PetscErrorCode PetscLogInitialize(void);
 
 namespace Petsc {
 
-namespace Device {
+namespace device {
 
-namespace Impl {
+namespace impl {
 
 template <typename Derived> // CRTP
 struct DeviceBase {
@@ -169,15 +172,17 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceBase<D>::PetscOptionDeviceAll(MPI_Com
   PetscFunctionReturn(0);
 }
 
-} // namespace Impl
+} // namespace impl
 
-} // namespace Device
+} // namespace device
 
 } // namespace Petsc
 
 #define PETSC_DEVICE_IMPL_BASE_CLASS_HEADER(base_name, T) \
-  using base_name = Petsc::Device::Impl::DeviceBase<T>; \
+  using base_name = ::Petsc::device::impl::DeviceBase<T>; \
   friend base_name; \
   using base_name::base_name
+
+#endif // __cplusplus
 
 #endif // IMPLDEVICEBASE_HPP

@@ -7,13 +7,17 @@
 
 namespace Petsc {
 
-namespace Device {
+namespace device {
 
-namespace CUPM {
+namespace cupm {
 
-namespace Impl {
+namespace impl {
 
-#define PETSC_CUPM_STATIC_VARIABLE_DEFN(theirs, DEVICE, ours) const decltype(theirs) InterfaceImpl<DeviceType::DEVICE>::ours;
+#define PETSC_CUPM_STATIC_VARIABLE_DEFN(theirs, DEVICE, ours) const decltype(theirs) InterfaceImpl<DeviceType::DEVICE>::ours
+
+#define PETSC_CUPM_STATIC_VARIABLE_DEFN_CLASS(type_name, DEVICE, ours) const typename InterfaceImpl<DeviceType::DEVICE>::type_name InterfaceImpl<DeviceType::DEVICE>::ours
+
+#define PETSC_CUPM_STATIC_VARIABLE_DEFN_EXACT(type_name, DEVICE, ours) const type_name InterfaceImpl<DeviceType::DEVICE>::ours
 
 // in case either one or the other don't agree on a name, you can specify all three here:
 //
@@ -21,7 +25,17 @@ namespace Impl {
 // const decltype(cudaSuccess) Interface<DeviceType::CUDA>::cupmSuccess;
 // const decltype(hipAllGood)  Interface<DeviceType::HIP>::cupmSuccess;
 #define PETSC_CUPM_DEFINE_STATIC_VARIABLE_EXACT(cuoriginal, hiporiginal, ours) \
-  PetscIfPetscDefined(HAVE_CUDA, PETSC_CUPM_STATIC_VARIABLE_DEFN, PetscExpandToNothing)(cuoriginal, CUDA, ours) PetscIfPetscDefined(HAVE_HIP, PETSC_CUPM_STATIC_VARIABLE_DEFN, PetscExpandToNothing)(hiporiginal, HIP, ours)
+  PetscIfPetscDefined(HAVE_CUDA, PETSC_CUPM_STATIC_VARIABLE_DEFN, PetscExpandToNothing)(cuoriginal, CUDA, ours); \
+  PetscIfPetscDefined(HAVE_HIP, PETSC_CUPM_STATIC_VARIABLE_DEFN, PetscExpandToNothing)(hiporiginal, HIP, ours)
+
+// define the static variable in terms of the class typename
+#define PETSC_CUPM_DEFINE_STATIC_VARIABLE_VIA_CLASS_TYPENAME(type_name, ours) \
+  PetscIfPetscDefined(HAVE_CUDA, PETSC_CUPM_STATIC_VARIABLE_DEFN_CLASS, PetscExpandToNothing)(type_name, CUDA, ours); \
+  PetscIfPetscDefined(HAVE_HIP, PETSC_CUPM_STATIC_VARIABLE_DEFN_CLASS, PetscExpandToNothing)(type_name, HIP, ours)
+
+#define PETSC_CUPM_DEFINE_STATIC_VARIABLE_VIA_EXACT_TYPENAME(type_name, ours) \
+  PetscIfPetscDefined(HAVE_CUDA, PETSC_CUPM_STATIC_VARIABLE_DEFN_EXACT, PetscExpandToNothing)(type_name, CUDA, ours); \
+  PetscIfPetscDefined(HAVE_HIP, PETSC_CUPM_STATIC_VARIABLE_DEFN_EXACT, PetscExpandToNothing)(type_name, HIP, ours)
 
 // if both cuda and hip agree on the same naming scheme i.e. cudaSuccess and hipSuccess:
 //
@@ -31,52 +45,44 @@ namespace Impl {
 #define PETSC_CUPM_DEFINE_STATIC_VARIABLE_MATCHING_SCHEME(suffix) PETSC_CUPM_DEFINE_STATIC_VARIABLE_EXACT(PetscConcat(cuda, suffix), PetscConcat(hip, suffix), PetscConcat(cupm, suffix))
 
 // error codes
-PETSC_CUPM_DEFINE_STATIC_VARIABLE_MATCHING_SCHEME(Success)
-PETSC_CUPM_DEFINE_STATIC_VARIABLE_MATCHING_SCHEME(ErrorNotReady)
-PETSC_CUPM_DEFINE_STATIC_VARIABLE_MATCHING_SCHEME(ErrorSetOnActiveProcess)
-PETSC_CUPM_DEFINE_STATIC_VARIABLE_MATCHING_SCHEME(ErrorNoDevice)
-
-// hip not conforming, see declaration in cupminterface.hpp
-PETSC_CUPM_DEFINE_STATIC_VARIABLE_EXACT(cudaErrorDeviceAlreadyInUse, hipErrorContextAlreadyInUse, cupmErrorDeviceAlreadyInUse)
-
-// hip not conforming, and cuda faffs around with versions see declaration in cupminterface.hpp
-#if PetscDefined(HAVE_CUDA)
-#if PETSC_PKG_CUDA_VERSION_GE(11, 1, 0)
-#define PetscCudaErrorStubLibrary ErrorStubLibrary
-#endif
-#endif
-
-#ifndef PetscCudaErrorStubLibrary
-#define PetscCudaErrorStubLibrary ErrorInsufficientDriver
-#endif
-
-PETSC_CUPM_DEFINE_STATIC_VARIABLE_EXACT(PetscConcat(cuda, PetscCudaErrorStubLibrary), hipErrorInsufficientDriver, cupmErrorStubLibrary)
+PETSC_CUPM_DEFINE_STATIC_VARIABLE_VIA_CLASS_TYPENAME(cupmError_t, cupmSuccess);
+PETSC_CUPM_DEFINE_STATIC_VARIABLE_VIA_CLASS_TYPENAME(cupmError_t, cupmErrorNotReady);
+PETSC_CUPM_DEFINE_STATIC_VARIABLE_VIA_CLASS_TYPENAME(cupmError_t, cupmErrorSetOnActiveProcess);
+PETSC_CUPM_DEFINE_STATIC_VARIABLE_VIA_CLASS_TYPENAME(cupmError_t, cupmErrorNoDevice);
+PETSC_CUPM_DEFINE_STATIC_VARIABLE_VIA_CLASS_TYPENAME(cupmError_t, cupmErrorDeviceAlreadyInUse);
+PETSC_CUPM_DEFINE_STATIC_VARIABLE_VIA_CLASS_TYPENAME(cupmError_t, cupmErrorStubLibrary);
 
 // enums
-PETSC_CUPM_DEFINE_STATIC_VARIABLE_MATCHING_SCHEME(StreamNonBlocking)
-PETSC_CUPM_DEFINE_STATIC_VARIABLE_MATCHING_SCHEME(DeviceMapHost)
-PETSC_CUPM_DEFINE_STATIC_VARIABLE_MATCHING_SCHEME(MemcpyHostToDevice)
-PETSC_CUPM_DEFINE_STATIC_VARIABLE_MATCHING_SCHEME(MemcpyDeviceToHost)
-PETSC_CUPM_DEFINE_STATIC_VARIABLE_MATCHING_SCHEME(MemcpyDeviceToDevice)
-PETSC_CUPM_DEFINE_STATIC_VARIABLE_MATCHING_SCHEME(MemcpyHostToHost)
-PETSC_CUPM_DEFINE_STATIC_VARIABLE_MATCHING_SCHEME(MemcpyDefault)
-PETSC_CUPM_DEFINE_STATIC_VARIABLE_MATCHING_SCHEME(MemoryTypeHost)
-PETSC_CUPM_DEFINE_STATIC_VARIABLE_MATCHING_SCHEME(MemoryTypeDevice)
-PETSC_CUPM_DEFINE_STATIC_VARIABLE_EXACT(cudaMemoryTypeManaged, hipMemoryTypeUnified, cupmMemoryTypeManaged)
-PETSC_CUPM_DEFINE_STATIC_VARIABLE_MATCHING_SCHEME(EventDisableTiming)
+PETSC_CUPM_DEFINE_STATIC_VARIABLE_MATCHING_SCHEME(StreamDefault);
+PETSC_CUPM_DEFINE_STATIC_VARIABLE_MATCHING_SCHEME(StreamNonBlocking);
+PETSC_CUPM_DEFINE_STATIC_VARIABLE_MATCHING_SCHEME(DeviceMapHost);
+
+PETSC_CUPM_DEFINE_STATIC_VARIABLE_VIA_CLASS_TYPENAME(cupmMemcpyKind_t, cupmMemcpyHostToDevice);
+PETSC_CUPM_DEFINE_STATIC_VARIABLE_VIA_CLASS_TYPENAME(cupmMemcpyKind_t, cupmMemcpyDeviceToHost);
+PETSC_CUPM_DEFINE_STATIC_VARIABLE_VIA_CLASS_TYPENAME(cupmMemcpyKind_t, cupmMemcpyDeviceToDevice);
+PETSC_CUPM_DEFINE_STATIC_VARIABLE_VIA_CLASS_TYPENAME(cupmMemcpyKind_t, cupmMemcpyHostToHost);
+PETSC_CUPM_DEFINE_STATIC_VARIABLE_VIA_CLASS_TYPENAME(cupmMemcpyKind_t, cupmMemcpyDefault);
+PETSC_CUPM_DEFINE_STATIC_VARIABLE_VIA_CLASS_TYPENAME(cupmMemoryType_t, cupmMemoryTypeHost);
+PETSC_CUPM_DEFINE_STATIC_VARIABLE_VIA_CLASS_TYPENAME(cupmMemoryType_t, cupmMemoryTypeDevice);
+PETSC_CUPM_DEFINE_STATIC_VARIABLE_VIA_CLASS_TYPENAME(cupmMemoryType_t, cupmMemoryTypeManaged);
+
+PETSC_CUPM_DEFINE_STATIC_VARIABLE_MATCHING_SCHEME(EventDisableTiming);
+PETSC_CUPM_DEFINE_STATIC_VARIABLE_MATCHING_SCHEME(HostAllocDefault);
+PETSC_CUPM_DEFINE_STATIC_VARIABLE_MATCHING_SCHEME(HostAllocWriteCombined);
+
+PETSC_CUPM_DEFINE_STATIC_VARIABLE_VIA_CLASS_TYPENAME(cupmMemPoolAttr, cupmMemPoolAttrReleaseThreshold);
 
 #if PetscDefined(HAVE_CUDA)
 template struct Interface<DeviceType::CUDA>;
 #endif
-
 #if PetscDefined(HAVE_HIP)
 template struct Interface<DeviceType::HIP>;
 #endif
 
-} // namespace Impl
+} // namespace impl
 
-} // namespace CUPM
+} // namespace cupm
 
-} // namespace Device
+} // namespace device
 
 } // namespace Petsc

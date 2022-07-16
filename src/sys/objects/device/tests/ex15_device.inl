@@ -17,9 +17,12 @@ static PETSC_KERNEL_DECL void wasteSomeTimeKernel(clock_t *global_now, PetscInt 
 
 static PetscErrorCode WasteSomeTime(PetscDeviceContext dctx, PetscInt ncycles, clock_t *global_now)
 {
-  cupmStream_t stream;
+  PetscDeviceType dtype;
+  cupmStream_t    stream;
 
   PetscFunctionBegin;
+  PetscCall(PetscDeviceContextGetDeviceType(dctx,&dtype));
+  if (dtype == PETSC_DEVICE_HOST) PetscFunctionReturn(0);
   PetscCall(PetscDeviceContextGetStreamHandle_Internal(dctx,&stream));
   wasteSomeTimeKernel<<<1024,2,0,stream>>>(global_now,ncycles);
   PetscFunctionReturn(0);

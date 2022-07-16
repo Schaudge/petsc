@@ -19,14 +19,7 @@
 #include <thrust/sequence.h>
 #include <thrust/system/system_error.h>
 
-using VecSeq_CUDA = Petsc::Vector::CUPM::Impl::VecSeq_CUPM<Petsc::Device::CUPM::DeviceType::CUDA>;
-
-#define PetscCallThrust(body) \
-  do { \
-    try { \
-      body; \
-    } catch (thrust::system_error & e) { SETERRQ(PETSC_COMM_SELF, PETSC_ERR_LIB, "Error in Thrust %s", e.what()); } \
-  } while (0)
+using VecSeq_CUDA = Petsc::vec::cupm::impl::VecSeq_CUPM<Petsc::device::cupm::DeviceType::CUDA>;
 
 #if defined(PETSC_USE_COMPLEX)
 #if defined(PETSC_USE_REAL_SINGLE)
@@ -337,11 +330,11 @@ PETSC_INTERN PetscErrorCode MatSeqAIJCUSPARSEMergeMats(Mat, Mat, MatReuse, Mat *
 PETSC_INTERN PetscErrorCode MatSeqAIJCUSPARSETriFactors_Reset(Mat_SeqAIJCUSPARSETriFactors_p *);
 
 static inline bool isCudaMem(const void *data) {
-  using namespace Petsc::Device::CUPM;
+  using namespace Petsc::device::cupm;
   auto mtype = PETSC_MEMTYPE_HOST;
 
   PetscFunctionBegin;
-  PetscCallAbort(PETSC_COMM_SELF, Impl::Interface<DeviceType::CUDA>::cupmGetMemType(data, &mtype));
+  PetscCallAbort(PETSC_COMM_SELF, impl::Interface<DeviceType::CUDA>::PetscCUPMGetMemType(data, &mtype));
   PetscFunctionReturn(PetscMemTypeDevice(mtype));
 }
 

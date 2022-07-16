@@ -2,6 +2,7 @@
 #define PETSCDEVICE_H
 
 #include <petscdevicetypes.h>
+#include <petscviewertypes.h>
 
 /* SUBMANSEC = Sys */
 
@@ -9,7 +10,9 @@ PETSC_EXTERN PetscErrorCode PetscDeviceInitializePackage(void);
 PETSC_EXTERN PetscErrorCode PetscDeviceFinalizePackage(void);
 PETSC_EXTERN PetscErrorCode PetscGetMemType(const void *, PetscMemType *);
 
-/* Cannot use the device context api without C++ */
+/* logging support */
+PETSC_EXTERN PetscClassId PETSC_DEVICE_CLASSID;
+PETSC_EXTERN PetscClassId PETSC_DEVICE_CONTEXT_CLASSID;
 
 /* PetscDevice */
 #if PetscDefined(HAVE_CXX)
@@ -50,13 +53,15 @@ PETSC_EXTERN PetscErrorCode PetscDeviceContextDuplicate(PetscDeviceContext, Pets
 PETSC_EXTERN PetscErrorCode PetscDeviceContextQueryIdle(PetscDeviceContext, PetscBool *);
 PETSC_EXTERN PetscErrorCode PetscDeviceContextWaitForContext(PetscDeviceContext, PetscDeviceContext);
 PETSC_EXTERN PetscErrorCode PetscDeviceContextFork(PetscDeviceContext, PetscInt, PetscDeviceContext **);
+PETSC_EXTERN PetscErrorCode PetscDeviceContextForkWithStreamType(PetscDeviceContext, PetscStreamType, PetscInt, PetscDeviceContext **);
 PETSC_EXTERN PetscErrorCode PetscDeviceContextJoin(PetscDeviceContext, PetscInt, PetscDeviceContextJoinMode, PetscDeviceContext **);
 PETSC_EXTERN PetscErrorCode PetscDeviceContextSynchronize(PetscDeviceContext);
 PETSC_EXTERN PetscErrorCode PetscDeviceContextGetCurrentContext(PetscDeviceContext *);
 PETSC_EXTERN PetscErrorCode PetscDeviceContextSetCurrentContext(PetscDeviceContext);
 PETSC_EXTERN PetscErrorCode PetscDeviceContextSetFromOptions(MPI_Comm, const char[], PetscDeviceContext);
-PETSC_EXTERN PetscErrorCode PetscDeviceContextMarkIntentFromID(PetscDeviceContext, PetscObjectId, PetscMemoryAccessMode);
+PETSC_EXTERN PetscErrorCode PetscDeviceContextMarkIntentFromID(PetscDeviceContext, PetscObjectId, PetscMemoryAccessMode, const char[]);
 PETSC_EXTERN PetscErrorCode PetscDeviceContextSetOption(PetscDeviceContext, PetscDeviceContextOption, PetscBool);
+PETSC_EXTERN PetscErrorCode PetscDeviceContextView(PetscDeviceContext, PetscViewer);
 #else
 #define PetscDeviceContextCreate(dctx)                                                                         (*(dctx) = PETSC_NULLPTR, 0)
 #define PetscDeviceContextDestroy(dctx)                                                                        (*(dctx) = PETSC_NULLPTR, 0)
@@ -77,6 +82,7 @@ PETSC_EXTERN PetscErrorCode PetscDeviceContextSetOption(PetscDeviceContext, Pets
 #define PetscDeviceContextSetFromOptions(MPI_Comm, const_char, PetscDeviceContext)                             0
 #define PetscDeviceContextMarkIntentFromID(PetscDeviceContext, PetscObjectId, PetscMemoryAccessMode)           0
 #define PetscDeviceContextSetOption(PetscDeviceContext, PetscDeviceContextOption, PetscBool)                   0
+#define PetscDeviceContextView(PetscDeviceContext, PetscViewer)                                                0
 #endif /* PetscDefined(HAVE_CXX) */
 
 /* memory */

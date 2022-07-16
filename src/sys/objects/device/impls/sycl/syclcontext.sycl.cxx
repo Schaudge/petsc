@@ -3,11 +3,11 @@
 
 namespace Petsc {
 
-namespace Device {
+namespace device {
 
-namespace SYCL {
+namespace sycl {
 
-namespace Impl {
+namespace impl {
 
 class DeviceContext {
 public:
@@ -85,16 +85,16 @@ public:
   };
 };
 
-} // namespace Impl
+} // namespace impl
 
-} // namespace SYCL
+} // namespace sycl
 
-} // namespace Device
+} // namespace device
 
 } // namespace Petsc
 
 PetscErrorCode PetscDeviceContextCreate_SYCL(PetscDeviceContext dctx) {
-  using namespace Petsc::Device::SYCL::Impl;
+  using namespace Petsc::device::sycle::Impl;
 
   static const DeviceContext syclctx;
 

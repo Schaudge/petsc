@@ -183,6 +183,7 @@ inline PetscErrorCode ObjectPool<T, Allocator>::finalize_() noexcept {
     PetscCall(this->allocator().destroy(stack_.top()));
     PetscCallCXX(stack_.pop());
   }
+  stack_ = stack_type{};
   PetscCall(this->allocator().finalize());
   PetscFunctionReturn(0);
 }

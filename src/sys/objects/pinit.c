@@ -955,7 +955,6 @@ PETSC_INTERN PetscErrorCode PetscInitialize_Common(const char *prog, const char 
      Check system options and print help
   */
   PetscCall(PetscOptionsCheckInitial_Private(help));
-
   /*
    Initialize PetscDevice and PetscDeviceContext
 

@@ -1,8 +1,8 @@
 #include  "../vecseqcupm.hpp" /*I <petscvec.h> I*/
 
-using namespace Petsc::Vector::CUPM::Impl;
+using namespace Petsc::vec::cupm::impl;
 
-static constexpr auto VecSeq_CUDA = VecSeq_CUPM<Petsc::Device::CUPM::DeviceType::CUDA>{};
+static constexpr auto VecSeq_CUDA = VecSeq_CUPM<::Petsc::device::cupm::DeviceType::CUDA>{};
 
 PetscErrorCode VecCreate_SeqCUDA(Vec v, PetscDeviceContext dctx)
 {
