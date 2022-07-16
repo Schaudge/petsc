@@ -9,7 +9,7 @@
 
 #include <thrust/device_vector.h>
 
-using VecSeq_CUDA = Petsc::Vector::CUPM::Impl::VecSeq_CUPM<Petsc::Device::CUPM::DeviceType::CUDA>;
+using VecSeq_CUDA = Petsc::vec::cupm::impl::VecSeq_CUPM<Petsc::device::cupm::DeviceType::CUDA>;
 
 typedef struct {
   PetscScalar    *d_v; /* pointer to the matrix on the GPU */

@@ -2,10 +2,13 @@
 
 #undef PetscManagedTypeCreate
 #undef PetscManageHostType
+#undef PetscCopyHostType
 #undef PetscManageDeviceType
+#undef PetscCopyDeviceType
 #undef PetscManagedTypeCreateDefault
 #undef PetscManagedTypeDestroy
 #undef PetscManagedHostTypeDestroy
+#undef PetscManagedDeviceTypeDestroy
 #undef PetscManagedTypeGetValues
 #undef PetscManagedTypeSetValues
 #undef PetscManagedTypeGetPointerAndMemType

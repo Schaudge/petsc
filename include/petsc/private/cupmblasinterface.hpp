@@ -1,19 +1,17 @@
 #ifndef PETSCCUPMBLASINTERFACE_HPP
 #define PETSCCUPMBLASINTERFACE_HPP
 
-#include <petsc/private/deviceimpl.h>
+#if defined(__cplusplus)
 #include <petsc/private/cupminterface.hpp>
 #include <petsc/private/petscadvancedmacros.h>
 
-#if defined(__cplusplus)
-
 namespace Petsc {
 
-namespace Device {
+namespace device {
 
-namespace CUPM {
+namespace cupm {
 
-namespace Impl {
+namespace impl {
 
 #define PetscCallCUPMBLAS(...) \
   do { \
@@ -230,7 +228,7 @@ struct BlasInterfaceBase : Interface<T> {
 };
 
 #define PETSC_CUPMBLAS_BASE_CLASS_HEADER(DEV_TYPE) \
-  using base_type = Petsc::Device::CUPM::Impl::BlasInterfaceBase<DEV_TYPE>; \
+  using base_type = ::Petsc::device::cupm::impl::BlasInterfaceBase<DEV_TYPE>; \
   using base_type::cupmBlasName; \
   PETSC_CUPM_INHERIT_INTERFACE_TYPEDEFS_USING(interface_type, DEV_TYPE); \
   PETSC_CUPM_ALIAS_FUNCTION_EXACT(cupmBlas, GetErrorName, PetscConcat(Petsc, PETSC_CUPMBLAS_PREFIX_U), GetErrorName)
@@ -306,7 +304,7 @@ struct BlasInterfaceImpl<DeviceType::CUDA> : BlasInterfaceBase<DeviceType::CUDA>
     PetscFunctionReturn(0);
   }
 
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode SetHandleStream(cupmSolverHandle_t &handle, cupmStream_t &stream)) {
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode SetHandleStream(const cupmSolverHandle_t &handle, const cupmStream_t &stream)) {
     cupmStream_t cupmStream;
 
     PetscFunctionBegin;
@@ -389,12 +387,9 @@ struct BlasInterfaceImpl<DeviceType::HIP> : BlasInterfaceBase<DeviceType::HIP> {
     PetscFunctionReturn(0);
   }
 
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode SetHandleStream(cupmSolverHandle_t &handle, cupmStream_t &stream)) {
-    cupmStream_t cupmStream;
-
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode SetHandleStream(cupmSolverHandle_t handle, cupmStream_t stream)) {
     PetscFunctionBegin;
-    PetscCallHIPSOLVER(hipsolverGetStream(handle, &cupmStream));
-    if (cupmStream != stream) PetscCallHIPSOLVER(hipsolverSetStream(handle, stream));
+    PetscCallHIPSOLVER(hipsolverSetStream(handle, stream));
     PetscFunctionReturn(0);
   }
 
@@ -418,7 +413,7 @@ struct BlasInterfaceImpl<DeviceType::HIP> : BlasInterfaceBase<DeviceType::HIP> {
 
 #define PETSC_CUPMBLAS_IMPL_CLASS_HEADER(base_name, T) \
   PETSC_CUPM_INHERIT_INTERFACE_TYPEDEFS_USING(cupmInterface_t, T); \
-  using base_name = Petsc::Device::CUPM::Impl::BlasInterfaceImpl<T>; \
+  using base_name = ::Petsc::device::cupm::impl::BlasInterfaceImpl<T>; \
   /* introspection */ \
   using base_name::cupmBlasName; \
   using base_name::cupmBlasGetErrorName; \
@@ -464,24 +459,18 @@ struct BlasInterface : BlasInterfaceImpl<T> {
   PETSC_CUPMBLAS_IMPL_CLASS_HEADER(blasinterface_type, T);
 
   PETSC_CXX_COMPAT_DECL(PetscErrorCode cupmBlasSetPointerModeFromPointer(cupmBlasHandle_t handle, const void *ptr)) {
-    PetscMemType mtype = PETSC_MEMTYPE_HOST;
+    auto mtype = PETSC_MEMTYPE_HOST;
 
     PetscFunctionBegin;
-    PetscCall(cupmGetMemType(ptr, &mtype));
+    PetscCall(PetscCUPMGetMemType(ptr, &mtype));
     PetscCallCUPMBLAS(cupmBlasSetPointerMode(handle, PetscMemTypeDevice(mtype) ? CUPMBLAS_POINTER_MODE_DEVICE : CUPMBLAS_POINTER_MODE_HOST));
-    PetscFunctionReturn(0);
-  }
-
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode cupmBlasSetPointerModeFromPointer(cupmBlasHandle_t handle, const PetscManagedScalar ptr)) {
-    PetscFunctionBegin;
-    PetscCallCUPMBLAS(cupmBlasSetPointerMode(handle, ptr->dtype == PETSC_DEVICE_HOST ? CUPMBLAS_POINTER_MODE_HOST : CUPMBLAS_POINTER_MODE_DEVICE));
     PetscFunctionReturn(0);
   }
 };
 
 #define PETSC_CUPMBLAS_INHERIT_INTERFACE_TYPEDEFS_USING(base_name, T) \
   PETSC_CUPMBLAS_IMPL_CLASS_HEADER(PetscConcat(base_name, _impl), T); \
-  using base_name = Petsc::Device::CUPM::Impl::BlasInterface<T>; \
+  using base_name = ::Petsc::device::cupm::impl::BlasInterface<T>; \
   using base_name::cupmBlasSetPointerModeFromPointer
 
 #if PetscDefined(HAVE_CUDA)
@@ -492,11 +481,11 @@ extern template struct BlasInterface<DeviceType::CUDA>;
 extern template struct BlasInterface<DeviceType::HIP>;
 #endif
 
-} // namespace Impl
+} // namespace impl
 
-} // namespace CUPM
+} // namespace cupm
 
-} // namespace Device
+} // namespace device
 
 } // namespace Petsc
 

@@ -1,8 +1,8 @@
 #include "../vecseqcupm.hpp" /*I <petscvec.h> I*/
 
-using namespace Petsc::Vector::CUPM::Impl;
+using namespace Petsc::vec::cupm::impl;
 
-static constexpr auto VecSeq_HIP = VecSeq_CUPM<Petsc::Device::CUPM::DeviceType::HIP>{};
+static constexpr auto VecSeq_HIP = VecSeq_CUPM<::Petsc::device::cupm::DeviceType::HIP>{};
 
 PetscErrorCode VecCreate_SeqHIP(Vec v, PetscDeviceContext dctx) {
   PetscFunctionBegin;

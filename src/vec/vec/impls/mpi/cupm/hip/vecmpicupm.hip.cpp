@@ -1,18 +1,18 @@
 #include "../vecmpicupm.hpp" /*I <petscvec.h> I*/
 
 namespace Petsc {
-namespace Vector {
-namespace CUPM {
-namespace Impl {
+namespace vec {
+namespace cupm {
+namespace impl {
 
-template struct VecMPI_CUPM<Petsc::Device::CUPM::DeviceType::HIP>;
+template struct VecMPI_CUPM<Petsc::device::cupm::DeviceType::HIP>;
 
-} // namespace Impl
-} // namespace CUPM
-} // namespace Vector
+} // namespace impl
+} // namespace cupm
+} // namespace vec
 } // namespace Petsc
 
-static const auto VecMPI_HIP = Petsc::Vector::CUPM::Impl::VecMPI_CUPM<Petsc::Device::CUPM::DeviceType::HIP>{};
+static const auto VecMPI_HIP = Petsc::vec::cupm::impl::VecMPI_CUPM<Petsc::device::cupm::DeviceType::HIP>{};
 
 /*MC
   VECHIP - VECHIP = "hip" - A VECSEQHIP on a single-process communicator, and VECMPIHIP

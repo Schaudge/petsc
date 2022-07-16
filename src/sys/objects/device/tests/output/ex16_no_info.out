@@ -1,10 +1,63 @@
-==== sync ====
-==== sync ====
-==== sync ====
-==== sync ====
-==== sync ====
-==== sync ====
-==== sync ====
-==== sync ====
-==== sync ====
+Object 'dctx_0' is dctx 2
+Object 'dctx_1' is dctx 3
+Object 'dctx_2' is dctx 4
+Object 'x' is object 5
+Object 'y' is object 6
+=== BEGIN ===
+<- dot() 0 begin ->
+<- dot() 0 end   ->
+<- dot() 1 begin ->
+<- dot() 1 end   ->
+==== sync 0 begin ====
+==== sync 0 end   ====
+==== sync 1 begin ====
+==== sync 1 end   ====
+<- norm() 0 begin ->
+<- norm() 0 end   ->
+<- norm() 1 begin ->
+<- norm() 1 end   ->
+<- set() 0 begin ->
+<- set() 0 end   ->
+==== sync 2 begin ====
+==== sync 2 end   ====
+<- dot() 2 begin ->
+<- dot() 2 end   ->
+<- dot() 3 begin ->
+<- dot() 3 end   ->
+==== sync 3 begin ====
+==== sync 3 end   ====
+<- dot() 4 begin ->
+<- dot() 4 end   ->
+<- axpy() 0 begin ->
+<- axpy() 0 end   ->
+<- axpy() 1 begin ->
+<- axpy() 1 end   ->
+==== sync 4 begin ====
+==== sync 4 end   ====
+<- dot() 5 begin ->
+<- dot() 5 end   ->
+<- dot() 6 begin ->
+<- dot() 6 end   ->
+==== sync 5 begin ====
+==== sync 5 end   ====
+<- set() 1 begin ->
+<- set() 1 end   ->
+<- set() 2 begin ->
+<- set() 2 end   ->
+<- set() 3 begin ->
+<- set() 3 end   ->
+<- scale() 0 begin ->
+<- scale() 0 end   ->
+==== sync 6 begin ====
+==== sync 6 end   ====
+==== sync 7 begin ====
+==== sync 7 end   ====
+<- dot() 7 begin ->
+<- dot() 7 end   ->
+<- dot() 8 begin ->
+<- dot() 8 end   ->
+==== sync 8 begin ====
+==== sync 8 end   ====
+==== sync 9 begin ====
+==== sync 9 end   ====
 EXIT_SUCCESS

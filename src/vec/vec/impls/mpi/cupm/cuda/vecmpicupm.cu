@@ -1,12 +1,12 @@
 #include "../vecmpicupm.hpp" /*I <petscvec.h> I*/
 
-namespace Petsc { namespace Vector { namespace CUPM { namespace Impl {
+namespace Petsc { namespace vec { namespace cupm { namespace impl {
 
-template struct VecMPI_CUPM<Petsc::Device::CUPM::DeviceType::CUDA>;
+template struct VecMPI_CUPM<Petsc::device::cupm::DeviceType::CUDA>;
 
-}}}} // namespace Petsc::Vector::CUPM::Impl
+}}}} // namespace Petsc::vec::cupm::impl
 
-static const auto VecMPI_CUDA = Petsc::Vector::CUPM::Impl::VecMPI_CUPM<Petsc::Device::CUPM::DeviceType::CUDA>{};
+static const auto VecMPI_CUDA = Petsc::vec::cupm::impl::VecMPI_CUPM<Petsc::device::cupm::DeviceType::CUDA>{};
 
 /*MC
   VECCUDA - VECCUDA = "cuda" - A VECSEQCUDA on a single-process communicator, and VECMPICUDA

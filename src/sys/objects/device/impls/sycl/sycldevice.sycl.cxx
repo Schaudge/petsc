@@ -7,9 +7,9 @@
 
 namespace Petsc {
 
-namespace Device {
+namespace device {
 
-namespace SYCL {
+namespace sycl {
 
 // definition for static
 std::array<Device::DeviceInternal *, PETSC_DEVICE_MAX_DEVICES> Device::devices_array_ = {};
@@ -205,8 +205,8 @@ PetscErrorCode Device::viewDevice(PetscDevice device, PetscViewer viewer) noexce
   PetscFunctionReturn(0);
 }
 
-} // namespace SYCL
+} // namespace sycl
 
-} // namespace Device
+} // namespace device
 
 } // namespace Petsc

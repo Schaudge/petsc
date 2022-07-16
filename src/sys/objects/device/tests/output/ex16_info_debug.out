@@ -1,64 +1,150 @@
-[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
-[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
-[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
-[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
-[0] PetscDeviceContextSyncClearMap(): ctx 2 remaining deps for obj 6: {[ctx 3, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
-[0] PetscDeviceContextSyncClearMap(): ctx 2 remaining deps for obj 5: {[ctx 3, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
-==== sync ====
-[0] PetscDeviceContextSyncClearMap(): ctx 3 remaining deps for obj 6: {}
-[0] PetscDeviceContextSyncClearMap(): ctx 3 remaining deps for obj 5: {}
-==== sync ====
-[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
-[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
-[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
-[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
-[0] PetscDeviceContextSyncClearMap(): ctx 3 remaining deps for obj 6: {[ctx 2, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
-[0] PetscDeviceContextSyncClearMap(): ctx 3 remaining deps for obj 5: {[ctx 2, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
-==== sync ====
-[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 found old self PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18) -> PETSC_MEMORY_ACCESS_READ (dot() at /Users/jacobfaibussowitsch/soft/petsc/src/sys/objects/device/tests/ex16.c:18)
-[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 6 found old self PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18) -> PETSC_MEMORY_ACCESS_READ (dot() at /Users/jacobfaibussowitsch/soft/petsc/src/sys/objects/device/tests/ex16.c:18)
-[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 found old self PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18) -> PETSC_MEMORY_ACCESS_READ_WRITE (axpy() at /Users/jacobfaibussowitsch/soft/petsc/src/sys/objects/device/tests/ex16.c:26)
-[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 6 found old self PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18) -> PETSC_MEMORY_ACCESS_READ (axpy() at /Users/jacobfaibussowitsch/soft/petsc/src/sys/objects/device/tests/ex16.c:26)
-[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - 5 other context 2 intent PETSC_MEMORY_ACCESS_READ_WRITE conflicts with PETSC_MEMORY_ACCESS_READ_WRITE -> serializing
-[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ_WRITE
-[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
-[0] PetscDeviceContextSyncClearMap(): ctx 3 remaining deps for obj 6: {}
-[0] PetscDeviceContextSyncClearMap(): ctx 3 remaining deps for obj 5: {}
-==== sync ====
-[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
-[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
-[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
-[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
-[0] PetscDeviceContextSyncClearMap(): ctx 4 remaining deps for obj 6: {[ctx 2, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)], [ctx 3, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
-[0] PetscDeviceContextSyncClearMap(): ctx 4 remaining deps for obj 5: {[ctx 2, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)], [ctx 3, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
-==== sync ====
-[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 5 found old self PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18) -> PETSC_MEMORY_ACCESS_WRITE (set() at /Users/jacobfaibussowitsch/soft/petsc/src/sys/objects/device/tests/ex16.c:41)
-[0] PetscDeviceContextMarkIntentFromID(): dctx 4 - 5 other context 3 intent PETSC_MEMORY_ACCESS_WRITE conflicts with PETSC_MEMORY_ACCESS_WRITE -> serializing
-[0] PetscDeviceContextMarkIntentFromID(): dctx 4 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_WRITE
-[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 found old self PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18) -> PETSC_MEMORY_ACCESS_WRITE (set() at /Users/jacobfaibussowitsch/soft/petsc/src/sys/objects/device/tests/ex16.c:41)
-[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - 5 other context 4 intent PETSC_MEMORY_ACCESS_WRITE conflicts with PETSC_MEMORY_ACCESS_WRITE -> serializing
-[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 rotating to leaf position with intent PETSC_MEMORY_ACCESS_WRITE
-[0] PetscDeviceContextMarkIntentFromID(): dctx 4 - obj 5 found old self PETSC_MEMORY_ACCESS_WRITE (set() at petsc/src/sys/objects/device/tests/ex16.c:41) -> PETSC_MEMORY_ACCESS_READ_WRITE (scale() at /Users/jacobfaibussowitsch/soft/petsc/src/sys/objects/device/tests/ex16.c:34)
-[0] PetscDeviceContextMarkIntentFromID(): dctx 4 - 5 other context 2 intent PETSC_MEMORY_ACCESS_WRITE conflicts with PETSC_MEMORY_ACCESS_READ_WRITE -> serializing
-[0] PetscDeviceContextMarkIntentFromID(): dctx 4 - obj 5 rotating to leaf position with intent PETSC_MEMORY_ACCESS_READ_WRITE
-[0] PetscDeviceContextSyncClearMap(): ctx 4 remaining deps for obj 6: {[ctx 2, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)], [ctx 3, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
-[0] PetscDeviceContextSyncClearMap(): ctx 4 remaining deps for obj 5: {}
-[0] PetscDeviceContextSyncClearMap(): ctx 2 remaining deps for obj 6: {[ctx 3, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
-[0] PetscDeviceContextSyncClearMap(): ctx 4 remaining deps for obj 6: {[ctx 3, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
-[0] PetscDeviceContextSyncClearMap(): ctx 3 remaining deps for obj 6: {}
-==== sync ====
-==== sync ====
-[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
-[0] PetscDeviceContextMarkIntentFromID(): dctx 2 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
-[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 5 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
-[0] PetscDeviceContextMarkIntentFromID(): dctx 3 - obj 6 adding new leaf with intent PETSC_MEMORY_ACCESS_READ
-[0] PetscDeviceContextSyncClearMap(): ctx 4 remaining deps for obj 6: {[ctx 2, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)], [ctx 3, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
-[0] PetscDeviceContextSyncClearMap(): ctx 4 remaining deps for obj 5: {[ctx 2, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)], [ctx 3, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
-[0] PetscDeviceContextSyncClearMap(): ctx 3 remaining deps for obj 6: {[ctx 2, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
-[0] PetscDeviceContextSyncClearMap(): ctx 3 remaining deps for obj 5: {[ctx 2, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:18)]}
-==== sync ====
-[0] PetscDeviceContextSyncClearMap(): ctx 2 remaining deps for obj 6: {}
-[0] PetscDeviceContextSyncClearMap(): ctx 2 remaining deps for obj 5: {}
-==== sync ====
+Object 'dctx_0' is dctx 2
+Object 'dctx_1' is dctx 3
+Object 'dctx_2' is dctx 4
+Object 'x' is object 5
+Object 'y' is object 6
+=== BEGIN ===
+<- dot() 0 begin ->
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 5 (x): new mode (PETSC_MEMORY_ACCESS_READ) COMPATIBLE with PETSC_MEMORY_ACCESS_READ mode (default), no need to serialize
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 5 (x): no prior dependencies, creating new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 6 (y): new mode (PETSC_MEMORY_ACCESS_READ) COMPATIBLE with PETSC_MEMORY_ACCESS_READ mode (default), no need to serialize
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 6 (y): no prior dependencies, creating new leaf with intent PETSC_MEMORY_ACCESS_READ
+<- dot() 0 end   ->
+<- dot() 1 begin ->
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 5 (x): new mode (PETSC_MEMORY_ACCESS_READ) COMPATIBLE with PETSC_MEMORY_ACCESS_READ mode (old), no need to serialize
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 5 (x): appending to existing leaves with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 6 (y): new mode (PETSC_MEMORY_ACCESS_READ) COMPATIBLE with PETSC_MEMORY_ACCESS_READ mode (old), no need to serialize
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 6 (y): appending to existing leaves with intent PETSC_MEMORY_ACCESS_READ
+<- dot() 1 end   ->
+==== sync 0 begin ====
+[0] operator()(): synced dctx 2, remaining leaves for obj 5: {[dctx 3, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:54)]}
+[0] operator()(): synced dctx 2, remaining leaves for obj 6: {[dctx 3, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:55)]}
+==== sync 0 end   ====
+==== sync 1 begin ====
+[0] operator()(): synced dctx 3, remaining leaves for obj 5: {}
+[0] operator()(): synced dctx 3, remaining leaves for obj 6: {}
+==== sync 1 end   ====
+<- norm() 0 begin ->
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 5 (x): new mode (PETSC_MEMORY_ACCESS_READ) COMPATIBLE with PETSC_MEMORY_ACCESS_READ mode (default), no need to serialize
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 5 (x): no prior dependencies, creating new leaf with intent PETSC_MEMORY_ACCESS_READ
+<- norm() 0 end   ->
+<- norm() 1 begin ->
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 5 (x): new mode (PETSC_MEMORY_ACCESS_READ) COMPATIBLE with PETSC_MEMORY_ACCESS_READ mode (old), no need to serialize
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 5 (x): appending to existing leaves with intent PETSC_MEMORY_ACCESS_READ
+<- norm() 1 end   ->
+<- set() 0 begin ->
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 4 - obj 5 (x): new mode (PETSC_MEMORY_ACCESS_WRITE) NOT COMPATIBLE with old mode (PETSC_MEMORY_ACCESS_READ), serializing then clearing 2 dependencies
+[0] PetscDeviceContextWaitForContext(): dctx 4 waiting on dctx 2
+[0] PetscDeviceContextWaitForContext(): dctx 4 waiting on dctx 3
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 4 - obj 5 (x): no prior dependencies, creating new leaf with intent PETSC_MEMORY_ACCESS_WRITE
+<- set() 0 end   ->
+==== sync 2 begin ====
+[0] operator()(): synced dctx 4, remaining leaves for obj 5: {}
+==== sync 2 end   ====
+<- dot() 2 begin ->
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 5 (x): new mode (PETSC_MEMORY_ACCESS_READ) COMPATIBLE with PETSC_MEMORY_ACCESS_READ mode (default), no need to serialize
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 5 (x): no prior dependencies, creating new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 6 (y): new mode (PETSC_MEMORY_ACCESS_READ) COMPATIBLE with PETSC_MEMORY_ACCESS_READ mode (default), no need to serialize
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 6 (y): no prior dependencies, creating new leaf with intent PETSC_MEMORY_ACCESS_READ
+<- dot() 2 end   ->
+<- dot() 3 begin ->
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 5 (x): new mode (PETSC_MEMORY_ACCESS_READ) COMPATIBLE with PETSC_MEMORY_ACCESS_READ mode (old), no need to serialize
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 5 (x): appending to existing leaves with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 6 (y): new mode (PETSC_MEMORY_ACCESS_READ) COMPATIBLE with PETSC_MEMORY_ACCESS_READ mode (old), no need to serialize
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 6 (y): appending to existing leaves with intent PETSC_MEMORY_ACCESS_READ
+<- dot() 3 end   ->
+==== sync 3 begin ====
+[0] operator()(): synced dctx 3, remaining leaves for obj 5: {[dctx 2, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:54)]}
+[0] operator()(): synced dctx 3, remaining leaves for obj 6: {[dctx 2, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:55)]}
+==== sync 3 end   ====
+<- dot() 4 begin ->
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 5 (x): new mode (PETSC_MEMORY_ACCESS_READ) COMPATIBLE with PETSC_MEMORY_ACCESS_READ mode (old), no need to serialize
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 5 (x): found old self as dependency, updating
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 6 (y): new mode (PETSC_MEMORY_ACCESS_READ) COMPATIBLE with PETSC_MEMORY_ACCESS_READ mode (old), no need to serialize
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 6 (y): found old self as dependency, updating
+<- dot() 4 end   ->
+<- axpy() 0 begin ->
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 5 (x): new mode (PETSC_MEMORY_ACCESS_READ_WRITE) NOT COMPATIBLE with old mode (PETSC_MEMORY_ACCESS_READ), serializing then clearing 1 dependency
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 5 (x): found old self as dependency, skipping
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 5 (x): no prior dependencies, creating new leaf with intent PETSC_MEMORY_ACCESS_READ_WRITE
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 6 (y): new mode (PETSC_MEMORY_ACCESS_READ) COMPATIBLE with PETSC_MEMORY_ACCESS_READ mode (old), no need to serialize
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 6 (y): found old self as dependency, updating
+<- axpy() 0 end   ->
+<- axpy() 1 begin ->
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 5 (x): new mode (PETSC_MEMORY_ACCESS_READ_WRITE) NOT COMPATIBLE with old mode (PETSC_MEMORY_ACCESS_READ_WRITE), serializing then clearing 1 dependency
+[0] PetscDeviceContextWaitForContext(): dctx 3 waiting on dctx 2
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 5 (x): no prior dependencies, creating new leaf with intent PETSC_MEMORY_ACCESS_READ_WRITE
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 6 (y): new mode (PETSC_MEMORY_ACCESS_READ) COMPATIBLE with PETSC_MEMORY_ACCESS_READ mode (old), no need to serialize
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 6 (y): appending to existing leaves with intent PETSC_MEMORY_ACCESS_READ
+<- axpy() 1 end   ->
+==== sync 4 begin ====
+[0] operator()(): synced dctx 3, remaining leaves for obj 5: {}
+[0] operator()(): synced dctx 3, remaining leaves for obj 6: {}
+==== sync 4 end   ====
+<- dot() 5 begin ->
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 5 (x): new mode (PETSC_MEMORY_ACCESS_READ) COMPATIBLE with PETSC_MEMORY_ACCESS_READ mode (default), no need to serialize
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 5 (x): no prior dependencies, creating new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 6 (y): new mode (PETSC_MEMORY_ACCESS_READ) COMPATIBLE with PETSC_MEMORY_ACCESS_READ mode (default), no need to serialize
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 6 (y): no prior dependencies, creating new leaf with intent PETSC_MEMORY_ACCESS_READ
+<- dot() 5 end   ->
+<- dot() 6 begin ->
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 5 (x): new mode (PETSC_MEMORY_ACCESS_READ) COMPATIBLE with PETSC_MEMORY_ACCESS_READ mode (old), no need to serialize
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 5 (x): appending to existing leaves with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 6 (y): new mode (PETSC_MEMORY_ACCESS_READ) COMPATIBLE with PETSC_MEMORY_ACCESS_READ mode (old), no need to serialize
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 6 (y): appending to existing leaves with intent PETSC_MEMORY_ACCESS_READ
+<- dot() 6 end   ->
+==== sync 5 begin ====
+==== sync 5 end   ====
+<- set() 1 begin ->
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 5 (x): new mode (PETSC_MEMORY_ACCESS_WRITE) NOT COMPATIBLE with old mode (PETSC_MEMORY_ACCESS_READ), serializing then clearing 2 dependencies
+[0] PetscDeviceContextWaitForContext(): dctx 3 waiting on dctx 2
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 5 (x): found old self as dependency, skipping
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 5 (x): no prior dependencies, creating new leaf with intent PETSC_MEMORY_ACCESS_WRITE
+<- set() 1 end   ->
+<- set() 2 begin ->
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 4 - obj 5 (x): new mode (PETSC_MEMORY_ACCESS_WRITE) NOT COMPATIBLE with old mode (PETSC_MEMORY_ACCESS_WRITE), serializing then clearing 1 dependency
+[0] PetscDeviceContextWaitForContext(): dctx 4 waiting on dctx 3
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 4 - obj 5 (x): no prior dependencies, creating new leaf with intent PETSC_MEMORY_ACCESS_WRITE
+<- set() 2 end   ->
+<- set() 3 begin ->
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 5 (x): new mode (PETSC_MEMORY_ACCESS_WRITE) NOT COMPATIBLE with old mode (PETSC_MEMORY_ACCESS_WRITE), serializing then clearing 1 dependency
+[0] PetscDeviceContextWaitForContext(): dctx 2 waiting on dctx 4
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 5 (x): no prior dependencies, creating new leaf with intent PETSC_MEMORY_ACCESS_WRITE
+<- set() 3 end   ->
+<- scale() 0 begin ->
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 4 - obj 5 (x): new mode (PETSC_MEMORY_ACCESS_READ_WRITE) NOT COMPATIBLE with old mode (PETSC_MEMORY_ACCESS_WRITE), serializing then clearing 1 dependency
+[0] PetscDeviceContextWaitForContext(): dctx 4 waiting on dctx 2
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 4 - obj 5 (x): no prior dependencies, creating new leaf with intent PETSC_MEMORY_ACCESS_READ_WRITE
+<- scale() 0 end   ->
+==== sync 6 begin ====
+[0] operator()(): synced dctx 4, remaining leaves for obj 5: {}
+[0] operator()(): synced dctx 3, remaining leaves for obj 6: {}
+==== sync 6 end   ====
+==== sync 7 begin ====
+==== sync 7 end   ====
+<- dot() 7 begin ->
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 5 (x): new mode (PETSC_MEMORY_ACCESS_READ) COMPATIBLE with PETSC_MEMORY_ACCESS_READ mode (default), no need to serialize
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 5 (x): no prior dependencies, creating new leaf with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 6 (y): new mode (PETSC_MEMORY_ACCESS_READ) COMPATIBLE with PETSC_MEMORY_ACCESS_READ mode (default), no need to serialize
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 2 - obj 6 (y): no prior dependencies, creating new leaf with intent PETSC_MEMORY_ACCESS_READ
+<- dot() 7 end   ->
+<- dot() 8 begin ->
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 5 (x): new mode (PETSC_MEMORY_ACCESS_READ) COMPATIBLE with PETSC_MEMORY_ACCESS_READ mode (old), no need to serialize
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 5 (x): appending to existing leaves with intent PETSC_MEMORY_ACCESS_READ
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 6 (y): new mode (PETSC_MEMORY_ACCESS_READ) COMPATIBLE with PETSC_MEMORY_ACCESS_READ mode (old), no need to serialize
+[0] PetscDeviceContextMarkIntentFromID_Private(): dctx 3 - obj 6 (y): appending to existing leaves with intent PETSC_MEMORY_ACCESS_READ
+<- dot() 8 end   ->
+[0] PetscDeviceContextWaitForContext(): dctx 4 waiting on dctx 3
+==== sync 8 begin ====
+[0] operator()(): synced dctx 3, remaining leaves for obj 5: {[dctx 2, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:54)]}
+[0] operator()(): synced dctx 3, remaining leaves for obj 6: {[dctx 2, PETSC_MEMORY_ACCESS_READ (dot() at petsc/src/sys/objects/device/tests/ex16.c:55)]}
+==== sync 8 end   ====
+[0] PetscDeviceContextWaitForContext(): dctx 3 waiting on dctx 2
+[0] PetscDeviceContextWaitForContext(): dctx 4 waiting on dctx 3
+==== sync 9 begin ====
+[0] operator()(): synced dctx 2, remaining leaves for obj 5: {}
+[0] operator()(): synced dctx 2, remaining leaves for obj 6: {}
+==== sync 9 end   ====
 EXIT_SUCCESS
 [0] PetscFinalize(): PetscFinalize() called
+[0] finalize_(): Finalizing marked object map

@@ -23,7 +23,7 @@ typedef struct {
 
   /* Work space to allow all reductions in a single call */
   Vec *redux;
-
+  PetscErrorCode (*cycle)(PetscInt *, KSP);
 } KSP_PIPEFGMRES;
 
 #define HH(a, b) (pipefgmres->hh_origin + (b) * (pipefgmres->max_k + 2) + (a))

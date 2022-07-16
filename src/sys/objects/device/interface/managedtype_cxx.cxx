@@ -28,13 +28,14 @@ struct PetscManagedTypeAllocator : Petsc::AllocatorBase<T> {
   PETSC_CXX_COMPAT_DECL(PetscErrorCode reset(T mscal, bool zero = true)) {
     PetscFunctionBegin;
     if (zero) {
-#if PetscDefined(HAVE_TRIVIALLY_COPYABLE)
+#if defined(PETSC_HAVE_TRIVIALLY_COPYABLE)
       static_assert(std::is_trivially_copyable<Petsc::util::remove_pointer_t<T>>::value, "");
 #endif
       memset(mscal, 0, sizeof(*mscal));
     }
     mscal->h_cmode = PETSC_OWN_POINTER;
     mscal->d_cmode = PETSC_OWN_POINTER;
+    mscal->pure    = PETSC_TRUE;
     static_assert(Petsc::util::integral_value(PETSC_OWN_POINTER) != 0, "");
     static_assert(Petsc::util::integral_value(PETSC_DEVICE_HOST) == 0, "");
     static_assert(Petsc::util::integral_value(PETSC_OFFLOAD_UNALLOCATED) == 0, "");

@@ -1,18 +1,21 @@
 #ifndef PETSCSYCLDEVICE_HPP
 #define PETSCSYCLDEVICE_HPP
 
+#if defined(__cplusplus)
 #include "../impldevicebase.hpp" /* I "petscdevice.h" */
+
+#include <array>
 
 namespace Petsc {
 
-namespace Device {
+namespace device {
 
-namespace SYCL {
+namespace sycl {
 
 #define PETSC_SYCL_DEVICE_HOST -1 // Note -1 is also used by PETSC_DECIDE, so user needs to pass -2 to explicitly select the host
 #define PETSC_SYCL_DEVICE_NONE -3
 
-class Device : ::Petsc::Device::Impl::DeviceBase<Device> {
+class Device : ::Petsc::device::impl::DeviceBase<Device> {
 public:
   PETSC_DEVICE_IMPL_BASE_CLASS_HEADER(base_type, Device);
 
@@ -43,10 +46,12 @@ private:
   PETSC_CXX_COMPAT_DECL(constexpr PetscDeviceType GetPetscDeviceType_()) { return PETSC_DEVICE_SYCL; }
 };
 
-} // namespace SYCL
+} // namespace sycl
 
-} // namespace Device
+} // namespace device
 
 } // namespace Petsc
+
+#endif // __cplusplus
 
 #endif /* PETSCSYCLDEVICE_HPP */

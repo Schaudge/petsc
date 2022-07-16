@@ -10,11 +10,11 @@
 
 namespace Petsc {
 
-namespace Device {
+namespace device {
 
-namespace CUPM {
+namespace cupm {
 
-namespace Impl {
+namespace impl {
 
 #if PetscDefined(USING_NVCC)
 #if !defined(THRUST_VERSION)
@@ -44,7 +44,7 @@ struct private_tag { };
 
 #define THRUST_CALL(...) \
   [&] { \
-    const auto timer = ::Petsc::Device::CUPM::Impl::detail::PetscLogGpuTimer{}; \
+    const auto timer = ::Petsc::device::cupm::impl::detail::PetscLogGpuTimer{}; \
     return thrust_call_par_on(__VA_ARGS__); \
   }()
 
@@ -60,7 +60,7 @@ struct shift_operator {
   const T *const       s;
   const BinaryOperator op;
 
-  PETSC_HOSTDEVICE_DECL auto operator()(T x) const PETSC_DECLTYPE_AUTO_RETURNS(op(std::move(x), *s));
+  PETSC_HOSTDEVICE_DECL PETSC_FORCEINLINE auto operator()(T x) const PETSC_DECLTYPE_NOEXCEPT_AUTO_RETURNS(op(std::move(x), *s))
 };
 
 template <typename T, typename BinaryOperator>
@@ -168,11 +168,11 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode ThrustSet(PetscDeviceContext dctx, PetscInt
   PetscFunctionReturn(0);
 }
 
-} // namespace Impl
+} // namespace impl
 
-} // namespace CUPM
+} // namespace cupm
 
-} // namespace Device
+} // namespace device
 
 } // namespace Petsc
 
