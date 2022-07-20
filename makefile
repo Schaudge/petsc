@@ -249,6 +249,26 @@ check_usermakefile:
 	@cd src/snes/tutorials; ${RUN_TEST} clean-legacy
 	-@echo "Completed compile with user makefile"
 
+checkgitclean:
+	@clean=`git status -s --untracked-files=no | wc -l`;\
+          if [ $$clean != 0 ]; then \
+           echo "The repository has uncommited files, cannot run checkclangformat" ;\
+           false;\
+        fi;
+
+checkclangformatversion:
+	@version=`clang-format --version | cut -d" " -f3 | cut -d"." -f 1` ;\
+         if [ "$$version" == "version" ]; then version=`clang-format --version | cut -d" " -f4 | cut -d"." -f 1`; fi;\
+         if [ $$version -lt 14 ]; then echo "clang-format version is too old" ;false ; fi
+
+# Check that all the source code in the repository satisfies the .clang_format
+checkclangformat: checkclangformatversion checkgitclean clangformat
+	@clean=`git status -s --untracked-files=no | wc -l`; git reset --hard ;\
+          if [ "$$clean" != "0" ]; then \
+           echo "The current commit has source code formatting problems" ;\
+           false;\
+          fi;
+
 # Compare ABI/API of two versions of PETSc library with the old one defined by PETSC_{DIR,ARCH}_ABI_OLD
 abitest:
 	@if [ "${PETSC_DIR_ABI_OLD}" = "" ] || [ "${PETSC_ARCH_ABI_OLD}" = "" ]; \
