@@ -1872,6 +1872,7 @@ PetscErrorCode  PetscLogView_Default(PetscViewer viewer)
                                PetscAbs(flopr)/1.0e6));
         if (PetscLogMemory) {
           PetscCall(PetscFPrintf(comm, fd," %5.0f   %5.0f   %5.0f   %5.0f",mal/1.0e6,emalmax/1.0e6,malmax/1.0e6,mem/1.0e6));
+          //PetscCall(PetscFPrintf(comm, fd," %g %g %g %g", mal , emalmax, malmax, mem ));
         }
         #if defined(PETSC_HAVE_DEVICE)
         if (totf  != 0.0) fracgflops = gflops/totf;  else fracgflops = 0.0;

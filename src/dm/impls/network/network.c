@@ -3,6 +3,7 @@
 PetscLogEvent DMNetwork_LayoutSetUp;
 PetscLogEvent DMNetwork_SetUpNetwork;
 PetscLogEvent DMNetwork_Distribute;
+PetscLogEvent DMNetwork_HeaderValue;
 
 /*
   Creates the component header and value objects for a network point
@@ -653,11 +654,13 @@ PetscErrorCode DMNetworkLayoutSetUp(DM dm)
   PetscCall(PetscSectionSetChart(network->DofSection,network->pStart,network->pEnd));
 
   np = network->pEnd - network->pStart;
+  PetscCall(PetscLogEventBegin(DMNetwork_HeaderValue,dm,0,0,0));
   PetscCall(PetscCalloc2(np,&network->header,np,&network->cvalue));
   for (i=0; i < np; i++) {
     network->header[i].maxcomps = 1;
     PetscCall(SetUpNetworkHeaderComponentValue(dm,&network->header[i],&network->cvalue[i]));
   }
+  PetscCall(PetscLogEventEnd(DMNetwork_HeaderValue,dm,0,0,0));
 
   /* Create edge and vertex arrays for the subnetworks
      This implementation assumes that DMNetwork reads
@@ -1376,12 +1379,14 @@ PetscErrorCode DMNetworkComponentSetUp(DM dm)
   PetscCall(PetscCalloc1(arr_size+1,&network->componentdataarray));
   componentdataarray = network->componentdataarray;
   for (p = network->pStart; p < network->pEnd; p++) {
+    if (p == (network->pEnd-1)) fprintf(stderr, "header %d alignment %d maxcomps %d size %p int %d\n", sizeof(network->header[p]),_Alignof(network->header[p]),network->header[p].maxcomps,network->header[p].size,sizeof(PetscInt));
     PetscCall(PetscSectionGetOffset(network->DataSection,p,&offsetp));
     /* Copy header */
     header = &network->header[p];
     headerinfo = (DMNetworkComponentHeader)(componentdataarray+offsetp);
     PetscCall(PetscMemcpy(headerinfo,header,sizeof(struct _p_DMNetworkComponentHeader)));
     headerarr = (PetscInt*)(headerinfo+1);
+    //fprintf(stderr, "p %d hinfo-0 %p hinfo+1 %p harr %p\n",p,headerinfo,(headerinfo+1),headerarr);
     PetscCall(PetscMemcpy(headerarr,header->size,header->maxcomps*sizeof(PetscInt)));
     headerinfo->size = headerarr;
     headerarr += header->maxcomps;
@@ -1400,7 +1405,6 @@ PetscErrorCode DMNetworkComponentSetUp(DM dm)
     /* Copy data */
     cvalue = &network->cvalue[p];
     ncomp  = header->ndata;
-
     for (i = 0; i < ncomp; i++) {
       offset = offsetp + header->hsize + header->offset[i];
       PetscCall(PetscMemcpy(componentdataarray+offset,cvalue->data[i],header->size[i]*sizeof(DMNetworkComponentGenericDataType)));

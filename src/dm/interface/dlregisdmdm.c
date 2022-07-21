@@ -151,6 +151,7 @@ PetscErrorCode DMInitializePackage(void)
   PetscCall(PetscLogEventRegister("DMNtLayoutSetUp",        DM_CLASSID,&DMNetwork_LayoutSetUp));
   PetscCall(PetscLogEventRegister("DMNtSetUp",              DM_CLASSID,&DMNetwork_SetUpNetwork));
   PetscCall(PetscLogEventRegister("DMNtDistribute",         DM_CLASSID,&DMNetwork_Distribute));
+  PetscCall(PetscLogEventRegister("DMNtHeaderValue",        DM_CLASSID,&DMNetwork_HeaderValue));
   /* Process Info */
   {
     PetscClassId  classids[1];

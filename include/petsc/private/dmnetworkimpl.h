@@ -7,9 +7,10 @@
 #include <petscctable.h>
 
 PETSC_EXTERN PetscLogEvent DMNetwork_LayoutSetUp;
-PETSC_EXTERN PetscLogEvent DMNetwork_SetUpNetwork;
+PETSC_EXTERN PetscLogEvent DMNtwork_SetUpNetwork;
 PETSC_EXTERN PetscLogEvent DMNetwork_Distribute;
-
+PETSC_EXTERN PetscLogEvent DMNetwork_HeaderValue;
+#if 0
 typedef struct _p_DMNetworkComponentHeader *DMNetworkComponentHeader;
 struct _p_DMNetworkComponentHeader {
   PetscInt index;    /* index for user input global edge and vertex */
@@ -29,11 +30,33 @@ struct _p_DMNetworkComponentHeader {
   PetscInt *nvar;    /* number of variabes for the component */
   PetscInt *offsetvarrel; /* relative offset from the first component at this point */
 } PETSC_ATTRIBUTEALIGNED(PetscMax(sizeof(double),sizeof(PetscScalar)));
+#else
+typedef struct _p_DMNetworkComponentHeader *DMNetworkComponentHeader;
+struct _p_DMNetworkComponentHeader {
+  short index;    /* index for user input global edge and vertex */
+  short subnetid; /* Id for subnetwork */
+  short ndata;    /* number of components */
+  short hsize;    /* Size of the header */
+  short maxcomps; /* Maximum components at this point (ndata <= maxcomps). maxcomps
+                        is set initially to a default value and is incremented every time
+                        ndata exceeds maxcomps */
+  /* The following arrays store the different attributes for each component at the given point.
+     The length of these arrays equals maxcomps. The arrays are resized every time
+     ndata exceeds maxcomps
+  */
+  PetscInt *size;    /* component data struct sizes */
+  PetscInt *key;     /* component keys */
+  PetscInt *nvar;    /* number of variabes for the component */
+  PetscInt *offset;  /* component offset in the vector */
+  PetscInt *offsetvarrel; /* relative offset from the first component at this point */
+} PETSC_ATTRIBUTEALIGNED(PetscMax(sizeof(double),sizeof(PetscScalar)));
+#endif
 
 typedef struct _p_DMNetworkComponentValue *DMNetworkComponentValue;
 struct _p_DMNetworkComponentValue {
   void* *data;
 } PETSC_ATTRIBUTEALIGNED(PetscMax(sizeof(double),sizeof(PetscScalar)));
+
 
 typedef struct {
   char     name[32-sizeof(PetscInt)];
