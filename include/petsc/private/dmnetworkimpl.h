@@ -7,7 +7,7 @@
 #include <petscctable.h>
 
 PETSC_EXTERN PetscLogEvent DMNetwork_LayoutSetUp;
-PETSC_EXTERN PetscLogEvent DMNtwork_SetUpNetwork;
+PETSC_EXTERN PetscLogEvent DMNetwork_SetUpNetwork;
 PETSC_EXTERN PetscLogEvent DMNetwork_Distribute;
 PETSC_EXTERN PetscLogEvent DMNetwork_HeaderValue;
 #if 0

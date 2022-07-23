@@ -1379,7 +1379,7 @@ PetscErrorCode DMNetworkComponentSetUp(DM dm)
   PetscCall(PetscCalloc1(arr_size+1,&network->componentdataarray));
   componentdataarray = network->componentdataarray;
   for (p = network->pStart; p < network->pEnd; p++) {
-    if (p == (network->pEnd-1)) fprintf(stderr, "header %d alignment %d maxcomps %d size %p int %d\n", sizeof(network->header[p]),_Alignof(network->header[p]),network->header[p].maxcomps,network->header[p].size,sizeof(PetscInt));
+    //if (p == (network->pEnd-1)) fprintf(stderr, "header %d alignment %d maxcomps %d size %p int %d\n", sizeof(network->header[p]),_Alignof(network->header[p]),network->header[p].maxcomps,network->header[p].size,sizeof(PetscInt));
     PetscCall(PetscSectionGetOffset(network->DataSection,p,&offsetp));
     /* Copy header */
     header = &network->header[p];
