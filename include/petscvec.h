@@ -548,6 +548,7 @@ PETSC_EXTERN PetscErrorCode VecSetPinnedMemoryMin(Vec, size_t);
 PETSC_EXTERN PetscErrorCode VecGetPinnedMemoryMin(Vec, size_t *);
 
 PETSC_EXTERN PetscErrorCode VecGetOffloadMask(Vec, PetscOffloadMask *);
+PETSC_EXTERN PetscErrorCode VecSetOffloadMask(Vec, PetscOffloadMask);
 
 typedef enum {
   VEC_IGNORE_OFF_PROC_ENTRIES,
