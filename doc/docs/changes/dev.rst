@@ -111,6 +111,7 @@ exec-name``.
 
 - Add ``VecSetPreallocationCOO()``, ``VecSetValuesCOO()`` and ``VecSetPreallocationCOOLocal()`` to support vector assembly with coordinates
 - Add ``VecStrideSum()`` and ``VecStrideSumAll()`` for summing subvectors of strided vectors
+- Add ``VecSetOffloadMask()`` and its Python binding for advanced uses
 
 .. rubric:: PetscSection:
 
@@ -212,7 +213,7 @@ exec-name``.
 
 .. rubric:: DMNetwork:
 
-- Add ``DMNetworkFinalizeComponents()`` to setup the internal data structures for components on a network. Previously this could only be done by calling DMSetUp. 
+- Add ``DMNetworkFinalizeComponents()`` to setup the internal data structures for components on a network. Previously this could only be done by calling DMSetUp.
 
 .. rubric:: DMStag:
 
