@@ -29,6 +29,7 @@ cdef class Vec(Object):
 
     Type = VecType
     Option = VecOption
+    OffloadMaskType = OffloadMask
 
     #
 
@@ -1369,5 +1370,6 @@ cdef class Vec(Object):
 
 del VecType
 del VecOption
+del OffloadMask
 
 # --------------------------------------------------------------------

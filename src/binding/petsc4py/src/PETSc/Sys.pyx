@@ -7,6 +7,13 @@ class DeviceType(object):
     SYCL    = PETSC_DEVICE_SYCL
     MAX     = PETSC_DEVICE_MAX
 
+class OffloadMask(object):
+    UNALLOCATED = PETSC_OFFLOAD_UNALLOCATED
+    CPU         = PETSC_OFFLOAD_CPU
+    GPU         = PETSC_OFFLOAD_GPU
+    BOTH        = PETSC_OFFLOAD_BOTH
+    KOKKOS      = PETSC_OFFLOAD_KOKKOS
+
 # --------------------------------------------------------------------
 
 cdef class Sys:
