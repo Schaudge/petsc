@@ -1277,10 +1277,10 @@ PetscErrorCode DMPlexCreateBoxMesh(MPI_Comm comm, PetscInt dim, PetscBool simple
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMPlexCreateWedgeBoxMesh_Internal(DM dm, const PetscInt faces[], const PetscReal lower[], const PetscReal upper[], const DMBoundaryType periodicity[])
+static PetscErrorCode DMPlexCreateWedgeBoxMesh_Internal(DM dm, const PetscInt faces[], const PetscReal lower[], const PetscReal upper[], const DMBoundaryType periodicity[], PetscBool tensor)
 {
-  DM             bdm, vol;
-  PetscInt       i;
+  DM       bdm, vol;
+  PetscInt i;
 
   PetscFunctionBegin;
   for (i = 0; i < 3; ++i) PetscCheck(periodicity[i] == DM_BOUNDARY_NONE,PetscObjectComm((PetscObject) dm), PETSC_ERR_SUP, "Periodicity not yet supported");
@@ -1288,7 +1288,7 @@ static PetscErrorCode DMPlexCreateWedgeBoxMesh_Internal(DM dm, const PetscInt fa
   PetscCall(DMSetType(bdm, DMPLEX));
   PetscCall(DMSetDimension(bdm, 2));
   PetscCall(DMPlexCreateBoxMesh_Simplex_Internal(bdm, 2, faces, lower, upper, periodicity, PETSC_TRUE));
-  PetscCall(DMPlexExtrude(bdm, faces[2], upper[2] - lower[2], PETSC_TRUE, PETSC_FALSE, NULL, NULL, &vol));
+  PetscCall(DMPlexExtrude(bdm, faces[2], upper[2] - lower[2], tensor, PETSC_FALSE, NULL, NULL, &vol));
   PetscCall(DMDestroy(&bdm));
   PetscCall(DMPlexReplace_Static(dm, &vol));
   if (lower[2] != 0.0) {
@@ -1339,7 +1339,7 @@ PetscErrorCode DMPlexCreateWedgeBoxMesh(MPI_Comm comm, const PetscInt faces[], c
   PetscFunctionBegin;
   PetscCall(DMCreate(comm,dm));
   PetscCall(DMSetType(*dm,DMPLEX));
-  PetscCall(DMPlexCreateWedgeBoxMesh_Internal(*dm, faces ? faces : fac, lower ? lower : low, upper ? upper : upp, periodicity ? periodicity : bdt));
+  PetscCall(DMPlexCreateWedgeBoxMesh_Internal(*dm, faces ? faces : fac, lower ? lower : low, upper ? upper : upp, periodicity ? periodicity : bdt, PETSC_TRUE));
   if (!interpolate) {
     DM udm;
 
@@ -3252,7 +3252,16 @@ static PetscErrorCode DMPlexCreateFromOptions_Internal(PetscOptionItems *PetscOp
         PetscCheck(!flg || !(n != dim),comm, PETSC_ERR_ARG_SIZ, "Box boundary types had %" PetscInt_FMT " values, should have been %" PetscInt_FMT, n, dim);
         switch (cell) {
           case DM_POLYTOPE_TRI_PRISM_TENSOR:
-            PetscCall(DMPlexCreateWedgeBoxMesh_Internal(dm, faces, lower, upper, bdt));
+            PetscCall(DMPlexCreateWedgeBoxMesh_Internal(dm, faces, lower, upper, bdt, PETSC_TRUE));
+            if (!interpolate) {
+              DM udm;
+
+              PetscCall(DMPlexUninterpolate(dm, &udm));
+              PetscCall(DMPlexReplace_Static(dm, &udm));
+            }
+            break;
+          case DM_POLYTOPE_TRI_PRISM:
+            PetscCall(DMPlexCreateWedgeBoxMesh_Internal(dm, faces, lower, upper, bdt, PETSC_FALSE));
             if (!interpolate) {
               DM udm;
 
