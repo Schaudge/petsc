@@ -149,10 +149,11 @@ int main(int argc,char **args)
       args: -abt
       output_file: output/ex258_1.out
 
-###   #TODO: bug: MatProductReplaceMats() does not change the product for this test
-  ### test:
-  ###    suffix: 11
-  ###    nsize: 2
-  ###    args: -conjugate true -atb -mat_product_algorithm backend
+   test:
+      suffix: 11
+      nsize: 2
+      args: -conjugate true -atb -mat_product_algorithm backend
+      TODO: bug: MatProductReplaceMats() does not change the product for this test
+
 
 TEST*/
