@@ -19,23 +19,6 @@ int main(int argc,char **args)
   PetscCall(MatSeqDenseSetPreallocation(A,NULL));
   PetscCall(MatMPIDenseSetPreallocation(A,NULL));
   PetscCall(MatSetRandom(A,NULL));
-  /*
-  {
-  PetscInt rstart,rend,i;
-  PetscCall(MatZeroEntries(A));
-  PetscCall(MatGetOwnershipRange(A,&rstart,&rend));
-  for (i=rstart; i<rend; i++) {
-#if defined(PETSC_USE_COMPLEX)
-    PetscScalar v = PETSC_i;
-#else
-    PetscScalar v = 1.0;
-#endif
-    PetscCall(MatSetValues(A,1,&i,1,&i,&v,INSERT_VALUES));
-  }
-  PetscCall(MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY));
-  PetscCall(MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY));
-  }
-  */
   PetscCall(MatViewFromOptions(A,NULL,"-A_view"));
   PetscCall(PetscOptionsGetBool(NULL,NULL,"-conjugate",&conjugate,NULL));
 
