@@ -138,5 +138,4 @@ int main(int argc,char **args)
       args: -conjugate true -atb -mat_product_algorithm backend
       TODO: bug: MatProductReplaceMats() does not change the product for this test
 
-
 TEST*/
