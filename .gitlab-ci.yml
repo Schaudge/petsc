@@ -190,11 +190,12 @@ checksource:
   extends: .test-basic
   stage: .pre
   tags:
-    - gce-stage1
+    - gce-u22-stage1
   script:
     - python3 ./configure --with-mpi=0 --with-fc=0 --with-cxx=0
     - vermin --version
     - make vermin
+    - make checkclangformat SHELL=bash
     - make checkbadSource SHELL=bash
     - make -f gmakefile check_output SHELL=bash
     - make check_petsc4py_rst
