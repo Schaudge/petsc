@@ -192,9 +192,9 @@ PETSC_INTERN PetscErrorCode PetscObjectNewId_Internal(PetscObjectId *);
 
 .seealso: `PetscHeaderCreate()`
 @*/
-#define PetscHeaderDestroy(h) (PetscHeaderDestroy_Private((PetscObject)(*(h))) || PetscFree(*(h)))
+#define PetscHeaderDestroy(h) (PetscHeaderDestroy_Private((PetscObject)(*(h)), PETSC_FALSE) || PetscFree(*(h)))
 
-PETSC_EXTERN PetscErrorCode PetscHeaderDestroy_Private(PetscObject);
+PETSC_EXTERN PetscErrorCode PetscHeaderDestroy_Private(PetscObject, PetscBool);
 PETSC_EXTERN PetscErrorCode PetscObjectCopyFortranFunctionPointers(PetscObject, PetscObject);
 PETSC_EXTERN PetscErrorCode PetscObjectSetFortranCallback(PetscObject, PetscFortranCallbackType, PetscFortranCallbackId *, void (*)(void), void *ctx);
 PETSC_EXTERN PetscErrorCode PetscObjectGetFortranCallback(PetscObject, PetscFortranCallbackType, PetscFortranCallbackId, void (**)(void), void **ctx);

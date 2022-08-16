@@ -970,8 +970,8 @@ PETSC_INTERN PetscErrorCode PetscInitialize_Common(const char *prog, const char 
    Note to any future devs thinking of moving this, proper initialization requires:
    1. MPI initialized
    2. Options DB initialized
-   3. Petsc error handling initialized, specifically signal handlers. This expects to set up its own SIGSEV handler via
-      the push/pop interface.
+   3. Petsc error handling initialized, specifically signal handlers. This expects to set up
+      its own SIGSEV handler via the push/pop interface.
   */
   PetscCall(PetscDeviceInitializeFromOptions_Internal(PETSC_COMM_WORLD));
 

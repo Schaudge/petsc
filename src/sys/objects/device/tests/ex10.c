@@ -24,12 +24,16 @@ int main(int argc, char *argv[]) {
   // we want to leave one of the managed scalars "dangling" below, and hence won't be
   // synchronizing on the context before it is destroyed
   PetscCall(PetscDeviceContextSetOption(dctxa, PETSC_DEVICE_CONTEXT_ALLOW_ORPHANS, PETSC_TRUE));
-  PetscCall(PetscDeviceContextSetFromOptions(comm, "dctxa_", dctxa));
+  PetscCall(PetscObjectSetName((PetscObject)dctxa, PetscStringize(dctxa)));
+  PetscCall(PetscObjectSetOptionsPrefix((PetscObject)dctxa, "dctxa_"));
+  PetscCall(PetscDeviceContextSetFromOptions(comm, dctxa));
   PetscCall(PetscDeviceContextGetDeviceType(dctxa, &dtype));
 
   PetscCall(PetscDeviceContextCreate(&dctxb));
   PetscCall(PetscDeviceContextSetStreamType(dctxb, PETSC_STREAM_DEFAULT_BLOCKING));
-  PetscCall(PetscDeviceContextSetFromOptions(comm, "dctxb_", dctxb));
+  PetscCall(PetscObjectSetName((PetscObject)dctxb, PetscStringize(dctxb)));
+  PetscCall(PetscObjectSetOptionsPrefix((PetscObject)dctxb, "dctxb_"));
+  PetscCall(PetscDeviceContextSetFromOptions(comm, dctxb));
 
   // allocate and fill the value buffers
   PetscCall(PetscDeviceMalloc(dctxa, PETSC_MEMTYPE_HOST, n, &ptra));

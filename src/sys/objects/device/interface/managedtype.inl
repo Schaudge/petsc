@@ -261,7 +261,14 @@ PetscErrorCode PetscManagedTypeDestroy(PetscDeviceContext dctx, PetscManagedType
   if ((*scal)->host && ((*scal)->h_cmode == PETSC_OWN_POINTER)) PetscCall(PetscFree((*scal)->host));
   // cannot handle device pointers though
 #if PetscDefined(HAVE_CXX)
-  PetscAssert(!(*scal)->device || ((*scal)->d_cmode != PETSC_OWN_POINTER),PETSC_COMM_SELF,PETSC_ERR_PLIB,"PetscDeviceContext (id %" PetscInt64_FMT ", device type %s) failed to free the owned device pointer",dctx->id,PetscDeviceTypes[dctx->device->type]);
+  if (PetscDefined(USE_DEBUG) && (*scal)->device) {
+    PetscDeviceType dtype;
+    PetscObjectId   id;
+
+    PetscCall(PetscObjectGetId((PetscObject)dctx,&id));
+    PetscCall(PetscDeviceContextGetDeviceType(dctx,&dtype));
+    PetscCheck((*scal)->d_cmode != PETSC_OWN_POINTER,PETSC_COMM_SELF,PETSC_ERR_PLIB,"PetscDeviceContext (id %" PetscInt64_FMT ", device type %s) failed to free the owned device pointer",id,PetscDeviceTypes[dtype]);
+  }
 #endif
   PetscCall(PetscManagedTypeDeallocate(*scal));
   *scal = PETSC_NULLPTR;
