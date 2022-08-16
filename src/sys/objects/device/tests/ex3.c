@@ -53,8 +53,8 @@ int main(int argc, char *argv[]) {
 
   /* basic creation and destruction */
   PetscCall(PetscDeviceContextCreate(&dctx));
-  PetscCall(PetscDeviceContextSetFromOptions(comm, "local_", dctx));
-  PetscCall(PetscDeviceContextSetUp(dctx));
+  PetscCall(PetscObjectSetOptionsPrefix((PetscObject)dctx, "local_"));
+  PetscCall(PetscDeviceContextSetFromOptions(comm, dctx));
   PetscCall(TestPetscDeviceContextDuplicate(dctx));
   PetscCall(PetscDeviceContextDestroy(&dctx));
 

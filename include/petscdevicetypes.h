@@ -259,7 +259,7 @@ PETSC_EXTERN const char *const PetscDeviceContextJoinModes[];
 .seealso: `PetscDevice`, `PetscDeviceContextCreate()`, `PetscDeviceContextSetDevice()`,
 `PetscDeviceContextDestroy()`,`PetscDeviceContextFork()`, `PetscDeviceContextJoin()`
 S*/
-typedef struct _n_PetscDeviceContext *PetscDeviceContext;
+typedef struct _p_PetscDeviceContext *PetscDeviceContext;
 
 /*E
   PetscDeviceCopyMode - Describes the copy direction of a device-aware memcpy

@@ -110,7 +110,7 @@ void PetscCheckCompatibleDeviceContexts(T, int, U, int);
   do { \
     PetscDeviceContext pvdc_dctx_  = dctx; \
     int                pvdc_argno_ = (int)(argno); \
-    PetscValidPointer(pvdc_dctx_, pvdc_argno_); \
+    PetscValidHeaderSpecific(pvdc_dctx_, PETSC_DEVICE_CONTEXT_CLASSID, pvdc_argno_); \
     PetscValidStreamType(pvdc_dctx_->streamType, pvdc_argno_); \
     if (pvdc_dctx_->device) { \
       PetscValidDevice(pvdc_dctx_->device, pvdc_argno_); \
@@ -120,7 +120,7 @@ void PetscCheckCompatibleDeviceContexts(T, int, U, int);
                  "PetscDeviceContext is setup but has no PetscDevice", \
                  pvdc_argno_); \
     } \
-    PetscCheck(pvdc_dctx_->id >= 1, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Invalid PetscDeviceContext: Argument #%d; id %" PetscInt64_FMT " < 1", pvdc_argno_, pvdc_dctx_->id); \
+    PetscCheck(((PetscObject)pvdc_dctx_)->id >= 1, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Invalid PetscDeviceContext: Argument #%d; id %" PetscInt64_FMT " < 1", pvdc_argno_, ((PetscObject)pvdc_dctx_)->id); \
     PetscCheck(pvdc_dctx_->numChildren <= pvdc_dctx_->maxNumChildren, PETSC_COMM_SELF, PETSC_ERR_ARG_CORRUPT, "Invalid PetscDeviceContext: Argument #%d; number of children %" PetscInt_FMT " > max number of children %" PetscInt_FMT, pvdc_argno_, \
                pvdc_dctx_->numChildren, pvdc_dctx_->maxNumChildren); \
   } while (0)
@@ -245,22 +245,18 @@ typedef struct {
   PetscBool allow_orphans;
 } DeviceContextOptions;
 
-struct _n_PetscDeviceContext {
-  struct _DeviceContextOps ops[1];
-  PetscDevice              device; /* the device this context stems from */
-  void                    *data;   /* solver contexts, event, stream */
-  PetscObjectId            id;     /* unique id per created context */
-  PetscObjectState         state;
-  PetscInt                *childIDs;       /* array containing ids of contexts currently forked from this one */
-  PetscInt                 numChildren;    /* how many children does this context expect to destroy */
-  PetscInt                 maxNumChildren; /* how many children can this context have room for without realloc'ing */
-  PetscStreamType          streamType;     /* how should this contexts stream behave around other streams? */
-  void                    *cxxdata;
-  PetscBool                setup;
-  PetscBool                usersetdevice;
-  PetscBool                contained;
-  DeviceContextOptions     options;
-  char                    *name;
+struct _p_PetscDeviceContext {
+  PETSCHEADER(struct _DeviceContextOps);
+  PetscDevice          device;         /* the device this context stems from */
+  void                *data;           /* solver contexts, event, stream */
+  PetscObjectId       *childIDs;       /* array containing ids of contexts currently forked from this one */
+  PetscInt             numChildren;    /* how many children does this context expect to destroy */
+  PetscInt             maxNumChildren; /* how many children can this context have room for without realloc'ing */
+  PetscStreamType      streamType;     /* how should this contexts stream behave around other streams? */
+  PetscBool            setup;
+  PetscBool            usersetdevice;
+  PetscBool            contained;
+  DeviceContextOptions options;
 };
 
 // ===================================================================================

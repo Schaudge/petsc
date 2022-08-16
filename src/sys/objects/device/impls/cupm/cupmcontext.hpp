@@ -145,8 +145,8 @@ private:
     const auto devidl = dctxl->device->deviceId, devidr = dctxr->device->deviceId;
 
     PetscFunctionBegin;
-    PetscCheck(devidl == devidr, PETSC_COMM_SELF, PETSC_ERR_GPU, "Device contexts must be on the same device; dctx A (id %" PetscInt64_FMT " device id %" PetscInt_FMT ") dctx B (id %" PetscInt64_FMT " device id %" PetscInt_FMT ")", dctxl->id, devidl,
-               dctxr->id, devidr);
+    PetscCheck(devidl == devidr, PETSC_COMM_SELF, PETSC_ERR_GPU, "Device contexts must be on the same device; dctx A (id %" PetscInt64_FMT " device id %" PetscInt_FMT ") dctx B (id %" PetscInt64_FMT " device id %" PetscInt_FMT ")",
+               PetscObjectCast(dctxl)->id, devidl, PetscObjectCast(dctxr)->id, devidr);
     PetscCall(PetscDeviceCheckDeviceCount_Internal(devidl));
     PetscCall(PetscDeviceCheckDeviceCount_Internal(devidr));
     PetscCallCUPM(cupmSetDevice(static_cast<int>(devidl)));

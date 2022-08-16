@@ -54,8 +54,8 @@ int main(int argc, char *argv[]) {
   comm = PETSC_COMM_WORLD;
 
   PetscCall(PetscDeviceContextCreate(&dctx));
-  PetscCall(PetscDeviceContextSetFromOptions(comm, "local_", dctx));
-  PetscCall(PetscDeviceContextSetUp(dctx));
+  PetscCall(PetscObjectSetOptionsPrefix((PetscObject)dctx, "local_"));
+  PetscCall(PetscDeviceContextSetFromOptions(comm, dctx));
   PetscCall(TestPetscDeviceContextForkJoin(dctx));
   PetscCall(PetscDeviceContextDestroy(&dctx));
 

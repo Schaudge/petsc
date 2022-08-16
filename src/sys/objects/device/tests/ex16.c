@@ -72,29 +72,48 @@ static PetscErrorCode sync(MPI_Comm comm, PetscDeviceContext dctx) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PrintID(MPI_Comm comm, PetscObjectId id, const char prefix[], const char name[]) {
+static PetscErrorCode PrintID(MPI_Comm comm, PetscObject obj, const char obj_type[]) {
+  PetscObjectId id;
+  const char   *name;
+
   PetscFunctionBegin;
-  PetscCall(PetscPrintf(comm, "Object '%s' is %s %" PetscInt64_FMT "\n", name, prefix, id));
+  PetscCall(PetscObjectGetName(obj, &name));
+  PetscCall(PetscObjectGetId(obj, &id));
+  PetscCall(PetscPrintf(comm, "Object '%s' is %s %" PetscInt64_FMT "\n", name, obj_type, id));
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscDeviceContextPrintID(MPI_Comm comm, PetscDeviceContext dctx, const char name[]) {
+static PetscErrorCode CreatePetscDeviceContext(MPI_Comm comm, PetscDeviceContext ref, const char name[], PetscDeviceContext *dctx) {
+  char  *prefix;
+  size_t name_len;
+
   PetscFunctionBegin;
-  PetscCall(PrintID(comm, dctx->id, "dctx", name));
+  if (ref) {
+    PetscCall(PetscDeviceContextDuplicate(ref, dctx));
+  } else {
+    PetscCall(PetscDeviceContextCreate(dctx));
+  }
+  PetscCall(PetscObjectSetName((PetscObject)(*dctx), name));
+  PetscCall(PetscStrlen(name, &name_len));
+  PetscCall(PetscCalloc1(name_len + 1, &prefix));
+  PetscCall(PetscStrcpy(prefix, name));
+  prefix[name_len] = '_';
+  PetscCall(PetscObjectSetOptionsPrefix((PetscObject)(*dctx), prefix));
+  PetscCall(PetscFree(prefix));
+  PetscCall(PetscDeviceContextSetFromOptions(comm, *dctx));
+  PetscCall(PrintID(comm, (PetscObject)(*dctx), "dctx"));
   PetscFunctionReturn(0);
 }
 
 static PetscErrorCode CreatePetscObject(MPI_Comm comm, const char name[], PetscObject *obj) {
-  PetscObjectId  id;
   PetscContainer container;
 
   PetscFunctionBegin;
   // use PetscContainer as a proxy for PetscObject (since you cannot create them directly)
   PetscCall(PetscContainerCreate(comm, &container));
-  PetscCall(PetscObjectGetId((PetscObject)container, &id));
-  PetscCall(PetscObjectSetName((PetscObject)container, name));
-  PetscCall(PrintID(comm, id, "object", name));
   *obj = (PetscObject)container;
+  PetscCall(PetscObjectSetName(*obj, name));
+  PetscCall(PrintID(comm, *obj, "object"));
   PetscFunctionReturn(0);
 }
 
@@ -106,16 +125,10 @@ int main(int argc, char *argv[]) {
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
   comm = PETSC_COMM_WORLD;
 
-  PetscCall(PetscDeviceContextCreate(&dctx_0));
-  PetscCall(PetscDeviceContextSetFromOptions(comm, "dctx_0_", dctx_0));
-  PetscCall(PetscDeviceContextDuplicate(dctx_0, &dctx_1));
-  PetscCall(PetscDeviceContextSetFromOptions(comm, "dctx_1_", dctx_1));
-  PetscCall(PetscDeviceContextDuplicate(dctx_0, &dctx_2));
-  PetscCall(PetscDeviceContextSetFromOptions(comm, "dctx_2_", dctx_2));
+  PetscCall(CreatePetscDeviceContext(comm, NULL, "dctx_0", &dctx_0));
+  PetscCall(CreatePetscDeviceContext(comm, dctx_0, "dctx_1", &dctx_1));
+  PetscCall(CreatePetscDeviceContext(comm, dctx_0, "dctx_2", &dctx_2));
 
-  PetscCall(PetscDeviceContextPrintID(comm, dctx_0, "dctx_0"));
-  PetscCall(PetscDeviceContextPrintID(comm, dctx_1, "dctx_1"));
-  PetscCall(PetscDeviceContextPrintID(comm, dctx_2, "dctx_2"));
   PetscCall(CreatePetscObject(comm, "x", &x));
   PetscCall(CreatePetscObject(comm, "y", &y));
 
