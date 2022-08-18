@@ -2,6 +2,8 @@
 #define CUPMALLOCATOR_HPP
 
 #if defined(__cplusplus)
+#include <petsc/private/cpp/object_pool.hpp>
+
 #include "../segmentedmempool.hpp"
 #include "cupmthrustutility.hpp"
 
@@ -69,6 +71,38 @@ struct DeviceAllocator : impl::Interface<T>, memory::impl::SegmentedMemoryPoolAl
     PetscFunctionReturn(0);
   }
 };
+
+namespace detail {
+
+template <DeviceType T, unsigned long flags>
+struct CUPMEventPoolAllocator : impl::Interface<T>, AllocatorBase<typename impl::Interface<T>::cupmEvent_t> {
+  PETSC_CUPM_INHERIT_INTERFACE_TYPEDEFS_USING(interface_type, T);
+
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode create(cupmEvent_t *event)) {
+    PetscFunctionBegin;
+    PetscCallCUPM(cupmEventCreateWithFlags(event, flags));
+    PetscFunctionReturn(0);
+  }
+
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode destroy(cupmEvent_t event)) {
+    PetscFunctionBegin;
+    PetscCallCUPM(cupmEventDestroy(event));
+    PetscFunctionReturn(0);
+  }
+};
+
+} // namespace detail
+
+template <DeviceType T, unsigned long flags>
+static inline auto &cupm_event_pool() noexcept {
+  static ObjectPool<typename impl::Interface<T>::cupmEvent_t, detail::CUPMEventPoolAllocator<T, flags>> p;
+  return p;
+}
+
+template <DeviceType T>
+static inline auto &cupm_fast_event_pool() noexcept {
+  return cupm_event_pool<T, impl::Interface<T>::cupmEventDisableTiming>();
+}
 
 // A bare wrapper around a cupmStream_t. The reason it exists is because we need to uniquely
 // identify separate cupm streams. This is so that the memory pool can accelerate allocation
@@ -142,10 +176,7 @@ private:
 
     ~cupm_event() noexcept {
       PetscFunctionBegin;
-      if (event_) {
-        PetscCallCUPMAbort(PETSC_COMM_SELF, cupmEventDestroy(event_));
-        event_ = cupmEvent_t{};
-      }
+      if (event_) { PetscCallAbort(PETSC_COMM_SELF, cupm_fast_event_pool<T>().reclaim(std::move(event_))); }
       PetscFunctionReturnVoid();
     }
 
@@ -176,9 +207,11 @@ private:
 
     PETSC_NODISCARD PetscErrorCode move_assign_(cupm_event &&other) noexcept {
       PetscFunctionBegin;
-      if (event_) PetscCallCUPM(cupmEventDestroy(event_));
-      event_       = std::move(other.event_);
-      other.event_ = cupmEvent_t{};
+      if (event_) {
+        PetscCall(cupm_fast_event_pool<T>().reclaim(std::move(event_)));
+        event_ = cupmEvent_t{};
+      }
+      std::swap(event_, other.event_);
       PetscFunctionReturn(0);
     }
   };

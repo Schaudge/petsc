@@ -16,10 +16,10 @@ class AllocatorBase {
 public:
   using value_type = T;
 
-  PETSC_NODISCARD PetscErrorCode create(value_type *) noexcept;
-  PETSC_NODISCARD PetscErrorCode destroy(value_type &) noexcept;
-  PETSC_NODISCARD PetscErrorCode reset(value_type &) noexcept;
-  PETSC_NODISCARD PetscErrorCode finalize() noexcept;
+  PETSC_NODISCARD PetscErrorCode        create(value_type *) noexcept  = delete;
+  PETSC_NODISCARD PetscErrorCode        destroy(value_type &) noexcept = delete;
+  PETSC_NODISCARD static PetscErrorCode reset(value_type &) noexcept { return 0; }
+  PETSC_NODISCARD static PetscErrorCode finalize() noexcept { return 0; }
 
 protected:
   // make the constructor protected, this forces this class to be derived from to ever be
@@ -128,7 +128,8 @@ public:
   explicit ObjectPool(allocator_type &&alloc) noexcept(std::is_nothrow_move_constructible<allocator_type>::value) : base_type(std::move(alloc)) { }
 
   // Retrieve an object from the pool, if the pool is empty a new object is created instead
-  PETSC_NODISCARD PetscErrorCode get(value_type &) noexcept;
+  template <typename... Args>
+  PETSC_NODISCARD PetscErrorCode get(value_type &, Args &&...) noexcept;
   // Return an object to the pool, the object need not necessarily have been created by
   // the pool, note this only accepts r-value references. The pool takes ownership of all
   // managed objects.
@@ -189,15 +190,16 @@ inline PetscErrorCode ObjectPool<T, Allocator>::finalize_() noexcept {
 }
 
 template <typename T, class Allocator>
-inline PetscErrorCode ObjectPool<T, Allocator>::get(value_type &obj) noexcept {
+template <typename... Args>
+inline PetscErrorCode ObjectPool<T, Allocator>::get(value_type &obj, Args &&...args) noexcept {
   PetscFunctionBegin;
   PetscCall(this->register_finalize());
   if (stack_.empty()) {
-    PetscCall(this->allocator().create(&obj));
+    PetscCall(this->allocator().create(&obj, std::forward<Args>(args)...));
   } else {
     PetscCallCXX(obj = std::move(stack_.top()));
     PetscCallCXX(stack_.pop());
-    PetscCall(this->allocator().reset(obj));
+    PetscCall(this->allocator().reset(obj, std::forward<Args>(args)...));
   }
   PetscFunctionReturn(0);
 }

@@ -3,7 +3,7 @@
 #include <petsc/private/cpputil.hpp>
 
 #include <petsc/private/cpp/flat_map.hpp>
-#include "objpool.hpp"
+#include <petsc/private/cpp/object_pool.hpp>
 
 #include <utility>
 #include <array>
@@ -165,6 +165,8 @@ public:
         userset = PETSC_FALSE;
         if (const auto destroy = dctx->ops->destroy) PetscCall((*destroy)(dctx));
         PetscCall(PetscDeviceDestroy(&dctx->device));
+        PetscCall(PetscArrayzero(dctx->ops, 1));
+        dctx->data = nullptr;
       }
       PetscCall(PetscHeaderDestroy_Private(PetscObjectCast(dctx), PETSC_TRUE));
       dctx->numChildren = 0;
@@ -983,6 +985,101 @@ PetscErrorCode        PetscDeviceContextSynchronize(PetscDeviceContext dctx) {
          PetscFunctionReturn(0);
 }
 
+class PetscEventAllocator : public Petsc::AllocatorBase<PetscEvent> {
+public:
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode create(PetscEvent *event, PetscDeviceType dtype)) {
+    PetscFunctionBegin;
+    PetscCall(PetscNew(event));
+    (*event)->type = dtype;
+    PetscFunctionReturn(0);
+  }
+
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode destroy(PetscEvent event)) {
+    PetscFunctionBegin;
+    if (const auto destroy = event->ops->destroy) PetscCall((*destroy)(event));
+    PetscCall(PetscFree(event));
+    PetscFunctionReturn(0);
+  }
+
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode reset(PetscEvent event, PetscDeviceType dtype)) {
+    PetscFunctionBegin;
+    if (event->type != dtype) {
+      if (const auto destroy = event->ops->destroy) {
+        PetscCall((*destroy)(event));
+        PetscCall(PetscArrayzero(event->ops, 1));
+        event->data = nullptr;
+      }
+      PetscCheck(!event->data, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Not sure how to handle event with data ptr but no destroy method!");
+      event->type = dtype;
+    }
+    PetscFunctionReturn(0);
+  }
+
+  PETSC_CXX_COMPAT_DECL(constexpr PetscErrorCode finalize()) { return 0; }
+};
+
+static Petsc::ObjectPool<PetscEvent, PetscEventAllocator> eventPool;
+
+static PetscErrorCode PetscEventCreate_Private(PetscDeviceType dtype, PetscEvent *event) {
+  PetscFunctionBegin;
+  PetscValidPointer(event, 1);
+  PetscCall(eventPool.get(*event, dtype));
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscEventDestroy_Private(PetscEvent *event) {
+  PetscFunctionBegin;
+  PetscValidPointer(event, 1);
+  if (!*event) PetscFunctionReturn(0);
+  PetscCall(eventPool.reclaim(std::move(*event))); // NOLINT
+  *event = nullptr;
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscDeviceContextRecordEvent_Private(PetscDeviceContext dctx, PetscEvent event) {
+  PetscFunctionBegin;
+  PetscValidDeviceContext(dctx, 1);
+  PetscValidPointer(event, 1);
+  if (dctx->ops->recordevent) {
+    // REVIEW ME:
+    // TODO maybe move this to impls, as they can determine whether they can interoperate with
+    // other device types more readily
+    if (PetscDefined(USE_DEBUG)) {
+      const auto      etype = event->type;
+      PetscDeviceType dtype;
+
+      PetscCall(PetscDeviceContextGetDeviceType(dctx, &dtype));
+      PetscCheck(etype == dtype, PETSC_COMM_SELF, PETSC_ERR_ARG_INCOMP, "Event type %s does not match device context type %s", PetscDeviceTypes[etype], PetscDeviceTypes[dtype]);
+    }
+    PetscUseTypeMethod(dctx, recordevent, event);
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscDeviceContextWaitForEvent_Private(PetscDeviceContext dctx, PetscEvent event) {
+  PetscDeviceType dtype, etype;
+
+  PetscFunctionBegin;
+  PetscValidDeviceContext(dctx, 1);
+  if (!event) PetscFunctionReturn(0);
+  PetscValidPointer(event, 1);
+  etype = event->type;
+  PetscCall(PetscDeviceContextGetDeviceType(dctx, &dtype));
+  if (dctx->ops->waitforevent) {
+    // REVIEW ME:
+    // TODO move this to impls, as they can determine whether they can interoperate with other
+    // device types more readily
+    PetscAssert(etype == dtype, PETSC_COMM_SELF, PETSC_ERR_ARG_INCOMP, "Event type %s does not match device context type %s", PetscDeviceTypes[etype], PetscDeviceTypes[dtype]);
+    PetscUseTypeMethod(dctx, waitforevent, event);
+  } else {
+    // if we don't have a wait-for-event impls, then we better check that this event does not
+    // expect to be waited on. For this we take existence of the data member as "I expect
+    // someone to wait on me"
+    PetscCheck(!event->data, PETSC_COMM_SELF, PETSC_ERR_ARG_INCOMP, "PetscDeviceContext (of type %s) did not have a wait-for-event implementation, and therefore could not properly handle event (of type %s)", PetscDeviceTypes[dtype], PetscDeviceTypes[etype]);
+  }
+  PetscFunctionReturn(0);
+}
+
 // REVIEW ME
 // REMOVE ME
 #include <map>
@@ -1054,7 +1151,9 @@ struct PetscStackFrame</* use_debug = */ true> {
   std::string function;
   int         line;
 
-  explicit PetscStackFrame(const char *file_, const char *func_, int line_) : file(split_on_petsc_path_(file_)), function(func_), line(line_) { }
+  PetscStackFrame() noexcept = default;
+
+  PetscStackFrame(const char *file_, const char *func_, int line_) : file(split_on_petsc_path_(file_)), function(func_), line(line_) { }
 
   bool operator==(const PetscStackFrame &other) const noexcept { return line == other.line && file == other.file && function == other.function; }
 
@@ -1091,21 +1190,70 @@ struct MarkedObjectMap : Petsc::RegisterFinalizeable<MarkedObjectMap> {
   //              PetscDeviceContexts are reused
   // dctx_state - to determine if a downstream ctx has already synchronized past this state
   // frame      - the stack frame where the object was accessed for debug purposes
-  struct snapshot_type {
+  class snapshot_type {
+  public:
+    using id_type    = PetscObjectId;
+    using event_type = PetscEvent;
     using frame_type = PetscStackFrame<PetscDefined(USE_DEBUG)>;
 
-    PetscDeviceContext ctx;
-    PetscObjectId      dctx_id;
-    PetscObjectState   dctx_state;
-    frame_type         frame;
+    explicit snapshot_type() noexcept = default;
 
-    snapshot_type(PetscDeviceContext ctx, frame_type frame) noexcept : ctx(ctx), dctx_id(PetscObjectCast(ctx)->id), dctx_state(PetscObjectCast(ctx)->state), frame(std::move(frame)) { }
+    explicit snapshot_type(PetscDeviceContext dctx, frame_type frame) noexcept : id_(PetscObjectCast(dctx)->id), frame_(std::move(frame)) {
+      PetscFunctionBegin;
+      PetscCallAbort(PETSC_COMM_SELF, init_event_(dctx, &event_));
+      PetscFunctionReturnVoid();
+    }
 
-    snapshot_type(PetscDeviceContext ctx, const char *file, const char *function, int line) noexcept : snapshot_type(ctx, frame_type{file, function, line}) { }
+    explicit snapshot_type(PetscDeviceContext ctx, const char *file, const char *function, int line) noexcept : snapshot_type(ctx, frame_type{file, function, line}) { }
 
-    bool operator==(const snapshot_type &other) const noexcept { return ctx == other.ctx && dctx_state == other.dctx_state && dctx_id == other.dctx_id && frame == other.frame; }
+    snapshot_type(snapshot_type &&other) noexcept : id_(std::move(other.id())), event_(std::move(other.event())), frame_(std::move(other.frame())) { other.event() = event_type{}; }
+
+    ~snapshot_type() noexcept {
+      PetscFunctionBegin;
+      PetscCallAbort(PETSC_COMM_SELF, PetscEventDestroy_Private(&event_));
+      PetscFunctionReturnVoid();
+    }
+
+    snapshot_type &operator=(snapshot_type &&other) noexcept {
+      PetscFunctionBegin;
+      id() = other.id();
+      PetscCallAbort(PETSC_COMM_SELF, PetscEventDestroy_Private(&event()));
+      std::swap(event(), other.event());
+      frame() = std::move(other.frame());
+      PetscFunctionReturn(*this);
+    }
+
+    // not copyable
+    snapshot_type &operator=(const snapshot_type &) noexcept = delete;
+    snapshot_type(const snapshot_type &other) noexcept       = delete;
+
+    PETSC_NODISCARD id_type          &id() noexcept { return id_; }
+    PETSC_NODISCARD const id_type    &id() const noexcept { return id_; }
+    PETSC_NODISCARD event_type       &event() noexcept { return event_; }
+    PETSC_NODISCARD const event_type &event() const noexcept { return event_; }
+    PETSC_NODISCARD frame_type       &frame() noexcept { return frame_; }
+    PETSC_NODISCARD const frame_type &frame() const noexcept { return frame_; }
+
+    explicit operator bool() const noexcept { return static_cast<bool>(event_); }
+
+    bool operator==(const snapshot_type &other) const noexcept { return id_ == other.id_ && event_ == other.event_ && frame_ == other.frame_; }
 
     bool operator!=(const snapshot_type &other) const noexcept { return !(*this == other); }
+
+  private:
+    id_type    id_{};
+    event_type event_{};
+    frame_type frame_{};
+
+    static PetscErrorCode init_event_(PetscDeviceContext dctx, event_type *event) noexcept {
+      PetscDeviceType dtype;
+
+      PetscFunctionBegin;
+      PetscCall(PetscDeviceContextGetDeviceType(dctx, &dtype));
+      PetscCall(PetscEventCreate_Private(dtype, event));
+      PetscCall(PetscDeviceContextRecordEvent_Private(dctx, *event));
+      PetscFunctionReturn(0);
+    }
   };
 
   struct mapped_type {
@@ -1113,6 +1261,7 @@ struct MarkedObjectMap : Petsc::RegisterFinalizeable<MarkedObjectMap> {
     using dependency_type = std::vector<snapshot_type>;
 
     mode_type       mode = PETSC_MEMORY_ACCESS_READ;
+    snapshot_type   last_write{};
     dependency_type dependencies{};
   };
 
@@ -1140,10 +1289,10 @@ struct MarkedObjectMap : Petsc::RegisterFinalizeable<MarkedObjectMap> {
         const auto         mode             = PetscMemoryAccessModes(mapped.mode);
 
         for (auto &&dep : mapped.dependencies) {
-          if (!dep.ctx->options.allow_orphans) {
-            wrote_to_oss_tmp = true;
-            oss_tmp << "  [" << rank << "] dctx " << dep.ctx << " (id " << dep.dctx_id << ", state " << dep.dctx_state << ", intent " << mode << ' ' << dep.frame << ")\n";
-          }
+          // if (!dep.ctx->options.allow_orphans) {
+          //   wrote_to_oss_tmp = true;
+          //   oss_tmp<<"  ["<<rank<<"] dctx "<<dep.ctx<<" (id "<<dep.id()<<", state "<<dep.dctx_state<<", intent "<<mode<<' '<<dep.frame()<<")\n";
+          // }
         }
         // check if we wrote to it
         if (wrote_to_oss_tmp) {
@@ -1162,8 +1311,8 @@ struct MarkedObjectMap : Petsc::RegisterFinalizeable<MarkedObjectMap> {
   }
 };
 
-// A mapping between PetscObjectId (i.e. some PetscObject) to the list of PetscDeviceContexts
-// which last accessed them.
+// A mapping between PetscObjectId (i.e. some PetscObject) to the list of PetscEvent's encoding
+// the last time the PetscObject was accessed
 static MarkedObjectMap marked_object_map;
 
 namespace detail {
@@ -1177,8 +1326,8 @@ struct ignore {
 
 } // namespace detail
 
-template <typename T = detail::ignore, typename U = detail::ignore>
-static PetscErrorCode PetscDeviceContextMapIterVistor(PetscDeviceContext dctx, T &&callback = T{}, U &&pred = U{}) noexcept {
+template <typename T = detail::ignore>
+static PetscErrorCode PetscDeviceContextMapIterVistor(PetscDeviceContext dctx, T &&callback = T{}) noexcept {
   const auto dctx_id    = PetscObjectCast(dctx)->id;
   auto      &object_map = marked_object_map.map;
 
@@ -1195,7 +1344,7 @@ static PetscErrorCode PetscDeviceContextMapIterVistor(PetscDeviceContext dctx, T
     if (PetscLikely(object_map.cend() != mapit)) {
       auto      &deps = mapit->second.dependencies;
       const auto end  = deps.end();
-      const auto it   = std::remove_if(deps.begin(), end, [&](const MarkedObjectMap::snapshot_type &obj) { return (obj.dctx_id == dctx_id) || pred(obj); });
+      const auto it   = std::remove_if(deps.begin(), end, [&](const MarkedObjectMap::snapshot_type &obj) { return obj.id() == dctx_id; });
 
       PetscCall(callback(mapit, deps.cbegin(), static_cast<decltype(deps.cend())>(it)));
       // remove ourselves
@@ -1215,39 +1364,24 @@ static PetscErrorCode PetscDeviceContextSyncClearMap(PetscDeviceContext dctx) {
   // the recursive sync clear map call is unbounded in case of a dependenct loop so we make a
   // copy
   const std::vector<upstream_type> upstream_copy(std::make_move_iterator(upstream.cbegin()), std::make_move_iterator(upstream.cend()));
-  const auto                       is_ancestor = [&](PetscObjectId id, PetscObjectState state) {
-    auto found = false;
-
-    PetscFunctionBegin;
-    for (const auto &parent : upstream_copy) {
-      if (parent.second.id == id) {
-        found = state <= parent.second.state;
-        break;
-      }
-    }
-    PetscFunctionReturn(found);
-  };
 
   PetscFunctionBegin;
-  PetscCall(PetscDeviceContextMapIterVistor(
-    dctx,
-    [&](map_iterator_type mapit, dep_iterator_type it, dep_iterator_type end) {
-      PetscFunctionBegin;
-      if (PetscDefined(USE_DEBUG_AND_INFO)) {
-        std::ostringstream oss;
-        const auto         mode = PetscMemoryAccessModes(mapit->second.mode);
+  PetscCall(PetscDeviceContextMapIterVistor(dctx, [&](map_iterator_type mapit, dep_iterator_type it, dep_iterator_type end) {
+    PetscFunctionBegin;
+    if (PetscDefined(USE_DEBUG_AND_INFO)) {
+      std::ostringstream oss;
+      const auto         mode = PetscMemoryAccessModes(mapit->second.mode);
 
-        oss << "synced dctx " << PetscObjectCast(dctx)->id << ", remaining leaves for obj " << mapit->first << ": {";
-        for (; it != end; ++it) {
-          oss << "[dctx " << it->dctx_id << ", " << mode << ' ' << it->frame << ']';
-          if (std::next(it) != end) oss << ", ";
-        }
-        oss << '}';
-        PetscCall(PetscInfo(nullptr, "%s\n", oss.str().c_str()));
+      oss << "synced dctx " << PetscObjectCast(dctx)->id << ", remaining leaves for obj " << mapit->first << ": {";
+      for (; it != end; ++it) {
+        oss << "[dctx " << it->id() << ", " << mode << ' ' << it->frame() << ']';
+        if (std::next(it) != end) oss << ", ";
       }
-      PetscFunctionReturn(0);
-    },
-    [&](const MarkedObjectMap::snapshot_type &s) { return is_ancestor(s.dctx_id, s.dctx_state); }));
+      oss << '}';
+      PetscCall(PetscInfo(nullptr, "%s\n", oss.str().c_str()));
+    }
+    PetscFunctionReturn(0);
+  }));
   // aftermath, clear our set of parents (to avoid infinite recursion) and mark ourselves as no
   // longer contained (while the empty graph technically *is* always contained, it is not what
   // we mean by it)
@@ -1273,7 +1407,7 @@ static PetscErrorCode PetscDeviceContextCheckNotOrphaned(PetscDeviceContext dctx
     PetscFunctionBegin;
     if (allow || contained) PetscFunctionReturn(0);
     wrote_to_oss = true;
-    oss << "- PetscObject (id " << mapit->first << "), intent " << PetscMemoryAccessModes(mapit->second.mode) << ' ' << it->frame;
+    oss << "- PetscObject (id " << mapit->first << "), intent " << PetscMemoryAccessModes(mapit->second.mode) << ' ' << it->frame();
     if (std::distance(it, end) == 0) oss << " (orphaned)"; // we were the only dependency
     oss << '\n';
     PetscFunctionReturn(0);
@@ -1286,81 +1420,54 @@ static PetscErrorCode PetscDeviceContextCheckNotOrphaned(PetscDeviceContext dctx
 
 template <bool use_debug>
 static PetscErrorCode PetscDeviceContextMarkIntentFromID_Private(PetscDeviceContext dctx, PetscObjectId id, PetscMemoryAccessMode mode, PetscStackFrame<use_debug> frame, const char *name) {
-  const auto pobj                = PetscObjectCast(dctx);
-  const auto dctx_id             = pobj->id;
+  const auto dctx_id             = PetscObjectCast(dctx)->id;
   auto      &marked              = marked_object_map.map[id];
   auto      &old_mode            = marked.mode;
   auto      &object_dependencies = marked.dependencies;
 
   PetscFunctionBegin;
-  PetscCall(marked_ctr.count(marked_object_map.map));
   if ((mode == PETSC_MEMORY_ACCESS_READ) && (old_mode == mode)) {
-    // If both the new and last mode are read-only op then we don't need to serialize, but we
-    // do need to update our previous entry (if we left one). We could in theory search our
-    // dependencies (to determine if we've been here before), but then we end up searching 2
-    // things
     const auto end = object_dependencies.end();
-    const auto it  = std::find_if(object_dependencies.begin(), end, [&](const MarkedObjectMap::snapshot_type &obj) { return obj.dctx_id == dctx_id; });
+    const auto it  = std::find_if(object_dependencies.begin(), end, [&](const MarkedObjectMap::snapshot_type &obj) { return obj.id() == dctx_id; });
 
     PetscCall(
       PetscDebugInfo("dctx %" PetscInt64_FMT " - obj %" PetscInt64_FMT " (%s): new mode (%s) COMPATIBLE with %s mode (%s), no need to serialize\n", dctx_id, id, name, PetscMemoryAccessModes(mode), PetscMemoryAccessModes(old_mode), object_dependencies.empty() ? "default" : "old"));
+
     if (it != end) {
+      // we have been here before, all we must do is update our entry then we can bail
       PetscCall(PetscDebugInfo("dctx %" PetscInt64_FMT " - obj %" PetscInt64_FMT " (%s): found old self as dependency, updating\n", dctx_id, id, name));
       PetscAssert(CxxDataCast(dctx)->deps.contains(id), PETSC_COMM_SELF, PETSC_ERR_PLIB, "PetscDeviceContext %" PetscInt64_FMT " listed as dependency for object %" PetscInt64_FMT " (%s), but does not have the object in private dependency list!", dctx_id, id, name);
-      // update our previous state and bail
-      it->dctx_state = pobj->state;
-      it->frame      = std::move(frame);
+
+      it->frame() = std::move(frame);
+      PetscCall(PetscDeviceContextRecordEvent_Private(dctx, it->event()));
       PetscFunctionReturn(0);
     }
+
+    // we have not been here before, we need only serialize with the last write event (if it
+    // exists)
+    PetscCall(PetscDeviceContextWaitForEvent_Private(dctx, marked.last_write.event()));
   } else {
-    // Any kind of write means we clear the slate (and become the sole leaf ourselves). We
-    // must serialize with all prior leaves, so the question becomes can we skip serializing
-    // with some of them
-    const auto &upstream    = CxxDataCast(dctx)->upstream;
-    const auto  is_ancestor = [&](PetscObjectId id, PetscObjectState state) {
-      auto found = false;
-
-      PetscFunctionBegin;
-      for (const auto &parent : upstream) {
-        if (parent.second.id == id) {
-          found = state <= parent.second.state;
-          break;
-        }
-      }
-      PetscFunctionReturn(found);
-    };
-
+    // we are incompatible with the previous mode
     PetscCall(PetscDebugInfo("dctx %" PetscInt64_FMT " - obj %" PetscInt64_FMT " (%s): new mode (%s) NOT COMPATIBLE with %s mode (%s), serializing then clearing %zu %s\n", dctx_id, id, name, PetscMemoryAccessModes(mode), object_dependencies.empty() ? "default" : "old", PetscMemoryAccessModes(old_mode),
                              object_dependencies.size(), object_dependencies.size() == 1 ? "dependency" : "dependencies"));
-    for (auto &&dep : object_dependencies) {
-      const auto &dep_ctx = dep.ctx;
-      const auto &dep_id  = dep.dctx_id;
-
-      PetscCheck(PetscObjectCast(dep_ctx)->id == dep_id, PETSC_COMM_SELF, PETSC_ERR_PLIB, "dctx %" PetscInt64_FMT " no longer matches expected id %" PetscInt64_FMT, PetscObjectCast(dep_ctx)->id, dep_id);
-      if (dep_id == dctx_id) {
+    for (const auto &dep : object_dependencies) {
+      if (dep.id() == dctx_id) {
         PetscCall(PetscDebugInfo("dctx %" PetscInt64_FMT " - obj %" PetscInt64_FMT " (%s): found old self as dependency, skipping\n", dctx_id, id, name));
-      } else {
-        const auto &dep_state = dep.dctx_state;
-        // check first that the previous context is not an immediate ancestor. This situation
-        // arises when:
-        //   write(obj, ctx_parent)
-        //   ctx_child.after(ctx_parent)
-        //   write(other_obj, ctx_parent)
-        // *do not need to serialize with ctx_parent (and implicitly wait for the other write)
-        //   read(obj, ctx_child)
-        PetscCheckCompatibleDeviceContexts(dctx, -1, dep_ctx, -1);
-        if (is_ancestor(dep_id, dep_state)) {
-          // no need to serialize, this is an ancestor
-          PetscCall(PetscDebugInfo("dctx %" PetscInt64_FMT " - obj %" PetscInt64_FMT " (%s): most recent leaf %" PetscInt64_FMT " is parent with same or lesser state %" PetscInt64_FMT ", no need to serialize\n", dctx_id, id, name, dep_id, dep_state));
-        } else {
-          PetscCall(PetscDeviceContextWaitForContext(dctx, dep_ctx));
-        }
+        continue;
       }
+      PetscCall(PetscDeviceContextWaitForEvent_Private(dctx, dep.event()));
     }
+
+    // if the previous mode wrote, bump it to the previous write spot
+    if (PetscMemoryAccessWrite(old_mode)) {
+      PetscCheck(object_dependencies.size() == 1, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Can only have a single writer as dependency!");
+      marked.last_write = std::move(object_dependencies.back()); // note front is equivalent
+    }
+
     // clear out the old dependencies and update the mode, we are about to append ourselves
     object_dependencies.clear();
+    old_mode = mode;
   }
-  old_mode = mode;
   // become the new leaf by appending ourselves
   PetscCall(PetscDebugInfo("dctx %" PetscInt64_FMT " - obj %" PetscInt64_FMT " (%s): %s with intent %s\n", dctx_id, id, name, object_dependencies.empty() ? "no prior dependencies, creating new leaf" : "appending to existing leaves", PetscMemoryAccessModes(mode)));
   PetscCallCXX(object_dependencies.emplace_back(dctx, std::move(frame)));

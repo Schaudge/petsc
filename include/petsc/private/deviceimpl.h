@@ -209,6 +209,17 @@ struct _n_PetscDevice {
   void             *data;     /* placeholder */
 };
 
+typedef struct _n_PetscEvent *PetscEvent;
+struct _EventOps {
+  PetscErrorCode (*destroy)(PetscEvent);
+};
+
+struct _n_PetscEvent {
+  struct _EventOps ops[1];
+  void            *data;
+  PetscDeviceType  type;
+};
+
 #define PetscManagedTypeOps_(PetscManagedType, PetscType, PetscTypeSuffix_L) \
   PetscErrorCode (*destroymanaged##PetscTypeSuffix_L)(PetscDeviceContext, PetscManagedType); \
   PetscErrorCode (*getmanagedvalues##PetscTypeSuffix_L)(PetscDeviceContext, PetscManagedType, PetscMemType, PetscMemoryAccessMode, PetscType **); \
@@ -236,6 +247,8 @@ struct _DeviceContextOps {
   PetscManagedTypeOps(Scalar, scalar);
   PetscManagedTypeOps(Real, real);
   PetscManagedTypeOps(Int, int);
+  PetscErrorCode (*recordevent)(PetscDeviceContext, PetscEvent);
+  PetscErrorCode (*waitforevent)(PetscDeviceContext, PetscEvent);
 };
 
 #undef PetscManagedTypeOps
