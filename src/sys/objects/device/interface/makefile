@@ -2,7 +2,7 @@
 #requiresdefine 'PETSC_HAVE_CXX'
 
 SOURCECXX = dcontext.cxx device.cxx devicereg.cxx managedtype_cxx.cxx memory.cxx
-SOURCEH   = objpool.hpp managedtype.inl
+SOURCEH   = managedtype.inl
 MANSEC	  = Sys
 LIBBASE	  = libpetscsys
 DIRS	  =

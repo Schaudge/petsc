@@ -192,7 +192,6 @@ private:
 public:
   // All of these functions MUST be static in order to be callable from C, otherwise they
   // get the implicit 'this' pointer tacked on
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode initialize());
   PETSC_CXX_COMPAT_DECL(PetscErrorCode destroy(PetscDeviceContext));
   PETSC_CXX_COMPAT_DECL(PetscErrorCode changeStreamType(PetscDeviceContext, PetscStreamType));
   PETSC_CXX_COMPAT_DECL(PetscErrorCode setUp(PetscDeviceContext));
@@ -213,36 +212,13 @@ public:
   PETSC_CXX_COMPAT_DECL(PetscErrorCode getManagedTypeValues(PetscDeviceContext, PetscManagedType, PetscMemType, PetscMemoryAccessMode, PetscType **));
   template <typename PetscType, typename PetscManagedType>
   PETSC_CXX_COMPAT_DECL(PetscErrorCode applyOperatorType(PetscDeviceContext, PetscManagedType, PetscOperatorType, PetscMemType, const PetscType *, PetscManagedType));
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode recordEvent(PetscDeviceContext, PetscEvent));
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode waitForEvent(PetscDeviceContext, PetscEvent));
 
   // not a PetscDeviceContext method, this registers the class
   PETSC_CXX_COMPAT_DECL(PetscErrorCode initialize());
 
-  const struct _DeviceContextOps ops = {
-    destroy,
-    changeStreamType,
-    setUp,
-    query,
-    waitForContext,
-    synchronize,
-    getHandle<blas_tag>,
-    getHandle<solver_tag>,
-    getHandle<stream_tag>,
-    beginTimer,
-    endTimer,
-    memAlloc,
-    memFree,
-    memCopy,
-    memSet,
-    destroyManagedType<PetscScalar, PetscManagedScalar>,
-    getManagedTypeValues<PetscScalar, PetscManagedScalar>,
-    applyOperatorType<PetscScalar, PetscManagedScalar>,
-    destroyManagedType<PetscReal, PetscManagedReal>,
-    getManagedTypeValues<PetscReal, PetscManagedReal>,
-    applyOperatorType<PetscReal, PetscManagedReal>,
-    destroyManagedType<PetscInt, PetscManagedInt>,
-    getManagedTypeValues<PetscInt, PetscManagedInt>,
-    applyOperatorType<PetscInt, PetscManagedInt>,
-  };
+  const struct _DeviceContextOps ops = {destroy, changeStreamType, setUp, query, waitForContext, synchronize, getHandle<blas_tag>, getHandle<solver_tag>, getHandle<stream_tag>, beginTimer, endTimer, memAlloc, memFree, memCopy, memSet, destroyManagedType<PetscScalar, PetscManagedScalar>, getManagedTypeValues<PetscScalar, PetscManagedScalar>, applyOperatorType<PetscScalar, PetscManagedScalar>, destroyManagedType<PetscReal, PetscManagedReal>, getManagedTypeValues<PetscReal, PetscManagedReal>, applyOperatorType<PetscReal, PetscManagedReal>, destroyManagedType<PetscInt, PetscManagedInt>, getManagedTypeValues<PetscInt, PetscManagedInt>, applyOperatorType<PetscInt, PetscManagedInt>, recordEvent, waitForEvent};
 };
 
 // not a PetscDeviceContext method, this initializes the CLASS
@@ -264,22 +240,12 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::initialize()) {
 }
 
 template <DeviceType T>
-PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::initialize()) {
-  PetscFunctionBegin;
-  if (PetscUnlikely(!initialized_)) {
-    initialized_ = true;
-    PetscCall(PetscRegisterFinalize(finalize_));
-  }
-  PetscFunctionReturn(0);
-}
-
-template <DeviceType T>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::destroy(PetscDeviceContext dctx)) {
   NVTX_RANGE;
   PetscFunctionBegin;
   if (const auto dci = impls_cast_(dctx)) {
     PetscCall(dci->stream.destroy());
-    if (dci->event) PetscCallCUPM(cupmEventDestroy(dci->event));
+    if (dci->event) PetscCall(cupm_fast_event_pool<T>().reclaim(std::move(dci->event)));
     if (dci->begin) PetscCallCUPM(cupmEventDestroy(dci->begin));
     if (dci->end) PetscCallCUPM(cupmEventDestroy(dci->end));
     delete dci;
@@ -651,8 +617,32 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::applyOperatorType(PetscDe
   PetscFunctionReturn(0);
 }
 
-// initialize the static member variables
+template <DeviceType T>
+PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::recordEvent(PetscDeviceContext dctx, PetscEvent event)) {
+  auto cu_event = static_cast<cupmEvent_t>(event->data);
 
+  PetscFunctionBegin;
+  if (!cu_event) {
+    PetscCallCUPM(cupmEventCreateWithFlags(&cu_event, cupmEventDisableTiming));
+    event->data         = cu_event;
+    event->ops->destroy = [](PetscEvent event) {
+      PetscFunctionBegin;
+      if (event->data) PetscCallCUPM(cupmEventDestroy(static_cast<cupmEvent_t>(event->data)));
+      PetscFunctionReturn(0);
+    };
+  }
+  PetscCallCUPM(cupmEventRecord(cu_event, impls_cast_(dctx)->stream.get_stream()));
+  PetscFunctionReturn(0);
+}
+
+template <DeviceType T>
+PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::waitForEvent(PetscDeviceContext dctx, PetscEvent event)) {
+  PetscFunctionBegin;
+  PetscCallCUPM(cupmStreamWaitEvent(impls_cast_(dctx)->stream.get_stream(), static_cast<cupmEvent_t>(event->data), 0));
+  PetscFunctionReturn(0);
+}
+
+// initialize the static member variables
 template <DeviceType T>
 bool DeviceContext<T>::initialized_ = false;
 

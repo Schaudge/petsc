@@ -1,6 +1,6 @@
 #include <petsc/private/deviceimpl.h>
-#include <petsc/private/cpputil.hpp>
-#include "objpool.hpp"
+#include <petsc/private/cpp/macros.hpp>
+#include <petsc/private/cpp/object_pool.hpp>
 
 // gcc 4.XXX supports all of C++11 _except_ std::is_trivially_copyable, so we guard
 // against it here. Note the check for __GLIBCXX__ -- clang may use gcc's libstdc++ on
