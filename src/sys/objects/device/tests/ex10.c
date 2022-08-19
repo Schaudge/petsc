@@ -51,14 +51,14 @@ int main(int argc, char *argv[]) {
   // now we set the values to all 1's
   PetscCall(PetscManagedScalarSetValues(dctxa, scal, PETSC_MEMTYPE_HOST, ptra, n));
   // ensure a memcopy is taking place (if we have a device to memcpy to)
-  PetscCall(PetscManagedScalarGetValues(dctxa, scal, dtype == PETSC_DEVICE_HOST ? PETSC_MEMTYPE_HOST : PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_FALSE, &ptrc));
+  PetscCall(PetscManagedScalarGetArray(dctxa, scal, dtype == PETSC_DEVICE_HOST ? PETSC_MEMTYPE_HOST : PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_FALSE, &ptrc));
   PetscCall(PetscManagedScalarDestroy(dctxa, &scal));
   // if the mem pool is working correctly scal should get a completely fresh allocation from
   // the pool and share no data with its previous version
   PetscCall(PetscManagedScalarCreateDefault(dctxb, n, &scal));
   // now fill the array with 2's
   PetscCall(PetscManagedScalarSetValues(dctxb, scal, PETSC_MEMTYPE_HOST, ptrb, n));
-  PetscCall(PetscManagedScalarGetValues(dctxb, scal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &ptrc));
+  PetscCall(PetscManagedScalarGetArray(dctxb, scal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &ptrc));
 
   for (PetscInt i = 0; i < n; ++i)
     PetscCheck(ptrc[i] == ptrb[i], PETSC_COMM_SELF, PETSC_ERR_PLIB, "actual[%" PetscInt_FMT "] %g != expected[%" PetscInt_FMT "] %g, memory pool likely corrupted", i, (double)PetscRealPart(ptrc[i]), i, (double)PetscRealPart(ptrb[i]));

@@ -9,7 +9,7 @@
 #undef PetscManagedTypeDestroy
 #undef PetscManagedHostTypeDestroy
 #undef PetscManagedDeviceTypeDestroy
-#undef PetscManagedTypeGetValues
+#undef PetscManagedTypeGetArray
 #undef PetscManagedTypeSetValues
 #undef PetscManagedTypeGetPointerAndMemType
 #undef PetscManagedTypeEnsureOffload
@@ -20,7 +20,7 @@
 #undef PetscManagedTypeEqual
 #undef PetscManagedTypeGetSize
 #undef PetscManagedTypeKnownAndEqual
-#undef PetscManagedTypeGetValuesAvailable
+#undef PetscManagedTypeGetArrayAvailable
 
 #undef PetscTypeSuffix
 #undef PetscType

@@ -234,7 +234,7 @@ PetscErrorCode VecNormAsync(Vec x, NormType type, PetscManagedReal scal, PetscDe
   if (type != NORM_1_AND_2) {
     PetscReal *values;
 
-    PetscCall(PetscManagedRealGetValuesAvailable(dctx, scal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, &values, &flg));
+    PetscCall(PetscManagedRealGetArrayAvailable(dctx, scal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, &values, &flg));
     if (flg) PetscCall(PetscObjectComposedDataSetReal((PetscObject)x, NormIds[type], *values));
   }
   PetscFunctionReturn(0);
@@ -564,7 +564,7 @@ PetscErrorCode VecScaleAsync(Vec x, PetscManagedScalar alpha, PetscDeviceContext
   PetscCall(VecSetErrorIfLocked(x, 1));
   /* get current stashed norms */
   for (PetscInt i = 0; i < 4; ++i) { PetscCall(PetscObjectComposedDataGetReal(xobj, NormIds[i], norms[i], flags[i])); }
-  PetscCall(PetscManagedScalarGetValuesAvailable(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, &alpha_ptr, &avail));
+  PetscCall(PetscManagedScalarGetArrayAvailable(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, &alpha_ptr, &avail));
 
   PetscCall(PetscLogEventBegin(VEC_Scale, x, 0, 0, 0));
   PetscUseTypeMethod(x, scale, alpha, dctx);
@@ -649,7 +649,7 @@ PetscErrorCode VecSetAsync(Vec x, PetscManagedScalar alpha, PetscDeviceContext d
       PetscScalar *alpha_ptr;
       PetscBool    avail;
 
-      PetscCall(PetscManagedScalarGetValuesAvailable(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, &alpha_ptr, &avail));
+      PetscCall(PetscManagedScalarGetArrayAvailable(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, &alpha_ptr, &avail));
       if (avail) {
         const PetscReal nreal = (PetscReal)N;
         PetscReal       areal = PetscAbsScalar(*alpha_ptr);

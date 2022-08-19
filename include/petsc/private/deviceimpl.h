@@ -452,7 +452,7 @@ static inline PetscErrorCode PetscDeviceContextAllReduceManagedScalar_Internal(P
     // we are about to sync, so we can reset this
     if (PetscMemTypeHost(mtype)) scal->pure = PETSC_TRUE;
   } else {
-    PetscCall(PetscManagedScalarGetValues(dctx, scal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &scalptr));
+    PetscCall(PetscManagedScalarGetArray(dctx, scal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &scalptr));
   }
   PetscCall(PetscDeviceContextAllReduceManagedType_Internal(dctx, scalptr, n, MPIU_SCALAR, op, obj));
   PetscFunctionReturn(0);
@@ -469,7 +469,7 @@ static inline PetscErrorCode PetscDeviceContextAllReduceManagedReal_Internal(Pet
     // we are about to sync, so we can reset this
     if (PetscMemTypeHost(mtype)) scal->pure = PETSC_TRUE;
   } else {
-    PetscCall(PetscManagedRealGetValues(dctx, scal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &scalptr));
+    PetscCall(PetscManagedRealGetArray(dctx, scal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &scalptr));
   }
   PetscCall(PetscDeviceContextAllReduceManagedType_Internal(dctx, scalptr, n, MPIU_REAL, op, obj));
   PetscFunctionReturn(0);

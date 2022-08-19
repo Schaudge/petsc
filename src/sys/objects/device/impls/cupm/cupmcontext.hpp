@@ -571,19 +571,19 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::getManagedTypeValues(Pets
   PetscFunctionReturn(0);
 }
 
-static inline PetscErrorCode PetscManagedTypeGetValues(PetscDeviceContext dctx, PetscManagedInt scal, PetscMemType mtype, PetscMemoryAccessMode mode, PetscBool sync, PetscInt **ptr) {
+static inline PetscErrorCode PetscManagedTypeGetArray(PetscDeviceContext dctx, PetscManagedInt scal, PetscMemType mtype, PetscMemoryAccessMode mode, PetscBool sync, PetscInt **ptr) {
   NVTX_RANGE;
-  return PetscManagedIntGetValues(dctx, scal, mtype, mode, sync, ptr);
+  return PetscManagedIntGetArray(dctx, scal, mtype, mode, sync, ptr);
 }
 
-static inline PetscErrorCode PetscManagedTypeGetValues(PetscDeviceContext dctx, PetscManagedReal scal, PetscMemType mtype, PetscMemoryAccessMode mode, PetscBool sync, PetscReal **ptr) {
+static inline PetscErrorCode PetscManagedTypeGetArray(PetscDeviceContext dctx, PetscManagedReal scal, PetscMemType mtype, PetscMemoryAccessMode mode, PetscBool sync, PetscReal **ptr) {
   NVTX_RANGE;
-  return PetscManagedRealGetValues(dctx, scal, mtype, mode, sync, ptr);
+  return PetscManagedRealGetArray(dctx, scal, mtype, mode, sync, ptr);
 }
 
-static inline PetscErrorCode PetscManagedTypeGetValues(PetscDeviceContext dctx, PetscManagedScalar scal, PetscMemType mtype, PetscMemoryAccessMode mode, PetscBool sync, PetscScalar **ptr) {
+static inline PetscErrorCode PetscManagedTypeGetArray(PetscDeviceContext dctx, PetscManagedScalar scal, PetscMemType mtype, PetscMemoryAccessMode mode, PetscBool sync, PetscScalar **ptr) {
   NVTX_RANGE;
-  return PetscManagedScalarGetValues(dctx, scal, mtype, mode, sync, ptr);
+  return PetscManagedScalarGetArray(dctx, scal, mtype, mode, sync, ptr);
 }
 
 template <DeviceType T>
@@ -598,12 +598,12 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::applyOperatorType(PetscDe
 
   PetscFunctionBegin;
   PetscCall(check_current_device_(dctx));
-  PetscCall(PetscManagedTypeGetValues(dctx, scal, mtype, src_access, PETSC_FALSE, &ptr));
+  PetscCall(PetscManagedTypeGetArray(dctx, scal, mtype, src_access, PETSC_FALSE, &ptr));
   //PetscCall(getManagedTypeValues(dctx,scal,mtype,src_access,&ptr));
   if (in_place) {
     retptr = ptr;
   } else {
-    PetscCall(PetscManagedTypeGetValues(dctx, ret, mtype, PETSC_MEMORY_ACCESS_WRITE, PETSC_FALSE, &retptr));
+    PetscCall(PetscManagedTypeGetArray(dctx, ret, mtype, PETSC_MEMORY_ACCESS_WRITE, PETSC_FALSE, &retptr));
     //PetscCall(getManagedTypeValues(dctx,ret,mtype,PETSC_MEMORY_ACCESS_WRITE,&retptr));
   }
   // REVIEW ME: need to somehow handle having rhs be host or device memory!

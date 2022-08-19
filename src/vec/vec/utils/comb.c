@@ -521,7 +521,7 @@ PetscErrorCode VecNormBeginAsync(Vec x, NormType ntype, PetscManagedReal result,
   PetscCall(VecLockReadPop(x));
 
   // implicit sync, can likely do this better without a sync necessary
-  PetscCall(PetscManagedRealGetValues(dctx, result, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &resptr));
+  PetscCall(PetscManagedRealGetArray(dctx, result, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &resptr));
 
   sr->reducetype[sr->numopsbegin] = ntype == NORM_MAX ? PETSC_SR_REDUCE_MAX : PETSC_SR_REDUCE_SUM;
   sr->lvalues[sr->numopsbegin++]  = ntype == NORM_2 ? PetscSqr(resptr[0]) : resptr[0];
@@ -649,7 +649,7 @@ static PetscErrorCode VecMXDotBeginAsync_Private(Vec x, PetscManagedInt nv, cons
   PetscCheck(op_local, PETSC_COMM_SELF, PETSC_ERR_SUP, "Vector does not support local mdots");
 
   // implicit sync
-  PetscCall(PetscManagedIntGetValues(dctx, nv, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &nvptr));
+  PetscCall(PetscManagedIntGetArray(dctx, nv, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &nvptr));
   if (!*nvptr) PetscFunctionReturn(0);
   nvval = *nvptr;
 
@@ -672,7 +672,7 @@ static PetscErrorCode VecMXDotBeginAsync_Private(Vec x, PetscManagedInt nv, cons
   PetscCall(VecLockReadPop(x));
   for (PetscInt i = 0; i < nvval; ++i) PetscCall(VecLockReadPop(y[i]));
   // REVIEW ME:
-  // TODO: make PetscManagedScalarGetValues() copy to the pointer directly, and add
+  // TODO: make PetscManagedScalarGetArray() copy to the pointer directly, and add
   // PetscManagedScalarGetArray() etc.
   PetscCall(PetscManagedScalarGetPointerAndMemType(dctx, result, PETSC_MEMORY_ACCESS_READ, &scalptr, &mtype));
   // REVIEW ME:
@@ -800,7 +800,7 @@ PetscErrorCode VecMDotEndAsync(Vec x, PetscManagedInt nv, const Vec y[], PetscMa
 
   PetscFunctionBegin;
   // implicit sync
-  PetscCall(PetscManagedIntGetValues(dctx, nv, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &nvptr));
+  PetscCall(PetscManagedIntGetArray(dctx, nv, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &nvptr));
   PetscCall(VecMXDotEndAsync_Private(x, *nvptr, y, result, dctx));
   PetscFunctionReturn(0);
 }

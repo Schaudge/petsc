@@ -309,7 +309,7 @@ PetscErrorCode VecAYPX_SeqViennaCL(Vec yin, PetscManagedScalar alpha, Vec xin, P
     if (!PetscManagedScalarKnownAndEqual(alpha, 0.0) && xin->map->n > 0) {
       PetscScalar *aptr;
 
-      PetscCall(PetscManagedScalarGetValues(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
+      PetscCall(PetscManagedScalarGetArray(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
       *ygpu = *xgpu + (*aptr) * *ygpu;
       PetscCall(PetscLogGpuFlops(2.0 * yin->map->n));
     } else {
@@ -349,7 +349,7 @@ PetscErrorCode VecAXPY_SeqViennaCL(Vec yin, PetscManagedScalar alpha, Vec xin, P
   PetscScalar *aptr;
 
   PetscFunctionBegin;
-  PetscCall(PetscManagedScalarGetValues(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
+  PetscCall(PetscManagedScalarGetArray(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
   PetscCall(VecAXPY_SeqViennaCL_Private(yin, *aptr, xin));
   PetscFunctionReturn(0);
 }
@@ -401,7 +401,7 @@ PetscErrorCode VecWAXPY_SeqViennaCL(Vec win, PetscManagedScalar ascal, Vec xin, 
       PetscCall(PetscLogGpuFlops(win->map->n));
     } else {
       PetscScalar *aptr;
-      PetscCall(PetscManagedScalarGetValues(dctx, ascal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
+      PetscCall(PetscManagedScalarGetArray(dctx, ascal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
       try {
         *wgpu = *ygpu + (*aptr) * *xgpu;
       } catch (std::exception const &ex) { SETERRQ(PETSC_COMM_SELF, PETSC_ERR_LIB, "ViennaCL error: %s", ex.what()); }
@@ -448,8 +448,8 @@ PetscErrorCode VecMDot_SeqViennaCL(Vec xin, PetscManagedInt nvscal, const Vec yi
   PetscScalar *z;
 
   PetscFunctionBegin;
-  PetscCall(PetscManagedIntGetValues(dctx, nvscal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &nvptr));
-  PetscCall(PetscManagedScalarGetValues(dctx, zscal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_WRITE, PETSC_TRUE, &z));
+  PetscCall(PetscManagedIntGetArray(dctx, nvscal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &nvptr));
+  PetscCall(PetscManagedScalarGetArray(dctx, zscal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_WRITE, PETSC_TRUE, &z));
   if (const auto n = xin->map->n) {
     auto                                                    yyin = const_cast<Vec *>(yin);
     const ViennaCLVector                                   *xgpu, *ygpu;
@@ -488,7 +488,7 @@ PetscErrorCode VecSet_SeqViennaCL(Vec xin, PetscManagedScalar ascal, PetscDevice
     ViennaCLVector *xgpu;
     PetscScalar    *aptr;
 
-    PetscCall(PetscManagedScalarGetValues(dctx, ascal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
+    PetscCall(PetscManagedScalarGetArray(dctx, ascal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
     PetscCall(VecViennaCLGetArrayWrite(xin, &xgpu));
     PetscCall(PetscLogGpuTimeBegin());
     try {
@@ -510,7 +510,7 @@ PetscErrorCode VecScale_SeqViennaCL(Vec xin, PetscManagedScalar alpha, PetscDevi
       ViennaCLVector *xgpu;
       PetscScalar    *aptr;
 
-      PetscCall(PetscManagedScalarGetValues(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
+      PetscCall(PetscManagedScalarGetArray(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
       PetscCall(VecViennaCLGetArray(xin, &xgpu));
       PetscCall(PetscLogGpuTimeBegin());
       try {
@@ -628,7 +628,7 @@ PetscErrorCode VecAXPBY_SeqViennaCL(Vec yin, PetscManagedScalar alpha, PetscMana
       const ViennaCLVector *xgpu;
       ViennaCLVector       *ygpu;
 
-      PetscCall(PetscManagedScalarGetValues(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
+      PetscCall(PetscManagedScalarGetArray(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
       PetscCall(VecViennaCLGetArrayRead(xin, &xgpu));
       PetscCall(VecViennaCLGetArray(yin, &ygpu));
       if (PetscManagedScalarKnownAndEqual(beta, 0.0)) {
@@ -642,7 +642,7 @@ PetscErrorCode VecAXPBY_SeqViennaCL(Vec yin, PetscManagedScalar alpha, PetscMana
       } else {
         PetscScalar *bptr;
 
-        PetscCall(PetscManagedScalarGetValues(dctx, beta, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &bptr));
+        PetscCall(PetscManagedScalarGetArray(dctx, beta, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &bptr));
         PetscCall(PetscLogGpuTimeBegin());
         try {
           *ygpu = *xgpu * (*aptr) + *ygpu * (*bptr);
@@ -731,9 +731,9 @@ PetscErrorCode VecAXPBYPCZ_SeqViennaCL(Vec zin, PetscManagedScalar ascal, PetscM
   PetscScalar *aptr, *bptr, *gptr;
 
   PetscFunctionBegin;
-  PetscCall(PetscManagedScalarGetValues(dctx, ascal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
-  PetscCall(PetscManagedScalarGetValues(dctx, bscal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &bptr));
-  PetscCall(PetscManagedScalarGetValues(dctx, gscal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &gptr));
+  PetscCall(PetscManagedScalarGetArray(dctx, ascal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
+  PetscCall(PetscManagedScalarGetArray(dctx, bscal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &bptr));
+  PetscCall(PetscManagedScalarGetArray(dctx, gscal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &gptr));
   PetscCall(VecAXPBYPCZ_SeqViennaCL_Private(zin, *aptr, *bptr, *gptr, xin, yin));
   PetscFunctionReturn(0);
 }
@@ -749,8 +749,8 @@ PetscErrorCode VecMAXPY_SeqViennaCL(Vec xin, PetscManagedInt nvscal, PetscManage
   PetscScalar *aptr;
 
   PetscFunctionBegin;
-  PetscCall(PetscManagedIntGetValues(dctx, nvscal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &nvptr));
-  PetscCall(PetscManagedScalarGetValues(dctx, ascal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
+  PetscCall(PetscManagedIntGetArray(dctx, nvscal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &nvptr));
+  PetscCall(PetscManagedScalarGetArray(dctx, ascal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
   for (PetscInt j = 0, nvval = *nvptr; j < nvval; ++j) {
     if (j + 1 < *nvptr) {
       PetscCall(VecAXPBYPCZ_SeqViennaCL_Private(xin, aptr[j], aptr[j + 1], 1.0, y[j], y[j + 1]));
@@ -1076,7 +1076,7 @@ PetscErrorCode VecDotNorm2_SeqViennaCL(Vec s, Vec t, PetscManagedScalar dp, Pets
   {
     PetscScalar *nmptr;
 
-    PetscCall(PetscManagedScalarGetValues(dctx, nm, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &nmptr));
+    PetscCall(PetscManagedScalarGetArray(dctx, nm, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &nmptr));
     *nmptr *= *nmptr; //squared norm required
   }
   PetscFunctionReturn(0);

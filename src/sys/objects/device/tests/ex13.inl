@@ -30,7 +30,7 @@ static PetscErrorCode ForceOffload(PetscDeviceContext dctx, PetscManagedInt scal
 
   PetscFunctionBegin;
   // this exists purely to force the managed type to consider mtype to be most up to date
-  PetscCall(PetscManagedIntGetValues(dctx,scal,mtype,PETSC_MEMORY_ACCESS_WRITE,PETSC_FALSE,&unused));
+  PetscCall(PetscManagedIntGetArray(dctx,scal,mtype,PETSC_MEMORY_ACCESS_WRITE,PETSC_FALSE,&unused));
   PetscFunctionReturn(0);
 }
 
@@ -75,12 +75,12 @@ static PetscErrorCode CheckOffloadGPU(PetscDeviceContext dctx, PetscManagedInt s
 
   // and check
   PetscCall(PetscManagedIntCreateDefault(dctx,1,&errors));
-  PetscCall(PetscManagedIntGetValues(dctx,errors,PETSC_MEMTYPE_DEVICE,PETSC_MEMORY_ACCESS_WRITE,PETSC_FALSE,&err_count));
+  PetscCall(PetscManagedIntGetArray(dctx,errors,PETSC_MEMTYPE_DEVICE,PETSC_MEMORY_ACCESS_WRITE,PETSC_FALSE,&err_count));
   PetscCall(PetscDeviceContextGetStreamHandle_Internal(dctx,&strm));
   // the last thing we do is copy the values to GPU
   PetscCall(PetscManagedIntEnsureOffload(dctx,scal,PETSC_OFFLOAD_GPU,PETSC_FALSE));
   check<<<1,1,0,strm>>>(device_values,n,err_count);
-  PetscCall(PetscManagedIntGetValues(dctx,errors,PETSC_MEMTYPE_HOST,PETSC_MEMORY_ACCESS_READ,PETSC_TRUE,&err_count));
+  PetscCall(PetscManagedIntGetArray(dctx,errors,PETSC_MEMTYPE_HOST,PETSC_MEMORY_ACCESS_READ,PETSC_TRUE,&err_count));
   PetscCheck(!*err_count,PETSC_COMM_SELF,PETSC_ERR_PLIB,"%" PetscInt_FMT " errors in PetscManagedIntEnsureOffload(PETSC_OFFLOAD_GPU)!",*err_count);
   PetscCall(PetscManagedIntDestroy(dctx,&errors));
   PetscFunctionReturn(0);

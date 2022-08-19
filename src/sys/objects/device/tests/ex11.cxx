@@ -47,8 +47,8 @@ class TestManagedTypeShiftPointer : ManagedTypeInterface<T...> {
     PetscCall(PetscDeviceContextGetDeviceType(dctx, &dtype));
     PetscCall(PetscManagedTypeGetSize(scal, &n));
     PetscCall(PetscManagedTypeResetShift(scal));
-    PetscCall(PetscManagedTypeGetValues(dctx, scal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &host));
-    if (dtype != PETSC_DEVICE_HOST) PetscCall(PetscManagedTypeGetValues(dctx, scal, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &device));
+    PetscCall(PetscManagedTypeGetArray(dctx, scal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &host));
+    if (dtype != PETSC_DEVICE_HOST) PetscCall(PetscManagedTypeGetArray(dctx, scal, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &device));
     PetscCall(PetscRandomSetInterval(rand_, 0, n));
     PetscCall(this->TestGetValuesAndOp(dctx, scal, std::move(op), std::move(setup)));
     PetscFunctionReturn(0);

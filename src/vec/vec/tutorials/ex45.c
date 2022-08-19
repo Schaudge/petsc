@@ -13,7 +13,7 @@ static PetscErrorCode PrintNorm(PetscDeviceContext dctx, PetscManagedReal norm, 
   PetscCall(PetscObjectGetComm((PetscObject)v, &comm));
   PetscCall(VecGetSize(v, &n));
   PetscCall(VecNormAsync(v, NORM_2, norm, dctx));
-  PetscCall(PetscManagedRealGetValues(dctx, norm, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &norm_ptr));
+  PetscCall(PetscManagedRealGetArray(dctx, norm, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &norm_ptr));
   norm_v = (*norm_ptr) - (scaling * PetscSqrtReal((PetscReal)n));
   if (norm_v > -PETSC_SMALL && norm_v < PETSC_SMALL) norm_v = 0.0;
   PetscCall(PetscPrintf(comm, "%s %g\n", funcname, (double)norm_v));
@@ -122,13 +122,13 @@ int main(int argc, char **argv) {
   PetscCall(VecMaxAsync(x, maxind, maxval, dctx));
   PetscInt  *maxind_v;
   PetscReal *maxval_v;
-  PetscCall(PetscManagedIntGetValues(dctx, maxind, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &maxind_v));
-  PetscCall(PetscManagedRealGetValues(dctx, maxval, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &maxval_v));
+  PetscCall(PetscManagedIntGetArray(dctx, maxind, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &maxind_v));
+  PetscCall(PetscManagedRealGetArray(dctx, maxval, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &maxval_v));
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "VecMax %g, VecInd %" PetscInt_FMT "\n", (double)*maxval_v, *maxind_v));
 
   PetscCall(VecMinAsync(x, maxind, maxval, dctx));
-  PetscCall(PetscManagedIntGetValues(dctx, maxind, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &maxind_v));
-  PetscCall(PetscManagedRealGetValues(dctx, maxval, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &maxval_v));
+  PetscCall(PetscManagedIntGetArray(dctx, maxind, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &maxind_v));
+  PetscCall(PetscManagedRealGetArray(dctx, maxval, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &maxval_v));
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "VecMin %g, VecInd %" PetscInt_FMT "\n", (double)*maxval_v, *maxind_v));
   PetscCall(PetscManagedIntDestroy(dctx, &maxind));
   PetscCall(PetscManagedRealDestroy(dctx, &maxval));
@@ -176,7 +176,7 @@ int main(int argc, char **argv) {
 
   PetscReal v_3[3];
   for (PetscInt i = 0; i < 3; ++i) { PetscCall(VecNormAsync(z[i], NORM_2, norm, dctx)); }
-  PetscCall(PetscManagedRealGetValues(dctx, norm, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &norm_v));
+  PetscCall(PetscManagedRealGetArray(dctx, norm, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &norm_v));
   v = (*norm_v) - PetscSqrtReal((PetscReal)n);
   if (v > -PETSC_SMALL && v < PETSC_SMALL) v = 0.0;
   PetscCall(VecNormAsync(z[1], NORM_2, norm, dctx));
