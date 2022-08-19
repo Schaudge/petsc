@@ -217,6 +217,8 @@ struct _EventOps {
 struct _n_PetscEvent {
   struct _EventOps ops[1];
   void            *data;
+  PetscObjectId    dctx_id;
+  PetscObjectState dctx_state;
   PetscDeviceType  type;
 };
 

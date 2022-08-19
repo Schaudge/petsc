@@ -185,7 +185,7 @@ private:
 
   PETSC_CXX_COMPAT_DECL(PetscErrorCode check_memtype_(PetscMemType mtype, const char mess[])) {
     PetscFunctionBegin;
-    PetscCheck(PetscMemTypeHost(mtype) || (mtype == PETSC_MEMTYPE_DEVICE) || (mtype == cupmDeviceTypeToPetscMemType()), PETSC_COMM_SELF, PETSC_ERR_SUP, "%s device context can only handle %s (pinned) host or device memory", cupmName(), mess);
+    PetscCheck(PetscMemTypeHost(mtype) || (mtype == PETSC_MEMTYPE_DEVICE) || (mtype == PETSC_MEMTYPE_CUPM()), PETSC_COMM_SELF, PETSC_ERR_SUP, "%s device context can only handle %s (pinned) host or device memory", cupmName(), mess);
     PetscFunctionReturn(0);
   }
 
@@ -625,6 +625,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::recordEvent(PetscDeviceCo
   if (!cu_event) {
     PetscCallCUPM(cupmEventCreateWithFlags(&cu_event, cupmEventDisableTiming));
     event->data         = cu_event;
+    event->type         = PETSC_DEVICE_CUPM();
     event->ops->destroy = [](PetscEvent event) {
       PetscFunctionBegin;
       if (event->data) PetscCallCUPM(cupmEventDestroy(static_cast<cupmEvent_t>(event->data)));

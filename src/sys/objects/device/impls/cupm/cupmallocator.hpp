@@ -72,7 +72,7 @@ struct DeviceAllocator : impl::Interface<T>, memory::impl::SegmentedMemoryPoolAl
   }
 };
 
-namespace detail {
+namespace {
 
 template <DeviceType T, unsigned long flags>
 struct CUPMEventPoolAllocator : impl::Interface<T>, AllocatorBase<typename impl::Interface<T>::cupmEvent_t> {
@@ -91,17 +91,22 @@ struct CUPMEventPoolAllocator : impl::Interface<T>, AllocatorBase<typename impl:
   }
 };
 
-} // namespace detail
+} // anonymous namespace
 
-template <DeviceType T, unsigned long flags>
-static inline auto &cupm_event_pool() noexcept {
-  static ObjectPool<typename impl::Interface<T>::cupmEvent_t, detail::CUPMEventPoolAllocator<T, flags>> p;
+template <DeviceType T, unsigned long flags, typename allocator_type = CUPMEventPoolAllocator<T, flags>>
+auto cupm_event_pool() noexcept -> ObjectPool<typename allocator_type::value_type, allocator_type> & {
+  static ObjectPool<typename allocator_type::value_type, allocator_type> p;
   return p;
 }
 
 template <DeviceType T>
-static inline auto &cupm_fast_event_pool() noexcept {
+auto cupm_fast_event_pool() noexcept -> decltype(cupm_event_pool<T, impl::Interface<T>::cupmEventDisableTiming>()) & {
   return cupm_event_pool<T, impl::Interface<T>::cupmEventDisableTiming>();
+}
+
+template <DeviceType T>
+auto cupm_timer_event_pool() noexcept -> decltype(cupm_event_pool<T, impl::Interface<T>::cupmEventDefault>()) & {
+  return cupm_event_pool<T, impl::Interface<T>::cupmEventDefault>();
 }
 
 // A bare wrapper around a cupmStream_t. The reason it exists is because we need to uniquely
@@ -135,7 +140,15 @@ public:
 
   PETSC_NODISCARD PetscErrorCode create(flag_type flags) noexcept {
     PetscFunctionBegin;
-    if (stream_) PetscFunctionReturn(0);
+    if (stream_) {
+      if (PetscDefined(USE_DEBUG)) {
+        flag_type current_flags;
+
+        PetscCallCUPM(cupmStreamGetFlags(stream_, &current_flags));
+        PetscCheck(flags == current_flags, PETSC_COMM_SELF, PETSC_ERR_GPU, "Current flags %u != requested flags %u for stream %d", current_flags, flags, id_);
+      }
+      PetscFunctionReturn(0);
+    }
     PetscCallCUPM(cupmStreamCreateWithFlags(&stream_, flags));
     id_ = new_id_();
     PetscFunctionReturn(0);
@@ -161,24 +174,21 @@ public:
 
 private:
   stream_type stream_{};
-  id_type     id_ = 0;
+  id_type     id_{};
 
   PETSC_NODISCARD static id_type new_id_() noexcept {
     static id_type id = 0;
     return id++;
   }
 
+  // CRTP implementations
+  PETSC_NODISCARD stream_type get_stream_() const noexcept { return stream_; }
+
+  PETSC_NODISCARD id_type get_id_() const noexcept { return id_; }
+
   class cupm_event {
   public:
     constexpr cupm_event() noexcept = default;
-
-    explicit operator bool() const noexcept { return event_ != cupmEvent_t{}; }
-
-    ~cupm_event() noexcept {
-      PetscFunctionBegin;
-      if (event_) { PetscCallAbort(PETSC_COMM_SELF, cupm_fast_event_pool<T>().reclaim(std::move(event_))); }
-      PetscFunctionReturnVoid();
-    }
 
     cupm_event(cupm_event &&other) noexcept {
       PetscFunctionBegin;
@@ -196,11 +206,19 @@ private:
     cupm_event(const cupm_event &)            = delete;
     cupm_event &operator=(const cupm_event &) = delete;
 
+    ~cupm_event() noexcept {
+      PetscFunctionBegin;
+      if (event_) PetscCallAbort(PETSC_COMM_SELF, cupm_fast_event_pool<T>().reclaim(std::move(event_)));
+      PetscFunctionReturnVoid();
+    }
+
     PETSC_NODISCARD cupmEvent_t get() const noexcept {
       PetscFunctionBegin;
-      if (!event_) PetscCallAbort(PETSC_COMM_SELF, cupm_fast_event_pool<T>().get(event_));
+      if (PetscUnlikely(!event_)) PetscCallAbort(PETSC_COMM_SELF, cupm_fast_event_pool<T>().get(event_));
       PetscFunctionReturn(event_);
     }
+
+    explicit operator bool() const noexcept { return event_ != cupmEvent_t{}; }
 
   private:
     mutable cupmEvent_t event_{};
@@ -216,18 +234,13 @@ private:
     }
   };
 
-  // CRTP implementations
-  PETSC_NODISCARD stream_type get_stream_() const noexcept { return stream_; }
-
-  PETSC_NODISCARD id_type get_id_() const noexcept { return id_; }
-
-  PETSC_NODISCARD PetscErrorCode record_event_(const event_type &event) const noexcept {
+  PETSC_NODISCARD PetscErrorCode record_event_(event_type &event) const noexcept {
     PetscFunctionBegin;
     PetscCallCUPM(cupmEventRecord(event.get(), stream_));
     PetscFunctionReturn(0);
   }
 
-  PETSC_NODISCARD PetscErrorCode wait_for_(const event_type &event) const noexcept {
+  PETSC_NODISCARD PetscErrorCode wait_for_(event_type &event) const noexcept {
     PetscFunctionBegin;
     PetscCallCUPM(cupmStreamWaitEvent(stream_, event.get(), 0));
     PetscFunctionReturn(0);

@@ -670,7 +670,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode Vec_CUPMBase<T, D>::getarrayandmemtype_asyn
   NVTX_RANGE;
   PetscFunctionBegin;
   PetscCall(getarray_async<PETSC_MEMTYPE_DEVICE, access>(v, a, dctx));
-  if (mtype) *mtype = (PetscDefined(HAVE_NVSHMEM) && VecCUPMCast(v)->nvshmem) ? PETSC_MEMTYPE_NVSHMEM : cupmDeviceTypeToPetscMemType();
+  if (mtype) *mtype = (PetscDefined(HAVE_NVSHMEM) && VecCUPMCast(v)->nvshmem) ? PETSC_MEMTYPE_NVSHMEM : PETSC_MEMTYPE_CUPM();
   PetscFunctionReturn(0);
 }
 
@@ -751,11 +751,11 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode Vec_CUPMBase<T, D>::Create_CUPMBase(MPI_Com
 template <device::cupm::DeviceType T, typename D>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode Vec_CUPMBase<T, D>::Initialize_CUPMBase(Vec v, PetscBool allocate_missing, PetscScalar *host_array, PetscScalar *device_array, PetscDeviceContext dctx)) {
   PetscFunctionBegin;
-  PetscCall(PetscDeviceInitialize(cupmDeviceTypeToPetscDeviceType()));
+  PetscCall(PetscDeviceInitialize(PETSC_DEVICE_CUPM()));
   PetscCall(PetscObjectChangeTypeName(PetscObjectCast(v), VECTYPE()));
   PetscCall(D::bindtocpu_async(v, PETSC_FALSE, dctx));
   if (device_array) {
-    PetscCall(CheckPointerMatchesMemType_(device_array, cupmDeviceTypeToPetscMemType()));
+    PetscCall(CheckPointerMatchesMemType_(device_array, PETSC_MEMTYPE_CUPM()));
     PetscCall(VecCUPMAllocateCheck_(v));
     VecCUPMCast(v)->array_d = device_array;
   }

@@ -247,10 +247,10 @@ struct InterfaceBase {
     return std::get<util::integral_value(T)>(DeviceTypes);
   }
 
-  PETSC_CXX_COMPAT_DECL(constexpr auto cupmDeviceTypeToPetscDeviceType())
+  PETSC_CXX_COMPAT_DECL(constexpr auto PETSC_DEVICE_CUPM())
   PETSC_DECLTYPE_AUTO_RETURNS(T == DeviceType::CUDA ? PETSC_DEVICE_CUDA : PETSC_DEVICE_HIP)
 
-  PETSC_CXX_COMPAT_DECL(constexpr auto cupmDeviceTypeToPetscMemType())
+  PETSC_CXX_COMPAT_DECL(constexpr auto PETSC_MEMTYPE_CUPM())
   PETSC_DECLTYPE_AUTO_RETURNS(T == DeviceType::CUDA ? PETSC_MEMTYPE_CUDA : PETSC_MEMTYPE_HIP)
 };
 
@@ -258,12 +258,12 @@ struct InterfaceBase {
 template <DeviceType T>
 const DeviceType InterfaceBase<T>::type;
 
-#define PETSC_CUPM_BASE_CLASS_HEADER(DEVICE_TYPE) \
-  using base_type = ::Petsc::device::cupm::impl::InterfaceBase<DEVICE_TYPE>; \
-  using base_type::type; \
-  using base_type::cupmName; \
-  using base_type::cupmDeviceTypeToPetscDeviceType; \
-  using base_type::cupmDeviceTypeToPetscMemType
+#define PETSC_CUPM_BASE_CLASS_HEADER(base_name, DEVICE_TYPE) \
+  using base_name = ::Petsc::device::cupm::impl::InterfaceBase<DEVICE_TYPE>; \
+  using base_name::type; \
+  using base_name::cupmName; \
+  using base_name::PETSC_DEVICE_CUPM; \
+  using base_name::PETSC_MEMTYPE_CUPM
 
 // A templated C++ struct that defines the entire CUPM interface. Use of templating vs
 // preprocessor macros allows us to use both interfaces simultaneously as well as easily
@@ -276,7 +276,7 @@ struct InterfaceImpl;
 #define PETSC_CUPM_PREFIX_U CUDA
 template <>
 struct InterfaceImpl<DeviceType::CUDA> : InterfaceBase<DeviceType::CUDA> {
-  PETSC_CUPM_BASE_CLASS_HEADER(DeviceType::CUDA);
+  PETSC_CUPM_BASE_CLASS_HEADER(base_type, DeviceType::CUDA);
 
   // typedefs
   using cupmError_t             = cudaError_t;
@@ -411,7 +411,7 @@ struct InterfaceImpl<DeviceType::CUDA> : InterfaceBase<DeviceType::CUDA> {
 #define PETSC_CUPM_PREFIX_U HIP
 template <>
 struct InterfaceImpl<DeviceType::HIP> : InterfaceBase<DeviceType::HIP> {
-  PETSC_CUPM_BASE_CLASS_HEADER(DeviceType::HIP);
+  PETSC_CUPM_BASE_CLASS_HEADER(base_type, DeviceType::HIP);
 
   // typedefs
   using cupmError_t             = hipError_t;
@@ -553,17 +553,11 @@ struct InterfaceImpl<DeviceType::HIP> : InterfaceBase<DeviceType::HIP> {
 #undef PETSC_CUPM_PREFIX_U
 #endif // PetscDefined(HAVE_HIP)
 
-#undef PETSC_CUPM_BASE_CLASS_HEADER
-
 // shorthand for bringing all of the typedefs from the base Interface class into your own,
 // it's annoying that c++ doesn't have a way to do this automatically
 #define PETSC_CUPM_IMPL_CLASS_HEADER(base_name, T) \
+  PETSC_CUPM_BASE_CLASS_HEADER(PetscConcat(base_, base_name), T); \
   using base_name = ::Petsc::device::cupm::impl::InterfaceImpl<T>; \
-  /* introspection */ \
-  using base_name::type; \
-  using base_name::cupmName; \
-  using base_name::cupmDeviceTypeToPetscDeviceType; \
-  using base_name::cupmDeviceTypeToPetscMemType; \
   /* types */ \
   using typename base_name::cupmComplex_t; \
   using typename base_name::cupmError_t; \
@@ -695,7 +689,7 @@ struct Interface : InterfaceImpl<T> {
     const auto mtype = attr.type;
     if (managed) *managed = static_cast<PetscBool>(mtype == cupmMemoryTypeManaged);
 #endif // CUDART_VERSION && CUDART_VERSION < 10000 || __HIP_PLATFORM_HCC__
-    if (type) *type = ((cerr == cupmSuccess) && (mtype == cupmMemoryTypeDevice)) ? cupmDeviceTypeToPetscMemType() : PETSC_MEMTYPE_HOST;
+    if (type) *type = ((cerr == cupmSuccess) && (mtype == cupmMemoryTypeDevice)) ? PETSC_MEMTYPE_CUPM() : PETSC_MEMTYPE_HOST;
     if (registered && (cerr == cupmSuccess) && (mtype == cupmMemoryTypeHost)) *registered = PETSC_TRUE;
     PetscFunctionReturn(0);
   }
