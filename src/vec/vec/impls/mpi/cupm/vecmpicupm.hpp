@@ -259,7 +259,7 @@ PETSC_KERNEL_DECL static void add_remote_coo_values(const PetscScalar *PETSC_RES
 
 template <device::cupm::DeviceType T>
 PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecMPI_CUPM<T>::setvaluescoo_async(Vec x, const PetscScalar v[], InsertMode imode, PetscDeviceContext dctx)) {
-  constexpr auto mtype     = cupmDeviceTypeToPetscMemType();
+  constexpr auto mtype     = PETSC_MEMTYPE_CUPM();
   const auto     vmpi      = VecIMPLCast(x);
   const auto     sf        = vmpi->coo_sf;
   const auto     vcu       = VecCUPMCast(x);

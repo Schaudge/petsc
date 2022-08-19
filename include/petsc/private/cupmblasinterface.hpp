@@ -17,7 +17,7 @@ namespace impl {
   do { \
     const cupmBlasError_t cberr_p_ = __VA_ARGS__; \
     if (PetscUnlikely(cberr_p_ != CUPMBLAS_STATUS_SUCCESS)) { \
-      if (((cberr_p_ == CUPMBLAS_STATUS_NOT_INITIALIZED) || (cberr_p_ == CUPMBLAS_STATUS_ALLOC_FAILED)) && PetscDeviceInitialized(cupmDeviceTypeToPetscDeviceType())) { \
+      if (((cberr_p_ == CUPMBLAS_STATUS_NOT_INITIALIZED) || (cberr_p_ == CUPMBLAS_STATUS_ALLOC_FAILED)) && PetscDeviceInitialized(PETSC_DEVICE_CUPM())) { \
         SETERRQ(PETSC_COMM_SELF, PETSC_ERR_GPU_RESOURCE, \
                 "%s error %d (%s). Reports not initialized or alloc failed; " \
                 "this indicates the GPU may have run out resources", \

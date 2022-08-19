@@ -34,15 +34,18 @@ int main(int argc,char **args)
   PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD,&size));
   PetscCheck(size == 1,PETSC_COMM_WORLD,PETSC_ERR_WRONG_MPI_SIZE,"This is a uniprocessor example only!");
   PetscCall(PetscOptionsGetInt(NULL,NULL,"-n",&n,NULL));
-  void *cublas_handle;
   PetscDeviceContext dctx;
 
   PetscCall(PetscDeviceInitialize(PETSC_DEVICE_DEFAULT()));
   PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
   PetscCall(PetscDeviceContextSetUp(dctx));
   PetscCall(PetscDeviceContextSynchronize(dctx));
-  PetscCall(PetscDeviceContextGetBLASHandle_Internal(dctx,&cublas_handle));
-  PetscCall(PetscDeviceContextGetSOLVERHandle_Internal(dctx,&cublas_handle));
+  if (PETSC_DEVICE_DEFAULT() != PETSC_DEVICE_HOST) {
+    void *handle;
+
+    PetscCall(PetscDeviceContextGetBLASHandle_Internal(dctx,&handle));
+    PetscCall(PetscDeviceContextGetSOLVERHandle_Internal(dctx,&handle));
+  }
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
          Compute the matrix and right-hand-side vector that define
          the linear system, Ax = b.

@@ -329,7 +329,7 @@ static PetscErrorCode KSPPIPEFGMRESCycle_Async(PetscInt *itcount, KSP ksp) {
     PetscCall(PetscManagedIntSetValues(dctx, loc_it_tmp, PETSC_MEMTYPE_HOST, &cur_it, 1));
     PetscCall(PetscDeviceContextFork(dctx, 1, &subctx));
 
-#define GET_ID(v)  ((PetscObject)v)->id
+#define GET_ID(v)  ((PetscObject)(v))->id
 #define SHOW_ID(v) PetscPrintf(PETSC_COMM_WORLD, #v " id %" PetscInt64_FMT "\n", GET_ID(v))
     if (PetscDefined(USE_DEBUG)) {
       PetscCall(SHOW_ID(ZVEC(loc_it)));

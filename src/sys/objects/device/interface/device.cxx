@@ -547,12 +547,12 @@ static PetscErrorCode PetscDeviceFinalize_Private() {
 extern PETSC_VISIBILITY_INTERNAL PetscErrorCode PetscDeviceContextQueryOptions_Internal(MPI_Comm, const char[], std::pair<PetscDeviceType, PetscBool> &, std::pair<PetscStreamType, PetscBool> &, std::pair<PetscBool, PetscBool> &);
 
 PetscErrorCode PetscDeviceInitializeFromOptions_Internal(MPI_Comm comm) {
-  auto                defaultView                    = PETSC_FALSE;
-  auto                initializeDeviceContextEagerly = PETSC_FALSE;
-  auto                defaultDeviceSet               = PETSC_FALSE;
-  auto                defaultDevice                  = PetscInt{PETSC_DECIDE};
-  auto                deviceContextInitDevice        = PETSC_DEVICE_DEFAULT();
-  PetscDeviceInitType defaultInitType;
+  auto defaultView                    = PETSC_FALSE;
+  auto initializeDeviceContextEagerly = PETSC_FALSE;
+  auto defaultDeviceSet               = PETSC_FALSE;
+  auto defaultDevice                  = PetscInt{PETSC_DECIDE};
+  auto deviceContextInitDevice        = PETSC_DEVICE_DEFAULT();
+  auto defaultInitType                = PETSC_DEVICE_INIT_LAZY;
 
   PetscFunctionBegin;
   if (PetscDefined(USE_DEBUG)) {

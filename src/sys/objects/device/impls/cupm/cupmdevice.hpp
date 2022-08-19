@@ -50,7 +50,7 @@ private:
   // clean-up
   PETSC_NODISCARD static PetscErrorCode finalize_() noexcept;
 
-  PETSC_CXX_COMPAT_DECL(constexpr PetscDeviceType GetPetscDeviceType_()) { return cupmDeviceTypeToPetscDeviceType(); }
+  PETSC_CXX_COMPAT_DECL(constexpr PetscDeviceType GetPetscDeviceType_()) { return PETSC_DEVICE_CUPM(); }
 };
 
 // define static variables

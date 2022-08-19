@@ -101,6 +101,7 @@ def run_exp(mat_size,nit,nwarmup,profile,petsc_arch,log_view,show,*args):
 
   exec_base  = petsc_dir/'src'/'ksp'/'ksp'/'tutorials'/'ex500'
   async_exec = exec_base.with_stem('ex500_async')
+  no_cu_exec = exec_base.with_stem('ex500_no_cuda')
   main_exec  = exec_base.with_stem('ex500_main')
 
   print('building PETSc... ',end='',flush=True)
@@ -111,6 +112,11 @@ def run_exp(mat_size,nit,nwarmup,profile,petsc_arch,log_view,show,*args):
   print('done')
   print(f'copying {exec_base.stem} to {async_exec.stem}... ',end='',flush=True)
   shutil.copy2(exec_base,async_exec)
+  print('done')
+  # os.environ['PETSC_ARCH'] = 'test-arch'
+  # print(f'building {no_cu_exec.stem}... ',end='',flush=True)
+  # subprocess_run('make',no_cu_exec.stem)
+  # os.environ['PETSC_ARCH'] = petsc_arch
   print('done')
   print('='*50)
   print('mat_size',mat_size,'n iter',nit,'n warmup',nwarmup)
