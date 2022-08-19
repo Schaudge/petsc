@@ -23,14 +23,14 @@ struct ManagedTypeInterface {
   const CreateT               PetscManagedTypeCreate;
   const CreateDefaultT        PetscManagedTypeCreateDefault;
   const DestroyT              PetscManagedTypeDestroy;
-  const GetValuesT            PetscManagedTypeGetValues;
+  const GetValuesT            PetscManagedTypeGetArray;
   const SetValuesT            PetscManagedTypeSetValues;
   const GetPointerAndMemTypeT PetscManagedTypeGetPointerAndMemType;
   const CopyT                 PetscManagedTypeCopy;
   const GetSizeT              PetscManagedTypeGetSize;
 
   ManagedTypeInterface(CreateT &&c, CreateDefaultT &&cd, DestroyT &&d, GetValuesT &&gv, SetValuesT &&sv, GetPointerAndMemTypeT &&gpamt, CopyT &&cp, GetSizeT &&gs) :
-    PetscManagedTypeCreate(std::forward<CreateT>(c)), PetscManagedTypeCreateDefault(std::forward<CreateDefaultT>(cd)), PetscManagedTypeDestroy(std::forward<DestroyT>(d)), PetscManagedTypeGetValues(std::forward<GetValuesT>(gv)), PetscManagedTypeSetValues(std::forward<SetValuesT>(sv)), PetscManagedTypeGetPointerAndMemType(std::forward<GetPointerAndMemTypeT>(gpamt)), PetscManagedTypeCopy(std::forward<CopyT>(cp)), PetscManagedTypeGetSize(std::forward<GetSizeT>(gs)) {
+    PetscManagedTypeCreate(std::forward<CreateT>(c)), PetscManagedTypeCreateDefault(std::forward<CreateDefaultT>(cd)), PetscManagedTypeDestroy(std::forward<DestroyT>(d)), PetscManagedTypeGetArray(std::forward<GetValuesT>(gv)), PetscManagedTypeSetValues(std::forward<SetValuesT>(sv)), PetscManagedTypeGetPointerAndMemType(std::forward<GetPointerAndMemTypeT>(gpamt)), PetscManagedTypeCopy(std::forward<CopyT>(cp)), PetscManagedTypeGetSize(std::forward<GetSizeT>(gs)) {
     PetscCallAbort(PETSC_COMM_WORLD, [&] {
       PetscBool set;
 
@@ -171,7 +171,7 @@ struct ManagedTypeInterface {
 
           PetscCall(DebugPrintf(PETSC_COMM_WORLD, "PetscMemType %s PetscMemoryAccessMode %s sync %s\n", PetscMemTypes(mtype), PetscMemoryAccessModes(mode), PetscBools[sync]));
           PetscCall(SetupOp(dctx, scal, mtype, mode, sync, ptr, dtype));
-          PetscCall(PetscManagedTypeGetValues(dctx, scal, mtype, mode, sync, &ptr));
+          PetscCall(PetscManagedTypeGetArray(dctx, scal, mtype, mode, sync, &ptr));
           PetscCall(TestOp(dctx, scal, mtype, mode, sync, ptr, dtype));
         }
       }
@@ -221,7 +221,7 @@ struct ManagedTypeInterface {
   using base_type::PetscManagedTypeCreate; \
   using base_type::PetscManagedTypeCreateDefault; \
   using base_type::PetscManagedTypeDestroy; \
-  using base_type::PetscManagedTypeGetValues; \
+  using base_type::PetscManagedTypeGetArray; \
   using base_type::PetscManagedTypeSetValues; \
   using base_type::PetscManagedTypeGetPointerAndMemType; \
   using base_type::PetscManagedTypeCopy; \
@@ -234,11 +234,11 @@ template <template <typename...> class T, typename PT, typename PMT, typename...
 static auto make_managed_test(Args &&...functions) PETSC_DECLTYPE_NOEXCEPT_AUTO_RETURNS(std::unique_ptr<T<PT, PMT, Args...>>{new T<PT, PMT, Args...>{std::forward<Args>(functions)...}});
 
 template <template <typename...> class T>
-static auto make_managed_scalar_test() PETSC_DECLTYPE_NOEXCEPT_AUTO_RETURNS(make_managed_test<T, PetscScalar, PetscManagedScalar>(PetscManagedScalarCreate, PetscManagedScalarCreateDefault, PetscManagedScalarDestroy, PetscManagedScalarGetValues, PetscManagedScalarSetValues, PetscManagedScalarGetPointerAndMemType, PetscManagedScalarCopy, PetscManagedScalarGetSize));
+static auto make_managed_scalar_test() PETSC_DECLTYPE_NOEXCEPT_AUTO_RETURNS(make_managed_test<T, PetscScalar, PetscManagedScalar>(PetscManagedScalarCreate, PetscManagedScalarCreateDefault, PetscManagedScalarDestroy, PetscManagedScalarGetArray, PetscManagedScalarSetValues, PetscManagedScalarGetPointerAndMemType, PetscManagedScalarCopy, PetscManagedScalarGetSize));
 
 template <template <typename...> class T>
-static auto make_managed_real_test() PETSC_DECLTYPE_NOEXCEPT_AUTO_RETURNS(make_managed_test<T, PetscReal, PetscManagedReal>(PetscManagedRealCreate, PetscManagedRealCreateDefault, PetscManagedRealDestroy, PetscManagedRealGetValues, PetscManagedRealSetValues, PetscManagedRealGetPointerAndMemType, PetscManagedRealCopy, PetscManagedRealGetSize));
+static auto make_managed_real_test() PETSC_DECLTYPE_NOEXCEPT_AUTO_RETURNS(make_managed_test<T, PetscReal, PetscManagedReal>(PetscManagedRealCreate, PetscManagedRealCreateDefault, PetscManagedRealDestroy, PetscManagedRealGetArray, PetscManagedRealSetValues, PetscManagedRealGetPointerAndMemType, PetscManagedRealCopy, PetscManagedRealGetSize));
 
 template <template <typename...> class T>
-static auto make_managed_int_test() PETSC_DECLTYPE_NOEXCEPT_AUTO_RETURNS(make_managed_test<T, PetscInt, PetscManagedInt>(PetscManagedIntCreate, PetscManagedIntCreateDefault, PetscManagedIntDestroy, PetscManagedIntGetValues, PetscManagedIntSetValues, PetscManagedIntGetPointerAndMemType, PetscManagedIntCopy, PetscManagedIntGetSize));
+static auto make_managed_int_test() PETSC_DECLTYPE_NOEXCEPT_AUTO_RETURNS(make_managed_test<T, PetscInt, PetscManagedInt>(PetscManagedIntCreate, PetscManagedIntCreateDefault, PetscManagedIntDestroy, PetscManagedIntGetArray, PetscManagedIntSetValues, PetscManagedIntGetPointerAndMemType, PetscManagedIntCopy, PetscManagedIntGetSize));
 #endif // PETSCMANAGEDTYPETESTCOMMON_HPP

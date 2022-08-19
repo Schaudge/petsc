@@ -184,7 +184,7 @@ PetscErrorCode VecShift_SeqKokkos(Vec xin, PetscManagedScalar shift, PetscDevice
 
   PetscFunctionBegin;
   // implicit sync
-  PetscCall(PetscManagedScalarGetValues(dctx, shift, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &sptr));
+  PetscCall(PetscManagedScalarGetArray(dctx, shift, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &sptr));
   PetscCall(PetscLogGpuTimeBegin());
   PetscCall(VecGetKokkosView(xin, &xv));
   {
@@ -217,7 +217,7 @@ PetscErrorCode VecAXPY_SeqKokkos(Vec yin, PetscManagedScalar alpha, Vec xin, Pet
       ConstPetscScalarKokkosView xv;
 
       // implicit sync
-      PetscCall(PetscManagedScalarGetValues(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
+      PetscCall(PetscManagedScalarGetArray(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
       PetscCall(PetscLogGpuTimeBegin());
       PetscCall(VecGetKokkosView(xin, &xv));
       PetscCall(VecGetKokkosView(yin, &yv));
@@ -254,7 +254,7 @@ PetscErrorCode VecTDot_SeqKokkos(Vec xin, Vec yin, PetscManagedScalar z, PetscDe
     ConstPetscScalarKokkosView xv, yv;
 
     // implicit sync
-    PetscCall(PetscManagedScalarGetValues(dctx, z, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_WRITE, PETSC_TRUE, &zptr));
+    PetscCall(PetscManagedScalarGetArray(dctx, z, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_WRITE, PETSC_TRUE, &zptr));
     PetscCall(PetscLogGpuTimeBegin());
     PetscCall(VecGetKokkosView(xin, &xv));
     PetscCall(VecGetKokkosView(yin, &yv));
@@ -351,8 +351,8 @@ static PetscErrorCode VecMultiDot_Dispatch_Private(Vec xin, PetscManagedInt nv, 
 
   PetscFunctionBegin;
   // implicit sync
-  PetscCall(PetscManagedIntGetValues(dctx, nv, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &nvptr));
-  PetscCall(PetscManagedScalarGetValues(dctx, z, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_WRITE, PETSC_TRUE, &zptr));
+  PetscCall(PetscManagedIntGetArray(dctx, nv, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &nvptr));
+  PetscCall(PetscManagedScalarGetArray(dctx, z, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_WRITE, PETSC_TRUE, &zptr));
   PetscCall(VecMultiDot_Private<T>(xin, *nvptr, yin, zptr));
   PetscFunctionReturn(0);
 }
@@ -378,7 +378,7 @@ PetscErrorCode VecSet_SeqKokkos(Vec xin, PetscManagedScalar alpha, PetscDeviceCo
 
   PetscFunctionBegin;
   // implicit sync
-  PetscCall(PetscManagedScalarGetValues(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
+  PetscCall(PetscManagedScalarGetArray(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
   PetscCall(PetscLogGpuTimeBegin());
   PetscCall(VecGetKokkosViewWrite(xin, &xv));
   KokkosBlas::fill(xv, *aptr);
@@ -397,7 +397,7 @@ PetscErrorCode VecScale_SeqKokkos(Vec xin, PetscManagedScalar alpha, PetscDevice
     PetscScalarKokkosView xv;
 
     // implicit sync
-    PetscCall(PetscManagedScalarGetValues(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
+    PetscCall(PetscManagedScalarGetArray(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
     PetscCall(PetscLogGpuTimeBegin());
     PetscCall(VecGetKokkosView(xin, &xv));
     KokkosBlas::scal(xv, *aptr, xv);
@@ -491,7 +491,7 @@ PetscErrorCode VecWAXPY_SeqKokkos(Vec win, PetscManagedScalar alpha, Vec xin, Ve
     // implicit sync
     // REVIEW ME: this can also be PETSC_MEMTYPE_DEVICE if kokkos is configured for devices, in
     // which case we don't have to do the temp value below (or synchronize)
-    PetscCall(PetscManagedScalarGetValues(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
+    PetscCall(PetscManagedScalarGetArray(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
     PetscCall(PetscLogGpuTimeBegin());
     PetscCall(VecGetKokkosViewWrite(win, &wv));
     PetscCall(VecGetKokkosView(xin, &xv));
@@ -588,8 +588,8 @@ PetscErrorCode VecMAXPY_SeqKokkos(Vec yin, PetscManagedInt nv, PetscManagedScala
 
   PetscFunctionBegin;
   // implicit syncs
-  PetscCall(PetscManagedIntGetValues(dctx, nv, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &nvptr));
-  PetscCall(PetscManagedScalarGetValues(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
+  PetscCall(PetscManagedIntGetArray(dctx, nv, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &nvptr));
+  PetscCall(PetscManagedScalarGetArray(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
   PetscCall(VecMAXPY_SeqKokkos_Private(yin, *nvptr, aptr, xin));
   PetscFunctionReturn(0);
 }
@@ -607,8 +607,8 @@ PetscErrorCode VecAXPBY_SeqKokkos(Vec yin, PetscManagedScalar alpha, PetscManage
     PetscScalarKokkosView      yv;
 
     // implicit syncs
-    PetscCall(PetscManagedScalarGetValues(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
-    PetscCall(PetscManagedScalarGetValues(dctx, beta, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &bptr));
+    PetscCall(PetscManagedScalarGetArray(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
+    PetscCall(PetscManagedScalarGetArray(dctx, beta, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &bptr));
     PetscCall(PetscLogGpuTimeBegin());
     PetscCall(VecGetKokkosView(xin, &xv));
     PetscCall(VecGetKokkosView(yin, &yv));
@@ -637,9 +637,9 @@ PetscErrorCode VecAXPBYPCZ_SeqKokkos(Vec zin, PetscManagedScalar alpha, PetscMan
 
   PetscFunctionBegin;
   // implicit syncs
-  PetscCall(PetscManagedScalarGetValues(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
-  PetscCall(PetscManagedScalarGetValues(dctx, beta, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &bptr));
-  PetscCall(PetscManagedScalarGetValues(dctx, gamma, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &gptr));
+  PetscCall(PetscManagedScalarGetArray(dctx, alpha, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &aptr));
+  PetscCall(PetscManagedScalarGetArray(dctx, beta, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &bptr));
+  PetscCall(PetscManagedScalarGetArray(dctx, gamma, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &gptr));
   PetscCall(PetscLogGpuTimeBegin());
   PetscCall(VecGetKokkosView(zin, &zv));
   PetscCall(VecGetKokkosView(xin, &xv));

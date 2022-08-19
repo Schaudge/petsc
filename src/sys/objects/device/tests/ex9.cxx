@@ -36,7 +36,7 @@ class TestManagedTypeCopy : ManagedTypeInterface<T...> {
       }
       PetscCall(DebugPrintf(PetscObjectComm(reinterpret_cast<PetscObject>(rand_)), "Location of reference array %s\n", PetscMemTypes(destloc)));
       // move the reference array to some random location
-      PetscCall(PetscManagedTypeGetValues(dctx, reference, destloc, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_FALSE, &refarr));
+      PetscCall(PetscManagedTypeGetArray(dctx, reference, destloc, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_FALSE, &refarr));
       refbefore = reference->mask;
       // do the copy
       PetscCall(PetscManagedTypeCopy(dctx, copy, reference));
@@ -50,7 +50,7 @@ class TestManagedTypeCopy : ManagedTypeInterface<T...> {
     PetscCall(PetscManagedTypeCopy(dctx, reference, reference));
     PetscCall(PetscManagedTypeGetSize(reference, &n));
     // set up the real test
-    PetscCall(PetscManagedTypeGetValues(dctx, reference, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_WRITE, PETSC_FALSE, &refarr));
+    PetscCall(PetscManagedTypeGetArray(dctx, reference, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_WRITE, PETSC_FALSE, &refarr));
     // zero out the memory
     PetscCall(PetscDeviceArrayZero(dctx, PETSC_MEMTYPE_HOST, refarr, n));
     PetscCall(PetscDeviceCalloc(dctx, PETSC_MEMTYPE_HOST, n, &refcpy));

@@ -50,13 +50,13 @@ int main(int argc, char *argv[])
       // is the "root")
       for (PetscInt k = 1; k >= 0; --k) {
         PetscCall(PetscManagedRealCreateDefault(dctx[k],size,scal_arr+idx));
-        PetscCall(PetscManagedRealGetValues(dctx[k],scal_arr[idx],PETSC_MEMTYPE_HOST,PETSC_MEMORY_ACCESS_WRITE,PETSC_FALSE,&host));
+        PetscCall(PetscManagedRealGetArray(dctx[k],scal_arr[idx],PETSC_MEMTYPE_HOST,PETSC_MEMORY_ACCESS_WRITE,PETSC_FALSE,&host));
         if (dtype != PETSC_DEVICE_HOST) {
           PetscReal *device;
 
-          PetscCall(PetscManagedRealGetValues(dctx[k],scal_arr[idx],PETSC_MEMTYPE_DEVICE,PETSC_MEMORY_ACCESS_READ_WRITE,PETSC_FALSE,&device));
+          PetscCall(PetscManagedRealGetArray(dctx[k],scal_arr[idx],PETSC_MEMTYPE_DEVICE,PETSC_MEMORY_ACCESS_READ_WRITE,PETSC_FALSE,&device));
         }
-        PetscCall(PetscManagedRealGetValues(dctx[k],scal_arr[idx],PETSC_MEMTYPE_HOST,PETSC_MEMORY_ACCESS_WRITE,PETSC_FALSE,&host));
+        PetscCall(PetscManagedRealGetArray(dctx[k],scal_arr[idx],PETSC_MEMTYPE_HOST,PETSC_MEMORY_ACCESS_WRITE,PETSC_FALSE,&host));
         if (k) {
           PetscCall(WasteSomeTime(dctx[k],ncycles,global_now));
           PetscCall(PetscManagedRealDestroy(dctx[k],scal_arr+idx));
@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
   for (PetscInt i = 0; i < n*m; ++i) {
     PetscReal *host;
 
-    PetscCall(PetscManagedRealGetValues(dctx[0],scal_arr[i],PETSC_MEMTYPE_HOST,PETSC_MEMORY_ACCESS_READ,PETSC_FALSE,&host));
+    PetscCall(PetscManagedRealGetArray(dctx[0],scal_arr[i],PETSC_MEMTYPE_HOST,PETSC_MEMORY_ACCESS_READ,PETSC_FALSE,&host));
     // if we have copy-constructed or the flag variables have failed somehow this might also
     // fail
     PetscCheck((PetscInt)(*host) == i,PETSC_COMM_WORLD,PETSC_ERR_PLIB,"actual[%" PetscInt_FMT "] %" PetscInt_FMT " != expected[%" PetscInt_FMT "] %" PetscInt_FMT ". This may indicate an error in the handling of the pools atomic marker flags, i.e. that blocks are being given back out before they are ready!",i,(PetscInt)(*host),i,i);

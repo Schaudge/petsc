@@ -393,7 +393,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecSeq_CUPM<T>::aypx_async(Vec yin, PetscMa
     cupmBlasHandle_t cupmBlasHandle;
     PetscScalar     *aptr;
 
-    PetscCall(PetscManagedScalarGetValues(dctx, alpha, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &aptr));
+    PetscCall(PetscManagedScalarGetArray(dctx, alpha, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &aptr));
     PetscCall(GetHandles_(dctx, &cupmBlasHandle));
     {
       const auto cmode  = WithCUPMBlasPointerMode<T>{cupmBlasHandle, CUPMBLAS_POINTER_MODE_DEVICE};
@@ -430,7 +430,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecSeq_CUPM<T>::axpy_async(Vec yin, PetscMa
     PetscScalar     *aptr;
     cupmBlasHandle_t cupmBlasHandle;
 
-    PetscCall(PetscManagedScalarGetValues(dctx, alpha, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &aptr));
+    PetscCall(PetscManagedScalarGetArray(dctx, alpha, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &aptr));
     PetscCall(GetHandles_(dctx, &cupmBlasHandle));
     {
       const auto cmode = WithCUPMBlasPointerMode<T>{cupmBlasHandle, CUPMBLAS_POINTER_MODE_DEVICE};
@@ -506,7 +506,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecSeq_CUPM<T>::waxpy_async(Vec win, PetscM
     cupmStream_t     stream;
     PetscScalar     *aptr;
 
-    PetscCall(PetscManagedScalarGetValues(dctx, alpha, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &aptr));
+    PetscCall(PetscManagedScalarGetArray(dctx, alpha, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &aptr));
     PetscCall(GetHandles_(dctx, &cupmBlasHandle, &stream));
     {
       const auto cmode = WithCUPMBlasPointerMode<T>{cupmBlasHandle, CUPMBLAS_POINTER_MODE_DEVICE};
@@ -602,9 +602,9 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecSeq_CUPM<T>::maxpy_async(Vec xin, PetscM
 
   PetscFunctionBegin;
   PetscCall(GetHandles_(dctx, &stream));
-  PetscCall(PetscManagedScalarGetValues(dctx, alpha, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &aptr));
+  PetscCall(PetscManagedScalarGetArray(dctx, alpha, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &aptr));
   // possible (but highly unlikely) implicit sync
-  PetscCall(PetscManagedIntGetValues(dctx, nv, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &nvptr));
+  PetscCall(PetscManagedIntGetArray(dctx, nv, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &nvptr));
   nvval = *nvptr;
   PetscCall(PetscLogGpuTimeBegin());
   do {
@@ -635,7 +635,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecSeq_CUPM<T>::dot_async(Vec xin, Vec yin,
 
   PetscFunctionBegin;
   PetscCall(GetHandles_(dctx, &cupmBlasHandle));
-  PetscCall(PetscManagedScalarGetValues(dctx, z, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_WRITE, PETSC_FALSE, &zptr));
+  PetscCall(PetscManagedScalarGetArray(dctx, z, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_WRITE, PETSC_FALSE, &zptr));
   {
     const auto cmode = WithCUPMBlasPointerMode<T>{cupmBlasHandle, CUPMBLAS_POINTER_MODE_DEVICE};
 
@@ -794,7 +794,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecSeq_CUPM<T>::mdot_async_(UseComplexTag<f
         cupmBlasHandle_t cupmBlasHandle;
 
         PetscCall(GetHandles_(cur_ctx, &cupmBlasHandle));
-        PetscCall(PetscManagedScalarGetValues(cur_ctx, z, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_WRITE, PETSC_FALSE, &zptr));
+        PetscCall(PetscManagedScalarGetArray(cur_ctx, z, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_WRITE, PETSC_FALSE, &zptr));
         {
           const auto with = WithCUPMBlasPointerMode<T>{cupmBlasHandle, CUPMBLAS_POINTER_MODE_DEVICE};
           PetscCallCUPMBLAS(cupmBlasXdot(cupmBlasHandle, static_cast<cupmBlasInt_t>(n), DeviceArrayRead(cur_ctx, yin[yidx]), 1, xptr.cupmdata(), 1, cupmScalarCast(zptr + yidx)));
@@ -810,7 +810,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecSeq_CUPM<T>::mdot_async_(UseComplexTag<f
     PetscCall(PetscDeviceContextJoin(dctx, num_sub_streams, PETSC_DEVICE_CONTEXT_JOIN_DESTROY, &sub));
   }
 
-  if (!zptr) { PetscCall(PetscManagedScalarGetValues(dctx, z, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_WRITE, PETSC_FALSE, &zptr)); }
+  if (!zptr) { PetscCall(PetscManagedScalarGetArray(dctx, z, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_WRITE, PETSC_FALSE, &zptr)); }
   PetscCall(PetscCUPMLaunchKernel1D(nvbatch, 0, stream, kernels::sum_kernel, nvbatch, zptr, d_results));
   // do these now while final reduction is in flight
   PetscCall(PetscLogFlops(nwork));
@@ -833,7 +833,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecSeq_CUPM<T>::mdot_async_(UseComplexTag<t
 
   PetscFunctionBegin;
   PetscCall(PetscLogGpuTimeBegin());
-  PetscCall(PetscManagedScalarGetValues(dctx, z, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_WRITE, PETSC_FALSE, &zptr));
+  PetscCall(PetscManagedScalarGetArray(dctx, z, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_WRITE, PETSC_FALSE, &zptr));
   PetscCall(PetscDeviceContextFork(dctx, n_sub, &subctx));
   for (PetscInt i = 0; i < nv; ++i) {
     const auto       sub = subctx[i % n_sub];
@@ -861,7 +861,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecSeq_CUPM<T>::mdot_async(Vec xin, PetscMa
     PetscInt *nvptr;
 
     // implicity sync
-    PetscCall(PetscManagedIntGetValues(dctx, nv, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &nvptr));
+    PetscCall(PetscManagedIntGetArray(dctx, nv, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &nvptr));
     PetscCheck(*nvptr > 0, PETSC_COMM_SELF, PETSC_ERR_LIB, "Number of vectors provided to %s %" PetscInt_FMT " not positive", PETSC_FUNCTION_NAME, *nvptr);
 
     PetscCall(mdot_async_(UseComplexTag<PetscDefined(USE_COMPLEX)>{}, xin, *nvptr, yin, z, dctx));
@@ -928,7 +928,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecSeq_CUPM<T>::scale_async(Vec xin, PetscM
     cupmBlasHandle_t cupmBlasHandle;
 
     PetscCall(GetHandles_(dctx, &cupmBlasHandle));
-    PetscCall(PetscManagedScalarGetValues(dctx, alpha, amtype, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &aptr));
+    PetscCall(PetscManagedScalarGetArray(dctx, alpha, amtype, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &aptr));
     {
       const auto cmode = WithCUPMBlasPointerMode<T>{cupmBlasHandle, amtype};
 
@@ -950,7 +950,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecSeq_CUPM<T>::tdot_async(Vec xin, Vec yin
 
   PetscFunctionBegin;
   PetscCall(GetHandles_(dctx, &cupmBlasHandle));
-  PetscCall(PetscManagedScalarGetValues(dctx, z, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_WRITE, PETSC_FALSE, &zptr));
+  PetscCall(PetscManagedScalarGetArray(dctx, z, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_WRITE, PETSC_FALSE, &zptr));
   {
     const auto cmode = WithCUPMBlasPointerMode<T>{cupmBlasHandle, CUPMBLAS_POINTER_MODE_DEVICE};
 
@@ -1051,7 +1051,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecSeq_CUPM<T>::axpby_async(Vec yin, PetscM
     cupmBlasHandle_t cupmBlasHandle;
     PetscScalar     *aptr;
 
-    PetscCall(PetscManagedScalarGetValues(dctx, alpha, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &aptr));
+    PetscCall(PetscManagedScalarGetArray(dctx, alpha, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &aptr));
     PetscCall(GetHandles_(dctx, &cupmBlasHandle));
     {
       const auto calpha = cupmScalarCast(aptr);
@@ -1070,7 +1070,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecSeq_CUPM<T>::axpby_async(Vec yin, PetscM
         const auto   yptr = DeviceArrayReadWrite(dctx, yin);
         PetscScalar *bptr;
 
-        PetscCall(PetscManagedScalarGetValues(dctx, beta, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &bptr));
+        PetscCall(PetscManagedScalarGetArray(dctx, beta, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &bptr));
         PetscCall(PetscLogGpuTimeBegin());
         PetscCallCUPMBLAS(cupmBlasXscal(cupmBlasHandle, n, cupmScalarCast(bptr), yptr.cupmdata(), 1));
         PetscCallCUPMBLAS(cupmBlasXaxpy(cupmBlasHandle, n, calpha, xptr.cupmdata(), 1, yptr.cupmdata(), 1));
@@ -1113,7 +1113,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecSeq_CUPM<T>::norm_async(Vec xin, NormTyp
     PetscReal       *zptr;
 
     PetscCall(GetHandles_(dctx, &cupmBlasHandle));
-    PetscCall(PetscManagedRealGetValues(dctx, z, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_WRITE, PETSC_FALSE, &zptr));
+    PetscCall(PetscManagedRealGetArray(dctx, z, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_WRITE, PETSC_FALSE, &zptr));
     const auto cmode = WithCUPMBlasPointerMode<T>{cupmBlasHandle, CUPMBLAS_POINTER_MODE_DEVICE};
     // one-shot cublas kernels are often much faster if run on the host
     PetscCall(PetscLogGpuTimeBegin());
@@ -1136,7 +1136,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecSeq_CUPM<T>::norm_async(Vec xin, NormTyp
 
       PetscCall(GetHandles_(dctx, &stream));
       PetscCall(PetscManagedIntCreateDefault(dctx, 1, &iscal));
-      PetscCall(PetscManagedIntGetValues(dctx, iscal, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_WRITE, PETSC_FALSE, &i_ptr));
+      PetscCall(PetscManagedIntGetArray(dctx, iscal, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_WRITE, PETSC_FALSE, &i_ptr));
       PetscCallCUPMBLAS(cupmBlasXamax(cupmBlasHandle, n, xptr.cupmdata(), 1, i_ptr));
       PetscCall(PetscCUPMLaunchKernel1D(1, 0, stream, kernels::norm_infinity, xptr.data(), zptr, i_ptr));
       PetscCall(PetscManagedIntDestroy(dctx, &iscal));
@@ -1296,7 +1296,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode VecSeq_CUPM<T>::shift_async(Vec v, PetscMan
   PetscScalar *ptr;
 
   PetscFunctionBegin;
-  PetscCall(PetscManagedScalarGetValues(dctx, shift, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &ptr));
+  PetscCall(PetscManagedScalarGetArray(dctx, shift, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &ptr));
   PetscCall(pointwiseunary_async_(device::cupm::impl::make_shift_operator(ptr, thrust::plus<PetscScalar>{}), dctx, v));
   PetscFunctionReturn(0);
 }

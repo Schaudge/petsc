@@ -24,12 +24,12 @@ class TestManagedTypeGetValues : ManagedTypeInterface<T...> {
           have_written = true;
           for (PetscInt i = 0; i < n; ++i) ptr[i] = static_cast<PetscType>(i);
           // ensure the values are piped down to the device if we have one
-          if (dtype != PETSC_DEVICE_HOST) { PetscCall(PetscManagedTypeGetValues(dctx, scal, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_FALSE, &ptr)); }
+          if (dtype != PETSC_DEVICE_HOST) { PetscCall(PetscManagedTypeGetArray(dctx, scal, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_FALSE, &ptr)); }
         }
         // now check what we've written is coherent
         if (PetscMemoryAccessRead(mode)) {
           PetscCheck(have_written, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Trying to read from pointer before writing to it, this test is ill-formed!");
-          PetscCall(PetscManagedTypeGetValues(dctx, scal, PETSC_MEMTYPE_HOST, mode, PETSC_TRUE, &ptr));
+          PetscCall(PetscManagedTypeGetArray(dctx, scal, PETSC_MEMTYPE_HOST, mode, PETSC_TRUE, &ptr));
           for (PetscInt i = 0; i < n; ++i) {
             PetscCheck(ptr[i] == static_cast<PetscType>(i), PETSC_COMM_SELF, PETSC_ERR_PLIB, "ptr[%" PetscInt_FMT "] %g != %g", i, static_cast<double>(std::abs(static_cast<PetscScalar>(ptr[i]))), static_cast<double>(i));
           }

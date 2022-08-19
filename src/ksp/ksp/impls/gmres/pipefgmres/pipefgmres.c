@@ -189,7 +189,7 @@ static PetscErrorCode KSPPIPEFGMRESCycle_Async(PetscInt *itcount, KSP ksp) {
   /* first entry in right-hand-side of hessenberg system is just
      the initial residual norm */
   PetscReal *ptr;
-  PetscCall(PetscManagedRealGetValues(dctx, real_work, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &ptr));
+  PetscCall(PetscManagedRealGetArray(dctx, real_work, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &ptr));
   *RS(0) = res_norm = *ptr;
 
   PetscCall(PetscObjectSAWsTakeAccess((PetscObject)ksp));
@@ -292,7 +292,7 @@ static PetscErrorCode KSPPIPEFGMRESCycle_Async(PetscInt *itcount, KSP ksp) {
     PetscCall(PetscDeviceContextJoin(dctx, 1, PETSC_DEVICE_CONTEXT_JOIN_DESTROY, &subctx));
 
     /* we delay applying the shift here */
-    PetscCall(PetscManagedScalarGetValues(dctx, lhh, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &lhh_array));
+    PetscCall(PetscManagedScalarGetArray(dctx, lhh, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &lhh_array));
     tt = PetscRealPart(lhh_array[cur_it]);
     hh[loc_it] += shift;
     hes[loc_it] += shift;
@@ -363,7 +363,7 @@ static PetscErrorCode KSPPIPEFGMRESCycle_Async(PetscInt *itcount, KSP ksp) {
 
     /* Unshift an entry in the GS coefficients ("removing the bar") */
     PetscCall(PetscDeviceContextJoin(dctx, 1, PETSC_DEVICE_CONTEXT_JOIN_DESTROY, &subctx));
-    PetscCall(PetscManagedScalarGetValues(dctx, lhh, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &lhh_array));
+    PetscCall(PetscManagedScalarGetArray(dctx, lhh, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &lhh_array));
     lhh_array[loc_it] -= shift;
 
     /* The recurred computation for z (Au)

@@ -30,7 +30,7 @@ class TestManagedTypeSetValues : ManagedTypeInterface<T...> {
       PetscType *scalptr;
 
       PetscFunctionBegin;
-      PetscCall(PetscManagedTypeGetValues(dctx, scal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &scalptr));
+      PetscCall(PetscManagedTypeGetArray(dctx, scal, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &scalptr));
       for (PetscInt i = 0; i < n; ++i) {
         const PetscType actual   = scalptr[i];
         const PetscType expected = PetscMemTypeHost(mtype) ? ptr[i] : 0;

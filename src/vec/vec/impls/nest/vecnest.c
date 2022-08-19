@@ -249,7 +249,7 @@ static PetscErrorCode VecMAXPY_Nest(Vec y, PetscManagedInt nv, PetscManagedScala
   PetscInt *nvptr;
 
   PetscFunctionBegin;
-  PetscCall(PetscManagedIntGetValues(dctx, nv, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &nvptr));
+  PetscCall(PetscManagedIntGetArray(dctx, nv, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &nvptr));
   /* Do axpy on each vector, v */
   for (PetscInt v = 0, nvval = *nvptr; v < nvval; ++v) {
     PetscManagedScalar tmp;
@@ -265,7 +265,7 @@ static PetscErrorCode VecMXDot_Nest_Private(Vec x, PetscManagedInt nv, const Vec
   PetscInt *nvptr;
 
   PetscFunctionBegin;
-  PetscCall(PetscManagedIntGetValues(dctx, nv, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &nvptr));
+  PetscCall(PetscManagedIntGetArray(dctx, nv, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &nvptr));
   for (PetscInt j = 0, nvval = *nvptr; j < nvval; ++j) {
     PetscManagedScalar tmp;
 

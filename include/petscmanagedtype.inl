@@ -24,7 +24,7 @@ struct _n_PetscManagedType
 
 PETSC_EXTERN PetscErrorCode PetscManagedTypeCreate(PetscDeviceContext,PetscType*,PetscType*,PetscInt,PetscCopyMode,PetscCopyMode,PetscOffloadMask,PetscManagedType*);
 PETSC_EXTERN PetscErrorCode PetscManagedTypeDestroy(PetscDeviceContext,PetscManagedType*);
-PETSC_EXTERN PetscErrorCode PetscManagedTypeGetValues(PetscDeviceContext,PetscManagedType,PetscMemType,PetscMemoryAccessMode,PetscBool,PetscType**);
+PETSC_EXTERN PetscErrorCode PetscManagedTypeGetArray(PetscDeviceContext,PetscManagedType,PetscMemType,PetscMemoryAccessMode,PetscBool,PetscType**);
 PETSC_EXTERN PetscErrorCode PetscManagedTypeSetValues(PetscDeviceContext,PetscManagedType,PetscMemType,const PetscType*,PetscInt);
 PETSC_EXTERN PetscErrorCode PetscManagedTypeGetPointerAndMemType(PetscDeviceContext,PetscManagedType,PetscMemoryAccessMode,PetscType**,PetscMemType*);
 PETSC_EXTERN PetscErrorCode PetscManagedTypeEnsureOffload(PetscDeviceContext,PetscManagedType,PetscOffloadMask,PetscBool);
@@ -89,13 +89,13 @@ static inline PetscBool PetscManagedTypeKnownAndEqual(PetscManagedType scal, Pet
   PetscFunctionReturn(known);
 }
 
-static inline PetscErrorCode PetscManagedTypeGetValuesAvailable(PetscDeviceContext dctx, PetscManagedType scal, PetscMemType mtype, PetscMemoryAccessMode mode, PetscType **ptr, PetscBool *avail)
+static inline PetscErrorCode PetscManagedTypeGetArrayAvailable(PetscDeviceContext dctx, PetscManagedType scal, PetscMemType mtype, PetscMemoryAccessMode mode, PetscType **ptr, PetscBool *avail)
 {
   PetscFunctionBegin;
   // todo
   *ptr   = PETSC_NULLPTR;
   *avail = PetscMemTypeHost(mtype) ? scal->pure : PETSC_FALSE;
-  if (*avail) PetscCall(PetscManagedTypeGetValues(dctx,scal,mtype,mode,PETSC_FALSE,ptr));
+  if (*avail) PetscCall(PetscManagedTypeGetArray(dctx,scal,mtype,mode,PETSC_FALSE,ptr));
   PetscFunctionReturn(0);
 }
 

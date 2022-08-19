@@ -95,7 +95,7 @@ static inline PetscErrorCode VecMXDot_MPI_Standard(Vec xin, PetscManagedInt nv, 
 
   PetscFunctionBegin;
   PetscCall(VecMXDot_SeqFn(xin, nv, y, z, dctx));
-  PetscCall(PetscManagedIntGetValues(dctx, nv, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &nvptr));
+  PetscCall(PetscManagedIntGetArray(dctx, nv, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &nvptr));
   PetscCall(PetscDeviceContextAllReduceManagedScalar_Internal(dctx, z, nvptr, MPIU_SUM, (PetscObject)xin));
   PetscFunctionReturn(0);
 }
@@ -119,8 +119,8 @@ static inline PetscErrorCode VecMinMax_MPI_Standard(Vec xin, PetscManagedInt idx
     PetscReal *zptr;
     PetscInt  *idxptr;
 
-    PetscCall(PetscManagedRealGetValues(dctx, z, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &zptr));
-    PetscCall(PetscManagedIntGetValues(dctx, idx, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &idxptr));
+    PetscCall(PetscManagedRealGetArray(dctx, z, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &zptr));
+    PetscCall(PetscManagedIntGetArray(dctx, idx, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &idxptr));
     {
       struct {
         PetscReal v;
@@ -145,8 +145,8 @@ static inline PetscErrorCode VecDotNorm2_MPI_Standard(Vec s, Vec t, PetscManaged
 
   PetscFunctionBegin;
   PetscCall(VecDotNorm2_SeqFn(s, t, dp, nm, dctx));
-  PetscCall(PetscManagedScalarGetValues(dctx, dp, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &dpptr));
-  PetscCall(PetscManagedScalarGetValues(dctx, nm, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &nmptr));
+  PetscCall(PetscManagedScalarGetArray(dctx, dp, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &dpptr));
+  PetscCall(PetscManagedScalarGetArray(dctx, nm, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &nmptr));
   {
     PetscScalar sum[] = {*dpptr, *nmptr};
 
@@ -170,7 +170,7 @@ static inline PetscErrorCode VecNorm_MPI_Standard(Vec xin, NormType type, PetscM
     // 2-norm in the second slot, so increment zn here
     zn = 2;
   case NORM_2:
-    PetscCall(PetscManagedRealGetValues(dctx, z, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &zptr));
+    PetscCall(PetscManagedRealGetArray(dctx, z, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &zptr));
     // use zn to index here since NORM_1_AND_2 will increment it
     zptr[zn - 1] *= zptr[zn - 1];
   case NORM_1:
@@ -179,7 +179,7 @@ static inline PetscErrorCode VecNorm_MPI_Standard(Vec xin, NormType type, PetscM
   }
   PetscCall(PetscDeviceContextAllReduceManagedReal_Internal(dctx, z, &zn, op, (PetscObject)xin));
   if (type == NORM_2 || type == NORM_FROBENIUS || type == NORM_1_AND_2) {
-    PetscCall(PetscManagedRealGetValues(dctx, z, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &zptr));
+    PetscCall(PetscManagedRealGetArray(dctx, z, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &zptr));
     zptr[type == NORM_1_AND_2] = PetscSqrtReal(zptr[type == NORM_1_AND_2]);
   }
   PetscFunctionReturn(0);

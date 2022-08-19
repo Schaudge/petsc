@@ -7,7 +7,7 @@ static PetscErrorCode TestChildSubRange(PetscDeviceContext dctx, PetscManagedRea
   PetscInt   n;
 
   PetscFunctionBegin;
-  PetscCall(PetscManagedRealGetValues(dctx, child, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &child_values));
+  PetscCall(PetscManagedRealGetArray(dctx, child, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &child_values));
   PetscCall(PetscManagedRealGetSize(child, &n));
   for (PetscInt i = 0; i < n; ++i) {
     const PetscInt global_idx = global_begin + i;
@@ -33,7 +33,7 @@ static PetscErrorCode TestNestedGetSubRange(PetscDeviceContext dctx, PetscManage
     const PetscInt   nchild = n / 2, parent_begin = n / 4, adjusted_global_begin = global_begin + parent_begin;
     PetscReal       *parent_values;
 
-    PetscCall(PetscManagedRealGetValues(dctx, parent, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &parent_values));
+    PetscCall(PetscManagedRealGetArray(dctx, parent, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &parent_values));
     PetscCall(PetscManagedRealGetSubRange(dctx, parent, parent_begin, nchild, &sub));
     {
       PetscManagedReal copy;
@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
       PetscReal       *sub_v;
 
       PetscCall(PetscManagedRealGetSubRange(dctx, rl, i, adjusted_size, &sub_rl));
-      PetscCall(PetscManagedRealGetValues(dctx, sub_rl, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &sub_v));
+      PetscCall(PetscManagedRealGetArray(dctx, sub_rl, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_TRUE, &sub_v));
       for (PetscInt j = 0; j < adjusted_size; ++j)
         PetscCheck(arr[i + j] == sub_v[j], PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "child_values[(local %" PetscInt_FMT ", global %" PetscInt_FMT ")] %g != reference[(global %" PetscInt_FMT ")] %g", j, j + i, (double)sub_v[j], i + j, (double)(arr[i + j]));
       PetscCall(PetscManagedRealRestoreSubRange(dctx, rl, &sub_rl));

@@ -50,7 +50,7 @@ static PetscErrorCode CheckHost(PetscDeviceContext dctx, PetscInt n) {
   PetscCall(CheckEqual(mint, 12345, PETSC_TRUE, PETSC_TRUE));
   PetscCall(CheckEqual(mint, 123456, PETSC_TRUE, PETSC_FALSE));
 
-  PetscCall(PetscManagedIntGetValues(dctx, mint, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_WRITE, PETSC_TRUE, &host_values));
+  PetscCall(PetscManagedIntGetArray(dctx, mint, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_WRITE, PETSC_TRUE, &host_values));
   for (PetscInt i = 0; i < n; ++i) host_values[i] = -1;
 
   // only have host values, so answer should be known both times
@@ -63,7 +63,7 @@ static PetscErrorCode CheckHost(PetscDeviceContext dctx, PetscInt n) {
 
     // we will be orphaning the device values
     PetscCall(PetscDeviceContextSetOption(dctx, PETSC_DEVICE_CONTEXT_ALLOW_ORPHANS, PETSC_TRUE));
-    PetscCall(PetscManagedIntGetValues(dctx, mint, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &device_values));
+    PetscCall(PetscManagedIntGetArray(dctx, mint, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &device_values));
     // should be unchanged
     PetscCall(CheckEqual(mint, -1, PETSC_TRUE, PETSC_TRUE));
     PetscCall(CheckEqual(mint, -123, PETSC_TRUE, PETSC_FALSE));
@@ -110,7 +110,7 @@ static PetscErrorCode CheckDevice(PetscDeviceContext dctx, PetscInt n) {
   PetscCall(CheckEqual(mint, 0, PETSC_FALSE, PETSC_TRUE));
   PetscCall(CheckEqual(mint, 1, PETSC_FALSE, PETSC_FALSE));
 
-  PetscCall(PetscManagedIntGetValues(dctx, mint, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &host_values));
+  PetscCall(PetscManagedIntGetArray(dctx, mint, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_TRUE, &host_values));
   // now have host values, answer should be known
   PetscCall(CheckEqual(mint, 0, PETSC_TRUE, PETSC_TRUE));
   PetscCall(CheckEqual(mint, 1, PETSC_TRUE, PETSC_FALSE));
@@ -120,7 +120,7 @@ static PetscErrorCode CheckDevice(PetscDeviceContext dctx, PetscInt n) {
   PetscCall(CheckEqual(mint, 25, PETSC_TRUE, PETSC_TRUE));
   PetscCall(CheckEqual(mint, -123, PETSC_TRUE, PETSC_FALSE));
 
-  PetscCall(PetscManagedIntGetValues(dctx, mint, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_FALSE, &device_values));
+  PetscCall(PetscManagedIntGetArray(dctx, mint, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ_WRITE, PETSC_FALSE, &device_values));
   // back down to only device, answer should not be known
   PetscCall(CheckEqual(mint, 25, PETSC_FALSE, PETSC_TRUE));
   PetscCall(CheckEqual(mint, -123, PETSC_FALSE, PETSC_FALSE));
@@ -135,7 +135,7 @@ static PetscErrorCode CheckDevice(PetscDeviceContext dctx, PetscInt n) {
   PetscCall(CheckEqual(mint, 25, PETSC_TRUE, PETSC_TRUE));
   PetscCall(CheckEqual(mint, -123, PETSC_TRUE, PETSC_FALSE));
 
-  PetscCall(PetscManagedIntGetValues(dctx, mint, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &device_values));
+  PetscCall(PetscManagedIntGetArray(dctx, mint, PETSC_MEMTYPE_DEVICE, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &device_values));
   // device only reads, answer should stil be known
   PetscCall(CheckEqual(mint, 25, PETSC_TRUE, PETSC_TRUE));
   PetscCall(CheckEqual(mint, -123, PETSC_TRUE, PETSC_FALSE));
