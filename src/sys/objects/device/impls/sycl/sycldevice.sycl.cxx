@@ -155,7 +155,7 @@ PetscErrorCode Device::initialize(MPI_Comm comm, PetscInt *defaultDeviceId, Pets
     PetscCall(devices_[defaultDevice_]->initialize());
     if (view) {
       PetscViewer viewer;
-      PetscCall(PetscLogInitialize());
+
       PetscCall(PetscViewerASCIIGetStdout(comm, &viewer));
       PetscCall(devices_[defaultDevice_]->view(viewer));
     }

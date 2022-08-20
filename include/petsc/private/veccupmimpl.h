@@ -191,8 +191,7 @@ private:
 
   PETSC_CXX_COMPAT_DECL(PetscErrorCode CheckPointerMatchesMemType_(const void *ptr, PetscMemType mtype)) {
     PetscFunctionBegin;
-    if (!PetscDefined(USE_DEBUG)) PetscFunctionReturn(0);
-    if (ptr) {
+    if (PetscDefined(USE_DEBUG) && ptr) {
       PetscMemType ptr_mtype;
 
       PetscCall(PetscCUPMGetMemType(ptr, &ptr_mtype));
@@ -215,7 +214,7 @@ private:
       PetscDeviceType dtype;
 
       PetscCall(PetscDeviceContextGetDeviceType(dctx, &dtype));
-      PetscCheckCompatibleDeviceTypes(cupmDeviceTypeToPetscDeviceType(), -1, dtype, 1);
+      PetscCheckCompatibleDeviceTypes(PETSC_DEVICE_CUPM(), -1, dtype, 1);
     }
     if (handle) PetscCall(PetscDeviceContextGetBLASHandle_Internal(dctx, handle));
     if (stream) PetscCall(PetscDeviceContextGetStreamHandle_Internal(dctx, stream));

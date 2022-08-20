@@ -10,12 +10,6 @@
 #include <array>
 #include <cstring> // for std::strlen
 
-#if PetscDefined(USE_LOG)
-PETSC_INTERN PetscErrorCode PetscLogInitialize(void);
-#else
-#define PetscLogInitialize() 0
-#endif
-
 namespace Petsc {
 
 namespace device {

@@ -442,7 +442,6 @@ static PetscErrorCode PetscDeviceInitializeTypeFromOptions_Private(MPI_Comm comm
     initialize as
   */
   if (*defaultInitType == PETSC_DEVICE_INIT_EAGER) {
-    PetscCall(PetscLogInitialize());
     PetscCall(PetscInfo(nullptr, "Eagerly initializing %s PetscDevice\n", PetscDeviceTypes[type]));
     PetscCall(PetscDeviceInitializeDefaultDevice_Internal(type, defaultDeviceId));
     if (defaultView) {
