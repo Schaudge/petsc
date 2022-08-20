@@ -5,6 +5,13 @@
 #include <unordered_map>
 #include <cstring> // std::memset
 
+const char *const PetscDeviceCopyModes[] = {"host_to_host", "device_to_host", "host_to_device", "device_to_device", "auto", "PetscDeviceCopyMode", "PETSC_DEVICE_COPY_", nullptr};
+static_assert(Petsc::util::integral_value(PETSC_DEVICE_COPY_HTOH) == 0, "");
+static_assert(Petsc::util::integral_value(PETSC_DEVICE_COPY_DTOH) == 1, "");
+static_assert(Petsc::util::integral_value(PETSC_DEVICE_COPY_HTOD) == 2, "");
+static_assert(Petsc::util::integral_value(PETSC_DEVICE_COPY_DTOD) == 3, "");
+static_assert(Petsc::util::integral_value(PETSC_DEVICE_COPY_AUTO) == 4, "");
+
 // since the pointers allocated via PetscDeviceAllocate() may be device pointers we cannot just
 // store meta-data within the pointer itself (as we can't dereference them). So instead we need
 // to keep an extra map to keep track of them

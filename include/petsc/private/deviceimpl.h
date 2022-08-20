@@ -190,6 +190,10 @@ void PetscCheckManagedTypeCompatibleDeviceContext(T, int, U, int);
 #define PETSC_DEVICE_INITIAL_DEFAULT_TYPE PETSC_DEVICE_HOST
 #endif
 
+#define PETSC_DEVICE_CONTEXT_DEFAULT_DEVICE_TYPE PETSC_DEVICE_INITIAL_DEFAULT_TYPE
+// REMOVE ME (change)
+#define PETSC_DEVICE_CONTEXT_DEFAULT_STREAM_TYPE PETSC_STREAM_GLOBAL_BLOCKING
+
 typedef struct _DeviceOps *DeviceOps;
 struct _DeviceOps {
   /* the creation routine for the corresponding PetscDeviceContext, this is NOT intended
@@ -216,9 +220,9 @@ struct _EventOps {
 
 struct _n_PetscEvent {
   struct _EventOps ops[1];
-  void            *data;
   PetscObjectId    dctx_id;
   PetscObjectState dctx_state;
+  void            *data;
   PetscDeviceType  type;
 };
 
@@ -334,6 +338,7 @@ static inline PETSC_CONSTEXPR_14 PetscBool PetscDeviceConfiguredFor_Internal(Pet
 #if PetscDefined(HAVE_CXX)
 PETSC_INTERN PetscErrorCode PetscDeviceContextSetRootDeviceType_Internal(PetscDeviceType);
 PETSC_INTERN PetscErrorCode                PetscDeviceContextSetRootStreamType_Internal(PetscStreamType);
+PETSC_INTERN PetscErrorCode                PetscDeviceContextSetDefaultDeviceForType_Internal(PetscDeviceContext, PetscDeviceType);
 PETSC_SINGLE_LIBRARY_INTERN PetscErrorCode PetscDeviceContextGetNullContext_Internal(PetscDeviceContext *);
 
 static inline PetscErrorCode PetscDeviceContextGetHandle_Private(PetscDeviceContext dctx, void *handle, PetscErrorCode (*gethandle_op)(PetscDeviceContext, void *)) {
@@ -397,19 +402,15 @@ static inline PetscErrorCode PetscDeviceContextEndTimer_Internal(PetscDeviceCont
 #define PetscDeviceContextEndTimer_Internal(dctx, elapsed)       0
 #endif /* PETSC_HAVE_CXX for PetscDeviceContext Internal Functions */
 
-#define PetscDeviceContextSetDefaultDevice_Internal(dctx) PetscDeviceContextSetDefaultDeviceForType_Internal(dctx, PETSC_DEVICE_DEFAULT())
-
 /* note, only does assertion checking in debug mode */
 static inline PetscErrorCode PetscDeviceContextGetCurrentContextAssertType_Internal(PetscDeviceContext *dctx, PetscDeviceType type) {
   PetscFunctionBegin;
   PetscCall(PetscDeviceContextGetCurrentContext(dctx));
   if (PetscDefined(USE_DEBUG)) {
-    PetscDevice     dev;
     PetscDeviceType dtype;
 
     PetscValidDeviceType(type, 2);
-    PetscCall(PetscDeviceContextGetDevice(*dctx, &dev));
-    PetscCall(PetscDeviceGetType(dev, &dtype));
+    PetscCall(PetscDeviceContextGetDeviceType(*dctx, &dtype));
     PetscCheckCompatibleDeviceTypes(dtype, 1, type, 2);
   }
   PetscFunctionReturn(0);

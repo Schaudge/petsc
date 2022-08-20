@@ -268,7 +268,6 @@ PetscErrorCode Device<T>::initialize(MPI_Comm comm, PetscInt *defaultDeviceId, P
     if (initView.first) {
       PetscViewer vwr;
 
-      PetscCall(PetscLogInitialize());
       PetscCall(PetscViewerASCIIGetStdout(comm, &vwr));
       PetscCall(devices_[defaultDevice_]->view(vwr));
     }
