@@ -2,14 +2,13 @@
 
 using namespace Petsc::device::cupm;
 
-PetscErrorCode PetscDeviceContextCreate_CUDA(PetscDeviceContext dctx)
-{
+PetscErrorCode PetscDeviceContextCreate_CUDA(PetscDeviceContext dctx) {
   static constexpr auto cuda_context = CUPMContextCuda();
 
   PetscFunctionBegin;
   PetscCall(cuda_context.initialize());
   dctx->data = new PetscDeviceContext_(CUDA);
-  PetscCall(PetscMemcpy(dctx->ops,&cuda_context.ops,sizeof(cuda_context.ops)));
+  PetscCall(PetscMemcpy(dctx->ops, &cuda_context.ops, sizeof(cuda_context.ops)));
   PetscFunctionReturn(0);
 }
 

@@ -16,13 +16,13 @@ PETSC_EXTERN PetscClassId PETSC_DEVICE_CONTEXT_CLASSID;
 
 /* PetscDevice */
 #if PetscDefined(HAVE_CXX)
-PETSC_EXTERN PetscErrorCode PetscDeviceInitialize(PetscDeviceType);
-PETSC_EXTERN PetscBool      PetscDeviceInitialized(PetscDeviceType);
-PETSC_EXTERN PetscErrorCode PetscDeviceCreate(PetscDeviceType, PetscInt, PetscDevice *);
-PETSC_EXTERN PetscErrorCode PetscDeviceConfigure(PetscDevice);
-PETSC_EXTERN PetscErrorCode PetscDeviceView(PetscDevice, PetscViewer);
-PETSC_EXTERN PetscErrorCode PetscDeviceGetType(PetscDevice, PetscDeviceType *);
-PETSC_EXTERN PetscErrorCode PetscDeviceGetDeviceId(PetscDevice, PetscInt *);
+PETSC_EXTERN PetscErrorCode  PetscDeviceInitialize(PetscDeviceType);
+PETSC_EXTERN PetscBool       PetscDeviceInitialized(PetscDeviceType);
+PETSC_EXTERN PetscErrorCode  PetscDeviceCreate(PetscDeviceType, PetscInt, PetscDevice *);
+PETSC_EXTERN PetscErrorCode  PetscDeviceConfigure(PetscDevice);
+PETSC_EXTERN PetscErrorCode  PetscDeviceView(PetscDevice, PetscViewer);
+PETSC_EXTERN PetscErrorCode  PetscDeviceGetType(PetscDevice, PetscDeviceType *);
+PETSC_EXTERN PetscErrorCode  PetscDeviceGetDeviceId(PetscDevice, PetscInt *);
 PETSC_EXTERN PetscErrorCode  PetscDeviceDestroy(PetscDevice *);
 PETSC_EXTERN PetscErrorCode  PetscDeviceSetDefaultDeviceType(PetscDeviceType);
 PETSC_EXTERN PetscDeviceType PETSC_DEVICE_DEFAULT(void);

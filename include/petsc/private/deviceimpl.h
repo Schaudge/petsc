@@ -336,7 +336,7 @@ static inline PETSC_CONSTEXPR_14 PetscBool PetscDeviceConfiguredFor_Internal(Pet
 //                     PetscDeviceContext Internal Functions
 // ===================================================================================
 #if PetscDefined(HAVE_CXX)
-PETSC_INTERN PetscErrorCode PetscDeviceContextSetRootDeviceType_Internal(PetscDeviceType);
+PETSC_INTERN PetscErrorCode                PetscDeviceContextSetRootDeviceType_Internal(PetscDeviceType);
 PETSC_INTERN PetscErrorCode                PetscDeviceContextSetRootStreamType_Internal(PetscStreamType);
 PETSC_INTERN PetscErrorCode                PetscDeviceContextSetDefaultDeviceForType_Internal(PetscDeviceContext, PetscDeviceType);
 PETSC_SINGLE_LIBRARY_INTERN PetscErrorCode PetscDeviceContextGetNullContext_Internal(PetscDeviceContext *);
