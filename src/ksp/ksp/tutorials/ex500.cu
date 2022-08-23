@@ -18,22 +18,21 @@ static char help[] = "Solves a tridiagonal linear system with KSP.\n\n";
 
 __global__ static void MARKER_KERNEL() { }
 
-int main(int argc,char **args)
-{
-  Vec            x, b, u;      /* approx solution, RHS, exact solution */
-  Mat            A;            /* linear system matrix */
-  KSP            ksp;          /* linear solver context */
-  PC             pc;           /* preconditioner context */
-  PetscReal      norm;         /* norm of solution error */
-  PetscInt       i,n = 10,col[3],its;
-  PetscMPIInt    size;
-  PetscScalar    value[3];
+int main(int argc, char **args) {
+  Vec         x, b, u; /* approx solution, RHS, exact solution */
+  Mat         A;       /* linear system matrix */
+  KSP         ksp;     /* linear solver context */
+  PC          pc;      /* preconditioner context */
+  PetscReal   norm;    /* norm of solution error */
+  PetscInt    i, n = 10, col[3], its;
+  PetscMPIInt size;
+  PetscScalar value[3];
 
   PetscCallCUDA(cudaDeviceReset());
-  PetscCall(PetscInitialize(&argc,&args,(char*)0,help));
-  PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD,&size));
-  PetscCheck(size == 1,PETSC_COMM_WORLD,PETSC_ERR_WRONG_MPI_SIZE,"This is a uniprocessor example only!");
-  PetscCall(PetscOptionsGetInt(NULL,NULL,"-n",&n,NULL));
+  PetscCall(PetscInitialize(&argc, &args, (char *)0, help));
+  PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD, &size));
+  PetscCheck(size == 1, PETSC_COMM_WORLD, PETSC_ERR_WRONG_MPI_SIZE, "This is a uniprocessor example only!");
+  PetscCall(PetscOptionsGetInt(NULL, NULL, "-n", &n, NULL));
   PetscDeviceContext dctx;
 
   PetscCall(PetscDeviceInitialize(PETSC_DEVICE_DEFAULT()));
@@ -43,8 +42,8 @@ int main(int argc,char **args)
   if (PETSC_DEVICE_DEFAULT() != PETSC_DEVICE_HOST) {
     void *handle;
 
-    PetscCall(PetscDeviceContextGetBLASHandle_Internal(dctx,&handle));
-    PetscCall(PetscDeviceContextGetSOLVERHandle_Internal(dctx,&handle));
+    PetscCall(PetscDeviceContextGetBLASHandle_Internal(dctx, &handle));
+    PetscCall(PetscDeviceContextGetSOLVERHandle_Internal(dctx, &handle));
   }
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
          Compute the matrix and right-hand-side vector that define
@@ -55,12 +54,12 @@ int main(int argc,char **args)
      Create vectors.  Note that we form 1 vector from scratch and
      then duplicate as needed.
   */
-  PetscCall(VecCreate(PETSC_COMM_SELF,&x));
-  PetscCall(PetscObjectSetName((PetscObject) x, "Solution"));
-  PetscCall(VecSetSizes(x,PETSC_DECIDE,n));
+  PetscCall(VecCreate(PETSC_COMM_SELF, &x));
+  PetscCall(PetscObjectSetName((PetscObject)x, "Solution"));
+  PetscCall(VecSetSizes(x, PETSC_DECIDE, n));
   PetscCall(VecSetFromOptions(x));
-  PetscCall(VecDuplicate(x,&b));
-  PetscCall(VecDuplicate(x,&u));
+  PetscCall(VecDuplicate(x, &b));
+  PetscCall(VecDuplicate(x, &u));
 
   /*
      Create matrix.  When using MatCreate(), the matrix format can
@@ -70,42 +69,52 @@ int main(int argc,char **args)
      preallocation of matrix memory is crucial for attaining good
      performance. See the matrix chapter of the users manual for details.
   */
-  PetscCall(MatCreate(PETSC_COMM_SELF,&A));
-  PetscCall(MatSetSizes(A,PETSC_DECIDE,PETSC_DECIDE,n,n));
+  PetscCall(MatCreate(PETSC_COMM_SELF, &A));
+  PetscCall(MatSetSizes(A, PETSC_DECIDE, PETSC_DECIDE, n, n));
   PetscCall(MatSetFromOptions(A));
   PetscCall(MatSetUp(A));
 
   /*
      Assemble matrix
   */
-  value[0] = -1.0; value[1] = 2.0; value[2] = -1.0;
-  for (i=1; i<n-1; i++) {
-    col[0] = i-1; col[1] = i; col[2] = i+1;
-    PetscCall(MatSetValues(A,1,&i,3,col,value,INSERT_VALUES));
+  value[0] = -1.0;
+  value[1] = 2.0;
+  value[2] = -1.0;
+  for (i = 1; i < n - 1; i++) {
+    col[0] = i - 1;
+    col[1] = i;
+    col[2] = i + 1;
+    PetscCall(MatSetValues(A, 1, &i, 3, col, value, INSERT_VALUES));
   }
-  i    = n - 1; col[0] = n - 2; col[1] = n - 1;
-  PetscCall(MatSetValues(A,1,&i,2,col,value,INSERT_VALUES));
-  i    = 0; col[0] = 0; col[1] = 1; value[0] = 2.0; value[1] = -1.0;
-  PetscCall(MatSetValues(A,1,&i,2,col,value,INSERT_VALUES));
-  PetscCall(MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY));
-  PetscCall(MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY));
+  i      = n - 1;
+  col[0] = n - 2;
+  col[1] = n - 1;
+  PetscCall(MatSetValues(A, 1, &i, 2, col, value, INSERT_VALUES));
+  i        = 0;
+  col[0]   = 0;
+  col[1]   = 1;
+  value[0] = 2.0;
+  value[1] = -1.0;
+  PetscCall(MatSetValues(A, 1, &i, 2, col, value, INSERT_VALUES));
+  PetscCall(MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY));
 
   /*
      Set exact solution; then compute right-hand-side vector.
   */
-  PetscCall(VecSet(u,1.0));
-  PetscCall(MatMult(A,u,b));
+  PetscCall(VecSet(u, 1.0));
+  PetscCall(MatMult(A, u, b));
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
                 Create the linear solver and set various options
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  PetscCall(KSPCreate(PETSC_COMM_SELF,&ksp));
+  PetscCall(KSPCreate(PETSC_COMM_SELF, &ksp));
 
   /*
      Set operators. Here the matrix that defines the linear system
      also serves as the matrix that defines the preconditioner.
   */
-  PetscCall(KSPSetOperators(ksp,A,A));
+  PetscCall(KSPSetOperators(ksp, A, A));
 
   /*
      Set linear solver defaults for this problem (optional).
@@ -116,9 +125,9 @@ int main(int argc,char **args)
        parameters could alternatively be specified at runtime via
        KSPSetFromOptions();
   */
-  PetscCall(KSPGetPC(ksp,&pc));
-  PetscCall(PCSetType(pc,PCJACOBI));
-  PetscCall(KSPSetTolerances(ksp,1.e-5,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT));
+  PetscCall(KSPGetPC(ksp, &pc));
+  PetscCall(PCSetType(pc, PCJACOBI));
+  PetscCall(KSPSetTolerances(ksp, 1.e-5, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT));
 
   /*
     Set runtime options, e.g.,
@@ -132,74 +141,76 @@ int main(int argc,char **args)
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
                       Solve the linear system
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  PetscInt nwarmup = 2,nit = 1000;
+  PetscInt nwarmup = 2, nit = 1000;
 
-  PetscCall(PetscOptionsGetInt(NULL,NULL,"-n_warmup",&nwarmup,NULL));
-  PetscCall(PetscOptionsGetInt(NULL,NULL,"-n_it",&nit,NULL));
+  PetscCall(PetscOptionsGetInt(NULL, NULL, "-n_warmup", &nwarmup, NULL));
+  PetscCall(PetscOptionsGetInt(NULL, NULL, "-n_it", &nit, NULL));
 
-  PetscLogStage warmup,timing;
+  PetscLogStage warmup, timing;
 
-  PetscCall(PetscLogStageRegister("Warmup",&warmup));
-  PetscCall(PetscLogStageRegister("Timing",&timing));
+  PetscCall(PetscLogStageRegister("Warmup", &warmup));
+  PetscCall(PetscLogStageRegister("Timing", &timing));
 
   PetscCall(PetscLogStagePush(warmup));
-  for (PetscInt i = 0; i < nwarmup; ++i) PetscCall(KSPSolve(ksp,b,x));
+  for (PetscInt i = 0; i < nwarmup; ++i) PetscCall(KSPSolve(ksp, b, x));
   PetscCall(PetscLogStagePop());
 
   PetscLogDouble *times;
 
-  PetscCall(PetscMalloc1(nit,&times));
+  PetscCall(PetscMalloc1(nit, &times));
   PetscCall(PetscDeviceContextSynchronize(dctx));
   PetscCall(PetscDeviceContextSynchronize(NULL));
   PetscCallCUDA(cudaProfilerStart());
   for (PetscInt i = 0; i < nit; ++i) {
-    PetscLogDouble begin,end;
+    PetscLogDouble begin, end;
 
     PetscCall(PetscLogStagePush(timing));
-    MARKER_KERNEL<<<1,1,0,NULL>>>();
+    MARKER_KERNEL<<<1, 1, 0, NULL>>>();
     PetscCall(PetscTime(&begin));
-    PetscCall(KSPSolve(ksp,b,x));
+    PetscCall(KSPSolve(ksp, b, x));
     PetscCall(PetscTime(&end));
-    MARKER_KERNEL<<<1,1,0,NULL>>>();
+    MARKER_KERNEL<<<1, 1, 0, NULL>>>();
     PetscCall(PetscLogStagePop());
-    times[i] = end-begin;
+    times[i] = end - begin;
     PetscCallCUDA(cudaDeviceSynchronize());
     PetscCall(PetscDeviceContextSynchronize(dctx));
     PetscCall(PetscDeviceContextSynchronize(NULL));
   }
   PetscCallCUDA(cudaProfilerStop());
 
-  PetscLogDouble tmin = PETSC_MAX_REAL,tmax = PETSC_MIN_REAL,ttotal = 0;
+  PetscLogDouble tmin = PETSC_MAX_REAL, tmax = PETSC_MIN_REAL, ttotal = 0;
   for (PetscInt i = 0; i < nit; ++i) {
     ttotal += times[i];
-    tmin = PetscMin(times[i],tmin);
-    tmax = PetscMax(times[i],tmax);
+    tmin = PetscMin(times[i], tmin);
+    tmax = PetscMax(times[i], tmax);
   }
   PetscCall(PetscFree(times));
 
   KSPType type;
 
-  PetscCall(KSPGetType(ksp,&type));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"KSP type: '%s', nit %" PetscInt_FMT ", total time %gs, min %gs, max %gs, avg. %gs\n",type,nit,ttotal,tmin,tmax,ttotal/nit));
+  PetscCall(KSPGetType(ksp, &type));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "KSP type: '%s', nit %" PetscInt_FMT ", total time %gs, min %gs, max %gs, avg. %gs\n", type, nit, ttotal, tmin, tmax, ttotal / nit));
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
                       Check the solution and clean up
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  PetscCall(VecAXPY(x,-1.0,u));
-  PetscCall(KSPGetIterationNumber(ksp,&its));
-  PetscCall(VecNorm(x,NORM_2,&norm));
-  PetscCall(PetscPrintf(PETSC_COMM_SELF,"Norm of error %g, Iterations %" PetscInt_FMT "\n",(double)norm,its));
+  PetscCall(VecAXPY(x, -1.0, u));
+  PetscCall(KSPGetIterationNumber(ksp, &its));
+  PetscCall(VecNorm(x, NORM_2, &norm));
+  PetscCall(PetscPrintf(PETSC_COMM_SELF, "Norm of error %g, Iterations %" PetscInt_FMT "\n", (double)norm, its));
 
   /* check that KSP automatically handles the fact that the the new non-zero values in the matrix are propagated to the KSP solver */
-  PetscCall(MatShift(A,2.0));
-  PetscCall(KSPSolve(ksp,b,x));
+  PetscCall(MatShift(A, 2.0));
+  PetscCall(KSPSolve(ksp, b, x));
 
   /*
      Free work space.  All PETSc objects should be destroyed when they
      are no longer needed.
   */
-  PetscCall(VecDestroy(&x)); PetscCall(VecDestroy(&u));
-  PetscCall(VecDestroy(&b)); PetscCall(MatDestroy(&A));
+  PetscCall(VecDestroy(&x));
+  PetscCall(VecDestroy(&u));
+  PetscCall(VecDestroy(&b));
+  PetscCall(MatDestroy(&A));
   PetscCall(KSPDestroy(&ksp));
 
   /*

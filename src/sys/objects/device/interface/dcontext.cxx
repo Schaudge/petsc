@@ -257,8 +257,8 @@ static PetscErrorCode PetscDeviceContextCheckNotOrphaned(PetscDeviceContext);
 .seealso: `PetscDeviceContextCreate()`, `PetscDeviceContextSetDevice()`,
 `PetscDeviceContextSetUp()`, `PetscDeviceContextSynchronize()`
 @*/
-PetscErrorCode PetscDeviceContextDestroy(PetscDeviceContext *dctx) {
-  PetscFunctionBegin;
+PetscErrorCode        PetscDeviceContextDestroy(PetscDeviceContext *dctx) {
+         PetscFunctionBegin;
          PetscValidPointer(dctx, 1);
          if (!*dctx) PetscFunctionReturn(0);
   PetscCall(PetscLogEventBegin(DCONTEXT_Destroy, *dctx, 0, 0, 0));
@@ -269,7 +269,7 @@ PetscErrorCode PetscDeviceContextDestroy(PetscDeviceContext *dctx) {
            // can't remove std::move, since reclaim only takes r-value reference
            PetscCall(contextPool.reclaim(std::move(*dctx))); // NOLINT (performance-move-const-arg)
   }
-                PetscCall(PetscLogEventEnd(DCONTEXT_Destroy, *dctx, 0, 0, 0));
+         PetscCall(PetscLogEventEnd(DCONTEXT_Destroy, *dctx, 0, 0, 0));
          *dctx = nullptr;
          PetscFunctionReturn(0);
 }

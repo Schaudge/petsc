@@ -1,10 +1,16 @@
 #include "../vecmpicupm.hpp" /*I <petscvec.h> I*/
 
-namespace Petsc { namespace vec { namespace cupm { namespace impl {
+namespace Petsc {
+namespace vec {
+namespace cupm {
+namespace impl {
 
 template struct VecMPI_CUPM<Petsc::device::cupm::DeviceType::CUDA>;
 
-}}}} // namespace Petsc::vec::cupm::impl
+} // namespace impl
+} // namespace cupm
+} // namespace vec
+} // namespace Petsc
 
 static const auto VecMPI_CUDA = Petsc::vec::cupm::impl::VecMPI_CUPM<Petsc::device::cupm::DeviceType::CUDA>{};
 
@@ -33,25 +39,22 @@ M*/
 VecType, VecCreateMPI(), VecSetPinnedMemoryMin()
 M*/
 
-PetscErrorCode VecCreate_CUDA(Vec v, PetscDeviceContext dctx)
-{
+PetscErrorCode VecCreate_CUDA(Vec v, PetscDeviceContext dctx) {
   PetscFunctionBegin;
-  PetscCall(VecMPI_CUDA.Create_CUPM(v,dctx));
+  PetscCall(VecMPI_CUDA.Create_CUPM(v, dctx));
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode VecCreate_MPICUDA(Vec v, PetscDeviceContext dctx)
-{
+PetscErrorCode VecCreate_MPICUDA(Vec v, PetscDeviceContext dctx) {
   PetscFunctionBegin;
-  PetscCall(VecMPI_CUDA.create_async(v,dctx));
+  PetscCall(VecMPI_CUDA.create_async(v, dctx));
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode VecCUDAGetArrays_Private(Vec v, const PetscScalar **host_array, const PetscScalar **device_array, PetscOffloadMask *mask, PetscDeviceContext dctx)
-{
+PetscErrorCode VecCUDAGetArrays_Private(Vec v, const PetscScalar **host_array, const PetscScalar **device_array, PetscOffloadMask *mask, PetscDeviceContext dctx) {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(v,VEC_CLASSID,1);
-  PetscCall(VecMPI_CUDA.GetArrays_CUPMBase(v,host_array,device_array,mask,dctx));
+  PetscValidHeaderSpecific(v, VEC_CLASSID, 1);
+  PetscCall(VecMPI_CUDA.GetArrays_CUPMBase(v, host_array, device_array, mask, dctx));
   PetscFunctionReturn(0);
 }
 
@@ -80,11 +83,10 @@ PetscErrorCode VecCUDAGetArrays_Private(Vec v, const PetscScalar **host_array, c
 VecCreateSeq(), VecCreateMPI(), VecCreate(), VecDuplicate(), VecDuplicateVecs(),
 VecCreateGhost(), VecCreateMPIWithArray(), VecCreateGhostWithArray(), VecMPISetGhost()
 @*/
-PetscErrorCode VecCreateMPICUDA(MPI_Comm comm, PetscInt n, PetscInt N, Vec *v)
-{
+PetscErrorCode VecCreateMPICUDA(MPI_Comm comm, PetscInt n, PetscInt N, Vec *v) {
   PetscFunctionBegin;
-  PetscValidPointer(v,4);
-  PetscCall(VecMPI_CUDA.creatempicupm_async(comm,0,n,N,nullptr,v,PETSC_TRUE));
+  PetscValidPointer(v, 4);
+  PetscCall(VecMPI_CUDA.creatempicupm_async(comm, 0, n, N, nullptr, v, PETSC_TRUE));
   PetscFunctionReturn(0);
 }
 
@@ -115,12 +117,11 @@ PetscErrorCode VecCreateMPICUDA(MPI_Comm comm, PetscInt n, PetscInt N, Vec *v)
 VecCreateSeqWithArray(), VecCreate(), VecDuplicate(), VecDuplicateVecs(), VecCreateGhost(),
 VecCreateMPI(), VecCreateGhostWithArray(), VecPlaceArray()
 @*/
-PetscErrorCode VecCreateMPICUDAWithArrays(MPI_Comm comm, PetscInt bs, PetscInt n, PetscInt N, const PetscScalar cpuarray[], const PetscScalar gpuarray[], Vec *v)
-{
+PetscErrorCode VecCreateMPICUDAWithArrays(MPI_Comm comm, PetscInt bs, PetscInt n, PetscInt N, const PetscScalar cpuarray[], const PetscScalar gpuarray[], Vec *v) {
   PetscFunctionBegin;
-  if (n && cpuarray) PetscValidScalarPointer(cpuarray,5);
-  PetscValidPointer(v,7);
-  PetscCall(VecMPI_CUDA.creatempicupmwitharrays_async(comm,bs,n,N,cpuarray,gpuarray,nullptr,v));
+  if (n && cpuarray) PetscValidScalarPointer(cpuarray, 5);
+  PetscValidPointer(v, 7);
+  PetscCall(VecMPI_CUDA.creatempicupmwitharrays_async(comm, bs, n, N, cpuarray, gpuarray, nullptr, v));
   PetscFunctionReturn(0);
 }
 
@@ -149,9 +150,8 @@ PetscErrorCode VecCreateMPICUDAWithArrays(MPI_Comm comm, PetscInt bs, PetscInt n
 VecCreateSeqWithArray(), VecCreate(), VecDuplicate(), VecDuplicateVecs(), VecCreateGhost(),
 VecCreateMPI(), VecCreateGhostWithArray(), VecPlaceArray()
 @*/
-PetscErrorCode VecCreateMPICUDAWithArray(MPI_Comm comm, PetscInt bs, PetscInt n, PetscInt N, const PetscScalar gpuarray[], Vec *v)
-{
+PetscErrorCode VecCreateMPICUDAWithArray(MPI_Comm comm, PetscInt bs, PetscInt n, PetscInt N, const PetscScalar gpuarray[], Vec *v) {
   PetscFunctionBegin;
-  PetscCall(VecCreateMPICUDAWithArrays(comm,bs,n,N,nullptr,gpuarray,v));
+  PetscCall(VecCreateMPICUDAWithArrays(comm, bs, n, N, nullptr, gpuarray, v));
   PetscFunctionReturn(0);
 }

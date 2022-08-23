@@ -5,7 +5,7 @@
 */
 
 #include <petscdevice_cuda.h>
-#include <petsc/private/matimpl.h>          /*I "petscmat.h" I*/
+#include <petsc/private/matimpl.h> /*I "petscmat.h" I*/
 
 typedef struct {
   PetscInt      ndim;
