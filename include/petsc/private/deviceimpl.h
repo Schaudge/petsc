@@ -233,6 +233,19 @@ struct _n_PetscEvent {
 
 #define PetscManagedTypeOps(PetscTypeSuffix, PetscTypeSuffix_L) PetscManagedTypeOps_(PetscConcat(PetscManaged, PetscTypeSuffix), PetscConcat(Petsc, PetscTypeSuffix), PetscTypeSuffix_L)
 
+#ifdef __cplusplus
+namespace Petsc::memory {
+
+class stream_allocator;
+
+} // namespace Petsc::memory
+#include <memory>
+
+using PetscDeviceContextStreamAllocator = std::shared_ptr<Petsc::memory::stream_allocator>;
+#else
+typedef void *PetscDeviceContextStreamAllocator;
+#endif
+
 typedef struct _DeviceContextOps *DeviceContextOps;
 struct _DeviceContextOps {
   PetscErrorCode (*destroy)(PetscDeviceContext);
@@ -255,6 +268,7 @@ struct _DeviceContextOps {
   PetscManagedTypeOps(Int, int);
   PetscErrorCode (*recordevent)(PetscDeviceContext, PetscEvent);
   PetscErrorCode (*waitforevent)(PetscDeviceContext, PetscEvent);
+  PetscErrorCode (*getallocator)(PetscDeviceContext, PetscMemType, PetscDeviceContextStreamAllocator *);
 };
 
 #undef PetscManagedTypeOps

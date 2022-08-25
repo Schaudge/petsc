@@ -1,6 +1,7 @@
 #ifndef HOSTCONTEXT_HPP
 #define HOSTCONTEXT_HPP
 
+#include <petscmanagedtype.hpp>
 #include "../segmentedmempool.hpp"
 
 namespace Petsc {
@@ -12,9 +13,9 @@ namespace host {
 namespace impl {
 
 class DeviceContext {
-  template <typename PetscType>
-  PETSC_CXX_COMPAT_DECL(::Petsc::memory::SegmentedMemoryPool<PetscType> &managed_pool_()) {
-    static ::Petsc::memory::SegmentedMemoryPool<PetscType> pool;
+  template <typename PetscType, std::size_t ChunkSize = 256, typename PoolType = ::Petsc::memory::SegmentedMemoryPool<PetscType, device::DefaultStream, Petsc::memory::impl::SegmentedMemoryPoolAllocatorBase<PetscType>, ChunkSize>>
+  PETSC_CXX_COMPAT_DECL(PoolType &managed_pool_()) {
+    static PoolType pool;
     return pool;
   }
 
@@ -42,32 +43,36 @@ public:
   template <typename PetscType, typename PetscManagedType>
   PETSC_CXX_COMPAT_DECL(PetscErrorCode applyOperatorType(PetscDeviceContext, PetscManagedType, PetscOperatorType, PetscMemType, const PetscType *, PetscManagedType));
 
-  const struct _DeviceContextOps ops = {
-    destroy,
-    changeStreamType,
-    setUp,
-    query,
-    waitForContext,
-    synchronize,
-    getBlasHandle,
-    getSolverHandle,
-    getStreamHandle,
-    beginTimer,
-    endTimer,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    destroyManagedType<PetscScalar, PetscManagedScalar>,
-    getManagedTypeValues<PetscScalar, PetscManagedScalar>,
-    applyOperatorType<PetscScalar, PetscManagedScalar>,
-    destroyManagedType<PetscReal, PetscManagedReal>,
-    getManagedTypeValues<PetscReal, PetscManagedReal>,
-    applyOperatorType<PetscReal, PetscManagedReal>,
-    destroyManagedType<PetscInt, PetscManagedInt>,
-    getManagedTypeValues<PetscInt, PetscManagedInt>,
-    applyOperatorType<PetscInt, PetscManagedInt>,
+  struct HostAllocator : public Petsc::memory::stream_allocator {
+    PETSC_NODISCARD PetscErrorCode do_allocate(PetscDeviceContext, std::size_t bytes, void **ptr) noexcept final {
+      static constexpr DefaultStream stream;
+
+      PetscFunctionBegin;
+      PetscCall(managed_pool_<char, 256 * sizeof(PetscScalar)>().get(bytes, reinterpret_cast<char **>(ptr), &stream));
+      PetscFunctionReturn(0);
+    }
+
+    PETSC_NODISCARD PetscErrorCode do_deallocate(PetscDeviceContext, void *ptr) noexcept final {
+      static constexpr DefaultStream stream;
+      auto                           cptr = static_cast<char *>(ptr);
+
+      PetscFunctionBegin;
+      PetscCall(managed_pool_<char, 256 * sizeof(PetscScalar)>().release(&cptr, &stream));
+      PetscFunctionReturn(0);
+    }
   };
+
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode getAllocator(PetscDeviceContext dctx, PetscMemType mtype, PetscDeviceContextStreamAllocator *alloc)) {
+    PetscFunctionBegin;
+    if (PetscMemTypeHost(mtype)) {
+      static auto host_alloc = std::make_shared<HostAllocator>();
+
+      *alloc = host_alloc;
+    }
+    PetscFunctionReturn(0);
+  }
+
+  const struct _DeviceContextOps ops = {destroy, changeStreamType, setUp, query, waitForContext, synchronize, getBlasHandle, getSolverHandle, getStreamHandle, beginTimer, endTimer, nullptr, nullptr, nullptr, nullptr, destroyManagedType<PetscScalar, PetscManagedScalar>, getManagedTypeValues<PetscScalar, PetscManagedScalar>, applyOperatorType<PetscScalar, PetscManagedScalar>, destroyManagedType<PetscReal, PetscManagedReal>, getManagedTypeValues<PetscReal, PetscManagedReal>, applyOperatorType<PetscReal, PetscManagedReal>, destroyManagedType<PetscInt, PetscManagedInt>, getManagedTypeValues<PetscInt, PetscManagedInt>, applyOperatorType<PetscInt, PetscManagedInt>, nullptr, nullptr, getAllocator};
 };
 
 template <typename PetscType, typename PetscManagedType>

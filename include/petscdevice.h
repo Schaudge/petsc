@@ -242,7 +242,7 @@ M*/
 .seealso: `PetscDeviceMalloc()`, `PetscDeviceCalloc()`, `PetscDeviceFree()`,
 `PetscDeviceArrayZero()`, `PetscDeviceMemcpy()`
 M*/
-#define PetscDeviceArrayCopy(dctx, dest, src, n, mode) (PetscDefined(HAVE_DEVICE) ? PetscDeviceMemcpy((dctx), (dest), (src), (size_t)(n) * sizeof(*(src)), (mode)) : PetscArraycpy((dest), (src), (n)))
+#define PetscDeviceArrayCopy(dctx, dest, src, n, mode) ((n) ? (PetscDefined(HAVE_DEVICE) ? PetscDeviceMemcpy((dctx), (dest), (src), (size_t)(n) * sizeof(*(src)), (mode)) : PetscArraycpy((dest), (src), (n))) : 0)
 
 /*MC
   PetscDeviceArrayZero - Zero memory in a device-aware manner
