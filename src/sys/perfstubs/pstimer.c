@@ -81,6 +81,9 @@ PS_WEAK_PRE void ps_tool_free_counter_data(ps_tool_counter_data_t *) PS_WEAK_POS
 PS_WEAK_PRE void ps_tool_free_metadata(ps_tool_metadata_t *) PS_WEAK_POST;
 #endif
 
+// Disable pedantic, see https://stackoverflow.com/a/36385690
+#pragma GCC diagnostic push  // Save actual diagnostics state
+#pragma GCC diagnostic ignored "-Wpedantic" // Disable pedantic
 void initialize_library() {
 #ifdef PERFSTUBS_USE_STATIC
     /* The initialization function is the only required one */
@@ -157,6 +160,7 @@ void initialize_library() {
     /* Increment the number of tools */
     num_tools_registered = 1;
 }
+#pragma GCC diagnostic pop  // Restore diagnostics state
 
 char * ps_make_timer_name_(const char * file,
     const char * func, int line) {
