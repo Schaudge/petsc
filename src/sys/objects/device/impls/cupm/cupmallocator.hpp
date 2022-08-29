@@ -21,17 +21,27 @@ struct HostAllocator : impl::Interface<T>, memory::impl::SegmentedMemoryPoolAllo
   PETSC_CUPM_INHERIT_INTERFACE_TYPEDEFS_USING(interface_type, T);
   using base_type = ::Petsc::memory::impl::SegmentedMemoryPoolAllocatorBase<PetscType>;
   using typename base_type::real_value_type;
+  using typename base_type::size_type;
   using typename base_type::value_type;
 
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode allocate(value_type **ptr, std::size_t n)) {
+  template <typename U>
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode allocate(value_type **ptr, size_type n, const StreamBase<U> *)) {
     PetscFunctionBegin;
     PetscCall(PetscCUPMMallocHost(ptr, n));
     PetscFunctionReturn(0);
   }
 
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode deallocate(value_type *ptr, cupmStream_t)) {
+  template <typename U>
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode deallocate(value_type *ptr, const StreamBase<U> *)) {
     PetscFunctionBegin;
     PetscCallCUPM(cupmFreeHost(ptr));
+    PetscFunctionReturn(0);
+  }
+
+  template <typename U>
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode uninitialized_copy(value_type *dest, const value_type *src, size_type n, const StreamBase<U> *stream)) {
+    PetscFunctionBegin;
+    PetscCall(PetscCUPMMemcpyAsync(dest, src, n, cupmMemcpyHostToHost, stream->get_stream(), true));
     PetscFunctionReturn(0);
   }
 };
@@ -42,32 +52,44 @@ struct DeviceAllocator : impl::Interface<T>, memory::impl::SegmentedMemoryPoolAl
   PETSC_CUPM_INHERIT_INTERFACE_TYPEDEFS_USING(interface_type, T);
   using base_type = ::Petsc::memory::impl::SegmentedMemoryPoolAllocatorBase<PetscType>;
   using typename base_type::real_value_type;
+  using typename base_type::size_type;
   using typename base_type::value_type;
 
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode allocate(value_type **ptr, std::size_t n)) {
+  template <typename U>
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode allocate(value_type **ptr, size_type n, const StreamBase<U> *stream)) {
     PetscFunctionBegin;
-    PetscCall(PetscCUPMMallocAsync(ptr, n));
+    PetscCall(PetscCUPMMallocAsync(ptr, n, stream->get_stream()));
     PetscFunctionReturn(0);
   }
 
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode deallocate(value_type *ptr, cupmStream_t strm)) {
+  template <typename U>
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode deallocate(value_type *ptr, const StreamBase<U> *stream)) {
     PetscFunctionBegin;
-    PetscCallCUPM(cupmFreeAsync(ptr, strm));
+    PetscCallCUPM(cupmFreeAsync(ptr, stream->get_stream()));
     PetscFunctionReturn(0);
   }
 
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode zero(value_type *ptr, std::size_t n, cupmStream_t strm)) {
+  template <typename U>
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode zero(value_type *ptr, size_type n, const StreamBase<U> *stream)) {
     PetscFunctionBegin;
-    PetscCall(PetscCUPMMemsetAsync(ptr, 0, n, strm, true));
+    PetscCall(PetscCUPMMemsetAsync(ptr, 0, n, stream->get_stream(), true));
     PetscFunctionReturn(0);
   }
 
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode setCanary(value_type *ptr, std::size_t n, cupmStream_t strm)) {
+  template <typename U>
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode uninitialized_copy(value_type *dest, const value_type *src, size_type n, const StreamBase<U> *stream)) {
+    PetscFunctionBegin;
+    PetscCall(PetscCUPMMemcpyAsync(dest, src, n, cupmMemcpyDeviceToDevice, stream->get_stream(), true));
+    PetscFunctionReturn(0);
+  }
+
+  template <typename U>
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode setCanary(value_type *ptr, size_type n, const StreamBase<U> *stream)) {
     using limit_t           = std::numeric_limits<real_value_type>;
     const value_type canary = limit_t::has_signaling_NaN ? limit_t::signaling_NaN() : limit_t::max();
 
     PetscFunctionBegin;
-    PetscCall(impl::ThrustSet<T>(strm, n, ptr, &canary));
+    PetscCall(impl::ThrustSet<T>(stream->get_stream(), n, ptr, &canary));
     PetscFunctionReturn(0);
   }
 };

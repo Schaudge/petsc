@@ -5,6 +5,20 @@
 
 #if defined(__cplusplus)
 
+#ifndef PETSC_CPP_VERSION
+#if __cplusplus <= 201103L
+#define PETSC_CPP_VERSION 11
+#elif __cplusplus <= 201402L
+#define PETSC_CPP_VERSION 14
+#elif __cplusplus <= 201703L
+#define PETSC_CPP_VERSION 17
+#elif __cplusplus <= 202002L
+#define PETSC_CPP_VERSION 20
+#else
+#define PETSC_CPP_VERSION 22 // current year, or date of c++2b ratification
+#endif
+#endif // PETSC_CPP_VERSION
+
 // basic building blocks
 #define PETSC_DECLTYPE_AUTO(...) ->decltype(__VA_ARGS__)
 #define PETSC_NOEXCEPT_AUTO(...) noexcept(noexcept(__VA_ARGS__))
@@ -77,6 +91,10 @@
 //   ...
 // }
 #define PETSC_CXX_COMPAT_DEFN(...) inline __VA_ARGS__ noexcept
+
+#else // __cplusplus
+
+#define PETSC_CPP_VERSION 0
 
 #endif // __cplusplus
 

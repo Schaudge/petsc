@@ -11,14 +11,7 @@ namespace Petsc {
 
 namespace util {
 
-#if __cplusplus >= 201703L // C++17
-using std::void_t;
-#else  // C++17
-template <class...>
-using void_t = void;
-#endif // C++17
-
-#if __cplusplus >= 201402L // C++14
+#if PETSC_CPP_VERSION >= 14
 using std::add_const_t;
 using std::add_pointer_t;
 using std::conditional_t;
@@ -27,6 +20,7 @@ using std::enable_if_t;
 using std::remove_const_t;
 using std::remove_cv_t;
 using std::remove_pointer_t;
+using std::remove_reference_t;
 using std::underlying_type_t;
 #else  // C++14
 template <bool B, class T = void>
@@ -47,7 +41,30 @@ template <class T>
 using add_pointer_t = typename std::add_pointer<T>::type;
 template <class T>
 using decay_t = typename std::decay<T>::type;
+template <class T>
+using remove_reference_t = typename std::remove_reference<T>::type;
 #endif // C++14
+
+#if PETSC_CPP_VERSION >= 17
+using std::void_t;
+#else
+template <class...>
+using void_t = void;
+#endif
+
+#if PETSC_CPP_VERSION >= 20
+using std::remove_cvref_t;
+#else
+namespace detail {
+template <class T>
+struct remove_cvref {
+  using type = util::remove_cv_t<util::remove_reference_t<T>>;
+};
+} // namespace detail
+
+template <class T>
+using remove_cvref_t = typename detail::remove_cvref<T>::type;
+#endif
 
 template <typename... T>
 struct always_false : std::false_type { };

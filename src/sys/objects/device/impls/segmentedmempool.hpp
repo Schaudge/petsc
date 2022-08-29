@@ -43,14 +43,13 @@ public:
     return static_cast<const T *>(this)->wait_for_(std::forward<E>(event));
   }
 
-private:
+protected:
   constexpr StreamBase() noexcept = default;
-  friend T;
 
   struct default_event_type { };
-  struct default_stream_type { };
+  using default_stream_type = std::nullptr_t;
 
-  PETSC_NODISCARD static constexpr default_stream_type get_stream_() noexcept { return default_stream_type{}; }
+  PETSC_NODISCARD static constexpr default_stream_type get_stream_() noexcept { return {}; }
 
   PETSC_NODISCARD static constexpr id_type get_id_() noexcept { return 0; }
 
@@ -89,21 +88,26 @@ public:
 
   PETSC_NODISCARD size_type constexpr start() const noexcept { return start_; }
   PETSC_NODISCARD size_type constexpr size() const noexcept { return size_; }
+  // REVIEW ME:
+  // make this an actual field, normally each chunk shrinks_to_fit() on begin claimed, but in
+  // theory only the last chunk needs to do this
+  PETSC_NODISCARD size_type constexpr capacity() const noexcept { return size_; }
   PETSC_NODISCARD size_type constexpr total_offset() const noexcept { return start() + size(); }
 
   template <typename U>
-  PetscErrorCode release(const device::StreamBase<U> *) noexcept;
+  PETSC_NODISCARD PetscErrorCode release(const device::StreamBase<U> *) noexcept;
   template <typename U>
   PETSC_NODISCARD PetscErrorCode claim(const device::StreamBase<U> *, size_type, bool *, bool = false) noexcept;
   template <typename U>
-  PETSC_NODISCARD bool can_claim(const device::StreamBase<U> *, size_type, bool) const noexcept;
+  PETSC_NODISCARD bool           can_claim(const device::StreamBase<U> *, size_type, bool) const noexcept;
+  PETSC_NODISCARD PetscErrorCode resize(size_type) noexcept;
 
 private:
-  bool            open_;
-  size_type       size_;
-  int             stream_id_;
-  event_type      event_;
-  const size_type start_;
+  bool            open_;      // is this chunk open?
+  size_type       size_;      // size of the chunk
+  int             stream_id_; // id of the last stream to use the chunk, populated on release
+  event_type      event_;     // event recorded when the chunk was released
+  const size_type start_;     // offset from the start of the owning block
 
   template <typename U>
   PETSC_NODISCARD bool stream_compat_(const device::StreamBase<U> *strm) const noexcept {
@@ -140,8 +144,8 @@ inline PetscErrorCode MemoryChunk<E>::claim(const device::StreamBase<U> *stream,
   PetscFunctionBegin;
   if ((*success = can_claim(stream, req_size, serialize))) {
     if (serialize && !stream_compat_(stream)) PetscCall(stream->wait_for(event_));
+    PetscCall(resize(req_size));
     open_ = false;
-    size_ = req_size;
   }
   PetscFunctionReturn(0);
 }
@@ -160,7 +164,7 @@ inline PetscErrorCode MemoryChunk<E>::claim(const device::StreamBase<U> *stream,
 template <typename E>
 template <typename U>
 inline bool MemoryChunk<E>::can_claim(const device::StreamBase<U> *stream, size_type req_size, bool serialize) const noexcept {
-  if (open_ && (req_size <= size())) {
+  if (open_ && (req_size <= capacity())) {
     // fully compatible
     if (stream_compat_(stream)) return true;
     // stream wasn't compatible, but could claim if we serialized
@@ -168,6 +172,14 @@ inline bool MemoryChunk<E>::can_claim(const device::StreamBase<U> *stream, size_
     // incompatible stream and did not want to serialize
   }
   return false;
+}
+
+template <typename E>
+inline PetscErrorCode MemoryChunk<E>::resize(size_type newsize) noexcept {
+  PetscFunctionBegin;
+  PetscAssert(newsize <= capacity(), PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "New size %zu larger than capacity %zu", newsize, capacity());
+  size_ = newsize;
+  PetscFunctionReturn(0);
 }
 
 // A "memory block" manager, which owns the pointer to a particular memory range. Retrieving
@@ -178,32 +190,38 @@ public:
   using value_type      = T;
   using allocator_type  = AllocatorType;
   using stream_type     = StreamType;
-  using chunk_type      = MemoryChunk<typename stream_type::event_type>;
+  using event_type      = typename stream_type::event_type;
+  using chunk_type      = MemoryChunk<event_type>;
   using size_type       = typename chunk_type::size_type;
   using chunk_list_type = std::vector<chunk_type>;
 
-  MemoryBlock(allocator_type &alloc, size_type s) noexcept : size_(s), allocator_(alloc) {
+  template <typename U>
+  MemoryBlock(allocator_type &alloc, size_type s, const device::StreamBase<U> *stream) noexcept : size_(s), allocator_(alloc) {
     NVTX_RANGE;
     PetscFunctionBegin;
-    PetscCallAbort(PETSC_COMM_SELF, alloc.allocate(&mem_, s));
+    PetscCallAbort(PETSC_COMM_SELF, alloc.allocate(&mem_, s, stream));
     PetscAssertAbort(mem_, PETSC_COMM_SELF, PETSC_ERR_MEM, "Failed to allocate memory block of size %zu", s);
-    PetscCallAbort(PETSC_COMM_SELF, alloc.zero(mem_, s, nullptr));
+    PetscCallAbort(PETSC_COMM_SELF, alloc.zero(mem_, s, stream));
     PetscFunctionReturnVoid();
   }
 
   ~MemoryBlock() noexcept(std::is_nothrow_destructible<chunk_list_type>::value) {
+    constexpr device::DefaultStream stream;
+
     PetscFunctionBegin;
-    PetscCallAbort(PETSC_COMM_SELF, self_destruct_());
+    PetscCallAbort(PETSC_COMM_SELF, self_destruct_(&stream));
     PetscFunctionReturnVoid();
   }
 
-  MemoryBlock(MemoryBlock &&other) noexcept : mem_(other.mem_), size_(other.size()), chunks_(std::move(other.chunks_)), allocator_(other.allocator_) { other.mem_ = nullptr; }
+  MemoryBlock(MemoryBlock &&other) noexcept : mem_(std::exchange(other.mem_, nullptr)), size_(std::exchange(other.size(), 0)), chunks_(std::move(other.chunks_)), allocator_(other.allocator_) { }
 
   MemoryBlock &operator=(MemoryBlock &&other) noexcept {
+    constexpr device::DefaultStream stream;
+
     PetscFunctionBegin;
-    PetscCallAbort(PETSC_COMM_SELF, self_destruct_());
-    mem_       = other.mem_;
-    size_      = other.size();
+    PetscCallAbort(PETSC_COMM_SELF, self_destruct_(&stream));
+    mem_       = std::exchange(other.mem_, nullptr);
+    size_      = std::exchange(other.size(), 0);
     chunks_    = std::move(other.chunks_);
     allocator_ = other.allocator_;
     PetscFunctionReturn(*this);
@@ -214,24 +232,25 @@ public:
   MemoryBlock &operator=(const MemoryBlock &) = delete;
 
   /* --- actual functions --- */
-  PETSC_NODISCARD PetscErrorCode try_get_chunk(size_type, T **, const stream_type *, bool *) noexcept;
-  PETSC_NODISCARD PetscErrorCode try_restore_chunk(T **, const stream_type *, bool *) noexcept;
-  PETSC_NODISCARD bool           owns_pointer(T *) const noexcept;
+  PETSC_NODISCARD PetscErrorCode try_allocate_chunk(size_type, T **, const stream_type *, bool *) noexcept;
+  PETSC_NODISCARD PetscErrorCode try_deallocate_chunk(T **, const stream_type *, bool *) noexcept;
+  PETSC_NODISCARD PetscErrorCode try_find_chunk(const T *, chunk_type **) noexcept;
+  PETSC_NODISCARD bool           owns_pointer(const T *) const noexcept;
 
   PETSC_NODISCARD constexpr size_type size() const noexcept { return size_; }
   PETSC_NODISCARD constexpr size_type bytes() const noexcept { return sizeof(value_type) * size(); }
   PETSC_NODISCARD size_type           num_chunks() const noexcept { return chunks_.size(); }
 
 private:
-  value_type     *mem_ = nullptr;
-  const size_type size_;
-  chunk_list_type chunks_;
+  value_type     *mem_{};
+  const size_type size_{};
+  chunk_list_type chunks_{};
   allocator_type &allocator_;
 
-  PETSC_NODISCARD PetscErrorCode self_destruct_() noexcept {
+  PETSC_NODISCARD PetscErrorCode self_destruct_(const stream_type *stream) noexcept {
     PetscFunctionBegin;
     if (PetscLikely(mem_)) {
-      PetscCall(allocator_.deallocate(mem_, nullptr));
+      PetscCall(allocator_.deallocate(mem_, stream));
       mem_ = nullptr;
     }
     PetscFunctionReturn(0);
@@ -242,13 +261,13 @@ private:
   MemoryBock::owns_pointer - returns true if this block owns a pointer, false otherwise
 */
 template <typename T, typename A, typename S>
-inline bool MemoryBlock<T, A, S>::owns_pointer(T *ptr) const noexcept {
+inline bool MemoryBlock<T, A, S>::owns_pointer(const T *ptr) const noexcept {
   // each pool is linear in memory, so it suffices to check the bounds
   return (ptr >= mem_) && (ptr < std::next(mem_, size()));
 }
 
 /*
-  MemoryBlock::try_get_chunk - try to get a chunk from this MemoryBlock
+  MemoryBlock::try_allocate_chunk - try to get a chunk from this MemoryBlock
 
   Input Parameters:
 + req_size - the requested size of the allocation (in elements)
@@ -262,7 +281,7 @@ inline bool MemoryBlock<T, A, S>::owns_pointer(T *ptr) const noexcept {
   If the current memory could not satisfy the memory request, ptr is unchanged
 */
 template <typename T, typename A, typename S>
-inline PetscErrorCode MemoryBlock<T, A, S>::try_get_chunk(size_type req_size, T **ptr, const stream_type *stream, bool *success) noexcept {
+inline PetscErrorCode MemoryBlock<T, A, S>::try_allocate_chunk(size_type req_size, T **ptr, const stream_type *stream, bool *success) noexcept {
   NVTX_RANGE;
   PetscFunctionBegin;
   *success = false;
@@ -323,13 +342,13 @@ inline PetscErrorCode MemoryBlock<T, A, S>::try_get_chunk(size_type req_size, T 
 
     // sets memory to NaN or infinity depending on the type to catch out uninitialized memory
     // accesses.
-    if (PetscDefined(USE_DEBUG) && *success) { PetscCall(allocator_.setCanary(*ptr, req_size, stream->get_stream())); }
+    if (PetscDefined(USE_DEBUG) && *success) PetscCall(allocator_.setCanary(*ptr, req_size, stream));
   }
   PetscFunctionReturn(0);
 }
 
 /*
-  MemoryBlock::try_restore_chunk - try to restore a chunk to this MemoryBlock
+  MemoryBlock::try_deallocate_chunk - try to restore a chunk to this MemoryBlock
 
   Input Parameters:
 + ptr     - ptr to restore
@@ -345,21 +364,39 @@ inline PetscErrorCode MemoryBlock<T, A, S>::try_get_chunk(size_type req_size, T 
   stream is idle again.
 */
 template <typename T, typename A, typename S>
-inline PetscErrorCode MemoryBlock<T, A, S>::try_restore_chunk(T **ptr, const stream_type *stream, bool *success) noexcept {
+inline PetscErrorCode MemoryBlock<T, A, S>::try_deallocate_chunk(T **ptr, const stream_type *stream, bool *success) noexcept {
+  NVTX_RANGE;
+  chunk_type *chunk = nullptr;
+
+  PetscFunctionBegin;
+  PetscCall(try_find_chunk(*ptr, &chunk));
+  if (chunk) {
+    PetscCall(chunk->release(stream));
+    *ptr     = nullptr;
+    *success = true;
+  } else {
+    *success = false;
+  }
+  PetscFunctionReturn(0);
+}
+
+template <typename T, typename A, typename S>
+inline PetscErrorCode MemoryBlock<T, A, S>::try_find_chunk(const T *ptr, chunk_type **ret_chunk) noexcept {
   NVTX_RANGE;
   PetscFunctionBegin;
-  if ((*success = this->owns_pointer(*ptr))) {
-    const auto offset      = static_cast<size_type>((*ptr) - mem_);
+  *ret_chunk = nullptr;
+  if (owns_pointer(ptr)) {
+    const auto offset      = static_cast<size_type>(ptr - mem_);
     auto       found_block = false;
 
     for (auto &chunk : chunks_) {
       if ((found_block = chunk.start() == offset)) {
-        PetscCall(chunk.release(stream));
+        *ret_chunk = &chunk;
         break;
       }
     }
-    PetscAssert(found_block, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Failed to return %zu to block, even though it is within block range [%zu, %zu)", reinterpret_cast<uintptr_t>(*ptr), reinterpret_cast<uintptr_t>(mem_), reinterpret_cast<uintptr_t>(std::next(mem_, size())));
-    *ptr = nullptr;
+
+    PetscAssert(found_block, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Failed to find %zu in block, even though it is within block range [%zu, %zu)", reinterpret_cast<uintptr_t>(ptr), reinterpret_cast<uintptr_t>(mem_), reinterpret_cast<uintptr_t>(std::next(mem_, size())));
   }
   PetscFunctionReturn(0);
 }
@@ -370,6 +407,7 @@ template <typename T>
 struct real_type {
   using type = T;
 };
+
 template <>
 struct real_type<PetscScalar> {
   using type = PetscReal;
@@ -380,35 +418,44 @@ struct real_type<PetscScalar> {
 template <typename T>
 struct SegmentedMemoryPoolAllocatorBase {
   using value_type      = T;
+  using size_type       = std::size_t;
   using real_value_type = typename detail::real_type<T>::type;
 
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode allocate(value_type **ptr, std::size_t n)) {
+  template <typename U>
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode allocate(value_type **ptr, size_type n, const device::StreamBase<U> *)) {
     PetscFunctionBegin;
     PetscCall(PetscMalloc1(n, ptr));
     PetscFunctionReturn(0);
   }
 
-  template <typename StreamType>
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode deallocate(value_type *ptr, StreamType)) {
+  template <typename U>
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode deallocate(value_type *ptr, const device::StreamBase<U> *)) {
     PetscFunctionBegin;
     PetscCall(PetscFree(ptr));
     PetscFunctionReturn(0);
   }
 
-  template <typename StreamType>
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode zero(value_type *ptr, std::size_t n, StreamType)) {
+  template <typename U>
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode zero(value_type *ptr, size_type n, const device::StreamBase<U> *)) {
     PetscFunctionBegin;
     PetscCall(PetscArrayzero(ptr, n));
     PetscFunctionReturn(0);
   }
 
-  template <typename StreamType>
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode setCanary(value_type *ptr, std::size_t n, StreamType)) {
+  template <typename U>
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode uninitialized_copy(value_type *dest, const value_type *src, size_type n, const device::StreamBase<U> *)) {
+    PetscFunctionBegin;
+    PetscCall(PetscArraycpy(dest, src, n));
+    PetscFunctionReturn(0);
+  }
+
+  template <typename U>
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode setCanary(value_type *ptr, size_type n, const device::StreamBase<U> *)) {
     using limit_type            = std::numeric_limits<real_value_type>;
     constexpr value_type canary = limit_type::has_signaling_NaN ? limit_type::signaling_NaN() : limit_type::max();
 
     PetscFunctionBegin;
-    for (std::size_t i = 0; i < n; ++i) ptr[i] = canary;
+    for (size_type i = 0; i < n; ++i) ptr[i] = canary;
     PetscFunctionReturn(0);
   }
 };
@@ -433,17 +480,18 @@ public:
 
   explicit SegmentedMemoryPool(AllocType alloc = AllocType{}, std::size_t size = DefaultChunkSize) noexcept(std::is_nothrow_default_constructible<pool_type>::value) : allocator_(std::move(alloc)), chunk_size_(size) { }
 
-  PETSC_NODISCARD PetscErrorCode get(PetscInt, MemType **, const stream_type *) noexcept;
-  PETSC_NODISCARD PetscErrorCode release(MemType **, const stream_type *) noexcept;
+  PETSC_NODISCARD PetscErrorCode allocate(PetscInt, value_type **, const stream_type *) noexcept;
+  PETSC_NODISCARD PetscErrorCode deallocate(value_type **, const stream_type *) noexcept;
+  PETSC_NODISCARD PetscErrorCode reallocate(PetscInt, value_type **, const stream_type *) noexcept;
 
 private:
   pool_type      pool_;
   allocator_type allocator_;
   size_type      chunk_size_;
 
-  PETSC_NODISCARD PetscErrorCode register_finalize_() noexcept {
+  PETSC_NODISCARD PetscErrorCode register_finalize_(const stream_type *stream) noexcept {
     PetscFunctionBegin;
-    PetscCall(make_block_());
+    PetscCall(make_block_(chunk_size_, stream));
     PetscFunctionReturn(0);
   }
 
@@ -454,24 +502,18 @@ private:
     PetscFunctionReturn(0);
   }
 
-  PETSC_NODISCARD PetscErrorCode make_block_(size_type size) noexcept {
+  PETSC_NODISCARD PetscErrorCode make_block_(size_type size, const stream_type *stream) noexcept {
     const auto block_size = std::max(size, chunk_size_);
 
     PetscFunctionBegin;
-    PetscCallCXX(pool_.emplace_back(allocator_, block_size));
+    PetscCallCXX(pool_.emplace_back(allocator_, block_size, stream));
     PetscCall(PetscInfo(nullptr, "Allocated new block of size %zu, total %zu blocks\n", block_size, pool_.size()));
-    PetscFunctionReturn(0);
-  }
-
-  PETSC_NODISCARD PetscErrorCode make_block_() noexcept {
-    PetscFunctionBegin;
-    PetscCall(make_block_(chunk_size_));
     PetscFunctionReturn(0);
   }
 };
 
 /*
-  SegmentedMemoryPool::get - get an allocation from the memory pool
+  SegmentedMemoryPool::allocate - get an allocation from the memory pool
 
   Input Parameters:
 + req_size - size (in elements) to get
@@ -485,7 +527,7 @@ private:
   req_size cannot be negative. If req_size if zero, ptr is set to nullptr
 */
 template <typename MemType, typename StreamType, typename AllocType, std::size_t DefaultChunkSize>
-inline PetscErrorCode SegmentedMemoryPool<MemType, StreamType, AllocType, DefaultChunkSize>::get(PetscInt req_size, MemType **ptr, const StreamType *stream) noexcept {
+inline PetscErrorCode SegmentedMemoryPool<MemType, StreamType, AllocType, DefaultChunkSize>::allocate(PetscInt req_size, value_type **ptr, const stream_type *stream) noexcept {
   NVTX_RANGE;
   const auto size  = static_cast<size_type>(req_size);
   auto       found = false;
@@ -496,23 +538,23 @@ inline PetscErrorCode SegmentedMemoryPool<MemType, StreamType, AllocType, Defaul
   PetscValidPointer(stream, 3);
   *ptr = nullptr;
   if (!req_size) PetscFunctionReturn(0);
-  PetscCall(this->register_finalize());
+  PetscCall(this->register_finalize(PETSC_COMM_SELF, stream));
   for (auto &block : pool_) {
-    PetscCall(block.try_get_chunk(size, ptr, stream, &found));
+    PetscCall(block.try_allocate_chunk(size, ptr, stream, &found));
     if (PetscLikely(found)) PetscFunctionReturn(0);
   }
 
   PetscCall(PetscInfo(nullptr, "Could not find an open block in the pool (%zu blocks) (requested size %zu), allocating new block\n", pool_.size(), size));
   // if we are here we couldn't find an open block in the pool, so make a new block
-  PetscCall(make_block_(size));
+  PetscCall(make_block_(size, stream));
   // and assign it
-  PetscCall(pool_.back().try_get_chunk(size, ptr, stream, &found));
+  PetscCall(pool_.back().try_allocate_chunk(size, ptr, stream, &found));
   PetscAssert(found, PETSC_COMM_SELF, PETSC_ERR_MEM, "Failed to get a suitable memory chunk (of size %zu) from newly allocated memory block (size %zu)", size, pool_.back().size());
   PetscFunctionReturn(0);
 }
 
 /*
-  SegmentedMemoryPool::release - release a pointer back to the memory pool
+  SegmentedMemoryPool::deallocate - release a pointer back to the memory pool
 
   Input Parameters:
 + ptr    - the pointer to release
@@ -522,7 +564,7 @@ inline PetscErrorCode SegmentedMemoryPool<MemType, StreamType, AllocType, Defaul
   If ptr is not owned by the pool it is unchanged.
 */
 template <typename MemType, typename StreamType, typename AllocType, std::size_t DefaultChunkSize>
-inline PetscErrorCode SegmentedMemoryPool<MemType, StreamType, AllocType, DefaultChunkSize>::release(MemType **ptr, const StreamType *stream) noexcept {
+inline PetscErrorCode SegmentedMemoryPool<MemType, StreamType, AllocType, DefaultChunkSize>::deallocate(value_type **ptr, const stream_type *stream) noexcept {
   NVTX_RANGE;
 
   PetscFunctionBegin;
@@ -533,8 +575,47 @@ inline PetscErrorCode SegmentedMemoryPool<MemType, StreamType, AllocType, Defaul
   for (auto &block : pool_) {
     auto found = false;
 
-    PetscCall(block.try_restore_chunk(ptr, stream, &found));
+    PetscCall(block.try_deallocate_chunk(ptr, stream, &found));
     if (PetscLikely(found)) break;
+  }
+  PetscFunctionReturn(0);
+}
+
+template <typename MemType, typename StreamType, typename AllocType, std::size_t DefaultChunkSize>
+inline PetscErrorCode SegmentedMemoryPool<MemType, StreamType, AllocType, DefaultChunkSize>::reallocate(PetscInt new_req_size, value_type **ptr, const stream_type *stream) noexcept {
+  using chunk_type = typename block_type::chunk_type;
+
+  const auto  new_size = static_cast<size_type>(new_req_size);
+  const auto  old_ptr  = *ptr;
+  chunk_type *chunk    = nullptr;
+
+  PetscFunctionBegin;
+  PetscAssert(new_req_size >= 0, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Requested memory amount (%" PetscInt_FMT ") must be >= 0", new_req_size);
+  PetscValidPointer(ptr, 2);
+  PetscValidPointer(stream, 3);
+
+  // if reallocating to zero, just free
+  if (PetscUnlikely(new_size == 0)) {
+    PetscCall(deallocate(ptr, stream));
+    PetscFunctionReturn(0);
+  }
+
+  // search the blocks for the owning chunk
+  for (auto &block : pool_) {
+    PetscCall(block.try_find_chunk(old_ptr, &chunk));
+    if (chunk) break; // found
+  }
+  PetscAssert(chunk, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Memory pool does not own %p, so cannot reallocate it", *ptr);
+
+  if (chunk->capacity() < new_size) {
+    // chunk does not have enough room, need to grab a fresh chunk and copy to it
+    *ptr = nullptr;
+    PetscCall(chunk->release(stream));
+    PetscCall(allocate(new_size, ptr, stream));
+    PetscCall(allocator_.uninitialized_copy(*ptr, old_ptr, new_size, stream));
+  } else {
+    // chunk had enough room we can simply grow (or shrink) to fit the new size
+    PetscCall(chunk->resize(new_size));
   }
   PetscFunctionReturn(0);
 }

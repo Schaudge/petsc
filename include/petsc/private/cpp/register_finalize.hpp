@@ -31,7 +31,8 @@ public:
   using derived_type = Derived;
 
   PETSC_NODISCARD PetscErrorCode finalize() noexcept;
-  PETSC_NODISCARD PetscErrorCode register_finalize(MPI_Comm comm = PETSC_COMM_SELF) noexcept;
+  template <typename... Args>
+  PETSC_NODISCARD PetscErrorCode register_finalize(MPI_Comm comm = PETSC_COMM_SELF, Args &&...) noexcept;
 
 private:
   RegisterFinalizeable() = default;
@@ -53,11 +54,12 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode RegisterFinalizeable<D>::finalize()) {
 }
 
 template <typename D>
-PETSC_CXX_COMPAT_DEFN(PetscErrorCode RegisterFinalizeable<D>::register_finalize(MPI_Comm comm)) {
+template <typename... Args>
+PETSC_CXX_COMPAT_DEFN(PetscErrorCode RegisterFinalizeable<D>::register_finalize(MPI_Comm comm, Args &&...args)) {
   PetscFunctionBegin;
   if (PetscLikely(registered_)) PetscFunctionReturn(0);
   registered_ = true;
-  PetscCall(static_cast<derived_type *>(this)->register_finalize_());
+  PetscCall(static_cast<derived_type *>(this)->register_finalize_(std::forward<Args>(args)...));
   PetscCall(PetscCxxObjectRegisterFinalize(this, comm));
   PetscFunctionReturn(0);
 }

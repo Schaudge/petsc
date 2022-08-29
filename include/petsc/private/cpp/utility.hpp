@@ -59,6 +59,9 @@ using make_index_sequence = make_integer_sequence<std::size_t, N>;
 template <class... T>
 using index_sequence_for = make_index_sequence<sizeof...(T)>;
 
+template <typename... T>
+struct deferred_false : std::false_type { };
+
 } // namespace util
 
 } // namespace Petsc

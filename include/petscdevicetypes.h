@@ -107,6 +107,7 @@ typedef enum {
 #define PetscOffloadUnallocated(m) ((m) == PETSC_OFFLOAD_UNALLOCATED)
 #define PetscOffloadHost(m)        (((m)&PETSC_OFFLOAD_CPU) == PETSC_OFFLOAD_CPU)
 #define PetscOffloadDevice(m)      (((m)&PETSC_OFFLOAD_GPU) == PETSC_OFFLOAD_GPU)
+#define PetscOffloadBoth(m)        ((m) != PETSC_OFFLOAD_UNALLOCATED)
 
 #if defined(__cplusplus)
 // Some overzealous older gcc versions warn that the comparisons below are always true. Neat

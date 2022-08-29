@@ -12,6 +12,43 @@ namespace host {
 
 namespace impl {
 
+struct HostAllocator : public Petsc::memory::stream_allocator {
+  using base_type  = memory::stream_allocator;
+  using size_type  = typename base_type::size_type;
+  using value_type = char;
+
+  PETSC_NODISCARD PetscErrorCode do_allocate(PetscDeviceContext, size_type bytes, void **ptr) noexcept final {
+    PetscFunctionBegin;
+    PetscCall(pool_().allocate(bytes, reinterpret_cast<value_type **>(ptr), &stream()));
+    PetscFunctionReturn(0);
+  }
+
+  PETSC_NODISCARD PetscErrorCode do_deallocate(PetscDeviceContext, void *ptr) noexcept final {
+    PetscFunctionBegin;
+    PetscCall(pool_().deallocate(reinterpret_cast<value_type **>(&ptr), &stream()));
+    PetscFunctionReturn(0);
+  }
+
+  PETSC_NODISCARD PetscErrorCode do_reallocate(PetscDeviceContext, size_type newbytes, void **ptr) noexcept final {
+    PetscFunctionBegin;
+    PetscCall(pool_().reallocate(newbytes, reinterpret_cast<value_type **>(ptr), &stream()));
+    PetscFunctionReturn(0);
+  }
+
+private:
+  using pool_type = memory::SegmentedMemoryPool<value_type, device::DefaultStream, memory::impl::SegmentedMemoryPoolAllocatorBase<value_type>, 256 * sizeof(PetscScalar)>;
+
+  PETSC_NODISCARD static pool_type &pool_() noexcept {
+    static pool_type pool;
+    return pool;
+  }
+
+  PETSC_NODISCARD static const DefaultStream &stream() noexcept {
+    static constexpr DefaultStream stream;
+    return stream;
+  }
+};
+
 class DeviceContext {
   template <typename PetscType, std::size_t ChunkSize = 256, typename PoolType = ::Petsc::memory::SegmentedMemoryPool<PetscType, device::DefaultStream, Petsc::memory::impl::SegmentedMemoryPoolAllocatorBase<PetscType>, ChunkSize>>
   PETSC_CXX_COMPAT_DECL(PoolType &managed_pool_()) {
@@ -43,25 +80,6 @@ public:
   template <typename PetscType, typename PetscManagedType>
   PETSC_CXX_COMPAT_DECL(PetscErrorCode applyOperatorType(PetscDeviceContext, PetscManagedType, PetscOperatorType, PetscMemType, const PetscType *, PetscManagedType));
 
-  struct HostAllocator : public Petsc::memory::stream_allocator {
-    PETSC_NODISCARD PetscErrorCode do_allocate(PetscDeviceContext, std::size_t bytes, void **ptr) noexcept final {
-      static constexpr DefaultStream stream;
-
-      PetscFunctionBegin;
-      PetscCall(managed_pool_<char, 256 * sizeof(PetscScalar)>().get(bytes, reinterpret_cast<char **>(ptr), &stream));
-      PetscFunctionReturn(0);
-    }
-
-    PETSC_NODISCARD PetscErrorCode do_deallocate(PetscDeviceContext, void *ptr) noexcept final {
-      static constexpr DefaultStream stream;
-      auto                           cptr = static_cast<char *>(ptr);
-
-      PetscFunctionBegin;
-      PetscCall(managed_pool_<char, 256 * sizeof(PetscScalar)>().release(&cptr, &stream));
-      PetscFunctionReturn(0);
-    }
-  };
-
   PETSC_CXX_COMPAT_DECL(PetscErrorCode getAllocator(PetscDeviceContext dctx, PetscMemType mtype, PetscDeviceContextStreamAllocator *alloc)) {
     PetscFunctionBegin;
     if (PetscMemTypeHost(mtype)) {
@@ -80,7 +98,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext::destroyManagedType(PetscDevi
   static constexpr DefaultStream stream;
 
   PetscFunctionBegin;
-  PetscCall(managed_pool_<PetscType>().release(&scal->host, &stream));
+  PetscCall(managed_pool_<PetscType>().deallocate(&scal->host, &stream));
   PetscFunctionReturn(0);
 }
 
@@ -102,7 +120,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext::getManagedTypeValues(PetscDe
   if (!sptr) {
     static constexpr DefaultStream stream;
 
-    PetscCall(managed_pool_<PetscType>().get(scal->n, &sptr, &stream));
+    PetscCall(managed_pool_<PetscType>().allocate(scal->n, &sptr, &stream));
   }
   *ptr = sptr;
   mask = PETSC_OFFLOAD_CPU; // a host managed scalar is always offloaded on host

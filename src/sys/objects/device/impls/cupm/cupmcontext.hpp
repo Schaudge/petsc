@@ -496,7 +496,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::destroyManagedType(PetscD
   PetscFunctionBegin;
   PetscCall(check_current_device_(dctx));
   // try returning them to the pool
-  PetscCall(managed_pool_<HostAllocator<T, PetscType>>().release(&host_ptr, &stream));
+  PetscCall(managed_pool_<HostAllocator<T, PetscType>>().deallocate(&host_ptr, &stream));
   // not freed, indicating the pool doesn't own it, now check if it is our responsibility to
   // get rid of it
   if (host_ptr && (scal->h_cmode == PETSC_OWN_POINTER)) {
@@ -513,7 +513,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::destroyManagedType(PetscD
       PetscCall(PetscFree(host_ptr));
     }
   }
-  PetscCall(managed_pool_<DeviceAllocator<T, PetscType>>().release(&device_ptr, &stream));
+  PetscCall(managed_pool_<DeviceAllocator<T, PetscType>>().deallocate(&device_ptr, &stream));
   // same deal with device pointer
   if (device_ptr && (scal->d_cmode == PETSC_OWN_POINTER)) { PetscCallCUPM(cupmFreeAsync(device_ptr, stream.get_stream())); }
   PetscFunctionReturn(0);
@@ -533,7 +533,7 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::copy_managed_values_(Pets
   PetscAssert(requested_mask != PETSC_OFFLOAD_BOTH, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Cannot have %s!", PetscOffloadMasks(requested_mask));
   if (PetscUnlikely(!dest)) {
     // no pointer? get one first
-    PetscCall(managed_pool_<Allocator<T, PetscType>>().get(n, &dest, &stream));
+    PetscCall(managed_pool_<Allocator<T, PetscType>>().allocate(n, &dest, &stream));
     if (mask == PETSC_OFFLOAD_UNALLOCATED) {
       PetscAssert(!src, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Offload mask is PETSC_OFFLOAD_UNALLOCATED but have src pointer %p!", src);
       mask = requested_mask;
