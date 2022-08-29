@@ -145,6 +145,7 @@ typedef struct {
   char        *name;       /* The name of this event */
   PetscClassId classid;    /* The class the event is associated with */
   PetscBool    collective; /* Flag this event as collective */
+  void        *timer;      /* Associated external tool timer for this event */
 #if defined(PETSC_HAVE_MPE)
   int mpe_id_begin; /* MPE IDs that define the event */
   int mpe_id_end;
@@ -204,6 +205,7 @@ typedef struct _PetscStageInfo {
   PetscEventPerfInfo perfInfo; /* The stage performance information */
   PetscEventPerfLog  eventLog; /* The event information for this stage */
   PetscClassPerfLog  classLog; /* The class information for this stage */
+  void              *timer;    /* Associated external tool timer for this stage */
 } PetscStageInfo;
 
 typedef struct _n_PetscStageLog *PetscStageLog;
