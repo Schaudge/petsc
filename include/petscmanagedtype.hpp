@@ -879,7 +879,7 @@ public:
 
   PETSC_NODISCARD auto at(size_type idx) const noexcept { return underlying().at_impl_(idx); }
 
-  PETSC_NODISCARD PetscErrorCode prefetch(PetscDeviceContext dctx) noexcept
+  PETSC_NODISCARD PetscErrorCode prefetch(PetscDeviceContext dctx) const noexcept
   {
     PetscFunctionBegin;
     PetscCall(underlying().prefetch_impl_(dctx););
@@ -900,8 +900,8 @@ public:
   using base_type::size;
   using typename base_type::size_type;
 
-  constexpr explicit BinaryManagedExpression(L&& lxpr, R&& rxpr, F &&callable = F()) noexcept
-    : lhs_(std::forward<L>(lxpr)), rhs_(std::forward<R>(rxpr)), op_(std::forward<F>(callable))
+  constexpr explicit BinaryManagedExpression(const L& lxpr, const R& rxpr, F&&callable = F()) noexcept
+    : lhs_(lxpr), rhs_(rxpr), op_(std::forward<F>(callable))
   {
     PetscAssertAbort(lhs_.size() == rhs_.size(), PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Left and right operand size mismatch, %zu != %zu", static_cast<std::size_t>(lhs_.size()), static_cast<std::size_t>(rhs_.size()));
   }
@@ -928,33 +928,69 @@ public:
   }
 
 private:
-  L lhs_;
-  R rhs_;
+  const L &lhs_;
+  const R &rhs_;
   F op_;
 };
 
 template <typename T>
-struct EvaluatedManagedExpression : ExpressionBase<T>
+class EvaluatedManagedExpression
 {
+public:
   template <typename U>
-  constexpr EvaluatedManagedExpression(U&& expr, PetscDeviceContext ctx) noexcept
-    : ExpressionBase<T>(std::forward<U>(expr)), dctx(ctx)
-  { }
+  EvaluatedManagedExpression(U&& expr, PetscDeviceContext ctx) noexcept
+    : expr_(std::forward<U>(expr)), dctx_(ctx)
+  {
+    PetscFunctionBegin;
+    PetscCallAbort(PETSC_COMM_SELF, prefetch());
+    PetscFunctionReturnVoid();
+  }
 
-  PetscDeviceContext dctx;
+  PETSC_NODISCARD auto dctx()           const noexcept { return dctx_; }
+
+  PETSC_NODISCARD auto size()           const noexcept { return expr_.size();           }
+  PETSC_NODISCARD auto at(PetscInt idx) const noexcept { return expr_.at(idx);          }
+  PETSC_NODISCARD auto prefetch()       const noexcept { return expr_.prefetch(dctx()); }
+
+private:
+  const ExpressionBase<T> &expr_;
+  PetscDeviceContext       dctx_;
 };
 
 template <typename T>
 PETSC_NODISCARD static inline EvaluatedManagedExpression<util::remove_reference_t<T>> eval(PetscDeviceContext dctx, T&& expr) noexcept
 {
-  PetscCallAbort(PETSC_COMM_SELF, expr.prefetch(dctx));
   return {std::forward<T>(expr), dctx};
+}
+
+template <typename F, typename L, typename R>
+static inline auto make_binary_expr(L&& lhs, R&& rhs, F&& fn = F{}) noexcept
+{
+  return BinaryManagedExpression<util::remove_reference_t<L>,util::remove_reference_t<R>, util::remove_reference_t<F>>(std::forward<L>(lhs), std::forward<R>(rhs), std::forward<F>(fn));
 }
 
 template <typename L, typename R>
 static inline auto operator*(L&& lhs, R&& rhs) noexcept
 {
-  return BinaryManagedExpression<L,R,std::multiplies<>>(std::forward<L>(lhs),std::forward<R>(rhs));
+  return make_binary_expr<std::multiplies<>>(std::forward<L>(lhs),std::forward<R>(rhs));
+}
+
+template <typename L, typename R>
+static inline auto operator+(L&& lhs, R&& rhs) noexcept
+{
+  return make_binary_expr<std::plus<>>(std::forward<L>(lhs),std::forward<R>(rhs));
+}
+
+template <typename L, typename R>
+static inline auto operator-(L&& lhs, R&& rhs) noexcept
+{
+  return make_binary_expr<std::minus<>>(std::forward<L>(lhs),std::forward<R>(rhs));
+}
+
+template <typename L, typename R>
+static inline auto operator/(L&& lhs, R&& rhs) noexcept
+{
+  return make_binary_expr<std::divides<>>(std::forward<L>(lhs),std::forward<R>(rhs));
 }
 
 } // namespace expr
@@ -978,17 +1014,22 @@ public:
       host_(construct_storage_(h_cmode,dctx,PETSC_MEMTYPE_HOST,host_ptr,host_ptr+n)),
       device_(construct_storage_(d_cmode,dctx,PETSC_MEMTYPE_DEVICE,device_ptr,device_ptr+n)),
       mask_(*this,init_mask_(host_ptr,device_ptr,mask)), pure_(*this,true)
-  { }
+  {
+    std::cout << "=== full constructor\n";
+  }
 
   explicit ManagedType(PetscDeviceContext dctx, size_type n) noexcept
     : ManagedType(dctx, nullptr, nullptr, n, PETSC_OWN_POINTER, PETSC_OWN_POINTER, PETSC_OFFLOAD_UNALLOCATED)
-  { }
+  {
+    std::cout<< "=== size constructor\n";
+  }
 
-  explicit ManagedType() noexcept : ManagedType(nullptr, 0) { }
+  explicit ManagedType() noexcept : ManagedType(nullptr, 0) { std::cout << "=== default constructor\n"; }
 
   ~ManagedType() noexcept
   {
     PetscFunctionBegin;
+    std::cout << "=== destructor\n";
     PetscCallAbort(PETSC_COMM_SELF,this->clear());
     PetscFunctionReturnVoid();
   }
@@ -1000,19 +1041,26 @@ public:
       mask_(*this, std::exchange(other.mask_, PETSC_OFFLOAD_UNALLOCATED)),
       pure_(*this, std::exchange(other.pure_, true)),
       parent_(std::exchange(other.parent_,nullptr))
-  { }
+  {
+    std::cout << "=== move constructor\n";
+  }
 
   template <typename U>
-  ManagedType& operator=(const expr::EvaluatedManagedExpression<U> &expr) noexcept
+  ManagedType(const expr::EvaluatedManagedExpression<U> &expr) noexcept
+    : ManagedType(expr.dctx(), expr.size())
   {
-    using size_type = typename util::remove_reference_t<decltype(expr)>::size_type;
+    using size_type = util::remove_cvref_t<decltype(expr.size())>;
     value_type *arr;
 
     PetscFunctionBegin;
-    PetscCallAbort(PETSC_COMM_SELF, get_array(expr.dctx, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_WRITE, PETSC_TRUE, &arr));
+    std::cout<< "=== eval constructor\n";
+    PetscCallAbort(PETSC_COMM_SELF, get_array(expr.dctx(), PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_WRITE, PETSC_TRUE, &arr));
     for (size_type i = 0; i < expr.size(); ++i) arr[i] = expr.at(i);
     PetscFunctionReturnVoid();
   }
+
+  ManagedType(const ManagedType&) = delete;
+  ManagedType& operator=(const ManagedType&) = delete;
 
   // ==================================================================================== //
 
@@ -1041,6 +1089,8 @@ private:
     { }
 
     constexpr operator value_type() const noexcept { return value_; }
+
+    constexpr inner_type() noexcept = delete;
 
   protected:
     ManagedType &outer_;
@@ -1142,12 +1192,13 @@ private:
     return host_.data()[idx];
   }
 
-  PETSC_NODISCARD PetscErrorCode prefetch_impl_(PetscDeviceContext dctx) noexcept
+  PETSC_NODISCARD PetscErrorCode prefetch_impl_(PetscDeviceContext dctx) const noexcept
   {
     value_type *unused;
 
     PetscFunctionBegin;
-    PetscCall(get_array(dctx, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &unused));
+    std::cout<< id() << " prefetching\n";
+    PetscCall(const_cast<ManagedType*>(this)->get_array(dctx, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_READ, PETSC_FALSE, &unused));
     PetscFunctionReturn(0);
   }
 };
@@ -1156,6 +1207,7 @@ template <typename T>
 template <typename U>
 inline ManagedType<T>& ManagedType<T>::operator=(ManagedType<U>&& other) noexcept
 {
+  std::cout << "=== move assignment\n";
   PetscFunctionBegin;
   if (this != &other) {
     PetscCall(this->clear());
@@ -1221,7 +1273,7 @@ inline PetscErrorCode ManagedType<T>::get_array(PetscDeviceContext dctx, PetscMe
   *ptr = nullptr;
   if (!size()) PetscFunctionReturn(0);
   // we will actually touch the values so mark them now
-  PetscCall(PetscDeviceContextMarkIntentFromID(dctx, oid, mode, nullptr));
+  PetscCall(PetscDeviceContextMarkIntentFromID(dctx, oid, mode, "managed type"));
 
   // retrieve the pointer
   switch (mtype) {
@@ -1238,8 +1290,6 @@ inline PetscErrorCode ManagedType<T>::get_array(PetscDeviceContext dctx, PetscMe
 
   // if user intends to write to device in any capacity then we are impure
   if (PetscMemTypeDevice(mtype) && PetscMemoryAccessWrite(mode)) pure_ = false;
-  // also sets the parents mask if needed
-  mask_ = offload_mask();
   // REVIEW ME:
   // if we are pure, there is no need to synchronize (I think)
   if (sync && impure()) {
@@ -1247,6 +1297,7 @@ inline PetscErrorCode ManagedType<T>::get_array(PetscDeviceContext dctx, PetscMe
     if (PetscMemTypeHost(mtype)) pure_ = true;
   }
   PetscAssert(*ptr, PetscObjectComm(PetscObjectCast(dctx)), PETSC_ERR_PLIB, "ManagedType (id %" PetscInt64_FMT ") Returned null pointer for mtype %s", oid, PetscMemTypes(mtype));
+  std::cout << "PetscOffloadMask: "<< PetscOffloadMasks(offload_mask()) << std::endl;
   PetscFunctionReturn(0);
 }
 
@@ -1256,7 +1307,8 @@ inline PetscErrorCode ManagedType<T>::reserve(size_type n, PetscDeviceContext dc
   PetscFunctionBegin;
   if (size() >= n) PetscFunctionReturn(0);
   size_ = n;
-  PetscCall(host_.reserve(dctx,n));
+  PetscCall(host_.reserve(dctx,size()));
+  PetscCall(device_.reserve(dctx,size()));
   PetscFunctionReturn(0);
 }
 
