@@ -14,6 +14,7 @@ const char *const  MPChacoEigenTypes[]         = {"LANCZOS", "RQI", "MPChacoEige
 extern PetscErrorCode MatMFFDInitializePackage(void);
 extern PetscErrorCode MatSolverTypeDestroy(void);
 static PetscBool      MatPackageInitialized = PETSC_FALSE;
+
 /*@C
   MatFinalizePackage - This function destroys everything in the Petsc interface to the `Mat` package. It is
   called from `PetscFinalize()`.
@@ -22,7 +23,8 @@ static PetscBool      MatPackageInitialized = PETSC_FALSE;
 
 .seealso: `Mat`, `PetscFinalize()`, `MatInitializePackage()`
 @*/
-PetscErrorCode        MatFinalizePackage(void) {
+PetscErrorCode MatFinalizePackage(void)
+{
   MatRootName nnames, names = MatRootNameList;
 
   PetscFunctionBegin;
@@ -124,7 +126,8 @@ PETSC_INTERN PetscErrorCode MatGetFactor_seqaij_bas(Mat, MatFactorType, Mat *);
 
 .seealso: `Mat`, `PetscInitialize()`, `MatFinalizePackage()`
 @*/
-PetscErrorCode MatInitializePackage(void) {
+PetscErrorCode MatInitializePackage(void)
+{
   char      logList[256];
   PetscBool opt, pkg;
 
@@ -422,7 +425,8 @@ PetscErrorCode MatInitializePackage(void) {
   This one registers all the matrix methods that are in the basic PETSc Matrix library.
 
  */
-PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petscmat(void) {
+PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petscmat(void)
+{
   PetscFunctionBegin;
   PetscCall(MatInitializePackage());
   PetscFunctionReturn(0);

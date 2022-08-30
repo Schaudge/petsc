@@ -46,7 +46,8 @@ PetscBool        petscindebugger     = PETSC_FALSE;
 
 .seealso: `PetscSetDebugger()`
 @*/
-PetscErrorCode PetscSetDebugTerminal(const char terminal[]) {
+PetscErrorCode PetscSetDebugTerminal(const char terminal[])
+{
   PetscBool xterm;
 
   PetscFunctionBegin;
@@ -78,7 +79,8 @@ PetscErrorCode PetscSetDebugTerminal(const char terminal[]) {
 
 .seealso: `PetscAttachDebugger()`, `PetscAttachDebuggerErrorHandler()`, `PetscSetDebugTerminal()`
 @*/
-PetscErrorCode PetscSetDebugger(const char debugger[], PetscBool usedebugterminal) {
+PetscErrorCode PetscSetDebugger(const char debugger[], PetscBool usedebugterminal)
+{
   PetscFunctionBegin;
   if (debugger) PetscCall(PetscStrncpy(PetscDebugger, debugger, sizeof(PetscDebugger)));
   if (UseDebugTerminal) UseDebugTerminal = usedebugterminal;
@@ -94,7 +96,8 @@ PetscErrorCode PetscSetDebugger(const char debugger[], PetscBool usedebugtermina
 
 .seealso: `PetscSetDebugger()`, `PetscSetDebuggerFromString()`
 @*/
-PetscErrorCode PetscSetDefaultDebugger(void) {
+PetscErrorCode PetscSetDefaultDebugger(void)
+{
   PetscFunctionBegin;
 #if defined(PETSC_USE_DEBUGGER)
   PetscCall(PetscSetDebugger(PETSC_USE_DEBUGGER, PETSC_TRUE));
@@ -107,7 +110,8 @@ PetscErrorCode PetscSetDefaultDebugger(void) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscCheckDebugger_Private(const char defaultDbg[], const char string[], const char *debugger[]) {
+static PetscErrorCode PetscCheckDebugger_Private(const char defaultDbg[], const char string[], const char *debugger[])
+{
   PetscBool exists;
   char     *f;
 
@@ -131,7 +135,8 @@ static PetscErrorCode PetscCheckDebugger_Private(const char defaultDbg[], const 
 
 .seealso: `PetscSetDebugger()`, `PetscSetDefaultDebugger()`
 @*/
-PetscErrorCode PetscSetDebuggerFromString(const char *string) {
+PetscErrorCode PetscSetDebuggerFromString(const char *string)
+{
   const char *debugger    = NULL;
   PetscBool   useterminal = PETSC_TRUE;
   char       *f;
@@ -175,7 +180,8 @@ PetscErrorCode PetscSetDebuggerFromString(const char *string) {
 
 .seealso: `PetscSetDebugger()`, `PetscAttachDebugger()`
 @*/
-PetscErrorCode PetscWaitOnError() {
+PetscErrorCode PetscWaitOnError()
+{
   petscwaitonerrorflg = PETSC_TRUE;
   return 0;
 }
@@ -196,7 +202,8 @@ PetscErrorCode PetscWaitOnError() {
 
 .seealso: `PetscSetDebugger()`, `PetscSetDefaultDebugger()`, `PetscSetDebugTerminal()`, `PetscAttachDebuggerErrorHandler()`, `PetscStopForDebugger()`
 @*/
-PetscErrorCode PetscAttachDebugger(void) {
+PetscErrorCode PetscAttachDebugger(void)
+{
 #if !defined(PETSC_CANNOT_START_DEBUGGER) && defined(PETSC_HAVE_FORK)
   int       child     = 0;
   PetscReal sleeptime = 0;
@@ -487,7 +494,8 @@ $    PetscAbortErrorHandler()
 .seealso: `PetscSetDebuggerFromString()`, `PetscSetDebugger()`, `PetscSetDefaultDebugger()`, `PetscError()`, `PetscPushErrorHandler()`, `PetscPopErrorHandler()`, `PetscTraceBackErrorHandler()`,
           `PetscAbortErrorHandler()`, `PetscMPIAbortErrorHandler()`, `PetscEmacsClientErrorHandler()`, `PetscReturnErrorHandler()`, `PetscSetDebugTermainal()`
 @*/
-PetscErrorCode PetscAttachDebuggerErrorHandler(MPI_Comm comm, int line, const char *fun, const char *file, PetscErrorCode num, PetscErrorType p, const char *mess, void *ctx) {
+PetscErrorCode PetscAttachDebuggerErrorHandler(MPI_Comm comm, int line, const char *fun, const char *file, PetscErrorCode num, PetscErrorType p, const char *mess, void *ctx)
+{
   if (!mess) mess = " ";
 
   if (fun) (*PetscErrorPrintf)("%s() at %s:%d %s\n", fun, file, line, mess);
@@ -518,7 +526,8 @@ PetscErrorCode PetscAttachDebuggerErrorHandler(MPI_Comm comm, int line, const ch
 
 .seealso: `PetscSetDebugger()`, `PetscAttachDebugger()`
 @*/
-PetscErrorCode PetscStopForDebugger(void) {
+PetscErrorCode PetscStopForDebugger(void)
+{
   PetscErrorCode ierr;
   PetscInt       sleeptime = 0;
 #if !defined(PETSC_CANNOT_START_DEBUGGER)

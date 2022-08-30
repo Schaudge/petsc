@@ -21,7 +21,8 @@ PETSC_EXTERN PetscErrorCode PetscViewerHDF5OpenGroup(PetscViewer, hid_t *, hid_t
   /* As per https://portal.hdfgroup.org/display/HDF5/Chunking+in+HDF5, max. chunk size is 4GB */
   #define PETSC_HDF5_MAX_CHUNKSIZE 2147483647
 
-static inline PetscErrorCode PetscViewerHDF5PathIsRelative(const char path[], PetscBool emptyIsRelative, PetscBool *has) {
+static inline PetscErrorCode PetscViewerHDF5PathIsRelative(const char path[], PetscBool emptyIsRelative, PetscBool *has)
+{
   size_t len;
 
   PetscFunctionBegin;
@@ -31,7 +32,8 @@ static inline PetscErrorCode PetscViewerHDF5PathIsRelative(const char path[], Pe
   PetscFunctionReturn(0);
 }
 
-static inline PetscErrorCode PetscHDF5IntCast(PetscInt a, hsize_t *b) {
+static inline PetscErrorCode PetscHDF5IntCast(PetscInt a, hsize_t *b)
+{
   PetscFunctionBegin;
   PetscCheck(a >= 0, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Cannot convert negative size");
   #if defined(PETSC_USE_64BIT_INDICES) && (H5_SIZEOF_HSIZE_T == 4)

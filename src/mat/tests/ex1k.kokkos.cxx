@@ -43,7 +43,8 @@ Examples:
   #define SyncDevice()
 #endif
 
-int main(int argc, char **args) {
+int main(int argc, char **args)
+{
   Mat            A, A2;
   Vec            x, y, x2, y2;
   PetscViewer    fd;

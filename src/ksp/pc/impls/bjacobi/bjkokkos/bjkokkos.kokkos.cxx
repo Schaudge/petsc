@@ -49,17 +49,17 @@ typedef struct {
   PetscInt                                         *dm_Nf;            // Number of fields in each DM
   PetscInt                                          num_dms;
   // diagnostics
-  PetscBool                                         reason;
-  PetscBool                                         monitor;
-  PetscInt                                          batch_target;
-  PetscInt                                          nsolves_team;
-  PetscInt                                          max_nits;
+  PetscBool reason;
+  PetscBool monitor;
+  PetscInt  batch_target;
+  PetscInt  nsolves_team;
+  PetscInt  max_nits;
   // caches
-  IntView                                          *rowOffsets;
-  IntView                                          *colIndices;
-  XYType                                           *batch_b;
-  XYType                                           *batch_x;
-  AMatrixValueView                                 *batch_values;
+  IntView          *rowOffsets;
+  IntView          *colIndices;
+  XYType           *batch_b;
+  XYType           *batch_x;
+  AMatrixValueView *batch_values;
 } PC_PCBJKOKKOS;
 
 #if defined(PETSC_HAVE_KOKKOS_KERNELS_GMRES)
@@ -120,14 +120,19 @@ struct Functor_TestBatchedTeamVectorGMRES {
 
   KOKKOS_INLINE_FUNCTION
   Functor_TestBatchedTeamVectorGMRES(const ValuesViewType &D, const IntView &r, const IntView &c, const VectorViewType &X, const VectorViewType &B, const int N_team, const int team_size, const int vector_length, const int N_iteration, const double tol, const int ortho_strategy, const int scratch_pad_level, KrylovHandleType &handle) :
-    _D(D), _r(r), _c(c), _X(X), _B(B), _N_team(N_team), _team_size(team_size), _vector_length(vector_length), _N_iteration(N_iteration), _tol(tol), _ortho_strategy(ortho_strategy), _scratch_pad_level(scratch_pad_level), _handle(handle) { }
+    _D(D), _r(r), _c(c), _X(X), _B(B), _N_team(N_team), _team_size(team_size), _vector_length(vector_length), _N_iteration(N_iteration), _tol(tol), _ortho_strategy(ortho_strategy), _scratch_pad_level(scratch_pad_level), _handle(handle)
+  {
+  }
 
   KOKKOS_INLINE_FUNCTION
   Functor_TestBatchedTeamVectorGMRES(const ValuesViewType &D, const ValuesViewType &diag, const IntView &r, const IntView &c, const VectorViewType &X, const VectorViewType &B, const int N_team, const int team_size, const int vector_length, const int N_iteration, const double tol, int ortho_strategy, const int scratch_pad_level, KrylovHandleType &handle) :
-    _D(D), _diag(diag), _r(r), _c(c), _X(X), _B(B), _N_team(N_team), _team_size(team_size), _vector_length(vector_length), _N_iteration(N_iteration), _tol(tol), _ortho_strategy(ortho_strategy), _scratch_pad_level(scratch_pad_level), _handle(handle) { }
+    _D(D), _diag(diag), _r(r), _c(c), _X(X), _B(B), _N_team(N_team), _team_size(team_size), _vector_length(vector_length), _N_iteration(N_iteration), _tol(tol), _ortho_strategy(ortho_strategy), _scratch_pad_level(scratch_pad_level), _handle(handle)
+  {
+  }
 
   template <typename MemberType>
-  KOKKOS_INLINE_FUNCTION void operator()(const MemberType &member) const {
+  KOKKOS_INLINE_FUNCTION void operator()(const MemberType &member) const
+  {
     const int first_matrix = static_cast<int>(member.league_rank()) * _N_team;
     const int N            = _D.extent(0);
     const int last_matrix  = (static_cast<int>(member.league_rank() + 1) * _N_team < N ? static_cast<int>(member.league_rank() + 1) * _N_team : N);
@@ -157,7 +162,8 @@ struct Functor_TestBatchedTeamVectorGMRES {
 
     KokkosBatched::TeamVectorGMRES<MemberType>::template invoke<Operator, VectorViewType, PrecOperator, KrylovHandleType>(member, A, b, x, P, _handle);
   }
-  inline double run(PC pc) {
+  inline double run(PC pc)
+  {
     typedef typename ValuesViewType::value_type value_type;
     std::string                                 name("KokkosBatched::Test::TeamVectorGMRES");
     Kokkos::Timer                               timer;
@@ -214,7 +220,8 @@ struct Functor_TestBatchedTeamVectorGMRES {
 
 typedef Kokkos::TeamPolicy<>::member_type team_member;
 
-static PetscErrorCode PCBJKOKKOSCreateKSP_BJKOKKOS(PC pc) {
+static PetscErrorCode PCBJKOKKOSCreateKSP_BJKOKKOS(PC pc)
+{
   const char    *prefix;
   PC_PCBJKOKKOS *jac = (PC_PCBJKOKKOS *)pc->data;
   DM             dm;
@@ -240,7 +247,8 @@ static PetscErrorCode PCBJKOKKOSCreateKSP_BJKOKKOS(PC pc) {
 }
 
 // y <-- Ax
-KOKKOS_INLINE_FUNCTION PetscErrorCode MatMult(const team_member team, const PetscInt *glb_Aai, const PetscInt *glb_Aaj, const PetscScalar *glb_Aaa, const PetscInt *r, const PetscInt *ic, const PetscInt start, const PetscInt end, const PetscScalar *x_loc, PetscScalar *y_loc) {
+KOKKOS_INLINE_FUNCTION PetscErrorCode MatMult(const team_member team, const PetscInt *glb_Aai, const PetscInt *glb_Aaj, const PetscScalar *glb_Aaa, const PetscInt *r, const PetscInt *ic, const PetscInt start, const PetscInt end, const PetscScalar *x_loc, PetscScalar *y_loc)
+{
   Kokkos::parallel_for(Kokkos::TeamThreadRange(team, start, end), [=](const int rowb) {
     int                rowa = ic[rowb];
     int                n    = glb_Aai[rowa + 1] - glb_Aai[rowa];
@@ -256,7 +264,8 @@ KOKKOS_INLINE_FUNCTION PetscErrorCode MatMult(const team_member team, const Pets
 }
 
 // temp buffer per thread with reduction at end?
-KOKKOS_INLINE_FUNCTION PetscErrorCode MatMultTranspose(const team_member team, const PetscInt *glb_Aai, const PetscInt *glb_Aaj, const PetscScalar *glb_Aaa, const PetscInt *r, const PetscInt *ic, const PetscInt start, const PetscInt end, const PetscScalar *x_loc, PetscScalar *y_loc) {
+KOKKOS_INLINE_FUNCTION PetscErrorCode MatMultTranspose(const team_member team, const PetscInt *glb_Aai, const PetscInt *glb_Aaj, const PetscScalar *glb_Aaa, const PetscInt *r, const PetscInt *ic, const PetscInt start, const PetscInt end, const PetscScalar *x_loc, PetscScalar *y_loc)
+{
   Kokkos::parallel_for(Kokkos::TeamVectorRange(team, end - start), [=](int i) { y_loc[i] = 0; });
   team.team_barrier();
   Kokkos::parallel_for(Kokkos::TeamThreadRange(team, start, end), [=](const int rowb) {
@@ -281,7 +290,8 @@ typedef struct Batch_MetaData_TAG {
 } Batch_MetaData;
 
 // Solve A(BB^-1)x = y with TFQMR. Right preconditioned to get un-preconditioned residual
-KOKKOS_INLINE_FUNCTION PetscErrorCode BJSolve_TFQMR(const team_member team, const PetscInt *glb_Aai, const PetscInt *glb_Aaj, const PetscScalar *glb_Aaa, const PetscInt *r, const PetscInt *ic, PetscScalar *work_space_global, const int stride_global, const int nShareVec, PetscScalar *work_space_shared, const int stride_shared, PetscReal rtol, PetscReal atol, PetscReal dtol, PetscInt maxit, Batch_MetaData *metad, const PetscInt start, const PetscInt end, const PetscScalar glb_idiag[], const PetscScalar *glb_b, PetscScalar *glb_x, bool monitor) {
+KOKKOS_INLINE_FUNCTION PetscErrorCode BJSolve_TFQMR(const team_member team, const PetscInt *glb_Aai, const PetscInt *glb_Aaj, const PetscScalar *glb_Aaa, const PetscInt *r, const PetscInt *ic, PetscScalar *work_space_global, const int stride_global, const int nShareVec, PetscScalar *work_space_shared, const int stride_shared, PetscReal rtol, PetscReal atol, PetscReal dtol, PetscInt maxit, Batch_MetaData *metad, const PetscInt start, const PetscInt end, const PetscScalar glb_idiag[], const PetscScalar *glb_b, PetscScalar *glb_x, bool monitor)
+{
   using Kokkos::parallel_for;
   using Kokkos::parallel_reduce;
   int                Nblk = end - start, i, m, stride = stride_shared, idx = 0;
@@ -516,7 +526,8 @@ done:
 }
 
 // Solve Ax = y with biCG
-KOKKOS_INLINE_FUNCTION PetscErrorCode BJSolve_BICG(const team_member team, const PetscInt *glb_Aai, const PetscInt *glb_Aaj, const PetscScalar *glb_Aaa, const PetscInt *r, const PetscInt *ic, PetscScalar *work_space_global, const int stride_global, const int nShareVec, PetscScalar *work_space_shared, const int stride_shared, PetscReal rtol, PetscReal atol, PetscReal dtol, PetscInt maxit, Batch_MetaData *metad, const PetscInt start, const PetscInt end, const PetscScalar glb_idiag[], const PetscScalar *glb_b, PetscScalar *glb_x, bool monitor) {
+KOKKOS_INLINE_FUNCTION PetscErrorCode BJSolve_BICG(const team_member team, const PetscInt *glb_Aai, const PetscInt *glb_Aaj, const PetscScalar *glb_Aaa, const PetscInt *r, const PetscInt *ic, PetscScalar *work_space_global, const int stride_global, const int nShareVec, PetscScalar *work_space_shared, const int stride_shared, PetscReal rtol, PetscReal atol, PetscReal dtol, PetscInt maxit, Batch_MetaData *metad, const PetscInt start, const PetscInt end, const PetscScalar glb_idiag[], const PetscScalar *glb_b, PetscScalar *glb_x, bool monitor)
+{
   using Kokkos::parallel_for;
   using Kokkos::parallel_reduce;
   int                Nblk = end - start, i, stride = stride_shared, idx = 0; // start in shared mem
@@ -569,7 +580,7 @@ KOKKOS_INLINE_FUNCTION PetscErrorCode BJSolve_BICG(const team_member team, const
 
   /*     r <- b (x is 0) */
   parallel_for(Kokkos::TeamVectorRange(team, start, end), [=](int rowb) {
-    int rowa         = ic[rowb];
+    int rowa = ic[rowb];
     //PetscCall(VecCopy(Rr,Rl));
     Rl[rowb - start] = Rr[rowb - start] = glb_b[rowa];
     XX[rowb - start]                    = 0;
@@ -619,7 +630,7 @@ KOKKOS_INLINE_FUNCTION PetscErrorCode BJSolve_BICG(const team_member team, const
         Pl[idx] = Zl[idx];
       });
     } else {
-      b  = beta / betaold;
+      b = beta / betaold;
       /*     p <- z + b* p   */
       b2 = PetscConj(b);
       parallel_for(Kokkos::TeamVectorRange(team, Nblk), [=](int idx) {
@@ -707,7 +718,8 @@ done:
 }
 
 // KSP solver solve Ax = b; x is output, bin is input
-static PetscErrorCode PCApply_BJKOKKOS(PC pc, Vec bin, Vec xout) {
+static PetscErrorCode PCApply_BJKOKKOS(PC pc, Vec bin, Vec xout)
+{
   PC_PCBJKOKKOS    *jac = (PC_PCBJKOKKOS *)pc->data;
   Mat               A   = pc->pmat;
   Mat_SeqAIJKokkos *aijkok;
@@ -941,7 +953,7 @@ static PetscErrorCode PCApply_BJKOKKOS(PC pc, Vec bin, Vec xout) {
       using vect2D_scr_t = Kokkos::View<PetscScalar **, Kokkos::LayoutLeft, scr_mem_t>;
       Kokkos::View<Batch_MetaData *, Kokkos::DefaultExecutionSpace> d_metadata("solver meta data", nBlk);
       int                                                           stride_shared, stride_global, global_buff_words;
-      d_bid_eqOffset            = jac->d_bid_eqOffset_k->data();
+      d_bid_eqOffset = jac->d_bid_eqOffset_k->data();
       // solve each block independently
       int scr_bytes_team_shared = 0, nShareVec = 0, nGlobBVec = 0;
       if (jac->const_block_size) { // use shared memory for work vectors only if constant block size - todo: test efficiency loss
@@ -1082,7 +1094,8 @@ static PetscErrorCode PCApply_BJKOKKOS(PC pc, Vec bin, Vec xout) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PCSetUp_BJKOKKOS(PC pc) {
+static PetscErrorCode PCSetUp_BJKOKKOS(PC pc)
+{
   PC_PCBJKOKKOS    *jac = (PC_PCBJKOKKOS *)pc->data;
   Mat               A   = pc->pmat;
   Mat_SeqAIJKokkos *aijkok;
@@ -1254,7 +1267,8 @@ static PetscErrorCode PCSetUp_BJKOKKOS(PC pc) {
 }
 
 /* Default destroy, if it has never been setup */
-static PetscErrorCode PCReset_BJKOKKOS(PC pc) {
+static PetscErrorCode PCReset_BJKOKKOS(PC pc)
+{
   PC_PCBJKOKKOS *jac = (PC_PCBJKOKKOS *)pc->data;
 
   PetscFunctionBegin;
@@ -1286,14 +1300,16 @@ static PetscErrorCode PCReset_BJKOKKOS(PC pc) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PCDestroy_BJKOKKOS(PC pc) {
+static PetscErrorCode PCDestroy_BJKOKKOS(PC pc)
+{
   PetscFunctionBegin;
   PetscCall(PCReset_BJKOKKOS(pc));
   PetscCall(PetscFree(pc->data));
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PCView_BJKOKKOS(PC pc, PetscViewer viewer) {
+static PetscErrorCode PCView_BJKOKKOS(PC pc, PetscViewer viewer)
+{
   PC_PCBJKOKKOS *jac = (PC_PCBJKOKKOS *)pc->data;
   PetscBool      iascii;
 
@@ -1308,14 +1324,16 @@ static PetscErrorCode PCView_BJKOKKOS(PC pc, PetscViewer viewer) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PCSetFromOptions_BJKOKKOS(PC pc, PetscOptionItems *PetscOptionsObject) {
+static PetscErrorCode PCSetFromOptions_BJKOKKOS(PC pc, PetscOptionItems *PetscOptionsObject)
+{
   PetscFunctionBegin;
   PetscOptionsHeadBegin(PetscOptionsObject, "PC BJKOKKOS options");
   PetscOptionsHeadEnd();
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PCBJKOKKOSSetKSP_BJKOKKOS(PC pc, KSP ksp) {
+static PetscErrorCode PCBJKOKKOSSetKSP_BJKOKKOS(PC pc, KSP ksp)
+{
   PC_PCBJKOKKOS *jac = (PC_PCBJKOKKOS *)pc->data;
 
   PetscFunctionBegin;
@@ -1343,7 +1361,8 @@ static PetscErrorCode PCBJKOKKOSSetKSP_BJKOKKOS(PC pc, KSP ksp) {
 
 ,seealso: `PCBJKOKKOSGetKSP()`, `PCBJKOKKOS`
 @*/
-PetscErrorCode PCBJKOKKOSSetKSP(PC pc, KSP ksp) {
+PetscErrorCode PCBJKOKKOSSetKSP(PC pc, KSP ksp)
+{
   PetscFunctionBegin;
   PetscValidHeaderSpecific(pc, PC_CLASSID, 1);
   PetscValidHeaderSpecific(ksp, KSP_CLASSID, 2);
@@ -1352,7 +1371,8 @@ PetscErrorCode PCBJKOKKOSSetKSP(PC pc, KSP ksp) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PCBJKOKKOSGetKSP_BJKOKKOS(PC pc, KSP *ksp) {
+static PetscErrorCode PCBJKOKKOSGetKSP_BJKOKKOS(PC pc, KSP *ksp)
+{
   PC_PCBJKOKKOS *jac = (PC_PCBJKOKKOS *)pc->data;
 
   PetscFunctionBegin;
@@ -1381,7 +1401,8 @@ static PetscErrorCode PCBJKOKKOSGetKSP_BJKOKKOS(PC pc, KSP *ksp) {
 
 .seealso: `PCBJKOKKOS`, `PCBJKOKKOSSetKSP()`
 @*/
-PetscErrorCode PCBJKOKKOSGetKSP(PC pc, KSP *ksp) {
+PetscErrorCode PCBJKOKKOSGetKSP(PC pc, KSP *ksp)
+{
   PetscFunctionBegin;
   PetscValidHeaderSpecific(pc, PC_CLASSID, 1);
   PetscValidPointer(ksp, 2);
@@ -1389,7 +1410,8 @@ PetscErrorCode PCBJKOKKOSGetKSP(PC pc, KSP *ksp) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PCPostSolve_BJKOKKOS(PC pc, KSP ksp, Vec b, Vec x) {
+static PetscErrorCode PCPostSolve_BJKOKKOS(PC pc, KSP ksp, Vec b, Vec x)
+{
   PC_PCBJKOKKOS *jac = (PC_PCBJKOKKOS *)pc->data;
 
   PetscFunctionBegin;
@@ -1417,7 +1439,8 @@ static PetscErrorCode PCPostSolve_BJKOKKOS(PC pc, KSP ksp, Vec b, Vec x) {
           `PCSHELL`, `PCCOMPOSITE`, `PCSetUseAmat()`, `PCBJKOKKOSGetKSP()`
 M*/
 
-PETSC_EXTERN PetscErrorCode PCCreate_BJKOKKOS(PC pc) {
+PETSC_EXTERN PetscErrorCode PCCreate_BJKOKKOS(PC pc)
+{
   PC_PCBJKOKKOS *jac;
 
   PetscFunctionBegin;

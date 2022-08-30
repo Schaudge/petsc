@@ -18,15 +18,18 @@
 .seealso: `PetscIsInfReal()`, `PetscIsNanReal()`
 @*/
 #if defined(PETSC_USE_REAL___FLOAT128) || defined(PETSC_USE_REAL___FP16)
-PetscBool PetscIsNormalReal(PetscReal a) {
+PetscBool PetscIsNormalReal(PetscReal a)
+{
   return PETSC_TRUE;
 }
 #elif defined(PETSC_HAVE_ISNORMAL)
-PetscBool PetscIsNormalReal(PetscReal a) {
+PetscBool PetscIsNormalReal(PetscReal a)
+{
   return isnormal(a) ? PETSC_TRUE : PETSC_FALSE;
 }
 #else
-PetscBool PetscIsNormalReal(PetscReal a) {
+PetscBool PetscIsNormalReal(PetscReal a)
+{
   return PETSC_TRUE;
 }
 #endif
@@ -47,11 +50,13 @@ PetscBool PetscIsNormalReal(PetscReal a) {
 .seealso: `PetscIsNormalReal()`, `PetscIsNanReal()`
 @*/
 #if defined(PETSC_USE_REAL___FLOAT128)
-PetscBool PetscIsInfReal(PetscReal a) {
+PetscBool PetscIsInfReal(PetscReal a)
+{
   return isinfq(a) ? PETSC_TRUE : PETSC_FALSE;
 }
 #elif defined(PETSC_HAVE_ISINF)
-PetscBool PetscIsInfReal(PetscReal a) {
+PetscBool PetscIsInfReal(PetscReal a)
+{
   return isinf(a) ? PETSC_TRUE : PETSC_FALSE;
 }
 #elif defined(PETSC_HAVE__FINITE)
@@ -61,11 +66,13 @@ PetscBool PetscIsInfReal(PetscReal a) {
   #if defined(PETSC_HAVE_IEEEFP_H)
     #include <ieeefp.h> /* Solaris prototypes these here */
   #endif
-PetscBool PetscIsInfReal(PetscReal a) {
+PetscBool PetscIsInfReal(PetscReal a)
+{
   return !_finite(a) ? PETSC_TRUE : PETSC_FALSE;
 }
 #else
-PetscBool PetscIsInfReal(PetscReal a) {
+PetscBool PetscIsInfReal(PetscReal a)
+{
   return (a && a / 2 == a) ? PETSC_TRUE : PETSC_FALSE;
 }
 #endif
@@ -87,11 +94,13 @@ PetscBool PetscIsInfReal(PetscReal a) {
 .seealso: `PetscIsNormalReal()`, `PetscIsInfReal()`
 @*/
 #if defined(PETSC_USE_REAL___FLOAT128)
-PetscBool PetscIsNanReal(PetscReal a) {
+PetscBool PetscIsNanReal(PetscReal a)
+{
   return isnanq(a) ? PETSC_TRUE : PETSC_FALSE;
 }
 #elif defined(PETSC_HAVE_ISNAN)
-PetscBool PetscIsNanReal(PetscReal a) {
+PetscBool PetscIsNanReal(PetscReal a)
+{
   return isnan(a) ? PETSC_TRUE : PETSC_FALSE;
 }
 #elif defined(PETSC_HAVE__ISNAN)
@@ -101,11 +110,13 @@ PetscBool PetscIsNanReal(PetscReal a) {
   #if defined(PETSC_HAVE_IEEEFP_H)
     #include <ieeefp.h> /* Solaris prototypes these here */
   #endif
-PetscBool PetscIsNanReal(PetscReal a) {
+PetscBool PetscIsNanReal(PetscReal a)
+{
   return _isnan(a) ? PETSC_TRUE : PETSC_FALSE;
 }
 #else
-PetscBool PetscIsNanReal(PetscReal a) {
+PetscBool PetscIsNanReal(PetscReal a)
+{
   return (a != a) ? PETSC_TRUE : PETSC_FALSE;
 }
 #endif

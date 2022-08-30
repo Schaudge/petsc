@@ -18,7 +18,8 @@
 
 .seealso: `PetscGetRelativePath()`
 @*/
-PetscErrorCode PetscGetFullPath(const char path[], char fullpath[], size_t flen) {
+PetscErrorCode PetscGetFullPath(const char path[], char fullpath[], size_t flen)
+{
   size_t    ln;
   PetscBool flg;
 

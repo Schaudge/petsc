@@ -4,20 +4,23 @@
 
 PetscBool PetscKokkosInitialized = PETSC_FALSE;
 
-PetscErrorCode PetscKokkosFinalize_Private(void) {
+PetscErrorCode PetscKokkosFinalize_Private(void)
+{
   PetscFunctionBegin;
   Kokkos::finalize();
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscKokkosIsInitialized_Private(PetscBool *isInitialized) {
+PetscErrorCode PetscKokkosIsInitialized_Private(PetscBool *isInitialized)
+{
   PetscFunctionBegin;
   *isInitialized = Kokkos::is_initialized() ? PETSC_TRUE : PETSC_FALSE;
   PetscFunctionReturn(0);
 }
 
 /* Initialize Kokkos if not yet */
-PetscErrorCode PetscKokkosInitializeCheck(void) {
+PetscErrorCode PetscKokkosInitializeCheck(void)
+{
   PetscFunctionBegin;
   if (!Kokkos::is_initialized()) {
 #if PETSC_PKG_KOKKOS_VERSION_GE(3, 6, 99)

@@ -23,7 +23,8 @@
 
 .seealso: `DMPlexGetClosureIndices()`, `DMPlexSetClosurePermutationTensor()`, `DMPlexGetCeedRestriction()`
 @*/
-PetscErrorCode DMPlexGetLocalOffsets(DM dm, DMLabel domain_label, PetscInt label_value, PetscInt height, PetscInt dm_field, PetscInt *num_cells, PetscInt *cell_size, PetscInt *num_comp, PetscInt *l_size, PetscInt **offsets) {
+PetscErrorCode DMPlexGetLocalOffsets(DM dm, DMLabel domain_label, PetscInt label_value, PetscInt height, PetscInt dm_field, PetscInt *num_cells, PetscInt *cell_size, PetscInt *num_comp, PetscInt *l_size, PetscInt **offsets)
+{
   PetscDS         ds = NULL;
   PetscFE         fe;
   PetscSection    section;
@@ -168,7 +169,8 @@ PetscErrorCode DMPlexGetLocalOffsets(DM dm, DMLabel domain_label, PetscInt label
 
   Level: developer
 @*/
-PetscErrorCode DMPlexGetCeedRestriction(DM dm, DMLabel domain_label, PetscInt label_value, PetscInt height, PetscInt dm_field, CeedElemRestriction *ERestrict) {
+PetscErrorCode DMPlexGetCeedRestriction(DM dm, DMLabel domain_label, PetscInt label_value, PetscInt height, PetscInt dm_field, CeedElemRestriction *ERestrict)
+{
   PetscFunctionBeginUser;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   PetscValidPointer(ERestrict, 2);

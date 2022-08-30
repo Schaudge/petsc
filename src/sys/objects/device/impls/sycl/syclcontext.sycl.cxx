@@ -1,13 +1,17 @@
 #include "sycldevice.hpp"
 #include <CL/sycl.hpp>
 
-namespace Petsc {
+namespace Petsc
+{
 
-namespace device {
+namespace device
+{
 
-namespace sycl {
+namespace sycl
+{
 
-namespace impl {
+namespace impl
+{
 
 class DeviceContext {
 public:
@@ -23,13 +27,15 @@ public:
 private:
   static bool initialized_;
 
-  PETSC_NODISCARD static PetscErrorCode finalize_() noexcept {
+  PETSC_NODISCARD static PetscErrorCode finalize_() noexcept
+  {
     PetscFunctionBegin;
     initialized_ = false;
     PetscFunctionReturn(0);
   }
 
-  PETSC_NODISCARD static PetscErrorCode initialize_(PetscInt id, DeviceContext *dci) noexcept {
+  PETSC_NODISCARD static PetscErrorCode initialize_(PetscInt id, DeviceContext *dci) noexcept
+  {
     PetscFunctionBegin;
     PetscCall(PetscDeviceCheckDeviceCount_Internal(id));
     if (!initialized_) {
@@ -47,7 +53,8 @@ public:
 
   // All of these functions MUST be static in order to be callable from C, otherwise they
   // get the implicit 'this' pointer tacked on
-  PETSC_NODISCARD static PetscErrorCode destroy(PetscDeviceContext dctx) noexcept {
+  PETSC_NODISCARD static PetscErrorCode destroy(PetscDeviceContext dctx) noexcept
+  {
     PetscFunctionBegin;
     delete static_cast<PetscDeviceContext_IMPLS *>(dctx->data);
     dctx->data = nullptr;
@@ -73,7 +80,8 @@ public:
 
 } // namespace Petsc
 
-PetscErrorCode PetscDeviceContextCreate_SYCL(PetscDeviceContext dctx) {
+PetscErrorCode PetscDeviceContextCreate_SYCL(PetscDeviceContext dctx)
+{
   using namespace Petsc::device::sycl::impl;
 
   static const DeviceContext syclctx;

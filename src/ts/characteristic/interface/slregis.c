@@ -1,6 +1,7 @@
 #include <petsc/private/characteristicimpl.h>
 
 static PetscBool CharacteristicPackageInitialized = PETSC_FALSE;
+
 /*@C
   CharacteristicFinalizePackage - This function destroys everything in the Petsc interface to the characteristics package. It is
   called from PetscFinalize().
@@ -9,7 +10,8 @@ static PetscBool CharacteristicPackageInitialized = PETSC_FALSE;
 
 .seealso: `PetscFinalize()`
 @*/
-PetscErrorCode   CharacteristicFinalizePackage(void) {
+PetscErrorCode CharacteristicFinalizePackage(void)
+{
   PetscFunctionBegin;
   PetscCall(PetscFunctionListDestroy(&CharacteristicList));
   CharacteristicPackageInitialized = PETSC_FALSE;
@@ -26,7 +28,8 @@ PetscErrorCode   CharacteristicFinalizePackage(void) {
 
 .seealso: `PetscInitialize()`
 @*/
-PetscErrorCode CharacteristicInitializePackage(void) {
+PetscErrorCode CharacteristicInitializePackage(void)
+{
   char      logList[256];
   PetscBool opt, pkg;
 
@@ -73,7 +76,8 @@ PetscErrorCode CharacteristicInitializePackage(void) {
   This one registers the method of characteristics code
 
  */
-PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petsccharacteristic(void) {
+PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petsccharacteristic(void)
+{
   PetscFunctionBegin;
   PetscCall(CharacteristicInitializePackage());
   PetscFunctionReturn(0);

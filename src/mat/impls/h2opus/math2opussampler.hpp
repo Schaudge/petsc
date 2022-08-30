@@ -36,22 +36,26 @@ public:
   Mat          GetSamplingMat() { return A; }
 };
 
-void PetscMatrixSampler::Init() {
+void PetscMatrixSampler::Init()
+{
   this->A           = NULL;
   this->gpusampling = false;
   this->stream      = NULL;
 }
 
-PetscMatrixSampler::PetscMatrixSampler() {
+PetscMatrixSampler::PetscMatrixSampler()
+{
   Init();
 }
 
-PetscMatrixSampler::PetscMatrixSampler(Mat A) {
+PetscMatrixSampler::PetscMatrixSampler(Mat A)
+{
   Init();
   SetSamplingMat(A);
 }
 
-void PetscMatrixSampler::SetSamplingMat(Mat A) {
+void PetscMatrixSampler::SetSamplingMat(Mat A)
+{
   PetscMPIInt size = 1;
 
   if (A) PetscCallVoid(MPI_Comm_size(PetscObjectComm((PetscObject)A), &size));
@@ -61,18 +65,21 @@ void PetscMatrixSampler::SetSamplingMat(Mat A) {
   this->A = A;
 }
 
-void PetscMatrixSampler::SetStream(h2opusComputeStream_t stream) {
+void PetscMatrixSampler::SetStream(h2opusComputeStream_t stream)
+{
   this->stream = stream;
 }
 
-void PetscMatrixSampler::SetIndexMap(int n, int *indexmap) {
+void PetscMatrixSampler::SetIndexMap(int n, int *indexmap)
+{
   copyVector(this->hindexmap, indexmap, n, H2OPUS_HWTYPE_CPU);
   #if defined(PETSC_HAVE_CUDA) && defined(H2OPUS_USE_GPU)
   copyVector(this->dindexmap, indexmap, n, H2OPUS_HWTYPE_CPU);
   #endif
 }
 
-void PetscMatrixSampler::VerifyBuffers(int nv) {
+void PetscMatrixSampler::VerifyBuffers(int nv)
+{
   if (this->hindexmap.size()) {
     size_t n = this->hindexmap.size();
     if (!this->gpusampling) {
@@ -87,7 +94,8 @@ void PetscMatrixSampler::VerifyBuffers(int nv) {
   }
 }
 
-void PetscMatrixSampler::PermuteBuffersIn(int nv, H2Opus_Real *v, H2Opus_Real **w, H2Opus_Real *ov, H2Opus_Real **ow) {
+void PetscMatrixSampler::PermuteBuffersIn(int nv, H2Opus_Real *v, H2Opus_Real **w, H2Opus_Real *ov, H2Opus_Real **ow)
+{
   *w  = v;
   *ow = ov;
   VerifyBuffers(nv);
@@ -107,7 +115,8 @@ void PetscMatrixSampler::PermuteBuffersIn(int nv, H2Opus_Real *v, H2Opus_Real **
   }
 }
 
-void PetscMatrixSampler::PermuteBuffersOut(int nv, H2Opus_Real *v) {
+void PetscMatrixSampler::PermuteBuffersOut(int nv, H2Opus_Real *v)
+{
   VerifyBuffers(nv);
   if (this->hindexmap.size()) {
     size_t n = this->hindexmap.size();
@@ -121,15 +130,18 @@ void PetscMatrixSampler::PermuteBuffersOut(int nv, H2Opus_Real *v) {
   }
 }
 
-void PetscMatrixSampler::SetGPUSampling(bool gpusampling) {
+void PetscMatrixSampler::SetGPUSampling(bool gpusampling)
+{
   this->gpusampling = gpusampling;
 }
 
-PetscMatrixSampler::~PetscMatrixSampler() {
+PetscMatrixSampler::~PetscMatrixSampler()
+{
   PetscCallVoid(MatDestroy(&A));
 }
 
-void PetscMatrixSampler::sample(H2Opus_Real *x, H2Opus_Real *y, int samples) {
+void PetscMatrixSampler::sample(H2Opus_Real *x, H2Opus_Real *y, int samples)
+{
   MPI_Comm     comm = PetscObjectComm((PetscObject)this->A);
   Mat          X = NULL, Y = NULL;
   PetscInt     M, N, m, n;

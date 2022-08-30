@@ -30,7 +30,9 @@ PETSC_INTERN PetscErrorCode MatMatMultNumeric_ScaLAPACK(Mat, Mat, Mat);
 
 /* Macro to check nonzero info after ScaLAPACK call */
 #define PetscCheckScaLapackInfo(routine, info) \
-  do { PetscCheck(!info, PETSC_COMM_SELF, PETSC_ERR_LIB, "Error in ScaLAPACK subroutine %s: info=%d", routine, (int)info); } while (0)
+  do { \
+    PetscCheck(!info, PETSC_COMM_SELF, PETSC_ERR_LIB, "Error in ScaLAPACK subroutine %s: info=%d", routine, (int)info); \
+  } while (0)
 
 #define PETSC_PASTE4_(a, b, c, d) a##b##c##d
 #define PETSC_PASTE4(a, b, c, d)  PETSC_PASTE4_(a, b, c, d)

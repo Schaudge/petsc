@@ -1,13 +1,11 @@
----
 Language:        Cpp
-# BasedOnStyle:  LLVM
 AccessModifierOffset: -2
 AlignAfterOpenBracket: Align
 AlignArrayOfStructures: Left
 AlignConsecutiveMacros: Consecutive
-AlignConsecutiveAssignments: AcrossComments
-AlignConsecutiveBitFields: AcrossComments
-AlignConsecutiveDeclarations: AcrossComments
+AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveBitFields: Consecutive
+AlignConsecutiveDeclarations: Consecutive
 AlignEscapedNewlines: DontAlign
 AlignOperands: AlignAfterOperator
 AlignTrailingComments: true
@@ -16,7 +14,7 @@ AllowAllConstructorInitializersOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: true
 AllowShortEnumsOnASingleLine: false
 AllowShortBlocksOnASingleLine: Always
-AllowShortCaseLabelsOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: Inline
 AllowShortLambdasOnASingleLine: All
 AllowShortIfStatementsOnASingleLine: AllIfsAndElse
@@ -38,8 +36,8 @@ BraceWrapping:
   AfterClass:      false
   AfterControlStatement: Never
   AfterEnum:       false
-  AfterFunction:   false
-  AfterNamespace:  false
+  AfterFunction:   true
+  AfterNamespace:  true
   AfterObjCDeclaration: false
   AfterStruct:     false
   AfterUnion:      true
@@ -50,7 +48,7 @@ BraceWrapping:
   BeforeWhile:     false
   IndentBraces:    false
   SplitEmptyFunction: true
-  SplitEmptyRecord: true
+  SplitEmptyRecord: false
   SplitEmptyNamespace: true
 BreakBeforeBinaryOperators: None
 # BreakBeforeConceptDeclarations: Allowed

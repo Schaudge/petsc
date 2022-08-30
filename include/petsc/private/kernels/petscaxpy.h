@@ -11,6 +11,9 @@
 
 */
 
+#ifndef PETSC_KERNELS_AXPY_H
+#define PETSC_KERNELS_AXPY_H
+
 #ifndef PetscKernelAXPY
 
   #if defined(PETSC_USE_FORTRAN_KERNEL_MAXPY)
@@ -37,21 +40,32 @@ PETSC_EXTERN void fortranmaxpy2_(void *, void *, void *, const void *, const voi
         PetscCallBLAS("BLASaxpy", BLASaxpy_(&nn, &a1, p1, &one, U, &one)); \
       }
     #define PetscKernelAXPY2(U, a1, a2, p1, p2, n) \
-      { fortranmaxpy2_(U, &a1, &a2, p1, p2, &n); }
+      { \
+        fortranmaxpy2_(U, &a1, &a2, p1, p2, &n); \
+      }
     #define PetscKernelAXPY3(U, a1, a2, a3, p1, p2, p3, n) \
-      { fortranmaxpy3_(U, &a1, &a2, &a3, p1, p2, p3, &n); }
+      { \
+        fortranmaxpy3_(U, &a1, &a2, &a3, p1, p2, p3, &n); \
+      }
     #define PetscKernelAXPY4(U, a1, a2, a3, a4, p1, p2, p3, p4, n) \
-      { fortranmaxpy4_(U, &a1, &a2, &a3, &a4, p1, p2, p3, p4, &n); }
+      { \
+        fortranmaxpy4_(U, &a1, &a2, &a3, &a4, p1, p2, p3, p4, &n); \
+      }
 
   #elif defined(PETSC_USE_UNROLL_KERNELS)
 
     #define PetscKernelAXPY(U, Alpha, P, n) \
       { \
         switch (n & 0x3) { \
-        case 3: *U++ += Alpha * *P++; \
-        case 2: *U++ += Alpha * *P++; \
-        case 1: *U++ += Alpha * *P++; n -= 4; \
-        case 0: break; \
+        case 3: \
+          *U++ += Alpha * *P++; \
+        case 2: \
+          *U++ += Alpha * *P++; \
+        case 1: \
+          *U++ += Alpha * *P++; \
+          n -= 4; \
+        case 0: \
+          break; \
         } \
         while (n > 0) { \
           U[0] += Alpha * P[0]; \
@@ -66,10 +80,15 @@ PETSC_EXTERN void fortranmaxpy2_(void *, void *, void *, const void *, const voi
     #define PetscKernelAXPY2(U, a1, a2, p1, p2, n) \
       { \
         switch (n & 0x3) { \
-        case 3: *U++ += a1 * *p1++ + a2 * *p2++; \
-        case 2: *U++ += a1 * *p1++ + a2 * *p2++; \
-        case 1: *U++ += a1 * *p1++ + a2 * *p2++; n -= 4; \
-        case 0: break; \
+        case 3: \
+          *U++ += a1 * *p1++ + a2 * *p2++; \
+        case 2: \
+          *U++ += a1 * *p1++ + a2 * *p2++; \
+        case 1: \
+          *U++ += a1 * *p1++ + a2 * *p2++; \
+          n -= 4; \
+        case 0: \
+          break; \
         } \
         while (n > 0) { \
           U[0] += a1 * p1[0] + a2 * p2[0]; \
@@ -85,10 +104,15 @@ PETSC_EXTERN void fortranmaxpy2_(void *, void *, void *, const void *, const voi
     #define PetscKernelAXPY3(U, a1, a2, a3, p1, p2, p3, n) \
       { \
         switch (n & 0x3) { \
-        case 3: *U++ += a1 * *p1++ + a2 * *p2++ + a3 * *p3++; \
-        case 2: *U++ += a1 * *p1++ + a2 * *p2++ + a3 * *p3++; \
-        case 1: *U++ += a1 * *p1++ + a2 * *p2++ + a3 * *p3++; n -= 4; \
-        case 0: break; \
+        case 3: \
+          *U++ += a1 * *p1++ + a2 * *p2++ + a3 * *p3++; \
+        case 2: \
+          *U++ += a1 * *p1++ + a2 * *p2++ + a3 * *p3++; \
+        case 1: \
+          *U++ += a1 * *p1++ + a2 * *p2++ + a3 * *p3++; \
+          n -= 4; \
+        case 0: \
+          break; \
         } \
         while (n > 0) { \
           U[0] += a1 * p1[0] + a2 * p2[0] + a3 * p3[0]; \
@@ -105,10 +129,15 @@ PETSC_EXTERN void fortranmaxpy2_(void *, void *, void *, const void *, const voi
     #define PetscKernelAXPY4(U, a1, a2, a3, a4, p1, p2, p3, p4, n) \
       { \
         switch (n & 0x3) { \
-        case 3: *U++ += a1 * *p1++ + a2 * *p2++ + a3 * *p3++ + a4 * *p4++; \
-        case 2: *U++ += a1 * *p1++ + a2 * *p2++ + a3 * *p3++ + a4 * *p4++; \
-        case 1: *U++ += a1 * *p1++ + a2 * *p2++ + a3 * *p3++ + a4 * *p4++; n -= 4; \
-        case 0: break; \
+        case 3: \
+          *U++ += a1 * *p1++ + a2 * *p2++ + a3 * *p3++ + a4 * *p4++; \
+        case 2: \
+          *U++ += a1 * *p1++ + a2 * *p2++ + a3 * *p3++ + a4 * *p4++; \
+        case 1: \
+          *U++ += a1 * *p1++ + a2 * *p2++ + a3 * *p3++ + a4 * *p4++; \
+          n -= 4; \
+        case 0: \
+          break; \
         } \
         while (n > 0) { \
           U[0] += a1 * p1[0] + a2 * p2[0] + a3 * p3[0] + a4 * p4[0]; \
@@ -224,5 +253,7 @@ PETSC_EXTERN void fortranmaxpy2_(void *, void *, void *, const void *, const voi
       }
 
   #endif
+
+#endif
 
 #endif

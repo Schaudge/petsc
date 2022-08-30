@@ -16,6 +16,7 @@ const char *const        PCFailedReasons_Shifted[] = {"SETUP_ERROR", "FACTOR_NOE
 const char *const *const PCFailedReasons           = PCFailedReasons_Shifted + 1;
 
 static PetscBool PCPackageInitialized = PETSC_FALSE;
+
 /*@C
   PCFinalizePackage - This function destroys everything in the Petsc interface to the characteristics package. It is
   called from PetscFinalize().
@@ -24,7 +25,8 @@ static PetscBool PCPackageInitialized = PETSC_FALSE;
 
 .seealso: `PetscFinalize()`
 @*/
-PetscErrorCode   PCFinalizePackage(void) {
+PetscErrorCode PCFinalizePackage(void)
+{
   PetscFunctionBegin;
   PetscCall(PetscFunctionListDestroy(&PCList));
   PetscCall(PetscFunctionListDestroy(&PCMGCoarseList));
@@ -42,7 +44,8 @@ PetscErrorCode   PCFinalizePackage(void) {
 
 .seealso: `PetscInitialize()`
 @*/
-PetscErrorCode PCInitializePackage(void) {
+PetscErrorCode PCInitializePackage(void)
+{
   char      logList[256];
   PetscBool opt, pkg;
 
@@ -114,6 +117,7 @@ const char *const *KSPConvergedReasons     = KSPConvergedReasons_Shifted + 11;
 const char *const  KSPFCDTruncationTypes[] = {"STANDARD", "NOTAY", "KSPFCDTruncationTypes", "KSP_FCD_TRUNC_TYPE_", NULL};
 
 static PetscBool KSPPackageInitialized = PETSC_FALSE;
+
 /*@C
   KSPFinalizePackage - This function destroys everything in the Petsc interface to the KSP package. It is
   called from PetscFinalize().
@@ -122,7 +126,8 @@ static PetscBool KSPPackageInitialized = PETSC_FALSE;
 
 .seealso: `PetscFinalize()`
 @*/
-PetscErrorCode   KSPFinalizePackage(void) {
+PetscErrorCode KSPFinalizePackage(void)
+{
   PetscFunctionBegin;
   PetscCall(PetscFunctionListDestroy(&KSPList));
   PetscCall(PetscFunctionListDestroy(&KSPGuessList));
@@ -144,7 +149,8 @@ PetscErrorCode   KSPFinalizePackage(void) {
 
 .seealso: `PetscInitialize()`
 @*/
-PetscErrorCode KSPInitializePackage(void) {
+PetscErrorCode KSPInitializePackage(void)
+{
   char      logList[256];
   PetscBool opt, pkg, cls;
 
@@ -204,7 +210,8 @@ PetscErrorCode KSPInitializePackage(void) {
   library.
 
  */
-PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petscksp(void) {
+PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petscksp(void)
+{
   PetscFunctionBegin;
   PetscCall(PCInitializePackage());
   PetscCall(KSPInitializePackage());

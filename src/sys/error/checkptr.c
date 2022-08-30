@@ -19,7 +19,8 @@ static PetscInt petsc_checkpointer_intensity = 1;
 
 .seealso: `PetscCheckPointer()`, `PetscFunctionBeginHot()`
 @*/
-PetscErrorCode PetscCheckPointerSetIntensity(PetscInt intensity) {
+PetscErrorCode PetscCheckPointerSetIntensity(PetscInt intensity)
+{
   PetscFunctionBegin;
   PetscCheck((intensity >= 0) && (intensity <= 2), PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Intensity %" PetscInt_FMT " not in [0,2]", intensity);
   petsc_checkpointer_intensity = intensity;
@@ -47,7 +48,8 @@ static PetscBool PetscSegvJumpBuf_set;
 
 .seealso: `PetscPushSignalHandler()`
 @*/
-void PetscSignalSegvCheckPointerOrMpi(void) {
+void PetscSignalSegvCheckPointerOrMpi(void)
+{
   if (PetscSegvJumpBuf_set) longjmp(PetscSegvJumpBuf, 1);
 }
 
@@ -67,7 +69,8 @@ void PetscSignalSegvCheckPointerOrMpi(void) {
 
 .seealso: `PetscCheckPointerSetIntensity()`
 @*/
-PetscBool PetscCheckPointer(const void *ptr, PetscDataType dtype) {
+PetscBool PetscCheckPointer(const void *ptr, PetscDataType dtype)
+{
   if (PETSC_RUNNING_ON_VALGRIND) return PETSC_TRUE;
   if (!ptr) return PETSC_FALSE;
   if (petsc_checkpointer_intensity < 1) return PETSC_TRUE;

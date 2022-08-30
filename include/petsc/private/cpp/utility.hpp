@@ -7,9 +7,11 @@
 
   #include <utility>
 
-namespace Petsc {
+namespace Petsc
+{
 
-namespace util {
+namespace util
+{
 
   #if PETSC_CPP_VERSION >= 14 // C++14
 using std::exchange;
@@ -17,7 +19,8 @@ using std::integer_sequence;
 using std::make_integer_sequence;
   #else
 template <class T, class U = T>
-inline T exchange(T &orig, U &&new_value) {
+inline T exchange(T &orig, U &&new_value)
+{
   T old_value = std::move(orig);
   orig        = std::forward<U>(new_value);
   return old_value;
@@ -43,7 +46,8 @@ using make_integer_sequence = __make_integer_seq<integer_sequence, T, N>;
 template <class T, T N>
 using make_integer_sequence = integer_sequence<T, __integer_pack(N)...>;
     #else                                    // __slow__ version
-namespace detail {
+namespace detail
+{
 
 template <class T, int N, T... idx>
 struct make_sequence : make_sequence<T, N - 1, T(N - 1), idx...> { };

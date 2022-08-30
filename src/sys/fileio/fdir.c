@@ -14,7 +14,8 @@
   #include <unistd.h>
 #endif
 
-PetscErrorCode PetscPathJoin(const char dname[], const char fname[], size_t n, char fullname[]) {
+PetscErrorCode PetscPathJoin(const char dname[], const char fname[], size_t n, char fullname[])
+{
   size_t l1, l2;
   PetscFunctionBegin;
   PetscCall(PetscStrlen(dname, &l1));
@@ -26,7 +27,8 @@ PetscErrorCode PetscPathJoin(const char dname[], const char fname[], size_t n, c
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscMkdir(const char dir[]) {
+PetscErrorCode PetscMkdir(const char dir[])
+{
   int       err;
   PetscBool flg;
 
@@ -61,7 +63,8 @@ PetscErrorCode PetscMkdir(const char dir[]) {
 
 .seealso: `PetscMkdir()`
 @*/
-PetscErrorCode PetscMkdtemp(char dir[]) {
+PetscErrorCode PetscMkdtemp(char dir[])
+{
   PetscFunctionBegin;
 #if defined(PETSC_HAVE_WINDOWS_H) && defined(PETSC_HAVE_IO_H) && defined(PETSC_HAVE__MKDIR) && defined(PETSC_HAVE_DIRECT_H)
   {
@@ -89,7 +92,8 @@ PetscErrorCode PetscMkdtemp(char dir[]) {
 }
 
 #if defined(PETSC_HAVE_DIRECT_H)
-PetscErrorCode PetscRMTree(const char dir[]) {
+PetscErrorCode PetscRMTree(const char dir[])
+{
   struct _finddata_t data;
   char               loc[PETSC_MAX_PATH_LEN];
   PetscBool          flg1, flg2;
@@ -128,7 +132,8 @@ PetscErrorCode PetscRMTree(const char dir[]) {
 #else
   #include <dirent.h>
   #include <unistd.h>
-PetscErrorCode PetscRMTree(const char dir[]) {
+PetscErrorCode PetscRMTree(const char dir[])
+{
   struct dirent *data;
   char loc[PETSC_MAX_PATH_LEN];
   PetscBool flg1, flg2;

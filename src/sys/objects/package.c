@@ -24,7 +24,8 @@
 
 .seealso: `PetscViewerType`, `MatPartitioningType`, `MatSolverType`
 @*/
-PetscErrorCode PetscHasExternalPackage(const char pkg[], PetscBool *has) {
+PetscErrorCode PetscHasExternalPackage(const char pkg[], PetscBool *has)
+{
   char   pkgstr[128], *loc;
   size_t cnt;
 

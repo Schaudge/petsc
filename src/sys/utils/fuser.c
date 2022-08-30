@@ -8,7 +8,8 @@
 #endif
 
 #if defined(PETSC_HAVE_GET_USER_NAME)
-PetscErrorCode PetscGetUserName(char name[], size_t nlen) {
+PetscErrorCode PetscGetUserName(char name[], size_t nlen)
+{
   PetscFunctionBegin;
   GetUserName((LPTSTR)name, (LPDWORD)(&nlen));
   PetscFunctionReturn(0);
@@ -30,7 +31,8 @@ PetscErrorCode PetscGetUserName(char name[], size_t nlen) {
 
 .seealso: `PetscGetHostName()`
 @*/
-PetscErrorCode PetscGetUserName(char name[], size_t nlen) {
+PetscErrorCode PetscGetUserName(char name[], size_t nlen)
+{
   const char *user;
 
   PetscFunctionBegin;

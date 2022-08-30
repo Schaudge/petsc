@@ -30,7 +30,8 @@
 
 .seealso: `PetscGetFullPath()`
 @*/
-PetscErrorCode PetscGetRelativePath(const char fullpath[], char path[], size_t flen) {
+PetscErrorCode PetscGetRelativePath(const char fullpath[], char path[], size_t flen)
+{
   char *p;
 
   PetscFunctionBegin;

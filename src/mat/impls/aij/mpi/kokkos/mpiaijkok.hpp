@@ -32,7 +32,9 @@ struct Mat_MPIAIJKokkos {
     Cperm1_d(Kokkos::create_mirror_view_and_copy(DefaultMemorySpace(), PetscCountKokkosViewHost(mpiaij->Cperm1, mpiaij->sendlen))),
 
     sendbuf_d(Kokkos::create_mirror_view(DefaultMemorySpace(), MatScalarKokkosViewHost(mpiaij->sendbuf, mpiaij->sendlen))),
-    recvbuf_d(Kokkos::create_mirror_view(DefaultMemorySpace(), MatScalarKokkosViewHost(mpiaij->recvbuf, mpiaij->recvlen))) { }
+    recvbuf_d(Kokkos::create_mirror_view(DefaultMemorySpace(), MatScalarKokkosViewHost(mpiaij->recvbuf, mpiaij->recvlen)))
+  {
+  }
 };
 
 #endif

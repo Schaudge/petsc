@@ -89,7 +89,8 @@ typedef struct {
   PetscBool CleanUpUMFPACK;
 } Mat_UMFPACK;
 
-static PetscErrorCode MatDestroy_UMFPACK(Mat A) {
+static PetscErrorCode MatDestroy_UMFPACK(Mat A)
+{
   Mat_UMFPACK *lu = (Mat_UMFPACK *)A->data;
 
   PetscFunctionBegin;
@@ -106,7 +107,8 @@ static PetscErrorCode MatDestroy_UMFPACK(Mat A) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatSolve_UMFPACK_Private(Mat A, Vec b, Vec x, int uflag) {
+static PetscErrorCode MatSolve_UMFPACK_Private(Mat A, Vec b, Vec x, int uflag)
+{
   Mat_UMFPACK       *lu = (Mat_UMFPACK *)A->data;
   Mat_SeqAIJ        *a  = (Mat_SeqAIJ *)lu->A->data;
   PetscScalar       *av = a->a, *xa;
@@ -145,21 +147,24 @@ static PetscErrorCode MatSolve_UMFPACK_Private(Mat A, Vec b, Vec x, int uflag) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatSolve_UMFPACK(Mat A, Vec b, Vec x) {
+static PetscErrorCode MatSolve_UMFPACK(Mat A, Vec b, Vec x)
+{
   PetscFunctionBegin;
   /* We gave UMFPACK the algebraic transpose (because it assumes column alignment) */
   PetscCall(MatSolve_UMFPACK_Private(A, b, x, UMFPACK_Aat));
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatSolveTranspose_UMFPACK(Mat A, Vec b, Vec x) {
+static PetscErrorCode MatSolveTranspose_UMFPACK(Mat A, Vec b, Vec x)
+{
   PetscFunctionBegin;
   /* We gave UMFPACK the algebraic transpose (because it assumes column alignment) */
   PetscCall(MatSolve_UMFPACK_Private(A, b, x, UMFPACK_A));
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatLUFactorNumeric_UMFPACK(Mat F, Mat A, const MatFactorInfo *info) {
+static PetscErrorCode MatLUFactorNumeric_UMFPACK(Mat F, Mat A, const MatFactorInfo *info)
+{
   Mat_UMFPACK *lu = (Mat_UMFPACK *)(F)->data;
   Mat_SeqAIJ  *a  = (Mat_SeqAIJ *)A->data;
   PetscInt    *ai = a->i, *aj = a->j, status;
@@ -194,7 +199,8 @@ static PetscErrorCode MatLUFactorNumeric_UMFPACK(Mat F, Mat A, const MatFactorIn
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatLUFactorSymbolic_UMFPACK(Mat F, Mat A, IS r, IS c, const MatFactorInfo *info) {
+static PetscErrorCode MatLUFactorSymbolic_UMFPACK(Mat F, Mat A, IS r, IS c, const MatFactorInfo *info)
+{
   Mat_SeqAIJ  *a  = (Mat_SeqAIJ *)A->data;
   Mat_UMFPACK *lu = (Mat_UMFPACK *)(F->data);
   PetscInt     i, *ai = a->i, *aj = a->j, m = A->rmap->n, n = A->cmap->n, status, idx;
@@ -219,9 +225,15 @@ static PetscErrorCode MatLUFactorSymbolic_UMFPACK(Mat F, Mat A, IS r, IS c, cons
   PetscCall(PetscOptionsEList("-mat_umfpack_strategy", "ordering and pivoting strategy", "None", strategy, 3, strategy[0], &idx, &flg));
   if (flg) {
     switch (idx) {
-    case 0: lu->Control[UMFPACK_STRATEGY] = UMFPACK_STRATEGY_AUTO; break;
-    case 1: lu->Control[UMFPACK_STRATEGY] = UMFPACK_STRATEGY_UNSYMMETRIC; break;
-    case 2: lu->Control[UMFPACK_STRATEGY] = UMFPACK_STRATEGY_SYMMETRIC; break;
+    case 0:
+      lu->Control[UMFPACK_STRATEGY] = UMFPACK_STRATEGY_AUTO;
+      break;
+    case 1:
+      lu->Control[UMFPACK_STRATEGY] = UMFPACK_STRATEGY_UNSYMMETRIC;
+      break;
+    case 2:
+      lu->Control[UMFPACK_STRATEGY] = UMFPACK_STRATEGY_SYMMETRIC;
+      break;
     }
   }
   PetscCall(PetscOptionsEList("-mat_umfpack_ordering", "Internal ordering method", "None", UmfpackOrderingTypes, PETSC_STATIC_ARRAY_LENGTH(UmfpackOrderingTypes), UmfpackOrderingTypes[(int)lu->Control[UMFPACK_ORDERING]], &idx, &flg));
@@ -239,9 +251,15 @@ static PetscErrorCode MatLUFactorSymbolic_UMFPACK(Mat F, Mat A, IS r, IS c, cons
   PetscCall(PetscOptionsEList("-mat_umfpack_scale", "Control[UMFPACK_SCALE]", "None", scale, 3, scale[0], &idx, &flg));
   if (flg) {
     switch (idx) {
-    case 0: lu->Control[UMFPACK_SCALE] = UMFPACK_SCALE_NONE; break;
-    case 1: lu->Control[UMFPACK_SCALE] = UMFPACK_SCALE_SUM; break;
-    case 2: lu->Control[UMFPACK_SCALE] = UMFPACK_SCALE_MAX; break;
+    case 0:
+      lu->Control[UMFPACK_SCALE] = UMFPACK_SCALE_NONE;
+      break;
+    case 1:
+      lu->Control[UMFPACK_SCALE] = UMFPACK_SCALE_SUM;
+      break;
+    case 2:
+      lu->Control[UMFPACK_SCALE] = UMFPACK_SCALE_MAX;
+      break;
     }
   }
   PetscCall(PetscOptionsReal("-mat_umfpack_alloc_init", "Control[UMFPACK_ALLOC_INIT]", "None", lu->Control[UMFPACK_ALLOC_INIT], &lu->Control[UMFPACK_ALLOC_INIT], NULL));
@@ -291,7 +309,8 @@ static PetscErrorCode MatLUFactorSymbolic_UMFPACK(Mat F, Mat A, IS r, IS c, cons
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatView_Info_UMFPACK(Mat A, PetscViewer viewer) {
+static PetscErrorCode MatView_Info_UMFPACK(Mat A, PetscViewer viewer)
+{
   Mat_UMFPACK *lu = (Mat_UMFPACK *)A->data;
 
   PetscFunctionBegin;
@@ -326,7 +345,8 @@ static PetscErrorCode MatView_Info_UMFPACK(Mat A, PetscViewer viewer) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatView_UMFPACK(Mat A, PetscViewer viewer) {
+static PetscErrorCode MatView_UMFPACK(Mat A, PetscViewer viewer)
+{
   PetscBool         iascii;
   PetscViewerFormat format;
 
@@ -339,7 +359,8 @@ static PetscErrorCode MatView_UMFPACK(Mat A, PetscViewer viewer) {
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MatFactorGetSolverType_seqaij_umfpack(Mat A, MatSolverType *type) {
+PetscErrorCode MatFactorGetSolverType_seqaij_umfpack(Mat A, MatSolverType *type)
+{
   PetscFunctionBegin;
   *type = MATSOLVERUMFPACK;
   PetscFunctionReturn(0);
@@ -381,7 +402,8 @@ PetscErrorCode MatFactorGetSolverType_seqaij_umfpack(Mat A, MatSolverType *type)
 .seealso: `PCLU`, `MATSOLVERSUPERLU`, `MATSOLVERMUMPS`, `PCFactorSetMatSolverType()`, `MatSolverType`
 M*/
 
-PETSC_EXTERN PetscErrorCode MatGetFactor_seqaij_umfpack(Mat A, MatFactorType ftype, Mat *F) {
+PETSC_EXTERN PetscErrorCode MatGetFactor_seqaij_umfpack(Mat A, MatFactorType ftype, Mat *F)
+{
   Mat          B;
   Mat_UMFPACK *lu;
   PetscInt     m = A->rmap->n, n = A->cmap->n;
@@ -429,7 +451,8 @@ PETSC_INTERN PetscErrorCode MatGetFactor_seqsbaij_cholmod(Mat, MatFactorType, Ma
 PETSC_INTERN PetscErrorCode MatGetFactor_seqaij_klu(Mat, MatFactorType, Mat *);
 PETSC_INTERN PetscErrorCode MatGetFactor_seqaij_spqr(Mat, MatFactorType, Mat *);
 
-PETSC_EXTERN PetscErrorCode MatSolverTypeRegister_SuiteSparse(void) {
+PETSC_EXTERN PetscErrorCode MatSolverTypeRegister_SuiteSparse(void)
+{
   PetscFunctionBegin;
   PetscCall(MatSolverTypeRegister(MATSOLVERUMFPACK, MATSEQAIJ, MAT_FACTOR_LU, MatGetFactor_seqaij_umfpack));
   PetscCall(MatSolverTypeRegister(MATSOLVERCHOLMOD, MATSEQAIJ, MAT_FACTOR_CHOLESKY, MatGetFactor_seqaij_cholmod));

@@ -28,7 +28,8 @@ static char help[] = "Benchmarking memory bandwidth with VecAXPY() on parallel v
   #define SyncDevice() 0
 #endif
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
   PetscInt       i, k, N, n, m = 1000, nsamples;
   PetscLogDouble tstart, tend, time;
   Vec            x, y;

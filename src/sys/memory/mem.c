@@ -55,7 +55,8 @@
 
 .seealso: `PetscMallocGetMaximumUsage()`, `PetscMemoryGetMaximumUsage()`, `PetscMallocGetCurrentUsage()`, `PetscMemorySetGetMaximumUsage()`, `PetscMemoryView()`
 @*/
-PetscErrorCode PetscMemoryGetCurrentUsage(PetscLogDouble *mem) {
+PetscErrorCode PetscMemoryGetCurrentUsage(PetscLogDouble *mem)
+{
 #if defined(PETSC_USE_PROCFS_FOR_SIZE)
   FILE      *file;
   int        fd;
@@ -141,7 +142,8 @@ PetscLogDouble PetscMemoryMaximumUsage        = 0;
 .seealso: `PetscMallocGetMaximumUsage()`, `PetscMemoryGetCurrentUsage()`, `PetscMallocGetCurrentUsage()`,
           `PetscMemorySetGetMaximumUsage()`
 @*/
-PetscErrorCode PetscMemoryGetMaximumUsage(PetscLogDouble *mem) {
+PetscErrorCode PetscMemoryGetMaximumUsage(PetscLogDouble *mem)
+{
   PetscFunctionBegin;
   PetscCheck(PetscMemoryCollectMaximumUsage, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "To use this function you must first call PetscMemorySetGetMaximumUsage()");
   *mem = PetscMemoryMaximumUsage;
@@ -164,7 +166,8 @@ PetscErrorCode PetscMemoryGetMaximumUsage(PetscLogDouble *mem) {
 .seealso: `PetscMallocGetMaximumUsage()`, `PetscMemoryGetCurrentUsage()`, `PetscMallocGetCurrentUsage()`,
           `PetscMemoryGetMaximumUsage()`
 @*/
-PetscErrorCode PetscMemorySetGetMaximumUsage(void) {
+PetscErrorCode PetscMemorySetGetMaximumUsage(void)
+{
   PetscFunctionBegin;
   PetscMemoryCollectMaximumUsage = PETSC_TRUE;
   PetscFunctionReturn(0);

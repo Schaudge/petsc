@@ -41,7 +41,8 @@ typedef unsigned char PetscVTKType;
 #endif
 
 /* the only problem we've encountered so far is spaces not being acceptable for paraview field names */
-static inline PetscErrorCode PetscViewerVTKSanitizeName_Internal(char name[], size_t maxlen) {
+static inline PetscErrorCode PetscViewerVTKSanitizeName_Internal(char name[], size_t maxlen)
+{
   size_t c;
 
   PetscFunctionBegin;

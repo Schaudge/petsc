@@ -59,7 +59,8 @@ typedef struct {
 /*
     Utility function
 */
-static PetscErrorCode MatView_Info_SuperLU(Mat A, PetscViewer viewer) {
+static PetscErrorCode MatView_Info_SuperLU(Mat A, PetscViewer viewer)
+{
   Mat_SuperLU      *lu = (Mat_SuperLU *)A->data;
   superlu_options_t options;
 
@@ -89,7 +90,8 @@ static PetscErrorCode MatView_Info_SuperLU(Mat A, PetscViewer viewer) {
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MatSolve_SuperLU_Private(Mat A, Vec b, Vec x) {
+PetscErrorCode MatSolve_SuperLU_Private(Mat A, Vec b, Vec x)
+{
   Mat_SuperLU       *lu = (Mat_SuperLU *)A->data;
   const PetscScalar *barray;
   PetscScalar       *xarray;
@@ -187,7 +189,8 @@ PetscErrorCode MatSolve_SuperLU_Private(Mat A, Vec b, Vec x) {
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MatSolve_SuperLU(Mat A, Vec b, Vec x) {
+PetscErrorCode MatSolve_SuperLU(Mat A, Vec b, Vec x)
+{
   Mat_SuperLU *lu = (Mat_SuperLU *)A->data;
 
   PetscFunctionBegin;
@@ -202,7 +205,8 @@ PetscErrorCode MatSolve_SuperLU(Mat A, Vec b, Vec x) {
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MatSolveTranspose_SuperLU(Mat A, Vec b, Vec x) {
+PetscErrorCode MatSolveTranspose_SuperLU(Mat A, Vec b, Vec x)
+{
   Mat_SuperLU *lu = (Mat_SuperLU *)A->data;
 
   PetscFunctionBegin;
@@ -217,7 +221,8 @@ PetscErrorCode MatSolveTranspose_SuperLU(Mat A, Vec b, Vec x) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatLUFactorNumeric_SuperLU(Mat F, Mat A, const MatFactorInfo *info) {
+static PetscErrorCode MatLUFactorNumeric_SuperLU(Mat F, Mat A, const MatFactorInfo *info)
+{
   Mat_SuperLU *lu = (Mat_SuperLU *)F->data;
   Mat_SeqAIJ  *aa;
   PetscInt     sinfo;
@@ -338,7 +343,8 @@ static PetscErrorCode MatLUFactorNumeric_SuperLU(Mat F, Mat A, const MatFactorIn
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatDestroy_SuperLU(Mat A) {
+static PetscErrorCode MatDestroy_SuperLU(Mat A)
+{
   Mat_SuperLU *lu = (Mat_SuperLU *)A->data;
 
   PetscFunctionBegin;
@@ -367,7 +373,8 @@ static PetscErrorCode MatDestroy_SuperLU(Mat A) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatView_SuperLU(Mat A, PetscViewer viewer) {
+static PetscErrorCode MatView_SuperLU(Mat A, PetscViewer viewer)
+{
   PetscBool         iascii;
   PetscViewerFormat format;
 
@@ -380,7 +387,8 @@ static PetscErrorCode MatView_SuperLU(Mat A, PetscViewer viewer) {
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MatMatSolve_SuperLU(Mat A, Mat B, Mat X) {
+PetscErrorCode MatMatSolve_SuperLU(Mat A, Mat B, Mat X)
+{
   Mat_SuperLU *lu = (Mat_SuperLU *)A->data;
   PetscBool    flg;
 
@@ -394,7 +402,8 @@ PetscErrorCode MatMatSolve_SuperLU(Mat A, Mat B, Mat X) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatLUFactorSymbolic_SuperLU(Mat F, Mat A, IS r, IS c, const MatFactorInfo *info) {
+static PetscErrorCode MatLUFactorSymbolic_SuperLU(Mat F, Mat A, IS r, IS c, const MatFactorInfo *info)
+{
   Mat_SuperLU *lu = (Mat_SuperLU *)(F->data);
   PetscInt     indx;
   PetscBool    flg, set;
@@ -460,7 +469,8 @@ static PetscErrorCode MatLUFactorSymbolic_SuperLU(Mat F, Mat A, IS r, IS c, cons
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatSuperluSetILUDropTol_SuperLU(Mat F, PetscReal dtol) {
+static PetscErrorCode MatSuperluSetILUDropTol_SuperLU(Mat F, PetscReal dtol)
+{
   Mat_SuperLU *lu = (Mat_SuperLU *)F->data;
 
   PetscFunctionBegin;
@@ -487,7 +497,8 @@ static PetscErrorCode MatSuperluSetILUDropTol_SuperLU(Mat F, PetscReal dtol) {
 
 .seealso: `MatGetFactor()`
 @*/
-PetscErrorCode MatSuperluSetILUDropTol(Mat F, PetscReal dtol) {
+PetscErrorCode MatSuperluSetILUDropTol(Mat F, PetscReal dtol)
+{
   PetscFunctionBegin;
   PetscValidHeaderSpecific(F, MAT_CLASSID, 1);
   PetscValidLogicalCollectiveReal(F, dtol, 2);
@@ -495,7 +506,8 @@ PetscErrorCode MatSuperluSetILUDropTol(Mat F, PetscReal dtol) {
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MatFactorGetSolverType_seqaij_superlu(Mat A, MatSolverType *type) {
+PetscErrorCode MatFactorGetSolverType_seqaij_superlu(Mat A, MatSolverType *type)
+{
   PetscFunctionBegin;
   *type = MATSOLVERSUPERLU;
   PetscFunctionReturn(0);
@@ -538,7 +550,8 @@ PetscErrorCode MatFactorGetSolverType_seqaij_superlu(Mat A, MatSolverType *type)
 .seealso: `PCLU`, `PCILU`, `MATSOLVERSUPERLU_DIST`, `MATSOLVERMUMPS`, `PCFactorSetMatSolverType()`, `MatSolverType`
 M*/
 
-static PetscErrorCode MatGetFactor_seqaij_superlu(Mat A, MatFactorType ftype, Mat *F) {
+static PetscErrorCode MatGetFactor_seqaij_superlu(Mat A, MatFactorType ftype, Mat *F)
+{
   Mat          B;
   Mat_SuperLU *lu;
   PetscInt     m = A->rmap->n, n = A->cmap->n;
@@ -620,7 +633,8 @@ static PetscErrorCode MatGetFactor_seqaij_superlu(Mat A, MatFactorType ftype, Ma
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatGetFactor_seqsell_superlu(Mat A, MatFactorType ftype, Mat *F) {
+static PetscErrorCode MatGetFactor_seqsell_superlu(Mat A, MatFactorType ftype, Mat *F)
+{
   Mat_SuperLU *lu;
 
   PetscFunctionBegin;
@@ -630,7 +644,8 @@ static PetscErrorCode MatGetFactor_seqsell_superlu(Mat A, MatFactorType ftype, M
   PetscFunctionReturn(0);
 }
 
-PETSC_EXTERN PetscErrorCode MatSolverTypeRegister_SuperLU(void) {
+PETSC_EXTERN PetscErrorCode MatSolverTypeRegister_SuperLU(void)
+{
   PetscFunctionBegin;
   PetscCall(MatSolverTypeRegister(MATSOLVERSUPERLU, MATSEQAIJ, MAT_FACTOR_LU, MatGetFactor_seqaij_superlu));
   PetscCall(MatSolverTypeRegister(MATSOLVERSUPERLU, MATSEQAIJ, MAT_FACTOR_ILU, MatGetFactor_seqaij_superlu));

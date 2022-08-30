@@ -81,7 +81,9 @@ typedef unsigned long  u_long;
 static int listenport;
 /*-----------------------------------------------------------------*/
 extern int establish(u_short);
-int        SOCKConnect_Private(int portnumber) {
+
+int SOCKConnect_Private(int portnumber)
+{
   struct sockaddr_in isa;
 #if defined(PETSC_HAVE_ACCEPT_SIZE_T)
   size_t i;
@@ -102,7 +104,8 @@ int        SOCKConnect_Private(int portnumber) {
 }
 /*-----------------------------------------------------------------*/
 #define MAXHOSTNAME 100
-int establish(u_short portnum) {
+int establish(u_short portnum)
+{
   char               myname[MAXHOSTNAME + 1];
   int                s;
   struct sockaddr_in sa;
@@ -159,7 +162,8 @@ int establish(u_short portnum) {
 /*-----------------------------------------------------------------*/
 /*                                                                 */
 /*-----------------------------------------------------------------*/
-PETSC_EXTERN void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
+PETSC_EXTERN void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
+{
   int t, portnumber;
 
   /* check output parameters */
@@ -183,6 +187,7 @@ PETSC_EXTERN void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray
   return;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
   return 0;
 }

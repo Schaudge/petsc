@@ -8,7 +8,8 @@
   #include <stack>
   #include <type_traits>
 
-namespace Petsc {
+namespace Petsc
+{
 
 // Allocator ABC for interoperability with C ctors and dtors.
 template <typename T>
@@ -35,20 +36,23 @@ public:
   using allocator_type = AllocatorBase<T>;
   using value_type     = typename allocator_type::value_type;
 
-  PETSC_NODISCARD PetscErrorCode create(value_type *obj) const noexcept {
+  PETSC_NODISCARD PetscErrorCode create(value_type *obj) const noexcept
+  {
     PetscFunctionBegin;
     PetscCall(PetscNew(obj));
     PetscFunctionReturn(0);
   }
 
-  PETSC_NODISCARD PetscErrorCode destroy(value_type &obj) const noexcept {
+  PETSC_NODISCARD PetscErrorCode destroy(value_type &obj) const noexcept
+  {
     PetscFunctionBegin;
     PetscUseTypeMethod(obj, destroy);
     PetscCall(PetscHeaderDestroy(&obj));
     PetscFunctionReturn(0);
   }
 
-  PETSC_NODISCARD PetscErrorCode reset(value_type &obj) const noexcept {
+  PETSC_NODISCARD PetscErrorCode reset(value_type &obj) const noexcept
+  {
     PetscFunctionBegin;
     PetscCall(this->destroy(obj));
     PetscCall(this->create(&obj));
@@ -58,7 +62,8 @@ public:
   PETSC_NODISCARD PetscErrorCode finalize() const noexcept { return 0; }
 };
 
-namespace detail {
+namespace detail
+{
 
 // Base class to object pool, defines helpful typedefs and stores the allocator instance
 template <typename T, class Allocator>
@@ -153,37 +158,44 @@ public:
 };
 
 template <typename T, class Allocator>
-inline PetscBool operator==(const ObjectPool<T, Allocator> &l, const ObjectPool<T, Allocator> &r) noexcept {
+inline PetscBool operator==(const ObjectPool<T, Allocator> &l, const ObjectPool<T, Allocator> &r) noexcept
+{
   return static_cast<PetscBool>(l.stack_ == r.stack_);
 }
 
 template <typename T, class Allocator>
-inline PetscBool operator<(const ObjectPool<T, Allocator> &l, const ObjectPool<T, Allocator> &r) noexcept {
+inline PetscBool operator<(const ObjectPool<T, Allocator> &l, const ObjectPool<T, Allocator> &r) noexcept
+{
   return static_cast<PetscBool>(l.stack_ < r.stack_);
 }
 
 template <typename T, class Allocator>
-inline PetscBool operator!=(const ObjectPool<T, Allocator> &l, const ObjectPool<T, Allocator> &r) noexcept {
+inline PetscBool operator!=(const ObjectPool<T, Allocator> &l, const ObjectPool<T, Allocator> &r) noexcept
+{
   return !(l.stack_ == r.stack_);
 }
 
 template <typename T, class Allocator>
-inline PetscBool operator>(const ObjectPool<T, Allocator> &l, const ObjectPool<T, Allocator> &r) noexcept {
+inline PetscBool operator>(const ObjectPool<T, Allocator> &l, const ObjectPool<T, Allocator> &r) noexcept
+{
   return r.stack_ < l.stack_;
 }
 
 template <typename T, class Allocator>
-inline PetscBool operator>=(const ObjectPool<T, Allocator> &l, const ObjectPool<T, Allocator> &r) noexcept {
+inline PetscBool operator>=(const ObjectPool<T, Allocator> &l, const ObjectPool<T, Allocator> &r) noexcept
+{
   return !(l.stack_ < r.stack_);
 }
 
 template <typename T, class Allocator>
-inline PetscBool operator<=(const ObjectPool<T, Allocator> &l, const ObjectPool<T, Allocator> &r) noexcept {
+inline PetscBool operator<=(const ObjectPool<T, Allocator> &l, const ObjectPool<T, Allocator> &r) noexcept
+{
   return !(r.stack_ < l.stack_);
 }
 
 template <typename T, class Allocator>
-inline PetscErrorCode ObjectPool<T, Allocator>::finalizer_() noexcept {
+inline PetscErrorCode ObjectPool<T, Allocator>::finalizer_() noexcept
+{
   PetscFunctionBegin;
   while (!stack_.empty()) {
     // we do CHKERRQ __after__ the CHKERCXX on the off chance that someone uses the CXX
@@ -197,14 +209,16 @@ inline PetscErrorCode ObjectPool<T, Allocator>::finalizer_() noexcept {
 }
 
 template <typename T, class Allocator>
-inline PetscErrorCode ObjectPool<T, Allocator>::staticFinalizer_(void *obj) noexcept {
+inline PetscErrorCode ObjectPool<T, Allocator>::staticFinalizer_(void *obj) noexcept
+{
   PetscFunctionBegin;
   PetscCall(static_cast<ObjectPool<T, Allocator> *>(obj)->finalizer_());
   PetscFunctionReturn(0);
 }
 
 template <typename T, class Allocator>
-inline PetscErrorCode ObjectPool<T, Allocator>::registerFinalize_() noexcept {
+inline PetscErrorCode ObjectPool<T, Allocator>::registerFinalize_() noexcept
+{
   PetscContainer contain;
 
   PetscFunctionBegin;
@@ -222,7 +236,8 @@ inline PetscErrorCode ObjectPool<T, Allocator>::registerFinalize_() noexcept {
 }
 
 template <typename T, class Allocator>
-inline PetscErrorCode ObjectPool<T, Allocator>::get(value_type &obj) noexcept {
+inline PetscErrorCode ObjectPool<T, Allocator>::get(value_type &obj) noexcept
+{
   PetscFunctionBegin;
   PetscCall(registerFinalize_());
   if (stack_.empty()) {
@@ -235,7 +250,8 @@ inline PetscErrorCode ObjectPool<T, Allocator>::get(value_type &obj) noexcept {
 }
 
 template <typename T, class Allocator>
-inline PetscErrorCode ObjectPool<T, Allocator>::reclaim(value_type &&obj) noexcept {
+inline PetscErrorCode ObjectPool<T, Allocator>::reclaim(value_type &&obj) noexcept
+{
   PetscFunctionBegin;
   if (PetscLikely(registered_)) {
     // allows const allocator_t& to be used if allocator defines a const reset

@@ -12,7 +12,8 @@ struct _n_HDF5ReadCtx {
 };
 typedef struct _n_HDF5ReadCtx *HDF5ReadCtx;
 
-PetscErrorCode PetscViewerHDF5CheckTimestepping_Internal(PetscViewer viewer, const char name[]) {
+PetscErrorCode PetscViewerHDF5CheckTimestepping_Internal(PetscViewer viewer, const char name[])
+{
   PetscViewer_HDF5 *hdf5         = (PetscViewer_HDF5 *)viewer->data;
   PetscBool         timestepping = PETSC_FALSE;
   const char       *group;
@@ -24,7 +25,8 @@ PetscErrorCode PetscViewerHDF5CheckTimestepping_Internal(PetscViewer viewer, con
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscViewerHDF5ReadInitialize_Private(PetscViewer viewer, const char name[], HDF5ReadCtx *ctx) {
+static PetscErrorCode PetscViewerHDF5ReadInitialize_Private(PetscViewer viewer, const char name[], HDF5ReadCtx *ctx)
+{
   PetscViewer_HDF5 *hdf5 = (PetscViewer_HDF5 *)viewer->data;
   HDF5ReadCtx       h    = NULL;
 
@@ -43,7 +45,8 @@ static PetscErrorCode PetscViewerHDF5ReadInitialize_Private(PetscViewer viewer, 
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscViewerHDF5ReadFinalize_Private(PetscViewer viewer, HDF5ReadCtx *ctx) {
+static PetscErrorCode PetscViewerHDF5ReadFinalize_Private(PetscViewer viewer, HDF5ReadCtx *ctx)
+{
   HDF5ReadCtx h;
 
   PetscFunctionBegin;
@@ -56,7 +59,8 @@ static PetscErrorCode PetscViewerHDF5ReadFinalize_Private(PetscViewer viewer, HD
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscViewerHDF5ReadSizes_Private(PetscViewer viewer, HDF5ReadCtx ctx, PetscBool setup, PetscLayout *map_) {
+static PetscErrorCode PetscViewerHDF5ReadSizes_Private(PetscViewer viewer, HDF5ReadCtx ctx, PetscBool setup, PetscLayout *map_)
+{
   PetscViewer_HDF5 *hdf5 = (PetscViewer_HDF5 *)viewer->data;
   PetscInt          bs, len, N;
   PetscLayout       map;
@@ -128,7 +132,8 @@ static PetscErrorCode PetscViewerHDF5ReadSizes_Private(PetscViewer viewer, HDF5R
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscViewerHDF5ReadSelectHyperslab_Private(PetscViewer viewer, HDF5ReadCtx ctx, PetscLayout map, hid_t *memspace) {
+static PetscErrorCode PetscViewerHDF5ReadSelectHyperslab_Private(PetscViewer viewer, HDF5ReadCtx ctx, PetscLayout map, hid_t *memspace)
+{
   PetscViewer_HDF5 *hdf5 = (PetscViewer_HDF5 *)viewer->data;
   hsize_t          *count, *offset;
   PetscInt          bs, n, low;
@@ -162,7 +167,8 @@ static PetscErrorCode PetscViewerHDF5ReadSelectHyperslab_Private(PetscViewer vie
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscViewerHDF5ReadArray_Private(PetscViewer viewer, HDF5ReadCtx h, hid_t datatype, hid_t memspace, void *arr) {
+static PetscErrorCode PetscViewerHDF5ReadArray_Private(PetscViewer viewer, HDF5ReadCtx h, hid_t datatype, hid_t memspace, void *arr)
+{
   PetscViewer_HDF5 *hdf5 = (PetscViewer_HDF5 *)viewer->data;
 
   PetscFunctionBegin;
@@ -197,7 +203,8 @@ static PetscErrorCode PetscViewerHDF5ReadArray_Private(PetscViewer viewer, HDF5R
 
 .seealso `PetscViewerHDF5Open()`, `PetscViewerHDF5PushGroup()`, `PetscViewerHDF5OpenGroup()`, `PetscViewerHDF5ReadSizes()`, `VecLoad()`, `ISLoad()`
 @*/
-PetscErrorCode PetscViewerHDF5Load(PetscViewer viewer, const char *name, PetscLayout map, hid_t datatype, void **newarr) {
+PetscErrorCode PetscViewerHDF5Load(PetscViewer viewer, const char *name, PetscLayout map, hid_t datatype, void **newarr)
+{
   PetscBool   has;
   const char *group;
   HDF5ReadCtx h        = NULL;
@@ -256,7 +263,8 @@ PetscErrorCode PetscViewerHDF5Load(PetscViewer viewer, const char *name, PetscLa
 
 .seealso: `PetscViewerHDF5Open()`, `VecLoad()`, `ISLoad()`, `VecGetSize()`, `ISGetSize()`, `PetscViewerHDF5SetBaseDimension2()`
 @*/
-PetscErrorCode PetscViewerHDF5ReadSizes(PetscViewer viewer, const char name[], PetscInt *bs, PetscInt *N) {
+PetscErrorCode PetscViewerHDF5ReadSizes(PetscViewer viewer, const char name[], PetscInt *bs, PetscInt *N)
+{
   HDF5ReadCtx h   = NULL;
   PetscLayout map = NULL;
 

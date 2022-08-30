@@ -93,7 +93,8 @@ typedef struct {
   PetscBool       CleanUpKLU;
 } Mat_KLU;
 
-static PetscErrorCode MatDestroy_KLU(Mat A) {
+static PetscErrorCode MatDestroy_KLU(Mat A)
+{
   Mat_KLU *lu = (Mat_KLU *)A->data;
 
   PetscFunctionBegin;
@@ -107,7 +108,8 @@ static PetscErrorCode MatDestroy_KLU(Mat A) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatSolveTranspose_KLU(Mat A, Vec b, Vec x) {
+static PetscErrorCode MatSolveTranspose_KLU(Mat A, Vec b, Vec x)
+{
   Mat_KLU     *lu = (Mat_KLU *)A->data;
   PetscScalar *xa;
   PetscInt     status;
@@ -123,7 +125,8 @@ static PetscErrorCode MatSolveTranspose_KLU(Mat A, Vec b, Vec x) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatSolve_KLU(Mat A, Vec b, Vec x) {
+static PetscErrorCode MatSolve_KLU(Mat A, Vec b, Vec x)
+{
   Mat_KLU     *lu = (Mat_KLU *)A->data;
   PetscScalar *xa;
   PetscInt     status;
@@ -144,7 +147,8 @@ static PetscErrorCode MatSolve_KLU(Mat A, Vec b, Vec x) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatLUFactorNumeric_KLU(Mat F, Mat A, const MatFactorInfo *info) {
+static PetscErrorCode MatLUFactorNumeric_KLU(Mat F, Mat A, const MatFactorInfo *info)
+{
   Mat_KLU     *lu = (Mat_KLU *)(F)->data;
   Mat_SeqAIJ  *a  = (Mat_SeqAIJ *)A->data;
   PetscInt    *ai = a->i, *aj = a->j;
@@ -165,7 +169,8 @@ static PetscErrorCode MatLUFactorNumeric_KLU(Mat F, Mat A, const MatFactorInfo *
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatLUFactorSymbolic_KLU(Mat F, Mat A, IS r, IS c, const MatFactorInfo *info) {
+static PetscErrorCode MatLUFactorSymbolic_KLU(Mat F, Mat A, IS r, IS c, const MatFactorInfo *info)
+{
   Mat_SeqAIJ     *a  = (Mat_SeqAIJ *)A->data;
   Mat_KLU        *lu = (Mat_KLU *)(F->data);
   PetscInt        i, *ai = a->i, *aj = a->j, m = A->rmap->n, n = A->cmap->n;
@@ -199,7 +204,8 @@ static PetscErrorCode MatLUFactorSymbolic_KLU(Mat F, Mat A, IS r, IS c, const Ma
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatView_Info_KLU(Mat A, PetscViewer viewer) {
+static PetscErrorCode MatView_Info_KLU(Mat A, PetscViewer viewer)
+{
   Mat_KLU       *lu      = (Mat_KLU *)A->data;
   klu_K_numeric *Numeric = (klu_K_numeric *)lu->Numeric;
 
@@ -219,7 +225,8 @@ static PetscErrorCode MatView_Info_KLU(Mat A, PetscViewer viewer) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatView_KLU(Mat A, PetscViewer viewer) {
+static PetscErrorCode MatView_KLU(Mat A, PetscViewer viewer)
+{
   PetscBool         iascii;
   PetscViewerFormat format;
 
@@ -232,7 +239,8 @@ static PetscErrorCode MatView_KLU(Mat A, PetscViewer viewer) {
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MatFactorGetSolverType_seqaij_klu(Mat A, MatSolverType *type) {
+PetscErrorCode MatFactorGetSolverType_seqaij_klu(Mat A, MatSolverType *type)
+{
   PetscFunctionBegin;
   *type = MATSOLVERKLU;
   PetscFunctionReturn(0);
@@ -261,7 +269,8 @@ PetscErrorCode MatFactorGetSolverType_seqaij_klu(Mat A, MatSolverType *type) {
 .seealso: `PCLU`, `MATSOLVERUMFPACK`, `MATSOLVERCHOLMOD`, `PCFactorSetMatSolverType()`, `MatSolverType`
 M*/
 
-PETSC_INTERN PetscErrorCode MatGetFactor_seqaij_klu(Mat A, MatFactorType ftype, Mat *F) {
+PETSC_INTERN PetscErrorCode MatGetFactor_seqaij_klu(Mat A, MatFactorType ftype, Mat *F)
+{
   Mat       B;
   Mat_KLU  *lu;
   PetscInt  m = A->rmap->n, n = A->cmap->n, idx = 0, status;

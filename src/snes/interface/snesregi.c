@@ -40,7 +40,8 @@ const char *const *const SNESFunctionTypes           = SNESFunctionTypes_Shifted
 
 .seealso: `SNESRegisterDestroy()`
 @*/
-PetscErrorCode SNESRegisterAll(void) {
+PetscErrorCode SNESRegisterAll(void)
+{
   PetscFunctionBegin;
   if (SNESRegisterAllCalled) PetscFunctionReturn(0);
   SNESRegisterAllCalled = PETSC_TRUE;

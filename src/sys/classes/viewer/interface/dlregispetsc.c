@@ -13,7 +13,8 @@ static PetscBool PetscSysPackageInitialized = PETSC_FALSE;
 
 .seealso: `PetscFinalize()`
 @*/
-PetscErrorCode PetscSysFinalizePackage(void) {
+PetscErrorCode PetscSysFinalizePackage(void)
+{
   PetscFunctionBegin;
   if (Petsc_Seq_keyval != MPI_KEYVAL_INVALID) PetscCallMPI(MPI_Comm_free_keyval(&Petsc_Seq_keyval));
   PetscSysPackageInitialized = PETSC_FALSE;
@@ -29,7 +30,8 @@ PetscErrorCode PetscSysFinalizePackage(void) {
 
 .seealso: `PetscInitialize()`
 @*/
-PetscErrorCode PetscSysInitializePackage(void) {
+PetscErrorCode PetscSysInitializePackage(void)
+{
   char      logList[256];
   PetscBool opt, pkg;
 

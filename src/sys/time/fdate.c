@@ -31,7 +31,8 @@ PETSC_EXTERN int gettimeofday(struct timeval *, struct timezone *);
   additional system errors during the call to get the date.
 
 @*/
-PetscErrorCode PetscGetDate(char date[], size_t len) {
+PetscErrorCode PetscGetDate(char date[], size_t len)
+{
   char *str = NULL;
 #if defined(PETSC_HAVE_TIME)
   time_t aclock;

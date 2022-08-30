@@ -94,12 +94,14 @@ static_assert(PetscMemTypeCUDA(PETSC_MEMTYPE_NVSHMEM), "");
   #endif
 #endif // __cplusplus
 
-PETSC_NODISCARD static inline PETSC_CONSTEXPR_14 const char *PetscMemTypeToString(PetscMemType mtype) {
+PETSC_NODISCARD static inline PETSC_CONSTEXPR_14 const char *PetscMemTypeToString(PetscMemType mtype)
+{
 #ifdef __cplusplus
   static_assert(PETSC_MEMTYPE_CUDA == PETSC_MEMTYPE_DEVICE, "");
 #endif
 #define PETSC_CASE_NAME(v) \
-case v: return PetscStringize(v)
+case v: \
+  return PetscStringize(v)
 
   switch (mtype) {
     PETSC_CASE_NAME(PETSC_MEMTYPE_HOST);
@@ -174,9 +176,11 @@ static_assert(!PetscOffloadBoth(PETSC_OFFLOAD_KOKKOS), "");
   #endif
 #endif // __cplusplus
 
-PETSC_NODISCARD static inline PETSC_CONSTEXPR_14 const char *PetscOffloadMaskToString(PetscOffloadMask mask) {
+PETSC_NODISCARD static inline PETSC_CONSTEXPR_14 const char *PetscOffloadMaskToString(PetscOffloadMask mask)
+{
 #define PETSC_CASE_RETURN(v) \
-case v: return PetscStringize(v)
+case v: \
+  return PetscStringize(v)
 
   switch (mask) {
     PETSC_CASE_RETURN(PETSC_OFFLOAD_UNALLOCATED);
@@ -190,13 +194,17 @@ case v: return PetscStringize(v)
 #undef PETSC_CASE_RETURN
 }
 
-PETSC_NODISCARD static inline PETSC_CONSTEXPR_14 PetscMemType PetscOffloadMaskToMemType(PetscOffloadMask mask) {
+PETSC_NODISCARD static inline PETSC_CONSTEXPR_14 PetscMemType PetscOffloadMaskToMemType(PetscOffloadMask mask)
+{
   switch (mask) {
   case PETSC_OFFLOAD_UNALLOCATED:
-  case PETSC_OFFLOAD_CPU: return PETSC_MEMTYPE_HOST;
+  case PETSC_OFFLOAD_CPU:
+    return PETSC_MEMTYPE_HOST;
   case PETSC_OFFLOAD_GPU:
-  case PETSC_OFFLOAD_BOTH: return PETSC_MEMTYPE_DEVICE;
-  case PETSC_OFFLOAD_KOKKOS: return PETSC_MEMTYPE_KOKKOS;
+  case PETSC_OFFLOAD_BOTH:
+    return PETSC_MEMTYPE_DEVICE;
+  case PETSC_OFFLOAD_KOKKOS:
+    return PETSC_MEMTYPE_KOKKOS;
   }
   PetscUnreachable();
   return PETSC_MEMTYPE_HOST;
@@ -356,7 +364,8 @@ typedef enum {
 } PetscDeviceCopyMode;
 PETSC_EXTERN const char *const PetscDeviceCopyModes[];
 
-PETSC_NODISCARD static inline PetscDeviceCopyMode PetscOffloadMaskToDeviceCopyMode(PetscOffloadMask dest, PetscOffloadMask src) {
+PETSC_NODISCARD static inline PetscDeviceCopyMode PetscOffloadMaskToDeviceCopyMode(PetscOffloadMask dest, PetscOffloadMask src)
+{
   PetscDeviceCopyMode mode;
 
   PetscFunctionBegin;
@@ -371,7 +380,8 @@ PETSC_NODISCARD static inline PetscDeviceCopyMode PetscOffloadMaskToDeviceCopyMo
   PetscFunctionReturn(mode);
 }
 
-PETSC_NODISCARD static inline PETSC_CONSTEXPR_14 PetscDeviceCopyMode PetscMemTypeToDeviceCopyMode(PetscMemType dest, PetscMemType src) {
+PETSC_NODISCARD static inline PETSC_CONSTEXPR_14 PetscDeviceCopyMode PetscMemTypeToDeviceCopyMode(PetscMemType dest, PetscMemType src)
+{
   if (PetscMemTypeHost(dest)) {
     return PetscMemTypeHost(src) ? PETSC_DEVICE_COPY_HTOH : PETSC_DEVICE_COPY_DTOH;
   } else {
@@ -437,9 +447,11 @@ static_assert((PETSC_MEMORY_ACCESS_READ | PETSC_MEMORY_ACCESS_WRITE) == PETSC_ME
   #endif
 #endif
 
-PETSC_NODISCARD static inline PETSC_CONSTEXPR_14 const char *PetscMemoryAccessModeToString(PetscMemoryAccessMode mode) {
+PETSC_NODISCARD static inline PETSC_CONSTEXPR_14 const char *PetscMemoryAccessModeToString(PetscMemoryAccessMode mode)
+{
 #define PETSC_CASE_RETURN(v) \
-case v: return PetscStringize(v)
+case v: \
+  return PetscStringize(v)
 
   switch (mode) {
     PETSC_CASE_RETURN(PETSC_MEMORY_ACCESS_READ);

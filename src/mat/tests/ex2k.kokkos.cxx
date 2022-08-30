@@ -45,7 +45,8 @@ Examples:
   #define SyncDevice()
 #endif
 
-int main(int argc, char **args) {
+int main(int argc, char **args)
+{
   Mat            A, P, C;
   Mat            A2, P2, C2; /* Shadow matrices (of MATAIJ) of A,P,C for initialization and validation */
   char           matTypeStr[64], prodTypeStr[32];

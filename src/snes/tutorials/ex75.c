@@ -9,7 +9,8 @@ typedef struct {
   PetscBool fem; /* Flag for FEM tests */
 } AppCtx;
 
-PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options) {
+PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
+{
   PetscFunctionBeginUser;
   options->fem = PETSC_FALSE;
   PetscOptionsBegin(comm, "", "Stokes Problem Options", "DMPLEX");
@@ -50,7 +51,8 @@ $    kn = n*Pi
 $
 $  meaning that the density rho is -sigma*sin(km*z)*cos(kn*x). The viscosity eta is exp(2*B*x).
 */
-PetscErrorCode SolKxSolution(PetscReal x, PetscReal z, PetscReal kn, PetscReal km, PetscReal B, PetscScalar *vx, PetscScalar *vz, PetscScalar *p, PetscScalar *sxx, PetscScalar *sxz, PetscScalar *szz) {
+PetscErrorCode SolKxSolution(PetscReal x, PetscReal z, PetscReal kn, PetscReal km, PetscReal B, PetscScalar *vx, PetscScalar *vz, PetscScalar *p, PetscScalar *sxx, PetscScalar *sxz, PetscScalar *szz)
+{
   PetscScalar sigma;
   PetscScalar _C1, _C2, _C3, _C4;
   PetscScalar Rp, UU, VV;
@@ -80,13 +82,13 @@ PetscErrorCode SolKxSolution(PetscReal x, PetscReal z, PetscReal kn, PetscReal k
   sigma = 1.0;
   /*************************************************************************/
   /*************************************************************************/
-  a     = B * B + km * km;
-  b     = 2.0 * km * B;
-  r     = sqrt(a * a + b * b);
-  Rp    = sqrt((r + a) / 2.0);
-  Rm    = sqrt((r - a) / 2.0);
-  UU    = Rp - B;
-  VV    = Rp + B;
+  a  = B * B + km * km;
+  b  = 2.0 * km * B;
+  r  = sqrt(a * a + b * b);
+  Rp = sqrt((r + a) / 2.0);
+  Rm = sqrt((r - a) / 2.0);
+  UU = Rp - B;
+  VV = Rp + B;
 
   /*******************************************/
   /*         calculate the constants         */
@@ -487,7 +489,8 @@ PetscErrorCode SolKxSolution(PetscReal x, PetscReal z, PetscReal kn, PetscReal k
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode SolKxWrapperV(PetscInt dim, const PetscReal x[], PetscInt Nf, PetscScalar v[], void *ctx) {
+PetscErrorCode SolKxWrapperV(PetscInt dim, const PetscReal x[], PetscInt Nf, PetscScalar v[], void *ctx)
+{
   PetscReal   B  = 100.0;
   PetscReal   kn = 100 * M_PI;
   PetscReal   km = 100 * M_PI;
@@ -498,7 +501,8 @@ PetscErrorCode SolKxWrapperV(PetscInt dim, const PetscReal x[], PetscInt Nf, Pet
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode SolKxWrapperP(PetscInt dim, const PetscReal x[], PetscInt Nf, PetscScalar v[], void *ctx) {
+PetscErrorCode SolKxWrapperP(PetscInt dim, const PetscReal x[], PetscInt Nf, PetscScalar v[], void *ctx)
+{
   PetscReal   B  = 100.0;
   PetscReal   kn = 100 * M_PI;
   PetscReal   km = 100 * M_PI;
@@ -512,7 +516,8 @@ PetscErrorCode SolKxWrapperP(PetscInt dim, const PetscReal x[], PetscInt Nf, Pet
 /*
   Compare the C implementation with generated data from Maple
 */
-PetscErrorCode MapleTest(MPI_Comm comm, AppCtx *ctx) {
+PetscErrorCode MapleTest(MPI_Comm comm, AppCtx *ctx)
+{
   const PetscInt n = 41;
   PetscScalar    vxMaple[41][41], vzMaple[41][41], pMaple[41][41], sxxMaple[41][41], sxzMaple[41][41], szzMaple[41][41];
   PetscReal      x[41], z[41];
@@ -536,7 +541,8 @@ PetscCall(PetscPrintf(comm, "Verified Maple test 5\n"));
 PetscFunctionReturn(0);
 }
 
-PetscErrorCode FEMTest(MPI_Comm comm, AppCtx *ctx) {
+PetscErrorCode FEMTest(MPI_Comm comm, AppCtx *ctx)
+{
   DM  dm;
   Vec u;
   PetscErrorCode (*funcs[2])(PetscInt, const PetscReal[], PetscInt, PetscScalar *, void *) = {SolKxWrapperV, SolKxWrapperP};
@@ -558,7 +564,8 @@ PetscErrorCode FEMTest(MPI_Comm comm, AppCtx *ctx) {
   PetscFunctionReturn(0);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
   AppCtx user; /* user-defined work context */
 
   PetscFunctionBeginUser;

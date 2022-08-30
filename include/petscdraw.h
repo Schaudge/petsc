@@ -94,7 +94,8 @@ PETSC_EXTERN PetscErrorCode PetscDrawViewFromOptions(PetscDraw, PetscObject, con
 .seealso: `PetscDrawPointPixel()`, `PetscDrawPoint()`, `PetscDrawLine()`, `PetscDrawTriangle()`, `PetscDrawRectangle()`
 
 M*/
-static inline int PetscDrawRealToColor(PetscReal value, PetscReal min, PetscReal max) {
+static inline int PetscDrawRealToColor(PetscReal value, PetscReal min, PetscReal max)
+{
   value = PetscClipInterval(value, min, max);
   return PETSC_DRAW_BASIC_COLORS + (int)((255 - PETSC_DRAW_BASIC_COLORS) * (value - min) / (max - min));
 }
@@ -379,7 +380,9 @@ M*/
         _Petsc_xioerrhdl = PetscSetXIOErrorHandler(PetscXIOErrorHandlerJump); \
         if (setjmp(PetscXIOErrorHandlerJumpBuf)) { \
           _Petsc_xioerr_local = PETSC_TRUE; \
-          do { PetscDrawCollectiveEnd(draw); } \
+          do { \
+            PetscDrawCollectiveEnd(draw); \
+          } \
         } \
         do { \
       } while (0)

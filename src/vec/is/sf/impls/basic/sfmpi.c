@@ -5,7 +5,8 @@
 #include <../src/vec/is/sf/impls/basic/sfpack.h>
 
 /* Start MPI requests. If use non-GPU aware MPI, we might need to copy data from device buf to host buf */
-static PetscErrorCode PetscSFLinkStartRequests_MPI(PetscSF sf, PetscSFLink link, PetscSFDirection direction) {
+static PetscErrorCode PetscSFLinkStartRequests_MPI(PetscSF sf, PetscSFLink link, PetscSFDirection direction)
+{
   PetscMPIInt    nreqs;
   MPI_Request   *reqs = NULL;
   PetscSF_Basic *bas  = (PetscSF_Basic *)sf->data;
@@ -41,7 +42,8 @@ static PetscErrorCode PetscSFLinkStartRequests_MPI(PetscSF sf, PetscSFLink link,
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscSFLinkWaitRequests_MPI(PetscSF sf, PetscSFLink link, PetscSFDirection direction) {
+static PetscErrorCode PetscSFLinkWaitRequests_MPI(PetscSF sf, PetscSFLink link, PetscSFDirection direction)
+{
   PetscSF_Basic     *bas           = (PetscSF_Basic *)sf->data;
   const PetscMemType rootmtype_mpi = link->rootmtype_mpi, leafmtype_mpi = link->leafmtype_mpi;
   const PetscInt     rootdirect_mpi = link->rootdirect_mpi, leafdirect_mpi = link->leafdirect_mpi;
@@ -73,7 +75,8 @@ static PetscErrorCode PetscSFLinkWaitRequests_MPI(PetscSF sf, PetscSFLink link, 
    The routine is shared by SFBasic and SFNeighbor based on the fact they all deal with sparse graphs and
    need pack/unpack data.
 */
-PetscErrorCode PetscSFLinkCreate_MPI(PetscSF sf, MPI_Datatype unit, PetscMemType xrootmtype, const void *rootdata, PetscMemType xleafmtype, const void *leafdata, MPI_Op op, PetscSFOperation sfop, PetscSFLink *mylink) {
+PetscErrorCode PetscSFLinkCreate_MPI(PetscSF sf, MPI_Datatype unit, PetscMemType xrootmtype, const void *rootdata, PetscMemType xleafmtype, const void *leafdata, MPI_Op op, PetscSFOperation sfop, PetscSFLink *mylink)
+{
   PetscSF_Basic   *bas = (PetscSF_Basic *)sf->data;
   PetscInt         i, j, k, nrootreqs, nleafreqs, nreqs;
   PetscSFLink     *p, link;

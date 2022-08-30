@@ -7,7 +7,8 @@
 #include <ctetgen.h>
 
 /* This is to fix the tetrahedron orientation from TetGen */
-static PetscErrorCode DMPlexInvertCells_CTetgen(PetscInt numCells, PetscInt numCorners, PetscInt cells[]) {
+static PetscErrorCode DMPlexInvertCells_CTetgen(PetscInt numCells, PetscInt numCorners, PetscInt cells[])
+{
   PetscInt bound = numCells * numCorners, coff;
 
   PetscFunctionBegin;
@@ -22,7 +23,8 @@ static PetscErrorCode DMPlexInvertCells_CTetgen(PetscInt numCells, PetscInt numC
   PetscFunctionReturn(0);
 }
 
-PETSC_EXTERN PetscErrorCode DMPlexGenerate_CTetgen(DM boundary, PetscBool interpolate, DM *dm) {
+PETSC_EXTERN PetscErrorCode DMPlexGenerate_CTetgen(DM boundary, PetscBool interpolate, DM *dm)
+{
   MPI_Comm               comm;
   const PetscInt         dim = 3;
   PLC                   *in, *out;
@@ -280,7 +282,8 @@ PETSC_EXTERN PetscErrorCode DMPlexGenerate_CTetgen(DM boundary, PetscBool interp
   PetscFunctionReturn(0);
 }
 
-PETSC_EXTERN PetscErrorCode DMPlexRefine_CTetgen(DM dm, PetscReal *maxVolumes, DM *dmRefined) {
+PETSC_EXTERN PetscErrorCode DMPlexRefine_CTetgen(DM dm, PetscReal *maxVolumes, DM *dmRefined)
+{
   MPI_Comm               comm;
   const PetscInt         dim = 3;
   PLC                   *in, *out;

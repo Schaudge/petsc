@@ -22,7 +22,8 @@
 .seelso: `PetscMemType`, `PetscDeviceMalloc()`, `PetscDeviceCalloc()`, `PetscDeviceFree()`,
 `PetscDeviceArrayCopy()`, `PetscDeviceArrayZero()`
 @*/
-PetscErrorCode PetscGetMemType(const void *ptr, PetscMemType *type) {
+PetscErrorCode PetscGetMemType(const void *ptr, PetscMemType *type)
+{
   PetscFunctionBegin;
   PetscValidPointer(type, 2);
   *type = PETSC_MEMTYPE_HOST;

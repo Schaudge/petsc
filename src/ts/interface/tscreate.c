@@ -26,7 +26,8 @@ const char *const *TSConvergedReasons = TSConvergedReasons_Shifted + 4;
 
 .seealso: `TSSetType()`, `TSSetUp()`, `TSDestroy()`, `TSSetProblemType()`
 @*/
-PetscErrorCode TSCreate(MPI_Comm comm, TS *ts) {
+PetscErrorCode TSCreate(MPI_Comm comm, TS *ts)
+{
   TS t;
 
   PetscFunctionBegin;

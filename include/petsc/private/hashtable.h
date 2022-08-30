@@ -115,7 +115,9 @@ typedef khiter_t PetscHashIter;
   } while (0)
 
 #define PetscHashIterNext(ht, i) \
-  do { ++(i); } while ((i) != kh_end((ht)) && !kh_exist((ht), (i)))
+  do { \
+    ++(i); \
+  } while ((i) != kh_end((ht)) && !kh_exist((ht), (i)))
 
 #define PetscHashIterAtEnd(ht, i) ((i) == kh_end((ht)))
 
@@ -132,7 +134,8 @@ typedef khint64_t PetscHash64_t;
 typedef khint_t   PetscHash_t;
 
 /* Thomas Wang's first version for 32bit integers */
-static inline PetscHash_t PetscHash_UInt32_v0(PetscHash32_t key) {
+static inline PetscHash_t PetscHash_UInt32_v0(PetscHash32_t key)
+{
   key += ~(key << 15);
   key ^= (key >> 10);
   key += (key << 3);
@@ -143,7 +146,8 @@ static inline PetscHash_t PetscHash_UInt32_v0(PetscHash32_t key) {
 }
 
 /* Thomas Wang's second version for 32bit integers */
-static inline PetscHash_t PetscHash_UInt32_v1(PetscHash32_t key) {
+static inline PetscHash_t PetscHash_UInt32_v1(PetscHash32_t key)
+{
   key = ~key + (key << 15); /* key = (key << 15) - key - 1; */
   key = key ^ (key >> 12);
   key = key + (key << 2);
@@ -153,12 +157,14 @@ static inline PetscHash_t PetscHash_UInt32_v1(PetscHash32_t key) {
   return key;
 }
 
-static inline PetscHash_t PetscHash_UInt32(PetscHash32_t key) {
+static inline PetscHash_t PetscHash_UInt32(PetscHash32_t key)
+{
   return PetscHash_UInt32_v1(key);
 }
 
 /* Thomas Wang's version for 64bit integer -> 32bit hash */
-static inline PetscHash32_t PetscHash_UInt64_32(PetscHash64_t key) {
+static inline PetscHash32_t PetscHash_UInt64_32(PetscHash64_t key)
+{
   key = ~key + (key << 18); /* key = (key << 18) - key - 1; */
   key = key ^ (key >> 31);
   key = key * 21; /* key = (key + (key << 2)) + (key << 4);  */
@@ -169,7 +175,8 @@ static inline PetscHash32_t PetscHash_UInt64_32(PetscHash64_t key) {
 }
 
 /* Thomas Wang's version for 64bit integer -> 64bit hash */
-static inline PetscHash64_t PetscHash_UInt64_64(PetscHash64_t key) {
+static inline PetscHash64_t PetscHash_UInt64_64(PetscHash64_t key)
+{
   key = ~key + (key << 21); /* key = (key << 21) - key - 1; */
   key = key ^ (key >> 24);
   key = key * 265; /* key = (key + (key << 3)) + (key << 8);  */
@@ -180,11 +187,13 @@ static inline PetscHash64_t PetscHash_UInt64_64(PetscHash64_t key) {
   return key;
 }
 
-static inline PetscHash_t PetscHash_UInt64(PetscHash64_t key) {
+static inline PetscHash_t PetscHash_UInt64(PetscHash64_t key)
+{
   return sizeof(PetscHash_t) < sizeof(PetscHash64_t) ? (PetscHash_t)PetscHash_UInt64_32(key) : (PetscHash_t)PetscHash_UInt64_64(key);
 }
 
-static inline PetscHash_t PetscHashInt(PetscInt key) {
+static inline PetscHash_t PetscHashInt(PetscInt key)
+{
 #if defined(PETSC_USE_64BIT_INDICES)
   return PetscHash_UInt64((PetscHash64_t)key);
 #else
@@ -192,7 +201,8 @@ static inline PetscHash_t PetscHashInt(PetscInt key) {
 #endif
 }
 
-static inline PetscHash_t PetscHashPointer(void *key) {
+static inline PetscHash_t PetscHashPointer(void *key)
+{
 #if PETSC_SIZEOF_VOID_P == 8
   return PetscHash_UInt64((PetscHash64_t)key);
 #else
@@ -200,7 +210,8 @@ static inline PetscHash_t PetscHashPointer(void *key) {
 #endif
 }
 
-static inline PetscHash_t PetscHashCombine(PetscHash_t seed, PetscHash_t hash) {
+static inline PetscHash_t PetscHashCombine(PetscHash_t seed, PetscHash_t hash)
+{
   /* https://doi.org/10.1002/asi.10170 */
   /* https://dl.acm.org/citation.cfm?id=759509 */
   return seed ^ (hash + (seed << 6) + (seed >> 2));

@@ -8,7 +8,8 @@
 
 extern PetscErrorCode PetscSharedMalloc(MPI_Comm, PetscInt, PetscInt, void **);
 
-PetscErrorCode VecDuplicate_Shared(Vec win, Vec *v) {
+PetscErrorCode VecDuplicate_Shared(Vec win, Vec *v)
+{
   Vec_MPI     *w = (Vec_MPI *)win->data;
   PetscScalar *array;
 
@@ -33,7 +34,8 @@ PetscErrorCode VecDuplicate_Shared(Vec win, Vec *v) {
   PetscFunctionReturn(0);
 }
 
-PETSC_EXTERN PetscErrorCode VecCreate_Shared(Vec vv) {
+PETSC_EXTERN PetscErrorCode VecCreate_Shared(Vec vv)
+{
   PetscScalar *array;
 
   PetscFunctionBegin;
@@ -77,7 +79,8 @@ static PetscMPIInt Petsc_ShmComm_keyval = MPI_KEYVAL_INVALID;
   The binding for the first argument changed from MPI 1.0 to 1.1; in 1.0
   it was MPI_Comm *comm.
 */
-static PetscErrorCode Petsc_DeleteShared(MPI_Comm comm, PetscInt keyval, void *attr_val, void *extra_state) {
+static PetscErrorCode Petsc_DeleteShared(MPI_Comm comm, PetscInt keyval, void *attr_val, void *extra_state)
+{
   PetscFunctionBegin;
   PetscCall(PetscFree(attr_val));
   PetscFunctionReturn(MPI_SUCCESS);
@@ -99,7 +102,8 @@ kern.sysv.shmall=1024
 ipcrm to remove the shared memory in use.
 
 */
-PetscErrorCode PetscSharedMalloc(MPI_Comm comm, PetscInt llen, PetscInt len, void **result) {
+PetscErrorCode PetscSharedMalloc(MPI_Comm comm, PetscInt llen, PetscInt len, void **result)
+{
   PetscInt    shift;
   PetscMPIInt rank, flag;
   int        *arena, id, key = 0;
@@ -136,7 +140,8 @@ PetscErrorCode PetscSharedMalloc(MPI_Comm comm, PetscInt llen, PetscInt len, voi
 
 #else
 
-PETSC_EXTERN PetscErrorCode VecCreate_Shared(Vec vv) {
+PETSC_EXTERN PetscErrorCode VecCreate_Shared(Vec vv)
+{
   PetscMPIInt size;
 
   PetscFunctionBegin;
@@ -174,7 +179,8 @@ PETSC_EXTERN PetscErrorCode VecCreate_Shared(Vec vv) {
           `VecCreateGhost()`, `VecCreateMPIWithArray()`, `VecCreateGhostWithArray()`
 
 @*/
-PetscErrorCode VecCreateShared(MPI_Comm comm, PetscInt n, PetscInt N, Vec *v) {
+PetscErrorCode VecCreateShared(MPI_Comm comm, PetscInt n, PetscInt N, Vec *v)
+{
   PetscFunctionBegin;
   PetscCall(VecCreate(comm, v));
   PetscCall(VecSetSizes(*v, n, N));

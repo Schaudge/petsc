@@ -12,9 +12,13 @@
       if (nnz > 0) { \
         PetscInt nnz2 = nnz, rem = nnz & 0x3; \
         switch (rem) { \
-        case 3: sum += *xv++ * r[*xi++]; \
-        case 2: sum += *xv++ * r[*xi++]; \
-        case 1: sum += *xv++ * r[*xi++]; nnz2 -= rem; \
+        case 3: \
+          sum += *xv++ * r[*xi++]; \
+        case 2: \
+          sum += *xv++ * r[*xi++]; \
+        case 1: \
+          sum += *xv++ * r[*xi++]; \
+          nnz2 -= rem; \
         } \
         while (nnz2 > 0) { \
           sum += xv[0] * r[xi[0]] + xv[1] * r[xi[1]] + xv[2] * r[xi[2]] + xv[3] * r[xi[3]]; \

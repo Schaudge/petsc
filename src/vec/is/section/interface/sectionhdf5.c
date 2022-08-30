@@ -5,7 +5,8 @@
 #include <petsclayouthdf5.h>
 
 #if defined(PETSC_HAVE_HDF5)
-static PetscErrorCode PetscSectionView_HDF5_SingleField(PetscSection s, PetscViewer viewer) {
+static PetscErrorCode PetscSectionView_HDF5_SingleField(PetscSection s, PetscViewer viewer)
+{
   MPI_Comm  comm;
   PetscInt  pStart, pEnd, p, n;
   PetscBool hasConstraints, includesConstraints;
@@ -86,7 +87,8 @@ static PetscErrorCode PetscSectionView_HDF5_SingleField(PetscSection s, PetscVie
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscSectionView_HDF5_Internal(PetscSection s, PetscViewer viewer) {
+PetscErrorCode PetscSectionView_HDF5_Internal(PetscSection s, PetscViewer viewer)
+{
   PetscInt numFields, f;
 
   PetscFunctionBegin;
@@ -122,7 +124,8 @@ PetscErrorCode PetscSectionView_HDF5_Internal(PetscSection s, PetscViewer viewer
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscSectionLoad_HDF5_SingleField_SetConstraintIndices(PetscSection s, IS cindIS, IS coffIS) {
+static PetscErrorCode PetscSectionLoad_HDF5_SingleField_SetConstraintIndices(PetscSection s, IS cindIS, IS coffIS)
+{
   MPI_Comm        comm;
   PetscInt        pStart, pEnd, p, M, m, i, cdof;
   const PetscInt *data;
@@ -169,7 +172,8 @@ static PetscErrorCode PetscSectionLoad_HDF5_SingleField_SetConstraintIndices(Pet
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscSectionLoad_HDF5_SingleField(PetscSection s, PetscViewer viewer) {
+static PetscErrorCode PetscSectionLoad_HDF5_SingleField(PetscSection s, PetscViewer viewer)
+{
   MPI_Comm comm;
   PetscInt pStart, pEnd, p, N, n, M, m;
   #if defined(PETSC_USE_DEBUG)
@@ -267,7 +271,8 @@ static PetscErrorCode PetscSectionLoad_HDF5_SingleField(PetscSection s, PetscVie
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscSectionLoad_HDF5_Internal(PetscSection s, PetscViewer viewer) {
+PetscErrorCode PetscSectionLoad_HDF5_Internal(PetscSection s, PetscViewer viewer)
+{
   MPI_Comm comm;
   PetscInt N, n, numFields, f;
 

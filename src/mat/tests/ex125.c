@@ -3,7 +3,8 @@ Example: mpiexec -n <np> ./ex125 -f <matrix binary file> -nrhs 4 \n\n";
 
 #include <petscmat.h>
 
-int main(int argc, char **args) {
+int main(int argc, char **args)
+{
   Mat           A, RHS = NULL, RHS1 = NULL, C, F, X;
   Vec           u, x, b;
   PetscMPIInt   size;

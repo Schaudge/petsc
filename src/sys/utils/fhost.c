@@ -43,7 +43,8 @@ $       call PetscGetHostName(name,ierr)
 
 .seealso: `PetscGetUserName()`, `PetscGetArchType()`
 @*/
-PetscErrorCode PetscGetHostName(char name[], size_t nlen) {
+PetscErrorCode PetscGetHostName(char name[], size_t nlen)
+{
   char *domain;
 #if defined(PETSC_HAVE_UNAME) && !defined(PETSC_HAVE_GETCOMPUTERNAME)
   struct utsname utname;

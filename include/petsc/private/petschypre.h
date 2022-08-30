@@ -30,7 +30,8 @@ static_assert(std::is_same<HYPRE_BigInt, int>::value, "");
   With scalar type == real, HYPRE_Complex == PetscScalar;
   With scalar type == complex,  HYPRE_Complex is double __complex__ while PetscScalar may be std::complex<double>
 */
-static inline PetscErrorCode PetscHYPREScalarCast(PetscScalar a, HYPRE_Complex *b) {
+static inline PetscErrorCode PetscHYPREScalarCast(PetscScalar a, HYPRE_Complex *b)
+{
   PetscFunctionBegin;
 #if defined(HYPRE_COMPLEX)
   ((PetscReal *)b)[0] = PetscRealPart(a);

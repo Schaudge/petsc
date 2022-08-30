@@ -37,7 +37,8 @@
 
 .seealso: `PetscGetTmp()`, `PetscSharedTmp()`, `PetscSharedWorkingDirectory()`, `PetscGetHomeDirectory()`
 @*/
-PetscErrorCode PetscGetWorkingDirectory(char path[], size_t len) {
+PetscErrorCode PetscGetWorkingDirectory(char path[], size_t len)
+{
   PetscFunctionBegin;
 #if defined(PETSC_HAVE_GETCWD)
   PetscCheck(getcwd(path, len), PETSC_COMM_SELF, PETSC_ERR_LIB, "getcwd()");

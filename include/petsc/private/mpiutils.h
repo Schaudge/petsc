@@ -10,13 +10,15 @@ PETSC_EXTERN PetscErrorCode PetscGatherMessageLengths_Private(MPI_Comm, PetscMPI
 /* Cast PetscInt <a> to PetscMPIInt <b>, where <a> is likely used for the 'count' argument in MPI routines.
     It is similar to PetscMPIIntCast() execept that here it returns an MPI error code.
   */
-static inline PetscMPIInt PetscMPIIntCast_Internal(PetscInt a, PetscMPIInt *b) {
+static inline PetscMPIInt PetscMPIIntCast_Internal(PetscInt a, PetscMPIInt *b)
+{
   *b = (PetscMPIInt)(a);
   if (PetscDefined(USE_64BIT_INDICIES) && PetscUnlikely(a > PETSC_MPI_INT_MAX)) return MPI_ERR_COUNT;
   return MPI_SUCCESS;
 }
 
-static inline PetscMPIInt MPIU_Send(const void *buf, PetscInt count, MPI_Datatype datatype, PetscMPIInt dest, PetscMPIInt tag, MPI_Comm comm) {
+static inline PetscMPIInt MPIU_Send(const void *buf, PetscInt count, MPI_Datatype datatype, PetscMPIInt dest, PetscMPIInt tag, MPI_Comm comm)
+{
   PetscMPIInt count2;
 
   PetscFunctionBegin;
@@ -25,7 +27,8 @@ static inline PetscMPIInt MPIU_Send(const void *buf, PetscInt count, MPI_Datatyp
   PetscFunctionReturn(MPI_SUCCESS);
 }
 
-static inline PetscMPIInt MPIU_Send_init(const void *buf, PetscInt count, MPI_Datatype datatype, PetscMPIInt dest, PetscMPIInt tag, MPI_Comm comm, MPI_Request *request) {
+static inline PetscMPIInt MPIU_Send_init(const void *buf, PetscInt count, MPI_Datatype datatype, PetscMPIInt dest, PetscMPIInt tag, MPI_Comm comm, MPI_Request *request)
+{
   PetscMPIInt count2;
 
   PetscFunctionBegin;
@@ -34,7 +37,8 @@ static inline PetscMPIInt MPIU_Send_init(const void *buf, PetscInt count, MPI_Da
   PetscFunctionReturn(MPI_SUCCESS);
 }
 
-static inline PetscMPIInt MPIU_Isend(const void *buf, PetscInt count, MPI_Datatype datatype, PetscMPIInt dest, PetscMPIInt tag, MPI_Comm comm, MPI_Request *request) {
+static inline PetscMPIInt MPIU_Isend(const void *buf, PetscInt count, MPI_Datatype datatype, PetscMPIInt dest, PetscMPIInt tag, MPI_Comm comm, MPI_Request *request)
+{
   PetscMPIInt count2;
 
   PetscFunctionBegin;
@@ -43,7 +47,8 @@ static inline PetscMPIInt MPIU_Isend(const void *buf, PetscInt count, MPI_Dataty
   PetscFunctionReturn(MPI_SUCCESS);
 }
 
-static inline PetscMPIInt MPIU_Recv(void *buf, PetscInt count, MPI_Datatype datatype, PetscMPIInt source, PetscMPIInt tag, MPI_Comm comm, MPI_Status *status) {
+static inline PetscMPIInt MPIU_Recv(void *buf, PetscInt count, MPI_Datatype datatype, PetscMPIInt source, PetscMPIInt tag, MPI_Comm comm, MPI_Status *status)
+{
   PetscMPIInt count2;
 
   PetscFunctionBegin;
@@ -52,7 +57,8 @@ static inline PetscMPIInt MPIU_Recv(void *buf, PetscInt count, MPI_Datatype data
   PetscFunctionReturn(MPI_SUCCESS);
 }
 
-static inline PetscMPIInt MPIU_Recv_init(void *buf, PetscInt count, MPI_Datatype datatype, PetscMPIInt source, PetscMPIInt tag, MPI_Comm comm, MPI_Request *request) {
+static inline PetscMPIInt MPIU_Recv_init(void *buf, PetscInt count, MPI_Datatype datatype, PetscMPIInt source, PetscMPIInt tag, MPI_Comm comm, MPI_Request *request)
+{
   PetscMPIInt count2;
 
   PetscFunctionBegin;
@@ -61,7 +67,8 @@ static inline PetscMPIInt MPIU_Recv_init(void *buf, PetscInt count, MPI_Datatype
   PetscFunctionReturn(MPI_SUCCESS);
 }
 
-static inline PetscMPIInt MPIU_Irecv(void *buf, PetscInt count, MPI_Datatype datatype, PetscMPIInt source, PetscMPIInt tag, MPI_Comm comm, MPI_Request *request) {
+static inline PetscMPIInt MPIU_Irecv(void *buf, PetscInt count, MPI_Datatype datatype, PetscMPIInt source, PetscMPIInt tag, MPI_Comm comm, MPI_Request *request)
+{
   PetscMPIInt count2;
 
   PetscFunctionBegin;
@@ -70,7 +77,8 @@ static inline PetscMPIInt MPIU_Irecv(void *buf, PetscInt count, MPI_Datatype dat
   PetscFunctionReturn(MPI_SUCCESS);
 }
   #if defined(PETSC_HAVE_MPI_REDUCE_LOCAL)
-static inline PetscMPIInt MPIU_Reduce_local(const void *inbuf, void *inoutbuf, PetscInt count, MPI_Datatype datatype, MPI_Op op) {
+static inline PetscMPIInt MPIU_Reduce_local(const void *inbuf, void *inoutbuf, PetscInt count, MPI_Datatype datatype, MPI_Op op)
+{
   PetscMPIInt count2;
 
   PetscFunctionBegin;

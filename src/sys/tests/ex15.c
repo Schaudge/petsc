@@ -32,7 +32,8 @@ static char help[] = "Tests inclusion of petscsystypes.h.\n\n";
     } while (0)
 #endif
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
   /* numeric types */
   PetscScalar svalue;
   PetscReal   rvalue;

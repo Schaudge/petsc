@@ -20,7 +20,8 @@ typedef struct {
   unsigned  p_flag; /* planner flags, FFTW_ESTIMATE,FFTW_MEASURE, FFTW_PATIENT, FFTW_EXHAUSTIVE */
 } Mat_USFFT;
 
-PetscErrorCode MatApply_USFFT_Private(Mat A, fftw_plan *plan, int direction, Vec x, Vec y) {
+PetscErrorCode MatApply_USFFT_Private(Mat A, fftw_plan *plan, int direction, Vec x, Vec y)
+{
 #if 0
   PetscScalar    *r_array, *y_array;
   Mat_USFFT* = (Mat_USFFT*)(A->data);

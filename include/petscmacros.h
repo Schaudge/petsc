@@ -846,7 +846,9 @@ M*/
   #else
     #define PetscMacroReturns_(retexpr, ...) \
       retexpr; \
-      do { __VA_ARGS__; } while (0)
+      do { \
+        __VA_ARGS__; \
+      } while (0)
   #endif
 
   /*MC

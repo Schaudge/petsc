@@ -159,7 +159,9 @@ PETSC_INTERN PetscErrorCode PetscInitFortran_Private(PetscBool, const char *, Pe
    destroyed object (e.g., as a result of a previous Fortran VecDestroy), petsc will create seq.
 */
 #define PETSC_FORTRAN_OBJECT_C_NULL_TO_F_DESTROYED(a) \
-  do { *((void **)(a)) = (void *)-2; } while (0)
+  do { \
+    *((void **)(a)) = (void *)-2; \
+  } while (0)
 
 /*
     Variable type where we stash PETSc object pointers in Fortran.
@@ -188,8 +190,12 @@ typedef PETSC_UINTPTR_T PetscFortranAddr;
 #if defined(PETSC_USE_SOCKET_VIEWER)
   #define PetscPatchDefaultViewers_Fortran_Socket(vin, v) \
     } \
-    else if ((*(PetscFortranAddr *)vin) == PETSC_VIEWER_SOCKET_WORLD_FORTRAN) { v = PETSC_VIEWER_SOCKET_WORLD; } \
-    else if ((*(PetscFortranAddr *)vin) == PETSC_VIEWER_SOCKET_SELF_FORTRAN) { \
+    else if ((*(PetscFortranAddr *)vin) == PETSC_VIEWER_SOCKET_WORLD_FORTRAN) \
+    { \
+      v = PETSC_VIEWER_SOCKET_WORLD; \
+    } \
+    else if ((*(PetscFortranAddr *)vin) == PETSC_VIEWER_SOCKET_SELF_FORTRAN) \
+    { \
       v = PETSC_VIEWER_SOCKET_SELF
 #else
   #define PetscPatchDefaultViewers_Fortran_Socket(vin, v)

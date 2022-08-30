@@ -24,7 +24,8 @@
    Level: intermediate
 
 @*/
-PetscErrorCode PetscSleep(PetscReal s) {
+PetscErrorCode PetscSleep(PetscReal s)
+{
   PetscFunctionBegin;
   if (s < 0) getc(stdin);
 

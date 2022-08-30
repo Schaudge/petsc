@@ -22,7 +22,9 @@
     do { \
       try { \
         body; \
-      } catch (thrust::system_error & e) { SETERRQ(PETSC_COMM_SELF, PETSC_ERR_LIB, "Error in Thrust %s", e.what()); } \
+      } catch (thrust::system_error & e) { \
+        SETERRQ(PETSC_COMM_SELF, PETSC_ERR_LIB, "Error in Thrust %s", e.what()); \
+      } \
     } while (0)
 
   #if defined(PETSC_USE_COMPLEX)
@@ -252,7 +254,7 @@ struct Mat_SeqAIJCUSPARSETriFactors {
   /* cusparse needs various buffers for factorization and solve of L, U, Lt, or Ut.
      So save memory, we share the factorization buffer with one of spsvBuffer_L/U.
   */
-  void  *factBuffer_M, *spsvBuffer_L, *spsvBuffer_U, *spsvBuffer_Lt, *spsvBuffer_Ut;
+  void *factBuffer_M, *spsvBuffer_L, *spsvBuffer_U, *spsvBuffer_Lt, *spsvBuffer_Ut;
 
   csrilu02Info_t        ilu0Info_M;
   csric02Info_t         ic0Info_M;
@@ -287,7 +289,8 @@ struct Mat_SeqAIJCUSPARSEMultStruct {
   #if PETSC_PKG_CUDA_VERSION_GE(11, 0, 0)
   cusparseSpMatDescr_t matDescr;  /* descriptor for the matrix, used by SpMV and SpMM */
   Mat_CusparseSpMV     cuSpMV[3]; /* different Mat_CusparseSpMV structs for non-transpose, transpose, conj-transpose */
-  Mat_SeqAIJCUSPARSEMultStruct() : matDescr(NULL) {
+  Mat_SeqAIJCUSPARSEMultStruct() : matDescr(NULL)
+  {
     for (int i = 0; i < 3; i++) cuSpMV[i].initialized = PETSC_FALSE;
   }
   #endif
@@ -333,7 +336,8 @@ PETSC_INTERN PetscErrorCode MatSetValuesCOO_SeqAIJCUSPARSE_Basic(Mat, const Pets
 PETSC_INTERN PetscErrorCode MatSeqAIJCUSPARSEMergeMats(Mat, Mat, MatReuse, Mat *);
 PETSC_INTERN PetscErrorCode MatSeqAIJCUSPARSETriFactors_Reset(Mat_SeqAIJCUSPARSETriFactors_p *);
 
-static inline bool isCudaMem(const void *data) {
+static inline bool isCudaMem(const void *data)
+{
   cudaError_t                  cerr;
   struct cudaPointerAttributes attr;
   enum cudaMemoryType          mtype;

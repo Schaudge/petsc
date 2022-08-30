@@ -21,7 +21,8 @@
 
 #if defined(PETSC_HAVE__ACCESS) || defined(PETSC_HAVE_ACCESS)
 
-static PetscErrorCode PetscTestOwnership(const char fname[], char mode, uid_t fuid, gid_t fgid, int fmode, PetscBool *flg) {
+static PetscErrorCode PetscTestOwnership(const char fname[], char mode, uid_t fuid, gid_t fgid, int fmode, PetscBool *flg)
+{
   int m = R_OK;
 
   PetscFunctionBegin;
@@ -46,7 +47,8 @@ static PetscErrorCode PetscTestOwnership(const char fname[], char mode, uid_t fu
 
 #else /* PETSC_HAVE_ACCESS or PETSC_HAVE__ACCESS */
 
-static PetscErrorCode PetscTestOwnership(const char fname[], char mode, uid_t fuid, gid_t fgid, int fmode, PetscBool *flg) {
+static PetscErrorCode PetscTestOwnership(const char fname[], char mode, uid_t fuid, gid_t fgid, int fmode, PetscBool *flg)
+{
   uid_t  uid;
   gid_t *gid = NULL;
   int    numGroups;
@@ -108,7 +110,8 @@ static PetscErrorCode PetscTestOwnership(const char fname[], char mode, uid_t fu
 
 #endif /* PETSC_HAVE_ACCESS */
 
-static PetscErrorCode PetscGetFileStat(const char fname[], uid_t *fileUid, gid_t *fileGid, int *fileMode, PetscBool *exists) {
+static PetscErrorCode PetscGetFileStat(const char fname[], uid_t *fileUid, gid_t *fileGid, int *fileMode, PetscBool *exists)
+{
   struct stat    statbuf;
   PetscErrorCode ierr;
 
@@ -155,7 +158,8 @@ static PetscErrorCode PetscGetFileStat(const char fname[], uid_t *fileUid, gid_t
 
 .seealso: `PetscTestDirectory()`, `PetscLs()`
 @*/
-PetscErrorCode PetscTestFile(const char fname[], char mode, PetscBool *flg) {
+PetscErrorCode PetscTestFile(const char fname[], char mode, PetscBool *flg)
+{
   uid_t     fuid;
   gid_t     fgid;
   int       fmode;
@@ -194,7 +198,8 @@ PetscErrorCode PetscTestFile(const char fname[], char mode, PetscBool *flg) {
 
 .seealso: `PetscTestFile()`, `PetscLs()`
 @*/
-PetscErrorCode PetscTestDirectory(const char dirname[], char mode, PetscBool *flg) {
+PetscErrorCode PetscTestDirectory(const char dirname[], char mode, PetscBool *flg)
+{
   uid_t     fuid;
   gid_t     fgid;
   int       fmode;
@@ -232,7 +237,8 @@ PetscErrorCode PetscTestDirectory(const char dirname[], char mode, PetscBool *fl
 
 .seealso: `PetscTestFile()`, `PetscLs()`
 @*/
-PetscErrorCode PetscLs(MPI_Comm comm, const char dirname[], char found[], size_t tlen, PetscBool *flg) {
+PetscErrorCode PetscLs(MPI_Comm comm, const char dirname[], char found[], size_t tlen, PetscBool *flg)
+{
   size_t len;
   char  *f, program[PETSC_MAX_PATH_LEN];
   FILE  *fp;

@@ -10,7 +10,8 @@ static char help[] = "Plots a simple line graph.\n";
   #include <petscdraw.h>
 #endif
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
   PetscDraw           draw;
   PetscDrawLG         lg;
   PetscDrawAxis       axis;

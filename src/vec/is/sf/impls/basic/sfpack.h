@@ -217,7 +217,8 @@ PETSC_INTERN PetscErrorCode PetscSFLinkReclaim(PetscSF, PetscSFLink *);
 PETSC_INTERN PetscErrorCode PetscSFLinkDestroy(PetscSF, PetscSFLink);
 
 /* Get pack/unpack function pointers from a link */
-static inline PetscErrorCode PetscSFLinkGetPack(PetscSFLink link, PetscMemType mtype, PetscErrorCode (**Pack)(PetscSFLink, PetscInt, PetscInt, PetscSFPackOpt, const PetscInt *, const void *, void *)) {
+static inline PetscErrorCode PetscSFLinkGetPack(PetscSFLink link, PetscMemType mtype, PetscErrorCode (**Pack)(PetscSFLink, PetscInt, PetscInt, PetscSFPackOpt, const PetscInt *, const void *, void *))
+{
   PetscFunctionBegin;
   if (PetscMemTypeHost(mtype)) *Pack = link->h_Pack;
 #if defined(PETSC_HAVE_DEVICE)
@@ -263,13 +264,15 @@ PETSC_INTERN PetscErrorCode PetscSFLinkCreate_NVSHMEM(PetscSF, MPI_Datatype, Pet
 PETSC_INTERN PetscErrorCode PetscSFLinkNvshmemCheck(PetscSF, PetscMemType, const void *, PetscMemType, const void *, PetscBool *);
 #endif
 
-static inline PetscErrorCode PetscSFLinkStartCommunication(PetscSF sf, PetscSFLink link, PetscSFDirection direction) {
+static inline PetscErrorCode PetscSFLinkStartCommunication(PetscSF sf, PetscSFLink link, PetscSFDirection direction)
+{
   PetscFunctionBegin;
   if (link->StartCommunication) PetscCall((*link->StartCommunication)(sf, link, direction));
   PetscFunctionReturn(0);
 }
 
-static inline PetscErrorCode PetscSFLinkFinishCommunication(PetscSF sf, PetscSFLink link, PetscSFDirection direction) {
+static inline PetscErrorCode PetscSFLinkFinishCommunication(PetscSF sf, PetscSFLink link, PetscSFDirection direction)
+{
   PetscFunctionBegin;
   if (link->FinishCommunication) PetscCall((*link->FinishCommunication)(sf, link, direction));
   PetscFunctionReturn(0);
@@ -280,7 +283,8 @@ static inline PetscErrorCode PetscSFLinkFinishCommunication(PetscSF sf, PetscSFL
 /* PetscSFLinkCopyXxxxBufferInCaseNotUseGpuAwareMPI routines are simple: if not use_gpu_aware_mpi, we need
    to copy the buffer from GPU to CPU before MPI calls, and from CPU to GPU after MPI calls.
 */
-static inline PetscErrorCode PetscSFLinkCopyRootBufferInCaseNotUseGpuAwareMPI(PetscSF sf, PetscSFLink link, PetscBool device2host) {
+static inline PetscErrorCode PetscSFLinkCopyRootBufferInCaseNotUseGpuAwareMPI(PetscSF sf, PetscSFLink link, PetscBool device2host)
+{
   PetscSF_Basic *bas = (PetscSF_Basic *)sf->data;
 
   PetscFunctionBegin;
@@ -300,7 +304,8 @@ static inline PetscErrorCode PetscSFLinkCopyRootBufferInCaseNotUseGpuAwareMPI(Pe
   PetscFunctionReturn(0);
 }
 
-static inline PetscErrorCode PetscSFLinkCopyLeafBufferInCaseNotUseGpuAwareMPI(PetscSF sf, PetscSFLink link, PetscBool device2host) {
+static inline PetscErrorCode PetscSFLinkCopyLeafBufferInCaseNotUseGpuAwareMPI(PetscSF sf, PetscSFLink link, PetscBool device2host)
+{
   PetscFunctionBegin;
   if (PetscMemTypeDevice(link->leafmtype) && PetscMemTypeHost(link->leafmtype_mpi) && sf->leafbuflen[PETSCSF_REMOTE]) {
     void  *h_buf = link->leafbuf[PETSCSF_REMOTE][PETSC_MEMTYPE_HOST];
@@ -318,7 +323,8 @@ static inline PetscErrorCode PetscSFLinkCopyLeafBufferInCaseNotUseGpuAwareMPI(Pe
 }
 
 /* Make sure root/leafbuf for the remote is ready for MPI */
-static inline PetscErrorCode PetscSFLinkSyncStreamBeforeCallMPI(PetscSF sf, PetscSFLink link, PetscSFDirection direction) {
+static inline PetscErrorCode PetscSFLinkSyncStreamBeforeCallMPI(PetscSF sf, PetscSFLink link, PetscSFDirection direction)
+{
   PetscSF_Basic *bas;
   PetscInt       buflen;
   PetscMemType   mtype;
@@ -356,7 +362,8 @@ Input arguments:
   .opt     - Packing optimizations
   -indices - Indices of roots for pack/unpack. NULL means indices are contiguous
  */
-static inline PetscErrorCode PetscSFLinkGetRootPackOptAndIndices(PetscSF sf, PetscSFLink link, PetscMemType mtype, PetscSFScope scope, PetscInt *count, PetscInt *start, PetscSFPackOpt *opt, const PetscInt **indices) {
+static inline PetscErrorCode PetscSFLinkGetRootPackOptAndIndices(PetscSF sf, PetscSFLink link, PetscMemType mtype, PetscSFScope scope, PetscInt *count, PetscInt *start, PetscSFPackOpt *opt, const PetscInt **indices)
+{
   PetscSF_Basic *bas = (PetscSF_Basic *)sf->data;
   PetscInt       offset;
 
@@ -404,7 +411,8 @@ static inline PetscErrorCode PetscSFLinkGetRootPackOptAndIndices(PetscSF sf, Pet
 
   See also PetscSFLinkGetRootPackOptAndIndices()
  */
-static inline PetscErrorCode PetscSFLinkGetLeafPackOptAndIndices(PetscSF sf, PetscSFLink link, PetscMemType mtype, PetscSFScope scope, PetscInt *count, PetscInt *start, PetscSFPackOpt *opt, const PetscInt **indices) {
+static inline PetscErrorCode PetscSFLinkGetLeafPackOptAndIndices(PetscSF sf, PetscSFLink link, PetscMemType mtype, PetscSFScope scope, PetscInt *count, PetscInt *start, PetscSFPackOpt *opt, const PetscInt **indices)
+{
   PetscInt offset;
 
   PetscFunctionBegin;

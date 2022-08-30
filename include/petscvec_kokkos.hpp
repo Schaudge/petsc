@@ -79,7 +79,8 @@ PetscErrorCode VecGetKokkosView(Vec, Kokkos::View<PetscScalar *, MemorySpace> *)
           `VecGetArrayPair()`, `VecRestoreArrayPair()`, `VecGetArrayWrite()`, `VecRestoreArrayWrite()`
 @*/
 template <class MemorySpace>
-PetscErrorCode VecRestoreKokkosView(Vec, Kokkos::View<const PetscScalar *, MemorySpace> *) {
+PetscErrorCode VecRestoreKokkosView(Vec, Kokkos::View<const PetscScalar *, MemorySpace> *)
+{
   return 0;
 }
 template <class MemorySpace>

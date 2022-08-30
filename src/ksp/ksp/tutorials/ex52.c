@@ -11,7 +11,8 @@ Input parameters include:\n\
 
 #if defined(PETSC_HAVE_MUMPS)
 /* Subroutine contributed by Varun Hiremath */
-PetscErrorCode printMumpsMemoryInfo(Mat F) {
+PetscErrorCode printMumpsMemoryInfo(Mat F)
+{
   PetscInt maxMem, sumMem;
 
   PetscFunctionBeginUser;
@@ -23,7 +24,8 @@ PetscErrorCode printMumpsMemoryInfo(Mat F) {
 }
 #endif
 
-int main(int argc, char **args) {
+int main(int argc, char **args)
+{
   Vec         x, b, u; /* approx solution, RHS, exact solution */
   Mat         A, F;
   KSP         ksp; /* linear solver context */

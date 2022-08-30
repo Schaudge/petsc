@@ -144,7 +144,8 @@ PETSC_EXTERN PetscBool PetscLogGpuTimeFlag;
   #define PetscLogEventPause_Internal(event)      0
   #define PetscLogEventResume_Internal(event)     0
 #endif /* PETSC_USE_LOG */
-static inline PetscErrorCode PetscLogPauseCurrentEvent_Internal(PetscLogEvent *event) {
+static inline PetscErrorCode PetscLogPauseCurrentEvent_Internal(PetscLogEvent *event)
+{
   PetscFunctionBegin;
   PetscValidIntPointer(event, 1);
   PetscCall(PetscLogGetCurrentEvent_Internal(event));

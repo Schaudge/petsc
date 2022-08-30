@@ -19,7 +19,8 @@ and from Fortran to C\n\n";
 
 PETSC_INTERN void ex7f_(Vec *, int *);
 
-int main(int argc, char **args) {
+int main(int argc, char **args)
+{
   PetscInt m = 10;
   int      fcomm;
   Vec      vec;
@@ -50,7 +51,8 @@ int main(int argc, char **args) {
   return 0;
 }
 
-PETSC_INTERN void ex7c_(Vec *fvec, int *fcomm, PetscErrorCode *ierr) {
+PETSC_INTERN void ex7c_(Vec *fvec, int *fcomm, PetscErrorCode *ierr)
+{
   MPI_Comm comm;
   PetscInt vsize;
 

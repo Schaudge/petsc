@@ -4,9 +4,11 @@
 #if defined(__cplusplus)
   #include <tuple>
 
-namespace Petsc {
+namespace Petsc
+{
 
-namespace util {
+namespace util
+{
 
   #if PETSC_CPP_VERSION >= 14
 using std::tuple_element_t;

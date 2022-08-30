@@ -13,8 +13,8 @@ typedef struct {
   KSPGMRESHEADER
 
   /* LGMRES_MOD - make these for the z vectors - new storage for lgmres */
-  Vec         *augvecs;           /* holds the error approximation vectors for lgmres. */
-  Vec        **augvecs_user_work; /* same purpose as user_work above, but this one is
+  Vec  *augvecs;           /* holds the error approximation vectors for lgmres. */
+  Vec **augvecs_user_work; /* same purpose as user_work above, but this one is
                                          for our error approx vectors */
   /* currently only augvecs_user_work[0] is used, not sure if this will be */
   /* extended in the future to use more, or if this is a design bug */

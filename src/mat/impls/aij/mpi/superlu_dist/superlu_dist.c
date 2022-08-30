@@ -103,7 +103,8 @@ typedef struct {
   PetscBool              CleanUpSuperLU_Dist; /* Flag to clean up (non-global) SuperLU objects during Destroy */
 } Mat_SuperLU_DIST;
 
-PetscErrorCode MatSuperluDistGetDiagU_SuperLU_DIST(Mat F, PetscScalar *diagU) {
+PetscErrorCode MatSuperluDistGetDiagU_SuperLU_DIST(Mat F, PetscScalar *diagU)
+{
   Mat_SuperLU_DIST *lu = (Mat_SuperLU_DIST *)F->data;
 
   PetscFunctionBegin;
@@ -111,7 +112,8 @@ PetscErrorCode MatSuperluDistGetDiagU_SuperLU_DIST(Mat F, PetscScalar *diagU) {
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MatSuperluDistGetDiagU(Mat F, PetscScalar *diagU) {
+PetscErrorCode MatSuperluDistGetDiagU(Mat F, PetscScalar *diagU)
+{
   PetscFunctionBegin;
   PetscValidHeaderSpecific(F, MAT_CLASSID, 1);
   PetscTryMethod(F, "MatSuperluDistGetDiagU_C", (Mat, PetscScalar *), (F, diagU));
@@ -130,7 +132,8 @@ typedef struct {
 } PetscSuperLU_DIST;
 static PetscMPIInt Petsc_Superlu_dist_keyval = MPI_KEYVAL_INVALID;
 
-PETSC_EXTERN PetscMPIInt MPIAPI Petsc_Superlu_dist_keyval_Delete_Fn(MPI_Comm comm, PetscMPIInt keyval, void *attr_val, void *extra_state) {
+PETSC_EXTERN PetscMPIInt MPIAPI Petsc_Superlu_dist_keyval_Delete_Fn(MPI_Comm comm, PetscMPIInt keyval, void *attr_val, void *extra_state)
+{
   PetscSuperLU_DIST *context = (PetscSuperLU_DIST *)attr_val;
 
   PetscFunctionBegin;
@@ -157,7 +160,8 @@ PETSC_EXTERN PetscMPIInt MPIAPI Petsc_Superlu_dist_keyval_Delete_Fn(MPI_Comm com
 
    This is called in PetscFinalize()
 */
-static PetscErrorCode Petsc_Superlu_dist_keyval_free(void) {
+static PetscErrorCode Petsc_Superlu_dist_keyval_free(void)
+{
   PetscMPIInt Petsc_Superlu_dist_keyval_temp = Petsc_Superlu_dist_keyval;
 
   PetscFunctionBegin;
@@ -166,7 +170,8 @@ static PetscErrorCode Petsc_Superlu_dist_keyval_free(void) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatDestroy_SuperLU_DIST(Mat A) {
+static PetscErrorCode MatDestroy_SuperLU_DIST(Mat A)
+{
   Mat_SuperLU_DIST *lu = (Mat_SuperLU_DIST *)A->data;
 
   PetscFunctionBegin;
@@ -227,7 +232,8 @@ static PetscErrorCode MatDestroy_SuperLU_DIST(Mat A) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatSolve_SuperLU_DIST(Mat A, Vec b_mpi, Vec x) {
+static PetscErrorCode MatSolve_SuperLU_DIST(Mat A, Vec b_mpi, Vec x)
+{
   Mat_SuperLU_DIST *lu = (Mat_SuperLU_DIST *)A->data;
   PetscInt          m  = A->rmap->n;
   SuperLUStat_t     stat;
@@ -267,7 +273,8 @@ static PetscErrorCode MatSolve_SuperLU_DIST(Mat A, Vec b_mpi, Vec x) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatMatSolve_SuperLU_DIST(Mat A, Mat B_mpi, Mat X) {
+static PetscErrorCode MatMatSolve_SuperLU_DIST(Mat A, Mat B_mpi, Mat X)
+{
   Mat_SuperLU_DIST *lu = (Mat_SuperLU_DIST *)A->data;
   PetscInt          m  = A->rmap->n, nrhs;
   SuperLUStat_t     stat;
@@ -324,7 +331,8 @@ static PetscErrorCode MatMatSolve_SuperLU_DIST(Mat A, Mat B_mpi, Mat X) {
    nzero:    total number of zero pivots
    npos:     (global dimension of F) - nneg - nzero
 */
-static PetscErrorCode MatGetInertia_SuperLU_DIST(Mat F, PetscInt *nneg, PetscInt *nzero, PetscInt *npos) {
+static PetscErrorCode MatGetInertia_SuperLU_DIST(Mat F, PetscInt *nneg, PetscInt *nzero, PetscInt *npos)
+{
   Mat_SuperLU_DIST *lu    = (Mat_SuperLU_DIST *)F->data;
   PetscScalar      *diagU = NULL;
   PetscInt          M, i, neg = 0, zero = 0, pos = 0;
@@ -358,7 +366,8 @@ static PetscErrorCode MatGetInertia_SuperLU_DIST(Mat F, PetscInt *nneg, PetscInt
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatLUFactorNumeric_SuperLU_DIST(Mat F, Mat A, const MatFactorInfo *info) {
+static PetscErrorCode MatLUFactorNumeric_SuperLU_DIST(Mat F, Mat A, const MatFactorInfo *info)
+{
   Mat_SuperLU_DIST  *lu = (Mat_SuperLU_DIST *)F->data;
   Mat                Aloc;
   const PetscScalar *av;
@@ -458,7 +467,8 @@ static PetscErrorCode MatLUFactorNumeric_SuperLU_DIST(Mat F, Mat A, const MatFac
 }
 
 /* Note the Petsc r and c permutations are ignored */
-static PetscErrorCode MatLUFactorSymbolic_SuperLU_DIST(Mat F, Mat A, IS r, IS c, const MatFactorInfo *info) {
+static PetscErrorCode MatLUFactorSymbolic_SuperLU_DIST(Mat F, Mat A, IS r, IS c, const MatFactorInfo *info)
+{
   Mat_SuperLU_DIST  *lu = (Mat_SuperLU_DIST *)F->data;
   PetscInt           M = A->rmap->N, N = A->cmap->N, indx;
   PetscMPIInt        size, mpiflg;
@@ -481,25 +491,43 @@ static PetscErrorCode MatLUFactorSymbolic_SuperLU_DIST(Mat F, Mat A, IS r, IS c,
   PetscCall(PetscOptionsEList("-mat_superlu_dist_rowperm", "Row permutation", "None", rowperm, 4, rowperm[1], &indx, &flg));
   if (flg) {
     switch (indx) {
-    case 0: lu->options.RowPerm = NOROWPERM; break;
-    case 1: lu->options.RowPerm = LargeDiag_MC64; break;
-    case 2: lu->options.RowPerm = LargeDiag_AWPM; break;
-    case 3: lu->options.RowPerm = MY_PERMR; break;
-    default: SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Unknown row permutation");
+    case 0:
+      lu->options.RowPerm = NOROWPERM;
+      break;
+    case 1:
+      lu->options.RowPerm = LargeDiag_MC64;
+      break;
+    case 2:
+      lu->options.RowPerm = LargeDiag_AWPM;
+      break;
+    case 3:
+      lu->options.RowPerm = MY_PERMR;
+      break;
+    default:
+      SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Unknown row permutation");
     }
   }
 
   PetscCall(PetscOptionsEList("-mat_superlu_dist_colperm", "Column permutation", "None", colperm, 5, colperm[3], &indx, &flg));
   if (flg) {
     switch (indx) {
-    case 0: lu->options.ColPerm = NATURAL; break;
-    case 1: lu->options.ColPerm = MMD_AT_PLUS_A; break;
-    case 2: lu->options.ColPerm = MMD_ATA; break;
-    case 3: lu->options.ColPerm = METIS_AT_PLUS_A; break;
+    case 0:
+      lu->options.ColPerm = NATURAL;
+      break;
+    case 1:
+      lu->options.ColPerm = MMD_AT_PLUS_A;
+      break;
+    case 2:
+      lu->options.ColPerm = MMD_ATA;
+      break;
+    case 3:
+      lu->options.ColPerm = METIS_AT_PLUS_A;
+      break;
     case 4:
       lu->options.ColPerm = PARMETIS; /* only works for np>1 */
       break;
-    default: SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Unknown column permutation");
+    default:
+      SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Unknown column permutation");
     }
   }
 
@@ -522,9 +550,15 @@ static PetscErrorCode MatLUFactorSymbolic_SuperLU_DIST(Mat F, Mat A, IS r, IS c,
   PetscCall(PetscOptionsEList("-mat_superlu_dist_fact", "Sparsity pattern for repeated matrix factorization", "None", factPattern, 3, factPattern[0], &indx, &flg));
   if (flg) {
     switch (indx) {
-    case 0: lu->FactPattern = SamePattern; break;
-    case 1: lu->FactPattern = SamePattern_SameRowPerm; break;
-    case 2: lu->FactPattern = DOFACT; break;
+    case 0:
+      lu->FactPattern = SamePattern;
+      break;
+    case 1:
+      lu->FactPattern = SamePattern_SameRowPerm;
+      break;
+    case 2:
+      lu->FactPattern = DOFACT;
+      break;
     }
   }
 
@@ -636,20 +670,23 @@ static PetscErrorCode MatLUFactorSymbolic_SuperLU_DIST(Mat F, Mat A, IS r, IS c,
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatCholeskyFactorSymbolic_SuperLU_DIST(Mat F, Mat A, IS r, const MatFactorInfo *info) {
+static PetscErrorCode MatCholeskyFactorSymbolic_SuperLU_DIST(Mat F, Mat A, IS r, const MatFactorInfo *info)
+{
   PetscFunctionBegin;
   PetscCall(MatLUFactorSymbolic_SuperLU_DIST(F, A, r, r, info));
   F->ops->choleskyfactornumeric = MatLUFactorNumeric_SuperLU_DIST;
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatFactorGetSolverType_aij_superlu_dist(Mat A, MatSolverType *type) {
+static PetscErrorCode MatFactorGetSolverType_aij_superlu_dist(Mat A, MatSolverType *type)
+{
   PetscFunctionBegin;
   *type = MATSOLVERSUPERLU_DIST;
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatView_Info_SuperLU_DIST(Mat A, PetscViewer viewer) {
+static PetscErrorCode MatView_Info_SuperLU_DIST(Mat A, PetscViewer viewer)
+{
   Mat_SuperLU_DIST      *lu = (Mat_SuperLU_DIST *)A->data;
   superlu_dist_options_t options;
 
@@ -672,21 +709,41 @@ static PetscErrorCode MatView_Info_SuperLU_DIST(Mat A, PetscViewer viewer) {
   PetscCall(PetscViewerASCIIPrintf(viewer, "  Processors in row %lld col partition %lld \n", (long long)lu->nprow, (long long)lu->npcol));
 
   switch (options.RowPerm) {
-  case NOROWPERM: PetscCall(PetscViewerASCIIPrintf(viewer, "  Row permutation NOROWPERM\n")); break;
-  case LargeDiag_MC64: PetscCall(PetscViewerASCIIPrintf(viewer, "  Row permutation LargeDiag_MC64\n")); break;
-  case LargeDiag_AWPM: PetscCall(PetscViewerASCIIPrintf(viewer, "  Row permutation LargeDiag_AWPM\n")); break;
-  case MY_PERMR: PetscCall(PetscViewerASCIIPrintf(viewer, "  Row permutation MY_PERMR\n")); break;
-  default: SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Unknown column permutation");
+  case NOROWPERM:
+    PetscCall(PetscViewerASCIIPrintf(viewer, "  Row permutation NOROWPERM\n"));
+    break;
+  case LargeDiag_MC64:
+    PetscCall(PetscViewerASCIIPrintf(viewer, "  Row permutation LargeDiag_MC64\n"));
+    break;
+  case LargeDiag_AWPM:
+    PetscCall(PetscViewerASCIIPrintf(viewer, "  Row permutation LargeDiag_AWPM\n"));
+    break;
+  case MY_PERMR:
+    PetscCall(PetscViewerASCIIPrintf(viewer, "  Row permutation MY_PERMR\n"));
+    break;
+  default:
+    SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Unknown column permutation");
   }
 
   switch (options.ColPerm) {
-  case NATURAL: PetscCall(PetscViewerASCIIPrintf(viewer, "  Column permutation NATURAL\n")); break;
-  case MMD_AT_PLUS_A: PetscCall(PetscViewerASCIIPrintf(viewer, "  Column permutation MMD_AT_PLUS_A\n")); break;
-  case MMD_ATA: PetscCall(PetscViewerASCIIPrintf(viewer, "  Column permutation MMD_ATA\n")); break;
+  case NATURAL:
+    PetscCall(PetscViewerASCIIPrintf(viewer, "  Column permutation NATURAL\n"));
+    break;
+  case MMD_AT_PLUS_A:
+    PetscCall(PetscViewerASCIIPrintf(viewer, "  Column permutation MMD_AT_PLUS_A\n"));
+    break;
+  case MMD_ATA:
+    PetscCall(PetscViewerASCIIPrintf(viewer, "  Column permutation MMD_ATA\n"));
+    break;
   /*  Even though this is called METIS, the SuperLU_DIST code sets this by default if PARMETIS is defined, not METIS */
-  case METIS_AT_PLUS_A: PetscCall(PetscViewerASCIIPrintf(viewer, "  Column permutation METIS_AT_PLUS_A\n")); break;
-  case PARMETIS: PetscCall(PetscViewerASCIIPrintf(viewer, "  Column permutation PARMETIS\n")); break;
-  default: SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Unknown column permutation");
+  case METIS_AT_PLUS_A:
+    PetscCall(PetscViewerASCIIPrintf(viewer, "  Column permutation METIS_AT_PLUS_A\n"));
+    break;
+  case PARMETIS:
+    PetscCall(PetscViewerASCIIPrintf(viewer, "  Column permutation PARMETIS\n"));
+    break;
+  default:
+    SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Unknown column permutation");
   }
 
   PetscCall(PetscViewerASCIIPrintf(viewer, "  Parallel symbolic factorization %s \n", PetscBools[options.ParSymbFact != NO]));
@@ -703,7 +760,8 @@ static PetscErrorCode MatView_Info_SuperLU_DIST(Mat A, PetscViewer viewer) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatView_SuperLU_DIST(Mat A, PetscViewer viewer) {
+static PetscErrorCode MatView_SuperLU_DIST(Mat A, PetscViewer viewer)
+{
   PetscBool         iascii;
   PetscViewerFormat format;
 
@@ -716,7 +774,8 @@ static PetscErrorCode MatView_SuperLU_DIST(Mat A, PetscViewer viewer) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatGetFactor_aij_superlu_dist(Mat A, MatFactorType ftype, Mat *F) {
+static PetscErrorCode MatGetFactor_aij_superlu_dist(Mat A, MatFactorType ftype, Mat *F)
+{
   Mat                    B;
   Mat_SuperLU_DIST      *lu;
   PetscInt               M = A->rmap->N, N = A->cmap->N;
@@ -779,7 +838,8 @@ static PetscErrorCode MatGetFactor_aij_superlu_dist(Mat A, MatFactorType ftype, 
   PetscFunctionReturn(0);
 }
 
-PETSC_EXTERN PetscErrorCode MatSolverTypeRegister_SuperLU_DIST(void) {
+PETSC_EXTERN PetscErrorCode MatSolverTypeRegister_SuperLU_DIST(void)
+{
   PetscFunctionBegin;
   PetscCall(MatSolverTypeRegister(MATSOLVERSUPERLU_DIST, MATMPIAIJ, MAT_FACTOR_LU, MatGetFactor_aij_superlu_dist));
   PetscCall(MatSolverTypeRegister(MATSOLVERSUPERLU_DIST, MATSEQAIJ, MAT_FACTOR_LU, MatGetFactor_aij_superlu_dist));

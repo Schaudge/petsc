@@ -39,7 +39,8 @@
 
 .seealso: `PetscGetFullPath()`
 @*/
-PetscErrorCode PetscGetRealPath(const char path[], char rpath[]) {
+PetscErrorCode PetscGetRealPath(const char path[], char rpath[])
+{
   char      tmp3[PETSC_MAX_PATH_LEN];
   PetscBool flg;
 #if !defined(PETSC_HAVE_REALPATH) && defined(PETSC_HAVE_READLINK)

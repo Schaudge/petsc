@@ -44,7 +44,8 @@ typedef struct {
 
 #define PetscDrawXiDrawable(w) ((w)->drw ? (w)->drw : (w)->win)
 
-static inline void PetscDrawXiSetPixVal(PetscDraw_X *W, PetscDrawXiPixVal pix) {
+static inline void PetscDrawXiSetPixVal(PetscDraw_X *W, PetscDrawXiPixVal pix)
+{
   if (W->gc.cur_pix != pix) {
     XSetForeground(W->disp, W->gc.set, pix);
     W->gc.cur_pix = pix;

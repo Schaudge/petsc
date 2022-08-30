@@ -165,13 +165,15 @@
 
 #endif /* PETSC_USE_REAL_* */
 
-static inline PetscReal PetscSignReal(PetscReal a) {
+static inline PetscReal PetscSignReal(PetscReal a)
+{
   return (PetscReal)((a < (PetscReal)0) ? -1 : ((a > (PetscReal)0) ? 1 : 0));
 }
 
 #if !defined(PETSC_HAVE_LOG2)
   #undef PetscLog2Real
-static inline PetscReal PetscLog2Real(PetscReal a) {
+static inline PetscReal PetscLog2Real(PetscReal a)
+{
   return PetscLogReal(a) / PetscLogReal((PetscReal)2);
 }
 #endif
@@ -387,7 +389,8 @@ PETSC_EXTERN PetscComplex PETSC_i;
    http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1464.htm
    for details
 */
-static inline PetscComplex PetscCMPLX(PetscReal x, PetscReal y) {
+static inline PetscComplex PetscCMPLX(PetscReal x, PetscReal y)
+{
   #if defined(__cplusplus) && !defined(PETSC_USE_REAL___FLOAT128)
   return PetscComplex(x, y);
   #elif defined(_Imaginary_I)
@@ -803,19 +806,24 @@ M*/
 PETSC_EXTERN PetscBool  PetscIsInfReal(PetscReal);
 PETSC_EXTERN PetscBool  PetscIsNanReal(PetscReal);
 PETSC_EXTERN PetscBool  PetscIsNormalReal(PetscReal);
-static inline PetscBool PetscIsInfOrNanReal(PetscReal v) {
+static inline PetscBool PetscIsInfOrNanReal(PetscReal v)
+{
   return PetscIsInfReal(v) || PetscIsNanReal(v) ? PETSC_TRUE : PETSC_FALSE;
 }
-static inline PetscBool PetscIsInfScalar(PetscScalar v) {
+static inline PetscBool PetscIsInfScalar(PetscScalar v)
+{
   return PetscIsInfReal(PetscAbsScalar(v));
 }
-static inline PetscBool PetscIsNanScalar(PetscScalar v) {
+static inline PetscBool PetscIsNanScalar(PetscScalar v)
+{
   return PetscIsNanReal(PetscAbsScalar(v));
 }
-static inline PetscBool PetscIsInfOrNanScalar(PetscScalar v) {
+static inline PetscBool PetscIsInfOrNanScalar(PetscScalar v)
+{
   return PetscIsInfOrNanReal(PetscAbsScalar(v));
 }
-static inline PetscBool PetscIsNormalScalar(PetscScalar v) {
+static inline PetscBool PetscIsNormalScalar(PetscScalar v)
+{
   return PetscIsNormalReal(PetscAbsScalar(v));
 }
 
@@ -871,7 +879,8 @@ PETSC_EXTERN MPI_Datatype MPIU_2INT /* PETSC_ATTRIBUTE_MPI_TYPE_TAG_LAYOUT_COMPA
 PETSC_EXTERN MPI_Datatype MPI_4INT;
 PETSC_EXTERN MPI_Datatype MPIU_4INT;
 
-static inline PetscInt PetscPowInt(PetscInt base, PetscInt power) {
+static inline PetscInt PetscPowInt(PetscInt base, PetscInt power)
+{
   PetscInt result = 1;
   while (power) {
     if (power & 1) result *= base;
@@ -881,7 +890,8 @@ static inline PetscInt PetscPowInt(PetscInt base, PetscInt power) {
   return result;
 }
 
-static inline PetscInt64 PetscPowInt64(PetscInt base, PetscInt power) {
+static inline PetscInt64 PetscPowInt64(PetscInt base, PetscInt power)
+{
   PetscInt64 result = 1;
   while (power) {
     if (power & 1) result *= base;
@@ -891,7 +901,8 @@ static inline PetscInt64 PetscPowInt64(PetscInt base, PetscInt power) {
   return result;
 }
 
-static inline PetscReal PetscPowRealInt(PetscReal base, PetscInt power) {
+static inline PetscReal PetscPowRealInt(PetscReal base, PetscInt power)
+{
   PetscReal result = 1;
   if (power < 0) {
     power = -power;
@@ -905,7 +916,8 @@ static inline PetscReal PetscPowRealInt(PetscReal base, PetscInt power) {
   return result;
 }
 
-static inline PetscScalar PetscPowScalarInt(PetscScalar base, PetscInt power) {
+static inline PetscScalar PetscPowScalarInt(PetscScalar base, PetscInt power)
+{
   PetscScalar result = (PetscReal)1;
   if (power < 0) {
     power = -power;
@@ -919,7 +931,8 @@ static inline PetscScalar PetscPowScalarInt(PetscScalar base, PetscInt power) {
   return result;
 }
 
-static inline PetscScalar PetscPowScalarReal(PetscScalar base, PetscReal power) {
+static inline PetscScalar PetscPowScalarReal(PetscScalar base, PetscReal power)
+{
   PetscScalar cpower = power;
   return PetscPowScalar(base, cpower);
 }

@@ -8,11 +8,14 @@
 
   #include "../impldevicebase.hpp" /* I "petscdevice.h" */
 
-namespace Petsc {
+namespace Petsc
+{
 
-namespace device {
+namespace device
+{
 
-namespace cupm {
+namespace cupm
+{
 
   #if defined(PETSC_CUPM_DEVICE_NONE)
     #error redefinition of PETSC_CUPM_DEVICE_NONE

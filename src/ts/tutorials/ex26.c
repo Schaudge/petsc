@@ -109,7 +109,8 @@ typedef struct {
 
 PetscErrorCode FormInitialSolution(TS, Vec, AppCtx *);
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
   AppCtx            user; /* user-defined work context */
   PetscInt          mx, my, steps;
   TS                ts;
@@ -205,7 +206,8 @@ int main(int argc, char **argv) {
    Output Parameter:
    X - vector
  */
-PetscErrorCode FormInitialSolution(TS ts, Vec X, AppCtx *user) {
+PetscErrorCode FormInitialSolution(TS ts, Vec X, AppCtx *user)
+{
   DM        da;
   PetscInt  i, j, mx, xs, ys, xm, ym;
   PetscReal grashof, dx;
@@ -252,7 +254,8 @@ PetscErrorCode FormInitialSolution(TS ts, Vec X, AppCtx *user) {
   return 0;
 }
 
-PetscErrorCode FormIFunctionLocal(DMDALocalInfo *info, PetscReal ptime, Field **x, Field **xdot, Field **f, void *ptr) {
+PetscErrorCode FormIFunctionLocal(DMDALocalInfo *info, PetscReal ptime, Field **x, Field **xdot, Field **f, void *ptr)
+{
   AppCtx     *user = (AppCtx *)ptr;
   PetscInt    xints, xinte, yints, yinte, i, j;
   PetscReal   hx, hy, dhx, dhy, hxdhy, hydhx;

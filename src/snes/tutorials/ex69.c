@@ -27,7 +27,7 @@ typedef enum {
 const char *solTypes[NUM_SOL_TYPES + 1] = {"solkx", "solcx", "unknown"};
 
 typedef struct {
-  PetscInt  n, m; /* x- and y-wavelengths for variation across the domain */
+  PetscInt n, m; /* x- and y-wavelengths for variation across the domain */
   /* SolKx */
   PetscReal B; /* Exponential scale for viscosity variation */
   /* SolCx */
@@ -40,23 +40,27 @@ typedef struct {
   PetscBag     bag;     /* Holds problem parameters */
 } AppCtx;
 
-static PetscErrorCode zero(PetscInt dim, PetscReal time, const PetscReal coords[], PetscInt Nc, PetscScalar *u, void *ctx) {
+static PetscErrorCode zero(PetscInt dim, PetscReal time, const PetscReal coords[], PetscInt Nc, PetscScalar *u, void *ctx)
+{
   PetscInt c;
   for (c = 0; c < Nc; ++c) u[c] = 0.0;
   return 0;
 }
-static PetscErrorCode one(PetscInt dim, PetscReal time, const PetscReal coords[], PetscInt Nc, PetscScalar *u, void *ctx) {
+static PetscErrorCode one(PetscInt dim, PetscReal time, const PetscReal coords[], PetscInt Nc, PetscScalar *u, void *ctx)
+{
   PetscInt c;
   for (c = 0; c < Nc; ++c) u[c] = 1.0;
   return 0;
 }
 
-static void f0_u(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[]) {
+static void f0_u(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
+{
   f0[0] = 0.0;
   f0[1] = -PetscSinScalar(constants[1] * PETSC_PI * x[1]) * PetscCosScalar(constants[0] * PETSC_PI * x[0]);
 }
 
-static void stokes_momentum_kx(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f1[]) {
+static void stokes_momentum_kx(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f1[])
+{
   const PetscReal mu = PetscExpReal(2.0 * PetscRealPart(constants[2]) * x[0]);
   PetscInt        c, d;
 
@@ -66,7 +70,8 @@ static void stokes_momentum_kx(PetscInt dim, PetscInt Nf, PetscInt NfAux, const 
   }
 }
 
-static void stokes_momentum_cx(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f1[]) {
+static void stokes_momentum_cx(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f1[])
+{
   const PetscReal mu = x[0] < PetscRealPart(constants[4]) ? PetscRealPart(constants[2]) : PetscRealPart(constants[3]);
   PetscInt        c, d;
 
@@ -76,32 +81,37 @@ static void stokes_momentum_cx(PetscInt dim, PetscInt Nf, PetscInt NfAux, const 
   }
 }
 
-static void stokes_mass(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[]) {
+static void stokes_mass(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
+{
   PetscInt d;
   f0[0] = 0.0;
   for (d = 0; d < dim; ++d) f0[0] -= u_x[d * dim + d];
 }
 
-static void f1_zero(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f1[]) {
+static void f1_zero(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f1[])
+{
   PetscInt d;
   for (d = 0; d < dim * dim; ++d) f1[d] = 0.0;
 }
 
 /* < q, \nabla\cdot u >, J_{pu} */
-static void stokes_mass_J(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g1[]) {
+static void stokes_mass_J(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g1[])
+{
   PetscInt d;
   for (d = 0; d < dim; ++d) g1[d * dim + d] = -1.0; /* \frac{\partial\phi^{u_d}}{\partial x_d} */
 }
 
 /* -< \nabla\cdot v, p >, J_{up} */
-static void stokes_momentum_pres_J(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g2[]) {
+static void stokes_momentum_pres_J(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g2[])
+{
   PetscInt d;
   for (d = 0; d < dim; ++d) g2[d * dim + d] = -1.0; /* \frac{\partial\psi^{u_d}}{\partial x_d} */
 }
 
 /* < \nabla v, \nabla u + {\nabla u}^T >, J_{uu}
    This just gives \nabla u, give the perdiagonal for the transpose */
-static void stokes_momentum_vel_J_kx(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g3[]) {
+static void stokes_momentum_vel_J_kx(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g3[])
+{
   const PetscReal mu = PetscExpReal(2.0 * PetscRealPart(constants[2]) * x[0]);
   PetscInt        cI, d;
 
@@ -112,7 +122,8 @@ static void stokes_momentum_vel_J_kx(PetscInt dim, PetscInt Nf, PetscInt NfAux, 
     }
   }
 }
-static void stokes_momentum_vel_J_cx(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g3[]) {
+static void stokes_momentum_vel_J_cx(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g3[])
+{
   const PetscReal mu = x[0] < PetscRealPart(constants[4]) ? PetscRealPart(constants[2]) : PetscRealPart(constants[3]);
   PetscInt        cI, d;
 
@@ -125,12 +136,14 @@ static void stokes_momentum_vel_J_cx(PetscInt dim, PetscInt Nf, PetscInt NfAux, 
 }
 
 /* 1/mu < q, I q >, Jp_{pp} */
-static void stokes_identity_J_kx(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g0[]) {
+static void stokes_identity_J_kx(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g0[])
+{
   const PetscReal mu = PetscExpReal(2.0 * PetscRealPart(constants[2]) * x[0]);
   g0[0]              = 1.0 / mu;
 }
 
-static void stokes_identity_J_cx(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g0[]) {
+static void stokes_identity_J_cx(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g0[])
+{
   const PetscReal mu = x[0] < PetscRealPart(constants[4]) ? PetscRealPart(constants[2]) : PetscRealPart(constants[3]);
   g0[0]              = 1.0 / mu;
 }
@@ -166,7 +179,8 @@ $
 $  meaning that the density rho is -sigma*sin(km*z)*cos(kn*x). Here we set sigma = 1.
 $  The viscosity eta is exp(2*B*x).
 */
-static PetscErrorCode SolKxSolution(const PetscReal pos[], PetscReal m, PetscInt n, PetscReal B, PetscScalar vel[], PetscScalar *p, PetscScalar s[], PetscScalar gamma[], PetscScalar *mu) {
+static PetscErrorCode SolKxSolution(const PetscReal pos[], PetscReal m, PetscInt n, PetscReal B, PetscScalar vel[], PetscScalar *p, PetscScalar s[], PetscScalar gamma[], PetscScalar *mu)
+{
   PetscReal sigma = 1.0;
   PetscReal Z;
   PetscReal u1, u2, u3, u4, u5, u6;
@@ -640,7 +654,8 @@ static PetscErrorCode SolKxSolution(const PetscReal pos[], PetscReal m, PetscInt
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode SolKxSolutionVelocity(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar v[], void *ctx) {
+static PetscErrorCode SolKxSolutionVelocity(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar v[], void *ctx)
+{
   Parameter *s = (Parameter *)ctx;
 
   PetscFunctionBegin;
@@ -648,7 +663,8 @@ static PetscErrorCode SolKxSolutionVelocity(PetscInt dim, PetscReal time, const 
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode SolKxSolutionPressure(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar p[], void *ctx) {
+static PetscErrorCode SolKxSolutionPressure(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar p[], void *ctx)
+{
   Parameter *s = (Parameter *)ctx;
 
   PetscFunctionBegin;
@@ -689,7 +705,8 @@ $
 $  meaning that the density rho is -sigma*sin(km*z)*cos(kn*x). Here we set sigma = 1.
 $  The viscosity eta jumps from etaA to etaB at x = xc.
 */
-static PetscErrorCode SolCxSolution(const PetscReal pos[], PetscReal m, PetscInt n, PetscReal xc, PetscReal etaA, PetscReal etaB, PetscScalar vel[], PetscScalar *p, PetscScalar s[], PetscScalar gamma[], PetscScalar *mu) {
+static PetscErrorCode SolCxSolution(const PetscReal pos[], PetscReal m, PetscInt n, PetscReal xc, PetscReal etaA, PetscReal etaB, PetscScalar vel[], PetscScalar *p, PetscScalar s[], PetscScalar gamma[], PetscScalar *mu)
+{
   PetscReal _PC1A, _PC2A, _PC3A, _PC4A, _PC1B, _PC2B, _PC3B, _PC4B, _PC1, _PC2, _PC3, _PC4;
   PetscReal t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22, t23, t24, t25, t26, t27, t28, t29, t30, t31, t32, t33, t34, t35, t36, t37, t38, t39, t40;
   PetscReal t41, t42, t43, t44, t45, t46, t47, t48, t49, t50, t51, t52, t53, t54, t55, t56, t57, t58, t59, t60, t61, t62, t63, t64, t65, t66, t67, t68, t69, t70, t71, t72, t73, t74, t75, t76, t77, t78, t79, t80;
@@ -742,83 +759,83 @@ static PetscErrorCode SolCxSolution(const PetscReal pos[], PetscReal m, PetscInt
   /****************************************************************************************/
   _PC1A = 0;
   /****************************************************************************************/
-  t1    = nx * 0.3141592654e1;
-  t2    = PetscSinReal(t1);
-  t3    = nx * t2;
-  t4    = nz * nz;
-  t5    = t4 * t4;
-  t6    = 0.3141592654e1 * 0.3141592654e1;
-  t8    = t3 * t5 * t6;
-  t9    = ZA * xc;
-  t12   = PetscExpReal(xc * nz * 0.3141592654e1);
-  t13   = t12 * t12;
-  t15   = nz * 0.3141592654e1;
-  t16   = PetscExpReal(t15);
-  t17   = t16 * t16;
-  t18   = t17 * t16;
-  t19   = ZB * t13 * t18;
-  t20   = t9 * t19;
-  t23   = ZA * ZA;
-  t24   = nx * nx;
-  t25   = t24 * nx;
-  t26   = t23 * t25;
-  t28   = t13 * t13;
-  t29   = t28 * t13;
-  t33   = nx * ZB;
-  t34   = t1 * xc;
-  t35   = PetscSinReal(t34);
-  t36   = t4 * nz;
-  t37   = t35 * t36;
-  t38   = t33 * t37;
-  t39   = 0.3141592654e1 * ZA;
-  t40   = t13 * t12;
-  t41   = t17 * t40;
-  t45   = ZB * ZB;
-  t46   = t45 * t24;
-  t47   = t46 * t4;
-  t48   = 0.3141592654e1 * xc;
-  t49   = t13 * t17;
-  t53   = xc * xc;
-  t54   = t36 * t53;
-  t56   = t54 * t6 * t45;
-  t57   = PetscCosReal(t34);
-  t58   = t57 * t24;
-  t59   = t28 * t12;
-  t60   = t17 * t59;
-  t61   = t58 * t60;
-  t64   = t25 * t2;
-  t65   = t64 * t15;
-  t72   = nx * t23;
-  t74   = t72 * t2 * t5;
-  t75   = t6 * t53;
-  t76   = t16 * t29;
-  t80   = t23 * nz;
-  t81   = t80 * 0.3141592654e1;
-  t82   = t18 * t28;
-  t86   = nx * t5;
-  t87   = t23 * t6;
-  t89   = xc * t2;
-  t90   = t13 * t18;
-  t91   = t89 * t90;
-  t94   = t28 * t28;
-  t96   = t24 * nz;
-  t98   = t4 * t45;
-  t99   = t98 * 0.3141592654e1;
-  t100  = t58 * t41;
-  t104  = 0.3141592654e1 * t25;
-  t105  = ZA * nz * t104;
-  t106  = t2 * ZB;
-  t110  = t17 * t17;
-  t111  = ZA * t110;
-  t116  = nz * t28;
-  t122  = t64 * t4 * t6;
-  t126  = t23 * t29 * t4;
-  t128  = t24 * xc;
-  t132  = t36 * t23;
-  t133  = t6 * t57;
-  t135  = t128 * t41;
-  t138  = t6 * xc;
-  t142  = t72 * t2;
+  t1   = nx * 0.3141592654e1;
+  t2   = PetscSinReal(t1);
+  t3   = nx * t2;
+  t4   = nz * nz;
+  t5   = t4 * t4;
+  t6   = 0.3141592654e1 * 0.3141592654e1;
+  t8   = t3 * t5 * t6;
+  t9   = ZA * xc;
+  t12  = PetscExpReal(xc * nz * 0.3141592654e1);
+  t13  = t12 * t12;
+  t15  = nz * 0.3141592654e1;
+  t16  = PetscExpReal(t15);
+  t17  = t16 * t16;
+  t18  = t17 * t16;
+  t19  = ZB * t13 * t18;
+  t20  = t9 * t19;
+  t23  = ZA * ZA;
+  t24  = nx * nx;
+  t25  = t24 * nx;
+  t26  = t23 * t25;
+  t28  = t13 * t13;
+  t29  = t28 * t13;
+  t33  = nx * ZB;
+  t34  = t1 * xc;
+  t35  = PetscSinReal(t34);
+  t36  = t4 * nz;
+  t37  = t35 * t36;
+  t38  = t33 * t37;
+  t39  = 0.3141592654e1 * ZA;
+  t40  = t13 * t12;
+  t41  = t17 * t40;
+  t45  = ZB * ZB;
+  t46  = t45 * t24;
+  t47  = t46 * t4;
+  t48  = 0.3141592654e1 * xc;
+  t49  = t13 * t17;
+  t53  = xc * xc;
+  t54  = t36 * t53;
+  t56  = t54 * t6 * t45;
+  t57  = PetscCosReal(t34);
+  t58  = t57 * t24;
+  t59  = t28 * t12;
+  t60  = t17 * t59;
+  t61  = t58 * t60;
+  t64  = t25 * t2;
+  t65  = t64 * t15;
+  t72  = nx * t23;
+  t74  = t72 * t2 * t5;
+  t75  = t6 * t53;
+  t76  = t16 * t29;
+  t80  = t23 * nz;
+  t81  = t80 * 0.3141592654e1;
+  t82  = t18 * t28;
+  t86  = nx * t5;
+  t87  = t23 * t6;
+  t89  = xc * t2;
+  t90  = t13 * t18;
+  t91  = t89 * t90;
+  t94  = t28 * t28;
+  t96  = t24 * nz;
+  t98  = t4 * t45;
+  t99  = t98 * 0.3141592654e1;
+  t100 = t58 * t41;
+  t104 = 0.3141592654e1 * t25;
+  t105 = ZA * nz * t104;
+  t106 = t2 * ZB;
+  t110 = t17 * t17;
+  t111 = ZA * t110;
+  t116 = nz * t28;
+  t122 = t64 * t4 * t6;
+  t126 = t23 * t29 * t4;
+  t128 = t24 * xc;
+  t132 = t36 * t23;
+  t133 = t6 * t57;
+  t135 = t128 * t41;
+  t138 = t6 * xc;
+  t142 = t72 * t2;
   t147 = 0.4e1 * t8 * t20 - 0.2e1 * t26 * t2 * t16 * t29 - 0.8e1 * t38 * t39 * t41 + 0.4e1 * t47 * t48 * t49 - 0.8e1 * t56 * t61 - 0.4e1 * t65 * t20 + 0.2e1 * t26 * t2 * t18 * t28 - 0.4e1 * t74 * t75 * t76 - 0.2e1 * t81 * t64 * t82 - 0.4e1 * t86 * t87 * t91 - t23 * t94 * t96 + 0.8e1 * t99 * t100 - 0.2e1 * t105 * t106 * t82 - 0.4e1 * t38 * t48 * t111 * t12 + 0.2e1 * t116 * ZB * t111 * t24 + 0.4e1 * t122 * t20 + 0.4e1 * t126 * 0.3141592654e1 * t17 * t128 + 0.8e1 * t132 * t133 * t135 + 0.4e1 * t74 * t138 * t76 - 0.2e1 * t142 * t4 * t18 * t28;
   t149 = ZA * t25 * t2;
   t150 = ZB * t28;
@@ -1247,83 +1264,83 @@ static PetscErrorCode SolCxSolution(const PetscReal pos[], PetscReal m, PetscInt
   /****************************************************************************************/
   _PC4A = 0;
   /****************************************************************************************/
-  t1    = nx * 0.3141592654e1;
-  t2    = t1 * xc;
-  t3    = PetscCosReal(t2);
-  t4    = nx * nx;
-  t6    = nz * 0.3141592654e1;
-  t7    = t3 * t4 * t6;
-  t8    = ZA * ZB;
-  t9    = PetscExpReal(t6);
-  t10   = t9 * t9;
-  t11   = xc * nz;
-  t13   = PetscExpReal(t11 * 0.3141592654e1);
-  t14   = t13 * t13;
-  t15   = t14 * t13;
-  t16   = t14 * t14;
-  t17   = t16 * t15;
-  t18   = t10 * t17;
-  t19   = t8 * t18;
-  t22   = PetscSinReal(t2);
-  t23   = nx * t22;
-  t24   = t23 * nz;
-  t25   = ZB * ZB;
-  t30   = nz * nz;
-  t31   = t30 * nz;
-  t32   = t31 * nx;
-  t33   = 0.3141592654e1 * 0.3141592654e1;
-  t35   = t32 * t22 * t33;
-  t36   = ZA * ZA;
-  t37   = t36 * xc;
-  t38   = t16 * t13;
-  t39   = t10 * t38;
-  t40   = t37 * t39;
-  t43   = PetscSinReal(t1);
-  t44   = nx * t43;
-  t45   = t30 * 0.3141592654e1;
-  t46   = t44 * t45;
-  t47   = ZA * xc;
-  t49   = ZB * t16 * t9;
-  t54   = t4 * nx * t43;
-  t55   = xc * xc;
-  t57   = t54 * t30 * t55;
-  t58   = t33 * 0.3141592654e1;
-  t59   = t58 * t25;
-  t60   = t16 * t9;
-  t61   = t59 * t60;
-  t64   = xc * t25;
-  t65   = t14 * t9;
-  t66   = t64 * t65;
-  t70   = t44 * t31 * t33;
-  t71   = t37 * t65;
-  t74   = t10 * t15;
-  t75   = t64 * t74;
-  t78   = t25 * t10;
-  t83   = t54 * nz * t33;
-  t84   = t55 * t25;
-  t85   = t10 * t9;
-  t86   = t14 * t85;
-  t87   = t84 * t86;
-  t90   = t30 * t30;
-  t92   = t44 * t90 * t58;
-  t93   = t55 * xc;
-  t94   = t93 * t25;
-  t95   = t85 * t16;
-  t96   = t94 * t95;
-  t102  = t23 * t45;
-  t103  = t10 * t10;
-  t104  = ZB * t103;
-  t106  = t47 * t104 * t15;
-  t111  = t54 * 0.3141592654e1;
-  t112  = t25 * t85;
-  t113  = t112 * t16;
-  t115  = t8 * t39;
-  t118  = t16 * t14;
-  t119  = t85 * t118;
-  t120  = t37 * t119;
-  t123  = t16 * t16;
-  t124  = t36 * t123;
-  t125  = t124 * t9;
+  t1   = nx * 0.3141592654e1;
+  t2   = t1 * xc;
+  t3   = PetscCosReal(t2);
+  t4   = nx * nx;
+  t6   = nz * 0.3141592654e1;
+  t7   = t3 * t4 * t6;
+  t8   = ZA * ZB;
+  t9   = PetscExpReal(t6);
+  t10  = t9 * t9;
+  t11  = xc * nz;
+  t13  = PetscExpReal(t11 * 0.3141592654e1);
+  t14  = t13 * t13;
+  t15  = t14 * t13;
+  t16  = t14 * t14;
+  t17  = t16 * t15;
+  t18  = t10 * t17;
+  t19  = t8 * t18;
+  t22  = PetscSinReal(t2);
+  t23  = nx * t22;
+  t24  = t23 * nz;
+  t25  = ZB * ZB;
+  t30  = nz * nz;
+  t31  = t30 * nz;
+  t32  = t31 * nx;
+  t33  = 0.3141592654e1 * 0.3141592654e1;
+  t35  = t32 * t22 * t33;
+  t36  = ZA * ZA;
+  t37  = t36 * xc;
+  t38  = t16 * t13;
+  t39  = t10 * t38;
+  t40  = t37 * t39;
+  t43  = PetscSinReal(t1);
+  t44  = nx * t43;
+  t45  = t30 * 0.3141592654e1;
+  t46  = t44 * t45;
+  t47  = ZA * xc;
+  t49  = ZB * t16 * t9;
+  t54  = t4 * nx * t43;
+  t55  = xc * xc;
+  t57  = t54 * t30 * t55;
+  t58  = t33 * 0.3141592654e1;
+  t59  = t58 * t25;
+  t60  = t16 * t9;
+  t61  = t59 * t60;
+  t64  = xc * t25;
+  t65  = t14 * t9;
+  t66  = t64 * t65;
+  t70  = t44 * t31 * t33;
+  t71  = t37 * t65;
+  t74  = t10 * t15;
+  t75  = t64 * t74;
+  t78  = t25 * t10;
+  t83  = t54 * nz * t33;
+  t84  = t55 * t25;
+  t85  = t10 * t9;
+  t86  = t14 * t85;
+  t87  = t84 * t86;
+  t90  = t30 * t30;
+  t92  = t44 * t90 * t58;
+  t93  = t55 * xc;
+  t94  = t93 * t25;
+  t95  = t85 * t16;
+  t96  = t94 * t95;
+  t102 = t23 * t45;
+  t103 = t10 * t10;
+  t104 = ZB * t103;
+  t106 = t47 * t104 * t15;
+  t111 = t54 * 0.3141592654e1;
+  t112 = t25 * t85;
+  t113 = t112 * t16;
+  t115 = t8 * t39;
+  t118 = t16 * t14;
+  t119 = t85 * t118;
+  t120 = t37 * t119;
+  t123 = t16 * t16;
+  t124 = t36 * t123;
+  t125 = t124 * t9;
   t127 = -0.8e1 * t7 * t19 + 0.2e1 * t24 * t25 * t13 * t10 - 0.16e2 * t35 * t40 - 0.16e2 * t46 * t47 * t49 - 0.8e1 * t57 * t61 + 0.4e1 * t46 * t66 + 0.2e1 * t70 * t71 - 0.16e2 * t35 * t75 + 0.6e1 * t24 * t78 * t38 - 0.2e1 * t83 * t87 - 0.8e1 * t92 * t96 - 0.8e1 * t46 * t37 * t95 - 0.12e2 * t102 * t106 + 0.2e1 * t83 * t71 + t111 * t113 + 0.8e1 * t7 * t115 + 0.2e1 * t83 * t120 + t111 * t125;
   t128 = t37 * t74;
   t131 = t44 * nz;
@@ -1566,107 +1583,107 @@ static PetscErrorCode SolCxSolution(const PetscReal pos[], PetscReal m, PetscInt
 
   _PC1B = (t127 + t204 + t270 + t329 + t384 + t439 + t501 + t549 + t601 + t647 + t698 + t739 + t782 + t821 + t867 + t909) / (t953 + t1013 + t1057 + t1094 + t1140 + t1182 + t1225 + t1263);
   /****************************************************************************************/
-  t1    = nz * nz;
-  t2    = t1 * nz;
-  t3    = nx * t2;
-  t4    = 0.3141592654e1 * ZA;
-  t5    = t3 * t4;
-  t6    = nx * 0.3141592654e1;
-  t7    = t6 * xc;
-  t8    = PetscSinReal(t7);
-  t9    = t8 * ZB;
-  t10   = nz * 0.3141592654e1;
-  t11   = PetscExpReal(t10);
-  t12   = t11 * t11;
-  t15   = PetscExpReal(xc * nz * 0.3141592654e1);
-  t16   = t15 * t15;
-  t17   = t16 * t16;
-  t18   = t17 * t15;
-  t19   = t12 * t18;
-  t23   = t1 * t1;
-  t24   = nx * t23;
-  t25   = ZB * ZB;
-  t27   = t18 * t8;
-  t28   = 0.3141592654e1 * 0.3141592654e1;
-  t29   = xc * xc;
-  t30   = t28 * t29;
-  t34   = t1 * xc;
-  t35   = 0.3141592654e1 * ZB;
-  t36   = t34 * t35;
-  t37   = PetscCosReal(t7);
-  t38   = ZA * t37;
-  t39   = nx * nx;
-  t40   = t39 * t12;
-  t41   = t16 * t15;
-  t43   = t38 * t40 * t41;
-  t46   = t25 * nz;
-  t47   = t46 * 0.3141592654e1;
-  t48   = t39 * nx;
-  t49   = PetscSinReal(t6);
-  t50   = t48 * t49;
-  t51   = t12 * t11;
-  t52   = t51 * t17;
-  t53   = t50 * t52;
-  t56   = t34 * 0.3141592654e1 * t25;
-  t57   = t37 * t39;
-  t58   = t17 * t41;
-  t59   = t12 * t58;
-  t60   = t57 * t59;
-  t63   = t25 * t18;
-  t64   = t57 * nz;
-  t67   = ZA * ZA;
-  t68   = t67 * nz;
-  t69   = 0.3141592654e1 * t48;
-  t70   = t68 * t69;
-  t71   = t49 * xc;
-  t72   = t17 * t16;
-  t73   = t11 * t72;
-  t74   = t71 * t73;
-  t77   = t1 * t67;
-  t78   = t77 * 0.3141592654e1;
-  t81   = nx * t25;
-  t82   = t81 * t49;
-  t83   = t17 * t17;
-  t85   = t1 * t83 * t11;
-  t87   = nx * ZB;
-  t88   = t8 * t2;
-  t89   = t87 * t88;
-  t90   = 0.3141592654e1 * xc;
-  t91   = t12 * t12;
-  t92   = ZA * t91;
-  t97   = ZB * ZA;
-  t98   = t97 * t37;
-  t99   = t39 * nz;
-  t100  = t12 * t41;
-  t104  = 0.8e1 * t5 * t9 * t19 + 0.8e1 * t24 * t25 * t27 * t30 + 0.12e2 * t36 * t43 - t47 * t53 - 0.2e1 * t56 * t60 - 0.4e1 * t63 * t64 + 0.6e1 * t70 * t74 + 0.4e1 * t78 * t60 - t82 * t85 + 0.4e1 * t89 * t90 * t92 * t41 + 0.4e1 * t98 * t99 * t100;
-  t105  = t67 * t48;
-  t106  = t49 * t51;
-  t107  = t106 * t72;
-  t109  = t1 * 0.3141592654e1;
-  t110  = t109 * xc;
-  t115  = nx * t67;
-  t116  = t115 * t49;
-  t117  = t1 * t16;
-  t118  = t117 * t11;
-  t120  = t2 * t25;
-  t121  = t28 * 0.3141592654e1;
-  t122  = t121 * t29;
-  t123  = t120 * t122;
-  t129  = t1 * ZB;
-  t130  = t129 * t4;
-  t131  = t57 * t100;
-  t134  = t12 * t16;
-  t136  = t109 * t39;
-  t139  = ZB * t18;
-  t141  = t39 * t1;
-  t142  = t141 * t90;
-  t145  = t77 * t90;
-  t146  = t91 * t41;
-  t147  = t57 * t146;
-  t151  = t25 * t39 * t1;
-  t152  = t72 * t12;
-  t156  = t49 * t2;
-  t158  = t83 * t11;
+  t1   = nz * nz;
+  t2   = t1 * nz;
+  t3   = nx * t2;
+  t4   = 0.3141592654e1 * ZA;
+  t5   = t3 * t4;
+  t6   = nx * 0.3141592654e1;
+  t7   = t6 * xc;
+  t8   = PetscSinReal(t7);
+  t9   = t8 * ZB;
+  t10  = nz * 0.3141592654e1;
+  t11  = PetscExpReal(t10);
+  t12  = t11 * t11;
+  t15  = PetscExpReal(xc * nz * 0.3141592654e1);
+  t16  = t15 * t15;
+  t17  = t16 * t16;
+  t18  = t17 * t15;
+  t19  = t12 * t18;
+  t23  = t1 * t1;
+  t24  = nx * t23;
+  t25  = ZB * ZB;
+  t27  = t18 * t8;
+  t28  = 0.3141592654e1 * 0.3141592654e1;
+  t29  = xc * xc;
+  t30  = t28 * t29;
+  t34  = t1 * xc;
+  t35  = 0.3141592654e1 * ZB;
+  t36  = t34 * t35;
+  t37  = PetscCosReal(t7);
+  t38  = ZA * t37;
+  t39  = nx * nx;
+  t40  = t39 * t12;
+  t41  = t16 * t15;
+  t43  = t38 * t40 * t41;
+  t46  = t25 * nz;
+  t47  = t46 * 0.3141592654e1;
+  t48  = t39 * nx;
+  t49  = PetscSinReal(t6);
+  t50  = t48 * t49;
+  t51  = t12 * t11;
+  t52  = t51 * t17;
+  t53  = t50 * t52;
+  t56  = t34 * 0.3141592654e1 * t25;
+  t57  = t37 * t39;
+  t58  = t17 * t41;
+  t59  = t12 * t58;
+  t60  = t57 * t59;
+  t63  = t25 * t18;
+  t64  = t57 * nz;
+  t67  = ZA * ZA;
+  t68  = t67 * nz;
+  t69  = 0.3141592654e1 * t48;
+  t70  = t68 * t69;
+  t71  = t49 * xc;
+  t72  = t17 * t16;
+  t73  = t11 * t72;
+  t74  = t71 * t73;
+  t77  = t1 * t67;
+  t78  = t77 * 0.3141592654e1;
+  t81  = nx * t25;
+  t82  = t81 * t49;
+  t83  = t17 * t17;
+  t85  = t1 * t83 * t11;
+  t87  = nx * ZB;
+  t88  = t8 * t2;
+  t89  = t87 * t88;
+  t90  = 0.3141592654e1 * xc;
+  t91  = t12 * t12;
+  t92  = ZA * t91;
+  t97  = ZB * ZA;
+  t98  = t97 * t37;
+  t99  = t39 * nz;
+  t100 = t12 * t41;
+  t104 = 0.8e1 * t5 * t9 * t19 + 0.8e1 * t24 * t25 * t27 * t30 + 0.12e2 * t36 * t43 - t47 * t53 - 0.2e1 * t56 * t60 - 0.4e1 * t63 * t64 + 0.6e1 * t70 * t74 + 0.4e1 * t78 * t60 - t82 * t85 + 0.4e1 * t89 * t90 * t92 * t41 + 0.4e1 * t98 * t99 * t100;
+  t105 = t67 * t48;
+  t106 = t49 * t51;
+  t107 = t106 * t72;
+  t109 = t1 * 0.3141592654e1;
+  t110 = t109 * xc;
+  t115 = nx * t67;
+  t116 = t115 * t49;
+  t117 = t1 * t16;
+  t118 = t117 * t11;
+  t120 = t2 * t25;
+  t121 = t28 * 0.3141592654e1;
+  t122 = t121 * t29;
+  t123 = t120 * t122;
+  t129 = t1 * ZB;
+  t130 = t129 * t4;
+  t131 = t57 * t100;
+  t134 = t12 * t16;
+  t136 = t109 * t39;
+  t139 = ZB * t18;
+  t141 = t39 * t1;
+  t142 = t141 * t90;
+  t145 = t77 * t90;
+  t146 = t91 * t41;
+  t147 = t57 * t146;
+  t151 = t25 * t39 * t1;
+  t152 = t72 * t12;
+  t156 = t49 * t2;
+  t158 = t83 * t11;
   t162 = -t105 * t107 + 0.8e1 * t110 * t72 * t25 * t39 - t116 * t118 + 0.8e1 * t123 * t53 + 0.8e1 * t5 * t9 * t59 - 0.8e1 * t130 * t131 - 0.8e1 * t134 * t25 * t136 - 0.12e2 * t139 * t38 * t142 - 0.8e1 * t145 * t147 - 0.8e1 * t151 * t90 * t152 - 0.2e1 * t87 * t156 * t4 * t158;
   t164 = t115 * t88;
   t165 = t90 * t19;
@@ -2766,7 +2783,7 @@ static PetscErrorCode SolCxSolution(const PetscReal pos[], PetscReal m, PetscInt
   t155 = 0.2e1 * t30 * t15 + x * 0.3141592654e1 * t41 * t13 - 0.4e1 * t19 * nx * t129 * nz + t32 * 0.3141592654e1 * t20 + 0.2e1 * t106 * t68 + 0.2e1 * t106 * t20 * t2 - 0.4e1 * t106 * t1 * t13 - 0.2e1 * t11 * t4 + 0.2e1 * t4 * t45 + 0.2e1 * t24 * Z * t2 + 0.2e1 * t24 * Z * t14 + t12 * 0.3141592654e1 * t13;
   t158 = t5 * Z;
 
-  u1  = (t55 + t90 + t120 + t155) / (0.4e1 * t158 * t19 * t2 + 0.8e1 * t158 * t19 * t1 * t13 + 0.4e1 * t158 * t19 * t14);
+  u1 = (t55 + t90 + t120 + t155) / (0.4e1 * t158 * t19 * t2 + 0.8e1 * t158 * t19 * t1 * t13 + 0.4e1 * t158 * t19 * t14);
   /****************************************************************************************/
   /****************************************************************************************/
   t1  = nz * nz;
@@ -2852,7 +2869,7 @@ static PetscErrorCode SolCxSolution(const PetscReal pos[], PetscReal m, PetscInt
   t156 = 0.2e1 * t78 * t90 * t31 - 0.2e1 * t3 * Z * x * t7 + t48 + 0.4e1 * t61 * t110 + 0.4e1 * t18 * t40 * t20 - 0.2e1 * t102 * t20 + 0.2e1 * t61 * t31 + 0.2e1 * t44 * t40 * t31 - t109 - 0.2e1 * t4 * t58 - 0.2e1 * t28 * t13 - 0.4e1 * t29 * t16 * t12 * t20;
   t159 = t1 * t11;
 
-  u3  = (t57 + t94 + t128 + t156) / (0.4e1 * t159 * t6 + 0.8e1 * t159 * t73 + 0.4e1 * t159 * t31);
+  u3 = (t57 + t94 + t128 + t156) / (0.4e1 * t159 * t6 + 0.8e1 * t159 * t73 + 0.4e1 * t159 * t31);
   /****************************************************************************************/
   /****************************************************************************************/
   t1  = _PC2 * Z;
@@ -2940,7 +2957,8 @@ static PetscErrorCode SolCxSolution(const PetscReal pos[], PetscReal m, PetscInt
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode SolCxSolutionVelocity(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar v[], void *ctx) {
+static PetscErrorCode SolCxSolutionVelocity(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar v[], void *ctx)
+{
   Parameter *s = (Parameter *)ctx;
 
   PetscFunctionBegin;
@@ -2948,7 +2966,8 @@ static PetscErrorCode SolCxSolutionVelocity(PetscInt dim, PetscReal time, const 
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode SolCxSolutionPressure(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar p[], void *ctx) {
+static PetscErrorCode SolCxSolutionPressure(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar p[], void *ctx)
+{
   Parameter *s = (Parameter *)ctx;
 
   PetscFunctionBegin;
@@ -2956,7 +2975,8 @@ static PetscErrorCode SolCxSolutionPressure(PetscInt dim, PetscReal time, const 
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options) {
+static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
+{
   PetscInt sol;
 
   PetscFunctionBeginUser;
@@ -2969,7 +2989,8 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode SetUpParameters(AppCtx *user) {
+static PetscErrorCode SetUpParameters(AppCtx *user)
+{
   PetscBag   bag;
   Parameter *p;
 
@@ -2991,7 +3012,8 @@ static PetscErrorCode SetUpParameters(AppCtx *user) {
     PetscCall(PetscBagRegisterReal(bag, &p->etaB, 1.0, "etaB", "Viscosity for x > xc"));
     PetscCall(PetscBagRegisterReal(bag, &p->xc, 0.5, "xc", "x-coordinate of the viscosity jump"));
     break;
-  default: SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Invalid solution type %d (%s)", user->solType, solTypes[PetscMin(user->solType, NUM_SOL_TYPES)]);
+  default:
+    SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Invalid solution type %d (%s)", user->solType, solTypes[PetscMin(user->solType, NUM_SOL_TYPES)]);
   }
   PetscCall(PetscBagSetFromOptions(bag));
   PetscCall(PetscBagViewFromOptions(bag, NULL, "-param_view"));
@@ -2999,7 +3021,8 @@ static PetscErrorCode SetUpParameters(AppCtx *user) {
 }
 
 /* Make split labels so that we can have corners in multiple labels */
-static PetscErrorCode CreateSplitLabels(DM dm) {
+static PetscErrorCode CreateSplitLabels(DM dm)
+{
   const char *names[4] = {"markerBottom", "markerRight", "markerTop", "markerLeft"};
   PetscInt    ids[4]   = {1, 2, 3, 4};
   DMLabel     label;
@@ -3018,7 +3041,8 @@ static PetscErrorCode CreateSplitLabels(DM dm) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm) {
+static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
+{
   DM cdm;
 
   PetscFunctionBeginUser;
@@ -3034,7 +3058,8 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode SetupProblem(DM dm, AppCtx *user) {
+static PetscErrorCode SetupProblem(DM dm, AppCtx *user)
+{
   PetscErrorCode (*exactFunc)(PetscInt dim, PetscReal t, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *ctx);
   PetscDS        prob;
   DMLabel        label;
@@ -3065,7 +3090,8 @@ static PetscErrorCode SetupProblem(DM dm, AppCtx *user) {
     PetscCall(PetscDSSetJacobianPreconditioner(prob, 0, 0, NULL, NULL, NULL, stokes_momentum_vel_J_kx));
     PetscCall(PetscDSSetJacobianPreconditioner(prob, 1, 1, stokes_identity_J_cx, NULL, NULL, NULL));
     break;
-  default: SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Invalid solution type %d (%s)", user->solType, solTypes[PetscMin(user->solType, NUM_SOL_TYPES)]);
+  default:
+    SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Invalid solution type %d (%s)", user->solType, solTypes[PetscMin(user->solType, NUM_SOL_TYPES)]);
   }
   PetscCall(PetscBagGetData(user->bag, &data));
   switch (dim) {
@@ -3079,10 +3105,12 @@ static PetscErrorCode SetupProblem(DM dm, AppCtx *user) {
       PetscCall(PetscDSSetExactSolution(prob, 0, SolCxSolutionVelocity, data));
       PetscCall(PetscDSSetExactSolution(prob, 1, SolCxSolutionPressure, data));
       break;
-    default: SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Invalid solution type %d (%s)", user->solType, solTypes[PetscMin(user->solType, NUM_SOL_TYPES)]);
+    default:
+      SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Invalid solution type %d (%s)", user->solType, solTypes[PetscMin(user->solType, NUM_SOL_TYPES)]);
     }
     break;
-  default: SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Invalid dimension %" PetscInt_FMT, dim);
+  default:
+    SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Invalid dimension %" PetscInt_FMT, dim);
   }
   /* Setup constants */
   {
@@ -3108,7 +3136,8 @@ static PetscErrorCode SetupProblem(DM dm, AppCtx *user) {
       constants[4] = param->xc;
       PetscCall(PetscDSSetConstants(prob, 5, constants));
     } break;
-    default: SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_SUP, "No parameter information for solution type %d", user->solType);
+    default:
+      SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_SUP, "No parameter information for solution type %d", user->solType);
     }
   }
   /* Setup Boundary Conditions */
@@ -3128,7 +3157,8 @@ static PetscErrorCode SetupProblem(DM dm, AppCtx *user) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode CreatePressureNullSpace(DM dm, PetscInt origField, PetscInt field, MatNullSpace *nullspace) {
+static PetscErrorCode CreatePressureNullSpace(DM dm, PetscInt origField, PetscInt field, MatNullSpace *nullspace)
+{
   Vec vec;
   PetscErrorCode (*funcs[2])(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *ctx) = {zero, one};
 
@@ -3158,7 +3188,8 @@ static PetscErrorCode CreatePressureNullSpace(DM dm, PetscInt origField, PetscIn
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode SetupDiscretization(DM dm, AppCtx *user) {
+static PetscErrorCode SetupDiscretization(DM dm, AppCtx *user)
+{
   DM             cdm = dm;
   PetscFE        fe[2];
   DMPolytopeType ct;
@@ -3204,10 +3235,12 @@ static PetscErrorCode SetupDiscretization(DM dm, AppCtx *user) {
 
    If int(u) = a and int(n) = b, then int(u - a/b n) = a - a/b b = 0
 */
-static void pressure(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar p[]) {
+static void pressure(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar p[])
+{
   p[0] = u[uOff[1]];
 }
-static PetscErrorCode CorrectDiscretePressure(DM dm, MatNullSpace nullspace, Vec u, AppCtx *user) {
+static PetscErrorCode CorrectDiscretePressure(DM dm, MatNullSpace nullspace, Vec u, AppCtx *user)
+{
   PetscDS     ds;
   const Vec  *nullvecs;
   PetscScalar pintd, intc[2], intn[2];
@@ -3228,7 +3261,8 @@ static PetscErrorCode CorrectDiscretePressure(DM dm, MatNullSpace nullspace, Vec
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode SNESConvergenceCorrectPressure(SNES snes, PetscInt it, PetscReal xnorm, PetscReal gnorm, PetscReal f, SNESConvergedReason *reason, void *user) {
+static PetscErrorCode SNESConvergenceCorrectPressure(SNES snes, PetscInt it, PetscReal xnorm, PetscReal gnorm, PetscReal f, SNESConvergedReason *reason, void *user)
+{
   PetscFunctionBeginUser;
   PetscCall(SNESConvergedDefault(snes, it, xnorm, gnorm, f, reason, user));
   if (*reason > 0) {
@@ -3247,7 +3281,8 @@ static PetscErrorCode SNESConvergenceCorrectPressure(SNES snes, PetscInt it, Pet
   PetscFunctionReturn(0);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
   SNES         snes;      /* nonlinear solver */
   DM           dm;        /* problem definition */
   Vec          u, r;      /* solution, residual vectors */

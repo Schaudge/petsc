@@ -51,7 +51,8 @@ typedef struct {
 /*-----------------------------------------------------------------*/
 /*                                                                 */
 /*-----------------------------------------------------------------*/
-PETSC_EXTERN void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
+PETSC_EXTERN void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
+{
   int    t = 0;
   Linger linger;
 
@@ -66,6 +67,7 @@ PETSC_EXTERN void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray
   return;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
   return 0;
 }

@@ -13,7 +13,8 @@ extern "C" {
   #include <windows.h>
   #define FACTOR 4294967296.0 /* pow(2,32) */
 
-double MPI_Wtime(void) {
+double MPI_Wtime(void)
+{
   static int           flag = 1;
   static LARGE_INTEGER StartTime, PerfFreq, CurTime;
   static double        SecInTick = 0.0;
@@ -70,7 +71,8 @@ double MPI_Wtime(void) {
 extern int gettimeofday(struct timeval *, struct timezone *);
   #endif
 
-double MPI_Wtime(void) {
+double MPI_Wtime(void)
+{
   static struct timeval _tp;
   gettimeofday(&_tp, (struct timezone *)0);
   return ((double)_tp.tv_sec) + (1.0e-6) * (_tp.tv_usec);

@@ -48,7 +48,8 @@ typedef struct _DMRefinePatternCtx {
   p4est_refine_t refine_fn;
 } DMRefinePatternCtx;
 
-static int DMRefinePattern_Corner(p4est_t *p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrant) {
+static int DMRefinePattern_Corner(p4est_t *p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrant)
+{
   p4est_quadrant_t    root, rootcorner;
   DMRefinePatternCtx *ctx;
 
@@ -65,7 +66,8 @@ static int DMRefinePattern_Corner(p4est_t *p4est, p4est_topidx_t which_tree, p4e
   return 0;
 }
 
-static int DMRefinePattern_Center(p4est_t *p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrant) {
+static int DMRefinePattern_Center(p4est_t *p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrant)
+{
   int                 cid;
   p4est_quadrant_t    ancestor, ancestorcorner;
   DMRefinePatternCtx *ctx;
@@ -81,7 +83,8 @@ static int DMRefinePattern_Center(p4est_t *p4est, p4est_topidx_t which_tree, p4e
   return 0;
 }
 
-static int DMRefinePattern_Fractal(p4est_t *p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrant) {
+static int DMRefinePattern_Fractal(p4est_t *p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrant)
+{
   int                 cid;
   DMRefinePatternCtx *ctx;
 
@@ -95,7 +98,8 @@ static int DMRefinePattern_Fractal(p4est_t *p4est, p4est_topidx_t which_tree, p4
 
   /* simplified from MurmurHash3 by Austin Appleby */
   #define DMPROT32(x, y) ((x << y) | (x >> (32 - y)))
-static uint32_t DMPforestHash(const uint32_t *blocks, uint32_t nblocks) {
+static uint32_t DMPforestHash(const uint32_t *blocks, uint32_t nblocks)
+{
   uint32_t c1   = 0xcc9e2d51;
   uint32_t c2   = 0x1b873593;
   uint32_t r1   = 15;
@@ -134,7 +138,8 @@ static uint32_t DMPforestHash(const uint32_t *blocks, uint32_t nblocks) {
     #define DMP4EST_HASH_MAX ((uint32_t)0xffffffff)
   #endif
 
-static int DMRefinePattern_Hash(p4est_t *p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrant) {
+static int DMRefinePattern_Hash(p4est_t *p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrant)
+{
   uint32_t            data[5];
   uint32_t            result;
   DMRefinePatternCtx *ctx;
@@ -195,7 +200,8 @@ typedef struct {
 } DM_Forest_geometry_pforest;
 
   #define GeometryMapping_pforest _append_pforest(GeometryMapping)
-static void GeometryMapping_pforest(p4est_geometry_t *geom, p4est_topidx_t which_tree, const double abc[3], double xyz[3]) {
+static void GeometryMapping_pforest(p4est_geometry_t *geom, p4est_topidx_t which_tree, const double abc[3], double xyz[3])
+{
   DM_Forest_geometry_pforest *geom_pforest = (DM_Forest_geometry_pforest *)geom->user;
   PetscReal                   PetscABC[3]  = {0.};
   PetscReal                   PetscXYZ[3]  = {0.};
@@ -212,7 +218,8 @@ static void GeometryMapping_pforest(p4est_geometry_t *geom, p4est_topidx_t which
 }
 
   #define GeometryDestroy_pforest _append_pforest(GeometryDestroy)
-static void GeometryDestroy_pforest(p4est_geometry_t *geom) {
+static void GeometryDestroy_pforest(p4est_geometry_t *geom)
+{
   DM_Forest_geometry_pforest *geom_pforest = (DM_Forest_geometry_pforest *)geom->user;
   PetscErrorCode              ierr;
 
@@ -224,7 +231,8 @@ static void GeometryDestroy_pforest(p4est_geometry_t *geom) {
 }
 
   #define DMFTopologyDestroy_pforest _append_pforest(DMFTopologyDestroy)
-static PetscErrorCode DMFTopologyDestroy_pforest(DMFTopology_pforest **topo) {
+static PetscErrorCode DMFTopologyDestroy_pforest(DMFTopology_pforest **topo)
+{
   PetscFunctionBegin;
   if (!(*topo)) PetscFunctionReturn(0);
   if (--((*topo)->refct) > 0) {
@@ -242,7 +250,8 @@ static PetscErrorCode DMFTopologyDestroy_pforest(DMFTopology_pforest **topo) {
 static PetscErrorCode PforestConnectivityEnumerateFacets(p4est_connectivity_t *, PetscInt **);
 
   #define DMFTopologyCreateBrick_pforest _append_pforest(DMFTopologyCreateBrick)
-static PetscErrorCode DMFTopologyCreateBrick_pforest(DM dm, PetscInt N[], PetscInt P[], PetscReal B[], DMFTopology_pforest **topo, PetscBool useMorton) {
+static PetscErrorCode DMFTopologyCreateBrick_pforest(DM dm, PetscInt N[], PetscInt P[], PetscReal B[], DMFTopology_pforest **topo, PetscBool useMorton)
+{
   double  *vertices;
   PetscInt i, numVerts;
 
@@ -269,7 +278,8 @@ static PetscErrorCode DMFTopologyCreateBrick_pforest(DM dm, PetscInt N[], PetscI
 }
 
   #define DMFTopologyCreate_pforest _append_pforest(DMFTopologyCreate)
-static PetscErrorCode DMFTopologyCreate_pforest(DM dm, DMForestTopology topologyName, DMFTopology_pforest **topo) {
+static PetscErrorCode DMFTopologyCreate_pforest(DM dm, DMForestTopology topologyName, DMFTopology_pforest **topo)
+{
   const char *name = (const char *)topologyName;
   const char *prefix;
   PetscBool   isBrick, isShell, isSphere, isMoebius;
@@ -342,7 +352,8 @@ static PetscErrorCode DMFTopologyCreate_pforest(DM dm, DMForestTopology topology
 }
 
   #define DMConvert_plex_pforest _append_pforest(DMConvert_plex)
-static PetscErrorCode DMConvert_plex_pforest(DM dm, DMType newtype, DM *pforest) {
+static PetscErrorCode DMConvert_plex_pforest(DM dm, DMType newtype, DM *pforest)
+{
   MPI_Comm  comm;
   PetscBool isPlex;
   PetscInt  dim;
@@ -366,7 +377,8 @@ static PetscErrorCode DMConvert_plex_pforest(DM dm, DMType newtype, DM *pforest)
 }
 
   #define DMForestDestroy_pforest _append_pforest(DMForestDestroy)
-static PetscErrorCode DMForestDestroy_pforest(DM dm) {
+static PetscErrorCode DMForestDestroy_pforest(DM dm)
+{
   DM_Forest         *forest  = (DM_Forest *)dm->data;
   DM_Forest_pforest *pforest = (DM_Forest_pforest *)forest->data;
 
@@ -396,7 +408,8 @@ static PetscErrorCode DMForestDestroy_pforest(DM dm) {
 }
 
   #define DMForestTemplate_pforest _append_pforest(DMForestTemplate)
-static PetscErrorCode DMForestTemplate_pforest(DM dm, DM tdm) {
+static PetscErrorCode DMForestTemplate_pforest(DM dm, DM tdm)
+{
   DM_Forest_pforest *pforest  = (DM_Forest_pforest *)((DM_Forest *)dm->data)->data;
   DM_Forest_pforest *tpforest = (DM_Forest_pforest *)((DM_Forest *)tdm->data)->data;
 
@@ -417,7 +430,8 @@ typedef struct _PforestAdaptCtx {
   PetscBool anyChange;
 } PforestAdaptCtx;
 
-static int pforest_coarsen_currlevel(p4est_t *p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrants[]) {
+static int pforest_coarsen_currlevel(p4est_t *p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrants[])
+{
   PforestAdaptCtx *ctx       = (PforestAdaptCtx *)p4est->user_pointer;
   PetscInt         minLevel  = ctx->minLevel;
   PetscInt         currLevel = ctx->currLevel;
@@ -426,14 +440,16 @@ static int pforest_coarsen_currlevel(p4est_t *p4est, p4est_topidx_t which_tree, 
   return (int)((PetscInt)quadrants[0]->level == currLevel);
 }
 
-static int pforest_coarsen_uniform(p4est_t *p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrants[]) {
+static int pforest_coarsen_uniform(p4est_t *p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrants[])
+{
   PforestAdaptCtx *ctx      = (PforestAdaptCtx *)p4est->user_pointer;
   PetscInt         minLevel = ctx->minLevel;
 
   return (int)((PetscInt)quadrants[0]->level > minLevel);
 }
 
-static int pforest_coarsen_flag_any(p4est_t *p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrants[]) {
+static int pforest_coarsen_flag_any(p4est_t *p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrants[])
+{
   PetscInt         i;
   PetscBool        any      = PETSC_FALSE;
   PforestAdaptCtx *ctx      = (PforestAdaptCtx *)p4est->user_pointer;
@@ -453,7 +469,8 @@ static int pforest_coarsen_flag_any(p4est_t *p4est, p4est_topidx_t which_tree, p
   return any ? 1 : 0;
 }
 
-static int pforest_coarsen_flag_all(p4est_t *p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrants[]) {
+static int pforest_coarsen_flag_all(p4est_t *p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrants[])
+{
   PetscInt         i;
   PetscBool        all      = PETSC_TRUE;
   PforestAdaptCtx *ctx      = (PforestAdaptCtx *)p4est->user_pointer;
@@ -469,18 +486,21 @@ static int pforest_coarsen_flag_all(p4est_t *p4est, p4est_topidx_t which_tree, p
   return all ? 1 : 0;
 }
 
-static void pforest_init_determine(p4est_t *p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrant) {
+static void pforest_init_determine(p4est_t *p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrant)
+{
   quadrant->p.user_int = DM_ADAPT_DETERMINE;
 }
 
-static int pforest_refine_uniform(p4est_t *p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrant) {
+static int pforest_refine_uniform(p4est_t *p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrant)
+{
   PforestAdaptCtx *ctx      = (PforestAdaptCtx *)p4est->user_pointer;
   PetscInt         maxLevel = ctx->maxLevel;
 
   return ((PetscInt)quadrant->level < maxLevel);
 }
 
-static int pforest_refine_flag(p4est_t *p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrant) {
+static int pforest_refine_flag(p4est_t *p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrant)
+{
   PforestAdaptCtx *ctx      = (PforestAdaptCtx *)p4est->user_pointer;
   PetscInt         maxLevel = ctx->maxLevel;
 
@@ -489,7 +509,8 @@ static int pforest_refine_flag(p4est_t *p4est, p4est_topidx_t which_tree, p4est_
   return (quadrant->p.user_int == DM_ADAPT_REFINE);
 }
 
-static PetscErrorCode DMPforestComputeLocalCellTransferSF_loop(p4est_t *p4estFrom, PetscInt FromOffset, p4est_t *p4estTo, PetscInt ToOffset, p4est_topidx_t flt, p4est_topidx_t llt, PetscInt *toFineLeavesCount, PetscInt *toLeaves, PetscSFNode *fromRoots, PetscInt *fromFineLeavesCount, PetscInt *fromLeaves, PetscSFNode *toRoots) {
+static PetscErrorCode DMPforestComputeLocalCellTransferSF_loop(p4est_t *p4estFrom, PetscInt FromOffset, p4est_t *p4estTo, PetscInt ToOffset, p4est_topidx_t flt, p4est_topidx_t llt, PetscInt *toFineLeavesCount, PetscInt *toLeaves, PetscSFNode *fromRoots, PetscInt *fromFineLeavesCount, PetscInt *fromLeaves, PetscSFNode *toRoots)
+{
   PetscMPIInt    rank = p4estFrom->mpirank;
   p4est_topidx_t t;
   PetscInt       toFineLeaves = 0, fromFineLeaves = 0;
@@ -565,7 +586,8 @@ static PetscErrorCode DMPforestComputeLocalCellTransferSF_loop(p4est_t *p4estFro
 }
 
 /* Compute the maximum level across all the trees */
-static PetscErrorCode DMPforestGetRefinementLevel(DM dm, PetscInt *lev) {
+static PetscErrorCode DMPforestGetRefinementLevel(DM dm, PetscInt *lev)
+{
   p4est_topidx_t     t, flt, llt;
   DM_Forest         *forest      = (DM_Forest *)dm->data;
   DM_Forest_pforest *pforest     = (DM_Forest_pforest *)forest->data;
@@ -588,7 +610,8 @@ static PetscErrorCode DMPforestGetRefinementLevel(DM dm, PetscInt *lev) {
 
 /* Puts identity in coarseToFine */
 /* assumes a matching partition */
-static PetscErrorCode DMPforestComputeLocalCellTransferSF(MPI_Comm comm, p4est_t *p4estFrom, PetscInt FromOffset, p4est_t *p4estTo, PetscInt ToOffset, PetscSF *fromCoarseToFine, PetscSF *toCoarseFromFine) {
+static PetscErrorCode DMPforestComputeLocalCellTransferSF(MPI_Comm comm, p4est_t *p4estFrom, PetscInt FromOffset, p4est_t *p4estTo, PetscInt ToOffset, PetscSF *fromCoarseToFine, PetscSF *toCoarseFromFine)
+{
   p4est_topidx_t flt, llt;
   PetscSF        fromCoarse, toCoarse;
   PetscInt       numRootsFrom, numRootsTo, numLeavesFrom, numLeavesTo;
@@ -623,7 +646,8 @@ static PetscErrorCode DMPforestComputeLocalCellTransferSF(MPI_Comm comm, p4est_t
 }
 
 /* range of processes whose B sections overlap this ranks A section */
-static PetscErrorCode DMPforestComputeOverlappingRanks(PetscMPIInt size, PetscMPIInt rank, p4est_t *p4estA, p4est_t *p4estB, PetscInt *startB, PetscInt *endB) {
+static PetscErrorCode DMPforestComputeOverlappingRanks(PetscMPIInt size, PetscMPIInt rank, p4est_t *p4estA, p4est_t *p4estB, PetscInt *startB, PetscInt *endB)
+{
   p4est_quadrant_t *myCoarseStart = &(p4estA->global_first_position[rank]);
   p4est_quadrant_t *myCoarseEnd   = &(p4estA->global_first_position[rank + 1]);
   p4est_quadrant_t *globalFirstB  = p4estB->global_first_position;
@@ -677,7 +701,8 @@ static PetscErrorCode DMPforestComputeOverlappingRanks(PetscMPIInt size, PetscMP
 static PetscErrorCode DMPforestGetPlex(DM, DM *);
 
   #define DMSetUp_pforest _append_pforest(DMSetUp)
-static PetscErrorCode DMSetUp_pforest(DM dm) {
+static PetscErrorCode DMSetUp_pforest(DM dm)
+{
   DM_Forest         *forest  = (DM_Forest *)dm->data;
   DM_Forest_pforest *pforest = (DM_Forest_pforest *)forest->data;
   DM                 base, adaptFrom;
@@ -1018,7 +1043,9 @@ static PetscErrorCode DMSetUp_pforest(DM dm) {
           ctx->corner    = corner;
           ctx->refine_fn = DMRefinePattern_Corner;
           break;
-        case PATTERN_CENTER: ctx->refine_fn = DMRefinePattern_Center; break;
+        case PATTERN_CENTER:
+          ctx->refine_fn = DMRefinePattern_Center;
+          break;
         case PATTERN_FRACTAL:
           if (flgFractal) {
             PetscInt i;
@@ -1033,7 +1060,8 @@ static PetscErrorCode DMSetUp_pforest(DM dm) {
           }
           ctx->refine_fn = DMRefinePattern_Fractal;
           break;
-        default: SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Not a valid refinement pattern");
+        default:
+          SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Not a valid refinement pattern");
         }
 
         pforest->forest->user_pointer = (void *)ctx;
@@ -1290,7 +1318,8 @@ static PetscErrorCode DMSetUp_pforest(DM dm) {
 }
 
   #define DMForestGetAdaptivitySuccess_pforest _append_pforest(DMForestGetAdaptivitySuccess)
-static PetscErrorCode DMForestGetAdaptivitySuccess_pforest(DM dm, PetscBool *success) {
+static PetscErrorCode DMForestGetAdaptivitySuccess_pforest(DM dm, PetscBool *success)
+{
   DM_Forest         *forest;
   DM_Forest_pforest *pforest;
 
@@ -1302,7 +1331,8 @@ static PetscErrorCode DMForestGetAdaptivitySuccess_pforest(DM dm, PetscBool *suc
 }
 
   #define DMView_ASCII_pforest _append_pforest(DMView_ASCII)
-static PetscErrorCode DMView_ASCII_pforest(PetscObject odm, PetscViewer viewer) {
+static PetscErrorCode DMView_ASCII_pforest(PetscObject odm, PetscViewer viewer)
+{
   DM dm = (DM)odm;
 
   PetscFunctionBegin;
@@ -1327,13 +1357,15 @@ static PetscErrorCode DMView_ASCII_pforest(PetscObject odm, PetscViewer viewer) 
     PetscCall(DMPforestGetPlex(dm, &plex));
     PetscCall(DMView(plex, viewer));
   } break;
-  default: SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_SUP, "No support for format '%s'", PetscViewerFormats[viewer->format]);
+  default:
+    SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_SUP, "No support for format '%s'", PetscViewerFormats[viewer->format]);
   }
   PetscFunctionReturn(0);
 }
 
   #define DMView_VTK_pforest _append_pforest(DMView_VTK)
-static PetscErrorCode DMView_VTK_pforest(PetscObject odm, PetscViewer viewer) {
+static PetscErrorCode DMView_VTK_pforest(PetscObject odm, PetscViewer viewer)
+{
   DM                 dm      = (DM)odm;
   DM_Forest         *forest  = (DM_Forest *)dm->data;
   DM_Forest_pforest *pforest = (DM_Forest_pforest *)forest->data;
@@ -1389,13 +1421,15 @@ static PetscErrorCode DMView_VTK_pforest(PetscObject odm, PetscViewer viewer) {
     if (!pforest->topo->geom) PetscCallP4est(p4est_geometry_destroy, (geom));
     PetscCall(PetscFree(filenameStrip));
     break;
-  default: SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_SUP, "No support for format '%s'", PetscViewerFormats[viewer->format]);
+  default:
+    SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_SUP, "No support for format '%s'", PetscViewerFormats[viewer->format]);
   }
   PetscFunctionReturn(0);
 }
 
   #define DMView_HDF5_pforest _append_pforest(DMView_HDF5)
-static PetscErrorCode DMView_HDF5_pforest(DM dm, PetscViewer viewer) {
+static PetscErrorCode DMView_HDF5_pforest(DM dm, PetscViewer viewer)
+{
   DM plex;
 
   PetscFunctionBegin;
@@ -1406,7 +1440,8 @@ static PetscErrorCode DMView_HDF5_pforest(DM dm, PetscViewer viewer) {
 }
 
   #define DMView_GLVis_pforest _append_pforest(DMView_GLVis)
-static PetscErrorCode DMView_GLVis_pforest(DM dm, PetscViewer viewer) {
+static PetscErrorCode DMView_GLVis_pforest(DM dm, PetscViewer viewer)
+{
   DM plex;
 
   PetscFunctionBegin;
@@ -1417,7 +1452,8 @@ static PetscErrorCode DMView_GLVis_pforest(DM dm, PetscViewer viewer) {
 }
 
   #define DMView_pforest _append_pforest(DMView)
-static PetscErrorCode DMView_pforest(DM dm, PetscViewer viewer) {
+static PetscErrorCode DMView_pforest(DM dm, PetscViewer viewer)
+{
   PetscBool isascii, isvtk, ishdf5, isglvis;
 
   PetscFunctionBegin;
@@ -1439,7 +1475,8 @@ static PetscErrorCode DMView_pforest(DM dm, PetscViewer viewer) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PforestConnectivityEnumerateFacets(p4est_connectivity_t *conn, PetscInt **tree_face_to_uniq) {
+static PetscErrorCode PforestConnectivityEnumerateFacets(p4est_connectivity_t *conn, PetscInt **tree_face_to_uniq)
+{
   PetscInt *ttf, f, t, g, count;
   PetscInt  numFacets;
 
@@ -1462,7 +1499,8 @@ static PetscErrorCode PforestConnectivityEnumerateFacets(p4est_connectivity_t *c
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMPlexCreateConnectivity_pforest(DM dm, p4est_connectivity_t **connOut, PetscInt **tree_face_to_uniq) {
+static PetscErrorCode DMPlexCreateConnectivity_pforest(DM dm, p4est_connectivity_t **connOut, PetscInt **tree_face_to_uniq)
+{
   p4est_topidx_t numTrees, numVerts, numCorns, numCtt;
   PetscSection   ctt;
   #if defined(P4_TO_P8)
@@ -1611,7 +1649,7 @@ static PetscErrorCode DMPlexCreateConnectivity_pforest(DM dm, p4est_connectivity
         myFace[s]                                                                = PetscFaceToP4estFace[i];
         /* get the orientation of cell p in p4est-type closure to facet f, by composing the p4est-closure to
          * petsc-closure permutation and the petsc-closure to facet orientation */
-        myOrnt[s]                                                                = DihedralCompose(N, orient, DMPolytopeConvertNewOrientation_Internal(ct, P4estFaceToPetscOrnt[myFace[s]]));
+        myOrnt[s] = DihedralCompose(N, orient, DMPolytopeConvertNewOrientation_Internal(ct, P4estFaceToPetscOrnt[myFace[s]]));
       }
     }
     if (numSupp == 2) {
@@ -1672,10 +1710,10 @@ static PetscErrorCode DMPlexCreateConnectivity_pforest(DM dm, p4est_connectivity
             PetscInt totalOrient;
 
             /* compose p4est-closure to petsc-closure permutation and petsc-closure to edge orientation */
-            totalOrient                                                = DihedralCompose(2, cellOrnt, DMPolytopeConvertNewOrientation_Internal(DM_POLYTOPE_SEGMENT, P4estEdgeToPetscOrnt[p4estEdge]));
+            totalOrient = DihedralCompose(2, cellOrnt, DMPolytopeConvertNewOrientation_Internal(DM_POLYTOPE_SEGMENT, P4estEdgeToPetscOrnt[p4estEdge]));
             /* p4est orientations are positive: -2 => 1, -1 => 0 */
-            totalOrient                                                = (totalOrient < 0) ? -(totalOrient + 1) : totalOrient;
-            conn->edge_to_tree[off]                                    = (p4est_locidx_t)(p - cStart);
+            totalOrient             = (totalOrient < 0) ? -(totalOrient + 1) : totalOrient;
+            conn->edge_to_tree[off] = (p4est_locidx_t)(p - cStart);
             /* encode cell-edge and orientation in edge_to_edge per p8est_connectivity standart (see
              * p8est_connectivity.h) */
             conn->edge_to_edge[off++]                                  = (int8_t)p4estEdge + P8EST_EDGES * totalOrient;
@@ -1760,7 +1798,8 @@ static PetscErrorCode DMPlexCreateConnectivity_pforest(DM dm, p4est_connectivity
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode locidx_to_PetscInt(sc_array_t *array) {
+static PetscErrorCode locidx_to_PetscInt(sc_array_t *array)
+{
   sc_array_t *newarray;
   size_t      zz, count = array->elem_count;
 
@@ -1784,7 +1823,8 @@ static PetscErrorCode locidx_to_PetscInt(sc_array_t *array) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode coords_double_to_PetscScalar(sc_array_t *array, PetscInt dim) {
+static PetscErrorCode coords_double_to_PetscScalar(sc_array_t *array, PetscInt dim)
+{
   sc_array_t *newarray;
   size_t      zz, count = array->elem_count;
 
@@ -1811,7 +1851,8 @@ static PetscErrorCode coords_double_to_PetscScalar(sc_array_t *array, PetscInt d
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode locidx_pair_to_PetscSFNode(sc_array_t *array) {
+static PetscErrorCode locidx_pair_to_PetscSFNode(sc_array_t *array)
+{
   sc_array_t *newarray;
   size_t      zz, count = array->elem_count;
 
@@ -1834,7 +1875,8 @@ static PetscErrorCode locidx_pair_to_PetscSFNode(sc_array_t *array) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode P4estToPlex_Local(p4est_t *p4est, DM *plex) {
+static PetscErrorCode P4estToPlex_Local(p4est_t *p4est, DM *plex)
+{
   PetscFunctionBegin;
   {
     sc_array_t    *points_per_dim    = sc_array_new(sizeof(p4est_locidx_t));
@@ -1876,7 +1918,8 @@ static PetscErrorCode P4estToPlex_Local(p4est_t *p4est, DM *plex) {
 }
 
   #define DMReferenceTreeGetChildSymmetry_pforest _append_pforest(DMReferenceTreeGetChildSymmetry)
-static PetscErrorCode DMReferenceTreeGetChildSymmetry_pforest(DM dm, PetscInt parent, PetscInt parentOrientA, PetscInt childOrientA, PetscInt childA, PetscInt parentOrientB, PetscInt *childOrientB, PetscInt *childB) {
+static PetscErrorCode DMReferenceTreeGetChildSymmetry_pforest(DM dm, PetscInt parent, PetscInt parentOrientA, PetscInt childOrientA, PetscInt childA, PetscInt parentOrientB, PetscInt *childOrientB, PetscInt *childB)
+{
   PetscInt coneSize, dStart, dEnd, vStart, vEnd, dim, ABswap, oAvert, oBvert, ABswapVert;
 
   PetscFunctionBegin;
@@ -1937,7 +1980,7 @@ static PetscErrorCode DMReferenceTreeGetChildSymmetry_pforest(DM dm, PetscInt pa
           PetscCall(DMPlexGetConeSize(dm, childA, &coneSize));
           /* compose sOrientB and oB[j] */
           PetscCheck(coneSize == 0 || coneSize == 2, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Expected a vertex or an edge");
-          ct            = coneSize ? DM_POLYTOPE_SEGMENT : DM_POLYTOPE_POINT;
+          ct = coneSize ? DM_POLYTOPE_SEGMENT : DM_POLYTOPE_POINT;
           /* we may have to flip an edge */
           oBtrue        = (sOrientB >= 0) ? oB[j] : DMPolytopeTypeComposeOrientationInv(ct, -1, oB[j]);
           oBtrue        = DMPolytopeConvertNewOrientation_Internal(ct, oBtrue);
@@ -2003,7 +2046,8 @@ static PetscErrorCode DMReferenceTreeGetChildSymmetry_pforest(DM dm, PetscInt pa
 }
 
   #define DMCreateReferenceTree_pforest _append_pforest(DMCreateReferenceTree)
-static PetscErrorCode DMCreateReferenceTree_pforest(MPI_Comm comm, DM *dm) {
+static PetscErrorCode DMCreateReferenceTree_pforest(MPI_Comm comm, DM *dm)
+{
   p4est_connectivity_t *refcube;
   p4est_t              *root, *refined;
   DM                    dmRoot, dmRefined;
@@ -2080,7 +2124,8 @@ static PetscErrorCode DMCreateReferenceTree_pforest(MPI_Comm comm, DM *dm) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMShareDiscretization(DM dmA, DM dmB) {
+static PetscErrorCode DMShareDiscretization(DM dmA, DM dmB)
+{
   void     *ctx;
   PetscInt  num;
   PetscReal val;
@@ -2117,7 +2162,8 @@ static PetscErrorCode DMShareDiscretization(DM dmA, DM dmB) {
 }
 
 /* Get an SF that broadcasts a coarse-cell covering of the local fine cells */
-static PetscErrorCode DMPforestGetCellCoveringSF(MPI_Comm comm, p4est_t *p4estC, p4est_t *p4estF, PetscInt cStart, PetscInt cEnd, PetscSF *coveringSF) {
+static PetscErrorCode DMPforestGetCellCoveringSF(MPI_Comm comm, p4est_t *p4estC, p4est_t *p4estF, PetscInt cStart, PetscInt cEnd, PetscSF *coveringSF)
+{
   PetscInt     startF, endF, startC, endC, p, nLeaves;
   PetscSFNode *leaves;
   PetscSF      sf;
@@ -2223,7 +2269,8 @@ static PetscErrorCode DMPforestGetCellCoveringSF(MPI_Comm comm, p4est_t *p4estC,
 }
 
 /* closure points for locally-owned cells */
-static PetscErrorCode DMPforestGetCellSFNodes(DM dm, PetscInt numClosureIndices, PetscInt *numClosurePoints, PetscSFNode **closurePoints, PetscBool redirect) {
+static PetscErrorCode DMPforestGetCellSFNodes(DM dm, PetscInt numClosureIndices, PetscInt *numClosurePoints, PetscSFNode **closurePoints, PetscBool redirect)
+{
   PetscInt           cStart, cEnd;
   PetscInt           count, c;
   PetscMPIInt        rank;
@@ -2272,7 +2319,8 @@ static PetscErrorCode DMPforestGetCellSFNodes(DM dm, PetscInt numClosureIndices,
   PetscFunctionReturn(0);
 }
 
-static void MPIAPI DMPforestMaxSFNode(void *a, void *b, PetscMPIInt *len, MPI_Datatype *type) {
+static void MPIAPI DMPforestMaxSFNode(void *a, void *b, PetscMPIInt *len, MPI_Datatype *type)
+{
   PetscMPIInt i;
 
   for (i = 0; i < *len; i++) {
@@ -2283,7 +2331,8 @@ static void MPIAPI DMPforestMaxSFNode(void *a, void *b, PetscMPIInt *len, MPI_Da
   }
 }
 
-static PetscErrorCode DMPforestGetTransferSF_Point(DM coarse, DM fine, PetscSF *sf, PetscBool transferIdent, PetscInt *childIds[]) {
+static PetscErrorCode DMPforestGetTransferSF_Point(DM coarse, DM fine, PetscSF *sf, PetscBool transferIdent, PetscInt *childIds[])
+{
   MPI_Comm           comm;
   PetscMPIInt        rank, size;
   DM_Forest_pforest *pforestC, *pforestF;
@@ -2841,7 +2890,8 @@ static PetscErrorCode DMPforestGetTransferSF_Point(DM coarse, DM fine, PetscSF *
 }
 
 /* children are sf leaves of parents */
-static PetscErrorCode DMPforestGetTransferSF_Internal(DM coarse, DM fine, const PetscInt dofPerDim[], PetscSF *sf, PetscBool transferIdent, PetscInt *childIds[]) {
+static PetscErrorCode DMPforestGetTransferSF_Internal(DM coarse, DM fine, const PetscInt dofPerDim[], PetscSF *sf, PetscBool transferIdent, PetscInt *childIds[])
+{
   MPI_Comm           comm;
   PetscMPIInt        rank;
   DM_Forest_pforest *pforestC, *pforestF;
@@ -2955,7 +3005,8 @@ static PetscErrorCode DMPforestGetTransferSF_Internal(DM coarse, DM fine, const 
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMPforestGetTransferSF(DM dmA, DM dmB, const PetscInt dofPerDim[], PetscSF *sfAtoB, PetscSF *sfBtoA) {
+static PetscErrorCode DMPforestGetTransferSF(DM dmA, DM dmB, const PetscInt dofPerDim[], PetscSF *sfAtoB, PetscSF *sfBtoA)
+{
   DM          adaptA, adaptB;
   DMAdaptFlag purpose;
 
@@ -2981,7 +3032,8 @@ static PetscErrorCode DMPforestGetTransferSF(DM dmA, DM dmB, const PetscInt dofP
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMPforestLabelsInitialize(DM dm, DM plex) {
+static PetscErrorCode DMPforestLabelsInitialize(DM dm, DM plex)
+{
   DM_Forest         *forest  = (DM_Forest *)dm->data;
   DM_Forest_pforest *pforest = (DM_Forest_pforest *)forest->data;
   PetscInt           cLocalStart, cLocalEnd, cStart, cEnd, fStart, fEnd, eStart, eEnd, vStart, vEnd;
@@ -3414,7 +3466,8 @@ static PetscErrorCode DMPforestLabelsInitialize(DM dm, DM plex) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMPforestLabelsFinalize(DM dm, DM plex) {
+static PetscErrorCode DMPforestLabelsFinalize(DM dm, DM plex)
+{
   DM_Forest_pforest *pforest = (DM_Forest_pforest *)((DM_Forest *)dm->data)->data;
   DM                 adapt;
 
@@ -3536,7 +3589,8 @@ static PetscErrorCode DMPforestLabelsFinalize(DM dm, DM plex) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMPforestMapCoordinates_Cell(DM plex, p4est_geometry_t *geom, PetscInt cell, p4est_quadrant_t *q, p4est_topidx_t t, p4est_connectivity_t *conn, PetscScalar *coords) {
+static PetscErrorCode DMPforestMapCoordinates_Cell(DM plex, p4est_geometry_t *geom, PetscInt cell, p4est_quadrant_t *q, p4est_topidx_t t, p4est_connectivity_t *conn, PetscScalar *coords)
+{
   PetscInt     closureSize, c, coordStart, coordEnd, coordDim;
   PetscInt    *closure = NULL;
   PetscSection coordSec;
@@ -3643,7 +3697,8 @@ static PetscErrorCode DMPforestMapCoordinates_Cell(DM plex, p4est_geometry_t *ge
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMPforestMapCoordinates(DM dm, DM plex) {
+static PetscErrorCode DMPforestMapCoordinates(DM dm, DM plex)
+{
   DM_Forest         *forest;
   DM_Forest_pforest *pforest;
   p4est_geometry_t  *geom;
@@ -3777,7 +3832,8 @@ static PetscErrorCode DMPforestMapCoordinates(DM dm, DM plex) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PforestQuadrantIsInterior(p4est_quadrant_t *quad, PetscBool *is_interior) {
+static PetscErrorCode PforestQuadrantIsInterior(p4est_quadrant_t *quad, PetscBool *is_interior)
+{
   PetscFunctionBegin;
   p4est_qcoord_t h = P4EST_QUADRANT_LEN(quad->level);
   if ((quad->x > 0) && (quad->x + h < P4EST_ROOT_LEN)
@@ -3794,7 +3850,8 @@ static PetscErrorCode PforestQuadrantIsInterior(p4est_quadrant_t *quad, PetscBoo
 
 /* We always use DG coordinates with p4est: if they do not match the vertex
    coordinates, add space for them in the section */
-static PetscErrorCode PforestCheckLocalizeCell(DM plex, PetscInt cDim, Vec cVecOld, DM_Forest_pforest *pforest, PetscSection oldSection, PetscSection newSection, PetscInt cell, PetscInt coarsePoint, p4est_quadrant_t *quad) {
+static PetscErrorCode PforestCheckLocalizeCell(DM plex, PetscInt cDim, Vec cVecOld, DM_Forest_pforest *pforest, PetscSection oldSection, PetscSection newSection, PetscInt cell, PetscInt coarsePoint, p4est_quadrant_t *quad)
+{
   PetscBool is_interior;
 
   PetscFunctionBegin;
@@ -3848,7 +3905,8 @@ static PetscErrorCode PforestCheckLocalizeCell(DM plex, PetscInt cDim, Vec cVecO
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PforestLocalizeCell(DM plex, PetscInt cDim, DM_Forest_pforest *pforest, PetscSection newSection, PetscInt cell, PetscInt coarsePoint, p4est_quadrant_t *quad, PetscScalar coords[]) {
+static PetscErrorCode PforestLocalizeCell(DM plex, PetscInt cDim, DM_Forest_pforest *pforest, PetscSection newSection, PetscInt cell, PetscInt coarsePoint, p4est_quadrant_t *quad, PetscScalar coords[])
+{
   PetscInt cdof, off;
 
   PetscFunctionBegin;
@@ -3879,7 +3937,8 @@ static PetscErrorCode PforestLocalizeCell(DM plex, PetscInt cDim, DM_Forest_pfor
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMPforestLocalizeCoordinates(DM dm, DM plex) {
+static PetscErrorCode DMPforestLocalizeCoordinates(DM dm, DM plex)
+{
   DM_Forest         *forest;
   DM_Forest_pforest *pforest;
   DM                 base, cdm, cdmCell;
@@ -4032,7 +4091,8 @@ static PetscErrorCode DMPforestLocalizeCoordinates(DM dm, DM plex) {
 }
 
   #define DMForestClearAdaptivityForest_pforest _append_pforest(DMForestClearAdaptivityForest)
-static PetscErrorCode DMForestClearAdaptivityForest_pforest(DM dm) {
+static PetscErrorCode DMForestClearAdaptivityForest_pforest(DM dm)
+{
   DM_Forest         *forest;
   DM_Forest_pforest *pforest;
 
@@ -4046,7 +4106,8 @@ static PetscErrorCode DMForestClearAdaptivityForest_pforest(DM dm) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMConvert_pforest_plex(DM dm, DMType newtype, DM *plex) {
+static PetscErrorCode DMConvert_pforest_plex(DM dm, DMType newtype, DM *plex)
+{
   DM_Forest           *forest;
   DM_Forest_pforest   *pforest;
   DM                   refTree, newPlex, base;
@@ -4270,7 +4331,8 @@ static PetscErrorCode DMConvert_pforest_plex(DM dm, DMType newtype, DM *plex) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMSetFromOptions_pforest(DM dm, PetscOptionItems *PetscOptionsObject) {
+static PetscErrorCode DMSetFromOptions_pforest(DM dm, PetscOptionItems *PetscOptionsObject)
+{
   DM_Forest_pforest *pforest = (DM_Forest_pforest *)((DM_Forest *)dm->data)->data;
   char               stringBuffer[256];
   PetscBool          flg;
@@ -4296,7 +4358,8 @@ static PetscErrorCode DMSetFromOptions_pforest(DM dm, PetscOptionItems *PetscOpt
     #define DMPforestSetPartitionForCoarsening DMP8estSetPartitionForCoarsening
   #endif
 
-PETSC_EXTERN PetscErrorCode DMPforestGetPartitionForCoarsening(DM dm, PetscBool *flg) {
+PETSC_EXTERN PetscErrorCode DMPforestGetPartitionForCoarsening(DM dm, PetscBool *flg)
+{
   DM_Forest_pforest *pforest;
 
   PetscFunctionBegin;
@@ -4306,7 +4369,8 @@ PETSC_EXTERN PetscErrorCode DMPforestGetPartitionForCoarsening(DM dm, PetscBool 
   PetscFunctionReturn(0);
 }
 
-PETSC_EXTERN PetscErrorCode DMPforestSetPartitionForCoarsening(DM dm, PetscBool flg) {
+PETSC_EXTERN PetscErrorCode DMPforestSetPartitionForCoarsening(DM dm, PetscBool flg)
+{
   DM_Forest_pforest *pforest;
 
   PetscFunctionBegin;
@@ -4316,7 +4380,8 @@ PETSC_EXTERN PetscErrorCode DMPforestSetPartitionForCoarsening(DM dm, PetscBool 
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMPforestGetPlex(DM dm, DM *plex) {
+static PetscErrorCode DMPforestGetPlex(DM dm, DM *plex)
+{
   DM_Forest_pforest *pforest;
 
   PetscFunctionBegin;
@@ -4330,7 +4395,8 @@ static PetscErrorCode DMPforestGetPlex(DM dm, DM *plex) {
 }
 
   #define DMCreateInterpolation_pforest _append_pforest(DMCreateInterpolation)
-static PetscErrorCode DMCreateInterpolation_pforest(DM dmCoarse, DM dmFine, Mat *interpolation, Vec *scaling) {
+static PetscErrorCode DMCreateInterpolation_pforest(DM dmCoarse, DM dmFine, Mat *interpolation, Vec *scaling)
+{
   PetscSection gsc, gsf;
   PetscInt     m, n;
   DM           cdm;
@@ -4369,7 +4435,8 @@ static PetscErrorCode DMCreateInterpolation_pforest(DM dmCoarse, DM dmFine, Mat 
 }
 
   #define DMCreateInjection_pforest _append_pforest(DMCreateInjection)
-static PetscErrorCode DMCreateInjection_pforest(DM dmCoarse, DM dmFine, Mat *injection) {
+static PetscErrorCode DMCreateInjection_pforest(DM dmCoarse, DM dmFine, Mat *injection)
+{
   PetscSection gsc, gsf;
   PetscInt     m, n;
   DM           cdm;
@@ -4407,7 +4474,8 @@ static PetscErrorCode DMCreateInjection_pforest(DM dmCoarse, DM dmFine, Mat *inj
 }
 
   #define DMForestTransferVecFromBase_pforest _append_pforest(DMForestTransferVecFromBase)
-static PetscErrorCode DMForestTransferVecFromBase_pforest(DM dm, Vec vecIn, Vec vecOut) {
+static PetscErrorCode DMForestTransferVecFromBase_pforest(DM dm, Vec vecIn, Vec vecOut)
+{
   DM        dmIn, dmVecIn, base, basec, plex, coarseDM;
   DM       *hierarchy;
   PetscSF   sfRed = NULL;
@@ -4606,7 +4674,8 @@ static PetscErrorCode DMForestTransferVecFromBase_pforest(DM dm, Vec vecIn, Vec 
 }
 
   #define DMForestTransferVec_pforest _append_pforest(DMForestTransferVec)
-static PetscErrorCode DMForestTransferVec_pforest(DM dmIn, Vec vecIn, DM dmOut, Vec vecOut, PetscBool useBCs, PetscReal time) {
+static PetscErrorCode DMForestTransferVec_pforest(DM dmIn, Vec vecIn, DM dmOut, Vec vecOut, PetscBool useBCs, PetscReal time)
+{
   DM          adaptIn, adaptOut, plexIn, plexOut;
   DM_Forest  *forestIn, *forestOut, *forestAdaptIn, *forestAdaptOut;
   PetscInt    dofPerDim[] = {1, 1, 1, 1};
@@ -4675,7 +4744,8 @@ static PetscErrorCode DMForestTransferVec_pforest(DM dmIn, Vec vecIn, DM dmOut, 
 }
 
   #define DMCreateCoordinateDM_pforest _append_pforest(DMCreateCoordinateDM)
-static PetscErrorCode DMCreateCoordinateDM_pforest(DM dm, DM *cdm) {
+static PetscErrorCode DMCreateCoordinateDM_pforest(DM dm, DM *cdm)
+{
   DM plex;
 
   PetscFunctionBegin;
@@ -4687,7 +4757,8 @@ static PetscErrorCode DMCreateCoordinateDM_pforest(DM dm, DM *cdm) {
 }
 
   #define VecViewLocal_pforest _append_pforest(VecViewLocal)
-static PetscErrorCode VecViewLocal_pforest(Vec vec, PetscViewer viewer) {
+static PetscErrorCode VecViewLocal_pforest(Vec vec, PetscViewer viewer)
+{
   DM dm, plex;
 
   PetscFunctionBegin;
@@ -4700,7 +4771,8 @@ static PetscErrorCode VecViewLocal_pforest(Vec vec, PetscViewer viewer) {
 }
 
   #define VecView_pforest _append_pforest(VecView)
-static PetscErrorCode VecView_pforest(Vec vec, PetscViewer viewer) {
+static PetscErrorCode VecView_pforest(Vec vec, PetscViewer viewer)
+{
   DM dm, plex;
 
   PetscFunctionBegin;
@@ -4713,7 +4785,8 @@ static PetscErrorCode VecView_pforest(Vec vec, PetscViewer viewer) {
 }
 
   #define VecView_pforest_Native _infix_pforest(VecView, _Native)
-static PetscErrorCode VecView_pforest_Native(Vec vec, PetscViewer viewer) {
+static PetscErrorCode VecView_pforest_Native(Vec vec, PetscViewer viewer)
+{
   DM dm, plex;
 
   PetscFunctionBegin;
@@ -4726,7 +4799,8 @@ static PetscErrorCode VecView_pforest_Native(Vec vec, PetscViewer viewer) {
 }
 
   #define VecLoad_pforest _append_pforest(VecLoad)
-static PetscErrorCode VecLoad_pforest(Vec vec, PetscViewer viewer) {
+static PetscErrorCode VecLoad_pforest(Vec vec, PetscViewer viewer)
+{
   DM dm, plex;
 
   PetscFunctionBegin;
@@ -4739,7 +4813,8 @@ static PetscErrorCode VecLoad_pforest(Vec vec, PetscViewer viewer) {
 }
 
   #define VecLoad_pforest_Native _infix_pforest(VecLoad, _Native)
-static PetscErrorCode VecLoad_pforest_Native(Vec vec, PetscViewer viewer) {
+static PetscErrorCode VecLoad_pforest_Native(Vec vec, PetscViewer viewer)
+{
   DM dm, plex;
 
   PetscFunctionBegin;
@@ -4752,7 +4827,8 @@ static PetscErrorCode VecLoad_pforest_Native(Vec vec, PetscViewer viewer) {
 }
 
   #define DMCreateGlobalVector_pforest _append_pforest(DMCreateGlobalVector)
-static PetscErrorCode DMCreateGlobalVector_pforest(DM dm, Vec *vec) {
+static PetscErrorCode DMCreateGlobalVector_pforest(DM dm, Vec *vec)
+{
   PetscFunctionBegin;
   PetscCall(DMCreateGlobalVector_Section_Private(dm, vec));
   /* PetscCall(VecSetOperation(*vec, VECOP_DUPLICATE, (void(*)(void)) VecDuplicate_MPI_DM)); */
@@ -4764,7 +4840,8 @@ static PetscErrorCode DMCreateGlobalVector_pforest(DM dm, Vec *vec) {
 }
 
   #define DMCreateLocalVector_pforest _append_pforest(DMCreateLocalVector)
-static PetscErrorCode DMCreateLocalVector_pforest(DM dm, Vec *vec) {
+static PetscErrorCode DMCreateLocalVector_pforest(DM dm, Vec *vec)
+{
   PetscFunctionBegin;
   PetscCall(DMCreateLocalVector_Section_Private(dm, vec));
   PetscCall(VecSetOperation(*vec, VECOP_VIEW, (void (*)(void))VecViewLocal_pforest));
@@ -4772,7 +4849,8 @@ static PetscErrorCode DMCreateLocalVector_pforest(DM dm, Vec *vec) {
 }
 
   #define DMCreateMatrix_pforest _append_pforest(DMCreateMatrix)
-static PetscErrorCode DMCreateMatrix_pforest(DM dm, Mat *mat) {
+static PetscErrorCode DMCreateMatrix_pforest(DM dm, Mat *mat)
+{
   DM plex;
 
   PetscFunctionBegin;
@@ -4785,7 +4863,8 @@ static PetscErrorCode DMCreateMatrix_pforest(DM dm, Mat *mat) {
 }
 
   #define DMProjectFunctionLocal_pforest _append_pforest(DMProjectFunctionLocal)
-static PetscErrorCode DMProjectFunctionLocal_pforest(DM dm, PetscReal time, PetscErrorCode (**funcs)(PetscInt, PetscReal, const PetscReal[], PetscInt, PetscScalar *, void *), void **ctxs, InsertMode mode, Vec localX) {
+static PetscErrorCode DMProjectFunctionLocal_pforest(DM dm, PetscReal time, PetscErrorCode (**funcs)(PetscInt, PetscReal, const PetscReal[], PetscInt, PetscScalar *, void *), void **ctxs, InsertMode mode, Vec localX)
+{
   DM plex;
 
   PetscFunctionBegin;
@@ -4796,7 +4875,8 @@ static PetscErrorCode DMProjectFunctionLocal_pforest(DM dm, PetscReal time, Pets
 }
 
   #define DMProjectFunctionLabelLocal_pforest _append_pforest(DMProjectFunctionLabelLocal)
-static PetscErrorCode DMProjectFunctionLabelLocal_pforest(DM dm, PetscReal time, DMLabel label, PetscInt numIds, const PetscInt ids[], PetscInt Ncc, const PetscInt comps[], PetscErrorCode (**funcs)(PetscInt, PetscReal, const PetscReal[], PetscInt, PetscScalar *, void *), void **ctxs, InsertMode mode, Vec localX) {
+static PetscErrorCode DMProjectFunctionLabelLocal_pforest(DM dm, PetscReal time, DMLabel label, PetscInt numIds, const PetscInt ids[], PetscInt Ncc, const PetscInt comps[], PetscErrorCode (**funcs)(PetscInt, PetscReal, const PetscReal[], PetscInt, PetscScalar *, void *), void **ctxs, InsertMode mode, Vec localX)
+{
   DM plex;
 
   PetscFunctionBegin;
@@ -4807,7 +4887,8 @@ static PetscErrorCode DMProjectFunctionLabelLocal_pforest(DM dm, PetscReal time,
 }
 
   #define DMProjectFieldLocal_pforest _append_pforest(DMProjectFieldLocal)
-PetscErrorCode DMProjectFieldLocal_pforest(DM dm, PetscReal time, Vec localU, void (**funcs)(PetscInt, PetscInt, PetscInt, const PetscInt[], const PetscInt[], const PetscScalar[], const PetscScalar[], const PetscScalar[], const PetscInt[], const PetscInt[], const PetscScalar[], const PetscScalar[], const PetscScalar[], PetscReal, const PetscReal[], PetscInt, const PetscScalar[], PetscScalar[]), InsertMode mode, Vec localX) {
+PetscErrorCode DMProjectFieldLocal_pforest(DM dm, PetscReal time, Vec localU, void (**funcs)(PetscInt, PetscInt, PetscInt, const PetscInt[], const PetscInt[], const PetscScalar[], const PetscScalar[], const PetscScalar[], const PetscInt[], const PetscInt[], const PetscScalar[], const PetscScalar[], const PetscScalar[], PetscReal, const PetscReal[], PetscInt, const PetscScalar[], PetscScalar[]), InsertMode mode, Vec localX)
+{
   DM plex;
 
   PetscFunctionBegin;
@@ -4818,7 +4899,8 @@ PetscErrorCode DMProjectFieldLocal_pforest(DM dm, PetscReal time, Vec localU, vo
 }
 
   #define DMComputeL2Diff_pforest _append_pforest(DMComputeL2Diff)
-PetscErrorCode DMComputeL2Diff_pforest(DM dm, PetscReal time, PetscErrorCode (**funcs)(PetscInt, PetscReal, const PetscReal[], PetscInt, PetscScalar *, void *), void **ctxs, Vec X, PetscReal *diff) {
+PetscErrorCode DMComputeL2Diff_pforest(DM dm, PetscReal time, PetscErrorCode (**funcs)(PetscInt, PetscReal, const PetscReal[], PetscInt, PetscScalar *, void *), void **ctxs, Vec X, PetscReal *diff)
+{
   DM plex;
 
   PetscFunctionBegin;
@@ -4829,7 +4911,8 @@ PetscErrorCode DMComputeL2Diff_pforest(DM dm, PetscReal time, PetscErrorCode (**
 }
 
   #define DMComputeL2FieldDiff_pforest _append_pforest(DMComputeL2FieldDiff)
-PetscErrorCode DMComputeL2FieldDiff_pforest(DM dm, PetscReal time, PetscErrorCode (**funcs)(PetscInt, PetscReal, const PetscReal[], PetscInt, PetscScalar *, void *), void **ctxs, Vec X, PetscReal diff[]) {
+PetscErrorCode DMComputeL2FieldDiff_pforest(DM dm, PetscReal time, PetscErrorCode (**funcs)(PetscInt, PetscReal, const PetscReal[], PetscInt, PetscScalar *, void *), void **ctxs, Vec X, PetscReal diff[])
+{
   DM plex;
 
   PetscFunctionBegin;
@@ -4840,7 +4923,8 @@ PetscErrorCode DMComputeL2FieldDiff_pforest(DM dm, PetscReal time, PetscErrorCod
 }
 
   #define DMCreatelocalsection_pforest _append_pforest(DMCreatelocalsection)
-static PetscErrorCode DMCreatelocalsection_pforest(DM dm) {
+static PetscErrorCode DMCreatelocalsection_pforest(DM dm)
+{
   DM           plex;
   PetscSection section;
 
@@ -4853,7 +4937,8 @@ static PetscErrorCode DMCreatelocalsection_pforest(DM dm) {
 }
 
   #define DMCreateDefaultConstraints_pforest _append_pforest(DMCreateDefaultConstraints)
-static PetscErrorCode DMCreateDefaultConstraints_pforest(DM dm) {
+static PetscErrorCode DMCreateDefaultConstraints_pforest(DM dm)
+{
   DM           plex;
   Mat          mat;
   Vec          bias;
@@ -4868,7 +4953,8 @@ static PetscErrorCode DMCreateDefaultConstraints_pforest(DM dm) {
 }
 
   #define DMGetDimPoints_pforest _append_pforest(DMGetDimPoints)
-static PetscErrorCode DMGetDimPoints_pforest(DM dm, PetscInt dim, PetscInt *cStart, PetscInt *cEnd) {
+static PetscErrorCode DMGetDimPoints_pforest(DM dm, PetscInt dim, PetscInt *cStart, PetscInt *cEnd)
+{
   DM plex;
 
   PetscFunctionBegin;
@@ -4883,7 +4969,8 @@ static PetscErrorCode DMGetDimPoints_pforest(DM dm, PetscInt dim, PetscInt *cSta
 static PetscErrorCode DMInitialize_pforest(DM dm);
 
   #define DMClone_pforest _append_pforest(DMClone)
-static PetscErrorCode DMClone_pforest(DM dm, DM *newdm) {
+static PetscErrorCode DMClone_pforest(DM dm, DM *newdm)
+{
   PetscFunctionBegin;
   PetscCall(DMClone_Forest(dm, newdm));
   PetscCall(DMInitialize_pforest(*newdm));
@@ -4891,7 +4978,8 @@ static PetscErrorCode DMClone_pforest(DM dm, DM *newdm) {
 }
 
   #define DMForestCreateCellChart_pforest _append_pforest(DMForestCreateCellChart)
-static PetscErrorCode DMForestCreateCellChart_pforest(DM dm, PetscInt *cStart, PetscInt *cEnd) {
+static PetscErrorCode DMForestCreateCellChart_pforest(DM dm, PetscInt *cStart, PetscInt *cEnd)
+{
   DM_Forest         *forest;
   DM_Forest_pforest *pforest;
   PetscInt           overlap;
@@ -4911,7 +4999,8 @@ static PetscErrorCode DMForestCreateCellChart_pforest(DM dm, PetscInt *cStart, P
 }
 
   #define DMForestCreateCellSF_pforest _append_pforest(DMForestCreateCellSF)
-static PetscErrorCode DMForestCreateCellSF_pforest(DM dm, PetscSF *cellSF) {
+static PetscErrorCode DMForestCreateCellSF_pforest(DM dm, PetscSF *cellSF)
+{
   DM_Forest         *forest;
   DM_Forest_pforest *pforest;
   PetscMPIInt        rank;
@@ -4963,7 +5052,8 @@ static PetscErrorCode DMForestCreateCellSF_pforest(DM dm, PetscSF *cellSF) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMCreateNeumannOverlap_pforest(DM dm, IS *ovl, Mat *J, PetscErrorCode (**setup)(Mat, PetscReal, Vec, Vec, PetscReal, IS, void *), void **setup_ctx) {
+static PetscErrorCode DMCreateNeumannOverlap_pforest(DM dm, IS *ovl, Mat *J, PetscErrorCode (**setup)(Mat, PetscReal, Vec, Vec, PetscReal, IS, void *), void **setup_ctx)
+{
   DM plex;
 
   PetscFunctionBegin;
@@ -4976,7 +5066,8 @@ static PetscErrorCode DMCreateNeumannOverlap_pforest(DM dm, IS *ovl, Mat *J, Pet
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMInitialize_pforest(DM dm) {
+static PetscErrorCode DMInitialize_pforest(DM dm)
+{
   PetscFunctionBegin;
   dm->ops->setup                     = DMSetUp_pforest;
   dm->ops->view                      = DMView_pforest;
@@ -5005,7 +5096,8 @@ static PetscErrorCode DMInitialize_pforest(DM dm) {
 }
 
   #define DMCreate_pforest _append_pforest(DMCreate)
-PETSC_EXTERN PetscErrorCode DMCreate_pforest(DM dm) {
+PETSC_EXTERN PetscErrorCode DMCreate_pforest(DM dm)
+{
   DM_Forest         *forest;
   DM_Forest_pforest *pforest;
 

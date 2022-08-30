@@ -9,7 +9,9 @@
   #define PETSC_DECLTYPE_AUTO(...) ->decltype(__VA_ARGS__)
   #define PETSC_NOEXCEPT_AUTO(...) noexcept(noexcept(__VA_ARGS__))
   #define PETSC_RETURNS(...) \
-    { return __VA_ARGS__; }
+    { \
+      return __VA_ARGS__; \
+    }
 
   // one without the other
   #define PETSC_DECLTYPE_AUTO_RETURNS(...) PETSC_DECLTYPE_AUTO(__VA_ARGS__) PETSC_RETURNS(__VA_ARGS__)

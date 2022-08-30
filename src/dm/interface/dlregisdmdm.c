@@ -11,6 +11,7 @@
 #include <petsc/private/dmnetworkimpl.h>
 
 static PetscBool DMPackageInitialized = PETSC_FALSE;
+
 /*@C
   DMFinalizePackage - This function finalizes everything in the DM package. It is called
   from PetscFinalize().
@@ -19,7 +20,8 @@ static PetscBool DMPackageInitialized = PETSC_FALSE;
 
 .seealso: `PetscInitialize()`
 @*/
-PetscErrorCode   DMFinalizePackage(void) {
+PetscErrorCode DMFinalizePackage(void)
+{
   PetscFunctionBegin;
   PetscCall(PetscFunctionListDestroy(&DMList));
   DMPackageInitialized = PETSC_FALSE;
@@ -41,7 +43,8 @@ PETSC_EXTERN PetscErrorCode MatCreate_HYPRESStruct(Mat);
 
 .seealso: `PetscInitialize()`
 @*/
-PetscErrorCode DMInitializePackage(void) {
+PetscErrorCode DMInitializePackage(void)
+{
   char      logList[256];
   PetscBool opt, pkg;
 
@@ -174,6 +177,7 @@ PetscErrorCode DMInitializePackage(void) {
 #include <petscfe.h>
 
 static PetscBool PetscFEPackageInitialized = PETSC_FALSE;
+
 /*@C
   PetscFEFinalizePackage - This function finalizes everything in the PetscFE package. It is called
   from PetscFinalize().
@@ -182,7 +186,8 @@ static PetscBool PetscFEPackageInitialized = PETSC_FALSE;
 
 .seealso: `PetscInitialize()`
 @*/
-PetscErrorCode   PetscFEFinalizePackage(void) {
+PetscErrorCode PetscFEFinalizePackage(void)
+{
   PetscFunctionBegin;
   PetscCall(PetscFunctionListDestroy(&PetscSpaceList));
   PetscCall(PetscFunctionListDestroy(&PetscDualSpaceList));
@@ -203,7 +208,8 @@ PetscErrorCode   PetscFEFinalizePackage(void) {
 
 .seealso: `PetscInitialize()`
 @*/
-PetscErrorCode PetscFEInitializePackage(void) {
+PetscErrorCode PetscFEInitializePackage(void)
+{
   char      logList[256];
   PetscBool opt, pkg;
 
@@ -246,6 +252,7 @@ PetscErrorCode PetscFEInitializePackage(void) {
 #include <petscfv.h>
 
 static PetscBool PetscFVPackageInitialized = PETSC_FALSE;
+
 /*@C
   PetscFVFinalizePackage - This function finalizes everything in the PetscFV package. It is called
   from PetscFinalize().
@@ -254,7 +261,8 @@ static PetscBool PetscFVPackageInitialized = PETSC_FALSE;
 
 .seealso: `PetscInitialize()`
 @*/
-PetscErrorCode   PetscFVFinalizePackage(void) {
+PetscErrorCode PetscFVFinalizePackage(void)
+{
   PetscFunctionBegin;
   PetscCall(PetscFunctionListDestroy(&PetscLimiterList));
   PetscCall(PetscFunctionListDestroy(&PetscFVList));
@@ -273,7 +281,8 @@ PetscErrorCode   PetscFVFinalizePackage(void) {
 
 .seealso: `PetscInitialize()`
 @*/
-PetscErrorCode PetscFVInitializePackage(void) {
+PetscErrorCode PetscFVInitializePackage(void)
+{
   char      logList[256];
   PetscBool opt, pkg;
 
@@ -311,6 +320,7 @@ PetscErrorCode PetscFVInitializePackage(void) {
 #include <petscds.h>
 
 static PetscBool PetscDSPackageInitialized = PETSC_FALSE;
+
 /*@C
   PetscDSFinalizePackage - This function finalizes everything in the PetscDS package. It is called
   from PetscFinalize().
@@ -319,7 +329,8 @@ static PetscBool PetscDSPackageInitialized = PETSC_FALSE;
 
 .seealso: `PetscInitialize()`
 @*/
-PetscErrorCode   PetscDSFinalizePackage(void) {
+PetscErrorCode PetscDSFinalizePackage(void)
+{
   PetscFunctionBegin;
   PetscCall(PetscFunctionListDestroy(&PetscDSList));
   PetscDSPackageInitialized = PETSC_FALSE;
@@ -336,7 +347,8 @@ PetscErrorCode   PetscDSFinalizePackage(void) {
 
 .seealso: `PetscInitialize()`
 @*/
-PetscErrorCode PetscDSInitializePackage(void) {
+PetscErrorCode PetscDSInitializePackage(void)
+{
   char      logList[256];
   PetscBool opt, pkg;
 
@@ -376,7 +388,8 @@ PetscErrorCode PetscDSInitializePackage(void) {
   the basic DM library.
 
 */
-PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petscdm(void) {
+PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petscdm(void)
+{
   PetscFunctionBegin;
   PetscCall(AOInitializePackage());
   PetscCall(PetscPartitionerInitializePackage());

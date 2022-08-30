@@ -8,11 +8,14 @@
 #include <memory>
 #include <limits>
 
-namespace Petsc {
+namespace Petsc
+{
 
-namespace Device {
+namespace Device
+{
 
-namespace CUPM {
+namespace CUPM
+{
 
 #if defined(PETSC_CUPM_DEVICE_NONE)
   #error redefinition of PETSC_CUPM_DEVICE_NONE

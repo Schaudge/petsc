@@ -21,10 +21,13 @@ static char help[] = "Mini-app to benchmark matrix--matrix multiplication\n\n";
     } while (0)
 #else
   #define PetscCallMKLSparse(func, args) \
-    do { SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "No MKL support"); } while (0)
+    do { \
+      SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "No MKL support"); \
+    } while (0)
 #endif
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
   Mat         A, C, D, E;
   PetscInt    nbs = 10, ntype = 10, nN = 8, m, M, trial = 5;
   PetscViewer viewer;

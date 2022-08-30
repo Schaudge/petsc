@@ -4,7 +4,9 @@ static char help[] = "This program illustrates the use of PETSc-fftw interface f
 
 extern PetscErrorCode InputTransformFFT(Mat, Vec, Vec);
 extern PetscErrorCode OutputTransformFFT(Mat, Vec, Vec);
-int                   main(int argc, char **args) {
+
+int main(int argc, char **args)
+{
   PetscMPIInt rank, size;
   PetscInt    N0 = 3, N1 = 3, N2 = 3, N3 = 3, N4 = 3, N = N0 * N1 * N2 * N3;
   PetscRandom rdm;

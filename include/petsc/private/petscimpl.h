@@ -214,25 +214,45 @@ PETSC_EXTERN PetscBool PetscCheckPointer(const void *, PetscDataType);
   #if !defined(PETSC_USE_DEBUG)
 
     #define PetscValidHeaderSpecific(h, ck, arg) \
-      do { (void)(h); } while (0)
+      do { \
+        (void)(h); \
+      } while (0)
     #define PetscValidHeaderSpecificType(h, ck, arg, t) \
-      do { (void)(h); } while (0)
+      do { \
+        (void)(h); \
+      } while (0)
     #define PetscValidHeader(h, arg) \
-      do { (void)(h); } while (0)
+      do { \
+        (void)(h); \
+      } while (0)
     #define PetscValidPointer(h, arg) \
-      do { (void)(h); } while (0)
+      do { \
+        (void)(h); \
+      } while (0)
     #define PetscValidCharPointer(h, arg) \
-      do { (void)(h); } while (0)
+      do { \
+        (void)(h); \
+      } while (0)
     #define PetscValidIntPointer(h, arg) \
-      do { (void)(h); } while (0)
+      do { \
+        (void)(h); \
+      } while (0)
     #define PetscValidBoolPointer(h, arg) \
-      do { (void)(h); } while (0)
+      do { \
+        (void)(h); \
+      } while (0)
     #define PetscValidScalarPointer(h, arg) \
-      do { (void)(h); } while (0)
+      do { \
+        (void)(h); \
+      } while (0)
     #define PetscValidRealPointer(h, arg) \
-      do { (void)(h); } while (0)
+      do { \
+        (void)(h); \
+      } while (0)
     #define PetscValidFunction(h, arg) \
-      do { (void)(h); } while (0)
+      do { \
+        (void)(h); \
+      } while (0)
 
   #else
 
@@ -275,7 +295,9 @@ PETSC_EXTERN PetscBool PetscCheckPointer(const void *, PetscDataType);
     #define PetscValidRealPointer(h, arg)   PetscValidPointer_Internal(h, arg, PETSC_REAL, PetscReal)
 
     #define PetscValidFunction(f, arg) \
-      do { PetscCheck((f), PETSC_COMM_SELF, PETSC_ERR_ARG_NULL, "Null Function Pointer: Parameter # %d", arg); } while (0)
+      do { \
+        PetscCheck((f), PETSC_COMM_SELF, PETSC_ERR_ARG_NULL, "Null Function Pointer: Parameter # %d", arg); \
+      } while (0)
   #endif
 #else  /* PETSC_CLANG_STATIC_ANALYZER */
 template <typename T>
@@ -322,11 +344,17 @@ void PetscValidFunction(T, int);
         (void)(b); \
       } while (0)
     #define PetscCheckTypeName(a, type) \
-      do { (void)(a); } while (0)
+      do { \
+        (void)(a); \
+      } while (0)
     #define PetscCheckTypeNames(a, type1, type2) \
-      do { (void)(a); } while (0)
+      do { \
+        (void)(a); \
+      } while (0)
     #define PetscValidType(a, arg) \
-      do { (void)(a); } while (0)
+      do { \
+        (void)(a); \
+      } while (0)
     #define PetscCheckSameComm(a, arga, b, argb) \
       do { \
         (void)(a); \
@@ -381,9 +409,10 @@ void PetscValidFunction(T, int);
 
   **Do not swap this macro to compare string type_name!**
 
-  This macro is used incorrectly in the code. Many places that do not need identity of the
-  types incorrectly call this check and would need to be fixed if this macro is enabled.
+  This macro is used incorrectly in the code.Many places that do not need identity of the types
+  incorrectly call this check and would need to be fixed if this macro is enabled.
 */
+
     #if 0
       #define PetscCheckSameType(a, arga, b, argb) \
         do { \
@@ -399,9 +428,7 @@ void PetscValidFunction(T, int);
         } while (0)
     #endif
 
-    /*
-    Check type_name
-*/
+    /* Check type_name */
     #define PetscCheckTypeName(a, type) \
       do { \
         PetscBool _7_match; \
@@ -416,14 +443,10 @@ void PetscValidFunction(T, int);
         PetscCheck(_7_match, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Object (%s) is not %s or %s", (char *)(((PetscObject)(a))->type_name), type1, type2); \
       } while (0)
 
-    /*
-   Use this macro to check if the type is set
-*/
+    /* Use this macro to check if the type is set */
     #define PetscValidType(a, arg) PetscCheck(((PetscObject)(a))->type_name, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "%s object's type is not set: Argument # %d", ((PetscObject)(a))->class_name, arg)
 
-    /*
-   Sometimes object must live on same communicator to inter-operate
-*/
+    /* Sometimes object must live on same communicator to inter-operate */
     #define PetscCheckSameComm(a, arga, b, argb) \
       do { \
         PetscMPIInt _7_flag; \
@@ -1169,38 +1192,46 @@ extern "C" {
 }
       #endif
 typedef ck_spinlock_t        PetscSpinlock;
-static inline PetscErrorCode PetscSpinlockCreate(PetscSpinlock *ck_spinlock) {
+static inline PetscErrorCode PetscSpinlockCreate(PetscSpinlock *ck_spinlock)
+{
   ck_spinlock_init(ck_spinlock);
   return 0;
 }
-static inline PetscErrorCode PetscSpinlockLock(PetscSpinlock *ck_spinlock) {
+static inline PetscErrorCode PetscSpinlockLock(PetscSpinlock *ck_spinlock)
+{
   ck_spinlock_lock(ck_spinlock);
   return 0;
 }
-static inline PetscErrorCode PetscSpinlockUnlock(PetscSpinlock *ck_spinlock) {
+static inline PetscErrorCode PetscSpinlockUnlock(PetscSpinlock *ck_spinlock)
+{
   ck_spinlock_unlock(ck_spinlock);
   return 0;
 }
-static inline PetscErrorCode PetscSpinlockDestroy(PetscSpinlock *ck_spinlock) {
+static inline PetscErrorCode PetscSpinlockDestroy(PetscSpinlock *ck_spinlock)
+{
   return 0;
 }
     #elif defined(PETSC_HAVE_OPENMP)
 
       #include <omp.h>
 typedef omp_lock_t           PetscSpinlock;
-static inline PetscErrorCode PetscSpinlockCreate(PetscSpinlock *omp_lock) {
+static inline PetscErrorCode PetscSpinlockCreate(PetscSpinlock *omp_lock)
+{
   omp_init_lock(omp_lock);
   return 0;
 }
-static inline PetscErrorCode PetscSpinlockLock(PetscSpinlock *omp_lock) {
+static inline PetscErrorCode PetscSpinlockLock(PetscSpinlock *omp_lock)
+{
   omp_set_lock(omp_lock);
   return 0;
 }
-static inline PetscErrorCode PetscSpinlockUnlock(PetscSpinlock *omp_lock) {
+static inline PetscErrorCode PetscSpinlockUnlock(PetscSpinlock *omp_lock)
+{
   omp_unset_lock(omp_lock);
   return 0;
 }
-static inline PetscErrorCode PetscSpinlockDestroy(PetscSpinlock *omp_lock) {
+static inline PetscErrorCode PetscSpinlockDestroy(PetscSpinlock *omp_lock)
+{
   omp_destroy_lock(omp_lock);
   return 0;
 }

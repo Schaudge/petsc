@@ -218,11 +218,13 @@ struct _n_PetscStageLog {
 };
 /* -----------------------------------------------------------------------------------------------------*/
 
-PETSC_DEPRECATED_FUNCTION("PetscLogObjectParent() is deprecated (since version 3.18)") static inline PetscErrorCode PetscLogObjectParent(PetscObject o, PetscObject p) {
+PETSC_DEPRECATED_FUNCTION("PetscLogObjectParent() is deprecated (since version 3.18)") static inline PetscErrorCode PetscLogObjectParent(PetscObject o, PetscObject p)
+{
   return 0;
 }
 
-PETSC_DEPRECATED_FUNCTION("PetscLogObjectMemory() is deprecated (since version 3.18)") static inline PetscErrorCode PetscLogObjectMemory(PetscObject o, PetscLogDouble m) {
+PETSC_DEPRECATED_FUNCTION("PetscLogObjectMemory() is deprecated (since version 3.18)") static inline PetscErrorCode PetscLogObjectMemory(PetscObject o, PetscLogDouble m)
+{
   return 0;
 }
 
@@ -266,7 +268,8 @@ PETSC_EXTERN PetscErrorCode PetscStageLogGetEventPerfLog(PetscStageLog, int, Pet
 .seealso: `PetscLogView()`, `PetscLogGpuFlops()`
 @*/
 
-static inline PetscErrorCode PetscLogFlops(PetscLogDouble n) {
+static inline PetscErrorCode PetscLogFlops(PetscLogDouble n)
+{
   PetscFunctionBegin;
   #if defined(PETSC_USE_DEBUG)
   PetscCheck(n >= 0, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Cannot log negative flops");
@@ -390,7 +393,8 @@ PETSC_EXTERN PetscErrorCode PetscLogEventZeroFlops(PetscLogEvent);
 /*
    Logging of MPI activities
 */
-static inline PetscErrorCode PetscMPITypeSize(PetscInt count, MPI_Datatype type, PetscLogDouble *length) {
+static inline PetscErrorCode PetscMPITypeSize(PetscInt count, MPI_Datatype type, PetscLogDouble *length)
+{
   PetscMPIInt typesize;
 
   if (type == MPI_DATATYPE_NULL) return 0;
@@ -399,7 +403,8 @@ static inline PetscErrorCode PetscMPITypeSize(PetscInt count, MPI_Datatype type,
   return 0;
 }
 
-static inline PetscErrorCode PetscMPITypeSizeComm(MPI_Comm comm, const PetscMPIInt *counts, MPI_Datatype type, PetscLogDouble *length) {
+static inline PetscErrorCode PetscMPITypeSizeComm(MPI_Comm comm, const PetscMPIInt *counts, MPI_Datatype type, PetscLogDouble *length)
+{
   PetscMPIInt typesize, size, p;
 
   if (type == MPI_DATATYPE_NULL) return 0;
@@ -409,7 +414,8 @@ static inline PetscErrorCode PetscMPITypeSizeComm(MPI_Comm comm, const PetscMPII
   return 0;
 }
 
-static inline PetscErrorCode PetscMPITypeSizeCount(PetscInt n, const PetscMPIInt *counts, MPI_Datatype type, PetscLogDouble *length) {
+static inline PetscErrorCode PetscMPITypeSizeCount(PetscInt n, const PetscMPIInt *counts, MPI_Datatype type, PetscLogDouble *length)
+{
   PetscMPIInt typesize, p;
 
   if (type == MPI_DATATYPE_NULL) return 0;
@@ -421,7 +427,8 @@ static inline PetscErrorCode PetscMPITypeSizeCount(PetscInt n, const PetscMPIInt
 /*
     Returns 1 if the communicator is parallel else zero
 */
-static inline int PetscMPIParallelComm(MPI_Comm comm) {
+static inline int PetscMPIParallelComm(MPI_Comm comm)
+{
   PetscMPIInt size;
   MPI_Comm_size(comm, &size);
   return size > 1;
@@ -599,28 +606,32 @@ PETSC_EXTERN PetscLogDouble petsc_gtoc_sz_scalar;
 PETSC_EXTERN PetscLogDouble petsc_gflops;
 PETSC_EXTERN PetscLogDouble petsc_gtime;
 
-static inline PetscErrorCode PetscLogCpuToGpu(PetscLogDouble size) {
+static inline PetscErrorCode PetscLogCpuToGpu(PetscLogDouble size)
+{
   PetscFunctionBegin;
   petsc_ctog_ct += 1;
   petsc_ctog_sz += size;
   PetscFunctionReturn(0);
 }
 
-static inline PetscErrorCode PetscLogGpuToCpu(PetscLogDouble size) {
+static inline PetscErrorCode PetscLogGpuToCpu(PetscLogDouble size)
+{
   PetscFunctionBegin;
   petsc_gtoc_ct += 1;
   petsc_gtoc_sz += size;
   PetscFunctionReturn(0);
 }
 
-static inline PetscErrorCode PetscLogCpuToGpuScalar(PetscLogDouble size) {
+static inline PetscErrorCode PetscLogCpuToGpuScalar(PetscLogDouble size)
+{
   PetscFunctionBegin;
   petsc_ctog_ct_scalar += 1;
   petsc_ctog_sz_scalar += size;
   PetscFunctionReturn(0);
 }
 
-static inline PetscErrorCode PetscLogGpuToCpuScalar(PetscLogDouble size) {
+static inline PetscErrorCode PetscLogGpuToCpuScalar(PetscLogDouble size)
+{
   PetscFunctionBegin;
   petsc_gtoc_ct_scalar += 1;
   petsc_gtoc_sz_scalar += size;
@@ -644,7 +655,8 @@ static inline PetscErrorCode PetscLogGpuToCpuScalar(PetscLogDouble size) {
 
 .seealso: `PetscLogView()`, `PetscLogFlops()`, `PetscLogGpuTimeBegin()`, `PetscLogGpuTimeEnd()`
 @*/
-static inline PetscErrorCode PetscLogGpuFlops(PetscLogDouble n) {
+static inline PetscErrorCode PetscLogGpuFlops(PetscLogDouble n)
+{
   PetscFunctionBegin;
   PetscCheck(n >= 0, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Cannot log negative flops");
   petsc_TotalFlops += PETSC_FLOPS_PER_OP * n;
@@ -652,7 +664,8 @@ static inline PetscErrorCode PetscLogGpuFlops(PetscLogDouble n) {
   PetscFunctionReturn(0);
 }
 
-static inline PetscErrorCode PetscLogGpuTimeAdd(PetscLogDouble t) {
+static inline PetscErrorCode PetscLogGpuTimeAdd(PetscLogDouble t)
+{
   PetscFunctionBegin;
   petsc_gtime += t;
   PetscFunctionReturn(0);

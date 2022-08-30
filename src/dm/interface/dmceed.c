@@ -18,7 +18,8 @@
 
 .seealso: `DMCreate()`
 @*/
-PetscErrorCode DMGetCeed(DM dm, Ceed *ceed) {
+PetscErrorCode DMGetCeed(DM dm, Ceed *ceed)
+{
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   PetscValidPointer(ceed, 2);

@@ -22,7 +22,8 @@ struct Mat_MPIAIJCUSPARSE {
   PetscScalar *sendbuf_d, *recvbuf_d;          /* Buffers for remote values in MatSetValuesCOO() */
   PetscBool    use_extended_coo;
 
-  Mat_MPIAIJCUSPARSE() {
+  Mat_MPIAIJCUSPARSE()
+  {
     diagGPUMatFormat    = MAT_CUSPARSE_CSR;
     offdiagGPUMatFormat = MAT_CUSPARSE_CSR;
     coo_p               = NULL;

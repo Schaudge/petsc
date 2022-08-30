@@ -2,7 +2,8 @@ static char help[] = "Testing PtAP for SeqMAIJ matrix, P, with SeqAIJ matrix, A.
 
 #include <petscmat.h>
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
   Mat         pA, P, aijP;
   PetscScalar pa[] = {1., -1., 0., 0., 1., -1., 0., 0., 1.};
   PetscInt    i, pij[] = {0, 1, 2};

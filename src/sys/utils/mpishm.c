@@ -15,7 +15,8 @@ struct _n_PetscShmComm {
    Note: this is declared extern "C" because it is passed to MPI_Comm_create_keyval()
 
 */
-PETSC_EXTERN PetscMPIInt MPIAPI Petsc_ShmComm_Attr_Delete_Fn(MPI_Comm comm, PetscMPIInt keyval, void *val, void *extra_state) {
+PETSC_EXTERN PetscMPIInt MPIAPI Petsc_ShmComm_Attr_Delete_Fn(MPI_Comm comm, PetscMPIInt keyval, void *val, void *extra_state)
+{
   PetscShmComm p = (PetscShmComm)val;
 
   PetscFunctionBegin;
@@ -36,7 +37,8 @@ PETSC_EXTERN PetscMPIInt MPIAPI Petsc_ShmComm_Attr_Delete_Fn(MPI_Comm comm, Pets
   #define MAX_SHMCOMM_DUPPED_COMMS 16
 static PetscInt       num_dupped_comms = 0;
 static MPI_Comm       shmcomm_dupped_comms[MAX_SHMCOMM_DUPPED_COMMS];
-static PetscErrorCode PetscShmCommDestroyDuppedComms(void) {
+static PetscErrorCode PetscShmCommDestroyDuppedComms(void)
+{
   PetscInt i;
   PetscFunctionBegin;
   for (i = 0; i < num_dupped_comms; i++) PetscCall(PetscCommDestroy(&shmcomm_dupped_comms[i]));
@@ -63,7 +65,8 @@ static PetscErrorCode PetscShmCommDestroyDuppedComms(void) {
 
 .seealso: `PetscShmCommGlobalToLocal()`, `PetscShmCommLocalToGlobal()`, `PetscShmCommGetMpiShmComm()`
 @*/
-PetscErrorCode PetscShmCommGet(MPI_Comm globcomm, PetscShmComm *pshmcomm) {
+PetscErrorCode PetscShmCommGet(MPI_Comm globcomm, PetscShmComm *pshmcomm)
+{
 #ifdef PETSC_HAVE_MPI_PROCESS_SHARED_MEMORY
   MPI_Group         globgroup, shmgroup;
   PetscMPIInt      *shmranks, i, flg;
@@ -142,7 +145,8 @@ PetscErrorCode PetscShmCommGet(MPI_Comm globcomm, PetscShmComm *pshmcomm) {
 
 .seealso: `PetscShmCommGet()`, `PetscShmCommLocalToGlobal()`, `PetscShmCommGetMpiShmComm()`
 @*/
-PetscErrorCode PetscShmCommGlobalToLocal(PetscShmComm pshmcomm, PetscMPIInt grank, PetscMPIInt *lrank) {
+PetscErrorCode PetscShmCommGlobalToLocal(PetscShmComm pshmcomm, PetscMPIInt grank, PetscMPIInt *lrank)
+{
   PetscMPIInt low, high, t, i;
   PetscBool   flg = PETSC_FALSE;
 
@@ -185,7 +189,8 @@ PetscErrorCode PetscShmCommGlobalToLocal(PetscShmComm pshmcomm, PetscMPIInt gran
 
 .seealso: `PetscShmCommGlobalToLocal()`, `PetscShmCommGet()`, `PetscShmCommGetMpiShmComm()`
 @*/
-PetscErrorCode PetscShmCommLocalToGlobal(PetscShmComm pshmcomm, PetscMPIInt lrank, PetscMPIInt *grank) {
+PetscErrorCode PetscShmCommLocalToGlobal(PetscShmComm pshmcomm, PetscMPIInt lrank, PetscMPIInt *grank)
+{
   PetscFunctionBegin;
   PetscValidPointer(pshmcomm, 1);
   PetscValidIntPointer(grank, 3);
@@ -207,7 +212,8 @@ PetscErrorCode PetscShmCommLocalToGlobal(PetscShmComm pshmcomm, PetscMPIInt lran
 
 .seealso: `PetscShmCommGlobalToLocal()`, `PetscShmCommGet()`, `PetscShmCommLocalToGlobal()`
 @*/
-PetscErrorCode PetscShmCommGetMpiShmComm(PetscShmComm pshmcomm, MPI_Comm *comm) {
+PetscErrorCode PetscShmCommGetMpiShmComm(PetscShmComm pshmcomm, MPI_Comm *comm)
+{
   PetscFunctionBegin;
   PetscValidPointer(pshmcomm, 1);
   PetscValidPointer(comm, 2);
@@ -252,7 +258,8 @@ struct _n_PetscOmpCtrl {
    PETSc OpenMP controller users do not call this function directly. This function exists
    only because we want to separate shared memory allocation methods from other code.
  */
-static inline PetscErrorCode PetscOmpCtrlCreateBarrier(PetscOmpCtrl ctrl) {
+static inline PetscErrorCode PetscOmpCtrlCreateBarrier(PetscOmpCtrl ctrl)
+{
   MPI_Aint              size;
   void                 *baseptr;
   pthread_barrierattr_t attr;
@@ -313,7 +320,8 @@ static inline PetscErrorCode PetscOmpCtrlCreateBarrier(PetscOmpCtrl ctrl) {
 }
 
 /* Destroy the pthread barrier in the PETSc OpenMP controller */
-static inline PetscErrorCode PetscOmpCtrlDestroyBarrier(PetscOmpCtrl ctrl) {
+static inline PetscErrorCode PetscOmpCtrlDestroyBarrier(PetscOmpCtrl ctrl)
+{
   PetscFunctionBegin;
   /* this MPI_Barrier is to make sure slaves have finished using the omp barrier before master destroys it */
   PetscCallMPI(MPI_Barrier(ctrl->omp_comm));
@@ -344,7 +352,8 @@ static inline PetscErrorCode PetscOmpCtrlDestroyBarrier(PetscOmpCtrl ctrl) {
 
 .seealso: `PetscOmpCtrlDestroy()`, `PetscOmpCtrlGetOmpComms()`, `PetscOmpCtrlBarrier()`, `PetscOmpCtrlOmpRegionOnMasterBegin()`, `PetscOmpCtrlOmpRegionOnMasterEnd()`,
 @*/
-PetscErrorCode PetscOmpCtrlCreate(MPI_Comm petsc_comm, PetscInt nthreads, PetscOmpCtrl *pctrl) {
+PetscErrorCode PetscOmpCtrlCreate(MPI_Comm petsc_comm, PetscInt nthreads, PetscOmpCtrl *pctrl)
+{
   PetscOmpCtrl   ctrl;
   unsigned long *cpu_ulongs = NULL;
   PetscInt       i, nr_cpu_ulongs;
@@ -473,7 +482,8 @@ PetscErrorCode PetscOmpCtrlCreate(MPI_Comm petsc_comm, PetscInt nthreads, PetscO
 
 .seealso: `PetscOmpCtrlCreate()`, `PetscOmpCtrlGetOmpComms()`, `PetscOmpCtrlBarrier()`, `PetscOmpCtrlOmpRegionOnMasterBegin()`, `PetscOmpCtrlOmpRegionOnMasterEnd()`,
 @*/
-PetscErrorCode PetscOmpCtrlDestroy(PetscOmpCtrl *pctrl) {
+PetscErrorCode PetscOmpCtrlDestroy(PetscOmpCtrl *pctrl)
+{
   PetscOmpCtrl ctrl = *pctrl;
 
   PetscFunctionBegin;
@@ -508,7 +518,8 @@ PetscErrorCode PetscOmpCtrlDestroy(PetscOmpCtrl *pctrl) {
 
 .seealso: `PetscOmpCtrlCreate()`, `PetscOmpCtrlDestroy()`, `PetscOmpCtrlBarrier()`, `PetscOmpCtrlOmpRegionOnMasterBegin()`, `PetscOmpCtrlOmpRegionOnMasterEnd()`,
 @*/
-PetscErrorCode PetscOmpCtrlGetOmpComms(PetscOmpCtrl ctrl, MPI_Comm *omp_comm, MPI_Comm *omp_master_comm, PetscBool *is_omp_master) {
+PetscErrorCode PetscOmpCtrlGetOmpComms(PetscOmpCtrl ctrl, MPI_Comm *omp_comm, MPI_Comm *omp_master_comm, PetscBool *is_omp_master)
+{
   PetscFunctionBegin;
   if (omp_comm) *omp_comm = ctrl->omp_comm;
   if (omp_master_comm) *omp_master_comm = ctrl->omp_master_comm;
@@ -541,7 +552,8 @@ PetscErrorCode PetscOmpCtrlGetOmpComms(PetscOmpCtrl ctrl, MPI_Comm *omp_comm, MP
 
 .seealso: `PetscOmpCtrlOmpRegionOnMasterBegin()`, `PetscOmpCtrlOmpRegionOnMasterEnd()`, `PetscOmpCtrlCreate()`, `PetscOmpCtrlDestroy()`,
 @*/
-PetscErrorCode PetscOmpCtrlBarrier(PetscOmpCtrl ctrl) {
+PetscErrorCode PetscOmpCtrlBarrier(PetscOmpCtrl ctrl)
+{
   int err;
 
   PetscFunctionBegin;
@@ -564,7 +576,8 @@ PetscErrorCode PetscOmpCtrlBarrier(PetscOmpCtrl ctrl) {
 
 .seealso: `PetscOmpCtrlOmpRegionOnMasterEnd()`, `PetscOmpCtrlCreate()`, `PetscOmpCtrlDestroy()`, `PetscOmpCtrlBarrier()`
 @*/
-PetscErrorCode PetscOmpCtrlOmpRegionOnMasterBegin(PetscOmpCtrl ctrl) {
+PetscErrorCode PetscOmpCtrlOmpRegionOnMasterBegin(PetscOmpCtrl ctrl)
+{
   PetscFunctionBegin;
   PetscCall(hwloc_set_cpubind(ctrl->topology, ctrl->omp_cpuset, HWLOC_CPUBIND_PROCESS));
   omp_set_num_threads(ctrl->omp_comm_size); /* may override the OMP_NUM_THREAD env var */
@@ -585,7 +598,8 @@ PetscErrorCode PetscOmpCtrlOmpRegionOnMasterBegin(PetscOmpCtrl ctrl) {
 
 .seealso: `PetscOmpCtrlOmpRegionOnMasterBegin()`, `PetscOmpCtrlCreate()`, `PetscOmpCtrlDestroy()`, `PetscOmpCtrlBarrier()`
 @*/
-PetscErrorCode PetscOmpCtrlOmpRegionOnMasterEnd(PetscOmpCtrl ctrl) {
+PetscErrorCode PetscOmpCtrlOmpRegionOnMasterEnd(PetscOmpCtrl ctrl)
+{
   PetscFunctionBegin;
   PetscCall(hwloc_set_cpubind(ctrl->topology, ctrl->cpuset, HWLOC_CPUBIND_PROCESS));
   omp_set_num_threads(1);

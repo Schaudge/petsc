@@ -8,11 +8,14 @@
 
   #include <array>
 
-namespace Petsc {
+namespace Petsc
+{
 
-namespace device {
+namespace device
+{
 
-namespace cupm {
+namespace cupm
+{
 
 // enum describing available cupm devices, this is used as the template parameter to any
 // class subclassing the Interface or using it as a member variable
@@ -23,7 +26,8 @@ enum class DeviceType : int {
 
 static constexpr std::array<const char *const, 5> DeviceTypes = {"cuda", "hip", "Petsc::Device::CUPM::DeviceType", "Petsc::Device::CUPM::DeviceType::", nullptr};
 
-namespace impl {
+namespace impl
+{
 
   // A backend agnostic PetscCallCUPM() function, this will only work inside the member
   // functions of a class inheriting from CUPM::Interface. Thanks to __VA_ARGS__ templated
@@ -225,7 +229,8 @@ template <DeviceType T>
 struct InterfaceBase {
   static const DeviceType type = T;
 
-  PETSC_CXX_COMPAT_DECL(constexpr const char *cupmName()) {
+  PETSC_CXX_COMPAT_DECL(constexpr const char *cupmName())
+  {
     static_assert(util::integral_value(DeviceType::CUDA) == 0, "");
     static_assert(util::integral_value(DeviceType::HIP) == 1, "");
     return std::get<util::integral_value(T)>(DeviceTypes);
@@ -329,7 +334,8 @@ struct InterfaceImpl<DeviceType::CUDA> : InterfaceBase<DeviceType::CUDA> {
   PETSC_CUPM_ALIAS_FUNCTION(DeviceGetMemPool)
   PETSC_CUPM_ALIAS_FUNCTION(MemPoolSetAttribute)
     #else
-  PETSC_CXX_COMPAT_DECL(cupmError_t cupmDeviceGetMemPool(cupmMemPool_t *pool, int)) {
+  PETSC_CXX_COMPAT_DECL(cupmError_t cupmDeviceGetMemPool(cupmMemPool_t *pool, int))
+  {
     *pool = nullptr;
     return cupmSuccess;
   }
@@ -381,7 +387,8 @@ struct InterfaceImpl<DeviceType::CUDA> : InterfaceBase<DeviceType::CUDA> {
   // launch control
   PETSC_CUPM_ALIAS_FUNCTION(LaunchHostFunc)
   template <typename FunctionT, typename... KernelArgsT>
-  PETSC_CXX_COMPAT_DECL(cudaError_t cupmLaunchKernel(FunctionT &&func, dim3 gridDim, dim3 blockDim, std::size_t sharedMem, cudaStream_t stream, KernelArgsT &&...kernelArgs)) {
+  PETSC_CXX_COMPAT_DECL(cudaError_t cupmLaunchKernel(FunctionT &&func, dim3 gridDim, dim3 blockDim, std::size_t sharedMem, cudaStream_t stream, KernelArgsT &&...kernelArgs))
+  {
     void *args[] = {(void *)&kernelArgs...};
     return cudaLaunchKernel((void *)func, std::move(gridDim), std::move(blockDim), args, sharedMem, std::move(stream));
   }
@@ -465,7 +472,8 @@ struct InterfaceImpl<DeviceType::HIP> : InterfaceBase<DeviceType::HIP> {
   PETSC_CUPM_ALIAS_FUNCTION(DeviceGetMemPool)
   PETSC_CUPM_ALIAS_FUNCTION(MemPoolSetAttribute)
     #else
-  PETSC_CXX_COMPAT_DECL(cupmError_t cupmDeviceGetMemPool(cupmMemPool_t *pool, int)) {
+  PETSC_CXX_COMPAT_DECL(cupmError_t cupmDeviceGetMemPool(cupmMemPool_t *pool, int))
+  {
     *pool = nullptr;
     return cupmSuccess;
   }
@@ -511,13 +519,14 @@ struct InterfaceImpl<DeviceType::HIP> : InterfaceBase<DeviceType::HIP> {
   PETSC_CUPM_ALIAS_FUNCTION(Memset)
   PETSC_CUPM_ALIAS_FUNCTION(MemsetAsync)
 
-      // launch control
-      // HIP appears to only have hipLaunchHostFunc from 5.2.0 onwards
-      // https://github.com/ROCm-Developer-Tools/HIPIFY/blob/master/doc/markdown/CUDA_Runtime_API_functions_supported_by_HIP.md#7-execution-control=
+    // launch control
+    // HIP appears to only have hipLaunchHostFunc from 5.2.0 onwards
+    // https://github.com/ROCm-Developer-Tools/HIPIFY/blob/master/doc/markdown/CUDA_Runtime_API_functions_supported_by_HIP.md#7-execution-control=
     #if PETSC_PKG_HIP_VERSION_GE(5, 2, 0)
   PETSC_CUPM_ALIAS_FUNCTION(LaunchHostFunc);
     #else
-  PETSC_CXX_COMPAT_DECL(hipError_t cupmLaunchHostFunc(hipStream_t stream, cupmHostFn_t fn, void *ctx)) {
+  PETSC_CXX_COMPAT_DECL(hipError_t cupmLaunchHostFunc(hipStream_t stream, cupmHostFn_t fn, void *ctx))
+  {
     // the only correct way to spoof this function is to do it synchronously...
     auto herr = hipStreamSynchronize(stream);
     if (PetscUnlikely(herr != hipSuccess)) return herr;
@@ -527,7 +536,8 @@ struct InterfaceImpl<DeviceType::HIP> : InterfaceBase<DeviceType::HIP> {
     #endif
 
   template <typename FunctionT, typename... KernelArgsT>
-  PETSC_CXX_COMPAT_DECL(hipError_t cupmLaunchKernel(FunctionT &&func, dim3 gridDim, dim3 blockDim, std::size_t sharedMem, hipStream_t stream, KernelArgsT &&...kernelArgs)) {
+  PETSC_CXX_COMPAT_DECL(hipError_t cupmLaunchKernel(FunctionT &&func, dim3 gridDim, dim3 blockDim, std::size_t sharedMem, hipStream_t stream, KernelArgsT &&...kernelArgs))
+  {
     void *args[] = {(void *)&kernelArgs...};
     return hipLaunchKernel((void *)func, std::move(gridDim), std::move(blockDim), args, sharedMem, std::move(stream));
   }
@@ -645,7 +655,8 @@ struct Interface : InterfaceImpl<T> {
     #define PETSC_PKG_CUDA_VERSION_GE(...) 0
     #define CUPM_DEFINED_PETSC_PKG_CUDA_VERSION_GE
   #endif
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode PetscCUPMGetMemType(const void *data, PetscMemType *type, PetscBool *registered = nullptr, PetscBool *managed = nullptr)) {
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode PetscCUPMGetMemType(const void *data, PetscMemType *type, PetscBool *registered = nullptr, PetscBool *managed = nullptr))
+  {
     cupmPointerAttributes_t attr;
     cupmError_t             cerr;
 
@@ -680,13 +691,19 @@ struct Interface : InterfaceImpl<T> {
     #undef PETSC_PKG_CUDA_VERSION_GE
   #endif
 
-  PETSC_CXX_COMPAT_DECL(PETSC_CONSTEXPR_14 cupmMemcpyKind_t PetscDeviceCopyModeToCUPMMemcpyKind(PetscDeviceCopyMode mode)) {
+  PETSC_CXX_COMPAT_DECL(PETSC_CONSTEXPR_14 cupmMemcpyKind_t PetscDeviceCopyModeToCUPMMemcpyKind(PetscDeviceCopyMode mode))
+  {
     switch (mode) {
-    case PETSC_DEVICE_COPY_HTOH: return cupmMemcpyHostToHost;
-    case PETSC_DEVICE_COPY_HTOD: return cupmMemcpyHostToDevice;
-    case PETSC_DEVICE_COPY_DTOD: return cupmMemcpyDeviceToDevice;
-    case PETSC_DEVICE_COPY_DTOH: return cupmMemcpyDeviceToHost;
-    case PETSC_DEVICE_COPY_AUTO: return cupmMemcpyDefault;
+    case PETSC_DEVICE_COPY_HTOH:
+      return cupmMemcpyHostToHost;
+    case PETSC_DEVICE_COPY_HTOD:
+      return cupmMemcpyHostToDevice;
+    case PETSC_DEVICE_COPY_DTOD:
+      return cupmMemcpyDeviceToDevice;
+    case PETSC_DEVICE_COPY_DTOH:
+      return cupmMemcpyDeviceToHost;
+    case PETSC_DEVICE_COPY_AUTO:
+      return cupmMemcpyDefault;
     }
     PetscUnreachable();
     return cupmMemcpyDefault;
@@ -694,7 +711,8 @@ struct Interface : InterfaceImpl<T> {
 
   // these change what the arguments mean, so need to namespace these
   template <typename M>
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode PetscCUPMMallocAsync(M **ptr, std::size_t n, cupmStream_t stream = nullptr)) {
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode PetscCUPMMallocAsync(M **ptr, std::size_t n, cupmStream_t stream = nullptr))
+  {
     static_assert(!std::is_void<M>::value, "");
 
     PetscFunctionBegin;
@@ -708,14 +726,16 @@ struct Interface : InterfaceImpl<T> {
   }
 
   template <typename M>
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode PetscCUPMMalloc(M **ptr, std::size_t n)) {
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode PetscCUPMMalloc(M **ptr, std::size_t n))
+  {
     PetscFunctionBegin;
     PetscCall(PetscCUPMMallocAsync(ptr, n));
     PetscFunctionReturn(0);
   }
 
   template <typename M>
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode PetscCUPMMallocHost(M **ptr, std::size_t n, unsigned int flags = cupmHostAllocDefault)) {
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode PetscCUPMMallocHost(M **ptr, std::size_t n, unsigned int flags = cupmHostAllocDefault))
+  {
     static_assert(!std::is_void<M>::value, "");
 
     PetscFunctionBegin;
@@ -726,7 +746,8 @@ struct Interface : InterfaceImpl<T> {
   }
 
   template <typename D, typename S = D>
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode PetscCUPMMemcpyAsync(D *dest, const S *src, std::size_t n, cupmMemcpyKind_t kind, cupmStream_t stream = nullptr, bool use_async = false)) {
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode PetscCUPMMemcpyAsync(D *dest, const S *src, std::size_t n, cupmMemcpyKind_t kind, cupmStream_t stream = nullptr, bool use_async = false))
+  {
     static_assert(sizeof(D) == sizeof(S), "");
     static_assert(!std::is_void<D>::value && !std::is_void<S>::value, "");
     const auto size = n * sizeof(D);
@@ -762,14 +783,16 @@ struct Interface : InterfaceImpl<T> {
   }
 
   template <typename D, typename S = D>
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode PetscCUPMMemcpy(D *dest, const S *src, std::size_t n, cupmMemcpyKind_t kind)) {
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode PetscCUPMMemcpy(D *dest, const S *src, std::size_t n, cupmMemcpyKind_t kind))
+  {
     PetscFunctionBegin;
     PetscCall(PetscCUPMMemcpyAsync(dest, src, n, kind));
     PetscFunctionReturn(0);
   }
 
   template <typename M>
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode PetscCUPMMemsetAsync(M *ptr, int value, std::size_t n, cupmStream_t stream = nullptr, bool use_async = false)) {
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode PetscCUPMMemsetAsync(M *ptr, int value, std::size_t n, cupmStream_t stream = nullptr, bool use_async = false))
+  {
     static_assert(!std::is_void<M>::value, "");
 
     PetscFunctionBegin;
@@ -787,7 +810,8 @@ struct Interface : InterfaceImpl<T> {
   }
 
   template <typename M>
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode PetscCUPMMemset(M *ptr, int value, std::size_t n)) {
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode PetscCUPMMemset(M *ptr, int value, std::size_t n))
+  {
     PetscFunctionBegin;
     PetscCall(PetscCUPMMemsetAsync(ptr, value, n));
     PetscFunctionReturn(0);
@@ -795,7 +819,8 @@ struct Interface : InterfaceImpl<T> {
 
   // these we can transparently wrap, no need to namespace it to Petsc
   template <typename M>
-  PETSC_CXX_COMPAT_DECL(cupmError_t cupmFreeAsync(M &&ptr, cupmStream_t stream = nullptr)) {
+  PETSC_CXX_COMPAT_DECL(cupmError_t cupmFreeAsync(M &&ptr, cupmStream_t stream = nullptr))
+  {
     static_assert(std::is_pointer<util::decay_t<M>>::value, "");
 
     if (ptr) {
@@ -810,14 +835,16 @@ struct Interface : InterfaceImpl<T> {
   PETSC_CXX_COMPAT_DECL(cupmError_t cupmFreeAsync(std::nullptr_t ptr, cupmStream_t stream = nullptr)) { return interface_type::cupmFreeAsync(ptr, stream); }
 
   template <typename M>
-  PETSC_CXX_COMPAT_DECL(cupmError_t cupmFree(M &&ptr)) {
+  PETSC_CXX_COMPAT_DECL(cupmError_t cupmFree(M &&ptr))
+  {
     return cupmFreeAsync(std::forward<M>(ptr));
   }
 
   PETSC_CXX_COMPAT_DECL(cupmError_t cupmFree(std::nullptr_t ptr)) { return cupmFreeAsync(ptr); }
 
   template <typename M>
-  PETSC_CXX_COMPAT_DECL(cupmError_t cupmFreeHost(M &&ptr)) {
+  PETSC_CXX_COMPAT_DECL(cupmError_t cupmFreeHost(M &&ptr))
+  {
     static_assert(std::is_pointer<util::decay_t<M>>::value, "");
     const auto cerr = interface_type::cupmFreeHost(std::forward<M>(ptr));
     ptr             = nullptr;
@@ -841,12 +868,14 @@ struct Interface : InterfaceImpl<T> {
   // 3. Form the void* array with the converted arguments and call cuda/hipLaunchKernel with
   //    it. (interface_type::cupmLaunchKernel)
   template <typename F, typename... Args>
-  PETSC_CXX_COMPAT_DECL(cupmError_t cupmLaunchKernel(F &&func, cupmDim3 gridDim, cupmDim3 blockDim, std::size_t sharedMem, cupmStream_t stream, Args &&...kernelArgs)) {
+  PETSC_CXX_COMPAT_DECL(cupmError_t cupmLaunchKernel(F &&func, cupmDim3 gridDim, cupmDim3 blockDim, std::size_t sharedMem, cupmStream_t stream, Args &&...kernelArgs))
+  {
     return deduceKernelCall(util::index_sequence_for<Args...>{}, std::forward<F>(func), std::move(gridDim), std::move(blockDim), std::move(sharedMem), std::move(stream), std::forward<Args>(kernelArgs)...);
   }
 
   template <std::size_t block_size = 256, std::size_t warp_size = 32, typename F, typename... Args>
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode PetscCUPMLaunchKernel1D(std::size_t n, std::size_t sharedMem, cupmStream_t stream, F &&func, Args &&...kernelArgs)) {
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode PetscCUPMLaunchKernel1D(std::size_t n, std::size_t sharedMem, cupmStream_t stream, F &&func, Args &&...kernelArgs))
+  {
     static_assert(block_size > 0, "");
     static_assert(warp_size > 0, "");
     // want block_size to be a multiple of the warp_size
@@ -870,17 +899,20 @@ private:
   struct is_static_castable<S, D, util::void_t<decltype(static_cast<D>(std::declval<S>()))>> : std::true_type { };
 
   template <typename D, typename S>
-  static constexpr util::enable_if_t<is_static_castable<S, D>::value, D> cast_to(S &&src) noexcept {
+  static constexpr util::enable_if_t<is_static_castable<S, D>::value, D> cast_to(S &&src) noexcept
+  {
     return static_cast<D>(std::forward<S>(src));
   }
 
   template <typename D, typename S>
-  static constexpr util::enable_if_t<!is_static_castable<S, D>::value, D> cast_to(S &&src) noexcept {
+  static constexpr util::enable_if_t<!is_static_castable<S, D>::value, D> cast_to(S &&src) noexcept
+  {
     return const_cast<D>(std::forward<S>(src));
   }
 
   template <typename F, typename... Args, std::size_t... Idx>
-  PETSC_CXX_COMPAT_DECL(cupmError_t deduceKernelCall(util::index_sequence<Idx...>, F &&func, cupmDim3 gridDim, cupmDim3 blockDim, std::size_t sharedMem, cupmStream_t stream, Args &&...kernelArgs)) {
+  PETSC_CXX_COMPAT_DECL(cupmError_t deduceKernelCall(util::index_sequence<Idx...>, F &&func, cupmDim3 gridDim, cupmDim3 blockDim, std::size_t sharedMem, cupmStream_t stream, Args &&...kernelArgs))
+  {
     // clang-format off
     return interface_type::template cupmLaunchKernel(
       std::forward<F>(func),

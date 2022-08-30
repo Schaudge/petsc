@@ -96,7 +96,8 @@ PetscErrorCode (*PetscVFPrintf)(FILE *, const char[], va_list) = PetscVFPrintfDe
 PETSC_INTERN FILE *petsc_history;
 FILE              *petsc_history = NULL;
 
-PetscErrorCode PetscOpenHistoryFile(const char filename[], FILE **fd) {
+PetscErrorCode PetscOpenHistoryFile(const char filename[], FILE **fd)
+{
   PetscMPIInt rank, size;
   char        pfile[PETSC_MAX_PATH_LEN], pname[PETSC_MAX_PATH_LEN], fname[PETSC_MAX_PATH_LEN], date[64];
   char        version[256];
@@ -134,7 +135,8 @@ PetscErrorCode PetscOpenHistoryFile(const char filename[], FILE **fd) {
   PetscFunctionReturn(0);
 }
 
-PETSC_INTERN PetscErrorCode PetscCloseHistoryFile(FILE **fd) {
+PETSC_INTERN PetscErrorCode PetscCloseHistoryFile(FILE **fd)
+{
   PetscMPIInt rank;
   char        date[64];
   int         err;
@@ -165,13 +167,15 @@ PETSC_INTERN PetscErrorCode PetscCloseHistoryFile(FILE **fd) {
   in the debugger hence we call abort() instead of MPI_Abort().
 */
 
-void Petsc_MPI_AbortOnError(MPI_Comm *comm, PetscMPIInt *flag, ...) {
+void Petsc_MPI_AbortOnError(MPI_Comm *comm, PetscMPIInt *flag, ...)
+{
   PetscFunctionBegin;
   (*PetscErrorPrintf)("MPI error %d\n", *flag);
   abort();
 }
 
-void Petsc_MPI_DebuggerOnError(MPI_Comm *comm, PetscMPIInt *flag, ...) {
+void Petsc_MPI_DebuggerOnError(MPI_Comm *comm, PetscMPIInt *flag, ...)
+{
   PetscFunctionBegin;
   (*PetscErrorPrintf)("MPI error %d\n", *flag);
   if (PetscAttachDebugger()) PETSCABORT(*comm, *flag); /* hopeless so get out */
@@ -192,7 +196,8 @@ void Petsc_MPI_DebuggerOnError(MPI_Comm *comm, PetscMPIInt *flag, ...) {
 
 .seealso: `PetscInitialize()`, `PetscOptionsView()`, `PetscMallocDump()`, `PetscMPIDump()`, `PetscFinalize()`
 @*/
-PetscErrorCode PetscEnd(void) {
+PetscErrorCode PetscEnd(void)
+{
   PetscFunctionBegin;
   PetscFinalize();
   exit(0);
@@ -223,7 +228,8 @@ PetscErrorCode (*PetscExternalHelpFunction)(MPI_Comm)    = NULL;
    Level: developer
 
 @*/
-PetscErrorCode PetscSetHelpVersionFunctions(PetscErrorCode (*help)(MPI_Comm), PetscErrorCode (*version)(MPI_Comm)) {
+PetscErrorCode PetscSetHelpVersionFunctions(PetscErrorCode (*help)(MPI_Comm), PetscErrorCode (*version)(MPI_Comm))
+{
   PetscFunctionBegin;
   PetscExternalHelpFunction    = help;
   PetscExternalVersionFunction = version;
@@ -234,7 +240,8 @@ PetscErrorCode PetscSetHelpVersionFunctions(PetscErrorCode (*help)(MPI_Comm), Pe
 PETSC_INTERN PetscBool PetscObjectsLog;
 #endif
 
-PETSC_INTERN PetscErrorCode PetscOptionsCheckInitial_Private(const char help[]) {
+PETSC_INTERN PetscErrorCode PetscOptionsCheckInitial_Private(const char help[])
+{
   char        string[64];
   MPI_Comm    comm = PETSC_COMM_WORLD;
   PetscBool   flg1 = PETSC_FALSE, flg2 = PETSC_FALSE, flg3 = PETSC_FALSE, flag, hasHelp;
@@ -489,7 +496,9 @@ PETSC_INTERN PetscErrorCode PetscOptionsCheckInitial_Private(const char help[]) 
         Setup profiling and logging
   */
 #if defined(PETSC_USE_INFO)
-  { PetscCall(PetscInfoSetFromOptions(NULL)); }
+  {
+    PetscCall(PetscInfoSetFromOptions(NULL));
+  }
 #endif
   PetscCall(PetscDetermineInitialFPTrap());
   flg1 = PETSC_FALSE;

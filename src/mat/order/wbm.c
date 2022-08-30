@@ -29,7 +29,8 @@ PETSC_EXTERN PetscInt mc64ad_dist(const PetscInt *, PetscInt *, PetscInt *, cons
   MatGetOrdering_WBM - Find the nonsymmetric reordering of the graph which maximizes the product of diagonal entries,
     using weighted bipartite graph matching. This is MC64 in the Harwell-Boeing library.
 */
-PETSC_INTERN PetscErrorCode MatGetOrdering_WBM(Mat mat, MatOrderingType type, IS *row, IS *col) {
+PETSC_INTERN PetscErrorCode MatGetOrdering_WBM(Mat mat, MatOrderingType type, IS *row, IS *col)
+{
   PetscScalar    *a, *dw;
   const PetscInt *ia, *ja;
   PetscInt        job = 5;

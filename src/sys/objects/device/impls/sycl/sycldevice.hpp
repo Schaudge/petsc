@@ -6,11 +6,14 @@
 
   #include <array>
 
-namespace Petsc {
+namespace Petsc
+{
 
-namespace device {
+namespace device
+{
 
-namespace sycl {
+namespace sycl
+{
 
   #define PETSC_SYCL_DEVICE_HOST -1 // Note -1 is also used by PETSC_DECIDE, so user needs to pass -2 to explicitly select the host
   #define PETSC_SYCL_DEVICE_NONE -3

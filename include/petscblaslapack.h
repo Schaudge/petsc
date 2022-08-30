@@ -57,7 +57,8 @@ M*/
     PetscStackPop; \
   } while (0)
 
-static inline void PetscMissingLapack(const char *fname, ...) {
+static inline void PetscMissingLapack(const char *fname, ...)
+{
   PetscError(PETSC_COMM_SELF, __LINE__, PETSC_FUNCTION_NAME, __FILE__, PETSC_ERR_SUP, PETSC_ERROR_INITIAL, "%s - Lapack routine is unavailable.", fname);
   MPI_Abort(PETSC_COMM_SELF, PETSC_ERR_SUP);
 }
@@ -146,7 +147,8 @@ BLAS_EXTERN void LAPACKgels_(const char *, const PetscBLASInt *, const PetscBLAS
 
 /* handle complex dot() with special code */
 #if defined(PETSC_USE_COMPLEX)
-static inline PetscScalar BLASdot_(const PetscBLASInt *n, const PetscScalar *x, const PetscBLASInt *sx, const PetscScalar *y, const PetscBLASInt *sy) {
+static inline PetscScalar BLASdot_(const PetscBLASInt *n, const PetscScalar *x, const PetscBLASInt *sx, const PetscScalar *y, const PetscBLASInt *sy)
+{
   PetscScalar sum = 0.0;
   PetscInt    i, j, k;
   if (*sx == 1 && *sy == 1) {
@@ -156,7 +158,8 @@ static inline PetscScalar BLASdot_(const PetscBLASInt *n, const PetscScalar *x, 
   }
   return sum;
 }
-static inline PetscScalar BLASdotu_(const PetscBLASInt *n, const PetscScalar *x, const PetscBLASInt *sx, const PetscScalar *y, const PetscBLASInt *sy) {
+static inline PetscScalar BLASdotu_(const PetscBLASInt *n, const PetscScalar *x, const PetscBLASInt *sx, const PetscScalar *y, const PetscBLASInt *sy)
+{
   PetscScalar sum = 0.0;
   PetscInt    i, j, k;
   if (*sx == 1 && *sy == 1) {

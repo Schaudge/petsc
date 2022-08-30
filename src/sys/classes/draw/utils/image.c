@@ -8,7 +8,8 @@ PETSC_EXTERN PetscErrorCode PetscDrawMovieCheckFormat(const char *[]);
 /*
    Code to write images in PPM format
 */
-PETSC_EXTERN PetscErrorCode PetscDrawImageSavePPM(const char filename[], unsigned char palette[][3], unsigned int w, unsigned int h, const unsigned char pixels[]) {
+PETSC_EXTERN PetscErrorCode PetscDrawImageSavePPM(const char filename[], unsigned char palette[][3], unsigned int w, unsigned int h, const unsigned char pixels[])
+{
   int            fd;
   char           header[32];
   size_t         hdrlen;
@@ -44,7 +45,8 @@ PETSC_EXTERN PetscErrorCode PetscDrawImageSavePPM(const char filename[], unsigne
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscDrawImageSave_PPM(const char filename[], unsigned char palette[][3], unsigned int w, unsigned int h, const unsigned char pixels[]) {
+static PetscErrorCode PetscDrawImageSave_PPM(const char filename[], unsigned char palette[][3], unsigned int w, unsigned int h, const unsigned char pixels[])
+{
   return PetscDrawImageSavePPM(filename, palette, w, h, pixels);
 }
 
@@ -61,7 +63,8 @@ static PetscErrorCode PetscDrawImageSave_PPM(const char filename[], unsigned cha
     #endif
   #endif
 
-PETSC_EXTERN PetscErrorCode PetscDrawImageSavePNG(const char filename[], unsigned char palette[][3], unsigned int w, unsigned int h, const unsigned char pixels[]) {
+PETSC_EXTERN PetscErrorCode PetscDrawImageSavePNG(const char filename[], unsigned char palette[][3], unsigned int w, unsigned int h, const unsigned char pixels[])
+{
   FILE        *fp;
   png_struct  *png_ptr;
   png_info    *info_ptr;
@@ -104,7 +107,8 @@ PETSC_EXTERN PetscErrorCode PetscDrawImageSavePNG(const char filename[], unsigne
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscDrawImageSave_PNG(const char filename[], unsigned char palette[][3], unsigned int w, unsigned int h, const unsigned char pixels[]) {
+static PetscErrorCode PetscDrawImageSave_PNG(const char filename[], unsigned char palette[][3], unsigned int w, unsigned int h, const unsigned char pixels[])
+{
   return PetscDrawImageSavePNG(filename, palette, w, h, pixels);
 }
 
@@ -128,7 +132,8 @@ static PetscErrorCode PetscDrawImageSave_PNG(const char filename[], unsigned cha
     #define DGifCloseFile(f, err)       DGifCloseFile(f)
   #endif
 
-PETSC_EXTERN PetscErrorCode PetscDrawImageSaveGIF(const char filename[], unsigned char palette[][3], unsigned int w, unsigned int h, const unsigned char pixels[]) {
+PETSC_EXTERN PetscErrorCode PetscDrawImageSaveGIF(const char filename[], unsigned char palette[][3], unsigned int w, unsigned int h, const unsigned char pixels[])
+{
   int             Row;
   int             Width      = (int)w;
   int             Height     = (int)h;
@@ -164,11 +169,13 @@ PETSC_EXTERN PetscErrorCode PetscDrawImageSaveGIF(const char filename[], unsigne
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscDrawImageSave_GIF(const char filename[], unsigned char palette[][3], unsigned int w, unsigned int h, const unsigned char pixels[]) {
+static PetscErrorCode PetscDrawImageSave_GIF(const char filename[], unsigned char palette[][3], unsigned int w, unsigned int h, const unsigned char pixels[])
+{
   return PetscDrawImageSaveGIF(filename, palette, w, h, pixels);
 }
 
-PETSC_EXTERN PetscErrorCode PetscDrawMovieSaveGIF(const char pattern[], PetscInt count, const char movie[]) {
+PETSC_EXTERN PetscErrorCode PetscDrawMovieSaveGIF(const char pattern[], PetscInt count, const char movie[])
+{
   int          i, j, Row;
   char         image[PETSC_MAX_PATH_LEN];
   GifFileType *GifMovie = NULL;
@@ -222,13 +229,16 @@ PETSC_EXTERN PetscErrorCode PetscDrawMovieSaveGIF(const char pattern[], PetscInt
   #if defined(PETSC_HAVE_SETJMP_H)
     #include <setjmp.h>
 static jmp_buf petsc_jpeg_jumpbuf;
-static void    petsc_jpeg_error_longjmp(j_common_ptr cinfo) {
+
+static void petsc_jpeg_error_longjmp(j_common_ptr cinfo)
+{
   (void)cinfo;
   longjmp(petsc_jpeg_jumpbuf, 1);
 }
   #endif
 
-PETSC_EXTERN PetscErrorCode PetscDrawImageSaveJPG(const char filename[], unsigned char palette[][3], unsigned int w, unsigned int h, const unsigned char pixels[]) {
+PETSC_EXTERN PetscErrorCode PetscDrawImageSaveJPG(const char filename[], unsigned char palette[][3], unsigned int w, unsigned int h, const unsigned char pixels[])
+{
   unsigned char              *rgbpixels;
   FILE                       *fp;
   struct jpeg_compress_struct cinfo;
@@ -285,7 +295,8 @@ PETSC_EXTERN PetscErrorCode PetscDrawImageSaveJPG(const char filename[], unsigne
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscDrawImageSave_JPG(const char filename[], unsigned char palette[][3], unsigned int w, unsigned int h, const unsigned char pixels[]) {
+static PetscErrorCode PetscDrawImageSave_JPG(const char filename[], unsigned char palette[][3], unsigned int w, unsigned int h, const unsigned char pixels[])
+{
   return PetscDrawImageSaveJPG(filename, palette, w, h, pixels);
 }
 
@@ -307,7 +318,8 @@ static struct {
   {".ppm", PetscDrawImageSave_PPM}
 };
 
-PetscErrorCode PetscDrawImageCheckFormat(const char *ext[]) {
+PetscErrorCode PetscDrawImageCheckFormat(const char *ext[])
+{
   size_t    k;
   PetscBool match = PETSC_FALSE;
 
@@ -327,7 +339,8 @@ PetscErrorCode PetscDrawImageCheckFormat(const char *ext[]) {
   SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "Image extension %s not supported, use .ppm or see PetscDrawSetSave() for what ./configure option you may need", *ext);
 }
 
-PetscErrorCode PetscDrawImageSave(const char basename[], const char ext[], unsigned char palette[][3], unsigned int w, unsigned int h, const unsigned char pixels[]) {
+PetscErrorCode PetscDrawImageSave(const char basename[], const char ext[], unsigned char palette[][3], unsigned int w, unsigned int h, const unsigned char pixels[])
+{
   size_t    k;
   PetscBool match = PETSC_FALSE;
   char      filename[PETSC_MAX_PATH_LEN];
@@ -350,14 +363,16 @@ PetscErrorCode PetscDrawImageSave(const char basename[], const char ext[], unsig
   SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "Image extension %s not supported, use .ppm", ext);
 }
 
-PetscErrorCode PetscDrawMovieCheckFormat(const char *ext[]) {
+PetscErrorCode PetscDrawMovieCheckFormat(const char *ext[])
+{
   PetscFunctionBegin;
   PetscValidPointer(ext, 1);
   if (!*ext || !**ext) *ext = ".m4v";
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscDrawMovieSave(const char basename[], PetscInt count, const char imext[], PetscInt fps, const char mvext[]) {
+PetscErrorCode PetscDrawMovieSave(const char basename[], PetscInt count, const char imext[], PetscInt fps, const char mvext[])
+{
   char      input[PETSC_MAX_PATH_LEN];
   char      output[PETSC_MAX_PATH_LEN];
   PetscBool gifinput;

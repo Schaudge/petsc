@@ -21,7 +21,8 @@
 #if defined(PETSC_HAVE_SYS_TIMES_H)
 
   #include <sys/times.h>
-PetscErrorCode PetscGetCPUTime(PetscLogDouble *t) {
+PetscErrorCode PetscGetCPUTime(PetscLogDouble *t)
+{
   struct tms temp;
 
   PetscFunctionBegin;
@@ -34,7 +35,8 @@ PetscErrorCode PetscGetCPUTime(PetscLogDouble *t) {
 
   #include <time.h>
 
-PetscErrorCode PetscGetCPUTime(PetscLogDouble *t) {
+PetscErrorCode PetscGetCPUTime(PetscLogDouble *t)
+{
   PetscFunctionBegin;
   *t = ((double)clock()) / ((double)CLOCKS_PER_SEC);
   PetscFunctionReturn(0);
@@ -75,7 +77,8 @@ PetscErrorCode PetscGetCPUTime(PetscLogDouble *t) {
 
 .seealso: `PetscTime()`, `PetscLogView()`
 @*/
-PetscErrorCode PetscGetCPUTime(PetscLogDouble *t) {
+PetscErrorCode PetscGetCPUTime(PetscLogDouble *t)
+{
   static struct rusage temp;
   PetscLogDouble       foo, foo1;
 

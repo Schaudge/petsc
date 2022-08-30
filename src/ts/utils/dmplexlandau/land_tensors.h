@@ -11,14 +11,16 @@
 #if LANDAU_DIM == 2
 /* elliptic functions
  */
-PETSC_DEVICE_FUNC_DECL PetscReal polevl_10(PetscReal x, const PetscReal coef[]) {
+PETSC_DEVICE_FUNC_DECL PetscReal polevl_10(PetscReal x, const PetscReal coef[])
+{
   PetscReal ans;
   PetscInt  i;
   ans = coef[0];
   for (i = 1; i < 11; i++) ans = ans * x + coef[i];
   return (ans);
 }
-PETSC_DEVICE_FUNC_DECL PetscReal polevl_9(PetscReal x, const PetscReal coef[]) {
+PETSC_DEVICE_FUNC_DECL PetscReal polevl_9(PetscReal x, const PetscReal coef[])
+{
   PetscReal ans;
   PetscInt  i;
   ans = coef[0];
@@ -28,7 +30,8 @@ PETSC_DEVICE_FUNC_DECL PetscReal polevl_9(PetscReal x, const PetscReal coef[]) {
 /*
  *      Complete elliptic integral of the second kind
  */
-PETSC_DEVICE_FUNC_DECL void ellipticE(PetscReal x, PetscReal *ret) {
+PETSC_DEVICE_FUNC_DECL void ellipticE(PetscReal x, PetscReal *ret)
+{
   #if defined(PETSC_USE_REAL_SINGLE)
   static const PetscReal P2[] = {1.53552577301013293365E-4F, 2.50888492163602060990E-3F, 8.68786816565889628429E-3F, 1.07350949056076193403E-2F, 7.77395492516787092951E-3F, 7.58395289413514708519E-3F,
                                  1.15688436810574127319E-2F, 2.18317996015557253103E-2F, 5.68051945617860553470E-2F, 4.43147180560990850618E-1F, 1.00000000000000000299E0F};
@@ -46,7 +49,8 @@ PETSC_DEVICE_FUNC_DECL void ellipticE(PetscReal x, PetscReal *ret) {
 /*
  *      Complete elliptic integral of the first kind
  */
-PETSC_DEVICE_FUNC_DECL void ellipticK(PetscReal x, PetscReal *ret) {
+PETSC_DEVICE_FUNC_DECL void ellipticK(PetscReal x, PetscReal *ret)
+{
   #if defined(PETSC_USE_REAL_SINGLE)
   static const PetscReal P1[] = {1.37982864606273237150E-4F, 2.28025724005875567385E-3F, 7.97404013220415179367E-3F, 9.85821379021226008714E-3F, 6.87489687449949877925E-3F, 6.18901033637687613229E-3F,
                                  8.79078273952743772254E-3F, 1.49380448916805252718E-2F, 3.08851465246711995998E-2F, 9.65735902811690126535E-2F, 1.38629436111989062502E0F};
@@ -62,16 +66,17 @@ PETSC_DEVICE_FUNC_DECL void ellipticK(PetscReal x, PetscReal *ret) {
   *ret = polevl_10(x, P1) - PetscLogReal(x) * polevl_10(x, Q1);
 }
 /* flip sign. papers use du/dt = C, PETSc uses form G(u) = du/dt - C(u) = 0 */
-PETSC_DEVICE_FUNC_DECL void LandauTensor2D(const PetscReal x[], const PetscReal rp, const PetscReal zp, PetscReal Ud[][2], PetscReal Uk[][2], const PetscReal mask) {
+PETSC_DEVICE_FUNC_DECL void LandauTensor2D(const PetscReal x[], const PetscReal rp, const PetscReal zp, PetscReal Ud[][2], PetscReal Uk[][2], const PetscReal mask)
+{
   PetscReal l, s, r = x[0], z = x[1], i1func, i2func, i3func, ks, es, pi4pow, sqrt_1s, r2, rp2, r2prp2, zmzp, zmzp2, tt;
   //PetscReal mask /* = !!(r!=rp || z!=zp) */;
   /* !!(zmzp2 > 1.e-12 || (r-rp) >  1.e-12 || (r-rp) < -1.e-12); */
-  r2      = PetscSqr(r);
-  zmzp    = z - zp;
-  rp2     = PetscSqr(rp);
-  zmzp2   = PetscSqr(zmzp);
-  r2prp2  = r2 + rp2;
-  l       = r2 + rp2 + zmzp2;
+  r2     = PetscSqr(r);
+  zmzp   = z - zp;
+  rp2    = PetscSqr(rp);
+  zmzp2  = PetscSqr(zmzp);
+  r2prp2 = r2 + rp2;
+  l      = r2 + rp2 + zmzp2;
   /* if      (zmzp2 >  PETSC_SMALL) mask = 1; */
   /* else if ((tt=(r-rp)) >  PETSC_SMALL) mask = 1; */
   /* else if  (tt         < -PETSC_SMALL) mask = 1; */
@@ -101,7 +106,8 @@ PETSC_DEVICE_FUNC_DECL void LandauTensor2D(const PetscReal x[], const PetscReal 
 /* since the tensor diverges for x==y but when integrated */
 /* the divergent part is antisymmetric and vanishes. This is not  */
 /* trivial, but can be proven. */
-PETSC_DEVICE_FUNC_DECL void LandauTensor3D(const PetscReal x1[], const PetscReal xp, const PetscReal yp, const PetscReal zp, PetscReal U[][3], PetscReal mask) {
+PETSC_DEVICE_FUNC_DECL void LandauTensor3D(const PetscReal x1[], const PetscReal xp, const PetscReal yp, const PetscReal zp, PetscReal U[][3], PetscReal mask)
+{
   PetscReal dx[3], inorm3, inorm, inorm2, norm2, x2[] = {xp, yp, zp};
   PetscInt  d;
   for (d = 0, norm2 = PETSC_MACHINE_EPSILON; d < 3; ++d) {
@@ -118,7 +124,8 @@ PETSC_DEVICE_FUNC_DECL void LandauTensor3D(const PetscReal x1[], const PetscReal
 }
   /* Relativistic form */
   #define GAMMA3(_x, _c02) PetscSqrtReal(1.0 + ((_x[0] * _x[0]) + (_x[1] * _x[1]) + (_x[2] * _x[2])) / (_c02))
-PETSC_DEVICE_FUNC_DECL void LandauTensor3DRelativistic(const PetscReal a_x1[], const PetscReal xp, const PetscReal yp, const PetscReal zp, PetscReal U[][3], PetscReal mask, PetscReal c0) {
+PETSC_DEVICE_FUNC_DECL void LandauTensor3DRelativistic(const PetscReal a_x1[], const PetscReal xp, const PetscReal yp, const PetscReal zp, PetscReal U[][3], PetscReal mask, PetscReal c0)
+{
   const PetscReal x2[3] = {xp, yp, zp}, x1[3] = {a_x1[0], a_x1[1], a_x1[2]}, c02 = c0 * c0, g1 = GAMMA3(x1, c02), g2 = GAMMA3(x2, c02);
   PetscReal       fact, u1u2, diff[3], udiff2, u12, u22, wsq, rsq, tt;
   PetscInt        i, j;
@@ -135,8 +142,8 @@ PETSC_DEVICE_FUNC_DECL void LandauTensor3DRelativistic(const PetscReal a_x1[], c
       u22 += x2[i] * x2[i];
       u1u2 += x1[i] * x2[i];
     }
-    tt   = 2. * u1u2 * (1. - g1 * g2) + (u12 * u22 + u1u2 * u1u2) / c02; // these two terms are about the same with opposite sign
-    wsq  = udiff2 + tt;
+    tt  = 2. * u1u2 * (1. - g1 * g2) + (u12 * u22 + u1u2 * u1u2) / c02; // these two terms are about the same with opposite sign
+    wsq = udiff2 + tt;
     //wsq = udiff2 + 2.*u1u2*(1.-g1*g2) + (u12*u22 + u1u2*u1u2)/c02;
     rsq  = 1. + wsq / c02;
     fact = -rsq / (g1 * g2 * PetscSqrtReal(wsq)); /* flip sign. papers use du/dt = C, PETSc uses form G(u) = du/dt - C(u) = 0 */

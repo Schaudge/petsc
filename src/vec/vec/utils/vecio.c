@@ -11,7 +11,8 @@
 #include <petsc/private/viewerimpl.h>
 #include <petsclayouthdf5.h>
 
-PetscErrorCode VecView_Binary(Vec vec, PetscViewer viewer) {
+PetscErrorCode VecView_Binary(Vec vec, PetscViewer viewer)
+{
   PetscBool          skipHeader;
   PetscLayout        map;
   PetscInt           tr[2], n, s, N;
@@ -60,7 +61,8 @@ PetscErrorCode VecView_Binary(Vec vec, PetscViewer viewer) {
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode VecLoad_Binary(Vec vec, PetscViewer viewer) {
+PetscErrorCode VecLoad_Binary(Vec vec, PetscViewer viewer)
+{
   PetscBool    skipHeader, flg;
   PetscInt     tr[2], rows, N, n, s, bs;
   PetscScalar *array;
@@ -107,7 +109,8 @@ PetscErrorCode VecLoad_Binary(Vec vec, PetscViewer viewer) {
 }
 
 #if defined(PETSC_HAVE_HDF5)
-PetscErrorCode VecLoad_HDF5(Vec xin, PetscViewer viewer) {
+PetscErrorCode VecLoad_HDF5(Vec xin, PetscViewer viewer)
+{
   hid_t        scalartype; /* scalar type (H5T_NATIVE_FLOAT or H5T_NATIVE_DOUBLE) */
   PetscScalar *x, *arr;
   const char  *vecname;
@@ -144,7 +147,8 @@ PetscErrorCode VecLoad_HDF5(Vec xin, PetscViewer viewer) {
   #include <petsc/private/vieweradiosimpl.h>
   #include <petsc/private/viewerimpl.h>
 
-PetscErrorCode VecLoad_ADIOS(Vec xin, PetscViewer viewer) {
+PetscErrorCode VecLoad_ADIOS(Vec xin, PetscViewer viewer)
+{
   PetscViewer_ADIOS *adios = (PetscViewer_ADIOS *)viewer->data;
   PetscScalar       *x;
   PetscInt           Nfile, N, rstart, n;
@@ -181,7 +185,8 @@ PetscErrorCode VecLoad_ADIOS(Vec xin, PetscViewer viewer) {
 }
 #endif
 
-PetscErrorCode VecLoad_Default(Vec newvec, PetscViewer viewer) {
+PetscErrorCode VecLoad_Default(Vec newvec, PetscViewer viewer)
+{
   PetscBool isbinary;
 #if defined(PETSC_HAVE_HDF5)
   PetscBool ishdf5;
@@ -237,7 +242,8 @@ PetscErrorCode VecLoad_Default(Vec newvec, PetscViewer viewer) {
 
 .seealso: `VecCreate()`, `VecSet()`
 @*/
-PetscErrorCode VecChop(Vec v, PetscReal tol) {
+PetscErrorCode VecChop(Vec v, PetscReal tol)
+{
   PetscScalar *a;
   PetscInt     n, i;
 

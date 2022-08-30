@@ -45,7 +45,8 @@ typedef void *dlsymbol_t;
 
 .seealso: `PetscDLClose()`, `PetscDLSym()`, `PetscDLAddr()`
 @*/
-PetscErrorCode PetscDLOpen(const char name[], PetscDLMode mode, PetscDLHandle *handle) {
+PetscErrorCode PetscDLOpen(const char name[], PetscDLMode mode, PetscDLHandle *handle)
+{
   PETSC_UNUSED int dlflags1, dlflags2; /* There are some preprocessor paths where these variables are set, but not used */
   dlhandle_t       dlhandle;
 
@@ -135,7 +136,8 @@ PetscErrorCode PetscDLOpen(const char name[], PetscDLMode mode, PetscDLHandle *h
 
 .seealso: `PetscDLOpen()`, `PetscDLSym()`, `PetscDLAddr()`
 @*/
-PetscErrorCode PetscDLClose(PetscDLHandle *handle) {
+PetscErrorCode PetscDLClose(PetscDLHandle *handle)
+{
   PetscFunctionBegin;
   PetscValidPointer(handle, 1);
 
@@ -207,7 +209,8 @@ PetscErrorCode PetscDLClose(PetscDLHandle *handle) {
 
 .seealso: `PetscDLClose()`, `PetscDLOpen()`, `PetscDLAddr()`
 @*/
-PetscErrorCode PetscDLSym(PetscDLHandle handle, const char symbol[], void **value) {
+PetscErrorCode PetscDLSym(PetscDLHandle handle, const char symbol[], void **value)
+{
   PETSC_UNUSED dlhandle_t dlhandle;
   dlsymbol_t              dlsymbol;
 
@@ -319,7 +322,8 @@ PetscErrorCode PetscDLSym(PetscDLHandle handle, const char symbol[], void **valu
 
 .seealso: `PetscDLClose()`, `PetscDLSym()`, `PetscDLOpen()`
 @*/
-PetscErrorCode PetscDLAddr(void (*func)(void), char **name) {
+PetscErrorCode PetscDLAddr(void (*func)(void), char **name)
+{
   PetscFunctionBegin;
   PetscValidPointer(name, 2);
   *name = NULL;

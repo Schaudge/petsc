@@ -21,7 +21,8 @@ const char *const PetscDataTypes[] = {"UNKNOWN", "DOUBLE", "COMPLEX", "LONG", "S
 
 .seealso: `PetscDataType`, `PetscMPIDataTypeToPetscDataType()`
 @*/
-PetscErrorCode PetscDataTypeToMPIDataType(PetscDataType ptype, MPI_Datatype *mtype) {
+PetscErrorCode PetscDataTypeToMPIDataType(PetscDataType ptype, MPI_Datatype *mtype)
+{
   PetscFunctionBegin;
   if (ptype == PETSC_INT) *mtype = MPIU_INT;
   else if (ptype == PETSC_DOUBLE) *mtype = MPI_DOUBLE;
@@ -66,7 +67,8 @@ PetscErrorCode PetscDataTypeToMPIDataType(PetscDataType ptype, MPI_Datatype *mty
 
 .seealso: `PetscDataType`, `PetscMPIDataTypeToPetscDataType()`
 @*/
-PetscErrorCode PetscMPIDataTypeToPetscDataType(MPI_Datatype mtype, PetscDataType *ptype) {
+PetscErrorCode PetscMPIDataTypeToPetscDataType(MPI_Datatype mtype, PetscDataType *ptype)
+{
   PetscFunctionBegin;
   if (mtype == MPIU_INT) *ptype = PETSC_INT;
 #if defined(PETSC_USE_64BIT_INDICES)
@@ -136,7 +138,8 @@ typedef enum {
 
 .seealso: `PetscDataType`, `PetscDataTypeToMPIDataType()`
 @*/
-PetscErrorCode PetscDataTypeGetSize(PetscDataType ptype, size_t *size) {
+PetscErrorCode PetscDataTypeGetSize(PetscDataType ptype, size_t *size)
+{
   PetscFunctionBegin;
   if ((int)ptype < 0) *size = -(int)ptype;
   else if (ptype == PETSC_INT) *size = PETSC_INT_SIZE;
@@ -175,7 +178,8 @@ PetscErrorCode PetscDataTypeGetSize(PetscDataType ptype, size_t *size) {
 
 .seealso: `PetscDataType`, `PetscDataTypeToMPIDataType()`, `PetscDataTypeGetSize()`
 @*/
-PetscErrorCode PetscDataTypeFromString(const char *name, PetscDataType *ptype, PetscBool *found) {
+PetscErrorCode PetscDataTypeFromString(const char *name, PetscDataType *ptype, PetscBool *found)
+{
   PetscFunctionBegin;
   PetscCall(PetscEnumFind(PetscDataTypes, name, (PetscEnum *)ptype, found));
   if (!*found) {

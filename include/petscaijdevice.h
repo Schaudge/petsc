@@ -29,7 +29,8 @@ struct _n_SplitCSRMat {
    CUDA devices of compute capability 6.x and higher. See also sfcuda.cu
 */
 #if defined(PETSC_USE_REAL_DOUBLE) && defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 600)
-__device__ double atomicAdd(double *x, double y) {
+__device__ double atomicAdd(double *x, double y)
+{
   typedef unsigned long long int ullint;
   double                        *address = x, val = y;
   ullint                        *address_as_ull = (ullint *)address;
@@ -144,7 +145,8 @@ static
           `MatCUSPARSEGetDeviceMatWrite()`,  `MatSetValuesCOO()`
 @*/
   PetscErrorCode
-  MatSetValuesDevice(PetscSplitCSRDataStructure d_mat, PetscInt m, const PetscInt im[], PetscInt n, const PetscInt in[], const PetscScalar v[], InsertMode is) {
+  MatSetValuesDevice(PetscSplitCSRDataStructure d_mat, PetscInt m, const PetscInt im[], PetscInt n, const PetscInt in[], const PetscScalar v[], InsertMode is)
+{
   MatScalar       value;
   const PetscInt *rp1, *rp2 = NULL, *ai = d_mat->diag.i, *aj = d_mat->diag.j;
   const PetscInt *bi = d_mat->offdiag.i, *bj = d_mat->offdiag.j;

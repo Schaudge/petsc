@@ -5,13 +5,17 @@
   #include <petsc/private/cupminterface.hpp>
   #include <petsc/private/petscadvancedmacros.h>
 
-namespace Petsc {
+namespace Petsc
+{
 
-namespace device {
+namespace device
+{
 
-namespace cupm {
+namespace cupm
+{
 
-namespace impl {
+namespace impl
+{
 
   #define PetscCallCUPMBLAS(...) \
     do { \
@@ -289,7 +293,8 @@ struct BlasInterfaceImpl<DeviceType::CUDA> : BlasInterfaceBase<DeviceType::CUDA>
   // BLAS extensions
   PETSC_CUPMBLAS_ALIAS_BLAS_FUNCTION(STANDARD, geam)
 
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode InitializeHandle(cupmSolverHandle_t &handle)) {
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode InitializeHandle(cupmSolverHandle_t &handle))
+  {
     PetscFunctionBegin;
     if (handle) PetscFunctionReturn(0);
     for (auto i = 0; i < 3; ++i) {
@@ -305,7 +310,8 @@ struct BlasInterfaceImpl<DeviceType::CUDA> : BlasInterfaceBase<DeviceType::CUDA>
     PetscFunctionReturn(0);
   }
 
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode SetHandleStream(const cupmSolverHandle_t &handle, const cupmStream_t &stream)) {
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode SetHandleStream(const cupmSolverHandle_t &handle, const cupmStream_t &stream))
+  {
     cupmStream_t cupmStream;
 
     PetscFunctionBegin;
@@ -314,7 +320,8 @@ struct BlasInterfaceImpl<DeviceType::CUDA> : BlasInterfaceBase<DeviceType::CUDA>
     PetscFunctionReturn(0);
   }
 
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode DestroyHandle(cupmSolverHandle_t &handle)) {
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode DestroyHandle(cupmSolverHandle_t &handle))
+  {
     PetscFunctionBegin;
     if (handle) {
       PetscCallCUSOLVER(cusolverDnDestroy(handle));
@@ -382,19 +389,22 @@ struct BlasInterfaceImpl<DeviceType::HIP> : BlasInterfaceBase<DeviceType::HIP> {
   // BLAS extensions
   PETSC_CUPMBLAS_ALIAS_BLAS_FUNCTION(STANDARD, geam)
 
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode InitializeHandle(cupmSolverHandle_t &handle)) {
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode InitializeHandle(cupmSolverHandle_t &handle))
+  {
     PetscFunctionBegin;
     if (!handle) PetscCallHIPSOLVER(hipsolverCreate(&handle));
     PetscFunctionReturn(0);
   }
 
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode SetHandleStream(cupmSolverHandle_t handle, cupmStream_t stream)) {
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode SetHandleStream(cupmSolverHandle_t handle, cupmStream_t stream))
+  {
     PetscFunctionBegin;
     PetscCallHIPSOLVER(hipsolverSetStream(handle, stream));
     PetscFunctionReturn(0);
   }
 
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode DestroyHandle(cupmSolverHandle_t &handle)) {
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode DestroyHandle(cupmSolverHandle_t &handle))
+  {
     PetscFunctionBegin;
     if (handle) {
       PetscCallHIPSOLVER(hipsolverDestroy(handle));
@@ -459,7 +469,8 @@ template <DeviceType T>
 struct BlasInterface : BlasInterfaceImpl<T> {
   PETSC_CUPMBLAS_IMPL_CLASS_HEADER(blasinterface_type, T);
 
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode cupmBlasSetPointerModeFromPointer(cupmBlasHandle_t handle, const void *ptr)) {
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode cupmBlasSetPointerModeFromPointer(cupmBlasHandle_t handle, const void *ptr))
+  {
     auto mtype = PETSC_MEMTYPE_HOST;
 
     PetscFunctionBegin;

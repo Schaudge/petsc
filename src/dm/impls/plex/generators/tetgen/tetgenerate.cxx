@@ -13,7 +13,8 @@ extern "C" int EGlite_inTopology(const ego, const double *);
 #include <tetgen.h>
 
 /* This is to fix the tetrahedron orientation from TetGen */
-static PetscErrorCode DMPlexInvertCells_Tetgen(PetscInt numCells, PetscInt numCorners, PetscInt cells[]) {
+static PetscErrorCode DMPlexInvertCells_Tetgen(PetscInt numCells, PetscInt numCorners, PetscInt cells[])
+{
   PetscInt bound = numCells * numCorners, coff;
 
   PetscFunctionBegin;
@@ -28,7 +29,8 @@ static PetscErrorCode DMPlexInvertCells_Tetgen(PetscInt numCells, PetscInt numCo
   PetscFunctionReturn(0);
 }
 
-PETSC_EXTERN PetscErrorCode DMPlexGenerate_Tetgen(DM boundary, PetscBool interpolate, DM *dm) {
+PETSC_EXTERN PetscErrorCode DMPlexGenerate_Tetgen(DM boundary, PetscBool interpolate, DM *dm)
+{
   MPI_Comm               comm;
   const PetscInt         dim = 3;
   ::tetgenio             in;
@@ -291,7 +293,8 @@ PETSC_EXTERN PetscErrorCode DMPlexGenerate_Tetgen(DM boundary, PetscBool interpo
   PetscFunctionReturn(0);
 }
 
-PETSC_EXTERN PetscErrorCode DMPlexRefine_Tetgen(DM dm, double *maxVolumes, DM *dmRefined) {
+PETSC_EXTERN PetscErrorCode DMPlexRefine_Tetgen(DM dm, double *maxVolumes, DM *dmRefined)
+{
   MPI_Comm               comm;
   const PetscInt         dim = 3;
   ::tetgenio             in;

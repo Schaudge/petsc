@@ -1,6 +1,7 @@
 #include <petsc/private/tsimpl.h>
 
 static PetscBool TSPackageInitialized = PETSC_FALSE;
+
 /*@C
   TSFinalizePackage - This function destroys everything in the Petsc interface to Mathematica. It is
   called from PetscFinalize().
@@ -9,7 +10,8 @@ static PetscBool TSPackageInitialized = PETSC_FALSE;
 
 .seealso: `PetscFinalize()`
 @*/
-PetscErrorCode   TSFinalizePackage(void) {
+PetscErrorCode TSFinalizePackage(void)
+{
   PetscFunctionBegin;
   PetscCall(PetscFunctionListDestroy(&TSList));
   PetscCall(PetscFunctionListDestroy(&TSTrajectoryList));
@@ -27,7 +29,8 @@ PetscErrorCode   TSFinalizePackage(void) {
 
 .seealso: `PetscInitialize()`
 @*/
-PetscErrorCode TSInitializePackage(void) {
+PetscErrorCode TSInitializePackage(void)
+{
   char      logList[256];
   PetscBool opt, pkg, cls;
 
@@ -103,7 +106,8 @@ PetscErrorCode TSInitializePackage(void) {
 
  */
 PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petscts(void); /*prototype*/
-PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petscts(void) {
+PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petscts(void)
+{
   PetscFunctionBegin;
   PetscCall(TSInitializePackage());
   PetscFunctionReturn(0);

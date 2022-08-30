@@ -25,7 +25,8 @@ typedef struct {
     in one particular set of coordinates. It is a callback
     called from PetscDrawZoom()
 */
-PetscErrorCode VecView_MPI_Draw_DA2d_Zoom(PetscDraw draw, void *ctx) {
+PetscErrorCode VecView_MPI_Draw_DA2d_Zoom(PetscDraw draw, void *ctx)
+{
   ZoomCtx           *zctx = (ZoomCtx *)ctx;
   PetscInt           m, n, i, j, k, dof, id, c1, c2, c3, c4;
   PetscReal          min, max, x1, x2, x3, x4, y_1, y2, y3, y4;
@@ -112,7 +113,8 @@ PetscErrorCode VecView_MPI_Draw_DA2d_Zoom(PetscDraw draw, void *ctx) {
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode VecView_MPI_Draw_DA2d(Vec xin, PetscViewer viewer) {
+PetscErrorCode VecView_MPI_Draw_DA2d(Vec xin, PetscViewer viewer)
+{
   DM                  da, dac, dag;
   PetscInt            N, s, M, w, ncoors = 4;
   const PetscInt     *lx, *ly;
@@ -312,7 +314,8 @@ PetscErrorCode VecView_MPI_Draw_DA2d(Vec xin, PetscViewer viewer) {
 }
 
 #if defined(PETSC_HAVE_HDF5)
-static PetscErrorCode VecGetHDF5ChunkSize(DM_DA *da, Vec xin, PetscInt dimension, PetscInt timestep, hsize_t *chunkDims) {
+static PetscErrorCode VecGetHDF5ChunkSize(DM_DA *da, Vec xin, PetscInt dimension, PetscInt timestep, hsize_t *chunkDims)
+{
   PetscMPIInt comm_size;
   hsize_t     chunk_size, target_size, dim;
   hsize_t     vec_size = sizeof(PetscScalar) * da->M * da->N * da->P * da->w;
@@ -327,7 +330,7 @@ static PetscErrorCode VecGetHDF5ChunkSize(DM_DA *da, Vec xin, PetscInt dimension
 
   target_size = (hsize_t)PetscMin((PetscInt64)vec_size, PetscMin((PetscInt64)max_chunk_size, PetscMax((PetscInt64)avg_local_vec_size, PetscMax(PetscCeilInt64(vec_size, max_chunks), (PetscInt64)min_size))));
   /* following line uses sizeof(PetscReal) instead of sizeof(PetscScalar) because the last dimension of chunkDims[] captures the 2* when complex numbers are being used */
-  chunk_size  = (hsize_t)PetscMax(1, chunkDims[0]) * PetscMax(1, chunkDims[1]) * PetscMax(1, chunkDims[2]) * PetscMax(1, chunkDims[3]) * PetscMax(1, chunkDims[4]) * PetscMax(1, chunkDims[5]) * sizeof(PetscReal);
+  chunk_size = (hsize_t)PetscMax(1, chunkDims[0]) * PetscMax(1, chunkDims[1]) * PetscMax(1, chunkDims[2]) * PetscMax(1, chunkDims[3]) * PetscMax(1, chunkDims[4]) * PetscMax(1, chunkDims[5]) * sizeof(PetscReal);
 
   /*
    if size/rank > max_chunk_size, we need radical measures: even going down to
@@ -404,7 +407,8 @@ static PetscErrorCode VecGetHDF5ChunkSize(DM_DA *da, Vec xin, PetscInt dimension
 #endif
 
 #if defined(PETSC_HAVE_HDF5)
-PetscErrorCode VecView_MPI_HDF5_DA(Vec xin, PetscViewer viewer) {
+PetscErrorCode VecView_MPI_HDF5_DA(Vec xin, PetscViewer viewer)
+{
   PetscViewer_HDF5  *hdf5 = (PetscViewer_HDF5 *)viewer->data;
   DM                 dm;
   DM_DA             *da;
@@ -568,7 +572,8 @@ PetscErrorCode VecView_MPI_HDF5_DA(Vec xin, PetscViewer viewer) {
 extern PetscErrorCode VecView_MPI_Draw_DA1d(Vec, PetscViewer);
 
 #if defined(PETSC_HAVE_MPIIO)
-static PetscErrorCode DMDAArrayMPIIO(DM da, PetscViewer viewer, Vec xin, PetscBool write) {
+static PetscErrorCode DMDAArrayMPIIO(DM da, PetscViewer viewer, Vec xin, PetscBool write)
+{
   MPI_File           mfdes;
   PetscMPIInt        gsizes[4], lsizes[4], lstarts[4], asiz, dof;
   MPI_Datatype       view;
@@ -628,7 +633,8 @@ static PetscErrorCode DMDAArrayMPIIO(DM da, PetscViewer viewer, Vec xin, PetscBo
 }
 #endif
 
-PetscErrorCode VecView_MPI_DA(Vec xin, PetscViewer viewer) {
+PetscErrorCode VecView_MPI_DA(Vec xin, PetscViewer viewer)
+{
   DM        da;
   PetscInt  dim;
   Vec       natural;
@@ -751,7 +757,8 @@ PetscErrorCode VecView_MPI_DA(Vec xin, PetscViewer viewer) {
 }
 
 #if defined(PETSC_HAVE_HDF5)
-PetscErrorCode VecLoad_HDF5_DA(Vec xin, PetscViewer viewer) {
+PetscErrorCode VecLoad_HDF5_DA(Vec xin, PetscViewer viewer)
+{
   PetscViewer_HDF5 *hdf5 = (PetscViewer_HDF5 *)viewer->data;
   DM                da;
   int               dim, rdim;
@@ -868,7 +875,8 @@ PetscErrorCode VecLoad_HDF5_DA(Vec xin, PetscViewer viewer) {
 }
 #endif
 
-PetscErrorCode VecLoad_Binary_DA(Vec xin, PetscViewer viewer) {
+PetscErrorCode VecLoad_Binary_DA(Vec xin, PetscViewer viewer)
+{
   DM          da;
   Vec         natural;
   const char *prefix;
@@ -904,7 +912,8 @@ PetscErrorCode VecLoad_Binary_DA(Vec xin, PetscViewer viewer) {
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode VecLoad_Default_DA(Vec xin, PetscViewer viewer) {
+PetscErrorCode VecLoad_Default_DA(Vec xin, PetscViewer viewer)
+{
   DM        da;
   PetscBool isbinary;
 #if defined(PETSC_HAVE_HDF5)

@@ -17,7 +17,8 @@ typedef struct {
   PetscInt dummy;
 } PetscPartitioner_Chaco;
 
-static PetscErrorCode PetscPartitionerDestroy_Chaco(PetscPartitioner part) {
+static PetscErrorCode PetscPartitionerDestroy_Chaco(PetscPartitioner part)
+{
   PetscPartitioner_Chaco *p = (PetscPartitioner_Chaco *)part->data;
 
   PetscFunctionBegin;
@@ -25,12 +26,14 @@ static PetscErrorCode PetscPartitionerDestroy_Chaco(PetscPartitioner part) {
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscPartitionerView_Chaco_ASCII(PetscPartitioner part, PetscViewer viewer) {
+static PetscErrorCode PetscPartitionerView_Chaco_ASCII(PetscPartitioner part, PetscViewer viewer)
+{
   PetscFunctionBegin;
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscPartitionerView_Chaco(PetscPartitioner part, PetscViewer viewer) {
+static PetscErrorCode PetscPartitionerView_Chaco(PetscPartitioner part, PetscViewer viewer)
+{
   PetscBool iascii;
 
   PetscFunctionBegin;
@@ -54,7 +57,8 @@ PETSC_EXTERN int interface(int nvtxs, int *start, int *adjacency, int *vwgts, fl
 extern int FREE_GRAPH;
 #endif
 
-static PetscErrorCode PetscPartitionerPartition_Chaco(PetscPartitioner part, PetscInt nparts, PetscInt numVertices, PetscInt start[], PetscInt adjacency[], PetscSection vertSection, PetscSection targetSection, PetscSection partSection, IS *partition) {
+static PetscErrorCode PetscPartitionerPartition_Chaco(PetscPartitioner part, PetscInt nparts, PetscInt numVertices, PetscInt start[], PetscInt adjacency[], PetscSection vertSection, PetscSection targetSection, PetscSection partSection, IS *partition)
+{
 #if defined(PETSC_HAVE_CHACO)
   enum {
     DEFAULT_METHOD  = 1,
@@ -166,7 +170,8 @@ static PetscErrorCode PetscPartitionerPartition_Chaco(PetscPartitioner part, Pet
 #endif
 }
 
-static PetscErrorCode PetscPartitionerInitialize_Chaco(PetscPartitioner part) {
+static PetscErrorCode PetscPartitionerInitialize_Chaco(PetscPartitioner part)
+{
   PetscFunctionBegin;
   part->noGraph        = PETSC_FALSE;
   part->ops->view      = PetscPartitionerView_Chaco;
@@ -183,7 +188,8 @@ static PetscErrorCode PetscPartitionerInitialize_Chaco(PetscPartitioner part) {
 .seealso: `PetscPartitionerType`, `PetscPartitionerCreate()`, `PetscPartitionerSetType()`
 M*/
 
-PETSC_EXTERN PetscErrorCode PetscPartitionerCreate_Chaco(PetscPartitioner part) {
+PETSC_EXTERN PetscErrorCode PetscPartitionerCreate_Chaco(PetscPartitioner part)
+{
   PetscPartitioner_Chaco *p;
 
   PetscFunctionBegin;

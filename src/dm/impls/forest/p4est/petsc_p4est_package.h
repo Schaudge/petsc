@@ -56,7 +56,8 @@ PETSC_INTERN jmp_buf PetscScJumpBuf;
 
 PETSC_EXTERN PetscErrorCode PetscP4estInitialize();
 
-static inline PetscErrorCode P4estLocidxCast(PetscInt a, p4est_locidx_t *b) {
+static inline PetscErrorCode P4estLocidxCast(PetscInt a, p4est_locidx_t *b)
+{
   PetscFunctionBegin;
   *b = (p4est_locidx_t)(a);
 #if defined(PETSC_USE_64BIT_INDICES)
@@ -65,7 +66,8 @@ static inline PetscErrorCode P4estLocidxCast(PetscInt a, p4est_locidx_t *b) {
   PetscFunctionReturn(0);
 }
 
-static inline PetscErrorCode P4estTopidxCast(PetscInt a, p4est_topidx_t *b) {
+static inline PetscErrorCode P4estTopidxCast(PetscInt a, p4est_topidx_t *b)
+{
   PetscFunctionBegin;
   *b = (p4est_topidx_t)(a);
 #if defined(PETSC_USE_64BIT_INDICES)

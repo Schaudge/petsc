@@ -6,7 +6,8 @@
   #include PETSC_HAVE_SSE
   #define SSE_FEATURE_FLAG 0x2000000 /* Mask for bit 25 (from bit 0) */
 
-PetscErrorCode PetscSSEHardwareTest(PetscBool *flag) {
+PetscErrorCode PetscSSEHardwareTest(PetscBool *flag)
+{
   char      vendor[13];
   char      Intel[13] = "GenuineIntel";
   char      AMD[13]   = "AuthenticAMD";
@@ -43,12 +44,14 @@ PetscErrorCode PetscSSEHardwareTest(PetscBool *flag) {
 */
     #define PetscSSEOSEnabledTest(arg) PetscSSEOSEnabledTest_Linux(arg)
 
-static void PetscSSEDisabledHandler(int sig) {
+static void PetscSSEDisabledHandler(int sig)
+{
   signal(SIGILL, SIG_IGN);
   exit(-1);
 }
 
-PetscErrorCode PetscSSEOSEnabledTest_Linux(PetscBool *flag) {
+PetscErrorCode PetscSSEOSEnabledTest_Linux(PetscBool *flag)
+{
   int status, pid = 0;
 
   PetscFunctionBegin;
@@ -73,7 +76,8 @@ PetscErrorCode PetscSSEOSEnabledTest_Linux(PetscBool *flag) {
     #define PetscSSEOSEnabledTest(arg) PetscSSEOSEnabledTest_TRUE(arg)
   #endif
 
-PetscErrorCode PetscSSEOSEnabledTest_TRUE(PetscBool *flag) {
+PetscErrorCode PetscSSEOSEnabledTest_TRUE(PetscBool *flag)
+{
   PetscFunctionBegin;
   if (flag) *flag = PETSC_TRUE;
   PetscFunctionReturn(0);
@@ -84,7 +88,8 @@ PetscErrorCode PetscSSEOSEnabledTest_TRUE(PetscBool *flag) {
   #define PetscSSEHardwareTest(arg)  PetscSSEEnabledTest_FALSE(arg)
   #define PetscSSEOSEnabledTest(arg) PetscSSEEnabledTest_FALSE(arg)
 
-PetscErrorCode PetscSSEEnabledTest_FALSE(PetscBool *flag) {
+PetscErrorCode PetscSSEEnabledTest_FALSE(PetscBool *flag)
+{
   PetscFunctionBegin;
   if (flag) *flag = PETSC_FALSE;
   PetscFunctionReturn(0);
@@ -118,7 +123,9 @@ static PetscBool petsc_sse_local_is_untested  = PETSC_TRUE;
 static PetscBool petsc_sse_enabled_local      = PETSC_FALSE;
 static PetscBool petsc_sse_global_is_untested = PETSC_TRUE;
 static PetscBool petsc_sse_enabled_global     = PETSC_FALSE;
-PetscErrorCode   PetscSSEIsEnabled(MPI_Comm comm, PetscBool *lflag, PetscBool *gflag) {
+
+PetscErrorCode PetscSSEIsEnabled(MPI_Comm comm, PetscBool *lflag, PetscBool *gflag)
+{
   PetscBool disabled_option;
 
   PetscFunctionBegin;

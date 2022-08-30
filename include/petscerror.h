@@ -539,7 +539,9 @@ void PetscCallMPI(PetscMPIInt);
       char        _7_errorstring[2 * MPI_MAX_ERROR_STRING]; \
       PetscStackUpdateLine; \
       PetscStackPushExternal("MPI function"); \
-      { _7_errorcode = __VA_ARGS__; } \
+      { \
+        _7_errorcode = __VA_ARGS__; \
+      } \
       PetscStackPop; \
       if (PetscUnlikely(_7_errorcode)) { \
         PetscMPIErrorString(_7_errorcode, (char *)_7_errorstring); \
@@ -857,7 +859,9 @@ M*/
     PetscStackUpdateLine; \
     try { \
       __VA_ARGS__; \
-    } catch (const std::exception &e) { SETERRQ(PETSC_COMM_SELF, PETSC_ERR_LIB, "%s", e.what()); } \
+    } catch (const std::exception &e) { \
+      SETERRQ(PETSC_COMM_SELF, PETSC_ERR_LIB, "%s", e.what()); \
+    } \
   } while (0)
 
 /*MC
@@ -960,7 +964,8 @@ PETSC_EXTERN PetscErrorCode PetscPushSignalHandler(PetscErrorCode (*)(int, void 
 PETSC_EXTERN PetscErrorCode PetscPopSignalHandler(void);
 PETSC_EXTERN PetscErrorCode PetscCheckPointerSetIntensity(PetscInt);
 PETSC_EXTERN void           PetscSignalSegvCheckPointerOrMpi(void);
-PETSC_DEPRECATED_FUNCTION("Use PetscSignalSegvCheckPointerOrMpi() (since version 3.13)") static inline void PetscSignalSegvCheckPointer(void) {
+PETSC_DEPRECATED_FUNCTION("Use PetscSignalSegvCheckPointerOrMpi() (since version 3.13)") static inline void PetscSignalSegvCheckPointer(void)
+{
   PetscSignalSegvCheckPointerOrMpi();
 }
 

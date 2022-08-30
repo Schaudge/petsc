@@ -9,11 +9,14 @@
 
   #include <functional>
 
-namespace Petsc {
+namespace Petsc
+{
 
-namespace util {
+namespace util
+{
 
-namespace detail {
+namespace detail
+{
 
 struct can_call_test {
   template <typename F, typename... A>
@@ -65,7 +68,8 @@ template <typename F, typename... A>
 struct can_call : decltype(detail::can_call_test::f<F, A...>(0)) { };
 
 template <typename... A, typename F>
-inline constexpr can_call<F, A...> is_callable_with(F &&) noexcept {
+inline constexpr can_call<F, A...> is_callable_with(F &&) noexcept
+{
   return can_call<F, A...>{};
 }
 
@@ -82,13 +86,15 @@ struct func_traits : detail::func_traits_impl<decay_t<T>> {
   #define PETSC_ALIAS_FUNCTION_WITH_PROLOGUE_AND_EPILOGUE_(alias, original, dispatch, prologue, epilogue) \
     template <typename... Args> \
     static inline auto dispatch(int, Args &&...args) PETSC_DECLTYPE_NOEXCEPT_AUTO_RETURNS(original(std::forward<Args>(args)...)) template <typename... Args> \
-    static inline int  dispatch(char, Args...) { \
+    static inline int  dispatch(char, Args...) \
+    { \
       using namespace Petsc::util; \
       static_assert(is_callable_with<Args...>(original) && always_false<Args...>::value, "function " PetscStringize(original) "() is not callable with given arguments"); \
       return EXIT_FAILURE; \
     } \
     template <typename... Args> \
-    PETSC_NODISCARD auto alias(Args &&...args) PETSC_DECLTYPE_NOEXCEPT_AUTO(dispatch(0, std::forward<Args>(args)...)) { \
+    PETSC_NODISCARD auto alias(Args &&...args) PETSC_DECLTYPE_NOEXCEPT_AUTO(dispatch(0, std::forward<Args>(args)...)) \
+    { \
       prologue; \
       auto ret = dispatch(0, std::forward<Args>(args)...); \
       epilogue; \
