@@ -365,9 +365,9 @@ PetscErrorCode FormIFunctionLocal(DMDALocalInfo *info, PetscReal ptime, Field **
       f[j][i].v = udot + uxx + uyy + .5 * (x[j][i + 1].omega - x[j][i - 1].omega) * hy;
 
       /* Omega */
-      u             = x[j][i].omega;
-      uxx           = (2.0 * u - x[j][i - 1].omega - x[j][i + 1].omega) * hydhx;
-      uyy           = (2.0 * u - x[j - 1][i].omega - x[j + 1][i].omega) * hxdhy;
+      u   = x[j][i].omega;
+      uxx = (2.0 * u - x[j][i - 1].omega - x[j][i + 1].omega) * hydhx;
+      uyy = (2.0 * u - x[j - 1][i].omega - x[j + 1][i].omega) * hxdhy;
       f[j][i].omega = (xdot[j][i].omega + uxx + uyy + (vxp * (u - x[j][i - 1].omega) + vxm * (x[j][i + 1].omega - u)) * hy + (vyp * (u - x[j - 1][i].omega) + vym * (x[j + 1][i].omega - u)) * hx - .5 * grashof * (x[j][i + 1].temp - x[j][i - 1].temp) * hy);
 
       /* Temperature */

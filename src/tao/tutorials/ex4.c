@@ -32,7 +32,7 @@ typedef struct _UserCtx {
   PetscRandom rctx;
   PetscBool   taylor;   /* Flag to determine whether to run Taylor test or not */
   PetscBool   use_admm; /* Flag to determine whether to run Taylor test or not */
-} * UserCtx;
+} *UserCtx;
 
 static PetscErrorCode CreateRHS(UserCtx ctx) {
   PetscFunctionBegin;

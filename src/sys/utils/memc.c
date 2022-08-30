@@ -49,8 +49,8 @@ PetscErrorCode PetscMemcmp(const void *str1, const void *str2, size_t len, Petsc
 }
 
 #if defined(PETSC_HAVE_HWLOC)
-#include <petsc/private/petscimpl.h>
-#include <hwloc.h>
+  #include <petsc/private/petscimpl.h>
+  #include <hwloc.h>
 
 /*@C
      PetscProcessPlacementView - display the MPI rank placement by core

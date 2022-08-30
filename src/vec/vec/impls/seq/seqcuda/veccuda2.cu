@@ -16,7 +16,7 @@
 #include <thrust/reduce.h>
 #include <thrust/transform.h>
 #if defined(PETSC_USE_COMPLEX)
-#include <thrust/transform_reduce.h>
+  #include <thrust/transform_reduce.h>
 #endif
 
 #if THRUST_VERSION >= 101600 && !PetscDefined(USE_DEBUG)

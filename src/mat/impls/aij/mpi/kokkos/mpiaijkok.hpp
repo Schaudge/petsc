@@ -1,9 +1,9 @@
 #if !defined(MPIAIJKOEKOS_HPP_)
-#define MPIAIJKOEKOS_HPP_
+  #define MPIAIJKOEKOS_HPP_
 
-#include <petscsf.h>
-#include <../src/mat/impls/aij/mpi/mpiaij.h> /*I "petscmat.h" I*/
-#include <../src/mat/impls/aij/seq/kokkos/aijkok.hpp>
+  #include <petscsf.h>
+  #include <../src/mat/impls/aij/mpi/mpiaij.h> /*I "petscmat.h" I*/
+  #include <../src/mat/impls/aij/seq/kokkos/aijkok.hpp>
 
 struct Mat_MPIAIJKokkos {
   /* MatSetValuesCOO() related stuff on device */

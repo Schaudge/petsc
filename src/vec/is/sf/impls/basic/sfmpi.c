@@ -166,15 +166,15 @@ found:
 
 #if defined(PETSC_HAVE_DEVICE)
   if ((PetscMemTypeDevice(xrootmtype) || PetscMemTypeDevice(xleafmtype)) && !link->deviceinited) {
-#if defined(PETSC_HAVE_CUDA)
+  #if defined(PETSC_HAVE_CUDA)
     if (sf->backend == PETSCSF_BACKEND_CUDA) PetscCall(PetscSFLinkSetUp_CUDA(sf, link, unit)); /* Setup streams etc */
-#endif
-#if defined(PETSC_HAVE_HIP)
+  #endif
+  #if defined(PETSC_HAVE_HIP)
     if (sf->backend == PETSCSF_BACKEND_HIP) PetscCall(PetscSFLinkSetUp_HIP(sf, link, unit)); /* Setup streams etc */
-#endif
-#if defined(PETSC_HAVE_KOKKOS)
+  #endif
+  #if defined(PETSC_HAVE_KOKKOS)
     if (sf->backend == PETSCSF_BACKEND_KOKKOS) PetscCall(PetscSFLinkSetUp_Kokkos(sf, link, unit));
-#endif
+  #endif
   }
 #endif
 

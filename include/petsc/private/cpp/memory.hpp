@@ -6,17 +6,17 @@
 #include <petsc/private/cpp/type_traits.hpp> // remove_extent
 
 #if defined(__cplusplus)
-#include <memory>
-#include <new>   // ::operator new(), ::operator delete()
-#include <stack> // ... take a wild guess
+  #include <memory>
+  #include <new>   // ::operator new(), ::operator delete()
+  #include <stack> // ... take a wild guess
 
 namespace Petsc {
 
 namespace util {
 
-#if PETSC_CPP_VERSION >= 14
+  #if PETSC_CPP_VERSION >= 14
 using std::make_unique;
-#else
+  #else
 namespace detail {
 
 // helpers shamelessly stolen from libcpp
@@ -49,7 +49,7 @@ inline typename detail::unique_if<T>::unique_array_unknown_bound make_unique(std
 
 template <class T, class... Args>
 typename detail::unique_if<T>::unique_array_known_bound make_unique(Args &&...) = delete;
-#endif // PETSC_CPP_VERSION >= 14
+  #endif // PETSC_CPP_VERSION >= 14
 
 } // namespace util
 

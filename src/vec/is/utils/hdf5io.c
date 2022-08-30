@@ -210,14 +210,14 @@ PetscErrorCode PetscViewerHDF5Load(PetscViewer viewer, const char *name, PetscLa
   PetscCall(PetscViewerHDF5HasDataset(viewer, name, &has));
   PetscCheck(has, PetscObjectComm((PetscObject)viewer), PETSC_ERR_FILE_UNEXPECTED, "Object (dataset) \"%s\" not stored in group %s", name, group ? group : "/");
   PetscCall(PetscViewerHDF5ReadInitialize_Private(viewer, name, &h));
-#if defined(PETSC_USE_COMPLEX)
+  #if defined(PETSC_USE_COMPLEX)
   if (!h->complexVal) {
     H5T_class_t clazz = H5Tget_class(datatype);
     PetscCheck(clazz != H5T_FLOAT, PetscObjectComm((PetscObject)viewer), PETSC_ERR_SUP, "Dataset %s/%s is marked as real but PETSc is configured for complex scalars. The conversion is not yet implemented. Configure with --with-scalar-type=real to read this dataset", group ? group : "", name);
   }
-#else
+  #else
   PetscCheck(!h->complexVal, PetscObjectComm((PetscObject)viewer), PETSC_ERR_SUP, "Dataset %s/%s is marked as complex but PETSc is configured for real scalars. Configure with --with-scalar-type=complex to read this dataset", group ? group : "", name);
-#endif
+  #endif
 
   PetscCall(PetscViewerHDF5ReadSizes_Private(viewer, h, PETSC_TRUE, &map));
   PetscCall(PetscViewerHDF5ReadSelectHyperslab_Private(viewer, h, map, &memspace));

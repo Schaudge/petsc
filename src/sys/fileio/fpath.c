@@ -1,7 +1,7 @@
 
 #include <petscsys.h>
 #if defined(PETSC_HAVE_PWD_H)
-#include <pwd.h>
+  #include <pwd.h>
 #endif
 
 /*@C

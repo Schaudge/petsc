@@ -27,13 +27,13 @@ PETSC_EXTERN PetscMPIInt MPIAPI Petsc_ShmComm_Attr_Delete_Fn(MPI_Comm comm, Pets
 }
 
 #ifdef PETSC_HAVE_MPI_PROCESS_SHARED_MEMORY
-/* Data structures to support freeing comms created in PetscShmCommGet().
+  /* Data structures to support freeing comms created in PetscShmCommGet().
   Since we predict communicators passed to PetscShmCommGet() are very likely
   either a petsc inner communicator or an MPI communicator with a linked petsc
   inner communicator, we use a simple static array to store dupped communicators
   on rare cases otherwise.
  */
-#define MAX_SHMCOMM_DUPPED_COMMS 16
+  #define MAX_SHMCOMM_DUPPED_COMMS 16
 static PetscInt       num_dupped_comms = 0;
 static MPI_Comm       shmcomm_dupped_comms[MAX_SHMCOMM_DUPPED_COMMS];
 static PetscErrorCode PetscShmCommDestroyDuppedComms(void) {
@@ -216,23 +216,23 @@ PetscErrorCode PetscShmCommGetMpiShmComm(PetscShmComm pshmcomm, MPI_Comm *comm) 
 }
 
 #if defined(PETSC_HAVE_OPENMP_SUPPORT)
-#include <pthread.h>
-#include <hwloc.h>
-#include <omp.h>
+  #include <pthread.h>
+  #include <hwloc.h>
+  #include <omp.h>
 
-/* Use mmap() to allocate shared mmeory (for the pthread_barrier_t object) if it is available,
+  /* Use mmap() to allocate shared mmeory (for the pthread_barrier_t object) if it is available,
    otherwise use MPI_Win_allocate_shared. They should have the same effect except MPI-3 is much
    simpler to use. However, on a Cori Haswell node with Cray MPI, MPI-3 worsened a test's performance
    by 50%. Until the reason is found out, we use mmap() instead.
 */
-#define USE_MMAP_ALLOCATE_SHARED_MEMORY
+  #define USE_MMAP_ALLOCATE_SHARED_MEMORY
 
-#if defined(USE_MMAP_ALLOCATE_SHARED_MEMORY) && defined(PETSC_HAVE_MMAP)
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#endif
+  #if defined(USE_MMAP_ALLOCATE_SHARED_MEMORY) && defined(PETSC_HAVE_MMAP)
+    #include <sys/mman.h>
+    #include <sys/types.h>
+    #include <sys/stat.h>
+    #include <fcntl.h>
+  #endif
 
 struct _n_PetscOmpCtrl {
   MPI_Comm           omp_comm;        /* a shared memory communicator to spawn omp threads */
@@ -257,15 +257,15 @@ static inline PetscErrorCode PetscOmpCtrlCreateBarrier(PetscOmpCtrl ctrl) {
   void                 *baseptr;
   pthread_barrierattr_t attr;
 
-#if defined(USE_MMAP_ALLOCATE_SHARED_MEMORY) && defined(PETSC_HAVE_MMAP)
+  #if defined(USE_MMAP_ALLOCATE_SHARED_MEMORY) && defined(PETSC_HAVE_MMAP)
   PetscInt  fd;
   PetscChar pathname[PETSC_MAX_PATH_LEN];
-#else
+  #else
   PetscMPIInt disp_unit;
-#endif
+  #endif
 
   PetscFunctionBegin;
-#if defined(USE_MMAP_ALLOCATE_SHARED_MEMORY) && defined(PETSC_HAVE_MMAP)
+  #if defined(USE_MMAP_ALLOCATE_SHARED_MEMORY) && defined(PETSC_HAVE_MMAP)
   size = sizeof(pthread_barrier_t);
   if (ctrl->is_omp_master) {
     /* use PETSC_COMM_SELF in PetscGetTmp, since it is a collective call. Using omp_comm would otherwise bcast the partially populated pathname to slaves */
@@ -291,11 +291,11 @@ static inline PetscErrorCode PetscOmpCtrlCreateBarrier(PetscOmpCtrl ctrl) {
     PetscCall(close(fd));
     PetscCallMPI(MPI_Barrier(ctrl->omp_comm));
   }
-#else
+  #else
   size = ctrl->is_omp_master ? sizeof(pthread_barrier_t) : 0;
   PetscCallMPI(MPI_Win_allocate_shared(size, 1, MPI_INFO_NULL, ctrl->omp_comm, &baseptr, &ctrl->omp_win));
   PetscCallMPI(MPI_Win_shared_query(ctrl->omp_win, 0, &size, &disp_unit, &baseptr));
-#endif
+  #endif
   ctrl->barrier = (pthread_barrier_t *)baseptr;
 
   /* omp master initializes the barrier */
@@ -319,11 +319,11 @@ static inline PetscErrorCode PetscOmpCtrlDestroyBarrier(PetscOmpCtrl ctrl) {
   PetscCallMPI(MPI_Barrier(ctrl->omp_comm));
   if (ctrl->is_omp_master) PetscCall(pthread_barrier_destroy(ctrl->barrier));
 
-#if defined(USE_MMAP_ALLOCATE_SHARED_MEMORY) && defined(PETSC_HAVE_MMAP)
+  #if defined(USE_MMAP_ALLOCATE_SHARED_MEMORY) && defined(PETSC_HAVE_MMAP)
   PetscCall(munmap(ctrl->barrier, sizeof(pthread_barrier_t)));
-#else
+  #else
   PetscCallMPI(MPI_Win_free(&ctrl->omp_win));
-#endif
+  #endif
   PetscFunctionReturn(0);
 }
 
@@ -360,11 +360,11 @@ PetscErrorCode PetscOmpCtrlCreate(MPI_Comm petsc_comm, PetscInt nthreads, PetscO
     Init hwloc
    ==================================================================================*/
   PetscCall(hwloc_topology_init(&ctrl->topology));
-#if HWLOC_API_VERSION >= 0x00020000
+  #if HWLOC_API_VERSION >= 0x00020000
   /* to filter out unneeded info and have faster hwloc_topology_load */
   PetscCall(hwloc_topology_set_all_types_filter(ctrl->topology, HWLOC_TYPE_FILTER_KEEP_NONE));
   PetscCall(hwloc_topology_set_type_filter(ctrl->topology, HWLOC_OBJ_CORE, HWLOC_TYPE_FILTER_KEEP_ALL));
-#endif
+  #endif
   PetscCall(hwloc_topology_load(ctrl->topology));
 
   /*=================================================================================
@@ -443,18 +443,18 @@ PetscErrorCode PetscOmpCtrlCreate(MPI_Comm petsc_comm, PetscInt nthreads, PetscO
     ctrl->omp_cpuset = hwloc_bitmap_alloc();
     PetscCheck(ctrl->omp_cpuset, PETSC_COMM_SELF, PETSC_ERR_LIB, "hwloc_bitmap_alloc() failed");
     if (nr_cpu_ulongs == 1) {
-#if HWLOC_API_VERSION >= 0x00020000
+  #if HWLOC_API_VERSION >= 0x00020000
       PetscCall(hwloc_bitmap_from_ulong(ctrl->omp_cpuset, cpu_ulongs[0]));
-#else
+  #else
       hwloc_bitmap_from_ulong(ctrl->omp_cpuset, cpu_ulongs[0]);
-#endif
+  #endif
     } else {
       for (i = 0; i < nr_cpu_ulongs; i++) {
-#if HWLOC_API_VERSION >= 0x00020000
+  #if HWLOC_API_VERSION >= 0x00020000
         PetscCall(hwloc_bitmap_set_ith_ulong(ctrl->omp_cpuset, (unsigned)i, cpu_ulongs[i]));
-#else
+  #else
         hwloc_bitmap_set_ith_ulong(ctrl->omp_cpuset, (unsigned)i, cpu_ulongs[i]);
-#endif
+  #endif
       }
     }
   }
@@ -592,5 +592,5 @@ PetscErrorCode PetscOmpCtrlOmpRegionOnMasterEnd(PetscOmpCtrl ctrl) {
   PetscFunctionReturn(0);
 }
 
-#undef USE_MMAP_ALLOCATE_SHARED_MEMORY
+  #undef USE_MMAP_ALLOCATE_SHARED_MEMORY
 #endif /* defined(PETSC_HAVE_OPENMP_SUPPORT) */

@@ -4,23 +4,23 @@
 #include <petscctable.h>
 
 #if defined(PETSC_HAVE_CUDA)
-#include <cuda_runtime.h>
+  #include <cuda_runtime.h>
 #endif
 
 #if defined(PETSC_HAVE_HIP)
-#include <hip/hip_runtime.h>
+  #include <hip/hip_runtime.h>
 #endif
 
 #if defined(PETSC_CLANG_STATIC_ANALYZER)
 void PetscSFCheckGraphSet(PetscSF, int);
 #else
-#if defined(PETSC_USE_DEBUG)
-#define PetscSFCheckGraphSet(sf, arg) PetscCheck((sf)->graphset, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Must call PetscSFSetGraph() or PetscSFSetGraphWithPattern() on argument %d \"%s\" before %s()", (arg), #sf, PETSC_FUNCTION_NAME);
-#else
-#define PetscSFCheckGraphSet(sf, arg) \
-  do { \
-  } while (0)
-#endif
+  #if defined(PETSC_USE_DEBUG)
+    #define PetscSFCheckGraphSet(sf, arg) PetscCheck((sf)->graphset, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Must call PetscSFSetGraph() or PetscSFSetGraphWithPattern() on argument %d \"%s\" before %s()", (arg), #sf, PETSC_FUNCTION_NAME);
+  #else
+    #define PetscSFCheckGraphSet(sf, arg) \
+      do { \
+      } while (0)
+  #endif
 #endif
 
 const char *const PetscSFDuplicateOptions[] = {"CONFONLY", "RANKS", "GRAPH", "PetscSFDuplicateOption", "PETSCSF_DUPLICATE_", NULL};
@@ -72,20 +72,20 @@ PetscErrorCode PetscSFCreate(MPI_Comm comm, PetscSF *sf) {
   b->use_gpu_aware_mpi    = use_gpu_aware_mpi;
   b->use_stream_aware_mpi = PETSC_FALSE;
   b->unknown_input_stream = PETSC_FALSE;
-#if defined(PETSC_HAVE_KOKKOS) /* Prefer kokkos over cuda*/
+  #if defined(PETSC_HAVE_KOKKOS) /* Prefer kokkos over cuda*/
   b->backend = PETSCSF_BACKEND_KOKKOS;
-#elif defined(PETSC_HAVE_CUDA)
+  #elif defined(PETSC_HAVE_CUDA)
   b->backend = PETSCSF_BACKEND_CUDA;
-#elif defined(PETSC_HAVE_HIP)
+  #elif defined(PETSC_HAVE_HIP)
   b->backend = PETSCSF_BACKEND_HIP;
-#endif
+  #endif
 
-#if defined(PETSC_HAVE_NVSHMEM)
+  #if defined(PETSC_HAVE_NVSHMEM)
   b->use_nvshmem     = PETSC_FALSE; /* Default is not to try NVSHMEM */
   b->use_nvshmem_get = PETSC_FALSE; /* Default is to use nvshmem_put based protocol */
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-use_nvshmem", &b->use_nvshmem, NULL));
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-use_nvshmem_get", &b->use_nvshmem_get, NULL));
-#endif
+  #endif
 #endif
   b->vscat.from_n = -1;
   b->vscat.to_n   = -1;
@@ -344,14 +344,14 @@ PetscErrorCode PetscSFSetFromOptions(PetscSF sf) {
     PetscCall(PetscStrcasecmp("cuda", backendstr, &isCuda));
     PetscCall(PetscStrcasecmp("kokkos", backendstr, &isKokkos));
     PetscCall(PetscStrcasecmp("hip", backendstr, &isHip));
-#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
+  #if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
     if (isCuda) sf->backend = PETSCSF_BACKEND_CUDA;
     else if (isKokkos) sf->backend = PETSCSF_BACKEND_KOKKOS;
     else if (isHip) sf->backend = PETSCSF_BACKEND_HIP;
     else PetscCheck(!set, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "-sf_backend %s is not supported. You may choose cuda, hip or kokkos (if installed)", backendstr);
-#elif defined(PETSC_HAVE_KOKKOS)
+  #elif defined(PETSC_HAVE_KOKKOS)
     PetscCheck(!set || isKokkos, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "-sf_backend %s is not supported. You can only choose kokkos", backendstr);
-#endif
+  #endif
   }
 #endif
   PetscTryTypeMethod(sf, SetFromOptions, PetscOptionsObject);

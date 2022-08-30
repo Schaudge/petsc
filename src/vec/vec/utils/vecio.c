@@ -114,15 +114,15 @@ PetscErrorCode VecLoad_HDF5(Vec xin, PetscViewer viewer) {
 
   PetscFunctionBegin;
   PetscCheck(((PetscObject)xin)->name, PetscObjectComm((PetscObject)xin), PETSC_ERR_SUP, "Vec name must be set with PetscObjectSetName() before VecLoad()");
-#if defined(PETSC_USE_REAL_SINGLE)
+  #if defined(PETSC_USE_REAL_SINGLE)
   scalartype = H5T_NATIVE_FLOAT;
-#elif defined(PETSC_USE_REAL___FLOAT128)
-#error "HDF5 output with 128 bit floats not supported."
-#elif defined(PETSC_USE_REAL___FP16)
-#error "HDF5 output with 16 bit floats not supported."
-#else
+  #elif defined(PETSC_USE_REAL___FLOAT128)
+    #error "HDF5 output with 128 bit floats not supported."
+  #elif defined(PETSC_USE_REAL___FP16)
+    #error "HDF5 output with 16 bit floats not supported."
+  #else
   scalartype = H5T_NATIVE_DOUBLE;
-#endif
+  #endif
   PetscCall(PetscObjectGetName((PetscObject)xin, &vecname));
   PetscCall(PetscViewerHDF5Load(viewer, vecname, xin->map, scalartype, (void **)&x));
   PetscCall(VecSetUp(xin)); /* VecSetSizes might have not been called so ensure ops->create has been called */
@@ -139,10 +139,10 @@ PetscErrorCode VecLoad_HDF5(Vec xin, PetscViewer viewer) {
 #endif
 
 #if defined(PETSC_HAVE_ADIOS)
-#include <adios.h>
-#include <adios_read.h>
-#include <petsc/private/vieweradiosimpl.h>
-#include <petsc/private/viewerimpl.h>
+  #include <adios.h>
+  #include <adios_read.h>
+  #include <petsc/private/vieweradiosimpl.h>
+  #include <petsc/private/viewerimpl.h>
 
 PetscErrorCode VecLoad_ADIOS(Vec xin, PetscViewer viewer) {
   PetscViewer_ADIOS *adios = (PetscViewer_ADIOS *)viewer->data;

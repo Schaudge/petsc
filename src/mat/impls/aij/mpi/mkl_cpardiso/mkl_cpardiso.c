@@ -4,7 +4,7 @@
 #include <../src/mat/impls/sbaij/mpi/mpisbaij.h>
 
 #if defined(PETSC_HAVE_MKL_INTEL_ILP64)
-#define MKL_ILP64
+  #define MKL_ILP64
 #endif
 #include <mkl.h>
 #include <mkl_cluster_sparse_solver.h>

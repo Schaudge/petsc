@@ -3,8 +3,8 @@
     with C macros
 */
 #include <petscsys.h>
-#if !defined(MPIUNI_H)
-#error "Wrong mpi.h included! require mpi.h from MPIUNI"
+#ifndef MPIUNI_H
+  #error "Wrong mpi.h included! require mpi.h from MPIUNI"
 #endif
 
 #include <petscdevice_cupm.h>
@@ -406,149 +406,149 @@ int MPI_Finalized(int *flag) {
 /* -------------------     Fortran versions of several routines ------------------ */
 
 #if defined(PETSC_HAVE_FORTRAN_CAPS)
-#define mpiunisetmoduleblock_         MPIUNISETMODULEBLOCK
-#define mpiunisetfortranbasepointers_ MPIUNISETFORTRANBASEPOINTERS
-#define petsc_mpi_init_               PETSC_MPI_INIT
-#define petsc_mpi_finalize_           PETSC_MPI_FINALIZE
-#define petsc_mpi_comm_size_          PETSC_MPI_COMM_SIZE
-#define petsc_mpi_comm_rank_          PETSC_MPI_COMM_RANK
-#define petsc_mpi_abort_              PETSC_MPI_ABORT
-#define petsc_mpi_reduce_             PETSC_MPI_REDUCE
-#define petsc_mpi_allreduce_          PETSC_MPI_ALLREDUCE
-#define petsc_mpi_barrier_            PETSC_MPI_BARRIER
-#define petsc_mpi_bcast_              PETSC_MPI_BCAST
-#define petsc_mpi_gather_             PETSC_MPI_GATHER
-#define petsc_mpi_allgather_          PETSC_MPI_ALLGATHER
-#define petsc_mpi_comm_split_         PETSC_MPI_COMM_SPLIT
-#define petsc_mpi_scan_               PETSC_MPI_SCAN
-#define petsc_mpi_send_               PETSC_MPI_SEND
-#define petsc_mpi_recv_               PETSC_MPI_RECV
-#define petsc_mpi_reduce_scatter_     PETSC_MPI_REDUCE_SCATTER
-#define petsc_mpi_irecv_              PETSC_MPI_IRECV
-#define petsc_mpi_isend_              PETSC_MPI_ISEND
-#define petsc_mpi_sendrecv_           PETSC_MPI_SENDRECV
-#define petsc_mpi_test_               PETSC_MPI_TEST
-#define petsc_mpi_waitall_            PETSC_MPI_WAITALL
-#define petsc_mpi_waitany_            PETSC_MPI_WAITANY
-#define petsc_mpi_allgatherv_         PETSC_MPI_ALLGATHERV
-#define petsc_mpi_alltoallv_          PETSC_MPI_ALLTOALLV
-#define petsc_mpi_comm_create_        PETSC_MPI_COMM_CREATE
-#define petsc_mpi_address_            PETSC_MPI_ADDRESS
-#define petsc_mpi_pack_               PETSC_MPI_PACK
-#define petsc_mpi_unpack_             PETSC_MPI_UNPACK
-#define petsc_mpi_pack_size_          PETSC_MPI_PACK_SIZE
-#define petsc_mpi_type_struct_        PETSC_MPI_TYPE_STRUCT
-#define petsc_mpi_type_commit_        PETSC_MPI_TYPE_COMMIT
-#define petsc_mpi_wtime_              PETSC_MPI_WTIME
-#define petsc_mpi_cancel_             PETSC_MPI_CANCEL
-#define petsc_mpi_comm_dup_           PETSC_MPI_COMM_DUP
-#define petsc_mpi_comm_free_          PETSC_MPI_COMM_FREE
-#define petsc_mpi_get_count_          PETSC_MPI_GET_COUNT
-#define petsc_mpi_get_processor_name_ PETSC_MPI_GET_PROCESSOR_NAME
-#define petsc_mpi_initialized_        PETSC_MPI_INITIALIZED
-#define petsc_mpi_iprobe_             PETSC_MPI_IPROBE
-#define petsc_mpi_probe_              PETSC_MPI_PROBE
-#define petsc_mpi_request_free_       PETSC_MPI_REQUEST_FREE
-#define petsc_mpi_ssend_              PETSC_MPI_SSEND
-#define petsc_mpi_wait_               PETSC_MPI_WAIT
-#define petsc_mpi_comm_group_         PETSC_MPI_COMM_GROUP
-#define petsc_mpi_exscan_             PETSC_MPI_EXSCAN
+  #define mpiunisetmoduleblock_         MPIUNISETMODULEBLOCK
+  #define mpiunisetfortranbasepointers_ MPIUNISETFORTRANBASEPOINTERS
+  #define petsc_mpi_init_               PETSC_MPI_INIT
+  #define petsc_mpi_finalize_           PETSC_MPI_FINALIZE
+  #define petsc_mpi_comm_size_          PETSC_MPI_COMM_SIZE
+  #define petsc_mpi_comm_rank_          PETSC_MPI_COMM_RANK
+  #define petsc_mpi_abort_              PETSC_MPI_ABORT
+  #define petsc_mpi_reduce_             PETSC_MPI_REDUCE
+  #define petsc_mpi_allreduce_          PETSC_MPI_ALLREDUCE
+  #define petsc_mpi_barrier_            PETSC_MPI_BARRIER
+  #define petsc_mpi_bcast_              PETSC_MPI_BCAST
+  #define petsc_mpi_gather_             PETSC_MPI_GATHER
+  #define petsc_mpi_allgather_          PETSC_MPI_ALLGATHER
+  #define petsc_mpi_comm_split_         PETSC_MPI_COMM_SPLIT
+  #define petsc_mpi_scan_               PETSC_MPI_SCAN
+  #define petsc_mpi_send_               PETSC_MPI_SEND
+  #define petsc_mpi_recv_               PETSC_MPI_RECV
+  #define petsc_mpi_reduce_scatter_     PETSC_MPI_REDUCE_SCATTER
+  #define petsc_mpi_irecv_              PETSC_MPI_IRECV
+  #define petsc_mpi_isend_              PETSC_MPI_ISEND
+  #define petsc_mpi_sendrecv_           PETSC_MPI_SENDRECV
+  #define petsc_mpi_test_               PETSC_MPI_TEST
+  #define petsc_mpi_waitall_            PETSC_MPI_WAITALL
+  #define petsc_mpi_waitany_            PETSC_MPI_WAITANY
+  #define petsc_mpi_allgatherv_         PETSC_MPI_ALLGATHERV
+  #define petsc_mpi_alltoallv_          PETSC_MPI_ALLTOALLV
+  #define petsc_mpi_comm_create_        PETSC_MPI_COMM_CREATE
+  #define petsc_mpi_address_            PETSC_MPI_ADDRESS
+  #define petsc_mpi_pack_               PETSC_MPI_PACK
+  #define petsc_mpi_unpack_             PETSC_MPI_UNPACK
+  #define petsc_mpi_pack_size_          PETSC_MPI_PACK_SIZE
+  #define petsc_mpi_type_struct_        PETSC_MPI_TYPE_STRUCT
+  #define petsc_mpi_type_commit_        PETSC_MPI_TYPE_COMMIT
+  #define petsc_mpi_wtime_              PETSC_MPI_WTIME
+  #define petsc_mpi_cancel_             PETSC_MPI_CANCEL
+  #define petsc_mpi_comm_dup_           PETSC_MPI_COMM_DUP
+  #define petsc_mpi_comm_free_          PETSC_MPI_COMM_FREE
+  #define petsc_mpi_get_count_          PETSC_MPI_GET_COUNT
+  #define petsc_mpi_get_processor_name_ PETSC_MPI_GET_PROCESSOR_NAME
+  #define petsc_mpi_initialized_        PETSC_MPI_INITIALIZED
+  #define petsc_mpi_iprobe_             PETSC_MPI_IPROBE
+  #define petsc_mpi_probe_              PETSC_MPI_PROBE
+  #define petsc_mpi_request_free_       PETSC_MPI_REQUEST_FREE
+  #define petsc_mpi_ssend_              PETSC_MPI_SSEND
+  #define petsc_mpi_wait_               PETSC_MPI_WAIT
+  #define petsc_mpi_comm_group_         PETSC_MPI_COMM_GROUP
+  #define petsc_mpi_exscan_             PETSC_MPI_EXSCAN
 #elif !defined(PETSC_HAVE_FORTRAN_UNDERSCORE)
-#define mpiunisetmoduleblock_         mpiunisetmoduleblock
-#define mpiunisetfortranbasepointers_ mpiunisetfortranbasepointers
-#define petsc_mpi_init_               petsc_mpi_init
-#define petsc_mpi_finalize_           petsc_mpi_finalize
-#define petsc_mpi_comm_size_          petsc_mpi_comm_size
-#define petsc_mpi_comm_rank_          petsc_mpi_comm_rank
-#define petsc_mpi_abort_              petsc_mpi_abort
-#define petsc_mpi_reduce_             petsc_mpi_reduce
-#define petsc_mpi_allreduce_          petsc_mpi_allreduce
-#define petsc_mpi_barrier_            petsc_mpi_barrier
-#define petsc_mpi_bcast_              petsc_mpi_bcast
-#define petsc_mpi_gather_             petsc_mpi_gather
-#define petsc_mpi_allgather_          petsc_mpi_allgather
-#define petsc_mpi_comm_split_         petsc_mpi_comm_split
-#define petsc_mpi_scan_               petsc_mpi_scan
-#define petsc_mpi_send_               petsc_mpi_send
-#define petsc_mpi_recv_               petsc_mpi_recv
-#define petsc_mpi_reduce_scatter_     petsc_mpi_reduce_scatter
-#define petsc_mpi_irecv_              petsc_mpi_irecv
-#define petsc_mpi_isend_              petsc_mpi_isend
-#define petsc_mpi_sendrecv_           petsc_mpi_sendrecv
-#define petsc_mpi_test_               petsc_mpi_test
-#define petsc_mpi_waitall_            petsc_mpi_waitall
-#define petsc_mpi_waitany_            petsc_mpi_waitany
-#define petsc_mpi_allgatherv_         petsc_mpi_allgatherv
-#define petsc_mpi_alltoallv_          petsc_mpi_alltoallv
-#define petsc_mpi_comm_create_        petsc_mpi_comm_create
-#define petsc_mpi_address_            petsc_mpi_address
-#define petsc_mpi_pack_               petsc_mpi_pack
-#define petsc_mpi_unpack_             petsc_mpi_unpack
-#define petsc_mpi_pack_size_          petsc_mpi_pack_size
-#define petsc_mpi_type_struct_        petsc_mpi_type_struct
-#define petsc_mpi_type_commit_        petsc_mpi_type_commit
-#define petsc_mpi_wtime_              petsc_mpi_wtime
-#define petsc_mpi_cancel_             petsc_mpi_cancel
-#define petsc_mpi_comm_dup_           petsc_mpi_comm_dup
-#define petsc_mpi_comm_free_          petsc_mpi_comm_free
-#define petsc_mpi_get_count_          petsc_mpi_get_count
-#define petsc_mpi_get_processor_name_ petsc_mpi_get_processor_name
-#define petsc_mpi_initialized_        petsc_mpi_initialized
-#define petsc_mpi_iprobe_             petsc_mpi_iprobe
-#define petsc_mpi_probe_              petsc_mpi_probe
-#define petsc_mpi_request_free_       petsc_mpi_request_free
-#define petsc_mpi_ssend_              petsc_mpi_ssend
-#define petsc_mpi_wait_               petsc_mpi_wait
-#define petsc_mpi_comm_group_         petsc_mpi_comm_group
-#define petsc_mpi_exscan_             petsc_mpi_exscan
+  #define mpiunisetmoduleblock_         mpiunisetmoduleblock
+  #define mpiunisetfortranbasepointers_ mpiunisetfortranbasepointers
+  #define petsc_mpi_init_               petsc_mpi_init
+  #define petsc_mpi_finalize_           petsc_mpi_finalize
+  #define petsc_mpi_comm_size_          petsc_mpi_comm_size
+  #define petsc_mpi_comm_rank_          petsc_mpi_comm_rank
+  #define petsc_mpi_abort_              petsc_mpi_abort
+  #define petsc_mpi_reduce_             petsc_mpi_reduce
+  #define petsc_mpi_allreduce_          petsc_mpi_allreduce
+  #define petsc_mpi_barrier_            petsc_mpi_barrier
+  #define petsc_mpi_bcast_              petsc_mpi_bcast
+  #define petsc_mpi_gather_             petsc_mpi_gather
+  #define petsc_mpi_allgather_          petsc_mpi_allgather
+  #define petsc_mpi_comm_split_         petsc_mpi_comm_split
+  #define petsc_mpi_scan_               petsc_mpi_scan
+  #define petsc_mpi_send_               petsc_mpi_send
+  #define petsc_mpi_recv_               petsc_mpi_recv
+  #define petsc_mpi_reduce_scatter_     petsc_mpi_reduce_scatter
+  #define petsc_mpi_irecv_              petsc_mpi_irecv
+  #define petsc_mpi_isend_              petsc_mpi_isend
+  #define petsc_mpi_sendrecv_           petsc_mpi_sendrecv
+  #define petsc_mpi_test_               petsc_mpi_test
+  #define petsc_mpi_waitall_            petsc_mpi_waitall
+  #define petsc_mpi_waitany_            petsc_mpi_waitany
+  #define petsc_mpi_allgatherv_         petsc_mpi_allgatherv
+  #define petsc_mpi_alltoallv_          petsc_mpi_alltoallv
+  #define petsc_mpi_comm_create_        petsc_mpi_comm_create
+  #define petsc_mpi_address_            petsc_mpi_address
+  #define petsc_mpi_pack_               petsc_mpi_pack
+  #define petsc_mpi_unpack_             petsc_mpi_unpack
+  #define petsc_mpi_pack_size_          petsc_mpi_pack_size
+  #define petsc_mpi_type_struct_        petsc_mpi_type_struct
+  #define petsc_mpi_type_commit_        petsc_mpi_type_commit
+  #define petsc_mpi_wtime_              petsc_mpi_wtime
+  #define petsc_mpi_cancel_             petsc_mpi_cancel
+  #define petsc_mpi_comm_dup_           petsc_mpi_comm_dup
+  #define petsc_mpi_comm_free_          petsc_mpi_comm_free
+  #define petsc_mpi_get_count_          petsc_mpi_get_count
+  #define petsc_mpi_get_processor_name_ petsc_mpi_get_processor_name
+  #define petsc_mpi_initialized_        petsc_mpi_initialized
+  #define petsc_mpi_iprobe_             petsc_mpi_iprobe
+  #define petsc_mpi_probe_              petsc_mpi_probe
+  #define petsc_mpi_request_free_       petsc_mpi_request_free
+  #define petsc_mpi_ssend_              petsc_mpi_ssend
+  #define petsc_mpi_wait_               petsc_mpi_wait
+  #define petsc_mpi_comm_group_         petsc_mpi_comm_group
+  #define petsc_mpi_exscan_             petsc_mpi_exscan
 #endif
 
 #if defined(PETSC_HAVE_FORTRAN_UNDERSCORE_UNDERSCORE)
-#define petsc_mpi_init_               petsc_mpi_init__
-#define petsc_mpi_finalize_           petsc_mpi_finalize__
-#define petsc_mpi_comm_size_          petsc_mpi_comm_size__
-#define petsc_mpi_comm_rank_          petsc_mpi_comm_rank__
-#define petsc_mpi_abort_              petsc_mpi_abort__
-#define petsc_mpi_reduce_             petsc_mpi_reduce__
-#define petsc_mpi_allreduce_          petsc_mpi_allreduce__
-#define petsc_mpi_barrier_            petsc_mpi_barrier__
-#define petsc_mpi_bcast_              petsc_mpi_bcast__
-#define petsc_mpi_gather_             petsc_mpi_gather__
-#define petsc_mpi_allgather_          petsc_mpi_allgather__
-#define petsc_mpi_comm_split_         petsc_mpi_comm_split__
-#define petsc_mpi_scan_               petsc_mpi_scan__
-#define petsc_mpi_send_               petsc_mpi_send__
-#define petsc_mpi_recv_               petsc_mpi_recv__
-#define petsc_mpi_reduce_scatter_     petsc_mpi_reduce_scatter__
-#define petsc_mpi_irecv_              petsc_mpi_irecv__
-#define petsc_mpi_isend_              petsc_mpi_isend__
-#define petsc_mpi_sendrecv_           petsc_mpi_sendrecv__
-#define petsc_mpi_test_               petsc_mpi_test__
-#define petsc_mpi_waitall_            petsc_mpi_waitall__
-#define petsc_mpi_waitany_            petsc_mpi_waitany__
-#define petsc_mpi_allgatherv_         petsc_mpi_allgatherv__
-#define petsc_mpi_alltoallv_          petsc_mpi_alltoallv__
-#define petsc_mpi_comm_create_        petsc_mpi_comm_create__
-#define petsc_mpi_address_            petsc_mpi_address__
-#define petsc_mpi_pack_               petsc_mpi_pack__
-#define petsc_mpi_unpack_             petsc_mpi_unpack__
-#define petsc_mpi_pack_size_          petsc_mpi_pack_size__
-#define petsc_mpi_type_struct_        petsc_mpi_type_struct__
-#define petsc_mpi_type_commit_        petsc_mpi_type_commit__
-#define petsc_mpi_wtime_              petsc_mpi_wtime__
-#define petsc_mpi_cancel_             petsc_mpi_cancel__
-#define petsc_mpi_comm_dup_           petsc_mpi_comm_dup__
-#define petsc_mpi_comm_free_          petsc_mpi_comm_free__
-#define petsc_mpi_get_count_          petsc_mpi_get_count__
-#define petsc_mpi_get_processor_name_ petsc_mpi_get_processor_name__
-#define petsc_mpi_initialized_        petsc_mpi_initialized__
-#define petsc_mpi_iprobe_             petsc_mpi_iprobe__
-#define petsc_mpi_probe_              petsc_mpi_probe__
-#define petsc_mpi_request_free_       petsc_mpi_request_free__
-#define petsc_mpi_ssend_              petsc_mpi_ssend__
-#define petsc_mpi_wait_               petsc_mpi_wait__
-#define petsc_mpi_comm_group_         petsc_mpi_comm_group__
-#define petsc_mpi_exscan_             petsc_mpi_exscan__
+  #define petsc_mpi_init_               petsc_mpi_init__
+  #define petsc_mpi_finalize_           petsc_mpi_finalize__
+  #define petsc_mpi_comm_size_          petsc_mpi_comm_size__
+  #define petsc_mpi_comm_rank_          petsc_mpi_comm_rank__
+  #define petsc_mpi_abort_              petsc_mpi_abort__
+  #define petsc_mpi_reduce_             petsc_mpi_reduce__
+  #define petsc_mpi_allreduce_          petsc_mpi_allreduce__
+  #define petsc_mpi_barrier_            petsc_mpi_barrier__
+  #define petsc_mpi_bcast_              petsc_mpi_bcast__
+  #define petsc_mpi_gather_             petsc_mpi_gather__
+  #define petsc_mpi_allgather_          petsc_mpi_allgather__
+  #define petsc_mpi_comm_split_         petsc_mpi_comm_split__
+  #define petsc_mpi_scan_               petsc_mpi_scan__
+  #define petsc_mpi_send_               petsc_mpi_send__
+  #define petsc_mpi_recv_               petsc_mpi_recv__
+  #define petsc_mpi_reduce_scatter_     petsc_mpi_reduce_scatter__
+  #define petsc_mpi_irecv_              petsc_mpi_irecv__
+  #define petsc_mpi_isend_              petsc_mpi_isend__
+  #define petsc_mpi_sendrecv_           petsc_mpi_sendrecv__
+  #define petsc_mpi_test_               petsc_mpi_test__
+  #define petsc_mpi_waitall_            petsc_mpi_waitall__
+  #define petsc_mpi_waitany_            petsc_mpi_waitany__
+  #define petsc_mpi_allgatherv_         petsc_mpi_allgatherv__
+  #define petsc_mpi_alltoallv_          petsc_mpi_alltoallv__
+  #define petsc_mpi_comm_create_        petsc_mpi_comm_create__
+  #define petsc_mpi_address_            petsc_mpi_address__
+  #define petsc_mpi_pack_               petsc_mpi_pack__
+  #define petsc_mpi_unpack_             petsc_mpi_unpack__
+  #define petsc_mpi_pack_size_          petsc_mpi_pack_size__
+  #define petsc_mpi_type_struct_        petsc_mpi_type_struct__
+  #define petsc_mpi_type_commit_        petsc_mpi_type_commit__
+  #define petsc_mpi_wtime_              petsc_mpi_wtime__
+  #define petsc_mpi_cancel_             petsc_mpi_cancel__
+  #define petsc_mpi_comm_dup_           petsc_mpi_comm_dup__
+  #define petsc_mpi_comm_free_          petsc_mpi_comm_free__
+  #define petsc_mpi_get_count_          petsc_mpi_get_count__
+  #define petsc_mpi_get_processor_name_ petsc_mpi_get_processor_name__
+  #define petsc_mpi_initialized_        petsc_mpi_initialized__
+  #define petsc_mpi_iprobe_             petsc_mpi_iprobe__
+  #define petsc_mpi_probe_              petsc_mpi_probe__
+  #define petsc_mpi_request_free_       petsc_mpi_request_free__
+  #define petsc_mpi_ssend_              petsc_mpi_ssend__
+  #define petsc_mpi_wait_               petsc_mpi_wait__
+  #define petsc_mpi_comm_group_         petsc_mpi_comm_group__
+  #define petsc_mpi_exscan_             petsc_mpi_exscan__
 #endif
 
 /* Do not build fortran interface if MPI namespace colision is to be avoided */

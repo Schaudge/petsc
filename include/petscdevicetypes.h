@@ -6,9 +6,9 @@
 // Some overzealous older gcc versions warn that the comparisons below are always true. Neat
 // that it can detect this, but the tautology *is* the point of the static_assert()!
 #if defined(__GNUC__) && __GNUC__ >= 6 && !PetscDefined(HAVE_WINDOWS_COMPILERS)
-#define PETSC_SHOULD_SILENCE_GCC_TAUTOLOGICAL_COMPARE_WARNING 1
+  #define PETSC_SHOULD_SILENCE_GCC_TAUTOLOGICAL_COMPARE_WARNING 1
 #else
-#define PETSC_SHOULD_SILENCE_GCC_TAUTOLOGICAL_COMPARE_WARNING 0
+  #define PETSC_SHOULD_SILENCE_GCC_TAUTOLOGICAL_COMPARE_WARNING 0
 #endif
 
 /* SUBMANSEC = Sys */
@@ -52,13 +52,13 @@ typedef enum {
   PETSC_MEMTYPE_SYCL    = 0x05,
 } PetscMemType;
 #if PetscDefined(HAVE_CUDA)
-#define PETSC_MEMTYPE_KOKKOS PETSC_MEMTYPE_CUDA
+  #define PETSC_MEMTYPE_KOKKOS PETSC_MEMTYPE_CUDA
 #elif PetscDefined(HAVE_HIP)
-#define PETSC_MEMTYPE_KOKKOS PETSC_MEMTYPE_HIP
+  #define PETSC_MEMTYPE_KOKKOS PETSC_MEMTYPE_HIP
 #elif PetscDefined(HAVE_SYCL)
-#define PETSC_MEMTYPE_KOKKOS PETSC_MEMTYPE_SYCL
+  #define PETSC_MEMTYPE_KOKKOS PETSC_MEMTYPE_SYCL
 #else
-#define PETSC_MEMTYPE_KOKKOS PETSC_MEMTYPE_HOST
+  #define PETSC_MEMTYPE_KOKKOS PETSC_MEMTYPE_HOST
 #endif
 
 #define PetscMemTypeHost(m)    (((m)&0x1) == PETSC_MEMTYPE_HOST)
@@ -69,10 +69,10 @@ typedef enum {
 #define PetscMemTypeNVSHMEM(m) ((m) == PETSC_MEMTYPE_NVSHMEM)
 
 #if defined(__cplusplus)
-#if PETSC_SHOULD_SILENCE_GCC_TAUTOLOGICAL_COMPARE_WARNING
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wtautological-compare"
-#endif
+  #if PETSC_SHOULD_SILENCE_GCC_TAUTOLOGICAL_COMPARE_WARNING
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wtautological-compare"
+  #endif
 static_assert(PetscMemTypeHost(PETSC_MEMTYPE_HOST), "");
 static_assert(!PetscMemTypeHost(PETSC_MEMTYPE_DEVICE), "");
 static_assert(!PetscMemTypeHost(PETSC_MEMTYPE_CUDA), "");
@@ -89,9 +89,9 @@ static_assert(PetscMemTypeDevice(PETSC_MEMTYPE_NVSHMEM), "");
 
 static_assert(PetscMemTypeCUDA(PETSC_MEMTYPE_CUDA), "");
 static_assert(PetscMemTypeCUDA(PETSC_MEMTYPE_NVSHMEM), "");
-#if PETSC_SHOULD_SILENCE_GCC_TAUTOLOGICAL_COMPARE_WARNING
-#pragma GCC diagnostic pop
-#endif
+  #if PETSC_SHOULD_SILENCE_GCC_TAUTOLOGICAL_COMPARE_WARNING
+    #pragma GCC diagnostic pop
+  #endif
 #endif // __cplusplus
 
 PETSC_NODISCARD static inline PETSC_CONSTEXPR_14 const char *PetscMemTypeToString(PetscMemType mtype) {
@@ -99,7 +99,7 @@ PETSC_NODISCARD static inline PETSC_CONSTEXPR_14 const char *PetscMemTypeToStrin
   static_assert(PETSC_MEMTYPE_CUDA == PETSC_MEMTYPE_DEVICE, "");
 #endif
 #define PETSC_CASE_NAME(v) \
-  case v: return PetscStringize(v)
+case v: return PetscStringize(v)
 
   switch (mtype) {
     PETSC_CASE_NAME(PETSC_MEMTYPE_HOST);
@@ -148,10 +148,10 @@ typedef enum {
 #define PetscOffloadBoth(m)        ((m) == PETSC_OFFLOAD_BOTH)
 
 #if defined(__cplusplus)
-#if PETSC_SHOULD_SILENCE_GCC_TAUTOLOGICAL_COMPARE_WARNING
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wtautological-compare"
-#endif
+  #if PETSC_SHOULD_SILENCE_GCC_TAUTOLOGICAL_COMPARE_WARNING
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wtautological-compare"
+  #endif
 static_assert(!PetscOffloadHost(PETSC_OFFLOAD_UNALLOCATED), "");
 static_assert(PetscOffloadHost(PETSC_OFFLOAD_BOTH), "");
 static_assert(!PetscOffloadHost(PETSC_OFFLOAD_GPU), "");
@@ -169,14 +169,14 @@ static_assert(!PetscOffloadBoth(PETSC_OFFLOAD_CPU), "");
 static_assert(!PetscOffloadBoth(PETSC_OFFLOAD_GPU), "");
 static_assert(!PetscOffloadBoth(PETSC_OFFLOAD_GPU), "");
 static_assert(!PetscOffloadBoth(PETSC_OFFLOAD_KOKKOS), "");
-#if PETSC_SHOULD_SILENCE_GCC_TAUTOLOGICAL_COMPARE_WARNING
-#pragma GCC diagnostic pop
-#endif
+  #if PETSC_SHOULD_SILENCE_GCC_TAUTOLOGICAL_COMPARE_WARNING
+    #pragma GCC diagnostic pop
+  #endif
 #endif // __cplusplus
 
 PETSC_NODISCARD static inline PETSC_CONSTEXPR_14 const char *PetscOffloadMaskToString(PetscOffloadMask mask) {
 #define PETSC_CASE_RETURN(v) \
-  case v: return PetscStringize(v)
+case v: return PetscStringize(v)
 
   switch (mask) {
     PETSC_CASE_RETURN(PETSC_OFFLOAD_UNALLOCATED);
@@ -421,10 +421,10 @@ typedef enum {
 #define PetscMemoryAccessWrite(m) (((m)&PETSC_MEMORY_ACCESS_WRITE) == PETSC_MEMORY_ACCESS_WRITE)
 
 #if defined(__cplusplus)
-#if PETSC_SHOULD_SILENCE_GCC_TAUTOLOGICAL_COMPARE_WARNING
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wtautological-compare"
-#endif
+  #if PETSC_SHOULD_SILENCE_GCC_TAUTOLOGICAL_COMPARE_WARNING
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wtautological-compare"
+  #endif
 static_assert(PetscMemoryAccessRead(PETSC_MEMORY_ACCESS_READ), "");
 static_assert(PetscMemoryAccessRead(PETSC_MEMORY_ACCESS_READ_WRITE), "");
 static_assert(!PetscMemoryAccessRead(PETSC_MEMORY_ACCESS_WRITE), "");
@@ -432,14 +432,14 @@ static_assert(PetscMemoryAccessWrite(PETSC_MEMORY_ACCESS_WRITE), "");
 static_assert(PetscMemoryAccessWrite(PETSC_MEMORY_ACCESS_READ_WRITE), "");
 static_assert(!PetscMemoryAccessWrite(PETSC_MEMORY_ACCESS_READ), "");
 static_assert((PETSC_MEMORY_ACCESS_READ | PETSC_MEMORY_ACCESS_WRITE) == PETSC_MEMORY_ACCESS_READ_WRITE, "");
-#if PETSC_SHOULD_SILENCE_GCC_TAUTOLOGICAL_COMPARE_WARNING
-#pragma GCC diagnostic pop
-#endif
+  #if PETSC_SHOULD_SILENCE_GCC_TAUTOLOGICAL_COMPARE_WARNING
+    #pragma GCC diagnostic pop
+  #endif
 #endif
 
 PETSC_NODISCARD static inline PETSC_CONSTEXPR_14 const char *PetscMemoryAccessModeToString(PetscMemoryAccessMode mode) {
 #define PETSC_CASE_RETURN(v) \
-  case v: return PetscStringize(v)
+case v: return PetscStringize(v)
 
   switch (mode) {
     PETSC_CASE_RETURN(PETSC_MEMORY_ACCESS_READ);

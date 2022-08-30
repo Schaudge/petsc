@@ -6,18 +6,18 @@
 #include <petscviewer.h>
 
 #if !defined(PETSC_HAVE_WINDOWS_COMPILERS)
-#include <petsc/private/valgrind/valgrind.h>
+  #include <petsc/private/valgrind/valgrind.h>
 #endif
 
 #if defined(PETSC_HAVE_FORTRAN)
-#include <petsc/private/fortranimpl.h>
+  #include <petsc/private/fortranimpl.h>
 #endif
 
 #if defined(PETSC_USE_GCOV)
 EXTERN_C_BEGIN
-#if defined(PETSC_HAVE___GCOV_DUMP)
-#define __gcov_flush(x) __gcov_dump(x)
-#endif
+  #if defined(PETSC_HAVE___GCOV_DUMP)
+    #define __gcov_flush(x) __gcov_dump(x)
+  #endif
 void __gcov_flush(void);
 EXTERN_C_END
 #endif
@@ -28,7 +28,7 @@ PetscFPT              PetscFPTData = 0;
 #endif
 
 #if PetscDefined(HAVE_SAWS)
-#include <petscviewersaws.h>
+  #include <petscviewersaws.h>
 #endif
 
 /* -----------------------------------------------------------------------------------------*/
@@ -206,7 +206,7 @@ PetscErrorCode PetscMaxSum(MPI_Comm comm, const PetscInt sizes[], PetscInt *max,
     PetscMPIInt size, rank;
     struct {
       PetscInt max, sum;
-    } * work;
+    } *work;
     PetscCallMPI(MPI_Comm_size(comm, &size));
     PetscCallMPI(MPI_Comm_rank(comm, &rank));
     PetscCall(PetscMalloc1(size, &work));
@@ -222,13 +222,13 @@ PetscErrorCode PetscMaxSum(MPI_Comm comm, const PetscInt sizes[], PetscInt *max,
 /* ----------------------------------------------------------------------------*/
 
 #if defined(PETSC_HAVE_REAL___FLOAT128) || defined(PETSC_HAVE_REAL___FP16)
-#if defined(PETSC_HAVE_REAL___FLOAT128)
-#include <quadmath.h>
-#endif
+  #if defined(PETSC_HAVE_REAL___FLOAT128)
+    #include <quadmath.h>
+  #endif
 MPI_Op MPIU_SUM___FP16___FLOAT128 = 0;
-#if defined(PETSC_USE_REAL___FLOAT128) || defined(PETSC_USE_REAL___FP16)
+  #if defined(PETSC_USE_REAL___FLOAT128) || defined(PETSC_USE_REAL___FP16)
 MPI_Op MPIU_SUM = 0;
-#endif
+  #endif
 
 PETSC_EXTERN void MPIAPI PetscSum_Local(void *in, void *out, PetscMPIInt *cnt, MPI_Datatype *datatype) {
   PetscInt i, count = *cnt;
@@ -238,13 +238,13 @@ PETSC_EXTERN void MPIAPI PetscSum_Local(void *in, void *out, PetscMPIInt *cnt, M
     PetscReal *xin = (PetscReal *)in, *xout = (PetscReal *)out;
     for (i = 0; i < count; i++) xout[i] += xin[i];
   }
-#if defined(PETSC_HAVE_COMPLEX)
+  #if defined(PETSC_HAVE_COMPLEX)
   else if (*datatype == MPIU_COMPLEX) {
     PetscComplex *xin = (PetscComplex *)in, *xout = (PetscComplex *)out;
     for (i = 0; i < count; i++) xout[i] += xin[i];
   }
-#endif
-#if defined(PETSC_HAVE_REAL___FLOAT128)
+  #endif
+  #if defined(PETSC_HAVE_REAL___FLOAT128)
   else if (*datatype == MPIU___FLOAT128) {
     __float128 *xin = (__float128 *)in, *xout = (__float128 *)out;
     for (i = 0; i < count; i++) xout[i] += xin[i];
@@ -252,23 +252,23 @@ PETSC_EXTERN void MPIAPI PetscSum_Local(void *in, void *out, PetscMPIInt *cnt, M
     __complex128 *xin = (__complex128 *)in, *xout = (__complex128 *)out;
     for (i = 0; i < count; i++) xout[i] += xin[i];
   }
-#endif
-#if defined(PETSC_HAVE_REAL___FP16)
+  #endif
+  #if defined(PETSC_HAVE_REAL___FP16)
   else if (*datatype == MPIU___FP16) {
     __fp16 *xin = (__fp16 *)in, *xout = (__fp16 *)out;
     for (i = 0; i < count; i++) xout[i] += xin[i];
   }
-#endif
+  #endif
   else {
-#if !defined(PETSC_HAVE_REAL___FLOAT128) && !defined(PETSC_HAVE_REAL___FP16)
+  #if !defined(PETSC_HAVE_REAL___FLOAT128) && !defined(PETSC_HAVE_REAL___FP16)
     (*PetscErrorPrintf)("Can only handle MPIU_REAL or MPIU_COMPLEX data types");
-#elif !defined(PETSC_HAVE_REAL___FP16)
+  #elif !defined(PETSC_HAVE_REAL___FP16)
     (*PetscErrorPrintf)("Can only handle MPIU_REAL, MPIU_COMPLEX, MPIU___FLOAT128, or MPIU___COMPLEX128 data types");
-#elif !defined(PETSC_HAVE_REAL___FLOAT128)
+  #elif !defined(PETSC_HAVE_REAL___FLOAT128)
     (*PetscErrorPrintf)("Can only handle MPIU_REAL, MPIU_COMPLEX, or MPIU___FP16 data types");
-#else
+  #else
     (*PetscErrorPrintf)("Can only handle MPIU_REAL, MPIU_COMPLEX, MPIU___FLOAT128, MPIU___COMPLEX128, or MPIU___FP16 data types");
-#endif
+  #endif
     PETSCABORT(MPI_COMM_SELF, PETSC_ERR_ARG_WRONG);
   }
   PetscFunctionReturnVoid();
@@ -287,12 +287,12 @@ PETSC_EXTERN void MPIAPI PetscMax_Local(void *in, void *out, PetscMPIInt *cnt, M
     PetscReal *xin = (PetscReal *)in, *xout = (PetscReal *)out;
     for (i = 0; i < count; i++) xout[i] = PetscMax(xout[i], xin[i]);
   }
-#if defined(PETSC_HAVE_COMPLEX)
+  #if defined(PETSC_HAVE_COMPLEX)
   else if (*datatype == MPIU_COMPLEX) {
     PetscComplex *xin = (PetscComplex *)in, *xout = (PetscComplex *)out;
     for (i = 0; i < count; i++) xout[i] = PetscRealPartComplex(xout[i]) < PetscRealPartComplex(xin[i]) ? xin[i] : xout[i];
   }
-#endif
+  #endif
   else {
     (*PetscErrorPrintf)("Can only handle MPIU_REAL or MPIU_COMPLEX data types");
     PETSCABORT(MPI_COMM_SELF, PETSC_ERR_ARG_WRONG);
@@ -308,12 +308,12 @@ PETSC_EXTERN void MPIAPI PetscMin_Local(void *in, void *out, PetscMPIInt *cnt, M
     PetscReal *xin = (PetscReal *)in, *xout = (PetscReal *)out;
     for (i = 0; i < count; i++) xout[i] = PetscMin(xout[i], xin[i]);
   }
-#if defined(PETSC_HAVE_COMPLEX)
+  #if defined(PETSC_HAVE_COMPLEX)
   else if (*datatype == MPIU_COMPLEX) {
     PetscComplex *xin = (PetscComplex *)in, *xout = (PetscComplex *)out;
     for (i = 0; i < count; i++) xout[i] = PetscRealPartComplex(xout[i]) > PetscRealPartComplex(xin[i]) ? xin[i] : xout[i];
   }
-#endif
+  #endif
   else {
     (*PetscErrorPrintf)("Can only handle MPIU_REAL or MPIU_SCALAR data (i.e. double or complex) types");
     PETSCABORT(MPI_COMM_SELF, PETSC_ERR_ARG_WRONG);
@@ -552,7 +552,7 @@ PetscErrorCode PetscFreeArguments(char **args) {
 }
 
 #if PetscDefined(HAVE_SAWS)
-#include <petscconfiginfo.h>
+  #include <petscconfiginfo.h>
 
 PETSC_INTERN PetscErrorCode PetscInitializeSAWs(const char help[]) {
   PetscFunctionBegin;
@@ -673,29 +673,29 @@ PETSC_INTERN PetscErrorCode PetscPreMPIInit_Private(void) {
 }
 
 #if PetscDefined(HAVE_ADIOS)
-#include <adios.h>
-#include <adios_read.h>
+  #include <adios.h>
+  #include <adios_read.h>
 int64_t Petsc_adios_group;
 #endif
 #if PetscDefined(HAVE_OPENMP)
-#include <omp.h>
+  #include <omp.h>
 PetscInt PetscNumOMPThreads;
 #endif
 
 #include <petsc/private/deviceimpl.h>
 #if PetscDefined(HAVE_CUDA)
-#include <petscdevice_cuda.h>
+  #include <petscdevice_cuda.h>
 // REMOVE ME
 cudaStream_t PetscDefaultCudaStream = NULL;
 #endif
 #if PetscDefined(HAVE_HIP)
-#include <petscdevice_hip.h>
+  #include <petscdevice_hip.h>
 // REMOVE ME
 hipStream_t PetscDefaultHipStream = NULL;
 #endif
 
 #if PetscDefined(HAVE_DLFCN_H)
-#include <dlfcn.h>
+  #include <dlfcn.h>
 #endif
 #if PetscDefined(USE_LOG)
 PETSC_INTERN PetscErrorCode PetscLogInitialize(void);
@@ -760,8 +760,8 @@ PETSC_INTERN PetscErrorCode PetscInitialize_Common(const char *prog, const char 
 
     PetscCallMPI(MPI_Get_library_version(mpilibraryversion, &mpilibraryversionlength));
     /* check for MPICH versions before MPI ABI initiative */
-#if defined(MPICH_VERSION)
-#if MPICH_NUMVERSION < 30100000
+  #if defined(MPICH_VERSION)
+    #if MPICH_NUMVERSION < 30100000
     {
       char     *ver, *lf;
       PetscBool flg = PETSC_FALSE;
@@ -779,13 +779,13 @@ PETSC_INTERN PetscErrorCode PetscInitialize_Common(const char *prog, const char 
         flg = PETSC_TRUE;
       }
     }
-#endif
-    /* check for OpenMPI version, it is not part of the MPI ABI initiative (is it part of another initiative that needs to be handled?) */
-#elif defined(OMPI_MAJOR_VERSION)
+    #endif
+      /* check for OpenMPI version, it is not part of the MPI ABI initiative (is it part of another initiative that needs to be handled?) */
+  #elif defined(OMPI_MAJOR_VERSION)
     {
       char     *ver, bs[MPI_MAX_LIBRARY_VERSION_STRING], *bsf;
       PetscBool flg                                              = PETSC_FALSE;
-#define PSTRSZ 2
+    #define PSTRSZ 2
       char      ompistr1[PSTRSZ][MPI_MAX_LIBRARY_VERSION_STRING] = {"Open MPI", "FUJITSU MPI"};
       char      ompistr2[PSTRSZ][MPI_MAX_LIBRARY_VERSION_STRING] = {"v", "Library "};
       int       i;
@@ -803,7 +803,7 @@ PETSC_INTERN PetscErrorCode PetscInitialize_Common(const char *prog, const char 
         flg = PETSC_TRUE;
       }
     }
-#endif
+  #endif
   }
 #endif
 
@@ -858,12 +858,12 @@ PETSC_INTERN PetscErrorCode PetscInitialize_Common(const char *prog, const char 
   */
 #if defined(PETSC_HAVE_COMPLEX)
   {
-#if defined(PETSC_CLANGUAGE_CXX) && !defined(PETSC_USE_REAL___FLOAT128)
+  #if defined(PETSC_CLANGUAGE_CXX) && !defined(PETSC_USE_REAL___FLOAT128)
     PetscComplex ic(0.0, 1.0);
     PETSC_i = ic;
-#else
+  #else
     PETSC_i = _Complex_I;
-#endif
+  #endif
   }
 #endif /* PETSC_HAVE_COMPLEX */
 
@@ -1060,9 +1060,9 @@ PETSC_INTERN PetscErrorCode PetscInitialize_Common(const char *prog, const char 
 
 #if defined(__VALGRIND_H)
   PETSC_RUNNING_ON_VALGRIND = RUNNING_ON_VALGRIND ? PETSC_TRUE : PETSC_FALSE;
-#if defined(PETSC_USING_DARWIN) && defined(PETSC_BLASLAPACK_SDOT_RETURNS_DOUBLE)
+  #if defined(PETSC_USING_DARWIN) && defined(PETSC_BLASLAPACK_SDOT_RETURNS_DOUBLE)
   if (PETSC_RUNNING_ON_VALGRIND) PetscCall(PetscPrintf(PETSC_COMM_WORLD, "WARNING: Running valgrind with the MacOS native BLAS and LAPACK can fail. If it fails suggest configuring with --download-fblaslapack or --download-f2cblaslapack"));
-#endif
+  #endif
 #endif
   /*
       Set flag that we are completely initialized
@@ -1424,14 +1424,14 @@ PetscErrorCode PetscFinalize(void) {
 #endif
 
 #if defined(PETSC_USE_LOG)
-#if defined(PETSC_HAVE_MPE)
+  #if defined(PETSC_HAVE_MPE)
   mname[0] = 0;
   PetscCall(PetscOptionsGetString(NULL, NULL, "-log_mpe", mname, sizeof(mname), &flg1));
   if (flg1) {
     if (mname[0]) PetscCall(PetscLogMPEDump(mname));
     else PetscCall(PetscLogMPEDump(0));
   }
-#endif
+  #endif
 #endif
 
   /*

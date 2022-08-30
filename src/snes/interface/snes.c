@@ -299,7 +299,7 @@ PetscErrorCode SNESLoad(SNES snes, PetscViewer viewer) {
 
 #include <petscdraw.h>
 #if defined(PETSC_HAVE_SAWS)
-#include <petscviewersaws.h>
+  #include <petscviewersaws.h>
 #endif
 
 /*@C
@@ -4142,8 +4142,8 @@ PetscErrorCode SNESSetConvergenceHistory(SNES snes, PetscReal a[], PetscInt its[
 }
 
 #if defined(PETSC_HAVE_MATLAB_ENGINE)
-#include <engine.h> /* MATLAB include file */
-#include <mex.h>    /* MATLAB include file */
+  #include <engine.h> /* MATLAB include file */
+  #include <mex.h>    /* MATLAB include file */
 
 PETSC_EXTERN mxArray *SNESGetConvergenceHistoryMatlab(SNES snes) {
   mxArray   *mat;

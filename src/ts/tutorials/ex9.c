@@ -71,7 +71,7 @@ static inline PetscReal RangeMod(PetscReal a, PetscReal xmin, PetscReal xmax) {
 typedef struct _LimitInfo {
   PetscReal hx;
   PetscInt  m;
-} * LimitInfo;
+}          *LimitInfo;
 static void Limit_Upwind(LimitInfo info, const PetscScalar *jL, const PetscScalar *jR, PetscScalar *lmt) {
   PetscInt i;
   for (i = 0; i < info->m; i++) lmt[i] = 0;

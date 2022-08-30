@@ -8,11 +8,11 @@
 #include <petscds.h>
 
 #ifdef PETSC_HAVE_LIBCEED
-#include <petscfeceed.h>
+  #include <petscfeceed.h>
 #endif
 
 #if !defined(PETSC_HAVE_WINDOWS_COMPILERS)
-#include <petsc/private/valgrind/memcheck.h>
+  #include <petsc/private/valgrind/memcheck.h>
 #endif
 
 PetscClassId DM_CLASSID;

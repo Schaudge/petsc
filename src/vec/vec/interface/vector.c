@@ -720,7 +720,7 @@ PetscErrorCode VecView(Vec vec, PetscViewer viewer) {
 }
 
 #if defined(PETSC_USE_DEBUG)
-#include <../src/sys/totalview/tv_data_display.h>
+  #include <../src/sys/totalview/tv_data_display.h>
 PETSC_UNUSED static int TV_display_type(const struct _p_Vec *v) {
   const PetscScalar *values;
   char               type[32];

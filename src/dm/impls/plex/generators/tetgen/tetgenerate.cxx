@@ -1,14 +1,14 @@
 #include <petsc/private/dmpleximpl.h> /*I      "petscdmplex.h"   I*/
 
 #ifdef PETSC_HAVE_EGADS
-#include <egads.h>
+  #include <egads.h>
 /* Need to make EGADSLite header compatible */
 extern "C" int EGlite_getTopology(const ego, ego *, int *, int *, double *, int *, ego **, int **);
 extern "C" int EGlite_inTopology(const ego, const double *);
 #endif
 
 #if defined(PETSC_HAVE_TETGEN_TETLIBRARY_NEEDED)
-#define TETLIBRARY
+  #define TETLIBRARY
 #endif
 #include <tetgen.h>
 

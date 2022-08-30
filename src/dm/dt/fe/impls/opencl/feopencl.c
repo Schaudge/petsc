@@ -14,12 +14,12 @@ static PetscErrorCode PetscFEDestroy_OpenCL(PetscFE fem) {
   PetscFunctionReturn(0);
 }
 
-#define PetscCallSTR(err) \
-  do { \
-    PetscCall(err); \
-    string_tail += count; \
-    PetscCheck(string_tail != end_of_buffer, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Buffer overflow"); \
-  } while (0)
+  #define PetscCallSTR(err) \
+    do { \
+      PetscCall(err); \
+      string_tail += count; \
+      PetscCheck(string_tail != end_of_buffer, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Buffer overflow"); \
+    } while (0)
 enum {
   LAPLACIAN  = 0,
   ELASTICITY = 1

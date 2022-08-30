@@ -10,11 +10,11 @@ and from Fortran to C\n\n";
 */
 #include <petsc/private/fortranimpl.h>
 #if defined(PETSC_HAVE_FORTRAN_CAPS)
-#define ex7f_ EX7F
-#define ex7c_ EX7C
+  #define ex7f_ EX7F
+  #define ex7c_ EX7C
 #elif !defined(PETSC_HAVE_FORTRAN_UNDERSCORE)
-#define ex7f_ ex7f
-#define ex7c_ ex7c
+  #define ex7f_ ex7f
+  #define ex7c_ ex7c
 #endif
 
 PETSC_INTERN void ex7f_(Vec *, int *);

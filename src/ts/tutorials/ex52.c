@@ -20,8 +20,8 @@ static char help[] = "Simple Advection-diffusion equation solved using FVM in DM
 #include <petscblaslapack.h>
 
 #if defined(PETSC_HAVE_CGNS)
-#undef I
-#include <cgnslib.h>
+  #undef I
+  #include <cgnslib.h>
 #endif
 /*
    User-defined routines

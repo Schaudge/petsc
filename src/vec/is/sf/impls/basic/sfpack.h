@@ -1,15 +1,15 @@
-#if !defined(__SFPACK_H)
+#ifndef __SFPACK_H
 #define __SFPACK_H
 
 #include <../src/vec/is/sf/impls/basic/sfbasic.h>
 #if defined(PETSC_HAVE_CUDA)
-#include <petscdevice_cuda.h>
+  #include <petscdevice_cuda.h>
 typedef cudaStream_t cupmStream_t;
 typedef cudaEvent_t  cupmEvent_t;
 #endif
 
 #if defined(PETSC_HAVE_HIP)
-#include <petscdevice_hip.h>
+  #include <petscdevice_hip.h>
 typedef hipStream_t cupmStream_t;
 typedef hipEvent_t  cupmEvent_t;
 #endif
@@ -163,10 +163,10 @@ struct _n_PetscSFLink {
   PetscErrorCode (*da_ScatterAndLXOR)(PetscSFLink, PetscInt, PetscInt, PetscSFPackOpt, const PetscInt *, const void *, PetscInt, PetscSFPackOpt, const PetscInt *, void *);
   PetscErrorCode (*da_ScatterAndBXOR)(PetscSFLink, PetscInt, PetscInt, PetscSFPackOpt, const PetscInt *, const void *, PetscInt, PetscSFPackOpt, const PetscInt *, void *);
   PetscErrorCode (*da_FetchAndAddLocal)(PetscSFLink, PetscInt, PetscInt, PetscSFPackOpt, const PetscInt *, void *, PetscInt, PetscSFPackOpt, const PetscInt *, const void *, void *);
-#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
+  #if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
   PetscInt     maxResidentThreadsPerGPU; /* It is a copy from SF for convenience */
   cupmStream_t stream;                   /* stream on which input/output root/leafdata is computed on (default is PetscDefaultCudaStream) */
-#endif
+  #endif
 #endif
   PetscMPIInt  tag;                  /* Each link has a tag so we can perform multiple SF ops at the same time */
   MPI_Datatype unit;                 /* The MPI datatype this PetscSFLink is built for */
@@ -337,9 +337,9 @@ static inline PetscErrorCode PetscSFLinkSyncStreamBeforeCallMPI(PetscSF sf, Pets
   PetscFunctionReturn(0);
 }
 #else /* Host only */
-#define PetscSFLinkCopyRootBufferInCaseNotUseGpuAwareMPI(a, b, c) 0
-#define PetscSFLinkCopyLeafBufferInCaseNotUseGpuAwareMPI(a, b, c) 0
-#define PetscSFLinkSyncStreamBeforeCallMPI(a, b, c)               0
+  #define PetscSFLinkCopyRootBufferInCaseNotUseGpuAwareMPI(a, b, c) 0
+  #define PetscSFLinkCopyLeafBufferInCaseNotUseGpuAwareMPI(a, b, c) 0
+  #define PetscSFLinkSyncStreamBeforeCallMPI(a, b, c)               0
 #endif
 
 /* Get root indices used for pack/unpack

@@ -5,10 +5,10 @@
 #include <../src/ksp/pc/impls/gamg/gamg.h> /*I "petscpc.h" I*/
 
 #if defined(PETSC_HAVE_TRIANGLE)
-#if !defined(ANSI_DECLARATORS)
-#define ANSI_DECLARATORS
-#endif
-#include <triangle.h>
+  #if !defined(ANSI_DECLARATORS)
+    #define ANSI_DECLARATORS
+  #endif
+  #include <triangle.h>
 #endif
 
 #include <petscblaslapack.h>
@@ -274,7 +274,7 @@ static PetscErrorCode triangulateAndFormProl(IS selected_2, PetscInt data_stride
         nTri[cid]++;
       }
     }
-#define EPS 1.e-12
+  #define EPS 1.e-12
     /* find points and set prolongation */
     for (mm = clid = 0; mm < nFineLoc; mm++) {
       PetscBool ise;

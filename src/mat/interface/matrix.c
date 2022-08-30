@@ -911,7 +911,7 @@ PetscErrorCode MatSetUp(Mat A) {
 }
 
 #if defined(PETSC_HAVE_SAWS)
-#include <petscviewersaws.h>
+  #include <petscviewersaws.h>
 #endif
 
 /*@C
@@ -1120,7 +1120,7 @@ PetscErrorCode MatView(Mat mat, PetscViewer viewer) {
 }
 
 #if defined(PETSC_USE_DEBUG)
-#include <../src/sys/totalview/tv_data_display.h>
+  #include <../src/sys/totalview/tv_data_display.h>
 PETSC_UNUSED static int TV_display_type(const struct _p_Mat *mat) {
   TV_add_row("Local rows", "int", &mat->rmap->n);
   TV_add_row("Local columns", "int", &mat->cmap->n);
@@ -5491,22 +5491,22 @@ static PetscInt MatAssemblyEnd_InUse = 0;
 .seealso: `Mat`, `MatAssemblyEnd()`, `MatSetValues()`, `MatAssembled()`
 @*/
 PetscErrorCode  MatAssemblyBegin(Mat mat, MatAssemblyType type) {
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(mat, MAT_CLASSID, 1);
-   PetscValidType(mat, 1);
-   MatCheckPreallocated(mat, 1);
-   PetscCheck(!mat->factortype, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONGSTATE, "Not for factored matrix.\nDid you forget to call MatSetUnfactored()?");
-   if (mat->assembled) {
-     mat->was_assembled = PETSC_TRUE;
-     mat->assembled     = PETSC_FALSE;
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(mat, MAT_CLASSID, 1);
+  PetscValidType(mat, 1);
+  MatCheckPreallocated(mat, 1);
+  PetscCheck(!mat->factortype, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONGSTATE, "Not for factored matrix.\nDid you forget to call MatSetUnfactored()?");
+  if (mat->assembled) {
+    mat->was_assembled = PETSC_TRUE;
+    mat->assembled     = PETSC_FALSE;
   }
 
-   if (!MatAssemblyEnd_InUse) {
-     PetscCall(PetscLogEventBegin(MAT_AssemblyBegin, mat, 0, 0, 0));
-     PetscTryTypeMethod(mat, assemblybegin, type);
-     PetscCall(PetscLogEventEnd(MAT_AssemblyBegin, mat, 0, 0, 0));
+  if (!MatAssemblyEnd_InUse) {
+    PetscCall(PetscLogEventBegin(MAT_AssemblyBegin, mat, 0, 0, 0));
+    PetscTryTypeMethod(mat, assemblybegin, type);
+    PetscCall(PetscLogEventEnd(MAT_AssemblyBegin, mat, 0, 0, 0));
   } else PetscTryTypeMethod(mat, assemblybegin, type);
-   PetscFunctionReturn(0);
+  PetscFunctionReturn(0);
 }
 
 /*@

@@ -260,7 +260,7 @@ PetscErrorCode PetscErrorMessage(int errnum, const char *text[], char **specific
 }
 
 #if defined(PETSC_CLANGUAGE_CXX)
-/* C++ exceptions are formally not allowed to propagate through extern "C" code. In practice, far too much software
+  /* C++ exceptions are formally not allowed to propagate through extern "C" code. In practice, far too much software
  * would be broken if implementations did not handle it it some common cases. However, keep in mind
  *
  *   Rule 62. Don't allow exceptions to propagate across module boundaries
@@ -272,8 +272,8 @@ PetscErrorCode PetscErrorMessage(int errnum, const char *text[], char **specific
  * and stack information from the PETSc error. You could make everyone write exactly this code in their C++, but that
  * seems crazy to me.
  */
-#include <sstream>
-#include <stdexcept>
+  #include <sstream>
+  #include <stdexcept>
 static void PetscCxxErrorThrow() {
   const char *str;
   if (eh && eh->ctx) {
@@ -695,10 +695,10 @@ PetscErrorCode PetscScalarView(PetscInt N, const PetscScalar idx[], PetscViewer 
 }
 
 #if defined(PETSC_HAVE_CUDA)
-#include <petscdevice_cuda.h>
+  #include <petscdevice_cuda.h>
 PETSC_EXTERN const char *PetscCUBLASGetErrorName(cublasStatus_t status) {
   switch (status) {
-#if (CUDART_VERSION >= 8000) /* At least CUDA 8.0 of Sep. 2016 had these */
+  #if (CUDART_VERSION >= 8000) /* At least CUDA 8.0 of Sep. 2016 had these */
   case CUBLAS_STATUS_SUCCESS: return "CUBLAS_STATUS_SUCCESS";
   case CUBLAS_STATUS_NOT_INITIALIZED: return "CUBLAS_STATUS_NOT_INITIALIZED";
   case CUBLAS_STATUS_ALLOC_FAILED: return "CUBLAS_STATUS_ALLOC_FAILED";
@@ -709,19 +709,19 @@ PETSC_EXTERN const char *PetscCUBLASGetErrorName(cublasStatus_t status) {
   case CUBLAS_STATUS_INTERNAL_ERROR: return "CUBLAS_STATUS_INTERNAL_ERROR";
   case CUBLAS_STATUS_NOT_SUPPORTED: return "CUBLAS_STATUS_NOT_SUPPORTED";
   case CUBLAS_STATUS_LICENSE_ERROR: return "CUBLAS_STATUS_LICENSE_ERROR";
-#endif
+  #endif
   default: return "unknown error";
   }
 }
 PETSC_EXTERN const char *PetscCUSolverGetErrorName(cusolverStatus_t status) {
   switch (status) {
-#if (CUDART_VERSION >= 8000) /* At least CUDA 8.0 of Sep. 2016 had these */
+  #if (CUDART_VERSION >= 8000) /* At least CUDA 8.0 of Sep. 2016 had these */
   case CUSOLVER_STATUS_SUCCESS: return "CUSOLVER_STATUS_SUCCESS";
   case CUSOLVER_STATUS_NOT_INITIALIZED: return "CUSOLVER_STATUS_NOT_INITIALIZED";
   case CUSOLVER_STATUS_INVALID_VALUE: return "CUSOLVER_STATUS_INVALID_VALUE";
   case CUSOLVER_STATUS_ARCH_MISMATCH: return "CUSOLVER_STATUS_ARCH_MISMATCH";
   case CUSOLVER_STATUS_INTERNAL_ERROR: return "CUSOLVER_STATUS_INTERNAL_ERROR";
-#if (CUDART_VERSION >= 9000) /* CUDA 9.0 had these defined on June 2021 */
+    #if (CUDART_VERSION >= 9000) /* CUDA 9.0 had these defined on June 2021 */
   case CUSOLVER_STATUS_ALLOC_FAILED: return "CUSOLVER_STATUS_ALLOC_FAILED";
   case CUSOLVER_STATUS_MAPPING_ERROR: return "CUSOLVER_STATUS_MAPPING_ERROR";
   case CUSOLVER_STATUS_EXECUTION_FAILED: return "CUSOLVER_STATUS_EXECUTION_FAILED";
@@ -729,8 +729,8 @@ PETSC_EXTERN const char *PetscCUSolverGetErrorName(cusolverStatus_t status) {
   case CUSOLVER_STATUS_NOT_SUPPORTED: return "CUSOLVER_STATUS_NOT_SUPPORTED ";
   case CUSOLVER_STATUS_ZERO_PIVOT: return "CUSOLVER_STATUS_ZERO_PIVOT";
   case CUSOLVER_STATUS_INVALID_LICENSE: return "CUSOLVER_STATUS_INVALID_LICENSE";
-#endif
-#endif
+    #endif
+  #endif
   default: return "unknown error";
   }
 }
@@ -759,7 +759,7 @@ PETSC_EXTERN const char *PetscCUFFTGetErrorName(cufftResult result) {
 #endif
 
 #if defined(PETSC_HAVE_HIP)
-#include <petscdevice_hip.h>
+  #include <petscdevice_hip.h>
 PETSC_EXTERN const char *PetscHIPBLASGetErrorName(hipblasStatus_t status) {
   switch (status) {
   case HIPBLAS_STATUS_SUCCESS: return "HIPBLAS_STATUS_SUCCESS";

@@ -60,12 +60,12 @@ The flow can be driven with the lid or with bouyancy or both:\n\
      petscksp.h   - linear solvers
 */
 #if defined(PETSC_APPLE_FRAMEWORK)
-#import <PETSc/petscsnes.h>
-#import <PETSc/petscdmda.h>
+  #import <PETSc/petscsnes.h>
+  #import <PETSc/petscdmda.h>
 #else
-#include <petscsnes.h>
-#include <petscdm.h>
-#include <petscdmda.h>
+  #include <petscsnes.h>
+  #include <petscdm.h>
+  #include <petscdmda.h>
 #endif
 
 /*

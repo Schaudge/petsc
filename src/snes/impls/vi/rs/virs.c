@@ -609,8 +609,8 @@ PetscErrorCode SNESVISetRedundancyCheck(SNES snes, PetscErrorCode (*func)(SNES, 
 }
 
 #if defined(PETSC_HAVE_MATLAB_ENGINE)
-#include <engine.h>
-#include <mex.h>
+  #include <engine.h>
+  #include <mex.h>
 typedef struct {
   char    *funcname;
   mxArray *ctx;

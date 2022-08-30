@@ -9,7 +9,7 @@
 #include <petscdmshell.h>
 
 #if defined(PETSC_HAVE_MPFR)
-#include <mpfr.h>
+  #include <mpfr.h>
 #endif
 
 const char *const        PetscDTNodeTypes_shifted[] = {"default", "gaussjacobi", "equispaced", "tanhsinh", "PETSCDTNODES_", NULL};

@@ -7,7 +7,7 @@
 #include <../src/mat/impls/sbaij/mpi/mpisbaij.h>
 
 #if defined(PETSC_USE_COMPLEX)
-#define _H_COMPLEX
+  #define _H_COMPLEX
 #endif
 
 EXTERN_C_BEGIN
@@ -15,19 +15,19 @@ EXTERN_C_BEGIN
 EXTERN_C_END
 
 #if defined(PETSC_USE_COMPLEX)
-#if defined(PETSC_USE_REAL_SINGLE)
-#define PASTIX_CALL c_pastix
-#else
-#define PASTIX_CALL z_pastix
-#endif
+  #if defined(PETSC_USE_REAL_SINGLE)
+    #define PASTIX_CALL c_pastix
+  #else
+    #define PASTIX_CALL z_pastix
+  #endif
 
 #else /* PETSC_USE_COMPLEX */
 
-#if defined(PETSC_USE_REAL_SINGLE)
-#define PASTIX_CALL s_pastix
-#else
-#define PASTIX_CALL d_pastix
-#endif
+  #if defined(PETSC_USE_REAL_SINGLE)
+    #define PASTIX_CALL s_pastix
+  #else
+    #define PASTIX_CALL d_pastix
+  #endif
 
 #endif /* PETSC_USE_COMPLEX */
 

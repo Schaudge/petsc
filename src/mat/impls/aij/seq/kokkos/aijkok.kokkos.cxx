@@ -17,11 +17,11 @@
 #include <../src/mat/impls/aij/seq/kokkos/aijkok.hpp>
 
 #if PETSC_PKG_KOKKOS_KERNELS_VERSION_GE(3, 6, 99)
-#include <KokkosSparse_Utils.hpp>
+  #include <KokkosSparse_Utils.hpp>
 using KokkosSparse::sort_crs_matrix;
 using KokkosSparse::Impl::transpose_matrix;
 #else
-#include <KokkosKernels_Sorting.hpp>
+  #include <KokkosKernels_Sorting.hpp>
 using KokkosKernels::sort_crs_matrix;
 using KokkosKernels::Impl::transpose_matrix;
 #endif
@@ -787,9 +787,9 @@ static PetscErrorCode MatProductSymbolic_SeqAIJKokkos_SeqAIJKokkos(Mat C) {
 
   /* CUDA-10.2's spgemm has bugs. We prefer the SpGEMMreuse APIs introduced in cuda-11.4 */
 #if defined(KOKKOSKERNELS_ENABLE_TPL_CUSPARSE)
-#if PETSC_PKG_CUDA_VERSION_LT(11, 4, 0)
+  #if PETSC_PKG_CUDA_VERSION_LT(11, 4, 0)
   spgemm_alg = KokkosSparse::SPGEMMAlgorithm::SPGEMM_KK;
-#endif
+  #endif
 #endif
 
   pdata->kh.create_spgemm_handle(spgemm_alg);
@@ -1292,26 +1292,26 @@ typedef Kokkos::TeamPolicy<>::member_type team_member;
 // Use -pc_factor_mat_ordering_type rcm to order decouple blocks of size N/Nf for this optimization
 //
 static PetscErrorCode                     MatLUFactorNumeric_SeqAIJKOKKOSDEVICE(Mat B, Mat A, const MatFactorInfo *info) {
-                      Mat_SeqAIJ       *b      = (Mat_SeqAIJ *)B->data;
-                      Mat_SeqAIJKokkos *aijkok = static_cast<Mat_SeqAIJKokkos *>(A->spptr), *baijkok = static_cast<Mat_SeqAIJKokkos *>(B->spptr);
-                      IS                isrow = b->row, isicol = b->icol;
-                      const PetscInt   *r_h, *ic_h;
-                      const PetscInt n = A->rmap->n, *ai_d = aijkok->i_dual.view_device().data(), *aj_d = aijkok->j_dual.view_device().data(), *bi_d = baijkok->i_dual.view_device().data(), *bj_d = baijkok->j_dual.view_device().data(), *bdiag_d = baijkok->diag_d.data();
-                      const PetscScalar *aa_d = aijkok->a_dual.view_device().data();
-                      PetscScalar       *ba_d = baijkok->a_dual.view_device().data();
-                      PetscBool          row_identity, col_identity;
-                      PetscInt           nc, Nf = 1, nVec = 32; // should be a parameter, Nf is batch size - not used
+  Mat_SeqAIJ       *b      = (Mat_SeqAIJ *)B->data;
+  Mat_SeqAIJKokkos *aijkok = static_cast<Mat_SeqAIJKokkos *>(A->spptr), *baijkok = static_cast<Mat_SeqAIJKokkos *>(B->spptr);
+  IS                isrow = b->row, isicol = b->icol;
+  const PetscInt   *r_h, *ic_h;
+  const PetscInt n = A->rmap->n, *ai_d = aijkok->i_dual.view_device().data(), *aj_d = aijkok->j_dual.view_device().data(), *bi_d = baijkok->i_dual.view_device().data(), *bj_d = baijkok->j_dual.view_device().data(), *bdiag_d = baijkok->diag_d.data();
+  const PetscScalar *aa_d = aijkok->a_dual.view_device().data();
+  PetscScalar       *ba_d = baijkok->a_dual.view_device().data();
+  PetscBool          row_identity, col_identity;
+  PetscInt           nc, Nf = 1, nVec = 32; // should be a parameter, Nf is batch size - not used
 
-                      PetscFunctionBegin;
-                      PetscCheck(A->rmap->n == n, PetscObjectComm((PetscObject)A), PETSC_ERR_SUP, "square matrices only supported %" PetscInt_FMT " %" PetscInt_FMT, A->rmap->n, n);
-                      PetscCall(MatIsStructurallySymmetric(A, &row_identity));
-                      PetscCheck(row_identity, PetscObjectComm((PetscObject)A), PETSC_ERR_SUP, "structurally symmetric matrices only supported");
-                      PetscCall(ISGetIndices(isrow, &r_h));
-                      PetscCall(ISGetIndices(isicol, &ic_h));
-                      PetscCall(ISGetSize(isicol, &nc));
-                      PetscCall(PetscLogGpuTimeBegin());
-                      PetscCall(MatSeqAIJKokkosSyncDevice(A));
-                      {
+  PetscFunctionBegin;
+  PetscCheck(A->rmap->n == n, PetscObjectComm((PetscObject)A), PETSC_ERR_SUP, "square matrices only supported %" PetscInt_FMT " %" PetscInt_FMT, A->rmap->n, n);
+  PetscCall(MatIsStructurallySymmetric(A, &row_identity));
+  PetscCheck(row_identity, PetscObjectComm((PetscObject)A), PETSC_ERR_SUP, "structurally symmetric matrices only supported");
+  PetscCall(ISGetIndices(isrow, &r_h));
+  PetscCall(ISGetIndices(isicol, &ic_h));
+  PetscCall(ISGetSize(isicol, &nc));
+  PetscCall(PetscLogGpuTimeBegin());
+  PetscCall(MatSeqAIJKokkosSyncDevice(A));
+  {
 #define KOKKOS_SHARED_LEVEL 1
     using scr_mem_t    = Kokkos::DefaultExecutionSpace::scratch_memory_space;
     using sizet_scr_t  = Kokkos::View<size_t, scr_mem_t>;

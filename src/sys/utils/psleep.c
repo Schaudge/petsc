@@ -1,13 +1,13 @@
 #define PETSC_DESIRE_FEATURE_TEST_MACROS /* for usleep()  */
 #include <petscsys.h>                    /*I   "petscsys.h"    I*/
 #if defined(PETSC_HAVE_UNISTD_H)
-#include <unistd.h>
+  #include <unistd.h>
 #endif
 #if defined(PETSC_HAVE_DOS_H) /* borland */
-#include <dos.h>
+  #include <dos.h>
 #endif
 #if defined(PETSC_HAVE_TIME_H)
-#include <time.h>
+  #include <time.h>
 #endif
 
 /*@

@@ -5,7 +5,7 @@
 #include <petscsys.h> /*I   "petscsys.h"   I*/
 #include <signal.h>
 #if defined(PETSC_HAVE_UNISTD_H)
-#include <unistd.h>
+  #include <unistd.h>
 #endif
 
 /*
@@ -232,9 +232,9 @@ PetscErrorCode PetscAttachDebugger(void) {
       Swap role the parent and child. This is (I think) so that control c typed
     in the debugger goes to the correct process.
   */
-#if !defined(PETSC_DO_NOT_SWAP_CHILD_FOR_DEBUGGER)
+  #if !defined(PETSC_DO_NOT_SWAP_CHILD_FOR_DEBUGGER)
   child = child ? 0 : (int)getppid();
-#endif
+  #endif
 
   if (child) { /* I am the parent, will run the debugger */
     const char *args[10];
@@ -247,9 +247,9 @@ PetscErrorCode PetscAttachDebugger(void) {
          We need to send a continue signal to the "child" process on the
        alpha, otherwise it just stays off forever
     */
-#if defined(PETSC_NEED_KILL_FOR_DEBUGGER)
+  #if defined(PETSC_NEED_KILL_FOR_DEBUGGER)
     kill(child, SIGCONT);
-#endif
+  #endif
     sprintf(pid, "%d", child);
 
     PetscCall(PetscStrcmp(PetscDebugger, "xxgdb", &isxxgdb));
@@ -373,27 +373,27 @@ PetscErrorCode PetscAttachDebugger(void) {
       }
       if (isdbx) {
         j         = jj;
-#if defined(PETSC_USE_P_FOR_DEBUGGER)
+  #if defined(PETSC_USE_P_FOR_DEBUGGER)
         args[j++] = "-p";
         args[j++] = pid;
         args[j++] = program;
-#elif defined(PETSC_USE_LARGEP_FOR_DEBUGGER)
+  #elif defined(PETSC_USE_LARGEP_FOR_DEBUGGER)
         args[j++] = "-l";
         args[j++] = "ALL";
         args[j++] = "-P";
         args[j++] = pid;
         args[j++] = program;
-#elif defined(PETSC_USE_A_FOR_DEBUGGER)
+  #elif defined(PETSC_USE_A_FOR_DEBUGGER)
         args[j++] = "-a";
         args[j++] = pid;
-#elif defined(PETSC_USE_PID_FOR_DEBUGGER)
+  #elif defined(PETSC_USE_PID_FOR_DEBUGGER)
         args[j++] = "-pid";
         args[j++] = pid;
         args[j++] = program;
-#else
+  #else
         args[j++] = program;
         args[j++] = pid;
-#endif
+  #endif
         args[j++] = NULL;
       }
       if (UseDebugTerminal) {
@@ -416,7 +416,7 @@ PetscErrorCode PetscAttachDebugger(void) {
     sleeptime = 10; /* default to sleep waiting for debugger */
     PetscCall(PetscOptionsGetReal(NULL, NULL, "-debugger_pause", &sleeptime, NULL));
     if (sleeptime < 0) sleeptime = -sleeptime;
-#if defined(PETSC_NEED_DEBUGGER_NO_SLEEP)
+  #if defined(PETSC_NEED_DEBUGGER_NO_SLEEP)
     /*
         HP cannot attach process to sleeping debugger, hence count instead
     */
@@ -425,7 +425,7 @@ PetscErrorCode PetscAttachDebugger(void) {
       int       i = 10000000;
       while (i--) x++; /* cannot attach to sleeper */
     }
-#elif defined(PETSC_HAVE_SLEEP_RETURNS_EARLY)
+  #elif defined(PETSC_HAVE_SLEEP_RETURNS_EARLY)
     /*
         IBM sleep may return at anytime, hence must see if there is more time to sleep
     */
@@ -433,9 +433,9 @@ PetscErrorCode PetscAttachDebugger(void) {
       int left = sleeptime;
       while (left > 0) left = PetscSleep(left) - 1;
     }
-#else
+  #else
     PetscSleep(sleeptime);
-#endif
+  #endif
   }
 #endif
   return 0;
@@ -565,17 +565,17 @@ PetscErrorCode PetscStopForDebugger(void) {
   else if (isxldb) printf("[%d]%s>>%s -a %d %s\n", rank, hostname, PetscDebugger, ppid, program);
   else if (islldb) printf("[%d]%s>>%s -p %d\n", rank, hostname, PetscDebugger, ppid);
   else if (isdbx) {
-#if defined(PETSC_USE_P_FOR_DEBUGGER)
+  #if defined(PETSC_USE_P_FOR_DEBUGGER)
     printf("[%d]%s>>%s -p %d %s\n", rank, hostname, PetscDebugger, ppid, program);
-#elif defined(PETSC_USE_LARGEP_FOR_DEBUGGER)
+  #elif defined(PETSC_USE_LARGEP_FOR_DEBUGGER)
     printf("[%d]%s>>%s -l ALL -P %d %s\n", rank, hostname, PetscDebugger, ppid, program);
-#elif defined(PETSC_USE_A_FOR_DEBUGGER)
+  #elif defined(PETSC_USE_A_FOR_DEBUGGER)
     printf("[%d]%s>>%s -a %d\n", rank, hostname, PetscDebugger, ppid);
-#elif defined(PETSC_USE_PID_FOR_DEBUGGER)
+  #elif defined(PETSC_USE_PID_FOR_DEBUGGER)
     printf("[%d]%s>>%s -pid %d %s\n", rank, hostname, PetscDebugger, ppid, program);
-#else
+  #else
     printf("[%d]%s>>%s %s %d\n", rank, hostname, PetscDebugger, program, ppid);
-#endif
+  #endif
   }
 #endif /* PETSC_CANNOT_START_DEBUGGER */
 

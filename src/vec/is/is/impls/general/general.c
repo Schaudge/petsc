@@ -236,11 +236,11 @@ static PetscErrorCode ISView_General_HDF5(IS is, PetscViewer viewer) {
   }
   PetscCallHDF5Return(filespace, H5Screate_simple, (dim, dims, maxDims));
 
-#if defined(PETSC_USE_64BIT_INDICES)
+  #if defined(PETSC_USE_64BIT_INDICES)
   inttype = H5T_NATIVE_LLONG;
-#else
+  #else
   inttype = H5T_NATIVE_INT;
-#endif
+  #endif
 
   /* Create the dataset with default properties and close filespace */
   PetscCall(PetscObjectGetName((PetscObject)is, &isname));

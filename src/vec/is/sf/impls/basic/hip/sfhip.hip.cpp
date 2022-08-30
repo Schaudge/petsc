@@ -266,7 +266,7 @@ struct AtomicInsert {
 };
 
 #if defined(PETSC_HAVE_COMPLEX)
-#if defined(PETSC_USE_REAL_DOUBLE)
+  #if defined(PETSC_USE_REAL_DOUBLE)
 template <>
 struct AtomicInsert<PetscComplex> {
   __device__ PetscComplex operator()(PetscComplex &x, PetscComplex y) const {
@@ -278,7 +278,7 @@ struct AtomicInsert<PetscComplex> {
     return old; /* The returned value may not be atomic. It can be mix of two ops. Caller should discard it. */
   }
 };
-#elif defined(PETSC_USE_REAL_SINGLE)
+  #elif defined(PETSC_USE_REAL_SINGLE)
 template <>
 struct AtomicInsert<PetscComplex> {
   __device__ PetscComplex operator()(PetscComplex &x, PetscComplex y) const {
@@ -287,7 +287,7 @@ struct AtomicInsert<PetscComplex> {
     return op(xp[0], yp[0]);
   }
 };
-#endif
+  #endif
 #endif
 
 /*
@@ -392,7 +392,7 @@ struct AtomicMult {
   See CUDA version for comments.
  */
 #if PETSC_PKG_HIP_VERSION_LT(4, 4, 0)
-#if defined(PETSC_USE_REAL_DOUBLE)
+  #if defined(PETSC_USE_REAL_DOUBLE)
 __device__ static double atomicMin(double *address, double val) {
   ullint *address_as_ull = (ullint *)(address);
   ullint  old            = *address_as_ull, assumed;
@@ -412,7 +412,7 @@ __device__ static double atomicMax(double *address, double val) {
   } while (assumed != old);
   return __longlong_as_double(old);
 }
-#elif defined(PETSC_USE_REAL_SINGLE)
+  #elif defined(PETSC_USE_REAL_SINGLE)
 __device__ static float atomicMin(float *address, float val) {
   int *address_as_int = (int *)(address);
   int  old            = *address_as_int, assumed;
@@ -432,7 +432,7 @@ __device__ static float atomicMax(float *address, float val) {
   } while (assumed != old);
   return __int_as_float(old);
 }
-#endif
+  #endif
 #endif
 
 /* As of ROCm 3.10 llint atomicMin/Max(llint*, llint) is not supported */
@@ -1018,7 +1018,7 @@ PetscErrorCode PetscSFLinkSetUp_HIP(PetscSF sf, PetscSFLink link, MPI_Datatype u
       PackInit_IntegerType<UnsignedChar, 1, 0>(link);
 #if defined(PETSC_HAVE_COMPLEX)
   } else if (nPetscComplex) {
-#if !defined(PETSC_HAVE_DEVICE)
+  #if !defined(PETSC_HAVE_DEVICE)
     if (nPetscComplex == 8) PackInit_ComplexType<PetscComplex, 8, 1>(link);
     else if (nPetscComplex % 8 == 0) PackInit_ComplexType<PetscComplex, 8, 0>(link);
     else if (nPetscComplex == 4) PackInit_ComplexType<PetscComplex, 4, 1>(link);
@@ -1027,7 +1027,7 @@ PetscErrorCode PetscSFLinkSetUp_HIP(PetscSF sf, PetscSFLink link, MPI_Datatype u
     else if (nPetscComplex % 2 == 0) PackInit_ComplexType<PetscComplex, 2, 0>(link);
     else if (nPetscComplex == 1) PackInit_ComplexType<PetscComplex, 1, 1>(link);
     else if (nPetscComplex % 1 == 0)
-#endif
+  #endif
       PackInit_ComplexType<PetscComplex, 1, 0>(link);
 #endif
   } else {

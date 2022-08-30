@@ -1899,7 +1899,7 @@ PETSC_EXTERN PetscErrorCode MatCreate_MPIDense(Mat mat) {
 .seealso: `MATMPIDENSE`, `MATSEQDENSE`, `MATSEQDENSECUDA`
 M*/
 #if defined(PETSC_HAVE_CUDA)
-#include <petsc/private/deviceimpl.h>
+  #include <petsc/private/deviceimpl.h>
 PETSC_EXTERN PetscErrorCode MatCreate_MPIDenseCUDA(Mat B) {
   PetscFunctionBegin;
   PetscCall(PetscDeviceInitialize(PETSC_DEVICE_CUDA));

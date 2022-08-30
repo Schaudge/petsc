@@ -192,7 +192,7 @@ PetscErrorCode PetscRandomSetFromOptions(PetscRandom rnd) {
 }
 
 #if defined(PETSC_HAVE_SAWS)
-#include <petscviewersaws.h>
+  #include <petscviewersaws.h>
 #endif
 
 /*@C

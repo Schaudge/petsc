@@ -2574,9 +2574,9 @@ static PetscErrorCode DMPlexGetFaceOrientation(DM dm, PetscInt cell, PetscInt nu
     PetscInt       sortedIndices[3], i, iFace;
     PetscBool      found                    = PETSC_FALSE;
     PetscInt       faceVerticesTriSorted[9] = {
-            0, 3, 4, /* bottom */
-            1, 4, 5, /* right */
-            2, 3, 5, /* left */
+      0, 3, 4, /* bottom */
+      1, 4, 5, /* right */
+      2, 3, 5, /* left */
     };
     PetscInt faceVerticesTri[9] = {
       0, 3, 4, /* bottom */
@@ -2613,10 +2613,10 @@ static PetscErrorCode DMPlexGetFaceOrientation(DM dm, PetscInt cell, PetscInt nu
     PetscInt       sortedIndices[3], i, iFace;
     PetscBool      found                      = PETSC_FALSE;
     PetscInt       faceVerticesQuadSorted[12] = {
-            0, 1, 4, /* bottom */
-            1, 2, 5, /* right */
-            2, 3, 6, /* top */
-            0, 3, 7, /* left */
+      0, 1, 4, /* bottom */
+      1, 2, 5, /* right */
+      2, 3, 6, /* top */
+      0, 3, 7, /* left */
     };
     PetscInt faceVerticesQuad[12] = {
       0, 1, 4, /* bottom */
@@ -2664,12 +2664,12 @@ static PetscErrorCode DMPlexGetFaceOrientation(DM dm, PetscInt cell, PetscInt nu
     PetscInt       sortedIndices[4], i, iFace;
     PetscBool      found                     = PETSC_FALSE;
     PetscInt       faceVerticesHexSorted[24] = {
-            0, 1, 2, 3, /* bottom */
-            4, 5, 6, 7, /* top */
-            0, 3, 4, 5, /* front */
-            2, 3, 5, 6, /* right */
-            1, 2, 6, 7, /* back */
-            0, 1, 4, 7, /* left */
+      0, 1, 2, 3, /* bottom */
+      4, 5, 6, 7, /* top */
+      0, 3, 4, 5, /* front */
+      2, 3, 5, 6, /* right */
+      1, 2, 6, 7, /* back */
+      0, 1, 4, 7, /* left */
     };
     PetscInt faceVerticesHex[24] = {
       1, 2, 3, 0, /* bottom */
@@ -2709,10 +2709,10 @@ static PetscErrorCode DMPlexGetFaceOrientation(DM dm, PetscInt cell, PetscInt nu
     PetscInt       sortedIndices[6], i, iFace;
     PetscBool      found                     = PETSC_FALSE;
     PetscInt       faceVerticesTetSorted[24] = {
-            0, 1, 2, 6, 7, 8, /* bottom */
-            0, 3, 4, 6, 7, 9, /* front */
-            1, 4, 5, 7, 8, 9, /* right */
-            2, 3, 5, 6, 8, 9, /* left */
+      0, 1, 2, 6, 7, 8, /* bottom */
+      0, 3, 4, 6, 7, 9, /* front */
+      1, 4, 5, 7, 8, 9, /* right */
+      2, 3, 5, 6, 8, 9, /* left */
     };
     PetscInt faceVerticesTet[24] = {
       0, 1, 2, 6, 7, 8, /* bottom */
@@ -2760,12 +2760,12 @@ static PetscErrorCode DMPlexGetFaceOrientation(DM dm, PetscInt cell, PetscInt nu
     PetscInt       sortedIndices[9], i, iFace;
     PetscBool      found                         = PETSC_FALSE;
     PetscInt       faceVerticesQuadHexSorted[54] = {
-            0, 1, 2, 3, 8,  9,  10, 11, 24, /* bottom */
-            4, 5, 6, 7, 12, 13, 14, 15, 25, /* top */
-            0, 1, 4, 5, 8,  12, 16, 17, 22, /* front */
-            1, 2, 5, 6, 9,  13, 17, 18, 21, /* right */
-            2, 3, 6, 7, 10, 14, 18, 19, 23, /* back */
-            0, 3, 4, 7, 11, 15, 16, 19, 20, /* left */
+      0, 1, 2, 3, 8,  9,  10, 11, 24, /* bottom */
+      4, 5, 6, 7, 12, 13, 14, 15, 25, /* top */
+      0, 1, 4, 5, 8,  12, 16, 17, 22, /* front */
+      1, 2, 5, 6, 9,  13, 17, 18, 21, /* right */
+      2, 3, 6, 7, 10, 14, 18, 19, 23, /* back */
+      0, 3, 4, 7, 11, 15, 16, 19, 20, /* left */
     };
     PetscInt faceVerticesQuadHex[54] = {
       3, 2, 1, 0, 10, 9,  8,  11, 24, /* bottom */

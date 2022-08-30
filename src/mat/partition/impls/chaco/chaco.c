@@ -2,11 +2,11 @@
 #include <../src/mat/impls/adj/mpi/mpiadj.h> /*I "petscmat.h" I*/
 
 #if defined(PETSC_HAVE_UNISTD_H)
-#include <unistd.h>
+  #include <unistd.h>
 #endif
 
 #if defined(PETSC_HAVE_CHACO_INT_ASSIGNMENT)
-#include <chaco.h>
+  #include <chaco.h>
 #else
 /* Older versions of Chaco do not have an include file */
 PETSC_EXTERN int interface(int nvtxs, int *start, int *adjacency, int *vwgts, float *ewgts, float *x, float *y, float *z, char *outassignname, char *outfilename, short *assignment, int architecture, int ndims_tot, int mesh_dims[3], double *goal, int global_method, int local_method, int rqi_flag, int vmax, int ndims, double eigtol, long seed);

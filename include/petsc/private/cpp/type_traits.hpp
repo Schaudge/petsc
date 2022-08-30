@@ -2,16 +2,16 @@
 #define PETSC_CPP_TYPE_TRAITS_HPP
 
 #if defined(__cplusplus)
-#include <petsc/private/petscimpl.h> // _p_PetscObject
-#include <petsc/private/cpp/macros.hpp>
+  #include <petsc/private/petscimpl.h> // _p_PetscObject
+  #include <petsc/private/cpp/macros.hpp>
 
-#include <type_traits>
+  #include <type_traits>
 
 namespace Petsc {
 
 namespace util {
 
-#if PETSC_CPP_VERSION >= 14
+  #if PETSC_CPP_VERSION >= 14
 using std::add_const_t;
 using std::add_pointer_t;
 using std::conditional_t;
@@ -23,7 +23,7 @@ using std::remove_extent_t;
 using std::remove_pointer_t;
 using std::remove_reference_t;
 using std::underlying_type_t;
-#else  // C++14
+  #else  // C++14
 template <bool B, class T = void>
 using enable_if_t = typename std::enable_if<B, T>::type;
 template <bool B, class T, class F>
@@ -46,18 +46,18 @@ template <class T>
 using remove_reference_t = typename std::remove_reference<T>::type;
 template <class T>
 using remove_extent_t = typename std::remove_extent<T>::type;
-#endif // C++14
+  #endif // C++14
 
-#if PETSC_CPP_VERSION >= 17
+  #if PETSC_CPP_VERSION >= 17
 using std::void_t;
-#else
+  #else
 template <class...>
 using void_t = void;
-#endif
+  #endif
 
-#if PETSC_CPP_VERSION >= 20
+  #if PETSC_CPP_VERSION >= 20
 using std::remove_cvref_t;
-#else
+  #else
 namespace detail {
 template <class T>
 struct remove_cvref {
@@ -67,7 +67,7 @@ struct remove_cvref {
 
 template <class T>
 using remove_cvref_t = typename detail::remove_cvref<T>::type;
-#endif
+  #endif
 
 template <typename... T>
 struct always_false : std::false_type { };
@@ -189,7 +189,7 @@ PETSC_NODISCARD inline constexpr PetscObject PetscObjectCast(PetscObject object)
 
 #else // __cplusplus
 
-#define PetscObjectCast(...) ((PetscObject)(__VA_ARGS__))
+  #define PetscObjectCast(...) ((PetscObject)(__VA_ARGS__))
 
 #endif // __cplusplus
 

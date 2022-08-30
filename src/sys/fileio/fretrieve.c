@@ -4,20 +4,20 @@
 */
 #include <petscsys.h>
 #if defined(PETSC_HAVE_PWD_H)
-#include <pwd.h>
+  #include <pwd.h>
 #endif
 #include <ctype.h>
 #include <sys/stat.h>
 #if defined(PETSC_HAVE_UNISTD_H)
-#include <unistd.h>
+  #include <unistd.h>
 #endif
 #if defined(PETSC_HAVE_SYS_UTSNAME_H)
-#include <sys/utsname.h>
+  #include <sys/utsname.h>
 #endif
 #include <fcntl.h>
 #include <time.h>
 #if defined(PETSC_HAVE_SYS_SYSTEMINFO_H)
-#include <sys/systeminfo.h>
+  #include <sys/systeminfo.h>
 #endif
 
 /*

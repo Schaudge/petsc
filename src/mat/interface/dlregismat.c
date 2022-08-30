@@ -1,7 +1,7 @@
 
 #include <petsc/private/matimpl.h>
 
-const char        *MatOptions_Shifted[]        = {"UNUSED_NONZERO_LOCATION_ERR", "ROW_ORIENTED", "NOT_A_VALID_OPTION", "SYMMETRIC", "STRUCTURALLY_SYMMETRIC", "FORCE_DIAGONAL_ENTRIES", "IGNORE_OFF_PROC_ENTRIES", "USE_HASH_TABLE", "KEEP_NONZERO_PATTERN", "IGNORE_ZERO_ENTRIES", "USE_INODES", "HERMITIAN", "SYMMETRY_ETERNAL", "NEW_NONZERO_LOCATION_ERR", "IGNORE_LOWER_TRIANGULAR", "ERROR_LOWER_TRIANGULAR", "GETROW_UPPERTRIANGULAR", "SPD", "NO_OFF_PROC_ZERO_ROWS", "NO_OFF_PROC_ENTRIES", "NEW_NONZERO_LOCATIONS", "NEW_NONZERO_ALLOCATION_ERR", "SUBSET_OFF_PROC_ENTRIES", "SUBMAT_SINGLEIS", "STRUCTURE_ONLY", "SORTED_FULL", "FORM_EXPLICIT_TRANSPOSE", "STRUCTURAL_SYMMETRY_ETERNAL", "SPD_ETERNAL", "MatOption", "MAT_", NULL};
+const char *MatOptions_Shifted[] = {"UNUSED_NONZERO_LOCATION_ERR", "ROW_ORIENTED", "NOT_A_VALID_OPTION", "SYMMETRIC", "STRUCTURALLY_SYMMETRIC", "FORCE_DIAGONAL_ENTRIES", "IGNORE_OFF_PROC_ENTRIES", "USE_HASH_TABLE", "KEEP_NONZERO_PATTERN", "IGNORE_ZERO_ENTRIES", "USE_INODES", "HERMITIAN", "SYMMETRY_ETERNAL", "NEW_NONZERO_LOCATION_ERR", "IGNORE_LOWER_TRIANGULAR", "ERROR_LOWER_TRIANGULAR", "GETROW_UPPERTRIANGULAR", "SPD", "NO_OFF_PROC_ZERO_ROWS", "NO_OFF_PROC_ENTRIES", "NEW_NONZERO_LOCATIONS", "NEW_NONZERO_ALLOCATION_ERR", "SUBSET_OFF_PROC_ENTRIES", "SUBMAT_SINGLEIS", "STRUCTURE_ONLY", "SORTED_FULL", "FORM_EXPLICIT_TRANSPOSE", "STRUCTURAL_SYMMETRY_ETERNAL", "SPD_ETERNAL", "MatOption", "MAT_", NULL};
 const char *const *MatOptions                  = MatOptions_Shifted + 2;
 const char *const  MatFactorShiftTypes[]       = {"NONE", "NONZERO", "POSITIVE_DEFINITE", "INBLOCKS", "MatFactorShiftType", "PC_FACTOR_", NULL};
 const char *const  MatStructures[]             = {"DIFFERENT", "SUBSET", "SAME", "UNKNOWN", "MatStructure", "MAT_STRUCTURE_", NULL};
@@ -23,34 +23,34 @@ static PetscBool      MatPackageInitialized = PETSC_FALSE;
 .seealso: `Mat`, `PetscFinalize()`, `MatInitializePackage()`
 @*/
 PetscErrorCode        MatFinalizePackage(void) {
-         MatRootName nnames, names = MatRootNameList;
+  MatRootName nnames, names = MatRootNameList;
 
-         PetscFunctionBegin;
-         PetscCall(MatSolverTypeDestroy());
-         while (names) {
-           nnames = names->next;
-           PetscCall(PetscFree(names->rname));
-           PetscCall(PetscFree(names->sname));
-           PetscCall(PetscFree(names->mname));
-           PetscCall(PetscFree(names));
-           names = nnames;
+  PetscFunctionBegin;
+  PetscCall(MatSolverTypeDestroy());
+  while (names) {
+    nnames = names->next;
+    PetscCall(PetscFree(names->rname));
+    PetscCall(PetscFree(names->sname));
+    PetscCall(PetscFree(names->mname));
+    PetscCall(PetscFree(names));
+    names = nnames;
   }
-         PetscCall(PetscFunctionListDestroy(&MatList));
-         PetscCall(PetscFunctionListDestroy(&MatOrderingList));
-         PetscCall(PetscFunctionListDestroy(&MatColoringList));
-         PetscCall(PetscFunctionListDestroy(&MatPartitioningList));
-         PetscCall(PetscFunctionListDestroy(&MatCoarsenList));
-         MatRootNameList                  = NULL;
-         MatPackageInitialized            = PETSC_FALSE;
-         MatRegisterAllCalled             = PETSC_FALSE;
-         MatOrderingRegisterAllCalled     = PETSC_FALSE;
-         MatColoringRegisterAllCalled     = PETSC_FALSE;
-         MatPartitioningRegisterAllCalled = PETSC_FALSE;
-         MatCoarsenRegisterAllCalled      = PETSC_FALSE;
-         /* this is not ideal because it exposes SeqAIJ implementation details directly into the base Mat code */
-         PetscCall(PetscFunctionListDestroy(&MatSeqAIJList));
-         MatSeqAIJRegisterAllCalled = PETSC_FALSE;
-         PetscFunctionReturn(0);
+  PetscCall(PetscFunctionListDestroy(&MatList));
+  PetscCall(PetscFunctionListDestroy(&MatOrderingList));
+  PetscCall(PetscFunctionListDestroy(&MatColoringList));
+  PetscCall(PetscFunctionListDestroy(&MatPartitioningList));
+  PetscCall(PetscFunctionListDestroy(&MatCoarsenList));
+  MatRootNameList                  = NULL;
+  MatPackageInitialized            = PETSC_FALSE;
+  MatRegisterAllCalled             = PETSC_FALSE;
+  MatOrderingRegisterAllCalled     = PETSC_FALSE;
+  MatColoringRegisterAllCalled     = PETSC_FALSE;
+  MatPartitioningRegisterAllCalled = PETSC_FALSE;
+  MatCoarsenRegisterAllCalled      = PETSC_FALSE;
+  /* this is not ideal because it exposes SeqAIJ implementation details directly into the base Mat code */
+  PetscCall(PetscFunctionListDestroy(&MatSeqAIJList));
+  MatSeqAIJRegisterAllCalled = PETSC_FALSE;
+  PetscFunctionReturn(0);
 }
 
 #if defined(PETSC_HAVE_MUMPS)

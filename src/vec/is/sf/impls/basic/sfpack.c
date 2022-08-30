@@ -306,17 +306,15 @@
   }
 
 #if defined(PETSC_HAVE_COMPLEX)
-#define DEF_ComplexType(Type, BS, EQ) \
-  DEF_Pack(Type, BS, EQ) DEF_Add(Type, BS, EQ) static void CPPJoin4(PackInit_ComplexType, Type, BS, EQ)(PetscSFLink link) { \
-    CPPJoin4(PackInit_Pack, Type, BS, EQ)(link); \
-    CPPJoin4(PackInit_Add, Type, BS, EQ)(link); \
-  }
+  #define DEF_ComplexType(Type, BS, EQ) \
+    DEF_Pack(Type, BS, EQ) DEF_Add(Type, BS, EQ) static void CPPJoin4(PackInit_ComplexType, Type, BS, EQ)(PetscSFLink link) { \
+      CPPJoin4(PackInit_Pack, Type, BS, EQ)(link); \
+      CPPJoin4(PackInit_Add, Type, BS, EQ)(link); \
+    }
 #endif
 
 #define DEF_DumbType(Type, BS, EQ) \
-  DEF_Pack(Type, BS, EQ) static void CPPJoin4(PackInit_DumbType, Type, BS, EQ)(PetscSFLink link) { \
-    CPPJoin4(PackInit_Pack, Type, BS, EQ)(link); \
-  }
+  DEF_Pack(Type, BS, EQ) static void CPPJoin4(PackInit_DumbType, Type, BS, EQ)(PetscSFLink link) { CPPJoin4(PackInit_Pack, Type, BS, EQ)(link); }
 
 /* Maxloc, Minloc */
 #define DEF_PairType(Type, BS, EQ) \

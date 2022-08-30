@@ -10,12 +10,12 @@ static PetscBool TSPackageInitialized = PETSC_FALSE;
 .seealso: `PetscFinalize()`
 @*/
 PetscErrorCode   TSFinalizePackage(void) {
-    PetscFunctionBegin;
-    PetscCall(PetscFunctionListDestroy(&TSList));
-    PetscCall(PetscFunctionListDestroy(&TSTrajectoryList));
-    TSPackageInitialized = PETSC_FALSE;
-    TSRegisterAllCalled  = PETSC_FALSE;
-    PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscCall(PetscFunctionListDestroy(&TSList));
+  PetscCall(PetscFunctionListDestroy(&TSTrajectoryList));
+  TSPackageInitialized = PETSC_FALSE;
+  TSRegisterAllCalled  = PETSC_FALSE;
+  PetscFunctionReturn(0);
 }
 
 /*@C

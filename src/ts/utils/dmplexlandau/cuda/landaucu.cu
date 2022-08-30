@@ -314,9 +314,9 @@ __device__ void landau_jac_kernel(const PetscInt num_grids, const PetscInt jpidx
 #endif
       temp2 *= wi;
 #if LANDAU_DIM == 2
-#pragma unroll
+  #pragma unroll
       for (d2 = 0; d2 < 2; d2++) {
-#pragma unroll
+  #pragma unroll
         for (d3 = 0; d3 < 2; ++d3) {
           /* K = U * grad(f): g2=e: i,A */
           gg2_temp[d2] += Uk[d2][d3] * temp1[d3];
@@ -325,11 +325,11 @@ __device__ void landau_jac_kernel(const PetscInt num_grids, const PetscInt jpidx
         }
       }
 #else
-#pragma unroll
+  #pragma unroll
       for (d2 = 0; d2 < 3; ++d2) {
-#pragma unroll
-            for (d3 = 0; d3 < 3; ++d3) {
-              /* K = U * grad(f): g2 = e: i,A */
+  #pragma unroll
+        for (d3 = 0; d3 < 3; ++d3) {
+          /* K = U * grad(f): g2 = e: i,A */
           gg2_temp[d2] += U[d2][d3] * temp1[d3];
           /* D = -U * (I \kron (fx)): g3 = f: i,j,A */
           gg3_temp[d2][d3] += U[d2][d3] * temp2;

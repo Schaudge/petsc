@@ -2,9 +2,9 @@
 #include <petsc/private/vecimpl.h>
 #include <petscsf.h>
 #if defined(PETSC_HAVE_CUDA)
-#include <thrust/for_each.h>
-#include <thrust/device_vector.h>
-#include <thrust/execution_policy.h>
+  #include <thrust/for_each.h>
+  #include <thrust/device_vector.h>
+  #include <thrust/execution_policy.h>
 #endif
 
 PETSC_INTERN PetscErrorCode PetscSFGetVectorSF(PetscSF sf, PetscInt nv, PetscInt ldr, PetscInt ldl, PetscSF *vsf) {

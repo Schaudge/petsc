@@ -572,7 +572,7 @@ PetscErrorCode PetscProbCreateFromOptions(PetscInt dim, const char prefix[], con
 
 #ifdef PETSC_HAVE_KS
 EXTERN_C_BEGIN
-#include <KolmogorovSmirnovDist.h>
+  #include <KolmogorovSmirnovDist.h>
 EXTERN_C_END
 #endif
 

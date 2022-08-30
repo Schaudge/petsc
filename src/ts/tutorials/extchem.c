@@ -3,16 +3,16 @@ static const char help[] = "Integrate chemistry using TChem.\n";
 #include <petscts.h>
 
 #if defined(PETSC_HAVE_TCHEM)
-#if defined(MAX)
-#undef MAX
-#endif
-#if defined(MIN)
-#undef MIN
-#endif
-#include <TC_params.h>
-#include <TC_interface.h>
+  #if defined(MAX)
+    #undef MAX
+  #endif
+  #if defined(MIN)
+    #undef MIN
+  #endif
+  #include <TC_params.h>
+  #include <TC_interface.h>
 #else
-#error TChem is required for this example.  Reconfigure PETSc using --download-tchem.
+  #error TChem is required for this example.  Reconfigure PETSc using --download-tchem.
 #endif
 /*
     See extchem.example.1 for how to run an example

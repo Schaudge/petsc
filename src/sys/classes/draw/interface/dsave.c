@@ -266,7 +266,7 @@ PetscErrorCode PetscDrawSaveMovie(PetscDraw draw) {
 }
 
 #if defined(PETSC_HAVE_SAWS)
-#include <petscviewersaws.h>
+  #include <petscviewersaws.h>
 /*
   The PetscImageList object and functions are used to maintain a list of file images
   that can be displayed by the SAWs webserver.

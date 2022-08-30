@@ -8,13 +8,13 @@
 #include <errno.h>
 #include <fcntl.h>
 #if defined(PETSC_HAVE_UNISTD_H)
-#include <unistd.h>
+  #include <unistd.h>
 #endif
 #if defined(PETSC_HAVE_IO_H)
-#include <io.h>
+  #include <io.h>
 #endif
 #if !defined(PETSC_HAVE_O_BINARY)
-#define O_BINARY 0
+  #define O_BINARY 0
 #endif
 
 const char *const PetscFileModes[] = {"READ", "WRITE", "APPEND", "UPDATE", "APPEND_UPDATE", "PetscFileMode", "PETSC_FILE_", NULL};
@@ -691,7 +691,7 @@ PetscErrorCode PetscBinarySynchronizedSeek(MPI_Comm comm, int fd, off_t off, Pet
 
 #if defined(PETSC_HAVE_MPIIO)
 
-#if defined(PETSC_USE_PETSC_MPI_EXTERNAL32)
+  #if defined(PETSC_USE_PETSC_MPI_EXTERNAL32)
 /*
       MPICH does not provide the external32 representation for MPI_File_set_view() so we need to provide the functions.
     These are set into MPI in PetscInitialize() via MPI_Register_datarep()
@@ -740,7 +740,7 @@ PetscMPIInt PetscDataRep_write_conv_fn(void *userbuf, MPI_Datatype datatype, Pet
   if (!PetscBinaryBigEndian()) PetscCall(PetscByteSwap(filebuf, pdtype, count));
   return ierr;
 }
-#endif
+  #endif
 
 PetscErrorCode MPIU_File_write_all(MPI_File fd, void *data, PetscMPIInt cnt, MPI_Datatype dtype, MPI_Status *status) {
   PetscDataType pdtype;

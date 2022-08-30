@@ -5,7 +5,7 @@
 #include <petscblaslapack.h>
 
 #if defined(PETSC_HAVE_IMMINTRIN_H) && defined(__AVX2__) && defined(__FMA__) && defined(PETSC_USE_REAL_DOUBLE) && !defined(PETSC_USE_COMPLEX) && !defined(PETSC_USE_64BIT_INDICES)
-#include <immintrin.h>
+  #include <immintrin.h>
 #endif
 
 PetscErrorCode MatIncreaseOverlap_SeqBAIJ(Mat A, PetscInt is_max, IS is[], PetscInt ov) {
@@ -369,7 +369,7 @@ PetscErrorCode MatMult_SeqBAIJ_3(Mat A, Vec xx, Vec zz) {
   PetscBool          usecprow = a->compressedrow.use;
 
 #if defined(PETSC_HAVE_PRAGMA_DISJOINT)
-#pragma disjoint(*v, *z, *xb)
+  #pragma disjoint(*v, *z, *xb)
 #endif
 
   PetscFunctionBegin;

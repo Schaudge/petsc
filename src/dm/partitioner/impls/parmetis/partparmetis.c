@@ -1,7 +1,7 @@
 #include <petsc/private/partitionerimpl.h> /*I "petscpartitioner.h" I*/
 
 #if defined(PETSC_HAVE_PARMETIS)
-#include <parmetis.h>
+  #include <parmetis.h>
 #endif
 
 PetscBool  ParMetisPartitionerCite       = PETSC_FALSE;

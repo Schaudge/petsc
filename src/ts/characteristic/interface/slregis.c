@@ -10,11 +10,11 @@ static PetscBool CharacteristicPackageInitialized = PETSC_FALSE;
 .seealso: `PetscFinalize()`
 @*/
 PetscErrorCode   CharacteristicFinalizePackage(void) {
-    PetscFunctionBegin;
-    PetscCall(PetscFunctionListDestroy(&CharacteristicList));
-    CharacteristicPackageInitialized = PETSC_FALSE;
-    CharacteristicRegisterAllCalled  = PETSC_FALSE;
-    PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscCall(PetscFunctionListDestroy(&CharacteristicList));
+  CharacteristicPackageInitialized = PETSC_FALSE;
+  CharacteristicRegisterAllCalled  = PETSC_FALSE;
+  PetscFunctionReturn(0);
 }
 
 /*@C

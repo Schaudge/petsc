@@ -1,8 +1,8 @@
 #if !defined(DMSTAG_H_)
-#define DMSTAG_H_
+  #define DMSTAG_H_
 
-#include <petscdm.h>
-#include <petscdmproduct.h>
+  #include <petscdm.h>
+  #include <petscdmproduct.h>
 
 /* SUBMANSEC = DMStag */
 

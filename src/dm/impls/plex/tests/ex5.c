@@ -467,7 +467,7 @@ static PetscErrorCode CreateSimplex_2D(MPI_Comm comm, PetscInt testNum, DM *dm) 
       PetscInt    cones[18]            = {6, 7, 9, 9, 12, 11, 7, 12, 9, 7, 8, 10, 10, 13, 12, 7, 10, 12};
       PetscInt    coneOrientations[18] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
       PetscScalar vertexCoords[16]     = {
-            -1., -1., 0., -1., 1., -1., -1., 0., 1., 0., -1., 1., 0., 1., 1., 1.,
+        -1., -1., 0., -1., 1., -1., -1., 0., 1., 0., -1., 1., 0., 1., 1., 1.,
       };
       PetscInt markerPoints[16] = {6, 1, 7, 1, 8, 1, 9, 1, 10, 1, 11, 1, 12, 1, 13, 1};
       PetscInt faultPoints[2]   = {7, 12};

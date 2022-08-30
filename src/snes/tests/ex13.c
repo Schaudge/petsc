@@ -7,7 +7,7 @@ using a parallel unstructured mesh (DMPLEX) to discretize it.\n\n\n";
 #include <petscds.h>
 #include <petscconvest.h>
 #if defined(PETSC_HAVE_AMGX)
-#include <amgx_c.h>
+  #include <amgx_c.h>
 #endif
 
 typedef struct {

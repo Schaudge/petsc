@@ -7,9 +7,9 @@ int main(int argc, char **argv) {
   PetscScalar pa[] = {1., -1., 0., 0., 1., -1., 0., 0., 1.};
   PetscInt    i, pij[] = {0, 1, 2};
   PetscInt    aij[3][3] = {
-       {0, 1, 2},
-       {3, 4, 5},
-       {6, 7, 8}
+    {0, 1, 2},
+    {3, 4, 5},
+    {6, 7, 8}
   };
   Mat         A, mC, C;
   PetscScalar one = 1.;

@@ -1702,8 +1702,8 @@ static PetscErrorCode DMPlexView_Draw(DM dm, PetscViewer viewer) {
 }
 
 #if defined(PETSC_HAVE_EXODUSII)
-#include <exodusII.h>
-#include <petscviewerexodusii.h>
+  #include <exodusII.h>
+  #include <petscviewerexodusii.h>
 #endif
 
 PetscErrorCode DMView_Plex(DM dm, PetscViewer viewer) {

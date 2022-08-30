@@ -92,7 +92,7 @@ PetscErrorCode MatMult_AIJCRL(Mat A, Vec xx, Vec yy) {
 #endif
 
 #if defined(PETSC_HAVE_PRAGMA_DISJOINT)
-#pragma disjoint(*x, *y, *aa)
+  #pragma disjoint(*x, *y, *aa)
 #endif
 
   PetscFunctionBegin;
@@ -115,19 +115,19 @@ PetscErrorCode MatMult_AIJCRL(Mat A, Vec xx, Vec yy) {
   for (j = 0; j < m; j++) y[j] = acols[j] * x[icols[j]];
 
     /* other columns */
-#if defined(PETSC_HAVE_CRAY_VECTOR)
-#pragma _CRI preferstream
-#endif
+  #if defined(PETSC_HAVE_CRAY_VECTOR)
+    #pragma _CRI preferstream
+  #endif
   for (i = 1; i < rmax; i++) {
     ii = i * m;
-#if defined(PETSC_HAVE_CRAY_VECTOR)
-#pragma _CRI prefervector
-#endif
+  #if defined(PETSC_HAVE_CRAY_VECTOR)
+    #pragma _CRI prefervector
+  #endif
     for (j = 0; j < m; j++) y[j] = y[j] + acols[ii + j] * x[icols[ii + j]];
   }
-#if defined(PETSC_HAVE_CRAY_VECTOR)
-#pragma _CRI ivdep
-#endif
+  #if defined(PETSC_HAVE_CRAY_VECTOR)
+    #pragma _CRI ivdep
+  #endif
 
 #endif
   PetscCall(PetscLogFlops(2.0 * aijcrl->nz - m));

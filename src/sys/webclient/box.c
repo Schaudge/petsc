@@ -14,7 +14,7 @@
 #define PETSC_BOX_CLIENT_ST "A0Dy4KgOYLB2JIYZqpbze4EzjeIiX5k4"
 
 #if defined(PETSC_HAVE_SAWS)
-#include <mongoose.h>
+  #include <mongoose.h>
 
 static volatile char *result = NULL;
 
@@ -63,9 +63,9 @@ static PetscErrorCode PetscBoxStartWebServer_Private(void) {
   PetscFunctionReturn(0);
 }
 
-#if defined(PETSC_HAVE_UNISTD_H)
-#include <unistd.h>
-#endif
+  #if defined(PETSC_HAVE_UNISTD_H)
+    #include <unistd.h>
+  #endif
 
 /*@C
      PetscBoxAuthorize - Get authorization and refresh token for accessing Box drive from PETSc

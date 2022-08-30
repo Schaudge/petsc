@@ -8,9 +8,9 @@
 #include <petsc/private/pcimpl.h> /*I "petscpc.h" I*/
 
 #if defined(PETSC_USE_COMPLEX)
-#define DBL_CMPLX
+  #define DBL_CMPLX
 #else
-#define DBL
+  #define DBL
 #endif
 #define USE_MPI
 #define REAL double

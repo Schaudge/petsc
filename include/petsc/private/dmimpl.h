@@ -1,10 +1,10 @@
 
-#if !defined(_DMIMPL_H)
+#ifndef _DMIMPL_H
 #define _DMIMPL_H
 
 #include <petscdm.h>
 #ifdef PETSC_HAVE_LIBCEED
-#include <petscdmceed.h>
+  #include <petscdmceed.h>
 #endif
 #include <petsc/private/petscimpl.h>
 #include <petsc/private/petscdsimpl.h>

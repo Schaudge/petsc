@@ -31,11 +31,11 @@ PetscErrorCode PetscKokkosInitializeCheck(void) {
     PetscDeviceContext dctx;
 
     PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
-#if PETSC_PKG_KOKKOS_VERSION_GE(3, 6, 99)
+  #if PETSC_PKG_KOKKOS_VERSION_GE(3, 6, 99)
     args.set_device_id(static_cast<int>(dctx->device->deviceId));
-#else
+  #else
     PetscCall(PetscMPIIntCast(dctx->device->deviceId, &args.device_id));
-#endif
+  #endif
 #endif
 
 #if PETSC_PKG_KOKKOS_VERSION_GE(3, 6, 99)
@@ -48,11 +48,11 @@ PetscErrorCode PetscKokkosInitializeCheck(void) {
        Otherwise, let's keep the default value (-1) of args.num_threads.
     */
 #if defined(KOKKOS_ENABLE_OPENMP) && PetscDefined(HAVE_OPENMP)
-#if PETSC_PKG_KOKKOS_VERSION_GE(3, 6, 99)
+  #if PETSC_PKG_KOKKOS_VERSION_GE(3, 6, 99)
     args.set_num_threads(PetscNumOMPThreads);
-#else
+  #else
     args.num_threads = PetscNumOMPThreads;
-#endif
+  #endif
 #endif
 
     Kokkos::initialize(args);

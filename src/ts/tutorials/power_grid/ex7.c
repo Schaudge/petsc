@@ -180,8 +180,8 @@ PetscErrorCode ini_bou(Vec X, AppCtx *user) {
     user->PM_min = user->Pmax * PetscSinScalar(mux);
     for (i = xs; i < xs + xm; i++) {
       for (j = ys; j < ys + ym; j++) {
-        xi      = coors[j][i].x;
-        yi      = coors[j][i].y;
+        xi = coors[j][i].x;
+        yi = coors[j][i].y;
         p[j][i] = (0.5 / (PETSC_PI * sigmax * sigmay * PetscSqrtScalar(1.0 - rho * rho))) * PetscExpScalar(-0.5 / (1 - rho * rho) * (PetscPowScalar((xi - mux) / sigmax, 2) + PetscPowScalar((yi - muy) / sigmay, 2) - 2 * rho * (xi - mux) * (yi - muy) / (sigmax * sigmay)));
       }
     }

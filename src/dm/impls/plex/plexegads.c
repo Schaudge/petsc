@@ -2,7 +2,7 @@
 #include <petsc/private/hashmapi.h>
 
 #ifdef PETSC_HAVE_EGADS
-#include <egads.h>
+  #include <egads.h>
 #endif
 
 /* We need to understand how to natively parse STEP files. There seems to be only one open source implementation of
@@ -67,7 +67,7 @@ PetscErrorCode DMPlexSnapToGeomModel_EGADS_Internal(DM dm, PetscInt p, ego model
   PetscCall(EG_getRange(obj, range, &peri));
   for (v = 0; v < Nv; ++v) {
     PetscCall(EG_invEvaluate(obj, &coords[v * dE], &paramsV[v * 3], &resultV[v * 3]));
-#if 1
+  #if 1
     if (peri > 0) {
       if (paramsV[v * 3 + 0] + 1.e-4 < range[0]) {
         paramsV[v * 3 + 0] += 2. * PETSC_PI;
@@ -82,7 +82,7 @@ PetscErrorCode DMPlexSnapToGeomModel_EGADS_Internal(DM dm, PetscInt p, ego model
         paramsV[v * 3 + 1] -= 2. * PETSC_PI;
       }
     }
-#endif
+  #endif
   }
   PetscCall(DMPlexVecRestoreClosure(cdm, NULL, coordinatesLocal, p, &Nv, &coords));
   /* Calculate parameters (t or u,v) for new vertex at edge midpoint */

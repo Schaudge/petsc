@@ -4,7 +4,7 @@
 #include <petscsys.h>
 
 #if defined(__cplusplus)
-#include <petsc/private/cpp/crtp.hpp>
+  #include <petsc/private/cpp/crtp.hpp>
 
 namespace {
 

@@ -6,7 +6,7 @@
 */
 #include <petsc/private/petscimpl.h> /*I  "petscsys.h"   I*/
 #if defined(PETSC_HAVE_STRINGS_H)
-#include <strings.h> /* strcasecmp */
+  #include <strings.h> /* strcasecmp */
 #endif
 
 /*@C

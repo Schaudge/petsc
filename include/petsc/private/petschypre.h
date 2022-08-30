@@ -1,4 +1,4 @@
-#if !defined(_PETSCHYPRE_H)
+#ifndef _PETSCHYPRE_H
 #define _PETSCHYPRE_H
 
 #include <petscsys.h>
@@ -13,17 +13,17 @@ typedef PetscInt HYPRE_BigInt;
 #endif
 
 #if defined(HYPRE_BIGINT) || defined(HYPRE_MIXEDINT)
-#define PetscHYPRE_BigInt_FMT "lld"
-#ifdef __cplusplus /* make sure our format specifiers line up */
-#include <type_traits>
+  #define PetscHYPRE_BigInt_FMT "lld"
+  #ifdef __cplusplus /* make sure our format specifiers line up */
+    #include <type_traits>
 static_assert(std::is_same<HYPRE_BigInt, long long int>::value, "");
-#endif
+  #endif
 #else
-#define PetscHYPRE_BigInt_FMT "d"
-#ifdef __cplusplus /* make sure our format specifiers line up */
-#include <type_traits>
+  #define PetscHYPRE_BigInt_FMT "d"
+  #ifdef __cplusplus /* make sure our format specifiers line up */
+    #include <type_traits>
 static_assert(std::is_same<HYPRE_BigInt, int>::value, "");
-#endif
+  #endif
 #endif
 
 /*

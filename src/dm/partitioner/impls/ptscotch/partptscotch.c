@@ -2,7 +2,7 @@
 
 #if defined(PETSC_HAVE_PTSCOTCH)
 EXTERN_C_BEGIN
-#include <ptscotch.h>
+  #include <ptscotch.h>
 EXTERN_C_END
 #endif
 
@@ -26,8 +26,8 @@ typedef struct {
 
 #if defined(PETSC_HAVE_PTSCOTCH)
 
-#define PetscCallPTSCOTCH(...) \
-  do { PetscCheck(!(__VA_ARGS__), PETSC_COMM_SELF, PETSC_ERR_LIB, "Error calling PT-Scotch library"); } while (0)
+  #define PetscCallPTSCOTCH(...) \
+    do { PetscCheck(!(__VA_ARGS__), PETSC_COMM_SELF, PETSC_ERR_LIB, "Error calling PT-Scotch library"); } while (0)
 
 static int PTScotch_Strategy(PetscInt strategy) {
   switch (strategy) {

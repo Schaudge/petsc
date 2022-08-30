@@ -287,11 +287,11 @@ extern PetscErrorCode KSPReset_FGMRES(KSP);
 
 */
 PetscErrorCode        KSPDestroy_FGMRES(KSP ksp) {
-         PetscFunctionBegin;
-         PetscCall(KSPReset_FGMRES(ksp));
-         PetscCall(PetscObjectComposeFunction((PetscObject)ksp, "KSPFGMRESSetModifyPC_C", NULL));
-         PetscCall(KSPDestroy_GMRES(ksp));
-         PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscCall(KSPReset_FGMRES(ksp));
+  PetscCall(PetscObjectComposeFunction((PetscObject)ksp, "KSPFGMRESSetModifyPC_C", NULL));
+  PetscCall(KSPDestroy_GMRES(ksp));
+  PetscFunctionReturn(0);
 }
 
 /*

@@ -1401,7 +1401,7 @@ PetscErrorCode MatMult_SeqAIJ(Mat A, Vec xx, Vec yy) {
   PetscBool          usecprow = a->compressedrow.use;
 
 #if defined(PETSC_HAVE_PRAGMA_DISJOINT)
-#pragma disjoint(*x, *y, *aa)
+  #pragma disjoint(*x, *y, *aa)
 #endif
 
   PetscFunctionBegin;
@@ -1462,7 +1462,7 @@ PetscErrorCode MatMultMax_SeqAIJ(Mat A, Vec xx, Vec yy) {
   PetscBool          usecprow = a->compressedrow.use;
 
 #if defined(PETSC_HAVE_PRAGMA_DISJOINT)
-#pragma disjoint(*x, *y, *aa)
+  #pragma disjoint(*x, *y, *aa)
 #endif
 
   PetscFunctionBegin;
@@ -5215,9 +5215,9 @@ PetscErrorCode MatSeqAIJRegisterAll(void) {
 */
 #include <petsc/private/fortranimpl.h>
 #if defined(PETSC_HAVE_FORTRAN_CAPS)
-#define matsetvaluesseqaij_ MATSETVALUESSEQAIJ
+  #define matsetvaluesseqaij_ MATSETVALUESSEQAIJ
 #elif !defined(PETSC_HAVE_FORTRAN_UNDERSCORE)
-#define matsetvaluesseqaij_ matsetvaluesseqaij
+  #define matsetvaluesseqaij_ matsetvaluesseqaij
 #endif
 
 /* Change these macros so can be used in void function */

@@ -2,9 +2,9 @@
 #include <petsc/private/petscimpl.h>     /*I  "petscsys.h"  I*/
 
 #if defined(PETSC_HAVE_YAML)
-#include <yaml.h> /* use external LibYAML */
+  #include <yaml.h> /* use external LibYAML */
 #else
-#include <../src/sys/yaml/include/yaml.h>
+  #include <../src/sys/yaml/include/yaml.h>
 #endif
 
 static MPI_Comm petsc_yaml_comm = MPI_COMM_NULL; /* only used for parallel error handling */
@@ -261,29 +261,29 @@ PetscErrorCode PetscOptionsInsertFileYAML(MPI_Comm comm, PetscOptions options, c
 
 #if !defined(PETSC_HAVE_YAML)
 
-/*
+  /*
 #if !defined(PETSC_HAVE_STRDUP)
 #define strdup(s) (char*)memcpy(malloc(strlen(s)+1),s,strlen(s)+1)
 #endif
 */
 
-/* Embed LibYAML in this compilation unit */
-#include <../src/sys/yaml/src/api.c>
-#include <../src/sys/yaml/src/loader.c>
-#include <../src/sys/yaml/src/parser.c>
-#include <../src/sys/yaml/src/reader.c>
+  /* Embed LibYAML in this compilation unit */
+  #include <../src/sys/yaml/src/api.c>
+  #include <../src/sys/yaml/src/loader.c>
+  #include <../src/sys/yaml/src/parser.c>
+  #include <../src/sys/yaml/src/reader.c>
 
-/*
+  /*
   Avoid compiler warnings like
     scanner.c, line 3181: warning: integer conversion resulted in a change of sign
                           *(string.pointer++) = '\xC2';
 
   Once yaml fixes them, we can remove the pragmas
 */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wsign-conversion"
-#include <../src/sys/yaml/src/scanner.c>
-#pragma GCC diagnostic pop
+  #pragma GCC diagnostic push
+  #pragma GCC diagnostic ignored "-Wsign-conversion"
+  #include <../src/sys/yaml/src/scanner.c>
+  #pragma GCC diagnostic pop
 
 /* Silence a few unused-function warnings */
 static PETSC_UNUSED void petsc_yaml_unused(void) {

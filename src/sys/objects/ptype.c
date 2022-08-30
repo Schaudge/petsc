@@ -26,13 +26,13 @@ PetscErrorCode PetscDataTypeToMPIDataType(PetscDataType ptype, MPI_Datatype *mty
   if (ptype == PETSC_INT) *mtype = MPIU_INT;
   else if (ptype == PETSC_DOUBLE) *mtype = MPI_DOUBLE;
 #if defined(PETSC_HAVE_COMPLEX)
-#if defined(PETSC_USE_REAL_SINGLE)
+  #if defined(PETSC_USE_REAL_SINGLE)
   else if (ptype == PETSC_COMPLEX) *mtype = MPI_C_COMPLEX;
-#elif defined(PETSC_USE_REAL___FLOAT128)
+  #elif defined(PETSC_USE_REAL___FLOAT128)
   else if (ptype == PETSC_COMPLEX) *mtype = MPIU___COMPLEX128;
-#else
+  #else
   else if (ptype == PETSC_COMPLEX) *mtype = MPI_C_DOUBLE_COMPLEX;
-#endif
+  #endif
 #endif
   else if (ptype == PETSC_LONG) *mtype = MPI_LONG;
   else if (ptype == PETSC_SHORT) *mtype = MPI_SHORT;
@@ -75,13 +75,13 @@ PetscErrorCode PetscMPIDataTypeToPetscDataType(MPI_Datatype mtype, PetscDataType
   else if (mtype == MPIU_INT64) *ptype = PETSC_INT64;
   else if (mtype == MPI_DOUBLE) *ptype = PETSC_DOUBLE;
 #if defined(PETSC_HAVE_COMPLEX)
-#if defined(PETSC_USE_REAL_SINGLE)
+  #if defined(PETSC_USE_REAL_SINGLE)
   else if (mtype == MPI_C_COMPLEX) *ptype = PETSC_COMPLEX;
-#elif defined(PETSC_USE_REAL___FLOAT128)
+  #elif defined(PETSC_USE_REAL___FLOAT128)
   else if (mtype == MPIU___COMPLEX128) *ptype = PETSC_COMPLEX;
-#else
+  #else
   else if (mtype == MPI_C_DOUBLE_COMPLEX) *ptype = PETSC_COMPLEX;
-#endif
+  #endif
 #endif
   else if (mtype == MPI_LONG) *ptype = PETSC_LONG;
   else if (mtype == MPI_SHORT) *ptype = PETSC_SHORT;

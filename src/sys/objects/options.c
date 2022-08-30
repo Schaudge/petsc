@@ -13,18 +13,18 @@
 #include <petscviewer.h>
 #include <ctype.h>
 #if defined(PETSC_HAVE_MALLOC_H)
-#include <malloc.h>
+  #include <malloc.h>
 #endif
 #if defined(PETSC_HAVE_STRINGS_H)
-#include <strings.h> /* strcasecmp */
+  #include <strings.h> /* strcasecmp */
 #endif
 
 #if defined(PETSC_HAVE_STRCASECMP)
-#define PetscOptNameCmp(a, b) strcasecmp(a, b)
+  #define PetscOptNameCmp(a, b) strcasecmp(a, b)
 #elif defined(PETSC_HAVE_STRICMP)
-#define PetscOptNameCmp(a, b) stricmp(a, b)
+  #define PetscOptNameCmp(a, b) stricmp(a, b)
 #else
-#define PetscOptNameCmp(a, b) Error_strcasecmp_not_found
+  #define PetscOptNameCmp(a, b) Error_strcasecmp_not_found
 #endif
 
 #include <petsc/private/hashtable.h>
@@ -2141,7 +2141,7 @@ PetscErrorCode PetscOptionsStringToInt(const char name[], PetscInt *a) {
 }
 
 #if defined(PETSC_USE_REAL___FLOAT128)
-#include <quadmath.h>
+  #include <quadmath.h>
 #endif
 
 static PetscErrorCode PetscStrtod(const char name[], PetscReal *a, char **endptr) {

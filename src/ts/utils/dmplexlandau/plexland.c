@@ -9,18 +9,18 @@
 
 /* relativistic terms */
 #if defined(PETSC_USE_REAL_SINGLE)
-#define SPEED_OF_LIGHT 2.99792458e8F
-#define C_0(v0)        (SPEED_OF_LIGHT / v0) /* needed for relativistic tensor on all architectures */
+  #define SPEED_OF_LIGHT 2.99792458e8F
+  #define C_0(v0)        (SPEED_OF_LIGHT / v0) /* needed for relativistic tensor on all architectures */
 #else
-#define SPEED_OF_LIGHT 2.99792458e8
-#define C_0(v0)        (SPEED_OF_LIGHT / v0) /* needed for relativistic tensor on all architectures */
+  #define SPEED_OF_LIGHT 2.99792458e8
+  #define C_0(v0)        (SPEED_OF_LIGHT / v0) /* needed for relativistic tensor on all architectures */
 #endif
 
 #define PETSC_THREAD_SYNC
 #include "land_tensors.h"
 
 #if defined(PETSC_HAVE_OPENMP)
-#include <omp.h>
+  #include <omp.h>
 #endif
 
 static PetscErrorCode LandauGPUMapsDestroy(void *ptr) {
@@ -1859,17 +1859,17 @@ static PetscErrorCode CreateStaticGPUData(PetscInt dim, IS grid_batch_is_inv[], 
         }
       }
       if (ctx->deviceType == LANDAU_CUDA) {
-#if defined(PETSC_HAVE_CUDA)
+  #if defined(PETSC_HAVE_CUDA)
         PetscCall(LandauCUDAStaticDataSet(ctx->plex[0], Nq, ctx->batch_sz, ctx->num_grids, numCells, ctx->species_offset, ctx->mat_offset, nu_alpha, nu_beta, invMass, invJ_a, xx, yy, zz, ww, &ctx->SData_d));
-#else
+  #else
         SETERRQ(ctx->comm, PETSC_ERR_ARG_WRONG, "-landau_device_type cuda not built");
-#endif
+  #endif
       } else if (ctx->deviceType == LANDAU_KOKKOS) {
-#if defined(PETSC_HAVE_KOKKOS_KERNELS)
+  #if defined(PETSC_HAVE_KOKKOS_KERNELS)
         PetscCall(LandauKokkosStaticDataSet(ctx->plex[0], Nq, ctx->batch_sz, ctx->num_grids, numCells, ctx->species_offset, ctx->mat_offset, nu_alpha, nu_beta, invMass, invJ_a, xx, yy, zz, ww, &ctx->SData_d));
-#else
+  #else
         SETERRQ(ctx->comm, PETSC_ERR_ARG_WRONG, "-landau_device_type kokkos not built");
-#endif
+  #endif
       }
 #endif
       /* free */

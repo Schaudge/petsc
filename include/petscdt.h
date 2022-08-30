@@ -1,7 +1,7 @@
 /*
   Common tools for constructing discretizations
 */
-#if !defined(PETSCDT_H)
+#ifndef PETSCDT_H
 #define PETSCDT_H
 
 #include <petscsys.h>
@@ -153,11 +153,11 @@ PETSC_EXTERN PetscErrorCode PetscDTGradedOrderToIndex(PetscInt, const PetscInt[]
 PETSC_EXTERN PetscErrorCode PetscDTIndexToGradedOrder(PetscInt, PetscInt, PetscInt[]);
 
 #if defined(PETSC_USE_64BIT_INDICES)
-#define PETSC_FACTORIAL_MAX 20
-#define PETSC_BINOMIAL_MAX  61
+  #define PETSC_FACTORIAL_MAX 20
+  #define PETSC_BINOMIAL_MAX  61
 #else
-#define PETSC_FACTORIAL_MAX 12
-#define PETSC_BINOMIAL_MAX  29
+  #define PETSC_FACTORIAL_MAX 12
+  #define PETSC_BINOMIAL_MAX  29
 #endif
 
 /*MC

@@ -1404,7 +1404,7 @@ PetscErrorCode DMPlexPartitionLabelCreateSF(DM dm, DMLabel label, PetscSF *sf) {
 }
 
 #if defined(PETSC_HAVE_PARMETIS)
-#include <parmetis.h>
+  #include <parmetis.h>
 #endif
 
 /* The two functions below are used by DMPlexRebalanceSharedPoints which errors

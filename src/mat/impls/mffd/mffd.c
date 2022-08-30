@@ -18,11 +18,11 @@ static PetscBool MatMFFDPackageInitialized = PETSC_FALSE;
 .seealso: `MATMFFD`, `PetscFinalize()`, `MatCreateMFFD()`, `MatCreateSNESMF()`
 @*/
 PetscErrorCode   MatMFFDFinalizePackage(void) {
-    PetscFunctionBegin;
-    PetscCall(PetscFunctionListDestroy(&MatMFFDList));
-    MatMFFDPackageInitialized = PETSC_FALSE;
-    MatMFFDRegisterAllCalled  = PETSC_FALSE;
-    PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscCall(PetscFunctionListDestroy(&MatMFFDList));
+  MatMFFDPackageInitialized = PETSC_FALSE;
+  MatMFFDRegisterAllCalled  = PETSC_FALSE;
+  PetscFunctionReturn(0);
 }
 
 /*@C

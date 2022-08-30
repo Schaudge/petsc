@@ -1,7 +1,7 @@
 #include <petscsys.h> /*I   "petscsys.h"   I*/
 
 #if defined(PETSC_HAVE_MEMKIND)
-#include <hbwmalloc.h>
+  #include <hbwmalloc.h>
 #endif
 
 /*

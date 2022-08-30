@@ -1,4 +1,4 @@
-#if !defined(_PLEXIMPL_H)
+#ifndef _PLEXIMPL_H
 #define _PLEXIMPL_H
 
 #include <petscmat.h>    /*I      "petscmat.h"          I*/
@@ -8,7 +8,7 @@
 #include <petsc/private/dmimpl.h>
 
 #if defined(PETSC_HAVE_EXODUSII)
-#include <exodusII.h>
+  #include <exodusII.h>
 #endif
 
 PETSC_EXTERN PetscLogEvent DMPLEX_Interpolate;

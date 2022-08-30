@@ -8,7 +8,7 @@
 */
 #include <errno.h>
 #if defined(PETSC_HAVE_UNISTD_H)
-#include <unistd.h>
+  #include <unistd.h>
 #endif
 
 /*

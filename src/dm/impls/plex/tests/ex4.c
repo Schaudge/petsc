@@ -239,7 +239,7 @@ PetscErrorCode CreateTensorProductHybrid_2D(MPI_Comm comm, PetscInt testNum, DM 
     PetscInt numPoints[2] = {6, 2};
     PetscInt coneSize[8]  = {4, 4, 0, 0, 0, 0, 0, 0};
     PetscInt cones[8]     = {
-          2, 3, 4, 5, 3, 6, 7, 4,
+      2, 3, 4, 5, 3, 6, 7, 4,
     };
     PetscInt    coneOrientations[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     PetscScalar vertexCoords[12]    = {-1.0, -0.5, 0.0, -0.5, 0.0, 0.5, -1.0, 0.5, 1.0, -0.5, 1.0, 0.5};

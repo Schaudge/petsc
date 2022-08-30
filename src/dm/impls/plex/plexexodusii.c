@@ -2,8 +2,8 @@
 #include <petsc/private/dmpleximpl.h> /*I   "petscdmplex.h"   I*/
 
 #if defined(PETSC_HAVE_EXODUSII)
-#include <netcdf.h>
-#include <exodusII.h>
+  #include <netcdf.h>
+  #include <exodusII.h>
 #endif
 
 #include <petsc/private/viewerimpl.h>
@@ -121,9 +121,9 @@ static PetscErrorCode PetscViewerFileSetName_ExodusII(PetscViewer viewer, const 
     break;
   default: SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ORDER, "Must call PetscViewerFileSetMode() before PetscViewerFileSetName()");
   }
-#if defined(PETSC_USE_64BIT_INDICES)
+  #if defined(PETSC_USE_64BIT_INDICES)
   EXO_mode += EX_ALL_INT64_API;
-#endif
+  #endif
   exo->exoid = ex_open_par(name, EXO_mode, &CPU_word_size, &IO_word_size, &EXO_version, PETSC_COMM_WORLD, mpi_info);
   PetscCheck(exo->exoid >= 0, PETSC_COMM_SELF, PETSC_ERR_LIB, "ex_open_par failed for %s", name);
   PetscFunctionReturn(0);
@@ -351,9 +351,9 @@ PetscErrorCode DMView_PlexExodusII(DM dm, PetscViewer viewer) {
     case FILE_MODE_WRITE:
       /* Create an empty file if one already exists*/
       EXO_mode = EX_CLOBBER;
-#if defined(PETSC_USE_64BIT_INDICES)
+  #if defined(PETSC_USE_64BIT_INDICES)
       EXO_mode += EX_ALL_INT64_API;
-#endif
+  #endif
       CPU_word_size = sizeof(PetscReal);
       IO_word_size  = sizeof(PetscReal);
       exo->exoid    = ex_create(exo->filename, EXO_mode, &CPU_word_size, &IO_word_size);
@@ -762,9 +762,9 @@ PetscErrorCode DMView_PlexExodusII(DM dm, PetscViewer viewer) {
     reopen the file in parallel
   */
   EXO_mode = EX_WRITE;
-#if defined(PETSC_USE_64BIT_INDICES)
+  #if defined(PETSC_USE_64BIT_INDICES)
   EXO_mode += EX_ALL_INT64_API;
-#endif
+  #endif
   CPU_word_size = sizeof(PetscReal);
   IO_word_size  = sizeof(PetscReal);
   exo->exoid    = ex_open_par(exo->filename, EXO_mode, &CPU_word_size, &IO_word_size, &EXO_version, comm, MPI_INFO_NULL);

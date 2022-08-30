@@ -248,23 +248,23 @@ int main(int argc, char **args) {
     if (flg_superlu) PetscCall(PCSetType(pc, PCLU));
     else if (flg_ilu) PetscCall(PCSetType(pc, PCILU));
     if (size == 1) {
-#if !defined(PETSC_HAVE_SUPERLU)
+  #if !defined(PETSC_HAVE_SUPERLU)
       SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_SUP, "This test requires SUPERLU");
-#else
+  #else
       PetscCall(PCFactorSetMatSolverType(pc, MATSOLVERSUPERLU));
-#endif
+  #endif
     } else {
-#if !defined(PETSC_HAVE_SUPERLU_DIST)
+  #if !defined(PETSC_HAVE_SUPERLU_DIST)
       SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_SUP, "This test requires SUPERLU_DIST");
-#else
+  #else
       PetscCall(PCFactorSetMatSolverType(pc, MATSOLVERSUPERLU_DIST));
-#endif
+  #endif
     }
     PetscCall(PCFactorSetUpMatSolverType(pc)); /* call MatGetFactor() to create F */
     PetscCall(PCFactorGetMatrix(pc, &F));
-#if defined(PETSC_HAVE_SUPERLU)
+  #if defined(PETSC_HAVE_SUPERLU)
     if (size == 1) PetscCall(MatSuperluSetILUDropTol(F, 1.e-8));
-#endif
+  #endif
   }
 #endif
 
@@ -294,13 +294,13 @@ int main(int argc, char **args) {
     PetscCall(KSPGetPC(ksp, &pc));
     if (flg_strumpack) PetscCall(PCSetType(pc, PCLU));
     else if (flg_ilu) PetscCall(PCSetType(pc, PCILU));
-#if !defined(PETSC_HAVE_STRUMPACK)
+  #if !defined(PETSC_HAVE_STRUMPACK)
     SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_SUP, "This test requires STRUMPACK");
-#endif
+  #endif
     PetscCall(PCFactorSetMatSolverType(pc, MATSOLVERSTRUMPACK));
     PetscCall(PCFactorSetUpMatSolverType(pc)); /* call MatGetFactor() to create F */
     PetscCall(PCFactorGetMatrix(pc, &F));
-#if defined(PETSC_HAVE_STRUMPACK)
+  #if defined(PETSC_HAVE_STRUMPACK)
     /* Set the fill-reducing reordering.                              */
     PetscCall(MatSTRUMPACKSetReordering(F, MAT_STRUMPACK_METIS));
     /* Since this is a simple discretization, the diagonal is always  */
@@ -320,7 +320,7 @@ int main(int argc, char **args) {
     /* approximation. The default value should be better for real     */
     /* problems. This is mostly for illustration on a small problem.  */
     PetscCall(MatSTRUMPACKSetHSSLeafSize(F, 4));
-#endif
+  #endif
   }
 #endif
 

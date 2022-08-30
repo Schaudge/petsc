@@ -1,7 +1,7 @@
 
 #include <petscsys.h>
 #if defined(PETSC_HAVE_SYS_TIME_H)
-#include <sys/time.h>
+  #include <sys/time.h>
 #endif
 #include <time.h>
 #if defined(PETSC_NEEDS_GETTIMEOFDAY_PROTO)

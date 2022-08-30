@@ -511,10 +511,10 @@ PetscErrorCode VecView_MPI_Matlab(Vec xin, PetscViewer viewer) {
 #endif
 
 #if defined(PETSC_HAVE_ADIOS)
-#include <adios.h>
-#include <adios_read.h>
-#include <petsc/private/vieweradiosimpl.h>
-#include <petsc/private/viewerimpl.h>
+  #include <adios.h>
+  #include <adios_read.h>
+  #include <petsc/private/vieweradiosimpl.h>
+  #include <petsc/private/viewerimpl.h>
 
 PetscErrorCode VecView_MPI_ADIOS(Vec xin, PetscViewer viewer) {
   PetscViewer_ADIOS *adios = (PetscViewer_ADIOS *)viewer->data;
@@ -602,7 +602,7 @@ PetscErrorCode VecView_MPI_HDF5(Vec xin, PetscViewer viewer) {
     chunksize *= chunkDims[dim];
     ++dim;
   }
-#if defined(PETSC_USE_COMPLEX)
+  #if defined(PETSC_USE_COMPLEX)
   dims[dim]      = 2;
   maxDims[dim]   = dims[dim];
   chunkDims[dim] = PetscMax(1, dims[dim]);
@@ -617,7 +617,7 @@ PetscErrorCode VecView_MPI_HDF5(Vec xin, PetscViewer viewer) {
     }
   }
   ++dim;
-#else
+  #else
   /* hdf5 chunks must be less than 4GB */
   if (chunksize > PETSC_HDF5_MAX_CHUNKSIZE / 64) {
     if (bs > 1 || dim2) {
@@ -627,22 +627,22 @@ PetscErrorCode VecView_MPI_HDF5(Vec xin, PetscViewer viewer) {
       chunkDims[dim - 1] = PETSC_HDF5_MAX_CHUNKSIZE / 64;
     }
   }
-#endif
+  #endif
 
   PetscCallHDF5Return(filespace, H5Screate_simple, (dim, dims, maxDims));
 
-#if defined(PETSC_USE_REAL_SINGLE)
+  #if defined(PETSC_USE_REAL_SINGLE)
   memscalartype  = H5T_NATIVE_FLOAT;
   filescalartype = H5T_NATIVE_FLOAT;
-#elif defined(PETSC_USE_REAL___FLOAT128)
-#error "HDF5 output with 128 bit floats not supported."
-#elif defined(PETSC_USE_REAL___FP16)
-#error "HDF5 output with 16 bit floats not supported."
-#else
+  #elif defined(PETSC_USE_REAL___FLOAT128)
+    #error "HDF5 output with 128 bit floats not supported."
+  #elif defined(PETSC_USE_REAL___FP16)
+    #error "HDF5 output with 16 bit floats not supported."
+  #else
   memscalartype = H5T_NATIVE_DOUBLE;
   if (spoutput == PETSC_TRUE) filescalartype = H5T_NATIVE_FLOAT;
   else filescalartype = H5T_NATIVE_DOUBLE;
-#endif
+  #endif
 
   /* Create the dataset with default properties and close filespace */
   PetscCall(PetscObjectGetName((PetscObject)xin, &vecname));
@@ -671,10 +671,10 @@ PetscErrorCode VecView_MPI_HDF5(Vec xin, PetscViewer viewer) {
     count[dim] = bs;
     ++dim;
   }
-#if defined(PETSC_USE_COMPLEX)
+  #if defined(PETSC_USE_COMPLEX)
   count[dim] = 2;
   ++dim;
-#endif
+  #endif
   if (xin->map->n > 0 || H5_VERSION_GE(1, 10, 0)) {
     PetscCallHDF5Return(memspace, H5Screate_simple, (dim, count, NULL));
   } else {
@@ -695,10 +695,10 @@ PetscErrorCode VecView_MPI_HDF5(Vec xin, PetscViewer viewer) {
     offset[dim] = 0;
     ++dim;
   }
-#if defined(PETSC_USE_COMPLEX)
+  #if defined(PETSC_USE_COMPLEX)
   offset[dim] = 0;
   ++dim;
-#endif
+  #endif
   if (xin->map->n > 0 || H5_VERSION_GE(1, 10, 0)) {
     PetscCallHDF5Return(filespace, H5Dget_space, (dset_id));
     PetscCallHDF5(H5Sselect_hyperslab, (filespace, H5S_SELECT_SET, offset, NULL, count, NULL));
@@ -718,12 +718,12 @@ PetscErrorCode VecView_MPI_HDF5(Vec xin, PetscViewer viewer) {
   PetscCallHDF5(H5Sclose, (memspace));
   PetscCallHDF5(H5Dclose, (dset_id));
 
-#if defined(PETSC_USE_COMPLEX)
+  #if defined(PETSC_USE_COMPLEX)
   {
     PetscBool tru = PETSC_TRUE;
     PetscCall(PetscViewerHDF5WriteObjectAttribute(viewer, (PetscObject)xin, "complex", PETSC_BOOL, &tru));
   }
-#endif
+  #endif
   if (timestepping) PetscCall(PetscViewerHDF5WriteObjectAttribute(viewer, (PetscObject)xin, "timestepping", PETSC_BOOL, &timestepping));
   PetscCall(PetscInfo(xin, "Wrote Vec object with name %s\n", vecname));
   PetscFunctionReturn(0);

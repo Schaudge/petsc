@@ -16,30 +16,30 @@ static const char citation[] = "@inproceedings{ZhangELLPACK2018,\n"
 
 #if defined(PETSC_HAVE_IMMINTRIN_H) && (defined(__AVX512F__) || (defined(__AVX2__) && defined(__FMA__)) || defined(__AVX__)) && defined(PETSC_USE_REAL_DOUBLE) && !defined(PETSC_USE_COMPLEX) && !defined(PETSC_USE_64BIT_INDICES)
 
-#include <immintrin.h>
+  #include <immintrin.h>
 
-#if !defined(_MM_SCALE_8)
-#define _MM_SCALE_8 8
-#endif
+  #if !defined(_MM_SCALE_8)
+    #define _MM_SCALE_8 8
+  #endif
 
-#if defined(__AVX512F__)
-/* these do not work
+  #if defined(__AVX512F__)
+    /* these do not work
    vec_idx  = _mm512_loadunpackhi_epi32(vec_idx,acolidx);
    vec_vals = _mm512_loadunpackhi_pd(vec_vals,aval);
   */
-#define AVX512_Mult_Private(vec_idx, vec_x, vec_vals, vec_y) \
-  /* if the mask bit is set, copy from acolidx, otherwise from vec_idx */ \
-  vec_idx  = _mm256_loadu_si256((__m256i const *)acolidx); \
-  vec_vals = _mm512_loadu_pd(aval); \
-  vec_x    = _mm512_i32gather_pd(vec_idx, x, _MM_SCALE_8); \
-  vec_y    = _mm512_fmadd_pd(vec_x, vec_vals, vec_y)
-#elif defined(__AVX2__) && defined(__FMA__)
-#define AVX2_Mult_Private(vec_idx, vec_x, vec_vals, vec_y) \
-  vec_vals = _mm256_loadu_pd(aval); \
-  vec_idx  = _mm_loadu_si128((__m128i const *)acolidx); /* SSE2 */ \
-  vec_x    = _mm256_i32gather_pd(x, vec_idx, _MM_SCALE_8); \
-  vec_y    = _mm256_fmadd_pd(vec_x, vec_vals, vec_y)
-#endif
+    #define AVX512_Mult_Private(vec_idx, vec_x, vec_vals, vec_y) \
+      /* if the mask bit is set, copy from acolidx, otherwise from vec_idx */ \
+      vec_idx  = _mm256_loadu_si256((__m256i const *)acolidx); \
+      vec_vals = _mm512_loadu_pd(aval); \
+      vec_x    = _mm512_i32gather_pd(vec_idx, x, _MM_SCALE_8); \
+      vec_y    = _mm512_fmadd_pd(vec_x, vec_vals, vec_y)
+  #elif defined(__AVX2__) && defined(__FMA__)
+    #define AVX2_Mult_Private(vec_idx, vec_x, vec_vals, vec_y) \
+      vec_vals = _mm256_loadu_pd(aval); \
+      vec_idx  = _mm_loadu_si128((__m128i const *)acolidx); /* SSE2 */ \
+      vec_x    = _mm256_i32gather_pd(x, vec_idx, _MM_SCALE_8); \
+      vec_y    = _mm256_fmadd_pd(vec_x, vec_vals, vec_y)
+  #endif
 #endif /* PETSC_HAVE_IMMINTRIN_H */
 
 /*@C
@@ -312,7 +312,7 @@ PetscErrorCode MatMult_SeqSELL(Mat A, Vec xx, Vec yy) {
 #endif
 
 #if defined(PETSC_HAVE_PRAGMA_DISJOINT)
-#pragma disjoint(*x, *y, *aval)
+  #pragma disjoint(*x, *y, *aval)
 #endif
 
   PetscFunctionBegin;
@@ -358,7 +358,7 @@ PetscErrorCode MatMult_SeqSELL(Mat A, Vec xx, Vec yy) {
       j += 1;
       break;
     }
-#pragma novector
+  #pragma novector
     for (; j < (a->sliidx[i + 1] >> 3); j += 4) {
       AVX512_Mult_Private(vec_idx, vec_x, vec_vals, vec_y);
       acolidx += 8;
@@ -405,9 +405,9 @@ PetscErrorCode MatMult_SeqSELL(Mat A, Vec xx, Vec yy) {
     vec_y  = _mm256_setzero_pd();
     vec_y2 = _mm256_setzero_pd();
 
-/* Process slice of height 8 (512 bits) via two subslices of height 4 (256 bits) via AVX */
-#pragma novector
-#pragma unroll(2)
+  /* Process slice of height 8 (512 bits) via two subslices of height 4 (256 bits) via AVX */
+  #pragma novector
+  #pragma unroll(2)
     for (j = a->sliidx[i]; j < a->sliidx[i + 1]; j += 8) {
       AVX2_Mult_Private(vec_idx, vec_x, vec_vals, vec_y);
       aval += 4;
@@ -441,9 +441,9 @@ PetscErrorCode MatMult_SeqSELL(Mat A, Vec xx, Vec yy) {
       break;
     }
 
-/* Process slice of height 8 (512 bits) via two subslices of height 4 (256 bits) via AVX */
-#pragma novector
-#pragma unroll(2)
+  /* Process slice of height 8 (512 bits) via two subslices of height 4 (256 bits) via AVX */
+  #pragma novector
+  #pragma unroll(2)
     for (j = a->sliidx[i]; j < a->sliidx[i + 1]; j += 8) {
       vec_vals  = _mm256_loadu_pd(aval);
       vec_x_tmp = _mm_setzero_pd();
@@ -522,7 +522,7 @@ PetscErrorCode MatMultAdd_SeqSELL(Mat A, Vec xx, Vec yy, Vec zz) {
 #endif
 
 #if defined(PETSC_HAVE_PRAGMA_DISJOINT)
-#pragma disjoint(*x, *y, *aval)
+  #pragma disjoint(*x, *y, *aval)
 #endif
 
   PetscFunctionBegin;
@@ -573,7 +573,7 @@ PetscErrorCode MatMultAdd_SeqSELL(Mat A, Vec xx, Vec yy, Vec zz) {
       j += 1;
       break;
     }
-#pragma novector
+  #pragma novector
     for (; j < (a->sliidx[i + 1] >> 3); j += 4) {
       AVX512_Mult_Private(vec_idx, vec_x, vec_vals, vec_y);
       acolidx += 8;
@@ -682,7 +682,7 @@ PetscErrorCode MatMultTransposeAdd_SeqSELL(Mat A, Vec xx, Vec zz, Vec yy) {
   PetscInt           i, j, r, row, nnz_in_row, totalslices = a->totalslices;
 
 #if defined(PETSC_HAVE_PRAGMA_DISJOINT)
-#pragma disjoint(*x, *y, *aval)
+  #pragma disjoint(*x, *y, *aval)
 #endif
 
   PetscFunctionBegin;

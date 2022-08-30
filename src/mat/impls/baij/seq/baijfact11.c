@@ -642,7 +642,7 @@ PetscErrorCode MatLUFactorNumeric_SeqBAIJ_4_NaturalOrdering(Mat B, Mat A, const 
 
 #if defined(PETSC_HAVE_SSE)
 
-#include PETSC_HAVE_SSE
+  #include PETSC_HAVE_SSE
 
 /* SSE Version for when blocks are 4 by 4 Using natural ordering */
 PetscErrorCode MatLUFactorNumeric_SeqBAIJ_4_NaturalOrdering_SSE(Mat B, Mat A, const MatFactorInfo *info) {

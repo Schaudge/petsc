@@ -10,10 +10,10 @@
 #undef VecType
 #include <../src/mat/impls/aij/seq/seqcusparse/cusparsematimpl.h>
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ > 600 && PETSC_PKG_CUDA_VERSION_GE(11, 0, 0)
-#define AIJBANDUSEGROUPS 1
+  #define AIJBANDUSEGROUPS 1
 #endif
 #if defined(AIJBANDUSEGROUPS)
-#include <cooperative_groups.h>
+  #include <cooperative_groups.h>
 #endif
 
 /*

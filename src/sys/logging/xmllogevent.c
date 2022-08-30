@@ -77,7 +77,7 @@
  * default timers with 'dft'.
  */
 
-#define DFT_ID_AWAKE -1
+  #define DFT_ID_AWAKE -1
 
 typedef PetscLogEvent NestedEventId;
 typedef struct {
@@ -96,7 +96,7 @@ static int               nNestedEventsAllocated = 0;
 static PetscNestedEvent *nestedEvents           = NULL;
 static PetscLogDouble    thresholdTime          = 0.01; /* initial value was 0.1 */
 
-#define THRESHOLD (thresholdTime / 100.0 + 1e-12)
+  #define THRESHOLD (thresholdTime / 100.0 + 1e-12)
 
 static PetscErrorCode       PetscLogEventBeginNested(NestedEventId nstEvent, int t, PetscObject o1, PetscObject o2, PetscObject o3, PetscObject o4);
 static PetscErrorCode       PetscLogEventEndNested(NestedEventId nstEvent, int t, PetscObject o1, PetscObject o2, PetscObject o3, PetscObject o4);
@@ -232,7 +232,7 @@ static PetscErrorCode PetscLogEventFindNestedTimer(NestedEventId nstEvent, int *
  Using PetscLogStage{Push/Pop}() would be more appropriate, but these two calls do extra bookkeeping work we don't need.
 */
 
-#define MAINSTAGE 0
+  #define MAINSTAGE 0
 
 static PetscLogStage savedStage = 0;
 
@@ -461,9 +461,9 @@ static PetscErrorCode PetscPrintExeSpecs(PetscViewer viewer) {
     PetscCall(PetscStrlcat(buildoptions, "Half ", sizeof(buildoptions)));
   }
   if (PetscDefined(USE_64BIT_INDICES)) PetscCall(PetscStrlcat(buildoptions, "Int64 ", sizeof(buildoptions)));
-#if defined(__cplusplus)
+  #if defined(__cplusplus)
   PetscCall(PetscStrlcat(buildoptions, "C++ ", sizeof(buildoptions)));
-#endif
+  #endif
   PetscCall(PetscStrlen(buildoptions, &len));
   if (len) PetscCall(PetscViewerXMLPutString(viewer, "petscbuildoptions", "Petsc build options", buildoptions));
   PetscCall(PetscViewerXMLEndSection(viewer, "runspecification"));
@@ -835,7 +835,7 @@ static PetscErrorCode PetscPrintXMLNestedLinePerfResults(PetscViewer viewer, con
   PetscFunctionReturn(0);
 }
 
-#define N_COMM 8
+  #define N_COMM 8
 static PetscErrorCode PetscLogNestedTreePrintLine(PetscViewer viewer, PetscEventPerfInfo perfInfo, PetscLogDouble countsPerCall, int parentCount, int depth, const char *name, PetscLogDouble totalTime, PetscBool *isPrinted) {
   PetscLogDouble time = perfInfo.time;
   PetscLogDouble timeMx;
@@ -1444,26 +1444,26 @@ PetscErrorCode PetscLogView_Flamegraph(PetscViewer viewer) {
 }
 
 PETSC_EXTERN PetscErrorCode PetscASend(int count, int datatype) {
-#if !defined(MPIUNI_H) && !defined(PETSC_HAVE_BROKEN_RECURSIVE_MACRO) && !defined(PETSC_HAVE_MPI_MISSING_TYPESIZE)
-#endif
+  #if !defined(MPIUNI_H) && !defined(PETSC_HAVE_BROKEN_RECURSIVE_MACRO) && !defined(PETSC_HAVE_MPI_MISSING_TYPESIZE)
+  #endif
 
   PetscFunctionBegin;
   petsc_send_ct++;
-#if !defined(MPIUNI_H) && !defined(PETSC_HAVE_BROKEN_RECURSIVE_MACRO) && !defined(PETSC_HAVE_MPI_MISSING_TYPESIZE)
+  #if !defined(MPIUNI_H) && !defined(PETSC_HAVE_BROKEN_RECURSIVE_MACRO) && !defined(PETSC_HAVE_MPI_MISSING_TYPESIZE)
   PetscCall(PetscMPITypeSize(count, MPI_Type_f2c((MPI_Fint)datatype), &petsc_send_len));
-#endif
+  #endif
   PetscFunctionReturn(0);
 }
 
 PETSC_EXTERN PetscErrorCode PetscARecv(int count, int datatype) {
-#if !defined(MPIUNI_H) && !defined(PETSC_HAVE_BROKEN_RECURSIVE_MACRO) && !defined(PETSC_HAVE_MPI_MISSING_TYPESIZE)
-#endif
+  #if !defined(MPIUNI_H) && !defined(PETSC_HAVE_BROKEN_RECURSIVE_MACRO) && !defined(PETSC_HAVE_MPI_MISSING_TYPESIZE)
+  #endif
 
   PetscFunctionBegin;
   petsc_recv_ct++;
-#if !defined(MPIUNI_H) && !defined(PETSC_HAVE_BROKEN_RECURSIVE_MACRO) && !defined(PETSC_HAVE_MPI_MISSING_TYPESIZE)
+  #if !defined(MPIUNI_H) && !defined(PETSC_HAVE_BROKEN_RECURSIVE_MACRO) && !defined(PETSC_HAVE_MPI_MISSING_TYPESIZE)
   PetscCall(PetscMPITypeSize(count, MPI_Type_f2c((MPI_Fint)datatype), &petsc_recv_len));
-#endif
+  #endif
   PetscFunctionReturn(0);
 }
 

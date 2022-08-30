@@ -1709,9 +1709,9 @@ PetscErrorCode MatSeqSBAIJSetNumericFactorization_inplace(Mat B, PetscBool natur
 PETSC_INTERN PetscErrorCode MatConvert_SeqSBAIJ_SeqAIJ(Mat, MatType, MatReuse, Mat *);
 PETSC_INTERN PetscErrorCode MatConvert_SeqSBAIJ_SeqBAIJ(Mat, MatType, MatReuse, Mat *);
 static PetscErrorCode       MatFactorGetSolverType_petsc(Mat A, MatSolverType *type) {
-        PetscFunctionBegin;
-        *type = MATSOLVERPETSC;
-        PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  *type = MATSOLVERPETSC;
+  PetscFunctionReturn(0);
 }
 
 PETSC_INTERN PetscErrorCode MatGetFactor_seqsbaij_petsc(Mat A, MatFactorType ftype, Mat *B) {

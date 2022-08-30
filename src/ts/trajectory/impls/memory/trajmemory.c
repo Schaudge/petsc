@@ -1,25 +1,25 @@
 #include <petsc/private/tsimpl.h> /*I "petscts.h"  I*/
 #include <petscsys.h>
 #if defined(PETSC_HAVE_REVOLVE)
-#include <revolve_c.h>
+  #include <revolve_c.h>
 
-/* Limit Revolve to 32-bits */
-#define PETSC_REVOLVE_INT_MAX 2147483647
+  /* Limit Revolve to 32-bits */
+  #define PETSC_REVOLVE_INT_MAX 2147483647
 
 typedef int PetscRevolveInt;
 
 static inline PetscErrorCode PetscRevolveIntCast(PetscInt a, PetscRevolveInt *b) {
   PetscFunctionBegin;
-#if defined(PETSC_USE_64BIT_INDICES)
+  #if defined(PETSC_USE_64BIT_INDICES)
   *b = 0;
   PetscCheck(a <= PETSC_REVOLVE_INT_MAX, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Parameter is too large for Revolve, which is restricted to 32 bit integers");
-#endif
+  #endif
   *b = (PetscRevolveInt)(a);
   PetscFunctionReturn(0);
 }
 #endif
 #if defined(PETSC_HAVE_CAMS)
-#include <offline_schedule.h>
+  #include <offline_schedule.h>
 #endif
 
 PetscLogEvent         TSTrajectory_DiskWrite, TSTrajectory_DiskRead;
@@ -61,7 +61,7 @@ typedef struct _StackElement {
   PetscReal      timeprev; /* for no solution_only mode */
   PetscReal      timenext; /* for solution_only mode */
   CheckpointType cptype;
-} * StackElement;
+} *StackElement;
 
 #if defined(PETSC_HAVE_REVOLVE)
 typedef struct _RevolveCTX {
@@ -406,9 +406,9 @@ static PetscErrorCode StackLoadLast(TSTrajectory tj, TS ts, Stack *stack, PetscI
   PetscInt    size;
   PetscViewer viewer;
   char        filename[PETSC_MAX_PATH_LEN];
-#if defined(PETSC_HAVE_MPIIO)
+  #if defined(PETSC_HAVE_MPIIO)
   PetscBool usempiio;
-#endif
+  #endif
   int   fd;
   off_t off, offset;
 
@@ -427,18 +427,18 @@ static PetscErrorCode StackLoadLast(TSTrajectory tj, TS ts, Stack *stack, PetscI
   PetscCall(PetscViewerBinaryOpen(PetscObjectComm((PetscObject)tj), filename, FILE_MODE_READ, &viewer));
   PetscCall(PetscViewerBinarySetSkipInfo(viewer, PETSC_TRUE));
   PetscCall(PetscViewerPushFormat(viewer, PETSC_VIEWER_NATIVE));
-#if defined(PETSC_HAVE_MPIIO)
+  #if defined(PETSC_HAVE_MPIIO)
   PetscCall(PetscViewerBinaryGetUseMPIIO(viewer, &usempiio));
   if (usempiio) {
     PetscCall(PetscViewerBinaryGetMPIIODescriptor(viewer, (MPI_File *)&fd));
     PetscCall(PetscBinarySynchronizedSeek(PetscObjectComm((PetscObject)tj), fd, off, PETSC_BINARY_SEEK_END, &offset));
   } else {
-#endif
+  #endif
     PetscCall(PetscViewerBinaryGetDescriptor(viewer, &fd));
     PetscCall(PetscBinarySeek(fd, off, PETSC_BINARY_SEEK_END, &offset));
-#if defined(PETSC_HAVE_MPIIO)
+  #if defined(PETSC_HAVE_MPIIO)
   }
-#endif
+  #endif
   /* load the last step into TS */
   PetscCall(PetscLogEventBegin(TSTrajectory_DiskRead, tj, ts, 0, 0));
   PetscCall(ReadFromDisk(ts->stifflyaccurate, &ts->steps, &ts->ptime, &ts->ptime_prev, ts->vec_sol, Y, stack->numY, SOLUTION_STAGES, viewer));

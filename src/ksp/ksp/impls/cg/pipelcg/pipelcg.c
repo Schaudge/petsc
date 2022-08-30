@@ -471,8 +471,7 @@ static PetscErrorCode KSPSolve_PIPELCG(KSP ksp) {
 .seealso: `KSPCreate()`, `KSPSetType()`, `KSPType`, `KSPCG`, `KSPPIPECG`, `KSPPIPECGRR`, `KSPPGMRES`,
           `KSPPIPEBCGS`, `KSPSetPCSide()`
 M*/
-PETSC_EXTERN
-PetscErrorCode KSPCreate_PIPELCG(KSP ksp) {
+PETSC_EXTERN PetscErrorCode KSPCreate_PIPELCG(KSP ksp) {
   KSP_CG_PIPE_L *plcg = NULL;
 
   PetscFunctionBegin;

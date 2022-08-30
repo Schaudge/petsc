@@ -14,7 +14,7 @@
 #include <petscmathypre.h>
 
 #if defined(PETSC_HAVE_HYPRE_DEVICE)
-#include <petsc/private/deviceimpl.h>
+  #include <petsc/private/deviceimpl.h>
 #endif
 
 static PetscBool  cite            = PETSC_FALSE;
@@ -666,13 +666,13 @@ static PetscErrorCode PCMGGalerkinGetMatProductAlgorithm_HYPRE_BoomerAMG(PC pc, 
   PetscFunctionReturn(0);
 }
 
-static const char    *HYPREBoomerAMGCycleType[]   = {"", "V", "W"};
-static const char    *HYPREBoomerAMGCoarsenType[] = {"CLJP", "Ruge-Stueben", "", "modifiedRuge-Stueben", "", "", "Falgout", "", "PMIS", "", "HMIS"};
-static const char    *HYPREBoomerAMGMeasureType[] = {"local", "global"};
+static const char *HYPREBoomerAMGCycleType[]   = {"", "V", "W"};
+static const char *HYPREBoomerAMGCoarsenType[] = {"CLJP", "Ruge-Stueben", "", "modifiedRuge-Stueben", "", "", "Falgout", "", "PMIS", "", "HMIS"};
+static const char *HYPREBoomerAMGMeasureType[] = {"local", "global"};
 /* The following corresponds to HYPRE_BoomerAMGSetRelaxType which has many missing numbers in the enum */
-static const char    *HYPREBoomerAMGSmoothType[]  = {"Schwarz-smoothers", "Pilut", "ParaSails", "Euclid"};
-static const char    *HYPREBoomerAMGRelaxType[]   = {"Jacobi", "sequential-Gauss-Seidel", "seqboundary-Gauss-Seidel", "SOR/Jacobi", "backward-SOR/Jacobi", "" /* [5] hybrid chaotic Gauss-Seidel (works only with OpenMP) */, "symmetric-SOR/Jacobi", "" /* 7 */, "l1scaled-SOR/Jacobi", "Gaussian-elimination", "" /* 10 */, "" /* 11 */, "" /* 12 */, "l1-Gauss-Seidel" /* nonsymmetric */, "backward-l1-Gauss-Seidel" /* nonsymmetric */, "CG" /* non-stationary */, "Chebyshev", "FCF-Jacobi", "l1scaled-Jacobi"};
-static const char    *HYPREBoomerAMGInterpType[]  = {"classical", "", "", "direct", "multipass", "multipass-wts", "ext+i", "ext+i-cc", "standard", "standard-wts", "block", "block-wtd", "FF", "FF1", "ext", "ad-wts", "ext-mm", "ext+i-mm", "ext+e-mm"};
+static const char *HYPREBoomerAMGSmoothType[]  = {"Schwarz-smoothers", "Pilut", "ParaSails", "Euclid"};
+static const char *HYPREBoomerAMGRelaxType[] = {"Jacobi", "sequential-Gauss-Seidel", "seqboundary-Gauss-Seidel", "SOR/Jacobi", "backward-SOR/Jacobi", "" /* [5] hybrid chaotic Gauss-Seidel (works only with OpenMP) */, "symmetric-SOR/Jacobi", "" /* 7 */, "l1scaled-SOR/Jacobi", "Gaussian-elimination", "" /* 10 */, "" /* 11 */, "" /* 12 */, "l1-Gauss-Seidel" /* nonsymmetric */, "backward-l1-Gauss-Seidel" /* nonsymmetric */, "CG" /* non-stationary */, "Chebyshev", "FCF-Jacobi", "l1scaled-Jacobi"};
+static const char    *HYPREBoomerAMGInterpType[] = {"classical", "", "", "direct", "multipass", "multipass-wts", "ext+i", "ext+i-cc", "standard", "standard-wts", "block", "block-wtd", "FF", "FF1", "ext", "ad-wts", "ext-mm", "ext+i-mm", "ext+e-mm"};
 static PetscErrorCode PCSetFromOptions_HYPRE_BoomerAMG(PC pc, PetscOptionItems *PetscOptionsObject) {
   PC_HYPRE   *jac = (PC_HYPRE *)pc->data;
   PetscInt    bs, n, indx, level;
@@ -2243,12 +2243,12 @@ PETSC_EXTERN PetscErrorCode PCCreate_HYPRE(PC pc) {
   PetscCall(PetscObjectComposeFunction((PetscObject)pc, "PCMGGalerkinSetMatProductAlgorithm_C", PCMGGalerkinSetMatProductAlgorithm_HYPRE_BoomerAMG));
   PetscCall(PetscObjectComposeFunction((PetscObject)pc, "PCMGGalerkinGetMatProductAlgorithm_C", PCMGGalerkinGetMatProductAlgorithm_HYPRE_BoomerAMG));
 #if defined(PETSC_HAVE_HYPRE_DEVICE)
-#if defined(HYPRE_USING_HIP)
+  #if defined(HYPRE_USING_HIP)
   PetscCall(PetscDeviceInitialize(PETSC_DEVICE_HIP));
-#endif
-#if defined(HYPRE_USING_CUDA)
+  #endif
+  #if defined(HYPRE_USING_CUDA)
   PetscCall(PetscDeviceInitialize(PETSC_DEVICE_CUDA));
-#endif
+  #endif
 #endif
   PetscFunctionReturn(0);
 }

@@ -3,7 +3,7 @@
 #include <petsc/private/petscimpl.h>
 #include <petscconfiginfo.h>
 #if defined(PETSC_HAVE_UNISTD_H)
-#include <unistd.h>
+  #include <unistd.h>
 #endif
 
 /*@C

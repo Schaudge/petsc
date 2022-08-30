@@ -1,8 +1,8 @@
 #include <petsc/private/viewercgnsimpl.h> /*I "petscviewer.h" I*/
 #if defined(PETSC_HDF5_HAVE_PARALLEL)
-#include <pcgnslib.h>
+  #include <pcgnslib.h>
 #else
-#include <cgnslib.h>
+  #include <cgnslib.h>
 #endif
 
 static PetscErrorCode PetscViewerSetFromOptions_CGNS(PetscViewer v, PetscOptionItems *PetscOptionsObject) {

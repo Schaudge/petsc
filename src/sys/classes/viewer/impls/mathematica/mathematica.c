@@ -5,7 +5,7 @@
 #include <mathematica.h>
 
 #if defined(PETSC_HAVE__SNPRINTF) && !defined(PETSC_HAVE_SNPRINTF)
-#define snprintf _snprintf
+  #define snprintf _snprintf
 #endif
 
 PetscViewer  PETSC_VIEWER_MATHEMATICA_WORLD_PRIVATE = NULL;
@@ -21,10 +21,10 @@ static PetscBool PetscViewerMathematicaPackageInitialized = PETSC_FALSE;
 .seealso: `PetscFinalize()`
 @*/
 PetscErrorCode   PetscViewerMathematicaFinalizePackage(void) {
-    PetscFunctionBegin;
-    if (mathematicaEnv) MLDeinitialize((MLEnvironment)mathematicaEnv);
+  PetscFunctionBegin;
+  if (mathematicaEnv) MLDeinitialize((MLEnvironment)mathematicaEnv);
   PetscViewerMathematicaPackageInitialized = PETSC_TRUE;
-    PetscFunctionReturn(0);
+  PetscFunctionReturn(0);
 }
 
 /*@C

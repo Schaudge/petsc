@@ -116,13 +116,13 @@ PETSC_INTERN PetscErrorCode MatSeqAIJMKL_create_mkl_handle(Mat A) {
   PetscInt      *aj, *ai;
 
   PetscFunctionBegin;
-#if !defined(PETSC_MKL_SPBLAS_DEPRECATED)
+  #if !defined(PETSC_MKL_SPBLAS_DEPRECATED)
   /* For MKL versions that still support the old, non-inspector-executor interfaces versions, we simply exit here if the no_SpMV2
    * option has been specified. For versions that have deprecated the old interfaces (version 18, update 2 and later), we must
    * use the new inspector-executor interfaces, but we can still use the old, non-inspector-executor code by not calling
    * mkl_sparse_optimize() later. */
   if (aijmkl->no_SpMV2) PetscFunctionReturn(0);
-#endif
+  #endif
 
   if (aijmkl->sparse_optimized) {
     /* Matrix has been previously assembled and optimized. Must destroy old
@@ -996,18 +996,18 @@ PETSC_INTERN PetscErrorCode MatConvert_SeqAIJ_SeqAIJMKL(Mat A, MatType type, Mat
   B->ops->multtranspose    = MatMultTranspose_SeqAIJMKL_SpMV2;
   B->ops->multadd          = MatMultAdd_SeqAIJMKL_SpMV2;
   B->ops->multtransposeadd = MatMultTransposeAdd_SeqAIJMKL_SpMV2;
-#if defined(PETSC_HAVE_MKL_SPARSE_SP2M_FEATURE)
+  #if defined(PETSC_HAVE_MKL_SPARSE_SP2M_FEATURE)
   B->ops->productsetfromoptions   = MatProductSetFromOptions_SeqAIJMKL;
   B->ops->matmultsymbolic         = MatMatMultSymbolic_SeqAIJMKL_SeqAIJMKL;
   B->ops->matmultnumeric          = MatMatMultNumeric_SeqAIJMKL_SeqAIJMKL;
   B->ops->mattransposemultnumeric = MatMatTransposeMultNumeric_SeqAIJMKL_SeqAIJMKL;
   B->ops->transposematmultnumeric = MatTransposeMatMultNumeric_SeqAIJMKL_SeqAIJMKL;
-#if !defined(PETSC_USE_COMPLEX)
+    #if !defined(PETSC_USE_COMPLEX)
   B->ops->ptapnumeric = MatPtAPNumeric_SeqAIJMKL_SeqAIJMKL_SymmetricReal;
-#else
+    #else
   B->ops->ptapnumeric = NULL;
-#endif
-#endif
+    #endif
+  #endif
 #endif /* PETSC_HAVE_MKL_SPARSE_OPTIMIZE */
 
 #if !defined(PETSC_MKL_SPBLAS_DEPRECATED)

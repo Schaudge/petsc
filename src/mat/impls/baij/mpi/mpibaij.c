@@ -388,15 +388,15 @@ PetscErrorCode MatSetValuesBlocked_MPIBAIJ(Mat mat, PetscInt m, const PetscInt i
             if (!baij->colmap) PetscCall(MatCreateColmap_MPIBAIJ_Private(mat));
 
 #if defined(PETSC_USE_DEBUG)
-#if defined(PETSC_USE_CTABLE)
+  #if defined(PETSC_USE_CTABLE)
             {
               PetscInt data;
               PetscCall(PetscTableFind(baij->colmap, in[j] + 1, &data));
               PetscCheck((data - 1) % bs == 0, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect colmap");
             }
-#else
+  #else
             PetscCheck((baij->colmap[in[j]] - 1) % bs == 0, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect colmap");
-#endif
+  #endif
 #endif
 #if defined(PETSC_USE_CTABLE)
             PetscCall(PetscTableFind(baij->colmap, in[j] + 1, &col));
@@ -3318,9 +3318,9 @@ PetscErrorCode MatMPIBAIJGetSeqBAIJ(Mat A, Mat *Ad, Mat *Ao, const PetscInt *col
     Special version for direct calls from Fortran (to eliminate two function call overheads
 */
 #if defined(PETSC_HAVE_FORTRAN_CAPS)
-#define matmpibaijsetvaluesblocked_ MATMPIBAIJSETVALUESBLOCKED
+  #define matmpibaijsetvaluesblocked_ MATMPIBAIJSETVALUESBLOCKED
 #elif !defined(PETSC_HAVE_FORTRAN_UNDERSCORE)
-#define matmpibaijsetvaluesblocked_ matmpibaijsetvaluesblocked
+  #define matmpibaijsetvaluesblocked_ matmpibaijsetvaluesblocked
 #endif
 
 /*@C
@@ -3411,15 +3411,15 @@ PetscErrorCode matmpibaijsetvaluesblocked_(Mat *matin, PetscInt *min, const Pets
             if (!baij->colmap) PetscCall(MatCreateColmap_MPIBAIJ_Private(mat));
 
 #if defined(PETSC_USE_DEBUG)
-#if defined(PETSC_USE_CTABLE)
+  #if defined(PETSC_USE_CTABLE)
             {
               PetscInt data;
               PetscCall(PetscTableFind(baij->colmap, in[j] + 1, &data));
               PetscCheck((data - 1) % bs == 0, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect colmap");
             }
-#else
+  #else
             PetscCheck((baij->colmap[in[j]] - 1) % bs == 0, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect colmap");
-#endif
+  #endif
 #endif
 #if defined(PETSC_USE_CTABLE)
             PetscCall(PetscTableFind(baij->colmap, in[j] + 1, &col));

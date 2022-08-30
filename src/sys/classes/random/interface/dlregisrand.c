@@ -11,11 +11,11 @@ static PetscBool PetscRandomPackageInitialized = PETSC_FALSE;
 .seealso: `PetscFinalize()`
 @*/
 PetscErrorCode   PetscRandomFinalizePackage(void) {
-    PetscFunctionBegin;
-    PetscCall(PetscFunctionListDestroy(&PetscRandomList));
-    PetscRandomPackageInitialized = PETSC_FALSE;
-    PetscRandomRegisterAllCalled  = PETSC_FALSE;
-    PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscCall(PetscFunctionListDestroy(&PetscRandomList));
+  PetscRandomPackageInitialized = PETSC_FALSE;
+  PetscRandomRegisterAllCalled  = PETSC_FALSE;
+  PetscFunctionReturn(0);
 }
 
 /*@C

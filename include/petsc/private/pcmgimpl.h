@@ -3,10 +3,10 @@
 */
 #include "petscpctypes.h"
 #if !defined(__MG_IMPL)
-#define __MG_IMPL
-#include <petsc/private/pcimpl.h>
-#include <petscksp.h>
-#define PETSC_MG_MAXLEVELS 10
+  #define __MG_IMPL
+  #include <petsc/private/pcimpl.h>
+  #include <petscksp.h>
+  #define PETSC_MG_MAXLEVELS 10
 /*
      Each level has its own copy of this data.
      Level (0) is always the coarsest level and Level (levels-1) is the finest.

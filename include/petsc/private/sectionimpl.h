@@ -1,4 +1,4 @@
-#if !defined(PETSCSECTIONIMPL_H)
+#ifndef PETSCSECTIONIMPL_H
 #define PETSCSECTIONIMPL_H
 
 #include <petscsection.h>
@@ -104,12 +104,12 @@ static inline PetscErrorCode PetscSectionInvalidateMaxDof_Internal(PetscSection 
 void PetscSectionCheckValidField(PetscInt, PetscInt);
 void PetscSectionCheckValidFieldComponent(PetscInt, PetscInt);
 #else
-#define PetscSectionCheckValid_(description, item, nitems) \
-  do { PetscCheck(((item) >= 0) && ((item) < (nitems)), PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Invalid " description " %" PetscInt_FMT "; not in [0, %" PetscInt_FMT ")", (item), (nitems)); } while (0)
+  #define PetscSectionCheckValid_(description, item, nitems) \
+    do { PetscCheck(((item) >= 0) && ((item) < (nitems)), PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Invalid " description " %" PetscInt_FMT "; not in [0, %" PetscInt_FMT ")", (item), (nitems)); } while (0)
 
-#define PetscSectionCheckValidFieldComponent(comp, nfieldcomp) PetscSectionCheckValid_("section field component", comp, nfieldcomp)
+  #define PetscSectionCheckValidFieldComponent(comp, nfieldcomp) PetscSectionCheckValid_("section field component", comp, nfieldcomp)
 
-#define PetscSectionCheckValidField(field, nfields) PetscSectionCheckValid_("field number", field, nfields)
+  #define PetscSectionCheckValidField(field, nfields) PetscSectionCheckValid_("field number", field, nfields)
 #endif /* PETSC_CLANG_STATIC_ANALYZER */
 
 #endif /* PETSCSECTIONIMPL_H */

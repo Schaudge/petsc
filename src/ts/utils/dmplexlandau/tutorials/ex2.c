@@ -8,7 +8,7 @@ static char help[] = "Runaway electron model with Landau collision operator\n\n"
 #include "petsc/private/petscimpl.h"
 
 #if defined(PETSC_HAVE_CUDA_NVTX)
-#include <nvToolsExt.h>
+  #include <nvToolsExt.h>
 #endif
 
 /* data for runaway electron model */
@@ -225,17 +225,17 @@ static PetscErrorCode testSpitzer(TS ts, Vec X, PetscInt stepi, PetscReal time, 
 }
 
 static const double ppp = 2;
-static void         f0_0_diff_lp(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar *f0) {
-          LandauCtx      *ctx   = (LandauCtx *)constants;
-          REctx          *rectx = (REctx *)ctx->data;
-          PetscInt        ii    = rectx->idx, i;
-          const PetscReal kT_m  = ctx->k * ctx->thermal_temps[ii] / ctx->masses[ii]; /* kT/m */
-          const PetscReal n     = ctx->n[ii];
-          PetscReal       diff, f_maxwell, v2 = 0, theta = 2 * kT_m / (ctx->v_0 * ctx->v_0); /* theta = 2kT/mc^2 */
-          for (i = 0; i < dim; ++i) v2 += x[i] * x[i];
+static void f0_0_diff_lp(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar *f0) {
+  LandauCtx      *ctx   = (LandauCtx *)constants;
+  REctx          *rectx = (REctx *)ctx->data;
+  PetscInt        ii    = rectx->idx, i;
+  const PetscReal kT_m  = ctx->k * ctx->thermal_temps[ii] / ctx->masses[ii]; /* kT/m */
+  const PetscReal n     = ctx->n[ii];
+  PetscReal       diff, f_maxwell, v2 = 0, theta = 2 * kT_m / (ctx->v_0 * ctx->v_0); /* theta = 2kT/mc^2 */
+  for (i = 0; i < dim; ++i) v2 += x[i] * x[i];
   f_maxwell = n * PetscPowReal(PETSC_PI * theta, -1.5) * (PetscExpReal(-v2 / theta));
-          diff      = 2. * PETSC_PI * x[0] * (PetscRealPart(u[ii]) - f_maxwell);
-          f0[0]     = PetscPowReal(diff, ppp);
+  diff      = 2. * PETSC_PI * x[0] * (PetscRealPart(u[ii]) - f_maxwell);
+  f0[0]     = PetscPowReal(diff, ppp);
 }
 static void f0_0_maxwellian_lp(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar *f0) {
   LandauCtx      *ctx   = (LandauCtx *)constants;

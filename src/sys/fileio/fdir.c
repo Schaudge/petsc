@@ -2,16 +2,16 @@
 #include <petscsys.h>
 #include <sys/stat.h>
 #if defined(PETSC_HAVE_DIRECT_H)
-#include <direct.h>
+  #include <direct.h>
 #endif
 #if defined(PETSC_HAVE_IO_H)
-#include <io.h>
+  #include <io.h>
 #endif
 #if defined(PETSC_HAVE_STDINT_H)
-#include <stdint.h>
+  #include <stdint.h>
 #endif
 #if defined(PETSC_HAVE_UNISTD_H) /* for mkdtemp */
-#include <unistd.h>
+  #include <unistd.h>
 #endif
 
 PetscErrorCode PetscPathJoin(const char dname[], const char fname[], size_t n, char fullname[]) {
@@ -43,10 +43,10 @@ PetscErrorCode PetscMkdir(const char dir[]) {
 }
 
 #if defined(PETSC_USING_DARWIN) && defined(PETSC_HAVE_FSTATAT)
-/*
+  /*
     Apple's mkdtemp() crashes under Valgrind so this replaces it with a version that does not crash under valgrind
 */
-#include "apple_fdir.h"
+  #include "apple_fdir.h"
 #endif
 
 /*@C
@@ -93,11 +93,11 @@ PetscErrorCode PetscRMTree(const char dir[]) {
   struct _finddata_t data;
   char               loc[PETSC_MAX_PATH_LEN];
   PetscBool          flg1, flg2;
-#if defined(PETSC_HAVE_STDINT_H)
+  #if defined(PETSC_HAVE_STDINT_H)
   intptr_t handle;
-#else
+  #else
   long handle;
-#endif
+  #endif
 
   PetscFunctionBegin;
   PetscCall(PetscPathJoin(dir, "*", PETSC_MAX_PATH_LEN, loc));
@@ -126,8 +126,8 @@ PetscErrorCode PetscRMTree(const char dir[]) {
   PetscFunctionReturn(0);
 }
 #else
-#include <dirent.h>
-#include <unistd.h>
+  #include <dirent.h>
+  #include <unistd.h>
 PetscErrorCode PetscRMTree(const char dir[]) {
   struct dirent *data;
   char loc[PETSC_MAX_PATH_LEN];

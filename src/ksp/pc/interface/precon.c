@@ -1593,7 +1593,7 @@ PetscErrorCode PCLoad(PC newdm, PetscViewer viewer) {
 
 #include <petscdraw.h>
 #if defined(PETSC_HAVE_SAWS)
-#include <petscviewersaws.h>
+  #include <petscviewersaws.h>
 #endif
 
 /*@C

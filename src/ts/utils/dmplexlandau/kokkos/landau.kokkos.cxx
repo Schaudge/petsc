@@ -588,14 +588,14 @@ PetscErrorCode LandauKokkosJacobian(DM plex[], const PetscInt Nq, const PetscInt
     const int jac_scr_bytes    = 2 * (g2_scr_t::shmem_size(dim, Nf_max, Nq) + g3_scr_t::shmem_size(dim, dim, Nf_max, Nq));
     const int jac_shared_level = (jac_scr_bytes > maximum_shared_mem_size) ? 1 : KOKKOS_SHARED_LEVEL;
     auto      jac_lambda       = KOKKOS_LAMBDA(const team_member team) {
-                 const PetscInt b_Nelem = d_elem_offset[num_grids], b_elem_idx = team.league_rank() % b_Nelem, b_id = team.league_rank() / b_Nelem;
-                 // find my grid
-                 PetscInt       grid = 0;
-                 while (b_elem_idx >= d_elem_offset[grid + 1]) grid++;
+      const PetscInt b_Nelem = d_elem_offset[num_grids], b_elem_idx = team.league_rank() % b_Nelem, b_id = team.league_rank() / b_Nelem;
+      // find my grid
+      PetscInt       grid = 0;
+      while (b_elem_idx >= d_elem_offset[grid + 1]) grid++;
       {
-                   const PetscInt loc_Nf = d_species_offset[grid + 1] - d_species_offset[grid], loc_elem = b_elem_idx - d_elem_offset[grid];
-                   const PetscInt moffset = LAND_MOFFSET(b_id, grid, batch_sz, num_grids, d_mat_offset);
-                   const PetscInt f_off   = d_species_offset[grid];
+        const PetscInt loc_Nf = d_species_offset[grid + 1] - d_species_offset[grid], loc_elem = b_elem_idx - d_elem_offset[grid];
+        const PetscInt moffset = LAND_MOFFSET(b_id, grid, batch_sz, num_grids, d_mat_offset);
+        const PetscInt f_off   = d_species_offset[grid];
 #ifdef LAND_SUPPORT_CPU_ASS
         const PetscInt totDim = loc_Nf * Nq;
 #endif

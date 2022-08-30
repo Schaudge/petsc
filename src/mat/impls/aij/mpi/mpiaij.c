@@ -7849,9 +7849,9 @@ PETSC_INTERN PetscErrorCode MatFilter_AIJ(Mat Gmat, PetscReal vfilter, Mat *filt
   } while (0)
 
 #if defined(PETSC_HAVE_FORTRAN_CAPS)
-#define matsetvaluesmpiaij_ MATSETVALUESMPIAIJ
+  #define matsetvaluesmpiaij_ MATSETVALUESMPIAIJ
 #elif !defined(PETSC_HAVE_FORTRAN_UNDERSCORE)
-#define matsetvaluesmpiaij_ matsetvaluesmpiaij
+  #define matsetvaluesmpiaij_ matsetvaluesmpiaij
 #else
 #endif
 PETSC_EXTERN void matsetvaluesmpiaij_(Mat *mmat, PetscInt *mm, const PetscInt im[], PetscInt *mn, const PetscInt in[], const PetscScalar v[], InsertMode *maddv, PetscErrorCode *_ierr) {

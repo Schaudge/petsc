@@ -1024,26 +1024,26 @@ extern PetscErrorCode MatCreateSubMatrices_MPIAIJ_Local(Mat, PetscInt, const IS[
     Every processor gets the entire matrix
 */
 PetscErrorCode        MatCreateSubMatrix_MPIAIJ_All(Mat A, MatCreateSubMatrixOption flag, MatReuse scall, Mat *Bin[]) {
-         Mat         B;
-         Mat_MPIAIJ *a = (Mat_MPIAIJ *)A->data;
-         Mat_SeqAIJ *b, *ad = (Mat_SeqAIJ *)a->A->data, *bd = (Mat_SeqAIJ *)a->B->data;
-         PetscMPIInt size, rank, *recvcounts = NULL, *displs = NULL;
-         PetscInt    sendcount, i, *rstarts = A->rmap->range, n, cnt, j;
-         PetscInt    m, *b_sendj, *garray   = a->garray, *lens, *jsendbuf, *a_jsendbuf, *b_jsendbuf;
+  Mat         B;
+  Mat_MPIAIJ *a = (Mat_MPIAIJ *)A->data;
+  Mat_SeqAIJ *b, *ad = (Mat_SeqAIJ *)a->A->data, *bd = (Mat_SeqAIJ *)a->B->data;
+  PetscMPIInt size, rank, *recvcounts = NULL, *displs = NULL;
+  PetscInt    sendcount, i, *rstarts = A->rmap->range, n, cnt, j;
+  PetscInt    m, *b_sendj, *garray   = a->garray, *lens, *jsendbuf, *a_jsendbuf, *b_jsendbuf;
 
-         PetscFunctionBegin;
-         PetscCallMPI(MPI_Comm_size(PetscObjectComm((PetscObject)A), &size));
-         PetscCallMPI(MPI_Comm_rank(PetscObjectComm((PetscObject)A), &rank));
-         if (scall == MAT_INITIAL_MATRIX) {
-           /* ----------------------------------------------------------------
+  PetscFunctionBegin;
+  PetscCallMPI(MPI_Comm_size(PetscObjectComm((PetscObject)A), &size));
+  PetscCallMPI(MPI_Comm_rank(PetscObjectComm((PetscObject)A), &rank));
+  if (scall == MAT_INITIAL_MATRIX) {
+    /* ----------------------------------------------------------------
          Tell every processor the number of nonzeros per row
     */
     PetscCall(PetscMalloc1(A->rmap->N, &lens));
     for (i = A->rmap->rstart; i < A->rmap->rend; i++) lens[i] = ad->i[i - A->rmap->rstart + 1] - ad->i[i - A->rmap->rstart] + bd->i[i - A->rmap->rstart + 1] - bd->i[i - A->rmap->rstart];
     PetscCall(PetscMalloc2(size, &recvcounts, size, &displs));
     for (i = 0; i < size; i++) {
-             recvcounts[i] = A->rmap->range[i + 1] - A->rmap->range[i];
-             displs[i]     = A->rmap->range[i];
+      recvcounts[i] = A->rmap->range[i + 1] - A->rmap->range[i];
+      displs[i]     = A->rmap->range[i];
     }
     PetscCallMPI(MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, lens, recvcounts, displs, MPIU_INT, PetscObjectComm((PetscObject)A)));
     /* ---------------------------------------------------------------
@@ -1068,10 +1068,10 @@ PetscErrorCode        MatCreateSubMatrix_MPIAIJ_All(Mat A, MatCreateSubMatrixOpt
     n          = A->rmap->rend - A->rmap->rstart;
     cnt        = 0;
     for (i = 0; i < n; i++) {
-             /* put in lower diagonal portion */
+      /* put in lower diagonal portion */
       m = bd->i[i + 1] - bd->i[i];
       while (m > 0) {
-               /* is it above diagonal (in bd (compressed) numbering) */
+        /* is it above diagonal (in bd (compressed) numbering) */
         if (garray[*b_jsendbuf] > A->rmap->rstart + i) break;
         jsendbuf[cnt++] = garray[*b_jsendbuf++];
         m--;
@@ -1089,10 +1089,10 @@ PetscErrorCode        MatCreateSubMatrix_MPIAIJ_All(Mat A, MatCreateSubMatrixOpt
        Gather all column indices to all processors
     */
     for (i = 0; i < size; i++) {
-             recvcounts[i] = 0;
-             for (j = A->rmap->range[i]; j < A->rmap->range[i + 1]; j++) recvcounts[i] += lens[j];
+      recvcounts[i] = 0;
+      for (j = A->rmap->range[i]; j < A->rmap->range[i + 1]; j++) recvcounts[i] += lens[j];
     }
-           displs[0] = 0;
+    displs[0] = 0;
     for (i = 1; i < size; i++) displs[i] = displs[i - 1] + recvcounts[i - 1];
     PetscCallMPI(MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, b->j, recvcounts, displs, MPIU_INT, PetscObjectComm((PetscObject)A)));
     /*--------------------------------------------------------------------
@@ -1108,31 +1108,31 @@ PetscErrorCode        MatCreateSubMatrix_MPIAIJ_All(Mat A, MatCreateSubMatrixOpt
     PetscCall(MatAssemblyEnd(B, MAT_FINAL_ASSEMBLY));
 
   } else {
-           B = **Bin;
-           b = (Mat_SeqAIJ *)B->data;
+    B = **Bin;
+    b = (Mat_SeqAIJ *)B->data;
   }
 
-         /*--------------------------------------------------------------------
+  /*--------------------------------------------------------------------
        Copy my part of matrix numerical values into the values location
   */
-         if (flag == MAT_GET_VALUES) {
-           const PetscScalar *ada, *bda, *a_sendbuf, *b_sendbuf;
-           MatScalar         *sendbuf, *recvbuf;
+  if (flag == MAT_GET_VALUES) {
+    const PetscScalar *ada, *bda, *a_sendbuf, *b_sendbuf;
+    MatScalar         *sendbuf, *recvbuf;
 
-           PetscCall(MatSeqAIJGetArrayRead(a->A, &ada));
-           PetscCall(MatSeqAIJGetArrayRead(a->B, &bda));
-           sendcount = ad->nz + bd->nz;
-           sendbuf   = b->a + b->i[rstarts[rank]];
-           a_sendbuf = ada;
-           b_sendbuf = bda;
-           b_sendj   = bd->j;
-           n         = A->rmap->rend - A->rmap->rstart;
-           cnt       = 0;
-           for (i = 0; i < n; i++) {
-             /* put in lower diagonal portion */
+    PetscCall(MatSeqAIJGetArrayRead(a->A, &ada));
+    PetscCall(MatSeqAIJGetArrayRead(a->B, &bda));
+    sendcount = ad->nz + bd->nz;
+    sendbuf   = b->a + b->i[rstarts[rank]];
+    a_sendbuf = ada;
+    b_sendbuf = bda;
+    b_sendj   = bd->j;
+    n         = A->rmap->rend - A->rmap->rstart;
+    cnt       = 0;
+    for (i = 0; i < n; i++) {
+      /* put in lower diagonal portion */
       m = bd->i[i + 1] - bd->i[i];
       while (m > 0) {
-               /* is it above diagonal (in bd (compressed) numbering) */
+        /* is it above diagonal (in bd (compressed) numbering) */
         if (garray[*b_sendj] > A->rmap->rstart + i) break;
         sendbuf[cnt++] = *b_sendbuf++;
         m--;
@@ -1144,28 +1144,28 @@ PetscErrorCode        MatCreateSubMatrix_MPIAIJ_All(Mat A, MatCreateSubMatrixOpt
 
       /* put in upper diagonal portion */
       while (m-- > 0) {
-               sendbuf[cnt++] = *b_sendbuf++;
-               b_sendj++;
+        sendbuf[cnt++] = *b_sendbuf++;
+        b_sendj++;
       }
     }
-           PetscCheck(cnt == sendcount, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Corrupted PETSc matrix: nz given %" PetscInt_FMT " actual nz %" PetscInt_FMT, sendcount, cnt);
+    PetscCheck(cnt == sendcount, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Corrupted PETSc matrix: nz given %" PetscInt_FMT " actual nz %" PetscInt_FMT, sendcount, cnt);
 
-           /* -----------------------------------------------------------------
+    /* -----------------------------------------------------------------
        Gather all numerical values to all processors
     */
-           if (!recvcounts) PetscCall(PetscMalloc2(size, &recvcounts, size, &displs));
+    if (!recvcounts) PetscCall(PetscMalloc2(size, &recvcounts, size, &displs));
     for (i = 0; i < size; i++) recvcounts[i] = b->i[rstarts[i + 1]] - b->i[rstarts[i]];
     displs[0] = 0;
-           for (i = 1; i < size; i++) displs[i] = displs[i - 1] + recvcounts[i - 1];
+    for (i = 1; i < size; i++) displs[i] = displs[i - 1] + recvcounts[i - 1];
     recvbuf = b->a;
-           PetscCallMPI(MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, recvbuf, recvcounts, displs, MPIU_SCALAR, PetscObjectComm((PetscObject)A)));
-           PetscCall(MatSeqAIJRestoreArrayRead(a->A, &ada));
-           PetscCall(MatSeqAIJRestoreArrayRead(a->B, &bda));
+    PetscCallMPI(MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, recvbuf, recvcounts, displs, MPIU_SCALAR, PetscObjectComm((PetscObject)A)));
+    PetscCall(MatSeqAIJRestoreArrayRead(a->A, &ada));
+    PetscCall(MatSeqAIJRestoreArrayRead(a->B, &bda));
   } /* endof (flag == MAT_GET_VALUES) */
-         PetscCall(PetscFree2(recvcounts, displs));
+  PetscCall(PetscFree2(recvcounts, displs));
 
-         PetscCall(MatPropagateSymmetryOptions(A, B));
-         PetscFunctionReturn(0);
+  PetscCall(MatPropagateSymmetryOptions(A, B));
+  PetscFunctionReturn(0);
 }
 
 PetscErrorCode MatCreateSubMatrices_MPIAIJ_SingleIS_Local(Mat C, PetscInt ismax, const IS isrow[], const IS iscol[], MatReuse scall, PetscBool allcolumns, Mat *submats) {

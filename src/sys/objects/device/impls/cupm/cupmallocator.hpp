@@ -2,12 +2,12 @@
 #define CUPMALLOCATOR_HPP
 
 #if defined(__cplusplus)
-#include <petsc/private/cpp/object_pool.hpp>
+  #include <petsc/private/cpp/object_pool.hpp>
 
-#include "../segmentedmempool.hpp"
-#include "cupmthrustutility.hpp"
+  #include "../segmentedmempool.hpp"
+  #include "cupmthrustutility.hpp"
 
-#include <limits> // std::numeric_limits
+  #include <limits> // std::numeric_limits
 
 namespace Petsc {
 

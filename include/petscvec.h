@@ -3,7 +3,7 @@
   degrees of freedom for finite element/finite difference functions
   on a grid. They have more mathematical structure then simple arrays.
 */
-#if !defined(PETSCVEC_H)
+#ifndef PETSCVEC_H
 #define PETSCVEC_H
 
 #include <petscsys.h>
@@ -653,17 +653,17 @@ static inline PetscErrorCode VecSetErrorIfLocked(Vec x, PetscInt arg) {
 /* The three are deprecated */
 PETSC_EXTERN PETSC_DEPRECATED_FUNCTION("Use VecLockReadPush() (since version 3.11)") PetscErrorCode VecLockPush(Vec);
 PETSC_EXTERN PETSC_DEPRECATED_FUNCTION("Use VecLockReadPop() (since version 3.11)") PetscErrorCode VecLockPop(Vec);
-#define VecLocked(x, arg) VecSetErrorIfLocked(x, arg) PETSC_DEPRECATED_MACRO("GCC warning \"Use VecSetErrorIfLocked() (since version 3.11)\"")
+  #define VecLocked(x, arg) VecSetErrorIfLocked(x, arg) PETSC_DEPRECATED_MACRO("GCC warning \"Use VecSetErrorIfLocked() (since version 3.11)\"")
 #else
-#define VecLockReadPush(x)          0
-#define VecLockReadPop(x)           0
-#define VecLockGet(x, s)            *(s) = 0
-#define VecSetErrorIfLocked(x, arg) 0
-#define VecLockWriteSet(x, flg)     0
-/* The three are deprecated */
-#define VecLockPush(x)              0
-#define VecLockPop(x)               0
-#define VecLocked(x, arg)           0
+  #define VecLockReadPush(x)          0
+  #define VecLockReadPop(x)           0
+  #define VecLockGet(x, s)            *(s) = 0
+  #define VecSetErrorIfLocked(x, arg) 0
+  #define VecLockWriteSet(x, flg)     0
+  /* The three are deprecated */
+  #define VecLockPush(x)              0
+  #define VecLockPop(x)               0
+  #define VecLocked(x, arg)           0
 #endif
 
 /*
@@ -901,7 +901,7 @@ PETSC_EXTERN PetscErrorCode VecTaggerFinalizePackage(void);
 /* This is an internal debug-only routine that should not be used by users */
 PETSC_SINGLE_LIBRARY_INTERN PetscErrorCode VecValidValues_Internal(Vec, PetscInt, PetscBool);
 #else
-#define VecValidValues_Internal(...) 0
+  #define VecValidValues_Internal(...) 0
 #endif /* PETSC_USE_DEBUG */
 
 #endif

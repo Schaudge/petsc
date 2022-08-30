@@ -176,8 +176,8 @@ static PetscErrorCode FormJacobianLocal_KU(User user, DMDALocalInfo *info, DMDAL
   PetscFunctionBeginUser;
   if (!Bku) PetscFunctionReturn(0); /* Not assembling this block */
   for (i = infok->xs; i < infok->xs + infok->xm; i++) {
-    PetscInt          row = i - infok->gxs, cols[2];
-    PetscScalar       vals[2];
+    PetscInt    row = i - infok->gxs, cols[2];
+    PetscScalar vals[2];
     const PetscScalar ubar = 0.5 * (u[i] + u[i + 1]), ubar_L = 0.5, ubar_R = 0.5, gradu = (u[i + 1] - u[i]) / hx, gradu_L = -1. / hx, gradu_R = 1. / hx, g = 1. + PetscSqr(gradu), g_gradu = 2. * gradu, w = 1. / (1. + ubar) + 1. / g, w_ubar = -1. / PetscSqr(1. + ubar), w_gradu = -g_gradu / PetscSqr(g), iw = 1. / w, iw_ubar = -w_ubar * PetscSqr(iw), iw_gradu = -w_gradu * PetscSqr(iw);
     cols[0] = i - info->gxs;
     vals[0] = -hx * (iw_ubar * ubar_L + iw_gradu * gradu_L);

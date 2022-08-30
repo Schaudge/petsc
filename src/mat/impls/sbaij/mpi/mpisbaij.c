@@ -555,15 +555,15 @@ PetscErrorCode MatSetValuesBlocked_MPISBAIJ(Mat mat, PetscInt m, const PetscInt 
             if (!baij->colmap) PetscCall(MatCreateColmap_MPIBAIJ_Private(mat));
 
 #if defined(PETSC_USE_DEBUG)
-#if defined(PETSC_USE_CTABLE)
+  #if defined(PETSC_USE_CTABLE)
             {
               PetscInt data;
               PetscCall(PetscTableFind(baij->colmap, in[j] + 1, &data));
               PetscCheck((data - 1) % bs == 0, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect colmap");
             }
-#else
+  #else
             PetscCheck((baij->colmap[in[j]] - 1) % bs == 0, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect colmap");
-#endif
+  #endif
 #endif
 #if defined(PETSC_USE_CTABLE)
             PetscCall(PetscTableFind(baij->colmap, in[j] + 1, &col));

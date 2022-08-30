@@ -151,7 +151,7 @@ PetscErrorCode DMPlexGetLocalOffsets(DM dm, DMLabel domain_label, PetscInt label
 }
 
 #if defined(PETSC_HAVE_LIBCEED)
-#include <petscdmplexceed.h>
+  #include <petscdmplexceed.h>
 
 /*@C
   DMPlexGetCeedRestriction - Define the libCEED map from the local vector (Lvector) to the cells (Evector)

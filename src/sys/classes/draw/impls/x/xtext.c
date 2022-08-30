@@ -33,7 +33,9 @@ PetscErrorCode PetscDrawXiFontFixed(PetscDraw_X *XBWin, int w, int h, PetscDrawX
 
 /* this is set by XListFonts at startup */
 #define NFONTS 20
-static struct { int w, h, descent; } nfonts[NFONTS];
+static struct {
+  int w, h, descent;
+} nfonts[NFONTS];
 static int act_nfonts = 0;
 
 /*

@@ -8,10 +8,10 @@
 #include <petsc/private/petscimpl.h> /*I  "petscsys.h"   I*/
 
 #if defined(PETSC_HAVE_SYS_SYSINFO_H)
-#include <sys/sysinfo.h>
+  #include <sys/sysinfo.h>
 #endif
 #if defined(PETSC_HAVE_UNISTD_H)
-#include <unistd.h>
+  #include <unistd.h>
 #endif
 
 /* ------------------------Nasty global variables -------------------------------*/
@@ -41,10 +41,10 @@ PetscBool use_gpu_aware_mpi = PetscDefined(HAVE_MPIUNI) ? PETSC_FALSE : PETSC_TR
 PetscBool PetscPrintFunctionList = PETSC_FALSE;
 
 #if defined(PETSC_HAVE_COMPLEX)
-#if defined(PETSC_COMPLEX_INSTANTIATE)
+  #if defined(PETSC_COMPLEX_INSTANTIATE)
 template <>
 class std::complex<double>; /* instantiate complex template class */
-#endif
+  #endif
 
 /*MC
    PETSC_i - the imaginary number i
@@ -208,7 +208,7 @@ PetscErrorCode (*PetscExternalVersionFunction)(MPI_Comm) = NULL;
 PetscErrorCode (*PetscExternalHelpFunction)(MPI_Comm)    = NULL;
 
 #if PetscDefined(USE_LOG)
-#include <petscviewer.h>
+  #include <petscviewer.h>
 #endif
 
 /*@C
@@ -297,9 +297,9 @@ PETSC_INTERN PetscErrorCode PetscOptionsCheckInitial_Private(const char help[]) 
       PetscCall(PetscOptionsGetReal(NULL, NULL, "-malloc_view_threshold", &logthreshold, NULL));
       PetscCall(PetscMallocViewSet(logthreshold));
     }
-#if defined(PETSC_USE_LOG)
+  #if defined(PETSC_USE_LOG)
     PetscCall(PetscOptionsGetBool(NULL, NULL, "-log_view_memory", &PetscLogMemory, NULL));
-#endif
+  #endif
   }
 
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-malloc_coalesce", &flg1, &flg2));
@@ -510,11 +510,11 @@ PETSC_INTERN PetscErrorCode PetscOptionsCheckInitial_Private(const char help[]) 
 
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-log_sync", &PetscLogSyncOn, NULL));
 
-#if defined(PETSC_HAVE_MPE)
+  #if defined(PETSC_HAVE_MPE)
   flg1 = PETSC_FALSE;
   PetscCall(PetscOptionsHasName(NULL, NULL, "-log_mpe", &flg1));
   if (flg1) PetscCall(PetscLogMPEBegin());
-#endif
+  #endif
   flg1 = PETSC_FALSE;
   flg3 = PETSC_FALSE;
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-log_all", &flg1, NULL));
@@ -597,12 +597,12 @@ PETSC_INTERN PetscErrorCode PetscOptionsCheckInitial_Private(const char help[]) 
     PetscCall((*PetscHelpPrintf)(comm, " -log_view [:filename:[format]]: logging objects and events\n"));
     PetscCall((*PetscHelpPrintf)(comm, " -log_trace [filename]: prints trace of all PETSc calls\n"));
     PetscCall((*PetscHelpPrintf)(comm, " -log_exclude <list,of,classnames>: exclude given classes from logging\n"));
-#if defined(PETSC_HAVE_DEVICE)
+  #if defined(PETSC_HAVE_DEVICE)
     PetscCall((*PetscHelpPrintf)(comm, " -log_view_gpu_time: log the GPU time for each and event\n"));
-#endif
-#if defined(PETSC_HAVE_MPE)
+  #endif
+  #if defined(PETSC_HAVE_MPE)
     PetscCall((*PetscHelpPrintf)(comm, " -log_mpe: Also create logfile viewable through Jumpshot\n"));
-#endif
+  #endif
 #endif
 #if defined(PETSC_USE_INFO)
     PetscCall((*PetscHelpPrintf)(comm, " -info [filename][:[~]<list,of,classnames>[:[~]self]]: print verbose information\n"));

@@ -2,7 +2,7 @@
 #include <petsc/private/dmpleximpl.h> /*I   "petscdmplex.h"   I*/
 
 #if defined(PETSC_HAVE_MED)
-#include <med.h>
+  #include <med.h>
 #endif
 
 /*@C

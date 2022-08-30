@@ -3,7 +3,7 @@
    implementation of the graphics functionality in PETSc.
 */
 
-#if !defined(_XIMPL_H)
+#ifndef _XIMPL_H
 #define _XIMPL_H
 #include <petsc/private/drawimpl.h>
 
@@ -52,11 +52,11 @@ static inline void PetscDrawXiSetPixVal(PetscDraw_X *W, PetscDrawXiPixVal pix) {
 }
 
 #if defined(PETSC_USE_DEBUG)
-#define PetscDrawXiValidColor(W, color) PetscCheck((color) >= 0 && (color) < PETSC_DRAW_MAXCOLOR, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Color value %" PetscInt_FMT " out of range [0..%d]", (PetscInt)(color), PETSC_DRAW_MAXCOLOR - 1)
+  #define PetscDrawXiValidColor(W, color) PetscCheck((color) >= 0 && (color) < PETSC_DRAW_MAXCOLOR, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Color value %" PetscInt_FMT " out of range [0..%d]", (PetscInt)(color), PETSC_DRAW_MAXCOLOR - 1)
 #else
-#define PetscDrawXiValidColor(W, color) \
-  do { \
-  } while (0)
+  #define PetscDrawXiValidColor(W, color) \
+    do { \
+    } while (0)
 #endif
 
 #define PetscDrawXiSetColor(W, color) \

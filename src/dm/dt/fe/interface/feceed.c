@@ -1,7 +1,7 @@
 #include <petsc/private/petscfeimpl.h> /*I "petscfe.h" I*/
 
 #ifdef PETSC_HAVE_LIBCEED
-#include <petscfeceed.h>
+  #include <petscfeceed.h>
 
 /*@C
   PetscFESetCeed - Set the Ceed object

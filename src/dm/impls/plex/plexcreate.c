@@ -2301,18 +2301,18 @@ static PetscErrorCode DMPlexCreateSphereMesh_Internal(DM dm, PetscInt dim, Petsc
       const PetscInt  degree          = 12;
       PetscInt        s[4]            = {1, 1, 1};
       PetscInt        evenPerm[12][4] = {
-               {0, 1, 2, 3},
-               {0, 2, 3, 1},
-               {0, 3, 1, 2},
-               {1, 0, 3, 2},
-               {1, 2, 0, 3},
-               {1, 3, 2, 0},
-               {2, 0, 1, 3},
-               {2, 1, 3, 0},
-               {2, 3, 0, 1},
-               {3, 0, 2, 1},
-               {3, 1, 0, 2},
-               {3, 2, 1, 0}
+        {0, 1, 2, 3},
+        {0, 2, 3, 1},
+        {0, 3, 1, 2},
+        {1, 0, 3, 2},
+        {1, 2, 0, 3},
+        {1, 3, 2, 0},
+        {2, 0, 1, 3},
+        {2, 1, 3, 0},
+        {2, 3, 0, 1},
+        {3, 0, 2, 1},
+        {3, 1, 0, 2},
+        {3, 2, 1, 0}
       };
       PetscInt  cone[4];
       PetscInt *graph, p, i, j, k, l;
@@ -2811,10 +2811,10 @@ static PetscErrorCode DMPlexCreateTPSMesh_Internal(DM dm, DMPlexTPSType tpstype,
       // As for how this method turned into the names given to the vertices:
       // that was not systematic, it was just the way it worked out in my handwritten notes.
 
-      PetscInt       facesPerBlock = 64;
-      PetscInt       vertsPerBlock = 56;
-      PetscInt       extentPlus[3];
-      PetscInt       numBlocks, numBlocksPlus;
+      PetscInt facesPerBlock = 64;
+      PetscInt vertsPerBlock = 56;
+      PetscInt extentPlus[3];
+      PetscInt numBlocks, numBlocksPlus;
       const PetscInt A = 0, B = 1, C = 2, D = 3, E = 4, F = 5, G = 6, H = 7, II = 8, J = 9, K = 10, L = 11, M = 12, N = 13, O = 14, P = 15, Q = 16, R = 17, S = 18, T = 19, U = 20, V = 21, W = 22, X = 23, Y = 24, Z = 25, Ap = 26, Bp = 27, Cp = 28, Dp = 29, Ep = 30, Fp = 31, Gp = 32, Hp = 33, Ip = 34, Jp = 35, Kp = 36, Lp = 37, Mp = 38, Np = 39, Op = 40, Pp = 41, Qp = 42, Rp = 43, Sp = 44, Tp = 45, Up = 46, Vp = 47, Wp = 48, Xp = 49, Yp = 50, Zp = 51, Aq = 52, Bq = 53, Cq = 54, Dq = 55;
       const PetscInt pattern[64][4] = {
   /* face to vertex within the coarse discretization of a single gyroid block */

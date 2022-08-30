@@ -410,9 +410,9 @@ static PetscErrorCode DMFieldInitialize_DA(DMField field) {
     PetscInt           n;
     const PetscScalar *array;
     PetscReal          mins[3][2] = {
-               {PETSC_MAX_REAL, PETSC_MAX_REAL},
-               {PETSC_MAX_REAL, PETSC_MAX_REAL},
-               {PETSC_MAX_REAL, PETSC_MAX_REAL}
+      {PETSC_MAX_REAL, PETSC_MAX_REAL},
+      {PETSC_MAX_REAL, PETSC_MAX_REAL},
+      {PETSC_MAX_REAL, PETSC_MAX_REAL}
     };
 
     PetscCall(VecGetLocalSize(coords, &n));

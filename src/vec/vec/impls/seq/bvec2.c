@@ -493,8 +493,8 @@ PetscErrorCode VecView_Seq_Binary(Vec xin, PetscViewer viewer) {
 }
 
 #if defined(PETSC_HAVE_MATLAB_ENGINE)
-#include <petscmatlab.h>
-#include <mat.h> /* MATLAB include file */
+  #include <petscmatlab.h>
+  #include <mat.h> /* MATLAB include file */
 PetscErrorCode VecView_Seq_Matlab(Vec vec, PetscViewer viewer) {
   PetscInt           n;
   const PetscScalar *array;

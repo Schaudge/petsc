@@ -1265,9 +1265,9 @@ PetscErrorCode MatSOR_SeqBAIJ(Mat A, Vec bb, PetscReal omega, MatSORType flag, P
     Special version for direct calls from Fortran (Used in PETSc-fun3d)
 */
 #if defined(PETSC_HAVE_FORTRAN_CAPS)
-#define matsetvaluesblocked4_ MATSETVALUESBLOCKED4
+  #define matsetvaluesblocked4_ MATSETVALUESBLOCKED4
 #elif !defined(PETSC_HAVE_FORTRAN_UNDERSCORE)
-#define matsetvaluesblocked4_ matsetvaluesblocked4
+  #define matsetvaluesblocked4_ matsetvaluesblocked4
 #endif
 
 PETSC_EXTERN void matsetvaluesblocked4_(Mat *AA, PetscInt *mm, const PetscInt im[], PetscInt *nn, const PetscInt in[], const PetscScalar v[]) {
@@ -1332,9 +1332,9 @@ PETSC_EXTERN void matsetvaluesblocked4_(Mat *AA, PetscInt *mm, const PetscInt im
 }
 
 #if defined(PETSC_HAVE_FORTRAN_CAPS)
-#define matsetvalues4_ MATSETVALUES4
+  #define matsetvalues4_ MATSETVALUES4
 #elif !defined(PETSC_HAVE_FORTRAN_UNDERSCORE)
-#define matsetvalues4_ matsetvalues4
+  #define matsetvalues4_ matsetvalues4
 #endif
 
 PETSC_EXTERN void matsetvalues4_(Mat *AA, PetscInt *mm, PetscInt *im, PetscInt *nn, PetscInt *in, PetscScalar *v) {

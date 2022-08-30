@@ -1,13 +1,13 @@
 #include <petsc/private/sfimpl.h>
 
 #if !defined(PETSC_HAVE_MPI_COMBINER_DUP) && !defined(MPI_COMBINER_DUP) /* We have no way to interpret output of MPI_Type_get_envelope without this. */
-#define MPI_COMBINER_DUP 0
+  #define MPI_COMBINER_DUP 0
 #endif
 #if !defined(PETSC_HAVE_MPI_COMBINER_NAMED) && !defined(MPI_COMBINER_NAMED)
-#define MPI_COMBINER_NAMED -2
+  #define MPI_COMBINER_NAMED -2
 #endif
 #if !defined(PETSC_HAVE_MPI_COMBINER_CONTIGUOUS) && !defined(MPI_COMBINER_CONTIGUOUS) && MPI_VERSION < 2
-#define MPI_COMBINER_CONTIGUOUS -1
+  #define MPI_COMBINER_CONTIGUOUS -1
 #endif
 
 static PetscErrorCode MPIPetsc_Type_free(MPI_Datatype *a) {

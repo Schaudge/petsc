@@ -280,7 +280,7 @@ struct AtomicInsert {
 };
 
 #if defined(PETSC_HAVE_COMPLEX)
-#if defined(PETSC_USE_REAL_DOUBLE)
+  #if defined(PETSC_USE_REAL_DOUBLE)
 /* CUDA does not support 128-bit atomics. Users should not insert different 128-bit PetscComplex values to the same location */
 template <>
 struct AtomicInsert<PetscComplex> {
@@ -293,7 +293,7 @@ struct AtomicInsert<PetscComplex> {
     return old; /* The returned value may not be atomic. It can be mix of two ops. Caller should discard it. */
   }
 };
-#elif defined(PETSC_USE_REAL_SINGLE)
+  #elif defined(PETSC_USE_REAL_SINGLE)
 template <>
 struct AtomicInsert<PetscComplex> {
   __device__ PetscComplex operator()(PetscComplex &x, PetscComplex y) const {
@@ -302,7 +302,7 @@ struct AtomicInsert<PetscComplex> {
     return op(xp[0], yp[0]);
   }
 };
-#endif
+  #endif
 #endif
 
 /*
@@ -1132,7 +1132,7 @@ PetscErrorCode PetscSFLinkSetUp_CUDA(PetscSF sf, PetscSFLink link, MPI_Datatype 
       PackInit_IntegerType<UnsignedChar, 1, 0>(link);
 #if defined(PETSC_HAVE_COMPLEX)
   } else if (nPetscComplex) {
-#if !defined(PETSC_HAVE_DEVICE)
+  #if !defined(PETSC_HAVE_DEVICE)
     if (nPetscComplex == 8) PackInit_ComplexType<PetscComplex, 8, 1>(link);
     else if (nPetscComplex % 8 == 0) PackInit_ComplexType<PetscComplex, 8, 0>(link);
     else if (nPetscComplex == 4) PackInit_ComplexType<PetscComplex, 4, 1>(link);
@@ -1141,7 +1141,7 @@ PetscErrorCode PetscSFLinkSetUp_CUDA(PetscSF sf, PetscSFLink link, MPI_Datatype 
     else if (nPetscComplex % 2 == 0) PackInit_ComplexType<PetscComplex, 2, 0>(link);
     else if (nPetscComplex == 1) PackInit_ComplexType<PetscComplex, 1, 1>(link);
     else if (nPetscComplex % 1 == 0)
-#endif
+  #endif
       PackInit_ComplexType<PetscComplex, 1, 0>(link);
 #endif
   } else {

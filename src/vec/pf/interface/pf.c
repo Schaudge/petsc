@@ -418,11 +418,11 @@ static PetscBool PFPackageInitialized = PETSC_FALSE;
 .seealso: `PetscFinalize()`
 @*/
 PetscErrorCode   PFFinalizePackage(void) {
-    PetscFunctionBegin;
-    PetscCall(PetscFunctionListDestroy(&PFList));
-    PFPackageInitialized = PETSC_FALSE;
-    PFRegisterAllCalled  = PETSC_FALSE;
-    PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscCall(PetscFunctionListDestroy(&PFList));
+  PFPackageInitialized = PETSC_FALSE;
+  PFRegisterAllCalled  = PETSC_FALSE;
+  PetscFunctionReturn(0);
 }
 
 /*@C

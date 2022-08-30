@@ -1,7 +1,7 @@
 #include <petsc/private/dmpleximpl.h> /*I      "petscdmplex.h"   I*/
 
 #ifdef PETSC_HAVE_EGADS
-#include <egads.h>
+  #include <egads.h>
 #endif
 
 #include <ctetgen.h>
@@ -131,10 +131,10 @@ PETSC_EXTERN PetscErrorCode DMPlexGenerate_CTetgen(DM boundary, PetscBool interp
     t.quiet     = 1;
     t.verbose   = verbose;
 #if 0
-#ifdef PETSC_HAVE_EGADS
+  #ifdef PETSC_HAVE_EGADS
     /* Need to add in more TetGen code */
     t.nobisect  = 1; /* Add Y to preserve Surface Mesh for EGADS */
-#endif
+  #endif
 #endif
 
     PetscCall(TetGenCheckOpts(&t));

@@ -6,12 +6,12 @@
 #include "petscsystypes.h"
 #include <petsc/private/vecimpl.h> /*I  "petscvec.h"   I*/
 #if defined(PETSC_HAVE_CUDA)
-#include <../src/vec/vec/impls/dvecimpl.h>
-#include <petsc/private/cudavecimpl.h>
+  #include <../src/vec/vec/impls/dvecimpl.h>
+  #include <petsc/private/cudavecimpl.h>
 #endif
 #if defined(PETSC_HAVE_HIP)
-#include <../src/vec/vec/impls/dvecimpl.h>
-#include <petsc/private/hipvecimpl.h>
+  #include <../src/vec/vec/impls/dvecimpl.h>
+  #include <petsc/private/hipvecimpl.h>
 #endif
 PetscInt VecGetSubVectorSavedStateId = -1;
 

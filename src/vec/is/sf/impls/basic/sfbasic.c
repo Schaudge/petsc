@@ -117,7 +117,7 @@ PETSC_INTERN PetscErrorCode PetscSFDestroy_Basic(PetscSF sf) {
 }
 
 #if defined(PETSC_USE_SINGLE_LIBRARY)
-#include <petscmat.h>
+  #include <petscmat.h>
 
 PETSC_INTERN PetscErrorCode PetscSFView_Basic_PatternAndSizes(PetscSF sf, PetscViewer viewer) {
   PetscSF_Basic     *bas = (PetscSF_Basic *)sf->data;

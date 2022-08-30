@@ -35,9 +35,9 @@ static PetscErrorCode PetscLoadDynamicLibrary(const char *name, PetscBool *found
 #if defined(PETSC_USE_SINGLE_LIBRARY) && !(defined(PETSC_HAVE_DYNAMIC_LIBRARIES) && defined(PETSC_USE_SHARED_LIBRARIES))
 PETSC_EXTERN PetscErrorCode AOInitializePackage(void);
 PETSC_EXTERN PetscErrorCode PetscSFInitializePackage(void);
-#if !defined(PETSC_USE_COMPLEX)
+  #if !defined(PETSC_USE_COMPLEX)
 PETSC_EXTERN PetscErrorCode CharacteristicInitializePackage(void);
-#endif
+  #endif
 PETSC_EXTERN PetscErrorCode ISInitializePackage(void);
 PETSC_EXTERN PetscErrorCode VecInitializePackage(void);
 PETSC_EXTERN PetscErrorCode MatInitializePackage(void);
@@ -83,10 +83,10 @@ PETSC_INTERN PetscErrorCode PetscInitialize_DynamicLibraries(void) {
   } else {
 #if defined(PETSC_HAVE_DYNAMIC_LIBRARIES) && defined(PETSC_USE_SHARED_LIBRARIES)
     PetscBool found;
-#if defined(PETSC_USE_SINGLE_LIBRARY)
+  #if defined(PETSC_USE_SINGLE_LIBRARY)
     PetscCall(PetscLoadDynamicLibrary("", &found));
     PetscCheck(found, PETSC_COMM_SELF, PETSC_ERR_FILE_OPEN, "Unable to locate PETSc dynamic library \n You cannot move the dynamic libraries!");
-#else
+  #else
     PetscCall(PetscLoadDynamicLibrary("sys", &found));
     PetscCheck(found, PETSC_COMM_SELF, PETSC_ERR_FILE_OPEN, "Unable to locate PETSc dynamic library \n You cannot move the dynamic libraries!");
     PetscCall(PetscLoadDynamicLibrary("vec", &found));
@@ -103,14 +103,14 @@ PETSC_INTERN PetscErrorCode PetscInitialize_DynamicLibraries(void) {
     PetscCheck(found, PETSC_COMM_SELF, PETSC_ERR_FILE_OPEN, "Unable to locate PETSc TS dynamic library \n You cannot move the dynamic libraries!");
     PetscCall(PetscLoadDynamicLibrary("tao", &found));
     PetscCheck(found, PETSC_COMM_SELF, PETSC_ERR_FILE_OPEN, "Unable to locate Tao dynamic library \n You cannot move the dynamic libraries!");
-#endif
+  #endif
 #else /* defined(PETSC_HAVE_DYNAMIC_LIBRARIES) && defined(PETSC_USE_SHARED_LIBRARIES) */
-#if defined(PETSC_USE_SINGLE_LIBRARY)
+  #if defined(PETSC_USE_SINGLE_LIBRARY)
     PetscCall(AOInitializePackage());
     PetscCall(PetscSFInitializePackage());
-#if !defined(PETSC_USE_COMPLEX)
+    #if !defined(PETSC_USE_COMPLEX)
     PetscCall(CharacteristicInitializePackage());
-#endif
+    #endif
     PetscCall(ISInitializePackage());
     PetscCall(VecInitializePackage());
     PetscCall(MatInitializePackage());
@@ -120,9 +120,9 @@ PETSC_INTERN PetscErrorCode PetscInitialize_DynamicLibraries(void) {
     PetscCall(SNESInitializePackage());
     PetscCall(TSInitializePackage());
     PetscCall(TaoInitializePackage());
-#else
+  #else
     SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_SUP, "Cannot use -library_preload with multiple static PETSc libraries");
-#endif
+  #endif
 #endif /* defined(PETSC_HAVE_DYNAMIC_LIBRARIES) && defined(PETSC_USE_SHARED_LIBRARIES) */
   }
 

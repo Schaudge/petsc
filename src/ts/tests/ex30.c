@@ -16,7 +16,7 @@ static char help[] = "Grid based Landau collision operator with PIC interface wi
 #include "petscksp.h"
 #include <petsc/private/petscimpl.h>
 #if defined(PETSC_HAVE_OPENMP) && defined(PETSC_HAVE_THREADSAFETY)
-#include <omp.h>
+  #include <omp.h>
 #endif
 #include <petsclandau.h>
 #include <petscdmcomposite.h>

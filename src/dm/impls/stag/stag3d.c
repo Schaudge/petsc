@@ -310,7 +310,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_3d(DM dm) {
     entriesPerCorner        = stag->dof[0];
     entriesPerElementRow    = stag->n[0] * stag->entriesPerElement + (dummyEnd[0] ? entriesPerFace : 0);
     entriesPerElementLayer  = stag->n[1] * entriesPerElementRow + (dummyEnd[1] ? stag->n[0] * entriesPerFace : 0) + (dummyEnd[1] && dummyEnd[0] ? entriesPerEdge : 0);
-    stag->entries           = stag->n[2] * entriesPerElementLayer + (dummyEnd[2] ? stag->n[0] * stag->n[1] * entriesPerFace : 0) + (dummyEnd[2] && dummyEnd[0] ? stag->n[1] * entriesPerEdge : 0) + (dummyEnd[2] && dummyEnd[1] ? stag->n[0] * entriesPerEdge : 0) + (dummyEnd[2] && dummyEnd[1] && dummyEnd[0] ? entriesPerCorner : 0);
+    stag->entries = stag->n[2] * entriesPerElementLayer + (dummyEnd[2] ? stag->n[0] * stag->n[1] * entriesPerFace : 0) + (dummyEnd[2] && dummyEnd[0] ? stag->n[1] * entriesPerEdge : 0) + (dummyEnd[2] && dummyEnd[1] ? stag->n[0] * entriesPerEdge : 0) + (dummyEnd[2] && dummyEnd[1] && dummyEnd[0] ? entriesPerCorner : 0);
   }
 
   /* Check that we will not overflow 32 bit indices (slightly overconservative) */

@@ -1,4 +1,4 @@
-#if !defined(PETSCLANDAU_H)
+#ifndef PETSCLANDAU_H
 #define PETSCLANDAU_H
 
 #include <petscdmplex.h> /*I      "petscdmplex.h"    I*/
@@ -17,41 +17,41 @@ typedef int LandauIdx;
 
 /* the Fokker-Planck-Landau context */
 #if !defined(LANDAU_MAX_SPECIES)
-#if defined(PETSC_USE_DMLANDAU_2D)
-#define LANDAU_MAX_SPECIES 10
-#define LANDAU_MAX_GRIDS   3
+  #if defined(PETSC_USE_DMLANDAU_2D)
+    #define LANDAU_MAX_SPECIES 10
+    #define LANDAU_MAX_GRIDS   3
+  #else
+    #define LANDAU_MAX_SPECIES 10
+    #define LANDAU_MAX_GRIDS   3
+  #endif
 #else
-#define LANDAU_MAX_SPECIES 10
-#define LANDAU_MAX_GRIDS   3
-#endif
-#else
-#define LANDAU_MAX_GRIDS 3
+  #define LANDAU_MAX_GRIDS 3
 #endif
 
 #if !defined(LANDAU_MAX_Q)
-#if defined(LANDAU_MAX_NQ)
-#error "LANDAU_MAX_NQ but not LANDAU_MAX_Q. Use -DLANDAU_MAX_Q=4 for Q3 elements"
-#endif
-#if defined(PETSC_USE_DMLANDAU_2D)
-#define LANDAU_MAX_Q 5
+  #if defined(LANDAU_MAX_NQ)
+    #error "LANDAU_MAX_NQ but not LANDAU_MAX_Q. Use -DLANDAU_MAX_Q=4 for Q3 elements"
+  #endif
+  #if defined(PETSC_USE_DMLANDAU_2D)
+    #define LANDAU_MAX_Q 5
+  #else
+    // 3D CUDA fails with > 3 (KK-CUDA is OK)
+    #define LANDAU_MAX_Q 3
+  #endif
 #else
-// 3D CUDA fails with > 3 (KK-CUDA is OK)
-#define LANDAU_MAX_Q 3
-#endif
-#else
-#undef LANDAU_MAX_NQ
+  #undef LANDAU_MAX_NQ
 #endif
 
 #if defined(PETSC_USE_DMLANDAU_2D)
-#define LANDAU_MAX_Q_FACE   LANDAU_MAX_Q
-#define LANDAU_MAX_NQ       (LANDAU_MAX_Q * LANDAU_MAX_Q)
-#define LANDAU_MAX_BATCH_SZ 1024
-#define LANDAU_DIM          2
+  #define LANDAU_MAX_Q_FACE   LANDAU_MAX_Q
+  #define LANDAU_MAX_NQ       (LANDAU_MAX_Q * LANDAU_MAX_Q)
+  #define LANDAU_MAX_BATCH_SZ 1024
+  #define LANDAU_DIM          2
 #else
-#define LANDAU_MAX_Q_FACE   (LANDAU_MAX_Q * LANDAU_MAX_Q)
-#define LANDAU_MAX_NQ       (LANDAU_MAX_Q * LANDAU_MAX_Q * LANDAU_MAX_Q)
-#define LANDAU_MAX_BATCH_SZ 64
-#define LANDAU_DIM          3
+  #define LANDAU_MAX_Q_FACE   (LANDAU_MAX_Q * LANDAU_MAX_Q)
+  #define LANDAU_MAX_NQ       (LANDAU_MAX_Q * LANDAU_MAX_Q * LANDAU_MAX_Q)
+  #define LANDAU_MAX_BATCH_SZ 64
+  #define LANDAU_DIM          3
 #endif
 
 typedef enum {
@@ -189,11 +189,11 @@ typedef struct {
 
 #define LANDAU_SPECIES_MAJOR
 #if !defined(LANDAU_SPECIES_MAJOR)
-#define LAND_PACK_IDX(_b, _g)                         (_b * ctx->num_grids + _g)
-#define LAND_MOFFSET(_b, _g, _nbch, _ngrid, _mat_off) (_b * _mat_off[_ngrid] + _mat_off[_g])
+  #define LAND_PACK_IDX(_b, _g)                         (_b * ctx->num_grids + _g)
+  #define LAND_MOFFSET(_b, _g, _nbch, _ngrid, _mat_off) (_b * _mat_off[_ngrid] + _mat_off[_g])
 #else
-#define LAND_PACK_IDX(_b, _g)                         (_g * ctx->batch_sz + _b)
-#define LAND_MOFFSET(_b, _g, _nbch, _ngrid, _mat_off) (_nbch * _mat_off[_g] + _b * (_mat_off[_g + 1] - _mat_off[_g]))
+  #define LAND_PACK_IDX(_b, _g)                         (_g * ctx->batch_sz + _b)
+  #define LAND_MOFFSET(_b, _g, _nbch, _ngrid, _mat_off) (_nbch * _mat_off[_g] + _b * (_mat_off[_g + 1] - _mat_off[_g]))
 #endif
 
 typedef struct {

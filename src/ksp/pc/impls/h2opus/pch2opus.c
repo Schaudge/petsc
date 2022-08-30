@@ -4,7 +4,7 @@
 
 /* Use GPU only if H2OPUS is configured for GPU */
 #if defined(PETSC_HAVE_CUDA) && defined(H2OPUS_USE_GPU)
-#define PETSC_H2OPUS_USE_GPU
+  #define PETSC_H2OPUS_USE_GPU
 #endif
 
 typedef struct {

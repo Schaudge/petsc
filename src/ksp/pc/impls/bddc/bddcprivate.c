@@ -5945,20 +5945,20 @@ PetscErrorCode PCBDDCConstraintsSetUp(PC pc) {
           max_n = max_constraints;
         }
         PetscCall(PetscMalloc1(min_n, &singular_vals));
-#if defined(PETSC_USE_COMPLEX)
+  #if defined(PETSC_USE_COMPLEX)
         PetscCall(PetscMalloc1(5 * min_n, &rwork));
-#endif
+  #endif
         /* now we evaluate the optimal workspace using query with lwork=-1 */
         lwork = -1;
         PetscCall(PetscBLASIntCast(max_n, &Blas_M));
         PetscCall(PetscBLASIntCast(min_n, &Blas_N));
         PetscCall(PetscBLASIntCast(max_n, &Blas_LDA));
         PetscCall(PetscFPTrapPush(PETSC_FP_TRAP_OFF));
-#if !defined(PETSC_USE_COMPLEX)
+  #if !defined(PETSC_USE_COMPLEX)
         PetscCallBLAS("LAPACKgesvd", LAPACKgesvd_("O", "N", &Blas_M, &Blas_N, &constraints_data[0], &Blas_LDA, singular_vals, &dummy_scalar, &dummy_int, &dummy_scalar, &dummy_int, &temp_work, &lwork, &lierr));
-#else
+  #else
         PetscCallBLAS("LAPACKgesvd", LAPACKgesvd_("O", "N", &Blas_M, &Blas_N, &constraints_data[0], &Blas_LDA, singular_vals, &dummy_scalar, &dummy_int, &dummy_scalar, &dummy_int, &temp_work, &lwork, rwork, &lierr));
-#endif
+  #endif
         PetscCall(PetscFPTrapPop());
         PetscCheck(!lierr, PETSC_COMM_SELF, PETSC_ERR_LIB, "Error in query to GESVD Lapack routine %d", (int)lierr);
 #else
@@ -6109,11 +6109,11 @@ PetscErrorCode PCBDDCConstraintsSetUp(PC pc) {
             PetscCall(PetscBLASIntCast(temp_constraints, &Blas_N));
             PetscCall(PetscBLASIntCast(size_of_constraint, &Blas_LDA));
             PetscCall(PetscFPTrapPush(PETSC_FP_TRAP_OFF));
-#if !defined(PETSC_USE_COMPLEX)
+  #if !defined(PETSC_USE_COMPLEX)
             PetscCallBLAS("LAPACKgesvd", LAPACKgesvd_("O", "N", &Blas_M, &Blas_N, ptr_to_data, &Blas_LDA, singular_vals, &dummy_scalar, &dummy_int, &dummy_scalar, &dummy_int, work, &lwork, &lierr));
-#else
+  #else
             PetscCallBLAS("LAPACKgesvd", LAPACKgesvd_("O", "N", &Blas_M, &Blas_N, ptr_to_data, &Blas_LDA, singular_vals, &dummy_scalar, &dummy_int, &dummy_scalar, &dummy_int, work, &lwork, rwork, &lierr));
-#endif
+  #endif
             PetscCheck(!lierr, PETSC_COMM_SELF, PETSC_ERR_LIB, "Error in GESVD Lapack routine %d", (int)lierr);
             PetscCall(PetscFPTrapPop());
             /* retain eigenvalues greater than tol: note that LAPACKgesvd gives eigs in descending order */

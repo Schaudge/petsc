@@ -43,16 +43,16 @@ PetscErrorCode Assemble(MPI_Comm comm, PetscInt bs, MatType mtype) {
   PetscCall(MatCreateVecs(A, &x, &y));
   PetscCall(VecDuplicate(x, &b));
   for (j = 0; j < 2; j++) {
-#if defined(PETSC_HAVE_MUMPS)
+  #if defined(PETSC_HAVE_MUMPS)
     if (j == 0) stype = MATSOLVERMUMPS;
-#else
+  #else
     if (j == 0) continue;
-#endif
-#if defined(PETSC_HAVE_MKL_CPARDISO)
+  #endif
+  #if defined(PETSC_HAVE_MKL_CPARDISO)
     if (j == 1) stype = MATSOLVERMKL_CPARDISO;
-#else
+  #else
     if (j == 1) continue;
-#endif
+  #endif
     if (issbaij) {
       PetscCall(MatGetFactor(A, stype, MAT_FACTOR_CHOLESKY, &F));
       PetscCall(MatCholeskyFactorSymbolic(F, A, NULL, NULL));

@@ -13,7 +13,7 @@
 #include "viennacl/linalg/norm_inf.hpp"
 
 #ifdef VIENNACL_WITH_OPENCL
-#include "viennacl/ocl/backend.hpp"
+  #include "viennacl/ocl/backend.hpp"
 #endif
 
 PETSC_EXTERN PetscErrorCode VecViennaCLGetArray(Vec v, ViennaCLVector **a) {

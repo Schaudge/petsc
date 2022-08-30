@@ -55,12 +55,12 @@ PetscBool PetscIsInfReal(PetscReal a) {
   return isinf(a) ? PETSC_TRUE : PETSC_FALSE;
 }
 #elif defined(PETSC_HAVE__FINITE)
-#if defined(PETSC_HAVE_FLOAT_H)
-#include <float.h> /* Microsoft Windows defines _finite() in float.h */
-#endif
-#if defined(PETSC_HAVE_IEEEFP_H)
-#include <ieeefp.h> /* Solaris prototypes these here */
-#endif
+  #if defined(PETSC_HAVE_FLOAT_H)
+    #include <float.h> /* Microsoft Windows defines _finite() in float.h */
+  #endif
+  #if defined(PETSC_HAVE_IEEEFP_H)
+    #include <ieeefp.h> /* Solaris prototypes these here */
+  #endif
 PetscBool PetscIsInfReal(PetscReal a) {
   return !_finite(a) ? PETSC_TRUE : PETSC_FALSE;
 }
@@ -95,12 +95,12 @@ PetscBool PetscIsNanReal(PetscReal a) {
   return isnan(a) ? PETSC_TRUE : PETSC_FALSE;
 }
 #elif defined(PETSC_HAVE__ISNAN)
-#if defined(PETSC_HAVE_FLOAT_H)
-#include <float.h> /* Microsoft Windows defines _isnan() in float.h */
-#endif
-#if defined(PETSC_HAVE_IEEEFP_H)
-#include <ieeefp.h> /* Solaris prototypes these here */
-#endif
+  #if defined(PETSC_HAVE_FLOAT_H)
+    #include <float.h> /* Microsoft Windows defines _isnan() in float.h */
+  #endif
+  #if defined(PETSC_HAVE_IEEEFP_H)
+    #include <ieeefp.h> /* Solaris prototypes these here */
+  #endif
 PetscBool PetscIsNanReal(PetscReal a) {
   return _isnan(a) ? PETSC_TRUE : PETSC_FALSE;
 }

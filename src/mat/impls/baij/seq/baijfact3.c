@@ -57,7 +57,7 @@ PetscErrorCode MatSeqBAIJSetNumericFactorization_inplace(Mat inA, PetscBool natu
       PetscBool sse_enabled_local;
       PetscCall(PetscSSEIsEnabled(inA->comm, &sse_enabled_local, NULL));
       if (sse_enabled_local) {
-#if defined(PETSC_HAVE_SSE)
+  #if defined(PETSC_HAVE_SSE)
         int i, *AJ = a->j, nz = a->nz, n = a->mbs;
         if (n == (unsigned short)n) {
           unsigned short *aj = (unsigned short *)AJ;
@@ -77,10 +77,10 @@ PetscErrorCode MatSeqBAIJSetNumericFactorization_inplace(Mat inA, PetscBool natu
 
           PetscCall(PetscInfo(inA, "Using special SSE, in-place natural ordering, int j index factor BS=4\n"));
         }
-#else
+  #else
         /* This should never be reached.  If so, problem in PetscSSEIsEnabled. */
         SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "SSE Hardware unavailable");
-#endif
+  #endif
       } else {
         inA->ops->lufactornumeric = MatLUFactorNumeric_SeqBAIJ_4_NaturalOrdering_inplace;
       }

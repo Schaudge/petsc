@@ -7,7 +7,7 @@
 #include <petsc/private/kernels/petscaxpy.h>
 
 #if defined(PETSC_USE_FORTRAN_KERNEL_MDOT)
-#include <../src/vec/vec/impls/seq/ftn-kernels/fmdot.h>
+  #include <../src/vec/vec/impls/seq/ftn-kernels/fmdot.h>
 PetscErrorCode VecMDot_Seq(Vec xin, PetscInt nv, const Vec yin[], PetscScalar *z) {
   PetscInt           i, nv_rem, n = xin->map->n;
   PetscScalar        sum0, sum1, sum2, sum3;
@@ -587,7 +587,7 @@ PetscErrorCode VecMAXPY_Seq(Vec xin, PetscInt nv, const PetscScalar *alpha, Vec 
   PetscScalar       *xx, alpha0, alpha1, alpha2, alpha3;
 
 #if defined(PETSC_HAVE_PRAGMA_DISJOINT)
-#pragma disjoint(*xx, *yy0, *yy1, *yy2, *yy3, *alpha)
+  #pragma disjoint(*xx, *yy0, *yy1, *yy2, *yy3, *alpha)
 #endif
 
   PetscFunctionBegin;

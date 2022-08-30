@@ -7,7 +7,7 @@
 #include <petscsys.h>
 
 #if defined(__cplusplus)
-#include <stack>
+  #include <stack>
 
 namespace Petsc {
 

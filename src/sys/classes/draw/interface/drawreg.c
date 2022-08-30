@@ -5,7 +5,7 @@
 #include <petsc/private/drawimpl.h> /*I "petscdraw.h" I*/
 #include <petscviewer.h>            /*I "petscviewer.h" I*/
 #if defined(PETSC_HAVE_SAWS)
-#include <petscviewersaws.h>
+  #include <petscviewersaws.h>
 #endif
 
 /*

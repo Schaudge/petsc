@@ -6,10 +6,10 @@
 #include <cgns_io.h>
 
 #if !defined(CGNS_ENUMT)
-#define CGNS_ENUMT(a) a
+  #define CGNS_ENUMT(a) a
 #endif
 #if !defined(CGNS_ENUMV)
-#define CGNS_ENUMV(a) a
+  #define CGNS_ENUMV(a) a
 #endif
 
 PetscErrorCode DMPlexCreateCGNSFromFile_Internal(MPI_Comm comm, const char filename[], PetscBool interpolate, DM *dm) {
@@ -392,9 +392,9 @@ static PetscErrorCode DMPlexCGNSGetPermutation_Internal(DMPolytopeType cell_type
   static const int tri_10[10] = {7, 8, 9, 1, 2, 3, 4, 5, 6, 0};
   static const int quad_4[4]  = {0, 1, 2, 3};
   static const int quad_9[9]  = {
-     5, 6, 7, 8, // vertices
-     1, 2, 3, 4, // edges
-     0,          // center
+    5, 6, 7, 8, // vertices
+    1, 2, 3, 4, // edges
+    0,          // center
   };
   static const int quad_16[] = {
     12, 13, 14, 15,               // vertices

@@ -754,46 +754,46 @@ PetscErrorCode DMCompositeAddDM(DM dmc, DM dm) {
 #include <petscdraw.h>
 PETSC_EXTERN PetscErrorCode VecView_MPI(Vec, PetscViewer);
 PetscErrorCode              VecView_DMComposite(Vec gvec, PetscViewer viewer) {
-               DM                      dm;
-               struct DMCompositeLink *next;
-               PetscBool               isdraw;
-               DM_Composite           *com;
+  DM                      dm;
+  struct DMCompositeLink *next;
+  PetscBool               isdraw;
+  DM_Composite           *com;
 
-               PetscFunctionBegin;
-               PetscCall(VecGetDM(gvec, &dm));
-               PetscCheck(dm, PetscObjectComm((PetscObject)gvec), PETSC_ERR_ARG_WRONG, "Vector not generated from a DMComposite");
-               com  = (DM_Composite *)dm->data;
-               next = com->next;
+  PetscFunctionBegin;
+  PetscCall(VecGetDM(gvec, &dm));
+  PetscCheck(dm, PetscObjectComm((PetscObject)gvec), PETSC_ERR_ARG_WRONG, "Vector not generated from a DMComposite");
+  com  = (DM_Composite *)dm->data;
+  next = com->next;
 
-               PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERDRAW, &isdraw));
-               if (!isdraw) {
-                 /* do I really want to call this? */
+  PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERDRAW, &isdraw));
+  if (!isdraw) {
+    /* do I really want to call this? */
     PetscCall(VecView_MPI(gvec, viewer));
   } else {
-                 PetscInt cnt = 0;
+    PetscInt cnt = 0;
 
-                 /* loop over packed objects, handling one at at time */
-                 while (next) {
-                   Vec                vec;
-                   const PetscScalar *array;
-                   PetscInt           bs;
+    /* loop over packed objects, handling one at at time */
+    while (next) {
+      Vec                vec;
+      const PetscScalar *array;
+      PetscInt           bs;
 
-                   /* Should use VecGetSubVector() eventually, but would need to forward the DM for that to work */
-                   PetscCall(DMGetGlobalVector(next->dm, &vec));
-                   PetscCall(VecGetArrayRead(gvec, &array));
-                   PetscCall(VecPlaceArray(vec, (PetscScalar *)array + next->rstart));
-                   PetscCall(VecRestoreArrayRead(gvec, &array));
-                   PetscCall(VecView(vec, viewer));
-                   PetscCall(VecResetArray(vec));
-                   PetscCall(VecGetBlockSize(vec, &bs));
-                   PetscCall(DMRestoreGlobalVector(next->dm, &vec));
-                   PetscCall(PetscViewerDrawBaseAdd(viewer, bs));
-                   cnt += bs;
-                   next = next->next;
+      /* Should use VecGetSubVector() eventually, but would need to forward the DM for that to work */
+      PetscCall(DMGetGlobalVector(next->dm, &vec));
+      PetscCall(VecGetArrayRead(gvec, &array));
+      PetscCall(VecPlaceArray(vec, (PetscScalar *)array + next->rstart));
+      PetscCall(VecRestoreArrayRead(gvec, &array));
+      PetscCall(VecView(vec, viewer));
+      PetscCall(VecResetArray(vec));
+      PetscCall(VecGetBlockSize(vec, &bs));
+      PetscCall(DMRestoreGlobalVector(next->dm, &vec));
+      PetscCall(PetscViewerDrawBaseAdd(viewer, bs));
+      cnt += bs;
+      next = next->next;
     }
-                 PetscCall(PetscViewerDrawBaseAdd(viewer, -cnt));
+    PetscCall(PetscViewerDrawBaseAdd(viewer, -cnt));
   }
-               PetscFunctionReturn(0);
+  PetscFunctionReturn(0);
 }
 
 PetscErrorCode DMCreateGlobalVector_Composite(DM dm, Vec *gvec) {

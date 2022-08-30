@@ -2,7 +2,7 @@
 #include <petsc/private/viewerimpl.h> /*I "petscviewer.h" I*/
 #include <petsc/private/hashtable.h>
 #if defined(PETSC_HAVE_SAWS)
-#include <petscviewersaws.h>
+  #include <petscviewersaws.h>
 #endif
 
 PetscFunctionList PetscViewerList = NULL;

@@ -352,7 +352,7 @@ PetscErrorCode MatMult_SeqAIJ_Inode(Mat A, Vec xx, Vec yy) {
   const PetscInt    *idx, *ns, *ii;
 
 #if defined(PETSC_HAVE_PRAGMA_DISJOINT)
-#pragma disjoint(*x, *y, *v1, *v2, *v3, *v4, *v5)
+  #pragma disjoint(*x, *y, *v1, *v2, *v3, *v4, *v5)
 #endif
 
   PetscFunctionBegin;

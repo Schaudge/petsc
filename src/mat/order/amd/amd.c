@@ -4,12 +4,12 @@
 #include <amd.h>
 
 #if defined(PETSC_USE_64BIT_INDICES)
-#define amd_AMD_defaults amd_l_defaults
-/* the type casts are needed because PetscInt is long long while SuiteSparse_long is long and compilers warn even when they are identical */
-#define amd_AMD_order(a, b, c, d, e, f) amd_l_order((SuiteSparse_long)a, (SuiteSparse_long *)b, (SuiteSparse_long *)c, (SuiteSparse_long *)d, e, f)
+  #define amd_AMD_defaults amd_l_defaults
+  /* the type casts are needed because PetscInt is long long while SuiteSparse_long is long and compilers warn even when they are identical */
+  #define amd_AMD_order(a, b, c, d, e, f) amd_l_order((SuiteSparse_long)a, (SuiteSparse_long *)b, (SuiteSparse_long *)c, (SuiteSparse_long *)d, e, f)
 #else
-#define amd_AMD_defaults amd_defaults
-#define amd_AMD_order    amd_order
+  #define amd_AMD_defaults amd_defaults
+  #define amd_AMD_order    amd_order
 #endif
 
 /*

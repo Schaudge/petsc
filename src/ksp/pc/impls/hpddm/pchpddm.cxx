@@ -4,7 +4,7 @@
 #include <petsc/private/pcimpl.h>     /* this must be included after petschpddm.h so that _PCIMPL_H is not defined            */
                                       /* otherwise, it is assumed that one is compiling libhpddm_petsc => circular dependency */
 #if defined(PETSC_HAVE_FORTRAN)
-#include <petsc/private/fortranimpl.h>
+  #include <petsc/private/fortranimpl.h>
 #endif
 
 static PetscErrorCode (*loadedSym)(HPDDM::Schwarz<PetscScalar> *const, IS, Mat, Mat, Mat, std::vector<Vec>, PC_HPDDM_Level **const) = NULL;

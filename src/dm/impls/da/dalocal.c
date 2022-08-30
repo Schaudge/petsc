@@ -13,8 +13,8 @@
    This allows the DMDA vectors to properly tell MATLAB their dimensions
 */
 #if defined(PETSC_HAVE_MATLAB_ENGINE)
-#include <engine.h> /* MATLAB include file */
-#include <mex.h>    /* MATLAB include file */
+  #include <engine.h> /* MATLAB include file */
+  #include <mex.h>    /* MATLAB include file */
 static PetscErrorCode VecMatlabEnginePut_DA2d(PetscObject obj, void *mengine) {
   PetscInt     n, m;
   Vec          vec = (Vec)obj;
@@ -28,11 +28,11 @@ static PetscErrorCode VecMatlabEnginePut_DA2d(PetscObject obj, void *mengine) {
   PetscCall(DMDAGetGhostCorners(da, 0, 0, 0, &m, &n, 0));
 
   PetscCall(VecGetArray(vec, &array));
-#if !defined(PETSC_USE_COMPLEX)
+  #if !defined(PETSC_USE_COMPLEX)
   mat = mxCreateDoubleMatrix(m, n, mxREAL);
-#else
+  #else
   mat = mxCreateDoubleMatrix(m, n, mxCOMPLEX);
-#endif
+  #endif
   PetscCall(PetscArraycpy(mxGetPr(mat), array, n * m));
   PetscCall(PetscObjectName(obj));
   engPutVariable((Engine *)mengine, obj->name, mat);

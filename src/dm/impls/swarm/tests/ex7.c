@@ -6,7 +6,7 @@ static char help[] = "Example program demonstrating projection between particle 
 #include "petscksp.h"
 #include <petsc/private/petscimpl.h>
 #if defined(PETSC_HAVE_OPENMP) && defined(PETSC_HAVE_THREADSAFETY)
-#include <omp.h>
+  #include <omp.h>
 #endif
 
 typedef struct {

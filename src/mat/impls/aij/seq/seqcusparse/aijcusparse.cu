@@ -14,9 +14,9 @@
 #include <../src/mat/impls/aij/seq/seqcusparse/cusparsematimpl.h>
 #include <thrust/adjacent_difference.h>
 #if PETSC_CPP_VERSION >= 14
-#define PETSC_HAVE_THRUST_ASYNC 1
-// thrust::for_each(thrust::cuda::par.on()) requires C++14
-#include <thrust/async/for_each.h>
+  #define PETSC_HAVE_THRUST_ASYNC 1
+  // thrust::for_each(thrust::cuda::par.on()) requires C++14
+  #include <thrust/async/for_each.h>
 #endif
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/remove.h>
@@ -230,11 +230,11 @@ static PetscErrorCode MatSetFromOptions_SeqAIJCUSPARSE(Mat A, PetscOptionItems *
 #if PETSC_PKG_CUDA_VERSION_GE(11, 0, 0)
     PetscCall(PetscOptionsEnum("-mat_cusparse_spmv_alg", "sets cuSPARSE algorithm used in sparse-mat dense-vector multiplication (SpMV)", "cusparseSpMVAlg_t", MatCUSPARSESpMVAlgorithms, (PetscEnum)cusparsestruct->spmvAlg, (PetscEnum *)&cusparsestruct->spmvAlg, &flg));
     /* If user did use this option, check its consistency with cuSPARSE, since PetscOptionsEnum() sets enum values based on their position in MatCUSPARSESpMVAlgorithms[] */
-#if CUSPARSE_VERSION > 11301
+  #if CUSPARSE_VERSION > 11301
     PetscCheck(!flg || CUSPARSE_SPMV_CSR_ALG1 == 2, PETSC_COMM_SELF, PETSC_ERR_SUP, "cuSPARSE enum cusparseSpMVAlg_t has been changed but PETSc has not been updated accordingly");
-#else
+  #else
     PetscCheck(!flg || CUSPARSE_CSRMV_ALG1 == 2, PETSC_COMM_SELF, PETSC_ERR_SUP, "cuSPARSE enum cusparseSpMVAlg_t has been changed but PETSc has not been updated accordingly");
-#endif
+  #endif
     PetscCall(PetscOptionsEnum("-mat_cusparse_spmm_alg", "sets cuSPARSE algorithm used in sparse-mat dense-mat multiplication (SpMM)", "cusparseSpMMAlg_t", MatCUSPARSESpMMAlgorithms, (PetscEnum)cusparsestruct->spmmAlg, (PetscEnum *)&cusparsestruct->spmmAlg, &flg));
     PetscCheck(!flg || CUSPARSE_SPMM_CSR_ALG1 == 4, PETSC_COMM_SELF, PETSC_ERR_SUP, "cuSPARSE enum cusparseSpMMAlg_t has been changed but PETSc has not been updated accordingly");
 
@@ -1033,11 +1033,11 @@ static PetscErrorCode MatSeqAIJCUSPARSEFormExplicitTranspose(Mat A) {
       cusparsestruct->rowoffsets_gpu->assign(a->i, a->i + A->rmap->n + 1);
 
 #if PETSC_PKG_CUDA_VERSION_GE(11, 0, 0)
-#if PETSC_PKG_CUDA_VERSION_GE(11, 2, 1)
+  #if PETSC_PKG_CUDA_VERSION_GE(11, 2, 1)
       stat = cusparseCreateCsr(&matstructT->matDescr, matrixT->num_rows, matrixT->num_cols, matrixT->num_entries, matrixT->row_offsets->data().get(), matrixT->column_indices->data().get(), matrixT->values->data().get(), CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I, /* row offset, col idx type due to THRUSTINTARRAY32 */
                                indexBase, cusparse_scalartype);
       PetscCallCUSPARSE(stat);
-#else
+  #else
       /* cusparse-11.x returns errors with zero-sized matrices until 11.2.1,
            see https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html#cusparse-11.2.1
 
@@ -1053,7 +1053,7 @@ static PetscErrorCode MatSeqAIJCUSPARSEFormExplicitTranspose(Mat A) {
         matstructT->matDescr = NULL;
         matrixT->row_offsets->assign(matrixT->row_offsets->size(), indexBase);
       }
-#endif
+  #endif
 #endif
     } else if (cusparsestruct->format == MAT_CUSPARSE_ELL || cusparsestruct->format == MAT_CUSPARSE_HYB) {
 #if PETSC_PKG_CUDA_VERSION_GE(11, 0, 0)
@@ -2350,10 +2350,10 @@ struct MatMatCusparse {
   cusparseDnMatDescr_t matBDescr;
   cusparseDnMatDescr_t matCDescr;
   PetscInt             Blda, Clda; /* Record leading dimensions of B and C here to detect changes*/
-#if PETSC_PKG_CUDA_VERSION_GE(11, 4, 0)
+  #if PETSC_PKG_CUDA_VERSION_GE(11, 4, 0)
   void *dBuffer4;
   void *dBuffer5;
-#endif
+  #endif
   size_t                mmBufferSize;
   void                 *mmBuffer;
   void                 *mmBuffer2; /* SpGEMM WorkEstimation buffer */
@@ -2372,10 +2372,10 @@ static PetscErrorCode MatDestroy_MatMatCusparse(void *data) {
   if (mmdata->matBDescr) PetscCallCUSPARSE(cusparseDestroyDnMat(mmdata->matBDescr));
   if (mmdata->matCDescr) PetscCallCUSPARSE(cusparseDestroyDnMat(mmdata->matCDescr));
   if (mmdata->spgemmDesc) PetscCallCUSPARSE(cusparseSpGEMM_destroyDescr(mmdata->spgemmDesc));
-#if PETSC_PKG_CUDA_VERSION_GE(11, 4, 0)
+  #if PETSC_PKG_CUDA_VERSION_GE(11, 4, 0)
   if (mmdata->dBuffer4) PetscCallCUDA(cudaFree(mmdata->dBuffer4));
   if (mmdata->dBuffer5) PetscCallCUDA(cudaFree(mmdata->dBuffer5));
-#endif
+  #endif
   if (mmdata->mmBuffer) PetscCallCUDA(cudaFree(mmdata->mmBuffer));
   if (mmdata->mmBuffer2) PetscCallCUDA(cudaFree(mmdata->mmBuffer2));
 #endif
@@ -2699,15 +2699,15 @@ static PetscErrorCode MatProductNumeric_SeqAIJCUSPARSE_SeqAIJCUSPARSE(Mat C) {
 #if PETSC_PKG_CUDA_VERSION_GE(11, 0, 0)
   BmatSpDescr = mmdata->Bcsr ? mmdata->matSpBDescr : Bmat->matDescr; /* B may be in compressed row storage */
   PetscCallCUSPARSE(cusparseSetPointerMode(Ccusp->handle, CUSPARSE_POINTER_MODE_DEVICE));
-#if PETSC_PKG_CUDA_VERSION_GE(11, 4, 0)
+  #if PETSC_PKG_CUDA_VERSION_GE(11, 4, 0)
   stat = cusparseSpGEMMreuse_compute(Ccusp->handle, opA, opB, Cmat->alpha_one, Amat->matDescr, BmatSpDescr, Cmat->beta_zero, Cmat->matDescr, cusparse_scalartype, CUSPARSE_SPGEMM_DEFAULT, mmdata->spgemmDesc);
   PetscCallCUSPARSE(stat);
-#else
+  #else
   stat = cusparseSpGEMM_compute(Ccusp->handle, opA, opB, Cmat->alpha_one, Amat->matDescr, BmatSpDescr, Cmat->beta_zero, Cmat->matDescr, cusparse_scalartype, CUSPARSE_SPGEMM_DEFAULT, mmdata->spgemmDesc, &mmdata->mmBufferSize, mmdata->mmBuffer);
   PetscCallCUSPARSE(stat);
   stat = cusparseSpGEMM_copy(Ccusp->handle, opA, opB, Cmat->alpha_one, Amat->matDescr, BmatSpDescr, Cmat->beta_zero, Cmat->matDescr, cusparse_scalartype, CUSPARSE_SPGEMM_DEFAULT, mmdata->spgemmDesc);
   PetscCallCUSPARSE(stat);
-#endif
+  #endif
 #else
   stat = cusparse_csr_spgemm(Ccusp->handle, opA, opB, Acsr->num_rows, Bcsr->num_cols, Acsr->num_cols, Amat->descr, Acsr->num_entries, Acsr->values->data().get(), Acsr->row_offsets->data().get(), Acsr->column_indices->data().get(), Bmat->descr, Bcsr->num_entries,
                              Bcsr->values->data().get(), Bcsr->row_offsets->data().get(), Bcsr->column_indices->data().get(), Cmat->descr, Ccsr->values->data().get(), Ccsr->row_offsets->data().get(), Ccsr->column_indices->data().get());
@@ -2924,7 +2924,7 @@ static PetscErrorCode MatProductSymbolic_SeqAIJCUSPARSE_SeqAIJCUSPARSE(Mat C) {
   stat = cusparseCreateCsr(&Cmat->matDescr, Ccsr->num_rows, Ccsr->num_cols, 0, NULL, NULL, NULL, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, cusparse_scalartype);
   PetscCallCUSPARSE(stat);
   PetscCallCUSPARSE(cusparseSpGEMM_createDescr(&mmdata->spgemmDesc));
-#if PETSC_PKG_CUDA_VERSION_GE(11, 4, 0)
+  #if PETSC_PKG_CUDA_VERSION_GE(11, 4, 0)
   {
     /* cusparseSpGEMMreuse has more reasonable APIs than cusparseSpGEMM, so we prefer to use it.
      We follow the sample code at https://github.com/NVIDIA/CUDALibrarySamples/blob/master/cuSPARSE/spgemm_reuse
@@ -2983,7 +2983,7 @@ static PetscErrorCode MatProductSymbolic_SeqAIJCUSPARSE_SeqAIJCUSPARSE(Mat C) {
     PetscCallCUSPARSE(stat);
     PetscCall(PetscInfo(C, "Buffer sizes for type %s, result %" PetscInt_FMT " x %" PetscInt_FMT " (k %" PetscInt_FMT ", nzA %" PetscInt_FMT ", nzB %" PetscInt_FMT ", nzC %" PetscInt_FMT ") are: %ldKB %ldKB\n", MatProductTypes[ptype], m, n, k, a->nz, b->nz, c->nz, bufferSize4 / 1024, bufferSize5 / 1024));
   }
-#else
+  #else
   size_t bufSize2;
   /* ask bufferSize bytes for external memory */
   stat = cusparseSpGEMM_workEstimation(Ccusp->handle, opA, opB, Cmat->alpha_one, Amat->matDescr, BmatSpDescr, Cmat->beta_zero, Cmat->matDescr, cusparse_scalartype, CUSPARSE_SPGEMM_DEFAULT, mmdata->spgemmDesc, &bufSize2, NULL);
@@ -3017,7 +3017,7 @@ static PetscErrorCode MatProductSymbolic_SeqAIJCUSPARSE_SeqAIJCUSPARSE(Mat C) {
   PetscCallCUSPARSE(stat);
   stat = cusparseSpGEMM_copy(Ccusp->handle, opA, opB, Cmat->alpha_one, Amat->matDescr, BmatSpDescr, Cmat->beta_zero, Cmat->matDescr, cusparse_scalartype, CUSPARSE_SPGEMM_DEFAULT, mmdata->spgemmDesc);
   PetscCallCUSPARSE(stat);
-#endif // PETSC_PKG_CUDA_VERSION_GE(11,4,0)
+  #endif // PETSC_PKG_CUDA_VERSION_GE(11,4,0)
 #else
   PetscCallCUSPARSE(cusparseSetPointerMode(Ccusp->handle, CUSPARSE_POINTER_MODE_HOST));
   stat = cusparseXcsrgemmNnz(Ccusp->handle, opA, opB, Acsr->num_rows, Bcsr->num_cols, Acsr->num_cols, Amat->descr, Acsr->num_entries, Acsr->row_offsets->data().get(), Acsr->column_indices->data().get(), Bmat->descr, Bcsr->num_entries,
@@ -3516,10 +3516,10 @@ static PetscErrorCode MatDestroy_SeqAIJCUSPARSE(Mat A) {
 PETSC_INTERN PetscErrorCode MatConvert_SeqAIJ_SeqAIJCUSPARSE(Mat, MatType, MatReuse, Mat *);
 static PetscErrorCode       MatBindToCPU_SeqAIJCUSPARSE(Mat, PetscBool);
 static PetscErrorCode       MatDuplicate_SeqAIJCUSPARSE(Mat A, MatDuplicateOption cpvalues, Mat *B) {
-        PetscFunctionBegin;
-        PetscCall(MatDuplicate_SeqAIJ(A, cpvalues, B));
-        PetscCall(MatConvert_SeqAIJ_SeqAIJCUSPARSE(*B, MATSEQAIJCUSPARSE, MAT_INPLACE_MATRIX, B));
-        PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscCall(MatDuplicate_SeqAIJ(A, cpvalues, B));
+  PetscCall(MatConvert_SeqAIJ_SeqAIJCUSPARSE(*B, MATSEQAIJCUSPARSE, MAT_INPLACE_MATRIX, B));
+  PetscFunctionReturn(0);
 }
 
 static PetscErrorCode MatAXPY_SeqAIJCUSPARSE(Mat Y, PetscScalar a, Mat X, MatStructure str) {
@@ -3738,11 +3738,11 @@ PETSC_INTERN PetscErrorCode MatConvert_SeqAIJ_SeqAIJCUSPARSE(Mat A, MatType mtyp
       PetscCallCUSPARSE(cusparseSetStream(spptr->handle, PetscDefaultCudaStream));
       spptr->format = MAT_CUSPARSE_CSR;
 #if PETSC_PKG_CUDA_VERSION_GE(11, 0, 0)
-#if CUSPARSE_VERSION > 11301
+  #if CUSPARSE_VERSION > 11301
       spptr->spmvAlg = CUSPARSE_SPMV_CSR_ALG1; /* default, since we only support csr */
-#else
+  #else
       spptr->spmvAlg = CUSPARSE_CSRMV_ALG1; /* default, since we only support csr */
-#endif
+  #endif
       spptr->spmmAlg    = CUSPARSE_SPMM_CSR_ALG1; /* default, only support column-major dense matrix B */
       spptr->csr2cscAlg = CUSPARSE_CSR2CSC_ALG1;
 #endif

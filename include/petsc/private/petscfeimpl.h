@@ -1,9 +1,9 @@
-#if !defined(PETSCFEIMPL_H)
+#ifndef PETSCFEIMPL_H
 #define PETSCFEIMPL_H
 
 #include <petscfe.h>
 #ifdef PETSC_HAVE_LIBCEED
-#include <petscfeceed.h>
+  #include <petscfeceed.h>
 #endif
 #include <petscds.h>
 #include <petsc/private/petscimpl.h>
@@ -223,11 +223,11 @@ typedef struct {
 
 #ifdef PETSC_HAVE_OPENCL
 
-#ifdef __APPLE__
-#include <OpenCL/cl.h>
-#else
-#include <CL/cl.h>
-#endif
+  #ifdef __APPLE__
+    #include <OpenCL/cl.h>
+  #else
+    #include <CL/cl.h>
+  #endif
 
 typedef struct {
   cl_platform_id   pf_id;

@@ -3,7 +3,7 @@ static char help[] = "Tests PetscStack.\n\n";
 #include <petscsys.h>
 
 #if !defined(PETSCSTACKSIZE)
-#define PETSCSTACKSIZE 64
+  #define PETSCSTACKSIZE 64
 #endif
 
 PetscErrorCode correct() {

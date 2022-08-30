@@ -10,10 +10,10 @@
 #include <unordered_set>
 
 #if PetscDefined(USE_DEBUG) && PetscDefined(USE_INFO)
-#define PETSC_USE_DEBUG_AND_INFO  1
-#define PetscDebugInfo(dctx, ...) PetscInfo(dctx, __VA_ARGS__)
+  #define PETSC_USE_DEBUG_AND_INFO  1
+  #define PetscDebugInfo(dctx, ...) PetscInfo(dctx, __VA_ARGS__)
 #else
-#define PetscDebugInfo(dctx, ...) 0
+  #define PetscDebugInfo(dctx, ...) 0
 #endif
 
 // this file contains functions needed to bridge the gap between dcontext.cxx and device.cxx
@@ -35,9 +35,7 @@ struct equal_to<PetscDeviceContext> {
   using second_argument_type = PetscDeviceContext;
 #endif
 
-  constexpr bool operator()(const PetscDeviceContext &x, const PetscDeviceContext &y) const noexcept {
-    return PetscObjectCast(x)->id == PetscObjectCast(y)->id;
-  }
+  constexpr bool operator()(const PetscDeviceContext &x, const PetscDeviceContext &y) const noexcept { return PetscObjectCast(x)->id == PetscObjectCast(y)->id; }
 };
 
 } // namespace std

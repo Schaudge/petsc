@@ -73,7 +73,7 @@ PetscErrorCode KSPLoad(KSP newdm, PetscViewer viewer) {
 
 #include <petscdraw.h>
 #if defined(PETSC_HAVE_SAWS)
-#include <petscviewersaws.h>
+  #include <petscviewersaws.h>
 #endif
 /*@C
    KSPView - Prints the KSP data structure.
@@ -426,7 +426,7 @@ PetscErrorCode KSPGetNormType(KSP ksp, KSPNormType *normtype) {
 }
 
 #if defined(PETSC_HAVE_SAWS)
-#include <petscviewersaws.h>
+  #include <petscviewersaws.h>
 #endif
 
 /*@

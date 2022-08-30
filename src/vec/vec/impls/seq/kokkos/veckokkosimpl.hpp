@@ -1,19 +1,19 @@
-#if !defined(__VECKOKKOSIMPL_HPP)
+#ifndef __VECKOKKOSIMPL_HPP
 #define __VECKOKKOSIMPL_HPP
 
 #include <../src/vec/vec/impls/mpi/pvecimpl.h>
 #include <petsc/private/vecimpl_kokkos.hpp>
 
 #if defined(PETSC_USE_DEBUG)
-#define VecErrorIfNotKokkos(v) \
-  do { \
-    PetscBool isKokkos = PETSC_FALSE; \
-    PetscCall(PetscObjectTypeCompareAny((PetscObject)(v), &isKokkos, VECSEQKOKKOS, VECMPIKOKKOS, VECKOKKOS, "")); \
-    PetscCheck(isKokkos, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Calling VECKOKKOS methods on a non-VECKOKKOS object"); \
-  } while (0)
+  #define VecErrorIfNotKokkos(v) \
+    do { \
+      PetscBool isKokkos = PETSC_FALSE; \
+      PetscCall(PetscObjectTypeCompareAny((PetscObject)(v), &isKokkos, VECSEQKOKKOS, VECMPIKOKKOS, VECKOKKOS, "")); \
+      PetscCheck(isKokkos, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Calling VECKOKKOS methods on a non-VECKOKKOS object"); \
+    } while (0)
 #else
-#define VecErrorIfNotKokkos(v) \
-  do { (void)(v); } while (0)
+  #define VecErrorIfNotKokkos(v) \
+    do { (void)(v); } while (0)
 #endif
 
 /* Stuff related to Vec_Kokkos */

@@ -69,12 +69,12 @@ PetscErrorCode PFStringCreateFunction(PF pf, char *string, void **f) {
     sprintf(task, "cd %s ; mkdir ${USERNAME} ; cd ${USERNAME} ; \\cp -f ${PETSC_DIR}/src/pf/impls/string/makefile ./makefile ; make  MIN=%d NOUT=%d -f makefile petscdlib STRINGFUNCTION=\"%s\" ; \\rm -f makefile petscdlib.c libpetscdlib.a ;  sync\n", tmp,
             (int)pf->dimin, (int)pf->dimout, string);
 
-#if defined(PETSC_HAVE_POPEN)
+  #if defined(PETSC_HAVE_POPEN)
   PetscCall(PetscPOpen(comm, NULL, task, "r", &fd));
   PetscCall(PetscPClose(comm, fd));
-#else
+  #else
   SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP_SYS, "Cannot run external programs on this machine");
-#endif
+  #endif
 
   PetscCallMPI(MPI_Barrier(comm));
 

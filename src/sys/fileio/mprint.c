@@ -168,7 +168,7 @@ PetscErrorCode PetscVSNPrintf(char *str, size_t len, const char *format, size_t 
 #if defined(PETSC_HAVE_VSNPRINTF)
   flen = vsnprintf(str, len, newformat, Argp);
 #else
-#error "vsnprintf not found"
+  #error "vsnprintf not found"
 #endif
   if (newLength > sizeof(formatbuf) - 1) PetscCall(PetscFree(newformat));
   {

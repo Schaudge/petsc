@@ -716,10 +716,10 @@ PETSC_EXTERN PetscErrorCode PetscViewerCreate_GLVis(PetscViewer viewer) {
 /* this is a private implementation of a SOCKET with ASCII data format
    GLVis does not currently handle binary socket streams */
 #if defined(PETSC_HAVE_UNISTD_H)
-#include <unistd.h>
+  #include <unistd.h>
 #endif
 
-#if !defined(PETSC_HAVE_WINDOWS_H)
+#ifndef PETSC_HAVE_WINDOWS_H
 static PetscErrorCode (*PetscViewerDestroy_ASCII)(PetscViewer);
 
 static PetscErrorCode PetscViewerDestroy_ASCII_Socket(PetscViewer viewer) {
@@ -756,11 +756,11 @@ static PetscErrorCode PetscViewerASCIISocketOpen(MPI_Comm comm, const char *host
   PetscFunctionBegin;
   PetscValidCharPointer(hostname, 2);
   PetscValidPointer(viewer, 4);
-#if defined(PETSC_USE_SOCKET_VIEWER)
+  #if defined(PETSC_USE_SOCKET_VIEWER)
   ierr = PetscOpenSocket(hostname, port, &fd);
-#else
+  #else
   SETERRQ(comm, PETSC_ERR_SUP, "Missing Socket viewer");
-#endif
+  #endif
   /*
      The following code is illegal in PETSc, one can NEVER attempt to recover once an error is initiated in PETSc.
         The correct approach is to refactor PetscOpenSocket() to not initiate an error under certain conditions but instead either return a special value
@@ -790,13 +790,13 @@ static PetscErrorCode PetscViewerASCIISocketOpen(MPI_Comm comm, const char *host
 
 #if !defined(PETSC_MISSING_SIGPIPE)
 
-#include <signal.h>
+  #include <signal.h>
 
-#if defined(PETSC_HAVE_WINDOWS_H)
-#define PETSC_DEVNULL "NUL"
-#else
-#define PETSC_DEVNULL "/dev/null"
-#endif
+  #if defined(PETSC_HAVE_WINDOWS_H)
+    #define PETSC_DEVNULL "NUL"
+  #else
+    #define PETSC_DEVNULL "/dev/null"
+  #endif
 
 static volatile PetscBool PetscGLVisBrokenPipe = PETSC_FALSE;
 
@@ -804,9 +804,9 @@ static void (*PetscGLVisSigHandler_save)(int) = NULL;
 
 static void PetscGLVisSigHandler_SIGPIPE(PETSC_UNUSED int sig) {
   PetscGLVisBrokenPipe = PETSC_TRUE;
-#if !defined(PETSC_MISSING_SIG_IGN)
+  #if !defined(PETSC_MISSING_SIG_IGN)
   signal(SIGPIPE, SIG_IGN);
-#endif
+  #endif
 }
 
 PetscErrorCode PetscGLVisCollectiveBegin(PETSC_UNUSED MPI_Comm comm, PETSC_UNUSED PetscViewer *win) {

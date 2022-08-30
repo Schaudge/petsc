@@ -168,7 +168,7 @@ PetscErrorCode PetscSignalHandlerDefault(int sig, void *ptr) {
 }
 
 #if !defined(PETSC_SIGNAL_CAST)
-#define PETSC_SIGNAL_CAST
+  #define PETSC_SIGNAL_CAST
 #endif
 
 /*@C
@@ -237,10 +237,10 @@ PetscErrorCode PetscPushSignalHandler(PetscErrorCode (*routine)(int, void *), vo
     signal(SIGSYS, PETSC_SIGNAL_CAST PetscSignalHandler_Private);
 #endif
 #if !defined(PETSC_MISSING_SIGTERM)
-#if !defined(OMPI_MAJOR_VERSION)
+  #if !defined(OMPI_MAJOR_VERSION)
     /* OpenMPI may use SIGTERM to close down all its ranks; we don't want to generate many confusing PETSc error messages in that case */
     signal(SIGTERM, PETSC_SIGNAL_CAST PetscSignalHandler_Private);
-#endif
+  #endif
 #endif
 #if !defined(PETSC_MISSING_SIGTRAP)
     signal(SIGTRAP, PETSC_SIGNAL_CAST PetscSignalHandler_Private);

@@ -3,9 +3,9 @@
 */
 
 #if !defined(__CHEBY)
-#define __CHEBY
+  #define __CHEBY
 
-#include <petsc/private/kspimpl.h>
+  #include <petsc/private/kspimpl.h>
 
 typedef struct {
   PetscReal        emin, emax;                   /* store user provided estimates of extreme eigenvalues or computed with kspest and transformed with tform[] */

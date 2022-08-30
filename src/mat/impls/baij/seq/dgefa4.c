@@ -155,7 +155,7 @@ PETSC_EXTERN PetscErrorCode PetscKernel_A_gets_inverse_A_4(MatScalar *a, PetscRe
 }
 
 #if defined(PETSC_HAVE_SSE)
-#include PETSC_HAVE_SSE
+  #include PETSC_HAVE_SSE
 
 PETSC_EXTERN PetscErrorCode PetscKernel_A_gets_inverse_A_4_SSE(float *a) {
   /*

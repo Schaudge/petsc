@@ -16,17 +16,17 @@ static void PetscScLogHandler(FILE *log_stream, const char *filename, int lineno
 
 /* p4est tries to abort: if possible, use setjmp to enable at least a little unwinding */
 #if defined(PETSC_HAVE_SETJMP_H) && defined(PETSC_USE_DEBUG)
-#include <setjmp.h>
+  #include <setjmp.h>
 PETSC_VISIBILITY_INTERNAL jmp_buf PetscScJumpBuf;
 PETSC_INTERN void                 PetscScAbort_longjmp(void) {
-                  PetscError(PETSC_COMM_SELF, -1, "p4est function", "p4est file", PETSC_ERR_LIB, PETSC_ERROR_INITIAL, "Error in p4est stack call\n");
-                  longjmp(PetscScJumpBuf, 1);
-                  return;
+  PetscError(PETSC_COMM_SELF, -1, "p4est function", "p4est file", PETSC_ERR_LIB, PETSC_ERROR_INITIAL, "Error in p4est stack call\n");
+  longjmp(PetscScJumpBuf, 1);
+  return;
 }
 
-#define PetscScAbort PetscScAbort_longjmp
+  #define PetscScAbort PetscScAbort_longjmp
 #else
-#define PetscScAbort NULL
+  #define PetscScAbort NULL
 #endif
 
 static PetscErrorCode PetscP4estFinalize(void) {

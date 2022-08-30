@@ -475,29 +475,29 @@ PetscErrorCode VecView_MPI_HDF5_DA(Vec xin, PetscViewer viewer) {
     chunkDims[dim] = dims[dim];
     ++dim;
   }
-#if defined(PETSC_USE_COMPLEX)
+  #if defined(PETSC_USE_COMPLEX)
   dims[dim]      = 2;
   maxDims[dim]   = dims[dim];
   chunkDims[dim] = dims[dim];
   ++dim;
-#endif
+  #endif
 
   PetscCall(VecGetHDF5ChunkSize(da, xin, dimension, timestep, chunkDims));
 
   PetscCallHDF5Return(filespace, H5Screate_simple, (dim, dims, maxDims));
 
-#if defined(PETSC_USE_REAL_SINGLE)
+  #if defined(PETSC_USE_REAL_SINGLE)
   memscalartype  = H5T_NATIVE_FLOAT;
   filescalartype = H5T_NATIVE_FLOAT;
-#elif defined(PETSC_USE_REAL___FLOAT128)
-#error "HDF5 output with 128 bit floats not supported."
-#elif defined(PETSC_USE_REAL___FP16)
-#error "HDF5 output with 16 bit floats not supported."
-#else
+  #elif defined(PETSC_USE_REAL___FLOAT128)
+    #error "HDF5 output with 128 bit floats not supported."
+  #elif defined(PETSC_USE_REAL___FP16)
+    #error "HDF5 output with 16 bit floats not supported."
+  #else
   memscalartype = H5T_NATIVE_DOUBLE;
   if (spoutput == PETSC_TRUE) filescalartype = H5T_NATIVE_FLOAT;
   else filescalartype = H5T_NATIVE_DOUBLE;
-#endif
+  #endif
 
   /* Create the dataset with default properties and close filespace */
   PetscCall(PetscObjectGetName((PetscObject)xin, &vecname));
@@ -523,9 +523,9 @@ PetscErrorCode VecView_MPI_HDF5_DA(Vec xin, PetscViewer viewer) {
   if (dimension > 1) PetscCall(PetscHDF5IntCast(da->ys, offset + dim++));
   PetscCall(PetscHDF5IntCast(da->xs / da->w, offset + dim++));
   if (da->w > 1 || dim2) offset[dim++] = 0;
-#if defined(PETSC_USE_COMPLEX)
+  #if defined(PETSC_USE_COMPLEX)
   offset[dim++] = 0;
-#endif
+  #endif
   dim = 0;
   if (timestep >= 0) {
     count[dim] = 1;
@@ -535,9 +535,9 @@ PetscErrorCode VecView_MPI_HDF5_DA(Vec xin, PetscViewer viewer) {
   if (dimension > 1) PetscCall(PetscHDF5IntCast(da->ye - da->ys, count + dim++));
   PetscCall(PetscHDF5IntCast((da->xe - da->xs) / da->w, count + dim++));
   if (da->w > 1 || dim2) PetscCall(PetscHDF5IntCast(da->w, count + dim++));
-#if defined(PETSC_USE_COMPLEX)
+  #if defined(PETSC_USE_COMPLEX)
   count[dim++] = 2;
-#endif
+  #endif
   PetscCallHDF5Return(memspace, H5Screate_simple, (dim, count, NULL));
   PetscCallHDF5Return(filespace, H5Dget_space, (dset_id));
   PetscCallHDF5(H5Sselect_hyperslab, (filespace, H5S_SELECT_SET, offset, NULL, count, NULL));
@@ -547,12 +547,12 @@ PetscErrorCode VecView_MPI_HDF5_DA(Vec xin, PetscViewer viewer) {
   PetscCallHDF5(H5Fflush, (file_id, H5F_SCOPE_GLOBAL));
   PetscCall(VecRestoreArrayRead(xin, &x));
 
-#if defined(PETSC_USE_COMPLEX)
+  #if defined(PETSC_USE_COMPLEX)
   {
     PetscBool tru = PETSC_TRUE;
     PetscCall(PetscViewerHDF5WriteObjectAttribute(viewer, (PetscObject)xin, "complex", PETSC_BOOL, &tru));
   }
-#endif
+  #endif
   if (timestepping) PetscCall(PetscViewerHDF5WriteObjectAttribute(viewer, (PetscObject)xin, "timestepping", PETSC_BOOL, &timestepping));
 
   /* Close/release resources */
@@ -768,15 +768,15 @@ PetscErrorCode VecLoad_HDF5_DA(Vec xin, PetscViewer viewer) {
   DM_DA            *dd;
 
   PetscFunctionBegin;
-#if defined(PETSC_USE_REAL_SINGLE)
+  #if defined(PETSC_USE_REAL_SINGLE)
   scalartype = H5T_NATIVE_FLOAT;
-#elif defined(PETSC_USE_REAL___FLOAT128)
-#error "HDF5 output with 128 bit floats not supported."
-#elif defined(PETSC_USE_REAL___FP16)
-#error "HDF5 output with 16 bit floats not supported."
-#else
+  #elif defined(PETSC_USE_REAL___FLOAT128)
+    #error "HDF5 output with 128 bit floats not supported."
+  #elif defined(PETSC_USE_REAL___FP16)
+    #error "HDF5 output with 16 bit floats not supported."
+  #else
   scalartype = H5T_NATIVE_DOUBLE;
-#endif
+  #endif
 
   PetscCall(PetscViewerHDF5OpenGroup(viewer, &file_id, &group));
   PetscCall(PetscObjectGetName((PetscObject)xin, &vecname));
@@ -795,19 +795,19 @@ PetscErrorCode VecLoad_HDF5_DA(Vec xin, PetscViewer viewer) {
   PetscCallHDF5Return(rdim, H5Sget_simple_extent_dims, (filespace, dims, NULL));
 
   /* Expected dimension for holding the dof's */
-#if defined(PETSC_USE_COMPLEX)
+  #if defined(PETSC_USE_COMPLEX)
   dofInd = rdim - 2;
-#else
+  #else
   dofInd = rdim - 1;
-#endif
+  #endif
 
   /* The expected number of dimensions, assuming basedimension2 = false */
   dim = dimension;
   if (dd->w > 1) ++dim;
   if (timestep >= 0) ++dim;
-#if defined(PETSC_USE_COMPLEX)
+  #if defined(PETSC_USE_COMPLEX)
   ++dim;
-#endif
+  #endif
 
   /* In this case the input dataset have one extra, unexpected dimension. */
   if (rdim == dim + 1) {
@@ -845,11 +845,11 @@ PetscErrorCode VecLoad_HDF5_DA(Vec xin, PetscViewer viewer) {
     PetscCall(PetscHDF5IntCast(dd->w, count + dim));
     ++dim;
   }
-#if defined(PETSC_USE_COMPLEX)
+  #if defined(PETSC_USE_COMPLEX)
   offset[dim] = 0;
   count[dim]  = 2;
   ++dim;
-#endif
+  #endif
 
   /* Create the memory and filespace */
   PetscCallHDF5Return(memspace, H5Screate_simple, (dim, count, NULL));

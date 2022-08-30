@@ -9,17 +9,17 @@
 
 EXTERN_C_BEGIN
 #if defined(PETSC_USE_COMPLEX)
-#if defined(PETSC_USE_REAL_SINGLE)
-#include <cmumps_c.h>
+  #if defined(PETSC_USE_REAL_SINGLE)
+    #include <cmumps_c.h>
+  #else
+    #include <zmumps_c.h>
+  #endif
 #else
-#include <zmumps_c.h>
-#endif
-#else
-#if defined(PETSC_USE_REAL_SINGLE)
-#include <smumps_c.h>
-#else
-#include <dmumps_c.h>
-#endif
+  #if defined(PETSC_USE_REAL_SINGLE)
+    #include <smumps_c.h>
+  #else
+    #include <dmumps_c.h>
+  #endif
 #endif
 EXTERN_C_END
 #define JOB_INIT         -1
@@ -31,17 +31,17 @@ EXTERN_C_END
 
 /* calls to MUMPS */
 #if defined(PETSC_USE_COMPLEX)
-#if defined(PETSC_USE_REAL_SINGLE)
-#define MUMPS_c cmumps_c
+  #if defined(PETSC_USE_REAL_SINGLE)
+    #define MUMPS_c cmumps_c
+  #else
+    #define MUMPS_c zmumps_c
+  #endif
 #else
-#define MUMPS_c zmumps_c
-#endif
-#else
-#if defined(PETSC_USE_REAL_SINGLE)
-#define MUMPS_c smumps_c
-#else
-#define MUMPS_c dmumps_c
-#endif
+  #if defined(PETSC_USE_REAL_SINGLE)
+    #define MUMPS_c smumps_c
+  #else
+    #define MUMPS_c dmumps_c
+  #endif
 #endif
 
 /* MUMPS uses MUMPS_INT for nonzero indices such as irn/jcn, irn_loc/jcn_loc and uses int64_t for
@@ -51,13 +51,13 @@ EXTERN_C_END
 typedef MUMPS_INT PetscMUMPSInt;
 
 #if PETSC_PKG_MUMPS_VERSION_GE(5, 3, 0)
-#if defined(MUMPS_INTSIZE64) /* MUMPS_INTSIZE64 is in MUMPS headers if it is built in full 64-bit mode, therefore the macro is more reliable */
-#error "Petsc has not been tested with full 64-bit MUMPS and we choose to error out"
-#endif
+  #if defined(MUMPS_INTSIZE64) /* MUMPS_INTSIZE64 is in MUMPS headers if it is built in full 64-bit mode, therefore the macro is more reliable */
+    #error "Petsc has not been tested with full 64-bit MUMPS and we choose to error out"
+  #endif
 #else
-#if defined(INTSIZE64) /* INTSIZE64 is a command line macro one used to build MUMPS in full 64-bit mode */
-#error "Petsc has not been tested with full 64-bit MUMPS and we choose to error out"
-#endif
+  #if defined(INTSIZE64) /* INTSIZE64 is a command line macro one used to build MUMPS in full 64-bit mode */
+    #error "Petsc has not been tested with full 64-bit MUMPS and we choose to error out"
+  #endif
 #endif
 
 #define MPIU_MUMPSINT       MPI_INT
@@ -89,41 +89,41 @@ static inline PetscErrorCode PetscOptionsMUMPSInt_Private(PetscOptionItems *Pets
 
 /* if using PETSc OpenMP support, we only call MUMPS on master ranks. Before/after the call, we change/restore CPUs the master ranks can run on */
 #if defined(PETSC_HAVE_OPENMP_SUPPORT)
-#define PetscMUMPS_c(mumps) \
-  do { \
-    if (mumps->use_petsc_omp_support) { \
-      if (mumps->is_omp_master) { \
-        PetscCall(PetscOmpCtrlOmpRegionOnMasterBegin(mumps->omp_ctrl)); \
-        MUMPS_c(&mumps->id); \
-        PetscCall(PetscOmpCtrlOmpRegionOnMasterEnd(mumps->omp_ctrl)); \
-      } \
-      PetscCall(PetscOmpCtrlBarrier(mumps->omp_ctrl)); \
-      /* Global info is same on all processes so we Bcast it within omp_comm. Local info is specific      \
+  #define PetscMUMPS_c(mumps) \
+    do { \
+      if (mumps->use_petsc_omp_support) { \
+        if (mumps->is_omp_master) { \
+          PetscCall(PetscOmpCtrlOmpRegionOnMasterBegin(mumps->omp_ctrl)); \
+          MUMPS_c(&mumps->id); \
+          PetscCall(PetscOmpCtrlOmpRegionOnMasterEnd(mumps->omp_ctrl)); \
+        } \
+        PetscCall(PetscOmpCtrlBarrier(mumps->omp_ctrl)); \
+        /* Global info is same on all processes so we Bcast it within omp_comm. Local info is specific      \
          to processes, so we only Bcast info[1], an error code and leave others (since they do not have   \
          an easy translation between omp_comm and petsc_comm). See MUMPS-5.1.2 manual p82.                   \
          omp_comm is a small shared memory communicator, hence doing multiple Bcast as shown below is OK. \
       */ \
-      PetscCallMPI(MPI_Bcast(mumps->id.infog, 40, MPIU_MUMPSINT, 0, mumps->omp_comm)); \
-      PetscCallMPI(MPI_Bcast(mumps->id.rinfog, 20, MPIU_REAL, 0, mumps->omp_comm)); \
-      PetscCallMPI(MPI_Bcast(mumps->id.info, 1, MPIU_MUMPSINT, 0, mumps->omp_comm)); \
-    } else { \
-      MUMPS_c(&mumps->id); \
-    } \
-  } while (0)
+        PetscCallMPI(MPI_Bcast(mumps->id.infog, 40, MPIU_MUMPSINT, 0, mumps->omp_comm)); \
+        PetscCallMPI(MPI_Bcast(mumps->id.rinfog, 20, MPIU_REAL, 0, mumps->omp_comm)); \
+        PetscCallMPI(MPI_Bcast(mumps->id.info, 1, MPIU_MUMPSINT, 0, mumps->omp_comm)); \
+      } else { \
+        MUMPS_c(&mumps->id); \
+      } \
+    } while (0)
 #else
-#define PetscMUMPS_c(mumps) \
-  do { MUMPS_c(&mumps->id); } while (0)
+  #define PetscMUMPS_c(mumps) \
+    do { MUMPS_c(&mumps->id); } while (0)
 #endif
 
 /* declare MumpsScalar */
 #if defined(PETSC_USE_COMPLEX)
-#if defined(PETSC_USE_REAL_SINGLE)
-#define MumpsScalar mumps_complex
+  #if defined(PETSC_USE_REAL_SINGLE)
+    #define MumpsScalar mumps_complex
+  #else
+    #define MumpsScalar mumps_double_complex
+  #endif
 #else
-#define MumpsScalar mumps_double_complex
-#endif
-#else
-#define MumpsScalar PetscScalar
+  #define MumpsScalar PetscScalar
 #endif
 
 /* macros s.t. indices match MUMPS documentation */
@@ -137,17 +137,17 @@ static inline PetscErrorCode PetscOptionsMUMPSInt_Private(PetscOptionItems *Pets
 typedef struct Mat_MUMPS Mat_MUMPS;
 struct Mat_MUMPS {
 #if defined(PETSC_USE_COMPLEX)
-#if defined(PETSC_USE_REAL_SINGLE)
+  #if defined(PETSC_USE_REAL_SINGLE)
   CMUMPS_STRUC_C id;
-#else
+  #else
   ZMUMPS_STRUC_C id;
-#endif
+  #endif
 #else
-#if defined(PETSC_USE_REAL_SINGLE)
+  #if defined(PETSC_USE_REAL_SINGLE)
   SMUMPS_STRUC_C id;
-#else
+  #else
   DMUMPS_STRUC_C id;
-#endif
+  #endif
 #endif
 
   MatStructure   matstruc;

@@ -27,7 +27,7 @@ const char DMSwarmPICField_cellid[] = "DMSwarm_cellid";
 PetscInt SwarmDataFieldId = -1;
 
 #if defined(PETSC_HAVE_HDF5)
-#include <petscviewerhdf5.h>
+  #include <petscviewerhdf5.h>
 
 PetscErrorCode VecView_Swarm_HDF5_Internal(Vec v, PetscViewer viewer) {
   DM        dm;

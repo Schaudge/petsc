@@ -42,11 +42,11 @@ PetscErrorCode ISLoad_HDF5(IS is, PetscViewer viewer) {
 
   PetscFunctionBegin;
   PetscCheck(((PetscObject)is)->name, PetscObjectComm((PetscObject)is), PETSC_ERR_SUP, "IS name must be given using PetscObjectSetName() before ISLoad() since HDF5 can store multiple objects in a single file");
-#if defined(PETSC_USE_64BIT_INDICES)
+  #if defined(PETSC_USE_64BIT_INDICES)
   inttype = H5T_NATIVE_LLONG;
-#else
+  #else
   inttype = H5T_NATIVE_INT;
-#endif
+  #endif
   PetscCall(PetscObjectGetName((PetscObject)is, &isname));
   PetscCall(PetscViewerHDF5Load(viewer, isname, is->map, inttype, (void **)&ind));
   PetscCall(ISGeneralSetIndices(is, is->map->n, ind, PETSC_OWN_POINTER));

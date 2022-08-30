@@ -3,7 +3,7 @@
 /* ---------------------------------------------------------------- */
 
 #if !defined(PETSC_PYTHON_EXE)
-#define PETSC_PYTHON_EXE "python"
+  #define PETSC_PYTHON_EXE "python"
 #endif
 
 static PetscErrorCode PetscPythonFindExecutable(char pythonexe[], size_t len) {

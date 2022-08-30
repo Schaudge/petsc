@@ -50,25 +50,19 @@ public:
     cupmEvent_t event{};
     cupmEvent_t begin{}; // timer-only
     cupmEvent_t end{};   // timer-only
-#if PetscDefined(USE_DEBUG)
+  #if PetscDefined(USE_DEBUG)
     PetscBool timerInUse{};
-#endif
+  #endif
     cupmBlasHandle_t   blas{};
     cupmSolverHandle_t solver{};
 
     constexpr PetscDeviceContext_IMPLS() noexcept = default;
 
-    PETSC_NODISCARD cupmStream_t get(stream_tag) const noexcept {
-      return this->stream.get_stream();
-    }
+    PETSC_NODISCARD cupmStream_t get(stream_tag) const noexcept { return this->stream.get_stream(); }
 
-    PETSC_NODISCARD cupmBlasHandle_t get(blas_tag) const noexcept {
-      return this->blas;
-    }
+    PETSC_NODISCARD cupmBlasHandle_t get(blas_tag) const noexcept { return this->blas; }
 
-    PETSC_NODISCARD cupmSolverHandle_t get(solver_tag) const noexcept {
-      return this->solver;
-    }
+    PETSC_NODISCARD cupmSolverHandle_t get(solver_tag) const noexcept { return this->solver; }
   };
 
 private:
@@ -76,27 +70,17 @@ private:
   static std::array<cupmBlasHandle_t, PETSC_DEVICE_MAX_DEVICES>   blashandles_;
   static std::array<cupmSolverHandle_t, PETSC_DEVICE_MAX_DEVICES> solverhandles_;
 
-  PETSC_NODISCARD static constexpr PetscDeviceContext_IMPLS *impls_cast_(PetscDeviceContext ptr) noexcept {
-    return static_cast<PetscDeviceContext_IMPLS *>(ptr->data);
-  }
+  PETSC_NODISCARD static constexpr PetscDeviceContext_IMPLS *impls_cast_(PetscDeviceContext ptr) noexcept { return static_cast<PetscDeviceContext_IMPLS *>(ptr->data); }
 
-  PETSC_NODISCARD static constexpr CUPMEvent<T> *event_cast_(PetscEvent event) noexcept {
-    return static_cast<CUPMEvent<T> *>(event->data);
-  }
+  PETSC_NODISCARD static constexpr CUPMEvent<T> *event_cast_(PetscEvent event) noexcept { return static_cast<CUPMEvent<T> *>(event->data); }
 
-  PETSC_NODISCARD static PetscLogEvent CUPMBLAS_HANDLE_CREATE() noexcept {
-    return T == DeviceType::CUDA ? CUBLAS_HANDLE_CREATE : HIPBLAS_HANDLE_CREATE;
-  }
+  PETSC_NODISCARD static PetscLogEvent CUPMBLAS_HANDLE_CREATE() noexcept { return T == DeviceType::CUDA ? CUBLAS_HANDLE_CREATE : HIPBLAS_HANDLE_CREATE; }
 
-  PETSC_NODISCARD static PetscLogEvent CUPMSOLVER_HANDLE_CREATE() noexcept {
-    return T == DeviceType::CUDA ? CUSOLVER_HANDLE_CREATE : HIPSOLVER_HANDLE_CREATE;
-  }
+  PETSC_NODISCARD static PetscLogEvent CUPMSOLVER_HANDLE_CREATE() noexcept { return T == DeviceType::CUDA ? CUSOLVER_HANDLE_CREATE : HIPSOLVER_HANDLE_CREATE; }
 
   // this exists purely to satisfy the compiler so the tag-based dispatch works for the other
   // handles
-  PETSC_CXX_COMPAT_DECL(PetscErrorCode initialize_handle_(stream_tag, PetscDeviceContext)) {
-    return 0;
-  }
+  PETSC_CXX_COMPAT_DECL(PetscErrorCode initialize_handle_(stream_tag, PetscDeviceContext)) { return 0; }
 
   PETSC_NODISCARD static PetscErrorCode create_handle_(cupmBlasHandle_t &handle) noexcept {
     PetscLogEvent event;
@@ -166,9 +150,7 @@ private:
     PetscFunctionReturn(0);
   }
 
-  PETSC_NODISCARD static PetscErrorCode check_current_device_(PetscDeviceContext dctx) noexcept {
-    return check_current_device_(dctx, dctx);
-  }
+  PETSC_NODISCARD static PetscErrorCode check_current_device_(PetscDeviceContext dctx) noexcept { return check_current_device_(dctx, dctx); }
 
   PETSC_NODISCARD static PetscErrorCode finalize_() noexcept {
     PetscFunctionBegin;
@@ -301,9 +283,9 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::setUp(PetscDeviceContext 
   PetscCall(check_current_device_(dctx));
   PetscCall(dci->stream.change_type(dctx->streamType));
   if (!event) PetscCall(cupm_fast_event_pool<T>().allocate(&event));
-#if PetscDefined(USE_DEBUG)
+  #if PetscDefined(USE_DEBUG)
   dci->timerInUse = PETSC_FALSE;
-#endif
+  #endif
   PetscFunctionReturn(0);
 }
 
@@ -356,10 +338,10 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::beginTimer(PetscDeviceCon
 
   PetscFunctionBegin;
   PetscCall(check_current_device_(dctx));
-#if PetscDefined(USE_DEBUG)
+  #if PetscDefined(USE_DEBUG)
   PetscCheck(!dci->timerInUse, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Forgot to call PetscLogGpuTimeEnd()?");
   dci->timerInUse = PETSC_TRUE;
-#endif
+  #endif
   if (!dci->begin) {
     PetscAssert(!dci->end, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Don't have a 'begin' event, but somehow have an end event");
     PetscCallCUPM(cupmEventCreate(&dci->begin));
@@ -377,10 +359,10 @@ PETSC_CXX_COMPAT_DEFN(PetscErrorCode DeviceContext<T>::endTimer(PetscDeviceConte
 
   PetscFunctionBegin;
   PetscCall(check_current_device_(dctx));
-#if PetscDefined(USE_DEBUG)
+  #if PetscDefined(USE_DEBUG)
   PetscCheck(dci->timerInUse, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Forgot to call PetscLogGpuTimeBegin()?");
   dci->timerInUse = PETSC_FALSE;
-#endif
+  #endif
   PetscCallCUPM(cupmEventRecord(end, dci->stream.get_stream()));
   PetscCallCUPM(cupmEventSynchronize(end));
   PetscCallCUPM(cupmEventElapsedTime(&gtime, dci->begin, end));
@@ -504,8 +486,8 @@ std::array<typename DeviceContext<T>::cupmSolverHandle_t, PETSC_DEVICE_MAX_DEVIC
 using CUPMContextCuda = impl::DeviceContext<DeviceType::CUDA>;
 using CUPMContextHip  = impl::DeviceContext<DeviceType::HIP>;
 
-// shorthand for what is an EXTREMELY long name
-#define PetscDeviceContext_(IMPLS) ::Petsc::device::cupm::impl::DeviceContext<::Petsc::device::cupm::DeviceType::IMPLS>::PetscDeviceContext_IMPLS
+  // shorthand for what is an EXTREMELY long name
+  #define PetscDeviceContext_(IMPLS) ::Petsc::device::cupm::impl::DeviceContext<::Petsc::device::cupm::DeviceType::IMPLS>::PetscDeviceContext_IMPLS
 
 } // namespace cupm
 

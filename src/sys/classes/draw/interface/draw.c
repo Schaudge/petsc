@@ -17,11 +17,11 @@ static PetscBool PetscDrawPackageInitialized = PETSC_FALSE;
 .seealso: `PetscDraw`, `PetscFinalize()`
 @*/
 PetscErrorCode   PetscDrawFinalizePackage(void) {
-    PetscFunctionBegin;
-    PetscCall(PetscFunctionListDestroy(&PetscDrawList));
-    PetscDrawPackageInitialized = PETSC_FALSE;
-    PetscDrawRegisterAllCalled  = PETSC_FALSE;
-    PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscCall(PetscFunctionListDestroy(&PetscDrawList));
+  PetscDrawPackageInitialized = PETSC_FALSE;
+  PetscDrawRegisterAllCalled  = PETSC_FALSE;
+  PetscFunctionReturn(0);
 }
 
 /*@C

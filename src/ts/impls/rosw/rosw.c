@@ -785,9 +785,9 @@ PetscErrorCode TSRosWRegister(TSRosWType name, PetscInt order, PetscInt s, const
 PetscErrorCode TSRosWRegisterRos4(TSRosWType name, PetscReal gamma, PetscReal a2, PetscReal a3, PetscReal b3, PetscReal e4) {
   /* Declare numeric constants so they can be quad precision without being truncated at double */
   const PetscReal one = 1, two = 2, three = 3, four = 4, five = 5, six = 6, eight = 8, twelve = 12, twenty = 20, twentyfour = 24, p32 = one / six - gamma + gamma * gamma, p42 = one / eight - gamma / three, p43 = one / twelve - gamma / three, p44 = one / twentyfour - gamma / two + three / two * gamma * gamma - gamma * gamma * gamma, p56 = one / twenty - gamma / four;
-  PetscReal       a4, a32, a42, a43, b1, b2, b4, beta2p, beta3p, beta4p, beta32, beta42, beta43, beta32beta2p, beta4jbetajp;
-  PetscReal       A[4][4], Gamma[4][4], b[4], bm[4];
-  PetscScalar     M[3][3], rhs[3];
+  PetscReal   a4, a32, a42, a43, b1, b2, b4, beta2p, beta3p, beta4p, beta32, beta42, beta43, beta32beta2p, beta4jbetajp;
+  PetscReal   A[4][4], Gamma[4][4], b[4], bm[4];
+  PetscScalar M[3][3], rhs[3];
 
   PetscFunctionBegin;
   /* Step 1: choose Gamma (input) */

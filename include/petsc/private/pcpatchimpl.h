@@ -2,11 +2,11 @@
       Data structure used for Patch preconditioner.
 */
 #if !defined(__PATCH_IMPL)
-#define __PATCH_IMPL
-#include <petsc/private/pcimpl.h>
-#include <petsc/private/hashseti.h>
-#include <petsc/private/hashmapi.h>
-#include <petscksp.h>
+  #define __PATCH_IMPL
+  #include <petsc/private/pcimpl.h>
+  #include <petsc/private/hashseti.h>
+  #include <petsc/private/hashmapi.h>
+  #include <petscksp.h>
 
 typedef struct {
   /* Topology */

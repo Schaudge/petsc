@@ -5,7 +5,7 @@
 #include <petsc/private/petscimpl.h> /*I "petscsys.h" I*/
 #include <petscviewer.h>
 #if defined(PETSC_HAVE_MALLOC_H)
-#include <malloc.h>
+  #include <malloc.h>
 #endif
 
 /*
@@ -214,19 +214,19 @@ PetscErrorCode PetscTrMallocDefault(size_t a, PetscBool clear, int lineno, const
   PetscCall(PetscStackCopy(&petscstack, &head->stack));
   /* fix the line number to where the malloc() was called, not the PetscFunctionBegin; */
   head->stack.line[head->stack.currentsize - 2] = lineno;
-#if defined(PETSC_USE_REAL_SINGLE) || defined(PETSC_USE_REAL_DOUBLE)
+  #if defined(PETSC_USE_REAL_SINGLE) || defined(PETSC_USE_REAL_DOUBLE)
   if (!clear && TRdebugIinitializenan) {
     size_t     i, n = a / sizeof(PetscReal);
     PetscReal *s = (PetscReal *)inew;
-    /* from https://www.doc.ic.ac.uk/~eedwards/compsys/float/nan.html */
-#if defined(PETSC_USE_REAL_SINGLE)
+      /* from https://www.doc.ic.ac.uk/~eedwards/compsys/float/nan.html */
+    #if defined(PETSC_USE_REAL_SINGLE)
     int nas = 0x7F800002;
-#else
+    #else
     PetscInt64 nas = 0x7FF0000000000002;
-#endif
+    #endif
     for (i = 0; i < n; i++) memcpy(s + i, &nas, sizeof(PetscReal));
   }
-#endif
+  #endif
 #endif
 
   /*

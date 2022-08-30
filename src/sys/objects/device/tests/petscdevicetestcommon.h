@@ -6,11 +6,11 @@
  * builds
  */
 #if defined(PETSCDEVICEIMPL_H)
-#error "must #include this file before petsc/private/deviceimpl.h"
+  #error "must #include this file before petsc/private/deviceimpl.h"
 #endif
 
 #if !defined(PETSC_DEVICE_KEEP_ERROR_CHECKING_MACROS)
-#define PETSC_DEVICE_KEEP_ERROR_CHECKING_MACROS 1
+  #define PETSC_DEVICE_KEEP_ERROR_CHECKING_MACROS 1
 #endif
 #include <petsc/private/deviceimpl.h>
 

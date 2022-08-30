@@ -159,7 +159,7 @@ PetscErrorCode DMLabelMakeAllInvalid_Internal(DMLabel label) {
 }
 
 #if !defined(DMLABEL_LOOKUP_THRESHOLD)
-#define DMLABEL_LOOKUP_THRESHOLD 16
+  #define DMLABEL_LOOKUP_THRESHOLD 16
 #endif
 
 static inline PetscErrorCode DMLabelLookupStratum(DMLabel label, PetscInt value, PetscInt *index) {

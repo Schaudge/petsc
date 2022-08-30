@@ -12,8 +12,8 @@
 
 EXTERN_C_BEGIN
 /* HAVE_CONFIG_H flag is required by ML include files */
-#if !defined(HAVE_CONFIG_H)
-#define HAVE_CONFIG_H
+#ifndef HAVE_CONFIG_H
+  #define HAVE_CONFIG_H
 #endif
 #include <ml_include.h>
 #include <ml_viz_stats.h>
@@ -428,35 +428,35 @@ static PetscErrorCode PCSetCoordinates_ML(PC pc, PetscInt ndm, PetscInt a_nloc, 
 /* -----------------------------------------------------------------------------*/
 extern PetscErrorCode PCReset_MG(PC);
 PetscErrorCode        PCReset_ML(PC pc) {
-         PC_MG   *mg    = (PC_MG *)pc->data;
-         PC_ML   *pc_ml = (PC_ML *)mg->innerctx;
-         PetscInt level, fine_level = pc_ml->Nlevels - 1, dim = pc_ml->dim;
+  PC_MG   *mg    = (PC_MG *)pc->data;
+  PC_ML   *pc_ml = (PC_ML *)mg->innerctx;
+  PetscInt level, fine_level = pc_ml->Nlevels - 1, dim = pc_ml->dim;
 
-         PetscFunctionBegin;
-         if (dim) {
-           for (level = 0; level <= fine_level; level++) PetscCall(VecDestroy(&pc_ml->gridctx[level].coords));
+  PetscFunctionBegin;
+  if (dim) {
+    for (level = 0; level <= fine_level; level++) PetscCall(VecDestroy(&pc_ml->gridctx[level].coords));
     if (pc_ml->ml_object && pc_ml->ml_object->Grid) {
-             ML_Aggregate_Viz_Stats *grid_info = (ML_Aggregate_Viz_Stats *)pc_ml->ml_object->Grid[0].Grid;
-             grid_info->x                      = 0; /* do this so ML doesn't try to free coordinates */
-             grid_info->y                      = 0;
-             grid_info->z                      = 0;
-             PetscStackCallExternalVoid("ML_Operator_Getrow", ML_Aggregate_VizAndStats_Clean(pc_ml->ml_object));
+      ML_Aggregate_Viz_Stats *grid_info = (ML_Aggregate_Viz_Stats *)pc_ml->ml_object->Grid[0].Grid;
+      grid_info->x                      = 0; /* do this so ML doesn't try to free coordinates */
+      grid_info->y                      = 0;
+      grid_info->z                      = 0;
+      PetscStackCallExternalVoid("ML_Operator_Getrow", ML_Aggregate_VizAndStats_Clean(pc_ml->ml_object));
     }
   }
-         PetscStackCallExternalVoid("ML_Aggregate_Destroy", ML_Aggregate_Destroy(&pc_ml->agg_object));
-         PetscStackCallExternalVoid("ML_Aggregate_Destroy", ML_Destroy(&pc_ml->ml_object));
+  PetscStackCallExternalVoid("ML_Aggregate_Destroy", ML_Aggregate_Destroy(&pc_ml->agg_object));
+  PetscStackCallExternalVoid("ML_Aggregate_Destroy", ML_Destroy(&pc_ml->ml_object));
 
-         if (pc_ml->PetscMLdata) {
-           PetscCall(PetscFree(pc_ml->PetscMLdata->pwork));
-           PetscCall(MatDestroy(&pc_ml->PetscMLdata->Aloc));
-           PetscCall(VecDestroy(&pc_ml->PetscMLdata->x));
-           PetscCall(VecDestroy(&pc_ml->PetscMLdata->y));
+  if (pc_ml->PetscMLdata) {
+    PetscCall(PetscFree(pc_ml->PetscMLdata->pwork));
+    PetscCall(MatDestroy(&pc_ml->PetscMLdata->Aloc));
+    PetscCall(VecDestroy(&pc_ml->PetscMLdata->x));
+    PetscCall(VecDestroy(&pc_ml->PetscMLdata->y));
   }
-         PetscCall(PetscFree(pc_ml->PetscMLdata));
+  PetscCall(PetscFree(pc_ml->PetscMLdata));
 
-         if (pc_ml->gridctx) {
-           for (level = 0; level < fine_level; level++) {
-             if (pc_ml->gridctx[level].A) PetscCall(MatDestroy(&pc_ml->gridctx[level].A));
+  if (pc_ml->gridctx) {
+    for (level = 0; level < fine_level; level++) {
+      if (pc_ml->gridctx[level].A) PetscCall(MatDestroy(&pc_ml->gridctx[level].A));
       if (pc_ml->gridctx[level].P) PetscCall(MatDestroy(&pc_ml->gridctx[level].P));
       if (pc_ml->gridctx[level].R) PetscCall(MatDestroy(&pc_ml->gridctx[level].R));
       if (pc_ml->gridctx[level].x) PetscCall(VecDestroy(&pc_ml->gridctx[level].x));
@@ -464,13 +464,13 @@ PetscErrorCode        PCReset_ML(PC pc) {
       if (pc_ml->gridctx[level + 1].r) PetscCall(VecDestroy(&pc_ml->gridctx[level + 1].r));
     }
   }
-         PetscCall(PetscFree(pc_ml->gridctx));
-         PetscCall(PetscFree(pc_ml->coords));
+  PetscCall(PetscFree(pc_ml->gridctx));
+  PetscCall(PetscFree(pc_ml->coords));
 
-         pc_ml->dim  = 0;
-         pc_ml->nloc = 0;
-         PetscCall(PCReset_MG(pc));
-         PetscFunctionReturn(0);
+  pc_ml->dim  = 0;
+  pc_ml->nloc = 0;
+  PetscCall(PCReset_MG(pc));
+  PetscFunctionReturn(0);
 }
 /* -------------------------------------------------------------------------- */
 /*

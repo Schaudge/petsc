@@ -6,7 +6,7 @@ static char FILENAME[] = "ex24.c";
 
 #if defined(PETSC_HAVE_PTSCOTCH)
 EXTERN_C_BEGIN
-#include <ptscotch.h>
+  #include <ptscotch.h>
 EXTERN_C_END
 #endif
 

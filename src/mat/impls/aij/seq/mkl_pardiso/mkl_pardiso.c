@@ -3,7 +3,7 @@
 #include <../src/mat/impls/dense/seq/dense.h>
 
 #if defined(PETSC_HAVE_MKL_INTEL_ILP64)
-#define MKL_ILP64
+  #define MKL_ILP64
 #endif
 #include <mkl_pardiso.h>
 
@@ -28,16 +28,16 @@ PETSC_EXTERN void PetscSetMKL_PARDISOThreads(int);
 #define IPARM_SIZE 64
 
 #if defined(PETSC_USE_64BIT_INDICES)
-#if defined(PETSC_HAVE_MKL_INTEL_ILP64)
-#define INT_TYPE         long long int
-#define MKL_PARDISO      pardiso
-#define MKL_PARDISO_INIT pardisoinit
-#else
-/* this is the case where the MKL BLAS/LAPACK are 32 bit integers but the 64 bit integer version of
+  #if defined(PETSC_HAVE_MKL_INTEL_ILP64)
+    #define INT_TYPE         long long int
+    #define MKL_PARDISO      pardiso
+    #define MKL_PARDISO_INIT pardisoinit
+  #else
+    /* this is the case where the MKL BLAS/LAPACK are 32 bit integers but the 64 bit integer version of
      of Pardiso code is used; hence the need for the 64 below*/
-#define INT_TYPE         long long int
-#define MKL_PARDISO      pardiso_64
-#define MKL_PARDISO_INIT pardiso_64init
+    #define INT_TYPE         long long int
+    #define MKL_PARDISO      pardiso_64
+    #define MKL_PARDISO_INIT pardiso_64init
 void pardiso_64init(void *pt, INT_TYPE *mtype, INT_TYPE iparm[]) {
   int iparm_copy[IPARM_SIZE], mtype_copy, i;
 
@@ -45,11 +45,11 @@ void pardiso_64init(void *pt, INT_TYPE *mtype, INT_TYPE iparm[]) {
   pardisoinit(pt, &mtype_copy, iparm_copy);
   for (i = 0; i < IPARM_SIZE; i++) iparm[i] = iparm_copy[i];
 }
-#endif
+  #endif
 #else
-#define INT_TYPE         int
-#define MKL_PARDISO      pardiso
-#define MKL_PARDISO_INIT pardisoinit
+  #define INT_TYPE         int
+  #define MKL_PARDISO      pardiso
+  #define MKL_PARDISO_INIT pardisoinit
 #endif
 
 /*

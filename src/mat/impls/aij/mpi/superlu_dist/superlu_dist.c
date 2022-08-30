@@ -8,77 +8,77 @@
 
 EXTERN_C_BEGIN
 #if defined(PETSC_USE_COMPLEX)
-#define CASTDOUBLECOMPLEX     (doublecomplex *)
-#define CASTDOUBLECOMPLEXSTAR (doublecomplex **)
-#include <superlu_zdefs.h>
-#define LUstructInit                  zLUstructInit
-#define ScalePermstructInit           zScalePermstructInit
-#define ScalePermstructFree           zScalePermstructFree
-#define LUstructFree                  zLUstructFree
-#define Destroy_LU                    zDestroy_LU
-#define ScalePermstruct_t             zScalePermstruct_t
-#define LUstruct_t                    zLUstruct_t
-#define SOLVEstruct_t                 zSOLVEstruct_t
-#define SolveFinalize                 zSolveFinalize
-#define pGetDiagU                     pzGetDiagU
-#define pgssvx                        pzgssvx
-#define allocateA_dist                zallocateA_dist
-#define Create_CompRowLoc_Matrix_dist zCreate_CompRowLoc_Matrix_dist
-#define SLU                           SLU_Z
-#if PETSC_PKG_SUPERLU_DIST_VERSION_GE(7, 2, 0)
-#define DeAllocLlu_3d              zDeAllocLlu_3d
-#define DeAllocGlu_3d              zDeAllocGlu_3d
-#define Destroy_A3d_gathered_on_2d zDestroy_A3d_gathered_on_2d
-#define pgssvx3d                   pzgssvx3d
-#endif
+  #define CASTDOUBLECOMPLEX     (doublecomplex *)
+  #define CASTDOUBLECOMPLEXSTAR (doublecomplex **)
+  #include <superlu_zdefs.h>
+  #define LUstructInit                  zLUstructInit
+  #define ScalePermstructInit           zScalePermstructInit
+  #define ScalePermstructFree           zScalePermstructFree
+  #define LUstructFree                  zLUstructFree
+  #define Destroy_LU                    zDestroy_LU
+  #define ScalePermstruct_t             zScalePermstruct_t
+  #define LUstruct_t                    zLUstruct_t
+  #define SOLVEstruct_t                 zSOLVEstruct_t
+  #define SolveFinalize                 zSolveFinalize
+  #define pGetDiagU                     pzGetDiagU
+  #define pgssvx                        pzgssvx
+  #define allocateA_dist                zallocateA_dist
+  #define Create_CompRowLoc_Matrix_dist zCreate_CompRowLoc_Matrix_dist
+  #define SLU                           SLU_Z
+  #if PETSC_PKG_SUPERLU_DIST_VERSION_GE(7, 2, 0)
+    #define DeAllocLlu_3d              zDeAllocLlu_3d
+    #define DeAllocGlu_3d              zDeAllocGlu_3d
+    #define Destroy_A3d_gathered_on_2d zDestroy_A3d_gathered_on_2d
+    #define pgssvx3d                   pzgssvx3d
+  #endif
 #elif defined(PETSC_USE_REAL_SINGLE)
-#define CASTDOUBLECOMPLEX
-#define CASTDOUBLECOMPLEXSTAR
-#include <superlu_sdefs.h>
-#define LUstructInit                  sLUstructInit
-#define ScalePermstructInit           sScalePermstructInit
-#define ScalePermstructFree           sScalePermstructFree
-#define LUstructFree                  sLUstructFree
-#define Destroy_LU                    sDestroy_LU
-#define ScalePermstruct_t             sScalePermstruct_t
-#define LUstruct_t                    sLUstruct_t
-#define SOLVEstruct_t                 sSOLVEstruct_t
-#define SolveFinalize                 sSolveFinalize
-#define pGetDiagU                     psGetDiagU
-#define pgssvx                        psgssvx
-#define allocateA_dist                sallocateA_dist
-#define Create_CompRowLoc_Matrix_dist sCreate_CompRowLoc_Matrix_dist
-#define SLU                           SLU_S
-#if PETSC_PKG_SUPERLU_DIST_VERSION_GE(7, 2, 0)
-#define DeAllocLlu_3d              sDeAllocLlu_3d
-#define DeAllocGlu_3d              sDeAllocGlu_3d
-#define Destroy_A3d_gathered_on_2d sDestroy_A3d_gathered_on_2d
-#define pgssvx3d                   psgssvx3d
-#endif
+  #define CASTDOUBLECOMPLEX
+  #define CASTDOUBLECOMPLEXSTAR
+  #include <superlu_sdefs.h>
+  #define LUstructInit                  sLUstructInit
+  #define ScalePermstructInit           sScalePermstructInit
+  #define ScalePermstructFree           sScalePermstructFree
+  #define LUstructFree                  sLUstructFree
+  #define Destroy_LU                    sDestroy_LU
+  #define ScalePermstruct_t             sScalePermstruct_t
+  #define LUstruct_t                    sLUstruct_t
+  #define SOLVEstruct_t                 sSOLVEstruct_t
+  #define SolveFinalize                 sSolveFinalize
+  #define pGetDiagU                     psGetDiagU
+  #define pgssvx                        psgssvx
+  #define allocateA_dist                sallocateA_dist
+  #define Create_CompRowLoc_Matrix_dist sCreate_CompRowLoc_Matrix_dist
+  #define SLU                           SLU_S
+  #if PETSC_PKG_SUPERLU_DIST_VERSION_GE(7, 2, 0)
+    #define DeAllocLlu_3d              sDeAllocLlu_3d
+    #define DeAllocGlu_3d              sDeAllocGlu_3d
+    #define Destroy_A3d_gathered_on_2d sDestroy_A3d_gathered_on_2d
+    #define pgssvx3d                   psgssvx3d
+  #endif
 #else
-#define CASTDOUBLECOMPLEX
-#define CASTDOUBLECOMPLEXSTAR
-#include <superlu_ddefs.h>
-#define LUstructInit                  dLUstructInit
-#define ScalePermstructInit           dScalePermstructInit
-#define ScalePermstructFree           dScalePermstructFree
-#define LUstructFree                  dLUstructFree
-#define Destroy_LU                    dDestroy_LU
-#define ScalePermstruct_t             dScalePermstruct_t
-#define LUstruct_t                    dLUstruct_t
-#define SOLVEstruct_t                 dSOLVEstruct_t
-#define SolveFinalize                 dSolveFinalize
-#define pGetDiagU                     pdGetDiagU
-#define pgssvx                        pdgssvx
-#define allocateA_dist                dallocateA_dist
-#define Create_CompRowLoc_Matrix_dist dCreate_CompRowLoc_Matrix_dist
-#define SLU                           SLU_D
-#if PETSC_PKG_SUPERLU_DIST_VERSION_GE(7, 2, 0)
-#define DeAllocLlu_3d              dDeAllocLlu_3d
-#define DeAllocGlu_3d              dDeAllocGlu_3d
-#define Destroy_A3d_gathered_on_2d dDestroy_A3d_gathered_on_2d
-#define pgssvx3d                   pdgssvx3d
-#endif
+  #define CASTDOUBLECOMPLEX
+  #define CASTDOUBLECOMPLEXSTAR
+  #include <superlu_ddefs.h>
+  #define LUstructInit                  dLUstructInit
+  #define ScalePermstructInit           dScalePermstructInit
+  #define ScalePermstructFree           dScalePermstructFree
+  #define LUstructFree                  dLUstructFree
+  #define Destroy_LU                    dDestroy_LU
+  #define ScalePermstruct_t             dScalePermstruct_t
+  #define LUstruct_t                    dLUstruct_t
+  #define SOLVEstruct_t                 dSOLVEstruct_t
+  #define SolveFinalize                 dSolveFinalize
+  #define pGetDiagU                     pdGetDiagU
+  #define pgssvx                        pdgssvx
+  #define allocateA_dist                dallocateA_dist
+  #define Create_CompRowLoc_Matrix_dist dCreate_CompRowLoc_Matrix_dist
+  #define SLU                           SLU_D
+  #if PETSC_PKG_SUPERLU_DIST_VERSION_GE(7, 2, 0)
+    #define DeAllocLlu_3d              dDeAllocLlu_3d
+    #define DeAllocGlu_3d              dDeAllocGlu_3d
+    #define Destroy_A3d_gathered_on_2d dDestroy_A3d_gathered_on_2d
+    #define pgssvx3d                   pdgssvx3d
+  #endif
 #endif
 EXTERN_C_END
 

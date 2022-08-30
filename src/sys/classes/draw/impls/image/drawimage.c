@@ -2,11 +2,11 @@
 #include <petsc/private/drawimpl.h>                        /*I  "petscdraw.h" I*/
 
 #if defined(PETSC_USE_DEBUG)
-#define PetscDrawValidColor(color) PetscCheck((color) >= 0 && (color) < 256, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Color value %" PetscInt_FMT " out of range [0..255]", (PetscInt)(color))
+  #define PetscDrawValidColor(color) PetscCheck((color) >= 0 && (color) < 256, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Color value %" PetscInt_FMT " out of range [0..255]", (PetscInt)(color))
 #else
-#define PetscDrawValidColor(color) \
-  do { \
-  } while (0)
+  #define PetscDrawValidColor(color) \
+    do { \
+    } while (0)
 #endif
 
 #define XTRANS(draw, img, x) ((int)(((img)->w - 1) * ((draw)->port_xl + ((((x) - (draw)->coor_xl) * ((draw)->port_xr - (draw)->port_xl)) / ((draw)->coor_xr - (draw)->coor_xl)))))

@@ -78,28 +78,28 @@ extern PetscErrorCode DMDAGetNatural_Private(DM, PetscInt *, IS *);
           `DMGlobalToLocalBegin()`, `DMGlobalToLocalEnd()`, `DMDACreateNaturalVector()`
 */
 PetscErrorCode        DMDAGlobalToNatural_Create(DM da) {
-         PetscInt m, start, Nlocal;
-         IS       from, to;
-         Vec      global;
-         DM_DA   *dd = (DM_DA *)da->data;
+  PetscInt m, start, Nlocal;
+  IS       from, to;
+  Vec      global;
+  DM_DA   *dd = (DM_DA *)da->data;
 
-         PetscFunctionBegin;
-         PetscValidHeaderSpecific(da, DM_CLASSID, 1);
-         PetscCheck(dd->natural, PetscObjectComm((PetscObject)da), PETSC_ERR_ORDER, "Natural layout vector not yet created; cannot scatter into it");
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(da, DM_CLASSID, 1);
+  PetscCheck(dd->natural, PetscObjectComm((PetscObject)da), PETSC_ERR_ORDER, "Natural layout vector not yet created; cannot scatter into it");
 
-         /* create the scatter context */
-         PetscCall(VecGetLocalSize(dd->natural, &m));
-         PetscCall(VecGetOwnershipRange(dd->natural, &start, NULL));
+  /* create the scatter context */
+  PetscCall(VecGetLocalSize(dd->natural, &m));
+  PetscCall(VecGetOwnershipRange(dd->natural, &start, NULL));
 
-         PetscCall(DMDAGetNatural_Private(da, &Nlocal, &to));
-         PetscCheck(Nlocal == m, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Internal error: Nlocal %" PetscInt_FMT " local vector size %" PetscInt_FMT, Nlocal, m);
-         PetscCall(ISCreateStride(PetscObjectComm((PetscObject)da), m, start, 1, &from));
-         PetscCall(VecCreateMPIWithArray(PetscObjectComm((PetscObject)da), dd->w, dd->Nlocal, PETSC_DETERMINE, NULL, &global));
-         PetscCall(VecScatterCreate(global, from, dd->natural, to, &dd->gton));
-         PetscCall(VecDestroy(&global));
-         PetscCall(ISDestroy(&from));
-         PetscCall(ISDestroy(&to));
-         PetscFunctionReturn(0);
+  PetscCall(DMDAGetNatural_Private(da, &Nlocal, &to));
+  PetscCheck(Nlocal == m, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Internal error: Nlocal %" PetscInt_FMT " local vector size %" PetscInt_FMT, Nlocal, m);
+  PetscCall(ISCreateStride(PetscObjectComm((PetscObject)da), m, start, 1, &from));
+  PetscCall(VecCreateMPIWithArray(PetscObjectComm((PetscObject)da), dd->w, dd->Nlocal, PETSC_DETERMINE, NULL, &global));
+  PetscCall(VecScatterCreate(global, from, dd->natural, to, &dd->gton));
+  PetscCall(VecDestroy(&global));
+  PetscCall(ISDestroy(&from));
+  PetscCall(ISDestroy(&to));
+  PetscFunctionReturn(0);
 }
 
 /*@

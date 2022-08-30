@@ -1,6 +1,6 @@
 
 /* This file contains info for the use of PETSc Fortran interface stubs */
-#if !defined(PETSCFORTRANIMPL_H)
+#ifndef PETSCFORTRANIMPL_H
 #define PETSCFORTRANIMPL_H
 
 #include <petsc/private/petscimpl.h>
@@ -186,15 +186,13 @@ typedef PETSC_UINTPTR_T PetscFortranAddr;
 #define PETSC_VIEWER_MATLAB_SELF_FORTRAN  15
 
 #if defined(PETSC_USE_SOCKET_VIEWER)
-#define PetscPatchDefaultViewers_Fortran_Socket(vin, v) \
-  } \
-  else if ((*(PetscFortranAddr *)vin) == PETSC_VIEWER_SOCKET_WORLD_FORTRAN) { \
-    v = PETSC_VIEWER_SOCKET_WORLD; \
-  } \
-  else if ((*(PetscFortranAddr *)vin) == PETSC_VIEWER_SOCKET_SELF_FORTRAN) { \
-    v = PETSC_VIEWER_SOCKET_SELF
+  #define PetscPatchDefaultViewers_Fortran_Socket(vin, v) \
+    } \
+    else if ((*(PetscFortranAddr *)vin) == PETSC_VIEWER_SOCKET_WORLD_FORTRAN) { v = PETSC_VIEWER_SOCKET_WORLD; } \
+    else if ((*(PetscFortranAddr *)vin) == PETSC_VIEWER_SOCKET_SELF_FORTRAN) { \
+      v = PETSC_VIEWER_SOCKET_SELF
 #else
-#define PetscPatchDefaultViewers_Fortran_Socket(vin, v)
+  #define PetscPatchDefaultViewers_Fortran_Socket(vin, v)
 #endif
 
 #define PetscPatchDefaultViewers_Fortran(vin, v) \

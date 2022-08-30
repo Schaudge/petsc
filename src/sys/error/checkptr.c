@@ -29,7 +29,7 @@ PetscErrorCode PetscCheckPointerSetIntensity(PetscInt intensity) {
 /* ---------------------------------------------------------------------------------------*/
 
 #if PetscDefined(HAVE_SETJMP_H)
-#include <setjmp.h>
+  #include <setjmp.h>
 static jmp_buf   PetscSegvJumpBuf;
 static PetscBool PetscSegvJumpBuf_set;
 
@@ -72,10 +72,10 @@ PetscBool PetscCheckPointer(const void *ptr, PetscDataType dtype) {
   if (!ptr) return PETSC_FALSE;
   if (petsc_checkpointer_intensity < 1) return PETSC_TRUE;
 
-#if PetscDefined(USE_DEBUG)
+  #if PetscDefined(USE_DEBUG)
   /* Skip the verbose check if we are inside a hot function. */
   if (petscstack.hotdepth > 0 && petsc_checkpointer_intensity < 2) return PETSC_TRUE;
-#endif
+  #endif
 
   PetscSegvJumpBuf_set = PETSC_TRUE;
 
@@ -89,17 +89,17 @@ PetscBool PetscCheckPointer(const void *ptr, PetscDataType dtype) {
       PETSC_UNUSED PetscInt x = (PetscInt) * (volatile PetscInt *)ptr;
       break;
     }
-#if defined(PETSC_USE_COMPLEX)
+  #if defined(PETSC_USE_COMPLEX)
     case PETSC_SCALAR: { /* C++ is seriously dysfunctional with volatile std::complex. */
-#if defined(PETSC_USE_CXXCOMPLEX)
+    #if defined(PETSC_USE_CXXCOMPLEX)
       PetscReal                         xreal = ((volatile PetscReal *)ptr)[0], ximag = ((volatile PetscReal *)ptr)[1];
       PETSC_UNUSED volatile PetscScalar x = xreal + PETSC_i * ximag;
-#else
+    #else
       PETSC_UNUSED PetscScalar x = *(volatile PetscScalar *)ptr;
-#endif
+    #endif
       break;
     }
-#endif
+  #endif
     case PETSC_REAL: {
       PETSC_UNUSED PetscReal x = *(volatile PetscReal *)ptr;
       break;

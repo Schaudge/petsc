@@ -356,12 +356,12 @@ PetscErrorCode DMInterpolationSetUp(DMInterpolationInfo ctx, DM dm, PetscBool re
   PetscCall(PetscMalloc3(N,&foundCells,N,&foundProcs,N,&globalProcs));
   /* foundCells[p] = m->locatePoint(&globalPoints[p*ctx->dim]); */
 #else
-#if defined(PETSC_USE_COMPLEX)
+  #if defined(PETSC_USE_COMPLEX)
   PetscCall(PetscMalloc1(N * ctx->dim, &globalPointsScalar));
   for (i = 0; i < N * ctx->dim; i++) globalPointsScalar[i] = globalPoints[i];
-#else
+  #else
   globalPointsScalar = globalPoints;
-#endif
+  #endif
   PetscCall(VecCreateSeqWithArray(PETSC_COMM_SELF, ctx->dim, N * ctx->dim, globalPointsScalar, &pointVec));
   PetscCall(PetscMalloc2(N, &foundProcs, N, &globalProcs));
   for (p = 0; p < N; ++p) foundProcs[p] = size;

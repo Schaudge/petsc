@@ -323,9 +323,9 @@ PetscErrorCode PetscObjectGetFortranCallback(PetscObject obj, PetscFortranCallba
 @*/
 PetscErrorCode PetscObjectsDump(FILE *fd, PetscBool all) {
   PetscInt i;
-#if defined(PETSC_USE_DEBUG)
+  #if defined(PETSC_USE_DEBUG)
   PetscInt j, k = 0;
-#endif
+  #endif
   PetscObject h;
 
   PetscFunctionBegin;
@@ -336,7 +336,7 @@ PetscErrorCode PetscObjectsDump(FILE *fd, PetscBool all) {
       if ((h = PetscObjects[i])) {
         PetscCall(PetscObjectName(h));
         {
-#if defined(PETSC_USE_DEBUG)
+  #if defined(PETSC_USE_DEBUG)
           PetscStack *stack = NULL;
           char       *create, *rclass;
 
@@ -354,16 +354,16 @@ PetscErrorCode PetscObjectsDump(FILE *fd, PetscBool all) {
               if (!rclass) continue;
             }
           }
-#endif
+  #endif
 
           PetscCall(PetscFPrintf(PETSC_COMM_WORLD, fd, "[%d] %s %s %s\n", PetscGlobalRank, h->class_name, h->type_name, h->name));
 
-#if defined(PETSC_USE_DEBUG)
+  #if defined(PETSC_USE_DEBUG)
           PetscCall(PetscMallocGetStack(h, &stack));
           if (stack) {
             for (j = k; j >= 0; j--) fprintf(fd, "      [%d]  %s() in %s\n", PetscGlobalRank, stack->function[j], stack->file[j]);
           }
-#endif
+  #endif
         }
       }
     }

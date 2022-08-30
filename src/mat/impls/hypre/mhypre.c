@@ -17,7 +17,7 @@
 #include <_hypre_sstruct_ls.h>
 
 #if PETSC_PKG_HYPRE_VERSION_LT(2, 18, 0)
-#define hypre_ParCSRMatrixClone(A, B) hypre_ParCSRMatrixCompleteClone(A)
+  #define hypre_ParCSRMatrixClone(A, B) hypre_ParCSRMatrixCompleteClone(A)
 #endif
 
 static PetscErrorCode MatHYPRE_CreateFromMat(Mat, Mat_HYPRE *);
@@ -63,10 +63,10 @@ static PetscErrorCode MatHYPRE_IJMatrixPreallocate(Mat A_d, Mat A_o, HYPRE_IJMat
       hypre_IJMatrixTranslator(ij) = NULL;
       PetscCallExternal(HYPRE_IJMatrixSetDiagOffdSizes, ij, nnz_d, nnz_o);
       /* it seems they partially fixed it in 2.19.0 */
-#if PETSC_PKG_HYPRE_VERSION_LT(2, 19, 0)
+  #if PETSC_PKG_HYPRE_VERSION_LT(2, 19, 0)
       aux_matrix                               = (hypre_AuxParCSRMatrix *)hypre_IJMatrixTranslator(ij);
       hypre_AuxParCSRMatrixNeedAux(aux_matrix) = 1;
-#endif
+  #endif
     }
 #else
     PetscCallExternal(HYPRE_IJMatrixSetDiagOffdSizes, ij, nnz_d, nnz_o);
@@ -758,11 +758,11 @@ static PetscErrorCode MatAIJGetParCSR_Private(Mat A, hypre_ParCSRMatrix **hA) {
 #if defined(PETSC_HAVE_HYPRE_DEVICE)
   PetscCallExternal(hypre_ParCSRMatrixInitialize_v2, tA, iscuda ? HYPRE_MEMORY_DEVICE : HYPRE_MEMORY_HOST);
 #else
-#if PETSC_PKG_HYPRE_VERSION_LT(2, 18, 0)
+  #if PETSC_PKG_HYPRE_VERSION_LT(2, 18, 0)
   PetscCallExternal(hypre_ParCSRMatrixInitialize, tA);
-#else
+  #else
   PetscCallExternal(hypre_ParCSRMatrixInitialize_v2, tA, HYPRE_MEMORY_HOST);
-#endif
+  #endif
 #endif
   hypre_TFree(hypre_ParCSRMatrixColMapOffd(tA), HYPRE_MEMORY_HOST);
   hypre_ParCSRMatrixSetNumNonzeros(tA);
@@ -2126,11 +2126,11 @@ static PetscErrorCode MatSetPreallocationCOO_HYPRE(Mat mat, PetscCount coo_n, Pe
 
 #if defined(PETSC_HAVE_DEVICE)
   if (!mat->boundtocpu) { /* mat will be on device, so will cooMat */
-#if defined(PETSC_HAVE_KOKKOS)
+  #if defined(PETSC_HAVE_KOKKOS)
     matType = MATAIJKOKKOS;
-#else
+  #else
     SETERRQ(comm, PETSC_ERR_SUP, "To support MATHYPRE COO assembly on device, we need Kokkos, e.g., --download-kokkos --download-kokkos-kernels");
-#endif
+  #endif
   }
 #endif
 
@@ -2290,14 +2290,14 @@ PETSC_EXTERN PetscErrorCode MatCreate_HYPRE(Mat B) {
   PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatSetPreallocationCOO_C", MatSetPreallocationCOO_HYPRE));
   PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatSetValuesCOO_C", MatSetValuesCOO_HYPRE));
 #if defined(PETSC_HAVE_HYPRE_DEVICE)
-#if defined(HYPRE_USING_HIP)
+  #if defined(HYPRE_USING_HIP)
   PetscCall(PetscDeviceInitialize(PETSC_DEVICE_HIP));
   PetscCall(MatSetVecType(B, VECHIP));
-#endif
-#if defined(HYPRE_USING_CUDA)
+  #endif
+  #if defined(HYPRE_USING_CUDA)
   PetscCall(PetscDeviceInitialize(PETSC_DEVICE_CUDA));
   PetscCall(MatSetVecType(B, VECCUDA));
-#endif
+  #endif
 #endif
   PetscFunctionReturn(0);
 }

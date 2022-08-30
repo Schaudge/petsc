@@ -2,12 +2,12 @@
 static char help[] = "Plots a simple line graph.\n";
 
 #if defined(PETSC_APPLE_FRAMEWORK)
-#import <PETSc/petscsys.h>
-#import <PETSc/petscdraw.h>
+  #import <PETSc/petscsys.h>
+  #import <PETSc/petscdraw.h>
 #else
 
-#include <petscsys.h>
-#include <petscdraw.h>
+  #include <petscsys.h>
+  #include <petscdraw.h>
 #endif
 
 int main(int argc, char **argv) {

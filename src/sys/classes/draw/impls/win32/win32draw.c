@@ -10,16 +10,16 @@
 #define MAX_LOADSTRING 100
 
 #if !defined(SelectPen)
-#define SelectPen(hdc, hpen) ((HPEN)SelectObject((hdc), (HGDIOBJ)(HPEN)(hpen)))
+  #define SelectPen(hdc, hpen) ((HPEN)SelectObject((hdc), (HGDIOBJ)(HPEN)(hpen)))
 #endif
 #if !defined(SelectFont)
-#define SelectFont(hdc, hfont) ((HFONT)SelectObject((hdc), (HGDIOBJ)(HFONT)(hfont)))
+  #define SelectFont(hdc, hfont) ((HFONT)SelectObject((hdc), (HGDIOBJ)(HFONT)(hfont)))
 #endif
 #if !defined(SelectBrush)
-#define SelectBrush(hdc, hbrush) ((HBRUSH)SelectObject((hdc), (HGDIOBJ)(HBRUSH)(hbrush)))
+  #define SelectBrush(hdc, hbrush) ((HBRUSH)SelectObject((hdc), (HGDIOBJ)(HBRUSH)(hbrush)))
 #endif
 #if !defined(GetStockBrush)
-#define GetStockBrush(i) ((HBRUSH)GetStockObject(i))
+  #define GetStockBrush(i) ((HBRUSH)GetStockObject(i))
 #endif
 
 #define XTRANS(draw, win, x) (int)(((win)->w) * ((draw)->port_xl + (((x - (draw)->coor_xl) * ((draw)->port_xr - (draw)->port_xl)) / ((draw)->coor_xr - (draw)->coor_xl))))

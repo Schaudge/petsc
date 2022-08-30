@@ -4,7 +4,7 @@
 */
 #include <petscsys.h>
 #if defined(PETSC_HAVE_WINDOWS_H)
-#include <windows.h>
+  #include <windows.h>
 #endif
 
 #if defined(PETSC_HAVE_GET_USER_NAME)

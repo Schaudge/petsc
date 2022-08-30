@@ -63,26 +63,26 @@ PetscErrorCode PetscSysInitializePackage(void) {
 
 #if defined(PETSC_HAVE_DYNAMIC_LIBRARIES)
 
-#if defined(PETSC_USE_SINGLE_LIBRARY)
+  #if defined(PETSC_USE_SINGLE_LIBRARY)
 PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petscvec(void);
 PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petscmat(void);
 PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petscdm(void);
 PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petscksp(void);
 PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petscsnes(void);
 PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petscts(void);
-#endif
+  #endif
 
-/*
+  /*
   PetscDLLibraryRegister - This function is called when the dynamic library it is in is opened.
 
   This one registers all the system level objects.
 
  */
-#if defined(PETSC_USE_SINGLE_LIBRARY)
+  #if defined(PETSC_USE_SINGLE_LIBRARY)
 PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petsc(void)
-#else
+  #else
 PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petscsys(void)
-#endif
+  #endif
 {
   PetscFunctionBegin;
   /*
@@ -93,14 +93,14 @@ PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petscsys(void)
   PetscCall(PetscViewerInitializePackage());
   PetscCall(PetscRandomInitializePackage());
 
-#if defined(PETSC_USE_SINGLE_LIBRARY)
+  #if defined(PETSC_USE_SINGLE_LIBRARY)
   PetscCall(PetscDLLibraryRegister_petscvec());
   PetscCall(PetscDLLibraryRegister_petscmat());
   PetscCall(PetscDLLibraryRegister_petscdm());
   PetscCall(PetscDLLibraryRegister_petscksp());
   PetscCall(PetscDLLibraryRegister_petscsnes());
   PetscCall(PetscDLLibraryRegister_petscts());
-#endif
+  #endif
   PetscFunctionReturn(0);
 }
 #endif /* PETSC_HAVE_DYNAMIC_LIBRARIES */
