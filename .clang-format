@@ -113,7 +113,7 @@ ReferenceAlignment: Pointer
 ReflowComments: false
 ShortNamespaceLines: 0
 SortIncludes: Never
-SortUsingDeclarations: true
+SortUsingDeclarations: false
 SpaceAfterCStyleCast: false
 SpaceAfterLogicalNot: false
 SpaceAfterTemplateKeyword: true
