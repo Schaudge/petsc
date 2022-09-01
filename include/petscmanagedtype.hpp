@@ -734,7 +734,7 @@ public:
 
   template <typename Iterator>
   managed_storage(reference_init_t init, PetscDeviceContext dctx, PetscMemType mtype, Iterator begin, Iterator end) noexcept
-    : ptr_(begin), mtype_(mtype)
+    : ptr_(begin), mtype_(mtype), own_ptr_(false)
   {
     PetscFunctionBegin;
     PetscCallAbort(PETSC_COMM_SELF,iterator_init_(std::move(init),dctx,std::move(begin),std::move(end)));
@@ -759,7 +759,7 @@ public:
 
   managed_storage(managed_storage&& other) noexcept
     : ptr_(std::exchange(other.ptr_,nullptr)), mtype_(other.mtype_),
-      allocator_(std::move(other.allocator_))
+      allocator_(std::move(other.allocator_)), own_ptr_(std::exchange(other.own_ptr_, true))
   { }
 
   managed_storage& operator=(managed_storage&& other) noexcept
@@ -767,10 +767,11 @@ public:
     PetscFunctionBegin;
     if (&other != this) {
       // delete our pointer (if we have one)
-      PetscCall(this->clear());
+      PetscCallAbort(PETSC_COMM_SELF, this->clear());
       mtype_     = other.mtype_;
       ptr_       = std::exchange(other.ptr_, nullptr);
       allocator_ = std::move(other.allocator_);
+      own_ptr_   = std::exchange(other.own_ptr_, true);
     }
     PetscFunctionReturn(*this);
   }
@@ -782,14 +783,15 @@ public:
   PETSC_NODISCARD allocator_pointer  allocator() const noexcept { return allocator_; }
   PETSC_NODISCARD allocator_pointer &allocator()       noexcept { return allocator_; }
 
-  PETSC_NODISCARD PetscErrorCode get_pointer(PetscDeviceContext, PetscInt, value_type **) noexcept;
-  PETSC_NODISCARD PetscErrorCode reserve(PetscDeviceContext, PetscInt) noexcept;
+  PETSC_NODISCARD PetscErrorCode get_pointer(PetscDeviceContext, size_type, value_type **) noexcept;
+  PETSC_NODISCARD PetscErrorCode reserve(PetscDeviceContext, size_type) noexcept;
   PETSC_NODISCARD PetscErrorCode clear(PetscDeviceContext = nullptr) noexcept;
 
 private:
   value_type        *ptr_   = nullptr;
   PetscMemType       mtype_ = PETSC_MEMTYPE_HOST;
   allocator_pointer  allocator_{};
+  bool               own_ptr_ = true;
 
   template <typename InitType, typename Iterator>
   PETSC_NODISCARD PetscErrorCode iterator_init_(InitType&& init, PetscDeviceContext dctx, Iterator&& begin, Iterator&& end) noexcept
@@ -834,10 +836,9 @@ inline PetscErrorCode managed_storage<T>::iterator_init_(move_init_t, PetscDevic
 }
 
 template <typename T>
-inline PetscErrorCode managed_storage<T>::get_pointer(PetscDeviceContext dctx, PetscInt n, value_type **ptr) noexcept
+inline PetscErrorCode managed_storage<T>::get_pointer(PetscDeviceContext dctx, size_type n, value_type **ptr) noexcept
 {
   PetscFunctionBegin;
-  PetscAssert(n >= 0, PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "Memory amount %" PetscInt_FMT " < 0", n);
   if (ptr) PetscValidPointer(ptr,3);
   if (!data()) {
     if (!allocator()) PetscCall(PetscDeviceContextGetAllocator(dctx, mem_type(), &allocator_));
@@ -848,12 +849,13 @@ inline PetscErrorCode managed_storage<T>::get_pointer(PetscDeviceContext dctx, P
 }
 
 template <typename T>
-inline PetscErrorCode managed_storage<T>::reserve(PetscDeviceContext dctx, PetscInt n) noexcept
+inline PetscErrorCode managed_storage<T>::reserve(PetscDeviceContext dctx, size_type n) noexcept
 {
   PetscFunctionBegin;
+  PetscAssert(own_ptr_, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Cannot reserve for a pointer that is not owned");
   if (!allocator()) PetscCall(PetscDeviceContextGetAllocator(dctx, mem_type(), &allocator_));
   if (data()) {
-    PetscCall(allocator()->reallocate(dctx, n, &ptr_));
+    if (own_ptr_) PetscCall(allocator()->reallocate(dctx, n, &ptr_));
   } else {
     PetscCall(allocator()->allocate(dctx, n, &ptr_));
   }
@@ -866,7 +868,7 @@ inline PetscErrorCode managed_storage<T>::clear(PetscDeviceContext dctx) noexcep
   PetscFunctionBegin;
   // if ptr but no allocator then we never owned the pointer
   if (data()) {
-    if (allocator()) PetscCall(allocator()->deallocate(dctx, &ptr_));
+    if (own_ptr_ && allocator()) PetscCall(allocator()->deallocate(dctx, &ptr_));
     ptr_ = nullptr;
   }
   PetscFunctionReturn(0);
@@ -1003,6 +1005,26 @@ static inline auto operator/(L&& lhs, R&& rhs) noexcept
 
 } // namespace expr
 
+template <typename T, typename U>
+class inner_type
+{
+public:
+  using outer_type = T;
+  using value_type = U;
+
+  constexpr explicit inner_type(outer_type &outer, value_type&& value) noexcept
+    : outer_(outer), value_(std::forward<value_type>(value))
+  { }
+
+  constexpr operator value_type() const noexcept { return value_; }
+
+  constexpr inner_type() noexcept = delete;
+
+protected:
+  outer_type &outer_;
+  value_type  value_;
+};
+
 template <typename T>
 class ManagedType : public expr::ExpressionBase<ManagedType<T>>
 {
@@ -1100,12 +1122,14 @@ public:
   // ==================================================================================== //
 
   PETSC_NODISCARD PetscErrorCode get_array(PetscDeviceContext, PetscMemType, PetscMemoryAccessMode, PetscBool, value_type **) noexcept;
+  PETSC_NODISCARD PetscErrorCode get_array_and_memtype(PetscDeviceContext, PetscMemoryAccessMode, value_type **, PetscMemType * = nullptr) noexcept;
   PETSC_NODISCARD PetscErrorCode clear(PetscDeviceContext = nullptr) noexcept;
   PETSC_NODISCARD PetscErrorCode reserve(PetscDeviceContext,size_type) noexcept;
-  PETSC_NODISCARD PetscErrorCode assign(PetscDeviceContext, value_type) noexcept;
+  PETSC_NODISCARD PetscErrorCode assign(PetscDeviceContext, value_type, size_type = 0) noexcept;
+  template <typename Iterator>
+  PETSC_NODISCARD PetscErrorCode assign(PetscDeviceContext, Iterator, Iterator, PetscMemType = PETSC_MEMTYPE_HOST) noexcept;
 
 private:
-  template <typename> class inner_type;
   class purity_type;
   class mask_type;
 
@@ -1177,29 +1201,9 @@ private:
 };
 
 template <typename T>
-template <typename U>
-class ManagedType<T>::inner_type
+class ManagedType<T>::purity_type : inner_type<ManagedType<T>,bool>
 {
-public:
-  using value_type = U;
-
-  constexpr explicit inner_type(ManagedType &outer, value_type&& value) noexcept
-    : outer_(outer), value_(std::forward<value_type>(value))
-  { }
-
-  constexpr operator value_type() const noexcept { return value_; }
-
-  constexpr inner_type() noexcept = delete;
-
-protected:
-  ManagedType &outer_;
-  value_type   value_;
-};
-
-template <typename T>
-class ManagedType<T>::purity_type : ManagedType<T>::inner_type<bool>
-{
-  using base_type = inner_type<bool>;
+  using base_type = inner_type<ManagedType<T>,bool>;
 
 public:
   using value_type = typename base_type::value_type;
@@ -1216,9 +1220,9 @@ public:
 };
 
 template <typename T>
-class ManagedType<T>::mask_type : ManagedType<T>::inner_type<PetscOffloadMask>
+class ManagedType<T>::mask_type : inner_type<ManagedType<T>,PetscOffloadMask>
 {
-  using base_type = inner_type<PetscOffloadMask>;
+  using base_type = inner_type<ManagedType<T>,PetscOffloadMask>;
 
 public:
   using value_type = typename base_type::value_type;
@@ -1318,7 +1322,7 @@ inline PetscErrorCode ManagedType<T>::get_array(PetscDeviceContext dctx, PetscMe
     PetscCall(get_array_from_storage(device_, host_, PETSC_OFFLOAD_GPU, PETSC_DEVICE_COPY_HTOD));
     break;
   default:
-    SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "PetscMemType must be either PETSC_MEMTYPE_HOST (%d) or PETSC_MEMTYPE_DEVICE (%d) not %d", static_cast<int>(PETSC_MEMTYPE_HOST), static_cast<int>(PETSC_MEMTYPE_DEVICE), static_cast<int>(mtype));
+    SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "PetscMemType must be either %s or %s not %d", PetscMemTypes(PETSC_MEMTYPE_HOST), PetscMemTypes(PETSC_MEMTYPE_DEVICE), static_cast<int>(mtype));
     break;
   }
 
@@ -1336,6 +1340,40 @@ inline PetscErrorCode ManagedType<T>::get_array(PetscDeviceContext dctx, PetscMe
 }
 
 template <typename T>
+inline PetscErrorCode ManagedType<T>::get_array_and_memtype(PetscDeviceContext dctx, PetscMemoryAccessMode mode, value_type **ptr, PetscMemType *mtype) noexcept
+{
+  PetscMemType retmtype;
+
+  PetscFunctionBegin;
+  //PetscCall(PetscDeviceContextGetOptionalNullContext_Internal(&dctx));
+  //  PetscCall(PetscManagedTypeCheckLock_Private(scal,PETSC_FALSE));
+  PetscValidPointer(ptr,3);
+  if (mtype) PetscValidPointer(mtype,4);
+  switch (const auto mask = offload_mask()) {
+    // if both prefer CPU, since we may be able to set purity
+  case PETSC_OFFLOAD_BOTH:
+  case PETSC_OFFLOAD_CPU:
+    retmtype = PETSC_MEMTYPE_HOST;
+    break;
+  case PETSC_OFFLOAD_GPU:
+    retmtype = PETSC_MEMTYPE_DEVICE;
+    break;
+  case PETSC_OFFLOAD_UNALLOCATED: {
+    PetscDeviceType dtype;
+
+    PetscCall(PetscDeviceContextGetDeviceType(dctx,&dtype));
+    retmtype = dtype == PETSC_DEVICE_HOST ? PETSC_MEMTYPE_HOST : PETSC_MEMTYPE_DEVICE;
+  } break;
+  default:
+    SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"No support yet for offloadmask %d",mask);
+  }
+  PetscCall(get_array(dctx, retmtype, mode, PETSC_FALSE, ptr));
+  PetscAssert(*ptr,PETSC_COMM_SELF,PETSC_ERR_PLIB,PetscStringize(PetscManagedType) " returned a null pointer for memtype %s as values",PetscMemTypes(retmtype));
+  if (mtype) *mtype = retmtype;
+  PetscFunctionReturn(0);
+}
+
+template <typename T>
 inline PetscErrorCode ManagedType<T>::reserve(PetscDeviceContext dctx, size_type n) noexcept
 {
   PetscFunctionBegin;
@@ -1347,13 +1385,50 @@ inline PetscErrorCode ManagedType<T>::reserve(PetscDeviceContext dctx, size_type
 }
 
 template <typename T>
-inline PetscErrorCode ManagedType<T>::assign(PetscDeviceContext dctx, value_type val) noexcept
+inline PetscErrorCode ManagedType<T>::assign(PetscDeviceContext dctx, value_type val, size_type idx) noexcept
 {
   value_type *ptr;
 
   PetscFunctionBegin;
+  PetscAssert(idx < size(),PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE, "Starting index %" PetscInt_FMT " >= size %" PetscInt_FMT, idx, size());
   PetscCall(get_array(dctx, PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_WRITE, PETSC_TRUE, &ptr));
-  *ptr = val;
+  ptr[idx] = val;
+  PetscFunctionReturn(0);
+}
+
+template <typename T>
+template <typename Iterator>
+inline PetscErrorCode ManagedType<T>::assign(PetscDeviceContext dctx, Iterator begin, Iterator end, PetscMemType mtype) noexcept
+{
+  PetscFunctionBegin;
+  if (const auto n = std::distance(begin,end)) {
+    auto        scalmtype = mtype;
+    value_type *ptr;
+
+    // if scal is unallocated or in both locations we defer to the given mtype, otherwise we
+    // copy to wherever scal is currently up to date
+    PetscCall(reserve(dctx, n));
+    if (offload_mask() == PETSC_OFFLOAD_UNALLOCATED || offload_mask() == PETSC_OFFLOAD_BOTH) {
+      PetscCall(get_array(dctx,mtype,PETSC_MEMORY_ACCESS_WRITE,PETSC_FALSE,&ptr));
+    } else {
+      PetscCall(get_array_and_memtype(dctx,PETSC_MEMORY_ACCESS_WRITE,&ptr,&scalmtype));
+    }
+
+    if (PetscMemTypeHost(mtype) && PetscMemTypeHost(scalmtype) && pure()) {
+      for (; begin != end; ++begin) *ptr++ = *begin;
+    } else {
+      // expensive!
+      PetscCall(PetscDeviceArrayCopy(dctx,ptr,static_cast<value_type*>(begin),n,PetscMemTypeToDeviceCopyMode(scalmtype,mtype)));
+    }
+
+    if (PetscMemTypeHost(mtype) && PetscMemTypeHost(scalmtype)) {
+      // both on host? we are pure again
+      pure_ = true;
+    } else if (PetscMemTypeDevice(mtype)) {
+      // unless we are on device, in which case we are very much not pure
+      pure_ = false;
+    }
+  }
   PetscFunctionReturn(0);
 }
 
