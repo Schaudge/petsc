@@ -128,6 +128,13 @@ PetscErrorCode KSPMonitorResidual(KSP ksp, PetscInt n, PetscReal rnorm, PetscVie
   PetscCall(PetscViewerASCIIPrintf(viewer, "%3" PetscInt_FMT " KSP Residual norm %14.12e \n", n, (double)rnorm));
   PetscCall(PetscViewerASCIISubtractTab(viewer, tablevel));
   PetscCall(PetscViewerPopFormat(viewer));
+
+  if (rnorm > 1.e6) {
+    Mat B;
+    KSPGetOperators(ksp,NULL,&B);
+    MatView(B,PETSC_VIEWER_BINARY_WORLD);
+    SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_PLIB,"Existing program since it saved problematic matrix to file binaryoutput\n");
+  }
   PetscFunctionReturn(0);
 }
 
