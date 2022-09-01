@@ -50,20 +50,24 @@ program ex98f90
     PetscCallA(PetscSectionSetUp(section,ierr))
     PetscCallA(DMSetLocalSection(dm,section,ierr))
     PetscCallA(PetscObjectViewFromOptions(section,PETSC_NULL_OPTIONS,"-dm_section_view",ierr))
-  
+
     PetscCallA(DMGetLocalVector(dm,v,ierr))
     PetscCallA(VecSet(v,-1.0_kPR,ierr))
     PetscCallA(VecViewFromOptions(v,PETSC_NULL_OPTIONS,"-dm_vec_view",ierr))
-  
-    ! Write(iobuffer,"('Point: ',i0'\n')") pStart
-    ! PetscCallA(PetscPrintf(PETSC_COMM_WORLD,iobuffer,ierr));
-    ! PetscCallA(DMPlexVecGetClosure(dm,section,v,pStart,cval,ierr))
-    ! PetscCallA(PetscRealView(size(cval),cval,PETSC_VIEWER_STDOUT_SELF,ierr))
-    ! PetscCallA(DMPlexVecRestoreClosure(dm,section,v,pStart,cval,ierr))
-  
+
+    Write(iobuffer,"('Point: ',i0'\n')") pStart
+    PetscCallA(PetscPrintf(PETSC_COMM_WORLD,iobuffer,ierr));
+    PetscCallA(DMPlexVecGetClosure(dm,section,v,pStart,cval,ierr))
+    Write(iobuffer,"('size(cval): ',i0'\n')") size(cval)
+    PetscCallA(PetscPrintf(PETSC_COMM_WORLD,iobuffer,ierr));
+    PetscCallA(PetscRealView(size(cval),cval,PETSC_VIEWER_STDOUT_SELF,ierr))
+    PetscCallA(DMPlexVecRestoreClosure(dm,section,v,pStart,cval,ierr))
+
     Write(iobuffer,"('Point: ',i0'\n')") pStart+1
     PetscCallA(PetscPrintf(PETSC_COMM_WORLD,iobuffer,ierr));
     PetscCallA(DMPlexVecGetClosure(dm,section,v,pStart+1,cval,ierr))
+    Write(iobuffer,"('size(cval): ',i0'\n')") size(cval)
+    PetscCallA(PetscPrintf(PETSC_COMM_WORLD,iobuffer,ierr));
     PetscCallA(PetscRealView(size(cval),cval,PETSC_VIEWER_STDOUT_SELF,ierr))
     PetscCallA(DMPlexVecRestoreClosure(dm,section,v,pStart+1,cval,ierr))
 

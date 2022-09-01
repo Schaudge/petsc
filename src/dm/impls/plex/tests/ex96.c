@@ -44,16 +44,18 @@ int main(int argc,char **argv) {
   PetscCall(VecSet(v,-1.0));
   PetscCall(VecViewFromOptions(v,NULL,"-dm_vec_view"));
 
-  // PetscCall(PetscPrintf(PETSC_COMM_WORLD,"Point %" PetscInt_FMT "\n",pStart));
-  // cval = NULL;
-  // PetscCall(DMPlexVecGetClosure(dm,section,v,pStart,&clSize,&cval));
-  // PetscCall(PetscRealView(clSize,cval,PETSC_VIEWER_STDOUT_SELF));
-  // PetscCall(DMPlexVecRestoreClosure(dm,section,v,pStart,&clSize,&cval));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"Point %" PetscInt_FMT "\n",pStart));
+  cval = NULL;
+  PetscCall(DMPlexVecGetClosure(dm,section,v,pStart,&clSize,&cval));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"clSize %" PetscInt_FMT "\n",clSize));
+  PetscCall(PetscRealView(clSize,cval,PETSC_VIEWER_STDOUT_SELF));
+  PetscCall(DMPlexVecRestoreClosure(dm,section,v,pStart,&clSize,&cval));
 
   PetscCall(PetscPrintf(PETSC_COMM_WORLD,"Point %" PetscInt_FMT "\n",pStart+1));
   cval = NULL;
   PetscCall(DMPlexVecGetClosure(dm,section,v,pStart+1,&clSize,&cval));
-  PetscCall(PetscRealView(clSize,cval,PETSC_VIEWER_STDOUT_SELF));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"clSize %" PetscInt_FMT "\n",clSize));
+  if (clSize > 0) PetscCall(PetscRealView(clSize,cval,PETSC_VIEWER_STDOUT_SELF));
   PetscCall(DMPlexVecRestoreClosure(dm,section,v,pStart+1,&clSize,&cval));
 
   PetscCall(PetscSectionDestroy(&section));
@@ -68,9 +70,9 @@ int main(int argc,char **argv) {
   PetscCall(VecGetSize(v,&clSize));
   PetscCall(PetscPrintf(PETSC_COMM_WORLD,"Vec size: %" PetscInt_FMT "\n",clSize));
   PetscCall(VecGetArray(v,&cval));
-  PetscCall(PetscRealView(clSize,cval,PETSC_VIEWER_STDOUT_SELF));
+  if (clSize > 0) PetscCall(PetscRealView(clSize,cval,PETSC_VIEWER_STDOUT_SELF));
   PetscCall(VecRestoreArray(v,&cval));
-  PetscCall(PetscFinalize()); 
+  PetscCall(PetscFinalize());
   return 0;
 }
 

@@ -5752,7 +5752,11 @@ PetscErrorCode DMPlexVecGetClosure(DM dm, PetscSection section, Vec v, PetscInt 
 
     if (*values) {
       PetscCheck(*csize >= asize, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Provided array size %" PetscInt_FMT " not sufficient to hold closure size %" PetscInt_FMT, *csize, asize);
-    } else PetscCall(DMGetWorkArray(dm, asize, MPIU_SCALAR, values));
+    } else {
+      if (asize > 0) {
+        PetscCall(DMGetWorkArray(dm, asize, MPIU_SCALAR, values));
+      }
+    }
     PetscCall(PetscSectionGetClosureInversePermutation_Internal(section, (PetscObject)dm, depth, asize, &perm));
     PetscCall(VecGetArrayRead(v, &vArray));
     /* Get values */
@@ -5873,7 +5877,7 @@ PetscErrorCode DMPlexVecRestoreClosure(DM dm, PetscSection section, Vec v, Petsc
 
   PetscFunctionBegin;
   /* Should work without recalculating size */
-  PetscCall(DMRestoreWorkArray(dm, size, MPIU_SCALAR, (void *)values));
+  if ((void*) *values) PetscCall(DMRestoreWorkArray(dm, size, MPIU_SCALAR, (void *)values));
   *values = NULL;
   PetscFunctionReturn(0);
 }
