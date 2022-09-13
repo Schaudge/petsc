@@ -1,0 +1,4 @@
+#ifndef VECCUPMIMPL_HPP
+#define VECCUPMIMPL_HPP
+
+#endif // VECCUPMIMPL_HPP

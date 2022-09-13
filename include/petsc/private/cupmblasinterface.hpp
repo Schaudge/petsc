@@ -27,6 +27,12 @@ namespace impl {
     } \
   } while (0)
 
+#define PetscCallCUPMBLASAbort(comm, ...) \
+  do { \
+    const cupmBlasError_t cberr_p_ = __VA_ARGS__; \
+    PetscCheckAbort(cberr_p_ == CUPMBLAS_STATUS_SUCCESS, (comm), PETSC_ERR_GPU, "%s error %d (%s)", cupmBlasName(), static_cast<PetscErrorCode>(cberr_p_), cupmBlasGetErrorName(cberr_p_)); \
+  } while (0)
+
 // given cupmBlas<T>axpy() then
 // T = PETSC_CUPBLAS_FP_TYPE
 // given cupmBlas<T><u>nrm2() then
@@ -224,7 +230,7 @@ namespace impl {
 
 template <DeviceType T>
 struct BlasInterfaceBase : Interface<T> {
-  PETSC_CXX_COMPAT_DECL(constexpr const char *cupmBlasName()) { return T == DeviceType::CUDA ? "cuBLAS" : "hipBLAS"; }
+  PETSC_NODISCARD static constexpr const char *cupmBlasName() noexcept { return T == DeviceType::CUDA ? "cuBLAS" : "hipBLAS"; }
 };
 
 #define PETSC_CUPMBLAS_BASE_CLASS_HEADER(DEV_TYPE) \

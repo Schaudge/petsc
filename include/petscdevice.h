@@ -106,8 +106,10 @@ PETSC_EXTERN PetscErrorCode PetscDeviceContextSetCurrentContext(PetscDeviceConte
 #if PetscDefined(HAVE_CXX)
 PETSC_EXTERN PetscErrorCode PetscDeviceAllocate_Private(PetscDeviceContext, PetscBool, PetscMemType, size_t, size_t, void **PETSC_RESTRICT);
 PETSC_EXTERN PetscErrorCode PetscDeviceDeallocate_Private(PetscDeviceContext, void *PETSC_RESTRICT);
+PETSC_EXTERN PetscErrorCode PetscDeviceReallocate_Private(PetscDeviceContext, size_t, size_t, void **PETSC_RESTRICT);
 PETSC_EXTERN PetscErrorCode PetscDeviceMemcpy(PetscDeviceContext, void *PETSC_RESTRICT, const void *PETSC_RESTRICT, size_t);
 PETSC_EXTERN PetscErrorCode PetscDeviceMemset(PetscDeviceContext, void *PETSC_RESTRICT, PetscInt, size_t);
+PETSC_EXTERN PetscErrorCode PetscDeviceGetPointerAttributes(const void *, PetscPointerAttributes *);
 #else
 #include <string.h> // memset()
 #define PetscDeviceAllocate_Private(PetscDeviceContext, clear, PetscMemType, size, alignment, ptr) PetscMallocA(1, (clear), __LINE__, PETSC_FUNCTION_NAME, __FILE__, (size), (ptr))
@@ -219,6 +221,8 @@ M*/
 `PetscDeviceArrayZero()`
 M*/
 #define PetscDeviceCalloc(dctx, mtype, n, ptr) PetscDeviceAllocate_Private((dctx), PETSC_TRUE, (mtype), (size_t)(n) * sizeof(**(ptr)), PETSC_DEVICE_ALIGNOF(**(ptr)), (void **)(ptr))
+
+#define PetscDeviceRealloc(dctx, n, ptr) PetscDeviceReallocate_Private(dctx, (size_t)(n) * sizeof(**(ptr)), PETSC_DEVICE_ALIGNOF(**(ptr)), (void **)(ptr))
 
 /*MC
   PetscDeviceFree - Free device-aware memory

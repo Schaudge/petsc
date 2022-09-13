@@ -1453,10 +1453,10 @@ M*/
 .seealso: `PetscFunctionBegin()`, `PetscStackPopNoCheck()`
 
 M*/
-#define PetscFunctionReturn(a) \
+#define PetscFunctionReturn(...) \
   do { \
     PetscStackPopNoCheck(PETSC_FUNCTION_NAME); \
-    return a; \
+    return __VA_ARGS__; \
   } while (0)
 
 #define PetscFunctionReturnVoid() \

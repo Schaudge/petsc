@@ -451,6 +451,44 @@ PETSC_NODISCARD static inline PETSC_CONSTEXPR_14 const char *PetscMemoryAccessMo
 #undef PETSC_CASE_RETURN
 }
 
+typedef struct PetscPointerAttributes {
+  size_t        size;  // size of allocation (bytes)
+  PetscObjectId id;    // id of allocation
+  PetscMemType  mtype; // memtype of allocation
+
+#ifdef __cplusplus
+  static_assert(sizeof(std::size_t) == 8, "");
+  static_assert(sizeof(PetscObjectId) <= sizeof(std::size_t), "");
+  static_assert(sizeof(PetscMemType) <= sizeof(PetscObjectId), "");
+  // even though this is a POD and can be aggregate initialized, the STL uses () constructors
+  // in unordered_map and so we need to provide a trivial contructor...
+  constexpr PetscPointerAttributes() noexcept;
+  constexpr PetscPointerAttributes(std::size_t, PetscObjectId, PetscMemType) noexcept;
+  constexpr PetscPointerAttributes(const PetscPointerAttributes &) noexcept                     = default;
+  PETSC_CONSTEXPR_14 PetscPointerAttributes &operator=(const PetscPointerAttributes &) noexcept = default;
+  constexpr PetscPointerAttributes(PetscPointerAttributes &&) noexcept                          = default;
+  PETSC_CONSTEXPR_14 PetscPointerAttributes &operator=(PetscPointerAttributes &&) noexcept      = default;
+
+  bool operator==(const PetscPointerAttributes &) const noexcept;
+
+  PETSC_NODISCARD bool contains(const void *, const void *) const noexcept;
+#endif
+} PetscPointerAttributes;
+
+#ifdef __cplusplus
+constexpr inline PetscPointerAttributes::PetscPointerAttributes() noexcept : PetscPointerAttributes(0, 0, PETSC_MEMTYPE_HOST) { }
+
+constexpr inline PetscPointerAttributes::PetscPointerAttributes(std::size_t size_, PetscObjectId id_, PetscMemType mtype_) noexcept : size(size_), id(id_), mtype(mtype_) { }
+
+inline bool PetscPointerAttributes::operator==(const PetscPointerAttributes &other) const noexcept {
+  return mtype == other.mtype && id == other.id && size == other.size;
+}
+
+inline bool PetscPointerAttributes::contains(const void *ptr_begin, const void *ptr) const noexcept {
+  return (ptr >= ptr_begin) && (ptr < (static_cast<const char *>(ptr_begin) + size));
+}
+#endif // __cplusplus
+
 #undef PETSC_SHOULD_SILENCE_GCC_TAUTOLOGICAL_COMPARE_WARNING
 
 #endif /* PETSCDEVICETYPES_H */
