@@ -206,6 +206,7 @@ exec-name``.
 - Add ``DMFieldCreateDSWithDG()`` to allow multiple representations of a given field
 - Add ``DMProjectFieldLabel()``
 - Make public ``DMSetVI()`` and ``DMDestroyVI()``
+- Add ``DMShellSetDestroyContext()``
 
 .. rubric:: DMSwarm:
 
