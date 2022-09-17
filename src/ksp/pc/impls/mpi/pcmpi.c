@@ -130,7 +130,7 @@ static PetscErrorCode PCMPISetMat(PC pc)
 {
   PC_MPI           *km = pc ? (PC_MPI*)pc->data : NULL;
   Mat               A;
-  PetscInt          N[2],n,*ia,*ja,j;
+  PetscInt          N[2],n,*ia,*ja,j,bs;
   Mat               sA;
   MPI_Comm          comm = PC_MPI_COMM_WORLD;
   KSP               ksp;
@@ -150,12 +150,15 @@ static PetscErrorCode PCMPISetMat(PC pc)
     PCMPIMatCounts[size]++;
     PetscCall(PCGetOperators(pc,&sA,&sA));
     PetscCall(MatGetSize(sA,&N[0],&N[1]));
+    PetscCall(MatGetBlockSize(sA,&bs));
+    /* need to broadcast symmetry flags etc if set */
   }
   PetscCallMPI(MPI_Bcast(N, 2, MPIU_INT, 0, comm));
+  PetscCallMPI(MPI_Bcast(&bs,1,MPIU_INT,0,comm));
 
   /* determine ownership ranges of matrix */
   PetscCall(PetscLayoutCreate(comm,&layout));
-  PetscCall(PetscLayoutSetBlockSize(layout,1));
+  PetscCall(PetscLayoutSetBlockSize(layout,bs));
   PetscCall(PetscLayoutSetSize(layout,N[0]));
   PetscCall(PetscLayoutSetUp(layout));
   PetscCall(PetscLayoutGetLocalSize(layout,&n));
@@ -196,6 +199,7 @@ static PetscErrorCode PCMPISetMat(PC pc)
   }
   ia[0] = 0;
   PetscCall(MatCreateMPIAIJWithArrays(comm,n,n,N[0],N[0],ia,ja,a,&A));
+  PetscCall(MatSetBlockSize(A,bs));
   PetscCall(MatSetOptionsPrefix(A,"mpi_"));
 
   PetscCall(PetscFree3(ia,ja,a));
