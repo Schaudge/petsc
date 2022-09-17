@@ -12,6 +12,7 @@
 */
 #include <petsc/private/pcimpl.h>
 #include <petsc/private/kspimpl.h>
+#include <petsc.h>
 
 #define PC_MPI_MAX_RANKS 256
 #define PC_MPI_COMM_WORLD MPI_COMM_WORLD
@@ -330,6 +331,14 @@ PetscErrorCode PCMPIServerBegin(void)
 
   PetscFunctionBegin;
   PetscCall(PetscInfo(NULL,"Starting MPI Linear Solver Server"));
+  PetscCall(VecInitializePackage());
+  PetscCall(MatInitializePackage());
+  PetscCall(DMInitializePackage());
+  PetscCall(PCInitializePackage());
+  PetscCall(KSPInitializePackage());
+  PetscCall(SNESInitializePackage());
+  PetscCall(TSInitializePackage());
+  PetscCall(TaoInitializePackage());
   PetscCallMPI(MPI_Comm_rank(PC_MPI_COMM_WORLD,&rank));
   if (rank == 0) {
     PETSC_COMM_WORLD = PETSC_COMM_SELF;
