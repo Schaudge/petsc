@@ -477,6 +477,10 @@ private:
 template <typename>
 class ManagedType;
 
+// ==========================================================================================
+// ProxyReference
+// ==========================================================================================
+
 template <typename T>
 class ProxyReference {
 public:
