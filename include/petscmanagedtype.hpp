@@ -764,7 +764,7 @@ inline PetscErrorCode ManagedType<T>::assign_(PetscDeviceContext dctx, Iterator 
 
 template <typename T>
 inline ManagedType<T>::ManagedType(PetscDeviceContext dctx, value_type *host_ptr, value_type *device_ptr, size_type n, PetscCopyMode h_cmode, PetscCopyMode d_cmode, PetscOffloadMask mask) noexcept :
-  size_(n), host_(construct_storage_(h_cmode, dctx, PETSC_MEMTYPE_HOST, host_ptr, n)), device_(construct_storage_(d_cmode, dctx, PETSC_MEMTYPE_DEVICE, device_ptr, n)), mask_([&]() {
+  size_(n), host_(construct_storage_(h_cmode, dctx, PETSC_MEMTYPE_HOST, host_ptr, n)), device_(construct_storage_(d_cmode, dctx, PETSC_MEMTYPE_DEVICE, device_ptr, n)), mask_([=] {
     PetscFunctionBegin;
     if (host_ptr && device_ptr) {
       PetscAssertAbort(mask != PETSC_OFFLOAD_UNALLOCATED, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Set both host and device pointer but offloadmask was %s", PetscOffloadMaskToString(mask));
@@ -800,7 +800,6 @@ inline ManagedType<T>::ManagedType(ManagedType &&other) noexcept :
 template <typename T>
 template <typename U>
 inline ManagedType<T>::ManagedType(const expr::EvaluatedManagedExpression<U> &expr) noexcept : ManagedType(expr.dctx(), expr.size()) {
-  using size_type = util::remove_cvref_t<decltype(expr.size())>;
   value_type *arr;
 
   PetscFunctionBegin;
@@ -829,9 +828,6 @@ inline ManagedType<T> &ManagedType<T>::operator=(ManagedType &&other) noexcept {
 template <typename T>
 inline PetscErrorCode ManagedType<T>::clear() noexcept {
   PetscFunctionBegin;
-#if 0
-  PetscCall(PetscManagedTypeCheckLock_Private(*scal,PETSC_FALSE));
-#endif
   size_ = 0;
   PetscCall(set_purity_(true));
   PetscCall(set_offload_mask_(PETSC_OFFLOAD_UNALLOCATED));
@@ -847,6 +843,7 @@ inline PetscErrorCode ManagedType<T>::get_array(PetscDeviceContext dctx, PetscMe
       PetscCheck(!dest.data(), PETSC_COMM_SELF, PETSC_ERR_PLIB, "unallocated but dest has data: %p", dest.data());
       PetscCheck(!src.data(), PETSC_COMM_SELF, PETSC_ERR_PLIB, "unallocated but src has data: %p", src.data());
     }
+
     PetscCall(dest.reserve(dctx, size()));
     if (PetscOffloadUnallocated(offload_mask())) {
       PetscCall(set_offload_mask_(requested_mask));
@@ -923,6 +920,7 @@ inline PetscErrorCode ManagedType<T>::get_array_and_memtype(PetscDeviceContext d
 template <typename T>
 inline PetscErrorCode ManagedType<T>::reserve(PetscDeviceContext dctx, size_type n) noexcept {
   PetscFunctionBegin;
+  // TODO reserve only what is possible to reserve!
   PetscCall(host_.reserve(dctx, n));
   PetscCall(device_.reserve(dctx, n));
   PetscFunctionReturn(0);
