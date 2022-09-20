@@ -194,21 +194,21 @@ public:
   managed_storage(managed_storage &&) noexcept;
   managed_storage &operator=(managed_storage &&) noexcept;
 
-  PETSC_NODISCARD auto data() noexcept { return ptr_; }
-  PETSC_NODISCARD auto cdata() const noexcept { return ptr_; }
-  PETSC_NODISCARD auto data() const noexcept { return cdata(); }
-  PETSC_NODISCARD auto empty() const noexcept { return capacity() == 0; }
-  PETSC_NODISCARD auto capacity() const noexcept { return capacity_; }
-  PETSC_NODISCARD auto mem_type() const noexcept { return mtype_; }
+  PETSC_NODISCARD value_type       *data() noexcept { return ptr_; }
+  PETSC_NODISCARD const value_type *cdata() const noexcept { return ptr_; }
+  PETSC_NODISCARD const value_type *data() const noexcept { return cdata(); }
+  PETSC_NODISCARD bool              empty() const noexcept { return capacity() == 0; }
+  PETSC_NODISCARD size_type         capacity() const noexcept { return capacity_; }
+  PETSC_NODISCARD PetscMemType      mem_type() const noexcept { return mtype_; }
 
-  PETSC_NODISCARD auto begin() noexcept { return iterator{data()}; }
-  PETSC_NODISCARD auto end(size_type size) noexcept { return iterator{std::next(data(), size)}; }
+  PETSC_NODISCARD iterator begin() noexcept { return iterator{data()}; }
+  PETSC_NODISCARD iterator end(size_type size) noexcept { return iterator{std::next(data(), size)}; }
 
-  PETSC_NODISCARD auto cbegin() const noexcept { return const_iterator{data()}; }
-  PETSC_NODISCARD auto cend(size_type size) const noexcept { return const_iterator{std::next(data(), size)}; }
+  PETSC_NODISCARD const_iterator cbegin() const noexcept { return const_iterator{data()}; }
+  PETSC_NODISCARD const_iterator cend(size_type size) const noexcept { return const_iterator{std::next(data(), size)}; }
 
-  PETSC_NODISCARD auto begin() const noexcept { return cbegin(); }
-  PETSC_NODISCARD auto end(size_type size) const noexcept { return cend(size); }
+  PETSC_NODISCARD const_iterator begin() const noexcept { return cbegin(); }
+  PETSC_NODISCARD const_iterator end(size_type size) const noexcept { return cend(size); }
 
   PETSC_NODISCARD PetscErrorCode touch(PetscDeviceContext, PetscMemoryAccessMode) const noexcept;
   PETSC_NODISCARD PetscErrorCode reserve(PetscDeviceContext, size_type) noexcept;
@@ -376,7 +376,7 @@ namespace expr {
 
 template <typename D>
 struct ExpressionBase : util::crtp<D, ExpressionBase> {
-  using size_type = PetscInt;
+  using size_type = std::size_t;
 
   PETSC_NODISCARD size_type size() const noexcept { return this->underlying().size_impl_(); }
 
@@ -392,14 +392,17 @@ struct ExpressionBase : util::crtp<D, ExpressionBase> {
 
 template <typename L, typename R, typename F>
 class BinaryManagedExpression : public ExpressionBase<BinaryManagedExpression<L, R, F>> {
+  const L &lhs_;
+  const R &rhs_;
+  F        op_;
+
 public:
   using base_type = ExpressionBase<BinaryManagedExpression<L, R, F>>;
-  friend base_type;
-  using base_type::size;
   using typename base_type::size_type;
+  friend base_type;
 
-  constexpr explicit BinaryManagedExpression(const L &lxpr, const R &rxpr, F &&callable = F()) noexcept : lhs_(lxpr), rhs_(rxpr), op_(std::forward<F>(callable)) {
-    PetscAssertAbort(lhs_.size() == rhs_.size(), PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Left and right operand size mismatch, %zu != %zu", static_cast<std::size_t>(lhs_.size()), static_cast<std::size_t>(rhs_.size()));
+  explicit BinaryManagedExpression(const L &lxpr, const R &rxpr, F &&callable = F{}) noexcept : lhs_(lxpr), rhs_(rxpr), op_(std::forward<F>(callable)) {
+    PetscAssertAbort(lhs_.size() == rhs_.size(), PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Left and right operand size mismatch, %zu != %zu", lhs_.size(), rhs_.size());
   }
 
   PETSC_NODISCARD size_type size_impl_() const noexcept { return lhs_.size(); };
@@ -407,7 +410,7 @@ public:
   PETSC_NODISCARD auto at_impl_(size_type idx) const noexcept {
     const auto &lhsv = lhs_.at(idx);
 
-    if ((void *)&lhs_ == (void *)&rhs_) return op_(lhsv, lhsv);
+    if (static_cast<const void *>(std::addressof(lhs_)) == static_cast<const void *>(std::addressof(rhs_))) return op_(lhsv, lhsv);
     return op_(lhsv, rhs_.at(idx));
   }
 
@@ -418,11 +421,6 @@ public:
     PetscCall(rhs_.prefetch(dctx, std::forward<Args>(args)...));
     PetscFunctionReturn(0);
   }
-
-private:
-  const L &lhs_;
-  const R &rhs_;
-  F        op_;
 };
 
 template <typename T>
@@ -432,7 +430,7 @@ public:
   using size_type       = typename expression_type::size_type;
 
   template <typename U>
-  EvaluatedManagedExpression(U &&expr, PetscDeviceContext ctx) noexcept : expr_(std::forward<U>(expr)), dctx_(ctx) {
+  explicit EvaluatedManagedExpression(U &&expr, PetscDeviceContext ctx) noexcept : expr_(std::forward<U>(expr)), dctx_(ctx) {
     PetscFunctionBegin;
     PetscCallAbort(PETSC_COMM_SELF, expr.prefetch(ctx));
     PetscFunctionReturnVoid();
@@ -458,9 +456,10 @@ class ProxyReference {
 public:
   using value_type   = T;
   using managed_type = ManagedType<value_type>;
+  using size_type    = typename managed_type::size_type;
 
   ProxyReference() noexcept = default;
-  ProxyReference(managed_type *, PetscDeviceContext, std::size_t) noexcept;
+  ProxyReference(managed_type *, PetscDeviceContext, size_type) noexcept;
 
   ProxyReference &operator=(const value_type &) noexcept;
 
@@ -469,16 +468,17 @@ public:
 private:
   managed_type      *man_  = nullptr;
   PetscDeviceContext dctx_ = nullptr;
-  std::size_t        idx_  = 0;
+  size_type          idx_  = 0;
 };
 
 template <typename T>
-inline ProxyReference<T>::ProxyReference(managed_type *man, PetscDeviceContext dctx, std::size_t idx) noexcept : man_(man), dctx_(dctx), idx_(idx) { }
+inline ProxyReference<T>::ProxyReference(managed_type *man, PetscDeviceContext dctx, size_type idx) noexcept : man_(man), dctx_(dctx), idx_(idx) { }
 
 template <typename T>
 inline ProxyReference<T> &ProxyReference<T>::operator=(const value_type &val) noexcept {
-  PetscCallAbort(PETSC_COMM_SELF, man_->set_at(dctx_, idx_, val));
-  return *this;
+  PetscFunctionBegin;
+  PetscCallAbort(PETSC_COMM_SELF, man_->assign(dctx_, idx_, val));
+  PetscFunctionReturn(*this);
 }
 
 template <typename T>
@@ -492,7 +492,7 @@ inline ProxyReference<T>::operator value_type() const noexcept {
 
 template <typename T>
 class ManagedType : public expr::ExpressionBase<ManagedType<T>> {
-  using base_type = expr::ExpressionBase<ManagedType<T>>;
+  using base_type = expr::ExpressionBase<ManagedType>;
   friend base_type;
 
 public:
@@ -543,13 +543,15 @@ public:
   PETSC_NODISCARD size_type        capacity() const noexcept { return std::max(host_.capacity(), device_.capacity()); }
   PETSC_NODISCARD bool             empty() const noexcept { return size() == 0; }
   PETSC_NODISCARD PetscOffloadMask offload_mask() const noexcept { return mask_; }
-  PETSC_NODISCARD bool             is_nosync_available(PetscMemType mtype) const noexcept { return PetscMemTypeHost(mtype) ? (pure_ && host_.data()) : false; }
+  PETSC_NODISCARD bool             is_nosync_available(PetscMemType mtype) const noexcept { return PetscMemTypeHost(mtype) ? (pure_ && host_data()) : false; }
 
   PETSC_NODISCARD ProxyReference<T> at(PetscDeviceContext dctx, size_type idx) noexcept {
     PetscFunctionBegin;
     PetscAssertAbort(size() > idx, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "index %zu >= size %zu", idx, size());
     PetscFunctionReturn({this, dctx, idx});
   }
+
+  PETSC_NODISCARD value_type at(PetscDeviceContext dctx, size_type idx) const noexcept { return *prefetch_begin_(*this, host_, dctx, true, PETSC_MEMORY_ACCESS_READ); }
 
   // ==========================================================================================
   // specific getters
@@ -563,22 +565,22 @@ public:
   PETSC_NODISCARD auto device_data() const noexcept { return device_cdata(); }
 
   PETSC_NODISCARD auto data() noexcept { return host_data(); }
-  PETSC_NODISCARD auto cdata() noexcept { return host_data(); }
+  PETSC_NODISCARD auto cdata() const noexcept { return host_data(); }
   PETSC_NODISCARD auto data() const noexcept { return host_data(); }
 
   // ==========================================================================================
   // Iterators - begin
   // ==========================================================================================
 
-  PETSC_NODISCARD auto host_begin(PetscDeviceContext dctx, PetscMemoryAccessMode mode = PETSC_MEMORY_ACCESS_READ_WRITE, bool sync = false) noexcept { return prefetch_begin_(*this, host_, dctx, sync, mode); }
+  PETSC_NODISCARD auto host_begin(PetscDeviceContext dctx, bool sync = false, PetscMemoryAccessMode mode = PETSC_MEMORY_ACCESS_READ_WRITE) noexcept { return prefetch_begin_(*this, host_, dctx, sync, mode); }
   PETSC_NODISCARD auto host_cbegin(PetscDeviceContext dctx, bool sync = false) const noexcept { return prefetch_begin_(*this, host_, dctx, sync); }
   PETSC_NODISCARD auto host_begin(PetscDeviceContext dctx, bool sync = false) const noexcept { return host_cbegin(dctx, sync); }
 
-  PETSC_NODISCARD auto device_begin(PetscDeviceContext dctx, PetscMemoryAccessMode mode = PETSC_MEMORY_ACCESS_READ_WRITE, bool sync = false) noexcept { return prefetch_begin_(*this, device_, dctx, sync, mode); }
+  PETSC_NODISCARD auto device_begin(PetscDeviceContext dctx, bool sync = false, PetscMemoryAccessMode mode = PETSC_MEMORY_ACCESS_READ_WRITE) noexcept { return prefetch_begin_(*this, device_, dctx, sync, mode); }
   PETSC_NODISCARD auto device_cbegin(PetscDeviceContext dctx, bool sync = false) const noexcept { return prefetch_begin_(*this, device_, dctx, sync); }
   PETSC_NODISCARD auto device_begin(PetscDeviceContext dctx, bool sync = false) const noexcept { return device_cbegin(dctx, sync); }
 
-  PETSC_NODISCARD auto begin(PetscDeviceContext dctx = nullptr) noexcept { return host_begin(dctx, PETSC_MEMORY_ACCESS_READ_WRITE, true); }
+  PETSC_NODISCARD auto begin(PetscDeviceContext dctx = nullptr) noexcept { return host_begin(dctx, true); }
   PETSC_NODISCARD auto cbegin(PetscDeviceContext dctx = nullptr) const noexcept { return host_begin(dctx, true); }
   PETSC_NODISCARD auto begin(PetscDeviceContext dctx = nullptr) const noexcept { return cbegin(dctx); }
 
@@ -586,15 +588,15 @@ public:
   // Iterators - end
   // ==========================================================================================
 
-  PETSC_NODISCARD auto host_end(PetscDeviceContext dctx, PetscMemoryAccessMode mode = PETSC_MEMORY_ACCESS_READ_WRITE, bool sync = false) noexcept { return prefetch_end_(*this, host_, dctx, sync, mode); }
+  PETSC_NODISCARD auto host_end(PetscDeviceContext dctx, bool sync = false, PetscMemoryAccessMode mode = PETSC_MEMORY_ACCESS_READ_WRITE) noexcept { return prefetch_end_(*this, host_, dctx, sync, mode); }
   PETSC_NODISCARD auto host_cend(PetscDeviceContext dctx, bool sync = false) const noexcept { return prefetch_end_(*this, host_, dctx, sync); }
   PETSC_NODISCARD auto host_end(PetscDeviceContext dctx, bool sync = false) const noexcept { return host_cend(dctx, sync); }
 
-  PETSC_NODISCARD auto device_end(PetscDeviceContext dctx, PetscMemoryAccessMode mode = PETSC_MEMORY_ACCESS_READ_WRITE, bool sync = false) noexcept { return prefetch_end_(*this, device_, dctx, sync, mode); }
+  PETSC_NODISCARD auto device_end(PetscDeviceContext dctx, bool sync = false, PetscMemoryAccessMode mode = PETSC_MEMORY_ACCESS_READ_WRITE) noexcept { return prefetch_end_(*this, device_, dctx, sync, mode); }
   PETSC_NODISCARD auto device_cend(PetscDeviceContext dctx, bool sync = false) const noexcept { return prefetch_end_(*this, device_, dctx, sync); }
   PETSC_NODISCARD auto device_end(PetscDeviceContext dctx, bool sync = false) const noexcept { return device_cend(dctx, sync); }
 
-  PETSC_NODISCARD auto end(PetscDeviceContext dctx = nullptr) noexcept { return host_end(dctx, PETSC_MEMORY_ACCESS_READ_WRITE, true); }
+  PETSC_NODISCARD auto end(PetscDeviceContext dctx = nullptr) noexcept { return host_end(dctx, true); }
   PETSC_NODISCARD auto cend(PetscDeviceContext dctx = nullptr) const noexcept { return host_end(dctx, true); }
   PETSC_NODISCARD auto end(PetscDeviceContext dctx = nullptr) const noexcept { return cend(dctx); }
 
@@ -604,11 +606,7 @@ public:
 
   PETSC_NODISCARD auto front(PetscDeviceContext dctx = nullptr) noexcept { return at(dctx, 0); }
   PETSC_NODISCARD auto front(PetscDeviceContext dctx = nullptr) const noexcept { return cfront(dctx); }
-  PETSC_NODISCARD auto cfront(PetscDeviceContext dctx = nullptr) const noexcept {
-    PetscFunctionBegin;
-    PetscAssertAbort(size() > 0, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Calling %s() on a managed type of size %zu", PETSC_FUNCTION_NAME, size());
-    PetscFunctionReturn(*prefetch_begin_(*this, host_, dctx, true));
-  }
+  PETSC_NODISCARD auto cfront(PetscDeviceContext dctx = nullptr) const noexcept { return at(dctx, 0); }
 
   // ==========================================================================================
   // Accessors - back
@@ -616,11 +614,7 @@ public:
 
   PETSC_NODISCARD auto back(PetscDeviceContext dctx = nullptr) noexcept { return at(dctx, size() - 1); }
   PETSC_NODISCARD auto back(PetscDeviceContext dctx = nullptr) const noexcept { return cback(dctx); }
-  PETSC_NODISCARD auto cback(PetscDeviceContext dctx = nullptr) const noexcept {
-    PetscFunctionBegin;
-    PetscAssertAbort(size() > 0, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Calling %s() on a managed type of size %zu", PETSC_FUNCTION_NAME, size());
-    PetscFunctionReturn(*prefetch_end_(*this, host_, dctx, true));
-  }
+  PETSC_NODISCARD auto cback(PetscDeviceContext dctx = nullptr) const noexcept { return at(dctx, size() - 1); }
 
   // ==================================================================================== //
   // accessors
@@ -628,12 +622,11 @@ public:
 
   PETSC_NODISCARD PetscErrorCode get_array(PetscDeviceContext, PetscMemType, PetscMemoryAccessMode, PetscBool, value_type **) noexcept;
   PETSC_NODISCARD PetscErrorCode get_array_and_memtype(PetscDeviceContext, PetscMemoryAccessMode, value_type **, PetscMemType * = nullptr) noexcept;
-  PETSC_NODISCARD PetscErrorCode clear(PetscDeviceContext = nullptr) noexcept;
+  PETSC_NODISCARD PetscErrorCode clear() noexcept;
   PETSC_NODISCARD PetscErrorCode reserve(PetscDeviceContext, size_type) noexcept;
-  PETSC_NODISCARD PetscErrorCode assign(PetscDeviceContext, const value_type &) noexcept;
+  PETSC_NODISCARD PetscErrorCode assign(PetscDeviceContext, size_type, const value_type &) noexcept;
   template <typename Iterator>
   PETSC_NODISCARD PetscErrorCode assign(PetscDeviceContext, Iterator, Iterator, PetscMemType) noexcept;
-  PETSC_NODISCARD PetscErrorCode set_at(PetscDeviceContext, size_type, const value_type &) noexcept;
 
 private:
   size_type                size_{};
@@ -834,7 +827,7 @@ inline ManagedType<T> &ManagedType<T>::operator=(ManagedType &&other) noexcept {
 }
 
 template <typename T>
-inline PetscErrorCode ManagedType<T>::clear(PetscDeviceContext dctx) noexcept {
+inline PetscErrorCode ManagedType<T>::clear() noexcept {
   PetscFunctionBegin;
 #if 0
   PetscCall(PetscManagedTypeCheckLock_Private(*scal,PETSC_FALSE));
@@ -855,13 +848,12 @@ inline PetscErrorCode ManagedType<T>::get_array(PetscDeviceContext dctx, PetscMe
       PetscCheck(!src.data(), PETSC_COMM_SELF, PETSC_ERR_PLIB, "unallocated but src has data: %p", src.data());
     }
     PetscCall(dest.reserve(dctx, size()));
-    *ptr = dest.data();
-    if (offload_mask() == PETSC_OFFLOAD_UNALLOCATED) PetscCall(set_offload_mask_(requested_mask));
-    // no need to do anything if we already match the desired offload
-    if (offload_mask() != requested_mask) {
+    if (PetscOffloadUnallocated(offload_mask())) {
+      PetscCall(set_offload_mask_(requested_mask));
+    } else if (offload_mask() != requested_mask) {
       // if we want any kind of read (read or read_write) and we have valid SRC, we need to copy
       // it now
-      if (PetscMemoryAccessRead(mode) && !src.empty() && (offload_mask() != PETSC_OFFLOAD_BOTH)) {
+      if (PetscMemoryAccessRead(mode) && !src.empty() && !PetscOffloadBoth(offload_mask())) {
         PetscCall(set_offload_mask_(PETSC_OFFLOAD_BOTH));
         PetscCall(dest.assign(dctx, src));
       }
@@ -871,6 +863,7 @@ inline PetscErrorCode ManagedType<T>::get_array(PetscDeviceContext dctx, PetscMe
     }
     // inform the destination buffer that we intend to modify it per mode
     PetscCall(dest.touch(dctx, mode));
+    *ptr = dest.data();
     PetscFunctionReturn(0);
   };
 
@@ -879,7 +872,7 @@ inline PetscErrorCode ManagedType<T>::get_array(PetscDeviceContext dctx, PetscMe
   PetscValidPointer(ptr, 5);
   PetscCheck(!(PetscOffloadUnallocated(offload_mask()) && PetscMemoryAccessRead(mode)), PetscObjectComm(PetscObjectCast(dctx)), PETSC_ERR_ARG_WRONG, "Trying to read (using %s) from a managed type (id %d) that has not been written to (has offload mask %s)", PetscMemoryAccessModeToString(mode), -1, PetscOffloadMaskToString(offload_mask()));
   *ptr = nullptr;
-  if (!size()) PetscFunctionReturn(0);
+  if (empty()) PetscFunctionReturn(0);
 
   // retrieve the pointer
   switch (mtype) {
@@ -936,9 +929,19 @@ inline PetscErrorCode ManagedType<T>::reserve(PetscDeviceContext dctx, size_type
 }
 
 template <typename T>
-inline PetscErrorCode ManagedType<T>::assign(PetscDeviceContext dctx, const value_type &val) noexcept {
+inline PetscErrorCode ManagedType<T>::assign(PetscDeviceContext dctx, size_type idx, const value_type &val) noexcept {
+  const auto   fast_assign = is_nosync_available(PETSC_MEMTYPE_HOST);
+  PetscMemType mtype;
+  value_type  *ptr;
+
   PetscFunctionBegin;
-  PetscCall(assign_(dctx, std::addressof(val), std::next(std::addressof(val)), PETSC_MEMTYPE_HOST, 1));
+  PetscAssert(idx < size(), PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Index %zu >= size %zu", idx, size());
+  PetscCall(get_array_and_memtype(dctx, PETSC_MEMORY_ACCESS_WRITE, &ptr, &mtype));
+  if (fast_assign && PetscMemTypeHost(mtype)) {
+    ptr[idx] = val;
+  } else {
+    PetscCall(PetscDeviceArrayCopy(dctx, std::next(ptr, idx), std::addressof(val), 1));
+  }
   PetscFunctionReturn(0);
 }
 
@@ -950,31 +953,15 @@ inline PetscErrorCode ManagedType<T>::assign(PetscDeviceContext dctx, Iterator b
   PetscFunctionReturn(0);
 }
 
-template <typename T>
-inline PetscErrorCode ManagedType<T>::set_at(PetscDeviceContext dctx, size_type idx, const value_type &val) noexcept {
-  const auto   fast_assign = is_nosync_available(PETSC_MEMTYPE_HOST);
-  PetscMemType mtype;
-  value_type  *ptr;
-
-  PetscFunctionBegin;
-  PetscCall(get_array_and_memtype(dctx, PETSC_MEMORY_ACCESS_WRITE, &ptr, &mtype));
-  if (fast_assign && PetscMemTypeHost(mtype)) {
-    ptr[idx] = val;
-  } else {
-    PetscCall(PetscDeviceArrayCopy(dctx, std::next(ptr, idx), std::addressof(val), 1));
-  }
-  PetscFunctionReturn(0);
-}
-
 namespace expr {
 
 template <typename T>
-PETSC_NODISCARD static inline EvaluatedManagedExpression<util::remove_reference_t<T>> eval(PetscDeviceContext dctx, T &&expr) noexcept {
-  return {std::forward<T>(expr), dctx};
+PETSC_NODISCARD static inline auto eval(PetscDeviceContext dctx, T &&expr) noexcept {
+  return EvaluatedManagedExpression<util::remove_reference_t<T>>{std::forward<T>(expr), dctx};
 }
 
 template <typename F, typename L, typename R>
-static inline auto make_binary_expr(L &&lhs, R &&rhs, F &&fn = F{}) noexcept {
+PETSC_NODISCARD static inline auto make_binary_expr(L &&lhs, R &&rhs, F &&fn = F{}) noexcept {
   return BinaryManagedExpression<util::remove_reference_t<L>, util::remove_reference_t<R>, util::remove_reference_t<F>>(std::forward<L>(lhs), std::forward<R>(rhs), std::forward<F>(fn));
 }
 

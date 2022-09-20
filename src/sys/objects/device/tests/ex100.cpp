@@ -48,7 +48,7 @@ PetscErrorCode foo(PetscDeviceContext dctx) {
   ManagedReal y, z;
 
   PetscFunctionBegin;
-  PetscCall(x.assign(dctx, 2));
+  PetscCall(x.assign(dctx, 2, 0));
   auto xit   = x.begin();
   auto xitp1 = xit + 1;
   (void)xitp1;
@@ -132,9 +132,9 @@ PetscErrorCode bar() {
   PetscCall(view(dctx, scal2, "scal2"));
 
   std::cout << "=== assign\n";
-  PetscCall(scal2.assign(dctx, 2));
+  PetscCall(scal2.assign(dctx, 2, 0));
   PetscCall(view(dctx, scal2, "scal2"));
-  PetscCall(scal.clear(dctx));
+  PetscCall(scal.clear());
 
   PetscCall(foo(dctx));
 
