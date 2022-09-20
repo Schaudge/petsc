@@ -855,7 +855,7 @@ struct petsc_mpiu_scalar_int {
   PetscInt    i;
 };
 
-PETSC_EXTERN MPI_Datatype MPIU_REAL_INT   PETSC_ATTRIBUTE_MPI_TYPE_TAG_LAYOUT_COMPATIBLE(struct petsc_mpiu_real_int);
+PETSC_EXTERN MPI_Datatype MPIU_REAL_INT PETSC_ATTRIBUTE_MPI_TYPE_TAG_LAYOUT_COMPATIBLE(struct petsc_mpiu_real_int);
 PETSC_EXTERN MPI_Datatype MPIU_SCALAR_INT PETSC_ATTRIBUTE_MPI_TYPE_TAG_LAYOUT_COMPATIBLE(struct petsc_mpiu_scalar_int);
 
 #if defined(PETSC_USE_64BIT_INDICES)
