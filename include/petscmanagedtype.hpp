@@ -374,21 +374,43 @@ inline PetscErrorCode managed_storage<T>::assign(PetscDeviceContext dctx, const 
 
 namespace expr {
 
+// ==========================================================================================
+// ExpressionBase
+// ==========================================================================================
+
 template <typename D>
 struct ExpressionBase : util::crtp<D, ExpressionBase> {
   using size_type = std::size_t;
 
-  PETSC_NODISCARD size_type size() const noexcept { return this->underlying().size_impl_(); }
+  PETSC_NODISCARD size_type size() const noexcept;
 
-  PETSC_NODISCARD auto at(size_type idx) const noexcept { return this->underlying().at_impl_(idx); }
+  PETSC_NODISCARD auto expr_at(size_type) const noexcept;
 
   template <typename... Args>
-  PETSC_NODISCARD PetscErrorCode prefetch(PetscDeviceContext dctx, Args &&...args) const noexcept {
-    PetscFunctionBegin;
-    PetscCall(this->underlying().prefetch_impl_(dctx, std::forward<Args>(args)...));
-    PetscFunctionReturn(0);
-  }
+  PETSC_NODISCARD PetscErrorCode prefetch(PetscDeviceContext, Args &&...) const noexcept;
 };
+
+template <typename D>
+inline typename ExpressionBase<D>::size_type ExpressionBase<D>::size() const noexcept {
+  return this->underlying().size_impl_();
+}
+
+template <typename D>
+inline auto ExpressionBase<D>::expr_at(size_type idx) const noexcept {
+  return this->underlying().at_impl_(idx);
+}
+
+template <typename D>
+template <typename... Args>
+inline PetscErrorCode ExpressionBase<D>::prefetch(PetscDeviceContext dctx, Args &&...args) const noexcept {
+  PetscFunctionBegin;
+  PetscCall(this->underlying().prefetch_impl_(dctx, std::forward<Args>(args)...));
+  PetscFunctionReturn(0);
+}
+
+// ==========================================================================================
+// BinaryManagedExpression
+// ==========================================================================================
 
 template <typename L, typename R, typename F>
 class BinaryManagedExpression : public ExpressionBase<BinaryManagedExpression<L, R, F>> {
@@ -408,10 +430,10 @@ public:
   PETSC_NODISCARD size_type size_impl_() const noexcept { return lhs_.size(); };
 
   PETSC_NODISCARD auto at_impl_(size_type idx) const noexcept {
-    const auto &lhsv = lhs_.at(idx);
+    const auto &lhsv = lhs_.expr_at(idx);
 
     if (static_cast<const void *>(std::addressof(lhs_)) == static_cast<const void *>(std::addressof(rhs_))) return op_(lhsv, lhsv);
-    return op_(lhsv, rhs_.at(idx));
+    return op_(lhsv, rhs_.expr_at(idx));
   }
 
   template <typename... Args>
@@ -423,6 +445,10 @@ public:
   }
 };
 
+// ==========================================================================================
+// EvaluatedManagedExpression
+// ==========================================================================================
+
 template <typename T>
 class EvaluatedManagedExpression {
 public:
@@ -430,15 +456,15 @@ public:
   using size_type       = typename expression_type::size_type;
 
   template <typename U>
-  explicit EvaluatedManagedExpression(U &&expr, PetscDeviceContext ctx) noexcept : expr_(std::forward<U>(expr)), dctx_(ctx) {
+  explicit EvaluatedManagedExpression(U &&expr, PetscDeviceContext dctx) noexcept : expr_(std::forward<U>(expr)), dctx_(dctx) {
     PetscFunctionBegin;
-    PetscCallAbort(PETSC_COMM_SELF, expr.prefetch(ctx));
+    PetscCallAbort(PETSC_COMM_SELF, expr.prefetch(dctx));
     PetscFunctionReturnVoid();
   }
 
   PETSC_NODISCARD PetscDeviceContext dctx() const noexcept { return dctx_; }
   PETSC_NODISCARD size_type          size() const noexcept { return expr_.size(); }
-  PETSC_NODISCARD auto               at(size_type idx) const noexcept { return expr_.at(idx); }
+  PETSC_NODISCARD auto               expr_at(size_type idx) const noexcept { return expr_.expr_at(idx); }
   PETSC_NODISCARD PetscErrorCode     prefetch() const noexcept { return expr_.prefetch(dctx()); }
 
 private:
@@ -476,8 +502,18 @@ inline ProxyReference<T>::ProxyReference(managed_type *man, PetscDeviceContext d
 
 template <typename T>
 inline ProxyReference<T> &ProxyReference<T>::operator=(const value_type &val) noexcept {
+  const auto   fast_assign = man_->is_nosync_available(PETSC_MEMTYPE_HOST);
+  PetscMemType mtype;
+  value_type  *ptr;
+
   PetscFunctionBegin;
-  PetscCallAbort(PETSC_COMM_SELF, man_->assign(dctx_, idx_, val));
+  PetscAssertAbort(idx_ < man_->size(), PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Index %zu >= size %zu", idx_, man_->size());
+  PetscCallAbort(PETSC_COMM_SELF, man_->get_array_and_memtype(dctx_, PETSC_MEMORY_ACCESS_WRITE, &ptr, &mtype));
+  if (fast_assign && PetscMemTypeHost(mtype)) {
+    ptr[idx_] = val;
+  } else {
+    PetscCallAbort(PETSC_COMM_SELF, PetscDeviceArrayCopy(dctx_, std::next(ptr, idx_), std::addressof(val), 1));
+  }
   PetscFunctionReturn(*this);
 }
 
@@ -624,7 +660,6 @@ public:
   PETSC_NODISCARD PetscErrorCode get_array_and_memtype(PetscDeviceContext, PetscMemoryAccessMode, value_type **, PetscMemType * = nullptr) noexcept;
   PETSC_NODISCARD PetscErrorCode clear() noexcept;
   PETSC_NODISCARD PetscErrorCode reserve(PetscDeviceContext, size_type) noexcept;
-  PETSC_NODISCARD PetscErrorCode assign(PetscDeviceContext, size_type, const value_type &) noexcept;
   template <typename Iterator>
   PETSC_NODISCARD PetscErrorCode assign(PetscDeviceContext, Iterator, Iterator, PetscMemType) noexcept;
 
@@ -805,7 +840,7 @@ inline ManagedType<T>::ManagedType(const expr::EvaluatedManagedExpression<U> &ex
   PetscFunctionBegin;
   std::cout << "=== eval constructor\n";
   PetscCallAbort(PETSC_COMM_SELF, get_array(expr.dctx(), PETSC_MEMTYPE_HOST, PETSC_MEMORY_ACCESS_WRITE, PETSC_TRUE, &arr));
-  for (size_type i = 0; i < expr.size(); ++i) arr[i] = expr.at(i);
+  for (size_type i = 0; i < expr.size(); ++i) arr[i] = expr.expr_at(i);
   PetscFunctionReturnVoid();
 }
 
@@ -923,23 +958,6 @@ inline PetscErrorCode ManagedType<T>::reserve(PetscDeviceContext dctx, size_type
   // TODO reserve only what is possible to reserve!
   PetscCall(host_.reserve(dctx, n));
   PetscCall(device_.reserve(dctx, n));
-  PetscFunctionReturn(0);
-}
-
-template <typename T>
-inline PetscErrorCode ManagedType<T>::assign(PetscDeviceContext dctx, size_type idx, const value_type &val) noexcept {
-  const auto   fast_assign = is_nosync_available(PETSC_MEMTYPE_HOST);
-  PetscMemType mtype;
-  value_type  *ptr;
-
-  PetscFunctionBegin;
-  PetscAssert(idx < size(), PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Index %zu >= size %zu", idx, size());
-  PetscCall(get_array_and_memtype(dctx, PETSC_MEMORY_ACCESS_WRITE, &ptr, &mtype));
-  if (fast_assign && PetscMemTypeHost(mtype)) {
-    ptr[idx] = val;
-  } else {
-    PetscCall(PetscDeviceArrayCopy(dctx, std::next(ptr, idx), std::addressof(val), 1));
-  }
   PetscFunctionReturn(0);
 }
 

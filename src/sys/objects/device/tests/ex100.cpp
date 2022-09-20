@@ -48,9 +48,9 @@ PetscErrorCode foo(PetscDeviceContext dctx) {
   ManagedReal y, z;
 
   PetscFunctionBegin;
-  PetscCall(x.assign(dctx, 2, 0));
-  auto xit   = x.begin();
-  auto xitp1 = xit + 1;
+  x.at(dctx, 0) = 2;
+  auto xit      = x.begin();
+  auto xitp1    = xit + 1;
   (void)xitp1;
   std::cout << "loop begin ============================\n";
   for (auto v : x) { std::cout << v << std::endl; }
@@ -132,7 +132,7 @@ PetscErrorCode bar() {
   PetscCall(view(dctx, scal2, "scal2"));
 
   std::cout << "=== assign\n";
-  PetscCall(scal2.assign(dctx, 2, 0));
+  scal2.at(dctx, 0) = 2;
   PetscCall(view(dctx, scal2, "scal2"));
   PetscCall(scal.clear());
 
