@@ -577,7 +577,7 @@ static PetscErrorCode DMPlexEGADSLitePrintModel_Internal(ego model)
         double result[18];
         int    peri;
 
-        PetscCall(EGlite_indexBodyTopo(body, edge));
+        id = EGlite_indexBodyTopo(body, edge);
         PetscCall(PetscPrintf(PETSC_COMM_SELF, "            EDGE ID: %d (%d)\n", id, e));
 
         PetscCall(EGlite_getRange(edge, range, &peri));
@@ -602,7 +602,7 @@ static PetscErrorCode DMPlexEGADSLitePrintModel_Internal(ego model)
           int    dummy;
 
           PetscCall(EGlite_getTopology(vertex, &geom, &oclass, &mtype, limits, &dummy, &mobjs, &senses));
-          PetscCall(EGlite_indexBodyTopo(body, vertex));
+          id = EGlite_indexBodyTopo(body, vertex);
           PetscCall(PetscPrintf(PETSC_COMM_SELF, "              NODE ID: %d \n", id));
           PetscCall(PetscPrintf(PETSC_COMM_SELF, "                 (x, y, z) = (%lf, %lf, %lf) \n", limits[0], limits[1], limits[2]));
 
