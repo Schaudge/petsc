@@ -40,6 +40,8 @@ PETSC_INTERN PetscErrorCode PetscSFSetUp_Allgatherv(PetscSF sf) {
   PetscCall(PetscSFSetUp_Allgather(sf));
   PetscCallMPI(MPI_Comm_size(PetscObjectComm((PetscObject)sf), &size));
   if (sf->nleaves) { /* This if (sf->nleaves) test makes sfgatherv able to inherit this routine */
+    PetscBool isallgatherv;
+
     PetscCall(PetscMalloc1(size, &dat->recvcounts));
     PetscCall(PetscMalloc1(size, &dat->displs));
     PetscCall(PetscLayoutGetRanges(sf->map, &range));
@@ -47,6 +49,23 @@ PETSC_INTERN PetscErrorCode PetscSFSetUp_Allgatherv(PetscSF sf) {
     for (i = 0; i < size; i++) {
       PetscCall(PetscMPIIntCast(range[i], &dat->displs[i]));
       PetscCall(PetscMPIIntCast(range[i + 1] - range[i], &dat->recvcounts[i]));
+    }
+
+    /* check if we actually have a one-to-all pattern */
+    PetscCall(PetscObjectTypeCompare((PetscObject)sf, PETSCSFALLGATHERV, &isallgatherv));
+    if (isallgatherv) {
+      PetscMPIInt rank, zerosend[2];
+
+      zerosend[0] = (PetscMPIInt)(!sf->nroots);
+      PetscCallMPI(MPIU_Allreduce(zerosend, zerosend + 1, 1, MPI_INT, MPI_SUM, PetscObjectComm((PetscObject)sf)));
+      if (zerosend[1] == size - 1) {
+        PetscCallMPI(MPI_Comm_rank(PetscObjectComm((PetscObject)sf), &rank));
+        PetscCall(PetscMPIIntCast(sf->nroots, &zerosend[0]));
+        zerosend[1] = sf->nroots > 0 ? rank : -1;
+        PetscCallMPI(MPIU_Allreduce(MPI_IN_PLACE, zerosend, 2, MPI_INT, MPI_MAX, PetscObjectComm((PetscObject)sf)));
+        dat->master_roots = zerosend[0];
+        dat->master       = zerosend[1];
+      }
     }
   }
   PetscFunctionReturn(0);
@@ -94,7 +113,13 @@ static PetscErrorCode PetscSFBcastBegin_Allgatherv(PetscSF sf, MPI_Datatype unit
   PetscCall(PetscMPIIntCast(sf->nroots, &sendcount));
   PetscCall(PetscSFLinkGetMPIBuffersAndRequests(sf, link, PETSCSF_ROOT2LEAF, &rootbuf, &leafbuf, &req, NULL));
   PetscCall(PetscSFLinkSyncStreamBeforeCallMPI(sf, link, PETSCSF_ROOT2LEAF));
-  PetscCallMPI(MPIU_Iallgatherv(rootbuf, sendcount, unit, leafbuf, dat->recvcounts, dat->displs, unit, comm, req));
+  if (dat->master >= 0) {
+    PetscMPIInt rank;
+
+    PetscCallMPI(MPI_Comm_rank(PetscObjectComm((PetscObject)sf), &rank));
+    if (rank == dat->master) PetscCall((*link->Memcpy)(link, leafmtype, leafbuf, rootmtype, rootdata, (size_t)sendcount * link->unitbytes));
+    PetscCallMPI(MPIU_Ibcast(leafbuf, dat->master_roots, unit, dat->master, comm, req));
+  } else PetscCallMPI(MPIU_Iallgatherv(rootbuf, sendcount, unit, leafbuf, dat->recvcounts, dat->displs, unit, comm, req));
   PetscFunctionReturn(0);
 }
 
@@ -115,23 +140,26 @@ static PetscErrorCode PetscSFReduceBegin_Allgatherv(PetscSF sf, MPI_Datatype uni
     PetscCall((*link->Memcpy)(link, rootmtype, rootdata, leafmtype, (const char *)leafdata + (size_t)rstart * link->unitbytes, (size_t)sf->nroots * link->unitbytes));
     if (PetscMemTypeDevice(leafmtype) && PetscMemTypeHost(rootmtype)) PetscCall((*link->SyncStream)(link));
   } else {
-    /* Reduce leafdata, then scatter to rootdata */
     PetscCall(PetscObjectGetComm((PetscObject)sf, &comm));
     PetscCallMPI(MPI_Comm_rank(comm, &rank));
     PetscCall(PetscSFLinkPackLeafData(sf, link, PETSCSF_REMOTE, leafdata));
     PetscCall(PetscSFLinkCopyLeafBufferInCaseNotUseGpuAwareMPI(sf, link, PETSC_TRUE /* device2host before sending */));
     PetscCall(PetscSFLinkGetMPIBuffersAndRequests(sf, link, PETSCSF_LEAF2ROOT, &rootbuf, &leafbuf, &req, NULL));
-    PetscCall(PetscMPIIntCast(dat->rootbuflen[PETSCSF_REMOTE], &recvcount));
-    /* Allocate a separate leaf buffer on rank 0 */
-    if (rank == 0 && !link->leafbuf_alloc[PETSCSF_REMOTE][link->leafmtype_mpi]) {
-      PetscCall(PetscSFMalloc(sf, link->leafmtype_mpi, sf->leafbuflen[PETSCSF_REMOTE] * link->unitbytes, (void **)&link->leafbuf_alloc[PETSCSF_REMOTE][link->leafmtype_mpi]));
+    if (dat->master > 0) {
+      PetscCallMPI(MPIU_Ireduce(leafbuf, rootbuf, dat->master_roots, unit, op, dat->master, comm, req));
+    } else { /* Reduce leafdata, then scatter to rootdata */
+      PetscCall(PetscMPIIntCast(dat->rootbuflen[PETSCSF_REMOTE], &recvcount));
+      /* Allocate a separate leaf buffer on rank 0 */
+      if (rank == 0 && !link->leafbuf_alloc[PETSCSF_REMOTE][link->leafmtype_mpi]) {
+        PetscCall(PetscSFMalloc(sf, link->leafmtype_mpi, sf->leafbuflen[PETSCSF_REMOTE] * link->unitbytes, (void **)&link->leafbuf_alloc[PETSCSF_REMOTE][link->leafmtype_mpi]));
+      }
+      /* In case we already copied leafdata from device to host (i.e., no use_gpu_aware_mpi), we need to adjust leafbuf on rank 0 */
+      if (rank == 0 && link->leafbuf_alloc[PETSCSF_REMOTE][link->leafmtype_mpi] == leafbuf) leafbuf = MPI_IN_PLACE;
+      PetscCall(PetscMPIIntCast(sf->nleaves * link->bs, &count));
+      PetscCall(PetscSFLinkSyncStreamBeforeCallMPI(sf, link, PETSCSF_LEAF2ROOT));
+      PetscCallMPI(MPI_Reduce(leafbuf, link->leafbuf_alloc[PETSCSF_REMOTE][link->leafmtype_mpi], count, link->basicunit, op, 0, comm)); /* Must do reduce with MPI builtin datatype basicunit */
+      PetscCallMPI(MPIU_Iscatterv(link->leafbuf_alloc[PETSCSF_REMOTE][link->leafmtype_mpi], dat->recvcounts, dat->displs, unit, rootbuf, recvcount, unit, 0, comm, req));
     }
-    /* In case we already copied leafdata from device to host (i.e., no use_gpu_aware_mpi), we need to adjust leafbuf on rank 0 */
-    if (rank == 0 && link->leafbuf_alloc[PETSCSF_REMOTE][link->leafmtype_mpi] == leafbuf) leafbuf = MPI_IN_PLACE;
-    PetscCall(PetscMPIIntCast(sf->nleaves * link->bs, &count));
-    PetscCall(PetscSFLinkSyncStreamBeforeCallMPI(sf, link, PETSCSF_LEAF2ROOT));
-    PetscCallMPI(MPI_Reduce(leafbuf, link->leafbuf_alloc[PETSCSF_REMOTE][link->leafmtype_mpi], count, link->basicunit, op, 0, comm)); /* Must do reduce with MPI builltin datatype basicunit */
-    PetscCallMPI(MPIU_Iscatterv(link->leafbuf_alloc[PETSCSF_REMOTE][link->leafmtype_mpi], dat->recvcounts, dat->displs, unit, rootbuf, recvcount, unit, 0, comm, req));
   }
   PetscFunctionReturn(0);
 }
@@ -305,7 +333,7 @@ PETSC_INTERN PetscErrorCode PetscSFGetLeafRanks_Allgatherv(PetscSF sf, PetscInt 
         dat->iranks[j++] = i;
       }
     }
-    *iranks = dat->iranks; /* dat->iranks was init'ed to NULL by PetscNewLog */
+    *iranks = dat->iranks; /* dat->iranks was init'ed to NULL by PetscNew */
   }
 
   if (ioffset) {
@@ -374,6 +402,7 @@ PETSC_INTERN PetscErrorCode PetscSFCreate_Allgatherv(PetscSF sf) {
   sf->ops->BcastToZero     = PetscSFBcastToZero_Allgatherv;
 
   PetscCall(PetscNew(&dat));
-  sf->data = (void *)dat;
+  dat->master = -1;
+  sf->data    = (void *)dat;
   PetscFunctionReturn(0);
 }

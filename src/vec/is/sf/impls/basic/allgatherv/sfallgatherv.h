@@ -8,6 +8,9 @@
 typedef struct {
   SFBASICHEADER;
   PetscMPIInt *displs, *recvcounts;
+  /* special treatment for one-to-all patterns detected at setup time */
+  PetscMPIInt  master;
+  PetscMPIInt  master_roots;
 } PetscSF_Allgatherv;
 
 PETSC_INTERN PetscErrorCode PetscSFSetUp_Allgather(PetscSF);
