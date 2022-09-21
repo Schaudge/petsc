@@ -4,6 +4,7 @@
 #include <petsc/private/petscimpl.h> // PetscValidPointer()
 #include <petsc/private/cpp/register_finalize.hpp>
 #include <petsc/private/cpp/type_traits.hpp> // remove_extent
+#include <petsc/private/cpp/utility.hpp>     // exchange
 
 #if defined(__cplusplus)
 #include <memory>
@@ -56,11 +57,20 @@ typename detail::unique_if<T>::unique_array_known_bound make_unique(Args &&...) 
 namespace memory {
 
 class PoolAllocator : public RegisterFinalizeable<PoolAllocator> {
+  using base_type = RegisterFinalizeable<PoolAllocator>;
+
 public:
   using size_type      = std::size_t;
   using container_type = std::stack<void *>;
 
   explicit PoolAllocator(size_type = 0) noexcept;
+
+  // a memory pool cannot be copied
+  PoolAllocator(const PoolAllocator &) noexcept            = delete;
+  PoolAllocator &operator=(const PoolAllocator &) noexcept = delete;
+
+  PoolAllocator(PoolAllocator &&) noexcept;
+  PoolAllocator &operator=(PoolAllocator &&) noexcept;
 
   PETSC_NODISCARD size_type      block_size() const noexcept;
   PETSC_NODISCARD PetscErrorCode set_block_size(size_type) noexcept;
@@ -73,12 +83,25 @@ private:
   size_type      max_block_size_ = 0; // maximum block_size that block_size has ever been
   container_type stack_{};
 
-  friend class RegisterFinalizeable<PoolAllocator>;
+  friend base_type;
   // needed so that RegisterFinalizeable sees private finalize_()
   PETSC_NODISCARD PetscErrorCode finalize_() noexcept;
 };
 
 inline PoolAllocator::PoolAllocator(size_type block_size) noexcept : block_size_(block_size), max_block_size_(block_size) { }
+
+inline PoolAllocator::PoolAllocator(PoolAllocator &&other) noexcept : base_type(std::move(other)), block_size_(util::exchange(other.block_size_, 0)), max_block_size_(util::exchange(other.max_block_size_, 0)), stack_(std::move(other.stack_)) { }
+
+inline PoolAllocator &PoolAllocator::operator=(PoolAllocator &&other) noexcept {
+  PetscFunctionBegin;
+  if (this != &other) {
+    base_type::operator=(std::move(other));
+    block_size_     = util::exchange(other.block_size_, 0);
+    max_block_size_ = util::exchange(other.max_block_size_, 0);
+    stack_          = std::move(other.stack_);
+  }
+  PetscFunctionReturn(*this);
+}
 
 inline typename PoolAllocator::size_type PoolAllocator::block_size() const noexcept {
   return block_size_;
