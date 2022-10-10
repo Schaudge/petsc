@@ -31,7 +31,8 @@ bibliography: paper.bib
 # Summary
 
 "Staggered grid" codes arise in many applications, where a physical problem is discretized and solved in terms of unknowns located at different locations on a structured grid. For example, the Navier-Stokes and Stokes equations can be solved on a staggered grid with the classical Marker and Cell (MAC) method [@HarlowWelch1965], storing pressure unknowns in element centers and velocities on element boundaries. This gives a simple and compact method which exhibits superior numerical properties to colocated grid methods which consider all unknowns to be located on the same grid of points.
-DMStag is a component of [PETSc](https://petsc.org) [@BalayEtAl2022;@BalayEtAl2022b], the Portable, Extensible Toolkit for Scientific Computation, an MPI-parallel C library which is widely used to perform very large simulations in computational science and engineering. DMStag is a new implementation of the `DM` (Domain Management) class to provide a native abstraction for defining and solving partial differential equations (PDEs) on structured, staggered grids, in parallel . With DMStag, one can write code which will run on any number of MPI ranks and rely on the `DM` API to work with global vectors representing the full discretized problem, and with regularly-blocked local vectors on the overlapping local patch upon which lower-level computations are performed. This allows users to scale codes to thousands of processors, and provides a platform upon which to compose the advanced, scalable PDE solvers, and to leverage various computational backends, notably including GPUs [@MillsEtAl2021].
+
+DMStag is a component of [PETSc](https://petsc.org) [@BalayEtAl2022;@BalayEtAl2022b], the Portable, Extensible Toolkit for Scientific Computation, an MPI-parallel C library which is widely used to perform very large simulations in computational science and engineering. DMStag is a new implementation of the `DM` (Domain Management)  to provide a native abstraction for defining and solving partial differential equations (PDEs) on structured, staggered grids, in parallel. With DMStag, as with other DM implementations in PETSc, one can write code which will run on any number of MPI ranks and rely on the `DM` API to work with global vectors representing the full discretized problem, and with regularly-blocked local vectors on the overlapping local patch upon which lower-level computations are performed. This allows users to scale codes to thousands of processors, and provides a platform upon which to compose the advanced, scalable PDE solvers, and to leverage various computational backends, notably including GPUs [@MillsEtAl2021].
 
 DMStag provides a simple API, similar to that for the DMDA class, to allow a user to create and interact with objects which (like all `DM` objects) represent
 
@@ -40,6 +41,7 @@ DMStag provides a simple API, similar to that for the DMDA class, to allow a use
   3. A *field* assigning sets of scalar unknowns to each point in the topological space (here, a constant number of unknown "DOFs" for each point in a given *stratum*, defined as cells of a given dimension)
   4. A special field for coordinates of each point
 
+DMStag is included with and requires PETSc. As of PETSc 3.17, the vast majority of the source code to implement DMStag can be found in `src/dm/impls/stag/`, `include/petscdmstag.h` and `include/petsc/private/dmstagimpl.h`.
 For more information, please consult the [PETSc manual chapter on DMStag](https://petsc.org/main/docs/manual/dmstag/) and the [DMStag manual pages](https://petsc.org/main/docs/manualpages/DMSTAG).
 
 # Statement of need
@@ -55,13 +57,29 @@ We are not aware of any directly-comparable general-purpose frameworks. In many 
 
 A few example codes are available with PETSc, currently in `src/dm/impls/stag/tutorials`. Additional codes in `src/dm/impls/stag/tests` are used for testing.
 
-Example `ex6` modifies a simple velocity-stress formulation for seismic wave propagation [@Virieux1986] to operate in 3D: this shows usage of much of the basic API of DMStag to perform explicit time-stepping of fields associated with multiple, compatible DMStag objects. \autoref{fig:ex6} shows one component of the velocity from one timestep of a 2D simulation with this code.
+Example `ex6` modifies a simple velocity-stress formulation for seismic wave propagation [@Virieux1986] to operate in 3D: this shows usage of much of the basic API of DMStag to perform explicit time-stepping of fields associated with multiple, compatible DMStag objects. \autoref{fig:ex6} shows one component of the velocity from one timestep of a 2D simulation with this code. This was generated with Paraview, loading output from frame 485 generated with
 
-![$y$ velocity for a single timestep of a seismic wave simulation generated with DMStag `ex6`.\label{fig:ex6}](https://github.com/psanan/dmstag_joss_temp/raw/main/dmstag_joss_paper_images/ex6.png)
+     # Configure and build PETSC, set PETSC_DIR and PETSC_ARCH to working values
+     cd $PETSC_DIR/src/dm/impls/stag/tutorials
+     make ex6
+     ./ex6 -nsteps 1000 -stag_grid_x 1000 -stag_grid_y 1000 -dt 4e-4
 
-Example `ex4` solves the variable-viscosity, stationary Stokes equations with finite differences (see e.g. @Gerya2019). This demonstrates assembling and solving an explicit linear system. \autoref{fig:ex4} shows a flow field generated with this code.
+![$y$ velocity for a single timestep of a seismic wave simulation generated with DMStag `ex6` on a $1000^2$ element discretization of the unit square.\label{fig:ex6}](https://github.com/psanan/dmstag_joss_temp/raw/main/dmstag_joss_paper_images/ex6.png){width=60%}
 
-![Flow field for stationary Stokes flow around a cubic, high-viscosity inclusion, inspired by a benchmark setup from @FuruichiMayTackley2011 and computed with DMStag tutorial `ex4`.\label{fig:ex4}](https://github.com/psanan/dmstag_joss_temp/raw/main/dmstag_joss_paper_images/ex4.png)
+Example `ex4` solves the variable-viscosity, stationary Stokes equations with finite differences (see e.g. @Gerya2019). This demonstrates assembling and solving an explicit linear system. \autoref{fig:ex4} shows a flow field generated with this code, by using Paraview to visualize `.vtr` files generated with
+
+     # Configure and build PETSC, set PETSC_DIR and PETSC_ARCH to working values
+     cd $PETSC_DIR/src/dm/impls/stag/tutorials
+     make ex4
+	 ./ex4 -dim 3 -s 64 -coefficients sinker_box -isoviscous -nondimensional \
+         -ksp_type fgmres -pc_type fieldsplit -pc_fieldsplit_type schur \
+         -pc_fieldsplit_schur_fact_type upper \
+         -fieldsplit_element_ksp_type preonly -fieldsplit_element_pc_type none \
+         -fieldsplit_face_pc_type mg -fieldsplit_face_pc_mg_levels 5 \
+         -fieldsplit_face_pc_mg_galerkin -fieldsplit_face_mg_levels_ksp_max_it 6 \
+         -dump_solution
+
+![Flow field for stationary Stokes flow around a cubic inclusion, inspired by a benchmark setup from @FuruichiMayTackley2011 and computed with DMStag tutorial `ex4`. This solves the isoviscous Stokes equations, driven by a density anomaly in the inclusion, on a $64^3$ element regular decomposition of the unit cube.\label{fig:ex4}](https://github.com/psanan/dmstag_joss_temp/raw/main/dmstag_joss_paper_images/ex4.png){width=60%}
 
 # Acknowledgements
 
