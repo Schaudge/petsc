@@ -139,6 +139,11 @@ PETSC_EXTERN PetscErrorCode DMPlexRestoreTransitiveClosure(DM, PetscInt, PetscBo
 PETSC_EXTERN PetscErrorCode DMPlexGetCompressedClosure(DM, PetscSection, PetscInt, PetscInt *, PetscInt **, PetscSection *, IS *, const PetscInt **);
 PETSC_EXTERN PetscErrorCode DMPlexRestoreCompressedClosure(DM, PetscSection, PetscInt, PetscInt *, PetscInt **, PetscSection *, IS *, const PetscInt **);
 
+/* MyCustom topological stuff */ 
+
+PETSC_EXTERN PetscErrorCode DMPlexDisjointUnion_Topological_Section(DM*, PetscInt, DM*, PetscSection*); 
+PETSC_EXTERN PetscErrorCode DMPlexDisjointUnion_Geometric_Section(DM*, PetscInt, DM*, PetscSection*); 
+
 /* Mesh Generation */
 PETSC_EXTERN PetscErrorCode DMPlexGenerate(DM, const char [], PetscBool , DM *);
 PETSC_EXTERN PetscErrorCode DMPlexCopyCoordinates(DM, DM);
