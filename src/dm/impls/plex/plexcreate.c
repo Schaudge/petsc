@@ -4189,3 +4189,107 @@ PetscErrorCode DMPlexCreateFromFile(MPI_Comm comm, const char filename[], const 
   ierr = PetscLogEventEnd(DMPLEX_CreateFromFile,0,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
+static PetscErrorCode DMPlexCreateEmbeddedLineMesh_Internal(DM dm, PetscInt dim, const PetscReal lower[], const PetscReal upper[], const PetscInt edges)
+{
+  const PetscInt numVertices    = edges+1;
+  const PetscInt numEdges       = edges;
+  PetscInt       markerRight    = 1;
+  PetscInt       markerLeft     = 1;
+  PetscBool      markerSeparate = PETSC_FALSE;
+  Vec            coordinates;
+  PetscSection   coordSection;
+  PetscScalar   *coords;
+  PetscInt       coordSize;
+  PetscMPIInt    rank;
+  PetscInt       v,e,d;
+  PetscErrorCode ierr; 
+
+  PetscFunctionBegin;
+  ierr = PetscOptionsGetBool(((PetscObject) dm)->options,((PetscObject) dm)->prefix, "-dm_plex_separate_marker", &markerSeparate, NULL);CHKERRQ(ierr);
+  if (markerSeparate) {
+    markerRight  = 2;
+    markerLeft   = 1;
+  }
+  MPI_Comm_rank(PetscObjectComm((PetscObject)dm), &rank);
+  if (!rank) {
+    PetscInt cone[2],vertex; 
+
+    ierr = DMPlexSetChart(dm, 0, numEdges+numVertices);CHKERRQ(ierr);
+    for (e = 0; e < numEdges; ++e) {
+      ierr = DMPlexSetConeSize(dm, e, 2);CHKERRQ(ierr);
+    }
+    ierr = DMSetUp(dm);CHKERRQ(ierr); /* Allocate space for cones */
+    for (e=0; e<numEdges; e++) {
+      vertex = e+numEdges; 
+      cone[0] = vertex; cone[1] = vertex+1;
+      ierr = DMPlexSetCone(dm, e, cone);CHKERRQ(ierr);
+    }
+    ierr = DMSetLabelValue(dm, "marker", numEdges, markerLeft);CHKERRQ(ierr);
+    ierr = DMSetLabelValue(dm, "marker", numEdges+numVertices-1, markerRight);CHKERRQ(ierr);
+  }
+  ierr = DMPlexSymmetrize(dm);CHKERRQ(ierr);
+  ierr = DMPlexStratify(dm);CHKERRQ(ierr);
+  /* Build coordinates */
+  ierr = DMSetCoordinateDim(dm, dim);CHKERRQ(ierr);
+  if (!rank) {
+    ierr = DMGetCoordinateSection(dm, &coordSection);CHKERRQ(ierr);
+    ierr = PetscSectionSetNumFields(coordSection, 1);CHKERRQ(ierr);
+    ierr = PetscSectionSetChart(coordSection, 0, numVertices+numEdges);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldComponents(coordSection, 0, dim);CHKERRQ(ierr);
+    for (v = numEdges; v < numVertices+numEdges; ++v) {
+      ierr = PetscSectionSetDof(coordSection, v, dim);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldDof(coordSection, v, 0, dim);CHKERRQ(ierr);
+    }
+    ierr = PetscSectionSetUp(coordSection);CHKERRQ(ierr);
+    ierr = PetscSectionGetStorageSize(coordSection, &coordSize);CHKERRQ(ierr);
+    ierr = VecCreate(PETSC_COMM_SELF, &coordinates);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) coordinates, "coordinates");CHKERRQ(ierr);
+    ierr = VecSetSizes(coordinates, coordSize, PETSC_DETERMINE);CHKERRQ(ierr);
+    ierr = VecSetBlockSize(coordinates, dim);CHKERRQ(ierr);
+    ierr = VecSetType(coordinates,VECSTANDARD);CHKERRQ(ierr);
+    ierr = VecGetArray(coordinates, &coords);CHKERRQ(ierr);
+    for(v = 0; v < numVertices; v++){
+      for(d=0; d<dim; d++){
+        coords[d+v*dim] = lower[d] + (PetscReal) v/ (PetscReal) numEdges * (upper[d]-lower[d]);
+      }
+    }
+    ierr = VecRestoreArray(coordinates, &coords);CHKERRQ(ierr);
+    ierr = DMSetCoordinatesLocal(dm, coordinates);CHKERRQ(ierr);
+    ierr = VecDestroy(&coordinates);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+/*@C
+  DMPlexCreateEmbeddedLineMesh - Creates a mesh on the surface of the tensor product of unit intervals (box) using tensor cells (hexahedra).
+
+  Collective
+
+  Input Parameters:
++ comm        - The communicator for the DM object
+. dim         - The spatial dimension of the line
+. cells       - Number of cells in the line
+. lower       - The lower left corner, or NULL for (0, 0, 0)
+. upper       - The upper right corner, or NULL for (1, 1, 1)
+
+  Output Parameter:
+. dm  - The DM object
+
+  Level: beginner
+
+.seealso: `DMSetFromOptions()`, `DMPlexCreateBoxMesh()`, `DMPlexCreateFromFile()`, `DMSetType()`, `DMCreate()`
+@*/
+PetscErrorCode DMPlexCreateEmbeddedLineMesh(MPI_Comm comm, PetscInt dim, const PetscInt cells, const PetscReal lower[], const PetscReal upper[], DM *dm)
+{
+  PetscInt       fac = 1;
+  PetscReal      low[3] = {0, 0, 0};
+  PetscReal      upp[3] = {1, 1, 1};
+  PetscErrorCode ierr; 
+
+  PetscFunctionBegin;
+  ierr = DMCreate(comm,dm);CHKERRQ(ierr);
+  ierr = DMSetType(*dm,DMPLEX);CHKERRQ(ierr);
+  ierr = DMSetDimension(*dm,1);CHKERRQ(ierr);
+  ierr = DMPlexCreateEmbeddedLineMesh_Internal(*dm, dim, lower ? lower : low, upper ? upper : upp, cells ? cells : fac);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}

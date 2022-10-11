@@ -144,6 +144,8 @@ PETSC_EXTERN PetscErrorCode DMPlexRestoreCompressedClosure(DM, PetscSection, Pet
 
 PETSC_EXTERN PetscErrorCode DMPlexDisjointUnion_Topological_Section(DM*, PetscInt, DM*, PetscSection*); 
 PETSC_EXTERN PetscErrorCode DMPlexDisjointUnion_Geometric_Section(DM*, PetscInt, DM*, PetscSection*); 
+PETSC_EXTERN PetscErrorCode DMPlexCreateEmbeddedLineMesh(MPI_Comm , PetscInt , const PetscInt , const PetscReal[], const PetscReal[], DM*);
+
 
 /* Mesh Generation */
 PETSC_EXTERN PetscErrorCode DMPlexGenerate(DM, const char [], PetscBool , DM *);

@@ -153,7 +153,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
     case 3:
     /* Case 3: (Image is for the case we ndaughers = 2. The number of out branches is given by dgnet->ndaughers */
     /* =================================================
-    (OUTFLOW) v0 --E0--> v1--E1--> v2  (OUTFLOW)
+    (OUTFLOW) v1 --E0--> v0-E1--> v2  (OUTFLOW)
                           |
                           E2
                           |
@@ -178,7 +178,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
       edgelist[1] = 1;
       /* Daughter Branches (pointing out from v1) */
       for (i=1; i<dgnet->ndaughters+1; ++i) {
-        edgelist[2*i]   = 1;
+        edgelist[2*i]   = 0;
         edgelist[2*i+1] = i+1;
       }
       /* Add network components */
@@ -190,17 +190,14 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
       PetscReal theta;
       theta = 2.*PETSC_PI/(dgnet->ndaughters+1);
       /*daughters */
-      for (i=2; i<dgnet->ndaughters+2; ++i) {
+      for (i=1; i<dgnet->ndaughters+2; ++i) {
         junctions[i].x = dgnet->length*PetscCosReal(theta*(i-1)+PETSC_PI);
-        junctions[i].y = dgnet->length*(theta*(i-1)+PETSC_PI);
+        junctions[i].y = dgnet->length*PetscSinReal(theta*(i-1)+PETSC_PI);
       }
-      /*parent */
-        junctions[0].x = -dgnet->length;
+      /* center */
+        junctions[0].x =0.0;
         junctions[0].y =0.0;
 
-      /*center */
-      junctions[1].x = 0.0;
-      junctions[1].y = 0.0;
       /* Edge */
       fvedges[0].nnodes = Mx;
       for(i=1; i<dgnet->ndaughters+1; ++i) {
@@ -1880,7 +1877,7 @@ PetscErrorCode DGNetworkCreateNetworkDMPlex_2D(DGNetwork dgnet,const PetscInt ed
   PetscErrorCode ierr;
   PetscInt       i=0,e,eStart,eEnd,cStart,cEnd;
   PetscInt       vfrom,vto; 
-  DM             *dmlist, network = dgnet->network,dmunion;
+  DM             *dmlist, network = dgnet->network,dmunion,dmtemp;
   const PetscInt *cone;
   EdgeFE         edgefe;
   Junction       junct; 
@@ -1893,7 +1890,7 @@ PetscErrorCode DGNetworkCreateNetworkDMPlex_2D(DGNetwork dgnet,const PetscInt ed
     ierr = DMNetworkGetEdgeRange(network,&eStart,&eEnd);CHKERRQ(ierr);
     ierr = PetscMalloc1(eEnd-eStart,&dmlist);CHKERRQ(ierr);
 
-    thickness = dgnet->edgethickness <= 0 ? 0.1 : dgnet->edgethickness;
+    thickness = dgnet->edgethickness <= 0 ? 0.5 : dgnet->edgethickness;
     for (e=eStart; e<eEnd; e++) {
       ierr = DMNetworkGetComponent(network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
       ierr = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);
@@ -1912,10 +1909,12 @@ PetscErrorCode DGNetworkCreateNetworkDMPlex_2D(DGNetwork dgnet,const PetscInt ed
 
       lower[0] = junct->x; lower[1] = junct->y; 
       lower[0] -= thickness*n[0]; lower[1] -= thickness*n[1];
-      upper[0] += thickness*n[0]; upper[1] += thickness*n[1];
+      upper[0] -= thickness*n[0]; upper[1] -= thickness*n[1];
 
-      
-      ierr = DMPlexCreateBoxMesh(PETSC_COMM_SELF, 2, PETSC_FALSE, faces, lower, upper, NULL, PETSC_TRUE, &dmlist[i]);CHKERRQ(ierr);
+      ierr = DMPlexCreateEmbeddedLineMesh(PETSC_COMM_SELF,2,faces[0],lower,upper,&dmtemp);CHKERRQ(ierr);
+      ierr = DMPlexExtrude(dmtemp,1,thickness*2,PETSC_FALSE,PETSC_FALSE,n,NULL,&dmlist[i]);CHKERRQ(ierr);
+      ierr = DMDestroy(&dmtemp);CHKERRQ(ierr);
+     // ierr = DMPlexCreateBoxMesh(PETSC_COMM_SELF, 2, PETSC_FALSE, faces, lower, upper, NULL, PETSC_TRUE, &dmlist[i]);CHKERRQ(ierr);
       ierr = DGNetworkCreateViewDM2(dmlist[i++]);CHKERRQ(ierr);
     }
     *numdm = i;
