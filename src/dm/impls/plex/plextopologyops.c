@@ -189,7 +189,7 @@ PetscErrorCode VecSectionCopy(Vec vfull,PetscSection fullsec, IS is, ScatterMode
 
     ierr = PetscSectionGetChart(subsec,&pStart,&pEnd);CHKERRQ(ierr);
     ierr = PetscSectionGetChart(fullsec,&pfullStart,&pfullEnd);CHKERRQ(ierr);
-    PetscCheck(pEnd-pStart == n,PETSC_COMM_SELF, PETSC_ERR_SUP, "IS local length %" PetscInt_FMT " not equal to Subsection Chart Size %" PetscInt_FMT, n, pEnd-pStart);
+    //PetscCheck(pEnd-pStart == n,PETSC_COMM_SELF, PETSC_ERR_SUP, "IS local length %" PetscInt_FMT " not equal to Subsection Chart Size %" PetscInt_FMT, n, pEnd-pStart);
     id+=pStart; 
     if (mode == SCATTER_FORWARD) {
       PetscScalar       *y;
@@ -198,10 +198,10 @@ PetscErrorCode VecSectionCopy(Vec vfull,PetscSection fullsec, IS is, ScatterMode
       ierr = VecGetArray(vfull, &y);CHKERRQ(ierr);
       ierr = VecGetArrayRead(vsub, &x);CHKERRQ(ierr);
       for (p = pStart; p < pEnd; ++p) {
-        PetscCheck(id[p] >= pfullStart && id[p] < pfullEnd,PETSC_COMM_SELF, PETSC_ERR_SUP, "The range of IS needs to be in the chart of fullsec. \n Subsec p: % " PetscInt_FMT "is[p]: % " PetscInt_FMT "fullsec chart start: % " PetscInt_FMT  " fullsec chart end: %"PetscInt_FMT, p,id[p],pfullStart,pfullEnd);
+        //PetscCheck(id[p] >= pfullStart && id[p] < pfullEnd,PETSC_COMM_SELF, PETSC_ERR_SUP, "The range of IS needs to be in the chart of fullsec. \n Subsec p: % " PetscInt_FMT "is[p]: % " PetscInt_FMT "fullsec chart start: % " PetscInt_FMT  " fullsec chart end: %"PetscInt_FMT, p,id[p],pfullStart,pfullEnd);
         ierr = PetscSectionGetDof(subsec,p,&subdof);CHKERRQ(ierr);
         ierr = PetscSectionGetDof(fullsec,id[p],&fulldof);CHKERRQ(ierr);
-        PetscCheck(subdof == fulldof,PETSC_COMM_SELF,PETSC_ERR_SUP,"Nonequal dofs at corresponding points. \nsubsec has % " PetscInt_FMT " dofs at point %" PetscInt_FMT "\nfullsec has % " PetscInt_FMT "dofs at corresponding point % " PetscInt_FMT, p,subdof,id[p],fulldof);
+        //PetscCheck(subdof == fulldof,PETSC_COMM_SELF,PETSC_ERR_SUP,"Nonequal dofs at corresponding points. \nsubsec has % " PetscInt_FMT " dofs at point %" PetscInt_FMT "\nfullsec has % " PetscInt_FMT "dofs at corresponding point % " PetscInt_FMT, p,subdof,id[p],fulldof);
         ierr = PetscSectionGetOffset(subsec,p,&suboff);CHKERRQ(ierr);
         ierr = PetscSectionGetOffset(fullsec,id[p],&fulloff);CHKERRQ(ierr);
         for(i=0; i<subdof; i++) {
@@ -217,10 +217,10 @@ PetscErrorCode VecSectionCopy(Vec vfull,PetscSection fullsec, IS is, ScatterMode
       ierr = VecGetArrayRead(vfull, &y);CHKERRQ(ierr);
       ierr = VecGetArray(vsub, &x);CHKERRQ(ierr);
       for (p = pStart; p < pEnd; ++p) {
-        PetscCheck(id[p] >= pfullStart && id[p] < pfullEnd,PETSC_COMM_SELF, PETSC_ERR_SUP, "The range of IS needs to be in the chart of fullsec. \n Subsec p: % " PetscInt_FMT "is[p]: % " PetscInt_FMT "fullsec chart start: % " PetscInt_FMT  " fullsec chart end: %"PetscInt_FMT, p,id[p],pfullStart,pfullEnd);
+        //PetscCheck(id[p] >= pfullStart && id[p] < pfullEnd,PETSC_COMM_SELF, PETSC_ERR_SUP, "The range of IS needs to be in the chart of fullsec. \n Subsec p: % " PetscInt_FMT "is[p]: % " PetscInt_FMT "fullsec chart start: % " PetscInt_FMT  " fullsec chart end: %"PetscInt_FMT, p,id[p],pfullStart,pfullEnd);
         ierr = PetscSectionGetDof(subsec,p,&subdof);CHKERRQ(ierr);
         ierr = PetscSectionGetDof(fullsec,id[p],&fulldof);CHKERRQ(ierr);
-        PetscCheck(subdof == fulldof,PETSC_COMM_SELF,PETSC_ERR_SUP,"Nonequal dofs at corresponding points. \nsubsec has % " PetscInt_FMT " dofs at point %" PetscInt_FMT "\nfullsec has % " PetscInt_FMT "dofs at corresponding point % " PetscInt_FMT, p,subdof,id[p],fulldof);
+        //PetscCheck(subdof == fulldof,PETSC_COMM_SELF,PETSC_ERR_SUP,"Nonequal dofs at corresponding points. \nsubsec has % " PetscInt_FMT " dofs at point %" PetscInt_FMT "\nfullsec has % " PetscInt_FMT "dofs at corresponding point % " PetscInt_FMT, p,subdof,id[p],fulldof);
         ierr = PetscSectionGetOffset(subsec,p,&suboff);CHKERRQ(ierr);
         ierr = PetscSectionGetOffset(fullsec,id[p],&fulloff);CHKERRQ(ierr);
         for(i=0; i<subdof; i++) {

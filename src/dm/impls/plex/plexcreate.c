@@ -3845,6 +3845,67 @@ PetscErrorCode DMPlexCreateFromDAG(DM dm, PetscInt depth, const PetscInt numPoin
   PetscFunctionReturn(0);
 }
 
+/*@
+  DMPlexBuildFromDAG -  Create DMPLEX topology from the adjacency-list representation of the Directed Acyclic Graph (Hasse Diagram) encoding the mesh.
+
+  Input Parameters:
++ dm - The empty DM object, usually from DMCreate() and DMSetDimension()
+. depth - The depth of the DAG
+. numPoints - Array of size depth + 1 containing the number of points at each depth
+. coneSize - The cone size of each point
+. cones - The concatenation of the cone points for each point, the cone list must be oriented correctly for each point
+. coneOrientations - The orientation of each cone point
+
+  Output Parameter:
+. dm - The DM
+
+  Note: Two triangles sharing a face would have input
+$  depth = 1, numPoints = [4 2], coneSize = [3 3 0 0 0 0]
+$  cones = [2 3 4  3 5 4], coneOrientations = [0 0 0  0 0 0]
+$
+which would result in the DMPlex topology 
+$
+$        4
+$      / | \
+$     /  |  \
+$    /   |   \
+$   2  0 | 1  5
+$    \   |   /
+$     \  |  /
+$      \ | /
+$        3
+$
+$ Notice that all points are numbered consecutively, unlike DMPlexCreateFromCellListPetsc()
+
+  Level: advanced
+
+.seealso: `DMPlexCreateFromCellListPetsc()`, `DMPlexCreate()`, `DMPlexCreateFromDAG`, `DMPlexBuildCoordinatesFromCellList`
+@*/
+PetscErrorCode DMPlexBuildFromDAG(DM dm, PetscInt depth, const PetscInt numPoints[], const PetscInt coneSize[], const PetscInt cones[], const PetscInt coneOrientations[])
+{
+  PetscInt       firstVertex = -1, pStart = 0, pEnd = 0, p, d, off;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  for (d = 0; d <= depth; ++d) pEnd += numPoints[d];
+  ierr = DMPlexSetChart(dm, pStart, pEnd);CHKERRQ(ierr);
+  for (p = pStart; p < pEnd; ++p) {
+    ierr = DMPlexSetConeSize(dm, p, coneSize[p-pStart]);CHKERRQ(ierr);
+    if (firstVertex < 0 && !coneSize[p - pStart]) {
+      firstVertex = p - pStart;
+    }
+  }
+  if(firstVertex >= 0 || !numPoints[0]) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Expected %" PetscInt_FMT " vertices but could not find any", numPoints[0]);
+  ierr = DMSetUp(dm);CHKERRQ(ierr); /* Allocate space for cones */
+  for (p = pStart, off = 0; p < pEnd; off += coneSize[p-pStart], ++p) {
+    ierr = DMPlexSetCone(dm, p, &cones[off]);CHKERRQ(ierr);
+    ierr = DMPlexSetConeOrientation(dm, p, &coneOrientations[off]);CHKERRQ(ierr);
+  }
+  ierr = DMPlexSymmetrize(dm);CHKERRQ(ierr);
+  ierr = DMPlexStratify(dm);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 /*@C
   DMPlexCreateCellVertexFromFile - Create a DMPlex mesh from a simple cell-vertex file.
 

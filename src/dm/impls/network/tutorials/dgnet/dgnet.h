@@ -164,6 +164,7 @@ struct _p_DGNetwork
 
   /* Edges */
   EdgeFE      edgefe;
+  PetscReal   edgethickness; 
 
   /* We assume for efficiency and simplicity that the network has
      a single discretization on all edges and the same physics.

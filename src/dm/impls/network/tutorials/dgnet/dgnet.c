@@ -1285,46 +1285,6 @@ static void f0_circle_b(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   xp[1] = -2.*x[0]-0.1;
 }
 
-/* 2D transformations */
-static void f0_l_2d(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                     PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar xp[])
-{
-  xp[0] = x[0]-10;
-  xp[1] = x[1];
-
-}
-
-static void f0_r_2d(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                     PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar xp[])
-{
-  xp[0] =  x[0];
-  xp[1] =  x[1];
-}
-
-/* 3d visualization of a network element, transformation of unit cube to unit cylinder element. */
-static void f0_t_2d(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                     PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar xp[])
-{
-  xp[0] =  x[1];
-  xp[1] =  x[0]+0.5;
-}
-
-/* 3d visualization of a network element, transformation of unit cube to unit cylinder element. */
-static void f0_b_2d(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                     PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar xp[])
-{
-  xp[0] = x[1];
-  xp[1] = x[0];
-}
-
 static PetscErrorCode DGNetworkCreateViewDM(DM dm)
 {
   DM             cdm;
@@ -1918,79 +1878,47 @@ PetscErrorCode DGNetworkMonitor_2D_NET_g2l_internal(PetscObject V,PetscInt nfiel
 
 PetscErrorCode DGNetworkCreateNetworkDMPlex_2D(DGNetwork dgnet,const PetscInt edgelist[],PetscInt edgelistsize,DM *dmsum,PetscSection *stratumoffset,DM **dm_list,PetscInt *numdm) {
   PetscErrorCode ierr;
-  PetscInt       i=0,j,e,eStart,eEnd,cStart,cEnd,dim,dE,pStart,pEnd,dof,p,off,off_g,off_stratum,secStart,secEnd,depth,stratum;
-  DM             *dmlist, network = dgnet->network,cdm;
+  PetscInt       i=0,e,eStart,eEnd,cStart,cEnd;
+  PetscInt       vfrom,vto; 
+  DM             *dmlist, network = dgnet->network;
+  const PetscInt *cone;
   EdgeFE         edgefe;
-  PetscSection   coordsec,coordsec_g;
-  PetscBool      simplex;
-  PetscFE        fe;
-  DMPolytopeType ct;
-  Vec            Coord_g,Coord;
-  PetscReal      *coord_g,*coord,lower[2],upper[2];
+  Junction       junct; 
+  PetscReal      lower[2],upper[2];
+  PetscReal      thickness, z[2], n[2],norm = 0.0; 
 
   PetscFunctionBegin;
   if (edgelist == NULL) { /* Assume the entire network is used */
     ierr = DMNetworkGetEdgeRange(network,&eStart,&eEnd);CHKERRQ(ierr);
     ierr = PetscMalloc1(eEnd-eStart,&dmlist);CHKERRQ(ierr);
+
+    thickness = dgnet->edgethickness <= 0 ? 0.1 : dgnet->edgethickness;
     for (e=eStart; e<eEnd; e++) {
       ierr = DMNetworkGetComponent(network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
       ierr = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);
+      ierr = DMNetworkGetConnectedVertices(network,e,&cone);CHKERRQ(ierr); 
+      vto = cone[0]; vfrom = cone[1];
       PetscInt faces[2]={cEnd-cStart,1};
-      lower[0] = 0; lower[1] = 0;
-      upper[1] = 0.5; upper[0] = dgnet->length;
+      
+      ierr = DMNetworkGetComponent(network,vfrom,JUNCTION,NULL,(void**)&junct,NULL);CHKERRQ(ierr);
+      z[1] = junct->y; z[0]  = junct->x; 
+      upper[0] = junct->x; upper[1] = junct->y;
+      ierr = DMNetworkGetComponent(network,vto,JUNCTION,NULL,(void**)&junct,NULL);CHKERRQ(ierr);
+      z[1] -= junct->y; z[0]  -= junct->x;
+      norm = PetscSqrtReal(z[1]*z[1]+z[0]*z[0]);
+      z[0]/=norm; z[1]/=norm; 
+      n[0] = -z[1]; n[1] = z[0];
+
+      lower[0] = junct->x; lower[1] = junct->y; 
+      lower[0] -= thickness*n[0]; lower[1] -= thickness*n[1];
+      upper[0] += thickness*n[0]; upper[1] += thickness*n[1];
+
+      
       ierr = DMPlexCreateBoxMesh(PETSC_COMM_SELF, 2, PETSC_FALSE, faces, lower, upper, NULL, PETSC_TRUE, &dmlist[i]);CHKERRQ(ierr);
       ierr = DGNetworkCreateViewDM2(dmlist[i]);CHKERRQ(ierr);
-      if (e ==eStart){
-        ierr = DMPlexRemapGeometry(dmlist[i++],0,f0_l_2d);CHKERRQ(ierr);
-      } else if(e==eStart+2) {
-          ierr = DMPlexRemapGeometry(dmlist[i++],0,f0_t_2d);CHKERRQ(ierr);
-      } else if(e==eStart+1) {
-          ierr = DMPlexRemapGeometry(dmlist[i++],0,f0_r_2d);CHKERRQ(ierr);
-      } else {
-          ierr = DMPlexRemapGeometry(dmlist[i++],0,f0_b_2d);CHKERRQ(ierr);
-      }
     }
     *numdm = i;
-    ierr = DMPlexAdd_Disconnected(dmlist,*numdm,dmsum,stratumoffset);CHKERRQ(ierr);
-    ierr = DMGetCoordinateDM(*dmsum, &cdm);CHKERRQ(ierr);
-    ierr = DMGetDimension(*dmsum, &dim);CHKERRQ(ierr);
-    ierr = DMGetCoordinateDim(*dmsum, &dE);CHKERRQ(ierr);
-    ierr = DMPlexGetHeightStratum(cdm, 0, &cStart, NULL);CHKERRQ(ierr);
-    ierr = DMPlexGetCellType(*dmsum, cStart, &ct);CHKERRQ(ierr);
-    simplex = DMPolytopeTypeGetNumVertices(ct) == DMPolytopeTypeGetDim(ct)+1 ? PETSC_TRUE : PETSC_FALSE;
-    ierr = PetscFECreateLagrange(PETSC_COMM_SELF, dim, dE, simplex,1,PETSC_DECIDE, &fe);CHKERRQ(ierr);
-    ierr = DMProjectCoordinates(*dmsum, fe);CHKERRQ(ierr);
-    ierr = PetscFEDestroy(&fe);CHKERRQ(ierr);
-    ierr = DMGetCoordinateSection(*dmsum,&coordsec_g);CHKERRQ(ierr);
-    ierr = DMGetCoordinates(*dmsum,&Coord_g);CHKERRQ(ierr);
-    ierr = VecGetArray(Coord_g,&coord_g);CHKERRQ(ierr);
-    /* Now map the coordinate data */
-    for(i=0; i<*numdm; i++) {
-      ierr = DMGetCoordinates(dmlist[i],&Coord);CHKERRQ(ierr);
-      ierr = VecGetArray(Coord,&coord);CHKERRQ(ierr);
-      ierr = DMGetCoordinateSection(dmlist[i],&coordsec);CHKERRQ(ierr);
-      ierr = PetscSectionGetChart(coordsec,&secStart,&secEnd);CHKERRQ(ierr);
-      /* Iterate through the stratum */
-      ierr = DMPlexGetDepth(dmlist[i],&depth);CHKERRQ(ierr);
-      for (stratum = 0; stratum <= depth; stratum++) {
-        ierr = DMPlexGetDepthStratum(dmlist[i],stratum,&pStart,&pEnd);CHKERRQ(ierr);
-        ierr = PetscSectionGetFieldOffset(*stratumoffset,i,stratum,&off_stratum);CHKERRQ(ierr);
-        /* there is a better way of doing this ... for later */
-        for (p=pStart;p<pEnd&&p<secEnd;p++) {
-          if( p >= secStart) {
-            ierr = PetscSectionGetFieldOffset(coordsec,p,0,&off);CHKERRQ(ierr); /* domain offset */
-            ierr = PetscSectionGetFieldDof(coordsec,p,0,&dof);CHKERRQ(ierr);
-            ierr = PetscSectionGetFieldOffset(coordsec_g,p+off_stratum,0,&off_g);CHKERRQ(ierr); /*range offset */
-            for (j=0; j<dof;j++) {
-              coord_g[off_g+j] = coord[off+j];
-            }
-          }
-        }
-      }
-      ierr = VecRestoreArray(Coord,&coord);CHKERRQ(ierr);
-    }
-    ierr = VecRestoreArray(Coord_g,&coord_g);CHKERRQ(ierr);
-    ierr = DMSetCoordinatesLocal(*dmsum,Coord_g);CHKERRQ(ierr);
+    ierr = DMPlexDisjointUnion_Geometric_Section(dmlist,i,dmsum,stratumoffset);CHKERRQ(ierr);
     /* in theory the coordinates are now mapped correctly ... we shall see */
     *dm_list = dmlist;
   } else {

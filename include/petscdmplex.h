@@ -29,6 +29,7 @@ PETSC_EXTERN PETSC_DEPRECATED_FUNCTION("Use DMPlexCreateFromCellListPetsc() (sin
 PETSC_EXTERN PetscErrorCode DMPlexCreateFromCellListParallelPetsc(MPI_Comm, PetscInt, PetscInt, PetscInt, PetscInt, PetscInt, PetscBool, const PetscInt[], PetscInt, const PetscReal[], PetscSF *, PetscInt **, DM *);
 PETSC_EXTERN PETSC_DEPRECATED_FUNCTION("Use DMPlexCreateFromCellListParallelPetsc() (since version 3.14)") PetscErrorCode DMPlexCreateFromCellListParallel(MPI_Comm, PetscInt, PetscInt, PetscInt, PetscInt, PetscBool, const int[], PetscInt, const PetscReal[], PetscSF *, DM *);
 PETSC_EXTERN PetscErrorCode DMPlexCreateFromDAG(DM, PetscInt, const PetscInt [], const PetscInt [], const PetscInt [], const PetscInt [], const PetscScalar []);
+PETSC_EXTERN PetscErrorCode DMPlexBuildFromDAG(DM , PetscInt , const PetscInt [], const PetscInt [], const PetscInt [], const PetscInt []);
 PETSC_EXTERN PetscErrorCode DMPlexCreateReferenceCell(MPI_Comm, DMPolytopeType, DM *);
 PETSC_EXTERN PetscErrorCode DMPlexSetOptionsPrefix(DM, const char []);
 PETSC_EXTERN PetscErrorCode DMPlexGetChart(DM, PetscInt *, PetscInt *);
