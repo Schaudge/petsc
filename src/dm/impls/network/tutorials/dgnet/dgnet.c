@@ -1880,12 +1880,13 @@ PetscErrorCode DGNetworkCreateNetworkDMPlex_2D(DGNetwork dgnet,const PetscInt ed
   PetscErrorCode ierr;
   PetscInt       i=0,e,eStart,eEnd,cStart,cEnd;
   PetscInt       vfrom,vto; 
-  DM             *dmlist, network = dgnet->network;
+  DM             *dmlist, network = dgnet->network,dmunion;
   const PetscInt *cone;
   EdgeFE         edgefe;
   Junction       junct; 
   PetscReal      lower[2],upper[2];
   PetscReal      thickness, z[2], n[2],norm = 0.0; 
+  PetscSection   stratumoff; 
 
   PetscFunctionBegin;
   if (edgelist == NULL) { /* Assume the entire network is used */
@@ -1915,12 +1916,18 @@ PetscErrorCode DGNetworkCreateNetworkDMPlex_2D(DGNetwork dgnet,const PetscInt ed
 
       
       ierr = DMPlexCreateBoxMesh(PETSC_COMM_SELF, 2, PETSC_FALSE, faces, lower, upper, NULL, PETSC_TRUE, &dmlist[i]);CHKERRQ(ierr);
-      ierr = DGNetworkCreateViewDM2(dmlist[i]);CHKERRQ(ierr);
+      ierr = DGNetworkCreateViewDM2(dmlist[i++]);CHKERRQ(ierr);
     }
     *numdm = i;
-    ierr = DMPlexDisjointUnion_Geometric_Section(dmlist,i,dmsum,stratumoffset);CHKERRQ(ierr);
+    ierr = DMPlexDisjointUnion_Geometric_Section(dmlist,i,&dmunion,&stratumoff);CHKERRQ(ierr);
     /* in theory the coordinates are now mapped correctly ... we shall see */
     *dm_list = dmlist;
+    *dmsum = dmunion;
+    if(stratumoff) {
+      *stratumoffset = stratumoff; 
+    } else {
+      ierr = PetscSectionDestroy(&stratumoff);CHKERRQ(ierr);
+    } 
   } else {
       /* TODO */
   }
