@@ -18,18 +18,30 @@ import sys
 from string import *
 import pickle
 
-# list of classes found
-classes = {}
-enums = {}
-
-
 def main(args):
-  file = open('classes.data')
+  file = open('classes.data','rb')
   enums   = pickle.load(file)
-  senums  = pickle.load(file)
+  types  = pickle.load(file)
   structs = pickle.load(file)
   aliases = pickle.load(file)
-  classes = pickle.load(file)
+  fclasses = pickle.load(file)
+  cclasses = pickle.load(file)
+  vclasses = pickle.load(file)
+
+  # strip Type name and common prefix from values
+  ntypes = types
+  types = {}
+  for i in ntypes:
+    i4 = i[0:-4]
+    l = len(i4)
+    types[i4] = {}
+    for j in ntypes[i]:
+      if not j.lower().startswith(i4.lower()):
+        print("Wrong name prefix: Type "+i+" name "+j+" value "+ntypes[i][j])
+      if not j.lower().endswith(ntypes[i][j]):
+        print("Wrong name suffix: Type "+i+" name "+j+" value "+ntypes[i][j])
+      jn = j[l:]
+      types[i4][jn] = ntypes[i][j]
 
   print("----- Aliases --------")
   for i in aliases:
@@ -40,28 +52,79 @@ def main(args):
     print(i)
     for j in enums[i]:
       print("  "+j)
+  #print(" ")
+  #print("----- Types; Implementations of Classes  --------")
+  #for i in types:
+  #  print(i)
+  #  for j in types[i]:
+  #    print("  "+j+" = "+types[i][j])
   print(" ")
-  print("----- string enums --------")
-  for i in senums:
-    print(i+" = "+"char*")
-    for j in senums[i]:
-      print("  "+j+" = "+senums[i][j])
-  print(" ")
-  print("----- structs --------")
+  print("----- Structs --------")
   for i in structs:
     print(i)
     for j in structs[i]:
       print("  "+j)
   print(" ")
-  print("----- Classes --------")
-  for i in classes:
+  print("----- Function Classes (function families without data) --------")
+  for i in fclasses:
     print(i)
-    for j in classes[i]:
+    for j in fclasses[i]:
       print("  "+j+"()")
-      for k in classes[i][j]:
+      for k in fclasses[i][j]:
         print("    "+k)
+  print(" ")
+  print("----- Concrete Classes --------")
+  std_methods = ['Create', 'Destroy', 'SetFromOptions', 'View','ViewFromOptions', 'SetOptionsPrefix', 'AppendOptionsPrefix']
+  for i in cclasses:
+    print(i)
+    for j in std_methods:
+      if not j in cclasses[i]:
+        print("  "+j+"() Missing")
+    for j in cclasses[i]:
+      if not j in std_methods:
+        print("  "+j+"()")
+        for k in cclasses[i][j]:
+          print("    "+k)
+  print(" ")
+  print("----- Virtual Classes --------")
+  std_methods.extend(['SetType', 'GetType'])
+  fnd = {}
+  for i in vclasses:
+    print(i)
+    for j in std_methods:
+      if not j in vclasses[i]:
+        print("  "+j+"() Missing")
 
+    # print each type and type sprecific functions
+    for j in types[i]:
+      print("  "+j)
+      for k in vclasses[i]:
+        if k.startswith('Create') and k.lower().endswith(j.lower()):
+          print("    "+k+"()")
+          fnd[k] = True
+          for l in vclasses[i][k]:
+            print("    "+l)
+        if k.lower().startswith(j.lower()):
+          print("    "+k+"()")
+          fnd[k] = True
+          for l in vclasses[i][k]:
+            print("      "+l)
 
+    print("")
+    # print other create functions
+    for j in sorted(vclasses[i]):
+      if not j in std_methods and not j in fnd and j.startswith('Create'):
+          print("  "+j+"()")
+          for k in vclasses[i][j]:
+            print("    "+k)
+
+    print("")
+    # print general functions
+    for j in sorted(vclasses[i]):
+      if not j in std_methods and not j in fnd and not j.startswith('Create'):
+          print("  "+j+"()")
+          for k in vclasses[i][j]:
+            print("    "+k)
 
 #
 # The classes in this file can also be used in other python-programs by using 'import'

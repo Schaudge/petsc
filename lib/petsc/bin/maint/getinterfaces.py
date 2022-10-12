@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 #!/bin/env python
-# $Id: adprocess.py,v 1.12 2001/08/24 18:26:15 bsmith Exp $
 #
 # change python to whatever is needed on your system to invoke python
 #
 #  Processes PETSc's include/petsc*.h files to determine
-#  the PETSc enums, functions and classes
+#  the PETSc enums, strucs, functions and classes
 #
 #  Crude as all hack!
 #
@@ -21,9 +20,20 @@ import pickle
 classes = {}
 enums = {}
 aliases = {}
-senums = {} # like enums except strings instead of integer values
+types = {}
 structs = {}
+functionfamilies = {}  # related families of functions that do not have object arguments
 
+def removecomments(line):
+  com = line.find('//')
+  if com > -1:
+    line = line[0:com-1]
+  com1 = line.find('/*')
+  com2 = line.find('*/')
+  if com1 > -1 and com2 > -1:
+    line = line[0:com1]+line[com2+2:-1]
+  line = line.strip()
+  return line
 
 def getenums(filename):
   import re
@@ -42,7 +52,7 @@ def getenums(filename):
         fl = reg.search(line)
         if fl:
           struct = struct.replace("\\","")
-          struct = struct.replace("\n","")
+#          struct = struct.replace("\n","")
           struct = struct.replace(";","")
           struct = struct.replace("typedef enum","")
           struct = regcomment.sub("",struct)
@@ -53,16 +63,19 @@ def getenums(filename):
           name = name.replace("} ","")
 
           values = struct[struct.find("{")+1:struct.find("}")]
-          values = values.split(",")
-
-          if struct.find("=") == -1:
-            for i in range(len(values)):
-              values[i] = values[i] + " = " + str(i)
-
+          if values.endswith(","): values = values[0:-1]
+          values = values.split('\n')
           ivalues = []
           for i in values:
-            if i[0] == " ": i = i[1:]
-            ivalues.append(i)
+            i = removecomments(i)
+            if not i: continue
+            com = i.find(',')
+            if com > -1: i = i[0:com]
+            if len(i) > 2 and i.find('DEPRECATED') < 0: ivalues.append(i)
+
+          if struct.find("=") == -1:
+            for i in range(len(ivalues)):
+              ivalues[i] = ivalues[i] + " = " + str(i)
 
           enums[name] = ivalues
           break
@@ -71,21 +84,23 @@ def getenums(filename):
     line = f.readline()
   f.close()
 
-def getsenums(filename):
+def gettypes(filename):
   import re
-  regdefine   = re.compile('#define [A-Za-z]*Type ')
+  regdefine   = re.compile('typedef const char \*[A-Za-z]*Type;')
   regblank    = re.compile(' [ ]*')
   f = open(filename)
   line = f.readline()
   while line:
     fl = regdefine.search(line)
     if fl:
-      senum = fl.group(0)[8:-1]
-      senums[senum] = {}
+      type = fl.group(0)[20:-1]
+      types[type] = {}
       line = regblank.sub(" ",f.readline().strip())
       while line:
-        values = line.split(" ")
-        senums[senum][values[1]] = values[2]
+        line = removecomments(line)
+        if line and line.find('DEPRECATED') < 0:
+          values = line.split(" ")
+          types[type][values[1]] = values[2].strip('"')
         line = regblank.sub(" ",f.readline().strip())
     line = f.readline()
   f.close()
@@ -107,10 +122,9 @@ def getstructs(filename):
         fl = reg.search(line)
         if fl:
           struct = struct.replace("\\","")
-          struct = struct.replace("\n","")
           struct = struct.replace("typedef struct {","")
           struct = regblank.sub(" ",struct)
-          struct = struct.replace("; ",";")
+          struct = struct.replace(";","")
           struct = regcomment.sub("",struct)
 
           name = regname.search(struct)
@@ -119,11 +133,12 @@ def getstructs(filename):
 
           values = struct[struct.find("{")+1:struct.find(";}")]
           if not values.find('#') == -1: break
-          values = values.split(";")
+          values = values.split("\n")
           ivalues = []
           for i in values:
-            if i[0] == " ": i = i[1:]
-            ivalues.append(i)
+            i = removecomments(i)
+            if i and len(i) > 0:
+              ivalues.append(i)
           structs[name] = ivalues
           break
         line = f.readline()
@@ -155,18 +170,17 @@ def getclasses(filename):
 
 def getfunctions(filename):
   import re
-  regfun      = re.compile('EXTERN PetscErrorCode PETSC[A-Z]*_DLLEXPORT ')
+  regfun      = re.compile('PETSC_EXTERN PetscErrorCode ')
   regcomment  = re.compile('/\* [A-Za-z _(),<>|^\*]* \*/')
   regblank    = re.compile(' [ ]*')
   regarg      = re.compile('\([A-Za-z*_\[\]]*[,\)]')
   regerror    = re.compile('PetscErrorCode')
-
   rejects     = ['PetscErrorCode','DALocalFunction','...','<','(*)','(**)','off_t','MPI_Datatype','va_list','size_t','PetscStack']
   #
   # search through list BACKWARDS to get the longest match
   #
-  classlist   = classes.keys()
-  classlist.sort()
+  classlist = classes.keys()
+  classlist = sorted(classlist)
   classlist.reverse()
   f = open(filename)
   line = f.readline()
@@ -230,11 +244,12 @@ def main(args):
   for i in args:
     getenums(i)
   for i in args:
-    getsenums(i)
+    gettypes(i)
   getaliases()
   for i in args:
     getstructs(i)
-  # this classes ONLY have static methods
+
+  # these are classes that have not objects/data; just a collection of functions
   classes['Petsc'] = {}
   classes['PetscLog'] = {}
   classes['PetscSort'] = {}
@@ -243,18 +258,38 @@ def main(args):
   classes['PetscOptions'] = {}
   classes['PetscMalloc'] = {}
   classes['PetscToken'] = {}
+
+  # typedef PetscSF VecScatter;
+  classes['VecScatter'] = {}
+
+  # This is completely wrong!
+  # typedef struct _DMInterpolationInfo *DMInterpolationInfo;
+  #PETSC_EXTERN PetscErrorCode DMInterpolationCreate(MPI_Comm, DMInterpolationInfo *);
+
   for i in args:
     getclasses(i)
   for i in args:
     getfunctions(i)
-  file = open('classes.data','w')
+  file = open('classes.data','wb')
   pickle.dump(enums,file)
-  pickle.dump(senums,file)
+  pickle.dump(types,file)
   pickle.dump(structs,file)
   pickle.dump(aliases,file)
-  pickle.dump(classes,file)
 
-
+  cclasses = {} # concrete classes (no virtual functions)
+  vclasses = {} # virtual classes
+  fclasses = {} # function classes (sets of related functions that have no data/object associated with them
+  for i in classes:
+    if not 'Create' in classes[i]:
+      fclasses[i] = classes[i]
+    else:
+      if i+'Type' in types:
+        vclasses[i] = classes[i]
+      else:
+        cclasses[i] = classes[i]
+  pickle.dump(fclasses,file)
+  pickle.dump(cclasses,file)
+  pickle.dump(vclasses,file)
 
 #
 # The classes in this file can also be used in other python-programs by using 'import'
