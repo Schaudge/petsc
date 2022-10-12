@@ -928,6 +928,7 @@ typedef const char *TSGLEEType;
 #define TSGLEEEXRK2A  "exrk2a"
 #define TSGLEERK32G1  "rk32g1"
 #define TSGLEERK285EX "rk285ex"
+
 /*J
     TSGLEEMode - String with the mode of error estimation for a General Linear with Error Estimation method.
 
@@ -963,6 +964,7 @@ typedef const char *TSARKIMEXType;
 #define TSARKIMEXARS443 "ars443"
 #define TSARKIMEX4      "4"
 #define TSARKIMEX5      "5"
+
 PETSC_EXTERN PetscErrorCode TSARKIMEXGetType(TS ts, TSARKIMEXType *);
 PETSC_EXTERN PetscErrorCode TSARKIMEXSetType(TS ts, TSARKIMEXType);
 PETSC_EXTERN PetscErrorCode TSARKIMEXSetFullyImplicit(TS, PetscBool);
@@ -1021,6 +1023,7 @@ typedef const char *TSBasicSymplecticType;
 #define TSBASICSYMPLECTICVELVERLET "2"
 #define TSBASICSYMPLECTIC3         "3"
 #define TSBASICSYMPLECTIC4         "4"
+
 PETSC_EXTERN PetscErrorCode TSBasicSymplecticSetType(TS, TSBasicSymplecticType);
 PETSC_EXTERN PetscErrorCode TSBasicSymplecticGetType(TS, TSBasicSymplecticType *);
 PETSC_EXTERN PetscErrorCode TSBasicSymplecticRegister(TSBasicSymplecticType, PetscInt, PetscInt, PetscReal[], PetscReal[]);

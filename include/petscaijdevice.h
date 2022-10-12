@@ -6,14 +6,13 @@
 /* SUBMANSEC = Mat */
 
 #define CSRDataStructure(datatype) \
-  PetscInt *i; \
-  PetscInt *j; \
-  datatype *a; \
-  PetscInt  n; \
-  PetscInt  ignorezeroentries;
 
 typedef struct {
-  CSRDataStructure(PetscScalar)
+  PetscInt *i;
+  PetscInt *j;
+  datatype *a;
+  PetscInt  n;
+  PetscInt  ignorezeroentries;
 } PetscCSRDataStructure;
 
 struct _n_SplitCSRMat {
