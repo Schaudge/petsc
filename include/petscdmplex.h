@@ -325,7 +325,7 @@ PETSC_EXTERN PetscErrorCode DMPlexComputeProjection3Dto1D(PetscScalar[], PetscRe
 PETSC_EXTERN PetscErrorCode DMPlexComputeProjection3Dto2D(PetscInt, PetscScalar[], PetscReal[]);
 
 /* Point Location */
-typedef struct _PetscGridHash *PetscGridHash;
+typedef struct _n_PetscGridHash *PetscGridHash;
 PETSC_EXTERN PetscErrorCode    PetscGridHashCreate(MPI_Comm, PetscInt, const PetscScalar[], PetscGridHash *);
 PETSC_EXTERN PetscErrorCode    PetscGridHashEnlarge(PetscGridHash, const PetscScalar[]);
 PETSC_EXTERN PetscErrorCode    PetscGridHashSetGrid(PetscGridHash, const PetscInt[], const PetscReal[]);

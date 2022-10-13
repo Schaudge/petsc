@@ -79,7 +79,7 @@ typedef struct {
   void        *data;
 } FluentSection;
 
-struct _PetscGridHash {
+struct _n_PetscGridHash {
   PetscInt     dim;
   PetscReal    lower[3];    /* The lower-left corner */
   PetscReal    upper[3];    /* The upper-right corner */

@@ -815,7 +815,7 @@ typedef enum {
 
 .seealso: `PetscHeapCreate()`, `PetscHeapAdd()`, `PetscHeapPop()`, `PetscHeapPeek()`, `PetscHeapStash()`, `PetscHeapUnstash()`, `PetscHeapView()`, `PetscHeapDestroy()`
 S*/
-typedef struct _PetscHeap *PetscHeap;
+typedef struct _n_PetscHeap *PetscHeap;
 
 typedef struct _n_PetscShmComm *PetscShmComm;
 typedef struct _n_PetscOmpCtrl *PetscOmpCtrl;
