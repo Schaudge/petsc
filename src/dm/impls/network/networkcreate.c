@@ -395,7 +395,6 @@ PetscErrorCode DMClone_Network(DM dm, DM *newdm)
 PetscErrorCode DMCreateCoordinateDM_Network(DM dm, DM *cdm)
 {
   DM_Network *newnetwork = NULL;
-<<<<<<< HEAD
   PetscInt    Nf;
   const char *prefix;
 
@@ -407,15 +406,6 @@ PetscErrorCode DMCreateCoordinateDM_Network(DM dm, DM *cdm)
   PetscCall(PetscObjectGetOptionsPrefix((PetscObject)dm, &prefix));
   PetscCall(PetscObjectSetOptionsPrefix((PetscObject)*cdm, prefix));
   PetscCall(PetscObjectAppendOptionsPrefix((PetscObject)*cdm, "cdm_"));
-=======
-  PetscInt   Nf; 
-  
-  PetscFunctionBegin; 
-  PetscCall(DMClone(dm,cdm));
-  newnetwork = (DM_Network *)(*cdm)->data;
-  PetscCall(DMGetNumFields(newnetwork->plex,&Nf)); 
-  PetscCall(DMSetNumFields(*cdm,Nf)); /* consistency with the coordinate plex */  
->>>>>>> Added DMCreateCoordinates_Network, to allow for coordinate networks
   PetscFunctionReturn(0);
 }
 
