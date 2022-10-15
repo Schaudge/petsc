@@ -409,7 +409,7 @@ PetscErrorCode DMCreateCoordinateDM_Network(DM dm, DM *cdm)
   PetscCall(PetscObjectGetOptionsPrefix((PetscObject)dm, &prefix));
   PetscCall(PetscObjectSetOptionsPrefix((PetscObject)*cdm, prefix));
   PetscCall(PetscObjectAppendOptionsPrefix((PetscObject)*cdm, "cdm_"));
-  PetscFunctionReturn(PETSC_SUCCESS);
+  PetscFunctionReturn(0);
 }
 
 /*MC
