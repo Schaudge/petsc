@@ -1014,6 +1014,17 @@ PetscErrorCode DMNetworkGetNumEdges(DM dm, PetscInt *nEdges, PetscInt *NEdges)
   PetscFunctionReturn(0);
 }
 
+
+PetscErrorCode DMNetworkGetGlobalNumberOfVertices(DM dm, PetscInt *NVertices)
+{
+  DM_Network *network = (DM_Network *)dm->data;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMNETWORK);
+  PetscValidIntPointer(NVertices, 2);
+  *NVertices = network->cloneshared->NVertices;
+  PetscFunctionReturn(0);
+}
 /*@
   DMNetworkGetVertexRange - Get the bounds [start, end) for the local vertices
 
