@@ -6,7 +6,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
   PetscErrorCode ierr;
   PetscInt       nfvedge;
   PetscMPIInt    rank;
-  PetscInt       i,field,numVertices,numEdges;
+  PetscInt       i,j,k,m,n,field,numVertices,numEdges;
   PetscInt       *edgelist;
   Junction       junctions = NULL;
   EdgeFE         fvedges = NULL;
@@ -27,6 +27,84 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
   /* Set global number of fvedges, edges, and junctions */
   /*-------------------------------------------------*/
   switch (networktype) {
+
+    /* grid graph with entrance */
+
+    /* ndaughters governs the depth of the network */
+    case -1: 
+      m              = dgnet->ndaughters; 
+      n              = dgnet->ndaughters; 
+      /* Set local edges and vertices -- proc[0] sets entire network, then distributes */
+      numVertices    = 0;
+      numEdges       = 0;
+      edgelist       = NULL;
+      if (!rank) {
+        numVertices = m*n+2; 
+        numEdges    = (m-1)*n+(n-1)*m+2;
+        ierr = PetscCalloc1(2*numEdges,&edgelist);CHKERRQ(ierr);
+
+        /* Enter Branch */
+        edgelist[0] = 0;
+        edgelist[1] = 1;
+        /* Exit Branch */
+        edgelist[2*numEdges-1] = numVertices-2; 
+        edgelist[2*numEdges-2] = numVertices-1; 
+
+        /* Grid Graph Generation */ 
+        k = 2; 
+        for(j=0; j<n-1;++j) {
+          for (i=0; i<m-1; ++i) {
+            edgelist[k++] = i+j*m+1;  
+            edgelist[k++] = i+j*m+2;  
+            edgelist[k++] = i+j*m+1;  
+            edgelist[k++] = i+(j+1)*m+1;
+          }
+        }
+        for(j=0; j<n-1; j++) {
+          edgelist[k++] = (j+1)*m;
+          edgelist[k++] = (j+2)*m; 
+        }
+        for(i=0; i<m-1; ++i) {
+          edgelist[k++] = i+(n-1)*m+1;  
+          edgelist[k++] = i+(n-1)*m+2;  
+        }
+
+
+        /* Add network components */
+        /*------------------------*/
+        ierr = PetscCalloc2(numVertices,&junctions,numEdges,&fvedges);CHKERRQ(ierr);
+        /* vertex */
+        /* embed them as a shifted grid like 
+                --v2--
+        v0---v1<--v3-->v4---v5 
+
+        for the depth 2 case.  */
+
+               /* Edge */
+        fvedges[0].nnodes = (m+1)*Mx; 
+        fvedges[0].length = (m+1)*dgnet->length; 
+
+        for(i=1; i<numEdges; ++i) {
+          fvedges[i].nnodes = Mx;
+          fvedges[i].length = dgnet->length; 
+        }
+
+        PetscReal xx, yy; 
+        for(j=0; j<n;++j) {
+          for (i=0; i<m; ++i) {
+            xx = j*dgnet->length;
+            yy = i*dgnet->length; 
+            junctions[i+j*m+1].x =  PetscCosReal(PETSC_PI/4)*xx + PetscSinReal(PETSC_PI/4)*yy; 
+            junctions[i+j*m+1].y = -PetscSinReal(PETSC_PI/4)*xx + PetscCosReal(PETSC_PI/4)*yy; 
+          }
+        }
+       junctions[0].x = -fvedges[0].length;
+       junctions[0].y = 0; 
+       junctions[numVertices-1].x = junctions[numVertices-2].x+dgnet->length;
+       junctions[numVertices-1].y = 0; 
+ 
+      }
+      break;
     case 0:
       /* Case 0: */
       /* =================================================
@@ -1890,7 +1968,7 @@ PetscErrorCode DGNetworkCreateNetworkDMPlex_2D(DGNetwork dgnet,const PetscInt ed
     ierr = DMNetworkGetEdgeRange(network,&eStart,&eEnd);CHKERRQ(ierr);
     ierr = PetscMalloc1(eEnd-eStart,&dmlist);CHKERRQ(ierr);
 
-    thickness = dgnet->edgethickness <= 0 ? 0.5 : dgnet->edgethickness;
+    thickness = dgnet->edgethickness <= 0 ? 0.05*dgnet->length : dgnet->edgethickness;
     for (e=eStart; e<eEnd; e++) {
       ierr = DMNetworkGetComponent(network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
       ierr = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);

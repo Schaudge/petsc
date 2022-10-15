@@ -306,10 +306,10 @@ PetscErrorCode PhysicsCreate_Shallow(DGNetwork fvnet)
   user->parenth = 2.0;
   user->parentv = 0.0;
 
-  // ierr = PetscOptionsBegin(fvnet->comm,fvnet->prefix,"Options for Shallow","");CHKERRQ(ierr);
-  //   ierr = PetscOptionsReal("-parh","","",user->parenth,&user->parenth,NULL);CHKERRQ(ierr);
-  //   ierr = PetscOptionsReal("-parv","","",user->parenth,&user->parenth,NULL);CHKERRQ(ierr);
-  // ierr = PetscOptionsEnd();CHKERRQ(ierr);
+  ierr = PetscOptionsBegin(fvnet->comm,fvnet->prefix,"Options for Shallow","");CHKERRQ(ierr);
+    ierr = PetscOptionsReal("-parh","","",user->parenth,&user->parenth,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsReal("-parv","","",user->parenth,&user->parenth,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsEnd();CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
