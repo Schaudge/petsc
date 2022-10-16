@@ -154,6 +154,11 @@ int main(int argc, char **argv)
     PetscCall(DMView(dm, PETSC_VIEWER_STDOUT_WORLD));
   }
 
+  if (testdistribute) {
+    PetscCall(DMNetworkDistribute(&dm, 0));
+    PetscCall(DMView(dm, PETSC_VIEWER_STDOUT_WORLD));
+  }
+
   /* print the coordinates of each vertex */
   PetscCall(DMGetCoordinateDim(dm, &cdim));
   PetscCall(DMGetCoordinateDM(dm, &cdm));
