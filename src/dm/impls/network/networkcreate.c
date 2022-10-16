@@ -396,22 +396,16 @@ PetscErrorCode DMCreateCoordinateDM_Network(DM dm, DM *cdm)
 {
   DM_Network *newnetwork = NULL;
   PetscInt    Nf;
-<<<<<<< HEAD
   const char *prefix;
-=======
->>>>>>> clang-format and added WIP coordinate distribution code
 
   PetscFunctionBegin;
   PetscCall(DMClone(dm, cdm));
   newnetwork = (DM_Network *)(*cdm)->data;
   PetscCall(DMGetNumFields(newnetwork->plex, &Nf));
   PetscCall(DMSetNumFields(*cdm, Nf)); /* consistency with the coordinate plex */
-<<<<<<< HEAD
   PetscCall(PetscObjectGetOptionsPrefix((PetscObject)dm, &prefix));
   PetscCall(PetscObjectSetOptionsPrefix((PetscObject)*cdm, prefix));
   PetscCall(PetscObjectAppendOptionsPrefix((PetscObject)*cdm, "cdm_"));
-=======
->>>>>>> clang-format and added WIP coordinate distribution code
   PetscFunctionReturn(0);
 }
 
