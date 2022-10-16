@@ -1926,7 +1926,52 @@ PetscErrorCode DMNetworkDistribute(DM *dm, PetscInt overlap)
   }
   newDMnetwork->cloneshared->nsvtx = nv; /* num of local shared vertices */
 
+<<<<<<< HEAD
   PetscCall(DMNetworkDistributeCoordinates(*dm, pointsf, newDM));
+=======
+  /* Distribute the coordinate network and coordinates */
+  PetscCall(DMGetCoordinateDim(*dm, &cdim));
+  PetscCall(DMSetCoordinateDim(newDM, cdim));
+
+  /* Migrate only if original network had coordinates */
+  PetscCall(DMGetCoordinatesLocal(*dm, &oldCoord));
+  if (oldCoord) {
+    PetscCall(DMGetCoordinateDM(*dm, &cdm));
+    PetscCall(DMGetCoordinateDM(newDM, &newcdm));
+    newCoordnetwork = (DM_Network *)newcdm->data;
+    oldCoordnetwork = (DM_Network *)cdm->data;
+
+    PetscCall(VecCreate(PETSC_COMM_SELF, &newCoord));
+    PetscCall(PetscObjectGetName((PetscObject)oldCoord, &name));
+    PetscCall(PetscObjectSetName((PetscObject)newCoord, name));
+    PetscCall(VecGetBlockSize(oldCoord, &bs));
+    PetscCall(VecSetBlockSize(newCoord, bs));
+
+    PetscCall(DMPlexDistributeField(newDMnetwork->plex, pointsf, oldCoordnetwork->DofSection, oldCoord, newCoordnetwork->DofSection, newCoord));
+    PetscCall(DMSetCoordinatesLocal(newDM, newCoord));
+
+    PetscCall(VecDestroy(&newCoord));
+    /* Migrate the components from the orignal coordinate network to the new coordinate network */
+    PetscCall(DMPlexDistributeData(newDMnetwork->plex, pointsf, oldCoordnetwork->DataSection, MPIU_INT, (void *)oldCoordnetwork->componentdataarray, newCoordnetwork->DataSection, (void **)&newCoordnetwork->componentdataarray));
+    /* update the header pointers in the new coordinate network components */
+    PetscCall(PetscSectionGetChart(newCoordnetwork->DataSection, &pStart, &pEnd));
+    for (p = pStart; p < pEnd; p++) {
+      PetscCall(PetscSectionGetOffset(newCoordnetwork->DataSection, p, &offset));
+      header = (DMNetworkComponentHeader)(newCoordnetwork->componentdataarray + offset);
+      /* Update pointers */
+      header->size         = (PetscInt *)(header + 1);
+      header->key          = header->size + header->maxcomps;
+      header->offset       = header->key + header->maxcomps;
+      header->nvar         = header->offset + header->maxcomps;
+      header->offsetvarrel = header->nvar + header->maxcomps;
+    }
+
+    PetscCall(DMSetLocalSection(newCoordnetwork->plex, newCoordnetwork->DofSection));
+    PetscCall(DMGetGlobalSection(newCoordnetwork->plex, &newCoordnetwork->GlobalDofSection));
+    newCoordnetwork->componentsetup = PETSC_TRUE;
+  }
+
+>>>>>>> Fixed bug
   newDM->setupcalled                          = (*dm)->setupcalled;
   newDMnetwork->cloneshared->distributecalled = PETSC_TRUE;
 
