@@ -1,7 +1,7 @@
 -include ../../../petscdir.mk
 
 SOURCEH = ../../../include/petscdt.h ../../../include/petscds.h ../../../include/petscdstypes.h
-DIRS    = interface tests space dualspace fe fv
+DIRS    = interface tests space dualspace fe fv riemannsolver netrs
 LOCDIR  = src/dm/dt/
 MANSEC  = DM
 
