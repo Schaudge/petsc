@@ -2,7 +2,7 @@
 
 SOURCEC  =
 SOURCEF  =
-SOURCEH  = petsc.h petscsys.h petscmath.h petscmatlab.h petscbt.h petscversion.h petscviewerhdf5.h petscviewersaws.h petscwebclient.h petscblaslapack.h petscsystypes.h petscdevicetypes.h petscdevice.h petscmacros.h petscdmstag.h
+SOURCEH  = petsc.h petscsys.h petscmath.h petscmatlab.h petscbt.h petscversion.h petscviewerhdf5.h petscviewersaws.h petscwebclient.h petscblaslapack.h petscsystypes.h petscdevicetypes.h petscdevice.h petscmacros.h petscdmstag.h petscriemannsolver.h petscnetrs.h
 LIBBASE  = libpetscvec
 DIRS     = petsc/finclude petsc/private
 LOCDIR   = include/
