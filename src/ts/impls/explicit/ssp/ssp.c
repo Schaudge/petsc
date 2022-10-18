@@ -10,7 +10,7 @@ typedef struct {
   PetscErrorCode (*onestep)(TS, PetscReal, PetscReal, Vec);
   char     *type_name;
   PetscInt  nstages;
-  Vec      *work;
+  Vec      *work,*Y;
   PetscInt  nwork;
   PetscBool workout;
 } TS_SSP;
@@ -55,7 +55,7 @@ M*/
 static PetscErrorCode TSSSPStep_RK_2(TS ts, PetscReal t0, PetscReal dt, Vec sol)
 {
   TS_SSP  *ssp = (TS_SSP *)ts->data;
-  Vec     *work, F;
+  Vec     *work, F,*Y=ssp->Y;
   PetscInt i, s;
 
   PetscFunctionBegin;
@@ -68,6 +68,8 @@ static PetscErrorCode TSSSPStep_RK_2(TS ts, PetscReal t0, PetscReal dt, Vec sol)
     PetscCall(TSPreStage(ts, stage_time));
     PetscCall(TSComputeRHSFunction(ts, stage_time, work[0], F));
     PetscCall(VecAXPY(work[0], dt / (s - 1.), F));
+    Y[i] = work[0];
+    PetscCall(TSPostStage(ts,stage_time,i,Y));
   }
   PetscCall(TSComputeRHSFunction(ts, t0 + dt, work[0], F));
   PetscCall(VecAXPBYPCZ(sol, (s - 1.) / s, dt / s, 1. / s, work[0], F));
@@ -179,10 +181,13 @@ static PetscErrorCode TSSSPStep_RK_10_4(TS ts, PetscReal t0, PetscReal dt, Vec s
 
 static PetscErrorCode TSSetUp_SSP(TS ts)
 {
+  TS_SSP         *ssp = (TS_SSP*)ts->data;
+
   PetscFunctionBegin;
   PetscCall(TSCheckImplicitTerm(ts));
   PetscCall(TSGetAdapt(ts, &ts->adapt));
   PetscCall(TSAdaptCandidatesClear(ts->adapt));
+  PetscCall(PetscMalloc1(ssp->nstages,&ssp->Y));
   PetscFunctionReturn(0);
 }
 

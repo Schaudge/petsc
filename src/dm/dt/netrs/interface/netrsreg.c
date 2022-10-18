@@ -70,7 +70,7 @@ PetscErrorCode  NetRSSetType(NetRS rs, NetRSType type)
   if (match) PetscFunctionReturn(0);
 
   PetscCall(PetscFunctionListFind(NetRSList,type,&r));
-  if (!r) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE, "Unknown Network RiemannSolver type: %s", type);
+  if (!r) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE, "Unknown Network RiemannSolver type: %s", type);
   PetscCall(NetRSReset(rs));
   if (rs->ops->destroy) {
     PetscCall((*(rs)->ops->destroy)(rs));

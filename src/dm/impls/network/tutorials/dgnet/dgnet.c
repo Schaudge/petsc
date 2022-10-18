@@ -5,7 +5,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
 {
   PetscInt       nfvedge;
   PetscMPIInt    rank;
-  PetscInt       i,field,numVertices,numEdges;
+  PetscInt       i,j,k,m,n,field,numVertices,numEdges;
   PetscInt       *edgelist;
   Junction       junctions = NULL;
   EdgeFE         fvedges = NULL;
@@ -26,6 +26,84 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
   /* Set global number of fvedges, edges, and junctions */
   /*-------------------------------------------------*/
   switch (networktype) {
+
+    /* grid graph with entrance */
+
+    /* ndaughters governs the depth of the network */
+    case -1: 
+      m              = dgnet->ndaughters; 
+      n              = dgnet->ndaughters; 
+      /* Set local edges and vertices -- proc[0] sets entire network, then distributes */
+      numVertices    = 0;
+      numEdges       = 0;
+      edgelist       = NULL;
+      if (!rank) {
+        numVertices = m*n+2; 
+        numEdges    = (m-1)*n+(n-1)*m+2;
+        PetscCall(PetscCalloc1(2*numEdges,&edgelist));
+
+        /* Enter Branch */
+        edgelist[0] = 0;
+        edgelist[1] = 1;
+        /* Exit Branch */
+        edgelist[2*numEdges-1] = numVertices-2; 
+        edgelist[2*numEdges-2] = numVertices-1; 
+
+        /* Grid Graph Generation */ 
+        k = 2; 
+        for(j=0; j<n-1;++j) {
+          for (i=0; i<m-1; ++i) {
+            edgelist[k++] = i+j*m+1;  
+            edgelist[k++] = i+j*m+2;  
+            edgelist[k++] = i+j*m+1;  
+            edgelist[k++] = i+(j+1)*m+1;
+          }
+        }
+        for(j=0; j<n-1; j++) {
+          edgelist[k++] = (j+1)*m;
+          edgelist[k++] = (j+2)*m; 
+        }
+        for(i=0; i<m-1; ++i) {
+          edgelist[k++] = i+(n-1)*m+1;  
+          edgelist[k++] = i+(n-1)*m+2;  
+        }
+
+
+        /* Add network components */
+        /*------------------------*/
+        PetscCall(PetscCalloc2(numVertices,&junctions,numEdges,&fvedges));
+        /* vertex */
+        /* embed them as a shifted grid like 
+                --v2--
+        v0---v1<--v3-->v4---v5 
+
+        for the depth 2 case.  */
+
+               /* Edge */
+        fvedges[0].nnodes = (m+1)*Mx; 
+        fvedges[0].length = (m+1)*dgnet->length; 
+
+        for(i=1; i<numEdges; ++i) {
+          fvedges[i].nnodes = Mx;
+          fvedges[i].length = dgnet->length; 
+        }
+
+        PetscReal xx, yy; 
+        for(j=0; j<n;++j) {
+          for (i=0; i<m; ++i) {
+            xx = j*dgnet->length;
+            yy = i*dgnet->length; 
+            junctions[i+j*m+1].x =  PetscCosReal(PETSC_PI/4)*xx + PetscSinReal(PETSC_PI/4)*yy; 
+            junctions[i+j*m+1].y = -PetscSinReal(PETSC_PI/4)*xx + PetscCosReal(PETSC_PI/4)*yy; 
+          }
+        }
+       junctions[0].x = -fvedges[0].length;
+       junctions[0].y = 0; 
+       junctions[numVertices-1].x = junctions[numVertices-2].x+dgnet->length;
+       junctions[numVertices-1].y = 0; 
+ 
+      }
+      break;
     case 0:
       /* Case 0: */
       /* =================================================
@@ -152,7 +230,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
     case 3:
     /* Case 3: (Image is for the case we ndaughers = 2. The number of out branches is given by dgnet->ndaughers */
     /* =================================================
-    (OUTFLOW) v0 --E0--> v1--E1--> v2  (OUTFLOW)
+    (OUTFLOW) v1 --E0--> v0-E1--> v2  (OUTFLOW)
                           |
                           E2
                           |
@@ -177,7 +255,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
       edgelist[1] = 1;
       /* Daughter Branches (pointing out from v1) */
       for (i=1; i<dgnet->ndaughters+1; ++i) {
-        edgelist[2*i]   = 1;
+        edgelist[2*i]   = 0;
         edgelist[2*i+1] = i+1;
       }
       /* Add network components */
@@ -189,19 +267,16 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
       PetscReal theta;
       theta = 2.*PETSC_PI/(dgnet->ndaughters+1);
       /*daughters */
-      for (i=2; i<dgnet->ndaughters+2; ++i) {
+      for (i=1; i<dgnet->ndaughters+2; ++i) {
         junctions[i].x = dgnet->length*PetscCosReal(theta*(i-1)+PETSC_PI);
-        junctions[i].y = dgnet->length*(theta*(i-1)+PETSC_PI);
+        junctions[i].y = dgnet->length*PetscSinReal(theta*(i-1)+PETSC_PI);
       }
-      /*parent */
-        junctions[0].x = -dgnet->length;
+      /* center */
+        junctions[0].x =0.0;
         junctions[0].y =0.0;
 
-      /*center */
-      junctions[1].x = 0.0;
-      junctions[1].y = 0.0;
       /* Edge */
-      fvedges[0].nnodes = dgnet->hratio*Mx;
+      fvedges[0].nnodes = Mx;
       for(i=1; i<dgnet->ndaughters+1; ++i) {
         fvedges[i].nnodes = Mx;
       }
@@ -1877,81 +1952,58 @@ PetscErrorCode DGNetworkMonitor_2D_NET_g2l_internal(PetscObject V,PetscInt nfiel
 }
 
 PetscErrorCode DGNetworkCreateNetworkDMPlex_2D(DGNetwork dgnet,const PetscInt edgelist[],PetscInt edgelistsize,DM *dmsum,PetscSection *stratumoffset,DM **dm_list,PetscInt *numdm) {
-  PetscInt       i=0,j,e,eStart,eEnd,cStart,cEnd,dim,dE,pStart,pEnd,dof,p,off,off_g,off_stratum,secStart,secEnd,depth,stratum;
-  DM             *dmlist, network = dgnet->network,cdm;
+  PetscInt       i=0,e,eStart,eEnd,cStart,cEnd;
+  PetscInt       vfrom,vto; 
+  DM             *dmlist, network = dgnet->network,dmunion,dmtemp;
+  const PetscInt *cone;
   EdgeFE         edgefe;
-  PetscSection   coordsec,coordsec_g;
-  PetscBool      simplex;
-  PetscFE        fe;
-  DMPolytopeType ct;
-  Vec            Coord_g,Coord;
-  PetscReal      *coord_g,*coord,lower[2],upper[2];
+  Junction       junct; 
+  PetscReal      lower[2],upper[2];
+  PetscReal      thickness, z[2], n[2],norm = 0.0; 
+  PetscSection   stratumoff; 
 
   PetscFunctionBegin;
   if (edgelist == NULL) { /* Assume the entire network is used */
     PetscCall(DMNetworkGetEdgeRange(network,&eStart,&eEnd));
     PetscCall(PetscMalloc1(eEnd-eStart,&dmlist));
+
+    thickness = dgnet->edgethickness <= 0 ? 0.05*dgnet->length : dgnet->edgethickness;
     for (e=eStart; e<eEnd; e++) {
       PetscCall(DMNetworkGetComponent(network,e,FVEDGE,NULL,(void**)&edgefe,NULL));
       PetscCall(DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd));
+      PetscCall(DMNetworkGetConnectedVertices(network,e,&cone)); 
+      vto = cone[0]; vfrom = cone[1];
       PetscInt faces[2]={cEnd-cStart,1};
-      lower[0] = 0; lower[1] = 0;
-      upper[1] = 0.5; upper[0] = dgnet->length;
-      PetscCall(DMPlexCreateBoxMesh(PETSC_COMM_SELF, 2, PETSC_FALSE, faces, lower, upper, NULL, PETSC_TRUE, &dmlist[i]));
-      PetscCall(DGNetworkCreateViewDM2(dmlist[i]));
-      if (e ==eStart){
-        PetscCall(DMPlexRemapGeometry(dmlist[i++],0,f0_l_2d));
-      } else if(e==eStart+2) {
-          PetscCall(DMPlexRemapGeometry(dmlist[i++],0,f0_t_2d));
-      } else if(e==eStart+1) {
-          PetscCall(DMPlexRemapGeometry(dmlist[i++],0,f0_r_2d));
-      } else {
-          PetscCall(DMPlexRemapGeometry(dmlist[i++],0,f0_b_2d));
-      }
+      
+      PetscCall(DMNetworkGetComponent(network,vfrom,JUNCTION,NULL,(void**)&junct,NULL));
+      z[1] = junct->y; z[0]  = junct->x; 
+      upper[0] = junct->x; upper[1] = junct->y;
+      PetscCall(DMNetworkGetComponent(network,vto,JUNCTION,NULL,(void**)&junct,NULL));
+      z[1] -= junct->y; z[0]  -= junct->x;
+      norm = PetscSqrtReal(z[1]*z[1]+z[0]*z[0]);
+      z[0]/=norm; z[1]/=norm; 
+      n[0] = -z[1]; n[1] = z[0];
+
+      lower[0] = junct->x; lower[1] = junct->y; 
+      lower[0] -= thickness*n[0]; lower[1] -= thickness*n[1];
+      upper[0] -= thickness*n[0]; upper[1] -= thickness*n[1];
+
+      PetscCall(DMPlexCreateEmbeddedLineMesh(PETSC_COMM_SELF,2,faces[0],lower,upper,&dmtemp));
+      PetscCall(DMPlexExtrude(dmtemp,1,thickness*2,PETSC_FALSE,PETSC_FALSE,n,NULL,&dmlist[i]));
+      PetscCall(DMDestroy(&dmtemp));
+     // PetscCall(DMPlexCreateBoxMesh(PETSC_COMM_SELF, 2, PETSC_FALSE, faces, lower, upper, NULL, PETSC_TRUE, &dmlist[i]));
+      PetscCall(DGNetworkCreateViewDM2(dmlist[i++]));
     }
     *numdm = i;
-    PetscCall(DMPlexAdd_Disconnected(dmlist,*numdm,dmsum,stratumoffset));
-    PetscCall(DMGetCoordinateDM(*dmsum, &cdm));
-    PetscCall(DMGetDimension(*dmsum, &dim));
-    PetscCall(DMGetCoordinateDim(*dmsum, &dE));
-    PetscCall(DMPlexGetHeightStratum(cdm, 0, &cStart, NULL));
-    PetscCall(DMPlexGetCellType(*dmsum, cStart, &ct));
-    simplex = DMPolytopeTypeGetNumVertices(ct) == DMPolytopeTypeGetDim(ct)+1 ? PETSC_TRUE : PETSC_FALSE;
-    PetscCall(PetscFECreateLagrange(PETSC_COMM_SELF, dim, dE, simplex,1,PETSC_DECIDE, &fe));
-    PetscCall(DMProjectCoordinates(*dmsum, fe));
-    PetscCall(PetscFEDestroy(&fe));
-    PetscCall(DMGetCoordinateSection(*dmsum,&coordsec_g));
-    PetscCall(DMGetCoordinates(*dmsum,&Coord_g));
-    PetscCall(VecGetArray(Coord_g,&coord_g));
-    /* Now map the coordinate data */
-    for(i=0; i<*numdm; i++) {
-      PetscCall(DMGetCoordinates(dmlist[i],&Coord));
-      PetscCall(VecGetArray(Coord,&coord));
-      PetscCall(DMGetCoordinateSection(dmlist[i],&coordsec));
-      PetscCall(PetscSectionGetChart(coordsec,&secStart,&secEnd));
-      /* Iterate through the stratum */
-      PetscCall(DMPlexGetDepth(dmlist[i],&depth));
-      for (stratum = 0; stratum <= depth; stratum++) {
-        PetscCall(DMPlexGetDepthStratum(dmlist[i],stratum,&pStart,&pEnd));
-        PetscCall(PetscSectionGetFieldOffset(*stratumoffset,i,stratum,&off_stratum));
-        /* there is a better way of doing this ... for later */
-        for (p=pStart;p<pEnd&&p<secEnd;p++) {
-          if( p >= secStart) {
-            PetscCall(PetscSectionGetFieldOffset(coordsec,p,0,&off)); /* domain offset */
-            PetscCall(PetscSectionGetFieldDof(coordsec,p,0,&dof));
-            PetscCall(PetscSectionGetFieldOffset(coordsec_g,p+off_stratum,0,&off_g)); /*range offset */
-            for (j=0; j<dof;j++) {
-              coord_g[off_g+j] = coord[off+j];
-            }
-          }
-        }
-      }
-      PetscCall(VecRestoreArray(Coord,&coord));
-    }
-    PetscCall(VecRestoreArray(Coord_g,&coord_g));
-    PetscCall(DMSetCoordinatesLocal(*dmsum,Coord_g));
+    PetscCall(DMPlexDisjointUnion_Geometric_Section(dmlist,i,&dmunion,&stratumoff));
     /* in theory the coordinates are now mapped correctly ... we shall see */
     *dm_list = dmlist;
+    *dmsum = dmunion;
+    if(stratumoff) {
+      *stratumoffset = stratumoff; 
+    } else {
+      PetscCall(PetscSectionDestroy(&stratumoff));
+    } 
   } else {
       /* TODO */
   }
