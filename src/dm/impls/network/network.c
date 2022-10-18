@@ -1756,6 +1756,7 @@ static PetscErrorCode DMNetworkDistributeCoordinates(DM dm, PetscSF migrationSF,
 
 .seealso: `DMNetworkCreate()`
 @*/
+
 PetscErrorCode DMNetworkDistribute(DM *dm, PetscInt overlap)
 {
   MPI_Comm                 comm;

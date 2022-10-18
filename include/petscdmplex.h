@@ -29,6 +29,7 @@ PETSC_EXTERN PetscErrorCode DMPlexCreateCohesiveSubmesh(DM, PetscBool, const cha
 PETSC_EXTERN PetscErrorCode DMPlexCreateFromCellListPetsc(MPI_Comm, PetscInt, PetscInt, PetscInt, PetscInt, PetscBool, const PetscInt[], PetscInt, const PetscReal[], DM *);
 PETSC_EXTERN PetscErrorCode DMPlexCreateFromCellListParallelPetsc(MPI_Comm, PetscInt, PetscInt, PetscInt, PetscInt, PetscInt, PetscBool, const PetscInt[], PetscInt, const PetscReal[], PetscSF *, PetscInt **, DM *);
 PETSC_EXTERN PetscErrorCode DMPlexCreateFromDAG(DM, PetscInt, const PetscInt[], const PetscInt[], const PetscInt[], const PetscInt[], const PetscScalar[]);
+PETSC_EXTERN PetscErrorCode DMPlexBuildFromDAG(DM , PetscInt , const PetscInt [], const PetscInt [], const PetscInt [], const PetscInt []);
 PETSC_EXTERN PetscErrorCode DMPlexCreateReferenceCell(MPI_Comm, DMPolytopeType, DM *);
 PETSC_EXTERN PetscErrorCode DMPlexSetOptionsPrefix(DM, const char[]);
 PETSC_EXTERN PetscErrorCode DMPlexGetChart(DM, PetscInt *, PetscInt *);
@@ -145,6 +146,12 @@ PETSC_EXTERN PetscErrorCode DMPlexGetTransitiveClosure(DM, PetscInt, PetscBool, 
 PETSC_EXTERN PetscErrorCode DMPlexRestoreTransitiveClosure(DM, PetscInt, PetscBool, PetscInt *, PetscInt *[]);
 PETSC_EXTERN PetscErrorCode DMPlexGetCompressedClosure(DM, PetscSection, PetscInt, PetscInt *, PetscInt **, PetscSection *, IS *, const PetscInt **);
 PETSC_EXTERN PetscErrorCode DMPlexRestoreCompressedClosure(DM, PetscSection, PetscInt, PetscInt *, PetscInt **, PetscSection *, IS *, const PetscInt **);
+
+/* MyCustom topological stuff */ 
+
+PETSC_EXTERN PetscErrorCode DMPlexDisjointUnion_Topological_Section(DM*, PetscInt, DM*, PetscSection*); 
+PETSC_EXTERN PetscErrorCode DMPlexDisjointUnion_Geometric_Section(DM*, PetscInt, DM*, PetscSection*); 
+PETSC_EXTERN PetscErrorCode DMPlexCreateEmbeddedLineMesh(MPI_Comm , PetscInt , const PetscInt , const PetscReal[], const PetscReal[], DM*);
 
 /*E
    DMPlexTPSType - Type of triply-periodic surface for a `DMPLEX`

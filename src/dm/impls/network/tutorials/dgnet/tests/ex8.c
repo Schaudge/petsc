@@ -61,13 +61,14 @@ static PetscErrorCode MakeOrder(PetscInt dof, PetscInt *order,PetscInt maxdegree
 {
   PetscInt  i;
 
+  PetscFunctionBegin;
   for(i=0; i<dof; i++) order[i] = maxdegree;
   PetscFunctionReturn(0);
 }
 
 int main(int argc,char *argv[])
 {
-  char              physname[256] = "shallow", errorestimator[256] = "lax" ;
+  char              physname[256] = "shallow", errorestimator[256] = "lax", outputfile[256];
   PetscFunctionList physics = 0,errest = 0;
   MPI_Comm          comm;
   TS                ts;
@@ -75,10 +76,11 @@ int main(int argc,char *argv[])
   PetscInt          maxorder=1;
   PetscReal         maxtime;
   PetscMPIInt       size,rank;
-  PetscBool         limit=PETSC_TRUE,view3d=PETSC_FALSE,viewglvis=PETSC_FALSE,glvismode=PETSC_FALSE,viewfullnet=PETSC_FALSE;
+  PetscBool         limit=PETSC_TRUE,view3d=PETSC_FALSE,viewglvis=PETSC_FALSE,glvismode=PETSC_FALSE,viewfullnet=PETSC_FALSE,savefinal=PETSC_FALSE;
   DGNetworkMonitor  monitor=NULL;
   NRSErrorEstimator errorest;
   DGNetworkMonitor_Glvis monitor_gl;
+  PetscViewer       vecbinary; 
 
   PetscCall(PetscInitialize(&argc,&argv,0,help));
   comm = PETSC_COMM_WORLD;
@@ -108,6 +110,9 @@ int main(int argc,char *argv[])
   dgnet->jumptol        = 0.5;
   dgnet->diagnosticlow  = 0.5;
   dgnet->diagnosticup   = 1e-4;
+  dgnet->linearcoupling   = PETSC_FALSE;
+  dgnet->M                = 50;
+  dgnet->edgethickness   = 1; 
 
   /* Command Line Options */
   PetscOptionsBegin(comm,NULL,"DGNetwork solver options","");
@@ -120,8 +125,8 @@ int main(int argc,char *argv[])
     PetscCall(PetscOptionsInt("-Mx","Smallest number of cells for an edge","",dgnet->Mx,&dgnet->Mx,NULL));
     PetscCall(PetscOptionsInt("-ndaughters","Number of daughter branches for network type 3","",dgnet->ndaughters,&dgnet->ndaughters,NULL));
     PetscCall(PetscOptionsInt("-order", "Order of the DG Basis","",maxorder,&maxorder,NULL));
+    PetscCall(PetscOptionsBool("-savefinal","View GLVis of Edge","",savefinal,&savefinal,NULL));
     PetscCall(PetscOptionsBool("-view","View the DG solution","",dgnet->view,&dgnet->view,NULL));
-    PetscCall(PetscOptionsBool("-uselimiter","Use a limiter for the DG solution","",limit,&limit,NULL));
     PetscCall(PetscOptionsBool("-uselimiter","Use a limiter for the DG solution","",limit,&limit,NULL));
     PetscCall(PetscOptionsReal("-jumptol","Set jump tolerance for lame one-sided limiter","",dgnet->jumptol,&dgnet->jumptol,NULL));
     PetscCall(PetscOptionsBool("-lincouple","Use lax curve diagnostic for coupling","",dgnet->linearcoupling,&dgnet->linearcoupling,NULL));
@@ -222,7 +227,12 @@ int main(int argc,char *argv[])
   }
 
   PetscCall(TSSolve(ts,dgnet->X));
-
+ if(savefinal) {
+    PetscCall(PetscSNPrintf(outputfile,256,"ex8output_P%i_%i",maxorder,dgnet->Mx));
+    PetscCall(PetscViewerBinaryOpen(comm,outputfile,FILE_MODE_WRITE,&vecbinary));
+    PetscCall(VecView(dgnet->X,vecbinary));
+    PetscCall(PetscViewerDestroy(&vecbinary));
+  }
   /* Clean up */
   if (dgnet->view && size==1) {
     if (viewglvis) {

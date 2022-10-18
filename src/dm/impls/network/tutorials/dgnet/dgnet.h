@@ -103,7 +103,7 @@ struct _p_DGNetwork
   PetscInt    moni;
   PetscBool   view,linearcoupling,lincouplediff,tabulated,laxcurve,adaptivecouple;
   PetscBool   viewglvis,viewfullnet;
-  PetscReal   ymin,ymax,length, diagnosticlow, diagnosticup;
+  PetscReal   ymin,ymax,length, diagnosticlow, diagnosticup,M;
   char        prefix[256];
   void        (*limit)(const PetscScalar*,const PetscScalar*,PetscScalar*,PetscInt);
   PetscErrorCode (*gettimestep)(TS ts, PetscReal *dt);
@@ -164,6 +164,7 @@ struct _p_DGNetwork
 
   /* Edges */
   EdgeFE      edgefe;
+  PetscReal   edgethickness; 
 
   /* We assume for efficiency and simplicity that the network has
      a single discretization on all edges and the same physics.
@@ -279,6 +280,7 @@ extern PetscErrorCode DGNetworkDestroyPhysics(DGNetwork);
 
 
 extern PetscErrorCode DGNetworkProject(DGNetwork,Vec,PetscReal);
+extern PetscErrorCode DGNetworkProject_Coarse_To_Fine(DGNetwork,DGNetwork, Vec, Vec); 
 
 extern PetscErrorCode PhysicsDestroy_SimpleFree_Net(void*);
 extern PetscErrorCode RiemannListAdd_Net(PetscFunctionList*,const char*,RiemannFunction);

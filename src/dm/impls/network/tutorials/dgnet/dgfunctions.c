@@ -297,6 +297,134 @@ PetscErrorCode DGNetworkProject(DGNetwork dgnet,Vec X0,PetscReal t)
   PetscCall(DMLocalToGlobalEnd(dgnet->network,localX,INSERT_VALUES,X0)); 
   PetscFunctionReturn(0);
 }
+/* Project between a coarse and fine dgnet network. Assume same network, but different meshes for each edge */
+
+
+/* only will work for implicit fem geometry and assumes that the physical geometry has dimension 1 */
+/* very hacked together, thrown out and replace as I implement a better hieracherical dm format */ 
+PetscErrorCode DGNetworkProject_Coarse_To_Fine(DGNetwork dgnet_fine,DGNetwork dgnet_coarse, Vec Coarse, Vec projection) 
+{
+  PetscInt       type,offset_fine,offset_coarse,e,eStart,eEnd,dof = dgnet_fine->physics.dof;
+  PetscInt       i,j,c_fine,cStart_fine,cEnd_fine,field,deg_fine,ndeg_fine,tab,tab_coarse,fieldoff_fine,quadsize,q,order_fine,order_coarse;
+  PetscInt       ndeg_coarse,fieldoff_coarse,deg_coarse,c_coarse,cStart_coarse,cEnd_coarse;
+  PetscInt       **degs_coarse; 
+  PetscScalar    *xarr_proj,*xarr_coarse,*coeff,*coeff_coarse,qeval;
+  PetscScalar    *coords_coarse= NULL;
+  EdgeFE         edgefe_fine, edgefe_coarse;
+  Vec            coord_coarse;
+  PetscReal      J_fine,invJ_fine,detJ_fine,v0_fine,xend,q_geom,q_coarse,J_coarse,invJ_coarse,detJ_coarse,v0_coarse;
+  PetscReal       **q_coarse_Eval;
+  const PetscReal *qpoint,*qweight;
+  PetscSection   section_fine,section_coarse,sec_coord_coarse;
+  DM             geom_coarse; 
+  
+  PetscFunctionBegin;
+  PetscCall(VecZeroEntries(projection));
+  PetscCall(VecGetArray(projection,&xarr_proj));
+  PetscCall(VecGetArray(Coarse,&xarr_coarse));
+  PetscCall(DMNetworkGetEdgeRange(dgnet_fine->network,&eStart,&eEnd)); /* assume same for coarse */ 
+
+  /* pick the finer quadrature for the evaluation */
+  PetscCall(PetscQuadratureGetOrder(dgnet_fine->quad,&order_fine)); 
+  PetscCall(PetscQuadratureGetOrder(dgnet_fine->quad,&order_coarse)); 
+  if (order_fine >= order_coarse) 
+  {
+    PetscCall(PetscQuadratureGetData(dgnet_fine->quad,NULL,NULL,&quadsize,&qpoint,&qweight)); 
+  } else {
+    PetscCall(PetscQuadratureGetData(dgnet_coarse->quad,NULL,NULL,&quadsize,&qpoint,&qweight)); 
+  }
+
+  /* allocate array for legendre evaluations at the fine qaudarture points */ 
+  PetscCall(PetscMalloc2(dgnet_coarse->tabordersize,&q_coarse_Eval,dgnet_coarse->tabordersize,&degs_coarse));
+  for(i=0;i<dgnet_coarse->tabordersize;i++) {
+    PetscCall(PetscMalloc2(dgnet_coarse->taborder[i]+1,&q_coarse_Eval[i],dgnet_coarse->taborder[i]+1,&degs_coarse[i]));
+    for(j=0; j<=dgnet_coarse->taborder[i]; j++) { degs_coarse[i][j] = j; }
+  }
+  /* project the mesh on each edge */
+  for (e=eStart; e<eEnd; e++) {
+    PetscCall(DMNetworkGetComponent(dgnet_fine->network,e,FVEDGE,&type,(void**)&edgefe_fine,NULL));
+    PetscCall(DMNetworkGetComponent(dgnet_coarse->network,e,FVEDGE,&type,(void**)&edgefe_coarse,NULL));
+
+    PetscCall(DMNetworkGetLocalVecOffset(dgnet_fine->network,e,FVEDGE,&offset_fine));
+    PetscCall(DMPlexGetHeightStratum(edgefe_fine->dm,0,&cStart_fine,&cEnd_fine));
+    PetscCall(DMGetSection(edgefe_fine->dm,&section_fine));
+
+    PetscCall(DMNetworkGetLocalVecOffset(dgnet_coarse->network,e,FVEDGE,&offset_coarse));
+    PetscCall(DMPlexGetHeightStratum(edgefe_coarse->dm,0,&cStart_coarse,&cEnd_coarse));
+    PetscCall(DMGetSection(edgefe_coarse->dm,&section_coarse));
+
+    PetscCall(DMGetCoordinateDM(edgefe_coarse->dm,&geom_coarse)); 
+    PetscCall(DMGetCoordinatesLocal(edgefe_coarse->dm,&coord_coarse));
+    PetscCall(DMGetCoordinateSection(edgefe_coarse->dm,&sec_coord_coarse));
+
+    c_coarse = cStart_coarse;
+    /* asssuming implicit geometry and 1d meshes henceforth */
+    /* assume numcoords == 2 */
+    PetscCall(DMPlexVecGetClosure(edgefe_coarse->dm, sec_coord_coarse, coord_coarse, c_coarse, NULL, &coords_coarse));
+    xend = coords_coarse[1]; 
+    PetscCall(DMPlexVecRestoreClosure(edgefe_coarse->dm, sec_coord_coarse, coord_coarse, c_coarse, NULL, &coords_coarse));
+    PetscCall(DMPlexComputeCellGeometryAffineFEM(edgefe_coarse->dm,c_coarse,&v0_coarse,&J_coarse,&invJ_coarse,&detJ_coarse));
+    for (c_fine=cStart_fine; c_fine<cEnd_fine; c_fine++) {
+      PetscCall(DMPlexComputeCellGeometryAffineFEM(edgefe_fine->dm,c_fine,&v0_fine,&J_fine,&invJ_fine,&detJ_fine));
+      /* We can compute points in real space by Jx + v0, the affine transformation */
+      for (q=0; q< quadsize; q++) {
+        q_geom = J_fine*qpoint[q]+v0_fine;
+      /* Find the cell on the coarse mesh the q_geom point belongs to. Simple Search as we are in 1D */
+        while(q_geom > xend) {
+          c_coarse++;
+          PetscCall(DMPlexVecGetClosure(edgefe_coarse->dm, sec_coord_coarse, coord_coarse, c_coarse, NULL, &coords_coarse));
+          xend = coords_coarse[1]; 
+          PetscCall(DMPlexVecRestoreClosure(edgefe_coarse->dm, sec_coord_coarse, coord_coarse, c_coarse, NULL, &coords_coarse));
+          PetscCall(DMPlexComputeCellGeometryAffineFEM(edgefe_coarse->dm,c_coarse,&v0_coarse,&J_coarse,&invJ_coarse,&detJ_coarse));
+        }
+      /* Find the q_geom point on the coarse reference cell [-1,1] and evaluate the coarse legendre basis at that point */
+        q_coarse = invJ_coarse*(q_geom-v0_coarse);
+        for(i=0;i<dgnet_coarse->tabordersize;i++) {
+          PetscCall(PetscDTLegendreEval(1,&q_coarse,dgnet_coarse->taborder[i]+1,degs_coarse[i],q_coarse_Eval[i],NULL,NULL));
+        }
+
+
+        for(field=0; field<dof; field++){
+          PetscCall(PetscSectionGetFieldOffset(section_fine,c_fine,field,&fieldoff_fine));
+          PetscCall(PetscSectionGetFieldOffset(section_coarse,c_coarse,field,&fieldoff_coarse));
+          tab = dgnet_fine->fieldtotab[field];
+          tab_coarse = dgnet_coarse->fieldtotab[field];
+          ndeg_fine = dgnet_fine->taborder[tab]+1;
+          ndeg_coarse = dgnet_coarse->taborder[tab_coarse]+1;
+          coeff_coarse = xarr_coarse+offset_coarse+fieldoff_coarse;
+          qeval = 0.0;
+          for(deg_coarse = 0; deg_coarse<ndeg_coarse; deg_coarse++) {
+            qeval += q_coarse_Eval[tab_coarse][deg_coarse]*coeff_coarse[deg_coarse];
+          }
+          /* projection for all fields at the quadrature point */ 
+          for (deg_fine = 0; deg_fine<ndeg_fine; deg_fine++) {
+            coeff  = xarr_proj+offset_fine+fieldoff_fine+deg_fine;
+            *coeff += qweight[q]*qeval*dgnet_fine->LegEval[tab][ndeg_fine*q+deg_fine]; 
+          }
+        }
+      }
+      /* normalization */
+      for(field=0; field<dof; field++) {
+        tab = dgnet_fine->fieldtotab[field];
+        ndeg_fine = dgnet_fine->taborder[tab]+1;
+        PetscCall(PetscSectionGetFieldOffset(section_fine,c_fine,field,&fieldoff_fine));
+        for (deg_fine = 0; deg_fine<ndeg_fine; deg_fine++) {
+              coeff  = xarr_proj+offset_fine+fieldoff_fine+deg_fine;
+              *coeff *= dgnet_fine->Leg_L2[tab][deg_fine];
+        }
+      }
+    }
+  }
+  PetscCall(VecRestoreArray(projection,&xarr_proj));
+  PetscCall(VecRestoreArray(Coarse,&xarr_coarse));
+
+  /* free allocated memory */ 
+  for(i=0;i<dgnet_coarse->tabordersize;i++) {
+   PetscCall(PetscFree2(q_coarse_Eval[i],degs_coarse[i]));
+  } 
+  PetscCall(PetscFree2(q_coarse_Eval,degs_coarse));
+  PetscFunctionReturn(0);
+}
 /* Compute the L2 Norm of the Vector X associated with the DGNetwork dgnet */
 PetscErrorCode DGNetworkNormL2(DGNetwork dgnet, Vec X,PetscReal *norm) 
 {
@@ -478,7 +606,7 @@ PetscErrorCode TVDLimit_1D(DGNetwork dgnet,const PetscScalar *uL,const PetscScal
   input 
   
   */
-PetscErrorCode TVDLimit_1D_2(DGNetwork dgnet,const PetscScalar *uL,const PetscScalar *uM,const PetscScalar *uR, PetscScalar *ubdryL, PetscScalar *ubdryR, PetscReal *uCoeff, PetscSection sec, PetscInt c)
+PetscErrorCode TVDLimit_1D_2(DGNetwork dgnet,const PetscScalar *uL,const PetscScalar *uM,const PetscScalar *uR, PetscScalar *ubdryL, PetscScalar *ubdryR, PetscReal *uCoeff, PetscSection sec, PetscInt c,PetscReal M)
 {
   PetscScalar    *cjmpL,*cjmpR,*uLtmp,*uRtmp,*cuLtmp,*cuRtmp; 
   PetscInt       j,dof = dgnet->physics.dof;
@@ -505,7 +633,7 @@ PetscErrorCode TVDLimit_1D_2(DGNetwork dgnet,const PetscScalar *uL,const PetscSc
     //PetscCall(PetscPrintf(dgnet->comm,"uL -   jmpL: %e jmpR: %e bdryL: %e  minmod: %e uLtmp: %e diff: %e   \n",cjmpL[j],cjmpR[j],uM[j]-ubdryL[j], slope,uLtmp[j],uLtmp[j] - ubdryL[j]));
     slope    = MinMod3(cjmpL[j],cjmpR[j], ubdryR[j]-uM[j]);
     uRtmp[j] = uM[j] + slope;
-    dgnet->limitactive[j] = (PetscAbs(uRtmp[j] - ubdryR[j]) > 1e-12 || PetscAbs(uLtmp[j] - ubdryL[j]) > 1e-12); 
+    dgnet->limitactive[j] = (PetscAbs(uRtmp[j] - ubdryR[j]) > M || PetscAbs(uLtmp[j] - ubdryL[j]) > M); 
     if (dgnet->limitactive[j]) {
       limiteractivated = PETSC_TRUE;
     }
@@ -596,7 +724,7 @@ PetscErrorCode DGNetlimiter_ctx(Vec Y,void* ctx) {
   PetscScalar    *xarr;
   PetscInt       e,c,eStart,eEnd,cStart,cEnd;
   PetscInt       offset,dof,field,fieldoff;
-  PetscReal      detJ;
+  PetscReal      detJ,M;
   Vec            localX;
   EdgeFE         edgefe; 
   PetscSection   section;
@@ -628,7 +756,9 @@ PetscErrorCode DGNetlimiter_ctx(Vec Y,void* ctx) {
         PetscCall(PetscSectionGetFieldOffset(section,c+1,field,&fieldoff));
         dgnet->uavgs[field+2*dof] = xarr[offset+fieldoff]; 
       }
-      PetscCall(TVDLimit_1D_2(dgnet,dgnet->uavgs, dgnet->uavgs+dof,dgnet->uavgs+2*dof,dgnet->uLR,dgnet->uLR+dof,xarr+offset,section,c));
+      PetscCall(DMPlexComputeCellGeometryAffineFEM(edgefe->dm,c,NULL,NULL,NULL,&detJ));
+      M = detJ*detJ*dgnet->M;
+      PetscCall(TVDLimit_1D_2(dgnet,dgnet->uavgs, dgnet->uavgs+dof,dgnet->uavgs+2*dof,dgnet->uLR,dgnet->uLR+dof,xarr+offset,section,c,M));      
       /* 
         TODO : Could print out the limited cells here 
       */ 
