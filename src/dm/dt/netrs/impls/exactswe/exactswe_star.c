@@ -27,6 +27,7 @@ static PetscErrorCode ExactSWE_LaxCurveFun(SNES snes,Vec x,Vec f, void *ctx)
   PetscScalar       *F;
   NetRS             netrs = wrapper->netrs;
 
+  PetscFunctionBeginUser;
   PetscCall(VecGetSize(x,&n));
   PetscCall(VecGetArrayRead(x,&ustar));
   PetscCall(VecGetArray(f,&F));
@@ -235,7 +236,7 @@ PETSC_EXTERN PetscErrorCode NRSCreate_ExactSWEStar(NetRS rs)
   NRS_ExactSWE   *exactswe;
 
   PetscFunctionBegin;
-  PetscCall(PetscNewLog(rs,&exactswe));
+  PetscCall(PetscNew(&exactswe));
   rs->data = (void*)exactswe;
   if(rs->numfields>-1) {
     if(rs->numfields != 2) {

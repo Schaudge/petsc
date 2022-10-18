@@ -290,7 +290,7 @@ PetscErrorCode NetRSSetFromOptions(NetRS rs)
     PetscCall((*rs->ops->setfromoptions)(PetscOptionsObject,rs));
   }
   /* process any options handlers added with PetscObjectAddOptionsHandler() */
-  PetscCall(PetscObjectProcessOptionsHandlers(PetscOptionsObject,(PetscObject) rs));
+  PetscCall(PetscObjectProcessOptionsHandlers((PetscObject) rs,PetscOptionsObject));
   PetscOptionsEnd();
   /*
     TODO:  View from options here ? 

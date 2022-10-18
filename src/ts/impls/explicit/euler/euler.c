@@ -18,7 +18,7 @@ static PetscErrorCode TSStep_Euler(TS ts)
   PetscCall(TSPreStage(ts, ts->ptime));
   PetscCall(TSComputeRHSFunction(ts, ts->ptime, solution, update));
   PetscCall(VecAYPX(update, ts->time_step, solution));
-  PetscCall(TSPostStage(ts, ts->ptime, 0, &solution));
+  PetscCall(TSPostStage(ts, ts->ptime, 0, &update));
   PetscCall(TSAdaptCheckStage(ts->adapt, ts, ts->ptime, solution, &stageok));
   if (!stageok) {
     ts->reason = TS_DIVERGED_STEP_REJECTED;

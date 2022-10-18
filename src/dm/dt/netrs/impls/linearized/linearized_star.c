@@ -156,7 +156,7 @@ PETSC_EXTERN PetscErrorCode NRSCreate_LinearStar(NetRS rs)
   NRS_Linear     *linear;
 
   PetscFunctionBegin;
-  PetscCall(PetscNewLog(rs,&linear));
+  PetscCall(PetscNew(&linear));
   rs->data = (void*)linear;
   if(rs->numfields>-1) {
     if(rs->numfields != 2) {

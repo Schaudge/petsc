@@ -422,9 +422,9 @@ PetscErrorCode RiemannSolverSetFluxDim(RiemannSolver rs,PetscInt dim, PetscInt n
    PetscFunctionBegin;
    PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
    /* WIP : Only 1-dim Riemann Solvers are supported */ 
-   if (dim != 1) {SETERRQ1(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"%i dimension for flux functions are not supported. Only 1 dimensional flux function are supported. ",dim);}
-   if (dim < 1) {SETERRQ1(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"%i dimension not valid. Dimension must be non-negative ",dim);}
-   if (numfields < 1){SETERRQ1(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"%i numfields not valid. numfields must be non-negative ",numfields);}
+   if (dim != 1) {SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"%i dimension for flux functions are not supported. Only 1 dimensional flux function are supported. ",dim);}
+   if (dim < 1) {SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"%i dimension not valid. Dimension must be non-negative ",dim);}
+   if (numfields < 1){SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"%i numfields not valid. numfields must be non-negative ",numfields);}
 
    rs->dim = dim;
    rs->numfields = numfields; 
@@ -638,7 +638,7 @@ PetscErrorCode RiemannSolverSetFromOptions(RiemannSolver rs)
     PetscCall((*rs->ops->setfromoptions)(PetscOptionsObject,rs));
   }
   /* process any options handlers added with PetscObjectAddOptionsHandler() */
-  PetscCall(PetscObjectProcessOptionsHandlers(PetscOptionsObject,(PetscObject) rs));
+  PetscCall(PetscObjectProcessOptionsHandlers((PetscObject) rs,PetscOptionsObject));
  PetscOptionsEnd();
  /*
     TODO:  View from options here ? 
