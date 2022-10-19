@@ -1,7 +1,7 @@
 -include ../../../petscdir.mk
 ALL: lib
 
-SOURCEH   = ../../../include/petsc/private/mlregressorimpl.h ../../../include/petscmlregressor.h
+SOURCEH   = ../../../include/petsc/private/regressorimpl.h ../../../include/petscregressor.h
 DIRS      = interface impls tests tutorials
 LOCDIR    = src/ml/regressor/
 MANSEC    = ML

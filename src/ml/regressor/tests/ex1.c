@@ -1,10 +1,10 @@
-static char help[] = "Tests basic creation and destruction of MLRegressor objects.\n\n";
+static char help[] = "Tests basic creation and destruction of PetscRegressor objects.\n\n";
 
-#include <petscmlregressor.h>
+#include <petscregressor.h>
 
 int main(int argc,char **args)
 {
-  MLRegressor mlregressor;
+  PetscRegressor regressor;
   PetscErrorCode ierr;
   PetscMPIInt rank;
   Mat X;
@@ -41,13 +41,13 @@ int main(int argc,char **args)
   ierr = MatAssemblyBegin(X,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(X,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
-  ierr = MLRegressorCreate(PETSC_COMM_WORLD,&mlregressor);CHKERRQ(ierr);
-  ierr = MLRegressorSetType(mlregressor,MLREGRESSORLINEAR);CHKERRQ(ierr);
-  ierr = MLRegressorSetFromOptions(mlregressor);
-  ierr = MLRegressorFit(mlregressor,X,y);CHKERRQ(ierr);
-  ierr = MLRegressorPredict(mlregressor,X,y_predicted);CHKERRQ(ierr);
-  ierr = MLRegressorLinearGetIntercept(mlregressor,&intercept);CHKERRQ(ierr);
-  ierr = MLRegressorLinearGetCoefficients(mlregressor,&coefficients);CHKERRQ(ierr);
+  ierr = PetscRegressorCreate(PETSC_COMM_WORLD,&regressor);CHKERRQ(ierr);
+  ierr = PetscRegressorSetType(regressor,PETSCREGRESSORLINEAR);CHKERRQ(ierr);
+  ierr = PetscRegressorSetFromOptions(regressor);
+  ierr = PetscRegressorFit(regressor,X,y);CHKERRQ(ierr);
+  ierr = PetscRegressorPredict(regressor,X,y_predicted);CHKERRQ(ierr);
+  ierr = PetscRegressorLinearGetIntercept(regressor,&intercept);CHKERRQ(ierr);
+  ierr = PetscRegressorLinearGetCoefficients(regressor,&coefficients);CHKERRQ(ierr);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Intercept is %lf\n",intercept);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Coefficients are\n");CHKERRQ(ierr);
@@ -55,7 +55,7 @@ int main(int argc,char **args)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Predicted values are\n");CHKERRQ(ierr);
   ierr = VecView(y_predicted,PETSC_VIEWER_DEFAULT);CHKERRQ(ierr);
 
-  ierr = MLRegressorDestroy(&mlregressor);CHKERRQ(ierr);
+  ierr = PetscRegressorDestroy(&regressor);CHKERRQ(ierr);
 
   ierr = PetscFinalize();
   return ierr;

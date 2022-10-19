@@ -1,11 +1,11 @@
-#if !defined(__MLREGRESSORLINEAR)
-#define __MLREGRESSORLINEAR
+#if !defined(__PETSCREGRESSORLINEAR)
+#define __PETSCREGRESSORLINEAR
 
-#include <petsc/private/mlregressorimpl.h>
+#include <petsc/private/regressorimpl.h>
 #include <petscksp.h>
 
 typedef struct {
-  /* Note: It might make sense for all of this to eventually be defined as the macro MLREGRESSORLINEARHEADER,
+  /* Note: It might make sense for all of this to eventually be defined as the macro PETSCREGRESSORLINEARHEADER,
    * since that it may form a "base" that other linear models might use. */
 
   /* Parameters of the fitted regression model */
@@ -20,6 +20,6 @@ typedef struct {
 
   /* Various options */
   PetscBool fit_intercept;  /* Calculate intercept ("bias" or "offset") if true. Assume centered data if false. */
-} MLREGRESSOR_LINEAR;
+} PETSCREGRESSOR_LINEAR;
 
 #endif

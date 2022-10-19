@@ -3,7 +3,7 @@ ALL: lib
 
 CFLAGS    =
 FFLAGS    =
-SOURCEC   = regressor.c mlregressorregi.c dlregismlregressor.c
+SOURCEC   = regressor.c regressorregi.c dlregisregressor.c
 SOURCEF   =
 SOURCEH   =
 LIBBASE   = libpetscml

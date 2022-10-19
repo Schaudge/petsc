@@ -30,4 +30,4 @@
 #include <petsctao.h>
 
 #include <petscmldr.h>
-#include <petscmlregressor.h>
+#include <petscregressor.h>
