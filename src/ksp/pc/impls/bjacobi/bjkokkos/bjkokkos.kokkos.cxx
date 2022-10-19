@@ -20,7 +20,7 @@
 #define PCBJKOKKOS_VEC_SIZE     16
 #define PCBJKOKKOS_TEAM_SIZE    16
 
-#define PCBJKOKKOS_VERBOSE_LEVEL 2
+#define PCBJKOKKOS_VERBOSE_LEVEL 3
 
 typedef Kokkos::DefaultExecutionSpace exec_space;
 using layout           = Kokkos::LayoutRight;
@@ -85,7 +85,6 @@ typedef struct {
   #include <KokkosBatched_Gemm_Serial_Impl.hpp>
   #include <KokkosBatched_Gemm_Team_Impl.hpp>
   #include <KokkosBatched_Gemv_Decl.hpp>
-  #include <KokkosBatched_Gemv_Serial_Impl.hpp>
   #include <KokkosBatched_Gemv_Team_Impl.hpp>
   #include <KokkosBatched_Trsm_Decl.hpp>
   #include <KokkosBatched_Trsm_Serial_Impl.hpp>
@@ -894,8 +893,8 @@ static PetscErrorCode PCApply_BJKOKKOS(PC pc, Vec bin, Vec xout)
       for (PetscInt dmIdx = 0, s = 0, head = 0; dmIdx < jac->num_dms; dmIdx += batch_sz) {
         for (PetscInt f = 0, idx = head; f < jac->dm_Nf[dmIdx]; f++, s++, idx++) {
     #if PCBJKOKKOS_VERBOSE_LEVEL >= 4
-          PetscCall(PetscPrintf(PetscObjectComm((PetscObject)A), "%2D:", s));
-          for (int bid = 0; bid < batch_sz; bid++) PetscCall(PetscPrintf(PetscObjectComm((PetscObject)A), "%3D ", handle.get_iteration_host(idx + bid * jac->dm_Nf[dmIdx])));
+          PetscCall(PetscPrintf(PetscObjectComm((PetscObject)A), "%2d:", (int)s));
+          for (int bid = 0; bid < batch_sz; bid++) PetscCall(PetscPrintf(PetscObjectComm((PetscObject)A), "%3d ", handle.get_iteration_host(idx + bid * jac->dm_Nf[dmIdx])));
           PetscCall(PetscPrintf(PetscObjectComm((PetscObject)A), "\n"));
     #else
           int count = 0, ii;
