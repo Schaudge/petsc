@@ -76,6 +76,7 @@ PetscErrorCode RHSFunction(TS ts, PetscReal ftime, Vec U, Vec F, void *ptr)
       vyy       = (-2.0 * vc + u[j - 1][i].v + u[j + 1][i].v) * sy;
       f[j][i].u = appctx->D1 * (uxx + uyy) - uc * vc * vc + appctx->gamma * (1.0 - uc);
       f[j][i].v = appctx->D2 * (vxx + vyy) + uc * vc * vc - (appctx->gamma + appctx->kappa) * vc;
+      f[j][i].w = f[j][i].u;
     }
   }
   PetscCall(PetscLogFlops(16.0 * xm * ym));

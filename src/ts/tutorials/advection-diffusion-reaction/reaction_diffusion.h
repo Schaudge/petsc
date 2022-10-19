@@ -2,7 +2,7 @@
 
 /* Simple C struct that allows us to access the two velocity (x and y directions) values easily in the code */
 typedef struct {
-  PetscScalar u, v;
+  PetscScalar u, v, w;
 } Field;
 
 /* Data structure to store the model parameters */
