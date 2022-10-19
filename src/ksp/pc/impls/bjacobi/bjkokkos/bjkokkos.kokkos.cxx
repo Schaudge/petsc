@@ -54,6 +54,10 @@ typedef struct {
   PetscInt  batch_target;
   PetscInt  nsolves_team;
   PetscInt  max_nits;
+  PetscInt  team_size;
+  PetscInt  vector_length;
+  PetscInt  ortho_strategy;
+  PetscInt  temp_data_strategy;
   // caches
   IntView          *rowOffsets;
   IntView          *colIndices;
@@ -241,6 +245,10 @@ static PetscErrorCode PCBJKOKKOSCreateKSP_BJKOKKOS(PC pc)
   jac->monitor      = PETSC_FALSE;
   jac->batch_target = -1;
   jac->nsolves_team = 1;
+  jac->team_size = PCBJKOKKOS_TEAM_SIZE;
+  jac->vector_length = PCBJKOKKOS_VEC_SIZE;
+  jac->ortho_strategy = 0;
+  jac->temp_data_strategy = 0;
   jac->ksp->max_it  = 50; // this is realy for GMRES w/o restarts
   PetscFunctionReturn(0);
 }
@@ -730,7 +738,7 @@ static PetscErrorCode PCApply_BJKOKKOS(PC pc, Vec bin, Vec xout)
     SETERRQ(PetscObjectComm((PetscObject)pc), PETSC_ERR_USER, "No aijkok");
   } else {
     PetscInt           maxit = jac->ksp->max_it;
-    const PetscInt     conc = Kokkos::DefaultExecutionSpace().concurrency(), openmp = !!(conc < 1000), team_size = (openmp == 0 && PCBJKOKKOS_VEC_SIZE != 1) ? PCBJKOKKOS_TEAM_SIZE : 1;
+    const PetscInt     conc = Kokkos::DefaultExecutionSpace().concurrency(), openmp = !!(conc < 1000), team_size = (openmp == 0 && jac->vector_length != 1) ? jac->team_size : 1;
     const PetscInt     nwork = jac->nwork, nBlk = jac->nBlocks;
     PetscScalar       *glb_xdata = NULL;
     PetscReal          rtol = jac->ksp->rtol, atol = jac->ksp->abstol, dtol = jac->ksp->divtol;
@@ -811,7 +819,7 @@ static PetscErrorCode PCApply_BJKOKKOS(PC pc, Vec bin, Vec xout)
       Kokkos::deep_copy(batch_x, 0.);
       PetscInfo(pc, "\tjac->n = %" PetscInt_FMT ", Nloc = %d, Nsolves = %d, nnz = %d, Nsolves_team = %d, league size = %d, maxit = %" PetscInt_FMT "\n", jac->n, Nloc, Nsolves, nnz, Nsolves_team, Nsolves / Nsolves_team, maxit);
       Kokkos::parallel_for(
-        "rowOffsets+map", Kokkos::TeamPolicy<>(Nsolves, team_size, PCBJKOKKOS_VEC_SIZE), KOKKOS_LAMBDA(const team_member team) {
+        "rowOffsets+map", Kokkos::TeamPolicy<>(Nsolves, team_size, jac->vector_length), KOKKOS_LAMBDA(const team_member team) {
           const int blkID = team.league_rank(), start = d_bid_eqOffset[blkID], end = d_bid_eqOffset[blkID + 1];
           if (fill_idx) {
             if (blkID % Nsolves_team == 0) {                                                        // first matrix on this member
@@ -839,7 +847,7 @@ static PetscErrorCode PCApply_BJKOKKOS(PC pc, Vec bin, Vec xout)
         Kokkos::fence();
       }
       Kokkos::parallel_for(
-        "copy matrix", Kokkos::TeamPolicy<>(Nsolves /* /batch_sz */, team_size, PCBJKOKKOS_VEC_SIZE), KOKKOS_LAMBDA(const team_member team) {
+        "copy matrix", Kokkos::TeamPolicy<>(Nsolves /* /batch_sz */, team_size, jac->vector_length), KOKKOS_LAMBDA(const team_member team) {
           const int blkID = team.league_rank(), start = d_bid_eqOffset[blkID], end = d_bid_eqOffset[blkID + 1], graphID = blkID / Nsolves_team;
           Kokkos::parallel_for(Kokkos::TeamThreadRange(team, start, end), [=](const int rowb) {
             int                rowa = d_isicol[rowb]; // global index
@@ -875,7 +883,7 @@ static PetscErrorCode PCApply_BJKOKKOS(PC pc, Vec bin, Vec xout)
       Kokkos::fence();
       // get data back
       Kokkos::parallel_for(
-        "map", Kokkos::TeamPolicy<>(Nsolves /* /batch_sz */, team_size, PCBJKOKKOS_VEC_SIZE), KOKKOS_LAMBDA(const team_member team) {
+        "map", Kokkos::TeamPolicy<>(Nsolves /* /batch_sz */, team_size, jac->vector_length), KOKKOS_LAMBDA(const team_member team) {
           const int blkID = team.league_rank(), start = d_bid_eqOffset[blkID], end = d_bid_eqOffset[blkID + 1]; // 0
           // map x into Plex/PETSc
           Kokkos::parallel_for(Kokkos::TeamVectorRange(team, start, end), [=](int rowb) {
@@ -978,10 +986,10 @@ static PetscErrorCode PCApply_BJKOKKOS(PC pc, Vec bin, Vec xout)
       nvtxRangePushA("batch-kokkos-solve");
 #endif
       Kokkos::View<PetscScalar *, Kokkos::DefaultExecutionSpace> d_work_vecs_k("workvectors", global_buff_words); // global work vectors
-      PetscInfo(pc, "\tn = %d. %d shared bytes/team, %d global mem bytes, rtol=%e, num blocks %d, team_size=%d, %d vector threads, %d shared vectors, %d global vectors\n", (int)jac->n, scr_bytes_team_shared, global_buff_words, rtol, (int)nBlk, (int)team_size, PCBJKOKKOS_VEC_SIZE, nShareVec, nGlobBVec);
+      PetscInfo(pc, "\tn = %d. %d shared bytes/team, %d global mem bytes, rtol=%e, num blocks %d, team_size=%d, %d vector threads, %d shared vectors, %d global vectors\n", (int)jac->n, scr_bytes_team_shared, global_buff_words, rtol, (int)nBlk, (int)team_size, (int)jac->vector_length, nShareVec, nGlobBVec);
       PetscScalar *d_work_vecs = d_work_vecs_k.data();
       Kokkos::parallel_for(
-        "Solve", Kokkos::TeamPolicy<Kokkos::LaunchBounds<256, 4>>(nBlk, team_size, PCBJKOKKOS_VEC_SIZE).set_scratch_size(PCBJKOKKOS_SHARED_LEVEL, Kokkos::PerTeam(scr_bytes_team_shared)), KOKKOS_LAMBDA(const team_member team) {
+        "Solve", Kokkos::TeamPolicy<Kokkos::LaunchBounds<256, 4>>(nBlk, team_size, jac->vector_length).set_scratch_size(PCBJKOKKOS_SHARED_LEVEL, Kokkos::PerTeam(scr_bytes_team_shared)), KOKKOS_LAMBDA(const team_member team) {
           const int    blkID = team.league_rank(), start = d_bid_eqOffset[blkID], end = d_bid_eqOffset[blkID + 1];
           vect2D_scr_t work_vecs_shared(team.team_scratch(PCBJKOKKOS_SHARED_LEVEL), end - start, nShareVec);
           PetscScalar *work_buff_shared = work_vecs_shared.data();
@@ -1180,6 +1188,10 @@ static PetscErrorCode PCSetUp_BJKOKKOS(PC pc)
       PetscCall(PetscOptionsBool("-ksp_monitor", "", "bjkokkos.kokkos.cxx.c", jac->monitor, &jac->monitor, NULL));
       PetscCall(PetscOptionsInt("-ksp_batch_target", "", "bjkokkos.kokkos.cxx.c", jac->batch_target, &jac->batch_target, NULL));
       PetscCall(PetscOptionsInt("-ksp_batch_nsolves_team", "", "bjkokkos.kokkos.cxx.c", jac->nsolves_team, &jac->nsolves_team, NULL));
+      PetscCall(PetscOptionsInt("-ksp_batch_team_size", "", "bjkokkos.kokkos.cxx.c", jac->team_size, &jac->team_size, NULL));
+      PetscCall(PetscOptionsInt("-ksp_batch_vector_length", "", "bjkokkos.kokkos.cxx.c", jac->vector_length, &jac->vector_length, NULL));
+      PetscCall(PetscOptionsInt("-ksp_batch_ortho_strategy", "", "bjkokkos.kokkos.cxx.c", jac->ortho_strategy, &jac->ortho_strategy, NULL));
+      PetscCall(PetscOptionsInt("-ksp_batch_temp_data_strategy", "", "bjkokkos.kokkos.cxx.c", jac->temp_data_strategy, &jac->temp_data_strategy, NULL));
       PetscCheck(jac->batch_target < jac->num_dms, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, "-ksp_batch_target (%" PetscInt_FMT ") >= number of DMs (%" PetscInt_FMT ")", jac->batch_target, jac->num_dms);
       PetscOptionsEnd();
       // get blocks - jac->d_bid_eqOffset_k
@@ -1234,11 +1246,11 @@ static PetscErrorCode PCSetUp_BJKOKKOS(PC pc)
     { // get jac->d_idiag_k (PC setup),
       const PetscInt    *d_ai = aijkok->i_device_data(), *d_aj = aijkok->j_device_data();
       const PetscScalar *d_aa = aijkok->a_device_data();
-      const PetscInt     conc = Kokkos::DefaultExecutionSpace().concurrency(), openmp = !!(conc < 1000), team_size = (openmp == 0 && PCBJKOKKOS_VEC_SIZE != 1) ? PCBJKOKKOS_TEAM_SIZE : 1;
+      const PetscInt     conc = Kokkos::DefaultExecutionSpace().concurrency(), openmp = !!(conc < 1000), team_size = (openmp == 0 && jac->vector_length != 1) ? jac->team_size : 1;
       PetscInt          *d_bid_eqOffset = jac->d_bid_eqOffset_k->data(), *r = jac->d_isrow_k->data(), *ic = jac->d_isicol_k->data();
       PetscScalar       *d_idiag = jac->d_idiag_k->data();
       Kokkos::parallel_for(
-        "Diag", Kokkos::TeamPolicy<>(jac->nBlocks, team_size, PCBJKOKKOS_VEC_SIZE), KOKKOS_LAMBDA(const team_member team) {
+        "Diag", Kokkos::TeamPolicy<>(jac->nBlocks, team_size, jac->vector_length), KOKKOS_LAMBDA(const team_member team) {
           const PetscInt blkID = team.league_rank();
           Kokkos::parallel_for(Kokkos::TeamThreadRange(team, d_bid_eqOffset[blkID], d_bid_eqOffset[blkID + 1]), [=](const int rowb) {
             const PetscInt     rowa = ic[rowb], ai = d_ai[rowa], *aj = d_aj + ai; // grab original data
