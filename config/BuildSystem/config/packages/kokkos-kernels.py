@@ -12,7 +12,8 @@ class Configure(config.package.CMakePackage):
     self.functions        = ['']
     # use one of the only non-templated functions in all of KK to check this library
     # exists
-    self.functionsCxx     = [1,'namespace KokkosBatched { void print_compiler_info(); }','KokkosBatched::print_compiler_info();']
+    self.functionsCxx = [1,'namespace Kokkos {void initialize(int&,char*[]);}','int one = 1;char* args[1];Kokkos::initialize(one,args);']
+    #self.functionsCxx     = [1,'namespace KokkosBatched { void print_compiler_info(); }','KokkosBatched::print_compiler_info();']
     self.buildLanguages   = ['Cxx']
     self.hastests         = 1
     self.requiresrpath    = 1
