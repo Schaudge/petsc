@@ -58,6 +58,7 @@ typedef struct {
   PetscInt  vector_length;
   PetscInt  ortho_strategy;
   PetscInt  temp_data_strategy;
+  PetscInt  shared_level;
   // caches
   IntView          *rowOffsets;
   IntView          *colIndices;
@@ -136,9 +137,9 @@ struct Functor_TestBatchedTeamVectorGMRES {
   template <typename MemberType>
   KOKKOS_INLINE_FUNCTION void operator()(const MemberType &member) const
   {
-    const int first_matrix = static_cast<int>(member.league_rank()) * _N_team;
-    const int N            = _D.extent(0);
-    const int last_matrix  = (static_cast<int>(member.league_rank() + 1) * _N_team < N ? static_cast<int>(member.league_rank() + 1) * _N_team : N);
+    const int first_matrix = _handle.first_index(member.league_rank());
+    const int last_matrix  = _handle.last_index(member.league_rank());
+
     const int graphID      = static_cast<int>(member.league_rank());
     using TeamVectorCopy1D = KokkosBatched::TeamVectorCopy<MemberType, KokkosBatched::Trans::NoTranspose, 1>;
 
@@ -149,14 +150,18 @@ struct Functor_TestBatchedTeamVectorGMRES {
     using ScratchPadValuesViewType = Kokkos::View<typename ValuesViewType::non_const_value_type **, typename ValuesViewType::array_layout, typename ValuesViewType::execution_space::scratch_memory_space>;
 
     using Operator = KokkosBatched::CrsMatrix<ValuesViewType, ScratchPadIntViewType>;
-    ScratchPadIntViewType r(member.team_scratch(1), _r.extent(1));
-    ScratchPadIntViewType c(member.team_scratch(1), _c.extent(1));
+
+    const int temp_data_strategy = _handle.get_memory_strategy();
+    const int scratch_level = temp_data_strategy == 0 ? 1 : _handle.get_scratch_pad_level();
+
+    ScratchPadIntViewType r(member.team_scratch(scratch_level), _r.extent(1));
+    ScratchPadIntViewType c(member.team_scratch(scratch_level), _c.extent(1));
 
     TeamVectorCopy1D::invoke(member, Kokkos::subview(_r, graphID, Kokkos::ALL), r);
     TeamVectorCopy1D::invoke(member, Kokkos::subview(_c, graphID, Kokkos::ALL), c);
     Operator A(d, r, c);
 
-    ScratchPadValuesViewType diag(member.team_scratch(1), last_matrix - first_matrix, _diag.extent(1));
+    ScratchPadValuesViewType diag(member.team_scratch(scratch_level), last_matrix - first_matrix, _diag.extent(1));
     using PrecOperator = KokkosBatched::JacobiPrec<ScratchPadValuesViewType>;
 
     KokkosBatched::TeamVectorCopy<MemberType>::invoke(member, Kokkos::subview(_diag, Kokkos::make_pair(first_matrix, last_matrix), Kokkos::ALL), diag);
@@ -198,6 +203,8 @@ struct Functor_TestBatchedTeamVectorGMRES {
     using ViewType3D    = Kokkos::View<ScalarType ***, Layout, EXSP>;
     using IntViewType1D = Kokkos::View<PetscInt *, Layout, EXSP>;
 
+    const int temp_data_strategy = _handle.get_memory_strategy();
+
     size_t bytes_1D      = ViewType2D::shmem_size(_N_team, 1);
     size_t bytes_row_ptr = IntViewType1D::shmem_size(_r.extent(1));
     size_t bytes_col_idc = IntViewType1D::shmem_size(_c.extent(1));
@@ -206,10 +213,40 @@ struct Functor_TestBatchedTeamVectorGMRES {
 
     size_t bytes_diag = bytes_2D_1;
     size_t bytes_tmp  = 2 * bytes_2D_1 + 2 * bytes_1D + bytes_2D_2;
-
-    policy.set_scratch_size(0, Kokkos::PerTeam(bytes_tmp));
-    policy.set_scratch_size(1, Kokkos::PerTeam(bytes_col_idc + bytes_row_ptr + bytes_diag));
-    PetscInfo(pc, "%d scratch memory(0) = %d + %d + %d bytes_diag=%d; %d scratch memory(1); %d maximum_iterations\n", (int)(bytes_tmp), 2 * (int)bytes_2D_1, 2 * (int)bytes_1D, (int)bytes_2D_2, (int)bytes_diag, (int)(bytes_row_ptr + bytes_col_idc + bytes_diag), (int)maximum_iteration);
+    if ( temp_data_strategy == 0 ) {
+      if ( _handle.get_scratch_pad_level() == 0 ) {
+        policy.set_scratch_size(_handle.get_scratch_pad_level(), Kokkos::PerTeam(bytes_tmp));
+        policy.set_scratch_size(1, Kokkos::PerTeam(bytes_col_idc + bytes_row_ptr + bytes_diag));
+        PetscInfo(pc, "%d scratch memory(0) = %d + %d + %d bytes_diag=%d; %d scratch memory(1); %d maximum_iterations\n", 
+          (int)(bytes_tmp), 
+          2 * (int)bytes_2D_1, 
+          2 * (int)bytes_1D, 
+          (int)bytes_2D_2, 
+          (int)bytes_diag, 
+          (int)(bytes_row_ptr + bytes_col_idc + bytes_diag), 
+          (int)maximum_iteration);
+      }
+      if ( _handle.get_scratch_pad_level() == 1 ) {
+        policy.set_scratch_size(1, Kokkos::PerTeam(bytes_col_idc + bytes_row_ptr + bytes_diag + bytes_tmp));
+        PetscInfo(pc, "%d scratch memory(1) = %d + %d + %d + %d; %d maximum_iterations\n", 
+          (int)(bytes_col_idc + bytes_row_ptr + bytes_diag + bytes_tmp), 
+          (int)bytes_col_idc, 
+          (int)bytes_row_ptr, 
+          (int)bytes_diag, 
+          (int)bytes_tmp, 
+          (int)maximum_iteration);
+      }
+    }
+    if ( temp_data_strategy == 1 ) {
+      policy.set_scratch_size(_handle.get_scratch_pad_level(), Kokkos::PerTeam(bytes_col_idc + bytes_row_ptr + bytes_diag));
+      PetscInfo(pc, "%d scratch memory(%d) = %d + %d + %d; %d maximum_iterations\n", 
+        (int)(bytes_row_ptr + bytes_col_idc + bytes_diag), 
+        (int) _handle.get_scratch_pad_level(), 
+        (int)(bytes_row_ptr), 
+        (int)(bytes_col_idc), 
+        (int)(bytes_diag), 
+        (int)maximum_iteration);
+    }
     exec_space().fence();
     timer.reset();
     Kokkos::parallel_for(name.c_str(), policy, *this);
@@ -249,6 +286,7 @@ static PetscErrorCode PCBJKOKKOSCreateKSP_BJKOKKOS(PC pc)
   jac->vector_length = PCBJKOKKOS_VEC_SIZE;
   jac->ortho_strategy = 0;
   jac->temp_data_strategy = 0;
+  jac->shared_level = 0;
   jac->ksp->max_it  = 50; // this is realy for GMRES w/o restarts
   PetscFunctionReturn(0);
 }
@@ -795,6 +833,8 @@ static PetscErrorCode PCApply_BJKOKKOS(PC pc, Vec bin, Vec xout)
       const int nnz     = (int)info.nz_used / Nsolves;      // fix for variable grid size
       if (Nsolves_team > batch_sz) Nsolves_team = batch_sz; // silently fix this
       PetscCheck(jac->const_block_size, PetscObjectComm((PetscObject)pc), PETSC_ERR_ARG_WRONG, "Kokkos (GMRES) solver requires constant block size (but can be made to work with species ordering or N_team==1)");
+      PetscCheck(jac->temp_data_strategy == 0 || jac->temp_data_strategy == 1, PetscObjectComm((PetscObject)pc), PETSC_ERR_ARG_WRONG, "Kokkos (GMRES) solver requires temp_data_strategy to be 0 or 1");
+      PetscCheck(jac->shared_level == 0 || jac->shared_level == 1, PetscObjectComm((PetscObject)pc), PETSC_ERR_ARG_WRONG, "Kokkos (GMRES) solver requires shared_level to be 0 or 1");
       PetscCheck(Nsolves % Nsolves_team == 0, PetscObjectComm((PetscObject)pc), PETSC_ERR_ARG_WRONG, "Nsolves.mod(Nsolves_team) != 0: Nsolves = %d, Nsolves_team = %d", Nsolves, Nsolves_team);
       PetscCheck(((int)info.nz_used) % Nsolves == 0, PetscObjectComm((PetscObject)pc), PETSC_ERR_ARG_WRONG, "info.nz_used.mod(Nsolves) != 0: info.nz_used = %g, Nsolves = %d", info.nz_used, Nsolves);
   #if defined(PETSC_HAVE_CUDA)
@@ -874,11 +914,16 @@ static PetscErrorCode PCApply_BJKOKKOS(PC pc, Vec bin, Vec xout)
       const int        team_size      = -1;
       const int        vector_length  = -1;
       const double     tol            = rtol;
-      const int        ortho_strategy = 0;
+      const int        ortho_strategy = jac->ortho_strategy;
+      const int        temp_data_strategy = jac->temp_data_strategy;
       KrylovHandleType handle(Nsolves, Nsolves_team, n_iterations, true);
       handle.Arnoldi_view = Scalar3DViewType("", Nsolves, n_iterations, Nloc + n_iterations + 3);
+      handle.set_memory_strategy(temp_data_strategy);
+
+      if ( temp_data_strategy == 1 )
+        handle.tmp_view = typename KrylovHandleType::TemporaryViewType("", Nsolves, Nloc + n_iterations + 3);
       // solve
-      double time = Functor_TestBatchedTeamVectorGMRES<exec_space, AMatrixValueView, IntView, XYType, KrylovHandleType>(batch_values, inv_diag, rowOffsets, colIndices, batch_x, batch_b, Nsolves_team, team_size, vector_length, n_iterations, tol, ortho_strategy, 0, handle)
+      double time = Functor_TestBatchedTeamVectorGMRES<exec_space, AMatrixValueView, IntView, XYType, KrylovHandleType>(batch_values, inv_diag, rowOffsets, colIndices, batch_x, batch_b, Nsolves_team, team_size, vector_length, n_iterations, tol, ortho_strategy, jac->shared_level, handle)
                       .run(pc);
       Kokkos::fence();
       // get data back
@@ -1192,6 +1237,7 @@ static PetscErrorCode PCSetUp_BJKOKKOS(PC pc)
       PetscCall(PetscOptionsInt("-ksp_batch_vector_length", "", "bjkokkos.kokkos.cxx.c", jac->vector_length, &jac->vector_length, NULL));
       PetscCall(PetscOptionsInt("-ksp_batch_ortho_strategy", "", "bjkokkos.kokkos.cxx.c", jac->ortho_strategy, &jac->ortho_strategy, NULL));
       PetscCall(PetscOptionsInt("-ksp_batch_temp_data_strategy", "", "bjkokkos.kokkos.cxx.c", jac->temp_data_strategy, &jac->temp_data_strategy, NULL));
+      PetscCall(PetscOptionsInt("-ksp_batch_shared_level", "", "bjkokkos.kokkos.cxx.c", jac->shared_level, &jac->shared_level, NULL));
       PetscCheck(jac->batch_target < jac->num_dms, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, "-ksp_batch_target (%" PetscInt_FMT ") >= number of DMs (%" PetscInt_FMT ")", jac->batch_target, jac->num_dms);
       PetscOptionsEnd();
       // get blocks - jac->d_bid_eqOffset_k
