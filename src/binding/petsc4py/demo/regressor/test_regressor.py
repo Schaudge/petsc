@@ -35,10 +35,10 @@ y.assemblyEnd()
 
 y_predicted = y.duplicate()
 
-mlregressor = PETSc.MLRegressor().create(comm=comm)
-mlregressor.setType(PETSc.MLRegressor.Type.LINEAR)
-mlregressor.fit(X,y)
-mlregressor.predict(X,y_predicted)
+regressor = PETSc.Regressor().create(comm=comm)
+regressor.setType(PETSc.Regressor.Type.LINEAR)
+regressor.fit(X,y)
+regressor.predict(X,y_predicted)
 y_predicted.view()
 
 
