@@ -1,5 +1,27 @@
 #include <../src/ml/regressor/impls/linear/linearimpl.h> /*I "petscregressor.h" I*/
 
+PetscErrorCode EvaluateResidual(Tao tao, Vec x, Vec f, void *ptr)
+{
+  PetscErrorCode ierr;
+  PETSCREGRESSOR_LINEAR *linear = (PETSCREGRESSOR_LINEAR*)ptr;
+
+  PetscFunctionBegin;
+  /* Evaluate f = A * x - b */
+  ierr = MatMult(linear->X,x,f);CHKERRQ(ierr);
+  ierr = VecAXPY(f,-1.0,linear->rhs);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode EvaluateJacobian(Tao tao, Vec x, Mat J, Mat Jpre, void *ptr)
+{
+  PETSCREGRESSOR_LINEAR *linear = (PETSCREGRESSOR_LINEAR*)ptr;
+
+  PetscFunctionBegin;
+  J = linear->X;
+  Jpre = linear->X;
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode PetscRegressorSetUp_Linear(PetscRegressor regressor)
 {
   //MPI_Comm comm;
@@ -7,14 +29,9 @@ PetscErrorCode PetscRegressorSetUp_Linear(PetscRegressor regressor)
   PetscInt M,N;
   PETSCREGRESSOR_LINEAR *linear = (PETSCREGRESSOR_LINEAR*)regressor->data;
   KSP ksp;
+  Tao tao;
 
   PetscFunctionBegin;
-  if (!linear->ksp) {
-    ierr = PetscRegressorLinearGetKSP(regressor,&linear->ksp);CHKERRQ(ierr);
-    // TODO: Figure out if I need to set operators for the KSP here or set the operator X.
-    // I think maybe I can just do this stuff in the Fit() routine.
-  }
-  ksp = linear->ksp;
 
   ierr = MatGetSize(regressor->training,&M,&N);CHKERRQ(ierr);
 
@@ -41,14 +58,38 @@ PetscErrorCode PetscRegressorSetUp_Linear(PetscRegressor regressor)
   }
 
   if (linear->coefficients) {ierr = VecDestroy(&linear->coefficients);CHKERRQ(ierr);}
-  ierr = MatCreateVecs(linear->X,&linear->coefficients,NULL);CHKERRQ(ierr);
 
-  /* Set up the KSP to solve the least squares problem (without solving for intercept, as this is done separately) using KSPLSQR.
-   * TODO: Add options to use other methods. */
-  ierr = MatCreateNormal(linear->X,&linear->XtX);CHKERRQ(ierr);
-  ierr = KSPSetType(ksp,KSPLSQR);CHKERRQ(ierr);
-  ierr = KSPSetOperators(ksp,linear->X,linear->XtX);CHKERRQ(ierr);
-  ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);  // TODO: Does this have the right option prefixes set?
+  if (linear->use_ksp) {
+    if (!linear->ksp) {
+      ierr = PetscRegressorLinearGetKSP(regressor,&linear->ksp);CHKERRQ(ierr);
+      // TODO: Figure out if I need to set operators for the KSP here or set the operator X.
+      // I think maybe I can just do this stuff in the Fit() routine.
+    }
+    ksp = linear->ksp;
+
+    ierr = MatCreateVecs(linear->X,&linear->coefficients,NULL);CHKERRQ(ierr);
+    /* Set up the KSP to solve the least squares problem (without solving for intercept, as this is done separately) using KSPLSQR.
+     * TODO: Add options to use other methods. */
+    ierr = MatCreateNormal(linear->X,&linear->XtX);CHKERRQ(ierr);
+    ierr = KSPSetType(ksp,KSPLSQR);CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,linear->X,linear->XtX);CHKERRQ(ierr);
+    ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);  // TODO: Does this have the right option prefixes set?
+  } else { /* Use TAO */
+    if (!linear->tao) {
+      ierr = PetscRegressorLinearGetTao(regressor,&linear->tao);CHKERRQ(ierr);
+    }
+    tao = linear->tao;
+
+    ierr = MatCreateVecs(linear->X,&linear->coefficients,&linear->residual);CHKERRQ(ierr);
+    /* Set up the TAO object to solve the (regularized) least squares problem (without solving for intercept, which is done separately) using TAOBRGN. */
+    ierr = TaoSetType(tao, TAOBRGN);CHKERRQ(ierr);
+    ierr = TaoSetInitialVector(tao,linear->coefficients);CHKERRQ(ierr);
+    // Note: Above will need to come the below when I rebase over a more recent PETSc:
+    // ierr = TaoSetSolution(tao,linear->coefficients);CHKERRQ(ierr);
+    ierr = TaoSetResidualRoutine(tao,linear->residual,EvaluateResidual,linear);CHKERRQ(ierr);
+    ierr = TaoSetJacobianResidualRoutine(tao,linear->X,linear->X,EvaluateJacobian,linear);CHKERRQ(ierr);
+    ierr = TaoSetFromOptions(tao);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 
@@ -63,8 +104,10 @@ PetscErrorCode PetscRegressorReset_Linear(PetscRegressor regressor)
   ierr = MatDestroy(&linear->XtX);CHKERRQ(ierr);
   ierr = MatDestroy(&linear->C);CHKERRQ(ierr);
   ierr = KSPDestroy(&linear->ksp);CHKERRQ(ierr);
+  ierr = TaoDestroy(&linear->tao);CHKERRQ(ierr);
   ierr = VecDestroy(&linear->coefficients);CHKERRQ(ierr);
   ierr = VecDestroy(&linear->rhs);CHKERRQ(ierr);
+  ierr = VecDestroy(&linear->residual);CHKERRQ(ierr);
 
   /* Reset options/parameters to the setupcalled = 0 state. */
   /* TODO: Add the reset code once the linear regressor is fleshed out enough to need resetting! */
@@ -91,6 +134,14 @@ PetscErrorCode PetscRegressorLinearSetFitIntercept(PetscRegressor regressor, Pet
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode PetscRegressorLinearSetUseKSP(PetscRegressor regressor, PetscBool flg)
+{
+  PETSCREGRESSOR_LINEAR *linear = (PETSCREGRESSOR_LINEAR*)regressor->data;
+
+  PetscFunctionBegin;
+  linear->use_ksp = flg;
+  PetscFunctionReturn(0);
+}
 PetscErrorCode PetscRegressorSetFromOptions_Linear(PetscOptionItems *PetscOptionsObject, PetscRegressor regressor)
 {
   PetscBool          flg,set;
@@ -100,6 +151,8 @@ PetscErrorCode PetscRegressorSetFromOptions_Linear(PetscOptionItems *PetscOption
   ierr = PetscOptionsHead(PetscOptionsObject,"PetscRegressor options for linear regressors");CHKERRQ(ierr);
   ierr = PetscOptionsBool("-regressor_linear_fit_intercept","Calculate intercept for linear model","PetscRegressorLinearSetFitIntercept",flg,&flg,&set);CHKERRQ(ierr);
   if (set) {ierr = PetscRegressorLinearSetFitIntercept(regressor,flg);CHKERRQ(ierr);}
+  ierr = PetscOptionsBool("-regressor_linear_use_ksp","Use KSP instead of TAO for linear model fitting problem","PetscRegressorLinearSetFitIntercept",flg,&flg,&set);CHKERRQ(ierr);
+  if (set) {ierr = PetscRegressorLinearSetUseKSP(regressor,flg);CHKERRQ(ierr);}
   ierr = PetscOptionsTail();CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -125,6 +178,25 @@ PetscErrorCode PetscRegressorLinearGetKSP(PetscRegressor regressor,KSP *ksp)
     ierr = PetscObjectIncrementTabLevel((PetscObject)linear->ksp,(PetscObject)regressor,1);CHKERRQ(ierr);
     ierr = PetscLogObjectParent((PetscObject)regressor,(PetscObject)linear->ksp);CHKERRQ(ierr);
     ierr = PetscObjectSetOptions((PetscObject)linear->ksp,((PetscObject)regressor)->options);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscRegressorLinearGetTao(PetscRegressor regressor,Tao *tao)
+{
+  PETSCREGRESSOR_LINEAR *linear = (PETSCREGRESSOR_LINEAR*)regressor->data;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(regressor,PETSCREGRESSOR_CLASSID,1);
+  PetscValidPointer(tao,2);
+  /* Analogous to how SNESGetKSP() operates, this routine should create the TAO if it doesn't exist.
+   * TODO: Follow what SNESGetKSP() does when setting this up. */
+  if (!linear->tao) {
+    ierr = TaoCreate(PetscObjectComm((PetscObject)regressor),&linear->tao);CHKERRQ(ierr);
+    ierr = PetscObjectIncrementTabLevel((PetscObject)linear->tao,(PetscObject)regressor,1);CHKERRQ(ierr);
+    ierr = PetscLogObjectParent((PetscObject)regressor,(PetscObject)linear->tao);CHKERRQ(ierr);
+    ierr = PetscObjectSetOptions((PetscObject)linear->tao,((PetscObject)regressor)->options);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -161,11 +233,15 @@ PetscErrorCode PetscRegressorFit_Linear(PetscRegressor regressor)
   PetscInt m,N,istart,i;
 
   PetscFunctionBegin;
-  if (!linear->ksp) {ierr = PetscRegressorLinearGetKSP(regressor,&linear->ksp);CHKERRQ(ierr);}
+  if (linear->use_ksp && !linear->ksp) {ierr = PetscRegressorLinearGetKSP(regressor,&linear->ksp);CHKERRQ(ierr);}
   ksp = linear->ksp;
 
   /* Solve the least-squares problem (previously set up in PetscRegressorSetUp_Linear()) without finding the intercept. */
-  ierr = KSPSolve(ksp,linear->rhs,linear->coefficients);CHKERRQ(ierr);
+  if (linear->use_ksp) {
+    ierr = KSPSolve(ksp,linear->rhs,linear->coefficients);CHKERRQ(ierr);
+  } else {
+    ierr = TaoSolve(linear->tao);CHKERRQ(ierr);
+  }
 
   /* Calculate the intercept. */
   if (linear->fit_intercept) {
@@ -229,5 +305,6 @@ PETSC_EXTERN PetscErrorCode PetscRegressorCreate_Linear(PetscRegressor regressor
 
   linear->intercept = 0.0;
   linear->fit_intercept = PETSC_TRUE;  /* Defaulting to calculating the intercept is probably sensible, but TODO: add option to turn this off! */
+  linear->use_ksp = PETSC_FALSE;  /* Do not default to using KSP for solving the model-fitting problem (use TAO instead). */
   PetscFunctionReturn(0);
 }

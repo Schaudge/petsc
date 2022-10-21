@@ -34,7 +34,9 @@ PETSC_EXTERN PetscErrorCode PetscRegressorSetTraining(PetscRegressor,Mat,Vec);
 PETSC_EXTERN PetscErrorCode PetscRegressorFit(PetscRegressor,Mat,Vec);
 PETSC_EXTERN PetscErrorCode PetscRegressorPredict(PetscRegressor,Mat,Vec);
 PETSC_EXTERN PetscErrorCode PetscRegressorLinearSetFitIntercept(PetscRegressor,PetscBool);
+PETSC_EXTERN PetscErrorCode PetscRegressorLinearSetUseKSP(PetscRegressor,PetscBool);
 PETSC_EXTERN PetscErrorCode PetscRegressorLinearGetKSP(PetscRegressor,KSP*);
+PETSC_EXTERN PetscErrorCode PetscRegressorLinearGetTao(PetscRegressor,Tao*);
 PETSC_EXTERN PetscErrorCode PetscRegressorLinearGetCoefficients(PetscRegressor,Vec*);
 PETSC_EXTERN PetscErrorCode PetscRegressorLinearGetIntercept(PetscRegressor,PetscScalar*);
 #endif
