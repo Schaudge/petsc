@@ -146,7 +146,7 @@ include "petscdmlabel.pxi"
 include "petscdmswarm.pxi"
 include "petscpartitioner.pxi"
 include "petscadapt.pxi"
-include "petscmlregressor.pxi"
+include "petscregressor.pxi"
 
 # --------------------------------------------------------------------
 
@@ -188,7 +188,7 @@ include "DMShell.pyx"
 include "DMLabel.pyx"
 include "DMSwarm.pyx"
 include "Partitioner.pyx"
-include "MLRegressor.pyx"
+include "Regressor.pyx"
 
 # --------------------------------------------------------------------
 
