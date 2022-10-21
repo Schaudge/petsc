@@ -2,10 +2,10 @@ import subprocess
 
 
 def run_test(team_size=-1, vector_length=-1, nsolves_team=1, ortho_strategy=0, temp_data_strategy=0, shared_level=0, extra_options=''):
-    default_options = '-dim 2 -dm_landau_amr_levels_max 2,2 -dm_landau_amr_post_refine 0 -dm_landau_batch_size 1 '
-    default_options += '-dm_landau_batch_view_idx 0 -dm_landau_device_type kokkos -dm_landau_ion_charges 1 '
-    default_options += '-dm_landau_ion_masses 1 -dm_landau_n 1,1 -dm_landau_num_species_grid 1,1 '
-    default_options += '-dm_landau_thermal_temps 2,1 -dm_landau_type p4est -dm_landau_verbose 2 '
+    default_options = '-dim 2 -dm_landau_amr_levels_max 2,2,2,2,2 -dm_landau_amr_post_refine 0 -dm_landau_batch_size 1 '
+    default_options += '-dm_landau_batch_view_idx 0 -dm_landau_device_type kokkos -dm_landau_ion_charges 1,2,3,4 '
+    default_options += '-dm_landau_ion_masses 2,32,64,128 -dm_landau_n 1.0000009,1,1e-7,1e-7,1e-7 -dm_landau_num_species_grid 1,1,1,1,1 '
+    default_options += '-dm_landau_thermal_temps 2,1,1,1,1 -dm_landau_type p4est -dm_landau_verbose 2 '
     default_options += '-dm_mat_type aijkokkos -dm_preallocate_only false -dm_vec_type kokkos -ex2_grid_view_idx 0 '
     default_options += '-ksp_type preonly -pc_bjkokkos_ksp_converged_reason -pc_bjkokkos_ksp_max_it 150 '
     default_options += '-pc_bjkokkos_ksp_rtol 1e-12 -pc_bjkokkos_ksp_type gmres -pc_bjkokkos_pc_type jacobi '
