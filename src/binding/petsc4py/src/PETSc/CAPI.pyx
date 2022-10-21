@@ -338,17 +338,17 @@ cdef api PetscDMLabel PyPetscDMLabel_Get(object arg) except ? NULL:
     retv = ob.dmlabel
     return retv
 
-# -- MLRegressor --
+# -- PetscRegressor --
 
-cdef api object PyPetscMLRegressor_New(PetscMLRegressor arg):
-    cdef MLRegressor retv = MLRegressor()
-    setref(&retv.mlregressor, arg)
+cdef api object PyPetscRegressor_New(PetscRegressor arg):
+    cdef Regressor retv = Regressor()
+    setref(&retv.regressor, arg)
     return retv
 
-cdef api PetscMLRegressor PyPetscMLRegressor_Get(object arg) except ? NULL:
-    cdef PetscMLRegressor retv = NULL
-    cdef MLRegressor ob = <MLRegressor?> arg
-    retv = ob.mlregressor
+cdef api PetscRegressor PyPetscRegressor_Get(object arg) except ? NULL:
+    cdef PetscRegressor retv = NULL
+    cdef Regressor ob = <Regressor?> arg
+    retv = ob.regressor
     return retv
 
 #---------------------------------------------------------------------

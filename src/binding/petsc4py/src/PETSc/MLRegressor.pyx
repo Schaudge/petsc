@@ -1,45 +1,45 @@
-class MLRegressorType(object):
-    LINEAR = S_(MLREGRESSORLINEAR)
+class RegressorType(object):
+    LINEAR = S_(PETSCREGRESSORLINEAR)
 
-cdef class MLRegressor(Object):
+cdef class Regressor(Object):
 
-    Type = MLRegressorType
+    Type = RegressorType
 
     def __cinit__(self):
-        self.obj = <PetscObject*> &self.mlregressor
-        self.mlregressor = NULL
+        self.obj = <PetscObject*> &self.regressor
+        self.regressor = NULL
 
     def view(self, Viewer viewer=None):
         cdef PetscViewer cviewer = NULL
         if viewer is not None: cviewer = viewer.vwr
-        CHKERR( MLRegressorView(self.mlregressor, cviewer) )
+        CHKERR( PetscRegressorView(self.regressor, cviewer) )
 
     def create(self, comm=None):
         cdef MPI_Comm ccomm = def_Comm(comm, PETSC_COMM_DEFAULT)
-        cdef PetscMLRegressor newmlregressor = NULL
-        CHKERR( MLRegressorCreate(ccomm, &newmlregressor) )
-        PetscCLEAR(self.obj); self.mlregressor = newmlregressor
+        cdef PetscRegressor newregressor = NULL
+        CHKERR( PetscRegressorCreate(ccomm, &newregressor) )
+        PetscCLEAR(self.obj); self.regressor = newregressor
         return self
 
     def setUp(self):
-        CHKERR( MLRegressorSetUp(self.mlregressor) )
+        CHKERR( PetscRegressorSetUp(self.regressor) )
 
     def fit(self, Mat X, Vec y):
-        CHKERR( MLRegressorFit(self.mlregressor, X.mat, y.vec) )
+        CHKERR( PetscRegressorFit(self.regressor, X.mat, y.vec) )
 
     def predict(self, Mat X, Vec y):
-        CHKERR( MLRegressorPredict(self.mlregressor, X.mat, y.vec) )
+        CHKERR( PetscRegressorPredict(self.regressor, X.mat, y.vec) )
 
     def reset(self):
-        CHKERR( MLRegressorReset(self.mlregressor) )
+        CHKERR( PetscRegressorReset(self.regressor) )
 
     def destory(self):
-        CHKERR( MLRegressorDestroy(&self.mlregressor) )
+        CHKERR( PetscRegressorDestroy(&self.regressor) )
         return self
 
-    def setType(self, mlregressor_type):
-        cdef PetscMLRegressorType cval = NULL
-        mlregressor_type = str2bytes(mlregressor_type, &cval)
-        CHKERR( MLRegressorSetType(self.mlregressor, cval) )
+    def setType(self, regressor_type):
+        cdef PetscRegressorType cval = NULL
+        regressor_type = str2bytes(regressor_type, &cval)
+        CHKERR( PetscRegressorSetType(self.regressor, cval) )
 
-del MLRegressorType
+del RegressorType

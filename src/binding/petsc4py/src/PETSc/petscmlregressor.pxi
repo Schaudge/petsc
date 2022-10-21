@@ -1,14 +1,14 @@
 cdef extern from * nogil:
 
-    ctypedef const char* PetscMLRegressorType "MLRegressorType"
-    PetscMLRegressorType MLREGRESSORLINEAR
+    ctypedef const char* PetscRegressorType "PetscRegressorType"
+    PetscRegressorType PETSCREGRESSORLINEAR
 
-    int MLRegressorCreate(MPI_Comm,PetscMLRegressor*)
-    int MLRegressorReset(PetscMLRegressor)
-    int MLRegressorDestroy(PetscMLRegressor*)
-    int MLRegressorSetType(PetscMLRegressor,PetscMLRegressorType)
-    int MLRegressorSetUp(PetscMLRegressor)
-    int MLRegressorSetFromOptions(PetscMLRegressor)
-    int MLRegressorView(PetscMLRegressor,PetscViewer)
-    int MLRegressorFit(PetscMLRegressor,PetscMat,PetscVec)
-    int MLRegressorPredict(PetscMLRegressor,PetscMat,PetscVec)
+    int PetscRegressorCreate(MPI_Comm,PetscRegressor*)
+    int PetscRegressorReset(PetscRegressor)
+    int PetscRegressorDestroy(PetscRegressor*)
+    int PetscRegressorSetType(PetscRegressor,PetscRegressorType)
+    int PetscRegressorSetUp(PetscRegressor)
+    int PetscRegressorSetFromOptions(PetscRegressor)
+    int PetscRegressorView(PetscRegressor,PetscViewer)
+    int PetscRegressorFit(PetscRegressor,PetscMat,PetscVec)
+    int PetscRegressorPredict(PetscRegressor,PetscMat,PetscVec)

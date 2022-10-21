@@ -92,8 +92,8 @@ cdef extern from "petsc.h":
     struct _p_TSAdapt
     ctypedef _p_TSAdapt* PetscTSAdapt "TSAdapt"
 
-    struct _p_MLRegressor
-    ctypedef _p_MLRegressor* PetscMLRegressor "MLRegressor"
+    struct _p_PetscRegressor
+    ctypedef _p_PetscRegressor* PetscRegressor "PetscRegressor"
 
 # --------------------------------------------------------------------
 
@@ -255,11 +255,11 @@ ctypedef public api class DMLabel(Object) [
     ]:
     cdef PetscDMLabel dmlabel
 
-ctypedef public api class MLRegressor(Object) [
-    type   PyPetscMLRegressor_Type,
-    object PyPetscMLRegressorObject,
+ctypedef public api class Regressor(Object) [
+    type   PyPetscRegressor_Type,
+    object PyPetscRegressorObject,
     ]:
-    cdef PetscMLRegressor mlregressor
+    cdef PetscRegressor regressor
 
 # --------------------------------------------------------------------
 
