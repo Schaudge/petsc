@@ -10,6 +10,7 @@ Changes: Development
    * If multiple sentences are needed, use a period or semicolon to divide sentences, but not at the end of the final sentence
 
 .. rubric:: General:
+- Add perfstubs package, see https://petsc.org/release/docs/manual/profiling/#using-tau for more information on usage
 
 .. rubric:: Configure/Build:
 

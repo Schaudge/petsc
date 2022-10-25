@@ -7,6 +7,7 @@
 */
 #include <petsc/private/logimpl.h> /*I    "petscsys.h"   I*/
 #include <petscdevice.h>
+#include <../src/sys/perfstubs/timer.h>
 
 PetscBool PetscLogSyncOn = PETSC_FALSE;
 PetscBool PetscLogMemory = PETSC_FALSE;
@@ -323,6 +324,7 @@ PetscErrorCode PetscEventRegLogRegister(PetscEventRegLog eventLog, const char en
   eventLog->eventInfo[e].name       = str;
   eventLog->eventInfo[e].classid    = classid;
   eventLog->eventInfo[e].collective = PETSC_TRUE;
+  if (perfstubs_initialized == PERFSTUBS_SUCCESS) PetscStackCallExternalVoid("ps_timer_create_", eventLog->eventInfo[e].timer = ps_timer_create_(str));
 #if defined(PETSC_HAVE_MPE)
   if (PetscLogPLB == PetscLogEventBeginMPE) {
     const char *color;
@@ -733,6 +735,7 @@ PetscErrorCode PetscLogEventBeginDefault(PetscLogEvent event, int t, PetscObject
 {
   PetscStageLog     stageLog;
   PetscEventPerfLog eventLog = NULL;
+  PetscEventRegLog  regLog   = NULL;
   int               stage;
 
   PetscFunctionBegin;
@@ -752,6 +755,10 @@ PetscErrorCode PetscLogEventBeginDefault(PetscLogEvent event, int t, PetscObject
   }
 #endif
   /* Log the performance info */
+  if (perfstubs_initialized == PERFSTUBS_SUCCESS) {
+    PetscCall(PetscStageLogGetEventRegLog(stageLog, &regLog));
+    if (regLog->eventInfo[event].timer != NULL) PetscStackCallExternalVoid("ps_timer_start_", ps_timer_start_(regLog->eventInfo[event].timer));
+  }
   eventLog->eventInfo[event].count++;
   eventLog->eventInfo[event].timeTmp = 0.0;
   PetscTimeSubtract(&eventLog->eventInfo[event].timeTmp);
@@ -784,6 +791,7 @@ PetscErrorCode PetscLogEventEndDefault(PetscLogEvent event, int t, PetscObject o
 {
   PetscStageLog     stageLog;
   PetscEventPerfLog eventLog = NULL;
+  PetscEventRegLog  regLog   = NULL;
   int               stage;
 
   PetscFunctionBegin;
@@ -795,6 +803,10 @@ PetscErrorCode PetscLogEventEndDefault(PetscLogEvent event, int t, PetscObject o
   if (eventLog->eventInfo[event].depth > 0) PetscFunctionReturn(0);
   else PetscCheck(eventLog->eventInfo[event].depth >= 0, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Logging event had unbalanced begin/end pairs");
   /* Log performance info */
+  if (perfstubs_initialized == PERFSTUBS_SUCCESS) {
+    PetscCall(PetscStageLogGetEventRegLog(stageLog, &regLog));
+    if (regLog->eventInfo[event].timer != NULL) PetscStackCallExternalVoid("ps_timer_stop_", ps_timer_stop_(regLog->eventInfo[event].timer));
+  }
   PetscTimeAdd(&eventLog->eventInfo[event].timeTmp);
   eventLog->eventInfo[event].time += eventLog->eventInfo[event].timeTmp;
   eventLog->eventInfo[event].time2 += eventLog->eventInfo[event].timeTmp * eventLog->eventInfo[event].timeTmp;
