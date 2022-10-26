@@ -139,7 +139,7 @@ PetscErrorCode DMPlex_EGADS_EDGE_XYZtoUV_Internal(const PetscScalar coords[], eg
 
     PetscCall(EG_evaluate(obj, tt, data));
 
-    obj_tmp = (coords[v * dE + 0] - data[0]) * (coords[v * dE + 0] - data[0]) + (coords[v * dE + 1] - data[1]) * (coords[v * dE + 1] - data[1]) + (coords[v * dE + 2] - data[2]) * (coords[v * dE + 2] - data[2]);
+    obj_tmp = PetscSqr(coords[v * dE + 0] - data[0]) + PetscSqr(coords[v * dE + 1] - data[1]) + PetscSqr(coords[v * dE + 2] - data[2]);
 
     /* If step is better, accept it and halve lambda (making it more Newton-like) */
     if (obj_tmp < obj_old) {
@@ -236,7 +236,7 @@ PetscErrorCode DMPlex_EGADS_FACE_XYZtoUV_Internal(const PetscScalar coords[], eg
 
     PetscCall(EG_evaluate(obj, uvt, data));
 
-    obj_tmp = (coords[v * dE + 0] - data[0]) * (coords[v * dE + 0] - data[0]) + (coords[v * dE + 1] - data[1]) * (coords[v * dE + 1] - data[1]) + (coords[v * dE + 2] - data[2]) * (coords[v * dE + 2] - data[2]);
+    obj_tmp = PetscSqr(coords[v * dE + 0] - data[0]) + PetscSqr(coords[v * dE + 1] - data[1]) + PetscSqr(coords[v * dE + 2] - data[2]);
 
     /* If step is better, accept it and halve lambda (making it more Newton-like) */
     if (obj_tmp < obj_old) {
