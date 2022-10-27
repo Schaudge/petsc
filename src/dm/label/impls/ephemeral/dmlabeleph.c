@@ -83,6 +83,7 @@ static PetscErrorCode DMLabelGetStratumIS_Ephemeral(DMLabel label, PetscInt v, I
   PetscCall(ISRestoreIndices(opointIS, &opoints));
   PetscCall(ISDestroy(&opointIS));
   PetscCall(ISCreateGeneral(PETSC_COMM_SELF, Np, points, PETSC_OWN_POINTER, stratum));
+  PetscCall(ISSort(*stratum));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
