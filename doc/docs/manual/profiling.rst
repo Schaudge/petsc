@@ -711,6 +711,8 @@ mpirun -n 4 tau_exec -T mpi ./ex56 <args>
 This should produce 4 ``profile.*.*.*`` files with profile data that can be
 viewed with ``paraprof``/``pprof``:
 .. code-block::
+
+``
 Reading Profile files in profile.*
 
 NODE 0;CONTEXT 0;THREAD 0:
@@ -735,6 +737,7 @@ NODE 0;CONTEXT 0;THREAD 0:
   2.6           45           48         171         171        281 MPI_Bcast()
   1.9           34           34        7836           0          4 MPI_Barrier()
   1.8        0.567           33           2          68      16912  GAMG Coarsen
+``
 
 .. raw:: html
 
