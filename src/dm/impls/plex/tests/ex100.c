@@ -7,7 +7,7 @@ static const char help[] = "Shows the bug in migrating the coordinate DS to the 
 /*
   run with 
 
-  ./ex40 -dm_plex_shape box -dm_plex_dim 1 -dm_plex_box_faces 1,1,1 -post_label_dm_extrude 1
+  ./ex100 -dm_plex_shape box -dm_plex_dim 1 -dm_plex_box_faces 1,1,1 -post_label_dm_extrude 1
 
   to see the bug. 
 */
