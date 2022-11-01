@@ -21,3 +21,4 @@ discretizations, solvers, etc. that you might be interested in.
   meshing/guide_to_subsurface
   performance/guide_to_TAS
   Classic "Hands-on" tutorials <handson>
+  finite_elem
