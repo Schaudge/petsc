@@ -696,6 +696,7 @@ Using TAU
 TAU profiles can be generated without the need for instrumentation through the
 use of the perfstubs package.
 To generate profiles with TAU, first setup TAU:
+
 .. code-block:: bash
 wget http://tau.uoregon.edu/tau.tgz
 ./configure -cc=mpicc -c++=mpicxx -mpi -bfd=download -unwind=download && make install
