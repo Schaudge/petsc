@@ -11,9 +11,13 @@
 #include <petsc/private/petscimpl.h>
 #include <petscmat.h>
 #include <petscsnes.h>
+#include <petscdm.h>
 
 PETSC_EXTERN PetscBool NetRSRegisterAllCalled;
 PETSC_EXTERN PetscErrorCode NetRSRegisterAll(void);
+
+typedef enum {Network_Not_Created, Network_Internal, Network_User} NetRSNetworkState; 
+
 
 typedef struct _NetRSOps *NetRSOps;
 struct _NetRSOps {
@@ -30,6 +34,10 @@ struct _p_NetRS {
   PetscBool      setupcalled; 
   void           *data; /* implementation object */
   void           *user; /* user context */
+
+  DM             network; /* internal DMNetwork for storing data about the topology of the Riemann Problem*/
+  NetRSNetworkState network_state; 
+  
   PetscInt       numfields;
   PetscInt       numedges; 
   RiemannSolver  rs; /* For holding physics information, a hack for now to be replaced by FluxFunction */

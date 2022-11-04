@@ -5,6 +5,7 @@
 #include <petscksp.h>
 #include <petsc/private/netrsimpl.h>
 #include <petscnetrs.h>
+#include <petscdm.h>
 
 #include <petsc/private/riemannsolverimpl.h> /* to be removed after adding fluxfunction class */
 
@@ -197,7 +198,7 @@ PetscErrorCode  NetRSEvaluate(NetRS rs,const PetscReal *u, const EdgeDirection *
    NetRSSetApplicationContext - Sets an optional user-defined context for
    the NetRS.
 
-   Logically Collective on TS
+   Logically Collective on NetRS
 
    Input Parameters:
 +  rs - the NetRS context obtained from NetRSCreate()
@@ -212,6 +213,73 @@ PetscErrorCode  NetRSSetApplicationContext(NetRS rs,void *usrP)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs,NETRS_CLASSID,1);
   rs->user = usrP;
+  PetscFunctionReturn(0);
+}
+
+/*@
+   NetRSSetNetwork - Set the DMNetwork defining the topology of the network 
+   Riemann problem(s). NetRS take ownership of the DM, and will reset the DMNetwork, 
+   destroying any existing vector spaces/component information. Please pass in a cloned 
+   dm if you need to maintain this information. 
+
+   Collective on NetRS
+
+   Input Parameters:
++  rs      - the NetRS context obtained from NetRSCreate()
+-  network - The DMNetwork network. Note this will be destroyed upon calling this function and a clone will be used internally.  
+
+   Level: beginner
+
+.seealso: 
+@*/
+
+PetscErrorCode NetRSSetNetwork(NetRS rs, DM network)
+{
+  DM networkclone; 
+  PetscFunctionBegin; 
+  PetscValidHeaderSpecificType(network,DM_CLASSID,2,DMNETWORK);
+  PetscValidHeaderSpecific(rs,NETRS_CLASSID,1);
+  if (rs->network_state == Network_Internal) {
+    SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_ARG_WRONGSTATE,"NetRS already created an internal network after you called NetRSSetNumEdges(). Reset NetRS if you wish to manually provide a DMNetwork");
+  }
+
+  if (rs->network) PetscCall(DMDestroy(&rs->network));
+  /* hack to do a reset for DMNetwork, for now until I merge a proper interface into main */
+  PetscCall(DMClone(network,&networkclone)); 
+  PetscCall(DMDestroy(&network)); 
+  rs->network = networkclone; 
+  rs->network_state = Network_User; 
+  PetscFunctionReturn(0);
+}
+
+
+/*@
+   NetRSGetNetwork - Get the DMNetwork defining the topology of the network Riemann problem(s).
+   Currently an internal only function to prevent users shooting themselves in the foot. 
+
+   Collective on NetRS
+
+   Input Parameters:
++  rs      - the NetRS context obtained from NetRSCreate()
+-  network - The DMNetwork network.
+
+   Level: developer
+
+.seealso: `NetRSSetNetwork()`
+@*/
+
+PetscErrorCode NetRSGetNetwork(NetRS rs, DM *network)
+{
+  PetscFunctionBegin; 
+  PetscValidHeaderSpecific(rs,NETRS_CLASSID,1);
+  if (rs->network_state == Network_Not_Created) {
+    SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_ARG_WRONGSTATE,"NetRS has no network. One must be set by calling either NetRSSetNetwork() to set one manually or NetRSSetNumEdges() to generate an internal network");
+  }
+  if(rs->network) {
+    *network = rs->network; 
+  } else {
+    SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_ARG_WRONGSTATE,"No DMNetwork when NetRS believe it has one ");
+  }
   PetscFunctionReturn(0);
 }
 
