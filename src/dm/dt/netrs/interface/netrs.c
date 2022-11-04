@@ -171,7 +171,7 @@ PetscErrorCode  NetRSEvaluate(NetRS rs,const PetscReal *u, const EdgeDirection *
   PetscCall(rs->ops->evaluate(rs,u,dir,rs->flux_wrk,rs->error));
   if (error) {*error = rs->error;}
   *flux = rs->flux_wrk;
-  if(adaption) {*adaption = PETSC_FALSE;}
+  if (adaption) {*adaption = PETSC_FALSE;}
 
     /* adaptivity */
   if(rs->useadaptivity) {

@@ -14,12 +14,12 @@ struct  _p_FluxFunction{
   void                           *user;
   PetscInt                       dof;
   char                           *fieldname[16];
-  PetscPointFlux                 flux; 
+  PetscPointFlux                 flux;
+  PetscPointFluxDer              fluxder; 
   PetscPointFluxEig              fluxeig;    
   RiemannSolverRoeAvg            roeavg;
   RiemannSolverRoeMatrix         roemat; 
   RiemannSolverEigBasis          eigbasis; 
-  PetscPointFluxDer              fluxder; 
   LaxCurve                       laxcurve; 
 };
 
