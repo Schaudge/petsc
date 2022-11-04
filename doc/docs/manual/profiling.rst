@@ -698,24 +698,27 @@ use of the perfstubs package.
 To generate profiles with TAU, first setup TAU:
 
 .. code-block:: bash
-wget http://tau.uoregon.edu/tau.tgz
-./configure -cc=mpicc -c++=mpicxx -mpi -bfd=download -unwind=download && make install
-export PATH=<tau dir>/x86_64/bin:$PATH
-For more information on configuring TAU, see `<http://tau.uoregon.edu>`.
 
+  wget http://tau.uoregon.edu/tau.tgz
+  ./configure -cc=mpicc -c++=mpicxx -mpi -bfd=download -unwind=download && make install
+  export PATH=<tau dir>/x86_64/bin:$PATH
+
+For more information on configuring TAU, see `http://tau.uoregon.edu <http://tau.uoregon.edu>`_.
 Next, run your program with TAU. For instance, to profile `ex56`,
-.. code-block:: bash
-cd $PETSC_DIR/src/snes/tutorials
-make ex56
-mpirun -n 4 tau_exec -T mpi ./ex56 <args>
 
-This should produce 4 ``profile.*.*.*`` files with profile data that can be
-viewed with ``paraprof``/``pprof``:
+.. code-block:: bash
+
+  cd $PETSC_DIR/src/snes/tutorials
+  make ex56
+  mpirun -n 4 tau_exec -T mpi ./ex56 <args>
+
+This should produce four ``profile.*`` files with profile data that can be
+viewed with ``paraprof/pprof``:
 
 .. code-block:: shell
 
    Reading Profile files in profile.*
-   
+
    NODE 0;CONTEXT 0;THREAD 0:
    ---------------------------------------------------------------------------------------
    %Time    Exclusive    Inclusive       #Call      #Subrs  Inclusive Name
