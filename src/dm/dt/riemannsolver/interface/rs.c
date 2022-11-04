@@ -14,7 +14,7 @@ PetscErrorCode RiemannSolverConvexMaxSpeed_internal(RiemannSolver rs,const Petsc
    PetscInt       i;
    PetscScalar    *eig;
 
-  PetscFunctionBeginUser;
+  PetscFunctionBegin;
   /* Compute maximum eigenvalue in magnitude for left states */
   PetscCall(RiemannSolverComputeEig(rs,uL,&eig));
   *maxspeed = 0; 

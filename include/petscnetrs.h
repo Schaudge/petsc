@@ -7,6 +7,7 @@
 #include <petscviewer.h>
 #include <petscmat.h>
 #include <petscriemannsolver.h>
+#include <petscdm.h>
 
 typedef struct _p_NetRS* NetRS; 
 
@@ -59,6 +60,9 @@ PETSC_EXTERN PetscErrorCode NetRSSetUp(NetRS);
 
 PETSC_EXTERN PetscErrorCode NetRSSetRiemannSolver(NetRS,RiemannSolver);
 PETSC_EXTERN PetscErrorCode NetRSSetNumEdges(NetRS,PetscInt);
+
+PETSC_EXTERN PetscErrorCode NetRSSetNetwork(NetRS,DM); 
+PETSC_INTERN PetscErrorCode NetRSGetNetwork(NetRS,DM*); /* Could potentially make public but ensure if is safe/smart */
 
 PETSC_EXTERN PetscErrorCode NetRSEvaluate(NetRS,const PetscReal*,const EdgeDirection*,PetscReal**,PetscReal**,PetscBool*);
 

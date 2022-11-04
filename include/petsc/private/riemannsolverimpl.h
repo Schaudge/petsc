@@ -66,9 +66,33 @@ struct _PetscRiemannOps {
 struct _p_RiemannSolver {
   PETSCHEADER(struct _PetscRiemannOps);
 
-  PetscBool      setupcalled; 
+  PetscBool      setupcalled;
   void           *data; /* implementation object */
   void           *user; /* user context */
+  DM             dm;    /* internal dm that manages the mesh for the Riemann Problem. Solvers types/implementations 
+  are dispatched based on the dm type and properties of the dm. 
+  Note: we have a seperate specific class for RiemannSolvers on DMNetwork, as the Riemann Problem for Networks 
+  is distinct from standard riemann problems, and (I think) requires a distinct interface. However they 
+  will shared many many features, so we shall see how to make this work. Ideally, shared stuff
+  will be seperated into different classes that both NetRS and RS use. 
+
+
+  The dimension of the problem and etc will be dispatched based on this dm, so a 2-D DMPlex will then solve a 2D 
+  Riemann Problem. 
+
+  Note: That while this can definetely be a clone of the DM used in the underlying simulation (and that is the purpose of
+  setting this up), it need not be. An inteneded usage is to also have object used just to solve 1D Riemann problems one 
+  at a time and nothing else, with the caller managing quadrature and etc when trying to solve higher dimensional problems. 
+
+  I expect that will be the most used option. In order to support that option, you can either feed RiemannSolver a dm directly, 
+  probably cloned from your application dm, or you can manually set on up internally by using RiemannSolverSetDim(dim)... , 
+  which will internally build a dim dimensional plex dm, to solve that basic RiemannProblem, but will error out of if a 
+  dm has already been provided or if one is subsequenlty provided. 
+  
+   */
+
+
+  /* to be reworked to use d,*/
   PetscInt       numfields;
   PetscInt       dim;   /* dimension of the domain of the flux function ASSUMED 1 FOR NOW!!! */
   PetscReal      *flux_wrk; /* A work array holding the output flux of evaluation, numfield*dim entries*/ 
