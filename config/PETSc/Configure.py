@@ -38,6 +38,7 @@ class Configure(config.base.Configure):
     help.addArgument('PETSc', '-with-ios=<bool>',                            nargs.ArgBool(None, 0, 'Build an iPhone/iPad version of PETSc library'))
     help.addArgument('PETSc', '-with-display=<x11display>',                  nargs.Arg(None, '', 'Specifiy DISPLAY env variable for use with matlab test)'))
     help.addArgument('PETSc', '-with-package-scripts=<pyscripts>',           nargs.ArgFileList(None,None,'Specify configure package scripts for user provided packages'))
+    help.addArgument('PETSc', '-with-tau-perfstubs=<bool>',                  nargs.ArgBool(None, 0,'Enable TAU profiler stubs'))
     return
 
   def registerPythonFile(self,filename,directory):
@@ -478,6 +479,9 @@ prepend-path PATH "%s"
 
     # add a makefile entry for configure options
     self.addMakeMacro('CONFIGURE_OPTIONS', self.framework.getOptionsString(['configModules', 'optionsModule']).replace('\"','\\"'))
+
+    if self.framework.argDB['with-tau-perfstubs']:
+      self.addDefine('HAVE_TAU_PERFSTUBS',1)
     return
 
   def dumpConfigInfo(self):
@@ -995,7 +999,7 @@ char assert_aligned[(sizeof(struct mystruct)==16)*2-1];
     self.executeTest(self.configureIntptrt)
     self.executeTest(self.configureSolaris)
     self.executeTest(self.configureLinux)
-    self.executeTest(self.configureDarwin)    
+    self.executeTest(self.configureDarwin)
     self.executeTest(self.configureWin32)
     self.executeTest(self.configureCygwinBrokenPipe)
     self.executeTest(self.configureDefaultArch)

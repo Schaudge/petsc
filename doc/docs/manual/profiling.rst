@@ -694,7 +694,7 @@ Using TAU
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 TAU profiles can be generated without the need for instrumentation through the
-use of the perfstubs package.
+use of the perfstubs package. To enable that, configure PETSc with ``--with-tau-perfstubs``.
 To generate profiles with TAU, first setup TAU:
 
 .. code-block:: bash

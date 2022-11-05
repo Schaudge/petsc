@@ -1,3 +1,4 @@
+#requirespackage 'PETSC_HAVE_TAU_PERFSTUBS'
 -include ../../../petsckdir.mk
 
 SOURCEC	  = pstimer.c
