@@ -76,7 +76,7 @@ M*/
 M*/
 
 /*MC
-  PetscHSet<T>Update - Add entries from a has set to another
+  PetscHSet<T>Update - Add entries from a hash set to another
 
   Synopsis:
   #include <petsc/private/hashset<t>.h>
