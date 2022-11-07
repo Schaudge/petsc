@@ -5,6 +5,7 @@ PetscBool         NetRPRegisterAllCalled = PETSC_FALSE;
 
 /* Add Creation Routines here */
 PETSC_EXTERN NetRPCreate_Blank(NetRP);
+PETSC_EXTERN NetRPCreate_Linearized(NetRP);
 /*@C
   NetRPRegisterAll - Registers all of the Network Riemann Problems. 
 
@@ -23,7 +24,7 @@ PetscErrorCode  NetRPRegisterAll(void)
   if (NetRPRegisterAllCalled) PetscFunctionReturn(0);
   NetRPRegisterAllCalled = PETSC_TRUE;
   PetscCall(NetRPRegister(NETRPBLANK, NetRPCreate_Blank));
-
+  PetscCall(NNetRPRegister(NETRPLINEARIZED, NetRPCreate_Linearized));
   PetscFunctionReturn(0);
 }
 
