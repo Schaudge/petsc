@@ -3,7 +3,7 @@ ALL: lib
 
 SOURCEC   = fluxfun.c
 SOURCEH   = ../../../../include/petsc/private/netrsimpl.h ../../../../include/petscnetrs.h fluxfun.h
-DIRS      = interface impls tests
+DIRS      = interface impls tests localnetrp
 LOCDIR    = src/dm/dt/netrs
 MANSEC    = DM
 SUBMANSEC = NRS

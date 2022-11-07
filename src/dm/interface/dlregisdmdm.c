@@ -11,6 +11,7 @@
 #include <petsc/private/dmnetworkimpl.h>
 #include <petsc/private/riemannsolverimpl.h>
 #include <petsc/private/netrsimpl.h>
+#include <petsc/private/localnetrpimpl.h>
 
 static PetscBool DMPackageInitialized = PETSC_FALSE;
 /*@C
@@ -508,6 +509,71 @@ PetscErrorCode  NetRSInitializePackage(void)
   PetscCall(PetscRegisterFinalize(NetRSFinalizePackage));
   PetscFunctionReturn(0);
 }
+#include <petscnetrp.h>
+static PetscBool NetRPPackageInitialized = PETSC_FALSE;
+/*@C
+  NetRPFinalizePackage - This function destroys everything in the Petsc interface to NetRP. It is
+  called from PetscFinalize().
+
+  Level: developer
+
+.seealso: PetscFinalize()
+@*/
+PetscErrorCode  NetRPFinalizePackage(void)
+{
+  PetscFunctionBegin;
+  PetscCall(PetscFunctionListDestroy(&NetRPList));
+  NetRPPackageInitialized = PETSC_FALSE;
+  NetRPRegisterAllCalled  = PETSC_FALSE;
+  PetscFunctionReturn(0);
+}
+
+
+
+/*@C
+  NetRPInitializePackage - This function initializes everything in the NetRP package. It is called
+  from PetscDLLibraryRegister_petscrs() when using dynamic libraries, and on the first call to NetRPCreate()
+  when using shared or static libraries.
+
+  Level: developer
+
+.seealso: PetscInitialize()
+@*/
+
+PetscErrorCode  NetRPInitializePackage(void)
+{
+  char           logList[256];
+  PetscBool      opt,pkg;
+
+  PetscFunctionBegin;
+  if (NetRPPackageInitialized) PetscFunctionReturn(0);
+  NetRSPackageInitialized = PETSC_TRUE;
+  /* Inialize subpackages */
+    
+  /* Register Classes */
+  PetscCall(PetscClassIdRegister("NetRP",&NETRP_CLASSID));
+
+  /* Register Constructors */
+  PetscCall(NetRPRegisterAll());
+  /* Register Events */
+ 
+  /* Process Info */
+  {
+    PetscClassId  classids[1];
+
+    classids[0] = NETRP_CLASSID;
+    PetscCall(PetscInfoProcessClass("NetRP", 1, classids));
+  }
+  /* Process summary exclusions */
+  PetscCall(PetscOptionsGetString(NULL,NULL,"-log_exclude",logList,sizeof(logList),&opt));
+  if (opt) {
+    PetscCall(PetscStrInList("netrp",logList,',',&pkg));
+    if (pkg) PetscCall(PetscLogEventExcludeClass(NETRP_CLASSID));
+  }
+  /* Register package finalizer */
+  PetscCall(PetscRegisterFinalize(NetRPFinalizePackage));
+  PetscFunctionReturn(0);
+}
 
 #if defined(PETSC_HAVE_DYNAMIC_LIBRARIES)
 /*
@@ -528,6 +594,7 @@ PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petscdm(void)
   PetscCall(DMFieldInitializePackage());
   PetscCall(RiemannSolverInitializePackage());
   PetscCall(NetRSInitializePackage());
+  PetscCall(NetRPInitializePackage());
   PetscFunctionReturn(0);
 }
 

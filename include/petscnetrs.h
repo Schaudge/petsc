@@ -8,6 +8,9 @@
 #include <petscmat.h>
 #include <petscriemannsolver.h>
 #include <petscdm.h>
+#include <petscdmnetwork.h>
+#include <petsc/private/hashmapi.h>
+#include <petsc/private/hashseti.h>
 
 typedef struct _p_NetRS* NetRS; 
 
@@ -39,7 +42,7 @@ Input:
 Output: 
 .errorestimate
 */
-typedef PetscErrorCode (*NRSErrorEstimator )(void*,NetRS,PetscInt,const PetscReal*,const PetscReal*,PetscReal*); /* Riemann solver to be replaced by flux function class */
+typedef PetscErrorCode (*NRSErrorEstimator )(void*,NetRS,PetscInt,const PetscReal*,const PetscReal*,PetscReal*);
 
 typedef enum {EDGEIN=0,EDGEOUT=1} EdgeDirection; 
 
@@ -87,4 +90,8 @@ PETSC_EXTERN PetscErrorCode NetRSIsUsingeAdaptivity(NetRS,PetscBool*);
 PETSC_EXTERN PetscErrorCode NetRSSetFineTol(NetRS,PetscReal);
 
 PETSC_EXTERN PetscErrorCode NetRSView(NetRS,PetscViewer);
+
+
+/* Helper Functions, to be migrated to the correct locations later */
+PETSC_INTERN PetscErrorCode DMNetworkComputeUniqueVertexDegrees_Local(DM,PetscHSetI*);
 #endif
