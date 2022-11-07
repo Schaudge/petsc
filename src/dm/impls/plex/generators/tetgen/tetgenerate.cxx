@@ -2,7 +2,7 @@
 
 #ifdef PETSC_HAVE_EGADS
   #include <egads.h>
-/* Need to make EGADSLite header compatible */
+/* Need to make EGADSlite header compatible */
 extern "C" int EGlite_getTopology(const ego, ego *, int *, int *, double *, int *, ego **, int **);
 extern "C" int EGlite_inTopology(const ego, const double *);
 #endif
@@ -221,12 +221,12 @@ PETSC_EXTERN PetscErrorCode DMPlexGenerate_Tetgen(DM boundary, PetscBool interpo
         /* Transfer EGADS Model to Volumetric Mesh */
         PetscCall(PetscObjectCompose((PetscObject)*dm, "EGADS Model", (PetscObject)modelObj));
       } else {
-        PetscCall(PetscObjectQuery((PetscObject)boundary, "EGADSLite Model", (PetscObject *)&modelObj));
+        PetscCall(PetscObjectQuery((PetscObject)boundary, "EGADSlite Model", (PetscObject *)&modelObj));
         if (modelObj) {
           PetscCall(PetscContainerGetPointer(modelObj, (void **)&model));
           PetscCall(EGlite_getTopology(model, &geom, &oclass, &mtype, NULL, &Nb, &bodies, &senses));
           /* Transfer EGADS Model to Volumetric Mesh */
-          PetscCall(PetscObjectCompose((PetscObject)*dm, "EGADSLite Model", (PetscObject)modelObj));
+          PetscCall(PetscObjectCompose((PetscObject)*dm, "EGADSlite Model", (PetscObject)modelObj));
           islite = PETSC_TRUE;
         }
       }
@@ -502,12 +502,12 @@ PETSC_EXTERN PetscErrorCode DMPlexRefine_Tetgen(DM dm, double *maxVolumes, DM *d
         /* Transfer EGADS Model to Volumetric Mesh */
         PetscCall(PetscObjectCompose((PetscObject)*dmRefined, "EGADS Model", (PetscObject)modelObj));
       } else {
-        PetscCall(PetscObjectQuery((PetscObject)dm, "EGADSLite Model", (PetscObject *)&modelObj));
+        PetscCall(PetscObjectQuery((PetscObject)dm, "EGADSlite Model", (PetscObject *)&modelObj));
         if (modelObj) {
           PetscCall(PetscContainerGetPointer(modelObj, (void **)&model));
           PetscCall(EGlite_getTopology(model, &geom, &oclass, &mtype, NULL, &Nb, &bodies, &senses));
           /* Transfer EGADS Model to Volumetric Mesh */
-          PetscCall(PetscObjectCompose((PetscObject)*dmRefined, "EGADSLite Model", (PetscObject)modelObj));
+          PetscCall(PetscObjectCompose((PetscObject)*dmRefined, "EGADSlite Model", (PetscObject)modelObj));
           islite = PETSC_TRUE;
         }
       }

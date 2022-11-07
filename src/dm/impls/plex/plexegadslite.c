@@ -15,7 +15,7 @@ PetscErrorCode DMPlex_EGADSlite_EDGE_XYZtoUV_Internal(const PetscScalar coords[]
   PetscScalar    ts[2], tt[2], eval[18], data[18];
   //PetscErrorCode ierr;
 
-  PetscFunctionBeginHot
+  PetscFunctionBeginHot;
   /* Initialize Levenberg-Marquardt parameters */
   lambda = 1.0;
   tolr = 1.0;
@@ -82,7 +82,7 @@ PetscErrorCode DMPlex_EGADSlite_FACE_XYZtoUV_Internal(const PetscScalar coords[]
   PetscScalar    uvs[2], uvt[2], delta[2], A[4], b[2], eval[18], data[18];
   //PetscErrorCode ierr;
 
-  PetscFunctionBeginHot
+  PetscFunctionBeginHot;
   /* Initialize Levenberg-Marquardt parameters */
   lambda = 1.0;
   tolr = 1.0;
@@ -154,7 +154,7 @@ PetscErrorCode DMPlex_EGADSlite_FACE_XYZtoUV_Internal(const PetscScalar coords[]
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMPlexSnapToGeomModel_EGADSLite_Internal(DM dm, PetscInt p, PetscInt dE, ego model, PetscInt bodyID, PetscInt faceID, PetscInt edgeID, const PetscScalar mcoords[], PetscScalar gcoords[])
+PetscErrorCode DMPlexSnapToGeomModel_EGADSlite_Internal(DM dm, PetscInt p, ego model, PetscInt bodyID, PetscInt faceID, PetscInt edgeID, const PetscScalar mcoords[], PetscScalar gcoords[])
 {
   DM   cdm;
   ego *bodies;
@@ -166,10 +166,11 @@ PetscErrorCode DMPlexSnapToGeomModel_EGADSLite_Internal(DM dm, PetscInt p, Petsc
   PetscScalar *coords = NULL;
   PetscReal    pTolr  = 1.0e-14;
   PetscInt     Nv, v, Np = 0, pm;
-  PetscInt     d;
+  PetscInt     dE, d;
 
   PetscFunctionBeginHot;
   PetscCall(DMGetCoordinateDM(dm, &cdm));
+  PetscCall(DMGetCoordinateDim(dm, &dE));
   PetscCall(DMGetCoordinatesLocal(dm, &coordinatesLocal));
   PetscCall(EGlite_getTopology(model, &geom, &oclass, &mtype, NULL, &Nb, &bodies, &senses));
   PetscCheck(bodyID < Nb, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Body %" PetscInt_FMT " is not in [0, %d)", bodyID, Nb);
@@ -217,17 +218,17 @@ PetscErrorCode DMPlexSnapToGeomModel_EGADSLite_Internal(DM dm, PetscInt p, Petsc
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMPlexEGADSLiteDestroy_Private(void *context)
+static PetscErrorCode DMPlexEGADSliteDestroy_Private(void *context)
 {
   if (context) EGlite_close((ego)context);
   return 0;
 }
 
-static PetscErrorCode DMPlexCreateEGADSLite_Internal(MPI_Comm comm, ego context, ego model, DM *newdm)
+static PetscErrorCode DMPlexCreateEGADSlite_Internal(MPI_Comm comm, ego context, ego model, DM *newdm)
 {
   DMLabel  bodyLabel, faceLabel, edgeLabel, vertexLabel;
   PetscInt cStart, cEnd, c;
-  /* EGADSLite variables */
+  /* EGADSlite variables */
   ego geom, *bodies, *objs, *nobjs, *mobjs, *lobjs;
   int oclass, mtype, nbodies, *senses;
   int b;
@@ -552,13 +553,13 @@ static PetscErrorCode DMPlexCreateEGADSLite_Internal(MPI_Comm comm, ego context,
 
     PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &modelObj));
     PetscCall(PetscContainerSetPointer(modelObj, model));
-    PetscCall(PetscObjectCompose((PetscObject)dm, "EGADSLite Model", (PetscObject)modelObj));
+    PetscCall(PetscObjectCompose((PetscObject)dm, "EGADSlite Model", (PetscObject)modelObj));
     PetscCall(PetscContainerDestroy(&modelObj));
 
     PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &contextObj));
     PetscCall(PetscContainerSetPointer(contextObj, context));
-    PetscCall(PetscContainerSetUserDestroy(contextObj, DMPlexEGADSLiteDestroy_Private));
-    PetscCall(PetscObjectCompose((PetscObject)dm, "EGADSLite Context", (PetscObject)contextObj));
+    PetscCall(PetscContainerSetUserDestroy(contextObj, DMPlexEGADSliteDestroy_Private));
+    PetscCall(PetscObjectCompose((PetscObject)dm, "EGADSlite Context", (PetscObject)contextObj));
     PetscCall(PetscContainerDestroy(&contextObj));
   }
   /* Label points */
@@ -661,10 +662,10 @@ static PetscErrorCode DMPlexCreateEGADSLite_Internal(MPI_Comm comm, ego context,
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMPlexEGADSLitePrintModel_Internal(ego model)
+static PetscErrorCode DMPlexEGADSlitePrintModel_Internal(ego model)
 {
   ego geom, *bodies, *nobjs, *mobjs, *lobjs, *shobjs, *fobjs, *eobjs;
-  int oclass, mtype, *senses;
+  int oclass, mtype, *senses, *shsenses, *fsenses, *lsenses, *esenses;
   int Nb, b;
 
   PetscFunctionBeginUser;
@@ -704,12 +705,12 @@ static PetscErrorCode DMPlexEGADSLitePrintModel_Internal(ego model)
 
     /* List Topology of Bodies */
     PetscCall(PetscPrintf(PETSC_COMM_SELF, "\n"));
-    PetscCall(PetscPrintf(PETSC_COMM_SELF, "      TOPOLOGY DETAILS \n", b));
+    PetscCall(PetscPrintf(PETSC_COMM_SELF, "      TOPOLOGY DETAILS: body %d\n", b));
 
     /* Get SHELL info which associated with the current BODY */
     PetscCall(EGlite_getTopology(body, &geom, &oclass, &mtype, NULL, &Nsh, &shobjs, &shsenses));
 
-    for (sh = 0; sh < Nsh; ++sh) {
+    for (PetscInt sh = 0; sh < Nsh; ++sh) {
       ego shell   = shobjs[sh];
       int shsense = shsenses[sh];
 
@@ -719,7 +720,7 @@ static PetscErrorCode DMPlexEGADSLitePrintModel_Internal(ego model)
       /* Get FACE infor associated with current SHELL */
       PetscCall(EGlite_getTopology(shell, &geom, &oclass, &mtype, NULL, &Nf, &fobjs, &fsenses));
 
-      for (f = 0; f < Nf; ++f) {
+      for (PetscInt f = 0; f < Nf; ++f) {
         ego face   = fobjs[f];
 
         id   = EGlite_indexBodyTopo(body, face);
@@ -777,7 +778,7 @@ static PetscErrorCode DMPlexEGADSLitePrintModel_Internal(ego model)
 static PetscErrorCode DMPlexCreateEGADSlite(MPI_Comm comm, ego context, ego model, DM *newdm)
 {
   DMLabel         bodyLabel, faceLabel, edgeLabel, vertexLabel;
-  // EGADSLite variables
+  // EGADSlite variables
   ego             geom, *bodies, *mobjs, *fobjs, *lobjs, *eobjs, *nobjs;
   ego             topRef, prev, next;
   int             oclass, mtype, nbodies, *senses, *lSenses, *eSenses;
@@ -1184,7 +1185,7 @@ static PetscErrorCode DMPlexCreateEGADSlite(MPI_Comm comm, ego context, ego mode
 static PetscErrorCode DMPlexCreateEGADSlite_Tess_Internal(MPI_Comm comm, ego context, ego model, DM *newdm)
 {
   DMLabel              bodyLabel, faceLabel, edgeLabel, vertexLabel;
-  /* EGADSLite variables */
+  /* EGADSlite variables */
   ego                  geom, *bodies, *fobjs;
   int                  b, oclass, mtype, nbodies, *senses;
   int                  totalNumTris = 0, totalNumPoints = 0;
@@ -1491,13 +1492,13 @@ static PetscErrorCode DMPlexCreateEGADSlite_Tess_Internal(MPI_Comm comm, ego con
 #endif
 
 /*@C
-  DMPlexCreateEGADSLiteFromFile - Create a DMPlex mesh from an EGADSLite file.
+  DMPlexCreateEGADSliteFromFile - Create a DMPlex mesh from an EGADSlite file.
 
   Collective
 
   Input Parameters:
 + comm     - The MPI communicator
-- filename - The name of the EGADSLite file
+- filename - The name of the EGADSlite file
 
   Output Parameter:
 . dm       - The DM object representing the mesh
@@ -1506,7 +1507,7 @@ static PetscErrorCode DMPlexCreateEGADSlite_Tess_Internal(MPI_Comm comm, ego con
 
 .seealso: `DMPLEX`, `DMCreate()`, `DMPlexCreateEGADS()`, `DMPlexCreateEGADSFromFile()`
 @*/
-PetscErrorCode DMPlexCreateEGADSLiteFromFile(MPI_Comm comm, const char filename[], DM *dm)
+PetscErrorCode DMPlexCreateEGADSliteFromFile(MPI_Comm comm, const char filename[], DM *dm)
 {
   PetscMPIInt rank;
 #if defined(PETSC_HAVE_EGADS)
@@ -1524,13 +1525,13 @@ PetscErrorCode DMPlexCreateEGADSLiteFromFile(MPI_Comm comm, const char filename[
   if (rank == 0) {
     PetscCall(EGlite_open(&context));
     PetscCall(EGlite_loadModel(context, 0, filename, &model));
-    if (printModel) PetscCall(DMPlexEGADSLitePrintModel_Internal(model));
+    if (printModel) PetscCall(DMPlexEGADSlitePrintModel_Internal(model));
   }
   if (tessModel) PetscCall(DMPlexCreateEGADSlite_Tess_Internal(comm, context, model, dm));
   else if (newModel) PetscCall(DMPlexCreateEGADSlite_Internal(comm, context, model, dm));
   else PetscCall(DMPlexCreateEGADSlite(comm, context, model, dm));
   PetscFunctionReturn(0);
 #else
-  SETERRQ(comm, PETSC_ERR_SUP, "This method requires EGADSLite support. Reconfigure using --download-egads");
+  SETERRQ(comm, PETSC_ERR_SUP, "This method requires EGADSlite support. Reconfigure using --download-egads");
 #endif
 }

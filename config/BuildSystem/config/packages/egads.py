@@ -26,10 +26,10 @@ class Configure(config.package.GNUPackage):
   def setupHelp(self, help):
     config.package.GNUPackage.setupHelp(self,help)
     import nargs
-    help.addArgument('EGADS', '-egads-full', nargs.ArgBool(None, 1, 'Install EGADS in addition to EGADSLite'))
+    help.addArgument('EGADS', '-egads-full', nargs.ArgBool(None, 1, 'Install EGADS in addition to EGADSlite'))
     return
 
-  def createEGADSLiteMakefile(self):
+  def createEGADSliteMakefile(self):
     if not self.hasegadslite: return
     makeinc = os.path.join(self.packageDir, 'make_lite.inc')
     g = open(makeinc,'w')
@@ -177,7 +177,7 @@ clean:
   # note that egads can (and is) built before PETSc is built.
   def Install(self):
     self.createEGADSMakefile()
-    self.createEGADSLiteMakefile()
+    self.createEGADSliteMakefile()
     return self.installDir
 
   def configureLibrary(self):
@@ -224,7 +224,7 @@ clean:
     self.log.write(output+err)
     return
 
-  def buildEGADSLite(self):
+  def buildEGADSlite(self):
     self.logPrintBox('Compiling egads lite; this may take several minutes')
     # uses the regular PETSc library builder and then moves result
     # turn off any compiler optimizations as they may break egads
@@ -242,7 +242,7 @@ clean:
     if not hasattr(self,'installDir'):
       return
     try:
-      self.buildEGADSLite()
+      self.buildEGADSlite()
     except RuntimeError as e:
       raise RuntimeError('Error running make on egads lite: '+str(e))
     try:

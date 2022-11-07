@@ -20,7 +20,7 @@
 
 #ifdef PETSC_HAVE_EGADS
 PETSC_INTERN PetscErrorCode DMPlexSnapToGeomModel_EGADS_Internal(DM, PetscInt, ego, PetscInt, PetscInt, PetscInt, const PetscScalar[], PetscScalar[]);
-PETSC_INTERN PetscErrorCode DMPlexSnapToGeomModel_EGADSLite_Internal(DM, PetscInt, ego, PetscInt, PetscInt, PetscInt, const PetscScalar[], PetscScalar[]);
+PETSC_INTERN PetscErrorCode DMPlexSnapToGeomModel_EGADSlite_Internal(DM, PetscInt, ego, PetscInt, PetscInt, PetscInt, const PetscScalar[], PetscScalar[]);
 PETSC_EXTERN PetscErrorCode DMPlexEGADSPrintModel_Internal(ego);
 PETSC_EXTERN PetscErrorCode DMPlex_EGADS_EDGE_XYZtoUV_Internal(const PetscScalar[], ego, const PetscScalar[], const PetscInt, const PetscInt, PetscScalar[]);
 PETSC_EXTERN PetscErrorCode DMPlex_EGADS_FACE_XYZtoUV_Internal(const PetscScalar[], ego, const PetscScalar[], const PetscInt, const PetscInt, PetscScalar[]);
@@ -388,7 +388,7 @@ PetscErrorCode DMPlexSnapToGeomModel(DM dm, PetscInt p, PetscInt dE, const Petsc
     }
     PetscCall(PetscObjectQuery((PetscObject)dm, "EGADS Model", (PetscObject *)&modelObj));
     if (!modelObj) {
-      PetscCall(PetscObjectQuery((PetscObject)dm, "EGADSLite Model", (PetscObject *)&modelObj));
+      PetscCall(PetscObjectQuery((PetscObject)dm, "EGADSlite Model", (PetscObject *)&modelObj));
       islite = PETSC_TRUE;
     }
     if (!modelObj) {
@@ -404,7 +404,7 @@ PetscErrorCode DMPlexSnapToGeomModel(DM dm, PetscInt p, PetscInt dE, const Petsc
       for (d = 0; d < dE; ++d) gcoords[d] = mcoords[d];
       PetscFunctionReturn(0);
     }
-    if (islite) PetscCall(DMPlexSnapToGeomModel_EGADSLite_Internal(dm, p, model, bodyID, faceID, edgeID, mcoords, gcoords));
+    if (islite) PetscCall(DMPlexSnapToGeomModel_EGADSlite_Internal(dm, p, model, bodyID, faceID, edgeID, mcoords, gcoords));
     else PetscCall(DMPlexSnapToGeomModel_EGADS_Internal(dm, p, model, bodyID, faceID, edgeID, mcoords, gcoords));
   }
 #else
@@ -512,7 +512,7 @@ PetscErrorCode DMPlexEGADSPrintModel_Internal(ego model)
             int    peri;
             ego    gEref, gEprev, gEnext;
             int    gEoclass, gEmtype;
-            char  *gEclass = (char *)"", *gEtype = (char *)"";
+            char  *gEclass, *gEtype;
 
             // New Position
             PetscCall(EG_getTopology(edge, &geom, &oclass, &mtype, NULL, &Nv, &nobjs, &senses));
@@ -1858,7 +1858,7 @@ static PetscErrorCode ConvertEGADSModelToAllBSplines(ego model, ego *newmodel) {
 
   Level: beginner
 
-.seealso: `DMPLEX`, `DMCreate()`, `DMPlexCreateEGADS()`, `DMPlexCreateEGADSLiteFromFile()`
+.seealso: `DMPLEX`, `DMCreate()`, `DMPlexCreateEGADS()`, `DMPlexCreateEGADSliteFromFile()`
 @*/
 PetscErrorCode DMPlexCreateEGADSFromFile(MPI_Comm comm, const char filename[], DM *dm)
 {
@@ -1918,7 +1918,7 @@ PetscErrorCode DMPlexCreateEGADSFromFile(MPI_Comm comm, const char filename[], D
   $ PETSC_FALSE :: Surface Area Gradient wrt Control Points and Control Point Weights are calculated using the change in the local FACE changes (not the entire body). Volume Gradients are not calculated. Faster computations.
   $ PETSC_TRUE  :: Surface Area Gradietn wrt to Control Points and Control Point Weights are calculated using the change observed in the entire solid body. Volume Gradients are calculated. Slower computation due to the need to generate a new solid body geometry for every Control Point and Control Point Weight change.
 
-.seealso: `DMPLEX`, `DMCreate()`, `DMPlexCreateEGADS()`, `DMPlexCreateEGADSLiteFromFile()`, `DMPlexModifyEGADSGeomModel()`
+.seealso: `DMPLEX`, `DMCreate()`, `DMPlexCreateEGADS()`, `DMPlexCreateEGADSliteFromFile()`, `DMPlexModifyEGADSGeomModel()`
 @*/
 PetscErrorCode DMPlexGeomDataAndGrads(DM dm, PetscBool fullGeomGrad) {
 #if defined(PETSC_HAVE_EGADS)
@@ -1936,7 +1936,7 @@ PetscErrorCode DMPlexGeomDataAndGrads(DM dm, PetscBool fullGeomGrad) {
   PetscFunctionBegin;
 #if defined(PETSC_HAVE_EGADS)
   PetscCall(PetscObjectQuery((PetscObject)dm, "EGADS Model", (PetscObject *)&modelObj));
-  if (!modelObj) PetscCall(PetscObjectQuery((PetscObject)dm, "EGADSLite Model", (PetscObject *)&modelObj));
+  if (!modelObj) PetscCall(PetscObjectQuery((PetscObject)dm, "EGADSlite Model", (PetscObject *)&modelObj));
 
   // Throw Error is DM does not have an attached EGADS geometry model
   PetscCheck(modelObj, PETSC_COMM_SELF, PETSC_ERR_SUP, "DM does not have required EGADS Geometry Model attached. Please generate DM with a Geometry Model attached.");
@@ -3000,11 +3000,11 @@ $          *.egads = EGADS File
 $      *.egadslite = EGADSlite File
 $           *.brep = BRep File (OpenCASCADE File)
 
-.seealso: `DMPLEX`, `DMCreate()`, `DMPlexCreateEGADS()`, `DMPlexCreateEGADSLiteFromFile()`, `DMPlexGeomDataAndGrads()`
+.seealso: `DMPLEX`, `DMCreate()`, `DMPlexCreateEGADS()`, `DMPlexCreateEGADSliteFromFile()`, `DMPlexGeomDataAndGrads()`
 @*/
 PetscErrorCode DMPlexEGADSModifyGeomModel(DM dm, PetscScalar newCP[], PetscScalar newW[], PetscBool autoInflate, PetscBool saveGeom, const char stpName[]) {
 #if defined(PETSC_HAVE_EGADS)
-  /* EGADS/EGADSLite variables */
+  /* EGADS/EGADSlite variables */
   ego            context, model, geom, *bodies, *lobjs, *fobjs;
   int            oclass, mtype, *senses, *lsenses;
   int            Nb, Nf, Nl, id;
@@ -3020,7 +3020,7 @@ PetscErrorCode DMPlexEGADSModifyGeomModel(DM dm, PetscScalar newCP[], PetscScala
 
   // Look to see if DM has a Container with either a EGADS or EGADS Model
   PetscCall(PetscObjectQuery((PetscObject)dm, "EGADS Model", (PetscObject *)&modelObj));
-  if (!modelObj) PetscCall(PetscObjectQuery((PetscObject)dm, "EGADSLite Model", (PetscObject *)&modelObj));
+  if (!modelObj) PetscCall(PetscObjectQuery((PetscObject)dm, "EGADSlite Model", (PetscObject *)&modelObj));
   PetscCheck(modelObj, PETSC_COMM_SELF, PETSC_ERR_SUP, "DM does not have a EGADS Geometry Model attached to it!");
 
   // Get attached EGADS model (pointer)
@@ -3281,7 +3281,7 @@ PetscErrorCode DMPlexEGADSModifyGeomModel(DM dm, PetscScalar newCP[], PetscScala
   if (saveGeom && stpName) PetscCall(EG_saveModel(newmodel, stpName));
 
   // Inflate Mesh to EGADS Model
-  if (autoInflate) PetscCall(DMPlexInflateToEGADSGeomModel(dm));
+  if (autoInflate) PetscCall(DMPlexInflateToEGADSGeomModel_tuv(dm));
 #endif
   PetscFunctionReturn(0);
 }
@@ -3301,7 +3301,7 @@ PetscErrorCode DMPlexEGADSModifyGeomModel(DM dm, PetscScalar newCP[], PetscScala
 
   Level: intermediate
 
-.seealso: `DMPLEX`, `DMCreate()`, `DMPlexCreateEGADS()`, `DMPlexCreateEGADSLiteFromFile()`, `DMPlexGeomDataAndGrads()`
+.seealso: `DMPLEX`, `DMCreate()`, `DMPlexCreateEGADS()`, `DMPlexCreateEGADSliteFromFile()`, `DMPlexGeomDataAndGrads()`
 @*/
 PetscErrorCode DMPlexGetEGADSGeomModel_tuv(DM dm) {
 #if defined(PETSC_HAVE_EGADS)
@@ -3436,7 +3436,7 @@ PetscErrorCode DMPlexGetEGADSGeomModel_tuv(DM dm) {
 
   Level: intermediate
 
-.seealso: `DMPLEX`, `DMCreate()`, `DMPlexCreateEGADS()`, `DMPlexCreateEGADSLiteFromFile()`, `DMPlexGeomDataAndGrads()`, `DMPlexGetEGADSGeomModel_tuv()`
+.seealso: `DMPLEX`, `DMCreate()`, `DMPlexCreateEGADS()`, `DMPlexCreateEGADSliteFromFile()`, `DMPlexGeomDataAndGrads()`, `DMPlexGetEGADSGeomModel_tuv()`
 @*/
 PetscErrorCode DMPlexInflateToEGADSGeomModel_tuv(DM dm) {
 #if defined(PETSC_HAVE_EGADS)
@@ -3557,7 +3557,7 @@ PetscErrorCode DMPlexComputeSurfaceGradient(DM dm)
 
   PetscFunctionBegin;
   PetscCall(PetscObjectQuery((PetscObject) dm, "EGADS Model", (PetscObject *) &modelObj));
-  if (!modelObj) PetscCall(PetscObjectQuery((PetscObject) dm, "EGADSLite Model", (PetscObject *) &modelObj));
+  if (!modelObj) PetscCall(PetscObjectQuery((PetscObject) dm, "EGADSlite Model", (PetscObject *) &modelObj));
 
   // Get attached EGADS model (pointer)
   PetscCall(PetscContainerGetPointer(modelObj, (void **) &model));
