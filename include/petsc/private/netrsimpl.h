@@ -12,6 +12,7 @@
 #include <petscmat.h>
 #include <petscsnes.h>
 #include <petscdm.h>
+#include <petscdmlabel.h>
 
 PETSC_EXTERN PetscBool NetRSRegisterAllCalled;
 PETSC_EXTERN PetscErrorCode NetRSRegisterAll(void);
@@ -36,14 +37,42 @@ struct _p_NetRS {
   void           *user; /* user context */
 
   DM             network; /* internal DMNetwork for storing data about the topology of the Riemann Problem*/
-  NetRSNetworkState network_state; 
+  NetRSNetworkState network_state;
   
-  PetscInt       numfields;
-  PetscInt       numedges; 
+
+  /* TODO: Make PetscFlux class */
+  PetscInt       numfields; /* store inside the DM ? No, store in the PetscFlux Class */
   RiemannSolver  rs; /* For holding physics information, a hack for now to be replaced by FluxFunction */
-  PetscReal      *flux_wrk; /* work array for the flux outputs size is numedges*numfields */
+
+
+  /* For setting up the preallocation of objects and constructing the sub NetRS problems */
+
+  DMLabel        subgraphs; /* TODO : Name better. Each stratum corresponds to the set of vertices associated with a 
+  specific NetRS solver  */
+
+  PetscHSetI     vertexdegrees_total; /* set of all vertex degrees in the full local network */
+  PetscHSetI     *vertexdegrees; /* set of all vertex degrees for each subgraph induced by the DMLabel */
+
+
+  PetscHMapI     hmap_total; /* hash map for all work arrays and etc for the total network (shared among all sub NetRS solvers)*/
+  PetscHMapI     hmap; /* hash map or all work arrays/ solvers for the sub NetRS solvers */
+
+  PetscReal      **flux_wrk; /* work array for the flux outputs, flux_wrk[hmap[numedges]] is an array of size numedges*numfields as a work array */
   /* The implementations are responsible for the creation and management of the objects needed for their evaluation 
   routines */
+
+  /* Solver Work variable: These are managed by the NetRS class and creation/destruction/efficient managament are done by this 
+  NetRS interface class. Particular implementations are then free to essentially ignore any memory managment for solvers, and can do 
+  just implementations for the local network solvers and let this NetRS class manage efficient reuse of resources */
+
+
+  /* Note that not all of these may actually be allocated or used, the implementation is responsible for marking 
+  in its creation routine what solvers/objects it will actually need. The implementations are also responsible for setting up the particulars 
+  of the solvers if they want non-default options */
+
+  Mat            **mat_wrk; 
+  SNES           **snes_wrk; 
+  KSP            **ksp_wrk;
 
   /* Error Estimator Support
     Maybe make error estimator a distinct class? Would help with these work arrays 
@@ -69,5 +98,4 @@ struct _p_NetRS {
   NetRSType finetype; /* used to set what type the fine type should be. By default the is the "exact lax curve solver" if available.
                         FOR NOW AS EXACT SOLVERS ARE HACKED TOGETHER WILL ONLY WORK FOR SWE */
 };
-
 #endif

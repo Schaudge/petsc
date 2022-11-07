@@ -161,6 +161,8 @@ PETSC_EXTERN PetscErrorCode RiemannSolverChangetoEigBasis(RiemannSolver,const Pe
 PETSC_EXTERN PetscErrorCode RiemannSolverSetFlux(RiemannSolver,PetscInt,PetscInt,PetscPointFlux);
 PETSC_EXTERN PetscErrorCode RiemannSolverSetMaxSpeedFunct(RiemannSolver ,RiemannSolverMaxWaveSpeed);
 PETSC_EXTERN PetscErrorCode RiemannSolverSetFluxDim(RiemannSolver,PetscInt,PetscInt);
+PETSC_EXTERN PetscErrorCode RiemannSolverGetNumFields(RiemannSolver,PetscInt*); 
+
 
 PETSC_EXTERN PetscErrorCode RiemannSolverSetApplicationContext(RiemannSolver,void*);
 PETSC_EXTERN PetscErrorCode RiemannSolverGetApplicationContext(RiemannSolver,void*);

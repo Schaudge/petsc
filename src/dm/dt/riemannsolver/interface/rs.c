@@ -455,6 +455,14 @@ PetscErrorCode RiemannSolverSetFlux(RiemannSolver rs,PetscInt dim, PetscInt numf
    PetscFunctionReturn(0);
 }
 
+PetscErrorCode RiemannSolverGetNumFields(RiemannSolver rs, PetscInt *numfields)
+{
+   PetscFunctionBegin;
+   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
+   *numfields = rs->numfields; 
+   PetscFunctionReturn(0);
+}
+
 /*@
     RiemannSolverSetJacobian - Sets the jacobian flux function.
 

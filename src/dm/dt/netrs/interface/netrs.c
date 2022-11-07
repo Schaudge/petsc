@@ -6,6 +6,7 @@
 #include <petsc/private/netrsimpl.h>
 #include <petscnetrs.h>
 #include <petscdm.h>
+#include <petscsf.h>
 
 #include <petsc/private/riemannsolverimpl.h> /* to be removed after adding fluxfunction class */
 
@@ -27,16 +28,37 @@
 @*/
 PetscErrorCode  NetRSSetUp(NetRS rs)
 {
-  PetscInt       i; 
+  PetscInt       i,numsubgraphs; 
+  DM             network; 
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs,NETRS_CLASSID,1);
   if (rs->setupcalled) PetscFunctionReturn(0); 
+
+  /* find the list of vertex degrees in the local network. Used to generate 
+  the list of preallocated objects needed by the solvers */
+  PetscCall(NetRSGetNetwork(rs,&network)); 
+  /* can assume that the network exists from here on */
+  PetscCall(DMLabelSetUp(rs->subgraphs)); 
+
+  PetscCall(DMLabelGetNumValues(rs->subgraphs,&numsubgraphs));
+  /*preallocate preallocator arrays */
+  PetscCall(PetscCalloc4(numsubgraphs,&rs->flux_wrk,numsubgraphs,&rs->mat_wrk,numsubgraphs,rs->snes_wrk,numsubgraphs,rs->ksp_wrk));
+  PetscCall(PetscCalloc1(numsubgraphs,&rs->hmap)); 
+  PetscCall(DMNetworkComputeUniqueVertexDegrees_Local(network,rs->subgraphs,&rs->vertexdegrees,&rs->vertexdegrees_total));
+
   if (rs->ops->setup) {
     PetscCall((*rs->ops->setup)(rs));
   }
+
+
+
+
+
   if (rs->numfields>-1 && rs->numedges>-1) PetscCall(PetscMalloc1(rs->numedges*rs->numfields,&rs->flux_wrk));
   if (rs->estimate) PetscCall(PetscMalloc2(rs->numfields,&rs->est_wrk,rs->numfields,&rs->est_wrk2));
+
+
   /* default value for error array is -1. This allows for knowing if the requested error array in an eval routine actually computed anything (i.e error 
   estimator is not assigned ) */ 
   PetscCall(PetscMalloc1(rs->numedges,&rs->error));
@@ -121,11 +143,11 @@ PetscErrorCode NetRSDuplicate(NetRS netrs,NetRS *newnetrs)
   PetscCall(PetscObjectGetComm((PetscObject)netrs,&comm));
   PetscCall(NetRSCreate(comm,&netrs_new)); 
   /* copy over the parameters and physics from netrs to newnetrs */ 
-
+  /* topology */
+  PetscCall(DMClone(netrs->network,&netrs_new->network));
   /* physics*/
   netrs_new->user      = netrs->user; 
   netrs_new->numfields = netrs->numfields; 
-  netrs_new->numedges  = netrs->numedges;
   netrs_new->rs        = netrs->rs;
   /* error estimate */
   netrs_new->estimate  = netrs->estimate;
@@ -176,20 +198,6 @@ PetscErrorCode  NetRSEvaluate(NetRS rs,const PetscReal *u, const EdgeDirection *
 
     /* adaptivity */
   if(rs->useadaptivity) {
-    errest = 0.0; 
-    for(e=0;e<rs->numedges;e++) {
-      errest = PetscMax(rs->error[e],errest); 
-    }
-    if(errest >= rs->finetol) { /* revaluate with fine netrs */
-      if(!rs->fine) { /* fine netrs hasn't been created. Create it by duplicating rs and changing its type to finetype */
-        PetscCall(NetRSDuplicate(rs,&rs->fine)); 
-        PetscCall(NetRSSetType(rs->fine,rs->finetype)); 
-        rs->fine->useadaptivity = PETSC_FALSE; /* only allow two level adaptivity for now */
-        PetscCall(NetRSSetUp(rs->fine));
-      }
-      PetscCall(NetRSEvaluate(rs->fine,u,dir,flux,error,NULL));
-      if(adaption) {*adaption = PETSC_TRUE;}
-    }
   }
   PetscFunctionReturn(0);
 }
@@ -520,6 +528,61 @@ PetscErrorCode NetRSSetFineTol(NetRS netrs,PetscReal finetol)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(netrs,NETRS_CLASSID,1);
   netrs->finetol = finetol;
+  PetscFunctionReturn(0);
+}
+
+/*@
+    DMNetworkComputeUniqueVertexDegrees_Local- Returns the unique set of vertex 
+    degrees of the local DMNetwork graph. However this includes the edges attached to shared 
+    vertices in the computation, hence the collective nature. Internal use only for now, particularly NetRS. 
+
+    For example the network 
+
+        P0         |       P1
+    v0 --E1----v1  |     v1 --- E2 --- v2
+                   | 
+
+    Would return a set of {1,2} for both processors, as in the global graph deg(v1) = 2, even though 
+    in the local graph it has deg 1. 
+
+    Collective
+
+    Input Parameter:
+.   network - The setup DMNetwork 
+.   marked  - A DMLabel which marks which vertices to consider for computing the vertex degree. Any entry included in the DMLabel
+              will have its vertex degree added to the set. A NULL entry corresponds to computing on the full graph. 
+
+    Output Parameter:
+.    vertexdegrees - array of the vertex degrees sets, one for each subgraph induced by the labeled vertices. NULL if no label is passed in. 
+.    totalvertexdegree - set of vertex degrees for the subgraph induced by the union of all marked vertex. This is the union of of all the vertex degree sets. 
+    Level: developer
+
+.seealso: 
+@*/
+PetscErrorCode DMNetworkComputeUniqueVertexDegrees_Local(DM network,DMLabel marked, PetscHSetI **vertexdegrees, PetscHSetI *totalvertexdegrees)
+{
+  PetscInt     v, vStart,vEnd,degree,nroots,nleaves; 
+  PetscHSetI   vdeg;
+  PetscSF      sf;
+  DM           plex; 
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(network,DM_CLASSID,2,DMNETWORK);
+
+
+  /* Create Hash */
+  PetscCall(PetscHSetICreate(&vdeg));
+
+  /* Pull out the pointsf used by the Underlying DMPlex for the distributed network */
+  PetscCall(DMNetworkGetPlex(network,&plex));
+  PetscCall(DMGetPointSF(plex,&sf));
+  PetscCall(PetscSFGetGraph(sf,&nroots,&nleaves,NULL,NULL));
+
+  PetscCall(DMNetworkGetVertexRange(network,&vStart,&vEnd)); 
+  for(v =vStart; v<vEnd; v++) {
+  }
+
+
   PetscFunctionReturn(0);
 }
 
