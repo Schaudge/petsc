@@ -26,13 +26,14 @@ typedef enum {Generic,Specific} NetRPPhysicsGenerality;
 typedef const char* NetRPType;
 /*
 #define NETRPEXACTSWE "exactswe"
-#define NETRPLINEAR "netrplinear"
+
 #define NETRPOUTFLOW "netrpoutflow"
 #define NETRPRIEMANN "netrpriemann"
 #define NETRPEXACTSWESTAR "exactswestar"
 #define NETRPLINEARPTAR  "netrslinearstar"
 */
 #define NETRPBLANK       "netrpblank"
+#define NETRPLINEARIZED "netrplinearized"
 
 PETSC_EXTERN PetscErrorCode NetRPInitializePackage(void);
 PETSC_EXTERN PetscErrorCode NetRPFinalizePackage(void);
