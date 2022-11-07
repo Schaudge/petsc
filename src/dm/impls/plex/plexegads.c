@@ -25,7 +25,8 @@ PETSC_EXTERN PetscErrorCode DMPlexEGADSPrintModel_Internal(ego);
 PETSC_EXTERN PetscErrorCode DMPlex_EGADS_EDGE_XYZtoUV_Internal(const PetscScalar[], ego, const PetscScalar[], const PetscInt, const PetscInt, PetscScalar[]);
 PETSC_EXTERN PetscErrorCode DMPlex_EGADS_FACE_XYZtoUV_Internal(const PetscScalar[], ego, const PetscScalar[], const PetscInt, const PetscInt, PetscScalar[]);
 
-PetscErrorCode DMPlex_EGADS_GeomDecode_Internal(const PetscInt geomClass, const PetscInt geomType, char **retClass, char **retType) {
+PetscErrorCode DMPlex_EGADS_GeomDecode_Internal(const PetscInt geomClass, const PetscInt geomType, char **retClass, char **retType)
+{
   PetscFunctionBeginHot;
 
   /* EGADS Object Type */
@@ -91,7 +92,8 @@ PetscErrorCode DMPlex_EGADS_GeomDecode_Internal(const PetscInt geomClass, const 
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMPlex_EGADS_EDGE_XYZtoUV_Internal(const PetscScalar coords[], ego obj, const PetscScalar range[], const PetscInt v, const PetscInt dE, PetscScalar paramsV[]) {
+PetscErrorCode DMPlex_EGADS_EDGE_XYZtoUV_Internal(const PetscScalar coords[], ego obj, const PetscScalar range[], const PetscInt v, const PetscInt dE, PetscScalar paramsV[])
+{
   PetscInt    loopCntr = 0;
   PetscScalar dx, dy, dz, lambda, tolr, obj_old, obj_tmp, target;
   PetscScalar delta, A, b;
@@ -174,7 +176,8 @@ PetscErrorCode DMPlex_EGADS_EDGE_XYZtoUV_Internal(const PetscScalar coords[], eg
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMPlex_EGADS_FACE_XYZtoUV_Internal(const PetscScalar coords[], ego obj, const PetscScalar range[], const PetscInt v, const PetscInt dE, PetscScalar paramsV[]) {
+PetscErrorCode DMPlex_EGADS_FACE_XYZtoUV_Internal(const PetscScalar coords[], ego obj, const PetscScalar range[], const PetscInt v, const PetscInt dE, PetscScalar paramsV[])
+{
   PetscInt    loopCntr = 0;
   PetscScalar dx, dy, dz, lambda, tolr, denom, obj_old, obj_tmp, target;
   PetscScalar uvs[2], uvt[2], delta[2], A[4], b[2], eval[18], data[18];
@@ -558,7 +561,8 @@ static PetscErrorCode DMPlexEGADSDestroy_Private(void *context)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMPlexAttachEGADS(DM dm, ego model, ego context) {
+static PetscErrorCode DMPlexAttachEGADS(DM dm, ego model, ego context)
+{
   PetscContainer modelObj, contextObj;
 
   PetscFunctionBegin;
@@ -577,11 +581,11 @@ static PetscErrorCode DMPlexAttachEGADS(DM dm, ego model, ego context) {
 
 static PetscErrorCode DMPlexCreateEGADS_Internal(MPI_Comm comm, ego context, ego model, DM *newdm)
 {
-  DMLabel     bodyLabel, faceLabel, edgeLabel, vertexLabel;
-  PetscInt    cStart, cEnd, c;
-  ego         geom, *bodies, *objs, *nobjs, *mobjs, *lobjs;
-  int         oclass, mtype, nbodies, *senses;
-  int         b;
+  DMLabel  bodyLabel, faceLabel, edgeLabel, vertexLabel;
+  PetscInt cStart, cEnd, c;
+  ego      geom, *bodies, *objs, *nobjs, *mobjs, *lobjs;
+  int      oclass, mtype, nbodies, *senses;
+  int      b;
   /* PETSc variables */
   DM          dm;
   PetscHMapI  edgeMap = NULL;
@@ -1000,12 +1004,12 @@ static PetscErrorCode DMPlexCreateEGADS_Internal(MPI_Comm comm, ego context, ego
 
 static PetscErrorCode DMPlexCreateEGADS(MPI_Comm comm, ego context, ego model, DM *newdm)
 {
-  DMLabel         bodyLabel, faceLabel, edgeLabel, vertexLabel;
+  DMLabel bodyLabel, faceLabel, edgeLabel, vertexLabel;
   // EGADS variables
-  ego             geom, *bodies, *mobjs, *fobjs, *lobjs, *eobjs, *nobjs;
-  ego             topRef, prev, next;
-  int             oclass, mtype, nbodies, *senses, *lSenses, *eSenses;
-  int             b;
+  ego geom, *bodies, *mobjs, *fobjs, *lobjs, *eobjs, *nobjs;
+  ego topRef, prev, next;
+  int oclass, mtype, nbodies, *senses, *lSenses, *eSenses;
+  int b;
   // PETSc variables
   DM              dm;
   PetscHMapI      edgeMap = NULL, bodyIndexMap = NULL, bodyVertexMap = NULL, bodyEdgeMap = NULL, bodyFaceMap = NULL, bodyEdgeGlobalMap = NULL;
@@ -1395,11 +1399,11 @@ static PetscErrorCode DMPlexCreateEGADS(MPI_Comm comm, ego context, ego model, D
 
 static PetscErrorCode DMPlexCreateEGADS_Tess_Internal(MPI_Comm comm, ego context, ego model, DM *newdm)
 {
-  DMLabel         bodyLabel, faceLabel, edgeLabel, vertexLabel;
-  ego             geom, *bodies, *fobjs;
-  int             b, oclass, mtype, nbodies, *senses;
-  int             totalNumTris = 0, totalNumPoints = 0;
-  double          boundBox[6] = {0., 0., 0., 0., 0., 0.}, tessSize;
+  DMLabel bodyLabel, faceLabel, edgeLabel, vertexLabel;
+  ego     geom, *bodies, *fobjs;
+  int     b, oclass, mtype, nbodies, *senses;
+  int     totalNumTris = 0, totalNumPoints = 0;
+  double  boundBox[6] = {0., 0., 0., 0., 0., 0.}, tessSize;
   /* PETSc variables */
   DM              dm;
   PetscHMapI      pointIndexStartMap = NULL, triIndexStartMap = NULL, pTypeLabelMap = NULL, pIndexLabelMap = NULL;
@@ -1702,10 +1706,10 @@ PetscErrorCode DMPlexInflateToEGADSGeomModel(DM dm)
 {
 #if defined(PETSC_HAVE_EGADS)
   /* EGADS Variables */
-  ego            model, geom, body, face, edge, vertex;
-  ego           *bodies;
-  int            Nb, oclass, mtype, *senses;
-  double         result[4];
+  ego    model, geom, body, face, edge, vertex;
+  ego   *bodies;
+  int    Nb, oclass, mtype, *senses;
+  double result[4];
   /* PETSc Variables */
   DM             cdm;
   PetscContainer modelObj;
@@ -1771,7 +1775,8 @@ PetscErrorCode DMPlexInflateToEGADSGeomModel(DM dm)
 }
 
 #if defined(PETSC_HAVE_EGADS)
-static PetscErrorCode ConvertEGADSModelToAllBSplines(ego model, ego *newmodel) {
+static PetscErrorCode ConvertEGADSModelToAllBSplines(ego model, ego *newmodel)
+{
   ego  context = NULL, geom, *bodies, *fobjs;
   int  oclass, mtype;
   int *senses;
@@ -1920,7 +1925,8 @@ PetscErrorCode DMPlexCreateEGADSFromFile(MPI_Comm comm, const char filename[], D
 
 .seealso: `DMPLEX`, `DMCreate()`, `DMPlexCreateEGADS()`, `DMPlexCreateEGADSliteFromFile()`, `DMPlexModifyEGADSGeomModel()`
 @*/
-PetscErrorCode DMPlexGeomDataAndGrads(DM dm, PetscBool fullGeomGrad) {
+PetscErrorCode DMPlexGeomDataAndGrads(DM dm, PetscBool fullGeomGrad)
+{
 #if defined(PETSC_HAVE_EGADS)
   ego            model, geom, *bodies, *fobjs;
   PetscContainer modelObj;
@@ -3002,12 +3008,13 @@ $           *.brep = BRep File (OpenCASCADE File)
 
 .seealso: `DMPLEX`, `DMCreate()`, `DMPlexCreateEGADS()`, `DMPlexCreateEGADSliteFromFile()`, `DMPlexGeomDataAndGrads()`
 @*/
-PetscErrorCode DMPlexEGADSModifyGeomModel(DM dm, PetscScalar newCP[], PetscScalar newW[], PetscBool autoInflate, PetscBool saveGeom, const char stpName[]) {
+PetscErrorCode DMPlexEGADSModifyGeomModel(DM dm, PetscScalar newCP[], PetscScalar newW[], PetscBool autoInflate, PetscBool saveGeom, const char stpName[])
+{
 #if defined(PETSC_HAVE_EGADS)
   /* EGADS/EGADSlite variables */
-  ego            context, model, geom, *bodies, *lobjs, *fobjs;
-  int            oclass, mtype, *senses, *lsenses;
-  int            Nb, Nf, Nl, id;
+  ego context, model, geom, *bodies, *lobjs, *fobjs;
+  int oclass, mtype, *senses, *lsenses;
+  int Nb, Nf, Nl, id;
   /* PETSc variables */
   DMLabel        bodyLabel, faceLabel, edgeLabel, vertexLabel;
   PetscContainer modelObj, cpHashTableObj, wHashTableObj;
@@ -3303,13 +3310,14 @@ PetscErrorCode DMPlexEGADSModifyGeomModel(DM dm, PetscScalar newCP[], PetscScala
 
 .seealso: `DMPLEX`, `DMCreate()`, `DMPlexCreateEGADS()`, `DMPlexCreateEGADSliteFromFile()`, `DMPlexGeomDataAndGrads()`
 @*/
-PetscErrorCode DMPlexGetEGADSGeomModel_tuv(DM dm) {
+PetscErrorCode DMPlexGetEGADSGeomModel_tuv(DM dm)
+{
 #if defined(PETSC_HAVE_EGADS)
   /* EGADS Variables */
-  ego            model, geom, body, face, edge;
-  ego           *bodies;
-  int            Nb, oclass, mtype, *senses;
-  double         result[4];
+  ego    model, geom, body, face, edge;
+  ego   *bodies;
+  int    Nb, oclass, mtype, *senses;
+  double result[4];
   /* PETSc Variables */
   DM             cdm;
   PetscContainer modelObj;
@@ -3438,13 +3446,14 @@ PetscErrorCode DMPlexGetEGADSGeomModel_tuv(DM dm) {
 
 .seealso: `DMPLEX`, `DMCreate()`, `DMPlexCreateEGADS()`, `DMPlexCreateEGADSliteFromFile()`, `DMPlexGeomDataAndGrads()`, `DMPlexGetEGADSGeomModel_tuv()`
 @*/
-PetscErrorCode DMPlexInflateToEGADSGeomModel_tuv(DM dm) {
+PetscErrorCode DMPlexInflateToEGADSGeomModel_tuv(DM dm)
+{
 #if defined(PETSC_HAVE_EGADS)
   /* EGADS Variables */
-  ego            model, geom, body, face, edge, vertex;
-  ego           *bodies;
-  int            Nb, oclass, mtype, *senses;
-  double         result[18], params[2];
+  ego    model, geom, body, face, edge, vertex;
+  ego   *bodies;
+  int    Nb, oclass, mtype, *senses;
+  double result[18], params[2];
   /* PETSc Variables */
   DM             cdm;
   PetscContainer modelObj;
@@ -3556,18 +3565,18 @@ PetscErrorCode DMPlexComputeSurfaceGradient(DM dm)
   PetscInt       faceLabelSize, edgeLabelSize, vertexLabelSize;
 
   PetscFunctionBegin;
-  PetscCall(PetscObjectQuery((PetscObject) dm, "EGADS Model", (PetscObject *) &modelObj));
-  if (!modelObj) PetscCall(PetscObjectQuery((PetscObject) dm, "EGADSlite Model", (PetscObject *) &modelObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "EGADS Model", (PetscObject *)&modelObj));
+  if (!modelObj) PetscCall(PetscObjectQuery((PetscObject)dm, "EGADSlite Model", (PetscObject *)&modelObj));
 
   // Get attached EGADS model (pointer)
-  PetscCall(PetscContainerGetPointer(modelObj, (void **) &model));
+  PetscCall(PetscContainerGetPointer(modelObj, (void **)&model));
 
   // Get the bodies in the model
   PetscCall(EG_getTopology(model, &geom, &oclass, &mtype, NULL, &Nb, &bodies, &senses));
-  ego body = bodies[0];    // Only operate on 1st body. Model should only have 1 body.
+  ego body = bodies[0]; // Only operate on 1st body. Model should only have 1 body.
 
   // Get the total number of FACEs in the model
-  PetscCall(EG_getBodyTopos(body, NULL, FACE,  &Nf, &fobjs));
+  PetscCall(EG_getBodyTopos(body, NULL, FACE, &Nf, &fobjs));
 
   // Get the total number of points and IDs in the DMPlex with a "EGADS Face Label"
   // This will provide the total number of DMPlex points on the boundary of the geometry
@@ -3589,7 +3598,7 @@ PetscErrorCode DMPlexComputeSurfaceGradient(DM dm)
   PetscInt totalNumPoints = 0;
   for (int ii = 0; ii < faceLabelSize; ++ii) {
     // Cycle through FACE labels
-    PetscInt  size;
+    PetscInt size;
     PetscCall(DMGetStratumSize(dm, "EGADS Face ID", faceIndices[ii], &size));
     totalNumPoints += size;
   }
@@ -3598,7 +3607,7 @@ PetscErrorCode DMPlexComputeSurfaceGradient(DM dm)
 
   for (int ii = 0; ii < edgeLabelSize; ++ii) {
     // Cycle Through EDGE Labels
-    PetscInt  size;
+    PetscInt size;
     PetscCall(DMGetStratumSize(dm, "EGADS Edge ID", edgeIndices[ii], &size));
     totalNumPoints += size;
   }
@@ -3607,14 +3616,14 @@ PetscErrorCode DMPlexComputeSurfaceGradient(DM dm)
 
   for (int ii = 0; ii < vertexLabelSize; ++ii) {
     // Cycle Through VERTEX Labels
-    PetscInt  size;
+    PetscInt size;
     PetscCall(DMGetStratumSize(dm, "EGADS Vertex ID", vertexIndices[ii], &size));
     totalNumPoints += size;
   }
   PetscCall(ISRestoreIndices(vertexLabelValues, &vertexIndices));
   PetscCall(ISDestroy(&vertexLabelValues));
 
-  int     maxNumCPs = 0;
+  int     maxNumCPs   = 0;
   int     totalNumCPs = 0;
   ego     bRef, bPrev, bNext, fgeom, *lobjs; // bspline;
   int     id, boclass, bmtype, *bpinfo;
@@ -3651,7 +3660,7 @@ PetscErrorCode DMPlexComputeSurfaceGradient(DM dm)
   PetscCall(PetscMalloc2(cpCoordDataLength, &cntrlPtCoords, wDataLength, &cntrlPtWeights));
   for (int ii = 0; ii < Nf; ++ii) {
     // Need to Populate Control Point Coordinates and Weight Vectors
-    ego           face = fobjs[ii];
+    ego face = fobjs[ii];
     //char       *bClass, *bType;
     //int         maxNumCPs_temp;
     PetscHashIter hashKeyIter, wHashKeyIter;
@@ -3679,7 +3688,7 @@ PetscErrorCode DMPlexComputeSurfaceGradient(DM dm)
     if (!wHashKeyFound) PetscCall(PetscHMapISet(faceCPWeightsRow_Start, id, wcntr));
 
     int offsetWeight = bpinfo[3] + bpinfo[6] + (3 * bpinfo[2] * bpinfo[5]);
-    for (int jj = 0; jj < bpinfo[2] *bpinfo[5]; ++jj) {
+    for (int jj = 0; jj < bpinfo[2] * bpinfo[5]; ++jj) {
       cntrlPtWeights[wcntr] = bprv[offsetWeight + jj];
       wcntr += 1;
     }
@@ -3695,48 +3704,48 @@ PetscErrorCode DMPlexComputeSurfaceGradient(DM dm)
 
     PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &cpOrgObj));
     PetscCall(PetscContainerSetPointer(cpOrgObj, faceCntrlPtRow_Start));
-    PetscCall(PetscObjectCompose((PetscObject) dm, "Control Point Hash Table", (PetscObject) cpOrgObj));
+    PetscCall(PetscObjectCompose((PetscObject)dm, "Control Point Hash Table", (PetscObject)cpOrgObj));
     PetscCall(PetscContainerDestroy(&cpOrgObj));
 
     PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &cpCoordObj));
     PetscCall(PetscContainerSetPointer(cpCoordObj, cntrlPtCoords));
     // Should set a user destroy for this
-    PetscCall(PetscObjectCompose((PetscObject) dm, "Control Point Coordinates", (PetscObject) cpCoordObj));
+    PetscCall(PetscObjectCompose((PetscObject)dm, "Control Point Coordinates", (PetscObject)cpCoordObj));
     PetscCall(PetscContainerDestroy(&cpCoordObj));
 
     PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &cpCoordLengthObj));
     PetscCall(PetscContainerSetPointer(cpCoordLengthObj, cpCoordDataLengthPtr));
     // Should set a user destroy for this
-    PetscCall(PetscObjectCompose((PetscObject) dm, "Control Point Coordinate Data Length", (PetscObject) cpCoordLengthObj));
+    PetscCall(PetscObjectCompose((PetscObject)dm, "Control Point Coordinate Data Length", (PetscObject)cpCoordLengthObj));
     PetscCall(PetscContainerDestroy(&cpCoordLengthObj));
 
     PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &wOrgObj));
     PetscCall(PetscContainerSetPointer(wOrgObj, faceCPWeightsRow_Start));
-    PetscCall(PetscObjectCompose((PetscObject) dm, "Control Point Weights Hash Table", (PetscObject) wOrgObj));
+    PetscCall(PetscObjectCompose((PetscObject)dm, "Control Point Weights Hash Table", (PetscObject)wOrgObj));
     PetscCall(PetscContainerDestroy(&wOrgObj));
 
     PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &wValObj));
     PetscCall(PetscContainerSetPointer(wValObj, cntrlPtWeights));
     // Should set a user destroy for this
-    PetscCall(PetscObjectCompose((PetscObject) dm, "Control Point Weight Data", (PetscObject) wValObj));
+    PetscCall(PetscObjectCompose((PetscObject)dm, "Control Point Weight Data", (PetscObject)wValObj));
     PetscCall(PetscContainerDestroy(&wValObj));
 
     PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &wDataLengthObj));
     PetscCall(PetscContainerSetPointer(wDataLengthObj, wDataLengthPtr));
     // Should set a user destroy for this
-    PetscCall(PetscObjectCompose((PetscObject) dm, "Control Point Weight Data Length", (PetscObject) wDataLengthObj));
+    PetscCall(PetscObjectCompose((PetscObject)dm, "Control Point Weight Data Length", (PetscObject)wDataLengthObj));
     PetscCall(PetscContainerDestroy(&wDataLengthObj));
   }
 
   // Define Matrix to store  Surface Gradient information dx_i/dCPj_i
-  PetscInt       gcntr = 0;
+  PetscInt       gcntr   = 0;
   const PetscInt rowSize = 3 * maxNumCPs * totalNumPoints;
   const PetscInt colSize = 4 * Nf;
   //PetscScalar    surfaceGrad[rowSize][colSize];
 
   // Create Point Surface Gradient Matrix
   PetscCall(MatCreate(PETSC_COMM_WORLD, &pointSurfGrad));
-  PetscCall(MatSetSizes(pointSurfGrad,PETSC_DECIDE, PETSC_DECIDE, rowSize, colSize));
+  PetscCall(MatSetSizes(pointSurfGrad, PETSC_DECIDE, PETSC_DECIDE, rowSize, colSize));
   PetscCall(MatSetType(pointSurfGrad, MATAIJ));
   PetscCall(MatSetUp(pointSurfGrad));
 
@@ -3771,8 +3780,8 @@ PetscErrorCode DMPlexComputeSurfaceGradient(DM dm)
     PetscCall(EG_getGeometry(fgeom, &boclass, &bmtype, &bRef, &bpinfo, &bprv));
 
     // Get all EDGE and NODE objects attached to the current FACE
-    PetscCall(EG_getBodyTopos(body, face, EDGE,  &Ne, &eobjs));
-    PetscCall(EG_getBodyTopos(body, face, NODE,  &Nn, &nobjs));
+    PetscCall(EG_getBodyTopos(body, face, EDGE, &Ne, &eobjs));
+    PetscCall(EG_getBodyTopos(body, face, NODE, &Nn, &nobjs));
 
     // Get all DMPlex Points that have DMLabel "EGADS Face ID" and store them in a Hash Table for later use
     fid = EG_indexBodyTopo(body, face);
@@ -3837,7 +3846,7 @@ PetscErrorCode DMPlexComputeSurfaceGradient(DM dm)
 
     // Get all DMPlex Points that have DMLabel "EGADS Vertex ID" attached to the current FACE and store them in a Hash Table for later use.
     for (int jj = 0; jj < Nn; ++jj) {
-      ego    node = nobjs[jj];
+      ego node = nobjs[jj];
 
       id = EG_indexBodyTopo(body, node);
       PetscCall(DMGetLabel(dm, "EGADS Vertex ID", &nodeLabel));
@@ -3873,45 +3882,43 @@ PetscErrorCode DMPlexComputeSurfaceGradient(DM dm)
 
     // Cycle through all points on the current FACE
     for (int jj = 0; jj < currFaceUPSize; ++jj) {
-      PetscInt  currPointID = currFaceUPKeys[jj];
+      PetscInt currPointID = currFaceUPKeys[jj];
       PetscCall(DMPlexVecGetClosure(cdm, NULL, coordinatesLocal, currPointID, &Nv, &coords));
 
       // Get UV position of FACE
-      double    params[2], range[4], eval[18]; //, eval2[18], paramsV[4], result[18];
-      int      peri;
+      double params[2], range[4], eval[18]; //, eval2[18], paramsV[4], result[18];
+      int    peri;
       PetscCall(EG_getRange(face, range, &peri));
       PetscCall(DMPlex_EGADS_FACE_XYZtoUV_Internal(coords, face, range, 0, dE, params));
       PetscCall(EG_evaluate(face, params, eval));
 
       // Make a new SURFACE Geometry by changing the location of the Control Points
-      int    prvSize = bpinfo[3] + bpinfo[6] + (4 * bpinfo[2]*bpinfo[5]);
+      int    prvSize = bpinfo[3] + bpinfo[6] + (4 * bpinfo[2] * bpinfo[5]);
       double nbprv[prvSize];
 
       // Cycle through each Control Point
       double deltaCoord = 1.0E-4;
-      int    offset = bpinfo[3] + bpinfo[6];
-      int    wOffset = offset + (3 * bpinfo[2] * bpinfo[5]);
-      for (int ii = 0; ii < bpinfo[2]*bpinfo[5]; ++ii){
+      int    offset     = bpinfo[3] + bpinfo[6];
+      int    wOffset    = offset + (3 * bpinfo[2] * bpinfo[5]);
+      for (int ii = 0; ii < bpinfo[2] * bpinfo[5]; ++ii) {
         // Cycle through each direction (x, then y, then z)
         for (int kk = 0; kk < 4; ++kk) {
           // Reinitialize nbprv[] values because we only want to change one value at a time
-          for (int mm = 0; mm < prvSize; ++mm) {
-            nbprv[mm] = bprv[mm];
-          }
+          for (int mm = 0; mm < prvSize; ++mm) { nbprv[mm] = bprv[mm]; }
 
-          if (kk == 0) {          //X
+          if (kk == 0) { //X
             nbprv[offset + 0] = bprv[offset + 0] + deltaCoord;
             nbprv[offset + 1] = bprv[offset + 1];
             nbprv[offset + 2] = bprv[offset + 2];
-          } else if (kk == 1) {  //Y
+          } else if (kk == 1) { //Y
             nbprv[offset + 0] = bprv[offset + 0];
             nbprv[offset + 1] = bprv[offset + 1] + deltaCoord;
             nbprv[offset + 2] = bprv[offset + 2];
-          } else if (kk == 2) {  //Z
+          } else if (kk == 2) { //Z
             nbprv[offset + 0] = bprv[offset + 0];
             nbprv[offset + 1] = bprv[offset + 1];
             nbprv[offset + 2] = bprv[offset + 2] + deltaCoord;
-          } else if (kk == 3) {  // Weights
+          } else if (kk == 3) { // Weights
             nbprv[wOffset + ii] = bprv[wOffset + ii] + deltaCoord;
           } else {
             // currently do nothing
@@ -3937,7 +3944,7 @@ PetscErrorCode DMPlexComputeSurfaceGradient(DM dm)
           PetscScalar dxdCz = (newCoords[2] - coords[2]) / deltaCoord;
 
           // Store Gradient Information in surfaceGrad[][] Matrix
-          PetscInt   startRow;
+          PetscInt startRow;
           PetscCall(PetscHMapIGet(pointSurfGradRow_Start, currPointID, &startRow));
 
           //surfaceGrad[startRow + (ii * 3) + 0][((fid - 1) * 4) + kk] = dxdCx;
@@ -3965,13 +3972,13 @@ PetscErrorCode DMPlexComputeSurfaceGradient(DM dm)
 
     PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &surfGradOrgObj));
     PetscCall(PetscContainerSetPointer(surfGradOrgObj, pointSurfGradRow_Start));
-    PetscCall(PetscObjectCompose((PetscObject) dm, "Surface Gradient Hash Table", (PetscObject) surfGradOrgObj));
+    PetscCall(PetscObjectCompose((PetscObject)dm, "Surface Gradient Hash Table", (PetscObject)surfGradOrgObj));
     PetscCall(PetscContainerDestroy(&surfGradOrgObj));
 
     PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &surfGradObj));
     PetscCall(PetscContainerSetPointer(surfGradObj, pointSurfGrad));
     // Should set a user destroy for this
-    PetscCall(PetscObjectCompose((PetscObject) dm, "Surface Gradient Matrix", (PetscObject) surfGradObj));
+    PetscCall(PetscObjectCompose((PetscObject)dm, "Surface Gradient Matrix", (PetscObject)surfGradObj));
     PetscCall(PetscContainerDestroy(&surfGradObj));
   }
   EG_free(fobjs);
