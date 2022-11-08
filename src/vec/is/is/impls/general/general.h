@@ -1,11 +1,9 @@
+#ifndef PETSC_IS_GENERAL_H
+#define PETSC_IS_GENERAL_H
 
-#ifndef __GENERAL_H
-#define __GENERAL_H
-
-/*
-    Defines the data structure used for the general index set
-*/
 #include <petsc/private/isimpl.h>
+
+/* Defines the data structure used for the general index set */
 
 typedef struct {
   PetscBool sorted;    /* indicates the indices are sorted */
@@ -13,4 +11,4 @@ typedef struct {
   PetscInt *idx;
 } IS_General;
 
-#endif
+#endif // PETSC_IS_GENERAL_H

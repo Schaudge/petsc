@@ -98,8 +98,8 @@ PetscErrorCode ISGetType(IS is, ISType *type)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(is, IS_CLASSID, 1);
   PetscValidPointer(type, 2);
-  if (!ISRegisterAllCalled) PetscCall(ISRegisterAll());
-  *type = ((PetscObject)is)->type_name;
+  PetscCall(ISRegisterAll());
+  PetscCall(PetscObjectGetType((PetscObject)is, type));
   PetscFunctionReturn(0);
 }
 
@@ -142,6 +142,7 @@ PetscErrorCode ISGetType(IS is, ISType *type)
 PetscErrorCode ISRegister(const char sname[], PetscErrorCode (*function)(IS))
 {
   PetscFunctionBegin;
+  PetscValidCharPointer(sname, 1);
   PetscCall(ISInitializePackage());
   PetscCall(PetscFunctionListAdd(&ISList, sname, function));
   PetscFunctionReturn(0);

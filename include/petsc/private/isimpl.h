@@ -104,4 +104,30 @@ struct _n_ISColoring {
   PetscBool        allocated;
 };
 
+PETSC_INTERN PetscErrorCode ISCreate_General(IS);
+PETSC_INTERN PetscErrorCode ISCreate_Stride(IS);
+PETSC_INTERN PetscErrorCode ISCreate_Block(IS);
+
+static inline PetscErrorCode ISLocateInArrayDefault_Internal(IS is, PetscInt key, const PetscInt *indices, PetscInt *location)
+{
+  PetscInt  numIdx;
+  PetscBool sorted;
+
+  PetscFunctionBegin;
+  PetscCall(ISGetLocalSize(is, &numIdx));
+  PetscCall(ISSorted(is, &sorted));
+  if (sorted) {
+    PetscCall(PetscFindInt(key, numIdx, indices, location));
+  } else {
+    *location = -1;
+    for (PetscInt i = 0; i < numIdx; i++) {
+      if (indices[i] == key) {
+        *location = i;
+        break;
+      }
+    }
+  }
+  PetscFunctionReturn(0);
+}
+
 #endif

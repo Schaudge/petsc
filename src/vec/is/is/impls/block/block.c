@@ -30,9 +30,7 @@ static PetscErrorCode ISDestroy_Block(IS is)
 
 static PetscErrorCode ISLocate_Block(IS is, PetscInt key, PetscInt *location)
 {
-  IS_Block *sub = (IS_Block *)is->data;
-  PetscInt  numIdx, i, bs, bkey, mkey;
-  PetscBool sorted;
+  PetscInt numIdx, bs, bkey, mkey;
 
   PetscFunctionBegin;
   PetscCall(PetscLayoutGetBlockSize(is->map, &bs));
@@ -41,23 +39,10 @@ static PetscErrorCode ISLocate_Block(IS is, PetscInt key, PetscInt *location)
   bkey = key / bs;
   mkey = key % bs;
   if (mkey < 0) {
-    bkey--;
+    --bkey;
     mkey += bs;
   }
-  PetscCall(ISGetInfo(is, IS_SORTED, IS_LOCAL, PETSC_TRUE, &sorted));
-  if (sorted) {
-    PetscCall(PetscFindInt(bkey, numIdx, sub->idx, location));
-  } else {
-    const PetscInt *idx = sub->idx;
-
-    *location = -1;
-    for (i = 0; i < numIdx; i++) {
-      if (idx[i] == bkey) {
-        *location = i;
-        break;
-      }
-    }
-  }
+  PetscCall(ISLocateInArrayDefault_Internal(is, bkey, ((IS_Block *)is->data)->idx, location));
   if (*location >= 0) *location = *location * bs + mkey;
   PetscFunctionReturn(0);
 }
@@ -65,7 +50,7 @@ static PetscErrorCode ISLocate_Block(IS is, PetscInt key, PetscInt *location)
 static PetscErrorCode ISGetIndices_Block(IS in, const PetscInt *idx[])
 {
   IS_Block *sub = (IS_Block *)in->data;
-  PetscInt  i, j, k, bs, n, *ii, *jj;
+  PetscInt  bs, n;
 
   PetscFunctionBegin;
   PetscCall(PetscLayoutGetBlockSize(in->map, &bs));
@@ -73,54 +58,58 @@ static PetscErrorCode ISGetIndices_Block(IS in, const PetscInt *idx[])
   n /= bs;
   if (bs == 1) *idx = sub->idx;
   else {
-    if (n) {
-      PetscCall(PetscMalloc1(bs * n, &jj));
-      *idx = jj;
-      k    = 0;
-      ii   = sub->idx;
-      for (i = 0; i < n; i++)
-        for (j = 0; j < bs; j++) jj[k++] = bs * ii[i] + j;
-    } else {
-      /* do not malloc for zero size because F90Array1dCreate() inside ISRestoreArrayF90() does not keep array when zero length array */
-      *idx = NULL;
+    const PetscInt *ii = sub->idx;
+    PetscInt       *jj = NULL;
+
+    /*
+      does not malloc for zero size because F90Array1dCreate() inside ISRestoreArrayF90() does
+      not keep array when zero length array
+    */
+    PetscCall(PetscMalloc1(bs * n, &jj));
+    for (PetscInt i = 0, k = 0; i < n; i++) {
+      for (PetscInt j = 0; j < bs; j++) jj[k++] = bs * ii[i] + j;
     }
+    *idx = jj;
   }
   PetscFunctionReturn(0);
 }
 
 static PetscErrorCode ISRestoreIndices_Block(IS is, const PetscInt *idx[])
 {
-  IS_Block *sub = (IS_Block *)is->data;
-  PetscInt  bs;
+  PetscInt bs;
 
   PetscFunctionBegin;
   PetscCall(PetscLayoutGetBlockSize(is->map, &bs));
-  if (bs != 1) {
-    PetscCall(PetscFree(*(void **)idx));
-  } else {
+  if (bs == 1) {
     /* F90Array1dCreate() inside ISRestoreArrayF90() does not keep array when zero length array */
-    PetscCheck(is->map->n <= 0 || *idx == sub->idx, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Must restore with value from ISGetIndices()");
+    PetscCheck(is->map->n <= 0 || *idx == ((IS_Block *)is->data)->idx, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Must restore with value from ISGetIndices()");
+  } else {
+    PetscCall(PetscFree(*(void **)idx));
   }
   PetscFunctionReturn(0);
 }
 
 static PetscErrorCode ISInvertPermutation_Block(IS is, PetscInt nlocal, IS *isout)
 {
-  IS_Block   *sub = (IS_Block *)is->data;
-  PetscInt    i, *ii, bs, n, *idx = sub->idx;
+  PetscInt    bs, n;
   PetscMPIInt size;
 
   PetscFunctionBegin;
+  (void)nlocal;
   PetscCallMPI(MPI_Comm_size(PetscObjectComm((PetscObject)is), &size));
+  PetscCheck(size == 1, PETSC_COMM_SELF, PETSC_ERR_SUP, "No inversion written yet for comm size > 1 (have %d) for block IS", size);
   PetscCall(PetscLayoutGetBlockSize(is->map, &bs));
   PetscCall(PetscLayoutGetLocalSize(is->map, &n));
   n /= bs;
-  if (size == 1) {
+  {
+    const PetscInt *idx = ((IS_Block *)is->data)->idx;
+    PetscInt       *ii;
+
     PetscCall(PetscMalloc1(n, &ii));
-    for (i = 0; i < n; i++) ii[idx[i]] = i;
+    for (PetscInt i = 0; i < n; ++i) ii[idx[i]] = i;
     PetscCall(ISCreateBlock(PETSC_COMM_SELF, bs, n, ii, PETSC_OWN_POINTER, isout));
     PetscCall(ISSetPermutation(*isout));
-  } else SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "No inversion written yet for block IS");
+  }
   PetscFunctionReturn(0);
 }
 
@@ -173,13 +162,12 @@ static PetscErrorCode ISView_Block(IS is, PetscViewer viewer)
 
 static PetscErrorCode ISSort_Block(IS is)
 {
-  IS_Block *sub = (IS_Block *)is->data;
-  PetscInt  bs, n;
+  PetscInt bs, n;
 
   PetscFunctionBegin;
   PetscCall(PetscLayoutGetBlockSize(is->map, &bs));
   PetscCall(PetscLayoutGetLocalSize(is->map, &n));
-  PetscCall(PetscIntSortSemiOrdered(n / bs, sub->idx));
+  PetscCall(PetscIntSortSemiOrdered(n / bs, ((IS_Block *)is->data)->idx));
   PetscFunctionReturn(0);
 }
 
@@ -207,24 +195,26 @@ static PetscErrorCode ISSortRemoveDups_Block(IS is)
 static PetscErrorCode ISSorted_Block(IS is, PetscBool *flg)
 {
   PetscFunctionBegin;
-  PetscCall(ISGetInfo(is, IS_SORTED, IS_LOCAL, PETSC_TRUE, flg));
+  PetscCall(ISSorted(is, flg));
   PetscFunctionReturn(0);
 }
 
 static PetscErrorCode ISSortedLocal_Block(IS is, PetscBool *flg)
 {
-  IS_Block *sub = (IS_Block *)is->data;
-  PetscInt  n, bs, i, *idx;
+  const PetscInt *idx = ((IS_Block *)is->data)->idx;
+  PetscInt        n, bs;
 
   PetscFunctionBegin;
   PetscCall(PetscLayoutGetLocalSize(is->map, &n));
   PetscCall(PetscLayoutGetBlockSize(is->map, &bs));
   n /= bs;
-  idx = sub->idx;
-  for (i = 1; i < n; i++)
-    if (idx[i] < idx[i - 1]) break;
-  if (i < n) *flg = PETSC_FALSE;
-  else *flg = PETSC_TRUE;
+  *flg = PETSC_TRUE;
+  for (PetscInt i = 1; i < n; i++) {
+    if (idx[i] < idx[i - 1]) {
+      *flg = PETSC_FALSE;
+      break;
+    }
+  }
   PetscFunctionReturn(0);
 }
 
@@ -638,7 +628,7 @@ static PetscErrorCode ISBlockGetSize_Block(IS is, PetscInt *size)
   PetscFunctionReturn(0);
 }
 
-PETSC_EXTERN PetscErrorCode ISCreate_Block(IS is)
+PetscErrorCode ISCreate_Block(IS is)
 {
   IS_Block *sub;
 

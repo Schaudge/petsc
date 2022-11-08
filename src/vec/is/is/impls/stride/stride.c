@@ -121,15 +121,16 @@ PetscErrorCode ISToGeneral_Stride(IS inis)
 
 PetscErrorCode ISLocate_Stride(IS is, PetscInt key, PetscInt *location)
 {
-  IS_Stride *sub = (IS_Stride *)is->data;
-  PetscInt   rem, step;
+  const IS_Stride *sub  = (IS_Stride *)is->data;
+  const PetscInt   step = sub->step, shifted_key = key - sub->first;
+  const PetscInt   rem = shifted_key / step;
 
   PetscFunctionBegin;
-  *location = -1;
-  step      = sub->step;
-  key -= sub->first;
-  rem = key / step;
-  if ((rem < is->map->n) && !(key % step)) *location = rem;
+  if ((rem < is->map->n) && !(shifted_key % step)) {
+    *location = rem;
+  } else {
+    *location = -1;
+  }
   PetscFunctionReturn(0);
 }
 
@@ -139,14 +140,15 @@ PetscErrorCode ISLocate_Stride(IS is, PetscInt key, PetscInt *location)
 */
 PetscErrorCode ISGetIndices_Stride(IS is, const PetscInt *idx[])
 {
-  IS_Stride *sub = (IS_Stride *)is->data;
-  PetscInt   i, **dx = (PetscInt **)idx;
+  const IS_Stride *sub = (IS_Stride *)is->data;
+  const PetscInt   n   = is->map->n;
+  PetscInt       **dx  = (PetscInt **)idx;
 
   PetscFunctionBegin;
-  PetscCall(PetscMalloc1(is->map->n, (PetscInt **)idx));
-  if (is->map->n) {
+  PetscCall(PetscMalloc1(n, (PetscInt **)idx));
+  if (n) {
     (*dx)[0] = sub->first;
-    for (i = 1; i < is->map->n; i++) (*dx)[i] = (*dx)[i - 1] + sub->step;
+    for (PetscInt i = 1; i < n; i++) (*dx)[i] = (*dx)[i - 1] + sub->step;
   }
   PetscFunctionReturn(0);
 }
@@ -154,6 +156,7 @@ PetscErrorCode ISGetIndices_Stride(IS is, const PetscInt *idx[])
 PetscErrorCode ISRestoreIndices_Stride(IS in, const PetscInt *idx[])
 {
   PetscFunctionBegin;
+  (void)in;
   PetscCall(PetscFree(*(void **)idx));
   PetscFunctionReturn(0);
 }
@@ -220,21 +223,15 @@ PetscErrorCode ISSort_Stride(IS is)
 
 PetscErrorCode ISSorted_Stride(IS is, PetscBool *flg)
 {
-  IS_Stride *sub = (IS_Stride *)is->data;
-
   PetscFunctionBegin;
-  if (sub->step >= 0) *flg = PETSC_TRUE;
-  else *flg = PETSC_FALSE;
+  *flg = ((IS_Stride *)is->data)->step >= 0 ? PETSC_TRUE : PETSC_FALSE;
   PetscFunctionReturn(0);
 }
 
 static PetscErrorCode ISUniqueLocal_Stride(IS is, PetscBool *flg)
 {
-  IS_Stride *sub = (IS_Stride *)is->data;
-
   PetscFunctionBegin;
-  if (!(is->map->n) || sub->step != 0) *flg = PETSC_TRUE;
-  else *flg = PETSC_FALSE;
+  *flg = is->map->n && ((IS_Stride *)is->data)->step == 0 ? PETSC_FALSE : PETSC_TRUE;
   PetscFunctionReturn(0);
 }
 
@@ -260,19 +257,20 @@ static PetscErrorCode ISIntervalLocal_Stride(IS is, PetscBool *flg)
 
 static PetscErrorCode ISOnComm_Stride(IS is, MPI_Comm comm, PetscCopyMode mode, IS *newis)
 {
-  IS_Stride *sub = (IS_Stride *)is->data;
+  const IS_Stride *sub = (IS_Stride *)is->data;
 
   PetscFunctionBegin;
+  (void)mode;
   PetscCall(ISCreateStride(comm, is->map->n, sub->first, sub->step, newis));
   PetscFunctionReturn(0);
 }
 
 static PetscErrorCode ISSetBlockSize_Stride(IS is, PetscInt bs)
 {
-  IS_Stride *sub = (IS_Stride *)is->data;
+  const PetscInt step = ((IS_Stride *)is->data)->step;
 
   PetscFunctionBegin;
-  PetscCheck(sub->step == 1 || bs == 1, PetscObjectComm((PetscObject)is), PETSC_ERR_ARG_SIZ, "ISSTRIDE has stride %" PetscInt_FMT ", cannot be blocked of size %" PetscInt_FMT, sub->step, bs);
+  PetscCheck(step == 1 || bs == 1, PetscObjectComm((PetscObject)is), PETSC_ERR_ARG_SIZ, "ISSTRIDE has stride %" PetscInt_FMT ", cannot be blocked of size %" PetscInt_FMT, step, bs);
   PetscCall(PetscLayoutSetBlockSize(is->map, bs));
   PetscFunctionReturn(0);
 }
@@ -323,8 +321,8 @@ PetscErrorCode ISStrideSetStride(IS is, PetscInt n, PetscInt first, PetscInt ste
 
 PetscErrorCode ISStrideSetStride_Stride(IS is, PetscInt n, PetscInt first, PetscInt step)
 {
-  PetscInt    min, max;
   IS_Stride  *sub = (IS_Stride *)is->data;
+  PetscInt    min, max;
   PetscLayout map;
 
   PetscFunctionBegin;
@@ -376,13 +374,14 @@ PetscErrorCode ISStrideSetStride_Stride(IS is, PetscInt n, PetscInt first, Petsc
 PetscErrorCode ISCreateStride(MPI_Comm comm, PetscInt n, PetscInt first, PetscInt step, IS *is)
 {
   PetscFunctionBegin;
+  PetscValidPointer(is, 5);
   PetscCall(ISCreate(comm, is));
   PetscCall(ISSetType(*is, ISSTRIDE));
   PetscCall(ISStrideSetStride(*is, n, first, step));
   PetscFunctionReturn(0);
 }
 
-PETSC_EXTERN PetscErrorCode ISCreate_Stride(IS is)
+PetscErrorCode ISCreate_Stride(IS is)
 {
   IS_Stride *sub;
 
