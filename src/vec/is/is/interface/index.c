@@ -36,7 +36,7 @@ PetscErrorCode ISRenumber(IS subset, IS subset_mult, PetscInt *N, IS *subset_n)
   PetscLayout     map;
   const PetscInt *idxs, *idxs_mult = NULL;
   PetscInt       *leaf_data, *root_data, *gidxs, *ilocal, *ilocalneg;
-  PetscInt        N_n, n, i, lbounds[2], gbounds[2], Nl, ibs;
+  PetscInt        N_n, n, lbounds[2], gbounds[2], Nl, ibs;
   PetscInt        n_n, nlocals, start, first_index, npos, nneg;
   PetscMPIInt     commsize;
   PetscBool       first_found, isblock;
@@ -48,8 +48,10 @@ PetscErrorCode ISRenumber(IS subset, IS subset_mult, PetscInt *N, IS *subset_n)
   else if (!subset_n) PetscFunctionReturn(0);
   PetscCall(ISGetLocalSize(subset, &n));
   if (subset_mult) {
-    PetscCall(ISGetLocalSize(subset_mult, &i));
-    PetscCheck(i == n, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Local subset and multiplicity sizes don't match! %" PetscInt_FMT " != %" PetscInt_FMT, n, i);
+    PetscInt mult_size;
+
+    PetscCall(ISGetLocalSize(subset_mult, &mult_size));
+    PetscCheck(mult_size == n, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Local subset and multiplicity sizes don't match! %" PetscInt_FMT " != %" PetscInt_FMT, n, mult_size);
   }
   /* create workspace layout for computing global indices of subset */
   PetscCall(PetscMalloc1(n, &ilocal));
@@ -60,14 +62,15 @@ PetscErrorCode ISRenumber(IS subset, IS subset_mult, PetscInt *N, IS *subset_n)
   if (subset_mult) PetscCall(ISGetIndices(subset_mult, &idxs_mult));
   lbounds[0] = PETSC_MAX_INT;
   lbounds[1] = PETSC_MIN_INT;
-  for (i = 0, npos = 0, nneg = 0; i < n; i++) {
+  npos = nneg = 0;
+  for (PetscInt i = 0; i < n; ++i) {
     if (idxs[i] < 0) {
       ilocalneg[nneg++] = i;
-      continue;
+    } else {
+      if (idxs[i] < lbounds[0]) lbounds[0] = idxs[i];
+      if (idxs[i] > lbounds[1]) lbounds[1] = idxs[i];
+      ilocal[npos++] = i;
     }
-    if (idxs[i] < lbounds[0]) lbounds[0] = idxs[i];
-    if (idxs[i] > lbounds[1]) lbounds[1] = idxs[i];
-    ilocal[npos++] = i;
   }
   if (npos == n) {
     PetscCall(PetscFree(ilocal));
@@ -76,13 +79,14 @@ PetscErrorCode ISRenumber(IS subset, IS subset_mult, PetscInt *N, IS *subset_n)
 
   /* create sf : leaf_data == multiplicity of indexes, root data == global index in layout */
   PetscCall(PetscMalloc1(n, &leaf_data));
-  for (i = 0; i < n; i++) leaf_data[i] = idxs_mult ? PetscMax(idxs_mult[i], 0) : 1;
+  for (PetscInt i = 0; i < n; ++i) leaf_data[i] = idxs_mult ? PetscMax(idxs_mult[i], 0) : 1;
 
   /* local size of new subset */
   n_n = 0;
-  for (i = 0; i < n; i++) n_n += leaf_data[i];
-  if (ilocalneg)
-    for (i = 0; i < nneg; i++) leaf_data[ilocalneg[i]] = 0;
+  for (PetscInt i = 0; i < n; ++i) n_n += leaf_data[i];
+  if (ilocalneg) {
+    for (PetscInt i = 0; i < nneg; ++i) leaf_data[ilocalneg[i]] = 0;
+  }
   PetscCall(PetscFree(ilocalneg));
   PetscCall(PetscMalloc1(PetscMax(n_n, n), &gidxs)); /* allocating extra space to reuse gidxs */
   /* check for early termination (all negative) */
@@ -90,7 +94,7 @@ PetscErrorCode ISRenumber(IS subset, IS subset_mult, PetscInt *N, IS *subset_n)
   if (gbounds[1] < gbounds[0]) {
     if (N) *N = 0;
     if (subset_n) { /* all negative */
-      for (i = 0; i < n_n; i++) gidxs[i] = -1;
+      for (PetscInt i = 0; i < n_n; ++i) gidxs[i] = -1;
       PetscCall(ISCreateGeneral(PetscObjectComm((PetscObject)subset), n_n, gidxs, PETSC_COPY_VALUES, subset_n));
     }
     PetscCall(PetscFree(leaf_data));
@@ -111,7 +115,7 @@ PetscErrorCode ISRenumber(IS subset, IS subset_mult, PetscInt *N, IS *subset_n)
   PetscCall(PetscLayoutGetLocalSize(map, &Nl));
 
   /* global indexes in layout */
-  for (i = 0; i < npos; i++) gidxs[i] = (ilocal ? idxs[ilocal[i]] : idxs[i]) - gbounds[0];
+  for (PetscInt i = 0; i < npos; ++i) gidxs[i] = (ilocal ? idxs[ilocal[i]] : idxs[i]) - gbounds[0];
   PetscCall(ISRestoreIndices(subset, &idxs));
   PetscCall(PetscSFCreate(PetscObjectComm((PetscObject)subset), &sf));
   PetscCall(PetscSFSetGraphLayout(sf, map, npos, ilocal, PETSC_USE_POINTER, gidxs));
@@ -126,7 +130,7 @@ PetscErrorCode ISRenumber(IS subset, IS subset_mult, PetscInt *N, IS *subset_n)
   nlocals     = 0;
   first_index = -1;
   first_found = PETSC_FALSE;
-  for (i = 0; i < Nl; i++) {
+  for (PetscInt i = 0; i < Nl; ++i) {
     if (!first_found && root_data[i]) {
       first_found = PETSC_TRUE;
       first_index = i;
@@ -161,11 +165,10 @@ PetscErrorCode ISRenumber(IS subset, IS subset_mult, PetscInt *N, IS *subset_n)
 
   /* adapt root data with cumulative */
   if (first_found) {
-    PetscInt old_index;
+    PetscInt old_index = first_index;
 
     root_data[first_index] += start;
-    old_index = first_index;
-    for (i = first_index + 1; i < Nl; i++) {
+    for (PetscInt i = first_index + 1; i < Nl; ++i) {
       if (root_data[i]) {
         root_data[i] += root_data[old_index];
         old_index = i;
@@ -179,19 +182,21 @@ PetscErrorCode ISRenumber(IS subset, IS subset_mult, PetscInt *N, IS *subset_n)
   PetscCall(PetscSFDestroy(&sf));
 
   /* create new IS with global indexes without holes */
-  for (i = 0; i < n_n; i++) gidxs[i] = -1;
+  for (PetscInt i = 0; i < n_n; ++i) gidxs[i] = -1;
   if (subset_mult) {
-    PetscInt cum;
-
     isblock = PETSC_FALSE;
-    for (i = 0, cum = 0; i < n; i++)
-      for (PetscInt j = 0; j < idxs_mult[i]; j++) gidxs[cum++] = leaf_data[i] - idxs_mult[i] + j;
-  } else
-    for (i = 0; i < n; i++) gidxs[i] = leaf_data[i] - 1;
+    for (PetscInt i = 0, cum = 0; i < n; ++i) {
+      for (PetscInt j = 0; j < idxs_mult[i]; ++j) gidxs[cum++] = leaf_data[i] - idxs_mult[i] + j;
+    }
+  } else {
+    for (PetscInt i = 0; i < n; ++i) gidxs[i] = leaf_data[i] - 1;
+  }
 
   if (isblock) {
-    if (ibs > 1)
-      for (i = 0; i < n_n / ibs; i++) gidxs[i] = gidxs[i * ibs] / ibs;
+    if (ibs > 1) {
+      for (PetscInt i = 0; i < n_n / ibs; ++i) gidxs[i] = gidxs[i * ibs] / ibs;
+    }
+
     PetscCall(ISCreateBlock(PetscObjectComm((PetscObject)subset), ibs, n_n / ibs, gidxs, PETSC_COPY_VALUES, subset_n));
   } else {
     PetscCall(ISCreateGeneral(PetscObjectComm((PetscObject)subset), n_n, gidxs, PETSC_COPY_VALUES, subset_n));
@@ -232,8 +237,7 @@ PetscErrorCode ISCreateSubIS(IS is, IS comps, IS *subis)
 {
   PetscSF         sf;
   const PetscInt *is_indices, *comps_indices;
-  PetscInt       *subis_indices, nroots, nleaves, *mine, i, lidx;
-  PetscMPIInt     owner;
+  PetscInt       *subis_indices, nroots, nleaves, *mine;
   PetscSFNode    *remote;
   MPI_Comm        comm;
 
@@ -252,13 +256,14 @@ PetscErrorCode ISCreateSubIS(IS is, IS comps, IS *subis)
    * Construct a PetscSF in which "is" data serves as roots and "subis" is leaves.
    * Root data are sent to leaves using PetscSFBcast().
    * */
-  for (i = 0; i < nleaves; i++) {
+  for (PetscInt i = 0; i < nleaves; ++i) {
+    PetscInt    owner = -1;
+    PetscMPIInt lidx  = -1;
+
     mine[i] = i;
     /* Connect a remote root with the current leaf. The value on the remote root
      * will be received by the current local leaf.
      * */
-    owner = -1;
-    lidx  = -1;
     PetscCall(PetscLayoutFindOwnerIndex(is->map, comps_indices[i], &owner, &lidx));
     remote[i].rank  = owner;
     remote[i].index = lidx;
@@ -774,10 +779,7 @@ PetscErrorCode ISGetInfo(IS is, ISInfo info, ISInfoType type, PetscBool compute,
   PetscCheck(((int)info) > IS_INFO_MIN && ((int)info) < IS_INFO_MAX, errcomm, PETSC_ERR_ARG_OUTOFRANGE, "Options %d is out of range", (int)info);
   if (size == 1) type = IS_LOCAL;
   itype = (type == IS_LOCAL) ? 0 : 1;
-  if (is->info_permanent[itype][(int)info]) {
-    hasprop = (is->info[itype][(int)info] == IS_INFO_TRUE) ? PETSC_TRUE : PETSC_FALSE;
-    infer   = PETSC_TRUE;
-  } else if ((itype == IS_LOCAL) && (is->info[IS_LOCAL][info] != IS_INFO_UNKNOWN)) {
+  if ((is->info_permanent[itype][(int)info] != IS_INFO_UNKNOWN) || ((itype == IS_LOCAL) && (is->info[IS_LOCAL][info] != IS_INFO_UNKNOWN))) {
     /* we can cache local properties as long as we clear them when the IS changes */
     /* NOTE: we only cache local values because there is no ISAssemblyBegin()/ISAssemblyEnd(),
      so we have no way of knowing when a cached value has been invalidated by changes on a different process */
