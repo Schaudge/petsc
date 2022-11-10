@@ -3,10 +3,7 @@
 
 #include <petscdevice.h>
 #include <petscpkg_version.h>
-
-#if defined(__NVCC__) || defined(__CUDACC__)
-  #define PETSC_USING_NVCC 1
-#endif
+#include <petscmacros.h>
 
 #if PetscDefined(HAVE_CUDA)
   #include <cuda.h>
@@ -165,7 +162,7 @@ PETSC_EXTERN PetscErrorCode PetscCUSOLVERDnGetHandle(cusolverDnHandle_t *);
 // current compiler is NVCC. In this case if petscdevice_hip.h is included first, the macros
 // would already be defined, but they would be empty since we cannot be using HCC at the same
 // time.
-#if PetscDefined(USING_NVCC)
+#if PetscDefined(COMPILER_NVCC)
   #undef PETSC_HOST_DECL
   #undef PETSC_DEVICE_DECL
   #undef PETSC_KERNEL_DECL

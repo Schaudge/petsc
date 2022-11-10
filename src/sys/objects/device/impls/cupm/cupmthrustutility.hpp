@@ -20,7 +20,7 @@ namespace cupm
 namespace impl
 {
 
-  #if PetscDefined(USING_NVCC)
+  #if PetscDefined(COMPILER_NVCC)
     #if !defined(THRUST_VERSION)
       #error "THRUST_VERSION not defined!"
     #endif
@@ -29,7 +29,7 @@ namespace impl
     #else
       #define thrust_call_par_on(func, s, ...) func(thrust::cuda::par.on(s), __VA_ARGS__)
     #endif
-  #elif PetscDefined(USING_HCC) // rocThrust has no par_nosync
+  #elif PetscDefined(COMPILER_HCC) // rocThrust has no par_nosync
     #define thrust_call_par_on(func, s, ...) func(thrust::hip::par.on(s), __VA_ARGS__)
   #else
     #define thrust_call_par_on(func, s, ...) func(__VA_ARGS__)

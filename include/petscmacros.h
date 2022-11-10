@@ -41,6 +41,30 @@
   #define PETSC_C_VERSION 0
 #endif
 
+#if defined(__INTEL_COMPILER) || defined(__ICL) || defined(__ICC) || defined(__ECC)
+  #define PETSC_COMPILER_INTEL 1
+#endif
+
+#if defined(_MSC_VER)
+  #define PETSC_COMPILER_MSVC 1
+#endif
+
+// clang pretends to be gcc
+#if defined(__clang__)
+  #define PETSC_COMPILER_CLANG 1
+#elif defined(__GNUC__)
+  #define PETSC_COMPILER_GNU 1
+#endif
+
+#if defined(__NVCC__) || defined(__CUDACC__)
+  #define PETSC_COMPILER_NVCC 1
+#endif
+
+// https://rocmdocs.amd.com/en/latest/Programming_Guides/HIP-porting-guide.html#identifying-the-compiler-hip-clang-or-nvcc
+#if defined(__HCC__) || (defined(__clang__) && defined(__HIP__))
+  #define PETSC_COMPILER_HCC 1
+#endif
+
 /* ========================================================================== */
 /* This facilitates using the C version of PETSc from C++ and the C++ version from C. */
 #if defined(__cplusplus)
@@ -211,7 +235,7 @@ M*/
 // __builtin_types_compatible_p which take types or other non-functiony things as
 // arguments. The correct way to detect these then is to use __is_identifier (also a clang
 // extension). GCC has always worked as expected. see https://stackoverflow.com/a/45043153
-#if defined(__clang__) && defined(__clang_major__) && (__clang_major__ < 10) && defined(__is_identifier)
+#if defined(PETSC_COMPILER_CLANG) && defined(__clang_major__) && (__clang_major__ < 10) && defined(__is_identifier)
   #define PetscHasBuiltin(name) __is_identifier(name)
 #else
   #define PetscHasBuiltin(name) __has_builtin(name)
@@ -491,7 +515,7 @@ M*/
 #define PETSC_AUTHOR_INFO "       The PETSc Team\n    petsc-maint@mcs.anl.gov\n https://petsc.org/\n"
 
 /* designated initializers since C99 and C++20, MSVC never supports them though */
-#if defined(_MSC_VER) || (defined(__cplusplus) && (PETSC_CPP_VERSION < 20))
+#if defined(PETSC_COMPILER_MSVC) || (defined(__cplusplus) && (PETSC_CPP_VERSION < 20))
   #define PetscDesignatedInitializer(name, ...) __VA_ARGS__
 #else
   #define PetscDesignatedInitializer(name, ...) .name = __VA_ARGS__
@@ -611,7 +635,7 @@ M*/
 #if defined(__GNUC__)
   /* GCC 4.8+, Clang, Intel and other compilers compatible with GCC (-std=c++0x or above) */
   #define PetscUnreachable() __builtin_unreachable()
-#elif defined(_MSC_VER) /* MSVC */
+#elif defined(PETSC_COMPILER_MSVC) /* MSVC */
   #define PetscUnreachable() __assume(0)
 #else /* ??? */
   #define PetscUnreachable() SETERRABORT(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Code path explicitly marked as unreachable executed")

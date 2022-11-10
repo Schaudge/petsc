@@ -5,7 +5,7 @@
 #include <petscdevice_cuda.h>
 #include <petscdevice_hip.h>
 
-#if PetscDefined(USING_HCC) && PetscDefined(USING_NVCC)
+#if PetscDefined(COMPILER_HCC) && PetscDefined(COMPILER_NVCC)
   #error using both nvcc and hipcc at the same time?
 #endif
 
@@ -13,7 +13,7 @@
   #define PETSC_HAVE_CUPM 1
 #endif
 
-#if PetscDefined(USING_NVCC) || PetscDefined(USING_HCC)
+#if PetscDefined(COMPILER_NVCC) || PetscDefined(COMPILER_HCC)
   #define PETSC_USING_CUPMCC 1
 #endif
 
