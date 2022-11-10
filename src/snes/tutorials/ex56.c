@@ -518,7 +518,7 @@ int main(int argc, char **args)
     suffix: fetidp
     nsize: 4
     requires: !single
-    args: -dm_plex_dim 3 -dm_plex_simplex 0 -dm_plex_box_lower 0,0,0 -dm_plex_box_upper 1,1,1 -run_type 1 -dm_plex_box_faces 2,2,1 -petscpartitioner_simple_process_grid 2,2,1 -max_conv_its 2 -lx 1. -alpha .01 -petscspace_degree 2 -ksp_type fetidp -fetidp_ksp_type cg -ksp_monitor_short -ksp_rtol 1.e-8 -ksp_converged_reason -petscpartitioner_type simple -dm_mat_type is -matis_localmat_type {{sbaij baij aij}}
+    args: -dm_plex_dim 3 -dm_plex_simplex 0 -dm_plex_box_lower 0,0,0 -dm_plex_box_upper 1,1,1 -run_type 1 -dm_plex_box_faces 2,2,1 -petscpartitioner_simple_process_grid 2,2,1 -max_conv_its 2 -lx 1. -alpha .02 -petscspace_degree 2 -ksp_type fetidp -fetidp_ksp_type cg -ksp_monitor_short -ksp_rtol 1.e-8 -ksp_converged_reason -petscpartitioner_type simple -dm_mat_type is -matis_localmat_type {{sbaij baij aij}}
 
   test:
     suffix: bddc_elast
