@@ -1,11 +1,14 @@
 #include  <petsc/private/localnetrpimpl.h>
+#include <petscnetrp.h>
+
 PetscFunctionList NetRPList              = NULL;
 PetscClassId      NETRP_CLASSID          = 0; 
 PetscBool         NetRPRegisterAllCalled = PETSC_FALSE;
 
 /* Add Creation Routines here */
-PETSC_EXTERN NetRPCreate_Blank(NetRP);
-PETSC_EXTERN NetRPCreate_Linearized(NetRP);
+PETSC_EXTERN PetscErrorCode NetRPCreate_Blank(NetRP);
+PETSC_EXTERN PetscErrorCode NetRPCreate_Linearized(NetRP);
+PETSC_EXTERN PetscErrorCode NetRPCreate_Outflow(NetRP);
 /*@C
   NetRPRegisterAll - Registers all of the Network Riemann Problems. 
 
@@ -18,13 +21,14 @@ PETSC_EXTERN NetRPCreate_Linearized(NetRP);
 
 .seealso: 
 @*/
-PetscErrorCode  NetRPRegisterAll(void)
+PetscErrorCode NetRPRegisterAll(void)
 {
   PetscFunctionBegin;
   if (NetRPRegisterAllCalled) PetscFunctionReturn(0);
   NetRPRegisterAllCalled = PETSC_TRUE;
   PetscCall(NetRPRegister(NETRPBLANK, NetRPCreate_Blank));
-  PetscCall(NNetRPRegister(NETRPLINEARIZED, NetRPCreate_Linearized));
+  PetscCall(NetRPRegister(NETRPLINEARIZED, NetRPCreate_Linearized));
+  PetscCall(NetRPRegister(NETRPOUTFLOW,NetRPCreate_Outflow)); 
   PetscFunctionReturn(0);
 }
 

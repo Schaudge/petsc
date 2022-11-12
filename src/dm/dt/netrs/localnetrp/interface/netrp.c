@@ -2,6 +2,8 @@
 #include <petscnetrp.h>
 #include <petsc/private/riemannsolverimpl.h> /* to be removed after adding fluxfunction class */
 #include <petscsys.h>
+#include <petscdmnetwork.h>
+
 /*@
    NetRPSetUp - Sets up the internal data structures for the later use of a NetRP. 
 
@@ -20,8 +22,7 @@
 @*/
 PetscErrorCode  NetRPSetUp(NetRP rp)
 {
-  PetscInt       i,numsubgraphs,numfield_flux, numfield_rp; 
-  DM             network; 
+  PetscInt       numfield_flux, numfield_rp;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp,NETRP_CLASSID,1);
@@ -78,6 +79,20 @@ PetscErrorCode  NetRPReset(NetRP rp)
   rp->setupcalled = PETSC_FALSE;
   PetscFunctionReturn(0);
 }
+
+PetscErrorCode NetRPGetVertexDegrees(NetRP rp,PetscInt *numvertdegs,PetscInt** vertdegs)
+{
+  PetscInt off=0; 
+
+  PetscFunctionBegin; 
+  PetscValidHeaderSpecific(rp,NETRP_CLASSID,1);
+  PetscCall(PetscHMapIGetSize(rp->hmap,numvertdegs)); 
+  if(vertdegs) {
+    PetscCall(PetscMalloc(*numvertdegs,vertdegs));
+    PetscCall(PetscHMapIGetKeys(rp->hmap,&off,*vertdegs)); 
+  }
+  PetscFunctionReturn(0);
+}
 /*@
    NetRPReset - Clears all cached solver objects in the NetRP. 
 
@@ -110,11 +125,12 @@ PetscErrorCode NetRPClearCache(NetRP rp)
   }
   if (rp->snes) {
     for(i=0; i<numvertdegs; i++) {
-      PetscCall(SNESDestroy(rp->snes[i]));
+      PetscCall(SNESDestroy(&rp->snes[i]));
     }
     PetscFree(rp->snes); 
   }
   PetscCall(PetscHMapIClear(rp->hmap));
+  PetscFunctionReturn(0);
 }
 /*@
    NetRPCreateMat - Preallocate matrix structure for solving a vertdeg Riemann Problem. Does a default setup of 
@@ -321,7 +337,7 @@ PetscErrorCode NetRPCreateSNES(NetRP rp, PetscInt vertdeg, SNES *snes)
 {
   SNES _snes;
   const char *prefix_netrp; 
-  PetscInt numfield,cacheoff;
+  PetscInt numfield;
   Mat      jac; 
 
   PetscFunctionBegin; 
@@ -344,6 +360,7 @@ PetscErrorCode NetRPCreateSNES(NetRP rp, PetscInt vertdeg, SNES *snes)
     PetscCall(PetscObjectAppendOptionsPrefix((PetscObject)jac,"netrp_jac_"));
     PetscTryTypeMethod(rp,setupjac,vertdeg,jac);
     PetscCall(MatSetFromOptions(jac));  
+    PetscCall(NetRPGetNumFields(rp,&numfield));
     PetscCall(MatSetSizes(jac,PETSC_DECIDE,PETSC_DECIDE,vertdeg*numfield,vertdeg*numfield));
     PetscCall(MatSetUp(jac)); 
 
@@ -778,13 +795,51 @@ PetscErrorCode NetRPSetNonlinearJac(NetRP rp, NetRPNonlinearJac nonlinearjac)
 }
 
 /*@
-   NetRPSSolveFlux - The driver function for solving for Riemann Problem fluxes. This will use the user provided functions 
-   and auto cached solver objects to solve for the flux. New solver objects will be created and cached as necessary as well. 
+   NetRPCanSolveStar - Does the Solver have the ability to solve for star states directly? 
 
    Not Collective on NetRP
 
    Input Parameter:
-.  rs - the NetRP context obtained from RiemanSolverCreate()
+.  rp - the NetRP context obtained from RiemanSolverCreate()
+
+  Output Parameter:
+. flg - True if NetRPSolveStar can be called. False if the type does not implement this ability. 
+
+   Level: beginner
+
+.seealso: NetRPCreate(), NetRPSetFlux()
+@*/
+
+
+static PetscErrorCode NetRPComputeFluxInPlace_internal(NetRP rp, DM network, PetscInt v, Vec Flux)
+{
+  PetscInt i,numedges,numfields; 
+  PetscScalar *star; 
+  PetscReal   *fluxval; 
+  RiemannSolver fluxfun; 
+
+  PetscFunctionBegin; 
+  PetscCall(DMNetworkGetSupportingEdges(network,v,&numedges,NULL));
+  PetscCall(VecGetArray(Flux,&star)); 
+  PetscCall(NetRPGetFlux(rp,&fluxfun));
+  PetscCall(NetRPGetNumFields(rp,&numfields)); 
+  for(i=0; i<numedges; i++) {
+    PetscCall(RiemmanSolverEvaluateFlux(fluxfun,&star[i*numfields],&fluxval)); /* fluxval is owned by RiemannSolver */
+    PetscCall(PetscArraycpy(star,fluxval,numfields)); /* modify in-place*/
+  }
+  PetscCall(VecRestoreArray(Flux,&star)); 
+  PetscFunctionReturn(0);  
+}
+
+/*@
+   NetRPSSolveFlux - The driver function for solving for Riemann Problem fluxes. This will use the user provided functions 
+   and auto cached solver objects to solve for the flux. New solver objects will be created and cached as necessary as well. 
+   Always Calleable. 
+
+   Not Collective on NetRP
+
+   Input Parameter:
+.  rp - the NetRP context obtained from RiemanSolverCreate()
 .  network - the network that contains the vertex v with the topology of the riemann problem. 
 .  v  - the vertex in network to solve the riemann problem at 
 .  U  - vec containing the the deg(v)*numfield initial states of the riemman problem. Allocated by caller. 
@@ -814,9 +869,21 @@ PetscErrorCode NetRPSolveFlux(NetRP rp, DM network, PetscInt v, Vec U, Vec Flux)
   switch(rp->solvetype) 
   {
     case Linear: 
-      PetscUseTypeMethod(rp,createLinearFlux,network,v,U,rp->mat[index],rp->vec[index]);
-      PetscCall(KSPSetOperators(rp->ksp[index],rp->mat[index],rp->mat[index])); /* should this be moved to the creation routine? Check how PCSetUp works and if it can be reused */
-      PetscCall(KSPSolve(rp->ksp[index],rp->vec[index],Flux)); 
+      if(rp->ops->createLinearFlux) {
+        PetscUseTypeMethod(rp,createLinearFlux,network,v,U,rp->vec[index],rp->mat[index]);
+        PetscCall(KSPSetOperators(rp->ksp[index],rp->mat[index],rp->mat[index])); /* should this be moved to the creation routine? Check how PCSetUp works and if it can be reused */
+        PetscCall(KSPSolve(rp->ksp[index],rp->vec[index],Flux));
+      } else if (rp->ops->createLinearStar)
+      {
+        PetscUseTypeMethod(rp,createLinearStar,network,v,U,rp->vec[index],rp->mat[index]);
+        PetscCall(KSPSetOperators(rp->ksp[index],rp->mat[index],rp->mat[index])); /* should this be moved to the creation routine? Check how PCSetUp works and if it can be reused */
+        PetscCall(KSPSolve(rp->ksp[index],rp->vec[index],Flux));
+        /* inplace evaluate the star states in Flux by the physics flux to compute the actual flux */
+        PetscCall(NetRPComputeFluxInPlace_internal(rp,network,v,Flux)); 
+      } else {
+        SETERRQ(PetscObjectComm((PetscObject)rp), PETSC_ERR_PLIB,"No available solver for NetRPSolveFlux. This should not happen and should be caught at NetRPSetUp(). Solver Type is: LINEAR"); 
+      }
+      
     case Nonlinear:
       snesctx.dm = network; 
       snesctx.v  = v; 
@@ -833,11 +900,14 @@ PetscErrorCode NetRPSolveFlux(NetRP rp, DM network, PetscInt v, Vec U, Vec Flux)
 /*@
    NetRPSSolveStar - The driver function for solving for Riemann Problem fluxes. This will use the user provided functions 
    and auto cached solver objects to solve for the star state. New solver objects will be created and cached as necessary as well. 
+   The type is not required to implement routines for this solver. Use `NetRPCanSolveStar()` to determine if this function can safely 
+   be called. 
+
 
    Not Collective on NetRP
 
    Input Parameter:
-.  rs - the NetRP context obtained from RiemanSolverCreate()
+.  rp - the NetRP context obtained from RiemanSolverCreate()
 .  network - the network that contains the vertex v with the topology of the riemann problem. 
 .  v  - the vertex in network to solve the riemann problem at 
 .  U  - vec containing the the deg(v)*numfield initial states of the riemman problem. Allocated by caller. 
@@ -867,7 +937,7 @@ PetscErrorCode NetRPSolveStar(NetRP rp, DM network, PetscInt v, Vec U, Vec Star)
   switch(rp->solvetype) 
   {
     case Linear: 
-      PetscUseTypeMethod(rp,createLinearStar,network,v,U,rp->mat[index],rp->vec[index]);
+      PetscUseTypeMethod(rp,createLinearStar,network,v,U,rp->vec[index],rp->mat[index]);
       PetscCall(KSPSetOperators(rp->ksp[index],rp->mat[index],rp->mat[index])); /* should this be moved to the creation routine? Check how PCSetUp works and if it can be reused */
       PetscCall(KSPSolve(rp->ksp[index],rp->vec[index],Star)); 
     case Nonlinear:

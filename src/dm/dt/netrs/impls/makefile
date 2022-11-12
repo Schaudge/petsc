@@ -3,10 +3,10 @@ ALL: lib
 
 CFLAGS    =
 FFLAGS    =
-SOURCEC   = 
+SOURCEC   = basic.c
 SOURCEF   =
 SOURCEH   =
-DIRS      = linearized riemannsolver outflow exactswe
+DIRS      = 
 LIBBASE   = 
 MANSEC    = DM
 SUBMANSEC = NRS

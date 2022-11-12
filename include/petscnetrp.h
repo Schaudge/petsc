@@ -34,6 +34,7 @@ typedef const char* NetRPType;
 */
 #define NETRPBLANK       "netrpblank"
 #define NETRPLINEARIZED "netrplinearized"
+#define NETRPOUTFLOW "netrpoutflow"
 
 PETSC_EXTERN PetscErrorCode NetRPInitializePackage(void);
 PETSC_EXTERN PetscErrorCode NetRPFinalizePackage(void);
@@ -66,13 +67,16 @@ PETSC_EXTERN PetscErrorCode NetRPGetApplicationContext(NetRP,void*);
 PETSC_EXTERN PetscErrorCode NetRPSetFlux(NetRP,RiemannSolver);
 PETSC_EXTERN PetscErrorCode NetRPGetFlux(NetRP,RiemannSolver*);
 
+PETSC_EXTERN PetscErrorCode NetRPCanSolveFlux(NetRP,PetscBool*);
+PETSC_EXTERN PetscErrorCode NetRPCanSolveStar(NetRP,PetscBool*); 
+
 PETSC_EXTERN PetscErrorCode NetRPSolveStar(NetRP,DM, PetscInt, Vec, Vec);
 PETSC_EXTERN PetscErrorCode NetRPSolveFlux(NetRP,DM, PetscInt, Vec, Vec);
 
 /* Providing extra information to the cacheing ability of the problem */
 
 PETSC_EXTERN PetscErrorCode NetRPAddVertexDegrees(NetRP,PetscInt,PetscInt*); 
-//PETSC_EXTERN PetscErrorCode NetRPGetVertexDegrees(NetRP,PetscInt*,PetscInt**); 
+PETSC_EXTERN PetscErrorCode NetRPGetVertexDegrees(NetRP,PetscInt*,PetscInt**); 
 PETSC_EXTERN PetscErrorCode NetRPClearCache(NetRP); 
 
 /* 

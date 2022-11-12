@@ -3,7 +3,7 @@ ALL: lib
 
 CFLAGS    =
 FFLAGS    =
-SOURCEC   = ex1.c
+SOURCEC   =
 SOURCEF   =
 SOURCEH   = 
 DIRS      = 

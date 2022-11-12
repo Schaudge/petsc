@@ -21,11 +21,11 @@ static PetscReal ShallowRiemannEig_Left(const PetscScalar hl, const PetscScalar 
 
 static PetscErrorCode NetRPCreateLinearStar_Linearized(NetRP rp, DM network, PetscInt v, Vec U, Vec Rhs, Mat A)
 {
-  PetscScalar h,v,eig,hv; 
+  PetscScalar h,eig,hv; 
   PetscScalar *rhs;
   const PetscScalar *u; 
-  PetscInt    numedges,i,numfields,cone[2],index_hv,index_h; 
-  const PetscInt *edges; 
+  PetscInt    numedges,i,numfields,index_hv,index_h; 
+  const PetscInt *edges,*cone; 
   void           *ctx;
 
   PetscFunctionBegin; 
@@ -78,7 +78,7 @@ static PetscErrorCode NRPView_Linearized(NetRP rp,PetscViewer viewer)
 
 /* ------------------------------------------------------------ */
 
-PETSC_EXTERN PetscErrorCode NRPCreate_Linearized(NetRP rp)
+PETSC_EXTERN PetscErrorCode NetRPCreate_Linearized(NetRP rp)
 {
   PetscFunctionBegin;
   rp->data = NULL;

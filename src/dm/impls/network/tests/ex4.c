@@ -39,7 +39,7 @@ PetscErrorCode StarGraphCreateEdgeList(PetscInt k, PetscBool directin, PetscInt 
       (*edgelist)[2 * i + 1] = i + 1;
     }
   }
-  PetscFunctionReturn(PETSC_SUCCESS);
+  PetscFunctionReturn(0);
 }
 
 /*
@@ -88,7 +88,7 @@ PetscErrorCode StarGraphCreate(MPI_Comm comm, PetscInt numdofvert, PetscInt numd
   PetscCall(DMSetUp(dm));
   PetscCall(PetscFree2(compedge, compvert));
   *newdm = dm;
-  PetscFunctionReturn(PETSC_SUCCESS);
+  PetscFunctionReturn(0);
 }
 
 PetscErrorCode StarGraphTestQuery(DM dm, PetscInt ne)
@@ -101,13 +101,13 @@ PetscErrorCode StarGraphTestQuery(DM dm, PetscInt ne)
 
   PetscCheck(globalnumedge == ne, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Global number of edges should be %" PetscInt_FMT "instead was %" PetscInt_FMT, ne, globalnumedge);
   PetscCheck(globalnumvert == ne + 1, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Global number of vertices should be %" PetscInt_FMT "instead was %" PetscInt_FMT, ne + 1, globalnumvert);
-  PetscFunctionReturn(PETSC_SUCCESS);
+  PetscFunctionReturn(0);
 }
 
 int main(int argc, char **argv)
 {
   DM          dm,plex;
-  PetscInt    ne = 1; 
+  PetscInt    ne = 1,i,*keys,*vals,size,off = 0; 
   PetscMPIInt rank;
   PetscSF     sf; 
   NetRS   netrs; 
@@ -129,9 +129,20 @@ int main(int argc, char **argv)
   PetscCall(NetRSCreate(PETSC_COMM_WORLD,&netrs)); 
   PetscCall(NetRSSetFromOptions(netrs));
   PetscCall(NetRSSetNetwork(netrs,dm)); 
-  PetscCall(DMNetworkCacheVertexDegrees(netrs,netrs->network)); 
-  PetscCall(DMLabelView(netrs->VertexDeg_shared,PETSC_VIEWER_STDOUT_WORLD)); 
+  PetscCall(DMNetworkCreateLocalEdgeNumbering(netrs,dm));
+  PetscCall(PetscHMapIGetSize(netrs->vertex_shared_offset,&size)); 
+  PetscCall(PetscMalloc2(size,&keys,size,&vals)); 
+  PetscCall(PetscHMapIGetPairs(netrs->vertex_shared_offset,&off,keys,vals)); 
 
+  PetscCall(PetscSynchronizedPrintf(PETSC_COMM_WORLD,"rank %i \n\n",rank)); 
+  PetscCall(PetscSynchronizedPrintf(PETSC_COMM_WORLD,"key : val\n" ));
+  for(i=0; i<size; i++) {
+    PetscCall(PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%"PetscInt_FMT" :  %" PetscInt_FMT,keys[i],vals[i] ));
+  }
+  PetscCall(PetscSynchronizedPrintf(PETSC_COMM_WORLD,"\n\n" ));
+
+  PetscSynchronizedFlush(PETSC_COMM_WORLD,NULL);
+  PetscCall(PetscFree2(keys,vals));
   PetscCall(DMDestroy(&dm));
   PetscCall(NetRSDestroy(&netrs));
   PetscCall(PetscFinalize());
