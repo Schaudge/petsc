@@ -24,16 +24,14 @@ PetscErrorCode  NetRSCreate(MPI_Comm comm, NetRS *rs)
   *rs = NULL;
   PetscCall(NetRSInitializePackage());
   PetscCall(PetscHeaderCreate(r, NETRS_CLASSID, "NetRS", "Network Riemann Solver", "NetRS", comm, NetRSDestroy, NetRSView));
+  PetscCall(PetscHMapNetRPICreate(&r->netrphmap));
+  PetscCall(PetscHSetICreate(&r->vertexdegrees_total)); 
+  PetscCall(DMLabelCreate(comm,"NetRSLabel",&r->subgraphs)); 
+  PetscCall(DMLabelCreate(comm,"NetRS_DM_InternalTopological",&r->VertexDeg_shared)); 
+
   /* Add default behavior for NetRS here */
-  r->numfields = -1; 
-  r->numedges  = -1;
-  r->rs        = PETSC_NULL;
-  r->finetype  = NETRSEXACTSWE;
-  r->finetol   = 1.0; 
-  r->estimate  = NetRSTaylorErrorEstimate; /* always available for any physics */
-  r->useestimator  = PETSC_FALSE; 
-  r->useadaptivity = PETSC_FALSE;  
-  r->fine = NULL; 
+  r->setupcalled = PETSC_FALSE; 
+  r->setupvectorspace = PETSC_FALSE; 
   *rs = r;
   PetscFunctionReturn(0);
 }

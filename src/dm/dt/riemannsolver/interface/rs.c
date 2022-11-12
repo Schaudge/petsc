@@ -356,6 +356,19 @@ PetscErrorCode  RiemannSolverEvaluate(RiemannSolver rs,const PetscReal *uL, cons
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode RiemmanSolverEvaluateFlux(RiemannSolver rs, const PetscReal *u,PetscReal **flux)
+{
+  void *ctx; 
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
+  PetscCall(RiemannSolverSetUp(rs));
+  PetscCall(RiemannSolverGetApplicationContext(rs,&ctx)); 
+  rs->fluxfun(ctx,u,rs->flux_wrk); 
+  *flux = rs->flux_wrk; 
+  PetscFunctionReturn(0);
+}
+
 /*@
    RiemannSolverSetApplicationContext - Sets an optional user-defined context for
    the RiemannSolver.

@@ -16,11 +16,8 @@
    Collective on NetRS
 
    Input Parameter:
-.  rs - the NetRS context obtained from RiemanSolverCreate()
+.  rs - the NetRS context obtained from RiemanSolverCreate()  
 
-   Notes:
-   Internally called when setting the flux function as internal data structures depend on the 
-   dim and numfield parameters set there. Will not normally be called by users. 
 
    Level: advanced
 
@@ -28,7 +25,6 @@
 @*/
 PetscErrorCode  NetRSSetUp(NetRS rs)
 {
-  PetscInt       i,numsubgraphs; 
   DM             network; 
 
   PetscFunctionBegin;
@@ -39,32 +35,9 @@ PetscErrorCode  NetRSSetUp(NetRS rs)
   the list of preallocated objects needed by the solvers */
   PetscCall(NetRSGetNetwork(rs,&network)); 
   /* can assume that the network exists from here on */
-  PetscCall(DMLabelSetUp(rs->subgraphs)); 
-
-  PetscCall(DMLabelGetNumValues(rs->subgraphs,&numsubgraphs));
-  /*preallocate preallocator arrays */
-  PetscCall(PetscCalloc4(numsubgraphs,&rs->flux_wrk,numsubgraphs,&rs->mat_wrk,numsubgraphs,rs->snes_wrk,numsubgraphs,rs->ksp_wrk));
-  PetscCall(PetscCalloc1(numsubgraphs,&rs->hmap)); 
-  PetscCall(DMNetworkComputeUniqueVertexDegrees_Local(network,rs->subgraphs,&rs->vertexdegrees,&rs->vertexdegrees_total));
-
   if (rs->ops->setup) {
     PetscCall((*rs->ops->setup)(rs));
   }
-
-
-
-
-
-  if (rs->numfields>-1 && rs->numedges>-1) PetscCall(PetscMalloc1(rs->numedges*rs->numfields,&rs->flux_wrk));
-  if (rs->estimate) PetscCall(PetscMalloc2(rs->numfields,&rs->est_wrk,rs->numfields,&rs->est_wrk2));
-
-
-  /* default value for error array is -1. This allows for knowing if the requested error array in an eval routine actually computed anything (i.e error 
-  estimator is not assigned ) */ 
-  PetscCall(PetscMalloc1(rs->numedges,&rs->error));
-  for(i=0;i<rs->numedges;i++) {rs->error[i] = -1;}
-
-  PetscCall(RiemannSolverSetUp(rs->rs));
   rs->setupcalled = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
@@ -72,7 +45,7 @@ PetscErrorCode  NetRSSetUp(NetRS rs)
 /*@
    NetRSReset - Resets a NetRS context and removes any allocated internal petsc objects
 
-   Collective on RiemanSolver
+   Collective on NetRS
 
    Input Parameter:
 .  rs - the RiemanmSolver context obtained from NetRSCreate()
@@ -83,17 +56,54 @@ PetscErrorCode  NetRSSetUp(NetRS rs)
 @*/
 PetscErrorCode  NetRSReset(NetRS rs)
 {
+  PetscInt i,numnetrp; 
+
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs,NETRS_CLASSID,1);
-  if (rs->ops->reset) {
-    PetscCall((*rs->ops->reset)(rs));
+  PetscTryTypeMethod(rs,reset);
+  PetscCall(NetRSResetVectorSpace(rs)); 
+  
+  PetscCall(DMLabelGetNumValues(rs->subgraphs,&numnetrp)); 
+  for (i=0; i<numnetrp; i++) {
+    PetscCall(NetRPDestroy(&rs->netrp[i])); 
+    PetscCall(PetscHSetIDestroy(&rs->vertexdegrees[i])); 
   }
-  if (rs->flux_wrk) PetscCall(PetscFree(rs->flux_wrk)); /* Not good code here */
-  if (rs->est_wrk) PetscCall(PetscFree2(rs->est_wrk,rs->est_wrk2)); /* also not good */
-  /* Note that we should reference the RiemannSolver inside the NetRS to properly handle this reset behavior. */
-  PetscCall(PetscFree(rs->error));
+
+  PetscCall(PetscHSetIClear(rs->vertexdegrees_total)); 
+  PetscCall(DMDestroy(&rs->network)); 
+  PetscCall(DMLabelReset(rs->subgraphs)); 
+  PetscCall(DMLabelReset(rs->VertexDeg_shared)); 
+
+  rs->vertexdeg_shared_cached = PETSC_FALSE; 
   rs->setupcalled = PETSC_FALSE;
   PetscFunctionReturn(0);
+}
+/*@
+   NetRSResetVectorSpace - Resets a NetRS vector space context and removes any related internal petsc objects. 
+   Undos the NetRSSetupVectorSpace function. 
+
+   Collective on NetRS
+
+   Input Parameter:
+.  rs - the NetRS context obtained from NetRSCreate()
+
+   Level: intermediate
+
+.seealso: NetRSCreate(), NetRSSetUp(), NetRSDestroy()
+@*/
+PetscErrorCode NetRSResetVectorSpace(NetRS rs)
+{
+  PetscInt i,numnetrp; 
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs,NETRS_CLASSID,1);
+  PetscTryTypeMethod(rs,resetvecspace);
+  PetscCall(DMLabelGetNumValues(rs->subgraphs,&numnetrp)); 
+  for(i=0; i<numnetrp; i++) PetscCall(PetscHSetIClear(rs->vertexdegrees[i])); 
+  PetscCall(VecDestroy(&rs->totalFlux)); 
+  PetscCall(VecDestroy(&rs->totalU));
+  rs->setupvectorspace = PETSC_FALSE;
+  PetscFunctionReturn(0); 
 }
 
 /*@
@@ -115,11 +125,10 @@ PetscErrorCode  NetRSDestroy(NetRS *rs)
   if (!*rs) PetscFunctionReturn(0);
   PetscValidHeaderSpecific(*rs,NETRS_CLASSID,1);
   if (--((PetscObject)(*rs))->refct > 0) {*rs = NULL; PetscFunctionReturn(0);}
-  /* destory the nested netrs */ 
-  PetscCall(NetRSDestroy(&(*rs)->fine));
-
-  PetscCall(NetRSReset(*rs));
   if ((*rs)->ops->destroy) PetscCall((*(*rs)->ops->destroy)((*rs)));
+  PetscCall(NetRSReset(*rs));
+  PetscCall(DMLabelDestroy(&(*rs)->VertexDeg_shared));
+  PetscCall(DMLabelDestroy(&(*rs)->subgraphs)); 
   PetscCall(PetscHeaderDestroy(rs));
   PetscFunctionReturn(0);
 }
@@ -133,7 +142,7 @@ PetscErrorCode  NetRSDestroy(NetRS *rs)
 PetscErrorCode NetRSDuplicate(NetRS netrs,NetRS *newnetrs)
 {
   MPI_Comm       comm;
-  NetRS          netrs_new; 
+  NetRS          netrs_new;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(netrs,NETRS_CLASSID,1);
@@ -143,62 +152,13 @@ PetscErrorCode NetRSDuplicate(NetRS netrs,NetRS *newnetrs)
   PetscCall(PetscObjectGetComm((PetscObject)netrs,&comm));
   PetscCall(NetRSCreate(comm,&netrs_new)); 
   /* copy over the parameters and physics from netrs to newnetrs */ 
+
   /* topology */
   PetscCall(DMClone(netrs->network,&netrs_new->network));
   /* physics*/
   netrs_new->user      = netrs->user; 
-  netrs_new->numfields = netrs->numfields; 
-  netrs_new->rs        = netrs->rs;
-  /* error estimate */
-  netrs_new->estimate  = netrs->estimate;
-  netrs_new->useestimator = netrs->useestimator;
-  /* adaptivity*/
-  netrs_new->fine = netrs->fine; 
-  netrs_new->finetype = netrs->finetype;
-  netrs_new->useadaptivity = netrs->useadaptivity;
-  netrs_new->finetol = netrs->finetol; 
-  netrs_new->coarsetol = netrs->coarsetol;
+  PetscCall(NetRSSetFlux(netrs_new,netrs->rs));
   *newnetrs = netrs_new;  
-  PetscFunctionReturn(0);
-}
-
-
-/*@
-   NetRSEvaluate - Evaluate the Riemann Solver
-
-   Not Collective on NetRS
-
-   Input Parameter:
-.  rs  - The NetRS context obtained from NetRSCreate()
-.  u - An array with rs->numfield*rs->numedges entries containing the network riemann data
-.  dir - An array with the direction of the directed graph at the vertex this network riemann solver is being called 
-
-   Output Parameter: 
-.  flux     -  location to put pointer to the array of length numfields*dim containing the numerical flux. This array is owned by the 
-               NetRS and should not be deallocated by the user.
-.  error    -  (optional) error computed by the error esimator (if available) pass in Null if not desired. one estimate for each edge of the NetRS 
-                allocated by the netRS. Values will change between calls. 
-.  adaption - (optional) true if adaption was used (to be removed I think)
-   Level: beginner
-
-.seealso: NetRSCreate(), NetRSSetUp(), NetRSSetFlux()
-@*/
-PetscErrorCode  NetRSEvaluate(NetRS rs,const PetscReal *u, const EdgeDirection *dir,PetscReal **flux,PetscReal **error,PetscBool *adaption)
-{
-  PetscInt       e; 
-  PetscReal      errest; 
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(rs,NETRS_CLASSID,1);
-  PetscCall(NetRSSetUp(rs));
-  PetscCall(rs->ops->evaluate(rs,u,dir,rs->flux_wrk,rs->error));
-  if (error) {*error = rs->error;}
-  *flux = rs->flux_wrk;
-  if (adaption) {*adaption = PETSC_FALSE;}
-
-    /* adaptivity */
-  if(rs->useadaptivity) {
-  }
   PetscFunctionReturn(0);
 }
 
@@ -226,15 +186,14 @@ PetscErrorCode  NetRSSetApplicationContext(NetRS rs,void *usrP)
 
 /*@
    NetRSSetNetwork - Set the DMNetwork defining the topology of the network 
-   Riemann problem(s). NetRS take ownership of the DM, and will reset the DMNetwork, 
-   destroying any existing vector spaces/component information. Please pass in a cloned 
-   dm if you need to maintain this information. 
-
+   Riemann problem(s). NetRS does not take ownership of the DM and it must be destroyed by
+   the caller
+   
    Collective on NetRS
 
    Input Parameters:
 +  rs      - the NetRS context obtained from NetRSCreate()
--  network - The DMNetwork network. Note this will be destroyed upon calling this function and a clone will be used internally.  
+-  network - The DMNetwork network.
 
    Level: beginner
 
@@ -247,16 +206,11 @@ PetscErrorCode NetRSSetNetwork(NetRS rs, DM network)
   PetscFunctionBegin; 
   PetscValidHeaderSpecificType(network,DM_CLASSID,2,DMNETWORK);
   PetscValidHeaderSpecific(rs,NETRS_CLASSID,1);
-  if (rs->network_state == Network_Internal) {
-    SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_ARG_WRONGSTATE,"NetRS already created an internal network after you called NetRSSetNumEdges(). Reset NetRS if you wish to manually provide a DMNetwork");
-  }
 
+  PetscCheck(!rs->setupcalled,PetscObjectComm((PetscObject)rs),PETSC_ERR_ARG_WRONGSTATE,"NetRSSetUp() has already been called, the Network cannot be changed. Call NetRSReset() if you need change the network. ");
   if (rs->network) PetscCall(DMDestroy(&rs->network));
-  /* hack to do a reset for DMNetwork, for now until I merge a proper interface into main */
   PetscCall(DMClone(network,&networkclone)); 
-  PetscCall(DMDestroy(&network)); 
   rs->network = networkclone; 
-  rs->network_state = Network_User; 
   PetscFunctionReturn(0);
 }
 
@@ -280,14 +234,8 @@ PetscErrorCode NetRSGetNetwork(NetRS rs, DM *network)
 {
   PetscFunctionBegin; 
   PetscValidHeaderSpecific(rs,NETRS_CLASSID,1);
-  if (rs->network_state == Network_Not_Created) {
-    SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_ARG_WRONGSTATE,"NetRS has no network. One must be set by calling either NetRSSetNetwork() to set one manually or NetRSSetNumEdges() to generate an internal network");
-  }
-  if(rs->network) {
-    *network = rs->network; 
-  } else {
-    SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_ARG_WRONGSTATE,"No DMNetwork when NetRS believe it has one ");
-  }
+  PetscCheck(rs->network,PetscObjectComm((PetscObject)rs),PETSC_ERR_ARG_WRONGSTATE,"NetRS has no network. One must be set by NetRSSetNetwork()");
+  *network = rs->network; 
   PetscFunctionReturn(0);
 }
 
@@ -339,7 +287,7 @@ PetscErrorCode NetRSSetFromOptions(NetRS rs)
   PetscValidHeaderSpecific(rs, NETRS_CLASSID, 1);
   /* Type Option */
   if (!((PetscObject) rs)->type_name) {
-    defaultType = NETRSLINEAR;
+    defaultType = NETRSBASIC;
   } else {
     defaultType = ((PetscObject) rs)->type_name;
   }
@@ -353,12 +301,13 @@ PetscErrorCode NetRSSetFromOptions(NetRS rs)
     PetscCall(NetRSSetType(rs, defaultType));
   }
   /* parameter selection */
+  /*
   PetscCall(PetscOptionsReal("-netrs_finetol","Tolerance to swap to fine netrs solver","",rs->finetol,&rs->finetol,NULL));
   PetscCall(PetscOptionsBool("-netrs_use_estimator","Use error estimator if available","",rs->useestimator,&rs->useestimator,NULL));
   PetscCall(PetscOptionsBool("-netrs_use_adaptivity","Use adaptivity if available","",rs->useadaptivity,&rs->useadaptivity,NULL));
   PetscCall(PetscOptionsFList("-netrs_fine", "Fine NetRS to use with adaptivity", "NetRSSetType", NetRSList, rs->finetype, name, 256, &flg));
   if (flg) {rs->finetype = name;}
-
+  */
 
 
   /* handle implementation specific options */
@@ -398,138 +347,267 @@ PetscErrorCode  NetRSView(NetRS rs,PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
-/*
- ----- ERROR ESTIMATOR SUPPORT  -----=
-    For internal use only for now 
-*/
-PetscErrorCode  NetRSErrorEstimate(NetRS rs,PetscInt dir,const PetscReal *u, const PetscReal *ustar, PetscReal *errorestimate)
-{
-  void           *ctx;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(rs,NETRS_CLASSID,1);
-  PetscCall(NetRSSetUp(rs));
-  PetscCall(NetRSGetApplicationContext(rs,&ctx));
-  if(rs->estimate) {
-    PetscCall(rs->estimate(ctx,rs,dir,u,ustar,errorestimate)); /* meh code */
-  } else {
-    SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"No error estimator specified for NetRS");
-  }
-  PetscFunctionReturn(0);
-}
-
-PetscErrorCode NetRSSetErrorEstimate(NetRS rs, NRSErrorEstimator errorestimator)
-{
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(rs,NETRS_CLASSID,1);
-  rs->estimate = errorestimator; 
-  PetscFunctionReturn(0);
-}
-PetscErrorCode NetRSUseErrorEstimator(NetRS netrs,PetscBool useerrorestimator)
-{
-   PetscFunctionBegin;
-  PetscValidHeaderSpecific(netrs,NETRS_CLASSID,1);
-  netrs->useestimator = useerrorestimator;
-  PetscFunctionReturn(0);
-}
-PetscErrorCode NetRSIsUsingErrorEstimator(NetRS netrs,PetscBool *useerrorestimator)
-{
-   PetscFunctionBegin;
-  PetscValidHeaderSpecific(netrs,NETRS_CLASSID,1);
-  *useerrorestimator = netrs->useestimator;
-  PetscFunctionReturn(0);
-}
-/* WIP implementation of one type of error estimator */
-
-PetscErrorCode NetRSRoeErrorEstimate(void *ctx,NetRS rs,PetscInt dir,const PetscReal *u,const PetscReal *ustar,PetscReal *estimate)
-{
-  PetscInt       field,sgn;
-
-  PetscFunctionBegin;
-  /* compute jump */
-  for (field=0; field<rs->numfields; field++) {
-    rs->est_wrk[field] = ustar[field] - u[field];
-  }
-  PetscCall(RiemannSolverComputeRoeAvg(rs->rs,u,ustar,rs->est_wrk2));
-  sgn = dir == EDGEIN ? -1 : 1;
-  PetscCall(RiemannSolverCharNorm(rs->rs,rs->est_wrk2,rs->est_wrk,sgn,estimate));
-  PetscFunctionReturn(0);
-}
-
-/* Computes the L1 norm of the difference of the computed ustar value and the value on the lax curve given by laxcurve(ustar[0]) */
-PetscErrorCode NetRSLaxErrorEstimate(void *ctx,NetRS rs,PetscInt dir,const PetscReal *u,const PetscReal *ustar,PetscReal *estimate)
-{
-  PetscInt       field,wavenum; 
-
-  PetscFunctionBegin;
-  /* Assumes that the lax curve is paramaterized by the first conservative variable */
-  wavenum = dir == EDGEIN ? 1 : 2; /* assumes a 2 variable system */
-  PetscCall(RiemannSolverEvalLaxCurve(rs->rs,u,ustar[0],wavenum,rs->est_wrk));
-  *estimate = 0; 
-  for (field = 1; field<rs->numfields; field++){
-   *estimate += PetscAbsReal(rs->est_wrk[field] - ustar[field]);
-  }
-  PetscFunctionReturn(0);
-} 
-/* Simple limiter that computes the M \| (u[0]-ustar[0]) \|_2^2  where M is supposed to represent a bound on the 2nd derivative of the laxcurve */
-
-/* Note: No M scaling as the it doesn't work for the current function specifications. This assumes that the lax curve is parameterized by the first 
-conservation variable */
-
-PetscErrorCode NetRSTaylorErrorEstimate(void *ctx,NetRS rs,PetscInt dir,const PetscReal *u,const PetscReal *ustar,PetscReal *estimate)
-{
-  PetscFunctionBegin;
-  *estimate = PetscSqr(u[0] - ustar[0]);
-  PetscFunctionReturn(0);
-}
-
-/* ------ END OF ERROR ESTIMATOR SUPPORT ------ */
-
-/* WIP */ 
-
-PetscErrorCode NetRSSetRiemannSolver(NetRS nrs, RiemannSolver rs)
+PetscErrorCode NetRSSetFlux(NetRS nrs, RiemannSolver flux)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(nrs,NETRS_CLASSID,1);
-  PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-  nrs->rs = rs; /* should up the reference count to the RiemannSolver */
-  nrs->numfields = rs->numfields; /* removed after flux class */
+  PetscValidHeaderSpecific(flux,RIEMANNSOLVER_CLASSID,1);
+  if(nrs->rs) PetscCall(RiemannSolverDestroy(&nrs->rs)); 
+  PetscCall(PetscObjectReference((PetscObject)flux)); 
+  nrs->rs = flux; 
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode NetRSSetNumEdges(NetRS nrs, PetscInt numedges)
+PetscErrorCode NetRSGetFlux(NetRS rs, RiemannSolver *flux)
 {
-    PetscFunctionBegin;
-    PetscValidHeaderSpecific(nrs,NETRS_CLASSID,1);
-    nrs->numedges = numedges;
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs,NETRS_CLASSID,1);
+  PetscValidHeaderSpecific(*flux,RIEMANNSOLVER_CLASSID,1); 
+  if(rs->rs) *flux = rs->rs; 
+  PetscFunctionReturn(0);
+}
+
+/* internal function for adding the NetRP to the NetRS. This assumes that the NetRP has not already 
+been added. 
+*/
+static PetscErrorCode NetRSAddNetRP(NetRS rs, NetRP rp)
+{
+  PetscInt   numlabelvalues; 
+  NetRP      *netrp_new;
+  PetscHSetI *vertexdegs_new;  
+
+  PetscFunctionBegin; 
+  PetscCall(DMLabelGetNumValues(rs->subgraphs,&numlabelvalues)); /* current number of netrp stored */
+  PetscCall(DMLabelAddStratum(rs->subgraphs,numlabelvalues));
+  PetscCall(PetscHMapNetRPISet(rs->netrphmap,rp,numlabelvalues));
+
+  /* create new memory and move */
+  PetscCall(PetscMalloc1(numlabelvalues+1,&netrp_new)); 
+  PetscCall(PetscMalloc1(numlabelvalues+1,&vertexdegs_new)); 
+  PetscCall(PetscArraycpy(netrp_new,rs->netrp,numlabelvalues));
+  PetscCall(PetscArraycpy(vertexdegs_new,rs->vertexdegrees,numlabelvalues));
+
+  PetscCall(PetscFree(rs->netrp)); 
+  PetscCall(PetscFree(rs->vertexdegrees)); 
+  rs->vertexdegrees = vertexdegs_new; 
+  rs->netrp = netrp_new; 
+
+  PetscCall(PetscHSetICreate(&rs->vertexdegrees[numlabelvalues])); 
+  rs->netrp[numlabelvalues] = rp; 
+  PetscCall(PetscObjectReference((PetscObject)rp)); 
+  PetscFunctionReturn(0); 
+}
+
+
+/* uses local vertex numbering */
+PetscErrorCode NetRSAddNetRPatVertex(NetRS rs,PetscInt v, NetRP rp)
+{
+  DM network; 
+  PetscBool flg;
+  PetscInt  vStart,vEnd, defaultval,pval,index; 
+  
+  PetscFunctionBegin; 
+  PetscCall(NetRSSetUp(rs)); 
+  PetscCall(NetRSGetNetwork(rs,&network));
+
+
+  /* Check if this NetRP has already been added to the network */
+  PetscCall(PetscHMapNetRPIHas(rs->netrphmap,rp,&flg)); 
+  if (!flg) PetscCall(NetRSAddNetRP(rs,rp));
+
+  /* check if vertex v belongs to the DMNetwork */
+  PetscCall(DMNetworkGetVertexRange(rs->network,&vStart,&vEnd));
+  PetscCheck(vStart<=v && v<vEnd,PetscObjectComm((PetscObject)rs),PETSC_ERR_USER_INPUT,"Input Vertex %"PetscInt_FMT" is not a vertex on the DMNetwork attached to NetRS, which has range %"PetscInt_FMT " to %" PetscInt_FMT,v,vStart,vEnd);
+  /* Check if vertex v has any values associated with it. NetRS assumes that there is only one NetRP
+  for each vertex.
+  
+  Perhaps should create a disjoint label implementation that takes care of this automatically? Would definitely be more performant, 
+  and disjoint partitions are a useful thing in general. 
+  */
+  PetscCall(DMLabelGetDefaultValue(rs->subgraphs,&defaultval));
+  PetscCall(DMLabelGetValue(rs->subgraphs,v,&pval));
+  PetscCheck(pval==defaultval,PetscObjectComm((PetscObject)rs),PETSC_ERR_USER_INPUT,"NetRS assumes a single NetRP for each vertex. Inputted vertex %"PetscInt_FMT" already has an assigned NetRP. TODO Print the name of the NetRP already assigned here",v); 
+
+  /* Add vertex v to the label value associated with the NetRP */
+  PetscCall(PetscHMapNetRPIGet(rs->netrphmap,rp,&index)); 
+  PetscCall(DMLabelSetValue(rs->subgraphs,v,index));
+  PetscFunctionReturn(0); 
+}
+
+
+/* TODO: Migrate this functionality to DMNetwork itself */
+PetscErrorCode DMNetworkCacheVertexDegrees(NetRS rs, DM network) 
+{  
+  PetscInt     v, i,vStart,vEnd,nroots,nleaves,nedges; 
+  PetscSF      sf;
+  DM           plex; 
+  const PetscInt *ilocal; 
+  PetscInt     *rootdata,*leafdata;
+  PetscMPIInt              size,rank;
+  MPI_Comm                 comm;
+
+
+  PetscFunctionBegin; 
+  PetscValidHeaderSpecificType(network,DM_CLASSID,2,DMNETWORK);
+  PetscValidHeaderSpecific(rs,NETRS_CLASSID,1); 
+
+  if (rs->vertexdeg_shared_cached) PetscFunctionReturn(0); /* already been cached */
+  PetscCall(PetscObjectGetComm((PetscObject)rs, &comm));
+  PetscCallMPI(MPI_Comm_size(comm, &size));
+  PetscCallMPI(MPI_Comm_rank(comm,&rank));
+  if (size == 1) 
+  {
+    rs->vertexdeg_shared_cached = PETSC_TRUE; 
     PetscFunctionReturn(0);
+  }
+  
+  /* Pull out the pointsf used by the underlying DMPlex for the distributed network */
+  PetscCall(DMNetworkGetPlex(network,&plex));
+  PetscCall(DMGetPointSF(plex,&sf));
+
+  /* SUPER IMPORTANT NOTE: THE SF FROM PLEX ASSUMES THE SAME ARRAY SIZE FOR ROOT DATA AND LEAF DATA, WITH 
+  ILOCAL HOLDING THE ACTUAL LEAF ENTRIES IN THAT ARRAY. */
+  PetscCall(PetscSFGetGraph(sf,&nroots,&nleaves,&ilocal,NULL)); 
+  PetscCheck(ilocal!= NULL || nleaves==0,comm,PETSC_ERR_SUP,"Currently assumes a plex format for the DM PointSF, where leafdata has the same size as rootdata, and ilocal holds offsets. Should not have leaf data in continguous storage");
+
+  PetscCall(PetscCalloc2(nroots,&rootdata,nroots,&leafdata)); 
+  
+
+  /* Fill the leaf data with the local vertex degrees */
+  PetscCall(DMNetworkGetVertexRange(network,&vStart,&vEnd));
+  for(i=0; i<nleaves; i++)
+  {
+    if(ilocal[i]>=vEnd || ilocal[i]<vStart) break; 
+    PetscCall(DMNetworkGetSupportingEdges(network,ilocal[i],&leafdata[ilocal[i]],NULL)); 
+  }
+
+
+  
+  /* reduce degree data from leaves to root. This gives the correct vertex degree on the
+  distributed graph */
+  PetscCall(PetscSFReduceBegin(sf,MPIU_INT,leafdata,rootdata,MPIU_SUM)); 
+  PetscCall(PetscSFReduceEnd(sf,MPIU_INT,leafdata,rootdata,MPIU_SUM)); 
+
+  /* any nonzero entry in rootdata then has leaves, these are added to the lable as 
+     shared vertices. The local vertex degree are then added to the rootdata to create the 
+     correct vertex degree. */
+
+  for(v=vStart; v<vEnd; v++) {
+    if(!rootdata[v]) break; 
+    PetscCall(DMNetworkGetSupportingEdges(network,v,&nedges,NULL)); 
+    rootdata[v] += nedges; 
+    PetscCall(DMLabelSetValue(rs->VertexDeg_shared,v,rootdata[v])); 
+  }
+  PetscCall(PetscSynchronizedFlush(comm,NULL));
+
+  /* Rootdata contains the correct vertex degs, and these have been added to the labrl*/
+  PetscCall(PetscSFBcastBegin(sf,MPIU_INT,rootdata,leafdata,MPI_REPLACE)); 
+  PetscCall(PetscSFBcastEnd(sf,MPIU_INT,rootdata,leafdata,MPI_REPLACE));
+  /*iterate through the leaf vertices and add their values to the label */
+  for(i=0; i<nleaves; i++){
+    if(ilocal[i]>=vEnd || ilocal[i]<vStart) break; 
+    PetscCall(DMLabelSetValue(rs->VertexDeg_shared,ilocal[i],leafdata[ilocal[i]])); 
+  }
+  /* no new entries will be added, compute index for faster membership lookup */
+  PetscCall(DMLabelComputeIndex(rs->VertexDeg_shared)); 
+  PetscCall(PetscFree2(rootdata,leafdata)); 
+  rs->vertexdeg_shared_cached = PETSC_TRUE; 
+  PetscFunctionReturn(0); 
 }
 
+/* TODO: Duplicates a lot of code from DMNetworkCacheVertexDegrees. Should b
+refactored along with that. */
 
-/* Adaptivty Support */ 
-PetscErrorCode NetRSUseAdaptivity(NetRS netrs,PetscBool useadaptivity)
+/* 
+Note, could use that data computed here to compute the stuff needed in 
+DMNetworkCacheVertexDegrees for "Free". Only a single Bcast is needed instead of 
+needing a reduce  + bcast. 
+*/
+
+ PetscErrorCode DMNetworkCreateLocalEdgeNumbering(NetRS rs, DM network)
 {
+  DM  plex; 
+  PetscSF sf; 
+  PetscSection rootsection;
+  PetscInt    i,pStart,pEnd, v,p,vStart,vEnd,multirootsize,dof,off,v_off,vlocaldeg,nleaves,nroots;
+  PetscInt     *leafdata,*multirootdata; 
+  const PetscInt *rootdegree,*ilocal; 
+  PetscMPIInt              size;
+  MPI_Comm                 comm;
+
+
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(netrs,NETRS_CLASSID,1);
-  netrs->useadaptivity = useadaptivity;
-  PetscFunctionReturn(0);
+  PetscValidHeaderSpecificType(network,DM_CLASSID,2,DMNETWORK);
+  PetscValidHeaderSpecific(rs,NETRS_CLASSID,1); 
+  if(rs->vertex_shared_offset) PetscFunctionReturn(0); /* already created the map */
+  PetscCall(PetscObjectGetComm((PetscObject)rs, &comm));
+  PetscCallMPI(MPI_Comm_size(comm, &size));
+  if (size == 1) 
+  {
+    rs->vertexdeg_shared_cached = PETSC_TRUE; 
+    PetscFunctionReturn(0);
+  }
+
+  PetscCall(PetscHMapICreate(&rs->vertex_shared_offset)); 
+  /* Pull out the pointsf used by the underlying DMPlex for the distributed network */
+  PetscCall(DMNetworkGetPlex(network,&plex));
+  PetscCall(DMGetPointSF(plex,&sf));
+  PetscCall(DMPlexGetChart(plex,&pStart,&pEnd)); 
+  PetscCall(PetscSectionCreate(PETSC_COMM_SELF,&rootsection)); /* used for organizing the multiroot data coming for sf gather */
+  PetscCall(PetscSectionSetChart(rootsection,pStart,pEnd)); 
+  PetscCall(PetscSFComputeDegreeBegin(sf,&rootdegree)); 
+  PetscCall(PetscSFComputeDegreeEnd(sf,&rootdegree)); 
+  for(p=pStart; p<pEnd; ++p) PetscCall(PetscSectionSetDof(rootsection,p,rootdegree[p-pStart]));
+  PetscCall(PetscSectionSetUp(rootsection)); 
+  /*allocate the multiroot data and leaf data */
+  PetscCall(PetscSectionGetStorageSize(rootsection,&multirootsize)); 
+  PetscCall(PetscSFGetGraph(sf,&nroots,&nleaves,&ilocal,NULL));
+  PetscCheck(ilocal!= NULL || nleaves==0,comm,PETSC_ERR_SUP,"Currently assumes a plex format for the DM PointSF, where leafdata has the same size as rootdata, and ilocal holds offsets. Should not have leaf data in continguous storage");
+  PetscCall(PetscMalloc2(multirootsize,&multirootdata,nroots,&leafdata));
+
+ /* Fill the leaf data with the local vertex degrees */
+  PetscCall(DMNetworkGetVertexRange(network,&vStart,&vEnd));
+  for(i=0; i<nleaves; i++){
+    if(ilocal[i]>=vEnd || ilocal[i]<vStart) break; 
+    PetscCall(DMNetworkGetSupportingEdges(network,ilocal[i],&leafdata[ilocal[i]],NULL)); 
+  }
+  /* Gather the local vertex degrees of each leaf to the root */
+  PetscCall(PetscSFGatherBegin(sf,MPIU_INT,leafdata,multirootdata));
+  PetscCall(PetscSFGatherEnd(sf,MPIU_INT,leafdata,multirootdata)); 
+
+  /* Generate the shared vertex edge local ordering in place */
+  for(v=vStart; v<vEnd; v++) {
+    PetscCall(PetscSectionGetDof(rootsection,v,&dof)); 
+    if(!dof) break; 
+    PetscCall(PetscSectionGetOffset(rootsection,v,&off)); 
+    v_off = 0; 
+    for(i=off; i<dof+off; i++){
+      vlocaldeg = multirootdata[i]; 
+      multirootdata[i] = v_off; 
+      v_off+=vlocaldeg; 
+    }
+    PetscCall(PetscHMapISet(rs->vertex_shared_offset,v,v_off)); 
+  }
+  /*now multirootdata contains all the offsets for the leaves of roots, 
+  and the HMapI already contains the offsets for the roots. Scatter 
+  The offsets back to leaves and then added leaf offsets to the HMapI */
+
+  PetscCall(PetscSFScatterBegin(sf,MPIU_INT,multirootdata,leafdata)); 
+  PetscCall(PetscSFScatterEnd(sf,MPIU_INT,multirootdata,leafdata)); 
+
+  /*iterate and add to HMap*/
+  for(i=0; i<nleaves; i++)
+  {
+    if(ilocal[i]>=vEnd || ilocal[i]<vStart) break; 
+    PetscCall(PetscHMapISet(rs->vertex_shared_offset,ilocal[i],leafdata[ilocal[i]])); 
+  }
+  PetscCall(PetscFree2(multirootdata,leafdata)); 
+  PetscCall(PetscSectionDestroy(&rootsection)); 
+  PetscFunctionReturn(0); 
 }
 
-PetscErrorCode NetRSIsUsingAdaptivity(NetRS netrs,PetscBool *useadaptivity)
-{
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(netrs,NETRS_CLASSID,1);
-  *useadaptivity = netrs->useadaptivity;
-  PetscFunctionReturn(0);
-}
 
-PetscErrorCode NetRSSetFineTol(NetRS netrs,PetscReal finetol) 
-{
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(netrs,NETRS_CLASSID,1);
-  netrs->finetol = finetol;
-  PetscFunctionReturn(0);
-}
+
 
 /*@
     DMNetworkComputeUniqueVertexDegrees_Local- Returns the unique set of vertex 
@@ -559,30 +637,65 @@ PetscErrorCode NetRSSetFineTol(NetRS netrs,PetscReal finetol)
 
 .seealso: 
 @*/
-PetscErrorCode DMNetworkComputeUniqueVertexDegrees_Local(DM network,DMLabel marked, PetscHSetI **vertexdegrees, PetscHSetI *totalvertexdegrees)
+PetscErrorCode DMNetworkComputeUniqueVertexDegrees_Local(NetRS rs,DM network,DMLabel marked, PetscHSetI *vertexdegrees, PetscHSetI totalvertexdegrees)
 {
-  PetscInt     v, vStart,vEnd,degree,nroots,nleaves; 
-  PetscHSetI   vdeg;
-  PetscSF      sf;
-  DM           plex; 
+  PetscInt numsubgraphs,i,j,v,vStart,vEnd,vdeg,numpoints;  
+  IS       values_is,point_is; 
+  const PetscInt *values,*points; 
+  PetscBool flg; 
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecificType(network,DM_CLASSID,2,DMNETWORK);
+  PetscValidHeaderSpecificType(network,DM_CLASSID,1,DMNETWORK);
+  PetscValidHeaderSpecific(rs,NETRS_CLASSID,1); 
 
-
-  /* Create Hash */
-  PetscCall(PetscHSetICreate(&vdeg));
-
-  /* Pull out the pointsf used by the Underlying DMPlex for the distributed network */
-  PetscCall(DMNetworkGetPlex(network,&plex));
-  PetscCall(DMGetPointSF(plex,&sf));
-  PetscCall(PetscSFGetGraph(sf,&nroots,&nleaves,NULL,NULL));
+  /* Clear Hash */
+  PetscCall(PetscHSetIClear(totalvertexdegrees));
+  /* Generate the vertex degree labeling */
+  PetscCall(DMNetworkCacheVertexDegrees(rs,network)); 
 
   PetscCall(DMNetworkGetVertexRange(network,&vStart,&vEnd)); 
-  for(v =vStart; v<vEnd; v++) {
+  /* generate the hash set for the entire local graph first */
+  for(v=vStart; v<vEnd; v++){
+    /* check if v is in the vertex degree labeling. That means it is shared among processors 
+       and needs to use the value from the labeling */
+    PetscCall(DMLabelHasPoint(rs->VertexDeg_shared,v,&flg)); 
+    if(flg){ /*get vertex degree from label*/
+       PetscCall(DMLabelGetValue(rs->VertexDeg_shared,v,&vdeg)); 
+    } else { /* vertex is entirely local, so DMNetworkGetSupportingEdge returns correct vertex deg */
+      PetscCall(DMNetworkGetSupportingEdges(network,v,&vdeg,NULL)); 
+    }
+    PetscCall(PetscHSetIAdd(totalvertexdegrees,vdeg)); 
   }
+  
+  /* repeat but iterate only through marked vertices */
+  if (marked) { 
+    PetscCheck(vertexdegrees,PetscObjectComm((PetscObject)network),PETSC_ERR_USER_INPUT,"If providing a label of marked vertices, an array of PetscHSetI, one for each value in the label must be provided");
+    PetscCall(DMLabelGetNumValues(marked,&numsubgraphs));
+    PetscCall(DMLabelGetValueIS(marked,&values_is)); 
+    PetscCall(ISGetIndices(values_is,&values));
 
-
+    for(i=0; i<numsubgraphs; i++) {
+      PetscCall(PetscHSetIClear(vertexdegrees[i]));
+      PetscCall(DMLabelGetStratumIS(marked,values[i],&point_is)); 
+      if(point_is == NULL) break; 
+      PetscCall(ISGetSize(point_is,&numpoints)); 
+      PetscCall(ISGetIndices(point_is,&points)); 
+      for(j=0; j<numpoints;j++){
+        v = points[j];
+        PetscCall(DMLabelHasPoint(rs->VertexDeg_shared,v,&flg)); 
+        if(flg){ /*get vertex degree from label*/
+          PetscCall(DMLabelGetValue(rs->VertexDeg_shared,v,&vdeg)); 
+        } else { /* vertex is entirely local, so DMNetworkGetSupportingEdge returns correct vertex deg */
+          PetscCall(DMNetworkGetSupportingEdges(network,v,&vdeg,NULL)); 
+        }
+        PetscCall(PetscHSetIAdd(vertexdegrees[i],vdeg)); 
+      }
+      PetscCall(ISRestoreIndices(point_is,&points)); 
+      PetscCall(ISDestroy(&point_is)); 
+    }
+    PetscCall(ISRestoreIndices(values_is,&values));
+    PetscCall(ISDestroy(&values_is)); 
+  }
   PetscFunctionReturn(0);
 }
 

@@ -1757,8 +1757,6 @@ PetscErrorCode DMNetworkDistribute(DM *dm, PetscInt overlap)
   PetscBT                  btable;
   PetscPartitioner         part;
   DMNetworkComponentHeader header;
-  Vec                      oldCoord, newCoord;
-  const char              *name;
 
   PetscFunctionBegin;
   PetscValidPointer(dm, 1);

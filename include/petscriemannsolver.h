@@ -132,6 +132,7 @@ PETSC_EXTERN PetscErrorCode RiemannSolverSetFromOptions(RiemannSolver);
 PETSC_EXTERN PetscErrorCode RiemannSolverSetUp(RiemannSolver);
 
 PETSC_EXTERN PetscErrorCode RiemannSolverEvaluate(RiemannSolver,const PetscReal*,const PetscReal*, PetscReal**,PetscReal*);
+PETSC_EXTERN PetscErrorCode RiemmanSolverEvaluateFlux(RiemannSolver,const PetscReal*,PetscReal**);
 PETSC_EXTERN PetscErrorCode RiemannSolverComputeEig(RiemannSolver,const PetscReal*,PetscScalar**);
 PETSC_EXTERN PetscErrorCode RiemannSolverComputeMaxSpeed(RiemannSolver,const PetscReal*,const PetscReal*,PetscReal*);
 

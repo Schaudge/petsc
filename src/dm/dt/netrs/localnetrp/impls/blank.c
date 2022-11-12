@@ -14,7 +14,7 @@ static PetscErrorCode NRPView_Blank(NetRP rp,PetscViewer viewer)
 
 /* ------------------------------------------------------------ */
 
-PETSC_EXTERN PetscErrorCode NRPCreate_Blank(NetRP rp)
+PETSC_EXTERN PetscErrorCode NetRPCreate_Blank(NetRP rp)
 {
   PetscFunctionBegin;
   rp->data = NULL;

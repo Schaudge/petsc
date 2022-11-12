@@ -3,7 +3,7 @@ ALL: lib
 
 CFLAGS    =
 FFLAGS    =
-SOURCEC   = blank.c
+SOURCEC   = blank.c linearized.c outflow.c
 SOURCEF   =
 SOURCEH   =
 DIRS      = 
