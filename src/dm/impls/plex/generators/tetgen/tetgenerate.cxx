@@ -2,9 +2,7 @@
 
 #ifdef PETSC_HAVE_EGADS
   #include <egads.h>
-/* Need to make EGADSlite header compatible */
-extern "C" int EGlite_getTopology(const ego, ego *, int *, int *, double *, int *, ego **, int **);
-extern "C" int EGlite_inTopology(const ego, const double *);
+  #include <egads_lite.h>
 #endif
 
 #if defined(PETSC_HAVE_TETGEN_TETLIBRARY_NEEDED)
@@ -204,6 +202,7 @@ PETSC_EXTERN PetscErrorCode DMPlexGenerate_Tetgen(DM boundary, PetscBool interpo
     }
 
     PetscCall(PetscObjectQuery((PetscObject)boundary, "EGADS Model", (PetscObject *)&modelObj));
+    if (!modelObj) PetscCall(PetscObjectQuery((PetscObject) boundary, "EGADSlite Model", (PetscObject *)&modelObj));
     if (modelObj) {
 #ifdef PETSC_HAVE_EGADS
       DMLabel   bodyLabel;
@@ -405,7 +404,7 @@ PETSC_EXTERN PetscErrorCode DMPlexRefine_Tetgen(DM dm, double *maxVolumes, DM *d
       PetscInt       closureSize;
 
       PetscCall(DMPlexGetTransitiveClosure(dm, c, PETSC_TRUE, &closureSize, &closure));
-      PetscCheck(!(closureSize != 5) || !(closureSize != 15), comm, PETSC_ERR_ARG_WRONG, "Mesh has cell which is not a tetrahedron, %" PetscInt_FMT " vertices in closure", closureSize);
+      PetscCheck((closureSize == 5) || (closureSize == 15), comm, PETSC_ERR_ARG_WRONG, "Mesh has cell which is not a tetrahedron, %" PetscInt_FMT " points in closure", closureSize);
       for (v = 0; v < 4; ++v) in.tetrahedronlist[idx * in.numberofcorners + v] = closure[(v + closureSize - 4) * 2] - vStart;
       PetscCall(DMPlexRestoreTransitiveClosure(dm, c, PETSC_TRUE, &closureSize, &closure));
     }
@@ -538,11 +537,7 @@ PETSC_EXTERN PetscErrorCode DMPlexRefine_Tetgen(DM dm, double *maxVolumes, DM *d
           PetscCall(DMPlexVecRestoreClosure(*dmRefined, coordSection, coordinates, c, &coordSize, &coords));
         } else PetscCall(DMPlexComputeCellGeometryFVM(*dmRefined, c, NULL, centroid, NULL));
         for (b = 0; b < Nb; ++b) {
-          if (islite) {
-            if (EGlite_inTopology(bodies[b], centroid) == EGADS_SUCCESS) break;
-          } else {
-            if (EG_inTopology(bodies[b], centroid) == EGADS_SUCCESS) break;
-          }
+          if (EG_inTopology(bodies[b], centroid) == EGADS_SUCCESS) break;
         }
         if (b < Nb) {
           PetscInt  cval    = b, eVal, fVal;
