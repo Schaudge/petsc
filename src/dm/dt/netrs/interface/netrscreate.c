@@ -25,10 +25,9 @@ PetscErrorCode  NetRSCreate(MPI_Comm comm, NetRS *rs)
   PetscCall(NetRSInitializePackage());
   PetscCall(PetscHeaderCreate(r, NETRS_CLASSID, "NetRS", "Network Riemann Solver", "NetRS", comm, NetRSDestroy, NetRSView));
   PetscCall(PetscHMapNetRPICreate(&r->netrphmap));
-  PetscCall(PetscHSetICreate(&r->vertexdegrees_total)); 
   PetscCall(DMLabelCreate(comm,"NetRSLabel",&r->subgraphs)); 
-  PetscCall(DMLabelCreate(comm,"NetRS_DM_InternalTopological",&r->VertexDeg_shared)); 
-
+  PetscCall(DMLabelCreate(comm,"NetRS_DM_InternalTopological",&r->VertexDeg_shared));
+  PetscCall(ISCreate(PETSC_COMM_SELF,&r->is_wrk));
   /* Add default behavior for NetRS here */
   r->setupcalled = PETSC_FALSE; 
   r->setupvectorspace = PETSC_FALSE; 
