@@ -51,6 +51,7 @@ PETSC_EXTERN PetscErrorCode NetRPRegister(const char[], PetscErrorCode (*)(NetRP
 
 PETSC_EXTERN PetscErrorCode NetRPSetFromOptions(NetRP);
 PETSC_EXTERN PetscErrorCode NetRPSetUp(NetRP);
+PETSC_EXTERN PetscErrorCode NetRPisSetup(NetRP,PetscBool*); 
 
 PETSC_EXTERN PetscErrorCode NetRPSetSolveType(NetRP,NetRPSolveType); 
 PETSC_EXTERN PetscErrorCode NetRPGetSolveType(NetRP,NetRPSolveType*); 
@@ -67,7 +68,6 @@ PETSC_EXTERN PetscErrorCode NetRPGetApplicationContext(NetRP,void*);
 PETSC_EXTERN PetscErrorCode NetRPSetFlux(NetRP,RiemannSolver);
 PETSC_EXTERN PetscErrorCode NetRPGetFlux(NetRP,RiemannSolver*);
 
-PETSC_EXTERN PetscErrorCode NetRPCanSolveFlux(NetRP,PetscBool*);
 PETSC_EXTERN PetscErrorCode NetRPCanSolveStar(NetRP,PetscBool*); 
 
 PETSC_EXTERN PetscErrorCode NetRPSolveStar(NetRP,DM, PetscInt, Vec, Vec);

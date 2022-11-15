@@ -27,6 +27,7 @@ PetscErrorCode  NetRPSetUp(NetRP rp)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp,NETRP_CLASSID,1);
   if (rp->setupcalled) PetscFunctionReturn(0);
+  PetscCheck(rp->flux,PetscObjectComm((PetscObject)rp),PETSC_ERR_ARG_WRONGSTATE,"Requires a Flux to be set");
   PetscCall(RiemannSolverSetUp(rp->flux));
   /* check riemann problem and physics consistency */
   PetscCall(RiemannSolverGetNumFields(rp->flux,&numfield_flux)); 
@@ -41,8 +42,15 @@ PetscErrorCode  NetRPSetUp(NetRP rp)
       PetscCheck(numfield_flux == numfield_rp, PetscObjectComm((PetscObject)rp),PETSC_ERR_ARG_WRONGSTATE,"The physics number of fields : %" PetscInt_FMT " is not the same as the riemann problem number of fields  %" PetscInt_FMT, numfield_flux, numfield_rp);
       break;
   }
-
   rp->setupcalled = PETSC_TRUE;
+  PetscFunctionReturn(0);
+}
+ 
+PetscErrorCode NetRPisSetup(NetRP rp,PetscBool *flg)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rp,NETRP_CLASSID,1);
+  *flg = rp->setupcalled; 
   PetscFunctionReturn(0);
 }
 
@@ -371,8 +379,6 @@ PetscErrorCode NetRPCreateSNES(NetRP rp, PetscInt vertdeg, SNES *snes)
   PetscFunctionReturn(0); 
 }
 
-
-
 /*@
    NetRPAddVertexDegrees - Add vertex degrees to cache solvers for. If these degrees are already cached then
    nothing will happen. 
@@ -633,7 +639,8 @@ PetscErrorCode NetRPSetFlux(NetRP rp, RiemannSolver rs)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp,NETRP_CLASSID,1);
-  PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1); 
+  PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
+  PetscCheck(!rp->setupcalled,PetscObjectComm((PetscObject)rs),PETSC_ERR_ARG_WRONGSTATE,"Cannot Set Flux after NetRP is setup."); 
   if(rp->flux) PetscCall(RiemannSolverDestroy(&rp->flux)); 
   PetscCall(PetscObjectReference((PetscObject)rs)); 
   rp->flux = rs;

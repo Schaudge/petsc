@@ -64,12 +64,23 @@ PETSC_EXTERN PetscErrorCode NetRSSetNetwork(NetRS,DM);
 PETSC_INTERN PetscErrorCode NetRSGetNetwork(NetRS,DM*); /* Could potentially make public but ensure if is safe/smart */
 
 
-PETSC_EXTERN PetscErrorCode NetRSSolve(NetRS,Vec,Vec); 
+PETSC_EXTERN PetscErrorCode NetRSSolveFlux(NetRS); 
 
 PETSC_EXTERN PetscErrorCode NetRSSetApplicationContext(NetRS,void*);
 PETSC_EXTERN PetscErrorCode NetRSGetApplicationContext(NetRS,void*);
 
 PETSC_EXTERN PetscErrorCode NetRSAddNetRPatVertex(NetRS,PetscInt,NetRP); 
+
+
+PETSC_EXTERN PetscErrorCode NetRSSetUpVectorSpace(NetRS); 
+
+/* Access to vector space stuff, Functionality should be moved to the DMNetwork/ extend section 
+   to handle subsection on each point. 
+*/
+
+PETSC_EXTERN PetscErrorCode NetRSGetVecSizeAtVertex(NetRS,PetscInt*); 
+PETSC_EXTERN PetscErrorCode NetRSGetUArray()
+
 // PETSC_EXTERN PetscErrorCode NetRSAddNetRPatVertices(NetRS,PetscInt,PetscInt*,NetRP); 
 
 

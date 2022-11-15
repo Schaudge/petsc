@@ -52,13 +52,14 @@ struct _p_NetRS {
 
   DMLabel        subgraphs; /* TODO : Name better. Each stratum corresponds to the set of vertices associated with a 
   specific NetRS solver  */
+  IS             *subgraphIS; /* IS holding the vertices belong to each subgraph in the subgraph label */
 
   PetscHMapNetRPI netrphmap; /* map from netrp to index index into arrays/value in the DMLabel. */
   NetRP          *netrp; /* arrray of local riemann problem/solver, one for each label */
-  Vec            totalU, totalFlux; /* total vectors for the input U and output Flux, includes all NetRP problems added to the NetRS */ 
-
-
-
+  Vec            Uloc,U, Flux,Fluxloc; /* total vectors for the input U and output Flux, includes all NetRP problems added to the NetRS */ 
+  Vecs           Uv,Fluxv; /*subvecs of Uloc and Fluxloc corresponding to vector space of a vertex Riemann Problem */
+  IS             is_wrk; /*work IS for getting subvectors for vertex points. Should Put a better interface for subvecs into vec itself that can access directly through a section point pair */
+  
   /* DMNetwork Graph stuff, should be moved to DMNetwork itself */
   PetscBool      vertexdeg_shared_cached; 
   /* This label should also be a disjoint label if that implementation exists */
@@ -90,7 +91,6 @@ struct _p_NetRS {
   But each processor only see the e that belong to it, so need a way to extract
   local V_v, that is V_{v,rank}. This offset does that. 
   */
-
   
   PetscHSetI     vertexdegrees_total; /* set of all vertex degrees in the full local network */
   PetscHSetI     *vertexdegrees; /* set of all vertex degrees for each subgraph induced by the DMLabel */
