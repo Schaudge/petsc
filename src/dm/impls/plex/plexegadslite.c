@@ -1093,13 +1093,13 @@ static PetscErrorCode DMPlexCreateEGADSlite(MPI_Comm comm, ego context, ego mode
 
     PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &modelObj));
     PetscCall(PetscContainerSetPointer(modelObj, model));
-    PetscCall(PetscObjectCompose((PetscObject)dm, "EGADS Model", (PetscObject)modelObj));
+    PetscCall(PetscObjectCompose((PetscObject)dm, "EGADSlite Model", (PetscObject)modelObj));
     PetscCall(PetscContainerDestroy(&modelObj));
 
     PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &contextObj));
     PetscCall(PetscContainerSetPointer(contextObj, context));
     PetscCall(PetscContainerSetUserDestroy(contextObj, DMPlexEGADSliteDestroy_Private));
-    PetscCall(PetscObjectCompose((PetscObject)dm, "EGADS Context", (PetscObject)contextObj));
+    PetscCall(PetscObjectCompose((PetscObject)dm, "EGADSlite Context", (PetscObject)contextObj));
     PetscCall(PetscContainerDestroy(&contextObj));
   }
   // Label points
@@ -1421,13 +1421,13 @@ static PetscErrorCode DMPlexCreateEGADSlite_Tess_Internal(MPI_Comm comm, ego con
 
     PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &modelObj));
     PetscCall(PetscContainerSetPointer(modelObj, model));
-    PetscCall(PetscObjectCompose((PetscObject)dm, "EGADS Model", (PetscObject)modelObj));
+    PetscCall(PetscObjectCompose((PetscObject)dm, "EGADSlite Model", (PetscObject)modelObj));
     PetscCall(PetscContainerDestroy(&modelObj));
 
     PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &contextObj));
     PetscCall(PetscContainerSetPointer(contextObj, context));
     PetscCall(PetscContainerSetUserDestroy(contextObj, DMPlexEGADSliteDestroy_Private));
-    PetscCall(PetscObjectCompose((PetscObject)dm, "EGADS Context", (PetscObject)contextObj));
+    PetscCall(PetscObjectCompose((PetscObject)dm, "EGADSlite Context", (PetscObject)contextObj));
     PetscCall(PetscContainerDestroy(&contextObj));
   }
 
