@@ -14,9 +14,9 @@ typedef PetscErrorCode (*VertexFlux)(const void*,const PetscScalar*,const PetscB
 
 /* Component numbers used for accessing data in DMNetWork*/
 typedef enum {FVEDGE=0} EdgeCompNum;
-typedef enum {JUNCTION=0,FLUX=1} VertexCompNum;
+typedef enum {DGNET_JUNCTION=0,FLUX=1} VertexCompNum;
 
-struct _p_Junction {
+struct _p_DGNET_Junction {
   Mat           mat;
   Vec           xcouple,rcouple;  /* Information for nonlinear solver for coupling flux */
   EdgeDirection *dir;     /* In the local ordering whether index i point into or out of the vertex. PetscTrue points out. */
@@ -27,7 +27,7 @@ struct _p_Junction {
   PetscScalar   *flux,*fluctuation ;  /* Local work array for vertex fluxes. len = dof*numedges */
   NetRS         netrs; /* experimental class for network coupling, will replace most of the coupling condition parts of junction */
 } PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
-typedef struct _p_Junction *Junction;
+typedef struct _p_DGNET_Junction *DGNET_Junction;
 
 struct _p_MultirateCtx
 {
@@ -51,8 +51,8 @@ struct _p_EdgeFE
 typedef struct _p_EdgeFE *EdgeFE;
 
 /* Specification for vertex flux assignment functions */
-typedef PetscErrorCode (*VertexFluxAssignment)(const void*,Junction);
-typedef PetscErrorCode (*VertexFluxDestroy)(const void*,Junction);
+typedef PetscErrorCode (*VertexFluxAssignment)(const void*,DGNET_Junction);
+typedef PetscErrorCode (*VertexFluxDestroy)(const void*,DGNET_Junction);
 
 typedef PetscErrorCode (*RiemannFunction)(void*,PetscInt,const PetscScalar*,const PetscScalar*,PetscScalar*,PetscReal*);
 typedef PetscErrorCode (*ReconstructFunction)(void*,PetscInt,const PetscScalar*,PetscScalar*,PetscScalar*,PetscReal*);
@@ -100,10 +100,10 @@ struct _p_DGNetwork
   SNES        snes;                    /* Temporary hack to hold a nonlinear solver. Used for the nonlinear riemann invariant solver.
                                           should be moved back to junct structure to reuse jacobian matrix? */
   KSP         ksp;
-  PetscInt    moni;
+  PetscInt    moni,M;
   PetscBool   view,linearcoupling,lincouplediff,tabulated,laxcurve,adaptivecouple;
   PetscBool   viewglvis,viewfullnet;
-  PetscReal   ymin,ymax,length, diagnosticlow, diagnosticup,M;
+  PetscReal   ymin,ymax,length, diagnosticlow, diagnosticup,dx; 
   char        prefix[256];
   void        (*limit)(const PetscScalar*,const PetscScalar*,PetscScalar*,PetscInt);
   PetscErrorCode (*gettimestep)(TS ts, PetscReal *dt);
@@ -160,7 +160,7 @@ struct _p_DGNetwork
   PetscInt    Mx;               /* Variable used to specify smallest number of cells for an edge in a problem */
 
   /* Junction */
-  Junction    junction;
+  DGNET_Junction    junction;
 
   /* Edges */
   EdgeFE      edgefe;

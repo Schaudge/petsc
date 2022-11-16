@@ -1,0 +1,32 @@
+
+runriver1_12: illinoisRiver071300.inp
+------------------------------------
+numEdges 18136, numVertices 17964 numVariables 2248598
+
+runriver1_13: ohioRiver.inp
+----------------------------------
+numEdges 172075, numVertices 169723 numVariables 19583422
+
+runriver1_14: lowerMissouriRiver.inp
+-----------------------------------
+numEdges 200565, numVertices 195426 numVariables 24413492
+
+runriver1_20: mississippiRiver07.inp
+-----------------------------------
+numEdges 185922, numVertices 182404 numVariables 21471280
+
+runriver1_21: mississippiRiver.inp
+---------------------------------
+numEdges 263531, numVertices 256347 numVariables 29407498
+
+ark-red-whiteRiver.inp
+---------------------
+numEdges 206737, numVertices 201429 river numVariables 26434438
+
+colombiaRiver.inp
+------------------
+numEdges 183447, numVertices 182378 river numVariables 22446590
+
+MssissippiRiverBasin.inp
+--------------------------
+numEdges 892740, numVertices 872300 river numVariables 107892770

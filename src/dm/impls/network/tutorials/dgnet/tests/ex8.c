@@ -25,6 +25,8 @@ Just Runs an Simulation with the specified Setup. \n\n";
   4. Requires: GLVis
      Run on Parent-Daughter Network with P^4 DG Basis and linearized coupling View GLVis
      mpiexec -n 1 ./ex8 -view -network 3 -view_glvis -view_full_net -glvis_pause 1e-10 -order 4
+  5. Run hydronetwork EPANet Network (network -2 uses hydrnetwork reader for networks)
+  mpiexec -np 2 ./ex8 -f ../hydronetwork-2021/cases/brazosRiver.inp -ts_monitor -network -2 -ts_max_steps 2 -dx 1000
 */
 
 PetscErrorCode TSDGNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
@@ -73,7 +75,7 @@ int main(int argc,char *argv[])
   MPI_Comm          comm;
   TS                ts;
   DGNetwork         dgnet;
-  PetscInt          maxorder=1;
+  PetscInt          maxorder=1,vecsize; 
   PetscReal         maxtime;
   PetscMPIInt       size,rank;
   PetscBool         limit=PETSC_TRUE,view3d=PETSC_FALSE,viewglvis=PETSC_FALSE,glvismode=PETSC_FALSE,viewfullnet=PETSC_FALSE,savefinal=PETSC_FALSE;
@@ -113,6 +115,7 @@ int main(int argc,char *argv[])
   dgnet->linearcoupling   = PETSC_FALSE;
   dgnet->M                = 50;
   dgnet->edgethickness   = 1; 
+  dgnet->dx              = 0.25; 
 
   /* Command Line Options */
   PetscOptionsBegin(comm,NULL,"DGNetwork solver options","");
@@ -134,6 +137,7 @@ int main(int argc,char *argv[])
     PetscCall(PetscOptionsBool("-view_3d","View a 3d version of edge","",view3d,&view3d,NULL));
     PetscCall(PetscOptionsBool("-view_glvis","View GLVis of Edge","",viewglvis,&viewglvis,NULL));
     PetscCall(PetscOptionsBool("-view_full_net","View GLVis of Entire Network","",viewfullnet,&viewfullnet,NULL));
+    PetscCall(PetscOptionsReal("-dx","Size of Cells in some cases","",dgnet->dx,&dgnet->dx,NULL));
   PetscOptionsEnd();
   /* Choose the physics from the list of registered models */
   {
@@ -156,7 +160,7 @@ int main(int argc,char *argv[])
   PetscCall(DGNetworkCleanUp(dgnet));
   PetscCall(DGNetworkBuildTabulation(dgnet));
   PetscCall(DMNetworkDistribute(&dgnet->network,0));
-
+  PetscCall(DMViewFromOptions(dgnet->network,NULL,"-dm_view"));
   /* Create Vectors */
   PetscCall(DGNetworkCreateVectors(dgnet));
   /* Set up component dynamic data structures */
@@ -219,6 +223,8 @@ int main(int argc,char *argv[])
       PetscCall(TSMonitorSet(ts, TSDGNetworkMonitor, monitor, NULL));
     }
   }
+  PetscCall(VecGetSize(dgnet->X,&vecsize)); 
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"Vec Size %"PetscInt_FMT"\n",vecsize)); 
   if (limit) {
       /* Prelimit the initial data as I use post-stage to apply limiters instead of prestage (which doesn't have access to stage vectors
       for some reason ... no idea why prestage and post-stage callback functions have different forms) */
@@ -249,6 +255,7 @@ int main(int argc,char *argv[])
   PetscCall(PetscFree(dgnet));
 
   PetscCall(PetscFunctionListDestroy(&physics));
+  PetscCall(PetscFunctionListDestroy(&errest));
   PetscCall(TSDestroy(&ts));
 
   PetscCall(PetscFinalize());
