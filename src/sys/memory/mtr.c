@@ -15,8 +15,8 @@ PETSC_EXTERN PetscErrorCode PetscMallocAlign(size_t, PetscBool, int, const char[
 PETSC_EXTERN PetscErrorCode PetscFreeAlign(void *, int, const char[], const char[]);
 PETSC_EXTERN PetscErrorCode PetscReallocAlign(size_t, int, const char[], const char[], void **);
 
-#define CLASSID_VALUE ((PetscClassId)0xf0e0d0c9)
-#define ALREADY_FREED ((PetscClassId)0x0f0e0d9c)
+static const PetscClassId CLASSID_VALUE = 0xf0e0d0c9;
+static const PetscClassId ALREADY_FREED = 0x0f0e0d9c;
 
 /*  this is the header put at the beginning of each malloc() using for tracking allocated space and checking of allocated space heap */
 typedef struct trSPACE_n_ {
@@ -35,7 +35,7 @@ typedef struct trSPACE_n_ {
 /* HEADER_BYTES is the number of bytes in a PetscMalloc() header.
    It is sizeof(trSPACE) padded to be a multiple of PETSC_MEMALIGN.
 */
-#define HEADER_BYTES ((sizeof(TRSPACE) + (PETSC_MEMALIGN - 1)) & ~(PETSC_MEMALIGN - 1))
+#define HEADER_BYTES ((size_t)((sizeof(TRSPACE) + (PETSC_MEMALIGN - 1)) & ~(PETSC_MEMALIGN - 1)))
 
 /* This union is used to insure that the block passed to the user retains
    a minimum alignment of PETSC_MEMALIGN.
@@ -221,13 +221,14 @@ PetscErrorCode PetscTrMallocDefault(size_t a, PetscBool clear, int lineno, const
   */
   if (PetscLogMalloc > -1 && PetscLogMalloc < PetscLogMallocMax && a >= PetscLogMallocThreshold) {
     if (!PetscLogMalloc) {
-      PetscLogMallocLength = (size_t *)malloc(PetscLogMallocMax * sizeof(size_t));
+      PetscCall(PetscRegisterFinalize(PetscTraceMallocFinalize_Private));
+      PetscLogMallocLength = (size_t *)malloc(PetscLogMallocMax * sizeof(*PetscLogMallocLength));
       PetscCheck(PetscLogMallocLength, PETSC_COMM_SELF, PETSC_ERR_MEM, " ");
 
-      PetscLogMallocFile = (const char **)malloc(PetscLogMallocMax * sizeof(char *));
+      PetscLogMallocFile = (const char **)malloc(PetscLogMallocMax * sizeof(*PetscLogMallocFile));
       PetscCheck(PetscLogMallocFile, PETSC_COMM_SELF, PETSC_ERR_MEM, " ");
 
-      PetscLogMallocFunction = (const char **)malloc(PetscLogMallocMax * sizeof(char *));
+      PetscLogMallocFunction = (const char **)malloc(PetscLogMallocMax * sizeof(*PetscLogMallocFunction));
       PetscCheck(PetscLogMallocFunction, PETSC_COMM_SELF, PETSC_ERR_MEM, " ");
     }
     PetscLogMallocLength[PetscLogMalloc]     = nsize;
@@ -429,13 +430,13 @@ PetscErrorCode PetscTrReallocDefault(size_t len, int lineno, const char function
   */
   if (PetscLogMalloc > -1 && PetscLogMalloc < PetscLogMallocMax && len >= PetscLogMallocThreshold) {
     if (!PetscLogMalloc) {
-      PetscLogMallocLength = (size_t *)malloc(PetscLogMallocMax * sizeof(size_t));
+      PetscLogMallocLength = (size_t *)malloc(PetscLogMallocMax * sizeof(*PetscLogMallocLength));
       PetscCheck(PetscLogMallocLength, PETSC_COMM_SELF, PETSC_ERR_MEM, " ");
 
-      PetscLogMallocFile = (const char **)malloc(PetscLogMallocMax * sizeof(char *));
+      PetscLogMallocFile = (const char **)malloc(PetscLogMallocMax * sizeof(*PetscLogMallocFile));
       PetscCheck(PetscLogMallocFile, PETSC_COMM_SELF, PETSC_ERR_MEM, " ");
 
-      PetscLogMallocFunction = (const char **)malloc(PetscLogMallocMax * sizeof(char *));
+      PetscLogMallocFunction = (const char **)malloc(PetscLogMallocMax * sizeof(*PetscLogMallocFunction));
       PetscCheck(PetscLogMallocFunction, PETSC_COMM_SELF, PETSC_ERR_MEM, " ");
     }
     PetscLogMallocLength[PetscLogMalloc]     = nsize;
@@ -649,13 +650,13 @@ PetscErrorCode PetscMallocGetStack(void *ptr, PetscStack **stack)
   PetscValidPointer(ptr, 1);
   PetscValidPointer(stack, 2);
   (void)ptr;
-  if (PetscDefined(USE_DEBUG)) {
-    TRSPACE *head = (TRSPACE *)(((char *)ptr) - HEADER_BYTES);
+#if PetscDefined(USE_DEBUG)
+  TRSPACE *head = (TRSPACE *)(((char *)ptr) - HEADER_BYTES);
 
-    *stack = &head->stack;
-  } else {
-    *stack = NULL;
-  }
+  *stack = &head->stack;
+#else
+  *stack = NULL;
+#endif
   PetscFunctionReturn(0);
 }
 
@@ -892,11 +893,11 @@ PetscErrorCode PetscMallocView(FILE *fp)
     }
   }
 
-  shortcount = (int *)malloc(PetscLogMalloc * sizeof(int));
+  shortcount = (int *)malloc(PetscLogMalloc * sizeof(*shortcount));
   PetscCheck(shortcount, PETSC_COMM_SELF, PETSC_ERR_MEM, "Out of memory");
-  shortlength = (size_t *)malloc(PetscLogMalloc * sizeof(size_t));
+  shortlength = (size_t *)malloc(PetscLogMalloc * sizeof(*shortlength));
   PetscCheck(shortlength, PETSC_COMM_SELF, PETSC_ERR_MEM, "Out of memory");
-  shortfunction = (const char **)malloc(PetscLogMalloc * sizeof(char *));
+  shortfunction = (const char **)malloc(PetscLogMalloc * sizeof(*shortfunction));
   PetscCheck(shortfunction, PETSC_COMM_SELF, PETSC_ERR_MEM, "Out of memory");
   for (PetscInt i = 0; i < PetscLogMalloc; ++i) {
     for (PetscInt j = 0; j < n; ++j) {
@@ -916,7 +917,7 @@ PetscErrorCode PetscMallocView(FILE *fp)
   foundit:;
   }
 
-  perm = (PetscInt *)malloc(n * sizeof(PetscInt));
+  perm = (PetscInt *)malloc(n * sizeof(*perm));
   PetscCheck(perm, PETSC_COMM_SELF, PETSC_ERR_MEM, "Out of memory");
   for (PetscInt i = 0; i < n; ++i) perm[i] = i;
   PetscCall(PetscSortStrWithPermutation(n, (const char **)shortfunction, perm));
