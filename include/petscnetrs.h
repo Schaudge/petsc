@@ -64,7 +64,7 @@ PETSC_EXTERN PetscErrorCode NetRSSetNetwork(NetRS,DM);
 PETSC_INTERN PetscErrorCode NetRSGetNetwork(NetRS,DM*); /* Could potentially make public but ensure if is safe/smart */
 
 
-PETSC_EXTERN PetscErrorCode NetRSSolveFlux(NetRS); 
+PETSC_EXTERN PetscErrorCode NetRSSolveFlux(NetRS,Vec,Vec); 
 
 PETSC_EXTERN PetscErrorCode NetRSSetApplicationContext(NetRS,void*);
 PETSC_EXTERN PetscErrorCode NetRSGetApplicationContext(NetRS,void*);
@@ -78,12 +78,13 @@ PETSC_EXTERN PetscErrorCode NetRSSetUpVectorSpace(NetRS);
    to handle subsection on each point. 
 */
 
-PETSC_EXTERN PetscErrorCode NetRSGetVecSizeAtVertex(NetRS,PetscInt*); 
-PETSC_EXTERN PetscErrorCode NetRSGetUArray()
+PETSC_EXTERN PetscErrorCode NetRSGetVecSizeAtVertex(NetRS,PetscInt,PetscInt*,PetscInt*);
+PETSC_EXTERN PetscErrorCode NetRSGetVertexVecOffset(NetRS,PetscInt,PetscInt*,PetscInt*); 
+PETSC_EXTERN PetscErrorCode NetRSCreateLocalVec(NetRS,Vec*); 
 
 // PETSC_EXTERN PetscErrorCode NetRSAddNetRPatVertices(NetRS,PetscInt,PetscInt*,NetRP); 
 
-
+\
 
 /* Error Estimator Support WIP */
 
