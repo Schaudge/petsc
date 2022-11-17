@@ -23,8 +23,9 @@ PetscErrorCode  NetRPCreate(MPI_Comm comm, NetRP *rp)
   PetscValidPointer(rp,1);
   *rp = NULL;
   PetscCall(NetRPInitializePackage());
-  PetscCall(PetscHMapICreate(&(*rp)->hmap));
   PetscCall(PetscHeaderCreate(r, NETRP_CLASSID, "NetRP", "Local Network Riemann Problem", "NetRP", comm, NetRPDestroy, NetRPView));
+  PetscCall(PetscHMapICreate(&r->hmap));
+
   /* Add default behavior for NetRP here */
   r->flux              = PETSC_NULL;
   /* Assume worst case situation */

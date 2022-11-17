@@ -59,8 +59,10 @@ struct _p_NetRS {
   Vec            U, Flux;  /* total vectors for the input U and output Flux, includes all NetRP problems added to the NetRS */ 
   Vec           Uv,Fluxv; /*subvecs of Uloc and Fluxloc corresponding to vector space of a vertex Riemann Problem */
   IS             is_wrk; /*work IS for getting subvectors for vertex points. Should Put a better interface for subvecs into vec itself that can access directly through a section point pair */
+  PetscInt       *is_wrk_index; /*work indices for the IS */
+ 
   /* DMNetwork Graph stuff, should be moved to DMNetwork itself */
-  PetscBool      vertexdeg_shared_cached; 
+  PetscBool      vertexdeg_shared_cached,vertex_offset_cached; 
   /* This label should also be a disjoint label if that implementation exists */
   DMLabel        VertexDeg_shared; /*TODO: Name Better. Stores the vertex degrees for all 
   share vertices . 

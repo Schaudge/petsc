@@ -68,8 +68,8 @@ static PetscErrorCode MakeOrder(PetscInt dof, PetscInt *order,PetscInt maxdegree
 
 int main(int argc,char *argv[])
 {
-  char              physname[256] = "shallow", errorestimator[256] = "lax", outputfile[256];
-  PetscFunctionList physics = 0,errest = 0;
+  char              physname[256] = "shallow", outputfile[256];
+  PetscFunctionList physics = 0;
   MPI_Comm          comm;
   TS                ts;
   DGNetwork         dgnet;
@@ -78,7 +78,6 @@ int main(int argc,char *argv[])
   PetscMPIInt       size,rank;
   PetscBool         limit=PETSC_TRUE,view3d=PETSC_FALSE,viewglvis=PETSC_FALSE,glvismode=PETSC_FALSE,viewfullnet=PETSC_FALSE,savefinal=PETSC_FALSE;
   DGNetworkMonitor  monitor=NULL;
-  NRSErrorEstimator errorest;
   DGNetworkMonitor_Glvis monitor_gl;
   PetscViewer       vecbinary; 
 
@@ -89,11 +88,6 @@ int main(int argc,char *argv[])
 
   /* Register physical models to be available on the command line */
   PetscCall(PetscFunctionListAdd(&physics,"shallow"         ,PhysicsCreate_Shallow));
-
-  /* register error estimator functions */
-  PetscCall(PetscFunctionListAdd(&errest,"roe"         ,NetRSRoeErrorEstimate));
-  PetscCall(PetscFunctionListAdd(&errest,"lax"         ,NetRSLaxErrorEstimate));
-  PetscCall(PetscFunctionListAdd(&errest,"taylor"      ,NetRSTaylorErrorEstimate));
 
   PetscCall(PetscCalloc1(1,&dgnet)); /* Replace with proper dgnet creation function */
   /* Set default values */
@@ -117,7 +111,6 @@ int main(int argc,char *argv[])
   /* Command Line Options */
   PetscOptionsBegin(comm,NULL,"DGNetwork solver options","");
     PetscCall(PetscOptionsFList("-physics","Name of physics model to use","",physics,physname,physname,sizeof(physname),NULL));
-    PetscCall(PetscOptionsFList("-errest","","",errest,errorestimator,errorestimator,sizeof(physname),NULL));
     PetscCall(PetscOptionsInt("-initial","Initial Condition (depends on the physics)","",dgnet->initial,&dgnet->initial,NULL));
     PetscCall(PetscOptionsInt("-network","Network topology to load, along with boundary condition information","",dgnet->networktype,&dgnet->networktype,NULL));
     PetscCall(PetscOptionsReal("-cfl","CFL number to time step at","",dgnet->cfl,&dgnet->cfl,NULL));
@@ -193,15 +186,14 @@ int main(int argc,char *argv[])
   PetscCall(RiemannSolverSetUp(dgnet->physics.rs));
 
   /* Set up NetRS */
-  PetscCall(PetscFunctionListFind(errest,errorestimator,&errorest));
-  PetscCall(DGNetworkAssignNetRS(dgnet,dgnet->physics.rs,errorest,1));
+  PetscCall(DGNetworkAssignNetRS(dgnet));
   PetscCall(DGNetworkProject(dgnet,dgnet->X,0.0));
 
   /* Create a time-stepping object */
   PetscCall(TSCreate(comm,&ts));
   PetscCall(TSSetApplicationContext(ts,dgnet));
 
-  PetscCall(TSSetRHSFunction(ts,NULL,DGNetRHS_NETRSVERSION2,dgnet));
+  PetscCall(TSSetRHSFunction(ts,NULL,DGNetRHS,dgnet));
 
   PetscCall(TSSetType(ts,TSSSP));
   PetscCall(TSSetMaxTime(ts,maxtime));
@@ -243,7 +235,6 @@ int main(int argc,char *argv[])
   }
   PetscCall(RiemannSolverDestroy(&dgnet->physics.rs));
   PetscCall(PetscFree(dgnet->physics.order));
-  PetscCall(DGNetworkDestroyNetRS(dgnet));
   PetscCall(DGNetworkDestroy(dgnet)); /* Destroy all data within the network and within dgnet */
   PetscCall(DMDestroy(&dgnet->network));
   PetscCall(PetscFree(dgnet));

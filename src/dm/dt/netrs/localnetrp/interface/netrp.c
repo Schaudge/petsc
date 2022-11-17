@@ -27,8 +27,10 @@ PetscErrorCode  NetRPSetUp(NetRP rp)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp,NETRP_CLASSID,1);
   if (rp->setupcalled) PetscFunctionReturn(0);
+  rp->setupcalled = PETSC_TRUE;
   PetscCheck(rp->flux,PetscObjectComm((PetscObject)rp),PETSC_ERR_ARG_WRONGSTATE,"Requires a Flux to be set");
   PetscCall(RiemannSolverSetUp(rp->flux));
+  PetscTryTypeMethod(rp,setup);
   /* check riemann problem and physics consistency */
   PetscCall(RiemannSolverGetNumFields(rp->flux,&numfield_flux)); 
   switch(rp->physicsgenerality)
@@ -42,7 +44,6 @@ PetscErrorCode  NetRPSetUp(NetRP rp)
       PetscCheck(numfield_flux == numfield_rp, PetscObjectComm((PetscObject)rp),PETSC_ERR_ARG_WRONGSTATE,"The physics number of fields : %" PetscInt_FMT " is not the same as the riemann problem number of fields  %" PetscInt_FMT, numfield_flux, numfield_rp);
       break;
   }
-  rp->setupcalled = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
  
@@ -223,7 +224,7 @@ PetscErrorCode NetRPCreateKSP(NetRP rp, PetscInt vertdeg, KSP *ksp)
 
   if(rp->ops->setupksp) PetscCall((rp->ops->setupksp)(rp,vertdeg,_ksp));
   PetscCall(KSPSetFromOptions(_ksp));
-  PetscCall(KSPSetUp(_ksp)); 
+ // PetscCall(KSPSetUp(_ksp)); DO NOT SETUP AS KSP only "sets up" when is actually has a linear operator on it.  
   *ksp = _ksp; 
   PetscFunctionReturn(0); 
 }
@@ -411,7 +412,7 @@ PetscErrorCode NetRPAddVertexDegrees(NetRP rp, PetscInt numdegs, PetscInt *vertd
   for(i=0; i<numdegs; i++) {
     PetscCheck(vertdegs[i]>0,PetscObjectComm((PetscObject)rp),PETSC_ERR_USER_INPUT,"NetRP requires vertex degrees to be greater than 0 not %" PetscInt_FMT, vertdegs[i]); 
     PetscCall(PetscHMapIHas(rp->hmap, vertdegs[i],&flg)); 
-    if (flg) totalnew++; 
+    if (!flg) totalnew++; 
   }
   if (totalnew == 0) PetscFunctionReturn(0);
   /* reallocate solver cache arrays with room for new entries */
@@ -436,7 +437,7 @@ PetscErrorCode NetRPAddVertexDegrees(NetRP rp, PetscInt numdegs, PetscInt *vertd
   off = 0; 
   for (i=0; i< numdegs; i++) {
     PetscCall(PetscHMapIHas(rp->hmap, vertdegs[i],&flg)); 
-    if (!flg) break;
+    if (flg) break;
     PetscCall(PetscHMapISet(rp->hmap,vertdegs[i],numentries+off)); 
     /* only create what is needed */
     switch(rp->solvetype)
@@ -651,7 +652,6 @@ PetscErrorCode NetRPGetFlux(NetRP rp, RiemannSolver *rs)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp,NETRP_CLASSID,1);
-  PetscValidHeaderSpecific(*rs,RIEMANNSOLVER_CLASSID,1); 
   if(rp->flux) *rs = rp->flux; 
   PetscFunctionReturn(0);
 }
@@ -862,15 +862,16 @@ static PetscErrorCode NetRPComputeFluxInPlace_internal(NetRP rp, DM network, Pet
 PetscErrorCode NetRPSolveFlux(NetRP rp, DM network, PetscInt v, Vec U, Vec Flux)
 {
   PetscBool flg;
-  PetscInt  index; 
+  PetscInt  index,vdeg; 
   NetRPSNESctx snesctx; 
 
   PetscFunctionBegin;
   if(!rp->setupcalled) PetscCall(NetRPSetUp(rp)); 
   /* find index of cached solvers */
-  PetscCall(PetscHMapIHas(rp->hmap,v,&flg));
-  if(!flg) PetscCall(NetRPAddVertexDegrees(rp,1,&v)); 
-  PetscCall(PetscHMapIGet(rp->hmap,v,&index)); 
+  PetscCall(DMNetworkGetSupportingEdges(network,v,&vdeg,NULL));
+  PetscCall(PetscHMapIHas(rp->hmap,vdeg,&flg));
+  if(!flg) PetscCall(NetRPAddVertexDegrees(rp,1,&vdeg)); 
+  PetscCall(PetscHMapIGet(rp->hmap,vdeg,&index)); 
 
   /* switch based on type of NetRP */
   switch(rp->solvetype) 
@@ -890,7 +891,7 @@ PetscErrorCode NetRPSolveFlux(NetRP rp, DM network, PetscInt v, Vec U, Vec Flux)
       } else {
         SETERRQ(PetscObjectComm((PetscObject)rp), PETSC_ERR_PLIB,"No available solver for NetRPSolveFlux. This should not happen and should be caught at NetRPSetUp(). Solver Type is: LINEAR"); 
       }
-      
+      break; 
     case Nonlinear:
       snesctx.dm = network; 
       snesctx.v  = v; 
@@ -898,8 +899,10 @@ PetscErrorCode NetRPSolveFlux(NetRP rp, DM network, PetscInt v, Vec U, Vec Flux)
       snesctx.U  = U; 
       PetscCall(SNESSetApplicationContext(rp->snes[index],(void*)&snesctx)); 
       PetscCall(SNESSolve(rp->snes[index],NULL,Flux)); 
+      break; 
     case Other: 
       PetscUseTypeMethod(rp,solveFlux,network,v,U,Flux); 
+      break; 
   }
   PetscFunctionReturn(0); 
 }

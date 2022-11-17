@@ -35,7 +35,7 @@ static PetscErrorCode NetRPCreateLinearStar_Linearized(NetRP rp, DM network, Pet
   PetscCall(DMNetworkGetSupportingEdges(network,v,&numedges,&edges)); 
   PetscCall(NetRPGetNumFields(rp,&numfields));
 /* Build the system matrix and rhs vector */
-  for (i=0; i<numedges; i++) {
+  for (i=1; i<numedges; i++) {
     index_h = i*numfields; 
     index_hv = index_h+1; 
     h  = u[index_h];
@@ -46,17 +46,29 @@ static PetscErrorCode NetRPCreateLinearStar_Linearized(NetRP rp, DM network, Pet
       ShallowRiemannEig_Left(h,v) : ShallowRiemannEig_Right(h,v); /* replace with RiemannSolver Calls */
     PetscCall(MatSetValue(A,index_hv,index_hv,-1 ,INSERT_VALUES)); /* hv* term */
     PetscCall(MatSetValue(A,index_hv,index_h,eig,INSERT_VALUES));      /* h* term */
-    PetscCall(MatSetValue(A,0,index_hv,cone[1] == v ? 1:-1,INSERT_VALUES));  
+    PetscCall(MatSetValue(A,1,index_hv,cone[1] == v ? 1:-1,INSERT_VALUES));  /* flux balance bdry condition */
     rhs[index_hv] = eig*h-hv; /* riemann invariant at the boundary */
-  }
-  rhs[0] = 0.0; 
   /* equal height algebraic coupling condition */
-  for(i=1;i<numedges; i++){
     index_h = i*numfields; 
     PetscCall(MatSetValue(A,index_h,index_h-numfields,-1, INSERT_VALUES)); 
     PetscCall(MatSetValue(A,index_h,index_h,1,INSERT_VALUES)); 
     rhs[index_h] = 0.0; 
   }
+
+  /* first row requires a change as to ensure non-zero diagonal, a permutation of the first t
+     two rows in teh "standard ordering is needed */
+    h  = u[0];
+    hv = u[1];
+    v  = hv/h; 
+    PetscCall(DMNetworkGetConnectedVertices(network,edges[i],&cone)); 
+    eig = cone[1] == v ? 
+      ShallowRiemannEig_Left(h,v) : ShallowRiemannEig_Right(h,v); /* replace with RiemannSolver Calls */
+    PetscCall(MatSetValue(A,0,1,-1 ,INSERT_VALUES)); /* hv* term */
+    PetscCall(MatSetValue(A,0,0,eig,INSERT_VALUES));      /* h* term */
+    PetscCall(MatSetValue(A,1,1,cone[1] == v ? 1:-1,INSERT_VALUES));  /* flux balance bdry condition */
+    rhs[0] = eig*h-hv; /* riemann invariant at the boundary */
+    rhs[1] = 0.0; 
+
   PetscCall(VecRestoreArray(Rhs,&rhs));
   PetscCall(VecRestoreArrayRead(U,&u));
   PetscCall(MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY));
@@ -87,6 +99,8 @@ PETSC_EXTERN PetscErrorCode NetRPCreate_Linearized(NetRP rp)
   rp->ops->createLinearStar = NetRPCreateLinearStar_Linearized; 
   rp->physicsgenerality = Specific; /* should be general, this is the wrong implementation */ 
   rp->solvetype         = Linear; 
+  
+  rp->numfields = 2; /*speficif for now */
   PetscFunctionReturn(0);
 }
 

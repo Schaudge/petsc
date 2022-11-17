@@ -383,14 +383,14 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
 }
 
 PetscErrorCode DGNetworkSetComponents(DGNetwork dgnet){
-  PetscInt          f,i,e,v,eStart,eEnd,vStart,vEnd,dof = dgnet->physics.dof;
-  PetscInt          KeyEdge,KeyJunction,KeyFlux,vfrom,vto,nedges_tmp,nedges,nvertices;
+  PetscInt          f,e,v,eStart,eEnd,vStart,vEnd,dof = dgnet->physics.dof;
+  PetscInt          KeyEdge,KeyJunction,nedges_tmp,nedges,nvertices;
   PetscInt          *edgelist = NULL,dmsize=0,numdof=0;
   EdgeFE            edgefe;
   Junction          junction;
   MPI_Comm          comm = dgnet->comm;
   PetscMPIInt       size,rank;
-  const PetscInt    *cone,*edges;
+  const PetscInt    *edges;
 
   PetscFunctionBegin;
   PetscCall(MPI_Comm_rank(comm,&rank));
@@ -411,7 +411,6 @@ PetscErrorCode DGNetworkSetComponents(DGNetwork dgnet){
   PetscCall(DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd));
   PetscCall(DMNetworkRegisterComponent(dgnet->network,"junctionstruct",sizeof(struct _p_Junction),&KeyJunction));
   PetscCall(DMNetworkRegisterComponent(dgnet->network,"fvedgestruct",sizeof(struct _p_EdgeFE),&KeyEdge));
-  PetscCall(DMNetworkRegisterComponent(dgnet->network,"flux",0,&KeyFlux));
 
   /* Add FVEdge component to all local edges. Note that as we have
      yet to distribute the network, all data is on proc[0]. */
@@ -428,40 +427,13 @@ PetscErrorCode DGNetworkSetComponents(DGNetwork dgnet){
     dmsize = numdof*edgefe->nnodes;
     PetscCall(DMNetworkAddComponent(dgnet->network,e,KeyEdge,edgefe,dmsize));
   }
-  /* Add Junction component to all local vertices. All data is currently assumed to be on proc[0]. Also add the flux component */
+  /* Add Junction component to all local vertices. */
   for (v=vStart; v<vEnd; v++) {
     junction = &dgnet->junction[v-vStart];
     PetscCall(DMNetworkAddComponent(dgnet->network,v,KeyJunction,junction,0));
     PetscCall(DMNetworkGetSupportingEdges(dgnet->network,v,&nedges_tmp,&edges));
-    /* Add data structure primarily for moving the vertex fluxes around. Is used throughout
-       passing various data between processors. */
-    PetscCall(DMNetworkAddComponent(dgnet->network,v,KeyFlux,NULL,dof*nedges_tmp));
   }
   PetscCall(DMSetUp(dgnet->network));
-  /* Build the edge offset data to allow for a sensible local ordering of the
-     edges of a vertex. Needed so that the data belonging to a vertex knows
-     which edge each piece should interact with. */
-  for (v=vStart; v<vEnd; v++) {
-    PetscCall(DMNetworkGetComponent(dgnet->network,v,JUNCTION,NULL,(void**)&junction,NULL));
-    PetscCall(DMNetworkGetSupportingEdges(dgnet->network,v,&nedges_tmp,&edges));
-    junction->numedges = nedges_tmp;
-    /* Iterate through the connected edges. As we are on a single processor, DMNetworkGetSupportingEdges which returns
-       on processor edges, will be returning ALL connected edges on the graph. */
-    for (i=0; i<nedges_tmp; i++) {
-      e     = edges[i];
-      PetscCall(DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL));
-      PetscCall(DMNetworkGetConnectedVertices(dgnet->network,e,&cone));
-      vfrom = cone[0];
-      vto   = cone[1];
-      if (v==vto) {
-        edgefe->offset_vto = dof*i;
-      } else if (v==vfrom) {
-        edgefe->offset_vfrom = dof*i;
-      } else {
-        SETERRQ(PetscObjectComm((PetscObject)(dgnet->network)),PETSC_ERR_ARG_WRONG,"v %D != vfrom or vto from supporting edge %D",v,e);
-      }
-    }
-  }
   PetscFunctionReturn(0);
 }
 
@@ -504,71 +476,10 @@ PetscErrorCode DGNetworkAddMonitortoEdges_Glvis_3D(DGNetwork dgnet, DGNetworkMon
   PetscFunctionReturn(0);
 }
 
-/* Now we have a distributed network. It is assumed that localX and Ftmp have been created in dgnet */
+/* Only call after network is distirbuted. Rework some stuff otherwise... */
 PetscErrorCode DGNetworkBuildDynamic(DGNetwork dgnet)
 {
-  PetscInt       e,v,i,nedges,dof = dgnet->physics.dof;
-  PetscInt       eStart,eEnd,vStart,vEnd,vfrom,vto,offset;
-  const PetscInt *cone,*edges; 
-  EdgeFE         edgefe;
-  Junction       junction;
-  Vec            localX = dgnet->localX;
-  PetscScalar    *xarr;
-
   PetscFunctionBegin;
-  PetscCall(VecSet(dgnet->Ftmp,0.0));
-  PetscCall(VecSet(localX,0.0));
-  PetscCall(VecGetArray(localX,&xarr));
-  PetscCall(DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd));
-  PetscCall(DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd));
-  /* Build the data so that vertex knows what edges point into it, and which edges point out.
-     We temporarily use the flux component to set up this structure. At the end it will be locally
-     stored, but we have to do a message-passing start up to get all of the right
-     information onto the local processors. */
-  for (v=vStart; v<vEnd; v++) {
-    PetscCall(DMNetworkGetComponent(dgnet->network,v,JUNCTION,NULL,(void**)&junction,NULL));
-    PetscCall(DMNetworkGetSupportingEdges(dgnet->network,v,&nedges,&edges));
-    PetscCall(DMNetworkGetLocalVecOffset(dgnet->network,v,FLUX,&offset));
-    /* Iterate through the (local) connected edges. Each ghost vertex of a vertex connects to a
-       a non-overlapping set of local edges. This is why we can iterate in this way without
-       potentially conflicting our scatters.*/
-    for (i=0; i<nedges; i++) {
-      e     = edges[i];
-      PetscCall(DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void **)&edgefe,NULL));
-      PetscCall(DMNetworkGetConnectedVertices(dgnet->network,e,&cone));
-      vfrom = cone[0];
-      vto   = cone[1];
-      if (v==vto) {
-        xarr[offset+edgefe->offset_vto]   = EDGEIN;
-      } else if (v==vfrom) {
-        xarr[offset+edgefe->offset_vfrom] = EDGEOUT;
-      } else {
-        SETERRQ(PetscObjectComm((PetscObject)(dgnet->network)),PETSC_ERR_ARG_WRONG,"vertex %D != vfrom or vto from supporting edge %D",v,e);
-      }
-    }
-  }
-  PetscCall(VecRestoreArray(localX,&xarr));
-  PetscCall(DMLocalToGlobalBegin(dgnet->network,localX,ADD_VALUES,dgnet->Ftmp));
-  PetscCall(DMLocalToGlobalEnd(dgnet->network,localX,ADD_VALUES,dgnet->Ftmp));
-  /* Now the flux components hold the edgein/edgeout information for all edges connected to the vertex (not just the local edges) */
-  PetscCall(DMGlobalToLocalBegin(dgnet->network,dgnet->Ftmp,INSERT_VALUES,localX));
-  PetscCall(DMGlobalToLocalEnd(dgnet->network,dgnet->Ftmp,INSERT_VALUES,localX));
-  PetscCall(VecGetArray(localX,&xarr));
-  /* Iterate through all vertices and build the junction component data structure dir and local
-     work array flux */
-  for (v=vStart; v<vEnd; v++) {
-    PetscCall(DMNetworkGetComponent(dgnet->network,v,JUNCTION,NULL,(void**)&junction,NULL));
-    PetscCall(DMNetworkGetLocalVecOffset(dgnet->network,v,FLUX,&offset));
-    PetscCall(PetscMalloc1(junction->numedges,&(junction->dir))); /* Freed in the network destroy call */
-    PetscCall(PetscMalloc1(dof*junction->numedges,&(junction->flux))); /* Freed in the network destroy call */
-    PetscCall(PetscMalloc1(dof*junction->numedges,&(junction->fluctuation))); /* Freed in the network destroy call, to be refactored out later */
-
-    /* Fill in the local dir data */
-    for (i=0; i<junction->numedges; i++) {
-      junction->dir[i] = xarr[offset+i*dof];
-    }
-  }
-  PetscCall(VecRestoreArray(localX,&xarr));
   PetscCall(DGNetworkBuildEdgeDM(dgnet));
   PetscFunctionReturn(0);
 }
@@ -792,56 +703,49 @@ PetscErrorCode DGNetworkViewEdgeGeometricInfo(DGNetwork dgnet, PetscViewer viewe
   PetscFunctionReturn(0);
 }
 
-/* WIP Dispatches a netrs for each vertex on the dmnetwork. I think i will rework netrs to internally
-hold a dmnetwork, or maybe add itself as a component to an existing dmnetwork? I could try both ...*/
-PetscErrorCode DGNetworkAssignNetRS(DGNetwork dgnet,RiemannSolver rs,NRSErrorEstimator errorest,PetscReal adapttol)
+/* WIP, builds the NetRP objects and assigns the to verrtices of the NetRS, make cleaner later  */
+PetscErrorCode DGNetworkAssignNetRS(DGNetwork dgnet)
 {
-  PetscErrorCode ierr;
-  PetscInt       v,vStart,vEnd;
-  Junction       junct;
+  PetscInt       v,vStart,vEnd,vdeg; 
+  NetRP          netrpbdry,netrpcouple; 
 
   PetscFunctionBegin;
   PetscCall(DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd));
+  PetscCall(NetRPCreate(PETSC_COMM_SELF,&netrpbdry));
+  PetscCall(NetRPSetType(netrpbdry,NETRPOUTFLOW)); 
+  PetscCall(NetRPSetFlux(netrpbdry,dgnet->physics.rs)); 
+
+  PetscCall(DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd));
+  PetscCall(NetRPCreate(PETSC_COMM_SELF,&netrpcouple));
+  if(dgnet->linearcoupling) {
+    PetscCall(NetRPSetType(netrpcouple,NETRPLINEARIZED)); 
+  } else {
+    PetscCall(NetRPSetType(netrpcouple,NETRPLINEARIZED)); 
+  }
+  PetscCall(NetRPSetFlux(netrpcouple,dgnet->physics.rs)); 
+
+
+  PetscCall(NetRSCreate(PETSC_COMM_WORLD,&dgnet->netrs)); 
+  PetscCall(NetRSSetFromOptions(dgnet->netrs)); 
+  PetscCall(NetRSSetFlux(dgnet->netrs,dgnet->physics.rs)); 
+  PetscCall(NetRSSetNetwork(dgnet->netrs,dgnet->network)); 
+  PetscCall(NetRSSetUp(dgnet->netrs)); 
+
   for (v=vStart; v<vEnd; v++) {
-    PetscCall(DMNetworkGetComponent(dgnet->network,v,JUNCTION,NULL,(void**)&junct,NULL));
-    PetscCall(NetRSCreate(MPI_COMM_SELF,&junct->netrs));
-    PetscCall(NetRSSetRiemannSolver(junct->netrs,rs));
-    PetscCall(NetRSSetNumEdges(junct->netrs,junct->numedges));
-    ierr = NetRSSetApplicationContext(junct->netrs,dgnet->physics.user);
-    if(errorest) PetscCall(NetRSSetErrorEstimate(junct->netrs,errorest));
     /*
       type dispatching depending on number of edges
     */
-    if(junct->numedges == 1) {
-      PetscCall(NetRSSetType(junct->netrs,NETRSOUTFLOW));
-    } else if(junct->numedges == 2) {
-      PetscCall(NetRSSetType(junct->netrs,NETRSRIEMANN));
+   PetscCall(NetRSGetVertexDegree(dgnet->netrs,v,&vdeg));
+    if(vdeg == 1) {
+      PetscCall(NetRSAddNetRPatVertex(dgnet->netrs,v,netrpbdry));
     } else {
-      if(dgnet->linearcoupling){
-        PetscCall(NetRSSetType(junct->netrs,NETRSLINEAR));
-      } else {
-        PetscCall(NetRSSetType(junct->netrs,NETRSEXACTSWE));
-      }
-      PetscCall(NetRSSetFineTol(junct->netrs,adapttol));
+      PetscCall(NetRSAddNetRPatVertex(dgnet->netrs,v,netrpcouple)); 
     }
-    PetscCall(NetRSSetFromOptions(junct->netrs));
-    PetscCall(NetRSSetUp(junct->netrs));
   }
-  PetscFunctionReturn(0);
-}
-
-/* Destroy the NetRS componenets of the junctions of a network */
-PetscErrorCode DGNetworkDestroyNetRS(DGNetwork dgnet)
-{
-  PetscInt       v,vStart,vEnd;
-  Junction       junct;
-
-  PetscFunctionBegin;
-  PetscCall(DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd));
-  for (v=vStart; v<vEnd; v++) {
-    PetscCall(DMNetworkGetComponent(dgnet->network,v,JUNCTION,NULL,(void**)&junct,NULL));
-    PetscCall(NetRSDestroy(&junct->netrs));
-  }
+  PetscCall(NetRSCreateLocalVec(dgnet->netrs,&dgnet->Flux)); 
+  PetscCall(NetRSCreateLocalVec(dgnet->netrs,&dgnet->RiemannData)); 
+  PetscCall(NetRPDestroy(&netrpbdry)); 
+  PetscCall(NetRPDestroy(&netrpcouple));
   PetscFunctionReturn(0);
 }
 
@@ -918,13 +822,6 @@ PetscErrorCode DGNetworkDestroy(DGNetwork dgnet)
   PetscCall(DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd));
   for (v=vStart; v<vEnd; v++) {
     PetscCall(DMNetworkGetComponent(dgnet->network,v,JUNCTION,NULL,(void**)&junction,NULL));
-    /* Free dynamic memory for the junction component */
-    PetscCall(PetscFree(junction->dir));
-    PetscCall(PetscFree(junction->flux));
-    PetscCall(PetscFree(junction->fluctuation));
-    PetscCall(VecDestroy(&junction->rcouple));
-    PetscCall(VecDestroy(&junction->xcouple));
-    PetscCall(MatDestroy(&junction->mat));
   }
 
   PetscCall(PetscFree2(dgnet->R,dgnet->Rinv));
@@ -939,6 +836,10 @@ PetscErrorCode DGNetworkDestroy(DGNetwork dgnet)
   PetscCall(VecDestroy(&dgnet->Ftmp));
   PetscCall(VecDestroy(&dgnet->localX));
   PetscCall(VecDestroy(&dgnet->localF));
+  PetscCall(VecDestroy(&dgnet->Flux)); 
+  PetscCall(VecDestroy(&dgnet->RiemannData));
+  PetscCall(NetRSDestroy(&dgnet->netrs));
+
   PetscFunctionReturn(0);
 }
 
@@ -1327,46 +1228,6 @@ static void f0_circle_b(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   xp[0] = yy*PetscSqrtReal(1-PetscPowReal(zz,2)/2.)/10.;
   xp[2] =  zz*PetscSqrtReal(1-PetscPowReal(yy,2)/2.)/10.;
   xp[1] = -2.*x[0]-0.1;
-}
-
-/* 2D transformations */
-static void f0_l_2d(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                     PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar xp[])
-{
-  xp[0] = x[0]-10;
-  xp[1] = x[1];
-
-}
-
-static void f0_r_2d(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                     PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar xp[])
-{
-  xp[0] =  x[0];
-  xp[1] =  x[1];
-}
-
-/* 3d visualization of a network element, transformation of unit cube to unit cylinder element. */
-static void f0_t_2d(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                     PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar xp[])
-{
-  xp[0] =  x[1];
-  xp[1] =  x[0]+0.5;
-}
-
-/* 3d visualization of a network element, transformation of unit cube to unit cylinder element. */
-static void f0_b_2d(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                     PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar xp[])
-{
-  xp[0] = x[1];
-  xp[1] = x[0];
 }
 
 static PetscErrorCode DGNetworkCreateViewDM(DM dm)
