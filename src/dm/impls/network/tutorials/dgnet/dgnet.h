@@ -6,6 +6,7 @@
 #include <petscts.h>
 #include <petscriemannsolver.h>
 #include <petscnetrs.h>
+#include <petscnetrp.h>
 
 /* Function Specification for coupling flux calculations at the vertex */
 typedef PetscErrorCode (*VertexFlux)(const void*,const PetscScalar*,const PetscBool*,PetscScalar*,PetscScalar*,const void*);
@@ -14,18 +15,10 @@ typedef PetscErrorCode (*VertexFlux)(const void*,const PetscScalar*,const PetscB
 
 /* Component numbers used for accessing data in DMNetWork*/
 typedef enum {FVEDGE=0} EdgeCompNum;
-typedef enum {JUNCTION=0,FLUX=1} VertexCompNum;
+typedef enum {JUNCTION=0} VertexCompNum;
 
 struct _p_Junction {
-  Mat           mat;
-  Vec           xcouple,rcouple;  /* Information for nonlinear solver for coupling flux */
-  EdgeDirection *dir;     /* In the local ordering whether index i point into or out of the vertex. PetscTrue points out. */
-  PetscReal     x,y,fluct;
-  PetscInt      numedges; /* Number of edges connected to this vertex (globally) */
-  /* Coupling Context */
-  VertexFlux    couplingflux; /* Vertex flux function for coupling junctions (two or more incident edges)*/
-  PetscScalar   *flux,*fluctuation ;  /* Local work array for vertex fluxes. len = dof*numedges */
-  NetRS         netrs; /* experimental class for network coupling, will replace most of the coupling condition parts of junction */
+  PetscReal     x,y;
 } PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
 typedef struct _p_Junction *Junction;
 
@@ -37,9 +30,6 @@ typedef struct _p_MultirateCtx *MultirateCtx;
 
 struct _p_EdgeFE
 {
-  /* identification variables */
-  PetscInt    offset_vto,offset_vfrom; /* offsets for placing the reconstruction data and setting flux data
-                                          for the edge cells */
   /* solver objects */
   PetscReal   cfl_idt; /* Max allowable value of fvnet->cfl/Delta t on this edge*/
   /* Mesh object */
@@ -95,6 +85,7 @@ struct _p_DGNetwork
   PetscInt    *edgelist;               /* local edge list */
   Vec         localX,localF;           /* vectors used in local function evalutation */
   Vec         X,Ftmp;                  /* Global vectors used in function evaluations */
+  Vec         RiemannData,Flux;        /*used with NetRS*/
   PetscInt    nnodes_loc;              /* num of local nodes */
   DM          network;
   SNES        snes;                    /* Temporary hack to hold a nonlinear solver. Used for the nonlinear riemann invariant solver.
@@ -107,6 +98,7 @@ struct _p_DGNetwork
   char        prefix[256];
   void        (*limit)(const PetscScalar*,const PetscScalar*,PetscScalar*,PetscInt);
   PetscErrorCode (*gettimestep)(TS ts, PetscReal *dt);
+  NetRS       netrs; 
 
   /* DG Basis Evaluations and Quadrature */
   /* These are arrays with LegEval[fieldtotab[f]] giving the legendre evaluations for the given field
@@ -324,11 +316,8 @@ extern PetscErrorCode DGNetlimiter(TS, PetscReal, PetscInt, Vec*);
 /* Nest stuff. For use with concurrent simulations. WIP */
 extern PetscErrorCode DGNetlimiter_Nested(TS, PetscReal,PetscInt,Vec*);
 
-/* NETRS Stuff WIP (should be moved to NetRS itself)  */
-extern PetscErrorCode DGNetRHS_NETRSVERSION(TS,PetscReal,Vec,Vec,void*);
-extern PetscErrorCode DGNetRHS_NETRSVERSION2(TS,PetscReal,Vec,Vec,void*);
+extern PetscErrorCode DGNetRHS(TS,PetscReal,Vec,Vec,void*);
 
-extern PetscErrorCode DGNetworkAssignNetRS(DGNetwork,RiemannSolver,NRSErrorEstimator,PetscReal);
+extern PetscErrorCode DGNetworkAssignNetRS(DGNetwork);
 extern PetscErrorCode DGNetRHS_NETRS_Nested(TS,PetscReal,Vec,Vec,void*);
-extern PetscErrorCode DGNetworkDestroyNetRS(DGNetwork);
 #endif

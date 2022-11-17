@@ -548,7 +548,7 @@ PetscErrorCode  NetRPInitializePackage(void)
 
   PetscFunctionBegin;
   if (NetRPPackageInitialized) PetscFunctionReturn(0);
-  NetRSPackageInitialized = PETSC_TRUE;
+  NetRPPackageInitialized = PETSC_TRUE;
   /* Inialize subpackages */
     
   /* Register Classes */

@@ -59,7 +59,6 @@ PETSC_EXTERN PetscErrorCode NetRPGetSolveType(NetRP,NetRPSolveType*);
 PETSC_EXTERN PetscErrorCode NetRPSetPhysicsGenerality(NetRP,NetRPPhysicsGenerality);
 PETSC_EXTERN PetscErrorCode NetRPGetPhysicsGenerality(NetRP,NetRPPhysicsGenerality*);
 
-PETSC_EXTERN PetscErrorCode NetRPSetNumFields(NetRP,PetscInt); 
 PETSC_EXTERN PetscErrorCode NetRPGetNumFields(NetRP,PetscInt*);
 
 PETSC_EXTERN PetscErrorCode NetRPSetApplicationContext(NetRP,void*);

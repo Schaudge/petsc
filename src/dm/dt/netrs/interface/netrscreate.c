@@ -28,7 +28,7 @@ PetscErrorCode  NetRSCreate(MPI_Comm comm, NetRS *rs)
   PetscCall(DMLabelCreate(comm,"NetRSLabel",&r->subgraphs)); 
   PetscCall(DMLabelCreate(comm,"NetRS_DM_InternalTopological",&r->VertexDeg_shared));
   PetscCall(ISCreate(PETSC_COMM_SELF,&r->is_wrk));
-  PetscCall(ISSetType(r->is_wrk,ISSTRIDE));
+  PetscCall(ISSetType(r->is_wrk,ISGENERAL)); /* need a different kind of IS, or the ability to build subvecs out of section mappings */
   /* Add default behavior for NetRS here */
   r->setupcalled = PETSC_FALSE; 
   r->setupvectorspace = PETSC_FALSE; 
