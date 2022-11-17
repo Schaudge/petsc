@@ -68,6 +68,8 @@ PetscErrorCode  NetRSReset(NetRS rs)
   PetscCall(DMDestroy(&rs->network)); 
   PetscCall(DMLabelReset(rs->subgraphs)); 
   PetscCall(DMLabelReset(rs->VertexDeg_shared)); 
+  PetscCall(PetscHMapNetRPIReset(rs->netrphmap));
+  PetscCall(PetscHMapIDestroy(&rs->vertex_shared_offset));
   rs->vertexdeg_shared_cached = PETSC_FALSE; 
   rs->setupcalled = PETSC_FALSE;
   PetscFunctionReturn(0);
@@ -100,10 +102,9 @@ PetscErrorCode NetRSResetVectorSpace(NetRS rs)
   PetscCall(PetscFree(rs->vertexdegrees)); 
   PetscCall(PetscFree(rs->subgraphIS));
   PetscCall(PetscHSetIDestroy(&rs->vertexdegrees_total)); 
+  PetscCall(PetscHMapIDestroy(&rs->vertex_shared_vec_offset));
   PetscCall(VecDestroy(&rs->U)); 
   PetscCall(VecDestroy(&rs->Flux));
-  PetscCall(VecDestroy(&rs->Uloc)); 
-  PetscCall(VecDestroy(&rs->Fluxloc)); 
   rs->setupvectorspace = PETSC_FALSE;
   PetscFunctionReturn(0); 
 }
@@ -131,6 +132,7 @@ PetscErrorCode  NetRSDestroy(NetRS *rs)
   PetscCall(NetRSReset(*rs));
   PetscCall(DMLabelDestroy(&(*rs)->VertexDeg_shared));
   PetscCall(DMLabelDestroy(&(*rs)->subgraphs)); 
+  PetscCall(PetscHMapNetRPIDestroy(&(*rs)->netrphmap));
   PetscCall(ISDestroy(&(*rs)->is_wrk));
   PetscCall(PetscHeaderDestroy(rs));
   PetscFunctionReturn(0);
@@ -490,12 +492,16 @@ static PetscErrorCode NetRSSetNetRPPhysics(NetRS  rs)
  PetscErrorCode NetRSSetUpVectorSpace(NetRS rs)
  {  
 
-  PetscInt v,numnetrp,i,j,compindex,size,numfields,vdeg,maxsize,*vdegs,off; 
+  PetscInt v,numnetrp,i,j,compindex,size,numfields,vdeg,maxsize,off,index; 
+  PetscInt *vals,*keys,*vdegs;
   const PetscInt *v_subgraph;
   char  compname[64]; 
+  PetscBool flg; 
 
   PetscFunctionBegin; 
   PetscValidHeaderSpecific(rs,NETRS_CLASSID,1);
+  if(rs->setupvectorspace) PetscFunctionReturn(0); 
+
   PetscCall(NetRSSetNetRPPhysics(rs)); 
   /* For each NetRP on NetRS, add a component to the network and add dofs for the local Riemann problem 
   for the marked vertices  */
@@ -516,13 +522,12 @@ static PetscErrorCode NetRSSetNetRPPhysics(NetRS  rs)
       PetscCall(NetRSGetVertexDegree(rs,v,&vdeg)); 
       PetscCall(DMNetworkAddComponent(rs->network,v,i,NULL,numfields*vdeg)); /* each vertex riemann problem has this size */
     }
+    PetscCall(ISRestoreIndices(rs->subgraphIS[i],&v_subgraph));
   }
   PetscCall(DMNetworkFinalizeComponents(rs->network));
   /*Create the vectors used in the solver */
   PetscCall(DMCreateGlobalVector(rs->network,&rs->Flux)); 
   PetscCall(DMCreateGlobalVector(rs->network,&rs->U));
-  PetscCall(DMCreateLocalVector(rs->network,&rs->Uloc)); 
-  PetscCall(DMCreateLocalVector(rs->network,&rs->Fluxloc));
   /* Now we preallocate the NetRP solvers */
   PetscCall(PetscMalloc1(numnetrp,&rs->vertexdegrees));
   for(i=0; i<numnetrp; i++) {
@@ -542,6 +547,30 @@ static PetscErrorCode NetRSSetNetRPPhysics(NetRS  rs)
     PetscCall(NetRPAddVertexDegrees(rs->netrp[i],off,vdegs));
   }
   PetscCall(PetscFree(vdegs)); 
+
+  /* generate the local offsets for shared vertices and their vector spaces*/
+  PetscCall(DMNetworkCreateLocalEdgeNumbering(rs,rs->network));
+
+  /* create vector space offsets */
+  PetscCall(PetscHMapICreate(&rs->vertex_shared_vec_offset)); 
+  PetscCall(PetscHMapIGetSize(rs->vertex_shared_offset,&size)); 
+  PetscCall(PetscMalloc2(size,&keys,size,&vals));
+  off = 0; 
+  PetscCall(PetscHMapIGetPairs(rs->vertex_shared_offset,&off,keys,vals));
+
+  /*iterate through the shared vertex offsets and, if belonging to a netrp adjust offset 
+  by that netrp's numfields. Note this may be different for different vertices in this general implementation */
+
+  for(i=0; i<size; i++) {
+    PetscCall(DMLabelHasPoint(rs->subgraphs,keys[i],&flg)); 
+    if(!flg) break; 
+    PetscCall(DMLabelGetValue(rs->subgraphs,keys[i],&index)); 
+    PetscCall(NetRPGetNumFields(rs->netrp[index],&numfields)); 
+    PetscCall(PetscHMapISet(rs->vertex_shared_vec_offset,keys[i],vals[i]*numfields));
+  }
+  PetscCall(PetscFree2(keys,vals)); 
+
+  rs->setupvectorspace = PETSC_TRUE; 
   PetscFunctionReturn(0);
  }
 
@@ -642,11 +671,12 @@ needing a reduce  + bcast.
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(network,DM_CLASSID,2,DMNETWORK);
   PetscValidHeaderSpecific(rs,NETRS_CLASSID,1); 
-  if(rs->vertex_shared_offset) PetscFunctionReturn(0); /* already created the map */
+  if(rs->vertexdeg_shared_cached) PetscFunctionReturn(0); /* already created the map */
   PetscCall(PetscObjectGetComm((PetscObject)rs, &comm));
   PetscCallMPI(MPI_Comm_size(comm, &size));
   if (size == 1) 
   {
+    PetscCall(PetscHMapICreate(&rs->vertex_shared_offset)); 
     rs->vertexdeg_shared_cached = PETSC_TRUE; 
     PetscFunctionReturn(0);
   }
@@ -706,6 +736,7 @@ needing a reduce  + bcast.
   }
   PetscCall(PetscFree2(multirootdata,leafdata)); 
   PetscCall(PetscSectionDestroy(&rootsection)); 
+  rs->vertexdeg_shared_cached = PETSC_TRUE; 
   PetscFunctionReturn(0); 
 }
 
@@ -803,5 +834,104 @@ PetscErrorCode DMNetworkComputeUniqueVertexDegrees_Local(NetRS rs,DM network,DML
   PetscFunctionReturn(0);
 }
 
+/* 
+  should be replaced by a new version of petscsection that allows each point to have "subsection" 
+  to further split the vector space structure 
+*/
 
-PetscE
+PetscErrorCode NetRSGetVecSizeAtVertex(NetRS rs ,PetscInt v ,PetscInt *localsize,PetscInt *totalsize)
+{
+  PetscInt index, defaultval,numfields,numedges; 
+
+  PetscFunctionBegin; 
+  PetscValidHeaderSpecific(rs,NETRS_CLASSID,1); 
+  if(totalsize) PetscCall(DMNetworkGetComponent(rs->network,v,ALL_COMPONENTS,NULL,NULL,totalsize));
+  if(localsize) {
+    PetscCall(DMLabelGetValue(rs->subgraphs,v,&index)); 
+    PetscCall(DMLabelGetDefaultValue(rs->subgraphs,&defaultval)); 
+    if(index == defaultval) *localsize = 0; 
+    else {
+      PetscCall(NetRPGetNumFields(rs->netrp[index],&numfields)); 
+      PetscCall(DMNetworkGetSupportingEdges(rs->network,v,&numedges,NULL)); 
+      *localsize = numedges*numfields; 
+    }
+  }
+  PetscFunctionReturn(0); 
+}
+
+
+ PetscErrorCode NetRSGetVertexVecOffset(NetRS rs,PetscInt v,PetscInt *offlocal,PetscInt *globaloff)
+ {
+    PetscInt off,off_shared;
+    PetscBool flg; 
+
+    PetscFunctionBegin; 
+    PetscValidHeaderSpecific(rs,NETRS_CLASSID,1); 
+    if (globaloff) {
+      PetscCall(DMNetworkGetLocalVecOffset(rs->network,v,ALL_COMPONENTS,globaloff)); 
+    }
+    if(offlocal) {
+      PetscCall(DMNetworkGetLocalVecOffset(rs->network,v,ALL_COMPONENTS,&off)); 
+      PetscCall(DMLabelHasValue(rs->VertexDeg_shared,v,&flg));
+      if(flg) {
+        PetscCall(PetscHMapIGet(rs->vertex_shared_vec_offset,v,&off_shared)); 
+        *offlocal = off+off_shared; 
+      } else {
+        *offlocal = off; 
+      }
+    }
+    PetscFunctionReturn(0); 
+ }
+
+PetscErrorCode NetRSCreateLocalVec(NetRS rs, Vec *localvec)
+{
+  
+  PetscFunctionBegin; 
+  PetscValidHeaderSpecific(rs,NETRS_CLASSID,1); 
+  PetscCall(DMCreateLocalVector(rs->network,localvec)); 
+  PetscFunctionReturn(0);
+}
+
+
+/* Bad interface so far, need to rework things .... */
+
+/* currently does every! solve on the vertex, so only communication of Uloc not Fluxloc*/
+PetscErrorCode NetRSSolveFlux(NetRS rs, Vec Uloc, Vec Fluxloc)
+{
+  PetscInt i,index,numnetrp,nvert,ndofs,v,off; 
+  const PetscInt *v_subgraph;
+
+  PetscFunctionBegin; 
+  PetscValidHeaderSpecific(rs,NETRS_CLASSID,1);
+  /* add error checking */
+
+  PetscCall(NetRSSetUpVectorSpace(rs));
+  /* assumes U, F came from the NetRS DM, should enforce this by keeping them internal */
+  PetscCall(VecZeroEntries(rs->U));
+  PetscCall(DMLocalToGlobalBegin(rs->network,Uloc,ADD_VALUES,rs->U)); /* should optimize this with Barry's work */
+  PetscCall(DMLocalToGlobalEnd(rs->network,Uloc,ADD_VALUES,rs->U));
+  PetscCall(DMGlobalToLocalBegin(rs->network,rs->U,INSERT_VALUES,Uloc));
+  PetscCall(DMGlobalToLocalEnd(rs->network,rs->U,INSERT_VALUES,Uloc));
+
+  /* iterate through every single netrp stored and then every single vertex in those sets */
+  PetscCall(DMLabelGetNumValues(rs->subgraphs,&numnetrp));
+  for(index=0; index<numnetrp; index++)
+  {
+    PetscCall(ISGetIndices(rs->subgraphIS[index],&v_subgraph)); 
+    PetscCall(ISGetLocalSize(rs->subgraphIS[index],&nvert)); 
+    for(i=0; i<nvert; i++) {
+      v = v_subgraph[i];
+      PetscCall(DMNetworkGetComponent(rs->network,v,ALL_COMPONENTS,NULL,NULL,&ndofs)); 
+      PetscCall(DMNetworkGetLocalVecOffset(rs->network,v,ALL_COMPONENTS,&off)); 
+      /*create subvector for the network Riemann Problem at the vertex */
+      PetscCall(ISStrideSetStride(rs->is_wrk,ndofs,off,ndofs));
+      PetscCall(VecGetSubVector(Uloc,rs->is_wrk,&rs->Uv)); 
+      PetscCall(VecGetSubVector(Fluxloc,rs->is_wrk,&rs->Fluxv));
+
+      PetscCall(NetRPSolveFlux(rs->netrp[index],rs->network,v,rs->Uv,rs->Fluxv));
+      PetscCall(VecRestoreSubVector(Uloc,rs->is_wrk,&rs->Uv));
+      PetscCall(VecRestoreSubVector(Fluxloc,rs->is_wrk,&rs->Fluxv));
+    }
+  }
+  PetscFunctionReturn(0);
+}
