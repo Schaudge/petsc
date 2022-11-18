@@ -216,6 +216,7 @@ int main(int argc,char *argv[])
 
   PetscCall(TSSetType(ts,TSSSP));
   PetscCall(TSSetMaxTime(ts,maxtime));
+  PetscCall(TSSetMaxSteps(ts,10));
   PetscCall(TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP));
   PetscCall(TSSetTimeStep(ts,dgnet->cfl/dgnet->Mx/(2*maxorder+1)));
   PetscCall(TSSetFromOptions(ts));  /* Take runtime options */

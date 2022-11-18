@@ -624,6 +624,7 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
   /* count number of unique field orders */
   numunique = 0;
   for(i=0; i<dof; i++) {
+    PetscCheck(dgnet->physics.order[i]>=0,PetscObjectComm((PetscObject) dgnet),PETSC_ERR_USER_INPUT,"Order for Field %"PetscInt_FMT" is %"PetscInt_FMT". Order cannot be negative",i,dgnet->physics.order[i]);
     /* Search through the current unique orders for a match */
     unique = PETSC_TRUE;
     for(j=0;j<numunique; j++) {
@@ -644,6 +645,7 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
   for(i=0; i<dgnet->tabordersize; i++) {
     dgnet->taborder[i] = temp_taborder[i];
   }
+  PetscCheck(dgnet->tabordersize > 0,PetscObjectComm((PetscObject) dgnet),PETSC_ERR_COR,"Tabordersize is %" PetscInt_FMT "<1, this should not happen",dgnet->tabordersize);
   PetscCall(PetscFree(temp_taborder));
   ierr = PetscMalloc4(dgnet->tabordersize,&dgnet->LegEval,dgnet->tabordersize,
           &dgnet->Leg_L2,dgnet->tabordersize,&dgnet->LegEvalD,dgnet->tabordersize,&dgnet->LegEvaL_bdry);CHKERRQ(ierr);
@@ -655,7 +657,7 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
     /* Find maximum ordeer */
     n = 0;
     for(i=0; i<dgnet->tabordersize; i++) {
-      if(n < PetscCeilReal(dgnet->taborder[i])+1) n =  PetscCeilReal(dgnet->taborder[i])+1;
+      if(n < dgnet->taborder[i]+1) n =  dgnet->taborder[i]+1;
     }
     PetscCall(PetscMalloc2(n,&xnodes,n,&w));
     PetscCall(PetscDTGaussQuadrature(n,-1,1,xnodes,w));
