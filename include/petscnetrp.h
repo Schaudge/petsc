@@ -35,6 +35,7 @@ typedef const char* NetRPType;
 #define NETRPBLANK       "netrpblank"
 #define NETRPLINEARIZED "netrplinearized"
 #define NETRPOUTFLOW "netrpoutflow"
+#define NETRPEXACTSWE "netrpexactswe"
 
 PETSC_EXTERN PetscErrorCode NetRPInitializePackage(void);
 PETSC_EXTERN PetscErrorCode NetRPFinalizePackage(void);

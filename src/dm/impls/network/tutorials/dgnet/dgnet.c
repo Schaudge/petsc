@@ -12,10 +12,6 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
   PetscInt       dof = dgnet->physics.dof;
 
   PetscFunctionBegin;
-  PetscCall(SNESCreate(MPI_COMM_SELF,&dgnet->snes));
-  PetscCall(SNESSetFromOptions(dgnet->snes));
-  PetscCall(KSPCreate(MPI_COMM_SELF,&dgnet->ksp));
-  PetscCall(KSPSetFromOptions(dgnet->ksp));
   dgnet->nnodes_loc  = 0;
   PetscCall(MPI_Comm_rank(dgnet->comm,&rank));
   numVertices        = 0;
@@ -720,7 +716,7 @@ PetscErrorCode DGNetworkAssignNetRS(DGNetwork dgnet)
   if(dgnet->linearcoupling) {
     PetscCall(NetRPSetType(netrpcouple,NETRPLINEARIZED)); 
   } else {
-    PetscCall(NetRPSetType(netrpcouple,NETRPLINEARIZED)); 
+    PetscCall(NetRPSetType(netrpcouple,NETRPEXACTSWE)); 
   }
   PetscCall(NetRPSetFlux(netrpcouple,dgnet->physics.rs)); 
 
@@ -830,8 +826,6 @@ PetscErrorCode DGNetworkDestroy(DGNetwork dgnet)
   PetscCall(PetscFree2(dgnet->uavgs,dgnet->cjmpLR));
   PetscCall(DGNetworkDestroyTabulation(dgnet));
   PetscCall(DGNetworkDestroyPhysics(dgnet));
-  PetscCall(SNESDestroy(&dgnet->snes));
-  PetscCall(KSPDestroy(&dgnet->ksp));
   PetscCall(VecDestroy(&dgnet->X));
   PetscCall(VecDestroy(&dgnet->Ftmp));
   PetscCall(VecDestroy(&dgnet->localX));

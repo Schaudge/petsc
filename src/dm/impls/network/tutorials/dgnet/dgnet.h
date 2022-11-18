@@ -88,9 +88,6 @@ struct _p_DGNetwork
   Vec         RiemannData,Flux;        /*used with NetRS*/
   PetscInt    nnodes_loc;              /* num of local nodes */
   DM          network;
-  SNES        snes;                    /* Temporary hack to hold a nonlinear solver. Used for the nonlinear riemann invariant solver.
-                                          should be moved back to junct structure to reuse jacobian matrix? */
-  KSP         ksp;
   PetscInt    moni;
   PetscBool   view,linearcoupling,lincouplediff,tabulated,laxcurve,adaptivecouple;
   PetscBool   viewglvis,viewfullnet;

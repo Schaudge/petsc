@@ -9,6 +9,8 @@ PetscBool         NetRPRegisterAllCalled = PETSC_FALSE;
 PETSC_EXTERN PetscErrorCode NetRPCreate_Blank(NetRP);
 PETSC_EXTERN PetscErrorCode NetRPCreate_Linearized(NetRP);
 PETSC_EXTERN PetscErrorCode NetRPCreate_Outflow(NetRP);
+PETSC_EXTERN PetscErrorCode NetRPCreate_ExactSWE(NetRP);
+
 /*@C
   NetRPRegisterAll - Registers all of the Network Riemann Problems. 
 
@@ -29,6 +31,7 @@ PetscErrorCode NetRPRegisterAll(void)
   PetscCall(NetRPRegister(NETRPBLANK, NetRPCreate_Blank));
   PetscCall(NetRPRegister(NETRPLINEARIZED, NetRPCreate_Linearized));
   PetscCall(NetRPRegister(NETRPOUTFLOW,NetRPCreate_Outflow)); 
+  PetscCall(NetRPRegister(NETRPEXACTSWE,NetRPCreate_ExactSWE)); 
   PetscFunctionReturn(0);
 }
 
