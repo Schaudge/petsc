@@ -108,11 +108,14 @@ PetscErrorCode NetRSResetVectorSpace(NetRS rs)
   PetscCall(VecDestroy(&rs->Flux));
   PetscCall(PetscFree(rs->is_wrk_index));
   /* need to undo the finalized components on the network */
-  PetscCall(DMClone(rs->network,&new_network)); 
-  PetscCall(DMDestroy(&rs->network)); 
+  if(rs->network){
+    PetscCall(DMClone(rs->network,&new_network)); 
+    PetscCall(DMDestroy(&rs->network)); 
+    rs->network = new_network; 
+  }
   PetscCall(PetscFree(rs->edgein_shared)); 
   PetscCall(PetscFree(rs->edgein_wrk));
-  rs->network = new_network; 
+ 
   rs->setupvectorspace = PETSC_FALSE;
   PetscFunctionReturn(0); 
 }
@@ -689,6 +692,8 @@ PetscErrorCode DMNetworkCreateEdgeInInfo(NetRS rs,PetscInt *compindex) {
   PetscCallMPI(MPI_Comm_size(comm, &commsize));
   if (commsize == 1) 
   {
+    PetscCall(DMLabelGetNumValues(rs->subgraphs,&comp_index)); 
+    if(compindex) *compindex = comp_index;
     PetscFunctionReturn(0);
   }
   PetscCall(DMClone(rs->network,&tmpclone)); 
