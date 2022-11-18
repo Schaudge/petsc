@@ -88,7 +88,7 @@ int main(int argc,char *argv[])
   MPI_Comm          comm;
   TS                ts;
   DGNetwork         dgnet;
-  PetscInt          maxorder=1;
+  PetscInt          maxorder=1,systemsize;
   PetscReal         maxtime;
   PetscMPIInt       size,rank;
   PetscBool         limit=PETSC_TRUE,view3d=PETSC_FALSE,viewglvis=PETSC_FALSE,glvismode=PETSC_FALSE,viewfullnet=PETSC_FALSE,savefinal=PETSC_FALSE;
@@ -206,7 +206,8 @@ int main(int argc,char *argv[])
   /* Set up NetRS */
   PetscCall(DGNetworkAssignNetRS(dgnet));
   PetscCall(DGNetworkProject(dgnet,dgnet->X,0.0));
-
+  PetscCall(VecGetSize(dgnet->X,&systemsize));
+  PetscCall(PetscPrintf(comm,"\nWe have %"PetscInt_FMT" Dofs\n\n",systemsize));
   /* Create a time-stepping object */
   PetscCall(TSCreate(comm,&ts));
   PetscCall(TSSetApplicationContext(ts,dgnet));

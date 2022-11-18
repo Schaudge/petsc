@@ -90,7 +90,7 @@ struct _p_DGNetwork
   PetscInt    Nedge,Nvertex;           /* global number of components */
   PetscInt    *edgelist;               /* local edge list */
   Vec         localX,localF;           /* vectors used in local function evalutation */
-  Vec         X,Ftmp;                  /* Global vectors used in function evaluations */
+  Vec         X;                       /* Global vectors used in function evaluations */
   Vec         RiemannData,Flux;        /*used with NetRS*/
   PetscInt    nnodes_loc;              /* num of local nodes */
   DM          network;
