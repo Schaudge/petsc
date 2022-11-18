@@ -115,6 +115,7 @@ PetscErrorCode NetRSResetVectorSpace(NetRS rs)
   }
   PetscCall(PetscFree(rs->edgein_shared)); 
   PetscCall(PetscFree(rs->edgein_wrk));
+  PetscCall(PetscHMapIDestroy(&rs->edgein_shared_offset));
  
   rs->setupvectorspace = PETSC_FALSE;
   PetscFunctionReturn(0); 
@@ -502,7 +503,7 @@ static PetscErrorCode NetRSSetNetRPPhysics(NetRS  rs)
  PetscErrorCode NetRSSetUpVectorSpace(NetRS rs)
  {  
 
-  PetscInt v,numnetrp,i,j,compindex,size,numfields,vdeg,maxsize,off,index,maxdeg,maxnumfields;
+  PetscInt v,numnetrp,i,j,compindex,size,numfields,vdeg,maxsize,off,index,maxdeg,maxnumfields,vStart,vEnd;
   PetscInt *vals,*keys,*vdegs;
   const PetscInt *v_subgraph;
   char  compname[64]; 
@@ -538,12 +539,10 @@ static PetscErrorCode NetRSSetNetRPPhysics(NetRS  rs)
     }
     PetscCall(ISRestoreIndices(rs->subgraphIS[i],&v_subgraph));
   }
-  /* create component for storing the edgein information for shared vertices */
-
-  PetscCall(DMNetworkCreateEdgeInInfo(rs,&compindex));
-  PetscCheck(numnetrp==compindex,PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"This should not happen.");
- /*already called in CreateEdgeInInfo, but hopefully that function will go away someday */
   PetscCall(DMNetworkFinalizeComponents(rs->network));
+  /* create hmap and array for storing the edgein information for shared vertices */
+  PetscCall(DMNetworkCreateEdgeInInfo(rs));
+
   /*Create the vectors used in the solver */
   PetscCall(DMCreateGlobalVector(rs->network,&rs->Flux)); 
   PetscCall(DMCreateGlobalVector(rs->network,&rs->U));
@@ -587,7 +586,8 @@ static PetscErrorCode NetRSSetNetRPPhysics(NetRS  rs)
 
   /*iterate through the shared vertex offsets and, if belonging to a netrp adjust offset 
   by that netrp's numfields. Note this may be different for different vertices in this general implementation */
-
+  PetscCall(DMNetworkGetVertexRange(rs->network,&vStart,&vEnd));
+  PetscCall(DMLabelCreateIndex(rs->subgraphs,vStart,vEnd));
   for(i=0; i<size; i++) {
     PetscCall(DMLabelHasPoint(rs->subgraphs,keys[i],&flg)); 
     if(!flg) break; 
@@ -650,14 +650,14 @@ PetscErrorCode DMNetworkCacheVertexDegrees(NetRS rs, DM network)
   /* any nonzero entry in rootdata then has leaves, these are added to the lable as 
      shared vertices. The local vertex degree are then added to the rootdata to create the 
      correct vertex degree. */
-
+  PetscCall(DMLabelReset(rs->VertexDeg_shared));
   for(v=vStart; v<vEnd; v++) {
     if(!rootdata[v]) break; 
     PetscCall(DMNetworkGetSupportingEdges(network,v,&nedges,NULL)); 
     rootdata[v] += nedges; 
+  //  PetscPrintf(PETSC_COMM_SELF,"[%i] v: %"PetscInt_FMT " vdeg %"PetscInt_FMT"\n",rank,v,rootdata[v]);
     PetscCall(DMLabelSetValue(rs->VertexDeg_shared,v,rootdata[v])); 
   }
-  PetscCall(PetscSynchronizedFlush(comm,NULL));
 
   /* Rootdata contains the correct vertex degs, and these have been added to the labrl*/
   PetscCall(PetscSFBcastBegin(sf,MPIU_INT,rootdata,leafdata,MPI_REPLACE)); 
@@ -665,6 +665,8 @@ PetscErrorCode DMNetworkCacheVertexDegrees(NetRS rs, DM network)
   /*iterate through the leaf vertices and add their values to the label */
   for(i=0; i<nleaves; i++){
     if(ilocal[i]>=vEnd || ilocal[i]<vStart) break; 
+    //PetscPrintf(PETSC_COMM_SELF,"[%i] v: %"PetscInt_FMT " vdeg %"PetscInt_FMT"\n",rank,ilocal[i],leafdata[ilocal[i]]);
+
     PetscCall(DMLabelSetValue(rs->VertexDeg_shared,ilocal[i],leafdata[ilocal[i]])); 
   }
   /* no new entries will be added, compute index for faster membership lookup */
@@ -676,12 +678,12 @@ PetscErrorCode DMNetworkCacheVertexDegrees(NetRS rs, DM network)
 
 /* The existence of this code is an abomination */
 
-PetscErrorCode DMNetworkCreateEdgeInInfo(NetRS rs,PetscInt *compindex) {
-  PetscMPIInt              commsize;
+PetscErrorCode DMNetworkCreateEdgeInInfo(NetRS rs) {
+  PetscMPIInt              commsize,rank;
   MPI_Comm                 comm;
   Vec                      tmpVec,tmpVecloc;
   DM                       tmpclone; 
-  PetscInt                 i,v,vStart,vEnd,vdeg,numedges,off,offv,size,comp_index;  
+  PetscInt                 i,j,v,vStart,vEnd,vdeg,numedges,off,offv,size,comp_index,numsharedvert;
   const PetscInt           *edges,*cone; 
   PetscBool                flg,*edgein_v; 
   PetscScalar              *edgein; 
@@ -690,14 +692,15 @@ PetscErrorCode DMNetworkCreateEdgeInInfo(NetRS rs,PetscInt *compindex) {
   PetscValidHeaderSpecific(rs,NETRS_CLASSID,1); 
     PetscCall(PetscObjectGetComm((PetscObject)rs, &comm));
   PetscCallMPI(MPI_Comm_size(comm, &commsize));
+    PetscCallMPI(MPI_Comm_rank(comm, &rank));
+
   if (commsize == 1) 
   {
     PetscCall(DMLabelGetNumValues(rs->subgraphs,&comp_index)); 
-    if(compindex) *compindex = comp_index;
     PetscFunctionReturn(0);
   }
   PetscCall(DMClone(rs->network,&tmpclone)); 
-  PetscCall(DMNetworkRegisterComponent(tmpclone,"edgein",0,NULL));
+  PetscCall(DMNetworkRegisterComponent(tmpclone,"edge in",0,&comp_index));
   /* needed ... */
   PetscCall(DMNetworkCacheVertexDegrees(rs,rs->network));
   PetscCall(DMNetworkCreateLocalEdgeNumbering(rs,rs->network));
@@ -720,13 +723,14 @@ PetscErrorCode DMNetworkCreateEdgeInInfo(NetRS rs,PetscInt *compindex) {
   PetscCall(VecZeroEntries(tmpVec));
   PetscCall(VecZeroEntries(tmpVecloc));
   PetscCall(VecGetArray(tmpVecloc,&edgein));
-
+  numsharedvert = 0; 
   for(v=vStart; v<vEnd; v++) 
   {
     PetscCall(DMLabelHasPoint(rs->VertexDeg_shared,v,&flg));
     if(!flg) break; 
+    numsharedvert++; 
     PetscCall(DMNetworkGetSupportingEdges(tmpclone,v,&numedges,&edges));
-    PetscCall(DMNetworkGetVertexOffset(tmpclone,v,&off));
+    PetscCall(DMNetworkGetLocalVecOffset(tmpclone,v,ALL_COMPONENTS,&off));
     PetscCall(PetscHMapIGet(rs->vertex_shared_offset,v,&offv)); 
     for(i=0; i<numedges; i++){
       PetscCall(DMNetworkGetConnectedVertices(tmpclone,edges[i],&cone)); 
@@ -739,28 +743,27 @@ PetscErrorCode DMNetworkCreateEdgeInInfo(NetRS rs,PetscInt *compindex) {
 
   /* now tmpVecloc contains the edgein information for all edges connected to the shared
   vertices on this processor. Add this as component of the rs->network */
-  PetscCall(DMNetworkRegisterComponent(rs->network,"EdgeIn Information",1,&comp_index));
-  if(compindex) *compindex = comp_index;
   PetscCall(VecGetArray(tmpVecloc,&edgein));
   PetscCall(VecGetSize(tmpVecloc,&size));
   PetscCall(PetscMalloc1(size,&rs->edgein_shared)); /* single array for holding edge in data */
   edgein_v = rs->edgein_shared; 
+  PetscCall(PetscHMapICreate(&rs->edgein_shared_offset));
+  j=0; 
   for(v=vStart; v<vEnd; v++) 
   {
     PetscCall(DMLabelHasPoint(rs->VertexDeg_shared,v,&flg));
     if(!flg) break; 
-    PetscCall(DMNetworkGetVertexOffset(tmpclone,v,&off));
+    PetscCall(DMNetworkGetLocalVecOffset(tmpclone,v,ALL_COMPONENTS,&off));
     PetscCall(DMNetworkGetComponent(tmpclone,v,ALL_COMPONENTS,NULL,NULL,&vdeg)); 
     for(i=0; i<vdeg; i++)
     {
       edgein_v[i] = (PetscBool) edgein[off+i]; 
     }
-    PetscCall(DMNetworkAddComponent(rs->network,v,comp_index,&edgein_v,0));
-    edgein_v += vdeg; 
+    edgein_v += vdeg;
+    PetscCall(PetscHMapISet(rs->edgein_shared_offset,v,j)); 
+    j+=vdeg; 
   }
   PetscCall(VecRestoreArray(tmpVecloc,&edgein));
-
-  PetscCall(DMNetworkFinalizeComponents(rs->network));
 
   PetscCall(VecDestroy(&tmpVec)); 
   PetscCall(VecDestroy(&tmpVecloc)); 
@@ -863,7 +866,27 @@ needing a reduce  + bcast.
   PetscFunctionReturn(0); 
 }
 
+ PetscErrorCode PetscHMapIView(PetscHMapI hmap,MPI_Comm comm)
+{
+  PetscInt size,i,off;  
+  PetscInt *keys,*vals; 
+  PetscMPIInt rank;
 
+  PetscFunctionBegin; 
+    PetscCallMPI(MPI_Comm_rank(comm, &rank));
+  PetscCall(PetscHMapIGetSize(hmap,&size));
+  PetscCall(PetscMalloc2(size,&keys,size,&vals)); 
+  off =0; 
+  PetscCall(PetscHMapIGetPairs(hmap,&off,keys,vals));
+  PetscCall(PetscSynchronizedPrintf(comm,"Rank [%i]\n\n",rank));
+
+  for(i=0;i<size; i++ ){
+    PetscCall(PetscSynchronizedPrintf(comm,"key[%"PetscInt_FMT"] val = %"PetscInt_FMT" \n",keys[i],vals[i]));
+  }
+  PetscCall(PetscSynchronizedFlush(comm,NULL));
+  PetscCall(PetscFree2(keys,vals));
+  PetscFunctionReturn(0);
+}
 
 
 /*@
@@ -995,7 +1018,7 @@ PetscErrorCode NetRSGetVecSizeAtVertex(NetRS rs ,PetscInt v ,PetscInt *localsize
     }
     if(offlocal) {
       PetscCall(DMNetworkGetLocalVecOffset(rs->network,v,ALL_COMPONENTS,&off)); 
-      PetscCall(DMLabelHasValue(rs->VertexDeg_shared,v,&flg));
+      PetscCall(DMLabelHasPoint(rs->VertexDeg_shared,v,&flg));
       if(flg) {
         PetscCall(PetscHMapIGet(rs->vertex_shared_vec_offset,v,&off_shared)); 
         *offlocal = off+off_shared; 
@@ -1022,9 +1045,11 @@ PetscErrorCode NetRSCreateLocalVec(NetRS rs, Vec *localvec)
 /* currently does every! solve on the vertex, so only communication of Uloc not Fluxloc*/
 PetscErrorCode NetRSSolveFlux(NetRS rs, Vec Uloc, Vec Fluxloc)
 {
-  PetscInt i,j,index,numnetrp,nvert,ndofs,v,off,vdeg; 
-  const PetscInt *v_subgraph,*edges,*cone;
+  PetscInt i,j,index,numnetrp,nvert,ndofs,v,off,vdeg,voff,edgeinoff;
+  const PetscInt *v_subgraph,*edges,*cone; 
   PetscBool flg,*edgein;
+  MPI_Comm comm;
+  PetscMPIInt rank;
 
   PetscFunctionBegin; 
   PetscValidHeaderSpecific(rs,NETRS_CLASSID,1);
@@ -1033,11 +1058,15 @@ PetscErrorCode NetRSSolveFlux(NetRS rs, Vec Uloc, Vec Fluxloc)
   PetscCall(NetRSSetUpVectorSpace(rs));
   /* assumes U, F came from the NetRS DM, should enforce this by keeping them internal */
   PetscCall(VecZeroEntries(rs->U));
+  PetscCall(PetscObjectGetComm((PetscObject)rs, &comm));
+  PetscCallMPI(MPI_Comm_rank(comm,&rank));
+
   PetscCall(DMLocalToGlobalBegin(rs->network,Uloc,ADD_VALUES,rs->U)); /* should optimize this with Barry's work */
   PetscCall(DMLocalToGlobalEnd(rs->network,Uloc,ADD_VALUES,rs->U));
   PetscCall(DMGlobalToLocalBegin(rs->network,rs->U,INSERT_VALUES,Uloc));
   PetscCall(DMGlobalToLocalEnd(rs->network,rs->U,INSERT_VALUES,Uloc));
 
+  PetscCall(VecView(rs->U,PETSC_VIEWER_STDOUT_WORLD));
   /* iterate through every single netrp stored and then every single vertex in those sets */
   PetscCall(DMLabelGetNumValues(rs->subgraphs,&numnetrp));
   for(index=0; index<numnetrp; index++)
@@ -1046,8 +1075,10 @@ PetscErrorCode NetRSSolveFlux(NetRS rs, Vec Uloc, Vec Fluxloc)
     PetscCall(ISGetLocalSize(rs->subgraphIS[index],&nvert)); 
     for(i=0; i<nvert; i++) {
       v = v_subgraph[i];
+      PetscCall(NetRSGetVertexVecOffset(rs,v,&voff,&off));
       PetscCall(DMNetworkGetComponent(rs->network,v,ALL_COMPONENTS,NULL,NULL,&ndofs)); 
       PetscCall(DMNetworkGetLocalVecOffset(rs->network,v,ALL_COMPONENTS,&off)); 
+
       /*create subvector for the network Riemann Problem at the vertex */
       for(j=0; j<ndofs; j++) rs->is_wrk_index[j] = off+j; 
       PetscCall(ISGeneralSetIndices(rs->is_wrk,ndofs,rs->is_wrk_index,PETSC_COPY_VALUES)); 
@@ -1056,8 +1087,9 @@ PetscErrorCode NetRSSolveFlux(NetRS rs, Vec Uloc, Vec Fluxloc)
       /* get the edgein information to pass to the NetRP solver */
       PetscCall(DMLabelHasPoint(rs->VertexDeg_shared,v,&flg));
       if(flg){
-        PetscCall(DMNetworkGetComponent(rs->network,v,numnetrp,NULL,(void**)&edgein,NULL));
         PetscCall(DMLabelGetValue(rs->VertexDeg_shared,v,&vdeg));
+        PetscCall(PetscHMapIGet(rs->edgein_shared_offset,v,&edgeinoff));
+        edgein = rs->edgein_shared+edgeinoff;
       } else {
         edgein = rs->edgein_wrk;
         PetscCall(DMNetworkGetSupportingEdges(rs->network,v,&vdeg,&edges));
@@ -1084,6 +1116,6 @@ PetscErrorCode DMNetworkIsParallelVertex(NetRS rs, DM network, PetscInt v, Petsc
   PetscValidHeaderSpecific(rs,NETRS_CLASSID,1); 
 
   PetscCall(DMNetworkCacheVertexDegrees(rs,network)); 
-  PetscCall(DMLabelHasValue(rs->VertexDeg_shared,v,flg));
+  PetscCall(DMLabelHasPoint(rs->VertexDeg_shared,v,flg));
   PetscFunctionReturn(0);
 }

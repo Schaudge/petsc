@@ -120,6 +120,8 @@ PETSC_EXTERN  PetscErrorCode DMNetworkCacheVertexDegrees(NetRS , DM);
 PETSC_EXTERN PetscErrorCode DMNetworkIsParallelVertex(NetRS,DM,PetscInt,PetscBool*);
 PETSC_EXTERN PetscErrorCode NetRSGetVertexDegree(NetRS,PetscInt,PetscInt*);
 PETSC_INTERN PetscErrorCode DMNetworkComputeUniqueVertexDegrees_Local(NetRS,DM,DMLabel,PetscHSetI*,PetscHSetI);
-PETSC_INTERN PetscErrorCode DMNetworkCreateEdgeInInfo(NetRS,PetscInt*);
+PETSC_INTERN PetscErrorCode DMNetworkCreateEdgeInInfo(NetRS);
+
+PETSC_INTERN  PetscErrorCode PetscHMapIView(PetscHMapI,MPI_Comm);
 
 #endif

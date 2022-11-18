@@ -671,6 +671,7 @@ PetscErrorCode DGNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
 
   /* Iterate through all vertices (including ghosts) and compute the flux/reconstruction data for the vertex.  */
   ierr = DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd);
+  PetscCall(VecZeroEntries(dgnet->RiemannData));
   PetscCall(VecGetArray(dgnet->RiemannData,&riemanndata));
   for (v=vStart; v<vEnd; v++) {
     /* Evaluate DG solution at the vertices and store for NetRS */
