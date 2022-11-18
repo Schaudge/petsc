@@ -19,34 +19,31 @@ static PetscReal ShallowRiemannEig_Left(const PetscScalar hl, const PetscScalar 
   return vl - PetscSqrtScalar(g*hl);
 }
 
-static PetscErrorCode NetRPCreateLinearStar_Linearized(NetRP rp, DM network, PetscInt vert, Vec U, Vec Rhs, Mat A)
+static PetscErrorCode NetRPCreateLinearStar_Linearized(NetRP rp, PetscInt vdeg, PetscBool *edgein, Vec U, Vec Rhs, Mat A)
 {
   PetscScalar h,eig,hv,v;
   PetscScalar *rhs;
   const PetscScalar *u; 
-  PetscInt    numedges,i,numfields,index_hv,index_h; 
-  const PetscInt *edges,*cone; 
+  PetscInt    i,numfields,index_hv,index_h; 
   void           *ctx;
 
   PetscFunctionBegin; 
   PetscCall(NetRPGetApplicationContext(rp,&ctx));
   PetscCall(VecGetArrayRead(U,&u)); 
   PetscCall(VecGetArray(Rhs,&rhs));
-  PetscCall(DMNetworkGetSupportingEdges(network,vert,&numedges,&edges)); 
   PetscCall(NetRPGetNumFields(rp,&numfields));
 /* Build the system matrix and rhs vector */
-  for (i=1; i<numedges; i++) {
+  for (i=1; i<vdeg; i++) {
     index_h = i*numfields; 
     index_hv = index_h+1; 
     h  = u[index_h];
     hv = u[index_hv];
     v  = hv/h; 
-    PetscCall(DMNetworkGetConnectedVertices(network,edges[i],&cone)); 
-    eig = cone[1] == vert ? 
+    eig = edgein[i] ? 
       ShallowRiemannEig_Left(h,v) : ShallowRiemannEig_Right(h,v); /* replace with RiemannSolver Calls */
     PetscCall(MatSetValue(A,index_hv,index_hv,-1 ,INSERT_VALUES)); /* hv* term */
     PetscCall(MatSetValue(A,index_hv,index_h,eig,INSERT_VALUES));      /* h* term */
-    PetscCall(MatSetValue(A,1,index_hv,cone[1] == v ? 1:-1,INSERT_VALUES));  /* flux balance bdry condition */
+    PetscCall(MatSetValue(A,1,index_hv,edgein[i] ? 1:-1,INSERT_VALUES));  /* flux balance bdry condition */
     rhs[index_hv] = eig*h-hv; /* riemann invariant at the boundary */
   /* equal height algebraic coupling condition */
     index_h = i*numfields; 
@@ -59,13 +56,12 @@ static PetscErrorCode NetRPCreateLinearStar_Linearized(NetRP rp, DM network, Pet
      two rows in the "standard ordering is needed */
     h  = u[0];
     hv = u[1];
-    v  = hv/h; 
-    PetscCall(DMNetworkGetConnectedVertices(network,edges[i],&cone)); 
-    eig = cone[1] == vert ? 
+    v  = hv/h;
+    eig = edgein[0] ? 
       ShallowRiemannEig_Left(h,v) : ShallowRiemannEig_Right(h,v); /* replace with RiemannSolver Calls */
     PetscCall(MatSetValue(A,0,1,-1 ,INSERT_VALUES)); /* hv* term */
     PetscCall(MatSetValue(A,0,0,eig,INSERT_VALUES));      /* h* term */
-    PetscCall(MatSetValue(A,1,1,cone[1] == v ? 1:-1,INSERT_VALUES));  /* flux balance bdry condition */
+    PetscCall(MatSetValue(A,1,1,edgein[0] ? 1:-1,INSERT_VALUES));  /* flux balance bdry condition */
     rhs[0] = eig*h-hv; /* riemann invariant at the boundary */
     rhs[1] = 0.0; 
 

@@ -239,8 +239,8 @@ PetscErrorCode NetRPCreateKSP(NetRP rp, PetscInt vertdeg, KSP *ksp)
 
 typedef struct {
   NetRP   rp; 
-  PetscInt v; 
-  DM       dm; 
+  PetscInt vdeg; 
+  PetscBool *edgein;
   Vec      U;
 } NetRPSNESctx; 
 /*@
@@ -270,8 +270,8 @@ static PetscErrorCode NetRPSNESWrapperFunc(SNES snes, Vec x, Vec f, void *ctx)
 {
   NetRPSNESctx *netrpsnesctx;
   NetRP  rp;
-  DM     dm;
-  PetscInt v;
+  PetscInt vdeg;
+  PetscBool *edgein; 
   Vec    U; 
   void   *appctx; 
 
@@ -279,10 +279,10 @@ static PetscErrorCode NetRPSNESWrapperFunc(SNES snes, Vec x, Vec f, void *ctx)
   PetscCall(SNESGetApplicationContext(snes,&appctx));
   netrpsnesctx = (NetRPSNESctx*) appctx; 
   rp = netrpsnesctx->rp; 
-  dm = netrpsnesctx->dm; 
-  v = netrpsnesctx->v; 
+  vdeg = netrpsnesctx->vdeg; 
+  edgein = netrpsnesctx->edgein; 
   U = netrpsnesctx->U; 
-  PetscUseTypeMethod(rp,NonlinearEval,dm,v,U,x,f); 
+  PetscUseTypeMethod(rp,NonlinearEval,vdeg,edgein,U,x,f); 
   PetscFunctionReturn(0); 
 }
 
@@ -313,8 +313,8 @@ static PetscErrorCode NetRPSNESWrapperJac(SNES snes, Vec x, Mat Amat, Mat Pmat, 
 {
   NetRPSNESctx *netrpsnesctx;
   NetRP  rp;
-  DM     dm;
-  PetscInt v;
+  PetscBool *edgein;
+  PetscInt vdeg;
   Vec    U; 
   void   *appctx; 
 
@@ -322,10 +322,10 @@ static PetscErrorCode NetRPSNESWrapperJac(SNES snes, Vec x, Mat Amat, Mat Pmat, 
   PetscCall(SNESGetApplicationContext(snes,&appctx));
   netrpsnesctx = (NetRPSNESctx*) appctx; 
   rp = netrpsnesctx->rp; 
-  dm = netrpsnesctx->dm; 
-  v = netrpsnesctx->v; 
+  edgein = netrpsnesctx->edgein; 
+  vdeg = netrpsnesctx->vdeg;
   U = netrpsnesctx->U; 
-  PetscUseTypeMethod(rp,NonlinearJac,dm,v,U,x,Amat); 
+  PetscUseTypeMethod(rp,NonlinearJac,vdeg,edgein,U,x,Amat); 
   PetscFunctionReturn(0); 
 }
 
@@ -821,19 +821,18 @@ PetscErrorCode NetRPSetNonlinearJac(NetRP rp, NetRPNonlinearJac nonlinearjac)
 @*/
 
 
-static PetscErrorCode NetRPComputeFluxInPlace_internal(NetRP rp, DM network, PetscInt v, Vec Flux)
+static PetscErrorCode NetRPComputeFluxInPlace_internal(NetRP rp,PetscInt vdeg, Vec Flux)
 {
-  PetscInt i,numedges,numfields; 
+  PetscInt i,numfields; 
   PetscScalar *star; 
   PetscReal   *fluxval; 
   RiemannSolver fluxfun; 
 
   PetscFunctionBegin; 
-  PetscCall(DMNetworkGetSupportingEdges(network,v,&numedges,NULL));
   PetscCall(VecGetArray(Flux,&star)); 
   PetscCall(NetRPGetFlux(rp,&fluxfun));
   PetscCall(NetRPGetNumFields(rp,&numfields)); 
-  for(i=0; i<numedges; i++) {
+  for(i=0; i<vdeg; i++) {
     PetscCall(RiemmanSolverEvaluateFlux(fluxfun,&star[i*numfields],&fluxval)); /* fluxval is owned by RiemannSolver */
     PetscCall(PetscArraycpy(star+i*numfields,fluxval,numfields)); /* modify in-place*/
   }
@@ -862,16 +861,15 @@ static PetscErrorCode NetRPComputeFluxInPlace_internal(NetRP rp, DM network, Pet
 
 .seealso: NetRPCreate(), NetRPSetFlux()
 @*/
-PetscErrorCode NetRPSolveFlux(NetRP rp, DM network, PetscInt v, Vec U, Vec Flux)
+PetscErrorCode NetRPSolveFlux(NetRP rp,PetscInt numedges,PetscBool *edgein, Vec U, Vec Flux)
 {
   PetscBool flg;
-  PetscInt  index,vdeg; 
+  PetscInt  index,vdeg=numedges; 
   NetRPSNESctx snesctx; 
 
   PetscFunctionBegin;
   if(!rp->setupcalled) PetscCall(NetRPSetUp(rp)); 
   /* find index of cached solvers */
-  PetscCall(DMNetworkGetSupportingEdges(network,v,&vdeg,NULL));
   PetscCall(PetscHMapIHas(rp->hmap,vdeg,&flg));
   if(!flg) PetscCall(NetRPAddVertexDegrees(rp,1,&vdeg)); 
   PetscCall(PetscHMapIGet(rp->hmap,vdeg,&index)); 
@@ -881,33 +879,33 @@ PetscErrorCode NetRPSolveFlux(NetRP rp, DM network, PetscInt v, Vec U, Vec Flux)
   {
     case Linear: 
       if(rp->ops->createLinearFlux) {
-        PetscUseTypeMethod(rp,createLinearFlux,network,v,U,rp->vec[index],rp->mat[index]);
+        PetscUseTypeMethod(rp,createLinearFlux,vdeg,edgein,U,rp->vec[index],rp->mat[index]);
         PetscCall(KSPSetOperators(rp->ksp[index],rp->mat[index],rp->mat[index])); /* should this be moved to the creation routine? Check how PCSetUp works and if it can be reused */
         PetscCall(KSPSolve(rp->ksp[index],rp->vec[index],Flux));
       } else if (rp->ops->createLinearStar)
       {
-        PetscUseTypeMethod(rp,createLinearStar,network,v,U,rp->vec[index],rp->mat[index]);
+        PetscUseTypeMethod(rp,createLinearStar,vdeg,edgein,U,rp->vec[index],rp->mat[index]);
         PetscCall(KSPSetOperators(rp->ksp[index],rp->mat[index],rp->mat[index])); /* should this be moved to the creation routine? Check how PCSetUp works and if it can be reused */
         PetscCall(KSPSolve(rp->ksp[index],rp->vec[index],Flux));
         /* inplace evaluate the star states in Flux by the physics flux to compute the actual flux */
-        PetscCall(NetRPComputeFluxInPlace_internal(rp,network,v,Flux)); 
+        PetscCall(NetRPComputeFluxInPlace_internal(rp,vdeg,Flux)); 
       } else {
         SETERRQ(PetscObjectComm((PetscObject)rp), PETSC_ERR_PLIB,"No available solver for NetRPSolveFlux. This should not happen and should be caught at NetRPSetUp(). Solver Type is: LINEAR"); 
       }
       break; 
     case Nonlinear:
-      snesctx.dm = network; 
-      snesctx.v  = v; 
+      snesctx.edgein = edgein; 
+      snesctx.vdeg  = vdeg; 
       snesctx.rp = rp; 
       snesctx.U  = U; 
       PetscCall(SNESSetApplicationContext(rp->snes[index],(void*)&snesctx)); 
       PetscCall(VecCopy(U,Flux)); /* initial guess of the riemann data */
       PetscCall(SNESSolve(rp->snes[index],NULL,Flux)); /* currently assumes this solves for the star state */
       /* inplace evaluate the star states in Flux by the physics flux to compute the actual flux */
-      PetscCall(NetRPComputeFluxInPlace_internal(rp,network,v,Flux)); 
+      PetscCall(NetRPComputeFluxInPlace_internal(rp,vdeg,Flux)); 
       break; 
     case Other: 
-      PetscUseTypeMethod(rp,solveFlux,network,v,U,Flux); 
+      PetscUseTypeMethod(rp,solveFlux,vdeg,edgein,U,Flux); 
       break; 
   }
   PetscFunctionReturn(0); 
@@ -936,7 +934,7 @@ PetscErrorCode NetRPSolveFlux(NetRP rp, DM network, PetscInt v, Vec U, Vec Flux)
 
 .seealso: NetRPCreate(), NetRPSetFlux()
 @*/
-PetscErrorCode NetRPSolveStar(NetRP rp, DM network, PetscInt v, Vec U, Vec Star)
+PetscErrorCode NetRPSolveStar(NetRP rp,PetscInt vdeg,PetscBool *edgein, Vec U, Vec Star)
 {
   PetscBool flg;
   PetscInt  index; 
@@ -945,26 +943,26 @@ PetscErrorCode NetRPSolveStar(NetRP rp, DM network, PetscInt v, Vec U, Vec Star)
   PetscFunctionBegin;
   if(!rp->setupcalled) PetscCall(NetRPSetUp(rp)); 
   /* find index of cached solvers */
-  PetscCall(PetscHMapIHas(rp->hmap,v,&flg));
-  if(!flg) PetscCall(NetRPAddVertexDegrees(rp,1,&v)); 
-  PetscCall(PetscHMapIGet(rp->hmap,v,&index)); 
+  PetscCall(PetscHMapIHas(rp->hmap,vdeg,&flg));
+  if(!flg) PetscCall(NetRPAddVertexDegrees(rp,1,&vdeg)); 
+  PetscCall(PetscHMapIGet(rp->hmap,vdeg,&index)); 
 
   /* switch based on type of NetRP */
   switch(rp->solvetype) 
   {
     case Linear: 
-      PetscUseTypeMethod(rp,createLinearStar,network,v,U,rp->vec[index],rp->mat[index]);
+      PetscUseTypeMethod(rp,createLinearStar,vdeg,edgein,U,rp->vec[index],rp->mat[index]);
       PetscCall(KSPSetOperators(rp->ksp[index],rp->mat[index],rp->mat[index])); /* should this be moved to the creation routine? Check how PCSetUp works and if it can be reused */
       PetscCall(KSPSolve(rp->ksp[index],rp->vec[index],Star)); 
     case Nonlinear:
-      snesctx.dm = network; 
-      snesctx.v  = v; 
+      snesctx.edgein = edgein; 
+      snesctx.vdeg  = vdeg; 
       snesctx.rp = rp; 
       snesctx.U  = U; 
       PetscCall(SNESSetApplicationContext(rp->snes[index],(void*)&snesctx)); 
       PetscCall(SNESSolve(rp->snes[index],NULL,Star));  /* currently bugged as only one nonlinear function is allowed, need space for two. */
     case Other: 
-      PetscUseTypeMethod(rp,solveStar,network,v,U,Star); 
+      PetscUseTypeMethod(rp,solveStar,vdeg,edgein,U,Star); 
   }
   PetscFunctionReturn(0); 
 }

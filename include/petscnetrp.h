@@ -16,12 +16,12 @@ PETSC_EXTERN PetscFunctionList NetRPList;
 typedef enum {Linear,Nonlinear,Other} NetRPSolveType; 
 typedef enum {Generic,Specific} NetRPPhysicsGenerality; 
 
-  typedef PetscErrorCode (*NetRPSolveStar_User)(NetRP, DM, PetscInt, Vec, Vec); /* form is: DMNetwork, Vertex, U, UStar */
-  typedef PetscErrorCode (*NetRPSolveFlux_User)(NetRP, DM, PetscInt, Vec, Vec); /* form is: DMNetwork, Vertex, U, Flux */
-  typedef PetscErrorCode (*NetRPCreateLinearStar)(NetRP,DM,PetscInt,Vec,Vec,Mat); /* form is: DMNetwork, Vertex, U, Linear System for solving for Ustar */
-  typedef PetscErrorCode (*NetRPCreateLinearFlux)(NetRP,DM,PetscInt,Vec,Vec,Mat); /* form is: DMNetwork, Vertex, U, Linear System for solving for Flux */
-  typedef PetscErrorCode (*NetRPNonlinearEval)(NetRP,DM,PetscInt,Vec,Vec,Vec); /* form is: DMNetwork, Vertex, U, F(u), where F(U) is the nonlinear eval for the nonlinear Network Riemann Problem */
-  typedef PetscErrorCode (*NetRPNonlinearJac)(NetRP,DM,PetscInt,Vec,Vec,Mat);  /* form is: DMNetwork, Vertex, U, Jacobian of the NonlinearEval */
+  typedef PetscErrorCode (*NetRPSolveStar_User)(NetRP,PetscInt,PetscBool*, Vec, Vec); /* form is: NumEdges,EdgeIn? Array, U, UStar */
+  typedef PetscErrorCode (*NetRPSolveFlux_User)(NetRP,PetscInt,PetscBool*, Vec, Vec); /* form is: NumEdges,EdgeIn? Array, U, Flux */
+  typedef PetscErrorCode (*NetRPCreateLinearStar)(NetRP,PetscInt,PetscBool*,Vec,Vec,Mat); /* form is: NumEdges,EdgeIn? Array, U, Linear System for solving for Ustar */
+  typedef PetscErrorCode (*NetRPCreateLinearFlux)(NetRP,PetscInt,PetscBool*,Vec,Vec,Mat); /* form is: NumEdges,EdgeIn? Array, U, Linear System for solving for Flux */
+  typedef PetscErrorCode (*NetRPNonlinearEval)(NetRP,PetscInt,PetscBool*,Vec,Vec,Vec); /* form is: NumEdges,EdgeIn? Array, U, F(u), where F(U) is the nonlinear eval for the nonlinear Network Riemann Problem */
+  typedef PetscErrorCode (*NetRPNonlinearJac)(NetRP,PetscInt,PetscBool*,Vec,Vec,Mat);  /* form is: NumEdges,EdgeIn? Array, U, Jacobian of the NonlinearEval */
 
 typedef const char* NetRPType;
 /*
@@ -70,8 +70,8 @@ PETSC_EXTERN PetscErrorCode NetRPGetFlux(NetRP,RiemannSolver*);
 
 PETSC_EXTERN PetscErrorCode NetRPCanSolveStar(NetRP,PetscBool*); 
 
-PETSC_EXTERN PetscErrorCode NetRPSolveStar(NetRP,DM, PetscInt, Vec, Vec);
-PETSC_EXTERN PetscErrorCode NetRPSolveFlux(NetRP,DM, PetscInt, Vec, Vec);
+PETSC_EXTERN PetscErrorCode NetRPSolveStar(NetRP,PetscInt,PetscBool*, Vec, Vec);
+PETSC_EXTERN PetscErrorCode NetRPSolveFlux(NetRP,PetscInt,PetscBool*, Vec, Vec);
 
 /* Providing extra information to the cacheing ability of the problem */
 

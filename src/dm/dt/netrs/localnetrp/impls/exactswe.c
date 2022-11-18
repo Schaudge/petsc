@@ -6,43 +6,37 @@
    Implementation of Exact Shallow Water Network Riemann Solver. Experimental WIP
 */
 
-static PetscErrorCode NetRPNonlinearEval_ExactSWE(NetRP rp, DM network, PetscInt vert, Vec U, Vec Ustar, Vec F)
+static PetscErrorCode NetRPNonlinearEval_ExactSWE(NetRP rp, PetscInt vdeg,PetscBool *edgein, Vec U, Vec Ustar, Vec F)
 {
-  PetscInt          e,dof=2,wavenum,numedges;
+  PetscInt          e,dof=2,wavenum;
   const PetscScalar *ustar,*u; 
   PetscScalar       *f,ubar[2];
   const PetscInt *edges,*cone;
-  PetscBool       edgein; 
 
   PetscFunctionBeginUser;
   PetscCall(VecGetArrayRead(Ustar,&ustar));
   PetscCall(VecGetArrayRead(U,&u));
   PetscCall(VecGetArray(F,&f));
  
-  PetscCall(DMNetworkGetSupportingEdges(network,vert,&numedges,&edges));
   /* this interlaced ordering of algebraic conditions and physics, with the permutation of rows 
   0,1 ensures the jacobian has non-zero diagonal and direct solvers can easily be applied (as petsc 
   by default has no pivoting) */
 
   /* Algebraic Coupling Condition */
   f[1] = 0; 
-  for (e=1; e<numedges; e++)
+  for (e=1; e<vdeg; e++)
   {
-    PetscCall(DMNetworkGetConnectedVertices(network,edges[e],&cone));
-    edgein = (cone[1] == vert) ? PETSC_TRUE : PETSC_FALSE;
     /* algebraic coupling */
     f[e*dof] = ustar[dof*e] - ustar[dof*(e-1)];
-    f[1] += (edgein) ? ustar[dof*e+1] : -ustar[dof*e+1];
+    f[1] += (edgein[e]) ? ustar[dof*e+1] : -ustar[dof*e+1];
     /* physics based coupling */
-    wavenum = (edgein) ? 1 : 2;
+    wavenum = (edgein[e]) ? 1 : 2;
     PetscCall(RiemannSolverEvalLaxCurve(rp->flux,u+dof*e,ustar[dof*e],wavenum,ubar));
     f[e*dof+1] = ustar[dof*e+1] - ubar[1]; 
   }
   /* do edge 0 */
-  PetscCall(DMNetworkGetConnectedVertices(network,edges[0],&cone));
-  edgein = (cone[1] == vert) ? PETSC_TRUE : PETSC_FALSE;
-  f[1] += (edgein) ? ustar[1] : -ustar[1];
-  wavenum = (edgein) ? 1 : 2;
+  f[1] += (edgein[0]) ? ustar[1] : -ustar[1];
+  wavenum = (edgein[0]) ? 1 : 2;
   PetscCall(RiemannSolverEvalLaxCurve(rp->flux,u,ustar[0],wavenum,ubar));
   f[0] = ustar[1] - ubar[1];
   PetscCall(VecRestoreArrayRead(U,&u));
@@ -82,43 +76,37 @@ static PetscErrorCode ExactSWELaxCurveJac(RiemannSolver rs,const PetscReal *u,Pe
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode NetRPNonlinearJac_ExactSWE(NetRP rp, DM network, PetscInt vert, Vec U, Vec Ustar, Mat DF)
+static PetscErrorCode NetRPNonlinearJac_ExactSWE(NetRP rp, PetscInt vdeg, PetscBool *edgein, Vec U, Vec Ustar, Mat DF)
 {
-  PetscInt          e,dof=2,wavenum,numedges;
+  PetscInt          e,dof=2,wavenum;
   const PetscScalar *ustar,*u; 
   PetscScalar       ubar;
   const PetscInt *edges,*cone;
-  PetscBool       edgein; 
 
   PetscFunctionBeginUser;
   PetscCall(VecGetArrayRead(Ustar,&ustar));
   PetscCall(VecGetArrayRead(U,&u));
-  PetscCall(DMNetworkGetSupportingEdges(network,vert,&numedges,&edges));
 
-  for (e=1; e<numedges; e++)
+  for (e=1; e<vdeg; e++)
   {
-    PetscCall(DMNetworkGetConnectedVertices(network,edges[e],&cone));
-    edgein = (cone[1] == vert) ? PETSC_TRUE : PETSC_FALSE;
     /* algebraic coupling */
     PetscCall(MatSetValue(DF,e*dof,e*dof,1,INSERT_VALUES));
     PetscCall(MatSetValue(DF,e*dof,(e-1)*dof,-1,INSERT_VALUES));
 
-    PetscCall(MatSetValue(DF,1,dof*e+1,(edgein) ? 1 : -1,INSERT_VALUES));
+    PetscCall(MatSetValue(DF,1,dof*e+1,(edgein[e]) ? 1 : -1,INSERT_VALUES));
 
     /* physics based coupling */
-    wavenum = (edgein) ? 1 : 2;
+    wavenum = (edgein[e]) ? 1 : 2;
     PetscCall(ExactSWELaxCurveJac(rp->flux,u+dof*e,ustar[dof*e],wavenum,&ubar));
     PetscCall(MatSetValue(DF,dof*e+1,dof*e,-ubar,INSERT_VALUES));
     PetscCall(MatSetValue(DF,dof*e+1,dof*e+1,1,INSERT_VALUES));
   }
   /* do edge 0 */
-  PetscCall(DMNetworkGetConnectedVertices(network,edges[0],&cone));
-  edgein = (cone[1] == vert) ? PETSC_TRUE : PETSC_FALSE;
   
-  PetscCall(MatSetValue(DF,1,1,(edgein) ? 1 : -1,INSERT_VALUES));
+  PetscCall(MatSetValue(DF,1,1,(edgein[0]) ? 1 : -1,INSERT_VALUES));
 
   /* physics based coupling */
-  wavenum = (edgein) ? 1 : 2;
+  wavenum = (edgein[0]) ? 1 : 2;
   PetscCall(ExactSWELaxCurveJac(rp->flux,u,ustar[0],wavenum,&ubar));
   PetscCall(MatSetValue(DF,0,0,-ubar,INSERT_VALUES));
   PetscCall(MatSetValue(DF,0,1,1,INSERT_VALUES));
