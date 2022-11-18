@@ -482,7 +482,7 @@ static PetscErrorCode NetRSSetNetRPPhysics(NetRS  rs)
   PetscCall(DMLabelGetNumValues(rs->subgraphs,&numnetrp)); 
   for(i=0; i<numnetrp; i++) {
     PetscCall(NetRPisSetup(rs->netrp[i],&netrp_setup));
-    if(netrp_setup) break; 
+    if(netrp_setup) continue; 
     PetscCall(NetRPGetFlux(rs->netrp[i],&flux)); 
     if(flux){
       PetscCall(NetRPSetUp(rs->netrp[i])); 
@@ -590,7 +590,7 @@ static PetscErrorCode NetRSSetNetRPPhysics(NetRS  rs)
   PetscCall(DMLabelCreateIndex(rs->subgraphs,vStart,vEnd));
   for(i=0; i<size; i++) {
     PetscCall(DMLabelHasPoint(rs->subgraphs,keys[i],&flg)); 
-    if(!flg) break; 
+    if(!flg) continue; 
     PetscCall(DMLabelGetValue(rs->subgraphs,keys[i],&index)); 
     PetscCall(NetRPGetNumFields(rs->netrp[index],&numfields)); 
     PetscCall(PetscHMapISet(rs->vertex_shared_vec_offset,keys[i],vals[i]*numfields));
@@ -639,7 +639,7 @@ PetscErrorCode DMNetworkCacheVertexDegrees(NetRS rs, DM network)
   PetscCall(DMNetworkGetVertexRange(network,&vStart,&vEnd));
   for(i=0; i<nleaves; i++)
   {
-    if(ilocal[i]>=vEnd || ilocal[i]<vStart) break; 
+    if(ilocal[i]>=vEnd || ilocal[i]<vStart) continue; 
     PetscCall(DMNetworkGetSupportingEdges(network,ilocal[i],&leafdata[ilocal[i]],NULL)); 
   }
   /* reduce degree data from leaves to root. This gives the correct vertex degree on the
@@ -652,7 +652,7 @@ PetscErrorCode DMNetworkCacheVertexDegrees(NetRS rs, DM network)
      correct vertex degree. */
   PetscCall(DMLabelReset(rs->VertexDeg_shared));
   for(v=vStart; v<vEnd; v++) {
-    if(!rootdata[v]) break; 
+    if(!rootdata[v]) continue; 
     PetscCall(DMNetworkGetSupportingEdges(network,v,&nedges,NULL)); 
     rootdata[v] += nedges; 
   //  PetscPrintf(PETSC_COMM_SELF,"[%i] v: %"PetscInt_FMT " vdeg %"PetscInt_FMT"\n",rank,v,rootdata[v]);
@@ -664,7 +664,7 @@ PetscErrorCode DMNetworkCacheVertexDegrees(NetRS rs, DM network)
   PetscCall(PetscSFBcastEnd(sf,MPIU_INT,rootdata,leafdata,MPI_REPLACE));
   /*iterate through the leaf vertices and add their values to the label */
   for(i=0; i<nleaves; i++){
-    if(ilocal[i]>=vEnd || ilocal[i]<vStart) break; 
+    if(ilocal[i]>=vEnd || ilocal[i]<vStart) continue; 
     //PetscPrintf(PETSC_COMM_SELF,"[%i] v: %"PetscInt_FMT " vdeg %"PetscInt_FMT"\n",rank,ilocal[i],leafdata[ilocal[i]]);
 
     PetscCall(DMLabelSetValue(rs->VertexDeg_shared,ilocal[i],leafdata[ilocal[i]])); 
@@ -705,11 +705,12 @@ PetscErrorCode DMNetworkCreateEdgeInInfo(NetRS rs) {
   PetscCall(DMNetworkCacheVertexDegrees(rs,rs->network));
   PetscCall(DMNetworkCreateLocalEdgeNumbering(rs,rs->network));
 
-  PetscCall(DMNetworkGetVertexRange(tmpclone,&vStart,&vEnd));
+  PetscCall(DMNetworkGetVertexRange(rs->network,&vStart,&vEnd));
+
   for(v=vStart; v<vEnd; v++) 
   {
     PetscCall(DMLabelHasPoint(rs->VertexDeg_shared,v,&flg));
-    if(!flg) break; 
+    if(!flg) continue; 
     PetscCall(DMLabelGetValue(rs->VertexDeg_shared,v,&vdeg)); 
     PetscCall(DMNetworkAddComponent(tmpclone,v,0,NULL,vdeg));
   }
@@ -727,7 +728,7 @@ PetscErrorCode DMNetworkCreateEdgeInInfo(NetRS rs) {
   for(v=vStart; v<vEnd; v++) 
   {
     PetscCall(DMLabelHasPoint(rs->VertexDeg_shared,v,&flg));
-    if(!flg) break; 
+    if(!flg) continue; 
     numsharedvert++; 
     PetscCall(DMNetworkGetSupportingEdges(tmpclone,v,&numedges,&edges));
     PetscCall(DMNetworkGetLocalVecOffset(tmpclone,v,ALL_COMPONENTS,&off));
@@ -752,7 +753,7 @@ PetscErrorCode DMNetworkCreateEdgeInInfo(NetRS rs) {
   for(v=vStart; v<vEnd; v++) 
   {
     PetscCall(DMLabelHasPoint(rs->VertexDeg_shared,v,&flg));
-    if(!flg) break; 
+    if(!flg) continue; 
     PetscCall(DMNetworkGetLocalVecOffset(tmpclone,v,ALL_COMPONENTS,&off));
     PetscCall(DMNetworkGetComponent(tmpclone,v,ALL_COMPONENTS,NULL,NULL,&vdeg)); 
     for(i=0; i<vdeg; i++)
@@ -827,7 +828,7 @@ needing a reduce  + bcast.
  /* Fill the leaf data with the local vertex degrees */
   PetscCall(DMNetworkGetVertexRange(network,&vStart,&vEnd));
   for(i=0; i<nleaves; i++){
-    if(ilocal[i]>=vEnd || ilocal[i]<vStart) break; 
+    if(ilocal[i]>=vEnd || ilocal[i]<vStart) continue; 
     PetscCall(DMNetworkGetSupportingEdges(network,ilocal[i],&leafdata[ilocal[i]],NULL)); 
   }
   /* Gather the local vertex degrees of each leaf to the root */
@@ -837,7 +838,7 @@ needing a reduce  + bcast.
   /* Generate the shared vertex edge local ordering in place */
   for(v=vStart; v<vEnd; v++) {
     PetscCall(PetscSectionGetDof(rootsection,v,&dof)); 
-    if(!dof) break; 
+    if(!dof) continue; 
     PetscCall(PetscSectionGetOffset(rootsection,v,&off)); 
     v_off = 0; 
     for(i=off; i<dof+off; i++){
@@ -857,7 +858,7 @@ needing a reduce  + bcast.
   /*iterate and add to HMap*/
   for(i=0; i<nleaves; i++)
   {
-    if(ilocal[i]>=vEnd || ilocal[i]<vStart) break; 
+    if(ilocal[i]>=vEnd || ilocal[i]<vStart) continue; 
     PetscCall(PetscHMapISet(rs->vertex_shared_offset,ilocal[i],leafdata[ilocal[i]])); 
   }
   PetscCall(PetscFree2(multirootdata,leafdata)); 
@@ -957,12 +958,12 @@ PetscErrorCode DMNetworkComputeUniqueVertexDegrees_Local(NetRS rs,DM network,DML
     for(i=0; i<numsubgraphs; i++) {
       PetscCall(PetscHSetIClear(vertexdegrees[i]));
       PetscCall(DMLabelGetStratumIS(marked,values[i],&point_is)); 
-      if(point_is == NULL) break; 
+      if(point_is == NULL) continue;; 
       PetscCall(ISGetSize(point_is,&numpoints)); 
       PetscCall(ISGetIndices(point_is,&points)); 
       for(j=0; j<numpoints;j++){
         v = points[j];
-        if(v<vStart || v>=vEnd) break; 
+        if(v<vStart || v>=vEnd) continue; 
         PetscCall(DMLabelHasPoint(rs->VertexDeg_shared,v,&flg)); 
         if(flg){ /*get vertex degree from label*/
           PetscCall(DMLabelGetValue(rs->VertexDeg_shared,v,&vdeg)); 
@@ -1066,7 +1067,6 @@ PetscErrorCode NetRSSolveFlux(NetRS rs, Vec Uloc, Vec Fluxloc)
   PetscCall(DMGlobalToLocalBegin(rs->network,rs->U,INSERT_VALUES,Uloc));
   PetscCall(DMGlobalToLocalEnd(rs->network,rs->U,INSERT_VALUES,Uloc));
 
-  PetscCall(VecView(rs->U,PETSC_VIEWER_STDOUT_WORLD));
   /* iterate through every single netrp stored and then every single vertex in those sets */
   PetscCall(DMLabelGetNumValues(rs->subgraphs,&numnetrp));
   for(index=0; index<numnetrp; index++)

@@ -1300,6 +1300,7 @@ PetscErrorCode PetscSectionCreateGlobalSection(PetscSection s, PetscSF sf, Petsc
   PetscInt       *recv = NULL, *neg = NULL;
   PetscInt        pStart, pEnd, p, dof, cdof, off, foff, globalOff = 0, nroots, nlocal, maxleaf;
   PetscInt        numFields, f, numComponents;
+  PetscMPIInt     rank;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(s, PETSC_SECTION_CLASSID, 1);
@@ -1307,6 +1308,7 @@ PetscErrorCode PetscSectionCreateGlobalSection(PetscSection s, PetscSF sf, Petsc
   PetscValidLogicalCollectiveBool(s, includeConstraints, 3);
   PetscValidLogicalCollectiveBool(s, localOffsets, 4);
   PetscValidPointer(gsection, 5);
+  PetscCallMPI(MPI_Comm_rank(PetscObjectComm((PetscObject)s),&rank));
   PetscCheck(s->pointMajor, PETSC_COMM_SELF, PETSC_ERR_SUP, "No support for field major ordering");
   PetscCall(PetscSectionCreate(PetscObjectComm((PetscObject)s), &gs));
   PetscCall(PetscSectionGetNumFields(s, &numFields));
@@ -1342,7 +1344,7 @@ PetscErrorCode PetscSectionCreateGlobalSection(PetscSection s, PetscSF sf, Petsc
       if (recv[p] < 0) {
         gs->atlasDof[p - pStart] = recv[p];
         PetscCall(PetscSectionGetDof(s, p, &dof));
-        PetscCheck(-(recv[p] + 1) == dof, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Global dof %" PetscInt_FMT " for point %" PetscInt_FMT " is not the unconstrained %" PetscInt_FMT, -(recv[p] + 1), p, dof);
+        PetscCheck(-(recv[p] + 1) == dof, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "[%i] Global dof %" PetscInt_FMT " for point %" PetscInt_FMT " is not the unconstrained %" PetscInt_FMT,rank, -(recv[p] + 1), p, dof);
       }
     }
   }
