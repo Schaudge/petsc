@@ -1,5 +1,22 @@
 #include "dgnet.h"
 #include <petscdraw.h>
+#include "hydronetwork-2021/src/wash.h"
+
+PetscLogEvent DGNET_SetUP;
+
+PetscErrorCode WashDestroy_DGNet(Wash wash)
+{
+  PetscErrorCode ierr;
+  PetscInt       subnet,nsubnet=wash->nsubnet;
+
+  PetscFunctionBegin;
+  for (subnet=0; subnet<nsubnet; subnet++) {
+    ierr = PetscFree(wash->subnet[subnet]);CHKERRQ(ierr);
+  }
+  ierr = PetscFree(wash->subnet);CHKERRQ(ierr);
+  ierr = PetscFree(wash);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
 
 PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
 {
@@ -7,7 +24,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
   PetscMPIInt    rank;
   PetscInt       i,j,k,m,n,field,numVertices,numEdges;
   PetscInt       *edgelist;
-  Junction       junctions = NULL;
+  DGNETJunction  junctions = NULL;
   EdgeFE         fvedges = NULL;
   PetscInt       dof = dgnet->physics.dof;
 
@@ -15,6 +32,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
   PetscLogEventRegister("DGNetRHS_Edge",TS_CLASSID,&DGNET_Edge_RHS);
   PetscLogEventRegister("DGNetRHS_Comm",TS_CLASSID,&DGNET_RHS_COMM);
   PetscLogEventRegister("DGNetLimiter",TS_CLASSID,&DGNET_Limiter);
+  PetscLogEventRegister("DGNetSetUp",TS_CLASSID,&DGNET_SetUP);
 
   dgnet->nnodes_loc  = 0;
   PetscCall(MPI_Comm_rank(dgnet->comm,&rank));
@@ -27,6 +45,69 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
   /*-------------------------------------------------*/
   switch (networktype) {
 
+/* EPANet Parser from hydronetwork-2021. Rework into proper parser later */
+    case -2:
+      numVertices    = 0;
+      numEdges       = 0;
+      edgelist       = NULL;
+      /* only read in on processor 0 */
+      if(!rank){
+        Wash wash;
+        PetscBool parseflg = PETSC_FALSE;
+        char              filename[100][PETSC_MAX_PATH_LEN],filename0[PETSC_MAX_PATH_LEN]="",fmaster[PETSC_MAX_PATH_LEN]="",fsmall[PETSC_MAX_PATH_LEN]="";
+        PetscInt          washCase;
+        WashSubnet        washsubnet; 
+      
+      /* Read files from a screen (runtime) or from ../cases/master_.inp */
+        PetscCall(PetscOptionsGetString(NULL,NULL,"-f",filename0,PETSC_MAX_PATH_LEN,&parseflg));
+        FILE *fp = fopen(filename0,"rb");
+        if (parseflg && fp) {
+          /* Get input filename[] from ../cases/master_.inp */
+          PetscInt subcase = 0;
+          washCase = -1;
+          PetscCall(PetscOptionsGetInt(NULL,NULL, "-subcase", &subcase,NULL));
+
+          PetscCall(PetscStrcpy(fsmall,"../hydronetwork-2021/cases/master_small.inp"));
+          PetscCall(PetscStrcpy(fmaster,"../hydronetwork-2021/cases/master.inp"));
+          PetscCall(PetscStrcpy(filename[0],filename0));
+
+          /* All processes read filename[i], i=0,...,nsubnet-1 */
+          if (strcmp(filename[0],fmaster)==0){
+            PetscCall(WashReadInputFile(1,filename));
+          } else if (strcmp(filename[0],fsmall)==0){
+            PetscCall(WashReadInputFile(1,filename));
+          }
+          fclose(fp);
+        }
+        PetscCall(WashCreate(PETSC_COMM_WORLD,1,0,&wash)); 
+        PetscCall(WashAddSubnet(0,washCase,filename[0],0,wash));
+
+        washsubnet = wash->subnet[0]; 
+        numEdges = washsubnet->nedge; 
+        numVertices = washsubnet->nvertex; 
+
+        PetscCheck(washsubnet->npump == 0,PETSC_COMM_WORLD,PETSC_ERR_SUP,"Can only handle EPANet files containing rivers, cannot handle pumps. Mesh contained %"PetscInt_FMT" pumps",washsubnet->npump); 
+        PetscCall(PetscCalloc2(numVertices,&junctions,numEdges,&fvedges));
+        PetscCall(PetscCalloc1(2*numEdges,&edgelist));
+        PetscCall(PetscArraycpy(edgelist,washsubnet->edgelist,2*numEdges)); 
+        for(i=0; i<numEdges; i++) {
+          fvedges[i].length = washsubnet->river[i].length; 
+          if( dgnet->dx<= 0 ) dgnet->dx = 1; 
+          fvedges[i].nnodes = (PetscInt) PetscCeilReal(washsubnet->river[i].length/dgnet->dx); 
+          if(fvedges[i].nnodes < 3) fvedges[i].nnodes = 3; /* minimum requirement for limiting to work */
+        }  
+
+        PetscCall(PetscPrintf(PETSC_COMM_SELF, "%d -- washCase, numE %d, numV %d\n",washCase,numEdges,numVertices));
+      
+        /* no coordinate from EPANET so do nothing with junction coordinates here */
+
+
+        /* wash has really really silly destruction routines */
+        PetscCall(WashCleanUp(wash,&wash->subnet[0]->edgelist));
+
+        PetscCall(WashDestroy_DGNet(wash));
+      }
+      break; 
     /* grid graph with entrance */
 
     /* ndaughters governs the depth of the network */
@@ -384,15 +465,15 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
 
 PetscErrorCode DGNetworkSetComponents(DGNetwork dgnet){
   PetscInt          f,e,v,eStart,eEnd,vStart,vEnd,dof = dgnet->physics.dof;
-  PetscInt          KeyEdge,KeyJunction,nedges_tmp,nedges,nvertices;
+  PetscInt          KeyEdge,KeyJunction,nedges,nvertices;
   PetscInt          *edgelist = NULL,dmsize=0,numdof=0;
   EdgeFE            edgefe;
-  Junction          junction;
+  DGNETJunction          junction;
   MPI_Comm          comm = dgnet->comm;
   PetscMPIInt       size,rank;
-  const PetscInt    *edges;
 
   PetscFunctionBegin;
+  PetscLogEventBegin(DGNET_SetUP,0,0,0,0);
   PetscCall(MPI_Comm_rank(comm,&rank));
   PetscCall(MPI_Comm_size(comm,&size));
   nedges      = dgnet->nedge;
@@ -409,7 +490,7 @@ PetscErrorCode DGNetworkSetComponents(DGNetwork dgnet){
   PetscCall(DMNetworkLayoutSetUp(dgnet->network));
   PetscCall(DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd));
   PetscCall(DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd));
-  PetscCall(DMNetworkRegisterComponent(dgnet->network,"junctionstruct",sizeof(struct _p_Junction),&KeyJunction));
+  PetscCall(DMNetworkRegisterComponent(dgnet->network,"junctionstruct",sizeof(struct _p_DGNETJunction),&KeyJunction));
   PetscCall(DMNetworkRegisterComponent(dgnet->network,"fvedgestruct",sizeof(struct _p_EdgeFE),&KeyEdge));
 
   /* Add FVEdge component to all local edges. Note that as we have
@@ -431,9 +512,9 @@ PetscErrorCode DGNetworkSetComponents(DGNetwork dgnet){
   for (v=vStart; v<vEnd; v++) {
     junction = &dgnet->junction[v-vStart];
     PetscCall(DMNetworkAddComponent(dgnet->network,v,KeyJunction,junction,0));
-    PetscCall(DMNetworkGetSupportingEdges(dgnet->network,v,&nedges_tmp,&edges));
   }
   PetscCall(DMSetUp(dgnet->network));
+  PetscLogEventEnd(DGNET_SetUP,0,0,0,0);
   PetscFunctionReturn(0);
 }
 
@@ -493,6 +574,7 @@ PetscErrorCode DGNetworkBuildEdgeDM(DGNetwork dgnet)
   PetscSection   section;
 
   PetscFunctionBegin;
+  PetscLogEventBegin(DGNET_SetUP,0,0,0,0);
   PetscCall(DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd));
   /* iterate through the edges and build the dmplex mesh for each edge */
   PetscCall(PetscMalloc2(dof,&numComp,dof*(dim+1),&numDof));
@@ -523,6 +605,8 @@ PetscErrorCode DGNetworkBuildEdgeDM(DGNetwork dgnet)
     PetscCall(DMSetUp(edgefe->dm));
   }
   PetscCall(PetscFree2(numComp,numDof));
+  PetscLogEventEnd(DGNET_SetUP,0,0,0,0);
+
   PetscFunctionReturn(0);
 }
 
@@ -809,7 +893,7 @@ PetscErrorCode DGNetworkDestroyPhysics(DGNetwork dgnet)
 PetscErrorCode DGNetworkDestroy(DGNetwork dgnet)
 {
   PetscInt       v,e,eStart,eEnd,vStart,vEnd;
-  Junction       junction;
+  DGNETJunction       junction;
   EdgeFE         edgefe;
 
   PetscFunctionBegin;
@@ -821,7 +905,7 @@ PetscErrorCode DGNetworkDestroy(DGNetwork dgnet)
   }
   PetscCall(DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd));
   for (v=vStart; v<vEnd; v++) {
-    PetscCall(DMNetworkGetComponent(dgnet->network,v,JUNCTION,NULL,(void**)&junction,NULL));
+    PetscCall(DMNetworkGetComponent(dgnet->network,v,DGNETJUNCTION,NULL,(void**)&junction,NULL));
   }
 
   PetscCall(PetscFree2(dgnet->R,dgnet->Rinv));
@@ -1816,7 +1900,7 @@ PetscErrorCode DGNetworkCreateNetworkDMPlex_2D(DGNetwork dgnet,const PetscInt ed
   DM             *dmlist, network = dgnet->network,dmunion,dmtemp;
   const PetscInt *cone;
   EdgeFE         edgefe;
-  Junction       junct; 
+  DGNETJunction       junct; 
   PetscReal      lower[2],upper[2];
   PetscReal      thickness, z[2], n[2],norm = 0.0; 
   PetscSection   stratumoff; 
@@ -1834,10 +1918,10 @@ PetscErrorCode DGNetworkCreateNetworkDMPlex_2D(DGNetwork dgnet,const PetscInt ed
       vto = cone[0]; vfrom = cone[1];
       PetscInt faces[2]={cEnd-cStart,1};
       
-      PetscCall(DMNetworkGetComponent(network,vfrom,JUNCTION,NULL,(void**)&junct,NULL));
+      PetscCall(DMNetworkGetComponent(network,vfrom,DGNETJUNCTION,NULL,(void**)&junct,NULL));
       z[1] = junct->y; z[0]  = junct->x; 
       upper[0] = junct->x; upper[1] = junct->y;
-      PetscCall(DMNetworkGetComponent(network,vto,JUNCTION,NULL,(void**)&junct,NULL));
+      PetscCall(DMNetworkGetComponent(network,vto,DGNETJUNCTION,NULL,(void**)&junct,NULL));
       z[1] -= junct->y; z[0]  -= junct->x;
       norm = PetscSqrtReal(z[1]*z[1]+z[0]*z[0]);
       z[0]/=norm; z[1]/=norm; 

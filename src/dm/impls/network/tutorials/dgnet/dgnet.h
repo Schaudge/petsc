@@ -12,6 +12,7 @@
 PETSC_EXTERN PetscLogEvent DGNET_Limiter;
 PETSC_EXTERN PetscLogEvent DGNET_Edge_RHS;
 PETSC_EXTERN PetscLogEvent DGNET_RHS_COMM;
+PETSC_EXTERN PetscLogEvent DGNET_SetUP; 
 
 /* Function Specification for coupling flux calculations at the vertex */
 typedef PetscErrorCode (*VertexFlux)(const void*,const PetscScalar*,const PetscBool*,PetscScalar*,PetscScalar*,const void*);
@@ -20,12 +21,12 @@ typedef PetscErrorCode (*VertexFlux)(const void*,const PetscScalar*,const PetscB
 
 /* Component numbers used for accessing data in DMNetWork*/
 typedef enum {FVEDGE=0} EdgeCompNum;
-typedef enum {JUNCTION=0} VertexCompNum;
+typedef enum {DGNETJUNCTION=0} VertexCompNum;
 
-struct _p_Junction {
+struct _p_DGNETJunction {
   PetscReal     x,y;
 } PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
-typedef struct _p_Junction *Junction;
+typedef struct _p_DGNETJunction *DGNETJunction;
 
 struct _p_MultirateCtx
 {
@@ -46,8 +47,8 @@ struct _p_EdgeFE
 typedef struct _p_EdgeFE *EdgeFE;
 
 /* Specification for vertex flux assignment functions */
-typedef PetscErrorCode (*VertexFluxAssignment)(const void*,Junction);
-typedef PetscErrorCode (*VertexFluxDestroy)(const void*,Junction);
+typedef PetscErrorCode (*VertexFluxAssignment)(const void*,DGNETJunction);
+typedef PetscErrorCode (*VertexFluxDestroy)(const void*,DGNETJunction);
 
 typedef PetscErrorCode (*RiemannFunction)(void*,PetscInt,const PetscScalar*,const PetscScalar*,PetscScalar*,PetscReal*);
 typedef PetscErrorCode (*ReconstructFunction)(void*,PetscInt,const PetscScalar*,PetscScalar*,PetscScalar*,PetscReal*);
@@ -96,7 +97,7 @@ struct _p_DGNetwork
   PetscInt    moni;
   PetscBool   view,linearcoupling,lincouplediff,tabulated,laxcurve,adaptivecouple;
   PetscBool   viewglvis,viewfullnet;
-  PetscReal   ymin,ymax,length, diagnosticlow, diagnosticup,M;
+  PetscReal   ymin,ymax,length, diagnosticlow, diagnosticup,M,dx;
   char        prefix[256];
   void        (*limit)(const PetscScalar*,const PetscScalar*,PetscScalar*,PetscInt);
   PetscErrorCode (*gettimestep)(TS ts, PetscReal *dt);
@@ -154,7 +155,7 @@ struct _p_DGNetwork
   PetscInt    Mx;               /* Variable used to specify smallest number of cells for an edge in a problem */
 
   /* Junction */
-  Junction    junction;
+  DGNETJunction junction;
 
   /* Edges */
   EdgeFE      edgefe;

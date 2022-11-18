@@ -1,0 +1,24 @@
+#solver options
+-ts_max_steps 3
+
+#for ts_rhs
+#-junc_snes_monitor
+-junc_snes_converged_reason
+-junc_pc_type asm
+-junc_pc_asm_overlap 2
+-junc_ksp_error_if_not_converged
+-junc_sub_pc_type lu
+-junc_sub_pc_factor_mat_solver_type petsc
+
+#for !ts_rhs
+-ksp_error_if_not_converged 
+-pc_type lu
+-pc_factor_mat_solver_type mumps
+-mat_mumps_icntl_24 1
+-mat_mumps_cntl_5 1.e20
+
+-snes_monitor_short
+-ksp_error_if_not_converged
+#-ts_max_steps 10
+
+
