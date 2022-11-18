@@ -35,12 +35,12 @@ struct _NetRPOps {
   PetscErrorCode (*setupksp)(NetRP,PetscInt,KSP); 
   PetscErrorCode (*setupsnes)(NetRP,PetscInt,SNES);
   PetscErrorCode (*setupjac)(NetRP,PetscInt,Mat); 
-  PetscErrorCode (*solveStar)(NetRP, DM, PetscInt, Vec, Vec); /* form is: DMNetwork, Vertex, U, UStar */
-  PetscErrorCode (*solveFlux)(NetRP, DM, PetscInt, Vec, Vec); /* form is: DMNetwork, Vertex, U, Flux */
-  PetscErrorCode (*createLinearStar)(NetRP,DM,PetscInt,Vec,Vec,Mat); /* form is: DMNetwork, Vertex, U, Linear System for solving for Ustar */
-  PetscErrorCode (*createLinearFlux)(NetRP,DM,PetscInt,Vec,Vec,Mat); /* form is: DMNetwork, Vertex, U, Linear System for solving for Flux */
-  PetscErrorCode (*NonlinearEval)(NetRP,DM,PetscInt,Vec,Vec,Vec); /* form is: DMNetwork, Vertex,U, Ustar, F(ustar), where F(U) is the nonlinear eval for the nonlinear Network Riemann Problem */
-  PetscErrorCode (*NonlinearJac)(NetRP,DM,PetscInt,Vec,Vec,Mat);  /* form is: DMNetwork, Vertex, U,Ustar Jacobian of the NonlinearEval */
+  PetscErrorCode (*solveStar)(NetRP,PetscInt,PetscBool*,Vec, Vec); /* form is: DMNetwork, Vertex, U, UStar */
+  PetscErrorCode (*solveFlux)(NetRP,PetscInt,PetscBool*,Vec, Vec); /* form is: DMNetwork, Vertex, U, Flux */
+  PetscErrorCode (*createLinearStar)(NetRP,PetscInt,PetscBool*,Vec,Vec,Mat); /* form is: DMNetwork, Vertex, U, Linear System for solving for Ustar */
+  PetscErrorCode (*createLinearFlux)(NetRP,PetscInt,PetscBool*,Vec,Vec,Mat); /* form is: DMNetwork, Vertex, U, Linear System for solving for Flux */
+  PetscErrorCode (*NonlinearEval)(NetRP,PetscInt,PetscBool*,Vec,Vec,Vec); /* form is: DMNetwork, Vertex,U, Ustar, F(ustar), where F(U) is the nonlinear eval for the nonlinear Network Riemann Problem */
+  PetscErrorCode (*NonlinearJac)(NetRP,PetscInt,PetscBool*,Vec,Vec,Mat);  /* form is: DMNetwork, Vertex, U,Ustar Jacobian of the NonlinearEval */
 };
 
 struct _p_NetRP {

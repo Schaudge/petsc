@@ -60,7 +60,12 @@ struct _p_NetRS {
   Vec           Uv,Fluxv; /*subvecs of Uloc and Fluxloc corresponding to vector space of a vertex Riemann Problem */
   IS             is_wrk; /*work IS for getting subvectors for vertex points. Should Put a better interface for subvecs into vec itself that can access directly through a section point pair */
   PetscInt       *is_wrk_index; /*work indices for the IS */
- 
+
+
+
+
+
+
   /* DMNetwork Graph stuff, should be moved to DMNetwork itself */
   PetscBool      vertexdeg_shared_cached,vertex_offset_cached; 
   /* This label should also be a disjoint label if that implementation exists */
@@ -94,9 +99,9 @@ struct _p_NetRS {
   */
   PetscHMapI vertex_shared_vec_offset; /* same as above but just for the vector space on NetRS*/ 
 
-
   PetscHSetI     vertexdegrees_total; /* set of all vertex degrees in the full local network */
   PetscHSetI     *vertexdegrees; /* set of all vertex degrees for each subgraph induced by the DMLabel */
+  PetscBool      *edgein_shared,*edgein_wrk; 
 /* End of DMNetwork Graph stuff */
 
  };

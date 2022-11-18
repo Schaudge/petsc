@@ -9,16 +9,15 @@
     Replace with a boundary condition class ?
 */
 
-static PetscErrorCode NetRPSolveFlux_Outflow(NetRP rp, DM network,PetscInt v, Vec U, Vec Flux) 
+static PetscErrorCode NetRPSolveFlux_Outflow(NetRP rp, PetscInt vdeg,PetscBool *edgein, Vec U, Vec Flux) 
 {
-  PetscInt           i, numedges, numfields; 
+  PetscInt           i, numfields; 
   const PetscScalar *u; 
   PetscScalar       *flux;
   PetscReal         *fluxrs; 
 
   PetscFunctionBeginUser;
-  PetscCall(DMNetworkGetSupportingEdges(network,v,&numedges,NULL)); 
-  PetscCheck(numedges == 1,PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"The Outflow NetRP requires exactly one edge. Vertex %" PetscInt_FMT " has %" PetscInt_FMT " edges.",v,numedges);
+  PetscCheck(vdeg == 1,PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"The Outflow NetRP requires exactly one edge. %"PetscInt_FMT " Edges inputted",vdeg);
   PetscCall(VecGetArrayRead(U,&u));
   PetscCall(VecGetArray(Flux,&flux)); 
   PetscCall(RiemannSolverEvaluate(rp->flux,u,u,&fluxrs,NULL));
