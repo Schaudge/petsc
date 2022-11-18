@@ -127,22 +127,21 @@ PetscErrorCode NetRPClearCache(NetRP rp)
   if(rp->ksp) { 
     switch(rp->solvetype){
       case Linear: 
-      for(i=0; i<numvertdegs; i++) {
-        PetscCall(KSPDestroy(&rp->ksp[i])); 
-        PetscCall(VecDestroy(&rp->vec[i]));
-        PetscCall(MatDestroy(&rp->mat[i])); 
-      }
-      break; 
+        for(i=0; i<numvertdegs; i++) {
+          PetscCall(KSPDestroy(&rp->ksp[i])); 
+          PetscCall(VecDestroy(&rp->vec[i]));
+          PetscCall(MatDestroy(&rp->mat[i])); 
+        }
+        break; 
       case Nonlinear: 
-      for(i=0; i<numvertdegs; i++)  {
-       PetscCall(SNESDestroy(&rp->snes[i]));
-      }
-      break;
+        for(i=0; i<numvertdegs; i++)  {
+          PetscCall(SNESDestroy(&rp->snes[i]));
+        }
+        break;
       case Other: 
-      break;
+        break;
     }
-    PetscFree(rp->snes);
-    PetscFree3(rp->mat,rp->vec,rp->ksp); 
+    PetscFree4(rp->mat,rp->vec,rp->ksp,rp->snes); 
   }
   PetscCall(PetscHMapIClear(rp->hmap));
   PetscFunctionReturn(0);
@@ -422,18 +421,19 @@ PetscErrorCode NetRPAddVertexDegrees(NetRP rp, PetscInt numdegs, PetscInt *vertd
   }
   if (totalnew == 0) PetscFunctionReturn(0);
   /* reallocate solver cache arrays with room for new entries */
-  PetscCall(PetscMalloc3(numentries+totalnew,&mat_new,numentries+totalnew,&vec_new,numentries+totalnew,&ksp_new)); 
-  PetscCall(PetscMalloc(numentries+totalnew,&snes_new)); 
+  PetscCall(PetscMalloc4(numentries+totalnew,&mat_new,numentries+totalnew,&vec_new,numentries+totalnew,&ksp_new,numentries+totalnew,&snes_new)); 
+\
 
   PetscCall(PetscArraycpy(mat_new,rp->mat,numentries));
   PetscCall(PetscArraycpy(vec_new,rp->vec,numentries));  
   PetscCall(PetscArraycpy(ksp_new,rp->ksp,numentries));
   PetscCall(PetscArraycpy(snes_new,rp->snes,numentries)); 
 
+
   if(rp->mat){ /* if any memeory has every been allocated */
-    PetscCall(PetscFree3(rp->mat,rp->vec,rp->ksp)); 
-    PetscCall(PetscFree(rp->snes)); 
+    PetscCall(PetscFree4(rp->mat,rp->vec,rp->ksp,rp->snes)); 
   }
+
   rp->mat = mat_new; 
   rp->ksp = ksp_new; 
   rp->snes = snes_new;
@@ -443,7 +443,7 @@ PetscErrorCode NetRPAddVertexDegrees(NetRP rp, PetscInt numdegs, PetscInt *vertd
   off = 0; 
   for (i=0; i< numdegs; i++) {
     PetscCall(PetscHMapIHas(rp->hmap, vertdegs[i],&flg)); 
-    if (flg) break;
+    if (flg) continue;
     PetscCall(PetscHMapISet(rp->hmap,vertdegs[i],numentries+off)); 
     /* only create what is needed */
     switch(rp->solvetype)
