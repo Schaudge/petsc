@@ -850,7 +850,6 @@ PetscErrorCode DGNetworkCreateVectors(DGNetwork dgnet)
 {
   PetscFunctionBegin;
   PetscCall(DMCreateGlobalVector(dgnet->network,&dgnet->X));
-  PetscCall(VecDuplicate(dgnet->X,&dgnet->Ftmp));
   PetscCall(DMCreateLocalVector(dgnet->network,&dgnet->localX));
   PetscCall(DMCreateLocalVector(dgnet->network,&dgnet->localF));
   PetscFunctionReturn(0);
@@ -915,7 +914,6 @@ PetscErrorCode DGNetworkDestroy(DGNetwork dgnet)
   PetscCall(DGNetworkDestroyTabulation(dgnet));
   PetscCall(DGNetworkDestroyPhysics(dgnet));
   PetscCall(VecDestroy(&dgnet->X));
-  PetscCall(VecDestroy(&dgnet->Ftmp));
   PetscCall(VecDestroy(&dgnet->localX));
   PetscCall(VecDestroy(&dgnet->localF));
   PetscCall(VecDestroy(&dgnet->Flux)); 
