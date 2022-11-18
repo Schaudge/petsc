@@ -25,6 +25,21 @@ Just Runs an Simulation with the specified Setup. \n\n";
   4. Requires: GLVis
      Run on Parent-Daughter Network with P^4 DG Basis and linearized coupling View GLVis
      mpiexec -n 1 ./ex8 -view -network 3 -view_glvis -view_full_net -glvis_pause 1e-10 -order 4
+  5. Nonlinear Coupling: Run hydronetwork EPANet Network (network -2 uses hydrnetwork reader for networks)
+  mpiexec -np 2 ./ex8 -f ../hydronetwork-2021/cases/brazosRiver.inp -ts_monitor -network -2 -ts_max_steps 2 -dx 1000
+
+  6. Linear Coupling Run hydronetwork EPANet Network (network -2 uses hydrnetwork reader for networks)
+  mpiexec -np 2 ./ex8 -f ../hydronetwork-2021/cases/brazosRiver.inp -ts_monitor -network -2 -ts_max_steps 2 -dx 1000 -lincouple 
+
+
+  A Note for the NetRP solvers, The ksp for linear solvers can be accessed by 
+    -netrp_ksp 
+  and the snes for nonlinear solvers can be accessed
+    -netrp_snes
+  and snes ksp by 
+    -netrp_snes_ksp 
+
+  By default SNES and KSP use PCLU only for the solve, and the symbolic factorization is resused between calls. 
 */
 
 PetscErrorCode TSDGNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
@@ -106,7 +121,9 @@ int main(int argc,char *argv[])
   dgnet->diagnosticup   = 1e-4;
   dgnet->linearcoupling   = PETSC_FALSE;
   dgnet->M                = 50;
-  dgnet->edgethickness   = 1; 
+  dgnet->edgethickness   = 1;
+  dgnet->dx              = 1000; 
+
 
   /* Command Line Options */
   PetscOptionsBegin(comm,NULL,"DGNetwork solver options","");
@@ -127,6 +144,7 @@ int main(int argc,char *argv[])
     PetscCall(PetscOptionsBool("-view_3d","View a 3d version of edge","",view3d,&view3d,NULL));
     PetscCall(PetscOptionsBool("-view_glvis","View GLVis of Edge","",viewglvis,&viewglvis,NULL));
     PetscCall(PetscOptionsBool("-view_full_net","View GLVis of Entire Network","",viewfullnet,&viewfullnet,NULL));
+    PetscCall(PetscOptionsReal("-dx","Size of Cells in some cases","",dgnet->dx,&dgnet->dx,NULL));
   PetscOptionsEnd();
   /* Choose the physics from the list of registered models */
   {

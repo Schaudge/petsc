@@ -1,0 +1,24 @@
+[TITLE]
+ADAPTED HECRAS JUNCTION HYDRAULICS
+[JUNCTIONS]
+;ID Elev Demand
+;--------------------------
+989710 0 0
+6 0 0
+[INFLOWS]
+;ID FLOW
+;---------
+101 99
+[STAGES]
+;ID Head
+;---------
+94 31
+7  26
+[PIPES]
+;ID Node1 Node2 Length Width Roughness Slope qInitial hInitial 
+;---------------------------------------------------------------
+1 1 2 9700 154 0.04 0.002 14.3 0.31  
+2 2 3 9700 30 0.04 0.002 14.3 0.31
+3 2 4 9700 61 0.04 0.002 2.17 0.31
+
+[END]
