@@ -5647,6 +5647,7 @@ PetscErrorCode DMPlexCreateEphemeral(DMPlexTransform tr, DM *dm)
     PetscCall(DMLabelEphemeralSetTransform(labelNew, tr));
     PetscCall(DMLabelSetUp(labelNew));
   }
+  PetscFunctionReturn(0);
 }
 static PetscErrorCode DMPlexCreateEmbeddedLineMesh_Internal(DM dm, PetscInt dim, const PetscReal lower[], const PetscReal upper[], const PetscInt edges)
 {

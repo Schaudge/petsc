@@ -29,8 +29,15 @@ ex5 : $(OBJECTS_DGNET) $(OBJECTS_RIVER)
 ex6 : $(OBJECTS_DGNET) $(OBJECTS_RIVER)
 ex7 : $(OBJECTS_DGNET) $(OBJECTS_RIVER)
 ex8 : $(OBJECTS_DGNET) $(OBJECTS_RIVER)
+
 ex9:  $(OBJECTS_DGNET) $(OBJECTS_RIVER)
 ex10 : $(OBJECTS_DGNET)  $(OBJECTS_RIVER)
 
 .PHONY: all 
 all : ex1 ex2 ex3 ex4 ex5 ex6 ex7 ex8 ex9 ex10
+
+.PHONY: clean 
+clean: 
+	rm *.o 
+	rm ../*.o 
+	rm ../hydronetwork/src/*.o
