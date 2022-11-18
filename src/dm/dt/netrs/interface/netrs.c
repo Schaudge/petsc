@@ -10,6 +10,12 @@
 
 #include <petsc/private/riemannsolverimpl.h> /* to be removed after adding fluxfunction class */
 
+PetscLogEvent NetRS_SetUp_VecSpace; 
+PetscLogEvent NetRS_Solve_Total; 
+PetscLogEvent NetRS_Solve_Communication; 
+
+
+
 /*@
    NetRSSetUp - Sets up the internal data structures for the later use of a NetRS. 
 
@@ -513,7 +519,7 @@ static PetscErrorCode NetRSSetNetRPPhysics(NetRS  rs)
   PetscValidHeaderSpecific(rs,NETRS_CLASSID,1);
   if(rs->setupvectorspace) PetscFunctionReturn(0); 
   rs->setupvectorspace = PETSC_TRUE; 
-
+  PetscLogEventBegin(NetRS_SetUp_VecSpace,0,0,0,0);
   PetscCall(NetRSSetNetRPPhysics(rs));
 
   /* For each NetRP on NetRS, add a component to the network and add dofs for the local Riemann problem 
@@ -596,6 +602,7 @@ static PetscErrorCode NetRSSetNetRPPhysics(NetRS  rs)
     PetscCall(PetscHMapISet(rs->vertex_shared_vec_offset,keys[i],vals[i]*numfields));
   }
   PetscCall(PetscFree2(keys,vals)); 
+  PetscLogEventEnd(NetRS_SetUp_VecSpace,0,0,0,0);
   PetscFunctionReturn(0);
  }
 
@@ -1057,16 +1064,17 @@ PetscErrorCode NetRSSolveFlux(NetRS rs, Vec Uloc, Vec Fluxloc)
   /* add error checking */
 
   PetscCall(NetRSSetUpVectorSpace(rs));
+  PetscLogEventBegin(NetRS_Solve_Total,0,0,0,0);
   /* assumes U, F came from the NetRS DM, should enforce this by keeping them internal */
   PetscCall(VecZeroEntries(rs->U));
   PetscCall(PetscObjectGetComm((PetscObject)rs, &comm));
   PetscCallMPI(MPI_Comm_rank(comm,&rank));
-
+  PetscLogEventBegin(NetRS_Solve_Communication,0,0,0,0);
   PetscCall(DMLocalToGlobalBegin(rs->network,Uloc,ADD_VALUES,rs->U)); /* should optimize this with Barry's work */
   PetscCall(DMLocalToGlobalEnd(rs->network,Uloc,ADD_VALUES,rs->U));
   PetscCall(DMGlobalToLocalBegin(rs->network,rs->U,INSERT_VALUES,Uloc));
   PetscCall(DMGlobalToLocalEnd(rs->network,rs->U,INSERT_VALUES,Uloc));
-
+  PetscLogEventEnd(NetRS_Solve_Communication,0,0,0,0);
   /* iterate through every single netrp stored and then every single vertex in those sets */
   PetscCall(DMLabelGetNumValues(rs->subgraphs,&numnetrp));
   for(index=0; index<numnetrp; index++)
@@ -1105,6 +1113,7 @@ PetscErrorCode NetRSSolveFlux(NetRS rs, Vec Uloc, Vec Fluxloc)
     }
     PetscCall(ISRestoreIndices(rs->subgraphIS[index],&v_subgraph));
   }
+  PetscLogEventEnd(NetRS_Solve_Total,0,0,0,0);
   PetscFunctionReturn(0);
 }
 

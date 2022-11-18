@@ -11,7 +11,6 @@ static PetscErrorCode NetRPNonlinearEval_ExactSWE(NetRP rp, PetscInt vdeg,PetscB
   PetscInt          e,dof=2,wavenum;
   const PetscScalar *ustar,*u; 
   PetscScalar       *f,ubar[2];
-  const PetscInt *edges,*cone;
 
   PetscFunctionBeginUser;
   PetscCall(VecGetArrayRead(Ustar,&ustar));
@@ -81,7 +80,6 @@ static PetscErrorCode NetRPNonlinearJac_ExactSWE(NetRP rp, PetscInt vdeg, PetscB
   PetscInt          e,dof=2,wavenum;
   const PetscScalar *ustar,*u; 
   PetscScalar       ubar;
-  const PetscInt *edges,*cone;
 
   PetscFunctionBeginUser;
   PetscCall(VecGetArrayRead(Ustar,&ustar));

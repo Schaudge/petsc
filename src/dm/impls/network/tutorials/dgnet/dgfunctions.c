@@ -1,6 +1,11 @@
 #include "dgnet.h"
 #include <stdio.h>
 
+
+PetscLogEvent DGNET_Limiter;
+PetscLogEvent DGNET_Edge_RHS;
+PetscLogEvent DGNET_RHS_COMM;
+
 PetscErrorCode PhysicsDestroy_SimpleFree_Net(void *vctx)
 {
   PetscFunctionBeginUser;
@@ -584,7 +589,9 @@ PetscErrorCode DGNetlimiter(TS ts, PetscReal stagetime, PetscInt stageindex, Vec
 
   PetscFunctionBeginUser;
   PetscCall(TSGetApplicationContext(ts,&dgnet));
+  PetscLogEventBegin(DGNET_Limiter,0,0,0,0);
   PetscCall(DGNetlimiter_ctx(Y[stageindex],dgnet));
+  PetscLogEventEnd(DGNET_Limiter,0,0,0,0);
   PetscFunctionReturn(0);
 }
 
@@ -663,8 +670,11 @@ PetscErrorCode DGNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
 
   PetscFunctionBeginUser;
   PetscCall(VecZeroEntries(localF));
+  PetscLogEventBegin(DGNET_RHS_COMM,0,0,0,0);
   PetscCall(DMGlobalToLocalBegin(dgnet->network,X,INSERT_VALUES,localX));
   PetscCall(DMGlobalToLocalEnd(dgnet->network,X,INSERT_VALUES,localX));
+  PetscLogEventEnd(DGNET_RHS_COMM,0,0,0,0);
+
   PetscCall(DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd)); 
   PetscCall(VecGetArray(localX,&xarr));
   PetscCall(VecGetArray(localF,&f));
@@ -703,7 +713,9 @@ PetscErrorCode DGNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   }
   PetscCall(VecRestoreArray(dgnet->RiemannData,&riemanndata));
   /* NetRS solve */
-  PetscCall(NetRSSolveFlux(dgnet->netrs,dgnet->RiemannData,dgnet->Flux)); 
+  PetscCall(NetRSSolveFlux(dgnet->netrs,dgnet->RiemannData,dgnet->Flux));
+
+  PetscLogEventBegin(DGNET_Edge_RHS,0,0,0,0);
   PetscCall(VecGetArray(dgnet->Flux,&flux)); 
   /* Do DG for each edge */
   PetscCall(DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd)); 
@@ -829,11 +841,15 @@ PetscErrorCode DGNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
       }
     }
   }
+  PetscLogEventEnd(DGNET_Edge_RHS,0,0,0,0);
   /* Data Cleanup */
   PetscCall(VecRestoreArray(localX,&xarr));
   PetscCall(VecRestoreArray(dgnet->Flux,&flux));
   PetscCall(VecRestoreArray(localF,&f));
+  PetscLogEventBegin(DGNET_RHS_COMM,0,0,0,0);
   PetscCall(DMLocalToGlobalBegin(dgnet->network,localF,INSERT_VALUES,F));
   PetscCall(DMLocalToGlobalEnd(dgnet->network,localF,INSERT_VALUES,F));
+  PetscLogEventEnd(DGNET_RHS_COMM,0,0,0,0);
+
   PetscFunctionReturn(0);
 }

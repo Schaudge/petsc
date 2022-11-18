@@ -4,6 +4,13 @@
 #include <petscsys.h>
 #include <petscdmnetwork.h>
 
+PetscLogEvent NetRP_Solve_Total;
+PetscLogEvent NetRP_Solve_SetUp;
+PetscLogEvent NetRP_Solve_System;
+
+
+
+
 /*@
    NetRPSetUp - Sets up the internal data structures for the later use of a NetRP. 
 
@@ -353,6 +360,8 @@ PetscErrorCode NetRPCreateSNES(NetRP rp, PetscInt vertdeg, SNES *snes)
   const char *prefix_netrp; 
   PetscInt numfield;
   Mat      jac; 
+  KSP      ksp; 
+  PC       pc;
 
   PetscFunctionBegin; 
   PetscValidHeaderSpecific(rp,NETRP_CLASSID,1);
@@ -363,6 +372,15 @@ PetscErrorCode NetRPCreateSNES(NetRP rp, PetscInt vertdeg, SNES *snes)
   PetscCall(PetscObjectAppendOptionsPrefix((PetscObject)_snes,"netrp_"));
   if(rp->ops->setupsnes) PetscCall((rp->ops->setupsnes)(rp,vertdeg,_snes));
   PetscCall(SNESSetFromOptions(_snes));
+  PetscCall(SNESGetKSP(_snes,&ksp));
+  PetscCall(PetscObjectSetOptionsPrefix((PetscObject)ksp,prefix_netrp)); 
+  PetscCall(PetscObjectAppendOptionsPrefix((PetscObject)ksp,"netrp_snes_"));
+
+  /* Default to direct linear solver, which makes sense for these small systems */
+  PetscCall(KSPGetPC(ksp,&pc));
+  PetscCall(PCSetType(pc,PCLU)); 
+  PetscCall(KSPSetType(ksp,KSPPREONLY));
+  PetscCall(KSPSetFromOptions(ksp));
   PetscCall(SNESSetFunction(_snes,NULL,NetRPSNESWrapperFunc,NULL)); /* should I provide the r vec here? */
 
   if(rp->ops->NonlinearJac) 
@@ -869,6 +887,7 @@ PetscErrorCode NetRPSolveFlux(NetRP rp,PetscInt numedges,PetscBool *edgein, Vec 
 
   PetscFunctionBegin;
   if(!rp->setupcalled) PetscCall(NetRPSetUp(rp)); 
+  PetscLogEventBegin(NetRP_Solve_Total,0,0,0,0);
   /* find index of cached solvers */
   PetscCall(PetscHMapIHas(rp->hmap,vdeg,&flg));
   if(!flg) PetscCall(NetRPAddVertexDegrees(rp,1,&vdeg)); 
@@ -879,14 +898,23 @@ PetscErrorCode NetRPSolveFlux(NetRP rp,PetscInt numedges,PetscBool *edgein, Vec 
   {
     case Linear: 
       if(rp->ops->createLinearFlux) {
+        PetscLogEventBegin(NetRP_Solve_SetUp,0,0,0,0);
         PetscUseTypeMethod(rp,createLinearFlux,vdeg,edgein,U,rp->vec[index],rp->mat[index]);
+        PetscLogEventEnd(NetRP_Solve_SetUp,0,0,0,0);
+        PetscLogEventBegin(NetRP_Solve_System,0,0,0,0);
         PetscCall(KSPSetOperators(rp->ksp[index],rp->mat[index],rp->mat[index])); /* should this be moved to the creation routine? Check how PCSetUp works and if it can be reused */
         PetscCall(KSPSolve(rp->ksp[index],rp->vec[index],Flux));
+        PetscLogEventEnd(NetRP_Solve_System,0,0,0,0);
+
       } else if (rp->ops->createLinearStar)
       {
+        PetscLogEventBegin(NetRP_Solve_SetUp,0,0,0,0);
         PetscUseTypeMethod(rp,createLinearStar,vdeg,edgein,U,rp->vec[index],rp->mat[index]);
+        PetscLogEventEnd(NetRP_Solve_SetUp,0,0,0,0);
+        PetscLogEventBegin(NetRP_Solve_System,0,0,0,0);
         PetscCall(KSPSetOperators(rp->ksp[index],rp->mat[index],rp->mat[index])); /* should this be moved to the creation routine? Check how PCSetUp works and if it can be reused */
         PetscCall(KSPSolve(rp->ksp[index],rp->vec[index],Flux));
+        PetscLogEventEnd(NetRP_Solve_System,0,0,0,0);
         /* inplace evaluate the star states in Flux by the physics flux to compute the actual flux */
         PetscCall(NetRPComputeFluxInPlace_internal(rp,vdeg,Flux)); 
       } else {
@@ -900,7 +928,9 @@ PetscErrorCode NetRPSolveFlux(NetRP rp,PetscInt numedges,PetscBool *edgein, Vec 
       snesctx.U  = U; 
       PetscCall(SNESSetApplicationContext(rp->snes[index],(void*)&snesctx)); 
       PetscCall(VecCopy(U,Flux)); /* initial guess of the riemann data */
+      PetscLogEventBegin(NetRP_Solve_System,0,0,0,0);
       PetscCall(SNESSolve(rp->snes[index],NULL,Flux)); /* currently assumes this solves for the star state */
+      PetscLogEventEnd(NetRP_Solve_System,0,0,0,0);
       /* inplace evaluate the star states in Flux by the physics flux to compute the actual flux */
       PetscCall(NetRPComputeFluxInPlace_internal(rp,vdeg,Flux)); 
       break; 
@@ -908,6 +938,8 @@ PetscErrorCode NetRPSolveFlux(NetRP rp,PetscInt numedges,PetscBool *edgein, Vec 
       PetscUseTypeMethod(rp,solveFlux,vdeg,edgein,U,Flux); 
       break; 
   }
+  PetscLogEventEnd(NetRP_Solve_Total,0,0,0,0);
+
   PetscFunctionReturn(0); 
 }
 
