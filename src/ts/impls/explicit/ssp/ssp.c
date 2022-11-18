@@ -225,6 +225,7 @@ static PetscErrorCode TSReset_SSP(TS ts)
 
   PetscFunctionBegin;
   if (ssp->work) PetscCall(VecDestroyVecs(ssp->nwork, &ssp->work));
+  PetscCall(PetscFree(ssp->Y));
   ssp->nwork   = 0;
   ssp->workout = PETSC_FALSE;
   PetscFunctionReturn(0);

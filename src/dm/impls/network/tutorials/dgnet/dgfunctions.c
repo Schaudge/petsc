@@ -776,7 +776,7 @@ PetscErrorCode DGNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
       ndeg = dgnet->taborder[tab]+1;
       for (deg = 0; deg<ndeg; deg++) {
         coeff = f+offset+fieldoff+deg;
-        *coeff -= f[field+i*dof+voff]*dgnet->LegEvaL_bdry[tab][ndeg+deg];
+        *coeff -= flux[field+i*dof+voff]*dgnet->LegEvaL_bdry[tab][ndeg+deg];
       }
     }
     /* 2) Then iterate through the flux updates */

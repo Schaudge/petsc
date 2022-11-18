@@ -19,9 +19,9 @@ static PetscReal ShallowRiemannEig_Left(const PetscScalar hl, const PetscScalar 
   return vl - PetscSqrtScalar(g*hl);
 }
 
-static PetscErrorCode NetRPCreateLinearStar_Linearized(NetRP rp, DM network, PetscInt v, Vec U, Vec Rhs, Mat A)
+static PetscErrorCode NetRPCreateLinearStar_Linearized(NetRP rp, DM network, PetscInt vert, Vec U, Vec Rhs, Mat A)
 {
-  PetscScalar h,eig,hv; 
+  PetscScalar h,eig,hv,v;
   PetscScalar *rhs;
   const PetscScalar *u; 
   PetscInt    numedges,i,numfields,index_hv,index_h; 
@@ -32,7 +32,7 @@ static PetscErrorCode NetRPCreateLinearStar_Linearized(NetRP rp, DM network, Pet
   PetscCall(NetRPGetApplicationContext(rp,&ctx));
   PetscCall(VecGetArrayRead(U,&u)); 
   PetscCall(VecGetArray(Rhs,&rhs));
-  PetscCall(DMNetworkGetSupportingEdges(network,v,&numedges,&edges)); 
+  PetscCall(DMNetworkGetSupportingEdges(network,vert,&numedges,&edges)); 
   PetscCall(NetRPGetNumFields(rp,&numfields));
 /* Build the system matrix and rhs vector */
   for (i=1; i<numedges; i++) {
@@ -42,7 +42,7 @@ static PetscErrorCode NetRPCreateLinearStar_Linearized(NetRP rp, DM network, Pet
     hv = u[index_hv];
     v  = hv/h; 
     PetscCall(DMNetworkGetConnectedVertices(network,edges[i],&cone)); 
-    eig = cone[1] == v ? 
+    eig = cone[1] == vert ? 
       ShallowRiemannEig_Left(h,v) : ShallowRiemannEig_Right(h,v); /* replace with RiemannSolver Calls */
     PetscCall(MatSetValue(A,index_hv,index_hv,-1 ,INSERT_VALUES)); /* hv* term */
     PetscCall(MatSetValue(A,index_hv,index_h,eig,INSERT_VALUES));      /* h* term */
@@ -55,13 +55,13 @@ static PetscErrorCode NetRPCreateLinearStar_Linearized(NetRP rp, DM network, Pet
     rhs[index_h] = 0.0; 
   }
 
-  /* first row requires a change as to ensure non-zero diagonal, a permutation of the first t
-     two rows in teh "standard ordering is needed */
+  /* first row requires a change as to ensure non-zero diagonal, a permutation of the first
+     two rows in the "standard ordering is needed */
     h  = u[0];
     hv = u[1];
     v  = hv/h; 
     PetscCall(DMNetworkGetConnectedVertices(network,edges[i],&cone)); 
-    eig = cone[1] == v ? 
+    eig = cone[1] == vert ? 
       ShallowRiemannEig_Left(h,v) : ShallowRiemannEig_Right(h,v); /* replace with RiemannSolver Calls */
     PetscCall(MatSetValue(A,0,1,-1 ,INSERT_VALUES)); /* hv* term */
     PetscCall(MatSetValue(A,0,0,eig,INSERT_VALUES));      /* h* term */

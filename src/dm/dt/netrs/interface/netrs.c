@@ -135,6 +135,7 @@ PetscErrorCode  NetRSDestroy(NetRS *rs)
   PetscCall(DMLabelDestroy(&(*rs)->subgraphs)); 
   PetscCall(PetscHMapNetRPIDestroy(&(*rs)->netrphmap));
   PetscCall(ISDestroy(&(*rs)->is_wrk));
+  if((*rs)->rs) (RiemannSolverDestroy(&(*rs)->rs));
   PetscCall(PetscHeaderDestroy(rs));
   PetscFunctionReturn(0);
 }
@@ -945,6 +946,7 @@ PetscErrorCode NetRSSolveFlux(NetRS rs, Vec Uloc, Vec Fluxloc)
       PetscCall(VecRestoreSubVector(Uloc,rs->is_wrk,&rs->Uv));
       PetscCall(VecRestoreSubVector(Fluxloc,rs->is_wrk,&rs->Fluxv));
     }
+    PetscCall(ISRestoreIndices(rs->subgraphIS[index],&v_subgraph));
   }
   PetscFunctionReturn(0);
 }

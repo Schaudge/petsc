@@ -125,18 +125,24 @@ PetscErrorCode NetRPClearCache(NetRP rp)
   }
   PetscCall(NetRPGetVertexDegrees(rp,&numvertdegs,NULL)); 
   if(rp->ksp) { 
-    for(i=0; i<numvertdegs; i++) {
-      PetscCall(KSPDestroy(&rp->ksp[i])); 
-      PetscCall(VecDestroy(&rp->vec[i]));
-      PetscCall(MatDestroy(&rp->mat[i])); 
+    switch(rp->solvetype){
+      case Linear: 
+      for(i=0; i<numvertdegs; i++) {
+        PetscCall(KSPDestroy(&rp->ksp[i])); 
+        PetscCall(VecDestroy(&rp->vec[i]));
+        PetscCall(MatDestroy(&rp->mat[i])); 
+      }
+      break; 
+      case Nonlinear: 
+      for(i=0; i<numvertdegs; i++)  {
+       PetscCall(SNESDestroy(&rp->snes[i]));
+      }
+      break;
+      case Other: 
+      break;
     }
+    PetscFree(rp->snes);
     PetscFree3(rp->mat,rp->vec,rp->ksp); 
-  }
-  if (rp->snes) {
-    for(i=0; i<numvertdegs; i++) {
-      PetscCall(SNESDestroy(&rp->snes[i]));
-    }
-    PetscFree(rp->snes); 
   }
   PetscCall(PetscHMapIClear(rp->hmap));
   PetscFunctionReturn(0);
@@ -449,10 +455,7 @@ PetscErrorCode NetRPAddVertexDegrees(NetRP rp, PetscInt numdegs, PetscInt *vertd
         PetscCall(NetRPCreateLinear(rp,vertdegs[i],&rp->mat[numentries+off],&rp->vec[numentries+off])); 
         PetscCall(NetRPCreateKSP(rp,vertdegs[i],&rp->ksp[numentries+off]));
         break;
-      case Other: /* Create Everything */
-        PetscCall(NetRPCreateLinear(rp,vertdegs[i],&rp->mat[numentries+off],&rp->vec[numentries+off])); 
-        PetscCall(NetRPCreateKSP(rp,vertdegs[i],&rp->ksp[numentries+off]));
-        PetscCall(NetRPCreateSNES(rp,vertdegs[i],&rp->snes[numentries+off])); 
+      case Other: /* Create Nothing */
         break;
     }
     off++; 
@@ -832,7 +835,7 @@ static PetscErrorCode NetRPComputeFluxInPlace_internal(NetRP rp, DM network, Pet
   PetscCall(NetRPGetNumFields(rp,&numfields)); 
   for(i=0; i<numedges; i++) {
     PetscCall(RiemmanSolverEvaluateFlux(fluxfun,&star[i*numfields],&fluxval)); /* fluxval is owned by RiemannSolver */
-    PetscCall(PetscArraycpy(star,fluxval,numfields)); /* modify in-place*/
+    PetscCall(PetscArraycpy(star+i*numfields,fluxval,numfields)); /* modify in-place*/
   }
   PetscCall(VecRestoreArray(Flux,&star)); 
   PetscFunctionReturn(0);  
@@ -898,7 +901,10 @@ PetscErrorCode NetRPSolveFlux(NetRP rp, DM network, PetscInt v, Vec U, Vec Flux)
       snesctx.rp = rp; 
       snesctx.U  = U; 
       PetscCall(SNESSetApplicationContext(rp->snes[index],(void*)&snesctx)); 
-      PetscCall(SNESSolve(rp->snes[index],NULL,Flux)); 
+      PetscCall(VecCopy(U,Flux)); /* initial guess of the riemann data */
+      PetscCall(SNESSolve(rp->snes[index],NULL,Flux)); /* currently assumes this solves for the star state */
+      /* inplace evaluate the star states in Flux by the physics flux to compute the actual flux */
+      PetscCall(NetRPComputeFluxInPlace_internal(rp,network,v,Flux)); 
       break; 
     case Other: 
       PetscUseTypeMethod(rp,solveFlux,network,v,U,Flux); 
