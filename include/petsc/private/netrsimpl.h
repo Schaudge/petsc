@@ -102,6 +102,7 @@ struct _p_NetRS {
   PetscHSetI     vertexdegrees_total; /* set of all vertex degrees in the full local network */
   PetscHSetI     *vertexdegrees; /* set of all vertex degrees for each subgraph induced by the DMLabel */
   PetscBool      *edgein_shared,*edgein_wrk; 
+  PetscHMapI     edgein_shared_offset;
 /* End of DMNetwork Graph stuff */
 
  };
