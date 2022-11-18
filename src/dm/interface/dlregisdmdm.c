@@ -492,7 +492,9 @@ PetscErrorCode  NetRSInitializePackage(void)
   /* Register Constructors */
   PetscCall(NetRSRegisterAll());
   /* Register Events */
- 
+  PetscCall(PetscLogEventRegister("NetRS_Solve",NETRS_CLASSID,&NetRS_Solve_Total));
+  PetscCall(PetscLogEventRegister("NetRS_SetUp",NETRS_CLASSID,&NetRS_SetUp_VecSpace));
+  PetscCall(PetscLogEventRegister("NetRS_SolveComm",NETRS_CLASSID,&NetRS_Solve_Communication));
   /* Process Info */
   {
     PetscClassId  classids[1];
@@ -557,7 +559,10 @@ PetscErrorCode  NetRPInitializePackage(void)
   /* Register Constructors */
   PetscCall(NetRPRegisterAll());
   /* Register Events */
- 
+  PetscCall(PetscLogEventRegister("NetRPSolve_Total",NETRP_CLASSID,&NetRP_Solve_Total));
+  PetscCall(PetscLogEventRegister("NetRPSolve_SetUp",NETRP_CLASSID,&NetRP_Solve_SetUp));
+  PetscCall(PetscLogEventRegister("NetRPSolve_System",NETRP_CLASSID,&NetRP_Solve_System));
+
   /* Process Info */
   {
     PetscClassId  classids[1];

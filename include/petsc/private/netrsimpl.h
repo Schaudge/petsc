@@ -12,6 +12,10 @@
 #include <petscdmlabel.h>
 #include <petscnetrp.h>
 
+PETSC_EXTERN PetscLogEvent NetRS_Solve_Total; 
+PETSC_EXTERN PetscLogEvent NetRS_SetUp_VecSpace;
+PETSC_EXTERN PetscLogEvent NetRS_Solve_Communication;
+
 PETSC_EXTERN PetscBool NetRSRegisterAllCalled;
 PETSC_EXTERN PetscErrorCode NetRSRegisterAll(void);
 

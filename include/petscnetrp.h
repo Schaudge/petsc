@@ -24,14 +24,6 @@ typedef enum {Generic,Specific} NetRPPhysicsGenerality;
   typedef PetscErrorCode (*NetRPNonlinearJac)(NetRP,PetscInt,PetscBool*,Vec,Vec,Mat);  /* form is: NumEdges,EdgeIn? Array, U, Jacobian of the NonlinearEval */
 
 typedef const char* NetRPType;
-/*
-#define NETRPEXACTSWE "exactswe"
-
-#define NETRPOUTFLOW "netrpoutflow"
-#define NETRPRIEMANN "netrpriemann"
-#define NETRPEXACTSWESTAR "exactswestar"
-#define NETRPLINEARPTAR  "netrslinearstar"
-*/
 #define NETRPBLANK       "netrpblank"
 #define NETRPLINEARIZED "netrplinearized"
 #define NETRPOUTFLOW "netrpoutflow"

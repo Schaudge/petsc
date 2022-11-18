@@ -12,6 +12,10 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
   PetscInt       dof = dgnet->physics.dof;
 
   PetscFunctionBegin;
+  PetscLogEventRegister("DGNetRHS_Edge",TS_CLASSID,&DGNET_Edge_RHS);
+  PetscLogEventRegister("DGNetRHS_Comm",TS_CLASSID,&DGNET_RHS_COMM);
+  PetscLogEventRegister("DGNetLimiter",TS_CLASSID,&DGNET_Limiter);
+
   dgnet->nnodes_loc  = 0;
   PetscCall(MPI_Comm_rank(dgnet->comm,&rank));
   numVertices        = 0;
