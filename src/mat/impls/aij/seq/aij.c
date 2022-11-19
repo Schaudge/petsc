@@ -5297,6 +5297,7 @@ PetscErrorCode MatEliminateZeros_SeqAIJ(Mat A)
     a->nz = ai[m];
   }
   PetscCall(PetscInfo(A, "Matrix size: %" PetscInt_FMT " X %" PetscInt_FMT "; zeros eliminated: %" PetscInt_FMT "; nonzeros left: %" PetscInt_FMT "\n", m, A->cmap->n, fshift, a->nz));
+  if (fshift > 0) A->rmap->bs = 1;
   A->nonzerostate -= fshift;
   A->info.nz_unneeded += (PetscReal)fshift;
   a->rmax = rmax;

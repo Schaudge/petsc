@@ -2718,11 +2718,13 @@ PetscErrorCode MatInvertVariableBlockDiagonal_MPIAIJ(Mat A, PetscInt nblocks, co
 
 PetscErrorCode MatEliminateZeros_MPIAIJ(Mat A)
 {
-  Mat_MPIAIJ *a = (Mat_MPIAIJ *)A->data;
+  Mat_MPIAIJ      *a     = (Mat_MPIAIJ *)A->data;
+  PetscObjectState state = a->A->nonzerostate + a->B->nonzerostate;
 
   PetscFunctionBegin;
   PetscCall(MatEliminateZeros(a->A));
   PetscCall(MatEliminateZeros(a->B));
+  if (state > a->A->nonzerostate + a->B->nonzerostate) A->rmap->bs = 1;
   PetscFunctionReturn(0);
 }
 
