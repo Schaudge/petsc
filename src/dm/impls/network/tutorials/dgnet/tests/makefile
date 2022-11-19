@@ -16,7 +16,6 @@ OBJECTS_DGNET   = $(patsubst %.c,%.o,$(SOURCES_DGNET))
 SOURCES_WASH = $(wildcard ../hydronetwork-2021/src/river/*.c ../hydronetwork-2021/src/*.c)
 OBJECTS_RIVER = $(patsubst %.c,%.o,$(SOURCES_WASH))
 
-
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
 include ${PETSC_DIR}/lib/petsc/conf/test
@@ -33,11 +32,10 @@ ex8 : $(OBJECTS_DGNET) $(OBJECTS_RIVER)
 ex9:  $(OBJECTS_DGNET) $(OBJECTS_RIVER)
 ex10 : $(OBJECTS_DGNET)  $(OBJECTS_RIVER)
 
-.PHONY: all 
+.PHONY: all
 all : ex1 ex2 ex3 ex4 ex5 ex6 ex7 ex8 ex9 ex10
 
-.PHONY: clean 
-clean: 
-	rm *.o 
-	rm ../*.o 
-	rm ../hydronetwork/src/*.o
+VALUE = 10
+
+clean ::
+	rm ${OBJECTS_RIVER} ${OBJECTS_DGNET}

@@ -1,9 +1,9 @@
 #include "dgnet.h"
 #include <petscdraw.h>
-#include "hydronetwork-2021/src/wash.h"
+//#include "hydronetwork-2021/src/wash.h"
 
 PetscLogEvent DGNET_SetUP;
-
+#if(0)
 PetscErrorCode WashDestroy_DGNet(Wash wash)
 {
   PetscErrorCode ierr;
@@ -17,6 +17,8 @@ PetscErrorCode WashDestroy_DGNet(Wash wash)
   ierr = PetscFree(wash);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+#endif
+
 
 PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
 {
@@ -46,6 +48,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
   switch (networktype) {
 
 /* EPANet Parser from hydronetwork-2021. Rework into proper parser later */
+#if(0)
     case -2:
       numVertices    = 0;
       numEdges       = 0;
@@ -108,8 +111,8 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
         PetscCall(WashDestroy_DGNet(wash));
       }
       break; 
+#endif
     /* grid graph with entrance */
-
     /* ndaughters governs the depth of the network */
     case -1: 
       m              = dgnet->ndaughters; 
@@ -456,14 +459,17 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
   dgnet->physics.maxorder =0;
   for(field=0; field<dof; field++){
     if (dgnet->physics.order[field] > dgnet->physics.maxorder) dgnet->physics.maxorder = dgnet->physics.order[field];
+    PetscPrintf(PETSC_COMM_WORLD,"Field %" PetscInt_FMT" Order %"PetscInt_FMT"\n",field,dgnet->physics.order[field]);
   }
+      PetscPrintf(PETSC_COMM_WORLD,"Max Order %"PetscInt_FMT"\n",dgnet->physics.maxorder);
+
 
   PetscCall(PetscMalloc5(dof,&dgnet->limitactive,(dgnet->physics.maxorder+1)*dof,&dgnet->charcoeff,dof,&dgnet->cbdryeval_L,dof,&dgnet->cbdryeval_R,dof,&dgnet->cuAvg));
   PetscCall(PetscMalloc2(3*dof,&dgnet->uavgs,2*dof,&dgnet->cjmpLR));
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DGNetworkSetComponents(DGNetwork dgnet){
+PetscErrorCode DGNetworkSetComponents(DGNetwork dgnet) {
   PetscInt          f,e,v,eStart,eEnd,vStart,vEnd,dof = dgnet->physics.dof;
   PetscInt          KeyEdge,KeyJunction,nedges,nvertices;
   PetscInt          *edgelist = NULL,dmsize=0,numdof=0;
@@ -649,7 +655,6 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
   PetscCall(PetscFree(temp_taborder));
   ierr = PetscMalloc4(dgnet->tabordersize,&dgnet->LegEval,dgnet->tabordersize,
           &dgnet->Leg_L2,dgnet->tabordersize,&dgnet->LegEvalD,dgnet->tabordersize,&dgnet->LegEvaL_bdry);CHKERRQ(ierr);
-  PetscCall(PetscMalloc1(dgnet->tabordersize,&dgnet->comp));
   /* Internal Viewer Storage stuff (to be migrated elsewhere) */
   PetscCall(PetscMalloc2(dgnet->tabordersize,&dgnet->LegEval_equispaced,dgnet->tabordersize,&dgnet->numviewpts));
     /* Build Reference Quadrature (Single Quadrature for all fields (maybe generalize but not now) */
@@ -682,9 +687,6 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
     PetscCall(PetscDTLegendreEval(dgnet->numviewpts[i],viewnodes,dgnet->taborder[i]+1,deg,dgnet->LegEval_equispaced[i],PETSC_NULL,PETSC_NULL));
     PetscCall(PetscFree(viewnodes));
     PetscCall(PetscFree(deg));
-
-    /* Workspace */
-    PetscCall(PetscMalloc1(dgnet->taborder[i]+1,&dgnet->comp[i]));
   }
   PetscFunctionReturn(0);
 }
@@ -866,13 +868,11 @@ PetscErrorCode DGNetworkDestroyTabulation(DGNetwork dgnet){
     PetscCall(PetscFree(dgnet->Leg_L2[i]));
     PetscCall(PetscFree(dgnet->LegEvaL_bdry[i]));
     PetscCall(PetscQuadratureDestroy(&dgnet->quad));
-    PetscCall(PetscFree(dgnet->comp[i]));
     PetscCall(PetscFree(dgnet->LegEval_equispaced[i]));
   }
   PetscCall(PetscFree5(dgnet->Leg_L2,dgnet->LegEval,dgnet->LegEvaL_bdry,dgnet->LegEvalD,dgnet->quad));
   PetscCall(PetscFree(dgnet->taborder));
   PetscCall(PetscFree(dgnet->fieldtotab));
-  PetscCall(PetscFree(dgnet->comp));
   PetscCall(PetscFree2(dgnet->fluxeval,dgnet->pteval));
   PetscCall(PetscFree2(dgnet->LegEval_equispaced,dgnet->numviewpts));
   PetscFunctionReturn(0);
@@ -887,14 +887,12 @@ PetscErrorCode DGNetworkDestroyPhysics(DGNetwork dgnet)
   for (i=0; i<dgnet->physics.dof; i++) {
     PetscCall(PetscFree(dgnet->physics.fieldname[i]));
   }
-  if(dgnet->physics.lowbound) PetscCall(PetscFree2(dgnet->physics.lowbound,dgnet->physics.upbound));
   PetscFunctionReturn(0);
 }
 
 PetscErrorCode DGNetworkDestroy(DGNetwork dgnet)
 {
-  PetscInt       v,e,eStart,eEnd,vStart,vEnd;
-  DGNETJunction       junction;
+  PetscInt       e,eStart,eEnd;
   EdgeFE         edgefe;
 
   PetscFunctionBegin;
@@ -902,16 +900,11 @@ PetscErrorCode DGNetworkDestroy(DGNetwork dgnet)
   for(e=eStart; e<eEnd; e++) {
     PetscCall(DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL));
     PetscCall(DMDestroy(&edgefe->dm));
-    PetscCall(DMDestroy(&edgefe->dmaux));
-  }
-  PetscCall(DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd));
-  for (v=vStart; v<vEnd; v++) {
-    PetscCall(DMNetworkGetComponent(dgnet->network,v,DGNETJUNCTION,NULL,(void**)&junction,NULL));
   }
 
   PetscCall(PetscFree2(dgnet->R,dgnet->Rinv));
   PetscCall(PetscFree5(dgnet->cuLR,dgnet->uLR,dgnet->flux,dgnet->speeds,dgnet->uPlus));
-  PetscCall(PetscFree5(dgnet->charcoeff,dgnet->limitactive,dgnet->cbdryeval_L,dgnet->cbdryeval_R,dgnet->cuAvg));
+//  PetscCall(PetscFree5(dgnet->charcoeff,dgnet->limitactive,dgnet->cbdryeval_L,dgnet->cbdryeval_R,dgnet->cuAvg));
   PetscCall(PetscFree2(dgnet->uavgs,dgnet->cjmpLR));
   PetscCall(DGNetworkDestroyTabulation(dgnet));
   PetscCall(DGNetworkDestroyPhysics(dgnet));
