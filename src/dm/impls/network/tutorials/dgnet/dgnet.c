@@ -1,9 +1,8 @@
 #include "dgnet.h"
 #include <petscdraw.h>
-//#include "hydronetwork-2021/src/wash.h"
+#include "hydronetwork-2021/src/wash.h"
 
 PetscLogEvent DGNET_SetUP;
-#if(0)
 PetscErrorCode WashDestroy_DGNet(Wash wash)
 {
   PetscErrorCode ierr;
@@ -17,7 +16,7 @@ PetscErrorCode WashDestroy_DGNet(Wash wash)
   ierr = PetscFree(wash);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-#endif
+
 
 
 PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
@@ -48,7 +47,6 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
   switch (networktype) {
 
 /* EPANet Parser from hydronetwork-2021. Rework into proper parser later */
-#if(0)
     case -2:
       numVertices    = 0;
       numEdges       = 0;
@@ -111,7 +109,6 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
         PetscCall(WashDestroy_DGNet(wash));
       }
       break; 
-#endif
     /* grid graph with entrance */
     /* ndaughters governs the depth of the network */
     case -1: 
