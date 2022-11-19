@@ -680,7 +680,7 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
     PetscCall(PetscMalloc1(dgnet->taborder[i]+1,&dgnet->Leg_L2[i]));
     for(j=0; j<=dgnet->taborder[i]; j++) {dgnet->Leg_L2[i][j] = (2.0*j +1.)/(2.); }
     /* Viewer evaluations to be migrated */
-    dgnet->numviewpts[i] = (dgnet->taborder[i]+1); /* DO NOT CHANGE THIS WITHOUT CREATING A TABULATION FOR GLVIS VISUALIZATION */
+    dgnet->numviewpts[i] = (dgnet->taborder[i]+1);
     PetscCall(PetscMalloc1(dgnet->numviewpts[i],&viewnodes));
     for(j=0; j<dgnet->numviewpts[i]; j++) viewnodes[j] = 2.*j/(dgnet->numviewpts[i]) - 1.;
     PetscCall(PetscMalloc1(dgnet->numviewpts[i]*(dgnet->taborder[i]+1),&dgnet->LegEval_equispaced[i]));
@@ -870,10 +870,10 @@ PetscErrorCode DGNetworkDestroyTabulation(DGNetwork dgnet){
     PetscCall(PetscFree(dgnet->LegEval_equispaced[i]));
   }
   PetscCall(PetscQuadratureDestroy(&dgnet->quad));
-  PetscCall(PetscFree4(dgnet->Leg_L2,dgnet->LegEval,dgnet->LegEvaL_bdry,dgnet->LegEvalD));
+  PetscCall(PetscFree4(dgnet->LegEval,dgnet->Leg_L2,dgnet->LegEvalD,dgnet->LegEvaL_bdry));
   PetscCall(PetscFree(dgnet->taborder));
   PetscCall(PetscFree(dgnet->fieldtotab));
-  PetscCall(PetscFree2(dgnet->fluxeval,dgnet->pteval));
+  PetscCall(PetscFree2(dgnet->pteval,dgnet->fluxeval));
   PetscCall(PetscFree2(dgnet->LegEval_equispaced,dgnet->numviewpts));
   PetscFunctionReturn(0);
 }
@@ -904,7 +904,7 @@ PetscErrorCode DGNetworkDestroy(DGNetwork dgnet)
 
   PetscCall(PetscFree2(dgnet->R,dgnet->Rinv));
   PetscCall(PetscFree5(dgnet->cuLR,dgnet->uLR,dgnet->flux,dgnet->speeds,dgnet->uPlus));
-//  PetscCall(PetscFree5(dgnet->charcoeff,dgnet->limitactive,dgnet->cbdryeval_L,dgnet->cbdryeval_R,dgnet->cuAvg));
+  PetscCall(PetscFree5(dgnet->limitactive,dgnet->charcoeff,dgnet->cbdryeval_L,dgnet->cbdryeval_R,dgnet->cuAvg));
   PetscCall(PetscFree2(dgnet->uavgs,dgnet->cjmpLR));
   PetscCall(DGNetworkDestroyTabulation(dgnet));
   PetscCall(DGNetworkDestroyPhysics(dgnet));
