@@ -617,7 +617,6 @@ PetscErrorCode DGNetworkBuildEdgeDM(DGNetwork dgnet)
 }
 
 PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
-  PetscErrorCode ierr;
   PetscInt       n,j,i,dof = dgnet->physics.dof,numunique,dim=1;
   PetscInt       *deg,*temp_taborder;
   PetscReal      *xnodes,*w,bdry[2] = {-1,1},*viewnodes;
@@ -646,15 +645,15 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
     }
   }
   /* now we have the number of unique orders and what they are in fieldtotab (which is being reused here) */
-  ierr = PetscMalloc1(numunique,&dgnet->taborder);
+  PetscCall(PetscMalloc1(numunique,&dgnet->taborder));
   dgnet->tabordersize = numunique;
   for(i=0; i<dgnet->tabordersize; i++) {
     dgnet->taborder[i] = temp_taborder[i];
   }
   PetscCheck(dgnet->tabordersize > 0,PetscObjectComm((PetscObject) dgnet),PETSC_ERR_COR,"Tabordersize is %" PetscInt_FMT "<1, this should not happen",dgnet->tabordersize);
   PetscCall(PetscFree(temp_taborder));
-  ierr = PetscMalloc4(dgnet->tabordersize,&dgnet->LegEval,dgnet->tabordersize,
-          &dgnet->Leg_L2,dgnet->tabordersize,&dgnet->LegEvalD,dgnet->tabordersize,&dgnet->LegEvaL_bdry);CHKERRQ(ierr);
+  PetscCall(PetscMalloc4(dgnet->tabordersize,&dgnet->LegEval,dgnet->tabordersize,
+          &dgnet->Leg_L2,dgnet->tabordersize,&dgnet->LegEvalD,dgnet->tabordersize,&dgnet->LegEvaL_bdry));
   /* Internal Viewer Storage stuff (to be migrated elsewhere) */
   PetscCall(PetscMalloc2(dgnet->tabordersize,&dgnet->LegEval_equispaced,dgnet->tabordersize,&dgnet->numviewpts));
     /* Build Reference Quadrature (Single Quadrature for all fields (maybe generalize but not now) */
