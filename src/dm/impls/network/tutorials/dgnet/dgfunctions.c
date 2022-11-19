@@ -346,10 +346,10 @@ PetscErrorCode TVDLimit_1D(DGNetwork dgnet,const PetscScalar *uL,const PetscScal
   if (limiteractivated) {
     /* evaluate the coeffients of the center cell in the characteristic coordinates */
 
-    /* Note that we need to expand each basis the the largest DG basis for this to make sense. Thank god 
+    /* Note that we need to expand each basis to the largest DG basis for this to make sense. Thank god 
     the legendre basis is hierarchical (and orthogonal), making this way way easier */ 
 
-    PetscCall(PetscArrayzero(dgnet->charcoeff,dgnet->physics.maxorder+1*dof));
+    PetscCall(PetscArrayzero(dgnet->charcoeff,(dgnet->physics.maxorder+1)*dof));
     for(field=0; field<dof; field++) {
       PetscCall(PetscSectionGetFieldDof(sec,c,field,&fielddeg));
       PetscCall(PetscSectionGetFieldOffset(sec,c,field,&fieldoff));

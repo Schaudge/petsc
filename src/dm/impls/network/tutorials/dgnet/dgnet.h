@@ -39,7 +39,7 @@ struct _p_EdgeFE
   /* solver objects */
   PetscReal   cfl_idt; /* Max allowable value of fvnet->cfl/Delta t on this edge*/
   /* Mesh object */
-  DM          dm, dmaux;
+  DM          dm;
 
   PetscInt    nnodes;
   PetscReal   length; /* Used to setup the DMPLex, to be refactored out. */
@@ -121,7 +121,6 @@ struct _p_DGNetwork
   PetscReal **LegEval_equispaced; /* tabulation for viewing */
 
   /* DG WorkSpace Stuff */
-  PetscReal **comp;
   PetscReal *pteval;
   PetscReal *fluxeval; /*refactor this to be a single contiguous array of data */
   /*

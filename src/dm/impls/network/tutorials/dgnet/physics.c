@@ -302,10 +302,6 @@ PetscErrorCode PhysicsCreate_Shallow(DGNetwork fvnet)
   user->parenth = 2.0;
   user->parentv = 0.0;
 
-  PetscCall(PetscMalloc2(2,&fvnet->physics.lowbound,2,&fvnet->physics.upbound));
-  fvnet->physics.lowbound[0] = 0;   fvnet->physics.lowbound[1] = -100;
-  fvnet->physics.upbound[0] = 100;   fvnet->physics.upbound[1] = 100;
-
   PetscOptionsBegin(fvnet->comm,fvnet->prefix,"Options for Shallow","");
     PetscCall(PetscOptionsReal("-parh","","",user->parenth,&user->parenth,NULL));
     PetscCall(PetscOptionsReal("-parv","","",user->parenth,&user->parenth,NULL));
