@@ -656,26 +656,27 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
           &dgnet->Leg_L2,dgnet->tabordersize,&dgnet->LegEvalD,dgnet->tabordersize,&dgnet->LegEvaL_bdry));
   /* Internal Viewer Storage stuff (to be migrated elsewhere) */
   PetscCall(PetscMalloc2(dgnet->tabordersize,&dgnet->LegEval_equispaced,dgnet->tabordersize,&dgnet->numviewpts));
-    /* Build Reference Quadrature (Single Quadrature for all fields (maybe generalize but not now) */
-    PetscCall(PetscQuadratureCreate(dgnet->comm,&dgnet->quad));
-    /* Find maximum ordeer */
-    n = 0;
-    for(i=0; i<dgnet->tabordersize; i++) {
-      if(n < dgnet->taborder[i]+1) n =  dgnet->taborder[i]+1;
-    }
-    PetscCall(PetscMalloc2(n,&xnodes,n,&w));
-    PetscCall(PetscDTGaussQuadrature(n,-1,1,xnodes,w));
-    PetscCall(PetscQuadratureSetData(dgnet->quad,dim,1,n,xnodes,w));
-    PetscCall(PetscQuadratureSetOrder(dgnet->quad,2*n));
-    PetscCall(PetscMalloc2(dof,&dgnet->pteval,dof*n,&dgnet->fluxeval));
+  /* Build Reference Quadrature (Single Quadrature for all fields (maybe generalize but not now) */
+  PetscCall(PetscQuadratureCreate(dgnet->comm,&dgnet->quad));
+  /* Find maximum ordeer */
+  n = 0;
+  for(i=0; i<dgnet->tabordersize; i++) {
+    if(n < dgnet->taborder[i]+1) n =  dgnet->taborder[i]+1;
+  }
+  PetscCall(PetscMalloc(n,&xnodes));
+  PetscCall(PetscMalloc(n,&w));
+  PetscCall(PetscDTGaussQuadrature(n,-1,1,xnodes,w));
+  PetscCall(PetscQuadratureSetData(dgnet->quad,dim,1,n,xnodes,w));
+  PetscCall(PetscQuadratureSetOrder(dgnet->quad,2*n));
+  PetscCall(PetscMalloc2(dof,&dgnet->pteval,dof*n,&dgnet->fluxeval));
   for (i=0; i<dgnet->tabordersize; i++) {
     /* Build Reference Legendre Evaluations */
     PetscCall(PetscMalloc1(dgnet->taborder[i]+1,&deg));
     PetscCall(PetscMalloc2(n*(dgnet->taborder[i]+1),&dgnet->LegEval[i],n*(dgnet->taborder[i]+1),&dgnet->LegEvalD[i]));
     for(j=0; j<=dgnet->taborder[i]; j++) { deg[j] = j; }
-    PetscCall(PetscDTLegendreEval(n,xnodes,dgnet->taborder[i]+1,deg,dgnet->LegEval[i],dgnet->LegEvalD[i],PETSC_NULL));
+    PetscCall(PetscDTLegendreEval(n,xnodes,dgnet->taborder[i]+1,deg,dgnet->LegEval[i],dgnet->LegEvalD[i],NULL));
     PetscCall(PetscMalloc1(2*(dgnet->taborder[i]+1),&dgnet->LegEvaL_bdry[i]));
-    PetscCall(PetscDTLegendreEval(2,bdry,dgnet->taborder[i]+1,deg,dgnet->LegEvaL_bdry[i],PETSC_NULL,PETSC_NULL));
+    PetscCall(PetscDTLegendreEval(2,bdry,dgnet->taborder[i]+1,deg,dgnet->LegEvaL_bdry[i],NULL,NULL));
     PetscCall(PetscMalloc1(dgnet->taborder[i]+1,&dgnet->Leg_L2[i]));
     for(j=0; j<=dgnet->taborder[i]; j++) {dgnet->Leg_L2[i][j] = (2.0*j +1.)/(2.); }
     /* Viewer evaluations to be migrated */
@@ -683,7 +684,7 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
     PetscCall(PetscMalloc1(dgnet->numviewpts[i],&viewnodes));
     for(j=0; j<dgnet->numviewpts[i]; j++) viewnodes[j] = 2.*j/(dgnet->numviewpts[i]) - 1.;
     PetscCall(PetscMalloc1(dgnet->numviewpts[i]*(dgnet->taborder[i]+1),&dgnet->LegEval_equispaced[i]));
-    PetscCall(PetscDTLegendreEval(dgnet->numviewpts[i],viewnodes,dgnet->taborder[i]+1,deg,dgnet->LegEval_equispaced[i],PETSC_NULL,PETSC_NULL));
+    PetscCall(PetscDTLegendreEval(dgnet->numviewpts[i],viewnodes,dgnet->taborder[i]+1,deg,dgnet->LegEval_equispaced[i],NULL,NULL));
     PetscCall(PetscFree(viewnodes));
     PetscCall(PetscFree(deg));
   }
@@ -866,10 +867,10 @@ PetscErrorCode DGNetworkDestroyTabulation(DGNetwork dgnet){
     PetscCall(PetscFree2(dgnet->LegEval[i],dgnet->LegEvalD[i]));
     PetscCall(PetscFree(dgnet->Leg_L2[i]));
     PetscCall(PetscFree(dgnet->LegEvaL_bdry[i]));
-    PetscCall(PetscQuadratureDestroy(&dgnet->quad));
     PetscCall(PetscFree(dgnet->LegEval_equispaced[i]));
   }
-  PetscCall(PetscFree5(dgnet->Leg_L2,dgnet->LegEval,dgnet->LegEvaL_bdry,dgnet->LegEvalD,dgnet->quad));
+  PetscCall(PetscQuadratureDestroy(&dgnet->quad));
+  PetscCall(PetscFree4(dgnet->Leg_L2,dgnet->LegEval,dgnet->LegEvaL_bdry,dgnet->LegEvalD));
   PetscCall(PetscFree(dgnet->taborder));
   PetscCall(PetscFree(dgnet->fieldtotab));
   PetscCall(PetscFree2(dgnet->fluxeval,dgnet->pteval));
