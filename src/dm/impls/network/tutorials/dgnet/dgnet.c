@@ -31,10 +31,10 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
   PetscInt       dof = dgnet->physics.dof;
 
   PetscFunctionBegin;
-  PetscLogEventRegister("DGNetRHS_Edge",TS_CLASSID,&DGNET_Edge_RHS);
-  PetscLogEventRegister("DGNetRHS_Comm",TS_CLASSID,&DGNET_RHS_COMM);
-  PetscLogEventRegister("DGNetLimiter",TS_CLASSID,&DGNET_Limiter);
-  PetscLogEventRegister("DGNetSetUp",TS_CLASSID,&DGNET_SetUP);
+  PetscCall( PetscLogEventRegister("DGNetRHS_Edge",TS_CLASSID,&DGNET_Edge_RHS));
+  PetscCall( PetscLogEventRegister("DGNetRHS_Comm",TS_CLASSID,&DGNET_RHS_COMM));
+  PetscCall( PetscLogEventRegister("DGNetLimiter",TS_CLASSID,&DGNET_Limiter));
+  PetscCall( PetscLogEventRegister("DGNetSetUp",TS_CLASSID,&DGNET_SetUP));
 
   dgnet->nnodes_loc  = 0;
   PetscCall(MPI_Comm_rank(dgnet->comm,&rank));
@@ -459,9 +459,9 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
   dgnet->physics.maxorder =0;
   for(field=0; field<dof; field++){
     if (dgnet->physics.order[field] > dgnet->physics.maxorder) dgnet->physics.maxorder = dgnet->physics.order[field];
-    PetscPrintf(PETSC_COMM_WORLD,"Field %" PetscInt_FMT" Order %"PetscInt_FMT"\n",field,dgnet->physics.order[field]);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"Field %" PetscInt_FMT" Order %"PetscInt_FMT"\n",field,dgnet->physics.order[field]));
   }
-      PetscPrintf(PETSC_COMM_WORLD,"Max Order %"PetscInt_FMT"\n",dgnet->physics.maxorder);
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD,"Max Order %"PetscInt_FMT"\n",dgnet->physics.maxorder));
 
 
   PetscCall(PetscMalloc5(dof,&dgnet->limitactive,(dgnet->physics.maxorder+1)*dof,&dgnet->charcoeff,dof,&dgnet->cbdryeval_L,dof,&dgnet->cbdryeval_R,dof,&dgnet->cuAvg));
@@ -1312,7 +1312,6 @@ static PetscErrorCode DGNetworkCreateViewDM(DM dm)
   DMPolytopeType ct;
   PetscInt       dim, dE, cStart,size;
   PetscBool      simplex;
-  PetscErrorCode ierr;
   PetscReal      *coord;
   Vec            Coord;
 
@@ -1326,15 +1325,11 @@ static PetscErrorCode DGNetworkCreateViewDM(DM dm)
   PetscCall(PetscFECreateLagrange(PETSC_COMM_SELF, dim, dE, simplex,3,PETSC_DECIDE, &fe));
   PetscCall(DMProjectCoordinates(dm, fe));
   PetscCall(DMGetCoordinates(dm,&Coord));
-  ierr = VecGetSize(Coord,&size);
+  PetscCall(VecGetSize(Coord,&size));
   PetscCall(VecGetArray(Coord,&coord));
-  ierr = VecRestoreArray(Coord,&coord);
+  PetscCall(VecRestoreArray(Coord,&coord));
   PetscCall(PetscFEDestroy(&fe));
   PetscCall(DMPlexRemapGeometry(dm, 0.0, f0_circle));
-  PetscCall(DMGetCoordinates(dm,&Coord));
-  ierr = VecGetSize(Coord,&size);
-  PetscCall(VecGetArray(Coord,&coord));
-  ierr = VecRestoreArray(Coord,&coord);
   PetscFunctionReturn(0);
 }
 
@@ -1521,7 +1516,6 @@ and instead just order depth down. Shouldn't matter... we shall see if it breaks
 
 PetscErrorCode DMPlexAdd_Disconnected(DM *dmlist,PetscInt numdm, DM *dmsum, PetscSection *stratumoffsets)
 {
-  PetscErrorCode ierr;
   PetscInt       p,i,j,k,depth,depth_temp,dim,dim_prev,dim_top,dim_top_temp,pStart,pEnd,chartsize,stratum,totalconesize;
   PetscInt       *numpoints_g, *coneSize_g, *cones_g, *coneOrientations_g,coneSize,off,prevtotal;
   const PetscInt *cone,*coneOrientation;
@@ -1579,7 +1573,7 @@ PetscErrorCode DMPlexAdd_Disconnected(DM *dmlist,PetscInt numdm, DM *dmsum, Pets
       PetscCall(DMPlexGetDepthStratum(dmlist[i],stratum,&pStart,&pEnd));
       /* manually specify the section offset information, as the domain chart is not the same
          as the range chart, and is not an onto mapbrping */
-      ierr = PetscSectionSetFieldOffset(offsets,i,stratum,numpoints_g[stratum]-pStart);
+      PetscCall(PetscSectionSetFieldOffset(offsets,i,stratum,numpoints_g[stratum]-pStart));
       numpoints_g[stratum] += (pEnd-pStart);
     }
   }
