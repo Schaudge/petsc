@@ -5,6 +5,7 @@
 PetscLogEvent DGNET_Limiter;
 PetscLogEvent DGNET_Edge_RHS;
 PetscLogEvent DGNET_RHS_COMM;
+PetscLogEvent DGNET_RHS_Vert;
 
 PetscErrorCode PhysicsDestroy_SimpleFree_Net(void *vctx)
 {
@@ -678,7 +679,7 @@ PetscErrorCode DGNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   PetscCall(DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd)); 
   PetscCall(VecGetArray(localX,&xarr));
   PetscCall(VecGetArray(localF,&f));
-
+  PetscLogEventBegin(DGNET_RHS_Vert,0,0,0,0); 
   /* Iterate through all vertices (including ghosts) and compute the flux/reconstruction data for the vertex.  */
   ierr = DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd);
   PetscCall(VecZeroEntries(dgnet->RiemannData));
@@ -714,6 +715,7 @@ PetscErrorCode DGNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   PetscCall(VecRestoreArray(dgnet->RiemannData,&riemanndata));
   /* NetRS solve */
   PetscCall(NetRSSolveFlux(dgnet->netrs,dgnet->RiemannData,dgnet->Flux));
+  PetscLogEventEnd(DGNET_RHS_Vert,0,0,0,0); 
 
   PetscLogEventBegin(DGNET_Edge_RHS,0,0,0,0);
   PetscCall(VecGetArray(dgnet->Flux,&flux)); 

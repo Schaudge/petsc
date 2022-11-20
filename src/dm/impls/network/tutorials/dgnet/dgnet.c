@@ -31,6 +31,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
 
   PetscFunctionBegin;
   PetscCall( PetscLogEventRegister("DGNetRHS_Edge",TS_CLASSID,&DGNET_Edge_RHS));
+  PetscCall( PetscLogEventRegister("DGNetRHS_Vert",TS_CLASSID,&DGNET_RHS_Vert));
   PetscCall( PetscLogEventRegister("DGNetRHS_Comm",TS_CLASSID,&DGNET_RHS_COMM));
   PetscCall( PetscLogEventRegister("DGNetLimiter",TS_CLASSID,&DGNET_Limiter));
   PetscCall( PetscLogEventRegister("DGNetSetUp",TS_CLASSID,&DGNET_SetUP));

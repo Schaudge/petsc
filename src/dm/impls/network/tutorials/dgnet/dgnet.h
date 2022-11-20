@@ -13,6 +13,7 @@ PETSC_EXTERN PetscLogEvent DGNET_Limiter;
 PETSC_EXTERN PetscLogEvent DGNET_Edge_RHS;
 PETSC_EXTERN PetscLogEvent DGNET_RHS_COMM;
 PETSC_EXTERN PetscLogEvent DGNET_SetUP; 
+PETSC_EXTERN PetscLogEvent DGNET_RHS_Vert; 
 
 /* Function Specification for coupling flux calculations at the vertex */
 typedef PetscErrorCode (*VertexFlux)(const void*,const PetscScalar*,const PetscBool*,PetscScalar*,PetscScalar*,const void*);
