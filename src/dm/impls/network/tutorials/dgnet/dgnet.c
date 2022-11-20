@@ -455,11 +455,10 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet,PetscInt networktype,PetscInt Mx)
   /* this variable should be stored elsewhere */
   dgnet->physics.maxorder =0;
   for(field=0; field<dof; field++){
-    if (dgnet->physics.order[field] > dgnet->physics.maxorder) dgnet->physics.maxorder = dgnet->physics.order[field];
-    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"Field %" PetscInt_FMT" Order %"PetscInt_FMT"\n",field,dgnet->physics.order[field]));
+    if (dgnet->physics.order[field] > dgnet->physics.maxorder) {
+      dgnet->physics.maxorder = dgnet->physics.order[field];
+    }
   }
-      PetscCall(PetscPrintf(PETSC_COMM_WORLD,"Max Order %"PetscInt_FMT"\n",dgnet->physics.maxorder));
-
 
   PetscCall(PetscMalloc5(dof,&dgnet->limitactive,(dgnet->physics.maxorder+1)*dof,&dgnet->charcoeff,dof,&dgnet->cbdryeval_L,dof,&dgnet->cbdryeval_R,dof,&dgnet->cuAvg));
   PetscCall(PetscMalloc2(3*dof,&dgnet->uavgs,2*dof,&dgnet->cjmpLR));
@@ -638,7 +637,8 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
     }
     if (unique) {
       dgnet->fieldtotab[i] = numunique;
-      temp_taborder[numunique++] = dgnet->physics.order[i];
+      temp_taborder[numunique] = dgnet->physics.order[i];
+      numunique ++; 
     }
   }
   /* now we have the number of unique orders and what they are in fieldtotab (which is being reused here) */
@@ -660,8 +660,8 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
   for(i=0; i<dgnet->tabordersize; i++) {
     if(n < dgnet->taborder[i]+1) n =  dgnet->taborder[i]+1;
   }
-  PetscCall(PetscMalloc(n,&xnodes));
-  PetscCall(PetscMalloc(n,&w));
+  PetscCall(PetscMalloc1(n,&xnodes));
+  PetscCall(PetscMalloc1(n,&w));
   PetscCall(PetscDTGaussQuadrature(n,-1,1,xnodes,w));
   PetscCall(PetscQuadratureSetData(dgnet->quad,dim,1,n,xnodes,w));
   PetscCall(PetscQuadratureSetOrder(dgnet->quad,2*n));
@@ -684,6 +684,7 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
     PetscCall(PetscDTLegendreEval(dgnet->numviewpts[i],viewnodes,dgnet->taborder[i]+1,deg,dgnet->LegEval_equispaced[i],NULL,NULL));
     PetscCall(PetscFree(viewnodes));
     PetscCall(PetscFree(deg));
+
   }
   PetscFunctionReturn(0);
 }
@@ -713,6 +714,7 @@ PetscErrorCode ViewDiscretizationObjects(DGNetwork dgnet,PetscViewer viewer)
   PetscInt       ndegree;
 
   PetscFunctionBegin;
+    PetscCall(PetscViewerASCIIPrintf(viewer,"Tab Order size: %i \n",dgnet->tabordersize));
   /* call standard viewers for discretization objects if available */
     PetscCall(PetscQuadratureView(dgnet->quad,viewer));
     PetscCall(PetscQuadratureGetData(dgnet->quad,NULL,NULL,&quadsize,NULL,NULL));
@@ -788,7 +790,7 @@ PetscErrorCode DGNetworkViewEdgeGeometricInfo(DGNetwork dgnet, PetscViewer viewe
   PetscFunctionReturn(0);
 }
 
-/* WIP, builds the NetRP objects and assigns the to verrtices of the NetRS, make cleaner later  */
+/* WIP, builds the NetRP objects and assigns to verrtices of the NetRS, make cleaner later  */
 PetscErrorCode DGNetworkAssignNetRS(DGNetwork dgnet)
 {
   PetscInt       v,vStart,vEnd,vdeg; 
