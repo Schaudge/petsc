@@ -662,6 +662,38 @@ static PetscErrorCode DMPlexFillMatrix_Static(DM dm, PetscLayout rLayout, PetscI
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+PetscErrorCode DMPlexPreallocateMat_Private(DM dm, Mat A, PetscBool fillMatrix)
+{
+  Mat             pre;
+  PetscDS         ds;
+  PetscSection    s, gs;
+  PetscScalar    *elemMat;
+  PetscInt        m, n, M, N, cStart, cEnd, totDim;
+
+  PetscFunctionBegin;
+  PetscCall(MatCreate(PetscObjectComm((PetscObject)A), &pre));
+  PetscCall(MatSetType(pre, MATPREALLOCATOR));
+  PetscCall(MatGetLocalSize(A, &m, &n));
+  PetscCall(MatGetSize(A, &M, &N));
+  PetscCall(MatSetSizes(pre, m, n, M, N));
+  PetscCall(MatSetUp(pre));
+
+  PetscCall(DMGetLocalSection(dm, &s));
+  PetscCall(DMGetGlobalSection(dm, &gs));
+  PetscCall(DMPlexGetHeightStratum(dm, 0, &cStart, &cEnd));
+  PetscCall(DMGetCellDS(dm, cStart, &ds, NULL));
+  PetscCall(PetscDSGetTotalDimension(ds, &totDim));
+  PetscCall(PetscCalloc1(totDim * totDim, &elemMat));
+  for (PetscInt c = cStart; c < cEnd; ++c) PetscCall(DMPlexMatSetClosure(dm, s, gs, pre, c, elemMat, ADD_VALUES));
+  PetscCall(PetscFree(elemMat));
+  PetscCall(MatAssemblyBegin(pre, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyEnd(pre, MAT_FINAL_ASSEMBLY));
+
+  PetscCall(MatPreallocatorPreallocate(pre, fillMatrix, A));
+  PetscCall(MatDestroy(&pre));
+  PetscFunctionReturn(0);
+}
+
 /*@C
   DMPlexPreallocateOperator - Calculate the matrix nonzero pattern based upon the information in the `DM`,
   the `PetscDS` it contains, and the default `PetscSection`.
@@ -706,6 +738,10 @@ PetscErrorCode DMPlexPreallocateOperator(DM dm, PetscInt bs, PetscInt dnz[], Pet
   if (onz) PetscValidIntPointer(onz, 4);
   if (dnzu) PetscValidIntPointer(dnzu, 5);
   if (onzu) PetscValidIntPointer(onzu, 6);
+  if (((DM_Plex *)dm->data)->tr) {
+    PetscCall(DMPlexPreallocateMat_Private(dm, A, fillMatrix));
+    PetscFunctionReturn(0);
+  }
   PetscCall(DMGetPointSF(dm, &sf));
   PetscCall(DMGetLocalSection(dm, &section));
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-dm_view_preallocation", &debug, NULL));
