@@ -25,6 +25,7 @@ Just Runs an Simulation with the specified Setup. \n\n";
   4. Requires: GLVis
      Run on Parent-Daughter Network with P^4 DG Basis and linearized coupling View GLVis
      mpiexec -n 1 ./ex8 -view -network 3 -view_glvis -view_full_net -glvis_pause 1e-10 -order 4
+
   5. Nonlinear Coupling: Run hydronetwork EPANet Network (network -2 uses hydrnetwork reader for networks)
   mpiexec -np 2 ./ex8 -f ../hydronetwork-2021/cases/brazosRiver.inp -ts_monitor -network -2 -ts_max_steps 2 -dx 1000
 
@@ -88,7 +89,7 @@ int main(int argc,char *argv[])
   MPI_Comm          comm;
   TS                ts;
   DGNetwork         dgnet;
-  PetscInt          maxorder=1,systemsize;
+  PetscInt          maxorder=2,systemsize;
   PetscReal         maxtime;
   PetscMPIInt       size,rank;
   PetscBool         limit=PETSC_TRUE,view3d=PETSC_FALSE,viewglvis=PETSC_FALSE,glvismode=PETSC_FALSE,viewfullnet=PETSC_FALSE,savefinal=PETSC_FALSE;
