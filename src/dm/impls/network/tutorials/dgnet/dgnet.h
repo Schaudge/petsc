@@ -320,6 +320,9 @@ extern PetscErrorCode DGNetlimiter(TS, PetscReal, PetscInt, Vec*);
 extern PetscErrorCode DGNetlimiter_Nested(TS, PetscReal,PetscInt,Vec*);
 
 extern PetscErrorCode DGNetRHS(TS,PetscReal,Vec,Vec,void*);
+extern PetscErrorCode DGNetRHS_V2(TS,PetscReal,Vec,Vec,void*);
+extern PetscErrorCode DGNetRHS_V3(TS,PetscReal,Vec,Vec,void*);
+
 
 extern PetscErrorCode DGNetworkAssignNetRS(DGNetwork);
 extern PetscErrorCode DGNetRHS_NETRS_Nested(TS,PetscReal,Vec,Vec,void*);

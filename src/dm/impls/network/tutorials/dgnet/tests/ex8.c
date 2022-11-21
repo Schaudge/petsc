@@ -32,6 +32,12 @@ Just Runs an Simulation with the specified Setup. \n\n";
   6. Linear Coupling Run hydronetwork EPANet Network (network -2 uses hydrnetwork reader for networks)
   mpiexec -np 2 ./ex8 -f ../hydronetwork-2021/cases/brazosRiver.inp -ts_monitor -network -2 -ts_max_steps 2 -dx 1000 -lincouple 
 
+  The RHS version can be switched by 
+  -rhsversion = <0,1,2>
+   0 - naive communication 
+   1 - interlace on NetRS only (first DMlocaltoGlobalCommunication)
+   2 - interlace on NetRS and DG edge eval (NetRS internal interlace on a DMlocaltoGlobalCommunication, 
+                                            Interlace on 2nd LocaltoGlobal communcation, in DGNet itself)
 
   A Note for the NetRP solvers, The ksp for linear solvers can be accessed by 
     -netrp_ksp 
@@ -89,7 +95,7 @@ int main(int argc,char *argv[])
   MPI_Comm          comm;
   TS                ts;
   DGNetwork         dgnet;
-  PetscInt          maxorder=2,systemsize;
+  PetscInt          maxorder=2,systemsize,rhsversion=2; 
   PetscReal         maxtime;
   PetscMPIInt       size,rank;
   PetscBool         limit=PETSC_TRUE,view3d=PETSC_FALSE,viewglvis=PETSC_FALSE,glvismode=PETSC_FALSE,viewfullnet=PETSC_FALSE,savefinal=PETSC_FALSE;
@@ -136,6 +142,7 @@ int main(int argc,char *argv[])
     PetscCall(PetscOptionsInt("-Mx","Smallest number of cells for an edge","",dgnet->Mx,&dgnet->Mx,NULL));
     PetscCall(PetscOptionsInt("-ndaughters","Number of daughter branches for network type 3","",dgnet->ndaughters,&dgnet->ndaughters,NULL));
     PetscCall(PetscOptionsInt("-order", "Order of the DG Basis","",maxorder,&maxorder,NULL));
+    PetscCall(PetscOptionsInt("-rhsversion", "Version of the RHS to use","",rhsversion,&rhsversion,NULL));
     PetscCall(PetscOptionsBool("-savefinal","View GLVis of Edge","",savefinal,&savefinal,NULL));
     PetscCall(PetscOptionsBool("-view","View the DG solution","",dgnet->view,&dgnet->view,NULL));
     PetscCall(PetscOptionsBool("-uselimiter","Use a limiter for the DG solution","",limit,&limit,NULL));
@@ -213,7 +220,19 @@ int main(int argc,char *argv[])
   PetscCall(TSCreate(comm,&ts));
   PetscCall(TSSetApplicationContext(ts,dgnet));
 
-  PetscCall(TSSetRHSFunction(ts,NULL,DGNetRHS,dgnet));
+  switch(rhsversion)
+  {
+    case 0:
+      PetscCall(TSSetRHSFunction(ts,NULL,DGNetRHS,dgnet));
+      break;
+    case 1:     
+      PetscCall(TSSetRHSFunction(ts,NULL,DGNetRHS_V2,dgnet));
+      break;
+    default: 
+    case 2:
+      PetscCall(TSSetRHSFunction(ts,NULL,DGNetRHS_V3,dgnet));
+      break; 
+  }
 
   PetscCall(TSSetType(ts,TSSSP));
   PetscCall(TSSetMaxTime(ts,maxtime));
