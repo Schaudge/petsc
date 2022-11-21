@@ -1221,9 +1221,15 @@ PetscErrorCode DMPlexGetAllCells_Internal(DM plex, IS *cellIS)
   PetscInt depth;
 
   PetscFunctionBegin;
-  PetscCall(DMPlexGetDepth(plex, &depth));
-  PetscCall(DMGetStratumIS(plex, "dim", depth, cellIS));
-  if (!*cellIS) PetscCall(DMGetStratumIS(plex, "depth", depth, cellIS));
+  if (((DM_Plex *)plex->data)->tr) {
+    PetscInt cStart, cEnd;
+    PetscCall(DMPlexGetHeightStratum(plex, 0, &cStart, &cEnd));
+    PetscCall(ISCreateStride(PETSC_COMM_SELF, cEnd-cStart, cStart, 1, cellIS));
+  } else {
+    PetscCall(DMPlexGetDepth(plex, &depth));
+    PetscCall(DMGetStratumIS(plex, "dim", depth, cellIS));
+    if (!*cellIS) PetscCall(DMGetStratumIS(plex, "depth", depth, cellIS));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

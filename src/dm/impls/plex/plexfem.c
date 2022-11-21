@@ -4636,14 +4636,9 @@ PetscErrorCode DMPlexComputeBdResidual_Internal(DM dm, Vec locX, Vec locX_t, Pet
   PetscInt numBd, bd;
   DMField  coordField = NULL;
   IS       facetIS    = NULL;
-  DMLabel  depthLabel;
-  PetscInt dim;
 
   PetscFunctionBegin;
   PetscCall(DMGetDS(dm, &prob));
-  PetscCall(DMPlexGetDepthLabel(dm, &depthLabel));
-  PetscCall(DMGetDimension(dm, &dim));
-  PetscCall(DMLabelGetStratumIS(depthLabel, dim - 1, &facetIS));
   PetscCall(PetscDSGetNumBoundary(prob, &numBd));
   for (bd = 0; bd < numBd; ++bd) {
     PetscWeakForm           wf;
@@ -5503,16 +5498,12 @@ PetscErrorCode DMPlexComputeBdJacobianSingle(DM dm, PetscReal t, PetscWeakForm w
 PetscErrorCode DMPlexComputeBdJacobian_Internal(DM dm, Vec locX, Vec locX_t, PetscReal t, PetscReal X_tShift, Mat Jac, Mat JacP, void *user)
 {
   PetscDS  prob;
-  PetscInt dim, numBd, bd;
-  DMLabel  depthLabel;
+  PetscInt numBd, bd;
   DMField  coordField = NULL;
-  IS       facetIS;
+  IS       facetIS    = NULL;
 
   PetscFunctionBegin;
   PetscCall(DMGetDS(dm, &prob));
-  PetscCall(DMPlexGetDepthLabel(dm, &depthLabel));
-  PetscCall(DMGetDimension(dm, &dim));
-  PetscCall(DMLabelGetStratumIS(depthLabel, dim - 1, &facetIS));
   PetscCall(PetscDSGetNumBoundary(prob, &numBd));
   PetscCall(DMGetCoordinateField(dm, &coordField));
   for (bd = 0; bd < numBd; ++bd) {
@@ -5529,6 +5520,14 @@ PetscErrorCode DMPlexComputeBdJacobian_Internal(DM dm, Vec locX, Vec locX_t, Pet
     PetscCall(PetscDSGetDiscretization(prob, fieldI, &obj));
     PetscCall(PetscObjectGetClassId(obj, &id));
     if (id != PETSCFE_CLASSID) continue;
+    if (!facetIS) {
+      DMLabel  depthLabel;
+      PetscInt dim;
+
+      PetscCall(DMPlexGetDepthLabel(dm, &depthLabel));
+      PetscCall(DMGetDimension(dm, &dim));
+      PetscCall(DMLabelGetStratumIS(depthLabel, dim - 1, &facetIS));
+    }
     PetscCall(DMPlexComputeBdJacobian_Single_Internal(dm, t, wf, label, numValues, values, fieldI, locX, locX_t, X_tShift, Jac, JacP, coordField, facetIS));
   }
   PetscCall(ISDestroy(&facetIS));

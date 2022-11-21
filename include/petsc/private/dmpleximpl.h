@@ -805,6 +805,7 @@ PETSC_INTERN PetscErrorCode DMPlexBasisTransformApply_Internal(DM, const PetscRe
 PETSC_INTERN PetscErrorCode DMCreateNeumannOverlap_Plex(DM, IS *, Mat *, PetscErrorCode (**)(Mat, PetscReal, Vec, Vec, PetscReal, IS, void *), void **);
 
 PETSC_INTERN PetscErrorCode DMPeriodicCoordinateSetUp_Internal(DM);
+PETSC_INTERN PetscErrorCode DMPlexTransformSetCoordinates(DMPlexTransform, DM);
 
 /* Functions in the vtable */
 PETSC_INTERN PetscErrorCode DMCreateInterpolation_Plex(DM dmCoarse, DM dmFine, Mat *interpolation, Vec *scaling);

@@ -752,6 +752,29 @@ PetscErrorCode DMPlexTransformGetCellType(DMPlexTransform tr, PetscInt cell, DMP
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+PetscErrorCode DMPlexTransformGetCellStratum(DMPlexTransform tr, DMPolytopeType ct, PetscInt *ctSN, PetscInt *ctEN)
+{
+  PetscFunctionBegin;
+  if (ctSN) *ctSN = tr->ctStartNew[ct];
+  if (ctEN) *ctEN = tr->ctStartNew[tr->ctOrderNew[tr->ctOrderInvNew[ct] + 1]];
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMPlexTransformGetPointDepth(DMPlexTransform tr, PetscInt p, PetscInt *depth)
+{
+  PetscInt d;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(tr, DMPLEXTRANSFORM_CLASSID, 1);
+  PetscValidPointer(depth, 3);
+  for (d = 0; d <= tr->depth; ++d) {
+    if (p >= tr->depthStart[d] && p < tr->depthEnd[d]) break;
+  }
+  PetscCheck(d <= tr->depth, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Point %" PetscInt_FMT " cannot be located in the transformed mesh", p);
+  *depth = (DMPolytopeType)d;
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode DMPlexTransformGetDepth(DMPlexTransform tr, PetscInt *depth)
 {
   PetscFunctionBegin;
@@ -1904,7 +1927,7 @@ static PetscErrorCode DMPlexTransformMapLocalizedCoordinates(DMPlexTransform tr,
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode DMPlexTransformSetCoordinates(DMPlexTransform tr, DM rdm)
+PetscErrorCode DMPlexTransformSetCoordinates(DMPlexTransform tr, DM rdm)
 {
   DM                 dm, cdm, cdmCell, cdmNew, cdmCellNew;
   PetscSection       coordSection, coordSectionNew, coordSectionCell, coordSectionCellNew;

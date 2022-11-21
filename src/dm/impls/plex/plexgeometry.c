@@ -2182,16 +2182,14 @@ static PetscErrorCode DMPlexComputeCellGeometryFEM_Implicit(DM dm, PetscInt cell
   PetscInt         depth, dim, coordDim, coneSize, i;
   PetscInt         Nq     = 0;
   const PetscReal *points = NULL;
-  DMLabel          depthLabel;
   PetscReal        xi0[3]   = {-1., -1., -1.}, v0[3], J0[9], detJ0;
   PetscBool        isAffine = PETSC_TRUE;
 
   PetscFunctionBegin;
   PetscCall(DMPlexGetDepth(dm, &depth));
-  PetscCall(DMPlexGetConeSize(dm, cell, &coneSize));
-  PetscCall(DMPlexGetDepthLabel(dm, &depthLabel));
-  PetscCall(DMLabelGetValue(depthLabel, cell, &dim));
+  PetscCall(DMPlexGetPointDepth(dm, cell, &dim));
   if (depth == 1 && dim == 1) PetscCall(DMGetDimension(dm, &dim));
+  PetscCall(DMPlexGetConeSize(dm, cell, &coneSize));
   PetscCall(DMGetCoordinateDim(dm, &coordDim));
   PetscCheck(coordDim <= 3, PetscObjectComm((PetscObject)dm), PETSC_ERR_SUP, "Unsupported coordinate dimension %" PetscInt_FMT " > 3", coordDim);
   if (quad) PetscCall(PetscQuadratureGetData(quad, NULL, NULL, &Nq, &points, NULL));

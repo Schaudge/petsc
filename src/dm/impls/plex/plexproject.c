@@ -663,7 +663,7 @@ static PetscErrorCode DMProjectLocal_Generic_Plex(DM dm, PetscReal time, Vec loc
       PetscInt dimProj   = PetscMin(PetscMin(dim, dimIn), (dimAux < 0 ? PETSC_MAX_INT : dimAux));
       PetscInt dimAuxEff = dimAux < 0 ? dimProj : dimAux;
 
-      PetscCheck(PetscAbsInt(dimProj - dim) <= 1 && PetscAbsInt(dimProj - dimIn) <= 1 && PetscAbsInt(dimProj - dimAuxEff) <= 1, PETSC_COMM_SELF, PETSC_ERR_SUP, "Do not currently support differences of more than 1 in dimension");
+      PetscCheck(PetscAbsInt(dimProj - dim) <= 1 && PetscAbsInt(dimProj - dimIn) <= 1 && PetscAbsInt(dimProj - dimAuxEff) <= 1, PETSC_COMM_SELF, PETSC_ERR_SUP, "Do not currently support differences of more than 1 in dimension: dim %" PetscInt_FMT " dimIn %" PetscInt_FMT " dimProj %" PetscInt_FMT " dimAuxEff %" PetscInt_FMT, dim, dimIn, dimProj, dimAuxEff);
       if (dimProj < dim) minHeight = 1;
       htInc    = dim - dimProj;
       htIncIn  = dimIn - dimProj;
@@ -791,19 +791,15 @@ static PetscErrorCode DMProjectLocal_Generic_Plex(DM dm, PetscReal time, Vec loc
     PetscScalar *values;
     PetscBool   *fieldActive;
     PetscInt     maxDegree;
-    PetscInt     pStart, pEnd, p, lStart, spDim, totDim, numValues;
-    IS           heightIS;
+    PetscInt     pStart, pEnd, p, hStart, hEnd, lStart, spDim, totDim, numValues;
 
     if (h > minHeight) {
       for (f = 0; f < Nf; ++f) PetscCall(PetscDualSpaceGetHeightSubspace(cellsp[f], hEff, &sp[f]));
     }
     PetscCall(DMPlexGetSimplexOrBoxCells(plex, h, &pStart, &pEnd));
     PetscCall(DMGetFirstLabeledPoint(dm, dm, label, numIds, ids, h, &lStart, NULL));
-    PetscCall(DMLabelGetStratumIS(depthLabel, depth - h, &heightIS));
-    if (pEnd <= pStart) {
-      PetscCall(ISDestroy(&heightIS));
-      continue;
-    }
+    PetscCall(DMPlexGetHeightStratum(dm, h, &hStart, &hEnd));
+    if (pEnd <= pStart) continue;
     /* Compute totDim, the number of dofs in the closure of a point at this height */
     totDim = 0;
     for (f = 0; f < Nf; ++f) {
@@ -818,10 +814,7 @@ static PetscErrorCode DMProjectLocal_Generic_Plex(DM dm, PetscReal time, Vec loc
     p = lStart < 0 ? pStart : lStart;
     PetscCall(DMPlexVecGetClosure(plex, section, localX, p, &numValues, NULL));
     PetscCheck(numValues == totDim, PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "The output section point (%" PetscInt_FMT ") closure size %" PetscInt_FMT " != dual space dimension %" PetscInt_FMT " at height %" PetscInt_FMT " in [%" PetscInt_FMT ", %" PetscInt_FMT "]", p, numValues, totDim, h, minHeight, maxHeight);
-    if (!totDim) {
-      PetscCall(ISDestroy(&heightIS));
-      continue;
-    }
+    if (!totDim) continue;
     if (htInc) PetscCall(PetscDSGetHeightSubspace(ds, hEff, &dsEff));
     /* Compute totDimIn, the number of dofs in the closure of a point at this height */
     if (localU) {
@@ -867,7 +860,8 @@ static PetscErrorCode DMProjectLocal_Generic_Plex(DM dm, PetscReal time, Vec loc
 
         PetscCall(DMLabelGetStratumIS(label, ids[i], &pointIS));
         if (!pointIS) continue; /* No points with that id on this process */
-        PetscCall(ISIntersect(pointIS, heightIS, &isectIS));
+        PetscCall(ISDuplicate(pointIS, &isectIS));
+        PetscCall(ISGeneralFilter(isectIS, hStart, hEnd));
         PetscCall(ISDestroy(&pointIS));
         if (!isectIS) continue;
         PetscCall(ISGetLocalSize(isectIS, &n));
@@ -929,7 +923,6 @@ static PetscErrorCode DMProjectLocal_Generic_Plex(DM dm, PetscReal time, Vec loc
       PetscCall(PetscQuadratureDestroy(&quad));
       PetscCall(ISDestroy(&pointIS));
     }
-    PetscCall(ISDestroy(&heightIS));
     PetscCall(DMRestoreWorkArray(dm, numValues, MPIU_SCALAR, &values));
     PetscCall(DMRestoreWorkArray(dm, Nf, MPI_INT, &fieldActive));
   }

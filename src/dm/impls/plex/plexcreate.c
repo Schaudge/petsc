@@ -5579,19 +5579,26 @@ PetscErrorCode DMPlexCreateFromFile(MPI_Comm comm, const char filename[], const 
 @*/
 PetscErrorCode DMPlexCreateEphemeral(DMPlexTransform tr, DM *dm)
 {
+  DM_Plex *mesh;
   DM       bdm;
   PetscInt Nl;
 
   PetscFunctionBegin;
   PetscCall(DMCreate(PetscObjectComm((PetscObject)tr), dm));
   PetscCall(DMSetType(*dm, DMPLEX));
+  PetscCall(DMPlexTransformGetDM(tr, &bdm));
+  PetscCall(DMPlexTransformSetDimensions(tr, bdm, *dm));
   PetscCall(DMSetFromOptions(*dm));
+  mesh = (DM_Plex *)(*dm)->data;
 
   PetscCall(PetscObjectReference((PetscObject)tr));
-  PetscCall(DMPlexTransformDestroy(&((DM_Plex *)(*dm)->data)->tr));
-  ((DM_Plex *)(*dm)->data)->tr = tr;
+  PetscCall(DMPlexTransformDestroy(&mesh->tr));
+  mesh->tr = tr;
 
-  PetscCall(DMPlexTransformGetDM(tr, &bdm));
+  // Create ephemeral coordinates
+  //   TODO: right now, just create regular coordinates
+  PetscCall(DMPlexTransformSetCoordinates(tr, *dm));
+  // Create ephemeral labels, leave out depth and celltype
   PetscCall(DMGetNumLabels(bdm, &Nl));
   for (PetscInt l = 0; l < Nl; ++l) {
     DMLabel     label, labelNew;
