@@ -66,6 +66,9 @@ PETSC_INTERN PetscErrorCode NetRSGetNetwork(NetRS,DM*); /* Could potentially mak
 
 PETSC_EXTERN PetscErrorCode NetRSSolveFlux(NetRS,Vec,Vec); 
 
+PETSC_EXTERN PetscErrorCode NetRSSolveFluxBegin(NetRS,Vec,Vec); 
+PETSC_EXTERN PetscErrorCode NetRSSolveFluxEnd(NetRS,Vec,Vec);
+
 PETSC_EXTERN PetscErrorCode NetRSSetApplicationContext(NetRS,void*);
 PETSC_EXTERN PetscErrorCode NetRSGetApplicationContext(NetRS,void*);
 

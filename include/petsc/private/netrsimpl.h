@@ -44,6 +44,8 @@ struct _NetRSOps {
   PetscErrorCode (*solve)(NetRS,Vec,Vec); 
 };
 
+typedef enum{NAIVE_COMM,INTERLACE_LOCAL} SolveComm; 
+
 struct _p_NetRS {
   PETSCHEADER(struct _NetRSOps);
   PetscBool      setupcalled, setupvectorspace; 
@@ -63,7 +65,7 @@ struct _p_NetRS {
 
   PetscHMapNetRPI netrphmap; /* map from netrp to index index into arrays/value in the DMLabel. */
   NetRP          *netrp; /* arrray of local riemann problem/solver, one for each label */
-  Vec            U, Flux;  /* total vectors for the input U and output Flux, includes all NetRP problems added to the NetRS */ 
+  Vec            U;  /* total vectors for the input U, includes all NetRP problems added to the NetRS */ 
   PetscHMapI    dofs_to_Vec; /* maps dofs to the index for the Uv and Fluxv work arrays.  */
   Vec           *Uv,*Fluxv; /* Array of wrk subvecs for the local riemann problem. Use above map to find the correct one your vdeg */
   IS             is_wrk; /*work IS for getting subvectors for vertex points. Should Put a better interface for subvecs into vec itself that can access directly through a section point pair */
@@ -107,6 +109,7 @@ struct _p_NetRS {
   PetscBool      *edgein_shared,*edgein_wrk; 
   PetscHMapI     edgein_shared_offset;
 /* End of DMNetwork Graph stuff */
+  SolveComm      solvecommtype; 
 
  };
 #endif

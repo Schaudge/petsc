@@ -31,6 +31,7 @@ ex8 : $(OBJECTS_DGNET) $(OBJECTS_RIVER)
 
 ex9:  $(OBJECTS_DGNET) $(OBJECTS_RIVER)
 ex10 : $(OBJECTS_DGNET)  $(OBJECTS_RIVER)
+ex11 : $(OBJECTS_DGNET)  $(OBJECTS_RIVER)
 
 .PHONY: all
 all : ex1 ex2 ex3 ex4 ex5 ex6 ex7 ex8 ex9 ex10

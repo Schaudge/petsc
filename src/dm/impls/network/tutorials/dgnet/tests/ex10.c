@@ -28,7 +28,6 @@ int main(int argc,char *argv[])
   PetscInt          i,*order_fine,*order_coarse,dof=1,maxdegree_fine=1,maxdegree_coarse=1,mode=0;
   PetscReal         *norm;
   PetscBool         view = PETSC_FALSE;
-  PetscErrorCode    ierr;
   PetscMPIInt       size,rank;
   PetscViewer       viewer,coarseload,fineload;
   DGNetworkMonitor  monitor_fine=NULL,monitor_coarse=NULL,monitor_fine2=NULL,monitor_fine3=NULL;
@@ -74,7 +73,7 @@ PetscCall(PetscFunctionListAdd(&physics,"shallow"         ,PhysicsCreate_Shallow
 
   dgnet_coarse->Mx             = 10;
 
-  ierr = PetscOptionsBegin(comm,NULL,"DGNetwork options","");CHKERRQ(ierr);
+ PetscOptionsBegin(comm,NULL,"DGNetwork options","");
     PetscCall(PetscOptionsInt("-deg_fine","Degree for Fine tabulation","",maxdegree_fine,&maxdegree_fine,NULL));
     PetscCall(PetscOptionsInt("-deg_coarse","Degree for Coarse tabulation","",maxdegree_coarse,&maxdegree_coarse,NULL));
     PetscCall(PetscOptionsInt("-fields","Number of Fields to Generate Tabulations for","",dof,&dof,NULL));
@@ -84,7 +83,7 @@ PetscCall(PetscFunctionListAdd(&physics,"shallow"         ,PhysicsCreate_Shallow
     PetscCall(PetscOptionsBool("-view","view the fields on the network","",view,&view,NULL));
     PetscCall(PetscOptionsInt("-initial","Initial Condition (depends on the physics)","",dgnet_fine->initial,&dgnet_fine->initial,NULL));
     PetscCall(PetscOptionsInt("-network","Network topology to load, along with boundary condition information","",dgnet_fine->networktype,&dgnet_fine->networktype,NULL));
-  ierr = PetscOptionsEnd();CHKERRQ(ierr);
+  PetscOptionsEnd();
 
 
 
@@ -104,7 +103,7 @@ PetscCall(PetscFunctionListAdd(&physics,"shallow"         ,PhysicsCreate_Shallow
   {
     PetscErrorCode (*r)(DGNetwork);
     PetscCall(PetscFunctionListFind(physics,physname,&r));
-    if (!r) SETERRQ1(PETSC_COMM_SELF,1,"Physics '%s' not found",physname);
+    if (!r) SETERRQ(PETSC_COMM_SELF,1,"Physics '%s' not found",physname);
     /* Create the physics, will set the number of fields and their names */
     PetscCall((*r)(dgnet_fine));
     PetscCall((*r)(dgnet_coarse));
@@ -188,8 +187,8 @@ PetscCall(PetscFunctionListAdd(&physics,"shallow"         ,PhysicsCreate_Shallow
     PetscCall(PetscMalloc1(dof,&norm));
     PetscCall(DGNetworkNormL2(dgnet_fine,error,norm));
     for (i=0;i<dof;i++) {
-      ierr = PetscPrintf(PETSC_COMM_WORLD,
-            "DGNET Error in Projection:  %g \n",norm[i]);CHKERRQ(ierr);
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD,
+            "DGNET Error in Projection:  %g \n",norm[i]));
     }
     PetscCall(VecDestroy(&projection));
     PetscCall(VecDestroy(&error));
