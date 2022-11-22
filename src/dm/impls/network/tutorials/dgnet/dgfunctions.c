@@ -1,7 +1,6 @@
 #include "dgnet.h"
 #include <stdio.h>
 
-
 PetscLogEvent DGNET_Limiter;
 PetscLogEvent DGNET_Edge_RHS;
 PetscLogEvent DGNET_RHS_COMM;
@@ -397,22 +396,22 @@ PetscErrorCode TVDLimit_1D(DGNetwork dgnet,const PetscScalar *uL,const PetscScal
   input *uL *uM and *uR are the cell averages  of the left, center and right element DG solutions respectively 
   ordered by field (requires copying of arrays)
 
-  input 
-  
+  input
+
   */
 PetscErrorCode TVDLimit_1D_2(DGNetwork dgnet,const PetscScalar *uL,const PetscScalar *uM,const PetscScalar *uR, PetscScalar *ubdryL, PetscScalar *ubdryR, PetscReal *uCoeff, PetscSection sec, PetscInt c,PetscReal M)
 {
-  PetscScalar    *cjmpL,*cjmpR,*uLtmp,*uRtmp,*cuLtmp,*cuRtmp; 
+  PetscScalar    *cjmpL,*cjmpR,*uLtmp,*uRtmp;
   PetscInt       j,dof = dgnet->physics.dof;
   PetscBool      limiteractivated = PETSC_FALSE;
-  PetscReal      slope; 
+  PetscReal      slope;
 
   PetscFunctionBegin;
   /* Do limiter detection in the conservative variables */
-  uLtmp  = dgnet->cbdryeval_L; 
+  uLtmp  = dgnet->cbdryeval_L;
   uRtmp  = dgnet->cbdryeval_R;
-  cuLtmp = dgnet->cuLR; 
-  cuRtmp = dgnet->cuLR+dof;
+  //cuLtmp = dgnet->cuLR; 
+  //cuRtmp = dgnet->cuLR+dof;
   cjmpL = &dgnet->cjmpLR[0];
   cjmpR = &dgnet->cjmpLR[dof];
   /* Compute the conservative jumps */
@@ -423,11 +422,11 @@ PetscErrorCode TVDLimit_1D_2(DGNetwork dgnet,const PetscScalar *uL,const PetscSc
   /* we apply the limiter detecter */
   for (j=0; j<dof; j++) {
     slope    = MinMod3(cjmpL[j],cjmpR[j],uM[j]- ubdryL[j]);
-    uLtmp[j] = uM[j] - slope; 
+    uLtmp[j] = uM[j] - slope;
     //PetscCall(PetscPrintf(dgnet->comm,"uL -   jmpL: %e jmpR: %e bdryL: %e  minmod: %e uLtmp: %e diff: %e   \n",cjmpL[j],cjmpR[j],uM[j]-ubdryL[j], slope,uLtmp[j],uLtmp[j] - ubdryL[j]));
     slope    = MinMod3(cjmpL[j],cjmpR[j], ubdryR[j]-uM[j]);
     uRtmp[j] = uM[j] + slope;
-    dgnet->limitactive[j] = (PetscAbs(uRtmp[j] - ubdryR[j]) > M || PetscAbs(uLtmp[j] - ubdryL[j]) > M); 
+    dgnet->limitactive[j] = (PetscAbs(uRtmp[j] - ubdryR[j]) > M || PetscAbs(uLtmp[j] - ubdryL[j]) > M);
     if (dgnet->limitactive[j]) {
       limiteractivated = PETSC_TRUE;
     }
@@ -449,8 +448,8 @@ PetscErrorCode Limit_1D_onesided(DGNetwork dgnet,const PetscScalar *uL,const Pet
    
     /* we apply the limiter detecter in conservative variables */
     for (j=0; j<dof; j++) {
-      dgnet->limitactive[j] = (PetscAbs((uM[j]-uL[j])/uM[j])>jumptol); 
-      if (dgnet->limitactive[j]) limiteractivated = PETSC_TRUE; 
+      dgnet->limitactive[j] = (PetscAbs((uM[j]-uL[j])/uM[j])>jumptol);
+      if (dgnet->limitactive[j]) limiteractivated = PETSC_TRUE;
     }
 
     if (limiteractivated) {
@@ -466,11 +465,11 @@ PetscErrorCode Limit_1D_onesided(DGNetwork dgnet,const PetscScalar *uL,const Pet
         }
       }
 
-      /* Note that we need to expand each basis the the largest DG basis for this to make sense. Thank god 
-      the legendre basis is hierarchical (and orthogonal), making this way way easier */ 
+      /* Note that we need to expand each basis the the largest DG basis for this to make sense. Thank god
+      the legendre basis is hierarchical (and orthogonal), making this way way easier */
 
       PetscCall(PetscArrayzero(dgnet->charcoeff,dgnet->physics.maxorder+1*dof));
-      for(field=0; field<dof; field++) {
+      for (field=0; field<dof; field++) {
         PetscCall(PetscSectionGetFieldDof(sec,c,field,&fielddeg));
         PetscCall(PetscSectionGetFieldOffset(sec,c,field,&fieldoff));
         for (deg=0;deg<fielddeg;deg++) {
@@ -481,18 +480,17 @@ PetscErrorCode Limit_1D_onesided(DGNetwork dgnet,const PetscScalar *uL,const Pet
       }
       /* Now the coeffients are in then characterstic variables. Now apply the P0 projection */
 
-      for(j=0; j<dof; j++) {
+      for (j=0; j<dof; j++) {
         if (dgnet->limitactive[j]) {
           PetscCall(PetscArrayzero(dgnet->charcoeff+j*(dgnet->physics.maxorder+1),dgnet->physics.maxorder+1));
-          dgnet->charcoeff[j*(dgnet->physics.maxorder+1)] = dgnet->cuAvg[j];  
+          dgnet->charcoeff[j*(dgnet->physics.maxorder+1)] = dgnet->cuAvg[j];
         }
-      } 
-      /* Now put the coefficients back into conservative form. Note that 
-         as we expanded the DG basis to the maximum order among all field, this 
-         technically requires a projection, however the legendre basis 
-         is orthogonal and hierarchical, and thus this amounts to simply ignoring higher order terms. 
-         
-         this does not mess with conservation as the cell averages are unchanged */ 
+      }
+      /* Now put the coefficients back into conservative form. Note that
+         as we expanded the DG basis to the maximum order among all field, this
+         technically requires a projection, however the legendre basis
+         is orthogonal and hierarchical, and thus this amounts to simply ignoring higher order terms.
+         this does not mess with conservation as the cell averages are unchanged */
       PetscCall(PetscSectionGetDof(sec,c,&secdof));
       for(field=0; field<dof; field++) {
         PetscCall(PetscSectionGetFieldDof(sec,c,field,&fielddeg));
@@ -590,9 +588,9 @@ PetscErrorCode DGNetlimiter(TS ts, PetscReal stagetime, PetscInt stageindex, Vec
 
   PetscFunctionBeginUser;
   PetscCall(TSGetApplicationContext(ts,&dgnet));
-  PetscLogEventBegin(DGNET_Limiter,0,0,0,0);
+  PetscCall(PetscLogEventBegin(DGNET_Limiter,0,0,0,0));
   PetscCall(DGNetlimiter_ctx(Y[stageindex],dgnet));
-  PetscLogEventEnd(DGNET_Limiter,0,0,0,0);
+  PetscCall(PetscLogEventEnd(DGNET_Limiter,0,0,0,0));
   PetscFunctionReturn(0);
 }
 
@@ -655,33 +653,31 @@ Num Simulation: %i \n Num Vectors %i \n ",numsim,nestsize);}
 
 PetscErrorCode DGNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
 {
-  PetscErrorCode ierr; 
-  DGNetwork      dgnet = (DGNetwork)ctx;    
+  DGNetwork      dgnet = (DGNetwork)ctx;
   PetscReal      maxspeed,detJ,J,invJ,*numflux;
-  PetscScalar    *f,*xarr,*coeff,*riemanndata,*flux; 
-  PetscInt       v,e,c,vStart,vEnd,eStart,eEnd,vfrom,vto,cStart,cEnd,q,deg,ndeg,quadsize,tab,face,fStart,fEnd,voff; 
+  PetscScalar    *f,*xarr,*coeff,*riemanndata,*flux;
+  PetscInt       v,e,c,vStart,vEnd,eStart,eEnd,vfrom,vto,cStart,cEnd,q,deg,ndeg,quadsize,tab,face,fStart,fEnd,voff;
   PetscInt       offset,nedges,i,dof = dgnet->physics.dof,field,fieldoff;
   const PetscInt *cone,*edges,*supp;
-  Vec            localX = dgnet->localX,localF = dgnet->localF; 
-  EdgeFE         edgefe; 
+  Vec            localX = dgnet->localX,localF = dgnet->localF;
+  EdgeFE         edgefe;
   PetscSection   section;
   const PetscReal *qweight;
-  RiemannSolver   rs = dgnet->physics.rs; 
-
+  RiemannSolver   rs = dgnet->physics.rs;
 
   PetscFunctionBeginUser;
   PetscCall(VecZeroEntries(localF));
-  PetscLogEventBegin(DGNET_RHS_COMM,0,0,0,0);
+  PetscCall(PetscLogEventBegin(DGNET_RHS_COMM,0,0,0,0));
   PetscCall(DMGlobalToLocalBegin(dgnet->network,X,INSERT_VALUES,localX));
   PetscCall(DMGlobalToLocalEnd(dgnet->network,X,INSERT_VALUES,localX));
-  PetscLogEventEnd(DGNET_RHS_COMM,0,0,0,0);
+  PetscCall(PetscLogEventEnd(DGNET_RHS_COMM,0,0,0,0));
 
-  PetscCall(DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd)); 
+  PetscCall(DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd));
   PetscCall(VecGetArray(localX,&xarr));
   PetscCall(VecGetArray(localF,&f));
-  PetscLogEventBegin(DGNET_RHS_Vert,0,0,0,0); 
+  PetscCall(PetscLogEventBegin(DGNET_RHS_Vert,0,0,0,0));
   /* Iterate through all vertices (including ghosts) and compute the flux/reconstruction data for the vertex.  */
-  ierr = DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd);
+  PetscCall(DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd));
   PetscCall(VecZeroEntries(dgnet->RiemannData));
   PetscCall(VecGetArray(dgnet->RiemannData,&riemanndata));
   for (v=vStart; v<vEnd; v++) {
@@ -715,12 +711,12 @@ PetscErrorCode DGNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   PetscCall(VecRestoreArray(dgnet->RiemannData,&riemanndata));
   /* NetRS solve */
   PetscCall(NetRSSolveFlux(dgnet->netrs,dgnet->RiemannData,dgnet->Flux));
-  PetscLogEventEnd(DGNET_RHS_Vert,0,0,0,0); 
+  PetscCall(PetscLogEventEnd(DGNET_RHS_Vert,0,0,0,0));
 
-  PetscLogEventBegin(DGNET_Edge_RHS,0,0,0,0);
-  PetscCall(VecGetArray(dgnet->Flux,&flux)); 
+  PetscCall(PetscLogEventBegin(DGNET_Edge_RHS,0,0,0,0));
+  PetscCall(VecGetArray(dgnet->Flux,&flux));
   /* Do DG for each edge */
-  PetscCall(DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd)); 
+  PetscCall(DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd));
   for (e=eStart; e<eEnd; e++) {
     PetscCall(DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL));
     PetscCall(DMNetworkGetLocalVecOffset(dgnet->network,e,FVEDGE,&offset));
@@ -837,55 +833,50 @@ PetscErrorCode DGNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
         ndeg = dgnet->taborder[tab]+1;
         for (deg = 0; deg<ndeg; deg++) {
           coeff  = f+offset+fieldoff+deg;
-          *coeff *= dgnet->Leg_L2[tab][deg]/detJ; /* Inverting the Mass matrix. To be refactored later 
-          with arbitrary basis */
+          *coeff *= dgnet->Leg_L2[tab][deg]/detJ; /* Inverting the Mass matrix. To be refactored later with arbitrary basis */
         }
       }
     }
   }
-  PetscLogEventEnd(DGNET_Edge_RHS,0,0,0,0);
+  PetscCall(PetscLogEventEnd(DGNET_Edge_RHS,0,0,0,0));
   /* Data Cleanup */
   PetscCall(VecRestoreArray(localX,&xarr));
   PetscCall(VecRestoreArray(dgnet->Flux,&flux));
   PetscCall(VecRestoreArray(localF,&f));
-  PetscLogEventBegin(DGNET_RHS_COMM,0,0,0,0);
+  PetscCall(PetscLogEventBegin(DGNET_RHS_COMM,0,0,0,0));
   PetscCall(DMLocalToGlobalBegin(dgnet->network,localF,INSERT_VALUES,F));
   PetscCall(DMLocalToGlobalEnd(dgnet->network,localF,INSERT_VALUES,F));
-  PetscLogEventEnd(DGNET_RHS_COMM,0,0,0,0);
-
+  PetscCall(PetscLogEventEnd(DGNET_RHS_COMM,0,0,0,0));
   PetscFunctionReturn(0);
 }
 
-
 PetscErrorCode DGNetRHS_V3(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
 {
-  PetscErrorCode ierr; 
-  DGNetwork      dgnet = (DGNetwork)ctx;    
+  DGNetwork      dgnet = (DGNetwork)ctx;
   PetscReal      maxspeed,detJ,J,invJ,*numflux;
-  PetscScalar    *f,*xarr,*coeff,*riemanndata,*flux; 
-  PetscInt       v,e,c,vStart,vEnd,eStart,eEnd,vfrom,vto,cStart,cEnd,q,deg,ndeg,quadsize,tab,face,fStart,fEnd,voff; 
+  PetscScalar    *f,*xarr,*coeff,*riemanndata,*flux;
+  PetscInt       v,e,c,vStart,vEnd,eStart,eEnd,vfrom,vto,cStart,cEnd,q,deg,ndeg,quadsize,tab,face,fStart,fEnd,voff;
   PetscInt       offset,nedges,i,dof = dgnet->physics.dof,field,fieldoff;
   const PetscInt *cone,*edges,*supp;
-  Vec            localX = dgnet->localX,localF = dgnet->localF; 
-  EdgeFE         edgefe; 
+  Vec            localX = dgnet->localX,localF = dgnet->localF;
+  EdgeFE         edgefe;
   PetscSection   section;
   const PetscReal *qweight;
-  RiemannSolver   rs = dgnet->physics.rs; 
-
+  RiemannSolver   rs = dgnet->physics.rs;
 
   PetscFunctionBeginUser;
   PetscCall(VecZeroEntries(localF));
-  PetscLogEventBegin(DGNET_RHS_COMM,0,0,0,0);
+  PetscCall(PetscLogEventBegin(DGNET_RHS_COMM,0,0,0,0));
   PetscCall(DMGlobalToLocalBegin(dgnet->network,X,INSERT_VALUES,localX));
   PetscCall(DMGlobalToLocalEnd(dgnet->network,X,INSERT_VALUES,localX));
-  PetscLogEventEnd(DGNET_RHS_COMM,0,0,0,0);
+  PetscCall(PetscLogEventEnd(DGNET_RHS_COMM,0,0,0,0));
 
-  PetscCall(DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd)); 
+  PetscCall(DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd));
   PetscCall(VecGetArray(localX,&xarr));
   PetscCall(VecGetArray(localF,&f));
-  PetscLogEventBegin(DGNET_RHS_Vert,0,0,0,0); 
+  PetscCall(PetscLogEventBegin(DGNET_RHS_Vert,0,0,0,0));
   /* Iterate through all vertices (including ghosts) and compute the flux/reconstruction data for the vertex.  */
-  ierr = DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd);
+  PetscCall(DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd));
   PetscCall(VecZeroEntries(dgnet->RiemannData));
   PetscCall(VecGetArray(dgnet->RiemannData,&riemanndata));
   for (v=vStart; v<vEnd; v++) {
@@ -919,11 +910,11 @@ PetscErrorCode DGNetRHS_V3(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   PetscCall(VecRestoreArray(dgnet->RiemannData,&riemanndata));
   /* NetRS solve Begin  */
   PetscCall(NetRSSolveFluxBegin(dgnet->netrs,dgnet->RiemannData,dgnet->Flux));
-  PetscLogEventEnd(DGNET_RHS_Vert,0,0,0,0); 
+  PetscCall(PetscLogEventEnd(DGNET_RHS_Vert,0,0,0,0));
 
-  PetscLogEventBegin(DGNET_Edge_RHS,0,0,0,0);
+  PetscCall(PetscLogEventBegin(DGNET_Edge_RHS,0,0,0,0));
   /* Do DG for each edge skippting the normalization vertex flux updates  */
-  PetscCall(DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd)); 
+  PetscCall(DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd));
   for (e=eStart; e<eEnd; e++) {
     PetscCall(DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL));
     PetscCall(DMNetworkGetLocalVecOffset(dgnet->network,e,FVEDGE,&offset));
@@ -1003,31 +994,28 @@ PetscErrorCode DGNetRHS_V3(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
         ndeg = dgnet->taborder[tab]+1;
         for (deg = 0; deg<ndeg; deg++) {
           coeff  = f+offset+fieldoff+deg;
-          *coeff *= dgnet->Leg_L2[tab][deg]/detJ; /* Inverting the Mass matrix. To be refactored later 
-          with arbitrary basis */
+          *coeff *= dgnet->Leg_L2[tab][deg]/detJ; /* Inverting the Mass matrix. To be refactored later with arbitrary basis */
         }
       }
     }
   }
-  PetscLogEventEnd(DGNET_Edge_RHS,0,0,0,0);
+  PetscCall(PetscLogEventEnd(DGNET_Edge_RHS,0,0,0,0));
   /* end communication */
-  PetscLogEventBegin(DGNET_RHS_Vert,0,0,0,0); 
+  PetscCall(PetscLogEventBegin(DGNET_RHS_Vert,0,0,0,0));
   PetscCall(NetRSSolveFluxEnd(dgnet->netrs,dgnet->RiemannData,dgnet->Flux));
-  PetscLogEventEnd(DGNET_RHS_Vert,0,0,0,0); 
+  PetscCall(PetscLogEventEnd(DGNET_RHS_Vert,0,0,0,0));
 
   /* now with computed vertex riemann probelems, we update the edge cell fluxes and do the normalization for those cells */
-  
-  
-  PetscLogEventBegin(DGNET_Edge_RHS,0,0,0,0);
-  PetscCall(VecGetArray(dgnet->Flux,&flux)); 
+  PetscCall(PetscLogEventBegin(DGNET_Edge_RHS,0,0,0,0));
+  PetscCall(VecGetArray(dgnet->Flux,&flux));
   /* Do DG for each edge */
   for (e=eStart; e<eEnd; e++) {
     PetscCall(DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL));
     PetscCall(DMNetworkGetLocalVecOffset(dgnet->network,e,FVEDGE,&offset));
     PetscCall(DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd));
     /* We will manually use the section for now to deal with indexing offsets etc.. to be redone */
-    PetscCall(DMGetSection(edgefe->dm,&section));  
-    /* Flux Time !!! :) */ 
+    PetscCall(DMGetSection(edgefe->dm,&section));
+    /* Flux Time !!! :) */
     /* update the boundary cells first, (cstart,cEnd) as their fluxes are coupling fluxes */
     PetscCall(DMNetworkGetConnectedVertices(dgnet->network,e,&cone));
     vfrom  = cone[0];
@@ -1074,11 +1062,11 @@ PetscErrorCode DGNetRHS_V3(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
       ndeg = dgnet->taborder[tab]+1;
       for (deg = 0; deg<ndeg; deg++) {
         coeff  = f+offset+fieldoff+deg;
-        *coeff *= dgnet->Leg_L2[tab][deg]/detJ; /* Inverting the Mass matrix. To be refactored later 
+        *coeff *= dgnet->Leg_L2[tab][deg]/detJ; /* Inverting the Mass matrix. To be refactored later
         with arbitrary basis */
       }
     }
-    
+
     PetscCall(DMPlexComputeCellGeometryAffineFEM(edgefe->dm,cEnd-1,NULL,&J,&invJ,&detJ));
     for(field=0; field<dof; field++) {
       PetscCall(PetscSectionGetFieldOffset(section,cEnd-1,field,&fieldoff));
@@ -1086,55 +1074,51 @@ PetscErrorCode DGNetRHS_V3(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
       ndeg = dgnet->taborder[tab]+1;
       for (deg = 0; deg<ndeg; deg++) {
         coeff  = f+offset+fieldoff+deg;
-        *coeff *= dgnet->Leg_L2[tab][deg]/detJ; /* Inverting the Mass matrix. To be refactored later 
+        *coeff *= dgnet->Leg_L2[tab][deg]/detJ; /* Inverting the Mass matrix. To be refactored later
         with arbitrary basis */
       }
     }
   }
-  PetscLogEventEnd(DGNET_Edge_RHS,0,0,0,0);
+  PetscCall(PetscLogEventEnd(DGNET_Edge_RHS,0,0,0,0));
 
   /* Data Cleanup */
   PetscCall(VecRestoreArray(localX,&xarr));
   PetscCall(VecRestoreArray(dgnet->Flux,&flux));
   PetscCall(VecRestoreArray(localF,&f));
-  PetscLogEventBegin(DGNET_RHS_COMM,0,0,0,0);
+  PetscCall(PetscLogEventBegin(DGNET_RHS_COMM,0,0,0,0));
   PetscCall(DMLocalToGlobalBegin(dgnet->network,localF,INSERT_VALUES,F));
   PetscCall(DMLocalToGlobalEnd(dgnet->network,localF,INSERT_VALUES,F));
-  PetscLogEventEnd(DGNET_RHS_COMM,0,0,0,0);
-
+  PetscCall(PetscLogEventEnd(DGNET_RHS_COMM,0,0,0,0));
   PetscFunctionReturn(0);
 }
 
-
 PetscErrorCode DGNetRHS_V2(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
 {
-  PetscErrorCode ierr; 
-  DGNetwork      dgnet = (DGNetwork)ctx;    
+  DGNetwork      dgnet = (DGNetwork)ctx;
   PetscReal      maxspeed,detJ,J,invJ,*numflux;
-  PetscScalar    *f,*xarr,*coeff,*riemanndata,*flux; 
-  PetscInt       v,e,c,vStart,vEnd,eStart,eEnd,vfrom,vto,cStart,cEnd,q,deg,ndeg,quadsize,tab,face,fStart,fEnd,voff; 
+  PetscScalar    *f,*xarr,*coeff,*riemanndata,*flux;
+  PetscInt       v,e,c,vStart,vEnd,eStart,eEnd,vfrom,vto,cStart,cEnd,q,deg,ndeg,quadsize,tab,face,fStart,fEnd,voff;
   PetscInt       offset,nedges,i,dof = dgnet->physics.dof,field,fieldoff;
   const PetscInt *cone,*edges,*supp;
-  Vec            localX = dgnet->localX,localF = dgnet->localF; 
-  EdgeFE         edgefe; 
+  Vec            localX = dgnet->localX,localF = dgnet->localF;
+  EdgeFE         edgefe;
   PetscSection   section;
   const PetscReal *qweight;
-  RiemannSolver   rs = dgnet->physics.rs; 
-
+  RiemannSolver   rs = dgnet->physics.rs;
 
   PetscFunctionBeginUser;
   PetscCall(VecZeroEntries(localF));
-  PetscLogEventBegin(DGNET_RHS_COMM,0,0,0,0);
+  PetscCall(PetscLogEventBegin(DGNET_RHS_COMM,0,0,0,0));
   PetscCall(DMGlobalToLocalBegin(dgnet->network,X,INSERT_VALUES,localX));
   PetscCall(DMGlobalToLocalEnd(dgnet->network,X,INSERT_VALUES,localX));
-  PetscLogEventEnd(DGNET_RHS_COMM,0,0,0,0);
+  PetscCall(PetscLogEventEnd(DGNET_RHS_COMM,0,0,0,0));
 
-  PetscCall(DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd)); 
+  PetscCall(DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd));
   PetscCall(VecGetArray(localX,&xarr));
   PetscCall(VecGetArray(localF,&f));
-  PetscLogEventBegin(DGNET_RHS_Vert,0,0,0,0); 
+  PetscCall(PetscLogEventBegin(DGNET_RHS_Vert,0,0,0,0));
   /* Iterate through all vertices (including ghosts) and compute the flux/reconstruction data for the vertex.  */
-  ierr = DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd);
+  PetscCall(DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd));
   PetscCall(VecZeroEntries(dgnet->RiemannData));
   PetscCall(VecGetArray(dgnet->RiemannData,&riemanndata));
   for (v=vStart; v<vEnd; v++) {
@@ -1169,12 +1153,12 @@ PetscErrorCode DGNetRHS_V2(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   /* NetRS solve */
   PetscCall(NetRSSolveFluxBegin(dgnet->netrs,dgnet->RiemannData,dgnet->Flux));
   PetscCall(NetRSSolveFluxEnd(dgnet->netrs,dgnet->RiemannData,dgnet->Flux));
-  PetscLogEventEnd(DGNET_RHS_Vert,0,0,0,0); 
+  PetscCall(PetscLogEventEnd(DGNET_RHS_Vert,0,0,0,0));
 
-  PetscLogEventBegin(DGNET_Edge_RHS,0,0,0,0);
-  PetscCall(VecGetArray(dgnet->Flux,&flux)); 
+  PetscCall(PetscLogEventBegin(DGNET_Edge_RHS,0,0,0,0));
+  PetscCall(VecGetArray(dgnet->Flux,&flux));
   /* Do DG for each edge */
-  PetscCall(DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd)); 
+  PetscCall(DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd));
   for (e=eStart; e<eEnd; e++) {
     PetscCall(DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL));
     PetscCall(DMNetworkGetLocalVecOffset(dgnet->network,e,FVEDGE,&offset));
@@ -1291,24 +1275,20 @@ PetscErrorCode DGNetRHS_V2(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
         ndeg = dgnet->taborder[tab]+1;
         for (deg = 0; deg<ndeg; deg++) {
           coeff  = f+offset+fieldoff+deg;
-          *coeff *= dgnet->Leg_L2[tab][deg]/detJ; /* Inverting the Mass matrix. To be refactored later 
-          with arbitrary basis */
+          *coeff *= dgnet->Leg_L2[tab][deg]/detJ; /* Inverting the Mass matrix. To be refactored later with arbitrary basis */
         }
       }
     }
   }
-  PetscLogEventEnd(DGNET_Edge_RHS,0,0,0,0);
-  
-  
-  
+  PetscCall(PetscLogEventEnd(DGNET_Edge_RHS,0,0,0,0));
+
   /* Data Cleanup */
   PetscCall(VecRestoreArray(localX,&xarr));
   PetscCall(VecRestoreArray(dgnet->Flux,&flux));
   PetscCall(VecRestoreArray(localF,&f));
-  PetscLogEventBegin(DGNET_RHS_COMM,0,0,0,0);
+  PetscCall(PetscLogEventBegin(DGNET_RHS_COMM,0,0,0,0));
   PetscCall(DMLocalToGlobalBegin(dgnet->network,localF,INSERT_VALUES,F));
   PetscCall(DMLocalToGlobalEnd(dgnet->network,localF,INSERT_VALUES,F));
-  PetscLogEventEnd(DGNET_RHS_COMM,0,0,0,0);
-
+  PetscCall(PetscLogEventEnd(DGNET_RHS_COMM,0,0,0,0));
   PetscFunctionReturn(0);
 }
