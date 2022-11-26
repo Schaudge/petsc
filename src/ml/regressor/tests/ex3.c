@@ -63,6 +63,8 @@ int main(int argc,char **args)
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Training target vector is\n");CHKERRQ(ierr);
   ierr = VecView(y,PETSC_VIEWER_DEFAULT);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Predicted values are\n");CHKERRQ(ierr);
+  ierr = VecView(y_predicted,PETSC_VIEWER_DEFAULT);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Coefficients are\n");CHKERRQ(ierr);
   ierr = VecView(coefficients,PETSC_VIEWER_DEFAULT);CHKERRQ(ierr);
 
