@@ -4327,6 +4327,7 @@ PETSC_EXTERN PetscErrorCode DMCreate_Plex(DM dm)
 
   for (unit = 0; unit < NUM_PETSC_UNITS; ++unit) mesh->scale[unit] = 1.0;
 
+  mesh->activePoint   = -1;
   mesh->depthState    = -1;
   mesh->celltypeState = -1;
   mesh->printTol      = 1.0e-10;

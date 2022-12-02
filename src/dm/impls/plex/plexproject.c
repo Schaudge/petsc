@@ -752,7 +752,7 @@ static PetscErrorCode DMProjectLocal_Generic_Plex(DM dm, PetscReal time, Vec loc
     PetscScalar *values;
     PetscBool   *fieldActive;
     PetscInt     maxDegree;
-    PetscInt     pStart, pEnd, p, lStart, spDim, totDim, numValues;
+    PetscInt     pStart, pEnd, p, lStart, spDim, totDim, numValues, oldPoint;
     IS           heightIS;
 
     if (h > minHeight) {
@@ -848,8 +848,10 @@ static PetscErrorCode DMProjectLocal_Generic_Plex(DM dm, PetscReal time, Vec loc
 
           PetscCall(PetscArrayzero(values, numValues));
           PetscCall(PetscFEGeomGetChunk(fegeom, p, p + 1, &chunkgeom));
+          PetscCall(DMPlexGetActivePoint(dm, &oldPoint));
           PetscCall(DMPlexSetActivePoint(dm, point));
           PetscCall(DMProjectPoint_Private(dm, dsEff, plexIn, encIn, dsEffIn, plexAux, encAux, dsEffAux, chunkgeom, htInc, time, localU, localA, hasFE, hasFV, isFE, sp, point, T, TAux, type, funcs, ctxs, fieldActive, values));
+          PetscCall(DMPlexSetActivePoint(dm, oldPoint));
           if (transform) PetscCall(DMPlexBasisTransformPoint_Internal(plex, tdm, tv, point, fieldActive, PETSC_FALSE, values));
           PetscCall(DMPlexVecSetFieldClosure_Internal(plex, section, localX, fieldActive, point, Ncc, comps, label, ids[i], values, mode));
         }
@@ -879,8 +881,10 @@ static PetscErrorCode DMProjectLocal_Generic_Plex(DM dm, PetscReal time, Vec loc
       for (p = pStart; p < pEnd; ++p) {
         PetscCall(PetscArrayzero(values, numValues));
         PetscCall(PetscFEGeomGetChunk(fegeom, p - pStart, p - pStart + 1, &chunkgeom));
+        PetscCall(DMPlexGetActivePoint(dm, &oldPoint));
         PetscCall(DMPlexSetActivePoint(dm, p));
         PetscCall(DMProjectPoint_Private(dm, dsEff, plexIn, encIn, dsEffIn, plexAux, encAux, dsEffAux, chunkgeom, htInc, time, localU, localA, hasFE, hasFV, isFE, sp, p, T, TAux, type, funcs, ctxs, fieldActive, values));
+        PetscCall(DMPlexSetActivePoint(dm, oldPoint));
         if (transform) PetscCall(DMPlexBasisTransformPoint_Internal(plex, tdm, tv, p, fieldActive, PETSC_FALSE, values));
         PetscCall(DMPlexVecSetFieldClosure_Internal(plex, section, localX, fieldActive, p, Ncc, comps, NULL, -1, values, mode));
       }
