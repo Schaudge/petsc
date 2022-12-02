@@ -3812,8 +3812,12 @@ PetscErrorCode DMPlexGetTransitiveClosure_Internal(DM dm, PetscInt p, PetscInt o
 @*/
 PetscErrorCode DMPlexGetTransitiveClosure(DM dm, PetscInt p, PetscBool useCone, PetscInt *numPoints, PetscInt *points[])
 {
+  PetscInt pStart, pEnd;
+
   PetscFunctionBeginHot;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMPlexGetChart(dm, &pStart, &pEnd));
+  PetscCheck(p >= pStart && p < pEnd, PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_OUTOFRANGE, "Invalid point %" PetscInt_FMT " should be in [%" PetscInt_FMT ", %" PetscInt_FMT ")");
   if (numPoints) PetscValidIntPointer(numPoints, 4);
   if (points) PetscValidPointer(points, 5);
   PetscCall(DMPlexGetTransitiveClosure_Internal(dm, p, 0, useCone, numPoints, points));
