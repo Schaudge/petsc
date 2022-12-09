@@ -986,15 +986,19 @@ PetscErrorCode NetRPSolveStar(NetRP rp,PetscInt vdeg,PetscBool *edgein, Vec U, V
       PetscUseTypeMethod(rp,createLinearStar,vdeg,edgein,U,rp->vec[index],rp->mat[index]);
       PetscCall(KSPSetOperators(rp->ksp[index],rp->mat[index],rp->mat[index])); /* should this be moved to the creation routine? Check how PCSetUp works and if it can be reused */
       PetscCall(KSPSolve(rp->ksp[index],rp->vec[index],Star)); 
+      break; 
     case Nonlinear:
       snesctx.edgein = edgein; 
       snesctx.vdeg  = vdeg; 
       snesctx.rp = rp; 
       snesctx.U  = U; 
       PetscCall(SNESSetApplicationContext(rp->snes[index],(void*)&snesctx)); 
+      PetscCall(VecCopy(U,Star)); /* initial guess of the riemann data */
       PetscCall(SNESSolve(rp->snes[index],NULL,Star));  /* currently bugged as only one nonlinear function is allowed, need space for two. */
+      break;
     case Other: 
       PetscUseTypeMethod(rp,solveStar,vdeg,edgein,U,Star); 
+      break;
   }
   PetscFunctionReturn(0); 
 }

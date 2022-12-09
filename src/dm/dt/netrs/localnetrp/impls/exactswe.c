@@ -52,21 +52,19 @@ typedef struct {
 
 static PetscErrorCode ExactSWELaxCurveJac(RiemannSolver rs,const PetscReal *u,PetscReal hbar,PetscInt wavenumber,PetscReal *DLax)
 {
-  PetscReal      g,h;
-  ShallowCtx     *ctx;
+  PetscReal      g = 9.81,h,v;
 
   PetscFunctionBegin;
-  PetscCall(RiemannSolverGetApplicationContext(rs,&ctx));
-  g    = ctx->gravity;
   h    = u[0];
+  v    = u[1]/h;
   /* switch between the 1-wave and 2-wave curves */
   switch (wavenumber)
   {
     case 1:
-      DLax[0] = hbar<h ? -1.0*PetscSqrtScalar(g*hbar) : -(hbar+h)*PetscSqrtReal(g)/(2*PetscSqrtReal(2)*h*hbar*PetscSqrtScalar((hbar+h)/(hbar*h)));
+      DLax[0] = hbar<h ? v-3.0*PetscSqrtScalar(g*hbar)+2*PetscSqrtScalar(g*h) : v - PetscSqrtReal(g/(2.0*h))*( PetscSqrtScalar(hbar*hbar+h*hbar)+(hbar-h)*(2*hbar+h)/(2*PetscSqrtScalar(hbar*hbar+hbar*h)) );
       break;
     case 2:
-      DLax[0] = hbar<h ?  1.0*PetscSqrtScalar(g*hbar): (hbar+h)*PetscSqrtReal(g)/(2*PetscSqrtReal(2)*h*hbar*PetscSqrtScalar((hbar+h)/(hbar*h)));
+      DLax[0] = hbar<h ? v+3.0*PetscSqrtScalar(g*hbar)-2*PetscSqrtScalar(g*h) : v + PetscSqrtReal(g/(2.0*h))*( PetscSqrtScalar(hbar*hbar+h*hbar)+(hbar-h)*(2*hbar+h)/(2*PetscSqrtScalar(hbar*hbar+hbar*h)) );
       break;
     default:
       SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Shallow Water Lax Curves have only 2 waves (1,2), requested wave number: %i \n",wavenumber);
