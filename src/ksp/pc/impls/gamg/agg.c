@@ -819,7 +819,7 @@ PetscErrorCode PCCreateGAMG_AGG(PC pc)
   pc_gamg->ops->createdefaultdata = PCSetData_AGG;
   pc_gamg->ops->view              = PCView_GAMG_AGG;
 
-  pc_gamg_agg->aggressive_coarsening_levels = 0;
+  pc_gamg_agg->aggressive_coarsening_levels = 1;
   pc_gamg_agg->nsmooths                     = 1;
 
   PetscCall(PetscObjectComposeFunction((PetscObject)pc, "PCGAMGSetNSmooths_C", PCGAMGSetNSmooths_AGG));
