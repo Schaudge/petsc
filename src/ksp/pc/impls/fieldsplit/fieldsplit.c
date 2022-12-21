@@ -867,6 +867,10 @@ static PetscErrorCode PCSetUp_FieldSplit(PC pc)
       PetscCall(ISDestroy(&ccis));
 
       /* Use mat[0] (diagonal block of Amat) preconditioned by pmat[0] to define Schur complement */
+      PetscCall(PetscObjectSetOptionsPrefix((PetscObject)jac->B, "A01_"));
+      PetscCall(PetscObjectSetOptionsPrefix((PetscObject)jac->C, "A10_"));
+      PetscCall(MatViewFromOptions(jac->B, NULL, "-mat_view"));
+      PetscCall(MatViewFromOptions(jac->C, NULL, "-mat_view"));
       PetscCall(MatCreate(((PetscObject)jac->mat[0])->comm, &jac->schur));
       PetscCall(MatSetType(jac->schur, MATSCHURCOMPLEMENT));
       PetscCall(MatSchurComplementSetSubMatrices(jac->schur, jac->mat[0], jac->pmat[0], jac->B, jac->C, jac->mat[1]));
