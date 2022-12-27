@@ -1,0 +1,19 @@
+  0 SNES Function norm 7.950175792955e-02 
+  1 SNES Function norm 6.938893903907e-18 
+Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 1
+  0 SNES Function norm 7.950175792955e-02 
+  1 SNES Function norm 6.938893903907e-18 
+Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 1
+  0 SNES Function norm 7.950175792955e-02 
+  1 SNES Function norm 2.343482367555e-17 
+Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 1
+  0 SNES Function norm 7.950175792955e-02 
+  1 SNES Function norm 6.938893903907e-18 
+Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 1
+  0 SNES Function norm 7.950175792955e-02 
+  1 SNES Function norm 2.343482367555e-17 
+Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 1
+  0 SNES Function norm 7.950175792955e-02 
+  1 SNES Function norm 2.343482367555e-17 
+Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 1
+  ||Ph - P||_F/||P||_F = 3.21773e-16, ||Ph - P||_F = 5.08768e-16
