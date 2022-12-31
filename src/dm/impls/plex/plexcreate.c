@@ -9,6 +9,8 @@
 
 PetscLogEvent DMPLEX_CreateFromFile, DMPLEX_CreateFromOptions, DMPLEX_BuildFromCellList, DMPLEX_BuildCoordinatesFromCellList;
 
+const char *const DMPlexLocationAlgorithms[] = {"exhaustive", "grid_hash", "DMPlexLocationAlgorithm", "DM_PLEX_LOCATE_", NULL};
+
 /* External function declarations here */
 static PetscErrorCode DMInitialize_Plex(DM dm);
 
@@ -18,6 +20,7 @@ PetscErrorCode DMPlexCopy_Internal(DM dmin, PetscBool copyPeriodicity, PetscBool
   const PetscReal         *maxCell, *Lstart, *L;
   PetscBool                dist;
   DMPlexReorderDefaultFlag reorder;
+  DMPlexLocationAlgorithm  alg;
 
   PetscFunctionBegin;
   if (copyPeriodicity) {
@@ -28,7 +31,8 @@ PetscErrorCode DMPlexCopy_Internal(DM dmin, PetscBool copyPeriodicity, PetscBool
   PetscCall(DMPlexDistributeSetDefault(dmout, dist));
   PetscCall(DMPlexReorderGetDefault(dmin, &reorder));
   PetscCall(DMPlexReorderSetDefault(dmout, reorder));
-  ((DM_Plex *)dmout->data)->useHashLocation = ((DM_Plex *)dmin->data)->useHashLocation;
+  PetscCall(DMPlexGetLocationAlg(dmin, &alg));
+  PetscCall(DMPlexSetLocationAlg(dmout, alg));
   if (copyOverlap) PetscCall(DMPlexSetOverlap_Plex(dmout, dmin, 0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -4069,7 +4073,7 @@ PetscErrorCode DMSetFromOptions_NonRefinement_Plex(DM dm, PetscOptionItems *Pets
   PetscCall(PetscOptionsString("-dm_plex_boundary_label", "Label to mark the mesh boundary", "", bdLabel, bdLabel, sizeof(bdLabel), &flg));
   if (flg) PetscCall(DMPlexCreateBoundaryLabel_Private(dm, bdLabel));
   /* Point Location */
-  PetscCall(PetscOptionsBool("-dm_plex_hash_location", "Use grid hashing for point location", "DMInterpolate", PETSC_FALSE, &mesh->useHashLocation, NULL));
+  PetscCall(PetscOptionsEnum("-dm_plex_location_alg", "Algorithm to use for point location", "DMPlexSetLocationAlg", DMPlexLocationAlgorithms, (PetscEnum)mesh->locationAlg, (PetscEnum *)&mesh->locationAlg, NULL));
   /* Partitioning and distribution */
   PetscCall(PetscOptionsBool("-dm_plex_partition_balance", "Attempt to evenly divide points on partition boundary between processes", "DMPlexSetPartitionBalance", PETSC_FALSE, &mesh->partitionBalance, NULL));
   /* Generation and remeshing */
@@ -4577,7 +4581,7 @@ PETSC_INTERN PetscErrorCode DMClone_Plex(DM dm, DM *newdm)
 . -dm_distribute                     - Distribute mesh across processes
 . -dm_distribute_overlap             - Number of cells to overlap for distribution
 . -dm_refine                         - Refine mesh after distribution
-. -dm_plex_hash_location             - Use grid hashing for point location
+. -dm_plex_location_alg              - Select point location algorithm, e.g grid_hash
 . -dm_plex_hash_box_faces <n,m,p>    - The number of divisions in each direction of the grid hash
 . -dm_plex_partition_balance         - Attempt to evenly divide points on partition boundary between processes
 . -dm_plex_remesh_bd                 - Allow changes to the boundary on remeshing

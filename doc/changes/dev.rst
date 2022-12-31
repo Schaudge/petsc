@@ -96,6 +96,7 @@ Changes: Development
 .. rubric:: DMPlex:
 
 - Add ``DMPlexTransformExtrudeGetPeriodic()`` and ``DMPlexTransformExtrudeSetPeriodic()``
+- Add ``DMPlexLocationAlgorithm``, ``DMPlexGetLocationAlg()`` and ``DMPlexSetLocationAlg()``
 
 .. rubric:: FE/FV:
 

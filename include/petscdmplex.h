@@ -564,4 +564,7 @@ PETSC_EXTERN PetscErrorCode DMPlexPointQueueBack(DMPlexPointQueue, PetscInt *);
 PETSC_EXTERN PetscBool      DMPlexPointQueueEmpty(DMPlexPointQueue);
 PETSC_EXTERN PetscErrorCode DMPlexPointQueueEmptyCollective(PetscObject, DMPlexPointQueue, PetscBool *);
 
+PETSC_EXTERN PetscErrorCode DMPlexGetLocationAlg(DM, DMPlexLocationAlgorithm *);
+PETSC_EXTERN PetscErrorCode DMPlexSetLocationAlg(DM, DMPlexLocationAlgorithm);
+
 #endif
