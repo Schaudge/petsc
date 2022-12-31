@@ -798,25 +798,28 @@ PetscErrorCode DMPlexComputeGridHash_Internal(DM dm, PetscGridHash *localBox)
 
 PetscErrorCode DMLocatePoints_Plex(DM dm, Vec v, DMPointLocationType ltype, PetscSF cellSF)
 {
-  PetscInt        debug = ((DM_Plex *)dm->data)->printLocate;
-  DM_Plex        *mesh  = (DM_Plex *)dm->data;
-  PetscBool       hash = mesh->useHashLocation, reuse = PETSC_FALSE;
-  PetscInt        bs, numPoints, p, numFound, *found = NULL;
-  PetscInt        dim, Nl = 0, cStart, cEnd, numCells, c, d;
-  PetscSF         sf;
-  const PetscInt *leaves;
-  const PetscInt *boxCells;
-  PetscSFNode    *cells;
-  PetscScalar    *a;
-  PetscMPIInt     result;
-  PetscLogDouble  t0, t1;
-  PetscReal       gmin[3], gmax[3];
-  PetscInt        terminating_query_type[] = {0, 0, 0};
+  PetscInt                debug = ((DM_Plex *)dm->data)->printLocate;
+  DM_Plex                *mesh  = (DM_Plex *)dm->data;
+  PetscBool               reuse = PETSC_FALSE, hash;
+  DMPlexLocationAlgorithm alg;
+  PetscInt                bs, numPoints, p, numFound, *found = NULL;
+  PetscInt                dim, Nl = 0, cStart, cEnd, numCells, c, d;
+  PetscSF                 sf;
+  const PetscInt         *leaves;
+  const PetscInt         *boxCells;
+  PetscSFNode            *cells;
+  PetscScalar            *a;
+  PetscMPIInt             result;
+  PetscLogDouble          t0, t1;
+  PetscReal               gmin[3], gmax[3];
+  PetscInt                terminating_query_type[] = {0, 0, 0};
 
   PetscFunctionBegin;
+  PetscCall(DMPlexGetLocationAlg(dm, &alg));
+  hash = alg == DM_PLEX_LOCATE_GRID_HASH ? PETSC_TRUE : PETSC_FALSE;
   PetscCall(PetscLogEventBegin(DMPLEX_LocatePoints, 0, 0, 0, 0));
   PetscCall(PetscTime(&t0));
-  PetscCheck(ltype != DM_POINTLOCATION_NEAREST || hash, PetscObjectComm((PetscObject)dm), PETSC_ERR_SUP, "Nearest point location only supported with grid hashing. Use -dm_plex_hash_location to enable it.");
+  PetscCheck(ltype != DM_POINTLOCATION_NEAREST || hash, PetscObjectComm((PetscObject)dm), PETSC_ERR_SUP, "Nearest point location only supported with grid hashing. Use -dm_plex_location_alg grid_hash to enable it.");
   PetscCall(DMGetCoordinateDim(dm, &dim));
   PetscCall(VecGetBlockSize(v, &bs));
   PetscCallMPI(MPI_Comm_compare(PetscObjectComm((PetscObject)cellSF), PETSC_COMM_SELF, &result));
@@ -992,6 +995,50 @@ PetscErrorCode DMLocatePoints_Plex(DM dm, Vec v, DMPointLocationType ltype, Pets
   PetscCall(PetscInfo(dm, "[DMLocatePoints_Plex] npoints %" PetscInt_FMT " : time(rank0) %1.2e (sec): points/sec %1.4e\n", numPoints, t1 - t0, (double)((double)numPoints / (t1 - t0))));
   PetscCall(PetscLogEventEnd(DMPLEX_LocatePoints, 0, 0, 0, 0));
   PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  DMPlexGetLocationAlg - Get the point location algorithm
+
+  Not Collective
+
+  Input Parameter:
+. dm - The DMPlex object
+
+  Output Parameter:
+. alg - The point location algorithm
+
+  Level: intermediate
+
+.seealso: `DMPlexSetLocationAlg()`, `DMPlexLocationAlg`
+@*/
+PetscErrorCode DMPlexGetLocationAlg(DM dm, DMPlexLocationAlgorithm *alg)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm, DM_CLASSID, 1, DMPLEX);
+  *alg = ((DM_Plex *)dm->data)->locationAlg;
+  PetscFunctionReturn(0);
+}
+
+/*@
+  DMPlexSetLocationAlg - Set the point location algorithm
+
+  Not Collective
+
+  Input Parameters:
++ dm - The DMPlex object
+-alg - The point location algorithm
+
+  Level: intermediate
+
+.seealso: `DMPlexGetLocationAlg()`, `DMPlexLocationAlg`
+@*/
+PetscErrorCode DMPlexSetLocationAlg(DM dm, DMPlexLocationAlgorithm alg)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm, DM_CLASSID, 1, DMPLEX);
+  ((DM_Plex *)dm->data)->locationAlg = alg;
+  PetscFunctionReturn(0);
 }
 
 /*@C

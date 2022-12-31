@@ -57,6 +57,23 @@ typedef enum {
 } DMPlexCSRAlgorithm;
 PETSC_EXTERN const char *const DMPlexCSRAlgorithms[];
 
+/*E
+  DMPlexLocationAlgorithm - The algorithm for point location
+
+  Existing shapes include
+$ DM_PLEX_LOCATE_EXHAUSTIVE - Check every cell in order until the point is found
+$ DM_PLEX_LOCATE_GRID_HASH  - Divide the domain uniformly into boxes and place cells into boxes
+
+  Level: beginner
+
+.seealso: `DMPlexCreatePartitionerGraph()`, `PetscPartitionerDMPlexPartition()`, `DMPlexDistribute()`
+E*/
+typedef enum {
+  DM_PLEX_LOCATE_EXHAUSTIVE,
+  DM_PLEX_LOCATE_GRID_HASH
+} DMPlexLocationAlgorithm;
+PETSC_EXTERN const char *const DMPlexLocationAlgorithms[];
+
 typedef struct _p_DMPlexPointQueue *DMPlexPointQueue;
 struct _p_DMPlexPointQueue {
   PetscInt  size;   /* Size of the storage array */
