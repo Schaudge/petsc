@@ -411,6 +411,13 @@ PetscErrorCode DMPlexCreateNaturalVector(DM dm, Vec *nv)
     Vec      v;
     PetscCall(DMGetLocalVector(dm, &v));
     PetscCall(VecGetBlockSize(v, &bs));
+    PetscCallMPI(MPI_Allreduce(&bs,&maxbs,1,MPIU_INT,MPI_MAX,PetscObjectComm((PetscObject)dm)));
+    if (bs == 1 && maxbs > 1) {
+      /*
+      This is the case when a local vector stores no values on some processes
+      */
+      bs = maxbs;
+    }
     PetscCall(DMRestoreLocalVector(dm, &v));
     PetscCall(PetscSFGetGraph(dm->sfNatural, NULL, &nleaves, NULL, NULL));
     PetscCall(VecCreate(PetscObjectComm((PetscObject)dm), nv));
