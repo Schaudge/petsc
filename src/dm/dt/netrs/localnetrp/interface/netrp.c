@@ -898,20 +898,17 @@ PetscErrorCode NetRPSolveFlux(NetRP rp,PetscInt numedges,PetscBool *edgein, Vec 
   {
     case Linear: 
       if(rp->ops->createLinearFlux) {
-        PetscLogEventBegin(NetRP_Solve_SetUp,0,0,0,0);
-        PetscUseTypeMethod(rp,createLinearFlux,vdeg,edgein,U,rp->vec[index],rp->mat[index]);
-        PetscLogEventEnd(NetRP_Solve_SetUp,0,0,0,0);
         PetscLogEventBegin(NetRP_Solve_System,0,0,0,0);
+        PetscUseTypeMethod(rp,createLinearFlux,vdeg,edgein,U,rp->vec[index],rp->mat[index]);
         PetscCall(KSPSetOperators(rp->ksp[index],rp->mat[index],rp->mat[index])); /* should this be moved to the creation routine? Check how PCSetUp works and if it can be reused */
         PetscCall(KSPSolve(rp->ksp[index],rp->vec[index],Flux));
         PetscLogEventEnd(NetRP_Solve_System,0,0,0,0);
 
       } else if (rp->ops->createLinearStar)
       {
-        PetscLogEventBegin(NetRP_Solve_SetUp,0,0,0,0);
-        PetscUseTypeMethod(rp,createLinearStar,vdeg,edgein,U,rp->vec[index],rp->mat[index]);
-        PetscLogEventEnd(NetRP_Solve_SetUp,0,0,0,0);
+     
         PetscLogEventBegin(NetRP_Solve_System,0,0,0,0);
+        PetscUseTypeMethod(rp,createLinearStar,vdeg,edgein,U,rp->vec[index],rp->mat[index]);
         PetscCall(KSPSetOperators(rp->ksp[index],rp->mat[index],rp->mat[index])); /* should this be moved to the creation routine? Check how PCSetUp works and if it can be reused */
         PetscCall(KSPSolve(rp->ksp[index],rp->vec[index],Flux));
         PetscLogEventEnd(NetRP_Solve_System,0,0,0,0);
