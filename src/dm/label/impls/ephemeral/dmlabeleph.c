@@ -135,7 +135,7 @@ static PetscErrorCode DMLabelView_Ephemeral_Ascii(DMLabel label, PetscViewer vie
       const PetscInt *points;
       PetscInt        n, p;
 
-      PetscCall(DMLabelGetStratumIS(olabel, value, &pointIS));
+      PetscCall(DMLabelGetStratumIS(label, value, &pointIS));
       PetscCall(ISGetIndices(pointIS, &points));
       PetscCall(ISGetLocalSize(pointIS, &n));
       for (p = 0; p < n; ++p) PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, "[%d]: %" PetscInt_FMT " (%" PetscInt_FMT ")\n", rank, points[p], value));
@@ -160,11 +160,16 @@ static PetscErrorCode DMLabelView_Ephemeral(DMLabel label, PetscViewer viewer)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode DMLabelInitialize_Ephemeral(DMLabel);
 static PetscErrorCode DMLabelDuplicate_Ephemeral(DMLabel label, DMLabel *labelnew)
 {
-  PetscObject olabel;
+  DMPlexTransform tr;
+  PetscObject     olabel;
 
   PetscFunctionBegin;
+  PetscCall(DMLabelInitialize_Ephemeral(*labelnew));
+  PetscCall(DMLabelEphemeralGetTransform(label, &tr));
+  PetscCall(DMLabelEphemeralSetTransform(*labelnew, tr));
   PetscCall(PetscObjectQuery((PetscObject)label, "__original_label__", &olabel));
   PetscCall(PetscObjectCompose((PetscObject)*labelnew, "__original_label__", olabel));
   PetscFunctionReturn(PETSC_SUCCESS);

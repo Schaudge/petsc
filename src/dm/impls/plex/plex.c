@@ -9633,7 +9633,7 @@ PetscErrorCode DMCreateMassMatrixLumped_Plex(DM dm, Vec *mass)
   Vec          ones, locmass;
   IS           cellIS;
   PetscFormKey key;
-  PetscInt     depth;
+  PetscInt     depth, pStart, pEnd;
 
   PetscFunctionBegin;
   PetscCall(DMClone(dm, &dmc));
@@ -9644,7 +9644,8 @@ PetscErrorCode DMCreateMassMatrixLumped_Plex(DM dm, Vec *mass)
   PetscCall(DMGetLocalVector(dmc, &ones));
   PetscCall(DMGetLocalVector(dmc, &locmass));
   PetscCall(DMPlexGetDepth(dmc, &depth));
-  PetscCall(DMGetStratumIS(dmc, "depth", depth, &cellIS));
+  PetscCall(DMPlexGetDepthStratum(dmc, depth, &pStart, &pEnd));
+  PetscCall(ISCreateStride(PETSC_COMM_SELF, pEnd - pStart, pStart, 1, &cellIS));
   PetscCall(VecSet(locmass, 0.0));
   PetscCall(VecSet(ones, 1.0));
   key.label = NULL;
@@ -9678,7 +9679,7 @@ PetscErrorCode DMCreateMassMatrix_Plex(DM dmCoarse, DM dmFine, Mat *mass)
     Vec           u;
     IS            cellIS;
     PetscFormKey  key;
-    PetscInt      depth;
+    PetscInt      depth, pStart, pEnd;
 
     PetscCall(DMClone(dmFine, &dmc));
     PetscCall(DMCopyDisc(dmFine, dmc));
@@ -9689,7 +9690,8 @@ PetscErrorCode DMCreateMassMatrix_Plex(DM dmCoarse, DM dmFine, Mat *mass)
     PetscCall(DMCreateMatrix(dmc, mass));
     PetscCall(DMGetLocalVector(dmc, &u));
     PetscCall(DMPlexGetDepth(dmc, &depth));
-    PetscCall(DMGetStratumIS(dmc, "depth", depth, &cellIS));
+    PetscCall(DMPlexGetDepthStratum(dmc, depth, &pStart, &pEnd));
+    PetscCall(ISCreateStride(PETSC_COMM_SELF, pEnd - pStart, pStart, 1, &cellIS));
     PetscCall(MatZeroEntries(*mass));
     key.label = NULL;
     key.value = 0;

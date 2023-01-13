@@ -5278,6 +5278,8 @@ PetscErrorCode DMCompleteBCLabels_Internal(DM dm)
       PetscCall(DMGetField(dm, field, NULL, &obj));
       PetscCall(PetscObjectGetClassId(obj, &id));
       if (!(id == PETSCFE_CLASSID) || !label) continue;
+      // Do not complete labels for ephemeral meshes
+      if (label->readonly) continue;
       for (l = 0; l < Nl; ++l)
         if (labels[l] == label) break;
       if (l == Nl) labels[Nl++] = label;
@@ -5314,7 +5316,7 @@ PetscErrorCode DMCompleteBCLabels_Internal(DM dm)
     for (m = 0; m < gl; ++m)
       if (glabels[m] == glabels[gl]) continue;
     PetscCall(DMConvert(dm, DMPLEX, &plex));
-    PetscCall(DMPlexLabelComplete(plex, glabels[gl]));
+    if (!glabels[gl]->readonly) PetscCall(DMPlexLabelComplete(plex, glabels[gl]));
     PetscCall(DMDestroy(&plex));
     ++gl;
   }
@@ -7821,7 +7823,7 @@ PetscErrorCode DMAddBoundary(DM dm, DMBoundaryConditionType type, const char nam
       DM plex;
 
       PetscCall(DMConvert(dm, DMPLEX, &plex));
-      if (plex) PetscCall(DMPlexLabelComplete(plex, label));
+      if (plex && !label->readonly) PetscCall(DMPlexLabelComplete(plex, label));
       PetscCall(DMDestroy(&plex));
     }
   }
