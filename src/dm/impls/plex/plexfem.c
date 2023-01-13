@@ -5,6 +5,7 @@
 #include <petsc/private/hashsetij.h>
 #include <petsc/private/petscfeimpl.h>
 #include <petsc/private/petscfvimpl.h>
+#include <petsc/private/dmlabelimpl.h>
 
 PetscBool  Clementcite       = PETSC_FALSE;
 const char ClementCitation[] = "@article{clement1975approximation,\n"
@@ -1041,9 +1042,9 @@ PetscErrorCode DMPlexInsertBoundaryValues_Plex(DM dm, PetscBool insertEssential,
         PetscSimplePointFunc func = (PetscSimplePointFunc)bvfunc;
 
         if (isZero) func = zero;
-        PetscCall(DMPlexLabelAddCells(dm, label));
+        if (!label->readonly) PetscCall(DMPlexLabelAddCells(dm, label));
         PetscCall(DMPlexInsertBoundaryValuesEssential(dm, time, field, Nc, comps, label, numids, ids, func, ctx, locX));
-        PetscCall(DMPlexLabelClearCells(dm, label));
+        if (!label->readonly) PetscCall(DMPlexLabelClearCells(dm, label));
       } break;
       case DM_BC_ESSENTIAL_FIELD: {
         PetscPointFunc func = (PetscPointFunc)bvfunc;

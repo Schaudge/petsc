@@ -209,7 +209,7 @@ PetscErrorCode DMLabelLookupStratum(DMLabel label, PetscInt value, PetscInt *ind
   if (PetscDefined(USE_DEBUG) && !label->readonly) { /* Check strata hash map consistency */
     PetscInt len, loc = -1;
     PetscCall(PetscHMapIGetSize(label->hmap, &len));
-    PetscCheck(len == label->numStrata, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Inconsistent strata hash map size");
+    PetscCheck(len == label->numStrata, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Inconsistent strata hash map size %" PetscInt_FMT " should be %" PetscInt_FMT " for label %s", len, label->numStrata, label->hdr.name);
     if (label->numStrata <= DMLABEL_LOOKUP_THRESHOLD) {
       PetscCall(PetscHMapIGet(label->hmap, value, &loc));
     } else {
@@ -583,6 +583,7 @@ PetscErrorCode DMLabelDuplicate(DMLabel label, DMLabel *labelnew)
   PetscCall(PetscObjectGetName((PetscObject)label, &name));
   PetscCall(DMLabelCreate(PetscObjectComm((PetscObject)label), name, labelnew));
 
+  (*labelnew)->readonly     = label->readonly;
   (*labelnew)->numStrata    = label->numStrata;
   (*labelnew)->defaultValue = label->defaultValue;
   PetscCall(PetscMalloc1(label->numStrata, &(*labelnew)->stratumValues));
