@@ -18,14 +18,13 @@ class VecType(object):
     SEQKOKKOS  = S_(VECSEQKOKKOS)
     MPIKOKKOS  = S_(VECMPIKOKKOS)
     KOKKOS     = S_(VECKOKKOS)
-
 class VecOption(object):
     IGNORE_OFF_PROC_ENTRIES = VEC_IGNORE_OFF_PROC_ENTRIES
     IGNORE_NEGATIVE_INDICES = VEC_IGNORE_NEGATIVE_INDICES
 
 # --------------------------------------------------------------------
 
-cdef class Vec(Object):
+cdef class Vec:
 
     Type = VecType
     Option = VecOption
