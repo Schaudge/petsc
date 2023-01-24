@@ -521,13 +521,12 @@ PetscErrorCode PetscFunctionListGet(PetscFunctionList list, const char ***array,
 }
 
 /*@C
-   PetscFunctionListPrintTypes - Prints the methods available in a list of functions
+   PetscFunctionListPrintTypes - Prints the methods available in a list of functions to `PetscHelpPrintf()`
 
    Collective over MPI_Comm
 
    Input Parameters:
 +  comm   - the communicator (usually `MPI_COMM_WORLD`)
-.  fd     - file to print to, usually stdout
 .  prefix - prefix to prepend to name (optional)
 .  name   - option string (for example, "-ksp_type")
 .  text - short description of the object (for example, "Krylov solvers")
@@ -538,9 +537,9 @@ PetscErrorCode PetscFunctionListGet(PetscFunctionList list, const char ***array,
 
    Level: developer
 
-.seealso: `PetscFunctionListAdd()`, `PetscFunctionList`
+.seealso: `PetscHelpPrintf()`, `PetscFunctionListAdd()`, `PetscFunctionList`
 @*/
-PetscErrorCode PetscFunctionListPrintTypes(MPI_Comm comm, FILE *fd, const char prefix[], const char name[], const char text[], const char man[], PetscFunctionList list, const char def[], const char newv[])
+PetscErrorCode PetscFunctionListPrintTypes(MPI_Comm comm, const char prefix[], const char name[], const char text[], const char man[], PetscFunctionList list, const char def[], const char newv[])
 {
   char p[64];
 
