@@ -1236,7 +1236,7 @@ Otherwise you need a different combination of C, C++, and Fortran compilers")
     self.setCompilers.saveLog()
     try:
       self.setCompilers.checkCompiler('C')
-    except RuntimeError as e:
+    except (OSError, RuntimeError) as e:
       self.logWrite(self.setCompilers.restoreLog())
       self.logPrint('Fortran libraries cannot directly be used with C as the linker, try without -lcrt2.o', 4, 'compilers')
       self.logPrint('Error message from compiling {'+str(e)+'}', 4, 'compilers')
@@ -1246,7 +1246,7 @@ Otherwise you need a different combination of C, C++, and Fortran compilers")
       self.setCompilers.saveLog()
       try:
         self.setCompilers.checkCompiler('C')
-      except RuntimeError as e:
+      except (OSError, RuntimeError) as e:
         self.logWrite(self.setCompilers.restoreLog())
         self.logPrint('Fortran libraries still cannot directly be used with C as the linker, try without pgi.ld files', 4, 'compilers')
         self.logPrint('Error message from compiling {'+str(e)+'}', 4, 'compilers')
