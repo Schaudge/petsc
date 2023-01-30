@@ -12,7 +12,6 @@ configure_options = [
   #'--with-mpiexec=mpiexec.openmpi',
   '--COPTFLAGS=-g -fno-omit-frame-pointer -fsanitize=address,undefined',
   '--CXXOPTFLAGS=-g -fno-omit-frame-pointer -fsanitize=address,undefined',
-  '--FOPTFLAGS=-fno-sanitize=address,undefined -O',
   '--download-openmpi=1',
   '--download-fblaslapack=1',
   '--download-hypre=1',

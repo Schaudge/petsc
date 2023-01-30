@@ -1088,6 +1088,9 @@ Otherwise you need a different combination of C, C++, and Fortran compilers")
             elif arg in self.clibs:
               self.logPrint('Library already in C list so skipping in Fortran', 4, 'compilers')
               continue
+            elif arg == '-lasan':
+              self.logPrint('Skipping ASAN lib due to library order requirement. Use -fsanitize=address instead')
+              continue
             else:
               lflags.append(arg)
             self.logPrint('Found library: '+arg, 4, 'compilers')
