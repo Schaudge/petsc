@@ -12,132 +12,126 @@
 
 static inline PetscErrorCode FluxFunDestroy_Default(FluxFunction *flux)
 {
-    PetscInt       field; 
+  PetscInt field;
 
-    PetscFunctionBeginUser; 
-    PetscCall(PetscFree((*flux)->user));
-    for (field=0; field<(*flux)->dof; field++)
-    {
-        PetscCall(PetscFree((*flux)->fieldname[field]));
-    }
-    *flux = NULL; 
-    PetscFunctionReturn(0);
+  PetscFunctionBeginUser;
+  PetscCall(PetscFree((*flux)->user));
+  for (field = 0; field < (*flux)->dof; field++) { PetscCall(PetscFree((*flux)->fieldname[field])); }
+  *flux = NULL;
+  PetscFunctionReturn(0);
 }
-
-
 
 /* --------------------------------- Shallow Water ----------------------------------- */
 typedef struct {
   PetscReal gravity;
 } ShallowCtx;
 
-static inline PetscErrorCode ShallowFlux(void *ctx,const PetscReal *u,PetscReal *f)
+static inline PetscErrorCode ShallowFlux(void *ctx, const PetscReal *u, PetscReal *f)
 {
-  ShallowCtx *phys = (ShallowCtx*)ctx;
-  f[0] = u[1];
-  f[1] = PetscSqr(u[1])/u[0] + 0.5*phys->gravity*PetscSqr(u[0]);
+  ShallowCtx *phys = (ShallowCtx *)ctx;
+  f[0]             = u[1];
+  f[1]             = PetscSqr(u[1]) / u[0] + 0.5 * phys->gravity * PetscSqr(u[0]);
   PetscFunctionReturn(0);
 }
-static inline void ShallowFluxVoid(void *ctx,const PetscReal *u,PetscReal *f)
+static inline void ShallowFluxVoid(void *ctx, const PetscReal *u, PetscReal *f)
 {
-  ShallowCtx *phys = (ShallowCtx*)ctx;
-  f[0] = u[1];
-  f[1] = PetscSqr(u[1])/u[0] + 0.5*phys->gravity*PetscSqr(u[0]);
+  ShallowCtx *phys = (ShallowCtx *)ctx;
+  f[0]             = u[1];
+  f[1]             = PetscSqr(u[1]) / u[0] + 0.5 * phys->gravity * PetscSqr(u[0]);
 }
 
-static inline void ShallowEig(void *ctx,const PetscReal *u,PetscReal *eig)
+static inline void ShallowEig(void *ctx, const PetscReal *u, PetscReal *eig)
 {
-    ShallowCtx *phys = (ShallowCtx*)ctx;
-    eig[0] = u[1]/u[0] - PetscSqrtReal(phys->gravity*u[0]); /*left wave*/
-    eig[1] = u[1]/u[0] + PetscSqrtReal(phys->gravity*u[0]); /*right wave*/
+  ShallowCtx *phys = (ShallowCtx *)ctx;
+  eig[0]           = u[1] / u[0] - PetscSqrtReal(phys->gravity * u[0]); /*left wave*/
+  eig[1]           = u[1] / u[0] + PetscSqrtReal(phys->gravity * u[0]); /*right wave*/
 }
 
-static PetscErrorCode PhysicsCharacteristic_Shallow_Mat(void *vctx,const PetscScalar *u,Mat eigmat)
+static PetscErrorCode PhysicsCharacteristic_Shallow_Mat(void *vctx, const PetscScalar *u, Mat eigmat)
 {
-  ShallowCtx     *phys = (ShallowCtx*)vctx;
-  PetscReal      c;
-  PetscInt       m = 2,n = 2,i; 
-  PetscReal      X[m][n];
-  PetscInt       idxm[m],idxn[n]; 
-  
+  ShallowCtx *phys = (ShallowCtx *)vctx;
+  PetscReal   c;
+  PetscInt    m = 2, n = 2, i;
+  PetscReal   X[m][n];
+  PetscInt    idxm[m], idxn[n];
+
   PetscFunctionBeginUser;
-  c         = PetscSqrtScalar(u[0]*phys->gravity);
+  c = PetscSqrtScalar(u[0] * phys->gravity);
 
-  for (i=0; i<m; i++) idxm[i] = i; 
-  for (i=0; i<n; i++) idxn[i] = i; 
+  for (i = 0; i < m; i++) idxm[i] = i;
+  for (i = 0; i < n; i++) idxn[i] = i;
   /* Analytical formulation for the eigen basis of the Df for at u */
-  X[0][0]  = 1;
-  X[1][0]  = u[1]/u[0] - c;
-  X[0][1]  = 1;
-  X[1][1]  = u[1]/u[0] + c;
-  PetscCall(MatSetValues(eigmat,m,idxm,n,idxn,(PetscReal *)X,INSERT_VALUES));
-  MatAssemblyBegin(eigmat,MAT_FINAL_ASSEMBLY);
-  MatAssemblyEnd(eigmat,MAT_FINAL_ASSEMBLY);
+  X[0][0] = 1;
+  X[1][0] = u[1] / u[0] - c;
+  X[0][1] = 1;
+  X[1][1] = u[1] / u[0] + c;
+  PetscCall(MatSetValues(eigmat, m, idxm, n, idxn, (PetscReal *)X, INSERT_VALUES));
+  MatAssemblyBegin(eigmat, MAT_FINAL_ASSEMBLY);
+  MatAssemblyEnd(eigmat, MAT_FINAL_ASSEMBLY);
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PhysicsFluxDer_Shallow(void *vctx,const PetscReal *u,Mat jacobian)
+static PetscErrorCode PhysicsFluxDer_Shallow(void *vctx, const PetscReal *u, Mat jacobian)
 {
-  ShallowCtx     *phys = (ShallowCtx*)vctx;
-  PetscInt       m = 2,n = 2,i; 
-  PetscReal      X[m][n];
-  PetscInt       idxm[m],idxn[n]; 
-  
+  ShallowCtx *phys = (ShallowCtx *)vctx;
+  PetscInt    m = 2, n = 2, i;
+  PetscReal   X[m][n];
+  PetscInt    idxm[m], idxn[n];
 
   PetscFunctionBeginUser;
-  for (i=0; i<m; i++) idxm[i] = i; 
-  for (i=0; i<n; i++) idxn[i] = i; 
+  for (i = 0; i < m; i++) idxm[i] = i;
+  for (i = 0; i < n; i++) idxn[i] = i;
   /* Analytical formulation for Df at u */
-  X[0][0]  = 0.;
-  X[1][0]  = - PetscSqr(u[1])/PetscSqr(u[0]) + phys->gravity*u[0];
-  X[0][1]  = 1.;
-  X[1][1]  = 2.*u[1]/u[0];
-  PetscCall(MatSetValues(jacobian,m,idxm,n,idxn,(PetscReal *)X,INSERT_VALUES));
-  MatAssemblyBegin(jacobian,MAT_FINAL_ASSEMBLY);
-  MatAssemblyEnd(jacobian,MAT_FINAL_ASSEMBLY);
+  X[0][0] = 0.;
+  X[1][0] = -PetscSqr(u[1]) / PetscSqr(u[0]) + phys->gravity * u[0];
+  X[0][1] = 1.;
+  X[1][1] = 2. * u[1] / u[0];
+  PetscCall(MatSetValues(jacobian, m, idxm, n, idxn, (PetscReal *)X, INSERT_VALUES));
+  MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);
+  MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY);
   PetscFunctionReturn(0);
 }
-static PetscErrorCode PhysicsRoeAvg_Shallow(void *ctx,const PetscReal *uL,const PetscReal *uR,PetscReal *uavg) 
+static PetscErrorCode PhysicsRoeAvg_Shallow(void *ctx, const PetscReal *uL, const PetscReal *uR, PetscReal *uavg)
 {
   PetscFunctionBeginUser;
-  uavg[0] = (uL[0]+uR[0])/2.0; 
-  uavg[1] = uavg[0]*(uL[1]/PetscSqrtReal(uL[0])+uR[1]/PetscSqrtReal(uR[0]))/(PetscSqrtReal(uL[0])+PetscSqrtReal(uR[0]));
+  uavg[0] = (uL[0] + uR[0]) / 2.0;
+  uavg[1] = uavg[0] * (uL[1] / PetscSqrtReal(uL[0]) + uR[1] / PetscSqrtReal(uR[0])) / (PetscSqrtReal(uL[0]) + PetscSqrtReal(uR[0]));
   PetscFunctionReturn(0);
 }
 /* For the SWE the Roe matrix can be computed by the Flux jacobian evaluated at a roe average point */
-static PetscErrorCode PhysicsRoeMat_Shallow(void *ctx,const PetscReal *uL,const PetscReal *uR,Mat roe) 
+static PetscErrorCode PhysicsRoeMat_Shallow(void *ctx, const PetscReal *uL, const PetscReal *uR, Mat roe)
 {
-  PetscReal roeavg[2]; 
+  PetscReal roeavg[2];
 
   PetscFunctionBeginUser;
-  PetscCall(PhysicsRoeAvg_Shallow(ctx,uL,uR,roeavg));
-  PetscCall(PhysicsFluxDer_Shallow(ctx,roeavg,roe));
+  PetscCall(PhysicsRoeAvg_Shallow(ctx, uL, uR, roeavg));
+  PetscCall(PhysicsFluxDer_Shallow(ctx, roeavg, roe));
   PetscFunctionReturn(0);
 }
 /* Lax Curve evaluation function, for use in RiemannSolver */
-static PetscErrorCode LaxCurve_Shallow(RiemannSolver rs, const PetscReal *u,PetscReal hbar,PetscInt wavenumber,PetscReal *ubar)
+static PetscErrorCode LaxCurve_Shallow(RiemannSolver rs, const PetscReal *u, PetscReal hbar, PetscInt wavenumber, PetscReal *ubar)
 {
-  PetscReal      g,h,v;
-  ShallowCtx     *ctx;
+  PetscReal   g, h, v;
+  ShallowCtx *ctx;
 
   PetscFunctionBegin;
-  PetscCall(RiemannSolverGetApplicationContext(rs,&ctx));
-  g    = ctx->gravity;
-  h    = u[0]; v = u[1]/h;
+  PetscCall(RiemannSolverGetApplicationContext(rs, &ctx));
+  g = ctx->gravity;
+  h = u[0];
+  v = u[1] / h;
   /* switch between the 1-wave and 2-wave curves */
-  switch (wavenumber)
-  {
-    case 1: 
-      ubar[1] = hbar<h ? v-2.0*(PetscSqrtScalar(g*hbar)-PetscSqrtScalar(g*h)) : v-(hbar-h)*PetscSqrtScalar(g*(hbar+h)/(2.0*hbar*h));
-      ubar[1] *= hbar; 
-      break;
-    case 2: 
-      ubar[1] = hbar<h ? v+2.0*(PetscSqrtScalar(g*hbar)-PetscSqrtScalar(g*h)) : v+(hbar-h)*PetscSqrtScalar(g*(hbar+h)/(2.0*hbar*h));
-      ubar[1] *= hbar; 
-      break;
-    default:
-      SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Shallow Water Lax Curves have only 2 waves (1,2), requested wave number: %i \n",wavenumber);
-      break; 
+  switch (wavenumber) {
+  case 1:
+    ubar[1] = hbar < h ? v - 2.0 * (PetscSqrtScalar(g * hbar) - PetscSqrtScalar(g * h)) : v - (hbar - h) * PetscSqrtScalar(g * (hbar + h) / (2.0 * hbar * h));
+    ubar[1] *= hbar;
+    break;
+  case 2:
+    ubar[1] = hbar < h ? v + 2.0 * (PetscSqrtScalar(g * hbar) - PetscSqrtScalar(g * h)) : v + (hbar - h) * PetscSqrtScalar(g * (hbar + h) / (2.0 * hbar * h));
+    ubar[1] *= hbar;
+    break;
+  default:
+    SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Shallow Water Lax Curves have only 2 waves (1,2), requested wave number: %i \n", wavenumber);
+    break;
   }
   ubar[0] = hbar;
   PetscFunctionReturn(0);
@@ -145,29 +139,29 @@ static PetscErrorCode LaxCurve_Shallow(RiemannSolver rs, const PetscReal *u,Pets
 
 PetscErrorCode PhysicsCreate_Shallow(FluxFunction *fluxfun)
 {
-  ShallowCtx        *user;
-  FluxFunction      flux;
+  ShallowCtx  *user;
+  FluxFunction flux;
 
   PetscFunctionBeginUser;
-  *fluxfun = NULL; 
+  *fluxfun = NULL;
 
   PetscCall(PetscNew(&user));
   PetscCall(PetscNew(&flux));
   user->gravity = 9.81;
-  flux->dof = 2; 
-  PetscCall(PetscStrallocpy("height",&flux->fieldname[0]));
-  PetscCall(PetscStrallocpy("momentum",&flux->fieldname[1]));
+  flux->dof     = 2;
+  PetscCall(PetscStrallocpy("height", &flux->fieldname[0]));
+  PetscCall(PetscStrallocpy("momentum", &flux->fieldname[1]));
 
-  flux->eigbasis = PhysicsCharacteristic_Shallow_Mat; 
-  flux->roeavg   = PhysicsRoeAvg_Shallow; 
-  flux->flux     = ShallowFluxVoid; 
-  flux->fluxder  = PhysicsFluxDer_Shallow; 
-  flux->fluxeig  = ShallowEig; 
-  flux ->user    = user; 
-  flux->roemat   = PhysicsRoeMat_Shallow; 
-  flux->laxcurve = LaxCurve_Shallow; 
+  flux->eigbasis = PhysicsCharacteristic_Shallow_Mat;
+  flux->roeavg   = PhysicsRoeAvg_Shallow;
+  flux->flux     = ShallowFluxVoid;
+  flux->fluxder  = PhysicsFluxDer_Shallow;
+  flux->fluxeig  = ShallowEig;
+  flux->user     = user;
+  flux->roemat   = PhysicsRoeMat_Shallow;
+  flux->laxcurve = LaxCurve_Shallow;
   flux->destroy  = FluxFunDestroy_Default;
 
-  *fluxfun = flux; 
+  *fluxfun = flux;
   PetscFunctionReturn(0);
 }

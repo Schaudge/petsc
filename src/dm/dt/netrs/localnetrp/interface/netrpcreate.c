@@ -1,4 +1,4 @@
-#include <petsc/private/localnetrpimpl.h> 
+#include <petsc/private/localnetrpimpl.h>
 /*@C
   NetRPCreate - This function creates an empty NetRP. The type of solver 
     can then be set with NetRSSetType().
@@ -15,23 +15,23 @@
 
 .seealso: NetRSSetType(), NetRSSetUp(), NetRSDestroy()
 @*/
-PetscErrorCode  NetRPCreate(MPI_Comm comm, NetRP *rp)
+PetscErrorCode NetRPCreate(MPI_Comm comm, NetRP *rp)
 {
-  NetRP  r;
+  NetRP r;
 
   PetscFunctionBegin;
-  PetscValidPointer(rp,1);
+  PetscValidPointer(rp, 1);
   *rp = NULL;
   PetscCall(NetRPInitializePackage());
   PetscCall(PetscHeaderCreate(r, NETRP_CLASSID, "NetRP", "Local Network Riemann Problem", "NetRP", comm, NetRPDestroy, NetRPView));
   PetscCall(PetscHMapICreate(&r->hmap));
 
   /* Add default behavior for NetRP here */
-  r->flux              = PETSC_NULL;
+  r->flux = PETSC_NULL;
   /* Assume worst case situation */
-  r->solvetype         = Other; 
-  r->physicsgenerality = Specific; 
-  r->numfields         = -1; 
-  *rp = r;
+  r->solvetype         = Other;
+  r->physicsgenerality = Specific;
+  r->numfields         = -1;
+  *rp                  = r;
   PetscFunctionReturn(0);
 }

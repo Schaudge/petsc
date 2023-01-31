@@ -1,6 +1,6 @@
 
-#include  <petsc/private/riemannsolverimpl.h>
-PetscBool         RiemannSolverRegisterAllCalled = PETSC_FALSE;
+#include <petsc/private/riemannsolverimpl.h>
+PetscBool RiemannSolverRegisterAllCalled = PETSC_FALSE;
 
 /* Add Creation Routines here */
 PETSC_EXTERN PetscErrorCode RiemannSolverCreate_Lax(RiemannSolver);
@@ -17,7 +17,7 @@ PETSC_EXTERN PetscErrorCode RiemannSolverCreate_Lax(RiemannSolver);
 
 .seealso: RiemannSolverCreate(), RiemannSolverRegister(), RiemannSolverRegisterDestroy()
 @*/
-PetscErrorCode  RiemannSolverRegisterAll(void)
+PetscErrorCode RiemannSolverRegisterAll(void)
 {
   PetscFunctionBegin;
   if (RiemannSolverRegisterAllCalled) PetscFunctionReturn(0);
