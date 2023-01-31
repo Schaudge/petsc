@@ -42,7 +42,7 @@ PetscErrorCode RiemannSolverConvexMaxSpeed_internal(RiemannSolver rs, const Pets
   in the grand scheme this might not save much (relative to the other costs in a balance law simulation). 
 */
 
-/*@\
+/*@
    RiemannSolverSetUpJacobian_internal - Internal Specification for how to setup the jacobian matrix and jacobian solver. 
 
    Collective on RiemannSolver
@@ -495,7 +495,7 @@ PetscErrorCode RiemannSolverSetJacobian(RiemannSolver rs, PetscPointFluxDer jaco
 }
 
 /*@
-    RiemannSolverSetFluxEig -  User specified function to compute the maximum wave speed for a riemann problem. This 
+    RiemannSolverSetMaxSpeedFunct -  User specified function to compute the maximum wave speed for a riemann problem. This 
     has standard default behavior (for convex flux functions) for any riemann solver implementation that is specified 
     on setting type. Override this only if you know what you are doing and can expect improved behavior using some function specific to your particular 
     physics. Must be called after setting all other options. 
@@ -535,11 +535,6 @@ PetscErrorCode RiemannSolverSetMaxSpeedFunct(RiemannSolver rs, RiemannSolverMaxW
 
 .seealso: RiemannSolverSetApplicationContext(), RiemannSolverSetFlux()) 
 @*/
-
-/* 
-   TODO : This needs some more thought/work 
-*/
-
 PetscErrorCode RiemannSolverSetFluxEig(RiemannSolver rs, PetscPointFluxEig fluxeig)
 {
   PetscFunctionBegin;
@@ -721,7 +716,7 @@ PetscErrorCode RiemannSolverComputeRoeMatrix(RiemannSolver rs, const PetscReal *
 }
 
 /*@
-    RiemannSolverSetRoeMatrixFunct- Sets the function to compute the roe matrix for the given physics model. These 
+    RiemannSolverSetRoeMatrixFunct - Sets the function to compute the roe matrix for the given physics model. These 
     are required for any RiemanSolver that makes use of roe matrix internally (ADD A UTILITY FUNCTION FOR LISTING 
     THE RIEMANNSOLVERS THAT REQUIRE THIS)
 
@@ -894,7 +889,7 @@ PetscErrorCode RiemannSolverSetRoeAvgFunct(RiemannSolver rs, RiemannSolverRoeAvg
 }
 
 /*@
-    RiemannSolverTestEigDecomposition -  Tests whether the provided eigenbasis and eigenvalue functions are actually 
+    RiemannSolverTestEigDecomposition - Tests whether the provided eigenbasis and eigenvalue functions are actually 
     eigenvectors/eigenvalues of the provided fluxderivative function DF_u at the point u. Internally this simply 
     checks if  DF_u(u) R(u) = R(u)\lambda(u), where R(u) is the matrix of eigenvectors and \lambda(u) is the diagonal 
     matrix of eigenvalues. This is useful sanity check to test if user provided (or numerically computed) flux and
@@ -916,13 +911,6 @@ PetscErrorCode RiemannSolverSetRoeAvgFunct(RiemannSolver rs, RiemannSolverRoeAvg
 
 .seealso: RiemannSolverSetFlux(), RiemannSolverComputeRoeMatrix()
 @*/
-
-/*
- TODO : Implement viewer routines for RiemannSolver and allow a viewer to be passed into this 
- function specify whether and how the matrices DF, R and \lambda are viewed. For now this is
- simply a boolean check but should be integrated with the rest of the petscview infrastructure. 
-*/
-
 PetscErrorCode RiemannSolverTestEigDecomposition(RiemannSolver rs, PetscInt numvalues, const PetscReal **u, PetscReal tol, PetscBool *isequal, PetscReal *norms, PetscViewer viewer)
 {
   Mat            DF, R, Eig, DFR, EigR, Diff;
@@ -1037,7 +1025,7 @@ PetscErrorCode RiemannSolverComputeJacobian(RiemannSolver rs, const PetscReal *u
 }
 
 /*@
-    RiemannSolverTestEigDecomposition -  Test whether the roe average satisfies its defining properties. Namely 
+    RiemannSolverTestRoeMat -  Test whether the roe average satisfies its defining properties. Namely 
 
     1. Hyperbolicity (NOT IMPLEMENTED CURRENTLY)
     2. Consistency A_roe(U,U) = Df(U) 
@@ -1057,8 +1045,6 @@ PetscErrorCode RiemannSolverComputeJacobian(RiemannSolver rs, const PetscReal *u
 
 .seealso:  RiemannSolverComputeRoeMatrix()
 @*/
-
-/* NOTE : Viewer routines might not work in parallel, might have to restict to serial calls */
 PetscErrorCode RiemannSolverTestRoeMat(RiemannSolver rs, PetscInt numvalues, const PetscReal **uL, const PetscReal **uR, PetscReal tol, PetscBool *isequal, PetscReal *norms, PetscViewer viewer)
 {
   Mat            DF, ARoe, Diff;

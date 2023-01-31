@@ -559,7 +559,7 @@ PetscErrorCode NetRSSetUpVectorSpace(NetRS rs)
   PetscCall(PetscMalloc1(numnetrp, &rs->vertexdegrees));
   for (i = 0; i < numnetrp; i++) { PetscCall(PetscHSetICreate(&rs->vertexdegrees[i])); }
   PetscCall(PetscHSetICreate(&rs->vertexdegrees_total));
-  PetscCall(DMNetworkComputeUniqueVertexDegrees_Local(rs, rs->network, rs->subgraphs, rs->vertexdegrees, rs->vertexdegrees_total));
+  PetscCall(DMNetworkComputeUniqueVertexDegreesLocal(rs, rs->network, rs->subgraphs, rs->vertexdegrees, rs->vertexdegrees_total));
   maxsize = 0;
   for (i = 0; i < numnetrp; i++) {
     PetscCall(PetscHSetIGetSize(rs->vertexdegrees[i], &size));
@@ -909,7 +909,7 @@ PetscErrorCode PetscHMapIView(PetscHMapI hmap, MPI_Comm comm)
 }
 
 /*@
-    DMNetworkComputeUniqueVertexDegrees_Local- Returns the unique set of vertex 
+    DMNetworkComputeUniqueVertexDegreesLocal - Returns the unique set of vertex 
     degrees of the local DMNetwork graph. However this includes the edges attached to shared 
     vertices in the computation, hence the collective nature. Internal use only for now, particularly NetRS. 
 
@@ -936,7 +936,7 @@ PetscErrorCode PetscHMapIView(PetscHMapI hmap, MPI_Comm comm)
 
 .seealso: 
 @*/
-PetscErrorCode DMNetworkComputeUniqueVertexDegrees_Local(NetRS rs, DM network, DMLabel marked, PetscHSetI *vertexdegrees, PetscHSetI totalvertexdegrees)
+PetscErrorCode DMNetworkComputeUniqueVertexDegreesLocal(NetRS rs, DM network, DMLabel marked, PetscHSetI *vertexdegrees, PetscHSetI totalvertexdegrees)
 {
   PetscInt        numsubgraphs, i, j, v, vStart, vEnd, vdeg, numpoints;
   IS              values_is, point_is;
