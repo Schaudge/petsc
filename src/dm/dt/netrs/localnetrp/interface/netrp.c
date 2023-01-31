@@ -104,7 +104,7 @@ PetscErrorCode NetRPGetVertexDegrees(NetRP rp, PetscInt *numvertdegs, PetscInt *
   PetscFunctionReturn(0);
 }
 /*@
-   NetRPReset - Clears all cached solver objects in the NetRP. 
+   NetRPClearCache - Clears all cached solver objects in the NetRP. 
 
    Not Collective on NetRP
 
@@ -144,7 +144,7 @@ PetscErrorCode NetRPClearCache(NetRP rp)
   PetscFunctionReturn(0);
 }
 /*@
-   NetRPCreateMat - Preallocate matrix structure for solving a vertdeg Riemann Problem. Does a default setup of 
+   NetRPCreateLinear - Preallocate matrix structure for solving a vertdeg Riemann Problem. Does a default setup of 
    the mat, implementations may set their own details. 
 
    Not Collective  on NetRP
@@ -806,22 +806,6 @@ PetscErrorCode NetRPSetNonlinearJac(NetRP rp, NetRPNonlinearJac nonlinearjac)
   PetscFunctionReturn(0);
 }
 
-/*@
-   NetRPCanSolveStar - Does the Solver have the ability to solve for star states directly? 
-
-   Not Collective on NetRP
-
-   Input Parameter:
-.  rp - the NetRP context obtained from RiemanSolverCreate()
-
-  Output Parameter:
-. flg - True if NetRPSolveStar can be called. False if the type does not implement this ability. 
-
-   Level: beginner
-
-.seealso: NetRPCreate(), NetRPSetFlux()
-@*/
-
 static PetscErrorCode NetRPComputeFluxInPlace_internal(NetRP rp, PetscInt vdeg, Vec Flux)
 {
   PetscInt      i, numfields;
@@ -842,7 +826,7 @@ static PetscErrorCode NetRPComputeFluxInPlace_internal(NetRP rp, PetscInt vdeg, 
 }
 
 /*@
-   NetRPSSolveFlux - The driver function for solving for Riemann Problem fluxes. This will use the user provided functions 
+   NetRPSolveFlux - The driver function for solving for Riemann Problem fluxes. This will use the user provided functions 
    and auto cached solver objects to solve for the flux. New solver objects will be created and cached as necessary as well. 
    Always Calleable. 
 
@@ -921,7 +905,7 @@ PetscErrorCode NetRPSolveFlux(NetRP rp, PetscInt numedges, PetscBool *edgein, Ve
 }
 
 /*@
-   NetRPSSolveStar - The driver function for solving for Riemann Problem fluxes. This will use the user provided functions 
+   NetRPSolveStar - The driver function for solving for Riemann Problem fluxes. This will use the user provided functions 
    and auto cached solver objects to solve for the star state. New solver objects will be created and cached as necessary as well. 
    The type is not required to implement routines for this solver. Use `NetRPCanSolveStar()` to determine if this function can safely 
    be called. 
