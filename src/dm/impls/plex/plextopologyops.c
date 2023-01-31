@@ -1,4 +1,4 @@
-#include <petsc/private/dmpleximpl.h>   /*I      "petscdmplex.h"   I*/
+#include <petsc/private/dmpleximpl.h> /*I      "petscdmplex.h"   I*/
 
 /*@C
   DMPlexDisjointUnion_Topological_Section - Computes the disjoint union of an array of DMPlexs 
@@ -19,100 +19,100 @@ Level: intermediate
 @*/
 PetscErrorCode DMPlexDisjointUnion_Topological_Section(DM *plexlist, PetscInt numplex, DM *dmunion, PetscSection *stratumoff)
 {
-  PetscInt       p,i,j,k,depth,depth_temp,dim_top,dim_top_temp,pStart,pEnd,chartsize,stratum,totalconesize;
-  PetscInt       *numpoints_g, *coneSize_g, *cones_g, *coneOrientations_g,coneSize,off,prevtotal;
-  const PetscInt *cone,*coneOrientation;
-  DMType         dmtype;
-  MPI_Comm       comm,comm_prev;
-  PetscSection   offsets;
-  char           fieldname[64]; 
-  DM             dm_sum;
-  PetscBool      flag; 
+  PetscInt        p, i, j, k, depth, depth_temp, dim_top, dim_top_temp, pStart, pEnd, chartsize, stratum, totalconesize;
+  PetscInt       *numpoints_g, *coneSize_g, *cones_g, *coneOrientations_g, coneSize, off, prevtotal;
+  const PetscInt *cone, *coneOrientation;
+  DMType          dmtype;
+  MPI_Comm        comm, comm_prev;
+  PetscSection    offsets;
+  char            fieldname[64];
+  DM              dm_sum;
+  PetscBool       flag;
 
   PetscFunctionBegin;
   /* input checks */
   if (numplex <= 0) PetscFunctionReturn(0);
   comm_prev = PetscObjectComm((PetscObject)plexlist[0]);
-  for (i=0; i<numplex; i++) {
+  for (i = 0; i < numplex; i++) {
     comm = PetscObjectComm((PetscObject)plexlist[i]);
-    PetscCall(DMGetType(plexlist[i],&dmtype));
-    PetscCall(PetscStrncmp(dmtype,DMPLEX,sizeof(dmtype),&flag));
-    if (!flag) SETERRQ(comm,PETSC_ERR_ARG_WRONG,"Wrong DM: %s Object must be DMPlex",dmtype);
-    if(i == 0) continue; 
+    PetscCall(DMGetType(plexlist[i], &dmtype));
+    PetscCall(PetscStrncmp(dmtype, DMPLEX, sizeof(dmtype), &flag));
+    if (!flag) SETERRQ(comm, PETSC_ERR_ARG_WRONG, "Wrong DM: %s Object must be DMPlex", dmtype);
+    if (i == 0) continue;
     else {
-      PetscCheckSameComm((PetscObject)plexlist[i],1,(PetscObject)plexlist[i],2);
+      PetscCheckSameComm((PetscObject)plexlist[i], 1, (PetscObject)plexlist[i], 2);
     }
   }
   /* Acquire maximum depth size and topological dimension across all dms, and total chartsize */
   depth     = 0;
   dim_top   = 0;
   chartsize = 0;
-  for(i=0; i<numplex; i++){
-    PetscCall(DMPlexGetDepth(plexlist[i],&depth_temp));
+  for (i = 0; i < numplex; i++) {
+    PetscCall(DMPlexGetDepth(plexlist[i], &depth_temp));
     if (depth < depth_temp) depth = depth_temp;
-    PetscCall(DMGetDimension(plexlist[i],&dim_top_temp));
+    PetscCall(DMGetDimension(plexlist[i], &dim_top_temp));
     if (dim_top < dim_top_temp) dim_top = dim_top_temp;
-    PetscCall(DMPlexGetChart(plexlist[i],&pStart,&pEnd));
-    chartsize += (pEnd-pStart);
+    PetscCall(DMPlexGetChart(plexlist[i], &pStart, &pEnd));
+    chartsize += (pEnd - pStart);
   }
-  
-  PetscCall(PetscMalloc1(chartsize,&coneSize_g));
-  PetscCall(PetscCalloc1(depth+1,&numpoints_g));
+
+  PetscCall(PetscMalloc1(chartsize, &coneSize_g));
+  PetscCall(PetscCalloc1(depth + 1, &numpoints_g));
   /* set up the stratum offset section */
-  PetscCall(PetscSectionCreate(comm,&offsets));
-  PetscCall(PetscSectionSetNumFields(offsets, depth+1));/* one field per stratum */
-  PetscCall(PetscSectionSetChart(offsets,0,numplex));
-  for (i=0; i<=depth; i++) {
+  PetscCall(PetscSectionCreate(comm, &offsets));
+  PetscCall(PetscSectionSetNumFields(offsets, depth + 1)); /* one field per stratum */
+  PetscCall(PetscSectionSetChart(offsets, 0, numplex));
+  for (i = 0; i <= depth; i++) {
     PetscCall(PetscSectionSetFieldComponents(offsets, i, 1));
-    PetscCall(PetscSNPrintf(fieldname,sizeof(fieldname),"Stratum Depth %D",i));
-    PetscCall(PetscSectionSetFieldName(offsets,i,fieldname));
+    PetscCall(PetscSNPrintf(fieldname, sizeof(fieldname), "Stratum Depth %D", i));
+    PetscCall(PetscSectionSetFieldName(offsets, i, fieldname));
   }
   /* Iterate through the meshes and compute the number of points at each stratum */
-  for (i=0; i<numplex; i++) {
-    PetscCall(DMPlexGetDepth(plexlist[i],&depth_temp));
-    PetscCall(PetscSectionSetDof(offsets,i,depth_temp+1));
-    for(stratum=0;stratum <= depth_temp; stratum++) {
-      PetscCall(DMPlexGetDepthStratum(plexlist[i],stratum,&pStart,&pEnd));
-      PetscCall(PetscSectionSetFieldDof(offsets,i,stratum,pEnd-pStart));
-      PetscCall(PetscSectionSetFieldOffset(offsets,i,stratum,numpoints_g[stratum]-pStart));
-      numpoints_g[stratum] += (pEnd-pStart);
+  for (i = 0; i < numplex; i++) {
+    PetscCall(DMPlexGetDepth(plexlist[i], &depth_temp));
+    PetscCall(PetscSectionSetDof(offsets, i, depth_temp + 1));
+    for (stratum = 0; stratum <= depth_temp; stratum++) {
+      PetscCall(DMPlexGetDepthStratum(plexlist[i], stratum, &pStart, &pEnd));
+      PetscCall(PetscSectionSetFieldDof(offsets, i, stratum, pEnd - pStart));
+      PetscCall(PetscSectionSetFieldOffset(offsets, i, stratum, numpoints_g[stratum] - pStart));
+      numpoints_g[stratum] += (pEnd - pStart);
     }
   }
   /* Create the cone size information */
   totalconesize = 0;
-  for (i=0; i<numplex; i++) {
-    PetscCall(DMPlexGetDepth(plexlist[i],&depth_temp));
-    for(stratum=0;stratum <= depth_temp; stratum++) {
+  for (i = 0; i < numplex; i++) {
+    PetscCall(DMPlexGetDepth(plexlist[i], &depth_temp));
+    for (stratum = 0; stratum <= depth_temp; stratum++) {
       prevtotal = 0;
-      for(j=0; j<stratum; j++) prevtotal += numpoints_g[j];
-      PetscCall(DMPlexGetDepthStratum(plexlist[i],stratum,&pStart,&pEnd));
-      PetscCall(PetscSectionGetFieldOffset(offsets,i,stratum,&off));
-      for(p=pStart; p<pEnd; p++) {
-        PetscCall(DMPlexGetConeSize(plexlist[i],p,&coneSize));
-        coneSize_g[p+off+prevtotal] = coneSize;
+      for (j = 0; j < stratum; j++) prevtotal += numpoints_g[j];
+      PetscCall(DMPlexGetDepthStratum(plexlist[i], stratum, &pStart, &pEnd));
+      PetscCall(PetscSectionGetFieldOffset(offsets, i, stratum, &off));
+      for (p = pStart; p < pEnd; p++) {
+        PetscCall(DMPlexGetConeSize(plexlist[i], p, &coneSize));
+        coneSize_g[p + off + prevtotal] = coneSize;
         totalconesize += coneSize;
       }
     }
   }
- /* create the cone and cone orientations */
-  PetscCall(PetscMalloc2(totalconesize,&cones_g,totalconesize,&coneOrientations_g));
-  k=0;
-  for(stratum=0;stratum <= depth; stratum++) {
+  /* create the cone and cone orientations */
+  PetscCall(PetscMalloc2(totalconesize, &cones_g, totalconesize, &coneOrientations_g));
+  k = 0;
+  for (stratum = 0; stratum <= depth; stratum++) {
     prevtotal = 0;
-    for(j=0; j<stratum-1; j++) prevtotal += numpoints_g[j];
-    for(i=0; i<numplex; i++){
-      PetscCall(DMPlexGetDepth(plexlist[i],&depth_temp));
+    for (j = 0; j < stratum - 1; j++) prevtotal += numpoints_g[j];
+    for (i = 0; i < numplex; i++) {
+      PetscCall(DMPlexGetDepth(plexlist[i], &depth_temp));
       if (stratum <= depth_temp) {
         if (stratum > 0) { /* stratum = 0 doesn't matter as the cones for stratum = 0 are empty */
-          PetscCall(DMPlexGetDepthStratum(plexlist[i],stratum,&pStart,&pEnd));
-          PetscCall(PetscSectionGetFieldOffset(offsets,i,stratum-1,&off));
-          for(p=pStart; p<pEnd; p++) {
-            PetscCall(DMPlexGetCone(plexlist[i],p,&cone));
-            PetscCall(DMPlexGetConeOrientation(plexlist[i],p,&coneOrientation));
-            PetscCall(DMPlexGetConeSize(plexlist[i],p,&coneSize));
-            for(j=0; j<coneSize; j++) {
+          PetscCall(DMPlexGetDepthStratum(plexlist[i], stratum, &pStart, &pEnd));
+          PetscCall(PetscSectionGetFieldOffset(offsets, i, stratum - 1, &off));
+          for (p = pStart; p < pEnd; p++) {
+            PetscCall(DMPlexGetCone(plexlist[i], p, &cone));
+            PetscCall(DMPlexGetConeOrientation(plexlist[i], p, &coneOrientation));
+            PetscCall(DMPlexGetConeSize(plexlist[i], p, &coneSize));
+            for (j = 0; j < coneSize; j++) {
               coneOrientations_g[k] = coneOrientation[j];
-              cones_g[k++] = cone[j]+off+prevtotal; /* account for the offset in the cone stratum (stratum -1) */
+              cones_g[k++]          = cone[j] + off + prevtotal; /* account for the offset in the cone stratum (stratum -1) */
             }
           }
         }
@@ -120,14 +120,14 @@ PetscErrorCode DMPlexDisjointUnion_Topological_Section(DM *plexlist, PetscInt nu
     }
   }
 
-  PetscCall(DMPlexCreate(comm,&dm_sum));
-  PetscCall(DMSetDimension(dm_sum,dim_top));
-  PetscCall(DMPlexBuildFromDAG(dm_sum,depth,numpoints_g,coneSize_g,cones_g,coneOrientations_g));
+  PetscCall(DMPlexCreate(comm, &dm_sum));
+  PetscCall(DMSetDimension(dm_sum, dim_top));
+  PetscCall(DMPlexBuildFromDAG(dm_sum, depth, numpoints_g, coneSize_g, cones_g, coneOrientations_g));
   PetscCall(PetscFree(numpoints_g));
   PetscCall(PetscFree(coneSize_g));
-  PetscCall(PetscFree2(cones_g,coneOrientations_g));
-  *dmunion    = dm_sum;
-  if( stratumoff ) {
+  PetscCall(PetscFree2(cones_g, coneOrientations_g));
+  *dmunion = dm_sum;
+  if (stratumoff) {
     *stratumoff = offsets;
   } else {
     PetscCall(PetscSectionDestroy(&offsets));
@@ -156,16 +156,16 @@ PetscErrorCode DMPlexDisjointUnion_Topological_Section(DM *plexlist, PetscInt nu
 .seealso: `VecISSet()`, `VecISAXPY()`, `VecCopy()`, `PetscSectionCreateSubmeshSection()`
 @*/
 
-PetscErrorCode VecSectionCopy(Vec vfull,PetscSection fullsec, IS is, ScatterMode mode, PetscSection subsec, Vec vsub)
+PetscErrorCode VecSectionCopy(Vec vfull, PetscSection fullsec, IS is, ScatterMode mode, PetscSection subsec, Vec vsub)
 {
-  PetscInt       nfull, nsub;
+  PetscInt nfull, nsub;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(vfull,VEC_CLASSID,1);
-  PetscValidHeaderSpecific(fullsec,PETSC_SECTION_CLASSID,2);
-  PetscValidHeaderSpecific(is,IS_CLASSID,3);
-  PetscValidHeaderSpecific(subsec,PETSC_SECTION_CLASSID,5);
-  PetscValidHeaderSpecific(vsub,VEC_CLASSID,6);
+  PetscValidHeaderSpecific(vfull, VEC_CLASSID, 1);
+  PetscValidHeaderSpecific(fullsec, PETSC_SECTION_CLASSID, 2);
+  PetscValidHeaderSpecific(is, IS_CLASSID, 3);
+  PetscValidHeaderSpecific(subsec, PETSC_SECTION_CLASSID, 5);
+  PetscValidHeaderSpecific(vsub, VEC_CLASSID, 6);
   PetscCall(VecGetSize(vfull, &nfull));
   PetscCall(VecGetSize(vsub, &nsub));
 
@@ -177,7 +177,7 @@ PetscErrorCode VecSectionCopy(Vec vfull,PetscSection fullsec, IS is, ScatterMode
     }
   } else {
     const PetscInt *id;
-    PetscInt        p,i, n, m, pStart, pEnd,pfullStart,pfullEnd,subdof,fulldof,fulloff,suboff; 
+    PetscInt        p, i, n, m, pStart, pEnd, pfullStart, pfullEnd, subdof, fulldof, fulloff, suboff;
 
     PetscCall(ISGetIndices(is, &id));
     PetscCall(ISGetLocalSize(is, &n));
@@ -185,10 +185,10 @@ PetscErrorCode VecSectionCopy(Vec vfull,PetscSection fullsec, IS is, ScatterMode
     /* Add debug only check that subsec is compatible with the vsub vec. That is the range of the section is [0,m), the domain 
     of vsub. Should be debug only as it will not be a "free" check */
 
-    PetscCall(PetscSectionGetChart(subsec,&pStart,&pEnd));
-    PetscCall(PetscSectionGetChart(fullsec,&pfullStart,&pfullEnd));
+    PetscCall(PetscSectionGetChart(subsec, &pStart, &pEnd));
+    PetscCall(PetscSectionGetChart(fullsec, &pfullStart, &pfullEnd));
     //PetscCheck(pEnd-pStart == n,PETSC_COMM_SELF, PETSC_ERR_SUP, "IS local length %" PetscInt_FMT " not equal to Subsection Chart Size %" PetscInt_FMT, n, pEnd-pStart);
-    id+=pStart; 
+    id += pStart;
     if (mode == SCATTER_FORWARD) {
       PetscScalar       *y;
       const PetscScalar *x;
@@ -197,14 +197,12 @@ PetscErrorCode VecSectionCopy(Vec vfull,PetscSection fullsec, IS is, ScatterMode
       PetscCall(VecGetArrayRead(vsub, &x));
       for (p = pStart; p < pEnd; ++p) {
         //PetscCheck(id[p] >= pfullStart && id[p] < pfullEnd,PETSC_COMM_SELF, PETSC_ERR_SUP, "The range of IS needs to be in the chart of fullsec. \n Subsec p: % " PetscInt_FMT "is[p]: % " PetscInt_FMT "fullsec chart start: % " PetscInt_FMT  " fullsec chart end: %"PetscInt_FMT, p,id[p],pfullStart,pfullEnd);
-        PetscCall(PetscSectionGetDof(subsec,p,&subdof));
-        PetscCall(PetscSectionGetDof(fullsec,id[p],&fulldof));
+        PetscCall(PetscSectionGetDof(subsec, p, &subdof));
+        PetscCall(PetscSectionGetDof(fullsec, id[p], &fulldof));
         //PetscCheck(subdof == fulldof,PETSC_COMM_SELF,PETSC_ERR_SUP,"Nonequal dofs at corresponding points. \nsubsec has % " PetscInt_FMT " dofs at point %" PetscInt_FMT "\nfullsec has % " PetscInt_FMT "dofs at corresponding point % " PetscInt_FMT, p,subdof,id[p],fulldof);
-        PetscCall(PetscSectionGetOffset(subsec,p,&suboff));
-        PetscCall(PetscSectionGetOffset(fullsec,id[p],&fulloff));
-        for(i=0; i<subdof; i++) {
-          y[fulloff+i] = x[suboff+i];
-        }
+        PetscCall(PetscSectionGetOffset(subsec, p, &suboff));
+        PetscCall(PetscSectionGetOffset(fullsec, id[p], &fulloff));
+        for (i = 0; i < subdof; i++) { y[fulloff + i] = x[suboff + i]; }
       }
       PetscCall(VecRestoreArrayRead(vsub, &x));
       PetscCall(VecRestoreArray(vfull, &y));
@@ -216,19 +214,17 @@ PetscErrorCode VecSectionCopy(Vec vfull,PetscSection fullsec, IS is, ScatterMode
       PetscCall(VecGetArray(vsub, &x));
       for (p = pStart; p < pEnd; ++p) {
         //PetscCheck(id[p] >= pfullStart && id[p] < pfullEnd,PETSC_COMM_SELF, PETSC_ERR_SUP, "The range of IS needs to be in the chart of fullsec. \n Subsec p: % " PetscInt_FMT "is[p]: % " PetscInt_FMT "fullsec chart start: % " PetscInt_FMT  " fullsec chart end: %"PetscInt_FMT, p,id[p],pfullStart,pfullEnd);
-        PetscCall(PetscSectionGetDof(subsec,p,&subdof));
-        PetscCall(PetscSectionGetDof(fullsec,id[p],&fulldof));
+        PetscCall(PetscSectionGetDof(subsec, p, &subdof));
+        PetscCall(PetscSectionGetDof(fullsec, id[p], &fulldof));
         //PetscCheck(subdof == fulldof,PETSC_COMM_SELF,PETSC_ERR_SUP,"Nonequal dofs at corresponding points. \nsubsec has % " PetscInt_FMT " dofs at point %" PetscInt_FMT "\nfullsec has % " PetscInt_FMT "dofs at corresponding point % " PetscInt_FMT, p,subdof,id[p],fulldof);
-        PetscCall(PetscSectionGetOffset(subsec,p,&suboff));
-        PetscCall(PetscSectionGetOffset(fullsec,id[p],&fulloff));
-        for(i=0; i<subdof; i++) {
-          x[suboff+i] = y[fulloff+i];
-        }
+        PetscCall(PetscSectionGetOffset(subsec, p, &suboff));
+        PetscCall(PetscSectionGetOffset(fullsec, id[p], &fulloff));
+        for (i = 0; i < subdof; i++) { x[suboff + i] = y[fulloff + i]; }
       }
       PetscCall(VecRestoreArray(vsub, &x));
       PetscCall(VecRestoreArrayRead(vfull, &y));
-    } else SETERRQ(PetscObjectComm((PetscObject) vfull), PETSC_ERR_ARG_WRONG, "Only forward or reverse modes are legal");
-    id -= pStart; 
+    } else SETERRQ(PetscObjectComm((PetscObject)vfull), PETSC_ERR_ARG_WRONG, "Only forward or reverse modes are legal");
+    id -= pStart;
     PetscCall(ISRestoreIndices(is, &id));
   }
   PetscFunctionReturn(0);
@@ -253,44 +249,44 @@ Level: intermediate
 @*/
 PetscErrorCode DMPlexDisjointUnion_Geometric_Section(DM *plexlist, PetscInt numplex, DM *dmunion, PetscSection *stratumoff)
 {
-  PetscInt       p,i,j,depth,pStart,pEnd,punionStart,punionEnd,stratum,off;
-  PetscInt       maxorder = 0,formdegree,order,dim,dE,dEold,secStart,secEnd,off_stratum,off_union,dof; 
-  PetscSection   coordsec_union,coordsec,offsets;
-  DM             cdm, dm, cdmOld, dm_union,cdm_new;
-  PetscBool      simplex;
-  PetscClassId   classid;
-  PetscFE        discOld,disc;
-  PetscDualSpace dualspace;
-  Vec            Coordunion,Coord;
-  PetscScalar    *coordunion; 
+  PetscInt           p, i, j, depth, pStart, pEnd, punionStart, punionEnd, stratum, off;
+  PetscInt           maxorder = 0, formdegree, order, dim, dE, dEold, secStart, secEnd, off_stratum, off_union, dof;
+  PetscSection       coordsec_union, coordsec, offsets;
+  DM                 cdm, dm, cdmOld, dm_union, cdm_new;
+  PetscBool          simplex;
+  PetscClassId       classid;
+  PetscFE            discOld, disc;
+  PetscDualSpace     dualspace;
+  Vec                Coordunion, Coord;
+  PetscScalar       *coordunion;
   const PetscScalar *coord;
 
   PetscFunctionBegin;
-  PetscCall(DMPlexDisjointUnion_Topological_Section(plexlist,numplex,&dm_union,&offsets));
+  PetscCall(DMPlexDisjointUnion_Topological_Section(plexlist, numplex, &dm_union, &offsets));
   *dmunion = dm_union;
   /* 
     check that all geometries are described by PetscFE or implicit in the same derahm complex. If so, 
     a unifying PetscFE with maximum order amongst all geometries is created and all geometries are projected into it. 
   */
-  for (i=0; i<numplex; i++) {
+  for (i = 0; i < numplex; i++) {
     dm = plexlist[i];
     PetscCall(DMGetCoordinateDM(dm, &cdmOld));
     /* Check current discretization is compatible */
-    PetscCall(DMGetField(cdmOld, 0, NULL, (PetscObject*)&discOld));
+    PetscCall(DMGetField(cdmOld, 0, NULL, (PetscObject *)&discOld));
     PetscCall(PetscObjectGetClassId((PetscObject)discOld, &classid));
     if (classid != PETSCFE_CLASSID) {
       if (classid == PETSC_CONTAINER_CLASSID) {
-        PetscFE        feLinear;
+        PetscFE feLinear;
 
         /* Assume linear vertex coordinates */
         PetscCall(DMGetDimension(dm, &dim));
         PetscCall(DMGetCoordinateDim(dm, &dE));
         PetscCall(DMPlexIsSimplex(dm, &simplex));
         PetscCall(PetscFECreateLagrange(PETSC_COMM_SELF, dim, dE, simplex, 1, PETSC_DETERMINE, &feLinear));
-        PetscCall(DMSetField(cdmOld, 0, NULL, (PetscObject) feLinear));
+        PetscCall(DMSetField(cdmOld, 0, NULL, (PetscObject)feLinear));
         PetscCall(PetscFEDestroy(&feLinear));
         PetscCall(DMCreateDS(cdmOld));
-        PetscCall(DMGetField(cdmOld, 0, NULL, (PetscObject*)&discOld));
+        PetscCall(DMGetField(cdmOld, 0, NULL, (PetscObject *)&discOld));
       } else {
         const char *discname;
 
@@ -298,75 +294,71 @@ PetscErrorCode DMPlexDisjointUnion_Geometric_Section(DM *plexlist, PetscInt nump
         SETERRQ(PetscObjectComm((PetscObject)discOld), PETSC_ERR_SUP, "Discretization type %s not supported", discname);
       }
     }
-    PetscCall(DMGetCoordinateDim(dm,&dE));
-    if(i>0) {
-      if(dE != dEold) {
-        SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Non-Equivalent geometric dimensions not supported, DM % " PetscInt_FMT "has dimension % " PetscInt_FMT " but DM % " PetscInt_FMT "has dimension %" PetscInt_FMT,i,dE,i-1,dEold);
+    PetscCall(DMGetCoordinateDim(dm, &dE));
+    if (i > 0) {
+      if (dE != dEold) {
+        SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_SUP, "Non-Equivalent geometric dimensions not supported, DM % " PetscInt_FMT "has dimension % " PetscInt_FMT " but DM % " PetscInt_FMT "has dimension %" PetscInt_FMT, i, dE, i - 1, dEold);
       }
     }
-    dEold = dE; 
-    PetscCall(PetscFEGetDualSpace(discOld,&dualspace));
-    PetscCall(PetscDualSpaceGetOrder(dualspace,&order));
-    maxorder = maxorder > order ? maxorder : order; 
-    PetscCall(PetscDualSpaceGetDeRahm(dualspace,&formdegree));
-    if(formdegree != 0) {
-      SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Only supports H^1 geometries currently, DM % "PetscInt_FMT "has formdegree % " PetscInt_FMT, i,formdegree); 
-    }
+    dEold = dE;
+    PetscCall(PetscFEGetDualSpace(discOld, &dualspace));
+    PetscCall(PetscDualSpaceGetOrder(dualspace, &order));
+    maxorder = maxorder > order ? maxorder : order;
+    PetscCall(PetscDualSpaceGetDeRahm(dualspace, &formdegree));
+    if (formdegree != 0) { SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_SUP, "Only supports H^1 geometries currently, DM % " PetscInt_FMT "has formdegree % " PetscInt_FMT, i, formdegree); }
   }
-  /* create coordinates on the union dm */ 
+  /* create coordinates on the union dm */
   /* Assumes unified geometric dimension and H^1 geometry */
-  PetscCall(DMGetDimension(*dmunion,&dim));
-  PetscCall(DMSetCoordinateDim(*dmunion,dE));
-  PetscCall(DMGetCoordinateDM(*dmunion,&cdm));
+  PetscCall(DMGetDimension(*dmunion, &dim));
+  PetscCall(DMSetCoordinateDim(*dmunion, dE));
+  PetscCall(DMGetCoordinateDM(*dmunion, &cdm));
   PetscCall(DMPlexIsSimplex(*dmunion, &simplex));
   PetscCall(PetscFECreateLagrange(PETSC_COMM_SELF, dim, dE, simplex, maxorder, PETSC_DETERMINE, &disc));
   /* create a fresh clone of cdm to replace it. It appears that some default behavior in cdm is causing issues, it defaults 
   to a "Null" localsection, which causes the coordinate section to return nonsense for dmunion */
 
-  PetscCall(DMClone(cdm,&cdm_new));
-  PetscCall(DMSetField(cdm_new, 0, NULL, (PetscObject) disc));
+  PetscCall(DMClone(cdm, &cdm_new));
+  PetscCall(DMSetField(cdm_new, 0, NULL, (PetscObject)disc));
   PetscCall(PetscFEDestroy(&disc));
   PetscCall(DMCreateDS(cdm_new));
-  PetscCall(DMGetField(cdm_new, 0, NULL, (PetscObject*)&disc));    
+  PetscCall(DMGetField(cdm_new, 0, NULL, (PetscObject *)&disc));
   PetscCall(DMSetCoordinateField(*dmunion, NULL));
   PetscCall(DMSetCoordinateDM(*dmunion, cdm_new));
-  PetscCall(DMGetCoordinateSection(*dmunion,&coordsec_union)); 
-  PetscCall(DMCreateGlobalVector(cdm_new,&Coordunion));
+  PetscCall(DMGetCoordinateSection(*dmunion, &coordsec_union));
+  PetscCall(DMCreateGlobalVector(cdm_new, &Coordunion));
   PetscCall(DMDestroy(&cdm_new));
-  PetscCall(VecGetArray(Coordunion,&coordunion));
-  /* project the coordinate onto the new unifying PetscFE disc, and then map the coordinates to union dm */ 
-  for (i=0; i<numplex; i++) {
+  PetscCall(VecGetArray(Coordunion, &coordunion));
+  /* project the coordinate onto the new unifying PetscFE disc, and then map the coordinates to union dm */
+  for (i = 0; i < numplex; i++) {
     dm = plexlist[i];
     PetscCall(DMGetCoordinateDM(dm, &cdmOld));
-    PetscCall(DMProjectCoordinates(dm,disc));
+    PetscCall(DMProjectCoordinates(dm, disc));
     /* now map the coordinates to the dmunion, knowing that both have the same coordinate discretization */
-    PetscCall(DMGetCoordinates(dm,&Coord));
-    PetscCall(VecGetArrayRead(Coord,&coord));
-    PetscCall(DMGetCoordinateSection(dm,&coordsec));
-    PetscCall(PetscSectionGetChart(coordsec,&secStart,&secEnd));
+    PetscCall(DMGetCoordinates(dm, &Coord));
+    PetscCall(VecGetArrayRead(Coord, &coord));
+    PetscCall(DMGetCoordinateSection(dm, &coordsec));
+    PetscCall(PetscSectionGetChart(coordsec, &secStart, &secEnd));
     /* Iterate through the stratums */
-    PetscCall(DMPlexGetDepth(dm,&depth));
+    PetscCall(DMPlexGetDepth(dm, &depth));
     for (stratum = 0; stratum <= depth; stratum++) {
-      PetscCall(DMPlexGetDepthStratum(dm,stratum,&pStart,&pEnd));
-      PetscCall(DMPlexGetDepthStratum(*dmunion,stratum,&punionStart,&punionEnd));
-      PetscCall(PetscSectionGetFieldOffset(offsets,i,stratum,&off_stratum));
-      for (p=pStart;p<pEnd&&p<secEnd;p++) {
-        if( p >= secStart) {
-          PetscCall(PetscSectionGetFieldOffset(coordsec,p,0,&off)); /* domain offset */
-          PetscCall(PetscSectionGetFieldDof(coordsec,p,0,&dof));
-          PetscCall(PetscSectionGetFieldOffset(coordsec_union,p+off_stratum+punionStart,0,&off_union)); /*range offset */
-          for (j=0; j<dof;j++) {
-            coordunion[off_union+j] = coord[off+j];
-          }
+      PetscCall(DMPlexGetDepthStratum(dm, stratum, &pStart, &pEnd));
+      PetscCall(DMPlexGetDepthStratum(*dmunion, stratum, &punionStart, &punionEnd));
+      PetscCall(PetscSectionGetFieldOffset(offsets, i, stratum, &off_stratum));
+      for (p = pStart; p < pEnd && p < secEnd; p++) {
+        if (p >= secStart) {
+          PetscCall(PetscSectionGetFieldOffset(coordsec, p, 0, &off)); /* domain offset */
+          PetscCall(PetscSectionGetFieldDof(coordsec, p, 0, &dof));
+          PetscCall(PetscSectionGetFieldOffset(coordsec_union, p + off_stratum + punionStart, 0, &off_union)); /*range offset */
+          for (j = 0; j < dof; j++) { coordunion[off_union + j] = coord[off + j]; }
         }
       }
     }
-    PetscCall(VecRestoreArrayRead(Coord,&coord));
+    PetscCall(VecRestoreArrayRead(Coord, &coord));
   }
-  PetscCall(VecRestoreArray(Coordunion,&coordunion));
-  PetscCall(DMSetCoordinates(*dmunion,Coordunion));
+  PetscCall(VecRestoreArray(Coordunion, &coordunion));
+  PetscCall(DMSetCoordinates(*dmunion, Coordunion));
   PetscCall(VecDestroy(&Coordunion));
-  if( stratumoff ) {
+  if (stratumoff) {
     *stratumoff = offsets;
   } else {
     PetscCall(PetscSectionDestroy(&offsets));
@@ -420,14 +412,14 @@ from the input dms to the union dm.
 //   DMType         dmtype;
 //   MPI_Comm       comm,comm_prev;
 //   PetscSection   offsets;
-//   char           fieldname[64]; 
+//   char           fieldname[64];
 //   DM             dm_sum;
-//   PetscBool      flag; 
+//   PetscBool      flag;
 
 //   PetscFunctionBegin;
-  
+
 //   PetscFunctionReturn(0);
 // }
 
-// Not sure if the above is actually needed.... I can get away without it for now I think. I only need this for visualization for now, and the 
-// coordinate spaces can be generated by setting fe fields on the generated union dm. 
+// Not sure if the above is actually needed.... I can get away without it for now I think. I only need this for visualization for now, and the
+// coordinate spaces can be generated by setting fe fields on the generated union dm.

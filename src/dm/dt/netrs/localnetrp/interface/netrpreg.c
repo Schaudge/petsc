@@ -1,8 +1,8 @@
-#include  <petsc/private/localnetrpimpl.h>
+#include <petsc/private/localnetrpimpl.h>
 #include <petscnetrp.h>
 
 PetscFunctionList NetRPList              = NULL;
-PetscClassId      NETRP_CLASSID          = 0; 
+PetscClassId      NETRP_CLASSID          = 0;
 PetscBool         NetRPRegisterAllCalled = PETSC_FALSE;
 
 /* Add Creation Routines here */
@@ -30,8 +30,8 @@ PetscErrorCode NetRPRegisterAll(void)
   NetRPRegisterAllCalled = PETSC_TRUE;
   PetscCall(NetRPRegister(NETRPBLANK, NetRPCreate_Blank));
   PetscCall(NetRPRegister(NETRPLINEARIZED, NetRPCreate_Linearized));
-  PetscCall(NetRPRegister(NETRPOUTFLOW,NetRPCreate_Outflow)); 
-  PetscCall(NetRPRegister(NETRPEXACTSWE,NetRPCreate_ExactSWE)); 
+  PetscCall(NetRPRegister(NETRPOUTFLOW, NetRPCreate_Outflow));
+  PetscCall(NetRPRegister(NETRPEXACTSWE, NetRPCreate_ExactSWE));
   PetscFunctionReturn(0);
 }
 
@@ -55,24 +55,22 @@ PetscErrorCode NetRPRegisterAll(void)
 .seealso: 
 
 @*/
-PetscErrorCode  NetRPSetType(NetRP rp, NetRPType type)
+PetscErrorCode NetRPSetType(NetRP rp, NetRPType type)
 {
   PetscErrorCode (*r)(NetRP);
-  PetscBool      match;
+  PetscBool match;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(rp, NETRP_CLASSID,1);
-  PetscValidCharPointer(type,2);
-  PetscCall(PetscObjectTypeCompare((PetscObject) rp, type, &match));
+  PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
+  PetscValidCharPointer(type, 2);
+  PetscCall(PetscObjectTypeCompare((PetscObject)rp, type, &match));
   if (match) PetscFunctionReturn(0);
 
-  PetscCall(PetscFunctionListFind(NetRPList,type,&r));
-  if (!r) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE, "Unknown Network Riemann Problem type: %s", type);
+  PetscCall(PetscFunctionListFind(NetRPList, type, &r));
+  if (!r) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_UNKNOWN_TYPE, "Unknown Network Riemann Problem type: %s", type);
   PetscCall(NetRPReset(rp));
-  if (rp->ops->destroy) {
-    PetscCall((*(rp)->ops->destroy)(rp));
-  }
-  PetscCall(PetscMemzero(rp->ops,sizeof(*rp->ops)));
+  if (rp->ops->destroy) { PetscCall((*(rp)->ops->destroy)(rp)); }
+  PetscCall(PetscMemzero(rp->ops, sizeof(*rp->ops)));
   rp->setupcalled = PETSC_FALSE;
   PetscCall(PetscObjectChangeTypeName((PetscObject)rp, type));
   PetscCall((*r)(rp));
@@ -93,11 +91,11 @@ PetscErrorCode  NetRPSetType(NetRP rp, NetRPType type)
 
 .seealso NetRPSetType()
 @*/
-PetscErrorCode  NetRPGetType(NetRP rs, NetRPType *type)
+PetscErrorCode NetRPGetType(NetRP rs, NetRPType *type)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(rs,NETRP_CLASSID,1);
-  PetscValidPointer(type,2);
+  PetscValidHeaderSpecific(rs, NETRP_CLASSID, 1);
+  PetscValidPointer(type, 2);
   *type = ((PetscObject)rs)->type_name;
   PetscFunctionReturn(0);
 }
@@ -136,10 +134,10 @@ PetscErrorCode  NetRPGetType(NetRP rs, NetRPType *type)
 
 .seealso: NetRSRegisterAll(), NetRSRegisterDestroy()
 @*/
-PetscErrorCode  NetRPRegister(const char sname[], PetscErrorCode (*function)(NetRP))
+PetscErrorCode NetRPRegister(const char sname[], PetscErrorCode (*function)(NetRP))
 {
   PetscFunctionBegin;
   PetscCall(NetRPInitializePackage());
-  PetscCall(PetscFunctionListAdd(&NetRPList,sname,function));
+  PetscCall(PetscFunctionListAdd(&NetRPList, sname, function));
   PetscFunctionReturn(0);
 }

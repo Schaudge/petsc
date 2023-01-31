@@ -106,11 +106,11 @@ PetscErrorCode StarGraphTestQuery(DM dm, PetscInt ne)
 
 int main(int argc, char **argv)
 {
-  DM          dm,plex;
-  PetscInt    ne = 1; 
+  DM          dm, plex;
+  PetscInt    ne = 1;
   PetscMPIInt rank;
-  PetscSF     sf; 
-  NetRS   netrs; 
+  PetscSF     sf;
+  NetRS       netrs;
 
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
@@ -121,16 +121,16 @@ int main(int argc, char **argv)
   PetscCall(DMNetworkDistribute(&dm, 0));
   /* Test if query functions for DMNetwork run sucessfully */
   PetscCall(StarGraphTestQuery(dm, ne));
-  PetscCall(DMNetworkGetPlex(dm,&plex));
-  PetscCall(DMGetPointSF(plex,&sf));
-  PetscCall(DMView(dm,PETSC_VIEWER_STDOUT_WORLD));
-  PetscCall(PetscSFView(sf,PETSC_VIEWER_STDOUT_WORLD));
+  PetscCall(DMNetworkGetPlex(dm, &plex));
+  PetscCall(DMGetPointSF(plex, &sf));
+  PetscCall(DMView(dm, PETSC_VIEWER_STDOUT_WORLD));
+  PetscCall(PetscSFView(sf, PETSC_VIEWER_STDOUT_WORLD));
 
-  PetscCall(NetRSCreate(PETSC_COMM_WORLD,&netrs)); 
+  PetscCall(NetRSCreate(PETSC_COMM_WORLD, &netrs));
   PetscCall(NetRSSetFromOptions(netrs));
-  PetscCall(NetRSSetNetwork(netrs,dm)); 
-  PetscCall(DMNetworkCacheVertexDegrees(netrs,netrs->network)); 
-  PetscCall(DMLabelView(netrs->VertexDeg_shared,PETSC_VIEWER_STDOUT_WORLD)); 
+  PetscCall(NetRSSetNetwork(netrs, dm));
+  PetscCall(DMNetworkCacheVertexDegrees(netrs, netrs->network));
+  PetscCall(DMLabelView(netrs->VertexDeg_shared, PETSC_VIEWER_STDOUT_WORLD));
 
   PetscCall(DMDestroy(&dm));
   PetscCall(NetRSDestroy(&netrs));

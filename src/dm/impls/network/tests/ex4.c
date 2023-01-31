@@ -106,11 +106,11 @@ PetscErrorCode StarGraphTestQuery(DM dm, PetscInt ne)
 
 int main(int argc, char **argv)
 {
-  DM          dm,plex;
-  PetscInt    ne = 1,i,*keys,*vals,size,off = 0; 
+  DM          dm, plex;
+  PetscInt    ne = 1, i, *keys, *vals, size, off = 0;
   PetscMPIInt rank;
-  PetscSF     sf; 
-  NetRS   netrs; 
+  PetscSF     sf;
+  NetRS       netrs;
 
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
@@ -121,28 +121,26 @@ int main(int argc, char **argv)
   PetscCall(DMNetworkDistribute(&dm, 0));
   /* Test if query functions for DMNetwork run sucessfully */
   PetscCall(StarGraphTestQuery(dm, ne));
-  PetscCall(DMNetworkGetPlex(dm,&plex));
-  PetscCall(DMGetPointSF(plex,&sf));
-  PetscCall(DMView(dm,PETSC_VIEWER_STDOUT_WORLD));
-  PetscCall(PetscSFView(sf,PETSC_VIEWER_STDOUT_WORLD));
+  PetscCall(DMNetworkGetPlex(dm, &plex));
+  PetscCall(DMGetPointSF(plex, &sf));
+  PetscCall(DMView(dm, PETSC_VIEWER_STDOUT_WORLD));
+  PetscCall(PetscSFView(sf, PETSC_VIEWER_STDOUT_WORLD));
 
-  PetscCall(NetRSCreate(PETSC_COMM_WORLD,&netrs)); 
+  PetscCall(NetRSCreate(PETSC_COMM_WORLD, &netrs));
   PetscCall(NetRSSetFromOptions(netrs));
-  PetscCall(NetRSSetNetwork(netrs,dm)); 
-  PetscCall(DMNetworkCreateLocalEdgeNumbering(netrs,dm));
-  PetscCall(PetscHMapIGetSize(netrs->vertex_shared_offset,&size)); 
-  PetscCall(PetscMalloc2(size,&keys,size,&vals)); 
-  PetscCall(PetscHMapIGetPairs(netrs->vertex_shared_offset,&off,keys,vals)); 
+  PetscCall(NetRSSetNetwork(netrs, dm));
+  PetscCall(DMNetworkCreateLocalEdgeNumbering(netrs, dm));
+  PetscCall(PetscHMapIGetSize(netrs->vertex_shared_offset, &size));
+  PetscCall(PetscMalloc2(size, &keys, size, &vals));
+  PetscCall(PetscHMapIGetPairs(netrs->vertex_shared_offset, &off, keys, vals));
 
-  PetscCall(PetscSynchronizedPrintf(PETSC_COMM_WORLD,"rank %i \n\n",rank)); 
-  PetscCall(PetscSynchronizedPrintf(PETSC_COMM_WORLD,"key : val\n" ));
-  for(i=0; i<size; i++) {
-    PetscCall(PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%"PetscInt_FMT" :  %" PetscInt_FMT,keys[i],vals[i] ));
-  }
-  PetscCall(PetscSynchronizedPrintf(PETSC_COMM_WORLD,"\n\n" ));
+  PetscCall(PetscSynchronizedPrintf(PETSC_COMM_WORLD, "rank %i \n\n", rank));
+  PetscCall(PetscSynchronizedPrintf(PETSC_COMM_WORLD, "key : val\n"));
+  for (i = 0; i < size; i++) { PetscCall(PetscSynchronizedPrintf(PETSC_COMM_WORLD, "%" PetscInt_FMT " :  %" PetscInt_FMT, keys[i], vals[i])); }
+  PetscCall(PetscSynchronizedPrintf(PETSC_COMM_WORLD, "\n\n"));
 
-  PetscSynchronizedFlush(PETSC_COMM_WORLD,NULL);
-  PetscCall(PetscFree2(keys,vals));
+  PetscSynchronizedFlush(PETSC_COMM_WORLD, NULL);
+  PetscCall(PetscFree2(keys, vals));
   PetscCall(DMDestroy(&dm));
   PetscCall(NetRSDestroy(&netrs));
   PetscCall(PetscFinalize());

@@ -1635,7 +1635,7 @@ static PetscErrorCode PetscDTGaussJacobiQuadrature_GolubWelsch_Internal(PetscInt
 static PetscErrorCode PetscDTGaussJacobiQuadrature_Internal(PetscInt npoints, PetscReal alpha, PetscReal beta, PetscReal x[], PetscReal w[], PetscBool newton)
 {
   PetscFunctionBegin;
-  PetscCheck(npoints >= 1, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Number of points is %"PetscInt_FMT". This must be positive",npoints);
+  PetscCheck(npoints >= 1, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Number of points is %" PetscInt_FMT ". This must be positive", npoints);
   /* If asking for a 1D Lobatto point, just return the non-Lobatto 1D point */
   PetscCheck(alpha > -1., PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "alpha must be > -1.");
   PetscCheck(beta > -1., PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "beta must be > -1.");

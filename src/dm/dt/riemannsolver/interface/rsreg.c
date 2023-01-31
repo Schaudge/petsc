@@ -1,7 +1,6 @@
 #include <petsc/private/riemannsolverimpl.h>
-PetscFunctionList RiemannSolverList              = NULL;
-PetscClassId      RIEMANNSOLVER_CLASSID = 0; 
-
+PetscFunctionList RiemannSolverList     = NULL;
+PetscClassId      RIEMANNSOLVER_CLASSID = 0;
 
 /*@C
   RiemannSolverSetType - Sets the method to be used as the Riemann solver. 
@@ -36,24 +35,22 @@ PetscClassId      RIEMANNSOLVER_CLASSID = 0;
 .seealso: RiemannSolver, RiemannSolverCreate(), RiemannSolverSetFromOptions(), RiemannSolverDestroy(), RiemannSolverType
 
 @*/
-PetscErrorCode  RiemannSolverSetType(RiemannSolver rs,RiemannSolverType type)
+PetscErrorCode RiemannSolverSetType(RiemannSolver rs, RiemannSolverType type)
 {
   PetscErrorCode (*r)(RiemannSolver);
-  PetscBool      match;
+  PetscBool match;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID,1);
-  PetscValidCharPointer(type,2);
-  PetscCall(PetscObjectTypeCompare((PetscObject) rs, type, &match));
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  PetscValidCharPointer(type, 2);
+  PetscCall(PetscObjectTypeCompare((PetscObject)rs, type, &match));
   if (match) PetscFunctionReturn(0);
 
-  PetscCall(PetscFunctionListFind(RiemannSolverList,type,&r));
-  if (!r) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE, "Unknown RiemannSolver type: %s", type);
+  PetscCall(PetscFunctionListFind(RiemannSolverList, type, &r));
+  if (!r) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_UNKNOWN_TYPE, "Unknown RiemannSolver type: %s", type);
   PetscCall(RiemannSolverReset(rs));
-  if (rs->ops->destroy) {
-    PetscCall((*(rs)->ops->destroy)(rs));
-  }
-  PetscCall(PetscMemzero(rs->ops,sizeof(*rs->ops)));
+  if (rs->ops->destroy) { PetscCall((*(rs)->ops->destroy)(rs)); }
+  PetscCall(PetscMemzero(rs->ops, sizeof(*rs->ops)));
   rs->setupcalled = PETSC_FALSE;
   PetscCall(PetscObjectChangeTypeName((PetscObject)rs, type));
   PetscCall((*r)(rs));
@@ -74,11 +71,11 @@ PetscErrorCode  RiemannSolverSetType(RiemannSolver rs,RiemannSolverType type)
 
 .seealso RiemannSolverSetType()
 @*/
-PetscErrorCode  RiemannSolverGetType(RiemannSolver rs, RiemannSolverType *type)
+PetscErrorCode RiemannSolverGetType(RiemannSolver rs, RiemannSolverType *type)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-  PetscValidPointer(type,2);
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  PetscValidPointer(type, 2);
   *type = ((PetscObject)rs)->type_name;
   PetscFunctionReturn(0);
 }
@@ -117,11 +114,10 @@ PetscErrorCode  RiemannSolverGetType(RiemannSolver rs, RiemannSolverType *type)
 
 .seealso: RiemannSolverRegisterAll(), RiemannSolverRegisterDestroy()
 @*/
-PetscErrorCode  RiemannSolverRegister(const char sname[], PetscErrorCode (*function)(RiemannSolver))
+PetscErrorCode RiemannSolverRegister(const char sname[], PetscErrorCode (*function)(RiemannSolver))
 {
   PetscFunctionBegin;
   PetscCall(RiemannSolverInitializePackage());
-  PetscCall(PetscFunctionListAdd(&RiemannSolverList,sname,function));
+  PetscCall(PetscFunctionListAdd(&RiemannSolverList, sname, function));
   PetscFunctionReturn(0);
 }
-

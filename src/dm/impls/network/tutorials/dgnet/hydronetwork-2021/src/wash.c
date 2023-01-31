@@ -8,27 +8,36 @@
 */
 PetscErrorCode TSWashPreStep(TS ts)
 {
-  PetscInt          n;
-  PetscReal         t,dt;
-  PetscErrorCode    ierr;
-  DM                networkdm;
-  Vec               Xold;
-  Wash              wash;
+  PetscInt       n;
+  PetscReal      t, dt;
+  PetscErrorCode ierr;
+  DM             networkdm;
+  Vec            Xold;
+  Wash           wash;
 
   PetscFunctionBegin;
-  ierr = TSGetStepNumber(ts,&n);CHKERRQ(ierr);
+  ierr = TSGetStepNumber(ts, &n);
+  CHKERRQ(ierr);
   if (!n) PetscFunctionReturn(0);
 
-  ierr = TSWashGetTimeStep(ts,&dt);CHKERRQ(ierr);
-  ierr = TSSetTimeStep(ts,dt);CHKERRQ(ierr);
-  ierr = TSGetTime(ts,&t);CHKERRQ(ierr);
+  ierr = TSWashGetTimeStep(ts, &dt);
+  CHKERRQ(ierr);
+  ierr = TSSetTimeStep(ts, dt);
+  CHKERRQ(ierr);
+  ierr = TSGetTime(ts, &t);
+  CHKERRQ(ierr);
 
-  ierr = TSGetSolution(ts,&Xold);CHKERRQ(ierr);
-  ierr = TSGetDM(ts,&networkdm);CHKERRQ(ierr);
-  ierr = TSGetApplicationContext(ts,&wash);CHKERRQ(ierr);
-  ierr = VecCopy(Xold,wash->Xold);CHKERRQ(ierr);
+  ierr = TSGetSolution(ts, &Xold);
+  CHKERRQ(ierr);
+  ierr = TSGetDM(ts, &networkdm);
+  CHKERRQ(ierr);
+  ierr = TSGetApplicationContext(ts, &wash);
+  CHKERRQ(ierr);
+  ierr = VecCopy(Xold, wash->Xold);
+  CHKERRQ(ierr);
   //ierr = VecView(Xold,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  ierr = PetscPrintf(PetscObjectComm((PetscObject)ts),"%-10s-> step %d time %g dt %g, wash->dt %g\n",PETSC_FUNCTION_NAME,n,(double)t,(double)dt,wash->dt);CHKERRQ(ierr);
+  ierr = PetscPrintf(PetscObjectComm((PetscObject)ts), "%-10s-> step %d time %g dt %g, wash->dt %g\n", PETSC_FUNCTION_NAME, n, (double)t, (double)dt, wash->dt);
+  CHKERRQ(ierr);
   //printf("TSWashPreStep %d, X:\n",n);
   //VecView(Xold,0);
   PetscFunctionReturn(0);
@@ -55,83 +64,104 @@ PetscErrorCode TSWashPreStep(TS ts)
 */
 PetscErrorCode TSWashPostStep(TS ts)
 {
-  PetscErrorCode ierr;
-  Vec            X,localX,Xtmp,localXtmp;
-  Wash           wash;
-  DM             networkdm;
-  PetscInt       v,Start,End,nedges,i,varoffset,rivervaroffset;
+  PetscErrorCode  ierr;
+  Vec             X, localX, Xtmp, localXtmp;
+  Wash            wash;
+  DM              networkdm;
+  PetscInt        v, Start, End, nedges, i, varoffset, rivervaroffset;
   const PetscInt *edges;
-  PetscScalar    *xarr,*xtmparr,sumfrom,sumto;
-  MPI_Comm       comm;
-  PetscMPIInt    rank;
-  RiverField     *juncx,*juncxtmp,*riverx;
-  PetscInt       e,vfrom,vto,type;
+  PetscScalar    *xarr, *xtmparr, sumfrom, sumto;
+  MPI_Comm        comm;
+  PetscMPIInt     rank;
+  RiverField     *juncx, *juncxtmp, *riverx;
+  PetscInt        e, vfrom, vto, type;
   const PetscInt *cone;
-  River          river;
-  Junction       junction;
-  PetscReal      tol = 1.e-6;
+  River           river;
+  Junction        junction;
+  PetscReal       tol = 1.e-6;
 
   PetscFunctionBegin;
-  ierr = PetscObjectGetComm((PetscObject)ts,&comm);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
-  ierr = TSGetSolution(ts,&X);CHKERRQ(ierr);
+  ierr = PetscObjectGetComm((PetscObject)ts, &comm);
+  CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm, &rank);
+  CHKERRQ(ierr);
+  ierr = TSGetSolution(ts, &X);
+  CHKERRQ(ierr);
   //if (!rank) printf("TSWashPostStep, TS solution:\n");
   //ierr = VecView(X,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
-  ierr = TSGetDM(ts,&networkdm);CHKERRQ(ierr);
-  ierr = TSGetApplicationContext(ts,&wash);CHKERRQ(ierr);
+  ierr = TSGetDM(ts, &networkdm);
+  CHKERRQ(ierr);
+  ierr = TSGetApplicationContext(ts, &wash);
+  CHKERRQ(ierr);
 
   /* update ghost values of locaX localXold */
   localX = wash->localX;
-  ierr = DMGlobalToLocalBegin(networkdm,X,INSERT_VALUES,localX);CHKERRQ(ierr);
-  ierr = DMGlobalToLocalEnd(networkdm,X,INSERT_VALUES,localX);CHKERRQ(ierr);
-  ierr = VecGetArray(localX,&xarr);CHKERRQ(ierr);
+  ierr   = DMGlobalToLocalBegin(networkdm, X, INSERT_VALUES, localX);
+  CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(networkdm, X, INSERT_VALUES, localX);
+  CHKERRQ(ierr);
+  ierr = VecGetArray(localX, &xarr);
+  CHKERRQ(ierr);
 
-  ierr = DMNetworkGetVertexRange(networkdm,&Start,&End);CHKERRQ(ierr);
+  ierr = DMNetworkGetVertexRange(networkdm, &Start, &End);
+  CHKERRQ(ierr);
 
   /* Compute sumfrom and sumto: store values in Xtmp */
   Xtmp      = wash->Xtmp;
   localXtmp = wash->localXtmp;
-  ierr = VecSet(Xtmp,0.0);CHKERRQ(ierr);
-  for (v=Start; v<End; v++) {
-    ierr = DMNetworkGetComponent(networkdm,v,0,&type,(void**)&junction,NULL);CHKERRQ(ierr);
-    ierr = DMNetworkGetSupportingEdges(networkdm,v,&nedges,&edges);CHKERRQ(ierr);
-    #if 0
+  ierr      = VecSet(Xtmp, 0.0);
+  CHKERRQ(ierr);
+  for (v = Start; v < End; v++) {
+    ierr = DMNetworkGetComponent(networkdm, v, 0, &type, (void **)&junction, NULL);
+    CHKERRQ(ierr);
+    ierr = DMNetworkGetSupportingEdges(networkdm, v, &nedges, &edges);
+    CHKERRQ(ierr);
+#if 0
     PetscInt gv;
     ierr = DMNetworkGetGlobalVertexIndex(networkdm,v,&gv);CHKERRQ(ierr);
     printf(" [%d] gv %d, nedges %d; Compute sumfrom and sumto\n",rank,gv,nedges);
-    #endif
+#endif
     if (junction->type == JUNCTION) {
-      PetscInt    gvoffset,gvoffset1;
-      ierr = DMNetworkGetGlobalVecOffset(networkdm,v,ALL_COMPONENTS,&gvoffset);CHKERRQ(ierr);
+      PetscInt gvoffset, gvoffset1;
+      ierr = DMNetworkGetGlobalVecOffset(networkdm, v, ALL_COMPONENTS, &gvoffset);
+      CHKERRQ(ierr);
       gvoffset1 = gvoffset + 1;
 
-      for (i=0; i<nedges; i++) {
-        e = edges[i];
-        ierr = DMNetworkGetComponent(networkdm,e,0,&type,(void**)&river,NULL);CHKERRQ(ierr);
+      for (i = 0; i < nedges; i++) {
+        e    = edges[i];
+        ierr = DMNetworkGetComponent(networkdm, e, 0, &type, (void **)&river, NULL);
+        CHKERRQ(ierr);
         if (type != wash->keyRiver) {
           //ierr = PetscInfo2(NULL,"Warning: vertex %d 's supporting edge %d is not a river\n",v,e);CHKERRQ(ierr);
-          PetscCall(PetscInfo(NULL,"Warning: vertex %d 's supporting edge %d is not a river\n",v,e));
+          PetscCall(PetscInfo(NULL, "Warning: vertex %d 's supporting edge %d is not a river\n", v, e));
           continue;
         }
 
-        ierr = DMNetworkGetConnectedVertices(networkdm,e,&cone);CHKERRQ(ierr);
+        ierr = DMNetworkGetConnectedVertices(networkdm, e, &cone);
+        CHKERRQ(ierr);
         vfrom = cone[0]; /* local ordering */
         vto   = cone[1];
         if (v == vfrom) {
-          ierr = DMNetworkGetLocalVecOffset(networkdm,e,ALL_COMPONENTS,&rivervaroffset);CHKERRQ(ierr);
-          riverx = (RiverField*)(xarr+rivervaroffset);
-          ierr = VecSetValues(Xtmp,1,&gvoffset1,&riverx[1].q,ADD_VALUES);CHKERRQ(ierr);
+          ierr = DMNetworkGetLocalVecOffset(networkdm, e, ALL_COMPONENTS, &rivervaroffset);
+          CHKERRQ(ierr);
+          riverx = (RiverField *)(xarr + rivervaroffset);
+          ierr   = VecSetValues(Xtmp, 1, &gvoffset1, &riverx[1].q, ADD_VALUES);
+          CHKERRQ(ierr);
         } else if (v == vto) {
-          ierr = DMNetworkGetLocalVecOffset(networkdm,e,ALL_COMPONENTS,&rivervaroffset);CHKERRQ(ierr);
-          riverx = (RiverField*)(xarr+rivervaroffset);
-          ierr = VecSetValues(Xtmp,1,&gvoffset,&riverx[river->ncells-2].q,ADD_VALUES);CHKERRQ(ierr);
+          ierr = DMNetworkGetLocalVecOffset(networkdm, e, ALL_COMPONENTS, &rivervaroffset);
+          CHKERRQ(ierr);
+          riverx = (RiverField *)(xarr + rivervaroffset);
+          ierr   = VecSetValues(Xtmp, 1, &gvoffset, &riverx[river->ncells - 2].q, ADD_VALUES);
+          CHKERRQ(ierr);
         }
       }
     }
   }
-  ierr = VecAssemblyBegin(Xtmp);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(Xtmp);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(Xtmp);
+  CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(Xtmp);
+  CHKERRQ(ierr);
   //if (!rank) printf("TSWashPostStep, Xtmp:\n");
   //ierr = VecView(Xtmp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
@@ -179,106 +209,123 @@ PetscErrorCode TSWashPostStep(TS ts)
 #endif
 
   /* Update solution X at boundary, and the river cell points i=0 and ncells-1 */
-  ierr = DMGlobalToLocalBegin(networkdm,Xtmp,INSERT_VALUES,localXtmp);CHKERRQ(ierr);
-  ierr = DMGlobalToLocalEnd(networkdm,Xtmp,INSERT_VALUES,localXtmp);CHKERRQ(ierr);
-  ierr = VecGetArray(localXtmp,&xtmparr);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(networkdm, Xtmp, INSERT_VALUES, localXtmp);
+  CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(networkdm, Xtmp, INSERT_VALUES, localXtmp);
+  CHKERRQ(ierr);
+  ierr = VecGetArray(localXtmp, &xtmparr);
+  CHKERRQ(ierr);
 
   //printf(" [%d] vStart/End %d, %d\n",rank,Start,End);
   //ierr = MPI_Barrier(comm);CHKERRQ(ierr);
-  for (v=Start; v<End; v++) {
-    ierr = DMNetworkGetComponent(networkdm,v,0,&type,(void**)&junction,NULL);CHKERRQ(ierr);
+  for (v = Start; v < End; v++) {
+    ierr = DMNetworkGetComponent(networkdm, v, 0, &type, (void **)&junction, NULL);
+    CHKERRQ(ierr);
 
-    ierr = DMNetworkGetLocalVecOffset(networkdm,v,ALL_COMPONENTS,&varoffset);CHKERRQ(ierr);
-    juncx = (RiverField*)(xarr+varoffset);
-    ierr = DMNetworkGetSupportingEdges(networkdm,v,&nedges,&edges);CHKERRQ(ierr);
-    #if 0
+    ierr = DMNetworkGetLocalVecOffset(networkdm, v, ALL_COMPONENTS, &varoffset);
+    CHKERRQ(ierr);
+    juncx = (RiverField *)(xarr + varoffset);
+    ierr  = DMNetworkGetSupportingEdges(networkdm, v, &nedges, &edges);
+    CHKERRQ(ierr);
+#if 0
     PetscInt gv;
     ierr = DMNetworkGetGlobalVertexIndex(networkdm,v,&gv);CHKERRQ(ierr);
-    #endif
+#endif
 
     if (junction->type == JUNCTION) {
-      for (i=0; i<nedges; i++) {
-        e = edges[i];
-        ierr = DMNetworkGetComponent(networkdm,e,0,&type,(void**)&river,NULL);CHKERRQ(ierr);
+      for (i = 0; i < nedges; i++) {
+        e    = edges[i];
+        ierr = DMNetworkGetComponent(networkdm, e, 0, &type, (void **)&river, NULL);
+        CHKERRQ(ierr);
         if (type != wash->keyRiver) continue;
 
-        ierr = DMNetworkGetConnectedVertices(networkdm,e,&cone);CHKERRQ(ierr);
+        ierr = DMNetworkGetConnectedVertices(networkdm, e, &cone);
+        CHKERRQ(ierr);
         vfrom = cone[0]; /* local ordering */
         vto   = cone[1];
         if (v == vfrom) {
-          ierr = DMNetworkGetLocalVecOffset(networkdm,e,ALL_COMPONENTS,&rivervaroffset);CHKERRQ(ierr);
-          riverx   = (RiverField*)(xarr+rivervaroffset);
-          juncxtmp = (RiverField*)(xtmparr+varoffset);
-          sumfrom = juncxtmp[0].h;
+          ierr = DMNetworkGetLocalVecOffset(networkdm, e, ALL_COMPONENTS, &rivervaroffset);
+          CHKERRQ(ierr);
+          riverx   = (RiverField *)(xarr + rivervaroffset);
+          juncxtmp = (RiverField *)(xtmparr + varoffset);
+          sumfrom  = juncxtmp[0].h;
 
           if (sumfrom == 0.0) {
-            riverx[0].q = juncx[0].q/junction->nout;
+            riverx[0].q = juncx[0].q / junction->nout;
           } else {
-            riverx[0].q = juncx[0].q*riverx[1].q/sumfrom;
+            riverx[0].q = juncx[0].q * riverx[1].q / sumfrom;
           }
           riverx[0].h = juncx[0].h;
         } else if (v == vto) {
-          ierr = DMNetworkGetLocalVecOffset(networkdm,e,ALL_COMPONENTS,&rivervaroffset);CHKERRQ(ierr);
-          riverx   = (RiverField*)(xarr+rivervaroffset);
-          juncxtmp = (RiverField*)(xtmparr+varoffset);
-          sumto = juncxtmp[0].q;
+          ierr = DMNetworkGetLocalVecOffset(networkdm, e, ALL_COMPONENTS, &rivervaroffset);
+          CHKERRQ(ierr);
+          riverx   = (RiverField *)(xarr + rivervaroffset);
+          juncxtmp = (RiverField *)(xtmparr + varoffset);
+          sumto    = juncxtmp[0].q;
 
           if (sumto == 0.0) {
-            riverx[river->ncells-1].q = juncx[0].q/junction->nin;
+            riverx[river->ncells - 1].q = juncx[0].q / junction->nin;
           } else {
-            riverx[river->ncells-1].q = juncx[0].q*riverx[river->ncells-2].q/sumto;
+            riverx[river->ncells - 1].q = juncx[0].q * riverx[river->ncells - 2].q / sumto;
           }
-          riverx[river->ncells-1].h = juncx[0].h;
+          riverx[river->ncells - 1].h = juncx[0].h;
         }
       }
     }
     /* update boundary solutions */
     else if (junction->btype == H) {
-      e = edges[0]; /* boundary only has one supporting edge */
-      ierr = DMNetworkGetComponent(networkdm,e,0,&type,(void**)&river,NULL);CHKERRQ(ierr);
+      e    = edges[0]; /* boundary only has one supporting edge */
+      ierr = DMNetworkGetComponent(networkdm, e, 0, &type, (void **)&river, NULL);
+      CHKERRQ(ierr);
       if (type != wash->keyRiver) break;
 
-      ierr = DMNetworkGetLocalVecOffset(networkdm,e,ALL_COMPONENTS,&rivervaroffset);CHKERRQ(ierr);
-      riverx = (RiverField*)(xarr+rivervaroffset);
+      ierr = DMNetworkGetLocalVecOffset(networkdm, e, ALL_COMPONENTS, &rivervaroffset);
+      CHKERRQ(ierr);
+      riverx = (RiverField *)(xarr + rivervaroffset);
       if (junction->nout == 1) { /* v=vfrom, upper stream */
         riverx[0].q = riverx[1].q;
         riverx[0].h = juncx[0].h;
         juncx[0].q  = riverx[0].q;
       }
       if (junction->nin == 1) { /* v=vto, down stream */
-        riverx[river->ncells-1].q = riverx[river->ncells-2].q;
-        riverx[river->ncells-1].h = juncx[0].h;
-        juncx[0].q                = riverx[river->ncells-1].q;
+        riverx[river->ncells - 1].q = riverx[river->ncells - 2].q;
+        riverx[river->ncells - 1].h = juncx[0].h;
+        juncx[0].q                  = riverx[river->ncells - 1].q;
       }
     } else if (junction->btype == Q) {
-      e = edges[0]; /* boundary only has one supporting edge */
-      ierr = DMNetworkGetComponent(networkdm,e,0,&type,(void**)&river,NULL);CHKERRQ(ierr);
+      e    = edges[0]; /* boundary only has one supporting edge */
+      ierr = DMNetworkGetComponent(networkdm, e, 0, &type, (void **)&river, NULL);
+      CHKERRQ(ierr);
       if (type != wash->keyRiver) break;
 
-      ierr = DMNetworkGetLocalVecOffset(networkdm,e,ALL_COMPONENTS,&rivervaroffset);CHKERRQ(ierr);
-      riverx = (RiverField*)(xarr+rivervaroffset);
+      ierr = DMNetworkGetLocalVecOffset(networkdm, e, ALL_COMPONENTS, &rivervaroffset);
+      CHKERRQ(ierr);
+      riverx = (RiverField *)(xarr + rivervaroffset);
       if (junction->nout == 1) { /* v=vfrom, upper stream */
         riverx[0].h = riverx[1].h;
         riverx[0].q = juncx[0].q;
         juncx[0].h  = riverx[0].h;
       }
       if (junction->nin == 1) { /* v=vto, down stream */
-        riverx[river->ncells-1].h = riverx[river->ncells-2].h;
-        riverx[river->ncells-1].q = juncx[0].q;
-        juncx[0].h                = riverx[river->ncells-1].h;
+        riverx[river->ncells - 1].h = riverx[river->ncells - 2].h;
+        riverx[river->ncells - 1].q = juncx[0].q;
+        juncx[0].h                  = riverx[river->ncells - 1].h;
       }
-    } else PetscCheck(0,PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"not done yet, v %" PetscInt_FMT ", id_phy %" PetscInt_FMT ,v-Start,junction->id_phy);
+    } else PetscCheck(0, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "not done yet, v %" PetscInt_FMT ", id_phy %" PetscInt_FMT, v - Start, junction->id_phy);
   }
   //ierr = MPI_Barrier(comm);CHKERRQ(ierr);
 
   /* Modify solution: if h < tol, then set q = 0.0 -- must do it for case 3.4 */
-  ierr = DMNetworkGetEdgeRange(networkdm,&Start,&End);CHKERRQ(ierr);
-  for (e=Start; e<End; e++) {
-    ierr = DMNetworkGetComponent(networkdm,e,0,&type,(void**)&river,NULL);CHKERRQ(ierr);
+  ierr = DMNetworkGetEdgeRange(networkdm, &Start, &End);
+  CHKERRQ(ierr);
+  for (e = Start; e < End; e++) {
+    ierr = DMNetworkGetComponent(networkdm, e, 0, &type, (void **)&river, NULL);
+    CHKERRQ(ierr);
     if (type != wash->keyRiver) continue;
-    ierr = DMNetworkGetLocalVecOffset(networkdm,e,ALL_COMPONENTS,&rivervaroffset);CHKERRQ(ierr);
-    riverx = (RiverField*)(xarr+rivervaroffset);
-    for (i=0; i<river->ncells; i++) {
+    ierr = DMNetworkGetLocalVecOffset(networkdm, e, ALL_COMPONENTS, &rivervaroffset);
+    CHKERRQ(ierr);
+    riverx = (RiverField *)(xarr + rivervaroffset);
+    for (i = 0; i < river->ncells; i++) {
       /* if (riverx[i].h < 0.0) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"%d-th river[%d].h = %g \n",e,i,riverx[i].h); */
       if (riverx[i].h < tol) {
         riverx[i].q = 0.0;
@@ -287,61 +334,80 @@ PetscErrorCode TSWashPostStep(TS ts)
     }
   }
 
-  ierr = VecRestoreArray(localX,&xarr);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(networkdm,localX,INSERT_VALUES,X);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd(networkdm,localX,INSERT_VALUES,X);CHKERRQ(ierr);
+  ierr = VecRestoreArray(localX, &xarr);
+  CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(networkdm, localX, INSERT_VALUES, X);
+  CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(networkdm, localX, INSERT_VALUES, X);
+  CHKERRQ(ierr);
   wash->X = X;
   //if (!rank) printf("X solution:\n");
   //ierr = VecView(X,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
-  ierr = VecRestoreArray(localXtmp,&xtmparr);CHKERRQ(ierr);
+  ierr = VecRestoreArray(localXtmp, &xtmparr);
+  CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode TSWashGetTimeStep(TS ts,PetscReal *dt)
+PetscErrorCode TSWashGetTimeStep(TS ts, PetscReal *dt)
 {
-  PetscErrorCode    ierr;
-  DM                dmnetwork;
-  PetscInt          e,eStart,eEnd,varoffset,type;
-  Vec               X;
-  River             river;
-  PetscReal         dt_e,dt_min=10.0,dt_max=0.0;
+  PetscErrorCode     ierr;
+  DM                 dmnetwork;
+  PetscInt           e, eStart, eEnd, varoffset, type;
+  Vec                X;
+  River              river;
+  PetscReal          dt_e, dt_min = 10.0, dt_max = 0.0;
   RiverField        *riverx;
   const PetscScalar *xarr;
-  Wash              wash;
-  MPI_Comm          comm;
-  PetscMPIInt       rank;
+  Wash               wash;
+  MPI_Comm           comm;
+  PetscMPIInt        rank;
 
   PetscFunctionBegin;
-  ierr = PetscObjectGetComm((PetscObject)ts,&comm);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
-  ierr = TSGetSolution(ts,&X);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(X,&xarr);CHKERRQ(ierr);
+  ierr = PetscObjectGetComm((PetscObject)ts, &comm);
+  CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm, &rank);
+  CHKERRQ(ierr);
+  ierr = TSGetSolution(ts, &X);
+  CHKERRQ(ierr);
+  ierr = VecGetArrayRead(X, &xarr);
+  CHKERRQ(ierr);
 
-  ierr = TSGetDM(ts,&dmnetwork);CHKERRQ(ierr);
-  ierr = TSGetApplicationContext(ts,&wash);CHKERRQ(ierr);
-  ierr = DMNetworkGetEdgeRange(dmnetwork,&eStart,&eEnd);CHKERRQ(ierr);
-  for (e=eStart; e<eEnd; e++) { /* each edge has only one component, river */
-    ierr = DMNetworkGetComponent(dmnetwork,e,0,&type,(void**)&river,NULL);CHKERRQ(ierr);
+  ierr = TSGetDM(ts, &dmnetwork);
+  CHKERRQ(ierr);
+  ierr = TSGetApplicationContext(ts, &wash);
+  CHKERRQ(ierr);
+  ierr = DMNetworkGetEdgeRange(dmnetwork, &eStart, &eEnd);
+  CHKERRQ(ierr);
+  for (e = eStart; e < eEnd; e++) { /* each edge has only one component, river */
+    ierr = DMNetworkGetComponent(dmnetwork, e, 0, &type, (void **)&river, NULL);
+    CHKERRQ(ierr);
     if (type != wash->keyRiver) continue;
-    ierr = DMNetworkGetLocalVecOffset(dmnetwork,e,ALL_COMPONENTS,&varoffset);CHKERRQ(ierr);
-    riverx = (RiverField*)(xarr + varoffset);
+    ierr = DMNetworkGetLocalVecOffset(dmnetwork, e, ALL_COMPONENTS, &varoffset);
+    CHKERRQ(ierr);
+    riverx = (RiverField *)(xarr + varoffset);
 
-    ierr = RiverGetTimeStep(river,riverx,&dt_e);CHKERRQ(ierr);
+    ierr = RiverGetTimeStep(river, riverx, &dt_e);
+    CHKERRQ(ierr);
     if (dt_e < dt_min) dt_min = dt_e;
     if (wash->test_mscale && dt_e > dt_max) dt_max = dt_e;
   }
-  ierr = VecRestoreArrayRead(X,&xarr);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(X, &xarr);
+  CHKERRQ(ierr);
   /* dt = min(dt_min) */
-  ierr = MPI_Allreduce(&dt_min,dt,1,MPIU_REAL,MPIU_MIN,PetscObjectComm((PetscObject)dmnetwork));CHKERRQ(ierr);
-  if (!rank && wash->test_mscale) {ierr = PetscPrintf(PETSC_COMM_SELF,"\n[%d] dt_min/max %g, %g\n",rank,*dt,dt_max);CHKERRQ(ierr);}
+  ierr = MPI_Allreduce(&dt_min, dt, 1, MPIU_REAL, MPIU_MIN, PetscObjectComm((PetscObject)dmnetwork));
+  CHKERRQ(ierr);
+  if (!rank && wash->test_mscale) {
+    ierr = PetscPrintf(PETSC_COMM_SELF, "\n[%d] dt_min/max %g, %g\n", rank, *dt, dt_max);
+    CHKERRQ(ierr);
+  }
 
   if (*dt < 1.e-4) { /* if dt too small, set dt=wash->dt */
-  //ierr = PetscPrintf(PetscObjectComm((PetscObject)ts),"%-10s-> dt %g is too small, set as wash->dt %g\n",PETSC_FUNCTION_NAME,(double)(*dt),wash->dt);CHKERRQ(ierr);
+                     //ierr = PetscPrintf(PetscObjectComm((PetscObject)ts),"%-10s-> dt %g is too small, set as wash->dt %g\n",PETSC_FUNCTION_NAME,(double)(*dt),wash->dt);CHKERRQ(ierr);
     *dt = wash->dt;
-  } else if (*dt > 10.0*wash->dt) { /* if dt too large, set dt=5.0*wash->dt */
-  //ierr = PetscPrintf(PetscObjectComm((PetscObject)ts),"%-10s-> dt %g is too large, set as 5.0*wash->dt %g\n",PETSC_FUNCTION_NAME,(double)(*dt),5.0*wash->dt);CHKERRQ(ierr);
-    *dt = 5.0*wash->dt;
+  } else if (*dt > 10.0 * wash->dt) { /* if dt too large, set dt=5.0*wash->dt */
+                                      //ierr = PetscPrintf(PetscObjectComm((PetscObject)ts),"%-10s-> dt %g is too large, set as 5.0*wash->dt %g\n",PETSC_FUNCTION_NAME,(double)(*dt),5.0*wash->dt);CHKERRQ(ierr);
+    *dt = 5.0 * wash->dt;
   }
   PetscFunctionReturn(0);
 }
@@ -354,18 +420,18 @@ PetscErrorCode TSWashGetTimeStep(TS ts,PetscReal *dt)
      TSStep() computes solution at t+dt for these points
      TSWashPostStep() updates boundary junctions, and the river cell points i=0 and ncells-1
  */
-PetscErrorCode WashRHSFunction(TS ts,PetscReal t,Vec X,Vec F,void* ctx)
+PetscErrorCode WashRHSFunction(TS ts, PetscReal t, Vec X, Vec F, void *ctx)
 {
-  PetscErrorCode    ierr;
-  Wash              wash=(Wash)ctx;
-  DM                networkdm;
-  Vec               localX,localF;
-  PetscInt          type,varoffset,e,eStart,eEnd,vfrom,vto;
+  PetscErrorCode     ierr;
+  Wash               wash = (Wash)ctx;
+  DM                 networkdm;
+  Vec                localX, localF;
+  PetscInt           type, varoffset, e, eStart, eEnd, vfrom, vto;
   PetscScalar       *farr;
-  PetscReal         dt,dx;
-  River             river;
-  RiverField        *riverx,*riverf,*juncf;
-  Junction          junction;
+  PetscReal          dt, dx;
+  River              river;
+  RiverField        *riverx, *riverf, *juncf;
+  Junction           junction;
   const PetscInt    *cone;
   const PetscScalar *xarr;
 
@@ -373,65 +439,86 @@ PetscErrorCode WashRHSFunction(TS ts,PetscReal t,Vec X,Vec F,void* ctx)
   localX = wash->localX;
   localF = wash->localF;
 
-  ierr = TSGetDM(ts,&networkdm);CHKERRQ(ierr);
-  ierr = TSGetTimeStep(ts,&dt);CHKERRQ(ierr);
+  ierr = TSGetDM(ts, &networkdm);
+  CHKERRQ(ierr);
+  ierr = TSGetTimeStep(ts, &dt);
+  CHKERRQ(ierr);
 
   /* Set F and localF as zero */
-  ierr = VecSet(F,0.0);CHKERRQ(ierr);
-  ierr = VecSet(localF,0.0);CHKERRQ(ierr);
+  ierr = VecSet(F, 0.0);
+  CHKERRQ(ierr);
+  ierr = VecSet(localF, 0.0);
+  CHKERRQ(ierr);
 
   /* update ghost values of locaX */
-  ierr = DMGlobalToLocalBegin(networkdm,X,INSERT_VALUES,localX);CHKERRQ(ierr);
-  ierr = DMGlobalToLocalEnd(networkdm,X,INSERT_VALUES,localX);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(networkdm, X, INSERT_VALUES, localX);
+  CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(networkdm, X, INSERT_VALUES, localX);
+  CHKERRQ(ierr);
 
-  ierr = VecGetArrayRead(localX,&xarr);CHKERRQ(ierr);
-  ierr = VecGetArray(localF,&farr);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(localX, &xarr);
+  CHKERRQ(ierr);
+  ierr = VecGetArray(localF, &farr);
+  CHKERRQ(ierr);
 
   /* Edge */
-  ierr = DMNetworkGetEdgeRange(networkdm,&eStart,&eEnd);CHKERRQ(ierr);
-  for (e=eStart; e<eEnd; e++) {
-    ierr = DMNetworkGetComponent(networkdm,e,0,&type,(void**)&river,NULL);CHKERRQ(ierr);
+  ierr = DMNetworkGetEdgeRange(networkdm, &eStart, &eEnd);
+  CHKERRQ(ierr);
+  for (e = eStart; e < eEnd; e++) {
+    ierr = DMNetworkGetComponent(networkdm, e, 0, &type, (void **)&river, NULL);
+    CHKERRQ(ierr);
     if (type != wash->keyRiver) continue;
 
     /* Querry connected junctions */
-    dx=river->length/river->ncells;
-    ierr = DMNetworkGetConnectedVertices(networkdm,e,&cone);CHKERRQ(ierr);
+    dx   = river->length / river->ncells;
+    ierr = DMNetworkGetConnectedVertices(networkdm, e, &cone);
+    CHKERRQ(ierr);
     vfrom = cone[0]; /* local ordering */
     vto   = cone[1];
 
     /* Evaluate RHSFunction at river interior cell points i=1,...,river->ncells-2 */
-    ierr = DMNetworkGetLocalVecOffset(networkdm,e,ALL_COMPONENTS,&varoffset);CHKERRQ(ierr);
-    riverx = (RiverField*)(xarr + varoffset);
-    riverf = (RiverField*)(farr + varoffset);
+    ierr = DMNetworkGetLocalVecOffset(networkdm, e, ALL_COMPONENTS, &varoffset);
+    CHKERRQ(ierr);
+    riverx = (RiverField *)(xarr + varoffset);
+    riverf = (RiverField *)(farr + varoffset);
 
     river->dt = dt;
-    ierr = RiverRHSFunctionLocal(river,riverx,riverf);CHKERRQ(ierr);
+    ierr      = RiverRHSFunctionLocal(river, riverx, riverf);
+    CHKERRQ(ierr);
 
     /* Add upper stream flux to junction function */
-    ierr = DMNetworkGetComponent(networkdm,vfrom,0,&type,(void**)&junction,NULL);CHKERRQ(ierr);
-    ierr = DMNetworkGetLocalVecOffset(networkdm,vfrom,ALL_COMPONENTS,&varoffset);CHKERRQ(ierr);
+    ierr = DMNetworkGetComponent(networkdm, vfrom, 0, &type, (void **)&junction, NULL);
+    CHKERRQ(ierr);
+    ierr = DMNetworkGetLocalVecOffset(networkdm, vfrom, ALL_COMPONENTS, &varoffset);
+    CHKERRQ(ierr);
     if (junction->type == JUNCTION) {
-      juncf    = (RiverField*)(farr+varoffset);
-      juncf[0].q -= river->flux[0]/dx;
-      juncf[0].h -= river->flux[1]/dx;
+      juncf = (RiverField *)(farr + varoffset);
+      juncf[0].q -= river->flux[0] / dx;
+      juncf[0].h -= river->flux[1] / dx;
     }
 
     /* Add down stream flux to junction function */
-    ierr = DMNetworkGetComponent(networkdm,vto,0,&type,(void**)&junction,NULL);CHKERRQ(ierr);
-    ierr = DMNetworkGetLocalVecOffset(networkdm,vto,ALL_COMPONENTS,&varoffset);CHKERRQ(ierr);
+    ierr = DMNetworkGetComponent(networkdm, vto, 0, &type, (void **)&junction, NULL);
+    CHKERRQ(ierr);
+    ierr = DMNetworkGetLocalVecOffset(networkdm, vto, ALL_COMPONENTS, &varoffset);
+    CHKERRQ(ierr);
     if (junction->type == JUNCTION) {
-      juncf    = (RiverField*)(farr+varoffset);
-      juncf[0].q += river->flux[2]/dx;
-      juncf[0].h += river->flux[3]/dx;
+      juncf = (RiverField *)(farr + varoffset);
+      juncf[0].q += river->flux[2] / dx;
+      juncf[0].h += river->flux[3] / dx;
     }
   }
-  ierr = VecRestoreArrayRead(localX,&xarr);CHKERRQ(ierr);
-  ierr = VecRestoreArray(localF,&farr);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(localX, &xarr);
+  CHKERRQ(ierr);
+  ierr = VecRestoreArray(localF, &farr);
+  CHKERRQ(ierr);
 
-  ierr = DMLocalToGlobalBegin(networkdm,localF,ADD_VALUES,F);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd(networkdm,localF,ADD_VALUES,F);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(networkdm, localF, ADD_VALUES, F);
+  CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(networkdm, localF, ADD_VALUES, F);
+  CHKERRQ(ierr);
 
- #if 0
+#if 0
   /* Update F at coupling vertices -- add fluxes of the coupling verties */
   if (wash->ncsubnet) {
     ierr = DMGlobalToLocalBegin(networkdm,F,INSERT_VALUES,localF);CHKERRQ(ierr);
@@ -476,48 +563,59 @@ PetscErrorCode WashRHSFunction(TS ts,PetscReal t,Vec X,Vec F,void* ctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode WashSetInitialSolution(DM networkdm,Wash wash)
+PetscErrorCode WashSetInitialSolution(DM networkdm, Wash wash)
 {
-  PetscErrorCode ierr;
-  PetscInt       vfrom,vto,offsetfrom,offsetto,type,varoffset,e,Start,End;
+  PetscErrorCode  ierr;
+  PetscInt        vfrom, vto, offsetfrom, offsetto, type, varoffset, e, Start, End;
   PetscScalar    *xarr;
-  River          river;
-  Junction       junction;
+  River           river;
+  Junction        junction;
   const PetscInt *cone;
-  RiverField     *riverx,*juncx;
-  PetscBool      ghost;
-  Vec            X = wash->X,localX = wash->localX;
+  RiverField     *riverx, *juncx;
+  PetscBool       ghost;
+  Vec             X = wash->X, localX = wash->localX;
 
   PetscFunctionBegin;
-  ierr = VecSet(localX,0.0);CHKERRQ(ierr);
-  ierr = VecGetArray(localX,&xarr);CHKERRQ(ierr);
+  ierr = VecSet(localX, 0.0);
+  CHKERRQ(ierr);
+  ierr = VecGetArray(localX, &xarr);
+  CHKERRQ(ierr);
 
   /* Edge */
-  ierr = DMNetworkGetEdgeRange(networkdm,&Start,&End);CHKERRQ(ierr);
-  for (e=Start; e<End; e++) {
-    ierr = DMNetworkGetComponent(networkdm,e,0,&type,(void**)&river,NULL);CHKERRQ(ierr);
+  ierr = DMNetworkGetEdgeRange(networkdm, &Start, &End);
+  CHKERRQ(ierr);
+  for (e = Start; e < End; e++) {
+    ierr = DMNetworkGetComponent(networkdm, e, 0, &type, (void **)&river, NULL);
+    CHKERRQ(ierr);
     if (type == wash->keyRiver) {
-      ierr = DMNetworkGetLocalVecOffset(networkdm,e,ALL_COMPONENTS,&varoffset);CHKERRQ(ierr);
+      ierr = DMNetworkGetLocalVecOffset(networkdm, e, ALL_COMPONENTS, &varoffset);
+      CHKERRQ(ierr);
 
       /* Set values for the river */
-      riverx = (RiverField*)(xarr + varoffset);
-      ierr = RiverSetInitialSolution(wash->caseid,wash->subcaseid,river,riverx,river->q0,river->h0);CHKERRQ(ierr);
+      riverx = (RiverField *)(xarr + varoffset);
+      ierr   = RiverSetInitialSolution(wash->caseid, wash->subcaseid, river, riverx, river->q0, river->h0);
+      CHKERRQ(ierr);
 
       /* Set values for connected junctions */
       /* Get from and to vertices */
-      ierr = DMNetworkGetConnectedVertices(networkdm,e,&cone);CHKERRQ(ierr);
+      ierr = DMNetworkGetConnectedVertices(networkdm, e, &cone);
+      CHKERRQ(ierr);
       vfrom = cone[0]; /* local ordering */
       vto   = cone[1];
 
-      ierr = DMNetworkGetLocalVecOffset(networkdm,vfrom,ALL_COMPONENTS,&offsetfrom);CHKERRQ(ierr);
-      ierr = DMNetworkGetLocalVecOffset(networkdm,vto,ALL_COMPONENTS,&offsetto);CHKERRQ(ierr);
+      ierr = DMNetworkGetLocalVecOffset(networkdm, vfrom, ALL_COMPONENTS, &offsetfrom);
+      CHKERRQ(ierr);
+      ierr = DMNetworkGetLocalVecOffset(networkdm, vto, ALL_COMPONENTS, &offsetto);
+      CHKERRQ(ierr);
 
       /* Upstream boundary */
-      ierr = DMNetworkIsGhostVertex(networkdm,vfrom,&ghost);CHKERRQ(ierr);
+      ierr = DMNetworkIsGhostVertex(networkdm, vfrom, &ghost);
+      CHKERRQ(ierr);
       if (!ghost) {
-        ierr = DMNetworkGetComponent(networkdm,vfrom,0,&type,(void**)&junction,NULL);CHKERRQ(ierr);
+        ierr = DMNetworkGetComponent(networkdm, vfrom, 0, &type, (void **)&junction, NULL);
+        CHKERRQ(ierr);
         /* Set junction values */
-        juncx = (RiverField*)(xarr + offsetfrom);
+        juncx      = (RiverField *)(xarr + offsetfrom);
         juncx[0].q = riverx[0].q;
         juncx[0].h = riverx[0].h;
 
@@ -532,13 +630,15 @@ PetscErrorCode WashSetInitialSolution(DM networkdm,Wash wash)
       }
 
       /* Downstream boundary */
-      ierr = DMNetworkIsGhostVertex(networkdm,vto,&ghost);CHKERRQ(ierr);
+      ierr = DMNetworkIsGhostVertex(networkdm, vto, &ghost);
+      CHKERRQ(ierr);
       if (!ghost) {
-        ierr = DMNetworkGetComponent(networkdm,vto,0,&type,(void**)&junction,NULL);CHKERRQ(ierr);
+        ierr = DMNetworkGetComponent(networkdm, vto, 0, &type, (void **)&junction, NULL);
+        CHKERRQ(ierr);
         /* Set junction values */
-        juncx = (RiverField*)(xarr + offsetto);
-        juncx[0].q = riverx[river->ncells-1].q;
-        juncx[0].h = riverx[river->ncells-1].h;
+        juncx      = (RiverField *)(xarr + offsetto);
+        juncx[0].q = riverx[river->ncells - 1].q;
+        juncx[0].h = riverx[river->ncells - 1].h;
 
         /* Set boundary values */
         if (junction->type != JUNCTION) {
@@ -550,45 +650,55 @@ PetscErrorCode WashSetInitialSolution(DM networkdm,Wash wash)
         }
       }
     } else if (type == wash->keyPump) {
-      ierr = DMNetworkGetConnectedVertices(networkdm,e,&cone);CHKERRQ(ierr);
+      ierr = DMNetworkGetConnectedVertices(networkdm, e, &cone);
+      CHKERRQ(ierr);
       vfrom = cone[0]; /* local ordering */
       vto   = cone[1];
-      ierr = DMNetworkGetLocalVecOffset(networkdm,vfrom,ALL_COMPONENTS,&offsetfrom);CHKERRQ(ierr);
-      ierr = DMNetworkGetLocalVecOffset(networkdm,vto,ALL_COMPONENTS,&offsetto);CHKERRQ(ierr);
+      ierr  = DMNetworkGetLocalVecOffset(networkdm, vfrom, ALL_COMPONENTS, &offsetfrom);
+      CHKERRQ(ierr);
+      ierr = DMNetworkGetLocalVecOffset(networkdm, vto, ALL_COMPONENTS, &offsetto);
+      CHKERRQ(ierr);
 
       /* Upstream boundary */
-      ierr = DMNetworkIsGhostVertex(networkdm,vfrom,&ghost);CHKERRQ(ierr);
+      ierr = DMNetworkIsGhostVertex(networkdm, vfrom, &ghost);
+      CHKERRQ(ierr);
       if (!ghost) {
-        ierr = DMNetworkGetComponent(networkdm,vfrom,0,&type,(void**)&junction,NULL);CHKERRQ(ierr);
-        juncx = (RiverField*)(xarr + offsetfrom);
+        ierr = DMNetworkGetComponent(networkdm, vfrom, 0, &type, (void **)&junction, NULL);
+        CHKERRQ(ierr);
+        juncx = (RiverField *)(xarr + offsetfrom);
 
         if (junction->btype == Q) {
           juncx[0].q = junction->bval.q;
         } else if (junction->btype == H) {
           juncx[0].h = junction->bval.h;
-        } else if (junction->type != JUNCTION) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"not done yet");
+        } else if (junction->type != JUNCTION) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "not done yet");
       }
 
       /* Downstream boundary */
-      ierr = DMNetworkIsGhostVertex(networkdm,vto,&ghost);CHKERRQ(ierr);
+      ierr = DMNetworkIsGhostVertex(networkdm, vto, &ghost);
+      CHKERRQ(ierr);
       if (!ghost) {
-        ierr = DMNetworkGetComponent(networkdm,vto,0,&type,(void**)&junction,NULL);CHKERRQ(ierr);
-        juncx = (RiverField*)(xarr + offsetto);
+        ierr = DMNetworkGetComponent(networkdm, vto, 0, &type, (void **)&junction, NULL);
+        CHKERRQ(ierr);
+        juncx = (RiverField *)(xarr + offsetto);
 
         if (junction->btype == Q) {
           juncx[0].q = junction->bval.q;
         } else if (junction->btype == H) {
           juncx[0].h = junction->bval.h;
-        } else if (junction->type != JUNCTION) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"not done yet");
+        } else if (junction->type != JUNCTION) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "not done yet");
       }
     } else {
       //printf("...Warning:WashSetInitialSolution: edge type (coupling?) is not supported yet, skip ...\n");
     }
   }
 
-  ierr = VecRestoreArray(localX,&xarr);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(networkdm,localX,INSERT_VALUES,X);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd(networkdm,localX,INSERT_VALUES,X);CHKERRQ(ierr);
+  ierr = VecRestoreArray(localX, &xarr);
+  CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(networkdm, localX, INSERT_VALUES, X);
+  CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(networkdm, localX, INSERT_VALUES, X);
+  CHKERRQ(ierr);
 
 #if 0
   /* Update coupling vertices */
@@ -668,12 +778,13 @@ PetscErrorCode WashSetInitialSolution(DM networkdm,Wash wash)
 
 PetscErrorCode TSDMNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
 {
-  PetscErrorCode     ierr;
-  DMNetworkMonitor   monitor;
+  PetscErrorCode   ierr;
+  DMNetworkMonitor monitor;
 
   PetscFunctionBegin;
   monitor = (DMNetworkMonitor)context;
-  ierr = DMNetworkMonitorView(monitor,x);CHKERRQ(ierr);
+  ierr    = DMNetworkMonitorView(monitor, x);
+  CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -682,45 +793,60 @@ PetscErrorCode WashDestroyVecs(Wash wash)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = VecDestroy(&wash->X);CHKERRQ(ierr);
-  ierr = VecDestroy(&wash->Xold);CHKERRQ(ierr);
-  ierr = VecDestroy(&wash->Xtmp);CHKERRQ(ierr);
-  ierr = VecDestroy(&wash->localX);CHKERRQ(ierr);
-  ierr = VecDestroy(&wash->localXtmp);CHKERRQ(ierr);
-  ierr = VecDestroy(&wash->localF);CHKERRQ(ierr);
-  ierr = VecScatterDestroy(&wash->vscat_junc);CHKERRQ(ierr);
+  ierr = VecDestroy(&wash->X);
+  CHKERRQ(ierr);
+  ierr = VecDestroy(&wash->Xold);
+  CHKERRQ(ierr);
+  ierr = VecDestroy(&wash->Xtmp);
+  CHKERRQ(ierr);
+  ierr = VecDestroy(&wash->localX);
+  CHKERRQ(ierr);
+  ierr = VecDestroy(&wash->localXtmp);
+  CHKERRQ(ierr);
+  ierr = VecDestroy(&wash->localF);
+  CHKERRQ(ierr);
+  ierr = VecScatterDestroy(&wash->vscat_junc);
+  CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 PetscErrorCode WashDestroy(Wash wash)
 {
-  PetscErrorCode ierr;
-  PetscInt       subnet,nv,ne,i,key,nsubnet=wash->nsubnet,vkey;
-  DM             networkdm=wash->dm;
-  const PetscInt *vtx,*edges;
-  River          river;
-  Junction       junction;
+  PetscErrorCode  ierr;
+  PetscInt        subnet, nv, ne, i, key, nsubnet = wash->nsubnet, vkey;
+  DM              networkdm = wash->dm;
+  const PetscInt *vtx, *edges;
+  River           river;
+  Junction        junction;
 
   PetscFunctionBegin;
-  for (subnet=0; subnet<nsubnet; subnet++) {
-    ierr = DMNetworkGetSubnetwork(networkdm,subnet,&nv,&ne,&vtx,&edges);CHKERRQ(ierr);
-    for (i=0; i<ne; i++) {
-      ierr = DMNetworkGetComponent(networkdm,edges[i],0,&key,(void**)&river,NULL);CHKERRQ(ierr);
+  for (subnet = 0; subnet < nsubnet; subnet++) {
+    ierr = DMNetworkGetSubnetwork(networkdm, subnet, &nv, &ne, &vtx, &edges);
+    CHKERRQ(ierr);
+    for (i = 0; i < ne; i++) {
+      ierr = DMNetworkGetComponent(networkdm, edges[i], 0, &key, (void **)&river, NULL);
+      CHKERRQ(ierr);
       if (key != wash->keyRiver) continue;
-      ierr = RiverCleanup(river);CHKERRQ(ierr);
+      ierr = RiverCleanup(river);
+      CHKERRQ(ierr);
     }
 
     if (wash->userJac) {
-      for (i=0; i<nv; i++) {
-        ierr = DMNetworkGetComponent(networkdm,vtx[i],0,&vkey,(void**)&junction,NULL);CHKERRQ(ierr);
-        ierr = JunctionDestroyJacobian(networkdm,vtx[i],junction);CHKERRQ(ierr);
+      for (i = 0; i < nv; i++) {
+        ierr = DMNetworkGetComponent(networkdm, vtx[i], 0, &vkey, (void **)&junction, NULL);
+        CHKERRQ(ierr);
+        ierr = JunctionDestroyJacobian(networkdm, vtx[i], junction);
+        CHKERRQ(ierr);
       }
     }
 
-    ierr = PetscFree(wash->subnet[subnet]);CHKERRQ(ierr);
+    ierr = PetscFree(wash->subnet[subnet]);
+    CHKERRQ(ierr);
   }
-  ierr = PetscFree(wash->subnet);CHKERRQ(ierr);
-  ierr = PetscFree(wash);CHKERRQ(ierr);
+  ierr = PetscFree(wash->subnet);
+  CHKERRQ(ierr);
+  ierr = PetscFree(wash);
+  CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -733,39 +859,48 @@ PetscErrorCode WashCreateVecs(Wash wash)
   DM             dmnetwork = wash->dm;
 
   PetscFunctionBegin;
-  ierr = DMCreateGlobalVector(dmnetwork,&wash->X);CHKERRQ(ierr);
-  ierr = DMCreateGlobalVector(dmnetwork,&wash->Xold);CHKERRQ(ierr);
-  ierr = DMCreateGlobalVector(dmnetwork,&wash->Xtmp);CHKERRQ(ierr);
-  ierr = DMCreateLocalVector(dmnetwork,&wash->localX);CHKERRQ(ierr);
-  ierr = DMCreateLocalVector(dmnetwork,&wash->localXtmp);CHKERRQ(ierr);
-  ierr = DMCreateLocalVector(dmnetwork,&wash->localF);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(dmnetwork, &wash->X);
+  CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(dmnetwork, &wash->Xold);
+  CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(dmnetwork, &wash->Xtmp);
+  CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dmnetwork, &wash->localX);
+  CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dmnetwork, &wash->localXtmp);
+  CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dmnetwork, &wash->localF);
+  CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode WashCleanUp(Wash wash,PetscInt **edgelist)
+PetscErrorCode WashCleanUp(Wash wash, PetscInt **edgelist)
 {
   PetscErrorCode ierr;
   PetscMPIInt    rank;
-  PetscInt       i,nsubnet=wash->nsubnet;
+  PetscInt       i, nsubnet = wash->nsubnet;
   WashSubnet     Subnet;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_rank(wash->comm,&rank);CHKERRQ(ierr);
-  for (i=0; i<nsubnet; i++) {
+  ierr = MPI_Comm_rank(wash->comm, &rank);
+  CHKERRQ(ierr);
+  for (i = 0; i < nsubnet; i++) {
     Subnet = (WashSubnet)wash->subnet[i];
-    ierr = PetscFree(edgelist[i]);CHKERRQ(ierr);
-    ierr = PetscFree3(Subnet->junction,Subnet->river,Subnet->pump);CHKERRQ(ierr);
+    ierr   = PetscFree(edgelist[i]);
+    CHKERRQ(ierr);
+    ierr = PetscFree3(Subnet->junction, Subnet->river, Subnet->pump);
+    CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode JunctionsSetUp(PetscInt njunctions,Junction *junctions)
+PetscErrorCode JunctionsSetUp(PetscInt njunctions, Junction *junctions)
 {
-  PetscInt       i;
+  PetscInt i;
 
   PetscFunctionBegin;
   printf("JunctionsSetUp ... edgelist:\n");
-  for (i=0; i<njunctions; i++){
+  for (i = 0; i < njunctions; i++) {
     junctions[i]->nin  = 0;
     junctions[i]->nout = 0;
   }
@@ -776,17 +911,17 @@ PetscErrorCode JunctionsSetUp(PetscInt njunctions,Junction *junctions)
      otherwise, might miss ghost coupling vertices */
 PetscErrorCode WashSetUpCoupleVertices(Wash wash)
 {
-  #if 0
+#if 0
   PetscErrorCode ierr;
   DM             netdm = wash->dm;
   PetscMPIInt    rank;
   MPI_Comm       comm;
   PetscInt       ne;
   const PetscInt *edges;
-  #endif
+#endif
 
   PetscFunctionBegin;
-  #if 0
+#if 0
   ierr = PetscObjectGetComm((PetscObject)netdm,&comm);CHKERRQ(ierr);
   ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
   ierr = DMNetworkGetSubnetworkCoupleInfo(netdm,0,&ne,&edges);CHKERRQ(ierr);
@@ -815,7 +950,7 @@ PetscErrorCode WashSetUpCoupleVertices(Wash wash)
       cjunction[0]->nout = cjunction[1]->nout = nout;
     }
   }
-  #endif
+#endif
   PetscFunctionReturn(0);
 }
 
@@ -828,24 +963,25 @@ PetscErrorCode WashSetUpCoupleVertices(Wash wash)
   Output:
     wash -
  */
-PetscErrorCode WashAddSubnet(PetscInt subnetid,PetscInt washCase,const char filename[],PetscMPIInt rrank,Wash wash)
+PetscErrorCode WashAddSubnet(PetscInt subnetid, PetscInt washCase, const char filename[], PetscMPIInt rrank, Wash wash)
 {
   PetscErrorCode ierr;
   PetscInt       nedges;
   PetscMPIInt    rank;
-  PetscInt       i,numVertices,numEdges,numVariables,k,v;
-  PetscInt       *edgelist;
-  Junction       junctions=NULL;
-  River          rivers=NULL;
-  Pump           pumps=NULL;
-  PetscBool      test_mscale=wash->test_mscale,flg;
-  RiverField     xmin,xmax;
-  MPI_Comm       comm=wash->comm;
-  WATERDATA      *waterdata=NULL;
-  WashSubnet     subnet = (WashSubnet)wash->subnet[subnetid];
+  PetscInt       i, numVertices, numEdges, numVariables, k, v;
+  PetscInt      *edgelist;
+  Junction       junctions   = NULL;
+  River          rivers      = NULL;
+  Pump           pumps       = NULL;
+  PetscBool      test_mscale = wash->test_mscale, flg;
+  RiverField     xmin, xmax;
+  MPI_Comm       comm      = wash->comm;
+  WATERDATA     *waterdata = NULL;
+  WashSubnet     subnet    = (WashSubnet)wash->subnet[subnetid];
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm, &rank);
+  CHKERRQ(ierr);
   if (rank != rrank) {
     subnet->nedge    = 0;
     subnet->nvertex  = 0;
@@ -860,85 +996,92 @@ PetscErrorCode WashAddSubnet(PetscInt subnetid,PetscInt washCase,const char file
   numEdges    = 0;
   edgelist    = NULL;
 
-  xmax.q = 10.0;    xmax.h = 0.0;
-  xmin.q = -xmax.q; xmin.h = 0.0;
+  xmax.q = 10.0;
+  xmax.h = 0.0;
+  xmin.q = -xmax.q;
+  xmin.h = 0.0;
 
   /* Set global number of edges and vertices */
   /*---------------------------------------- */
   switch (washCase) {
   case -1:
-    ierr = PetscNew(&waterdata);CHKERRQ(ierr);
+    ierr = PetscNew(&waterdata);
+    CHKERRQ(ierr);
 
-    ierr = WaterReadData(waterdata,filename);CHKERRQ(ierr);
-    ierr = PetscCalloc1(2*waterdata->nedge,&edgelist);CHKERRQ(ierr);
-    ierr = GetListofEdges_Water(waterdata,edgelist);CHKERRQ(ierr);
+    ierr = WaterReadData(waterdata, filename);
+    CHKERRQ(ierr);
+    ierr = PetscCalloc1(2 * waterdata->nedge, &edgelist);
+    CHKERRQ(ierr);
+    ierr = GetListofEdges_Water(waterdata, edgelist);
+    CHKERRQ(ierr);
 
     numEdges    = waterdata->nedge;   /* npipe + npump */
     numVertices = waterdata->nvertex; /* njunction + nreservoir + ntank */
 
     /* Add network components */
     /*------------------------*/
-    ierr = PetscCalloc3(numVertices,&junctions,waterdata->npipe,&rivers,waterdata->npump,&pumps);CHKERRQ(ierr);
+    ierr = PetscCalloc3(numVertices, &junctions, waterdata->npipe, &rivers, waterdata->npump, &pumps);
+    CHKERRQ(ierr);
 
     /* vertex */
-    for (i=0; i<numVertices; i++) {
-      junctions[i].id  = i;
+    for (i = 0; i < numVertices; i++) {
+      junctions[i].id = i;
 
       /* set physics id */
-      junctions[i].id_phy = waterdata->vertex[i].id ;
+      junctions[i].id_phy = waterdata->vertex[i].id;
 
       /* Set junction type */
-      junctions[i].type =  waterdata->vertex[i].type;
+      junctions[i].type = waterdata->vertex[i].type;
 
       /* set elevation */
-      if (junctions[i].type == JUNCTION){
+      if (junctions[i].type == JUNCTION) {
         junctions[i].elev = waterdata->vertex[i].elev;
       } else { /* Boundary */
         if (junctions[i].type == RESERVOIR) {
           junctions[i].elev = waterdata->vertex[i].elev;
         } else if (junctions[i].type == TANK) {
-          junctions[i].elev =  waterdata->vertex[i].elev;
-        } else if (junctions[i].type == INFLOW){
-          junctions[i].elev =  waterdata->vertex[i].elev;
-        } else if (junctions[i].type == STAGE){
-          junctions[i].elev =  waterdata->vertex[i].elev;
-        } else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Boundary not done yet");
+          junctions[i].elev = waterdata->vertex[i].elev;
+        } else if (junctions[i].type == INFLOW) {
+          junctions[i].elev = waterdata->vertex[i].elev;
+        } else if (junctions[i].type == STAGE) {
+          junctions[i].elev = waterdata->vertex[i].elev;
+        } else SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Boundary not done yet");
       }
 
       /* Set Boundary type */
       if (junctions[i].type == RESERVOIR) {
         junctions[i].reservoir.head = waterdata->vertex[i].res.head;
-          junctions[i].btype          = H;
-          junctions[i].bval.h         = junctions[i].reservoir.head;
+        junctions[i].btype          = H;
+        junctions[i].bval.h         = junctions[i].reservoir.head;
 
       } else if (junctions[i].type == TANK) {
         junctions[i].tank.head = waterdata->vertex[i].tank.head;
         junctions[i].btype     = H;
         junctions[i].bval.h    = junctions[i].tank.head;
 
-      } else if (junctions[i].type == INFLOW){
+      } else if (junctions[i].type == INFLOW) {
         junctions[i].inflow.flow = waterdata->vertex[i].inflow.flow;
-        junctions[i].btype      = Q;
-        junctions[i].bval.q     = junctions[i].inflow.flow;
+        junctions[i].btype       = Q;
+        junctions[i].bval.q      = junctions[i].inflow.flow;
 
-      } else if (junctions[i].type == STAGE){
+      } else if (junctions[i].type == STAGE) {
         junctions[i].stage.head = waterdata->vertex[i].stage.head;
         junctions[i].btype      = H;
         junctions[i].bval.h     = junctions[i].stage.head;
 
-      } else if (junctions[i].type != JUNCTION) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Boundary not done yet");
+      } else if (junctions[i].type != JUNCTION) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Boundary not done yet");
 
       /* compute xmin xmax for graphic display */
       if (junctions[i].btype == Q) {
-        if (junctions[i].bval.q > xmax.q){
+        if (junctions[i].bval.q > xmax.q) {
           xmax.q = junctions[i].bval.q;
-        } else if (junctions[i].bval.q < xmin.q){
+        } else if (junctions[i].bval.q < xmin.q) {
           xmin.q = junctions[i].bval.q;
         }
-      } else if(junctions[i].btype == H) {
-        if (junctions[i].bval.h > xmax.h){
+      } else if (junctions[i].btype == H) {
+        if (junctions[i].bval.h > xmax.h) {
           xmax.h = junctions[i].bval.h;
-        } else if (junctions[i].bval.h < xmin.h){
+        } else if (junctions[i].bval.h < xmin.h) {
           xmin.h = junctions[i].bval.h;
         }
       }
@@ -947,61 +1090,65 @@ PetscErrorCode WashAddSubnet(PetscInt subnetid,PetscInt washCase,const char file
 
     /* edge: river */
     numVariables = 0; /* number of variables */
-    for (i=0; i<waterdata->npipe; i++) {
-      rivers[i].id     = i;
-      rivers[i].id_phy = waterdata->edge[i].pipe.id;
-      rivers[i].fr_phy = waterdata->edge[i].pipe.node1;
-      rivers[i].to_phy = waterdata->edge[i].pipe.node2;
-      rivers[i].length = waterdata->edge[i].pipe.length;
-      rivers[i].width = waterdata->edge[i].pipe.width;
+    for (i = 0; i < waterdata->npipe; i++) {
+      rivers[i].id        = i;
+      rivers[i].id_phy    = waterdata->edge[i].pipe.id;
+      rivers[i].fr_phy    = waterdata->edge[i].pipe.node1;
+      rivers[i].to_phy    = waterdata->edge[i].pipe.node2;
+      rivers[i].length    = waterdata->edge[i].pipe.length;
+      rivers[i].width     = waterdata->edge[i].pipe.width;
       rivers[i].roughness = waterdata->edge[i].pipe.roughness;
-      rivers[i].slope = waterdata->edge[i].pipe.slope;
-      rivers[i].q0 = waterdata->edge[i].pipe.qInitial;
-      rivers[i].h0 = waterdata->edge[i].pipe.hInitial;
-      ierr = RiverSetNumCells(&rivers[i],0.1);CHKERRQ(ierr);
+      rivers[i].slope     = waterdata->edge[i].pipe.slope;
+      rivers[i].q0        = waterdata->edge[i].pipe.qInitial;
+      rivers[i].h0        = waterdata->edge[i].pipe.hInitial;
+      ierr                = RiverSetNumCells(&rivers[i], 0.1);
+      CHKERRQ(ierr);
       //printf("river %d, fr_node %d,to_node %d,length %g, width %g, roughness %g, slope %g, ncells %d\n",rivers[i].id_phy,rivers[i].fr_phy,rivers[i].to_phy,rivers[i].length,rivers[i].width,rivers[i].roughness,rivers[i].slope,rivers[i].ncells);
       numVariables += (rivers[i].ncells * 2);
     }
 
     /* edge: pump */
-    for (k=0; k<waterdata->npump; k++) {
-      pumps[i-waterdata->npipe].id     = i;
-      v = edgelist[2*i];
+    for (k = 0; k < waterdata->npump; k++) {
+      pumps[i - waterdata->npipe].id = i;
+      v                              = edgelist[2 * i];
 
-      PetscInt vto = edgelist[2*i + 1];
-      pumps[i-waterdata->npipe].to_tag = vto;
-      junctions[vto].type = junctions[v].type; /* downstream vertex takes same type as upstream vertex type */
+      PetscInt vto                       = edgelist[2 * i + 1];
+      pumps[i - waterdata->npipe].to_tag = vto;
+      junctions[vto].type                = junctions[v].type; /* downstream vertex takes same type as upstream vertex type */
 
       junctions[vto].btype  = junctions[v].btype;
       junctions[vto].bval.q = junctions[v].bval.q;
       junctions[vto].bval.h = junctions[v].bval.h;
 
-      pumps[i-waterdata->npipe].id_phy = waterdata->edge[i].pump.id;
-      pumps[i-waterdata->npipe].fr_phy = waterdata->edge[i].pump.node1;
-      pumps[i-waterdata->npipe].to_phy = waterdata->edge[i].pump.node2;
+      pumps[i - waterdata->npipe].id_phy = waterdata->edge[i].pump.id;
+      pumps[i - waterdata->npipe].fr_phy = waterdata->edge[i].pump.node1;
+      pumps[i - waterdata->npipe].to_phy = waterdata->edge[i].pump.node2;
       //printf(" pump %d, fr_node %d,to_node %d\n",pumps[i-waterdata->npipe].id_phy,pumps[i-waterdata->npipe].fr_phy,pumps[i-waterdata->npipe].to_phy);
       i++;
     }
 
     /* Count junction.nin and nout */
     /*-----------------------------*/
-    for (i=0; i<numVertices; i++){
+    for (i = 0; i < numVertices; i++) {
       //printf("%d -> %d\n",edgelist[2*i],edgelist[2*i+1]);
       junctions[i].nin  = 0;
       junctions[i].nout = 0;
     }
-    for (i=0; i<waterdata->nedge; i++) {
-      v = edgelist[2*i];
+    for (i = 0; i < waterdata->nedge; i++) {
+      v = edgelist[2 * i];
       junctions[v].nout++;
-      v = edgelist[2*i+1];
+      v = edgelist[2 * i + 1];
       junctions[v].nin++;
     }
 
-    ierr = PetscFree(waterdata->vertex);CHKERRQ(ierr);
-    ierr = PetscFree(waterdata->edge);CHKERRQ(ierr);
+    ierr = PetscFree(waterdata->vertex);
+    CHKERRQ(ierr);
+    ierr = PetscFree(waterdata->edge);
+    CHKERRQ(ierr);
 
-    numVariables += 2*numVertices;
-    ierr = PetscPrintf(PETSC_COMM_SELF,"...Loading case file is done, ...numEdges %d, numVertices %d river numVariables %d\n",numEdges,numVertices,numVariables);CHKERRQ(ierr);
+    numVariables += 2 * numVertices;
+    ierr = PetscPrintf(PETSC_COMM_SELF, "...Loading case file is done, ...numEdges %d, numVertices %d river numVariables %d\n", numEdges, numVertices, numVariables);
+    CHKERRQ(ierr);
     break;
   case 0:
     /* washCase 0: */
@@ -1017,10 +1164,9 @@ PetscErrorCode WashAddSubnet(PetscInt subnetid,PetscInt washCase,const char file
     edgelist    = NULL;
 
     nedges = 3;
-    if (test_mscale) {
-      nedges = 2;
-    }
-    ierr = PetscOptionsGetInt(NULL,NULL, "-nedges", &nedges, NULL);CHKERRQ(ierr);
+    if (test_mscale) { nedges = 2; }
+    ierr = PetscOptionsGetInt(NULL, NULL, "-nedges", &nedges, NULL);
+    CHKERRQ(ierr);
     wash->nedge   = nedges;
     wash->nvertex = nedges + 1;
 
@@ -1028,16 +1174,19 @@ PetscErrorCode WashAddSubnet(PetscInt subnetid,PetscInt washCase,const char file
     numVertices = wash->nvertex;
     numEdges    = wash->nedge;
 
-    ierr = PetscCalloc1(2*numEdges,&edgelist);CHKERRQ(ierr);
-    for (i=0; i<numEdges; i++) {
-      edgelist[2*i] = i; edgelist[2*i+1] = i+1;
+    ierr = PetscCalloc1(2 * numEdges, &edgelist);
+    CHKERRQ(ierr);
+    for (i = 0; i < numEdges; i++) {
+      edgelist[2 * i]     = i;
+      edgelist[2 * i + 1] = i + 1;
     }
 
     /* Add network components */
     /*------------------------*/
-    ierr = PetscCalloc2(numVertices,&junctions,numEdges,&rivers);CHKERRQ(ierr);
+    ierr = PetscCalloc2(numVertices, &junctions, numEdges, &rivers);
+    CHKERRQ(ierr);
     /* vertex */
-    for (i=0; i<numVertices; i++) {
+    for (i = 0; i < numVertices; i++) {
       junctions[i].id = i;
 
       /* Set boundary type */
@@ -1047,38 +1196,40 @@ PetscErrorCode WashAddSubnet(PetscInt subnetid,PetscInt washCase,const char file
       junctions[i].nin  = 1;
       junctions[i].nout = 1;
     }
-    junctions[0].type           = INFLOW;
-    junctions[0].inflow.flow     = 1.0;  /* Qus */
-    junctions[0].btype          = Q;
-    junctions[0].bval.q         = junctions[0].inflow.flow;
-    xmax.q = junctions[0].inflow.flow;
+    junctions[0].type        = INFLOW;
+    junctions[0].inflow.flow = 1.0; /* Qus */
+    junctions[0].btype       = Q;
+    junctions[0].bval.q      = junctions[0].inflow.flow;
+    xmax.q                   = junctions[0].inflow.flow;
 
-    junctions[0].nin              = 0;
-    junctions[numVertices-1].nout = 0;
+    junctions[0].nin                = 0;
+    junctions[numVertices - 1].nout = 0;
 
-    junctions[numVertices-1].type           = RESERVOIR;
-    junctions[numVertices-1].reservoir.head = 1.0; /* Hds */
-    junctions[numVertices-1].btype          = H;
-    junctions[numVertices-1].bval.h         = junctions[numVertices-1].reservoir.head;
-    xmax.h = junctions[numVertices-1].reservoir.head;
+    junctions[numVertices - 1].type           = RESERVOIR;
+    junctions[numVertices - 1].reservoir.head = 1.0; /* Hds */
+    junctions[numVertices - 1].btype          = H;
+    junctions[numVertices - 1].bval.h         = junctions[numVertices - 1].reservoir.head;
+    xmax.h                                    = junctions[numVertices - 1].reservoir.head;
 
     /* edge */
-    for (i=0; i<numEdges; i++) {
+    for (i = 0; i < numEdges; i++) {
       rivers[i].id = i;
 
       if (i == 0) {
         rivers[i].length = 5.0;
-        dt = 0.1;
-        ierr = RiverSetNumCells(&rivers[i],dt);CHKERRQ(ierr);
+        dt               = 0.1;
+        ierr             = RiverSetNumCells(&rivers[i], dt);
+        CHKERRQ(ierr);
       } else {
         if (test_mscale) {
           rivers[i].length = 0.5;
-          dt = 0.01;
+          dt               = 0.01;
         } else {
           rivers[i].length = 5.0;
-          dt = 0.1;
+          dt               = 0.1;
         }
-        ierr = RiverSetNumCells(&rivers[i],dt);CHKERRQ(ierr);
+        ierr = RiverSetNumCells(&rivers[i], dt);
+        CHKERRQ(ierr);
       }
       //printf("river %d, ncells %d, approx dt %g\n",i,rivers[i].ncells,dt);
     }
@@ -1096,7 +1247,7 @@ PetscErrorCode WashAddSubnet(PetscInt subnetid,PetscInt washCase,const char file
     v0 --E0--> v3--E1--> v1
     (INFLOW)           (RESERVOIR)
     =============================  */
-    nedges = 3;
+    nedges        = 3;
     wash->nedge   = nedges;
     wash->nvertex = nedges + 1;
 
@@ -1104,31 +1255,36 @@ PetscErrorCode WashAddSubnet(PetscInt subnetid,PetscInt washCase,const char file
     numVertices = wash->nvertex;
     numEdges    = wash->nedge;
 
-    ierr = PetscCalloc1(2*numEdges,&edgelist);CHKERRQ(ierr);
-    edgelist[0] = 0; edgelist[1] = 3;  /* edge[0] */
-    edgelist[2] = 3; edgelist[3] = 1;  /* edge[1] */
-    edgelist[4] = 3; edgelist[5] = 2;  /* edge[2] */
+    ierr = PetscCalloc1(2 * numEdges, &edgelist);
+    CHKERRQ(ierr);
+    edgelist[0] = 0;
+    edgelist[1] = 3; /* edge[0] */
+    edgelist[2] = 3;
+    edgelist[3] = 1; /* edge[1] */
+    edgelist[4] = 3;
+    edgelist[5] = 2; /* edge[2] */
 
     /* Add network components */
     /*------------------------*/
-    ierr = PetscCalloc2(numVertices,&junctions,numEdges,&rivers);CHKERRQ(ierr);
+    ierr = PetscCalloc2(numVertices, &junctions, numEdges, &rivers);
+    CHKERRQ(ierr);
     /* vertex */
-    for (i=0; i<numVertices; i++) {
-      junctions[i].id  = i;
+    for (i = 0; i < numVertices; i++) {
+      junctions[i].id = i;
 
       /* Set GPS data */
       junctions[i].latitude  = 0.0;
       junctions[i].longitude = 0.0;
     }
 
-    junctions[0].type       = INFLOW;
+    junctions[0].type        = INFLOW;
     junctions[0].inflow.flow = 1.0; /* Qus */
-    junctions[0].btype      = Q;
-    junctions[0].bval.q     = junctions[0].inflow.flow;
+    junctions[0].btype       = Q;
+    junctions[0].bval.q      = junctions[0].inflow.flow;
 
     junctions[0].nin  = 0;
     junctions[0].nout = 1;
-    xmax.q = junctions[0].bval.q;
+    xmax.q            = junctions[0].bval.q;
 
     junctions[1].type           = RESERVOIR;
     junctions[1].reservoir.head = 1.0; /* Hds */
@@ -1137,7 +1293,7 @@ PetscErrorCode WashAddSubnet(PetscInt subnetid,PetscInt washCase,const char file
 
     junctions[1].nin  = 1;
     junctions[1].nout = 0;
-    xmax.h = junctions[1].bval.h;
+    xmax.h            = junctions[1].bval.h;
 
     junctions[2].type           = RESERVOIR;
     junctions[2].reservoir.head = 1.0; /* Hds */
@@ -1152,7 +1308,7 @@ PetscErrorCode WashAddSubnet(PetscInt subnetid,PetscInt washCase,const char file
     junctions[3].nout = 2;
 
     /* edge */
-    for (i=0; i<numEdges; i++) {
+    for (i = 0; i < numEdges; i++) {
       rivers[i].id = i;
 
       if (i == 0) {
@@ -1160,8 +1316,9 @@ PetscErrorCode WashAddSubnet(PetscInt subnetid,PetscInt washCase,const char file
       } else {
         rivers[i].length = 2.5;
       }
-      ierr = RiverSetNumCells(&rivers[i],0.1);CHKERRQ(ierr);
-      printf("river %d, ncells %d\n",i,rivers[i].ncells);
+      ierr = RiverSetNumCells(&rivers[i], 0.1);
+      CHKERRQ(ierr);
+      printf("river %d, ncells %d\n", i, rivers[i].ncells);
     }
 
     xmax.h = 3.0;
@@ -1176,7 +1333,7 @@ PetscErrorCode WashAddSubnet(PetscInt subnetid,PetscInt washCase,const char file
     =============================  */
 
     /* Set application parameters -- to be used in function evalutions */
-    nedges = 3;
+    nedges        = 3;
     wash->nedge   = nedges;
     wash->nvertex = nedges + 1;
 
@@ -1184,16 +1341,21 @@ PetscErrorCode WashAddSubnet(PetscInt subnetid,PetscInt washCase,const char file
     numVertices = wash->nvertex;
     numEdges    = wash->nedge;
 
-    ierr = PetscCalloc1(2*numEdges,&edgelist);CHKERRQ(ierr);
-    edgelist[0] = 0; edgelist[1] = 3;  /* edge[0] */
-    edgelist[2] = 3; edgelist[3] = 1;  /* edge[1] */
-    edgelist[4] = 2; edgelist[5] = 3;  /* edge[2] */
+    ierr = PetscCalloc1(2 * numEdges, &edgelist);
+    CHKERRQ(ierr);
+    edgelist[0] = 0;
+    edgelist[1] = 3; /* edge[0] */
+    edgelist[2] = 3;
+    edgelist[3] = 1; /* edge[1] */
+    edgelist[4] = 2;
+    edgelist[5] = 3; /* edge[2] */
 
     /* Add network components */
     /*------------------------*/
-    ierr = PetscCalloc2(numVertices,&junctions,numEdges,&rivers);CHKERRQ(ierr);
+    ierr = PetscCalloc2(numVertices, &junctions, numEdges, &rivers);
+    CHKERRQ(ierr);
     /* vertex */
-    for (i=0; i<numVertices; i++) {
+    for (i = 0; i < numVertices; i++) {
       junctions[i].id = i;
 
       /* Set GPS data */
@@ -1201,38 +1363,38 @@ PetscErrorCode WashAddSubnet(PetscInt subnetid,PetscInt washCase,const char file
       junctions[i].longitude = 0.0;
     }
 
-    junctions[0].type       = INFLOW;
-    junctions[0].inflow.flow = 1.0;  /* Qus */
-    junctions[0].btype      = Q;
-    junctions[0].bval.q     = junctions[0].inflow.flow;
+    junctions[0].type        = INFLOW;
+    junctions[0].inflow.flow = 1.0; /* Qus */
+    junctions[0].btype       = Q;
+    junctions[0].bval.q      = junctions[0].inflow.flow;
 
-    junctions[0].nin        = 0;
-    junctions[0].nout       = 1;
+    junctions[0].nin  = 0;
+    junctions[0].nout = 1;
 
     junctions[1].type           = RESERVOIR;
     junctions[1].reservoir.head = 1.0; /* Hds */
     junctions[1].btype          = H;
     junctions[1].bval.h         = junctions[1].reservoir.head;
 
-    junctions[1].nin            = 1;
-    junctions[1].nout           = 0;
-    xmax.h = junctions[1].reservoir.head;
+    junctions[1].nin  = 1;
+    junctions[1].nout = 0;
+    xmax.h            = junctions[1].reservoir.head;
 
-    junctions[2].type       = INFLOW;
-    junctions[2].inflow.flow = 1.0;  /* Qus */
-    junctions[2].btype      = Q;
-    junctions[2].bval.q     = junctions[2].inflow.flow;
+    junctions[2].type        = INFLOW;
+    junctions[2].inflow.flow = 1.0; /* Qus */
+    junctions[2].btype       = Q;
+    junctions[2].bval.q      = junctions[2].inflow.flow;
 
-    junctions[2].nin        = 0;
-    junctions[2].nout       = 1;
-    xmax.q = junctions[2].inflow.flow;
+    junctions[2].nin  = 0;
+    junctions[2].nout = 1;
+    xmax.q            = junctions[2].inflow.flow;
 
     junctions[3].type = JUNCTION;
     junctions[3].nin  = 2;
     junctions[3].nout = 1;
 
     /* edge */
-    for (i=0; i<numEdges; i++) {
+    for (i = 0; i < numEdges; i++) {
       rivers[i].id = i;
 
       if (i == 0) {
@@ -1240,8 +1402,9 @@ PetscErrorCode WashAddSubnet(PetscInt subnetid,PetscInt washCase,const char file
       } else {
         rivers[i].length = 2.5;
       }
-      ierr = RiverSetNumCells(&rivers[i],0.1);CHKERRQ(ierr);
-      printf("river %d, ncells %d\n",i,rivers[i].ncells);
+      ierr = RiverSetNumCells(&rivers[i], 0.1);
+      CHKERRQ(ierr);
+      printf("river %d, ncells %d\n", i, rivers[i].ncells);
     }
     xmax.h = 3.0;
     break;
@@ -1254,15 +1417,18 @@ PetscErrorCode WashAddSubnet(PetscInt subnetid,PetscInt washCase,const char file
     numVertices = 2;
 
     PetscInt subcase;
-    ierr = PetscCalloc1(2,&edgelist);CHKERRQ(ierr);
-    edgelist[0] = 0; edgelist[1] = 1;
+    ierr = PetscCalloc1(2, &edgelist);
+    CHKERRQ(ierr);
+    edgelist[0] = 0;
+    edgelist[1] = 1;
 
     /* Add network components */
     /*------------------------*/
-    ierr = PetscCalloc2(numVertices,&junctions,numEdges,&rivers);CHKERRQ(ierr);
+    ierr = PetscCalloc2(numVertices, &junctions, numEdges, &rivers);
+    CHKERRQ(ierr);
     /* vertex */
-    for (i=0; i<numVertices; i++) {
-      junctions[i].id           = i;
+    for (i = 0; i < numVertices; i++) {
+      junctions[i].id = i;
 
       /* set elevation data */
       junctions[i].elev = 0.0;
@@ -1278,55 +1444,57 @@ PetscErrorCode WashAddSubnet(PetscInt subnetid,PetscInt washCase,const char file
 
     /* boundary test cases */
     subcase = 3;
-    ierr = PetscOptionsGetInt(NULL,NULL, "-subcase", &subcase,NULL);CHKERRQ(ierr);
+    ierr    = PetscOptionsGetInt(NULL, NULL, "-subcase", &subcase, NULL);
+    CHKERRQ(ierr);
     wash->subcaseid = subcase;
-    printf("  subCase %d\n",subcase);
+    printf("  subCase %d\n", subcase);
     switch (subcase) {
     case 1:
-      junctions[0].reservoir.head        = 1.0;
-      junctions[numVertices-1].tank.head = 0.1;
-      xmax.q = 0.5;
+      junctions[0].reservoir.head          = 1.0;
+      junctions[numVertices - 1].tank.head = 0.1;
+      xmax.q                               = 0.5;
       break;
     case 2:
-      junctions[0].reservoir.head        = 1.0;
-      junctions[numVertices-1].tank.head = 1.0;
-      xmax.q = 1.0;
+      junctions[0].reservoir.head          = 1.0;
+      junctions[numVertices - 1].tank.head = 1.0;
+      xmax.q                               = 1.0;
       break;
     case 3:
-      junctions[0].reservoir.head        = 1.0;
-      junctions[numVertices-1].tank.head = 0.0;
-      xmax.q = 0.15;
+      junctions[0].reservoir.head          = 1.0;
+      junctions[numVertices - 1].tank.head = 0.0;
+      xmax.q                               = 0.15;
       break;
     case 4:
-      junctions[0].reservoir.head        = 0.0;
-      junctions[numVertices-1].tank.head = 1.0;
-      xmax.q = 0.15;
+      junctions[0].reservoir.head          = 0.0;
+      junctions[numVertices - 1].tank.head = 1.0;
+      xmax.q                               = 0.15;
       break;
     case 5:
-      junctions[0].reservoir.head        = 0.1;
-      junctions[numVertices-1].tank.head = 0.1;
-      xmax.q = 0.1;
+      junctions[0].reservoir.head          = 0.1;
+      junctions[numVertices - 1].tank.head = 0.1;
+      xmax.q                               = 0.1;
       break;
     default:
-      SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"not done yet");
+      SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "not done yet");
     }
-    junctions[0].btype              = H;
-    junctions[0].bval.h             = junctions[0].reservoir.head;
-    junctions[numVertices-1].btype  = H;
-    junctions[numVertices-1].bval.h = junctions[numVertices-1].tank.head;
+    junctions[0].btype                = H;
+    junctions[0].bval.h               = junctions[0].reservoir.head;
+    junctions[numVertices - 1].btype  = H;
+    junctions[numVertices - 1].bval.h = junctions[numVertices - 1].tank.head;
 
     xmax.h = junctions[0].bval.h;
-    if (junctions[numVertices-1].bval.h > xmax.h) xmax.h = junctions[numVertices-1].bval.h;
+    if (junctions[numVertices - 1].bval.h > xmax.h) xmax.h = junctions[numVertices - 1].bval.h;
 
     /* edge */
     rivers[0].id     = 0;
     rivers[0].length = 50.0;
     rivers[0].ncells = 100;
-    ierr = PetscOptionsGetInt(NULL,NULL,"-ncells",&rivers[0].ncells,&flg);CHKERRQ(ierr);
+    ierr             = PetscOptionsGetInt(NULL, NULL, "-ncells", &rivers[0].ncells, &flg);
+    CHKERRQ(ierr);
 
     break;
   default:
-    SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"not done yet");
+    SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "not done yet");
   }
 
   subnet->nedge    = numEdges;
@@ -1336,42 +1504,48 @@ PetscErrorCode WashAddSubnet(PetscInt subnetid,PetscInt washCase,const char file
   subnet->river    = rivers;
   subnet->pump     = pumps;
   if (waterdata) {
-    subnet->nriver   = waterdata->npipe;
-    subnet->npump    = waterdata->npump;
-    ierr = PetscFree(waterdata);CHKERRQ(ierr);
+    subnet->nriver = waterdata->npipe;
+    subnet->npump  = waterdata->npump;
+    ierr           = PetscFree(waterdata);
+    CHKERRQ(ierr);
   } else {
-    subnet->nriver   = numEdges;
-    subnet->npump    = 0;
+    subnet->nriver = numEdges;
+    subnet->npump  = 0;
   }
 
   /* Set axis values for graphic dispaly */
-  wash->QMax = 10.*xmax.q;
+  wash->QMax = 10. * xmax.q;
   wash->QMin = -wash->QMax;
-  wash->HMax = 1.5*xmax.h;
+  wash->HMax = 1.5 * xmax.h;
   wash->HMin = xmin.h - 0.1;
   //printf("Hmin/max %g %g\n",wash->HMin,wash->HMax);
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode WashCreate(MPI_Comm comm,PetscInt nsubnet,PetscInt ncsubnet,Wash *wash_ptr)
+PetscErrorCode WashCreate(MPI_Comm comm, PetscInt nsubnet, PetscInt ncsubnet, Wash *wash_ptr)
 {
   PetscErrorCode ierr;
   PetscMPIInt    rank;
   Wash           wash;
-  PetscBool      test_mscale=PETSC_FALSE;
+  PetscBool      test_mscale = PETSC_FALSE;
   PetscInt       i;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
-  ierr = PetscOptionsGetBool(NULL,NULL,"-test_mscale",&test_mscale,NULL);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm, &rank);
+  CHKERRQ(ierr);
+  ierr = PetscOptionsGetBool(NULL, NULL, "-test_mscale", &test_mscale, NULL);
+  CHKERRQ(ierr);
 
-  ierr = PetscNew(&wash);CHKERRQ(ierr);
+  ierr = PetscNew(&wash);
+  CHKERRQ(ierr);
   wash->comm = comm;
   *wash_ptr  = wash;
 
-  ierr = PetscMalloc1(nsubnet,&wash->subnet);CHKERRQ(ierr);
-  for (i=0; i<nsubnet; i++) {
-    ierr = PetscNew(&wash->subnet[i]);CHKERRQ(ierr);
+  ierr = PetscMalloc1(nsubnet, &wash->subnet);
+  CHKERRQ(ierr);
+  for (i = 0; i < nsubnet; i++) {
+    ierr = PetscNew(&wash->subnet[i]);
+    CHKERRQ(ierr);
   }
   wash->nsubnet     = nsubnet;
   wash->ncsubnet    = ncsubnet;

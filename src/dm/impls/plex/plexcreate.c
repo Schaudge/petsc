@@ -5237,20 +5237,18 @@ $ Notice that all points are numbered consecutively, unlike DMPlexCreateFromCell
 @*/
 PetscErrorCode DMPlexBuildFromDAG(DM dm, PetscInt depth, const PetscInt numPoints[], const PetscInt coneSize[], const PetscInt cones[], const PetscInt coneOrientations[])
 {
-  PetscInt       firstVertex = -1, pStart = 0, pEnd = 0, p, d, off;
+  PetscInt firstVertex = -1, pStart = 0, pEnd = 0, p, d, off;
 
   PetscFunctionBegin;
   for (d = 0; d <= depth; ++d) pEnd += numPoints[d];
   PetscCall(DMPlexSetChart(dm, pStart, pEnd));
   for (p = pStart; p < pEnd; ++p) {
-    PetscCall(DMPlexSetConeSize(dm, p, coneSize[p-pStart]));
-    if (firstVertex < 0 && !coneSize[p - pStart]) {
-      firstVertex = p - pStart;
-    }
+    PetscCall(DMPlexSetConeSize(dm, p, coneSize[p - pStart]));
+    if (firstVertex < 0 && !coneSize[p - pStart]) { firstVertex = p - pStart; }
   }
-  if (firstVertex < 0 && numPoints[0]) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Expected %" PetscInt_FMT " vertices but could not find any", numPoints[0]);
+  if (firstVertex < 0 && numPoints[0]) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Expected %" PetscInt_FMT " vertices but could not find any", numPoints[0]);
   PetscCall(DMSetUp(dm)); /* Allocate space for cones */
-  for (p = pStart, off = 0; p < pEnd; off += coneSize[p-pStart], ++p) {
+  for (p = pStart, off = 0; p < pEnd; off += coneSize[p - pStart], ++p) {
     PetscCall(DMPlexSetCone(dm, p, &cones[off]));
     PetscCall(DMPlexSetConeOrientation(dm, p, &coneOrientations[off]));
   }
@@ -5651,7 +5649,7 @@ PetscErrorCode DMPlexCreateEphemeral(DMPlexTransform tr, DM *dm)
 }
 static PetscErrorCode DMPlexCreateEmbeddedLineMesh_Internal(DM dm, PetscInt dim, const PetscReal lower[], const PetscReal upper[], const PetscInt edges)
 {
-  const PetscInt numVertices    = edges+1;
+  const PetscInt numVertices    = edges + 1;
   const PetscInt numEdges       = edges;
   PetscInt       markerRight    = 1;
   PetscInt       markerLeft     = 1;
@@ -5661,30 +5659,29 @@ static PetscErrorCode DMPlexCreateEmbeddedLineMesh_Internal(DM dm, PetscInt dim,
   PetscScalar   *coords;
   PetscInt       coordSize;
   PetscMPIInt    rank;
-  PetscInt       v,e,d;
+  PetscInt       v, e, d;
 
   PetscFunctionBegin;
-  PetscCall(PetscOptionsGetBool(((PetscObject) dm)->options,((PetscObject) dm)->prefix, "-dm_plex_separate_marker", &markerSeparate, NULL));
+  PetscCall(PetscOptionsGetBool(((PetscObject)dm)->options, ((PetscObject)dm)->prefix, "-dm_plex_separate_marker", &markerSeparate, NULL));
   if (markerSeparate) {
-    markerRight  = 2;
-    markerLeft   = 1;
+    markerRight = 2;
+    markerLeft  = 1;
   }
   MPI_Comm_rank(PetscObjectComm((PetscObject)dm), &rank);
   if (!rank) {
-    PetscInt cone[2],vertex; 
+    PetscInt cone[2], vertex;
 
-    PetscCall(DMPlexSetChart(dm, 0, numEdges+numVertices));
-    for (e = 0; e < numEdges; ++e) {
-      PetscCall(DMPlexSetConeSize(dm, e, 2));
-    }
+    PetscCall(DMPlexSetChart(dm, 0, numEdges + numVertices));
+    for (e = 0; e < numEdges; ++e) { PetscCall(DMPlexSetConeSize(dm, e, 2)); }
     PetscCall(DMSetUp(dm)); /* Allocate space for cones */
-    for (e=0; e<numEdges; e++) {
-      vertex = e+numEdges; 
-      cone[0] = vertex; cone[1] = vertex+1;
+    for (e = 0; e < numEdges; e++) {
+      vertex  = e + numEdges;
+      cone[0] = vertex;
+      cone[1] = vertex + 1;
       PetscCall(DMPlexSetCone(dm, e, cone));
     }
     PetscCall(DMSetLabelValue(dm, "marker", numEdges, markerLeft));
-    PetscCall(DMSetLabelValue(dm, "marker", numEdges+numVertices-1, markerRight));
+    PetscCall(DMSetLabelValue(dm, "marker", numEdges + numVertices - 1, markerRight));
   }
   PetscCall(DMPlexSymmetrize(dm));
   PetscCall(DMPlexStratify(dm));
@@ -5693,24 +5690,22 @@ static PetscErrorCode DMPlexCreateEmbeddedLineMesh_Internal(DM dm, PetscInt dim,
   if (!rank) {
     PetscCall(DMGetCoordinateSection(dm, &coordSection));
     PetscCall(PetscSectionSetNumFields(coordSection, 1));
-    PetscCall(PetscSectionSetChart(coordSection, 0, numVertices+numEdges));
+    PetscCall(PetscSectionSetChart(coordSection, 0, numVertices + numEdges));
     PetscCall(PetscSectionSetFieldComponents(coordSection, 0, dim));
-    for (v = numEdges; v < numVertices+numEdges; ++v) {
+    for (v = numEdges; v < numVertices + numEdges; ++v) {
       PetscCall(PetscSectionSetDof(coordSection, v, dim));
       PetscCall(PetscSectionSetFieldDof(coordSection, v, 0, dim));
     }
     PetscCall(PetscSectionSetUp(coordSection));
     PetscCall(PetscSectionGetStorageSize(coordSection, &coordSize));
     PetscCall(VecCreate(PETSC_COMM_SELF, &coordinates));
-    PetscCall(PetscObjectSetName((PetscObject) coordinates, "coordinates"));
+    PetscCall(PetscObjectSetName((PetscObject)coordinates, "coordinates"));
     PetscCall(VecSetSizes(coordinates, coordSize, PETSC_DETERMINE));
     PetscCall(VecSetBlockSize(coordinates, dim));
-    PetscCall(VecSetType(coordinates,VECSTANDARD));
+    PetscCall(VecSetType(coordinates, VECSTANDARD));
     PetscCall(VecGetArray(coordinates, &coords));
-    for(v = 0; v < numVertices; v++){
-      for(d=0; d<dim; d++){
-        coords[d+v*dim] = lower[d] + (PetscReal) v/ (PetscReal) numEdges * (upper[d]-lower[d]);
-      }
+    for (v = 0; v < numVertices; v++) {
+      for (d = 0; d < dim; d++) { coords[d + v * dim] = lower[d] + (PetscReal)v / (PetscReal)numEdges * (upper[d] - lower[d]); }
     }
     PetscCall(VecRestoreArray(coordinates, &coords));
     PetscCall(DMSetCoordinatesLocal(dm, coordinates));
@@ -5739,14 +5734,14 @@ static PetscErrorCode DMPlexCreateEmbeddedLineMesh_Internal(DM dm, PetscInt dim,
 @*/
 PetscErrorCode DMPlexCreateEmbeddedLineMesh(MPI_Comm comm, PetscInt dim, const PetscInt cells, const PetscReal lower[], const PetscReal upper[], DM *dm)
 {
-  PetscInt       fac = 1;
-  PetscReal      low[3] = {0, 0, 0};
-  PetscReal      upp[3] = {1, 1, 1};
+  PetscInt  fac    = 1;
+  PetscReal low[3] = {0, 0, 0};
+  PetscReal upp[3] = {1, 1, 1};
 
   PetscFunctionBegin;
-  PetscCall(DMCreate(comm,dm));
-  PetscCall(DMSetType(*dm,DMPLEX));
-  PetscCall(DMSetDimension(*dm,1));
+  PetscCall(DMCreate(comm, dm));
+  PetscCall(DMSetType(*dm, DMPLEX));
+  PetscCall(DMSetDimension(*dm, 1));
   PetscCall(DMPlexCreateEmbeddedLineMesh_Internal(*dm, dim, lower ? lower : low, upper ? upper : upp, cells ? cells : fac));
   PetscFunctionReturn(0);
 }

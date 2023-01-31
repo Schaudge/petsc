@@ -1,6 +1,6 @@
-#include  <petsc/private/netrsimpl.h>
+#include <petsc/private/netrsimpl.h>
 PetscFunctionList NetRSList              = NULL;
-PetscClassId      NETRS_CLASSID          = 0; 
+PetscClassId      NETRS_CLASSID          = 0;
 PetscBool         NetRSRegisterAllCalled = PETSC_FALSE;
 
 /* Add Creation Routines here */
@@ -18,7 +18,7 @@ PETSC_EXTERN PetscErrorCode NetRSCreate_Blank(NetRS);
 
 .seealso: 
 @*/
-PetscErrorCode  NetRSRegisterAll(void)
+PetscErrorCode NetRSRegisterAll(void)
 {
   PetscFunctionBegin;
   if (NetRSRegisterAllCalled) PetscFunctionReturn(0);
@@ -47,24 +47,22 @@ PetscErrorCode  NetRSRegisterAll(void)
 .seealso: 
 
 @*/
-PetscErrorCode  NetRSSetType(NetRS rs, NetRSType type)
+PetscErrorCode NetRSSetType(NetRS rs, NetRSType type)
 {
   PetscErrorCode (*r)(NetRS);
-  PetscBool      match;
+  PetscBool match;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(rs, NETRS_CLASSID,1);
-  PetscValidCharPointer(type,2);
-  PetscCall(PetscObjectTypeCompare((PetscObject) rs, type, &match));
+  PetscValidHeaderSpecific(rs, NETRS_CLASSID, 1);
+  PetscValidCharPointer(type, 2);
+  PetscCall(PetscObjectTypeCompare((PetscObject)rs, type, &match));
   if (match) PetscFunctionReturn(0);
 
-  PetscCall(PetscFunctionListFind(NetRSList,type,&r));
-  if (!r) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE, "Unknown Network RiemannSolver type: %s", type);
+  PetscCall(PetscFunctionListFind(NetRSList, type, &r));
+  if (!r) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_UNKNOWN_TYPE, "Unknown Network RiemannSolver type: %s", type);
   PetscCall(NetRSReset(rs));
-  if (rs->ops->destroy) {
-    PetscCall((*(rs)->ops->destroy)(rs));
-  }
-  PetscCall(PetscMemzero(rs->ops,sizeof(*rs->ops)));
+  if (rs->ops->destroy) { PetscCall((*(rs)->ops->destroy)(rs)); }
+  PetscCall(PetscMemzero(rs->ops, sizeof(*rs->ops)));
   rs->setupcalled = PETSC_FALSE;
   PetscCall(PetscObjectChangeTypeName((PetscObject)rs, type));
   PetscCall((*r)(rs));
@@ -85,11 +83,11 @@ PetscErrorCode  NetRSSetType(NetRS rs, NetRSType type)
 
 .seealso NetRSSetType()
 @*/
-PetscErrorCode  NetRSGetType(NetRS rs, NetRSType *type)
+PetscErrorCode NetRSGetType(NetRS rs, NetRSType *type)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(rs,NETRS_CLASSID,1);
-  PetscValidPointer(type,2);
+  PetscValidHeaderSpecific(rs, NETRS_CLASSID, 1);
+  PetscValidPointer(type, 2);
   *type = ((PetscObject)rs)->type_name;
   PetscFunctionReturn(0);
 }
@@ -128,10 +126,10 @@ PetscErrorCode  NetRSGetType(NetRS rs, NetRSType *type)
 
 .seealso: NetRSRegisterAll(), NetRSRegisterDestroy()
 @*/
-PetscErrorCode  NetRSRegister(const char sname[], PetscErrorCode (*function)(NetRS))
+PetscErrorCode NetRSRegister(const char sname[], PetscErrorCode (*function)(NetRS))
 {
   PetscFunctionBegin;
   PetscCall(NetRSInitializePackage());
-  PetscCall(PetscFunctionListAdd(&NetRSList,sname,function));
+  PetscCall(PetscFunctionListAdd(&NetRSList, sname, function));
   PetscFunctionReturn(0);
 }

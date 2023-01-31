@@ -1,4 +1,4 @@
-#include <petsc/private/riemannsolverimpl.h>        /*I "petscriemannsolver.h"  I*/
+#include <petsc/private/riemannsolverimpl.h> /*I "petscriemannsolver.h"  I*/
 #include <petscviewer.h>
 #include <petscdraw.h>
 #include <petscmat.h>
@@ -9,28 +9,28 @@
    Explaining why this makes sense. 
 */
 
-PetscErrorCode RiemannSolverConvexMaxSpeed_internal(RiemannSolver rs,const PetscReal *uL,const PetscReal *uR,PetscReal *maxspeed) 
+PetscErrorCode RiemannSolverConvexMaxSpeed_internal(RiemannSolver rs, const PetscReal *uL, const PetscReal *uR, PetscReal *maxspeed)
 {
-   PetscInt       i;
-   PetscScalar    *eig;
+  PetscInt     i;
+  PetscScalar *eig;
 
   PetscFunctionBegin;
   /* Compute maximum eigenvalue in magnitude for left states */
-  PetscCall(RiemannSolverComputeEig(rs,uL,&eig));
-  *maxspeed = 0; 
-  for(i=0;i<rs->numfields; i++) {
-      /* This only handles real eigenvalues, needs to generalized to handle complex eigenvalues */
-      /* Strictly speaking, a conservation law requires these eigenvalues to be real, but numerically 
-      there may be complex parts. */ 
-    *maxspeed = PetscMax(PetscAbs(eig[i]),*maxspeed); 
+  PetscCall(RiemannSolverComputeEig(rs, uL, &eig));
+  *maxspeed = 0;
+  for (i = 0; i < rs->numfields; i++) {
+    /* This only handles real eigenvalues, needs to generalized to handle complex eigenvalues */
+    /* Strictly speaking, a conservation law requires these eigenvalues to be real, but numerically 
+      there may be complex parts. */
+    *maxspeed = PetscMax(PetscAbs(eig[i]), *maxspeed);
   }
-   /* Now maximize over the eigenvalues of the right states */
-  PetscCall(RiemannSolverComputeEig(rs,uR,&eig));
-  for(i=0;i<rs->numfields; i++) {
-      /* This only handles real eigenvalues, needs to generalized to handle complex eigenvalues */
-      /* Strictly speaking, a conservation law requires these eigenvalues to be real, but numerically 
-      there may be complex parts. */ 
-    *maxspeed = PetscMax(PetscAbs(eig[i]),*maxspeed); 
+  /* Now maximize over the eigenvalues of the right states */
+  PetscCall(RiemannSolverComputeEig(rs, uR, &eig));
+  for (i = 0; i < rs->numfields; i++) {
+    /* This only handles real eigenvalues, needs to generalized to handle complex eigenvalues */
+    /* Strictly speaking, a conservation law requires these eigenvalues to be real, but numerically 
+      there may be complex parts. */
+    *maxspeed = PetscMax(PetscAbs(eig[i]), *maxspeed);
   }
   PetscFunctionReturn(0);
 }
@@ -54,19 +54,19 @@ PetscErrorCode RiemannSolverConvexMaxSpeed_internal(RiemannSolver rs,const Petsc
 
 .seealso: RiemannSolverSetUp()
 @*/
-PetscErrorCode RiemannSolverSetUpJacobian_internal(RiemannSolver rs) 
+PetscErrorCode RiemannSolverSetUpJacobian_internal(RiemannSolver rs)
 {
-  PC             pc;
+  PC pc;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-  PetscCall(MatCreateSeqDense(PETSC_COMM_SELF,rs->numfields,rs->numfields,PETSC_NULL,&rs->Df));
-  /* Now set up the linear solver. */ 
-  PetscCall(KSPCreate(PETSC_COMM_SELF,&rs->dfksp));
-  PetscCall(KSPGetPC(rs->dfksp,&pc));
-  PetscCall(PCSetType(pc,PCLU));
-  PetscCall(KSPSetType(rs->dfksp,KSPPREONLY)); /* Set to direct solver only */
-  PetscCall(KSPSetOperators(rs->dfksp,rs->Df,rs->Df));
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  PetscCall(MatCreateSeqDense(PETSC_COMM_SELF, rs->numfields, rs->numfields, PETSC_NULL, &rs->Df));
+  /* Now set up the linear solver. */
+  PetscCall(KSPCreate(PETSC_COMM_SELF, &rs->dfksp));
+  PetscCall(KSPGetPC(rs->dfksp, &pc));
+  PetscCall(PCSetType(pc, PCLU));
+  PetscCall(KSPSetType(rs->dfksp, KSPPREONLY)); /* Set to direct solver only */
+  PetscCall(KSPSetOperators(rs->dfksp, rs->Df, rs->Df));
   PetscFunctionReturn(0);
 }
 
@@ -82,10 +82,10 @@ PetscErrorCode RiemannSolverSetUpJacobian_internal(RiemannSolver rs)
 
 .seealso: RiemannSolverSetUp(), RiemannSolverSetUpRoe_internal(), RiemannSolverReset()
 @*/
-PetscErrorCode RiemannSolverResetJacobian_internal(RiemannSolver rs) 
+PetscErrorCode RiemannSolverResetJacobian_internal(RiemannSolver rs)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
   PetscCall(MatDestroy(&rs->Df));
   PetscCall(KSPDestroy(&rs->dfksp));
   PetscFunctionReturn(0);
@@ -104,23 +104,22 @@ PetscErrorCode RiemannSolverResetJacobian_internal(RiemannSolver rs)
 
 .seealso: RiemannSolverSetUp()
 @*/
-PetscErrorCode RiemannSolverSetUpRoe_internal(RiemannSolver rs) 
+PetscErrorCode RiemannSolverSetUpRoe_internal(RiemannSolver rs)
 {
-  PC             pc;
+  PC pc;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-  
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
 
   /* Allow these parameters to be adjusted by the user later? NEED TO LOOK AT HOW TS DOES THIS TO COPY */
 
-   /* does not share the same communicator as the RiemannSolver, does this affect diagnostic printout behavior?
+  /* does not share the same communicator as the RiemannSolver, does this affect diagnostic printout behavior?
       Need to be careful with this */
-  PetscCall(MatCreateSeqDense(PETSC_COMM_SELF,rs->numfields,rs->numfields,PETSC_NULL,&rs->roemat));
+  PetscCall(MatCreateSeqDense(PETSC_COMM_SELF, rs->numfields, rs->numfields, PETSC_NULL, &rs->roemat));
   /* Note that this eigenmatrix could potentially reuse the eigen matrix, as in many cases (SWE Euler, 
   the roe avg is simply A(uL,uR)= Df(u_roe(uL,uR)) and will have the same eigen decomposition as Df */
-  PetscCall(MatDuplicate(rs->roemat,MAT_DO_NOT_COPY_VALUES,&rs->roeeigen));
-  PetscCall(MatCreateVecs(rs->roeeigen,NULL,&rs->u_roebasis));
+  PetscCall(MatDuplicate(rs->roemat, MAT_DO_NOT_COPY_VALUES, &rs->roeeigen));
+  PetscCall(MatCreateVecs(rs->roeeigen, NULL, &rs->u_roebasis));
   /*
    TODO: Rewrite this as default behavior and expose the roeksp (and roemat, roe ksp) to the RiemannSolver user so 
    that they can configure them as they would any other Mat and KSP object. Definitely smart to have good default
@@ -134,12 +133,12 @@ PetscErrorCode RiemannSolverSetUpRoe_internal(RiemannSolver rs)
    (and we shall see as I implement more riemann solvers) that there will be similar situations there. 
   */
 
-  /* Now set up the linear solver. */ 
-  PetscCall(KSPCreate(PETSC_COMM_SELF,&rs->roeksp));
-  PetscCall(KSPGetPC(rs->roeksp,&pc));
-  PetscCall(PCSetType(pc,PCLU));
-  PetscCall(KSPSetType(rs->roeksp,KSPPREONLY)); /* Set to direct solver only */
-  PetscCall(KSPSetOperators(rs->roeksp,rs->roeeigen,rs->roeeigen)); /* used to project onto roe eigenbasis */
+  /* Now set up the linear solver. */
+  PetscCall(KSPCreate(PETSC_COMM_SELF, &rs->roeksp));
+  PetscCall(KSPGetPC(rs->roeksp, &pc));
+  PetscCall(PCSetType(pc, PCLU));
+  PetscCall(KSPSetType(rs->roeksp, KSPPREONLY));                      /* Set to direct solver only */
+  PetscCall(KSPSetOperators(rs->roeksp, rs->roeeigen, rs->roeeigen)); /* used to project onto roe eigenbasis */
 
   PetscFunctionReturn(0);
 }
@@ -157,10 +156,10 @@ PetscErrorCode RiemannSolverSetUpRoe_internal(RiemannSolver rs)
 
 .seealso: RiemannSolverSetUp(), RiemannSolverSetUpRoe_internal(), RiemannSolverReset()
 @*/
-PetscErrorCode RiemannSolverResetRoe_internal(RiemannSolver rs) 
+PetscErrorCode RiemannSolverResetRoe_internal(RiemannSolver rs)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
   PetscCall(MatDestroy(&rs->roemat));
   PetscCall(MatDestroy(&rs->roeeigen));
   PetscCall(KSPDestroy(&rs->roeksp));
@@ -180,30 +179,29 @@ PetscErrorCode RiemannSolverResetRoe_internal(RiemannSolver rs)
 
 .seealso: RiemannSolverSetUp()
 @*/
-PetscErrorCode RiemannSolverSetUpEig_internal(RiemannSolver rs) 
+PetscErrorCode RiemannSolverSetUpEig_internal(RiemannSolver rs)
 {
-  PC             pc;
+  PC pc;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-  
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
 
   /* Allow these parameters to be adjusted by the user later? NEED TO LOOK AT HOW TS DOES THIS TO COPY */
 
-   /* does not share the same communicator as the RiemannSolver, does this affect diagnostic printout behavior?
+  /* does not share the same communicator as the RiemannSolver, does this affect diagnostic printout behavior?
       Need to be careful with this */
-  PetscCall(MatCreateSeqDense(PETSC_COMM_SELF,rs->numfields,rs->numfields,PETSC_NULL,&rs->eigen));
-  /* Now set up the linear solver. */ 
-  PetscCall(KSPCreate(PETSC_COMM_SELF,&rs->eigenksp));
-  PetscCall(KSPGetPC(rs->eigenksp,&pc));
-  PetscCall(PCSetType(pc,PCLU));
-  PetscCall(KSPSetType(rs->eigenksp,KSPPREONLY)); /* Set to direct solver only */
-  PetscCall(KSPSetOperators(rs->eigenksp,rs->eigen,rs->eigen));
-  
+  PetscCall(MatCreateSeqDense(PETSC_COMM_SELF, rs->numfields, rs->numfields, PETSC_NULL, &rs->eigen));
+  /* Now set up the linear solver. */
+  PetscCall(KSPCreate(PETSC_COMM_SELF, &rs->eigenksp));
+  PetscCall(KSPGetPC(rs->eigenksp, &pc));
+  PetscCall(PCSetType(pc, PCLU));
+  PetscCall(KSPSetType(rs->eigenksp, KSPPREONLY)); /* Set to direct solver only */
+  PetscCall(KSPSetOperators(rs->eigenksp, rs->eigen, rs->eigen));
+
   /* Set the PetscVectors used for the kspsolve operation for the change of basis */
   /* Maybe should do manual solves? Well I guess I'll see as I start profiling? */
-  PetscCall(VecCreateSeq(PETSC_COMM_SELF,rs->numfields,&rs->u));
-  PetscCall(VecCreateSeq(PETSC_COMM_SELF,rs->numfields,&rs->ueig));
+  PetscCall(VecCreateSeq(PETSC_COMM_SELF, rs->numfields, &rs->u));
+  PetscCall(VecCreateSeq(PETSC_COMM_SELF, rs->numfields, &rs->ueig));
   PetscFunctionReturn(0);
 }
 
@@ -219,10 +217,10 @@ PetscErrorCode RiemannSolverSetUpEig_internal(RiemannSolver rs)
 
 .seealso: RiemannSolverSetUp(), RiemannSolverSetUpRoe_internal(), RiemannSolverReset()
 @*/
-PetscErrorCode RiemannSolverResetEig_internal(RiemannSolver rs) 
+PetscErrorCode RiemannSolverResetEig_internal(RiemannSolver rs)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
   PetscCall(MatDestroy(&rs->eigen));
   PetscCall(KSPDestroy(&rs->eigenksp));
   PetscCall(VecDestroy(&rs->u));
@@ -246,20 +244,18 @@ PetscErrorCode RiemannSolverResetEig_internal(RiemannSolver rs)
 
 .seealso: RiemannSolverCreate(), RiemannSolverSetFlux()
 @*/
-PetscErrorCode  RiemannSolverSetUp(RiemannSolver rs)
+PetscErrorCode RiemannSolverSetUp(RiemannSolver rs)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-  if (rs->setupcalled) PetscFunctionReturn(0); 
-  if (rs->numfields>-1) PetscCall(PetscMalloc2(rs->numfields,&rs->flux_wrk,rs->numfields,&rs->eig_wrk));
-  if (rs->fluxfunconvex) {rs->ops->computemaxspeed = RiemannSolverConvexMaxSpeed_internal;} /* No current default behavior for nonconvex fluxs. Will error out currently */
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  if (rs->setupcalled) PetscFunctionReturn(0);
+  if (rs->numfields > -1) PetscCall(PetscMalloc2(rs->numfields, &rs->flux_wrk, rs->numfields, &rs->eig_wrk));
+  if (rs->fluxfunconvex) { rs->ops->computemaxspeed = RiemannSolverConvexMaxSpeed_internal; } /* No current default behavior for nonconvex fluxs. Will error out currently */
   /* if we have a roe function allocate the structures to use it */
   if (rs->computeroemat) PetscCall(RiemannSolverSetUpRoe_internal(rs));
-  if (rs->computeeigbasis)PetscCall(RiemannSolverSetUpEig_internal(rs));
-  if (rs->fluxderfun)PetscCall(RiemannSolverSetUpJacobian_internal(rs));
-  if (rs->ops->setup) {
-    PetscCall((*rs->ops->setup)(rs));
-  }
+  if (rs->computeeigbasis) PetscCall(RiemannSolverSetUpEig_internal(rs));
+  if (rs->fluxderfun) PetscCall(RiemannSolverSetUpJacobian_internal(rs));
+  if (rs->ops->setup) { PetscCall((*rs->ops->setup)(rs)); }
   rs->setupcalled = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
@@ -276,17 +272,15 @@ PetscErrorCode  RiemannSolverSetUp(RiemannSolver rs)
 
 .seealso: RiemannSolverCreate(), RiemannSolverSetUp(), RiemannSolverDestroy()
 @*/
-PetscErrorCode  RiemannSolverReset(RiemannSolver rs)
+PetscErrorCode RiemannSolverReset(RiemannSolver rs)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-  if (rs->ops->reset) {
-    PetscCall((*rs->ops->reset)(rs));
-  }
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  if (rs->ops->reset) { PetscCall((*rs->ops->reset)(rs)); }
   if (rs->snes) PetscCall(SNESReset(rs->snes));
-  if (rs->ksp)  PetscCall(KSPReset(rs->ksp));
+  if (rs->ksp) PetscCall(KSPReset(rs->ksp));
   PetscCall(MatDestroy(&rs->mat));
-  if (rs->flux_wrk) PetscCall(PetscFree2(rs->flux_wrk,rs->eig_wrk)); /* Not good code here */
+  if (rs->flux_wrk) PetscCall(PetscFree2(rs->flux_wrk, rs->eig_wrk)); /* Not good code here */
   PetscCall(RiemannSolverResetRoe_internal(rs));
   PetscCall(RiemannSolverResetEig_internal(rs));
   PetscCall(RiemannSolverResetJacobian_internal(rs));
@@ -310,12 +304,15 @@ PetscErrorCode  RiemannSolverReset(RiemannSolver rs)
 
 .seealso: RiemannSolverCreate(), RiemannSolverSetUp()
 @*/
-PetscErrorCode  RiemannSolverDestroy(RiemannSolver *rs)
+PetscErrorCode RiemannSolverDestroy(RiemannSolver *rs)
 {
   PetscFunctionBegin;
   if (!*rs) PetscFunctionReturn(0);
-  PetscValidHeaderSpecific(*rs,RIEMANNSOLVER_CLASSID,1);
-  if (--((PetscObject)(*rs))->refct > 0) {*rs = NULL; PetscFunctionReturn(0);}
+  PetscValidHeaderSpecific(*rs, RIEMANNSOLVER_CLASSID, 1);
+  if (--((PetscObject)(*rs))->refct > 0) {
+    *rs = NULL;
+    PetscFunctionReturn(0);
+  }
 
   PetscCall(RiemannSolverReset(*rs));
   if ((*rs)->ops->destroy) PetscCall((*(*rs)->ops->destroy)((*rs)));
@@ -345,27 +342,27 @@ PetscErrorCode  RiemannSolverDestroy(RiemannSolver *rs)
 
 .seealso: RiemannSolverCreate(), RiemannSolverSetUp(), RiemannSolverSetFlux()
 @*/
-PetscErrorCode  RiemannSolverEvaluate(RiemannSolver rs,const PetscReal *uL, const PetscReal *uR,PetscReal **flux, PetscReal *maxspeed)
+PetscErrorCode RiemannSolverEvaluate(RiemannSolver rs, const PetscReal *uL, const PetscReal *uR, PetscReal **flux, PetscReal *maxspeed)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
   PetscCall(RiemannSolverSetUp(rs));
-  PetscCall(rs->ops->evaluate(rs,uL,uR));
+  PetscCall(rs->ops->evaluate(rs, uL, uR));
   *flux = rs->flux_wrk;
-  if(maxspeed) {*maxspeed = rs->maxspeed;}
+  if (maxspeed) { *maxspeed = rs->maxspeed; }
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode RiemmanSolverEvaluateFlux(RiemannSolver rs, const PetscReal *u,PetscReal **flux)
+PetscErrorCode RiemmanSolverEvaluateFlux(RiemannSolver rs, const PetscReal *u, PetscReal **flux)
 {
-  void *ctx; 
+  void *ctx;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
   PetscCall(RiemannSolverSetUp(rs));
-  PetscCall(RiemannSolverGetApplicationContext(rs,&ctx)); 
-  rs->fluxfun(ctx,u,rs->flux_wrk); 
-  *flux = rs->flux_wrk; 
+  PetscCall(RiemannSolverGetApplicationContext(rs, &ctx));
+  rs->fluxfun(ctx, u, rs->flux_wrk);
+  *flux = rs->flux_wrk;
   PetscFunctionReturn(0);
 }
 
@@ -383,10 +380,10 @@ PetscErrorCode RiemmanSolverEvaluateFlux(RiemannSolver rs, const PetscReal *u,Pe
 
 .seealso: RiemannSolverGetApplicationContext()
 @*/
-PetscErrorCode  RiemannSolverSetApplicationContext(RiemannSolver rs,void *usrP)
+PetscErrorCode RiemannSolverSetApplicationContext(RiemannSolver rs, void *usrP)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
   rs->user = usrP;
   PetscFunctionReturn(0);
 }
@@ -407,11 +404,11 @@ PetscErrorCode  RiemannSolverSetApplicationContext(RiemannSolver rs,void *usrP)
 
 .seealso: RiemannSolverSetApplicationContext()
 @*/
-PetscErrorCode  RiemannSolverGetApplicationContext(RiemannSolver rs,void *usrP)
+PetscErrorCode RiemannSolverGetApplicationContext(RiemannSolver rs, void *usrP)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-  *(void**)usrP = rs->user;
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  *(void **)usrP = rs->user;
   PetscFunctionReturn(0);
 }
 
@@ -430,18 +427,18 @@ PetscErrorCode  RiemannSolverGetApplicationContext(RiemannSolver rs,void *usrP)
 
 .seealso: RiemannSolverSetFlux() 
 @*/
-PetscErrorCode RiemannSolverSetFluxDim(RiemannSolver rs,PetscInt dim, PetscInt numfields)
+PetscErrorCode RiemannSolverSetFluxDim(RiemannSolver rs, PetscInt dim, PetscInt numfields)
 {
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-   /* WIP : Only 1-dim Riemann Solvers are supported */ 
-   if (dim != 1) {SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"%i dimension for flux functions are not supported. Only 1 dimensional flux function are supported. ",dim);}
-   if (dim < 1) {SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"%i dimension not valid. Dimension must be non-negative ",dim);}
-   if (numfields < 1){SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"%i numfields not valid. numfields must be non-negative ",numfields);}
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  /* WIP : Only 1-dim Riemann Solvers are supported */
+  if (dim != 1) { SETERRQ(PetscObjectComm((PetscObject)rs), PETSC_ERR_SUP, "%i dimension for flux functions are not supported. Only 1 dimensional flux function are supported. ", dim); }
+  if (dim < 1) { SETERRQ(PetscObjectComm((PetscObject)rs), PETSC_ERR_SUP, "%i dimension not valid. Dimension must be non-negative ", dim); }
+  if (numfields < 1) { SETERRQ(PetscObjectComm((PetscObject)rs), PETSC_ERR_SUP, "%i numfields not valid. numfields must be non-negative ", numfields); }
 
-   rs->dim = dim;
-   rs->numfields = numfields; 
-   PetscFunctionReturn(0);
+  rs->dim       = dim;
+  rs->numfields = numfields;
+  PetscFunctionReturn(0);
 }
 
 /*@
@@ -459,21 +456,21 @@ PetscErrorCode RiemannSolverSetFluxDim(RiemannSolver rs,PetscInt dim, PetscInt n
 
 .seealso: RiemannSolverSetApplicationContext(), RiemannSolverEvaluate() 
 @*/
-PetscErrorCode RiemannSolverSetFlux(RiemannSolver rs,PetscInt dim, PetscInt numfields,PetscPointFlux flux)
+PetscErrorCode RiemannSolverSetFlux(RiemannSolver rs, PetscInt dim, PetscInt numfields, PetscPointFlux flux)
 {
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-   PetscCall(RiemannSolverSetFluxDim(rs,dim,numfields));
-   rs->fluxfun = flux; 
-   PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  PetscCall(RiemannSolverSetFluxDim(rs, dim, numfields));
+  rs->fluxfun = flux;
+  PetscFunctionReturn(0);
 }
 
 PetscErrorCode RiemannSolverGetNumFields(RiemannSolver rs, PetscInt *numfields)
 {
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-   *numfields = rs->numfields; 
-   PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  *numfields = rs->numfields;
+  PetscFunctionReturn(0);
 }
 
 /*@
@@ -489,12 +486,12 @@ PetscErrorCode RiemannSolverGetNumFields(RiemannSolver rs, PetscInt *numfields)
 
 .seealso: RiemannSolverSetApplicationContext(), RiemannSolverSetFlux()
 @*/
-PetscErrorCode RiemannSolverSetJacobian(RiemannSolver rs,PetscPointFluxDer jacobian)
+PetscErrorCode RiemannSolverSetJacobian(RiemannSolver rs, PetscPointFluxDer jacobian)
 {
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-   rs->fluxderfun = jacobian;
-   PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  rs->fluxderfun = jacobian;
+  PetscFunctionReturn(0);
 }
 
 /*@
@@ -514,12 +511,12 @@ PetscErrorCode RiemannSolverSetJacobian(RiemannSolver rs,PetscPointFluxDer jacob
 .seealso: RiemannSolverSetApplicationContext(), RiemannSolverSetFlux()) 
 @*/
 
-PetscErrorCode RiemannSolverSetMaxSpeedFunct(RiemannSolver rs ,RiemannSolverMaxWaveSpeed maxspeedfunct)
+PetscErrorCode RiemannSolverSetMaxSpeedFunct(RiemannSolver rs, RiemannSolverMaxWaveSpeed maxspeedfunct)
 {
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-   rs->ops->computemaxspeed = maxspeedfunct; 
-   PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  rs->ops->computemaxspeed = maxspeedfunct;
+  PetscFunctionReturn(0);
 }
 
 /*@
@@ -543,12 +540,12 @@ PetscErrorCode RiemannSolverSetMaxSpeedFunct(RiemannSolver rs ,RiemannSolverMaxW
    TODO : This needs some more thought/work 
 */
 
-PetscErrorCode RiemannSolverSetFluxEig(RiemannSolver rs,PetscPointFluxEig fluxeig) 
+PetscErrorCode RiemannSolverSetFluxEig(RiemannSolver rs, PetscPointFluxEig fluxeig)
 {
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-   rs->fluxeigfun = fluxeig; 
-   PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  rs->fluxeigfun = fluxeig;
+  PetscFunctionReturn(0);
 }
 
 /*@
@@ -569,21 +566,20 @@ PetscErrorCode RiemannSolverSetFluxEig(RiemannSolver rs,PetscPointFluxEig fluxei
 .seealso:  RiemannSolverSetFluxEig(), RiemannSolverSetFlux()
 @*/
 
-PetscErrorCode RiemannSolverComputeEig(RiemannSolver rs,const PetscReal *U,PetscScalar **eig) 
+PetscErrorCode RiemannSolverComputeEig(RiemannSolver rs, const PetscReal *U, PetscScalar **eig)
 {
-   void           *ctx;
+  void *ctx;
 
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-   PetscCall(RiemannSolverGetApplicationContext(rs,&ctx));
-   if(rs->fluxeigfun) 
-   { 
-      rs->fluxeigfun(ctx,U,rs->eig_wrk);
-   } else {
-      SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"No function specified for computing the eigenvalues.");
-   }
-   *eig= rs->eig_wrk;
-   PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  PetscCall(RiemannSolverGetApplicationContext(rs, &ctx));
+  if (rs->fluxeigfun) {
+    rs->fluxeigfun(ctx, U, rs->eig_wrk);
+  } else {
+    SETERRQ(PetscObjectComm((PetscObject)rs), PETSC_ERR_SUP, "No function specified for computing the eigenvalues.");
+  }
+  *eig = rs->eig_wrk;
+  PetscFunctionReturn(0);
 }
 
 /*@
@@ -606,17 +602,16 @@ PetscErrorCode RiemannSolverComputeEig(RiemannSolver rs,const PetscReal *U,Petsc
 .seealso:  RiemannSolverSetFluxEig(), RiemannSolverSetFlux()
 @*/
 
-PetscErrorCode RiemannSolverComputeMaxSpeed(RiemannSolver rs,const PetscReal *uL,const PetscReal *uR,PetscReal *maxspeed)
+PetscErrorCode RiemannSolverComputeMaxSpeed(RiemannSolver rs, const PetscReal *uL, const PetscReal *uR, PetscReal *maxspeed)
 {
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-   if(rs->ops->computemaxspeed) 
-   { 
-      PetscCall(rs->ops->computemaxspeed(rs,uR,uL,maxspeed));
-   } else {
-      SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"No function specified for computing the maximum wave speed. This shouldn't happen.");
-   }
-   PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  if (rs->ops->computemaxspeed) {
+    PetscCall(rs->ops->computemaxspeed(rs, uR, uL, maxspeed));
+  } else {
+    SETERRQ(PetscObjectComm((PetscObject)rs), PETSC_ERR_SUP, "No function specified for computing the maximum wave speed. This shouldn't happen.");
+  }
+  PetscFunctionReturn(0);
 }
 
 /*@
@@ -635,39 +630,35 @@ PetscErrorCode RiemannSolverComputeMaxSpeed(RiemannSolver rs,const PetscReal *uL
 @*/
 PetscErrorCode RiemannSolverSetFromOptions(RiemannSolver rs)
 {
-  const char    *defaultType;
-  char           name[256];
-  PetscBool      flg;
+  const char *defaultType;
+  char        name[256];
+  PetscBool   flg;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
-  if (!((PetscObject) rs)->type_name) {
+  if (!((PetscObject)rs)->type_name) {
     defaultType = RIEMANNLAXFRIEDRICH;
   } else {
-    defaultType = ((PetscObject) rs)->type_name;
+    defaultType = ((PetscObject)rs)->type_name;
   }
   if (!RiemannSolverRegisterAllCalled) PetscCall(RiemannSolverRegisterAll());
 
-  PetscObjectOptionsBegin((PetscObject) rs);
+  PetscObjectOptionsBegin((PetscObject)rs);
   PetscCall(PetscOptionsFList("-riemann_type", "Riemann Solver", "RiemannSolverSetType", RiemannSolverList, defaultType, name, 256, &flg));
   if (flg) {
     PetscCall(RiemannSolverSetType(rs, name));
-  } else if (!((PetscObject) rs)->type_name) {
+  } else if (!((PetscObject)rs)->type_name) {
     PetscCall(RiemannSolverSetType(rs, defaultType));
   }
-  if (rs->ops->setfromoptions) {
-    PetscCall((*rs->ops->setfromoptions)(PetscOptionsObject,rs));
-  }
+  if (rs->ops->setfromoptions) { PetscCall((*rs->ops->setfromoptions)(PetscOptionsObject, rs)); }
   /* process any options handlers added with PetscObjectAddOptionsHandler() */
-  PetscCall(PetscObjectProcessOptionsHandlers((PetscObject) rs,PetscOptionsObject));
- PetscOptionsEnd();
- /*
+  PetscCall(PetscObjectProcessOptionsHandlers((PetscObject)rs, PetscOptionsObject));
+  PetscOptionsEnd();
+  /*
     TODO:  View from options here ? 
   */
   PetscFunctionReturn(0);
 }
-
-
 
 /*@C
     RiemannSolverView - Prints the RiemannSolver data structure.
@@ -684,7 +675,7 @@ PetscErrorCode RiemannSolverSetFromOptions(RiemannSolver rs)
 
 .seealso: PetscViewerASCIIOpen()
 @*/
-PetscErrorCode  RiemannSolverView(RiemannSolver rs,PetscViewer viewer)
+PetscErrorCode RiemannSolverView(RiemannSolver rs, PetscViewer viewer)
 {
   PetscFunctionBegin;
   /*
@@ -713,21 +704,20 @@ PetscErrorCode  RiemannSolverView(RiemannSolver rs,PetscViewer viewer)
 .seealso:  RiemannSolverComputeEig()
 @*/
 
-PetscErrorCode RiemannSolverComputeRoeMatrix(RiemannSolver rs,const PetscReal *uL,const PetscReal *uR ,Mat *Roe)
+PetscErrorCode RiemannSolverComputeRoeMatrix(RiemannSolver rs, const PetscReal *uL, const PetscReal *uR, Mat *Roe)
 {
-   void           *ctx;
+  void *ctx;
 
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-   PetscCall(RiemannSolverGetApplicationContext(rs,&ctx));
-   if(rs->computeroemat) 
-   { 
-      PetscCall(rs->computeroemat(ctx,uR,uL,rs->roemat));
-      *Roe  = rs->roemat;
-   } else {
-      SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"No Roe Matrix Specified. A function to construct a Roe Matrix must be specified by the User. ");
-   }
-   PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  PetscCall(RiemannSolverGetApplicationContext(rs, &ctx));
+  if (rs->computeroemat) {
+    PetscCall(rs->computeroemat(ctx, uR, uL, rs->roemat));
+    *Roe = rs->roemat;
+  } else {
+    SETERRQ(PetscObjectComm((PetscObject)rs), PETSC_ERR_SUP, "No Roe Matrix Specified. A function to construct a Roe Matrix must be specified by the User. ");
+  }
+  PetscFunctionReturn(0);
 }
 
 /*@
@@ -746,24 +736,24 @@ PetscErrorCode RiemannSolverComputeRoeMatrix(RiemannSolver rs,const PetscReal *u
 
 .seealso: RiemannSolverSetFlux(), RiemannSolverComputeRoeMatrix()
 @*/
-PetscErrorCode RiemannSolverSetRoeMatrixFunct(RiemannSolver rs,RiemannSolverRoeMatrix roematfunct)
+PetscErrorCode RiemannSolverSetRoeMatrixFunct(RiemannSolver rs, RiemannSolverRoeMatrix roematfunct)
 {
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-   rs->computeroemat = roematfunct; 
-   PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  rs->computeroemat = roematfunct;
+  PetscFunctionReturn(0);
 }
 /* 
    TODO : Finish Documentations
 
    ALSO REDO ALL OF THIS STUFF. SO ugly 
 */
-PetscErrorCode RiemannSolverSetLaxCurve(RiemannSolver rs,LaxCurve laxcurve)
+PetscErrorCode RiemannSolverSetLaxCurve(RiemannSolver rs, LaxCurve laxcurve)
 {
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-   rs->evallaxcurve = laxcurve;
-   PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  rs->evallaxcurve = laxcurve;
+  PetscFunctionReturn(0);
 }
 
 /* 
@@ -771,112 +761,114 @@ PetscErrorCode RiemannSolverSetLaxCurve(RiemannSolver rs,LaxCurve laxcurve)
    ALSO REDO ALL OF THIS STUFF. SO ugly 
 */
 
-PetscErrorCode RiemannSolverEvalLaxCurve(RiemannSolver rs,const PetscReal *u,PetscReal xi,PetscInt wavenumber,PetscReal *ubar)
+PetscErrorCode RiemannSolverEvalLaxCurve(RiemannSolver rs, const PetscReal *u, PetscReal xi, PetscInt wavenumber, PetscReal *ubar)
 {
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-   if (rs->evallaxcurve) {
-      PetscCall(rs->evallaxcurve(rs,u,xi,wavenumber,ubar));
-   } else {
-      SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"No Lax Curve Function Specified");
-   }
-   PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  if (rs->evallaxcurve) {
+    PetscCall(rs->evallaxcurve(rs, u, xi, wavenumber, ubar));
+  } else {
+    SETERRQ(PetscObjectComm((PetscObject)rs), PETSC_ERR_SUP, "No Lax Curve Function Specified");
+  }
+  PetscFunctionReturn(0);
 }
 /* 
    TODO : Finish Documentations
 
    ALSO REDO ALL OF THIS STUFF. SO ugly 
 */
-PetscErrorCode RiemannSolverSetEigBasis(RiemannSolver rs,RiemannSolverEigBasis eigbasisfunct)
+PetscErrorCode RiemannSolverSetEigBasis(RiemannSolver rs, RiemannSolverEigBasis eigbasisfunct)
 {
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-   rs->computeeigbasis = eigbasisfunct; 
-   PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  rs->computeeigbasis = eigbasisfunct;
+  PetscFunctionReturn(0);
 }
 
-PetscErrorCode RiemannSolverComputeEigBasis(RiemannSolver rs,const PetscReal *u, Mat *EigBasis)
+PetscErrorCode RiemannSolverComputeEigBasis(RiemannSolver rs, const PetscReal *u, Mat *EigBasis)
 {
-   void           *ctx;
+  void *ctx;
 
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-   PetscCall(RiemannSolverGetApplicationContext(rs,&ctx));
-   if(rs->computeeigbasis) 
-   { 
-      PetscCall(rs->computeeigbasis(ctx,u,rs->eigen));
-      *EigBasis  = rs->eigen;
-   } else {
-      SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"No Eigen Decomposition Specified. ");
-   }
-   PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  PetscCall(RiemannSolverGetApplicationContext(rs, &ctx));
+  if (rs->computeeigbasis) {
+    PetscCall(rs->computeeigbasis(ctx, u, rs->eigen));
+    *EigBasis = rs->eigen;
+  } else {
+    SETERRQ(PetscObjectComm((PetscObject)rs), PETSC_ERR_SUP, "No Eigen Decomposition Specified. ");
+  }
+  PetscFunctionReturn(0);
 }
 
-PetscErrorCode RiemannSolverChangetoEigBasis(RiemannSolver rs, const PetscReal *u,PetscReal *ueig)
+PetscErrorCode RiemannSolverChangetoEigBasis(RiemannSolver rs, const PetscReal *u, PetscReal *ueig)
 {
-   void           *ctx;
+  void *ctx;
 
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-   PetscCall(RiemannSolverGetApplicationContext(rs,&ctx));
-   PetscCall(VecPlaceArray(rs->u,u));
-   PetscCall(VecPlaceArray(rs->ueig,ueig));
-   PetscCall(KSPSolve(rs->eigenksp,rs->u,rs->ueig));
-   PetscCall(VecResetArray(rs->u));
-   PetscCall(VecResetArray(rs->ueig));
-   PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  PetscCall(RiemannSolverGetApplicationContext(rs, &ctx));
+  PetscCall(VecPlaceArray(rs->u, u));
+  PetscCall(VecPlaceArray(rs->ueig, ueig));
+  PetscCall(KSPSolve(rs->eigenksp, rs->u, rs->ueig));
+  PetscCall(VecResetArray(rs->u));
+  PetscCall(VecResetArray(rs->ueig));
+  PetscFunctionReturn(0);
 }
 
-PetscErrorCode RiemannSolverComputeRoeAvg(RiemannSolver rs,const PetscReal *uL,const PetscReal *uR,PetscReal *uavg)
+PetscErrorCode RiemannSolverComputeRoeAvg(RiemannSolver rs, const PetscReal *uL, const PetscReal *uR, PetscReal *uavg)
 {
-   void           *ctx;
+  void *ctx;
 
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-   PetscCall(RiemannSolverGetApplicationContext(rs,&ctx));
-   if (rs->roeavg) {
-      rs->roeavg(ctx,uL,uR,uavg);
-   } else { 
-      SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"No Roe Average Function Specified");
-   }
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  PetscCall(RiemannSolverGetApplicationContext(rs, &ctx));
+  if (rs->roeavg) {
+    rs->roeavg(ctx, uL, uR, uavg);
+  } else {
+    SETERRQ(PetscObjectComm((PetscObject)rs), PETSC_ERR_SUP, "No Roe Average Function Specified");
+  }
 
-   PetscFunctionReturn(0);
+  PetscFunctionReturn(0);
 }
 /* Compute the norm of the positive or negative eigenvector at u components of of a vector x */
-PetscErrorCode RiemannSolverCharNorm(RiemannSolver rs, const PetscReal *u, const PetscReal *x, PetscInt sgn,PetscReal *norm)
+PetscErrorCode RiemannSolverCharNorm(RiemannSolver rs, const PetscReal *u, const PetscReal *x, PetscInt sgn, PetscReal *norm)
 {
-   void           *ctx;
-   PetscInt       field;
-   PetscScalar    *uchar,*eig; 
+  void        *ctx;
+  PetscInt     field;
+  PetscScalar *uchar, *eig;
 
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-   PetscCall(RiemannSolverGetApplicationContext(rs,&ctx));
-   PetscCall(RiemannSolverComputeEigBasis(rs,u,&rs->eigen));
-   PetscCall(VecPlaceArray(rs->u,x));
-   PetscCall(KSPSolve(rs->eigenksp,rs->u,rs->ueig));
-   PetscCall(VecResetArray(rs->u));
-   PetscCall(VecGetArray(rs->ueig,&uchar));
-   /* Projection on the positive or negative characteristic basis */
-   PetscCall(RiemannSolverComputeEig(rs,u,&eig));
-   if (sgn<0) 
-   {
-      for(field=0; field<rs->numfields; field++)
-      {
-         if(eig[field]>0) {uchar[field] = 0.0;}
-         else {uchar[field]*=eig[field];}
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  PetscCall(RiemannSolverGetApplicationContext(rs, &ctx));
+  PetscCall(RiemannSolverComputeEigBasis(rs, u, &rs->eigen));
+  PetscCall(VecPlaceArray(rs->u, x));
+  PetscCall(KSPSolve(rs->eigenksp, rs->u, rs->ueig));
+  PetscCall(VecResetArray(rs->u));
+  PetscCall(VecGetArray(rs->ueig, &uchar));
+  /* Projection on the positive or negative characteristic basis */
+  PetscCall(RiemannSolverComputeEig(rs, u, &eig));
+  if (sgn < 0) {
+    for (field = 0; field < rs->numfields; field++) {
+      if (eig[field] > 0) {
+        uchar[field] = 0.0;
+      } else {
+        uchar[field] *= eig[field];
       }
-   } else {
-      for(field=0; field<rs->numfields; field++)
-      {
-         if(eig[field]<0) {uchar[field] = 0.0;}
-         else{uchar[field]*=eig[field];}
+    }
+  } else {
+    for (field = 0; field < rs->numfields; field++) {
+      if (eig[field] < 0) {
+        uchar[field] = 0.0;
+      } else {
+        uchar[field] *= eig[field];
       }
-   }
-   PetscCall(VecRestoreArray(rs->ueig,&uchar));
-   PetscCall(MatMult(rs->eigen,rs->ueig,rs->u));
-   PetscCall(VecNorm(rs->u,NORM_2,norm));
-   PetscFunctionReturn(0);
+    }
+  }
+  PetscCall(VecRestoreArray(rs->ueig, &uchar));
+  PetscCall(MatMult(rs->eigen, rs->ueig, rs->u));
+  PetscCall(VecNorm(rs->u, NORM_2, norm));
+  PetscFunctionReturn(0);
 }
 
 /*@
@@ -893,12 +885,12 @@ PetscErrorCode RiemannSolverCharNorm(RiemannSolver rs, const PetscReal *u, const
 
 .seealso: RiemannSolverSetFlux(), RiemannSolverComputeRoeMatrix()
 @*/
-PetscErrorCode RiemannSolverSetRoeAvgFunct(RiemannSolver rs,RiemannSolverRoeAvg roeavgfunct)
+PetscErrorCode RiemannSolverSetRoeAvgFunct(RiemannSolver rs, RiemannSolverRoeAvg roeavgfunct)
 {
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-   rs->roeavg = roeavgfunct; 
-   PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  rs->roeavg = roeavgfunct;
+  PetscFunctionReturn(0);
 }
 
 /*@
@@ -931,117 +923,117 @@ PetscErrorCode RiemannSolverSetRoeAvgFunct(RiemannSolver rs,RiemannSolverRoeAvg 
  simply a boolean check but should be integrated with the rest of the petscview infrastructure. 
 */
 
-PetscErrorCode RiemannSolverTestEigDecomposition(RiemannSolver rs,PetscInt numvalues,const PetscReal **u,PetscReal tol, PetscBool *isequal,PetscReal *norms,PetscViewer viewer)
+PetscErrorCode RiemannSolverTestEigDecomposition(RiemannSolver rs, PetscInt numvalues, const PetscReal **u, PetscReal tol, PetscBool *isequal, PetscReal *norms, PetscViewer viewer)
 {
-   Mat            DF,R,Eig, DFR,EigR,Diff; 
-   Vec            Eig_vec; 
-   PetscScalar    *eig; 
-   PetscInt       i;
-   PetscErrorCode ierr; 
-   PetscReal      norm; 
-   PetscBool      isascii; 
+  Mat            DF, R, Eig, DFR, EigR, Diff;
+  Vec            Eig_vec;
+  PetscScalar   *eig;
+  PetscInt       i;
+  PetscErrorCode ierr;
+  PetscReal      norm;
+  PetscBool      isascii;
 
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-   /* If tol is PETSC_DECIDE set default. More complicated defaults could be implemented here */
-   if(tol == PETSC_DECIDE) tol = 1e-10; 
-   /* Preallocate diagonal eigenvalue matrix for all values */
-   PetscCall(MatCreateSeqDense(PETSC_COMM_SELF,rs->numfields,rs->numfields,PETSC_NULL,&Eig));
-   /* Preallocate result of DFR-EigR */
-   PetscCall(MatCreateSeqDense(PETSC_COMM_SELF,rs->numfields,rs->numfields,PETSC_NULL,&Diff));
-   PetscCall(MatZeroEntries(Eig));
-   PetscCall(VecCreateSeqWithArray(PETSC_COMM_SELF,1,rs->numfields,NULL,&Eig_vec));
-   for(i=0;i<numvalues;i++) {
-      PetscCall(RiemannSolverComputeEig(rs,u[i],&eig)); 
-      PetscCall(VecPlaceArray(Eig_vec,eig));
-      PetscCall(MatDiagonalSet(Eig,Eig_vec,INSERT_VALUES));
-      PetscCall(VecResetArray(Eig_vec));
-      PetscCall(RiemannSolverComputeJacobian(rs,u[i],&DF));
-      PetscCall(RiemannSolverComputeEigBasis(rs,u[i],&R));
-      /* In the first loop allocate the product matrices, reuse them throughout */
-      if (i==0) {
-         PetscCall(MatMatMult(DF,R,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&DFR));
-         PetscCall(MatMatMult(R,Eig,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&EigR));
-      } else {
-         PetscCall(MatMatMult(DF,R,MAT_REUSE_MATRIX,PETSC_DEFAULT,&DFR));
-         PetscCall(MatMatMult(R,Eig,MAT_REUSE_MATRIX,PETSC_DEFAULT,&EigR));
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  /* If tol is PETSC_DECIDE set default. More complicated defaults could be implemented here */
+  if (tol == PETSC_DECIDE) tol = 1e-10;
+  /* Preallocate diagonal eigenvalue matrix for all values */
+  PetscCall(MatCreateSeqDense(PETSC_COMM_SELF, rs->numfields, rs->numfields, PETSC_NULL, &Eig));
+  /* Preallocate result of DFR-EigR */
+  PetscCall(MatCreateSeqDense(PETSC_COMM_SELF, rs->numfields, rs->numfields, PETSC_NULL, &Diff));
+  PetscCall(MatZeroEntries(Eig));
+  PetscCall(VecCreateSeqWithArray(PETSC_COMM_SELF, 1, rs->numfields, NULL, &Eig_vec));
+  for (i = 0; i < numvalues; i++) {
+    PetscCall(RiemannSolverComputeEig(rs, u[i], &eig));
+    PetscCall(VecPlaceArray(Eig_vec, eig));
+    PetscCall(MatDiagonalSet(Eig, Eig_vec, INSERT_VALUES));
+    PetscCall(VecResetArray(Eig_vec));
+    PetscCall(RiemannSolverComputeJacobian(rs, u[i], &DF));
+    PetscCall(RiemannSolverComputeEigBasis(rs, u[i], &R));
+    /* In the first loop allocate the product matrices, reuse them throughout */
+    if (i == 0) {
+      PetscCall(MatMatMult(DF, R, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &DFR));
+      PetscCall(MatMatMult(R, Eig, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &EigR));
+    } else {
+      PetscCall(MatMatMult(DF, R, MAT_REUSE_MATRIX, PETSC_DEFAULT, &DFR));
+      PetscCall(MatMatMult(R, Eig, MAT_REUSE_MATRIX, PETSC_DEFAULT, &EigR));
+    }
+    PetscCall(MatCopy(DFR, Diff, SAME_NONZERO_PATTERN));
+    PetscCall(MatAXPY(Diff, -1., EigR, SAME_NONZERO_PATTERN));
+    PetscCall(MatNorm(Diff, NORM_INFINITY, &norm));
+    if (norms) { norms[i] = norm; }
+    if (isequal) { isequal[i] = (norm < tol); }
+
+    if (norm > tol) {
+      if (viewer) {
+        PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &isascii));
+        if (isascii) {
+          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(PetscViewerASCIIPrintf(viewer, " The EigenDecomposition Failed for the Following State: \n"));
+          PetscCall(PetscScalarView(rs->numfields, u[i], viewer));
+
+          ierr = PetscViewerASCIIPushTab(viewer);
+
+          PetscCall(PetscViewerASCIIPrintf(viewer, "\n\nEigenBasis (R): \n"));
+          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(MatView(R, viewer));
+          ierr = PetscViewerASCIIPopTab(viewer);
+
+          PetscCall(PetscViewerASCIIPrintf(viewer, "Jacobian (DF): \n"));
+          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(MatView(DF, viewer));
+          ierr = PetscViewerASCIIPopTab(viewer);
+
+          PetscCall(PetscViewerASCIIPrintf(viewer, "Eigenvalues (E): \n"));
+          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(MatView(Eig, viewer));
+          ierr = PetscViewerASCIIPopTab(viewer);
+
+          PetscCall(PetscViewerASCIIPrintf(viewer, "DF*R: \n"));
+          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(MatView(DFR, viewer));
+          ierr = PetscViewerASCIIPopTab(viewer);
+
+          PetscCall(PetscViewerASCIIPrintf(viewer, "R*E: \n"));
+          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(MatView(EigR, viewer));
+          ierr = PetscViewerASCIIPopTab(viewer);
+
+          PetscCall(PetscViewerASCIIPrintf(viewer, "R*E-DF*R: \n"));
+          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(MatView(Diff, viewer));
+          ierr = PetscViewerASCIIPopTab(viewer);
+
+          PetscCall(PetscViewerASCIIPrintf(viewer, " ||DF*R - R*E|| = %e\n\n\n", norm));
+
+          ierr = PetscViewerASCIIPopTab(viewer);
+          ierr = PetscViewerASCIIPopTab(viewer);
+        }
       }
-      PetscCall(MatCopy(DFR,Diff,SAME_NONZERO_PATTERN));
-      PetscCall(MatAXPY(Diff,-1.,EigR,SAME_NONZERO_PATTERN));
-      PetscCall(MatNorm(Diff,NORM_INFINITY,&norm));
-      if (norms) {norms[i] = norm;}
-      if (isequal) {isequal[i] = (norm < tol);}
-      
-      if (norm > tol) {
-         if (viewer) {
-            PetscCall(PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&isascii));
-            if (isascii) {
-               ierr = PetscViewerASCIIPushTab(viewer);
-               PetscCall(PetscViewerASCIIPrintf(viewer," The EigenDecomposition Failed for the Following State: \n"));
-               PetscCall(PetscScalarView(rs->numfields,u[i],viewer));
-
-               ierr = PetscViewerASCIIPushTab(viewer);
-
-               PetscCall(PetscViewerASCIIPrintf(viewer,"\n\nEigenBasis (R): \n"));
-               ierr = PetscViewerASCIIPushTab(viewer);
-               PetscCall(MatView(R,viewer));
-               ierr = PetscViewerASCIIPopTab(viewer);
-
-               PetscCall(PetscViewerASCIIPrintf(viewer,"Jacobian (DF): \n"));
-               ierr = PetscViewerASCIIPushTab(viewer);
-               PetscCall(MatView(DF,viewer));
-               ierr = PetscViewerASCIIPopTab(viewer);
-
-               PetscCall(PetscViewerASCIIPrintf(viewer,"Eigenvalues (E): \n"));
-               ierr = PetscViewerASCIIPushTab(viewer);
-               PetscCall(MatView(Eig,viewer));
-               ierr = PetscViewerASCIIPopTab(viewer);
-
-               PetscCall(PetscViewerASCIIPrintf(viewer,"DF*R: \n"));
-               ierr = PetscViewerASCIIPushTab(viewer);
-               PetscCall(MatView(DFR,viewer));
-               ierr = PetscViewerASCIIPopTab(viewer);
-
-               PetscCall(PetscViewerASCIIPrintf(viewer,"R*E: \n"));
-               ierr = PetscViewerASCIIPushTab(viewer);
-               PetscCall(MatView(EigR,viewer));
-               ierr = PetscViewerASCIIPopTab(viewer);
-
-               PetscCall(PetscViewerASCIIPrintf(viewer,"R*E-DF*R: \n"));
-               ierr = PetscViewerASCIIPushTab(viewer);
-               PetscCall(MatView(Diff,viewer));
-               ierr = PetscViewerASCIIPopTab(viewer);
-
-               PetscCall(PetscViewerASCIIPrintf(viewer," ||DF*R - R*E|| = %e\n\n\n",norm));
-
-               ierr = PetscViewerASCIIPopTab(viewer);
-               ierr = PetscViewerASCIIPopTab(viewer);
-            }
-         }
-      }
-   }
-   PetscCall(MatDestroy(&DFR));
-   PetscCall(MatDestroy(&EigR));
-   PetscCall(MatDestroy(&Diff));
-   PetscCall(MatDestroy(&Eig));
-   PetscCall(VecDestroy(&Eig_vec));
-   PetscFunctionReturn(0);
+    }
+  }
+  PetscCall(MatDestroy(&DFR));
+  PetscCall(MatDestroy(&EigR));
+  PetscCall(MatDestroy(&Diff));
+  PetscCall(MatDestroy(&Eig));
+  PetscCall(VecDestroy(&Eig_vec));
+  PetscFunctionReturn(0);
 }
 
-PetscErrorCode RiemannSolverComputeJacobian(RiemannSolver rs,const PetscReal *u,Mat *jacobian)
+PetscErrorCode RiemannSolverComputeJacobian(RiemannSolver rs, const PetscReal *u, Mat *jacobian)
 {
-   void           *ctx;
+  void *ctx;
 
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-   PetscCall(RiemannSolverGetApplicationContext(rs,&ctx));
-   if (rs->fluxderfun) {
-      rs->fluxderfun(ctx,u,rs->Df); 
-      *jacobian = rs->Df;
-   } else { 
-      SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"No Jacobian Function Specified");
-   }
-   PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  PetscCall(RiemannSolverGetApplicationContext(rs, &ctx));
+  if (rs->fluxderfun) {
+    rs->fluxderfun(ctx, u, rs->Df);
+    *jacobian = rs->Df;
+  } else {
+    SETERRQ(PetscObjectComm((PetscObject)rs), PETSC_ERR_SUP, "No Jacobian Function Specified");
+  }
+  PetscFunctionReturn(0);
 }
 
 /*@
@@ -1067,120 +1059,121 @@ PetscErrorCode RiemannSolverComputeJacobian(RiemannSolver rs,const PetscReal *u,
 @*/
 
 /* NOTE : Viewer routines might not work in parallel, might have to restict to serial calls */
-PetscErrorCode RiemannSolverTestRoeMat(RiemannSolver rs,PetscInt numvalues,const PetscReal **uL,const PetscReal **uR,PetscReal tol, PetscBool *isequal,PetscReal *norms,PetscViewer viewer)
+PetscErrorCode RiemannSolverTestRoeMat(RiemannSolver rs, PetscInt numvalues, const PetscReal **uL, const PetscReal **uR, PetscReal tol, PetscBool *isequal, PetscReal *norms, PetscViewer viewer)
 {
-   Mat            DF,ARoe,Diff; 
-   Vec            Au,F_diff;  
-   PetscScalar    *u_diff,*f_diff;  
-   PetscInt       i,j;
-   PetscErrorCode ierr; 
-   PetscReal      norm; 
-   PetscBool      isascii;
-   void           *ctx;
+  Mat            DF, ARoe, Diff;
+  Vec            Au, F_diff;
+  PetscScalar   *u_diff, *f_diff;
+  PetscInt       i, j;
+  PetscErrorCode ierr;
+  PetscReal      norm;
+  PetscBool      isascii;
+  void          *ctx;
 
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-   PetscCall(RiemannSolverGetApplicationContext(rs,&ctx));
-   /* If tol is PETSC_DECIDE set default. More complicated defaults could be implemented here */
-   if(tol == PETSC_DECIDE) tol = 1e-10;
-   PetscCall(VecCreateSeq(PETSC_COMM_SELF,rs->numfields,&Au)); 
-   PetscCall(VecCreateSeq(PETSC_COMM_SELF,rs->numfields,&F_diff)); 
-   PetscCall(MatCreateSeqDense(PETSC_COMM_SELF,rs->numfields,rs->numfields,NULL,&Diff));
-   for(i=0;i<numvalues;i++) {
-      /* Check conservation */
-      PetscCall(RiemannSolverComputeRoeMatrix(rs,uL[i],uR[i],&ARoe));
-      PetscCall(VecGetArray(rs->u,&u_diff)); /* use work vector */
-      for(j=0; j<rs->numfields; j++){ /* compute jump uR-uL */
-         u_diff[j] = uR[i][j] - uL[i][j];
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
+  PetscCall(RiemannSolverGetApplicationContext(rs, &ctx));
+  /* If tol is PETSC_DECIDE set default. More complicated defaults could be implemented here */
+  if (tol == PETSC_DECIDE) tol = 1e-10;
+  PetscCall(VecCreateSeq(PETSC_COMM_SELF, rs->numfields, &Au));
+  PetscCall(VecCreateSeq(PETSC_COMM_SELF, rs->numfields, &F_diff));
+  PetscCall(MatCreateSeqDense(PETSC_COMM_SELF, rs->numfields, rs->numfields, NULL, &Diff));
+  for (i = 0; i < numvalues; i++) {
+    /* Check conservation */
+    PetscCall(RiemannSolverComputeRoeMatrix(rs, uL[i], uR[i], &ARoe));
+    PetscCall(VecGetArray(rs->u, &u_diff)); /* use work vector */
+    for (j = 0; j < rs->numfields; j++) {   /* compute jump uR-uL */
+      u_diff[j] = uR[i][j] - uL[i][j];
+    }
+    PetscCall(VecRestoreArray(rs->u, &u_diff));
+    PetscCall(MatMult(ARoe, rs->u, Au));
+    PetscCall(VecGetArray(F_diff, &f_diff));
+    rs->fluxfun(ctx, uR[i], f_diff);
+    CHKERRQ(ierr);
+    rs->fluxfun(ctx, uL[i], rs->flux_wrk);
+    CHKERRQ(ierr);
+    for (j = 0; j < rs->numfields; j++) { /* compute jump f(uR)-f(uL) */
+      f_diff[j] -= rs->flux_wrk[j];
+    }
+    PetscCall(VecRestoreArray(F_diff, &f_diff));
+    PetscCall(VecAXPY(F_diff, -1., Au));
+    PetscCall(VecNorm(F_diff, NORM_INFINITY, &norm));
+    if (isequal) isequal[3 * i + 2] = (norm < tol);
+    if (norms) { norms[2 * i + 1] = norm; }
+    /* View if there are failures */
+    if (norm > tol) {
+      if (viewer) {
+        PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &isascii));
+        if (isascii) {
+          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(PetscViewerASCIIPrintf(viewer, "The Roe Matrix Failed Conservation for the Following State: \n"));
+
+          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(PetscViewerASCIIPrintf(viewer, "uL:"));
+          PetscCall(PetscScalarView(rs->numfields, uL[i], viewer));
+          PetscCall(PetscViewerASCIIPrintf(viewer, "uR:"));
+          PetscCall(PetscScalarView(rs->numfields, uR[i], viewer));
+
+          PetscCall(PetscViewerASCIIPrintf(viewer, "The Roe Matrix: \n"));
+          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(MatView(ARoe, viewer));
+          ierr = PetscViewerASCIIPopTab(viewer);
+
+          PetscCall(PetscViewerASCIIPrintf(viewer, "F(uR) - F(uL) - ARoe(uR-uL) \n"));
+          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(VecView(F_diff, viewer));
+          ierr = PetscViewerASCIIPopTab(viewer);
+
+          PetscCall(PetscViewerASCIIPrintf(viewer, " ||F(uR) - F(uL) - ARoe(uR-uL)|| = %e\n \n \n", norm));
+
+          ierr = PetscViewerASCIIPopTab(viewer);
+          ierr = PetscViewerASCIIPopTab(viewer);
+        }
       }
-      PetscCall(VecRestoreArray(rs->u,&u_diff));
-      PetscCall(MatMult(ARoe,rs->u,Au));
-      PetscCall(VecGetArray(F_diff,&f_diff));
-      rs->fluxfun(ctx,uR[i],f_diff);CHKERRQ(ierr);
-      rs->fluxfun(ctx,uL[i],rs->flux_wrk);CHKERRQ(ierr);
-      for(j=0; j<rs->numfields; j++){ /* compute jump f(uR)-f(uL) */
-         f_diff[j] -= rs->flux_wrk[j];
+    }
+    /* Check consistency */
+    PetscCall(RiemannSolverComputeRoeMatrix(rs, uL[i], uL[i], &ARoe));
+    PetscCall(RiemannSolverComputeJacobian(rs, uL[i], &DF));
+    PetscCall(MatCopy(ARoe, Diff, SAME_NONZERO_PATTERN));
+    PetscCall(MatAXPY(Diff, -1., DF, SAME_NONZERO_PATTERN));
+    PetscCall(MatNorm(Diff, NORM_INFINITY, &norm));
+    if (isequal) isequal[3 * i + 1] = (norm < tol);
+    if (norms) { norms[2 * i] = norm; }
+    if (norm > tol) {
+      if (viewer) {
+        PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &isascii));
+        if (isascii) {
+          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(PetscViewerASCIIPrintf(viewer, "The Roe Matrix Failed Consistency for the Following State: \n"));
+
+          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(PetscScalarView(rs->numfields, uL[i], viewer));
+
+          PetscCall(PetscViewerASCIIPrintf(viewer, "The Roe Matrix: \n\n"));
+          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(MatView(ARoe, viewer)); /* see if I can print only entries without the type and ranks */
+          ierr = PetscViewerASCIIPopTab(viewer);
+
+          PetscCall(PetscViewerASCIIPrintf(viewer, "The Jacobian Matrix: \n"));
+          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(MatView(DF, viewer));
+          ierr = PetscViewerASCIIPopTab(viewer);
+
+          PetscCall(PetscViewerASCIIPrintf(viewer, "ARoe - DF: \n"));
+          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(MatView(Diff, viewer));
+          ierr = PetscViewerASCIIPopTab(viewer);
+
+          PetscCall(PetscViewerASCIIPrintf(viewer, " ||DF(u) - ARoe(u)|| = %e\n\n\n", norm));
+
+          ierr = PetscViewerASCIIPopTab(viewer);
+          ierr = PetscViewerASCIIPopTab(viewer);
+        }
       }
-      PetscCall(VecRestoreArray(F_diff,&f_diff));
-      PetscCall(VecAXPY(F_diff,-1.,Au));
-      PetscCall(VecNorm(F_diff,NORM_INFINITY,&norm));
-      if(isequal) isequal[3*i+2] = (norm < tol);
-      if (norms)  {norms[2*i+1] = norm;}
-      /* View if there are failures */ 
-      if (norm > tol) {
-         if (viewer) {
-            PetscCall(PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&isascii));
-            if (isascii) {
-               ierr = PetscViewerASCIIPushTab(viewer);
-               PetscCall(PetscViewerASCIIPrintf(viewer,"The Roe Matrix Failed Conservation for the Following State: \n"));
-
-               ierr = PetscViewerASCIIPushTab(viewer);
-               PetscCall(PetscViewerASCIIPrintf(viewer,"uL:"));
-               PetscCall(PetscScalarView(rs->numfields,uL[i],viewer));
-               PetscCall(PetscViewerASCIIPrintf(viewer,"uR:"));
-               PetscCall(PetscScalarView(rs->numfields,uR[i],viewer));
-
-               PetscCall(PetscViewerASCIIPrintf(viewer,"The Roe Matrix: \n"));
-               ierr = PetscViewerASCIIPushTab(viewer);
-               PetscCall(MatView(ARoe,viewer));
-               ierr = PetscViewerASCIIPopTab(viewer);
-
-               PetscCall(PetscViewerASCIIPrintf(viewer,"F(uR) - F(uL) - ARoe(uR-uL) \n"));
-               ierr = PetscViewerASCIIPushTab(viewer);
-               PetscCall(VecView(F_diff,viewer));
-               ierr = PetscViewerASCIIPopTab(viewer);
-
-
-               PetscCall(PetscViewerASCIIPrintf(viewer," ||F(uR) - F(uL) - ARoe(uR-uL)|| = %e\n \n \n",norm));
-
-               ierr = PetscViewerASCIIPopTab(viewer);
-               ierr = PetscViewerASCIIPopTab(viewer);
-            }
-         }
-      }
-      /* Check consistency */
-      PetscCall(RiemannSolverComputeRoeMatrix(rs,uL[i],uL[i],&ARoe));
-      PetscCall(RiemannSolverComputeJacobian(rs,uL[i],&DF));
-      PetscCall(MatCopy(ARoe,Diff,SAME_NONZERO_PATTERN));
-      PetscCall(MatAXPY(Diff,-1.,DF,SAME_NONZERO_PATTERN));
-      PetscCall(MatNorm(Diff,NORM_INFINITY,&norm));
-      if(isequal) isequal[3*i+1] = (norm < tol);
-      if (norms) {norms[2*i] = norm;}
-      if (norm > tol) {
-         if (viewer) {
-            PetscCall(PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&isascii));
-            if (isascii) {
-               ierr = PetscViewerASCIIPushTab(viewer);
-               PetscCall(PetscViewerASCIIPrintf(viewer,"The Roe Matrix Failed Consistency for the Following State: \n"));
-
-               ierr = PetscViewerASCIIPushTab(viewer);
-               PetscCall(PetscScalarView(rs->numfields,uL[i],viewer));
-
-               PetscCall(PetscViewerASCIIPrintf(viewer,"The Roe Matrix: \n\n"));
-               ierr = PetscViewerASCIIPushTab(viewer);
-               PetscCall(MatView(ARoe,viewer)); /* see if I can print only entries without the type and ranks */
-               ierr = PetscViewerASCIIPopTab(viewer);
-
-               PetscCall(PetscViewerASCIIPrintf(viewer,"The Jacobian Matrix: \n"));
-               ierr = PetscViewerASCIIPushTab(viewer);
-               PetscCall(MatView(DF,viewer));
-               ierr = PetscViewerASCIIPopTab(viewer);
-
-               PetscCall(PetscViewerASCIIPrintf(viewer,"ARoe - DF: \n"));
-               ierr = PetscViewerASCIIPushTab(viewer);
-               PetscCall(MatView(Diff,viewer));
-               ierr = PetscViewerASCIIPopTab(viewer);
-
-               PetscCall(PetscViewerASCIIPrintf(viewer," ||DF(u) - ARoe(u)|| = %e\n\n\n",norm));
-
-               ierr = PetscViewerASCIIPopTab(viewer);
-               ierr = PetscViewerASCIIPopTab(viewer);
-            }
-         }
-      }
-   }
-   PetscCall(VecDestroy(&Au));
-   PetscCall(VecDestroy(&F_diff));
-   PetscCall(MatDestroy(&Diff));
-   PetscFunctionReturn(0);
+    }
+  }
+  PetscCall(VecDestroy(&Au));
+  PetscCall(VecDestroy(&F_diff));
+  PetscCall(MatDestroy(&Diff));
+  PetscFunctionReturn(0);
 }

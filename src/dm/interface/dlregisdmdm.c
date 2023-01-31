@@ -393,7 +393,7 @@ static PetscBool RiemannSolverPackageInitialized = PETSC_FALSE;
 
 .seealso: PetscFinalize()
 @*/
-PetscErrorCode  RiemannSolverFinalizePackage(void)
+PetscErrorCode RiemannSolverFinalizePackage(void)
 {
   PetscFunctionBegin;
   PetscCall(PetscFunctionListDestroy(&RiemannSolverList));
@@ -412,34 +412,34 @@ PetscErrorCode  RiemannSolverFinalizePackage(void)
 .seealso: PetscInitialize()
 @*/
 
-PetscErrorCode  RiemannSolverInitializePackage(void)
+PetscErrorCode RiemannSolverInitializePackage(void)
 {
-  char           logList[256];
-  PetscBool      opt,pkg;
+  char      logList[256];
+  PetscBool opt, pkg;
 
   PetscFunctionBegin;
   if (RiemannSolverPackageInitialized) PetscFunctionReturn(0);
   RiemannSolverPackageInitialized = PETSC_TRUE;
   /* Inialize subpackages */
-    
+
   /* Register Classes */
-  PetscCall(PetscClassIdRegister("RiemannSolver",&RIEMANNSOLVER_CLASSID));
+  PetscCall(PetscClassIdRegister("RiemannSolver", &RIEMANNSOLVER_CLASSID));
 
   /* Register Constructors */
   PetscCall(RiemannSolverRegisterAll());
   /* Register Events */
- 
+
   /* Process Info */
   {
-    PetscClassId  classids[1];
+    PetscClassId classids[1];
 
     classids[0] = RIEMANNSOLVER_CLASSID;
     PetscCall(PetscInfoProcessClass("RiemannSolver", 1, classids));
   }
   /* Process summary exclusions */
-  PetscCall(PetscOptionsGetString(NULL,NULL,"-log_exclude",logList,sizeof(logList),&opt));
+  PetscCall(PetscOptionsGetString(NULL, NULL, "-log_exclude", logList, sizeof(logList), &opt));
   if (opt) {
-    PetscCall(PetscStrInList("riemannsolver",logList,',',&pkg));
+    PetscCall(PetscStrInList("riemannsolver", logList, ',', &pkg));
     if (pkg) PetscCall(PetscLogEventExcludeClass(RIEMANNSOLVER_CLASSID));
   }
   /* Register package finalizer */
@@ -456,7 +456,7 @@ static PetscBool NetRSPackageInitialized = PETSC_FALSE;
 
 .seealso: PetscFinalize()
 @*/
-PetscErrorCode  NetRSFinalizePackage(void)
+PetscErrorCode NetRSFinalizePackage(void)
 {
   PetscFunctionBegin;
   PetscCall(PetscFunctionListDestroy(&NetRSList));
@@ -475,42 +475,42 @@ PetscErrorCode  NetRSFinalizePackage(void)
 .seealso: PetscInitialize()
 @*/
 
-PetscErrorCode  NetRSInitializePackage(void)
+PetscErrorCode NetRSInitializePackage(void)
 {
-  char           logList[256];
-  PetscBool      opt,pkg;
+  char      logList[256];
+  PetscBool opt, pkg;
 
   PetscFunctionBegin;
   if (NetRSPackageInitialized) PetscFunctionReturn(0);
   NetRSPackageInitialized = PETSC_TRUE;
   /* Inialize subpackages */
-    
+
   /* Register Classes */
-  PetscCall(PetscClassIdRegister("NetRS",&NETRS_CLASSID));
+  PetscCall(PetscClassIdRegister("NetRS", &NETRS_CLASSID));
 
   /* Register Constructors */
   PetscCall(NetRSRegisterAll());
   /* Register Events */
 
-  PetscCall(PetscLogEventRegister("NetRS_SetUp",NETRS_CLASSID,&NetRS_SetUp_VecSpace));
-  PetscCall(PetscLogEventRegister("NetRS_Solve",NETRS_CLASSID,&NetRS_Solve_Total));
-  PetscCall(PetscLogEventRegister("NetRS_SolveComm",NETRS_CLASSID,&NetRS_Solve_Communication));
+  PetscCall(PetscLogEventRegister("NetRS_SetUp", NETRS_CLASSID, &NetRS_SetUp_VecSpace));
+  PetscCall(PetscLogEventRegister("NetRS_Solve", NETRS_CLASSID, &NetRS_Solve_Total));
+  PetscCall(PetscLogEventRegister("NetRS_SolveComm", NETRS_CLASSID, &NetRS_Solve_Communication));
 
-  PetscCall(PetscLogEventRegister("NetRS_SolveSVec",NETRS_CLASSID,&NetRS_Solve_SubVecBuild));
-  PetscCall(PetscLogEventRegister("NetRS_SolveIS",NETRS_CLASSID,&NetRS_Solve_IS));
-  PetscCall(PetscLogEventRegister("NetRS_SolveTop",NETRS_CLASSID,&NetRS_Solve_TopologyBuild));
+  PetscCall(PetscLogEventRegister("NetRS_SolveSVec", NETRS_CLASSID, &NetRS_Solve_SubVecBuild));
+  PetscCall(PetscLogEventRegister("NetRS_SolveIS", NETRS_CLASSID, &NetRS_Solve_IS));
+  PetscCall(PetscLogEventRegister("NetRS_SolveTop", NETRS_CLASSID, &NetRS_Solve_TopologyBuild));
 
   /* Process Info */
   {
-    PetscClassId  classids[1];
+    PetscClassId classids[1];
 
     classids[0] = NETRS_CLASSID;
     PetscCall(PetscInfoProcessClass("NetRS", 1, classids));
   }
   /* Process summary exclusions */
-  PetscCall(PetscOptionsGetString(NULL,NULL,"-log_exclude",logList,sizeof(logList),&opt));
+  PetscCall(PetscOptionsGetString(NULL, NULL, "-log_exclude", logList, sizeof(logList), &opt));
   if (opt) {
-    PetscCall(PetscStrInList("netrs",logList,',',&pkg));
+    PetscCall(PetscStrInList("netrs", logList, ',', &pkg));
     if (pkg) PetscCall(PetscLogEventExcludeClass(NETRS_CLASSID));
   }
   /* Register package finalizer */
@@ -527,7 +527,7 @@ static PetscBool NetRPPackageInitialized = PETSC_FALSE;
 
 .seealso: PetscFinalize()
 @*/
-PetscErrorCode  NetRPFinalizePackage(void)
+PetscErrorCode NetRPFinalizePackage(void)
 {
   PetscFunctionBegin;
   PetscCall(PetscFunctionListDestroy(&NetRPList));
@@ -535,8 +535,6 @@ PetscErrorCode  NetRPFinalizePackage(void)
   NetRPRegisterAllCalled  = PETSC_FALSE;
   PetscFunctionReturn(0);
 }
-
-
 
 /*@C
   NetRPInitializePackage - This function initializes everything in the NetRP package. It is called
@@ -548,37 +546,37 @@ PetscErrorCode  NetRPFinalizePackage(void)
 .seealso: PetscInitialize()
 @*/
 
-PetscErrorCode  NetRPInitializePackage(void)
+PetscErrorCode NetRPInitializePackage(void)
 {
-  char           logList[256];
-  PetscBool      opt,pkg;
+  char      logList[256];
+  PetscBool opt, pkg;
 
   PetscFunctionBegin;
   if (NetRPPackageInitialized) PetscFunctionReturn(0);
   NetRPPackageInitialized = PETSC_TRUE;
   /* Inialize subpackages */
-    
+
   /* Register Classes */
-  PetscCall(PetscClassIdRegister("NetRP",&NETRP_CLASSID));
+  PetscCall(PetscClassIdRegister("NetRP", &NETRP_CLASSID));
 
   /* Register Constructors */
   PetscCall(NetRPRegisterAll());
   /* Register Events */
-  PetscCall(PetscLogEventRegister("NetRPSolve_Total",NETRP_CLASSID,&NetRP_Solve_Total));
-  PetscCall(PetscLogEventRegister("NetRPSolve_SetUp",NETRP_CLASSID,&NetRP_Solve_SetUp));
-  PetscCall(PetscLogEventRegister("NetRPSolve_Sys",NETRP_CLASSID,&NetRP_Solve_System));
+  PetscCall(PetscLogEventRegister("NetRPSolve_Total", NETRP_CLASSID, &NetRP_Solve_Total));
+  PetscCall(PetscLogEventRegister("NetRPSolve_SetUp", NETRP_CLASSID, &NetRP_Solve_SetUp));
+  PetscCall(PetscLogEventRegister("NetRPSolve_Sys", NETRP_CLASSID, &NetRP_Solve_System));
 
   /* Process Info */
   {
-    PetscClassId  classids[1];
+    PetscClassId classids[1];
 
     classids[0] = NETRP_CLASSID;
     PetscCall(PetscInfoProcessClass("NetRP", 1, classids));
   }
   /* Process summary exclusions */
-  PetscCall(PetscOptionsGetString(NULL,NULL,"-log_exclude",logList,sizeof(logList),&opt));
+  PetscCall(PetscOptionsGetString(NULL, NULL, "-log_exclude", logList, sizeof(logList), &opt));
   if (opt) {
-    PetscCall(PetscStrInList("netrp",logList,',',&pkg));
+    PetscCall(PetscStrInList("netrp", logList, ',', &pkg));
     if (pkg) PetscCall(PetscLogEventExcludeClass(NETRP_CLASSID));
   }
   /* Register package finalizer */
