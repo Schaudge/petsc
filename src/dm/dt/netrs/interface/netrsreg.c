@@ -1,4 +1,4 @@
-#include <petsc/private/netrsimpl.h>
+#include <petsc/private/netrsimpl.h> /*I "petscnetrs.h" I*/
 PetscFunctionList NetRSList              = NULL;
 PetscClassId      NETRS_CLASSID          = 0;
 PetscBool         NetRSRegisterAllCalled = PETSC_FALSE;

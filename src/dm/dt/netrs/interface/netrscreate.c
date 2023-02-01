@@ -1,4 +1,4 @@
-#include <petsc/private/netrsimpl.h>
+#include <petsc/private/netrsimpl.h> /*I "petscnetrs.h" I*/
 /*@C
   NetRSCreate - This function creates an empty NetRS. The type of solver 
     can then be set with NetRSSetType().

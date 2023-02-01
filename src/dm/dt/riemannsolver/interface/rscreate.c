@@ -1,4 +1,4 @@
-#include <petsc/private/riemannsolverimpl.h>
+#include <petsc/private/riemannsolverimpl.h> /*I "petscriemannsolver.h"  I*/
 /*@C
   RiemannSolverCreate - This function creates an empty RiemannSolver. The type of solver 
     can then be set with RiemannSolverSetType().

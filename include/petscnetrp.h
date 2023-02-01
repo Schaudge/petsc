@@ -5,6 +5,7 @@
   #include <petscmat.h>
   #include <petscsnes.h>
   #include <petscksp.h>
+  #include <petscriemannsolver.h>
   #include <petscvec.h>
 
 typedef struct _p_NetRP *NetRP;

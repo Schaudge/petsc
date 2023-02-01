@@ -1,13 +1,5 @@
-#include <petscriemannsolver.h>
-#include <petscviewer.h>
-#include <petscdraw.h>
-#include <petscmat.h>
-#include <petscksp.h>
+#include <petscnetrs.h> /*I "petscnetrs.h" I*/
 #include <petsc/private/netrsimpl.h>
-#include <petscnetrs.h>
-#include <petscdm.h>
-#include <petscsf.h>
-
 #include <petsc/private/riemannsolverimpl.h> /* to be removed after adding fluxfunction class */
 
 PetscLogEvent NetRS_SetUp_VecSpace;

@@ -11,6 +11,7 @@
   #include <petsc/private/hashmapi.h>
   #include <petsc/private/hashseti.h>
   #include <petscnetrp.h>
+  #include <petscsf.h>
 
 typedef struct _p_NetRS *NetRS;
 

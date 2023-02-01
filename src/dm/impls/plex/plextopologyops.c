@@ -134,7 +134,7 @@ PetscErrorCode DMPlexDisjointUnion_Topological_Section(DM *plexlist, PetscInt nu
   }
   PetscFunctionReturn(0);
 }
-/*@
+/*C
   VecSectionCopy - Copies between a reduced vector and the appropriate elements of a full-space vector.
 
   Input Parameters:
@@ -154,8 +154,7 @@ PetscErrorCode DMPlexDisjointUnion_Topological_Section(DM *plexlist, PetscInt nu
   Level: advanced
 
 .seealso: `VecISSet()`, `VecISAXPY()`, `VecCopy()`, `PetscSectionCreateSubmeshSection()`
-@*/
-
+C*/
 PetscErrorCode VecSectionCopy(Vec vfull, PetscSection fullsec, IS is, ScatterMode mode, PetscSection subsec, Vec vsub)
 {
   PetscInt nfull, nsub;

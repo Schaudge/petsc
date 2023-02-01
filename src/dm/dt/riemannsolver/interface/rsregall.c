@@ -1,5 +1,5 @@
 
-#include <petsc/private/riemannsolverimpl.h>
+#include <petsc/private/riemannsolverimpl.h> /*I "petscriemannsolver.h"  I*/
 PetscBool RiemannSolverRegisterAllCalled = PETSC_FALSE;
 
 /* Add Creation Routines here */

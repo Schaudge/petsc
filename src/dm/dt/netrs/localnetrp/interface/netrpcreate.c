@@ -1,4 +1,4 @@
-#include <petsc/private/localnetrpimpl.h>
+#include <petsc/private/localnetrpimpl.h>  /*I "petscnetrp.h" I*/
 /*@C
   NetRPCreate - This function creates an empty NetRP. The type of solver 
     can then be set with NetRSSetType().
