@@ -1,8 +1,6 @@
 #include <petsc/private/localnetrpimpl.h>
-#include <petscnetrp.h>
+#include <petscnetrp.h> /*I "petscnetrp.h" I*/
 #include <petsc/private/riemannsolverimpl.h> /* to be removed after adding fluxfunction class */
-#include <petscsys.h>
-#include <petscdmnetwork.h>
 
 PetscLogEvent NetRP_Solve_Total;
 PetscLogEvent NetRP_Solve_SetUp;
@@ -237,7 +235,7 @@ typedef struct {
   PetscBool *edgein;
   Vec        U;
 } NetRPSNESctx;
-/*@
+/*C
    NetRPSNESWrapperFunc - Wraps the format for the nonlinear eval in NetRP class into SNES expected format. 
    Just for internal use. 
 
@@ -258,7 +256,7 @@ typedef struct {
    Level: developer
 
 .seealso: 
-@*/
+C*/
 
 static PetscErrorCode NetRPSNESWrapperFunc(SNES snes, Vec x, Vec f, void *ctx)
 {
@@ -280,7 +278,7 @@ static PetscErrorCode NetRPSNESWrapperFunc(SNES snes, Vec x, Vec f, void *ctx)
   PetscFunctionReturn(0);
 }
 
-/*@
+/*C
    NetRPSNESWrapperJac - Wraps the format for the nonlinear Jac in NetRP class into SNES expected format. 
    Just for internal use. 
 
@@ -301,7 +299,7 @@ static PetscErrorCode NetRPSNESWrapperFunc(SNES snes, Vec x, Vec f, void *ctx)
    Level: developer
 
 .seealso: 
-@*/
+C*/
 
 static PetscErrorCode NetRPSNESWrapperJac(SNES snes, Vec x, Mat Amat, Mat Pmat, void *ctx)
 {

@@ -1,4 +1,4 @@
-#include <petsc/private/riemannsolverimpl.h>
+#include <petsc/private/riemannsolverimpl.h> /*I "petscriemannsolver.h"  I*/
 PetscFunctionList RiemannSolverList     = NULL;
 PetscClassId      RIEMANNSOLVER_CLASSID = 0;
 

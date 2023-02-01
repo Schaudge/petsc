@@ -42,7 +42,7 @@ PetscErrorCode RiemannSolverConvexMaxSpeed_internal(RiemannSolver rs, const Pets
   in the grand scheme this might not save much (relative to the other costs in a balance law simulation). 
 */
 
-/*@
+/*C
    RiemannSolverSetUpJacobian_internal - Internal Specification for how to setup the jacobian matrix and jacobian solver. 
 
    Collective on RiemannSolver
@@ -53,7 +53,7 @@ PetscErrorCode RiemannSolverConvexMaxSpeed_internal(RiemannSolver rs, const Pets
    Level: developer
 
 .seealso: RiemannSolverSetUp()
-@*/
+C*/
 PetscErrorCode RiemannSolverSetUpJacobian_internal(RiemannSolver rs)
 {
   PC pc;
@@ -70,7 +70,7 @@ PetscErrorCode RiemannSolverSetUpJacobian_internal(RiemannSolver rs)
   PetscFunctionReturn(0);
 }
 
-/*@
+/*C
    RiemannSolverResetJacobian_internal - Internal Specification for how to reset the Jacobian matrices.
 
    Collective on RiemannSolver
@@ -81,7 +81,7 @@ PetscErrorCode RiemannSolverSetUpJacobian_internal(RiemannSolver rs)
    Level: developer
 
 .seealso: RiemannSolverSetUp(), RiemannSolverSetUpRoe_internal(), RiemannSolverReset()
-@*/
+C*/
 PetscErrorCode RiemannSolverResetJacobian_internal(RiemannSolver rs)
 {
   PetscFunctionBegin;
@@ -91,7 +91,7 @@ PetscErrorCode RiemannSolverResetJacobian_internal(RiemannSolver rs)
   PetscFunctionReturn(0);
 }
 
-/*@
+/*C
    RiemannSolverSetUpRoe_internal - Internal Specification for how to setup the Roe matrices and Roe matrix Linear Solvers. 
    Called in RiemannSolverSetUp(), seperated for convience of editing. 
 
@@ -103,7 +103,7 @@ PetscErrorCode RiemannSolverResetJacobian_internal(RiemannSolver rs)
    Level: developer
 
 .seealso: RiemannSolverSetUp()
-@*/
+C*/
 PetscErrorCode RiemannSolverSetUpRoe_internal(RiemannSolver rs)
 {
   PC pc;
@@ -143,7 +143,7 @@ PetscErrorCode RiemannSolverSetUpRoe_internal(RiemannSolver rs)
   PetscFunctionReturn(0);
 }
 
-/*@
+/*C
    RiemannSolverResetRoe_internal - Internal Specification for how to reset the Roe matrices and Roe matrix Linear Solvers. 
    Called in RiemannSolverReset()), seperated for convience of editing. 
 
@@ -155,7 +155,7 @@ PetscErrorCode RiemannSolverSetUpRoe_internal(RiemannSolver rs)
    Level: developer
 
 .seealso: RiemannSolverSetUp(), RiemannSolverSetUpRoe_internal(), RiemannSolverReset()
-@*/
+C*/
 PetscErrorCode RiemannSolverResetRoe_internal(RiemannSolver rs)
 {
   PetscFunctionBegin;
@@ -167,7 +167,7 @@ PetscErrorCode RiemannSolverResetRoe_internal(RiemannSolver rs)
   PetscFunctionReturn(0);
 }
 
-/*@
+/*C
    RiemannSolverSetUpEig_internal - Internal Specification for how to setup the Eig Decomposition matrices. 
 
    Collective on RiemannSolver
@@ -178,7 +178,7 @@ PetscErrorCode RiemannSolverResetRoe_internal(RiemannSolver rs)
    Level: developer
 
 .seealso: RiemannSolverSetUp()
-@*/
+C*/
 PetscErrorCode RiemannSolverSetUpEig_internal(RiemannSolver rs)
 {
   PC pc;
@@ -205,7 +205,7 @@ PetscErrorCode RiemannSolverSetUpEig_internal(RiemannSolver rs)
   PetscFunctionReturn(0);
 }
 
-/*@
+/*C
    RiemannSolverResetEig_internal - TODO
 
    Collective on RiemannSolver
@@ -216,7 +216,7 @@ PetscErrorCode RiemannSolverSetUpEig_internal(RiemannSolver rs)
    Level: developer
 
 .seealso: RiemannSolverSetUp(), RiemannSolverSetUpRoe_internal(), RiemannSolverReset()
-@*/
+C*/
 PetscErrorCode RiemannSolverResetEig_internal(RiemannSolver rs)
 {
   PetscFunctionBegin;
