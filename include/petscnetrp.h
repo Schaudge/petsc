@@ -7,6 +7,7 @@
   #include <petscksp.h>
   #include <petscriemannsolver.h>
   #include <petscvec.h>
+  #include <petsctao.h>
 
 typedef struct _p_NetRP *NetRP;
 
@@ -16,6 +17,7 @@ PETSC_EXTERN PetscFunctionList NetRPList;
 typedef enum {
   Linear,
   Nonlinear,
+  Optimization,
   Other
 } NetRPSolveType;
 typedef enum {
@@ -29,6 +31,8 @@ typedef PetscErrorCode (*NetRPCreateLinearStar)(NetRP, PetscInt, PetscBool *, Ve
 typedef PetscErrorCode (*NetRPCreateLinearFlux)(NetRP, PetscInt, PetscBool *, Vec, Vec, Mat); /* form is: NumEdges,EdgeIn? Array, U, Linear System for solving for Flux */
 typedef PetscErrorCode (*NetRPNonlinearEval)(NetRP, PetscInt, PetscBool *, Vec, Vec, Vec);    /* form is: NumEdges,EdgeIn? Array, U, F(u), where F(U) is the nonlinear eval for the nonlinear Network Riemann Problem */
 typedef PetscErrorCode (*NetRPNonlinearJac)(NetRP, PetscInt, PetscBool *, Vec, Vec, Mat);     /* form is: NumEdges,EdgeIn? Array, U, Jacobian of the NonlinearEval */
+//typedef PetscErrorCode (*NetRPTaoInitialSetUp)(NetRP,PetscInt, PetscBool *, Tao);             /* form is: NumEdges,EdgeIn? Array, Tao object for optimization */
+
 
 typedef const char *NetRPType;
   #define NETRPBLANK      "netrpblank"
