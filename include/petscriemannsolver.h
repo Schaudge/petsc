@@ -43,6 +43,7 @@ typedef void (*PetscPointFlux)(void *, const PetscReal *, PetscReal *);
 */
 
 typedef PetscErrorCode (*PetscPointFluxDer)(void *, const PetscReal *, Mat);
+typedef PetscErrorCode (*PetscPointFluxDerVec)(void *, const PetscReal *, Vec); /* For the Functional Case of F, then DF can be represented as a Vec */
 
 /* 
    And again riemann solvers need to be able to compute eigenvalues of the system, for usage in wave-speed estimates. 

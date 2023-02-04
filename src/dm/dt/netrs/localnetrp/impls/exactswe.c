@@ -124,8 +124,6 @@ static PetscErrorCode NRPView_ExactSWE(NetRP rp, PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
-/* ------------------------------------------------------------ */
-
 PETSC_EXTERN PetscErrorCode NetRPCreate_ExactSWE(NetRP rp)
 {
   PetscFunctionBegin;
