@@ -362,7 +362,7 @@ static PetscErrorCode PetscGridHashInitialize_Internal(PetscGridHash box, PetscI
 
   PetscFunctionBegin;
   box->dim = dim;
-  for (d = 0; d < dim; ++d) box->lower[d] = box->upper[d] = PetscRealPart(point[d]);
+  for (d = 0; d < dim; ++d) box->lower[d] = box->upper[d] = point ? PetscRealPart(point[d]) : 0.;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -635,7 +635,7 @@ PetscErrorCode DMPlexComputeGridHash_Internal(DM dm, PetscGridHash *localBox)
     for (i = 0; i < dim; ++i) n[i] = PetscMax(2, PetscFloorReal(PetscPowReal((PetscReal)(cEnd - cStart), 1.0 / dim) * 0.8));
   }
   PetscCall(PetscGridHashSetGrid(lbox, n, NULL));
-  if (debug)
+  if (debug > 1)
     PetscCall(PetscPrintf(PETSC_COMM_SELF, "GridHash:\n  (%g, %g, %g) -- (%g, %g, %g)\n  n %" PetscInt_FMT " %" PetscInt_FMT " %" PetscInt_FMT "\n  h %g %g %g\n", (double)lbox->lower[0], (double)lbox->lower[1], (double)lbox->lower[2], (double)lbox->upper[0],
                           (double)lbox->upper[1], (double)lbox->upper[2], n[0], n[1], n[2], (double)lbox->h[0], (double)lbox->h[1], (double)lbox->h[2]));
 #if 0
@@ -686,7 +686,7 @@ PetscErrorCode DMPlexComputeGridHash_Internal(DM dm, PetscGridHash *localBox)
     PetscCall(PetscGridHashGetEnclosingBox(lbox, csize / dim, ccoords, dboxes, boxes));
     /* Mark cells containing the vertices */
     for (e = 0; e < csize / dim; ++e) {
-      if (debug)
+      if (debug > 1)
         PetscCall(PetscPrintf(PETSC_COMM_SELF, "Cell %" PetscInt_FMT " has vertex (%g, %g, %g) in box %" PetscInt_FMT " (%" PetscInt_FMT ", %" PetscInt_FMT ", %" PetscInt_FMT ")\n", c, (double)PetscRealPart(ccoords[e * dim + 0]), dim > 1 ? (double)PetscRealPart(ccoords[e * dim + 1]) : 0., dim > 2 ? (double)PetscRealPart(ccoords[e * dim + 2]) : 0., boxes[e], dboxes[e * dim + 0], dim > 1 ? dboxes[e * dim + 1] : -1, dim > 2 ? dboxes[e * dim + 2] : -1));
       PetscCall(DMLabelSetValue(lbox->cellsSparse, c, boxes[e]));
     }
@@ -707,7 +707,7 @@ PetscErrorCode DMPlexComputeGridHash_Internal(DM dm, PetscGridHash *localBox)
           PetscScalar    cpoint[3];
           PetscInt       cell, edge, ii, jj, kk;
 
-          if (debug)
+          if (debug > 1)
             PetscCall(PetscPrintf(PETSC_COMM_SELF, "Box %" PetscInt_FMT ": (%.2g, %.2g, %.2g) -- (%.2g, %.2g, %.2g)\n", box, (double)PetscRealPart(point[0]), (double)PetscRealPart(point[1]), (double)PetscRealPart(point[2]), (double)PetscRealPart(point[0] + h[0]), (double)PetscRealPart(point[1] + h[1]), (double)PetscRealPart(point[2] + h[2])));
           /* Check whether cell contains any vertex of this subbox TODO vectorize this */
           for (kk = 0, cpoint[2] = point[2]; kk < (dim > 2 ? 2 : 1); ++kk, cpoint[2] += h[2]) {
@@ -715,7 +715,7 @@ PetscErrorCode DMPlexComputeGridHash_Internal(DM dm, PetscGridHash *localBox)
               for (ii = 0, cpoint[0] = point[0]; ii < 2; ++ii, cpoint[0] += h[0]) {
                 PetscCall(DMPlexLocatePoint_Internal(dm, dim, cpoint, c, &cell));
                 if (cell >= 0) {
-                  if (debug)
+                  if (debug > 1)
                     PetscCall(PetscPrintf(PETSC_COMM_SELF, "  Cell %" PetscInt_FMT " contains vertex (%.2g, %.2g, %.2g) of box %" PetscInt_FMT "\n", c, (double)PetscRealPart(cpoint[0]), (double)PetscRealPart(cpoint[1]), (double)PetscRealPart(cpoint[2]), box));
                   PetscCall(DMLabelSetValue(lbox->cellsSparse, c, box));
                   jj = kk = 2;
@@ -774,7 +774,7 @@ PetscErrorCode DMPlexComputeGridHash_Internal(DM dm, PetscGridHash *localBox)
                   PetscCall(DMPlexGetLinePlaneIntersection_3D_Internal(segA, segB, segC, NULL, &intersects));
                 }
                 if (intersects) {
-                  if (debug)
+                  if (debug > 1)
                     PetscCall(PetscPrintf(PETSC_COMM_SELF, "  Cell %" PetscInt_FMT " edge %" PetscInt_FMT " (%.2g, %.2g, %.2g)--(%.2g, %.2g, %.2g) intersects box %" PetscInt_FMT ", face (%.2g, %.2g, %.2g)--(%.2g, %.2g, %.2g) (%.2g, %.2g, %.2g)--(%.2g, %.2g, %.2g)\n", c, edge, (double)segA[0], (double)segA[1], (double)segA[2], (double)segA[3], (double)segA[4], (double)segA[5], box, (double)segB[0], (double)segB[1], (double)segB[2], (double)segB[3], (double)segB[4], (double)segB[5], (double)segC[0], (double)segC[1], (double)segC[2], (double)segC[3], (double)segC[4], (double)segC[5]));
                   PetscCall(DMLabelSetValue(lbox->cellsSparse, c, box));
                   edge = Ne;
@@ -789,7 +789,7 @@ PetscErrorCode DMPlexComputeGridHash_Internal(DM dm, PetscGridHash *localBox)
     PetscCall(DMPlexVecRestoreClosure(dm, coordSection, coordsLocal, c, NULL, &ccoords));
   }
   PetscCall(PetscFree3(dboxes, boxes, edgeCoords));
-  if (debug) PetscCall(DMLabelView(lbox->cellsSparse, PETSC_VIEWER_STDOUT_SELF));
+  if (debug > 1) PetscCall(DMLabelView(lbox->cellsSparse, PETSC_VIEWER_STDOUT_SELF));
   PetscCall(DMLabelConvertToSection(lbox->cellsSparse, &lbox->cellSection, &lbox->cells));
   PetscCall(DMLabelDestroy(&lbox->cellsSparse));
   *localBox = lbox;
@@ -892,9 +892,14 @@ PetscErrorCode DMLocatePoints_Plex(DM dm, Vec v, DMPointLocationType ltype, Pets
       cells[p].index = DMLOCATEPOINT_POINT_NOT_FOUND;
       PetscCall(DMPlexLocatePoint_Internal(dm, dim, point, c, &cell));
       if (cell >= 0) {
-        cells[p].rank  = 0;
-        cells[p].index = cell;
-        numFound++;
+        PetscInt idx;
+
+        PetscCall(PetscFindInt(cell, Nl, leaves, &idx));
+        if (idx < 0) {
+          cells[p].rank  = 0;
+          cells[p].index = cell;
+          numFound++;
+        }
       }
     }
     if (cells[p].index != DMLOCATEPOINT_POINT_NOT_FOUND) {
@@ -917,7 +922,27 @@ PetscErrorCode DMLocatePoints_Plex(DM dm, Vec v, DMPointLocationType ltype, Pets
           if (debug) PetscCall(PetscPrintf(PETSC_COMM_SELF, "    Checking for point in cell %" PetscInt_FMT "\n", boxCells[c]));
           PetscCall(DMPlexLocatePoint_Internal(dm, dim, point, boxCells[c], &cell));
           if (cell >= 0) {
-            if (debug) PetscCall(PetscPrintf(PETSC_COMM_SELF, "      FOUND in cell %" PetscInt_FMT "\n", cell));
+            if (debug) {
+              const PetscScalar *array;
+              PetscScalar       *coords = NULL;
+              PetscInt           numCoords;
+              PetscBool          isDG;
+
+              PetscCall(PetscPrintf(PETSC_COMM_SELF, "      FOUND in cell %" PetscInt_FMT "\n", cell));
+              PetscCall(DMPlexGetCellCoordinates(dm, cell, &isDG, &numCoords, &array, &coords));
+              PetscCall(PetscPrintf(PETSC_COMM_SELF, "        "));
+              for (PetscInt cc = 0; cc < numCoords/dim; ++cc) {
+                if (cc > 0) PetscCall(PetscPrintf(PETSC_COMM_SELF, " -- "));
+                PetscCall(PetscPrintf(PETSC_COMM_SELF, "("));
+                for (PetscInt d = 0; d < dim; ++d) {
+                  if (d > 0) PetscCall(PetscPrintf(PETSC_COMM_SELF, ", "));
+                  PetscCall(PetscPrintf(PETSC_COMM_SELF, "%g", (double)PetscRealPart(coords[cc * dim + d])));
+                }
+                PetscCall(PetscPrintf(PETSC_COMM_SELF, ")"));
+              }
+              PetscCall(PetscPrintf(PETSC_COMM_SELF, "\n"));
+              PetscCall(DMPlexRestoreCellCoordinates(dm, cell, &isDG, &numCoords, &array, &coords));
+            }
             cells[p].rank  = 0;
             cells[p].index = cell;
             numFound++;

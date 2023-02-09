@@ -507,6 +507,97 @@ PetscErrorCode DMGetFirstLabeledPoint(DM dm, DM odm, DMLabel label, PetscInt num
 }
 
 /*
+  4.   Check cone each point for input point
+*/
+static PetscErrorCode FindPointInSupport_Private(DM dm, PetscInt point, PetscInt height, PetscInt *cell)
+{
+  DMPlexTransform tr = ((DM_Plex *) dm->data)->tr;
+  DMPolytopeType  ct, ctNew;
+  DM              odm;
+  PetscInt       *support = NULL;
+  PetscInt        supportSize;
+  PetscInt        dim, op, or;
+
+  PetscFunctionBegin;
+  *cell = -1;
+  PetscCall(DMGetDimension(dm, &dim));
+  // Get star of parent point in original mesh
+  PetscCall(DMPlexTransformGetDM(tr, &odm));
+  PetscCall(DMPlexTransformGetSourcePoint(tr, point, &ct, &ctNew, &op, &or));
+  PetscCall(DMPlexGetTransitiveClosure(odm, op, PETSC_FALSE, &supportSize, &support));
+  // Iterate, starting from cells
+  for (PetscInt sp = supportSize - 1; sp > 0; --sp) {
+    const PetscInt  p = support[sp * 2];
+    DMPolytopeType *rct;
+    PetscInt       *rsize, *cone, *ornt;
+    PetscInt        rt, Nct, pNew;
+
+    PetscCall(DMPlexGetCellType(odm, p, &ct));
+    PetscCall(DMPlexTransformCellTransform(tr, ct, p, &rt, &Nct, &rct, &rsize, &cone, &ornt));
+    for (PetscInt n = 0; n < Nct; ++n) {
+      if (DMPolytopeTypeGetDim(rct[n]) == dim - height) {
+        for (PetscInt r = 0; r < rsize[n]; ++r) {
+          PetscInt       *closure = NULL;
+          PetscInt        closureSize;
+
+          PetscCall(DMPlexTransformGetTargetPoint(tr, ct, rct[n], p, r, &pNew));
+          PetscCall(DMPlexGetTransitiveClosure(dm, pNew, PETSC_TRUE, &closureSize, &closure));
+          for (PetscInt cl = 0; cl < closureSize * 2; cl += 2) {
+            if (closure[cl] == point) {
+              *cell = pNew;
+              break;
+            }
+          }
+          PetscCall(DMPlexRestoreTransitiveClosure(dm, pNew, PETSC_TRUE, &closureSize, &closure));
+          if (*cell >= 0) break;
+        }
+      }
+      if (*cell >= 0) break;
+    }
+    if (*cell >= 0) break;
+  }
+  PetscCall(DMPlexRestoreTransitiveClosure(odm, op, PETSC_FALSE, &supportSize, &support));
+
+#if 0
+  PetscInt *closure = NULL;
+  PetscInt  closureSize, cl;
+  PetscCall(DMPlexGetTransitiveClosure(dm, point, PETSC_FALSE, &closureSize, &closure));
+  for (cl = closureSize - 1; cl > 0; --cl) {
+    const PetscInt p = closure[cl * 2];
+
+    if ((p >= cStart) && (p < cEnd)) {
+      *cell = p;
+      break;
+    }
+  }
+  PetscCall(DMPlexRestoreTransitiveClosure(dm, point, PETSC_FALSE, &closureSize, &closure));
+#endif
+  PetscFunctionReturn(0);
+}
+
+// Add cells in the support of the label
+//   For ephermal lables, this replaces DMPlexLabelAddCells() which has to alter the label
+static PetscErrorCode AddSupport_Private(DM dm, IS pointIS, PetscInt height, IS *hpointIS)
+{
+  const PetscInt *points;
+  PetscInt       *hpoints;
+  PetscInt        Np;
+
+  PetscFunctionBegin;
+  PetscCall(ISGetIndices(pointIS, &points));
+  PetscCall(ISGetLocalSize(pointIS, &Np));
+  PetscCall(PetscMalloc1(Np, &hpoints));
+  for (PetscInt p = 0; p < Np; ++p) {
+    PetscCall(FindPointInSupport_Private(dm, points[p], height, &hpoints[p]));
+    PetscCheck(hpoints[p] >= 0, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Mesh point %" PetscInt_FMT " has no cell in its support", points[p]);
+  }
+  PetscCall(ISRestoreIndices(pointIS, &points));
+  PetscCall(PetscSortRemoveDupsInt(&Np, hpoints));
+  PetscCall(ISCreateGeneral(PETSC_COMM_SELF, Np, hpoints, PETSC_OWN_POINTER, hpointIS));
+  PetscFunctionReturn(0);
+}
+
+/*
   This function iterates over a manifold, and interpolates the input function/field using the basis provided by the DS in our DM
 
   There are several different scenarios:
@@ -815,13 +906,19 @@ static PetscErrorCode DMProjectLocal_Generic_Plex(DM dm, PetscReal time, Vec loc
         IS              pointIS, isectIS;
         const PetscInt *points;
         PetscInt        n;
+        PetscBool       readonly;
         PetscFEGeom    *fegeom = NULL, *chunkgeom = NULL;
         PetscQuadrature quad = NULL;
 
         PetscCall(DMLabelGetStratumIS(label, ids[i], &pointIS));
         if (!pointIS) continue; /* No points with that id on this process */
-        PetscCall(ISDuplicate(pointIS, &isectIS));
-        PetscCall(ISGeneralFilter(isectIS, hStart, hEnd));
+        PetscCall(DMLabelGetReadOnly(label, &readonly));
+        if (readonly) {
+          PetscCall(AddSupport_Private(dm, pointIS, h, &isectIS));
+        } else {
+          PetscCall(ISDuplicate(pointIS, &isectIS));
+          PetscCall(ISGeneralFilter(isectIS, hStart, hEnd));
+        }
         PetscCall(ISDestroy(&pointIS));
         if (!isectIS) continue;
         PetscCall(ISGetLocalSize(isectIS, &n));

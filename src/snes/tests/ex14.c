@@ -3,7 +3,9 @@ static char help[] = "Finite element discretization on mesh patches.\n\n\n";
 /*
   KNOWN BUGS:
 
-  1) Coordinates created at the beginning in the ephemeral mesh. We really want to create only coordinate patches when we are asked to do so for FEGeom.
+  1) Ephemeral meshes do not implement supports. However, we need the support to "add cells" for projection, which we need to insert boundary values. Yuck.
+
+  2) Coordinates created at the beginning in the ephemeral mesh. We really want to create only coordinate patches when we are asked to do so for FEGeom.
 
   IMPLEMENTATION:
 
@@ -102,6 +104,7 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
   PetscFunctionBeginUser;
   PetscCall(DMCreate(comm, dm));
   PetscCall(DMSetType(*dm, DMPLEX));
+  PetscCall(PetscObjectSetOptionsPrefix((PetscObject)*dm, "orig_"));
   PetscCall(DMSetFromOptions(*dm));
   PetscCall(DMSetApplicationContext(*dm, user));
   PetscCall(DMViewFromOptions(*dm, NULL, "-dm_view"));
@@ -187,17 +190,21 @@ static PetscErrorCode SetupPrimalProblem(DM dm, AppCtx *user)
   PetscDS        ds;
   DMLabel        label;
   const PetscInt id = 1;
+  PetscInt       Nf;
 
   PetscFunctionBeginUser;
+  PetscCall(DMGetNumFields(dm, &Nf));
   PetscCall(DMGetDS(dm, &ds));
   PetscCall(DMGetLabel(dm, "marker", &label));
   PetscCall(PetscDSSetResidual(ds, 0, f0_trig_u, f1_u));
   PetscCall(PetscDSSetJacobian(ds, 0, 0, NULL, NULL, NULL, g3_uu));
   PetscCall(PetscDSSetExactSolution(ds, 0, trig_u, user));
   PetscCall(DMAddBoundary(dm, DM_BC_ESSENTIAL, "wall", label, 1, &id, 0, 0, NULL, (void (*)(void))trig_u, NULL, user, NULL));
-  PetscCall(PetscDSSetResidual(ds, 1, f0_mu, NULL));
-  PetscCall(PetscDSSetJacobian(ds, 1, 1, g0_mumu, NULL, NULL, NULL));
-  PetscCall(PetscDSSetExactSolution(ds, 1, const_mu, user));
+  if (Nf > 1) {
+    PetscCall(PetscDSSetResidual(ds, 1, f0_mu, NULL));
+    PetscCall(PetscDSSetJacobian(ds, 1, 1, g0_mumu, NULL, NULL, NULL));
+    PetscCall(PetscDSSetExactSolution(ds, 1, const_mu, user));
+  }
   PetscFunctionReturn(0);
 }
 
@@ -467,10 +474,96 @@ static PetscErrorCode PatchSolve(DM dm, DM patch, PetscInt c, DM rdm, DM rpatch,
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode SolveSystems(DM dm, DM rdm, Mat P)
+{
+  PetscSimplePointFunc exacts[1] = {trig_u};
+  KSP                  ksp, kspRef, kspRed;
+  Mat                  A, Aref, Ared;
+  Vec                  u, b, uref, bref, ured, bred;
+  PetscReal            err;
+
+  PetscFunctionBegin;
+  // Create original coarse system
+  PetscCall(DMCreateGlobalVector(dm, &u));
+  PetscCall(DMCreateGlobalVector(dm, &b));
+  {
+    Vec ul, bl;
+
+    PetscCall(VecSet(b, 0.));
+    PetscCall(DMGetLocalVector(dm, &ul));
+    PetscCall(DMGetLocalVector(dm, &bl));
+    PetscCall(VecSet(ul, 0.));
+    PetscCall(DMPlexSNESComputeBoundaryFEM(dm, ul, NULL));
+    PetscCall(DMPlexSNESComputeResidualFEM(dm, ul, bl, NULL));
+    PetscCall(DMLocalToGlobal(dm, bl, ADD_VALUES, b));
+    PetscCall(DMRestoreLocalVector(dm, &ul));
+    PetscCall(DMRestoreLocalVector(dm, &bl));
+  }
+  PetscCall(DMCreateMatrix(dm, &A));
+  PetscCall(DMPlexSNESComputeJacobianFEM(dm, u, A, A, NULL));
+  PetscCall(KSPCreate(PETSC_COMM_WORLD, &ksp));
+  PetscCall(KSPSetOperators(ksp, A, A));
+  PetscCall(KSPSetFromOptions(ksp));
+  PetscCall(KSPSolve(ksp, b, u));
+  PetscCall(KSPDestroy(&ksp));
+  PetscCall(MatDestroy(&A));
+  PetscCall(VecDestroy(&b));
+  PetscCall(DMComputeL2Diff(dm, 0.0, exacts, NULL, u, &err));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Coarse L_2 Error: %g\n", (double)err));
+  PetscCall(VecDestroy(&u));
+  // Create refined system
+  PetscCall(DMCreateGlobalVector(rdm, &uref));
+  PetscCall(DMCreateGlobalVector(rdm, &bref));
+  PetscCall(VecSet(uref, 0.));
+  {
+    Vec ul, bl;
+
+    PetscCall(VecSet(bref, 0.));
+    PetscCall(DMGetLocalVector(rdm, &ul));
+    PetscCall(DMGetLocalVector(rdm, &bl));
+    PetscCall(VecSet(ul, 0.));
+    PetscCall(DMPlexSNESComputeBoundaryFEM(rdm, ul, NULL));
+    PetscCall(DMPlexSNESComputeResidualFEM(rdm, ul, bl, NULL));
+    PetscCall(DMLocalToGlobal(rdm, bl, ADD_VALUES, bref));
+    PetscCall(DMRestoreLocalVector(rdm, &ul));
+    PetscCall(DMRestoreLocalVector(rdm, &bl));
+  }
+  PetscCall(DMCreateMatrix(rdm, &Aref));
+  PetscCall(DMPlexSNESComputeJacobianFEM(rdm, uref, Aref, Aref, NULL));
+  PetscCall(KSPCreate(PETSC_COMM_WORLD, &kspRef));
+  PetscCall(KSPSetOperators(kspRef, Aref, Aref));
+  PetscCall(KSPSetFromOptions(kspRef));
+  PetscCall(KSPSolve(kspRef, bref, uref));
+  PetscCall(KSPDestroy(&kspRef));
+  PetscCall(DMComputeL2Diff(rdm, 0.0, exacts, NULL, uref, &err));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Refined L_2 Error: %g\n", (double)err));
+  PetscCall(VecDestroy(&uref));
+  // Create reduced system
+  if (P) {
+    PetscCall(DMCreateGlobalVector(dm, &ured));
+    PetscCall(DMCreateGlobalVector(dm, &bred));
+    PetscCall(MatMultTranspose(P, bref, bred));
+    PetscCall(MatPtAP(Aref, P, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &Ared));
+    PetscCall(KSPCreate(PETSC_COMM_WORLD, &kspRed));
+    PetscCall(KSPSetOperators(kspRed, Ared, Ared));
+    PetscCall(KSPSetFromOptions(kspRed));
+    PetscCall(KSPSolve(kspRed, bred, ured));
+    PetscCall(KSPDestroy(&kspRed));
+    PetscCall(MatDestroy(&Ared));
+    PetscCall(DMComputeL2Diff(dm, 0.0, exacts, NULL, ured, &err));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Reduced L_2 Error: %g\n", (double)err));
+    PetscCall(VecDestroy(&ured));
+    PetscCall(VecDestroy(&bred));
+  }
+  PetscCall(MatDestroy(&Aref));
+  PetscCall(VecDestroy(&bref));
+  PetscFunctionReturn(0);
+}
+
 int main(int argc, char **argv)
 {
   DM          dm, rdm;
-  Mat         P;
+  Mat         P = NULL;
   PetscInt    cStart, cEnd;
   PetscBool   useCone, useClosure;
   AppCtx      user;
@@ -483,6 +576,8 @@ int main(int argc, char **argv)
   PetscCall(RefineMesh(dm, &rdm));
   PetscCall(SetupDiscretization(dm, 1, names, SetupPrimalProblem, &user));
   PetscCall(SetupDiscretization(rdm, 1, names, SetupPrimalProblem, &user));
+  PetscCall(SolveSystems(dm, rdm, P));
+  goto end;
   // Create global prolongator
   {
     PetscSection gs, rgs;
@@ -527,6 +622,8 @@ int main(int argc, char **argv)
     PetscCheck(nrm < PETSC_SMALL, PETSC_COMM_WORLD, PETSC_ERR_PLIB, "Identity prolongator does not match canonical computation");
     PetscCall(MatDestroy(&gP));
   }
+  PetscCall(SolveSystems(dm, rdm, P));
+  end:
   PetscCall(MatDestroy(&P));
   PetscCall(DMDestroy(&rdm));
   PetscCall(DMDestroy(&dm));
@@ -546,6 +643,12 @@ int main(int argc, char **argv)
     suffix: check_id
     args: -select_dm_plex_transform_type transform_filter \
           -patch_sys_type identity -phi_petscspace_degree 1 -pc_type lu \
+          -snes_error_if_not_converged -ksp_error_if_not_converged -snes_converged_reason -snes_monitor
+
+  test:
+    suffix: check_lod
+    args: -select_dm_plex_transform_type transform_filter \
+          -patch_sys_type lod -phi_petscspace_degree 1 -pc_type lu \
           -snes_error_if_not_converged -ksp_error_if_not_converged -snes_converged_reason -snes_monitor
 
 TEST*/
