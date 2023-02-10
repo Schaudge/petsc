@@ -1734,6 +1734,17 @@ PETSC_EXTERN PetscErrorCode DMSwarmRestoreCellSwarm(DM sw, PetscInt cellID, DM c
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode DMSetFromOptions_Swarm(DM dm, PetscOptionItems *PetscOptionsObject)
+{
+  DM_Swarm *sw = (DM_Swarm *)dm->data;
+
+  PetscFunctionBegin;
+  PetscOptionsHeadBegin(PetscOptionsObject, "DMPlex Options");
+  PetscCall(PetscOptionsBool("-dm_swarm_migrate_check_number", "Error if DMSwarmMigrate() changes the number of particles", "DMSwarmMigrate", sw->migrate_error_on_missing_point, &sw->migrate_error_on_missing_point, NULL));
+  PetscOptionsHeadEnd();
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PETSC_INTERN PetscErrorCode DMClone_Swarm(DM, DM *);
 
 static PetscErrorCode DMInitialize_Swarm(DM sw)
@@ -1742,7 +1753,7 @@ static PetscErrorCode DMInitialize_Swarm(DM sw)
   sw->dim                           = 0;
   sw->ops->view                     = DMView_Swarm;
   sw->ops->load                     = NULL;
-  sw->ops->setfromoptions           = NULL;
+  sw->ops->setfromoptions           = DMSetFromOptions_Swarm;
   sw->ops->clone                    = DMClone_Swarm;
   sw->ops->setup                    = DMSetup_Swarm;
   sw->ops->createlocalsection       = NULL;
