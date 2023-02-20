@@ -66,9 +66,7 @@ static PetscErrorCode SNESComputeFunction_DMLocal(SNES snes, Vec X, Vec F, void 
   /* Need to reset boundary values if we transformed */
   PetscCall(DMHasBasisTransform(dm, &transform));
   if (transform && dmlocalsnes->boundarylocal) PetscCall((*dmlocalsnes->boundarylocal)(dm, Xloc, dmlocalsnes->boundarylocalctx));
-  CHKMEMQ;
   PetscCall((*dmlocalsnes->residuallocal)(dm, Xloc, Floc, dmlocalsnes->residuallocalctx));
-  CHKMEMQ;
   PetscCall(VecZeroEntries(F));
   PetscCall(DMLocalToGlobalBegin(dm, Floc, ADD_VALUES, F));
   PetscCall(DMLocalToGlobalEnd(dm, Floc, ADD_VALUES, F));
@@ -88,8 +86,11 @@ static PetscErrorCode SNESComputeFunction_DMLocal(SNES snes, Vec X, Vec F, void 
     PetscCall(VecViewFromOptions(X, (PetscObject)snes, "-dmsnes_solution_vec_view"));
     PetscCall(PetscObjectSetName((PetscObject)X, oldname));
     PetscCall(PetscSNPrintf(name, PETSC_MAX_PATH_LEN, "Residual, Iterate %d", (int)it));
+    PetscCall(PetscObjectGetName((PetscObject)F, &tmp));
+    PetscCall(PetscStrncpy(oldname, tmp, PETSC_MAX_PATH_LEN - 1));
     PetscCall(PetscObjectSetName((PetscObject)F, name));
     PetscCall(VecViewFromOptions(F, (PetscObject)snes, "-dmsnes_residual_vec_view"));
+    PetscCall(PetscObjectSetName((PetscObject)F, oldname));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -113,9 +114,7 @@ static PetscErrorCode SNESComputeJacobian_DMLocal(SNES snes, Vec X, Mat A, Mat B
     /* Need to reset boundary values if we transformed */
     PetscCall(DMHasBasisTransform(dm, &transform));
     if (transform && dmlocalsnes->boundarylocal) PetscCall((*dmlocalsnes->boundarylocal)(dm, Xloc, dmlocalsnes->boundarylocalctx));
-    CHKMEMQ;
     PetscCall((*dmlocalsnes->jacobianlocal)(dm, Xloc, A, B, dmlocalsnes->jacobianlocalctx));
-    CHKMEMQ;
     PetscCall(DMRestoreLocalVector(dm, &Xloc));
   } else {
     MatFDColoring fdcoloring;
