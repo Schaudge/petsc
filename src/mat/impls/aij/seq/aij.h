@@ -316,6 +316,7 @@ PETSC_INTERN PetscErrorCode MatFDColoringSetUpBlocked_AIJ_Private(Mat, MatFDColo
 PETSC_INTERN PetscErrorCode MatLoad_AIJ_HDF5(Mat, PetscViewer);
 PETSC_INTERN PetscErrorCode MatLoad_SeqAIJ_Binary(Mat, PetscViewer);
 PETSC_INTERN PetscErrorCode MatLoad_SeqAIJ(Mat, PetscViewer);
+PETSC_INTERN PetscErrorCode MatView_SeqAIJ_HDF5(Mat, PetscViewer);
 PETSC_INTERN PetscErrorCode RegisterApplyPtAPRoutines_Private(Mat);
 
 #if defined(PETSC_HAVE_HYPRE)

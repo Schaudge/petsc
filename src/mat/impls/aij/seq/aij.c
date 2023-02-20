@@ -1080,15 +1080,21 @@ PetscErrorCode MatView_SeqAIJ_Draw(Mat A, PetscViewer viewer)
 
 PetscErrorCode MatView_SeqAIJ(Mat A, PetscViewer viewer)
 {
-  PetscBool iascii, isbinary, isdraw;
+  PetscBool iascii, isbinary, isdraw, ishdf5;
 
   PetscFunctionBegin;
   PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &iascii));
   PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERBINARY, &isbinary));
   PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERDRAW, &isdraw));
+  PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERHDF5, &ishdf5));
   if (iascii) PetscCall(MatView_SeqAIJ_ASCII(A, viewer));
   else if (isbinary) PetscCall(MatView_SeqAIJ_Binary(A, viewer));
   else if (isdraw) PetscCall(MatView_SeqAIJ_Draw(A, viewer));
+#if defined(PETSC_HAVE_HDF5)
+  else if (ishdf5) PetscCall(MatView_SeqAIJ_HDF5(A, viewer));
+#else
+    SETERRQ(PetscObjectComm((PetscObject)newMat), PETSC_ERR_SUP, "HDF5 not supported in this build.\nPlease reconfigure using --download-hdf5");
+#endif
   PetscCall(MatView_SeqAIJ_Inode(A, viewer));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

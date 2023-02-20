@@ -2,6 +2,7 @@
 #include <../src/mat/impls/aij/seq/aij.h>
 #include <petsc/private/isimpl.h>
 #include <petsc/private/vecimpl.h>
+#include <petsc/private/viewerhdf5impl.h>
 #include <petsclayouthdf5.h>
 
 #if defined(PETSC_HAVE_HDF5)
@@ -160,6 +161,47 @@ PetscErrorCode MatLoad_AIJ_HDF5(Mat mat, PetscViewer viewer)
   PetscCall(ISDestroy(&is_i));
   PetscCall(ISDestroy(&is_j));
   PetscCall(VecDestroy(&vec_a));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode MatView_SeqAIJ_HDF5(Mat mat, PetscViewer viewer)
+{
+  Mat_SeqAIJ  *A = (Mat_SeqAIJ *)mat->data;
+  Vec          aVec;
+  IS           iIS, jIS;
+  PetscScalar *av;
+  const char  *matname;
+  hid_t        file_id;
+  hid_t        group;
+  MPI_Comm     comm;
+
+  PetscFunctionBegin;
+  PetscCall(PetscObjectGetComm((PetscObject)mat, &comm));
+  PetscCall(PetscObjectGetName((PetscObject)mat, &matname));
+
+  PetscCall(PetscViewerHDF5PushGroup(viewer, matname));
+  PetscCall(PetscViewerHDF5OpenGroup(viewer, NULL, &file_id, &group));
+
+  PetscCall(PetscViewerHDF5WriteAttribute(viewer, NULL, "MATLAB_sparse", PETSC_INT, &mat->cmap->n));
+  PetscCall(ISCreateGeneral(comm, mat->rmap->n+1, A->i, PETSC_USE_POINTER, &iIS));
+  PetscCall(PetscObjectSetName((PetscObject)iIS, "jc"));
+  PetscCall(ISView(iIS, viewer));
+  PetscCall(ISDestroy(&iIS));
+
+  PetscCall(ISCreateGeneral(comm, A->nz, A->j, PETSC_USE_POINTER, &jIS));
+  PetscCall(PetscObjectSetName((PetscObject)jIS, "ir"));
+  PetscCall(ISView(jIS, viewer));
+  PetscCall(ISDestroy(&jIS));
+
+  PetscCall(MatSeqAIJGetArray(mat, &av));
+  PetscCall(VecCreateSeqWithArray(comm, 1, A->nz, av, &aVec));
+  PetscCall(PetscObjectSetName((PetscObject)aVec, "data"));
+  PetscCall(VecView(aVec, viewer));
+  PetscCall(VecDestroy(&aVec));
+  PetscCall(MatSeqAIJRestoreArray(mat, &av));
+
+  PetscCallHDF5(H5Gclose, (group));
+  PetscCall(PetscViewerHDF5PopGroup(viewer));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 #endif
