@@ -67,6 +67,7 @@ PetscErrorCode NetRSReset(NetRS rs)
   PetscCall(PetscHMapNetRPIReset(rs->netrphmap));
   PetscCall(PetscHMapIDestroy(&rs->vertex_shared_offset));
   rs->vertexdeg_shared_cached = PETSC_FALSE;
+  rs->inoutvertexdeg_cached   = PETSC_FALSE;
   rs->setupcalled             = PETSC_FALSE;
   PetscFunctionReturn(0);
 }
@@ -94,11 +95,14 @@ PetscErrorCode NetRSResetVectorSpace(NetRS rs)
   PetscCall(DMLabelGetNumValues(rs->subgraphs, &numnetrp));
   for (i = 0; i < numnetrp; i++) {
     PetscCall(PetscHSetIDestroy(&rs->vertexdegrees[i]));
+    PetscCall(PetscHSetIJDestroy(&rs->inoutdegs[i]));
     PetscCall(ISDestroy(&rs->subgraphIS[i]));
   }
   PetscCall(PetscFree(rs->vertexdegrees));
+  PetscCall(PetscFree(rs->inoutdegs)); 
   PetscCall(PetscFree(rs->subgraphIS));
   PetscCall(PetscHSetIDestroy(&rs->vertexdegrees_total));
+  PetscCall(PetscHSetIJDestroy(&rs->inoutdeg_total));
   PetscCall(PetscHMapIDestroy(&rs->vertex_shared_vec_offset));
   PetscCall(VecDestroy(&rs->U));
   PetscCall(PetscFree(rs->is_wrk_index));
@@ -545,13 +549,19 @@ PetscErrorCode NetRSSetUpVectorSpace(NetRS rs)
   /* create hmap and array for storing the edgein information for shared vertices */
   PetscCall(DMNetworkCreateEdgeInInfo(rs));
 
-  /*Create the vectors used in the solver */
+  /* Create the vectors used in the solver */
   PetscCall(DMCreateGlobalVector(rs->network, &rs->U));
   /* Now we preallocate the NetRP solvers */
   PetscCall(PetscMalloc1(numnetrp, &rs->vertexdegrees));
-  for (i = 0; i < numnetrp; i++) { PetscCall(PetscHSetICreate(&rs->vertexdegrees[i])); }
+  PetscCall(PetscMalloc1(numnetrp,&rs->inoutdegs));
+  for (i = 0; i < numnetrp; i++) { 
+    PetscCall(PetscHSetICreate(&rs->vertexdegrees[i])); 
+    PetscCall(PetscHSetIJCreate(&rs->inoutdegs[i]));
+  }
   PetscCall(PetscHSetICreate(&rs->vertexdegrees_total));
+  PetscCall(PetscHSetIJCreate(&rs->inoutdeg_total));
   PetscCall(DMNetworkComputeUniqueVertexDegreesLocal(rs, rs->network, rs->subgraphs, rs->vertexdegrees, rs->vertexdegrees_total));
+  PetscCall(DMNetworkComputeUniqueVertexInOutDegreesLocal(rs,rs->network,rs->subgraphs,rs->inoutdegs,rs->inoutdeg_total));
   maxsize = 0;
   for (i = 0; i < numnetrp; i++) {
     PetscCall(PetscHSetIGetSize(rs->vertexdegrees[i], &size));
@@ -624,7 +634,131 @@ PetscErrorCode NetRSSetUpVectorSpace(NetRS rs)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode DMNetworkCacheInOutVertexDegrees(NetRS rs, DM network)
+{
+  PetscInt        v, i, vStart, vEnd, nroots, nleaves, nedges, invdeg, outvdeg; 
+  PetscSF         sf;
+  DM              plex;
+  const PetscInt *ilocal, *edges, *cone; 
+  PetscInt       *rootdata, *leafdata;
+  PetscMPIInt     size, rank;
+  MPI_Comm        comm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(network, DM_CLASSID, 2, DMNETWORK);
+  PetscValidHeaderSpecific(rs, NETRS_CLASSID, 1);
+
+    if (rs->inoutvertexdeg_cached) PetscFunctionReturn(0); /* already been cached */
+  rs->inoutvertexdeg_cached = PETSC_TRUE;
+  PetscCall(PetscObjectGetComm((PetscObject)rs, &comm));
+  PetscCallMPI(MPI_Comm_size(comm, &size));
+  PetscCallMPI(MPI_Comm_rank(comm, &rank));
+  /* Compute the inout degrees for the local portions of the Network */
+  PetscCall(DMNetworkGetVertexRange(network, &vStart, &vEnd));
+  PetscCall(DMLabelReset(rs->InVertexDeg)); 
+  PetscCall(DMLabelReset(rs->OutVertexDeg));
+
+  for (v = vStart; v < vEnd; v++) {
+    invdeg = 0; outvdeg = 0; 
+    PetscCall(DMNetworkGetSupportingEdges(network,v,&nedges,&edges)); 
+    for (i=0; i<nedges; i++) {
+      PetscCall(DMNetworkGetConnectedVertices(network,edges[i],&cone));
+      if (cone[1] == v) {
+        invdeg++; 
+      } else {
+        outvdeg++; 
+      }
+    }
+    PetscCall(DMLabelSetValue(rs->InVertexDeg,v,invdeg)); 
+    PetscCall(DMLabelSetValue(rs->OutVertexDeg,v,outvdeg));
+  }
+  if (size == 1) {
+    PetscCall(DMLabelCreateIndex(rs->InVertexDeg, vStart, vEnd)); /* No new points added */
+    PetscCall(DMLabelCreateIndex(rs->OutVertexDeg, vStart, vEnd)); /* No new points added */
+    PetscFunctionReturn(0);
+  }
+  /* Adjust the Local In/Out Vertex Degrees by the shared vertices  */
+
+  /* Pull out the pointsf used by the underlying DMPlex for the distributed network */
+  PetscCall(DMNetworkGetPlex(network, &plex));
+  PetscCall(DMGetPointSF(plex, &sf));
+
+  /* SUPER IMPORTANT NOTE: THE SF FROM PLEX ASSUMES THE SAME ARRAY SIZE FOR ROOT DATA AND LEAF DATA, WITH 
+  ILOCAL HOLDING THE ACTUAL LEAF ENTRIES IN THAT ARRAY. */
+  PetscCall(PetscSFGetGraph(sf, &nroots, &nleaves, &ilocal, NULL));
+  PetscCheck(ilocal != NULL || nleaves == 0, comm, PETSC_ERR_SUP, "Currently assumes a plex format for the DM PointSF, where leafdata has the same size as rootdata, and ilocal holds offsets. Should not have leaf data in continguous storage");
+  PetscCall(PetscCalloc2(nroots, &rootdata, nroots, &leafdata));
+
+  /* Fill the leaf data with the local In Vertex degrees */
+  for (i = 0; i < nleaves; i++) {
+    if (ilocal[i] >= vEnd || ilocal[i] < vStart) continue;
+    PetscCall(DMLabelGetValue(rs->InVertexDeg,ilocal[i],&invdeg));
+    leafdata[ilocal[i]] = invdeg;
+  }
+  /* reduce degree data from leaves to root. This gives the correct in vertex degree on the
+  distributed graph */
+  PetscCall(PetscSFReduceBegin(sf, MPIU_INT, leafdata, rootdata, MPIU_SUM));
+  PetscCall(PetscSFReduceEnd(sf, MPIU_INT, leafdata, rootdata, MPIU_SUM));
+  for (v = vStart; v < vEnd; v++) {
+    if (!rootdata[v]) continue;
+    PetscCall(DMLabelGetValue(rs->InVertexDeg,v,&invdeg)); /* local value */
+    rootdata[v] += invdeg; 
+    //  PetscPrintf(PETSC_COMM_SELF,"[%i] v: %"PetscInt_FMT " vdeg %"PetscInt_FMT"\n",rank,v,rootdata[v]);
+    PetscCall(DMLabelSetValue(rs->InVertexDeg, v, rootdata[v]));
+  }
+  PetscCall(PetscSFBcastBegin(sf, MPIU_INT, rootdata, leafdata, MPI_REPLACE));
+  PetscCall(PetscSFBcastEnd(sf, MPIU_INT, rootdata, leafdata, MPI_REPLACE));
+  /*iterate through the leaf vertices and add their values to the label */
+  for (i = 0; i < nleaves; i++) {
+    if (ilocal[i] >= vEnd || ilocal[i] < vStart) continue;
+    //PetscPrintf(PETSC_COMM_SELF,"[%i] v: %"PetscInt_FMT " vdeg %"PetscInt_FMT"\n",rank,ilocal[i],leafdata[ilocal[i]]);
+    PetscCall(DMLabelSetValue(rs->InVertexDeg, ilocal[i], leafdata[ilocal[i]]));
+  }
+  /* no new entries will be added, compute index for faster membership lookup */
+  PetscCall(DMLabelCreateIndex(rs->InVertexDeg, vStart, vEnd));
+
+  /* Now do OutVertDeg */
+  PetscCall(PetscArrayzero(rootdata,nroots)); 
+  PetscCall(PetscArrayzero(leafdata,nroots)); 
+  /* Fill the leaf data with the local Out Vertex degrees */
+  for (i = 0; i < nleaves; i++) {
+    if (ilocal[i] >= vEnd || ilocal[i] < vStart) continue;
+    PetscCall(DMLabelGetValue(rs->OutVertexDeg,ilocal[i],&outvdeg));
+    leafdata[ilocal[i]] = outvdeg;
+  }
+  /* reduce degree data from leaves to root. This gives the correct in vertex degree on the
+  distributed graph */
+  PetscCall(PetscSFReduceBegin(sf, MPIU_INT, leafdata, rootdata, MPIU_SUM));
+  PetscCall(PetscSFReduceEnd(sf, MPIU_INT, leafdata, rootdata, MPIU_SUM));
+  for (v = vStart; v < vEnd; v++) {
+    if (!rootdata[v]) continue;
+    PetscCall(DMLabelGetValue(rs->OutVertexDeg,v,&outvdeg)); /* local value */
+    rootdata[v] += outvdeg; 
+    //  PetscPrintf(PETSC_COMM_SELF,"[%i] v: %"PetscInt_FMT " vdeg %"PetscInt_FMT"\n",rank,v,rootdata[v]);
+    PetscCall(DMLabelSetValue(rs->OutVertexDeg, v, rootdata[v]));
+  }
+  PetscCall(PetscSFBcastBegin(sf, MPIU_INT, rootdata, leafdata, MPI_REPLACE));
+  PetscCall(PetscSFBcastEnd(sf, MPIU_INT, rootdata, leafdata, MPI_REPLACE));
+  /*iterate through the leaf vertices and add their values to the label */
+  for (i = 0; i < nleaves; i++) {
+    if (ilocal[i] >= vEnd || ilocal[i] < vStart) continue;
+    //PetscPrintf(PETSC_COMM_SELF,"[%i] v: %"PetscInt_FMT " vdeg %"PetscInt_FMT"\n",rank,ilocal[i],leafdata[ilocal[i]]);
+    PetscCall(DMLabelSetValue(rs->OutVertexDeg, ilocal[i], leafdata[ilocal[i]]));
+  }
+  /* no new entries will be added, compute index for faster membership lookup */
+  PetscCall(DMLabelCreateIndex(rs->OutVertexDeg, vStart, vEnd));
+  PetscCall(PetscFree2(rootdata, leafdata));
+}
+
+
+
+
 /* TODO: Migrate this functionality to DMNetwork itself */
+
+/* Caches vdeg, invdeg, and outvdeg for the vertices of the network. 
+  - vdeg is cached only on shared vertices, as its locally stored on DMNetwork already 
+  - invdeg and outvdeg are cached on all vertices DMNetwork are not stored anywhere 
+*/
 PetscErrorCode DMNetworkCacheVertexDegrees(NetRS rs, DM network)
 {
   PetscInt        v, i, vStart, vEnd, nroots, nleaves, nedges;
@@ -657,7 +791,6 @@ PetscErrorCode DMNetworkCacheVertexDegrees(NetRS rs, DM network)
   ILOCAL HOLDING THE ACTUAL LEAF ENTRIES IN THAT ARRAY. */
   PetscCall(PetscSFGetGraph(sf, &nroots, &nleaves, &ilocal, NULL));
   PetscCheck(ilocal != NULL || nleaves == 0, comm, PETSC_ERR_SUP, "Currently assumes a plex format for the DM PointSF, where leafdata has the same size as rootdata, and ilocal holds offsets. Should not have leaf data in continguous storage");
-
   PetscCall(PetscCalloc2(nroots, &rootdata, nroots, &leafdata));
   /* Fill the leaf data with the local vertex degrees */
   PetscCall(DMNetworkGetVertexRange(network, &vStart, &vEnd));
@@ -670,7 +803,7 @@ PetscErrorCode DMNetworkCacheVertexDegrees(NetRS rs, DM network)
   PetscCall(PetscSFReduceBegin(sf, MPIU_INT, leafdata, rootdata, MPIU_SUM));
   PetscCall(PetscSFReduceEnd(sf, MPIU_INT, leafdata, rootdata, MPIU_SUM));
 
-  /* any nonzero entry in rootdata then has leaves, these are added to the lable as 
+  /* any nonzero entry in rootdata then has leaves, these are added to the label as 
      shared vertices. The local vertex degree are then added to the rootdata to create the 
      correct vertex degree. */
   PetscCall(DMLabelReset(rs->VertexDeg_shared));
@@ -681,23 +814,21 @@ PetscErrorCode DMNetworkCacheVertexDegrees(NetRS rs, DM network)
     //  PetscPrintf(PETSC_COMM_SELF,"[%i] v: %"PetscInt_FMT " vdeg %"PetscInt_FMT"\n",rank,v,rootdata[v]);
     PetscCall(DMLabelSetValue(rs->VertexDeg_shared, v, rootdata[v]));
   }
-
-  /* Rootdata contains the correct vertex degs, and these have been added to the labrl*/
+  /* Rootdata contains the correct vertex degs, and these have been added to the label*/
   PetscCall(PetscSFBcastBegin(sf, MPIU_INT, rootdata, leafdata, MPI_REPLACE));
   PetscCall(PetscSFBcastEnd(sf, MPIU_INT, rootdata, leafdata, MPI_REPLACE));
   /*iterate through the leaf vertices and add their values to the label */
   for (i = 0; i < nleaves; i++) {
     if (ilocal[i] >= vEnd || ilocal[i] < vStart) continue;
     //PetscPrintf(PETSC_COMM_SELF,"[%i] v: %"PetscInt_FMT " vdeg %"PetscInt_FMT"\n",rank,ilocal[i],leafdata[ilocal[i]]);
-
     PetscCall(DMLabelSetValue(rs->VertexDeg_shared, ilocal[i], leafdata[ilocal[i]]));
   }
   /* no new entries will be added, compute index for faster membership lookup */
   PetscCall(DMLabelCreateIndex(rs->VertexDeg_shared, vStart, vEnd));
   PetscCall(PetscFree2(rootdata, leafdata));
-  rs->vertexdeg_shared_cached = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
+
 
 /* The existence of this code is an abomination */
 
@@ -982,6 +1113,76 @@ PetscErrorCode DMNetworkComputeUniqueVertexDegreesLocal(NetRS rs, DM network, DM
           PetscCall(DMNetworkGetSupportingEdges(network, v, &vdeg, NULL));
         }
         PetscCall(PetscHSetIAdd(vertexdegrees[i], vdeg));
+      }
+      PetscCall(ISRestoreIndices(point_is, &points));
+      PetscCall(ISDestroy(&point_is));
+    }
+    PetscCall(ISRestoreIndices(values_is, &values));
+    PetscCall(ISDestroy(&values_is));
+  }
+  PetscFunctionReturn(0);
+}
+
+/*@
+    DMNetworkComputeUniqueVertexInOutDegreesLocal - TODO
+    Collective
+
+    Input Parameter:
+.   network - The setup DMNetwork 
+.   marked  - A DMLabel which marks which vertices to consider for computing the vertex degree. Any entry included in the DMLabel
+              will have its vertex degree added to the set. A NULL entry corresponds to computing on the full graph. 
+
+    Output Parameter:
+.    vertexdegrees - array of the vertex degrees sets, one for each subgraph induced by the labeled vertices. NULL if no label is passed in. 
+.    totalvertexdegree - set of vertex degrees for the subgraph induced by the union of all marked vertex. This is the union of of all the vertex degree sets. 
+    Level: developer
+
+.seealso: 
+@*/
+PetscErrorCode DMNetworkComputeUniqueVertexInOutDegreesLocal(NetRS rs, DM network, DMLabel marked, PetscHSetIJ *inoutdegs, PetscHSetIJ inoutdeg_total)
+{
+  PetscInt        numsubgraphs, i, j, v, vStart, vEnd, vdeg, numpoints;
+  IS              values_is, point_is;
+  const PetscInt *values, *points;
+  PetscBool       flg;
+  PetscHashIJKey  ijkey; 
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(network, DM_CLASSID, 2, DMNETWORK);
+  PetscValidHeaderSpecific(rs, NETRS_CLASSID, 1);
+
+  /* Clear Hash */
+  PetscCall(PetscHSetIJClear(inoutdeg_total));
+  /* Generate the in/out vertex degree labeling */
+  PetscCall(DMNetworkCacheInOutVertexDegrees(rs, network));
+
+  PetscCall(DMNetworkGetVertexRange(network, &vStart, &vEnd));
+  /* generate the hash set for the entire local graph first */
+  for (v = vStart; v < vEnd; v++) {
+    PetscCall(DMLabelGetValue(rs->InVertexDeg,v,&ijkey.i));
+    PetscCall(DMLabelGetValue(rs->OutVertexDeg,v,&ijkey.j)); 
+    PetscCall(PetscHSetIJAdd(inoutdeg_total, ijkey));
+  }
+
+  /* repeat but iterate only through marked vertices */
+  if (marked) {
+    PetscCheck(inoutdegs, PetscObjectComm((PetscObject)network), PETSC_ERR_USER_INPUT, "If providing a label of marked vertices, an array of PetscHSetIJ, one for each value in the label must be provided");
+    PetscCall(DMLabelGetNumValues(marked, &numsubgraphs));
+    PetscCall(DMLabelGetValueIS(marked, &values_is));
+    PetscCall(ISGetIndices(values_is, &values));
+
+    for (i = 0; i < numsubgraphs; i++) {
+      PetscCall(PetscHSetIJClear(inoutdegs[i]));
+      PetscCall(DMLabelGetStratumIS(marked, values[i], &point_is));
+      if (point_is == NULL) continue;
+      PetscCall(ISGetSize(point_is, &numpoints));
+      PetscCall(ISGetIndices(point_is, &points));
+      for (j = 0; j < numpoints; j++) {
+        v = points[j];
+        if (v < vStart || v >= vEnd) continue;
+        PetscCall(DMLabelGetValue(rs->InVertexDeg,v,&ijkey.i));
+        PetscCall(DMLabelGetValue(rs->OutVertexDeg,v,&ijkey.j)); 
+        PetscCall(PetscHSetIJAdd(inoutdegs[i], ijkey));
       }
       PetscCall(ISRestoreIndices(point_is, &points));
       PetscCall(ISDestroy(&point_is));

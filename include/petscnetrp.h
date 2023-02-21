@@ -25,6 +25,11 @@ typedef enum {
   Specific
 } NetRPPhysicsGenerality;
 
+typedef enum {
+  UndirectedVDeg,
+  DirectedVDeg
+} NetRPCacheType; 
+
 typedef PetscErrorCode (*NetRPSolveStar_User)(NetRP, PetscInt, PetscBool *, Vec, Vec);        /* form is: NumEdges,EdgeIn? Array, U, UStar */
 typedef PetscErrorCode (*NetRPSolveFlux_User)(NetRP, PetscInt, PetscBool *, Vec, Vec);        /* form is: NumEdges,EdgeIn? Array, U, Flux */
 typedef PetscErrorCode (*NetRPCreateLinearStar)(NetRP, PetscInt, PetscBool *, Vec, Vec, Mat); /* form is: NumEdges,EdgeIn? Array, U, Linear System for solving for Ustar */
@@ -78,8 +83,11 @@ PETSC_EXTERN PetscErrorCode NetRPSolveFlux(NetRP, PetscInt, PetscBool *, Vec, Ve
 
 /* Providing extra information to the cacheing ability of the problem */
 
-PETSC_EXTERN PetscErrorCode NetRPAddVertexDegrees(NetRP, PetscInt, PetscInt *);
-PETSC_EXTERN PetscErrorCode NetRPGetVertexDegrees(NetRP, PetscInt *, PetscInt **);
+PETSC_INTERN PetscErrorCode NetRPAddVertexDegrees_internal(NetRP, PetscInt, PetscInt *);
+PETSC_INTERN PetscErrorCode NetRPAddDirVertexDegrees_internal(NetRP, PetscInt, PetscInt *,PetscInt *);
+
+PETSC_EXTERN PetscErrorCode NetRPCacheSolvers(NetRP,PetscInt, PetscInt *,PetscInt *); 
+PETSC_EXTERN PetscErrorCode NetRPGetNumCached(NetRP, PetscInt *);
 PETSC_EXTERN PetscErrorCode NetRPClearCache(NetRP);
 
 /* 
@@ -100,16 +108,15 @@ PETSC_EXTERN PetscErrorCode NetRPSetNonlinearJac(NetRP, NetRPNonlinearJac);
 PETSC_INTERN PetscErrorCode NetRPCreateLinear(NetRP, PetscInt, Mat *, Vec *);
 PETSC_INTERN PetscErrorCode NetRPCreateKSP(NetRP, PetscInt, KSP *);
 PETSC_INTERN PetscErrorCode NetRPCreateSNES(NetRP, PetscInt, SNES *);
+PETSC_INTERN PetscErrorCode NetRPCreateTao(NetRP,PetscInt, PetscInt, Tao *);
 
 /* internal access routines */
 /* internal for now, as these could be easily used to shoot yourself in the foot */
 
 /*
-
-TODO: Implement these as necessary 
-
-PETSC_INTERN PetscErrorCode NetRPGetSNES(NetRP,PetscInt,SNES*);
-PETSC_INTERN PetscErrorCode NetRPGetKSP(NetRP,PetscInt,KSP*); 
-PETSC_INTERN PetscErrorCode NetRPGetMat(NetRP,PetscInt,Mat*); 
+  TODO: Implement these as necessary
+  PETSC_INTERN PetscErrorCode NetRPGetSNES(NetRP,PetscInt,SNES*);
+  PETSC_INTERN PetscErrorCode NetRPGetKSP(NetRP,PetscInt,KSP*); 
+  PETSC_INTERN PetscErrorCode NetRPGetMat(NetRP,PetscInt,Mat*); 
 */
 #endif

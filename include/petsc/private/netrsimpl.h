@@ -11,6 +11,7 @@
   #include <petscdm.h>
   #include <petscdmlabel.h>
   #include <petscnetrp.h>
+  #include <petsc/private/hashsetij.h>
 
 PETSC_EXTERN PetscLogEvent NetRS_Solve_Total;
 PETSC_EXTERN PetscLogEvent NetRS_SetUp_VecSpace;
@@ -74,7 +75,7 @@ struct _p_NetRS {
   PetscInt       *is_wrk_index; /*work indices for the IS */
 
   /* DMNetwork Graph stuff, should be moved to DMNetwork itself */
-  PetscBool vertexdeg_shared_cached, vertex_offset_cached;
+  PetscBool vertexdeg_shared_cached, vertex_offset_cached, inoutvertexdeg_cached; 
   /* This label should also be a disjoint label if that implementation exists */
   DMLabel VertexDeg_shared; /*TODO: Name Better. Stores the vertex degrees for all 
   share vertices . 
@@ -87,6 +88,7 @@ struct _p_NetRS {
 
   this assumes that there is no edge overlap in the distributed graph. Would need a rework 
   in that case */
+  DMLabel InVertexDeg, OutVertexDeg;
 
   PetscHMapI vertex_shared_offset;     /* if vertex v is shared among processors we need 
   an offset of the local connected edges returned from DMNetworkGetSupportingEdges(), in the 
@@ -108,6 +110,10 @@ struct _p_NetRS {
 
   PetscHSetI  vertexdegrees_total; /* set of all vertex degrees in the full local network */
   PetscHSetI *vertexdegrees;       /* set of all vertex degrees for each subgraph induced by the DMLabel */
+
+  PetscHSetIJ inoutdeg_total;     /* Set of all (indeg, outdeg) pairs in the full local network */
+  PetscHSetIJ *inoutdegs;         /* Set of all (indeg, outdeg) pairs for each subgraph induced by the DMLabel */
+
   PetscBool  *edgein_shared, *edgein_wrk;
   PetscHMapI  edgein_shared_offset;
   /* End of DMNetwork Graph stuff */

@@ -58,6 +58,7 @@ PetscErrorCode main(int argc, char **argv)
   PetscCall(TaoSetType(tao, TAOALMM));
   PetscCall(TaoSetSolution(tao, user.FluxU));
   PetscCall(TaoSetVariableBounds(tao, user.lowerbounds, user.upperbounds));
+
   PetscCall(TaoSetObjective(tao,FormObjective,(void *)&user)); 
   PetscCall(TaoSetGradient(tao,NULL,FormObjectiveGradient,(void *)&user));
   PetscCall(TaoSetObjectiveAndGradient(tao, NULL, FormFunctionGradient, (void *)&user));
