@@ -15,7 +15,7 @@ static char help[] = "First example in homogenization book\n\n";
 
   To see the delay in convergence of the discretization use
 
-    -snes_convergence_estimate -convest_num_refine 7 -convest_monitor
+    -snes_convergence_estimate -convest_num_refine 7 -convest_monitor -potential_petscfe_default_quadrature_order 6
 
   and to see the proper rate use
 
