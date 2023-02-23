@@ -139,11 +139,13 @@ static inline PetscErrorCode PetscStrcpy(char s[], const char t[])
   if (t) {
     PetscAssertPointer_Private(s, 1);
     PetscAssertPointer_Private(t, 2);
+    // NOLINTBEGIN(clang-analyzer-security.insecureAPI.str*)
 #if PetscHasBuiltin(__builtin_strcpy)
     __builtin_strcpy(s, t);
 #else
     strcpy(s, t);
 #endif
+    // NOLINTEND(clang-analyzer-security.insecureAPI.str*)
   } else if (s) {
     s[0] = '\0';
   }
@@ -310,11 +312,13 @@ static inline PetscErrorCode PetscStrcat(char s[], const char t[])
   PetscFunctionBegin;
   if (!t) PetscFunctionReturn(PETSC_SUCCESS);
   PetscAssertPointer_Private(s, 1);
+  // NOLINTBEGIN(clang-analyzer-security.insecureAPI.strc*)
 #if PetscHasBuiltin(__builtin_strcat)
   __builtin_strcat(s, t);
 #else
   strcat(s, t);
 #endif
+  // NOLINTEND(clang-analyzer-security.insecureAPI.strc*)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
