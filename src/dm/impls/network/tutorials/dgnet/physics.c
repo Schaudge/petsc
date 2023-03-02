@@ -145,6 +145,7 @@ static PetscErrorCode PhysicsRoeMat_Shallow(void *ctx, const PetscReal *uL, cons
 static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx, PetscInt initial, PetscReal t, PetscReal x, PetscReal *u, PetscInt edgeid)
 {
   ShallowCtx *phys = (ShallowCtx *)vctx;
+  PetscReal  h; 
 
   PetscFunctionBeginUser;
   if (t > 0) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "Exact solutions not implemented for t > 0");
@@ -172,14 +173,14 @@ static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx, PetscInt initial,
     break;
   case 2:
     if (edgeid == 0) {
-      u[0] = 1.0 + PetscExpReal(-20.0 * (x + 1.0) * (x + 1.0));
+      u[0] = 1.0 + PetscExpReal(-5.0 * (x - 5.0) * (x - 5.0));
       u[1] = u[0] / 2.0;
     } else if (edgeid == 1) {
       u[0] = 1.0;
-      u[1] = 0.0;
+      u[1] = 0.25;
     } else {
-      u[0] = 0.5;
-      u[1] = 0.0;
+      u[0] = 1.0;
+      u[1] = 0.25;
     }
     break;
   case 3:
@@ -244,6 +245,17 @@ static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx, PetscInt initial,
     u[0] = (x < 25) ? 2 : 1; /* Standard Dam Break Problem */
     u[1] = (x < 25) ? 0 : 0;
     break;
+  case 15: /* smooth (on degree 3 vertex
+  ) problem passing through a vertex */
+    h = 1.0 + PetscExpReal(-5.0 * (x - 9.0) * (x - 9.0));
+    if (edgeid == 0) {
+      u[0] = h;
+      u[1] = h / 2.0;
+    } else {
+      u[0] =  1.0 + PetscExpReal(-5.0 * (10 - 9.0) * (10 - 9.0));
+      u[1] = u[0]/4;
+    }
+    break;
   default:
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_UNKNOWN_TYPE, "unknown initial condition");
   }
@@ -304,8 +316,8 @@ PetscErrorCode PhysicsCreate_Shallow(DGNetwork fvnet)
   user->parentv = 0.0;
 
   PetscOptionsBegin(fvnet->comm, fvnet->prefix, "Options for Shallow", "");
-  PetscCall(PetscOptionsReal("-parh", "", "", user->parenth, &user->parenth, NULL));
-  PetscCall(PetscOptionsReal("-parv", "", "", user->parenth, &user->parenth, NULL));
+    PetscCall(PetscOptionsReal("-parh", "", "", user->parenth, &user->parenth, NULL));
+    PetscCall(PetscOptionsReal("-parv", "", "", user->parenth, &user->parenth, NULL));
   PetscOptionsEnd();
   PetscFunctionReturn(0);
 }

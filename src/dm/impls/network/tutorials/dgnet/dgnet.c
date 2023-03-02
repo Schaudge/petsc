@@ -322,8 +322,8 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
       PetscCall(PetscCalloc1(2 * numEdges, &edgelist));
 
       /* Parent Branch (pointing in) */
-      edgelist[0] = 0;
-      edgelist[1] = 1;
+      edgelist[0] = 1;
+      edgelist[1] = 0;
       /* Daughter Branches (pointing out from v1) */
       for (i = 1; i < dgnet->ndaughters + 1; ++i) {
         edgelist[2 * i]     = 0;
@@ -881,10 +881,9 @@ PetscErrorCode DGNetworkDestroy(DGNetwork dgnet)
   PetscCall(VecDestroy(&dgnet->X));
   PetscCall(VecDestroy(&dgnet->localX));
   PetscCall(VecDestroy(&dgnet->localF));
-  PetscCall(VecDestroy(&dgnet->Flux));
-  PetscCall(VecDestroy(&dgnet->RiemannData));
-  PetscCall(NetRSDestroy(&dgnet->netrs));
-
+  if(dgnet->Flux)         PetscCall(VecDestroy(&dgnet->Flux));
+  if(dgnet->RiemannData)  PetscCall(VecDestroy(&dgnet->RiemannData));
+  if(dgnet->netrs)        PetscCall(NetRSDestroy(&dgnet->netrs));
   PetscFunctionReturn(0);
 }
 

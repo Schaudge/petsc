@@ -109,12 +109,12 @@ int main(int argc, char *argv[])
 
   /* set riemann data */
   PetscCall(VecGetArray(U, &u));
-  u[0] = 2.0;
-  u[1] = 0.0;
-  u[2] = 1.5;
-  u[3] = 0.0;
+  u[0] = 1.0;
+  u[1] = 0.5;
+  u[2] = 1.0;
+  u[3] = 0.25;
   u[4] = 1.0;
-  u[5] = 1.0;
+  u[5] = 0.25;
   PetscCall(VecRestoreArray(U, &u));
 
   /* set riemann problem topology */

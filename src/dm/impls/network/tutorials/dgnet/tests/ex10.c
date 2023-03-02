@@ -15,17 +15,17 @@ static const char help[] = "Loads previously computed DGNet Solutions on Coarse 
 static PetscErrorCode MakeOrder(PetscInt dof, PetscInt *order, PetscInt maxdegree)
 {
   PetscInt i;
-
+  PetscFunctionBegin; 
   for (i = 0; i < dof; i++) order[i] = maxdegree;
   PetscFunctionReturn(0);
 }
 int main(int argc, char *argv[])
 {
   MPI_Comm          comm;
-  char              physname[256] = "shallow", coarsefile[256];
+  char              physname[256] = "shallow", coarsefile[256],finefile[256];
   PetscFunctionList physics       = 0;
   DGNetwork         dgnet_fine, dgnet_coarse;
-  PetscInt          i, *order_fine, *order_coarse, dof = 1, maxdegree_fine = 1, maxdegree_coarse = 1, mode = 0;
+  PetscInt          i, dof = 1, maxdegree_fine = 1, maxdegree_coarse = 1, mode = 0;
   PetscReal        *norm;
   PetscBool         view = PETSC_FALSE;
   PetscMPIInt       size, rank;
@@ -35,9 +35,7 @@ int main(int argc, char *argv[])
 
   PetscCall(PetscInitialize(&argc, &argv, 0, help));
   comm = PETSC_COMM_WORLD;
-  PetscCall(PetscMalloc2(1, &dgnet_fine, 1, &dgnet_coarse));
-  PetscCall(PetscMemzero(dgnet_fine, sizeof(*dgnet_fine)));
-  PetscCall(PetscMemzero(dgnet_fine, sizeof(*dgnet_coarse)));
+  PetscCall(PetscCalloc2(1, &dgnet_fine, 1, &dgnet_coarse));
   PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD, &size));
   PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
 
@@ -76,10 +74,11 @@ int main(int argc, char *argv[])
   PetscCall(PetscOptionsInt("-deg_coarse", "Degree for Coarse tabulation", "", maxdegree_coarse, &maxdegree_coarse, NULL));
   PetscCall(PetscOptionsInt("-fields", "Number of Fields to Generate Tabulations for", "", dof, &dof, NULL));
   PetscCall(PetscOptionsInt("-mode", "Mode to compute the orders for each field (enter int in [0-2])", "", mode, &mode, NULL));
+  PetscCall(PetscOptionsReal("-length", "Length of Edges in the Network", "", dgnet_fine->length, &dgnet_fine->length, NULL));
   PetscCall(PetscOptionsInt("-Mx_fine", "Smallest number of cells for an edge", "", dgnet_fine->Mx, &dgnet_fine->Mx, NULL));
   PetscCall(PetscOptionsInt("-Mx_coarse", "Smallest number of cells for an edge", "", dgnet_coarse->Mx, &dgnet_coarse->Mx, NULL));
+  PetscCall(PetscOptionsInt("-ndaughters", "Number of daughter branches for network type 3", "", dgnet_fine->ndaughters, &dgnet_fine->ndaughters, NULL));
   PetscCall(PetscOptionsBool("-view", "view the fields on the network", "", view, &view, NULL));
-  PetscCall(PetscOptionsInt("-initial", "Initial Condition (depends on the physics)", "", dgnet_fine->initial, &dgnet_fine->initial, NULL));
   PetscCall(PetscOptionsInt("-network", "Network topology to load, along with boundary condition information", "", dgnet_fine->networktype, &dgnet_fine->networktype, NULL));
   PetscOptionsEnd();
 
@@ -93,7 +92,7 @@ int main(int argc, char *argv[])
   dgnet_coarse->view        = dgnet_fine->view;
   dgnet_coarse->networktype = dgnet_fine->networktype;
   dgnet_coarse->initial     = dgnet_fine->initial;
-  PetscCall(PetscMalloc2(dof, &order_fine, dof, &order_coarse));
+  PetscCall(PetscStrcpy(dgnet_coarse->prefix,"coarse"));
 
   /* Choose the physics from the list of registered models */
   {
@@ -104,7 +103,8 @@ int main(int argc, char *argv[])
     PetscCall((*r)(dgnet_fine));
     PetscCall((*r)(dgnet_coarse));
   }
-  PetscCall(PetscMalloc2(dgnet_fine->physics.dof, &dgnet_fine->physics.order, dgnet_coarse->physics.dof, &dgnet_coarse->physics.order)); /* should be constructed by physics */
+  PetscCall(PetscMalloc1(dgnet_fine->physics.dof, &dgnet_fine->physics.order)); 
+  PetscCall(PetscMalloc1(dgnet_coarse->physics.dof, &dgnet_coarse->physics.order)); /* should be constructed by physics */
 
   PetscCall(MakeOrder(dgnet_fine->physics.dof, dgnet_fine->physics.order, maxdegree_fine));
   PetscCall(MakeOrder(dgnet_coarse->physics.dof, dgnet_coarse->physics.order, maxdegree_coarse));
@@ -155,7 +155,8 @@ int main(int argc, char *argv[])
   /* Load Fine Vector and Coarse Vector */
   PetscCall(VecCreate(comm, &coarse));
   PetscCall(VecCreate(comm, &fine));
-  PetscCall(PetscViewerBinaryOpen(comm, "ex8output_true", FILE_MODE_READ, &fineload));
+  PetscCall(PetscSNPrintf(finefile, 256, "ex8output_P%i_%i", maxdegree_fine, dgnet_fine->Mx));
+  PetscCall(PetscViewerBinaryOpen(comm, finefile, FILE_MODE_READ, &fineload));
   PetscCall(PetscSNPrintf(coarsefile, 256, "ex8output_P%i_%i", maxdegree_coarse, dgnet_coarse->Mx));
   PetscCall(PetscViewerBinaryOpen(comm, coarsefile, FILE_MODE_READ, &coarseload));
 
@@ -168,21 +169,22 @@ int main(int argc, char *argv[])
   PetscCall(VecDuplicate(dgnet_fine->X, &error));
 
   if (size == 1 && view) {
-    PetscCall(DGNetworkMonitorView(monitor_fine, fine));
-    PetscCall(DGNetworkMonitorView(monitor_coarse, coarse));
+   // PetscCall(DGNetworkMonitorView(monitor_fine, fine));
+   // PetscCall(DGNetworkMonitorView(monitor_coarse, coarse));
   }
   /* Project from the coarse grid to the fine grid */
   PetscCall(DGNetworkProject_Coarse_To_Fine(dgnet_fine, dgnet_coarse, coarse, projection));
   /* Compute Error in the projection */
   PetscCall(VecWAXPY(error, -1, fine, projection));
   if (size == 1 && view) {
-    PetscCall(DGNetworkMonitorView(monitor_fine2, projection));
+    //PetscCall(DGNetworkMonitorView(monitor_fine2, projection));
     PetscCall(DGNetworkMonitorView(monitor_fine3, error));
   }
   /*compute norm of the error */
   PetscCall(PetscMalloc1(dof, &norm));
   PetscCall(DGNetworkNormL2(dgnet_fine, error, norm));
   for (i = 0; i < dof; i++) { PetscCall(PetscPrintf(PETSC_COMM_WORLD, "DGNET Error in Projection:  %g \n", norm[i])); }
+  PetscCall(PetscFree(norm));
   PetscCall(VecDestroy(&projection));
   PetscCall(VecDestroy(&error));
   PetscCall(VecDestroy(&fine));
@@ -195,12 +197,16 @@ int main(int argc, char *argv[])
     PetscCall(DGNetworkMonitorDestroy(&monitor_fine3));
   }
 
+  PetscCall(PetscFunctionListDestroy(&physics));
   PetscCall(DGNetworkDestroy(dgnet_fine));   /* Destroy all data within the network and within dgnet */
   PetscCall(DGNetworkDestroy(dgnet_coarse)); /* Destroy all data within the network and within dgnet */
   PetscCall(DMDestroy(&dgnet_fine->network));
   PetscCall(DMDestroy(&dgnet_coarse->network));
-  PetscCall(PetscFree2(dgnet_coarse, dgnet_fine));
-  PetscCall(PetscFree2(order_coarse, order_fine));
+
+  PetscCall(PetscFree(dgnet_coarse->physics.order));
+  PetscCall(PetscFree(dgnet_fine->physics.order));
+
+  //PetscCall(PetscFree2(dgnet_coarse, dgnet_fine)); // Memory leak here somehow, only in optimized mode 
   PetscCall(PetscFinalize());
   return 0;
 }

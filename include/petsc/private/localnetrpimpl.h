@@ -44,6 +44,8 @@ struct _NetRPOps {
   PetscErrorCode (*createLinearFlux)(NetRP, PetscInt, PetscBool *, Vec, Vec, Mat); /* form is: DMNetwork, Vertex, U, Linear System for solving for Flux */
   PetscErrorCode (*NonlinearEval)(NetRP, PetscInt, PetscBool *, Vec, Vec, Vec);    /* form is: DMNetwork, Vertex,U, Ustar, F(ustar), where F(U) is the nonlinear eval for the nonlinear Network Riemann Problem */
   PetscErrorCode (*NonlinearJac)(NetRP, PetscInt, PetscBool *, Vec, Vec, Mat);     /* form is: DMNetwork, Vertex, U,Ustar Jacobian of the NonlinearEval */
+  PetscErrorCode (*NonlinearEvalStar)(NetRP, PetscInt, PetscBool *, Vec, Vec, Vec);    /* form is: DMNetwork, Vertex,U, Ustar, F(ustar), where F(U) is the nonlinear eval for the nonlinear Network Riemann Problem */
+  PetscErrorCode (*NonlinearJacStar)(NetRP, PetscInt, PetscBool *, Vec, Vec, Mat);     /* form is: DMNetwork, Vertex, U,Ustar Jacobian of the NonlinearEval */
 };
 
 struct _p_NetRP {
@@ -60,7 +62,7 @@ struct _p_NetRP {
   Mat  *mat;
   Vec  *vec;
   KSP  *ksp;
-  SNES *snes;
+  SNES *snes, *snes_star; 
 
   PetscHMapI hmap; /* map from vertexdegree -> index in the solver arrays for cached solver objects for that vertex degree problem */
 

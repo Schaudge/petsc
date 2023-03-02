@@ -214,7 +214,6 @@ int main(int argc, char *argv[])
   PetscCall(DGNetworkAssignNetRS(dgnet));
   PetscCall(DGNetworkProject(dgnet, dgnet->X, 0.0));
   PetscCall(VecGetSize(dgnet->X, &systemsize));
-  PetscCall(PetscPrintf(comm, "\nWe have %" PetscInt_FMT " Dofs\n\n", systemsize));
   /* Create a time-stepping object */
   PetscCall(TSCreate(comm, &ts));
   PetscCall(TSSetApplicationContext(ts, dgnet));

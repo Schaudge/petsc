@@ -129,9 +129,9 @@ PETSC_EXTERN PetscErrorCode NetRPCreate_ExactSWE(NetRP rp)
   PetscFunctionBegin;
   rp->data                = NULL;
   rp->ops->setfromoptions = NRPSetFromOptions_ExactSWE;
-  rp->ops->view           = NRPView_ExactSWE;
-  rp->ops->NonlinearEval  = NetRPNonlinearEval_ExactSWE;
-  rp->ops->NonlinearJac   = NetRPNonlinearJac_ExactSWE;
+  rp->ops->view               = NRPView_ExactSWE;
+  rp->ops->NonlinearEvalStar  = NetRPNonlinearEval_ExactSWE;
+  rp->ops->NonlinearJacStar   = NetRPNonlinearJac_ExactSWE;
   rp->physicsgenerality   = Specific; /* the only specific thing here is the algebraic coupling and jacobian stuff (for now) */
   rp->solvetype           = Nonlinear;
 

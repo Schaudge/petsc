@@ -17,7 +17,6 @@ PETSC_EXTERN PetscFunctionList NetRPList;
 typedef enum {
   Linear,
   Nonlinear,
-  Optimization,
   Other
 } NetRPSolveType;
 typedef enum {
@@ -95,6 +94,8 @@ PETSC_EXTERN PetscErrorCode NetRPSetCreateLinearStar(NetRP, NetRPCreateLinearSta
 PETSC_EXTERN PetscErrorCode NetRPSetCreateLinearFlux(NetRP, NetRPCreateLinearFlux);
 PETSC_EXTERN PetscErrorCode NetRPSetNonlinearEval(NetRP, NetRPNonlinearEval);
 PETSC_EXTERN PetscErrorCode NetRPSetNonlinearJac(NetRP, NetRPNonlinearJac);
+PETSC_EXTERN PetscErrorCode NetRPSetNonlinearEvalStar(NetRP, NetRPNonlinearEval);
+PETSC_EXTERN PetscErrorCode NetRPSetNonlinearJacStar(NetRP, NetRPNonlinearJac);
 
 /* internal setup routines for solvers. Not called directly by users */
 PETSC_INTERN PetscErrorCode NetRPCreateLinear(NetRP, PetscInt, Mat *, Vec *);

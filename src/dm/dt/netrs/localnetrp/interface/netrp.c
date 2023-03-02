@@ -131,7 +131,10 @@ PetscErrorCode NetRPClearCache(NetRP rp)
       }
       break;
     case Nonlinear:
-      for (i = 0; i < numvertdegs; i++) { PetscCall(SNESDestroy(&rp->snes[i])); }
+      for (i = 0; i < numvertdegs; i++) { 
+        PetscCall(SNESDestroy(&rp->snes[i])); 
+        PetscCall(SNESDestroy(&rp->snes_star[i])); 
+      }
       break;
     case Other:
       break;
@@ -277,7 +280,48 @@ static PetscErrorCode NetRPSNESWrapperFunc(SNES snes, Vec x, Vec f, void *ctx)
   PetscUseTypeMethod(rp, NonlinearEval, vdeg, edgein, U, x, f);
   PetscFunctionReturn(0);
 }
+/*C
+   NetRPSNESWrapperFunc - Wraps the format for the nonlinear eval in NetRP class into SNES expected format. 
+   Just for internal use. 
 
+   Note that I assume that the SNes application ctx is the NetRPSNES ctx cast as void pointer. 
+   This holds the DM, NetRP and vertex info needed for the function calls. Thus before calling SNESSolve, 
+   correct appctx must be set, or it will not solve the correct problem. 
+
+  Output Parameter: 
+
+   Not Collective  on NetRP
+
+   Input Parameter:
+.  snes - the snes inside of NetRP 
+.  x    - input vec 
+.  ctx  - NULL
+
+  f     - outputvec 
+   Level: developer
+
+.seealso: 
+C*/
+
+static PetscErrorCode NetRPSNESWrapperFuncStar(SNES snes, Vec x, Vec f, void *ctx)
+{
+  NetRPSNESctx *netrpsnesctx;
+  NetRP         rp;
+  PetscInt      vdeg;
+  PetscBool    *edgein;
+  Vec           U;
+  void         *appctx;
+
+  PetscFunctionBegin;
+  PetscCall(SNESGetApplicationContext(snes, &appctx));
+  netrpsnesctx = (NetRPSNESctx *)appctx;
+  rp           = netrpsnesctx->rp;
+  vdeg         = netrpsnesctx->vdeg;
+  edgein       = netrpsnesctx->edgein;
+  U            = netrpsnesctx->U;
+  PetscUseTypeMethod(rp, NonlinearEvalStar, vdeg, edgein, U, x, f);
+  PetscFunctionReturn(0);
+}
 /*C
    NetRPSNESWrapperJac - Wraps the format for the nonlinear Jac in NetRP class into SNES expected format. 
    Just for internal use. 
@@ -318,6 +362,48 @@ static PetscErrorCode NetRPSNESWrapperJac(SNES snes, Vec x, Mat Amat, Mat Pmat, 
   vdeg         = netrpsnesctx->vdeg;
   U            = netrpsnesctx->U;
   PetscUseTypeMethod(rp, NonlinearJac, vdeg, edgein, U, x, Amat);
+  PetscFunctionReturn(0);
+}
+/*C
+   NetRPSNESWrapperJac - Wraps the format for the nonlinear Jac in NetRP class into SNES expected format. 
+   Just for internal use. 
+
+   Note that I assume that the SNes application ctx is the NetRPSNES ctx cast as void pointer. 
+   This holds the DM, NetRP and vertex info needed for the function calls. Thus before calling SNESSolve, 
+   correct appctx must be set, or it will not solve the correct problem. 
+
+  Output Parameter: 
+
+   Not Collective  on NetRP
+
+   Input Parameter:
+.  snes - the snes inside of NetRP 
+.  x    - input vec 
+.  ctx  - NULL
+
+  f     - outputvec 
+   Level: developer
+
+.seealso: 
+C*/
+
+static PetscErrorCode NetRPSNESWrapperJacStar(SNES snes, Vec x, Mat Amat, Mat Pmat, void *ctx)
+{
+  NetRPSNESctx *netrpsnesctx;
+  NetRP         rp;
+  PetscBool    *edgein;
+  PetscInt      vdeg;
+  Vec           U;
+  void         *appctx;
+
+  PetscFunctionBegin;
+  PetscCall(SNESGetApplicationContext(snes, &appctx));
+  netrpsnesctx = (NetRPSNESctx *)appctx;
+  rp           = netrpsnesctx->rp;
+  edgein       = netrpsnesctx->edgein;
+  vdeg         = netrpsnesctx->vdeg;
+  U            = netrpsnesctx->U;
+  PetscUseTypeMethod(rp, NonlinearJacStar, vdeg, edgein, U, x, Amat);
   PetscFunctionReturn(0);
 }
 
@@ -386,6 +472,71 @@ PetscErrorCode NetRPCreateSNES(NetRP rp, PetscInt vertdeg, SNES *snes)
   *snes = _snes;
   PetscFunctionReturn(0);
 }
+/*@
+   NetRPCreateSNES - Create the SNES 
+
+   Not Collective  on NetRP
+
+   Input Parameter:
+.  rp - the NetRP context obtained from NetRPCreate()
+.  vertdeg -  Vertex degree for the problem 
+
+  Output Parameter: 
+
+  . snes - the created SNES for the Riemann Problem
+
+   Level: developer
+
+.seealso: 
+@*/
+
+PetscErrorCode NetRPCreateSNESStar(NetRP rp, PetscInt vertdeg, SNES *snes)
+{
+  SNES        _snes;
+  const char *prefix_netrp;
+  PetscInt    numfield;
+  Mat         jac;
+  KSP         ksp;
+  PC          pc;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
+
+  PetscCall(SNESCreate(PETSC_COMM_SELF, &_snes));
+  PetscCall(PetscObjectGetOptionsPrefix((PetscObject)rp, &prefix_netrp));
+  PetscCall(PetscObjectSetOptionsPrefix((PetscObject)_snes, prefix_netrp));
+  PetscCall(PetscObjectAppendOptionsPrefix((PetscObject)_snes, "netrp_"));
+  if (rp->ops->setupsnes) PetscCall((rp->ops->setupsnes)(rp, vertdeg, _snes));
+  PetscCall(SNESSetFromOptions(_snes));
+  PetscCall(SNESGetKSP(_snes, &ksp));
+  PetscCall(PetscObjectSetOptionsPrefix((PetscObject)ksp, prefix_netrp));
+  PetscCall(PetscObjectAppendOptionsPrefix((PetscObject)ksp, "netrp_snes_"));
+
+  /* Default to direct linear solver, which makes sense for these small systems */
+  PetscCall(KSPGetPC(ksp, &pc));
+  PetscCall(PCSetType(pc, PCLU));
+  PetscCall(KSPSetType(ksp, KSPPREONLY));
+  PetscCall(KSPSetFromOptions(ksp));
+  PetscCall(SNESSetFunction(_snes, NULL, NetRPSNESWrapperFuncStar, NULL)); /* should I provide the r vec here? */
+
+  if (rp->ops->NonlinearJacStar) {
+    /* Create Jacobian Mat */
+    PetscCall(MatCreate(PETSC_COMM_SELF, &jac));
+    PetscCall(PetscObjectGetOptionsPrefix((PetscObject)rp, &prefix_netrp));
+    PetscCall(PetscObjectSetOptionsPrefix((PetscObject)jac, prefix_netrp));
+    PetscCall(PetscObjectAppendOptionsPrefix((PetscObject)jac, "netrp_jac_"));
+    PetscTryTypeMethod(rp, setupjac, vertdeg, jac);
+    PetscCall(MatSetFromOptions(jac));
+    PetscCall(NetRPGetNumFields(rp, &numfield));
+    PetscCall(MatSetSizes(jac, PETSC_DECIDE, PETSC_DECIDE, vertdeg * numfield, vertdeg * numfield));
+    PetscCall(MatSetUp(jac));
+
+    PetscCall(SNESSetJacobian(_snes, jac, jac, NetRPSNESWrapperJacStar, NULL));
+    PetscCall(MatDestroy(&jac)); /* dereference the jacobian mat, now ownership controlled by SNES */
+  }
+  *snes = _snes;
+  PetscFunctionReturn(0);
+}
 
 /*@
    NetRPAddVertexDegrees - Add vertex degrees to cache solvers for. If these degrees are already cached then
@@ -408,7 +559,7 @@ PetscErrorCode NetRPAddVertexDegrees(NetRP rp, PetscInt numdegs, PetscInt *vertd
   PetscBool flg;
   Mat      *mat_new;
   KSP      *ksp_new;
-  SNES     *snes_new;
+  SNES     *snes_new,*snes_star_new; 
   Vec      *vec_new;
 
   PetscFunctionBegin;
@@ -423,12 +574,14 @@ PetscErrorCode NetRPAddVertexDegrees(NetRP rp, PetscInt numdegs, PetscInt *vertd
   }
   if (totalnew == 0) PetscFunctionReturn(0);
   /* reallocate solver cache arrays with room for new entries */
-  PetscCall(PetscMalloc4(numentries + totalnew, &mat_new, numentries + totalnew, &vec_new, numentries + totalnew, &ksp_new, numentries + totalnew, &snes_new));
+  PetscCall(PetscMalloc5(numentries + totalnew, &mat_new, numentries + totalnew, &vec_new, numentries + totalnew, &ksp_new, numentries + totalnew, &snes_new, numentries + totalnew,&snes_star_new));
 
   PetscCall(PetscArraycpy(mat_new, rp->mat, numentries));
   PetscCall(PetscArraycpy(vec_new, rp->vec, numentries));
   PetscCall(PetscArraycpy(ksp_new, rp->ksp, numentries));
   PetscCall(PetscArraycpy(snes_new, rp->snes, numentries));
+  PetscCall(PetscArraycpy(snes_star_new, rp->snes_star, numentries));
+
 
   if (rp->mat) { /* if any memeory has every been allocated */
     PetscCall(PetscFree4(rp->mat, rp->vec, rp->ksp, rp->snes));
@@ -437,6 +590,7 @@ PetscErrorCode NetRPAddVertexDegrees(NetRP rp, PetscInt numdegs, PetscInt *vertd
   rp->mat  = mat_new;
   rp->ksp  = ksp_new;
   rp->snes = snes_new;
+  rp->snes_star = snes_star_new;
   rp->vec  = vec_new;
 
   /* add new entries */
@@ -449,6 +603,7 @@ PetscErrorCode NetRPAddVertexDegrees(NetRP rp, PetscInt numdegs, PetscInt *vertd
     switch (rp->solvetype) {
     case Nonlinear: /* assumes only usage of snes */
       PetscCall(NetRPCreateSNES(rp, vertdegs[i], &rp->snes[numentries + off]));
+      PetscCall(NetRPCreateSNESStar(rp, vertdegs[i], &rp->snes_star[numentries + off]));
       break;
     case Linear: /* assumes only usage of Mat and KSP */
       PetscCall(NetRPCreateLinear(rp, vertdegs[i], &rp->mat[numentries + off], &rp->vec[numentries + off]));
@@ -804,6 +959,34 @@ PetscErrorCode NetRPSetNonlinearJac(NetRP rp, NetRPNonlinearJac nonlinearjac)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode NetRPSetNonlinearEvalStar(NetRP rp, NetRPNonlinearEval nonlinearevalstar)
+{
+  PetscBool flg;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
+  PetscCheck(!rp->setupcalled, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Must be set before calling NetRPSetUp()");
+  /* only the blank implementation should allow for setting this, other implementations are assumed to fix the type themselves */
+  PetscCall(PetscObjectTypeCompare((PetscObject)rp, NETRPBLANK, &flg));
+  PetscCheck(flg, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Can only be manually set on the blank type of NetRP");
+  rp->ops->NonlinearEvalStar = nonlinearevalstar;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode NetRPSetNonlinearJacStar(NetRP rp, NetRPNonlinearJac nonlinearjacstar )
+{
+  PetscBool flg;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
+  PetscCheck(!rp->setupcalled, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Must be set before calling NetRPSetUp()");
+  /* only the blank implementation should allow for setting this, other implementations are assumed to fix the type themselves */
+  PetscCall(PetscObjectTypeCompare((PetscObject)rp, NETRPBLANK, &flg));
+  PetscCheck(flg, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Can only be manually set on the blank type of NetRP");
+  rp->ops->NonlinearJacStar = nonlinearjacstar;
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode NetRPComputeFluxInPlace_internal(NetRP rp, PetscInt vdeg, Vec Flux)
 {
   PetscInt      i, numfields;
@@ -885,13 +1068,23 @@ PetscErrorCode NetRPSolveFlux(NetRP rp, PetscInt numedges, PetscBool *edgein, Ve
     snesctx.vdeg   = vdeg;
     snesctx.rp     = rp;
     snesctx.U      = U;
-    PetscCall(SNESSetApplicationContext(rp->snes[index], (void *)&snesctx));
-    PetscCall(VecCopy(U, Flux)); /* initial guess of the riemann data */
-    PetscLogEventBegin(NetRP_Solve_System, 0, 0, 0, 0);
-    PetscCall(SNESSolve(rp->snes[index], NULL, Flux)); /* currently assumes this solves for the star state */
-    PetscLogEventEnd(NetRP_Solve_System, 0, 0, 0, 0);
-    /* inplace evaluate the star states in Flux by the physics flux to compute the actual flux */
-    PetscCall(NetRPComputeFluxInPlace_internal(rp, vdeg, Flux));
+    if(rp->ops->NonlinearEval) {
+      PetscCall(SNESSetApplicationContext(rp->snes[index], (void *)&snesctx));
+      PetscCall(VecCopy(U, Flux)); /* initial guess of the riemann data */
+      PetscLogEventBegin(NetRP_Solve_System, 0, 0, 0, 0);
+      PetscCall(SNESSolve(rp->snes[index], NULL, Flux));
+      PetscLogEventEnd(NetRP_Solve_System, 0, 0, 0, 0);
+    } else if (rp->ops->NonlinearEvalStar) {
+      PetscCall(SNESSetApplicationContext(rp->snes_star[index], (void *)&snesctx));
+      PetscCall(VecCopy(U, Flux)); /* initial guess of the riemann data */
+      PetscLogEventBegin(NetRP_Solve_System, 0, 0, 0, 0);
+      PetscCall(SNESSolve(rp->snes_star[index], NULL, Flux));
+      /* inplace evaluate the star states in Flux by the physics flux to compute the actual flux */
+      PetscCall(NetRPComputeFluxInPlace_internal(rp, vdeg, Flux));
+      PetscLogEventEnd(NetRP_Solve_System, 0, 0, 0, 0);
+    } else {
+      SETERRQ(PetscObjectComm((PetscObject)rp), PETSC_ERR_PLIB, "No available solver for NetRPSolveFlux. This should not happen and should be caught at NetRPSetUp(). Solver Type is: NONLINEAR");
+    }
     break;
   case Other:
     PetscUseTypeMethod(rp, solveFlux, vdeg, edgein, U, Flux);
@@ -950,9 +1143,9 @@ PetscErrorCode NetRPSolveStar(NetRP rp, PetscInt vdeg, PetscBool *edgein, Vec U,
     snesctx.vdeg   = vdeg;
     snesctx.rp     = rp;
     snesctx.U      = U;
-    PetscCall(SNESSetApplicationContext(rp->snes[index], (void *)&snesctx));
+    PetscCall(SNESSetApplicationContext(rp->snes_star[index], (void *)&snesctx));
     PetscCall(VecCopy(U, Star));                       /* initial guess of the riemann data */
-    PetscCall(SNESSolve(rp->snes[index], NULL, Star)); /* currently bugged as only one nonlinear function is allowed, need space for two. */
+    PetscCall(SNESSolve(rp->snes_star[index], NULL, Star));
     break;
   case Other:
     PetscUseTypeMethod(rp, solveStar, vdeg, edgein, U, Star);
