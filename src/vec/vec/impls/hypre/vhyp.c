@@ -109,7 +109,7 @@ static inline PetscErrorCode VecGetArrayForHYPRE(Vec v, int rw, HYPRE_MemoryLoca
   case 2: /* read/write */
     if (hmem == HYPRE_MEMORY_HOST) {
       PetscCall(VecGetArray(v, ptr));
-      *res = VecRestoreArray;
+      *res = VecRestoreArray_Default;
     } else {
       PetscCall(VecGetArrayAndMemType(v, (PetscScalar **)ptr, &mtype));
       PetscCheck(PetscMemTypeDevice(mtype), comm, PETSC_ERR_ARG_WRONG, "HYPRE_MEMORY_DEVICE expects a device vector. You need to enable PETSc device support, for example, in some cases, -vec_type cuda");
