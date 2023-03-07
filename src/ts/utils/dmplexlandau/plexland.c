@@ -29,7 +29,7 @@ static PetscErrorCode LandauGPUMapsDestroy(void *ptr)
   PetscFunctionBegin;
   // free device data
   if (maps[0].deviceType != LANDAU_CPU) {
-#if defined(PETSC_HAVE_KOKKOS_KERNELS)
+#if defined(SKIP_PETSC_HAVE_KOKKOS_KERNELS)
     if (maps[0].deviceType == LANDAU_KOKKOS) {
       PetscCall(LandauKokkosDestroyMatMaps(maps, maps[0].numgrids)); // implies Kokkos does
     }                                                                // else could be CUDA
@@ -213,7 +213,7 @@ static PetscErrorCode LandauFormJacobian_Internal(Vec a_X, Mat JacP, const Petsc
       SETERRQ(ctx->comm, PETSC_ERR_ARG_WRONG, "-landau_device_type %s not built", "cuda");
 #endif
     } else if (ctx->deviceType == LANDAU_KOKKOS) {
-#if defined(PETSC_HAVE_KOKKOS_KERNELS)
+#if defined(SKIP_PETSC_HAVE_KOKKOS_KERNELS)
       PetscCall(LandauKokkosJacobian(ctx->plex, Nq, ctx->batch_sz, ctx->num_grids, numCells, Eq_m, cellClosure, xdata, &ctx->SData_d, shift, ctx->events, ctx->mat_offset, ctx->species_offset, subJ, JacP));
 #else
       SETERRQ(ctx->comm, PETSC_ERR_ARG_WRONG, "-landau_device_type %s not built", "kokkos");
@@ -1105,7 +1105,7 @@ static PetscErrorCode ProcessOptions(LandauCtx *ctx, const char prefix[])
   PetscOptionsBegin(ctx->comm, prefix, "Options for Fokker-Plank-Landau collision operator", "none");
   {
     char opstring[256];
-#if defined(PETSC_HAVE_KOKKOS_KERNELS)
+#if defined(SKIP_PETSC_HAVE_KOKKOS_KERNELS)
     ctx->deviceType = LANDAU_KOKKOS;
     PetscCall(PetscStrncpy(opstring, "kokkos", sizeof(opstring)));
 #elif defined(PETSC_HAVE_CUDA)
@@ -1516,7 +1516,7 @@ static PetscErrorCode CreateStaticData(PetscInt dim, IS grid_batch_is_inv[], Lan
           maps[grid].c_maps[ej][q].gid   = pointMaps[ej][q].gid;
         }
       }
-#if defined(PETSC_HAVE_KOKKOS_KERNELS)
+#if defined(SKIP_PETSC_HAVE_KOKKOS_KERNELS)
       if (ctx->deviceType == LANDAU_KOKKOS) {
         PetscCall(LandauKokkosCreateMatMaps(maps, pointMaps, Nf, Nq, grid)); // implies Kokkos does
       }                                                                      // else could be CUDA
@@ -1725,7 +1725,7 @@ static PetscErrorCode CreateStaticData(PetscInt dim, IS grid_batch_is_inv[], Lan
     if (ctx->use_energy_tensor_trick) PetscCall(PetscFEDestroy(&fe));
     /* cache static data */
     if (ctx->deviceType == LANDAU_CUDA || ctx->deviceType == LANDAU_KOKKOS) {
-#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_KOKKOS_KERNELS)
+#if defined(PETSC_HAVE_CUDA) || defined(SKIP_PETSC_HAVE_KOKKOS_KERNELS)
       if (ctx->deviceType == LANDAU_CUDA) {
   #if defined(PETSC_HAVE_CUDA)
         PetscCall(LandauCUDAStaticDataSet(ctx->plex[0], Nq, ctx->batch_sz, ctx->num_grids, numCells, ctx->species_offset, ctx->mat_offset, nu_alpha, nu_beta, invMass, (PetscReal *)ctx->lambdas, invJ_a, xx, yy, zz, ww, &ctx->SData_d));
@@ -1733,7 +1733,7 @@ static PetscErrorCode CreateStaticData(PetscInt dim, IS grid_batch_is_inv[], Lan
         SETERRQ(ctx->comm, PETSC_ERR_ARG_WRONG, "-landau_device_type cuda not built");
   #endif
       } else if (ctx->deviceType == LANDAU_KOKKOS) {
-  #if defined(PETSC_HAVE_KOKKOS_KERNELS)
+  #if defined(SKIP_PETSC_HAVE_KOKKOS_KERNELS)
         PetscCall(LandauKokkosStaticDataSet(ctx->plex[0], Nq, ctx->batch_sz, ctx->num_grids, numCells, ctx->species_offset, ctx->mat_offset, nu_alpha, nu_beta, invMass, (PetscReal *)ctx->lambdas, invJ_a, xx, yy, zz, ww, &ctx->SData_d));
   #else
         SETERRQ(ctx->comm, PETSC_ERR_ARG_WRONG, "-landau_device_type kokkos not built");
@@ -2015,7 +2015,7 @@ PetscErrorCode DMPlexLandauCreateVelocitySpace(MPI_Comm comm, PetscInt dim, cons
       PetscCheck(flg, ctx->comm, PETSC_ERR_ARG_WRONG, "must use '-dm_mat_type aijcusparse -dm_vec_type cuda' for GPU assembly and Cuda or use '-dm_landau_device_type cpu'");
     } else if (ctx->deviceType == LANDAU_KOKKOS) {
       PetscCall(PetscObjectTypeCompareAny((PetscObject)ctx->J, &flg, MATSEQAIJKOKKOS, MATMPIAIJKOKKOS, MATAIJKOKKOS, ""));
-#if defined(PETSC_HAVE_KOKKOS_KERNELS)
+#if defined(SKIP_PETSC_HAVE_KOKKOS_KERNELS)
       PetscCheck(flg, ctx->comm, PETSC_ERR_ARG_WRONG, "must use '-dm_mat_type aijkokkos -dm_vec_type kokkos' for GPU assembly and Kokkos or use '-dm_landau_device_type cpu'");
 #else
       PetscCheck(flg, ctx->comm, PETSC_ERR_ARG_WRONG, "must configure with '--download-kokkos-kernels' for GPU assembly and Kokkos or use '-dm_landau_device_type cpu'");
@@ -2160,7 +2160,7 @@ PetscErrorCode DMPlexLandauDestroyVelocitySpace(DM *dm)
     SETERRQ(ctx->comm, PETSC_ERR_ARG_WRONG, "-landau_device_type %s not built", "cuda");
 #endif
   } else if (ctx->deviceType == LANDAU_KOKKOS) {
-#if defined(PETSC_HAVE_KOKKOS_KERNELS)
+#if defined(SKIP_PETSC_HAVE_KOKKOS_KERNELS)
     PetscCall(LandauKokkosStaticDataClear(&ctx->SData_d));
 #else
     SETERRQ(ctx->comm, PETSC_ERR_ARG_WRONG, "-landau_device_type %s not built", "kokkos");

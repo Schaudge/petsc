@@ -1,4 +1,4 @@
-#requirespackage 'PETSC_HAVE_KOKKOS_KERNELS'
+#requirespackage 'SKIP_PETSC_HAVE_KOKKOS_KERNELS'
 -include ../../../../../petscdir.mk
 
 SOURCEKOKKOS = landau.kokkos.cxx
