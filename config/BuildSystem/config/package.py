@@ -521,12 +521,15 @@ Now rerun configure''' % (self.installDirProvider.dir, '--download-'+self.packag
       alllibs.insert(0,[])
     for libSet in liblist:
       libs = []
-      # add full path only to the first library in the list
+      # add full path only to the first library in the list unless it starts with framework 
       if len(libSet) > 0:
-        libs.append(os.path.join(directory, libSet[0]))
+        if libSet[0].startswith('-framework'):
+          libs.append(libSet[0])
+        else:
+          libs.append(os.path.join(directory, libSet[0]))
       for library in libSet[1:]:
-        # if the library name doesn't start with lib - then add the fullpath
-        if library.startswith('-l') or library.startswith('lib'):
+        # if the library name doesn't start with lib or framework - then add the fullpath
+        if library.startswith('-l') or library.startswith('lib') or library.startswith('-framework'):
           libs.append(library)
         else:
           libs.append(os.path.join(directory, library))
