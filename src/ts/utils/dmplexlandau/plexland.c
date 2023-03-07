@@ -28,7 +28,7 @@ static PetscErrorCode LandauGPUMapsDestroy(void *ptr)
   PetscFunctionBegin;
   // free device data
   if (maps[0].deviceType != LANDAU_CPU) {
-#if defined(PETSC_HAVE_KOKKOS_KERNELS)
+#if defined(SKIP_PETSC_HAVE_KOKKOS_KERNELS)
     if (maps[0].deviceType == LANDAU_KOKKOS) {
       PetscCall(LandauKokkosDestroyMatMaps(maps, maps[0].numgrids)); // implies Kokkos does
     }
@@ -1107,7 +1107,7 @@ static PetscErrorCode ProcessOptions(LandauCtx *ctx, const char prefix[])
   PetscOptionsBegin(ctx->comm, prefix, "Options for Fokker-Plank-Landau collision operator", "none");
   {
     char opstring[256];
-#if defined(PETSC_HAVE_KOKKOS_KERNELS)
+#if defined(SKIP_PETSC_HAVE_KOKKOS_KERNELS)
     ctx->deviceType = LANDAU_KOKKOS;
     PetscCall(PetscStrncpy(opstring, "kokkos", sizeof(opstring)));
 #else
@@ -1511,7 +1511,7 @@ static PetscErrorCode CreateStaticData(PetscInt dim, IS grid_batch_is_inv[], Lan
           maps[grid].c_maps[ej][q].gid   = pointMaps[ej][q].gid;
         }
       }
-#if defined(PETSC_HAVE_KOKKOS_KERNELS)
+#if defined(SKIP_PETSC_HAVE_KOKKOS_KERNELS)
       if (ctx->deviceType == LANDAU_KOKKOS) {
         PetscCall(LandauKokkosCreateMatMaps(maps, pointMaps, Nf, Nq, grid)); // implies Kokkos does
       }
@@ -1994,7 +1994,7 @@ PetscErrorCode DMPlexLandauCreateVelocitySpace(MPI_Comm comm, PetscInt dim, cons
     PetscBool flg;
     if (ctx->deviceType == LANDAU_KOKKOS) {
       PetscCall(PetscObjectTypeCompareAny((PetscObject)ctx->J, &flg, MATSEQAIJKOKKOS, MATMPIAIJKOKKOS, MATAIJKOKKOS, ""));
-#if defined(PETSC_HAVE_KOKKOS_KERNELS)
+#if defined(SKIP_PETSC_HAVE_KOKKOS_KERNELS)
       PetscCheck(flg, ctx->comm, PETSC_ERR_ARG_WRONG, "must use '-dm_mat_type aijkokkos -dm_vec_type kokkos' for GPU assembly and Kokkos or use '-dm_landau_device_type cpu'");
 #else
       PetscCheck(flg, ctx->comm, PETSC_ERR_ARG_WRONG, "must configure with '--download-kokkos-kernels' for GPU assembly and Kokkos or use '-dm_landau_device_type cpu'");
