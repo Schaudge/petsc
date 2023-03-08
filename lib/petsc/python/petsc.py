@@ -53,10 +53,10 @@ import numpy as np
 try: import torch
 except: pass
 os.environ["JAX_ENABLE_X64"] = 'True'   # it is insane that this is not allowed by default!
-try: import jax.numpy as jnp
-except: pass
-try: import tensorflow as tf
-except: pass
+#try: import jax.numpy as jnp
+#except: pass
+#try: import tensorflow as tf
+#except: pass
 
 COMM_WORLD = PETSc.COMM_WORLD
 COMM_SELF  = PETSc.COMM_SELF
@@ -87,8 +87,7 @@ def convertToVec(v,comm = PETSc.COMM_WORLD,**kwargs):
     return v.petsc
   if torch.is_tensor(v):
     V = PETSc.Vec().createWithDLPack(torch.utils.dlpack.to_dlpack(v))
-    V.setAttr('tensor',v)
-    v.petsc = V
+    V.setAttr('torch',v)
     return V
   if isinstance(v,np.ndarray):
     V = PETSc.Vec().createWithArray(v,comm = comm)
@@ -102,7 +101,7 @@ def convertToVec(v,comm = PETSc.COMM_WORLD,**kwargs):
     return V
   if isinstance(v,tf.Tensor):   # tf.Tensor are immutable !! Not sure how this can make sense with PETSc!
     V = PETSc.Vec().createWithArray(v.numpy()) # or np.array(memoryview(v))?
-    V.setAttr('Tensor',v)
+    V.setAttr('TensorFlow',v)
     setattr(v,'petsc',V)
     return V
 
@@ -110,13 +109,13 @@ def convertFromVec(V,comm = PETSc.COMM_WORLD,**kwargs):
   '''Converts from a PETSc Vec to the users original format, shares the memory except for tf.Tensor?
   '''
   if V is None: return V
-  v = V.getAttr('tensor')
+  v = V.getAttr('torch')
   if not v is None: return v
   v = V.getAttr('numpy')
   if not v is None: return v
   v = V.getAttr('jax')
   if not v is None: return v
-  v = V.getAttr('Tensor')
+  v = V.getAttr('TensorFlow')
   if not v is None: return v   # this is tricky, likely it needs to create a new tf.Tensor with the new values in V but of the same shape as v
   return V
 
