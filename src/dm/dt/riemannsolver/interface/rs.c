@@ -60,7 +60,7 @@ PetscErrorCode RiemannSolverSetUpJacobian_internal(RiemannSolver rs)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
-  PetscCall(MatCreateSeqDense(PETSC_COMM_SELF, rs->numfields, rs->numfields, PETSC_NULL, &rs->Df));
+  PetscCall(MatCreateSeqDense(PETSC_COMM_SELF, rs->numfields, rs->numfields, PETSC_IGNORE, &rs->Df));
   /* Now set up the linear solver. */
   PetscCall(KSPCreate(PETSC_COMM_SELF, &rs->dfksp));
   PetscCall(KSPGetPC(rs->dfksp, &pc));
@@ -115,7 +115,7 @@ PetscErrorCode RiemannSolverSetUpRoe_internal(RiemannSolver rs)
 
   /* does not share the same communicator as the RiemannSolver, does this affect diagnostic printout behavior?
       Need to be careful with this */
-  PetscCall(MatCreateSeqDense(PETSC_COMM_SELF, rs->numfields, rs->numfields, PETSC_NULL, &rs->roemat));
+  PetscCall(MatCreateSeqDense(PETSC_COMM_SELF, rs->numfields, rs->numfields, PETSC_IGNORE, &rs->roemat));
   /* Note that this eigenmatrix could potentially reuse the eigen matrix, as in many cases (SWE Euler, 
   the roe avg is simply A(uL,uR)= Df(u_roe(uL,uR)) and will have the same eigen decomposition as Df */
   PetscCall(MatDuplicate(rs->roemat, MAT_DO_NOT_COPY_VALUES, &rs->roeeigen));
@@ -190,7 +190,7 @@ PetscErrorCode RiemannSolverSetUpEig_internal(RiemannSolver rs)
 
   /* does not share the same communicator as the RiemannSolver, does this affect diagnostic printout behavior?
       Need to be careful with this */
-  PetscCall(MatCreateSeqDense(PETSC_COMM_SELF, rs->numfields, rs->numfields, PETSC_NULL, &rs->eigen));
+  PetscCall(MatCreateSeqDense(PETSC_COMM_SELF, rs->numfields, rs->numfields, PETSC_IGNORE, &rs->eigen));
   /* Now set up the linear solver. */
   PetscCall(KSPCreate(PETSC_COMM_SELF, &rs->eigenksp));
   PetscCall(KSPGetPC(rs->eigenksp, &pc));
@@ -823,7 +823,6 @@ PetscErrorCode RiemannSolverComputeRoeAvg(RiemannSolver rs, const PetscReal *uL,
   } else {
     SETERRQ(PetscObjectComm((PetscObject)rs), PETSC_ERR_SUP, "No Roe Average Function Specified");
   }
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 /* Compute the norm of the positive or negative eigenvector at u components of of a vector x */
@@ -917,7 +916,6 @@ PetscErrorCode RiemannSolverTestEigDecomposition(RiemannSolver rs, PetscInt numv
   Vec            Eig_vec;
   PetscScalar   *eig;
   PetscInt       i;
-  PetscErrorCode ierr;
   PetscReal      norm;
   PetscBool      isascii;
 
@@ -926,9 +924,9 @@ PetscErrorCode RiemannSolverTestEigDecomposition(RiemannSolver rs, PetscInt numv
   /* If tol is PETSC_DECIDE set default. More complicated defaults could be implemented here */
   if (tol == PETSC_DECIDE) tol = 1e-10;
   /* Preallocate diagonal eigenvalue matrix for all values */
-  PetscCall(MatCreateSeqDense(PETSC_COMM_SELF, rs->numfields, rs->numfields, PETSC_NULL, &Eig));
+  PetscCall(MatCreateSeqDense(PETSC_COMM_SELF, rs->numfields, rs->numfields, PETSC_IGNORE, &Eig));
   /* Preallocate result of DFR-EigR */
-  PetscCall(MatCreateSeqDense(PETSC_COMM_SELF, rs->numfields, rs->numfields, PETSC_NULL, &Diff));
+  PetscCall(MatCreateSeqDense(PETSC_COMM_SELF, rs->numfields, rs->numfields, PETSC_IGNORE, &Diff));
   PetscCall(MatZeroEntries(Eig));
   PetscCall(VecCreateSeqWithArray(PETSC_COMM_SELF, 1, rs->numfields, NULL, &Eig_vec));
   for (i = 0; i < numvalues; i++) {
@@ -956,46 +954,46 @@ PetscErrorCode RiemannSolverTestEigDecomposition(RiemannSolver rs, PetscInt numv
       if (viewer) {
         PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &isascii));
         if (isascii) {
-          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(PetscViewerASCIIPushTab(viewer);
           PetscCall(PetscViewerASCIIPrintf(viewer, " The EigenDecomposition Failed for the Following State: \n"));
           PetscCall(PetscScalarView(rs->numfields, u[i], viewer));
 
-          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(PetscViewerASCIIPushTab(viewer));
 
           PetscCall(PetscViewerASCIIPrintf(viewer, "\n\nEigenBasis (R): \n"));
-          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(PetscViewerASCIIPushTab(viewer));
           PetscCall(MatView(R, viewer));
-          ierr = PetscViewerASCIIPopTab(viewer);
+          PetscCall(PetscViewerASCIIPopTab(viewer));
 
           PetscCall(PetscViewerASCIIPrintf(viewer, "Jacobian (DF): \n"));
-          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(PetscViewerASCIIPushTab(viewer));
           PetscCall(MatView(DF, viewer));
-          ierr = PetscViewerASCIIPopTab(viewer);
+          PetscCall(PetscViewerASCIIPopTab(viewer));
 
           PetscCall(PetscViewerASCIIPrintf(viewer, "Eigenvalues (E): \n"));
-          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(PetscViewerASCIIPushTab(viewer));
           PetscCall(MatView(Eig, viewer));
-          ierr = PetscViewerASCIIPopTab(viewer);
+          PetscCall(PetscViewerASCIIPopTab(viewer));
 
           PetscCall(PetscViewerASCIIPrintf(viewer, "DF*R: \n"));
-          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(PetscViewerASCIIPushTab(viewer));
           PetscCall(MatView(DFR, viewer));
-          ierr = PetscViewerASCIIPopTab(viewer);
+          PetscCall(PetscViewerASCIIPopTab(viewer));
 
           PetscCall(PetscViewerASCIIPrintf(viewer, "R*E: \n"));
-          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(PetscViewerASCIIPushTab(viewer));
           PetscCall(MatView(EigR, viewer));
-          ierr = PetscViewerASCIIPopTab(viewer);
+          PetscCall(PetscViewerASCIIPopTab(viewer));
 
           PetscCall(PetscViewerASCIIPrintf(viewer, "R*E-DF*R: \n"));
-          ierr = PetscViewerASCIIPushTab(viewer);
+          PetscCall(PetscViewerASCIIPushTab(viewer));
           PetscCall(MatView(Diff, viewer));
-          ierr = PetscViewerASCIIPopTab(viewer);
+          PetscCall(PetscViewerASCIIPopTab(viewer));
 
           PetscCall(PetscViewerASCIIPrintf(viewer, " ||DF*R - R*E|| = %e\n\n\n", norm));
 
-          ierr = PetscViewerASCIIPopTab(viewer);
-          ierr = PetscViewerASCIIPopTab(viewer);
+          PetscCall(PetscViewerASCIIPopTab(viewer));
+          PetscCall(PetscViewerASCIIPopTab(viewer));
         }
       }
     }

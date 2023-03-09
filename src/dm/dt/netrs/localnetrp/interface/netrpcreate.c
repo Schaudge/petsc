@@ -25,10 +25,10 @@ PetscErrorCode NetRPCreate(MPI_Comm comm, NetRP *rp)
   PetscCall(NetRPInitializePackage());
   PetscCall(PetscHeaderCreate(r, NETRP_CLASSID, "NetRP", "Local Network Riemann Problem", "NetRP", comm, NetRPDestroy, NetRPView));
   PetscCall(PetscHMapICreate(&r->hmap));
-  PetscCall(PetscHMapIJCreate(&r->dirhmap)); n
+  PetscCall(PetscHMapIJCreate(&r->dirhmap));
 
   /* Add default behavior for NetRP here */
-  r->flux = PETSC_NULL;
+  r->flux = PETSC_NULLPTR;
   r->cachetype = UndirectedVDeg; /* Assume UndirectedVDeg unless told otherwise */
   /* Assume worst case situation */
   r->solvetype         = Other;

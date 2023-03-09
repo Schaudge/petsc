@@ -10,6 +10,7 @@
   #include <petscdmnetwork.h>
   #include <petsc/private/hashmapi.h>
   #include <petsc/private/hashseti.h>
+  #include <petsc/private/hashsetij.h>
   #include <petscnetrp.h>
   #include <petscsf.h>
 
