@@ -420,10 +420,6 @@ PetscErrorCode NetRPCreateSNES(NetRP rp, PetscInt vertdeg, SNES *snes)
 
 .seealso: 
 @*/
-
-/* 
-  Super needs a redo, as this is entirely designed for the traffic case 
-*/
 PetscErrorCode NetRPCreateTao(NetRP rp, PetscInt indeg, PetscInt outdeg, Tao *tao)
 {
   Tao        _tao;
@@ -649,7 +645,7 @@ PetscErrorCode NetRPCacheSolvers(NetRP rp, PetscInt numdegs, PetscInt *invertdeg
 {
   NetRPCacheType cachetype; 
   PetscInt       *vertdegs; 
-  PetscInt       i; s
+  PetscInt       i;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
@@ -1061,10 +1057,9 @@ PetscErrorCode NetRPGetCacheType(NetRP rp, NetRPCacheType *cachetype)
 /* Finds the index in the cached solver list for the given vertex. If it does not 
    already exist, creates the cached solvers. Always returns a valid index. 
 
-  Exact implementation depends on the cachetype. 
-
+  Exact implementation depends on the cachetype.
 */
-PetscErrorCode NetRPFindCacheIndex_internal(NetRP rp, PetscInt vdegin, PetscInt vdegout) 
+staticPetscErrorCode NetRPFindCacheIndex_internal(NetRP rp, PetscInt vdegin, PetscInt vdegout) 
 {
   NetRPCacheType cachetype; 
   PetscHashIJKeyHash ijkey; 

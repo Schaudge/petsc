@@ -89,6 +89,9 @@ PETSC_INTERN PetscErrorCode NetRPAddDirVertexDegrees_internal(NetRP, PetscInt, P
 PETSC_EXTERN PetscErrorCode NetRPCacheSolvers(NetRP,PetscInt, PetscInt *,PetscInt *); 
 PETSC_EXTERN PetscErrorCode NetRPGetNumCached(NetRP, PetscInt *);
 PETSC_EXTERN PetscErrorCode NetRPClearCache(NetRP);
+PETSC_EXTERN PetscErrorCode NetRPGetCacheType(NetRP , NetRPCacheType*);
+PETSC_EXTERN PetscErrorCode NetRPSetCacheType(NetRP , NetRPCacheType);
+
 
 /* 
   Set internal ops, for usage when a user is using the default blank netrp, and wnat to specifically set there routines 
