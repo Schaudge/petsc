@@ -38,5 +38,5 @@ PetscErrorCode RiemannSolverCreate(MPI_Comm comm, RiemannSolver *rs)
   but convenient for now. Should be adjusted as I add more riemann solvers / complicated tests. */
   r->computeroemat   = PETSC_NULL; /* Used in the logic to generate roe matrix data structures, do not edit */
   *rs                = r;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

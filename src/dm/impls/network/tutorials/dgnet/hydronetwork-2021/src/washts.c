@@ -37,5 +37,5 @@ PetscErrorCode WashTSSetUp(Wash wash, TS ts)
   CHKERRQ(ierr);
   ierr = PetscPrintf(comm, "%-10s wash->dt %g\n", PETSC_FUNCTION_NAME, wash->dt);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

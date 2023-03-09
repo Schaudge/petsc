@@ -114,7 +114,7 @@ PetscErrorCode JunctionCreateJacobian(DM dm, PetscInt v, Mat *Jin, Mat *J[])
   CHKERRQ(ierr);
 
   *J = Jv;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode JunctionDestroyJacobian(DM dm, PetscInt v, Junction junc)
@@ -125,7 +125,7 @@ PetscErrorCode JunctionDestroyJacobian(DM dm, PetscInt v, Junction junc)
   PetscInt        nedges, e;
 
   PetscFunctionBegin;
-  if (!Jv) PetscFunctionReturn(0);
+  if (!Jv) PetscFunctionReturn(PETSC_SUCCESS);
 
   ierr = DMNetworkGetSupportingEdges(dm, v, &nedges, &edges);
   CHKERRQ(ierr);
@@ -137,5 +137,5 @@ PetscErrorCode JunctionDestroyJacobian(DM dm, PetscInt v, Junction junc)
   }
   ierr = PetscFree(Jv);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

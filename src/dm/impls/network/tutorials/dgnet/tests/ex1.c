@@ -17,28 +17,28 @@ static PetscErrorCode Physics_CreateDummy(DGNetwork dgnet, PetscInt dof, PetscIn
   dgnet->physics.dof     = dof;
   dgnet->physics.order   = order;
   dgnet->physics.destroy = PhysicsDestroy_SimpleFree_Net;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 static PetscErrorCode OrderCopyTest(PetscInt dof, PetscInt *order, PetscInt maxdegree)
 {
   PetscFunctionBeginUser;
   PetscInt i;
   for (i = 0; i < dof; i++) order[i] = maxdegree;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 static PetscErrorCode OrderTabTest(PetscInt dof, PetscInt *order, PetscInt maxdegree)
 {
   PetscFunctionBeginUser;
   PetscInt i;
   for (i = 0; i < dof; i++) order[i] = i;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 static PetscErrorCode OrderInterestingTest(PetscInt dof, PetscInt *order, PetscInt maxdegree)
 {
   PetscFunctionBeginUser;
   PetscInt i;
   for (i = 0; i < dof; i++) order[i] = PetscFloorReal(i / 2.0);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 int main(int argc, char *argv[])
 {

@@ -40,7 +40,7 @@ static PetscErrorCode EigBasis_Dummy(void *ctx, const PetscReal *u, Mat eigmat)
   PetscCall(MatSetValues(eigmat, m, idxm, n, idxn, (PetscReal *)X, INSERT_VALUES));
   MatAssemblyBegin(eigmat, MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(eigmat, MAT_FINAL_ASSEMBLY);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 int main(int argc, char **argv)

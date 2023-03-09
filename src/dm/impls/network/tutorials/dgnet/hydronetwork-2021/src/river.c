@@ -53,7 +53,7 @@ static inline PetscErrorCode hll(RiverField *xL, RiverField *xR, PetscScalar *SL
 #if defined(PETSC_USE_DEBUG)
   PetscCheck(!PetscIsNanScalar(*SL) && !PetscIsNanScalar(*SR), PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "SL or SR cannot be NAN, xL->h %g, xR->h %g", xL->h, xR->h);
 #endif
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static inline PetscErrorCode ComputeFlux(RiverField *x, PetscReal tol, RiverField *flux)
@@ -67,7 +67,7 @@ static inline PetscErrorCode ComputeFlux(RiverField *x, PetscReal tol, RiverFiel
     flux->h = x->q; /* = h*u = h*(q/h) = q */
     flux->q = x->q * x->q / x->h + 0.5 * GRAV * x->h * x->h;
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* Compute HLL flux between xL and xR  */
@@ -81,7 +81,7 @@ static inline PetscErrorCode hllRiemannSolution(PetscInt cells, RiverField *xL, 
   if (xL->h <= 0.0 || xR->h <= 0.0) {
     flux->h = 0.0;
     flux->q = 0.0;
-    PetscFunctionReturn(0);
+    PetscFunctionReturn(PETSC_SUCCESS);
   }
 
   /* compute wave speeds SL and SR */
@@ -107,7 +107,7 @@ static inline PetscErrorCode hllRiemannSolution(PetscInt cells, RiverField *xL, 
     flux->h = (SR * fluxL.h - SL * fluxR.h + SR * SL * (xR->h - xL->h)) / (SR - SL);
     flux->q = (SR * fluxL.q - SL * fluxR.q + SR * SL * (xR->q - xL->q)) / (SR - SL);
   } else PetscCheck(0, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "SL %g SR %g", SL, SR);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static inline PetscErrorCode CorrectSlope(RiverField *x, PetscReal tol)
@@ -115,7 +115,7 @@ static inline PetscErrorCode CorrectSlope(RiverField *x, PetscReal tol)
   PetscFunctionBegin;
   if (PetscAbsScalar(x->q) < tol) x->q = copysign(tol, x->q);
   if (PetscAbsScalar(x->h) < tol) x->h = copysign(tol, x->h);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -146,7 +146,7 @@ static inline PetscErrorCode Computebexv(RiverField *x, RiverField *islopeL, Riv
   delta *= 0.5;
   bexvL->q = x->q - delta;
   bexvR->q = x->q + delta;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -214,7 +214,7 @@ static inline PetscErrorCode MusclHancokScheme(RiverField *xl1, RiverField *x, R
   /* evolve boundary extrapolated values Ref: Toro 2001: eqn 11.24 */
   xR->h = bexvL.h + r * (fluxL.h - fluxR.h);
   xR->q = bexvL.q + r * (fluxL.q - fluxR.q);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode SolutionStatsView(DM da, Vec X, PetscViewer viewer)
@@ -264,7 +264,7 @@ PetscErrorCode SolutionStatsView(DM da, Vec X, PetscViewer viewer)
     ierr = PetscViewerASCIIPrintf(viewer, "Solution range [%8.5f,%8.5f] with extrema at %d and %d, mean %8.5f, ||x||_TV %8.5f\n", (double)xmin, (double)xmax, imin, imax, (double)(sum / Mx), (double)(tvgsum / Mx));
     CHKERRQ(ierr);
   } else SETERRQ(PETSC_COMM_SELF, 1, "Viewer type not supported");
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -285,7 +285,7 @@ PetscErrorCode RiverGetTimeStep(River river, RiverField *x, PetscReal *dt)
   }
 
   *dt = CFL * dx / lambdaMax;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -306,7 +306,7 @@ PetscErrorCode RiverSetNumCells(River river, PetscReal dt)
   if (dt <= 0.0) dt = 0.05; /* default */
   river->ncells = ceil(river->length / (lambdamax * dt));
   if (river->ncells == 1) river->ncells = 3;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* Compute initial solution */
@@ -378,7 +378,7 @@ PetscErrorCode RiverSetInitialSolution(PetscInt riverCase, PetscInt riverSubCase
       SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "riverCase is not supported yet");
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode RiverSetUp(River river)
@@ -405,7 +405,7 @@ PetscErrorCode RiverSetUp(River river)
   dx   = length / river->ncells;
   ierr = DMDASetUniformCoordinates(river->da, 0.5 * dx, length + 0.5 * dx, 0, 0, 0, 0);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* Evaluate RHSFunction at interior cell points using the MUSCL-Hancock Scheme */
@@ -458,7 +458,7 @@ PetscErrorCode RiverRHSFunctionLocal(River river, RiverField *x, RiverField *f)
       river->flux[3] = flux.h;
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static inline PetscErrorCode RiverDestroyJacobian(River river)
@@ -476,7 +476,7 @@ static inline PetscErrorCode RiverDestroyJacobian(River river)
   }
   ierr = PetscFree(Jriver);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -506,7 +506,7 @@ PetscErrorCode RiverCreateJacobian(River river, Mat *Jin, Mat *J[])
     river->jacobian = Jin;
     ierr            = PetscObjectReference((PetscObject)(Jin[0]));
     CHKERRQ(ierr);
-    PetscFunctionReturn(0);
+    PetscFunctionReturn(PETSC_SUCCESS);
   }
   ierr = PetscMalloc1(3, &Jriver);
   CHKERRQ(ierr);
@@ -596,7 +596,7 @@ PetscErrorCode RiverCreateJacobian(River river, Mat *Jin, Mat *J[])
 
   *J              = Jriver;
   river->jacobian = Jriver;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* compute hydrostatic reconstruction  */
@@ -607,7 +607,7 @@ PetscErrorCode hydroRecreate(PetscScalar hL, PetscScalar hR, PetscScalar zL, Pet
   *hLrec = PetscMax(0., hL + zL - *zMax);
   *hRrec = PetscMax(0., hR + zR - *zMax);
   //printf("hL %g, hR %g, zL %g, zR %g, zMax %g, hLrec %g, hRrec %g\n",hL,hR,zL,zR,*zMax,*hLrec,*hRrec);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -621,7 +621,7 @@ PetscErrorCode RiverCleanup(River river)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (!river) PetscFunctionReturn(0);
+  if (!river) PetscFunctionReturn(PETSC_SUCCESS);
 
   ierr = DMDestroy(&river->da);
   CHKERRQ(ierr);
@@ -629,14 +629,14 @@ PetscErrorCode RiverCleanup(River river)
   CHKERRQ(ierr);
   ierr = PetscFree2(river->z, river->zMax);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode RiverSetParameters(River river, PetscInt id)
 {
   PetscFunctionBegin;
   river->id = id;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* Set  bed elevation*/
@@ -660,7 +660,7 @@ PetscErrorCode RiverSetElevation(River river, PetscReal zUs, PetscReal zDs)
   for (i = 1; i < ncells; i++) river->zMax[i] = PetscMax(river->z[i - 1], river->z[i]);
   river->zMax[0]      = river->z[0];          /* assume upper stream junction has same elevation as river->z[0] */
   river->zMax[ncells] = river->z[ncells - 1]; /* assume down stream junction has same elevation as river->z[ncells-1] */
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* Compute  froud number*/
@@ -668,7 +668,7 @@ PetscErrorCode FroudNumber(PetscScalar u, PetscScalar h, PetscScalar *Fr)
 {
   PetscFunctionBegin;
   *Fr = u / PetscSqrtReal(GRAV * h);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* compute slope limiter using superbee */
@@ -689,7 +689,7 @@ PetscErrorCode SuperbeeLimiter(PetscScalar r, PetscScalar omega, PetscScalar *de
   } //else SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"r %g is not allowed",r); r= -1.0???
 
   *delta = xi * (*delta);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* compute slope limiter using Van Leer*/
@@ -708,7 +708,7 @@ PetscErrorCode VanLeerLimiter(PetscScalar r, PetscScalar omega, PetscScalar *del
   }
 
   *delta = xi * (*delta);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* compute slope limiter using Van Albada*/
@@ -727,7 +727,7 @@ PetscErrorCode VanAlbadaLimiter(PetscScalar r, PetscScalar omega, PetscScalar *d
   }
 
   *delta = xi * (*delta);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* compute slope limiter using Minmod*/
@@ -747,7 +747,7 @@ PetscErrorCode MinModLimiter(PetscScalar r, PetscScalar omega, PetscScalar *delt
   }
 
   *delta = xi * (*delta);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode RiverView(Vec X, DM networkdm, Wash wash)
@@ -890,5 +890,5 @@ PetscErrorCode RiverView(Vec X, DM networkdm, Wash wash)
   CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(networkdm, &localX);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

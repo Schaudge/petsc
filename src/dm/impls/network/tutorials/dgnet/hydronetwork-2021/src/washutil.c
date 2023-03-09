@@ -19,7 +19,7 @@ static PetscErrorCode VecArrayPrint_private_Wash(PetscInt n, const PetscScalar *
     ierr = PetscPrintf(PETSC_COMM_SELF, "  %10.2f %10.2f %10.2f\n", xv[i], xv[i + 1], u);
     CHKERRQ(ierr);
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode VecView_Network_Seq_Wash(Wash wash, DM networkdm, Vec X)
@@ -84,7 +84,7 @@ PetscErrorCode VecView_Network_Seq_Wash(Wash wash, DM networkdm, Vec X)
   }
   ierr = VecRestoreArrayRead(X, &xv);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* Customized from VecView_Network() */
@@ -103,7 +103,7 @@ PetscErrorCode WashVecView(Wash wash, Vec v)
   } else {
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "Not done yet");
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -170,5 +170,5 @@ PetscErrorCode WashJunctionView(Wash wash)
   }
   ierr = PetscSynchronizedFlush(comm, PETSC_STDOUT);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

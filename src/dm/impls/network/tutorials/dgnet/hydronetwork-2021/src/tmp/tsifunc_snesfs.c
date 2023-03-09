@@ -115,7 +115,7 @@ PetscErrorCode WashPostSNESSetUpFieldsplit_River(SNES snes)
     ierr = PetscFree(junc_idx);
     CHKERRQ(ierr);
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode WashJuncSNESFuncFieldsplit(SNES snes, Vec X, Vec F, void *ctx)
@@ -302,7 +302,7 @@ PetscErrorCode WashJuncSNESFuncFieldsplit(SNES snes, Vec X, Vec F, void *ctx)
   ierr = DMRestoreLocalVector(networkdm, &localXold);
   CHKERRQ(ierr);
   //ierr = VecView(F,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode WashIFunction(TS ts, PetscReal t, Vec X, Vec Xdot, Vec F, void *ctx)
@@ -541,7 +541,7 @@ PetscErrorCode WashIFunction(TS ts, PetscReal t, Vec X, Vec Xdot, Vec F, void *c
   CHKERRQ(ierr);
   //printf("\n t=%g, F:\n",t);
   //ierr = VecView(F,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode WashGetJuncLocalSize(Wash wash, PetscInt *nvar_junc)
@@ -573,7 +573,7 @@ PetscErrorCode WashGetJuncLocalSize(Wash wash, PetscInt *nvar_junc)
     numVertices_nghost++;
   }
   *nvar_junc = 4 * numEdges_river + 2 * numVertices_nghost;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode WashJuncSNESFunc(SNES snes, Vec Xjunc, Vec Fjunc, void *ctx)
@@ -792,7 +792,7 @@ PetscErrorCode WashJuncSNESFunc(SNES snes, Vec Xjunc, Vec Fjunc, void *ctx)
   CHKERRQ(ierr);
   ierr = VecDestroy(&F);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode WashPostSNESSetUp_River(SNES snes)
@@ -1015,7 +1015,7 @@ PetscErrorCode WashPostSNESSetUp_River(SNES snes)
   CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(networkdm, &localXtmp);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 //---------------------------
@@ -1107,7 +1107,7 @@ PetscErrorCode TSWashPostStage(TS ts, PetscReal time, PetscInt stageindex, Vec *
   }
   ierr = VecRestoreArrayRead(Xold, &xarr);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 //----------------------------------------

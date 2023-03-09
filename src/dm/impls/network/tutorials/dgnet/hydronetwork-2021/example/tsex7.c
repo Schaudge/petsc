@@ -225,7 +225,7 @@ PetscErrorCode FormFunction(TS ts, PetscReal ftime, Vec X, Vec F, void *ptr)
   CHKERRQ(ierr);
   ierr = PetscLogFlops(11.0 * ym * xm);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* ------------------------------------------------------------------- */
@@ -273,7 +273,7 @@ PetscErrorCode FormInitialSolution(DM da, Vec U)
   */
   ierr = DMDAVecRestoreArray(da, U, &u);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode MyTSMonitor(TS ts, PetscInt step, PetscReal ptime, Vec v, void *ctx)
@@ -283,14 +283,14 @@ PetscErrorCode MyTSMonitor(TS ts, PetscInt step, PetscReal ptime, Vec v, void *c
   MPI_Comm       comm;
 
   PetscFunctionBeginUser;
-  if (step < 0) PetscFunctionReturn(0); /* step of -1 indicates an interpolated solution */
+  if (step < 0) PetscFunctionReturn(PETSC_SUCCESS); /* step of -1 indicates an interpolated solution */
   ierr = VecNorm(v, NORM_2, &norm);
   CHKERRQ(ierr);
   ierr = PetscObjectGetComm((PetscObject)ts, &comm);
   CHKERRQ(ierr);
   ierr = PetscPrintf(comm, "timestep %D time %g norm %g\n", step, (double)ptime, (double)norm);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -309,7 +309,7 @@ PetscErrorCode MySNESMonitor(SNES snes, PetscInt its, PetscReal fnorm, PetscView
   PetscFunctionBeginUser;
   ierr = SNESMonitorDefaultShort(snes, its, fnorm, vf);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*TEST

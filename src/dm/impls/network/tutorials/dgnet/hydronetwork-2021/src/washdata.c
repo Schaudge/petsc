@@ -41,7 +41,7 @@ PetscErrorCode GetDataSegment(FILE *fp, char *line, fpos_t *data_segment_start_p
     data_segment_end = CheckDataSegmentEnd(line);
   }
   *ndatalines = nlines;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode WaterReadData(WATERDATA *water, const char *filename)
@@ -318,7 +318,7 @@ PetscErrorCode WaterReadData(WATERDATA *water, const char *filename)
     }
   }
   fclose(fp);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode GetListofEdges_Water(WATERDATA *water, PetscInt *edgelist)
@@ -369,7 +369,7 @@ PetscErrorCode GetListofEdges_Water(WATERDATA *water, PetscInt *edgelist)
   }
   ierr = PetscTableDestroy(&water->table);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode WashReadInputFile(PetscInt nsubnet, char filename[][PETSC_MAX_PATH_LEN])
@@ -398,5 +398,5 @@ PetscErrorCode WashReadInputFile(PetscInt nsubnet, char filename[][PETSC_MAX_PAT
   fclose(fp);
 
   PetscCheck(fNum >= nsubnet, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "num of filenames %" PetscInt_FMT " < nsubnet %" PetscInt_FMT, fNum, nsubnet);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

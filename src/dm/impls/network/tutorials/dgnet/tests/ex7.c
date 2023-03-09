@@ -15,13 +15,13 @@ PetscErrorCode TSDGNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void
   PetscFunctionBegin;
   monitor = (DGNetworkMonitor)context;
   PetscCall(DGNetworkMonitorView(monitor, x));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 static PetscErrorCode MakeOrder(PetscInt dof, PetscInt *order, PetscInt maxdegree)
 {
   PetscInt i;
   for (i = 0; i < dof; i++) order[i] = maxdegree;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 int main(int argc, char *argv[])
 {

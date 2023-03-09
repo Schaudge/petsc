@@ -44,7 +44,7 @@ PetscErrorCode RiemannSolverSetType(RiemannSolver rs, RiemannSolverType type)
   PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
   PetscValidCharPointer(type, 2);
   PetscCall(PetscObjectTypeCompare((PetscObject)rs, type, &match));
-  if (match) PetscFunctionReturn(0);
+  if (match) PetscFunctionReturn(PETSC_SUCCESS);
 
   PetscCall(PetscFunctionListFind(RiemannSolverList, type, &r));
   if (!r) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_UNKNOWN_TYPE, "Unknown RiemannSolver type: %s", type);
@@ -54,7 +54,7 @@ PetscErrorCode RiemannSolverSetType(RiemannSolver rs, RiemannSolverType type)
   rs->setupcalled = PETSC_FALSE;
   PetscCall(PetscObjectChangeTypeName((PetscObject)rs, type));
   PetscCall((*r)(rs));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /*@C
   RiemannSolverGetType - Gets the RiemannSolver method type (as a string).
@@ -77,7 +77,7 @@ PetscErrorCode RiemannSolverGetType(RiemannSolver rs, RiemannSolverType *type)
   PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
   PetscValidPointer(type, 2);
   *type = ((PetscObject)rs)->type_name;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*--------------------------------------------------------------------------------------------------------------------*/
@@ -119,5 +119,5 @@ PetscErrorCode RiemannSolverRegister(const char sname[], PetscErrorCode (*functi
   PetscFunctionBegin;
   PetscCall(RiemannSolverInitializePackage());
   PetscCall(PetscFunctionListAdd(&RiemannSolverList, sname, function));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

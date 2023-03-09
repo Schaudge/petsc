@@ -17,13 +17,13 @@ static PetscErrorCode Physics_CreateDummy(DGNetwork dgnet, PetscInt dof, PetscIn
   dgnet->physics.dof     = dof;
   dgnet->physics.order   = order;
   dgnet->physics.destroy = PhysicsDestroy_SimpleFree_Net;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 static PetscErrorCode MakeOrder(PetscInt dof, PetscInt *order, PetscInt maxdegree)
 {
   PetscInt i;
   for (i = 0; i < dof; i++) order[i] = maxdegree;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 int main(int argc, char *argv[])
 {

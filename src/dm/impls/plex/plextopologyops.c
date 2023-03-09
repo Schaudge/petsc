@@ -31,7 +31,7 @@ PetscErrorCode DMPlexDisjointUnion_Topological_Section(DM *plexlist, PetscInt nu
 
   PetscFunctionBegin;
   /* input checks */
-  if (numplex <= 0) PetscFunctionReturn(0);
+  if (numplex <= 0) PetscFunctionReturn(PETSC_SUCCESS);
   comm_prev = PetscObjectComm((PetscObject)plexlist[0]);
   for (i = 0; i < numplex; i++) {
     comm = PetscObjectComm((PetscObject)plexlist[i]);
@@ -132,7 +132,7 @@ PetscErrorCode DMPlexDisjointUnion_Topological_Section(DM *plexlist, PetscInt nu
   } else {
     PetscCall(PetscSectionDestroy(&offsets));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /*C
   VecSectionCopy - Copies between a reduced vector and the appropriate elements of a full-space vector.
@@ -226,7 +226,7 @@ PetscErrorCode VecSectionCopy(Vec vfull, PetscSection fullsec, IS is, ScatterMod
     id -= pStart;
     PetscCall(ISRestoreIndices(is, &id));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
@@ -362,7 +362,7 @@ PetscErrorCode DMPlexDisjointUnion_Geometric_Section(DM *plexlist, PetscInt nump
   } else {
     PetscCall(PetscSectionDestroy(&offsets));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
@@ -417,7 +417,7 @@ from the input dms to the union dm.
 
 //   PetscFunctionBegin;
 
-//   PetscFunctionReturn(0);
+//   PetscFunctionReturn(PETSC_SUCCESS);
 // }
 
 // Not sure if the above is actually needed.... I can get away without it for now I think. I only need this for visualization for now, and the

@@ -28,7 +28,7 @@ PetscErrorCode NetRPSetUp(NetRP rp)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
-  if (rp->setupcalled) PetscFunctionReturn(0);
+  if (rp->setupcalled) PetscFunctionReturn(PETSC_SUCCESS);
   rp->setupcalled = PETSC_TRUE;
   PetscCheck(rp->flux, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Requires a Flux to be set");
   PetscCall(RiemannSolverSetUp(rp->flux));
@@ -45,7 +45,7 @@ PetscErrorCode NetRPSetUp(NetRP rp)
     PetscCheck(numfield_flux == numfield_rp, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "The physics number of fields : %" PetscInt_FMT " is not the same as the riemann problem number of fields  %" PetscInt_FMT, numfield_flux, numfield_rp);
     break;
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NetRPisSetup(NetRP rp, PetscBool *flg)
@@ -53,7 +53,7 @@ PetscErrorCode NetRPisSetup(NetRP rp, PetscBool *flg)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
   *flg = rp->setupcalled;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NetRPGetNumFields(NetRP rp, PetscInt *numfields)
@@ -61,7 +61,7 @@ PetscErrorCode NetRPGetNumFields(NetRP rp, PetscInt *numfields)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
   *numfields = rp->numfields;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -85,7 +85,7 @@ PetscErrorCode NetRPReset(NetRP rp)
   rp->solvetype = Other;
   /* Note that we should reference the RiemannSolver inside the NetRS to properly handle this reset behavior. */
   rp->setupcalled = PETSC_FALSE;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NetRPGetNumCached(NetRP rp, PetscInt *numcached)
@@ -104,7 +104,7 @@ PetscErrorCode NetRPGetNumCached(NetRP rp, PetscInt *numcached)
       PetscCall(PetscHMapIJGetSize(rp->dirhmap,numcached));
       break; 
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -156,7 +156,7 @@ PetscErrorCode NetRPClearCache(NetRP rp)
       PetscCall(PetscHMapIClear(rp->dirhmap));
       break; 
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /*@
    NetRPCreateLinear - Preallocate matrix structure for solving a vertdeg Riemann Problem. Does a default setup of 
@@ -200,7 +200,7 @@ PetscErrorCode NetRPCreateLinear(NetRP rp, PetscInt vertdeg, Mat *mat, Vec *vec)
   PetscCall(MatCreateVecs(_mat, NULL, &_vec));
   *mat = _mat;
   *vec = _vec;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -243,7 +243,7 @@ PetscErrorCode NetRPCreateKSP(NetRP rp, PetscInt vertdeg, KSP *ksp)
   PetscCall(KSPSetFromOptions(_ksp));
   // PetscCall(KSPSetUp(_ksp)); DO NOT SETUP AS KSP only "sets up" when is actually has a linear operator on it.
   *ksp = _ksp;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 typedef struct {
@@ -292,7 +292,7 @@ static PetscErrorCode NetRPSNESWrapperFunc(SNES snes, Vec x, Vec f, void *ctx)
   edgein       = netrpsnesctx->edgein;
   U            = netrpsnesctx->U;
   PetscUseTypeMethod(rp, NonlinearEval, vdeg, edgein, U, x, f);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*C
@@ -335,7 +335,7 @@ static PetscErrorCode NetRPSNESWrapperJac(SNES snes, Vec x, Mat Amat, Mat Pmat, 
   vdeg         = netrpsnesctx->vdeg;
   U            = netrpsnesctx->U;
   PetscUseTypeMethod(rp, NonlinearJac, vdeg, edgein, U, x, Amat);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -401,7 +401,7 @@ PetscErrorCode NetRPCreateSNES(NetRP rp, PetscInt vertdeg, SNES *snes)
     PetscCall(MatDestroy(&jac)); /* dereference the jacobian mat, now ownership controlled by SNES */
   }
   *snes = _snes;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /*@
    NetRPCreateTao - Create the Tao
@@ -454,7 +454,7 @@ PetscErrorCode NetRPCreateTao(NetRP rp, PetscInt indeg, PetscInt outdeg, Tao *ta
   PetscCall(VecDestroy(&InitialGuess));
 
   *tao = _tao;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /*@
    NetRPAddVertexDegrees_internal - Add vertex degrees to cache solvers for. If these degrees are already cached then
@@ -491,7 +491,7 @@ PetscErrorCode NetRPAddVertexDegrees_internal(NetRP rp, PetscInt numdegs, PetscI
     PetscCall(PetscHMapIHas(rp->hmap, vertdegs[i], &flg));
     if (!flg) totalnew++;
   }
-  if (totalnew == 0) PetscFunctionReturn(0);
+  if (totalnew == 0) PetscFunctionReturn(PETSC_SUCCESS);
   /* reallocate solver cache arrays with room for new entries */
   PetscCall(PetscMalloc5(numentries + totalnew, &mat_new, numentries + totalnew, &vec_new, numentries + totalnew, &ksp_new, numentries + totalnew, &snes_new, numentries + totalnew, &tao_new));
 
@@ -534,7 +534,7 @@ PetscErrorCode NetRPAddVertexDegrees_internal(NetRP rp, PetscInt numdegs, PetscI
     }
     off++;
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -577,7 +577,7 @@ PetscErrorCode NetRPAddDirVertexDegrees_internal(NetRP rp, PetscInt numdegs, Pet
     PetscCall(PetscHMapIJHas(rp->dirhmap, ijkey, &flg));
     if (!flg) totalnew++;
   }
-  if (totalnew == 0) PetscFunctionReturn(0);
+  if (totalnew == 0) PetscFunctionReturn(PETSC_SUCCESS);
   /* reallocate solver cache arrays with room for new entries */
   PetscCall(PetscMalloc5(numentries + totalnew, &mat_new, numentries + totalnew, &vec_new, numentries + totalnew, &ksp_new, numentries + totalnew, &snes_new, numentries + totalnew, &tao_new));
 
@@ -620,7 +620,7 @@ PetscErrorCode NetRPAddDirVertexDegrees_internal(NetRP rp, PetscInt numdegs, Pet
     }
     off++;
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -663,7 +663,7 @@ PetscErrorCode NetRPCacheSolvers(NetRP rp, PetscInt numdegs, PetscInt *invertdeg
       PetscCall(NetRPAddDirVertexDegrees_internal(rp,numdegs,invertdegs,outvertdegs));
       break; 
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 } 
 
 /*@
@@ -682,11 +682,11 @@ PetscErrorCode NetRPCacheSolvers(NetRP rp, PetscInt numdegs, PetscInt *invertdeg
 PetscErrorCode NetRPDestroy(NetRP *rp)
 {
   PetscFunctionBegin;
-  if (!*rp) PetscFunctionReturn(0);
+  if (!*rp) PetscFunctionReturn(PETSC_SUCCESS);
   PetscValidHeaderSpecific(*rp, NETRP_CLASSID, 1);
   if (--((PetscObject)(*rp))->refct > 0) {
     *rp = NULL;
-    PetscFunctionReturn(0);
+    PetscFunctionReturn(PETSC_SUCCESS);
   }
   PetscCall(NetRPReset(*rp));
   if ((*rp)->ops->destroy) PetscCall((*(*rp)->ops->destroy)((*rp)));
@@ -694,7 +694,7 @@ PetscErrorCode NetRPDestroy(NetRP *rp)
   PetscCall(PetscHMapIDestroy(&(*rp)->hmap));
   PetscCall(PetscHMapIJDestroy(&(*rp)->dirhmap));
   PetscCall(PetscHeaderDestroy(rp));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -723,7 +723,7 @@ PetscErrorCode NetRPDuplicate(NetRP rp, NetRP *newrp)
   rp_new->user = rp->user;
   PetscCall(NetRPSetFlux(rp_new, rp->flux));
   *newrp = rp_new;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -745,7 +745,7 @@ PetscErrorCode NetRPSetApplicationContext(NetRP rp, void *usrP)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
   rp->user = usrP;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /*@
     NetRPGetApplicationContext - Gets the user-defined context for the
@@ -768,7 +768,7 @@ PetscErrorCode NetRPGetApplicationContext(NetRP rp, void *usrP)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
   *(void **)usrP = rp->user;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -817,7 +817,7 @@ PetscErrorCode NetRPSetFromOptions(NetRP rp)
   /*
     TODO:  View from options here ? 
   */
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
@@ -841,7 +841,7 @@ PetscErrorCode NetRPView(NetRP rp, PetscViewer viewer)
 {
   PetscFunctionBegin;
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NetRPSetFlux(NetRP rp, RiemannSolver rs)
@@ -853,7 +853,7 @@ PetscErrorCode NetRPSetFlux(NetRP rp, RiemannSolver rs)
   if (rp->flux) PetscCall(RiemannSolverDestroy(&rp->flux));
   PetscCall(PetscObjectReference((PetscObject)rs));
   rp->flux = rs;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NetRPGetFlux(NetRP rp, RiemannSolver *rs)
@@ -861,7 +861,7 @@ PetscErrorCode NetRPGetFlux(NetRP rp, RiemannSolver *rs)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
   if (rp->flux) *rs = rp->flux;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NeetRPSetNumFields(NetRP rp, PetscInt numfields)
@@ -869,7 +869,7 @@ PetscErrorCode NeetRPSetNumFields(NetRP rp, PetscInt numfields)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
   rp->numfields = numfields;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NeetRPGetNumFields(NetRP rp, PetscInt *numfields)
@@ -879,7 +879,7 @@ PetscErrorCode NeetRPGetNumFields(NetRP rp, PetscInt *numfields)
   /* NetRPSetUp contains the logic for setting computing this */
   PetscCheck(rp->setupcalled, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Call NetRPSetUp() first");
   *numfields = rp->numfields;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NetRPSetPhysicsGenerality(NetRP rp, NetRPPhysicsGenerality generality)
@@ -892,7 +892,7 @@ PetscErrorCode NetRPSetPhysicsGenerality(NetRP rp, NetRPPhysicsGenerality genera
   PetscCall(PetscObjectTypeCompare((PetscObject)rp, NETRPBLANK, &flg));
   PetscCheck(flg, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Can only be manually set on the blank type of NetRP");
   rp->physicsgenerality = generality;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NetRPGetPhysicsGenerality(NetRP rp, NetRPPhysicsGenerality *generality)
@@ -900,7 +900,7 @@ PetscErrorCode NetRPGetPhysicsGenerality(NetRP rp, NetRPPhysicsGenerality *gener
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
   *generality = rp->physicsgenerality;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NetRPSetSolveType(NetRP rp, NetRPSolveType solvetype)
@@ -914,7 +914,7 @@ PetscErrorCode NetRPSetSolveType(NetRP rp, NetRPSolveType solvetype)
   PetscCall(PetscObjectTypeCompare((PetscObject)rp, NETRPBLANK, &flg));
   PetscCheck(flg, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Solve Type can only be manually set on the blank type of NetRP");
   rp->solvetype = solvetype;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NetRPGetSolveType(NetRP rp, NetRPSolveType *solvetype)
@@ -922,7 +922,7 @@ PetscErrorCode NetRPGetSolveType(NetRP rp, NetRPSolveType *solvetype)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
   *solvetype = rp->solvetype;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NetRPSetSolveStar(NetRP rp, NetRPSolveStar_User solvestar)
@@ -936,7 +936,7 @@ PetscErrorCode NetRPSetSolveStar(NetRP rp, NetRPSolveStar_User solvestar)
   PetscCall(PetscObjectTypeCompare((PetscObject)rp, NETRPBLANK, &flg));
   PetscCheck(flg, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Can only be manually set on the blank type of NetRP");
   rp->ops->solveStar = solvestar;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NetRPSetSolveFlux(NetRP rp, NetRPSolveFlux_User solveflux)
@@ -950,7 +950,7 @@ PetscErrorCode NetRPSetSolveFlux(NetRP rp, NetRPSolveFlux_User solveflux)
   PetscCall(PetscObjectTypeCompare((PetscObject)rp, NETRPBLANK, &flg));
   PetscCheck(flg, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Can only be manually set on the blank type of NetRP");
   rp->ops->solveFlux = solveflux;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NetRPSetCreateMatStar(NetRP rp, NetRPCreateLinearStar linStar)
@@ -964,7 +964,7 @@ PetscErrorCode NetRPSetCreateMatStar(NetRP rp, NetRPCreateLinearStar linStar)
   PetscCall(PetscObjectTypeCompare((PetscObject)rp, NETRPBLANK, &flg));
   PetscCheck(flg, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Can only be manually set on the blank type of NetRP");
   rp->ops->createLinearStar = linStar;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NetRPSetCreateMatFlux(NetRP rp, NetRPCreateLinearFlux linflux)
@@ -978,7 +978,7 @@ PetscErrorCode NetRPSetCreateMatFlux(NetRP rp, NetRPCreateLinearFlux linflux)
   PetscCall(PetscObjectTypeCompare((PetscObject)rp, NETRPBLANK, &flg));
   PetscCheck(flg, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Can only be manually set on the blank type of NetRP");
   rp->ops->createLinearFlux = linflux;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NetRPSetNonlinearEval(NetRP rp, NetRPNonlinearEval nonlineareval)
@@ -992,7 +992,7 @@ PetscErrorCode NetRPSetNonlinearEval(NetRP rp, NetRPNonlinearEval nonlineareval)
   PetscCall(PetscObjectTypeCompare((PetscObject)rp, NETRPBLANK, &flg));
   PetscCheck(flg, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Can only be manually set on the blank type of NetRP");
   rp->ops->NonlinearEval = nonlineareval;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NetRPSetNonlinearJac(NetRP rp, NetRPNonlinearJac nonlinearjac)
@@ -1006,7 +1006,7 @@ PetscErrorCode NetRPSetNonlinearJac(NetRP rp, NetRPNonlinearJac nonlinearjac)
   PetscCall(PetscObjectTypeCompare((PetscObject)rp, NETRPBLANK, &flg));
   PetscCheck(flg, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Can only be manually set on the blank type of NetRP");
   rp->ops->NonlinearJac = nonlinearjac;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NetRPComputeFluxInPlace_internal(NetRP rp, PetscInt vdeg, Vec Flux)
@@ -1026,7 +1026,7 @@ static PetscErrorCode NetRPComputeFluxInPlace_internal(NetRP rp, PetscInt vdeg, 
     PetscCall(PetscArraycpy(star + i * numfields, fluxval, numfields));            /* modify in-place*/
   }
   PetscCall(VecRestoreArray(Flux, &star));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NetRPSetCacheType(NetRP rp, NetRPCacheType cachetype)
@@ -1035,7 +1035,7 @@ PetscErrorCode NetRPSetCacheType(NetRP rp, NetRPCacheType cachetype)
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
   PetscCheck(rp->setupcalled, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Must Call before NetRPSetUp()");
   rp->cachetype = cachetype; 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -1047,7 +1047,7 @@ PetscErrorCode NetRPGetCacheType(NetRP rp, NetRPCacheType *cachetype)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
   *cachetype = rp->cachetype;  
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
@@ -1084,7 +1084,7 @@ staticPetscErrorCode NetRPFindCacheIndex_internal(NetRP rp, PetscInt vdegin, Pet
       PetscCall(PetscHMapIGet(rp->hmap, vdeg, &index));
       break; 
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -1172,7 +1172,7 @@ PetscErrorCode NetRPSolveFlux(NetRP rp, PetscInt vdeg, PetscInt vdegin, PetscInt
   }
   PetscLogEventEnd(NetRP_Solve_Total, 0, 0, 0, 0);
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -1236,5 +1236,5 @@ PetscErrorCode NetRPSolveStar(NetRP rp, PetscInt vdeg, PetscBool *edgein, Vec U,
     PetscUseTypeMethod(rp, solveStar, vdeg, edgein, U, Star);
     break;
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

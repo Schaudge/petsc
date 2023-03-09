@@ -39,37 +39,37 @@ static PetscErrorCode NRSEvaluate_RS(NetRS rs, const PetscReal *u, const EdgeDir
     PetscCall(RiemannSolverEvaluate(rs->rs, u, u + rs->numfields, &fluxrs, NULL));
     for (i = 0; i < rs->numfields; i++) { flux[i + rs->numfields] = fluxrs[i]; }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NRSSetUp_RS(NetRS rs)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NRSReset_RS(NetRS rs)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NRSDestroy_RS(NetRS rs)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NRSSetFromOptions_RS(PetscOptionItems *PetscOptionsObject, NetRS rs)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NRSView_RS(NetRS rs, PetscViewer viewer)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /* ------------------------------------------------------------ */
 
@@ -82,5 +82,5 @@ PETSC_EXTERN PetscErrorCode NRSCreate_RS(NetRS rs)
   rs->ops->setfromoptions = NRSSetFromOptions_RS;
   rs->ops->view           = NRSView_RS;
   rs->ops->evaluate       = NRSEvaluate_RS;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

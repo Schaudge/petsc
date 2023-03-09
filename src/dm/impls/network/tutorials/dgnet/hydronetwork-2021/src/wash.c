@@ -18,7 +18,7 @@ PetscErrorCode TSWashPreStep(TS ts)
   PetscFunctionBegin;
   ierr = TSGetStepNumber(ts, &n);
   CHKERRQ(ierr);
-  if (!n) PetscFunctionReturn(0);
+  if (!n) PetscFunctionReturn(PETSC_SUCCESS);
 
   ierr = TSWashGetTimeStep(ts, &dt);
   CHKERRQ(ierr);
@@ -40,7 +40,7 @@ PetscErrorCode TSWashPreStep(TS ts)
   CHKERRQ(ierr);
   //printf("TSWashPreStep %d, X:\n",n);
   //VecView(Xold,0);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -346,7 +346,7 @@ PetscErrorCode TSWashPostStep(TS ts)
 
   ierr = VecRestoreArray(localXtmp, &xtmparr);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode TSWashGetTimeStep(TS ts, PetscReal *dt)
@@ -409,7 +409,7 @@ PetscErrorCode TSWashGetTimeStep(TS ts, PetscReal *dt)
                                       //ierr = PetscPrintf(PetscObjectComm((PetscObject)ts),"%-10s-> dt %g is too large, set as 5.0*wash->dt %g\n",PETSC_FUNCTION_NAME,(double)(*dt),5.0*wash->dt);CHKERRQ(ierr);
     *dt = 5.0 * wash->dt;
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -560,7 +560,7 @@ PetscErrorCode WashRHSFunction(TS ts, PetscReal t, Vec X, Vec F, void *ctx)
   printf("RHS:\n");
   ierr = VecView(F,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 #endif
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode WashSetInitialSolution(DM networkdm, Wash wash)
@@ -773,7 +773,7 @@ PetscErrorCode WashSetInitialSolution(DM networkdm, Wash wash)
     ierr = DMLocalToGlobalEnd(networkdm,localX,INSERT_VALUES,X);CHKERRQ(ierr);
   }
 #endif
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode TSDMNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
@@ -785,7 +785,7 @@ PetscErrorCode TSDMNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void
   monitor = (DMNetworkMonitor)context;
   ierr    = DMNetworkMonitorView(monitor, x);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode WashDestroyVecs(Wash wash)
@@ -807,7 +807,7 @@ PetscErrorCode WashDestroyVecs(Wash wash)
   CHKERRQ(ierr);
   ierr = VecScatterDestroy(&wash->vscat_junc);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode WashDestroy(Wash wash)
@@ -847,7 +847,7 @@ PetscErrorCode WashDestroy(Wash wash)
   CHKERRQ(ierr);
   ierr = PetscFree(wash);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -871,7 +871,7 @@ PetscErrorCode WashCreateVecs(Wash wash)
   CHKERRQ(ierr);
   ierr = DMCreateLocalVector(dmnetwork, &wash->localF);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode WashCleanUp(Wash wash, PetscInt **edgelist)
@@ -891,7 +891,7 @@ PetscErrorCode WashCleanUp(Wash wash, PetscInt **edgelist)
     ierr = PetscFree3(Subnet->junction, Subnet->river, Subnet->pump);
     CHKERRQ(ierr);
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode JunctionsSetUp(PetscInt njunctions, Junction *junctions)
@@ -904,7 +904,7 @@ PetscErrorCode JunctionsSetUp(PetscInt njunctions, Junction *junctions)
     junctions[i]->nin  = 0;
     junctions[i]->nout = 0;
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* Update coupling vertices -- must do it sequentially;
@@ -951,7 +951,7 @@ PetscErrorCode WashSetUpCoupleVertices(Wash wash)
     }
   }
 #endif
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -986,7 +986,7 @@ PetscErrorCode WashAddSubnet(PetscInt subnetid, PetscInt washCase, const char fi
     subnet->nedge    = 0;
     subnet->nvertex  = 0;
     subnet->edgelist = NULL;
-    PetscFunctionReturn(0);
+    PetscFunctionReturn(PETSC_SUCCESS);
   }
 
   wash->caseid    = washCase;
@@ -1519,7 +1519,7 @@ PetscErrorCode WashAddSubnet(PetscInt subnetid, PetscInt washCase, const char fi
   wash->HMax = 1.5 * xmax.h;
   wash->HMin = xmin.h - 0.1;
   //printf("Hmin/max %g %g\n",wash->HMin,wash->HMax);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode WashCreate(MPI_Comm comm, PetscInt nsubnet, PetscInt ncsubnet, Wash *wash_ptr)
@@ -1551,5 +1551,5 @@ PetscErrorCode WashCreate(MPI_Comm comm, PetscInt nsubnet, PetscInt ncsubnet, Wa
   wash->ncsubnet    = ncsubnet;
   wash->test_mscale = test_mscale;
   wash->nnodes_loc  = 0;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

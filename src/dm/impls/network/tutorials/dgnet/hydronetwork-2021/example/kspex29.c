@@ -122,7 +122,7 @@ PetscErrorCode ComputeRHS(KSP ksp, Vec b, void *ctx)
   CHKERRQ(ierr);
   ierr = VecAssemblyEnd(b);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode ComputeMatrix(KSP ksp, Mat J, Mat jac, void *ctx)
@@ -179,5 +179,5 @@ PetscErrorCode ComputeMatrix(KSP ksp, Mat J, Mat jac, void *ctx)
   CHKERRQ(ierr);
   ierr = MatAssemblyEnd(jac, MAT_FINAL_ASSEMBLY);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

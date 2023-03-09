@@ -19,7 +19,7 @@ static inline PetscErrorCode ShallowFlux(void *ctx, const PetscReal *u, PetscRea
   PetscFunctionBeginUser;
   f[0] = u[1];
   f[1] = PetscSqr(u[1]) / u[0] + 0.5 * phys->gravity * PetscSqr(u[0]);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static inline void ShallowFluxVoid(void *ctx, const PetscReal *u, PetscReal *f)
@@ -45,7 +45,7 @@ static PetscErrorCode PhysicsCharacteristic_Conservative(void *vctx, PetscInt m,
     for (j = 0; j < m; j++) Xi[i * m + j] = X[i * m + j] = (PetscScalar)(i == j);
     speeds[i] = PETSC_MAX_REAL; /* Indicates invalid */
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PhysicsCharacteristic_Shallow(void *vctx, PetscInt m, const PetscScalar *u, PetscScalar *X, PetscScalar *Xi, PetscReal *speeds)
@@ -75,7 +75,7 @@ static PetscErrorCode PhysicsCharacteristic_Shallow(void *vctx, PetscInt m, cons
 
   PetscCall(PetscArraycpy(Xi, X, 4));
   PetscCall(PetscKernel_A_gets_inverse_A_2(Xi, 0, PETSC_FALSE, NULL));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PhysicsCharacteristic_Shallow_Mat(void *vctx, const PetscScalar *u, Mat eigmat)
@@ -99,7 +99,7 @@ static PetscErrorCode PhysicsCharacteristic_Shallow_Mat(void *vctx, const PetscS
   PetscCall(MatSetValues(eigmat, m, idxm, n, idxn, (PetscReal *)X, INSERT_VALUES));
   MatAssemblyBegin(eigmat, MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(eigmat, MAT_FINAL_ASSEMBLY);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PhysicsFluxDer_Shallow(void *vctx, const PetscReal *u, Mat jacobian)
@@ -120,7 +120,7 @@ static PetscErrorCode PhysicsFluxDer_Shallow(void *vctx, const PetscReal *u, Mat
   PetscCall(MatSetValues(jacobian, m, idxm, n, idxn, (PetscReal *)X, INSERT_VALUES));
   MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PhysicsRoeAvg_Shallow(void *ctx, const PetscReal *uL, const PetscReal *uR, PetscReal *uavg)
@@ -128,7 +128,7 @@ static PetscErrorCode PhysicsRoeAvg_Shallow(void *ctx, const PetscReal *uL, cons
   PetscFunctionBeginUser;
   uavg[0] = (uL[0] + uR[0]) / 2.0;
   uavg[1] = uavg[0] * (uL[1] / PetscSqrtReal(uL[0]) + uR[1] / PetscSqrtReal(uR[0])) / (PetscSqrtReal(uL[0]) + PetscSqrtReal(uR[0]));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* For the SWE the Roe matrix can be computed by the Flux jacobian evaluated at a roe average point */
@@ -139,7 +139,7 @@ static PetscErrorCode PhysicsRoeMat_Shallow(void *ctx, const PetscReal *uL, cons
   PetscFunctionBeginUser;
   PetscCall(PhysicsRoeAvg_Shallow(ctx, uL, uR, roeavg));
   PetscCall(PhysicsFluxDer_Shallow(ctx, roeavg, roe));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx, PetscInt initial, PetscReal t, PetscReal x, PetscReal *u, PetscInt edgeid)
@@ -247,7 +247,7 @@ static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx, PetscInt initial,
   default:
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_UNKNOWN_TYPE, "unknown initial condition");
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* Lax Curve evaluation function, for use in RiemannSolver */
@@ -276,7 +276,7 @@ static PetscErrorCode LaxCurve_Shallow(RiemannSolver rs, const PetscReal *u, Pet
     break;
   }
   ubar[0] = hbar;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode PhysicsCreate_Shallow(DGNetwork fvnet)
@@ -307,7 +307,7 @@ PetscErrorCode PhysicsCreate_Shallow(DGNetwork fvnet)
   PetscCall(PetscOptionsReal("-parh", "", "", user->parenth, &user->parenth, NULL));
   PetscCall(PetscOptionsReal("-parv", "", "", user->parenth, &user->parenth, NULL));
   PetscOptionsEnd();
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* --------------------------------- Traffic ----------------------------------- */
@@ -325,7 +325,7 @@ static inline PetscErrorCode TrafficFlux2(void *ctx, const PetscReal *u, PetscRe
 {
   TrafficCtx *phys = (TrafficCtx *)ctx;
   f[0]             = phys->a * u[0] * (1. - u[0]);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static inline void TrafficFluxVoid(void *ctx, const PetscReal *u, PetscReal *f)
@@ -360,7 +360,7 @@ static PetscErrorCode TrafficCase1Char(SNES snes, Vec X, Vec f, void *ctx)
   rhs = TrafficChar(a, PetscSinReal(PETSC_PI * (s[0] / 5.0)) + 2) * t + s[0] - x;
   PetscCall(VecSetValue(f, 0, rhs, INSERT_VALUES));
   PetscCall(VecRestoreArrayRead(X, &s));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* TODO Generalize to arbitrary initial value */
@@ -385,7 +385,7 @@ static PetscErrorCode TrafficCase1Char_J(SNES snes, Vec X, Mat Amat, Mat Pmat, v
     PetscCall(MatAssemblyBegin(Amat, MAT_FINAL_ASSEMBLY));
     PetscCall(MatAssemblyEnd(Amat, MAT_FINAL_ASSEMBLY));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PhysicsSample_TrafficNetwork(void *vctx, PetscInt initial, PetscReal t, PetscReal x, PetscReal *u, PetscInt edgeid)
@@ -450,7 +450,7 @@ static PetscErrorCode PhysicsSample_TrafficNetwork(void *vctx, PetscInt initial,
   default:
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_UNKNOWN_TYPE, "unknown initial condition");
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode PhysicsCreate_Traffic(DGNetwork fvnet)
@@ -474,5 +474,5 @@ PetscErrorCode PhysicsCreate_Traffic(DGNetwork fvnet)
   PetscCall(PetscOptionsReal("-physics_traffic_a", "Flux = a*u*(1-u)", "", user->a, &user->a, NULL));
   PetscOptionsEnd();
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

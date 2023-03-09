@@ -20,10 +20,10 @@ PETSC_EXTERN PetscErrorCode RiemannSolverCreate_Lax(RiemannSolver);
 PetscErrorCode RiemannSolverRegisterAll(void)
 {
   PetscFunctionBegin;
-  if (RiemannSolverRegisterAllCalled) PetscFunctionReturn(0);
+  if (RiemannSolverRegisterAllCalled) PetscFunctionReturn(PETSC_SUCCESS);
   RiemannSolverRegisterAllCalled = PETSC_TRUE;
 
   PetscCall(RiemannSolverRegister(RIEMANNLAXFRIEDRICH, RiemannSolverCreate_Lax));
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

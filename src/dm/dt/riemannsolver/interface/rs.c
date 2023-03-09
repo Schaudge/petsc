@@ -32,7 +32,7 @@ PetscErrorCode RiemannSolverConvexMaxSpeed_internal(RiemannSolver rs, const Pets
       there may be complex parts. */
     *maxspeed = PetscMax(PetscAbs(eig[i]), *maxspeed);
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -67,7 +67,7 @@ PetscErrorCode RiemannSolverSetUpJacobian_internal(RiemannSolver rs)
   PetscCall(PCSetType(pc, PCLU));
   PetscCall(KSPSetType(rs->dfksp, KSPPREONLY)); /* Set to direct solver only */
   PetscCall(KSPSetOperators(rs->dfksp, rs->Df, rs->Df));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*C
@@ -88,7 +88,7 @@ PetscErrorCode RiemannSolverResetJacobian_internal(RiemannSolver rs)
   PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
   PetscCall(MatDestroy(&rs->Df));
   PetscCall(KSPDestroy(&rs->dfksp));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*C
@@ -140,7 +140,7 @@ PetscErrorCode RiemannSolverSetUpRoe_internal(RiemannSolver rs)
   PetscCall(KSPSetType(rs->roeksp, KSPPREONLY));                      /* Set to direct solver only */
   PetscCall(KSPSetOperators(rs->roeksp, rs->roeeigen, rs->roeeigen)); /* used to project onto roe eigenbasis */
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*C
@@ -164,7 +164,7 @@ PetscErrorCode RiemannSolverResetRoe_internal(RiemannSolver rs)
   PetscCall(MatDestroy(&rs->roeeigen));
   PetscCall(KSPDestroy(&rs->roeksp));
   PetscCall(VecDestroy(&rs->u_roebasis));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*C
@@ -202,7 +202,7 @@ PetscErrorCode RiemannSolverSetUpEig_internal(RiemannSolver rs)
   /* Maybe should do manual solves? Well I guess I'll see as I start profiling? */
   PetscCall(VecCreateSeq(PETSC_COMM_SELF, rs->numfields, &rs->u));
   PetscCall(VecCreateSeq(PETSC_COMM_SELF, rs->numfields, &rs->ueig));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*C
@@ -225,7 +225,7 @@ PetscErrorCode RiemannSolverResetEig_internal(RiemannSolver rs)
   PetscCall(KSPDestroy(&rs->eigenksp));
   PetscCall(VecDestroy(&rs->u));
   PetscCall(VecDestroy(&rs->ueig));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -248,7 +248,7 @@ PetscErrorCode RiemannSolverSetUp(RiemannSolver rs)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
-  if (rs->setupcalled) PetscFunctionReturn(0);
+  if (rs->setupcalled) PetscFunctionReturn(PETSC_SUCCESS);
   if (rs->numfields > -1) PetscCall(PetscMalloc2(rs->numfields, &rs->flux_wrk, rs->numfields, &rs->eig_wrk));
   if (rs->fluxfunconvex) { rs->ops->computemaxspeed = RiemannSolverConvexMaxSpeed_internal; } /* No current default behavior for nonconvex fluxs. Will error out currently */
   /* if we have a roe function allocate the structures to use it */
@@ -257,7 +257,7 @@ PetscErrorCode RiemannSolverSetUp(RiemannSolver rs)
   if (rs->fluxderfun) PetscCall(RiemannSolverSetUpJacobian_internal(rs));
   if (rs->ops->setup) { PetscCall((*rs->ops->setup)(rs)); }
   rs->setupcalled = PETSC_TRUE;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -288,7 +288,7 @@ PetscErrorCode RiemannSolverReset(RiemannSolver rs)
   as a user might want to swap the type of the riemann solver without having the reinput all of the physics of 
   the riemannsolver */
   rs->setupcalled = PETSC_FALSE;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -307,11 +307,11 @@ PetscErrorCode RiemannSolverReset(RiemannSolver rs)
 PetscErrorCode RiemannSolverDestroy(RiemannSolver *rs)
 {
   PetscFunctionBegin;
-  if (!*rs) PetscFunctionReturn(0);
+  if (!*rs) PetscFunctionReturn(PETSC_SUCCESS);
   PetscValidHeaderSpecific(*rs, RIEMANNSOLVER_CLASSID, 1);
   if (--((PetscObject)(*rs))->refct > 0) {
     *rs = NULL;
-    PetscFunctionReturn(0);
+    PetscFunctionReturn(PETSC_SUCCESS);
   }
 
   PetscCall(RiemannSolverReset(*rs));
@@ -320,7 +320,7 @@ PetscErrorCode RiemannSolverDestroy(RiemannSolver *rs)
   PetscCall(KSPDestroy(&(*rs)->ksp));
   PetscCall(MatDestroy(&(*rs)->mat));
   PetscCall(PetscHeaderDestroy(rs));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -350,7 +350,7 @@ PetscErrorCode RiemannSolverEvaluate(RiemannSolver rs, const PetscReal *uL, cons
   PetscCall(rs->ops->evaluate(rs, uL, uR));
   *flux = rs->flux_wrk;
   if (maxspeed) { *maxspeed = rs->maxspeed; }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode RiemmanSolverEvaluateFlux(RiemannSolver rs, const PetscReal *u, PetscReal **flux)
@@ -363,7 +363,7 @@ PetscErrorCode RiemmanSolverEvaluateFlux(RiemannSolver rs, const PetscReal *u, P
   PetscCall(RiemannSolverGetApplicationContext(rs, &ctx));
   rs->fluxfun(ctx, u, rs->flux_wrk);
   *flux = rs->flux_wrk;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -385,7 +385,7 @@ PetscErrorCode RiemannSolverSetApplicationContext(RiemannSolver rs, void *usrP)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
   rs->user = usrP;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -409,7 +409,7 @@ PetscErrorCode RiemannSolverGetApplicationContext(RiemannSolver rs, void *usrP)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
   *(void **)usrP = rs->user;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -438,7 +438,7 @@ PetscErrorCode RiemannSolverSetFluxDim(RiemannSolver rs, PetscInt dim, PetscInt 
 
   rs->dim       = dim;
   rs->numfields = numfields;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -462,7 +462,7 @@ PetscErrorCode RiemannSolverSetFlux(RiemannSolver rs, PetscInt dim, PetscInt num
   PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
   PetscCall(RiemannSolverSetFluxDim(rs, dim, numfields));
   rs->fluxfun = flux;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode RiemannSolverGetNumFields(RiemannSolver rs, PetscInt *numfields)
@@ -470,7 +470,7 @@ PetscErrorCode RiemannSolverGetNumFields(RiemannSolver rs, PetscInt *numfields)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
   *numfields = rs->numfields;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -491,7 +491,7 @@ PetscErrorCode RiemannSolverSetJacobian(RiemannSolver rs, PetscPointFluxDer jaco
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
   rs->fluxderfun = jacobian;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -516,7 +516,7 @@ PetscErrorCode RiemannSolverSetMaxSpeedFunct(RiemannSolver rs, RiemannSolverMaxW
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
   rs->ops->computemaxspeed = maxspeedfunct;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -540,7 +540,7 @@ PetscErrorCode RiemannSolverSetFluxEig(RiemannSolver rs, PetscPointFluxEig fluxe
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
   rs->fluxeigfun = fluxeig;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -574,7 +574,7 @@ PetscErrorCode RiemannSolverComputeEig(RiemannSolver rs, const PetscReal *U, Pet
     SETERRQ(PetscObjectComm((PetscObject)rs), PETSC_ERR_SUP, "No function specified for computing the eigenvalues.");
   }
   *eig = rs->eig_wrk;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -606,7 +606,7 @@ PetscErrorCode RiemannSolverComputeMaxSpeed(RiemannSolver rs, const PetscReal *u
   } else {
     SETERRQ(PetscObjectComm((PetscObject)rs), PETSC_ERR_SUP, "No function specified for computing the maximum wave speed. This shouldn't happen.");
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -652,7 +652,7 @@ PetscErrorCode RiemannSolverSetFromOptions(RiemannSolver rs)
   /*
     TODO:  View from options here ? 
   */
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
@@ -676,7 +676,7 @@ PetscErrorCode RiemannSolverView(RiemannSolver rs, PetscViewer viewer)
   /*
    TODO 
   */
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -712,7 +712,7 @@ PetscErrorCode RiemannSolverComputeRoeMatrix(RiemannSolver rs, const PetscReal *
   } else {
     SETERRQ(PetscObjectComm((PetscObject)rs), PETSC_ERR_SUP, "No Roe Matrix Specified. A function to construct a Roe Matrix must be specified by the User. ");
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -736,7 +736,7 @@ PetscErrorCode RiemannSolverSetRoeMatrixFunct(RiemannSolver rs, RiemannSolverRoe
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
   rs->computeroemat = roematfunct;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /* 
    TODO : Finish Documentations
@@ -748,7 +748,7 @@ PetscErrorCode RiemannSolverSetLaxCurve(RiemannSolver rs, LaxCurve laxcurve)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
   rs->evallaxcurve = laxcurve;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* 
@@ -765,7 +765,7 @@ PetscErrorCode RiemannSolverEvalLaxCurve(RiemannSolver rs, const PetscReal *u, P
   } else {
     SETERRQ(PetscObjectComm((PetscObject)rs), PETSC_ERR_SUP, "No Lax Curve Function Specified");
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /* 
    TODO : Finish Documentations
@@ -777,7 +777,7 @@ PetscErrorCode RiemannSolverSetEigBasis(RiemannSolver rs, RiemannSolverEigBasis 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
   rs->computeeigbasis = eigbasisfunct;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode RiemannSolverComputeEigBasis(RiemannSolver rs, const PetscReal *u, Mat *EigBasis)
@@ -793,7 +793,7 @@ PetscErrorCode RiemannSolverComputeEigBasis(RiemannSolver rs, const PetscReal *u
   } else {
     SETERRQ(PetscObjectComm((PetscObject)rs), PETSC_ERR_SUP, "No Eigen Decomposition Specified. ");
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode RiemannSolverChangetoEigBasis(RiemannSolver rs, const PetscReal *u, PetscReal *ueig)
@@ -808,7 +808,7 @@ PetscErrorCode RiemannSolverChangetoEigBasis(RiemannSolver rs, const PetscReal *
   PetscCall(KSPSolve(rs->eigenksp, rs->u, rs->ueig));
   PetscCall(VecResetArray(rs->u));
   PetscCall(VecResetArray(rs->ueig));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode RiemannSolverComputeRoeAvg(RiemannSolver rs, const PetscReal *uL, const PetscReal *uR, PetscReal *uavg)
@@ -824,7 +824,7 @@ PetscErrorCode RiemannSolverComputeRoeAvg(RiemannSolver rs, const PetscReal *uL,
     SETERRQ(PetscObjectComm((PetscObject)rs), PETSC_ERR_SUP, "No Roe Average Function Specified");
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /* Compute the norm of the positive or negative eigenvector at u components of of a vector x */
 PetscErrorCode RiemannSolverCharNorm(RiemannSolver rs, const PetscReal *u, const PetscReal *x, PetscInt sgn, PetscReal *norm)
@@ -863,7 +863,7 @@ PetscErrorCode RiemannSolverCharNorm(RiemannSolver rs, const PetscReal *u, const
   PetscCall(VecRestoreArray(rs->ueig, &uchar));
   PetscCall(MatMult(rs->eigen, rs->ueig, rs->u));
   PetscCall(VecNorm(rs->u, NORM_2, norm));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -885,7 +885,7 @@ PetscErrorCode RiemannSolverSetRoeAvgFunct(RiemannSolver rs, RiemannSolverRoeAvg
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
   rs->roeavg = roeavgfunct;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -1005,7 +1005,7 @@ PetscErrorCode RiemannSolverTestEigDecomposition(RiemannSolver rs, PetscInt numv
   PetscCall(MatDestroy(&Diff));
   PetscCall(MatDestroy(&Eig));
   PetscCall(VecDestroy(&Eig_vec));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode RiemannSolverComputeJacobian(RiemannSolver rs, const PetscReal *u, Mat *jacobian)
@@ -1021,7 +1021,7 @@ PetscErrorCode RiemannSolverComputeJacobian(RiemannSolver rs, const PetscReal *u
   } else {
     SETERRQ(PetscObjectComm((PetscObject)rs), PETSC_ERR_SUP, "No Jacobian Function Specified");
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -1161,5 +1161,5 @@ PetscErrorCode RiemannSolverTestRoeMat(RiemannSolver rs, PetscInt numvalues, con
   PetscCall(VecDestroy(&Au));
   PetscCall(VecDestroy(&F_diff));
   PetscCall(MatDestroy(&Diff));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

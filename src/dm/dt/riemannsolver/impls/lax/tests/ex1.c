@@ -50,7 +50,7 @@ static PetscErrorCode PhysicsRiemann_Shallow_Rusanov(void *vctx, PetscInt m, con
   flux[0]   = 0.5 * (fL[0] + fR[0]) + 0.5 * s * (L.h - R.h);
   flux[1]   = 0.5 * (fL[1] + fR[1]) + 0.5 * s * (uL[1] - uR[1]);
   *maxspeed = s;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 int main(int argc, char *argv[])

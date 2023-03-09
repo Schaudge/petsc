@@ -13,7 +13,7 @@ static const char help[] = "Tests the Coarse to Fine Projection";
 PetscErrorCode PhysicsDestroy_NoFree_Net(void *vctx)
 {
   PetscFunctionBeginUser;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 static PetscErrorCode PhysicsSample_1(void *vctx, PetscInt initial, PetscReal t, PetscReal x, PetscReal *u, PetscInt edgeid)
 {
@@ -38,7 +38,7 @@ static PetscErrorCode PhysicsSample_1(void *vctx, PetscInt initial, PetscReal t,
   default:
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_UNKNOWN_TYPE, "unknown initial condition");
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 static PetscErrorCode PhysicsSample_2(void *vctx, PetscInt initial, PetscReal t, PetscReal x, PetscReal *u, PetscInt edgeid)
 {
@@ -68,7 +68,7 @@ static PetscErrorCode PhysicsSample_2(void *vctx, PetscInt initial, PetscReal t,
   default:
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_UNKNOWN_TYPE, "unknown initial condition");
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 static PetscErrorCode Physics_CreateDummy(DGNetwork dgnet, PetscInt dof, PetscInt *order)
 {
@@ -90,25 +90,25 @@ static PetscErrorCode Physics_CreateDummy(DGNetwork dgnet, PetscInt dof, PetscIn
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_UNKNOWN_TYPE, "No initial conditions available for dofs greater than 2");
   }
   for (i = 0; i < dof; i++) { PetscCall(PetscStrallocpy("TEST", &dgnet->physics.fieldname[i])); }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 static PetscErrorCode OrderCopyTest(PetscInt dof, PetscInt *order, PetscInt maxdegree)
 {
   PetscInt i;
   for (i = 0; i < dof; i++) order[i] = maxdegree;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 static PetscErrorCode OrderTabTest(PetscInt dof, PetscInt *order, PetscInt maxdegree)
 {
   PetscInt i;
   for (i = 0; i < dof; i++) order[i] = i;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 static PetscErrorCode OrderInterestingTest(PetscInt dof, PetscInt *order, PetscInt maxdegree)
 {
   PetscInt i;
   for (i = 0; i < dof; i++) order[i] = PetscFloorReal(i / 2.0);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 int main(int argc, char *argv[])
 {

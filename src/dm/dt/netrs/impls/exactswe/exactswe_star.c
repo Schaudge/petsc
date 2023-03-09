@@ -49,7 +49,7 @@ static PetscErrorCode ExactSWE_LaxCurveFun(SNES snes, Vec x, Vec f, void *ctx)
   F[n - 1] = ustar[n - 1] - ubar[1];
   PetscCall(VecRestoreArrayRead(x, &ustar));
   PetscCall(VecRestoreArray(f, &F));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NRSEvaluate_ExactSWE(NetRS netrs, const PetscScalar *u, const EdgeDirection *dir, PetscScalar *flux, PetscReal *error)
@@ -83,7 +83,7 @@ static PetscErrorCode NRSEvaluate_ExactSWE(NetRS netrs, const PetscScalar *u, co
   PetscCall(NetRSGetApplicationContext(netrs, &ctx));
   for (i = 0; i < netrs->numedges * dof; i++) { flux[i] = x[i]; }
   PetscCall(VecRestoreArray(exactswe->x, &x));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NRSSetUp_ExactSWE(NetRS rs)
@@ -95,7 +95,7 @@ static PetscErrorCode NRSSetUp_ExactSWE(NetRS rs)
   PetscCall(VecDuplicate(exactswe->x, &exactswe->b));
   PetscCall(SNESCreate(PETSC_COMM_SELF, &exactswe->snes));
   PetscCall(SNESSetFromOptions(exactswe->snes));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NRSReset_ExactSWE(NetRS rs)
@@ -106,7 +106,7 @@ static PetscErrorCode NRSReset_ExactSWE(NetRS rs)
   PetscCall(VecDestroy(&exactswe->x));
   PetscCall(VecDestroy(&exactswe->b));
   PetscCall(SNESDestroy(&exactswe->snes));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NRSDestroy_ExactSWE(NetRS rs)
@@ -114,19 +114,19 @@ static PetscErrorCode NRSDestroy_ExactSWE(NetRS rs)
   PetscFunctionBegin;
   PetscCall(NRSReset_ExactSWE(rs));
   PetscCall(PetscFree(rs->data));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NRSSetFromOptions_ExactSWE(PetscOptionItems *PetscOptionsObject, NetRS rs)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NRSView_ExactSWE(NetRS rs, PetscViewer viewer)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /* ------------------------------------------------------------ */
 
@@ -146,5 +146,5 @@ PETSC_EXTERN PetscErrorCode NRSCreate_ExactSWEStar(NetRS rs)
   rs->ops->setfromoptions = NRSSetFromOptions_ExactSWE;
   rs->ops->view           = NRSView_ExactSWE;
   rs->ops->evaluate       = NRSEvaluate_ExactSWE;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

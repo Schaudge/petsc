@@ -18,7 +18,7 @@ PetscErrorCode TSDGNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void
   PetscFunctionBegin;
   monitor = (DGNetworkMonitor)context;
   PetscCall(DGNetworkMonitorView(monitor, x));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 PetscErrorCode TSDGNetworkMonitor_Nest(TS ts, PetscInt step, PetscReal t, Vec x, void *ctx)
 {
@@ -41,7 +41,7 @@ PetscErrorCode TSDGNetworkMonitor_Nest(TS ts, PetscInt step, PetscReal t, Vec x,
       PetscCall(DGNetworkMonitorView(dgnet_nest->monitors[i], Xsim));
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /* poststep function for comparing the two coupling conditions */
 PetscErrorCode TSDGNetworkCompare(TS ts)
@@ -77,13 +77,13 @@ PetscErrorCode TSDGNetworkCompare(TS ts)
       PetscCall(DGNetworkMonitorView(dgnet_nest->monitors[2], Xdiff));
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 static PetscErrorCode MakeOrder(PetscInt dof, PetscInt *order, PetscInt maxdegree)
 {
   PetscInt i;
   for (i = 0; i < dof; i++) order[i] = maxdegree;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 int main(int argc, char *argv[])
 {

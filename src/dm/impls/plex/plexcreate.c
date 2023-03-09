@@ -5275,7 +5275,7 @@ PetscErrorCode DMPlexBuildFromDAG(DM dm, PetscInt depth, const PetscInt numPoint
   }
   PetscCall(DMPlexSymmetrize(dm));
   PetscCall(DMPlexStratify(dm));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
@@ -5732,7 +5732,7 @@ static PetscErrorCode DMPlexCreateEmbeddedLineMesh_Internal(DM dm, PetscInt dim,
     PetscCall(DMSetCoordinatesLocal(dm, coordinates));
     PetscCall(VecDestroy(&coordinates));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /*@C
   DMPlexCreateEmbeddedLineMesh - Creates a mesh on the surface of the tensor product of unit intervals (box) using tensor cells (hexahedra).
@@ -5764,5 +5764,5 @@ PetscErrorCode DMPlexCreateEmbeddedLineMesh(MPI_Comm comm, PetscInt dim, const P
   PetscCall(DMSetType(*dm, DMPLEX));
   PetscCall(DMSetDimension(*dm, 1));
   PetscCall(DMPlexCreateEmbeddedLineMesh_Internal(*dm, dim, lower ? lower : low, upper ? upper : upp, cells ? cells : fac));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

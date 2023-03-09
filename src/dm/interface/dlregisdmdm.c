@@ -400,7 +400,7 @@ PetscErrorCode RiemannSolverFinalizePackage(void)
   PetscCall(PetscFunctionListDestroy(&RiemannSolverList));
   RiemannSolverPackageInitialized = PETSC_FALSE;
   RiemannSolverRegisterAllCalled  = PETSC_FALSE;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
@@ -419,7 +419,7 @@ PetscErrorCode RiemannSolverInitializePackage(void)
   PetscBool opt, pkg;
 
   PetscFunctionBegin;
-  if (RiemannSolverPackageInitialized) PetscFunctionReturn(0);
+  if (RiemannSolverPackageInitialized) PetscFunctionReturn(PETSC_SUCCESS);
   RiemannSolverPackageInitialized = PETSC_TRUE;
   /* Inialize subpackages */
 
@@ -445,7 +445,7 @@ PetscErrorCode RiemannSolverInitializePackage(void)
   }
   /* Register package finalizer */
   PetscCall(PetscRegisterFinalize(RiemannSolverFinalizePackage));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 #include <petscnetrs.h>
 static PetscBool NetRSPackageInitialized = PETSC_FALSE;
@@ -463,7 +463,7 @@ PetscErrorCode NetRSFinalizePackage(void)
   PetscCall(PetscFunctionListDestroy(&NetRSList));
   NetRSPackageInitialized = PETSC_FALSE;
   NetRSRegisterAllCalled  = PETSC_FALSE;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
@@ -482,7 +482,7 @@ PetscErrorCode NetRSInitializePackage(void)
   PetscBool opt, pkg;
 
   PetscFunctionBegin;
-  if (NetRSPackageInitialized) PetscFunctionReturn(0);
+  if (NetRSPackageInitialized) PetscFunctionReturn(PETSC_SUCCESS);
   NetRSPackageInitialized = PETSC_TRUE;
   /* Inialize subpackages */
 
@@ -516,7 +516,7 @@ PetscErrorCode NetRSInitializePackage(void)
   }
   /* Register package finalizer */
   PetscCall(PetscRegisterFinalize(NetRSFinalizePackage));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 #include <petscnetrp.h>
 static PetscBool NetRPPackageInitialized = PETSC_FALSE;
@@ -534,7 +534,7 @@ PetscErrorCode NetRPFinalizePackage(void)
   PetscCall(PetscFunctionListDestroy(&NetRPList));
   NetRPPackageInitialized = PETSC_FALSE;
   NetRPRegisterAllCalled  = PETSC_FALSE;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
@@ -553,7 +553,7 @@ PetscErrorCode NetRPInitializePackage(void)
   PetscBool opt, pkg;
 
   PetscFunctionBegin;
-  if (NetRPPackageInitialized) PetscFunctionReturn(0);
+  if (NetRPPackageInitialized) PetscFunctionReturn(PETSC_SUCCESS);
   NetRPPackageInitialized = PETSC_TRUE;
   /* Inialize subpackages */
 
@@ -582,7 +582,7 @@ PetscErrorCode NetRPInitializePackage(void)
   }
   /* Register package finalizer */
   PetscCall(PetscRegisterFinalize(NetRPFinalizePackage));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 #if defined(PETSC_HAVE_DYNAMIC_LIBRARIES)
@@ -605,7 +605,7 @@ PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petscdm(void)
   PetscCall(RiemannSolverInitializePackage());
   PetscCall(NetRSInitializePackage());
   PetscCall(NetRPInitializePackage());
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 #endif /* PETSC_HAVE_DYNAMIC_LIBRARIES */

@@ -10,7 +10,7 @@ PetscErrorCode PhysicsDestroy_SimpleFree_Net(void *vctx)
 {
   PetscFunctionBeginUser;
   PetscCall(PetscFree(vctx));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscReal evalboundary_internal(DGNetwork dgnet, PetscInt field, PetscInt qpoint, PetscReal *comp)
@@ -86,7 +86,7 @@ PetscErrorCode DGNetworkProject(DGNetwork dgnet, Vec X0, PetscReal t)
   /* Can use insert as each edge belongs to a single processor and vertex data is only for temporary computation and holds no 'real' data. */
   PetscCall(DMLocalToGlobalBegin(dgnet->network, localX, INSERT_VALUES, X0));
   PetscCall(DMLocalToGlobalEnd(dgnet->network, localX, INSERT_VALUES, X0));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /* Project between a coarse and fine dgnet network. Assume same network, but different meshes for each edge */
 
@@ -205,7 +205,7 @@ PetscErrorCode DGNetworkProject_Coarse_To_Fine(DGNetwork dgnet_fine, DGNetwork d
   /* free allocated memory */
   for (i = 0; i < dgnet_coarse->tabordersize; i++) { PetscCall(PetscFree2(q_coarse_Eval[i], degs_coarse[i])); }
   PetscCall(PetscFree2(q_coarse_Eval, degs_coarse));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /* Compute the L2 Norm of the Vector X associated with the DGNetwork dgnet */
 PetscErrorCode DGNetworkNormL2(DGNetwork dgnet, Vec X, PetscReal *norm)
@@ -256,7 +256,7 @@ PetscErrorCode DGNetworkNormL2(DGNetwork dgnet, Vec X, PetscReal *norm)
   PetscCallMPI(MPI_Allreduce(norm, norm_wrk, dof, MPIU_REAL, MPIU_SUM, dgnet->comm));
   for (field = 0; field < dof; field++) { norm[field] = PetscSqrtReal(norm_wrk[field]); }
   PetscCall(PetscFree2(cellint, norm_wrk));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static inline PetscReal MinMod3(PetscReal a, PetscReal b, PetscReal c)
@@ -369,7 +369,7 @@ PetscErrorCode TVDLimit_1D(DGNetwork dgnet, const PetscScalar *uL, const PetscSc
     }
   }
   /* the uCoeff now contains the limited coefficients */
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /*
 
@@ -411,7 +411,7 @@ PetscErrorCode TVDLimit_1D_2(DGNetwork dgnet, const PetscScalar *uL, const Petsc
   }
   if (limiteractivated) { PetscCall(TVDLimit_1D(dgnet, uL, uM, uR, ubdryL, ubdryR, uCoeff, sec, c)); }
   /* the uCoeff now contains the limited coefficients */
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /* basis one-sided limiter, super lame and not robust, detects only if the cell averages of the neighbors are "large" */
 PetscErrorCode Limit_1D_onesided(DGNetwork dgnet, const PetscScalar *uL, const PetscScalar *uM, PetscReal *uCoeff, PetscSection sec, PetscInt c, PetscReal jumptol)
@@ -474,7 +474,7 @@ PetscErrorCode Limit_1D_onesided(DGNetwork dgnet, const PetscScalar *uL, const P
     }
   }
   /* the uCoeff now contains the limited coefficients */
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* Version of DGNetlimit that has the function pattern of a rhs function. Necessary for the nested version 
@@ -551,7 +551,7 @@ PetscErrorCode DGNetlimiter_ctx(Vec Y, void *ctx)
   PetscCall(VecRestoreArray(localX, &xarr));
   PetscCall(DMLocalToGlobalBegin(dgnet->network, localX, INSERT_VALUES, Y));
   PetscCall(DMLocalToGlobalEnd(dgnet->network, localX, INSERT_VALUES, Y));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* All this does is call the ctx version with a the ts ctx, and limit the current stage vector */
@@ -564,7 +564,7 @@ PetscErrorCode DGNetlimiter(TS ts, PetscReal stagetime, PetscInt stageindex, Vec
   PetscCall(PetscLogEventBegin(DGNET_Limiter, 0, 0, 0, 0));
   PetscCall(DGNetlimiter_ctx(Y[stageindex], dgnet));
   PetscCall(PetscLogEventEnd(DGNET_Limiter, 0, 0, 0, 0));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* Nested Version of Limiters. WIP interface to allow multiple simulations to run alongside eachother */
@@ -596,7 +596,7 @@ PetscErrorCode DGNetlimiter_Nested(TS ts, PetscReal stagetime, PetscInt stageind
     PetscCall(VecNestGetSubVec(Y[stageindex], i, &Ysub)); /* Doesn't need to be returned */
     PetscCall(DGNetlimiter_ctx(Ysub, dgnet_nest->dgnets[i]));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* For Running multiple netrs rhs tests*/
@@ -628,7 +628,7 @@ Num Simulation: %i \n Num Vectors %i \n ",
     PetscCall(VecNestGetSubVec(F, i, &Fsub));
     PetscCall(DGNetRHS(ts, time, Xsub, Fsub, dgnet_nest->dgnets[i]));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetRHS(TS ts, PetscReal time, Vec X, Vec F, void *ctx)
@@ -825,7 +825,7 @@ PetscErrorCode DGNetRHS(TS ts, PetscReal time, Vec X, Vec F, void *ctx)
   PetscCall(DMLocalToGlobalBegin(dgnet->network, localF, INSERT_VALUES, F));
   PetscCall(DMLocalToGlobalEnd(dgnet->network, localF, INSERT_VALUES, F));
   PetscCall(PetscLogEventEnd(DGNET_RHS_COMM, 0, 0, 0, 0));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetRHS_V3(TS ts, PetscReal time, Vec X, Vec F, void *ctx)
@@ -1065,7 +1065,7 @@ PetscErrorCode DGNetRHS_V3(TS ts, PetscReal time, Vec X, Vec F, void *ctx)
   PetscCall(DMLocalToGlobalBegin(dgnet->network, localF, INSERT_VALUES, F));
   PetscCall(DMLocalToGlobalEnd(dgnet->network, localF, INSERT_VALUES, F));
   PetscCall(PetscLogEventEnd(DGNET_RHS_COMM, 0, 0, 0, 0));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetRHS_V2(TS ts, PetscReal time, Vec X, Vec F, void *ctx)
@@ -1264,5 +1264,5 @@ PetscErrorCode DGNetRHS_V2(TS ts, PetscReal time, Vec X, Vec F, void *ctx)
   PetscCall(DMLocalToGlobalBegin(dgnet->network, localF, INSERT_VALUES, F));
   PetscCall(DMLocalToGlobalEnd(dgnet->network, localF, INSERT_VALUES, F));
   PetscCall(PetscLogEventEnd(DGNET_RHS_COMM, 0, 0, 0, 0));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

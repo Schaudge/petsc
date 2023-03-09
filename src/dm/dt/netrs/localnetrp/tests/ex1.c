@@ -227,7 +227,7 @@ PetscErrorCode InitializeProblem(AppCtx *user)
   them automatically, for some reason. Matrix for the Jacobian is the Traffic Distribution Matrix (affine operator) */
   PetscCall(VecDuplicate(user->GammaMax, &user->CI));
   PetscCall(MatDuplicate(user->TrafficDistribution,MAT_DO_NOT_COPY_VALUES,&user->Jacineq)); 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DestroyProblem(AppCtx *user)
@@ -240,7 +240,7 @@ PetscErrorCode DestroyProblem(AppCtx *user)
   PetscCall(VecDestroy(&user->lowerbounds));
   PetscCall(VecDestroy(&user->GammaMax));
   PetscCall(VecDestroy(&user->FluxU));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* Evaluate
@@ -272,7 +272,7 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *f, Vec G, void *c
   PetscCall(VecGetArray(G,&g));
   for(i=0; i<n; i++ ) g[i] = -1.0; 
   PetscCall(VecRestoreArray(G,&g)); 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* Evaluate
@@ -297,7 +297,7 @@ PetscErrorCode FormObjective(Tao tao, Vec X, PetscReal *f,  void *ctx)
   *f = 0; 
   for(i=0; i<n; i++) *f -= x[i]; 
   PetscCall(VecRestoreArrayRead(X, &x));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /* Evaluate \nabla E  = -\mathbf{1} where 
   E(\mathbf{\gamma}) = -\sum_{e into v} \gamma_e . 
@@ -320,7 +320,7 @@ PetscErrorCode FormObjectiveGradient(Tao tao, Vec X, Vec G, void *ctx)
   PetscCall(VecGetArray(G,&g));
   for(i=0; i<n; i++) g[i] = -1.0; 
   PetscCall(VecRestoreArray(G,&g)); 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* Evaluate
@@ -347,7 +347,7 @@ PetscErrorCode FormInequalityConstraints(Tao tao, Vec X, Vec CI, void *ctx)
   PetscCallMPI(MPI_Comm_size(comm, &size));
   PetscCheck(size == 1, comm, PETSC_ERR_USER_INPUT,"This Callback requires sequential communicator. Communicator for TAO object had size %"PetscInt_FMT, size);
   PetscCall(MatMultAdd(user->TrafficDistribution,X,user->GammaMax,CI)); 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -362,5 +362,5 @@ PetscErrorCode FormInequalityJacobian(Tao tao, Vec X, Mat JI, Mat JIpre, void *c
   if(JI != JIpre) {
     PetscCall(MatCopy(user->TrafficDistribution,JIpre,SAME_NONZERO_PATTERN)); 
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

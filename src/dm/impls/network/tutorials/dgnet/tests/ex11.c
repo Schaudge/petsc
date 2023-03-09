@@ -50,7 +50,7 @@ PetscErrorCode TSDGNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void
   PetscFunctionBegin;
   monitor = (DGNetworkMonitor)context;
   PetscCall(DGNetworkMonitorView(monitor, x));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode TSDGNetworkMonitor_GLVis(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
@@ -60,7 +60,7 @@ PetscErrorCode TSDGNetworkMonitor_GLVis(TS ts, PetscInt step, PetscReal t, Vec x
   PetscFunctionBegin;
   monitor = (DGNetworkMonitor_Glvis)context;
   PetscCall(DGNetworkMonitorView_Glvis(monitor, x));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode TSDGNetworkMonitor_GLVis_NET(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
@@ -70,7 +70,7 @@ PetscErrorCode TSDGNetworkMonitor_GLVis_NET(TS ts, PetscInt step, PetscReal t, V
   PetscFunctionBegin;
   monitor = (DGNetworkMonitor_Glvis)context;
   PetscCall(DGNetworkMonitorView_Glvis_NET(monitor, x));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode MakeOrder(PetscInt dof, PetscInt *order, PetscInt maxdegree)
@@ -79,7 +79,7 @@ static PetscErrorCode MakeOrder(PetscInt dof, PetscInt *order, PetscInt maxdegre
 
   PetscFunctionBegin;
   for (i = 0; i < dof; i++) order[i] = maxdegree;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 int main(int argc, char *argv[])

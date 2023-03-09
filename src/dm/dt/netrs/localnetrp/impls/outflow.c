@@ -25,19 +25,19 @@ static PetscErrorCode NetRPSolveFlux_Outflow(NetRP rp, PetscInt vdeg, PetscBool 
   for (i = 0; i < numfields; i++) { flux[i] = fluxrs[i]; }
   PetscCall(VecRestoreArrayRead(U, &u));
   PetscCall(VecRestoreArray(Flux, &flux));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NetRPSetFromOptions_Outflow(PetscOptionItems *PetscOptionsObject, NetRP rp)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NetRPView_Outflow(NetRP rp, PetscViewer viewer)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /* ------------------------------------------------------------ */
 
@@ -51,5 +51,5 @@ PETSC_EXTERN PetscErrorCode NetRPCreate_Outflow(NetRP rp)
 
   rp->physicsgenerality = Generic;
   rp->solvetype         = Other;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -3,42 +3,42 @@
 static PetscErrorCode NetRSSetFromOptions_Blank(PetscOptionItems *PetscOptionsObject, NetRS rs)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NetRSView_Blank(NetRS rs, PetscViewer viewer)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /* fill these */
 static PetscErrorCode NetRSSetup_Blank(NetRS rs)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 static PetscErrorCode NetRSReset_Blank(NetRS rs)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NetRSSetupVecSpace_Blank(NetRS rs)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NetRSResetVecSpace_Blank(NetRS rs)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NetRSSolve_Blank(NetRS rs, Vec U, Vec Flux)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* ------------------------------------------------------------ */
@@ -55,5 +55,5 @@ PETSC_EXTERN PetscErrorCode NetRSCreate_Blank(NetRS rs)
   rs->ops->setupvecspace  = NetRSSetupVecSpace_Blank;
   rs->ops->resetvecspace  = NetRSResetVecSpace_Blank;
   rs->ops->solve          = NetRSSolve_Blank;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

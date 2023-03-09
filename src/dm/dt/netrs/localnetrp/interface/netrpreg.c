@@ -26,13 +26,13 @@ PETSC_EXTERN PetscErrorCode NetRPCreate_ExactSWE(NetRP);
 PetscErrorCode NetRPRegisterAll(void)
 {
   PetscFunctionBegin;
-  if (NetRPRegisterAllCalled) PetscFunctionReturn(0);
+  if (NetRPRegisterAllCalled) PetscFunctionReturn(PETSC_SUCCESS);
   NetRPRegisterAllCalled = PETSC_TRUE;
   PetscCall(NetRPRegister(NETRPBLANK, NetRPCreate_Blank));
   PetscCall(NetRPRegister(NETRPLINEARIZED, NetRPCreate_Linearized));
   PetscCall(NetRPRegister(NETRPOUTFLOW, NetRPCreate_Outflow));
   PetscCall(NetRPRegister(NETRPEXACTSWE, NetRPCreate_ExactSWE));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
@@ -64,7 +64,7 @@ PetscErrorCode NetRPSetType(NetRP rp, NetRPType type)
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
   PetscValidCharPointer(type, 2);
   PetscCall(PetscObjectTypeCompare((PetscObject)rp, type, &match));
-  if (match) PetscFunctionReturn(0);
+  if (match) PetscFunctionReturn(PETSC_SUCCESS);
 
   PetscCall(PetscFunctionListFind(NetRPList, type, &r));
   if (!r) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_UNKNOWN_TYPE, "Unknown Network Riemann Problem type: %s", type);
@@ -74,7 +74,7 @@ PetscErrorCode NetRPSetType(NetRP rp, NetRPType type)
   rp->setupcalled = PETSC_FALSE;
   PetscCall(PetscObjectChangeTypeName((PetscObject)rp, type));
   PetscCall((*r)(rp));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /*@C
   NetRPGetType - Gets the Network Riemann Problem method type (as a string).
@@ -97,7 +97,7 @@ PetscErrorCode NetRPGetType(NetRP rs, NetRPType *type)
   PetscValidHeaderSpecific(rs, NETRP_CLASSID, 1);
   PetscValidPointer(type, 2);
   *type = ((PetscObject)rs)->type_name;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*--------------------------------------------------------------------------------------------------------------------*/
@@ -139,5 +139,5 @@ PetscErrorCode NetRPRegister(const char sname[], PetscErrorCode (*function)(NetR
   PetscFunctionBegin;
   PetscCall(NetRPInitializePackage());
   PetscCall(PetscFunctionListAdd(&NetRPList, sname, function));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

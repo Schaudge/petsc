@@ -40,7 +40,7 @@ static PetscErrorCode PhysicsCharacteristic_Shallow_Mat(void *vctx, const PetscS
   PetscCall(MatSetValues(eigmat, m, idxm, n, idxn, (PetscReal *)X, INSERT_VALUES));
   MatAssemblyBegin(eigmat, MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(eigmat, MAT_FINAL_ASSEMBLY);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* Lax Curve evaluation function, for use in RiemannSolver */
@@ -66,7 +66,7 @@ static PetscErrorCode LaxCurve_Shallow(RiemannSolver rs, const PetscReal *u, Pet
     break;
   }
   ubar[0] = hbar;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 int main(int argc, char *argv[])

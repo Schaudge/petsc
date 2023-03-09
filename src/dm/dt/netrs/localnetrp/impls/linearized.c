@@ -67,19 +67,19 @@ static PetscErrorCode NetRPCreateLinearStar_Linearized(NetRP rp, PetscInt vdeg, 
   PetscCall(VecRestoreArrayRead(U, &u));
   PetscCall(MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY));
   PetscCall(MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NRPSetFromOptions_Linearized(PetscOptionItems *PetscOptionsObject, NetRP rp)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NRPView_Linearized(NetRP rp, PetscViewer viewer)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* ------------------------------------------------------------ */
@@ -95,5 +95,5 @@ PETSC_EXTERN PetscErrorCode NetRPCreate_Linearized(NetRP rp)
   rp->solvetype             = Linear;
 
   rp->numfields = 2; /*speficif for now */
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

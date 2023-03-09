@@ -255,7 +255,7 @@ PetscErrorCode FormIFunction(TS ts, PetscReal t, Vec U, Vec Udot, Vec F, void *c
   CHKERRQ(ierr);
   ierr = PetscLogFlops(11.0 * xm);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* --------------------------------------------------------------------- */
@@ -331,7 +331,7 @@ PetscErrorCode FormIJacobian(TS ts, PetscReal t, Vec U, Vec Udot, PetscReal a, M
     ierr = MatView(Jpre, PETSC_VIEWER_STDOUT_WORLD);
     CHKERRQ(ierr);
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* ------------------------------------------------------------------- */
@@ -370,7 +370,7 @@ PetscErrorCode FormInitialSolution(Vec U, void *ptr)
   /* Restore vectors */
   ierr = DMDAVecRestoreArray(da, U, &u);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*TEST

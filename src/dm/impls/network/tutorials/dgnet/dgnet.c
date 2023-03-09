@@ -17,7 +17,7 @@ PetscErrorCode WashDestroy_DGNet(Wash wash)
   CHKERRQ(ierr);
   ierr = PetscFree(wash);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt Mx)
@@ -446,7 +446,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
 
   PetscCall(PetscMalloc5(dof, &dgnet->limitactive, (dgnet->physics.maxorder + 1) * dof, &dgnet->charcoeff, dof, &dgnet->cbdryeval_L, dof, &dgnet->cbdryeval_R, dof, &dgnet->cuAvg));
   PetscCall(PetscMalloc2(3 * dof, &dgnet->uavgs, 2 * dof, &dgnet->cjmpLR));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkSetComponents(DGNetwork dgnet)
@@ -500,7 +500,7 @@ PetscErrorCode DGNetworkSetComponents(DGNetwork dgnet)
   }
   PetscCall(DMSetUp(dgnet->network));
   PetscLogEventEnd(DGNET_SetUP, 0, 0, 0, 0);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkAddMonitortoEdges(DGNetwork dgnet, DGNetworkMonitor monitor)
@@ -512,7 +512,7 @@ PetscErrorCode DGNetworkAddMonitortoEdges(DGNetwork dgnet, DGNetworkMonitor moni
   if (monitor) {
     for (e = eStart; e < eEnd; e++) { PetscCall(DGNetworkMonitorAdd(monitor, e, PETSC_DECIDE, PETSC_DECIDE, dgnet->ymin, dgnet->ymax, PETSC_FALSE)); }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkAddMonitortoEdges_Glvis(DGNetwork dgnet, DGNetworkMonitor_Glvis monitor, PetscViewerGLVisType type)
@@ -524,7 +524,7 @@ PetscErrorCode DGNetworkAddMonitortoEdges_Glvis(DGNetwork dgnet, DGNetworkMonito
   if (monitor) {
     for (e = eStart; e < eEnd; e++) { PetscCall(DGNetworkMonitorAdd_Glvis(monitor, e, "localhost", type)); }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkAddMonitortoEdges_Glvis_3D(DGNetwork dgnet, DGNetworkMonitor_Glvis monitor, PetscViewerGLVisType type)
@@ -536,7 +536,7 @@ PetscErrorCode DGNetworkAddMonitortoEdges_Glvis_3D(DGNetwork dgnet, DGNetworkMon
   if (monitor) {
     for (e = eStart; e < eEnd; e++) { PetscCall(DGNetworkMonitorAdd_Glvis_3D(monitor, e, "localhost", type)); }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* Only call after network is distirbuted. Rework some stuff otherwise... */
@@ -544,7 +544,7 @@ PetscErrorCode DGNetworkBuildDynamic(DGNetwork dgnet)
 {
   PetscFunctionBegin;
   PetscCall(DGNetworkBuildEdgeDM(dgnet));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkBuildEdgeDM(DGNetwork dgnet)
@@ -587,7 +587,7 @@ PetscErrorCode DGNetworkBuildEdgeDM(DGNetwork dgnet)
   PetscCall(PetscFree2(numComp, numDof));
   PetscLogEventEnd(DGNET_SetUP, 0, 0, 0, 0);
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet)
@@ -661,7 +661,7 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet)
     PetscCall(PetscFree(viewnodes));
     PetscCall(PetscFree(deg));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode LegendreTabulationViewer_Internal(PetscInt npoints, PetscInt ndegree, PetscViewer viewer, PetscReal *LegEval)
@@ -676,7 +676,7 @@ PetscErrorCode LegendreTabulationViewer_Internal(PetscInt npoints, PetscInt ndeg
     for (qpoint = 0; qpoint < npoints; qpoint++) { *(viewerarray + qpoint) = LegEval[qpoint * (ndegree + 1) + deg]; }
     PetscCall(PetscRealView(npoints, viewerarray, viewer));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -719,7 +719,7 @@ PetscErrorCode ViewDiscretizationObjects(DGNetwork dgnet, PetscViewer viewer)
     PetscCall(PetscViewerASCIIPrintf(viewer, "Legendre Normalization\n"));
     PetscCall(PetscRealView(ndegree + 1, dgnet->Leg_L2[i], viewer));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -740,7 +740,7 @@ PetscErrorCode DGNetworkViewEdgeDMs(DGNetwork dgnet, PetscViewer viewer)
     PetscCall(PetscViewerASCIIPrintf(viewer, "\n Mesh on Edge %i \n \n ", e));
     PetscCall(DMView(edgefe->dm, viewer));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /* Just prints the jacobian and inverse jacobians to screen for dms inside the edgee
 
@@ -762,7 +762,7 @@ PetscErrorCode DGNetworkViewEdgeGeometricInfo(DGNetwork dgnet, PetscViewer viewe
       PetscCall(PetscViewerASCIIPrintf(viewer, "Cell %i: J: %e  - Jinv: %e - Jdet: %e \n  ", c, J, Jinv, Jdet));
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* WIP, builds the NetRP objects and assigns to verrtices of the NetRS, make cleaner later  */
@@ -807,7 +807,7 @@ PetscErrorCode DGNetworkAssignNetRS(DGNetwork dgnet)
   PetscCall(NetRSCreateLocalVec(dgnet->netrs, &dgnet->RiemannData));
   PetscCall(NetRPDestroy(&netrpbdry));
   PetscCall(NetRPDestroy(&netrpcouple));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkCleanUp(DGNetwork dgnet)
@@ -818,7 +818,7 @@ PetscErrorCode DGNetworkCleanUp(DGNetwork dgnet)
   PetscCall(MPI_Comm_rank(dgnet->comm, &rank));
   PetscCall(PetscFree(dgnet->edgelist));
   if (!rank) { PetscCall(PetscFree2(dgnet->junction, dgnet->edgefe)); }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkCreateVectors(DGNetwork dgnet)
@@ -827,7 +827,7 @@ PetscErrorCode DGNetworkCreateVectors(DGNetwork dgnet)
   PetscCall(DMCreateGlobalVector(dgnet->network, &dgnet->X));
   PetscCall(DMCreateLocalVector(dgnet->network, &dgnet->localX));
   PetscCall(DMCreateLocalVector(dgnet->network, &dgnet->localF));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkDestroyTabulation(DGNetwork dgnet)
@@ -847,7 +847,7 @@ PetscErrorCode DGNetworkDestroyTabulation(DGNetwork dgnet)
   PetscCall(PetscFree(dgnet->fieldtotab));
   PetscCall(PetscFree2(dgnet->pteval, dgnet->fluxeval));
   PetscCall(PetscFree2(dgnet->LegEval_equispaced, dgnet->numviewpts));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkDestroyPhysics(DGNetwork dgnet)
@@ -857,7 +857,7 @@ PetscErrorCode DGNetworkDestroyPhysics(DGNetwork dgnet)
   PetscFunctionBegin;
   PetscCall((*dgnet->physics.destroy)(dgnet->physics.user));
   for (i = 0; i < dgnet->physics.dof; i++) { PetscCall(PetscFree(dgnet->physics.fieldname[i])); }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkDestroy(DGNetwork dgnet)
@@ -885,7 +885,7 @@ PetscErrorCode DGNetworkDestroy(DGNetwork dgnet)
   PetscCall(VecDestroy(&dgnet->RiemannData));
   PetscCall(NetRSDestroy(&dgnet->netrs));
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscReal evalviewpt_internal(DGNetwork dgnet, PetscInt field, PetscInt viewpt, const PetscReal *comp)
@@ -914,7 +914,7 @@ PetscErrorCode DGNetworkMonitorCreate(DGNetwork dgnet, DGNetworkMonitor *monitor
   monitor->firstnode = NULL;
 
   *monitorptr = monitor;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkMonitorPop(DGNetworkMonitor monitor)
@@ -932,7 +932,7 @@ PetscErrorCode DGNetworkMonitorPop(DGNetworkMonitor monitor)
     PetscCall(VecDestroy(&(node->v)));
     PetscCall(PetscFree(node));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkMonitorDestroy(DGNetworkMonitor *monitor)
@@ -940,7 +940,7 @@ PetscErrorCode DGNetworkMonitorDestroy(DGNetworkMonitor *monitor)
   PetscFunctionBegin;
   while ((*monitor)->firstnode) { PetscCall(DGNetworkMonitorPop(*monitor)); }
   PetscCall(PetscFree(*monitor));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* ymax and ymin must be removed by the caller */
@@ -968,12 +968,12 @@ PetscErrorCode DGNetworkMonitorAdd(DGNetworkMonitor monitor, PetscInt element, P
     /* Make window title */
     if (vStart <= element && element < vEnd) {
       /* Nothing to view on the vertices for DGNetwork (for now) so skip */
-      PetscFunctionReturn(0);
+      PetscFunctionReturn(PETSC_SUCCESS);
     } else if (eStart <= element && element < eEnd) {
       PetscCall(PetscSNPrintf(titleBuffer, 64, "%s @ edge %d [%d / %d]", dgnet->physics.fieldname[field], element - eStart, rank, size - 1));
     } else {
       /* vertex / edge is not on local machine, so skip! */
-      PetscFunctionReturn(0);
+      PetscFunctionReturn(PETSC_SUCCESS);
     }
     PetscCall(PetscMalloc1(1, &node));
     /* Setup viewer. */
@@ -1000,7 +1000,7 @@ PetscErrorCode DGNetworkMonitorAdd(DGNetworkMonitor monitor, PetscInt element, P
     node->vsize        = viewsize;
     monitor->firstnode = node;
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkMonitorView(DGNetworkMonitor monitor, Vec x)
@@ -1034,7 +1034,7 @@ PetscErrorCode DGNetworkMonitorView(DGNetworkMonitor monitor, Vec x)
     PetscCall(VecView(node->v, node->viewer));
   }
   PetscCall(VecRestoreArrayRead(x, &xx));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkMonitorCreate_Glvis(DGNetwork dgnet, DGNetworkMonitor_Glvis *monitorptr)
@@ -1054,7 +1054,7 @@ PetscErrorCode DGNetworkMonitorCreate_Glvis(DGNetwork dgnet, DGNetworkMonitor_Gl
   monitor->firstnode = NULL;
 
   *monitorptr = monitor;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkMonitor_g2l_internal(PetscObject V, PetscInt nfields, PetscObject Vfield[], void *ctx)
@@ -1086,13 +1086,13 @@ PetscErrorCode DGNetworkMonitor_g2l_internal(PetscObject V, PetscInt nfields, Pe
     PetscCall(VecRestoreArray((Vec)Vfield[field], &vwork));
   }
   PetscCall(VecRestoreArrayRead((Vec)V, &v));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkMonitor_destroyctx_internal(void *ctx)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkMonitorAdd_Glvis(DGNetworkMonitor_Glvis monitor, PetscInt element, const char hostname[], PetscViewerGLVisType type)
@@ -1138,7 +1138,7 @@ PetscErrorCode DGNetworkMonitorAdd_Glvis(DGNetworkMonitor_Glvis monitor, PetscIn
   monitor->firstnode = node;
 
   PetscCall(PetscViewerGLVisSetFields(node->viewer, dof, (const char **)node->fec_type, node->dim, DGNetworkMonitor_g2l_internal, (PetscObject *)node->v_work, (void *)node, DGNetworkMonitor_destroyctx_internal));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkMonitorPop_Glvis(DGNetworkMonitor_Glvis monitor)
@@ -1162,7 +1162,7 @@ PetscErrorCode DGNetworkMonitorPop_Glvis(DGNetworkMonitor_Glvis monitor)
     if (node->viewdm) PetscCall(DMDestroy(&node->viewdm));
     PetscCall(PetscFree(node));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkMonitorDestroy_Glvis(DGNetworkMonitor_Glvis *monitor)
@@ -1170,7 +1170,7 @@ PetscErrorCode DGNetworkMonitorDestroy_Glvis(DGNetworkMonitor_Glvis *monitor)
   PetscFunctionBegin;
   while ((*monitor)->firstnode) { PetscCall(DGNetworkMonitorPop_Glvis(*monitor)); }
   PetscCall(PetscFree(*monitor));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkMonitorView_Glvis(DGNetworkMonitor_Glvis monitor, Vec x)
@@ -1197,7 +1197,7 @@ PetscErrorCode DGNetworkMonitorView_Glvis(DGNetworkMonitor_Glvis monitor, Vec x)
     PetscCall(VecView(node->v, node->viewer));
   }
   PetscCall(VecRestoreArrayRead(x, &xx));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* 3d visualization of a network element, transformation of unit cube to unit cylinder element. */
@@ -1275,7 +1275,7 @@ static PetscErrorCode DGNetworkCreateViewDM(DM dm)
   PetscCall(VecRestoreArray(Coord, &coord));
   PetscCall(PetscFEDestroy(&fe));
   PetscCall(DMPlexRemapGeometry(dm, 0.0, f0_circle));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode DGNetworkCreateViewDM2(DM dm)
@@ -1296,7 +1296,7 @@ static PetscErrorCode DGNetworkCreateViewDM2(DM dm)
   PetscCall(PetscFECreateLagrange(PETSC_COMM_SELF, dim, dE, simplex, 1, PETSC_DECIDE, &fe));
   PetscCall(DMProjectCoordinates(dm, fe));
   PetscCall(PetscFEDestroy(&fe));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkMonitor_3D_g2l_internal(PetscObject V, PetscInt nfields, PetscObject Vfield[], void *ctx)
@@ -1333,7 +1333,7 @@ PetscErrorCode DGNetworkMonitor_3D_g2l_internal(PetscObject V, PetscInt nfields,
     PetscCall(VecRestoreArray((Vec)Vfield[field], &vwork));
   }
   PetscCall(VecRestoreArrayRead((Vec)V, &v));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkMonitorAdd_Glvis_3D(DGNetworkMonitor_Glvis monitor, PetscInt element, const char hostname[], PetscViewerGLVisType type)
@@ -1380,7 +1380,7 @@ PetscErrorCode DGNetworkMonitorAdd_Glvis_3D(DGNetworkMonitor_Glvis monitor, Pets
   node->snapid       = 0;
 
   PetscCall(PetscViewerGLVisSetFields(node->viewer, dof, (const char **)node->fec_type, node->dim, DGNetworkMonitor_3D_g2l_internal, (PetscObject *)node->v_work, (void *)node, DGNetworkMonitor_destroyctx_internal));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* Experimental work on "adding" dmplex objects together */
@@ -1408,7 +1408,7 @@ PetscErrorCode DMPlexCreateFromDAG_Topological(DM dm, PetscInt depth, const Pets
   }
   PetscCall(DMPlexSymmetrize(dm));
   PetscCall(DMPlexStratify(dm));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* The overall goal for code like this would be to provide high level toplogy manipulation support for dmplex,
@@ -1469,7 +1469,7 @@ PetscErrorCode DMPlexAdd_Disconnected(DM *dmlist, PetscInt numdm, DM *dmsum, Pet
 
   PetscFunctionBegin;
   /* input checks */
-  if (numdm <= 0) PetscFunctionReturn(0);
+  if (numdm <= 0) PetscFunctionReturn(PETSC_SUCCESS);
   PetscCall(DMGetCoordinateDim(dmlist[0], &dim_prev));
   for (i = 0; i < numdm; i++) {
     PetscCall(DMGetType(dmlist[i], &dmtype));
@@ -1580,7 +1580,7 @@ PetscErrorCode DMPlexAdd_Disconnected(DM *dmlist, PetscInt numdm, DM *dmsum, Pet
   /* Now we map the coordinates ... somehow */
   *dmsum          = dm_sum;
   *stratumoffsets = offsets;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkCreateNetworkDMPlex_3D(DGNetwork dgnet, const PetscInt edgelist[], PetscInt edgelistsize, DM *dmsum, PetscSection *stratumoffset, DM **dm_list, PetscInt *numdm)
@@ -1661,7 +1661,7 @@ PetscErrorCode DGNetworkCreateNetworkDMPlex_3D(DGNetwork dgnet, const PetscInt e
   } else {
     /* TODO */
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* More viewer stuff */
@@ -1708,7 +1708,7 @@ PetscErrorCode DGNetworkMonitor_3D_NET_g2l_internal(PetscObject V, PetscInt nfie
   }
 
   PetscCall(VecRestoreArrayRead((Vec)V, &v));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkMonitorAdd_Glvis_3D_NET(DGNetworkMonitor_Glvis monitor, const char hostname[], PetscViewerGLVisType type)
@@ -1751,7 +1751,7 @@ PetscErrorCode DGNetworkMonitorAdd_Glvis_3D_NET(DGNetworkMonitor_Glvis monitor, 
   monitor->firstnode = node;
 
   PetscCall(PetscViewerGLVisSetFields(node->viewer, dof, (const char **)node->fec_type, node->dim, DGNetworkMonitor_3D_NET_g2l_internal, (PetscObject *)node->v_work, (void *)node, DGNetworkMonitor_destroyctx_internal));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkMonitorView_Glvis_NET(DGNetworkMonitor_Glvis monitor, Vec x)
@@ -1763,7 +1763,7 @@ PetscErrorCode DGNetworkMonitorView_Glvis_NET(DGNetworkMonitor_Glvis monitor, Ve
     PetscCall(PetscViewerGLVisSetSnapId(node->viewer, node->snapid++));
     PetscCall(VecView(x, node->viewer));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* 2D FULL NETWORK VIEWING HERE */
@@ -1810,7 +1810,7 @@ PetscErrorCode DGNetworkMonitor_2D_NET_g2l_internal(PetscObject V, PetscInt nfie
   }
 
   PetscCall(VecRestoreArrayRead((Vec)V, &v));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkCreateNetworkDMPlex_2D(DGNetwork dgnet, const PetscInt edgelist[], PetscInt edgelistsize, DM *dmsum, PetscSection *stratumoffset, DM **dm_list, PetscInt *numdm)
@@ -1879,7 +1879,7 @@ PetscErrorCode DGNetworkCreateNetworkDMPlex_2D(DGNetwork dgnet, const PetscInt e
   } else {
     /* TODO */
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkMonitorAdd_Glvis_2D_NET(DGNetworkMonitor_Glvis monitor, const char hostname[], PetscViewerGLVisType type)
@@ -1925,5 +1925,5 @@ PetscErrorCode DGNetworkMonitorAdd_Glvis_2D_NET(DGNetworkMonitor_Glvis monitor, 
   monitor->firstnode = node;
 
   PetscCall(PetscViewerGLVisSetFields(node->viewer, dof, (const char **)node->fec_type, node->dim, DGNetworkMonitor_2D_NET_g2l_internal, (PetscObject *)node->v_work, (void *)node, DGNetworkMonitor_destroyctx_internal));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

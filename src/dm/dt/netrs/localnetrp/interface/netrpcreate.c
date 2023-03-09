@@ -35,5 +35,5 @@ PetscErrorCode NetRPCreate(MPI_Comm comm, NetRP *rp)
   r->physicsgenerality = Specific;
   r->numfields         = -1;
   *rp                  = r;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

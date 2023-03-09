@@ -31,11 +31,11 @@ PetscErrorCode NetRSSetUp(NetRS rs)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs, NETRS_CLASSID, 1);
-  if (rs->setupcalled) PetscFunctionReturn(0);
+  if (rs->setupcalled) PetscFunctionReturn(PETSC_SUCCESS);
   PetscCheck(rs->network, PetscObjectComm((PetscObject)rs), PETSC_ERR_ARG_WRONGSTATE, "No Network Set to the NetRS.");
   if (rs->ops->setup) { PetscCall((*rs->ops->setup)(rs)); }
   rs->setupcalled = PETSC_TRUE;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -69,7 +69,7 @@ PetscErrorCode NetRSReset(NetRS rs)
   rs->vertexdeg_shared_cached = PETSC_FALSE;
   rs->inoutvertexdeg_cached   = PETSC_FALSE;
   rs->setupcalled             = PETSC_FALSE;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /*@
    NetRSResetVectorSpace - Resets a NetRS vector space context and removes any related internal petsc objects. 
@@ -125,7 +125,7 @@ PetscErrorCode NetRSResetVectorSpace(NetRS rs)
   PetscCall(PetscHMapIDestroy(&rs->edgein_shared_offset));
 
   rs->setupvectorspace = PETSC_FALSE;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -144,11 +144,11 @@ PetscErrorCode NetRSResetVectorSpace(NetRS rs)
 PetscErrorCode NetRSDestroy(NetRS *rs)
 {
   PetscFunctionBegin;
-  if (!*rs) PetscFunctionReturn(0);
+  if (!*rs) PetscFunctionReturn(PETSC_SUCCESS);
   PetscValidHeaderSpecific(*rs, NETRS_CLASSID, 1);
   if (--((PetscObject)(*rs))->refct > 0) {
     *rs = NULL;
-    PetscFunctionReturn(0);
+    PetscFunctionReturn(PETSC_SUCCESS);
   }
   if ((*rs)->ops->destroy) PetscCall((*(*rs)->ops->destroy)((*rs)));
   PetscCall(NetRSReset(*rs));
@@ -159,7 +159,7 @@ PetscErrorCode NetRSDestroy(NetRS *rs)
   PetscCall(ISDestroy(&(*rs)->is_wrk));
   if ((*rs)->rs) (RiemannSolverDestroy(&(*rs)->rs));
   PetscCall(PetscHeaderDestroy(rs));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -188,7 +188,7 @@ PetscErrorCode NetRSDuplicate(NetRS netrs, NetRS *newnetrs)
   netrs_new->user = netrs->user;
   PetscCall(NetRSSetFlux(netrs_new, netrs->rs));
   *newnetrs = netrs_new;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -210,7 +210,7 @@ PetscErrorCode NetRSSetApplicationContext(NetRS rs, void *usrP)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs, NETRS_CLASSID, 1);
   rs->user = usrP;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -240,7 +240,7 @@ PetscErrorCode NetRSSetNetwork(NetRS rs, DM network)
   if (rs->network) PetscCall(DMDestroy(&rs->network));
   PetscCall(DMClone(network, &networkclone));
   rs->network = networkclone;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -264,7 +264,7 @@ PetscErrorCode NetRSGetNetwork(NetRS rs, DM *network)
   PetscValidHeaderSpecific(rs, NETRS_CLASSID, 1);
   PetscCheck(rs->network, PetscObjectComm((PetscObject)rs), PETSC_ERR_ARG_WRONGSTATE, "NetRS has no network. One must be set by NetRSSetNetwork()");
   *network = rs->network;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -288,7 +288,7 @@ PetscErrorCode NetRSGetApplicationContext(NetRS rs, void *usrP)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs, NETRS_CLASSID, 1);
   *(void **)usrP = rs->user;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -344,7 +344,7 @@ PetscErrorCode NetRSSetFromOptions(NetRS rs)
   /*
     TODO:  View from options here ? 
   */
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
@@ -368,7 +368,7 @@ PetscErrorCode NetRSView(NetRS rs, PetscViewer viewer)
 {
   PetscFunctionBegin;
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NetRSSetFlux(NetRS nrs, RiemannSolver flux)
@@ -380,7 +380,7 @@ PetscErrorCode NetRSSetFlux(NetRS nrs, RiemannSolver flux)
   if (nrs->rs) PetscCall(RiemannSolverDestroy(&nrs->rs));
   PetscCall(PetscObjectReference((PetscObject)flux));
   nrs->rs = flux;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NetRSGetFlux(NetRS rs, RiemannSolver *flux)
@@ -389,7 +389,7 @@ PetscErrorCode NetRSGetFlux(NetRS rs, RiemannSolver *flux)
   PetscValidHeaderSpecific(rs, NETRS_CLASSID, 1);
   PetscValidHeaderSpecific(*flux, RIEMANNSOLVER_CLASSID, 1);
   if (rs->rs) *flux = rs->rs;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* internal function for adding the NetRP to the NetRS. This assumes that the NetRP has not already 
@@ -414,7 +414,7 @@ static PetscErrorCode NetRSAddNetRP(NetRS rs, NetRP rp)
 
   rs->netrp[numlabelvalues] = rp;
   PetscCall(PetscObjectReference((PetscObject)rp));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* uses local vertex numbering */
@@ -452,7 +452,7 @@ PetscErrorCode NetRSAddNetRPatVertex(NetRS rs, PetscInt v, NetRP rp)
   /* Add vertex v to the label value associated with the NetRP */
   PetscCall(PetscHMapNetRPIGet(rs->netrphmap, rp, &index));
   PetscCall(DMLabelSetValue(rs->subgraphs, v, index));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*should be part of DMNetwork itself */
@@ -472,7 +472,7 @@ PetscErrorCode NetRSGetVertexDegree(NetRS rs, PetscInt v, PetscInt *vdeg)
   } else {
     PetscCall(DMNetworkGetSupportingEdges(rs->network, v, vdeg, NULL));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*internal logic for passing down netrs physics down to the underlyin netrp solvers */
@@ -498,7 +498,7 @@ static PetscErrorCode NetRSSetNetRPPhysics(NetRS rs)
       PetscCall(NetRPSetUp(rs->netrp[i]));
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* 
@@ -517,7 +517,7 @@ PetscErrorCode NetRSSetUpVectorSpace(NetRS rs)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs, NETRS_CLASSID, 1);
-  if (rs->setupvectorspace) PetscFunctionReturn(0);
+  if (rs->setupvectorspace) PetscFunctionReturn(PETSC_SUCCESS);
   rs->setupvectorspace = PETSC_TRUE;
   PetscLogEventBegin(NetRS_SetUp_VecSpace, 0, 0, 0, 0);
   PetscCall(NetRSSetNetRPPhysics(rs));
@@ -631,7 +631,7 @@ PetscErrorCode NetRSSetUpVectorSpace(NetRS rs)
   }
   PetscCall(PetscFree2(keys, vals));
   PetscLogEventEnd(NetRS_SetUp_VecSpace, 0, 0, 0, 0);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DMNetworkCacheInOutVertexDegrees(NetRS rs, DM network)
@@ -648,7 +648,7 @@ PetscErrorCode DMNetworkCacheInOutVertexDegrees(NetRS rs, DM network)
   PetscValidHeaderSpecificType(network, DM_CLASSID, 2, DMNETWORK);
   PetscValidHeaderSpecific(rs, NETRS_CLASSID, 1);
 
-    if (rs->inoutvertexdeg_cached) PetscFunctionReturn(0); /* already been cached */
+    if (rs->inoutvertexdeg_cached) PetscFunctionReturn(PETSC_SUCCESS); /* already been cached */
   rs->inoutvertexdeg_cached = PETSC_TRUE;
   PetscCall(PetscObjectGetComm((PetscObject)rs, &comm));
   PetscCallMPI(MPI_Comm_size(comm, &size));
@@ -675,7 +675,7 @@ PetscErrorCode DMNetworkCacheInOutVertexDegrees(NetRS rs, DM network)
   if (size == 1) {
     PetscCall(DMLabelCreateIndex(rs->InVertexDeg, vStart, vEnd)); /* No new points added */
     PetscCall(DMLabelCreateIndex(rs->OutVertexDeg, vStart, vEnd)); /* No new points added */
-    PetscFunctionReturn(0);
+    PetscFunctionReturn(PETSC_SUCCESS);
   }
   /* Adjust the Local In/Out Vertex Degrees by the shared vertices  */
 
@@ -773,7 +773,7 @@ PetscErrorCode DMNetworkCacheVertexDegrees(NetRS rs, DM network)
   PetscValidHeaderSpecificType(network, DM_CLASSID, 2, DMNETWORK);
   PetscValidHeaderSpecific(rs, NETRS_CLASSID, 1);
 
-  if (rs->vertexdeg_shared_cached) PetscFunctionReturn(0); /* already been cached */
+  if (rs->vertexdeg_shared_cached) PetscFunctionReturn(PETSC_SUCCESS); /* already been cached */
   rs->vertexdeg_shared_cached = PETSC_TRUE;
   PetscCall(PetscObjectGetComm((PetscObject)rs, &comm));
   PetscCallMPI(MPI_Comm_size(comm, &size));
@@ -781,7 +781,7 @@ PetscErrorCode DMNetworkCacheVertexDegrees(NetRS rs, DM network)
   if (size == 1) {
     PetscCall(DMNetworkGetVertexRange(network, &vStart, &vEnd));
     PetscCall(DMLabelCreateIndex(rs->VertexDeg_shared, vStart, vEnd)); /* needed for has point calls */
-    PetscFunctionReturn(0);
+    PetscFunctionReturn(PETSC_SUCCESS);
   }
   /* Pull out the pointsf used by the underlying DMPlex for the distributed network */
   PetscCall(DMNetworkGetPlex(network, &plex));
@@ -826,7 +826,7 @@ PetscErrorCode DMNetworkCacheVertexDegrees(NetRS rs, DM network)
   /* no new entries will be added, compute index for faster membership lookup */
   PetscCall(DMLabelCreateIndex(rs->VertexDeg_shared, vStart, vEnd));
   PetscCall(PetscFree2(rootdata, leafdata));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
@@ -851,7 +851,7 @@ PetscErrorCode DMNetworkCreateEdgeInInfo(NetRS rs)
 
   if (commsize == 1) {
     PetscCall(DMLabelGetNumValues(rs->subgraphs, &comp_index));
-    PetscFunctionReturn(0);
+    PetscFunctionReturn(PETSC_SUCCESS);
   }
   PetscCall(DMClone(rs->network, &tmpclone));
   PetscCall(DMNetworkRegisterComponent(tmpclone, "edge in", 0, &comp_index));
@@ -917,7 +917,7 @@ PetscErrorCode DMNetworkCreateEdgeInInfo(NetRS rs)
   PetscCall(VecDestroy(&tmpVec));
   PetscCall(VecDestroy(&tmpVecloc));
   PetscCall(DMDestroy(&tmpclone));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* TODO: Duplicates a lot of code from DMNetworkCacheVertexDegrees. Should be
@@ -943,14 +943,14 @@ PetscErrorCode DMNetworkCreateLocalEdgeNumbering(NetRS rs, DM network)
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(network, DM_CLASSID, 2, DMNETWORK);
   PetscValidHeaderSpecific(rs, NETRS_CLASSID, 1);
-  if (rs->vertex_offset_cached) PetscFunctionReturn(0); /* already created the map */
+  if (rs->vertex_offset_cached) PetscFunctionReturn(PETSC_SUCCESS); /* already created the map */
   rs->vertex_offset_cached = PETSC_TRUE;
 
   PetscCall(PetscObjectGetComm((PetscObject)rs, &comm));
   PetscCallMPI(MPI_Comm_size(comm, &size));
   if (size == 1) {
     PetscCall(PetscHMapICreate(&rs->vertex_shared_offset));
-    PetscFunctionReturn(0);
+    PetscFunctionReturn(PETSC_SUCCESS);
   }
 
   PetscCall(PetscHMapICreate(&rs->vertex_shared_offset));
@@ -1008,7 +1008,7 @@ PetscErrorCode DMNetworkCreateLocalEdgeNumbering(NetRS rs, DM network)
   PetscCall(PetscFree2(multirootdata, leafdata));
   PetscCall(PetscSectionDestroy(&rootsection));
   rs->vertexdeg_shared_cached = PETSC_TRUE;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode PetscHMapIView(PetscHMapI hmap, MPI_Comm comm)
@@ -1028,7 +1028,7 @@ PetscErrorCode PetscHMapIView(PetscHMapI hmap, MPI_Comm comm)
   for (i = 0; i < size; i++) { PetscCall(PetscSynchronizedPrintf(comm, "key[%" PetscInt_FMT "] val = %" PetscInt_FMT " \n", keys[i], vals[i])); }
   PetscCall(PetscSynchronizedFlush(comm, NULL));
   PetscCall(PetscFree2(keys, vals));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -1120,7 +1120,7 @@ PetscErrorCode DMNetworkComputeUniqueVertexDegreesLocal(NetRS rs, DM network, DM
     PetscCall(ISRestoreIndices(values_is, &values));
     PetscCall(ISDestroy(&values_is));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -1190,7 +1190,7 @@ PetscErrorCode DMNetworkComputeUniqueVertexInOutDegreesLocal(NetRS rs, DM networ
     PetscCall(ISRestoreIndices(values_is, &values));
     PetscCall(ISDestroy(&values_is));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* 
@@ -1215,7 +1215,7 @@ PetscErrorCode NetRSGetVecSizeAtVertex(NetRS rs, PetscInt v, PetscInt *localsize
       *localsize = numedges * numfields;
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NetRSGetVertexVecOffset(NetRS rs, PetscInt v, PetscInt *offlocal, PetscInt *globaloff)
@@ -1236,7 +1236,7 @@ PetscErrorCode NetRSGetVertexVecOffset(NetRS rs, PetscInt v, PetscInt *offlocal,
       *offlocal = off;
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NetRSCreateLocalVec(NetRS rs, Vec *localvec)
@@ -1245,7 +1245,7 @@ PetscErrorCode NetRSCreateLocalVec(NetRS rs, Vec *localvec)
   PetscValidHeaderSpecific(rs, NETRS_CLASSID, 1);
   PetscCall(NetRSSetUpVectorSpace(rs));
   PetscCall(DMCreateLocalVector(rs->network, localvec));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* Bad interface so far, need to rework things .... */
@@ -1319,7 +1319,7 @@ PetscErrorCode NetRSSolveFlux(NetRS rs, Vec Uloc, Vec Fluxloc)
   PetscCall(VecRestoreArray(Fluxloc, &flux));
   PetscCall(VecRestoreArrayRead(Uloc, &u));
   PetscLogEventEnd(NetRS_Solve_Total, 0, 0, 0, 0);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* currently does every! solve on the vertex, so only communication of Uloc not Fluxloc*/
@@ -1395,7 +1395,7 @@ PetscErrorCode NetRSSolveFluxBegin(NetRS rs, Vec Uloc, Vec Fluxloc)
   PetscCall(DMGlobalToLocalBegin(rs->network, rs->U, INSERT_VALUES, Uloc));
   PetscLogEventEnd(NetRS_Solve_Communication, 0, 0, 0, 0);
   PetscLogEventEnd(NetRS_Solve_Total, 0, 0, 0, 0);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode NetRSSolveFluxEnd(NetRS rs, Vec Uloc, Vec Fluxloc)
@@ -1463,7 +1463,7 @@ PetscErrorCode NetRSSolveFluxEnd(NetRS rs, Vec Uloc, Vec Fluxloc)
   PetscCall(VecRestoreArray(Fluxloc, &flux));
   PetscCall(VecRestoreArrayRead(Uloc, &u));
   PetscLogEventEnd(NetRS_Solve_Total, 0, 0, 0, 0);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DMNetworkIsParallelVertex(NetRS rs, DM network, PetscInt v, PetscBool *flg)
@@ -1474,5 +1474,5 @@ PetscErrorCode DMNetworkIsParallelVertex(NetRS rs, DM network, PetscInt v, Petsc
 
   PetscCall(DMNetworkCacheVertexDegrees(rs, network));
   PetscCall(DMLabelHasPoint(rs->VertexDeg_shared, v, flg));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

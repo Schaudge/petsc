@@ -308,7 +308,7 @@ PetscErrorCode FormInitialGuess(AppCtx *user, Vec X)
   */
   ierr = DMDAVecRestoreArray(user->da, X, &x);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /* ------------------------------------------------------------------- */
 /*
@@ -388,7 +388,7 @@ PetscErrorCode FormFunctionLocal(SNES snes, Vec localX, Vec F, void *ptr)
   CHKERRQ(ierr);
   ierr = PetscLogFlops(11.0 * ym * xm);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /* ------------------------------------------------------------------- */
 /*
@@ -429,7 +429,7 @@ PetscErrorCode FormFunction(SNES snes, Vec X, Vec F, void *ptr)
   CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(da, &localX);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /* ------------------------------------------------------------------- */
 /*
@@ -574,7 +574,7 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat jac, void *ptr)
   */
   ierr = MatSetOption(jac, MAT_NEW_NONZERO_LOCATION_ERR, PETSC_TRUE);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*TEST

@@ -54,7 +54,7 @@ static PetscErrorCode SolutionStatsView(DM da, Vec X, PetscViewer viewer)
     ierr = PetscViewerASCIIPrintf(viewer, "Solution range [%8.5f,%8.5f] with extrema at %D and %D, mean %8.5f, ||x||_TV %8.5f\n", (double)xmin, (double)xmax, imin, imax, (double)(sum / Mx), (double)(tvgsum / Mx));
     CHKERRQ(ierr);
   } else SETERRQ(PETSC_COMM_SELF, 1, "Viewer type not supported");
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -110,7 +110,7 @@ PetscErrorCode RiverIFunction(TS ts, PetscReal t, Vec X, Vec Xdot, Vec F, void *
   CHKERRQ(ierr);
   //printf("\n t=%g, F:\n",t);
   //ierr = VecView(F,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* compute initial condition */
@@ -139,7 +139,7 @@ static PetscErrorCode RiverSetInitialSolution_tsMtlb(River river, Vec X)
   }
   ierr = DMDAVecRestoreArray(da, X, &x);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode RiverSetUp_tsMtlb(River river)
@@ -166,7 +166,7 @@ static PetscErrorCode RiverSetUp_tsMtlb(River river)
   dx   = length / river->ncells;
   ierr = DMDASetUniformCoordinates(river->da, 0.5 * dx, length + 0.5 * dx, 0, 0, 0, 0);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 int main(int argc, char *argv[])

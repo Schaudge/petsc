@@ -21,10 +21,10 @@ PETSC_EXTERN PetscErrorCode NetRSCreate_Blank(NetRS);
 PetscErrorCode NetRSRegisterAll(void)
 {
   PetscFunctionBegin;
-  if (NetRSRegisterAllCalled) PetscFunctionReturn(0);
+  if (NetRSRegisterAllCalled) PetscFunctionReturn(PETSC_SUCCESS);
   NetRSRegisterAllCalled = PETSC_TRUE;
   PetscCall(NetRSRegister(NETRSBASIC, NetRSCreate_Blank));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
@@ -56,7 +56,7 @@ PetscErrorCode NetRSSetType(NetRS rs, NetRSType type)
   PetscValidHeaderSpecific(rs, NETRS_CLASSID, 1);
   PetscValidCharPointer(type, 2);
   PetscCall(PetscObjectTypeCompare((PetscObject)rs, type, &match));
-  if (match) PetscFunctionReturn(0);
+  if (match) PetscFunctionReturn(PETSC_SUCCESS);
 
   PetscCall(PetscFunctionListFind(NetRSList, type, &r));
   if (!r) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_UNKNOWN_TYPE, "Unknown Network RiemannSolver type: %s", type);
@@ -66,7 +66,7 @@ PetscErrorCode NetRSSetType(NetRS rs, NetRSType type)
   rs->setupcalled = PETSC_FALSE;
   PetscCall(PetscObjectChangeTypeName((PetscObject)rs, type));
   PetscCall((*r)(rs));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /*@C
   NetRSGetType - Gets the Network RiemannSolver method type (as a string).
@@ -89,7 +89,7 @@ PetscErrorCode NetRSGetType(NetRS rs, NetRSType *type)
   PetscValidHeaderSpecific(rs, NETRS_CLASSID, 1);
   PetscValidPointer(type, 2);
   *type = ((PetscObject)rs)->type_name;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*--------------------------------------------------------------------------------------------------------------------*/
@@ -131,5 +131,5 @@ PetscErrorCode NetRSRegister(const char sname[], PetscErrorCode (*function)(NetR
   PetscFunctionBegin;
   PetscCall(NetRSInitializePackage());
   PetscCall(PetscFunctionListAdd(&NetRSList, sname, function));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

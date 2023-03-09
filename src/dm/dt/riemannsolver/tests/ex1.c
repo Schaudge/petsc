@@ -5,17 +5,17 @@ static char help[] = "Tests repeated RiemannSolverSetType().\n\n";
 /* Dummy functions to force the RiemannSolver to generate all internal structures */
 static PetscErrorCode EigBasis_Dummy(void *ctx, const PetscReal *u, Mat mat)
 {
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode RoeMat_Dummy(void *ctx, const PetscReal *uL, const PetscReal *uR, Mat *roe)
 {
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode RoeAvg_Dummy(void *ctx, const PetscReal *uL, const PetscReal *uR, PetscReal *roeavg)
 {
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 int main(int argc, char **argv)

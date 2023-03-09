@@ -17,7 +17,7 @@ static PetscErrorCode MakeOrder(PetscInt dof, PetscInt *order, PetscInt maxdegre
   PetscInt i;
 
   for (i = 0; i < dof; i++) order[i] = maxdegree;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 int main(int argc, char *argv[])
 {

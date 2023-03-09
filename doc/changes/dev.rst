@@ -75,7 +75,7 @@ Changes: Development
   Users should note that this comes with the following additional changes:
 
   #. Add ``PETSC_SUCCESS`` to indicate success, always guaranteed to equal ``0``.
-  #. ``PetscFunctionReturn(0)`` should be changed to ``PetscFunctionReturn(PETSC_SUCCESS)``. While the original ``0``-form will continue to work in C, it is required for C++.
+  #. ``PetscFunctionReturn(PETSC_SUCCESS)`` should be changed to ``PetscFunctionReturn(PETSC_SUCCESS)``. While the original ``0``-form will continue to work in C, it is required for C++.
   #. Any user-defined macros using boolean short-circuiting to chain multiple calls in the same line, which logically return a ``PetscErrorCode``, should now explicitly cast the "result" of the macro with ``PetscErrorCode``:
 
 

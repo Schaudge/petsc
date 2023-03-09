@@ -40,7 +40,7 @@ static PetscErrorCode NetRPNonlinearEval_ExactSWE(NetRP rp, PetscInt vdeg, Petsc
   PetscCall(VecRestoreArrayRead(U, &u));
   PetscCall(VecRestoreArrayRead(Ustar, &ustar));
   PetscCall(VecRestoreArray(F, &f));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 typedef struct {
@@ -68,7 +68,7 @@ static PetscErrorCode ExactSWELaxCurveJac(RiemannSolver rs, const PetscReal *u, 
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Shallow Water Lax Curves have only 2 waves (1,2), requested wave number: %i \n", wavenumber);
     break;
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NetRPNonlinearJac_ExactSWE(NetRP rp, PetscInt vdeg, PetscBool *edgein, Vec U, Vec Ustar, Mat DF)
@@ -109,19 +109,19 @@ static PetscErrorCode NetRPNonlinearJac_ExactSWE(NetRP rp, PetscInt vdeg, PetscB
 
   PetscCall(VecRestoreArrayRead(U, &u));
   PetscCall(VecRestoreArrayRead(Ustar, &ustar));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NRPSetFromOptions_ExactSWE(PetscOptionItems *PetscOptionsObject, NetRP rp)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode NRPView_ExactSWE(NetRP rp, PetscViewer viewer)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PETSC_EXTERN PetscErrorCode NetRPCreate_ExactSWE(NetRP rp)
@@ -136,5 +136,5 @@ PETSC_EXTERN PetscErrorCode NetRPCreate_ExactSWE(NetRP rp)
   rp->solvetype           = Nonlinear;
 
   rp->numfields = 2;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -225,7 +225,7 @@ PetscErrorCode RiemannListAdd(PetscFunctionList *flist, const char *name, Rieman
   PetscFunctionBeginUser;
   ierr = PetscFunctionListAdd(flist, name, rsolve);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode RiemannListFind(PetscFunctionList flist, const char *name, RiemannFunction *rsolve)
@@ -236,7 +236,7 @@ PetscErrorCode RiemannListFind(PetscFunctionList flist, const char *name, Rieman
   ierr = PetscFunctionListFind(flist, name, rsolve);
   CHKERRQ(ierr);
   if (!*rsolve) SETERRQ1(PETSC_COMM_SELF, 1, "Riemann solver \"%s\" could not be found", name);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode ReconstructListAdd(PetscFunctionList *flist, const char *name, ReconstructFunction r)
@@ -246,7 +246,7 @@ PetscErrorCode ReconstructListAdd(PetscFunctionList *flist, const char *name, Re
   PetscFunctionBeginUser;
   ierr = PetscFunctionListAdd(flist, name, r);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode ReconstructListFind(PetscFunctionList flist, const char *name, ReconstructFunction *r)
@@ -257,7 +257,7 @@ PetscErrorCode ReconstructListFind(PetscFunctionList flist, const char *name, Re
   ierr = PetscFunctionListFind(flist, name, r);
   CHKERRQ(ierr);
   if (!*r) SETERRQ1(PETSC_COMM_SELF, 1, "Reconstruction \"%s\" could not be found", name);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* --------------------------------- Physics ----------------------------------- */
@@ -277,7 +277,7 @@ static PetscErrorCode PhysicsCharacteristic_Conservative(void *vctx, PetscInt m,
     for (j = 0; j < m; j++) Xi[i * m + j] = X[i * m + j] = (PetscScalar)(i == j);
     speeds[i] = PETSC_MAX_REAL; /* Indicates invalid */
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PhysicsDestroy_SimpleFree(void *vctx)
@@ -287,7 +287,7 @@ static PetscErrorCode PhysicsDestroy_SimpleFree(void *vctx)
   PetscFunctionBeginUser;
   ierr = PetscFree(vctx);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* --------------------------------- Isothermal Gas Dynamics ----------------------------------- */
@@ -338,7 +338,7 @@ static PetscErrorCode PhysicsSample_IsoGas(void *vctx, PetscInt initial, FVBCTyp
   default:
     SETERRQ(PETSC_COMM_SELF, 1, "unknown initial condition");
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PhysicsRiemann_IsoGas_Roe(void *vctx, PetscInt m, const PetscScalar *uL, const PetscScalar *uR, PetscScalar *flux, PetscReal *maxspeed)
@@ -384,7 +384,7 @@ static PetscErrorCode PhysicsRiemann_IsoGas_Roe(void *vctx, PetscInt m, const Pe
     }
   }
   *maxspeed = MaxAbs(lam[0], lam[1]);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PhysicsRiemann_IsoGas_Exact(void *vctx, PetscInt m, const PetscScalar *uL, const PetscScalar *uR, PetscScalar *flux, PetscReal *maxspeed)
@@ -447,7 +447,7 @@ converged:
     IsoGasFlux(c, ustar, flux);
   }
   *maxspeed = MaxAbs(MaxAbs(star.u - c, star.u + c), MaxAbs(L.u - c, R.u + c));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PhysicsRiemann_IsoGas_Rusanov(void *vctx, PetscInt m, const PetscScalar *uL, const PetscScalar *uR, PetscScalar *flux, PetscReal *maxspeed)
@@ -466,7 +466,7 @@ static PetscErrorCode PhysicsRiemann_IsoGas_Rusanov(void *vctx, PetscInt m, cons
   flux[0]   = 0.5 * (fL[0] + fR[0]) + 0.5 * s * (uL[0] - uR[0]);
   flux[1]   = 0.5 * (fL[1] + fR[1]) + 0.5 * s * (uL[1] - uR[1]);
   *maxspeed = s;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PhysicsCharacteristic_IsoGas(void *vctx, PetscInt m, const PetscScalar *u, PetscScalar *X, PetscScalar *Xi, PetscReal *speeds)
@@ -486,7 +486,7 @@ static PetscErrorCode PhysicsCharacteristic_IsoGas(void *vctx, PetscInt m, const
   CHKERRQ(ierr);
   ierr = PetscKernel_A_gets_inverse_A_2(Xi, 0, PETSC_FALSE, NULL);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PhysicsCreate_IsoGas(FVCtx *ctx)
@@ -539,7 +539,7 @@ static PetscErrorCode PhysicsCreate_IsoGas(FVCtx *ctx)
   CHKERRQ(ierr);
   ierr = PetscFunctionListDestroy(&rclist);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* --------------------------------- Shallow Water ----------------------------------- */
@@ -637,7 +637,7 @@ converged:
     ShallowFlux(phys, ustar, flux);
   }
   *maxspeed = MaxAbs(MaxAbs(star.u - cstar, star.u + cstar), MaxAbs(L.u - cL, R.u + cR));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 // computes flux to the right and left, and maxspeed
 static PetscErrorCode PhysicsRiemann_Shallow_Rusanov(void *vctx, PetscInt m, const PetscScalar *uL, const PetscScalar *uR, PetscScalar *flux, PetscReal *maxspeed)
@@ -656,7 +656,7 @@ static PetscErrorCode PhysicsRiemann_Shallow_Rusanov(void *vctx, PetscInt m, con
   flux[0]   = 0.5 * (fL[0] + fR[0]) + 0.5 * s * (uL[0] - uR[0]);
   flux[1]   = 0.5 * (fL[1] + fR[1]) + 0.5 * s * (uL[1] - uR[1]);
   *maxspeed = s;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 //computes speeds(eigenvalues) and  Xi(eigenvectors)
 static PetscErrorCode PhysicsCharacteristic_Shallow(void *vctx, PetscInt m, const PetscScalar *u, PetscScalar *X, PetscScalar *Xi, PetscReal *speeds)
@@ -677,7 +677,7 @@ static PetscErrorCode PhysicsCharacteristic_Shallow(void *vctx, PetscInt m, cons
   CHKERRQ(ierr);
   ierr = PetscKernel_A_gets_inverse_A_2(Xi, 0, PETSC_FALSE, NULL);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PhysicsCreate_Shallow(FVCtx *ctx)
@@ -729,7 +729,7 @@ static PetscErrorCode PhysicsCreate_Shallow(FVCtx *ctx)
   CHKERRQ(ierr);
   ierr = PetscFunctionListDestroy(&rclist);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* --------------------------------- Finite Volume Solver ----------------------------------- */
@@ -862,7 +862,7 @@ static PetscErrorCode FVRHSFunction(TS ts, PetscReal time, Vec X, Vec F, void *v
       } else SETERRQ2(PETSC_COMM_SELF, 1, "Stability constraint exceeded, %g > %g", (double)dt, (double)(ctx->cfl / ctx->cfl_idt));
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 #if 0
@@ -878,7 +878,7 @@ static PetscErrorCode SmallMatMultADB(PetscScalar *C,PetscInt bs,const PetscScal
       C[i*bs+j] = tmp;
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode FVIJacobian(TS ts,PetscReal t,Vec X,Vec Xdot,PetscReal shift,Mat A,Mat B,void *vctx)
@@ -914,7 +914,7 @@ static PetscErrorCode FVIJacobian(TS ts,PetscReal t,Vec X,Vec Xdot,PetscReal shi
     ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 #endif
 
@@ -961,7 +961,7 @@ static PetscErrorCode FVSample(FVCtx *ctx, DM da, PetscReal time, Vec U)
   CHKERRQ(ierr);
   ierr = PetscFree(uj);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode SolutionStatsView(DM da, Vec X, PetscViewer viewer)
@@ -1011,7 +1011,7 @@ static PetscErrorCode SolutionStatsView(DM da, Vec X, PetscViewer viewer)
     ierr = PetscViewerASCIIPrintf(viewer, "Solution range [%8.5f,%8.5f] with extrema at %D and %D, mean %8.5f, ||x||_TV %8.5f\n", (double)xmin, (double)xmax, imin, imax, (double)(sum / Mx), (double)(tvgsum / Mx));
     CHKERRQ(ierr);
   } else SETERRQ(PETSC_COMM_SELF, 1, "Viewer type not supported");
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode SolutionErrorNorms(FVCtx *ctx, DM da, PetscReal t, Vec X, PetscReal *nrm1, PetscReal *nrmsup)
@@ -1036,7 +1036,7 @@ static PetscErrorCode SolutionErrorNorms(FVCtx *ctx, DM da, PetscReal t, Vec X, 
   *nrm1 /= Mx;
   ierr = VecDestroy(&Y);
   CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 int main(int argc, char *argv[])

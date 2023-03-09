@@ -18,7 +18,7 @@ static inline PetscErrorCode FluxFunDestroy_Default(FluxFunction *flux)
   PetscCall(PetscFree((*flux)->user));
   for (field = 0; field < (*flux)->dof; field++) { PetscCall(PetscFree((*flux)->fieldname[field])); }
   *flux = NULL;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* --------------------------------- Shallow Water ----------------------------------- */
@@ -31,7 +31,7 @@ static inline PetscErrorCode ShallowFlux(void *ctx, const PetscReal *u, PetscRea
   ShallowCtx *phys = (ShallowCtx *)ctx;
   f[0]             = u[1];
   f[1]             = PetscSqr(u[1]) / u[0] + 0.5 * phys->gravity * PetscSqr(u[0]);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 static inline void ShallowFluxVoid(void *ctx, const PetscReal *u, PetscReal *f)
 {
@@ -68,7 +68,7 @@ static PetscErrorCode PhysicsCharacteristic_Shallow_Mat(void *vctx, const PetscS
   PetscCall(MatSetValues(eigmat, m, idxm, n, idxn, (PetscReal *)X, INSERT_VALUES));
   MatAssemblyBegin(eigmat, MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(eigmat, MAT_FINAL_ASSEMBLY);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PhysicsFluxDer_Shallow(void *vctx, const PetscReal *u, Mat jacobian)
@@ -89,14 +89,14 @@ static PetscErrorCode PhysicsFluxDer_Shallow(void *vctx, const PetscReal *u, Mat
   PetscCall(MatSetValues(jacobian, m, idxm, n, idxn, (PetscReal *)X, INSERT_VALUES));
   MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 static PetscErrorCode PhysicsRoeAvg_Shallow(void *ctx, const PetscReal *uL, const PetscReal *uR, PetscReal *uavg)
 {
   PetscFunctionBeginUser;
   uavg[0] = (uL[0] + uR[0]) / 2.0;
   uavg[1] = uavg[0] * (uL[1] / PetscSqrtReal(uL[0]) + uR[1] / PetscSqrtReal(uR[0])) / (PetscSqrtReal(uL[0]) + PetscSqrtReal(uR[0]));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /* For the SWE the Roe matrix can be computed by the Flux jacobian evaluated at a roe average point */
 static PetscErrorCode PhysicsRoeMat_Shallow(void *ctx, const PetscReal *uL, const PetscReal *uR, Mat roe)
@@ -106,7 +106,7 @@ static PetscErrorCode PhysicsRoeMat_Shallow(void *ctx, const PetscReal *uL, cons
   PetscFunctionBeginUser;
   PetscCall(PhysicsRoeAvg_Shallow(ctx, uL, uR, roeavg));
   PetscCall(PhysicsFluxDer_Shallow(ctx, roeavg, roe));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /* Lax Curve evaluation function, for use in RiemannSolver */
 static PetscErrorCode LaxCurve_Shallow(RiemannSolver rs, const PetscReal *u, PetscReal hbar, PetscInt wavenumber, PetscReal *ubar)
@@ -134,7 +134,7 @@ static PetscErrorCode LaxCurve_Shallow(RiemannSolver rs, const PetscReal *u, Pet
     break;
   }
   ubar[0] = hbar;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode PhysicsCreate_Shallow(FluxFunction *fluxfun)
@@ -163,5 +163,5 @@ PetscErrorCode PhysicsCreate_Shallow(FluxFunction *fluxfun)
   flux->destroy  = FluxFunDestroy_Default;
 
   *fluxfun = flux;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

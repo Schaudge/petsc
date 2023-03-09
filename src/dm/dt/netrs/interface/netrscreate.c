@@ -34,5 +34,5 @@ PetscErrorCode NetRSCreate(MPI_Comm comm, NetRS *rs)
   r->setupcalled      = PETSC_FALSE;
   r->setupvectorspace = PETSC_FALSE;
   *rs                 = r;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

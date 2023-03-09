@@ -29,7 +29,7 @@ PETSC_INTERN PetscErrorCode RiemannSolverEvaluate_Lax(RiemannSolver rs, const Pe
   /* right portion */
   rs->fluxfun(ctx, uR, flux_eval);
   for (i = 0; i < rs->numfields; i++) { rs->flux_wrk[i] += 0.5 * (flux_eval[i] - rs->maxspeed * uR[i]); }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode RiemannSolverSetUp_Lax(RiemannSolver rs)
@@ -38,7 +38,7 @@ static PetscErrorCode RiemannSolverSetUp_Lax(RiemannSolver rs)
 
   PetscFunctionBegin;
   PetscCall(PetscMalloc1(rs->numfields, &lax->flux_eval));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode RiemannSolverReset_Lax(RiemannSolver rs)
@@ -47,7 +47,7 @@ static PetscErrorCode RiemannSolverReset_Lax(RiemannSolver rs)
 
   PetscFunctionBegin;
   PetscCall(PetscFree(lax->flux_eval));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode RiemannSolverDestroy_Lax(RiemannSolver rs)
@@ -55,19 +55,19 @@ static PetscErrorCode RiemannSolverDestroy_Lax(RiemannSolver rs)
   PetscFunctionBegin;
   PetscCall(RiemannSolverReset_Lax(rs));
   PetscCall(PetscFree(rs->data));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode RiemannSolverSetFromOptions_Lax(PetscOptionItems *PetscOptionsObject, RiemannSolver rs)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode RiemannSolverView_Lax(RiemannSolver rs, PetscViewer viewer)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /* ------------------------------------------------------------ */
 
@@ -93,5 +93,5 @@ PETSC_EXTERN PetscErrorCode RiemannSolverCreate_Lax(RiemannSolver rs)
   rs->ops->setfromoptions = RiemannSolverSetFromOptions_Lax;
   rs->ops->view           = RiemannSolverView_Lax;
   rs->ops->evaluate       = RiemannSolverEvaluate_Lax;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
