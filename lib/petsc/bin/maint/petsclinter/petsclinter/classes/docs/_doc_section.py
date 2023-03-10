@@ -463,10 +463,9 @@ class FunctionParameterList(ParameterList):
           )
       return new_cursor_list
 
-    arg_cursors = get_recursive_cursor_list(arg_cursors)
-    arg_names   = [a.name for a in arg_cursors if a.name]
-    arg_seen    = [False] * len(arg_names)
-    arg_not_found   = []
+    arg_cursors   = get_recursive_cursor_list(arg_cursors)
+    func_args     = [[False, a.name] for a in arg_cursors if a.name]
+    arg_not_found = []
 
     def mark_name_as_seen(name):
       idx = 0
@@ -474,21 +473,20 @@ class FunctionParameterList(ParameterList):
         # in case of multiple arguments of the same name, we need to loop until we
         # find an index that has not yet been found
         try:
-          idx = arg_names.index(name, idx)
+          idx = [y[1] for y in func_args].index(name, idx)
         except ValueError:
           return -1
-        if not arg_seen[idx]:
+        if not func_args[idx][0]:
           # argument exists and has not been found yet
           break
         # argument exists but has already been claimed
         idx += 1
-      arg_seen[idx] = True
+      func_args[idx][0] = True
       return idx
 
     solitary_param_diag = self.diags.solitary_parameter
     for group_idx, group in self.items.items():
-      indices = []
-      remove  = set()
+      remove = set()
       for i, (loc, descr_item, _) in enumerate(group):
         arg, sep = descr_item.arg, descr_item.sep
         if sep == ',' or ',' in arg:
@@ -518,12 +516,11 @@ class FunctionParameterList(ParameterList):
             ))
             remove.add(i)
           else:
-            indices.append(idx)
-            DescribableItem.cast(descr_item, sep='-').check(docstring, self, loc, expected_sep='-')
+            descr_item.check(docstring, self, loc, expected_sep='-')
 
       self.check_aligned_descriptions(docstring, [g for i, g in enumerate(group) if i not in remove])
 
-    args_left = [name for seen, name in zip(arg_seen, arg_names) if not seen]
+    args_left = [name for seen, name in func_args if not seen]
     if arg_not_found:
       diag         = self.diags.parameter_documentation
       base_message = "Extra docstring parameter '{}' not found in symbol parameter list:\n{}"
@@ -547,14 +544,13 @@ class FunctionParameterList(ParameterList):
           match_cursor = [c for c in arg_cursors if c.name == arg_match][0]
           message      = f'{message}\n\nmaybe you meant {match_cursor.get_formatted_blurb()}'
           args_left.remove(arg_match)
-          assert mark_name_as_seen(arg_match) != -1, f'{arg_match=} was not found in {arg_names=}'
-        # import ipdb; ipdb.set_trace()
+          assert mark_name_as_seen(arg_match) != -1, f'{arg_match=} was not found in {[name for name in func_args]}'
         docstring.add_error_from_diagnostic(Diagnostic(diag, message, loc.start, patch=patch))
 
     undoc_param_diag = self.diags.parameter_documentation
     for arg in args_left:
       idx = mark_name_as_seen(arg)
-      assert idx != -1, f'{arg=} was not found in {arg_names=}'
+      assert idx != -1, f'{arg=} was not found in {[name for name in func_args]}'
       diag = docstring.make_diagnostic(
         undoc_param_diag, f'Undocumented parameter \'{arg}\' not found in parameter section',
         self.extent, highlight=False
