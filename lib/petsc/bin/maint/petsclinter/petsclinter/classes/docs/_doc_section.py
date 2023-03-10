@@ -466,7 +466,7 @@ class FunctionParameterList(ParameterList):
     arg_cursors = get_recursive_cursor_list(arg_cursors)
     arg_names   = [a.name for a in arg_cursors if a.name]
     arg_seen    = [False] * len(arg_names)
-    not_found   = []
+    arg_not_found   = []
 
     def mark_name_as_seen(name):
       idx = 0
@@ -486,7 +486,7 @@ class FunctionParameterList(ParameterList):
       return idx
 
     solitary_param_diag = self.diags.solitary_parameter
-    for _, group in self.items.items():
+    for group_idx, group in self.items.items():
       indices = []
       remove  = set()
       for i, (loc, descr_item, _) in enumerate(group):
@@ -513,7 +513,9 @@ class FunctionParameterList(ParameterList):
           idx = mark_name_as_seen(sub)
           if idx == -1:
             # argument was not found at all
-            not_found.append((sub, docstring.make_source_range(sub, descr_item.text, loc.start.line)))
+            arg_not_found.append((
+              sub, docstring.make_source_range(sub, descr_item.text, loc.start.line), group_idx
+            ))
             remove.add(i)
           else:
             indices.append(idx)
@@ -522,14 +524,14 @@ class FunctionParameterList(ParameterList):
       self.check_aligned_descriptions(docstring, [g for i, g in enumerate(group) if i not in remove])
 
     args_left = [name for seen, name in zip(arg_seen, arg_names) if not seen]
-    if not_found:
+    if arg_not_found:
       diag         = self.diags.parameter_documentation
       base_message = "Extra docstring parameter '{}' not found in symbol parameter list:\n{}"
-      for i, (arg, loc) in enumerate(not_found):
+      for i, (arg, loc, group_idx) in enumerate(arg_not_found):
         patch   = None
         message = base_message.format(arg, loc.formatted(num_context=2))
         try:
-          if (len(args_left) == 1) and (i == len(not_found) - 1):
+          if (len(args_left) == 1) and (i == len(arg_not_found) - 1):
             # if we only have 1 arg left and 1 wasn't found, chances are they are meant to
             # be the same
             arg_match = args_left[0]
@@ -546,6 +548,7 @@ class FunctionParameterList(ParameterList):
           message      = f'{message}\n\nmaybe you meant {match_cursor.get_formatted_blurb()}'
           args_left.remove(arg_match)
           assert mark_name_as_seen(arg_match) != -1, f'{arg_match=} was not found in {arg_names=}'
+        # import ipdb; ipdb.set_trace()
         docstring.add_error_from_diagnostic(Diagnostic(diag, message, loc.start, patch=patch))
 
     undoc_param_diag = self.diags.parameter_documentation
