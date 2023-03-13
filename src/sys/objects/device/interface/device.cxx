@@ -330,7 +330,7 @@ PetscDeviceType PETSC_DEVICE_DEFAULT(void)
   return default_device_type.type;
 }
 
-/*@C
+/*@
   PetscDeviceSetDefaultDeviceType - Set the default device type for `PetscDevice`
 
   Not Collective

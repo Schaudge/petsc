@@ -9,13 +9,16 @@
 ! PetscDevice
 #define PetscDevice type(tPetscDevice)
 
-#define PetscDeviceType PetscEnum
-#define PetscDeviceInitType PetscEnum
+#define PetscDeviceInitType  PetscEnum
+#define PetscDeviceType      PetscEnum
+#define PetscDeviceAttribute PetscEnum
 
 ! PetscDeviceContext
 #define PetscDeviceContext type(tPetscDeviceContext)
 
-#define PetscStreamType PetscEnum
+#define PetscStreamType            PetscEnum
 #define PetscDeviceContextJoinMode PetscEnum
+#define PetscDeviceCopyMode        PetscEnum
+#define PetscMemoryAccessMode      PetscEnum
 
 #endif /* PETSC_FINCLUDE_PETSCDEVICE_H */

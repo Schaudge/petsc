@@ -13,24 +13,18 @@
 !
 ! PetscDeviceTypes
 !
-      PetscEnum, parameter :: PETSC_DEVICE_INVALID = 0
-      PetscEnum, parameter :: PETSC_DEVICE_CUDA    = 1
-      PetscEnum, parameter :: PETSC_DEVICE_HIP     = 2
-      PetscEnum, parameter :: PETSC_DEVICE_MAX     = 3
-#if defined(PETSC_HAVE_HIP)
-#  define PETSC_DEVICE_DEFAULT PETSC_DEVICE_HIP
-#elif defined(PETSC_HAVE_CUDA)
-#  define PETSC_DEVICE_DEFAULT PETSC_DEVICE_CUDA
-#else
-#  define PETSC_DEVICE_DEFAULT PETSC_DEVICE_INVALID
-#endif
+      PetscDeviceType, parameter :: PETSC_DEVICE_HOST = 0
+      PetscDeviceType, parameter :: PETSC_DEVICE_CUDA = 1
+      PetscDeviceType, parameter :: PETSC_DEVICE_HIP  = 2
+      PetscDeviceType, parameter :: PETSC_DEVICE_SYCL = 3
+      PetscDeviceType, parameter :: PETSC_DEVICE_MAX  = 4
 
 !
 !     PetscDeviceInitTypes
 !
-      PetscEnum, parameter :: PETSC_DEVICE_INIT_NONE = 0
-      PetscEnum, parameter :: PETSC_DEVICE_LAZY      = 1
-      PetscEnum, parameter :: PETSC_DEVICE_EAGER     = 2
+      PetscDeviceInitType, parameter :: PETSC_DEVICE_INIT_NONE = 0
+      PetscDeviceInitType, parameter :: PETSC_DEVICE_LAZY      = 1
+      PetscDeviceInitType, parameter :: PETSC_DEVICE_EAGER     = 2
 
 !
 ! PetscDeviceContext
@@ -42,14 +36,36 @@
 !
 ! PetscStreamTypes
 !
-      PetscEnum, parameter :: PETSC_STREAM_GLOBAL_BLOCKING    = 0
-      PetscEnum, parameter :: PETSC_STREAM_DEFAULT_BLOCKING   = 1
-      PetscEnum, parameter :: PETSC_STREAM_GLOBAL_NONBLOCKING = 2
-      PetscEnum, parameter :: PETSC_STREAM_MAX                = 3
+      PetscStreamType, parameter :: PETSC_STREAM_GLOBAL_BLOCKING    = 0
+      PetscStreamType, parameter :: PETSC_STREAM_DEFAULT_BLOCKING   = 1
+      PetscStreamType, parameter :: PETSC_STREAM_GLOBAL_NONBLOCKING = 2
+      PetscStreamType, parameter :: PETSC_STREAM_MAX                = 3
 
 !
 ! PetscDeviceContextJoinModes
 !
-      PetscEnum, parameter :: PETSC_DEVICE_CONTEXT_JOIN_DESTROY = 0
-      PetscEnum, parameter :: PETSC_DEVICE_CONTEXT_JOIN_SYNC    = 1
-      PetscEnum, parameter :: PETSC_DEVICE_CONTEXT_JOIN_NO_SYNC = 2
+      PetscDeviceContextJoinMode, parameter :: &
+      PETSC_DEVICE_CONTEXT_JOIN_DESTROY = 0
+      PetscDeviceContextJoinMode, parameter :: &
+      PETSC_DEVICE_CONTEXT_JOIN_SYNC    = 1
+      PetscDeviceContextJoinMode, parameter :: &
+      PETSC_DEVICE_CONTEXT_JOIN_NO_SYNC = 2
+
+!
+! PetscDeviceCopyMode
+!
+      PetscDeviceCopyMode, parameter :: PETSC_DEVICE_COPY_HTOH = 0
+      PetscDeviceCopyMode, parameter :: PETSC_DEVICE_COPY_DTOH = 1
+      PetscDeviceCopyMode, parameter :: PETSC_DEVICE_COPY_HTOD = 2
+      PetscDeviceCopyMode, parameter :: PETSC_DEVICE_COPY_DTOD = 3
+      PetscDeviceCopyMode, parameter :: PETSC_DEVICE_COPY_AUTO = 4
+
+!
+! PetscMemoryAccessMode
+!
+      PetscMemoryAccessMode, parameter :: &
+      PETSC_MEMORY_ACCESS_READ       = 1
+      PetscMemoryAccessMode, parameter :: &
+      PETSC_MEMORY_ACCESS_WRITE      = 2
+      PetscMemoryAccessMode, parameter :: &
+      PETSC_MEMORY_ACCESS_READ_WRITE = 3
