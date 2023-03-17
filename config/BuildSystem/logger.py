@@ -100,7 +100,7 @@ class Logger(args.ArgumentProcessor):
   defaultOut = sys.stdout
 
   def __init__(self, clArgs = None, argDB = None, log = None, out = defaultOut, debugLevel = None, debugSections = None, debugIndent = None):
-    args.ArgumentProcessor.__init__(self, clArgs, argDB)
+    super().__init__(clArgs, argDB)
     self.logName       = None
     self.log           = log
     self.out           = out
@@ -112,7 +112,7 @@ class Logger(args.ArgumentProcessor):
 
   def __getstate__(self):
     '''We do not want to pickle the default log stream'''
-    d = args.ArgumentProcessor.__getstate__(self)
+    d = super().__getstate__()
     if 'logBkp' in d:
         del d['logBkp']
     if 'log' in d:
@@ -129,7 +129,7 @@ class Logger(args.ArgumentProcessor):
 
   def __setstate__(self, d):
     '''We must create the default log stream'''
-    args.ArgumentProcessor.__setstate__(self, d)
+    super().__setstate__(d)
     if not 'log' in d:
       self.log = self.createLog(None)
     if not 'out' in d:
@@ -141,7 +141,7 @@ class Logger(args.ArgumentProcessor):
     '''Setup types in the argument database'''
     import nargs
 
-    argDB = args.ArgumentProcessor.setupArguments(self, argDB)
+    argDB = super().setupArguments(argDB)
     argDB.setType('log',           nargs.Arg(None, 'buildsystem.log', 'The filename for the log'))
     argDB.setType('logAppend',     nargs.ArgBool(None, 0, 'The flag determining whether we backup or append to the current log', isTemporary = 1))
     argDB.setType('debugLevel',    nargs.ArgInt(None, 3, 'Integer 0 to 4, where a higher level means more detail', 0, 5))
@@ -154,7 +154,7 @@ class Logger(args.ArgumentProcessor):
   def setup(self):
     '''Setup the terminal output and filtering flags'''
     self.log = self.createLog(self.logName, self.log)
-    args.ArgumentProcessor.setup(self)
+    super().setup()
 
     if self.argDB['noOutput']:
       self.out           = None

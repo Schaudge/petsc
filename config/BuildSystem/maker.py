@@ -14,7 +14,7 @@ class Make(script.Script):
     if clArgs is None:
       clArgs = sys.argv[1:]
     self.logName = 'build.log'
-    script.Script.__init__(self, clArgs, RDict.RDict())
+    super().__init__(clArgs, RDict.RDict())
     if builder is None:
       import sourceDatabase
       import config.framework
@@ -48,7 +48,7 @@ class Make(script.Script):
   def setupHelp(self, help):
     import nargs
 
-    help = script.Script.setupHelp(self, help)
+    help = super().setupHelp(help)
     help.addArgument('Make', 'forceConfigure', nargs.ArgBool(None, 0, 'Force a reconfiguration', isTemporary = 1))
     help.addArgument('Make', 'ignoreCompileOutput', nargs.ArgBool(None, 0, 'Ignore compiler output'))
     help.addArgument('Make', 'baseDirectory', nargs.ArgDir(None, '../..', 'Directory root for all packages', isTemporary = 1))
@@ -82,7 +82,7 @@ class Make(script.Script):
     return
 
   def setup(self):
-    script.Script.setup(self)
+    super().setup()
     self.builder.setup()
     self.setupDependencies(self.builder.sourceDB)
     return

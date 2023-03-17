@@ -156,7 +156,7 @@ tests will cause ValueError.
 class ArgBool(Arg):
   '''Arguments that represent boolean values'''
   def __init__(self, key, value = None, help = '', isTemporary = 0, deprecated = False):
-    Arg.__init__(self, key, value, help, isTemporary, deprecated)
+    super().__init__(key, value, help, isTemporary, deprecated)
     return
 
   def setValue(self, value):
@@ -178,7 +178,7 @@ class ArgBool(Arg):
 class ArgFuzzyBool(Arg):
   '''Arguments that represent boolean values of an extended set'''
   def __init__(self, key, value = None, help = '', isTemporary = 0, deprecated = False):
-    Arg.__init__(self, key, value, help, isTemporary, deprecated)
+    super().__init__(key, value, help, isTemporary, deprecated)
     return
 
   def valueName(self, value):
@@ -222,7 +222,7 @@ class ArgInt(Arg):
   def __init__(self, key, value = None, help = '', min = -2147483647, max = 2147483648, isTemporary = 0, deprecated = False):
     self.min = min
     self.max = max
-    Arg.__init__(self, key, value, help, isTemporary, deprecated)
+    super().__init__(key, value, help, isTemporary, deprecated)
     return
 
   def setValue(self, value):
@@ -242,7 +242,7 @@ class ArgReal(Arg):
   def __init__(self, key, value = None, help = '', min = -1.7976931348623157e308, max = 1.7976931348623157e308, isTemporary = 0, deprecated = False):
     self.min = min
     self.max = max
-    Arg.__init__(self, key, value, help, isTemporary, deprecated)
+    super().__init__(key, value, help, isTemporary, deprecated)
     return
 
   def setValue(self, value):
@@ -261,13 +261,13 @@ class ArgDir(Arg):
   '''Arguments that represent directories'''
   def __init__(self, key, value = None, help = '', mustExist = 1, isTemporary = 0, deprecated = False):
     self.mustExist = mustExist
-    Arg.__init__(self, key, value, help, isTemporary, deprecated)
+    super().__init__(key, value, help, isTemporary, deprecated)
     return
 
   def getValue(self):
     '''Returns the value. SHOULD MAKE THIS A PROPERTY'''
     if not self.isValueSet():
-      return Arg.getValue(self)
+      return super().getValue()
     return self.value
 
   def setValue(self, value):
@@ -288,13 +288,13 @@ class ArgDirList(Arg):
   '''Arguments that represent directory lists'''
   def __init__(self, key, value = None, help = '', mustExist = 1, isTemporary = 0, deprecated = False):
     self.mustExist = mustExist
-    Arg.__init__(self, key, value, help, isTemporary, deprecated)
+    super().__init__(key, value, help, isTemporary, deprecated)
     return
 
   def getValue(self):
     '''Returns the value. SHOULD MAKE THIS A PROPERTY'''
     if not self.isValueSet():
-      return Arg.getValue(self)
+      return super().getValue()
     return self.value
 
   def setValue(self, value):
@@ -319,13 +319,13 @@ class ArgFile(Arg):
   '''Arguments that represent a file'''
   def __init__(self, key, value = None, help = '', mustExist = 1, isTemporary = 0, deprecated = False):
     self.mustExist = mustExist
-    Arg.__init__(self, key, value, help, isTemporary, deprecated)
+    super().__init__(key, value, help, isTemporary, deprecated)
     return
 
   def getValue(self):
     '''Returns the value. SHOULD MAKE THIS A PROPERTY'''
     if not self.isValueSet():
-      return Arg.getValue(self)
+      return super().getValue()
     return self.value
 
   def setValue(self, value):
@@ -346,13 +346,13 @@ class ArgFileList(Arg):
   '''Arguments that represent file lists'''
   def __init__(self, key, value = None, help = '', mustExist = 1, isTemporary = 0, deprecated = False):
     self.mustExist = mustExist
-    Arg.__init__(self, key, value, help, isTemporary, deprecated)
+    super().__init__(key, value, help, isTemporary, deprecated)
     return
 
   def getValue(self):
     '''Returns the value. SHOULD MAKE THIS A PROPERTY'''
     if not self.isValueSet():
-      return Arg.getValue(self)
+      return super().getValue()
     return self.value
 
   def setValue(self, value):
@@ -377,13 +377,13 @@ class ArgLibrary(Arg):
   '''Arguments that represent libraries'''
   def __init__(self, key, value = None, help = '', mustExist = 1, isTemporary = 0, deprecated = False):
     self.mustExist = mustExist
-    Arg.__init__(self, key, value, help, isTemporary, deprecated)
+    super().__init__(key, value, help, isTemporary, deprecated)
     return
 
   def getValue(self):
     '''Returns the value. SHOULD MAKE THIS A PROPERTY'''
     if not self.isValueSet():
-      return Arg.getValue(self)
+      return super().getValue()
     return self.value
 
   def setValue(self, value):
@@ -401,13 +401,13 @@ class ArgExecutable(Arg):
   '''Arguments that represent executables'''
   def __init__(self, key, value = None, help = '', mustExist = 1, isTemporary = 0, deprecated = False):
     self.mustExist = mustExist
-    Arg.__init__(self, key, value, help, isTemporary, deprecated)
+    super().__init__(self, key, value, help, isTemporary, deprecated)
     return
 
   def getValue(self):
     '''Returns the value. SHOULD MAKE THIS A PROPERTY'''
     if not self.isValueSet():
-      return Arg.getValue(self)
+      return super().getValue()
     return self.value
 
   def checkExecutable(self, dir, name):
@@ -446,7 +446,7 @@ class ArgString(Arg):
     if self.regExp:
       import re
       self.re = re.compile(self.regExp)
-    Arg.__init__(self, key, value, help, isTemporary, deprecated)
+    super().__init__(key, value, help, isTemporary, deprecated)
     return
 
   def setValue(self, value):
@@ -460,7 +460,7 @@ class ArgString(Arg):
 class ArgDownload(Arg):
   '''Arguments that represent software downloads'''
   def __init__(self, key, value = None, help = '', isTemporary = 0, deprecated = False):
-    Arg.__init__(self, key, value, help, isTemporary, deprecated)
+    super().__init__(key, value, help, isTemporary, deprecated)
     return
 
   def valueName(self, value):

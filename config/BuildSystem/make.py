@@ -5,28 +5,28 @@ import os
 
 class Make(maker.Make):
   def __init__(self):
-    maker.Make.__init__(self)
+    super().__init__()
     self.project = project.Project('https://bitbucket.org/petsc/buildsystem', self.getRoot())
     self.project.setWebDirectory('petsc@login.mcs.anl.gov://mcs/www-unix/ase')
     return
 
   def setupDependencies(self, sourceDB):
-    maker.Make.setupDependencies(self, sourceDB)
+    super().setupDependencies(self, sourceDB)
     sourceDB.addDependency(os.path.join('client-python', 'cygwinpath.c'), os.path.join('client-python', 'cygwinpath.h'))
     return
 
   def updateDependencies(self, sourceDB):
     sourceDB.updateSource(os.path.join('client-python', 'cygwinpath.h'))
-    maker.Make.updateDependencies(self, sourceDB)
+    super().updateDependencies(sourceDB)
     return
 
   def setupConfigure(self, framework):
-    doConfigure = maker.Make.setupConfigure(self, framework)
+    doConfigure = super().setupConfigure(framework)
     framework.header = os.path.join('client-python', 'cygwinpath.h')
     return doConfigure
 
   def configure(self, builder):
-    framework   = maker.Make.configure(self, builder)
+    framework   = super().configure(builder)
     self.python = framework.require('config.python', None)
     return
 

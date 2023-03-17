@@ -11,7 +11,7 @@ urlparse_local.uses_netloc.extend(['bk', 'ssh', 'svn'])
 
 class Retriever(logger.Logger):
   def __init__(self, sourceControl, clArgs = None, argDB = None):
-    logger.Logger.__init__(self, clArgs, argDB)
+    super().__init__(clArgs, argDB)
     self.sourceControl = sourceControl
     self.gitsubmodules = []
     self.gitprereq = 1
