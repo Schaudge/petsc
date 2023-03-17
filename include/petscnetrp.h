@@ -78,8 +78,8 @@ PETSC_EXTERN PetscErrorCode NetRPGetFlux(NetRP, RiemannSolver *);
 
 PETSC_EXTERN PetscErrorCode NetRPCanSolveStar(NetRP, PetscBool *);
 
-PETSC_EXTERN PetscErrorCode NetRPSolveStar(NetRP, PetscInt, PetscBool *, Vec, Vec);
-PETSC_EXTERN PetscErrorCode NetRPSolveFlux(NetRP, PetscInt, PetscBool *, Vec, Vec);
+PETSC_EXTERN PetscErrorCode NetRPSolveStar(NetRP, PetscInt, PetscInt, PetscBool *, Vec, Vec);
+PETSC_EXTERN PetscErrorCode NetRPSolveFlux(NetRP, PetscInt, PetscInt, PetscBool *, Vec, Vec);
 
 /* Providing extra information to the cacheing ability of the problem */
 

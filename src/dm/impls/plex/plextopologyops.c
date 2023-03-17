@@ -23,7 +23,7 @@ PetscErrorCode DMPlexDisjointUnion_Topological_Section(DM *plexlist, PetscInt nu
   PetscInt       *numpoints_g, *coneSize_g, *cones_g, *coneOrientations_g, coneSize, off, prevtotal;
   const PetscInt *cone, *coneOrientation;
   DMType          dmtype;
-  MPI_Comm        comm, comm_prev;
+  MPI_Comm        comm;
   PetscSection    offsets;
   char            fieldname[64];
   DM              dm_sum;
@@ -32,7 +32,6 @@ PetscErrorCode DMPlexDisjointUnion_Topological_Section(DM *plexlist, PetscInt nu
   PetscFunctionBegin;
   /* input checks */
   if (numplex <= 0) PetscFunctionReturn(PETSC_SUCCESS);
-  comm_prev = PetscObjectComm((PetscObject)plexlist[0]);
   for (i = 0; i < numplex; i++) {
     comm = PetscObjectComm((PetscObject)plexlist[i]);
     PetscCall(DMGetType(plexlist[i], &dmtype));
@@ -40,7 +39,7 @@ PetscErrorCode DMPlexDisjointUnion_Topological_Section(DM *plexlist, PetscInt nu
     if (!flag) SETERRQ(comm, PETSC_ERR_ARG_WRONG, "Wrong DM: %s Object must be DMPlex", dmtype);
     if (i == 0) continue;
     else {
-      PetscCheckSameComm((PetscObject)plexlist[i], 1, (PetscObject)plexlist[i], 2);
+      PetscCheckSameComm((PetscObject)plexlist[i], 1, (PetscObject)plexlist[i-1], 1);
     }
   }
   /* Acquire maximum depth size and topological dimension across all dms, and total chartsize */

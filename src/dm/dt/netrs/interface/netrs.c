@@ -1,3 +1,5 @@
+#include "petscnetrp.h"
+#include "petscsystypes.h"
 #include <petscnetrs.h> /*I "petscnetrs.h" I*/
 #include <petsc/private/netrsimpl.h>
 #include <petsc/private/riemannsolverimpl.h> /* to be removed after adding fluxfunction class */
@@ -157,7 +159,7 @@ PetscErrorCode NetRSDestroy(NetRS *rs)
   PetscCall(PetscHMapNetRPIDestroy(&(*rs)->netrphmap));
   PetscCall(PetscHMapIDestroy(&(*rs)->dofs_to_Vec));
   PetscCall(ISDestroy(&(*rs)->is_wrk));
-  if ((*rs)->rs) (RiemannSolverDestroy(&(*rs)->rs));
+  if ((*rs)->rs) PetscCall(RiemannSolverDestroy(&(*rs)->rs));
   PetscCall(PetscHeaderDestroy(rs));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -509,11 +511,13 @@ static PetscErrorCode NetRSSetNetRPPhysics(NetRS rs)
 PetscErrorCode NetRSSetUpVectorSpace(NetRS rs)
 {
   PetscInt        v, numnetrp, i, j, compindex, size, numfields, vdeg, maxsize, off, index, maxdeg, maxnumfields, vStart, vEnd;
-  PetscInt       *vals, *keys, *vdegs, *dofs;
+  PetscInt       *vals, *keys, *indeg,*outdeg, *vdegs,*dofs;
   const PetscInt *v_subgraph;
   char            compname[64];
   PetscBool       flg;
   PetscHSetI      vec_wrk_size;
+  PetscHashIJKey  *ijkey; 
+
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs, NETRS_CLASSID, 1);
@@ -567,17 +571,21 @@ PetscErrorCode NetRSSetUpVectorSpace(NetRS rs)
     PetscCall(PetscHSetIGetSize(rs->vertexdegrees[i], &size));
     if (size > maxsize) maxsize = size;
   }
-  PetscCall(PetscMalloc1(maxsize, &vdegs));
+  PetscCall(PetscMalloc3(maxsize, &ijkey,maxsize,&indeg,maxsize,&outdeg));
   maxdeg = 0;
   for (i = 0; i < numnetrp; i++) {
     off = 0;
-    PetscCall(PetscHSetIGetElems(rs->vertexdegrees[i], &off, vdegs));
-    PetscCall(NetRPAddVertexDegrees(rs->netrp[i], off, vdegs));
+    PetscCall(PetscHSetIJGetElems(rs->inoutdegs[i], &off, ijkey));
+    for(j=0; j<off; j++) {
+      indeg[j] = ijkey[j].i; 
+      outdeg[j] = ijkey[j].j; 
+    }
+    PetscCall(NetRPCacheSolvers(rs->netrp[i], off, indeg,outdeg));
     for (j = 0; j < off; j++) {
-      if (vdegs[j] > maxdeg) maxdeg = vdegs[j];
+      if (indeg[j]+outdeg[j] > maxdeg) maxdeg = indeg[j]+outdeg[j];
     }
   }
-  PetscCall(PetscFree(vdegs));
+  PetscCall(PetscFree3(ijkey,indeg,outdeg));
   /* create IS wrk array for indices */
   PetscCall(PetscMalloc1(maxdeg * maxnumfields, &rs->is_wrk_index));
   /* create boolean wrk array for edge in */
@@ -618,7 +626,7 @@ PetscErrorCode NetRSSetUpVectorSpace(NetRS rs)
   off = 0;
   PetscCall(PetscHMapIGetPairs(rs->vertex_shared_offset, &off, keys, vals));
 
-  /*iterate through the shared vertex offsets and, if belonging to a netrp adjust offset 
+  /* iterate through the shared vertex offsets and, if belonging to a netrp adjust offset 
   by that netrp's numfields. Note this may be different for different vertices in this general implementation */
   PetscCall(DMNetworkGetVertexRange(rs->network, &vStart, &vEnd));
   PetscCall(DMLabelCreateIndex(rs->subgraphs, vStart, vEnd));
@@ -748,6 +756,7 @@ PetscErrorCode DMNetworkCacheInOutVertexDegrees(NetRS rs, DM network)
   /* no new entries will be added, compute index for faster membership lookup */
   PetscCall(DMLabelCreateIndex(rs->OutVertexDeg, vStart, vEnd));
   PetscCall(PetscFree2(rootdata, leafdata));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
@@ -1141,10 +1150,9 @@ PetscErrorCode DMNetworkComputeUniqueVertexDegreesLocal(NetRS rs, DM network, DM
 @*/
 PetscErrorCode DMNetworkComputeUniqueVertexInOutDegreesLocal(NetRS rs, DM network, DMLabel marked, PetscHSetIJ *inoutdegs, PetscHSetIJ inoutdeg_total)
 {
-  PetscInt        numsubgraphs, i, j, v, vStart, vEnd, vdeg, numpoints;
+  PetscInt        numsubgraphs, i, j, v, vStart, vEnd, numpoints;
   IS              values_is, point_is;
   const PetscInt *values, *points;
-  PetscBool       flg;
   PetscHashIJKey  ijkey; 
 
   PetscFunctionBegin;
@@ -1253,7 +1261,7 @@ PetscErrorCode NetRSCreateLocalVec(NetRS rs, Vec *localvec)
 /* currently does every! solve on the vertex, so only communication of Uloc not Fluxloc*/
 PetscErrorCode NetRSSolveFlux(NetRS rs, Vec Uloc, Vec Fluxloc)
 {
-  PetscInt           i, j, index, numnetrp, nvert, ndofs, v, off, vdeg, edgeinoff, wrk_vec_index;
+  PetscInt           i, j, index, numnetrp, nvert, ndofs, v, off, vdeg, vdegin,vdegout, edgeinoff, wrk_vec_index;
   const PetscInt    *v_subgraph, *edges, *cone;
   PetscBool          flg, *edgein;
   MPI_Comm           comm;
@@ -1309,8 +1317,15 @@ PetscErrorCode NetRSSolveFlux(NetRS rs, Vec Uloc, Vec Fluxloc)
           edgein[j] = (cone[1] == v) ? PETSC_TRUE : PETSC_FALSE;
         }
       }
+      // compute the vdegin and vdegout (should be stored in DMNetwork?)
+      vdegin = 0; 
+      vdegout = 0; 
+      for(j=0; j<vdeg; j++) {
+        if (edgein[j] == PETSC_TRUE) vdegin++; 
+        else vdegout++; 
+      }
       PetscLogEventEnd(NetRS_Solve_TopologyBuild, 0, 0, 0, 0);
-      PetscCall(NetRPSolveFlux(rs->netrp[index], vdeg, edgein, rs->Uv[wrk_vec_index], rs->Fluxv[wrk_vec_index]));
+      PetscCall(NetRPSolveFlux(rs->netrp[index], vdegin,vdegout, edgein, rs->Uv[wrk_vec_index], rs->Fluxv[wrk_vec_index]));
       PetscCall(VecResetArray(rs->Uv[wrk_vec_index]));
       PetscCall(VecResetArray(rs->Fluxv[wrk_vec_index]));
     }
@@ -1325,7 +1340,7 @@ PetscErrorCode NetRSSolveFlux(NetRS rs, Vec Uloc, Vec Fluxloc)
 /* currently does every! solve on the vertex, so only communication of Uloc not Fluxloc*/
 PetscErrorCode NetRSSolveFluxBegin(NetRS rs, Vec Uloc, Vec Fluxloc)
 {
-  PetscInt           i, j, index, numnetrp, nvert, ndofs, v, off, vdeg, edgeinoff, wrk_vec_index;
+  PetscInt           i, j, index, numnetrp, nvert, ndofs, v, off, vdeg,vdegin,vdegout, edgeinoff, wrk_vec_index;
   const PetscInt    *v_subgraph, *edges, *cone;
   PetscBool          flg, *edgein;
   MPI_Comm           comm;
@@ -1380,8 +1395,15 @@ PetscErrorCode NetRSSolveFluxBegin(NetRS rs, Vec Uloc, Vec Fluxloc)
           edgein[j] = (cone[1] == v) ? PETSC_TRUE : PETSC_FALSE;
         }
       }
+       // compute the vdegin and vdegout (should be stored in DMNetwork?)
+      vdegin = 0; 
+      vdegout = 0; 
+      for(j=0; j<vdeg; j++) {
+        if (edgein[j] == PETSC_TRUE) vdegin++; 
+        else vdegout++; 
+      }
       PetscLogEventEnd(NetRS_Solve_TopologyBuild, 0, 0, 0, 0);
-      PetscCall(NetRPSolveFlux(rs->netrp[index], vdeg, edgein, rs->Uv[wrk_vec_index], rs->Fluxv[wrk_vec_index]));
+      PetscCall(NetRPSolveFlux(rs->netrp[index], vdegin,vdegout, edgein, rs->Uv[wrk_vec_index], rs->Fluxv[wrk_vec_index]));
       PetscCall(VecResetArray(rs->Uv[wrk_vec_index]));
       PetscCall(VecResetArray(rs->Fluxv[wrk_vec_index]));
     }
@@ -1400,7 +1422,7 @@ PetscErrorCode NetRSSolveFluxBegin(NetRS rs, Vec Uloc, Vec Fluxloc)
 
 PetscErrorCode NetRSSolveFluxEnd(NetRS rs, Vec Uloc, Vec Fluxloc)
 {
-  PetscInt           i, j, index, numnetrp, nvert, ndofs, v, off, vdeg, edgeinoff, wrk_vec_index;
+  PetscInt           i, j, index, numnetrp, nvert, ndofs, v, off, vdeg,vdegin,vdegout, edgeinoff, wrk_vec_index;
   const PetscInt    *v_subgraph, *edges, *cone;
   PetscBool          flg, *edgein;
   MPI_Comm           comm;
@@ -1453,8 +1475,15 @@ PetscErrorCode NetRSSolveFluxEnd(NetRS rs, Vec Uloc, Vec Fluxloc)
           edgein[j] = (cone[1] == v) ? PETSC_TRUE : PETSC_FALSE;
         }
       }
+       // compute the vdegin and vdegout (should be stored in DMNetwork?)
+      vdegin = 0; 
+      vdegout = 0; 
+      for(j=0; j<vdeg; j++) {
+        if (edgein[j] == PETSC_TRUE) vdegin++; 
+        else vdegout++; 
+      }
       PetscLogEventEnd(NetRS_Solve_TopologyBuild, 0, 0, 0, 0);
-      PetscCall(NetRPSolveFlux(rs->netrp[index], vdeg, edgein, rs->Uv[wrk_vec_index], rs->Fluxv[wrk_vec_index]));
+      PetscCall(NetRPSolveFlux(rs->netrp[index], vdegin,vdegout, edgein, rs->Uv[wrk_vec_index], rs->Fluxv[wrk_vec_index]));
       PetscCall(VecResetArray(rs->Uv[wrk_vec_index]));
       PetscCall(VecResetArray(rs->Fluxv[wrk_vec_index]));
     }

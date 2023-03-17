@@ -954,7 +954,7 @@ PetscErrorCode RiemannSolverTestEigDecomposition(RiemannSolver rs, PetscInt numv
       if (viewer) {
         PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &isascii));
         if (isascii) {
-          PetscCall(PetscViewerASCIIPushTab(viewer);
+          PetscCall(PetscViewerASCIIPushTab(viewer));
           PetscCall(PetscViewerASCIIPrintf(viewer, " The EigenDecomposition Failed for the Following State: \n"));
           PetscCall(PetscScalarView(rs->numfields, u[i], viewer));
 
