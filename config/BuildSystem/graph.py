@@ -1,6 +1,6 @@
 from functools import reduce
 
-class DirectedGraph(object):
+class DirectedGraph:
   '''This class is for directed graphs with vertices of arbitrary type'''
   def __init__(self, vertices = []):
     '''Create a graph'''

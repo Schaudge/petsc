@@ -34,7 +34,7 @@ def getlangsplit(name):
     if loc > -1: return os.path.join(os.path.dirname(name),file[:loc])
     raise RuntimeError("No . in filename")
 
-class Mistakes(object):
+class Mistakes:
     def __init__(self, log, verbose=False):
         self.mistakes = []
         self.verbose = verbose
@@ -86,14 +86,14 @@ PetscPKGS = 'sys vec mat dm ksp snes ts tao'.split()
 LANGS = dict(kokkos_cxx='KOKKOS', c='C', cxx='CXX', cpp='CPP', cu='CU', F='F',
              F90='F90', hip_cpp='HIP', sycl_cxx='SYCL', raja_cxx='RAJA')
 
-class debuglogger(object):
+class debuglogger:
     def __init__(self, log):
         self._log = log
 
     def write(self, string):
         self._log.debug(string)
 
-class Petsc(object):
+class Petsc:
     def __init__(self, petsc_dir=None, petsc_arch=None, pkg_dir=None, pkg_name=None, pkg_arch=None, pkg_pkgs=None, verbose=False):
         if petsc_dir is None:
             petsc_dir = os.environ.get('PETSC_DIR')

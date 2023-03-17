@@ -1,4 +1,4 @@
-class ArgumentProcessor(object):
+class ArgumentProcessor:
   '''This class provides interaction with an RDict object, which by default is shared'''
   defaultDB = None
 

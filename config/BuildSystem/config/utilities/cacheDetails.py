@@ -3,7 +3,7 @@ import os
 import sys
 import collections
 
-class CacheAttribute(object):
+class CacheAttribute:
   def __init__(self, name, type_name, help_descr, default=None, min_value=0, max_value=min(sys.maxsize,2**31-1)):
     self.name      = str(name)
     self.type_name = str(type_name)

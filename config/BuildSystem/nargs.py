@@ -2,7 +2,7 @@ try:
   import readline
 except ImportError: pass
 
-class Arg(object):
+class Arg:
   '''This is the base class for all objects contained in RDict. Access to the raw argument values is
 provided by getValue() and setValue(). These objects can be thought of as type objects for the
 values themselves. It is possible to set an Arg in the RDict which has not yet been assigned a value

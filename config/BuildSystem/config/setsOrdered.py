@@ -75,7 +75,7 @@ except ImportError:
 
 __all__ = ['BaseSet', 'Set', 'ImmutableSet']
 
-class BaseSet(object):
+class BaseSet:
     """Common base class for mutable and immutable sets."""
 
     __slots__ = ['_data']
