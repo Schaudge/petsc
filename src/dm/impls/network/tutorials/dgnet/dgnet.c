@@ -452,7 +452,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
 PetscErrorCode DGNetworkSetComponents(DGNetwork dgnet)
 {
   PetscInt      f, e, v, eStart, eEnd, vStart, vEnd, dof = dgnet->physics.dof;
-  PetscInt      KeyEdge, KeyJunction, nedges, nvertices;
+  PetscInt      KeyEdge, KeyJunction, nedges;
   PetscInt     *edgelist = NULL, dmsize = 0, numdof = 0;
   EdgeFE        edgefe;
   DGNETJunction junction;
@@ -464,7 +464,6 @@ PetscErrorCode DGNetworkSetComponents(DGNetwork dgnet)
   PetscCall(MPI_Comm_rank(comm, &rank));
   PetscCall(MPI_Comm_size(comm, &size));
   nedges    = dgnet->nedge;
-  nvertices = dgnet->nvertex; /* local num of vertices, excluding ghosts */
   edgelist  = dgnet->edgelist;
   for (f = 0; f < dof; f++) { numdof += dgnet->physics.order[f] + 1; }
 

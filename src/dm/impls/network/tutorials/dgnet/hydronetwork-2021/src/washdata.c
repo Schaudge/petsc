@@ -83,51 +83,51 @@ PetscErrorCode WaterReadData(WATERDATA *water, const char *filename)
 
   /* Read file and get line numbers for different data segments */
   while (fgets(line, MAXLINE, fp)) {
-    if (strstr(line, "[TITLE]")) { GetDataSegment(fp, line, &title_start_pos, &ntitle); }
+    if (strstr(line, "[TITLE]")) { PetscCall(GetDataSegment(fp, line, &title_start_pos, &ntitle)); }
 
     if (strstr(line, "[JUNCTIONS]")) {
-      GetDataSegment(fp, line, &junc_start_pos, &nlines);
+      PetscCall(GetDataSegment(fp, line, &junc_start_pos, &nlines));
       water->nvertex += nlines;
       water->njunction = nlines;
     }
 
     if (strstr(line, "[INFLOWS]")) {
-      GetDataSegment(fp, line, &flow_start_pos, &nlines);
+      PetscCall(GetDataSegment(fp, line, &flow_start_pos, &nlines));
       water->nvertex += nlines;
       water->ninflow = nlines;
     }
 
     if (strstr(line, "[STAGES]")) {
-      GetDataSegment(fp, line, &stage_start_pos, &nlines);
+      PetscCall(GetDataSegment(fp, line, &stage_start_pos, &nlines));
       water->nvertex += nlines;
       water->nstage = nlines;
     }
 
     if (strstr(line, "[RESERVOIRS]")) {
-      GetDataSegment(fp, line, &res_start_pos, &nlines);
+     PetscCall(GetDataSegment(fp, line, &res_start_pos, &nlines));
       water->nvertex += nlines;
       water->nreservoir = nlines;
     }
 
     if (strstr(line, "[TANKS]")) {
-      GetDataSegment(fp, line, &tank_start_pos, &nlines);
+      PetscCall(GetDataSegment(fp, line, &tank_start_pos, &nlines));
       water->nvertex += nlines;
       water->ntank = nlines;
     }
 
     if (strstr(line, "[PIPES]")) {
-      GetDataSegment(fp, line, &pipe_start_pos, &nlines);
+      PetscCall(GetDataSegment(fp, line, &pipe_start_pos, &nlines));
       water->nedge += nlines;
       water->npipe = nlines;
     }
 
     if (strstr(line, "[PUMPS]")) {
-      GetDataSegment(fp, line, &pump_start_pos, &nlines);
+      PetscCall(GetDataSegment(fp, line, &pump_start_pos, &nlines));
       water->nedge += nlines;
       water->npump = nlines;
     }
 
-    if (strstr(line, "[CURVES]")) { GetDataSegment(fp, line, &curve_start_pos, &ncurve); }
+    if (strstr(line, "[CURVES]")) { PetscCall(GetDataSegment(fp, line, &curve_start_pos, &ncurve)); }
   }
 
   /* Allocate vertex and edge data structs */

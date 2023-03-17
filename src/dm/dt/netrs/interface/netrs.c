@@ -1,3 +1,4 @@
+#include "petscdmlabel.h"
 #include "petscnetrp.h"
 #include "petscsystypes.h"
 #include <petscnetrs.h> /*I "petscnetrs.h" I*/
@@ -66,6 +67,8 @@ PetscErrorCode NetRSReset(NetRS rs)
   PetscCall(DMDestroy(&rs->network));
   PetscCall(DMLabelReset(rs->subgraphs));
   PetscCall(DMLabelReset(rs->VertexDeg_shared));
+  PetscCall(DMLabelReset(rs->InVertexDeg));
+  PetscCall(DMLabelReset(rs->OutVertexDeg));
   PetscCall(PetscHMapNetRPIReset(rs->netrphmap));
   PetscCall(PetscHMapIDestroy(&rs->vertex_shared_offset));
   rs->vertexdeg_shared_cached = PETSC_FALSE;
@@ -156,6 +159,8 @@ PetscErrorCode NetRSDestroy(NetRS *rs)
   PetscCall(NetRSReset(*rs));
   PetscCall(DMLabelDestroy(&(*rs)->VertexDeg_shared));
   PetscCall(DMLabelDestroy(&(*rs)->subgraphs));
+  PetscCall(DMLabelDestroy(&(*rs)->InVertexDeg));
+  PetscCall(DMLabelDestroy(&(*rs)->OutVertexDeg));
   PetscCall(PetscHMapNetRPIDestroy(&(*rs)->netrphmap));
   PetscCall(PetscHMapIDestroy(&(*rs)->dofs_to_Vec));
   PetscCall(ISDestroy(&(*rs)->is_wrk));
@@ -568,7 +573,7 @@ PetscErrorCode NetRSSetUpVectorSpace(NetRS rs)
   PetscCall(DMNetworkComputeUniqueVertexInOutDegreesLocal(rs,rs->network,rs->subgraphs,rs->inoutdegs,rs->inoutdeg_total));
   maxsize = 0;
   for (i = 0; i < numnetrp; i++) {
-    PetscCall(PetscHSetIGetSize(rs->vertexdegrees[i], &size));
+    PetscCall(PetscHSetIJGetSize(rs->inoutdegs[i], &size));
     if (size > maxsize) maxsize = size;
   }
   PetscCall(PetscMalloc3(maxsize, &ijkey,maxsize,&indeg,maxsize,&outdeg));

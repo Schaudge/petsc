@@ -74,7 +74,7 @@ PetscErrorCode DGNetworkProject(DGNetwork dgnet, Vec X0, PetscReal t)
           coeff = xarr + offset + fieldoff + deg;
           for (q = 0; q < quadsize; q++) {
             /* Evaluate the sample function at the quadrature point */
-            dgnet->physics.samplenetwork((void *)dgnet->physics.user, dgnet->initial, t, qpoint[q] * J + v0, dgnet->pteval, edgeid);
+            PetscCall(dgnet->physics.samplenetwork((void *)dgnet->physics.user, dgnet->initial, t, qpoint[q] * J + v0, dgnet->pteval, edgeid));
             *coeff += qweight[q] * dgnet->pteval[field] * dgnet->LegEval[tab][ndeg * q + deg];
           }
           *coeff *= dgnet->Leg_L2[tab][deg];
@@ -717,7 +717,7 @@ PetscErrorCode DGNetRHS(TS ts, PetscReal time, Vec X, Vec F, void *ctx)
           coeff                = xarr + offset + fieldoff;
           dgnet->pteval[field] = evalquad_internal(dgnet, field, q, coeff);
         }
-        dgnet->physics.flux((void *)dgnet->physics.user, dgnet->pteval, dgnet->fluxeval + q * dof);
+        PetscCall(dgnet->physics.flux((void *)dgnet->physics.user, dgnet->pteval, dgnet->fluxeval + q * dof));
       }
       /* Now we can compute quadrature for each integral for each field */
       for (field = 0; field < dof; field++) {
@@ -913,7 +913,7 @@ PetscErrorCode DGNetRHS_V3(TS ts, PetscReal time, Vec X, Vec F, void *ctx)
           coeff                = xarr + offset + fieldoff;
           dgnet->pteval[field] = evalquad_internal(dgnet, field, q, coeff);
         }
-        dgnet->physics.flux((void *)dgnet->physics.user, dgnet->pteval, dgnet->fluxeval + q * dof);
+        PetscCall(dgnet->physics.flux((void *)dgnet->physics.user, dgnet->pteval, dgnet->fluxeval + q * dof));
       }
       /* Now we can compute quadrature for each integral for each field */
       for (field = 0; field < dof; field++) {
@@ -1155,7 +1155,7 @@ PetscErrorCode DGNetRHS_V2(TS ts, PetscReal time, Vec X, Vec F, void *ctx)
           coeff                = xarr + offset + fieldoff;
           dgnet->pteval[field] = evalquad_internal(dgnet, field, q, coeff);
         }
-        dgnet->physics.flux((void *)dgnet->physics.user, dgnet->pteval, dgnet->fluxeval + q * dof);
+        PetscCall(dgnet->physics.flux((void *)dgnet->physics.user, dgnet->pteval, dgnet->fluxeval + q * dof));
       }
       /* Now we can compute quadrature for each integral for each field */
       for (field = 0; field < dof; field++) {

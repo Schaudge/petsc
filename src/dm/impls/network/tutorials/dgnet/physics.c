@@ -97,8 +97,8 @@ static PetscErrorCode PhysicsCharacteristic_Shallow_Mat(void *vctx, const PetscS
   X[0][1] = 1;
   X[1][1] = u[1] / u[0] + c;
   PetscCall(MatSetValues(eigmat, m, idxm, n, idxn, (PetscReal *)X, INSERT_VALUES));
-  MatAssemblyBegin(eigmat, MAT_FINAL_ASSEMBLY);
-  MatAssemblyEnd(eigmat, MAT_FINAL_ASSEMBLY);
+  PetscCall(MatAssemblyBegin(eigmat, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyEnd(eigmat, MAT_FINAL_ASSEMBLY));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -118,8 +118,8 @@ static PetscErrorCode PhysicsFluxDer_Shallow(void *vctx, const PetscReal *u, Mat
   X[0][1] = 1.;
   X[1][1] = 2. * u[1] / u[0];
   PetscCall(MatSetValues(jacobian, m, idxm, n, idxn, (PetscReal *)X, INSERT_VALUES));
-  MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);
-  MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY);
+  PetscCall(MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -366,11 +366,10 @@ static PetscErrorCode TrafficCase1Char(SNES snes, Vec X, Vec f, void *ctx)
 /* TODO Generalize to arbitrary initial value */
 static PetscErrorCode TrafficCase1Char_J(SNES snes, Vec X, Mat Amat, Mat Pmat, void *ctx)
 {
-  PetscReal          x, t, rhs, a;
+  PetscReal           t, rhs, a;
   const PetscScalar *s;
 
   PetscFunctionBeginUser;
-  x = ((MethodCharCtx *)ctx)->x;
   t = ((MethodCharCtx *)ctx)->t;
   a = ((MethodCharCtx *)ctx)->a;
 
@@ -393,7 +392,6 @@ static PetscErrorCode PhysicsSample_TrafficNetwork(void *vctx, PetscInt initial,
   SNES           snes;
   Mat            J;
   Vec            X, R;
-  PetscErrorCode ierr;
   PetscReal     *s;
   MethodCharCtx  ctx;
 
@@ -433,8 +431,8 @@ static PetscErrorCode PhysicsSample_TrafficNetwork(void *vctx, PetscInt initial,
       PetscCall(MatSetFromOptions(J));
       PetscCall(MatSetUp(J));
       PetscCall(SNESCreate(PETSC_COMM_SELF, &snes));
-      ierr = SNESSetFunction(snes, R, TrafficCase1Char, &ctx);
-      ierr = SNESSetJacobian(snes, J, J, TrafficCase1Char_J, &ctx);
+      PetscCall(SNESSetFunction(snes, R, TrafficCase1Char, &ctx));
+      PetscCall(SNESSetJacobian(snes, J, J, TrafficCase1Char_J, &ctx));
       PetscCall(SNESSetFromOptions(snes));
       PetscCall(VecSet(X, x));
       PetscCall(SNESSolve(snes, NULL, X));
