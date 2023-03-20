@@ -37,7 +37,7 @@ PetscErrorCode FormFunctionGradient(Tao, Vec, PetscReal *, Vec, void *);
 PetscErrorCode FormInequalityConstraints(Tao, Vec, Vec, void *);
 PetscErrorCode FormInequalityJacobian(Tao, Vec, Mat, Mat, void *);
 
-PetscErrorCode main(int argc, char **argv)
+int main(int argc, char **argv)
 {
   Tao         tao;
   AppCtx      user; /* application context */
