@@ -37,7 +37,7 @@ typedef PetscErrorCode (*NetRPCreateLinearFlux)(NetRP, PetscInt, PetscBool *, Ve
 typedef PetscErrorCode (*NetRPNonlinearEval)(NetRP, PetscInt, PetscBool *, Vec, Vec, Vec);    /* form is: NumEdges,EdgeIn? Array, U, F(u), where F(U) is the nonlinear eval for the nonlinear Network Riemann Problem */
 typedef PetscErrorCode (*NetRPNonlinearJac)(NetRP, PetscInt, PetscBool *, Vec, Vec, Mat);     /* form is: NumEdges,EdgeIn? Array, U, Jacobian of the NonlinearEval */
 //typedef PetscErrorCode (*NetRPTaoInitialSetUp)(NetRP,PetscInt, PetscBool *, Tao);             /* form is: NumEdges,EdgeIn? Array, Tao object for optimization */
-
+typedef PetscErrorCode (*NetRPSetSolverCtx)(NetRP,PetscInt,PetscInt, void*);
 
 typedef const char *NetRPType;
   #define NETRPBLANK      "netrpblank"
@@ -92,6 +92,8 @@ PETSC_EXTERN PetscErrorCode NetRPClearCache(NetRP);
 PETSC_EXTERN PetscErrorCode NetRPGetCacheType(NetRP , NetRPCacheType*);
 PETSC_EXTERN PetscErrorCode NetRPSetCacheType(NetRP , NetRPCacheType);
 
+PETSC_EXTERN PetscErrorCode NetRPSetSolverCtxFunc(NetRP,NetRPSetSolverCtx);
+PETSC_EXTERN PetscErrorCode NetRPGetSolverCtx(NetRP,PetscInt,PetscInt, void *);
 
 /* 
   Set internal ops, for usage when a user is using the default blank netrp, and wnat to specifically set there routines 

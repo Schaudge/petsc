@@ -316,9 +316,9 @@ PetscErrorCode FormObjectiveGradient(Tao tao, Vec X, Vec G, void *ctx)
 
   PetscCheck(size == 1, comm, PETSC_ERR_USER_INPUT,"This Callback requires sequential communicator. Communicator for TAO object had size %"PetscInt_FMT, size);
 
-  PetscCall(VecGetSize(G,&n)); 
+  PetscCall(VecGetSize(G,&n));
   PetscCall(VecGetArray(G,&g));
-  for(i=0; i<n; i++) g[i] = -1.0; 
+  for(i=0; i<n; i++) g[i] = -1.0;
   PetscCall(VecRestoreArray(G,&g)); 
   PetscFunctionReturn(PETSC_SUCCESS);
 }

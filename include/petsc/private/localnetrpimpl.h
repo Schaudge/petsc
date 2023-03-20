@@ -35,6 +35,7 @@ struct _NetRPOps {
   PetscErrorCode (*destroy)(NetRP);
   PetscErrorCode (*reset)(NetRP);
   PetscErrorCode (*clearcache)(NetRP);
+  PetscErrorCode (*setsolverctx)(NetRP,PetscInt,PetscInt, void*);
   PetscErrorCode (*setupmat)(NetRP, PetscInt, Mat);
   PetscErrorCode (*setupksp)(NetRP, PetscInt, KSP);
   PetscErrorCode (*setupsnes)(NetRP, PetscInt, SNES);
@@ -46,10 +47,12 @@ struct _NetRPOps {
   PetscErrorCode (*createLinearFlux)(NetRP, PetscInt, PetscBool *, Vec, Vec, Mat); /* form is: DMNetwork, Vertex, U, Linear System for solving for Flux */
   PetscErrorCode (*NonlinearEval)(NetRP, PetscInt, PetscBool *, Vec, Vec, Vec);    /* form is: DMNetwork, Vertex,U, Ustar, F(ustar), where F(U) is the nonlinear eval for the nonlinear Network Riemann Problem */
   PetscErrorCode (*NonlinearJac)(NetRP, PetscInt, PetscBool *, Vec, Vec, Mat);     /* form is: DMNetwork, Vertex, U,Ustar Jacobian of the NonlinearEval */
+
   /* TAO Stuff */
   /* Note: This entire frameWork needs to be redone. Honestly, I think a generic 
   batched solvers attached to DM's is necessary, which requires more interaction with the batched stuff */
   PetscErrorCode (*CreateTaoProblem)(NetRP,PetscInt,PetscBool*,Tao);
+   
 };
 
 struct _p_NetRP {
@@ -68,6 +71,8 @@ struct _p_NetRP {
   KSP  *ksp;
   SNES *snes;
   Tao  *tao; 
+
+  void **solver_ctx; /* User ctx for the cached solvers. */
 
   /* Cache Type; 
       UndirectedVDeg : Assumes that solvers are parameterized by vdeg. 
