@@ -912,12 +912,12 @@ PetscErrorCode RiemannSolverSetRoeAvgFunct(RiemannSolver rs, RiemannSolverRoeAvg
 @*/
 PetscErrorCode RiemannSolverTestEigDecomposition(RiemannSolver rs, PetscInt numvalues, const PetscReal **u, PetscReal tol, PetscBool *isequal, PetscReal *norms, PetscViewer viewer)
 {
-  Mat            DF, R, Eig, DFR, EigR, Diff;
-  Vec            Eig_vec;
-  PetscScalar   *eig;
-  PetscInt       i;
-  PetscReal      norm;
-  PetscBool      isascii;
+  Mat          DF, R, Eig, DFR, EigR, Diff;
+  Vec          Eig_vec;
+  PetscScalar *eig;
+  PetscInt     i;
+  PetscReal    norm;
+  PetscBool    isascii;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);

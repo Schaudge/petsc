@@ -27,8 +27,8 @@ PetscErrorCode NetRSCreate(MPI_Comm comm, NetRS *rs)
   PetscCall(PetscHMapNetRPICreate(&r->netrphmap));
   PetscCall(DMLabelCreate(comm, "NetRSLabel", &r->subgraphs));
   PetscCall(DMLabelCreate(comm, "NetRS_DM_InternalTopological", &r->VertexDeg_shared));
-  PetscCall(DMLabelCreate(comm,"NetRS_DM_InternalVDegIn", &r->InVertexDeg));
-  PetscCall(DMLabelCreate(comm,"NetRS_DM_InternalVDegOut", &r->OutVertexDeg));
+  PetscCall(DMLabelCreate(comm, "NetRS_DM_InternalVDegIn", &r->InVertexDeg));
+  PetscCall(DMLabelCreate(comm, "NetRS_DM_InternalVDegOut", &r->OutVertexDeg));
   PetscCall(ISCreate(PETSC_COMM_SELF, &r->is_wrk));
   PetscCall(ISSetType(r->is_wrk, ISGENERAL)); /* need a different kind of IS, or the ability to build subvecs out of section mappings */
   PetscCall(PetscHMapICreate(&r->dofs_to_Vec));

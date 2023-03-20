@@ -34,7 +34,7 @@ PetscErrorCode RiemannSolverCreate(MPI_Comm comm, RiemannSolver *rs)
   r->roeavg          = PETSC_NULLPTR;
   r->computeroemat   = PETSC_NULLPTR;
   r->computeeigbasis = PETSC_NULLPTR;
-  r->fluxfunconvex   = PETSC_TRUE; /* For now we will assume the flux function is convex unless told otherwise. This is not a safe option 
+  r->fluxfunconvex   = PETSC_TRUE;    /* For now we will assume the flux function is convex unless told otherwise. This is not a safe option 
   but convenient for now. Should be adjusted as I add more riemann solvers / complicated tests. */
   r->computeroemat   = PETSC_NULLPTR; /* Used in the logic to generate roe matrix data structures, do not edit */
   *rs                = r;

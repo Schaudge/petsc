@@ -104,7 +104,7 @@ PetscErrorCode WaterReadData(WATERDATA *water, const char *filename)
     }
 
     if (strstr(line, "[RESERVOIRS]")) {
-     PetscCall(GetDataSegment(fp, line, &res_start_pos, &nlines));
+      PetscCall(GetDataSegment(fp, line, &res_start_pos, &nlines));
       water->nvertex += nlines;
       water->nreservoir = nlines;
     }

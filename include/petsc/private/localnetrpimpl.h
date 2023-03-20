@@ -35,11 +35,11 @@ struct _NetRPOps {
   PetscErrorCode (*destroy)(NetRP);
   PetscErrorCode (*reset)(NetRP);
   PetscErrorCode (*clearcache)(NetRP);
-  PetscErrorCode (*setsolverctx)(NetRP,PetscInt,PetscInt, void*);
+  PetscErrorCode (*setsolverctx)(NetRP, PetscInt, PetscInt, void *);
   PetscErrorCode (*setupmat)(NetRP, PetscInt, Mat);
   PetscErrorCode (*setupksp)(NetRP, PetscInt, KSP);
   PetscErrorCode (*setupsnes)(NetRP, PetscInt, SNES);
-  PetscErrorCode (*setuptao)(NetRP, PetscInt, PetscInt, Tao); // edges in and edges out 
+  PetscErrorCode (*setuptao)(NetRP, PetscInt, PetscInt, Tao); // edges in and edges out
   PetscErrorCode (*setupjac)(NetRP, PetscInt, Mat);
   PetscErrorCode (*solveStar)(NetRP, PetscInt, PetscBool *, Vec, Vec);             /* form is: DMNetwork, Vertex, U, UStar */
   PetscErrorCode (*solveFlux)(NetRP, PetscInt, PetscBool *, Vec, Vec);             /* form is: DMNetwork, Vertex, U, Flux */
@@ -51,8 +51,7 @@ struct _NetRPOps {
   /* TAO Stuff */
   /* Note: This entire frameWork needs to be redone. Honestly, I think a generic 
   batched solvers attached to DM's is necessary, which requires more interaction with the batched stuff */
-  PetscErrorCode (*CreateTaoProblem)(NetRP,PetscInt,PetscBool*,Tao);
-   
+  PetscErrorCode (*CreateTaoProblem)(NetRP, PetscInt, PetscBool *, Tao);
 };
 
 struct _p_NetRP {
@@ -70,7 +69,7 @@ struct _p_NetRP {
   Vec  *vec;
   KSP  *ksp;
   SNES *snes;
-  Tao  *tao; 
+  Tao  *tao;
 
   void **solver_ctx; /* User ctx for the cached solvers. */
 
@@ -81,9 +80,9 @@ struct _p_NetRP {
 
       This changes the type of hash map used
    */
-  NetRPCacheType cachetype; 
+  NetRPCacheType cachetype;
   /* Only one hmap is actually used, depending on the structure of the Riemann Problem, specified by NetRPCacheType */
-  PetscHMapI hmap; /* map from vertexdegree -> index in the solver arrays for cached solver objects for that vertex degree problem */
+  PetscHMapI  hmap;    /* map from vertexdegree -> index in the solver arrays for cached solver objects for that vertex degree problem */
   PetscHMapIJ dirhmap; /* map from vdegin X vdegout -> index in the solver arrays for cached solver objects for that vdegin X vdegout degree problem **/
   /* Type of Solver */
   NetRPSolveType solvetype;

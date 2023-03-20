@@ -1,4 +1,4 @@
-#include <petsc/private/localnetrpimpl.h>  /*I "petscnetrp.h" I*/
+#include <petsc/private/localnetrpimpl.h> /*I "petscnetrp.h" I*/
 /*@C
   NetRPCreate - This function creates an empty NetRP. The type of solver 
     can then be set with NetRSSetType().
@@ -28,7 +28,7 @@ PetscErrorCode NetRPCreate(MPI_Comm comm, NetRP *rp)
   PetscCall(PetscHMapIJCreate(&r->dirhmap));
 
   /* Add default behavior for NetRP here */
-  r->flux = PETSC_NULLPTR;
+  r->flux      = PETSC_NULLPTR;
   r->cachetype = UndirectedVDeg; /* Assume UndirectedVDeg unless told otherwise */
   /* Assume worst case situation */
   r->solvetype         = Other;

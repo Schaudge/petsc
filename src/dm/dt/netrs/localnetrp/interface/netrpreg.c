@@ -1,5 +1,5 @@
 #include <petsc/private/localnetrpimpl.h>
-#include <petscnetrp.h>  /*I "petscnetrp.h" I*/
+#include <petscnetrp.h> /*I "petscnetrp.h" I*/
 
 PetscFunctionList NetRPList              = NULL;
 PetscClassId      NETRP_CLASSID          = 0;

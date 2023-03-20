@@ -39,7 +39,7 @@ PetscErrorCode DMPlexDisjointUnion_Topological_Section(DM *plexlist, PetscInt nu
     if (!flag) SETERRQ(comm, PETSC_ERR_ARG_WRONG, "Wrong DM: %s Object must be DMPlex", dmtype);
     if (i == 0) continue;
     else {
-      PetscCheckSameComm((PetscObject)plexlist[i], 1, (PetscObject)plexlist[i-1], 1);
+      PetscCheckSameComm((PetscObject)plexlist[i], 1, (PetscObject)plexlist[i - 1], 1);
     }
   }
   /* Acquire maximum depth size and topological dimension across all dms, and total chartsize */

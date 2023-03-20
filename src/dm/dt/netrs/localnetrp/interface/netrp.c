@@ -1,5 +1,5 @@
 #include <petsc/private/localnetrpimpl.h>
-#include <petscnetrp.h> /*I "petscnetrp.h" I*/
+#include <petscnetrp.h>                      /*I "petscnetrp.h" I*/
 #include <petsc/private/riemannsolverimpl.h> /* to be removed after adding fluxfunction class */
 
 PetscLogEvent NetRP_Solve_Total;
@@ -36,7 +36,7 @@ PetscErrorCode NetRPSetUp(NetRP rp)
   /* check riemann problem and physics consistency */
   PetscCall(RiemannSolverGetNumFields(rp->flux, &numfield_flux));
   switch (rp->physicsgenerality) {
-  case Generic: 
+  case Generic:
     rp->numfields = numfield_flux;
     break;
   default:
@@ -90,18 +90,18 @@ PetscErrorCode NetRPReset(NetRP rp)
 
 PetscErrorCode NetRPGetNumCached(NetRP rp, PetscInt *numcached)
 {
-  NetRPCacheType cachetype; 
+  NetRPCacheType cachetype;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
-  PetscCall(NetRPGetCacheType(rp,&cachetype));
-  switch(cachetype) {
-    case UndirectedVDeg: 
-      PetscCall(PetscHMapIGetSize(rp->hmap, numcached));
-      break;
-    case DirectedVDeg:
-      PetscCall(PetscHMapIJGetSize(rp->dirhmap,numcached));
-      break; 
+  PetscCall(NetRPGetCacheType(rp, &cachetype));
+  switch (cachetype) {
+  case UndirectedVDeg:
+    PetscCall(PetscHMapIGetSize(rp->hmap, numcached));
+    break;
+  case DirectedVDeg:
+    PetscCall(PetscHMapIJGetSize(rp->dirhmap, numcached));
+    break;
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -120,8 +120,8 @@ PetscErrorCode NetRPGetNumCached(NetRP rp, PetscInt *numcached)
 @*/
 PetscErrorCode NetRPClearCache(NetRP rp)
 {
-  PetscInt i, numcached;
-  NetRPCacheType cachetype; 
+  PetscInt       i, numcached;
+  NetRPCacheType cachetype;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
@@ -144,16 +144,16 @@ PetscErrorCode NetRPClearCache(NetRP rp)
     case Other:
       break;
     }
-    PetscCall(PetscFree6(rp->mat, rp->vec, rp->ksp, rp->snes,rp->tao,rp->solver_ctx));
+    PetscCall(PetscFree6(rp->mat, rp->vec, rp->ksp, rp->snes, rp->tao, rp->solver_ctx));
   }
   PetscCall(NetRPGetCacheType(rp, &cachetype));
-  switch(cachetype) {
-    case UndirectedVDeg: 
-      PetscCall(PetscHMapIClear(rp->hmap));
-      break; 
-    case DirectedVDeg: 
-      PetscCall(PetscHMapIJClear(rp->dirhmap));
-      break; 
+  switch (cachetype) {
+  case UndirectedVDeg:
+    PetscCall(PetscHMapIClear(rp->hmap));
+    break;
+  case DirectedVDeg:
+    PetscCall(PetscHMapIJClear(rp->dirhmap));
+    break;
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -421,10 +421,10 @@ PetscErrorCode NetRPCreateSNES(NetRP rp, PetscInt vertdeg, SNES *snes)
 @*/
 PetscErrorCode NetRPCreateTao(NetRP rp, PetscInt indeg, PetscInt outdeg, Tao *tao)
 {
-  Tao        _tao;
+  Tao         _tao;
   const char *prefix_netrp;
-  PetscInt    numfield; 
-  Vec         LB,UB, InitialGuess; 
+  PetscInt    numfield;
+  Vec         LB, UB, InitialGuess;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
@@ -436,20 +436,19 @@ PetscErrorCode NetRPCreateTao(NetRP rp, PetscInt indeg, PetscInt outdeg, Tao *ta
   if (rp->ops->setuptao) PetscCall((rp->ops->setuptao)(rp, indeg, outdeg, _tao));
   PetscCall(TaoSetFromOptions(_tao));
 
-
   /* connstruct the storage for things needed for TAO. 
      To be redone
   */
-  PetscCall(NetRPGetNumFields(rp,&numfield));
-  PetscCall(VecCreateSeq(PETSC_COMM_SELF,numfield*indeg,&LB)); 
-  PetscCall(VecDuplicate(LB,&UB)); 
+  PetscCall(NetRPGetNumFields(rp, &numfield));
+  PetscCall(VecCreateSeq(PETSC_COMM_SELF, numfield * indeg, &LB));
+  PetscCall(VecDuplicate(LB, &UB));
 
-  PetscCall(TaoSetVariableBounds(_tao,LB,UB)); 
-  PetscCall(VecDuplicate(LB,&InitialGuess));
-  PetscCall(TaoSetSolution(_tao,InitialGuess)); 
+  PetscCall(TaoSetVariableBounds(_tao, LB, UB));
+  PetscCall(VecDuplicate(LB, &InitialGuess));
+  PetscCall(TaoSetSolution(_tao, InitialGuess));
 
-  PetscCall(VecDestroy(&LB)); 
-  PetscCall(VecDestroy(&UB)); 
+  PetscCall(VecDestroy(&LB));
+  PetscCall(VecDestroy(&UB));
   PetscCall(VecDestroy(&InitialGuess));
 
   *tao = _tao;
@@ -479,8 +478,7 @@ PetscErrorCode NetRPAddVertexDegrees_internal(NetRP rp, PetscInt numdegs, PetscI
   SNES     *snes_new;
   Vec      *vec_new;
   Tao      *tao_new;
-  void     **solver_ctx_new;
-
+  void    **solver_ctx_new;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
@@ -494,7 +492,7 @@ PetscErrorCode NetRPAddVertexDegrees_internal(NetRP rp, PetscInt numdegs, PetscI
   }
   if (totalnew == 0) PetscFunctionReturn(PETSC_SUCCESS);
   /* reallocate solver cache arrays with room for new entries */
-  PetscCall(PetscMalloc6(numentries + totalnew, &mat_new, numentries + totalnew, &vec_new, numentries + totalnew, &ksp_new, numentries + totalnew, &snes_new, numentries + totalnew, &tao_new,numentries + totalnew,&solver_ctx_new));
+  PetscCall(PetscMalloc6(numentries + totalnew, &mat_new, numentries + totalnew, &vec_new, numentries + totalnew, &ksp_new, numentries + totalnew, &snes_new, numentries + totalnew, &tao_new, numentries + totalnew, &solver_ctx_new));
   PetscCall(PetscArraycpy(mat_new, rp->mat, numentries));
   PetscCall(PetscArraycpy(vec_new, rp->vec, numentries));
   PetscCall(PetscArraycpy(ksp_new, rp->ksp, numentries));
@@ -503,14 +501,14 @@ PetscErrorCode NetRPAddVertexDegrees_internal(NetRP rp, PetscInt numdegs, PetscI
   PetscCall(PetscArraycpy(solver_ctx_new, rp->solver_ctx, numentries));
 
   if (rp->mat) { /* if any memeory has every been allocated */
-    PetscCall(PetscFree6(rp->mat, rp->vec, rp->ksp, rp->snes,rp->tao,rp->solver_ctx));
+    PetscCall(PetscFree6(rp->mat, rp->vec, rp->ksp, rp->snes, rp->tao, rp->solver_ctx));
   }
-  
-  rp->mat  = mat_new;
-  rp->ksp  = ksp_new;
-  rp->snes = snes_new;
-  rp->vec  = vec_new;
-  rp->tao  = tao_new; 
+
+  rp->mat        = mat_new;
+  rp->ksp        = ksp_new;
+  rp->snes       = snes_new;
+  rp->vec        = vec_new;
+  rp->tao        = tao_new;
   rp->solver_ctx = solver_ctx_new;
 
   /* add new entries */
@@ -528,13 +526,13 @@ PetscErrorCode NetRPAddVertexDegrees_internal(NetRP rp, PetscInt numdegs, PetscI
       PetscCall(NetRPCreateLinear(rp, vertdegs[i], &rp->mat[numentries + off], &rp->vec[numentries + off]));
       PetscCall(NetRPCreateKSP(rp, vertdegs[i], &rp->ksp[numentries + off]));
       break;
-    case Optimization: 
-      SETERRQ(PetscObjectComm((PetscObject)rp),PETSC_ERR_SUP, "Currently Does not support UndirectVDeg cacheing for optimization solvers."); 
+    case Optimization:
+      SETERRQ(PetscObjectComm((PetscObject)rp), PETSC_ERR_SUP, "Currently Does not support UndirectVDeg cacheing for optimization solvers.");
       break;
     case Other: /* Create Nothing */
       break;
     }
-    PetscTryTypeMethod(rp,setsolverctx,vertdegs[i],0,&rp->solver_ctx[numentries+off]);
+    PetscTryTypeMethod(rp, setsolverctx, vertdegs[i], 0, &rp->solver_ctx[numentries + off]);
     off++;
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -558,15 +556,15 @@ PetscErrorCode NetRPAddVertexDegrees_internal(NetRP rp, PetscInt numdegs, PetscI
 @*/
 PetscErrorCode NetRPAddDirVertexDegrees_internal(NetRP rp, PetscInt numdegs, PetscInt *invertdegs, PetscInt *outvertdegs)
 {
-  PetscInt  i, numentries, totalnew = 0, off;
-  PetscHashIJKey ijkey; 
-  PetscBool flg;
-  Mat      *mat_new;
-  KSP      *ksp_new;
-  SNES     *snes_new;
-  Vec      *vec_new;
-  Tao      *tao_new;
-  void     **solver_ctx_new;
+  PetscInt       i, numentries, totalnew = 0, off;
+  PetscHashIJKey ijkey;
+  PetscBool      flg;
+  Mat           *mat_new;
+  KSP           *ksp_new;
+  SNES          *snes_new;
+  Vec           *vec_new;
+  Tao           *tao_new;
+  void         **solver_ctx_new;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
@@ -576,14 +574,15 @@ PetscErrorCode NetRPAddDirVertexDegrees_internal(NetRP rp, PetscInt numdegs, Pet
   for (i = 0; i < numdegs; i++) {
     PetscCheck(invertdegs[i] >= 0, PetscObjectComm((PetscObject)rp), PETSC_ERR_USER_INPUT, "NetRP requires in vertex degrees to be nonnegativ not %" PetscInt_FMT, invertdegs[i]);
     PetscCheck(outvertdegs[i] >= 0, PetscObjectComm((PetscObject)rp), PETSC_ERR_USER_INPUT, "NetRP requires out vertex degrees to be  to be nonnegative not %" PetscInt_FMT, outvertdegs[i]);
-    PetscCheck(invertdegs[i]+outvertdegs[i] > 0, PetscObjectComm((PetscObject)rp), PETSC_ERR_USER_INPUT, "NetRP requires vertex degrees to be greater than 0 not %" PetscInt_FMT, invertdegs[i]+outvertdegs[i]);
-    ijkey.i = invertdegs[i]; ijkey.j = outvertdegs[i];
+    PetscCheck(invertdegs[i] + outvertdegs[i] > 0, PetscObjectComm((PetscObject)rp), PETSC_ERR_USER_INPUT, "NetRP requires vertex degrees to be greater than 0 not %" PetscInt_FMT, invertdegs[i] + outvertdegs[i]);
+    ijkey.i = invertdegs[i];
+    ijkey.j = outvertdegs[i];
     PetscCall(PetscHMapIJHas(rp->dirhmap, ijkey, &flg));
     if (!flg) totalnew++;
   }
   if (totalnew == 0) PetscFunctionReturn(PETSC_SUCCESS);
   /* reallocate solver cache arrays with room for new entries */
-  PetscCall(PetscMalloc6(numentries + totalnew, &mat_new, numentries + totalnew, &vec_new, numentries + totalnew, &ksp_new, numentries + totalnew, &snes_new, numentries + totalnew, &tao_new,numentries + totalnew,&solver_ctx_new));
+  PetscCall(PetscMalloc6(numentries + totalnew, &mat_new, numentries + totalnew, &vec_new, numentries + totalnew, &ksp_new, numentries + totalnew, &snes_new, numentries + totalnew, &tao_new, numentries + totalnew, &solver_ctx_new));
   PetscCall(PetscArraycpy(mat_new, rp->mat, numentries));
   PetscCall(PetscArraycpy(vec_new, rp->vec, numentries));
   PetscCall(PetscArraycpy(ksp_new, rp->ksp, numentries));
@@ -592,38 +591,39 @@ PetscErrorCode NetRPAddDirVertexDegrees_internal(NetRP rp, PetscInt numdegs, Pet
   PetscCall(PetscArraycpy(solver_ctx_new, rp->solver_ctx, numentries));
 
   if (rp->mat) { /* if any memeory has every been allocated */
-    PetscCall(PetscFree6(rp->mat, rp->vec, rp->ksp, rp->snes,rp->tao,rp->solver_ctx));
+    PetscCall(PetscFree6(rp->mat, rp->vec, rp->ksp, rp->snes, rp->tao, rp->solver_ctx));
   }
 
-  rp->mat  = mat_new;
-  rp->ksp  = ksp_new;
-  rp->snes = snes_new;
-  rp->vec  = vec_new;
-  rp->tao  = tao_new; 
+  rp->mat        = mat_new;
+  rp->ksp        = ksp_new;
+  rp->snes       = snes_new;
+  rp->vec        = vec_new;
+  rp->tao        = tao_new;
   rp->solver_ctx = solver_ctx_new;
 
   /* add new entries */
   off = 0;
   for (i = 0; i < numdegs; i++) {
-    ijkey.i = invertdegs[i]; ijkey.j = outvertdegs[i];
+    ijkey.i = invertdegs[i];
+    ijkey.j = outvertdegs[i];
     PetscCall(PetscHMapIJHas(rp->dirhmap, ijkey, &flg));
     if (flg) continue;
     PetscCall(PetscHMapIJSet(rp->dirhmap, ijkey, numentries + off));
     /* only create what is needed */
     switch (rp->solvetype) {
     case Nonlinear: /* assumes only usage of snes */
-      SETERRQ(PetscObjectComm((PetscObject)rp),PETSC_ERR_SUP, "Currently Does not support UndirectVDeg cacheing for Nonlinear solvers."); 
+      SETERRQ(PetscObjectComm((PetscObject)rp), PETSC_ERR_SUP, "Currently Does not support UndirectVDeg cacheing for Nonlinear solvers.");
       break;
     case Linear: /* assumes only usage of Mat and KSP */
-      SETERRQ(PetscObjectComm((PetscObject)rp),PETSC_ERR_SUP, "Currently Does not support UndirectVDeg cacheing for Linear solvers."); 
+      SETERRQ(PetscObjectComm((PetscObject)rp), PETSC_ERR_SUP, "Currently Does not support UndirectVDeg cacheing for Linear solvers.");
       break;
-    case Optimization: 
-      PetscCall(NetRPCreateTao(rp,ijkey.i,ijkey.j,&rp->tao[numentries + off]));
+    case Optimization:
+      PetscCall(NetRPCreateTao(rp, ijkey.i, ijkey.j, &rp->tao[numentries + off]));
       break;
     case Other: /* Create Nothing */
       break;
     }
-    PetscTryTypeMethod(rp,setsolverctx,ijkey.i,ijkey.j,&rp->solver_ctx[numentries+off]);
+    PetscTryTypeMethod(rp, setsolverctx, ijkey.i, ijkey.j, &rp->solver_ctx[numentries + off]);
     off++;
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -649,28 +649,28 @@ PetscErrorCode NetRPAddDirVertexDegrees_internal(NetRP rp, PetscInt numdegs, Pet
 @*/
 PetscErrorCode NetRPCacheSolvers(NetRP rp, PetscInt numdegs, PetscInt *invertdegs, PetscInt *outvertdegs)
 {
-  NetRPCacheType cachetype; 
-  PetscInt       *vertdegs; 
+  NetRPCacheType cachetype;
+  PetscInt      *vertdegs;
   PetscInt       i;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
   PetscCheck(rp->setupcalled, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Call NetRPSetUp() first");
 
-  PetscCall(NetRPGetCacheType(rp,&cachetype)); 
-  switch(cachetype) {
-    case UndirectedVDeg: 
-      PetscCall(PetscMalloc1(numdegs,&vertdegs)); 
-      for(i=0; i<numdegs; i++) vertdegs[i] = invertdegs[i] + outvertdegs[i];
-      PetscCall(NetRPAddVertexDegrees_internal(rp,numdegs,vertdegs)); 
-      PetscCall(PetscFree(vertdegs));
-      break; 
-    case DirectedVDeg: 
-      PetscCall(NetRPAddDirVertexDegrees_internal(rp,numdegs,invertdegs,outvertdegs));
-      break; 
+  PetscCall(NetRPGetCacheType(rp, &cachetype));
+  switch (cachetype) {
+  case UndirectedVDeg:
+    PetscCall(PetscMalloc1(numdegs, &vertdegs));
+    for (i = 0; i < numdegs; i++) vertdegs[i] = invertdegs[i] + outvertdegs[i];
+    PetscCall(NetRPAddVertexDegrees_internal(rp, numdegs, vertdegs));
+    PetscCall(PetscFree(vertdegs));
+    break;
+  case DirectedVDeg:
+    PetscCall(NetRPAddDirVertexDegrees_internal(rp, numdegs, invertdegs, outvertdegs));
+    break;
   }
   PetscFunctionReturn(PETSC_SUCCESS);
-} 
+}
 
 /*@
    NetRPDestroy - Destroys the NetRP context that was created
@@ -1040,7 +1040,7 @@ PetscErrorCode NetRPSetCacheType(NetRP rp, NetRPCacheType cachetype)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
   PetscCheck(rp->setupcalled, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Must Call before NetRPSetUp()");
-  rp->cachetype = cachetype; 
+  rp->cachetype = cachetype;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1052,10 +1052,9 @@ PetscErrorCode NetRPGetCacheType(NetRP rp, NetRPCacheType *cachetype)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
-  *cachetype = rp->cachetype;  
+  *cachetype = rp->cachetype;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
 
 /* Requires that NetRP is SetUp. However this is up to the caller to check as 
   every internal usage already requires the check. */
@@ -1065,30 +1064,31 @@ PetscErrorCode NetRPGetCacheType(NetRP rp, NetRPCacheType *cachetype)
 
   Exact implementation depends on the cachetype.
 */
-static PetscErrorCode NetRPFindCacheIndex_internal(NetRP rp, PetscInt vdegin, PetscInt vdegout,PetscInt *index) 
+static PetscErrorCode NetRPFindCacheIndex_internal(NetRP rp, PetscInt vdegin, PetscInt vdegout, PetscInt *index)
 {
-  NetRPCacheType cachetype; 
-  PetscHashIJKey ijkey; 
-  PetscInt       vdeg; 
-  PetscBool      flg; 
+  NetRPCacheType cachetype;
+  PetscHashIJKey ijkey;
+  PetscInt       vdeg;
+  PetscBool      flg;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
-  PetscCall(NetRPGetCacheType(rp,&cachetype)); 
-  switch(cachetype) {
-    case DirectedVDeg: 
-      ijkey.i = vdegin; ijkey.j = vdegout; 
-      PetscCall(PetscHMapIJHas(rp->dirhmap,ijkey,&flg)); 
-      if (!flg) PetscCall(NetRPAddDirVertexDegrees_internal(rp,1,&vdegin,&vdegout));
-      PetscCall(PetscHMapIJGet(rp->dirhmap,ijkey,index));
-      break; 
+  PetscCall(NetRPGetCacheType(rp, &cachetype));
+  switch (cachetype) {
+  case DirectedVDeg:
+    ijkey.i = vdegin;
+    ijkey.j = vdegout;
+    PetscCall(PetscHMapIJHas(rp->dirhmap, ijkey, &flg));
+    if (!flg) PetscCall(NetRPAddDirVertexDegrees_internal(rp, 1, &vdegin, &vdegout));
+    PetscCall(PetscHMapIJGet(rp->dirhmap, ijkey, index));
+    break;
 
-    case UndirectedVDeg: 
-      vdeg = vdegin+vdegout; 
-      PetscCall(PetscHMapIHas(rp->hmap, vdeg, &flg));
-      if (!flg) PetscCall(NetRPAddVertexDegrees_internal(rp, 1, &vdeg));
-      PetscCall(PetscHMapIGet(rp->hmap, vdeg, index));
-      break; 
+  case UndirectedVDeg:
+    vdeg = vdegin + vdegout;
+    PetscCall(PetscHMapIHas(rp->hmap, vdeg, &flg));
+    if (!flg) PetscCall(NetRPAddVertexDegrees_internal(rp, 1, &vdeg));
+    PetscCall(PetscHMapIGet(rp->hmap, vdeg, index));
+    break;
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1099,40 +1099,40 @@ static PetscErrorCode NetRPFindCacheIndex_internal(NetRP rp, PetscInt vdegin, Pe
 
   Exact implementation depends on the cachetype.
 */
-static PetscErrorCode NetRPFindCacheIndex_DoNotCreate_internal(NetRP rp, PetscInt vdegin, PetscInt vdegout,PetscInt *index) 
+static PetscErrorCode NetRPFindCacheIndex_DoNotCreate_internal(NetRP rp, PetscInt vdegin, PetscInt vdegout, PetscInt *index)
 {
-  NetRPCacheType cachetype; 
-  PetscHashIJKey ijkey; 
-  PetscInt       vdeg; 
-  PetscBool      flg; 
+  NetRPCacheType cachetype;
+  PetscHashIJKey ijkey;
+  PetscInt       vdeg;
+  PetscBool      flg;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
-  PetscCall(NetRPGetCacheType(rp,&cachetype)); 
-  switch(cachetype) {
-    case DirectedVDeg: 
-      ijkey.i = vdegin; ijkey.j = vdegout; 
-      PetscCall(PetscHMapIJHas(rp->dirhmap,ijkey,&flg)); 
-      if (!flg) {
-        *index = -1; 
-      } else {
-      PetscCall(PetscHMapIJGet(rp->dirhmap,ijkey,index));
-      }
-      break; 
+  PetscCall(NetRPGetCacheType(rp, &cachetype));
+  switch (cachetype) {
+  case DirectedVDeg:
+    ijkey.i = vdegin;
+    ijkey.j = vdegout;
+    PetscCall(PetscHMapIJHas(rp->dirhmap, ijkey, &flg));
+    if (!flg) {
+      *index = -1;
+    } else {
+      PetscCall(PetscHMapIJGet(rp->dirhmap, ijkey, index));
+    }
+    break;
 
-    case UndirectedVDeg: 
-      vdeg = vdegin+vdegout; 
-      PetscCall(PetscHMapIHas(rp->hmap, vdeg, &flg));
-      if (!flg) {
-        *index = -1; 
-      } else {
+  case UndirectedVDeg:
+    vdeg = vdegin + vdegout;
+    PetscCall(PetscHMapIHas(rp->hmap, vdeg, &flg));
+    if (!flg) {
+      *index = -1;
+    } else {
       PetscCall(PetscHMapIGet(rp->hmap, vdeg, index));
-      }
-      break; 
+    }
+    break;
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
 
 /*@
    NetRPSolveFlux - The driver function for solving for Riemann Problem fluxes. This will use the user provided functions 
@@ -1158,17 +1158,17 @@ static PetscErrorCode NetRPFindCacheIndex_DoNotCreate_internal(NetRP rp, PetscIn
 @*/
 PetscErrorCode NetRPSolveFlux(NetRP rp, PetscInt vdegin, PetscInt vdegout, PetscBool *edgein, Vec U, Vec Flux)
 {
-  PetscInt     index, vdeg = vdegin+vdegout;
+  PetscInt     index, vdeg = vdegin + vdegout;
   NetRPSNESctx snesctx;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
-  PetscValidHeaderSpecific(U,VEC_CLASSID,5); 
-  PetscValidHeaderSpecific(Flux,VEC_CLASSID,6); 
+  PetscValidHeaderSpecific(U, VEC_CLASSID, 5);
+  PetscValidHeaderSpecific(Flux, VEC_CLASSID, 6);
   if (!rp->setupcalled) PetscCall(NetRPSetUp(rp));
   PetscLogEventBegin(NetRP_Solve_Total, 0, 0, 0, 0);
   /* find index of cached solvers */
-  PetscCall(NetRPFindCacheIndex_internal(rp,vdegin,vdegout,&index));
+  PetscCall(NetRPFindCacheIndex_internal(rp, vdegin, vdegout, &index));
 
   /* switch based on type of NetRP */
   switch (rp->solvetype) {
@@ -1185,7 +1185,7 @@ PetscErrorCode NetRPSolveFlux(NetRP rp, PetscInt vdegin, PetscInt vdegout, Petsc
       PetscUseTypeMethod(rp, createLinearStar, vdeg, edgein, U, rp->vec[index], rp->mat[index]);
       PetscCall(KSPSetOperators(rp->ksp[index], rp->mat[index], rp->mat[index])); /* should this be moved to the creation routine? Check how PCSetUp works and if it can be reused */
       PetscCall(KSPSolve(rp->ksp[index], rp->vec[index], Flux));
-      PetscLogEventEnd(NetRP_Solve_System, 0, 0, 0, 0); 
+      PetscLogEventEnd(NetRP_Solve_System, 0, 0, 0, 0);
       /* inplace evaluate the star states in Flux by the physics flux to compute the actual flux */
       PetscCall(NetRPComputeFluxInPlace_internal(rp, vdeg, Flux));
     } else {
@@ -1207,14 +1207,14 @@ PetscErrorCode NetRPSolveFlux(NetRP rp, PetscInt vdegin, PetscInt vdegout, Petsc
     break;
   case Optimization: /* Hack for getting my use case to work for now, to be fixed and refactored */
     /* Assume the Traffic Flow DirectVDeg Cachetype here */
-    
+
     /* 
       Need to set ctx here. 
 
       Note that Flux must be the solution vector? No... can't assume that as I do a preSolve and PostSolve 
       which can (and will) change vector sizes 
     */
-    PetscCall(TaoSolve(rp->tao[index])); 
+    PetscCall(TaoSolve(rp->tao[index]));
   case Other:
     PetscUseTypeMethod(rp, solveFlux, vdeg, edgein, U, Flux);
     break;
@@ -1249,17 +1249,16 @@ PetscErrorCode NetRPSolveFlux(NetRP rp, PetscInt vdegin, PetscInt vdegout, Petsc
 @*/
 PetscErrorCode NetRPSolveStar(NetRP rp, PetscInt vdegin, PetscInt vdegout, PetscBool *edgein, Vec U, Vec Star)
 {
-  PetscInt     index, vdeg = vdegin+vdegout; 
+  PetscInt     index, vdeg = vdegin + vdegout;
   NetRPSNESctx snesctx;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
-  PetscValidHeaderSpecific(U,VEC_CLASSID,5); 
-  PetscValidHeaderSpecific(Star,VEC_CLASSID,6); 
+  PetscValidHeaderSpecific(U, VEC_CLASSID, 5);
+  PetscValidHeaderSpecific(Star, VEC_CLASSID, 6);
   if (!rp->setupcalled) PetscCall(NetRPSetUp(rp));
   /* find index of cached solvers */
-  PetscCall(NetRPFindCacheIndex_internal(rp,vdegin,vdegout,&index));
-
+  PetscCall(NetRPFindCacheIndex_internal(rp, vdegin, vdegout, &index));
 
   /* switch based on type of NetRP */
   switch (rp->solvetype) {
@@ -1277,8 +1276,8 @@ PetscErrorCode NetRPSolveStar(NetRP rp, PetscInt vdegin, PetscInt vdegout, Petsc
     PetscCall(VecCopy(U, Star));                       /* initial guess of the riemann data */
     PetscCall(SNESSolve(rp->snes[index], NULL, Star)); /* currently bugged as only one nonlinear function is allowed, need space for two. */
     break;
-  case Optimization: 
-    SETERRQ(PetscObjectComm((PetscObject)rp),PETSC_ERR_SUP,"Does not currently support NetRPSolveStar for Optimization");
+  case Optimization:
+    SETERRQ(PetscObjectComm((PetscObject)rp), PETSC_ERR_SUP, "Does not currently support NetRPSolveStar for Optimization");
   case Other:
     PetscUseTypeMethod(rp, solveStar, vdeg, edgein, U, Star);
     break;
@@ -1286,31 +1285,32 @@ PetscErrorCode NetRPSolveStar(NetRP rp, PetscInt vdegin, PetscInt vdegout, Petsc
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode NetRPSetSolverCtxFunc(NetRP rp, NetRPSetSolverCtx setsolverctx){ 
+PetscErrorCode NetRPSetSolverCtxFunc(NetRP rp, NetRPSetSolverCtx setsolverctx)
+{
   PetscBool flg;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
   PetscCheck(!rp->setupcalled, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Must be set before calling NetRPSetUp()");
   /* only the blank implementation should allow for setting this, other implementations are assumed to fix the type themselves */
-  PetscCall(PetscObjectTypeCompare((PetscObject)rp, NETRPBLANK, &flg));  
+  PetscCall(PetscObjectTypeCompare((PetscObject)rp, NETRPBLANK, &flg));
   PetscCheck(flg, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Can only be manually set on the blank type of NetRP");
   rp->ops->setsolverctx = setsolverctx;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode NetRPGetSolverCtx(NetRP rp, PetscInt vdegin, PetscInt vdegout, void *solverctx) {
-
-  PetscInt index; 
-  PetscFunctionBegin; 
+PetscErrorCode NetRPGetSolverCtx(NetRP rp, PetscInt vdegin, PetscInt vdegout, void *solverctx)
+{
+  PetscInt index;
+  PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
 
   PetscCall(NetRPSetUp(rp));
-  PetscCall(NetRPFindCacheIndex_DoNotCreate_internal(rp,vdegin,vdegout,&index));
-  if (index >= 0 ) {
-    *(void **)solverctx = rp->solver_ctx[index]; 
+  PetscCall(NetRPFindCacheIndex_DoNotCreate_internal(rp, vdegin, vdegout, &index));
+  if (index >= 0) {
+    *(void **)solverctx = rp->solver_ctx[index];
   } else {
-    *(void **)solverctx = NULL; 
+    *(void **)solverctx = NULL;
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -75,7 +75,7 @@ struct _p_NetRS {
   PetscInt       *is_wrk_index; /*work indices for the IS */
 
   /* DMNetwork Graph stuff, should be moved to DMNetwork itself */
-  PetscBool vertexdeg_shared_cached, vertex_offset_cached, inoutvertexdeg_cached; 
+  PetscBool vertexdeg_shared_cached, vertex_offset_cached, inoutvertexdeg_cached;
   /* This label should also be a disjoint label if that implementation exists */
   DMLabel VertexDeg_shared; /*TODO: Name Better. Stores the vertex degrees for all 
   share vertices . 
@@ -111,11 +111,11 @@ struct _p_NetRS {
   PetscHSetI  vertexdegrees_total; /* set of all vertex degrees in the full local network */
   PetscHSetI *vertexdegrees;       /* set of all vertex degrees for each subgraph induced by the DMLabel */
 
-  PetscHSetIJ inoutdeg_total;     /* Set of all (indeg, outdeg) pairs in the full local network */
-  PetscHSetIJ *inoutdegs;         /* Set of all (indeg, outdeg) pairs for each subgraph induced by the DMLabel */
+  PetscHSetIJ  inoutdeg_total; /* Set of all (indeg, outdeg) pairs in the full local network */
+  PetscHSetIJ *inoutdegs;      /* Set of all (indeg, outdeg) pairs for each subgraph induced by the DMLabel */
 
-  PetscBool  *edgein_shared, *edgein_wrk;
-  PetscHMapI  edgein_shared_offset;
+  PetscBool *edgein_shared, *edgein_wrk;
+  PetscHMapI edgein_shared_offset;
   /* End of DMNetwork Graph stuff */
   SolveComm solvecommtype;
 };

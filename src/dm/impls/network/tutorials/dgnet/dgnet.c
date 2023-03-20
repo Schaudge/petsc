@@ -463,8 +463,8 @@ PetscErrorCode DGNetworkSetComponents(DGNetwork dgnet)
   PetscLogEventBegin(DGNET_SetUP, 0, 0, 0, 0);
   PetscCall(MPI_Comm_rank(comm, &rank));
   PetscCall(MPI_Comm_size(comm, &size));
-  nedges    = dgnet->nedge;
-  edgelist  = dgnet->edgelist;
+  nedges   = dgnet->nedge;
+  edgelist = dgnet->edgelist;
   for (f = 0; f < dof; f++) { numdof += dgnet->physics.order[f] + 1; }
 
   /* Set up the network layout */

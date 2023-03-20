@@ -6,7 +6,6 @@
  Scalar only, as it doesn't need parallel stuff. 
 */
 
-
 #include <petsctao.h>
 #include <petscnetrp.h>
 #include <petscriemannsolver.h>
@@ -17,15 +16,15 @@ static char help[] = "TODO \n";
    User-defined application context - contains data needed by the application
 */
 typedef struct {
-  Mat TrafficDistribution,Jacineq; 
-  PetscPointFlux flux; 
-  PetscReal sigma,fluxsigma; /* point of the maximum of the flux, assumes flux is concave */
-  Vec       lowerbounds, upperbounds; /* upper bounds are dependant on the inputs to the Riemann Problem */
-  Vec       U,FluxU,Gradient; /* Riemann Data for problem */
-  Vec       GammaMax; /* Maximum Flux that can be obtained on a road. Used in the A * FluxStar <= GammaMax term */
-  PetscInt  numedges,numinedges; /* topology of the network */
-  Vec       CI; /* Vector holding the inequality constraints. Odd that TAO seems to require the user to manage this */
-  PetscBool *edgein ,initview; 
+  Mat            TrafficDistribution, Jacineq;
+  PetscPointFlux flux;
+  PetscReal      sigma, fluxsigma;         /* point of the maximum of the flux, assumes flux is concave */
+  Vec            lowerbounds, upperbounds; /* upper bounds are dependant on the inputs to the Riemann Problem */
+  Vec            U, FluxU, Gradient;       /* Riemann Data for problem */
+  Vec            GammaMax;                 /* Maximum Flux that can be obtained on a road. Used in the A * FluxStar <= GammaMax term */
+  PetscInt       numedges, numinedges;     /* topology of the network */
+  Vec            CI;                       /* Vector holding the inequality constraints. Odd that TAO seems to require the user to manage this */
+  PetscBool     *edgein, initview;
 } AppCtx;
 
 /* -------- User-defined Routines --------- */
@@ -41,7 +40,7 @@ int main(int argc, char **argv)
 {
   Tao         tao;
   AppCtx      user; /* application context */
-  Vec         fluxStar, G, CI; 
+  Vec         fluxStar, G, CI;
   PetscMPIInt size;
   TaoType     type;
   PetscReal   f;
@@ -59,8 +58,8 @@ int main(int argc, char **argv)
   PetscCall(TaoSetSolution(tao, user.FluxU));
   PetscCall(TaoSetVariableBounds(tao, user.lowerbounds, user.upperbounds));
 
-  PetscCall(TaoSetObjective(tao,FormObjective,(void *)&user)); 
-  PetscCall(TaoSetGradient(tao,NULL,FormObjectiveGradient,(void *)&user));
+  PetscCall(TaoSetObjective(tao, FormObjective, (void *)&user));
+  PetscCall(TaoSetGradient(tao, NULL, FormObjectiveGradient, (void *)&user));
   PetscCall(TaoSetObjectiveAndGradient(tao, NULL, FormFunctionGradient, (void *)&user));
   PetscCall(TaoSetTolerances(tao, 1.e-4, 0.0, 0.0));
   PetscCall(TaoSetConstraintTolerances(tao, 1.e-4, 0.0));
@@ -101,13 +100,13 @@ int main(int argc, char **argv)
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Found solution:\n"));
   PetscCall(VecView(fluxStar, PETSC_VIEWER_STDOUT_WORLD));
   //PetscCall(MatCreateVecs(user.TrafficDistribution, NULL, &CI));
-  //PetscCall(TaoComputeInequalityConstraints(tao,fluxStar,CI)); 
+  //PetscCall(TaoComputeInequalityConstraints(tao,fluxStar,CI));
   //PetscCall(VecView(CI, PETSC_VIEWER_STDOUT_WORLD));
-  //PetscCall(MatDuplicate(user.TrafficDistribution,MAT_DO_NOT_COPY_VALUES,&user.Jacineq)); 
-  //PetscCall(TaoComputeJacobianInequality(tao,fluxStar,user.Jacineq,NULL)); 
+  //PetscCall(MatDuplicate(user.TrafficDistribution,MAT_DO_NOT_COPY_VALUES,&user.Jacineq));
+  //PetscCall(TaoComputeJacobianInequality(tao,fluxStar,user.Jacineq,NULL));
   //PetscCall(VecDestroy(&CI));
 
-  //PetscCall(MatView(user.TrafficDistribution,PETSC_VIEWER_STDOUT_WORLD)); 
+  //PetscCall(MatView(user.TrafficDistribution,PETSC_VIEWER_STDOUT_WORLD));
 
   /* Free objects */
   PetscCall(DestroyProblem(&user));
@@ -126,107 +125,106 @@ int main(int argc, char **argv)
   we have 
   flux(\rho) = 1/2 . 
  */
-void FluxFunction(void *ctx, const PetscReal *u, PetscReal *flux) 
+void FluxFunction(void *ctx, const PetscReal *u, PetscReal *flux)
 {
-  flux[0] = 4.0 *u[0] * (1.0- u[0]); 
+  flux[0] = 4.0 * u[0] * (1.0 - u[0]);
 }
 PetscErrorCode InitializeProblem(AppCtx *user)
 {
-  PetscMPIInt size;
-  PetscInt    i,j,k; 
-  PetscScalar *u,*fluxu,*upperbnd,*gammamax; 
+  PetscMPIInt  size;
+  PetscInt     i, j, k;
+  PetscScalar *u, *fluxu, *upperbnd, *gammamax;
 
   PetscFunctionBegin;
   PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD, &size));
   user->initview = PETSC_FALSE;
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-init_view", &user->initview, NULL));
-  PetscCall(PetscOptionsGetInt(NULL,NULL,"-numedges",&user->numedges,NULL));
-  user->numedges = 4; /* hard set for now */
-  user->flux = FluxFunction; 
-  user->sigma = 0.5; 
-  user->fluxsigma = 1.0; 
+  PetscCall(PetscOptionsGetInt(NULL, NULL, "-numedges", &user->numedges, NULL));
+  user->numedges  = 4; /* hard set for now */
+  user->flux      = FluxFunction;
+  user->sigma     = 0.5;
+  user->fluxsigma = 1.0;
 
   /* create vector x and set initial values */
   PetscCall(VecCreate(PETSC_COMM_WORLD, &user->U));
   PetscCall(VecSetSizes(user->U, PETSC_DECIDE, user->numedges));
   PetscCall(VecSetFromOptions(user->U));
-  PetscCall(VecGetArray(user->U,&u)); 
+  PetscCall(VecGetArray(user->U, &u));
 
-  PetscCall(PetscMalloc1(user->numedges,&user->edgein)); 
-  user->numinedges = 0; 
-  for(i=0; i<user->numedges; i++) {
-    if(i < PetscCeilInt(user->numedges,2)) {
-      user->edgein[i] = PETSC_TRUE; 
-      u[i] = 1.0; 
+  PetscCall(PetscMalloc1(user->numedges, &user->edgein));
+  user->numinedges = 0;
+  for (i = 0; i < user->numedges; i++) {
+    if (i < PetscCeilInt(user->numedges, 2)) {
+      user->edgein[i] = PETSC_TRUE;
+      u[i]            = 1.0;
     } else {
-      user->edgein[i] = PETSC_FALSE; 
-      u[i] = 0.0; 
-      user->numinedges++; 
+      user->edgein[i] = PETSC_FALSE;
+      u[i]            = 0.0;
+      user->numinedges++;
     }
   }
 
-  // buggy thing to do here..... 
+  // buggy thing to do here.....
 
   /* values for example in benedettos book */
 
-  u[0] = (PetscSqrtScalar(2.0) - 1)/(2* PetscSqrtScalar(2)); 
-  u[1] = 3./4.; 
-  u[2] = 1./4.; 
-  u[3] = (PetscSqrtScalar(2.0) + 1)/(2* PetscSqrtScalar(2)); 
+  u[0] = (PetscSqrtScalar(2.0) - 1) / (2 * PetscSqrtScalar(2));
+  u[1] = 3. / 4.;
+  u[2] = 1. / 4.;
+  u[3] = (PetscSqrtScalar(2.0) + 1) / (2 * PetscSqrtScalar(2));
 
   PetscCall(VecCreate(PETSC_COMM_WORLD, &user->FluxU));
   PetscCall(VecSetSizes(user->FluxU, PETSC_DECIDE, user->numinedges));
   PetscCall(VecSetFromOptions(user->FluxU));
-  PetscCall(VecGetArray(user->FluxU,&fluxu)); 
-  PetscCall(VecCreate(PETSC_COMM_WORLD,&user->GammaMax)); 
-  PetscCall(VecSetSizes(user->GammaMax, PETSC_DECIDE,user->numedges-user->numinedges));
+  PetscCall(VecGetArray(user->FluxU, &fluxu));
+  PetscCall(VecCreate(PETSC_COMM_WORLD, &user->GammaMax));
+  PetscCall(VecSetSizes(user->GammaMax, PETSC_DECIDE, user->numedges - user->numinedges));
   PetscCall(VecSetFromOptions(user->GammaMax));
-    /* create and set lower and upper bound vectors */
+  /* create and set lower and upper bound vectors */
   PetscCall(VecDuplicate(user->FluxU, &user->lowerbounds));
   PetscCall(VecDuplicate(user->FluxU, &user->upperbounds));
   PetscCall(VecSet(user->lowerbounds, 0.0));
 
-  PetscCall(VecGetArray(user->upperbounds,&upperbnd));
-  PetscCall(VecGetArray(user->GammaMax,&gammamax));
+  PetscCall(VecGetArray(user->upperbounds, &upperbnd));
+  PetscCall(VecGetArray(user->GammaMax, &gammamax));
 
-  j=0; 
-  k=0; 
-  for(i=0; i<user->numedges; i++) {
-    if(user->edgein[i] == PETSC_TRUE ) {
-      user->flux(NULL,&u[i],&fluxu[j]);
-      upperbnd[j] = (u[i] <= user->sigma ) ? fluxu[j] : user->fluxsigma; 
-      j++; 
+  j = 0;
+  k = 0;
+  for (i = 0; i < user->numedges; i++) {
+    if (user->edgein[i] == PETSC_TRUE) {
+      user->flux(NULL, &u[i], &fluxu[j]);
+      upperbnd[j] = (u[i] <= user->sigma) ? fluxu[j] : user->fluxsigma;
+      j++;
     } else {
-      if (u[i]> user->sigma) {
-        user->flux(NULL,&u[i],&gammamax[k]);
+      if (u[i] > user->sigma) {
+        user->flux(NULL, &u[i], &gammamax[k]);
       } else {
         gammamax[k] = user->fluxsigma;
       }
-      k++; 
+      k++;
     }
   }
 
-  PetscCall(VecRestoreArray(user->GammaMax,&gammamax));
-  PetscCall(VecRestoreArray(user->U,&u));
-  PetscCall(VecRestoreArray(user->FluxU,&fluxu));
-  PetscCall(VecRestoreArray(user->upperbounds,&upperbnd));
-
+  PetscCall(VecRestoreArray(user->GammaMax, &gammamax));
+  PetscCall(VecRestoreArray(user->U, &u));
+  PetscCall(VecRestoreArray(user->FluxU, &fluxu));
+  PetscCall(VecRestoreArray(user->upperbounds, &upperbnd));
 
   /* Create Traffic Distribution Matrix */
-  PetscCall(MatCreateSeqDense(PETSC_COMM_WORLD,2,2,NULL,&user->TrafficDistribution)); 
+  PetscCall(MatCreateSeqDense(PETSC_COMM_WORLD, 2, 2, NULL, &user->TrafficDistribution));
   PetscCall(MatSetUp(user->TrafficDistribution));
-  PetscCall(MatSetValue(user->TrafficDistribution,0,0,1./3.,INSERT_VALUES)); 
-  PetscCall(MatSetValue(user->TrafficDistribution,0,1,1./4.,INSERT_VALUES)); 
-  PetscCall(MatSetValue(user->TrafficDistribution,1,0,2./3.,INSERT_VALUES)); 
-  PetscCall(MatSetValue(user->TrafficDistribution,1,1,3./4.,INSERT_VALUES)); 
-  PetscCall(MatAssemblyBegin(user->TrafficDistribution,MAT_FINAL_ASSEMBLY));
-  PetscCall(MatAssemblyEnd(user->TrafficDistribution,MAT_FINAL_ASSEMBLY));
-  PetscCall(MatScale(user->TrafficDistribution,-1)); /* negative as things are flipped for the TAO form */
+  PetscCall(MatSetValue(user->TrafficDistribution, 0, 0, 1. / 3., INSERT_VALUES));
+  PetscCall(MatSetValue(user->TrafficDistribution, 0, 1, 1. / 4., INSERT_VALUES));
+  PetscCall(MatSetValue(user->TrafficDistribution, 1, 0, 2. / 3., INSERT_VALUES));
+  PetscCall(MatSetValue(user->TrafficDistribution, 1, 1, 3. / 4., INSERT_VALUES));
+  PetscCall(MatAssemblyBegin(user->TrafficDistribution, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyEnd(user->TrafficDistribution, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatScale(user->TrafficDistribution, -1)); /* negative as things are flipped for the TAO form */
 
   /* Create Vector for the Inequality Constraints. Tao does not create 
   them automatically, for some reason. Matrix for the Jacobian is the Traffic Distribution Matrix (affine operator) */
   PetscCall(VecDuplicate(user->GammaMax, &user->CI));
-  PetscCall(MatDuplicate(user->TrafficDistribution,MAT_DO_NOT_COPY_VALUES,&user->Jacineq)); 
+  PetscCall(MatDuplicate(user->TrafficDistribution, MAT_DO_NOT_COPY_VALUES, &user->Jacineq));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -252,50 +250,48 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *f, Vec G, void *c
   const PetscScalar *x;
   MPI_Comm           comm;
   PetscMPIInt        size;
-  PetscInt          i, n; 
-  PetscScalar       *g; 
- 
+  PetscInt           i, n;
+  PetscScalar       *g;
 
   PetscFunctionBegin;
-  PetscCall(PetscObjectGetComm((PetscObject) tao, &comm));
+  PetscCall(PetscObjectGetComm((PetscObject)tao, &comm));
   PetscCallMPI(MPI_Comm_size(comm, &size));
 
-  PetscCheck(size == 1, comm, PETSC_ERR_USER_INPUT,"This Callback requires sequential communicator. Communicator for TAO object had size %"PetscInt_FMT, size);
+  PetscCheck(size == 1, comm, PETSC_ERR_USER_INPUT, "This Callback requires sequential communicator. Communicator for TAO object had size %" PetscInt_FMT, size);
 
-  PetscCall(VecGetSize(X,&n)); 
+  PetscCall(VecGetSize(X, &n));
   PetscCall(VecGetArrayRead(X, &x));
-  *f = 0; 
-  for(i=0; i<n; i++) *f -= x[i]; 
+  *f = 0;
+  for (i = 0; i < n; i++) *f -= x[i];
   PetscCall(VecRestoreArrayRead(X, &x));
 
-  PetscCall(VecGetSize(G,&n)); 
-  PetscCall(VecGetArray(G,&g));
-  for(i=0; i<n; i++ ) g[i] = -1.0; 
-  PetscCall(VecRestoreArray(G,&g)); 
+  PetscCall(VecGetSize(G, &n));
+  PetscCall(VecGetArray(G, &g));
+  for (i = 0; i < n; i++) g[i] = -1.0;
+  PetscCall(VecRestoreArray(G, &g));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* Evaluate
   E(\mathbf{\gamma}) = \sum_{e into v} -\gamma_e 
 */
-PetscErrorCode FormObjective(Tao tao, Vec X, PetscReal *f,  void *ctx)
+PetscErrorCode FormObjective(Tao tao, Vec X, PetscReal *f, void *ctx)
 {
   const PetscScalar *x;
   MPI_Comm           comm;
   PetscMPIInt        size;
-  PetscInt          i, n; 
- 
+  PetscInt           i, n;
 
   PetscFunctionBegin;
-  PetscCall(PetscObjectGetComm((PetscObject) tao, &comm));
+  PetscCall(PetscObjectGetComm((PetscObject)tao, &comm));
   PetscCallMPI(MPI_Comm_size(comm, &size));
 
-  PetscCheck(size == 1, comm, PETSC_ERR_USER_INPUT,"This Callback requires sequential communicator. Communicator for TAO object had size %"PetscInt_FMT, size);
+  PetscCheck(size == 1, comm, PETSC_ERR_USER_INPUT, "This Callback requires sequential communicator. Communicator for TAO object had size %" PetscInt_FMT, size);
 
-  PetscCall(VecGetSize(X,&n)); 
+  PetscCall(VecGetSize(X, &n));
   PetscCall(VecGetArrayRead(X, &x));
-  *f = 0; 
-  for(i=0; i<n; i++) *f -= x[i]; 
+  *f = 0;
+  for (i = 0; i < n; i++) *f -= x[i];
   PetscCall(VecRestoreArrayRead(X, &x));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -304,22 +300,21 @@ PetscErrorCode FormObjective(Tao tao, Vec X, PetscReal *f,  void *ctx)
 */
 PetscErrorCode FormObjectiveGradient(Tao tao, Vec X, Vec G, void *ctx)
 {
-  MPI_Comm           comm;
-  PetscMPIInt        size;
-  PetscInt          i, n; 
-  PetscScalar       *g; 
- 
+  MPI_Comm     comm;
+  PetscMPIInt  size;
+  PetscInt     i, n;
+  PetscScalar *g;
 
   PetscFunctionBegin;
-  PetscCall(PetscObjectGetComm((PetscObject) tao, &comm));
+  PetscCall(PetscObjectGetComm((PetscObject)tao, &comm));
   PetscCallMPI(MPI_Comm_size(comm, &size));
 
-  PetscCheck(size == 1, comm, PETSC_ERR_USER_INPUT,"This Callback requires sequential communicator. Communicator for TAO object had size %"PetscInt_FMT, size);
+  PetscCheck(size == 1, comm, PETSC_ERR_USER_INPUT, "This Callback requires sequential communicator. Communicator for TAO object had size %" PetscInt_FMT, size);
 
-  PetscCall(VecGetSize(G,&n));
-  PetscCall(VecGetArray(G,&g));
-  for(i=0; i<n; i++) g[i] = -1.0;
-  PetscCall(VecRestoreArray(G,&g)); 
+  PetscCall(VecGetSize(G, &n));
+  PetscCall(VecGetArray(G, &g));
+  for (i = 0; i < n; i++) g[i] = -1.0;
+  PetscCall(VecRestoreArray(G, &g));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -338,15 +333,15 @@ PetscErrorCode FormObjectiveGradient(Tao tao, Vec X, Vec G, void *ctx)
 */
 PetscErrorCode FormInequalityConstraints(Tao tao, Vec X, Vec CI, void *ctx)
 {
-  MPI_Comm           comm;
-  PetscMPIInt        size;
-  AppCtx            *user = (AppCtx *)ctx;
+  MPI_Comm    comm;
+  PetscMPIInt size;
+  AppCtx     *user = (AppCtx *)ctx;
 
   PetscFunctionBegin;
   PetscCall(PetscObjectGetComm((PetscObject)X, &comm));
   PetscCallMPI(MPI_Comm_size(comm, &size));
-  PetscCheck(size == 1, comm, PETSC_ERR_USER_INPUT,"This Callback requires sequential communicator. Communicator for TAO object had size %"PetscInt_FMT, size);
-  PetscCall(MatMultAdd(user->TrafficDistribution,X,user->GammaMax,CI)); 
+  PetscCheck(size == 1, comm, PETSC_ERR_USER_INPUT, "This Callback requires sequential communicator. Communicator for TAO object had size %" PetscInt_FMT, size);
+  PetscCall(MatMultAdd(user->TrafficDistribution, X, user->GammaMax, CI));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -355,12 +350,10 @@ PetscErrorCode FormInequalityConstraints(Tao tao, Vec X, Vec CI, void *ctx)
 */
 PetscErrorCode FormInequalityJacobian(Tao tao, Vec X, Mat JI, Mat JIpre, void *ctx)
 {
-  AppCtx            *user = (AppCtx *)ctx;
+  AppCtx *user = (AppCtx *)ctx;
 
   PetscFunctionBegin;
-  PetscCall(MatCopy(user->TrafficDistribution,JI,SAME_NONZERO_PATTERN)); 
-  if(JI != JIpre) {
-    PetscCall(MatCopy(user->TrafficDistribution,JIpre,SAME_NONZERO_PATTERN)); 
-  }
+  PetscCall(MatCopy(user->TrafficDistribution, JI, SAME_NONZERO_PATTERN));
+  if (JI != JIpre) { PetscCall(MatCopy(user->TrafficDistribution, JIpre, SAME_NONZERO_PATTERN)); }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

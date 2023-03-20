@@ -104,7 +104,7 @@ PetscErrorCode NetRSResetVectorSpace(NetRS rs)
     PetscCall(ISDestroy(&rs->subgraphIS[i]));
   }
   PetscCall(PetscFree(rs->vertexdegrees));
-  PetscCall(PetscFree(rs->inoutdegs)); 
+  PetscCall(PetscFree(rs->inoutdegs));
   PetscCall(PetscFree(rs->subgraphIS));
   PetscCall(PetscHSetIDestroy(&rs->vertexdegrees_total));
   PetscCall(PetscHSetIJDestroy(&rs->inoutdeg_total));
@@ -516,13 +516,12 @@ static PetscErrorCode NetRSSetNetRPPhysics(NetRS rs)
 PetscErrorCode NetRSSetUpVectorSpace(NetRS rs)
 {
   PetscInt        v, numnetrp, i, j, compindex, size, numfields, vdeg, maxsize, off, index, maxdeg, maxnumfields, vStart, vEnd;
-  PetscInt       *vals, *keys, *indeg,*outdeg, *vdegs,*dofs;
+  PetscInt       *vals, *keys, *indeg, *outdeg, *vdegs, *dofs;
   const PetscInt *v_subgraph;
   char            compname[64];
   PetscBool       flg;
   PetscHSetI      vec_wrk_size;
-  PetscHashIJKey  *ijkey; 
-
+  PetscHashIJKey *ijkey;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs, NETRS_CLASSID, 1);
@@ -562,35 +561,35 @@ PetscErrorCode NetRSSetUpVectorSpace(NetRS rs)
   PetscCall(DMCreateGlobalVector(rs->network, &rs->U));
   /* Now we preallocate the NetRP solvers */
   PetscCall(PetscMalloc1(numnetrp, &rs->vertexdegrees));
-  PetscCall(PetscMalloc1(numnetrp,&rs->inoutdegs));
-  for (i = 0; i < numnetrp; i++) { 
-    PetscCall(PetscHSetICreate(&rs->vertexdegrees[i])); 
+  PetscCall(PetscMalloc1(numnetrp, &rs->inoutdegs));
+  for (i = 0; i < numnetrp; i++) {
+    PetscCall(PetscHSetICreate(&rs->vertexdegrees[i]));
     PetscCall(PetscHSetIJCreate(&rs->inoutdegs[i]));
   }
   PetscCall(PetscHSetICreate(&rs->vertexdegrees_total));
   PetscCall(PetscHSetIJCreate(&rs->inoutdeg_total));
   PetscCall(DMNetworkComputeUniqueVertexDegreesLocal(rs, rs->network, rs->subgraphs, rs->vertexdegrees, rs->vertexdegrees_total));
-  PetscCall(DMNetworkComputeUniqueVertexInOutDegreesLocal(rs,rs->network,rs->subgraphs,rs->inoutdegs,rs->inoutdeg_total));
+  PetscCall(DMNetworkComputeUniqueVertexInOutDegreesLocal(rs, rs->network, rs->subgraphs, rs->inoutdegs, rs->inoutdeg_total));
   maxsize = 0;
   for (i = 0; i < numnetrp; i++) {
     PetscCall(PetscHSetIJGetSize(rs->inoutdegs[i], &size));
     if (size > maxsize) maxsize = size;
   }
-  PetscCall(PetscMalloc3(maxsize, &ijkey,maxsize,&indeg,maxsize,&outdeg));
+  PetscCall(PetscMalloc3(maxsize, &ijkey, maxsize, &indeg, maxsize, &outdeg));
   maxdeg = 0;
   for (i = 0; i < numnetrp; i++) {
     off = 0;
     PetscCall(PetscHSetIJGetElems(rs->inoutdegs[i], &off, ijkey));
-    for(j=0; j<off; j++) {
-      indeg[j] = ijkey[j].i; 
-      outdeg[j] = ijkey[j].j; 
-    }
-    PetscCall(NetRPCacheSolvers(rs->netrp[i], off, indeg,outdeg));
     for (j = 0; j < off; j++) {
-      if (indeg[j]+outdeg[j] > maxdeg) maxdeg = indeg[j]+outdeg[j];
+      indeg[j]  = ijkey[j].i;
+      outdeg[j] = ijkey[j].j;
+    }
+    PetscCall(NetRPCacheSolvers(rs->netrp[i], off, indeg, outdeg));
+    for (j = 0; j < off; j++) {
+      if (indeg[j] + outdeg[j] > maxdeg) maxdeg = indeg[j] + outdeg[j];
     }
   }
-  PetscCall(PetscFree3(ijkey,indeg,outdeg));
+  PetscCall(PetscFree3(ijkey, indeg, outdeg));
   /* create IS wrk array for indices */
   PetscCall(PetscMalloc1(maxdeg * maxnumfields, &rs->is_wrk_index));
   /* create boolean wrk array for edge in */
@@ -649,10 +648,10 @@ PetscErrorCode NetRSSetUpVectorSpace(NetRS rs)
 
 PetscErrorCode DMNetworkCacheInOutVertexDegrees(NetRS rs, DM network)
 {
-  PetscInt        v, i, vStart, vEnd, nroots, nleaves, nedges, invdeg, outvdeg; 
+  PetscInt        v, i, vStart, vEnd, nroots, nleaves, nedges, invdeg, outvdeg;
   PetscSF         sf;
   DM              plex;
-  const PetscInt *ilocal, *edges, *cone; 
+  const PetscInt *ilocal, *edges, *cone;
   PetscInt       *rootdata, *leafdata;
   PetscMPIInt     size, rank;
   MPI_Comm        comm;
@@ -661,32 +660,33 @@ PetscErrorCode DMNetworkCacheInOutVertexDegrees(NetRS rs, DM network)
   PetscValidHeaderSpecificType(network, DM_CLASSID, 2, DMNETWORK);
   PetscValidHeaderSpecific(rs, NETRS_CLASSID, 1);
 
-    if (rs->inoutvertexdeg_cached) PetscFunctionReturn(PETSC_SUCCESS); /* already been cached */
+  if (rs->inoutvertexdeg_cached) PetscFunctionReturn(PETSC_SUCCESS); /* already been cached */
   rs->inoutvertexdeg_cached = PETSC_TRUE;
   PetscCall(PetscObjectGetComm((PetscObject)rs, &comm));
   PetscCallMPI(MPI_Comm_size(comm, &size));
   PetscCallMPI(MPI_Comm_rank(comm, &rank));
   /* Compute the inout degrees for the local portions of the Network */
   PetscCall(DMNetworkGetVertexRange(network, &vStart, &vEnd));
-  PetscCall(DMLabelReset(rs->InVertexDeg)); 
+  PetscCall(DMLabelReset(rs->InVertexDeg));
   PetscCall(DMLabelReset(rs->OutVertexDeg));
 
   for (v = vStart; v < vEnd; v++) {
-    invdeg = 0; outvdeg = 0; 
-    PetscCall(DMNetworkGetSupportingEdges(network,v,&nedges,&edges)); 
-    for (i=0; i<nedges; i++) {
-      PetscCall(DMNetworkGetConnectedVertices(network,edges[i],&cone));
+    invdeg  = 0;
+    outvdeg = 0;
+    PetscCall(DMNetworkGetSupportingEdges(network, v, &nedges, &edges));
+    for (i = 0; i < nedges; i++) {
+      PetscCall(DMNetworkGetConnectedVertices(network, edges[i], &cone));
       if (cone[1] == v) {
-        invdeg++; 
+        invdeg++;
       } else {
-        outvdeg++; 
+        outvdeg++;
       }
     }
-    PetscCall(DMLabelSetValue(rs->InVertexDeg,v,invdeg)); 
-    PetscCall(DMLabelSetValue(rs->OutVertexDeg,v,outvdeg));
+    PetscCall(DMLabelSetValue(rs->InVertexDeg, v, invdeg));
+    PetscCall(DMLabelSetValue(rs->OutVertexDeg, v, outvdeg));
   }
   if (size == 1) {
-    PetscCall(DMLabelCreateIndex(rs->InVertexDeg, vStart, vEnd)); /* No new points added */
+    PetscCall(DMLabelCreateIndex(rs->InVertexDeg, vStart, vEnd));  /* No new points added */
     PetscCall(DMLabelCreateIndex(rs->OutVertexDeg, vStart, vEnd)); /* No new points added */
     PetscFunctionReturn(PETSC_SUCCESS);
   }
@@ -705,7 +705,7 @@ PetscErrorCode DMNetworkCacheInOutVertexDegrees(NetRS rs, DM network)
   /* Fill the leaf data with the local In Vertex degrees */
   for (i = 0; i < nleaves; i++) {
     if (ilocal[i] >= vEnd || ilocal[i] < vStart) continue;
-    PetscCall(DMLabelGetValue(rs->InVertexDeg,ilocal[i],&invdeg));
+    PetscCall(DMLabelGetValue(rs->InVertexDeg, ilocal[i], &invdeg));
     leafdata[ilocal[i]] = invdeg;
   }
   /* reduce degree data from leaves to root. This gives the correct in vertex degree on the
@@ -714,8 +714,8 @@ PetscErrorCode DMNetworkCacheInOutVertexDegrees(NetRS rs, DM network)
   PetscCall(PetscSFReduceEnd(sf, MPIU_INT, leafdata, rootdata, MPIU_SUM));
   for (v = vStart; v < vEnd; v++) {
     if (!rootdata[v]) continue;
-    PetscCall(DMLabelGetValue(rs->InVertexDeg,v,&invdeg)); /* local value */
-    rootdata[v] += invdeg; 
+    PetscCall(DMLabelGetValue(rs->InVertexDeg, v, &invdeg)); /* local value */
+    rootdata[v] += invdeg;
     //  PetscPrintf(PETSC_COMM_SELF,"[%i] v: %"PetscInt_FMT " vdeg %"PetscInt_FMT"\n",rank,v,rootdata[v]);
     PetscCall(DMLabelSetValue(rs->InVertexDeg, v, rootdata[v]));
   }
@@ -731,12 +731,12 @@ PetscErrorCode DMNetworkCacheInOutVertexDegrees(NetRS rs, DM network)
   PetscCall(DMLabelCreateIndex(rs->InVertexDeg, vStart, vEnd));
 
   /* Now do OutVertDeg */
-  PetscCall(PetscArrayzero(rootdata,nroots)); 
-  PetscCall(PetscArrayzero(leafdata,nroots)); 
+  PetscCall(PetscArrayzero(rootdata, nroots));
+  PetscCall(PetscArrayzero(leafdata, nroots));
   /* Fill the leaf data with the local Out Vertex degrees */
   for (i = 0; i < nleaves; i++) {
     if (ilocal[i] >= vEnd || ilocal[i] < vStart) continue;
-    PetscCall(DMLabelGetValue(rs->OutVertexDeg,ilocal[i],&outvdeg));
+    PetscCall(DMLabelGetValue(rs->OutVertexDeg, ilocal[i], &outvdeg));
     leafdata[ilocal[i]] = outvdeg;
   }
   /* reduce degree data from leaves to root. This gives the correct in vertex degree on the
@@ -745,8 +745,8 @@ PetscErrorCode DMNetworkCacheInOutVertexDegrees(NetRS rs, DM network)
   PetscCall(PetscSFReduceEnd(sf, MPIU_INT, leafdata, rootdata, MPIU_SUM));
   for (v = vStart; v < vEnd; v++) {
     if (!rootdata[v]) continue;
-    PetscCall(DMLabelGetValue(rs->OutVertexDeg,v,&outvdeg)); /* local value */
-    rootdata[v] += outvdeg; 
+    PetscCall(DMLabelGetValue(rs->OutVertexDeg, v, &outvdeg)); /* local value */
+    rootdata[v] += outvdeg;
     //  PetscPrintf(PETSC_COMM_SELF,"[%i] v: %"PetscInt_FMT " vdeg %"PetscInt_FMT"\n",rank,v,rootdata[v]);
     PetscCall(DMLabelSetValue(rs->OutVertexDeg, v, rootdata[v]));
   }
@@ -763,9 +763,6 @@ PetscErrorCode DMNetworkCacheInOutVertexDegrees(NetRS rs, DM network)
   PetscCall(PetscFree2(rootdata, leafdata));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
-
-
 
 /* TODO: Migrate this functionality to DMNetwork itself */
 
@@ -842,7 +839,6 @@ PetscErrorCode DMNetworkCacheVertexDegrees(NetRS rs, DM network)
   PetscCall(PetscFree2(rootdata, leafdata));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
 
 /* The existence of this code is an abomination */
 
@@ -1158,7 +1154,7 @@ PetscErrorCode DMNetworkComputeUniqueVertexInOutDegreesLocal(NetRS rs, DM networ
   PetscInt        numsubgraphs, i, j, v, vStart, vEnd, numpoints;
   IS              values_is, point_is;
   const PetscInt *values, *points;
-  PetscHashIJKey  ijkey; 
+  PetscHashIJKey  ijkey;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(network, DM_CLASSID, 2, DMNETWORK);
@@ -1172,8 +1168,8 @@ PetscErrorCode DMNetworkComputeUniqueVertexInOutDegreesLocal(NetRS rs, DM networ
   PetscCall(DMNetworkGetVertexRange(network, &vStart, &vEnd));
   /* generate the hash set for the entire local graph first */
   for (v = vStart; v < vEnd; v++) {
-    PetscCall(DMLabelGetValue(rs->InVertexDeg,v,&ijkey.i));
-    PetscCall(DMLabelGetValue(rs->OutVertexDeg,v,&ijkey.j)); 
+    PetscCall(DMLabelGetValue(rs->InVertexDeg, v, &ijkey.i));
+    PetscCall(DMLabelGetValue(rs->OutVertexDeg, v, &ijkey.j));
     PetscCall(PetscHSetIJAdd(inoutdeg_total, ijkey));
   }
 
@@ -1193,8 +1189,8 @@ PetscErrorCode DMNetworkComputeUniqueVertexInOutDegreesLocal(NetRS rs, DM networ
       for (j = 0; j < numpoints; j++) {
         v = points[j];
         if (v < vStart || v >= vEnd) continue;
-        PetscCall(DMLabelGetValue(rs->InVertexDeg,v,&ijkey.i));
-        PetscCall(DMLabelGetValue(rs->OutVertexDeg,v,&ijkey.j)); 
+        PetscCall(DMLabelGetValue(rs->InVertexDeg, v, &ijkey.i));
+        PetscCall(DMLabelGetValue(rs->OutVertexDeg, v, &ijkey.j));
         PetscCall(PetscHSetIJAdd(inoutdegs[i], ijkey));
       }
       PetscCall(ISRestoreIndices(point_is, &points));
@@ -1266,7 +1262,7 @@ PetscErrorCode NetRSCreateLocalVec(NetRS rs, Vec *localvec)
 /* currently does every! solve on the vertex, so only communication of Uloc not Fluxloc*/
 PetscErrorCode NetRSSolveFlux(NetRS rs, Vec Uloc, Vec Fluxloc)
 {
-  PetscInt           i, j, index, numnetrp, nvert, ndofs, v, off, vdeg, vdegin,vdegout, edgeinoff, wrk_vec_index;
+  PetscInt           i, j, index, numnetrp, nvert, ndofs, v, off, vdeg, vdegin, vdegout, edgeinoff, wrk_vec_index;
   const PetscInt    *v_subgraph, *edges, *cone;
   PetscBool          flg, *edgein;
   MPI_Comm           comm;
@@ -1323,14 +1319,14 @@ PetscErrorCode NetRSSolveFlux(NetRS rs, Vec Uloc, Vec Fluxloc)
         }
       }
       // compute the vdegin and vdegout (should be stored in DMNetwork?)
-      vdegin = 0; 
-      vdegout = 0; 
-      for(j=0; j<vdeg; j++) {
-        if (edgein[j] == PETSC_TRUE) vdegin++; 
-        else vdegout++; 
+      vdegin  = 0;
+      vdegout = 0;
+      for (j = 0; j < vdeg; j++) {
+        if (edgein[j] == PETSC_TRUE) vdegin++;
+        else vdegout++;
       }
       PetscLogEventEnd(NetRS_Solve_TopologyBuild, 0, 0, 0, 0);
-      PetscCall(NetRPSolveFlux(rs->netrp[index], vdegin,vdegout, edgein, rs->Uv[wrk_vec_index], rs->Fluxv[wrk_vec_index]));
+      PetscCall(NetRPSolveFlux(rs->netrp[index], vdegin, vdegout, edgein, rs->Uv[wrk_vec_index], rs->Fluxv[wrk_vec_index]));
       PetscCall(VecResetArray(rs->Uv[wrk_vec_index]));
       PetscCall(VecResetArray(rs->Fluxv[wrk_vec_index]));
     }
@@ -1345,7 +1341,7 @@ PetscErrorCode NetRSSolveFlux(NetRS rs, Vec Uloc, Vec Fluxloc)
 /* currently does every! solve on the vertex, so only communication of Uloc not Fluxloc*/
 PetscErrorCode NetRSSolveFluxBegin(NetRS rs, Vec Uloc, Vec Fluxloc)
 {
-  PetscInt           i, j, index, numnetrp, nvert, ndofs, v, off, vdeg,vdegin,vdegout, edgeinoff, wrk_vec_index;
+  PetscInt           i, j, index, numnetrp, nvert, ndofs, v, off, vdeg, vdegin, vdegout, edgeinoff, wrk_vec_index;
   const PetscInt    *v_subgraph, *edges, *cone;
   PetscBool          flg, *edgein;
   MPI_Comm           comm;
@@ -1400,15 +1396,15 @@ PetscErrorCode NetRSSolveFluxBegin(NetRS rs, Vec Uloc, Vec Fluxloc)
           edgein[j] = (cone[1] == v) ? PETSC_TRUE : PETSC_FALSE;
         }
       }
-       // compute the vdegin and vdegout (should be stored in DMNetwork?)
-      vdegin = 0; 
-      vdegout = 0; 
-      for(j=0; j<vdeg; j++) {
-        if (edgein[j] == PETSC_TRUE) vdegin++; 
-        else vdegout++; 
+      // compute the vdegin and vdegout (should be stored in DMNetwork?)
+      vdegin  = 0;
+      vdegout = 0;
+      for (j = 0; j < vdeg; j++) {
+        if (edgein[j] == PETSC_TRUE) vdegin++;
+        else vdegout++;
       }
       PetscLogEventEnd(NetRS_Solve_TopologyBuild, 0, 0, 0, 0);
-      PetscCall(NetRPSolveFlux(rs->netrp[index], vdegin,vdegout, edgein, rs->Uv[wrk_vec_index], rs->Fluxv[wrk_vec_index]));
+      PetscCall(NetRPSolveFlux(rs->netrp[index], vdegin, vdegout, edgein, rs->Uv[wrk_vec_index], rs->Fluxv[wrk_vec_index]));
       PetscCall(VecResetArray(rs->Uv[wrk_vec_index]));
       PetscCall(VecResetArray(rs->Fluxv[wrk_vec_index]));
     }
@@ -1427,7 +1423,7 @@ PetscErrorCode NetRSSolveFluxBegin(NetRS rs, Vec Uloc, Vec Fluxloc)
 
 PetscErrorCode NetRSSolveFluxEnd(NetRS rs, Vec Uloc, Vec Fluxloc)
 {
-  PetscInt           i, j, index, numnetrp, nvert, ndofs, v, off, vdeg,vdegin,vdegout, edgeinoff, wrk_vec_index;
+  PetscInt           i, j, index, numnetrp, nvert, ndofs, v, off, vdeg, vdegin, vdegout, edgeinoff, wrk_vec_index;
   const PetscInt    *v_subgraph, *edges, *cone;
   PetscBool          flg, *edgein;
   MPI_Comm           comm;
@@ -1480,15 +1476,15 @@ PetscErrorCode NetRSSolveFluxEnd(NetRS rs, Vec Uloc, Vec Fluxloc)
           edgein[j] = (cone[1] == v) ? PETSC_TRUE : PETSC_FALSE;
         }
       }
-       // compute the vdegin and vdegout (should be stored in DMNetwork?)
-      vdegin = 0; 
-      vdegout = 0; 
-      for(j=0; j<vdeg; j++) {
-        if (edgein[j] == PETSC_TRUE) vdegin++; 
-        else vdegout++; 
+      // compute the vdegin and vdegout (should be stored in DMNetwork?)
+      vdegin  = 0;
+      vdegout = 0;
+      for (j = 0; j < vdeg; j++) {
+        if (edgein[j] == PETSC_TRUE) vdegin++;
+        else vdegout++;
       }
       PetscLogEventEnd(NetRS_Solve_TopologyBuild, 0, 0, 0, 0);
-      PetscCall(NetRPSolveFlux(rs->netrp[index], vdegin,vdegout, edgein, rs->Uv[wrk_vec_index], rs->Fluxv[wrk_vec_index]));
+      PetscCall(NetRPSolveFlux(rs->netrp[index], vdegin, vdegout, edgein, rs->Uv[wrk_vec_index], rs->Fluxv[wrk_vec_index]));
       PetscCall(VecResetArray(rs->Uv[wrk_vec_index]));
       PetscCall(VecResetArray(rs->Fluxv[wrk_vec_index]));
     }

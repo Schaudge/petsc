@@ -366,7 +366,7 @@ static PetscErrorCode TrafficCase1Char(SNES snes, Vec X, Vec f, void *ctx)
 /* TODO Generalize to arbitrary initial value */
 static PetscErrorCode TrafficCase1Char_J(SNES snes, Vec X, Mat Amat, Mat Pmat, void *ctx)
 {
-  PetscReal           t, rhs, a;
+  PetscReal          t, rhs, a;
   const PetscScalar *s;
 
   PetscFunctionBeginUser;
@@ -389,11 +389,11 @@ static PetscErrorCode TrafficCase1Char_J(SNES snes, Vec X, Mat Amat, Mat Pmat, v
 
 static PetscErrorCode PhysicsSample_TrafficNetwork(void *vctx, PetscInt initial, PetscReal t, PetscReal x, PetscReal *u, PetscInt edgeid)
 {
-  SNES           snes;
-  Mat            J;
-  Vec            X, R;
-  PetscReal     *s;
-  MethodCharCtx  ctx;
+  SNES          snes;
+  Mat           J;
+  Vec           X, R;
+  PetscReal    *s;
+  MethodCharCtx ctx;
 
   PetscFunctionBeginUser;
   if (t < 0) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "t must be >= 0 ");

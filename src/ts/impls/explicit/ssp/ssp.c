@@ -187,7 +187,7 @@ static PetscErrorCode TSSetUp_SSP(TS ts)
   PetscCall(TSCheckImplicitTerm(ts));
   PetscCall(TSGetAdapt(ts, &ts->adapt));
   PetscCall(TSAdaptCandidatesClear(ts->adapt));
-  PetscCall(PetscMalloc1(ssp->nstages,&ssp->Y));
+  PetscCall(PetscMalloc1(ssp->nstages, &ssp->Y));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
