@@ -1,5 +1,9 @@
 #include <../src/ksp/ksp/utils/lmvm/cdbfgs/cdbfgs.h> /*I "petscksp.h" I*/
 #include <../src/ksp/ksp/utils/lmvm/diagbrdn/diagbrdn.h>
+#include <petscmat.h>
+#include <petscsys.h>
+#include <petscaijdevice.h>
+#include <petscdevice_cuda.h>
 
 /*------------------------------------------------------------*/
 
@@ -559,7 +563,7 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   lmvm->ops->solve = MatSolve_LMVMCDBFGS;
   lmvm->ops->copy = MatCopy_LMVMCDBFGS;
   
-  PetscCall(PetscNewLog(B, &lbfgs));
+  PetscCall(PetscNew(&lbfgs));
   lmvm->ctx = (void*)lbfgs;
   lbfgs->allocated       = PETSC_FALSE;
   lbfgs->watchdog        = 0;
@@ -569,7 +573,7 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   lbfgs->max_seq_rejects = lmvm->m/2;
   
   PetscCall(MatCreate(PetscObjectComm((PetscObject)B), &lbfgs->diag_bfgs));
-  PetscCall(MatSetType(lbfgs->diag_bfgs, MATLMVMDIAGBRDN));
+  PetscCall(MatSetType(lbfgs->diag_bfgs, MATLMVMDIAGBROYDEN));
   PetscCall(MatSetOptionsPrefix(lbfgs->diag_bfgs, "J0_"));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

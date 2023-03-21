@@ -140,7 +140,7 @@ static PetscErrorCode MatSolve_LMVM(Mat B, Vec F, Vec dX)
   VecCheckSameSize(F, 2, dX, 3);
   VecCheckMatCompatible(B, F, 2, dX, 3);
   PetscCheck(lmvm->allocated, PetscObjectComm((PetscObject)B), PETSC_ERR_ORDER, "LMVM matrix must be allocated first");
-  PetscCheck(*lmvm->ops->solve, PetscObjectComm((PetscOjbect)B), PETSC_ERR_ARG_INCOMP, "LMVM matrix does not have a solution or inversion implementation");
+  PetscCheck(*lmvm->ops->solve, PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "LMVM matrix does not have a solution or inversion implementation");
   PetscCall((*lmvm->ops->solve)(B, F, dX));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

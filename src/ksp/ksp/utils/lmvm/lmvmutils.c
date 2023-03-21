@@ -147,7 +147,7 @@ PetscErrorCode MatLMVMSetJ0Diag(Mat B, Vec V)
    J0, in which case updating the outer LMVM-type matrix will
    also trigger the update for the inner LMVM-type matrix. This
    is useful in cases where a full-memory diagonal approximation
-   such as `MATLMVMDIAGBRDN` is used in place of J0.
+   such as `MATLMVMDIAGBROYDEN` is used in place of J0.
 
    Input Parameters:
 +  B - An LMVM-type matrix
