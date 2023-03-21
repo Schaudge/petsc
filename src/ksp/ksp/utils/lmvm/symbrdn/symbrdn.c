@@ -1,4 +1,5 @@
 #include <../src/ksp/ksp/utils/lmvm/symbrdn/symbrdn.h> /*I "petscksp.h" I*/
+#include <../src/ksp/ksp/utils/lmvm/cdbfgs/cdbfgs.h>
 #include <../src/ksp/ksp/utils/lmvm/diagbrdn/diagbrdn.h>
 
 const char *const MatLMVMSymBroydenScaleTypes[] = {"NONE", "SCALAR", "DIAGONAL", "USER", "MatLMVMSymBrdnScaleType", "MAT_LMVM_SYMBROYDEN_SCALING_", NULL};
