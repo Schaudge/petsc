@@ -2,8 +2,6 @@
 #include <../src/ksp/ksp/utils/lmvm/diagbrdn/diagbrdn.h>
 #include <petscmat.h>
 #include <petscsys.h>
-#include <petscaijdevice.h>
-#include <petscdevice_cuda.h>
 
 /*------------------------------------------------------------*/
 

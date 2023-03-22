@@ -1,6 +1,7 @@
 #include <petsc/private/kspimpl.h> /*I "petscsnes.h" I*/
 #include <petsc/private/petscimpl.h>
 #include <petscerror.h>
+#include <petscmat.h>
 #include <../src/ksp/ksp/utils/schurm/schurm.h>
 #include <../src/ksp/ksp/utils/lmvm/lmvm.h>
 
