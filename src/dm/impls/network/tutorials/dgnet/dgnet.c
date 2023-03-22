@@ -1,6 +1,7 @@
 #include "dgnet.h"
 #include <petscdraw.h>
 #include "hydronetwork-2021/src/wash.h"
+#include "petscsystypes.h"
 
 PetscLogEvent  DGNET_SetUP;
 PetscErrorCode WashDestroy_DGNet(Wash wash)
@@ -1860,10 +1861,10 @@ PetscErrorCode DGNetworkCreateNetworkDMPlex_2D(DGNetwork dgnet, const PetscInt e
       upper[1] -= thickness * n[1];
 
       PetscCall(DMPlexCreateEmbeddedLineMesh(PETSC_COMM_SELF, 2, faces[0], lower, upper, &dmtemp));
-      PetscCall(DMPlexExtrude(dmtemp, 1, thickness * 2, PETSC_FALSE, PETSC_FALSE, n, NULL, &dmlist[i]));
+      PetscCall(DGNetworkCreateViewDM2(dmtemp));
+      PetscCall(DMPlexExtrude(dmtemp, 1, thickness * 2, PETSC_FALSE, PETSC_TRUE, NULL, NULL, &dmlist[i]));
       PetscCall(DMDestroy(&dmtemp));
-      // PetscCall(DMPlexCreateBoxMesh(PETSC_COMM_SELF, 2, PETSC_FALSE, faces, lower, upper, NULL, PETSC_TRUE, &dmlist[i]));
-      PetscCall(DGNetworkCreateViewDM2(dmlist[i++]));
+      i++;
     }
     *numdm = i;
     PetscCall(DMPlexDisjointUnion_Geometric_Section(dmlist, i, &dmunion, &stratumoff));
