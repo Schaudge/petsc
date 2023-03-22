@@ -71,6 +71,10 @@ struct _p_NetRP {
   SNES *snes;
   Tao  *tao;
 
+  NetRPCacheDirectedU    cacheU;    /*  whether to cache the directed input vectors */
+  Vec *Uin, *Uout; /* Vectors for storing the Uin, and Uout components of the input U vector. 
+  This is an optional cache didcted by cacheU */
+
   void **solver_ctx; /* User ctx for the cached solvers. */
 
   /* Cache Type; 
@@ -90,6 +94,5 @@ struct _p_NetRP {
   NetRPPhysicsGenerality physicsgenerality;
   PetscInt               numfields; /* the problems number of fields, if physics generality is general this is copied from the physics 
                                 otherwise this must be set manually and will error if the the physics does not match */
-  NetRPCacheDirectedU    cacheU;    /*  whether to cache the directed input vectors */
 };
 #endif

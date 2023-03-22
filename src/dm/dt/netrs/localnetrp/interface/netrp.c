@@ -1,4 +1,6 @@
+#include "petscsys.h"
 #include "petscsystypes.h"
+#include "petscvec.h"
 #include <petsc/private/localnetrpimpl.h>
 #include <petscnetrp.h>                      /*I "petscnetrp.h" I*/
 #include <petsc/private/riemannsolverimpl.h> /* to be removed after adding fluxfunction class */
@@ -123,6 +125,7 @@ PetscErrorCode NetRPClearCache(NetRP rp)
 {
   PetscInt       i, numcached;
   NetRPCacheType cachetype;
+  PetscBool      CacheUDir; 
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
@@ -155,6 +158,10 @@ PetscErrorCode NetRPClearCache(NetRP rp)
   case DirectedVDeg:
     PetscCall(PetscHMapIJClear(rp->dirhmap));
     break;
+  }
+  PetscCall(NetRPGetCacheUDirected(rp, &CacheUDir));
+  if(CacheUDir) {
+    PetscCall(PetscFree2(rp->Uin,rp->Uout));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -483,6 +490,9 @@ PetscErrorCode NetRPAddVertexDegrees_internal(NetRP rp, PetscInt numdegs, PetscI
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
+  /* TODO: This is a bandaid because my Uin/Uout cacheing is hacked in for now. Uin/ Uout caching should be its own seperate 
+     function with seperate cacheing orthogonal to this stuff. */
+  PetscCheck(rp->cacheU == No_Default || rp->cacheU== No_Manual, PetscObjectComm((PetscObject)rp),PETSC_ERR_ARG_WRONGSTATE,"Does not support cacheing Uin and Uout for this function."); 
   PetscCheck(rp->setupcalled, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Call NetRPSetUp() first");
   PetscCall(PetscHMapIGetSize(rp->hmap, &numentries));
   /* count number of new entries */
@@ -557,13 +567,13 @@ PetscErrorCode NetRPAddVertexDegrees_internal(NetRP rp, PetscInt numdegs, PetscI
 @*/
 PetscErrorCode NetRPAddDirVertexDegrees_internal(NetRP rp, PetscInt numdegs, PetscInt *invertdegs, PetscInt *outvertdegs)
 {
-  PetscInt       i, numentries, totalnew = 0, off;
+  PetscInt       i, numentries, totalnew = 0, off; 
   PetscHashIJKey ijkey;
   PetscBool      flg;
   Mat           *mat_new;
   KSP           *ksp_new;
   SNES          *snes_new;
-  Vec           *vec_new;
+  Vec           *vec_new, *Uin_new, *Uout_new; 
   Tao           *tao_new;
   void         **solver_ctx_new;
 
@@ -602,6 +612,18 @@ PetscErrorCode NetRPAddDirVertexDegrees_internal(NetRP rp, PetscInt numdegs, Pet
   rp->tao        = tao_new;
   rp->solver_ctx = solver_ctx_new;
 
+
+  if(rp->cacheU == Yes_Default || rp->cacheU == Yes_Manual) {
+    PetscCall(PetscMalloc2(numentries+totalnew, &Uin_new, numentries+totalnew, &Uout_new)); 
+    PetscCall(PetscArraycpy(Uin_new, rp->Uin, numentries)); 
+    PetscCall(PetscArraycpy(Uout_new, rp->Uout, numentries)); 
+    if(rp->Uin) {
+      PetscCall(PetscFree2(rp->Uin, rp->Uout));
+    }
+    rp->Uin = Uin_new; 
+    rp->Uout = Uout_new; 
+  }
+
   /* add new entries */
   off = 0;
   for (i = 0; i < numdegs; i++) {
@@ -625,6 +647,18 @@ PetscErrorCode NetRPAddDirVertexDegrees_internal(NetRP rp, PetscInt numdegs, Pet
       break;
     }
     PetscTryTypeMethod(rp, setsolverctx, ijkey.i, ijkey.j, &rp->solver_ctx[numentries + off]);
+
+    switch(rp->cacheU) {
+      case Yes_Manual: 
+      case Yes_Default: 
+      /* TODO: Should not cache on the (i,j) cacheing as Uin only depends on invertdeg and same idea for Uout,
+         should have a seperate cache index for each, on only cache in invertdeg and outvertdeg. */
+        PetscCall(VecCreateSeq(PetscObjectComm((PetscObject)rp), rp->numfields*invertdegs[i], &rp->Uin[numentries+off]));
+        PetscCall(VecCreateSeq(PetscObjectComm((PetscObject)rp), rp->numfields*outvertdegs[i], &rp->Uout[numentries+off]));
+        break; 
+      default:
+        break;
+    }
     off++;
   }
   PetscFunctionReturn(PETSC_SUCCESS);
