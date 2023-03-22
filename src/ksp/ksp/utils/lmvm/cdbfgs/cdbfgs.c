@@ -401,16 +401,30 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     PetscCall(VecDuplicate(F, &lmvm->Fprev));
     if (lmvm->m > 0) {
       /* Create iteration storage matrices */	    
+#if 0
       PetscCall(PetscObjectBaseTypeCompare((PetscObject)X, VECCUDA, &same));
       if (same) {
         lbfgs->dense_type = MATSEQDENSECUDA;
         PetscCall(MatCreateAIJCUSPARSE(PetscObjectComm((PetscObject)B), lmvm->m, n, lmvm->m, N, n, NULL, N, NULL, &lbfgs->STfull));
         PetscCall(MatCreateAIJCUSPARSE(PetscObjectComm((PetscObject)B), lmvm->m, n, lmvm->m, N, n, NULL, N, NULL, &lbfgs->YTfull));
       } else {
-        lbfgs->dense_type = MATSEQDENSE;
-        PetscCall(MatCreateAIJ(PetscObjectComm((PetscObject)B), lmvm->m, n, lmvm->m, N, n, NULL, N, NULL, &lbfgs->STfull));
-        PetscCall(MatCreateAIJ(PetscObjectComm((PetscObject)B), lmvm->m, n, lmvm->m, N, n, NULL, N, NULL, &lbfgs->YTfull));
       }
+#else
+      PetscCall(PetscObjectBaseTypeCompare((PetscObject)X, VECCUDA, &same));
+      lbfgs->dense_type = MATSEQDENSE;
+      PetscCall(MatCreateDense(PetscObjectComm((PetscObject)B), lmvm->m, n, lmvm->m, N, NULL, &lbfgs->STfull));
+      PetscCall(MatCreateDense(PetscObjectComm((PetscObject)B), lmvm->m, n, lmvm->m, N, NULL, &lbfgs->YTfull));
+      if (same) {
+        lbfgs->dense_type = MATSEQDENSECUDA;
+      }
+      // have some logic or configure option that says what lbfgs->dense_type should be ...
+      PetscBool same_current;
+      PetscCall(PetscObjectTypeCompare((PetscObject) lbfgs->STfull, lbfgs->dense_type, &same_current));
+      if (!same_current) {
+        PetscCall(MatConvert(lbfgs->STfull, lbfgs->dense_type, MAT_INPLACE_MATRIX, &lbfgs->STfull));
+        PetscCall(MatConvert(lbfgs->YTfull, lbfgs->dense_type, MAT_INPLACE_MATRIX, &lbfgs->YTfull));
+      }
+#endif
       /* Populate the iteration storage with values to fake a dense storage */
       /* It is inefficient to use a sparse format for dense data but there is no parallel dense format for CUDA */
       /* Dense formats also do not fully support some of the Mat tools being used in this implementation */
