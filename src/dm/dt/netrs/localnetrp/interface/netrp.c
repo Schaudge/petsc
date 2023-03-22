@@ -1,3 +1,4 @@
+#include "petscsystypes.h"
 #include <petsc/private/localnetrpimpl.h>
 #include <petscnetrp.h>                      /*I "petscnetrp.h" I*/
 #include <petsc/private/riemannsolverimpl.h> /* to be removed after adding fluxfunction class */
@@ -437,7 +438,7 @@ PetscErrorCode NetRPCreateTao(NetRP rp, PetscInt indeg, PetscInt outdeg, Tao *ta
   PetscCall(TaoSetFromOptions(_tao));
 
   /* connstruct the storage for things needed for TAO. 
-     To be redone
+     To be redone, assumes the traffic flow format here 
   */
   PetscCall(NetRPGetNumFields(rp, &numfield));
   PetscCall(VecCreateSeq(PETSC_COMM_SELF, numfield * indeg, &LB));
@@ -1035,12 +1036,48 @@ static PetscErrorCode NetRPComputeFluxInPlace_internal(NetRP rp, PetscInt vdeg, 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+PetscErrorCode NetRPSetCacheUDirected(NetRP rp, PetscBool CacheUDir)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
+  PetscCheck(rp->setupcalled, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Must Call before NetRPSetUp()");
+  rp->cacheU = CacheUDir ? Yes_Manual : No_Manual;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode NetRPGetCacheUDirected(NetRP rp, PetscBool *CacheUDir)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
+  switch (rp->cacheU) {
+  case Yes_Manual:
+  case Yes_Default:
+    *CacheUDir = PETSC_TRUE;
+    break;
+  case No_Manual:
+  case No_Default:
+    *CacheUDir = PETSC_FALSE;
+    break;
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode NetRPSetCacheType(NetRP rp, NetRPCacheType cachetype)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
   PetscCheck(rp->setupcalled, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Must Call before NetRPSetUp()");
   rp->cachetype = cachetype;
+  if (rp->cacheU != No_Manual && rp->cacheU != Yes_Manual) {
+    switch (cachetype) {
+    case UndirectedVDeg:
+      rp->cacheU = No_Default;
+      break;
+    case DirectedVDeg:
+      rp->cacheU = Yes_Default;
+      break;
+    }
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1198,7 +1235,7 @@ PetscErrorCode NetRPSolveFlux(NetRP rp, PetscInt vdegin, PetscInt vdegout, Petsc
     snesctx.rp     = rp;
     snesctx.U      = U;
     PetscCall(SNESSetApplicationContext(rp->snes[index], (void *)&snesctx));
-    PetscCall(VecCopy(U, Flux)); /* initial guess of the riemann data */
+    PetscCall(VecCopy(U, Flux));                       /* initial guess of the riemann data */
     PetscLogEventBegin(NetRP_Solve_System, 0, 0, 0, 0);
     PetscCall(SNESSolve(rp->snes[index], NULL, Flux)); /* currently assumes this solves for the star state */
     PetscLogEventEnd(NetRP_Solve_System, 0, 0, 0, 0);

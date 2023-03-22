@@ -1,3 +1,4 @@
+#include "petscsystypes.h"
 #if !defined(PETSCNETRP_H)
   #define PETSCNETRP_H
 
@@ -29,6 +30,13 @@ typedef enum {
   UndirectedVDeg,
   DirectedVDeg
 } NetRPCacheType;
+
+typedef enum {
+  No_Default,
+  Yes_Default,
+  Yes_Manual,
+  No_Manual
+} NetRPCacheDirectedU;
 
 typedef PetscErrorCode (*NetRPSolveStar_User)(NetRP, PetscInt, PetscBool *, Vec, Vec);        /* form is: NumEdges,EdgeIn? Array, U, UStar */
 typedef PetscErrorCode (*NetRPSolveFlux_User)(NetRP, PetscInt, PetscBool *, Vec, Vec);        /* form is: NumEdges,EdgeIn? Array, U, Flux */
@@ -91,6 +99,8 @@ PETSC_EXTERN PetscErrorCode NetRPGetNumCached(NetRP, PetscInt *);
 PETSC_EXTERN PetscErrorCode NetRPClearCache(NetRP);
 PETSC_EXTERN PetscErrorCode NetRPGetCacheType(NetRP, NetRPCacheType *);
 PETSC_EXTERN PetscErrorCode NetRPSetCacheType(NetRP, NetRPCacheType);
+PETSC_EXTERN PetscErrorCode NetRPSetCacheUDirected(NetRP, PetscBool);
+PETSC_EXTERN PetscErrorCode NetRPGetCacheUDirected(NetRP, PetscBool *);
 
 PETSC_EXTERN PetscErrorCode NetRPSetSolverCtxFunc(NetRP, NetRPSetSolverCtx);
 PETSC_EXTERN PetscErrorCode NetRPGetSolverCtx(NetRP, PetscInt, PetscInt, void *);

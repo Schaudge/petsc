@@ -39,7 +39,7 @@ struct _NetRPOps {
   PetscErrorCode (*setupmat)(NetRP, PetscInt, Mat);
   PetscErrorCode (*setupksp)(NetRP, PetscInt, KSP);
   PetscErrorCode (*setupsnes)(NetRP, PetscInt, SNES);
-  PetscErrorCode (*setuptao)(NetRP, PetscInt, PetscInt, Tao); // edges in and edges out
+  PetscErrorCode (*setuptao)(NetRP, PetscInt, PetscInt, Tao);                      // edges in and edges out
   PetscErrorCode (*setupjac)(NetRP, PetscInt, Mat);
   PetscErrorCode (*solveStar)(NetRP, PetscInt, PetscBool *, Vec, Vec);             /* form is: DMNetwork, Vertex, U, UStar */
   PetscErrorCode (*solveFlux)(NetRP, PetscInt, PetscBool *, Vec, Vec);             /* form is: DMNetwork, Vertex, U, Flux */
@@ -90,5 +90,6 @@ struct _p_NetRP {
   NetRPPhysicsGenerality physicsgenerality;
   PetscInt               numfields; /* the problems number of fields, if physics generality is general this is copied from the physics 
                                 otherwise this must be set manually and will error if the the physics does not match */
+  NetRPCacheDirectedU    cacheU;    /*  whether to cache the directed input vectors */
 };
 #endif
