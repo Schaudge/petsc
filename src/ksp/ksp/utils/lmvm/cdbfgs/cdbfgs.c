@@ -372,7 +372,7 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
   VecType           vec_type;
   PetscInt          m, n, M, N, i, j;
   MPI_Comm          comm = PetscObjectComm((PetscObject)B);
-
+  
   PetscFunctionBegin;
   if (lmvm->allocated) {
     PetscCall(VecGetType(X, &vec_type));
@@ -400,16 +400,12 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     PetscCall(VecDuplicate(X, &lmvm->Xprev));
     PetscCall(VecDuplicate(F, &lmvm->Fprev));
     if (lmvm->m > 0) {
-      /* Create iteration storage matrices */	    
-#if 0
-      PetscCall(PetscObjectBaseTypeCompare((PetscObject)X, VECCUDA, &same));
-      if (same) {
-        lbfgs->dense_type = MATSEQDENSECUDA;
-        PetscCall(MatCreateAIJCUSPARSE(PetscObjectComm((PetscObject)B), lmvm->m, n, lmvm->m, N, n, NULL, N, NULL, &lbfgs->STfull));
-        PetscCall(MatCreateAIJCUSPARSE(PetscObjectComm((PetscObject)B), lmvm->m, n, lmvm->m, N, n, NULL, N, NULL, &lbfgs->YTfull));
-      } else {
-      }
-#else
+      /* Create iteration storage matrices */    
+      //PetscCall(PetscObjectBaseTypeCompare((PetscObject)X, VECCUDA, &same));
+      // have some logic or configure option that says what lbfgs->dense_type should be ...
+      // TODO this should be the goal at the end, but MatCreateDenseFromVecType should be implemented in different branch. 
+      //PetscCall(MatCreateDenseFromVecType(PetscObjectComm((PetscObject)B), lmvm->m, n, lmvm->m, N, NULL, &lbfgs->STfull, vec_type));
+      //PetscCall(MatCreateDenseFromVecType(PetscObjectComm((PetscObject)B), lmvm->m, n, lmvm->m, N, NULL, &lbfgs->YTfull, vec_type));
       PetscCall(PetscObjectBaseTypeCompare((PetscObject)X, VECCUDA, &same));
       lbfgs->dense_type = MATSEQDENSE;
       PetscCall(MatCreateDense(PetscObjectComm((PetscObject)B), lmvm->m, n, lmvm->m, N, NULL, &lbfgs->STfull));
@@ -424,16 +420,13 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
         PetscCall(MatConvert(lbfgs->STfull, lbfgs->dense_type, MAT_INPLACE_MATRIX, &lbfgs->STfull));
         PetscCall(MatConvert(lbfgs->YTfull, lbfgs->dense_type, MAT_INPLACE_MATRIX, &lbfgs->YTfull));
       }
-#endif
-      /* Populate the iteration storage with values to fake a dense storage */
+
+      if (same) {
+        lbfgs->dense_type = MATSEQDENSECUDA;
+      }
+      lbfgs->dense_type = MATSEQDENSE;
       /* It is inefficient to use a sparse format for dense data but there is no parallel dense format for CUDA */
       /* Dense formats also do not fully support some of the Mat tools being used in this implementation */
-      for (i=0; i<lmvm->m; i++) {
-        for (j=0; j<N; j++) {
-          PetscCall(MatSetValue(lbfgs->STfull, i, j, 1.0, INSERT_VALUES));
-          PetscCall(MatSetValue(lbfgs->YTfull, i, j, 1.0, INSERT_VALUES));
-        }
-      }
       PetscCall(MatAssemblyBegin(lbfgs->STfull, MAT_FINAL_ASSEMBLY));
       PetscCall(MatAssemblyEnd(lbfgs->STfull, MAT_FINAL_ASSEMBLY));
       PetscCall(MatAssemblyBegin(lbfgs->YTfull, MAT_FINAL_ASSEMBLY));
