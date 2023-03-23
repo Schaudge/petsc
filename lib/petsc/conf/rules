@@ -27,7 +27,7 @@ chk_loc:
 	  printf ${PETSC_TEXT_HILIGHT}"*********************** ERROR **********************************************\n" ; \
 	  echo " Please specify LOC variable for eg: make allmanpages LOC=/sandbox/petsc "; \
 	  printf "****************************************************************************"${PETSC_TEXT_NORMAL}"\n" ;  false; fi
-	@${MKDIR} ${LOC}/docs/manualpages
+	@${MKDIR} ${LOC}/manualpages
 
 chk_c2html:
 	@if [ ${C2HTML}foo = foo ] ; then \
@@ -53,7 +53,12 @@ ${PETSC_DIR}/${PETSC_ARCH}/tests/testfiles:
 	@${MKDIR} -p ${PETSC_DIR}/${PETSC_ARCH}/tests && touch -t 197102020000 ${PETSC_DIR}/${PETSC_ARCH}/tests/testfiles
 
 libs: ${PETSC_DIR}/${PETSC_ARCH}/lib/petsc/conf/files ${PETSC_DIR}/${PETSC_ARCH}/tests/testfiles
-	+@cd ${PETSC_DIR} && MAKEFLAGS="-j$(MAKE_NP) -l$(MAKE_LOAD) $(MAKEFLAGS)" ${OMAKE_PRINTDIR} -f gmakefile ${MAKE_PAR_OUT_FLG} V=${V} libs
+	+@r=`echo "${MAKEFLAGS}" | grep ' -j'`; \
+        if [ "$$?" = 0 ]; then make_j=""; else make_j="-j${MAKE_NP}"; fi; \
+	r=`echo "${MAKEFLAGS}" | grep ' -l'`; \
+        if [ "$$?" = 0 ]; then make_l=""; else make_l="-l${MAKE_LOAD}"; fi; \
+        cmd="${OMAKE_PRINTDIR} -f gmakefile $${make_j} $${make_l} ${MAKE_PAR_OUT_FLG} V=${V} libs"; \
+        cd ${PETSC_DIR} && echo $${cmd} && exec $${cmd}
 
 # Does nothing; needed for some rules that require actions.
 foo:
@@ -171,11 +176,11 @@ alltree_makefile: ${ACTION}
 	PETSC_ARCH=${PETSC_ARCH} LOC=${LOC} ) ;fi; \
 	done
 
-# This target goes through all dirs specified by DIRS,EDIRS, and
+# This target goes through all dirs specified by DIRS and
 # excludes dirs specified by $XDIRS
 alltree: ${ACTION}
-	@-if [ "${DIRS} ${EDIRS}" != " " ]; then \
-	NDIRS="${DIRS} ${EDIRS}" ;\
+	@-if [ "${DIRS}" != "" ]; then \
+	NDIRS="${DIRS}" ;\
 	if [ "${XDIRS}" != "" ]; then \
 	for XDIR in ${XDIRS} qwertyuiop ; do \
 	NDIRS=`echo $$NDIRS | sed s/$$XDIR//g`; \
@@ -444,11 +449,11 @@ deleteshared:
 # ---------------------------------------------------------------------------------------
 #   Rules for the generation of manual pages, html of source code etc
 #
-#  If this produces an error such as Could not open output file /Users/barrysmith/Src/petsc/docs/manualpages/MissingSUBMANSEC/*
+#  If this produces an error such as Could not open output file /Users/barrysmith/Src/petsc/manualpages/MissingSUBMANSEC/*
 #  this indicates the makefile is missing a MANSEC definition or the include file is missing a SUBMANSEC definition
 manualpages:
-	-@base=`basename ${LOCDIR}`; \
-        doctext_common_def="${PETSC_DIR}/doc/classic/doctext/doctextcommon.txt"; \
+	-@doctext_common_def="${PETSC_DIR}/doc/classic/doctext/doctextcommon.txt"; \
+        petsc_dir=$$(realpath ${PETSC_DIR}); LOCDIR=$$(pwd | sed s"?$${petsc_dir}/??"g)/; \
         if [ "${MANSEC}" = "" ] ; then \
           for f in ${SOURCED}; do \
             LMANSEC=`grep SUBMANSEC $${f} | sed s'?[ ]*/\*[ ]*SUBMANSEC[ ]*=[ ]*\([a-zA-Z]*\)[ ]*\*/?\1?'g`; \
@@ -459,23 +464,23 @@ manualpages:
                 echo "Missing MANSEC or SUBMANSEC definition in " `pwd`/$${f} ; \
               fi; \
             fi; \
-            if [ ! -d "${LOC}/docs/manualpages/$${LMANSEC}" ]; then \
-              echo Making directory ${LOC}/docs/manualpages/$${LMANSEC} for manual pages from $${f}; ${MKDIR} ${LOC}/docs/manualpages/$${LMANSEC}; \
+            if [ ! -d "${LOC}/manualpages/$${LMANSEC}" ]; then \
+              echo Making directory ${LOC}/manualpages/$${LMANSEC} for manual pages from $${f}; ${MKDIR} ${LOC}/manualpages/$${LMANSEC}; \
             fi; \
             DOCTEXT_PATH=${PETSC_DIR}/doc/classic/doctext \
-            ${DOCTEXT} -myst -mpath ${LOC}/docs/manualpages/$${LMANSEC} -heading PETSc -defn ${PETSC_DIR}/doc/classic/doctext/myst.def \
-                -indexdir ../$${LMANSEC} -index ${LOC}/docs/manualpages/manualpages.cit -locdir ${LOCDIR} -Wargdesc $${doctext_common_def} $${f} 2>&1 | tee -a ${PETSC_DIR}/${PETSC_ARCH}/manualpages.err; \
-            if [ -f "${LOC}/docs/manualpages/$${LMANSEC}" ]; then chmod g+w "${LOC}"/docs/manualpages/$${LMANSEC}/*; fi; \
+            ${DOCTEXT} -myst -mpath ${LOC}/manualpages/$${LMANSEC} -heading PETSc -defn ${PETSC_DIR}/doc/classic/doctext/myst.def \
+                -indexdir ../$${LMANSEC} -index ${LOC}/manualpages/manualpages.cit -locdir $${LOCDIR} -Wargdesc $${doctext_common_def} $${f} 2>&1 | tee -a ${PETSC_DIR}/${PETSC_ARCH}/manualpages.err; \
+            if [ -f "${LOC}/manualpages/$${LMANSEC}" ]; then chmod g+w "${LOC}"/manualpages/$${LMANSEC}/*; fi; \
           done; \
         else \
           if [ "${SUBMANSEC}" = "" ] ; then LMANSEC=${MANSEC}; else LMANSEC=${SUBMANSEC}; fi; \
-          if [ ! -d "${LOC}/docs/manualpages/$${LMANSEC}" ]; then \
-            echo Making directory ${LOC}/docs/manualpages/$${LMANSEC} for manual pages; ${MKDIR} ${LOC}/docs/manualpages/$${LMANSEC}; \
+          if [ ! -d "${LOC}/manualpages/$${LMANSEC}" ]; then \
+            echo Making directory ${LOC}/manualpages/$${LMANSEC} for manual pages; ${MKDIR} ${LOC}/manualpages/$${LMANSEC}; \
           fi; \
           DOCTEXT_PATH=${PETSC_DIR}/doc/classic/doctext  \
-          ${DOCTEXT} -myst -mpath ${LOC}/docs/manualpages/$${LMANSEC} -heading PETSc -defn ${PETSC_DIR}/doc/classic/doctext/myst.def \
-              -indexdir ../$${LMANSEC} -index ${LOC}/docs/manualpages/manualpages.cit -locdir ${LOCDIR} -Wargdesc $${doctext_common_def} ${SOURCED} 2>&1 | tee -a ${PETSC_DIR}/${PETSC_ARCH}/manualpages.err; \
-          if [ -f "${LOC}/docs/manualpages/$${LMANSEC}" ]; then chmod g+w "${LOC}"/docs/manualpages/$${LMANSEC}/*; fi; \
+          ${DOCTEXT} -myst -mpath ${LOC}/manualpages/$${LMANSEC} -heading PETSc -defn ${PETSC_DIR}/doc/classic/doctext/myst.def \
+              -indexdir ../$${LMANSEC} -index ${LOC}/manualpages/manualpages.cit -locdir $${LOCDIR} -Wargdesc $${doctext_common_def} ${SOURCED} 2>&1 | tee -a ${PETSC_DIR}/${PETSC_ARCH}/manualpages.err; \
+          if [ -f "${LOC}/manualpages/$${LMANSEC}" ]; then chmod g+w "${LOC}"/manualpages/$${LMANSEC}/*; fi; \
         fi;
 #
 #   Example usage for manual pages; adds each example that uses a function to that functions
@@ -483,21 +488,22 @@ manualpages:
 #
 # Note: PETSC_DOC_OUT_ROOT_PLACEHOLDER must match the term used elsewhere in doc/
 manexamples:
-	-@base=`basename ${LOCDIR}`; \
+	-@base=$$(basename $$(pwd)); \
         if [ "$${base}" = "tutorials" ] ; then \
-          echo "Generating manual example links" ; \
+          petsc_dir=$$(realpath ${PETSC_DIR}); LOCDIR=$$(pwd | sed s"?$${petsc_dir}/??"g)/; \
+          echo "Generating manual example links in $${LOCDIR}" ; \
           for i in ${EXAMPLESALL} foo ; do \
             if [ "$$i" != "foo" ] ; then \
-              a=`cat $$i | ${MAPNAMES} -map ${LOC}/docs/manualpages/manualpages.cit \
+              a=`cat $$i | ${MAPNAMES} -map ${LOC}/manualpages/manualpages.cit \
                    -printmatch-link -o /dev/null| cut -f 2 | cut -d '#' -f 1 |sed -e s~^../~~ | grep \\.md$$ | sort | uniq` ;  \
               for j in $$a ; do \
-                b=`ls ${LOC}/docs/manualpages/$${j} | grep -v /all/ | cut -f9` ; \
+                b=`ls ${LOC}/manualpages/$${j} | grep -v /all/ | cut -f9` ; \
                 l=`grep "^<A HREF=\"PETSC_DOC_OUT_ROOT_PLACEHOLDER.*/tutorials/" $${b} | wc -l`; \
                 if [ $$l -le 10 ] ; then \
                   if [ $$l -eq 0 ] ; then \
                     printf "\n## Examples\n" >> $$b; \
                   fi; \
-                  echo  "<A HREF=\"PETSC_DOC_OUT_ROOT_PLACEHOLDER/BB\">BB</A><BR>" | sed s?BB?${LOCDIR}$$i.html?g >> $$b; \
+                  echo  "<A HREF=\"PETSC_DOC_OUT_ROOT_PLACEHOLDER/XX\">BB</A><BR>" | sed s?XX?$${LOCDIR}$$i.html?g | sed s?BB?$${LOCDIR}$$i?g >> $$b; \
                 fi; \
               done; \
             fi; \
@@ -530,7 +536,7 @@ manexamples:
 manimplementations:
 	-@git grep "struct\s\+_[pn]_[^\s]\+.*{" -- *.cpp *.cu *.c *.h *.cxx | grep -v -e ";" -e "/tests/" -e "/tutorials/" > implsClassAll.txt ; \
   git grep -n "^\(static \)\?\(PETSC_EXTERN \)\?\(PETSC_INTERN \)\?\(extern \)\?PetscErrorCode \+[^_ ]\+_[^_ ]\+(" -- '*/impls/*.c' '*/impls/*.cpp' '*/impls/*.cu' '*/impls/*.cxx' '*/impls/*.h' | grep -v -e ";" -e "_[Pp]rivate" > implsFuncAll.txt ; \
-  for i in ${LOC}/docs/manualpages/*/*.md foo; do \
+  for i in ${LOC}/manualpages/*/*.md foo; do \
        if [ "$$i" != "foo" ] ; then \
           itemName=`basename $$i .md`; \
           grep "\s$${itemName}_" implsFuncAll.txt > implsFunc.txt ; \
@@ -552,34 +558,12 @@ manimplementations:
 #
 #   Rules for generating html code from C and Fortran
 #
-checkmakefilelist:
-	-@ls makefile ${SOURCEALL} ${EXAMPLESALL} 2>/dev/null | grep -v \\.\\. |  sort | uniq > /tmp/$$USER.$$.make ;\
-	ls makefile *.{c,cxx,cpp,cu,F,F90,h,h90,m} 2>/dev/null | sort | uniq > /tmp/$$USER.$$.ls; \
-	${DIFF} /tmp/$$USER.$$.make  /tmp/$$USER.$$.ls; \
-	${RM}  /tmp/$$USER.$$.make  /tmp/$$USER.$$.ls
-
-
-# Like the "html" target below, except that it does not do any source transformations that
-# might delete any lines. Used by gcov to map untested lines back to src so the line
-# numbers must not be altered!
-simplehtml: chk_c2html
-	-@ROOT=`echo ${LOCDIR} | sed -e s?/[a-z]*?/..?g -e s?src/??g -e s?include/??g` ;\
-          loc=`pwd | sed -e s?\$${PETSC_DIR}/src?$${PETSC_DIR}/$${PETSC_ARCH}/obj?g -e s?/disks??g`;  \
-          for i in ${SOURCE} foo ; do\
-	    if [ -f $$i ]; then \
-              idir=`dirname $$i`;\
-              if [ ! -d $${loc}/$${idir} ]; then ${MKDIR} -p $${loc}/$${idir}; fi ; \
-              ${RM} $${loc}/$$i.html; \
-              sed -E "s/PETSC[A-Z]*_DLLEXPORT//g" $$i | ${C2HTML} -n | \
-              awk '{ sub(/<pre width="80">/,"<pre width=\"80\">\n"); print }' > $${loc}/$$i.html ; \
-	    fi; \
-         done
-
 html: chk_c2html
 	-@export htmlmap_tmp=$$(mktemp) ;\
-          sed -e s?man+manualpages/?man+ROOT/docs/manualpages/? ${LOC}/docs/manualpages/htmlmap_modified > $$htmlmap_tmp ;\
+          petsc_dir=$$(realpath ${PETSC_DIR}); LOCDIR=$$(pwd | sed s"?$${petsc_dir}/??"g)/; \
+          sed -e s?man+manualpages/?man+ROOT/manualpages/? ${LOC}/manualpages/htmlmap_modified > $$htmlmap_tmp ;\
           cat ${PETSC_DIR}/doc/classic/mpi.www.index >> $$htmlmap_tmp ;\
-          ROOT=`echo ${LOCDIR} | sed -e s?/[a-z]*?/..?g -e s?src/??g -e s?include/??g` ;\
+          ROOT=`echo $${LOCDIR} | sed -e s?/[-a-z_0-9]*?/..?g -e s?src/??g -e s?include/??g` ;\
           loc=`pwd | sed -e s?\$${PETSC_DIR}?$${LOC}/?g -e s?/disks??g`;  \
           ${MKDIR} -p $${loc} ;\
           current_git_sha=$$(git rev-parse HEAD) ;\
@@ -605,9 +589,8 @@ html: chk_c2html
               ${MAPNAMES} -map $$htmlmap_tmp -inhtml | sed -e s?ROOT?$${IROOT}?g >> $${loc}/$$i.html ; \
             fi; \
           done ;\
-          ROOT=`echo ${LOCDIR} | sed -e s?/[a-z]*?/..?g -e s?src/??g -e s?include/??g` ;\
           loc=`pwd | sed -e s?\$${PETSC_DIR}?$${LOC}/?g -e s?/disks??g`; ${RM} $${loc}/index.html; \
-          cat ${PETSC_DIR}/doc/classic/manualpages-sec/header_${MANSEC} | sed -e "s?<A HREF=\"PETSC_DIR[a-z/]*\">Examples</A>?<A HREF=\"$${ROOT}/docs/manualpages/${MANSEC}\">Manual pages</A>?g" -e "s?PETSC_DIR?$${ROOT}/?g"> $${loc}/index.html; \
+          cat ${PETSC_DIR}/doc/classic/manualpages-sec/header_${MANSEC} | sed -e "s?<A HREF=\"PETSC_DIR[a-z/]*\">Examples</A>?<A HREF=\"$${ROOT}/manualpages/${MANSEC}\">Manual pages</A>?g" -e "s?PETSC_DIR?$${ROOT}/?g"> $${loc}/index.html; \
           echo "<p>" >> $${loc}/index.html ;\
           loc=`pwd | sed -e s?\$${PETSC_DIR}?$${LOC}/?g -e s?/disks??g`;\
           if [ "${EXAMPLESC}" != "" ] ; then \
@@ -632,9 +615,6 @@ html: chk_c2html
             done; \
           fi ;\
           echo " " >> $${loc}/index.html; \
-          echo "<a href=\"makefile.html\">makefile</a><br>" >> $${loc}/index.html ;\
-          loc=`pwd | sed -e s?\$${PETSC_DIR}?$${LOC}/?g -e s?/disks??g`;  \
-          cat makefile | ${C2HTML}  | ${MAPNAMES} -map $$htmlmap_tmp -inhtml > $${loc}/makefile.html ;\
           ${RM} $$htmlmap_tmp
 
 cleanhtml:
@@ -745,13 +725,13 @@ checkbadSource:
 
 #  The directories below contains files directly imported from an external package; they should not be directly edited or changed except to update from the package
 checkbadFileChange:
-	@git diff --stat --exit-code `lib/petsc/bin/maint/check-merge-branch.sh`..HEAD -- src/sys/yaml include/petsc/private/valgrind include/petsc/private/kash
+	@git diff --stat --exit-code `lib/petsc/bin/maint/check-merge-branch.sh`..HEAD -- src/sys/yaml/src src/sys/yaml/include src/sys/yaml/License include/petsc/private/valgrind include/petsc/private/kash
 
 vermin:
 	@vermin -vvv -t=3.4- ${VERMIN_OPTIONS} ${PETSC_DIR}/config
 
 lint:
-	${PYTHON} ${PETSC_DIR}/lib/petsc/bin/maint/petsclinter --verbose=${V} $(LINTER_OPTIONS)
+	${PYTHON} ${PETSC_DIR}/lib/petsc/bin/maint/petsclinter --verbose=${V} --apply-patches=${REPLACE} $(LINTER_OPTIONS)
 
 help-lint:
 	@${PYTHON} ${PETSC_DIR}/lib/petsc/bin/maint/petsclinter --help

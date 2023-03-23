@@ -4,7 +4,6 @@
 # See also conf for additional commands.
 #
 ALL: all
-LOCDIR	 = ./
 DIRS	 = src include tutorials interfaces share/petsc/matlab
 
 # next line defines PETSC_DIR and PETSC_ARCH if they are not set
@@ -69,11 +68,11 @@ info:
 	-@echo "Using PETSc directory: ${PETSC_DIR}"
 	-@echo "Using PETSc arch: ${PETSC_ARCH}"
 	-@echo "-----------------------------------------"
-	-@grep "define PETSC_VERSION" ${PETSC_DIR}/include/petscversion.h | ${SED} "s/........//"
+	-@grep "define PETSC_VERSION" ${PETSC_DIR}/include/petscversion.h | ${SED} "s/........//" | head -n 7
 	-@echo "-----------------------------------------"
 	-@echo "Using configure Options: ${CONFIGURE_OPTIONS}"
 	-@echo "Using configuration flags:"
-	-@grep "\#define " ${PETSCCONF_H}
+	-@grep "\#define " ${PETSCCONF_H} | tail -n +2
 	-@echo "-----------------------------------------"
 	-@echo "Using C compile: ${PETSC_CCOMPILE_SINGLE}"
 	-@if [  "${MPICC_SHOW}" != "" ]; then \
@@ -122,8 +121,8 @@ info:
 	-@echo "------------------------------------------"
 	-@echo "Using mpiexec: ${MPIEXEC}"
 	-@echo "------------------------------------------"
-	-@echo "Using MAKE: $(MAKE)"
-	-@echo "Using MAKEFLAGS: -j$(MAKE_NP) -l$(MAKE_LOAD) $(MAKEFLAGS)"
+	-@echo "Using MAKE: ${MAKE}"
+	-@echo "Default MAKEFLAGS: MAKE_NP:${MAKE_NP} MAKE_LOAD:${MAKE_LOAD} MAKEFLAGS:${MAKEFLAGS}"
 	-@echo "=========================================="
 
 #
@@ -134,7 +133,7 @@ matlabbin:
           echo "BEGINNING TO COMPILE MATLAB INTERFACE"; \
             if [ ! -d "${PETSC_DIR}/${PETSC_ARCH}/lib/petsc" ] ; then ${MKDIR}  ${PETSC_DIR}/${PETSC_ARCH}/lib/petsc; fi; \
             if [ ! -d "${PETSC_DIR}/${PETSC_ARCH}/lib/petsc/matlab" ] ; then ${MKDIR}  ${PETSC_DIR}/${PETSC_ARCH}/lib/petsc/matlab; fi; \
-            cd src/sys/classes/viewer/impls/socket/matlab && ${OMAKE_SELF} matlabcodes PETSC_ARCH=${PETSC_ARCH} PETSC_DIR=${PETSC_DIR}; \
+            cd src/sys/classes/viewer/impls/socket/mex-scripts && ${OMAKE_SELF} mex-scripts PETSC_ARCH=${PETSC_ARCH} PETSC_DIR=${PETSC_DIR}; \
             echo "========================================="; \
         fi
 #
@@ -346,10 +345,18 @@ distclean: chk_petscdir
 #
 reconfigure: allclean
 	@unset MAKEFLAGS && ${PYTHON} ${PETSC_ARCH}/lib/petsc/conf/reconfigure-${PETSC_ARCH}.py
-#
+
 install:
 	@${PYTHON} ./config/install.py -destDir=${DESTDIR}
-	+${OMAKE_SELF} PETSC_ARCH=${PETSC_ARCH} PETSC_DIR=${PETSC_DIR} petsc4py-install libmesh-install mfem-install slepc-install hpddm-install amrex-install bamg-install
+	+${OMAKE_SELF} PETSC_ARCH=${PETSC_ARCH} PETSC_DIR=${PETSC_DIR} PETSC_INSTALL=$@ install-builtafterpetsc
+
+# A smaller install with fewer extras
+install-lib:
+	@${PYTHON} ./config/install.py -destDir=${DESTDIR} -no-examples
+	+${OMAKE_SELF} PETSC_ARCH=${PETSC_ARCH} PETSC_DIR=${PETSC_DIR} PETSC_INSTALL=$@ install-builtafterpetsc
+
+install-builtafterpetsc:
+	+${OMAKE_SELF} PETSC_ARCH=${PETSC_ARCH} PETSC_DIR=${PETSC_DIR} PETSC_INSTALL=${PETSC_INSTALL} petsc4py-install libmesh-install mfem-install slepc-install hpddm-install amrex-install bamg-install
 
 mpistreams:
 	+@cd src/benchmarks/streams; ${OMAKE_SELF} PATH="${PETSC_DIR}/${PETSC_ARCH}/lib:${PATH}" PETSC_DIR=${PETSC_DIR} PETSC_ARCH=${PETSC_ARCH} mpistreams
@@ -400,12 +407,13 @@ allmanpages: chk_loc deletemanualpages
 	-sed -e 's?<T>?IJ?g' -e 's?<t>?ij?g' -e 's?<KeyType>?struct {PetscInt i, j;}?g' ${hloc}/hashset.txt >> ${hloc}/generated_khash.h
 	-sed -e 's?<T>?I?g' -e 's?<t>?i?g' -e 's?<KeyType>?PetscInt?g'  -e 's?<ValType>?PetscInt?g' ${hloc}/hashmap.txt >> ${hloc}/generated_khash.h
 	-sed -e 's?<T>?IJ?g' -e 's?<t>?ij?g' -e 's?<KeyType>?struct {PetscInt i, j;}?g' -e 's?<ValType>?PetscInt?g' ${hloc}/hashmap.txt >> ${hloc}/generated_khash.h
+	-sed -e 's?<T>?IJ?g' -e 's?<t>?ij?g' -e 's?<KeyType>?struct {PetscInt i, j;}?g' -e 's?<ValType>?PetscScalar?g' ${hloc}/hashmap.txt >> ${hloc}/generated_khash.h
 	-sed -e 's?<T>?IV?g' -e 's?<t>?iv?g' -e 's?<KeyType>?PetscInt?g'  -e 's?<ValType>?PetscScalar?g' ${hloc}/hashmap.txt >> ${hloc}/generated_khash.h
 	-sed -e 's?<T>?Obj?g' -e 's?<t>?obj?g' -e 's?<KeyType>?PetscInt64?g'  -e 's?<ValType>?PetscObject?g' ${hloc}/hashmap.txt >> ${hloc}/generated_khash.h
 	-${RM} ${PETSC_DIR}/${PETSC_ARCH}/manualpages.err
 	-${OMAKE_SELF} ACTION=manualpages tree_src LOC=${LOC}
-	-@sed -e s%man+../%man+manualpages/% ${LOC}/docs/manualpages/manualpages.cit > ${LOC}/docs/manualpages/htmlmap
-	-@cat ${PETSC_DIR}/doc/classic/mpi.www.index >> ${LOC}/docs/manualpages/htmlmap
+	-@sed -e s%man+../%man+manualpages/% ${LOC}/manualpages/manualpages.cit > ${LOC}/manualpages/htmlmap
+	-@cat ${PETSC_DIR}/doc/classic/mpi.www.index >> ${LOC}/manualpages/htmlmap
 	cat ${PETSC_DIR}/${PETSC_ARCH}/manualpages.err
 	a=`cat ${PETSC_DIR}/${PETSC_ARCH}/manualpages.err | wc -l`; test ! $$a -gt 0
 
@@ -431,17 +439,13 @@ alldocclean: deletemanualpages allcleanhtml
 
 # Deletes man pages (.md version)
 deletemanualpages: chk_loc
-	-@if [ -d ${LOC} -a -d ${LOC}/docs/manualpages ]; then \
-          find ${LOC}/docs/manualpages -type f -name "*.md" -exec ${RM} {} \; ;\
-          ${RM} ${LOC}/docs/manualpages/manualpages.cit ;\
+	-@if [ -d ${LOC} -a -d ${LOC}/manualpages ]; then \
+          find ${LOC}/manualpages -type f -name "*.md" -exec ${RM} {} \; ;\
+          ${RM} ${LOC}/manualpages/manualpages.cit ;\
         fi
 
 allcleanhtml:
 	-${OMAKE_SELF} ACTION=cleanhtml PETSC_DIR=${PETSC_DIR} alltree
-
-# Builds simple html versions of the source without links into the $PETSC_ARCH/obj directory, used by make mergegcov
-srchtml:
-	-${OMAKE_SELF} ACTION=simplehtml PETSC_DIR=${PETSC_DIR} alltree_src
 
 ###########################################################
 # targets to build distribution and update docs
@@ -456,14 +460,14 @@ dist:
 #  See script for details
 #
 gcov:
-	-output_file_base_name=${PETSC_ARCH}-gcovr-report.json; \
+	output_file_base_name=${PETSC_ARCH}-gcovr-report.json; \
 	petsc_arch_dir=${PETSC_DIR}/${PETSC_ARCH}; \
-	pushd $${petsc_arch_dir}/obj && \
-	gcovr --json --output $${petsc_arch_dir}/$${output_file_base_name} --exclude '.*/ftn-auto/.*' --exclude-lines-by-pattern '^\s*SETERR.*' --exclude-throw-branches --exclude-unreachable-branches -j 4 --gcov-executable ${PETSC_COVERAGE_EXEC} --root ${PETSC_DIR} . ${PETSC_GCOV_OPTIONS} && \
-	${RM} -f $${petsc_arch_dir}/$${output_file_base_name}.tar.gz && \
-	tar -czf $${petsc_arch_dir}/$${output_file_base_name}.tar.gz -C $${petsc_arch_dir} ./$${output_file_base_name} && \
-	${RM} $${petsc_arch_dir}/$${output_file_base_name}; \
-	popd
+        tar_file=$${petsc_arch_dir}/$${output_file_base_name}.tar.bz2; \
+	cd $${petsc_arch_dir}/obj && \
+	gcovr --json --output $${petsc_arch_dir}/$${output_file_base_name} --exclude '.*/ftn-auto/.*' --exclude-lines-by-pattern '^\s*SETERR.*' --exclude-throw-branches --exclude-unreachable-branches -j 4 --gcov-executable "${PETSC_COVERAGE_EXEC}" --root ${PETSC_DIR} . ${PETSC_GCOV_OPTIONS} && \
+	${RM} -f $${tar_file} && \
+	tar --bzip2 -cf $${tar_file} -C $${petsc_arch_dir} ./$${output_file_base_name} && \
+	${RM} $${petsc_arch_dir}/$${output_file_base_name}
 
 mergegcov:
 	$(PYTHON) ${PETSC_DIR}/lib/petsc/bin/maint/gcov.py --merge-branch `lib/petsc/bin/maint/check-merge-branch.sh` --html --xml ${PETSC_GCOV_OPTIONS}

@@ -1,11 +1,6 @@
 -include ../../../../petscdir.mk
 
-SOURCEC  = pythonmat.c
-SOURCEF  =
-SOURCEH  =
 LIBBASE  = libpetscmat
-DIRS     =
-LOCDIR   = src/mat/impls/python/
 MANSEC   = Mat
 
 include ${PETSC_DIR}/lib/petsc/conf/variables

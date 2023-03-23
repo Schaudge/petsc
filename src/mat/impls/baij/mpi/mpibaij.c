@@ -4,6 +4,54 @@
 #include <petscblaslapack.h>
 #include <petscsf.h>
 
+PetscErrorCode MatDestroy_MPIBAIJ(Mat mat)
+{
+  Mat_MPIBAIJ *baij = (Mat_MPIBAIJ *)mat->data;
+
+  PetscFunctionBegin;
+#if defined(PETSC_USE_LOG)
+  PetscCall(PetscLogObjectState((PetscObject)mat, "Rows=%" PetscInt_FMT ",Cols=%" PetscInt_FMT, mat->rmap->N, mat->cmap->N));
+#endif
+  PetscCall(MatStashDestroy_Private(&mat->stash));
+  PetscCall(MatStashDestroy_Private(&mat->bstash));
+  PetscCall(MatDestroy(&baij->A));
+  PetscCall(MatDestroy(&baij->B));
+#if defined(PETSC_USE_CTABLE)
+  PetscCall(PetscHMapIDestroy(&baij->colmap));
+#else
+  PetscCall(PetscFree(baij->colmap));
+#endif
+  PetscCall(PetscFree(baij->garray));
+  PetscCall(VecDestroy(&baij->lvec));
+  PetscCall(VecScatterDestroy(&baij->Mvctx));
+  PetscCall(PetscFree2(baij->rowvalues, baij->rowindices));
+  PetscCall(PetscFree(baij->barray));
+  PetscCall(PetscFree2(baij->hd, baij->ht));
+  PetscCall(PetscFree(baij->rangebs));
+  PetscCall(PetscFree(mat->data));
+
+  PetscCall(PetscObjectChangeTypeName((PetscObject)mat, NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatStoreValues_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatRetrieveValues_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatMPIBAIJSetPreallocation_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatMPIBAIJSetPreallocationCSR_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatDiagonalScaleLocal_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatSetHashTableFactor_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatConvert_mpibaij_mpisbaij_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatConvert_mpibaij_mpiadj_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatConvert_mpibaij_mpiaij_C", NULL));
+#if defined(PETSC_HAVE_HYPRE)
+  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatConvert_mpibaij_hypre_C", NULL));
+#endif
+  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatConvert_mpibaij_is_C", NULL));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/* defines MatSetValues_MPI_Hash(), MatAssemblyBegin_MPI_Hash(), and  MatAssemblyEnd_MPI_Hash() */
+#define TYPE BAIJ
+#include "../src/mat/impls/aij/mpi/mpihashmat.h"
+#undef TYPE
+
 #if defined(PETSC_HAVE_HYPRE)
 PETSC_INTERN PetscErrorCode MatConvert_AIJ_HYPRE(Mat, MatType, MatReuse, Mat *);
 #endif
@@ -1072,9 +1120,9 @@ static PetscErrorCode MatView_MPIBAIJ_ASCIIorDraworSocket(Mat mat, PetscViewer v
        synchronized across all processors that share the PetscDraw object
     */
     PetscCall(PetscViewerGetSubViewer(viewer, PETSC_COMM_SELF, &sviewer));
-    PetscCall(PetscObjectGetName((PetscObject)mat, &matname));
+    if (((PetscObject)mat)->name) PetscCall(PetscObjectGetName((PetscObject)mat, &matname));
     if (rank == 0) {
-      PetscCall(PetscObjectSetName((PetscObject)((Mat_MPIBAIJ *)(A->data))->A, matname));
+      if (((PetscObject)mat)->name) PetscCall(PetscObjectSetName((PetscObject)((Mat_MPIBAIJ *)(A->data))->A, matname));
       PetscCall(MatView_SeqBAIJ(((Mat_MPIBAIJ *)(A->data))->A, sviewer));
     }
     PetscCall(PetscViewerRestoreSubViewer(viewer, PETSC_COMM_SELF, &sviewer));
@@ -1091,9 +1139,11 @@ PetscErrorCode MatView_MPIBAIJ_Binary(Mat mat, PetscViewer viewer)
   Mat_SeqBAIJ    *A      = (Mat_SeqBAIJ *)aij->A->data;
   Mat_SeqBAIJ    *B      = (Mat_SeqBAIJ *)aij->B->data;
   const PetscInt *garray = aij->garray;
-  PetscInt        header[4], M, N, m, rs, cs, bs, nz, cnt, i, j, ja, jb, k, l;
+  PetscInt        header[4], M, N, m, rs, cs, bs, cnt, i, j, ja, jb, k, l;
+  PetscInt64      nz, hnz;
   PetscInt       *rowlens, *colidxs;
   PetscScalar    *matvals;
+  PetscMPIInt     rank;
 
   PetscFunctionBegin;
   PetscCall(PetscViewerSetUp(viewer));
@@ -1110,8 +1160,9 @@ PetscErrorCode MatView_MPIBAIJ_Binary(Mat mat, PetscViewer viewer)
   header[0] = MAT_FILE_CLASSID;
   header[1] = M;
   header[2] = N;
-  header[3] = nz;
-  PetscCallMPI(MPI_Reduce(&nz, &header[3], 1, MPIU_INT, MPI_SUM, 0, PetscObjectComm((PetscObject)mat)));
+  PetscCallMPI(MPI_Reduce(&nz, &hnz, 1, MPIU_INT64, MPI_SUM, 0, PetscObjectComm((PetscObject)mat)));
+  PetscCallMPI(MPI_Comm_rank(PetscObjectComm((PetscObject)mat), &rank));
+  if (rank == 0) PetscCall(PetscIntCast(hnz, &header[3]));
   PetscCall(PetscViewerBinaryWrite(viewer, header, 4, PETSC_INT));
 
   /* fill in and store row lengths */
@@ -1135,7 +1186,7 @@ PetscErrorCode MatView_MPIBAIJ_Binary(Mat mat, PetscViewer viewer)
         for (l = 0; l < bs; l++) colidxs[cnt++] = bs * garray[B->j[jb]] + l;
     }
   }
-  PetscCheck(cnt == nz, PETSC_COMM_SELF, PETSC_ERR_LIB, "Internal PETSc error: cnt = %" PetscInt_FMT " nz = %" PetscInt_FMT, cnt, nz);
+  PetscCheck(cnt == nz, PETSC_COMM_SELF, PETSC_ERR_LIB, "Internal PETSc error: cnt = %" PetscInt_FMT " nz = %" PetscInt64_FMT, cnt, nz);
   PetscCall(PetscViewerBinaryWriteAll(viewer, colidxs, nz, PETSC_DECIDE, PETSC_DECIDE, PETSC_INT));
   PetscCall(PetscFree(colidxs));
 
@@ -1173,49 +1224,6 @@ PetscErrorCode MatView_MPIBAIJ(Mat mat, PetscViewer viewer)
   if (iascii || isdraw || issocket) {
     PetscCall(MatView_MPIBAIJ_ASCIIorDraworSocket(mat, viewer));
   } else if (isbinary) PetscCall(MatView_MPIBAIJ_Binary(mat, viewer));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode MatDestroy_MPIBAIJ(Mat mat)
-{
-  Mat_MPIBAIJ *baij = (Mat_MPIBAIJ *)mat->data;
-
-  PetscFunctionBegin;
-#if defined(PETSC_USE_LOG)
-  PetscCall(PetscLogObjectState((PetscObject)mat, "Rows=%" PetscInt_FMT ",Cols=%" PetscInt_FMT, mat->rmap->N, mat->cmap->N));
-#endif
-  PetscCall(MatStashDestroy_Private(&mat->stash));
-  PetscCall(MatStashDestroy_Private(&mat->bstash));
-  PetscCall(MatDestroy(&baij->A));
-  PetscCall(MatDestroy(&baij->B));
-#if defined(PETSC_USE_CTABLE)
-  PetscCall(PetscHMapIDestroy(&baij->colmap));
-#else
-  PetscCall(PetscFree(baij->colmap));
-#endif
-  PetscCall(PetscFree(baij->garray));
-  PetscCall(VecDestroy(&baij->lvec));
-  PetscCall(VecScatterDestroy(&baij->Mvctx));
-  PetscCall(PetscFree2(baij->rowvalues, baij->rowindices));
-  PetscCall(PetscFree(baij->barray));
-  PetscCall(PetscFree2(baij->hd, baij->ht));
-  PetscCall(PetscFree(baij->rangebs));
-  PetscCall(PetscFree(mat->data));
-
-  PetscCall(PetscObjectChangeTypeName((PetscObject)mat, NULL));
-  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatStoreValues_C", NULL));
-  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatRetrieveValues_C", NULL));
-  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatMPIBAIJSetPreallocation_C", NULL));
-  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatMPIBAIJSetPreallocationCSR_C", NULL));
-  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatDiagonalScaleLocal_C", NULL));
-  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatSetHashTableFactor_C", NULL));
-  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatConvert_mpibaij_mpisbaij_C", NULL));
-  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatConvert_mpibaij_mpiadj_C", NULL));
-  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatConvert_mpibaij_mpiaij_C", NULL));
-#if defined(PETSC_HAVE_HYPRE)
-  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatConvert_mpibaij_hypre_C", NULL));
-#endif
-  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatConvert_mpibaij_is_C", NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1802,13 +1810,6 @@ PetscErrorCode MatCopy_MPIBAIJ(Mat A, Mat B, MatStructure str)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode MatSetUp_MPIBAIJ(Mat A)
-{
-  PetscFunctionBegin;
-  PetscCall(MatMPIBAIJSetPreallocation(A, A->rmap->bs, PETSC_DEFAULT, NULL, PETSC_DEFAULT, NULL));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 PetscErrorCode MatAXPYGetPreallocation_MPIBAIJ(Mat Y, const PetscInt *yltog, Mat X, const PetscInt *xltog, PetscInt *nnz)
 {
   PetscInt     bs = Y->rmap->bs, m = Y->rmap->N / bs;
@@ -1940,7 +1941,10 @@ PetscErrorCode MatCreateSubMatrix_MPIBAIJ_Private(Mat mat, IS isrow, IS iscol, P
   /* The compression and expansion should be avoided. Doesn't point
      out errors, might change the indices, hence buggey */
   PetscCall(ISCompressIndicesGeneral(mat->rmap->N, mat->rmap->n, mat->rmap->bs, 1, &isrow, &isrow_new));
-  PetscCall(ISCompressIndicesGeneral(mat->cmap->N, mat->cmap->n, mat->cmap->bs, 1, &iscol, &iscol_new));
+  if (isrow == iscol) {
+    iscol_new = isrow_new;
+    PetscCall(PetscObjectReference((PetscObject)iscol_new));
+  } else PetscCall(ISCompressIndicesGeneral(mat->cmap->N, mat->cmap->n, mat->cmap->bs, 1, &iscol, &iscol_new));
 
   if (call == MAT_REUSE_MATRIX) {
     PetscCall(PetscObjectQuery((PetscObject)*newmat, "SubMatrix", (PetscObject *)&Mreuse));
@@ -2112,9 +2116,7 @@ PetscErrorCode MatGetSeqNonzeroStructure_MPIBAIJ(Mat A, Mat *newmat)
   PetscCallMPI(MPI_Comm_size(PetscObjectComm((PetscObject)A), &size));
   PetscCallMPI(MPI_Comm_rank(PetscObjectComm((PetscObject)A), &rank));
 
-  /* ----------------------------------------------------------------
-     Tell every processor the number of nonzeros per row
-  */
+  /*   Tell every processor the number of nonzeros per row  */
   PetscCall(PetscMalloc1(A->rmap->N / bs, &lens));
   for (i = A->rmap->rstart / bs; i < A->rmap->rend / bs; i++) lens[i] = ad->i[i - A->rmap->rstart / bs + 1] - ad->i[i - A->rmap->rstart / bs] + bd->i[i - A->rmap->rstart / bs + 1] - bd->i[i - A->rmap->rstart / bs];
   PetscCall(PetscMalloc1(2 * size, &recvcounts));
@@ -2124,18 +2126,14 @@ PetscErrorCode MatGetSeqNonzeroStructure_MPIBAIJ(Mat A, Mat *newmat)
     displs[i]     = A->rmap->range[i] / bs;
   }
   PetscCallMPI(MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, lens, recvcounts, displs, MPIU_INT, PetscObjectComm((PetscObject)A)));
-  /* ---------------------------------------------------------------
-     Create the sequential matrix of the same type as the local block diagonal
-  */
+  /* Create the sequential matrix of the same type as the local block diagonal  */
   PetscCall(MatCreate(PETSC_COMM_SELF, &B));
   PetscCall(MatSetSizes(B, A->rmap->N / bs, A->cmap->N / bs, PETSC_DETERMINE, PETSC_DETERMINE));
   PetscCall(MatSetType(B, MATSEQAIJ));
   PetscCall(MatSeqAIJSetPreallocation(B, 0, lens));
   b = (Mat_SeqAIJ *)B->data;
 
-  /*--------------------------------------------------------------------
-    Copy my part of matrix column indices over
-  */
+  /*     Copy my part of matrix column indices over  */
   sendcount  = ad->nz + bd->nz;
   jsendbuf   = b->j + b->i[rstarts[rank] / bs];
   a_jsendbuf = ad->j;
@@ -2160,9 +2158,7 @@ PetscErrorCode MatGetSeqNonzeroStructure_MPIBAIJ(Mat A, Mat *newmat)
   }
   PetscCheck(cnt == sendcount, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Corrupted PETSc matrix: nz given %" PetscInt_FMT " actual nz %" PetscInt_FMT, sendcount, cnt);
 
-  /*--------------------------------------------------------------------
-    Gather all column indices to all processors
-  */
+  /*  Gather all column indices to all processors  */
   for (i = 0; i < size; i++) {
     recvcounts[i] = 0;
     for (j = A->rmap->range[i] / bs; j < A->rmap->range[i + 1] / bs; j++) recvcounts[i] += lens[j];
@@ -2170,9 +2166,7 @@ PetscErrorCode MatGetSeqNonzeroStructure_MPIBAIJ(Mat A, Mat *newmat)
   displs[0] = 0;
   for (i = 1; i < size; i++) displs[i] = displs[i - 1] + recvcounts[i - 1];
   PetscCallMPI(MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, b->j, recvcounts, displs, MPIU_INT, PetscObjectComm((PetscObject)A)));
-  /*--------------------------------------------------------------------
-    Assemble the matrix into useable form (note numerical values not yet set)
-  */
+  /*  Assemble the matrix into useable form (note numerical values not yet set)  */
   /* set the b->ilen (length of each row) values */
   PetscCall(PetscArraycpy(b->ilen, lens, A->rmap->N / bs));
   /* set the b->i indices */
@@ -2423,7 +2417,6 @@ PetscErrorCode MatGetDiagonalBlock_MPIBAIJ(Mat A, Mat *a)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/* -------------------------------------------------------------------*/
 static struct _MatOps MatOps_Values = {MatSetValues_MPIBAIJ,
                                        MatGetRow_MPIBAIJ,
                                        MatRestoreRow_MPIBAIJ,
@@ -2453,7 +2446,7 @@ static struct _MatOps MatOps_Values = {MatSetValues_MPIBAIJ,
                                        NULL,
                                        NULL,
                                        NULL,
-                                       /*29*/ MatSetUp_MPIBAIJ,
+                                       /*29*/ MatSetUp_MPI_Hash,
                                        NULL,
                                        NULL,
                                        MatGetDiagonalBlock_MPIBAIJ,
@@ -2657,7 +2650,7 @@ PetscErrorCode MatMPIBAIJSetPreallocationCSR_MPIBAIJ(Mat B, PetscInt bs, const P
    Input Parameters:
 +  B - the matrix
 .  bs - the block size
-.  i - the indices into j for the start of each local row (starts with zero)
+.  i - the indices into `j` for the start of each local row (starts with zero)
 .  j - the column indices for each local row (starts with zero) these must be sorted for each row
 -  v - optional values in the matrix
 
@@ -2686,11 +2679,16 @@ PetscErrorCode MatMPIBAIJSetPreallocationCSR(Mat B, PetscInt bs, const PetscInt 
 
 PetscErrorCode MatMPIBAIJSetPreallocation_MPIBAIJ(Mat B, PetscInt bs, PetscInt d_nz, const PetscInt *d_nnz, PetscInt o_nz, const PetscInt *o_nnz)
 {
-  Mat_MPIBAIJ *b;
+  Mat_MPIBAIJ *b = (Mat_MPIBAIJ *)B->data;
   PetscInt     i;
   PetscMPIInt  size;
 
   PetscFunctionBegin;
+  if (B->hash_active) {
+    PetscCall(PetscMemcpy(&B->ops, &b->cops, sizeof(*(B->ops))));
+    B->hash_active = PETSC_FALSE;
+  }
+  if (!B->preallocated) PetscCall(MatStashCreate_Private(PetscObjectComm((PetscObject)B), bs, &B->bstash));
   PetscCall(MatSetBlockSize(B, PetscAbs(bs)));
   PetscCall(PetscLayoutSetUp(B->rmap));
   PetscCall(PetscLayoutSetUp(B->cmap));
@@ -2703,7 +2701,6 @@ PetscErrorCode MatMPIBAIJSetPreallocation_MPIBAIJ(Mat B, PetscInt bs, PetscInt d
     for (i = 0; i < B->rmap->n / bs; i++) PetscCheck(o_nnz[i] >= 0, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "o_nnz cannot be less than -1: local row %" PetscInt_FMT " value %" PetscInt_FMT, i, o_nnz[i]);
   }
 
-  b      = (Mat_MPIBAIJ *)B->data;
   b->bs2 = bs * bs;
   b->mbs = B->rmap->n / bs;
   b->nbs = B->cmap->n / bs;
@@ -2725,19 +2722,16 @@ PetscErrorCode MatMPIBAIJSetPreallocation_MPIBAIJ(Mat B, PetscInt bs, PetscInt d
   PetscCall(VecDestroy(&b->lvec));
   PetscCall(VecScatterDestroy(&b->Mvctx));
 
-  /* Because the B will have been resized we simply destroy it and create a new one each time */
   PetscCallMPI(MPI_Comm_size(PetscObjectComm((PetscObject)B), &size));
   PetscCall(MatDestroy(&b->B));
   PetscCall(MatCreate(PETSC_COMM_SELF, &b->B));
   PetscCall(MatSetSizes(b->B, B->rmap->n, size > 1 ? B->cmap->N : 0, B->rmap->n, size > 1 ? B->cmap->N : 0));
   PetscCall(MatSetType(b->B, MATSEQBAIJ));
 
-  if (!B->preallocated) {
-    PetscCall(MatCreate(PETSC_COMM_SELF, &b->A));
-    PetscCall(MatSetSizes(b->A, B->rmap->n, B->cmap->n, B->rmap->n, B->cmap->n));
-    PetscCall(MatSetType(b->A, MATSEQBAIJ));
-    PetscCall(MatStashCreate_Private(PetscObjectComm((PetscObject)B), bs, &B->bstash));
-  }
+  PetscCall(MatDestroy(&b->A));
+  PetscCall(MatCreate(PETSC_COMM_SELF, &b->A));
+  PetscCall(MatSetSizes(b->A, B->rmap->n, B->cmap->n, B->rmap->n, B->cmap->n));
+  PetscCall(MatSetType(b->A, MATSEQBAIJ));
 
   PetscCall(MatSeqBAIJSetPreallocation(b->A, bs, d_nz, d_nnz));
   PetscCall(MatSeqBAIJSetPreallocation(b->B, bs, o_nz, o_nnz));
@@ -3026,9 +3020,7 @@ M*/
    Now `d_nz` should indicate the number of block nonzeros per row in the d matrix,
    and `o_nz` should indicate the number of block nonzeros per row in the o matrix.
    In general, for PDE problems in which most nonzeros are near the diagonal,
-   one expects `d_nz` >> `o_nz`.   For large problems you MUST preallocate memory
-   or you will get TERRIBLE performance; see the users' manual chapter on
-   matrices.
+   one expects `d_nz` >> `o_nz`.
 
    You can call `MatGetInfo()` to get information on how effective the preallocation was;
    for example the fields mallocs,nz_allocated,nz_used,nz_unneeded;
@@ -3138,9 +3130,7 @@ PetscErrorCode MatMPIBAIJSetPreallocation(Mat B, PetscInt bs, PetscInt d_nz, con
    Now `d_nz` should indicate the number of block nonzeros per row in the d matrix,
    and `o_nz` should indicate the number of block nonzeros per row in the o matrix.
    In general, for PDE problems in which most nonzeros are near the diagonal,
-   one expects `d_nz` >> `o_nz`.   For large problems you MUST preallocate memory
-   or you will get TERRIBLE performance; see the users' manual chapter on
-   matrices.
+   one expects `d_nz` >> `o_nz`.
 
 .seealso: `Mat`, `MatCreate()`, `MatCreateSeqBAIJ()`, `MatSetValues()`, `MatCreateBAIJ()`, `MatMPIBAIJSetPreallocation()`, `MatMPIBAIJSetPreallocationCSR()`
 @*/
@@ -3419,10 +3409,10 @@ PetscErrorCode MatMPIBAIJGetSeqBAIJ(Mat A, Mat *Ad, Mat *Ao, const PetscInt *col
 . v - numerical values input
 - addvin - `INSERT_VALUES` or `ADD_VALUES`
 
+  Level: advanced
+
   Developer Note:
     This has a complete copy of `MatSetValuesBlocked_MPIBAIJ()` which is terrible code un-reuse.
-
-  Level: advanced
 
 .seealso: `Mat`, `MatSetValuesBlocked()`
 @*/

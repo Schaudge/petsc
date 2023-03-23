@@ -36,10 +36,11 @@
     Level: developer
 
    Fortran Note:
-   In Fortran this routine has the format
-
-$       character*(64) name
-$       call PetscGetHostName(name,ierr)
+   This routine has the format
+.vb
+       character*(64) name
+       call PetscGetHostName(name,ierr)
+.ve
 
 .seealso: `PetscGetUserName()`, `PetscGetArchType()`
 @*/
@@ -61,8 +62,6 @@ PetscErrorCode PetscGetHostName(char name[], size_t nlen)
   PetscCall(PetscStrncpy(name, utname.nodename, nlen));
 #elif defined(PETSC_HAVE_GETHOSTNAME)
   gethostname(name, nlen);
-#elif defined(PETSC_HAVE_SYSINFO_3ARG)
-  sysinfo(SI_HOSTNAME, name, nlen);
 #endif
   /* if there was not enough room then system call will not null terminate name */
   name[nlen - 1] = 0;
@@ -75,9 +74,7 @@ PetscErrorCode PetscGetHostName(char name[], size_t nlen)
     if (l == nlen - 1) PetscFunctionReturn(PETSC_SUCCESS);
     name[l++] = '.';
     name[l]   = 0;
-#if defined(PETSC_HAVE_SYSINFO_3ARG)
-    sysinfo(SI_SRPC_DOMAIN, name + l, nlen - l);
-#elif defined(PETSC_HAVE_GETDOMAINNAME)
+#if defined(PETSC_HAVE_GETDOMAINNAME)
     PetscCheck(!getdomainname(name + l, nlen - l), PETSC_COMM_SELF, PETSC_ERR_SYS, "getdomainname()");
 #endif
     /* check if domain name is not a dnsdomainname and nuke it */

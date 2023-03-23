@@ -4,12 +4,13 @@ import os
 class Configure(config.package.GNUPackage):
   def __init__(self, framework):
     config.package.GNUPackage.__init__(self, framework)
-    self.version                = '4.1.4'
+    self.version                = '4.1.5'
     self.download               = ['https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-'+self.version+'.tar.gz',
                                    'http://ftp.mcs.anl.gov/pub/petsc/externalpackages/openmpi-'+self.version+'.tar.gz']
     self.downloaddirnames       = ['openmpi','ompi']
     self.skippackagewithoptions = 1
     self.isMPI                  = 1
+    self.buildLanguages         = ['C','Cxx']
     return
 
   def setupDependencies(self, framework):
@@ -24,8 +25,6 @@ class Configure(config.package.GNUPackage):
     args.append('--with-rsh=ssh')
     args.append('--disable-man-pages')
     args.append('MAKE='+self.make.make)
-    if not hasattr(self.compilers, 'CXX'):
-      raise RuntimeError('Error: OpenMPI requires C++ compiler. None specified')
     if hasattr(self.compilers, 'FC'):
       self.pushLanguage('FC')
       if not self.fortran.fortranIsF90:

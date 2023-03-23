@@ -2,10 +2,7 @@
 #requirespackage 'PETSC_HAVE_PARMETIS'
 
 CPPFLAGS  = ${PARMETIS_INCLUDE}
-SOURCEC   = pmetis.c
-SOURCEH   =
 LIBBASE   = libpetscmat
-LOCDIR    = src/mat/partition/impls/pmetis/
 MANSEC    = Mat
 SUBMANSEC = MatOrderings
 

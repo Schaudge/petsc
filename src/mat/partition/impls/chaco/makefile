@@ -2,10 +2,7 @@
 #requirespackage 'PETSC_HAVE_CHACO'
 
 CPPFLAGS  = ${CHACO_INCLUDE}
-SOURCEC   = chaco.c
-SOURCEH   =
 LIBBASE   = libpetscmat
-LOCDIR    = src/mat/partition/impls/chaco/
 MANSEC    = Mat
 SUBMANSEC = MatOrderings
 

@@ -1,10 +1,6 @@
 -include ../../../../../petscdir.mk
 
-SOURCEC   = sfutils.c sfcoord.c
-SOURCEF   =
-SOURCEH   =
 LIBBASE   = libpetscvec
-LOCDIR	  = src/vec/is/sf/utils/
 MANSEC	  = Vec
 SUBMANSEC = PetscSF
 

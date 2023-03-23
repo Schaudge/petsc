@@ -1,11 +1,7 @@
 -include ../../../../../petscdir.mk
 
-SOURCEC  = cstring.c
-SOURCEF  =
-SOURCEH  =
 LIBBASE  = libpetscvec
 MANSEC   = Vec
-LOCDIR   = src/vec/pf/impls/string/
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
@@ -19,7 +15,6 @@ petscdlib.c:
 
 petscdlib:  petscdlib.c
 	-@${RM} libpetscdlib.a libpetscdlib.${SL_LINKER_SUFFIX}
-	-@${OMAKE} PETSC_ARCH=${PETSC_ARCH}  LIBNAME=libpetscdlib.a SOURCEC=petscdlib.c libc
 	-@${OMAKE} PETSC_ARCH=${PETSC_ARCH}  LIBNAME=libpetscdlib oshared
 #	-@${RM} petscdlib.c
 

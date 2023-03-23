@@ -1,10 +1,6 @@
 -include ../../../../../../petscdir.mk
 
-SOURCEC   = spacesubspace.c
-SOURCEF   =
 LIBBASE   = libpetscdm
-DIRS      =
-LOCDIR    = src/dm/dt/space/impls/subspace/
 MANSEC    = DM
 SUBMANSEC = SPACE
 

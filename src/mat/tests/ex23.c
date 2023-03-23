@@ -154,7 +154,6 @@ int main(int argc, char **args)
   PetscCall(MatSetSizes(B, PETSC_DECIDE, PETSC_DECIDE, m, n));
   PetscCall(MatSetType(B, MATAIJ));
   PetscCall(MatSetFromOptions(B));
-  PetscCall(MatSetUp(B));
   PetscCall(MatSetLocalToGlobalMapping(B, rmap, cmap));
   PetscCall(MatMPIAIJSetPreallocation(B, 3, NULL, 3, NULL));
   PetscCall(MatMPIBAIJSetPreallocation(B, 1, 3, NULL, 3, NULL));
@@ -825,9 +824,9 @@ PetscErrorCode TestMatZeroRows(Mat A, Mat Afull, PetscBool squaretest, IS is, Pe
 
   PetscFunctionBeginUser;
   if (diag == 0.) {
-    PetscCall(PetscStrcpy(diagstr, "zero"));
+    PetscCall(PetscStrncpy(diagstr, "zero", sizeof(diagstr)));
   } else {
-    PetscCall(PetscStrcpy(diagstr, "nonzero"));
+    PetscCall(PetscStrncpy(diagstr, "nonzero", sizeof(diagstr)));
   }
   PetscCall(ISView(is, NULL));
   PetscCall(MatGetLocalToGlobalMapping(A, &l2gr, &l2gc));

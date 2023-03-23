@@ -1,9 +1,6 @@
 -include ../../../../../petscdir.mk
 
-SOURCEC   = hierarchical.c
-SOURCEH   =
 LIBBASE   = libpetscmat
-LOCDIR    = src/mat/partition/impls/hierarchical/
 MANSEC    = Mat
 SUBMANSEC = MatOrderings
 

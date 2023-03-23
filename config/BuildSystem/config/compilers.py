@@ -130,7 +130,7 @@ class Configure(config.base.Configure):
     self.addDefine('CXX_RESTRICT', self.cxxRestrict)
     return
 
-  def checkCrossLink(self, func1, func2, language1 = 'C', language2='FC',extraObjs = []):
+  def checkCrossLink(self, func1, func2, language1 = 'C', language2='FC',extraObjs = None, extralibs=None):
     '''Compiles C/C++ and Fortran code and tries to link them together; the C and Fortran code are independent so no name mangling is needed
        language1 is used to compile the first code, language2 compiles the second and links them togetether'''
     obj1 = os.path.join(self.tmpDir, 'confc.o')
@@ -151,8 +151,12 @@ class Configure(config.base.Configure):
     self.pushLanguage(language2)
     oldLIBS = self.setCompilers.LIBS
     self.setCompilers.LIBS = obj1+' '+self.setCompilers.LIBS
-    if extraObjs:
-      self.setCompilers.LIBS = ' '.join(extraObjs)+' '+' '.join([self.libraries.getLibArgument(lib) for lib in self.clibs])+' '+self.setCompilers.LIBS
+    if extraObjs or extralibs:
+      if extraObjs is None:
+        extraObjs = []
+      if extralibs is None:
+        extralibs = self.clibs
+      self.setCompilers.LIBS = ' '.join(extraObjs)+' '+' '.join([self.libraries.getLibArgument(lib) for lib in extralibs])+' '+self.setCompilers.LIBS
     found = self.checkLink("", func2,codeBegin = " ", codeEnd = " ")
     self.setCompilers.LIBS = oldLIBS
     self.popLanguage()
@@ -448,6 +452,7 @@ class Configure(config.base.Configure):
     skipcxxlibraries = 1
     self.setCompilers.saveLog()
     body   = '''#include <iostream>\n#include <vector>\nvoid asub(void)\n{std::vector<int> v;\ntry  { throw 20;  }  catch (int e)  { std::cout << "An exception occurred";  }}'''
+    oldLibs = ''
     try:
       if self.checkCrossLink(body,"int main(int argc,char **args)\n{return 0;}\n",language1='C++',language2='C'):
         self.logWrite(self.setCompilers.restoreLog())
@@ -1397,7 +1402,8 @@ Otherwise you need a different combination of C, C++, and Fortran compilers")
       if self.setCompilers.checkCompilerFlag(flag, includes, body):
         self.logWrite(self.setCompilers.restoreLog())
         self.c99flag = flag
-        self.setCompilers.CPPFLAGS += ' ' + flag
+        if flag:
+          self.setCompilers.CPPFLAGS += ' ' + flag
         self.framework.logPrint('Accepted C99 compile flag: '+flag)
         break
       else:

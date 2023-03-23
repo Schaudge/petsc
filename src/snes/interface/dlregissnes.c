@@ -5,12 +5,12 @@
 static PetscBool SNESPackageInitialized = PETSC_FALSE;
 
 /*@C
-  SNESFinalizePackage - This function destroys everything in the Petsc interface to the SNES package. It is
-  called from PetscFinalize().
+  SNESFinalizePackage - This function destroys everything in the Petsc interface to the `SNES` package. It is
+  called from `PetscFinalize()`.
 
   Level: developer
 
-.seealso: `PetscFinalize()`
+.seealso: `SNES`, `PetscFinalize()`
 @*/
 PetscErrorCode SNESFinalizePackage(void)
 {
@@ -24,13 +24,13 @@ PetscErrorCode SNESFinalizePackage(void)
 }
 
 /*@C
-  SNESInitializePackage - This function initializes everything in the SNES package. It is called
-  from PetscDLLibraryRegister_petscsnes() when using dynamic libraries, and on the first call to SNESCreate()
+  SNESInitializePackage - This function initializes everything in the `SNES` package. It is called
+  from PetscDLLibraryRegister_petscsnes() when using dynamic libraries, and on the first call to `SNESCreate()`
   when using shared or static libraries.
 
   Level: developer
 
-.seealso: `PetscInitialize()`
+.seealso: `SNES`, `PetscInitialize()`
 @*/
 PetscErrorCode SNESInitializePackage(void)
 {
@@ -51,7 +51,7 @@ PetscErrorCode SNESInitializePackage(void)
   PetscCall(SNESLineSearchRegisterAll());
   /* Register Events */
   PetscCall(PetscLogEventRegister("SNESSolve", SNES_CLASSID, &SNES_Solve));
-  PetscCall(PetscLogEventRegister("SNESSetUp", SNES_CLASSID, &SNES_Setup));
+  PetscCall(PetscLogEventRegister("SNESSetUp", SNES_CLASSID, &SNES_SetUp));
   PetscCall(PetscLogEventRegister("SNESFunctionEval", SNES_CLASSID, &SNES_FunctionEval));
   PetscCall(PetscLogEventRegister("SNESObjectiveEval", SNES_CLASSID, &SNES_ObjectiveEval));
   PetscCall(PetscLogEventRegister("SNESNGSEval", SNES_CLASSID, &SNES_NGSEval));

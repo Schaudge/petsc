@@ -1,11 +1,6 @@
 -include ../../../../../petscdir.mk
 
-SOURCEC   = pythonpc.c
-SOURCEF   =
-SOURCEH   =
 LIBBASE   = libpetscksp
-DIRS      =
-LOCDIR    = src/ksp/pc/impls/python/
 MANSEC    = KSP
 SUBMANSEC = PC
 

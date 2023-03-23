@@ -42,7 +42,7 @@ PetscErrorCode MatCoarsenRegister(const char sname[], PetscErrorCode (*function)
    MatCoarsenGetType - Gets the Coarsen method type and name (as a string)
         from the coarsen context.
 
-   Not collective
+   Not Collective
 
    Input Parameter:
 .  coarsen - the coarsen context
@@ -51,8 +51,6 @@ PetscErrorCode MatCoarsenRegister(const char sname[], PetscErrorCode (*function)
 .  type - coarsener type
 
    Level: advanced
-
-   Not Collective
 
 .seealso: `MatCoarsen`, `MatCoarsenCreate()`, `MatCoarsenType`, `MatCoarsenSetType()`, `MatCoarsenRegister()`
 @*/
@@ -217,7 +215,7 @@ PetscErrorCode MatCoarsenCreate(MPI_Comm comm, MatCoarsen *newcrs)
 .  obj - Optional object that provides the prefix for the option name
 -  name - command line option (usually `-mat_coarsen_view`)
 
-  Options Database:
+  Options Database Key:
 .  -mat_coarsen_view [viewertype]:... - the viewer and its options
 
   Note:

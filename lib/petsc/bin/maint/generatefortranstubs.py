@@ -11,7 +11,7 @@
 #    These are then included by the petsc[[BFORT]SUB]MANSECmod.F90 files to create the Fortran module files
 #
 #    SUBMANSEC (but not BFORTSUBMANSEC) is also used (in the documentation generating part of PETSc) to determine what
-#    directory in doc/docs/manualpages/ the manual pages are deposited.
+#    directory in doc/manualpages/ the manual pages are deposited.
 #
 #    An example of when the BFORTSUBMANSEC may be different than SUBMANSEC is src/dm/label/impls/ephemeral/plex where we would like
 #    the documentation to be stored under DMLabel but the function interfaces need to go into the DMPLEX Fortran module
@@ -128,14 +128,11 @@ def FixDir(petscdir,dir,verbose):
     fd.close()
     cppflags = ""
     libbase = ""
-    locdir = ""
     for line in inbuf.splitlines():
       if line.find('CPPFLAGS') >=0:
         cppflags = line
       if line.find('LIBBASE') >=0:
         libbase = line
-      elif line.find('LOCDIR') >=0:
-        locdir = line.rstrip() + 'ftn-auto/'
       elif line.find('SUBMANSEC') >=0:
         submansec = line.split('=')[1].lower().strip()
       elif line.find('BFORTSUBMANSEC') >=0:
@@ -151,16 +148,8 @@ def FixDir(petscdir,dir,verbose):
     # now assemble the makefile
     outbuf  =  '\n'
     outbuf +=  "#requiresdefine   'PETSC_HAVE_FORTRAN'\n"
-    outbuf +=  'ALL: lib\n'
     outbuf +=   cppflags + '\n'
-    outbuf +=  'CFLAGS   =\n'
-    outbuf +=  'FFLAGS   =\n'
-    outbuf +=  'SOURCEC  = ' +' '.join(cnames)+ '\n'
-    outbuf +=  'SOURCEF  =\n'
-    outbuf +=  'SOURCEH  = ' +' '.join(hnames)+ '\n'
-    outbuf +=  'DIRS     =\n'
     outbuf +=  libbase + '\n'
-    outbuf +=  locdir + '\n'
     outbuf +=  'include ${PETSC_DIR}/lib/petsc/conf/variables\n'
     outbuf +=  'include ${PETSC_DIR}/lib/petsc/conf/rules\n'
     outbuf +=  'include ${PETSC_DIR}/lib/petsc/conf/test\n'

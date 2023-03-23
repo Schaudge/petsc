@@ -19,6 +19,7 @@ import build_classic_docs
 import fix_man_page_edit_links
 import make_links_relative
 import update_htmlmap_links
+import fix_pydata_margins
 
 
 if not os.path.isdir("images"):
@@ -83,7 +84,7 @@ bibtex_bibfiles = ['petsc.bib']
 
 myst_enable_extensions = ["dollarmath", "amsmath", "deflist"]
 
-remove_from_toctrees = ['docs/manualpages/*/*','docs/changes/2*','docs/changes/3*']
+remove_from_toctrees = ['manualpages/*/[A-Z]*','changes/2*','changes/3*']
 
 # -- Options for HTML output ---------------------------------------------------
 
@@ -92,7 +93,13 @@ html_theme = 'pydata_sphinx_theme'
 html_logo_light = os.path.join('images', 'logos', 'PETSc_TAO_logos', 'PETSc-TAO', 'web', 'PETSc-TAO_RGB.svg')
 html_logo_dark = os.path.join('images', 'logos', 'PETSc_TAO_logos', 'PETSc-TAO', 'web', 'PETSc-TAO_RGB_white.svg')
 
-html_static_path = [html_logo_light, html_logo_dark]
+html_static_path = ['_static', html_logo_light, html_logo_dark]
+
+# use much smaller font for h1, h2 etc. They are absurdly large in the standard style
+# https://pydata-sphinx-theme.readthedocs.io/en/v0.12.0/user_guide/styling.html
+html_css_files = [
+    'css/custom.css',
+]
 
 html_theme_options = {
     "icon_links": [
@@ -105,6 +112,7 @@ html_theme_options = {
     "use_edit_page_button": True,
     "footer_items": ["copyright", "sphinx-version", "last-updated"],
 #    "secondary_sidebar_items" : ["edit-this-page"],
+     "header_links_before_dropdown": 9,
     "logo": {
         "image_light": os.path.basename(html_logo_light),
         "image_dark": os.path.basename(html_logo_dark)
@@ -137,15 +145,15 @@ latex_engine = 'xelatex'
 
 # How to arrange the documents into LaTeX files, building only the manual.
 latex_documents = [
-        ('docs/manual/index', 'manual.tex', 'PETSc/TAO Users Manual', author, 'manual', False)
+        ('manual/index', 'manual.tex', 'PETSc/TAO Users Manual', author, 'manual', False)
         ]
 
 latex_additional_files = [
-    'images/docs/manual/anl_tech_report/ArgonneLogo.pdf',
-    'images/docs/manual/anl_tech_report/ArgonneReportTemplateLastPage.pdf',
-    'images/docs/manual/anl_tech_report/ArgonneReportTemplatePage2.pdf',
-    'docs/manual/anl_tech_report/first.inc',
-    'docs/manual/anl_tech_report/last.inc',
+    'images/manual/anl_tech_report/ArgonneLogo.pdf',
+    'images/manual/anl_tech_report/ArgonneReportTemplateLastPage.pdf',
+    'images/manual/anl_tech_report/ArgonneReportTemplatePage2.pdf',
+    'manual/anl_tech_report/first.inc',
+    'manual/anl_tech_report/last.inc',
 ]
 
 latex_elements = {
@@ -185,6 +193,7 @@ def build_finished_handler(app, exception):
         _copy_classic_docs(app, exception, app.outdir, 'post')
         _fix_links(app, exception)
         _fix_man_page_edit_links(app, exception)
+        fix_pydata_margins.fix_pydata_margins(app.outdir)
         if app.builder.name == 'dirhtml':
             _add_man_page_redirects(app, exception)
         if app.builder.name == 'html':

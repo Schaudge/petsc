@@ -71,7 +71,7 @@ PetscErrorCode TSTrajectorySet(TSTrajectory tj, TS ts, PetscInt stepnum, PetscRe
 /*@
   TSTrajectoryGetNumSteps - Return the number of steps registered in the `TSTrajectory` via `TSTrajectorySet()`.
 
-  Not collective.
+  Not Collective.
 
   Input Parameters:
 . tj - the trajectory object
@@ -451,7 +451,7 @@ PetscErrorCode TSTrajectoryCreate(MPI_Comm comm, TSTrajectory *tj)
   Developer Note:
   Why does this option require access to the `TS`
 
-.seealso: [](chapter_ts),  `TSTrajectory`, `TS`, `TSTrajectoryCreate()`, `TSTrajectorySetFromOptions()`, `TSTrajectoryDestroy()`, `TSTrajectoryGetType()`
+.seealso: [](chapter_ts), `TSTrajectory`, `TS`, `TSTrajectoryCreate()`, `TSTrajectorySetFromOptions()`, `TSTrajectoryDestroy()`, `TSTrajectoryGetType()`
 @*/
 PetscErrorCode TSTrajectorySetType(TSTrajectory tj, TS ts, TSTrajectoryType type)
 {
@@ -916,7 +916,7 @@ PetscErrorCode TSTrajectorySetSolutionOnly(TSTrajectory tj, PetscBool solution_o
 /*@
    TSTrajectoryGetSolutionOnly - Gets the value set with `TSTrajectorySetSolutionOnly()`.
 
-   Logically collective
+   Logically Collective
 
    Input Parameter:
 .  tj  - the `TSTrajectory` context

@@ -2,10 +2,7 @@
 #requirespackage 'PETSC_HAVE_PTSCOTCH'
 
 CPPFLAGS  = ${SCOTCH_INCLUDE}
-SOURCEC   = scotch.c
-SOURCEH   =
 LIBBASE   = libpetscmat
-LOCDIR    = src/mat/partition/impls/scotch/
 MANSEC    = Mat
 SUBMANSEC = MatOrderings
 
