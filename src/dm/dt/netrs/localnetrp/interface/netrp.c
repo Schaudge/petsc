@@ -1311,8 +1311,6 @@ PetscErrorCode NetRPSolveFlux(NetRP rp, PetscInt vdegin, PetscInt vdegout, Petsc
 
    Level: beginner
 
-   Level: beginner
-
 .seealso: NetRPCreate(), NetRPSetFlux()
 @*/
 PetscErrorCode NetRPSolveStar(NetRP rp, PetscInt vdegin, PetscInt vdegout, PetscBool *edgein, Vec U, Vec Star)
