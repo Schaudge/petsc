@@ -1207,7 +1207,7 @@ static PetscErrorCode NetRPFindCacheIndex_DoNotCreate_internal(NetRP rp, PetscIn
    and auto cached solver objects to solve for the flux. New solver objects will be created and cached as necessary as well. 
    Always Calleable. 
 
-   Not Collective on NetRP
+   Collective
 
    Input Parameter:
 .  rp - the NetRP context obtained from RiemanSolverCreate()
@@ -1217,7 +1217,6 @@ static PetscErrorCode NetRPFindCacheIndex_DoNotCreate_internal(NetRP rp, PetscIn
 .  U  - vec containing the the deg(v)*numfield initial states of the riemman problem. Allocated by caller. 
 
   Output Parameter: 
-
 . Flux - Vec Containing the deg(v)*numfield fluxes after solving the riemann problem. Allocated by caller. 
 
    Level: beginner
@@ -1298,18 +1297,19 @@ PetscErrorCode NetRPSolveFlux(NetRP rp, PetscInt vdegin, PetscInt vdegout, Petsc
    The type is not required to implement routines for this solver. Use `NetRPCanSolveStar()` to determine if this function can safely 
    be called. 
 
-
-   Not Collective on NetRP
+   Collective
 
    Input Parameter:
 .  rp - the NetRP context obtained from RiemanSolverCreate()
-.  network - the network that contains the vertex v with the topology of the riemann problem. 
-.  v  - the vertex in network to solve the riemann problem at 
+.  vdegin  - the number of in edges for the vertx 
+.  vdegout - the number of out edges for the vertex
+.  edgein  - array of length vdegin+vdegout indicating whether edgein[i] is point in or out. 
 .  U  - vec containing the the deg(v)*numfield initial states of the riemman problem. Allocated by caller. 
 
   Output Parameter: 
+. Star - Vec Containing the deg(v)*numfield fluxes after solving the riemann problem. Allocated by caller. 
 
-. Star - Vec Containing the deg(v)*numfield star states after solving the riemann problem. Allocated by caller. 
+   Level: beginner
 
    Level: beginner
 
