@@ -1406,7 +1406,7 @@ PetscErrorCode NetRPSetSolverCtxFunc(NetRP rp, NetRPSetSolverCtx setsolverctx)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode NetRPGetSolverCtx(NetRP rp, PetscInt vdegin, PetscInt vdegout, void *solverctx)
+PetscErrorCode NetRPGetSolverCtx(NetRP rp, PetscInt vdegin, PetscInt vdegout, void **solverctx)
 {
   PetscInt index;
   PetscFunctionBegin;
@@ -1415,7 +1415,7 @@ PetscErrorCode NetRPGetSolverCtx(NetRP rp, PetscInt vdegin, PetscInt vdegout, vo
   PetscCall(NetRPSetUp(rp));
   PetscCall(NetRPFindCacheIndex_DoNotCreate_internal(rp, vdegin, vdegout, &index));
   PetscCheck(index >= 0, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_OUTOFRANGE, "(vdegin, vdegout) : ( %" PetscInt_FMT ", %" PetscInt_FMT " ) does not have cached solver ctx. Cache this solver first.", vdegin, vdegout);
-  *(void **)solverctx = rp->solver_ctx[index];
+  *solverctx = rp->solver_ctx[index];
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
