@@ -36,6 +36,7 @@ struct _NetRPOps {
   PetscErrorCode (*reset)(NetRP);
   PetscErrorCode (*clearcache)(NetRP);
   PetscErrorCode (*setsolverctx)(NetRP, PetscInt, PetscInt, void *);
+  PetscErrorCode (*destroysolverctx)(NetRP,PetscInt,PetscInt,void *);
   PetscErrorCode (*setupmat)(NetRP, PetscInt, Mat);
   PetscErrorCode (*setupksp)(NetRP, PetscInt, KSP);
   PetscErrorCode (*setupsnes)(NetRP, PetscInt, SNES);

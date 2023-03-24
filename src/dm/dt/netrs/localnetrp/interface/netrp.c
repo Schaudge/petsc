@@ -1,3 +1,5 @@
+#include "petsc/private/hashijkey.h"
+#include "petsc/private/hashmapi.h"
 #include "petsc/private/petscimpl.h"
 #include "petscerror.h"
 #include "petscsys.h"
@@ -110,6 +112,41 @@ PetscErrorCode NetRPGetNumCached(NetRP rp, PetscInt *numcached)
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+// ugly 
+static PetscErrorCode NetRPClearCachedCtx(NetRP rp) {
+  PetscInt       i, numcached, off; 
+  PetscInt       *keys, *vals; 
+  PetscHashIJKey *ijkeys; 
+  NetRPCacheType cachetype;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
+  PetscCall(NetRPGetCacheType(rp, &cachetype));
+
+  switch (cachetype) {
+    case UndirectedVDeg:
+      off = 0; 
+      PetscCall(PetscHMapIGetSize(rp->hmap, &numcached));
+      PetscCall(PetscMalloc2(numcached,&keys,numcached,&vals)); 
+      PetscCall(PetscHMapIGetPairs(rp->hmap, &off, keys, vals));
+      for(i=0; i<numcached; i++) {
+        PetscTryTypeMethod(rp,destroysolverctx,keys[i],0,rp->solver_ctx[vals[i]]); 
+      }
+      PetscCall(PetscFree2(keys,vals)); 
+      break;
+    case DirectedVDeg:
+      off = 0; 
+      PetscCall(PetscHMapIJGetSize(rp->dirhmap, &numcached));
+      PetscCall(PetscMalloc2(numcached,&ijkeys,numcached,&vals)); 
+      PetscCall(PetscHMapIJGetPairs(rp->dirhmap, &off, ijkeys, vals));
+      for(i=0; i<numcached; i++) {
+        PetscTryTypeMethod(rp,destroysolverctx,ijkeys[i].i,ijkeys[i].j,rp->solver_ctx[vals[i]]); 
+      }
+      PetscCall(PetscFree2(ijkeys, vals));
+      break;
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 /*@
    NetRPClearCache - Clears all cached solver objects in the NetRP. 
@@ -132,6 +169,7 @@ PetscErrorCode NetRPClearCache(NetRP rp)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
   if (rp->ops->clearcache) { PetscCall((*rp->ops->clearcache)(rp)); }
+  PetscCall(NetRPClearCachedCtx(rp));
   PetscCall(NetRPGetNumCached(rp, &numcached));
   if (rp->ksp) {
     switch (rp->solvetype) {
@@ -1380,6 +1418,22 @@ PetscErrorCode NetRPGetSolverCtx(NetRP rp, PetscInt vdegin, PetscInt vdegout, vo
   *(void **)solverctx = rp->solver_ctx[index];
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+
+PetscErrorCode NetRPSetDestroySolverCtxFunc(NetRP rp, NetRPDestroySolverCtx destroysolverctx)
+{
+  PetscBool flg;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
+  PetscCheck(!rp->setupcalled, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Must be set before calling NetRPSetUp()");
+  /* only the blank implementation should allow for setting this, other implementations are assumed to fix the type themselves */
+  PetscCall(PetscObjectTypeCompare((PetscObject)rp, NETRPBLANK, &flg));
+  PetscCheck(flg, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Can only be manually set on the blank type of NetRP");
+  rp->ops->destroysolverctx = destroysolverctx;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /*@
    NetRPPostSolve - Calls the PreSolve function set in `NetRPPostSolve()`. Internally 
    called in the `NetRPSolveStar()` and `NetRPSolveFlux()` before the actual solve call. 
