@@ -31,7 +31,7 @@ int main(int argc, char **argv)
   Vec         x; /* solution vector */
   Mat         H;
   Tao         tao; /* Tao solver context */
-  PetscBool   flg, test_lmvm = PETSC_FALSE;
+  PetscBool   flg, cuda = PETSC_FALSE, test_lmvm = PETSC_FALSE;
   PetscMPIInt size; /* number of processes running */
   AppCtx      user; /* user-defined application context */
   KSP         ksp;
@@ -55,11 +55,15 @@ int main(int argc, char **argv)
   PetscCall(PetscOptionsGetReal(NULL, NULL, "-alpha", &user.alpha, &flg));
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-chained", &user.chained, &flg));
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-test_lmvm", &test_lmvm, &flg));
+  PetscCall(PetscOptionsGetBool(NULL, NULL, "-cuda", &cuda, &flg));
 
   /* Allocate vectors for the solution and gradient */
-  PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &x));
-  PetscCall(MatCreateSeqBAIJ(PETSC_COMM_SELF, 2, user.n, user.n, 1, NULL, &H));
-
+  if (cuda){
+    PetscCall(VecCreateSeqCUDA(PETSC_COMM_SELF, user.n, &x));
+  } else {
+    PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &x));
+    PetscCall(MatCreateSeqBAIJ(PETSC_COMM_SELF, 2, user.n, user.n, 1, NULL, &H));
+  }
   /* The TAO code begins here */
 
   /* Create TAO solver with desired solution method */
@@ -356,5 +360,13 @@ PetscErrorCode FormHessian(Tao tao, Vec X, Mat H, Mat Hpre, void *ptr)
    test:
      suffix: 28
      args: -tao_fmin 10 -tao_converged_reason
+
+   test:
+     suffix: 29
+     args: -test_lmvm -tao_max_it 10 -tao_bqnk_mat_type lmvmcdbfgs
+
+   test:
+     suffix: 30
+     args: -tao_type bqnls -tao_bqnls_mat_type lmvmcdbfgs -tao_monitor
 
 TEST*/
