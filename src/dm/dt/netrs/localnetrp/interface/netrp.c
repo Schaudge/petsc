@@ -1,3 +1,5 @@
+#include "petsc/private/petscimpl.h"
+#include "petscerror.h"
 #include "petscsys.h"
 #include "petscsystypes.h"
 #include "petscvec.h"
@@ -1378,10 +1380,62 @@ PetscErrorCode NetRPGetSolverCtx(NetRP rp, PetscInt vdegin, PetscInt vdegout, vo
 
   PetscCall(NetRPSetUp(rp));
   PetscCall(NetRPFindCacheIndex_DoNotCreate_internal(rp, vdegin, vdegout, &index));
-  if (index >= 0) {
-    *(void **)solverctx = rp->solver_ctx[index];
-  } else {
-    *(void **)solverctx = NULL;
-  }
+  PetscCheck(index>=0, PetscObjectComm((PetscObject)rp),PETSC_ERR_ARG_OUTOFRANGE,"(vdegin, vdegout) : ( %" PetscInt_FMT ", %" PetscInt_FMT " ) does not have cached solver ctx. Cache this solver first.",vdegin,vdegout );
+  *(void **)solverctx = rp->solver_ctx[index];
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+/*@
+   NetRPPostSolve - Calls the PreSolve function set in `NetRPPostSolve()`. Internally 
+   called in the `NetRPSolveStar()` and `NetRPSolveFlux()` before the actual solve call. 
+
+   Collective 
+
+   Input Parameter:
+.  rp - the NetRP context obtained from NetRPCreate()
+.  vdegin  - the number of in edges for the vertex
+.  vdegout - the number of out edges for the vertex
+.  edgein  - array of length vdegin+vdegout indicating whether edgein[i] is point in or out. 
+.  PostSolve - vec containing solution post internal solve. The exact number of entries in this
+               vector depends on the type of solver template used. 
+
+  Output Parameter: 
+. Out - Vector that will be outputed to NetRPSolve[Star|Flux](). This has vdeg*numfields entries.
+
+   Level: developer
+
+.seealso: `NetRPSetPostSolve()`, `NetRPPostSolve()`, `NetRPSolveStar()`, `NetRPSolveFlux()`
+@*/
+PetscErrorCode NetRPPostSolve(NetRP rp, PetscInt vdegin, PetscInt vdegout, PetscBool *edgein, Vec PostSolve, Vec Out ) {
+void *solverctx; 
+PetscFunctionBegin; 
+PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
+PetscValidHeaderSpecific(PostSolve, VEC_CLASSID, 5); 
+PetscValidHeaderSpecific(Out, VEC_CLASSID, 6); 
+PetscCall(NetRPGetSolverCtx(rp, vdegin, vdegout, &solverctx));
+PetscTryTypeMethod(rp,PostSolve,vdegin,vdegout,edgein,PostSolve,Out,solverctx);
+PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+   NetRPPostSolve - Calls the PreSolve function set in `NetRPPostSolve()`. Internally 
+   called in the `NetRPSolveStar()` and `NetRPSolveFlux()` before the actual solve call. 
+
+   Logically Collective
+
+   Input Parameter:
+.  rp - the NetRP context obtained from NetRPCreate()
+.  postsolvefunc - function to be called internally in `NetRPSolveStar()` or `NetRPSolveFlux()`. 
+   Calling sequence: postsolvefunc(NetRP rp, PetscInt vdegin, PetscInt vdegout, PetscBool *edgein, Vec PostSolve, Vec Out, void *ctx)
+   
+   Level: intermediate
+
+.seealso: `NetRPSetPostSolve()`, `NetRPPostSolve()`, `NetRPSolveStar()`, `NetRPSolveFlux()`
+@*/
+PetscErrorCode NetRPSetPostSolve(NetRP rp, NetRPPostSolveFunc postsolvefunc ) {
+
+PetscFunctionBegin; 
+PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
+rp->ops->PostSolve = postsolvefunc; 
+PetscFunctionReturn(PETSC_SUCCESS);
+}
+

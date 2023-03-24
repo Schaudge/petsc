@@ -47,7 +47,8 @@ struct _NetRPOps {
   PetscErrorCode (*createLinearFlux)(NetRP, PetscInt, PetscBool *, Vec, Vec, Mat); /* form is: DMNetwork, Vertex, U, Linear System for solving for Flux */
   PetscErrorCode (*NonlinearEval)(NetRP, PetscInt, PetscBool *, Vec, Vec, Vec);    /* form is: DMNetwork, Vertex,U, Ustar, F(ustar), where F(U) is the nonlinear eval for the nonlinear Network Riemann Problem */
   PetscErrorCode (*NonlinearJac)(NetRP, PetscInt, PetscBool *, Vec, Vec, Mat);     /* form is: DMNetwork, Vertex, U,Ustar Jacobian of the NonlinearEval */
-
+  //PetscErrorCode (*PreSolve)(NetRP,PetscInt,PetscBool *, Vec); 
+  PetscErrorCode (*PostSolve)(NetRP,PetscInt,PetscInt,PetscBool *, Vec,Vec, void *); 
   /* TAO Stuff */
   /* Note: This entire frameWork needs to be redone. Honestly, I think a generic 
   batched solvers attached to DM's is necessary, which requires more interaction with the batched stuff */

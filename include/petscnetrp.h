@@ -1,3 +1,4 @@
+#include "petscmacros.h"
 #include "petscsystypes.h"
 #if !defined(PETSCNETRP_H)
   #define PETSCNETRP_H
@@ -46,6 +47,7 @@ typedef PetscErrorCode (*NetRPNonlinearEval)(NetRP, PetscInt, PetscBool *, Vec, 
 typedef PetscErrorCode (*NetRPNonlinearJac)(NetRP, PetscInt, PetscBool *, Vec, Vec, Mat);     /* form is: NumEdges,EdgeIn? Array, U, Jacobian of the NonlinearEval */
 //typedef PetscErrorCode (*NetRPTaoInitialSetUp)(NetRP,PetscInt, PetscBool *, Tao);             /* form is: NumEdges,EdgeIn? Array, Tao object for optimization */
 typedef PetscErrorCode (*NetRPSetSolverCtx)(NetRP, PetscInt, PetscInt, void *);
+typedef PetscErrorCode (*NetRPPostSolveFunc)(NetRP,PetscInt,PetscInt,PetscBool*,Vec,Vec, void *); 
 
 typedef const char *NetRPType;
   #define NETRPBLANK      "netrpblank"
@@ -111,6 +113,12 @@ PETSC_EXTERN PetscErrorCode NetRPGetSolverCtx(NetRP, PetscInt, PetscInt, void *)
   
   Will error out if anything but the "blank" netrp is used, as specific implementations should not allow these to be messed with 
 */
+
+
+//PETSC_INTERN PetscErrorCode NetRPPreSolve(NetRP,PetscInt, PetscInt,PetscBool *,Vec); 
+PETSC_INTERN PetscErrorCode NetRPPostSolve(NetRP,PetscInt,PetscInt, PetscBool *,Vec,Vec);
+PETSC_EXTERN PetscErrorCode NetRPSetPostSolve(NetRP,NetRPPostSolveFunc);
+
 
 PETSC_EXTERN PetscErrorCode NetRPSetSolveStar(NetRP, NetRPSolveStar_User);
 PETSC_EXTERN PetscErrorCode NetRPSetSolveFlux(NetRP, NetRPSolveFlux_User);
