@@ -38,8 +38,8 @@ static PetscErrorCode PhysicsCharacteristic_Shallow_Mat(void *vctx, const PetscS
   X[0][1] = 1;
   X[1][1] = u[1] / u[0] + c;
   PetscCall(MatSetValues(eigmat, m, idxm, n, idxn, (PetscReal *)X, INSERT_VALUES));
-  MatAssemblyBegin(eigmat, MAT_FINAL_ASSEMBLY);
-  MatAssemblyEnd(eigmat, MAT_FINAL_ASSEMBLY);
+  PetscCall(MatAssemblyBegin(eigmat, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyEnd(eigmat, MAT_FINAL_ASSEMBLY));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
