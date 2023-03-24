@@ -66,8 +66,8 @@ static PetscErrorCode PhysicsCharacteristic_Shallow_Mat(void *vctx, const PetscS
   X[0][1] = 1;
   X[1][1] = u[1] / u[0] + c;
   PetscCall(MatSetValues(eigmat, m, idxm, n, idxn, (PetscReal *)X, INSERT_VALUES));
-  MatAssemblyBegin(eigmat, MAT_FINAL_ASSEMBLY);
-  MatAssemblyEnd(eigmat, MAT_FINAL_ASSEMBLY);
+  PetscCall(MatAssemblyBegin(eigmat, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyEnd(eigmat, MAT_FINAL_ASSEMBLY));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -87,8 +87,8 @@ static PetscErrorCode PhysicsFluxDer_Shallow(void *vctx, const PetscReal *u, Mat
   X[0][1] = 1.;
   X[1][1] = 2. * u[1] / u[0];
   PetscCall(MatSetValues(jacobian, m, idxm, n, idxn, (PetscReal *)X, INSERT_VALUES));
-  MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);
-  MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY);
+  PetscCall(MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 static PetscErrorCode PhysicsRoeAvg_Shallow(void *ctx, const PetscReal *uL, const PetscReal *uR, PetscReal *uavg)
