@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
   PetscCall(PetscOptionsBool("-view_glvis", "View GLVis of Edge", "", viewglvis, &viewglvis, NULL));
   PetscCall(PetscOptionsBool("-view_full_net", "View GLVis of Entire Network", "", viewfullnet, &viewfullnet, NULL));
   PetscCall(PetscOptionsReal("-dx", "Size of Cells in some cases", "", dgnet->dx, &dgnet->dx, NULL));
-  PetscCall(PetscOptionsReal("-edge_thickness","Thickness of edges in visualization","",dgnet->edgethickness,&dgnet->edgethickness,NULL));
+  PetscCall(PetscOptionsReal("-edge_thickness", "Thickness of edges in visualization", "", dgnet->edgethickness, &dgnet->edgethickness, NULL));
   PetscOptionsEnd();
   /* Choose the physics from the list of registered models */
   {

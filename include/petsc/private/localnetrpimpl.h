@@ -39,7 +39,7 @@ struct _NetRPOps {
   PetscErrorCode (*setupmat)(NetRP, PetscInt, Mat);
   PetscErrorCode (*setupksp)(NetRP, PetscInt, KSP);
   PetscErrorCode (*setupsnes)(NetRP, PetscInt, SNES);
-  PetscErrorCode (*setuptao)(NetRP, PetscInt, PetscInt, Tao);                      // edges in and edges out
+  PetscErrorCode (*setuptao)(NetRP, PetscInt, PetscInt, Tao); // edges in and edges out
   PetscErrorCode (*setupjac)(NetRP, PetscInt, Mat);
   PetscErrorCode (*solveStar)(NetRP, PetscInt, PetscBool *, Vec, Vec);             /* form is: DMNetwork, Vertex, U, UStar */
   PetscErrorCode (*solveFlux)(NetRP, PetscInt, PetscBool *, Vec, Vec);             /* form is: DMNetwork, Vertex, U, Flux */
@@ -47,8 +47,8 @@ struct _NetRPOps {
   PetscErrorCode (*createLinearFlux)(NetRP, PetscInt, PetscBool *, Vec, Vec, Mat); /* form is: DMNetwork, Vertex, U, Linear System for solving for Flux */
   PetscErrorCode (*NonlinearEval)(NetRP, PetscInt, PetscBool *, Vec, Vec, Vec);    /* form is: DMNetwork, Vertex,U, Ustar, F(ustar), where F(U) is the nonlinear eval for the nonlinear Network Riemann Problem */
   PetscErrorCode (*NonlinearJac)(NetRP, PetscInt, PetscBool *, Vec, Vec, Mat);     /* form is: DMNetwork, Vertex, U,Ustar Jacobian of the NonlinearEval */
-  //PetscErrorCode (*PreSolve)(NetRP,PetscInt,PetscBool *, Vec); 
-  PetscErrorCode (*PostSolve)(NetRP,PetscInt,PetscInt,PetscBool *, Vec,Vec, void *); 
+  //PetscErrorCode (*PreSolve)(NetRP,PetscInt,PetscBool *, Vec);
+  PetscErrorCode (*PostSolve)(NetRP, PetscInt, PetscInt, PetscBool *, Vec, Vec, void *);
   /* TAO Stuff */
   /* Note: This entire frameWork needs to be redone. Honestly, I think a generic 
   batched solvers attached to DM's is necessary, which requires more interaction with the batched stuff */
@@ -72,8 +72,8 @@ struct _p_NetRP {
   SNES *snes;
   Tao  *tao;
 
-  NetRPCacheDirectedU    cacheU;    /*  whether to cache the directed input vectors */
-  Vec *Uin, *Uout; /* Vectors for storing the Uin, and Uout components of the input U vector. 
+  NetRPCacheDirectedU cacheU;     /*  whether to cache the directed input vectors */
+  Vec                *Uin, *Uout; /* Vectors for storing the Uin, and Uout components of the input U vector. 
   This is an optional cache didcted by cacheU */
 
   void **solver_ctx; /* User ctx for the cached solvers. */
