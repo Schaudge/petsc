@@ -1438,4 +1438,3 @@ PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
 rp->ops->PostSolve = postsolvefunc; 
 PetscFunctionReturn(PETSC_SUCCESS);
 }
-
