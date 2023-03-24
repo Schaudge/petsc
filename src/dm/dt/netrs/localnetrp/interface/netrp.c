@@ -748,6 +748,7 @@ PetscErrorCode NetRPDuplicate(NetRP rp, NetRP *newrp)
 {
   MPI_Comm comm;
   NetRP    rp_new;
+  NetRPType type; 
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
@@ -758,6 +759,8 @@ PetscErrorCode NetRPDuplicate(NetRP rp, NetRP *newrp)
   PetscCall(NetRPCreate(comm, &rp_new));
   /* copy over the parameters and physics from rp to newrp */
   /* physics*/
+  PetscCall(NetRPGetType(rp, &type)); 
+  PetscCall(NetRPSetType(rp_new, type));
   rp_new->user = rp->user;
   PetscCall(NetRPSetFlux(rp_new, rp->flux));
   *newrp = rp_new;
