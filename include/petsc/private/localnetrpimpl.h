@@ -66,15 +66,14 @@ struct _p_NetRP {
   RiemannSolver flux;
 
   /* parameter values. These determine functionality and behavior of NetRP*/
-  NetRPCacheDirectedU cacheU;     /*  whether to cache the directed input vectors */
-  NetRPCacheType cachetype;
-  NetRPSolveType solvetype;
+  NetRPCacheDirectedU    cacheU; /*  whether to cache the directed input vectors */
+  NetRPCacheType         cachetype;
+  NetRPSolveType         solvetype;
   NetRPPhysicsGenerality physicsgenerality;
   PetscInt               numfields; /* the problems number of fields, if physics generality is general this is copied from the physics 
                                 otherwise this must be set manually and will error if the the physics does not match */
 
-
-/* internal storage */
+  /* internal storage */
 
   /* Cached solver objects. When using built-in petsc solvers, implementations do not have to worry about creating and managing 
      these solvers and they will be cached and managed automatically */
@@ -84,7 +83,7 @@ struct _p_NetRP {
   SNES *snes;
   Tao  *tao;
 
-  Vec                *Uin, *Uout; /* Vectors for storing the Uin, and Uout components of the input U vector. 
+  Vec *Uin, *Uout; /* Vectors for storing the Uin, and Uout components of the input U vector. 
   This is an optional cache didcted by cacheU */
 
   void **solver_ctx; /* User ctx for the cached solvers. */
@@ -101,6 +100,5 @@ struct _p_NetRP {
   PetscHMapIJ dirhmap; /* map from vdegin X vdegout -> index in the solver arrays for cached solver objects for that vdegin X vdegout degree problem **/
   /* Type of Solver */
   /* What generality of physics the local "solver" can handle.*/
- 
 };
 #endif
