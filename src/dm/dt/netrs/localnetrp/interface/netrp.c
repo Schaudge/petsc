@@ -1134,7 +1134,7 @@ PetscErrorCode NetRPSetCacheType(NetRP rp, NetRPCacheType cachetype)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
-  PetscCheck(rp->setupcalled, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Must Call before NetRPSetUp()");
+  PetscCheck(!rp->setupcalled, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Must Call before NetRPSetUp()");
   rp->cachetype = cachetype;
   if (rp->cacheU != No_Manual && rp->cacheU != Yes_Manual) {
     switch (cachetype) {
