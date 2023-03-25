@@ -1567,9 +1567,8 @@ PetscErrorCode NetRPPreSolve(NetRP rp, PetscInt vdegin, PetscInt vdegout, PetscB
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
-  PetscValidHeaderSpecific(U,VEC_CLASSID, 5);
+  PetscValidHeaderSpecific(U, VEC_CLASSID, 5);
   PetscCall(NetRPGetSolverCtx(rp, vdegin, vdegout, &solverctx));
   PetscTryTypeMethod(rp, PreSolve, vdegin, vdegout, edgein, U, solverctx);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
