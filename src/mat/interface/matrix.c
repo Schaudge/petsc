@@ -11211,4 +11211,3 @@ PetscErrorCode MatEliminateZeros(Mat A, PetscBool keep)
   PetscUseTypeMethod(A, eliminatezeros, keep);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-}
