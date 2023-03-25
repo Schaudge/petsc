@@ -6,6 +6,8 @@
  Scalar only, as it doesn't need parallel stuff. 
 */
 
+#include "petscmat.h"
+#include "petscvec.h"
 #include <petsctao.h>
 #include <petscnetrp.h>
 #include <petscriemannsolver.h>
@@ -20,7 +22,7 @@ typedef struct {
   PetscPointFlux flux;
   PetscReal      sigma, fluxsigma;         /* point of the maximum of the flux, assumes flux is concave */
   Vec            lowerbounds, upperbounds; /* upper bounds are dependant on the inputs to the Riemann Problem */
-  Vec            U, FluxU, Gradient;       /* Riemann Data for problem */
+  Vec            U, FluxU;       /* Riemann Data for problem */
   Vec            GammaMax;                 /* Maximum Flux that can be obtained on a road. Used in the A * FluxStar <= GammaMax term */
   PetscInt       numedges, numinedges;     /* topology of the network */
   Vec            CI;                       /* Vector holding the inequality constraints. Odd that TAO seems to require the user to manage this */
@@ -209,7 +211,7 @@ PetscErrorCode InitializeProblem(AppCtx *user)
   PetscCall(VecRestoreArray(user->U, &u));
   PetscCall(VecRestoreArray(user->FluxU, &fluxu));
   PetscCall(VecRestoreArray(user->upperbounds, &upperbnd));
-
+  PetscCall(VecDestroy(&user->U));
   /* Create Traffic Distribution Matrix */
   PetscCall(MatCreateSeqDense(PETSC_COMM_WORLD, 2, 2, NULL, &user->TrafficDistribution));
   PetscCall(MatSetUp(user->TrafficDistribution));
@@ -232,12 +234,14 @@ PetscErrorCode DestroyProblem(AppCtx *user)
 {
   PetscFunctionBegin;
   PetscCall(MatDestroy(&user->TrafficDistribution));
+  PetscCall(MatDestroy(&user->Jacineq));
   PetscCall(VecDestroy(&user->U));
   PetscCall(VecDestroy(&user->CI));
   PetscCall(VecDestroy(&user->upperbounds));
   PetscCall(VecDestroy(&user->lowerbounds));
   PetscCall(VecDestroy(&user->GammaMax));
   PetscCall(VecDestroy(&user->FluxU));
+  PetscCall(PetscFree(user->edgein));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
