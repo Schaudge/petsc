@@ -1325,14 +1325,32 @@ PetscErrorCode NetRPSolveFlux(NetRP rp, PetscInt vdegin, PetscInt vdegout, Petsc
     break;
   case Optimization: /* Hack for getting my use case to work for now, to be fixed and refactored */
     /* Assume the Traffic Flow DirectVDeg Cachetype here */
+    PetscCheck(rp->cachetype == DirectedVDeg, PetscObjectComm((PetscObject)rp), PETSC_ERR_SUP, "Require DirectedVDeg cachetype for Optimization solves for now as hacking things right now");
+    PetscBool cacheudir = PETSC_FALSE;
+    PetscCall(NetRPGetCacheUDirected(rp, &cacheudir));
+    PetscCheck(cacheudir, PetscObjectComm((PetscObject)rp), PETSC_ERR_SUP, "Require CacheUDir for Optimization solves for now as hacking things right now");
+    /* fill Uin and UOut */
+    const PetscScalar *u;
+    PetscScalar       *uin, *uout;
+    PetscInt           e, field, numfields, uin_index = 0, uout_index = 0;
+    PetscCall(NetRPGetNumFields(rp, &numfields));
+    PetscCall(VecGetArrayRead(U, &u));
+    PetscCall(VecGetArray(rp->Uin[index], &uin));
+    PetscCall(VecGetArray(rp->Uout[index], &uout));
+    for (e = 0; e < vdeg; e++) {
+      if (edgein[e]) {
+        for (field = 0; field < numfields; field++) { uin[uin_index++] = u[e * numfields + field]; }
+      } else {
+        for (field = 0; field < numfields; field++) { uout[uout_index++] = u[e * numfields + field]; }
+      }
+    }
+    PetscCall(VecRestoreArray(rp->Uin[index], &uin));
+    PetscCall(VecRestoreArray(rp->Uout[index], &uout));
+    PetscCall(VecRestoreArrayRead(U, &u));
+    /* end of fill Uin UOut */
 
-    /* 
-      Need to set ctx here. 
-
-      Note that Flux must be the solution vector? No... can't assume that as I do a preSolve and PostSolve 
-      which can (and will) change vector sizes 
-    */
     PetscCall(TaoSolve(rp->tao[index]));
+    break;
   case Other:
     PetscUseTypeMethod(rp, solveFlux, vdeg, edgein, U, Flux);
     break;
@@ -1444,8 +1462,8 @@ PetscErrorCode NetRPSetDestroySolverCtxFunc(NetRP rp, NetRPDestroySolverCtx dest
 }
 
 /*@
-   NetRPPostSolve - Calls the PreSolve function set in `NetRPPostSolve()`. Internally 
-   called in the `NetRPSolveStar()` and `NetRPSolveFlux()` before the actual solve call. 
+   NetRPPostSolve - Calls the PostSolve function set in `NetRPSetPostSolve()`. Internally 
+   called in the `NetRPSolveStar()` and `NetRPSolveFlux()` after the actual solve call. 
 
    Collective 
 
@@ -1478,8 +1496,8 @@ PetscErrorCode NetRPPostSolve(NetRP rp, PetscInt vdegin, PetscInt vdegout, Petsc
 }
 
 /*@
-   NetRPPostSolve - Calls the PreSolve function set in `NetRPPostSolve()`. Internally 
-   called in the `NetRPSolveStar()` and `NetRPSolveFlux()` before the actual solve call. 
+   NetRPSetPostSolve - Set the function to be called in `NetRPPostSolve()`, which is internally 
+   called in the `NetRPSolveStar()` and `NetRPSolveFlux()` after the actual solve call. 
 
    Logically Collective
 
@@ -1499,3 +1517,59 @@ PetscErrorCode NetRPSetPostSolve(NetRP rp, NetRPPostSolveFunc postsolvefunc)
   rp->ops->PostSolve = postsolvefunc;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+/*@
+   NetRPSetPreSolve - Set the function to be called in `NetRPPreSolve()`, which is internally 
+   called in the `NetRPSolveStar()` and `NetRPSolveFlux()` before the actual solve call. 
+
+   Logically Collective
+
+   Input Parameter:
+.  rp - the NetRP context obtained from NetRPCreate()
+.  presolvefunc - function to be called internally in `NetRPSolveStar()` or `NetRPSolveFlux()`. 
+   Calling sequence: presolvefunc(NetRP rp, PetscInt vdegin, PetscInt vdegout, PetscBool *edgein, Vec U, void *solver_ctx)
+   
+   Level: intermediate
+
+   Note: The intended usage is for presolvefunc to use the input Riemann data U to set quantities in the solver_ctx 
+   needed for the user specified functions inside of the solver (TAO, SNES, etc..). 
+
+.seealso: `NetRPSetPostSolve()`, `NetRPPreSolve()`, `NetRPSolveStar()`, `NetRPSolveFlux()`
+@*/
+PetscErrorCode NetRPSetPreSolve(NetRP rp, NetRPPreSolveFunc presolvefunc)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
+  rp->ops->PreSolve = presolvefunc;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+   NetRPPreSolve - Calls the PreSolve function set in `NetRPSetPreSolve()`. Internally 
+   called in the `NetRPSolveStar()` and `NetRPSolveFlux()` before the actual solve call. 
+
+   Collective 
+
+   Input Parameter:
+.  rp - the NetRP context obtained from NetRPCreate()
+.  vdegin  - the number of in edges for the vertex
+.  vdegout - the number of out edges for the vertex
+.  edgein  - array of length vdegin+vdegout indicating whether edgein[i] is point in or out. 
+.  U       - The vector containing Riemann Data for the problem.
+
+   Level: developer
+
+.seealso: `NetRPSetPostSolve()`, `NetRPPostSolve()`, `NetRPSolveStar()`, `NetRPSolveFlux()`
+@*/
+PetscErrorCode NetRPPreSolve(NetRP rp, PetscInt vdegin, PetscInt vdegout, PetscBool *edgein, Vec U)
+{
+  void *solverctx;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
+  PetscValidHeaderSpecific(U,VEC_CLASSID, 5);
+  PetscCall(NetRPGetSolverCtx(rp, vdegin, vdegout, &solverctx));
+  PetscTryTypeMethod(rp, PreSolve, vdegin, vdegout, edgein, U, solverctx);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+

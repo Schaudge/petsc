@@ -49,6 +49,7 @@ typedef PetscErrorCode (*NetRPNonlinearJac)(NetRP, PetscInt, PetscBool *, Vec, V
 typedef PetscErrorCode (*NetRPSetSolverCtx)(NetRP, PetscInt, PetscInt, void **);
 typedef PetscErrorCode (*NetRPDestroySolverCtx)(NetRP, PetscInt, PetscInt, void *);
 
+typedef PetscErrorCode (*NetRPPreSolveFunc) (NetRP,PetscInt,PetscInt,PetscBool*,Vec,void*); 
 typedef PetscErrorCode (*NetRPPostSolveFunc)(NetRP, PetscInt, PetscInt, PetscBool *, Vec, Vec, void *);
 
 typedef const char *NetRPType;
@@ -109,6 +110,8 @@ PETSC_EXTERN PetscErrorCode NetRPGetCacheUDirected(NetRP, PetscBool *);
 PETSC_EXTERN PetscErrorCode NetRPSetSolverCtxFunc(NetRP, NetRPSetSolverCtx);
 PETSC_EXTERN PetscErrorCode NetRPGetSolverCtx(NetRP, PetscInt, PetscInt, void **);
 PETSC_EXTERN PetscErrorCode NetRPSetDestroySolverCtxFunc(NetRP, NetRPDestroySolverCtx);
+
+
 /* 
   Set internal ops, for usage when a user is using the default blank netrp, and wnat to specifically set there routines 
   This is an alternative the complexity of having to create an entire implementation just for a physics specific riemann problem 
@@ -116,14 +119,19 @@ PETSC_EXTERN PetscErrorCode NetRPSetDestroySolverCtxFunc(NetRP, NetRPDestroySolv
   Will error out if anything but the "blank" netrp is used, as specific implementations should not allow these to be messed with 
 */
 
-//PETSC_INTERN PetscErrorCode NetRPPreSolve(NetRP,PetscInt, PetscInt,PetscBool *,Vec);
 PETSC_INTERN PetscErrorCode NetRPPostSolve(NetRP, PetscInt, PetscInt, PetscBool *, Vec, Vec);
 PETSC_EXTERN PetscErrorCode NetRPSetPostSolve(NetRP, NetRPPostSolveFunc);
 
+PETSC_INTERN PetscErrorCode NetRPPreSolve(NetRP,PetscInt, PetscInt,PetscBool *,Vec);
+PETSC_EXTERN PetscErrorCode NetRPSetPreSolve(NetRP,NetRPPreSolveFunc); 
+
+
 PETSC_EXTERN PetscErrorCode NetRPSetSolveStar(NetRP, NetRPSolveStar_User);
 PETSC_EXTERN PetscErrorCode NetRPSetSolveFlux(NetRP, NetRPSolveFlux_User);
+
 PETSC_EXTERN PetscErrorCode NetRPSetCreateLinearStar(NetRP, NetRPCreateLinearStar);
 PETSC_EXTERN PetscErrorCode NetRPSetCreateLinearFlux(NetRP, NetRPCreateLinearFlux);
+
 PETSC_EXTERN PetscErrorCode NetRPSetNonlinearEval(NetRP, NetRPNonlinearEval);
 PETSC_EXTERN PetscErrorCode NetRPSetNonlinearJac(NetRP, NetRPNonlinearJac);
 
