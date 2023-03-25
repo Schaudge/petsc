@@ -797,6 +797,13 @@ PetscErrorCode NetRPDuplicate(NetRP rp, NetRP *newrp)
   PetscCall(NetRPSetType(rp_new, type));
   rp_new->user = rp->user;
   PetscCall(NetRPSetFlux(rp_new, rp->flux));
+
+  rp_new->cacheU  = rp->cacheU; 
+  rp_new->cachetype = rp->cachetype; 
+  rp_new->solvetype = rp->solvetype; 
+  rp_new->physicsgenerality = rp->physicsgenerality; 
+  rp_new->numfields = rp->numfields;
+  
   *newrp = rp_new;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
