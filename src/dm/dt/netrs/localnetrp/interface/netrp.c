@@ -187,15 +187,22 @@ PetscErrorCode NetRPClearCache(NetRP rp)
     PetscCall(PetscFree6(rp->mat, rp->vec, rp->ksp, rp->snes, rp->tao, rp->solver_ctx));
   }
   PetscCall(NetRPGetCacheType(rp, &cachetype));
+  PetscCall(NetRPGetCacheUDirected(rp, &CacheUDir));
+
   switch (cachetype) {
   case UndirectedVDeg:
     PetscCall(PetscHMapIClear(rp->hmap));
     break;
   case DirectedVDeg:
+    if (CacheUDir) {
+      for (i = 0; i < numcached; i++) {
+        PetscCall(VecDestroy(&rp->Uin[i]));
+        PetscCall(VecDestroy(&rp->Uout[i]));
+      }
+    }
     PetscCall(PetscHMapIJClear(rp->dirhmap));
     break;
   }
-  PetscCall(NetRPGetCacheUDirected(rp, &CacheUDir));
   if (CacheUDir) { PetscCall(PetscFree2(rp->Uin, rp->Uout)); }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1412,9 +1419,9 @@ PetscErrorCode NetRPSetSolverCtxFunc(NetRP rp, NetRPSetSolverCtx setsolverctx)
 PetscErrorCode NetRPGetSolverCtx(NetRP rp, PetscInt vdegin, PetscInt vdegout, void **solverctx)
 {
   PetscInt index;
+
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
-
   PetscCall(NetRPSetUp(rp));
   PetscCall(NetRPFindCacheIndex_DoNotCreate_internal(rp, vdegin, vdegout, &index));
   PetscCheck(index >= 0, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_OUTOFRANGE, "(vdegin, vdegout) : ( %" PetscInt_FMT ", %" PetscInt_FMT " ) does not have cached solver ctx. Cache this solver first.", vdegin, vdegout);
@@ -1460,6 +1467,7 @@ PetscErrorCode NetRPSetDestroySolverCtxFunc(NetRP rp, NetRPDestroySolverCtx dest
 PetscErrorCode NetRPPostSolve(NetRP rp, PetscInt vdegin, PetscInt vdegout, PetscBool *edgein, Vec PostSolve, Vec Out)
 {
   void *solverctx;
+
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
   PetscValidHeaderSpecific(PostSolve, VEC_CLASSID, 5);
