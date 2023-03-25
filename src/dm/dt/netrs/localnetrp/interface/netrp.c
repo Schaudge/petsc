@@ -3,6 +3,7 @@
 #include "petscerror.h"
 #include "petscsys.h"
 #include "petscsystypes.h"
+#include "petsctao.h"
 #include "petscvec.h"
 #include <petsc/private/localnetrpimpl.h>
 #include <petscnetrp.h>                      /*I "petscnetrp.h" I*/
@@ -1329,6 +1330,9 @@ PetscErrorCode NetRPSolveFlux(NetRP rp, PetscInt vdegin, PetscInt vdegout, Petsc
     PetscBool cacheudir = PETSC_FALSE;
     PetscCall(NetRPGetCacheUDirected(rp, &cacheudir));
     PetscCheck(cacheudir, PetscObjectComm((PetscObject)rp), PETSC_ERR_SUP, "Require CacheUDir for Optimization solves for now as hacking things right now");
+
+    PetscCall(NetRPPreSolve(rp, vdegin, vdegout, edgein, U));
+
     /* fill Uin and UOut */
     const PetscScalar *u;
     PetscScalar       *uin, *uout;
@@ -1349,7 +1353,14 @@ PetscErrorCode NetRPSolveFlux(NetRP rp, PetscInt vdegin, PetscInt vdegout, Petsc
     PetscCall(VecRestoreArrayRead(U, &u));
     /* end of fill Uin UOut */
 
+    /* better default value for Tao solution */
+    Vec Tao_Solution;
+    PetscCall(TaoGetSolution(rp->tao[index], &Tao_Solution));
+    PetscCall(VecCopy(rp->Uin[index], Tao_Solution)); // hard code assumption here for now
+    PetscCall(NetRPComputeFluxInPlace_internal(rp, vdegin, Tao_Solution));
     PetscCall(TaoSolve(rp->tao[index]));
+    PetscCall(TaoGetSolution(rp->tao[index], &Tao_Solution));
+    PetscCall(NetRPPostSolve(rp, vdegin, vdegout, edgein, Tao_Solution, Flux));
     break;
   case Other:
     PetscUseTypeMethod(rp, solveFlux, vdeg, edgein, U, Flux);

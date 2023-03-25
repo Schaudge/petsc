@@ -51,10 +51,6 @@ struct _NetRPOps {
 
   PetscErrorCode (*PostSolve)(NetRP, PetscInt, PetscInt, PetscBool *, Vec, Vec, void *);
   PetscErrorCode (*PreSolve)(NetRP, PetscInt, PetscInt, PetscBool *, Vec, void *); /* form is vdegin, vdegout, edgein, U, solver_ctx */
-
-  /* TAO Stuff */
-  /* Note: This entire frameWork needs to be redone. Honestly, I think a generic 
-  batched solvers attached to DM's is necessary, which requires more interaction with the batched stuff */
 };
 
 struct _p_NetRP {

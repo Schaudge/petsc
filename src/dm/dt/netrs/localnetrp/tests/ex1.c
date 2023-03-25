@@ -22,7 +22,7 @@ typedef struct {
   PetscPointFlux flux;
   PetscReal      sigma, fluxsigma;         /* point of the maximum of the flux, assumes flux is concave */
   Vec            lowerbounds, upperbounds; /* upper bounds are dependant on the inputs to the Riemann Problem */
-  Vec            U, FluxU;       /* Riemann Data for problem */
+  Vec            U, FluxU;                 /* Riemann Data for problem */
   Vec            GammaMax;                 /* Maximum Flux that can be obtained on a road. Used in the A * FluxStar <= GammaMax term */
   PetscInt       numedges, numinedges;     /* topology of the network */
   Vec            CI;                       /* Vector holding the inequality constraints. Odd that TAO seems to require the user to manage this */
