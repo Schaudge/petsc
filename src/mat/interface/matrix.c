@@ -11180,4 +11180,3 @@ PetscErrorCode MatEliminateZeros(Mat A)
   PetscUseTypeMethod(A, eliminatezeros);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-}
