@@ -1,4 +1,3 @@
-#include "petsc/private/hashijkey.h"
 #include "petsc/private/hashmapi.h"
 #include "petsc/private/petscimpl.h"
 #include "petscerror.h"
