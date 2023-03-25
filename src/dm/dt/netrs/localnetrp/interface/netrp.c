@@ -111,38 +111,35 @@ PetscErrorCode NetRPGetNumCached(NetRP rp, PetscInt *numcached)
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-// ugly 
-static PetscErrorCode NetRPClearCachedCtx(NetRP rp) {
-  PetscInt       i, numcached, off; 
-  PetscInt       *keys, *vals; 
-  PetscHashIJKey *ijkeys; 
-  NetRPCacheType cachetype;
+// ugly
+static PetscErrorCode NetRPClearCachedCtx(NetRP rp)
+{
+  PetscInt        i, numcached, off;
+  PetscInt       *keys, *vals;
+  PetscHashIJKey *ijkeys;
+  NetRPCacheType  cachetype;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
   PetscCall(NetRPGetCacheType(rp, &cachetype));
 
   switch (cachetype) {
-    case UndirectedVDeg:
-      off = 0; 
-      PetscCall(PetscHMapIGetSize(rp->hmap, &numcached));
-      PetscCall(PetscMalloc2(numcached,&keys,numcached,&vals)); 
-      PetscCall(PetscHMapIGetPairs(rp->hmap, &off, keys, vals));
-      for(i=0; i<numcached; i++) {
-        PetscTryTypeMethod(rp,destroysolverctx,keys[i],0,rp->solver_ctx[vals[i]]); 
-      }
-      PetscCall(PetscFree2(keys,vals)); 
-      break;
-    case DirectedVDeg:
-      off = 0; 
-      PetscCall(PetscHMapIJGetSize(rp->dirhmap, &numcached));
-      PetscCall(PetscMalloc2(numcached,&ijkeys,numcached,&vals)); 
-      PetscCall(PetscHMapIJGetPairs(rp->dirhmap, &off, ijkeys, vals));
-      for(i=0; i<numcached; i++) {
-        PetscTryTypeMethod(rp,destroysolverctx,ijkeys[i].i,ijkeys[i].j,rp->solver_ctx[vals[i]]); 
-      }
-      PetscCall(PetscFree2(ijkeys, vals));
-      break;
+  case UndirectedVDeg:
+    off = 0;
+    PetscCall(PetscHMapIGetSize(rp->hmap, &numcached));
+    PetscCall(PetscMalloc2(numcached, &keys, numcached, &vals));
+    PetscCall(PetscHMapIGetPairs(rp->hmap, &off, keys, vals));
+    for (i = 0; i < numcached; i++) { PetscTryTypeMethod(rp, destroysolverctx, keys[i], 0, rp->solver_ctx[vals[i]]); }
+    PetscCall(PetscFree2(keys, vals));
+    break;
+  case DirectedVDeg:
+    off = 0;
+    PetscCall(PetscHMapIJGetSize(rp->dirhmap, &numcached));
+    PetscCall(PetscMalloc2(numcached, &ijkeys, numcached, &vals));
+    PetscCall(PetscHMapIJGetPairs(rp->dirhmap, &off, ijkeys, vals));
+    for (i = 0; i < numcached; i++) { PetscTryTypeMethod(rp, destroysolverctx, ijkeys[i].i, ijkeys[i].j, rp->solver_ctx[vals[i]]); }
+    PetscCall(PetscFree2(ijkeys, vals));
+    break;
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -783,9 +780,9 @@ TODO: Needs a rework on what this means.
 */
 PetscErrorCode NetRPDuplicate(NetRP rp, NetRP *newrp)
 {
-  MPI_Comm comm;
-  NetRP    rp_new;
-  NetRPType type; 
+  MPI_Comm  comm;
+  NetRP     rp_new;
+  NetRPType type;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
@@ -796,7 +793,7 @@ PetscErrorCode NetRPDuplicate(NetRP rp, NetRP *newrp)
   PetscCall(NetRPCreate(comm, &rp_new));
   /* copy over the parameters and physics from rp to newrp */
   /* physics*/
-  PetscCall(NetRPGetType(rp, &type)); 
+  PetscCall(NetRPGetType(rp, &type));
   PetscCall(NetRPSetType(rp_new, type));
   rp_new->user = rp->user;
   PetscCall(NetRPSetFlux(rp_new, rp->flux));
@@ -1417,7 +1414,6 @@ PetscErrorCode NetRPGetSolverCtx(NetRP rp, PetscInt vdegin, PetscInt vdegout, vo
   *solverctx = rp->solver_ctx[index];
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
 
 PetscErrorCode NetRPSetDestroySolverCtxFunc(NetRP rp, NetRPDestroySolverCtx destroysolverctx)
 {

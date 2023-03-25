@@ -145,7 +145,7 @@ int main(int argc, char *argv[])
       u[0] = parenthmin + i * deltah;
       u[1] = parentqmin + j * deltaq;
       PetscCall(VecRestoreArray(U, &u));
-      PetscCall(NetRPSolveFlux(netrp, 1,numedges-1, edgein, U, Flux));
+      PetscCall(NetRPSolveFlux(netrp, 1, numedges - 1, edgein, U, Flux));
     }
   }
 

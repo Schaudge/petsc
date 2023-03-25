@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
   edgein[1] = PETSC_FALSE;
   edgein[2] = PETSC_FALSE;
 
-  PetscCall(NetRPSolveStar(netrp, 1,2, edgein, U, UStar));
+  PetscCall(NetRPSolveStar(netrp, 1, 2, edgein, U, UStar));
 
   PetscCall(PetscPrintf(comm, "Riemann Data  \n \n"));
   PetscCall(VecView(U, PETSC_VIEWER_STDOUT_WORLD));
@@ -130,7 +130,7 @@ int main(int argc, char *argv[])
   PetscCall(PetscPrintf(comm, "Exact SWE Solve \n \n"));
   PetscCall(VecView(UStar, PETSC_VIEWER_STDOUT_WORLD));
 
-  PetscCall(NetRPSolveStar(netrplinear, 1,2, edgein, U, UStar));
+  PetscCall(NetRPSolveStar(netrplinear, 1, 2, edgein, U, UStar));
   PetscCall(PetscPrintf(comm, "Linearized SWE Solve \n \n"));
   PetscCall(VecView(UStar, PETSC_VIEWER_STDOUT_WORLD));
 
