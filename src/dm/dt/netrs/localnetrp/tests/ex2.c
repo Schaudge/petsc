@@ -67,34 +67,35 @@ static PetscErrorCode LaxCurve_Shallow(RiemannSolver rs, const PetscReal *u, Pet
 }
 
 typedef struct {
-  PetscInt id; 
-  PetscReal x; 
-} userCtx; 
+  PetscInt  id;
+  PetscReal x;
+} userCtx;
 
 static PetscErrorCode UserNetRPSetSolverCtx(NetRP rp, PetscInt vdegin, PetscInt vdegout, void **ctx)
 {
-  userCtx *solverctx; 
+  userCtx *solverctx;
 
   PetscFunctionBeginUser;
-  PetscCall(PetscMalloc1(1,&solverctx)); 
-  solverctx->id = vdegin; 
-  solverctx->x  = PETSC_PI * vdegout; 
+  PetscCall(PetscMalloc1(1, &solverctx));
+  solverctx->id = vdegin;
+  solverctx->x  = PETSC_PI * vdegout;
 
-  *ctx = (void*)solverctx; 
+  *ctx = (void *)solverctx;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode UserNetRPDestroySolverCtx(NetRP rp, PetscInt vdegin, PetscInt vdegout, void *ctx)
 {
-  userCtx *solverctx = (userCtx*) ctx; 
+  userCtx *solverctx = (userCtx *)ctx;
 
   PetscFunctionBeginUser;
-  PetscCall(PetscFree(solverctx)); 
+  PetscCall(PetscFree(solverctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-static PetscErrorCode PrintDebugInfo(MPI_Comm comm, PetscInt indeg, PetscInt outdeg, userCtx *ctx){
+static PetscErrorCode PrintDebugInfo(MPI_Comm comm, PetscInt indeg, PetscInt outdeg, userCtx *ctx)
+{
   PetscFunctionBeginUser;
-    PetscCall(PetscPrintf(comm, "(indeg,outdeg) : ( %" PetscInt_FMT ", %" PetscInt_FMT " ) \n    Solver Ctx \n      id : %" PetscInt_FMT "\n      x  : %f \n", indeg,outdeg,ctx->id,ctx->x));
+  PetscCall(PetscPrintf(comm, "(indeg,outdeg) : ( %" PetscInt_FMT ", %" PetscInt_FMT " ) \n    Solver Ctx \n      id : %" PetscInt_FMT "\n      x  : %f \n", indeg, outdeg, ctx->id, ctx->x));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -104,8 +105,8 @@ int main(int argc, char *argv[])
   PetscMPIInt   size, rank;
   RiemannSolver flux;
   NetRP         netrp, netrpdir;
-  userCtx       *userctx;
-  PetscInt      indeg[3], outdeg[3]; 
+  userCtx      *userctx;
+  PetscInt      indeg[3], outdeg[3];
 
   PetscCall(PetscInitialize(&argc, &argv, 0, help));
   comm = PETSC_COMM_WORLD;
@@ -129,44 +130,46 @@ int main(int argc, char *argv[])
   PetscCall(NetRPSetPhysicsGenerality(netrp, Generic));
   PetscCall(NetRPSetCacheType(netrp, UndirectedVDeg));
 
-
-  PetscCall(NetRPDuplicate(netrp, &netrpdir)); 
+  PetscCall(NetRPDuplicate(netrp, &netrpdir));
   PetscCall(NetRPSetCacheType(netrpdir, DirectedVDeg));
 
   PetscCall(RiemannSolverDestroy(&flux));
-  
+
   /* Set Solver Ctx */
-  PetscCall(NetRPSetSolverCtxFunc(netrp, UserNetRPSetSolverCtx)); 
+  PetscCall(NetRPSetSolverCtxFunc(netrp, UserNetRPSetSolverCtx));
   PetscCall(NetRPSetDestroySolverCtxFunc(netrp, UserNetRPDestroySolverCtx));
 
-  PetscCall(NetRPSetSolverCtxFunc(netrpdir, UserNetRPSetSolverCtx)); 
+  PetscCall(NetRPSetSolverCtxFunc(netrpdir, UserNetRPSetSolverCtx));
   PetscCall(NetRPSetDestroySolverCtxFunc(netrpdir, UserNetRPDestroySolverCtx));
 
-  PetscCall(NetRPSetUp(netrp)); 
+  PetscCall(NetRPSetUp(netrp));
   PetscCall(NetRPSetUp(netrpdir));
 
   /* Cache Solvers for NetRP */
-  indeg[0] = 0; outdeg[0] = 2; 
-  indeg[1] = 2; outdeg[1] = 4; 
-  indeg[2] = 3; outdeg[2] = 1;   
+  indeg[0]  = 0;
+  outdeg[0] = 2;
+  indeg[1]  = 2;
+  outdeg[1] = 4;
+  indeg[2]  = 3;
+  outdeg[2] = 1;
 
   /* check if ctx creation works */
-  PetscCall(NetRPCacheSolvers(netrp, 3, indeg, outdeg)); 
-  PetscCall(NetRPCacheSolvers(netrpdir, 3, indeg, outdeg)); 
+  PetscCall(NetRPCacheSolvers(netrp, 3, indeg, outdeg));
+  PetscCall(NetRPCacheSolvers(netrpdir, 3, indeg, outdeg));
 
-  PetscCall(NetRPGetSolverCtx(netrp, 0, 2, (void**) &userctx)); 
-  PetscCall(PrintDebugInfo(PETSC_COMM_WORLD,0,2,userctx)); 
-  PetscCall(NetRPGetSolverCtx(netrp, 6,0, (void**) &userctx)); 
-  PetscCall(PrintDebugInfo(PETSC_COMM_WORLD,2,4,userctx)); 
-  PetscCall(NetRPGetSolverCtx(netrp,0,4, (void**) &userctx)); 
-  PetscCall(PrintDebugInfo(PETSC_COMM_WORLD,3,1,userctx)); 
+  PetscCall(NetRPGetSolverCtx(netrp, 0, 2, (void **)&userctx));
+  PetscCall(PrintDebugInfo(PETSC_COMM_WORLD, 0, 2, userctx));
+  PetscCall(NetRPGetSolverCtx(netrp, 6, 0, (void **)&userctx));
+  PetscCall(PrintDebugInfo(PETSC_COMM_WORLD, 2, 4, userctx));
+  PetscCall(NetRPGetSolverCtx(netrp, 0, 4, (void **)&userctx));
+  PetscCall(PrintDebugInfo(PETSC_COMM_WORLD, 3, 1, userctx));
 
-  PetscCall(NetRPGetSolverCtx(netrpdir, 0, 2, (void**) &userctx)); 
-  PetscCall(PrintDebugInfo(PETSC_COMM_WORLD,0,2,userctx)); 
-  PetscCall(NetRPGetSolverCtx(netrpdir, 2,4, (void**) &userctx)); 
-  PetscCall(PrintDebugInfo(PETSC_COMM_WORLD,2,4,userctx)); 
-  PetscCall(NetRPGetSolverCtx(netrpdir,3,1, (void**) &userctx)); 
-  PetscCall(PrintDebugInfo(PETSC_COMM_WORLD,3,1,userctx)); 
+  PetscCall(NetRPGetSolverCtx(netrpdir, 0, 2, (void **)&userctx));
+  PetscCall(PrintDebugInfo(PETSC_COMM_WORLD, 0, 2, userctx));
+  PetscCall(NetRPGetSolverCtx(netrpdir, 2, 4, (void **)&userctx));
+  PetscCall(PrintDebugInfo(PETSC_COMM_WORLD, 2, 4, userctx));
+  PetscCall(NetRPGetSolverCtx(netrpdir, 3, 1, (void **)&userctx));
+  PetscCall(PrintDebugInfo(PETSC_COMM_WORLD, 3, 1, userctx));
 
   PetscCall(NetRPDestroy(&netrp));
   PetscCall(NetRPDestroy(&netrpdir));
