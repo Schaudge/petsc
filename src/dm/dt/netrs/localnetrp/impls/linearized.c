@@ -1,6 +1,5 @@
 #include <petsc/private/localnetrpimpl.h>    /*I "petscnetrp.h"  I*/
 #include <petsc/private/riemannsolverimpl.h> /* should not be here */
-#include <petscdmnetwork.h>
 
 /*
    Implementation of linearized Network Riemann Solver. Experimental WIP

@@ -1,6 +1,5 @@
 #include <petsc/private/localnetrpimpl.h>    /*I "petscnetrs.h"  I*/
 #include <petsc/private/riemannsolverimpl.h> /* should not be here */
-#include <petscdmnetwork.h>
 
 /*
     Heuristic Outflow Boundary Condtion that I use. Should be removed as it has no 
