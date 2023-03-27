@@ -469,7 +469,7 @@ PetscErrorCode NetRPCreateSNES(NetRP rp, PetscInt vertdeg, SNES *snes)
 
 .seealso: 
 @*/
-PetscErrorCode NetRPCreateTao(NetRP rp, PetscInt indeg, PetscInt outdeg, Tao *tao)
+PetscErrorCode NetRPCreateTao(NetRP rp, PetscInt indeg, PetscInt outdeg, void *solver_ctx, Tao *tao)
 {
   Tao         _tao;
   const char *prefix_netrp;
@@ -483,7 +483,7 @@ PetscErrorCode NetRPCreateTao(NetRP rp, PetscInt indeg, PetscInt outdeg, Tao *ta
   PetscCall(PetscObjectGetOptionsPrefix((PetscObject)rp, &prefix_netrp));
   PetscCall(PetscObjectSetOptionsPrefix((PetscObject)_tao, prefix_netrp));
   PetscCall(PetscObjectAppendOptionsPrefix((PetscObject)_tao, "netrp_"));
-  if (rp->ops->setuptao) PetscCall((rp->ops->setuptao)(rp, indeg, outdeg, _tao));
+  if (rp->ops->setuptao) PetscCall((rp->ops->setuptao)(rp, indeg, outdeg, solver_ctx, _tao));
   PetscCall(TaoSetFromOptions(_tao));
 
   /* connstruct the storage for things needed for TAO. 
@@ -671,6 +671,8 @@ PetscErrorCode NetRPAddDirVertexDegrees_internal(NetRP rp, PetscInt numdegs, Pet
     PetscCall(PetscHMapIJHas(rp->dirhmap, ijkey, &flg));
     if (flg) continue;
     PetscCall(PetscHMapIJSet(rp->dirhmap, ijkey, numentries + off));
+    /* first create solve ctx */
+    PetscTryTypeMethod(rp, setsolverctx, ijkey.i, ijkey.j, &rp->solver_ctx[numentries + off]);
     /* only create what is needed */
     switch (rp->solvetype) {
     case Nonlinear: /* assumes only usage of snes */
@@ -680,12 +682,11 @@ PetscErrorCode NetRPAddDirVertexDegrees_internal(NetRP rp, PetscInt numdegs, Pet
       SETERRQ(PetscObjectComm((PetscObject)rp), PETSC_ERR_SUP, "Currently Does not support UndirectVDeg cacheing for Linear solvers.");
       break;
     case Optimization:
-      PetscCall(NetRPCreateTao(rp, ijkey.i, ijkey.j, &rp->tao[numentries + off]));
+      PetscCall(NetRPCreateTao(rp, ijkey.i, ijkey.j, rp->solver_ctx[numentries+off],&rp->tao[numentries + off]));
       break;
     case Other: /* Create Nothing */
       break;
     }
-    PetscTryTypeMethod(rp, setsolverctx, ijkey.i, ijkey.j, &rp->solver_ctx[numentries + off]);
 
     switch (rp->cacheU) {
     case Yes_Manual:

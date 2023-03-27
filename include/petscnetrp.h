@@ -137,7 +137,7 @@ PETSC_EXTERN PetscErrorCode NetRPSetNonlinearJac(NetRP, NetRPNonlinearJac);
 PETSC_INTERN PetscErrorCode NetRPCreateLinear(NetRP, PetscInt, Mat *, Vec *);
 PETSC_INTERN PetscErrorCode NetRPCreateKSP(NetRP, PetscInt, KSP *);
 PETSC_INTERN PetscErrorCode NetRPCreateSNES(NetRP, PetscInt, SNES *);
-PETSC_INTERN PetscErrorCode NetRPCreateTao(NetRP, PetscInt, PetscInt, Tao *);
+PETSC_INTERN PetscErrorCode NetRPCreateTao(NetRP, PetscInt, PetscInt, void *,Tao *);
 
 /* internal access routines */
 /* internal for now, as these could be easily used to shoot yourself in the foot */
