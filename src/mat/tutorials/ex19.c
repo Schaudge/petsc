@@ -55,7 +55,6 @@ int main(int argc, char **args)
    test:
       suffix: cuda
       requires: cuda
-<<<<<<< HEAD
       args: -vec_type cuda -ex19_mat_view
 
    test:
