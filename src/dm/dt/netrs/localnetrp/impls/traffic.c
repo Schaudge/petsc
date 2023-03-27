@@ -393,8 +393,7 @@ static PetscErrorCode NetRPSetup_Traffic(NetRP rp)
 }
 
 
-
-static PetscErrorCode NetRPCreate_Traffic(NetRP rp)
+PetscErrorCode NetRPCreate_Traffic(NetRP rp)
 {
   TrafficCtx *traffic; 
 
