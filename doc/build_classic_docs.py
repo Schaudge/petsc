@@ -124,7 +124,7 @@ def _build_classic_docs_subset(petsc_dir, petsc_arch, stage):
 
 
 def classic_docs_subdirs(stage):
-    if stage == 'pre':   # generated .rst files that Sphinx will use to create website
+    if stage == 'pre':   # generated .md files that Sphinx will use to create website
         return ['manualpages']
     if stage == 'post':  # raw .html files that get copied directly to the website (not processed by Sphinx)
         return rawhtml
