@@ -198,6 +198,7 @@ int main(int argc, char **args)
   PetscMPIInt rank;
 #if defined(PETSC_USE_LOG)
   PetscLogStage stage[17];
+  PetscLogStage prestage[17];
 #endif
   PetscBool test_nonzero_cols = PETSC_FALSE, use_nearnullspace = PETSC_TRUE, attach_nearnullspace = PETSC_FALSE;
   Vec       xx, bb;
@@ -227,7 +228,10 @@ int main(int argc, char **args)
   PetscOptionsEnd();
   PetscCall(PetscLogStageRegister("Mesh Setup", &stage[16]));
   for (iter = 0; iter < max_conv_its; iter++) {
-    char str[] = "Solve 0";
+    char prestr[] = "Pre 0";
+    char str[]    = "Solve 0";
+    prestr[4] += iter;
+    PetscCall(PetscLogStageRegister(prestr, &prestage[iter]));
     str[6] += iter;
     PetscCall(PetscLogStageRegister(str, &stage[iter]));
   }
@@ -392,9 +396,15 @@ int main(int argc, char **args)
     sizes[iter] = i;
     PetscCall(PetscInfo(snes, "%" PetscInt_FMT " equations in vector, %" PetscInt_FMT " vertices\n", i, i / dim));
     PetscCall(PetscLogStagePop());
-    /* solve */
+    /* make matrix */
     PetscCall(SNESComputeJacobian(snes, xx, Amat, Amat));
     PetscCall(MatViewFromOptions(Amat, NULL, "-my_mat_view"));
+    // PC setup
+    PetscCall(PetscLogStagePush(prestage[iter]));
+    PetscCall(SNESSolve(snes, bb, xx));
+    PetscCall(VecZeroEntries(xx));
+    PetscCall(PetscLogStagePop());
+    // timed solve
     PetscCall(PetscLogStagePush(stage[iter]));
     PetscCall(SNESSolve(snes, bb, xx));
     PetscCall(PetscLogStagePop());
