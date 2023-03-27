@@ -57,6 +57,7 @@ typedef const char *NetRPType;
   #define NETRPLINEARIZED "netrplinearized"
   #define NETRPOUTFLOW    "netrpoutflow"
   #define NETRPEXACTSWE   "netrpexactswe"
+  #define NETRPTRAFFICLWR  "netrptrafficLWR"
 
 PETSC_EXTERN PetscErrorCode NetRPInitializePackage(void);
 PETSC_EXTERN PetscErrorCode NetRPFinalizePackage(void);
@@ -148,4 +149,13 @@ PETSC_INTERN PetscErrorCode NetRPCreateTao(NetRP, PetscInt, PetscInt, void *,Tao
   PETSC_INTERN PetscErrorCode NetRPGetKSP(NetRP,PetscInt,KSP*); 
   PETSC_INTERN PetscErrorCode NetRPGetMat(NetRP,PetscInt,Mat*); 
 */
+
+
+/* Traffic Specific Functions */
+
+typedef PetscErrorCode (*NetRPTrafficDistribution)(NetRP, PetscInt, PetscInt,Mat);
+
+PETSC_EXTERN PetscErrorCode NetRPTrafficSetDistribution(NetRP,NetRPTrafficDistribution); 
+PETSC_EXTERN PetscErrorCode NetRPTrafficSetFluxMaximumPoint(NetRP,PetscReal); 
+PETSC_EXTERN PetscErrorCode NetRPTrafficGetFluxMaximumPoint(NetRP,PetscReal*);
 #endif

@@ -353,7 +353,7 @@ PetscErrorCode RiemannSolverEvaluate(RiemannSolver rs, const PetscReal *uL, cons
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode RiemmanSolverEvaluateFlux(RiemannSolver rs, const PetscReal *u, PetscReal **flux)
+PetscErrorCode RiemannSolverEvaluateFlux(RiemannSolver rs, const PetscReal *u, PetscReal **flux)
 {
   void *ctx;
 

@@ -102,7 +102,7 @@ Outputs:
 typedef PetscErrorCode (*LaxCurve)(RiemannSolver, const PetscReal *, PetscReal, PetscInt, PetscReal *);
 
 /*J
-    RiemannSolverType - String with the name of a PETSc RiemmanSolver
+    RiemannSolverType - String with the name of a PETSc RiemannSolver
 
    Level: beginner
 
@@ -131,7 +131,7 @@ PETSC_EXTERN PetscErrorCode RiemannSolverSetFromOptions(RiemannSolver);
 PETSC_EXTERN PetscErrorCode RiemannSolverSetUp(RiemannSolver);
 
 PETSC_EXTERN PetscErrorCode RiemannSolverEvaluate(RiemannSolver, const PetscReal *, const PetscReal *, PetscReal **, PetscReal *);
-PETSC_EXTERN PetscErrorCode RiemmanSolverEvaluateFlux(RiemannSolver, const PetscReal *, PetscReal **);
+PETSC_EXTERN PetscErrorCode RiemannSolverEvaluateFlux(RiemannSolver, const PetscReal *, PetscReal **);
 PETSC_EXTERN PetscErrorCode RiemannSolverComputeEig(RiemannSolver, const PetscReal *, PetscScalar **);
 PETSC_EXTERN PetscErrorCode RiemannSolverComputeMaxSpeed(RiemannSolver, const PetscReal *, const PetscReal *, PetscReal *);
 

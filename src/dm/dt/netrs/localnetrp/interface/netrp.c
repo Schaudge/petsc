@@ -1113,7 +1113,7 @@ static PetscErrorCode NetRPComputeFluxInPlace_internal(NetRP rp, PetscInt vdeg, 
   PetscCall(NetRPGetFlux(rp, &fluxfun));
   PetscCall(NetRPGetNumFields(rp, &numfields));
   for (i = 0; i < vdeg; i++) {
-    PetscCall(RiemmanSolverEvaluateFlux(fluxfun, &star[i * numfields], &fluxval)); /* fluxval is owned by RiemannSolver */
+    PetscCall(RiemannSolverEvaluateFlux(fluxfun, &star[i * numfields], &fluxval)); /* fluxval is owned by RiemannSolver */
     PetscCall(PetscArraycpy(star + i * numfields, fluxval, numfields));            /* modify in-place*/
   }
   PetscCall(VecRestoreArray(Flux, &star));
