@@ -403,6 +403,11 @@ int main(int argc, char **args)
     PetscCall(PetscLogStagePush(prestage[iter]));
     PetscCall(SNESSolve(snes, bb, xx));
     PetscCall(VecZeroEntries(xx));
+    if (test_nonzero_cols) {
+      if (rank == 0) PetscCall(VecSetValue(xx, 0, 1.0, INSERT_VALUES));
+      PetscCall(VecAssemblyBegin(xx));
+      PetscCall(VecAssemblyEnd(xx));
+    }
     PetscCall(PetscLogStagePop());
     // timed solve
     PetscCall(PetscLogStagePush(stage[iter]));
