@@ -68,6 +68,11 @@ int main(int argc, char **args)
       args: -vec_type hip -ex19_mat_view
 
    test:
+      suffix: hip
+      requires: hip
+      args: -vectype hip -ex19_mat_view
+
+   test:
       suffix: standard
       args: -vec_type standard -ex19_mat_view
 
