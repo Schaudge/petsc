@@ -87,10 +87,9 @@ matlabbin:
         fi
 
 allfortranstubs:
-	-@${RM} -rf ${PETSC_ARCH}/include/petsc/finclude/ftn-auto/*-tmpdir
+	-@${RM} -rf ${PETSC_ARCH}/include/petsc/ftn-auto
 	@${PYTHON} lib/petsc/bin/maint/generatefortranstubs.py ${BFORT}  ${VERBOSE}
 	-@${PYTHON} lib/petsc/bin/maint/generatefortranstubs.py -merge  ${VERBOSE}
-	-@${RM} -rf ${PETSC_ARCH}/include/petsc/finclude/ftn-auto/*-tmpdir
 
 deleteshared:
 	@for LIBNAME in ${SHLIBS}; \
