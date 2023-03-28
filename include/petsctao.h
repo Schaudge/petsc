@@ -142,6 +142,30 @@ typedef enum {
 } TaoALMMType;
 PETSC_EXTERN const char *const TaoALMMTypes[];
 
+/*E
+     TaoPROXStrategy- Determine the update strategy of PROX
+
+   Values:
++  `TAO_PROX_DEFAULT`  - Uses default step size. Default step size is 1, unless otherwise given by user.
+-  `TAO_PROX_ADAPTIVE` - Adapts step size every iteration. What strategy? TBD
+-  `TAO_PROX_VM'       - Uses variable metric matrix for step size. Can be either diagonal, or diag+vv^T ?? Becker et al?
+
+  Level: advanced
+
+.seealso: [](ch_tao), `Tao`, `TAOPROX`, `TaoPROXSetType()`, `TaoPROXGetType()`
+E*/
+typedef enum {
+  TAO_PROX_STRATEGY_DEFAULT,
+  TAO_PROX_STRATEGY_ADAPTIVE,
+  TAO_PROX_STRATEGY_VM
+} TaoPROXStrategy;
+PETSC_EXTERN const char *const TaoPROXStrategies[];
+
+typedef enum {
+  TAO_PROX_TYPE_DEFAULT,
+  TAO_PROX_TYPE_L1
+} TaoPROXType;
+PETSC_EXTERN const char *const TaoPROXTypes[];
 /*J
         TaoType - String with the name of a `Tao` method
 
@@ -197,6 +221,7 @@ typedef const char *TaoType;
 #define TAOALMM     "almm"
 #define TAOPYTHON   "python"
 #define TAOSNES     "snes"
+#define TAOPROX     "prox"
 
 PETSC_EXTERN PetscClassId      TAO_CLASSID;
 PETSC_EXTERN PetscFunctionList TaoList;
@@ -505,4 +530,16 @@ PETSC_EXTERN PetscErrorCode TaoALMMGetMultipliers(Tao, Vec *);
 PETSC_EXTERN PetscErrorCode TaoALMMSetMultipliers(Tao, Vec);
 PETSC_EXTERN PetscErrorCode TaoALMMGetPrimalIS(Tao, IS *, IS *);
 PETSC_EXTERN PetscErrorCode TaoALMMGetDualIS(Tao, IS *, IS *);
+
+
+PETSC_EXTERN PetscErrorCode TaoPROXGetSubsolver(Tao, Tao *);
+PETSC_EXTERN PetscErrorCode TaoPROXSetStepSize(Tao, PetscReal);
+PETSC_EXTERN PetscErrorCode TaoPROXGetStepSize(Tao, PetscReal *);
+PETSC_EXTERN PetscErrorCode TaoPROXSetVM(Tao, Mat);
+PETSC_EXTERN PetscErrorCode TaoPROXGetVM(Tao, Mat *);
+PETSC_EXTERN PetscErrorCode TaoPROXSetSoftThreshold(Tao, PetscReal, PetscReal);
+PETSC_EXTERN PetscErrorCode TaoPROXSetInitialVector(Tao, Vec);
+PETSC_EXTERN PetscErrorCode TaoPROXGetInitialVector(Tao, Vec *);
+PETSC_EXTERN PetscErrorCode TaoGetPROXParentTao(Tao, Tao *);
+
 #endif
