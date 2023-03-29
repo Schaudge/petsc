@@ -70,7 +70,7 @@ int main(int argc, char **args)
    test:
       suffix: hip
       requires: hip
-      args: -vectype hip -ex19_mat_view
+      args: -vec_type hip -ex19_mat_view
 
    test:
       suffix: standard
