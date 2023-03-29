@@ -2836,7 +2836,7 @@ PetscErrorCode TSGetKSP(TS ts, KSP *ksp)
   PetscValidHeaderSpecific(ts, TS_CLASSID, 1);
   PetscValidPointer(ksp, 2);
   PetscCheck(((PetscObject)ts)->type_name, PETSC_COMM_SELF, PETSC_ERR_ARG_NULL, "KSP is not created yet. Call TSSetType() first");
-  PetscCheck(ts->problem_type == TS_LINEAR, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Linear only; use TSGetSNES()");
+  //PetscCheck(ts->problem_type == TS_LINEAR, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Linear only; use TSGetSNES()");
   PetscCall(TSGetSNES(ts, &snes));
   PetscCall(SNESGetKSP(snes, ksp));
   PetscFunctionReturn(PETSC_SUCCESS);
