@@ -378,7 +378,7 @@ PETSC_EXTERN PetscErrorCode VecSetValuesCOO(Vec, const PetscScalar[], InsertMode
 
    Input Parameters:
 +  v - the vector
-.  row - the row location of the entry
+.  row - the row index of the entry
 .  value - the value to insert
 -  mode - either `INSERT_VALUES` or `ADD_VALUES`
 
@@ -487,7 +487,7 @@ PETSC_EXTERN PetscErrorCode VecViennaCLRestoreCLMem(Vec);
 
    Input Parameters:
 +  v - the vector
-.  row - the row location of the entry
+.  row - the row index of the entry
 .  value - the value to insert
 -  mode - either `INSERT_VALUES` or `ADD_VALUES`
 

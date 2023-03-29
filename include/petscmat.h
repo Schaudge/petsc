@@ -904,7 +904,8 @@ PETSC_EXTERN PetscErrorCode MatFindOffBlockDiagonalEntries(Mat, IS *);
 PETSC_EXTERN PetscErrorCode MatCreateMPIMatConcatenateSeqMat(MPI_Comm, Mat, PetscInt, MatReuse, Mat *);
 
 /*MC
-   MatSetValue - Set a single entry into a matrix.
+   MatSetValue - Set a single entry into a matrix. This value may be cached, so `MatAssemblyBegin()` and `MatAssemblyEnd()`
+   MUST be called after all calls to `MatSetValue()` have been completed.
 
    Not Collective
 
@@ -914,8 +915,8 @@ PETSC_EXTERN PetscErrorCode MatCreateMPIMatConcatenateSeqMat(MPI_Comm, Mat, Pets
 
    Input Parameters:
 +  m - the matrix
-.  row - the row location of the entry
-.  col - the column location of the entry
+.  row - the global row index of the entry
+.  col - the global column index of the entry
 .  value - the value to insert
 -  mode - either `INSERT_VALUES` or `ADD_VALUES`
 
@@ -939,8 +940,8 @@ static inline PetscErrorCode MatSetValue(Mat v, PetscInt i, PetscInt j, PetscSca
 
    Input Parameters:
 +  mat - the matrix
-.  row - the row location of the entry
--  col - the column location of the entry
+.  row - the global row index of the entry
+-  col - the global column index of the entry
 
    Output Parameter:
 .  va - the value
@@ -948,7 +949,7 @@ static inline PetscErrorCode MatSetValue(Mat v, PetscInt i, PetscInt j, PetscSca
    Level: advanced
 
    Notes:
-   The matrix must have been assembled with `MatAssemblyBegin()` and `MatAssemblyEnd` before this call
+   The matrix must have been assembled with `MatAssemblyBegin()` and `MatAssemblyEnd()` before this call
 
    For efficiency one should use `MatGetValues()` and get several values simultaneously.
 
@@ -968,8 +969,8 @@ static inline PetscErrorCode MatGetValue(Mat mat, PetscInt row, PetscInt col, Pe
 
    Input Parameters:
 +  m - the matrix
-.  row - the row location of the entry
-.  col - the column location of the entry
+.  row - the row index of the entry
+.  col - the column index of the entrys
 .  value - the value to insert
 -  mode - either `INSERT_VALUES` or `ADD_VALUES`
 
