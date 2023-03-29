@@ -192,36 +192,8 @@ int main(int argc, char **argv)
     PetscCall(DMView(dm, PETSC_VIEWER_STDOUT_WORLD));
   }
 
-<<<<<<< HEAD
   /* print or view the coordinates of each vertex */
   PetscCall(CoordinatePrint(dm));
-=======
-  if (testdistribute) {
-    PetscCall(DMNetworkDistribute(&dm, 0));
-    PetscCall(DMView(dm, PETSC_VIEWER_STDOUT_WORLD));
-  }
-
-  /* print the coordinates of each vertex */
-  PetscCall(DMGetCoordinateDim(dm, &cdim));
-  PetscCall(DMGetCoordinateDM(dm, &cdm));
-  PetscCall(DMNetworkGetVertexRange(cdm, &vStart, &vEnd));
-  PetscCall(DMGetCoordinatesLocal(dm, &Coord));
-  PetscCall(VecGetArray(Coord, &coord));
-  PetscCall(PetscSynchronizedPrintf(MPI_COMM_WORLD, "\n Rank %i \n\n", rank));
-  for (v = vStart; v < vEnd; v++) {
-    PetscCall(DMNetworkGetLocalVecOffset(cdm, v, 0, &off));
-    PetscCall(DMNetworkGetGlobalVertexIndex(cdm, v, &vglobal));
-    switch (cdim) {
-    case 2:
-      PetscCall(PetscSynchronizedPrintf(MPI_COMM_WORLD, "Vertex: %" PetscInt_FMT ", x =  %f y = %f \n", vglobal, (double)PetscRealPart(coord[off]), (double)PetscRealPart(coord[off + 1])));
-      break;
-    default:
-      SETERRQ(MPI_COMM_WORLD, PETSC_ERR_SUP, "Only supports Network embedding dimension of 2, not supplied  %" PetscInt_FMT, cdim);
-      break;
-    }
-  }
-  PetscCall(PetscSynchronizedFlush(MPI_COMM_WORLD, NULL));
->>>>>>> e5cb7aebeba (clang-format and added WIP coordinate distribution code)
 
   PetscCall(DMDestroy(&dm));
   PetscCall(PetscFinalize());
