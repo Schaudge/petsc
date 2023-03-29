@@ -27,9 +27,10 @@ static inline PetscErrorCode ObjectView(PetscObject obj, PetscViewer viewer, Pet
 .  ksp - iterative context obtained from `KSPCreate()`
 
    Output Parameters:
-.  emin, emax - extreme singular values
++  emax - maximum estimated singular value
+-  emin - minimum estimated singular value
 
-   Options Database Keys:
+   Options Database Key:
 .  -ksp_view_singularvalues - compute extreme singular values and print when `KSPSolve()` completes.
 
    Notes:
@@ -258,10 +259,10 @@ PetscErrorCode KSPSetReusePreconditioner(KSP ksp, PetscBool flag)
 
    Collective
 
-   Input Parameters:
+   Input Parameter:
 .  ksp   - iterative context obtained from `KSPCreate()`
 
-   Output Parameters:
+   Output Parameter:
 .  flag - the boolean flag
 
    Level: intermediate
@@ -553,7 +554,7 @@ PetscErrorCode KSPConvergedReasonViewCancel(KSP ksp)
 
   Collective
 
-  Input Parameters:
+  Input Parameter:
 . ksp   - the `KSP` object
 
   Level: intermediate
@@ -592,7 +593,7 @@ PetscErrorCode KSPConvergedReasonViewFromOptions(KSP ksp)
 +  ksp    - iterative context obtained from `KSPCreate()`
 -  viewer - the viewer to display the reason
 
-  Options Database Keys:
+  Options Database Key:
 . -ksp_converged_rate - print reason for convergence or divergence and the convergence rate (or 0.0 for divergence)
 
   Notes:
@@ -840,7 +841,7 @@ static PetscErrorCode KSPSolve_Private(KSP ksp, Vec b, Vec x)
 
   PetscCall(VecSetErrorIfLocked(ksp->vec_sol, 3));
 
-  PetscCall(PetscLogEventBegin(KSP_Solve, ksp, ksp->vec_rhs, ksp->vec_sol, 0));
+  PetscCall(PetscLogEventBegin(!ksp->transpose_solve ? KSP_Solve : KSP_SolveTranspose, ksp, ksp->vec_rhs, ksp->vec_sol, 0));
   PetscCall(PCGetOperators(ksp->pc, &mat, &pmat));
   /* diagonal scale RHS if called for */
   if (ksp->dscale) {
@@ -933,7 +934,7 @@ static PetscErrorCode KSPSolve_Private(KSP ksp, Vec b, Vec x)
       ksp->dscalefix2 = PETSC_TRUE;
     }
   }
-  PetscCall(PetscLogEventEnd(KSP_Solve, ksp, ksp->vec_rhs, ksp->vec_sol, 0));
+  PetscCall(PetscLogEventEnd(!ksp->transpose_solve ? KSP_Solve : KSP_SolveTranspose, ksp, ksp->vec_rhs, ksp->vec_sol, 0));
   if (ksp->guess) PetscCall(KSPGuessUpdate(ksp->guess, ksp->vec_rhs, ksp->vec_sol));
   if (ksp->postsolve) PetscCall((*ksp->postsolve)(ksp, ksp->vec_rhs, ksp->vec_sol, ksp->postctx));
 
@@ -1071,7 +1072,7 @@ PetscErrorCode KSPSolve(KSP ksp, Vec b, Vec x)
 }
 
 /*@
-   KSPSolveTranspose - Solves the transpose of a linear system.
+   KSPSolveTranspose - Solves a linear system with the transposed matrix.
 
    Collective
 
@@ -1131,7 +1132,8 @@ static PetscErrorCode KSPViewFinalMatResidual_Internal(KSP ksp, Mat B, Mat X, Pe
   PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &flg));
   if (flg) {
     PetscCall(PCGetOperators(ksp->pc, &A, NULL));
-    PetscCall(MatMatMult(A, X, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &R));
+    if (!ksp->transpose_solve) PetscCall(MatMatMult(A, X, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &R));
+    else PetscCall(MatTransposeMatMult(A, X, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &R));
     PetscCall(MatAYPX(R, -1.0, B, SAME_NONZERO_PATTERN));
     PetscCall(MatGetSize(R, NULL, &N));
     PetscCall(PetscMalloc1(N, &norms));
@@ -1143,24 +1145,7 @@ static PetscErrorCode KSPViewFinalMatResidual_Internal(KSP ksp, Mat B, Mat X, Pe
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/*@
-     KSPMatSolve - Solves a linear system with multiple right-hand sides stored as a MATDENSE. Unlike `KSPSolve()`, B and X must be different matrices.
-
-   Input Parameters:
-+     ksp - iterative context
--     B - block of right-hand sides
-
-   Output Parameter:
-.     X - block of solutions
-
-   Notes:
-     This is a stripped-down version of `KSPSolve()`, which only handles -ksp_view, -ksp_converged_reason, and -ksp_view_final_residual.
-
-   Level: intermediate
-
-.seealso: [](chapter_ksp), `KSPSolve()`, `MatMatSolve()`, `MATDENSE`, `KSPHPDDM`, `PCBJACOBI`, `PCASM`
-@*/
-PetscErrorCode KSPMatSolve(KSP ksp, Mat B, Mat X)
+PetscErrorCode KSPMatSolve_Private(KSP ksp, Mat B, Mat X)
 {
   Mat       A, P, vB, vX;
   Vec       cb, cx;
@@ -1182,6 +1167,7 @@ PetscErrorCode KSPMatSolve(KSP ksp, Mat B, Mat X)
     PetscCall(MatAssemblyEnd(X, MAT_FINAL_ASSEMBLY));
   }
   PetscCheck(B != X, PetscObjectComm((PetscObject)ksp), PETSC_ERR_ARG_IDN, "B and X must be different matrices");
+  PetscCheck(!ksp->transpose_solve || !ksp->transpose.use_explicittranspose, PetscObjectComm((PetscObject)ksp), PETSC_ERR_SUP, "KSPMatSolveTranspose() does not support -ksp_use_explicittranspose");
   PetscCall(KSPGetOperators(ksp, &A, &P));
   PetscCall(MatGetLocalSize(B, NULL, &n2));
   PetscCall(MatGetLocalSize(X, NULL, &n1));
@@ -1196,7 +1182,7 @@ PetscErrorCode KSPMatSolve(KSP ksp, Mat B, Mat X)
   PetscCall(KSPSetUpOnBlocks(ksp));
   if (ksp->ops->matsolve) {
     if (ksp->guess_zero) PetscCall(MatZeroEntries(X));
-    PetscCall(PetscLogEventBegin(KSP_MatSolve, ksp, B, X, 0));
+    PetscCall(PetscLogEventBegin(!ksp->transpose_solve ? KSP_MatSolve : KSP_MatSolveTranspose, ksp, B, X, 0));
     PetscCall(KSPGetMatSolveBatchSize(ksp, &Bbn));
     /* by default, do a single solve with all columns */
     if (Bbn == PETSC_DECIDE) Bbn = N2;
@@ -1237,17 +1223,67 @@ PetscErrorCode KSPMatSolve(KSP ksp, Mat B, Mat X)
     if (ksp->viewRhs) PetscCall(ObjectView((PetscObject)B, ksp->viewerRhs, ksp->formatRhs));
     if (ksp->viewSol) PetscCall(ObjectView((PetscObject)X, ksp->viewerSol, ksp->formatSol));
     if (ksp->view) PetscCall(KSPView(ksp, ksp->viewer));
-    PetscCall(PetscLogEventEnd(KSP_MatSolve, ksp, B, X, 0));
+    PetscCall(PetscLogEventEnd(!ksp->transpose_solve ? KSP_MatSolve : KSP_MatSolveTranspose, ksp, B, X, 0));
   } else {
     PetscCall(PetscInfo(ksp, "KSP type %s solving column by column\n", ((PetscObject)ksp)->type_name));
     for (n2 = 0; n2 < N2; ++n2) {
       PetscCall(MatDenseGetColumnVecRead(B, n2, &cb));
       PetscCall(MatDenseGetColumnVecWrite(X, n2, &cx));
-      PetscCall(KSPSolve(ksp, cb, cx));
+      PetscCall(KSPSolve_Private(ksp, cb, cx));
       PetscCall(MatDenseRestoreColumnVecWrite(X, n2, &cx));
       PetscCall(MatDenseRestoreColumnVecRead(B, n2, &cb));
     }
   }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+     KSPMatSolve - Solves a linear system with multiple right-hand sides stored as a `MATDENSE`. Unlike `KSPSolve()`, `B` and `X` must be different matrices.
+
+   Input Parameters:
++     ksp - iterative context
+-     B - block of right-hand sides
+
+   Output Parameter:
+.     X - block of solutions
+
+   Notes:
+     This is a stripped-down version of `KSPSolve()`, which only handles `-ksp_view`, `-ksp_converged_reason`, `-ksp_converged_rate`, and `-ksp_view_final_residual`.
+
+   Level: intermediate
+
+.seealso: [](chapter_ksp), `KSPSolve()`, `MatMatSolve()`, `KSPMatSolveTranspose(), `MATDENSE`, `KSPHPDDM`, `PCBJACOBI`, `PCASM`
+@*/
+PetscErrorCode KSPMatSolve(KSP ksp, Mat B, Mat X)
+{
+  PetscFunctionBegin;
+  ksp->transpose_solve = PETSC_FALSE;
+  PetscCall(KSPMatSolve_Private(ksp, B, X));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+     KSPMatSolveTranspose - Solves a linear system with the transposed matrix with multiple right-hand sides stored as a `MATDENSE`. Unlike `KSPSolveTranspose()`, `B` and `X` must be different matrices and the transposed matrix cannot be assembled explicitly for the user.
+
+   Input Parameters:
++     ksp - iterative context
+-     B - block of right-hand sides
+
+   Output Parameter:
+.     X - block of solutions
+
+   Notes:
+     This is a stripped-down version of `KSPSolveTranspose()`, which only handles `-ksp_view`, `-ksp_converged_reason`, `-ksp_converged_rate`, and `-ksp_view_final_residual`.
+
+   Level: intermediate
+
+.seealso: [](chapter_ksp), `KSPSolveTranspose()`, `MatMatTransposeSolve()`, `KSPMatSolve(), `MATDENSE`, `KSPHPDDM`, `PCBJACOBI`, `PCASM`
+@*/
+PetscErrorCode KSPMatSolveTranspose(KSP ksp, Mat B, Mat X)
+{
+  PetscFunctionBegin;
+  ksp->transpose_solve = PETSC_TRUE;
+  PetscCall(KSPMatSolve_Private(ksp, B, X));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1663,7 +1699,7 @@ PetscErrorCode KSPGetInitialGuessNonzero(KSP ksp, PetscBool *flag)
 +  ksp - iterative context obtained from `KSPCreate()`
 -  flg - `PETSC_TRUE` indicates you want the error generated
 
-   Options database keys:
+   Options Database Key:
 .  -ksp_error_if_not_converged <true,false> - generate an error and stop the program
 
    Level: intermediate
@@ -1944,10 +1980,10 @@ PetscErrorCode KSPGetRhs(KSP ksp, Vec *r)
 
    Not Collective
 
-   Input Parameters:
+   Input Parameter:
 .  ksp - iterative context obtained from `KSPCreate()`
 
-   Output Parameters:
+   Output Parameter:
 .  v - solution vector
 
    Level: developer
@@ -2000,7 +2036,7 @@ PetscErrorCode KSPSetPC(KSP ksp, PC pc)
 
    Not Collective
 
-   Input Parameters:
+   Input Parameter:
 .  ksp - iterative context obtained from `KSPCreate()`
 
    Output Parameter:
@@ -2130,7 +2166,7 @@ PetscErrorCode KSPMonitorSet(KSP ksp, PetscErrorCode (*monitor)(KSP, PetscInt, P
 
    Logically Collective
 
-   Input Parameters:
+   Input Parameter:
 .  ksp - iterative context obtained from `KSPCreate()`
 
    Options Database Key:

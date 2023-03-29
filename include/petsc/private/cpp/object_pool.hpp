@@ -430,7 +430,7 @@ inline PetscErrorCode PoolAllocator::allocate_ptr_(size_type size, align_type al
 + size - the size (in bytes) of the allocated area, nullptr if not needed
 - align - the alignment (in bytes) of the allocated, nullptr if not needed
 
-  Notes:
+  Note:
   ptr must have been allocated by the pool, and is exactly the pointer returned by either
   allocate() or try_allocate() (if successful).
 */
@@ -687,11 +687,11 @@ public:
   using align_type     = typename allocator_type::align_type;
 
   PETSC_NODISCARD static void *operator new(size_type) noexcept;
-  static void                  operator delete(void *) noexcept;
+  static void operator delete(void *) noexcept;
 
   #if PETSC_CPP_VERSION >= 17
   PETSC_NODISCARD static void *operator new(size_type, std::align_val_t) noexcept;
-  static void                  operator delete(void *, std::align_val_t) noexcept;
+  static void operator delete(void *, std::align_val_t) noexcept;
   #endif
 
 protected:

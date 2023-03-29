@@ -98,6 +98,7 @@ PETSC_EXTERN PetscErrorCode KSPSolve(KSP, Vec, Vec);
 PETSC_EXTERN PetscErrorCode KSPSolveTranspose(KSP, Vec, Vec);
 PETSC_EXTERN PetscErrorCode KSPSetUseExplicitTranspose(KSP, PetscBool);
 PETSC_EXTERN PetscErrorCode KSPMatSolve(KSP, Mat, Mat);
+PETSC_EXTERN PetscErrorCode KSPMatSolveTranspose(KSP, Mat, Mat);
 PETSC_EXTERN PetscErrorCode KSPSetMatSolveBatchSize(KSP, PetscInt);
 PETSC_DEPRECATED_FUNCTION("Use KSPSetMatSolveBatchSize() (since version 3.15)") static inline PetscErrorCode KSPSetMatSolveBlockSize(KSP ksp, PetscInt n)
 {
@@ -893,6 +894,7 @@ PETSC_EXTERN PetscErrorCode KSPCGSetType(KSP, KSPCGType);
 PETSC_EXTERN PetscErrorCode KSPCGUseSingleReduction(KSP, PetscBool);
 
 PETSC_EXTERN PetscErrorCode KSPCGSetRadius(KSP, PetscReal);
+PETSC_EXTERN PetscErrorCode KSPCGSetObjectiveTarget(KSP, PetscReal);
 PETSC_EXTERN PetscErrorCode KSPCGGetNormD(KSP, PetscReal *);
 PETSC_EXTERN PetscErrorCode KSPCGGetObjFcn(KSP, PetscReal *);
 

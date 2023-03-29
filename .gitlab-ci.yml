@@ -203,7 +203,7 @@ checksource:
     - python3 ./configure --with-mpi=0 --with-fc=0 --with-cxx=0
     - vermin --version
     - make vermin
-    - PATH=/nfs/gce/projects/petsc/soft/u22.04/spack/opt/spack/linux-ubuntu22.04-ivybridge/gcc-11.2.0/llvm-15.0.0-m7mrrtynenjytkmiib2moeqk6kfcifmv/bin:$PATH make checkclangformat SHELL=bash
+    - PATH=/nfs/gce/projects/petsc/soft/clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/bin:$PATH make checkclangformat SHELL=bash
     - make checkbadSource SHELL=bash
     - make checkbadFileChange SHELL=bash
     - make -f gmakefile check_output SHELL=bash
@@ -534,6 +534,7 @@ linux-cuda-pkgs:
     # need to use the alternate OR spelling since '|' is interpreted as a pipe by the
     # shell, and I could not manage to escape it enough times...
     TEST_OPTS: -j3 queryval='cuda,device,kokkos*,vec*' query='requires,requires,requires%OR%name'
+    MAKE_CUDAFLAGS: --compiler-options -Wall,-Werror
 
 linux-cuda112-omp:
   extends:
@@ -548,6 +549,7 @@ linux-cuda112-omp:
     LOAD_MODULES: cuda/11.2.2 u-gcc-9/9.4.0
     OMP_PROC_BIND: "false"
     OMP_NUM_THREADS: 1
+    MAKE_CUDAFLAGS: --compiler-options -Wall,-Werror
 
 linux-cuda-cmplx:
   extends:
@@ -557,17 +559,18 @@ linux-cuda-cmplx:
     - cuda-stage3
   variables:
     TEST_ARCH: arch-ci-linux-cuda-cmplx
+    MAKE_CUDAFLAGS: --compiler-options -Wall,-Werror
 
 linux-cuda-double-64idx:
   extends:
     - .stage-3
     - .linux_test
   tags:
-    - cuda-stage3
+    - cuda12
   variables:
     TEST_ARCH: arch-ci-linux-cuda-double-64idx
-    TEST_OPTS: -j15 query=requires queryval=cuda
-    MAKE_CUDAFLAGS: --compiler-options -Wall,-Wunused-parameter,-Wno-deprecated-declarations,-Werror
+    TEST_OPTS: -j3 query=requires queryval=cuda
+    MAKE_CUDAFLAGS: --compiler-options -Wall,-Werror
 
 linux-cuda-single-cxx:
   extends:
@@ -591,6 +594,7 @@ linux-cuda-uni-pkgs:
   variables:
     TEST_ARCH: arch-ci-linux-cuda-uni-pkgs
     TEST_OPTS: -j20 query=requires queryval=cuda
+    MAKE_CUDAFLAGS: --compiler-options -Wall,-Werror
 
 linux-clang-cuda:
   extends:
@@ -604,6 +608,7 @@ linux-clang-cuda:
     TEST_OPTS: -j 1  queryval='cuda*,snes*' query='requires%OR%name'
     MODULEPATH: /nfs/gce/projects/petsc/soft/u22.04/spack-2023-02-02/share/spack/modules/linux-ubuntu22.04-ivybridge
     LOAD_MODULES: llvm-15.0.7-gcc-11.3.0-pjldtxf cuda-11.5.2-gcc-11.3.0-jkoottx gcc-11.3.0-gcc-11.3.0-pgrvke5
+    MAKE_CUDAFLAGS: -Wall,-Werror
 
 linux-viennacl:
   extends:
@@ -1159,10 +1164,9 @@ pages:  # this job name has special meaning to GitLab
   script:
     - mkdir -p ../public/ && cp public/* ../public/
     - git fetch --unshallow --no-tags origin +release:remotes/origin/release +main:remotes/origin/main
-    - git checkout origin/main && pip install -r requirements.txt && make website-deploy SPHINXOPTS="-j 1" BUILDDIR="../public/main" && make latexpdf && mkdir -p ../public/main/docs/manual && cp _build/latex/manual.pdf ../public/main/manual/
-    - make clean BUILDDIR="../public/release"
-    - git clean -fdxq && rm -rf images
-    - git checkout origin/release && pip install -r requirements.txt && make website-deploy SPHINXOPTS="-j 1"  BUILDDIR="../public/release" && make latexpdf && mkdir -p ../public/release/docs/manual && cp _build/latex/manual.pdf ../public/release/docs/manual/
+    - (git checkout origin/main && pip install -r requirements.txt && make website-deploy SPHINXOPTS="-j 1" BUILDDIR="../public/main" && make latexpdf && mkdir -p ../public/main/docs/manual && cp _build/latex/manual.pdf ../public/main/manual/) || (printf "Sphinx build failed (warnings count as errors)\n" && false)
+    - git clean -fdxq && rm -rf images ../arch-classic-docs
+    - (git checkout origin/release && pip install -r requirements.txt && make website-deploy SPHINXOPTS="-j 1"  BUILDDIR="../public/release" && make latexpdf && mkdir -p ../public/release/docs/manual && cp _build/latex/manual.pdf ../public/release/docs/manual/) || (printf "Sphinx build failed (warnings count as errors)\n" && false)
     - rm -rf ../public/*/.doctrees
   only:
     variables:

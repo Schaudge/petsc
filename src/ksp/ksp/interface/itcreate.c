@@ -7,7 +7,7 @@
 PetscClassId  KSP_CLASSID;
 PetscClassId  DMKSP_CLASSID;
 PetscClassId  KSPGUESS_CLASSID;
-PetscLogEvent KSP_GMRESOrthogonalization, KSP_SetUp, KSP_Solve, KSP_SolveTranspose, KSP_MatSolve;
+PetscLogEvent KSP_GMRESOrthogonalization, KSP_SetUp, KSP_Solve, KSP_SolveTranspose, KSP_MatSolve, KSP_MatSolveTranspose;
 
 /*
    Contains the list of registered KSP routines
@@ -811,8 +811,8 @@ PetscErrorCode KSPGetType(KSP ksp, KSPType *type)
    Not Collective
 
    Input Parameters:
-+  name_solver - name of a new user-defined solver
--  routine_create - routine to create method context
++  sname - name of a new user-defined solver
+-  function - routine to create method
 
    Level: advanced
 

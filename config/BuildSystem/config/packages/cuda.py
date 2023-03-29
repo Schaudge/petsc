@@ -5,13 +5,12 @@ class Configure(config.package.Package):
   def __init__(self, framework):
     config.package.Package.__init__(self, framework)
     self.minversion        = '7.5'
-    self.maxversion        = '11.8' # TODO: remove this line once we fix the code using cusparseDcsrsv2_solve() that is removed in cuda-12.0
     self.versionname       = 'CUDA_VERSION'
     self.versioninclude    = 'cuda.h'
     self.requiresversion   = 1
     self.functions         = ['cublasInit','cufftDestroy']
     self.includes          = ['cublas.h','cufft.h','cusparse.h','cusolverDn.h','curand.h','thrust/version.h']
-    self.basicliblist      = [['libcudart.a','libnvToolsExt.a'],
+    self.basicliblist      = [['libcudart.a','libnvToolsExt.a'],['libcudart.a','libnvToolsExt.a','-lstdc++'],
                               ['cudart.lib','nvToolsExt.lib']]
     self.mathliblist       = [['libcufft.a', 'libcublas.a','libcusparse.a','libcusolver.a','libcurand.a'],
                               ['cufft.lib','cublas.lib','cusparse.lib','cusolver.lib','curand.lib']]
@@ -454,9 +453,9 @@ class Configure(config.package.Package):
         self.logPrint('nvcc --dryrun failed, unable to determine CUDA_CXX and CUDA_CXXFLAGS')
 
     if not self.cudaclang:
-      self.addMakeMacro('CUDA_HOSTFLAGS','--compiler-options="${PETSC_CXXCPPFLAGS} $(CUDACPPFLAGS) $(CUDA_CXXFLAGS)"')
-      self.addMakeMacro('CUDA_PETSC_GENDEPS','$(call quiet,CUDAC,.dep) --generate-dependencies --output-directory=$(@D) $(MPICXX_INCLUDES) $(CUDAC_FLAGS) --compiler-options="${PETSC_CXXCPPFLAGS} $(CUDA_CXXFLAGS)"')
+      self.addMakeMacro('CUDA_HOSTFLAGS','--compiler-options="$(CXXCPPFLAGS) $(CUDA_CXXFLAGS)"')
+      self.addMakeMacro('CUDA_PETSC_GENDEPS','$(call quiet,CUDAC,.dep) --generate-dependencies --output-directory=$(@D) $(MPICXX_INCLUDES) $(CUDAC_FLAGS) --compiler-options="$(CXXCPPFLAGS) $(CUDA_CXXFLAGS)"')
     else:
-      self.addMakeMacro('CUDA_HOSTFLAGS','$(CUDACPPFLAGS) $(CUDA_CXXFLAGS) $(CUDA_DEPFLAGS) $(PETSC_CC_INCLUDES)')
+      self.addMakeMacro('CUDA_HOSTFLAGS','$(CXXCPPFLAGS) $(CUDA_CXXFLAGS) $(CUDA_DEPFLAGS) $(PETSC_CC_INCLUDES)')
       self.addMakeMacro('CUDA_PETSC_GENDEPS','true')
     return

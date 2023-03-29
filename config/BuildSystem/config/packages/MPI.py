@@ -251,7 +251,7 @@ shared libraries and run with --known-mpi-shared-libraries=1')
           raise RuntimeError('Could not locate MPIEXEC - please specify --with-mpiexec option')
       # Support for spaces and () in executable names; also needs to handle optional arguments at the end
       # TODO: This support for spaces and () should be moved to core BuildSystem
-      self.mpiexec = self.mpiexec.replace(' ', '\\ ').replace('(', '\\(').replace(')', '\\)').replace('\ -',' -')
+      self.mpiexec = self.mpiexec.replace(' ', r'\\ ').replace('(', r'\\(').replace(')', r'\\)').replace(r'\ -',' -')
       if (hasattr(self, 'ompi_major_version') and int(self.ompi_major_version) >= 3):
         (out, err, ret) = Configure.executeShellCommand(self.mpiexec+' -help all', checkCommand = noCheck, timeout = 60, log = self.log, threads = 1)
         if out.find('--oversubscribe') >=0:
@@ -559,38 +559,38 @@ Unable to run hostname to check the network')
 
   def configureMPIX(self):
     '''Check for experimental functions added by MPICH or OpenMPI as MPIX'''
-    oldFlags = self.compilers.CPPFLAGS
-    oldLibs  = self.compilers.LIBS
-    self.compilers.CPPFLAGS += ' '+self.headers.toString(self.include)
-    self.compilers.LIBS = self.libraries.toString(self.lib)+' '+self.compilers.LIBS
-    self.framework.saveLog()
+    # mpich-4.2 has a bug fix (PR6454). Without it, we could not use MPIX stream
+    if (hasattr(self, 'mpich_numversion') and int(self.mpich_numversion) >= 40200000):
+      oldFlags = self.compilers.CPPFLAGS
+      oldLibs  = self.compilers.LIBS
+      self.compilers.CPPFLAGS += ' '+self.headers.toString(self.include)
+      self.compilers.LIBS = self.libraries.toString(self.lib)+' '+self.compilers.LIBS
+      self.framework.saveLog()
+      if self.checkLink('#include <mpi.h>\n',
+      '''
+        MPI_Info    info ;
+        // cudaStream_t stream;
+        int         stream; // use a fake type instead as we don't want this check to depend on CUDA
+        MPI_Comm    stream_comm ;
+        MPIX_Stream mpi_stream ;
+        MPI_Request req;
+        MPI_Status  stat;
+        int         sbuf[1]={0},rbuf[1]={0},count=1,dest=1,source=0,tag=0;
 
-    if self.checkLink('#include <mpi.h>\n',
-    '''
-      MPI_Info    info ;
-      // cudaStream_t stream;
-      int         stream; // use a fake type instead as we don't want this check to depend on CUDA
-      MPI_Comm    stream_comm ;
-      MPIX_Stream mpi_stream ;
-      MPI_Request req;
-      MPI_Status  stat;
-      int         sbuf[1]={0},rbuf[1]={0},count=1,dest=1,source=0,tag=0;
-
-      MPI_Info_create (&info);
-      MPI_Info_set(info, "type", "cudaStream_t");
-      MPIX_Info_set_hex(info, "value", &stream, sizeof(stream));
-      MPIX_Stream_create(info, &mpi_stream );
-      MPIX_Stream_comm_create(MPI_COMM_WORLD, mpi_stream, &stream_comm);
-      MPIX_Isend_enqueue(sbuf,count,MPI_INT,dest,tag,stream_comm,&req);
-      MPIX_Irecv_enqueue(rbuf,count,MPI_INT,source,tag,stream_comm,&req);
-      MPIX_Allreduce_enqueue(sbuf,rbuf,count,MPI_INT,MPI_SUM,stream_comm);
-      MPIX_Wait_enqueue(&req, &stat);
-    '''):
-      self.addDefine('HAVE_MPIX_STREAM', 1)
-
-    self.compilers.CPPFLAGS = oldFlags
-    self.compilers.LIBS = oldLibs
-    self.logWrite(self.framework.restoreLog())
+        MPI_Info_create (&info);
+        MPI_Info_set(info, "type", "cudaStream_t");
+        MPIX_Info_set_hex(info, "value", &stream, sizeof(stream));
+        MPIX_Stream_create(info, &mpi_stream );
+        MPIX_Stream_comm_create(MPI_COMM_WORLD, mpi_stream, &stream_comm);
+        MPIX_Isend_enqueue(sbuf,count,MPI_INT,dest,tag,stream_comm,&req);
+        MPIX_Irecv_enqueue(rbuf,count,MPI_INT,source,tag,stream_comm,&req);
+        MPIX_Allreduce_enqueue(sbuf,rbuf,count,MPI_INT,MPI_SUM,stream_comm);
+        MPIX_Wait_enqueue(&req, &stat);
+      '''):
+        self.addDefine('HAVE_MPIX_STREAM', 1)
+      self.compilers.CPPFLAGS = oldFlags
+      self.compilers.LIBS = oldLibs
+      self.logWrite(self.framework.restoreLog())
     return
 
   def configureMPITypes(self):
@@ -727,7 +727,7 @@ Unable to run hostname to check the network')
     if self.checkCompile(mpich_test):
       buf = self.outputPreprocess(mpich_test)
       try:
-        mpich_numversion = re.compile('\nconst char *mpich_ver ='+HASHLINESPACE+'"([\.0-9]+)"'+HASHLINESPACE+';').search(buf).group(1)
+        mpich_numversion = re.compile('\nconst char *mpich_ver ='+HASHLINESPACE+r'"([\.0-9]+)"'+HASHLINESPACE+';').search(buf).group(1)
         self.addDefine('HAVE_'+MPICHPKG+'_VERSION',mpich_numversion)
         MPI_VER  = '  '+MPICHPKG+'_VERSION: '+mpich_numversion
       except:
@@ -788,7 +788,7 @@ Unable to run hostname to check the network')
       msmpi_version = 'unknown'
       self.addDefine('HAVE_MSMPI',1) # flag we have MSMPI since we need to disable broken components
       try:
-        msmpi_version = re.compile('\nchar msmpi_hex\[\] = '+HASHLINESPACE+'\"([a-zA-Z0-9_]*)\"'+HASHLINESPACE+';').search(buf).group(1)
+        msmpi_version = re.compile('\n'+r'char msmpi_hex\[\] = '+HASHLINESPACE+'\"([a-zA-Z0-9_]*)\"'+HASHLINESPACE+';').search(buf).group(1)
         MPI_VER = '  MSMPI_VERSION: '+msmpi_version
         self.addDefine('HAVE_MSMPI_VERSION',msmpi_version)
       except:

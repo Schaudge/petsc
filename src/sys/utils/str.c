@@ -135,7 +135,7 @@ PetscErrorCode PetscStrToArrayDestroy(int argc, char **args)
 
    Not Collective; No Fortran Support
 
-   Input Parameters:
+   Input Parameter:
 .  s - pointer to array of strings (final string is a `NULL`)
 
    Output Parameter:
@@ -167,7 +167,7 @@ PetscErrorCode PetscStrArrayallocpy(const char *const *list, char ***t)
 
    Not Collective; No Fortran Support
 
-   Output Parameters:
+   Output Parameter:
 .   list - array of strings
 
    Level: intermediate
@@ -352,7 +352,7 @@ struct _p_PetscToken {
 
    Not Collective; No Fortran Support
 
-   Input Parameters:
+   Input Parameter:
 .  a - pointer to token
 
    Output Parameter:
@@ -443,7 +443,7 @@ PetscErrorCode PetscTokenCreate(const char a[], char b, PetscToken *t)
 
    Not Collective; No Fortran Support
 
-   Input Parameters:
+   Input Parameter:
 .  a - pointer to token
 
    Level: intermediate
@@ -525,23 +525,24 @@ PetscErrorCode PetscGetPetscDir(const char *dir[])
 .   b - the resulting copy of a with replaced strings (`b` can be the same as `a`)
 -   len - the length of `b`
 
+   Level: developer
+
    Notes:
       Replaces ${PETSC_ARCH},${PETSC_DIR},${PETSC_LIB_DIR},${DISPLAY},
-      ${HOMEDIRECTORY},${WORKINGDIRECTORY},${USERNAME}, ${HOSTNAME} with appropriate values
+      ${HOMEDIRECTORY},${WORKINGDIRECTORY},${USERNAME}, ${HOSTNAME}, ${PETSC_MAKE} with appropriate values
       as well as any environmental variables.
 
       `PETSC_LIB_DIR` uses the environmental variable if it exists. `PETSC_ARCH` and `PETSC_DIR` use what
       PETSc was built with and do not use environmental variables.
 
-   Level: developer
 @*/
 PetscErrorCode PetscStrreplace(MPI_Comm comm, const char aa[], char b[], size_t len)
 {
   int           i = 0;
   size_t        l, l1, l2, l3;
   char         *work, *par, *epar = NULL, env[1024], *tfree, *a = (char *)aa;
-  const char   *s[] = {"${PETSC_ARCH}", "${PETSC_DIR}", "${PETSC_LIB_DIR}", "${DISPLAY}", "${HOMEDIRECTORY}", "${WORKINGDIRECTORY}", "${USERNAME}", "${HOSTNAME}", NULL};
-  char         *r[] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+  const char   *s[] = {"${PETSC_ARCH}", "${PETSC_DIR}", "${PETSC_LIB_DIR}", "${DISPLAY}", "${HOMEDIRECTORY}", "${WORKINGDIRECTORY}", "${USERNAME}", "${HOSTNAME}", "${PETSC_MAKE}", NULL};
+  char         *r[] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
   PetscBool     flag;
   static size_t DISPLAY_LENGTH = 265, USER_LENGTH = 256, HOST_LENGTH = 256;
 
@@ -565,6 +566,7 @@ PetscErrorCode PetscStrreplace(MPI_Comm comm, const char aa[], char b[], size_t 
   PetscCall(PetscGetWorkingDirectory(r[5], PETSC_MAX_PATH_LEN));
   PetscCall(PetscGetUserName(r[6], USER_LENGTH));
   PetscCall(PetscGetHostName(r[7], HOST_LENGTH));
+  PetscCall(PetscStrallocpy(PETSC_OMAKE, &r[8]));
 
   /* replace that are in environment */
   PetscCall(PetscOptionsGetenv(comm, "PETSC_LIB_DIR", env, sizeof(env), &flag));
@@ -786,7 +788,7 @@ PetscErrorCode PetscStrcat(char s[], const char t[])
 
   Not Collective, No Fortran Support
 
-  Input Parameters:
+  Input Parameter:
 . t - pointer to string
 
   Output Parameter:

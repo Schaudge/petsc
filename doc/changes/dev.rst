@@ -20,6 +20,7 @@ Changes: Development
 - Add ``--with-coverage-exec`` configure option to specify the coverage-collection tool to be used e.g. ``gcov`` or ``/path/to/llvm-cov-15``
 - Add ``--with-strict-petscerrorcode`` configure option to enable compile-time checking for correct usage of ``PetscErrorCode``, see below
 - Add support for C++20
+- Add support for CUDA-12
 
 .. rubric:: Sys:
 
@@ -126,6 +127,9 @@ Changes: Development
 
 .. rubric:: VecScatter / PetscSF:
 
+- Add experimental support in PetscSF for MPICH MPIX_Stream (with MPICH-4.2.0 and higher). One can enable it via ``-sf_use_stream_aware_mpi``
+- Add an alias option ``-sf_use_gpu_aware_mpi`` to ``-use_gpu_aware_mpi``
+
 - Remove ``SCATTER_LOCAL`` from the enum type since it is not a public value
 - Change ``PetscSFConcatenate()`` to accept ``PetscSFConcatenateRootMode`` parameter; add option to concatenate root spaces globally
 - Add ``PetscSFSetGraphFromCoordinates()`` to construct a graph from fuzzy matching of coordinates; such as occurs for projections between different dimensions or for overlapping meshes
@@ -169,6 +173,7 @@ Changes: Development
 - Add ``KSPSetConvergedNegativeCurvature()`` to declare convergence if negative curvature is detected by the Krylov solver
 - Add MINRES-QLP, available via ``KSPMINRESSetUseQLP()`` or the command line ``-ksp_minres_qlp``
 - Replace old MINRES implementation
+- Add ``KSPMatSolveTranspose()``
 
 .. rubric:: SNES:
 
@@ -190,6 +195,7 @@ Changes: Development
 
 - Add ``DMLabelGetType()``, ``DMLabelSetType()``, ``DMLabelSetUp()``, ``DMLabelRegister()``, ``DMLabelRegisterAll()``, ``DMLabelRegisterDestroy()``
 - Add ``DMLabelEphemeralGetLabel()``, ``DMLabelEphemeralSetLabel()``, ``DMLabelEphemeralGetTransform()``, ``DMLabelEphemeralSetTransform()``
+- Now ``DMGetCellDS()``, ``DMGetRegionDS()``, ``DMSetRegionDS()``, ``DMGetRegionNumDS()``, ``DMSetRegionNumDS()`` can also set and return an input DS
 
 .. rubric:: DMSwarm:
 
@@ -208,19 +214,29 @@ Changes: Development
 - Add ``DMPlexCreateHypercubicMesh()`` to create hypercubic meshes needed for QCD
 - Add ``-dm_plex_shape zbox`` option to ``DMSetFromOptions()`` to generated born-parallel meshes in Z-ordering (a space-filling curve). This may be used as-is with ``-petscpartitioner_type simple`` or redistributed using ``-petscpartitioner_type parmetis`` (or ``ptscotch``, etc.), which is more scalable than creating a serial mesh to partition and distribute.
 - Add ``DMPlexSetIsoperiodicFaceSF()`` to wrap a non-periodic mesh into periodic while preserving the local point representation for both donor and image sheet. This is supported with ``zbox`` above, and allows single-element periodicity.
+- Now ``DMPlexGetCompressedClosure()`` also takes the point orientation
+- Add ``DMPlexReorderCohesiveSupports()``
 
 .. rubric:: FE/FV:
-  - Add ``DMPlexGetLocalOffsetsSupport()`` for interaction with libCEED for FV
+
+- Add ``DMPlexGetLocalOffsetsSupport()`` for interaction with libCEED for FV
+- Now ``PetscFEIntegrateHybridResidual()`` and ``PetscFEIntegrateHybridJacobian()`` also take the input DS
 
 .. rubric:: DMNetwork:
-  - Add DMNetworkGetNumVertices to retrieve the local and global number of vertices in DMNetwork
-  - Add DMNetworkGetNumEdges to retrieve the local and global number of edges in DMNetwork
-  - Add the ability to use ``DMView()`` on a DMNetwork with a PetscViewer with format ``PETSC_VIEWER_ASCII_CSV``
-  - Add the ability to use ``-dmnetwork_view draw`` and ``-dmnetwork_view_distributed draw`` to visualize a DMNetwork with an associated coordinate DM. This currently requires the configured Python environment to have ``matplotlib`` and ``pandas`` installed
+
+- Add DMNetworkGetNumVertices to retrieve the local and global number of vertices in DMNetwork
+- Add DMNetworkGetNumEdges to retrieve the local and global number of edges in DMNetwork
+- Add the ability to use ``DMView()`` on a DMNetwork with a PetscViewer with format ``PETSC_VIEWER_ASCII_CSV``
+- Add the ability to use ``-dmnetwork_view draw`` and ``-dmnetwork_view_distributed draw`` to visualize a DMNetwork with an associated coordinate DM. This currently requires the configured Python environment to have ``matplotlib`` and ``pandas`` installed
 
 .. rubric:: DMStag:
 
 .. rubric:: DT:
+
+- Add ``PetscDTCreateDefaultQuadrature()``
+- Add ``PetscQuadratureComputePermutations()`` to compute the quadrature permutation corresponding to a k-cell orientation and ``PetscDSPermuteQuadPoint()``
+- Add ``PetscQuadratureGetCellType()`` and ``PetscQuadratureSetCellType()``
+- Add ``PetscDSCopy()``
 
 .. rubric:: Fortran:
 

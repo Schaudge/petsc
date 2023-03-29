@@ -119,7 +119,7 @@ PetscErrorCode SNESGetAlwaysComputesFinalResidual(SNES snes, PetscBool *flg)
 
    Logically Collective
 
-   Input Parameters:
+   Input Parameter:
 .  snes - the `SNES` context
 
    Level: advanced
@@ -145,7 +145,7 @@ PetscErrorCode SNESSetFunctionDomainError(SNES snes)
 
    Logically Collective
 
-   Input Parameters:
+   Input Parameter:
 .  snes - the `SNES` context
 
    Level: advanced
@@ -196,10 +196,10 @@ PetscErrorCode SNESSetCheckJacobianDomainError(SNES snes, PetscBool flg)
 
    Logically Collective
 
-   Input Parameters:
+   Input Parameter:
 .  snes - the `SNES` context
 
-   Output Parameters:
+   Output Parameter:
 .  flg  - `PETSC_FALSE` indicates that we don't check Jacobian domain errors after each Jacobian evaluation
 
    Level: advanced
@@ -220,10 +220,10 @@ PetscErrorCode SNESGetCheckJacobianDomainError(SNES snes, PetscBool *flg)
 
    Logically Collective
 
-   Input Parameters:
+   Input Parameter:
 .  snes - the `SNES` context
 
-   Output Parameters:
+   Output Parameter:
 .  domainerror - Set to `PETSC_TRUE` if there's a domain error; `PETSC_FALSE` otherwise.
 
    Level: developer
@@ -244,10 +244,10 @@ PetscErrorCode SNESGetFunctionDomainError(SNES snes, PetscBool *domainerror)
 
    Logically Collective
 
-   Input Parameters:
+   Input Parameter:
 .  snes - the `SNES` context
 
-   Output Parameters:
+   Output Parameter:
 .  domainerror - Set to `PETSC_TRUE` if there's a Jacobian domain error; `PETSC_FALSE` otherwise.
 
    Level: advanced
@@ -849,17 +849,20 @@ PetscErrorCode SNESMonitorSetFromOptions(SNES snes, const char name[], const cha
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode SNESEWSetFromOptions_Private(SNESKSPEW *kctx, MPI_Comm comm, const char *prefix)
+PetscErrorCode SNESEWSetFromOptions_Private(SNESKSPEW *kctx, PetscBool print_api, MPI_Comm comm, const char *prefix)
 {
+  const char *api = print_api ? "SNESKSPSetParametersEW" : NULL;
+
   PetscFunctionBegin;
   PetscOptionsBegin(comm, prefix, "Eisenstat and Walker type forcing options", "KSP");
-  PetscCall(PetscOptionsInt("-ksp_ew_version", "Version 1, 2 or 3", NULL, kctx->version, &kctx->version, NULL));
-  PetscCall(PetscOptionsReal("-ksp_ew_rtol0", "0 <= rtol0 < 1", NULL, kctx->rtol_0, &kctx->rtol_0, NULL));
-  PetscCall(PetscOptionsReal("-ksp_ew_rtolmax", "0 <= rtolmax < 1", NULL, kctx->rtol_max, &kctx->rtol_max, NULL));
-  PetscCall(PetscOptionsReal("-ksp_ew_gamma", "0 <= gamma <= 1", NULL, kctx->gamma, &kctx->gamma, NULL));
-  PetscCall(PetscOptionsReal("-ksp_ew_alpha", "1 < alpha <= 2", NULL, kctx->alpha, &kctx->alpha, NULL));
+  PetscCall(PetscOptionsInt("-ksp_ew_version", "Version 1, 2 or 3", api, kctx->version, &kctx->version, NULL));
+  PetscCall(PetscOptionsReal("-ksp_ew_rtol0", "0 <= rtol0 < 1", api, kctx->rtol_0, &kctx->rtol_0, NULL));
+  kctx->rtol_max = PetscMax(kctx->rtol_0, kctx->rtol_max);
+  PetscCall(PetscOptionsReal("-ksp_ew_rtolmax", "0 <= rtolmax < 1", api, kctx->rtol_max, &kctx->rtol_max, NULL));
+  PetscCall(PetscOptionsReal("-ksp_ew_gamma", "0 <= gamma <= 1", api, kctx->gamma, &kctx->gamma, NULL));
+  PetscCall(PetscOptionsReal("-ksp_ew_alpha", "1 < alpha <= 2", api, kctx->alpha, &kctx->alpha, NULL));
   PetscCall(PetscOptionsReal("-ksp_ew_alpha2", "alpha2", NULL, kctx->alpha2, &kctx->alpha2, NULL));
-  PetscCall(PetscOptionsReal("-ksp_ew_threshold", "0 < threshold < 1", NULL, kctx->threshold, &kctx->threshold, NULL));
+  PetscCall(PetscOptionsReal("-ksp_ew_threshold", "0 < threshold < 1", api, kctx->threshold, &kctx->threshold, NULL));
   PetscCall(PetscOptionsReal("-ksp_ew_v4_p1", "p1", NULL, kctx->v4_p1, &kctx->v4_p1, NULL));
   PetscCall(PetscOptionsReal("-ksp_ew_v4_p2", "p2", NULL, kctx->v4_p2, &kctx->v4_p2, NULL));
   PetscCall(PetscOptionsReal("-ksp_ew_v4_p3", "p3", NULL, kctx->v4_p3, &kctx->v4_p3, NULL));
@@ -1014,15 +1017,7 @@ PetscErrorCode SNESSetFromOptions(SNES snes)
 
   PetscCall(SNESGetOptionsPrefix(snes, &optionsprefix));
   PetscCall(PetscSNPrintf(ewprefix, sizeof(ewprefix), "%s%s", optionsprefix ? optionsprefix : "", "snes_"));
-  PetscCall(SNESEWSetFromOptions_Private(kctx, PetscObjectComm((PetscObject)snes), ewprefix));
-
-  PetscCall(PetscOptionsInt("-snes_ksp_ew_version", "Version 1, 2 or 3", "SNESKSPSetParametersEW", kctx->version, &kctx->version, NULL));
-  PetscCall(PetscOptionsReal("-snes_ksp_ew_rtol0", "0 <= rtol0 < 1", "SNESKSPSetParametersEW", kctx->rtol_0, &kctx->rtol_0, NULL));
-  PetscCall(PetscOptionsReal("-snes_ksp_ew_rtolmax", "0 <= rtolmax < 1", "SNESKSPSetParametersEW", kctx->rtol_max, &kctx->rtol_max, NULL));
-  PetscCall(PetscOptionsReal("-snes_ksp_ew_gamma", "0 <= gamma <= 1", "SNESKSPSetParametersEW", kctx->gamma, &kctx->gamma, NULL));
-  PetscCall(PetscOptionsReal("-snes_ksp_ew_alpha", "1 < alpha <= 2", "SNESKSPSetParametersEW", kctx->alpha, &kctx->alpha, NULL));
-  PetscCall(PetscOptionsReal("-snes_ksp_ew_alpha2", "alpha2", "SNESKSPSetParametersEW", kctx->alpha2, &kctx->alpha2, NULL));
-  PetscCall(PetscOptionsReal("-snes_ksp_ew_threshold", "0 < threshold < 1", "SNESKSPSetParametersEW", kctx->threshold, &kctx->threshold, NULL));
+  PetscCall(SNESEWSetFromOptions_Private(kctx, PETSC_TRUE, PetscObjectComm((PetscObject)snes), ewprefix));
 
   flg = PETSC_FALSE;
   PetscCall(PetscOptionsBool("-snes_monitor_cancel", "Remove all monitors", "SNESMonitorCancel", flg, &flg, &set));
@@ -1709,37 +1704,21 @@ PetscErrorCode SNESCreate(MPI_Comm comm, SNES *outsnes)
 
   PetscCall(PetscHeaderCreate(snes, SNES_CLASSID, "SNES", "Nonlinear solver", "SNES", comm, SNESDestroy, SNESView));
 
-  snes->ops->converged = SNESConvergedDefault;
-  snes->usesksp        = PETSC_TRUE;
-  snes->tolerancesset  = PETSC_FALSE;
-  snes->max_its        = 50;
-  snes->max_funcs      = 10000;
-  snes->norm           = 0.0;
-  snes->xnorm          = 0.0;
-  snes->ynorm          = 0.0;
-  snes->normschedule   = SNES_NORM_ALWAYS;
-  snes->functype       = SNES_FUNCTION_DEFAULT;
-#if defined(PETSC_USE_REAL_SINGLE)
-  snes->rtol = 1.e-5;
-#else
-  snes->rtol = 1.e-8;
-#endif
-  snes->ttol = 0.0;
-#if defined(PETSC_USE_REAL_SINGLE)
-  snes->abstol = 1.e-25;
-#else
-  snes->abstol = 1.e-50;
-#endif
-#if defined(PETSC_USE_REAL_SINGLE)
-  snes->stol = 1.e-5;
-#else
-  snes->stol = 1.e-8;
-#endif
-#if defined(PETSC_USE_REAL_SINGLE)
-  snes->deltatol = 1.e-6;
-#else
-  snes->deltatol = 1.e-12;
-#endif
+  snes->ops->converged       = SNESConvergedDefault;
+  snes->usesksp              = PETSC_TRUE;
+  snes->tolerancesset        = PETSC_FALSE;
+  snes->max_its              = 50;
+  snes->max_funcs            = 10000;
+  snes->norm                 = 0.0;
+  snes->xnorm                = 0.0;
+  snes->ynorm                = 0.0;
+  snes->normschedule         = SNES_NORM_ALWAYS;
+  snes->functype             = SNES_FUNCTION_DEFAULT;
+  snes->rtol                 = PetscDefined(USE_REAL_SINGLE) ? 1.e-5 : 1.e-8;
+  snes->ttol                 = 0.0;
+  snes->abstol               = PetscDefined(USE_REAL_SINGLE) ? 1.e-25 : 1.e-50;
+  snes->stol                 = PetscDefined(USE_REAL_SINGLE) ? 1.e-5 : 1.e-8;
+  snes->deltatol             = PetscDefined(USE_REAL_SINGLE) ? 1.e-6 : 1.e-12;
   snes->divtol               = 1.e4;
   snes->rnorm0               = 0;
   snes->nfuncs               = 0;
@@ -3133,7 +3112,7 @@ static PetscErrorCode SNESSetDefaultComputeJacobian(SNES snes)
 
    Collective
 
-   Input Parameters:
+   Input Parameter:
 .  snes - the `SNES` context
 
    Level: advanced
@@ -3674,7 +3653,7 @@ PetscErrorCode SNESSetForceIteration(SNES snes, PetscBool force)
 
    Logically Collective
 
-   Input Parameters:
+   Input Parameter:
 .  snes - the `SNES` context
 
    Output Parameter:
@@ -4035,7 +4014,7 @@ PetscErrorCode SNESMonitorSet(SNES snes, PetscErrorCode (*f)(SNES, PetscInt, Pet
 
    Logically Collective
 
-   Input Parameters:
+   Input Parameter:
 .  snes - the `SNES` context
 
    Options Database Key:
@@ -4504,7 +4483,7 @@ PetscErrorCode SNESConvergedReasonViewSet(SNES snes, PetscErrorCode (*f)(SNES, v
 
   Collective
 
-  Input Parameters:
+  Input Parameter:
 . snes   - the `SNES` object
 
   Level: advanced
@@ -5348,12 +5327,7 @@ PetscErrorCode KSPPreSolve_SNESEW(KSP ksp, Vec b, Vec x, SNES snes)
       else if (rk < kctx->v4_p3) rtol = kctx->v4_m1 * kctx->rtol_last;
       else rtol = kctx->v4_m2 * kctx->rtol_last;
 
-      if (kctx->rtol_last_2 > kctx->v4_m3 && kctx->rtol_last > kctx->v4_m3 && kctx->rk_last_2 < kctx->v4_p1 && kctx->rk_last < kctx->v4_p1) {
-        rtol = kctx->v4_m4 * kctx->rtol_last;
-        //printf("iter %" PetscInt_FMT ", Eisenstat-Walker (version %" PetscInt_FMT ") KSP rtol=%g (rk %g ps %g %g %g) (AD)\n",snes->iter,kctx->version,(double)rtol,rk,kctx->v4_p1,kctx->v4_p2,kctx->v4_p3);
-      } else {
-        //printf("iter %" PetscInt_FMT ", Eisenstat-Walker (version %" PetscInt_FMT ") KSP rtol=%g (rk %g ps %g %g %g)\n",snes->iter,kctx->version,(double)rtol,rk,kctx->v4_p1,kctx->v4_p2,kctx->v4_p3);
-      }
+      if (kctx->rtol_last_2 > kctx->v4_m3 && kctx->rtol_last > kctx->v4_m3 && kctx->rk_last_2 < kctx->v4_p1 && kctx->rk_last < kctx->v4_p1) rtol = kctx->v4_m4 * kctx->rtol_last;
       kctx->rtol_last_2 = kctx->rtol_last;
       kctx->rk_last_2   = kctx->rk_last;
       kctx->rk_last     = rk;
@@ -5588,11 +5562,15 @@ PetscErrorCode SNESGetNPC(SNES snes, SNES *pc)
   PetscValidHeaderSpecific(snes, SNES_CLASSID, 1);
   PetscValidPointer(pc, 2);
   if (!snes->npc) {
+    void *ctx;
+
     PetscCall(SNESCreate(PetscObjectComm((PetscObject)snes), &snes->npc));
     PetscCall(PetscObjectIncrementTabLevel((PetscObject)snes->npc, (PetscObject)snes, 1));
     PetscCall(SNESGetOptionsPrefix(snes, &optionsprefix));
     PetscCall(SNESSetOptionsPrefix(snes->npc, optionsprefix));
     PetscCall(SNESAppendOptionsPrefix(snes->npc, "npc_"));
+    PetscCall(SNESGetApplicationContext(snes, &ctx));
+    PetscCall(SNESSetApplicationContext(snes->npc, ctx));
     PetscCall(SNESSetCountersReset(snes->npc, PETSC_FALSE));
   }
   *pc = snes->npc;

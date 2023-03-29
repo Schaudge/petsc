@@ -1527,10 +1527,10 @@ static PetscErrorCode MatHYPRESetPreallocation_HYPRE(Mat A, PetscInt dnz, const 
           structure. The size of this array is equal to the number
           of local rows, i.e `m`.
 
+   Level: intermediate
+
    Note:
     If the *nnz parameter is given then the *nz parameter is ignored; for sequential matrices, `onz` and `onnz` are ignored.
-
-   Level: intermediate
 
 .seealso: [](chapter_matrices), `Mat`, `MatCreate()`, `MatMPIAIJSetPreallocation()`, `MATHYPRE`, `MATAIJ`
 @*/
@@ -1781,25 +1781,25 @@ static PetscErrorCode MatScale_HYPRE(Mat A, PetscScalar s)
 #else /* diagonal part */
   ha = hypre_ParCSRMatrixDiag(parcsr);
   if (ha) {
-    PetscInt size, i;
-    HYPRE_Int *ii;
+    PetscInt       size, i;
+    HYPRE_Int     *ii;
     HYPRE_Complex *a;
 
     size = hypre_CSRMatrixNumRows(ha);
-    a = hypre_CSRMatrixData(ha);
-    ii = hypre_CSRMatrixI(ha);
+    a    = hypre_CSRMatrixData(ha);
+    ii   = hypre_CSRMatrixI(ha);
     for (i = 0; i < ii[size]; i++) a[i] *= hs;
   }
   /* offdiagonal part */
   ha = hypre_ParCSRMatrixOffd(parcsr);
   if (ha) {
-    PetscInt size, i;
-    HYPRE_Int *ii;
+    PetscInt       size, i;
+    HYPRE_Int     *ii;
     HYPRE_Complex *a;
 
     size = hypre_CSRMatrixNumRows(ha);
-    a = hypre_CSRMatrixData(ha);
-    ii = hypre_CSRMatrixI(ha);
+    a    = hypre_CSRMatrixData(ha);
+    ii   = hypre_CSRMatrixI(ha);
     for (i = 0; i < ii[size]; i++) a[i] *= hs;
   }
 #endif
@@ -2105,10 +2105,10 @@ static PetscErrorCode MatAXPY_HYPRE(Mat Y, PetscScalar a, Mat X, MatStructure st
 #else
   if (str == SAME_NONZERO_PATTERN) {
     hypre_ParCSRMatrix *x, *y;
-    hypre_CSRMatrix *xloc, *yloc;
-    PetscInt xnnz, ynnz;
-    HYPRE_Complex *xarr, *yarr;
-    PetscBLASInt one = 1, bnz;
+    hypre_CSRMatrix    *xloc, *yloc;
+    PetscInt            xnnz, ynnz;
+    HYPRE_Complex      *xarr, *yarr;
+    PetscBLASInt        one = 1, bnz;
 
     PetscCall(MatHYPREGetParCSR(Y, &y));
     PetscCall(MatHYPREGetParCSR(X, &x));

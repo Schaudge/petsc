@@ -41,7 +41,7 @@ PETSC_EXTERN PetscErrorCode PetscStrcpy(char[], const char[]);
 
   Not Collective, No Fortran Support
 
-  Input Parameters:
+  Input Parameter:
 . a - pointer to string
 
   Level: intermediate
@@ -64,7 +64,7 @@ static inline PetscErrorCode PetscStrtolower(char a[])
 
   Not Collective, No Fortran Support
 
-  Input Parameters:
+  Input Parameter:
 . a - pointer to string
 
   Level: intermediate
@@ -87,7 +87,7 @@ static inline PetscErrorCode PetscStrtoupper(char a[])
 
   Not Collective, No Fortran Support
 
-  Input Parameters:
+  Input Parameter:
 . s - pointer to string
 
   Output Parameter:
@@ -121,7 +121,7 @@ static inline PetscErrorCode PetscStrlen(const char s[], size_t *len)
 
   Not Collective, No Fortran Support
 
-  Input Parameters:
+  Input Parameter:
 . s - pointer to string
 
   Output Parameter:
@@ -490,27 +490,24 @@ static inline PetscErrorCode PetscStrchr(const char a[], char b, char *c[])
 - b - character
 
   Output Parameter:
-. tmp - one past location of `b` in `a`, or `a` if `b` was not found
+. c - one past location of `b` in `a`, or `a` if `b` was not found
 
   Level: intermediate
 
 .seealso: `PetscStrchr()`, `PetscTokenCreate()`, `PetscStrendswith()`, `PetscStrbeginsswith()`
 @*/
-static inline PetscErrorCode PetscStrrchr(const char a[], char b, char *tmp[])
+static inline PetscErrorCode PetscStrrchr(const char a[], char b, char *c[])
 {
   PetscFunctionBegin;
   PetscAssertPointer_Private(a, 1);
-  PetscAssertPointer_Private(tmp, 3);
+  PetscAssertPointer_Private(c, 3);
 #if PetscHasBuiltin(__builtin_strrchr)
-  *tmp = (char *)__builtin_strrchr(a, b);
+  *c = (char *)__builtin_strrchr(a, b);
 #else
-  *tmp = (char *)strrchr(a, b);
+  *c = (char *)strrchr(a, b);
 #endif
-  if (!*tmp) {
-    *tmp = (char *)a;
-  } else {
-    *tmp = *tmp + 1;
-  }
+  if (!*c) *c = (char *)a;
+  else *c = *c + 1;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -787,7 +784,7 @@ static inline PetscErrorCode PetscMemzero(void *a, size_t n)
 .  str2 - Second array
 -  cnt  - Count of the array, not in bytes, but number of entries in the arrays
 
-   Output Parameters:
+   Output Parameter:
 .   e - `PETSC_TRUE` if equal else `PETSC_FALSE`.
 
    Level: intermediate
