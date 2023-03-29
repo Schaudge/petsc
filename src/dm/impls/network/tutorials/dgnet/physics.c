@@ -5,6 +5,9 @@
 */
 
 #include "physics.h"
+#include "petscerror.h"
+#include "petscmat.h"
+#include "petscsystypes.h"
 /* --------------------------------- Shallow Water ----------------------------------- */
 typedef struct {
   PetscReal gravity;
@@ -451,6 +454,16 @@ static PetscErrorCode PhysicsSample_TrafficNetwork(void *vctx, PetscInt initial,
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode PhysicsFluxDer_Traffic(void *vctx, const PetscReal *u, Mat jacobian) {
+    TrafficCtx *traffic = (TrafficCtx *)vctx;
+    
+    PetscFunctionBeginUser;
+    PetscCall(MatSetValue(jacobian,0, 0,TrafficChar(traffic->a, u[0]) ,INSERT_VALUES));
+    PetscCall(MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY)); 
+    PetscCall(MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY)); 
+    PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode PhysicsCreate_Traffic(DGNetwork fvnet)
 {
   TrafficCtx *user;
@@ -465,6 +478,7 @@ PetscErrorCode PhysicsCreate_Traffic(DGNetwork fvnet)
   fvnet->physics.flux           = TrafficFlux2;
   fvnet->physics.flux2          = TrafficFluxVoid;
   fvnet->physics.fluxeig        = TrafficEig;
+  fvnet->physics.fluxder        = PhysicsFluxDer_Traffic;
 
   PetscCall(PetscStrallocpy("density", &fvnet->physics.fieldname[0]));
   user->a = 0.5;
