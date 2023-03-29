@@ -177,6 +177,7 @@ static PetscErrorCode NetRPSetSolverCtx_Traffic(NetRP rp, PetscInt indeg, PetscI
   PetscCall(PetscNew(&traffic_ctx));
   PetscCall(MatCreateDense(PETSC_COMM_SELF,outdeg, indeg, outdeg, indeg, NULL,&traffic_ctx->TrafficDistribution));
   PetscCall(NetRPTraffic_ComputeDistribution(rp, indeg, outdeg, traffic_ctx->TrafficDistribution));
+  PetscCall(MatScale(traffic_ctx->TrafficDistribution, -1.));
   PetscCall(VecCreateSeq(PETSC_COMM_SELF, outdeg, &traffic_ctx->GammaMax));
   PetscCall(VecCreateSeq(PETSC_COMM_SELF,indeg,&traffic_ctx->UB));
   PetscCall(VecDuplicate(traffic_ctx->GammaMax, &traffic_ctx->FluxOut));
