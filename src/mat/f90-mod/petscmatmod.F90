@@ -103,7 +103,7 @@
         use petscvec
 #include <../src/mat/f90-mod/petscmat.h90>
         interface
-#include <../src/mat/f90-mod/ftn-auto-interfaces/petscmat.h90>
+#include <../ftn-auto/mat/f90-mod/petscmat.h90>
         end interface
         end module
 

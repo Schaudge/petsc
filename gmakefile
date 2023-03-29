@@ -88,7 +88,7 @@ ifneq ($(KOKKOS_LIB),)
 langs += kokkos.cxx
 endif
 
-concatlang = $(foreach lang, $(langs), $(srcs-$(1).$(lang):src/%.$(lang)=$(OBJDIR)/%.o))
+concatlang = $(foreach lang, $(langs), $(srcs-$(1).$(lang):%.$(lang)=$(OBJDIR)/%.o))
 srcs.o := $(foreach pkg, $(pkgs), $(call concatlang,$(pkg)))
 concatlangsrc = $(foreach lang, $(langs), $(srcs-$(1).$(lang)))
 csrc := $(foreach pkg, $(pkgs),  $(srcs-$(pkg).c))
@@ -188,27 +188,27 @@ $(call soname_function,%) : $(call libname_function,%)
 
 .PRECIOUS: $(call soname_function,%)
 
-$(OBJDIR)/%.o : src/%.sycl.cxx | $$(@D)/.DIR
+$(OBJDIR)/%.o : %.sycl.cxx | $$(@D)/.DIR
 	$(PETSC_COMPILE.sycl.cxx) $(abspath $<) -o $@
 
-$(OBJDIR)/%.o : src/%.c | $$(@D)/.DIR
+$(OBJDIR)/%.o : %.c | $$(@D)/.DIR
 	$(PETSC_COMPILE.c) $(abspath $<) -o $@
 
-$(OBJDIR)/%.o : src/%.kokkos.cxx | $$(@D)/.DIR
+$(OBJDIR)/%.o : %.kokkos.cxx | $$(@D)/.DIR
 	$(PETSC_COMPILE.kokkos.cxx) $(abspath $<) -o $@
 
-$(OBJDIR)/%.o : src/%.cxx | $$(@D)/.DIR
+$(OBJDIR)/%.o : %.cxx | $$(@D)/.DIR
 	$(PETSC_COMPILE.cxx) $(abspath $<) -o $@
 
-$(OBJDIR)/%.o : src/%.hip.cpp | $$(@D)/.DIR
+$(OBJDIR)/%.o : %.hip.cpp | $$(@D)/.DIR
 	$(PETSC_COMPILE.hip.cpp) $(abspath $<) -o $@
 
-$(OBJDIR)/%.o : src/%.cu | $$(@D)/.DIR
+$(OBJDIR)/%.o : %.cu | $$(@D)/.DIR
 	$(PETSC_COMPILE.cu) $(abspath $<) -o $@ # Compile first so that if there is an error, it comes from a normal compile
 	@$(PETSC_GENDEPS.cu) $(abspath $<) -o $(@:%.o=%.d) # Generate the dependencies for later
 
 FCMOD = cd
-$(OBJDIR)/%.o : src/%.F | $$(@D)/.DIR
+$(OBJDIR)/%.o : %.F | $$(@D)/.DIR
 ifeq ($(FC_MODULE_OUTPUT_FLAG),)
 	$(call quiet,FCMOD) $(MODDIR) && $(FC) -c $(FC_FLAGS) $(FFLAGS) $(FCPPFLAGS) $(FC_DEPFLAGS) $(abspath $<) -o $(abspath $@)
 else
@@ -216,7 +216,7 @@ else
 endif
 	-@$(GFORTRAN_DEP_CLEANUP)
 
-$(OBJDIR)/%.o : src/%.F90 | $$(@D)/.DIR
+$(OBJDIR)/%.o : %.F90 | $$(@D)/.DIR
 ifeq ($(FC_MODULE_OUTPUT_FLAG),)
 	$(call quiet,FCMOD) $(MODDIR) && $(FC) -c $(FC_FLAGS) $(FFLAGS) $(FCPPFLAGS) $(FC_DEPFLAGS) $(abspath $<) -o $(abspath $@)
 else

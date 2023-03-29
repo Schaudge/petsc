@@ -148,7 +148,7 @@
         use petscsys
 #include <../src/vec/f90-mod/petscis.h90>
         interface
-#include <../src/vec/f90-mod/ftn-auto-interfaces/petscis.h90>
+#include <../ftn-auto/vec/f90-mod/petscis.h90>
         end interface
         end module
 
@@ -163,7 +163,7 @@
         use petscao
 #include <../src/vec/f90-mod/petscvec.h90>
         interface
-#include <../src/vec/f90-mod/ftn-auto-interfaces/petscvec.h90>
+#include <../ftn-auto/vec/f90-mod/petscvec.h90>
         end interface
         end module
 

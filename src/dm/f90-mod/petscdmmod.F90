@@ -59,7 +59,7 @@
         use petscdmdef
 #include <../src/dm/f90-mod/petscdmlabel.h90>
         interface
-#include <../src/dm/f90-mod/ftn-auto-interfaces/petscdmlabel.h90>
+#include <../ftn-auto/dm/f90-mod/petscdmlabel.h90>
         end interface
         end module
 
@@ -68,7 +68,7 @@
         use petscmat
 #include <../src/dm/f90-mod/petscdm.h90>
         interface
-#include <../src/dm/f90-mod/ftn-auto-interfaces/petscdm.h90>
+#include <../ftn-auto/dm/f90-mod/petscdm.h90>
         end interface
         end module
 
@@ -76,7 +76,7 @@
         use petscdmpatchdef
 #include <../src/dm/f90-mod/petscdmpatch.h90>
         interface
-#include <../src/dm/f90-mod/ftn-auto-interfaces/petscdmpatch.h90>
+#include <../ftn-auto/dm/f90-mod/petscdmpatch.h90>
         end interface
         end module
 
@@ -84,7 +84,7 @@
         use petscdmforestdef
 #include <../src/dm/f90-mod/petscdmforest.h90>
         interface
-#include <../src/dm/f90-mod/ftn-auto-interfaces/petscdmforest.h90>
+#include <../ftn-auto/dm/f90-mod/petscdmforest.h90>
         end interface
         end module
 
@@ -92,7 +92,7 @@
         use petscdmdef
 #include <../src/dm/f90-mod/petscdt.h90>
         interface
-#include <../src/dm/f90-mod/ftn-auto-interfaces/petscdt.h90>
+#include <../ftn-auto/dm/f90-mod/petscdt.h90>
         end interface
         end module
 

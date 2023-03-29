@@ -336,7 +336,7 @@
 
 #include <../src/sys/f90-mod/petscsys.h90>
         interface
-#include <../src/sys/f90-mod/ftn-auto-interfaces/petscsys.h90>
+#include <../ftn-auto/sys/f90-mod/petscsys.h90>
         end interface
         interface PetscInitialize
           module procedure PetscInitializeWithHelp, PetscInitializeNoHelp, PetscInitializeNoArguments

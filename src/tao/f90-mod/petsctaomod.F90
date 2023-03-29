@@ -9,7 +9,7 @@
         use petscksp
 #include <../src/tao/f90-mod/petsctao.h90>
         interface
-#include <../src/tao/f90-mod/ftn-auto-interfaces/petsctao.h90>
+#include <../ftn-auto/tao/f90-mod/petsctao.h90>
         end interface
         end module petsctao
 

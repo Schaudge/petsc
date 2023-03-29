@@ -7,7 +7,7 @@ import logging
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 from collections import defaultdict
 
-AUTODIRS = set('ftn-auto ftn-custom f90-custom ftn-auto-interfaces'.split()) # Automatically recurse into these, if they exist
+AUTODIRS = set('ftn-custom f90-custom'.split()) # Automatically recurse into these, if they exist
 SKIPDIRS = set('benchmarks build mex-scripts tests tutorials'.split())       # Skip these during the build
 
 def pathsplit(petsc_dir, path):
@@ -178,8 +178,9 @@ class Petsc(object):
     def gen_pkg(self, pkg):
         pkgsrcs = dict()
         for lang in LANGS:
-            pkgsrcs[lang] = []
-        for root, dirs, files in os.walk(os.path.join(self.pkg_dir, 'src', pkg)):
+           pkgsrcs[lang] = []
+        def sub_gen_pkg(dir,pkg):
+          for root, dirs, files in os.walk(os.path.join(dir, pkg)):
             if SKIPDIRS.intersection(pathsplit(self.petsc_dir, root)): continue
             dirs.sort()
             files.sort()
@@ -204,6 +205,8 @@ class Petsc(object):
             for lang, s in source.items():
                 pkgsrcs[lang] += [mkrel(t) for t in s]
             self.gendeps.append(self.relpath(root, 'makefile'))
+        #sub_gen_pkg(os.path.join(self.pkg_dir,'src'), pkg)
+        sub_gen_pkg(os.path.join(self.pkg_dir,'ftn-auto'), pkg)
         return pkgsrcs
 
     def gen_gnumake(self, fd):
