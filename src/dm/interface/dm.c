@@ -6792,7 +6792,7 @@ PetscErrorCode DMGetStratumIS(DM dm, const char name[], PetscInt value, IS *poin
   if (label) {
     PetscCall(DMLabelGetStratumIS(label, value, points));
   } else {
-    PetscCall(ISCreateGeneral(PETSC_COMM_SELF,0,NULL,PETSC_USE_POINTER,points));
+    PetscCall(ISCreateGeneral(PETSC_COMM_SELF, 0, NULL, PETSC_USE_POINTER, points));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
