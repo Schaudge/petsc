@@ -414,6 +414,81 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
       }
     }
     break;
+    case 7: 
+
+      /* double linked grid graph. Same as -1 but double linked and no entrance/exit 
+
+      */
+    m = dgnet->ndaughters;
+    n = dgnet->ndaughters;
+    /* Set local edges and vertices -- proc[0] sets entire network, then distributes */
+    numVertices = 0;
+    numEdges    = 0;
+    edgelist    = NULL;
+    if (!rank) {
+      numVertices = m * n ;
+      numEdges    = 2*((m - 1) * n + (n - 1) * m);
+      PetscCall(PetscCalloc1(2 * numEdges, &edgelist));
+
+      /* Grid Graph Generation */
+      k = 0;
+      for (j = 0; j < n - 1; ++j) {
+        for (i = 0; i < m - 1; ++i) {
+          edgelist[k++] = i + j * m ;
+          edgelist[k++] = i + j * m + 1;
+
+          edgelist[k++] = i + j * m + 1;
+          edgelist[k++] = i + j * m ;
+
+          edgelist[k++] = i + j * m;
+          edgelist[k++] = i + (j + 1) * m;
+
+          edgelist[k++] = i + (j + 1) * m;
+          edgelist[k++] = i + j * m;
+        }
+      }
+      for (j = 0; j < n - 1; j++) {
+        edgelist[k++] = (j + 1) * m-1;
+        edgelist[k++] = (j + 2) * m-1;
+
+        edgelist[k++] = (j + 2) * m-1;
+        edgelist[k++] = (j + 1) * m-1;
+      }
+      for (i = 0; i < m - 1; ++i) {
+        edgelist[k++] = i + (n - 1) * m ;
+        edgelist[k++] = i + (n - 1) * m + 1;
+
+        edgelist[k++] = i + (n - 1) * m + 1;
+        edgelist[k++] = i + (n - 1) * m ;
+      }
+
+      /* Add network components */
+      /*------------------------*/
+      PetscCall(PetscCalloc2(numVertices, &junctions, numEdges, &fvedges));
+      /* vertex */
+      /* embed them as a shifted grid like 
+                --v2--
+        v0---v1<--v3-->v4---v5 
+
+        for the depth 2 case.  */
+
+      /* Edge */
+      for (i = 0; i < numEdges; ++i) {
+        fvedges[i].nnodes = Mx;
+        fvedges[i].length = dgnet->length;
+      }
+
+      PetscReal xx, yy;
+      for (j = 0; j < n; ++j) {
+        for (i = 0; i < m; ++i) {
+          xx                         = j * dgnet->length;
+          yy                         = i * dgnet->length;
+          junctions[i + j * m].x = PetscCosReal(PETSC_PI / 4) * xx + PetscSinReal(PETSC_PI / 4) * yy;
+          junctions[i + j * m].y = -PetscSinReal(PETSC_PI / 4) * xx + PetscCosReal(PETSC_PI / 4) * yy;
+        }
+      }
+    }
+    break;
   default:
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "not done yet");
   }
