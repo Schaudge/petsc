@@ -8,6 +8,7 @@
 
 #include "petscmat.h"
 #include "petscvec.h"
+#include "petscviewer.h"
 #include <petsctao.h>
 #include <petscnetrp.h>
 #include <petscriemannsolver.h>
@@ -222,7 +223,6 @@ PetscErrorCode InitializeProblem(AppCtx *user)
   PetscCall(MatAssemblyBegin(user->TrafficDistribution, MAT_FINAL_ASSEMBLY));
   PetscCall(MatAssemblyEnd(user->TrafficDistribution, MAT_FINAL_ASSEMBLY));
   PetscCall(MatScale(user->TrafficDistribution, -1)); /* negative as things are flipped for the TAO form */
-
   /* Create Vector for the Inequality Constraints. Tao does not create 
   them automatically, for some reason. Matrix for the Jacobian is the Traffic Distribution Matrix (affine operator) */
   PetscCall(VecDuplicate(user->GammaMax, &user->CI));
