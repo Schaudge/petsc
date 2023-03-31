@@ -110,6 +110,7 @@ int main(int argc, char *argv[])
 
   /* Register physical models to be available on the command line */
   PetscCall(PetscFunctionListAdd(&physics, "shallow", PhysicsCreate_Shallow));
+  PetscCall(PetscFunctionListAdd(&physics, "traffic", PhysicsCreate_Traffic));
 
   PetscCall(PetscCalloc1(1, &dgnet)); /* Replace with proper dgnet creation function */
   /* Set default values */
@@ -209,10 +210,11 @@ int main(int argc, char *argv[])
   PetscCall(RiemannSolverSetEigBasis(dgnet->physics.rs, dgnet->physics.eigbasis));
   PetscCall(RiemannSolverSetFlux(dgnet->physics.rs, 1, dgnet->physics.dof, dgnet->physics.flux2));
   PetscCall(RiemannSolverSetLaxCurve(dgnet->physics.rs, dgnet->physics.laxcurve));
+  PetscCall(RiemannSolverSetJacobian(dgnet->physics.rs, dgnet->physics.fluxder));
   PetscCall(RiemannSolverSetUp(dgnet->physics.rs));
 
   /* Set up NetRS */
-  PetscCall(DGNetworkAssignNetRS(dgnet));
+  PetscCall(DGNetworkAssignNetRS_Traffic(dgnet));
   PetscCall(DGNetworkProject(dgnet, dgnet->X, 0.0));
   PetscCall(VecGetSize(dgnet->X, &systemsize));
   PetscCall(PetscPrintf(comm, "\nWe have %" PetscInt_FMT " Dofs\n\n", systemsize));

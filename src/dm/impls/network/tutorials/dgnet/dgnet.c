@@ -465,14 +465,6 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
       /* Add network components */
       /*------------------------*/
       PetscCall(PetscCalloc2(numVertices, &junctions, numEdges, &fvedges));
-      /* vertex */
-      /* embed them as a shifted grid like 
-                --v2--
-        v0---v1<--v3-->v4---v5 
-
-        for the depth 2 case.  */
-
-      /* Edge */
       for (i = 0; i < numEdges; ++i) {
         fvedges[i].nnodes = Mx;
         fvedges[i].length = dgnet->length;
@@ -483,8 +475,8 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
         for (i = 0; i < m; ++i) {
           xx                         = j * dgnet->length;
           yy                         = i * dgnet->length;
-          junctions[i + j * m].x = PetscCosReal(PETSC_PI / 4) * xx + PetscSinReal(PETSC_PI / 4) * yy;
-          junctions[i + j * m].y = -PetscSinReal(PETSC_PI / 4) * xx + PetscCosReal(PETSC_PI / 4) * yy;
+          junctions[i + j * m].x = xx;
+          junctions[i + j * m].y = yy;
         }
       }
     }
@@ -877,6 +869,58 @@ PetscErrorCode DGNetworkAssignNetRS(DGNetwork dgnet)
     } else {
       PetscCall(NetRSAddNetRPatVertex(dgnet->netrs, v, netrpcouple));
     }
+  }
+  PetscCall(NetRSCreateLocalVec(dgnet->netrs, &dgnet->Flux));
+  PetscCall(NetRSCreateLocalVec(dgnet->netrs, &dgnet->RiemannData));
+  PetscCall(NetRPDestroy(&netrpbdry));
+  PetscCall(NetRPDestroy(&netrpcouple));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+static PetscErrorCode TrafficDistribution(NetRP rp, PetscInt indeg, PetscInt outdeg, Mat distribution)
+{
+    PetscScalar *mat; 
+    PetscInt   i,j; 
+    PetscReal  val = 1./(outdeg);
+
+    PetscFunctionBeginUser;
+    PetscCall(MatDenseGetArray(distribution, &mat)); 
+    PetscCheck(indeg ==  outdeg,PetscObjectComm((PetscObject)rp),PETSC_ERR_USER,"Only have traffic distribution matrix for indeg == outdeg  for now");
+    /* equal distribution */
+    for (i=0; i<outdeg; i++) {
+      for(j=0; j<indeg; j++) {
+        mat[i*indeg+j] = val; 
+      }
+    }
+    PetscCall(MatDenseRestoreArray(distribution, &mat));
+    PetscCall(MatView(distribution,PETSC_VIEWER_STDOUT_WORLD));
+    PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode DGNetworkAssignNetRS_Traffic(DGNetwork dgnet)
+{
+  PetscInt v, vStart, vEnd, vdeg;
+  NetRP    netrpbdry, netrpcouple;
+
+  PetscFunctionBegin;
+  PetscCall(DMNetworkGetVertexRange(dgnet->network, &vStart, &vEnd));
+  PetscCall(NetRPCreate(PETSC_COMM_SELF, &netrpbdry));
+  PetscCall(NetRPSetType(netrpbdry, NETRPOUTFLOW));
+  PetscCall(NetRPSetFlux(netrpbdry, dgnet->physics.rs));
+
+  PetscCall(DMNetworkGetVertexRange(dgnet->network, &vStart, &vEnd));
+  PetscCall(NetRPCreate(PETSC_COMM_SELF, &netrpcouple));
+  PetscCall(NetRPSetType(netrpcouple, NETRPTRAFFICLWR));
+  PetscCall(NetRPSetFlux(netrpcouple, dgnet->physics.rs));
+  PetscCall(NetRPTrafficSetDistribution(netrpcouple, TrafficDistribution));
+
+  PetscCall(NetRSCreate(PETSC_COMM_WORLD, &dgnet->netrs));
+  PetscCall(NetRSSetFromOptions(dgnet->netrs));
+  PetscCall(NetRSSetFlux(dgnet->netrs, dgnet->physics.rs));
+  PetscCall(NetRSSetNetwork(dgnet->netrs, dgnet->network));
+  PetscCall(NetRSSetUp(dgnet->netrs));
+
+  for (v = vStart; v < vEnd; v++) {
+      PetscCall(NetRSAddNetRPatVertex(dgnet->netrs, v, netrpcouple));
   }
   PetscCall(NetRSCreateLocalVec(dgnet->netrs, &dgnet->Flux));
   PetscCall(NetRSCreateLocalVec(dgnet->netrs, &dgnet->RiemannData));

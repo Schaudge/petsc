@@ -54,7 +54,24 @@ static PetscErrorCode TrafficDistribution(NetRP rp, PetscInt indeg, PetscInt out
     PetscCall(MatDenseRestoreArray(distribution, &mat));
     PetscFunctionReturn(PETSC_SUCCESS);
 }
+static PetscErrorCode TrafficDistribution2(NetRP rp, PetscInt indeg, PetscInt outdeg, Mat distribution)
+{
+    PetscScalar *mat; 
+    PetscInt   i,j; 
+    PetscReal  val = 1./(outdeg);
 
+    PetscFunctionBeginUser;
+    PetscCall(MatDenseGetArray(distribution, &mat)); 
+    PetscCheck(indeg ==  outdeg,PetscObjectComm((PetscObject)rp),PETSC_ERR_USER,"Only have traffic distribution matrix for indeg == outdeg  for now");
+    /* equal distribution */
+    for (i=0; i<outdeg; i++) {
+      for(j=0; j<indeg; j++) {
+        mat[i*indeg+j] = val; 
+      }
+    }
+    PetscCall(MatDenseRestoreArray(distribution, &mat));
+    PetscFunctionReturn(PETSC_SUCCESS);
+}
 static PetscErrorCode NetRPViewRiemannProblem(NetRP rp,Vec U, Vec Flux)
 {
     MPI_Comm      comm;
@@ -102,7 +119,7 @@ int main(int argc, char *argv[])
   PetscInt      indeg=2,outdeg=2,vdeg,i,num_in_u, num_out_u; 
   PetscScalar  *u;
   PetscBool    *edgein;
-  Vec           U,Flux; 
+  Vec           U,UCopy,Flux; 
 
   PetscCall(PetscInitialize(&argc, &argv, 0, help));
   comm = PETSC_COMM_WORLD;
@@ -138,6 +155,8 @@ int main(int argc, char *argv[])
   PetscOptionsEnd();
 
   PetscCall(VecRestoreArray(U,&u));
+  PetscCall(VecDuplicate(U,&UCopy)); 
+  PetscCall(VecCopy(U, UCopy));
   
   /* Set up Riemann Solver (need a proper riemann physics struct with convienance routine to
    set all the physics parts at once) */
@@ -157,11 +176,20 @@ int main(int argc, char *argv[])
   PetscCall(NetRPSetUp(netrp));
 
   PetscCall(NetRPSolveFlux(netrp, indeg, outdeg, edgein, U, Flux)); 
+
+    PetscCall(VecGetArray(U,&u)); 
+    u[0] = 0.1464466094;
+    u[1] = 0.75; 
+    u[2] = 0.25; 
+    u[3] = 0.853553;
+    PetscCall(VecRestoreArray(U,&u));
+
   PetscCall(NetRPSolveFlux(netrp, indeg, outdeg, edgein, U, Flux)); 
-  PetscCall(NetRPViewRiemannProblem(netrp, U, Flux)); 
+  PetscCall(NetRPSolveFlux(netrp, indeg, outdeg, edgein, UCopy, Flux)); 
 
   PetscCall(PetscFree(edgein));
   PetscCall(VecDestroy(&U)); 
+  PetscCall(VecDestroy(&UCopy));
   PetscCall(VecDestroy(&Flux));
   PetscCall(NetRPDestroy(&netrp));
   PetscCall(PetscFinalize());
@@ -172,5 +200,5 @@ int main(int argc, char *argv[])
     nsize: 1
     test:
       suffix: bennedetto_0
-      args: -indeg 2 -outdeg 2 -edgein_data 0.1464466094,0.75 -edgeout_data 0.25,0.853553
+      args: -indeg 2 -outdeg 2 -edgein_data ,0.75 -edgeout_data 0.25,0.853553
 TEST*/

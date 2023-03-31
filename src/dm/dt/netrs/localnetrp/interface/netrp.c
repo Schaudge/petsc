@@ -1254,6 +1254,43 @@ static PetscErrorCode NetRPFindCacheIndex_DoNotCreate_internal(NetRP rp, PetscIn
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+static PetscErrorCode NetRPViewRiemannProblem(NetRP rp,Vec U, Vec Flux)
+{
+    MPI_Comm      comm;
+    PetscMPIInt   rank;
+    PetscReal     sigma;
+
+    PetscFunctionBeginUser;
+    PetscCall(PetscObjectGetComm((PetscObject)rp, &comm));
+    PetscCallMPI(MPI_Comm_rank(comm, &rank));
+    if(rank == 0) {
+      PetscCall(PetscViewerASCIIPrintf(PETSC_VIEWER_STDOUT_(PETSC_COMM_SELF), "--Riemann Problem--\n" )); 
+      PetscCall(PetscViewerASCIIPushTab(PETSC_VIEWER_STDOUT_(PETSC_COMM_SELF)));
+      
+      PetscCall(PetscViewerASCIIPrintf(PETSC_VIEWER_STDOUT_(PETSC_COMM_SELF), "Riemann Problem Parameters:\n")); 
+      PetscCall(PetscViewerASCIIPushTab(PETSC_VIEWER_STDOUT_(PETSC_COMM_SELF)));
+
+      PetscCall(NetRPTrafficGetFluxMaximumPoint(rp, &sigma)); 
+      PetscCall(PetscViewerASCIIPrintf(PETSC_VIEWER_STDOUT_(PETSC_COMM_SELF), "sigma: %e \n", sigma)); 
+      PetscCall(PetscViewerASCIIPopTab(PETSC_VIEWER_STDOUT_(PETSC_COMM_SELF)));
+
+      PetscCall(PetscViewerASCIIPrintf(PETSC_VIEWER_STDOUT_(PETSC_COMM_SELF), "Riemann Data\n")); 
+      PetscCall(PetscViewerASCIIPushTab(PETSC_VIEWER_STDOUT_(PETSC_COMM_SELF)));
+      
+      PetscCall(VecView(U,PETSC_VIEWER_STDOUT_(PETSC_COMM_SELF))); 
+      
+      PetscCall(PetscViewerASCIIPopTab(PETSC_VIEWER_STDOUT_(PETSC_COMM_SELF)));
+      PetscCall(PetscViewerASCIIPrintf(PETSC_VIEWER_STDOUT_(PETSC_COMM_SELF), "Flux\n")); 
+      PetscCall(PetscViewerASCIIPushTab(PETSC_VIEWER_STDOUT_(PETSC_COMM_SELF)));
+
+      PetscCall(VecView(Flux,PETSC_VIEWER_STDOUT_(PETSC_COMM_SELF))); 
+
+      PetscCall(PetscViewerASCIIPopTab(PETSC_VIEWER_STDOUT_(PETSC_COMM_SELF)));
+      PetscCall(PetscViewerASCIIPopTab(PETSC_VIEWER_STDOUT_(PETSC_COMM_SELF)));
+    }
+
+    PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 /*@
    NetRPSolveFlux - The driver function for solving for Riemann Problem fluxes. This will use the user provided functions 
@@ -1359,9 +1396,12 @@ PetscErrorCode NetRPSolveFlux(NetRP rp, PetscInt vdegin, PetscInt vdegout, Petsc
     PetscCall(TaoGetSolution(rp->tao[index], &Tao_Solution));
     PetscCall(VecCopy(rp->Uin[index], Tao_Solution)); // hard code assumption here for now
     PetscCall(NetRPComputeFluxInPlace_internal(rp, vdegin, Tao_Solution));
+    PetscCall(TaoComputeVariableBounds(rp->tao[index]));
     PetscCall(TaoSolve(rp->tao[index]));
     PetscCall(TaoGetSolution(rp->tao[index], &Tao_Solution));
     PetscCall(NetRPPostSolve(rp, vdegin, vdegout, edgein, Tao_Solution, Flux));
+
+   // PetscCall(NetRPViewRiemannProblem(rp, U, Flux));
     break;
   case Other:
     PetscUseTypeMethod(rp, solveFlux, vdeg, edgein, U, Flux);
@@ -1480,11 +1520,11 @@ PetscErrorCode NetRPSetDestroySolverCtxFunc(NetRP rp, NetRPDestroySolverCtx dest
    Collective 
 
    Input Parameter:
-.  rp - the NetRP context obtained from NetRPCreate()
++ rp - the NetRP context obtained from NetRPCreate()
 .  vdegin  - the number of in edges for the vertex
 .  vdegout - the number of out edges for the vertex
 .  edgein  - array of length vdegin+vdegout indicating whether edgein[i] is point in or out. 
-.  PostSolve - vec containing solution post internal solve. The exact number of entries in this
+-  PostSolve - vec containing solution post internal solve. The exact number of entries in this
                vector depends on the type of solver template used. 
 
   Output Parameter: 

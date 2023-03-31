@@ -316,5 +316,6 @@ extern PetscErrorCode DGNetRHS_V2(TS, PetscReal, Vec, Vec, void *);
 extern PetscErrorCode DGNetRHS_V3(TS, PetscReal, Vec, Vec, void *);
 
 extern PetscErrorCode DGNetworkAssignNetRS(DGNetwork);
+extern PetscErrorCode DGNetworkAssignNetRS_Traffic(DGNetwork);
 extern PetscErrorCode DGNetRHS_NETRS_Nested(TS, PetscReal, Vec, Vec, void *);
 #endif

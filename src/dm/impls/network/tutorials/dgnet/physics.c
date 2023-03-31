@@ -308,7 +308,7 @@ PetscErrorCode PhysicsCreate_Shallow(DGNetwork fvnet)
 
   PetscOptionsBegin(fvnet->comm, fvnet->prefix, "Options for Shallow", "");
   PetscCall(PetscOptionsReal("-parh", "", "", user->parenth, &user->parenth, NULL));
-  PetscCall(PetscOptionsReal("-parv", "", "", user->parenth, &user->parenth, NULL));
+  PetscCall(PetscOptionsReal("-parv", "", "", user->parentv, &user->parentv, NULL));
   PetscOptionsEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -326,21 +326,24 @@ static inline PetscScalar TrafficChar(PetscScalar a, PetscScalar u)
 
 static inline PetscErrorCode TrafficFlux2(void *ctx, const PetscReal *u, PetscReal *f)
 {
-  TrafficCtx *phys = (TrafficCtx *)ctx;
-  f[0]             = phys->a * u[0] * (1. - u[0]);
+    TrafficCtx *phys = (TrafficCtx *)ctx;
+    PetscReal  a = 4.; 
+  PetscFunctionBeginUser;
+  f[0]             = a * u[0] * (1. - u[0]);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static inline void TrafficFluxVoid(void *ctx, const PetscReal *u, PetscReal *f)
 {
   TrafficCtx *phys = (TrafficCtx *)ctx;
-  f[0]             = phys->a * u[0] * (1. - u[0]);
+  PetscReal  a = 4.; 
+  f[0]             = a * u[0] * (1. - u[0]);
 }
 
 static void TrafficEig(void *ctx, const PetscReal *u, PetscScalar *eig)
 {
-  PetscReal a = ((TrafficCtx *)ctx)->a;
-
+  //PetscReal a = ((TrafficCtx *)ctx)->a;
+    PetscReal  a = 4.; 
   eig[0] = TrafficChar(a, u[0]);
 }
 
@@ -404,17 +407,17 @@ static PetscErrorCode PhysicsSample_TrafficNetwork(void *vctx, PetscInt initial,
   case 0:
     if (t > 0) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "Exact solution for case 0 not implemented for t > 0");
     if (edgeid == 0) {
-      u[0] = (x < -2) ? 2 : 1; /* Traffic Break problem ?*/
+      u[0] = (x < -2) ? 1.0 : 0.25; /* Traffic Break problem ?*/
     } else {
-      u[0] = 1;
+      u[0] = 0.5;
     }
     break;
   case 1:
     if (t == 0.0) {
       if (edgeid == 0) {
-        u[0] = PetscSinReal(PETSC_PI * (x / 5.0)) + 2;
+        u[0] = PetscSinReal(PETSC_PI * (x / 5.0));
       } else if (edgeid == 1) {
-        u[0] = PetscSinReal(PETSC_PI * (-x / 5.0)) + 2;
+        u[0] = PetscSinReal(PETSC_PI * (-x / 5.0));
       } else {
         u[0] = 0;
       }
@@ -448,6 +451,13 @@ static PetscErrorCode PhysicsSample_TrafficNetwork(void *vctx, PetscInt initial,
       PetscCall(SNESDestroy(&snes));
     }
     break;
+  case 2: 
+     if (edgeid == 0) {
+      u[0] = 0.8; 
+    } else {
+      u[0] = 0.0;
+    }
+    break;
   default:
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_UNKNOWN_TYPE, "unknown initial condition");
   }
@@ -456,9 +466,9 @@ static PetscErrorCode PhysicsSample_TrafficNetwork(void *vctx, PetscInt initial,
 
 static PetscErrorCode PhysicsFluxDer_Traffic(void *vctx, const PetscReal *u, Mat jacobian) {
     TrafficCtx *traffic = (TrafficCtx *)vctx;
-    
+    PetscReal  a = 4.; 
     PetscFunctionBeginUser;
-    PetscCall(MatSetValue(jacobian,0, 0,TrafficChar(traffic->a, u[0]) ,INSERT_VALUES));
+    PetscCall(MatSetValue(jacobian,0, 0,TrafficChar(a, u[0]) ,INSERT_VALUES));
     PetscCall(MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY)); 
     PetscCall(MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY)); 
     PetscFunctionReturn(PETSC_SUCCESS);
