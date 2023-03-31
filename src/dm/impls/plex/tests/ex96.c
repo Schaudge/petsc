@@ -17,7 +17,7 @@ int main(int argc, char **argv)
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Size of stratum depth: %" PetscInt_FMT "\n", n));
   PetscCall(DMGetStratumIS(dm, "depth", 1, &is));
   if (!is) {
-    PetscPrintf(PETSC_COMM_WORLD, "IS is null\n");
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD, "IS is null\n"));
   } else {
     PetscCall(ISGetIndices(is, &nindices));
     PetscCall(ISView(is, PETSC_VIEWER_STDOUT_SELF));
@@ -28,7 +28,7 @@ int main(int argc, char **argv)
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Size of stratum zorglub: %" PetscInt_FMT "\n", n));
   PetscCall(DMGetStratumIS(dm, "zorglub", 1, &is));
   if (!is) {
-    PetscPrintf(PETSC_COMM_WORLD, "IS is null\n");
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD, "IS is null\n"));
   } else {
     PetscCall(ISGetIndices(is, &nindices));
     PetscCall(ISView(is, PETSC_VIEWER_STDOUT_SELF));
