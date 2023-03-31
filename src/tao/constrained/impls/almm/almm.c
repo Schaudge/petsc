@@ -15,6 +15,7 @@ static PetscErrorCode TaoSolve_ALMM(Tao tao)
   TAO_ALMM          *auglag = (TAO_ALMM *)tao->data;
   TaoConvergedReason reason;
   PetscReal          updated;
+  Vec                PL,PU; 
 
   PetscFunctionBegin;
   /* reset initial multiplier/slack guess */
@@ -25,6 +26,17 @@ static PetscErrorCode TaoSolve_ALMM(Tao tao)
       PetscCall(VecSet(auglag->Yi, 1.0));
     }
     if (tao->eq_constrained) PetscCall(VecSet(auglag->Ye, 1.0));
+  }
+  /* Setup Bound constraints of subsolver */
+  PetscCall(TaoGetVariableBounds(auglag->subsolver, &PL,&PU));
+  if (tao->ineq_constrained) {
+    /* combine opt var bounds with slack bounds */
+    PetscCall(TaoALMMCombinePrimal_Private(tao, tao->XL, auglag->SL,PL));
+    PetscCall(TaoALMMCombinePrimal_Private(tao, tao->XU, auglag->SU,PU));
+  } else {
+    /* no inequality constraints, just copy bounds into the subsolver */
+    PetscCall(VecCopy(tao->XL, PL));
+    PetscCall(VecCopy(tao->XU, PU));
   }
 
   /* compute initial nonlinear Lagrangian and its derivatives */
@@ -140,7 +152,6 @@ static PetscErrorCode TaoSetUp_ALMM(Tao tao)
 {
   TAO_ALMM *auglag = (TAO_ALMM *)tao->data;
   VecType   vec_type;
-  Vec       SL, SU;
   PetscBool is_cg = PETSC_FALSE, is_lmvm = PETSC_FALSE;
 
   PetscFunctionBegin;
@@ -260,16 +271,13 @@ static PetscErrorCode TaoSetUp_ALMM(Tao tao)
     if (!auglag->PU) PetscCall(VecDuplicate(auglag->P, &auglag->PU));
     if (tao->ineq_constrained) {
       /* create lower and upper bounds for slack, set lower to 0 */
-      PetscCall(VecDuplicate(auglag->Ci, &SL));
-      PetscCall(VecSet(SL, 0.0));
-      PetscCall(VecDuplicate(auglag->Ci, &SU));
-      PetscCall(VecSet(SU, PETSC_INFINITY));
+      PetscCall(VecDuplicate(auglag->Ci, &auglag->SL));
+      PetscCall(VecSet(auglag->SL, 0.0));
+      PetscCall(VecDuplicate(auglag->Ci, &auglag->SU));
+      PetscCall(VecSet(auglag->SU, PETSC_INFINITY));
       /* combine opt var bounds with slack bounds */
-      PetscCall(TaoALMMCombinePrimal_Private(tao, tao->XL, SL, auglag->PL));
-      PetscCall(TaoALMMCombinePrimal_Private(tao, tao->XU, SU, auglag->PU));
-      /* destroy work vectors */
-      PetscCall(VecDestroy(&SL));
-      PetscCall(VecDestroy(&SU));
+      PetscCall(TaoALMMCombinePrimal_Private(tao, tao->XL, auglag->SL, auglag->PL));
+      PetscCall(TaoALMMCombinePrimal_Private(tao, tao->XU, auglag->SU, auglag->PU));
     } else {
       /* no inequality constraints, just copy bounds into the subsolver */
       PetscCall(VecCopy(tao->XL, auglag->PL));
@@ -297,6 +305,8 @@ static PetscErrorCode TaoDestroy_ALMM(Tao tao)
       PetscCall(VecDestroy(&auglag->Cework)); /* equality work vector */
     }
     if (tao->ineq_constrained) {
+      PetscCall(VecDestroy(&auglag->SL)); 
+      PetscCall(VecDestroy(&auglag->SU));
       PetscCall(VecDestroy(&auglag->Ps));     /* slack vars */
       PetscCall(PetscFree(auglag->Parr));     /* array of primal vectors */
       PetscCall(VecDestroy(&auglag->LgradS)); /* slack grad */
