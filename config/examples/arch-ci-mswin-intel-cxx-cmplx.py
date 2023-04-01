@@ -15,7 +15,7 @@ if __name__ == '__main__':
   import configure
   configure_options = [
     '--package-prefix-hash='+petsc_hash_pkgs,
-    '--download-fblaslapack=1',
+    '--download-netlib-lapack=1',
     '--with-cc=icl',
     '--with-cxx=icl',
     '--with-fc=ifort',
