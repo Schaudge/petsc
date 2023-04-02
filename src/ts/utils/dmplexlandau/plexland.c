@@ -700,9 +700,12 @@ static PetscErrorCode LandauDMCreateVMeshes(MPI_Comm comm_self, const PetscInt d
             PetscCall(PetscObjectSetOptionsPrefix((PetscObject)dmforest, prefix));
             PetscCall(DMIsForest(dmforest, &isForest));
             if (isForest) {
+              const char     *name;
+              PetscCall(PetscObjectGetName((PetscObject)ctx->plex[grid], &name));
               if (ctx->sphere) PetscCall(DMForestSetBaseCoordinateMapping(dmforest, GeometryDMLandau, ctx));
               PetscCall(DMDestroy(&ctx->plex[grid]));
               ctx->plex[grid] = dmforest; // Forest for adaptivity
+              PetscCall(PetscObjectSetName((PetscObject)ctx->plex[grid], name));
             } else SETERRQ(ctx->comm, PETSC_ERR_PLIB, "Converted to non Forest?");
           } else SETERRQ(ctx->comm, PETSC_ERR_PLIB, "Convert failed?");
         }
@@ -1963,6 +1966,8 @@ PetscErrorCode DMPlexLandauCreateVelocitySpace(MPI_Comm comm, PetscInt dim, cons
     /* forest refinement - forest goes in (if forest), plex comes out */
     if (ctx->use_p4est) {
       DM plex;
+      const char     *name;
+      PetscCall(PetscObjectGetName((PetscObject)ctx->plex[grid], &name));
       PetscCall(adapt(grid, ctx, &Xsub[grid]));                                      // forest goes in, plex comes out
       PetscCall(DMViewFromOptions(ctx->plex[grid], NULL, "-dm_landau_amr_dm_view")); // need to differentiate - todo
       PetscCall(VecViewFromOptions(Xsub[grid], NULL, "-dm_landau_amr_vec_view"));
@@ -1970,6 +1975,7 @@ PetscErrorCode DMPlexLandauCreateVelocitySpace(MPI_Comm comm, PetscInt dim, cons
       PetscCall(DMConvert(ctx->plex[grid], DMPLEX, &plex));
       PetscCall(DMDestroy(&ctx->plex[grid]));
       ctx->plex[grid] = plex;
+      PetscCall(PetscObjectSetName((PetscObject)ctx->plex[grid], name));
     }
 #if !defined(LANDAU_SPECIES_MAJOR)
     PetscCall(DMCompositeAddDM(*pack, ctx->plex[grid]));
