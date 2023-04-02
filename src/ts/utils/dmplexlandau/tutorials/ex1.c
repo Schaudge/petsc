@@ -219,6 +219,13 @@ PetscErrorCode Monitor_nrl(TS ts, PetscInt stepi, PetscReal time, Vec X, void *a
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static Vec s_refined_vec = NULL;
+
+static void f0_identity(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
+{
+  f0[0] = a[0];
+}
+
 PetscErrorCode Monitor(TS ts, PetscInt stepi, PetscReal time, Vec X, void *actx)
 {
   LandauCtx *ctx      = (LandauCtx *)actx; /* user-defined application context */
@@ -241,6 +248,7 @@ PetscErrorCode Monitor(TS ts, PetscInt stepi, PetscReal time, Vec X, void *actx)
       PetscInt nDMs, id;
       DM       pack;
       Vec     *XsubArray = NULL;
+      void (*identity[1])(PetscInt, PetscInt, PetscInt, const PetscInt[], const PetscInt[], const PetscScalar[], const PetscScalar[], const PetscScalar[], const PetscInt[], const PetscInt[], const PetscScalar[], const PetscScalar[], const PetscScalar[], PetscReal, const PetscReal[], PetscInt, const PetscScalar[], PetscScalar[]) = {f0_identity};
       printing           = 1;
       PetscCall(TSGetDM(ts, &pack));
       PetscCall(DMCompositeGetNumberDM(pack, &nDMs));
@@ -250,7 +258,10 @@ PetscErrorCode Monitor(TS ts, PetscInt stepi, PetscReal time, Vec X, void *actx)
       PetscCall(PetscInfo(pack, "ex1 plot step %" PetscInt_FMT ", time = %g\n", id, (double)time));
       PetscCall(PetscMalloc(sizeof(*XsubArray) * nDMs, &XsubArray));
       PetscCall(DMCompositeGetAccessArray(pack, X, nDMs, NULL, XsubArray)); // read only
-      PetscCall(VecViewFromOptions(XsubArray[LAND_PACK_IDX(ctx->batch_view_idx, 0)], NULL, "-ex1_vec_view_e"));
+      //PetscCall(VecViewFromOptions(XsubArray[LAND_PACK_IDX(ctx->batch_view_idx, 0)], NULL, "-ex1_vec_view_e"));
+      PetscCall(DMProjectField(ctx->plex[0], 0.0, XsubArray[LAND_PACK_IDX(ctx->batch_view_idx, 0)], identity, INSERT_VALUES, s_refined_vec));
+      PetscCall(VecViewFromOptions(s_refined_vec, NULL, "-ex1_vec_view_e"));
+      // END
       PetscCall(VecViewFromOptions(XsubArray[LAND_PACK_IDX(ctx->batch_view_idx, 1)], NULL, "-ex1_vec_view_i"));
       // temps
       for (PetscInt grid = 0; grid < ctx->num_grids; grid++) {
@@ -376,12 +387,53 @@ int main(int argc, char **argv)
       PetscCall(SetMaxwellians(ctx->plex[grid], XsubArray[LAND_PACK_IDX(b_id, grid)], 0.0, ctx->thermal_temps, ctx->n, grid, shifts, ctx));
     }
   }
-  PetscCall(DMCompositeRestoreAccessArray(pack, X, nDMs, NULL, XsubArray));
-  PetscCall(PetscFree(XsubArray));
   /* plot */
   PetscCall(DMSetOutputSequenceNumber(ctx->plex[0], -1, 0.0));
   PetscCall(DMSetOutputSequenceNumber(ctx->plex[1], -1, 0.0));
-  PetscCall(DMViewFromOptions(ctx->plex[0], NULL, "-ex1_dm_view_e"));
+  //PetscCall(DMViewFromOptions(ctx->plex[0], NULL, "-ex1_dm_view_e"));
+  PetscSpace     P;
+  PetscInt degree, nref = 0, Nf, cStart;
+  PetscBool simplex;
+  PetscDS            prob;
+  DM refDM;
+  const char     *name;
+  DMPolytopeType ct;
+  // get params
+  PetscCall(DMPlexGetHeightStratum(ctx->plex[0], 0, &cStart, NULL));
+  PetscCall(DMPlexGetCellType(ctx->plex[0], cStart, &ct));
+  simplex = DMPolytopeTypeGetNumVertices(ct) == DMPolytopeTypeGetDim(ct) + 1 ? PETSC_TRUE : PETSC_FALSE;
+  PetscCall(PetscFEGetBasisSpace(ctx->fe[0], &P));
+  PetscCall(PetscSpaceGetDegree(P, &degree, NULL));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "HAVE degree %d\n",degree));
+  while (degree > 1) { nref++; degree /= 2; }
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "HAVE nref %d\n",nref));
+  // clone
+  PetscCall(DMClone(ctx->plex[0], &refDM));
+  PetscCall(DMGetDS(ctx->plex[0], &prob));
+  PetscCall(PetscDSGetNumFields(prob, &Nf));
+  for (PetscInt f=0 ; f < Nf ; f++) {
+    PetscFE fe;
+    PetscCall(PetscFECreateDefault(PETSC_COMM_SELF, dim, 1, simplex, NULL, 1, &fe)); // get prefix and name from fe?
+    PetscCall(PetscObjectGetName((PetscObject)ctx->fe[f], &name));
+    PetscCall(PetscObjectSetName((PetscObject)fe, name));
+    PetscCall(DMSetField(refDM, f, NULL, (PetscObject)fe));
+    PetscCall(PetscFEDestroy(&fe));
+  }
+  PetscCall(DMCreateDS(refDM));
+  for (PetscInt f=0 ; f < nref ; f++) {
+    DM newdm;
+    PetscCall(DMRefine(refDM, PETSC_COMM_SELF, &newdm));
+    PetscCall(DMDestroy(&refDM));
+    refDM = newdm;
+  }
+  PetscCall(PetscObjectGetName((PetscObject)ctx->plex[0], &name));
+  PetscCall(PetscObjectSetName((PetscObject)refDM, name));
+  PetscCall(DMViewFromOptions(refDM, NULL, "-ex1_dm_view_e"));
+  // make refined vector
+  PetscCall(DMCreateGlobalVector(refDM, &s_refined_vec));
+  // END
+  PetscCall(DMCompositeRestoreAccessArray(pack, X, nDMs, NULL, XsubArray));
+  PetscCall(PetscFree(XsubArray));
   PetscCall(DMViewFromOptions(ctx->plex[1], NULL, "-ex1_dm_view_i"));
   /* Create timestepping solver context */
   PetscCall(TSCreate(PETSC_COMM_SELF, &ts));
@@ -432,6 +484,7 @@ int main(int argc, char **argv)
   PetscCall(TSDestroy(&ts));
   PetscCall(TSDestroy(&ts_nrl));
   PetscCall(VecDestroy(&X));
+  PetscCall(VecDestroy(&s_refined_vec));
   PetscCall(DMPlexLandauDestroyVelocitySpace(&pack));
   PetscCall(PetscFinalize());
   return 0;
