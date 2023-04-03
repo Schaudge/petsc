@@ -26,6 +26,15 @@ if __name__ == '__main__':
     '--with-clanguage=c',
     '--download-kokkos',
     '--download-kokkos-kernels',
+
+    '--download-metis',
+    '--download-parmetis',
+    '--download-superlu_dist',
+    '--download-superlu_dist-commit=master',
+    '--download-strumpack',
+    '--download-strumpack-commit=master',
+    '--download-scalapack',
+
     '--download-hypre-configure-arguments=--enable-unified-memory',
     '--download-magma',
     '--with-magma-fortran-bindings=0',
