@@ -860,7 +860,7 @@ class Configure(config.base.Configure):
         const double x = dist(mt);
         std::cout << x << ret << std::endl;
         std::vector<std::unique_ptr<double>> vector;
-        std::sort(vector.begin(), vector.end(), [](std::unique_ptr<double> &a, std::unique_ptr<double> &b) { return *a < *b; });
+        std::sort(vector.begin(), vector.end(), [](const std::unique_ptr<double> &a, const std::unique_ptr<double> &b) { return *a < *b; });
         """
       )
 
