@@ -81,7 +81,6 @@ static PetscErrorCode ExtrudeTorus(MPI_Comm comm, DM *dm, AppCtx *ctx)
 {
   DM dmtorus;
   PetscReal L;
-  //DMBoundaryType periodicity[] = {DM_BOUNDARY_NONE,DM_BOUNDARY_NONE,DM_BOUNDARY_PERIODIC};
   Vec             coordinates;
   PetscScalar    *coords, R_0 = ctx->R;
   PetscInt N,dim;
@@ -198,7 +197,7 @@ static PetscErrorCode SetupPrimalProblem(DM dm,  AppCtx *ctx)
   PetscCall(DMAddBoundary(dm, DM_BC_ESSENTIAL, "wall", label, 1, &id, 0, 0, NULL, (void (*)(void))u_zero, NULL, ctx, NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
+ 
 static PetscErrorCode SetupDiscretization(DM dm, const char name[], PetscErrorCode (*setup)(DM, AppCtx *), AppCtx *ctx)
 {
   DM             cdm = dm;
@@ -212,18 +211,21 @@ static PetscErrorCode SetupDiscretization(DM dm, const char name[], PetscErrorCo
   PetscCall(DMGetDimension(dm, &dim));
   PetscCall(DMPlexGetHeightStratum(dm, 0, &cStart, NULL));
   PetscCall(DMPlexGetCellType(dm, cStart, &ct));
-  simplex = DMPolytopeTypeGetNumVertices(ct) == DMPolytopeTypeGetDim(ct) + 1 ? PETSC_TRUE : PETSC_FALSE;
-
+  PetscCall(DMPlexIsSimplex(dm, &simplex));
+  PetscCall(PetscPrintf(PetscObjectComm((PetscObject)dm), "--> simplex = %d\n", simplex));
   PetscCall(PetscSNPrintf(prefix, PETSC_MAX_PATH_LEN, "%s_", name));
   PetscCall(PetscFECreateDefault(PetscObjectComm((PetscObject)dm), dim, 1, simplex, name ? prefix : NULL, -1, &fe));
   PetscCall(PetscObjectSetName((PetscObject)fe, name));
+  PetscCall(PetscFEViewFromOptions(fe, NULL, "-fe_view"));
   PetscCall(DMSetField(dm, 0, NULL, (PetscObject)fe));
   PetscCall(DMCreateDS(dm));
   PetscCall((*setup)(dm, ctx));
   while (cdm) {
     PetscCall(DMCopyDisc(dm, cdm));
+    PetscCall(DMViewFromOptions(cdm, NULL, "-tor_crs_dm_view"));
     PetscCall(DMGetCoarseDM(cdm, &cdm));
   }
+
   PetscCall(PetscFEDestroy(&fe));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -242,24 +244,32 @@ int main(int argc, char **argv)
   comm = PETSC_COMM_WORLD;
   PetscCall(ProcessOptions(comm, ctx));// ctx->dim probably 3 or 2 for debugging
   /* Create Plex */
-  PetscCall(SNESCreate(PETSC_COMM_WORLD, &snes));
   PetscCall(CreateMesh(PETSC_COMM_WORLD, ctx, &dm));
   PetscCall(DMGetDimension(dm, &dim)); // probably 2
   PetscCheck(dim <= ctx->dim && dim > 1, comm,PETSC_ERR_ARG_WRONG,"DM dim (%d) > -dim %d",(int)dim,ctx->dim);
-  if (ctx->dim > dim) PetscCall(ExtrudeTorus(comm, &dm, ctx)); // 3D extrude
-  else PetscCall(OriginShift2D(comm, dm, ctx)); // shift to center
+  if (ctx->dim > dim) {
+    PetscCall(ExtrudeTorus(comm, &dm, ctx)); // 3D extrude
+    PetscCall(PetscObjectSetName((PetscObject)dm, "tokamak"));
+  } else {
+    PetscCall(OriginShift2D(comm, dm, ctx)); // shift to center
+    PetscCall(PetscObjectSetName((PetscObject)dm, "plane"));
+  }
   PetscCall(DMViewFromOptions(dm, NULL, "-tor_dm_view"));
   /* Primal system */
+  PetscCall(SNESCreate(PETSC_COMM_WORLD, &snes));
   PetscCall(SNESSetDM(snes, dm));
   PetscCall(SetupDiscretization(dm, "potential", SetupPrimalProblem, ctx));
   PetscCall(DMCreateGlobalVector(dm, &u));
-  PetscCall(VecSet(u, 1.0));
-  PetscCall(PetscObjectSetName((PetscObject)u, "potential"));
+  PetscCall(VecSet(u, 0.0));
+  PetscCall(PetscObjectSetName((PetscObject)u, "u"));
   PetscCall(DMPlexSetSNESLocalFEM(dm, ctx, ctx, ctx));
   PetscCall(SNESSetFromOptions(snes));
+  PetscCall(DMSetOutputSequenceNumber(dm, 0, 0.0));
+  PetscCall(VecViewFromOptions(u, NULL, "-tor_vec_view"));
   PetscCall(SNESSolve(snes, NULL, u));
+  PetscCall(DMSetOutputSequenceNumber(dm, 1, 0.0));
+  PetscCall(VecViewFromOptions(u, NULL, "-tor_vec_view"));
   PetscCall(SNESGetSolution(snes, &u));
-  PetscCall(VecViewFromOptions(u, NULL, "-potential_view"));
   // cleanup
   PetscCall(DMDestroy(&dm));
   PetscCall(VecDestroy(&u));
@@ -271,7 +281,7 @@ int main(int argc, char **argv)
 /*TEST
 
    testset:
-     args: -dm_plex_simplex 0 -radius_inflation 1.1 -dm_plex_dim 2 -tor_dm_view hdf5:f.h5 -dm_refine_hierarchy 3 -potential_petscspace_degree 3
+     args: -dim 3 -dm_plex_simplex 0 -dm_plex_box_faces 2,2 -radius_inflation 1.1 -dm_plex_dim 2 -tor_dm_view hdf5:f.h5 -tor_vec_view hdf5:f.h5::append -np_phi 4 -dm_refine 1 -potential_petscspace_degree 2 -dm_plex_transform_extrude_use_tensor 0 -snes_type ksponly -ksp_monitor 
      requires: !complex hdf5
 
      test:
