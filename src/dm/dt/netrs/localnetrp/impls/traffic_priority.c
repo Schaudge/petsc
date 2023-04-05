@@ -499,6 +499,7 @@ PetscErrorCode NetRPCreate_TrafficLWR_Priority(NetRP rp)
   rp->cachetype             = DirectedVDeg;
   rp->physicsgenerality     = Generic; /* needs a rework in how these work as it is generic on single valued fluxes (that asssumes concavity) */
 
+  traffic->priority_weight = 1e-4; /* default small weight */
   PetscCall(PetscObjectComposeFunction((PetscObject)rp, "NetRPTrafficSetDistribution_C", NetRPTrafficSetDistribution_LWR));
   PetscCall(PetscObjectComposeFunction((PetscObject)rp, "NetRPTrafficSetFluxMaximumPoint_C", NetRPTrafficSetFluxMaximumPoint_LWR));
   PetscCall(PetscObjectComposeFunction((PetscObject)rp, "NetRPTrafficGetFluxMaximumPoint_C", NetRPTrafficGetFluxMaximumPoint_LWR));
