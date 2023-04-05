@@ -45,7 +45,6 @@ typedef PetscErrorCode (*NetRPCreateLinearStar)(NetRP, PetscInt, PetscBool *, Ve
 typedef PetscErrorCode (*NetRPCreateLinearFlux)(NetRP, PetscInt, PetscBool *, Vec, Vec, Mat); /* form is: NumEdges,EdgeIn? Array, U, Linear System for solving for Flux */
 typedef PetscErrorCode (*NetRPNonlinearEval)(NetRP, PetscInt, PetscBool *, Vec, Vec, Vec);    /* form is: NumEdges,EdgeIn? Array, U, F(u), where F(U) is the nonlinear eval for the nonlinear Network Riemann Problem */
 typedef PetscErrorCode (*NetRPNonlinearJac)(NetRP, PetscInt, PetscBool *, Vec, Vec, Mat);     /* form is: NumEdges,EdgeIn? Array, U, Jacobian of the NonlinearEval */
-//typedef PetscErrorCode (*NetRPTaoInitialSetUp)(NetRP,PetscInt, PetscBool *, Tao);             /* form is: NumEdges,EdgeIn? Array, Tao object for optimization */
 typedef PetscErrorCode (*NetRPSetSolverCtx)(NetRP, PetscInt, PetscInt, void **);
 typedef PetscErrorCode (*NetRPDestroySolverCtx)(NetRP, PetscInt, PetscInt, void *);
 
@@ -53,11 +52,12 @@ typedef PetscErrorCode (*NetRPPreSolveFunc)(NetRP, PetscInt, PetscInt, PetscBool
 typedef PetscErrorCode (*NetRPPostSolveFunc)(NetRP, PetscInt, PetscInt, PetscBool *, Vec, Vec, void *);
 
 typedef const char *NetRPType;
-  #define NETRPBLANK      "netrpblank"
-  #define NETRPLINEARIZED "netrplinearized"
-  #define NETRPOUTFLOW    "netrpoutflow"
-  #define NETRPEXACTSWE   "netrpexactswe"
-  #define NETRPTRAFFICLWR  "netrptrafficLWR"
+  #define NETRPBLANK               "netrpblank"
+  #define NETRPLINEARIZED          "netrplinearized"
+  #define NETRPOUTFLOW             "netrpoutflow"
+  #define NETRPEXACTSWE            "netrpexactswe"
+  #define NETRPTRAFFICLWR          "netrptrafficLWR"
+  #define NETRPTRAFFICLWR_PRIORITY "netrptrafficLWRpriority"
 
 PETSC_EXTERN PetscErrorCode NetRPInitializePackage(void);
 PETSC_EXTERN PetscErrorCode NetRPFinalizePackage(void);
@@ -138,7 +138,7 @@ PETSC_EXTERN PetscErrorCode NetRPSetNonlinearJac(NetRP, NetRPNonlinearJac);
 PETSC_INTERN PetscErrorCode NetRPCreateLinear(NetRP, PetscInt, Mat *, Vec *);
 PETSC_INTERN PetscErrorCode NetRPCreateKSP(NetRP, PetscInt, KSP *);
 PETSC_INTERN PetscErrorCode NetRPCreateSNES(NetRP, PetscInt, SNES *);
-PETSC_INTERN PetscErrorCode NetRPCreateTao(NetRP, PetscInt, PetscInt, void *,Tao *);
+PETSC_INTERN PetscErrorCode NetRPCreateTao(NetRP, PetscInt, PetscInt, void *, Tao *);
 
 /* internal access routines */
 /* internal for now, as these could be easily used to shoot yourself in the foot */
@@ -150,12 +150,15 @@ PETSC_INTERN PetscErrorCode NetRPCreateTao(NetRP, PetscInt, PetscInt, void *,Tao
   PETSC_INTERN PetscErrorCode NetRPGetMat(NetRP,PetscInt,Mat*); 
 */
 
-
 /* Traffic Specific Functions */
 
-typedef PetscErrorCode (*NetRPTrafficDistribution)(NetRP, PetscInt, PetscInt,Mat);
+typedef PetscErrorCode (*NetRPTrafficDistribution)(NetRP, PetscInt, PetscInt, Mat);
+typedef PetscErrorCode (*NetRPTrafficPriorityVec)(NetRP, PetscInt, PetscInt, Vec);
 
-PETSC_EXTERN PetscErrorCode NetRPTrafficSetDistribution(NetRP,NetRPTrafficDistribution); 
-PETSC_EXTERN PetscErrorCode NetRPTrafficSetFluxMaximumPoint(NetRP,PetscReal); 
-PETSC_EXTERN PetscErrorCode NetRPTrafficGetFluxMaximumPoint(NetRP,PetscReal*);
+PETSC_EXTERN PetscErrorCode NetRPTrafficSetDistribution(NetRP, NetRPTrafficDistribution);
+PETSC_EXTERN PetscErrorCode NetRPTrafficSetFluxMaximumPoint(NetRP, PetscReal);
+PETSC_EXTERN PetscErrorCode NetRPTrafficGetFluxMaximumPoint(NetRP, PetscReal *);
+
+PETSC_EXTERN PetscErrorCode NetRPTrafficSetPriorityVec(NetRP, NetRPTrafficPriorityVec);
+PETSC_EXTERN PetscErrorCode NetRPTrafficSetPriorityWeight(NetRP, PetscReal);
 #endif

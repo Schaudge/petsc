@@ -40,7 +40,7 @@ struct _NetRPOps {
   PetscErrorCode (*setupmat)(NetRP, PetscInt, Mat);
   PetscErrorCode (*setupksp)(NetRP, PetscInt, KSP);
   PetscErrorCode (*setupsnes)(NetRP, PetscInt, SNES);
-  PetscErrorCode (*setuptao)(NetRP, PetscInt, PetscInt,void*, Tao); // edges in and edges out
+  PetscErrorCode (*setuptao)(NetRP, PetscInt, PetscInt, void *, Tao); // edges in and edges out
   PetscErrorCode (*setupjac)(NetRP, PetscInt, Mat);
   PetscErrorCode (*solveStar)(NetRP, PetscInt, PetscBool *, Vec, Vec);             /* form is: DMNetwork, Vertex, U, UStar */
   PetscErrorCode (*solveFlux)(NetRP, PetscInt, PetscBool *, Vec, Vec);             /* form is: DMNetwork, Vertex, U, Flux */

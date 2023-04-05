@@ -414,9 +414,9 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
       }
     }
     break;
-    case 7: 
+  case 7:
 
-      /* double linked grid graph. Same as -1 but double linked and no entrance/exit 
+    /* double linked grid graph. Same as -1 but double linked and no entrance/exit 
 
       */
     m = dgnet->ndaughters;
@@ -426,19 +426,19 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
     numEdges    = 0;
     edgelist    = NULL;
     if (!rank) {
-      numVertices = m * n ;
-      numEdges    = 2*((m - 1) * n + (n - 1) * m);
+      numVertices = m * n;
+      numEdges    = 2 * ((m - 1) * n + (n - 1) * m);
       PetscCall(PetscCalloc1(2 * numEdges, &edgelist));
 
       /* Grid Graph Generation */
       k = 0;
       for (j = 0; j < n - 1; ++j) {
         for (i = 0; i < m - 1; ++i) {
-          edgelist[k++] = i + j * m ;
+          edgelist[k++] = i + j * m;
           edgelist[k++] = i + j * m + 1;
 
           edgelist[k++] = i + j * m + 1;
-          edgelist[k++] = i + j * m ;
+          edgelist[k++] = i + j * m;
 
           edgelist[k++] = i + j * m;
           edgelist[k++] = i + (j + 1) * m;
@@ -448,18 +448,18 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
         }
       }
       for (j = 0; j < n - 1; j++) {
-        edgelist[k++] = (j + 1) * m-1;
-        edgelist[k++] = (j + 2) * m-1;
+        edgelist[k++] = (j + 1) * m - 1;
+        edgelist[k++] = (j + 2) * m - 1;
 
-        edgelist[k++] = (j + 2) * m-1;
-        edgelist[k++] = (j + 1) * m-1;
+        edgelist[k++] = (j + 2) * m - 1;
+        edgelist[k++] = (j + 1) * m - 1;
       }
       for (i = 0; i < m - 1; ++i) {
-        edgelist[k++] = i + (n - 1) * m ;
+        edgelist[k++] = i + (n - 1) * m;
         edgelist[k++] = i + (n - 1) * m + 1;
 
         edgelist[k++] = i + (n - 1) * m + 1;
-        edgelist[k++] = i + (n - 1) * m ;
+        edgelist[k++] = i + (n - 1) * m;
       }
 
       /* Add network components */
@@ -473,8 +473,8 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
       PetscReal xx, yy;
       for (j = 0; j < n; ++j) {
         for (i = 0; i < m; ++i) {
-          xx                         = j * dgnet->length;
-          yy                         = i * dgnet->length;
+          xx                     = j * dgnet->length;
+          yy                     = i * dgnet->length;
           junctions[i + j * m].x = xx;
           junctions[i + j * m].y = yy;
         }
@@ -878,22 +878,20 @@ PetscErrorCode DGNetworkAssignNetRS(DGNetwork dgnet)
 }
 static PetscErrorCode TrafficDistribution(NetRP rp, PetscInt indeg, PetscInt outdeg, Mat distribution)
 {
-    PetscScalar *mat; 
-    PetscInt   i,j; 
-    PetscReal  val = 1./(outdeg);
+  PetscScalar *mat;
+  PetscInt     i, j;
+  PetscReal    val = 1. / (outdeg);
 
-    PetscFunctionBeginUser;
-    PetscCall(MatDenseGetArray(distribution, &mat)); 
-    PetscCheck(indeg ==  outdeg,PetscObjectComm((PetscObject)rp),PETSC_ERR_USER,"Only have traffic distribution matrix for indeg == outdeg  for now");
-    /* equal distribution */
-    for (i=0; i<outdeg; i++) {
-      for(j=0; j<indeg; j++) {
-        mat[i*indeg+j] = val; 
-      }
-    }
-    PetscCall(MatDenseRestoreArray(distribution, &mat));
-    PetscCall(MatView(distribution,PETSC_VIEWER_STDOUT_WORLD));
-    PetscFunctionReturn(PETSC_SUCCESS);
+  PetscFunctionBeginUser;
+  PetscCall(MatDenseGetArray(distribution, &mat));
+  PetscCheck(indeg == outdeg, PetscObjectComm((PetscObject)rp), PETSC_ERR_USER, "Only have traffic distribution matrix for indeg == outdeg  for now");
+  /* equal distribution */
+  for (i = 0; i < outdeg; i++) {
+    for (j = 0; j < indeg; j++) { mat[i * indeg + j] = val; }
+  }
+  PetscCall(MatDenseRestoreArray(distribution, &mat));
+  PetscCall(MatView(distribution, PETSC_VIEWER_STDOUT_WORLD));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkAssignNetRS_Traffic(DGNetwork dgnet)
@@ -919,9 +917,7 @@ PetscErrorCode DGNetworkAssignNetRS_Traffic(DGNetwork dgnet)
   PetscCall(NetRSSetNetwork(dgnet->netrs, dgnet->network));
   PetscCall(NetRSSetUp(dgnet->netrs));
 
-  for (v = vStart; v < vEnd; v++) {
-      PetscCall(NetRSAddNetRPatVertex(dgnet->netrs, v, netrpcouple));
-  }
+  for (v = vStart; v < vEnd; v++) { PetscCall(NetRSAddNetRPatVertex(dgnet->netrs, v, netrpcouple)); }
   PetscCall(NetRSCreateLocalVec(dgnet->netrs, &dgnet->Flux));
   PetscCall(NetRSCreateLocalVec(dgnet->netrs, &dgnet->RiemannData));
   PetscCall(NetRPDestroy(&netrpbdry));
