@@ -161,4 +161,6 @@ PETSC_EXTERN PetscErrorCode NetRPTrafficGetFluxMaximumPoint(NetRP, PetscReal *);
 
 PETSC_EXTERN PetscErrorCode NetRPTrafficSetPriorityVec(NetRP, NetRPTrafficPriorityVec);
 PETSC_EXTERN PetscErrorCode NetRPTrafficSetPriorityWeight(NetRP, PetscReal);
+PETSC_EXTERN PetscErrorCode NetRPTrafficGetPriorityWeight(NetRP, PetscReal*);
+
 #endif

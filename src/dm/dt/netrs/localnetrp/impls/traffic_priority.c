@@ -1,5 +1,6 @@
 #include "petscmat.h"
 #include "petscmath.h"
+#include "petscoptions.h"
 #include "petscriemannsolver.h"
 #include "petscsys.h"
 #include "petscsystypes.h"
@@ -318,12 +319,6 @@ static PetscErrorCode NetRPPostSolve_Traffic(NetRP rp, PetscInt indeg, PetscInt 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode NetRPSetFromOptions_Traffic(PetscOptionItems *PetscOptionsObject, NetRP rp)
-{
-  PetscFunctionBegin;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 static PetscErrorCode NetRPView_Traffic(NetRP rp, PetscViewer viewer)
 {
   PetscFunctionBegin;
@@ -478,6 +473,19 @@ static PetscErrorCode NetRPSetup_Traffic(NetRP rp)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+
+static PetscErrorCode NetRPSetFromOptions_Traffic(PetscOptionItems *PetscOptionsObject, NetRP rp)
+{
+  PetscBool flg; 
+  TrafficCtx *traffic = (TrafficCtx *)rp->data;
+  PetscReal  w = traffic->priority_weight; 
+
+  PetscFunctionBegin;
+  PetscOptionsHeadBegin(PetscOptionsObject, "NetRP LWR Priority Traffic Options");
+  PetscCall(PetscOptionsReal("-netrp_traffic_priority_weight", "Weight of the traffic priority in the objective", "NetRP", w,&w,&flg));
+  if(flg) PetscCall(NetRPTrafficSetPriorityWeight(rp, w));
+  PetscOptionsHeadEnd(); 
+}
 PetscErrorCode NetRPCreate_TrafficLWR_Priority(NetRP rp)
 {
   TrafficCtx *traffic;
