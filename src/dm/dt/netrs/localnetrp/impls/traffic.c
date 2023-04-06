@@ -154,7 +154,7 @@ static PetscErrorCode NetRPSetUpTao_Traffic(NetRP rp, PetscInt indeg, PetscInt o
   PetscCall(TaoSetGradient(tao, NULL, FormObjectiveGradient, ctx));
   PetscCall(TaoSetObjectiveAndGradient(tao, NULL, FormmObjectiveAndGradient, ctx));
 
-  PetscCall(VecCreateSeq(PETSC_COMM_SELF, indeg * dof, &CI));
+  PetscCall(VecCreateSeq(PETSC_COMM_SELF, outdeg * dof, &CI));
   PetscCall(TaoSetInequalityConstraintsRoutine(tao, CI, FormInequalityConstraints, ctx));
   PetscCall(VecDestroy(&CI));
 

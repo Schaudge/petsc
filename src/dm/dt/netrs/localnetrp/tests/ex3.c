@@ -49,16 +49,29 @@ static PetscErrorCode TrafficDistribution(NetRP rp, PetscInt indeg, PetscInt out
 
   PetscFunctionBeginUser;
   PetscCall(MatDenseGetArray(distribution, &mat));
-  PetscCheck((indeg == 2 && outdeg == 2) || outdeg == 1, PetscObjectComm((PetscObject)rp), PETSC_ERR_USER, "Only have traffic distribution matrix for indeg 2 and outdeg 2 for now");
-  if (outdeg == 2) {
+
+  if(outdeg == 2 && indeg == 2) {
     /* 2x2 matrix from benedettos book */
-    mat[0 * indeg + 0] = 1. / 3.;
-    mat[1 * indeg + 0] = 1. / 4.;
-    mat[0 * indeg + 1] = 2. / 3.;
-    mat[1 * indeg + 1] = 3. / 4.;
-  } else if (outdeg == 1) { /* only possible matrix for this case */
+    mat[0 * outdeg + 0] = 1. / 3.;
+    mat[1 * outdeg + 0] = 1. / 4.;
+    mat[0 * outdeg + 1] = 2. / 3.;
+    mat[1 * outdeg + 1] = 3. / 4.;
+  } else if (outdeg == 1) {
+  /* only possible matrix for this case */
     for (i = 0; i < indeg; i++) { mat[i] = 1.0; }
+  } else if (outdeg == 2 && indeg == 3) {
+    mat[0 * outdeg + 0] = 1. / 3.;
+    mat[0 * outdeg + 1] = 2. / 3.;
+
+    mat[1 * outdeg + 0] = 1. / 4.;
+    mat[1 * outdeg + 1] = 3. / 4.;
+
+    mat[2 * outdeg + 0] = 1. / 3.;
+    mat[2 * outdeg + 1] = 2. / 3.;
+  } else {
+    SETERRQ(PetscObjectComm((PetscObject)rp), PETSC_ERR_USER, "Only have traffic distribution matrix for indeg 2 and outdeg 2 for now");
   }
+
   PetscCall(MatDenseRestoreArray(distribution, &mat));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -193,4 +206,6 @@ int main(int argc, char *argv[])
     test:
       suffix: bennedetto_0
       args: -indeg 2 -outdeg 2 -edgein_data 0.1464466094,0.75 -edgeout_data 0.25,0.853553
+    note: solution should be 1/3,2/3
+    test : -indeg 2 -outdeg 1 -edgein_data 1,0.2113248654 -edgeout_data 0.0 -netrp_type netrptrafficLWRpriority
 TEST*/

@@ -1741,11 +1741,21 @@ PetscErrorCode TaoDefaultCMonitor(Tao tao, void *ctx)
 PetscErrorCode TaoSolutionMonitor(Tao tao, void *ctx)
 {
   PetscViewer viewer = (PetscViewer)ctx;
+  PetscBool  isascii; 
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
   PetscValidHeaderSpecific(viewer, PETSC_VIEWER_CLASSID, 2);
-  PetscCall(VecView(tao->solution, viewer));
+  PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &isascii));
+  if (isascii) {  
+    PetscCall(PetscViewerASCIIPrintf(viewer,"Solution \n"));
+    PetscCall(PetscViewerASCIIPushTab(viewer));
+    PetscCall(VecView(tao->solution, viewer));
+    PetscCall(PetscViewerASCIIPopTab(viewer));
+  } 
+  else {
+    PetscCall(VecView(tao->solution, viewer));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1768,11 +1778,21 @@ PetscErrorCode TaoSolutionMonitor(Tao tao, void *ctx)
 PetscErrorCode TaoGradientMonitor(Tao tao, void *ctx)
 {
   PetscViewer viewer = (PetscViewer)ctx;
+  PetscBool  isascii; 
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
   PetscValidHeaderSpecific(viewer, PETSC_VIEWER_CLASSID, 2);
-  PetscCall(VecView(tao->gradient, viewer));
+  PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &isascii));
+  if (isascii) {  
+    PetscCall(PetscViewerASCIIPrintf(viewer,"Gradient \n"));
+    PetscCall(PetscViewerASCIIPushTab(viewer));
+    PetscCall(VecView(tao->gradient, viewer));
+    PetscCall(PetscViewerASCIIPopTab(viewer));
+  } 
+  else {
+    PetscCall(VecView(tao->gradient, viewer));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1795,11 +1815,21 @@ PetscErrorCode TaoGradientMonitor(Tao tao, void *ctx)
 PetscErrorCode TaoStepDirectionMonitor(Tao tao, void *ctx)
 {
   PetscViewer viewer = (PetscViewer)ctx;
+  PetscBool  isascii; 
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
   PetscValidHeaderSpecific(viewer, PETSC_VIEWER_CLASSID, 2);
-  PetscCall(VecView(tao->stepdirection, viewer));
+  PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &isascii));
+  if (isascii) {  
+    PetscCall(PetscViewerASCIIPrintf(viewer,"Step Direction \n"));
+    PetscCall(PetscViewerASCIIPushTab(viewer));
+    PetscCall(VecView(tao->stepdirection, viewer));
+    PetscCall(PetscViewerASCIIPopTab(viewer));
+  } 
+  else {
+    PetscCall(VecView(tao->stepdirection, viewer));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

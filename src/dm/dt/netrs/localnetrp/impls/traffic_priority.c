@@ -73,7 +73,7 @@ static PetscErrorCode FormObjectiveGradient(Tao tao, Vec X, Vec G, void *ctx)
   PetscFunctionBegin;
   PetscCall(VecDot(X, solver_ctx->priority, &innerprod));
   PetscCall(VecAXPBYPCZ(G, 2 * w, -2 * w * innerprod, 0.0, X, solver_ctx->priority));
-  PetscCall(VecShift(G, 1.0));
+  PetscCall(VecShift(G, -1.0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -107,7 +107,7 @@ static PetscErrorCode FormmObjectiveAndGradient(Tao tao, Vec X, PetscReal *f, Ve
   PetscCall(VecRestoreArrayRead(solver_ctx->priority, &p));
 
   PetscCall(VecAXPBYPCZ(G, 2 * w, -2 * w * innerprod, 0.0, X, solver_ctx->priority));
-  PetscCall(VecShift(G, 1.0));
+  PetscCall(VecShift(G, -1.0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -195,7 +195,7 @@ static PetscErrorCode NetRPSetUpTao_Traffic(NetRP rp, PetscInt indeg, PetscInt o
   PetscCall(TaoSetGradient(tao, NULL, FormObjectiveGradient, ctx));
   PetscCall(TaoSetObjectiveAndGradient(tao, NULL, FormmObjectiveAndGradient, ctx));
 
-  PetscCall(VecCreateSeq(PETSC_COMM_SELF, indeg * dof, &CI));
+  PetscCall(VecCreateSeq(PETSC_COMM_SELF, outdeg * dof, &CI));
   PetscCall(TaoSetInequalityConstraintsRoutine(tao, CI, FormInequalityConstraints, ctx));
   PetscCall(VecDestroy(&CI));
 
@@ -206,7 +206,7 @@ static PetscErrorCode NetRPSetUpTao_Traffic(NetRP rp, PetscInt indeg, PetscInt o
   PetscCall(TaoSetVariableBoundsRoutine(tao, VariableBound, ctx));
 
   PetscCall(TaoSetType(tao, TAOALMM));
-  PetscCall(TaoSetTolerances(tao, 1e-4, 0.0, 0.0));
+  PetscCall(TaoSetTolerances(tao, 1e-3, 0.0, 0.0)); // this seems to be as low as I can go with default tao parameters. 
   PetscCall(TaoSetConstraintTolerances(tao, 1e-4, 0.0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -215,6 +215,7 @@ static PetscErrorCode NetRPSetSolverCtx_Traffic(NetRP rp, PetscInt indeg, PetscI
 {
   TrafficCtx       *ctx = (TrafficCtx *)rp->data;
   TrafficSolverCtx *traffic_ctx;
+
 
   PetscFunctionBegin;
   PetscCall(PetscNew(&traffic_ctx));
@@ -473,18 +474,18 @@ static PetscErrorCode NetRPSetup_Traffic(NetRP rp)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-
 static PetscErrorCode NetRPSetFromOptions_Traffic(PetscOptionItems *PetscOptionsObject, NetRP rp)
 {
-  PetscBool flg; 
+  PetscBool   flg;
   TrafficCtx *traffic = (TrafficCtx *)rp->data;
-  PetscReal  w = traffic->priority_weight; 
+  PetscReal   w       = traffic->priority_weight;
 
   PetscFunctionBegin;
   PetscOptionsHeadBegin(PetscOptionsObject, "NetRP LWR Priority Traffic Options");
-  PetscCall(PetscOptionsReal("-netrp_traffic_priority_weight", "Weight of the traffic priority in the objective", "NetRP", w,&w,&flg));
-  if(flg) PetscCall(NetRPTrafficSetPriorityWeight(rp, w));
-  PetscOptionsHeadEnd(); 
+  PetscCall(PetscOptionsReal("-netrp_traffic_priority_weight", "Weight of the traffic priority in the objective", "NetRP", w, &w, &flg));
+  if (flg) PetscCall(NetRPTrafficSetPriorityWeight(rp, w));
+  PetscOptionsHeadEnd();
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 PetscErrorCode NetRPCreate_TrafficLWR_Priority(NetRP rp)
 {
@@ -507,7 +508,7 @@ PetscErrorCode NetRPCreate_TrafficLWR_Priority(NetRP rp)
   rp->cachetype             = DirectedVDeg;
   rp->physicsgenerality     = Generic; /* needs a rework in how these work as it is generic on single valued fluxes (that asssumes concavity) */
 
-  traffic->priority_weight = 1e-4; /* default small weight */
+  traffic->priority_weight = 1e-2; /* Small weight large enough to be above the tao gatol */
   PetscCall(PetscObjectComposeFunction((PetscObject)rp, "NetRPTrafficSetDistribution_C", NetRPTrafficSetDistribution_LWR));
   PetscCall(PetscObjectComposeFunction((PetscObject)rp, "NetRPTrafficSetFluxMaximumPoint_C", NetRPTrafficSetFluxMaximumPoint_LWR));
   PetscCall(PetscObjectComposeFunction((PetscObject)rp, "NetRPTrafficGetFluxMaximumPoint_C", NetRPTrafficGetFluxMaximumPoint_LWR));
