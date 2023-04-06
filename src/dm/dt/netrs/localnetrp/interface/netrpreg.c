@@ -36,7 +36,7 @@ PetscErrorCode NetRPRegisterAll(void)
   PetscCall(NetRPRegister(NETRPOUTFLOW, NetRPCreate_Outflow));
   PetscCall(NetRPRegister(NETRPEXACTSWE, NetRPCreate_ExactSWE));
   PetscCall(NetRPRegister(NETRPTRAFFICLWR, NetRPCreate_Traffic));
-  PetscCall(NetRPRegister(NETRPTRAFFICLWR_PRIORITY, NetRPCreate_Traffic));
+  PetscCall(NetRPRegister(NETRPTRAFFICLWR_PRIORITY, NetRPCreate_TrafficLWR_Priority));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
