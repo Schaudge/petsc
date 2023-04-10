@@ -143,9 +143,9 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
   const PetscScalar *xx, *ff, *vals;
   PetscScalar       curvature, ststmp, *sty_array;
   PetscReal         curvtol;
-  PetscInt          N, n, low, high, *is_indices, i, j, sty_LDA;
+  PetscInt          n, low, high, *is_indices, i, j, N, sty_LDA;
   MatFactorInfo     info;
-  IS                shift_is;
+  IS                shift_is, full_is;
 
   PetscFunctionBegin;
   if (!lmvm->m) PetscFunctionReturn(PETSC_SUCCESS);
@@ -227,17 +227,20 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       PetscCall(MatDestroy(&lbfgs->L));
       PetscCall(MatDestroy(&lbfgs->D));
       PetscCall(MatDestroy(&lbfgs->R));
+      PetscCall(MatDestroy(&lbfgs->Rinv));
       PetscCall(VecDestroy(&lbfgs->rwork1));
       PetscCall(VecDestroy(&lbfgs->rwork2));
       PetscCall(VecDestroy(&lbfgs->rwork3));
       PetscCall(VecDestroy(&lbfgs->rwork4));
 
       /* Setting IS for shift */
+      PetscCall(VecGetSize(X, &N));
       PetscCall(PetscMalloc1(lmvm->k+1, &is_indices));
       for (i = 0; i < lmvm->k+1; i++) {
         is_indices[i] = (i + lbfgs->idx_begin) % (lmvm->k+1); 
       }
       PetscCall(ISCreate(PetscObjectComm((PetscObject)B), &shift_is));
+      PetscCall(ISCreateStride(PetscObjectComm((PetscObject)B), N, 0, 1, &full_is));
       PetscCall(ISSetType(shift_is, ISGENERAL));
       PetscCall(ISGeneralSetIndices(shift_is, lmvm->k+1, is_indices, PETSC_OWN_POINTER));
       /* Generate submatrices that span only the stored iterates */
@@ -247,21 +250,34 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       /* Shifted, reality matrix indexing:  */
       /* | 4 , 3 | */
       /* | 2 , 1 | */
-      PetscCall(MatDenseGetArrayAndMemType(lbfgs->StYfull, &sty_array, NULL));
-      PetscCall(MatDenseGetLDA(lbfgs->StYfull, &sty_LDA));
-      PetscCall(MatCreateDenseMatchingVec(X, lmvm->m, n, lmvm->m, sty_LDA, sty_array + lbfgs->idx_begin*(sty_LDA+1) , &lbfgs->StYfull_1));//TODO not sure about global-local issue here?
-      PetscCall(MatCreateDenseMatchingVec(X, lmvm->m, n, lmvm->m, sty_LDA, sty_array + lbfgs->idx_begin*sty_LDA, &lbfgs->StYfull_2));
-      PetscCall(MatCreateDenseMatchingVec(X, lmvm->m, n, lmvm->m, sty_LDA, sty_array + lbfgs->idx_begin, &lbfgs->StYfull_3));//Some are prob N-idx_begin... double check
-      PetscCall(MatCreateDenseMatchingVec(X, lmvm->m, n, lmvm->m, sty_LDA, sty_array, &lbfgs->StYfull_4));
-      PetscCall(PetscFree(is_indices));
-      PetscCall(ISDestroy(&shift_is));
-      PetscCall(MatDenseRestoreArrayAndMemType(lbfgs->StYfull, &sty_array));
+      //PLAN 1: 
+      //PetscCall(MatDenseGetArrayAndMemType(lbfgs->StYfull, &sty_array, NULL));
+      //PetscCall(MatDenseGetLDA(lbfgs->StYfull, &sty_LDA));
+      //PetscCall(VecCreateMatDense(X, lmvm->m, n, lmvm->m, sty_LDA, sty_array + lbfgs->idx_begin*(sty_LDA+1) , &lbfgs->StYfull_1));//TODO not sure about global-local issue here?
+      //PetscCall(VecCreateMatDense(X, lmvm->m, n, lmvm->m, sty_LDA, sty_array + lbfgs->idx_begin*sty_LDA, &lbfgs->StYfull_2));
+      //PetscCall(VecCreateMatDense(X, lmvm->m, n, lmvm->m, sty_LDA, sty_array + lbfgs->idx_begin, &lbfgs->StYfull_3));
+      //PetscCall(VecCreateMatDense(X, lmvm->m, n, lmvm->m, sty_LDA, sty_array, &lbfgs->StYfull_4));
+      //PetscCall(PetscFree(is_indices));
+      //PetscCall(ISDestroy(&shift_is));
+      //PetscCall(MatDenseRestoreArrayAndMemType(lbfgs->StYfull, &sty_array));
+      ////Block matrices pointers. Now get ST,YT,L,D,R
+      //// On second thought, too cumbersome. Below option is prob better?
+
+      //PLAN 2:
+      //I imagine MatSubMatrixVirtualUpdate would be better, but... IS size is potentially non-static.
+      PetscCall(MatCreateSubMatrixVirtual(lbfgs->STfull, shift_is, full_is, &lbfgs->ST));
+      PetscCall(MatCreateSubMatrixVirtual(lbfgs->YTfull, shift_is, full_is, &lbfgs->YT));
+      PetscCall(MatCreateSubMatrixVirtual(lbfgs->StYfull, shift_is, shift_is, &lbfgs->StY));
+      PetscCall(MatCreateSubMatrixVirtual(lbfgs->Lfull, shift_is, shift_is, &lbfgs->L));
+      PetscCall(MatCreateSubMatrixVirtual(lbfgs->Dfull, shift_is, shift_is, &lbfgs->D));
+      PetscCall(MatCreateSubMatrixVirtual(lbfgs->Rfull, shift_is, shift_is, &lbfgs->R));
+      PetscCall(MatCreateSubMatrix(lbfgs->Rfull, shift_is, shift_is, MAT_INITIAL_MATRIX, &lbfgs->Rinv));
+
+      PetscCall(ISDestroy(&full_is));
       /* Generate the work vectors from the submatrices */
       PetscCall(MatCreateVecs(lbfgs->R, &lbfgs->rwork1, &lbfgs->rwork2));
       PetscCall(MatCreateVecs(lbfgs->R, &lbfgs->rwork3, &lbfgs->rwork4));
       /* Factor the R matrix for inversion */
-      PetscCall(MatDestroy(&lbfgs->Rinv));
-      PetscCall(MatDuplicate(lbfgs->R, MAT_COPY_VALUES, &lbfgs->Rinv));
       //PetscCall(MatGetOrdering(lbfgs->Rinv, MATORDERINGRCM, &perm, &iperm));
       PetscCall(MatFactorInfoInitialize(&info));
       info.fill = 0.0;
@@ -348,6 +364,10 @@ static PetscErrorCode MatReset_LMVMCDBFGS(Mat B, PetscBool destructive)
     PetscCall(MatDestroy(&lbfgs->Lfull));
     PetscCall(MatDestroy(&lbfgs->Dfull));
     PetscCall(MatDestroy(&lbfgs->Rfull));
+    PetscCall(MatDestroy(&lbfgs->StYfull_1));
+    PetscCall(MatDestroy(&lbfgs->StYfull_2));
+    PetscCall(MatDestroy(&lbfgs->StYfull_3));
+    PetscCall(MatDestroy(&lbfgs->StYfull_4));
     PetscCall(VecDestroy(&lbfgs->rwork1));
     PetscCall(VecDestroy(&lbfgs->rwork2));
     PetscCall(VecDestroy(&lbfgs->rwork3));
@@ -400,7 +420,7 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     PetscCall(VecDuplicate(F, &lmvm->Fprev));
     if (lmvm->m > 0) {
       /* Create iteration storage matrices */
-      PetscCall(MatCreateDenseMatchingVec(X, lmvm->m, n, lmvm->m, N, NULL, &lbfgs->STfull));
+      PetscCall(VecCreateMatDense(X, lmvm->m, n, lmvm->m, N, NULL, &lbfgs->STfull));
       PetscCall(MatDuplicate(lbfgs->STfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->YTfull));
       MatType ttt;
       MatGetType(lbfgs->STfull,	 &ttt);
