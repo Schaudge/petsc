@@ -5,15 +5,15 @@
 */
 
 typedef struct {
-  Mat       diag_bfgs;                        /* diagonalized Hessian init */
-  Mat       STfull, YTfull;                   /* large matrices (m x n) */
-  Mat       StYfull_1, StYfull_2, StYfull_3, StYfull_4; 
-  Mat       StYfull, Lfull, Dfull, Rfull;     /* small matrices (m x m) */
-  Mat       ST, YT, StY, L, D, R, Rinv;       /* submatrices that span only the existing updates */
-  Vec       rwork1, rwork2, rwork3, rwork4;   /* small work vectors (m) matching submatrices */
-  Vec       lwork1, lwork2;                   /* large work vectors (n) */
-  PetscInt  watchdog, max_seq_rejects;        /* tracker to reset after a certain # of consecutive rejects */
-  PetscInt  idx_begin;                        /* tracks beginning index of matrix queue */
+  Mat       diag_bfgs;                                   /* diagonalized Hessian init */
+  Mat       STfull, YTfull;                              /* large matrices (m x n) */
+  Mat       StYfull_1, StYfull_2, StYfull_3, StYfull_4;  /* Pointer to 2x2 block sub-matrices */
+  Mat       StYfull, Lfull, Dfull, Rfull;                /* small matrices (m x m) */
+  Mat       ST, YT, StY, L, D, R, Rinv;                  /* submatrices that span only the existing updates */
+  Vec       rwork1, rwork2, rwork3, rwork4;              /* small work vectors (m) matching submatrices */
+  Vec       lwork1, lwork2;                              /* large work vectors (n) */
+  PetscInt  watchdog, max_seq_rejects;                   /* tracker to reset after a certain # of consecutive rejects */
+  PetscInt  idx_begin;                                   /* tracks beginning index of matrix queue */
   PetscBool allocated;
   PetscInt *idx_cols;
   PetscInt *idx_rows;
