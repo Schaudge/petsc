@@ -61,7 +61,7 @@ int main(int argc, char **argv)
   /* Allocate vectors for the solution and gradient */
   if (cuda){
     PetscCall(VecCreateSeqCUDA(PETSC_COMM_SELF, user.n, &x));
-    PetscCall(MatCreateDenseMatchingVec(x, user.n, user.n, PETSC_DECIDE, PETSC_DECIDE, NULL, &H));
+    PetscCall(VecCreateMatDense(x, user.n, user.n, PETSC_DECIDE, PETSC_DECIDE, NULL, &H));
   } else {
     PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &x));
     PetscCall(MatCreateSeqBAIJ(PETSC_COMM_SELF, 2, user.n, user.n, 1, NULL, &H));
