@@ -7,6 +7,7 @@
 typedef struct {
   Mat       diag_bfgs;                        /* diagonalized Hessian init */
   Mat       STfull, YTfull;                   /* large matrices (m x n) */
+  Mat       StYfull_1, StYfull_2, StYfull_3, StYfull_4; 
   Mat       StYfull, Lfull, Dfull, Rfull;     /* small matrices (m x m) */
   Mat       ST, YT, StY, L, D, R, Rinv;       /* submatrices that span only the existing updates */
   Vec       rwork1, rwork2, rwork3, rwork4;   /* small work vectors (m) matching submatrices */
@@ -18,7 +19,6 @@ typedef struct {
   PetscInt *idx_rows;
   PetscReal delta, delta_min, delta_max;
   MatType   dense_type;
-  IS        shift_is;                      /* keeps track of beginning of matrix row */
 } Mat_CDBFGS;
 
 PETSC_INTERN PetscErrorCode MatView_LMVMCDBFGS(Mat, PetscViewer);
