@@ -17,6 +17,7 @@ typedef struct {
   PetscBool allocated;
   PetscReal delta, delta_min, delta_max;
   MatType   dense_type;
+  MatCDBFGS_RinvTypes Rinv_type;
 } Mat_CDBFGS;
 
 PETSC_INTERN PetscErrorCode MatView_LMVMCDBFGS(Mat, PetscViewer);
