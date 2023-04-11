@@ -38,6 +38,20 @@ PetscErrorCode MatCDBFGSApplyJ0Inv(Mat B, Vec F, Vec dX)
 
 /*------------------------------------------------------------*/
 
+static PetscErrorCode MatSolveUpperTriangularRecycleOrder(Mat_CDBFGS *lfbgs, Mat R, PetscInt lowest_index, Vec b, Vec x)
+{
+  PetscFunctionBegin;
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode MatSolveUpperTriangularRecycleOrderTranspose(Mat_CDBFGS *lfbgs, Mat R, PetscInt lowest_index, Vec b, Vec x)
+{
+  PetscFunctionBegin;
+  PetscFunctionReturn(0);
+}
+
+/*------------------------------------------------------------*/
+
 static PetscErrorCode MatSolve_LMVMCDBFGS(Mat B, Vec F, Vec dX)
 {
   Mat_LMVM          *lmvm = (Mat_LMVM*)B->data;
@@ -46,41 +60,42 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat B, Vec F, Vec dX)
   PetscFunctionBegin;
   VecCheckSameSize(F, 2, dX, 3);
   VecCheckMatCompatible(B, dX, 3, F, 2);
-  /* Start with the H0 term */
+  /* Start with the J0 term */
   PetscCall(MatCDBFGSApplyJ0Inv(B, F, dX));
   if (lmvm->k == -1) {
     PetscFunctionReturn(PETSC_SUCCESS); /* No updates stored yet */
   }
 
-  /* Apply the Phi^T = [Y^TH; S^T] to the RHS vector F */
-  /* The result is stored in two halves, (rwork1 = Y^T H F) and (rwork2 = S^T F) */
-  PetscCall(MatCDBFGSApplyJ0Inv(B, F, lbfgs->lwork1));
-  PetscCall(MatMult(lbfgs->YT, lbfgs->lwork1, lbfgs->rwork1));
-  PetscCall(MatMult(lbfgs->ST, F, lbfgs->rwork2));
+  // work_0 = Y^T * J0 * F
+  if (lbfgs->Wfull != NULL) {
+    PetscCall(MatMultTranspose(lbfgs->Wfull, F, lbfgs->work_0));
+  } else {
+    PetscCall(MatMultTranspose(lbfgs->Yfull, dX, lbfgs->work_0));
+  }
 
-  /* Calculate dX = HY R^{-T) rwork2 */
-  /* This concludes operations with top half of M */
-  PetscCall(MatSolve(lbfgs->Rinv, lbfgs->rwork2, lbfgs->rwork3));
-  PetscCall(VecScale(lbfgs->rwork3, -1.0));
-  PetscCall(MatMultTranspose(lbfgs->YT, lbfgs->rwork3, lbfgs->lwork1));
-  PetscCall(MatCDBFGSApplyJ0Inv(B, lbfgs->lwork1, lbfgs->lwork2));
-  PetscCall(VecAXPY(dX, 1.0, lbfgs->lwork2));
+  // work_1 = S^T * F
+  PetscCall(MatMultTranspose(lbfgs->Sfull, F, lbfgs->work_1));
 
-  /* Calculate rwork3 = -R^{-T} rwork1 */
-  PetscCall(MatSolveTranspose(lbfgs->Rinv, lbfgs->rwork1, lbfgs->rwork3));
-  PetscCall(VecScale(lbfgs->rwork3, -1.0));
+  // work_2 = Rbar^{-1} work_1
+  PetscCall(MatSolveUpperTriangularRecycleOrder(lbfgs, lbfgs->Rbar, lbfgs->idx_begin, lbfgs->work_1, lbfgs->work_2));
 
-  /* Calculate rwork3 += R^{-T}(D + YtHY)R^{-1} rwork2 */
-  PetscCall(MatSolve(lbfgs->Rinv, lbfgs->rwork2, lbfgs->rwork4));
-  PetscCall(MatMultTranspose(lbfgs->YT, lbfgs->rwork4, lbfgs->lwork1));
-  PetscCall(MatCDBFGSApplyJ0Inv(B, lbfgs->lwork1, lbfgs->lwork2));
-  PetscCall(MatMult(lbfgs->YT, lbfgs->lwork2, lbfgs->rwork2));
-  PetscCall(MatMultAdd(lbfgs->D, lbfgs->rwork4, lbfgs->rwork2, lbfgs->rwork2));
-  PetscCall(MatSolveTransposeAdd(lbfgs->Rinv, lbfgs->rwork2, lbfgs->rwork3, lbfgs->rwork3));
-  
-  /* Calculate dX += S rwork3 */
-  /* This concludes operations with bottom half of M */
-  PetscCall(MatMultTransposeAdd(lbfgs->ST, lbfgs->rwork3, dX, dX));
+  // work_1 = C * work_2 + work_0
+  PetscCall(MatMultAdd(lbfgs->C, lbfgs->work_2, lbfgs->work_0, lbfgs->work_1));
+
+  // work_0 = Rbar^{-T} work_1
+  PetscCall(MatSolveUpperTriangularRecycleOrderTranspose(lbfgs, lbfgs->Rbar, lbfgs->idx_begin, lbfgs->work_1, lbfgs->work_0));
+
+  // dX += S * work_0
+  PetscCall(MatMultAdd(lbfgs->Sfull, lbfgs->work_0, dX, dX));
+
+  // dX += S * work_0
+  if (lbfgs->Wfull != NULL) {
+    PetscCall(MatMultAdd(lbfgs->Wfull, lbfgs->work_2, dX, dX));
+  } else {
+    PetscCall(MatMult(lbfgs->Yfull, lbfgs->work_2, lbfgs->work_0));
+    PetscCall(MatCDBFGSApplyJ0Inv(B, lbfgs->work_0, lbfgs->work_1));
+    PetscCall(VecAXPY(dX, 1.0, lbfgs->work_1));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
