@@ -4,6 +4,8 @@
 #include <petscsys.h>
 #include <petscis.h>
 
+const char *const MatCDBFGS_RinvTypes[] = {"PANEL", "MEMCOPY", NULL};
+
 /*------------------------------------------------------------*/
 
 PetscErrorCode MatCDBFGSApplyJ0Fwd(Mat B, Vec X, Vec Z)
@@ -546,6 +548,23 @@ PetscErrorCode MatView_LMVMCDBFGS(Mat B, PetscViewer pv)
 
 /*------------------------------------------------------------*/
 
+PetscErrorCode MatSetFromOptions_LMVMCDBFGS(Mat B, PetscViewer pv)
+{
+  Mat_LMVM          *lmvm = (Mat_LMVM*)B->data;
+  Mat_CDBFGS        *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
+  
+  PetscBool         isascii;
+
+  PetscFunctionBegin;
+  PetscCall(MatSetFromOptions_LMVM(B, PetscOptionsObject));
+  PetscOptionsHeadBegin(PetscOptionsObject, "Compact dense BFGS method (MATLMVMCDBFGS)");
+  PetscOptionsEList("-mat_cdbfgs_Rinv_type", "Memory options for Rinv", "MatCDBFGS_RinvTypes", MatCDBFGS_RinvTypes, (PetscEnum)lbfgs->Rinv_type, (PetscEnum *)&lbfgs->Rinv_type, NULL);
+  PetscOptionsHeadEnd();
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*------------------------------------------------------------*/
+
 PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
 {
   Mat_LMVM          *lmvm;
@@ -557,6 +576,7 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   PetscCall(MatSetOption(B, MAT_SPD, PETSC_TRUE));
   B->ops->view = MatView_LMVMCDBFGS;
   B->ops->setup = MatSetUp_LMVMCDBFGS;
+  B->ops->setfromoptions = MatSetFromOptions_LMVMCDBFGS;
   B->ops->destroy = MatDestroy_LMVMCDBFGS;
   
   lmvm = (Mat_LMVM*)B->data;
