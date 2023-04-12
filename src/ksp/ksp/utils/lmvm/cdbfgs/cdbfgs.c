@@ -7,7 +7,7 @@
 #include <petscoptions.h>
 
 
-const char *const MatLBFGSTypes[] = {"basic", "cd_reorder", "cd_inplace", "MatLBFGSType", "MATLBFGS_", NULL};
+const char *const MatLBFGSTypes[] = {"basic", "cd_reorder", "cd_inplace", "MatLBFGSType", "MAT_LBFGS_", NULL};
 
 /*------------------------------------------------------------*/
 
@@ -48,7 +48,7 @@ static PetscErrorCode MatSolveUpperTriangularRecycleOrder(Mat_CDBFGS *lbfgs, Mat
   PetscFunctionBegin;
   MPI_Comm comm = PetscObjectComm((PetscObject)R);
   switch (lbfgs->strategy) {
-  case MATLBFGS_CD_REORDER:
+  case MAT_LBFGS_CD_REORDER:
     {
       // TODO: reorder of b
       const PetscScalar *r_array;
@@ -204,10 +204,11 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
   Mat_LMVM          *dbase;
   Mat_DiagBrdn      *dctx;
   
-  const PetscScalar *xx, *ff, *vals;
-  PetscScalar       curvature, ststmp, *sty_array;
+  const PetscScalar *xx, *ff, *array_read;
+  PetscScalar       curvature, ststmp, *buffer, *vals, *array_write;
   PetscReal         curvtol;
-  PetscInt          n, low, high, *is_indices, i, j, N, sty_LDA;
+  PetscInt          n, low, high, *is_indices, i, j, N, sty_LDA, *rows;
+  PetscMemType      memtype_sy;
   MatFactorInfo     info;
   IS                shift_is, full_is;
 
@@ -230,48 +231,88 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     if (PetscRealPart(curvature) > curvtol) {
       /* Update is good, accept it */
       lbfgs->watchdog = 0;
-      if (lmvm->k == lmvm->m-1) {
-	lbfgs->idx_begin = (lbfgs->idx_begin + 1) % lmvm->m;
-      } else {
-        lmvm->k = lmvm->k + 1;
-      }
-
-#if 0
-      /* Generate the required row/col idx arrays for data transfer */
       PetscCall(VecGetLocalSize(lmvm->Xprev, &n));
       PetscCall(VecGetOwnershipRange(lmvm->Xprev, &low, &high));
-      PetscCall(PetscMalloc2(1, &lbfgs->idx_rows, n, &lbfgs->idx_cols));
-      lbfgs->idx_rows[0] = lbfgs->idx_begin;
+      PetscCall(PetscMalloc2(n, &lbfgs->idx_rows, 1, &lbfgs->idx_cols));
       for (i=low; i<high; i++) {
-        lbfgs->idx_cols[i] = i;
+        lbfgs->idx_rows[i] = i;
       }
+
+      switch (lbfgs->strategy) {
+      case (MAT_LBFGS_CD_REORDER):
+        if (lmvm->k == lmvm->m-1) {
+          /* S Matrix is full. Shift matrix via memcpy */
+          PetscCall(MatDenseGetArrayReadAndMemType(lbfgs->Sfull, &array_read, &memtype_sy));
+          // Assert(lda == m)
+          PetscCall(PetscMalloc1(lmvm->m*lmvm->m - lmvm->m - 1, &buffer));
+          PetscCall(PetscMemcpy(buffer, &array_read[lmvm->m+1], (lmvm->m*lmvm->m - lmvm->m - 1)*sizeof(memtype_sy)));
+          PetscCall(MatDenseRestoreArrayReadAndMemType(lbfgs->Sfull, &array_read));
+  
+          PetscCall(MatDenseGetArrayWriteAndMemType(lbfgs->Sfull, &array_write, &memtype_sy));
+          PetscCall(PetscMemcpy(array_write, &buffer, (lmvm->m*lmvm->m - lmvm->m - 1)*sizeof(memtype_sy)));
+          PetscCall(MatDenseRestoreArrayWriteAndMemType(lbfgs->Sfull, &array_write));
+          PetscCall(PetscFree(buffer));
+
+          /* Y Matrix is full. Shift matrix via memcpy */
+          PetscCall(MatDenseGetArrayReadAndMemType(lbfgs->Yfull, &array_read, &memtype_sy));
+          // Assert(lda == m)
+          PetscCall(PetscMalloc1(lmvm->m*lmvm->m - lmvm->m - 1, &buffer));
+          PetscCall(PetscMemcpy(buffer, &array_read[lmvm->m+1], (lmvm->m*lmvm->m - lmvm->m - 1)*sizeof(memtype_sy)));
+          PetscCall(MatDenseRestoreArrayReadAndMemType(lbfgs->Yfull, &array_read));
+  
+          PetscCall(MatDenseGetArrayWriteAndMemType(lbfgs->Yfull, &array_write, &memtype_sy));
+          PetscCall(PetscMemcpy(array_write, &buffer, (lmvm->m*lmvm->m - lmvm->m - 1)*sizeof(memtype_sy)));
+          PetscCall(MatDenseRestoreArrayWriteAndMemType(lbfgs->Yfull, &array_write));
+          PetscCall(PetscFree(buffer));
+        } else {
+          lmvm->k = lmvm->k + 1;
+        }
+        lbfgs->idx_cols[0] = lmvm->k;
+        break;
+      case (MAT_LBFGS_CD_INPLACE):
+        /* Inplace doesn't move memory, but rather only finds index of oldest memory */
+        if (lmvm->k == lmvm->m-1) {
+          lbfgs->idx_begin = (lbfgs->idx_begin + 1) % lmvm->m;
+          lbfgs->idx_cols[0] = lbfgs->idx_begin;
+        } else {
+          lmvm->k = lmvm->k + 1;
+          lbfgs->idx_cols[0] = lmvm->k;
+        }
+        /* Generate the required row/col idx arrays for data transfer */
+        break;
+      case (MAT_LBFGS_BASIC):
+        break;
+      }
+
       /* First update the S^T matrix */
       PetscCall(VecGetArrayRead(lmvm->Xprev, &xx));
-      PetscCall(MatSetValues(lbfgs->STfull, 1, lbfgs->idx_rows, n, lbfgs->idx_cols, xx, INSERT_VALUES));
-      PetscCall(MatAssemblyBegin(lbfgs->STfull, MAT_FINAL_ASSEMBLY));
-      PetscCall(MatAssemblyEnd(lbfgs->STfull, MAT_FINAL_ASSEMBLY));
+      PetscCall(MatSetValues(lbfgs->Sfull, n, lbfgs->idx_rows, 1, lbfgs->idx_cols, xx, INSERT_VALUES));
+      PetscCall(MatAssemblyBegin(lbfgs->Sfull, MAT_FINAL_ASSEMBLY));
+      PetscCall(MatAssemblyEnd(lbfgs->Sfull, MAT_FINAL_ASSEMBLY));
       PetscCall(VecRestoreArrayRead(lmvm->Xprev, &xx));
       /* Now repeat update for the Y^T matrix */
       PetscCall(VecGetArrayRead(lmvm->Fprev, &ff));
-      PetscCall(MatSetValues(lbfgs->YTfull, 1, lbfgs->idx_rows, n, lbfgs->idx_cols, ff, INSERT_VALUES));
-      PetscCall(MatAssemblyBegin(lbfgs->YTfull, MAT_FINAL_ASSEMBLY));
-      PetscCall(MatAssemblyEnd(lbfgs->YTfull, MAT_FINAL_ASSEMBLY));
+      PetscCall(MatSetValues(lbfgs->Yfull, n, lbfgs->idx_rows, 1, lbfgs->idx_cols, ff, INSERT_VALUES));
+      PetscCall(MatAssemblyBegin(lbfgs->Yfull, MAT_FINAL_ASSEMBLY));
+      PetscCall(MatAssemblyEnd(lbfgs->Yfull, MAT_FINAL_ASSEMBLY));
       PetscCall(VecRestoreArrayRead(lmvm->Xprev, &ff));
       /* Clean up unnecessary arrays */
       PetscCall(PetscFree2(lbfgs->idx_rows, lbfgs->idx_cols));
 
-      // pseudocode for the StYfull updated for CD_REORDER
-      // MatDenseGetArrayReadAndMemtype(StYfull, &StY, ...)
-      // Assert(lda == m)
-      // PetscMemcpy(StYwork, &StY[m+1], m^2 - (m + 1)) // take into account the memtype
-      // PetscMemcpy(StY, StYwork, m^2 - (m + 1)) // take into account the memtype
-      //
-
+//      switch (lbfgs->strategy) {
+//      case (MAT_LBFGS_CD_REORDER):
+//        break;
+//      case (MAT_LBFGS_CD_INPLACE):
+//        break;
+//      case (MAT_LBFGS_BASIC):
+//        break;
+//      }	      
       /* Factor StY = L + D + R */
       PetscCall(MatDestroy(&lbfgs->StYfull));
-      PetscCall(MatMatTransposeMult(lbfgs->STfull, lbfgs->YTfull, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
+      PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
       PetscCall(MatConvert(lbfgs->StYfull, lbfgs->dense_type, MAT_INPLACE_MATRIX, &lbfgs->StYfull));//TODO is this needed, or done internally already?
       //TODO is there better way to do this??
+#if 0      
       for (i=0; i<lmvm->m; i++) {
         PetscCall(MatGetRow(lbfgs->StYfull, i, &n, NULL, &vals));
         for (j=0; j<n; j++) {
@@ -304,36 +345,26 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       PetscCall(VecDestroy(&lbfgs->rwork2));
       PetscCall(VecDestroy(&lbfgs->rwork3));
       PetscCall(VecDestroy(&lbfgs->rwork4));
+#endif
 
+      switch (lbfgs->strategy) {
+      case (MAT_LBFGS_CD_REORDER):
+        break;
+      case (MAT_LBFGS_CD_INPLACE):
       /* Setting IS for shift */
-      PetscCall(VecGetSize(X, &N));
-      PetscCall(PetscMalloc1(lmvm->k+1, &is_indices));
-      for (i = 0; i < lmvm->k+1; i++) {
-        is_indices[i] = (i + lbfgs->idx_begin) % (lmvm->k+1); 
-      }
-      PetscCall(ISCreate(PetscObjectComm((PetscObject)B), &shift_is));
-      PetscCall(ISCreateStride(PetscObjectComm((PetscObject)B), N, 0, 1, &full_is));
-      PetscCall(ISSetType(shift_is, ISGENERAL));
-      PetscCall(ISGeneralSetIndices(shift_is, lmvm->k+1, is_indices, PETSC_OWN_POINTER));
-      /* Generate submatrices that span only the stored iterates */
-      /* Unshifted, would-be-original matrix indexing:           */
-      /* | 1 , 2 | */
-      /* | 3 , 4 | */
-      /* Shifted, reality matrix indexing:  */
-      /* | 4 , 3 | */
-      /* | 2 , 1 | */
-      //PLAN 1: 
-      //PetscCall(MatDenseGetArrayAndMemType(lbfgs->StYfull, &sty_array, NULL));
-      //PetscCall(MatDenseGetLDA(lbfgs->StYfull, &sty_LDA));
-      //PetscCall(VecCreateMatDense(X, lmvm->m, n, lmvm->m, sty_LDA, sty_array + lbfgs->idx_begin*(sty_LDA+1) , &lbfgs->StYfull_1));//TODO not sure about global-local issue here?
-      //PetscCall(VecCreateMatDense(X, lmvm->m, n, lmvm->m, sty_LDA, sty_array + lbfgs->idx_begin*sty_LDA, &lbfgs->StYfull_2));
-      //PetscCall(VecCreateMatDense(X, lmvm->m, n, lmvm->m, sty_LDA, sty_array + lbfgs->idx_begin, &lbfgs->StYfull_3));
-      //PetscCall(VecCreateMatDense(X, lmvm->m, n, lmvm->m, sty_LDA, sty_array, &lbfgs->StYfull_4));
-      //PetscCall(PetscFree(is_indices));
-      //PetscCall(ISDestroy(&shift_is));
-      //PetscCall(MatDenseRestoreArrayAndMemType(lbfgs->StYfull, &sty_array));
-      ////Block matrices pointers. Now get ST,YT,L,D,R
-      //// On second thought, too cumbersome. Below option is prob better?
+        PetscCall(VecGetSize(X, &N));
+        PetscCall(PetscMalloc1(lmvm->k+1, &is_indices));
+        for (i = 0; i < lmvm->k+1; i++) {
+          is_indices[i] = (i + lbfgs->idx_begin) % (lmvm->k+1); 
+        }
+        PetscCall(ISCreate(PetscObjectComm((PetscObject)B), &shift_is));
+        PetscCall(ISCreateStride(PetscObjectComm((PetscObject)B), N, 0, 1, &full_is));
+        PetscCall(ISSetType(shift_is, ISGENERAL));
+        PetscCall(ISGeneralSetIndices(shift_is, lmvm->k+1, is_indices, PETSC_OWN_POINTER));
+        break;
+      case (MAT_LBFGS_BASIC):
+        break;
+      }	      
 
       //PLAN 2:
       //I imagine MatSubMatrixVirtualUpdate would be better, but... IS size is potentially non-static.
@@ -363,7 +394,7 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       if (!(lmvm->J0 || lmvm->user_pc || lmvm->user_ksp || lmvm->user_scale)) {
         PetscCall(MatLMVMUpdate(lbfgs->diag_bfgs, X, F));
       }
-#endif
+
     } else {
       /* Update is bad, skip it */
       ++lmvm->nrejects;
@@ -572,18 +603,21 @@ PetscErrorCode MatView_LMVMCDBFGS(Mat B, PetscViewer pv)
 
 /*------------------------------------------------------------*/
 
-PetscErrorCode MatSetFromOptions_LMVMCDBFGS(Mat B, PetscViewer pv)
+PetscErrorCode MatSetFromOptions_LMVMCDBFGS(Mat B, PetscOptionItems *PetscOptionsObject)
 {
   Mat_LMVM          *lmvm = (Mat_LMVM*)B->data;
   Mat_CDBFGS        *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
-  
-  PetscBool         isascii;
+  PetscInt           alg;
+  PetscBool          flg;
 
   PetscFunctionBegin;
   PetscCall(MatSetFromOptions_LMVM(B, NULL));
   PetscOptionsBegin(PetscObjectComm((PetscObject)B), NULL, "Compact dense BFGS method (MATLMVMCDBFGS)", NULL);
-  PetscOptionsEList("-mat_lbfgs_type", "Implementation options for L-BFGS", "Mat", MatLBFGSTypes, 3, MatLBFGSTypes[lbfgs->strategy], (PetscEnum *)&lbfgs->strategy, NULL);
+  PetscOptionsEnum("-mat_lbfgs_type", "Implementation options for L-BFGS", "MatLBFGSType", MatLBFGSTypes, (PetscEnum)lbfgs->strategy, (PetscEnum *)&lbfgs->strategy, NULL);
   PetscOptionsEnd();
+
+  if (flg) lbfgs->strategy = (MatLBFGSType) MatLBFGSTypes[alg];
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
