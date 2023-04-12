@@ -214,7 +214,7 @@ int main(int argc, char *argv[])
   PetscCall(RiemannSolverSetUp(dgnet->physics.rs));
 
   /* Set up NetRS */
-  PetscCall(DGNetworkAssignNetRS_Traffic(dgnet));
+  PetscCall(DGNetworkAssignNetRS(dgnet));
   PetscCall(DGNetworkProject(dgnet, dgnet->X, 0.0));
   PetscCall(VecGetSize(dgnet->X, &systemsize));
   PetscCall(PetscPrintf(comm, "\nWe have %" PetscInt_FMT " Dofs\n\n", systemsize));

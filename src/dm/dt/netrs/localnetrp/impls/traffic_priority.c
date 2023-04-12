@@ -206,7 +206,7 @@ static PetscErrorCode NetRPSetUpTao_Traffic(NetRP rp, PetscInt indeg, PetscInt o
   PetscCall(TaoSetVariableBoundsRoutine(tao, VariableBound, ctx));
 
   PetscCall(TaoSetType(tao, TAOALMM));
-  PetscCall(TaoSetTolerances(tao, 1e-3, 0.0, 0.0)); // this seems to be as low as I can go with default tao parameters. 
+  PetscCall(TaoSetTolerances(tao, 1e-3, 0.0, 0.0)); // this seems to be as low as I can go with default tao parameters.
   PetscCall(TaoSetConstraintTolerances(tao, 1e-4, 0.0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -215,7 +215,6 @@ static PetscErrorCode NetRPSetSolverCtx_Traffic(NetRP rp, PetscInt indeg, PetscI
 {
   TrafficCtx       *ctx = (TrafficCtx *)rp->data;
   TrafficSolverCtx *traffic_ctx;
-
 
   PetscFunctionBegin;
   PetscCall(PetscNew(&traffic_ctx));

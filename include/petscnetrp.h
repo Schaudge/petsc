@@ -58,6 +58,7 @@ typedef const char *NetRPType;
   #define NETRPEXACTSWE            "netrpexactswe"
   #define NETRPTRAFFICLWR          "netrptrafficLWR"
   #define NETRPTRAFFICLWR_PRIORITY "netrptrafficLWRpriority"
+  #define NETRPCONSTANT      "netrpconstant"
 
 PETSC_EXTERN PetscErrorCode NetRPInitializePackage(void);
 PETSC_EXTERN PetscErrorCode NetRPFinalizePackage(void);
@@ -163,4 +164,8 @@ PETSC_EXTERN PetscErrorCode NetRPTrafficSetPriorityVec(NetRP, NetRPTrafficPriori
 PETSC_EXTERN PetscErrorCode NetRPTrafficSetPriorityWeight(NetRP, PetscReal);
 PETSC_EXTERN PetscErrorCode NetRPTrafficGetPriorityWeight(NetRP, PetscReal *);
 
+
+/* constant specific functions */
+
+PETSC_EXTERN PetscErrorCode NetRPConstantSetData(NetRP,PetscScalar*);
 #endif

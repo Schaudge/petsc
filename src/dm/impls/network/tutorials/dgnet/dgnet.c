@@ -1,6 +1,8 @@
 #include "dgnet.h"
 #include <petscdraw.h>
 #include "hydronetwork-2021/src/wash.h"
+#include "petscmath.h"
+#include "petscnetrs.h"
 #include "petscsystypes.h"
 
 PetscLogEvent  DGNET_SetUP;
@@ -481,6 +483,69 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
       }
     }
     break;
+  case 8:
+    /* Traffic Circle (Pattern from Jingmei and Bennedettos paper ) */
+
+    /* each "spoke" alterantes between in and out and the inner loop goes counter-clockwise */
+    n = dgnet->ndaughters; /* number of inner edges */
+    /* Set local edges and vertices -- proc[0] sets entire network, then distributes */
+    numVertices = 0;
+    numEdges    = 0;
+    edgelist    = NULL;
+    if (!rank) {
+      numVertices = 2 * n;
+      numEdges    = 2 * n;
+      PetscCall(PetscCalloc1(2 * numEdges, &edgelist));
+
+      /* inner loop  */
+      k = 0;
+      for (i = 0; i < n-1; ++i) {
+        edgelist[k++] = i;
+        edgelist[k++] = i + 1;
+      }
+      edgelist[k++] = n-1; 
+      edgelist[k++] = 0;
+
+      /* spokes */
+      for (i = 0; i < n; ++i) {
+        if (i % 2) {
+          edgelist[k++] = i;
+          edgelist[k++] = i + n;
+        } else {
+          edgelist[k++] = i + n;
+          edgelist[k++] = i;
+        }
+      }
+
+      /* Add network components */
+      /*------------------------*/
+      PetscCall(PetscCalloc2(numVertices, &junctions, numEdges, &fvedges));
+      for (i = 0; i < numEdges; ++i) {
+        fvedges[i].nnodes = Mx;
+        fvedges[i].length = dgnet->length;
+      }
+
+      PetscReal xx, yy;
+      PetscReal circumradius = dgnet->length / PetscSinReal(PETSC_PI / (PetscReal)n);
+      PetscReal angle        = 2 * PETSC_PI / (PetscReal)n;
+      PetscReal norm;
+
+      for (i = 0; i < n; ++i) {
+        xx             = circumradius * PetscCosReal(angle * i + PETSC_PI / 2);
+        yy             = circumradius * PetscSinReal(angle * i + PETSC_PI / 2);
+        junctions[i].x = xx;
+        junctions[i].y = yy;
+      }
+      norm = PetscSqrtReal(PetscSqr(junctions[0].x) + PetscSqr(junctions[0].y));
+      
+      for (i = 0; i < n; ++i) {
+        xx                 = junctions[i].x / norm * dgnet->length + junctions[i].x;
+        yy                 = junctions[i].y / norm * dgnet->length + junctions[i].y;
+        junctions[i + n].x = xx;
+        junctions[i + n].y = yy;
+      }
+    }
+    break;
   default:
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "not done yet");
   }
@@ -876,28 +941,68 @@ PetscErrorCode DGNetworkAssignNetRS(DGNetwork dgnet)
   PetscCall(NetRPDestroy(&netrpcouple));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+/* 
+  this a type of traffic distribution that generically satisfies the criteria 
+  to generate a unique linear programming solution
+
+  columns are of the form  a_i = (1/2)^(i+1) if i \neq outdeg-2. 
+
+  then a_{outdeg-2} = (1/2)^(outdeg-1) + (1/2)^(outdeg)
+
+  which has \sum a_i = 1, and satisifes the technical constraint. 
+
+*/
 static PetscErrorCode TrafficDistribution(NetRP rp, PetscInt indeg, PetscInt outdeg, Mat distribution)
 {
   PetscScalar *mat;
   PetscInt     i, j;
-  PetscReal    val = 1. / (outdeg);
+  PetscReal    val;
 
   PetscFunctionBeginUser;
   PetscCall(MatDenseGetArray(distribution, &mat));
-  PetscCheck(indeg == outdeg, PetscObjectComm((PetscObject)rp), PETSC_ERR_USER, "Only have traffic distribution matrix for indeg == outdeg  for now");
+  if(outdeg ==  2 && indeg == 1) {
+      mat[0] = 0.5; 
+      mat[1] = 0.5; 
+  } else if( outdeg == 1) {
+      for(i=0; i<indeg; i++) {
+        mat[i] = 1.0; 
+      }
+  } else{
   /* equal distribution */
-  for (i = 0; i < outdeg; i++) {
-    for (j = 0; j < indeg; j++) { mat[i * indeg + j] = val; }
+  for (j = 0; j < indeg; j++) {
+    for (i = 0; i < outdeg; i++) {
+      val = PetscPowRealInt(0.5, i + 1);
+      if (i == outdeg - 2) val += PetscPowRealInt(0.5, outdeg);
+      mat[j * outdeg + i] = val;
+    }
+  }
   }
   PetscCall(MatDenseRestoreArray(distribution, &mat));
-  PetscCall(MatView(distribution, PETSC_VIEWER_STDOUT_WORLD));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode TrafficPriority(NetRP rp, PetscInt indeg, PetscInt outdeg, Vec priority)
+{
+  PetscScalar *p;
+  PetscInt     i;
+
+  PetscFunctionBeginUser;
+  PetscCall(VecGetArray(priority, &p));
+  if(outdeg == 1 && indeg == 2) {
+    p[0] = 4;
+    p[1] =1; 
+  } else {
+  for (i = 0; i < indeg; i++) { p[i] = i + 1; }
+  PetscCall(VecRestoreArray(priority, &p));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DGNetworkAssignNetRS_Traffic(DGNetwork dgnet)
 {
-  PetscInt v, vStart, vEnd, vdeg;
-  NetRP    netrpbdry, netrpcouple;
+  PetscInt v, vStart, vEnd, vdeg, indeg, outdeg;
+  NetRP    netrpbdry, netrpcouple, netrpcouple_priority;
 
   PetscFunctionBegin;
   PetscCall(DMNetworkGetVertexRange(dgnet->network, &vStart, &vEnd));
@@ -911,17 +1016,38 @@ PetscErrorCode DGNetworkAssignNetRS_Traffic(DGNetwork dgnet)
   PetscCall(NetRPSetFlux(netrpcouple, dgnet->physics.rs));
   PetscCall(NetRPTrafficSetDistribution(netrpcouple, TrafficDistribution));
 
+  PetscCall(NetRPDuplicate(netrpcouple, &netrpcouple_priority));
+  PetscCall(NetRPSetType(netrpcouple_priority, NETRPTRAFFICLWR_PRIORITY));
+  PetscCall(NetRPTrafficSetDistribution(netrpcouple_priority, TrafficDistribution));
+  PetscCall(NetRPTrafficSetPriorityVec(netrpcouple_priority, TrafficPriority));
+
   PetscCall(NetRSCreate(PETSC_COMM_WORLD, &dgnet->netrs));
   PetscCall(NetRSSetFromOptions(dgnet->netrs));
   PetscCall(NetRSSetFlux(dgnet->netrs, dgnet->physics.rs));
   PetscCall(NetRSSetNetwork(dgnet->netrs, dgnet->network));
   PetscCall(NetRSSetUp(dgnet->netrs));
 
-  for (v = vStart; v < vEnd; v++) { PetscCall(NetRSAddNetRPatVertex(dgnet->netrs, v, netrpcouple)); }
+  for (v = vStart; v < vEnd; v++) {
+    PetscCall(NetRSGetVertexDegree(dgnet->netrs, v, &vdeg));
+    /*
+      type dispatching depending on number of edges
+    */
+    if (vdeg == 1) {
+      PetscCall(NetRSAddNetRPatVertex(dgnet->netrs, v, netrpbdry));
+    } else {
+      PetscCall(NetRSGetDirectedVertexDegrees(dgnet->netrs, v, &indeg, &outdeg));
+      if (indeg <= outdeg) {
+        PetscCall(NetRSAddNetRPatVertex(dgnet->netrs, v, netrpcouple));
+      } else {
+        PetscCall(NetRSAddNetRPatVertex(dgnet->netrs, v, netrpcouple_priority));
+      }
+    }
+  }
   PetscCall(NetRSCreateLocalVec(dgnet->netrs, &dgnet->Flux));
   PetscCall(NetRSCreateLocalVec(dgnet->netrs, &dgnet->RiemannData));
   PetscCall(NetRPDestroy(&netrpbdry));
   PetscCall(NetRPDestroy(&netrpcouple));
+  PetscCall(NetRPDestroy(&netrpcouple_priority));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1497,8 +1623,6 @@ PetscErrorCode DGNetworkMonitorAdd_Glvis_3D(DGNetworkMonitor_Glvis monitor, Pets
   PetscCall(PetscViewerGLVisSetFields(node->viewer, dof, (const char **)node->fec_type, node->dim, DGNetworkMonitor_3D_g2l_internal, (PetscObject *)node->v_work, (void *)node, DGNetworkMonitor_destroyctx_internal));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
-/* Experimental work on "adding" dmplex objects together */
 
 /* Convience create from DAG function that only creates the topology, leaving the geometry dm and section uncreated */
 PetscErrorCode DMPlexCreateFromDAG_Topological(DM dm, PetscInt depth, const PetscInt numPoints[], const PetscInt coneSize[], const PetscInt cones[], const PetscInt coneOrientations[])

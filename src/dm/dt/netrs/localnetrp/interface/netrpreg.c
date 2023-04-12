@@ -1,3 +1,4 @@
+#include "petscmacros.h"
 #include "petscsystypes.h"
 #include <petsc/private/localnetrpimpl.h>
 #include <petscnetrp.h> /*I "petscnetrp.h" I*/
@@ -13,6 +14,7 @@ PETSC_EXTERN PetscErrorCode NetRPCreate_Outflow(NetRP);
 PETSC_EXTERN PetscErrorCode NetRPCreate_ExactSWE(NetRP);
 PETSC_EXTERN PetscErrorCode NetRPCreate_Traffic(NetRP);
 PETSC_EXTERN PetscErrorCode NetRPCreate_TrafficLWR_Priority(NetRP);
+PETSC_EXTERN PetscErrorCode NetRPCreate_Constant(NetRP);
 
 /*@C
   NetRPRegisterAll - Registers all of the Network Riemann Problems. 
@@ -37,6 +39,7 @@ PetscErrorCode NetRPRegisterAll(void)
   PetscCall(NetRPRegister(NETRPEXACTSWE, NetRPCreate_ExactSWE));
   PetscCall(NetRPRegister(NETRPTRAFFICLWR, NetRPCreate_Traffic));
   PetscCall(NetRPRegister(NETRPTRAFFICLWR_PRIORITY, NetRPCreate_TrafficLWR_Priority));
+  PetscCall(NetRPRegister(NETRPCONSTANT, NetRPCreate_Constant));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

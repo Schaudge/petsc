@@ -482,7 +482,21 @@ PetscErrorCode NetRSGetVertexDegree(NetRS rs, PetscInt v, PetscInt *vdeg)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/*internal logic for passing down netrs physics down to the underlyin netrp solvers */
+PetscErrorCode NetRSGetDirectedVertexDegrees(NetRS rs, PetscInt v, PetscInt *indeg, PetscInt *outdeg)
+{
+  PetscInt vStart, vEnd;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs, NETRS_CLASSID, 1);
+  PetscCall(DMNetworkCacheInOutVertexDegrees(rs, rs->network));
+  PetscCall(DMNetworkGetVertexRange(rs->network, &vStart, &vEnd));
+  PetscCheck(v >= vStart && v < vEnd, PetscObjectComm((PetscObject)rs), PETSC_ERR_USER_INPUT, "Input Vertex: %" PetscInt_FMT " is outside the vertex range of the DMNetwork, vStart: %" PetscInt_FMT "  vEnd: %" PetscInt_FMT, v, vStart, vEnd);
+  PetscCall(DMLabelGetValue(rs->InVertexDeg, v, indeg));
+  PetscCall(DMLabelGetValue(rs->OutVertexDeg, v, outdeg));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/* internal logic for passing down netrs physics down to the underlyin netrp solvers */
 static PetscErrorCode NetRSSetNetRPPhysics(NetRS rs)
 {
   PetscInt      numnetrp, i;

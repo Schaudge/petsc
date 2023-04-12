@@ -1604,11 +1604,11 @@ PetscErrorCode NetRPSetPreSolve(NetRP rp, NetRPPreSolveFunc presolvefunc)
    Collective 
 
    Input Parameter:
-.  rp - the NetRP context obtained from NetRPCreate()
++  rp - the NetRP context obtained from NetRPCreate()
 .  vdegin  - the number of in edges for the vertex
 .  vdegout - the number of out edges for the vertex
 .  edgein  - array of length vdegin+vdegout indicating whether edgein[i] is point in or out. 
-.  U       - The vector containing Riemann Data for the problem.
+- U       - The vector containing Riemann Data for the problem.
 
    Level: developer
 
@@ -1625,3 +1625,32 @@ PetscErrorCode NetRPPreSolve(NetRP rp, PetscInt vdegin, PetscInt vdegout, PetscB
   PetscTryTypeMethod(rp, PreSolve, vdegin, vdegout, edgein, U, solverctx);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+/*@ NetRPCreateVec - Create a Vec of the correct size for the Riemann problem, associated with the NetRP. 
+
+Not Collective 
+
+Input Parameters: 
++ rp - the NetRP context obtained from NetRPCreate()
+- vdeg - the degree of the vertex for the Riemann problem. 
+
+Output Parameter: 
+
+. vec - the create Vec 
+
+Level: beginner 
+
+.seealso `NetRPCreate()`, 
+@*/
+
+PetscErrorCode NetRPCreateVec(NetRP rp, PetscInt vdeg,  Vec *vec) {
+  PetscInt numfields; 
+
+  PetscFunctionBegin; 
+  PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
+  PetscCall(NetRPSetUp(rp)); 
+  PetscCall(NetRPGetNumFields(rp, &numfields));
+  PetscCall(VecCreateSeq(PETSC_COMM_SELF, numfields*vdeg, vec)); 
+  PetscFunctionReturn(PETSC_SUCCESS); 
+}
+
