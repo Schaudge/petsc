@@ -114,14 +114,14 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat B, Vec F, Vec dX)
   }
 
   // work_0 = Y^T * J0 * F
-  if (lbfgs->Wfull != NULL) {
-    PetscCall(MatMultTranspose(lbfgs->Wfull, F, lbfgs->work_0));
+  if (lbfgs->H0_Y != NULL) {
+    PetscCall(MatMultTranspose(lbfgs->H0_Y, F, lbfgs->work_0));
   } else {
-    PetscCall(MatMultTranspose(lbfgs->Yfull, dX, lbfgs->work_0));
+    PetscCall(MatMultTranspose(lbfgs->Y, dX, lbfgs->work_0));
   }
 
   // work_1 = S^T * F
-  PetscCall(MatMultTranspose(lbfgs->Sfull, F, lbfgs->work_1));
+  PetscCall(MatMultTranspose(lbfgs->S, F, lbfgs->work_1));
 
   // work_2 = Rbar^{-1} work_1
   PetscCall(MatSolveUpperTriangularRecycleOrder(lbfgs, lbfgs->StY, lbfgs->idx_begin, lbfgs->work_1, lbfgs->work_2));
@@ -133,13 +133,13 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat B, Vec F, Vec dX)
   PetscCall(MatSolveUpperTriangularRecycleOrderTranspose(lbfgs, lbfgs->StY, lbfgs->idx_begin, lbfgs->work_1, lbfgs->work_0));
 
   // dX += S * work_0
-  PetscCall(MatMultAdd(lbfgs->Sfull, lbfgs->work_0, dX, dX));
+  PetscCall(MatMultAdd(lbfgs->S, lbfgs->work_0, dX, dX));
 
   // dX += S * work_0
-  if (lbfgs->Wfull != NULL) {
-    PetscCall(MatMultAdd(lbfgs->Wfull, lbfgs->work_2, dX, dX));
+  if (lbfgs->H0_Y != NULL) {
+    PetscCall(MatMultAdd(lbfgs->H0_Y, lbfgs->work_2, dX, dX));
   } else {
-    PetscCall(MatMult(lbfgs->Yfull, lbfgs->work_2, lbfgs->work_0));
+    PetscCall(MatMult(lbfgs->Y, lbfgs->work_2, lbfgs->work_0));
     PetscCall(MatCDBFGSApplyJ0Inv(B, lbfgs->work_0, lbfgs->work_1));
     PetscCall(VecAXPY(dX, 1.0, lbfgs->work_1));
   }
@@ -425,8 +425,9 @@ static PetscErrorCode MatReset_LMVMCDBFGS(Mat B, PetscBool destructive)
   }
   if (lbfgs->allocated && destructive) {
     PetscCall(MatDestroy(&lbfgs->StY));
-    PetscCall(MatDestroy(&lbfgs->Yfull));
-    PetscCall(MatDestroy(&lbfgs->Sfull));
+    PetscCall(MatDestroy(&lbfgs->Y));
+    PetscCall(MatDestroy(&lbfgs->S));
+    PetscCall(MatDestroy(&lbfgs->H0_Y));
     PetscCall(VecDestroy(&lbfgs->work_0));
     PetscCall(VecDestroy(&lbfgs->work_1));
     PetscCall(VecDestroy(&lbfgs->work_2));
@@ -468,21 +469,28 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     PetscCall(VecGetSize(X, &N));
     PetscCall(VecGetLocalSize(F, &m));
     PetscCall(VecGetSize(F, &M));
-    if (N != M) SETERRQ(comm, PETSC_ERR_ARG_SIZ, "Incorrect problem sizes! dim(X) not equal to dim(F)");
+    PetscAssert(N == M, comm, PETSC_ERR_ARG_SIZ, "Incorrect problem sizes! dim(X) not equal to dim(F)");
     PetscCall(MatSetSizes(B, m, n, M, N));
     PetscCall(PetscLayoutSetUp(B->rmap));
     PetscCall(PetscLayoutSetUp(B->cmap));
     PetscCall(VecDuplicate(X, &lmvm->Xprev));
     PetscCall(VecDuplicate(F, &lmvm->Fprev));
+
+
     if (lmvm->m > 0) {
+      PetscInt mM = lmvm->m;
+      PetscMPIInt rank;
+      PetscCallMPI(MPI_Comm_rank(comm, &rank));
+      PetscInt mm = (rank == 0) ? M : 0;
+
       /* Create iteration storage matrices */
-      PetscCall(VecCreateMatDense(X, n, lmvm->m, N, lmvm->m, NULL, &lbfgs->Sfull));
-      PetscCall(MatDuplicate(lbfgs->Sfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->Yfull));
+      PetscCall(VecCreateMatDense(X, n, mm, N, mM, NULL, &lbfgs->S));
+      PetscCall(VecCreateMatDense(F, m, mm, M, mM, NULL, &lbfgs->Y));
       MatType ttt;
-      MatGetType(lbfgs->Sfull, &ttt);
+      MatGetType(lbfgs->S, &ttt);
       /* Create intermediate (sequential and small) matrices */
       //TODO: NOTE: "MMTM: This routine is currently only implemented for pairs of MATSEQAIJ matrices, for the MATSEQDENSE class, and for pairs of MATMPIDENSE matrices."
-      PetscCall(MatMatTransposeMult(lbfgs->Sfull, lbfgs->Yfull, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &lbfgs->StY));
+      PetscCall(MatMatTransposeMult(lbfgs->S, lbfgs->Y, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &lbfgs->StY));
       //TODO check whether these matrices are actually dense
     }
     PetscCall(VecDuplicate(lmvm->Xprev, &lbfgs->work_0));
@@ -572,18 +580,19 @@ PetscErrorCode MatView_LMVMCDBFGS(Mat B, PetscViewer pv)
 
 /*------------------------------------------------------------*/
 
-PetscErrorCode MatSetFromOptions_LMVMCDBFGS(Mat B, PetscViewer pv)
+PetscErrorCode MatSetFromOptions_LMVMCDBFGS(Mat B, PetscOptionItems *_items)
 {
   Mat_LMVM          *lmvm = (Mat_LMVM*)B->data;
   Mat_CDBFGS        *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
+  PetscBool          flg;
+  PetscInt           strategy;
   
-  PetscBool         isascii;
-
   PetscFunctionBegin;
   PetscCall(MatSetFromOptions_LMVM(B, NULL));
   PetscOptionsBegin(PetscObjectComm((PetscObject)B), NULL, "Compact dense BFGS method (MATLMVMCDBFGS)", NULL);
-  PetscOptionsEList("-mat_lbfgs_type", "Implementation options for L-BFGS", "Mat", MatLBFGSTypes, 3, MatLBFGSTypes[lbfgs->strategy], (PetscEnum *)&lbfgs->strategy, NULL);
+  PetscOptionsEList("-mat_lbfgs_type", "Implementation options for L-BFGS", "Mat", MatLBFGSTypes, 3, MatLBFGSTypes[lbfgs->strategy], &strategy, &flg);
   PetscOptionsEnd();
+  if (flg) lbfgs->strategy = (MatLBFGSType)strategy;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

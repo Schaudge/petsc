@@ -15,11 +15,10 @@ PETSC_INTERN const char *const MatLBFGSTypes[];
 typedef struct {
   Mat       diag_bfgs;                                   /* diagonalized Hessian init */
 
-  PetscInt  idx_begin;                                   // index of the oldest colums in Sfull and Yfull
-  Mat       Sfull, Yfull;                                // Stored in recycled order
-  Mat       Wfull;                                       // J_0 Y
+  PetscInt  idx_begin;                                   // index of the oldest colums in S and Y
+  Mat       S, Y, H0_Y;                                  // Stored in recycled order
   Mat       StY;
-  Mat       C;                                           // diag(S^T Y) + Y^T J_0 Y)
+  Mat       C;                                           // diag(S^T Y) + Y^T H_0 Y)
   Vec       work_0, work_1, work_2;
   MatType   dense_type;
   MatLBFGSType strategy;
