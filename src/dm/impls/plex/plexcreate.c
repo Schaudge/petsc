@@ -5239,11 +5239,11 @@ PetscErrorCode DMPlexCreateFromDAG(DM dm, PetscInt depth, const PetscInt numPoin
   Note:
   The format is the simplest possible:
 .vb
-  Ne
+  dim Nc Nv Ncn Nl base ignc
   v0 v1 ... vk
-  Nv
-  x y z marker
+  x y z marker ...
 .ve
+  which `dim` is the spatial dimension, `Nc` is the number of cells, `Nv` is the number of vertices, `Ncn` is the number of vertices per cell, and `Nl` is the number of markers on each vertex. `base` is 0 for 0-based numbering, and 1 for 1-based numbering. The 'ignc' flag, if positive, tells the reader to ignore coordinates beyond the spatial dimension.
 
   Developer Note:
   Should use a `PetscViewer` not a filename
@@ -5258,9 +5258,9 @@ static PetscErrorCode DMPlexCreateCellVertexFromFile(MPI_Comm comm, const char f
   PetscSection coordSection;
   PetscScalar *coords;
   char         line[PETSC_MAX_PATH_LEN];
-  PetscInt     dim = 3, cdim = 3, coordSize, v, c, d;
+  PetscInt     cdim, coordSize, v, c, d;
   PetscMPIInt  rank;
-  int          snum, Nv, Nc, Ncn, Nl;
+  int          snum, dim, Nv, Nc, Ncn, Nl, off, ignc;
 
   PetscFunctionBegin;
   PetscCallMPI(MPI_Comm_rank(comm, &rank));
@@ -5269,16 +5269,18 @@ static PetscErrorCode DMPlexCreateCellVertexFromFile(MPI_Comm comm, const char f
   PetscCall(PetscViewerFileSetMode(viewer, FILE_MODE_READ));
   PetscCall(PetscViewerFileSetName(viewer, filename));
   if (rank == 0) {
-    PetscCall(PetscViewerRead(viewer, line, 4, NULL, PETSC_STRING));
-    snum = sscanf(line, "%d %d %d %d", &Nc, &Nv, &Ncn, &Nl);
-    PetscCheck(snum == 4, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Unable to parse cell-vertex file: %s", line);
+    PetscCall(PetscViewerRead(viewer, line, 7, NULL, PETSC_STRING));
+    snum = sscanf(line, "%d %d %d %d %d %d %d", &dim, &Nc, &Nv, &Ncn, &Nl, &off, &ignc);
+    PetscCheck(snum == 7, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Unable to parse cell-vertex file: %s", line);
   } else {
-    Nc = Nv = Ncn = Nl = 0;
+    Nc = Nv = Ncn = Nl = off = 0;
   }
+  PetscCallMPI(MPI_Bcast(&dim, 1, MPI_INT, 0, comm));
   PetscCall(DMCreate(comm, dm));
   PetscCall(DMSetType(*dm, DMPLEX));
   PetscCall(DMPlexSetChart(*dm, 0, Nc + Nv));
   PetscCall(DMSetDimension(*dm, dim));
+  cdim = ignc ? dim : 3;
   PetscCall(DMSetCoordinateDim(*dm, cdim));
   /* Read topology */
   if (rank == 0) {
@@ -5316,7 +5318,7 @@ static PetscErrorCode DMPlexCreateCellVertexFromFile(MPI_Comm comm, const char f
         SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "No cell shape with %d vertices", Ncn);
       }
       PetscCheck(snum == Ncn, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Unable to parse cell-vertex file: %s", line);
-      for (v = 0; v < Ncn; ++v) cone[v] = vbuf[v] + Nc;
+      for (v = 0; v < Ncn; ++v) cone[v] = vbuf[v] + Nc - off;
       /* Hexahedra are inverted */
       if (Ncn == 8) {
         PetscInt tmp = cone[1];
