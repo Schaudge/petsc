@@ -1508,6 +1508,19 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
         PetscCall(PetscViewerASCIIUseTabs(viewer, PETSC_TRUE));
       }
     }
+    {
+      PetscReal lbound[3], ubound[3];
+      PetscInt  cdim;
+
+      PetscCall(DMGetCoordinateDim(dm, &cdim));
+      PetscCall(DMGetBoundingBox(dm, lbound, ubound));
+      PetscCall(PetscViewerASCIIPrintf(viewer, "Bounding Box: "));
+      for (PetscInt d = 0; d < cdim; ++d) {
+        if (d > 0) PetscCall(PetscViewerASCIIPrintf(viewer, ", "));
+        PetscCall(PetscViewerASCIIPrintf(viewer, "[%g, %g]", (double)lbound[d], (double)ubound[d]));
+      }
+      PetscCall(PetscViewerASCIIPrintf(viewer, "]\n"));
+    }
     PetscCall(DMGetNumLabels(dm, &numLabels));
     if (numLabels) PetscCall(PetscViewerASCIIPrintf(viewer, "Labels:\n"));
     for (l = 0; l < numLabels; ++l) {
