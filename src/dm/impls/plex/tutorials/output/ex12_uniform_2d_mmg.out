@@ -1,0 +1,143 @@
+  MAXIMUM MEMORY AUTHORIZED (MB)    32768
+  MMG2D_NPMAX    50000
+  MMG2D_NTMAX    100000
+
+  &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+   MODULE MMG2D: 5.7.1 (Dec. 20, 2022)
+  &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+     git branch: HEAD
+     git commit: 9bd0023fe5f4a7de55d2959dd8dd4bf5d6929a36
+     git date:   2022-12-22 08:56:26 +0100
+
+
+  -- MMG2DLIB: INPUT DATA
+  --  INPUT DATA COMPLETED.     0.000s
+  MAXIMUM NUMBER OF POINTS    (NPMAX) :    50000
+  MAXIMUM NUMBER OF TRIANGLES (NTMAX) :   100000
+
+  -- PHASE 1 : DATA ANALYSIS
+
+  -- MESH QUALITY   13914
+     BEST   0.999997  AVRG.   0.959343  WRST.   0.601298 (13193)
+     HISTOGRAMM:  100.00 % > 0.12
+                  100.00 % >  0.5
+       0.8 < Q <   1.0     13829    99.39 %
+       0.6 < Q <   0.8        85     0.61 %
+  ** SETTING TOPOLOGY
+     Connected component or subdomains: 2 
+     Tagged edges: 652,  ridges: 652,  refs: 0
+     481 corners, 0 singular points and 0 non manifold points detected
+     248 calculated normal vectors
+
+  -- RESULTING EDGE LENGTHS  20545
+     AVERAGE LENGTH               0.6926
+     SMALLEST EDGE LENGTH         0.1565      197    202
+     LARGEST  EDGE LENGTH         1.9767     3712   3615 
+     0.60 < L < 1.30      8866   43.15 %  
+
+     HISTOGRAMM:
+     0.00 < L < 0.30       566    2.75 %  
+     0.30 < L < 0.60     10129   49.30 %  
+     0.60 < L < 0.71      3013   14.67 %  
+     0.71 < L < 0.90      2277   11.08 %  
+     0.90 < L < 1.30      3576   17.41 %  
+     1.30 < L < 1.41       655    3.19 %  
+     1.41 < L < 2.00       329    1.60 %  
+  -- PHASE 1 COMPLETED.     0.008s
+
+  -- PHASE 2 : ANISOTROPIC MESHING
+  ** GEOMETRIC MESH
+         488 splitted
+          139 edge swapped
+          488 splitted,        0 collapsed,      139 swapped
+         498 splitted
+           99 edge swapped
+          498 splitted,        0 collapsed,       99 swapped
+         993 splitted
+          102 edge swapped
+          993 splitted,        0 collapsed,      102 swapped
+        1984 splitted
+           98 edge swapped
+         1984 splitted,        0 collapsed,       98 swapped
+        3966 splitted
+            2 vertices removed
+           93 edge swapped
+         3966 splitted,        2 collapsed,       93 swapped
+  ** COMPUTATIONAL MESH
+  ** Defining anisotropic map
+
+  -- GRADATION : 1.300000 (2.300000)
+  ** Grading mesh
+     gradation:   12675 updated, 40 iter.
+  ** Grading required points.
+        5173 splitted
+         5874 vertices removed
+         9394 edge swapped
+         5173 splitted,     5874 collapsed,     9394 swapped
+         612 splitted
+          632 vertices removed
+         1466 edge swapped
+          612 splitted,      632 collapsed,     1466 swapped
+          25 splitted
+           67 vertices removed
+          111 edge swapped
+           25 splitted,       67 collapsed,      111 swapped
+           2 splitted
+            1 vertices removed
+            7 edge swapped
+            2 splitted,        1 collapsed,        7 swapped
+         1421 edge swapped
+         8537 vertices moved, 1 iter.
+         2405 splitted,     7096 collapsed,     1421 swapped,     8537 moved
+          823 edge swapped
+         8667 vertices moved, 1 iter.
+         1478 splitted,     1348 collapsed,      823 swapped,     8667 moved
+          526 edge swapped
+         8586 vertices moved, 1 iter.
+          769 splitted,      850 collapsed,      526 swapped,     8586 moved
+          447 edge swapped
+         8509 vertices moved, 1 iter.
+          572 splitted,      648 collapsed,      447 swapped,     8509 moved
+          388 edge swapped
+         8441 vertices moved, 1 iter.
+          450 splitted,      518 collapsed,      388 swapped,     8441 moved
+         4565 vertices moved, 5 iter.
+  -- PHASE 2 COMPLETED.     0.737s
+
+  -- MESH QUALITY   15503
+     BEST   0.999995  AVRG.   0.901155  WRST.   0.080217 (6969)
+     HISTOGRAMM:   99.92 % > 0.12
+                   98.69 % >  0.5
+       0.8 < Q <   1.0     13397    86.42 %
+       0.6 < Q <   0.8      1754    11.31 %
+       0.4 < Q <   0.6       213     1.37 %
+       0.2 < Q <   0.4        95     0.61 %
+       0.0 < Q <   0.2        44     0.28 %
+
+  -- RESULTING EDGE LENGTHS  22083
+     AVERAGE LENGTH               1.0081
+     SMALLEST EDGE LENGTH         0.0399    17623  12169
+     LARGEST  EDGE LENGTH         1.7861     8060  13948 
+     0.60 < L < 1.30     20198   91.46 %  
+
+     HISTOGRAMM:
+     0.00 < L < 0.30        55    0.25 %  
+     0.30 < L < 0.60       579    2.62 %  
+     0.60 < L < 0.71       795    3.60 %  
+     0.71 < L < 0.90      4733   21.43 %  
+     0.90 < L < 1.30     14670   66.43 %  
+     1.30 < L < 1.41       966    4.37 %  
+     1.41 < L < 2.00       285    1.29 %  
+
+  -- MESH PACKED UP
+     NUMBER OF VERTICES           8924   CORNERS      481
+     NUMBER OF TRIANGLES         15503
+     NUMBER OF EDGES              2343
+
+   MMG2DLIB: ELAPSED TIME  0.751s
+
+  &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+   END OF MODULE MMG2D
+  &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+  MEMORY USED AT END (Bytes) 6000060
