@@ -1,0 +1,24 @@
+0) DMViewFromOptions: -tor_dm_view_0
+1) DMViewFromOptions: -tor_dm_view_1
+DM Object: tokamak 1 MPI process
+  type: plex
+tokamak in 3 dimensions:
+  Number of 0-cells per rank: 125
+  Number of 1-cells per rank: 300
+  Number of 2-cells per rank: 240
+  Number of 3-cells per rank: 64
+Labels:
+  celltype: 4 strata with value/size (4 (240), 7 (64), 0 (125), 1 (300))
+  depth: 4 strata with value/size (0 (125), 1 (300), 2 (240), 3 (64))
+  marker: 1 strata with value/size (1 (288))
+  Face Sets: 4 strata with value/size (4 (54), 2 (54), 1 (54), 3 (54))
+Field potential:
+  adjacency FEM
+    0 KSP Residual norm 6.321872092039e+00 
+    1 KSP Residual norm 2.003530006056e+00 
+    2 KSP Residual norm 3.703085835903e-01 
+    3 KSP Residual norm 4.000576289833e-02 
+    4 KSP Residual norm 5.778605842886e-03 
+    5 KSP Residual norm 6.237069011004e-04 
+    6 KSP Residual norm 7.676529301518e-05 
+    7 KSP Residual norm 2.287038093050e-05 

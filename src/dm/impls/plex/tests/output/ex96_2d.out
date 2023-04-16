@@ -1,0 +1,22 @@
+0) DMViewFromOptions: -tor_dm_view_0
+1) DMViewFromOptions: -tor_dm_view_1
+DM Object: plane 1 MPI process
+  type: plex
+plane in 2 dimensions:
+  Number of 0-cells per rank: 25
+  Number of 1-cells per rank: 40
+  Number of 2-cells per rank: 16
+Labels:
+  celltype: 3 strata with value/size (0 (25), 1 (40), 4 (16))
+  depth: 3 strata with value/size (0 (25), 1 (40), 2 (16))
+  marker: 1 strata with value/size (1 (32))
+  Face Sets: 4 strata with value/size (4 (6), 2 (6), 1 (6), 3 (6))
+Field potential:
+  adjacency FEM
+    0 KSP Residual norm 2.955226610935e+00 
+    1 KSP Residual norm 3.743574077576e-01 
+    2 KSP Residual norm 5.498659399023e-02 
+    3 KSP Residual norm 7.426790797388e-03 
+    4 KSP Residual norm 7.829289094947e-04 
+    5 KSP Residual norm 1.468044174288e-04 
+    6 KSP Residual norm 1.450370787459e-05 

@@ -7,13 +7,14 @@ static char help[] = "Geometric multigrid Poisson solver on Tokamak domain with 
 typedef struct {
   PetscInt dim;
   PetscBool view_coarse;
+  char      filename[PETSC_MAX_PATH_LEN];
   /* torus geometry  */
   PetscReal  R;
   PetscReal  r;
   PetscReal  r_inflate;
   PetscInt   np_phi;
-  PetscInt   np_radius;
-  PetscInt   np_theta;
+  PetscInt   np_radius; // not used
+  PetscInt   np_theta; // not used
   /* solver */
   PetscInt   nlevels;
 } AppCtx;
@@ -43,22 +44,40 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *ctx)
   PetscCall(PetscOptionsInt("-np_radius", "Number of radial cells for particle mesh", "ex96.c", ctx->np_radius, &ctx->np_radius, &radFlag));
   PetscCall(PetscOptionsInt("-np_theta", "Number of theta cells for particle mesh", "ex96.c", ctx->np_theta, &ctx->np_theta, &thetaFlag));
   PetscCall(PetscOptionsInt("-num_levels", "Number of multigrid levels (refinement-1)", "ex96.c", ctx->nlevels, &ctx->nlevels, NULL));
+  PetscCheck(ctx->nlevels < 12 &&  ctx->nlevels > 0, comm,PETSC_ERR_ARG_WRONG,"nlevels (%d)",(int)ctx->nlevels);
   /* Domain and mesh definition */
   PetscCall(PetscOptionsReal("-radius_minor", "Minor radius of torus", "ex96.c", ctx->r, &ctx->r, NULL));
   PetscCall(PetscOptionsReal("-radius_major", "Major radius of torus", "ex96.c", ctx->R, &ctx->R, NULL));
   PetscCall(PetscOptionsReal("-radius_inflation", "inflate domain factor from minor radius", "ex96.c", ctx->r_inflate, &ctx->r_inflate, NULL));
-
+  ctx->filename[0] = '\0';
+  PetscCall(PetscOptionsString("-file", "The mesh file", "ex96.c", ctx->filename, ctx->filename, sizeof(ctx->filename), NULL));
   PetscOptionsEnd();
   PetscFunctionReturn(0);
 }
 
 static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
 {
-  PetscFunctionBeginUser;
-  PetscCall(DMCreate(comm, dm));
-  PetscCall(DMSetType(*dm, DMPLEX));
+  size_t      len;
+  DM dmDist = NULL;
+
+  PetscFunctionBegin;
+  PetscCall(PetscStrlen(user->filename, &len));
+  if (len) {
+    PetscCall(PetscPrintf(comm, "CreateMesh: with file %s\n", user->filename));
+    PetscCall(DMPlexCreateFromFile(comm, user->filename, "torus_plex", PETSC_FALSE, dm));
+  } else {
+    PetscCall(DMCreate(comm, dm));
+    PetscCall(DMSetType(*dm, DMPLEX)); // this reads from options without SetFromOptions???
+  }
+  PetscCall(DMPlexDistribute(*dm, 0, NULL, &dmDist));
+  if (dmDist) {
+    PetscCall(DMDestroy(dm));
+    *dm = dmDist;
+  }
+  PetscCall(PetscObjectSetName((PetscObject)*dm, "Coarse Mesh"));
   PetscCall(DMSetFromOptions(*dm)); // seems to create a 2x2 mesh by default'
   PetscCall(DMSetApplicationContext(*dm, user));
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -82,7 +101,7 @@ static PetscErrorCode OriginShift2D(MPI_Comm comm, DM dm, AppCtx *ctx)
     v[1] -= ctx->r*ctx->r_inflate;
   }
   PetscCall(VecRestoreArrayWrite(coordinates, &coords));
-  PetscCall(DMSetCoordinatesLocal(dm, coordinates));
+  PetscCall(DMSetCoordinates(dm, coordinates));
   PetscFunctionReturn(0);
 }
 
@@ -116,14 +135,14 @@ static PetscErrorCode ExtrudeTorus(MPI_Comm comm, DM *dm, AppCtx *ctx)
 {
   DM dmtorus;
   PetscReal L;
-  Vec             coordinates;
-  PetscScalar    *coords, R_0 = ctx->R;
+  Vec             coordinates, coordinates2;
+  PetscScalar    *coords, *coords2, R_0 = ctx->R;
   PetscInt N,dim;
 
   PetscFunctionBeginUser;
   PetscCall(DMGetDimension(*dm, &dim)); // probably 2
   PetscCheck(dim==2, PetscObjectComm((PetscObject)*dm), PETSC_ERR_ARG_WRONG,"DM dim (%d) != 2 for extruding",(int)dim);
-  PetscCall(DMGetCoordinates(*dm, &coordinates));
+  PetscCall(DMGetCoordinatesLocal(*dm, &coordinates));
   PetscCall(VecGetSize(coordinates, &N));
   PetscCall(VecGetArrayWrite(coordinates, &coords));
   // shift coordinates to center on (R,0). Assume the domain is (0,1)^2
@@ -135,6 +154,7 @@ static PetscErrorCode ExtrudeTorus(MPI_Comm comm, DM *dm, AppCtx *ctx)
     v[1] +=     - ctx->r*ctx->r_inflate;
   }
   PetscCall(VecRestoreArrayWrite(coordinates, &coords));
+  PetscCall(DMViewFromOptions(*dm, NULL, "-tor_dm_view_orig"));
   //
   L = 2*PETSC_PI*ctx->R;
   // we could create a box mesh here but Plex starts with a 2x2 so we can just dm_refine from there, for now
@@ -145,19 +165,23 @@ static PetscErrorCode ExtrudeTorus(MPI_Comm comm, DM *dm, AppCtx *ctx)
   PetscCheck(dim==3, PetscObjectComm((PetscObject)*dm), PETSC_ERR_ARG_WRONG,"DM dim (%d) != 3 after extruding",(int)dim);
   PetscCall(DMViewFromOptions(*dm, NULL, "-tor_dm_view_extruded"));
   // wrap around torus axis
-  PetscCall(DMGetCoordinates(*dm, &coordinates));
+  PetscCall(DMGetCoordinatesLocal(*dm, &coordinates));
+  PetscCall(DMGetCoordinates(*dm, &coordinates2));
   PetscCall(VecGetSize(coordinates, &N));
   PetscCall(VecGetArrayWrite(coordinates, &coords));
+  PetscCall(VecGetArrayWrite(coordinates2, &coords2));
   // shift coordinates to center on (R,0). Assume the domain is (0,1)^2
   for (int ii=0;ii<N;ii+=3) {
-    PetscScalar *v = &coords[ii], theta, psi, R;
+    PetscScalar *v = &coords[ii], *v2 = &coords2[ii], theta, psi, R;
     CartTocyl2D(R_0, R, v, psi, theta);
     PetscReal Z = v[2], phi = Z/R_0;
     //PetscCall(PetscPrintf(PetscObjectComm((PetscObject)*dm), "\t\t[%d] ExtrudeTorus %d) psi=%12.4e theta=%12.4e phi=%12.4e. Cart=%12.4e,%12.4e,%12.4e", 0, ii/3,  psi, theta, phi, v[0], v[1], v[2]));
     cylToCart( R_0, psi, theta, phi, v);
     //PetscCall(PetscPrintf(PetscObjectComm((PetscObject)*dm), "--> X = %12.4e,%12.4e,%12.4e\n", v[0], v[1], v[2]));
+    v2[0] = v[0]; v2[1] = v[1]; v2[2] = v[2];
   }
   PetscCall(VecRestoreArrayWrite(coordinates, &coords));
+  PetscCall(VecRestoreArrayWrite(coordinates2, &coords2));
   // set periodic - TODO
   PetscFunctionReturn(0);
 }
@@ -220,7 +244,6 @@ static PetscErrorCode SetupDiscretization(DM dm, const char name[], PetscErrorCo
   PetscCall(DMSetField(dm, 0, NULL, (PetscObject)fe));
   PetscCall(DMCreateDS(dm));
   PetscCall((*setup)(dm, ctx));
-
   PetscCall(PetscFEDestroy(&fe));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -228,95 +251,59 @@ static PetscErrorCode SetupDiscretization(DM dm, const char name[], PetscErrorCo
 
 static PetscErrorCode refineAndSetupSolver(DM *a_dm, SNES snes, AppCtx *ctx)
 {
-  DM          dmref, *dmhierarchy = NULL;
+  DM          dmref, dmhierarchy[12];
   KSP         ksp;
   PC          pc;
   MPI_Comm           comm = PetscObjectComm((PetscObject)*a_dm);
-  PetscInt dim, r;
+  PetscInt dim;
+  PetscBool isUniform;
 
   PetscFunctionBeginUser;
+  /* multigrid KSP create */
+  PetscCall(SNESGetKSP(snes, &ksp));
+  PetscCall(KSPGetPC(ksp, &pc));
+  PetscCall(PCSetType(pc, PCMG));
+  PetscCall(PCMGSetLevels(pc, ctx->nlevels, NULL));
+  PetscCall(PCMGSetType(pc, PC_MG_MULTIPLICATIVE));
+  PetscCall(PCMGSetGalerkin(pc, PC_MG_GALERKIN_BOTH));
+  PetscCall(PCMGSetCycleType(pc, PC_MG_CYCLE_V));
+  PetscCall(PCMGSetNumberSmooth(pc, 2));
+  /* multigrid hierarchy with 2D mesh */
   PetscCall(DMGetDimension(*a_dm, &dim)); // probably 2
-  /* multigrid hierarchy */
-  if (ctx->nlevels > 1) {
-    // coarsest grid = 0
-    // finest grid = nlevels - 1
-    PetscCall(PetscMalloc(sizeof(DM) * ctx->nlevels, &dmhierarchy));
-    for ( r = 1; r < ctx->nlevels; r++) dmhierarchy[r] = NULL;
-    dmhierarchy[0] = *a_dm;
-    /* refine levels */
-    PetscCall(DMRefineHierarchy(*a_dm, ctx->nlevels - 1, &dmhierarchy[1]));
+  dmhierarchy[0] = *a_dm;
+  for (PetscInt r = 1; r < ctx->nlevels ; ++r) {
+    PetscCall(DMRefine(dmhierarchy[r - 1], MPI_COMM_NULL, &dmhierarchy[r]));
   }
-  /* fine grid */
-  if (ctx->dim > dim) {
-    PetscCall(ExtrudeTorus(comm, a_dm, ctx)); // 3D extrude, changes DM
-    PetscCall(PetscObjectSetName((PetscObject)*a_dm, "tokamak"));
-  } else {
-    PetscCall(OriginShift2D(comm, *a_dm, ctx)); // shift to center
-    PetscCall(PetscObjectSetName((PetscObject)*a_dm, "plane"));
-  }
-  /* Primal system */
-  PetscCall(SetupDiscretization(*a_dm, "potential", SetupPrimalProblem, ctx));
-  if (ctx->nlevels == 1) {
-    dmref = *a_dm;
-  } else { // coarse grids
-    PetscBool isUniform;
-    PetscCall(DMPlexGetRefinementUniform(*a_dm, &isUniform));
-    PetscCheck(isUniform, comm, PETSC_ERR_ARG_WRONG,"Not isUniform");
-    dmhierarchy[0] = *a_dm; // could have changed in torus
-    if (ctx->dim > dim) { // 3D torus
-      DM cdm = *a_dm, dm = cdm;
-      for (PetscInt r = 1; r < ctx->nlevels ; ++r) {
-        DM              codm, rcodm;
-        PetscCall(ExtrudeTorus(comm, &dmhierarchy[r], ctx)); // 3D extrude (DMPlexTransformApply)
-        PetscCall(PetscObjectSetName((PetscObject)dmhierarchy[r], "tokamak-mg"));
-        PetscCall(DMSetCoarsenLevel(dmhierarchy[r], cdm->leveldown));
-        PetscCall(DMSetRefineLevel(dmhierarchy[r], cdm->levelup + 1));
-        PetscCall(DMCopyDisc(cdm, dmhierarchy[r]));
-        PetscCall(DMGetCoordinateDM(dm, &codm));
-        PetscCall(DMGetCoordinateDM(dmhierarchy[r], &rcodm));
-        PetscCall(DMCopyDisc(codm, rcodm));
-        //PetscCall(DMPlexTransformCreateDiscLabels(tr, dmhierarchy[r]));
-        PetscCall(DMSetCoarseDM(dmhierarchy[r], cdm));
-        PetscCall(DMPlexSetRegularRefinement(dmhierarchy[r], PETSC_TRUE));
-        if (dmhierarchy[r]) {
-          ((DM_Plex *)(dmhierarchy[r])->data)->printFEM = ((DM_Plex *)dm->data)->printFEM;
-          ((DM_Plex *)(dmhierarchy[r])->data)->printL2  = ((DM_Plex *)dm->data)->printL2;
-        }
-        cdm = dmhierarchy[r];
-      }
+  /* extrude */
+  for (PetscInt r = 0; r < ctx->nlevels; r++) {
+    char str[] = "-tor_dm_view_0";
+    str[13] += r;
+    PetscCall(PetscPrintf(comm, "%d) DMViewFromOptions: %s\n", (int)r, str));
+    if (ctx->dim > dim) {
+      PetscCall(ExtrudeTorus(comm, &dmhierarchy[r], ctx)); // 3D extrude (DMPlexTransformApply)
+      PetscCall(PetscObjectSetName((PetscObject)dmhierarchy[r], "tokamak"));
     } else {
-      for (PetscInt r = 1; r < ctx->nlevels; ++r) {
-        PetscCall(OriginShift2D(comm, dmhierarchy[r], ctx)); // shift to center
-        PetscCall(PetscObjectSetName((PetscObject)dmhierarchy[r], "plane-mg"));
-      }
+      PetscCall(OriginShift2D(comm, dmhierarchy[r], ctx)); // shift to center
+      PetscCall(PetscObjectSetName((PetscObject)dmhierarchy[r], "plane"));
     }
-    /* multigrid solver */
-    PetscCall(SNESGetKSP(snes, &ksp));
-    PetscCall(KSPGetPC(ksp, &pc));
-    PetscCall(PCSetType(pc, PCMG));
-    PetscCall(PCMGSetLevels(pc, ctx->nlevels, NULL));
-    PetscCall(PCMGSetType(pc, PC_MG_MULTIPLICATIVE));
-    PetscCall(PCMGSetGalerkin(pc, PC_MG_GALERKIN_BOTH));
-    PetscCall(PCMGSetCycleType(pc, PC_MG_CYCLE_V));
-    PetscCall(PCMGSetNumberSmooth(pc, 2));
-    for ( r = 1; r < ctx->nlevels; r++) {
-      char str[] = "-tor_coarse_dm_view_0";
+    /* view */
+    PetscCall(DMViewFromOptions(dmhierarchy[r], NULL, str));
+    /* P */
+    if (r > 0 && 0) { // TODO
       Mat         R;
-      DM dm = dmhierarchy[r], cdm = dmhierarchy[r - 1];
-      str[20] += r - 1;
-      PetscCall(PetscPrintf(PetscObjectComm((PetscObject)cdm), "%d) DMViewFromOptions: %s\n", (int)r, str));
       /* set MG */
-      PetscCall(DMCreateInterpolation(cdm, dm, &R, NULL));
+      PetscCall(DMCreateInterpolation(dmhierarchy[r-1], dmhierarchy[r], &R, NULL));
       PetscCall(PCMGSetInterpolation(pc, r, R));
       PetscCall(MatDestroy(&R));
-      /* view */
-      PetscCall(DMViewFromOptions(cdm, NULL, str));
     }
-    for ( r = 0;  r < ctx->nlevels - 1 ; r++) PetscCall(DMDestroy(&dmhierarchy[r])); // destroy input & save fine grid
-    dmref = dmhierarchy[ctx->nlevels-1];
-    PetscCall(PetscFree(dmhierarchy));
+    /* Primal system */
+    PetscCall(SetupDiscretization(dmhierarchy[r], "potential", SetupPrimalProblem, ctx));
+    PetscCall(DMPlexGetRefinementUniform(dmhierarchy[r], &isUniform));
+    PetscCheck(isUniform, comm, PETSC_ERR_ARG_WRONG,"Not isUniform");
   }
-  PetscCall(PetscObjectReference((PetscObject)dmref));
+  /* destroy coarse grids & save fine grid */
+  for (PetscInt r = 0;  r < ctx->nlevels - 1 ; r++) PetscCall(DMDestroy(&dmhierarchy[r]));
+  dmref = dmhierarchy[ctx->nlevels-1];
   PetscCall(SNESSetFromOptions(snes));
   PetscCall(SNESSetDM(snes, dmref));
   *a_dm = dmref;
@@ -353,8 +340,8 @@ int main(int argc, char **argv)
   PetscCall(VecViewFromOptions(u, NULL, "-tor_vec_view"));
   /* solve */
   PetscCall(SNESSolve(snes, NULL, u));
-  PetscCall(DMSetOutputSequenceNumber(dm, 1, 0.0));
   /* view */
+  PetscCall(DMSetOutputSequenceNumber(dm, 1, 1.0));
   PetscCall(VecViewFromOptions(u, NULL, "-tor_vec_view"));
   PetscCall(SNESGetSolution(snes, &u));
   // cleanup
@@ -368,16 +355,16 @@ int main(int argc, char **argv)
 /*TEST
 
    testset:
-     args: -tor_dim 3 -dm_plex_simplex 0 -dm_plex_box_faces 2,2 -dm_plex_dim 2 -tor_num_levels 2 -tor_np_phi 4 -potential_petscspace_degree 2 -snes_type ksponly -ksp_type cg -ksp_monitor 
+     args: -dm_plex_simplex 0 -dm_plex_box_faces 2,2 -dm_plex_dim 2 -tor_num_levels 2 -potential_petscspace_degree 2 -snes_type ksponly -ksp_type cg -ksp_monitor -pc_type ilu -tor_dm_view
      requires: !complex hdf5
 
      test:
-       suffix: 2D
-       args: -dim 2
+       suffix: 2d
+       args: -tor_dim 2
 
      test:
-       suffix: 3D
-       nsize: 4
-       args: -dim 3
+       suffix: 3d
+       nsize: 1
+       args: -tor_dim 3 -tor_np_phi 4
 
 TEST*/
