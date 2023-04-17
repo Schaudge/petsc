@@ -1520,17 +1520,18 @@ static PetscErrorCode DestroyExtent_Private(void *extent)
 
 static PetscErrorCode DMPlexCreateHypercubicMesh_Internal(DM dm, PetscInt dim, const PetscReal lower[], const PetscReal upper[], const PetscInt edges[], const DMBoundaryType bd[])
 {
-  Vec          coordinates;
-  PetscSection coordSection;
-  DMLabel      cutLabel    = NULL;
-  PetscBool    cutMarker   = PETSC_FALSE;
-  PetscBool    periodic    = PETSC_FALSE;
-  PetscInt     numCells    = 1, c;
-  PetscInt     numVertices = 1, v;
-  PetscScalar *coords;
-  PetscInt    *vertices, *vert, *vtmp, *supp, cone[2];
-  PetscInt     d, e, cell = 0, coordSize;
-  PetscMPIInt  rank;
+  const PetscInt debug = ((DM_Plex *)dm->data)->printAdj;
+  Vec            coordinates;
+  PetscSection   coordSection;
+  DMLabel        cutLabel    = NULL;
+  PetscBool      cutMarker   = PETSC_FALSE;
+  PetscBool      periodic    = PETSC_FALSE;
+  PetscInt       numCells    = 1, c;
+  PetscInt       numVertices = 1, v;
+  PetscScalar   *coords;
+  PetscInt      *vertices, *vert, *vtmp, *supp, cone[2];
+  PetscInt       d, e, cell = 0, coordSize;
+  PetscMPIInt    rank;
 
   PetscFunctionBegin;
   PetscCallMPI(MPI_Comm_rank(PetscObjectComm((PetscObject)dm), &rank));
@@ -3849,6 +3850,7 @@ static PetscErrorCode DMPlexCreateFromOptions_Internal(PetscOptionItems *PetscOp
   PetscCall(PetscOptionsBool("-dm_plex_adj_cone", "Set adjacency direction", "DMSetBasicAdjacency", adjCone, &adjCone, &flg));
   PetscCall(PetscOptionsBool("-dm_plex_adj_closure", "Set adjacency size", "DMSetBasicAdjacency", adjClosure, &adjClosure, &flg2));
   if (flg || flg2) PetscCall(DMSetBasicAdjacency(dm, adjCone, adjClosure));
+  PetscCall(PetscOptionsBoundedInt("-dm_plex_print_adj", "Debug output level all adjacency computations", "", 0, &((DM_Plex*)dm->data)->printAdj, NULL, 0));
 
   switch (cell) {
   case DM_POLYTOPE_POINT:
@@ -4059,6 +4061,7 @@ PetscErrorCode DMSetFromOptions_NonRefinement_Plex(DM dm, PetscOptionItems *Pets
   PetscFunctionBegin;
   /* Handle viewing */
   PetscCall(PetscOptionsBool("-dm_plex_print_set_values", "Output all set values info", "DMPlexMatSetClosure", PETSC_FALSE, &mesh->printSetValues, NULL));
+  PetscCall(PetscOptionsBoundedInt("-dm_plex_print_adj", "Debug output level all adjacency computations", "DMPlexSNESComputeResidualFEM", 0, &mesh->printAdj, NULL, 0));
   PetscCall(PetscOptionsBoundedInt("-dm_plex_print_fem", "Debug output level all fem computations", "DMPlexSNESComputeResidualFEM", 0, &mesh->printFEM, NULL, 0));
   PetscCall(PetscOptionsReal("-dm_plex_print_tol", "Tolerance for FEM output", "DMPlexSNESComputeResidualFEM", mesh->printTol, &mesh->printTol, NULL));
   PetscCall(PetscOptionsBoundedInt("-dm_plex_print_l2", "Debug output level all L2 diff computations", "DMComputeL2Diff", 0, &mesh->printL2, NULL, 0));

@@ -240,6 +240,7 @@ typedef struct {
 
   /* Debugging */
   PetscBool printSetValues;
+  PetscInt  printAdj;
   PetscInt  printFEM;
   PetscInt  printL2;
   PetscInt  printLocate;
