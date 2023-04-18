@@ -516,8 +516,8 @@ static PetscErrorCode MatDestroy_LMVMCDBFGS(Mat B)
   PetscFunctionBegin;
   if (lbfgs->allocated) {
     PetscCall(MatDestroy(&lbfgs->StY));
-    PetscCall(MatDestroy(&lbfgs->Sfull));
-    PetscCall(MatDestroy(&lbfgs->Yfull));
+    PetscCall(MatDestroy(&lbfgs->S));
+    PetscCall(MatDestroy(&lbfgs->Y));
     PetscCall(VecDestroy(&lbfgs->work_0));
     PetscCall(VecDestroy(&lbfgs->work_1));
     PetscCall(VecDestroy(&lbfgs->work_2));
