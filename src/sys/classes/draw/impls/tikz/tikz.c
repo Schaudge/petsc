@@ -2,11 +2,17 @@
     Defines the operations for the TikZ PetscDraw implementation.
 */
 
+/* 
+  TODO : I'm reworking this to be more generic and have more options to choose from. Including the use of 
+  TODO : PGFPlots for generating axis, use of styles/layering etc...  
+*/
+
 #include <petsc/private/drawimpl.h> /*I  "petscsys.h" I*/
+#include "petscsystypes.h"
+#include <petscviewer.h> 
 
 typedef struct {
-  char     *filename;
-  FILE     *fd;
+  PetscViewer ascii; 
   PetscBool written; /* something has been written to the current frame */
 } PetscDraw_TikZ;
 
@@ -47,10 +53,10 @@ static PetscErrorCode PetscDrawDestroy_TikZ(PetscDraw draw)
   PetscDraw_TikZ *win = (PetscDraw_TikZ *)draw->data;
 
   PetscFunctionBegin;
-  PetscCall(PetscFPrintf(PetscObjectComm((PetscObject)draw), win->fd, TikZ_END_FRAME));
-  PetscCall(PetscFPrintf(PetscObjectComm((PetscObject)draw), win->fd, TikZ_END_DOCUMENT));
-  PetscCall(PetscFClose(PetscObjectComm((PetscObject)draw), win->fd));
-  PetscCall(PetscFree(win->filename));
+  PetscCall(PetscViewerASCIIPrintf(win->ascii, TikZ_END_FRAME));
+  PetscCall(PetscViewerASCIIPrintf(win->ascii, TikZ_END_DOCUMENT));
+  PetscCall(PetscViewerFlush(win->ascii));
+  PetscCall(PetscViewerDestroy(&win->ascii));
   PetscCall(PetscFree(draw->data));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -77,8 +83,8 @@ static PetscErrorCode PetscDrawClear_TikZ(PetscDraw draw)
   /* often PETSc generates unneeded clears, we want avoid creating empty pictures for them */
   PetscCallMPI(MPI_Allreduce(&win->written, &written, 1, MPIU_BOOL, MPI_LOR, PetscObjectComm((PetscObject)(draw))));
   if (!written) PetscFunctionReturn(PETSC_SUCCESS);
-  PetscCall(PetscFPrintf(PetscObjectComm((PetscObject)draw), win->fd, TikZ_END_FRAME));
-  PetscCall(PetscFPrintf(PetscObjectComm((PetscObject)draw), win->fd, TikZ_BEGIN_FRAME));
+  PetscCall(PetscViewerASCIIPrintf(win->ascii, TikZ_END_FRAME));
+  PetscCall(PetscViewerASCIIPrintf(win->ascii, TikZ_BEGIN_FRAME));
   win->written = PETSC_FALSE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -89,7 +95,7 @@ static PetscErrorCode PetscDrawLine_TikZ(PetscDraw draw, PetscReal xl, PetscReal
 
   PetscFunctionBegin;
   win->written = PETSC_TRUE;
-  PetscCall(PetscFPrintf(PetscObjectComm((PetscObject)draw), win->fd, "\\draw [%s] (%g,%g) --(%g,%g);\n", TikZColorMap(cl), XTRANS(draw, xl), YTRANS(draw, yl), XTRANS(draw, xr), YTRANS(draw, yr)));
+  PetscCall(PetscViewerASCIIPrintf(win->ascii, "\\draw [%s] (%g,%g) --(%g,%g);\n", TikZColorMap(cl), XTRANS(draw, xl), YTRANS(draw, yl), XTRANS(draw, xr), YTRANS(draw, yr)));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -99,7 +105,7 @@ static PetscErrorCode PetscDrawRectangle_TikZ(PetscDraw draw, PetscReal xl, Pets
 
   PetscFunctionBegin;
   win->written = PETSC_TRUE;
-  PetscCall(PetscFPrintf(PetscObjectComm((PetscObject)draw), win->fd, "\\fill [bottom color=%s,top color=%s] (%g,%g) rectangle (%g,%g);\n", TikZColorMap(c1), TikZColorMap(c4), XTRANS(draw, xl), YTRANS(draw, yl), XTRANS(draw, xr), YTRANS(draw, yr)));
+  PetscCall(PetscViewerASCIIPrintf(win->ascii, "\\fill [bottom color=%s,top color=%s] (%g,%g) rectangle (%g,%g);\n", TikZColorMap(c1), TikZColorMap(c4), XTRANS(draw, xl), YTRANS(draw, yl), XTRANS(draw, xr), YTRANS(draw, yr)));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -109,7 +115,7 @@ static PetscErrorCode PetscDrawTriangle_TikZ(PetscDraw draw, PetscReal x1, Petsc
 
   PetscFunctionBegin;
   win->written = PETSC_TRUE;
-  PetscCall(PetscFPrintf(PetscObjectComm((PetscObject)draw), win->fd, "\\fill [color=%s] (%g,%g) -- (%g,%g) -- (%g,%g) -- cycle;\n", TikZColorMap(c1), XTRANS(draw, x1), YTRANS(draw, y1), XTRANS(draw, x2), YTRANS(draw, y2), XTRANS(draw, x3), YTRANS(draw, y3)));
+  PetscCall(PetscViewerASCIIPrintf(win->ascii, "\\fill [color=%s] (%g,%g) -- (%g,%g) -- (%g,%g) -- cycle;\n", TikZColorMap(c1), XTRANS(draw, x1), YTRANS(draw, y1), XTRANS(draw, x2), YTRANS(draw, y2), XTRANS(draw, x3), YTRANS(draw, y3)));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -122,7 +128,7 @@ static PetscErrorCode PetscDrawEllipse_TikZ(PetscDraw draw, PetscReal x, PetscRe
   win->written = PETSC_TRUE;
   rx           = a / 2 * (draw->port_xr - draw->port_xl) / (draw->coor_xr - draw->coor_xl);
   ry           = b / 2 * (draw->port_yr - draw->port_yl) / (draw->coor_yr - draw->coor_yl);
-  PetscCall(PetscFPrintf(PetscObjectComm((PetscObject)draw), win->fd, "\\fill [color=%s] (%g,%g) circle [x radius=%g,y radius=%g];\n", TikZColorMap(c), XTRANS(draw, x), YTRANS(draw, y), (double)rx, (double)ry));
+  PetscCall(PetscViewerASCIIPrintf(win->ascii, "\\fill [color=%s] (%g,%g) circle [x radius=%g,y radius=%g];\n", TikZColorMap(c), XTRANS(draw, x), YTRANS(draw, y), (double)rx, (double)ry));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -132,7 +138,7 @@ static PetscErrorCode PetscDrawString_TikZ(PetscDraw draw, PetscReal xl, PetscRe
 
   PetscFunctionBegin;
   win->written = PETSC_TRUE;
-  PetscCall(PetscFPrintf(PetscObjectComm((PetscObject)draw), win->fd, "\\node [above right, %s] at (%g,%g) {%s};\n", TikZColorMap(cl), XTRANS(draw, xl), YTRANS(draw, yl), text));
+  PetscCall(PetscViewerASCIIPrintf(win->ascii, "\\node [above right, %s] at (%g,%g) {%s};\n", TikZColorMap(cl), XTRANS(draw, xl), YTRANS(draw, yl), text));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -147,7 +153,7 @@ static PetscErrorCode PetscDrawStringVertical_TikZ(PetscDraw draw, PetscReal xl,
   PetscCall(PetscStrlen(text, &len));
   PetscCall(PetscDrawStringGetSize(draw, &width, NULL));
   yl = yl - len * width * (draw->coor_yr - draw->coor_yl) / (draw->coor_xr - draw->coor_xl);
-  PetscCall(PetscFPrintf(PetscObjectComm((PetscObject)draw), win->fd, "\\node [rotate=90, %s] at (%g,%g) {%s};\n", TikZColorMap(cl), XTRANS(draw, xl), YTRANS(draw, yl), text));
+  PetscCall(PetscViewerASCIIPrintf(win->ascii,"\\node [rotate=90, %s] at (%g,%g) {%s};\n", TikZColorMap(cl), XTRANS(draw, xl), YTRANS(draw, yl), text));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -161,7 +167,7 @@ static PetscErrorCode PetscDrawStringBoxed_TikZ(PetscDraw draw, PetscReal xl, Pe
 
   PetscFunctionBegin;
   win->written = PETSC_TRUE;
-  PetscCall(PetscFPrintf(PetscObjectComm((PetscObject)draw), win->fd, "\\draw (%g,%g) node [rectangle, draw, align=center, inner sep=1ex] {%s};\n", XTRANS(draw, xl), YTRANS(draw, yl), text));
+  PetscCall(PetscViewerASCIIPrintf(win->ascii, "\\draw (%g,%g) node [rectangle, draw, align=center, inner sep=1ex] {%s};\n", XTRANS(draw, xl), YTRANS(draw, yl), text));
 
   /* make up totally bogus height and width of box */
   PetscCall(PetscStrlen(text, &len));
@@ -188,19 +194,22 @@ PETSC_EXTERN PetscErrorCode PetscDrawCreate_TikZ(PetscDraw draw)
   PetscCall(PetscMemcpy(draw->ops, &DvOps, sizeof(DvOps)));
   PetscCall(PetscNew(&win));
 
+  PetscCall(PetscViewerCreate(PetscObjectComm((PetscObject)draw), &win->ascii)); 
+  PetscCall(PetscViewerSetType(win->ascii, PETSCVIEWERASCII));
+
   draw->data = (void *)win;
 
   if (draw->title) {
-    PetscCall(PetscStrallocpy(draw->title, &win->filename));
+    PetscCall(PetscViewerFileSetName(win->ascii, draw->title));
   } else {
     const char *fname;
     PetscCall(PetscObjectGetName((PetscObject)draw, &fname));
-    PetscCall(PetscStrallocpy(fname, &win->filename));
+    PetscCall(PetscViewerFileSetName(win->ascii, fname));
   }
-  PetscCall(PetscFOpen(PetscObjectComm((PetscObject)draw), win->filename, "w", &win->fd));
-  PetscCall(PetscFPrintf(PetscObjectComm((PetscObject)draw), win->fd, TikZ_BEGIN_DOCUMENT));
-  PetscCall(PetscFPrintf(PetscObjectComm((PetscObject)draw), win->fd, TikZ_BEGIN_FRAME));
-
+  PetscCall(PetscViewerFileSetMode(win->ascii, FILE_MODE_WRITE));
+  // right now maintaining the same (buggy) functionality
+  PetscCall(PetscViewerASCIIPrintf(win->ascii, TikZ_BEGIN_DOCUMENT));
+  PetscCall(PetscViewerASCIIPrintf(win->ascii, TikZ_BEGIN_FRAME)); 
   win->written = PETSC_FALSE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
