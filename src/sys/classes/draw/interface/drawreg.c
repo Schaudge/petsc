@@ -103,6 +103,30 @@ PetscErrorCode PetscDrawViewFromOptions(PetscDraw A, PetscObject obj, const char
 }
 
 /*@C
+  PetscDrawSetUp - Sets up the data structures inside a `PetscDraw` object
+
+    Collective
+
+    Input Parameter:
+.   draw - the `PetscDraw` object to setup
+
+    Level: intermediate
+
+    Note:
+    This is usually called after various parameter setting operations and `DrawSetFromOptions()` are called on the `PetscDraw`
+.seealso: `PetscDraw`, `DrawSetFromOptions()`, `PetscDrawCreate()`
+@*/
+PetscErrorCode PetscDrawSetUp(PetscDraw draw)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  if (draw->setupcalled) PetscFunctionReturn(PETSC_SUCCESS);
+  PetscTryTypeMethod(draw, setup);
+  draw->setupcalled = PETSC_TRUE;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
    PetscDrawCreate - Creates a graphics context.
 
    Collective

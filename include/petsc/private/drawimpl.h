@@ -49,6 +49,7 @@ struct _PetscDrawOps {
   PetscErrorCode (*pointpixel)(PetscDraw, int, int, int);
   PetscErrorCode (*boxedstring)(PetscDraw, PetscReal, PetscReal, int, int, const char[], PetscReal *, PetscReal *);
   PetscErrorCode (*setvisible)(PetscDraw, PetscBool);
+  PetscErrorCode (*setup)(PetscDraw);
 };
 
 struct _p_PetscDraw {
@@ -73,6 +74,7 @@ struct _p_PetscDraw {
   char               *savefinalfilename;
   PetscBool           saveonclear; /* save a new image for every PetscDrawClear() called */
   PetscBool           saveonflush; /* save a new image for every PetscDrawFlush() called */
+  PetscBool           setupcalled;
   void               *data;
 };
 

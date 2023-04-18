@@ -184,6 +184,13 @@ static PetscErrorCode PetscDrawStringGetSize_TikZ(PetscDraw draw, PetscReal *x, 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode PetscDrawSave_TikZ(PetscDraw draw)
+{
+  PetscFunctionBegin;
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PETSC_EXTERN PetscErrorCode PetscDrawCreate_TikZ(PetscDraw draw)
 {
   PetscDraw_TikZ *win;
@@ -226,6 +233,7 @@ PETSC_EXTERN PetscErrorCode PetscDrawCreate_TikZ(PetscDraw draw)
   draw->ops->pointpixel         = NULL;
   draw->ops->boxedstring        = PetscDrawStringBoxed_TikZ;
   draw->ops->setvisible         = NULL;
+  draw->ops->setup              = NULL;
 
   PetscCall(PetscNew(&win));
 
