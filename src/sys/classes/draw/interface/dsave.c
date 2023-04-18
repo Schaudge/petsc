@@ -1,4 +1,6 @@
 #include <petsc/private/drawimpl.h> /*I "petscdraw.h" I*/
+#include "petscstring.h"
+#include "petscsys.h"
 
 PETSC_EXTERN PetscErrorCode PetscDrawImageSave(const char[], const char[], unsigned char[][3], unsigned int, unsigned int, const unsigned char[]);
 PETSC_EXTERN PetscErrorCode PetscDrawMovieSave(const char[], PetscInt, const char[], PetscInt, const char[]);
@@ -40,6 +42,7 @@ PetscErrorCode PetscDrawSetSave(PetscDraw draw, const char filename[])
   const char *savename = NULL;
   const char *imageext = NULL;
   char        buf[PETSC_MAX_PATH_LEN];
+  PetscBool   flg1,flg2; 
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
@@ -60,7 +63,11 @@ PetscErrorCode PetscDrawSetSave(PetscDraw draw, const char filename[])
   }
 
   if (!savename) PetscCall(PetscObjectGetName((PetscObject)draw, &savename));
-  PetscCall(PetscDrawImageCheckFormat(&imageext));
+  PetscCall(PetscObjectTypeCompare((PetscObject)draw,PETSC_DRAW_TIKZ, &flg1));
+  PetscCall(PetscStrcmp(imageext, ".tex", &flg2));
+  if(!flg1 || !flg2) { /* allow tex file types just for tikz */
+    PetscCall(PetscDrawImageCheckFormat(&imageext));
+  }
 
   draw->savefilecount = 0;
   PetscCall(PetscFree(draw->savefilename));
@@ -100,6 +107,7 @@ PetscErrorCode PetscDrawSetSaveMovie(PetscDraw draw, const char movieext[])
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscCall(PetscDrawSetUp(draw));
   if (movieext) PetscValidCharPointer(movieext, 2);
 
   if (!draw->savefilename) PetscCall(PetscDrawSetSave(draw, ""));
@@ -144,6 +152,7 @@ PetscErrorCode PetscDrawSetSaveFinalImage(PetscDraw draw, const char filename[])
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscCall(PetscDrawSetUp(draw));
   if (!filename || !filename[0]) {
     if (!draw->savefilename) {
       PetscCall(PetscObjectGetName((PetscObject)draw, &filename));
@@ -183,6 +192,7 @@ PetscErrorCode PetscDrawSave(PetscDraw draw)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscCall(PetscDrawSetUp(draw));
   if (!draw->ops->save && !draw->ops->getimage) PetscFunctionReturn(PETSC_SUCCESS);
   if (draw->ops->save) {
     PetscUseTypeMethod(draw, save);

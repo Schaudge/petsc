@@ -153,6 +153,7 @@ PetscErrorCode PetscDrawLine(PetscDraw draw, PetscReal xl, PetscReal yl, PetscRe
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscCall(PetscDrawSetUp(draw));
   PetscUseTypeMethod(draw, line, xl, yl, xr, yr, cl);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -179,6 +180,7 @@ PetscErrorCode PetscDrawArrow(PetscDraw draw, PetscReal xl, PetscReal yl, PetscR
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscCall(PetscDrawSetUp(draw));
   PetscUseTypeMethod(draw, arrow, xl, yl, xr, yr, cl);
   PetscFunctionReturn(PETSC_SUCCESS);
 }

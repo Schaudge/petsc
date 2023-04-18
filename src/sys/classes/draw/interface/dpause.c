@@ -17,6 +17,7 @@ PetscErrorCode PetscDrawPause(PetscDraw draw)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscCall(PetscDrawSetUp(draw));
   PetscTryTypeMethod(draw, pause);
   PetscFunctionReturn(PETSC_SUCCESS);
 }

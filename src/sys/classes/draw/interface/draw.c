@@ -98,6 +98,7 @@ PetscErrorCode PetscDrawResizeWindow(PetscDraw draw, int w, int h)
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
   PetscValidLogicalCollectiveInt(draw, w, 2);
   PetscValidLogicalCollectiveInt(draw, h, 3);
+  PetscCall(PetscDrawSetUp(draw));
   PetscTryTypeMethod(draw, resizewindow, w, h);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -122,6 +123,7 @@ PetscErrorCode PetscDrawGetWindowSize(PetscDraw draw, int *w, int *h)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscCall(PetscDrawSetUp(draw));
   if (w) PetscValidPointer(w, 2);
   if (h) PetscValidPointer(h, 3);
   if (w) *w = draw->w;
@@ -145,6 +147,7 @@ PetscErrorCode PetscDrawCheckResizedWindow(PetscDraw draw)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscCall(PetscDrawSetUp(draw));
   PetscTryTypeMethod(draw, checkresizedwindow);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -319,7 +322,7 @@ PetscErrorCode PetscDrawGetPopup(PetscDraw draw, PetscDraw *popup)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
   PetscValidPointer(popup, 2);
-
+  PetscCall(PetscDrawSetUp(draw));
   if (draw->popup) *popup = draw->popup;
   else if (draw->ops->getpopup) {
     PetscUseTypeMethod(draw, getpopup, popup);
@@ -346,6 +349,8 @@ PetscErrorCode PetscDrawGetPopup(PetscDraw draw, PetscDraw *popup)
 PetscErrorCode PetscDrawSetDisplay(PetscDraw draw, const char display[])
 {
   PetscFunctionBegin;
+  PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscCall(PetscDrawSetUp(draw));
   PetscCall(PetscFree(draw->display));
   PetscCall(PetscStrallocpy(display, &draw->display));
   PetscFunctionReturn(PETSC_SUCCESS);

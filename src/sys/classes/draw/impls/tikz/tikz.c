@@ -184,10 +184,27 @@ static PetscErrorCode PetscDrawStringGetSize_TikZ(PetscDraw draw, PetscReal *x, 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode PetscDrawSave_TikZ(PetscDraw draw)
+static PetscErrorCode PetscDrawSetUp_TikZ(PetscDraw draw)
 {
-  PetscFunctionBegin;
+  PetscDraw_TikZ *tikz = (PetscDraw_TikZ *)draw->data;
+  char path[PETSC_MAX_PATH_LEN];
 
+  PetscFunctionBegin;
+  if (draw->savefilename) {
+    PetscCall(PetscSNPrintf(path, sizeof(path), "%s%s", draw->savefilename, draw->saveimageext));
+    PetscCall(PetscViewerFileSetName(tikz->ascii, path));
+  } else if (draw->savefinalfilename) {
+    PetscCall(PetscSNPrintf(path, sizeof(path), "%s%s", draw->savefinalfilename, draw->saveimageext));
+    PetscCall(PetscViewerFileSetName(tikz->ascii, draw->savefinalfilename));
+  } else if (draw->title) {
+    PetscCall(PetscViewerFileSetName(tikz->ascii, draw->title));
+  } else {
+    const char *fname;
+    PetscCall(PetscObjectGetName((PetscObject)draw, &fname));
+    PetscCall(PetscViewerFileSetName(tikz->ascii, fname));
+  }
+  PetscCall(PetscViewerASCIIPrintf(tikz->ascii, TikZ_BEGIN_DOCUMENT));
+  PetscCall(PetscViewerASCIIPrintf(tikz->ascii, TikZ_BEGIN_FRAME));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -233,26 +250,14 @@ PETSC_EXTERN PetscErrorCode PetscDrawCreate_TikZ(PetscDraw draw)
   draw->ops->pointpixel         = NULL;
   draw->ops->boxedstring        = PetscDrawStringBoxed_TikZ;
   draw->ops->setvisible         = NULL;
-  draw->ops->setup              = NULL;
+  draw->ops->setup              = PetscDrawSetUp_TikZ;
 
   PetscCall(PetscNew(&win));
 
   PetscCall(PetscViewerCreate(PetscObjectComm((PetscObject)draw), &win->ascii));
   PetscCall(PetscViewerSetType(win->ascii, PETSCVIEWERASCII));
-
   draw->data = (void *)win;
-
-  if (draw->title) {
-    PetscCall(PetscViewerFileSetName(win->ascii, draw->title));
-  } else {
-    const char *fname;
-    PetscCall(PetscObjectGetName((PetscObject)draw, &fname));
-    PetscCall(PetscViewerFileSetName(win->ascii, fname));
-  }
   PetscCall(PetscViewerFileSetMode(win->ascii, FILE_MODE_WRITE));
-  // right now maintaining the same (buggy) functionality
-  PetscCall(PetscViewerASCIIPrintf(win->ascii, TikZ_BEGIN_DOCUMENT));
-  PetscCall(PetscViewerASCIIPrintf(win->ascii, TikZ_BEGIN_FRAME));
   win->written = PETSC_FALSE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

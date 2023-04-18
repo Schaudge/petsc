@@ -24,6 +24,7 @@ PetscErrorCode PetscDrawMarker(PetscDraw draw, PetscReal xl, PetscReal yl, int c
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscCall(PetscDrawSetUp(draw));
   if (draw->markertype == PETSC_DRAW_MARKER_CROSS) {
     if (draw->ops->coordinatetopixel && draw->ops->pointpixel) {
       int i, j, k;

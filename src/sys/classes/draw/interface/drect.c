@@ -25,6 +25,7 @@ PetscErrorCode PetscDrawIndicatorFunction(PetscDraw draw, PetscReal xmin, PetscR
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscCall(PetscDrawSetUp(draw));
   PetscCall(PetscDrawIsNull(draw, &isnull));
   if (isnull) PetscFunctionReturn(PETSC_SUCCESS);
 
@@ -68,6 +69,7 @@ PetscErrorCode PetscDrawCoordinateToPixel(PetscDraw draw, PetscReal x, PetscReal
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscCall(PetscDrawSetUp(draw));
   PetscUseTypeMethod(draw, coordinatetopixel, x, y, i, j);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -94,6 +96,7 @@ PetscErrorCode PetscDrawPixelToCoordinate(PetscDraw draw, int i, int j, PetscRea
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscCall(PetscDrawSetUp(draw));
   PetscUseTypeMethod(draw, pixeltocoordinate, i, j, x, y);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -123,6 +126,7 @@ PetscErrorCode PetscDrawRectangle(PetscDraw draw, PetscReal xl, PetscReal yl, Pe
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscCall(PetscDrawSetUp(draw));
   PetscUseTypeMethod(draw, rectangle, xl, yl, xr, yr, c1, c2, c3, c4);
   PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -19,6 +19,7 @@ PetscErrorCode PetscDrawClear(PetscDraw draw)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscCall(PetscDrawSetUp(draw));
   if (draw->saveonclear) PetscCall(PetscDrawSave(draw));
   PetscTryTypeMethod(draw, clear);
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -40,6 +41,7 @@ PetscErrorCode PetscDrawBOP(PetscDraw draw)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscCall(PetscDrawSetUp(draw));
   PetscTryTypeMethod(draw, beginpage);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -59,6 +61,7 @@ PetscErrorCode PetscDrawEOP(PetscDraw draw)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscCall(PetscDrawSetUp(draw));
   PetscTryTypeMethod(draw, endpage);
   PetscFunctionReturn(PETSC_SUCCESS);
 }

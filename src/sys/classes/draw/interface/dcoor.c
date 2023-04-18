@@ -23,6 +23,7 @@ PetscErrorCode PetscDrawSetCoordinates(PetscDraw draw, PetscReal xl, PetscReal y
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscCall(PetscDrawSetUp(draw));
   draw->coor_xl = xl;
   draw->coor_yl = yl;
   draw->coor_xr = xr;
@@ -54,6 +55,7 @@ PetscErrorCode PetscDrawGetCoordinates(PetscDraw draw, PetscReal *xl, PetscReal 
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscCall(PetscDrawSetUp(draw));
   PetscValidRealPointer(xl, 2);
   PetscValidRealPointer(yl, 3);
   PetscValidRealPointer(xr, 4);
