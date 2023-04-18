@@ -2,18 +2,18 @@
     Defines the operations for the TikZ PetscDraw implementation.
 */
 
-/* 
-  TODO : I'm reworking this to be more generic and have more options to choose from. Including the use of 
-  TODO : PGFPlots for generating axis, use of styles/layering etc...  
+/*
+  TODO : I'm reworking this to be more generic and have more options to choose from. Including the use of
+  TODO : PGFPlots for generating axis, use of styles/layering etc...
 */
 
 #include <petsc/private/drawimpl.h> /*I  "petscsys.h" I*/
 #include "petscsystypes.h"
-#include <petscviewer.h> 
+#include <petscviewer.h>
 
 typedef struct {
-  PetscViewer ascii; 
-  PetscBool written; /* something has been written to the current frame */
+  PetscViewer ascii;
+  PetscBool   written; /* something has been written to the current frame */
 } PetscDraw_TikZ;
 
 #define TikZ_BEGIN_DOCUMENT \
@@ -153,7 +153,7 @@ static PetscErrorCode PetscDrawStringVertical_TikZ(PetscDraw draw, PetscReal xl,
   PetscCall(PetscStrlen(text, &len));
   PetscCall(PetscDrawStringGetSize(draw, &width, NULL));
   yl = yl - len * width * (draw->coor_yr - draw->coor_yl) / (draw->coor_xr - draw->coor_xl);
-  PetscCall(PetscViewerASCIIPrintf(win->ascii,"\\node [rotate=90, %s] at (%g,%g) {%s};\n", TikZColorMap(cl), XTRANS(draw, xl), YTRANS(draw, yl), text));
+  PetscCall(PetscViewerASCIIPrintf(win->ascii, "\\node [rotate=90, %s] at (%g,%g) {%s};\n", TikZColorMap(cl), XTRANS(draw, xl), YTRANS(draw, yl), text));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -184,17 +184,52 @@ static PetscErrorCode PetscDrawStringGetSize_TikZ(PetscDraw draw, PetscReal *x, 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static struct _PetscDrawOps DvOps = {NULL, NULL, PetscDrawLine_TikZ, NULL, NULL, NULL, NULL, PetscDrawString_TikZ, PetscDrawStringVertical_TikZ, NULL, PetscDrawStringGetSize_TikZ, NULL, PetscDrawClear_TikZ, PetscDrawRectangle_TikZ, PetscDrawTriangle_TikZ, PetscDrawEllipse_TikZ, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, PetscDrawDestroy_TikZ, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, PetscDrawStringBoxed_TikZ, NULL};
-
 PETSC_EXTERN PetscErrorCode PetscDrawCreate_TikZ(PetscDraw draw)
 {
   PetscDraw_TikZ *win;
 
   PetscFunctionBegin;
-  PetscCall(PetscMemcpy(draw->ops, &DvOps, sizeof(DvOps)));
+  draw->ops->setdoublebuffer    = NULL;
+  draw->ops->flush              = NULL;
+  draw->ops->line               = PetscDrawLine_TikZ;
+  draw->ops->linesetwidth       = NULL;
+  draw->ops->linegetwidth       = NULL;
+  draw->ops->point              = NULL;
+  draw->ops->pointsetsize       = NULL;
+  draw->ops->string             = PetscDrawString_TikZ;
+  draw->ops->stringvertical     = PetscDrawStringVertical_TikZ;
+  draw->ops->stringsetsize      = NULL;
+  draw->ops->stringgetsize      = PetscDrawStringGetSize_TikZ;
+  draw->ops->setviewport        = NULL;
+  draw->ops->clear              = PetscDrawClear_TikZ;
+  draw->ops->rectangle          = PetscDrawRectangle_TikZ;
+  draw->ops->triangle           = PetscDrawTriangle_TikZ;
+  draw->ops->ellipse            = PetscDrawEllipse_TikZ;
+  draw->ops->getmousebutton     = NULL;
+  draw->ops->pause              = NULL;
+  draw->ops->beginpage          = NULL;
+  draw->ops->endpage            = NULL;
+  draw->ops->getpopup           = NULL;
+  draw->ops->settitle           = NULL;
+  draw->ops->checkresizedwindow = NULL;
+  draw->ops->resizewindow       = NULL;
+  draw->ops->destroy            = PetscDrawDestroy_TikZ;
+  draw->ops->view               = NULL;
+  draw->ops->getsingleton       = NULL;
+  draw->ops->restoresingleton   = NULL;
+  draw->ops->save               = NULL;
+  draw->ops->getimage           = NULL;
+  draw->ops->setcoordinates     = NULL;
+  draw->ops->arrow              = NULL;
+  draw->ops->coordinatetopixel  = NULL;
+  draw->ops->pixeltocoordinate  = NULL;
+  draw->ops->pointpixel         = NULL;
+  draw->ops->boxedstring        = PetscDrawStringBoxed_TikZ;
+  draw->ops->setvisible         = NULL;
+
   PetscCall(PetscNew(&win));
 
-  PetscCall(PetscViewerCreate(PetscObjectComm((PetscObject)draw), &win->ascii)); 
+  PetscCall(PetscViewerCreate(PetscObjectComm((PetscObject)draw), &win->ascii));
   PetscCall(PetscViewerSetType(win->ascii, PETSCVIEWERASCII));
 
   draw->data = (void *)win;
@@ -209,7 +244,7 @@ PETSC_EXTERN PetscErrorCode PetscDrawCreate_TikZ(PetscDraw draw)
   PetscCall(PetscViewerFileSetMode(win->ascii, FILE_MODE_WRITE));
   // right now maintaining the same (buggy) functionality
   PetscCall(PetscViewerASCIIPrintf(win->ascii, TikZ_BEGIN_DOCUMENT));
-  PetscCall(PetscViewerASCIIPrintf(win->ascii, TikZ_BEGIN_FRAME)); 
+  PetscCall(PetscViewerASCIIPrintf(win->ascii, TikZ_BEGIN_FRAME));
   win->written = PETSC_FALSE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
