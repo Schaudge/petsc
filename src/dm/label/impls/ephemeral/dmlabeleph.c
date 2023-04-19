@@ -60,6 +60,7 @@ static PetscErrorCode DMLabelGetStratumIS_Ephemeral(DMLabel label, PetscInt v, I
 
   PetscCall(DMLabelGetStratumSize_Private(label, v, &Np));
   PetscCall(PetscMalloc1(Np, &points));
+  PetscCall(DMLabelMakeValid_Internal(olabel, v));
   PetscUseTypeMethod(olabel, getstratumis, v, &opointIS);
   PetscCall(ISGetLocalSize(opointIS, &Nop));
   PetscCall(ISGetIndices(opointIS, &opoints));

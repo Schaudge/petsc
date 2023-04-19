@@ -44,6 +44,7 @@ PETSC_EXTERN PetscErrorCode DMLabelSetDefaultValue(DMLabel, PetscInt);
 PETSC_EXTERN PetscErrorCode DMLabelGetValue(DMLabel, PetscInt, PetscInt *);
 PETSC_EXTERN PetscErrorCode DMLabelSetValue(DMLabel, PetscInt, PetscInt);
 PETSC_EXTERN PetscErrorCode DMLabelClearValue(DMLabel, PetscInt, PetscInt);
+PETSC_EXTERN PetscErrorCode DMLabelGetReadOnly(DMLabel, PetscBool *);
 PETSC_EXTERN PetscErrorCode DMLabelAddStratum(DMLabel, PetscInt);
 PETSC_EXTERN PetscErrorCode DMLabelAddStrata(DMLabel, PetscInt, const PetscInt[]);
 PETSC_EXTERN PetscErrorCode DMLabelAddStrataIS(DMLabel, IS);

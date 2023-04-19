@@ -45,5 +45,7 @@ struct _p_DMLabel {
 PETSC_INTERN PetscErrorCode DMLabelLookupStratum(DMLabel, PetscInt, PetscInt *);
 PETSC_INTERN PetscErrorCode DMLabelGetStratumSize_Private(DMLabel, PetscInt, PetscInt *);
 PETSC_INTERN PetscErrorCode PetscSectionSymCreate_Label(PetscSectionSym);
+PETSC_INTERN PetscErrorCode DMLabelMakeValid_Internal(DMLabel, PetscInt);
+PETSC_INTERN PetscErrorCode DMLabelMakeInvalid_Internal(DMLabel, PetscInt);
 PETSC_INTERN PetscErrorCode DMLabelMakeAllInvalid_Internal(DMLabel);
 #endif

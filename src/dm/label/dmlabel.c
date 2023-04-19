@@ -72,7 +72,7 @@ PetscErrorCode DMLabelSetUp(DMLabel label)
 }
 
 /*
-  DMLabelMakeValid_Private - Transfer stratum data from the hash format to the sorted list format
+  DMLabelMakeValid_Internal - Transfer stratum data from the hash format to the sorted list format
 
   Not collective
 
@@ -87,14 +87,14 @@ PetscErrorCode DMLabelSetUp(DMLabel label)
 
 .seealso: `DMLabel`, `DM`, `DMLabelCreate()`
 */
-static PetscErrorCode DMLabelMakeValid_Private(DMLabel label, PetscInt v)
+PetscErrorCode DMLabelMakeValid_Internal(DMLabel label, PetscInt v)
 {
   IS       is;
   PetscInt off = 0, *pointArray, p;
 
   if ((PetscLikely(v >= 0 && v < label->numStrata) && label->validIS[v]) || label->readonly) return PETSC_SUCCESS;
   PetscFunctionBegin;
-  PetscCheck(v >= 0 && v < label->numStrata, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Trying to access invalid stratum %" PetscInt_FMT " in DMLabelMakeValid_Private", v);
+  PetscCheck(v >= 0 && v < label->numStrata, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Trying to access invalid stratum %" PetscInt_FMT " in DMLabelMakeValid_Internal", v);
   PetscCall(PetscHSetIGetSize(label->ht[v], &label->stratumSizes[v]));
   PetscCall(PetscMalloc1(label->stratumSizes[v], &pointArray));
   PetscCall(PetscHSetIGetElems(label->ht[v], &off, pointArray));
@@ -140,12 +140,12 @@ static PetscErrorCode DMLabelMakeAllValid_Private(DMLabel label)
   PetscInt v;
 
   PetscFunctionBegin;
-  for (v = 0; v < label->numStrata; v++) PetscCall(DMLabelMakeValid_Private(label, v));
+  for (v = 0; v < label->numStrata; v++) PetscCall(DMLabelMakeValid_Internal(label, v));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
-  DMLabelMakeInvalid_Private - Transfer stratum data from the sorted list format to the hash format
+  DMLabelMakeInvalid_Internal - Transfer stratum data from the sorted list format to the hash format
 
   Not Collective
 
@@ -160,14 +160,14 @@ static PetscErrorCode DMLabelMakeAllValid_Private(DMLabel label)
 
 .seealso: `DMLabel`, `DM`, `DMLabelCreate()`
 */
-static PetscErrorCode DMLabelMakeInvalid_Private(DMLabel label, PetscInt v)
+PetscErrorCode DMLabelMakeInvalid_Internal(DMLabel label, PetscInt v)
 {
   PetscInt        p;
   const PetscInt *points;
 
   if ((PetscLikely(v >= 0 && v < label->numStrata) && !label->validIS[v]) || label->readonly) return PETSC_SUCCESS;
   PetscFunctionBegin;
-  PetscCheck(v >= 0 && v < label->numStrata, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Trying to access invalid stratum %" PetscInt_FMT " in DMLabelMakeInvalid_Private", v);
+  PetscCheck(v >= 0 && v < label->numStrata, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Trying to access invalid stratum %" PetscInt_FMT " in DMLabelMakeInvalid_Internal", v);
   if (label->points[v]) {
     PetscCall(ISGetIndices(label->points[v], &points));
     for (p = 0; p < label->stratumSizes[v]; ++p) PetscCall(PetscHSetIAdd(label->ht[v], points[p]));
@@ -183,7 +183,7 @@ PetscErrorCode DMLabelMakeAllInvalid_Internal(DMLabel label)
   PetscInt v;
 
   PetscFunctionBegin;
-  for (v = 0; v < label->numStrata; v++) PetscCall(DMLabelMakeInvalid_Private(label, v));
+  for (v = 0; v < label->numStrata; v++) PetscCall(DMLabelMakeInvalid_Internal(label, v));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -556,6 +556,32 @@ PetscErrorCode DMLabelDuplicate_Concrete(DMLabel label, DMLabel *labelnew)
   PetscCall(PetscHMapIDestroy(&(*labelnew)->hmap));
   PetscCall(PetscHMapIDuplicate(label->hmap, &(*labelnew)->hmap));
   PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  DMLabelGetReadOnly - Returns the read-only flag
+
+  Collective on label
+
+  Input Parameter:
+. label - The `DMLabel`
+
+  Output Parameter:
+. readonly - The flag indicating an immutable label
+
+  Level: intermediate
+
+  Note:
+  Ephemeral labels are read-only since they are generated automatically from an underlying label.
+
+.seealso: `DMLABELEPHEMERAL`, `DMLabelCreate()`
+@*/
+PetscErrorCode DMLabelGetReadOnly(DMLabel label, PetscBool *readonly)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(label, DMLABEL_CLASSID, 1);
+  *readonly = label->readonly;
+  PetscFunctionReturn(0);
 }
 
 /*@
@@ -1089,7 +1115,7 @@ PetscErrorCode DMLabelSetValue(DMLabel label, PetscInt point, PetscInt value)
   PetscCheck(!label->readonly, PetscObjectComm((PetscObject)label), PETSC_ERR_ARG_WRONG, "Read-only labels cannot be altered");
   PetscCall(DMLabelLookupAddStratum(label, value, &v));
   /* Set key */
-  PetscCall(DMLabelMakeInvalid_Private(label, v));
+  PetscCall(DMLabelMakeInvalid_Internal(label, v));
   PetscCall(PetscHSetIAdd(label->ht[v], point));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1125,7 +1151,7 @@ PetscErrorCode DMLabelClearValue(DMLabel label, PetscInt point, PetscInt value)
   }
 
   /* Delete key */
-  PetscCall(DMLabelMakeInvalid_Private(label, v));
+  PetscCall(DMLabelMakeInvalid_Internal(label, v));
   PetscCall(PetscHSetIDel(label->ht[v], point));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1157,7 +1183,7 @@ PetscErrorCode DMLabelInsertIS(DMLabel label, IS is, PetscInt value)
   PetscCheck(!label->readonly, PetscObjectComm((PetscObject)label), PETSC_ERR_ARG_WRONG, "Read-only labels cannot be altered");
   PetscCall(DMLabelLookupAddStratum(label, value, &v));
   /* Set keys */
-  PetscCall(DMLabelMakeInvalid_Private(label, v));
+  PetscCall(DMLabelMakeInvalid_Internal(label, v));
   PetscCall(ISGetLocalSize(is, &n));
   PetscCall(ISGetIndices(is, &points));
   for (p = 0; p < n; ++p) PetscCall(PetscHSetIAdd(label->ht[v], points[p]));
@@ -1382,7 +1408,7 @@ PetscErrorCode DMLabelGetStratumBounds(DMLabel label, PetscInt value, PetscInt *
   }
   PetscCall(DMLabelLookupStratum(label, value, &v));
   if (v < 0) PetscFunctionReturn(PETSC_SUCCESS);
-  PetscCall(DMLabelMakeValid_Private(label, v));
+  PetscCall(DMLabelMakeValid_Internal(label, v));
   if (label->stratumSizes[v] <= 0) PetscFunctionReturn(PETSC_SUCCESS);
   PetscUseTypeMethod(label, getstratumis, v, &is);
   PetscCall(ISGetMinMax(is, &min, &max));
@@ -1430,7 +1456,7 @@ PetscErrorCode DMLabelGetStratumIS(DMLabel label, PetscInt value, IS *points)
   *points = NULL;
   PetscCall(DMLabelLookupStratum(label, value, &v));
   if (v < 0) PetscFunctionReturn(PETSC_SUCCESS);
-  PetscCall(DMLabelMakeValid_Private(label, v));
+  PetscCall(DMLabelMakeValid_Internal(label, v));
   PetscUseTypeMethod(label, getstratumis, v, points);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1586,7 +1612,7 @@ PetscErrorCode DMLabelGetStratumPointIndex(DMLabel label, PetscInt value, PetscI
   *index = -1;
   PetscCall(DMLabelLookupStratum(label, value, &v));
   if (v < 0) PetscFunctionReturn(PETSC_SUCCESS);
-  PetscCall(DMLabelMakeValid_Private(label, v));
+  PetscCall(DMLabelMakeValid_Internal(label, v));
   PetscUseTypeMethod(label, getstratumis, v, &pointIS);
   PetscCall(ISGetIndices(pointIS, &indices));
   PetscCall(PetscFindInt(p, label->stratumSizes[v], indices, index));
