@@ -21,6 +21,34 @@ namespace Petsc
 namespace memory
 {
 
+enum class align_val_t : std::size_t {
+};
+
+} // namespace memory
+
+} // namespace Petsc
+
+namespace std
+{
+
+template <>
+struct hash<::Petsc::memory::align_val_t> {
+  #if PETSC_CPP_VERSION < 17
+  using argument_type = ::Petsc::memory::align_val_t;
+  using result_type   = size_t;
+  #endif
+
+  constexpr size_t operator()(const ::Petsc::memory::align_val_t &x) const noexcept { return static_cast<size_t>(x); }
+};
+
+} // namespace std
+
+namespace Petsc
+{
+
+namespace memory
+{
+
 // ==========================================================================================
 // PoolAllocator
 //
@@ -35,10 +63,9 @@ class PoolAllocator : public RegisterFinalizeable<PoolAllocator> {
 public:
   // define the size and alignment as separate types, this helps to disambiguate them at the
   // callsite!
-  using size_type = std::size_t;
-  enum class align_type : std::size_t {
-  };
-  using pool_type = Petsc::UnorderedMap<align_type, Petsc::UnorderedMap<size_type, std::deque<void *>>>;
+  using size_type  = std::size_t;
+  using align_type = align_val_t;
+  using pool_type  = UnorderedMap<align_type, UnorderedMap<size_type, std::deque<void *>>>;
 
   PoolAllocator() noexcept                            = default;
   PoolAllocator(PoolAllocator &&) noexcept            = default;
@@ -276,7 +303,7 @@ inline PetscErrorCode PoolAllocator::finalize_() noexcept
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-// a quick sanity check that the alignment is valid, does nothin in optimized builds
+// a quick sanity check that the alignment is valid, does nothing in optimized builds
 inline PetscErrorCode PoolAllocator::valid_alignment_(align_type in_align) noexcept
 {
   constexpr auto max_align = util::to_underlying(AllocationHeader::max_alignment());
@@ -512,7 +539,7 @@ inline PetscErrorCode PoolAllocator::try_allocate(void **out_ptr, size_type size
 + size  - The size (in bytes) to allocate
 - align - The alignment (in bytes) to align the allocation to
 
-  Ouput Parameters:
+  Output Parameters:
 + out_ptr             - A pointer containing the beginning of the allocated region
 - allocated_from_pool - True if the region was allocated from the pool, false otherwise
 
@@ -560,7 +587,7 @@ inline PetscErrorCode PoolAllocator::deallocate(void **in_ptr, size_type size, a
       PetscCall(PetscPoisonMemoryRegion(ptr, size));
     } else {
       // This is necessary if an object is "reclaimed" within another PetscFinalize()
-      // registered cleanup after this pool has returned from it's finalizer. In this case,
+      // registered cleanup after this pool has returned from its finalizer. In this case,
       // instead of pushing onto the stack we just delete the pointer directly.
       //
       // However this path is *only* valid if we have already finalized!

@@ -1583,7 +1583,7 @@ PetscErrorCode TSAdjointMonitor(TS ts, PetscInt step, PetscReal ptime, Vec u, Pe
  Notes:
  This function cannot be called until `TSAdjointStep()` has been completed.
 
- .seealso: [](chapter_ts), `TSAdjointSolve()`, `TSAdjointStep()`
+.seealso: [](chapter_ts), `TSAdjointSolve()`, `TSAdjointStep()`
  @*/
 PetscErrorCode TSAdjointCostIntegral(TS ts)
 {
@@ -1670,7 +1670,7 @@ PetscErrorCode TSForwardSetIntegralGradients(TS ts, PetscInt numfwdint, Vec *vp)
 }
 
 /*@
-  TSForwardGetIntegralGradients - Returns the forward sensitivities ofthe integral term.
+  TSForwardGetIntegralGradients - Returns the forward sensitivities of the integral term.
 
   Input Parameter:
 . ts - the `TS` context obtained from `TSCreate()`

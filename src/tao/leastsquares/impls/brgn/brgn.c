@@ -320,7 +320,7 @@ static PetscErrorCode TaoSetUp_BRGN(Tao tao)
         PetscCall(MatGetSize(gn->D, &K, &N)); /* Shell matrices still must have sizes defined. K = N for identity matrix, K=N-1 or N for gradient matrix */
         PetscCall(MatCreateVecs(gn->D, NULL, &gn->y));
       } else {
-        PetscCall(VecDuplicate(tao->solution, &gn->y)); /* If user does not setup dict matrix, use identiy matrix, K=N */
+        PetscCall(VecDuplicate(tao->solution, &gn->y)); /* If user does not setup dict matrix, use identity matrix, K=N */
       }
       PetscCall(VecSet(gn->y, 0.0));
     }
@@ -592,7 +592,7 @@ $  PetscErrorCode (*func)(Tao tao, Vec u, Mat H, void *ctx)
 
    Level: advanced
 
-  .seealso: `Tao`, `Mat`, `TAOBRGN`
+.seealso: `Tao`, `Mat`, `TAOBRGN`
 @*/
 PetscErrorCode TaoBRGNSetRegularizerHessianRoutine(Tao tao, Mat Hreg, PetscErrorCode (*func)(Tao, Vec, Mat, void *), void *ctx)
 {

@@ -103,7 +103,7 @@ struct _n_PetscOptions {
 
 static PetscOptions defaultoptions = NULL; /* the options database routines query this object for options */
 
-/* list of options which preceed others, i.e., are processed in PetscOptionsProcessPrecedentFlags() */
+/* list of options which precede others, i.e., are processed in PetscOptionsProcessPrecedentFlags() */
 /* these options can only take boolean values, the code will crash if given a non-boolean value */
 static const char *precedentOptions[] = {"-petsc_ci", "-options_monitor", "-options_monitor_cancel", "-help", "-skip_petscrc"};
 enum PetscPrecedentOption {
@@ -2097,7 +2097,7 @@ PetscErrorCode PetscOptionsMonitorDefault(const char name[], const char value[],
     } else if (!value[0]) {
       PetscCall(PetscPrintf(comm, "Setting option: %s (no value) (source: %s)\n", name, PetscOptionSources[source]));
     } else {
-      PetscCall(PetscPrintf(comm, "Setting option: %s = %s (souce: %s)\n", name, value, PetscOptionSources[source]));
+      PetscCall(PetscPrintf(comm, "Setting option: %s = %s (source: %s)\n", name, value, PetscOptionSources[source]));
     }
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -3177,7 +3177,7 @@ PetscErrorCode PetscOptionsGetStringArray(PetscOptions options, const char pre[]
 }
 
 /*@C
-   PetscOptionsDeprecated - mark an option as deprecated, optionally replacing it with a new one
+   PetscOptionsDeprecated - mark an option as deprecated, optionally replacing it with `newname`
 
    Prints a deprecation warning, unless an option is supplied to suppress.
 
@@ -3196,6 +3196,12 @@ PetscErrorCode PetscOptionsGetStringArray(PetscOptions options, const char pre[]
    Level: developer
 
    Notes:
+   If `newname` is provided then the options database will automatically check the database for `oldname`.
+
+   The old call `PetscOptionsXXX`(`oldname`) should be removed from the source code when both (1) the call to `PetscOptionsDeprecated()` occurs before the
+   new call to `PetscOptionsXXX`(`newname`) and (2) the argument handling of the new call to `PetscOptionsXXX`(`newname`) is identical to the previous call.
+   See `PTScotch_PartGraph_Seq()` for an example of when (1) fails and `SNESTestJacobian()` where an example of (2) fails.
+
    Must be called between `PetscOptionsBegin()` (or `PetscObjectOptionsBegin()`) and `PetscOptionsEnd()`.
    Only the process of rank zero that owns the `PetscOptionsItems` are argument (managed by `PetscOptionsBegin()` or
    `PetscObjectOptionsBegin()` prints the information

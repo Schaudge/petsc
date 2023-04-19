@@ -25,10 +25,8 @@ checklinks_rule:
 checklinks:
 	cd .. ; ${RM} -rf petsc-doc-env; python3 -m venv petsc-doc-env ; source petsc-doc-env/bin/activate ; python3 -m pip install -r doc/requirements.txt ; cd doc ; make checklinks_rule; deactivate
 
-clean-classic-docs:
-	./build_classic_docs.py --clean
-
-clean: clean-classic-docs
+clean:
+	-@${RM} -rf _build __pycache__
 
 images:
 	git clone https://gitlab.com/petsc/images.git -b main-2 --depth=1 images
@@ -38,7 +36,10 @@ website-deploy: images
 
 # use this rule to build the documentation on your machine when working on PETSc documentation
 sphinxhtml:
-	cd .. ; python3 -m venv petsc-doc-env ; source petsc-doc-env/bin/activate ; python3 -m pip install -r doc/requirements.txt ; cd doc ; ${RM} -rf _build* manualpages/singlindex.md  manualpages/*/*.md; make  SPHINXOPTS="-T -E -W --keep-going -j 4" html; deactivate
+	cd .. ; python3 -m venv petsc-doc-env ; source petsc-doc-env/bin/activate ; python3 -m pip install -r doc/requirements.txt ; cd doc ; ${RM} -rf _build* manualpages/singlindex.md  manualpages/*/*.md; make  SPHINXOPTS="-T -E -W --keep-going -j 8" html; deactivate
+
+sphinxpdf:
+	cd .. ; python3 -m venv petsc-doc-env ; source petsc-doc-env/bin/activate ; python3 -m pip install -r doc/requirements.txt ; cd doc ; ${RM} -rf _build* manualpages/singlindex.md  manualpages/*/*.md; make  latexpdf; deactivate
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.

@@ -452,7 +452,7 @@ PetscErrorCode SNESView(SNES snes, PetscViewer viewer)
       } else {
         PetscCall(PetscViewerASCIIPrintf(viewer, "  %sJacobian is built using a DMDA local Jacobian\n", pre));
       }
-    } else if (snes->mf) {
+    } else if (snes->mf && !snes->mf_operator) {
       PetscCall(PetscViewerASCIIPrintf(viewer, "  Jacobian is applied matrix-free with differencing, no explicit Jacobian\n"));
     }
   } else if (isstring) {
@@ -2257,7 +2257,7 @@ PetscErrorCode SNESPicardComputeJacobian(SNES snes, Vec x1, Mat J, Mat B, void *
    When used with `-snes_fd_coloring` this will compute the Jacobian via coloring and thus represent a faster implementation of Newton's method. But the
    the nonzero structure of the Jacobian is, in general larger than that of the Picard matrix A so you must provide in A the needed nonzero structure for the correct
    coloring. When using `DMDA` this may mean creating the matrix A with `DMCreateMatrix()` using a wider stencil than strictly needed for A or with a `DMDA_STENCIL_BOX`.
-   See the commment in src/snes/tutorials/ex15.c.
+   See the comment in src/snes/tutorials/ex15.c.
 
 .seealso: [](chapter_snes), `SNES`, `SNESGetFunction()`, `SNESSetFunction()`, `SNESComputeFunction()`, `SNESSetJacobian()`, `SNESGetPicard()`, `SNESLineSearchPreCheckPicard()`, `SNESJacobianFunction`
 @*/
@@ -2545,13 +2545,10 @@ PetscErrorCode SNESTestJacobian(SNES snes)
   PetscObjectOptionsBegin((PetscObject)snes);
   PetscCall(PetscOptionsName("-snes_test_jacobian", "Compare hand-coded and finite difference Jacobians", "None", &test));
   PetscCall(PetscOptionsReal("-snes_test_jacobian", "Threshold for element difference between hand-coded and finite difference being meaningful", "None", threshold, &threshold, NULL));
+  PetscCall(PetscOptionsDeprecated("-snes_test_jacobian_display", "-snes_test_jacobian_view", "3.13", NULL));
   PetscCall(PetscOptionsViewer("-snes_test_jacobian_view", "View difference between hand-coded and finite difference Jacobians element entries", "None", &mviewer, &format, &complete_print));
-  if (!complete_print) {
-    PetscCall(PetscOptionsDeprecated("-snes_test_jacobian_display", "-snes_test_jacobian_view", "3.13", NULL));
-    PetscCall(PetscOptionsViewer("-snes_test_jacobian_display", "Display difference between hand-coded and finite difference Jacobians", "None", &mviewer, &format, &complete_print));
-  }
-  /* for compatibility with PETSc 3.9 and older. */
   PetscCall(PetscOptionsDeprecated("-snes_test_jacobian_display_threshold", "-snes_test_jacobian", "3.13", "-snes_test_jacobian accepts an optional threshold (since v3.10)"));
+  /* Cannot remove the what otherwise would be redundant call to (PetscOptionsReal("-snes_test_jacobian_display_threshold") below because its usage is different than the replacement usage */
   PetscCall(PetscOptionsReal("-snes_test_jacobian_display_threshold", "Display difference between hand-coded and finite difference Jacobians which exceed input threshold", "None", threshold, &threshold, &threshold_print));
   PetscOptionsEnd();
   if (!test) PetscFunctionReturn(PETSC_SUCCESS);
@@ -3866,7 +3863,7 @@ PetscErrorCode SNESMonitorLGRange(SNES snes, PetscInt n, PetscReal rnorm, void *
   PetscCall(PetscViewerDrawGetDrawLG(v, 1, &lg));
   if (!n) PetscCall(PetscDrawLGReset(lg));
   PetscCall(PetscDrawLGGetDraw(lg, &draw));
-  PetscCall(PetscDrawSetTitle(draw, "% elemts > .2*max elemt"));
+  PetscCall(PetscDrawSetTitle(draw, "% elements > .2*max element"));
   PetscCall(SNESMonitorRange_Private(snes, n, &per));
   x = (PetscReal)n;
   y = 100.0 * per;
@@ -4297,7 +4294,7 @@ $ PetscErrorCode func(SNES snes, PetscInt step);
      to `SNESSetFunction()`, or `SNESSetPicard()`
      This is not used by most users.
 
-     There are a varity of function hooks one many set that are called at different stages of the nonlinear solution process, see the functions listed below.
+     There are a variety of function hooks one many set that are called at different stages of the nonlinear solution process, see the functions listed below.
 
 .seealso: [](chapter_snes), `SNES`, `SNESSolve()`, `SNESSetJacobian()`, `SNESSolve()`, `SNESLineSearchSetPreCheck()`, `SNESLineSearchSetPostCheck()`, `SNESNewtonTRSetPreCheck()`, `SNESNewtonTRSetPostCheck()`,
          `SNESMonitorSet()`, `SNESSetDivergenceTest()`
@@ -4431,7 +4428,7 @@ PetscErrorCode SNESConvergedReasonView(SNES snes, PetscViewer viewer)
 
 /*@C
    SNESConvergedReasonViewSet - Sets an ADDITIONAL function that is to be used at the
-    end of the nonlinear solver to display the conver reason of the nonlinear solver.
+    end of the nonlinear solver to display the convergence reason of the nonlinear solver.
 
    Logically Collective
 

@@ -7,7 +7,7 @@
 #include <petsc/private/kernels/blockmatmult.h>
 #include <petsc/private/kernels/blockinvert.h>
 
-PetscLogEvent DMPLEX_CreateFromFile, DMPLEX_BuildFromCellList, DMPLEX_BuildCoordinatesFromCellList;
+PetscLogEvent DMPLEX_CreateFromFile, DMPLEX_CreateFromOptions, DMPLEX_BuildFromCellList, DMPLEX_BuildCoordinatesFromCellList;
 
 /* External function declarations here */
 static PetscErrorCode DMInitialize_Plex(DM dm);
@@ -1636,7 +1636,7 @@ static PetscErrorCode DMPlexCreateHypercubicMesh_Internal(DM dm, PetscInt dim, c
 }
 
 /*@C
-  DMPlexCreateHypercubicMesh - Creates a peridoic mesh on the tensor product of unit intervals using only vertices and edges.
+  DMPlexCreateHypercubicMesh - Creates a periodic mesh on the tensor product of unit intervals using only vertices and edges.
 
   Collective
 
@@ -1678,7 +1678,7 @@ static PetscErrorCode DMPlexCreateHypercubicMesh_Internal(DM dm, PetscInt dim, c
  18--0-19--2-20--4-18
 .ve
 
-.seealso: DMSetFromOptions(), DMPlexCreateFromFile(), DMPlexCreateHexCylinderMesh(), DMSetType(), DMCreate()
+.seealso: `DMSetFromOptions()`, `DMPlexCreateFromFile()`, `DMPlexCreateHexCylinderMesh()`, `DMSetType()`, `DMCreate()`
 @*/
 PetscErrorCode DMPlexCreateHypercubicMesh(MPI_Comm comm, PetscInt dim, const PetscInt edges[], const PetscReal lower[], const PetscReal upper[], DM *dm)
 {
@@ -3832,6 +3832,7 @@ static PetscErrorCode DMPlexCreateFromOptions_Internal(PetscOptionItems *PetscOp
   char           plexname[PETSC_MAX_PATH_LEN]   = "";
 
   PetscFunctionBegin;
+  PetscCall(PetscLogEventBegin(DMPLEX_CreateFromOptions, dm, 0, 0, 0));
   PetscCall(PetscObjectGetComm((PetscObject)dm, &comm));
   /* TODO Turn this into a registration interface */
   PetscCall(PetscOptionsString("-dm_plex_filename", "File containing a mesh", "DMPlexCreateFromFile", filename, filename, sizeof(filename), &fflg));
@@ -4044,6 +4045,7 @@ static PetscErrorCode DMPlexCreateFromOptions_Internal(PetscOptionItems *PetscOp
   }
   PetscCall(DMPlexSetRefinementUniform(dm, PETSC_TRUE));
   if (!((PetscObject)dm)->name && nameflg) PetscCall(PetscObjectSetName((PetscObject)dm, plexname));
+  PetscCall(PetscLogEventEnd(DMPLEX_CreateFromOptions, dm, 0, 0, 0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -4580,7 +4582,7 @@ PETSC_INTERN PetscErrorCode DMClone_Plex(DM dm, DM *newdm)
 . -dm_plex_remesh_bd                 - Allow changes to the boundary on remeshing
 . -dm_plex_max_projection_height     - Maximum mesh point height used to project locally
 . -dm_plex_regular_refinement        - Use special nested projection algorithm for regular refinement
-. -dm_plex_check_all                 - Perform all shecks below
+. -dm_plex_check_all                 - Perform all checks below
 . -dm_plex_check_symmetry            - Check that the adjacency information in the mesh is symmetric
 . -dm_plex_check_skeleton <celltype> - Check that each cell has the correct number of vertices
 . -dm_plex_check_faces <celltype>    - Check that the faces of each cell give a vertex order this is consistent with what we expect from the cell type

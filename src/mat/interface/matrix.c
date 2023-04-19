@@ -39,6 +39,7 @@ PetscLogEvent MAT_HIPSPARSECopyToGPU, MAT_HIPSPARSECopyFromGPU, MAT_HIPSPARSEGen
 PetscLogEvent MAT_PreallCOO, MAT_SetVCOO;
 PetscLogEvent MAT_SetValuesBatch;
 PetscLogEvent MAT_ViennaCLCopyToGPU;
+PetscLogEvent MAT_CUDACopyToGPU;
 PetscLogEvent MAT_DenseCopyToGPU, MAT_DenseCopyFromGPU;
 PetscLogEvent MAT_Merge, MAT_Residual, MAT_SetRandom;
 PetscLogEvent MAT_FactorFactS, MAT_FactorInvS;
@@ -2755,7 +2756,7 @@ PetscErrorCode MatMultAdd(Mat mat, Vec v1, Vec v2, Vec v3)
 
    Input Parameters:
 +  mat - the matrix
-.  v1 - the vector to be multipled by the transpose of the matrix
+.  v1 - the vector to be multiplied by the transpose of the matrix
 -  v2 - the vector to be added to the result
 
    Output Parameter:
@@ -7830,7 +7831,7 @@ PetscErrorCode MatResidual(Mat mat, Vec b, Vec x, Vec r)
 +   A - the matrix
 .   shift -  0 or 1 indicating we want the indices starting at 0 or 1
 .   symmetric - `PETSC_TRUE` or `PETSC_FALSE` indicating the matrix data structure should be symmetrized
--   inodecompressed - `PETSC_TRUE` or `PETSC_FALSE`  indicats if the nonzero structure of the
+-   inodecompressed - `PETSC_TRUE` or `PETSC_FALSE`  indicating if the nonzero structure of the
                  inodes or the nonzero elements is wanted. For `MATBAIJ` matrices the compressed version is
                  always used.
 
@@ -7861,7 +7862,7 @@ M*/
 +   A - the  matrix
 .   shift -  0 or 1 indicating we want the indices starting at 0 or 1
 .   symmetric - `PETSC_TRUE` or `PETSC_FALSE` indicating the matrix data structure should be symmetrized
-    inodecompressed - `PETSC_TRUE` or `PETSC_FALSE`  indicats if the nonzero structure of the
+    inodecompressed - `PETSC_TRUE` or `PETSC_FALSE`  indicating if the nonzero structure of the
                  inodes or the nonzero elements is wanted. For `MATBAIJ` matrices the compressed version is
                  always used.
 .   n - number of local rows in the (possibly compressed) matrix
@@ -7884,7 +7885,7 @@ M*/
 +   mat - the matrix
 .   shift -  0 or 1 indicating we want the indices starting at 0 or 1
 .   symmetric - `PETSC_TRUE` or `PETSC_FALSE` indicating the matrix data structure should be symmetrized
--   inodecompressed - `PETSC_TRUE` or `PETSC_FALSE`  indicats if the nonzero structure of the
+-   inodecompressed - `PETSC_TRUE` or `PETSC_FALSE`  indicating if the nonzero structure of the
                  inodes or the nonzero elements is wanted. For `MATBAIJ` matrices the compressed version is
                  always used.
 

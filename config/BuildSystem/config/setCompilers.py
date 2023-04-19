@@ -187,7 +187,7 @@ class Configure(config.base.Configure):
       min_ver += 3
 
     available_dialects = ', '.join(map(str, available_dialects))
-    help.addArgument('Compilers', '-with-cxx-dialect=<dialect>',nargs.Arg(None, 'auto', 'Dialect under which to compile C++ sources. Pass "c++17" to use "-std=c++17", "gnu++17" to use "-std=gnu++17" or pass just the numer (e.g. "17") to have PETSc auto-detect gnu extensions. Pass "auto" to let PETSc auto-detect everything or "0" to use the compiler"s default. Available: ({}, auto, 0)'.format(available_dialects)))
+    help.addArgument('Compilers', '-with-cxx-dialect=<dialect>',nargs.Arg(None, 'auto', 'Dialect under which to compile C++ sources. Pass "c++17" to use "-std=c++17", "gnu++17" to use "-std=gnu++17" or pass just the number (e.g. "17") to have PETSc auto-detect gnu extensions. Pass "auto" to let PETSc auto-detect everything or "0" to use the compiler"s default. Available: ({}, auto, 0)'.format(available_dialects)))
     help.addArgument('Compilers', '-with-hip-dialect=<dialect>',nargs.Arg(None, 'auto', 'Dialect under which to compile HIP sources. If set should probably be equivalent to c++ dialect (see --with-cxx-dialect)'))
     help.addArgument('Compilers', '-with-cuda-dialect=<dialect>',nargs.Arg(None, 'auto', 'Dialect under which to compile CUDA sources. If set should probably be equivalent to c++ dialect (see --with-cxx-dialect)'))
     help.addArgument('Compilers', '-with-sycl-dialect=<dialect>',nargs.Arg(None, 'auto', 'Dialect under which to compile SYCL sources. If set should probably be equivalent to c++ dialect (see --with-cxx-dialect)'))
@@ -626,10 +626,14 @@ class Configure(config.base.Configure):
         if log: log.write('Detected Darwin')
         isDarwin_value = True
         import platform
-        v = tuple([int(a) for a in platform.mac_ver()[0].split('.')])
-        if v >= (10,15,0):
-          if log: log.write('Detected Darwin/MacOSX Catalina OS\n')
-          isDarwinCatalina_value = True
+        try:
+          v = tuple([int(a) for a in platform.mac_ver()[0].split('.')])
+          if v >= (10,15,0):
+            if log: log.write('Detected Darwin/MacOSX Catalina OS\n')
+            isDarwinCatalina_value = True
+        except:
+          if log: log.write('MacOS version detecton failed!\n')
+          pass
       if output.find('freebsd') >= 0:
         if log: log.write('Detected FreeBSD')
         isFreeBSD_value = True
