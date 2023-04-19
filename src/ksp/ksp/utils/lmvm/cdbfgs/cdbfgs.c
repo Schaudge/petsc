@@ -54,7 +54,7 @@ PetscErrorCode MatCDBFGSApplyJ0Inv(Mat B, Vec F, Vec dX)
 static PetscErrorCode MatSolveTriangularRecycleOrder(Mat_LMVM *lmvm, Mat_CDBFGS *lbfgs, Mat R, PetscInt lowest_index, Vec b, Vec x, TriangularTypes tri_type)
 {
   MPI_Comm     comm  = PetscObjectComm((PetscObject)R);
-  PetscScalar  Alpha = 1.0, Beta = 0.0, neg_one = -1.;
+  PetscScalar  Alpha = 1.0, neg_one = -1.;
   PetscMemType memtype_vec, memtype_r, memtype_x;
   PetscScalar *buffer, *array_write, *x_array;
   PetscInt     lda;
@@ -320,8 +320,8 @@ static PetscErrorCode MatSolveTriangularRecycleOrder(Mat_LMVM *lmvm, Mat_CDBFGS 
 
 static PetscErrorCode MatSolve_LMVMCDBFGS(Mat B, Vec F, Vec dX)
 {
-  Mat_LMVM   *lmvm  = (Mat_LMVM*)B->data;
-  Mat_CDBFGS *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
+  Mat_LMVM    *lmvm  = (Mat_LMVM*)B->data;
+  Mat_CDBFGS  *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
   
   PetscFunctionBegin;
   VecCheckSameSize(F, 2, dX, 3);
@@ -333,12 +333,7 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat B, Vec F, Vec dX)
   }
 
   /* rwork1 = Y^T * H * F */
-  if (lbfgs->Wfull != NULL) {
-    PetscCall(MatMultTranspose(lbfgs->Wfull, F, lbfgs->rwork1));
-//TODO    BLASgemv(Wfull, IS? , F, ...) (plan 2, for avoiding virtual submatrix. not implementing it now
-  } else {
-    PetscCall(MatMultTranspose(lbfgs->Yfull, dX, lbfgs->rwork1));
-  }
+  PetscCall(MatMultTranspose(lbfgs->Yfull, dX, lbfgs->rwork1));
 
   /* Start with upper part : - H Y R^-1 S^T F */
   /* Start with reusable part: rwork2 = S^T F, rwork3 = R^-1 S^T F */
@@ -355,7 +350,11 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat B, Vec F, Vec dX)
   PetscCall(MatMult(lbfgs->Yfull, lbfgs->rwork3, lbfgs->rwork2));
   PetscCall(MatCDBFGSApplyJ0Inv(B, lbfgs->rwork2, lbfgs->rwork4));
   PetscCall(MatMultTranspose(lbfgs->Yfull, lbfgs->rwork4, lbfgs->rwork2));
-  PetscCall(MatMult(lbfgs->D, lbfgs->rwork3, lbfgs->rwork4));
+
+  PetscCall(VecDuplicate(F, &lbfgs->diag_vec));
+  PetscCall(MatGetDiagonal(lbfgs->StYfull, lbfgs->diag_vec));
+  PetscCall(VecPointwiseMult(lbfgs->rwork4, lbfgs->diag_vec, lbfgs->rwork3));
+  PetscCall(VecDestroy(&lbfgs->diag_vec));
   /* Negating here so it can be summable at the end */
   PetscCall(VecAXPBYPCZ(lbfgs->rwork2, -1., 1, -1., lbfgs->rwork4, lbfgs->rwork1));
   PetscCall(MatSolveTriangularRecycleOrder(lmvm, lbfgs, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork2, lbfgs->rwork4, MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE));
@@ -384,8 +383,8 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   /* rwork2 = Y^T X */
   PetscCall(MatMultTranspose(lbfgs->Yfull, X, lbfgs->rwork2));
 
-  /* Start with the upper half of M */
-  /* B S L^-1 Y^T X        */
+  /* Start with the upper half of M *
+   * B S L^-1 Y^T X                 */
   PetscCall(MatSolveTriangularRecycleOrder(lmvm, lbfgs, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork2, lbfgs->rwork3, MAT_CDBFGS_LOWER_TRIANGULAR));
   PetscCall(MatMult(lbfgs->Sfull, lbfgs->rwork3, lbfgs->rwork1));
   PetscCall(MatCDBFGSApplyJ0Fwd(B, lbfgs->rwork1, lbfgs->rwork3));
@@ -393,9 +392,9 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   PetscCall(MatMultTranspose(lbfgs->Sfull, Z, lbfgs->rwork1));
   PetscCall(VecAXPY(Z, 1., lbfgs->rwork3));
 
-  /* Bottom half of M */
-  /* Y (L^-T S^T B - L^-T (S^T B S + D) L^-1 Y^T)X */
-  /* rwork3 = L^-T S^T B X, rwork1 = L^-1 Y^T X */
+  /* Bottom half of M                              *
+   * Y (L^-T S^T B - L^-T (S^T B S + D) L^-1 Y^T)X *
+   * rwork3 = L^-T S^T B X, rwork1 = L^-1 Y^T X    */
   PetscCall(MatSolveTriangularRecycleOrder(lmvm, lbfgs, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork1, lbfgs->rwork3, MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE));
   PetscCall(MatSolveTriangularRecycleOrder(lmvm, lbfgs, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork2, lbfgs->rwork1, MAT_CDBFGS_LOWER_TRIANGULAR));
 
@@ -405,7 +404,10 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   PetscCall(MatMultTranspose(lbfgs->Sfull, lbfgs->rwork4, lbfgs->rwork2));
 
   /* rwork4 = D L^-1 Y^T X */
-  PetscCall(MatMult(lbfgs->D, lbfgs->rwork1, lbfgs->rwork4)); //TODO diag? matgetdiag not implemented for seq mat, i think
+  PetscCall(VecDuplicate(X, &lbfgs->diag_vec));
+  PetscCall(MatGetDiagonal(lbfgs->StYfull, lbfgs->diag_vec));
+  PetscCall(VecPointwiseMult(lbfgs->rwork4, lbfgs->diag_vec, lbfgs->rwork1));
+  PetscCall(VecDestroy(&lbfgs->diag_vec));
   PetscCall(VecAXPY(lbfgs->rwork2, 1., lbfgs->rwork4));
   /* rwork1 = Y (L^-T S^T B - L^-T (S^T B S + D) L^-1 Y^T) X */
   PetscCall(MatSolveTriangularRecycleOrder(lmvm, lbfgs, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork2, lbfgs->rwork1, MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE));
@@ -522,11 +524,16 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
       PetscCall(MatConvert(lbfgs->StYfull, lbfgs->dense_type, MAT_INPLACE_MATRIX, &lbfgs->StYfull));//TODO is this needed, or done internally already?
       /* Clear out the previously formed submatrices and work vectors */
-      PetscCall(VecDestroy(&lbfgs->work_0));
-      PetscCall(VecDestroy(&lbfgs->work_1));
-      PetscCall(VecDestroy(&lbfgs->work_2));
+      PetscCall(VecDestroy(&lbfgs->rwork1));
+      PetscCall(VecDestroy(&lbfgs->rwork2));
+      PetscCall(VecDestroy(&lbfgs->rwork3));
+      PetscCall(VecDestroy(&lbfgs->rwork4));
+      PetscCall(VecDestroy(&lbfgs->lwork1));
+      PetscCall(VecDestroy(&lbfgs->lwork2));
+
+      PetscCall(MatCreateVecs(lbfgs->Yfull, &lbfgs->rwork1, &lbfgs->rwork2));
+      PetscCall(MatCreateVecs(lbfgs->Yfull, &lbfgs->rwork3, &lbfgs->rwork4));
 // TODO : make clear whether workvectors are L or R
-//TODO instead of virtual matrix, write special kernel write custom kernel that does "indexed" gemv/gemm (plan 2)
 
       /* Update the diagonal H0 if it exists */
       if (!(lmvm->J0 || lmvm->user_pc || lmvm->user_ksp || lmvm->user_scale)) {
@@ -595,9 +602,12 @@ static PetscErrorCode MatReset_LMVMCDBFGS(Mat B, PetscBool destructive)
     PetscCall(MatDestroy(&lbfgs->StYfull));
     PetscCall(MatDestroy(&lbfgs->Yfull));
     PetscCall(MatDestroy(&lbfgs->Sfull));
-    PetscCall(VecDestroy(&lbfgs->work_0));
-    PetscCall(VecDestroy(&lbfgs->work_1));
-    PetscCall(VecDestroy(&lbfgs->work_2));
+    PetscCall(VecDestroy(&lbfgs->rwork1));
+    PetscCall(VecDestroy(&lbfgs->rwork2));
+    PetscCall(VecDestroy(&lbfgs->rwork3));
+    PetscCall(VecDestroy(&lbfgs->rwork4));
+    PetscCall(VecDestroy(&lbfgs->lwork1));
+    PetscCall(VecDestroy(&lbfgs->lwork2));
     lbfgs->allocated = PETSC_FALSE;
   }
   PetscCall(MatReset_LMVM(B, destructive));
@@ -655,9 +665,8 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       PetscCall(MatMatTransposeMult(lbfgs->Sfull, lbfgs->Yfull, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
       PetscCall(MatZeroEntries(lbfgs->StYfull));
     }
-    PetscCall(VecDuplicate(lmvm->Xprev, &lbfgs->work_0));
-    PetscCall(VecDuplicate(lmvm->Xprev, &lbfgs->work_1));
-    PetscCall(VecDuplicate(lmvm->Xprev, &lbfgs->work_1));
+    PetscCall(VecDuplicate(lmvm->Xprev, &lbfgs->lwork1));
+    PetscCall(VecDuplicate(lmvm->Xprev, &lbfgs->lwork2));
     if (!(lmvm->J0 || lmvm->user_pc || lmvm->user_ksp || lmvm->user_scale)) {
       PetscCall(MatLMVMAllocate(lbfgs->diag_bfgs, X, F));
     }
@@ -680,9 +689,12 @@ static PetscErrorCode MatDestroy_LMVMCDBFGS(Mat B)
     PetscCall(MatDestroy(&lbfgs->StYfull));
     PetscCall(MatDestroy(&lbfgs->Sfull));
     PetscCall(MatDestroy(&lbfgs->Yfull));
-    PetscCall(VecDestroy(&lbfgs->work_0));
-    PetscCall(VecDestroy(&lbfgs->work_1));
-    PetscCall(VecDestroy(&lbfgs->work_2));
+    PetscCall(VecDestroy(&lbfgs->rwork1));
+    PetscCall(VecDestroy(&lbfgs->rwork2));
+    PetscCall(VecDestroy(&lbfgs->rwork3));
+    PetscCall(VecDestroy(&lbfgs->rwork4));
+    PetscCall(VecDestroy(&lbfgs->lwork1));
+    PetscCall(VecDestroy(&lbfgs->lwork2));
     lbfgs->allocated = PETSC_FALSE;
   }
   PetscCall(MatDestroy(&lbfgs->diag_bfgs));
@@ -742,7 +754,7 @@ PetscErrorCode MatView_LMVMCDBFGS(Mat B, PetscViewer pv)
 
 /*------------------------------------------------------------*/
 
-PetscErrorCode MatSetFromOptions_LMVMCDBFGS(Mat B, PetscOptionItems *PetscOptionsObject)
+static PetscErrorCode MatSetFromOptions_LMVMCDBFGS(Mat B, PetscOptionItems *PetscOptionsObject)
 {
   Mat_LMVM          *lmvm = (Mat_LMVM*)B->data;
   Mat_CDBFGS        *lbfgs = (Mat_CDBFGS*)lmvm->ctx;

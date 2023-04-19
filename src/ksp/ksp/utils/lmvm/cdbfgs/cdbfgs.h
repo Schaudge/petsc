@@ -9,9 +9,7 @@ typedef struct {
 
   PetscInt  idx_begin;                                   // index of the oldest colums in Sfull and Yfull
   Mat       Sfull, Yfull, StYfull;                                // Stored in recycled order
-  Mat       Wfull;                                       // h_0 Y
-  Mat       C;                                           // diag(S^T Y) + Y^T J_0 Y)
-  Vec       work_0, work_1, work_2;
+  Vec       diag_vec;							 
   Vec       lwork1, lwork2, rwork1, rwork2, rwork3, rwork4;
   MatType   dense_type;
   MatLBFGSType strategy;
