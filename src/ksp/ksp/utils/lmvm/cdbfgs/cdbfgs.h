@@ -17,10 +17,14 @@ typedef struct {
 
   PetscInt  idx_begin;                                   // index of the oldest colums in S and Y
   Mat       S, Y, H0_Y;                                  // Stored in recycled order
+  Mat       Q;                                           // H0 * Y
   Mat       StY;
   Mat       C;                                           // diag(S^T Y) + Y^T H_0 Y)
   Vec       work_0, work_1, work_2;
   MatType   dense_type;
+  PetscScalar *alphas;
+  PetscScalar *betas;
+  PetscScalar *StYdiag;
   MatLBFGSType strategy;
 
   PetscInt  watchdog, max_seq_rejects;                   /* tracker to reset after a certain # of consecutive rejects */

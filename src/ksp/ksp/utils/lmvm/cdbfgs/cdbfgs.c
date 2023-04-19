@@ -1,6 +1,7 @@
 #include <../src/ksp/ksp/utils/lmvm/cdbfgs/cdbfgs.h> /*I "petscksp.h" I*/
 #include <../src/ksp/ksp/utils/lmvm/diagbrdn/diagbrdn.h>
 #include <petscblaslapack.h>
+#include "petscmemtypeblas.h"
 #include <petscmat.h>
 #include <petscsys.h>
 #include <petscis.h>
@@ -99,6 +100,152 @@ static PetscErrorCode MatSolveUpperTriangularRecycleOrderTranspose(Mat_CDBFGS *l
 
 /*------------------------------------------------------------*/
 
+PetscErrorCode VecPlaceArrayMemType(Vec, PetscScalar *);
+PetscErrorCode VecResetArrayMemType(Vec);
+
+#if 0
+static PetscErrorCode MatSolve_LMVMCDBFGS_Basic(Mat B, Vec F, Vec dX)
+{
+  PetscFunctionBegin;
+  Mat_LMVM          *lmvm = (Mat_LMVM*)B->data;
+  Mat_CDBFGS        *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
+  
+  PetscFunctionBegin;
+  VecCheckSameSize(F, 2, dX, 3);
+  VecCheckMatCompatible(B, dX, 3, F, 2);
+  const PetscScalar *S;
+  const PetscScalar *Y;
+  PetscInt n_local, lda;
+  PetscCall(MatGetLocalSize(lbfgs->S, &n_local, NULL));
+  PetscCall(MatDenseGetLDA(lbfgs->S, &lda));
+  Vec q = lbfgs->work_0;
+  PetscCall(VecCopy(F, lbfgs->work_0));
+  Vec s = lbfgs->work_1;
+  Vec y = lbfgs->work_2;
+  PetscScalar *alpha = lbfgs->alphas;
+  PetscScalar *beta = lbfgs->betas;
+  PetscScalar *StY = lbfgs->StYdiag;
+  PetscCall(MatDenseGetArrayReadAndMemType(lbfgs->S, &S, NULL));
+  PetscCall(MatDenseGetArrayReadAndMemType(lbfgs->Y, &Y, NULL));
+  // entrance loop
+  for (PetscInt i = lmvm->k; i >= PetscMax(0,lmvm->k + 1 - lmvm->m); i--) {
+    PetscInt col = i % lmvm->m;
+    PetscCall(VecPlaceArrayMemType(s, (PetscScalar *) &S[col * lda]));
+    PetscCall(VecPlaceArrayMemType(y, (PetscScalar *) &Y[col * lda]));
+    PetscCall(VecDot(q, s, &alpha[col]));
+    alpha[col] /= StY[col];
+    PetscCall(VecAXPY(q, -alpha[col], y));
+    PetscCall(VecResetArrayMemType(s));
+    PetscCall(VecResetArrayMemType(y));
+  }
+  PetscCall(MatCDBFGSApplyJ0Inv(B, q, dX));
+  for (PetscInt i = PetscMax(0,lmvm->k + 1 - lmvm->m); i <= lmvm->k; i++) {
+    PetscInt col = i % lmvm->m;
+    PetscCall(VecPlaceArrayMemType(s, (PetscScalar *) &S[col * lda]));
+    PetscCall(VecPlaceArrayMemType(y, (PetscScalar *) &Y[col * lda]));
+    PetscCall(VecDot(q, y, &beta[col]));
+    beta[col] /= StY[col];
+    PetscCall(VecAXPY(q, beta[col]-alpha[col], y));
+    PetscCall(VecResetArrayMemType(s));
+    PetscCall(VecResetArrayMemType(y));
+  }
+  PetscCall(MatDenseRestoreArrayReadAndMemType(lbfgs->S, &S));
+  PetscCall(MatDenseRestoreArrayReadAndMemType(lbfgs->Y, &Y));
+
+  // exit loop
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatSolve_LMVMCDBFGS_Inplace(Mat B, Vec F, Vec dX)
+{
+  PetscFunctionBegin;
+  Mat_LMVM          *lmvm = (Mat_LMVM*)B->data;
+  Mat_CDBFGS        *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
+  
+  PetscFunctionBegin;
+  VecCheckSameSize(F, 2, dX, 3);
+  VecCheckMatCompatible(B, dX, 3, F, 2);
+  /* Start with the J0 term */
+  PetscCall(MatCDBFGSApplyJ0Inv(B, F, dX));
+  if (lmvm->k == -1) {
+    PetscFunctionReturn(PETSC_SUCCESS); /* No updates stored yet */
+  }
+
+  const PetscScalar *Q;
+  const PetscScalar *S;
+  PetscInt n_local, lda;
+  PetscCall(MatGetLocalSize(lbfgs->S, &n_local, NULL));
+  PetscCall(MatDenseGetLDA(lbfgs->S, &lda));
+  PetscCall(VecCopy(F, lbfgs->work_0));
+  PetscScalar *QtF;
+  PetscScalar *StF;
+  const PetscScalar *F_array;
+  PetscMemType memtype;
+  MPI_Comm     comm = PetscObjectComm((PetscObject)B);
+  PetscMPIInt  rank;
+  PetscCall(MPI_Comm_rank(comm, &rank));
+  PetscCall(MatDenseGetArrayReadAndMemType(lbfgs->S, &S, &memtype));
+  PetscCall(MatDenseGetArrayReadAndMemType(lbfgs->Q, &Q, NULL));
+  PetscCall(VecGetArrayWriteAndMemType(lbfgs->work_0, &QtF, NULL));
+  PetscCall(VecGetArrayWriteAndMemType(lbfgs->work_1, &StF, NULL));
+  PetscInt limit = PetscMin(lmvm->m, lmvm->k + 1);
+  PetscCall(VecGetArrayReadAndMemType(F, &F_array, NULL));
+  PetscCall(PetscMemTypeGEMV(memtype, "ConjugateTranspose", n_local, limit, 1.0, Q, lda, F_array, 1, 0.0, QtF, 1));
+  PetscCall(PetscMemTypeGEMV(memtype, "ConjugateTranspose", n_local, limit, 1.0, S, lda, F_array, 1, 0.0, StF, 1));
+  PetscCall(VecRestoreArrayReadAndMemType(F, &F_array));
+  PetscCallMPI(MPI_Reduce(rank == 0 ? MPI_IN_PLACE : QtF, QtF, limit, MPIU_SCALAR, MPI_SUM, 0, comm));
+  PetscCallMPI(MPI_Reduce(rank == 0 ? MPI_IN_PLACE : StF, StF, limit, MPIU_SCALAR, MPI_SUM, 0, comm));
+  if (rank == 0) {
+    const PetscScalar *C;
+    const PetscScalar *StY;
+    PetscInt ldc, ldsty;
+    PetscCall(MatDenseGetArrayReadAndMemType(lbfgs->C, &C, NULL));
+    PetscCall(MatDenseGetArrayReadAndMemType(lbfgs->StY, &StY, NULL));
+    PetscCall(MatDenseGetLDA(lbfgs->C, &ldc));
+    PetscCall(MatDenseGetLDA(lbfgs->StY, &ldsty));
+
+    PetscInt hi = lmvm->k % lmvm->m; // location of the latest vector
+    PetscInt lo = PetscMax(0, lmvm->k + 1 - lmvm->m) % lmvm->m; // location of the earliest vector
+
+    // StF <- - R^{-1} StF
+    PetscCall(PetscMemTypeTRSM(memtype, "Left", "Upper", "NoTranspose", "NotUnit", hi, 1, -1.0, StY, ldsty, StF, lmvm->m));
+    if (lo != 0) {
+      PetscCall(PetscMemTypeGEMV(memtype, "NoTranspose", lmvm->m - lo, hi, 1.0, &StY[lo], ldsty, StF, 1, -1.0, &StF[lo], 1));
+      PetscCall(PetscMemTypeTRSM(memtype, "Left", "Upper", "NoTranspose", "NotUnit", lmvm->m - lo, 1, -1.0, &StY[lo * (ldsty + 1)], ldsty, &StF[lo], lmvm->m));
+    }
+
+    // QtF <- QtF + C * StF
+    PetscCall(PetscMemTypeGEMV(memtype, "NoTranspose", limit, limit, 1.0, C, ldc, StF, lmvm->m, 1.0, QtF, 1));
+
+    // QtF <- - R^{-T} QtF
+    if (lo != 0) {
+      PetscCall(PetscMemTypeTRSM(memtype, "Left", "Upper", "ConjugateTranspose", "NotUnit", lmvm->m - lo, 1, -1.0, &StY[lo * (ldsty + 1)], ldsty, &QtF[lo], lmvm->m));
+      PetscCall(PetscMemTypeGEMV(memtype, "ConjugateTranspose", lmvm->m - lo, hi, 1.0, &StY[lo], ldsty, &QtF[lo], 1, -1.0, QtF, 1));
+    }
+    PetscCall(PetscMemTypeTRSM(memtype, "Left", "Upper", "ConjugateTranspose", "NotUnit", hi, 1, -1.0, StY, ldsty, QtF, lmvm->m));
+
+
+    PetscCall(MatDenseRestoreArrayReadAndMemType(lbfgs->StY, &StY));
+    PetscCall(MatDenseRestoreArrayReadAndMemType(lbfgs->C, &C));
+  }
+  PetscCallMPI(MPI_Bcast(QtF, limit, MPIU_SCALAR, 0, comm));
+  PetscCallMPI(MPI_Bcast(StF, limit, MPIU_SCALAR, 0, comm));
+  PetscScalar *dX_array;
+  PetscCall(VecGetArrayWriteAndMemType(dX, &dX_array, NULL));
+  PetscCall(PetscMemTypeGEMV(memtype, "NoTranspose", n_local, limit, 1.0, Q, lda, StF, 1, 1.0, dX_array, 1));
+  PetscCall(PetscMemTypeGEMV(memtype, "NoTranspose", n_local, limit, 1.0, S, lda, QtF, 1, 1.0, dX_array, 1));
+  PetscCall(VecRestoreArrayWriteAndMemType(dX, &dX_array));
+
+  PetscCall(VecRestoreArrayWriteAndMemType(lbfgs->work_0, &QtF));
+  PetscCall(VecRestoreArrayWriteAndMemType(lbfgs->work_1, &StF));
+  PetscCall(MatDenseRestoreArrayReadAndMemType(lbfgs->S, &S));
+  PetscCall(MatDenseRestoreArrayReadAndMemType(lbfgs->Q, &Q));
+
+  // exit loop
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+#endif
+
 static PetscErrorCode MatSolve_LMVMCDBFGS(Mat B, Vec F, Vec dX)
 {
   Mat_LMVM          *lmvm = (Mat_LMVM*)B->data;
@@ -115,7 +262,7 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat B, Vec F, Vec dX)
 
   // work_0 = Y^T * J0 * F
   if (lbfgs->H0_Y != NULL) {
-    PetscCall(MatMultTranspose(lbfgs->H0_Y, F, lbfgs->work_0));
+    
   } else {
     PetscCall(MatMultTranspose(lbfgs->Y, dX, lbfgs->work_0));
   }
@@ -261,7 +408,7 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       PetscCall(PetscFree2(lbfgs->idx_rows, lbfgs->idx_cols));
 
       // pseudocode for the StYfull updated for CD_REORDER
-      // MatDenseGetArrayReadAndMemtype(StYfull, &StY, ...)
+      // MatDenseGetArrayReadAndMemType(StYfull, &StY, ...)
       // Assert(lda == m)
       // PetscMemcpy(StYwork, &StY[m+1], m^2 - (m + 1)) // take into account the memtype
       // PetscMemcpy(StY, StYwork, m^2 - (m + 1)) // take into account the memtype

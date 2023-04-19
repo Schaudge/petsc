@@ -2,6 +2,7 @@
 #include <petscblaslapack.h>
 #include <petscdevicetypes.h>
 #include <petsc/private/cupmblasinterface.hpp>
+#include "petscmemtypeblas.h"
 
 namespace Petsc
 {
@@ -87,6 +88,27 @@ PetscErrorCode PetscMemtypeTRSM(PetscMemType memtype, const char *right_or_left,
       PetscCall(PetscBLASIntCast(lda, &lda_blas));
       PetscCall(PetscBLASIntCast(ldb, &ldb_blas));
       PetscCallBLAS("BLAStrsm", BLAStrsm_(right_or_left, upper_or_lower, transpose_type, unit_or_not, &m_blas, &n_blas, &alpha, A, &lda_blas, B, &ldb_blas));
+    }
+    break;
+  default: SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Unsupported");
+    break;
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode PetscMemtypeGEMV(PetscMemType memtype, const char *trans, PetscInt m, const PetscInt n, PetscScalar alpha, const PetscScalar *A, PetscInt lda, const PetscScalar *x, PetscInt incx, PetscScalar beta, PetscScalar *y, PetscInt incy)
+{
+  PetscFunctionBegin;
+  switch (memtype) {
+  case PETSC_MEMTYPE_HOST:
+    {
+      PetscBLASInt lda_blas, incx_blas, incy_blas, m_blas, n_blas;
+      PetscCall(PetscBLASIntCast(m, &m_blas));
+      PetscCall(PetscBLASIntCast(n, &n_blas));
+      PetscCall(PetscBLASIntCast(lda, &lda_blas));
+      PetscCall(PetscBLASIntCast(incx, &incx_blas));
+      PetscCall(PetscBLASIntCast(incy, &incy_blas));
+      PetscCallBLAS("BLASgemv", BLASgemv_(trans, &m_blas, &n_blas, &alpha, A, &lda_blas, x, &incx_blas, &beta, y, &incy_blas));
     }
     break;
   default: SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Unsupported");

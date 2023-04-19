@@ -2,8 +2,7 @@
 
 LIBBASE  = libpetscksp
 MANSEC   = KSP
-DIRS     = sr1 dfp bfgs cdbfgs symbrdn brdn diagbrdn
-LOCDIR   = src/ksp/ksp/utils/lmvm/
+DIRS     = sr1 dfp bfgs symbrdn brdn diagbrdn cdbfgs
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules.doc

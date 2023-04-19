@@ -1,6 +1,7 @@
 -include ../../../../../petscdir.mk
 
 LIBBASE  = libpetsctao
+DIRS     = tests
 MANSEC   = Tao
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
