@@ -1,7 +1,7 @@
 -include ../../../../petscdir.mk
 
 MANSEC           = KSP
-CLEANFILES       = rhs.vtk solution.vtk bench_kspsolve
+CLEANFILES       = rhs.vtk solution.vtk bench_kspsolve bench_threadcomm
 NP               = 1
 
 include ${PETSC_DIR}/lib/petsc/conf/variables

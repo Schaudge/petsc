@@ -305,17 +305,17 @@ PetscErrorCode FillCOO(Mat A, void *ctx)
 
 int main(int argc, char **argv)
 {
-  AppCtx                     user;                               /* Application context */
-  Vec                        x, b, u;                            /* approx solution, RHS, and exact solution */
-  Mat                        A;                                  /* linear system matrix */
-  KSP                        ksp;                                /* linear solver context */
-  PC                         pc;                                 /* Preconditioner */
-  PetscReal                  norm;                               /* Error norm */
-  PetscInt                   nlocal     = PETSC_DECIDE, ksp_its; /* Number of KSP iterations */
-  PetscInt                   global_nnz = 0;                     /* Total number of nonzeros */
+  AppCtx                     user;                           /* Application context */
+  Vec                        x, b, u;                        /* approx solution, RHS, and exact solution */
+  Mat                        A;                              /* linear system matrix */
+  KSP                        ksp;                            /* linear solver context */
+  PC                         pc;                             /* Preconditioner */
+  PetscReal                  norm;                           /* Error norm */
+  PetscInt                   nlocal = PETSC_DECIDE, ksp_its; /* Number of KSP iterations */
   PetscLogDouble             time_start, time_mid1 = 0.0, time_mid2 = 0.0, time_end, time_avg, floprate;
   PetscBool                  printTiming = PETSC_TRUE; /* If run in CI, do not print timing result */
   PETSC_UNUSED PetscLogStage stage;
+  MatInfo                    matInfo;
 
   PetscCall(PetscInitialize(&argc, &argv, (char *)0, help));
   PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD, &user.size));
@@ -333,8 +333,7 @@ int main(int argc, char **argv)
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-print_timing", &printTiming, NULL));
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-split_ksp", &user.splitksp, NULL));
 
-  user.dim   = user.n * user.n * user.n;
-  global_nnz = 64 + 27 * (user.n - 2) * (user.n - 2) * (user.n - 2) + 108 * (user.n - 2) * (user.n - 2) + 144 * (user.n - 2);
+  user.dim = user.n * user.n * user.n;
   PetscCheck(user.n >= 2, PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Requires at least 2 grid points (-n 2), you specified -n %" PetscInt_FMT "\n", user.n);
   PetscCheck(user.dim >= user.size, PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "MPI size (%d) exceeds the grid size %" PetscInt_FMT " (-n %" PetscInt_FMT ")\n", user.size, user.dim, user.n);
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "===========================================\n"));
@@ -344,7 +343,6 @@ int main(int argc, char **argv)
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\t-n %" PetscInt_FMT "\n", user.n));
   if (user.matmult) PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\t-its %" PetscInt_FMT "\n", user.its));
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\tDoFs = %" PetscInt_FMT "\n", user.dim));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\tNumber of nonzeros = %" PetscInt_FMT "\n", global_nnz));
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   /*  Create the Vecs and Mat                                            */
@@ -368,6 +366,9 @@ int main(int argc, char **argv)
   PetscCall(MatSetOption(A, MAT_SPD, PETSC_TRUE));
   PetscCall(MatSetOption(A, MAT_SPD_ETERNAL, PETSC_TRUE));
 #endif
+  PetscCall(MatGetInfo(A, MAT_GLOBAL_SUM, &matInfo));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\tNumber of nonzeros = %16.0f\n", matInfo.nz_used));
+
   PetscCall(MatCreateVecs(A, &u, &b));
   if (!user.matmult) PetscCall(VecDuplicate(b, &x));
   PetscCall(VecSet(u, 1.0));   /* Exact solution */
@@ -381,15 +382,17 @@ int main(int argc, char **argv)
     PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Step2  - running MatMult() %" PetscInt_FMT " times...\n", user.its));
     PetscCall(PetscLogStageRegister("Step2  - MatMult", &stage));
     PetscCall(PetscLogStagePush(stage));
+    PetscCall(MPI_Barrier(PETSC_COMM_WORLD));
     PetscCall(PetscTime(&time_start));
     for (int i = 0; i < user.its; i++) PetscCall(MatMult(A, u, b));
+    PetscCall(MPI_Barrier(PETSC_COMM_WORLD));
     PetscCall(PetscTime(&time_end));
     PetscCall(PetscLogStagePop());
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
     /*  Calculate Performance metrics                                      */
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
     time_avg = (time_end - time_start) / ((PetscLogDouble)user.its);
-    floprate = 2 * global_nnz / time_avg * 1e-9;
+    floprate = 2 * matInfo.nz_used / time_avg * 1e-9;
     if (printTiming) {
       PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\n%-15s%-7.5f seconds\n", "Average time:", time_avg));
       PetscCall(PetscPrintf(PETSC_COMM_WORLD, "%-15s%-9.3e Gflops/sec\n", "FOM:", floprate)); /* figure of merit */
@@ -407,8 +410,10 @@ int main(int argc, char **argv)
       PetscCall(KSPCreate(PETSC_COMM_WORLD, &ksp));
       PetscCall(KSPSetOperators(ksp, A, A));
       PetscCall(KSPSetFromOptions(ksp));
+      PetscCall(MPI_Barrier(PETSC_COMM_WORLD));
       PetscCall(PetscTime(&time_start));
       PetscCall(KSPSolve(ksp, b, x));
+      PetscCall(MPI_Barrier(PETSC_COMM_WORLD));
       PetscCall(PetscTime(&time_end));
       PetscCall(PetscLogStagePop());
     } else {
@@ -423,15 +428,19 @@ int main(int argc, char **argv)
       PetscCall(KSPSetOperators(ksp, A, A));
       PetscCall(KSPSetFromOptions(ksp));
       PetscCall(KSPGetPC(ksp, &pc));
+      PetscCall(MPI_Barrier(PETSC_COMM_WORLD));
       PetscCall(PetscTime(&time_start));
       PetscCall(PCSetUp(pc));
+      PetscCall(MPI_Barrier(PETSC_COMM_WORLD));
       PetscCall(PetscTime(&time_mid1));
       PetscCall(PetscLogStagePop());
       PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Step2b - running KSPSolve()...\n"));
       PetscCall(PetscLogStageRegister("Step2b - KSPSolve", &stage));
       PetscCall(PetscLogStagePush(stage));
+      PetscCall(MPI_Barrier(PETSC_COMM_WORLD));
       PetscCall(PetscTime(&time_mid2));
       PetscCall(KSPSolve(ksp, b, x));
+      PetscCall(MPI_Barrier(PETSC_COMM_WORLD));
       PetscCall(PetscTime(&time_end));
       PetscCall(PetscLogStagePop());
     }

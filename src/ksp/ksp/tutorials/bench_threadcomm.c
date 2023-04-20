@@ -9,12 +9,9 @@ With exact solution:
 
    u(x,y,z) = 1.0
 */
-#define PETSC_HAVE_THREADCOMM 1
-
 static char help[] = "Solves 3D Laplacian with 27-point finite difference stencil.\n";
 
 #include <petscksp.h>
-#include <pthread.h>
 
 typedef struct {
   PetscMPIInt rank, size;
@@ -48,7 +45,6 @@ static PetscErrorCode Solve(ThreadInfo *tinfo)
   AppCtx                     user = tinfo->user;
   PetscLogDouble             time_start, time_mid1 = 0.0, time_mid2 = 0.0, time_end, time_avg, floprate;
   PETSC_UNUSED PetscLogStage stage;
-  PetscInt                   global_nnz = 0; /* Total number of nonzeros */
   Mat                        A;
   Vec                        x, b, u; /* approx solution, RHS, and exact solution */
   KSP                        ksp;     /* linear solver context */
@@ -56,6 +52,7 @@ static PetscErrorCode Solve(ThreadInfo *tinfo)
   PetscReal                  norm;    /* Error norm */
   PetscInt                   ksp_its;
   PetscInt                   rstart, rend;
+  MatInfo                    matInfo;
 
   PetscFunctionBeginUser;
   PetscCall(MatCreate(comm, &A));
@@ -71,6 +68,10 @@ static PetscErrorCode Solve(ThreadInfo *tinfo)
   }
   PetscCall(MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY));
   PetscCall(MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatSetOption(A, MAT_SPD, PETSC_TRUE));
+  PetscCall(MatSetOption(A, MAT_SPD_ETERNAL, PETSC_TRUE));
+  PetscCall(MatGetInfo(A, MAT_GLOBAL_SUM, &matInfo));
+  PetscCall(PetscPrintf(comm, "\tNumber of nonzeros = %16.0f\n", matInfo.nz_used));
 
   // Create vectors x, u, b
   PetscCall(MatCreateVecs(A, &u, &b));
@@ -86,15 +87,17 @@ static PetscErrorCode Solve(ThreadInfo *tinfo)
     PetscCall(PetscPrintf(comm, "Step2  - running MatMult() %" PetscInt_FMT " times...\n", user.its));
     PetscCall(PetscLogStageRegister("Step2  - MatMult", &stage));
     PetscCall(PetscLogStagePush(stage));
+    PetscCall(MPI_Barrier(comm));
     PetscCall(PetscTime(&time_start));
     for (int i = 0; i < user.its; i++) PetscCall(MatMult(A, u, b));
+    PetscCall(MPI_Barrier(comm));
     PetscCall(PetscTime(&time_end));
     PetscCall(PetscLogStagePop());
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
     /*  Calculate Performance metrics                                      */
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
     time_avg = (time_end - time_start) / ((PetscLogDouble)user.its);
-    floprate = 2 * global_nnz / time_avg * 1e-9;
+    floprate = 2 * matInfo.nz_used / time_avg * 1e-9;
     if (user.printTiming) {
       PetscCall(PetscPrintf(comm, "\n%-15s%-7.5f seconds\n", "Average time:", time_avg));
       PetscCall(PetscPrintf(comm, "%-15s%-9.3e Gflops/sec\n", "FOM:", floprate)); /* figure of merit */
@@ -112,8 +115,10 @@ static PetscErrorCode Solve(ThreadInfo *tinfo)
       PetscCall(KSPCreate(comm, &ksp));
       PetscCall(KSPSetOperators(ksp, A, A));
       PetscCall(KSPSetFromOptions(ksp));
+      PetscCall(MPI_Barrier(comm));
       PetscCall(PetscTime(&time_start));
       PetscCall(KSPSolve(ksp, b, x));
+      PetscCall(MPI_Barrier(comm));
       PetscCall(PetscTime(&time_end));
       PetscCall(PetscLogStagePop());
     } else {
@@ -128,15 +133,19 @@ static PetscErrorCode Solve(ThreadInfo *tinfo)
       PetscCall(KSPSetOperators(ksp, A, A));
       PetscCall(KSPSetFromOptions(ksp));
       PetscCall(KSPGetPC(ksp, &pc));
+      PetscCall(MPI_Barrier(comm));
       PetscCall(PetscTime(&time_start));
       PetscCall(PCSetUp(pc));
+      PetscCall(MPI_Barrier(comm));
       PetscCall(PetscTime(&time_mid1));
       PetscCall(PetscLogStagePop());
       PetscCall(PetscPrintf(comm, "Step2b - running KSPSolve()...\n"));
       PetscCall(PetscLogStageRegister("Step2b - KSPSolve", &stage));
       PetscCall(PetscLogStagePush(stage));
+      PetscCall(MPI_Barrier(comm));
       PetscCall(PetscTime(&time_mid2));
       PetscCall(KSPSolve(ksp, b, x));
+      PetscCall(MPI_Barrier(comm));
       PetscCall(PetscTime(&time_end));
       PetscCall(PetscLogStagePop());
     }
@@ -180,24 +189,6 @@ static PetscErrorCode Solve(ThreadInfo *tinfo)
   PetscCall(VecDestroy(&b));
   PetscCall(MatDestroy(&A));
   PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-static void *thread_start(void *arg)
-{
-  PetscErrorCode ierr;
-  ThreadInfo    *tinfo = (ThreadInfo *)arg;
-
-#if defined(PETSC_HAVE_THREADCOMM)
-  if (tinfo->user.useThreadcomm) {
-    MPIX_Threadcomm_start(tinfo->comm);
-    ierr = Solve(tinfo);
-    MPIX_Threadcomm_finish(tinfo->comm);
-  } else
-#endif
-  {
-    ierr = Solve(tinfo);
-  }
-  return (void *)(intptr_t)ierr;
 }
 
 static PetscErrorCode PreallocateCOO(Mat A, void *ctx)
@@ -466,17 +457,15 @@ PetscErrorCode FillCOO(Mat A, void *ctx)
 
 int main(int argc, char **argv)
 {
-  AppCtx          user;                      /* Application context */
-  Mat             B;                         /* linear system matrix */
-  PetscInt        nlocal     = PETSC_DECIDE; /* Number of KSP iterations */
-  PetscInt        global_nnz = 0;            /* Total number of nonzeros */
-  PetscMPIInt     rc, ierr, provided, nthreads = 4;
-  pthread_t       threads[16];
+  AppCtx          user;                  /* Application context */
+  Mat             B;                     /* linear system matrix */
+  PetscInt        nlocal = PETSC_DECIDE; /* Number of KSP iterations */
+  PetscMPIInt     provided, nthreads = 4;
   ThreadInfo      tinfo;
-  void           *res;
   const PetscInt *Bi, *Bj;
   PetscScalar    *Ba;
   PetscMemType    mtype;
+  PetscErrorCode  ierr = PETSC_SUCCESS;
 
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
 
@@ -488,7 +477,7 @@ int main(int argc, char **argv)
 
   user.n             = 10;          /* Default grid points per dimension */
   user.matmult       = PETSC_FALSE; /* Test MatMult only */
-  user.its           = 10;          /* Default no. of iterations for MatMult test */
+  user.its           = 100;         /* Default no. of iterations for MatMult test */
   user.debug         = PETSC_FALSE; /* Debug PreallocateCOO() */
   user.splitKSP      = PETSC_FALSE; /* Split KSPSolve and PCSetUp */
   user.printTiming   = PETSC_TRUE;
@@ -502,8 +491,7 @@ int main(int argc, char **argv)
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-use_threadcomm", &user.useThreadcomm, NULL));
   PetscCall(PetscOptionsGetInt(NULL, NULL, "-nthreads", &nthreads, NULL));
 
-  user.dim   = user.n * user.n * user.n;
-  global_nnz = 64 + 27 * (user.n - 2) * (user.n - 2) * (user.n - 2) + 108 * (user.n - 2) * (user.n - 2) + 144 * (user.n - 2);
+  user.dim = user.n * user.n * user.n;
   PetscCheck(user.n >= 2, PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Requires at least 2 grid points (-n 2), you specified -n %" PetscInt_FMT "\n", user.n);
   PetscCheck(user.dim >= user.size, PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "MPI size (%d) exceeds the grid size %" PetscInt_FMT " (-n %" PetscInt_FMT ")\n", user.size, user.dim, user.n);
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "===========================================\n"));
@@ -513,7 +501,6 @@ int main(int argc, char **argv)
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\t-n %" PetscInt_FMT "\n", user.n));
   if (user.matmult) PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\t-its %" PetscInt_FMT "\n", user.its));
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\tDoFs = %" PetscInt_FMT "\n", user.dim));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\tNumber of nonzeros = %" PetscInt_FMT "\n", global_nnz));
 
   PetscCall(MatCreate(PETSC_COMM_WORLD, &B));
   PetscCall(MatSetSizes(B, PETSC_DECIDE, PETSC_DECIDE, user.dim, user.dim));
@@ -528,10 +515,7 @@ int main(int argc, char **argv)
   PetscCall(PreallocateCOO(B, &user)); /* Determine local number of nonzeros */
   PetscCall(FillCOO(B, &user));        /* Fill COO Matrix */
 
-  pthread_attr_t attr;
-  pthread_attr_init(&attr);
-  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-#if defined(PETSC_HAVE_THREADCOMM)
+#if defined(PETSC_HAVE_MPIX_THREADCOMM)
   if (user.useThreadcomm) {
     PetscCallMPI(MPIX_Threadcomm_init(MPI_COMM_WORLD, nthreads, &tinfo.comm));
   } else
@@ -550,22 +534,22 @@ int main(int argc, char **argv)
   tinfo.a    = Ba;
   tinfo.user = user;
 
-  for (int i = 0; i < nthreads; i++) pthread_create(&threads[i], &attr, thread_start, &tinfo);
-  pthread_attr_destroy(&attr);
-  for (int i = 0; i < nthreads; i++) {
-    rc = pthread_join(threads[i], &res);
-    if (rc) ierr = rc;
-    if (res) ierr = (intptr_t)res;
+#pragma omp parallel reduction(+ : ierr) num_threads(nthreads)
+  {
+    // thread_start(&tinfo);
+    MPIX_Threadcomm_start(tinfo.comm);
+    ierr = Solve(&tinfo);
+    MPIX_Threadcomm_finish(tinfo.comm);
   }
+  CHKERRQ(ierr);
 
-#if defined(PETSC_HAVE_THREADCOMM)
+#if defined(PETSC_HAVE_MPIX_THREADCOMM)
   if (user.useThreadcomm) MPIX_Threadcomm_free(&tinfo.comm);
 #endif
   PetscCall(MatDestroy(&B));
   // Finalize petsc and MPI
   PetscCall(PetscFinalize());
   PetscCallMPI(MPI_Finalize());
-  return ierr;
 }
 
 /*TEST
