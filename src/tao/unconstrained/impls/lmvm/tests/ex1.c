@@ -70,6 +70,7 @@ int main(int argc, char **argv)
   # With exact line search, BFGS should converge in n iterations for this problem (Nocedal & Wright, Theorem 8.4)
   test:
     suffix: 0
+    nsize: 2
     args: -tao_monitor -tao_ls_gtol 1.e-6 -tao_view -tao_lmvm_mat_lmvm_hist_size 20
 
 TEST*/
