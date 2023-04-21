@@ -50,10 +50,10 @@ PetscErrorCode MatCDBFGSApplyJ0Inv(Mat B, Vec F, Vec dX)
 
 /*------------------------------------------------------------*/
 
-/* Solves triangular matrix, stored in recycled order.
+/* Solves triangular matrix, stored in either recycled order, re rewritten regular order.
  * One can solve for lower triangle, transpose of lower triangle, 
  * upper triangle, and transpoe of upper triangle. 
- * It assumes the input matrix is square matrix, n x n, in recycled order.
+ * It assumes the input matrix is square matrix, n x n.
  *
  * Recycled order: 
  *
@@ -77,13 +77,13 @@ PetscErrorCode MatCDBFGSApplyJ0Inv(Mat B, Vec F, Vec dX)
  * [ <s_2,y_4> | <s_2,y_2> | <s_2,y_3> ]
  * [ <s_3,y_4> | <s_3,y_2> | <s_3,y_3> ]. 
  *                                                            */
-static PetscErrorCode MatSolveTriangularRecycleOrder(Mat_LMVM *lmvm, Mat_CDBFGS *lbfgs, Mat R, PetscInt lowest_index, Vec b, Vec x, TriangularTypes tri_type)
+static PetscErrorCode MatSolveTriangular(Mat_LMVM *lmvm, Mat_CDBFGS *lbfgs, Mat R, PetscInt lowest_index, Vec x, TriangularTypes tri_type)
 {
   MPI_Comm     comm  = PetscObjectComm((PetscObject)R);
   PetscScalar  Alpha = 1.0, neg_one = -1.;
   PetscMemType memtype_r, memtype_x;
-  PetscScalar *buffer, *array_write, *x_array;
-  PetscInt     lda;
+  PetscScalar *buffer, *x_array;
+  PetscInt     lda, N;
 
   const PetscScalar *array_read, *r_array;
 
@@ -96,19 +96,6 @@ static PetscErrorCode MatSolveTriangularRecycleOrder(Mat_LMVM *lmvm, Mat_CDBFGS 
   switch (lbfgs->strategy) {
   case MAT_LBFGS_CD_REORDER:
     {
-      /* Shift b vector */
-      PetscCall(VecGetArrayRead(b, &array_read));
-      PetscCall(PetscMalloc1(lmvm->m, &buffer));
-      PetscCall(PetscMemcpy(buffer, &array_read[lbfgs->idx_begin], (lmvm->m - lbfgs->idx_begin)*sizeof(PetscScalar)));
-      if (lbfgs->idx_begin != 0 ) {
-        PetscCall(PetscMemcpy(&buffer[lmvm->m - lbfgs->idx_begin], array_read, (lbfgs->idx_begin)*sizeof(PetscScalar)));
-      }
-      PetscCall(VecRestoreArrayReadAndMemType(b, &array_read));
-  
-      PetscCall(VecGetArrayWrite(b, &array_write));
-      PetscCall(PetscMemcpy(array_write, &buffer, (lmvm->m)*sizeof(PetscScalar)));
-      PetscCall(VecRestoreArrayWriteAndMemType(b, &array_write));
-      PetscCall(PetscFree(buffer));
 
       switch (memtype_x) {
       case PETSC_MEMTYPE_HOST:
@@ -192,6 +179,15 @@ static PetscErrorCode MatSolveTriangularRecycleOrder(Mat_LMVM *lmvm, Mat_CDBFGS 
     }
     break;
   case MAT_LBFGS_CD_INPLACE:
+      /* Shift x vector TODO there are x,b vecs. but actually we only need one here... */
+      PetscCall(VecGetArrayRead(x, &array_read));
+      PetscCall(VecGetSize(x, &N));
+      PetscCall(PetscMalloc1(N, &buffer));
+      PetscCall(PetscMemcpy(buffer, &array_read[lbfgs->idx_begin], (N - lbfgs->idx_begin)*sizeof(PetscScalar)));
+      if (lbfgs->idx_begin != 0 ) {
+        PetscCall(PetscMemcpy(&buffer[N - lbfgs->idx_begin], array_read, (lbfgs->idx_begin)*sizeof(PetscScalar)));
+      }
+      PetscCall(VecRestoreArrayReadAndMemType(x, &array_read));
     switch (memtype_x) {
     case PETSC_MEMTYPE_HOST:
       {
@@ -363,30 +359,30 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   }
 
 
-  /* Start with upper part : -H Y R^-1 S^T F */
-  /* Start with reusable part: rwork1 = S^T F, rwork2 = R^-1 S^T F */
+  /* Start with upper part : -H Y R^-1 S^T F       *
+   * Start with reusable part: rwork1 = R^-1 S^T F */
   PetscCall(MatMultTranspose(lbfgs->Sfull, F, lbfgs->rwork1));
-  PetscCall(MatSolveTriangularRecycleOrder(lmvm, lbfgs, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork1, lbfgs->rwork2, MAT_CDBFGS_UPPER_TRIANGULAR));
-  PetscCall(MatMult(lbfgs->Yfull, lbfgs->rwork2, lbfgs->lwork1));
+  PetscCall(MatSolveTriangular(lmvm, lbfgs, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork1, MAT_CDBFGS_UPPER_TRIANGULAR));
+  PetscCall(MatMult(lbfgs->Yfull, lbfgs->rwork1, lbfgs->lwork1));
   PetscCall(MatCDBFGSApplyJ0Inv(H, lbfgs->lwork1, lbfgs->lwork2));
-  PetscCall(VecAXPY(dX, -1., lbfgs->lwork2));
+  PetscCall(VecAXPY(dX, 1., lbfgs->lwork2));
 
-  /* Start bottom part: S(-R^-T Y^T H S^T F + R^-T(D + Y^T H Y) R^-1 S^T F)
-   * rwork3: D R^-1 S^T F, rwork1: Y^T H Y R^-1 S^T F                       */
+  /* Start bottom part: S(-R^-T Y^T H S^T F + R^-T(D + Y^T H Y) R^-1 S^T F) *
+   * rwork2: D R^-1 S^T F, rwork3: Y^T H Y R^-1 S^T F                       */
   PetscCall(VecDuplicate(lbfgs->rwork1, &lbfgs->diag_vec));
   PetscCall(MatGetDiagonal(lbfgs->StYfull, lbfgs->diag_vec));
-  PetscCall(VecPointwiseMult(lbfgs->rwork3, lbfgs->diag_vec, lbfgs->rwork2));
+  PetscCall(VecPointwiseMult(lbfgs->rwork2, lbfgs->diag_vec, lbfgs->rwork1));
   PetscCall(VecDestroy(&lbfgs->diag_vec));
 
-  PetscCall(MatMult(lbfgs->Yfull, lbfgs->rwork2, lbfgs->lwork1));
+  PetscCall(MatMult(lbfgs->Yfull, lbfgs->rwork1, lbfgs->lwork1));
   PetscCall(MatCDBFGSApplyJ0Inv(H, lbfgs->lwork1, lbfgs->lwork2));
-  PetscCall(MatMultTranspose(lbfgs->Yfull, lbfgs->lwork2, lbfgs->rwork1));
-  PetscCall(VecAXPY(lbfgs->rwork1, 1., lbfgs->rwork3));
+  PetscCall(MatMultTranspose(lbfgs->Yfull, lbfgs->lwork2, lbfgs->rwork3));
+  PetscCall(VecAXPY(lbfgs->rwork2, 1., lbfgs->rwork3));
 
-  PetscCall(MatCDBFGSApplyJ0Inv(H, F, lbfgs->lwork1));
-  PetscCall(MatMultTranspose(lbfgs->Yfull, lbfgs->lwork1, lbfgs->rwork2));
-  PetscCall(VecAXPY(lbfgs->rwork1, -1., lbfgs->rwork2));
-  PetscCall(MatSolveTriangularRecycleOrder(lmvm, lbfgs, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork1, lbfgs->rwork2, MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE));
+  PetscCall(MatCDBFGSApplyJ0Inv(H, F, lbfgs->lwork1)); //TODO technically can use extra vec to save one gemv...
+  PetscCall(MatMultTranspose(lbfgs->Yfull, lbfgs->lwork1, lbfgs->rwork3));
+  PetscCall(VecAXPY(lbfgs->rwork2, -1., lbfgs->rwork3));
+  PetscCall(MatSolveTriangular(lmvm, lbfgs, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork2, MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE));
   PetscCall(MatMult(lbfgs->Sfull, lbfgs->rwork2, lbfgs->lwork1));
   PetscCall(VecAXPY(dX, -1., lbfgs->lwork1));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -415,30 +411,29 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   PetscCall(MatMultTranspose(lbfgs->Sfull, Z, lbfgs->rwork4));
 
   /* Upper half:  B S L^-1 Y^T X
-   * rwork1: Y^T X, rwork2: L^-1 Y^T X           */
+   * rwork1: L^-1 Y^T X           */
   PetscCall(MatMultTranspose(lbfgs->Yfull, X, lbfgs->rwork1));
-  PetscCall(MatSolveTriangularRecycleOrder(lmvm, lbfgs, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork1, lbfgs->rwork2, MAT_CDBFGS_LOWER_TRIANGULAR));
-  PetscCall(MatMult(lbfgs->Sfull, lbfgs->rwork2, lbfgs->lwork1));
+  PetscCall(MatSolveTriangular(lmvm, lbfgs, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork1, MAT_CDBFGS_LOWER_TRIANGULAR));
+  PetscCall(MatMult(lbfgs->Sfull, lbfgs->rwork1, lbfgs->lwork1));
   PetscCall(MatCDBFGSApplyJ0Fwd(B, lbfgs->lwork1, lbfgs->lwork2));
   PetscCall(VecAXPY(Z, -1., lbfgs->lwork2));
 
   /* Bottom half                               *
    * Y L^-T (S^T B - (S^T B S + D) L^-1 Y^T)X  *
-   * rwork1: (S^T B S)L^-1 Y^T X               */
-  PetscCall(MatMult(lbfgs->Sfull, lbfgs->rwork2, lbfgs->lwork1));
+   * rwork2: (S^T B S)L^-1 Y^T X               */
+  PetscCall(MatMult(lbfgs->Sfull, lbfgs->rwork1, lbfgs->lwork1));
   PetscCall(MatCDBFGSApplyJ0Fwd(B, lbfgs->lwork1, lbfgs->lwork2));
-  PetscCall(MatMultTranspose(lbfgs->Sfull, lbfgs->lwork2, lbfgs->rwork1));
+  PetscCall(MatMultTranspose(lbfgs->Sfull, lbfgs->lwork2, lbfgs->rwork2));
 
-  /* rwork2: D L^-1 Y^T X */
+  /* rwork3: D L^-1 Y^T X */
   PetscCall(VecDuplicate(lbfgs->rwork1, &lbfgs->diag_vec));
   PetscCall(MatGetDiagonal(lbfgs->StYfull, lbfgs->diag_vec));
-  PetscCall(VecPointwiseMult(lbfgs->rwork3, lbfgs->diag_vec, lbfgs->rwork2));
+  PetscCall(VecPointwiseMult(lbfgs->rwork3, lbfgs->diag_vec, lbfgs->rwork1));
   PetscCall(VecDestroy(&lbfgs->diag_vec));
-  /* Adding them all up into rwork4 */
-  PetscCall(VecAXPBYPCZ(lbfgs->rwork4, -1., -1., 1., lbfgs->rwork1, lbfgs->rwork2));
 
-  PetscCall(MatSolveTriangularRecycleOrder(lmvm, lbfgs, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork4, lbfgs->rwork1, MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE));
-  PetscCall(MatMult(lbfgs->Yfull, lbfgs->rwork1, lbfgs->lwork1));
+  PetscCall(VecAXPY(lbfgs->rwork3, 1., lbfgs->rwork2));
+  PetscCall(MatSolveTriangular(lmvm, lbfgs, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork3, MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE));
+  PetscCall(MatMult(lbfgs->Yfull, lbfgs->rwork3, lbfgs->lwork1));
 
   PetscCall(VecAXPY(Z, -1., lbfgs->lwork1));
   //TODO can't tell whether i should reorder solution vec here, or elsewhere?
@@ -550,7 +545,6 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
 
       PetscCall(MatDestroy(&lbfgs->StYfull));
       PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
-//      PetscCall(MatConvert(lbfgs->StYfull, lbfgs->dense_type, MAT_INPLACE_MATRIX, &lbfgs->StYfull));//TODO is this needed, or done internally already?
       /* Clear out the previously formed submatrices and work vectors */
       PetscCall(VecDestroy(&lbfgs->rwork1));
       PetscCall(VecDestroy(&lbfgs->rwork2));
@@ -559,7 +553,6 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
 
       PetscCall(MatCreateVecs(lbfgs->StYfull, &lbfgs->rwork1, &lbfgs->rwork2));
       PetscCall(MatCreateVecs(lbfgs->StYfull, &lbfgs->rwork3, &lbfgs->rwork4));
-// TODO : make clear whether workvectors are L or R
 
       /* Update the diagonal H0 if it exists */
       if (!(lmvm->J0 || lmvm->user_pc || lmvm->user_ksp || lmvm->user_scale)) {
