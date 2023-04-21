@@ -87,6 +87,7 @@ PetscErrorCode MatUpdateKernel_LMVM(Mat B, Vec S, Vec Y)
   PetscCall(VecCopy(S, lmvm->S[lmvm->k]));
   PetscCall(VecCopy(Y, lmvm->Y[lmvm->k]));
   ++lmvm->nupdates;
+  PetscCall(PetscObjectStateIncrease((PetscObject)B));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

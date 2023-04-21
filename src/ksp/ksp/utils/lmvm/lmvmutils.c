@@ -37,7 +37,16 @@ PetscErrorCode MatLMVMUpdate(Mat B, Vec X, Vec F)
   if (lmvm->J0) {
     /* If the user provided an LMVM-type matrix as J0, then trigger its update as well */
     PetscCall(PetscObjectBaseTypeCompare((PetscObject)lmvm->J0, MATLMVM, &same));
-    if (same) PetscCall(MatLMVMUpdate(lmvm->J0, X, F));
+    if (same) {
+      PetscObjectState J0_state_pre, J0_state_post;
+
+      PetscCall(PetscObjectStateGet((PetscObject)lmvm->J0, &J0_state_pre));
+      PetscCall(MatLMVMUpdate(lmvm->J0, X, F));
+      PetscCall(PetscObjectStateGet((PetscObject)lmvm->J0, &J0_state_post));
+      if (J0_state_post != J0_state_pre) {
+        PetscCall(PetscObjectStateIncrease((PetscObject)B));
+      }
+    }
   }
   PetscCall((*lmvm->ops->update)(B, X, F));
   PetscFunctionReturn(PETSC_SUCCESS);
