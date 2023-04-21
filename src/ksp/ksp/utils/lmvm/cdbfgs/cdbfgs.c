@@ -336,6 +336,7 @@ static PetscErrorCode MatSolveTriangularRecycleOrder(Mat_LMVM *lmvm, Mat_CDBFGS 
     default:
       SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented TRSM");
     }
+    break;
   default:
     SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented L-BFGS strategy");
   }
@@ -458,6 +459,7 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
   PetscReal         curvtol;
   PetscInt          n, low, high, i;
   PetscMemType      memtype_sy;
+  MPI_Comm          comm = PetscObjectComm((PetscObject)B);
 
   PetscFunctionBegin;
   if (!lmvm->m) PetscFunctionReturn(PETSC_SUCCESS);
@@ -527,6 +529,7 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
         }
         break;
       case (MAT_LBFGS_BASIC):
+        SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented CDLBFGS Method");
         break;
       }
 
@@ -826,6 +829,7 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   lbfgs->delta_min       = 1e-7;
   lbfgs->delta_max       = 100.0;
   lbfgs->max_seq_rejects = lmvm->m/2;
+  lbfgs->strategy        = MAT_LBFGS_CD_REORDER;
   
   PetscCall(MatCreate(PetscObjectComm((PetscObject)B), &lbfgs->diag_bfgs));
   PetscCall(MatSetType(lbfgs->diag_bfgs, MATLMVMDIAGBROYDEN));
