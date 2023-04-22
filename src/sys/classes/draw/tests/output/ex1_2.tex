@@ -1,0 +1,56 @@
+\documentclass{beamer}
+
+\usepackage{tikz}
+\usepackage{pgflibraryshapes}
+\usetikzlibrary{backgrounds}
+\usetikzlibrary{arrows}
+\newenvironment{changemargin}[2]{%
+  \begin{list}{}{%
+    \setlength{\topsep}{0pt}%
+    \setlength{\leftmargin}{#1}%
+    \setlength{\rightmargin}{#2}%
+    \setlength{\listparindent}{\parindent}%
+    \setlength{\itemindent}{\parindent}%
+    \setlength{\parsep}{\parskip}%
+  }%
+  \item[]}{\end{list}}
+
+\begin{document}
+\begin{frame}{}
+\begin{changemargin}{-1cm}{0cm}
+\begin{center}
+\begin{tikzpicture}[scale = 10.00,font=\fontsize{8}{8}\selectfont]
+\draw [black] (0.25,0.25) --(0.75,0.75);
+\node [above right, red] at (0.35,0.35) {Some Text};
+\node [above right, green] at (0.5,0.5) {Some Text};
+\node [above right, blue] at (0.35,0.65) {Some Text};
+\end{tikzpicture}
+\end{center}
+\end{changemargin}
+\end{frame}
+\begin{frame}{}
+\begin{changemargin}{-1cm}{0cm}
+\begin{center}
+\begin{tikzpicture}[scale = 10.00,font=\fontsize{8}{8}\selectfont]
+\node [above right, red] at (0.35,0.35) {Some Text};
+\node [above right, green] at (0.5,0.5) {Some Text};
+\node [above right, blue] at (0.35,0.65) {Some Text};
+\end{tikzpicture}
+\end{center}
+\end{changemargin}
+\end{frame}
+\begin{frame}{}
+\begin{changemargin}{-1cm}{0cm}
+\begin{center}
+\begin{tikzpicture}[scale = 10.00,font=\fontsize{8}{8}\selectfont]
+\node [above right, red] at (0.2,0.2) {Some Text
+  Some Other Text};
+\node [above right, red] at (0.5,0.5) {ABCygj
+()[]F$};
+\node [above right, red] at (0.,0.) {Horizontal Text (ABCygj)};
+\node [rotate=90, red] at (0.,0.818) {Vertical Text};
+\end{tikzpicture}
+\end{center}
+\end{changemargin}
+\end{frame}
+\end{document}

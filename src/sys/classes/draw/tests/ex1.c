@@ -61,4 +61,9 @@ int main(int argc, char **argv)
    test:
      output_file: output/ex1_1.out
 
+   test:
+      suffix: 2
+      nsize: 2
+      args: -draw_type tikz -draw_save stdout
+      output_file: output/ex1_2.tex
 TEST*/
