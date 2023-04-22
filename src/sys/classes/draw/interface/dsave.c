@@ -42,7 +42,7 @@ PetscErrorCode PetscDrawSetSave(PetscDraw draw, const char filename[])
   const char *savename = NULL;
   const char *imageext = NULL;
   char        buf[PETSC_MAX_PATH_LEN];
-  PetscBool   flg1,flg2; 
+  PetscBool   flg1,istex,isstdout,isstderr; 
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
@@ -64,9 +64,13 @@ PetscErrorCode PetscDrawSetSave(PetscDraw draw, const char filename[])
 
   if (!savename) PetscCall(PetscObjectGetName((PetscObject)draw, &savename));
   PetscCall(PetscObjectTypeCompare((PetscObject)draw,PETSC_DRAW_TIKZ, &flg1));
-  PetscCall(PetscStrcmp(imageext, ".tex", &flg2));
-  if(!flg1 || !flg2) { /* allow tex file types just for tikz */
-    PetscCall(PetscDrawImageCheckFormat(&imageext));
+  if(flg1) {
+    PetscCall(PetscStrcmp(imageext, ".tex", &istex));
+    PetscCall(PetscStrcmp(filename, "stdout", &isstdout));
+    PetscCall(PetscStrcmp(filename, "stderr", &isstderr));
+    if(!(istex || isstdout || isstderr)){
+      PetscCall(PetscDrawImageCheckFormat(&imageext));
+    }  
   }
 
   draw->savefilecount = 0;

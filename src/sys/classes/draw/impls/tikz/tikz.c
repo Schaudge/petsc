@@ -191,10 +191,18 @@ static PetscErrorCode PetscDrawSetUp_TikZ(PetscDraw draw)
 
   PetscFunctionBegin;
   if (draw->savefilename) {
-    PetscCall(PetscSNPrintf(path, sizeof(path), "%s%s", draw->savefilename, draw->saveimageext));
+    if(draw->saveimageext) {
+      PetscCall(PetscSNPrintf(path, sizeof(path), "%s%s", draw->savefilename, draw->saveimageext));
+    } else {
+      PetscCall(PetscStrcpy(path,draw->savefilename));
+    }
     PetscCall(PetscViewerFileSetName(tikz->ascii, path));
   } else if (draw->savefinalfilename) {
+    if(draw->saveimageext) {
     PetscCall(PetscSNPrintf(path, sizeof(path), "%s%s", draw->savefinalfilename, draw->saveimageext));
+    } else {
+      PetscCall(PetscStrcpy(path,draw->savefinalfilename));
+    }
     PetscCall(PetscViewerFileSetName(tikz->ascii, draw->savefinalfilename));
   } else if (draw->title) {
     PetscCall(PetscViewerFileSetName(tikz->ascii, draw->title));
