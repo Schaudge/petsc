@@ -42,7 +42,7 @@ PetscErrorCode PetscDrawSetSave(PetscDraw draw, const char filename[])
   const char *savename = NULL;
   const char *imageext = NULL;
   char        buf[PETSC_MAX_PATH_LEN];
-  PetscBool   flg1,istex,isstdout,isstderr; 
+  PetscBool   flg1, istex, isstdout, isstderr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
@@ -58,19 +58,17 @@ PetscErrorCode PetscDrawSetSave(PetscDraw draw, const char filename[])
       PetscCall(PetscStrlen(imageext, &l2));
       PetscCall(PetscStrncpy(buf, filename, sizeof(buf)));
       buf[l1 - l2] = '\0';
-      savename         = buf;
+      savename     = buf;
     }
   }
 
   if (!savename) PetscCall(PetscObjectGetName((PetscObject)draw, &savename));
-  PetscCall(PetscObjectTypeCompare((PetscObject)draw,PETSC_DRAW_TIKZ, &flg1));
-  if(flg1) {
+  PetscCall(PetscObjectTypeCompare((PetscObject)draw, PETSC_DRAW_TIKZ, &flg1));
+  if (flg1) {
     PetscCall(PetscStrcmp(imageext, ".tex", &istex));
     PetscCall(PetscStrcmp(filename, "stdout", &isstdout));
     PetscCall(PetscStrcmp(filename, "stderr", &isstderr));
-    if(!(istex || isstdout || isstderr)){
-      PetscCall(PetscDrawImageCheckFormat(&imageext));
-    }  
+    if (!(istex || isstdout || isstderr)) { PetscCall(PetscDrawImageCheckFormat(&imageext)); }
   }
 
   draw->savefilecount = 0;
