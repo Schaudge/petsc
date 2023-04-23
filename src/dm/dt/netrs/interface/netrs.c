@@ -862,7 +862,7 @@ PetscErrorCode DMNetworkCreateEdgeInInfo(NetRS rs)
   MPI_Comm        comm;
   Vec             tmpVec, tmpVecloc;
   DM              tmpclone;
-  PetscInt        i, j, v, vStart, vEnd, vdeg, numedges, off, offv, size, comp_index, numsharedvert;
+  PetscInt        i, j, v, vStart, vEnd, vdeg, numedges, off, offv, size, comp_index;
   const PetscInt *edges, *cone;
   PetscBool       flg, *edgein_v;
   PetscScalar    *edgein;
@@ -901,11 +901,9 @@ PetscErrorCode DMNetworkCreateEdgeInInfo(NetRS rs)
   PetscCall(VecZeroEntries(tmpVec));
   PetscCall(VecZeroEntries(tmpVecloc));
   PetscCall(VecGetArray(tmpVecloc, &edgein));
-  numsharedvert = 0;
   for (v = vStart; v < vEnd; v++) {
     PetscCall(DMLabelHasPoint(rs->VertexDeg_shared, v, &flg));
     if (!flg) continue;
-    numsharedvert++;
     PetscCall(DMNetworkGetSupportingEdges(tmpclone, v, &numedges, &edges));
     PetscCall(DMNetworkGetLocalVecOffset(tmpclone, v, ALL_COMPONENTS, &off));
     PetscCall(PetscHMapIGet(rs->vertex_shared_offset, v, &offv));

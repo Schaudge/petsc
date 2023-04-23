@@ -113,6 +113,8 @@ PETSC_EXTERN PetscErrorCode NetRPSetSolverCtxFunc(NetRP, NetRPSetSolverCtx);
 PETSC_EXTERN PetscErrorCode NetRPGetSolverCtx(NetRP, PetscInt, PetscInt, void **);
 PETSC_EXTERN PetscErrorCode NetRPSetDestroySolverCtxFunc(NetRP, NetRPDestroySolverCtx);
 
+PETSC_EXTERN PetscErrorCode NetRPCreateVec(NetRP,PetscInt,Vec*);
+
 /* 
   Set internal ops, for usage when a user is using the default blank netrp, and wnat to specifically set there routines 
   This is an alternative the complexity of having to create an entire implementation just for a physics specific riemann problem 

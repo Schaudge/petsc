@@ -1636,7 +1636,7 @@ Input Parameters:
 
 Output Parameter: 
 
-. vec - the create Vec 
+. vec - the created Vec 
 
 Level: beginner 
 

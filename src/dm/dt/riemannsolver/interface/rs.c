@@ -819,7 +819,7 @@ PetscErrorCode RiemannSolverComputeRoeAvg(RiemannSolver rs, const PetscReal *uL,
   PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
   PetscCall(RiemannSolverGetApplicationContext(rs, &ctx));
   if (rs->roeavg) {
-    rs->roeavg(ctx, uL, uR, uavg);
+    PetscCall(rs->roeavg(ctx, uL, uR, uavg));
   } else {
     SETERRQ(PetscObjectComm((PetscObject)rs), PETSC_ERR_SUP, "No Roe Average Function Specified");
   }
@@ -1014,7 +1014,7 @@ PetscErrorCode RiemannSolverComputeJacobian(RiemannSolver rs, const PetscReal *u
   PetscValidHeaderSpecific(rs, RIEMANNSOLVER_CLASSID, 1);
   PetscCall(RiemannSolverGetApplicationContext(rs, &ctx));
   if (rs->fluxderfun) {
-    rs->fluxderfun(ctx, u, rs->Df);
+    PetscCall(rs->fluxderfun(ctx, u, rs->Df));
     *jacobian = rs->Df;
   } else {
     SETERRQ(PetscObjectComm((PetscObject)rs), PETSC_ERR_SUP, "No Jacobian Function Specified");
