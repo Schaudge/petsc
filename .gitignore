@@ -1,3 +1,8 @@
+
+*.aux
+*.nav
+*.snm
+*.toc
 *.bkp
 *.info
 *.gcov
