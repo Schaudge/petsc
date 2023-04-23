@@ -1,0 +1,32 @@
+\documentclass{beamer}
+
+\usepackage{tikz}
+\usepackage{pgflibraryshapes}
+\usetikzlibrary{backgrounds}
+\usetikzlibrary{arrows}
+\newenvironment{changemargin}[2]{%
+  \begin{list}{}{%
+    \setlength{\topsep}{0pt}%
+    \setlength{\leftmargin}{#1}%
+    \setlength{\rightmargin}{#2}%
+    \setlength{\listparindent}{\parindent}%
+    \setlength{\itemindent}{\parindent}%
+    \setlength{\parsep}{\parskip}%
+  }%
+  \item[]}{\end{list}}
+
+\begin{document}
+\begin{frame}{}
+\begin{changemargin}{-1cm}{0cm}
+\begin{center}
+\begin{tikzpicture}[scale = 10.00,font=\fontsize{8}{8}\selectfont]
+\draw [red] (0.,0.) --(0.,0.);
+\draw [red] (1.,0.) --(1.,0.);
+\draw [red] (0.,1.) --(0.,1.);
+\draw [red] (1.,1.) --(1.,1.);
+\draw [black] (0.02,0.) --(0.98,0.);
+\draw [black] (0.02,1.) --(0.98,1.);
+\draw [black] (0.,0.02) --(0.,0.98);
+\draw [black] (1.,0.02) --(1.,0.98);
+\draw [blue] (0.02,0.5) --(0.98,0.98);
+\draw [blue] (0.01,0.99) --(0.99,0.01);

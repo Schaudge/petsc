@@ -1,0 +1,27 @@
+\documentclass{beamer}
+
+\usepackage{tikz}
+\usepackage{pgflibraryshapes}
+\usetikzlibrary{backgrounds}
+\usetikzlibrary{arrows}
+\newenvironment{changemargin}[2]{%
+  \begin{list}{}{%
+    \setlength{\topsep}{0pt}%
+    \setlength{\leftmargin}{#1}%
+    \setlength{\rightmargin}{#2}%
+    \setlength{\listparindent}{\parindent}%
+    \setlength{\itemindent}{\parindent}%
+    \setlength{\parsep}{\parskip}%
+  }%
+  \item[]}{\end{list}}
+
+\begin{document}
+\begin{frame}{}
+\begin{changemargin}{-1cm}{0cm}
+\begin{center}
+\begin{tikzpicture}[scale = 10.00,font=\fontsize{8}{8}\selectfont]
+\end{tikzpicture}
+\end{center}
+\end{changemargin}
+\end{frame}
+\end{document}

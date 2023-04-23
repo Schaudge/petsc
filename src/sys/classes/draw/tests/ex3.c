@@ -80,10 +80,16 @@ int main(int argc, char **argv)
 
 /*TEST
 
-   build:
-     requires: x
+  build:
+    requires: x
 
-   test:
-     output_file: output/ex1_1.out
+  test:
+    output_file: output/ex1_1.out
+
+  test:
+    suffix: 2
+    nsize: 2
+    args: -draw_type tikz -draw_save stdout
+    output_file: output/ex3_2.tex
 
 TEST*/
