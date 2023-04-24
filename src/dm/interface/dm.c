@@ -5416,8 +5416,8 @@ PetscErrorCode DMGetDS(DM dm, PetscDS *ds)
   PetscFunctionBeginHot;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   PetscValidPointer(ds, 2);
-  PetscCheck(dm->Nds > 0, PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_WRONGSTATE, "Need to call DMCreateDS() before calling DMGetDS()");
-  *ds = dm->probs[0].ds;
+  *ds = NULL;
+  if (dm->Nds > 0) *ds = dm->probs[0].ds;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
