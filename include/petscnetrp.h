@@ -58,7 +58,7 @@ typedef const char *NetRPType;
   #define NETRPEXACTSWE            "netrpexactswe"
   #define NETRPTRAFFICLWR          "netrptrafficLWR"
   #define NETRPTRAFFICLWR_PRIORITY "netrptrafficLWRpriority"
-  #define NETRPCONSTANT      "netrpconstant"
+  #define NETRPCONSTANT            "netrpconstant"
 
 PETSC_EXTERN PetscErrorCode NetRPInitializePackage(void);
 PETSC_EXTERN PetscErrorCode NetRPFinalizePackage(void);
@@ -113,7 +113,7 @@ PETSC_EXTERN PetscErrorCode NetRPSetSolverCtxFunc(NetRP, NetRPSetSolverCtx);
 PETSC_EXTERN PetscErrorCode NetRPGetSolverCtx(NetRP, PetscInt, PetscInt, void **);
 PETSC_EXTERN PetscErrorCode NetRPSetDestroySolverCtxFunc(NetRP, NetRPDestroySolverCtx);
 
-PETSC_EXTERN PetscErrorCode NetRPCreateVec(NetRP,PetscInt,Vec*);
+PETSC_EXTERN PetscErrorCode NetRPCreateVec(NetRP, PetscInt, Vec *);
 
 /* 
   Set internal ops, for usage when a user is using the default blank netrp, and wnat to specifically set there routines 
@@ -166,8 +166,7 @@ PETSC_EXTERN PetscErrorCode NetRPTrafficSetPriorityVec(NetRP, NetRPTrafficPriori
 PETSC_EXTERN PetscErrorCode NetRPTrafficSetPriorityWeight(NetRP, PetscReal);
 PETSC_EXTERN PetscErrorCode NetRPTrafficGetPriorityWeight(NetRP, PetscReal *);
 
-
 /* constant specific functions */
 
-PETSC_EXTERN PetscErrorCode NetRPConstantSetData(NetRP,PetscScalar*);
+PETSC_EXTERN PetscErrorCode NetRPConstantSetData(NetRP, PetscScalar *);
 #endif

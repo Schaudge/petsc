@@ -50,14 +50,14 @@ static PetscErrorCode TrafficDistribution(NetRP rp, PetscInt indeg, PetscInt out
   PetscFunctionBeginUser;
   PetscCall(MatDenseGetArray(distribution, &mat));
 
-  if(outdeg == 2 && indeg == 2) {
+  if (outdeg == 2 && indeg == 2) {
     /* 2x2 matrix from benedettos book */
     mat[0 * outdeg + 0] = 1. / 3.;
     mat[1 * outdeg + 0] = 1. / 4.;
     mat[0 * outdeg + 1] = 2. / 3.;
     mat[1 * outdeg + 1] = 3. / 4.;
   } else if (outdeg == 1) {
-  /* only possible matrix for this case */
+    /* only possible matrix for this case */
     for (i = 0; i < indeg; i++) { mat[i] = 1.0; }
   } else if (outdeg == 2 && indeg == 3) {
     mat[0 * outdeg + 0] = 1. / 3.;

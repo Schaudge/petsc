@@ -499,11 +499,11 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
 
       /* inner loop  */
       k = 0;
-      for (i = 0; i < n-1; ++i) {
+      for (i = 0; i < n - 1; ++i) {
         edgelist[k++] = i;
         edgelist[k++] = i + 1;
       }
-      edgelist[k++] = n-1; 
+      edgelist[k++] = n - 1;
       edgelist[k++] = 0;
 
       /* spokes */
@@ -537,7 +537,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
         junctions[i].y = yy;
       }
       norm = PetscSqrtReal(PetscSqr(junctions[0].x) + PetscSqr(junctions[0].y));
-      
+
       for (i = 0; i < n; ++i) {
         xx                 = junctions[i].x / norm * dgnet->length + junctions[i].x;
         yy                 = junctions[i].y / norm * dgnet->length + junctions[i].y;
@@ -961,22 +961,20 @@ static PetscErrorCode TrafficDistribution(NetRP rp, PetscInt indeg, PetscInt out
 
   PetscFunctionBeginUser;
   PetscCall(MatDenseGetArray(distribution, &mat));
-  if(outdeg ==  2 && indeg == 1) {
-      mat[0] = 0.5; 
-      mat[1] = 0.5; 
-  } else if( outdeg == 1) {
-      for(i=0; i<indeg; i++) {
-        mat[i] = 1.0; 
+  if (outdeg == 2 && indeg == 1) {
+    mat[0] = 0.5;
+    mat[1] = 0.5;
+  } else if (outdeg == 1) {
+    for (i = 0; i < indeg; i++) { mat[i] = 1.0; }
+  } else {
+    /* equal distribution */
+    for (j = 0; j < indeg; j++) {
+      for (i = 0; i < outdeg; i++) {
+        val = PetscPowRealInt(0.5, i + 1);
+        if (i == outdeg - 2) val += PetscPowRealInt(0.5, outdeg);
+        mat[j * outdeg + i] = val;
       }
-  } else{
-  /* equal distribution */
-  for (j = 0; j < indeg; j++) {
-    for (i = 0; i < outdeg; i++) {
-      val = PetscPowRealInt(0.5, i + 1);
-      if (i == outdeg - 2) val += PetscPowRealInt(0.5, outdeg);
-      mat[j * outdeg + i] = val;
     }
-  }
   }
   PetscCall(MatDenseRestoreArray(distribution, &mat));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -989,12 +987,12 @@ static PetscErrorCode TrafficPriority(NetRP rp, PetscInt indeg, PetscInt outdeg,
 
   PetscFunctionBeginUser;
   PetscCall(VecGetArray(priority, &p));
-  if(outdeg == 1 && indeg == 2) {
+  if (outdeg == 1 && indeg == 2) {
     p[0] = 4;
-    p[1] =1; 
+    p[1] = 1;
   } else {
-  for (i = 0; i < indeg; i++) { p[i] = i + 1; }
-  PetscCall(VecRestoreArray(priority, &p));
+    for (i = 0; i < indeg; i++) { p[i] = i + 1; }
+    PetscCall(VecRestoreArray(priority, &p));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

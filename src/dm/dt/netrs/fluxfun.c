@@ -26,13 +26,13 @@ typedef struct {
   PetscReal gravity;
 } ShallowCtx;
 
-static inline PetscErrorCode ShallowFlux(void *ctx, const PetscReal *u, PetscReal *f)
-{
-  ShallowCtx *phys = (ShallowCtx *)ctx;
-  f[0]             = u[1];
-  f[1]             = PetscSqr(u[1]) / u[0] + 0.5 * phys->gravity * PetscSqr(u[0]);
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
+// static inline PetscErrorCode ShallowFlux(void *ctx, const PetscReal *u, PetscReal *f)
+// {
+//   ShallowCtx *phys = (ShallowCtx *)ctx;
+//   f[0]             = u[1];
+//   f[1]             = PetscSqr(u[1]) / u[0] + 0.5 * phys->gravity * PetscSqr(u[0]);
+//   PetscFunctionReturn(PETSC_SUCCESS);
+// }
 static inline void ShallowFluxVoid(void *ctx, const PetscReal *u, PetscReal *f)
 {
   ShallowCtx *phys = (ShallowCtx *)ctx;

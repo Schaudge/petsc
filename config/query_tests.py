@@ -354,7 +354,7 @@ def main():
 
       if string:
         ret = shlex.split(string)
-        assert len(ret) == 1, "Dont know what to do if shlex.split() produces more than 1 value?"
+        assert len(ret) == 1, "Dont know what to do if shlex.split() produces more than 1 value? \n Values passed in are " + " ".join(ret)
         string = ret[0]
       return string
 

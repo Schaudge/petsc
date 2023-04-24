@@ -52,7 +52,7 @@ struct _NetRPOps {
   PetscErrorCode (*PostSolve)(NetRP, PetscInt, PetscInt, PetscBool *, Vec, Vec, void *);
   PetscErrorCode (*PreSolve)(NetRP, PetscInt, PetscInt, PetscBool *, Vec, void *); /* form is vdegin, vdegout, edgein, U, solver_ctx */
 
-  PetscErrorCode (*viewvec)(NetRP,PetscInt, PetscBool *,Vec,PetscViewer); /* View Solution to the Riemann Problem */
+  PetscErrorCode (*viewvec)(NetRP, PetscInt, PetscBool *, Vec, PetscViewer); /* View Solution to the Riemann Problem */
 };
 
 struct _p_NetRP {

@@ -449,39 +449,41 @@ static PetscErrorCode PhysicsSample_TrafficNetwork(void *vctx, PetscInt initial,
       PetscCall(SNESDestroy(&snes));
     }
     break;
-  case 2: 
-     if (edgeid == 0) {
-      u[0] = 0.8; 
+  case 2:
+    if (edgeid == 0) {
+      u[0] = 0.8;
     } else {
       u[0] = 0.0;
     }
     break;
-  case 3: 
+  case 3:
     if (edgeid == 4) {
-      if( (0<= x && x <= 0.2 )||(0.4<= x && x <= 0.6 ) || (8.5<= x && x <= 1.0 ) ) {
-        u[0] = 0.25; 
+      if ((0 <= x && x <= 0.2) || (0.4 <= x && x <= 0.6) || (8.5 <= x && x <= 1.0)) {
+        u[0] = 0.25;
       } else {
-        u[0] = 0.35; 
+        u[0] = 0.35;
       }
-    } else if(edgeid == 6) {
-      u[0] = 0.2 + 0.2 *sin(5*PETSC_PI*x);
+    } else if (edgeid == 6) {
+      u[0] = 0.2 + 0.2 * sin(5 * PETSC_PI * x);
     } else {
-      u[0] = 0.5; 
+      u[0] = 0.5;
     }
+    break;
   default:
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_UNKNOWN_TYPE, "unknown initial condition");
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode PhysicsFluxDer_Traffic(void *vctx, const PetscReal *u, Mat jacobian) {
-    TrafficCtx *traffic = (TrafficCtx *)vctx;
-    
-    PetscFunctionBeginUser;
-    PetscCall(MatSetValue(jacobian,0, 0,TrafficChar(traffic->a, u[0]) ,INSERT_VALUES));
-    PetscCall(MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY)); 
-    PetscCall(MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY)); 
-    PetscFunctionReturn(PETSC_SUCCESS);
+static PetscErrorCode PhysicsFluxDer_Traffic(void *vctx, const PetscReal *u, Mat jacobian)
+{
+  TrafficCtx *traffic = (TrafficCtx *)vctx;
+
+  PetscFunctionBeginUser;
+  PetscCall(MatSetValue(jacobian, 0, 0, TrafficChar(traffic->a, u[0]), INSERT_VALUES));
+  PetscCall(MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode PhysicsCreate_Traffic(DGNetwork fvnet)

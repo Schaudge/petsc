@@ -39,7 +39,6 @@ PetscErrorCode NetRPSetUp(NetRP rp)
   rp->setupcalled = PETSC_TRUE;
   PetscCheck(rp->flux, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "Requires a Flux to be set");
   PetscCall(RiemannSolverSetUp(rp->flux));
-  PetscTryTypeMethod(rp, setup);
   /* check riemann problem and physics consistency */
   PetscCall(RiemannSolverGetNumFields(rp->flux, &numfield_flux));
   switch (rp->physicsgenerality) {
@@ -52,6 +51,7 @@ PetscErrorCode NetRPSetUp(NetRP rp)
     PetscCheck(numfield_flux == numfield_rp, PetscObjectComm((PetscObject)rp), PETSC_ERR_ARG_WRONGSTATE, "The physics number of fields : %" PetscInt_FMT " is not the same as the riemann problem number of fields  %" PetscInt_FMT, numfield_flux, numfield_rp);
     break;
   }
+  PetscTryTypeMethod(rp, setup);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1643,14 +1643,14 @@ Level: beginner
 .seealso `NetRPCreate()`, 
 @*/
 
-PetscErrorCode NetRPCreateVec(NetRP rp, PetscInt vdeg,  Vec *vec) {
-  PetscInt numfields; 
+PetscErrorCode NetRPCreateVec(NetRP rp, PetscInt vdeg, Vec *vec)
+{
+  PetscInt numfields;
 
-  PetscFunctionBegin; 
+  PetscFunctionBegin;
   PetscValidHeaderSpecific(rp, NETRP_CLASSID, 1);
-  PetscCall(NetRPSetUp(rp)); 
+  PetscCall(NetRPSetUp(rp));
   PetscCall(NetRPGetNumFields(rp, &numfields));
-  PetscCall(VecCreateSeq(PETSC_COMM_SELF, numfields*vdeg, vec)); 
-  PetscFunctionReturn(PETSC_SUCCESS); 
+  PetscCall(VecCreateSeq(PETSC_COMM_SELF, numfields * vdeg, vec));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
-
