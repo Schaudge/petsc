@@ -26,7 +26,7 @@ struct _MatOps_LMVM {
 
 typedef struct {
   /* Core data structures for stored updates */
-  PETSCHEADER(struct _MatOps_LMVM);
+  struct _MatOps_LMVM ops[1];
   PetscBool allocated, prev_set;
   PetscInt  m_old, m, k, nupdates, nrejects, nresets;
   Vec      *S, *Y;
