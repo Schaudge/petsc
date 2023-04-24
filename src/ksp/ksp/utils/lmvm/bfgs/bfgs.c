@@ -47,7 +47,7 @@ PetscErrorCode MatSolve_LMVMBFGS(Mat B, Vec F, Vec dX)
   PetscCall(VecCopy(F, lbfgs->work));
 
   /* Start the first loop */
-  PetscCall(PetscMalloc1(lmvm->k + 1, &alpha));
+  PetscCall(PetscMalloc1(lmvm->k_next, &alpha));
   for (i = lmvm->k; i >= 0; --i) {
     PetscCall(VecDot(lmvm->S[i], lbfgs->work, &stf));
     alpha[i] = PetscRealPart(stf) / lbfgs->yts[i];

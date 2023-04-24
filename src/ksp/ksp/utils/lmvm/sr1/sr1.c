@@ -6,7 +6,8 @@
 */
 
 typedef struct {
-  Vec       *P, *Q;
+  LMRecycledVecs P;
+  LMRecycledVecs Q;
   Vec        work;
   PetscBool  allocated, needP, needQ;
   PetscReal *stp, *ytq;
@@ -44,14 +45,19 @@ static PetscErrorCode MatSolve_LMVMSR1(Mat B, Vec F, Vec dX)
 
   if (lsr1->needQ) {
     /* Pre-compute (Q[i] = S[i] - (B_i)^{-1} * Y[i]) and (Y[i]^T Q[i]) */
-    for (i = 0; i <= lmvm->k; ++i) {
-      PetscCall(MatLMVMApplyJ0Inv(B, lmvm->Y[i], lsr1->Q[i]));
-      PetscCall(VecAYPX(lsr1->Q[i], -1.0, lmvm->S[i]));
-      for (j = 0; j <= i - 1; ++j) {
+    for (PetscInt i = 0; i <= lmvm->k; ++i) {
+      Vec yi, qi, si;
+      PetscCall(LMRecycledVecsGetSingleRead(lmvm->Y, i, &yi));
+      PetscCall(LMRecycledVecsGetSingleRead(lmvm->S, i, &si));
+      PetscCall(LMRecycledVecsGetSingleWrite(lsr1->Q, i, &qi));
+      PetscCall(MatLMVMApplyJ0Inv(B, yi, qi));
+      PetscCall(VecAYPX(qi, -1.0, si));
+      PetscCall(LMRecycledVecsRestoreSingleRead(lmvm->S, i, &si));
+      for (PetscInt j = 0; j < i; ++j) {
         PetscCall(VecDot(lsr1->Q[j], lmvm->Y[i], &qjtyi));
         PetscCall(VecAXPY(lsr1->Q[i], -PetscRealPart(qjtyi) / lsr1->ytq[j], lsr1->Q[j]));
       }
-      PetscCall(VecDot(lmvm->Y[i], lsr1->Q[i], &ytq));
+      PetscCall(VecDotRealPart(lmvm->Y[i], lsr1->Q[i], &lsr1->ytq[i]));
       lsr1->ytq[i] = PetscRealPart(ytq);
     }
     lsr1->needQ = PETSC_FALSE;

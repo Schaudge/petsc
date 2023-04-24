@@ -1,17 +1,31 @@
 #include <../src/ksp/ksp/utils/lmvm/lmvm.h> /*I "petscksp.h" I*/
 
+// s, y, and related vectors are available in the index range [j_start, j_end)
+PetscErrorCode MatLMVMGetWindow(Mat B, PetscInt *j_start, PetscInt *j_end) {
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+
+  PetscFunctionBegin;
+  if (j_start) {
+    *j_start = PetscMax(0, lmvm->k_next - lmvm->m);
+  }
+  if (j_end) {
+    *j_end = lmvm->k_next;
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode MatReset_LMVM(Mat B, PetscBool destructive)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
 
   PetscFunctionBegin;
-  lmvm->k        = -1;
+  lmvm->k_next   = 0;
   lmvm->prev_set = PETSC_FALSE;
   lmvm->shift    = 0.0;
   if (destructive && lmvm->allocated) {
     PetscCall(MatLMVMClearJ0(B));
-    PetscCall(VecDestroyVecs(lmvm->m, &lmvm->S));
-    PetscCall(VecDestroyVecs(lmvm->m, &lmvm->Y));
+    PetscCall(LMWindowVecsDestroy(&lmvm->S));
+    PetscCall(LMWindowVecsDestroy(&lmvm->Y));
     PetscCall(VecDestroy(&lmvm->Xprev));
     PetscCall(VecDestroy(&lmvm->Fprev));
     lmvm->nupdates  = 0;
@@ -50,10 +64,8 @@ PetscErrorCode MatAllocate_LMVM(Mat B, Vec X, Vec F)
     PetscCall(PetscLayoutReference(X->map, &B->cmap));
     PetscCall(VecDuplicate(X, &lmvm->Xprev));
     PetscCall(VecDuplicate(F, &lmvm->Fprev));
-    if (lmvm->m > 0) {
-      PetscCall(VecDuplicateVecs(lmvm->Xprev, lmvm->m, &lmvm->S));
-      PetscCall(VecDuplicateVecs(lmvm->Fprev, lmvm->m, &lmvm->Y));
-    }
+    PetscCall(LMWindowVecsCreate(lmvm->Xprev, lmvm->m, &lmvm->S));
+    PetscCall(LMWindowVecsCreate(lmvm->Fprev, lmvm->m, &lmvm->Y));
     lmvm->m_old     = lmvm->m;
     lmvm->allocated = PETSC_TRUE;
     B->preallocated = PETSC_TRUE;
@@ -62,30 +74,107 @@ PetscErrorCode MatAllocate_LMVM(Mat B, Vec X, Vec F)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode MatUpdateKernel_LMVM(Mat B, Vec S, Vec Y)
+PetscErrorCode MatUpdateKernel_LMVM(Mat B, Vec s, Vec y)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
-  PetscInt  i;
-  Vec       Stmp, Ytmp;
 
   PetscFunctionBegin;
-  if (lmvm->k == lmvm->m - 1) {
-    /* We hit the memory limit, so shift all the vectors back one spot
-       and shift the oldest to the front to receive the latest update. */
-    Stmp = lmvm->S[0];
-    Ytmp = lmvm->Y[0];
-    for (i = 0; i < lmvm->k; ++i) {
-      lmvm->S[i] = lmvm->S[i + 1];
-      lmvm->Y[i] = lmvm->Y[i + 1];
-    }
-    lmvm->S[lmvm->k] = Stmp;
-    lmvm->Y[lmvm->k] = Ytmp;
-  } else {
-    ++lmvm->k;
+  PetscInt k = lmvm->k_next;
+  lmvm->k_next++;
+  PetscInt need_S = lmvm->auto_vecs & (LMVM_WINDOWVECS_S | LMVM_WINDOWVECS_P | LMVM_WINDOWVECS_SMQ | LMVM_WINDOWVECS_YMP);
+  PetscInt need_Y = lmvm->auto_vecs & (LMVM_WINDOWVECS_Y | LMVM_WINDOWVECS_Q | LMVM_WINDOWVECS_SMQ | LMVM_WINDOWVECS_YMP);
+  PetscInt need_P = lmvm->auto_vecs & (LMVM_WINDOWVECS_P | LMVM_WINDOWVECS_YMP);
+  PetscInt need_Q = lmvm->auto_vecs & (LMVM_WINDOWVECS_Q | LMVM_WINDOWVECS_SMQ);
+  PetscInt need_YMP = lmvm->auto_vecs & LMVM_WINDOWVECS_YMP;
+  PetscInt need_SMQ = lmvm->auto_vecs & LMVM_WINDOWVECS_SMQ;
+
+  if (need_S) {
+    Vec Stmp;
+    PetscCall(LMWindowVecsGetNextWrite(lmvm->S, &Stmp));
+    PetscCall(VecCopy(s, Stmp));
+    PetscCall(LMWindowVecsRestoreNextWrite(lmvm->S, &Stmp));
+    PetscAssert(lmvm->S->k == lmvm->k_next, PETSC_COMM_SELF, PETSC_ERR_PLIB, "lmvm->S out of sync");
   }
-  /* Put the precomputed update into the last vector */
-  PetscCall(VecCopy(S, lmvm->S[lmvm->k]));
-  PetscCall(VecCopy(Y, lmvm->Y[lmvm->k]));
+  if (need_Y) {
+    Vec Ytmp;
+    PetscCall(LMWindowVecsGetNextWrite(lmvm->Y, &Ytmp));
+    PetscCall(VecCopy(y, Ytmp));
+    PetscCall(LMWindowVecsRestoreNextWrite(lmvm->Y, &Ytmp));
+    PetscAssert(lmvm->Y->k == lmvm->k_next, PETSC_COMM_SELF, PETSC_ERR_PLIB, "lmvm->Y out of sync");
+  }
+  if (need_Q) {
+    if (lmvm->Q->op_state == lmvm->J0_state) {
+      Vec q;
+      PetscCall(LMWindowVecsGetNextWrite(lmvm->Q, &q));
+      PetscCall(MatLMVMApplyJ0Inv(B, y, q));
+      PetscCall(LMWindowVecsRestoreNextWrite(lmvm->Q, &q));
+    } else {
+    }
+    PetscAssert(lmvm->Q->k == lmvm->k_next, PETSC_COMM_SELF, PETSC_ERR_PLIB, "lmvm->Q out of sync");
+  }
+  if (need_P) {
+    Vec p;
+    PetscCall(LMWindowVecsGetNextWrite(lmvm->P, &p));
+    PetscCall(MatLMVMApplyJ0Fwd(B, s, p));
+    PetscCall(LMWindowVecsRestoreNextWrite(lmvm->P, &p));
+    PetscAssert(lmvm->P->k == lmvm->k_next, PETSC_COMM_SELF, PETSC_ERR_PLIB, "lmvm->P out of sync");
+  }
+
+  if (kjkk->auto_vecs & LMVM_WINDOWVECS_SMQ) {
+    PetscCall(LMWindowVecsGetNextWrite(lmvm->SmQ, &smq));
+    PetscCall(VecCopy(s, smq));
+  }
+  if (q != NULL) {
+  }
+  if (smq != NULL) {
+    PetscCall(VecAXPY(smq, -1.0, q));
+  }
+  if (lmvm->auto_vecs & LMVM_WINDOWVECS_Q) {
+    PetscCall(LMWindowVecsRestoreNextWrite(lmvm->Q, &q));
+    PetscAssert(lmvm->Q->k == lmvm->k_next, PETSC_COMM_SELF, PETSC_ERR_PLIB, "lmvm->Q out of sync");
+  } else if (lmvm->auto_vecs & LMVM_WINDOWVECS_SMQ) {
+    PetscCall(VecDestroy(&q));
+  }
+  if (lmvm->auto_vecs & LMVM_WINDOWVECS_SMQ) {
+    PetscCall(LMWindowVecsRestoreNextWrite(lmvm->SmQ, &smq));
+    PetscAssert(lmvm->SmQ->k == lmvm->k_next, PETSC_COMM_SELF, PETSC_ERR_PLIB, "lmvm->SmQ out of sync");
+  }
+
+  if (lmvm->auto_vecs & LMVM_WINDOWVECS_P) {
+    PetscCall(LMWindowVecsGetNextWrite(lmvm->P, &p));
+  } else if (lmvm->auto_vecs & LMVM_WINDOWVECS_YMP) {
+    PetscCall(VecDuplicate(y, &p));
+  }
+  if (lmvm->auto_vecs & LMVM_WINDOWVECS_YMP) {
+    PetscCall(LMWindowVecsGetNextWrite(lmvm->YmP, &ymp));
+    PetscCall(VecCopy(y, ymp));
+  }
+  if (y != NULL) {
+    PetscCall(MatLMVMApplyJ0Inv(B, s, p));
+  }
+  if (smq != NULL) {
+    PetscCall(VecAXPY(ymp, -1.0, p));
+  }
+  if (lmvm->auto_vecs & LMVM_WINDOWVECS_P) {
+    PetscCall(LMWindowVecsRestoreNextWrite(lmvm->P, &p));
+    PetscAssert(lmvm->P->k == lmvm->k_next, PETSC_COMM_SELF, PETSC_ERR_PLIB, "lmvm->P out of sync");
+  } else if (lmvm->auto_vecs & LMVM_WINDOWVECS_YMP) {
+    PetscCall(VecDestroy(&p));
+  }
+  if (lmvm->auto_vecs & LMVM_WINDOWVECS_YMP) {
+    PetscCall(LMWindowVecsRestoreNextWrite(lmvm->YmP, &ymp));
+    PetscAssert(lmvm->YmP->k == lmvm->k_next, PETSC_COMM_SELF, PETSC_ERR_PLIB, "lmvm->YmP out of sync");
+  }
+
+  for (PetscInt i = 0; i < LMVM_WINDOWVECS_PAIR_LIMIT; i++) {
+    if (i == 0) continue;
+    PetscInt y_type = i & LMVM_WINDOWVECS_YTYPE;
+    PetscAssert(y_type != 0, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Invalid dot product type: no y-type");
+
+    PetscInt s_type = i & LMVM_WINDOWVECS_STYPE;
+    PetscAssert(s_type != 0, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Invalid dot product type: no s-type");
+  }
+
   ++lmvm->nupdates;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -165,13 +254,9 @@ static PetscErrorCode MatCopy_LMVM(Mat B, Mat M, MatStructure str)
   }
   mctx->nupdates = bctx->nupdates;
   mctx->nrejects = bctx->nrejects;
-  mctx->k        = bctx->k;
-  for (i = 0; i <= bctx->k; ++i) {
-    PetscCall(VecCopy(bctx->S[i], mctx->S[i]));
-    PetscCall(VecCopy(bctx->Y[i], mctx->Y[i]));
-    PetscCall(VecCopy(bctx->Xprev, mctx->Xprev));
-    PetscCall(VecCopy(bctx->Fprev, mctx->Fprev));
-  }
+  mctx->k_next   = bctx->k_next;
+  PetscCall(VecCopy(bctx->Xprev, mctx->Xprev));
+  PetscCall(VecCopy(bctx->Fprev, mctx->Fprev));
   if (bctx->ops->copy) PetscCall((*bctx->ops->copy)(B, M, str));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -223,7 +308,7 @@ PetscErrorCode MatView_LMVM(Mat B, PetscViewer pv)
   if (isascii) {
     PetscCall(MatGetType(B, &type));
     PetscCall(PetscViewerASCIIPrintf(pv, "Max. storage: %" PetscInt_FMT "\n", lmvm->m));
-    PetscCall(PetscViewerASCIIPrintf(pv, "Used storage: %" PetscInt_FMT "\n", lmvm->k + 1));
+    PetscCall(PetscViewerASCIIPrintf(pv, "Used storage: %" PetscInt_FMT "\n", PetscMin(lmvm->m, lmvm->k_next)));
     PetscCall(PetscViewerASCIIPrintf(pv, "Number of updates: %" PetscInt_FMT "\n", lmvm->nupdates));
     PetscCall(PetscViewerASCIIPrintf(pv, "Number of rejects: %" PetscInt_FMT "\n", lmvm->nrejects));
     PetscCall(PetscViewerASCIIPrintf(pv, "Number of resets: %" PetscInt_FMT "\n", lmvm->nresets));
@@ -260,10 +345,8 @@ PetscErrorCode MatSetUp_LMVM(Mat B)
     PetscCall(PetscLayoutSetUp(B->rmap));
     PetscCall(PetscLayoutSetUp(B->cmap));
     PetscCall(MatCreateVecs(B, &lmvm->Xprev, &lmvm->Fprev));
-    if (lmvm->m > 0) {
-      PetscCall(VecDuplicateVecs(lmvm->Xprev, lmvm->m, &lmvm->S));
-      PetscCall(VecDuplicateVecs(lmvm->Fprev, lmvm->m, &lmvm->Y));
-    }
+    PetscCall(LMWindowVecsCreate(lmvm->Xprev, lmvm->m, &lmvm->S));
+    PetscCall(LMWindowVecsCreate(lmvm->Fprev, lmvm->m, &lmvm->Y));
     lmvm->m_old     = lmvm->m;
     lmvm->allocated = PETSC_TRUE;
     B->preallocated = PETSC_TRUE;
@@ -278,8 +361,12 @@ PetscErrorCode MatDestroy_LMVM(Mat B)
 
   PetscFunctionBegin;
   if (lmvm->allocated) {
-    PetscCall(VecDestroyVecs(lmvm->m, &lmvm->S));
-    PetscCall(VecDestroyVecs(lmvm->m, &lmvm->Y));
+    PetscCall(LMWindowVecsDestroy(&lmvm->S));
+    PetscCall(LMWindowVecsDestroy(&lmvm->Y));
+    PetscCall(LMWindowVecsDestroy(&lmvm->Q));
+    PetscCall(LMWindowVecsDestroy(&lmvm->P));
+    PetscCall(LMWindowVecsDestroy(&lmvm->SmQ));
+    PetscCall(LMWindowVecsDestroy(&lmvm->YmP));
     PetscCall(VecDestroy(&lmvm->Xprev));
     PetscCall(VecDestroy(&lmvm->Fprev));
   }
@@ -299,10 +386,11 @@ PetscErrorCode MatCreate_LMVM(Mat B)
 
   lmvm->m_old    = 0;
   lmvm->m        = 5;
-  lmvm->k        = -1;
+  lmvm->k_next   = 0;
   lmvm->nupdates = 0;
   lmvm->nrejects = 0;
   lmvm->nresets  = 0;
+  lmvm->auto_vecs = LMVM_WINDOWVECS_Y | LMVM_WINDOWVECS_S;
 
   lmvm->ksp_max_it = 20;
   lmvm->ksp_rtol   = 0.0;

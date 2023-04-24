@@ -42,10 +42,15 @@ PetscErrorCode MatSolve_LMVMDFP(Mat B, Vec F, Vec dX)
 
   if (ldfp->needQ) {
     /* Start the loop for (Q[k] = (B_k)^{-1} * Y[k]) */
-    for (i = 0; i <= lmvm->k; ++i) {
-      PetscCall(MatSymBrdnApplyJ0Inv(B, lmvm->Y[i], ldfp->Q[i]));
+    PetscInt i_start, i_end;
+    PetscCall(MatLMVMGetWindow(B, &i_start, &i_end));
+    for (PetscInt i = i_start; i < i_end; i++) {
+      Vec yi, qi;
+      PetscCall(LMRecycledVecsGetSingleRead(lmvm->Y, i, &yi));
+      PetscCall(MatSymBrdnApplyJ0Inv(B, yi, ldfp->Q[i]));
+      PetscCall(LMRecycledVecsRestoreSingleRead(lmvm->Y, i, &yi));
       /* Compute the necessary dot products */
-      PetscCall(VecMDot(lmvm->Y[i], i, lmvm->S, ldfp->workscalar));
+      PetscCall(VecMDot(yi, i, lmvm->S, ldfp->workscalar));
       for (j = 0; j < i; ++j) {
         sjtyi = ldfp->workscalar[j];
         PetscCall(VecDot(lmvm->Y[j], ldfp->Q[i], &yjtqi));
