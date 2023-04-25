@@ -109,7 +109,51 @@ static PetscErrorCode PCApplyTranspose_Mat(PC pc, Vec x, Vec y)
 static PetscErrorCode PCDestroy_Mat(PC pc)
 {
   PetscFunctionBegin;
+  PetscCall(PetscObjectComposeFunction((PetscObject)pc, "PCMatSetSolveOperation_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)pc, "PCMatGetSolveOperation_C", NULL));
   PetscCall(PetscFree(pc->data));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode PCMatSetSolveOperation(PC pc, MatOperation matop)
+{
+  PetscFunctionBegin;
+  PetscTryMethod((PetscObject)pc, "PCMatSetSolveOperation_C", (PC,MatOperation),(pc,matop));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode PCMatGetSolveOperation(PC pc, MatOperation *matop)
+{
+  PetscFunctionBegin;
+  PetscTryMethod((PetscObject)pc, "PCMatGetSolveOperation_C", (PC,MatOperation*),(pc,matop));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode PCMatSetSolveOperation_Mat(PC pc, MatOperation matop)
+{
+  PC_Mat *pcmat = (PC_Mat *) pc->data;
+
+  PetscFunctionBegin;
+  switch (matop) {
+  case MATOP_MULT:
+  case MATOP_MULT_TRANSPOSE:
+  case MATOP_SOLVE:
+  case MATOP_SOLVE_TRANSPOSE:
+  case MATOP_MULT_HERMITIAN_TRANSPOSE:
+    pcmat->solve = matop;
+    break;
+  default:
+    SETERRQ(PetscObjectComm((PetscObject)pc), PETSC_ERR_ARG_WRONGSTATE, "Operation cannot be PCApply operation for PCMAT");
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode PCMatGetSolveOperation_Mat(PC pc, MatOperation *matop)
+{
+  PC_Mat *pcmat = (PC_Mat *) pc->data;
+
+  PetscFunctionBegin;
+  *matop = pcmat->solve;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -130,6 +174,12 @@ M*/
 PETSC_EXTERN PetscErrorCode PCCreate_Mat(PC pc)
 {
   PetscFunctionBegin;
+  PC_Mat * data;
+  PetscCall(PetscNew(&data));
+  PetscCall(PetscObjectComposeFunction((PetscObject)pc, "PCMatSetSolveOperation_C", PCMatSetSolveOperation_Mat));
+  PetscCall(PetscObjectComposeFunction((PetscObject)pc, "PCMatGetSolveOperation_C", PCMatGetSolveOperation_Mat));
+  data->solve = MATOP_MULT;
+  pc->data = data;
   pc->ops->apply               = PCApply_Mat;
   pc->ops->matapply            = PCMatApply_Mat;
   pc->ops->applytranspose      = PCApplyTranspose_Mat;

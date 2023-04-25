@@ -50,21 +50,23 @@ static PetscErrorCode MatUpdate_DiagBrdn(Mat B, Vec X, Vec F)
     /* Test the curvature for the update */
     if (PetscRealPart(curvature) > curvtol) {
       /* Update is good so we accept it */
-      old_k = lmvm->k;
+      old_k = lmvm->k_next;
       PetscCall(MatUpdateKernel_LMVM(B, lmvm->Xprev, lmvm->Fprev));
       /* If we hit the memory limit, shift the yty and yts arrays */
-      if (old_k == lmvm->k) {
-        for (i = 0; i <= lmvm->k - 1; ++i) {
+      if (old_k == lmvm->m) {
+        for (i = 0; i < lmvm->m - 1; ++i) {
           ldb->yty[i] = ldb->yty[i + 1];
           ldb->yts[i] = ldb->yts[i + 1];
           ldb->sts[i] = ldb->sts[i + 1];
         }
       }
       /* Accept dot products into the history */
+#if 0
       PetscCall(VecDot(lmvm->Y[lmvm->k], lmvm->Y[lmvm->k], &yty));
       ldb->yty[lmvm->k] = PetscRealPart(yty);
       ldb->yts[lmvm->k] = PetscRealPart(curvature);
       ldb->sts[lmvm->k] = ststmp;
+#endif
       if (ldb->forward) {
         /* We are doing diagonal scaling of the forward Hessian B */
         /*  BFGS = DFP = inv(D); */

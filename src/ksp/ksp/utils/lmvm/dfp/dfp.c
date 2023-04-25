@@ -46,9 +46,9 @@ PetscErrorCode MatSolve_LMVMDFP(Mat B, Vec F, Vec dX)
     PetscCall(MatLMVMGetWindow(B, &i_start, &i_end));
     for (PetscInt i = i_start; i < i_end; i++) {
       Vec yi, qi;
-      PetscCall(LMRecycledVecsGetSingleRead(lmvm->Y, i, &yi));
+      PetscCall(LMWindowVecsGetSingleRead(lmvm->Y, i, &yi));
       PetscCall(MatSymBrdnApplyJ0Inv(B, yi, ldfp->Q[i]));
-      PetscCall(LMRecycledVecsRestoreSingleRead(lmvm->Y, i, &yi));
+      PetscCall(LMWindowVecsRestoreSingleRead(lmvm->Y, i, &yi));
       /* Compute the necessary dot products */
       PetscCall(VecMDot(yi, i, lmvm->S, ldfp->workscalar));
       for (j = 0; j < i; ++j) {

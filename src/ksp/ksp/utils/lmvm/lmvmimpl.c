@@ -21,7 +21,6 @@ PetscErrorCode MatReset_LMVM(Mat B, PetscBool destructive)
   PetscFunctionBegin;
   lmvm->k_next   = 0;
   lmvm->prev_set = PETSC_FALSE;
-  lmvm->shift    = 0.0;
   if (destructive && lmvm->allocated) {
     PetscCall(MatLMVMClearJ0(B));
     PetscCall(LMWindowVecsDestroy(&lmvm->S));
@@ -120,7 +119,8 @@ PetscErrorCode MatUpdateKernel_LMVM(Mat B, Vec s, Vec y)
     PetscAssert(lmvm->P->k == lmvm->k_next, PETSC_COMM_SELF, PETSC_ERR_PLIB, "lmvm->P out of sync");
   }
 
-  if (kjkk->auto_vecs & LMVM_WINDOWVECS_SMQ) {
+#if 0
+  if (lmvm->auto_vecs & LMVM_WINDOWVECS_SMQ) {
     PetscCall(LMWindowVecsGetNextWrite(lmvm->SmQ, &smq));
     PetscCall(VecCopy(s, smq));
   }
@@ -174,6 +174,7 @@ PetscErrorCode MatUpdateKernel_LMVM(Mat B, Vec s, Vec y)
     PetscInt s_type = i & LMVM_WINDOWVECS_STYPE;
     PetscAssert(s_type != 0, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Invalid dot product type: no s-type");
   }
+#endif
 
   ++lmvm->nupdates;
   PetscFunctionReturn(PETSC_SUCCESS);
