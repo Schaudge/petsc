@@ -2489,4 +2489,10 @@ PETSC_EXTERN PetscErrorCode MatCreateGraph(Mat, PetscBool, PetscBool, PetscReal,
 PETSC_EXTERN PetscErrorCode MatEliminateZeros(Mat);
 
 PETSC_EXTERN PetscErrorCode VecCreateMatDense(Vec, PetscInt, PetscInt, PetscInt, PetscInt, PetscScalar *, Mat *);
+
+PETSC_EXTERN PetscErrorCode MatDenseColumnsGEMVHermitianTranspose(PetscScalar, Mat, PetscInt, PetscInt, Vec, PetscScalar, PetscScalar *, PetscInt, PetscMemType);
+PETSC_EXTERN PetscErrorCode MatDenseColumnsGEMV(PetscScalar, Mat, PetscInt, PetscInt, const PetscScalar *, PetscInt, PetscMemType, PetscScalar, Vec);
+
+PETSC_EXTERN PetscErrorCode MatDenseColumnsGEMMHermitianTranspose(PetscScalar, Mat, PetscInt, PetscInt, Mat, PetscInt, PetscInt, PetscScalar, PetscScalar *, PetscInt, PetscMemType);
+PETSC_EXTERN PetscErrorCode MatDenseColumnsGEMM(PetscScalar, Mat, PetscInt, PetscInt, const PetscScalar *, PetscInt, PetscMemType, PetscScalar, Mat, PetscInt, PetscInt);
 #endif
