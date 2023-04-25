@@ -1,107 +1,192 @@
 #include <../src/ksp/ksp/utils/lmvm/brdn/brdn.h> /*I "petscksp.h" I*/
+#include <petscblaslapack.h>
 
 /*------------------------------------------------------------*/
 
-/*
-  The solution method is the matrix-free implementation of the inverse Hessian
-  representation in page 312 of Griewank "Broyden Updating, The Good and The Bad!"
-  (http://www.emis.ams.org/journals/DMJDMV/vol-ismp/45_griewank-andreas-broyden.pdf).
+// MatSolve Broyden is like MatMult bad Broyden
 
-  Q[i] = (B_i)^{-1}*S[i] terms are computed ahead of time whenever
-  the matrix is updated with a new (S[i], Y[i]) pair. This allows
-  repeated calls of MatSolve without incurring redundant computation.
+// --- MatSolve recursive ---
 
-  dX <- J0^{-1} * F
-
-  for i=0,1,2,...,k
-    # Q[i] = (B_i)^{-1} * Y[i]
-    tau = (S[i]^T dX) / (S[i]^T Q[i])
-    dX <- dX + (tau * (S[i] - Q[i]))
-  end
- */
-
-static PetscErrorCode MatSolve_LMVMBrdn(Mat B, Vec F, Vec dX)
+static PetscErrorCode MatSolve_LMVMBrdn_Recursive(Mat B, Vec F, Vec dX)
 {
-  Mat_LMVM   *lmvm  = (Mat_LMVM *)B->data;
-  Mat_Brdn   *lbrdn = (Mat_Brdn *)lmvm->ctx;
-  PetscInt    i, j;
-  PetscScalar sjtqi, stx, stq;
-
   PetscFunctionBegin;
-  VecCheckSameSize(F, 2, dX, 3);
-  VecCheckMatCompatible(B, dX, 3, F, 2);
+  PetscCall(BadBroydenKernel_Recursive(B, MATLMVM_MODE_DUAL, F, dX));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
-  if (lbrdn->needQ) {
-    /* Pre-compute (Q[i] = (B_i)^{-1} * Y[i]) */
-    for (i = 0; i <= lmvm->k; ++i) {
-      PetscCall(MatLMVMApplyJ0Inv(B, lmvm->Y[i], lbrdn->Q[i]));
-      for (j = 0; j <= i - 1; ++j) {
-        PetscCall(VecDot(lmvm->S[j], lbrdn->Q[i], &sjtqi));
-        PetscCall(VecAXPBYPCZ(lbrdn->Q[i], PetscRealPart(sjtqi) / lbrdn->stq[j], -PetscRealPart(sjtqi) / lbrdn->stq[j], 1.0, lmvm->S[j], lbrdn->Q[j]));
-      }
-      PetscCall(VecDot(lmvm->S[i], lbrdn->Q[i], &stq));
-      lbrdn->stq[i] = PetscRealPart(stq);
-    }
-    lbrdn->needQ = PETSC_FALSE;
-  }
+static PetscErrorCode MatSolveHermitianTranspose_LMVMBrdn_Recursive(Mat B, Vec F, Vec dX)
+{
+  PetscFunctionBegin;
+  PetscCall(BadBroydenKernelHermitianTranspose_Recursive(B, MATLMVM_MODE_DUAL, F, dX));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
-  PetscCall(MatLMVMApplyJ0Inv(B, F, dX));
-  for (i = 0; i <= lmvm->k; ++i) {
-    PetscCall(VecDot(lmvm->S[i], dX, &stx));
-    PetscCall(VecAXPBYPCZ(dX, PetscRealPart(stx) / lbrdn->stq[i], -PetscRealPart(stx) / lbrdn->stq[i], 1.0, lmvm->S[i], lbrdn->Q[i]));
-  }
+// --- MatSolve compact dense ---
+
+static PetscErrorCode MatSolve_LMVMBrdn_CompactDense(Mat B, Vec F, Vec dX)
+{
+  PetscFunctionBegin;
+  PetscCall(BadBroydenKernel_CompactDense(B, MATLMVM_MODE_DUAL, F, dX));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatSolveHermitianTranspose_LMVMBrdn_CompactDense(Mat B, Vec F, Vec dX)
+{
+  PetscFunctionBegin;
+  PetscCall(BadBroydenKernelHermitianTranspose_CompactDense(B, MATLMVM_MODE_DUAL, F, dX));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*------------------------------------------------------------*/
 
-/*
-  The forward product is the matrix-free implementation of Equation 2 in
-  page 302 of Griewank "Broyden Updating, The Good and The Bad!"
-  (http://www.emis.ams.org/journals/DMJDMV/vol-ismp/45_griewank-andreas-broyden.pdf).
-
-  P[i] = (B_i)*S[i] terms are computed ahead of time whenever
-  the matrix is updated with a new (S[i], Y[i]) pair. This allows
-  repeated calls of MatMult inside KSP solvers without unnecessarily
-  recomputing P[i] terms in expensive nested-loops.
-
-  Z <- J0 * X
-
-  for i=0,1,2,...,k
-    # P[i] = B_i * S[i]
-    tau = (S[i]^T X) / (S[i]^T S[i])
-    dX <- dX + (tau * (Y[i] - P[i]))
-  end
- */
-
-static PetscErrorCode MatMult_LMVMBrdn(Mat B, Vec X, Vec Z)
+PETSC_INTERN PetscErrorCode BroydenKernel_Recursive(Mat B, MatLMVMMode mode, Vec X, Vec BX)
 {
-  Mat_LMVM   *lmvm  = (Mat_LMVM *)B->data;
-  Mat_Brdn   *lbrdn = (Mat_Brdn *)lmvm->ctx;
-  PetscInt    i, j;
-  PetscScalar sjtsi, stx;
+  Vec              G   = X;
+  Vec              W   = BX;
+  MatLMVMBasisType S_t = MatLMVMBasisMap(LMBASIS_S, mode);
+  MatLMVMBasisType Y_t = MatLMVMBasisMap(LMBASIS_Y, mode);
+  PetscInt         oldest, next;
 
   PetscFunctionBegin;
-  VecCheckSameSize(X, 2, Z, 3);
-  VecCheckMatCompatible(B, X, 2, Z, 3);
+  PetscCall(MatLMVMGetRange(B, &oldest, &next));
+  if (next > oldest) {
+    PetscScalar *StG;
 
-  if (lbrdn->needP) {
-    /* Pre-compute (P[i] = (B_i) * S[i]) */
-    for (i = 0; i <= lmvm->k; ++i) {
-      PetscCall(MatLMVMApplyJ0Fwd(B, lmvm->S[i], lbrdn->P[i]));
-      for (j = 0; j <= i - 1; ++j) {
-        PetscCall(VecDot(lmvm->S[j], lmvm->S[i], &sjtsi));
-        PetscCall(VecAXPBYPCZ(lbrdn->P[i], PetscRealPart(sjtsi) / lbrdn->sts[j], -PetscRealPart(sjtsi) / lbrdn->sts[j], 1.0, lmvm->Y[j], lbrdn->P[j]));
-      }
+    PetscCall(MatLMVMGramianUpdate(B, S_t, S_t, LMBLOCK_DIAGONAL));
+    PetscCall(MatLMVMBasisGetWorkVec(B, S_t, &G));
+    PetscCall(VecCopy(X, G));
+    PetscCall(MatLMVMBasisGetWorkRow(B, S_t, &StG));
+    PetscCall(VecZeroEntries(BX));
+    for (PetscInt i = next - 1; i >= oldest; i--) {
+      PetscCall(MatLMVMBasisMultHermitianTranspose(B, S_t, i, i + 1, G, NULL, StG));
+      PetscCall(MatLMVMGramianSolve(B, i, i + 1, S_t, S_t, LMSOLVE_DIAGONAL, StG, PETSC_FALSE));
+      PetscCall(MatLMVMBasisMultAdd(B, Y_t, i, i + 1, StG, BX));
+      PetscCall(MatLMVMBasisGEMV(B, S_t, i, i + 1, -1.0, StG, 1.0, G));
     }
-    lbrdn->needP = PETSC_FALSE;
+    PetscCall(MatLMVMBasisRestoreWorkRow(B, S_t, &StG));
+    PetscCall(MatLMVMBasisGetWorkVec(B, Y_t, &W));
   }
+  PetscCall((mode == MATLMVM_MODE_PRIMAL ? MatLMVMApplyJ0Fwd : MatLMVMApplyJ0Inv)(B, G, W));
+  if (next > oldest) {
+    PetscCall(VecAXPY(BX, 1.0, W));
+    PetscCall(MatLMVMBasisRestoreWorkVec(B, Y_t, &W));
+    PetscCall(MatLMVMBasisRestoreWorkVec(B, S_t, &G));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
-  PetscCall(MatLMVMApplyJ0Fwd(B, X, Z));
-  for (i = 0; i <= lmvm->k; ++i) {
-    PetscCall(VecDot(lmvm->S[i], X, &stx));
-    PetscCall(VecAXPBYPCZ(Z, PetscRealPart(stx) / lbrdn->sts[i], -PetscRealPart(stx) / lbrdn->sts[i], 1.0, lmvm->Y[i], lbrdn->P[i]));
+PETSC_INTERN PetscErrorCode BroydenKernelHermitianTranspose_Recursive(Mat B, MatLMVMMode mode, Vec X, Vec BHX)
+{
+  MatLMVMBasisType S_t = MatLMVMBasisMap(LMBASIS_S, mode);
+  MatLMVMBasisType Y_t = MatLMVMBasisMap(LMBASIS_Y, mode);
+  PetscInt         oldest, next;
+
+  PetscFunctionBegin;
+  PetscCall((mode == MATLMVM_MODE_PRIMAL ? MatLMVMApplyJ0HermitianTranspose : MatLMVMApplyJ0InvHermitianTranspose)(B, X, BHX));
+  PetscCall(MatLMVMGetRange(B, &oldest, &next));
+  if (next > oldest) {
+    PetscScalar *StBHX;
+    PetscScalar *YtX;
+
+    PetscCall(MatLMVMGramianUpdate(B, S_t, S_t, LMBLOCK_DIAGONAL));
+    PetscCall(MatLMVMBasisGetWorkRow(B, S_t, &StBHX));
+    PetscCall(MatLMVMBasisGetWorkRow(B, Y_t, &YtX));
+    for (PetscInt i = oldest; i < next; i++) {
+      PetscCall(MatLMVMBasisMultHermitianTranspose(B, S_t, i, i + 1, BHX, NULL, StBHX));
+      PetscCall(MatLMVMBasisMultHermitianTranspose(B, Y_t, i, i + 1, X, NULL, YtX));
+      PetscCall(MatLMVMGramianSolve(B, i, i + 1, S_t, S_t, LMSOLVE_DIAGONAL, StBHX, PETSC_FALSE));
+      PetscCall(MatLMVMGramianSolve(B, i, i + 1, S_t, S_t, LMSOLVE_DIAGONAL, YtX, PETSC_FALSE));
+      PetscCall(MatLMVMBasisGEMV(B, S_t, i, i + 1, -1.0, StBHX, 1.0, BHX));
+      PetscCall(MatLMVMBasisMultAdd(B, S_t, i, i + 1, YtX, BHX));
+    }
+    PetscCall(MatLMVMBasisRestoreWorkRow(B, Y_t, &YtX));
+    PetscCall(MatLMVMBasisRestoreWorkRow(B, S_t, &StBHX));
   }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*
+   The Broyden kernel can be written as
+
+   $$
+     B_k = B_0 + (Y_k - B_0 S_k) (triu(S^T S))^{-1} S_k^T
+   $$
+
+   where triu is the upper triangular component.  We solve by back substitution each time
+   we apply
+ */
+
+PETSC_INTERN PetscErrorCode BroydenKernel_CompactDense(Mat B, MatLMVMMode mode, Vec X, Vec BX)
+{
+  PetscInt oldest, next;
+
+  PetscFunctionBegin;
+  PetscCall((mode == MATLMVM_MODE_PRIMAL ? MatLMVMApplyJ0Fwd : MatLMVMApplyJ0Inv)(B, X, BX));
+  PetscCall(MatLMVMGetRange(B, &oldest, &next));
+  if (next > oldest) {
+    MatLMVMBasisType S_t           = MatLMVMBasisMap(LMBASIS_S, mode);
+    MatLMVMBasisType Y_minus_B0S_t = MatLMVMBasisMap(LMBASIS_Y_MINUS_B0S, mode);
+    LMGramian        StS;
+    PetscScalar     *StX;
+
+    PetscCall(MatLMVMGetUpdatedGramian(B, S_t, S_t, LMBLOCK_UPPER_TRIANGLE, &StS));
+    PetscCall(MatLMVMBasisGetWorkRow(B, S_t, &StX));
+    PetscCall(MatLMVMBasisMultHermitianTranspose(B, S_t, oldest, next, X, NULL, StX));
+    PetscCall(LMGramianSolve(StS, oldest, next, LMSOLVE_UPPER_TRIANGLE, StX, PETSC_FALSE));
+    PetscCall(MatLMVMBasisMultAdd(B, Y_minus_B0S_t, oldest, next, StX, BX));
+    PetscCall(MatLMVMBasisRestoreWorkRow(B, S_t, &StX));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode BroydenKernelHermitianTranspose_CompactDense(Mat B, MatLMVMMode mode, Vec X, Vec BHX)
+{
+  PetscInt oldest, next;
+
+  PetscFunctionBegin;
+  PetscCall((mode == MATLMVM_MODE_PRIMAL ? MatLMVMApplyJ0HermitianTranspose : MatLMVMApplyJ0InvHermitianTranspose)(B, X, BHX));
+  PetscCall(MatLMVMGetRange(B, &oldest, &next));
+  if (next > oldest) {
+    MatLMVMBasisType S_t           = MatLMVMBasisMap(LMBASIS_S, mode);
+    MatLMVMBasisType Y_minus_B0S_t = MatLMVMBasisMap(LMBASIS_Y_MINUS_B0S, mode);
+    LMGramian        StS;
+    PetscScalar     *YmB0StX;
+
+    PetscCall(MatLMVMGetUpdatedGramian(B, S_t, S_t, LMBLOCK_UPPER_TRIANGLE, &StS));
+    PetscCall(MatLMVMBasisGetWorkRow(B, S_t, &YmB0StX));
+    PetscCall(MatLMVMBasisMultHermitianTranspose(B, Y_minus_B0S_t, oldest, next, X, NULL, YmB0StX));
+    PetscCall(LMGramianSolve(StS, oldest, next, LMSOLVE_UPPER_TRIANGLE, YmB0StX, PETSC_TRUE));
+    PetscCall(MatLMVMBasisMultAdd(B, S_t, oldest, next, YmB0StX, BHX));
+    PetscCall(MatLMVMBasisRestoreWorkRow(B, S_t, &YmB0StX));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatMult_LMVMBrdn_Recursive(Mat B, Vec X, Vec Z)
+{
+  PetscFunctionBegin;
+  PetscCall(BroydenKernel_CompactDense(B, MATLMVM_MODE_PRIMAL, X, Z));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatMultHermitianTranspose_LMVMBrdn_Recursive(Mat B, Vec X, Vec Z)
+{
+  PetscFunctionBegin;
+  PetscCall(BroydenKernelHermitianTranspose_Recursive(B, MATLMVM_MODE_PRIMAL, X, Z));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatMult_LMVMBrdn_CompactDense(Mat B, Vec X, Vec Z)
+{
+  PetscFunctionBegin;
+  PetscCall(BroydenKernel_CompactDense(B, MATLMVM_MODE_PRIMAL, X, Z));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatMultHermitianTranspose_LMVMBrdn_CompactDense(Mat B, Vec X, Vec Z)
+{
+  PetscFunctionBegin;
+  PetscCall(BroydenKernelHermitianTranspose_CompactDense(B, MATLMVM_MODE_PRIMAL, X, Z));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -109,27 +194,18 @@ static PetscErrorCode MatMult_LMVMBrdn(Mat B, Vec X, Vec Z)
 
 static PetscErrorCode MatUpdate_LMVMBrdn(Mat B, Vec X, Vec F)
 {
-  Mat_LMVM   *lmvm  = (Mat_LMVM *)B->data;
-  Mat_Brdn   *lbrdn = (Mat_Brdn *)lmvm->ctx;
-  PetscInt    old_k, i;
-  PetscScalar sts;
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
 
   PetscFunctionBegin;
   if (!lmvm->m) PetscFunctionReturn(PETSC_SUCCESS);
+  PetscInt oldest, next;
+  PetscCall(MatLMVMGetRange(B, &oldest, &next));
   if (lmvm->prev_set) {
     /* Compute the new (S = X - Xprev) and (Y = F - Fprev) vectors */
     PetscCall(VecAYPX(lmvm->Xprev, -1.0, X));
     PetscCall(VecAYPX(lmvm->Fprev, -1.0, F));
     /* Accept the update */
-    lbrdn->needP = lbrdn->needQ = PETSC_TRUE;
-    old_k                       = lmvm->k;
     PetscCall(MatUpdateKernel_LMVM(B, lmvm->Xprev, lmvm->Fprev));
-    /* If we hit the memory limit, shift the sts array */
-    if (old_k == lmvm->k) {
-      for (i = 0; i <= lmvm->k - 1; ++i) lbrdn->sts[i] = lbrdn->sts[i + 1];
-    }
-    PetscCall(VecDot(lmvm->S[lmvm->k], lmvm->S[lmvm->k], &sts));
-    lbrdn->sts[lmvm->k] = PetscRealPart(sts);
   }
   /* Save the solution and function to be used in the next update */
   PetscCall(VecCopy(X, lmvm->Xprev));
@@ -146,17 +222,23 @@ static PetscErrorCode MatCopy_LMVMBrdn(Mat B, Mat M, MatStructure str)
   Mat_Brdn *bctx  = (Mat_Brdn *)bdata->ctx;
   Mat_LMVM *mdata = (Mat_LMVM *)M->data;
   Mat_Brdn *mctx  = (Mat_Brdn *)mdata->ctx;
-  PetscInt  i;
 
   PetscFunctionBegin;
-  mctx->needP = bctx->needP;
-  mctx->needQ = bctx->needQ;
-  for (i = 0; i <= bdata->k; ++i) {
-    mctx->sts[i] = bctx->sts[i];
-    mctx->stq[i] = bctx->stq[i];
-    PetscCall(VecCopy(bctx->P[i], mctx->P[i]));
-    PetscCall(VecCopy(bctx->Q[i], mctx->Q[i]));
-  }
+  for (PetscInt i = 0; i < BROYDEN_BASIS_COUNT; i++) PetscCall(LMBasisCopy(bctx->basis[i], mctx->basis[i]));
+  for (PetscInt i = 0; i < BROYDEN_GRAMIAN_COUNT; i++) PetscCall(LMGramianCopy(bctx->gramian[i], mctx->gramian[i]));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*------------------------------------------------------------*/
+
+static PetscErrorCode MatDestroy_LMVMBrdn_Internal(Mat B)
+{
+  Mat_LMVM *lmvm  = (Mat_LMVM *)B->data;
+  Mat_Brdn *lbrdn = (Mat_Brdn *)lmvm->ctx;
+
+  PetscFunctionBegin;
+  for (PetscInt i = 0; i < BROYDEN_BASIS_COUNT; i++) PetscCall(LMBasisDestroy(&lbrdn->basis[i]));
+  for (PetscInt i = 0; i < BROYDEN_GRAMIAN_COUNT; i++) PetscCall(LMGramianDestroy(&lbrdn->gramian[i]));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -164,38 +246,9 @@ static PetscErrorCode MatCopy_LMVMBrdn(Mat B, Mat M, MatStructure str)
 
 static PetscErrorCode MatReset_LMVMBrdn(Mat B, PetscBool destructive)
 {
-  Mat_LMVM *lmvm  = (Mat_LMVM *)B->data;
-  Mat_Brdn *lbrdn = (Mat_Brdn *)lmvm->ctx;
-
   PetscFunctionBegin;
-  lbrdn->needP = lbrdn->needQ = PETSC_TRUE;
-  if (destructive && lbrdn->allocated) {
-    PetscCall(PetscFree2(lbrdn->sts, lbrdn->stq));
-    PetscCall(VecDestroyVecs(lmvm->m, &lbrdn->P));
-    PetscCall(VecDestroyVecs(lmvm->m, &lbrdn->Q));
-    lbrdn->allocated = PETSC_FALSE;
-  }
+  if (destructive) PetscCall(MatDestroy_LMVMBrdn_Internal(B));
   PetscCall(MatReset_LMVM(B, destructive));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/*------------------------------------------------------------*/
-
-static PetscErrorCode MatAllocate_LMVMBrdn(Mat B, Vec X, Vec F)
-{
-  Mat_LMVM *lmvm  = (Mat_LMVM *)B->data;
-  Mat_Brdn *lbrdn = (Mat_Brdn *)lmvm->ctx;
-
-  PetscFunctionBegin;
-  PetscCall(MatAllocate_LMVM(B, X, F));
-  if (!lbrdn->allocated) {
-    PetscCall(PetscMalloc2(lmvm->m, &lbrdn->sts, lmvm->m, &lbrdn->stq));
-    if (lmvm->m > 0) {
-      PetscCall(VecDuplicateVecs(X, lmvm->m, &lbrdn->P));
-      PetscCall(VecDuplicateVecs(X, lmvm->m, &lbrdn->Q));
-    }
-    lbrdn->allocated = PETSC_TRUE;
-  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -203,16 +256,10 @@ static PetscErrorCode MatAllocate_LMVMBrdn(Mat B, Vec X, Vec F)
 
 static PetscErrorCode MatDestroy_LMVMBrdn(Mat B)
 {
-  Mat_LMVM *lmvm  = (Mat_LMVM *)B->data;
-  Mat_Brdn *lbrdn = (Mat_Brdn *)lmvm->ctx;
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
 
   PetscFunctionBegin;
-  if (lbrdn->allocated) {
-    PetscCall(PetscFree2(lbrdn->sts, lbrdn->stq));
-    PetscCall(VecDestroyVecs(lmvm->m, &lbrdn->P));
-    PetscCall(VecDestroyVecs(lmvm->m, &lbrdn->Q));
-    lbrdn->allocated = PETSC_FALSE;
-  }
+  PetscCall(MatDestroy_LMVMBrdn_Internal(B));
   PetscCall(PetscFree(lmvm->ctx));
   PetscCall(MatDestroy_LMVM(B));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -220,21 +267,31 @@ static PetscErrorCode MatDestroy_LMVMBrdn(Mat B)
 
 /*------------------------------------------------------------*/
 
-static PetscErrorCode MatSetUp_LMVMBrdn(Mat B)
+static PetscErrorCode MatSetFromOptions_LMVMBrdn(Mat B, PetscOptionItems *PetscOptionsObject)
 {
-  Mat_LMVM *lmvm  = (Mat_LMVM *)B->data;
-  Mat_Brdn *lbrdn = (Mat_Brdn *)lmvm->ctx;
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
 
   PetscFunctionBegin;
-  PetscCall(MatSetUp_LMVM(B));
-  if (!lbrdn->allocated) {
-    PetscCall(PetscMalloc2(lmvm->m, &lbrdn->sts, lmvm->m, &lbrdn->stq));
-    if (lmvm->m > 0) {
-      PetscCall(VecDuplicateVecs(lmvm->Xprev, lmvm->m, &lbrdn->P));
-      PetscCall(VecDuplicateVecs(lmvm->Xprev, lmvm->m, &lbrdn->Q));
-    }
-    lbrdn->allocated = PETSC_TRUE;
+  PetscCall(MatSetFromOptions_LMVM(B, PetscOptionsObject));
+  PetscOptionsHeadBegin(PetscOptionsObject, "Broyden method for approximating Jacobian action (MATLMVMBROYDEN)");
+  PetscCall(PetscOptionsEnum("-mat_lmvm_matvec_type", "Algorithm used to matrix vector products", "", MatLMVMMatvecTypes, (PetscEnum)lmvm->matvec_type, (PetscEnum *)&lmvm->matvec_type, NULL));
+  PetscOptionsHeadEnd();
+
+  switch (lmvm->matvec_type) {
+  case MATLMVM_MATVEC_RECURSIVE:
+    lmvm->ops->mult    = MatMult_LMVMBrdn_Recursive;
+    lmvm->ops->multht  = MatMultHermitianTranspose_LMVMBrdn_Recursive;
+    lmvm->ops->solve   = MatSolve_LMVMBrdn_Recursive;
+    lmvm->ops->solveht = MatSolveHermitianTranspose_LMVMBrdn_Recursive;
+    break;
+  case MATLMVM_MATVEC_COMPACT_DENSE:
+    lmvm->ops->mult    = MatMult_LMVMBrdn_CompactDense;
+    lmvm->ops->multht  = MatMultHermitianTranspose_LMVMBrdn_CompactDense;
+    lmvm->ops->solve   = MatSolve_LMVMBrdn_CompactDense;
+    lmvm->ops->solveht = MatSolveHermitianTranspose_LMVMBrdn_Recursive;
+    break;
   }
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -248,22 +305,22 @@ PetscErrorCode MatCreate_LMVMBrdn(Mat B)
   PetscFunctionBegin;
   PetscCall(MatCreate_LMVM(B));
   PetscCall(PetscObjectChangeTypeName((PetscObject)B, MATLMVMBROYDEN));
-  B->ops->setup   = MatSetUp_LMVMBrdn;
-  B->ops->destroy = MatDestroy_LMVMBrdn;
-  B->ops->solve   = MatSolve_LMVMBrdn;
+  B->ops->destroy        = MatDestroy_LMVMBrdn;
+  B->ops->setfromoptions = MatSetFromOptions_LMVMBrdn;
 
-  lmvm                = (Mat_LMVM *)B->data;
-  lmvm->square        = PETSC_TRUE;
-  lmvm->ops->allocate = MatAllocate_LMVMBrdn;
-  lmvm->ops->reset    = MatReset_LMVMBrdn;
-  lmvm->ops->mult     = MatMult_LMVMBrdn;
-  lmvm->ops->update   = MatUpdate_LMVMBrdn;
-  lmvm->ops->copy     = MatCopy_LMVMBrdn;
+  lmvm              = (Mat_LMVM *)B->data;
+  lmvm->ops->reset  = MatReset_LMVMBrdn;
+  lmvm->ops->update = MatUpdate_LMVMBrdn;
+  lmvm->ops->copy   = MatCopy_LMVMBrdn;
+
+  lmvm->matvec_type  = MATLMVM_MATVEC_COMPACT_DENSE;
+  lmvm->ops->mult    = MatMult_LMVMBrdn_CompactDense;
+  lmvm->ops->multht  = MatMultHermitianTranspose_LMVMBrdn_CompactDense;
+  lmvm->ops->solve   = MatSolve_LMVMBrdn_CompactDense;
+  lmvm->ops->solveht = MatSolveHermitianTranspose_LMVMBrdn_CompactDense;
 
   PetscCall(PetscNew(&lbrdn));
-  lmvm->ctx        = (void *)lbrdn;
-  lbrdn->allocated = PETSC_FALSE;
-  lbrdn->needP = lbrdn->needQ = PETSC_TRUE;
+  lmvm->ctx = (void *)lbrdn;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

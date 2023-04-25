@@ -1015,6 +1015,7 @@ PETSC_EXTERN PetscErrorCode MatLMVMSetJ0PC(Mat, PC);
 PETSC_EXTERN PetscErrorCode MatLMVMSetJ0KSP(Mat, KSP);
 PETSC_EXTERN PetscErrorCode MatLMVMApplyJ0Fwd(Mat, Vec, Vec);
 PETSC_EXTERN PetscErrorCode MatLMVMApplyJ0Inv(Mat, Vec, Vec);
+PETSC_EXTERN PetscErrorCode MatLMVMGetLastUpdate(Mat, Vec *, Vec *);
 PETSC_EXTERN PetscErrorCode MatLMVMGetJ0(Mat, Mat *);
 PETSC_EXTERN PetscErrorCode MatLMVMGetJ0PC(Mat, PC *);
 PETSC_EXTERN PetscErrorCode MatLMVMGetJ0KSP(Mat, KSP *);
@@ -1023,6 +1024,8 @@ PETSC_EXTERN PetscErrorCode MatLMVMGetUpdateCount(Mat, PetscInt *);
 PETSC_EXTERN PetscErrorCode MatLMVMGetRejectCount(Mat, PetscInt *);
 PETSC_EXTERN PetscErrorCode MatLMVMSymBroydenSetDelta(Mat, PetscScalar);
 PETSC_EXTERN PetscErrorCode MatLMVMSymBroydenSetScaleType(Mat, MatLMVMSymBroydenScaleType);
+PETSC_EXTERN PetscErrorCode MatLMVMSymBroydenGetPhi(Mat, PetscReal *);
+PETSC_EXTERN PetscErrorCode MatLMVMSymBroydenSetPhi(Mat, PetscReal);
 
 PETSC_EXTERN PetscErrorCode KSPSetDM(KSP, DM);
 PETSC_EXTERN PetscErrorCode KSPSetDMActive(KSP, PetscBool);

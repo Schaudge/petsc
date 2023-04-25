@@ -1,4 +1,5 @@
 #include <../src/ksp/ksp/utils/lmvm/lmvm.h> /*I "petscksp.h" I*/
+#include <petscblaslapack.h>
 
 /*@
   MatLMVMUpdate - Adds (X-Xprev) and (F-Fprev) updates to an LMVM-type matrix.
@@ -34,12 +35,53 @@ PetscErrorCode MatLMVMUpdate(Mat B, Vec X, Vec F)
   } else {
     VecCheckMatCompatible(B, X, 2, F, 3);
   }
-  if (lmvm->J0) {
-    /* If the user provided an LMVM-type matrix as J0, then trigger its update as well */
-    PetscCall(PetscObjectBaseTypeCompare((PetscObject)lmvm->J0, MATLMVM, &same));
-    if (same) PetscCall(MatLMVMUpdate(lmvm->J0, X, F));
-  }
+  PetscCall(MatLMVMUpdate(lmvm->J0, X, F));
   PetscCall((*lmvm->ops->update)(B, X, F));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatLMVMCreateJ0(Mat B, Mat *J0)
+{
+  PetscFunctionBegin;
+  PetscCall(MatCreate(PetscObjectComm((PetscObject)B), J0));
+  PetscLayout rmap, cmap;
+  PetscCall(MatGetLayouts(B, &rmap, &cmap));
+  PetscCall(MatSetLayouts(*J0, rmap, cmap));
+  VecType vec_type;
+  PetscCall(MatGetVecType(B, &vec_type));
+  PetscCall(MatSetVecType(*J0, vec_type));
+  const char *prefix;
+  PetscCall(MatGetOptionsPrefix(B, &prefix));
+  PetscCall(MatSetOptionsPrefix(*J0, prefix));
+  PetscCall(PetscObjectAppendOptionsPrefix((PetscObject)*J0, "lmvm_J0_"));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatLMVMCreateJ0KSP(Mat B, KSP *ksp)
+{
+  PetscFunctionBegin;
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+  PetscCall(KSPCreate(PetscObjectComm((PetscObject)B), ksp));
+  PetscCall(KSPSetOperators(*ksp, lmvm->J0, lmvm->J0));
+  const char *prefix;
+  PetscCall(MatGetOptionsPrefix(B, &prefix));
+  PetscCall(KSPSetOptionsPrefix(*ksp, prefix));
+  PetscCall(KSPAppendOptionsPrefix(*ksp, "lmvm_J0_"));
+  PetscCall(PetscObjectIncrementTabLevel((PetscObject)B, (PetscObject)*ksp, 1));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatLMVMCreateJ0KSP_ExactInverse(Mat B, KSP *ksp)
+{
+  PetscFunctionBegin;
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+  PetscCall(MatLMVMCreateJ0KSP(B, ksp));
+  PetscCall(KSPSetType(*ksp, KSPPREONLY));
+  PC pc;
+  PetscCall(KSPGetPC(*ksp, &pc));
+  PetscCall(PCSetType(pc, PCMAT));
+  PetscCall(PCMatSetApplyOperation(pc, MATOP_SOLVE));
+  lmvm->disable_ksp_viewers = PETSC_TRUE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -63,13 +105,13 @@ PetscErrorCode MatLMVMClearJ0(Mat B)
   PetscValidHeaderSpecific(B, MAT_CLASSID, 1);
   PetscCall(PetscObjectBaseTypeCompare((PetscObject)B, MATLMVM, &same));
   if (!same) PetscFunctionReturn(PETSC_SUCCESS);
-  lmvm->user_pc    = PETSC_FALSE;
-  lmvm->user_ksp   = PETSC_FALSE;
-  lmvm->user_scale = PETSC_FALSE;
-  lmvm->J0scalar   = 1.0;
-  PetscCall(VecDestroy(&lmvm->J0diag));
   PetscCall(MatDestroy(&lmvm->J0));
-  PetscCall(PCDestroy(&lmvm->J0pc));
+  PetscCall(KSPDestroy(&lmvm->J0ksp));
+  PetscCall(MatLMVMCreateJ0(B, &lmvm->J0));
+  PetscCall(MatSetType(lmvm->J0, MATCONSTANTDIAGONAL));
+  PetscCall(MatZeroEntries(lmvm->J0));
+  PetscCall(MatShift(lmvm->J0, 1.0));
+  PetscCall(MatLMVMCreateJ0KSP_ExactInverse(B, &lmvm->J0ksp));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -95,9 +137,12 @@ PetscErrorCode MatLMVMSetJ0Scale(Mat B, PetscReal scale)
   PetscCall(PetscObjectBaseTypeCompare((PetscObject)B, MATLMVM, &same));
   if (!same) PetscFunctionReturn(PETSC_SUCCESS);
   PetscCheck(lmvm->square, PetscObjectComm((PetscObject)B), PETSC_ERR_SUP, "Scaling is available only for square LMVM matrices");
-  PetscCall(MatLMVMClearJ0(B));
-  lmvm->J0scalar   = scale;
-  lmvm->user_scale = PETSC_TRUE;
+  PetscBool isdiagonal;
+
+  PetscCall(PetscObjectTypeCompare((PetscObject)lmvm->J0, MATCONSTANTDIAGONAL, &isdiagonal));
+  if (!isdiagonal) { PetscCall(MatLMVMClearJ0(B)); }
+  PetscCall(MatZeroEntries(lmvm->J0));
+  PetscCall(MatShift(lmvm->J0, scale));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -107,7 +152,7 @@ PetscErrorCode MatLMVMSetJ0Scale(Mat B, PetscReal scale)
 
   Input Parameters:
 + B - An LMVM-type matrix
-- V - Vector that defines the diagonal of the initial Jacobian
+- V - Vector that defines the diagonal of the initial Jacobian: values are copied, V is not referenced
 
   Level: advanced
 
@@ -128,10 +173,40 @@ PetscErrorCode MatLMVMSetJ0Diag(Mat B, Vec V)
   PetscCheck(lmvm->square, comm, PETSC_ERR_SUP, "Diagonal scaling is available only for square LMVM matrices");
   VecCheckSameSize(V, 2, lmvm->Fprev, 3);
 
-  PetscCall(MatLMVMClearJ0(B));
-  if (!lmvm->J0diag) PetscCall(VecDuplicate(V, &lmvm->J0diag));
-  PetscCall(VecCopy(V, lmvm->J0diag));
-  lmvm->user_scale = PETSC_TRUE;
+  PetscBool isvdiag;
+
+  PetscCall(PetscObjectTypeCompare((PetscObject)lmvm->J0, MATDIAGONAL, &isvdiag));
+  if (!isvdiag) {
+    PetscCall(MatLMVMClearJ0(B));
+    PetscCall(MatSetType(lmvm->J0, MATDIAGONAL));
+  }
+  PetscCall(MatDiagonalSet(lmvm->J0, V, INSERT_VALUES));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode MatLMVMGetJ0InvDiag(Mat B, Vec *V)
+{
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+  PetscBool isvdiag;
+
+  PetscFunctionBegin;
+  PetscCall(PetscObjectTypeCompare((PetscObject)lmvm->J0, MATDIAGONAL, &isvdiag));
+  if (!isvdiag) {
+    PetscCall(MatLMVMClearJ0(B));
+    PetscCall(MatSetType(lmvm->J0, MATDIAGONAL));
+    PetscCall(MatZeroEntries(lmvm->J0));
+    PetscCall(MatShift(lmvm->J0, 1.0));
+  }
+  PetscCall(MatDiagonalGetInverseDiagonal(lmvm->J0, V));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode MatLMVMRestoreJ0InvDiag(Mat B, Vec *V)
+{
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+
+  PetscFunctionBegin;
+  PetscCall(MatDiagonalRestoreInverseDiagonal(lmvm->J0, V));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -151,9 +226,14 @@ PetscErrorCode MatLMVMSetJ0Diag(Mat B, Vec V)
 
   Input Parameters:
 + B  - An LMVM-type matrix
-- J0 - The initial Jacobian matrix
+- J0 - The initial Jacobian matrix, will be referenced by B.
 
   Level: advanced
+
+  Note:
+  A KSP is created for inverting J0 with prefix "lmvm_J0_" and J0
+  is set to both operators in `KSPSetOperators()`.  If you want
+  to use a separate preconditioning matrix, use `MatLMVMSetKSP()` directly.
 
 .seealso: [](ch_ksp), [LMVM Matrices](sec_matlmvm), `MATLMVM`, `MatLMVMSetJ0PC()`, `MatLMVMSetJ0KSP()`
 @*/
@@ -167,12 +247,10 @@ PetscErrorCode MatLMVMSetJ0(Mat B, Mat J0)
   PetscValidHeaderSpecific(J0, MAT_CLASSID, 2);
   PetscCall(PetscObjectBaseTypeCompare((PetscObject)B, MATLMVM, &same));
   if (!same) PetscFunctionReturn(PETSC_SUCCESS);
-  PetscCall(MatLMVMClearJ0(B));
-  PetscCall(MatDestroy(&lmvm->J0));
   PetscCall(PetscObjectReference((PetscObject)J0));
+  PetscCall(MatDestroy(&lmvm->J0));
   lmvm->J0 = J0;
-  PetscCall(PetscObjectBaseTypeCompare((PetscObject)lmvm->J0, MATLMVM, &same));
-  if (!same && lmvm->square) PetscCall(KSPSetOperators(lmvm->J0ksp, lmvm->J0, lmvm->J0));
+  if (lmvm->square) { PetscCall(KSPSetOperators(lmvm->J0ksp, J0, J0)); }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -203,10 +281,17 @@ PetscErrorCode MatLMVMSetJ0PC(Mat B, PC J0pc)
   PetscCall(PetscObjectBaseTypeCompare((PetscObject)B, MATLMVM, &same));
   if (!same) PetscFunctionReturn(PETSC_SUCCESS);
   PetscCheck(lmvm->square, comm, PETSC_ERR_SUP, "Inverse J0 can be defined only for square LMVM matrices");
-  PetscCall(MatLMVMClearJ0(B));
+  Mat J0;
+  PetscCall(PCGetOperators(J0pc, &J0, NULL));
+  PetscCall(PetscObjectReference((PetscObject)J0));
+  PetscCall(MatDestroy(&lmvm->J0));
+  lmvm->J0 = J0;
   PetscCall(PetscObjectReference((PetscObject)J0pc));
-  lmvm->J0pc    = J0pc;
-  lmvm->user_pc = PETSC_TRUE;
+  PetscCall(KSPDestroy(&lmvm->J0ksp));
+  PetscCall(MatLMVMCreateJ0KSP(B, &lmvm->J0ksp));
+  PetscCall(KSPSetType(lmvm->J0ksp, KSPPREONLY));
+  PetscCall(KSPSetPC(lmvm->J0ksp, J0pc));
+  PetscCall(PCDestroy(&J0pc));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -237,11 +322,15 @@ PetscErrorCode MatLMVMSetJ0KSP(Mat B, KSP J0ksp)
   PetscCall(PetscObjectBaseTypeCompare((PetscObject)B, MATLMVM, &same));
   if (!same) PetscFunctionReturn(PETSC_SUCCESS);
   PetscCheck(lmvm->square, comm, PETSC_ERR_SUP, "Inverse J0 can be defined only for square LMVM matrices");
-  PetscCall(MatLMVMClearJ0(B));
-  PetscCall(KSPDestroy(&lmvm->J0ksp));
+  if (J0ksp != lmvm->J0ksp) lmvm->disable_ksp_viewers = PETSC_FALSE; // If the user supplies a more complicated KSP, don't turn off viewers
   PetscCall(PetscObjectReference((PetscObject)J0ksp));
-  lmvm->J0ksp    = J0ksp;
-  lmvm->user_ksp = PETSC_TRUE;
+  PetscCall(KSPDestroy(&lmvm->J0ksp));
+  lmvm->J0ksp = J0ksp;
+  Mat J0;
+  PetscCall(KSPGetOperators(J0ksp, &J0, NULL));
+  PetscCall(PetscObjectReference((PetscObject)J0));
+  PetscCall(MatDestroy(&lmvm->J0));
+  lmvm->J0 = J0;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -294,11 +383,7 @@ PetscErrorCode MatLMVMGetJ0PC(Mat B, PC *J0pc)
   PetscValidHeaderSpecific(B, MAT_CLASSID, 1);
   PetscCall(PetscObjectBaseTypeCompare((PetscObject)B, MATLMVM, &same));
   PetscCheck(same, PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_WRONG, "Matrix must be an LMVM-type.");
-  if (lmvm->J0pc) {
-    *J0pc = lmvm->J0pc;
-  } else {
-    PetscCall(KSPGetPC(lmvm->J0ksp, J0pc));
-  }
+  PetscCall(KSPGetPC(lmvm->J0ksp, J0pc));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -348,47 +433,18 @@ PetscErrorCode MatLMVMGetJ0KSP(Mat B, KSP *J0ksp)
 PetscErrorCode MatLMVMApplyJ0Fwd(Mat B, Vec X, Vec Y)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
-  PetscBool same, hasMult;
-  MPI_Comm  comm = PetscObjectComm((PetscObject)B);
-  Mat       Amat, Pmat;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(B, MAT_CLASSID, 1);
-  PetscValidHeaderSpecific(X, VEC_CLASSID, 2);
-  PetscValidHeaderSpecific(Y, VEC_CLASSID, 3);
-  PetscCall(PetscObjectBaseTypeCompare((PetscObject)B, MATLMVM, &same));
-  PetscCheck(same, PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_WRONG, "Matrix must be an LMVM-type.");
-  PetscCheck(lmvm->allocated, comm, PETSC_ERR_ORDER, "LMVM matrix must be allocated first");
-  VecCheckMatCompatible(B, X, 2, Y, 3);
-  if (lmvm->user_pc || lmvm->user_ksp || lmvm->J0) {
-    /* User may have defined a PC or KSP for J0^{-1} so let's try to use its operators. */
-    if (lmvm->user_pc) {
-      PetscCall(PCGetOperators(lmvm->J0pc, &Amat, &Pmat));
-    } else if (lmvm->user_ksp) {
-      PetscCall(KSPGetOperators(lmvm->J0ksp, &Amat, &Pmat));
-    } else {
-      Amat = lmvm->J0;
-    }
-    PetscCall(MatHasOperation(Amat, MATOP_MULT, &hasMult));
-    if (hasMult) {
-      /* product is available, use it */
-      PetscCall(MatMult(Amat, X, Y));
-    } else {
-      /* there's no product, so treat J0 as identity */
-      PetscCall(VecCopy(X, Y));
-    }
-  } else if (lmvm->user_scale) {
-    if (lmvm->J0diag) {
-      /* User has defined a diagonal vector for J0 */
-      PetscCall(VecPointwiseMult(X, lmvm->J0diag, Y));
-    } else {
-      /* User has defined a scalar value for J0 */
-      PetscCall(VecAXPBY(Y, lmvm->J0scalar, 0.0, X));
-    }
-  } else {
-    /* There is no J0 representation so just apply an identity matrix */
-    PetscCall(VecCopy(X, Y));
-  }
+  PetscCall(MatMult(lmvm->J0, X, Y));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode MatLMVMApplyJ0HermitianTranspose(Mat B, Vec X, Vec Y)
+{
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+
+  PetscFunctionBegin;
+  PetscCall(MatMultHermitianTranspose(lmvm->J0, X, Y));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -415,41 +471,39 @@ PetscErrorCode MatLMVMApplyJ0Fwd(Mat B, Vec X, Vec Y)
 PetscErrorCode MatLMVMApplyJ0Inv(Mat B, Vec X, Vec Y)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
-  PetscBool same, hasSolve;
-  MPI_Comm  comm = PetscObjectComm((PetscObject)B);
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(B, MAT_CLASSID, 1);
-  PetscValidHeaderSpecific(X, VEC_CLASSID, 2);
-  PetscValidHeaderSpecific(Y, VEC_CLASSID, 3);
-  PetscCall(PetscObjectBaseTypeCompare((PetscObject)B, MATLMVM, &same));
-  PetscCheck(same, PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_WRONG, "Matrix must be an LMVM-type.");
-  PetscCheck(lmvm->allocated, comm, PETSC_ERR_ORDER, "LMVM matrix must be allocated first");
-  VecCheckMatCompatible(B, X, 2, Y, 3);
+  if (lmvm->disable_ksp_viewers) PetscCall(PetscOptionsPushGetViewerOff(PETSC_TRUE));
+  PetscCall(KSPSolve(lmvm->J0ksp, X, Y));
+  if (lmvm->disable_ksp_viewers) PetscCall(PetscOptionsPopGetViewerOff());
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
-  /* Invert the initial Jacobian onto q (or apply scaling) */
-  if (lmvm->user_pc) {
-    /* User has defined a J0 inverse so we can directly apply it as a preconditioner */
-    PetscCall(PCApply(lmvm->J0pc, X, Y));
-  } else if (lmvm->user_ksp) {
-    /* User has defined a J0 or a custom KSP so just perform a solution */
-    PetscCall(KSPSolve(lmvm->J0ksp, X, Y));
-  } else if (lmvm->J0) {
-    PetscCall(MatHasOperation(lmvm->J0, MATOP_SOLVE, &hasSolve));
-    if (hasSolve) {
-      PetscCall(MatSolve(lmvm->J0, X, Y));
-    } else {
-      PetscCall(KSPSolve(lmvm->J0ksp, X, Y));
-    }
-  } else if (lmvm->user_scale) {
-    if (lmvm->J0diag) {
-      PetscCall(VecPointwiseDivide(X, Y, lmvm->J0diag));
-    } else {
-      PetscCall(VecAXPBY(Y, 1.0 / lmvm->J0scalar, 0.0, X));
-    }
+PETSC_INTERN PetscErrorCode MatLMVMApplyJ0InvTranspose(Mat B, Vec X, Vec Y)
+{
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+
+  PetscFunctionBegin;
+  if (lmvm->disable_ksp_viewers) PetscCall(PetscOptionsPushGetViewerOff(PETSC_TRUE));
+  PetscCall(KSPSolveTranspose(lmvm->J0ksp, X, Y));
+  if (lmvm->disable_ksp_viewers) PetscCall(PetscOptionsPopGetViewerOff());
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode MatLMVMApplyJ0InvHermitianTranspose(Mat B, Vec X, Vec Y)
+{
+  PetscFunctionBegin;
+  if (!PetscDefined(USE_COMPLEX)) {
+    PetscCall(MatLMVMApplyJ0InvTranspose(B, X, Y));
   } else {
-    /* There is no J0 representation so just apply an identity matrix */
-    PetscCall(VecCopy(X, Y));
+    Vec X_conj;
+
+    PetscCall(VecDuplicate(X, &X_conj));
+    PetscCall(VecCopy(X, X_conj));
+    PetscCall(VecConjugate(X_conj));
+    PetscCall(MatLMVMApplyJ0InvTranspose(B, X_conj, Y));
+    PetscCall(VecConjugate(Y));
+    PetscCall(VecDestroy(&X_conj));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -513,10 +567,7 @@ PetscErrorCode MatLMVMAllocate(Mat B, Vec X, Vec F)
   PetscCall(VecGetType(X, &vtype));
   PetscCall(MatSetVecType(B, vtype));
   PetscCall((*lmvm->ops->allocate)(B, X, F));
-  if (lmvm->J0) {
-    PetscCall(PetscObjectBaseTypeCompare((PetscObject)lmvm->J0, MATLMVM, &same));
-    if (same) PetscCall(MatLMVMAllocate(lmvm->J0, X, F));
-  }
+  PetscCall(MatLMVMAllocate(lmvm->J0, X, F));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -571,11 +622,8 @@ PetscErrorCode MatLMVMReset(Mat B, PetscBool destructive)
   PetscValidHeaderSpecific(B, MAT_CLASSID, 1);
   PetscCall(PetscObjectBaseTypeCompare((PetscObject)B, MATLMVM, &same));
   if (!same) PetscFunctionReturn(PETSC_SUCCESS);
+  PetscCall(MatLMVMReset(lmvm->J0, destructive));
   PetscCall((*lmvm->ops->reset)(B, destructive));
-  if (lmvm->J0) {
-    PetscCall(PetscObjectBaseTypeCompare((PetscObject)lmvm->J0, MATLMVM, &same));
-    if (same) PetscCall(MatLMVMReset(lmvm->J0, destructive));
-  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -604,17 +652,17 @@ PetscErrorCode MatLMVMSetHistorySize(Mat B, PetscInt hist_size)
   PetscValidHeaderSpecific(B, MAT_CLASSID, 1);
   PetscCall(PetscObjectBaseTypeCompare((PetscObject)B, MATLMVM, &same));
   if (!same) PetscFunctionReturn(PETSC_SUCCESS);
-  if (hist_size > 0) {
+  PetscCheck(hist_size >= 0, PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_WRONG, "QN history size must be a non-negative integer.");
+  if (lmvm->allocated && lmvm->m != hist_size) {
+    PetscCall(VecDuplicate(lmvm->Xprev, &X));
+    PetscCall(VecDuplicate(lmvm->Fprev, &F));
+    PetscCall(MatLMVMReset(B, PETSC_TRUE));
     lmvm->m = hist_size;
-    if (lmvm->allocated && lmvm->m != lmvm->m_old) {
-      PetscCall(VecDuplicate(lmvm->Xprev, &X));
-      PetscCall(VecDuplicate(lmvm->Fprev, &F));
-      PetscCall(MatLMVMReset(B, PETSC_TRUE));
-      PetscCall(MatLMVMAllocate(B, X, F));
-      PetscCall(VecDestroy(&X));
-      PetscCall(VecDestroy(&F));
-    }
-  } else PetscCheck(hist_size >= 0, PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_WRONG, "QN history size must be a non-negative integer.");
+    PetscCall(MatLMVMAllocate(B, X, F));
+    PetscCall(VecDestroy(&X));
+    PetscCall(VecDestroy(&F));
+  }
+  lmvm->m = hist_size;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -671,5 +719,374 @@ PetscErrorCode MatLMVMGetRejectCount(Mat B, PetscInt *nrejects)
   PetscCall(PetscObjectBaseTypeCompare((PetscObject)B, MATLMVM, &same));
   PetscCheck(same, PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_WRONG, "Matrix must be an LMVM-type.");
   *nrejects = lmvm->nrejects;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatLMVMUpdateOpVecs(Mat B, LMBasis X, LMBasis OpX, PetscErrorCode (*op)(Mat, Vec, Vec))
+{
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+
+  PetscFunctionBegin;
+  PetscObjectId J0_id;
+  PetscCall(PetscObjectGetId((PetscObject)lmvm->J0, &J0_id));
+  PetscObjectState J0_state;
+  PetscCall(PetscObjectStateGet((PetscObject)lmvm->J0, &J0_state));
+  PetscInt oldest, next;
+  PetscCall(LMBasisGetRange(X, &oldest, &next));
+  if (OpX->operator_id != J0_id || OpX->operator_state != J0_state) {
+    // invalidate OpX
+    OpX->k              = oldest;
+    OpX->operator_id    = J0_id;
+    OpX->operator_state = J0_state;
+  }
+  OpX->k = PetscMax(OpX->k, oldest);
+  for (PetscInt i = OpX->k; i < next; i++) {
+    Vec x_i, op_x_i;
+
+    PetscCall(LMBasisGetVec(X, i, PETSC_MEMORY_ACCESS_READ, &x_i));
+    PetscCall(LMBasisGetNextVec(OpX, &op_x_i));
+    PetscCall(op(B, x_i, op_x_i));
+    PetscCall(LMBasisRestoreNextVec(OpX, &op_x_i));
+    PetscCall(LMBasisRestoreVec(X, i, PETSC_MEMORY_ACCESS_READ, &x_i));
+  }
+  PetscAssert(OpX->k == X->k && OpX->operator_id == J0_id && OpX->operator_state == J0_state, PetscObjectComm((PetscObject)B), PETSC_ERR_PLIB, "Invalid state for operator-updated LMBasis");
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatLMVMUpdateOpDiffVecs(Mat B, LMBasis Y, LMBasis OpX, LMBasis YmOpX)
+{
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+
+  PetscFunctionBegin;
+  PetscObjectId J0_id;
+  PetscCall(PetscObjectGetId((PetscObject)lmvm->J0, &J0_id));
+  PetscObjectState J0_state;
+  PetscCall(PetscObjectStateGet((PetscObject)lmvm->J0, &J0_state));
+  PetscInt oldest, next;
+  PetscAssert(Y->m == OpX->m, PetscObjectComm((PetscObject)B), PETSC_ERR_PLIB, "Incompatible Y and OpX in MatLMVMUpdateOpDiffVecs()");
+  PetscAssert(Y->k == OpX->k && OpX->operator_id == J0_id && OpX->operator_state == J0_state, PetscObjectComm((PetscObject)B), PETSC_ERR_PLIB, "Stale OpX in MatLMVMUpdateOpDiffVecs()");
+  PetscCall(LMBasisGetRange(Y, &oldest, &next));
+  if (YmOpX->operator_id != J0_id || YmOpX->operator_state != J0_state) {
+    // invalidate OpX
+    YmOpX->k              = oldest;
+    YmOpX->operator_id    = J0_id;
+    YmOpX->operator_state = J0_state;
+  }
+  YmOpX->k       = PetscMax(YmOpX->k, oldest);
+  PetscInt start = YmOpX->k;
+  if (next - start == Y->m) { // full matrix AXPY
+    PetscCall(MatCopy(Y->vecs, YmOpX->vecs, SAME_NONZERO_PATTERN));
+    PetscCall(MatAXPY(YmOpX->vecs, -1.0, OpX->vecs, SAME_NONZERO_PATTERN));
+    YmOpX->k = Y->k;
+  } else {
+    for (PetscInt i = start; i < next; i++) {
+      Vec y_i, op_x_i, y_m_op_x_i;
+
+      PetscCall(LMBasisGetVec(Y, i, PETSC_MEMORY_ACCESS_READ, &y_i));
+      PetscCall(LMBasisGetVec(OpX, i, PETSC_MEMORY_ACCESS_READ, &op_x_i));
+      PetscCall(LMBasisGetNextVec(YmOpX, &y_m_op_x_i));
+      PetscCall(VecAXPBYPCZ(y_m_op_x_i, 1.0, -1.0, 0.0, y_i, op_x_i));
+      PetscCall(LMBasisRestoreNextVec(YmOpX, &y_m_op_x_i));
+      PetscCall(LMBasisRestoreVec(OpX, i, PETSC_MEMORY_ACCESS_READ, &op_x_i));
+      PetscCall(LMBasisRestoreVec(Y, i, PETSC_MEMORY_ACCESS_READ, &y_i));
+    }
+  }
+  PetscAssert(YmOpX->k == Y->k && YmOpX->operator_id == J0_id && YmOpX->operator_state == J0_state, PetscObjectComm((PetscObject)B), PETSC_ERR_PLIB, "Invalid state for operator-updated LMBasis");
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode MatLMVMGetUpdatedBasis(Mat B, MatLMVMBasisType type, LMBasis *basis_p)
+{
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+  LMBasis   basis;
+
+  PetscFunctionBegin;
+  if (!lmvm->basis[type]) PetscCall(LMBasisCreate(MatLMVMBasisSizeOf(type) == LMBASIS_S ? lmvm->Xprev : lmvm->Fprev, lmvm->m, &lmvm->basis[type]));
+  basis = lmvm->basis[type];
+  switch (type) {
+  case LMBASIS_B0S:
+    PetscCall(MatLMVMUpdateOpVecs(B, lmvm->basis[LMBASIS_S], basis, MatLMVMApplyJ0Fwd));
+    break;
+  case LMBASIS_H0Y:
+    PetscCall(MatLMVMUpdateOpVecs(B, lmvm->basis[LMBASIS_Y], basis, MatLMVMApplyJ0Inv));
+    break;
+  case LMBASIS_S_MINUS_H0Y: {
+    LMBasis H0Y;
+    PetscCall(MatLMVMGetUpdatedBasis(B, LMBASIS_H0Y, &H0Y));
+    PetscCall(MatLMVMUpdateOpDiffVecs(B, lmvm->basis[LMBASIS_S], H0Y, basis));
+  } break;
+  case LMBASIS_Y_MINUS_B0S: {
+    LMBasis B0S;
+    PetscCall(MatLMVMGetUpdatedBasis(B, LMBASIS_B0S, &B0S));
+    PetscCall(MatLMVMUpdateOpDiffVecs(B, lmvm->basis[LMBASIS_Y], B0S, basis));
+  } break;
+  default:
+    break;
+  }
+  *basis_p = basis;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode MatLMVMGetVecsRead_Internal(Mat B, PetscInt idx, ...)
+{
+  PetscFunctionBegin;
+  va_list ap;
+  va_start(ap, idx);
+  while (1) {
+    MatLMVMBasisType type = (MatLMVMBasisType)va_arg(ap, int);
+
+    if (type == LMBASIS_END) break;
+
+    Vec *vec = va_arg(ap, Vec *);
+
+    LMBasis basis;
+    PetscCall(MatLMVMGetUpdatedBasis(B, type, &basis));
+    PetscCall(LMBasisGetVec(basis, idx, PETSC_MEMORY_ACCESS_READ, vec));
+  }
+  va_end(ap);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode MatLMVMRestoreVecsRead_Internal(Mat B, PetscInt idx, ...)
+{
+  PetscFunctionBegin;
+
+  va_list ap;
+  va_start(ap, idx);
+  while (1) {
+    MatLMVMBasisType type = (MatLMVMBasisType)va_arg(ap, int);
+
+    if (type == LMBASIS_END) break;
+
+    Vec    *vec = va_arg(ap, Vec *);
+    LMBasis basis;
+    PetscCall(MatLMVMGetUpdatedBasis(B, type, &basis));
+    PetscCall(LMBasisRestoreVec(basis, idx, PETSC_MEMORY_ACCESS_READ, vec));
+  }
+  va_end(ap);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode MatLMVMGetRange(Mat B, PetscInt *oldest, PetscInt *next)
+{
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+
+  PetscFunctionBegin;
+  PetscCall(LMBasisGetRange(lmvm->basis[LMBASIS_S], oldest, next));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode MatLMVMBasisGetWorkRow(Mat B, MatLMVMBasisType type, PetscScalar **array_p)
+{
+  LMBasis basis;
+
+  PetscFunctionBegin;
+  type = MatLMVMBasisSizeOf(type);
+  PetscCall(MatLMVMGetUpdatedBasis(B, type, &basis));
+  PetscCall(LMBasisGetWorkRow(basis, array_p));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode MatLMVMBasisRestoreWorkRow(Mat B, MatLMVMBasisType type, PetscScalar **array_p)
+{
+  LMBasis basis;
+
+  PetscFunctionBegin;
+  type = MatLMVMBasisSizeOf(type);
+  PetscCall(MatLMVMGetUpdatedBasis(B, type, &basis));
+  PetscCall(LMBasisRestoreWorkRow(basis, array_p));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode MatLMVMBasisGetWorkVec(Mat B, MatLMVMBasisType type, Vec *vec_p)
+{
+  LMBasis basis;
+
+  PetscFunctionBegin;
+  type = MatLMVMBasisSizeOf(type);
+  PetscCall(MatLMVMGetUpdatedBasis(B, type, &basis));
+  PetscCall(LMBasisGetWorkVec(basis, vec_p));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode MatLMVMBasisRestoreWorkVec(Mat B, MatLMVMBasisType type, Vec *vec_p)
+{
+  LMBasis basis;
+
+  PetscFunctionBegin;
+  type = MatLMVMBasisSizeOf(type);
+  PetscCall(MatLMVMGetUpdatedBasis(B, type, &basis));
+  PetscCall(LMBasisRestoreWorkVec(basis, vec_p));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatLMVMApplyOpThenVecs(PetscScalar alpha, Mat B, PetscInt oldest, PetscInt next, MatLMVMBasisType type_S, PetscErrorCode (*op)(Mat, Vec, Vec), Vec x, PetscReal beta, PetscScalar y[])
+{
+  LMBasis S;
+  Vec     B0H_v;
+
+  PetscFunctionBegin;
+  PetscCall(MatLMVMGetUpdatedBasis(B, type_S, &S));
+  PetscCall(LMBasisGetWorkVec(S, &B0H_v));
+  PetscCall(op(B, x, B0H_v));
+  PetscCall(LMBasisGEMVH(alpha, S, oldest, next, B0H_v, beta, y));
+  PetscCall(LMBasisRestoreWorkVec(S, &B0H_v));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatLMVMApplyVecsThenOp(PetscScalar alpha, Mat B, PetscInt oldest, PetscInt next, MatLMVMBasisType type_S, MatLMVMBasisType type_Y, PetscErrorCode (*op)(Mat, Vec, Vec), PetscScalar x[], PetscReal beta, Vec y)
+{
+  LMBasis S, Y;
+  Vec     S_x;
+
+  PetscFunctionBegin;
+  PetscCall(MatLMVMGetUpdatedBasis(B, type_S, &S));
+  PetscCall(MatLMVMGetUpdatedBasis(B, type_Y, &Y));
+  PetscCall(LMBasisGetWorkVec(S, &S_x));
+  PetscCall(LMBasisGEMV(alpha, S, oldest, next, x, 0.0, S_x));
+  if (beta == 0.0) {
+    PetscCall(op(B, S_x, y));
+  } else {
+    Vec B0S_x;
+    PetscCall(LMBasisGetWorkVec(Y, &B0S_x));
+    PetscCall(op(B, S_x, B0S_x));
+    PetscCall(VecAYPX(y, beta, B0S_x));
+    PetscCall(LMBasisRestoreWorkVec(Y, &B0S_x));
+  }
+  PetscCall(LMBasisRestoreWorkVec(S, &S_x));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode MatLMVMBasisGEMVH(Mat B, MatLMVMBasisType type, PetscInt oldest, PetscInt next, PetscScalar alpha, Vec v, Vec op_v, PetscScalar beta, PetscScalar array[])
+{
+  Mat_LMVM *lmvm              = (Mat_LMVM *)B->data;
+  PetscBool cache_J0_products = lmvm->do_not_cache_J0_products ? PETSC_FALSE : PETSC_TRUE;
+  LMBasis   basis;
+
+  PetscFunctionBegin;
+  if (cache_J0_products || type == LMBASIS_S || type == LMBASIS_Y) {
+    PetscCall(MatLMVMGetUpdatedBasis(B, type, &basis));
+    PetscCall(LMBasisGEMVH(alpha, basis, oldest, next, v, beta, array));
+  } else {
+    switch (type) {
+    case LMBASIS_B0S:
+      if (op_v) {
+        PetscCall(MatLMVMBasisGEMVH(B, LMBASIS_S, oldest, next, alpha, op_v, NULL, beta, array));
+      } else {
+        PetscCall(MatLMVMApplyOpThenVecs(alpha, B, oldest, next, LMBASIS_S, MatLMVMApplyJ0HermitianTranspose, v, beta, array));
+      }
+      break;
+    case LMBASIS_H0Y:
+      if (op_v) {
+        PetscCall(MatLMVMBasisGEMVH(B, LMBASIS_Y, oldest, next, alpha, op_v, NULL, beta, array));
+      } else {
+        PetscCall(MatLMVMApplyOpThenVecs(alpha, B, oldest, next, LMBASIS_Y, MatLMVMApplyJ0InvHermitianTranspose, v, beta, array));
+      }
+      break;
+    case LMBASIS_Y_MINUS_B0S:
+      if (op_v) {
+        PetscCall(MatLMVMBasisGEMVH(B, LMBASIS_Y, oldest, next, alpha, v, NULL, beta, array));
+        PetscCall(MatLMVMBasisGEMVH(B, LMBASIS_S, oldest, next, -alpha, op_v, NULL, 1.0, array));
+      } else {
+        PetscCall(MatLMVMApplyOpThenVecs(-alpha, B, oldest, next, LMBASIS_S, MatLMVMApplyJ0HermitianTranspose, v, beta, array));
+        PetscCall(LMBasisGEMVH(alpha, lmvm->basis[LMBASIS_Y], oldest, next, v, 1.0, array));
+      }
+      break;
+    case LMBASIS_S_MINUS_H0Y:
+      if (op_v) {
+        PetscCall(MatLMVMBasisGEMVH(B, LMBASIS_S, oldest, next, alpha, v, NULL, beta, array));
+        PetscCall(MatLMVMBasisGEMVH(B, LMBASIS_Y, oldest, next, -alpha, op_v, NULL, 1.0, array));
+      } else {
+        PetscCall(MatLMVMApplyOpThenVecs(-alpha, B, oldest, next, LMBASIS_Y, MatLMVMApplyJ0InvHermitianTranspose, v, beta, array));
+        PetscCall(LMBasisGEMVH(alpha, lmvm->basis[LMBASIS_S], oldest, next, v, 1.0, array));
+      }
+      break;
+    default:
+      PetscUnreachable();
+    }
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode MatLMVMBasisMultHermitianTranspose(Mat B, MatLMVMBasisType type, PetscInt oldest, PetscInt next, Vec v, Vec op_v, PetscScalar array[])
+{
+  PetscFunctionBegin;
+  PetscCall(MatLMVMBasisGEMVH(B, type, oldest, next, 1.0, v, op_v, 0.0, array));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+// x must come from MatLMVMGetRowWork()
+PETSC_INTERN PetscErrorCode MatLMVMBasisGEMV(Mat B, MatLMVMBasisType type, PetscInt oldest, PetscInt next, PetscScalar alpha, PetscScalar x[], PetscScalar beta, Vec y)
+{
+  Mat_LMVM *lmvm              = (Mat_LMVM *)B->data;
+  PetscBool cache_J0_products = lmvm->do_not_cache_J0_products ? PETSC_FALSE : PETSC_TRUE;
+  LMBasis   basis;
+
+  PetscFunctionBegin;
+  if (cache_J0_products || type == LMBASIS_S || type == LMBASIS_Y) {
+    PetscCall(MatLMVMGetUpdatedBasis(B, type, &basis));
+    PetscCall(LMBasisGEMV(alpha, basis, oldest, next, x, beta, y));
+  } else {
+    switch (type) {
+    case LMBASIS_B0S:
+      PetscCall(MatLMVMApplyVecsThenOp(alpha, B, oldest, next, LMBASIS_S, LMBASIS_Y, MatLMVMApplyJ0Fwd, x, beta, y));
+      break;
+    case LMBASIS_H0Y:
+      PetscCall(MatLMVMApplyVecsThenOp(alpha, B, oldest, next, LMBASIS_Y, LMBASIS_S, MatLMVMApplyJ0Inv, x, beta, y));
+      break;
+    case LMBASIS_Y_MINUS_B0S:
+      PetscCall(LMBasisGEMV(alpha, lmvm->basis[LMBASIS_Y], oldest, next, x, beta, y));
+      PetscCall(MatLMVMApplyVecsThenOp(-alpha, B, oldest, next, LMBASIS_S, LMBASIS_Y, MatLMVMApplyJ0Fwd, x, 1.0, y));
+      break;
+    case LMBASIS_S_MINUS_H0Y:
+      PetscCall(LMBasisGEMV(alpha, lmvm->basis[LMBASIS_S], oldest, next, x, beta, y));
+      PetscCall(MatLMVMApplyVecsThenOp(-alpha, B, oldest, next, LMBASIS_Y, LMBASIS_S, MatLMVMApplyJ0Inv, x, 1.0, y));
+      break;
+    default:
+      PetscUnreachable();
+    }
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode MatLMVMBasisMultAdd(Mat B, MatLMVMBasisType type, PetscInt oldest, PetscInt next, PetscScalar x[], Vec y)
+{
+  PetscFunctionBegin;
+  PetscCall(MatLMVMBasisGEMV(B, type, oldest, next, 1.0, x, 1.0, y));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode MatLMVMGramianSolve(Mat B, PetscInt oldest, PetscInt next, MatLMVMBasisType X, MatLMVMBasisType Y, LMSolveType solve_type, PetscScalar b[], PetscBool hermitian_transpose)
+{
+  LMBlockType block_type = LMBlockTypeFromSolveType(solve_type);
+  LMGramian   lmwd;
+
+  PetscFunctionBegin;
+  PetscCall(MatLMVMGetUpdatedGramian(B, X, Y, block_type, &lmwd));
+  PetscCall(LMGramianSolve(lmwd, oldest, next, solve_type, b, hermitian_transpose));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode MatLMVMGramianUpdate(Mat B, MatLMVMBasisType type_X, MatLMVMBasisType type_Y, LMBlockType block_type)
+{
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+  LMBasis   X, Y;
+
+  PetscFunctionBegin;
+  PetscCall(MatLMVMGetUpdatedBasis(B, type_X, &X));
+  PetscCall(MatLMVMGetUpdatedBasis(B, type_Y, &Y));
+  if (!lmvm->gramian[type_X][type_Y]) PetscCall(LMGramianCreate(lmvm->m, &lmvm->gramian[type_X][type_Y]));
+
+  PetscCall(LMGramianUpdateBlock(lmvm->gramian[type_X][type_Y], X, Y, block_type));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode MatLMVMGetUpdatedGramian(Mat B, MatLMVMBasisType type_X, MatLMVMBasisType type_Y, LMBlockType block_type, LMGramian *lmwd)
+{
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+
+  PetscFunctionBegin;
+  PetscCall(MatLMVMGramianUpdate(B, type_X, type_Y, block_type));
+  *lmwd = lmvm->gramian[type_X][type_Y];
   PetscFunctionReturn(PETSC_SUCCESS);
 }

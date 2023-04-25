@@ -1,5 +1,9 @@
 #include <../src/ksp/ksp/utils/lmvm/lmvm.h> /*I "petscksp.h" I*/
 
+const char *const MatLMVMMatvecTypes[] = {
+  "RECURSIVE", "COMPACT_DENSE", "MatLMVMMatvecTypes", "MATLMVM_MATVEC_", NULL,
+};
+
 PetscErrorCode MatReset_LMVM(Mat B, PetscBool destructive)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
@@ -10,13 +14,14 @@ PetscErrorCode MatReset_LMVM(Mat B, PetscBool destructive)
   lmvm->shift    = 0.0;
   if (destructive && lmvm->allocated) {
     PetscCall(MatLMVMClearJ0(B));
-    PetscCall(VecDestroyVecs(lmvm->m, &lmvm->S));
-    PetscCall(VecDestroyVecs(lmvm->m, &lmvm->Y));
+    for (PetscInt i = 0; i < LMBASIS_END; i++) PetscCall(LMBasisDestroy(&lmvm->basis[i]));
+    for (PetscInt i = 0; i < LMBASIS_END; i++) {
+      for (PetscInt j = 0; j < LMBASIS_END; j++) { PetscCall(LMGramianDestroy(&lmvm->gramian[i][j])); }
+    }
     PetscCall(VecDestroy(&lmvm->Xprev));
     PetscCall(VecDestroy(&lmvm->Fprev));
     lmvm->nupdates  = 0;
     lmvm->nrejects  = 0;
-    lmvm->m_old     = 0;
     lmvm->allocated = PETSC_FALSE;
     B->preallocated = PETSC_FALSE;
     B->assembled    = PETSC_FALSE;
@@ -50,11 +55,8 @@ PetscErrorCode MatAllocate_LMVM(Mat B, Vec X, Vec F)
     PetscCall(PetscLayoutReference(X->map, &B->cmap));
     PetscCall(VecDuplicate(X, &lmvm->Xprev));
     PetscCall(VecDuplicate(F, &lmvm->Fprev));
-    if (lmvm->m > 0) {
-      PetscCall(VecDuplicateVecs(lmvm->Xprev, lmvm->m, &lmvm->S));
-      PetscCall(VecDuplicateVecs(lmvm->Fprev, lmvm->m, &lmvm->Y));
-    }
-    lmvm->m_old     = lmvm->m;
+    PetscCall(LMBasisCreate(lmvm->Xprev, lmvm->m, &lmvm->basis[LMBASIS_S]));
+    PetscCall(LMBasisCreate(lmvm->Fprev, lmvm->m, &lmvm->basis[LMBASIS_Y]));
     lmvm->allocated = PETSC_TRUE;
     B->preallocated = PETSC_TRUE;
     B->assembled    = PETSC_TRUE;
@@ -65,27 +67,16 @@ PetscErrorCode MatAllocate_LMVM(Mat B, Vec X, Vec F)
 PetscErrorCode MatUpdateKernel_LMVM(Mat B, Vec S, Vec Y)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
-  PetscInt  i;
-  Vec       Stmp, Ytmp;
 
   PetscFunctionBegin;
-  if (lmvm->k == lmvm->m - 1) {
-    /* We hit the memory limit, so shift all the vectors back one spot
-       and shift the oldest to the front to receive the latest update. */
-    Stmp = lmvm->S[0];
-    Ytmp = lmvm->Y[0];
-    for (i = 0; i < lmvm->k; ++i) {
-      lmvm->S[i] = lmvm->S[i + 1];
-      lmvm->Y[i] = lmvm->Y[i + 1];
-    }
-    lmvm->S[lmvm->k] = Stmp;
-    lmvm->Y[lmvm->k] = Ytmp;
-  } else {
-    ++lmvm->k;
-  }
-  /* Put the precomputed update into the last vector */
-  PetscCall(VecCopy(S, lmvm->S[lmvm->k]));
-  PetscCall(VecCopy(Y, lmvm->Y[lmvm->k]));
+  Vec s_w, y_w;
+  PetscCall(LMBasisGetNextVec(lmvm->basis[LMBASIS_S], &s_w));
+  PetscCall(VecCopy(S, s_w));
+  PetscCall(LMBasisRestoreNextVec(lmvm->basis[LMBASIS_S], &s_w));
+  PetscCall(LMBasisGetNextVec(lmvm->basis[LMBASIS_Y], &y_w));
+  PetscCall(VecCopy(Y, y_w));
+  PetscCall(LMBasisRestoreNextVec(lmvm->basis[LMBASIS_Y], &y_w));
+  if (lmvm->k < lmvm->m - 1) lmvm->k++;
   ++lmvm->nupdates;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -124,11 +115,59 @@ static PetscErrorCode MatMult_LMVM(Mat B, Vec X, Vec Y)
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
 
   PetscFunctionBegin;
-  VecCheckSameSize(X, 2, Y, 3);
-  VecCheckMatCompatible(B, X, 2, Y, 3);
   PetscCheck(lmvm->allocated, PetscObjectComm((PetscObject)B), PETSC_ERR_ORDER, "LMVM matrix must be allocated first");
   PetscCall((*lmvm->ops->mult)(B, X, Y));
-  PetscCall(VecAXPY(Y, lmvm->shift, X));
+  if (lmvm->shift != 0.0) PetscCall(VecAXPY(Y, lmvm->shift, X));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatMultHermitianTranspose_LMVM(Mat B, Vec X, Vec Y)
+{
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+
+  PetscFunctionBegin;
+  PetscCheck(lmvm->allocated, PetscObjectComm((PetscObject)B), PETSC_ERR_ORDER, "LMVM matrix must be allocated first");
+  PetscCall((*lmvm->ops->multht)(B, X, Y));
+  if (lmvm->shift != 0.0) PetscCall(VecAXPY(Y, PetscConj(lmvm->shift), X));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatSolve_LMVM(Mat B, Vec x, Vec y)
+{
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+
+  PetscFunctionBegin;
+  PetscCheck(lmvm->allocated, PetscObjectComm((PetscObject)B), PETSC_ERR_ORDER, "LMVM matrix must be allocated first");
+  PetscCheck(lmvm->shift == 0.0, PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_WRONGSTATE, "Cannot solve a MatLMVM when it has a nonzero shift");
+  PetscCall((*lmvm->ops->solve)(B, x, y));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatSolveHermitianTranspose_LMVM(Mat B, Vec x, Vec y)
+{
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+
+  PetscFunctionBegin;
+  PetscCheck(lmvm->allocated, PetscObjectComm((PetscObject)B), PETSC_ERR_ORDER, "LMVM matrix must be allocated first");
+  PetscCheck(lmvm->shift == 0.0, PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_WRONGSTATE, "Cannot solve a MatLMVM when it has a nonzero shift");
+  PetscCall((*lmvm->ops->solveht)(B, x, y));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatSolveTranspose_LMVM(Mat B, Vec x, Vec y)
+{
+  PetscFunctionBegin;
+  if (!PetscDefined(USE_COMPLEX)) {
+    PetscCall(MatSolveHermitianTranspose_LMVM(B, x, y));
+  } else {
+    Vec x_conj;
+    PetscCall(VecDuplicate(x, &x_conj));
+    PetscCall(VecCopy(x, x_conj));
+    PetscCall(VecConjugate(x_conj));
+    PetscCall(MatSolveHermitianTranspose_LMVM(B, x_conj, y));
+    PetscCall(VecDestroy(&x_conj));
+    PetscCall(VecConjugate(y));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -136,7 +175,6 @@ static PetscErrorCode MatCopy_LMVM(Mat B, Mat M, MatStructure str)
 {
   Mat_LMVM *bctx = (Mat_LMVM *)B->data;
   Mat_LMVM *mctx;
-  PetscInt  i;
   PetscBool allocatedM;
 
   PetscFunctionBegin;
@@ -150,25 +188,14 @@ static PetscErrorCode MatCopy_LMVM(Mat B, Mat M, MatStructure str)
   }
 
   mctx = (Mat_LMVM *)M->data;
-  if (bctx->user_pc) {
-    PetscCall(MatLMVMSetJ0PC(M, bctx->J0pc));
-  } else if (bctx->user_ksp) {
-    PetscCall(MatLMVMSetJ0KSP(M, bctx->J0ksp));
-  } else if (bctx->J0) {
-    PetscCall(MatLMVMSetJ0(M, bctx->J0));
-  } else if (bctx->user_scale) {
-    if (bctx->J0diag) {
-      PetscCall(MatLMVMSetJ0Diag(M, bctx->J0diag));
-    } else {
-      PetscCall(MatLMVMSetJ0Scale(M, bctx->J0scalar));
-    }
-  }
+  if (bctx->J0ksp) { PetscCall(MatLMVMSetJ0KSP(M, bctx->J0ksp)); }
+  PetscCall(MatLMVMSetJ0(M, bctx->J0));
   mctx->nupdates = bctx->nupdates;
   mctx->nrejects = bctx->nrejects;
   mctx->k        = bctx->k;
-  for (i = 0; i <= bctx->k; ++i) {
-    PetscCall(VecCopy(bctx->S[i], mctx->S[i]));
-    PetscCall(VecCopy(bctx->Y[i], mctx->Y[i]));
+  PetscCall(LMBasisCopy(bctx->basis[LMBASIS_S], mctx->basis[LMBASIS_S]));
+  PetscCall(LMBasisCopy(bctx->basis[LMBASIS_Y], mctx->basis[LMBASIS_Y]));
+  for (PetscInt i = 0; i <= bctx->k; ++i) {
     PetscCall(VecCopy(bctx->Xprev, mctx->Xprev));
     PetscCall(VecCopy(bctx->Fprev, mctx->Fprev));
   }
@@ -188,14 +215,17 @@ static PetscErrorCode MatDuplicate_LMVM(Mat B, MatDuplicateOption op, Mat *mat)
   PetscCall(MatCreate(PetscObjectComm((PetscObject)B), mat));
   PetscCall(MatSetType(*mat, lmvmType));
 
-  A                = *mat;
-  mctx             = (Mat_LMVM *)A->data;
-  mctx->m          = bctx->m;
-  mctx->ksp_max_it = bctx->ksp_max_it;
-  mctx->ksp_rtol   = bctx->ksp_rtol;
-  mctx->ksp_atol   = bctx->ksp_atol;
-  mctx->shift      = bctx->shift;
-  PetscCall(KSPSetTolerances(mctx->J0ksp, mctx->ksp_rtol, mctx->ksp_atol, PETSC_DEFAULT, mctx->ksp_max_it));
+  A       = *mat;
+  mctx    = (Mat_LMVM *)A->data;
+  mctx->m = bctx->m;
+  if (bctx->J0ksp) {
+    PetscReal rtol, atol, dtol;
+    PetscInt  max_it;
+
+    PetscCall(KSPGetTolerances(bctx->J0ksp, &rtol, &atol, &dtol, &max_it));
+    PetscCall(KSPSetTolerances(mctx->J0ksp, rtol, atol, dtol, max_it));
+  }
+  mctx->shift = bctx->shift;
 
   PetscCall(MatLMVMAllocate(*mat, bctx->Xprev, bctx->Fprev));
   if (op == MAT_COPY_VALUES) PetscCall(MatCopy(B, *mat, SAME_NONZERO_PATTERN));
@@ -227,8 +257,13 @@ PetscErrorCode MatView_LMVM(Mat B, PetscViewer pv)
     PetscCall(PetscViewerASCIIPrintf(pv, "Number of updates: %" PetscInt_FMT "\n", lmvm->nupdates));
     PetscCall(PetscViewerASCIIPrintf(pv, "Number of rejects: %" PetscInt_FMT "\n", lmvm->nrejects));
     PetscCall(PetscViewerASCIIPrintf(pv, "Number of resets: %" PetscInt_FMT "\n", lmvm->nresets));
-    if (lmvm->J0) {
-      PetscCall(PetscViewerASCIIPrintf(pv, "J0 Matrix:\n"));
+    if (lmvm->square) {
+      PetscCall(PetscViewerASCIIPrintf(pv, "J0 KSP:\n"));
+      PetscCall(PetscViewerPushFormat(pv, PETSC_VIEWER_ASCII_INFO));
+      PetscCall(KSPView(lmvm->J0ksp, pv));
+      PetscCall(PetscViewerPopFormat(pv));
+    } else {
+      PetscCall(PetscViewerASCIIPrintf(pv, "J0:\n"));
       PetscCall(PetscViewerPushFormat(pv, PETSC_VIEWER_ASCII_INFO));
       PetscCall(MatView(lmvm->J0, pv));
       PetscCall(PetscViewerPopFormat(pv));
@@ -240,13 +275,16 @@ PetscErrorCode MatView_LMVM(Mat B, PetscViewer pv)
 PetscErrorCode MatSetFromOptions_LMVM(Mat B, PetscOptionItems *PetscOptionsObject)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+  // Default is false, but flipping double negative so that the command line option make sense
+  PetscBool cache_J0 = lmvm->do_not_cache_J0_products ? PETSC_FALSE : PETSC_TRUE;
 
   PetscFunctionBegin;
   PetscOptionsHeadBegin(PetscOptionsObject, "Limited-memory Variable Metric matrix for approximating Jacobians");
   PetscCall(PetscOptionsInt("-mat_lmvm_hist_size", "number of past updates kept in memory for the approximation", "", lmvm->m, &lmvm->m, NULL));
-  PetscCall(PetscOptionsInt("-mat_lmvm_ksp_its", "(developer) fixed number of KSP iterations to take when inverting J0", "", lmvm->ksp_max_it, &lmvm->ksp_max_it, NULL));
   PetscCall(PetscOptionsReal("-mat_lmvm_eps", "(developer) machine zero definition", "", lmvm->eps, &lmvm->eps, NULL));
+  PetscCall(PetscOptionsBool("-mat_lmvm_cache_J0_products", "Cache applications of the kernel J0 or its inverse", "", cache_J0, &cache_J0, NULL));
   PetscOptionsHeadEnd();
+  lmvm->do_not_cache_J0_products = cache_J0 ? PETSC_FALSE : PETSC_TRUE;
   PetscCall(KSPSetFromOptions(lmvm->J0ksp));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -256,15 +294,13 @@ PetscErrorCode MatSetUp_LMVM(Mat B)
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
 
   PetscFunctionBegin;
+  PetscCall(PetscLayoutSetUp(B->rmap));
+  PetscCall(PetscLayoutSetUp(B->cmap));
+  PetscCall(PetscLayoutCompare(B->rmap, B->cmap, &lmvm->square));
   if (!lmvm->allocated) {
-    PetscCall(PetscLayoutSetUp(B->rmap));
-    PetscCall(PetscLayoutSetUp(B->cmap));
     PetscCall(MatCreateVecs(B, &lmvm->Xprev, &lmvm->Fprev));
-    if (lmvm->m > 0) {
-      PetscCall(VecDuplicateVecs(lmvm->Xprev, lmvm->m, &lmvm->S));
-      PetscCall(VecDuplicateVecs(lmvm->Fprev, lmvm->m, &lmvm->Y));
-    }
-    lmvm->m_old     = lmvm->m;
+    PetscCall(LMBasisCreate(lmvm->Xprev, lmvm->m, &lmvm->basis[LMBASIS_S]));
+    PetscCall(LMBasisCreate(lmvm->Fprev, lmvm->m, &lmvm->basis[LMBASIS_Y]));
     lmvm->allocated = PETSC_TRUE;
     B->preallocated = PETSC_TRUE;
     B->assembled    = PETSC_TRUE;
@@ -277,15 +313,29 @@ PetscErrorCode MatDestroy_LMVM(Mat B)
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
 
   PetscFunctionBegin;
-  if (lmvm->allocated) {
-    PetscCall(VecDestroyVecs(lmvm->m, &lmvm->S));
-    PetscCall(VecDestroyVecs(lmvm->m, &lmvm->Y));
-    PetscCall(VecDestroy(&lmvm->Xprev));
-    PetscCall(VecDestroy(&lmvm->Fprev));
-  }
+  PetscCall(MatReset_LMVM(B, PETSC_TRUE));
   PetscCall(KSPDestroy(&lmvm->J0ksp));
-  PetscCall(MatLMVMClearJ0(B));
+  PetscCall(MatDestroy(&lmvm->J0));
   PetscCall(PetscFree(B->data));
+  PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMGetLastUpdate_C", NULL));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode MatLMVMGetLastUpdate(Mat B, Vec *x_prev, Vec *f_prev)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(B, MAT_CLASSID, 1);
+  PetscTryMethod(B, "MatLMVMGetLastUpdate_C", (Mat, Vec *, Vec *), (B, x_prev, f_prev));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatLMVMGetLastUpdate_LMVM(Mat B, Vec *x_prev, Vec *f_prev)
+{
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+
+  PetscFunctionBegin;
+  if (x_prev) { *x_prev = (lmvm->prev_set) ? lmvm->Xprev : NULL; }
+  if (f_prev) { *f_prev = (lmvm->prev_set) ? lmvm->Fprev : NULL; }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -297,45 +347,41 @@ PetscErrorCode MatCreate_LMVM(Mat B)
   PetscCall(PetscNew(&lmvm));
   B->data = (void *)lmvm;
 
-  lmvm->m_old    = 0;
   lmvm->m        = 5;
   lmvm->k        = -1;
   lmvm->nupdates = 0;
   lmvm->nrejects = 0;
   lmvm->nresets  = 0;
 
-  lmvm->ksp_max_it = 20;
-  lmvm->ksp_rtol   = 0.0;
-  lmvm->ksp_atol   = 0.0;
-
   lmvm->shift = 0.0;
 
-  lmvm->eps        = PetscPowReal(PETSC_MACHINE_EPSILON, 2.0 / 3.0);
-  lmvm->allocated  = PETSC_FALSE;
-  lmvm->prev_set   = PETSC_FALSE;
-  lmvm->user_scale = PETSC_FALSE;
-  lmvm->user_pc    = PETSC_FALSE;
-  lmvm->user_ksp   = PETSC_FALSE;
-  lmvm->square     = PETSC_FALSE;
+  lmvm->eps       = PetscPowReal(PETSC_MACHINE_EPSILON, 2.0 / 3.0);
+  lmvm->allocated = PETSC_FALSE;
+  lmvm->prev_set  = PETSC_FALSE;
+  lmvm->square    = PETSC_FALSE;
 
-  B->ops->destroy        = MatDestroy_LMVM;
-  B->ops->setfromoptions = MatSetFromOptions_LMVM;
-  B->ops->view           = MatView_LMVM;
-  B->ops->setup          = MatSetUp_LMVM;
-  B->ops->shift          = MatShift_LMVM;
-  B->ops->duplicate      = MatDuplicate_LMVM;
-  B->ops->mult           = MatMult_LMVM;
-  B->ops->multadd        = MatMultAdd_LMVM;
-  B->ops->copy           = MatCopy_LMVM;
+  B->ops->destroy                = MatDestroy_LMVM;
+  B->ops->setfromoptions         = MatSetFromOptions_LMVM;
+  B->ops->view                   = MatView_LMVM;
+  B->ops->setup                  = MatSetUp_LMVM;
+  B->ops->shift                  = MatShift_LMVM;
+  B->ops->duplicate              = MatDuplicate_LMVM;
+  B->ops->mult                   = MatMult_LMVM;
+  B->ops->multhermitiantranspose = MatMultHermitianTranspose_LMVM;
+  B->ops->multadd                = MatMultAdd_LMVM;
+  B->ops->copy                   = MatCopy_LMVM;
+  B->ops->solve                  = MatSolve_LMVM;
+  B->ops->solvetranspose         = MatSolveTranspose_LMVM;
+
+  if (!PetscDefined(USE_COMPLEX)) B->ops->multtranspose = MatMultHermitianTranspose_LMVM;
 
   lmvm->ops->update   = MatUpdate_LMVM;
   lmvm->ops->allocate = MatAllocate_LMVM;
   lmvm->ops->reset    = MatReset_LMVM;
 
-  PetscCall(KSPCreate(PetscObjectComm((PetscObject)B), &lmvm->J0ksp));
-  PetscCall(PetscObjectIncrementTabLevel((PetscObject)lmvm->J0ksp, (PetscObject)B, 1));
-  PetscCall(KSPSetOptionsPrefix(lmvm->J0ksp, "mat_lmvm_"));
-  PetscCall(KSPSetType(lmvm->J0ksp, KSPGMRES));
-  PetscCall(KSPSetTolerances(lmvm->J0ksp, lmvm->ksp_rtol, lmvm->ksp_atol, PETSC_DEFAULT, lmvm->ksp_max_it));
+  PetscCall(PetscObjectChangeTypeName((PetscObject)B, MATLMVM));
+  PetscCall(MatLMVMClearJ0(B));
+
+  PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMGetLastUpdate_C", MatLMVMGetLastUpdate_LMVM));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

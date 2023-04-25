@@ -2,13 +2,14 @@
 
 /*------------------------------------------------------------*/
 
+const char *const MatLMVMSymBroydenScaleTypes[] = {"NONE", "SCALAR", "DIAGONAL", "USER", "MatLMVMSymBrdnScaleType", "MAT_LMVM_SYMBROYDEN_SCALING_", NULL};
+
 static PetscErrorCode MatSolve_DiagBrdn(Mat B, Vec F, Vec dX)
 {
-  Mat_LMVM     *lmvm = (Mat_LMVM *)B->data;
-  Mat_DiagBrdn *ldb  = (Mat_DiagBrdn *)lmvm->ctx;
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
 
   PetscFunctionBegin;
-  PetscCall(VecPointwiseMult(dX, ldb->invD, F));
+  PetscCall(MatSolve(lmvm->J0, F, dX));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -16,34 +17,341 @@ static PetscErrorCode MatSolve_DiagBrdn(Mat B, Vec F, Vec dX)
 
 static PetscErrorCode MatMult_DiagBrdn(Mat B, Vec X, Vec Z)
 {
-  Mat_LMVM     *lmvm = (Mat_LMVM *)B->data;
-  Mat_DiagBrdn *ldb  = (Mat_DiagBrdn *)lmvm->ctx;
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
 
   PetscFunctionBegin;
-  PetscCall(VecPointwiseDivide(Z, X, ldb->invD));
+  PetscCall(MatMult(lmvm->J0, X, Z));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*------------------------------------------------------------*/
 
+static PetscErrorCode SymBroydenScalerUpdateScalar(Mat B, SymBroydenScaler ldb)
+{
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+  PetscInt  start;
+  PetscReal a, b, c, signew;
+  PetscReal sigma_inv, sigma;
+
+  PetscFunctionBegin;
+  PetscInt oldest, next;
+  PetscCall(MatLMVMGetRange(B, &oldest, &next));
+  PetscCall(MatNorm(lmvm->J0, NORM_INFINITY, &sigma_inv));
+  sigma = 1.0 / sigma_inv;
+  if (ldb->sigma_hist == 0) {
+    signew = 1.0;
+  } else {
+    start  = PetscMax(0, lmvm->k - ldb->sigma_hist + 1);
+    signew = 0.0;
+    if (ldb->alpha == 1.0) {
+      for (PetscInt i = start; i < next - oldest; ++i) signew += ldb->yts[i] / ldb->yty[i];
+    } else if (ldb->alpha == 0.5) {
+      for (PetscInt i = start; i < next - oldest; ++i) signew += ldb->sts[i] / ldb->yty[i];
+      signew = PetscSqrtReal(signew);
+    } else if (ldb->alpha == 0.0) {
+      for (PetscInt i = start; i < next - oldest; ++i) signew += ldb->sts[i] / ldb->yts[i];
+    } else {
+      /* compute coefficients of the quadratic */
+      a = b = c = 0.0;
+      for (PetscInt i = start; i < next - oldest; ++i) {
+        a += ldb->yty[i];
+        b += ldb->yts[i];
+        c += ldb->sts[i];
+      }
+      a *= ldb->alpha;
+      b *= -(2.0 * ldb->alpha - 1.0);
+      c *= ldb->alpha - 1.0;
+      /* use quadratic formula to find roots */
+      PetscReal sqrtdisc = PetscSqrtReal(b * b - 4 * a * c);
+      if (b >= 0.0) {
+        if (a >= 0.0) {
+          signew = (2 * c) / (-b - sqrtdisc);
+        } else {
+          signew = (-b - sqrtdisc) / (2 * a);
+        }
+      } else {
+        if (a >= 0.0) {
+          signew = (-b + sqrtdisc) / (2 * a);
+        } else {
+          signew = (2 * c) / (-b + sqrtdisc);
+        }
+      }
+      PetscCheck(signew > 0.0, PetscObjectComm((PetscObject)B), PETSC_ERR_CONV_FAILED, "Cannot find positive scalar");
+    }
+  }
+  sigma = ldb->rho * signew + (1.0 - ldb->rho) * sigma;
+  PetscCall(MatLMVMSetJ0Scale(B, 1.0 / sigma));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode DiagonalUpdate(SymBroydenScaler ldb, Vec D, Vec s, Vec y, Vec V, Vec W, Vec BFGS, Vec DFP, PetscReal theta, PetscReal yts)
+{
+  PetscFunctionBegin;
+
+  /*  V = |y o y| */
+  PetscCall(VecPointwiseMult(V, y, y));
+  if (PetscDefined(USE_COMPLEX)) PetscCall(VecAbs(V));
+
+  /*  W = D o s */
+  PetscReal stDs;
+  PetscCall(VecPointwiseMult(W, D, s));
+  PetscCall(VecDotRealPart(W, s, &stDs));
+
+  PetscCall(VecAXPY(D, 1.0 / yts, ldb->V));
+
+  /*  Safeguard stDs */
+  stDs = PetscMax(stDs, ldb->tol);
+
+  if (theta != 1.0) {
+    /*  BFGS portion of the update */
+
+    /*  U = |(D o s) o (D o s)| */
+    PetscCall(VecPointwiseMult(BFGS, W, W));
+    if (PetscDefined(USE_COMPLEX)) PetscCall(VecAbs(BFGS));
+
+    /*  Assemble */
+    PetscCall(VecScale(BFGS, -1.0 / stDs));
+  }
+
+  if (theta != 0.0) {
+    /*  DFP portion of the update */
+    /*  U = Real(conj(y) o D o s) */
+    PetscCall(VecCopy(y, DFP));
+    PetscCall(VecConjugate(DFP));
+    PetscCall(VecPointwiseMult(DFP, DFP, W));
+    if (PetscDefined(USE_COMPLEX)) {
+      PetscCall(VecCopy(DFP, W));
+      PetscCall(VecConjugate(W));
+      PetscCall(VecAXPY(DFP, 1.0, W));
+    } else {
+      PetscCall(VecScale(DFP, 2.0));
+    }
+
+    /*  Assemble */
+    PetscCall(VecAXPBY(DFP, stDs / yts, -1.0, V));
+  }
+
+  if (theta == 0.0) {
+    PetscCall(VecAXPY(D, 1.0, BFGS));
+  } else if (theta == 1.0) {
+    PetscCall(VecAXPY(D, 1.0 / yts, DFP));
+  } else {
+    /*  Broyden update Dkp1 = Dk + (1-theta)*P + theta*Q + y_i^2/yts*/
+    PetscCall(VecAXPBYPCZ(D, 1.0 - theta, theta / yts, 1.0, BFGS, DFP));
+  }
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode SymBroydenScalerUpdateDiagonal(Mat B, SymBroydenScaler ldb)
+{
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+  PetscInt  oldest, next;
+  Vec       invD, s_last, y_last;
+
+  PetscFunctionBegin;
+  PetscCall(MatLMVMGetRange(B, &oldest, &next));
+  PetscCall(MatLMVMGetVecsRead(B, next - 1, LMBASIS_S, &s_last, LMBASIS_Y, &y_last));
+  PetscCall(MatLMVMGetJ0InvDiag(B, &invD));
+  if (ldb->forward) {
+    /* We are doing diagonal scaling of the forward Hessian B */
+    /*  BFGS = DFP = inv(D); */
+    PetscCall(VecCopy(invD, ldb->invDnew));
+    PetscCall(VecReciprocal(ldb->invDnew));
+    PetscCall(DiagonalUpdate(ldb, ldb->invDnew, s_last, y_last, ldb->V, ldb->W, ldb->BFGS, ldb->DFP, ldb->theta, ldb->yts[lmvm->k]));
+    /*  Obtain inverse and ensure positive definite */
+    PetscCall(VecReciprocal(ldb->invDnew));
+  } else {
+    /* Inverse Hessian update instead. */
+    PetscCall(VecCopy(invD, ldb->invDnew));
+    PetscCall(DiagonalUpdate(ldb, ldb->invDnew, y_last, s_last, ldb->V, ldb->W, ldb->DFP, ldb->BFGS, 1.0 - ldb->theta, ldb->yts[lmvm->k]));
+  }
+  PetscCall(VecAbs(ldb->invDnew));
+  PetscCall(MatLMVMRestoreVecsRead(B, next - 1, LMBASIS_S, &s_last, LMBASIS_Y, &y_last));
+
+  PetscReal sigma;
+  if (ldb->sigma_hist > 0) {
+    // We are computing the scaling factor sigma that minimizes
+    //
+    // Sum_i || sigma^(alpha) (D^(-beta) o y_i) - sigma^(alpha-1) (D^(1-beta) o s_i) ||_2^2
+    //                        `-------.-------'                   `--------.-------'
+    //                               v_i                                  w_i
+    //
+    // To do this we first have to compute the sums of the dot product terms
+    //
+    // yy_sum = Sum_i v_i^T v_i,
+    // ys_sum = Sum_i v_i^T w_i, and
+    // ss_sum = Sum_i w_i^T w_i.
+    //
+    // These appear in the quadratic equation for the optimality condition for sigma,
+    //
+    // [alpha yy_sum] sigma^2 - [(2 alpha - 1) ys_sum] * sigma + [(alpha - 1) * ss_sum] = 0
+    //
+    // which we solve for sigma.
+
+    PetscReal yy_sum = 0; /*  No safeguard required */
+    PetscReal ys_sum = 0; /*  No safeguard required */
+    PetscReal ss_sum = 0; /*  No safeguard required */
+    PetscInt  start  = PetscMax(0, lmvm->k - ldb->sigma_hist + 1);
+
+    Vec D_minus_beta             = NULL;
+    Vec D_minus_beta_squared     = NULL;
+    Vec D_one_minus_beta         = NULL;
+    Vec D_one_minus_beta_squared = NULL;
+    if (ldb->beta == 0.5) {
+      D_minus_beta_squared = ldb->invDnew; // (D^(-0.5))^2 = D^-1
+
+      PetscCall(VecCopy(ldb->invDnew, ldb->U));
+      PetscCall(VecReciprocal(ldb->U));
+      D_one_minus_beta_squared = ldb->U; // (D^(1-0.5))^2 = D
+    } else if (ldb->beta == 0.0) {
+      PetscCall(VecCopy(ldb->invDnew, ldb->U));
+      PetscCall(VecReciprocal(ldb->U));
+      D_one_minus_beta = ldb->U; // D^1
+    } else if (ldb->beta == 1.0) {
+      D_minus_beta = ldb->invDnew; // D^-1
+    } else {
+      PetscCall(VecCopy(ldb->invDnew, ldb->DFP));
+      PetscCall(VecPow(ldb->DFP, ldb->beta));
+      D_minus_beta = ldb->DFP;
+
+      PetscCall(VecCopy(ldb->invDnew, ldb->BFGS));
+      PetscCall(VecPow(ldb->BFGS, ldb->beta - 1));
+      D_one_minus_beta = ldb->BFGS;
+    }
+    for (PetscInt i = start; i < next - oldest; ++i) {
+      Vec s_i, y_i;
+      PetscCall(MatLMVMGetVecsRead(B, oldest + i, LMBASIS_S, &s_i, LMBASIS_Y, &y_i));
+      if (ldb->beta == 0.5) {
+        PetscCall(VecPointwiseMult(ldb->V, y_i, D_minus_beta_squared));
+        PetscCall(VecPointwiseMult(ldb->W, s_i, D_one_minus_beta_squared));
+
+        PetscReal ytDinvy, stDs;
+
+        PetscCall(VecDotRealPart(ldb->W, s_i, &stDs));
+        PetscCall(VecDotRealPart(ldb->V, y_i, &ytDinvy));
+
+        ss_sum += stDs;        // ||s||_{D^(2*(1-beta))}^2
+        ys_sum += ldb->yts[i]; // s^T D^(1 - 2*beta) y
+        yy_sum += ytDinvy;     // ||y||_{D^(-2*beta)}^2
+      } else if (ldb->beta == 0.0) {
+        PetscCall(VecPointwiseMult(ldb->W, s_i, D_one_minus_beta));
+
+        PetscScalar ytDs_scalar;
+        PetscReal   stDsr;
+
+        PetscCall(VecDotNorm2(y_i, ldb->W, &ytDs_scalar, &stDsr));
+
+        ss_sum += stDsr;                      // ||s||_{D^(2*(1-beta))}^2
+        ys_sum += PetscRealPart(ytDs_scalar); // s^T D^(1 - 2*beta) y
+        yy_sum += ldb->yty[i];                // ||y||_{D^(-2*beta)}^2
+      } else if (ldb->beta == 1.0) {
+        PetscCall(VecPointwiseMult(ldb->V, y_i, D_minus_beta));
+
+        PetscScalar ytDs_scalar;
+        PetscReal   ytDyr;
+
+        PetscCall(VecDotNorm2(s_i, ldb->V, &ytDs_scalar, &ytDyr));
+
+        ss_sum += ldb->sts[i];                // ||s||_{D^(2*(1-beta))}^2
+        ys_sum += PetscRealPart(ytDs_scalar); // s^T D^(1 - 2*beta) y
+        yy_sum += ytDyr;                      // ||y||_{D^(-2*beta)}^2
+      } else {
+        PetscCall(VecPointwiseMult(ldb->V, y_i, D_minus_beta));
+        PetscCall(VecPointwiseMult(ldb->W, s_i, D_one_minus_beta));
+
+        PetscScalar ytDs_scalar;
+        PetscReal   ytDyr, stDs;
+
+        PetscCall(VecDotNorm2(ldb->W, ldb->V, &ytDs_scalar, &ytDyr));
+        PetscCall(VecDotRealPart(ldb->W, ldb->W, &stDs));
+
+        ss_sum += stDs;                       // ||s||_{D^(2*(1-beta))}^2
+        ys_sum += PetscRealPart(ytDs_scalar); // s^T D^(1 - 2*beta) y
+        yy_sum += ytDyr;                      // ||y||_{D^(-2*beta)}^2
+      }
+      PetscCall(MatLMVMRestoreVecsRead(B, oldest + i, LMBASIS_S, &s_i, LMBASIS_Y, &y_i));
+    }
+
+    if (ldb->alpha == 0.0) {
+      /*  Safeguard ys_sum  */
+      ys_sum = PetscMax(ldb->tol, ys_sum);
+
+      sigma = ss_sum / ys_sum;
+    } else if (1.0 == ldb->alpha) {
+      /* yy_sum is never 0; if it were, we'd be at the minimum */
+      sigma = ys_sum / yy_sum;
+    } else {
+      PetscReal a         = ldb->alpha * yy_sum;
+      PetscReal b         = -(2.0 * ldb->alpha - 1.0) * ys_sum;
+      PetscReal c         = (ldb->alpha - 1.0) * ss_sum;
+      PetscReal sqrt_disc = PetscSqrtReal(b * b - 4 * a * c);
+
+      // numerically stable computation of positive root
+      if (b >= 0.0) {
+        if (a >= 0) {
+          PetscReal denom = PetscMax(-b - sqrt_disc, ldb->tol);
+
+          sigma = (2 * c) / denom;
+        } else {
+          PetscReal denom = PetscMax(2 * a, ldb->tol);
+
+          sigma = (-b - sqrt_disc) / denom;
+        }
+      } else {
+        if (a >= 0) {
+          PetscReal denom = PetscMax(2 * a, ldb->tol);
+
+          sigma = (-b + sqrt_disc) / denom;
+        } else {
+          PetscReal denom = PetscMax(-b + sqrt_disc, ldb->tol);
+
+          sigma = (2 * c) / denom;
+        }
+      }
+    }
+  } else {
+    sigma = 1.0;
+  }
+  /*  If Q has small values, then Q^(r_beta - 1)
+      can have very large values.  Hence, ys_sum
+      and ss_sum can be infinity.  In this case,
+      sigma can either be not-a-number or infinity. */
+
+  if (PetscIsNormalReal(sigma)) { PetscCall(VecScale(ldb->invDnew, sigma)); }
+
+  /* Combine the old diagonal and the new diagonal using a convex limiter */
+  if (ldb->rho == 1.0) {
+    PetscCall(VecCopy(ldb->invDnew, invD));
+  } else if (ldb->rho) PetscCall(VecAXPBY(invD, 1.0 - ldb->rho, ldb->rho, ldb->invDnew));
+  Mat J0;
+  PetscCall(MatLMVMGetJ0(B, &J0));
+  PetscBool is_vec_diag;
+  PetscCall(PetscObjectTypeCompare((PetscObject)J0, MATDIAGONAL, &is_vec_diag));
+  PetscCall(MatLMVMRestoreJ0InvDiag(B, &invD));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 static PetscErrorCode MatUpdate_DiagBrdn(Mat B, Vec X, Vec F)
 {
-  Mat_LMVM     *lmvm = (Mat_LMVM *)B->data;
-  Mat_DiagBrdn *ldb  = (Mat_DiagBrdn *)lmvm->ctx;
-  PetscInt      old_k, i, start;
-  PetscScalar   yty, curvature, ytDy, stDs, ytDs;
-  PetscReal     curvtol, sigma, yy_sum, ss_sum, ys_sum, denom, ststmp;
-  PetscReal     stDsr, ytDyr;
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
 
   PetscFunctionBegin;
   if (!lmvm->m) PetscFunctionReturn(PETSC_SUCCESS);
   if (lmvm->prev_set) {
+    SymBroydenScaler ldb = (SymBroydenScaler)lmvm->ctx;
+    PetscInt         old_k;
+    PetscScalar      curvature;
+    PetscReal        yty, curvtol, ststmp;
+    PetscInt         oldest, next;
+
+    PetscCall(MatLMVMGetRange(B, &oldest, &next));
     /* Compute the new (S = X - Xprev) and (Y = F - Fprev) vectors */
     PetscCall(VecAYPX(lmvm->Xprev, -1.0, X));
     PetscCall(VecAYPX(lmvm->Fprev, -1.0, F));
 
     /* Test if the updates can be accepted */
-    PetscCall(VecDotNorm2(lmvm->Xprev, lmvm->Fprev, &curvature, &ststmp));
+    PetscCall(VecDotNorm2(lmvm->Fprev, lmvm->Xprev, &curvature, &ststmp));
     if (ststmp < lmvm->eps) curvtol = 0.0;
     else curvtol = lmvm->eps * ststmp;
 
@@ -54,249 +362,23 @@ static PetscErrorCode MatUpdate_DiagBrdn(Mat B, Vec X, Vec F)
       PetscCall(MatUpdateKernel_LMVM(B, lmvm->Xprev, lmvm->Fprev));
       /* If we hit the memory limit, shift the yty and yts arrays */
       if (old_k == lmvm->k) {
-        for (i = 0; i <= lmvm->k - 1; ++i) {
+        for (PetscInt i = 0; i < next - oldest - 1; ++i) {
           ldb->yty[i] = ldb->yty[i + 1];
           ldb->yts[i] = ldb->yts[i + 1];
           ldb->sts[i] = ldb->sts[i + 1];
         }
       }
       /* Accept dot products into the history */
-      PetscCall(VecDot(lmvm->Y[lmvm->k], lmvm->Y[lmvm->k], &yty));
-      ldb->yty[lmvm->k] = PetscRealPart(yty);
+      Vec y_last;
+      PetscCall(MatLMVMGetVecsRead(B, next, LMBASIS_Y, &y_last));
+      PetscCall(VecDotRealPart(y_last, y_last, &yty));
+      ldb->yty[lmvm->k] = yty;
       ldb->yts[lmvm->k] = PetscRealPart(curvature);
       ldb->sts[lmvm->k] = ststmp;
-      if (ldb->forward) {
-        /* We are doing diagonal scaling of the forward Hessian B */
-        /*  BFGS = DFP = inv(D); */
-        PetscCall(VecCopy(ldb->invD, ldb->invDnew));
-        PetscCall(VecReciprocal(ldb->invDnew));
-
-        /*  V = y*y */
-        PetscCall(VecPointwiseMult(ldb->V, lmvm->Y[lmvm->k], lmvm->Y[lmvm->k]));
-
-        /*  W = inv(D)*s */
-        PetscCall(VecPointwiseMult(ldb->W, ldb->invDnew, lmvm->S[lmvm->k]));
-        PetscCall(VecDot(ldb->W, lmvm->S[lmvm->k], &stDs));
-
-        /*  Safeguard stDs */
-        stDs = PetscMax(PetscRealPart(stDs), ldb->tol);
-
-        if (1.0 != ldb->theta) {
-          /*  BFGS portion of the update */
-          /*  U = (inv(D)*s)*(inv(D)*s) */
-          PetscCall(VecPointwiseMult(ldb->U, ldb->W, ldb->W));
-
-          /*  Assemble */
-          PetscCall(VecAXPBY(ldb->BFGS, -1.0 / stDs, 0.0, ldb->U));
-        }
-        if (0.0 != ldb->theta) {
-          /*  DFP portion of the update */
-          /*  U = inv(D)*s*y */
-          PetscCall(VecPointwiseMult(ldb->U, ldb->W, lmvm->Y[lmvm->k]));
-
-          /*  Assemble */
-          PetscCall(VecAXPBY(ldb->DFP, stDs / ldb->yts[lmvm->k], 0.0, ldb->V));
-          PetscCall(VecAXPY(ldb->DFP, -2.0, ldb->U));
-        }
-
-        if (0.0 == ldb->theta) {
-          PetscCall(VecAXPY(ldb->invDnew, 1.0, ldb->BFGS));
-        } else if (1.0 == ldb->theta) {
-          PetscCall(VecAXPY(ldb->invDnew, 1.0 / ldb->yts[lmvm->k], ldb->DFP));
-        } else {
-          /*  Broyden update Dkp1 = Dk + (1-theta)*P + theta*Q + y_i^2/yts*/
-          PetscCall(VecAXPBYPCZ(ldb->invDnew, 1.0 - ldb->theta, (ldb->theta) / ldb->yts[lmvm->k], 1.0, ldb->BFGS, ldb->DFP));
-        }
-
-        PetscCall(VecAXPY(ldb->invDnew, 1.0 / ldb->yts[lmvm->k], ldb->V));
-        /*  Obtain inverse and ensure positive definite */
-        PetscCall(VecReciprocal(ldb->invDnew));
-        PetscCall(VecAbs(ldb->invDnew));
-
-      } else {
-        /* Inverse Hessian update instead. */
-        PetscCall(VecCopy(ldb->invD, ldb->invDnew));
-
-        /*  V = s*s */
-        PetscCall(VecPointwiseMult(ldb->V, lmvm->S[lmvm->k], lmvm->S[lmvm->k]));
-
-        /*  W = D*y */
-        PetscCall(VecPointwiseMult(ldb->W, ldb->invDnew, lmvm->Y[lmvm->k]));
-        PetscCall(VecDot(ldb->W, lmvm->Y[lmvm->k], &ytDy));
-
-        /*  Safeguard ytDy */
-        ytDy = PetscMax(PetscRealPart(ytDy), ldb->tol);
-
-        if (1.0 != ldb->theta) {
-          /*  BFGS portion of the update */
-          /*  U = s*Dy */
-          PetscCall(VecPointwiseMult(ldb->U, ldb->W, lmvm->S[lmvm->k]));
-
-          /*  Assemble */
-          PetscCall(VecAXPBY(ldb->BFGS, ytDy / ldb->yts[lmvm->k], 0.0, ldb->V));
-          PetscCall(VecAXPY(ldb->BFGS, -2.0, ldb->U));
-        }
-        if (0.0 != ldb->theta) {
-          /*  DFP portion of the update */
-
-          /*  U = (inv(D)*y)*(inv(D)*y) */
-          PetscCall(VecPointwiseMult(ldb->U, ldb->W, ldb->W));
-
-          /*  Assemble */
-          PetscCall(VecAXPBY(ldb->DFP, -1.0 / ytDy, 0.0, ldb->U));
-        }
-
-        if (0.0 == ldb->theta) {
-          PetscCall(VecAXPY(ldb->invDnew, 1.0 / ldb->yts[lmvm->k], ldb->BFGS));
-        } else if (1.0 == ldb->theta) {
-          PetscCall(VecAXPY(ldb->invDnew, 1.0, ldb->DFP));
-        } else {
-          /*  Broyden update U=(1-theta)*P + theta*Q */
-          PetscCall(VecAXPBYPCZ(ldb->invDnew, (1.0 - ldb->theta) / ldb->yts[lmvm->k], ldb->theta, 1.0, ldb->BFGS, ldb->DFP));
-        }
-        PetscCall(VecAXPY(ldb->invDnew, 1.0 / ldb->yts[lmvm->k], ldb->V));
-        /*  Ensure positive definite */
-        PetscCall(VecAbs(ldb->invDnew));
-      }
-      if (ldb->sigma_hist > 0) {
-        /*  Start with re-scaling on the newly computed diagonal */
-        if (0.5 == ldb->beta) {
-          if (1 == PetscMin(lmvm->nupdates, ldb->sigma_hist)) {
-            PetscCall(VecPointwiseMult(ldb->V, lmvm->Y[0], ldb->invDnew));
-            PetscCall(VecPointwiseDivide(ldb->W, lmvm->S[0], ldb->invDnew));
-
-            PetscCall(VecDot(ldb->V, lmvm->Y[0], &ytDy));
-            PetscCall(VecDot(ldb->W, lmvm->S[0], &stDs));
-
-            ss_sum = PetscRealPart(stDs);
-            yy_sum = PetscRealPart(ytDy);
-            ys_sum = ldb->yts[0];
-          } else {
-            PetscCall(VecCopy(ldb->invDnew, ldb->U));
-            PetscCall(VecReciprocal(ldb->U));
-
-            /*  Compute summations for scalar scaling */
-            yy_sum = 0; /*  No safeguard required */
-            ys_sum = 0; /*  No safeguard required */
-            ss_sum = 0; /*  No safeguard required */
-            start  = PetscMax(0, lmvm->k - ldb->sigma_hist + 1);
-            for (i = start; i < PetscMin(lmvm->nupdates, ldb->sigma_hist); ++i) {
-              PetscCall(VecPointwiseMult(ldb->V, lmvm->Y[i], ldb->U));
-              PetscCall(VecPointwiseMult(ldb->W, lmvm->S[i], ldb->U));
-
-              PetscCall(VecDot(ldb->W, lmvm->S[i], &stDs));
-              PetscCall(VecDot(ldb->V, lmvm->Y[i], &ytDy));
-
-              ss_sum += PetscRealPart(stDs);
-              ys_sum += ldb->yts[i];
-              yy_sum += PetscRealPart(ytDy);
-            }
-          }
-        } else if (0.0 == ldb->beta) {
-          if (1 == PetscMin(lmvm->nupdates, ldb->sigma_hist)) {
-            /*  Compute summations for scalar scaling */
-            PetscCall(VecPointwiseDivide(ldb->W, lmvm->S[0], ldb->invDnew));
-
-            PetscCall(VecDotNorm2(lmvm->Y[0], ldb->W, &ytDs, &stDsr));
-
-            ys_sum = PetscRealPart(ytDs);
-            ss_sum = stDsr;
-            yy_sum = ldb->yty[0];
-          } else {
-            PetscCall(VecCopy(ldb->invDnew, ldb->U));
-            PetscCall(VecReciprocal(ldb->U));
-
-            /*  Compute summations for scalar scaling */
-            yy_sum = 0; /*  No safeguard required */
-            ys_sum = 0; /*  No safeguard required */
-            ss_sum = 0; /*  No safeguard required */
-            start  = PetscMax(0, lmvm->k - ldb->sigma_hist + 1);
-            for (i = start; i < PetscMin(lmvm->nupdates, ldb->sigma_hist); ++i) {
-              PetscCall(VecPointwiseMult(ldb->W, lmvm->S[i], ldb->U));
-
-              PetscCall(VecDotNorm2(lmvm->Y[i], ldb->W, &ytDs, &stDsr));
-
-              ss_sum += stDsr;
-              ys_sum += PetscRealPart(ytDs);
-              yy_sum += ldb->yty[i];
-            }
-          }
-        } else if (1.0 == ldb->beta) {
-          /*  Compute summations for scalar scaling */
-          yy_sum = 0; /*  No safeguard required */
-          ys_sum = 0; /*  No safeguard required */
-          ss_sum = 0; /*  No safeguard required */
-          start  = PetscMax(0, lmvm->k - ldb->sigma_hist + 1);
-          for (i = start; i < PetscMin(lmvm->nupdates, ldb->sigma_hist); ++i) {
-            PetscCall(VecPointwiseMult(ldb->V, lmvm->Y[i], ldb->invDnew));
-
-            PetscCall(VecDotNorm2(lmvm->S[i], ldb->V, &ytDs, &ytDyr));
-
-            yy_sum += ytDyr;
-            ys_sum += PetscRealPart(ytDs);
-            ss_sum += ldb->sts[i];
-          }
-        } else {
-          PetscCall(VecCopy(ldb->invDnew, ldb->U));
-          PetscCall(VecPow(ldb->U, ldb->beta - 1));
-
-          /*  Compute summations for scalar scaling */
-          yy_sum = 0; /*  No safeguard required */
-          ys_sum = 0; /*  No safeguard required */
-          ss_sum = 0; /*  No safeguard required */
-          start  = PetscMax(0, lmvm->k - ldb->sigma_hist + 1);
-          for (i = start; i < PetscMin(lmvm->nupdates, ldb->sigma_hist); ++i) {
-            PetscCall(VecPointwiseMult(ldb->V, ldb->invDnew, lmvm->Y[i]));
-            PetscCall(VecPointwiseMult(ldb->W, ldb->U, lmvm->S[i]));
-
-            PetscCall(VecDotNorm2(ldb->W, ldb->V, &ytDs, &ytDyr));
-            PetscCall(VecDot(ldb->W, ldb->W, &stDs));
-
-            yy_sum += ytDyr;
-            ys_sum += PetscRealPart(ytDs);
-            ss_sum += PetscRealPart(stDs);
-          }
-        }
-
-        if (0.0 == ldb->alpha) {
-          /*  Safeguard ys_sum  */
-          ys_sum = PetscMax(ldb->tol, ys_sum);
-
-          sigma = ss_sum / ys_sum;
-        } else if (1.0 == ldb->alpha) {
-          /* yy_sum is never 0; if it were, we'd be at the minimum */
-          sigma = ys_sum / yy_sum;
-        } else {
-          denom = 2.0 * ldb->alpha * yy_sum;
-
-          /*  Safeguard denom */
-          denom = PetscMax(ldb->tol, denom);
-
-          sigma = ((2.0 * ldb->alpha - 1) * ys_sum + PetscSqrtReal((2.0 * ldb->alpha - 1) * (2.0 * ldb->alpha - 1) * ys_sum * ys_sum - 4.0 * ldb->alpha * (ldb->alpha - 1) * yy_sum * ss_sum)) / denom;
-        }
-      } else {
-        sigma = 1.0;
-      }
-      /*  If Q has small values, then Q^(r_beta - 1)
-       can have very large values.  Hence, ys_sum
-       and ss_sum can be infinity.  In this case,
-       sigma can either be not-a-number or infinity. */
-
-      if (PetscIsInfOrNanScalar(sigma)) {
-        /*  sigma is not-a-number; skip rescaling */
-      } else if (0.0 == sigma) {
-        /*  sigma is zero; this is a bad case; skip rescaling */
-      } else {
-        /*  sigma is positive */
-        PetscCall(VecScale(ldb->invDnew, sigma));
-      }
-
-      /* Combine the old diagonal and the new diagonal using a convex limiter */
-      if (1.0 == ldb->rho) {
-        PetscCall(VecCopy(ldb->invDnew, ldb->invD));
-      } else if (ldb->rho) PetscCall(VecAXPBY(ldb->invD, 1.0 - ldb->rho, ldb->rho, ldb->invDnew));
+      PetscCall(MatLMVMRestoreVecsRead(B, next, LMBASIS_Y, &y_last));
+      PetscCall(SymBroydenScalerUpdate(B, ldb));
     } else {
-      PetscCall(MatLMVMReset(B, PETSC_FALSE));
+      PetscCall(SymBroydenScalerInitializeJ0(B, ldb));
     }
     /* End DiagBrdn update */
   }
@@ -309,15 +391,20 @@ static PetscErrorCode MatUpdate_DiagBrdn(Mat B, Vec X, Vec F)
 
 /*------------------------------------------------------------*/
 
-static PetscErrorCode MatCopy_DiagBrdn(Mat B, Mat M, MatStructure str)
+PETSC_INTERN PetscErrorCode SymBroydenScalerSetDelta(SymBroydenScaler ldb, PetscReal delta)
 {
-  Mat_LMVM     *bdata = (Mat_LMVM *)B->data;
-  Mat_DiagBrdn *bctx  = (Mat_DiagBrdn *)bdata->ctx;
-  Mat_LMVM     *mdata = (Mat_LMVM *)M->data;
-  Mat_DiagBrdn *mctx  = (Mat_DiagBrdn *)mdata->ctx;
-  PetscInt      i;
-
   PetscFunctionBegin;
+  ldb->delta = delta;
+  ldb->delta = PetscMin(ldb->delta, ldb->delta_max);
+  ldb->delta = PetscMax(ldb->delta, ldb->delta_min);
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode SymBroydenScalerCopy(SymBroydenScaler bctx, SymBroydenScaler mctx, PetscInt k)
+{
+  PetscFunctionBegin;
+  mctx->scale_type = bctx->scale_type;
   mctx->theta      = bctx->theta;
   mctx->alpha      = bctx->alpha;
   mctx->beta       = bctx->beta;
@@ -326,11 +413,9 @@ static PetscErrorCode MatCopy_DiagBrdn(Mat B, Mat M, MatStructure str)
   mctx->delta_min  = bctx->delta_min;
   mctx->delta_max  = bctx->delta_max;
   mctx->tol        = bctx->tol;
-  mctx->sigma      = bctx->sigma;
   mctx->sigma_hist = bctx->sigma_hist;
   mctx->forward    = bctx->forward;
-  PetscCall(VecCopy(bctx->invD, mctx->invD));
-  for (i = 0; i <= bdata->k; ++i) {
+  for (PetscInt i = 0; i < k; ++i) {
     mctx->yty[i] = bctx->yty[i];
     mctx->yts[i] = bctx->yts[i];
     mctx->sts[i] = bctx->sts[i];
@@ -338,35 +423,96 @@ static PetscErrorCode MatCopy_DiagBrdn(Mat B, Mat M, MatStructure str)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode MatCopy_DiagBrdn(Mat B, Mat M, MatStructure str)
+{
+  Mat_LMVM        *bdata = (Mat_LMVM *)B->data;
+  SymBroydenScaler bctx  = (SymBroydenScaler)bdata->ctx;
+  Mat_LMVM        *mdata = (Mat_LMVM *)M->data;
+  SymBroydenScaler mctx  = (SymBroydenScaler)mdata->ctx;
+
+  PetscFunctionBegin;
+  PetscCall(SymBroydenScalerCopy(bctx, mctx, bdata->k + 1));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /*------------------------------------------------------------*/
+
+PETSC_INTERN PetscErrorCode SymBroydenScalerView(SymBroydenScaler ldb, PetscViewer pv)
+{
+  PetscFunctionBegin;
+  PetscBool isascii;
+  PetscCall(PetscObjectTypeCompare((PetscObject)pv, PETSCVIEWERASCII, &isascii));
+  if (isascii) {
+    PetscCall(PetscViewerASCIIPrintf(pv, "Scale type: %s\n", MatLMVMSymBroydenScaleTypes[ldb->scale_type]));
+    PetscCall(PetscViewerASCIIPrintf(pv, "Scale history: %" PetscInt_FMT "\n", ldb->sigma_hist));
+    PetscCall(PetscViewerASCIIPrintf(pv, "Scale params: alpha=%g, beta=%g, rho=%g\n", (double)ldb->alpha, (double)ldb->beta, (double)ldb->rho));
+    PetscCall(PetscViewerASCIIPrintf(pv, "Scale convex factor: theta=%g\n", (double)ldb->theta));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 static PetscErrorCode MatView_DiagBrdn(Mat B, PetscViewer pv)
 {
-  Mat_LMVM     *lmvm = (Mat_LMVM *)B->data;
-  Mat_DiagBrdn *ldb  = (Mat_DiagBrdn *)lmvm->ctx;
-  PetscBool     isascii;
+  Mat_LMVM        *lmvm = (Mat_LMVM *)B->data;
+  SymBroydenScaler ldb  = (SymBroydenScaler)lmvm->ctx;
 
   PetscFunctionBegin;
-  PetscCall(PetscObjectTypeCompare((PetscObject)pv, PETSCVIEWERASCII, &isascii));
-  if (isascii) {
-    PetscCall(PetscViewerASCIIPrintf(pv, "Scale history: %" PetscInt_FMT "\n", ldb->sigma_hist));
-    PetscCall(PetscViewerASCIIPrintf(pv, "Scale params: alpha=%g, beta=%g, rho=%g\n", (double)ldb->alpha, (double)ldb->beta, (double)ldb->rho));
-    PetscCall(PetscViewerASCIIPrintf(pv, "Convex factor: theta=%g\n", (double)ldb->theta));
-  }
+  PetscCall(SymBroydenScalerView(ldb, pv));
   PetscCall(MatView_LMVM(B, pv));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*------------------------------------------------------------*/
 
-static PetscErrorCode MatSetFromOptions_DiagBrdn(Mat B, PetscOptionItems *PetscOptionsObject)
+PETSC_INTERN PetscErrorCode SymBroydenScalerSetDiagonalMode(SymBroydenScaler ldb, PetscBool forward)
 {
-  Mat_LMVM     *lmvm = (Mat_LMVM *)B->data;
-  Mat_DiagBrdn *ldb  = (Mat_DiagBrdn *)lmvm->ctx;
+  PetscFunctionBegin;
+  ldb->forward = forward;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode SymBroydenScalerGetType(SymBroydenScaler ldb, MatLMVMSymBroydenScaleType *stype)
+{
+  PetscFunctionBegin;
+  *stype = ldb->scale_type;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode SymBroydenScalerSetType(Mat B, SymBroydenScaler ldb, MatLMVMSymBroydenScaleType stype)
+{
+  PetscFunctionBegin;
+  if (stype != ldb->scale_type) {
+    switch (stype) {
+    case MAT_LMVM_SYMBROYDEN_SCALE_NONE:
+      PetscCall(MatLMVMSetJ0Scale(B, 1.0));
+      break;
+    case MAT_LMVM_SYMBROYDEN_SCALE_SCALAR:
+      PetscCall(MatLMVMSetJ0Scale(B, 1.0 / ldb->delta));
+      break;
+    case MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL: {
+      Vec invD;
+
+      PetscCall(MatLMVMGetJ0InvDiag(B, &invD));
+      PetscCall(VecSet(invD, ldb->delta));
+      PetscCall(MatLMVMRestoreJ0InvDiag(B, &invD));
+      break;
+    }
+    default:
+      break;
+    }
+  }
+  ldb->scale_type = stype;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode SymBroydenScalerSetFromOptions(Mat B, SymBroydenScaler ldb, PetscOptionItems *PetscOptionsObject)
+{
+  MatLMVMSymBroydenScaleType stype = ldb->scale_type;
+  PetscBool                  flg;
 
   PetscFunctionBegin;
-  PetscCall(MatSetFromOptions_LMVM(B, PetscOptionsObject));
-  PetscOptionsHeadBegin(PetscOptionsObject, "Restricted Broyden method for approximating SPD Jacobian actions (MATLMVMDIAGBRDN)");
+  PetscOptionsHeadBegin(PetscOptionsObject, "Restricted Broyden method for updating diagonal Jacobian approximation (MATLMVMDIAGBRDN)");
+  PetscCall(PetscOptionsEnum("-mat_lmvm_scale_type", "(developer) scaling type applied to J0", "MatLMVMSymBrdnScaleType", MatLMVMSymBroydenScaleTypes, (PetscEnum)stype, (PetscEnum *)&stype, &flg));
   PetscCall(PetscOptionsReal("-mat_lmvm_theta", "(developer) convex ratio between BFGS and DFP components of the diagonal J0 scaling", "", ldb->theta, &ldb->theta, NULL));
   PetscCall(PetscOptionsReal("-mat_lmvm_rho", "(developer) update limiter in the J0 scaling", "", ldb->rho, &ldb->rho, NULL));
   PetscCall(PetscOptionsReal("-mat_lmvm_tol", "(developer) tolerance for bounding rescaling denominator", "", ldb->tol, &ldb->tol, NULL));
@@ -379,22 +525,67 @@ static PetscErrorCode MatSetFromOptions_DiagBrdn(Mat B, PetscOptionItems *PetscO
   PetscCheck(!(ldb->alpha < 0.0) && !(ldb->alpha > 1.0), PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_OUTOFRANGE, "convex ratio in the J0 scaling cannot be outside the range of [0, 1]");
   PetscCheck(!(ldb->rho < 0.0) && !(ldb->rho > 1.0), PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_OUTOFRANGE, "convex update limiter in the J0 scaling cannot be outside the range of [0, 1]");
   PetscCheck(ldb->sigma_hist >= 0, PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_OUTOFRANGE, "J0 scaling history length cannot be negative");
+  if (flg) PetscCall(SymBroydenScalerSetType(B, ldb, stype));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode SymBroydenScalerInitializeJ0(Mat B, SymBroydenScaler ldb)
+{
+  PetscFunctionBegin;
+  switch (ldb->scale_type) {
+  case MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL: {
+    Vec invD;
+    PetscCall(MatLMVMGetJ0InvDiag(B, &invD));
+    PetscCall(VecSet(invD, ldb->delta));
+    PetscCall(MatLMVMRestoreJ0InvDiag(B, &invD));
+    break;
+  }
+  case MAT_LMVM_SYMBROYDEN_SCALE_SCALAR:
+    PetscCall(MatLMVMSetJ0Scale(B, 1.0 / ldb->delta));
+    break;
+  case MAT_LMVM_SYMBROYDEN_SCALE_NONE:
+    PetscCall(MatLMVMSetJ0Scale(B, 1.0));
+    break;
+  default:
+    break;
+  }
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode SymBroydenScalerUpdate(Mat B, SymBroydenScaler ldb)
+{
+  PetscFunctionBegin;
+  if (ldb->scale_type == MAT_LMVM_SYMBROYDEN_SCALE_SCALAR) PetscCall(SymBroydenScalerUpdateScalar(B, ldb));
+  else if (ldb->scale_type == MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL) PetscCall(SymBroydenScalerUpdateDiagonal(B, ldb));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatSetFromOptions_DiagBrdn(Mat B, PetscOptionItems *PetscOptionsObject)
+{
+  Mat_LMVM        *lmvm = (Mat_LMVM *)B->data;
+  SymBroydenScaler ldb  = (SymBroydenScaler)lmvm->ctx;
+
+  PetscFunctionBegin;
+  PetscCall(MatSetFromOptions_LMVM(B, PetscOptionsObject));
+  PetscCall(SymBroydenScalerSetFromOptions(B, ldb, PetscOptionsObject));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*------------------------------------------------------------*/
 
-static PetscErrorCode MatReset_DiagBrdn(Mat B, PetscBool destructive)
+PETSC_INTERN PetscErrorCode SymBroydenScalerReset(Mat B, SymBroydenScaler ldb, PetscBool destructive)
 {
-  Mat_LMVM     *lmvm = (Mat_LMVM *)B->data;
-  Mat_DiagBrdn *ldb  = (Mat_DiagBrdn *)lmvm->ctx;
-
+  Vec invD;
   PetscFunctionBegin;
-  PetscCall(VecSet(ldb->invD, ldb->delta));
+  if (B) {
+    PetscCall(MatLMVMGetJ0InvDiag(B, &invD));
+    PetscCall(VecSet(invD, ldb->delta));
+    PetscCall(MatLMVMRestoreJ0InvDiag(B, &invD));
+  }
   if (destructive && ldb->allocated) {
     PetscCall(PetscFree3(ldb->yty, ldb->yts, ldb->sts));
     PetscCall(VecDestroy(&ldb->invDnew));
-    PetscCall(VecDestroy(&ldb->invD));
     PetscCall(VecDestroy(&ldb->BFGS));
     PetscCall(VecDestroy(&ldb->DFP));
     PetscCall(VecDestroy(&ldb->U));
@@ -402,23 +593,29 @@ static PetscErrorCode MatReset_DiagBrdn(Mat B, PetscBool destructive)
     PetscCall(VecDestroy(&ldb->W));
     ldb->allocated = PETSC_FALSE;
   }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatReset_DiagBrdn(Mat B, PetscBool destructive)
+{
+  Mat_LMVM        *lmvm = (Mat_LMVM *)B->data;
+  SymBroydenScaler ldb  = (SymBroydenScaler)lmvm->ctx;
+
+  PetscFunctionBegin;
+  PetscCall(SymBroydenScalerReset(B, ldb, destructive));
   PetscCall(MatReset_LMVM(B, destructive));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*------------------------------------------------------------*/
 
-static PetscErrorCode MatAllocate_DiagBrdn(Mat B, Vec X, Vec F)
+PETSC_INTERN PetscErrorCode SymBroydenScalerAllocate(Mat B, SymBroydenScaler ldb)
 {
-  Mat_LMVM     *lmvm = (Mat_LMVM *)B->data;
-  Mat_DiagBrdn *ldb  = (Mat_DiagBrdn *)lmvm->ctx;
-
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
   PetscFunctionBegin;
-  PetscCall(MatAllocate_LMVM(B, X, F));
   if (!ldb->allocated) {
     PetscCall(PetscMalloc3(lmvm->m, &ldb->yty, lmvm->m, &ldb->yts, lmvm->m, &ldb->sts));
     PetscCall(VecDuplicate(lmvm->Xprev, &ldb->invDnew));
-    PetscCall(VecDuplicate(lmvm->Xprev, &ldb->invD));
     PetscCall(VecDuplicate(lmvm->Xprev, &ldb->BFGS));
     PetscCall(VecDuplicate(lmvm->Xprev, &ldb->DFP));
     PetscCall(VecDuplicate(lmvm->Xprev, &ldb->U));
@@ -429,26 +626,46 @@ static PetscErrorCode MatAllocate_DiagBrdn(Mat B, Vec X, Vec F)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode MatAllocate_DiagBrdn_Internal(Mat B)
+{
+  Mat_LMVM        *lmvm = (Mat_LMVM *)B->data;
+  SymBroydenScaler ldb  = (SymBroydenScaler)lmvm->ctx;
+  Vec              invD;
+
+  PetscFunctionBegin;
+  PetscCall(SymBroydenScalerAllocate(B, ldb));
+
+  PetscCall(MatLMVMGetJ0InvDiag(B, &invD));
+  PetscCall(VecSet(invD, ldb->delta));
+  PetscCall(MatLMVMRestoreJ0InvDiag(B, &invD));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatAllocate_DiagBrdn(Mat B, Vec X, Vec F)
+{
+  PetscFunctionBegin;
+  PetscCall(MatAllocate_LMVM(B, X, F));
+  PetscCall(MatAllocate_DiagBrdn_Internal(B));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /*------------------------------------------------------------*/
+
+PETSC_INTERN PetscErrorCode SymBroydenScalerDestroy(SymBroydenScaler *ldb)
+{
+  PetscFunctionBegin;
+  PetscCall(SymBroydenScalerReset(NULL, *ldb, PETSC_TRUE));
+  PetscCall(PetscFree(*ldb));
+  *ldb = NULL;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 static PetscErrorCode MatDestroy_DiagBrdn(Mat B)
 {
-  Mat_LMVM     *lmvm = (Mat_LMVM *)B->data;
-  Mat_DiagBrdn *ldb  = (Mat_DiagBrdn *)lmvm->ctx;
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
 
   PetscFunctionBegin;
-  if (ldb->allocated) {
-    PetscCall(PetscFree3(ldb->yty, ldb->yts, ldb->sts));
-    PetscCall(VecDestroy(&ldb->invDnew));
-    PetscCall(VecDestroy(&ldb->invD));
-    PetscCall(VecDestroy(&ldb->BFGS));
-    PetscCall(VecDestroy(&ldb->DFP));
-    PetscCall(VecDestroy(&ldb->U));
-    PetscCall(VecDestroy(&ldb->V));
-    PetscCall(VecDestroy(&ldb->W));
-    ldb->allocated = PETSC_FALSE;
-  }
-  PetscCall(PetscFree(lmvm->ctx));
+  PetscCall(SymBroydenScalerDestroy((SymBroydenScaler *)&lmvm->ctx));
   PetscCall(MatDestroy_LMVM(B));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -457,31 +674,37 @@ static PetscErrorCode MatDestroy_DiagBrdn(Mat B)
 
 static PetscErrorCode MatSetUp_DiagBrdn(Mat B)
 {
-  Mat_LMVM     *lmvm = (Mat_LMVM *)B->data;
-  Mat_DiagBrdn *ldb  = (Mat_DiagBrdn *)lmvm->ctx;
-
   PetscFunctionBegin;
   PetscCall(MatSetUp_LMVM(B));
-  if (!ldb->allocated) {
-    PetscCall(PetscMalloc3(lmvm->m, &ldb->yty, lmvm->m, &ldb->yts, lmvm->m, &ldb->sts));
-    PetscCall(VecDuplicate(lmvm->Xprev, &ldb->invDnew));
-    PetscCall(VecDuplicate(lmvm->Xprev, &ldb->invD));
-    PetscCall(VecDuplicate(lmvm->Xprev, &ldb->BFGS));
-    PetscCall(VecDuplicate(lmvm->Xprev, &ldb->DFP));
-    PetscCall(VecDuplicate(lmvm->Xprev, &ldb->U));
-    PetscCall(VecDuplicate(lmvm->Xprev, &ldb->V));
-    PetscCall(VecDuplicate(lmvm->Xprev, &ldb->W));
-    ldb->allocated = PETSC_TRUE;
-  }
+  PetscCall(MatAllocate_DiagBrdn_Internal(B));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*------------------------------------------------------------*/
 
+PETSC_INTERN PetscErrorCode SymBroydenScalerCreate(SymBroydenScaler *ldb)
+{
+  PetscFunctionBegin;
+  PetscCall(PetscNew(ldb));
+  (*ldb)->scale_type = MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL;
+  (*ldb)->theta      = 0.0;
+  (*ldb)->alpha      = 1.0;
+  (*ldb)->rho        = 1.0;
+  (*ldb)->forward    = PETSC_TRUE;
+  (*ldb)->beta       = 0.5;
+  (*ldb)->delta      = 1.0;
+  (*ldb)->delta_min  = 1e-7;
+  (*ldb)->delta_max  = 100.0;
+  (*ldb)->tol        = 1e-8;
+  (*ldb)->sigma_hist = 1;
+  (*ldb)->allocated  = PETSC_FALSE;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode MatCreate_LMVMDiagBrdn(Mat B)
 {
-  Mat_LMVM     *lmvm;
-  Mat_DiagBrdn *ldb;
+  Mat_LMVM        *lmvm;
+  SymBroydenScaler ldb;
 
   PetscFunctionBegin;
   PetscCall(MatCreate_LMVM(B));
@@ -494,27 +717,16 @@ PetscErrorCode MatCreate_LMVMDiagBrdn(Mat B)
 
   lmvm                = (Mat_LMVM *)B->data;
   lmvm->square        = PETSC_TRUE;
-  lmvm->m             = 1;
   lmvm->ops->allocate = MatAllocate_DiagBrdn;
   lmvm->ops->reset    = MatReset_DiagBrdn;
   lmvm->ops->mult     = MatMult_DiagBrdn;
   lmvm->ops->update   = MatUpdate_DiagBrdn;
   lmvm->ops->copy     = MatCopy_DiagBrdn;
 
-  PetscCall(PetscNew(&ldb));
-  lmvm->ctx       = (void *)ldb;
-  ldb->theta      = 0.0;
-  ldb->alpha      = 1.0;
-  ldb->rho        = 1.0;
-  ldb->forward    = PETSC_TRUE;
-  ldb->beta       = 0.5;
-  ldb->sigma      = 1.0;
-  ldb->delta      = 1.0;
-  ldb->delta_min  = 1e-7;
-  ldb->delta_max  = 100.0;
-  ldb->tol        = 1e-8;
-  ldb->sigma_hist = 1;
-  ldb->allocated  = PETSC_FALSE;
+  PetscCall(MatLMVMSetHistorySize(B, 1));
+
+  PetscCall(SymBroydenScalerCreate(&ldb));
+  lmvm->ctx = (void *)ldb;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -569,6 +781,7 @@ PetscErrorCode MatCreate_LMVMDiagBrdn(Mat B)
 PetscErrorCode MatCreateLMVMDiagBroyden(MPI_Comm comm, PetscInt n, PetscInt N, Mat *B)
 {
   PetscFunctionBegin;
+  PetscCall(KSPInitializePackage());
   PetscCall(MatCreate(comm, B));
   PetscCall(MatSetSizes(*B, n, n, N, N));
   PetscCall(MatSetType(*B, MATLMVMDIAGBROYDEN));
