@@ -103,7 +103,7 @@ static PetscErrorCode MatSolveTriangular(Mat_LMVM *lmvm, Mat_CDBFGS *lbfgs, Mat 
         {
           //PetscAssert(PetscDefined(BLAS)...));
           PetscBLASInt m_blas, lda_blas, one = 1;
-          PetscCall(PetscBLASIntCast(lmvm->k, &m_blas));
+          PetscCall(PetscBLASIntCast(lmvm->k+1, &m_blas));
           PetscCall(PetscBLASIntCast(lda, &lda_blas));
           PetscBLASInt ldb_blas = lda_blas;
           switch (tri_type) {
@@ -365,7 +365,7 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   PetscCall(MatSolveTriangular(lmvm, lbfgs, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork1, MAT_CDBFGS_UPPER_TRIANGULAR));
   PetscCall(MatMult(lbfgs->Yfull, lbfgs->rwork1, lbfgs->lwork1));
   PetscCall(MatCDBFGSApplyJ0Inv(H, lbfgs->lwork1, lbfgs->lwork2));
-  PetscCall(VecAXPY(dX, 1., lbfgs->lwork2));
+  PetscCall(VecAXPY(dX, -1., lbfgs->lwork2));
 
   /* Start bottom part: S(-R^-T Y^T H S^T F + R^-T(D + Y^T H Y) R^-1 S^T F) *
    * rwork2: D R^-1 S^T F, rwork3: Y^T H Y R^-1 S^T F                       */
@@ -384,13 +384,17 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   PetscCall(VecAXPY(lbfgs->rwork2, -1., lbfgs->rwork3));
   PetscCall(MatSolveTriangular(lmvm, lbfgs, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork2, MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE));
   PetscCall(MatMult(lbfgs->Sfull, lbfgs->rwork2, lbfgs->lwork1));
-  PetscCall(VecAXPY(dX, -1., lbfgs->lwork1));
+  PetscCall(VecAXPY(dX, 1., lbfgs->lwork1));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* Solves for 
  * B_0 - [B_S S | Y] [  0   |           L^-1          ] [S^T B]
  *                   [ L^-T | -L^-T (S^T B S + D) L^-1] [ Y^T ] */
+
+/* Let's try 
+ * B_0 - [B_S S | Y] [ S^T B S | L^T ] [S^T B]
+ *                   [    L    |  -D ] [ Y^T ] */
 
 static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
 {
@@ -407,6 +411,7 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
     PetscFunctionReturn(PETSC_SUCCESS); /* No updates stored yet */
   }
 
+#if 0  
   /* rwork4 = S^T B X. Using the fact that Z is still B X */
   PetscCall(MatMultTranspose(lbfgs->Sfull, Z, lbfgs->rwork4));
 
@@ -437,6 +442,61 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
 
   PetscCall(VecAXPY(Z, -1., lbfgs->lwork1));
   //TODO can't tell whether i should reorder solution vec here, or elsewhere?
+#endif
+  /* Negate the Z vector so that we can do summations and negate again at the end */
+  PetscCall(VecScale(Z, -1.0));
+
+  /* Apply Phi^T = [S^TB; Y^t] to incoming vector X */
+  /* The result is stored in two halves, (rwork1 = S^T B X) and (rwork2 = Y^T X) */
+  PetscCall(MatCDBFGSApplyJ0Fwd(B, X, lbfgs->lwork1));
+  PetscCall(MatMultTranspose(lbfgs->Sfull, lbfgs->lwork1, lbfgs->rwork1));
+  PetscCall(MatMultTranspose(lbfgs->Yfull, X, lbfgs->rwork2));
+
+  /* Start with the upper half of M */
+  PetscCall(MatMult(lbfgs->Sfull, lbfgs->rwork1, lbfgs->lwork1));
+  PetscCall(MatCDBFGSApplyJ0Fwd(B, lbfgs->lwork1, lbfgs->lwork2));
+  PetscCall(MatMultTranspose(lbfgs->Sfull, lbfgs->lwork2, lbfgs->rwork3));
+
+  PetscInt lda;
+  PetscScalar *x_array;
+  PetscBLASInt m_blas = B->rmap->N, lda_blas, one = 1;
+  PetscCall(PetscBLASIntCast(lmvm->k+1, &m_blas));
+  PetscCall(MatDenseGetLDA(lbfgs->StYfull, &lda));
+  PetscCall(PetscBLASIntCast(lda, &lda_blas));
+  const PetscScalar *r_array;
+  PetscMemType memtype_r, memtype_x;
+  PetscCall(VecGetArrayWriteAndMemType(lbfgs->rwork2, &x_array, &memtype_x));
+  PetscCall(MatDenseGetArrayReadAndMemType(lbfgs->StYfull, &r_array, &memtype_r));
+  PetscCallBLAS("BLAStrmv", BLAStrmv_("Lower", "Transpose", "NotUnitTriangular", &m_blas, r_array, &lda_blas, x_array, &one));
+  PetscCall(MatDenseRestoreArrayReadAndMemType(lbfgs->StYfull, &r_array));
+  PetscCall(VecRestoreArrayWriteAndMemType(lbfgs->rwork2, &x_array));
+  PetscCall(VecAXPY(lbfgs->rwork3, 1., lbfgs->rwork2));
+
+  PetscCall(MatMult(lbfgs->Sfull, lbfgs->rwork3, lbfgs->lwork1));
+  PetscCall(MatCDBFGSApplyJ0Fwd(B, lbfgs->lwork1, lbfgs->lwork2));
+  PetscCall(VecAXPY(Z, 1.0, lbfgs->lwork2));
+
+  /* Now bottom half of M */
+  PetscCall(VecDuplicate(lbfgs->rwork1, &lbfgs->diag_vec));
+  PetscCall(MatGetDiagonal(lbfgs->StYfull, lbfgs->diag_vec));
+  PetscCall(VecPointwiseMult(lbfgs->rwork4, lbfgs->diag_vec, lbfgs->rwork2));
+  PetscCall(VecDestroy(&lbfgs->diag_vec));
+  PetscCall(VecScale(lbfgs->rwork4, -1.0));
+
+  PetscCall(VecGetArrayWriteAndMemType(lbfgs->rwork1, &x_array, &memtype_x));
+  PetscCall(MatDenseGetArrayReadAndMemType(lbfgs->StYfull, &r_array, &memtype_r));
+  PetscCallBLAS("BLAStrmv", BLAStrmv_("Lower", "Normal", "NotUnitTriangular", &m_blas, r_array, &lda_blas, x_array, &one));
+  PetscCall(MatDenseRestoreArrayReadAndMemType(lbfgs->StYfull, &r_array));
+  PetscCall(VecRestoreArrayWriteAndMemType(lbfgs->rwork1, &x_array));
+
+  PetscCall(VecAXPY(lbfgs->rwork4, 1., lbfgs->rwork1));
+
+  PetscCall(MatMultAdd(lbfgs->Yfull, lbfgs->rwork4, Z, Z));
+
+  /* Negate the output vector again for final result */
+  PetscCall(VecScale(Z, -1.0));
+
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
