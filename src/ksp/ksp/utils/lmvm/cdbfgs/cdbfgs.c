@@ -411,7 +411,6 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
     PetscFunctionReturn(PETSC_SUCCESS); /* No updates stored yet */
   }
 
-#if 0  
   /* rwork4 = S^T B X. Using the fact that Z is still B X */
   PetscCall(MatMultTranspose(lbfgs->Sfull, Z, lbfgs->rwork4));
 
@@ -437,12 +436,14 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   PetscCall(VecDestroy(&lbfgs->diag_vec));
 
   PetscCall(VecAXPY(lbfgs->rwork3, 1., lbfgs->rwork2));
-  PetscCall(MatSolveTriangular(lmvm, lbfgs, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork3, MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE));
-  PetscCall(MatMult(lbfgs->Yfull, lbfgs->rwork3, lbfgs->lwork1));
+  PetscCall(VecAXPY(lbfgs->rwork4, -1., lbfgs->rwork3));
+  PetscCall(MatSolveTriangular(lmvm, lbfgs, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork4, MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE));
+  PetscCall(MatMult(lbfgs->Yfull, lbfgs->rwork4, lbfgs->lwork1));
 
   PetscCall(VecAXPY(Z, -1., lbfgs->lwork1));
-  //TODO can't tell whether i should reorder solution vec here, or elsewhere?
-#endif
+
+//Variant 2. Technically this is DFP, not BFGS.... But this avoids TRSM, but instead does TRMV
+#if 0  
   /* Negate the Z vector so that we can do summations and negate again at the end */
   PetscCall(VecScale(Z, -1.0));
 
@@ -495,7 +496,7 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
 
   /* Negate the output vector again for final result */
   PetscCall(VecScale(Z, -1.0));
-
+#endif
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
