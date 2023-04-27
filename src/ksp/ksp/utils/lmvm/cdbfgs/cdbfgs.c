@@ -512,7 +512,7 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
   const PetscScalar *xx, *ff, *array_read;
   PetscScalar       curvature, ststmp, *buffer, *array_write;
   PetscReal         curvtol;
-  PetscInt          n, low, high, i;
+  PetscInt          N, n, low, high, i;
   PetscMemType      memtype_sy;
   MPI_Comm          comm = PetscObjectComm((PetscObject)B);
 
@@ -536,6 +536,7 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       /* Update is good, accept it */
       lbfgs->watchdog = 0;
       PetscCall(VecGetLocalSize(lmvm->Xprev, &n));
+      PetscCall(VecGetSize(lmvm->Xprev, &N));
       PetscCall(VecGetOwnershipRange(lmvm->Xprev, &low, &high));
       PetscCall(PetscMalloc2(n, &lbfgs->idx_rows, 1, &lbfgs->idx_cols));
       for (i=low; i<high; i++) {
@@ -548,24 +549,24 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
           /* S Matrix is full. Shift matrix via memcpy */
           PetscCall(MatDenseGetArrayReadAndMemType(lbfgs->Sfull, &array_read, &memtype_sy));
           // Assert(lda == m)
-          PetscCall(PetscMalloc1(lmvm->m*lmvm->m - lmvm->m - 1, &buffer));
-          PetscCall(PetscMemcpy(buffer, &array_read[lmvm->m+1], (lmvm->m*lmvm->m - lmvm->m - 1)*sizeof(memtype_sy)));
+          PetscCall(PetscMalloc1((lmvm->m - 1)*N, &buffer));
+          PetscCall(PetscMemcpy(buffer, &array_read[N], (lmvm->m - 1)*N*sizeof(memtype_sy)));
           PetscCall(MatDenseRestoreArrayReadAndMemType(lbfgs->Sfull, &array_read));
   
           PetscCall(MatDenseGetArrayWriteAndMemType(lbfgs->Sfull, &array_write, &memtype_sy));
-          PetscCall(PetscMemcpy(array_write, &buffer, (lmvm->m*lmvm->m - lmvm->m - 1)*sizeof(memtype_sy)));
+          PetscCall(PetscMemcpy(array_write, &buffer[0], (lmvm->m - 1)*N*sizeof(memtype_sy)));
           PetscCall(MatDenseRestoreArrayWriteAndMemType(lbfgs->Sfull, &array_write));
           PetscCall(PetscFree(buffer));
 
           /* Y Matrix is full. Shift matrix via memcpy */
           PetscCall(MatDenseGetArrayReadAndMemType(lbfgs->Yfull, &array_read, &memtype_sy));
           // Assert(lda == m)
-          PetscCall(PetscMalloc1(lmvm->m*lmvm->m - lmvm->m - 1, &buffer));
-          PetscCall(PetscMemcpy(buffer, &array_read[lmvm->m+1], (lmvm->m*lmvm->m - lmvm->m - 1)*sizeof(memtype_sy)));
+          PetscCall(PetscMalloc1((lmvm->m - 1)*N, &buffer));
+          PetscCall(PetscMemcpy(buffer, &array_read[N], (lmvm->m - 1)*N*sizeof(memtype_sy)));
           PetscCall(MatDenseRestoreArrayReadAndMemType(lbfgs->Yfull, &array_read));
   
           PetscCall(MatDenseGetArrayWriteAndMemType(lbfgs->Yfull, &array_write, &memtype_sy));
-          PetscCall(PetscMemcpy(array_write, &buffer, (lmvm->m*lmvm->m - lmvm->m - 1)*sizeof(memtype_sy)));
+          PetscCall(PetscMemcpy(array_write, &buffer[0], (lmvm->m - 1)*N*sizeof(memtype_sy)));
           PetscCall(MatDenseRestoreArrayWriteAndMemType(lbfgs->Yfull, &array_write));
           PetscCall(PetscFree(buffer));
         } else {
