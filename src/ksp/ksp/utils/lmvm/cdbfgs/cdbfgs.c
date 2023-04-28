@@ -538,6 +538,8 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
           PetscCall(PetscMemcpy(array_write, &buffer[0], (lmvm->m - 1)*N*sizeof(memtype_sy)));
           PetscCall(MatDenseRestoreArrayWriteAndMemType(lbfgs->Yfull, &array_write));
           PetscCall(PetscFree(buffer));
+          
+          // Assume that we update the Q matrix so that it follows the same rules as the Y matrix
         } else {
           lmvm->k = lmvm->k + 1;
         }
@@ -559,6 +561,34 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       }
 
       /* First update the S^T matrix */
+      Vec s_in_S;
+      PetscCall(MatDenseGetColumnVecWrite(lbfgs->Sfull, lmvm->k, &s_in_S));
+      PetscCall(VecCopy(lmvm->Xprev, s_in_S));
+      PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->Sfull, lmvm->k, &s_in_S));
+
+      Vec y_in_Y;
+      PetscCall(MatDenseGetColumnVecWrite(lbfgs->Yfull, lmvm->k, &y_in_Y));
+      PetscCall(VecCopy(lmvm->Fprev, y_in_Y));
+      PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->Yfull, lmvm->k, &y_in_Y));
+
+      // Vec q_in_Q;
+      // PetscCall(MatDenseGetColumnVecWrite(lbfgs->Q, lmvm->k, &q_in_Q));
+      // PetscCall(MatCDBFGSApplyJ0Inv(B, lmvm->Fprev, q_in_Q));
+      // PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->Q, lmvm->k, &q_in_Q));
+
+      // Illustration of updating C, assuming REORDER
+      PetscScalar *C_array;
+      PetscCall(MatDenseGetArray(lbfgs->C, &C_array));
+      PetscScalar *C_array_tmp;
+      PetscCall(PetscMalloc1(lmvm->m * lmvm->m, &C_array_tmp));
+      // Double copy
+      PetscCall(PetscArraycpy(C_array_tmp, &C_array[lmvm->m + 1], (lmvm->k-1)*lmvm->m - 1)); // C_array[1,1], 0-based indexing
+      PetscCall(PetscArraycpy(C_array, &C_array_tmp, (lmvm->k-1)*lmvm->m - 1)); // C_array[1,1], 0-based indexing
+      // Now C_array[0:k-1,0:k-1] is correct, need to insert C_array[:,k] and C_array[k,:]
+      // Those are either the latest Y[:,0:k-1]' * Q[:,k] or Q[:,0:k-1]' * Y[:,k] (equivalent)
+      PetscCall(PetscFree(C_array_tmp));
+      PetscCall(MatRestoreGetArray(lbfgs->C, &C_array));
+
       PetscCall(VecGetArrayRead(lmvm->Xprev, &xx));
       PetscCall(MatSetValues(lbfgs->Sfull, n, lbfgs->idx_rows, 1, lbfgs->idx_cols, xx, INSERT_VALUES));
       PetscCall(MatAssemblyBegin(lbfgs->Sfull, MAT_FINAL_ASSEMBLY));
