@@ -1,3 +1,4 @@
+#include "petscdm.h"
 #define PETSCDM_DLL
 #include <petsc/private/dmnetworkimpl.h> /*I   "petscdmnetwork.h"   I*/
 #include <petsc/private/vecimpl.h>
@@ -398,6 +399,7 @@ PetscErrorCode DMClone_Network(DM dm, DM *newdm)
 PetscErrorCode DMCreateCoordinateDM_Network(DM dm, DM *cdm)
 {
   DM_Network *newnetwork = NULL;
+  DM          plex, cplex;
   PetscInt    Nf;
   const char *prefix;
 
@@ -409,6 +411,9 @@ PetscErrorCode DMCreateCoordinateDM_Network(DM dm, DM *cdm)
   PetscCall(PetscObjectGetOptionsPrefix((PetscObject)dm, &prefix));
   PetscCall(PetscObjectSetOptionsPrefix((PetscObject)*cdm, prefix));
   PetscCall(PetscObjectAppendOptionsPrefix((PetscObject)*cdm, "cdm_"));
+  PetscCall(DMNetworkGetPlex(dm, &plex));
+  PetscCall(DMNetworkGetPlex(*cdm, &cplex));
+  PetscCall(DMSetCoordinateDM(plex, cplex));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

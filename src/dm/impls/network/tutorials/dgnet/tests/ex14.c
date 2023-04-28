@@ -10,7 +10,6 @@ Just Runs an Simulation with the specified Setup. \n\n";
 #include <petscriemannsolver.h>
 #include "../physics.h"
 
-
 PetscErrorCode TSDGNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
 {
   DGNetworkMonitor monitor;
@@ -69,22 +68,20 @@ static PetscErrorCode TrafficDistribution(NetRP rp, PetscInt indeg, PetscInt out
 
   PetscFunctionBeginUser;
   PetscCall(MatDenseGetArray(distribution, &mat));
-  if(outdeg ==  2 && indeg == 1) {
-      mat[0] = 0.5; 
-      mat[1] = 0.5; 
-  } else if( outdeg == 1) {
-      for(i=0; i<indeg; i++) {
-        mat[i] = 1.0; 
+  if (outdeg == 2 && indeg == 1) {
+    mat[0] = 0.5;
+    mat[1] = 0.5;
+  } else if (outdeg == 1) {
+    for (i = 0; i < indeg; i++) { mat[i] = 1.0; }
+  } else {
+    /* equal distribution */
+    for (j = 0; j < indeg; j++) {
+      for (i = 0; i < outdeg; i++) {
+        val = PetscPowRealInt(0.5, i + 1);
+        if (i == outdeg - 2) val += PetscPowRealInt(0.5, outdeg);
+        mat[j * outdeg + i] = val;
       }
-  } else{
-  /* equal distribution */
-  for (j = 0; j < indeg; j++) {
-    for (i = 0; i < outdeg; i++) {
-      val = PetscPowRealInt(0.5, i + 1);
-      if (i == outdeg - 2) val += PetscPowRealInt(0.5, outdeg);
-      mat[j * outdeg + i] = val;
     }
-  }
   }
   PetscCall(MatDenseRestoreArray(distribution, &mat));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -97,22 +94,21 @@ static PetscErrorCode TrafficPriority(NetRP rp, PetscInt indeg, PetscInt outdeg,
 
   PetscFunctionBeginUser;
   PetscCall(VecGetArray(priority, &p));
-  if(outdeg == 1 && indeg == 2) {
+  if (outdeg == 1 && indeg == 2) {
     p[0] = 4;
-    p[1] =1; 
+    p[1] = 1;
   } else {
-  for (i = 0; i < indeg; i++) { p[i] = i + 1; }
-  PetscCall(VecRestoreArray(priority, &p));
+    for (i = 0; i < indeg; i++) { p[i] = i + 1; }
+    PetscCall(VecRestoreArray(priority, &p));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-
 static PetscErrorCode DGNetworkAssignNetRS_TrafficCustom(DGNetwork dgnet)
 {
-  PetscInt v, vStart, vEnd, vdeg, indeg, outdeg,index;
-  NetRP    netrpbdry, netrpcouple, netrpcouple_priority,netrpconstant1,netrpconstant2;
-  PetscScalar *uconstant; 
+  PetscInt     v, vStart, vEnd, vdeg, indeg, outdeg, index;
+  NetRP        netrpbdry, netrpcouple, netrpcouple_priority, netrpconstant1, netrpconstant2;
+  PetscScalar *uconstant;
 
   PetscFunctionBegin;
   PetscCall(DMNetworkGetVertexRange(dgnet->network, &vStart, &vEnd));
@@ -134,12 +130,12 @@ static PetscErrorCode DGNetworkAssignNetRS_TrafficCustom(DGNetwork dgnet)
   PetscCall(NetRPDuplicate(netrpcouple, &netrpconstant1));
   PetscCall(NetRPSetType(netrpconstant1, NETRPCONSTANT));
   PetscCall(PetscMalloc1(1, &uconstant));
-  uconstant[0] = 0.25; 
-  PetscCall(NetRPConstantSetData(netrpconstant1,uconstant));
+  uconstant[0] = 0.25;
+  PetscCall(NetRPConstantSetData(netrpconstant1, uconstant));
   PetscCall(NetRPDuplicate(netrpconstant1, &netrpconstant2));
-  PetscCall(NetRPSetType(netrpconstant2, NETRPCONSTANT));  
-  uconstant[0] = 0.4; 
-  PetscCall(NetRPConstantSetData(netrpconstant2,uconstant));
+  PetscCall(NetRPSetType(netrpconstant2, NETRPCONSTANT));
+  uconstant[0] = 0.4;
+  PetscCall(NetRPConstantSetData(netrpconstant2, uconstant));
   PetscCall(PetscFree(uconstant));
 
   PetscCall(NetRSCreate(PETSC_COMM_WORLD, &dgnet->netrs));
@@ -154,10 +150,10 @@ static PetscErrorCode DGNetworkAssignNetRS_TrafficCustom(DGNetwork dgnet)
       type dispatching depending on number of edges
     */
     if (vdeg == 1) {
-      PetscCall(DMNetworkGetGlobalVertexIndex(dgnet->network, v,&index));
-      if(index == 4) {
+      PetscCall(DMNetworkGetGlobalVertexIndex(dgnet->network, v, &index));
+      if (index == 4) {
         PetscCall(NetRSAddNetRPatVertex(dgnet->netrs, v, netrpconstant1));
-      } else if(index == 6) {
+      } else if (index == 6) {
         PetscCall(NetRSAddNetRPatVertex(dgnet->netrs, v, netrpconstant2));
       } else {
         PetscCall(NetRSAddNetRPatVertex(dgnet->netrs, v, netrpbdry));
