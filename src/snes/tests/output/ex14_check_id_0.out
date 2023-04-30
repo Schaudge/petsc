@@ -1,0 +1,28 @@
+    Residual norms for patch_ solve.
+    0 KSP Residual norm 1.581138830084e+00 
+    1 KSP Residual norm 3.633142126689e-16 
+  Linear patch_ solve converged due to CONVERGED_RTOL iterations 1
+    Residual norms for patch_ solve.
+    0 KSP Residual norm 1.581138830084e+00 
+    1 KSP Residual norm 3.633142126689e-16 
+  Linear patch_ solve converged due to CONVERGED_RTOL iterations 1
+    Residual norms for patch_ solve.
+    0 KSP Residual norm 1.581138830084e+00 
+    1 KSP Residual norm 3.963874852440e-16 
+  Linear patch_ solve converged due to CONVERGED_RTOL iterations 1
+    Residual norms for patch_ solve.
+    0 KSP Residual norm 1.581138830084e+00 
+    1 KSP Residual norm 3.633142126689e-16 
+  Linear patch_ solve converged due to CONVERGED_RTOL iterations 1
+    Residual norms for patch_ solve.
+    0 KSP Residual norm 1.581138830084e+00 
+    1 KSP Residual norm 3.963874852440e-16 
+  Linear patch_ solve converged due to CONVERGED_RTOL iterations 1
+    Residual norms for patch_ solve.
+    0 KSP Residual norm 1.581138830084e+00 
+    1 KSP Residual norm 3.963874852440e-16 
+  Linear patch_ solve converged due to CONVERGED_RTOL iterations 1
+Coarse L_2 Error: 0.912871
+Refined L_2 Error: 0.198266
+Reduced L_2 Error: 0.912871
+  ||Ph - P||_F/||P||_F = 2.43238e-16, ||Ph - P||_F = 3.84593e-16
