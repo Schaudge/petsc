@@ -389,7 +389,8 @@ static PetscErrorCode PatchSolve(DM dm, DM patch, PetscInt c, DM rdm, DM rpatch,
   PetscFunctionBegin;
   PetscCall(SetupPatchProblem(patch, user));
   PetscCall(SetupPatchProblem(rpatch, user));
-  { // Check that the patch contains cell c
+  // Check that the patch contains cell c
+  if (PetscDefined(USE_DEBUG)) {
     PetscInt n;
 
     PetscCall(DMPlexGetSubpointIS(patch, &subpIS));
@@ -581,7 +582,8 @@ static PetscErrorCode PatchSolve(DM dm, DM patch, PetscInt c, DM rdm, DM rpatch,
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-// u is the KSP solution
+// Solve using SNES as a check for the pure KSP solution
+//   u is the KSP solution
 static PetscErrorCode SolveSystem_SNES(DM dm, Vec u)
 {
   SNES      snes;
@@ -639,7 +641,23 @@ static PetscErrorCode ComputeProlongator(DM dm, DM rdm, Mat P, AppCtx *user)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode SolveSystem(DM dm, DM reddm, Mat P, const char *name, const char *prefix, Vec u)
+/*
+  SolveSystem - Solve the linear system of equations specified in the DM
+
+  Input Parameters:
++ dm     - The DM for the problem
+. cdm    - An optional coarse DM for the coarse problem, or NULL
+. P      - An optional prolongator from the coarse problem to this problem, or NULL
+. name   - The problem name
+- prefix - The options prefix for the problem
+
+  Output Parameters:
+. u - The solution vector
+
+  Note:
+  If cdm and P are provided, we also solve the coarse problem defined by this projection.
+*/
+static PetscErrorCode SolveSystem(DM dm, DM cdm, Mat P, const char *name, const char *prefix, Vec u)
 {
   PetscSimplePointFunc exacts[1] = {trig_u};
   KSP                  ksp;
@@ -684,24 +702,24 @@ static PetscErrorCode SolveSystem(DM dm, DM reddm, Mat P, const char *name, cons
   PetscCall(PetscPrintf(PetscObjectComm((PetscObject)dm), "%s L_2 Error: %g\n", name, (double)err));
   // Create reduced system
   if (P) {
-    Mat Ared;
-    Vec ured, bred;
+    Mat cA;
+    Vec cu, cb;
 
-    PetscCall(DMCreateGlobalVector(reddm, &ured));
-    PetscCall(PetscObjectSetName((PetscObject)ured, "Reduced Solution"));
-    PetscCall(DMCreateGlobalVector(reddm, &bred));
-    PetscCall(PetscObjectSetName((PetscObject)bred, "Reduced Rhs"));
-    PetscCall(MatMultTranspose(P, b, bred));
-    PetscCall(MatPtAP(A, P, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &Ared));
-    PetscCall(MatViewFromOptions(Ared, NULL, "-reduced_mat_view"));
+    PetscCall(DMCreateGlobalVector(cdm, &cu));
+    PetscCall(PetscObjectSetName((PetscObject)cu, "Reduced Solution"));
+    PetscCall(DMCreateGlobalVector(cdm, &cb));
+    PetscCall(PetscObjectSetName((PetscObject)cb, "Reduced Rhs"));
+    PetscCall(MatMultTranspose(P, b, cb));
+    PetscCall(MatPtAP(A, P, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &cA));
+    PetscCall(MatViewFromOptions(cA, NULL, "-reduced_mat_view"));
     PetscCall(KSPReset(ksp));
-    PetscCall(KSPSetOperators(ksp, Ared, Ared));
-    PetscCall(KSPSolve(ksp, bred, ured));
-    PetscCall(DMComputeL2Diff(reddm, 0.0, exacts, NULL, ured, &err));
+    PetscCall(KSPSetOperators(ksp, cA, cA));
+    PetscCall(KSPSolve(ksp, cb, cu));
+    PetscCall(DMComputeL2Diff(cdm, 0.0, exacts, NULL, cu, &err));
     PetscCall(PetscPrintf(PetscObjectComm((PetscObject)dm), "Reduced L_2 Error: %g\n", (double)err));
-    PetscCall(MatDestroy(&Ared));
-    PetscCall(VecDestroy(&ured));
-    PetscCall(VecDestroy(&bred));
+    PetscCall(MatDestroy(&cA));
+    PetscCall(VecDestroy(&cb));
+    PetscCall(VecDestroy(&cu));
   }
   PetscCall(KSPDestroy(&ksp));
   PetscCall(MatDestroy(&A));
@@ -709,13 +727,7 @@ static PetscErrorCode SolveSystem(DM dm, DM reddm, Mat P, const char *name, cons
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/*
-  SolveSystems - Solve several systems from the associates problem
-
-  1) Solve the original coarse system
-
-  2)
-*/
+// Solve coarse, refined, and reduced systems
 static PetscErrorCode SolveSystems(DM dm, DM rdm, Mat P)
 {
   Vec u;
