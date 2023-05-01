@@ -1740,4 +1740,8 @@ PETSC_EXTERN PetscLogEvent MAT_H2Opus_Compress;
 PETSC_EXTERN PetscLogEvent MAT_H2Opus_Orthog;
 PETSC_EXTERN PetscLogEvent MAT_H2Opus_LR;
 PETSC_EXTERN PetscLogEvent MAT_CUDACopyToGPU;
+PETSC_EXTERN PetscLogEvent MAT_DenseColumnsGEMVH;
+PETSC_EXTERN PetscLogEvent MAT_DenseColumnsGEMV;
+PETSC_EXTERN PetscLogEvent MAT_DenseColumnsGEMMH;
+PETSC_EXTERN PetscLogEvent MAT_DenseColumnsGEMM;
 #endif
