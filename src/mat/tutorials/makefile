@@ -17,3 +17,4 @@ ifneq ($(KOKKOS_LIB),)
 endif
 ex18 : ${ex18objs}
 
+FFLAGS += -lnetcdff
