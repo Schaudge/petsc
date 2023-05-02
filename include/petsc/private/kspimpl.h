@@ -76,6 +76,15 @@ typedef enum {
   KSP_SETUP_NEWRHS
 } KSPSetUpStage;
 
+typedef enum {
+  KSP_GUESS_ZERO_FALSE = 0,
+  KSP_GUESS_ZERO_TRUE = 1,
+  KSP_GUESS_ZERO_TRUE_DONT_ZERO = 2,
+} KSPGuessZero;
+
+static KSPGuessZero PETSC_UNUSED KSPGuessZeroFromBool(PetscBool b) {return b == PETSC_FALSE ? KSP_GUESS_ZERO_FALSE : KSP_GUESS_ZERO_TRUE;}
+static PetscBool PETSC_UNUSED KSPGuessZeroToBool(KSPGuessZero g) {return g == KSP_GUESS_ZERO_FALSE ? PETSC_FALSE : PETSC_TRUE;}
+
 /*
    Defines the KSP data structure.
 */
@@ -87,8 +96,8 @@ struct _p_KSP {
   /*------------------------- User parameters--------------------------*/
   PetscInt  max_it; /* maximum number of iterations */
   KSPGuess  guess;
-  PetscBool guess_zero,                                  /* flag for whether initial guess is 0 */
-    calc_sings,                                          /* calculate extreme Singular Values */
+  KSPGuessZero guess_zero;                               /* flag for whether initial guess is 0 */
+  PetscBool calc_sings,                                          /* calculate extreme Singular Values */
     calc_ritz,                                           /* calculate (harmonic) Ritz pairs */
     guess_knoll;                                         /* use initial guess of PCApply(ksp->B,b */
   PCSide    pc_side;                                     /* flag for left, right, or symmetric preconditioning */

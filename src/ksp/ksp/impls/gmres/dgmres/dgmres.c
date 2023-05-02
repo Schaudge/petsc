@@ -235,7 +235,7 @@ PetscErrorCode KSPSolve_DGMRES(KSP ksp)
 {
   PetscInt    i, its, itcount;
   KSP_DGMRES *dgmres     = (KSP_DGMRES *)ksp->data;
-  PetscBool   guess_zero = ksp->guess_zero;
+  KSPGuessZero   guess_zero = ksp->guess_zero;
 
   PetscFunctionBegin;
   PetscCheck(!ksp->calc_sings || dgmres->Rsvd, PetscObjectComm((PetscObject)ksp), PETSC_ERR_ORDER, "Must call KSPSetComputeSingularValues() before KSPSetUp() is called");
@@ -262,7 +262,7 @@ PetscErrorCode KSPSolve_DGMRES(KSP ksp)
       if (!ksp->reason) ksp->reason = KSP_DIVERGED_ITS;
       break;
     }
-    ksp->guess_zero = PETSC_FALSE; /* every future call to KSPInitialResidual() will have nonzero guess */
+    ksp->guess_zero = KSP_GUESS_ZERO_FALSE; /* every future call to KSPInitialResidual() will have nonzero guess */
   }
   ksp->guess_zero = guess_zero; /* restore if user provided nonzero initial guess */
 

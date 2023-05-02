@@ -308,7 +308,7 @@ PetscErrorCode KSPSolve_LGMRES(KSP ksp)
   PetscInt    cycle_its; /* iterations done in a call to KSPLGMRESCycle */
   PetscInt    itcount;   /* running total of iterations, incl. those in restarts */
   KSP_LGMRES *lgmres     = (KSP_LGMRES *)ksp->data;
-  PetscBool   guess_zero = ksp->guess_zero;
+  KSPGuessZero   guess_zero = ksp->guess_zero;
   PetscInt    ii; /*LGMRES_MOD variable */
 
   PetscFunctionBegin;
@@ -336,7 +336,7 @@ PetscErrorCode KSPSolve_LGMRES(KSP ksp)
       if (!ksp->reason) ksp->reason = KSP_DIVERGED_ITS;
       break;
     }
-    ksp->guess_zero = PETSC_FALSE; /* every future call to KSPInitialResidual() will have nonzero guess */
+    ksp->guess_zero = KSP_GUESS_ZERO_FALSE; /* every future call to KSPInitialResidual() will have nonzero guess */
   }
   ksp->guess_zero = guess_zero; /* restore if user provided nonzero initial guess */
   PetscFunctionReturn(PETSC_SUCCESS);

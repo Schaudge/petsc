@@ -376,7 +376,8 @@ static PetscErrorCode KSPSolve_PIPELCG(KSP ksp)
   Mat            A = NULL, Pmat = NULL;
   Vec            b = NULL, x = NULL, p = NULL;
   PetscInt       max_it = ksp->max_it, l = plcg->l;
-  PetscInt       i = 0, outer_it = 0, curr_guess_zero = 0;
+  PetscBool      curr_guess_zero = PETSC_FALSE;
+  PetscInt       i = 0, outer_it = 0;
   PetscReal      lmin = plcg->lmin, lmax = plcg->lmax;
   PetscBool      diagonalscale = PETSC_FALSE;
   MPI_Comm       comm;
@@ -401,7 +402,7 @@ static PetscErrorCode KSPSolve_PIPELCG(KSP ksp)
 
   ksp->its        = 0;
   outer_it        = 0;
-  curr_guess_zero = !!ksp->guess_zero;
+  curr_guess_zero = KSPGuessZeroToBool(ksp->guess_zero);
 
   while (ksp->its < max_it) { /* OUTER LOOP (gmres-like restart to handle breakdowns) */
     /* RESTART LOOP */
@@ -426,7 +427,7 @@ static PetscErrorCode KSPSolve_PIPELCG(KSP ksp)
 
     if (ksp->reason) break; /* convergence or divergence */
     ++outer_it;
-    curr_guess_zero = 0;
+    curr_guess_zero = PETSC_FALSE;
   }
 
   if (!ksp->reason) ksp->reason = KSP_DIVERGED_ITS;

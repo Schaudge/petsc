@@ -341,7 +341,7 @@ static PetscErrorCode KSPSolve_PIPEFGMRES(KSP ksp)
 {
   PetscInt        its, itcount;
   KSP_PIPEFGMRES *pipefgmres = (KSP_PIPEFGMRES *)ksp->data;
-  PetscBool       guess_zero = ksp->guess_zero;
+  KSPGuessZero       guess_zero = ksp->guess_zero;
 
   PetscFunctionBegin;
   /* We have not checked these routines for use with complex numbers. The inner products
@@ -365,7 +365,7 @@ static PetscErrorCode KSPSolve_PIPEFGMRES(KSP ksp)
       if (!ksp->reason) ksp->reason = KSP_DIVERGED_ITS;
       break;
     }
-    ksp->guess_zero = PETSC_FALSE; /* every future call to KSPInitialResidual() will have nonzero guess */
+    ksp->guess_zero = KSP_GUESS_ZERO_FALSE; /* every future call to KSPInitialResidual() will have nonzero guess */
   }
   ksp->guess_zero = guess_zero; /* restore if user provided nonzero initial guess */
   PetscFunctionReturn(PETSC_SUCCESS);

@@ -209,7 +209,7 @@ PetscErrorCode KSPSolve_GMRES(KSP ksp)
 {
   PetscInt   its, itcount, i;
   KSP_GMRES *gmres      = (KSP_GMRES *)ksp->data;
-  PetscBool  guess_zero = ksp->guess_zero;
+  KSPGuessZero  guess_zero = ksp->guess_zero;
   PetscInt   N          = gmres->max_k + 1;
 
   PetscFunctionBegin;
@@ -243,7 +243,7 @@ PetscErrorCode KSPSolve_GMRES(KSP ksp)
       if (!ksp->reason) ksp->reason = KSP_DIVERGED_ITS;
       break;
     }
-    ksp->guess_zero = PETSC_FALSE; /* every future call to KSPInitialResidual() will have nonzero guess */
+    ksp->guess_zero = KSP_GUESS_ZERO_FALSE; /* every future call to KSPInitialResidual() will have nonzero guess */
   }
   ksp->guess_zero = guess_zero; /* restore if user provided nonzero initial guess */
   PetscFunctionReturn(PETSC_SUCCESS);

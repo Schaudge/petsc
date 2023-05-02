@@ -150,19 +150,10 @@ static PetscErrorCode MatCopy_LMVM(Mat B, Mat M, MatStructure str)
   }
 
   mctx = (Mat_LMVM *)M->data;
-  if (bctx->user_pc) {
-    PetscCall(MatLMVMSetJ0PC(M, bctx->J0pc));
-  } else if (bctx->user_ksp) {
+  if (bctx->J0ksp) {
     PetscCall(MatLMVMSetJ0KSP(M, bctx->J0ksp));
-  } else if (bctx->J0) {
-    PetscCall(MatLMVMSetJ0(M, bctx->J0));
-  } else if (bctx->user_scale) {
-    if (bctx->J0diag) {
-      PetscCall(MatLMVMSetJ0Diag(M, bctx->J0diag));
-    } else {
-      PetscCall(MatLMVMSetJ0Scale(M, bctx->J0scalar));
-    }
   }
+  PetscCall(MatLMVMSetJ0(M, bctx->J0));
   mctx->nupdates = bctx->nupdates;
   mctx->nrejects = bctx->nrejects;
   mctx->k        = bctx->k;
@@ -191,11 +182,14 @@ static PetscErrorCode MatDuplicate_LMVM(Mat B, MatDuplicateOption op, Mat *mat)
   A                = *mat;
   mctx             = (Mat_LMVM *)A->data;
   mctx->m          = bctx->m;
-  mctx->ksp_max_it = bctx->ksp_max_it;
-  mctx->ksp_rtol   = bctx->ksp_rtol;
-  mctx->ksp_atol   = bctx->ksp_atol;
+  if (bctx->J0ksp) {
+    PetscReal rtol, atol, dtol;
+    PetscInt  max_it;
+
+    PetscCall(KSPGetTolerances(bctx->J0ksp, &rtol, &atol, &dtol, &max_it));
+    PetscCall(KSPSetTolerances(mctx->J0ksp, rtol, atol, dtol, max_it));
+  }
   mctx->shift      = bctx->shift;
-  PetscCall(KSPSetTolerances(mctx->J0ksp, mctx->ksp_rtol, mctx->ksp_atol, PETSC_DEFAULT, mctx->ksp_max_it));
 
   PetscCall(MatLMVMAllocate(*mat, bctx->Xprev, bctx->Fprev));
   if (op == MAT_COPY_VALUES) PetscCall(MatCopy(B, *mat, SAME_NONZERO_PATTERN));
@@ -244,7 +238,6 @@ PetscErrorCode MatSetFromOptions_LMVM(Mat B, PetscOptionItems *PetscOptionsObjec
   PetscFunctionBegin;
   PetscOptionsHeadBegin(PetscOptionsObject, "Limited-memory Variable Metric matrix for approximating Jacobians");
   PetscCall(PetscOptionsInt("-mat_lmvm_hist_size", "number of past updates kept in memory for the approximation", "", lmvm->m, &lmvm->m, NULL));
-  PetscCall(PetscOptionsInt("-mat_lmvm_ksp_its", "(developer) fixed number of KSP iterations to take when inverting J0", "", lmvm->ksp_max_it, &lmvm->ksp_max_it, NULL));
   PetscCall(PetscOptionsReal("-mat_lmvm_eps", "(developer) machine zero definition", "", lmvm->eps, &lmvm->eps, NULL));
   PetscOptionsHeadEnd();
   PetscCall(KSPSetFromOptions(lmvm->J0ksp));
@@ -304,18 +297,11 @@ PetscErrorCode MatCreate_LMVM(Mat B)
   lmvm->nrejects = 0;
   lmvm->nresets  = 0;
 
-  lmvm->ksp_max_it = 20;
-  lmvm->ksp_rtol   = 0.0;
-  lmvm->ksp_atol   = 0.0;
-
   lmvm->shift = 0.0;
 
   lmvm->eps        = PetscPowReal(PETSC_MACHINE_EPSILON, 2.0 / 3.0);
   lmvm->allocated  = PETSC_FALSE;
   lmvm->prev_set   = PETSC_FALSE;
-  lmvm->user_scale = PETSC_FALSE;
-  lmvm->user_pc    = PETSC_FALSE;
-  lmvm->user_ksp   = PETSC_FALSE;
   lmvm->square     = PETSC_FALSE;
 
   B->ops->destroy        = MatDestroy_LMVM;
@@ -334,8 +320,7 @@ PetscErrorCode MatCreate_LMVM(Mat B)
 
   PetscCall(KSPCreate(PetscObjectComm((PetscObject)B), &lmvm->J0ksp));
   PetscCall(PetscObjectIncrementTabLevel((PetscObject)lmvm->J0ksp, (PetscObject)B, 1));
-  PetscCall(KSPSetOptionsPrefix(lmvm->J0ksp, "mat_lmvm_"));
+  PetscCall(KSPSetOptionsPrefix(lmvm->J0ksp, "lmvm_J0_"));
   PetscCall(KSPSetType(lmvm->J0ksp, KSPGMRES));
-  PetscCall(KSPSetTolerances(lmvm->J0ksp, lmvm->ksp_rtol, lmvm->ksp_atol, PETSC_DEFAULT, lmvm->ksp_max_it));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

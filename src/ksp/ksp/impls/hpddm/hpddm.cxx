@@ -259,7 +259,7 @@ static inline PetscErrorCode KSPSolve_HPDDM_Private(KSP ksp, const PetscScalar *
     } else PetscCall(PetscInfo(ksp, "Using a special \"converged\" callback, be careful, it is used in KSPHPDDM to track blocks of residuals\n"));
   }
   /* initial guess is always nonzero with recycling methods if there is a deflation subspace available */
-  if ((data->cntl[0] == HPDDM_KRYLOV_METHOD_GCRODR || data->cntl[0] == HPDDM_KRYLOV_METHOD_BGCRODR) && data->op->storage()) ksp->guess_zero = PETSC_FALSE;
+  if ((data->cntl[0] == HPDDM_KRYLOV_METHOD_GCRODR || data->cntl[0] == HPDDM_KRYLOV_METHOD_BGCRODR) && data->op->storage()) ksp->guess_zero = KSP_GUESS_ZERO_FALSE;
   ksp->its    = 0;
   ksp->reason = KSP_CONVERGED_ITERATING;
   if (data->precision > PETSC_KSPHPDDM_DEFAULT_PRECISION) { /* Krylov basis stored in higher precision than PetscScalar */

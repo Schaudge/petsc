@@ -133,7 +133,7 @@ PetscErrorCode KSPComputeShifts_GMRES(KSP ksp)
 
   PetscCall(KSPSolve(kspgmres, ksp->vec_rhs, ksp->vec_sol));
 
-  ksp->guess_zero = PETSC_FALSE;
+  ksp->guess_zero = KSP_GUESS_ZERO_FALSE;
   ksp->rnorm      = kspgmres->rnorm;
   ksp->its        = kspgmres->its;
   if (kspgmres->reason == KSP_CONVERGED_RTOL) {
@@ -179,7 +179,7 @@ static PetscErrorCode KSPComputeShifts_DGMRES(KSP ksp)
   ksp->max_it             = max_k; /* set this to have DGMRES performing only one cycle */
   ksp->ops->buildsolution = KSPBuildSolution_DGMRES;
   PetscCall(KSPSolve_DGMRES(ksp));
-  ksp->guess_zero = PETSC_FALSE;
+  ksp->guess_zero = KSP_GUESS_ZERO_FALSE;
   if (ksp->reason == KSP_CONVERGED_RTOL) {
     PetscCall(PetscLogEventEnd(KSP_AGMRESComputeShifts, ksp, 0, 0, 0));
     PetscFunctionReturn(PETSC_SUCCESS);
@@ -208,7 +208,7 @@ static PetscErrorCode KSPComputeShifts_DGMRES(KSP ksp)
 
     PetscCall(KSPSolve_DGMRES(ksp));
 
-    ksp->guess_zero = PETSC_FALSE;
+    ksp->guess_zero = KSP_GUESS_ZERO_FALSE;
     if (ksp->reason == KSP_CONVERGED_RTOL) PetscFunctionReturn(PETSC_SUCCESS);
     else ksp->reason = KSP_CONVERGED_ITERATING;
     if (agmres->neig > 0) { /* Compute the eigenvalues for the shifts) and the eigenvectors (to augment the Newton basis */
@@ -502,7 +502,7 @@ static PetscErrorCode KSPSolve_AGMRES(KSP ksp)
 {
   PetscInt    its;
   KSP_AGMRES *agmres     = (KSP_AGMRES *)ksp->data;
-  PetscBool   guess_zero = ksp->guess_zero;
+  KSPGuessZero guess_zero = ksp->guess_zero;
   PetscReal   res_old, res;
   PetscInt    test;
 
@@ -544,7 +544,7 @@ static PetscErrorCode KSPSolve_AGMRES(KSP ksp)
         PetscCall(KSPDGMRESComputeDeflationData_DGMRES(ksp, &agmres->neig));
       }
     }
-    ksp->guess_zero = PETSC_FALSE; /* every future call to KSPInitialResidual() will have nonzero guess */
+    ksp->guess_zero = KSP_GUESS_ZERO_FALSE; /* every future call to KSPInitialResidual() will have nonzero guess */
   }
   ksp->guess_zero = guess_zero; /* restore if user has provided nonzero initial guess */
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -698,7 +698,7 @@ PETSC_EXTERN PetscErrorCode KSPCreate_AGMRES(KSP ksp)
   ksp->ops->destroy                      = KSPDestroy_AGMRES;
   ksp->ops->view                         = KSPView_AGMRES;
   ksp->ops->setfromoptions               = KSPSetFromOptions_AGMRES;
-  ksp->guess_zero                        = PETSC_TRUE;
+  ksp->guess_zero                        = KSP_GUESS_ZERO_TRUE;
   ksp->ops->computeextremesingularvalues = KSPComputeExtremeSingularValues_GMRES;
   ksp->ops->computeeigenvalues           = KSPComputeEigenvalues_GMRES;
 

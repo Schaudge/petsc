@@ -43,6 +43,48 @@ PetscErrorCode MatLMVMUpdate(Mat B, Vec X, Vec F)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode MatLMVMCreateJ0(Mat B, Mat *J0)
+{
+  PetscFunctionBegin;
+  PetscCall(MatCreate(PetscObjectComm((PetscObject)B), J0));
+  PetscLayout rmap, cmap;
+  PetscCall(MatGetLayouts(B, &rmap, &cmap));
+  PetscCall(MatSetLayouts(*J0, rmap, cmap));
+  VecType vec_type;
+  PetscCall(MatGetVecType(B, &vec_type));
+  PetscCall(MatSetVecType(*J0, vec_type));
+  const char *prefix;
+  PetscCall(MatGetOptionsPrefix(B, &prefix));
+  PetscCall(MatSetOptionsPrefix(*J0, prefix));
+  PetscCall(PetscObjectAppendOptionsPrefix((PetscObject) *J0, "lmvm_J0_"));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatLMVMCreateJ0KSP(Mat B, KSP *ksp)
+{
+  PetscFunctionBegin;
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+  PetscCall(KSPCreate(PetscObjectComm((PetscObject)B), ksp));
+  PetscCall(KSPSetOperators(*ksp, lmvm->J0, lmvm->J0));
+  const char *prefix;
+  PetscCall(MatGetOptionsPrefix(B, &prefix));
+  PetscCall(KSPSetOptionsPrefix(*ksp, prefix));
+  PetscCall(PetscObjectAppendOptionsPrefix((PetscObject) *ksp, "lmvm_J0_"));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatLMVMCreateJ0KSP_ExactInverse(Mat B, KSP *ksp)
+{
+  PetscFunctionBegin;
+  PetscCall(MatLMVMCreateJ0KSP(B, ksp));
+  PetscCall(KSPSetType(*ksp, KSPPREONLY));
+  PC pc;
+  PetscCall(KSPGetPC(*ksp, &pc));
+  PetscCall(PCSetType(pc, PCMAT));
+  PetscCall(PCMatSetApplyOperation(pc, MATOP_SOLVE));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /*@
    MatLMVMClearJ0 - Removes all definitions of J0 and reverts to
    an identity matrix (scale = 1.0).
@@ -63,15 +105,19 @@ PetscErrorCode MatLMVMClearJ0(Mat B)
   PetscValidHeaderSpecific(B, MAT_CLASSID, 1);
   PetscCall(PetscObjectBaseTypeCompare((PetscObject)B, MATLMVM, &same));
   if (!same) PetscFunctionReturn(PETSC_SUCCESS);
-  lmvm->user_pc    = PETSC_FALSE;
-  lmvm->user_ksp   = PETSC_FALSE;
-  lmvm->user_scale = PETSC_FALSE;
-  lmvm->J0scalar   = 1.0;
-  PetscCall(VecDestroy(&lmvm->J0diag));
   PetscCall(MatDestroy(&lmvm->J0));
-  PetscCall(PCDestroy(&lmvm->J0pc));
+  PetscCall(KSPDestroy(&lmvm->J0ksp));
+  lmvm->shift = 0.0;
+  PetscCall(MatLMVMCreateJ0(B, &lmvm->J0));
+  if (lmvm->square) {
+    PetscCall(MatSetType(lmvm->J0, MATCONSTANTDIAGONAL));
+    PetscCall(MatZeroEntries(lmvm->J0));
+    PetscCall(MatShift(lmvm->J0, 1.0));
+    PetscCall(MatLMVMCreateJ0KSP_ExactInverse(B, &lmvm->J0ksp));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
 
 /*@
    MatLMVMSetJ0Scale - Allows the user to define a scalar value
@@ -95,9 +141,14 @@ PetscErrorCode MatLMVMSetJ0Scale(Mat B, PetscReal scale)
   PetscCall(PetscObjectBaseTypeCompare((PetscObject)B, MATLMVM, &same));
   if (!same) PetscFunctionReturn(PETSC_SUCCESS);
   PetscCheck(lmvm->square, PetscObjectComm((PetscObject)B), PETSC_ERR_SUP, "Scaling is available only for square LMVM matrices");
-  PetscCall(MatLMVMClearJ0(B));
-  lmvm->J0scalar   = scale;
-  lmvm->user_scale = PETSC_TRUE;
+  PetscBool isdiagonal;
+
+  PetscCall(PetscObjectTypeCompare((PetscObject) lmvm->J0, MATCONSTANTDIAGONAL, &isdiagonal));
+  if (!isdiagonal) {
+    PetscCall(MatLMVMClearJ0(B));
+  }
+  PetscCall(MatZeroEntries(lmvm->J0));
+  PetscCall(MatShift(lmvm->J0, scale));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -107,7 +158,7 @@ PetscErrorCode MatLMVMSetJ0Scale(Mat B, PetscReal scale)
 
    Input Parameters:
 +  B - An LMVM-type matrix
--  V - Vector that defines the diagonal of the initial Jacobian
+-  V - Vector that defines the diagonal of the initial Jacobian: values are copied, V is not referenced
 
    Level: advanced
 
@@ -128,10 +179,16 @@ PetscErrorCode MatLMVMSetJ0Diag(Mat B, Vec V)
   PetscCheck(lmvm->square, comm, PETSC_ERR_SUP, "Diagonal scaling is available only for square LMVM matrices");
   VecCheckSameSize(V, 2, lmvm->Fprev, 3);
 
+  PetscBool isvdiag;
+
+  PetscCall(PetscObjectTypeCompare((PetscObject) lmvm->J0, MATVECTORDIAGONAL, &isvdiag));
+  if (isvdiag) {
+    PetscCall(MatDiagonalSet(lmvm->J0, V, INSERT_VALUES));
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
   PetscCall(MatLMVMClearJ0(B));
-  if (!lmvm->J0diag) PetscCall(VecDuplicate(V, &lmvm->J0diag));
-  PetscCall(VecCopy(V, lmvm->J0diag));
-  lmvm->user_scale = PETSC_TRUE;
+  PetscCall(MatSetType(lmvm->J0, MATVECTORDIAGONAL));
+  PetscCall(MatDiagonalSet(lmvm->J0, V, INSERT_VALUES));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -151,9 +208,13 @@ PetscErrorCode MatLMVMSetJ0Diag(Mat B, Vec V)
 
    Input Parameters:
 +  B - An LMVM-type matrix
--  J0 - The initial Jacobian matrix
+-  J0 - The initial Jacobian matrix, will be referenced by B.
 
    Level: advanced
+   
+   Note: A KSP is created for inverting J0 with prefix "lmvm_J0_" and J0
+   is set to both operators in `KSPSetOperators()`.  If you want
+   to use a separate preconditioning matrix, use `MatLMVMSetKSP()` directly.
 
 .seealso: [](chapter_ksp), [LMVM Matrices](sec_matlmvm), `MATLMVM`, `MatLMVMSetJ0PC()`, `MatLMVMSetJ0KSP()`
 @*/
@@ -167,12 +228,12 @@ PetscErrorCode MatLMVMSetJ0(Mat B, Mat J0)
   PetscValidHeaderSpecific(J0, MAT_CLASSID, 2);
   PetscCall(PetscObjectBaseTypeCompare((PetscObject)B, MATLMVM, &same));
   if (!same) PetscFunctionReturn(PETSC_SUCCESS);
-  PetscCall(MatLMVMClearJ0(B));
-  PetscCall(MatDestroy(&lmvm->J0));
   PetscCall(PetscObjectReference((PetscObject)J0));
+  PetscCall(MatDestroy(&lmvm->J0));
   lmvm->J0 = J0;
-  PetscCall(PetscObjectBaseTypeCompare((PetscObject)lmvm->J0, MATLMVM, &same));
-  if (!same && lmvm->square) PetscCall(KSPSetOperators(lmvm->J0ksp, lmvm->J0, lmvm->J0));
+  if (lmvm->square) {
+    PetscCall(KSPSetOperators(lmvm->J0ksp, J0, J0));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -203,10 +264,17 @@ PetscErrorCode MatLMVMSetJ0PC(Mat B, PC J0pc)
   PetscCall(PetscObjectBaseTypeCompare((PetscObject)B, MATLMVM, &same));
   if (!same) PetscFunctionReturn(PETSC_SUCCESS);
   PetscCheck(lmvm->square, comm, PETSC_ERR_SUP, "Inverse J0 can be defined only for square LMVM matrices");
-  PetscCall(MatLMVMClearJ0(B));
-  PetscCall(PetscObjectReference((PetscObject)J0pc));
-  lmvm->J0pc    = J0pc;
-  lmvm->user_pc = PETSC_TRUE;
+  Mat J0;
+  PetscCall(PCGetOperators(J0pc, &J0, NULL));
+  PetscCall(PetscObjectReference((PetscObject) J0));
+  PetscCall(MatDestroy(&lmvm->J0));
+  lmvm->J0 = J0;
+  PetscCall(PetscObjectReference((PetscObject) J0pc));
+  PetscCall(KSPDestroy(&lmvm->J0ksp));
+  PetscCall(MatLMVMCreateJ0KSP(B, &lmvm->J0ksp));
+  PetscCall(KSPSetType(lmvm->J0ksp, KSPPREONLY));
+  PetscCall(KSPSetPC(lmvm->J0ksp, J0pc));
+  PetscCall(PCDestroy(&J0pc));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -237,11 +305,14 @@ PetscErrorCode MatLMVMSetJ0KSP(Mat B, KSP J0ksp)
   PetscCall(PetscObjectBaseTypeCompare((PetscObject)B, MATLMVM, &same));
   if (!same) PetscFunctionReturn(PETSC_SUCCESS);
   PetscCheck(lmvm->square, comm, PETSC_ERR_SUP, "Inverse J0 can be defined only for square LMVM matrices");
-  PetscCall(MatLMVMClearJ0(B));
-  PetscCall(KSPDestroy(&lmvm->J0ksp));
   PetscCall(PetscObjectReference((PetscObject)J0ksp));
+  PetscCall(KSPDestroy(&lmvm->J0ksp));
   lmvm->J0ksp    = J0ksp;
-  lmvm->user_ksp = PETSC_TRUE;
+  Mat J0;
+  PetscCall(KSPGetOperators(J0ksp, &J0, NULL));
+  PetscCall(PetscObjectReference((PetscObject)J0));
+  PetscCall(MatDestroy(&lmvm->J0));
+  lmvm->J0 = J0;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -294,11 +365,7 @@ PetscErrorCode MatLMVMGetJ0PC(Mat B, PC *J0pc)
   PetscValidHeaderSpecific(B, MAT_CLASSID, 1);
   PetscCall(PetscObjectBaseTypeCompare((PetscObject)B, MATLMVM, &same));
   PetscCheck(same, PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_WRONG, "Matrix must be an LMVM-type.");
-  if (lmvm->J0pc) {
-    *J0pc = lmvm->J0pc;
-  } else {
-    PetscCall(KSPGetPC(lmvm->J0ksp, J0pc));
-  }
+  PetscCall(KSPGetPC(lmvm->J0ksp, J0pc));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -348,47 +415,9 @@ PetscErrorCode MatLMVMGetJ0KSP(Mat B, KSP *J0ksp)
 PetscErrorCode MatLMVMApplyJ0Fwd(Mat B, Vec X, Vec Y)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
-  PetscBool same, hasMult;
-  MPI_Comm  comm = PetscObjectComm((PetscObject)B);
-  Mat       Amat, Pmat;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(B, MAT_CLASSID, 1);
-  PetscValidHeaderSpecific(X, VEC_CLASSID, 2);
-  PetscValidHeaderSpecific(Y, VEC_CLASSID, 3);
-  PetscCall(PetscObjectBaseTypeCompare((PetscObject)B, MATLMVM, &same));
-  PetscCheck(same, PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_WRONG, "Matrix must be an LMVM-type.");
-  PetscCheck(lmvm->allocated, comm, PETSC_ERR_ORDER, "LMVM matrix must be allocated first");
-  VecCheckMatCompatible(B, X, 2, Y, 3);
-  if (lmvm->user_pc || lmvm->user_ksp || lmvm->J0) {
-    /* User may have defined a PC or KSP for J0^{-1} so let's try to use its operators. */
-    if (lmvm->user_pc) {
-      PetscCall(PCGetOperators(lmvm->J0pc, &Amat, &Pmat));
-    } else if (lmvm->user_ksp) {
-      PetscCall(KSPGetOperators(lmvm->J0ksp, &Amat, &Pmat));
-    } else {
-      Amat = lmvm->J0;
-    }
-    PetscCall(MatHasOperation(Amat, MATOP_MULT, &hasMult));
-    if (hasMult) {
-      /* product is available, use it */
-      PetscCall(MatMult(Amat, X, Y));
-    } else {
-      /* there's no product, so treat J0 as identity */
-      PetscCall(VecCopy(X, Y));
-    }
-  } else if (lmvm->user_scale) {
-    if (lmvm->J0diag) {
-      /* User has defined a diagonal vector for J0 */
-      PetscCall(VecPointwiseMult(X, lmvm->J0diag, Y));
-    } else {
-      /* User has defined a scalar value for J0 */
-      PetscCall(VecAXPBY(Y, lmvm->J0scalar, 0.0, X));
-    }
-  } else {
-    /* There is no J0 representation so just apply an identity matrix */
-    PetscCall(VecCopy(X, Y));
-  }
+  PetscCall(MatMult(lmvm->J0, X, Y));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -415,42 +444,9 @@ PetscErrorCode MatLMVMApplyJ0Fwd(Mat B, Vec X, Vec Y)
 PetscErrorCode MatLMVMApplyJ0Inv(Mat B, Vec X, Vec Y)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
-  PetscBool same, hasSolve;
-  MPI_Comm  comm = PetscObjectComm((PetscObject)B);
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(B, MAT_CLASSID, 1);
-  PetscValidHeaderSpecific(X, VEC_CLASSID, 2);
-  PetscValidHeaderSpecific(Y, VEC_CLASSID, 3);
-  PetscCall(PetscObjectBaseTypeCompare((PetscObject)B, MATLMVM, &same));
-  PetscCheck(same, PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_WRONG, "Matrix must be an LMVM-type.");
-  PetscCheck(lmvm->allocated, comm, PETSC_ERR_ORDER, "LMVM matrix must be allocated first");
-  VecCheckMatCompatible(B, X, 2, Y, 3);
-
-  /* Invert the initial Jacobian onto q (or apply scaling) */
-  if (lmvm->user_pc) {
-    /* User has defined a J0 inverse so we can directly apply it as a preconditioner */
-    PetscCall(PCApply(lmvm->J0pc, X, Y));
-  } else if (lmvm->user_ksp) {
-    /* User has defined a J0 or a custom KSP so just perform a solution */
-    PetscCall(KSPSolve(lmvm->J0ksp, X, Y));
-  } else if (lmvm->J0) {
-    PetscCall(MatHasOperation(lmvm->J0, MATOP_SOLVE, &hasSolve));
-    if (hasSolve) {
-      PetscCall(MatSolve(lmvm->J0, X, Y));
-    } else {
-      PetscCall(KSPSolve(lmvm->J0ksp, X, Y));
-    }
-  } else if (lmvm->user_scale) {
-    if (lmvm->J0diag) {
-      PetscCall(VecPointwiseDivide(X, Y, lmvm->J0diag));
-    } else {
-      PetscCall(VecAXPBY(Y, 1.0 / lmvm->J0scalar, 0.0, X));
-    }
-  } else {
-    /* There is no J0 representation so just apply an identity matrix */
-    PetscCall(VecCopy(X, Y));
-  }
+  PetscCall(KSPSolve(lmvm->J0ksp, X, Y));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
