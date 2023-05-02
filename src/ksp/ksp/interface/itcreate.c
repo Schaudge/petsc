@@ -125,7 +125,7 @@ PetscErrorCode KSPView(KSP ksp, PetscViewer viewer)
     PetscCall(PetscViewerASCIIPushTab(viewer));
     PetscTryTypeMethod(ksp, view, viewer);
     PetscCall(PetscViewerASCIIPopTab(viewer));
-    if (ksp->guess_zero != KSP_GUESS_ZERO_FALSE) {
+    if (ksp->guess_zero != KSP_GUESS_NONZERO) {
       PetscCall(PetscViewerASCIIPrintf(viewer, "  maximum iterations=%" PetscInt_FMT ", initial guess is zero\n", ksp->max_it));
     } else {
       PetscCall(PetscViewerASCIIPrintf(viewer, "  maximum iterations=%" PetscInt_FMT ", nonzero initial guess\n", ksp->max_it));
@@ -678,7 +678,7 @@ PetscErrorCode KSPCreate(MPI_Comm comm, KSP *inksp)
   ksp->normtype = ksp->normtype_set = KSP_NORM_DEFAULT;
   ksp->rnorm                        = 0.0;
   ksp->its                          = 0;
-  ksp->guess_zero                   = KSP_GUESS_ZERO_TRUE;
+  ksp->guess_zero                   = KSP_GUESS_ZERO;
   ksp->calc_sings                   = PETSC_FALSE;
   ksp->res_hist                     = NULL;
   ksp->res_hist_alloc               = NULL;

@@ -798,7 +798,7 @@ static PetscErrorCode KSPSolve_Private(KSP ksp, Vec b, Vec x)
   level++;
   comm = PetscObjectComm((PetscObject)ksp);
   if (x && x == b) {
-    PetscCheck(ksp->guess_zero != KSP_GUESS_ZERO_FALSE, comm, PETSC_ERR_ARG_INCOMP, "Cannot use x == b with nonzero initial guess");
+    PetscCheck(ksp->guess_zero != KSP_GUESS_NONZERO, comm, PETSC_ERR_ARG_INCOMP, "Cannot use x == b with nonzero initial guess");
     PetscCall(VecDuplicate(b, &x));
     inXisinB = PETSC_TRUE;
   }
@@ -833,10 +833,10 @@ static PetscErrorCode KSPSolve_Private(KSP ksp, Vec b, Vec x)
     PetscCall(KSPGuessFormGuess(ksp->guess, ksp->vec_rhs, ksp->vec_sol));
     PetscCall(PetscObjectStateGet((PetscObject)ksp->vec_sol, &state));
     if (state != ostate) {
-      ksp->guess_zero = KSP_GUESS_ZERO_FALSE;
-    } else if (ksp->guess_zero == KSP_GUESS_ZERO_FALSE) {
+      ksp->guess_zero = KSP_GUESS_NONZERO;
+    } else if (ksp->guess_zero == KSP_GUESS_NONZERO) {
       PetscCall(PetscInfo(ksp, "Using zero initial guess since the KSPGuess object did not change the vector\n"));
-      ksp->guess_zero = KSP_GUESS_ZERO_TRUE;
+      ksp->guess_zero = KSP_GUESS_ZERO;
     }
   }
 
@@ -857,7 +857,7 @@ static PetscErrorCode KSPSolve_Private(KSP ksp, Vec b, Vec x)
     }
 
     /* scale initial guess */
-    if (ksp->guess_zero == KSP_GUESS_ZERO_FALSE) {
+    if (ksp->guess_zero == KSP_GUESS_NONZERO) {
       if (!ksp->truediagonal) {
         PetscCall(VecDuplicate(ksp->diagonal, &ksp->truediagonal));
         PetscCall(VecCopy(ksp->diagonal, ksp->truediagonal));
@@ -868,21 +868,21 @@ static PetscErrorCode KSPSolve_Private(KSP ksp, Vec b, Vec x)
   }
   PetscCall(PCPreSolve(ksp->pc, ksp));
 
-  // Do not set to zero if KSP_GUESS_ZERO_TRUE_DONT_ZERO
-  if (ksp->guess_zero == KSP_GUESS_ZERO_TRUE) PetscCall(VecSet(ksp->vec_sol, 0.0));
+  // Do not set to zero if KSP_GUESS_ZERO_DONT_SET
+  if (ksp->guess_zero == KSP_GUESS_ZERO) PetscCall(VecSet(ksp->vec_sol, 0.0));
   if (ksp->guess_knoll) { /* The Knoll trick is independent on the KSPGuess specified */
     PetscCall(PCApply(ksp->pc, ksp->vec_rhs, ksp->vec_sol));
     PetscCall(KSP_RemoveNullSpace(ksp, ksp->vec_sol));
-    ksp->guess_zero = KSP_GUESS_ZERO_FALSE;
+    ksp->guess_zero = KSP_GUESS_NONZERO;
   }
 
   /* can we mark the initial guess as zero for this solve? */
   guess_zero = ksp->guess_zero;
-  if (ksp->guess_zero == KSP_GUESS_ZERO_FALSE) {
+  if (ksp->guess_zero == KSP_GUESS_NONZERO) {
     PetscReal norm;
 
     PetscCall(VecNormAvailable(ksp->vec_sol, NORM_2, &flg, &norm));
-    if (flg && !norm) ksp->guess_zero = KSP_GUESS_ZERO_TRUE;
+    if (flg && !norm) ksp->guess_zero = KSP_GUESS_ZERO;
   }
   if (ksp->transpose_solve) {
     PetscCall(MatGetNullSpace(pmat, &nullsp));
@@ -1184,8 +1184,8 @@ PetscErrorCode KSPMatSolve_Private(KSP ksp, Mat B, Mat X)
   PetscCall(KSPSetUpOnBlocks(ksp));
   if (ksp->ops->matsolve) {
     level++;
-    // Do not zero if KSP_GUESS_ZERO_TRUE_DONT_ZERO
-    if (ksp->guess_zero == KSP_GUESS_ZERO_TRUE) PetscCall(MatZeroEntries(X));
+    // Do not zero if KSP_GUESS_ZERO_DONT_SET
+    if (ksp->guess_zero == KSP_GUESS_ZERO) PetscCall(MatZeroEntries(X));
     PetscCall(PetscLogEventBegin(!ksp->transpose_solve ? KSP_MatSolve : KSP_MatSolveTranspose, ksp, B, X, 0));
     PetscCall(KSPGetMatSolveBatchSize(ksp, &Bbn));
     /* by default, do a single solve with all columns */
@@ -1672,7 +1672,7 @@ PetscErrorCode KSPSetInitialGuessNonzero(KSP ksp, PetscBool flg)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ksp, KSP_CLASSID, 1);
   PetscValidLogicalCollectiveBool(ksp, flg, 2);
-  ksp->guess_zero = KSPGuessZeroFromBool(flg);
+  ksp->guess_zero = flg ? KSP_GUESS_NONZERO : KSP_GUESS_ZERO;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1697,7 +1697,7 @@ PetscErrorCode KSPGetInitialGuessNonzero(KSP ksp, PetscBool *flag)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ksp, KSP_CLASSID, 1);
   PetscValidBoolPointer(flag, 2);
-  *flag = KSPGuessZeroToBool(ksp->guess_zero);
+  *flag = (ksp->guess_zero == KSP_GUESS_NONZERO) ? PETSC_TRUE : PETSC_FALSE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

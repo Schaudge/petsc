@@ -77,18 +77,18 @@ typedef enum {
 } KSPSetUpStage;
 
 typedef enum {
-  KSP_GUESS_ZERO_FALSE          = 0,
-  KSP_GUESS_ZERO_TRUE           = 1,
-  KSP_GUESS_ZERO_TRUE_DONT_ZERO = 2,
+  KSP_GUESS_NONZERO       = 0,
+  KSP_GUESS_ZERO          = 1,
+  KSP_GUESS_ZERO_DONT_SET = 2,
 } KSPGuessZero;
 
 static KSPGuessZero PETSC_UNUSED KSPGuessZeroFromBool(PetscBool b)
 {
-  return b == PETSC_FALSE ? KSP_GUESS_ZERO_FALSE : KSP_GUESS_ZERO_TRUE;
+  return b == PETSC_FALSE ? KSP_GUESS_NONZERO : KSP_GUESS_ZERO;
 }
 static PetscBool PETSC_UNUSED KSPGuessZeroToBool(KSPGuessZero g)
 {
-  return g == KSP_GUESS_ZERO_FALSE ? PETSC_FALSE : PETSC_TRUE;
+  return g == KSP_GUESS_NONZERO ? PETSC_FALSE : PETSC_TRUE;
 }
 
 /*

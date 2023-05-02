@@ -365,7 +365,7 @@ static PetscErrorCode KSPSolve_PIPEFGMRES(KSP ksp)
       if (!ksp->reason) ksp->reason = KSP_DIVERGED_ITS;
       break;
     }
-    ksp->guess_zero = KSP_GUESS_ZERO_FALSE; /* every future call to KSPInitialResidual() will have nonzero guess */
+    ksp->guess_zero = KSP_GUESS_NONZERO; /* every future call to KSPInitialResidual() will have nonzero guess */
   }
   ksp->guess_zero = guess_zero; /* restore if user provided nonzero initial guess */
   PetscFunctionReturn(PETSC_SUCCESS);
