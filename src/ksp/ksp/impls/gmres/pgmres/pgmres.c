@@ -197,9 +197,9 @@ static PetscErrorCode KSPPGMRESCycle(PetscInt *itcount, KSP ksp)
 */
 static PetscErrorCode KSPSolve_PGMRES(KSP ksp)
 {
-  PetscInt    its, itcount;
-  KSP_PGMRES *pgmres     = (KSP_PGMRES *)ksp->data;
-  KSPGuessZero   guess_zero = ksp->guess_zero;
+  PetscInt     its, itcount;
+  KSP_PGMRES  *pgmres     = (KSP_PGMRES *)ksp->data;
+  KSPGuessZero guess_zero = ksp->guess_zero;
 
   PetscFunctionBegin;
   PetscCheck(!ksp->calc_sings || pgmres->Rsvd, PetscObjectComm((PetscObject)ksp), PETSC_ERR_ORDER, "Must call KSPSetComputeSingularValues() before KSPSetUp() is called");

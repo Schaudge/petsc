@@ -207,10 +207,10 @@ PetscErrorCode KSPGMRESCycle(PetscInt *itcount, KSP ksp)
 
 PetscErrorCode KSPSolve_GMRES(KSP ksp)
 {
-  PetscInt   its, itcount, i;
-  KSP_GMRES *gmres      = (KSP_GMRES *)ksp->data;
-  KSPGuessZero  guess_zero = ksp->guess_zero;
-  PetscInt   N          = gmres->max_k + 1;
+  PetscInt     its, itcount, i;
+  KSP_GMRES   *gmres      = (KSP_GMRES *)ksp->data;
+  KSPGuessZero guess_zero = ksp->guess_zero;
+  PetscInt     N          = gmres->max_k + 1;
 
   PetscFunctionBegin;
   PetscCheck(!ksp->calc_sings || gmres->Rsvd, PetscObjectComm((PetscObject)ksp), PETSC_ERR_ORDER, "Must call KSPSetComputeSingularValues() before KSPSetUp() is called");

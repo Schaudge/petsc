@@ -134,7 +134,7 @@ static PetscErrorCode MatDestroy_VectorDiagonal(Mat mat)
 static PetscErrorCode MatView_VectorDiagonal(Mat J, PetscViewer viewer)
 {
   Mat_VectorDiagonal *ctx = (Mat_VectorDiagonal *)J->data;
-  PetscBool             iascii;
+  PetscBool           iascii;
 
   PetscFunctionBegin;
   PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &iascii));
@@ -180,15 +180,10 @@ static PetscErrorCode MatDiagonalScale_VectorDiagonal(Mat J, Vec L, Vec R)
   Mat_VectorDiagonal *ctx = (Mat_VectorDiagonal *)J->data;
 
   PetscFunctionBegin;
-  if (L) {
-    PetscCall(VecPointwiseMult(ctx->diag, L, ctx->diag));
-  }
-  if (R) {
-    PetscCall(VecPointwiseMult(ctx->diag, R, ctx->diag));
-  }
+  if (L) { PetscCall(VecPointwiseMult(ctx->diag, L, ctx->diag)); }
+  if (R) { PetscCall(VecPointwiseMult(ctx->diag, R, ctx->diag)); }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
 
 static PetscErrorCode MatDiagonalSet_VectorDiagonal(Mat J, Vec D, InsertMode is)
 {
@@ -298,7 +293,7 @@ PetscErrorCode MatCreateVectorDiagonal(Vec diag, Mat *J)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(diag, VEC_CLASSID, 1);
-  PetscCall(MatCreate(PetscObjectComm((PetscObject) diag), J));
+  PetscCall(MatCreate(PetscObjectComm((PetscObject)diag), J));
   PetscInt m, M;
   PetscCall(VecGetLocalSize(diag, &m));
   PetscCall(VecGetSize(diag, &M));
@@ -306,7 +301,7 @@ PetscErrorCode MatCreateVectorDiagonal(Vec diag, Mat *J)
   PetscCall(MatSetType(*J, MATVECTORDIAGONAL));
   PetscCall(PetscLayoutReference(diag->map, &(*J)->cmap));
   PetscCall(PetscLayoutReference(diag->map, &(*J)->rmap));
-  Mat_VectorDiagonal *ctx = (Mat_VectorDiagonal *) (*J)->data;
+  Mat_VectorDiagonal *ctx = (Mat_VectorDiagonal *)(*J)->data;
   PetscCall(PetscObjectReference((PetscObject)diag));
   PetscCall(VecDestroy(&ctx->diag));
   ctx->diag = diag;
@@ -330,13 +325,13 @@ PETSC_EXTERN PetscErrorCode MatCreate_VectorDiagonal(Mat A)
   PetscCall(VecSetSizes(ctx->diag, m, M));
   PetscCall(PetscLayoutReference(A->rmap, &ctx->diag->map));
 
-  A->data   = (void *)ctx;
+  A->data = (void *)ctx;
 
-  A->assembled    = PETSC_TRUE;
-  A->preallocated = PETSC_TRUE;
-  A->structurally_symmetric = PETSC_BOOL3_TRUE;
+  A->assembled                   = PETSC_TRUE;
+  A->preallocated                = PETSC_TRUE;
+  A->structurally_symmetric      = PETSC_BOOL3_TRUE;
   A->structural_symmetry_eternal = PETSC_TRUE;
-  A->symmetry_eternal = PETSC_TRUE;
+  A->symmetry_eternal            = PETSC_TRUE;
 
   A->ops->mult              = MatMult_VectorDiagonal;
   A->ops->multadd           = MatMultAdd_VectorDiagonal;
@@ -367,4 +362,3 @@ PETSC_EXTERN PetscErrorCode MatCreate_VectorDiagonal(Mat A)
   PetscCall(PetscObjectChangeTypeName((PetscObject)A, MATVECTORDIAGONAL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-

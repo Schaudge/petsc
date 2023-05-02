@@ -1597,10 +1597,11 @@ PetscErrorCode MatDenseRestoreSubMatrix_MPIDense(Mat A, Mat *v)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode PetscScalarMemTypeAllreduce_Private(PetscScalar *C, PetscInt count, PetscMemType memtype, Mat A_mat) {
+static PetscErrorCode PetscScalarMemTypeAllreduce_Private(PetscScalar *C, PetscInt count, PetscMemType memtype, Mat A_mat)
+{
   PetscFunctionBegin;
-  Mat_MPIDense *a = (Mat_MPIDense *) A_mat->data;
-  MPI_Comm comm = PetscObjectComm((PetscObject)A_mat);
+  Mat_MPIDense *a    = (Mat_MPIDense *)A_mat->data;
+  MPI_Comm      comm = PetscObjectComm((PetscObject)A_mat);
 
   PetscMPIInt size;
   PetscCallMPI(MPI_Comm_size(comm, &size));
@@ -1652,7 +1653,7 @@ static PetscErrorCode MatDenseColumnsGEMVHermitianTranspose_MPIDense(PetscScalar
   PetscFunctionBegin;
   Mat_MPIDense *a = (Mat_MPIDense *)A_mat->data;
   PetscCall(MatDenseColumnsGEMVHermitianTranspose_SeqDense(alpha, a->A, col_start, col_end, x, beta, y, inc_y, memtype_y));
-  PetscInt count = 1 + (col_end-col_start-1)*(inc_y);
+  PetscInt count = 1 + (col_end - col_start - 1) * (inc_y);
   PetscCall(PetscScalarMemTypeAllreduce_Private(y, count, memtype_y, A_mat));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1665,14 +1666,13 @@ static PetscErrorCode MatDenseColumnsGEMV_MPIDense(PetscScalar alpha, Mat A_mat,
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-
 static PetscErrorCode MatDenseColumnsGEMMHermitianTranspose_MPIDense(PetscScalar alpha, Mat A_mat, PetscInt col_start_A, PetscInt col_end_A, Mat B_mat, PetscInt col_start_B, PetscInt col_end_B, PetscScalar beta, PetscScalar *C, PetscInt ld_C, PetscMemType memtype_C)
 {
   PetscFunctionBegin;
   Mat_MPIDense *a = (Mat_MPIDense *)A_mat->data;
   Mat_MPIDense *b = (Mat_MPIDense *)B_mat->data;
   PetscCall(MatDenseColumnsGEMMHermitianTranspose_SeqDense(alpha, a->A, col_start_A, col_end_A, b->A, col_start_B, col_end_B, beta, C, ld_C, memtype_C));
-  PetscInt count = (col_end_B-col_start_A) + (col_end_B-col_start_B - 1)*(ld_C);
+  PetscInt count = (col_end_B - col_start_A) + (col_end_B - col_start_B - 1) * (ld_C);
   PetscCall(PetscScalarMemTypeAllreduce_Private(C, count, memtype_C, A_mat));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -8,10 +8,11 @@ const char help[] = "Test MatDenseColumns{GEMV,GEMM}";
 #include <petscdevice_hip.h>
 #include <petsclog.h>
 
-static PetscErrorCode CreateColumnsMat(MPI_Comm comm, PetscInt m, PetscInt n, const char prefix[], Mat *mat) {
+static PetscErrorCode CreateColumnsMat(MPI_Comm comm, PetscInt m, PetscInt n, const char prefix[], Mat *mat)
+{
   PetscFunctionBegin;
   PetscCall(MatCreateDense(comm, PETSC_DETERMINE, PETSC_DETERMINE, m, n, NULL, mat));
-  PetscCall(PetscObjectSetOptionsPrefix((PetscObject) *mat, prefix));
+  PetscCall(PetscObjectSetOptionsPrefix((PetscObject)*mat, prefix));
   PetscCall(MatSetFromOptions(*mat));
   PetscCall(MatSetRandom(*mat, NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -47,7 +48,7 @@ static PetscErrorCode VecPlaceArrayMemType(Vec v, const PetscScalar *array, Pets
 #endif
     break;
   default:
-    SETERRQ(PetscObjectComm((PetscObject) v), PETSC_ERR_PLIB, "Memory type unsupported for array placement");
+    SETERRQ(PetscObjectComm((PetscObject)v), PETSC_ERR_PLIB, "Memory type unsupported for array placement");
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -70,7 +71,7 @@ static PetscErrorCode VecResetArrayMemType(Vec v, PetscMemType memtype)
 #endif
     break;
   default:
-    SETERRQ(PetscObjectComm((PetscObject) v), PETSC_ERR_PLIB, "Memory type unsupported for array placement");
+    SETERRQ(PetscObjectComm((PetscObject)v), PETSC_ERR_PLIB, "Memory type unsupported for array placement");
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -79,7 +80,7 @@ static PetscErrorCode TestLevel1(PetscInt k, Mat A, PetscInt a_start, Mat B, Pet
 {
   PetscFunctionBegin;
 
-  MatType C_type, D_type;
+  MatType   C_type, D_type;
   PetscBool B_matches_C, A_matches_D;
 
   PetscCall(MatGetType(C, &C_type));
@@ -99,14 +100,14 @@ static PetscErrorCode TestLevel1(PetscInt k, Mat A, PetscInt a_start, Mat B, Pet
   }
 
   const PetscScalar *A_array;
-  PetscMemType memtype_A;
-  PetscInt ld_A;
+  PetscMemType       memtype_A;
+  PetscInt           ld_A;
   PetscCall(MatDenseGetLDA(A, &ld_A));
   PetscCall(MatDenseGetArrayReadAndMemType(A, &A_array, &memtype_A));
 
   const PetscScalar *B_array;
-  PetscMemType memtype_B;
-  PetscInt ld_B;
+  PetscMemType       memtype_B;
+  PetscInt           ld_B;
   PetscCall(MatDenseGetLDA(B, &ld_B));
   PetscCall(MatDenseGetArrayReadAndMemType(B, &B_array, &memtype_B));
 
@@ -123,7 +124,7 @@ static PetscErrorCode TestLevel1(PetscInt k, Mat A, PetscInt a_start, Mat B, Pet
   }
 
   PetscScalar *M;
-  PetscCall(PetscCalloc1(k*k, &M));
+  PetscCall(PetscCalloc1(k * k, &M));
   PetscLogStage level_1;
   PetscCall(MatCopy(D, D_copy, SAME_NONZERO_PATTERN));
   PetscCall(PetscLogStageRegister("Level 1", &level_1));
@@ -141,7 +142,7 @@ static PetscErrorCode TestLevel1(PetscInt k, Mat A, PetscInt a_start, Mat B, Pet
         Vec dj;
         PetscCall(MatDenseGetColumnVec(D_copy, d_start + j, &dj));
         PetscCall(VecScale(dj, beta));
-        PetscCall(VecMAXPY(dj, k, &M[j*k], As));
+        PetscCall(VecMAXPY(dj, k, &M[j * k], As));
         PetscCall(MatDenseRestoreColumnVec(D_copy, d_start + j, &dj));
       }
     }
@@ -168,10 +169,10 @@ static PetscErrorCode TestLevel2(PetscInt k, Mat A, PetscInt a_start, Mat B, Pet
 {
   PetscFunctionBegin;
   PetscScalar *M;
-  PetscCall(PetscDeviceCalloc(NULL, memtype_M, k*k, &M));
+  PetscCall(PetscDeviceCalloc(NULL, memtype_M, k * k, &M));
   PetscInt malloc_current;
 
-  PetscInt malloc_2 = 0;
+  PetscInt      malloc_2 = 0;
   PetscLogStage level_2;
   PetscCall(MatCopy(D, D_copy, SAME_NONZERO_PATTERN));
   PetscCall(PetscLogStageRegister("Level 2", &level_2));
@@ -182,13 +183,13 @@ static PetscErrorCode TestLevel2(PetscInt k, Mat A, PetscInt a_start, Mat B, Pet
       for (PetscInt j = 0; j < k; j++) {
         Vec cj;
         PetscCall(MatDenseGetColumnVecRead(C, c_start + j, &cj));
-        PetscCall(MatDenseColumnsGEMVHermitianTranspose(1.0, B, b_start, b_start+k, cj, 0.0, &M[j*k], 1, memtype_M));
+        PetscCall(MatDenseColumnsGEMVHermitianTranspose(1.0, B, b_start, b_start + k, cj, 0.0, &M[j * k], 1, memtype_M));
         PetscCall(MatDenseRestoreColumnVecRead(C, c_start + j, &cj));
       }
       for (PetscInt j = 0; j < k; j++) {
         Vec dj;
         PetscCall(MatDenseGetColumnVec(D_copy, d_start + j, &dj));
-        PetscCall(MatDenseColumnsGEMV(alpha, A, a_start, a_start+k, &M[j*k], 1, memtype_M, beta, dj));
+        PetscCall(MatDenseColumnsGEMV(alpha, A, a_start, a_start + k, &M[j * k], 1, memtype_M, beta, dj));
         PetscCall(MatDenseRestoreColumnVec(D_copy, d_start + j, &dj));
       }
     }
@@ -207,10 +208,10 @@ static PetscErrorCode TestLevel3(PetscInt k, Mat A, PetscInt a_start, Mat B, Pet
 {
   PetscFunctionBegin;
   PetscScalar *M;
-  PetscCall(PetscDeviceCalloc(NULL, memtype_M, k*k, &M));
+  PetscCall(PetscDeviceCalloc(NULL, memtype_M, k * k, &M));
   PetscInt malloc_current;
 
-  PetscInt malloc_3 = 0;
+  PetscInt      malloc_3 = 0;
   PetscLogStage level_3;
   PetscCall(MatCopy(D, D_copy, SAME_NONZERO_PATTERN));
   PetscCall(PetscLogStageRegister("Level 3", &level_3));
@@ -218,8 +219,8 @@ static PetscErrorCode TestLevel3(PetscInt k, Mat A, PetscInt a_start, Mat B, Pet
     if (trip) PetscCall(PetscLogStagePush(level_3));
     PetscCall(PetscMallocDebugGetCount(&malloc_current));
     for (PetscInt i = 0; i < n_iter; i++) {
-      PetscCall(MatDenseColumnsGEMMHermitianTranspose(1.0, B, b_start, b_start+k, C, c_start, c_start+k, 0.0, M, k, memtype_M));
-      PetscCall(MatDenseColumnsGEMM(alpha, A, a_start, a_start+k, M, k, memtype_M, beta, D_copy, d_start, d_start+k));
+      PetscCall(MatDenseColumnsGEMMHermitianTranspose(1.0, B, b_start, b_start + k, C, c_start, c_start + k, 0.0, M, k, memtype_M));
+      PetscCall(MatDenseColumnsGEMM(alpha, A, a_start, a_start + k, M, k, memtype_M, beta, D_copy, d_start, d_start + k));
     }
     PetscCall(PetscMallocDebugGetCount(&malloc_3));
     malloc_3 -= malloc_current;
@@ -234,18 +235,18 @@ static PetscErrorCode TestLevel3(PetscInt k, Mat A, PetscInt a_start, Mat B, Pet
 
 int main(int argc, char **argv)
 {
-  PetscInt m = 1000, k = 10, a_extra = 3, b_extra = 4, c_extra = 5, d_extra = 6;
-  PetscInt a_start = a_extra / 2;
-  PetscInt b_start = b_extra / 2;
-  PetscInt c_start = c_extra / 2;
-  PetscInt d_start = d_extra / 2;
-  PetscInt n_iter = 100;
-  PetscScalar alpha = 1.0 / 3.0;
-  PetscScalar beta = 1.0 / 5.0;
-  PetscMemType memtype_M = PETSC_MEMTYPE_HOST;
-  ExMemType exmt_M = EX_MEMTYPE_HOST;
-  PetscBool report_host_memory = PETSC_FALSE;
-  PetscBool report_memcpy = PETSC_FALSE;
+  PetscInt     m = 1000, k = 10, a_extra = 3, b_extra = 4, c_extra = 5, d_extra = 6;
+  PetscInt     a_start            = a_extra / 2;
+  PetscInt     b_start            = b_extra / 2;
+  PetscInt     c_start            = c_extra / 2;
+  PetscInt     d_start            = d_extra / 2;
+  PetscInt     n_iter             = 100;
+  PetscScalar  alpha              = 1.0 / 3.0;
+  PetscScalar  beta               = 1.0 / 5.0;
+  PetscMemType memtype_M          = PETSC_MEMTYPE_HOST;
+  ExMemType    exmt_M             = EX_MEMTYPE_HOST;
+  PetscBool    report_host_memory = PETSC_FALSE;
+  PetscBool    report_memcpy      = PETSC_FALSE;
 
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
   MPI_Comm comm = PETSC_COMM_WORLD;
@@ -254,12 +255,15 @@ int main(int argc, char **argv)
   PetscCall(PetscOptionsInt("-m", "Global number of matrix rows", NULL, m, &m, NULL));
   PetscCall(PetscOptionsInt("-k", "Number of columns used in the update", NULL, k, &k, NULL));
   PetscCall(PetscOptionsInt("-n_iter", "Number of iterations in each stage", NULL, n_iter, &n_iter, NULL));
-  PetscCall(PetscOptionsEnum("-temp_memtype", "PetscMemType of intermediate results", NULL, ExMemTypes, (PetscEnum) exmt_M, (PetscEnum *) &exmt_M, NULL));
+  PetscCall(PetscOptionsEnum("-temp_memtype", "PetscMemType of intermediate results", NULL, ExMemTypes, (PetscEnum)exmt_M, (PetscEnum *)&exmt_M, NULL));
   PetscCall(PetscOptionsBool("-report_host_memory", "Report host memory allocations that happen in each approach", NULL, report_host_memory, &report_host_memory, NULL));
   PetscCall(PetscOptionsBool("-report_memcpy", "Report host <-> device memcpys in each approach", NULL, report_memcpy, &report_memcpy, NULL));
   PetscOptionsEnd();
 
-#define MEMTYPECASE(SUFF) case EX_MEMTYPE_ ## SUFF: memtype_M = PETSC_MEMTYPE_ ## SUFF;break
+#define MEMTYPECASE(SUFF) \
+  case EX_MEMTYPE_##SUFF: \
+    memtype_M = PETSC_MEMTYPE_##SUFF; \
+    break
   switch (exmt_M) {
     MEMTYPECASE(HOST);
     MEMTYPECASE(DEVICE);
@@ -304,7 +308,6 @@ int main(int argc, char **argv)
   //
   PetscCall(TestLevel3(k, A, a_start, B, b_start, C, c_start, D, d_start, alpha, beta, D_copy3, n_iter, memtype_M, report_host_memory));
 
-
   // compute differences
   PetscReal err_12, err_13;
   PetscCall(MatAXPY(D_copy2, -1.0, D_copy1, SAME_NONZERO_PATTERN));
@@ -312,8 +315,8 @@ int main(int argc, char **argv)
   PetscCall(MatAXPY(D_copy3, -1.0, D_copy1, SAME_NONZERO_PATTERN));
   PetscCall(MatNorm(D_copy3, NORM_INFINITY, &err_13));
 
-  PetscCheck(err_12 <= k * m * PETSC_SMALL, comm, PETSC_ERR_PLIB, "Level 2 Error %g", (double) err_12);
-  PetscCheck(err_13 <= k * m * PETSC_SMALL, comm, PETSC_ERR_PLIB, "Level 3 Error %g", (double) err_13);
+  PetscCheck(err_12 <= k * m * PETSC_SMALL, comm, PETSC_ERR_PLIB, "Level 2 Error %g", (double)err_12);
+  PetscCheck(err_13 <= k * m * PETSC_SMALL, comm, PETSC_ERR_PLIB, "Level 3 Error %g", (double)err_13);
 
   PetscCall(MatDestroy(&D_copy3));
   PetscCall(MatDestroy(&D_copy2));

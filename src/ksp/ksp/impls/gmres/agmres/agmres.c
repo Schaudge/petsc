@@ -500,11 +500,11 @@ static PetscErrorCode KSPAGMRESCycle(PetscInt *itcount, KSP ksp)
 
 static PetscErrorCode KSPSolve_AGMRES(KSP ksp)
 {
-  PetscInt    its;
-  KSP_AGMRES *agmres     = (KSP_AGMRES *)ksp->data;
+  PetscInt     its;
+  KSP_AGMRES  *agmres     = (KSP_AGMRES *)ksp->data;
   KSPGuessZero guess_zero = ksp->guess_zero;
-  PetscReal   res_old, res;
-  PetscInt    test;
+  PetscReal    res_old, res;
+  PetscInt     test;
 
   PetscFunctionBegin;
   PetscCall(PetscObjectSAWsTakeAccess((PetscObject)ksp));

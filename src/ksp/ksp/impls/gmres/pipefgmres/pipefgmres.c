@@ -341,7 +341,7 @@ static PetscErrorCode KSPSolve_PIPEFGMRES(KSP ksp)
 {
   PetscInt        its, itcount;
   KSP_PIPEFGMRES *pipefgmres = (KSP_PIPEFGMRES *)ksp->data;
-  KSPGuessZero       guess_zero = ksp->guess_zero;
+  KSPGuessZero    guess_zero = ksp->guess_zero;
 
   PetscFunctionBegin;
   /* We have not checked these routines for use with complex numbers. The inner products

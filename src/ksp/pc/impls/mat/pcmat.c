@@ -7,7 +7,7 @@ typedef struct _PCMAT {
 
 static PetscErrorCode PCApply_Mat(PC pc, Vec x, Vec y)
 {
-  PC_Mat *pcmat = (PC_Mat *) pc->data;
+  PC_Mat *pcmat = (PC_Mat *)pc->data;
 
   PetscFunctionBegin;
   switch (pcmat->apply) {
@@ -34,7 +34,7 @@ static PetscErrorCode PCApply_Mat(PC pc, Vec x, Vec y)
 
 static PetscErrorCode PCMatApply_Mat(PC pc, Mat X, Mat Y)
 {
-  PC_Mat *pcmat = (PC_Mat *) pc->data;
+  PC_Mat *pcmat = (PC_Mat *)pc->data;
 
   PetscFunctionBegin;
   switch (pcmat->apply) {
@@ -50,17 +50,15 @@ static PetscErrorCode PCMatApply_Mat(PC pc, Mat X, Mat Y)
   case MATOP_SOLVE_TRANSPOSE:
     PetscCall(MatMatSolveTranspose(pc->pmat, X, Y));
     break;
-  case MATOP_MULT_HERMITIAN_TRANSPOSE:
-    {
-      Mat W;
+  case MATOP_MULT_HERMITIAN_TRANSPOSE: {
+    Mat W;
 
-      PetscCall(MatDuplicate(X, MAT_COPY_VALUES, &W));
-      PetscCall(MatConjugate(W));
-      PetscCall(MatTransposeMatMult(pc->pmat, W, MAT_REUSE_MATRIX, PETSC_DEFAULT, &Y));
-      PetscCall(MatConjugate(Y));
-      PetscCall(MatDestroy(&W));
-    }
-    break;
+    PetscCall(MatDuplicate(X, MAT_COPY_VALUES, &W));
+    PetscCall(MatConjugate(W));
+    PetscCall(MatTransposeMatMult(pc->pmat, W, MAT_REUSE_MATRIX, PETSC_DEFAULT, &Y));
+    PetscCall(MatConjugate(Y));
+    PetscCall(MatDestroy(&W));
+  } break;
   default:
     SETERRQ(PetscObjectComm((PetscObject)pc), PETSC_ERR_ARG_WRONGSTATE, "Operation cannot be PCMatApply operation for PCMAT");
   }
@@ -69,7 +67,7 @@ static PetscErrorCode PCMatApply_Mat(PC pc, Mat X, Mat Y)
 
 static PetscErrorCode PCApplyTranspose_Mat(PC pc, Vec x, Vec y)
 {
-  PC_Mat *pcmat = (PC_Mat *) pc->data;
+  PC_Mat *pcmat = (PC_Mat *)pc->data;
 
   PetscFunctionBegin;
   switch (pcmat->apply) {
@@ -85,17 +83,16 @@ static PetscErrorCode PCApplyTranspose_Mat(PC pc, Vec x, Vec y)
   case MATOP_SOLVE_TRANSPOSE:
     PetscCall(MatSolve(pc->pmat, x, y));
     break;
-  case MATOP_MULT_HERMITIAN_TRANSPOSE:
-    {
-      Vec w;
+  case MATOP_MULT_HERMITIAN_TRANSPOSE: {
+    Vec w;
 
-      PetscCall(VecDuplicate(x, &w));
-      PetscCall(VecCopy(x, w));
-      PetscCall(VecConjugate(w));
-      PetscCall(MatMult(pc->pmat, w, y));
-      PetscCall(VecConjugate(y));
-      PetscCall(VecDestroy(&w));
-    }
+    PetscCall(VecDuplicate(x, &w));
+    PetscCall(VecCopy(x, w));
+    PetscCall(VecConjugate(w));
+    PetscCall(MatMult(pc->pmat, w, y));
+    PetscCall(VecConjugate(y));
+    PetscCall(VecDestroy(&w));
+  }
     PetscCall(MatMultHermitianTranspose(pc->pmat, x, y));
     break;
   default:
@@ -126,7 +123,7 @@ static PetscErrorCode PCDestroy_Mat(PC pc)
 
   Level: intermediate
 
-  Note: If you have a matrix type that implements an exact inverse that isn't a factorization, 
+  Note: If you have a matrix type that implements an exact inverse that isn't a factorization,
   you can use PCMatSetApplyOperation(pc, MATOP_SOLVE).
 
 .seealso: `PCMAT`, `PCMatGetApplyOperation()`, `PCApply()`, `MatOperation`
@@ -134,7 +131,7 @@ static PetscErrorCode PCDestroy_Mat(PC pc)
 PetscErrorCode PCMatSetApplyOperation(PC pc, MatOperation matop)
 {
   PetscFunctionBegin;
-  PetscTryMethod((PetscObject)pc, "PCMatSetApplyOperation_C", (PC,MatOperation),(pc,matop));
+  PetscTryMethod((PetscObject)pc, "PCMatSetApplyOperation_C", (PC, MatOperation), (pc, matop));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -146,7 +143,7 @@ PetscErrorCode PCMatSetApplyOperation(PC pc, MatOperation matop)
   Input Parameter:
 . pc - An instance of PCMAT
 
-  Output Parameter: 
+  Output Parameter:
 . matop - The MatOperation
 
   Level: intermediate
@@ -156,13 +153,13 @@ PetscErrorCode PCMatSetApplyOperation(PC pc, MatOperation matop)
 PetscErrorCode PCMatGetApplyOperation(PC pc, MatOperation *matop)
 {
   PetscFunctionBegin;
-  PetscTryMethod((PetscObject)pc, "PCMatGetApplyOperation_C", (PC,MatOperation*),(pc,matop));
+  PetscTryMethod((PetscObject)pc, "PCMatGetApplyOperation_C", (PC, MatOperation *), (pc, matop));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PCMatSetApplyOperation_Mat(PC pc, MatOperation matop)
 {
-  PC_Mat *pcmat = (PC_Mat *) pc->data;
+  PC_Mat *pcmat = (PC_Mat *)pc->data;
 
   PetscFunctionBegin;
   switch (matop) {
@@ -181,20 +178,26 @@ static PetscErrorCode PCMatSetApplyOperation_Mat(PC pc, MatOperation matop)
 
 static PetscErrorCode PCMatGetApplyOperation_Mat(PC pc, MatOperation *matop)
 {
-  PC_Mat *pcmat = (PC_Mat *) pc->data;
+  PC_Mat *pcmat = (PC_Mat *)pc->data;
 
   PetscFunctionBegin;
   *matop = pcmat->apply;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-enum {PCMAT_MULT, PCMAT_MULT_TRANSPOSE, PCMAT_MULT_HERMITIAN_TRANSPOSE, PCMAT_SOLVE, PCMAT_SOLVE_TRANSPOSE, PCMAT_UNSUPPORTED};
+enum {
+  PCMAT_MULT,
+  PCMAT_MULT_TRANSPOSE,
+  PCMAT_MULT_HERMITIAN_TRANSPOSE,
+  PCMAT_SOLVE,
+  PCMAT_SOLVE_TRANSPOSE,
+  PCMAT_UNSUPPORTED
+};
 const char *const PCMatOpTypes[] = {"Mult", "MultTranspose", "MultHermitianTranspose", "Solve", "SolveTranspose", "Unsupported"};
-
 
 static PetscErrorCode PCView_Mat(PC pc, PetscViewer viewer)
 {
-  PC_Mat *pcmat = (PC_Mat *)pc->data;
+  PC_Mat   *pcmat = (PC_Mat *)pc->data;
   PetscBool iascii;
 
   PetscFunctionBegin;
@@ -202,14 +205,18 @@ static PetscErrorCode PCView_Mat(PC pc, PetscViewer viewer)
   if (iascii) {
     size_t op = PCMAT_UNSUPPORTED;
 
-    #define MATOP_TO_PCMAT_CASE(var,OP) case MATOP_ ## OP: (var) = PCMAT_ ## OP; break
+#define MATOP_TO_PCMAT_CASE(var, OP) \
+  case MATOP_##OP: \
+    (var) = PCMAT_##OP; \
+    break
     switch (pcmat->apply) {
-      MATOP_TO_PCMAT_CASE(op,MULT);
-      MATOP_TO_PCMAT_CASE(op,MULT_TRANSPOSE);
-      MATOP_TO_PCMAT_CASE(op,MULT_HERMITIAN_TRANSPOSE);
-      MATOP_TO_PCMAT_CASE(op,SOLVE);
-      MATOP_TO_PCMAT_CASE(op,SOLVE_TRANSPOSE);
-      default: SETERRQ(PetscObjectComm((PetscObject)pc), PETSC_ERR_PLIB, "PCMat apply set to unsupported MatOperation %d\n", (int) pcmat->apply);
+      MATOP_TO_PCMAT_CASE(op, MULT);
+      MATOP_TO_PCMAT_CASE(op, MULT_TRANSPOSE);
+      MATOP_TO_PCMAT_CASE(op, MULT_HERMITIAN_TRANSPOSE);
+      MATOP_TO_PCMAT_CASE(op, SOLVE);
+      MATOP_TO_PCMAT_CASE(op, SOLVE_TRANSPOSE);
+    default:
+      SETERRQ(PetscObjectComm((PetscObject)pc), PETSC_ERR_PLIB, "PCMat apply set to unsupported MatOperation %d", (int)pcmat->apply);
     }
 
     PetscCall(PetscViewerASCIIPrintf(viewer, "PCApply() == Mat%s()\n", PCMatOpTypes[op]));
@@ -224,7 +231,6 @@ static PetscErrorCode PCView_Mat(PC pc, PetscViewer viewer)
              If some other operation of preconditioner matrix implements the approximate inverse,
              use `PCMatSetApplyOperation()` to select that operation.
 
-
    Level: intermediate
 
 .seealso: `PCCreate()`, `PCSetType()`, `PCType`, `PC`, `PCSHELL`, `MatOperation`, `PCMatSetApplyOperation()`, `PCMatGetApplyOperation()`
@@ -233,12 +239,12 @@ M*/
 PETSC_EXTERN PetscErrorCode PCCreate_Mat(PC pc)
 {
   PetscFunctionBegin;
-  PC_Mat * data;
+  PC_Mat *data;
   PetscCall(PetscNew(&data));
   PetscCall(PetscObjectComposeFunction((PetscObject)pc, "PCMatSetApplyOperation_C", PCMatSetApplyOperation_Mat));
   PetscCall(PetscObjectComposeFunction((PetscObject)pc, "PCMatGetApplyOperation_C", PCMatGetApplyOperation_Mat));
-  data->apply = MATOP_MULT;
-  pc->data = data;
+  data->apply                  = MATOP_MULT;
+  pc->data                     = data;
   pc->ops->apply               = PCApply_Mat;
   pc->ops->matapply            = PCMatApply_Mat;
   pc->ops->applytranspose      = PCApplyTranspose_Mat;

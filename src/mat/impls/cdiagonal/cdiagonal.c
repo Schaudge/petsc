@@ -277,11 +277,11 @@ PETSC_EXTERN PetscErrorCode MatCreate_ConstantDiagonal(Mat A)
   ctx->diag = 0.0;
   A->data   = (void *)ctx;
 
-  A->assembled    = PETSC_TRUE;
-  A->preallocated = PETSC_TRUE;
-  A->structurally_symmetric = PETSC_BOOL3_TRUE;
+  A->assembled                   = PETSC_TRUE;
+  A->preallocated                = PETSC_TRUE;
+  A->structurally_symmetric      = PETSC_BOOL3_TRUE;
   A->structural_symmetry_eternal = PETSC_TRUE;
-  A->symmetry_eternal = PETSC_TRUE;
+  A->symmetry_eternal            = PETSC_TRUE;
 
   A->ops->mult              = MatMult_ConstantDiagonal;
   A->ops->multadd           = MatMultAdd_ConstantDiagonal;

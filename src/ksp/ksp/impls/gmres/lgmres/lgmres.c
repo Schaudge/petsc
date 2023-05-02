@@ -305,11 +305,11 @@ PetscErrorCode KSPLGMRESCycle(PetscInt *itcount, KSP ksp)
 */
 PetscErrorCode KSPSolve_LGMRES(KSP ksp)
 {
-  PetscInt    cycle_its; /* iterations done in a call to KSPLGMRESCycle */
-  PetscInt    itcount;   /* running total of iterations, incl. those in restarts */
-  KSP_LGMRES *lgmres     = (KSP_LGMRES *)ksp->data;
-  KSPGuessZero   guess_zero = ksp->guess_zero;
-  PetscInt    ii; /*LGMRES_MOD variable */
+  PetscInt     cycle_its; /* iterations done in a call to KSPLGMRESCycle */
+  PetscInt     itcount;   /* running total of iterations, incl. those in restarts */
+  KSP_LGMRES  *lgmres     = (KSP_LGMRES *)ksp->data;
+  KSPGuessZero guess_zero = ksp->guess_zero;
+  PetscInt     ii; /*LGMRES_MOD variable */
 
   PetscFunctionBegin;
   PetscCheck(!ksp->calc_sings || lgmres->Rsvd, PetscObjectComm((PetscObject)ksp), PETSC_ERR_ORDER, "Must call KSPSetComputeSingularValues() before KSPSetUp() is called");

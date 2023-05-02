@@ -150,9 +150,7 @@ static PetscErrorCode MatCopy_LMVM(Mat B, Mat M, MatStructure str)
   }
 
   mctx = (Mat_LMVM *)M->data;
-  if (bctx->J0ksp) {
-    PetscCall(MatLMVMSetJ0KSP(M, bctx->J0ksp));
-  }
+  if (bctx->J0ksp) { PetscCall(MatLMVMSetJ0KSP(M, bctx->J0ksp)); }
   PetscCall(MatLMVMSetJ0(M, bctx->J0));
   mctx->nupdates = bctx->nupdates;
   mctx->nrejects = bctx->nrejects;
@@ -179,9 +177,9 @@ static PetscErrorCode MatDuplicate_LMVM(Mat B, MatDuplicateOption op, Mat *mat)
   PetscCall(MatCreate(PetscObjectComm((PetscObject)B), mat));
   PetscCall(MatSetType(*mat, lmvmType));
 
-  A                = *mat;
-  mctx             = (Mat_LMVM *)A->data;
-  mctx->m          = bctx->m;
+  A       = *mat;
+  mctx    = (Mat_LMVM *)A->data;
+  mctx->m = bctx->m;
   if (bctx->J0ksp) {
     PetscReal rtol, atol, dtol;
     PetscInt  max_it;
@@ -189,7 +187,7 @@ static PetscErrorCode MatDuplicate_LMVM(Mat B, MatDuplicateOption op, Mat *mat)
     PetscCall(KSPGetTolerances(bctx->J0ksp, &rtol, &atol, &dtol, &max_it));
     PetscCall(KSPSetTolerances(mctx->J0ksp, rtol, atol, dtol, max_it));
   }
-  mctx->shift      = bctx->shift;
+  mctx->shift = bctx->shift;
 
   PetscCall(MatLMVMAllocate(*mat, bctx->Xprev, bctx->Fprev));
   if (op == MAT_COPY_VALUES) PetscCall(MatCopy(B, *mat, SAME_NONZERO_PATTERN));
@@ -299,10 +297,10 @@ PetscErrorCode MatCreate_LMVM(Mat B)
 
   lmvm->shift = 0.0;
 
-  lmvm->eps        = PetscPowReal(PETSC_MACHINE_EPSILON, 2.0 / 3.0);
-  lmvm->allocated  = PETSC_FALSE;
-  lmvm->prev_set   = PETSC_FALSE;
-  lmvm->square     = PETSC_FALSE;
+  lmvm->eps       = PetscPowReal(PETSC_MACHINE_EPSILON, 2.0 / 3.0);
+  lmvm->allocated = PETSC_FALSE;
+  lmvm->prev_set  = PETSC_FALSE;
+  lmvm->square    = PETSC_FALSE;
 
   B->ops->destroy        = MatDestroy_LMVM;
   B->ops->setfromoptions = MatSetFromOptions_LMVM;
