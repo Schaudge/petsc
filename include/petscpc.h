@@ -483,4 +483,7 @@ PETSC_EXTERN PetscErrorCode PCHPDDMInitializePackage(void);
 
 PETSC_EXTERN PetscErrorCode PCAmgXGetResources(PC, void *);
 
+PETSC_EXTERN PetscErrorCode PCMatSetSolveOperation(PC, MatOperation);
+PETSC_EXTERN PetscErrorCode PCMatGetSolveOperation(PC, MatOperation *);
+
 #endif /* PETSCPC_H */
