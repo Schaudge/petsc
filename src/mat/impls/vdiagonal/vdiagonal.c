@@ -312,7 +312,7 @@ PetscErrorCode MatCreateVectorDiagonal(Vec diag, Mat *J)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PETSC_EXTERN PetscErrorCode MatCreate_VectorDiagonal(Mat A)
+PETSC_INTERN PetscErrorCode MatCreate_VectorDiagonal(Mat A)
 {
   Mat_VectorDiagonal *ctx;
 
