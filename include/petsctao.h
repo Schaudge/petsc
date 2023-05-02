@@ -504,4 +504,7 @@ PETSC_EXTERN PetscErrorCode TaoALMMGetMultipliers(Tao, Vec *);
 PETSC_EXTERN PetscErrorCode TaoALMMSetMultipliers(Tao, Vec);
 PETSC_EXTERN PetscErrorCode TaoALMMGetPrimalIS(Tao, IS *, IS *);
 PETSC_EXTERN PetscErrorCode TaoALMMGetDualIS(Tao, IS *, IS *);
+
+PETSC_EXTERN PetscErrorCode TaoSNESGetSNES(Tao, SNES *);
+PETSC_EXTERN PetscErrorCode TaoSNESSetSNES(Tao, SNES);
 #endif

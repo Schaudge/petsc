@@ -22,6 +22,8 @@ static PetscErrorCode TaoDestroy_SNES(Tao tao)
   PetscFunctionBegin;
   PetscCall(SNESDestroy(&taosnes->snes));
   PetscCall(PetscFree(tao->data));
+  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoSNESGetSNES_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoSNESSetSNES_C", NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -86,6 +88,62 @@ PetscErrorCode TaoView_SNES(Tao tao, PetscViewer viewer)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/*@
+  TaoSNESSetSNES - Set the SNES defining a TAOSNES
+
+  Input Parameters:
++ tao - the Tao to change
+- snes - the SNES for the Tao
+
+  level: advanced
+
+.seealso: `TAOSNES`, `TaoSNESGetSNES()`
+@*/
+PetscErrorCode TaoSNESSetSNES(Tao tao, SNES snes)
+{
+  PetscFunctionBegin;
+  PetscTryMethod(tao, "TaoSNESSetSNES_C", (Tao, SNES), (tao, snes));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  TaoSNESGetSNES - Get the SNES defining a TAOSNES
+
+  Input Parameters:
++ tao - the Tao to change
+- snes - the SNES for the Tao
+
+  level: advanced
+
+.seealso: `TAOSNES`, `TaoSNESSetSNES()`
+@*/
+PetscErrorCode TaoSNESGetSNES(Tao tao, SNES *snes)
+{
+  PetscFunctionBegin;
+  PetscTryMethod(tao, "TaoSNESGetSNES_C", (Tao, SNES *), (tao, snes));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode TaoSNESGetSNES_TaoSNES(Tao tao, SNES *snes)
+{
+  Tao_SNES *taosnes = (Tao_SNES *)tao->data;
+
+  PetscFunctionBegin;
+  *snes = taosnes->snes;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode TaoSNESSetSNES_TaoSNES(Tao tao, SNES snes)
+{
+  Tao_SNES *taosnes = (Tao_SNES *)tao->data;
+
+  PetscFunctionBegin;
+  PetscCall(PetscObjectReference((PetscObject)snes));
+  PetscCall(SNESDestroy(&taosnes->snes));
+  taosnes->snes = snes;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /*MC
   TAOSNES - nonlinear solver using SNES
 
@@ -108,5 +166,7 @@ PETSC_EXTERN PetscErrorCode TaoCreate_SNES(Tao tao)
   tao->data = (void *)taosnes;
   PetscCall(SNESCreate(PetscObjectComm((PetscObject)tao), &taosnes->snes));
   PetscCall(PetscObjectIncrementTabLevel((PetscObject)taosnes->snes, (PetscObject)tao, 1));
+  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoSNESGetSNES_C", TaoSNESGetSNES_TaoSNES));
+  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoSNESSetSNES_C", TaoSNESSetSNES_TaoSNES));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
