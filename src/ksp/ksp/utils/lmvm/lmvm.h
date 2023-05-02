@@ -33,17 +33,9 @@ typedef struct {
   Vec       Xprev, Fprev;
 
   /* User-defined initial Jacobian tools */
-  PetscBool user_pc, user_ksp, user_scale;
-  PetscReal ksp_rtol, ksp_atol;
-  PetscInt  ksp_max_it;
-  PetscReal J0scalar;
-  Vec       J0diag;
-  Mat       J0;
-  PC        J0pc;
-  KSP       J0ksp;
-
-  /* Data structures to support common Mat functions */
-  PetscReal shift;
+  PetscScalar shift;
+  Mat         J0;
+  KSP         J0ksp;
 
   /* Miscellenous parameters */
   PetscBool square; /* flag for defining the LMVM approximation as a square matrix */
