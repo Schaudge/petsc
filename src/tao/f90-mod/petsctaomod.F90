@@ -1,12 +1,12 @@
 
         module petsctaodef
-        use petsckspdef
+        use petscsnesdef
 #include <../src/tao/f90-mod/petsctao.h>
         end module petsctaodef
 
         module petsctao
         use petsctaodef
-        use petscksp
+        use petscsnes
 #include <../src/tao/f90-mod/petsctao.h90>
         interface
 #include <../src/tao/f90-mod/ftn-auto-interfaces/petsctao.h90>

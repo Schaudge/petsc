@@ -49,9 +49,11 @@ int main(int argc, char **argv)
   PetscCall(PCSetOperators(pc, eye, eye));
   PetscLogStage after_first_solve;
   PetscCall(PetscLogStageRegister("After first solve", &after_first_solve));
-  for (PetscInt i = 0; i < n_iter; i++) {
+  for (PetscInt i = 0; i < n_iter + 1; i++) {
     PetscCall(VecSet(sol,1.0));
+    PetscCall(PetscOptionsPushGetViewerOff(PETSC_TRUE));
     PetscCall(TaoSolve(tao));
+    PetscCall(PetscOptionsPopGetViewerOff());
     if (i == 0) PetscCall(PetscLogStagePush(after_first_solve));
   }
   PetscCall(PetscLogStagePop());
