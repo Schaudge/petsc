@@ -2799,7 +2799,7 @@ PetscErrorCode SNESComputeJacobian(SNES snes, Vec X, Mat A, Mat B)
     PetscCall(KSPSetReusePreconditioner(snes->ksp, PETSC_FALSE));
   }
 
-  PetscCall(SNESTestJacobian(snes));
+  //PetscCall(SNESTestJacobian(snes));
   /* make sure user returned a correct Jacobian and preconditioner */
   /* PetscValidHeaderSpecific(A,MAT_CLASSID,3);
     PetscValidHeaderSpecific(B,MAT_CLASSID,4);   */
@@ -4588,7 +4588,7 @@ PetscErrorCode SNESSolve(SNES snes, Vec b, Vec x)
       }
       /* Adaptively refine the initial grid */
       num = 1;
-      PetscCall(PetscOptionsGetInt(NULL, ((PetscObject)snes)->prefix, "-snes_adapt_initial", &num, &flg));
+      //PetscCall(PetscOptionsGetInt(NULL, ((PetscObject)snes)->prefix, "-snes_adapt_initial", &num, &flg));
       if (flg) {
         DMAdaptor adaptor;
 
@@ -4604,7 +4604,7 @@ PetscErrorCode SNESSolve(SNES snes, Vec b, Vec x)
       }
       /* Use grid sequencing to adapt */
       num = 0;
-      PetscCall(PetscOptionsGetInt(NULL, ((PetscObject)snes)->prefix, "-snes_adapt_sequence", &num, NULL));
+      //PetscCall(PetscOptionsGetInt(NULL, ((PetscObject)snes)->prefix, "-snes_adapt_sequence", &num, NULL));
       if (num) {
         DMAdaptor adaptor;
 

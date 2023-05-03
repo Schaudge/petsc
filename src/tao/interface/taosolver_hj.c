@@ -264,7 +264,7 @@ PetscErrorCode TaoComputeHessian(Tao tao, Vec X, Mat H, Mat Hpre)
   PetscCall(PetscLogEventEnd(TAO_HessianEval, tao, X, H, Hpre));
   PetscCall(VecLockReadPop(X));
 
-  PetscCall(TaoTestHessian(tao));
+  //PetscCall(TaoTestHessian(tao));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

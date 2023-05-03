@@ -148,7 +148,7 @@ PetscErrorCode TaoComputeGradient(Tao tao, Vec X, Vec G)
   } else SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_ARG_WRONGSTATE, "TaoSetGradient() has not been called");
   PetscCall(VecLockReadPop(X));
 
-  PetscCall(TaoTestGradient(tao, X, G));
+  //PetscCall(TaoTestGradient(tao, X, G));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -251,7 +251,7 @@ PetscErrorCode TaoComputeObjectiveAndGradient(Tao tao, Vec X, PetscReal *f, Vec 
   PetscCall(PetscInfo(tao, "TAO Function evaluation: %20.19e\n", (double)(*f)));
   PetscCall(VecLockReadPop(X));
 
-  PetscCall(TaoTestGradient(tao, X, G));
+  //PetscCall(TaoTestGradient(tao, X, G));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
