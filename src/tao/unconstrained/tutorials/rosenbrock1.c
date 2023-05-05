@@ -32,7 +32,7 @@ int main(int argc, char **argv)
   Vec         x; /* solution vector */
   Mat         H;
   Tao         tao; /* Tao solver context */
-  PetscBool   flg, cuda = PETSC_FALSE, test_lmvm = PETSC_FALSE;
+  PetscBool   flg, cuda = PETSC_FALSE, test_lmvm = PETSC_FALSE, J0_scale = PETSC_FALSE;
   PetscMPIInt size; /* number of processes running */
   AppCtx      user; /* user-defined application context */
   KSP         ksp;
@@ -57,6 +57,7 @@ int main(int argc, char **argv)
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-chained", &user.chained, &flg));
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-test_lmvm", &test_lmvm, &flg));
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-cuda", &cuda, &flg));
+  PetscCall(PetscOptionsGetBool(NULL, NULL, "-J0_scale", &J0_scale, &flg));
 
   /* Allocate vectors for the solution and gradient */
   if (cuda){
@@ -82,7 +83,12 @@ int main(int argc, char **argv)
 
   /* Test the LMVM matrix */
   if (test_lmvm) PetscCall(PetscOptionsSetValue(NULL, "-tao_type", "bqnktr"));
-
+  if (J0_scale) {
+    PetscCall(TaoGetKSP(tao, &ksp));
+    PetscCall(KSPGetPC(ksp, &pc));
+    PetscCall(PCLMVMGetMatLMVM(pc, &M));
+    PetscCall(MatLMVMSetJ0Scale(M, 1.));
+  }
   /* Check for TAO command line options */
   PetscCall(TaoSetFromOptions(tao));
 
@@ -105,6 +111,7 @@ int main(int argc, char **argv)
     PetscCall(VecSet(in, 1.0));
     PetscCall(MatMult(M, in, out));
     PetscCall(MatSolve(M, out, out2));
+
     PetscCall(VecAXPY(out2, -1.0, in));
     PetscCall(VecNorm(out2, NORM_2, &mult_solve_dist));
     if (mult_solve_dist < 1.e-11) {
