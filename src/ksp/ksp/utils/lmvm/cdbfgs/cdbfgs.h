@@ -21,6 +21,7 @@ typedef struct {
   MatLBFGSType strategy;
 
   PetscInt  watchdog, max_seq_rejects;                   /* tracker to reset after a certain # of consecutive rejects */
+  PetscInt iter_count;//TODO temp remove later
   PetscInt  idx_cols;
   PetscBool allocated;
   PetscReal delta, delta_min, delta_max;
