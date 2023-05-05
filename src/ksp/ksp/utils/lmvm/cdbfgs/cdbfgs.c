@@ -400,12 +400,12 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   PetscFunctionBegin;
   VecCheckSameSize(F, 2, dX, 3);
   VecCheckMatCompatible(H, dX, 3, F, 2);
+#if 0
   /* Start with the H0 term */
   PetscCall(MatCDBFGSApplyJ0Inv(H, F, dX));
   if (lmvm->k == -1) {
     PetscFunctionReturn(PETSC_SUCCESS); /* No updates stored yet */
   }
-
   /* Start with upper part : -H Y R^-1 S^T F       *
    * Start with reusable part: rwork1 = R^-1 S^T F */
   PetscCall(MatMultTranspose(lbfgs->Sfull, F, lbfgs->rwork1));
@@ -436,31 +436,31 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   PetscCall(MatSolveTriangular(H, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork2, MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE));
   PetscCall(MatMult(lbfgs->Sfull, lbfgs->rwork2, lbfgs->lwork1));
   PetscCall(VecAXPY(dX, 1., lbfgs->lwork1));
-
-#if 0  
+#endif
 //Block Version
+  if (lmvm->k == -1) {
+    PetscCall(MatCDBFGSApplyJ0Inv(H, F, dX));//TODO is this correct?
+    PetscFunctionReturn(PETSC_SUCCESS); /* No updates stored yet */
+  }
   /* Start with reusable part: rwork1 = R^-1 S^T F */
   PetscCall(MatMultTranspose(lbfgs->Sfull, F, lbfgs->rwork1));
   PetscCall(MatSolveTriangular(H, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork1, MAT_CDBFGS_UPPER_TRIANGULAR));
 
-  /* lwork2 :H_0 (F - Y R^{-1} S^T X) */
-  /* dX is currently H_0 F            */
+  /* lwork1 :H_0 (F - Y R^{-1} S^T X) */
   PetscCall(MatMult(lbfgs->Yfull, lbfgs->rwork1, lbfgs->lwork1));
-  PetscCall(VecScale(lbfgs->lwork1, -1.));
-  PetscCall(MatCDBFGSApplyJ0Inv(H, lbfgs->lwork1, lbfgs->lwork2));
-  PetscCall(VecAXPY(lbfgs->lwork2, 1., dX));
+  PetscCall(VecWAXPY(lbfgs->lwork2, -1., lbfgs->lwork1, F));
+  PetscCall(MatCDBFGSApplyJ0Inv(H, lbfgs->lwork2, lbfgs->lwork1));
+  PetscCall(VecCopy(lbfgs->lwork1, dX));
 
-  PetscCall(VecAXPY(dX, 1., lbfgs->lwork2));
-
-  /* -S R^{-T} ( Y^T lwork2 + D rwork1 ) */
+  /* -S R^{-T} ( Y^T lwork1 + D rwork1 ) */
   PetscCall(VecPointwiseMult(lbfgs->rwork1, lbfgs->diag_vec, lbfgs->rwork1));
-  PetscCall(MatMultTranspose(lbfgs->Yfull, lbfgs->lwork2, lbfgs->rwork2));
-  PetscCall(VecAXPY(lbfgs->rwork1, 1., lbfgs->rwork2));
-  PetscCall(MatSolveTriangular(H, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork1, MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE));
-  PetscCall(MatMult(lbfgs->Sfull, lbfgs->rwork1, lbfgs->lwork1));
+  PetscCall(MatMultTranspose(lbfgs->Yfull, lbfgs->lwork1, lbfgs->rwork2));
+  PetscCall(VecAXPY(lbfgs->rwork2, -1., lbfgs->rwork1));
+  PetscCall(MatSolveTriangular(H, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork2, MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE));
+  PetscCall(MatMult(lbfgs->Sfull, lbfgs->rwork2, lbfgs->lwork1));
 
   PetscCall(VecAXPY(dX, -1., lbfgs->lwork1));
-#endif  
+  
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -794,30 +794,30 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       }
       PetscCall(VecRestoreArrayRead(lbfgs->diag_vec, &r_array));
 
-      /* Cholesky factorization */
-      MatFactorInfo info;
-      IS            perm;
-      PetscCall(MatFactorInfoInitialize(&info));
-      info.fill = 0.0;
-      info.dtcol = 0.0;
-      info.zeropivot = 1e-12;
-      info.pivotinblocks = 0.0;
-      PetscCall(VecGetOwnershipRange(X, &low, &high));
-      PetscCall(ISCreateStride(PETSC_COMM_WORLD, low, high, 1, &perm));
-      if (lmvm->k == lmvm->m-1) {
-        MatDestroy(&lbfgs->J_work);
-        PetscCall(MatDenseGetSubMatrix(lbfgs->J, 0, lmvm->k+1, 0, lmvm->k+1, &lbfgs->J_work));
-        PetscCall(MatSetOption(lbfgs->J_work, MAT_SPD, PETSC_TRUE));
-        PetscCall(MatCholeskyFactor(lbfgs->J_work, perm, 0));
-        PetscCall(MatDenseRestoreSubMatrix(lbfgs->J, &lbfgs->J_work));//TODO actually need to reuse J mat... doing Cholesky leaves it in factored
-      } else {//TODO one way to avoid this is to make S,Y,STY adaptive until k==m, but need to redo A LOT...
-        MatDestroy(&lbfgs->J_work);
-        PetscCall(MatDenseGetSubMatrix(lbfgs->J, 0, lmvm->k+1, 0, lmvm->k+1, &lbfgs->J_work));
-        PetscCall(MatSetOption(lbfgs->J_work, MAT_SPD, PETSC_TRUE));
-        PetscCall(MatCholeskyFactor(lbfgs->J_work, perm, 0));
-        PetscCall(MatDenseRestoreSubMatrix(lbfgs->J, &lbfgs->J_work));
-      }
-      PetscCall(ISDestroy(&perm));
+//      /* Cholesky factorization */
+//      MatFactorInfo info;
+//      IS            perm;
+//      PetscCall(MatFactorInfoInitialize(&info));
+//      info.fill = 0.0;
+//      info.dtcol = 0.0;
+//      info.zeropivot = 1e-12;
+//      info.pivotinblocks = 0.0;
+//      PetscCall(VecGetOwnershipRange(X, &low, &high));
+//      PetscCall(ISCreateStride(PETSC_COMM_WORLD, low, high, 1, &perm));
+//      if (lmvm->k == lmvm->m-1) {
+//        MatDestroy(&lbfgs->J_work);
+//        PetscCall(MatDenseGetSubMatrix(lbfgs->J, 0, lmvm->k+1, 0, lmvm->k+1, &lbfgs->J_work));
+//        PetscCall(MatSetOption(lbfgs->J_work, MAT_SPD, PETSC_TRUE));
+//        PetscCall(MatCholeskyFactor(lbfgs->J_work, perm, 0));
+//        PetscCall(MatDenseRestoreSubMatrix(lbfgs->J, &lbfgs->J_work));//TODO actually need to reuse J mat... doing Cholesky leaves it in factored
+//      } else {//TODO one way to avoid this is to make S,Y,STY adaptive until k==m, but need to redo A LOT...
+//        MatDestroy(&lbfgs->J_work);
+//        PetscCall(MatDenseGetSubMatrix(lbfgs->J, 0, lmvm->k+1, 0, lmvm->k+1, &lbfgs->J_work));
+//        PetscCall(MatSetOption(lbfgs->J_work, MAT_SPD, PETSC_TRUE));
+//        PetscCall(MatCholeskyFactor(lbfgs->J_work, perm, 0));
+//        PetscCall(MatDenseRestoreSubMatrix(lbfgs->J, &lbfgs->J_work));
+//      }
+//      PetscCall(ISDestroy(&perm));
 
     } else {
       /* Update is bad, skip it */
