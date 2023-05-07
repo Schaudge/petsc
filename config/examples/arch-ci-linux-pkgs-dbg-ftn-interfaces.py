@@ -5,6 +5,7 @@ petsc_hash_pkgs=os.path.join(os.getenv('HOME'),'petsc-hash-pkgs')
 
 configure_options = [
   '--package-prefix-hash='+petsc_hash_pkgs,
+  '--with-cudac=0',
   '--with-cc=clang',
   '--with-cxx=clang++',
   '--with-fc=gfortran',

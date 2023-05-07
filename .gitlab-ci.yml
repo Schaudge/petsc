@@ -534,7 +534,7 @@ linux-cuda-pkgs:
     #
     # need to use the alternate OR spelling since '|' is interpreted as a pipe by the
     # shell, and I could not manage to escape it enough times...
-    TEST_OPTS: -j3 queryval='cuda,device,kokkos*,vec*' query='requires,requires,requires%OR%name'
+    TEST_OPTS: -j1 queryval='cuda,device,kokkos*,vec*' query='requires,requires,requires%OR%name'
     MAKE_CUDAFLAGS: --compiler-options -Wall,-Werror
 
 linux-cuda112-omp:
@@ -660,17 +660,17 @@ linux-clang-avx:
   variables:
     TEST_ARCH: arch-ci-linux-clang-avx
 
-linux-knl:
-  extends:
-    - .stage-3
-    - .linux_test
-    - .coverage-disable
-  tags:
-    - name:petsc-knl-01
-  variables:
-    MAKE_FFLAGS: -warn errors
-    TEST_ARCH: arch-ci-linux-knl
-    LOAD_MODULES: intel-oneapi-compilers/2022.0.2 intel-oneapi-mkl/2022.0.2 intel-oneapi-mpi/2021.5.1
+#linux-knl:
+#  extends:
+#    - .stage-3
+#    - .linux_test
+#    - .coverage-disable
+#  tags:
+#    - name:petsc-knl-01
+#  variables:
+#    MAKE_FFLAGS: -warn errors
+#    TEST_ARCH: arch-ci-linux-knl
+#    LOAD_MODULES: intel-oneapi-compilers/2022.0.2 intel-oneapi-mkl/2022.0.2 intel-oneapi-mpi/2021.5.1
 
 linux-intel-mkl-single:
   extends:
@@ -1195,3 +1195,12 @@ pages:  # this job name has special meaning to GitLab
   extends: .test
   allow_failure: true
 
+flag-failure:
+  stage: .post
+  tags:
+    - gce-u22-short
+  script:
+    - exit 1
+  variables:
+    GIT_STRATEGY: none
+  dependencies: []
