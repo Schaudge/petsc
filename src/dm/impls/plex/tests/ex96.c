@@ -12,37 +12,31 @@ typedef struct {
   PetscReal  R;
   PetscReal  r;
   PetscReal  r_inflate;
-  PetscInt   np_phi;
-  PetscInt   np_radius; // not used
-  PetscInt   np_theta; // not used
+  PetscInt   n_phi;
   /* solver */
   PetscInt   nlevels;
 } AppCtx;
 
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *ctx)
 {
-  PetscBool phiFlag,radFlag,thetaFlag;
+  PetscBool phiFlag;
   PetscFunctionBeginUser;
   ctx->dim = 2;
   /* mesh */
   ctx->R = 6.2;
   ctx->r = 2.0;
   ctx->r_inflate = 1;
-  ctx->np_phi  = 1;
-  ctx->np_radius = 1;
-  ctx->np_theta  = 1;
+  ctx->n_phi  = 1;
   ctx->nlevels = 2;
 
   PetscOptionsBegin(comm, "tor_", "Tokamak solver", "DMPLEX");
-  PetscCall(PetscOptionsInt("-dim", "parameter", "ex96.c", ctx->dim, &ctx->dim, NULL));
+  PetscCall(PetscOptionsInt("-dim", "The dimension of problem (2 is for debugging)", "ex96.c", ctx->dim, &ctx->dim, NULL));
   PetscCheck(ctx->dim==2 || ctx->dim==3, comm,PETSC_ERR_ARG_WRONG,"dim (%d) != 2 or 3",(int)ctx->dim);
   if (ctx->dim==3) {
-    ctx->np_phi = 4;
-    PetscCall(PetscOptionsInt("-np_phi", "Number of planes for mesh", "ex96.c", ctx->np_phi, &ctx->np_phi, &phiFlag));
+    ctx->n_phi = 4;
+    PetscCall(PetscOptionsInt("-n_phi", "Number of planes for mesh", "ex96.c", ctx->n_phi, &ctx->n_phi, &phiFlag));
   }
-  else { ctx->np_phi = 1; phiFlag = PETSC_TRUE;} // == 1
-  PetscCall(PetscOptionsInt("-np_radius", "Number of radial cells for particle mesh", "ex96.c", ctx->np_radius, &ctx->np_radius, &radFlag));
-  PetscCall(PetscOptionsInt("-np_theta", "Number of theta cells for particle mesh", "ex96.c", ctx->np_theta, &ctx->np_theta, &thetaFlag));
+  else { ctx->n_phi = 1; phiFlag = PETSC_TRUE;} // == 1
   PetscCall(PetscOptionsInt("-num_levels", "Number of multigrid levels (refinement-1)", "ex96.c", ctx->nlevels, &ctx->nlevels, NULL));
   PetscCheck(ctx->nlevels < 12 &&  ctx->nlevels > 0, comm,PETSC_ERR_ARG_WRONG,"nlevels (%d)",(int)ctx->nlevels);
   /* Domain and mesh definition */
@@ -158,7 +152,7 @@ static PetscErrorCode ExtrudeTorus(MPI_Comm comm, DM *dm, AppCtx *ctx)
   //
   L = 2*PETSC_PI*ctx->R;
   // we could create a box mesh here but Plex starts with a 2x2 so we can just dm_refine from there, for now
-  PetscCall(DMPlexExtrude(*dm, ctx->np_phi, L, PETSC_FALSE, PETSC_FALSE, NULL, NULL, &dmtorus));
+  PetscCall(DMPlexExtrude(*dm, ctx->n_phi, L, PETSC_FALSE, PETSC_FALSE, NULL, NULL, &dmtorus));
   PetscCall(DMDestroy(dm));
   *dm = dmtorus;
   PetscCall(DMGetDimension(*dm, &dim));
@@ -326,7 +320,7 @@ int main(int argc, char **argv)
   /* Create Plex */
   PetscCall(CreateMesh(comm, ctx, &dm));
   PetscCall(DMGetDimension(dm, &dim)); // probably 2
-  PetscCheck(dim <= ctx->dim && dim > 1, comm,PETSC_ERR_ARG_WRONG,"DM dim (%d) > -dim %d",(int)dim,ctx->dim);
+  PetscCheck(dim -= 2, comm,PETSC_ERR_ARG_WRONG,"DM dim (%d) != 2",(int)dim);
   /* solver and refinement */
   PetscCall(SNESCreate(comm, &snes));
   PetscCall(refineAndSetupSolver(&dm, snes, ctx));
@@ -365,6 +359,6 @@ int main(int argc, char **argv)
      test:
        suffix: 3d
        nsize: 1
-       args: -tor_dim 3 -tor_np_phi 4
+       args: -tor_dim 3 -tor_n_phi 4
 
 TEST*/
