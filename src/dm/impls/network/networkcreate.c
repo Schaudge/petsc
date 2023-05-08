@@ -231,7 +231,7 @@ static PetscErrorCode DMCreateGlobalVector_Network(DM dm, Vec *vec)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode DMCreateLocalVector_Network(DM dm, Vec *vec)
+static PetscErrorCode  DMCreateLocalVector_Network(DM dm, Vec *vec)
 {
   DM_Network *network = (DM_Network *)dm->data;
 

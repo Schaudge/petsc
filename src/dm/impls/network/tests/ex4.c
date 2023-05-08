@@ -139,7 +139,7 @@ int main(int argc, char **argv)
   for (i = 0; i < size; i++) { PetscCall(PetscSynchronizedPrintf(PETSC_COMM_WORLD, "%" PetscInt_FMT " :  %" PetscInt_FMT, keys[i], vals[i])); }
   PetscCall(PetscSynchronizedPrintf(PETSC_COMM_WORLD, "\n\n"));
 
-  PetscSynchronizedFlush(PETSC_COMM_WORLD, NULL);
+  PetscCall(PetscSynchronizedFlush(PETSC_COMM_WORLD, NULL));
   PetscCall(PetscFree2(keys, vals));
   PetscCall(DMDestroy(&dm));
   PetscCall(NetRSDestroy(&netrs));

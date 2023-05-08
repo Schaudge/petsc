@@ -52,6 +52,7 @@ PETSC_EXTERN PetscErrorCode DMNetworkGetPlex(DM, DM *);
 PETSC_EXTERN PetscErrorCode DMNetworkGetGlobalEdgeIndex(DM, PetscInt, PetscInt *);
 PETSC_EXTERN PetscErrorCode DMNetworkGetGlobalVertexIndex(DM, PetscInt, PetscInt *);
 
+PETSC_EXTERN PetscErrorCode DMNetworkCreateFromPlex(DM,DM);
 PETSC_EXTERN PetscErrorCode DMNetworkAddSubnetwork(DM, const char *, PetscInt, PetscInt[], PetscInt *);
 PETSC_EXTERN PetscErrorCode DMNetworkGetSubnetwork(DM, PetscInt, PetscInt *, PetscInt *, const PetscInt **, const PetscInt **);
 PETSC_EXTERN PetscErrorCode DMNetworkAddSharedVertices(DM, PetscInt, PetscInt, PetscInt, PetscInt[], PetscInt[]);
@@ -59,6 +60,8 @@ PETSC_EXTERN PetscErrorCode DMNetworkGetSharedVertices(DM, PetscInt *, const Pet
 PETSC_EXTERN PetscErrorCode DMNetworkSharedVertexGetInfo(DM, PetscInt, PetscInt *, PetscInt *, const PetscInt **);
 PETSC_EXTERN PetscErrorCode DMNetworkCreateIS(DM, PetscInt, PetscInt[], PetscInt[], PetscInt[], PetscInt *[], IS *);
 PETSC_EXTERN PetscErrorCode DMNetworkCreateLocalIS(DM, PetscInt, PetscInt[], PetscInt[], PetscInt[], PetscInt *[], IS *);
+
+PETSC_EXTERN PetscErrorCode DMNetworkGiveMEMYSECTON(DM,PetscSection*);
 
 typedef struct _p_DMNetworkMonitorList *DMNetworkMonitorList;
 struct _p_DMNetworkMonitorList {
