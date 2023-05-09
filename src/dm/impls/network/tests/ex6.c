@@ -1,5 +1,7 @@
 #include "petscdm.h"
 #include "petscsection.h"
+#include "petscsys.h"
+#include "petscsystypes.h"
 #include "petscviewer.h"
 static char help[] = "Test DMNetworkCreateFromPlex \n\n";
 
@@ -106,8 +108,11 @@ PetscErrorCode StarGraphSetCoordinates(DM dm)
   PetscCall(DMNetworkRegisterComponent(cdm, "coordinates", 0, &compkey));
   for (v = vStart; v < vEnd; v++) PetscCall(DMNetworkAddComponent(cdm, v, compkey, NULL, 2));
   PetscCall(DMNetworkFinalizeComponents(cdm));
+  PetscCall(DMCreateGlobalVector(cdm, &Coord));
+  PetscCall(DMSetCoordinates(dm, Coord));
+  PetscCall(VecDestroy(&Coord));
 
-  PetscCall(DMCreateLocalVector(cdm, &Coord));
+  PetscCall(DMGetCoordinatesLocal(dm, &Coord));
   PetscCall(VecGetArray(Coord, &coord));
   PetscCall(DMNetworkGetNumVertices(cdm, NULL, &NVert));
   theta = 2 * PETSC_PI / (NVert - 1);
@@ -125,7 +130,6 @@ PetscErrorCode StarGraphSetCoordinates(DM dm)
   }
   PetscCall(VecRestoreArray(Coord, &coord));
   PetscCall(DMSetCoordinatesLocal(dm, Coord));
-  PetscCall(VecDestroy(&Coord));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -146,6 +150,7 @@ static PetscErrorCode CoordinatePrint(DM dm)
   PetscCall(DMGetCoordinateDM(dm, &dmclone));
   PetscCall(DMNetworkGetVertexRange(dm, &vStart, &vEnd));
   PetscCall(DMGetCoordinatesLocal(dm, &coords));
+  //PetscCall(VecView(coords,PETSC_VIEWER_STDOUT_SELF));
 
   PetscCall(DMGetCoordinateDim(dm, &cdim));
   PetscCall(VecGetArrayRead(coords, &carray));
@@ -171,12 +176,12 @@ static PetscErrorCode CoordinatePrint(DM dm)
 
 int main(int argc, char **argv)
 {
-  DM          dm,network2,plex,cdm;
+  DM          dm,network2,plex,cplex,cdm;
   PetscInt    dofv = 1, dofe = 1, ne = 1;
   PetscMPIInt rank;
   PetscBool   testdistribute = PETSC_FALSE;
-  Vec         coord; 
-  PetscSection section; 
+  Vec         coord,coordloc; 
+  PetscSection section,section2;
 
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
@@ -197,32 +202,33 @@ int main(int argc, char **argv)
     PetscCall(DMView(dm, PETSC_VIEWER_STDOUT_WORLD));
   }
 
+  PetscCall(DMGetCoordinateDM(dm, &cdm));
   PetscCall(DMNetworkGetPlex(dm, &plex));
+  PetscCall(DMNetworkGetPlex(cdm, &cplex));
 
   PetscCall(DMGetCoordinates(dm,&coord));
-  PetscCall(DMSetCoordinates(plex,coord));
-  PetscCall(DMGetCoordinateDM(dm, &cdm));
+  PetscCall(VecView(coord,PETSC_VIEWER_STDOUT_WORLD));
+
   // What it should be but DMNetwork is broken and needs fixing 
   //PetscCall(DMGetCoordinateSection(dm,&section)); 
 
-  PetscCall(DMNetworkGiveMEMYSECTON(cdm, &section));
-  PetscCall(PetscSectionView(section, PETSC_VIEWER_STDOUT_WORLD));
-  PetscCall(DMSetCoordinateSection(plex,2,section));
+  PetscCall(DMSetCoordinateDM(plex, cplex));
+  PetscCall(DMSetCoordinateDim(plex, 2));
+
+  PetscCall(DMSetCoordinates(plex,coord));
+
   PetscCall(DMNetworkCreate(PETSC_COMM_WORLD, &network2));
   PetscCall(DMNetworkCreateFromPlex(plex, network2));
   PetscCall(DMSetUp(network2));
-  PetscCall(DMNetworkFinalizeComponents(network2));
   PetscCall(DMView(network2,PETSC_VIEWER_STDOUT_WORLD));
-  PetscCall(DMGetCoordinatesLocal(network2,&coord));
-  PetscCall(VecView(coord,PETSC_VIEWER_STDOUT_WORLD));
+  PetscCall(DMGetCoordinates(network2,&coord));
 
   /* print or view the coordinates of each vertex */
   PetscCall(CoordinatePrint(dm));
   PetscCall(CoordinatePrint(network2));
-
+  PetscCall(DMDestroy(&dm));
   PetscCall(DMDestroy(&network2));
 
-  PetscCall(DMDestroy(&dm));
   PetscCall(PetscFinalize());
 }
 

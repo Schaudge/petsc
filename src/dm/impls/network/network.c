@@ -638,7 +638,6 @@ PetscErrorCode DMNetworkInitializeNonTopological(DM dm)
     network->header[p].offsetvarrel[0] = 0;
     PetscCall(PetscSectionAddDof(network->DataSection, p, network->header[p].hsize));
   }
-  PetscCall(DMSetLocalSection(dm, network->DofSection));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -808,7 +807,7 @@ PetscErrorCode DMNetworkCreateFromPlex(DM plex, DM dm)
   PetscSection    sectiong;
   PetscInt        *edgelist, eStart,eEnd,nvertiecs,vStart,vEnd,cdim; 
   IS              vertexnumbering; 
-  DM              cdm, cplex;
+  DM              cdm;
   Vec             coord;
 
   PetscFunctionBegin; 
@@ -923,8 +922,6 @@ PetscErrorCode DMNetworkCreateFromPlex(DM plex, DM dm)
       PetscSection coordsection; 
 
   PetscCall(DMGetCoordinateSection(plex, &coordsection));
-  PetscCall(PetscSectionView(coordsection, PETSC_VIEWER_STDOUT_WORLD));
-
 
   /* Create a global section to be used by DMNetworkIsGhostVertex() which is a non-collective routine */
   /* see snes_tutorials_network-ex1_4 */
@@ -934,17 +931,15 @@ PetscErrorCode DMNetworkCreateFromPlex(DM plex, DM dm)
 
   /* Copy over some stuff from the plex to the DMNetwork */
   PetscCall(DMGetCoordinateDM(dm,&cdm));
-  PetscCall(DMGetCoordinateDM(plex,&cplex));
 
   cnetwork = (DM_Network *)cdm->data;
-  PetscCall(DMSetCoordinateDM(cnetwork->plex,cplex));
+  PetscCall(DMSetCoordinateDM(plex,cnetwork->plex));
 
   PetscCall(DMGetCoordinateDim(plex,&cdim));
   if(cdim>0) { /* Has a coordinate vector */
     PetscInt     key,p,pStart,pEnd,ndof; 
     PetscCall(DMSetCoordinateDim(dm, cdim));
     PetscCall(DMGetCoordinates(plex,&coord));
-    PetscCall(VecView(coord, PETSC_VIEWER_STDOUT_WORLD));
     PetscCall(DMSetCoordinates(dm,coord));
 
     if(coordsection){
