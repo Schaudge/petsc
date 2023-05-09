@@ -12,7 +12,7 @@ typedef struct {
   Mat       Q; // H_0 Y
   Mat       C_H, HY; // diag(StY) + Y^T H_0 Y (m x m)
   Mat       C_B, BS; //S^T B_0 S (m x m)                 
-  Mat       L, J, J_work;                     
+  Mat       L, J, J_work, J_solve, J_temp_copy;
   Vec       diag_vec;
   Vec       lwork1, lwork2, rwork1, rwork2, rwork3, rwork4;
   Vec       rwork5,rwork6; //temp. need to delete later
