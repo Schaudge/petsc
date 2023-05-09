@@ -466,7 +466,7 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   PetscCall(MatMultTranspose(lbfgs->Sfull, Z, lbfgs->rwork4));
   PetscCall(MatMultTranspose(lbfgs->Yfull, X, lbfgs->rwork3));
 
-  /* Common part: rwork2:  J^{-T} J^{-1} (L D^{-1} Y^T X + S^T B_0 X) */
+  /* Common part: rwork1:  J^{-T} J^{-1} (L D^{-1} Y^T X + S^T B_0 X) */
   PetscCall(VecPointwiseDivide(lbfgs->rwork2,lbfgs->rwork3, lbfgs->diag_vec));
   PetscCall(MatLowerTriangularMult(B, lbfgs->rwork2, MAT_CDBFGS_LOWER_TRIANGULAR));
   PetscCall(VecAXPY(lbfgs->rwork2, 1., lbfgs->rwork4));
@@ -475,23 +475,20 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   PetscCall(VecGetSubVector(lbfgs->rwork1, temp_is, &temp_1));
   PetscCall(VecGetSubVector(lbfgs->rwork2, temp_is, &temp_2));
 
-  /* TODO LU factor actually doesn't do anything now... MatSolve(J_solve) is actually just MatSolve(JJ^T) */
   PetscCall(MatSolve(lbfgs->J_solve, temp_2, temp_1));
-  PetscCall(MatSolveTranspose(lbfgs->J_solve, temp_1, temp_2));
   PetscCall(VecRestoreSubVector(lbfgs->rwork1, temp_is, &temp_1));
   PetscCall(VecRestoreSubVector(lbfgs->rwork2, temp_is, &temp_2));
 
-  /* Bottom part:  - B_0 S rwork2 */
-  PetscCall(MatMult(lbfgs->Sfull, lbfgs->rwork2, lbfgs->lwork1));
+  /* Bottom part:  - B_0 S rwork1 */
+  PetscCall(MatMult(lbfgs->Sfull, lbfgs->rwork1, lbfgs->lwork1));
   PetscCall(MatCDBFGSApplyJ0Fwd(B, lbfgs->lwork1, lbfgs->lwork2));
   PetscCall(VecAXPY(Z, -1., lbfgs->lwork2));
 
-  /* Top part: + Y D^{-1} ( Y^T X - D^{-1} L^T rwork2 ) */
-  PetscCall(MatLowerTriangularMult(B, lbfgs->rwork2, MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE));
-  PetscCall(VecPointwiseDivide(lbfgs->rwork4,lbfgs->rwork2, lbfgs->diag_vec));
-  PetscCall(VecAXPY(lbfgs->rwork3, -1., lbfgs->rwork4));
-  PetscCall(VecPointwiseDivide(lbfgs->rwork4,lbfgs->rwork3, lbfgs->diag_vec));
-  PetscCall(MatMult(lbfgs->Yfull, lbfgs->rwork3, lbfgs->lwork1));
+  /* Top part: + Y D^{-1} ( Y^T X - D^{-1} L^T rwork1 ) */
+  PetscCall(MatLowerTriangularMult(B, lbfgs->rwork1, MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE));
+  PetscCall(VecAXPY(lbfgs->rwork3, -1., lbfgs->rwork1));
+  PetscCall(VecPointwiseDivide(lbfgs->rwork4, lbfgs->rwork3, lbfgs->diag_vec));
+  PetscCall(MatMult(lbfgs->Yfull, lbfgs->rwork4, lbfgs->lwork1));
   PetscCall(VecAXPY(Z, 1., lbfgs->lwork1));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -750,6 +747,7 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       PetscCall(VecGetOwnershipRange(X, &low, &high));
       PetscCall(ISCreateStride(PETSC_COMM_WORLD, low, high, 1, &perm));
 
+#if 0      
       /*TODO LU factor doesn't do anything... WHY??? */
       if (lbfgs->iter_count >= 7) {
         VecSetValue(lbfgs->rwork1,0,-0.0367335,INSERT_VALUES);
@@ -758,25 +756,28 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
         VecSetValue(lbfgs->rwork1,3,-0.0254939,INSERT_VALUES);
         VecSetValue(lbfgs->rwork1,4,-0.0341416,INSERT_VALUES);
       }
-
+#endif
       if (lmvm->k == lmvm->m - 1) {
         PetscCall(MatDestroy(&lbfgs->J_solve));
         PetscCall(MatConvert(lbfgs->J, MATSAME, MAT_INITIAL_MATRIX, &lbfgs->J_solve));
         //MatDuplicate(lbfgs->J, MAT_COPY_VALUES, &lbfgs->J_solve);
-        PetscCall(MatLUFactor(lbfgs->J_solve,NULL,NULL,NULL));
+        //PetscCall(MatLUFactor(lbfgs->J_solve,NULL,NULL,NULL));
+        PetscCall(MatSetOption(lbfgs->J_solve, MAT_SPD, PETSC_TRUE));
+        PetscCall(MatCholeskyFactor(lbfgs->J_solve,NULL,NULL));
       } else {
         PetscCall(MatDenseGetSubMatrix(lbfgs->J, 0, lmvm->k+1, 0, lmvm->k+1, &lbfgs->J_work));
         PetscCall(MatDestroy(&lbfgs->J_solve));
         PetscCall(MatDuplicate(lbfgs->J_work, MAT_COPY_VALUES, &lbfgs->J_solve));
-        PetscCall(MatLUFactor(lbfgs->J_solve,NULL,NULL,NULL));
+        //PetscCall(MatLUFactor(lbfgs->J_solve,NULL,NULL,NULL));
+        PetscCall(MatSetOption(lbfgs->J_solve, MAT_SPD, PETSC_TRUE));
+        PetscCall(MatCholeskyFactor(lbfgs->J_solve,NULL,NULL));
         PetscCall(MatDenseRestoreSubMatrix(lbfgs->J, &lbfgs->J_work));
       }
-
+#if 0
       if (lbfgs->iter_count >= 7) {
-        //PetscCall(MatLUFactor(lbfgs->J,NULL,NULL,NULL));//Tried LU on just J.. still nope
         PetscCall(MatSolve(lbfgs->J_solve, lbfgs->rwork1, lbfgs->rwork2));
-        MatSetUnfactored(lbfgs->J_solve);
       }
+#endif
       PetscCall(ISDestroy(&perm)); //TODO tried making regular perm to test LU. doesnt seem to matter. delete later
 
     } else {
