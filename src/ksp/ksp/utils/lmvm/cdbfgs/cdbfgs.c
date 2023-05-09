@@ -759,13 +759,21 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
         VecSetValue(lbfgs->rwork1,4,-0.0341416,INSERT_VALUES);
       }
 
-      PetscCall(MatDenseGetSubMatrix(lbfgs->J, 0, lmvm->k+1, 0, lmvm->k+1, &lbfgs->J_work));
-      MatDestroy(&lbfgs->J_solve);
-      MatDuplicate(lbfgs->J_work, MAT_COPY_VALUES, &lbfgs->J_solve);
-      PetscCall(MatLUFactor(lbfgs->J_solve,NULL,NULL,NULL));
-      PetscCall(MatDenseRestoreSubMatrix(lbfgs->J, &lbfgs->J_work));
+      if (lmvm->k == lmvm->m - 1) {
+        PetscCall(MatDestroy(&lbfgs->J_solve));
+        PetscCall(MatConvert(lbfgs->J, MATSAME, MAT_INITIAL_MATRIX, &lbfgs->J_solve));
+        //MatDuplicate(lbfgs->J, MAT_COPY_VALUES, &lbfgs->J_solve);
+        PetscCall(MatLUFactor(lbfgs->J_solve,NULL,NULL,NULL));
+      } else {
+        PetscCall(MatDenseGetSubMatrix(lbfgs->J, 0, lmvm->k+1, 0, lmvm->k+1, &lbfgs->J_work));
+        PetscCall(MatDestroy(&lbfgs->J_solve));
+        PetscCall(MatDuplicate(lbfgs->J_work, MAT_COPY_VALUES, &lbfgs->J_solve));
+        PetscCall(MatLUFactor(lbfgs->J_solve,NULL,NULL,NULL));
+        PetscCall(MatDenseRestoreSubMatrix(lbfgs->J, &lbfgs->J_work));
+      }
 
       if (lbfgs->iter_count >= 7) {
+        //PetscCall(MatLUFactor(lbfgs->J,NULL,NULL,NULL));//Tried LU on just J.. still nope
         PetscCall(MatSolve(lbfgs->J_solve, lbfgs->rwork1, lbfgs->rwork2));
         MatSetUnfactored(lbfgs->J_solve);
       }
