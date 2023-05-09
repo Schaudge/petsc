@@ -400,46 +400,10 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   PetscFunctionBegin;
   VecCheckSameSize(F, 2, dX, 3);
   VecCheckMatCompatible(H, dX, 3, F, 2);
-#if 0
-  /* Start with the H0 term */
-  PetscCall(MatCDBFGSApplyJ0Inv(H, F, dX));
+
+  /* Block Version */
   if (lmvm->k == -1) {
-    PetscFunctionReturn(PETSC_SUCCESS); /* No updates stored yet */
-  }
-  /* Start with upper part : -H Y R^-1 S^T F       *
-   * Start with reusable part: rwork1 = R^-1 S^T F */
-  PetscCall(MatMultTranspose(lbfgs->Sfull, F, lbfgs->rwork1));
-  PetscCall(MatSolveTriangular(H, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork1, MAT_CDBFGS_UPPER_TRIANGULAR));
-  PetscCall(MatMult(lbfgs->Yfull, lbfgs->rwork1, lbfgs->lwork1));
-  PetscCall(MatCDBFGSApplyJ0Inv(H, lbfgs->lwork1, lbfgs->lwork2));
-  PetscCall(VecAXPY(dX, -1., lbfgs->lwork2));
-
-  /* Start bottom part: S(-R^-T Y^T H S^T F + R^-T(D + Y^T H Y) R^-1 S^T F) *
-   * rwork2: D R^-1 S^T F, rwork3: Y^T H Y R^-1 S^T F                       */
-  if (!(lmvm->user_scale)) {
-    PetscCall(VecPointwiseMult(lbfgs->rwork2, lbfgs->diag_vec, lbfgs->rwork1));
-
-    PetscCall(MatMult(lbfgs->Yfull, lbfgs->rwork1, lbfgs->lwork1));
-    PetscCall(MatCDBFGSApplyJ0Inv(H, lbfgs->lwork1, lbfgs->lwork2));
-    PetscCall(MatMultTranspose(lbfgs->Yfull, lbfgs->lwork2, lbfgs->rwork3));
-    PetscCall(VecAXPY(lbfgs->rwork2, 1., lbfgs->rwork3));
-  } else {
-    /* C */
-    PetscCall(MatMult(lbfgs->C_H, lbfgs->rwork1, lbfgs->rwork2));
-    PetscCall(VecPointwiseMult(lbfgs->rwork3, lbfgs->diag_vec, lbfgs->rwork1)); //TODO technically can make C_H carry diag, but for later...
-    PetscCall(VecAXPY(lbfgs->rwork2, 1., lbfgs->rwork3));
-  }
-
-  PetscCall(MatCDBFGSApplyJ0Inv(H, F, lbfgs->lwork1)); //TODO technically can use extra vec to save one gemv...
-  PetscCall(MatMultTranspose(lbfgs->Yfull, lbfgs->lwork1, lbfgs->rwork3));
-  PetscCall(VecAXPY(lbfgs->rwork2, -1., lbfgs->rwork3));
-  PetscCall(MatSolveTriangular(H, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork2, MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE));
-  PetscCall(MatMult(lbfgs->Sfull, lbfgs->rwork2, lbfgs->lwork1));
-  PetscCall(VecAXPY(dX, 1., lbfgs->lwork1));
-#endif
-//Block Version
-  if (lmvm->k == -1) {
-    PetscCall(MatCDBFGSApplyJ0Inv(H, F, dX));//TODO is this correct?
+    PetscCall(MatCDBFGSApplyJ0Inv(H, F, dX));
     PetscFunctionReturn(PETSC_SUCCESS); /* No updates stored yet */
   }
   /* Start with reusable part: rwork1 = R^-1 S^T F */
@@ -452,15 +416,13 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   PetscCall(MatCDBFGSApplyJ0Inv(H, lbfgs->lwork2, lbfgs->lwork1));
   PetscCall(VecCopy(lbfgs->lwork1, dX));
 
-  /* -S R^{-T} ( Y^T lwork1 + D rwork1 ) */
+  /* -S R^{-T} ( Y^T lwork1 - D rwork1 ) */
   PetscCall(VecPointwiseMult(lbfgs->rwork1, lbfgs->diag_vec, lbfgs->rwork1));
   PetscCall(MatMultTranspose(lbfgs->Yfull, lbfgs->lwork1, lbfgs->rwork2));
   PetscCall(VecAXPY(lbfgs->rwork2, -1., lbfgs->rwork1));
   PetscCall(MatSolveTriangular(H, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork2, MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE));
   PetscCall(MatMult(lbfgs->Sfull, lbfgs->rwork2, lbfgs->lwork1));
-
   PetscCall(VecAXPY(dX, -1., lbfgs->lwork1));
-  
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -485,6 +447,9 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
 {
   Mat_LMVM     *lmvm  = (Mat_LMVM*)B->data;
   Mat_CDBFGS   *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
+
+  IS  temp_is;
+  Vec temp_1, temp_2;
   
   PetscFunctionBegin;
   VecCheckSameSize(X, 2, Z, 3);
@@ -504,30 +469,18 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   /* Common part: rwork2:  J^{-T} J^{-1} (L D^{-1} Y^T X + S^T B_0 X) */
   PetscCall(VecPointwiseDivide(lbfgs->rwork2,lbfgs->rwork3, lbfgs->diag_vec));
   PetscCall(MatLowerTriangularMult(B, lbfgs->rwork2, MAT_CDBFGS_LOWER_TRIANGULAR));
-
   PetscCall(VecAXPY(lbfgs->rwork2, 1., lbfgs->rwork4));
 
-//  if (lmvm->k == lmvm->m-1) {
-//    PetscCall(MatSolve(lbfgs->J, lbfgs->rwork2, lbfgs->rwork1));
-//    PetscCall(MatSolveTranspose(lbfgs->J, lbfgs->rwork1, lbfgs->rwork2));
-//  } else {
-    IS  temp_is;
-    Vec temp_1, temp_2;
+  PetscCall(ISCreateStride(PETSC_COMM_WORLD, lmvm->k+1, 0, 1, &temp_is));
+  PetscCall(VecGetSubVector(lbfgs->rwork1, temp_is, &temp_1));
+  PetscCall(VecGetSubVector(lbfgs->rwork2, temp_is, &temp_2));
 
-    PetscCall(MatDenseGetSubMatrix(lbfgs->J, 0, lmvm->k+1, 0, lmvm->k+1, &lbfgs->J_work));
-//    PetscCall(MatSetOption(lbfgs->J_work, MAT_SPD, PETSC_TRUE));
-//    PetscCall(MatCholeskyFactor(lbfgs->J_work, 0, 0));
+  /* TODO LU factor actually doesn't do anything now... MatSolve(J_solve) is actually just MatSolve(JJ^T) */
+  PetscCall(MatSolve(lbfgs->J_solve, temp_2, temp_1));
+  PetscCall(MatSolveTranspose(lbfgs->J_solve, temp_1, temp_2));
+  PetscCall(VecRestoreSubVector(lbfgs->rwork1, temp_is, &temp_1));
+  PetscCall(VecRestoreSubVector(lbfgs->rwork2, temp_is, &temp_2));
 
-    PetscCall(ISCreateStride(PETSC_COMM_WORLD, lmvm->k+1, 0, 1, &temp_is));
-    PetscCall(VecGetSubVector(lbfgs->rwork1, temp_is, &temp_1));
-    PetscCall(VecGetSubVector(lbfgs->rwork2, temp_is, &temp_2));
-
-    PetscCall(MatSolve(lbfgs->J_work, temp_2, temp_1));
-    PetscCall(MatSolveTranspose(lbfgs->J_work, temp_1, temp_2));
-    PetscCall(MatDenseRestoreSubMatrix(lbfgs->J, &lbfgs->J_work));
-    PetscCall(VecRestoreSubVector(lbfgs->rwork1, temp_is, &temp_1));
-    PetscCall(VecRestoreSubVector(lbfgs->rwork2, temp_is, &temp_2));
-//  }
   /* Bottom part:  - B_0 S rwork2 */
   PetscCall(MatMult(lbfgs->Sfull, lbfgs->rwork2, lbfgs->lwork1));
   PetscCall(MatCDBFGSApplyJ0Fwd(B, lbfgs->lwork1, lbfgs->lwork2));
@@ -748,8 +701,6 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       /* J0 is non-static. Need to manually compute BS matrix. */
       if (!(lmvm->user_scale)) {
         for (i=0; i<lmvm->m; i++) {
-          //TODO technically can write matmat diagbrdn to avoid this, but for later? 
-          //if so, probably needs some switch flag LMVM_HAS_MATMAT{MULT,SOLVE}
           PetscCall(MatDenseGetColumnVecRead(lbfgs->Sfull, i, &workvec1));
           PetscCall(MatDenseGetColumnVecWrite(lbfgs->BS, i, &workvec2));
           PetscCall(MatCDBFGSApplyJ0Fwd(B, workvec1, workvec2));
@@ -785,7 +736,7 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
         }
         PetscCall(VecRestoreArray(lbfgs->rwork1, &x_array));
     
-        for (j=0, k=i+1; k<lmvm->m; k++, j++) {//TODO is this allowed in petsc?
+        for (j=0, k=i+1; k<lmvm->m; k++, j++) {
           PetscCall(MatDenseGetColumnVecWrite(lbfgs->J, k, &workvec2));
           PetscCall(VecAXPY(workvec2, buffer[j], lbfgs->rwork1));
           PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->J, k, &workvec2));
@@ -794,30 +745,31 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       }
       PetscCall(VecRestoreArrayRead(lbfgs->diag_vec, &r_array));
 
-//      /* Cholesky factorization */
-//      MatFactorInfo info;
-//      IS            perm;
-//      PetscCall(MatFactorInfoInitialize(&info));
-//      info.fill = 0.0;
-//      info.dtcol = 0.0;
-//      info.zeropivot = 1e-12;
-//      info.pivotinblocks = 0.0;
-//      PetscCall(VecGetOwnershipRange(X, &low, &high));
-//      PetscCall(ISCreateStride(PETSC_COMM_WORLD, low, high, 1, &perm));
-//      if (lmvm->k == lmvm->m-1) {
-//        MatDestroy(&lbfgs->J_work);
-//        PetscCall(MatDenseGetSubMatrix(lbfgs->J, 0, lmvm->k+1, 0, lmvm->k+1, &lbfgs->J_work));
-//        PetscCall(MatSetOption(lbfgs->J_work, MAT_SPD, PETSC_TRUE));
-//        PetscCall(MatCholeskyFactor(lbfgs->J_work, perm, 0));
-//        PetscCall(MatDenseRestoreSubMatrix(lbfgs->J, &lbfgs->J_work));//TODO actually need to reuse J mat... doing Cholesky leaves it in factored
-//      } else {//TODO one way to avoid this is to make S,Y,STY adaptive until k==m, but need to redo A LOT...
-//        MatDestroy(&lbfgs->J_work);
-//        PetscCall(MatDenseGetSubMatrix(lbfgs->J, 0, lmvm->k+1, 0, lmvm->k+1, &lbfgs->J_work));
-//        PetscCall(MatSetOption(lbfgs->J_work, MAT_SPD, PETSC_TRUE));
-//        PetscCall(MatCholeskyFactor(lbfgs->J_work, perm, 0));
-//        PetscCall(MatDenseRestoreSubMatrix(lbfgs->J, &lbfgs->J_work));
-//      }
-//      PetscCall(ISDestroy(&perm));
+      /* Cholesky factorization */
+      IS            perm;
+      PetscCall(VecGetOwnershipRange(X, &low, &high));
+      PetscCall(ISCreateStride(PETSC_COMM_WORLD, low, high, 1, &perm));
+
+      /*TODO LU factor doesn't do anything... WHY??? */
+      if (lbfgs->iter_count >= 7) {
+        VecSetValue(lbfgs->rwork1,0,-0.0367335,INSERT_VALUES);
+        VecSetValue(lbfgs->rwork1,1,0.2606,INSERT_VALUES);
+        VecSetValue(lbfgs->rwork1,2,0.0285366,INSERT_VALUES);
+        VecSetValue(lbfgs->rwork1,3,-0.0254939,INSERT_VALUES);
+        VecSetValue(lbfgs->rwork1,4,-0.0341416,INSERT_VALUES);
+      }
+
+      PetscCall(MatDenseGetSubMatrix(lbfgs->J, 0, lmvm->k+1, 0, lmvm->k+1, &lbfgs->J_work));
+      MatDestroy(&lbfgs->J_solve);
+      MatDuplicate(lbfgs->J_work, MAT_COPY_VALUES, &lbfgs->J_solve);
+      PetscCall(MatLUFactor(lbfgs->J_solve,NULL,NULL,NULL));
+      PetscCall(MatDenseRestoreSubMatrix(lbfgs->J, &lbfgs->J_work));
+
+      if (lbfgs->iter_count >= 7) {
+        PetscCall(MatSolve(lbfgs->J_solve, lbfgs->rwork1, lbfgs->rwork2));
+        MatSetUnfactored(lbfgs->J_solve);
+      }
+      PetscCall(ISDestroy(&perm)); //TODO tried making regular perm to test LU. doesnt seem to matter. delete later
 
     } else {
       /* Update is bad, skip it */
