@@ -5762,7 +5762,7 @@ PetscErrorCode MatAssemblyEnd(Mat mat, MatAssemblyType type)
 -  flg - turn the option on (`PETSC_TRUE`) or off (`PETSC_FALSE`)
 
   Options Describing Matrix Structure:
-+    `MAT_SPD` - symmetric positive definite
++    `MAT_SPD` - hermitian positive definite (equivalent to symmetric positive definite for real matrices)
 .    `MAT_SYMMETRIC` - symmetric in terms of both structure and value
 .    `MAT_HERMITIAN` - transpose is the complex conjugation
 .    `MAT_STRUCTURALLY_SYMMETRIC` - symmetric nonzero structure
@@ -5898,8 +5898,9 @@ PetscErrorCode MatSetOption(Mat mat, MatOption op, PetscBool flg)
   case MAT_SPD:
     if (flg) {
       mat->spd                    = PETSC_BOOL3_TRUE;
-      mat->symmetric              = PETSC_BOOL3_TRUE;
+      mat->hermitian              = PETSC_BOOL3_TRUE;
       mat->structurally_symmetric = PETSC_BOOL3_TRUE;
+      if (!PetscDefined(USE_COMPLEX)) mat->symmetric = PETSC_BOOL3_TRUE;
     } else {
       mat->spd = PETSC_BOOL3_FALSE;
     }
@@ -5907,16 +5908,12 @@ PetscErrorCode MatSetOption(Mat mat, MatOption op, PetscBool flg)
   case MAT_SYMMETRIC:
     mat->symmetric = flg ? PETSC_BOOL3_TRUE : PETSC_BOOL3_FALSE;
     if (flg) mat->structurally_symmetric = PETSC_BOOL3_TRUE;
-#if !defined(PETSC_USE_COMPLEX)
-    mat->hermitian = flg ? PETSC_BOOL3_TRUE : PETSC_BOOL3_FALSE;
-#endif
+    if (!PetscDefined(USE_COMPLEX)) mat->hermitian = flg ? PETSC_BOOL3_TRUE : PETSC_BOOL3_FALSE;
     break;
   case MAT_HERMITIAN:
     mat->hermitian = flg ? PETSC_BOOL3_TRUE : PETSC_BOOL3_FALSE;
     if (flg) mat->structurally_symmetric = PETSC_BOOL3_TRUE;
-#if !defined(PETSC_USE_COMPLEX)
-    mat->symmetric = flg ? PETSC_BOOL3_TRUE : PETSC_BOOL3_FALSE;
-#endif
+    if (!PetscDefined(USE_COMPLEX)) mat->symmetric = flg ? PETSC_BOOL3_TRUE : PETSC_BOOL3_FALSE;
     break;
   case MAT_STRUCTURALLY_SYMMETRIC:
     mat->structurally_symmetric = flg ? PETSC_BOOL3_TRUE : PETSC_BOOL3_FALSE;
@@ -9191,7 +9188,7 @@ PetscErrorCode MatIsSymmetricKnown(Mat A, PetscBool *set, PetscBool *flg)
 }
 
 /*@
-   MatIsSPDKnown - Checks if a matrix knows if it is symmetric positive definite or not and its symmetric positive definite state
+   MatIsSPDKnown - Checks if a matrix knows if it is hermitian positive definite or not and its hermitian positive definite state
 
    Not Collective
 
@@ -9199,7 +9196,7 @@ PetscErrorCode MatIsSymmetricKnown(Mat A, PetscBool *set, PetscBool *flg)
 .  A - the matrix to check
 
    Output Parameters:
-+  set - `PETSC_TRUE` if the matrix knows its symmetric positive definite state (this tells you if the next flag is valid)
++  set - `PETSC_TRUE` if the matrix knows its hermitian positive definite state (this tells you if the next flag is valid)
 -  flg - the result (only valid if set is `PETSC_TRUE`)
 
    Level: advanced
