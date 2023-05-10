@@ -65,22 +65,53 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
   const PetscScalar *r_array;
   
   PetscFunctionBegin;
+
+  if (lmvm->k == 0) {
+    PetscCall(VecZeroEntries(X)); 
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
+
   PetscCall(PetscBLASIntCast(lmvm->m-1, &m_blas));
   PetscCall(MatDenseGetLDA(lbfgs->StYfull, &lda));
   PetscCall(PetscBLASIntCast(lda, &lda_blas));
   PetscCall(VecGetArrayWriteAndMemType(X, &x_array, &memtype_x));
   PetscCall(MatDenseGetArrayReadAndMemType(lbfgs->StYfull, &r_array, &memtype_r));
   //TODO mat and input vec size check assert
-
+  //TODO only doing for memtype HOST now. waiting for other branch
   switch (tri_type) {
   case MAT_CDBFGS_LOWER_TRIANGULAR:
-    PetscCallBLAS("BLAStrmv", BLAStrmv_("Lower", "Normal", "NotUnitTriangular", &m_blas, &r_array[1], &lda_blas, x_array, &one));
-    PetscCall(PetscArraymove(&x_array[1],&x_array[0], lmvm->m-1));
-    x_array[0] = 0;
-    break;
+    switch (lbfgs->strategy) {
+    case MAT_LBFGS_CD_REORDER:
+      PetscCallBLAS("BLAStrmv", BLAStrmv_("Lower", "Normal", "NotUnitTriangular", &m_blas, &r_array[1], &lda_blas, &x_array[1], &one));
+      x_array[0] = 0;
+      break;
+    case MAT_LBFGS_CD_INPLACE:
+//      {
+//        PetscBLASInt m_blas, idx_blas, lda_blas, diff_blas, one = 1;
+//        PetscCall(PetscBLASIntCast(lmvm->k, &m_blas));
+//        PetscCall(PetscBLASIntCast(lbfgs->idx_begin, &idx_blas));
+//        PetscCall(PetscBLASIntCast(lda, &lda_blas));
+//        PetscCall(PetscBLASIntCast(lmvm->k - lbfgs->idx_begin, &diff_blas));
+//        PetscBLASInt ldb_blas = lda_blas;
+//
+//          /* Lower Triangular Normal Case:
+//           * Below, C,A are Strictly LT, and D is square.
+//           * [ C | D ] [y] => [C y + D x]
+//           * [ 0 | A ] [x]    [   A x   ] */
+//          /* Applying A: x' = A^-1 x */
+//          PetscCallBLAS("BLAStrmv", BLAStrmv_("Lower", "Normal", "NotUnitTriangular", &diff_blas, &r_array[1], &lda_blas, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
+//          /* Applying D: y' = y - D A^-1 x */
+//          PetscCallBLAS("BLASgemv", BLASgemv_("N",  &idx_blas, &diff_blas, &neg_one, &r_array[idx_blas*m_blas], &lda_blas, &x_array[idx_blas], &one, &Alpha, &x_array[idx_blas], &one));
+//          /* Applying C: y' = C^-1 (y - D A^-1 x) */
+//          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Lower", "Normal", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));//what if idx_blas=0. does this still work? TODO
+//        }
+      break; 
+    case MAT_LBFGS_BASIC:
+    default:
+      SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented L-BFGS strategy");
+    }
   case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
-    PetscCallBLAS("BLAStrmv", BLAStrmv_("Lower", "Transpose", "NotUnitTriangular", &m_blas, &r_array[1], &lda_blas, &x_array[1], &one));
-    PetscCall(PetscArraymove(&x_array[0],&x_array[1], lmvm->m-1));
+    PetscCallBLAS("BLAStrmv", BLAStrmv_("Lower", "Transpose", "NotUnitTriangular", &m_blas, &r_array[1], &lda_blas, x_array, &one));
     x_array[lmvm->m-1] = 0;
     break;
   case MAT_CDBFGS_UPPER_TRIANGULAR:
