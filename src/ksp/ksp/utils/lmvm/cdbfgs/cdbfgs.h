@@ -14,7 +14,6 @@ typedef struct {
   Mat       L, J, J_work, J_solve, J_temp_copy;
   Vec       diag_vec;
   Vec       lwork1, lwork2, rwork1, rwork2, rwork3, rwork4;
-  Vec       rwork5,rwork6; //temp. need to delete later
   Vec       s_in_S, y_in_Y, q_in_Q;
   MatType   dense_type;
   MatLBFGSType strategy;
