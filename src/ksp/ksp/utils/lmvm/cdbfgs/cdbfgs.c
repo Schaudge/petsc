@@ -144,7 +144,6 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
   switch (lbfgs->strategy) {
   case MAT_LBFGS_CD_REORDER:
     {
-
       switch (memtype_x) {
       case PETSC_MEMTYPE_HOST:
         /* Compute A^{-T} = (R^{-1} Q^T)^T = Q R^{-T} */
@@ -255,12 +254,12 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
            * [ A | B ]  ->  [ C | D ] 
            * [ D | C ]      [ B | A ] 
            * Below, C,A are UT.
-           * [ C | 0 ]^-1 [y] => [C^-1 y          ] 
+           * [ C | 0 ]^-1 [y] => [C^-1 y          ]
            * [ B | A ]    [x]    [A^-1(x- BC^-1 y)] */
           //TODO for number of rows, does it have to be local, or is global size fine?
           /* Applying C: y' = C^-1 y */
           PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Upper", "Normal", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));//what if idx_blas=0. does this still work? TODO
-          /* Applying B: x' = x - BC^-1 y' */                                                                                                                                                                
+          /* Applying B: x' = x - BC^-1 y' */
           PetscCallBLAS("BLASgemv", BLASgemv_("N",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
           /* Applying A: x' = A^-1 (x - BC^-1 y) */
           PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Upper", "Normal", "NotUnitTriangular", &diff_blas, &one, &Alpha, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
@@ -268,7 +267,7 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
         case MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE:
           /* Upper Triangular Transpose Case: 
            * Below, C,A are UT.
-           * [ C | 0 ]^-T [y] => [C^-T(y - B^T A^-T x)] 
+           * [ C | 0 ]^-T [y] => [C^-T(y - B^T A^-T x)]
            * [ B | A ]    [x]    [A^-T x              ] */
           /* Applying A: x' = A^-T x */
           PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &diff_blas, &one, &Alpha, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
@@ -278,9 +277,9 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
           PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));//what if idx_blas=0. does this still work? TODO
           break;
         case MAT_CDBFGS_LOWER_TRIANGULAR:
-          /* Lower Triangular Case: 
+          /* Lower Triangular Case:
            * Below, C,A are LT.
-           * [ C | D ]^-1 [y] => [C^-1(y - D A^-1 x)] 
+           * [ C | D ]^-1 [y] => [C^-1(y - D A^-1 x)]
            * [ 0 | A ]    [x]    [A^-1 x            ] */
           /* Applying A: x' = A^-1 x */
           PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Lower", "Normal", "NotUnitTriangular", &diff_blas, &one, &Alpha, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
@@ -290,18 +289,18 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
           PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Lower", "Normal", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));//what if idx_blas=0. does this still work? TODO
           break;
         case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
-          /* Lower Triangular Transpose Case: 
+          /* Lower Triangular Transpose Case:
            * Below, C,A are LT.
-           * [ C | D ]^-T [y] => [C^-T                 ] 
+           * [ C | D ]^-T [y] => [C^-T                 ]
            * [ 0 | A ]    [x]    [A^-T (x - D^T C^-T y)] */
           /* Applying C: y' = C^-T y */
           PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Lower", "Transpose", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));//what if idx_blas=0. does this still work? TODO
-          /* Applying D: x' = x - D^T C^-T y */                                                                                                                                                                   
+          /* Applying D: x' = x - D^T C^-T y */
           PetscCallBLAS("BLASgemv", BLASgemv_("T",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas*m_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
           /* Applying A: x' = A^-T (x - D^T C^-T y) */
           PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Lower", "Transpose", "NotUnitTriangular", &diff_blas, &one, &Alpha, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
           break;
-        }  
+        }
       }
     break;
     case PETSC_MEMTYPE_CUDA:
@@ -389,8 +388,8 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
 
 
 /* Solves for 
- * H_0 - [H_0 Y | S] [   0   |         -R^-1        ] [Y^T H_0]
- *                   [ -R^-T | R^-T(D+Y^T H_0 Y)R^-1] [  S^T  ] */
+ * [ I | S R^{-T} ] [   I  | 0 ] [ H_0 | 0 ] [ I | -Y ] [     I      ]
+ *                  [ -Y^T | I ] [  0  | D ] [ 0 |  I ] [ R^{-1} S^T ]  */
 
 static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
 {
@@ -479,7 +478,7 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   PetscCall(VecRestoreSubVector(lbfgs->rwork1, temp_is, &temp_1));
   PetscCall(VecRestoreSubVector(lbfgs->rwork2, temp_is, &temp_2));
 
-  /* Bottom part:  - B_0 S rwork1 */
+  /* Bottom part: - B_0 S rwork1 */
   PetscCall(MatMult(lbfgs->Sfull, lbfgs->rwork1, lbfgs->lwork1));
   PetscCall(MatCDBFGSApplyJ0Fwd(B, lbfgs->lwork1, lbfgs->lwork2));
   PetscCall(VecAXPY(Z, -1., lbfgs->lwork2));
@@ -495,44 +494,54 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
 
 /*------------------------------------------------------------*/
 //Currently only for Replace version...
-static PetscErrorCode MatUpdate_C_Matrix(Mat_LMVM *lmvm, Mat_CDBFGS *lbfgs, Mat C, Mat BS_or_HY, Mat S_or_Y, Vec Z)
+//Adds LDL^T to J mat
+static PetscErrorCode MatAdd_LDLT(Mat B)
 {
-  const PetscScalar *array_read, *array_read_sty;
-  PetscScalar       *array_ptr;
-  PetscInt           i, lda;
-  Vec                workvec;
+  Mat_LMVM     *lmvm  = (Mat_LMVM*)B->data;
+  Mat_CDBFGS   *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
+
+  const PetscScalar *r_array;
+  PetscScalar       *x_array, *buffer;
+  PetscInt           i, j, k;
+  Vec                workvec1, workvec2;
 
   PetscFunctionBegin;
-  /* Update C first */
-  PetscCall(MatDenseGetArray(C, &array_ptr));
-  if (lmvm->k == lmvm->m-1) {
-    /* C is full.  Shifting matrix. */
-    PetscCall(PetscArraymove(array_ptr, &array_ptr[lmvm->m], (lmvm->m-1)*(lmvm->m-1)));
+  /* L D^{-1} L^T :  (L_i is ith column of strictly low tri mat. Below, multiply is pointwise mult.
+   * [ 0 | L_0*L_0[1]/d_0 | L_0*L_0[2]/d_0 + L_1*L_1[2]/d_1 | ... ].  
+   * 
+   * Struture is similar for inplace version, but just two clockwise shifts in block-form.            */
+  PetscCall(VecGetArrayRead(lbfgs->diag_vec, &r_array));
+  for (i=0; i<lmvm->m-1; i++) {
+    PetscCall(MatDenseGetColumnVecRead(lbfgs->StYfull, i, &workvec1));
+  
+    /* Copying to emulate strictly lower triangular */
+    PetscCall(VecCopy(workvec1, lbfgs->rwork1));
+    PetscCall(MatDenseRestoreColumnVecRead(lbfgs->StYfull, i, &workvec1));
+    PetscCall(VecGetArray(lbfgs->rwork1, &x_array));
+    for (j=0; j<i+1; j++) {
+      x_array[j] = 0;
+    }
+  
+    /* Creating array for scale = L_i[i+1]/d_0 */
+    PetscCall(PetscCalloc1(lmvm->m-i-1, &buffer));
+    for (j=0; j < lmvm->m-i-1; j++) {
+       //TODO technically we could do adaptive size for k<m, but later..
+      if (r_array[i] != 0) {
+        buffer[j] = x_array[i+j+1]/r_array[i];
+      } else {
+        buffer[j] = 0;
+      }
+    }
+    PetscCall(VecRestoreArray(lbfgs->rwork1, &x_array));
+  
+    for (j=0, k=i+1; k<lmvm->m; k++, j++) {
+      PetscCall(MatDenseGetColumnVecWrite(lbfgs->J, k, &workvec2));
+      PetscCall(VecAXPY(workvec2, buffer[j], lbfgs->rwork1));
+      PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->J, k, &workvec2));
+    }
+    PetscCall(PetscFree(buffer));
   }
-  /* Note:  here, all the vecs and mat are full, which means wasting some flops and mem for first m iter. but that saves few kernel launches for destory and create */
-  /* Construct last row */
-  PetscCall(MatMultTranspose(BS_or_HY, Z, lbfgs->rwork1));
-  PetscCall(VecGetArrayRead(lbfgs->rwork1, &array_read));
-  /* Iterate over to push in last row */
-  for (i=0; i <lmvm->k; i++) {
-    array_ptr[i*(lmvm->k + 1) + lmvm->k] = array_read[i];//TODO fix indexing here for inplace version
-  }
-  /* Push in last column  */
-  PetscCall(MatDenseGetColumnVecRead(BS_or_HY, lbfgs->idx_cols, &workvec));
-  PetscCall(MatMultTranspose(S_or_Y, workvec, lbfgs->rwork2));
-  PetscCall(MatDenseRestoreColumnVecRead(BS_or_HY, lbfgs->idx_cols, &workvec));
-
-  PetscCall(MatDenseGetColumnVecWrite(C, lmvm->k, &workvec));
-  PetscCall(VecCopy(lbfgs->rwork2, workvec));
-  PetscCall(MatDenseRestoreColumnVecWrite(C, lbfgs->idx_cols, &workvec));
-
-  /* Adding (k,k) diagonal element */
-  PetscCall(MatDenseGetLDA(lbfgs->StYfull, &lda));
-  PetscCall(MatDenseGetArrayRead(lbfgs->StYfull, &array_read_sty));
-  array_ptr[lda*lmvm->k + lmvm->k] += array_read_sty[lda*lmvm->k + lmvm->k];
-  PetscCall(MatDenseRestoreArrayRead(lbfgs->StYfull,&array_read_sty));
-  PetscCall(VecRestoreArrayRead(lbfgs->rwork1, &array_read));
-  PetscCall(MatDenseRestoreArray(C, &array_ptr));
+  PetscCall(VecRestoreArrayRead(lbfgs->diag_vec, &r_array));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -545,10 +554,11 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
   Mat_LMVM     *dbase;
   Mat_DiagBrdn *dctx;
  
-  PetscScalar       curvature, ststmp, *array_ptr;
-  PetscReal         curvtol;
-  PetscInt          N, n, low, high, i, j, k;
-  MPI_Comm          comm = PetscObjectComm((PetscObject)B);
+  PetscScalar curvature, ststmp, *array_ptr;
+  PetscReal   curvtol;
+  PetscInt    N, n, low, high, i;
+  MPI_Comm    comm = PetscObjectComm((PetscObject)B);
+  Vec         workvec1, workvec2;
 
   PetscFunctionBegin;
   if (!lmvm->m) PetscFunctionReturn(PETSC_SUCCESS);
@@ -568,7 +578,6 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     }
     if (PetscRealPart(curvature) > curvtol) {
 
-      lbfgs->iter_count++;      
       /* Update is good, accept it */
       lbfgs->watchdog = 0;
       PetscCall(VecGetLocalSize(lmvm->Xprev, &n));
@@ -577,11 +586,8 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
 
       /* Update the diagonal H0 if it exists */
       if (!(lmvm->J0 || lmvm->user_pc || lmvm->user_ksp || lmvm->user_scale)) {
+        PetscCall(MatLMVMUpdate(lbfgs->diag_bfgs, X, F));
       }
-
-      //TODO temp to debug. delete later
-      dbase = (Mat_LMVM*)lbfgs->diag_bfgs->data;
-      dctx = (Mat_DiagBrdn*)dbase->ctx;
 
       switch (lbfgs->strategy) {
       case (MAT_LBFGS_CD_REORDER):
@@ -598,11 +604,6 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
 
           if (lmvm->user_scale) {
             /* Static J0. More efficient to precompute these */
-            /* H_0 Y Matrix is full. Shift matrix */
-            PetscCall(MatDenseGetArray(lbfgs->HY, &array_ptr));
-            PetscCall(PetscArraymove(array_ptr, &array_ptr[N], (lmvm->m - 1)*N));
-            PetscCall(MatDenseRestoreArray(lbfgs->HY, &array_ptr));
-
             /* B_0 S Matrix is full. Shift matrix */
             PetscCall(MatDenseGetArray(lbfgs->BS, &array_ptr));
             PetscCall(PetscArraymove(array_ptr, &array_ptr[N], (lmvm->m - 1)*N));
@@ -627,76 +628,26 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
         SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented CDLBFGS Method");
         break;
       }
-
       /* First update the S^T matrix */
-      Vec workvec;
-      PetscCall(MatDenseGetColumnVecWrite(lbfgs->Sfull, lbfgs->idx_cols, &workvec));
-      PetscCall(VecCopy(lmvm->Xprev, workvec));
-      PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->Sfull, lbfgs->idx_cols, &workvec));
+      PetscCall(MatDenseGetColumnVecWrite(lbfgs->Sfull, lbfgs->idx_cols, &workvec1));
+      PetscCall(VecCopy(lmvm->Xprev, workvec1));
+      PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->Sfull, lbfgs->idx_cols, &workvec1));
 
       /* Now repeat update for the Y^T matrix */
-      PetscCall(MatDenseGetColumnVecWrite(lbfgs->Yfull, lbfgs->idx_cols, &workvec));
-      PetscCall(VecCopy(lmvm->Fprev, workvec));
-      PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->Yfull, lbfgs->idx_cols, &workvec));
+      PetscCall(MatDenseGetColumnVecWrite(lbfgs->Yfull, lbfgs->idx_cols, &workvec1));
+      PetscCall(VecCopy(lmvm->Fprev, workvec1));
+      PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->Yfull, lbfgs->idx_cols, &workvec1));
 
       PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
       PetscCall(MatGetDiagonal(lbfgs->StYfull, lbfgs->diag_vec));
 
       if (lmvm->user_scale) {
-        /* Update H_0 Y matrix */
-        PetscCall(MatDenseGetColumnVecWrite(lbfgs->HY, lbfgs->idx_cols, &workvec));
-        PetscCall(MatCDBFGSApplyJ0Inv(B, lmvm->Fprev, workvec));
-        PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->HY, lbfgs->idx_cols, &workvec));
-  
         /* Update B_0 S matrix */
-        PetscCall(MatDenseGetColumnVecWrite(lbfgs->BS, lbfgs->idx_cols, &workvec));
-        PetscCall(MatCDBFGSApplyJ0Fwd(B, lmvm->Xprev, workvec));
-        PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->BS, lbfgs->idx_cols, &workvec));
-        /* Reordering C matrices. C_H: D+ Y^T H_0 Y, C_B: S^T B_0 S */
-        switch (lbfgs->strategy) {
-        case (MAT_LBFGS_CD_REORDER):
-          if (lmvm->k == 0) {
-            PetscScalar c_b1, c_h1, diag00;
-            PetscCall(MatCDBFGSApplyJ0Inv(B, lmvm->Fprev, lbfgs->lwork1));
-            PetscCall(VecDot(lmvm->Fprev, lbfgs->lwork1, &c_h1));
-
-            PetscCall(MatCDBFGSApplyJ0Fwd(B, lmvm->Xprev, lbfgs->lwork1));
-            PetscCall(VecDot(lmvm->Xprev, lbfgs->lwork1, &c_b1));
-            /* Adding diagonal element at (0,0) for C_H */
-            PetscCall(MatGetValue(lbfgs->StYfull,0,0,&diag00));
-            c_h1 += diag00;
-            PetscCall(MatSetValue(lbfgs->C_B,0,0,c_b1, INSERT_VALUES));
-            PetscCall(MatSetValue(lbfgs->C_H,0,0,c_h1, INSERT_VALUES));
-
-            PetscCall(MatAssemblyBegin(lbfgs->StYfull, MAT_FINAL_ASSEMBLY));
-            PetscCall(MatAssemblyBegin(lbfgs->C_B, MAT_FINAL_ASSEMBLY));
-            PetscCall(MatAssemblyBegin(lbfgs->C_H, MAT_FINAL_ASSEMBLY));
-            PetscCall(MatAssemblyEnd(lbfgs->StYfull, MAT_FINAL_ASSEMBLY));
-            PetscCall(MatAssemblyEnd(lbfgs->C_B, MAT_FINAL_ASSEMBLY));
-            PetscCall(MatAssemblyEnd(lbfgs->C_H, MAT_FINAL_ASSEMBLY));
-            break; //TODO is this safe?
-          }
-          /* Update C_H first */
-          PetscCall(MatUpdate_C_Matrix(lmvm, lbfgs, lbfgs->C_H, lbfgs->HY, lbfgs->Yfull, lmvm->Fprev));
-          /* Update C_B now. */
-          PetscCall(MatUpdate_C_Matrix(lmvm, lbfgs, lbfgs->C_B, lbfgs->BS, lbfgs->Sfull, lmvm->Xprev));
-          break;
-        case (MAT_LBFGS_CD_INPLACE):
-          break;
-        case (MAT_LBFGS_BASIC):
-          SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented CDLBFGS Method");
-          break;                  
-        }
-      }
-
-      /* Compute S^T B S + L D^{-1} L^T
-       * J = S^T B S + L D^{-1} L^T */
-      Vec workvec1, workvec2;
-      const PetscScalar *r_array;
-      PetscScalar *x_array, *buffer;
-
-      /* J0 is non-static. Need to manually compute BS matrix. */
-      if (!(lmvm->user_scale)) {
+        PetscCall(MatDenseGetColumnVecWrite(lbfgs->BS, lbfgs->idx_cols, &workvec1));
+        PetscCall(MatCDBFGSApplyJ0Fwd(B, lmvm->Xprev, workvec1));
+        PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->BS, lbfgs->idx_cols, &workvec1));
+      } else {
+        /* J0 is non-static. Need to manually compute BS matrix. */
         for (i=0; i<lmvm->m; i++) {
           PetscCall(MatDenseGetColumnVecRead(lbfgs->Sfull, i, &workvec1));
           PetscCall(MatDenseGetColumnVecWrite(lbfgs->BS, i, &workvec2));
@@ -705,81 +656,27 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
           PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->BS, i, &workvec2));
         }
       }
+      /* Compute S^T B S + L D^{-1} L^T
+       * J = S^T B S + L D^{-1} L^T */
       PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->BS, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->J));
-    
-      /* L D^{-1} L^T :  (L_i is ith column of strictly low tri mat. Below, multiply is pointwise mult.
-       * [ 0 | L_0*L_0[1]/d_0 | L_0*L_0[2]/d_0 + L_1*L_1[2]/d_1 | ... ].  */
-      PetscCall(VecGetArrayRead(lbfgs->diag_vec, &r_array));
-      for (i=0; i<lmvm->m-1; i++) {
-        PetscCall(MatDenseGetColumnVecRead(lbfgs->StYfull, i, &workvec1));
-    
-        /* Copying to emulate strictly lower triangular */
-        PetscCall(VecCopy(workvec1, lbfgs->rwork1));
-        PetscCall(MatDenseRestoreColumnVecRead(lbfgs->StYfull, i, &workvec1));
-        PetscCall(VecGetArray(lbfgs->rwork1, &x_array));
-        for (j=0; j<i+1; j++) {
-          x_array[j] = 0;
-        }
-    
-        /* Creating array for scale = L_i[i+1]/d_0 */
-        PetscCall(PetscCalloc1(lmvm->m-i-1, &buffer));
-        for (j=0; j < lmvm->m-i-1; j++) {
-           //TODO technically we could do adaptive size for k<m, but later..
-          if (r_array[i] != 0) {      
-            buffer[j] = x_array[i+j+1]/r_array[i];
-          } else {
-            buffer[j] = 0;
-          }
-        }
-        PetscCall(VecRestoreArray(lbfgs->rwork1, &x_array));
-    
-        for (j=0, k=i+1; k<lmvm->m; k++, j++) {
-          PetscCall(MatDenseGetColumnVecWrite(lbfgs->J, k, &workvec2));
-          PetscCall(VecAXPY(workvec2, buffer[j], lbfgs->rwork1));
-          PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->J, k, &workvec2));
-        }
-        PetscCall(PetscFree(buffer));
-      }
-      PetscCall(VecRestoreArrayRead(lbfgs->diag_vec, &r_array));
+
+      /* Adds L D L^T to J matrix */
+      PetscCall(MatAdd_LDLT(B));//TODO change func signature to be more clear?
 
       /* Cholesky factorization */
-      IS            perm;
-      PetscCall(VecGetOwnershipRange(X, &low, &high));
-      PetscCall(ISCreateStride(PETSC_COMM_WORLD, low, high, 1, &perm));
-
-#if 0      
-      /*TODO LU factor doesn't do anything... WHY??? */
-      if (lbfgs->iter_count >= 7) {
-        VecSetValue(lbfgs->rwork1,0,-0.0367335,INSERT_VALUES);
-        VecSetValue(lbfgs->rwork1,1,0.2606,INSERT_VALUES);
-        VecSetValue(lbfgs->rwork1,2,0.0285366,INSERT_VALUES);
-        VecSetValue(lbfgs->rwork1,3,-0.0254939,INSERT_VALUES);
-        VecSetValue(lbfgs->rwork1,4,-0.0341416,INSERT_VALUES);
-      }
-#endif
       if (lmvm->k == lmvm->m - 1) {
         PetscCall(MatDestroy(&lbfgs->J_solve));
         PetscCall(MatConvert(lbfgs->J, MATSAME, MAT_INITIAL_MATRIX, &lbfgs->J_solve));
-        //MatDuplicate(lbfgs->J, MAT_COPY_VALUES, &lbfgs->J_solve);
-        //PetscCall(MatLUFactor(lbfgs->J_solve,NULL,NULL,NULL));
         PetscCall(MatSetOption(lbfgs->J_solve, MAT_SPD, PETSC_TRUE));
         PetscCall(MatCholeskyFactor(lbfgs->J_solve,NULL,NULL));
       } else {
         PetscCall(MatDenseGetSubMatrix(lbfgs->J, 0, lmvm->k+1, 0, lmvm->k+1, &lbfgs->J_work));
         PetscCall(MatDestroy(&lbfgs->J_solve));
         PetscCall(MatDuplicate(lbfgs->J_work, MAT_COPY_VALUES, &lbfgs->J_solve));
-        //PetscCall(MatLUFactor(lbfgs->J_solve,NULL,NULL,NULL));
         PetscCall(MatSetOption(lbfgs->J_solve, MAT_SPD, PETSC_TRUE));
         PetscCall(MatCholeskyFactor(lbfgs->J_solve,NULL,NULL));
         PetscCall(MatDenseRestoreSubMatrix(lbfgs->J, &lbfgs->J_work));
       }
-#if 0
-      if (lbfgs->iter_count >= 7) {
-        PetscCall(MatSolve(lbfgs->J_solve, lbfgs->rwork1, lbfgs->rwork2));
-      }
-#endif
-      PetscCall(ISDestroy(&perm)); //TODO tried making regular perm to test LU. doesnt seem to matter. delete later
-
     } else {
       /* Update is bad, skip it */
       ++lmvm->nrejects;
@@ -843,11 +740,9 @@ static PetscErrorCode MatReset_LMVMCDBFGS(Mat B, PetscBool destructive)
     PetscCall(MatDestroy(&lbfgs->StYfull));
     PetscCall(MatDestroy(&lbfgs->Yfull));
     PetscCall(MatDestroy(&lbfgs->Sfull));
-    PetscCall(MatDestroy(&lbfgs->C_H));
-    PetscCall(MatDestroy(&lbfgs->C_B));
+    PetscCall(MatDestroy(&lbfgs->LDLT));
     PetscCall(MatDestroy(&lbfgs->J));
     PetscCall(MatDestroy(&lbfgs->J_work));
-    PetscCall(MatDestroy(&lbfgs->HY));
     PetscCall(MatDestroy(&lbfgs->BS));
     PetscCall(VecDestroy(&lbfgs->rwork1));
     PetscCall(VecDestroy(&lbfgs->rwork2));
@@ -907,14 +802,12 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       PetscCall(VecCreateMatDense(X, n, lmvm->m, N, lmvm->m, NULL, &lbfgs->Sfull));
       PetscCall(MatDuplicate(lbfgs->Sfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->Yfull));
       PetscCall(MatDuplicate(lbfgs->Sfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->BS));
-      PetscCall(MatDuplicate(lbfgs->Sfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->HY));
       PetscCall(MatZeroEntries(lbfgs->Sfull));
       PetscCall(MatZeroEntries(lbfgs->Yfull));
       /* Create intermediate (sequential and small) matrices */
       //TODO: NOTE: "MMTM: This routine is currently only implemented for pairs of MATSEQAIJ matrices, for the MATSEQDENSE class, and for pairs of MATMPIDENSE matrices."
       PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
-      PetscCall(MatDuplicate(lbfgs->StYfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->C_H));
-      PetscCall(MatDuplicate(lbfgs->StYfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->C_B));
+      PetscCall(MatDuplicate(lbfgs->StYfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->LDLT));
       PetscCall(MatDuplicate(lbfgs->StYfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->J));
       PetscCall(MatDuplicate(lbfgs->StYfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->J_work));
       PetscCall(MatCreateVecs(lbfgs->StYfull, &lbfgs->diag_vec, NULL));
@@ -946,11 +839,9 @@ static PetscErrorCode MatDestroy_LMVMCDBFGS(Mat B)
     PetscCall(MatDestroy(&lbfgs->StYfull));
     PetscCall(MatDestroy(&lbfgs->Sfull));
     PetscCall(MatDestroy(&lbfgs->Yfull));
-    PetscCall(MatDestroy(&lbfgs->C_H));
-    PetscCall(MatDestroy(&lbfgs->C_B));
+    PetscCall(MatDestroy(&lbfgs->LDLT));
     PetscCall(MatDestroy(&lbfgs->J));
     PetscCall(MatDestroy(&lbfgs->J_work));
-    PetscCall(MatDestroy(&lbfgs->HY));
     PetscCall(MatDestroy(&lbfgs->BS));
     PetscCall(VecDestroy(&lbfgs->rwork1));
     PetscCall(VecDestroy(&lbfgs->rwork2));
@@ -973,12 +864,12 @@ static PetscErrorCode MatDestroy_LMVMCDBFGS(Mat B)
 
 static PetscErrorCode MatSetUp_LMVMCDBFGS(Mat B)
 {
-  Mat_LMVM          *lmvm = (Mat_LMVM*)B->data;
+  Mat_LMVM    *lmvm = (Mat_LMVM*)B->data;
   
-  PetscInt          m, n, M, N;
-  PetscMPIInt       size;
-  MPI_Comm          comm = PetscObjectComm((PetscObject)B);
-  Vec               Xtmp, Ftmp;
+  PetscInt    m, n, M, N;
+  PetscMPIInt size;
+  MPI_Comm    comm = PetscObjectComm((PetscObject)B);
+  Vec         Xtmp, Ftmp;
 
   PetscFunctionBegin;
   PetscCall(MatGetSize(B, &M, &N));
@@ -1004,10 +895,10 @@ static PetscErrorCode MatSetUp_LMVMCDBFGS(Mat B)
 
 PetscErrorCode MatView_LMVMCDBFGS(Mat B, PetscViewer pv)
 {
-  Mat_LMVM          *lmvm = (Mat_LMVM*)B->data;
-  Mat_CDBFGS        *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
+  Mat_LMVM   *lmvm = (Mat_LMVM*)B->data;
+  Mat_CDBFGS *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
   
-  PetscBool         isascii;
+  PetscBool  isascii;
 
   PetscFunctionBegin;
   PetscCall(PetscObjectTypeCompare((PetscObject)pv,PETSCVIEWERASCII,&isascii));
@@ -1022,8 +913,8 @@ PetscErrorCode MatView_LMVMCDBFGS(Mat B, PetscViewer pv)
 
 static PetscErrorCode MatSetFromOptions_LMVMCDBFGS(Mat B, PetscOptionItems *PetscOptionsObject)
 {
-  Mat_LMVM          *lmvm = (Mat_LMVM*)B->data;
-  Mat_CDBFGS        *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
+  Mat_LMVM   *lmvm = (Mat_LMVM*)B->data;
+  Mat_CDBFGS *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
 
   PetscFunctionBegin;
   PetscCall(MatSetFromOptions_LMVM(B, PetscOptionsObject));
@@ -1037,8 +928,8 @@ static PetscErrorCode MatSetFromOptions_LMVMCDBFGS(Mat B, PetscOptionItems *Pets
 
 PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
 {
-  Mat_LMVM          *lmvm;
-  Mat_CDBFGS        *lbfgs;
+  Mat_LMVM   *lmvm;
+  Mat_CDBFGS *lbfgs;
 
   PetscFunctionBegin;
   PetscCall(MatCreate_LMVM(B));
@@ -1068,8 +959,6 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   lbfgs->delta_max       = 100.0;
   lbfgs->max_seq_rejects = lmvm->m/2;
   lbfgs->strategy        = MAT_LBFGS_CD_REORDER;
-
-  lbfgs->iter_count = 0;//TODO remove later
   
   PetscCall(MatCreate(PetscObjectComm((PetscObject)B), &lbfgs->diag_bfgs));
   PetscCall(MatSetType(lbfgs->diag_bfgs, MATLMVMDIAGBROYDEN));
@@ -1107,7 +996,6 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
 @*/
 PetscErrorCode MatCreateLMVMCDBFGS(MPI_Comm comm, PetscInt n, PetscInt N, Mat *B)
 {
-  
   PetscFunctionBegin;
   PetscCall(MatCreate(comm, B));
   PetscCall(MatSetSizes(*B, n, n, N, N));
