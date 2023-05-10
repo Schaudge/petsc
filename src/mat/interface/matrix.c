@@ -5857,11 +5857,19 @@ PetscErrorCode MatAssemblyEnd(Mat mat, MatAssemblyType type)
                      single call to `MatSetValues()`, preallocation is perfect, row oriented, `INSERT_VALUES` is used. Common
                      with finite difference schemes with non-periodic boundary conditions.
 
+   `MAT_TRIANGULAR_STORAGE_HERMITIAN` - In formats that store only a triangular portion of a matrix, this asserts
+                     that the matrix is Hermitian, and missing entries are defined by the conjugate transpose of
+                     the stored ones.  This option only has an effect if PETSc is using complex arithmetic.
+
    Developer Note:
    `MAT_SYMMETRY_ETERNAL`, `MAT_STRUCTURAL_SYMMETRY_ETERNAL`, and `MAT_SPD_ETERNAL` are used by `MatAssemblyEnd()` and in other
    places where otherwise the value of `MAT_SYMMETRIC`, `MAT_STRUCTURAL_SYMMETRIC` or `MAT_SPD` would need to be changed back
    to `PETSC_BOOL3_UNKNOWN` because the matrix values had changed so the code cannot be certain that the related property had
    not changed.
+
+   `MAT_HERMITIAN` was previously used where `MAT_TRIANGULAR_STORAGE_HERMITIAN` is currently used.  This was changed
+   so that `MAT_HERMITIAN` can be a purely descriptive property, and a real symmetric matrix can be described as
+   `MAT_HERMITIAN` or `MAT_HPD` without using Hermitian algorithms.
 
 .seealso: [](chapter_matrices), `MatOption`, `Mat`, `MatGetOption()`
 @*/

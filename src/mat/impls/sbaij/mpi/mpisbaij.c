@@ -120,6 +120,7 @@ static PetscErrorCode MatPreallocateWithMats_Private(Mat B, PetscInt nm, Mat X[]
 
 PETSC_INTERN PetscErrorCode MatConvert_MPISBAIJ_Basic(Mat A, MatType newtype, MatReuse reuse, Mat *newmat)
 {
+  Mat_MPISBAIJ *mpisbaij = (Mat_MPISBAIJ *) A->data;
   Mat      B;
   PetscInt r;
 
@@ -157,7 +158,7 @@ PETSC_INTERN PetscErrorCode MatConvert_MPISBAIJ_Basic(Mat A, MatType newtype, Ma
     PetscCall(MatGetRow(A, r, &ncols, &row, &vals));
     PetscCall(MatSetValues(B, 1, &r, ncols, row, vals, INSERT_VALUES));
     if (PetscDefined(USE_COMPLEX)) {
-      if (A->hermitian == PETSC_BOOL3_TRUE) {
+      if (mpisbaij->hermitian_storage) {
         PetscInt i;
         for (i = 0; i < ncols; i++) PetscCall(MatSetValue(B, row[i], r, PetscConj(vals[i]), INSERT_VALUES));
       } else {
@@ -1511,31 +1512,35 @@ PetscErrorCode MatSetOption_MPISBAIJ(Mat A, MatOption op, PetscBool flg)
   case MAT_USE_HASH_TABLE:
     a->ht_flag = flg;
     break;
-  case MAT_HERMITIAN:
-    MatCheckPreallocated(A, 1);
-    PetscCall(MatSetOption(a->A, op, flg));
+  case MAT_TRIANGULAR_STORAGE_HERMITIAN:
     if (PetscDefined(USE_COMPLEX)) {
-      if (flg) { /* need different mat-vec ops */
-        A->ops->mult             = MatMult_MPISBAIJ_Hermitian;
-        A->ops->multadd          = MatMultAdd_MPISBAIJ_Hermitian;
-        A->ops->multtranspose    = NULL;
-        A->ops->multtransposeadd = NULL;
-        A->symmetric             = PETSC_BOOL3_FALSE;
+      PetscCall(MatSetOption(a->A, MAT_TRIANGULAR_STORAGE_HERMITIAN, flg));
+      a->hermitian_storage = flg;
+      if (flg) {
+        A->ops->mult                      = MatMult_MPISBAIJ_Hermitian;
+        A->ops->multadd                   = MatMultAdd_MPISBAIJ_Hermitian;
+        A->ops->multhermitiantranspose    = MatMult_MPISBAIJ_Hermitian;
+        A->ops->multhermitiantransposeadd = MatMultAdd_MPISBAIJ_Hermitian;
+        A->ops->multtranspose             = NULL;
+        A->ops->multtransposeadd          = NULL;
+        A->hermitian                      = PETSC_BOOL3_TRUE;
+      } else {
+        A->ops->mult                      = MatMult_MPISBAIJ;
+        A->ops->multadd                   = MatMultAdd_MPISBAIJ;
+        A->ops->multhermitiantranspose    = NULL;
+        A->ops->multhermitiantransposeadd = NULL;
+        A->ops->multtranspose             = MatMult_MPISBAIJ;
+        A->ops->multtransposeadd          = MatMultAdd_MPISBAIJ;
+        A->symmetric                      = PETSC_BOOL3_TRUE;
       }
     }
+    break;
+  case MAT_HERMITIAN:
+    MatCheckPreallocated(A, 1);
     break;
   case MAT_SPD:
   case MAT_SYMMETRIC:
     MatCheckPreallocated(A, 1);
-    PetscCall(MatSetOption(a->A, op, flg));
-    if (PetscDefined(USE_COMPLEX)) {
-      if (flg) { /* restore to use default mat-vec ops */
-        A->ops->mult             = MatMult_MPISBAIJ;
-        A->ops->multadd          = MatMultAdd_MPISBAIJ;
-        A->ops->multtranspose    = MatMult_MPISBAIJ;
-        A->ops->multtransposeadd = MatMultAdd_MPISBAIJ;
-      }
-    }
     break;
   case MAT_STRUCTURALLY_SYMMETRIC:
     MatCheckPreallocated(A, 1);
@@ -2070,7 +2075,7 @@ PetscErrorCode MatMPISBAIJSetPreallocationCSR_MPISBAIJ(Mat B, PetscInt bs, const
    the matrix is stored.
 
    For complex numbers by default this matrix is symmetric, NOT Hermitian symmetric. To make it Hermitian symmetric you
-   can call `MatSetOption`(`Mat`, `MAT_HERMITIAN`);
+   can call `MatSetOption`(`Mat`, `MAT_TRIANGULAR_STORAGE_HERMITIAN`);
 
    Options Database Key:
 . -mat_type mpisbaij - sets the matrix type to "mpisbaij" during a call to `MatSetFromOptions()`
@@ -2147,6 +2152,8 @@ PETSC_EXTERN PetscErrorCode MatCreate_MPISBAIJ(Mat B)
   b->v_loc  = NULL;
   b->n_loc  = 0;
 
+  b->hermitian_storage = PetscDefined(USE_COMPLEX) ? PETSC_TRUE : PETSC_FALSE;
+
   PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatStoreValues_C", MatStoreValues_MPISBAIJ));
   PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatRetrieveValues_C", MatRetrieveValues_MPISBAIJ));
   PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatMPISBAIJSetPreallocation_C", MatMPISBAIJSetPreallocation_MPISBAIJ));
@@ -2164,7 +2171,6 @@ PETSC_EXTERN PetscErrorCode MatCreate_MPISBAIJ(Mat B)
   B->structurally_symmetric      = PETSC_BOOL3_TRUE;
   B->symmetry_eternal            = PETSC_TRUE;
   B->structural_symmetry_eternal = PETSC_TRUE;
-  B->hermitian                   = PetscDefined(USE_COMPLEX) ? PETSC_BOOL3_FALSE : PETSC_BOOL3_TRUE;
 
   PetscCall(PetscObjectChangeTypeName((PetscObject)B, MATMPISBAIJ));
   PetscOptionsBegin(PetscObjectComm((PetscObject)B), NULL, "Options for loading MPISBAIJ matrix 1", "Mat");

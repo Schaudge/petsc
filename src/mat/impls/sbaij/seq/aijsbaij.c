@@ -11,7 +11,7 @@ PETSC_INTERN PetscErrorCode MatConvert_SeqSBAIJ_SeqAIJ(Mat A, MatType newtype, M
   PetscInt     *ai = a->i, *aj = a->j, m = A->rmap->N, n = A->cmap->n, i, j, k, *bi, *bj, *rowlengths, nz, *rowstart, itmp;
   PetscInt      bs = A->rmap->bs, bs2 = bs * bs, mbs = A->rmap->N / bs, diagcnt = 0;
   MatScalar    *av, *bv;
-  const int     aconj = PetscDefined(USE_COMPLEX) ? (A->hermitian == PETSC_BOOL3_TRUE) : 0;
+  const int     aconj = PetscDefined(USE_COMPLEX) ? a->hermitian_storage : 0;
 
   PetscFunctionBegin;
   /* compute rowlengths of newmat */
@@ -195,6 +195,8 @@ PETSC_INTERN PetscErrorCode MatConvert_SeqAIJ_SeqSBAIJ(Mat A, MatType newtype, M
     PetscCall(MatSeqSBAIJSetPreallocation(B, bs, 0, rowlengths));
   } else B = *newmat;
 
+  if (A->symmetric != PETSC_BOOL3_TRUE) PetscCall(MatSetOption(B, MAT_TRIANGULAR_STORAGE_HERMITIAN, PETSC_TRUE));
+
   if (bs == 1 && !miss) {
     b  = (Mat_SeqSBAIJ *)(B->data);
     bi = b->i;
@@ -240,7 +242,7 @@ PETSC_INTERN PetscErrorCode MatConvert_SeqSBAIJ_SeqBAIJ(Mat A, MatType newtype, 
   PetscInt     *ai = a->i, *aj = a->j, m = A->rmap->N, n = A->cmap->n, i, k, *bi, *bj, *browlengths, nz, *browstart, itmp;
   PetscInt      bs = A->rmap->bs, bs2 = bs * bs, mbs = m / bs, col, row;
   MatScalar    *av, *bv;
-  const int     aconj = PetscDefined(USE_COMPLEX) ? (A->hermitian == PETSC_BOOL3_TRUE) : 0;
+  const int     aconj = PetscDefined(USE_COMPLEX) ? a->hermitian_storage : 0;
 
   PetscFunctionBegin;
   /* compute browlengths of newmat */
