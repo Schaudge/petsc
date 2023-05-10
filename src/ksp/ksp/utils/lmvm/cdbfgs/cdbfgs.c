@@ -71,8 +71,10 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
     PetscFunctionReturn(PETSC_SUCCESS);
   }
 
-  PetscCall(VecGetArrayWriteAndMemType(X, &x_array, &memtype_x));
+  PetscCall(PetscBLASIntCast(lmvm->k, &m_blas));
   PetscCall(MatDenseGetLDA(lbfgs->StYfull, &lda));
+  PetscCall(PetscBLASIntCast(lda, &lda_blas));
+  PetscCall(VecGetArrayWriteAndMemType(X, &x_array, &memtype_x));
   PetscCall(MatDenseGetArrayReadAndMemType(lbfgs->StYfull, &r_array, &memtype_r));
   //TODO mat and input vec size check assert
   //TODO only doing for memtype HOST now. waiting for other branch
@@ -80,8 +82,6 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
   case MAT_CDBFGS_LOWER_TRIANGULAR:
     switch (lbfgs->strategy) {
     case MAT_LBFGS_CD_REORDER:
-      PetscCall(PetscBLASIntCast(lmvm->k, &m_blas));
-      PetscCall(PetscBLASIntCast(lda, &lda_blas));
       PetscCallBLAS("BLAStrmv", BLAStrmv_("Lower", "Normal", "NotUnitTriangular", &m_blas, &r_array[1], &lda_blas, &x_array[1], &one));
       x_array[0] = 0;
       break;
