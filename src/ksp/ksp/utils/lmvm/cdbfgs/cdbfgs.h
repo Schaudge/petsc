@@ -10,8 +10,7 @@ typedef struct {
   PetscInt  idx_begin;                                   // index of the oldest colums in Sfull and Yfull
   Mat       Sfull, Yfull, StYfull;                                // Stored in recycled order
   Mat       Q; // H_0 Y
-  Mat       C_H, HY; // diag(StY) + Y^T H_0 Y (m x m)
-  Mat       C_B, BS; //S^T B_0 S (m x m)                 
+  Mat       LDLT, BS; //S^T B_0 S (m x m)                 
   Mat       L, J, J_work, J_solve, J_temp_copy;
   Vec       diag_vec;
   Vec       lwork1, lwork2, rwork1, rwork2, rwork3, rwork4;
@@ -21,7 +20,6 @@ typedef struct {
   MatLBFGSType strategy;
 
   PetscInt  watchdog, max_seq_rejects;                   /* tracker to reset after a certain # of consecutive rejects */
-  PetscInt iter_count;//TODO temp remove later
   PetscInt  idx_cols;
   PetscBool allocated;
   PetscReal delta, delta_min, delta_max;
