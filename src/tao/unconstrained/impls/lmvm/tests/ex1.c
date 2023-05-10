@@ -69,6 +69,9 @@ int main(int argc, char **argv)
 
   test:
     suffix: 0
-    args: -tao_monitor -tao_view -tao_lmvm_mat_lmvm_hist_size 20
+    args: -tao_monitor -tao_ls_gtol 1.e-6 -tao_view -tao_lmvm_mat_lmvm_hist_size 20
+
+    suffix: 1
+    args: -tao_monitor -tao_ls_gtol 1.e-6 -tao_view -tao_lmvm_mat_lmvm_hist_size 20 -tao_lmvm_mat_type lmvmcdbfgs
 
 TEST*/
