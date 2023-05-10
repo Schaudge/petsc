@@ -83,14 +83,14 @@ int main(int argc, char **argv)
 
   /* Test the LMVM matrix */
   if (test_lmvm) PetscCall(PetscOptionsSetValue(NULL, "-tao_type", "bqnktr"));
+  /* Check for TAO command line options */
+  PetscCall(TaoSetFromOptions(tao));
   if (J0_scale) {
     PetscCall(TaoGetKSP(tao, &ksp));
     PetscCall(KSPGetPC(ksp, &pc));
     PetscCall(PCLMVMGetMatLMVM(pc, &M));
     PetscCall(MatLMVMSetJ0Scale(M, 1.));
   }
-  /* Check for TAO command line options */
-  PetscCall(TaoSetFromOptions(tao));
 
   /* SOLVE THE APPLICATION */
   PetscCall(TaoSolve(tao));
