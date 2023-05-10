@@ -102,7 +102,11 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
         PetscCall(PetscBLASIntCast(lda, &lda_blas));
         PetscCall(PetscBLASIntCast(lda - index, &diff_blas));
         PetscCall(PetscBLASIntCast(lda - index - 1, &diff_blas_n_1));
-        PetscCall(PetscBLASIntCast(index - 1, &idx_n_1));
+	if (index == 0 ) {
+          PetscCall(PetscBLASIntCast(0, &idx_n_1));
+	} else {
+          PetscCall(PetscBLASIntCast(index - 1, &idx_n_1));
+	}
 
         /* Lower Triangular Normal Case:
          * Below, C,A are Strictly LT, and B is rectangular.
@@ -141,7 +145,11 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
         PetscCall(PetscBLASIntCast(lda, &lda_blas));
         PetscCall(PetscBLASIntCast(lda - index, &diff_blas));
         PetscCall(PetscBLASIntCast(lda - index - 1, &diff_blas_n_1));
-        PetscCall(PetscBLASIntCast(index - 1, &idx_n_1));
+	if (index == 0 ) {
+          PetscCall(PetscBLASIntCast(0, &idx_n_1));
+	} else {
+          PetscCall(PetscBLASIntCast(index - 1, &idx_n_1));
+	}
 
         /* Lower Triangular Transpose Case:
          * Below, C,A are Strictly LT, and B is rectangular.
@@ -359,7 +367,7 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
            * [ C | 0 ]^-T [y] => [C^-T(y - B^T A^-T x)]
            * [ B | A ]    [x]    [A^-T x              ] */
           /* Applying A: x' = A^-T x */
-          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &diff_blas, &diff_blas, &Alpha, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
+          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &diff_blas, &diff_blas, &Alpha, &r_array[idx_blas*(lda_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
           /* Applying B: y' = y - B^T A^-T x */
           PetscCallBLAS("BLASgemv", BLASgemv_("T",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
           /* Applying C: y' = C^-T (y - B^T A^-T x) */
@@ -778,7 +786,7 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       /* Compute S^T B S + L D^{-1} L^T
        * J = S^T B S + L D^{-1} L^T */
       PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->BS, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->J));
-
+#if 0
       /* Adds L D L^T to J matrix */
       PetscCall(MatAdd_LDLT(B));
 
@@ -796,6 +804,7 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
         PetscCall(MatCholeskyFactor(lbfgs->J_solve,NULL,NULL));
         PetscCall(MatDenseRestoreSubMatrix(lbfgs->J, &lbfgs->J_work));
       }
+#endif      
     } else {
       /* Update is bad, skip it */
       ++lmvm->nrejects;
