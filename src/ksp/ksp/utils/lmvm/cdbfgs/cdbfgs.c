@@ -56,7 +56,7 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
   Mat_LMVM    *lmvm  = (Mat_LMVM*)B->data;
   Mat_CDBFGS  *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
 
-  PetscInt     lda;
+  PetscInt     lda, index;
   PetscScalar *x_array, Alpha = 1.0;
   PetscBLASInt m_blas, lda_blas, one = 1;
   PetscMemType memtype_r, memtype_x;
@@ -69,6 +69,12 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
   if (lmvm->k == 0) {
     PetscCall(VecZeroEntries(X)); 
     PetscFunctionReturn(PETSC_SUCCESS);
+  }
+
+  if (lbfgs->idx_begin == -1) {
+    index = 0;
+  } else {
+    index = lbfgs->idx_begin;
   }
 
   PetscCall(PetscBLASIntCast(lmvm->k, &m_blas));
@@ -92,11 +98,11 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
          * B : m - idx by idx. 
          * A : m - idx - 1 by m - idx - 1. D as whole is m - idx by m - idx. Subtract 1 for strictly LT */
         PetscBLASInt idx_blas, lda_blas, idx_n_1, diff_blas, diff_blas_n_1, one = 1;
-        PetscCall(PetscBLASIntCast(lbfgs->idx_begin, &idx_blas));
+        PetscCall(PetscBLASIntCast(index, &idx_blas));
         PetscCall(PetscBLASIntCast(lda, &lda_blas));
-        PetscCall(PetscBLASIntCast(lda - lbfgs->idx_begin, &diff_blas));
-        PetscCall(PetscBLASIntCast(lda - lbfgs->idx_begin - 1, &diff_blas_n_1));
-        PetscCall(PetscBLASIntCast(lbfgs->idx_begin - 1, &idx_n_1));
+        PetscCall(PetscBLASIntCast(lda - index, &diff_blas));
+        PetscCall(PetscBLASIntCast(lda - index - 1, &diff_blas_n_1));
+        PetscCall(PetscBLASIntCast(index - 1, &idx_n_1));
 
         /* Lower Triangular Normal Case:
          * Below, C,A are Strictly LT, and B is rectangular.
@@ -108,7 +114,7 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
         /* Applying B: x' = x' + B y */
         PetscCallBLAS("BLASgemv", BLASgemv_("N", &diff_blas, &idx_blas, &Alpha, &r_array[idx_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
         /* Applying C: y' = C y */
-        if (lbfgs->idx_begin != 0) {//TODO this more-or-less assumes that idx=0 until k==m-1, I think?
+        if (index != 0) {//TODO this more-or-less assumes that idx=0 until k==m-1, I think?
           PetscCallBLAS("BLAStrmv", BLAStrmv_("Lower", "Normal", "NotUnitTriangular", &idx_n_1, &r_array[1], &lda_blas, &x_array[1], &one));
           x_array[0] = 0;
         }
@@ -131,11 +137,11 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
          * B : m - idx by idx. 
          * A : m - idx - 1 by m - idx - 1. D as whole is m - idx by m - idx. Subtract 1 for strictly LT */
         PetscBLASInt idx_blas, lda_blas, idx_n_1, diff_blas, diff_blas_n_1, one = 1;
-        PetscCall(PetscBLASIntCast(lbfgs->idx_begin, &idx_blas));
+        PetscCall(PetscBLASIntCast(index, &idx_blas));
         PetscCall(PetscBLASIntCast(lda, &lda_blas));
-        PetscCall(PetscBLASIntCast(lda - lbfgs->idx_begin, &diff_blas));
-        PetscCall(PetscBLASIntCast(lda - lbfgs->idx_begin - 1, &diff_blas_n_1));
-        PetscCall(PetscBLASIntCast(lbfgs->idx_begin - 1, &idx_n_1));
+        PetscCall(PetscBLASIntCast(lda - index, &diff_blas));
+        PetscCall(PetscBLASIntCast(lda - index - 1, &diff_blas_n_1));
+        PetscCall(PetscBLASIntCast(index - 1, &idx_n_1));
 
         /* Lower Triangular Transpose Case:
          * Below, C,A are Strictly LT, and B is rectangular.
@@ -146,7 +152,7 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
          * [ C | D ] 
          * [ B | A ]  form. */
         /* Applying C: y' = C^T y */
-        if (lbfgs->idx_begin != 0) {//TODO this more-or-less assumes that idx=0 until k==m-1, I think?
+        if (index != 0) {//TODO this more-or-less assumes that idx=0 until k==m-1, I think?
           PetscCallBLAS("BLAStrmv", BLAStrmv_("Lower", "Transpose", "NotUnitTriangular", &idx_n_1, &r_array[1], &lda_blas, x_array, &one));
           x_array[idx_n_1] = 0;//TODO what happens when idx=1? x[0] = 0?
         }
@@ -207,7 +213,7 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
   PetscScalar  Alpha = 1.0, neg_one = -1.;
   PetscMemType memtype_r, memtype_x;
   PetscScalar *buffer, *x_array;
-  PetscInt     lda, N;
+  PetscInt     lda, N, index;
 
   const PetscScalar *array_read, *r_array;
 
@@ -216,6 +222,12 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
   PetscCall(VecGetArrayWriteAndMemType(x, &x_array, &memtype_x));
   PetscCall(MatDenseGetLDA(R, &lda));
   PetscAssert(memtype_x == memtype_r, comm, PETSC_ERR_PLIB, "Incompatible device pointers");
+
+  if (lbfgs->idx_begin == -1) {
+    index = 0;
+  } else {
+    index = lbfgs->idx_begin;
+  }
 
   switch (lbfgs->strategy) {
   case MAT_LBFGS_CD_REORDER:
@@ -306,9 +318,9 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
       PetscCall(VecGetArrayRead(x, &array_read));
       PetscCall(VecGetSize(x, &N));
       PetscCall(PetscMalloc1(N, &buffer));
-      PetscCall(PetscMemcpy(buffer, &array_read[lbfgs->idx_begin], (N - lbfgs->idx_begin)*sizeof(PetscScalar)));
-      if (lbfgs->idx_begin != 0 ) {
-        PetscCall(PetscMemcpy(&buffer[N - lbfgs->idx_begin], array_read, (lbfgs->idx_begin)*sizeof(PetscScalar)));
+      PetscCall(PetscMemcpy(buffer, &array_read[index], (N - index)*sizeof(PetscScalar)));
+      if (index != 0 ) {
+        PetscCall(PetscMemcpy(&buffer[N - index], array_read, (index)*sizeof(PetscScalar)));
       }
       PetscCall(VecRestoreArrayReadAndMemType(x, &array_read));
       PetscCall(PetscFree(buffer));
@@ -472,6 +484,8 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
 {
   Mat_LMVM    *lmvm  = (Mat_LMVM*)H->data;
   Mat_CDBFGS  *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
+
+  PetscInt index;
   
   PetscFunctionBegin;
   VecCheckSameSize(F, 2, dX, 3);
@@ -482,9 +496,15 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
     PetscCall(MatCDBFGSApplyJ0Inv(H, F, dX));
     PetscFunctionReturn(PETSC_SUCCESS); /* No updates stored yet */
   }
+
+  if (lbfgs->idx_begin == -1) {
+    index = 0;
+  } else {
+    index = lbfgs->idx_begin;
+  }
   /* Start with reusable part: rwork1 = R^-1 S^T F */
   PetscCall(MatMultTranspose(lbfgs->Sfull, F, lbfgs->rwork1));
-  PetscCall(MatSolveTriangular(H, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork1, MAT_CDBFGS_UPPER_TRIANGULAR));
+  PetscCall(MatSolveTriangular(H, lbfgs->StYfull, index, lbfgs->rwork1, MAT_CDBFGS_UPPER_TRIANGULAR));
 
   /* lwork1 :H_0 (F - Y R^{-1} S^T X) */
   PetscCall(MatMult(lbfgs->Yfull, lbfgs->rwork1, lbfgs->lwork1));
@@ -496,7 +516,7 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   PetscCall(VecPointwiseMult(lbfgs->rwork1, lbfgs->diag_vec, lbfgs->rwork1));
   PetscCall(MatMultTranspose(lbfgs->Yfull, lbfgs->lwork1, lbfgs->rwork2));
   PetscCall(VecAXPY(lbfgs->rwork2, -1., lbfgs->rwork1));
-  PetscCall(MatSolveTriangular(H, lbfgs->StYfull, lbfgs->idx_begin, lbfgs->rwork2, MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE));
+  PetscCall(MatSolveTriangular(H, lbfgs->StYfull, index, lbfgs->rwork2, MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE));
   PetscCall(MatMult(lbfgs->Sfull, lbfgs->rwork2, lbfgs->lwork1));
   PetscCall(VecAXPY(dX, -1., lbfgs->lwork1));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -578,17 +598,23 @@ static PetscErrorCode MatAdd_LDLT(Mat B)
 
   const PetscScalar *r_array;
   PetscScalar       *x_array, *buffer;
-  PetscInt           i, j, k, query_idx_i, query_idx_j, query_idx_k;
+  PetscInt           i, j, k, query_idx_i, query_idx_j, query_idx_k, index;
   Vec                workvec1, workvec2;
 
   PetscFunctionBegin;
+
+  if (lbfgs->idx_begin == -1) {
+    index = 0;
+  } else {
+    index = lbfgs->idx_begin;
+  }
   /* L D^{-1} L^T :  (L_i is ith column of strictly low tri mat. Below, multiply is pointwise mult.
    * [ 0 | L_0*L_0[1]/d_0 | L_0*L_0[2]/d_0 + L_1*L_1[2]/d_1 | ... ].  
    * 
    * Struture is similar for inplace version, but just two clockwise shifts in block-form.            */
   PetscCall(VecGetArrayRead(lbfgs->diag_vec, &r_array));
   for (i=0; i<lmvm->m-1; i++) {
-    query_idx_i = (lbfgs->idx_begin + i) % lmvm->m;
+    query_idx_i = (index + i) % lmvm->m;
     PetscCall(MatDenseGetColumnVecRead(lbfgs->StYfull, query_idx_i, &workvec1));
   
     /* Copying to emulate strictly lower triangular */
@@ -596,7 +622,7 @@ static PetscErrorCode MatAdd_LDLT(Mat B)
     PetscCall(MatDenseRestoreColumnVecRead(lbfgs->StYfull, query_idx_i, &workvec1));
     PetscCall(VecGetArray(lbfgs->rwork1, &x_array));
     for (j=0; j<i+1; j++) {
-      query_idx_j = (lbfgs->idx_begin + j) % lmvm->m;
+      query_idx_j = (index + j) % lmvm->m;
       x_array[query_idx_j] = 0;
     }
   
@@ -604,7 +630,7 @@ static PetscErrorCode MatAdd_LDLT(Mat B)
      //TODO technically we could do adaptive size for k<m, but later..
     PetscCall(PetscCalloc1(lmvm->m-i-1, &buffer));
     for (j=0; j < lmvm->m-i-1; j++) {
-      query_idx_j = (lbfgs->idx_begin + j) % lmvm->m;
+      query_idx_j = (index + j) % lmvm->m;
       if (r_array[query_idx_i] != 0) {
         buffer[query_idx_j] = x_array[query_idx_i+query_idx_j+1]/r_array[query_idx_i];
       } else {
@@ -614,8 +640,8 @@ static PetscErrorCode MatAdd_LDLT(Mat B)
     PetscCall(VecRestoreArray(lbfgs->rwork1, &x_array));
   
     for (j=0, k=i+1; k<lmvm->m; k++, j++) {
-      query_idx_j = (lbfgs->idx_begin + j) % lmvm->m;
-      query_idx_k = (lbfgs->idx_begin + k) % lmvm->m;
+      query_idx_j = (index + j) % lmvm->m;
+      query_idx_k = (index + k) % lmvm->m;
       PetscCall(MatDenseGetColumnVecWrite(lbfgs->J, query_idx_k, &workvec2));
       PetscCall(VecAXPY(workvec2, buffer[query_idx_j], lbfgs->rwork1));
       PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->J, query_idx_k, &workvec2));
@@ -724,8 +750,7 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       switch (lbfgs->strategy) {
       case MAT_LBFGS_CD_INPLACE:
         if (lmvm->k == lmvm->m-1) {
-        //  lbfgs->idx_begin = (lbfgs->idx_begin + 1) % lmvm->m;
-//          lbfgs->idx_begin = (lbfgs->iter_count1) % lmvm->m;
+          lbfgs->idx_begin = (lbfgs->idx_begin + 1) % lmvm->m;
           lbfgs->idx_cols = lbfgs->idx_begin;
         }
         break;
@@ -1041,7 +1066,7 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   PetscCall(PetscNew(&lbfgs));
   lmvm->ctx = (void*)lbfgs;
   lbfgs->allocated       = PETSC_FALSE;
-  lbfgs->idx_begin       = 0;
+  lbfgs->idx_begin       = -1;
   lbfgs->watchdog        = 0;
   lbfgs->delta           = 1.0;
   lbfgs->delta_min       = 1e-7;
