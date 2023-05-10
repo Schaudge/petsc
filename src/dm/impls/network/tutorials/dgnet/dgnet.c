@@ -50,6 +50,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
   /* Set global number of fvedges, edges, and junctions */
   /*-------------------------------------------------*/
   switch (networktype) {
+  case -3: /* read from h5 file */
     /* EPANet Parser from hydronetwork-2021. Rework into proper parser later */
   case -2:
     numVertices = 0;

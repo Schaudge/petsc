@@ -176,12 +176,12 @@ static PetscErrorCode CoordinatePrint(DM dm)
 
 int main(int argc, char **argv)
 {
-  DM          dm,network2,plex,cplex,cdm;
-  PetscInt    dofv = 1, dofe = 1, ne = 1;
-  PetscMPIInt rank;
-  PetscBool   testdistribute = PETSC_FALSE;
-  Vec         coord,coordloc; 
-  PetscSection section,section2;
+  DM           dm, network2, plex, cplex, cdm;
+  PetscInt     dofv = 1, dofe = 1, ne = 1;
+  PetscMPIInt  rank;
+  PetscBool    testdistribute = PETSC_FALSE;
+  Vec          coord, coordloc;
+  PetscSection section, section2;
 
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
@@ -206,22 +206,22 @@ int main(int argc, char **argv)
   PetscCall(DMNetworkGetPlex(dm, &plex));
   PetscCall(DMNetworkGetPlex(cdm, &cplex));
 
-  PetscCall(DMGetCoordinates(dm,&coord));
-  PetscCall(VecView(coord,PETSC_VIEWER_STDOUT_WORLD));
+  PetscCall(DMGetCoordinates(dm, &coord));
+  PetscCall(VecView(coord, PETSC_VIEWER_STDOUT_WORLD));
 
-  // What it should be but DMNetwork is broken and needs fixing 
-  //PetscCall(DMGetCoordinateSection(dm,&section)); 
+  // What it should be but DMNetwork is broken and needs fixing
+  //PetscCall(DMGetCoordinateSection(dm,&section));
 
   PetscCall(DMSetCoordinateDM(plex, cplex));
   PetscCall(DMSetCoordinateDim(plex, 2));
 
-  PetscCall(DMSetCoordinates(plex,coord));
+  PetscCall(DMSetCoordinates(plex, coord));
 
   PetscCall(DMNetworkCreate(PETSC_COMM_WORLD, &network2));
   PetscCall(DMNetworkCreateFromPlex(plex, network2));
   PetscCall(DMSetUp(network2));
-  PetscCall(DMView(network2,PETSC_VIEWER_STDOUT_WORLD));
-  PetscCall(DMGetCoordinates(network2,&coord));
+  PetscCall(DMView(network2, PETSC_VIEWER_STDOUT_WORLD));
+  PetscCall(DMGetCoordinates(network2, &coord));
 
   /* print or view the coordinates of each vertex */
   PetscCall(CoordinatePrint(dm));

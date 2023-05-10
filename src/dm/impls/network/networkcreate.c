@@ -343,6 +343,8 @@ PetscErrorCode DMInitialize_Network(DM dm)
   dm->ops->destroy                 = DMDestroy_Network;
   dm->ops->createsubdm             = NULL;
   dm->ops->locatepoints            = NULL;
+  dm->ops->load                      = DMLoad_Network;
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 /*

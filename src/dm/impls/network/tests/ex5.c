@@ -177,8 +177,8 @@ int main(int argc, char **argv)
   PetscInt    dofv = 1, dofe = 1, ne = 1;
   PetscMPIInt rank;
   PetscBool   testdistribute = PETSC_FALSE;
-  PetscViewer viewer; 
-  Vec         coord; 
+  PetscViewer viewer;
+  Vec         coord;
 
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
@@ -201,22 +201,22 @@ int main(int argc, char **argv)
 
   /* print or view the coordinates of each vertex */
   PetscCall(CoordinatePrint(dm));
-  
+
   PetscCall(DMNetworkGetPlex(dm, &plex));
-  PetscCall(DMGetCoordinates(dm,&coord));
+  PetscCall(DMGetCoordinates(dm, &coord));
 
   PetscCall(DMSetCoordinatesLocal(plex, coord));
 
-  PetscCall(PetscViewerHDF5Open(PETSC_COMM_WORLD,"test",FILE_MODE_WRITE, &viewer));
+  PetscCall(PetscViewerHDF5Open(PETSC_COMM_WORLD, "test", FILE_MODE_WRITE, &viewer));
   PetscCall(PetscViewerPushFormat(viewer, PETSC_VIEWER_HDF5_PETSC));
-  PetscCall(DMView(plex,viewer));
+  PetscCall(DMView(plex, viewer));
   PetscCall(DMDestroy(&dm));
   PetscCall(PetscViewerDestroy(&viewer));
 
-  PetscCall(DMPlexCreate(PETSC_COMM_WORLD,&plex));
-  PetscCall(PetscViewerHDF5Open(PETSC_COMM_WORLD,"test",FILE_MODE_READ, &viewer));
+  PetscCall(DMPlexCreate(PETSC_COMM_WORLD, &plex));
+  PetscCall(PetscViewerHDF5Open(PETSC_COMM_WORLD, "test", FILE_MODE_READ, &viewer));
 
-  PetscCall(DMLoad(plex, viewer)); 
+  PetscCall(DMLoad(plex, viewer));
   PetscCall(DMViewFromOptions(plex, NULL, "-plex_view"));
 
   PetscCall(DMDestroy(&plex));

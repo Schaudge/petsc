@@ -87,4 +87,5 @@ PETSC_EXTERN PetscErrorCode DMNetworkMonitorPop(DMNetworkMonitor);
 PETSC_EXTERN PetscErrorCode DMNetworkMonitorAdd(DMNetworkMonitor, const char *, PetscInt, PetscInt, PetscInt, PetscInt, PetscReal, PetscReal, PetscReal, PetscReal, PetscBool);
 PETSC_EXTERN PetscErrorCode DMNetworkMonitorView(DMNetworkMonitor, Vec);
 
+PETSC_INTERN PetscErrorCode DMLoad_Network(DM , PetscViewer );
 #endif
