@@ -57,7 +57,7 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
   Mat_CDBFGS  *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
 
   PetscInt     lda;
-  PetscScalar *x_array;
+  PetscScalar *x_array, Alpha = 1.0;
   PetscBLASInt m_blas, lda_blas, one = 1;
   PetscMemType memtype_r, memtype_x;
   MPI_Comm     comm = PetscObjectComm((PetscObject)B);
@@ -71,10 +71,8 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
     PetscFunctionReturn(PETSC_SUCCESS);
   }
 
-  PetscCall(PetscBLASIntCast(lmvm->k, &m_blas));
-  PetscCall(MatDenseGetLDA(lbfgs->StYfull, &lda));
-  PetscCall(PetscBLASIntCast(lda, &lda_blas));
   PetscCall(VecGetArrayWriteAndMemType(X, &x_array, &memtype_x));
+  PetscCall(MatDenseGetLDA(lbfgs->StYfull, &lda));
   PetscCall(MatDenseGetArrayReadAndMemType(lbfgs->StYfull, &r_array, &memtype_r));
   //TODO mat and input vec size check assert
   //TODO only doing for memtype HOST now. waiting for other branch
@@ -82,39 +80,86 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
   case MAT_CDBFGS_LOWER_TRIANGULAR:
     switch (lbfgs->strategy) {
     case MAT_LBFGS_CD_REORDER:
+      PetscCall(PetscBLASIntCast(lmvm->k, &m_blas));
+      PetscCall(PetscBLASIntCast(lda, &lda_blas));
       PetscCallBLAS("BLAStrmv", BLAStrmv_("Lower", "Normal", "NotUnitTriangular", &m_blas, &r_array[1], &lda_blas, &x_array[1], &one));
       x_array[0] = 0;
       break;
     case MAT_LBFGS_CD_INPLACE:
-#if 0      
       {
-        PetscBLASInt m_blas, idx_blas, lda_blas, diff_blas, one = 1;
-        PetscCall(PetscBLASIntCast(lmvm->k, &m_blas));
+        /* We need four int for dimensions. 
+         * C : idx - 1 by idx - 1. C as whole is idx by idx, but it is strictly LT - thus subtracting one. 
+         * B : m - idx by idx. 
+         * A : m - idx - 1 by m - idx - 1. D as whole is m - idx by m - idx. Subtract 1 for strictly LT */
+        PetscBLASInt idx_blas, lda_blas, idx_n_1, diff_blas, diff_blas_n_1, one = 1;
         PetscCall(PetscBLASIntCast(lbfgs->idx_begin, &idx_blas));
         PetscCall(PetscBLASIntCast(lda, &lda_blas));
-        PetscCall(PetscBLASIntCast(lmvm->k - lbfgs->idx_begin, &diff_blas));
-        PetscBLASInt ldb_blas = lda_blas;
+        PetscCall(PetscBLASIntCast(lda - lbfgs->idx_begin, &diff_blas));
+        PetscCall(PetscBLASIntCast(lda - lbfgs->idx_begin - 1, &diff_blas_n_1));
+        PetscCall(PetscBLASIntCast(lbfgs->idx_begin - 1, &idx_n_1));
 
         /* Lower Triangular Normal Case:
-         * Below, C,A are Strictly LT, and D is square.
-         * [ C | D ] [y] => [C y + D x]
-         * [ 0 | A ] [x]    [   A x   ] */
-        /* Applying A: x' = A^-1 x */
-        PetscCallBLAS("BLAStrmv", BLAStrmv_("Lower", "Normal", "NotUnitTriangular", &diff_blas, &r_array[1], &lda_blas, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
-        /* Applying D: y' = y - D A^-1 x */
-        PetscCallBLAS("BLASgemv", BLASgemv_("N",  &idx_blas, &diff_blas, &neg_one, &r_array[idx_blas*m_blas], &lda_blas, &x_array[idx_blas], &one, &Alpha, &x_array[idx_blas], &one));
-        /* Applying C: y' = C^-1 (y - D A^-1 x) */
-        PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Lower", "Normal", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));//what if idx_blas=0. does this still work? TODO
+         * Below, C,A are Strictly LT, and B is rectangular.
+         * [ C | 0 ] [y] => [    C y    ]
+         * [ B | A ] [x]    [ B y + A x ] */
+        /* Applying A: x' = A x */
+        PetscCallBLAS("BLAStrsm", BLAStrmv_("Lower", "Normal", "NotUnitTriangular", &diff_blas_n_1, &r_array[idx_blas*(lda_blas+1)], &lda_blas, &x_array[idx_blas+1], &one));
+        x_array[idx_blas] = 0;
+        /* Applying B: x' = x' + B y */
+        PetscCallBLAS("BLASgemv", BLASgemv_("N", &diff_blas, &idx_blas, &Alpha, &r_array[idx_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
+        /* Applying C: y' = C y */
+        if (lbfgs->idx_begin != 0) {//TODO this more-or-less assumes that idx=0 until k==m-1, I think?
+          PetscCallBLAS("BLAStrmv", BLAStrmv_("Lower", "Normal", "NotUnitTriangular", &idx_n_1, &r_array[1], &lda_blas, &x_array[1], &one));
+          x_array[0] = 0;
         }
-#endif      
+      }
       break; 
     case MAT_LBFGS_BASIC:
     default:
       SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented L-BFGS strategy");
     }
   case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
-    PetscCallBLAS("BLAStrmv", BLAStrmv_("Lower", "Transpose", "NotUnitTriangular", &m_blas, &r_array[1], &lda_blas, x_array, &one));
-    x_array[lmvm->k] = 0;
+    switch (lbfgs->strategy) {
+    case MAT_LBFGS_CD_REORDER:
+      PetscCallBLAS("BLAStrmv", BLAStrmv_("Lower", "Transpose", "NotUnitTriangular", &m_blas, &r_array[1], &lda_blas, x_array, &one));
+      x_array[lmvm->k] = 0;
+      break;
+    case MAT_LBFGS_CD_INPLACE:
+      {
+        /* We need four int for dimensions. 
+         * C : idx - 1 by idx - 1. C as whole is idx by idx, but it is strictly LT - thus subtracting one. 
+         * B : m - idx by idx. 
+         * A : m - idx - 1 by m - idx - 1. D as whole is m - idx by m - idx. Subtract 1 for strictly LT */
+        PetscBLASInt idx_blas, lda_blas, idx_n_1, diff_blas, diff_blas_n_1, one = 1;
+        PetscCall(PetscBLASIntCast(lbfgs->idx_begin, &idx_blas));
+        PetscCall(PetscBLASIntCast(lda, &lda_blas));
+        PetscCall(PetscBLASIntCast(lda - lbfgs->idx_begin, &diff_blas));
+        PetscCall(PetscBLASIntCast(lda - lbfgs->idx_begin - 1, &diff_blas_n_1));
+        PetscCall(PetscBLASIntCast(lbfgs->idx_begin - 1, &idx_n_1));
+
+        /* Lower Triangular Transpose Case:
+         * Below, C,A are Strictly LT, and B is rectangular.
+         * [ C^T | B^T ] [y] => [ C^T y + B^T x ]
+         * [  0  | A^T ] [x]    [     A^T x     ]
+         *
+         * Note: Actual storage is in 
+         * [ C | D ] 
+         * [ B | A ]  form. */
+        /* Applying C: y' = C^T y */
+        if (lbfgs->idx_begin != 0) {//TODO this more-or-less assumes that idx=0 until k==m-1, I think?
+          PetscCallBLAS("BLAStrmv", BLAStrmv_("Lower", "Transpose", "NotUnitTriangular", &idx_n_1, &r_array[1], &lda_blas, x_array, &one));
+          x_array[idx_n_1] = 0;//TODO what happens when idx=1? x[0] = 0?
+        }
+        /* Applying B^T: y' = y' + B^T x */
+        PetscCallBLAS("BLASgemv", BLASgemv_("T", &diff_blas, &idx_blas, &Alpha, &r_array[idx_blas], &lda_blas, &x_array[idx_blas+1], &one, &Alpha, x_array, &one));
+        /* Applying A^T: x' = A^T x */
+        PetscCallBLAS("BLAStrsm", BLAStrmv_("Lower", "Transpose", "NotUnitTriangular", &diff_blas_n_1, &r_array[idx_blas*(lda_blas+1)], &lda_blas, &x_array[idx_blas+1], &one));
+      }
+      break;
+    case MAT_LBFGS_BASIC:
+    default:
+      SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented L-BFGS strategy");
+    }
     break;
   case MAT_CDBFGS_UPPER_TRIANGULAR:
   case MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE:
@@ -262,12 +307,13 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
       /* Shift x vector TODO there are x,b vecs. but actually we only need one here... */
       PetscCall(VecGetArrayRead(x, &array_read));
       PetscCall(VecGetSize(x, &N));
-      PetscCall(PetscMalloc1(N, &buffer));//TODO free buffer
+      PetscCall(PetscMalloc1(N, &buffer));
       PetscCall(PetscMemcpy(buffer, &array_read[lbfgs->idx_begin], (N - lbfgs->idx_begin)*sizeof(PetscScalar)));
       if (lbfgs->idx_begin != 0 ) {
         PetscCall(PetscMemcpy(&buffer[N - lbfgs->idx_begin], array_read, (lbfgs->idx_begin)*sizeof(PetscScalar)));
       }
       PetscCall(VecRestoreArrayReadAndMemType(x, &array_read));
+      PetscCall(PetscFree(buffer));
     switch (memtype_x) {
     case PETSC_MEMTYPE_HOST:
       {
@@ -291,7 +337,7 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
            * [ B | A ]    [x]    [A^-1(x- BC^-1 y)] */
           //TODO for number of rows, does it have to be local, or is global size fine?
           /* Applying C: y' = C^-1 y */
-          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Upper", "Normal", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));//what if idx_blas=0. does this still work? TODO
+          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Upper", "Normal", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
           /* Applying B: x' = x - BC^-1 y' */
           PetscCallBLAS("BLASgemv", BLASgemv_("N",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
           /* Applying A: x' = A^-1 (x - BC^-1 y) */
@@ -307,7 +353,7 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
           /* Applying B: y' = y - B^T A^-T x */
           PetscCallBLAS("BLASgemv", BLASgemv_("T",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
           /* Applying C: y' = C^-T (y - B^T A^-T x) */
-          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));//what if idx_blas=0. does this still work? TODO
+          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
           break;
         case MAT_CDBFGS_LOWER_TRIANGULAR:
           /* Lower Triangular Case:
@@ -317,9 +363,9 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
           /* Applying A: x' = A^-1 x */
           PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Lower", "Normal", "NotUnitTriangular", &diff_blas, &one, &Alpha, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
           /* Applying D: y' = y - D A^-1 x */
-          PetscCallBLAS("BLASgemv", BLASgemv_("N",  &idx_blas, &diff_blas, &neg_one, &r_array[idx_blas*m_blas], &lda_blas, &x_array[idx_blas], &one, &Alpha, &x_array[idx_blas], &one));
+          PetscCallBLAS("BLASgemv", BLASgemv_("N",  &idx_blas, &diff_blas, &neg_one, &r_array[idx_blas*lda_blas], &lda_blas, &x_array[idx_blas], &one, &Alpha, &x_array[idx_blas], &one));
           /* Applying C: y' = C^-1 (y - D A^-1 x) */
-          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Lower", "Normal", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));//what if idx_blas=0. does this still work? TODO
+          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Lower", "Normal", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
           break;
         case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
           /* Lower Triangular Transpose Case:
@@ -327,9 +373,9 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
            * [ C | D ]^-T [y] => [C^-T                 ]
            * [ 0 | A ]    [x]    [A^-T (x - D^T C^-T y)] */
           /* Applying C: y' = C^-T y */
-          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Lower", "Transpose", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));//what if idx_blas=0. does this still work? TODO
+          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Lower", "Transpose", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
           /* Applying D: x' = x - D^T C^-T y */
-          PetscCallBLAS("BLASgemv", BLASgemv_("T",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas*m_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
+          PetscCallBLAS("BLASgemv", BLASgemv_("T",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas*lda_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
           /* Applying A: x' = A^-T (x - D^T C^-T y) */
           PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Lower", "Transpose", "NotUnitTriangular", &diff_blas, &one, &Alpha, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
           break;
@@ -350,23 +396,23 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
 
         switch (tri_type) {//TODO cublasDgemv, or cublasSgemv?
         case MAT_CDBFGS_UPPER_TRIANGULAR:
-          PetscCallCUBLAS("cublastrsm", cublastrsm_("Left", "Upper", "Normal", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));//what if idx_blas=0. does this still work? TODO
+          PetscCallCUBLAS("cublastrsm", cublastrsm_("Left", "Upper", "Normal", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
           PetscCallCUBLAS("cublasDgemv", cublasDgemv_("N",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
           PetscCallCUBLAS("cublastrsm", cublastrsm_("Left", "Upper", "Normal", "NotUnitTriangular", &diff_blas, &one, &Alpha, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
           break;
         case MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE:
           PetscCallCUBLAS("cublastrsm", cublastrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &diff_blas, &one, &Alpha, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
           PetscCallCUBLAS("cublasDgemv", cublasDgemv_("T",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
-          PetscCallCUBLAS("cublastrsm", cublastrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));//what if idx_blas=0. does this still work? TODO
+          PetscCallCUBLAS("cublastrsm", cublastrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
           break;
         case MAT_CDBFGS_LOWER_TRIANGULAR:
           PetscCallCUBLAS("cublastrsm", cublastrsm_("Left", "Lower", "Normal", "NotUnitTriangular", &diff_blas, &one, &Alpha, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
-          PetscCallCUBLAS("cublasDgemv", cublasDgemv_("N",  &idx_blas, &diff_blas, &neg_one, &r_array[idx_blas*m_blas], &lda_blas, &x_array[idx_blas], &one, &Alpha, &x_array[idx_blas], &one));
-          PetscCallCUBLAS("cublastrsm", cublastrsm_("Left", "Lower", "Normal", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));//what if idx_blas=0. does this still work? TODO
+          PetscCallCUBLAS("cublasDgemv", cublasDgemv_("N",  &idx_blas, &diff_blas, &neg_one, &r_array[idx_blas*lda_blas], &lda_blas, &x_array[idx_blas], &one, &Alpha, &x_array[idx_blas], &one));
+          PetscCallCUBLAS("cublastrsm", cublastrsm_("Left", "Lower", "Normal", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
           break;
         case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
-          PetscCallCUBLAS("cublastrsm", cublastrsm_("Left", "Lower", "Transpose", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));//what if idx_blas=0. does this still work? TODO
-          PetscCallCUBLAS("cublasDgemv", cublasDgemv_("T",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas*m_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
+          PetscCallCUBLAS("cublastrsm", cublastrsm_("Left", "Lower", "Transpose", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
+          PetscCallCUBLAS("cublasDgemv", cublasDgemv_("T",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas*lda_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
           PetscCallCUBLAS("cublastrsm", cublastrsm_("Left", "Lower", "Transpose", "NotUnitTriangular", &diff_blas, &one, &Alpha, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
           break;
         }  
@@ -386,23 +432,23 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
 
         switch (tri_type) {//TODO hipblasDgemv, or hipblasSgemv?
         case MAT_CDBFGS_UPPER_TRIANGULAR:
-          PetscCallHIPBLAS("hipblastrsm", hipblastrsm_("Left", "Upper", "Normal", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));//what if idx_blas=0. does this still work? TODO
+          PetscCallHIPBLAS("hipblastrsm", hipblastrsm_("Left", "Upper", "Normal", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
           PetscCallHIPBLAS("hipblasDgemv", hipblasDgemv_("N",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
           PetscCallHIPBLAS("hipblastrsm", hipblastrsm_("Left", "Upper", "Normal", "NotUnitTriangular", &diff_blas, &one, &Alpha, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
           break;
         case MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE:
           PetscCallHIPBLAS("hipblastrsm", hipblastrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &diff_blas, &one, &Alpha, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
           PetscCallHIPBLAS("hipblasDgemv", hipblasDgemv_("T",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
-          PetscCallHIPBLAS("hipblastrsm", hipblastrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));//what if idx_blas=0. does this still work? TODO
+          PetscCallHIPBLAS("hipblastrsm", hipblastrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
           break;
         case MAT_CDBFGS_LOWER_TRIANGULAR:
           PetscCallHIPBLAS("hipblastrsm", hipblastrsm_("Left", "Lower", "Normal", "NotUnitTriangular", &diff_blas, &one, &Alpha, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
-          PetscCallHIPBLAS("hipblasDgemv", hipblasDgemv_("N",  &idx_blas, &diff_blas, &neg_one, &r_array[idx_blas*m_blas], &lda_blas, &x_array[idx_blas], &one, &Alpha, &x_array[idx_blas], &one));
-          PetscCallHIPBLAS("hipblastrsm", hipblastrsm_("Left", "Lower", "Normal", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));//what if idx_blas=0. does this still work? TODO
+          PetscCallHIPBLAS("hipblasDgemv", hipblasDgemv_("N",  &idx_blas, &diff_blas, &neg_one, &r_array[idx_blas*lda_blas], &lda_blas, &x_array[idx_blas], &one, &Alpha, &x_array[idx_blas], &one));
+          PetscCallHIPBLAS("hipblastrsm", hipblastrsm_("Left", "Lower", "Normal", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
           break;
         case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
-          PetscCallHIPBLAS("hipblastrsm", hipblastrsm_("Left", "Lower", "Transpose", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));//what if idx_blas=0. does this still work? TODO
-          PetscCallHIPBLAS("hipblasDgemv", hipblasDgemv_("T",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas*m_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
+          PetscCallHIPBLAS("hipblastrsm", hipblastrsm_("Left", "Lower", "Transpose", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
+          PetscCallHIPBLAS("hipblasDgemv", hipblasDgemv_("T",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas*lda_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
           PetscCallHIPBLAS("hipblastrsm", hipblastrsm_("Left", "Lower", "Transpose", "NotUnitTriangular", &diff_blas, &one, &Alpha, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
           break;
         }  
@@ -785,8 +831,6 @@ static PetscErrorCode MatReset_LMVMCDBFGS(Mat B, PetscBool destructive)
     PetscCall(VecDestroy(&lbfgs->rwork2));
     PetscCall(VecDestroy(&lbfgs->rwork3));
     PetscCall(VecDestroy(&lbfgs->rwork4));
-    PetscCall(VecDestroy(&lbfgs->rwork5));
-    PetscCall(VecDestroy(&lbfgs->rwork6));//TODO temp need to delete later
     PetscCall(VecDestroy(&lbfgs->lwork1));
     PetscCall(VecDestroy(&lbfgs->lwork2));
     PetscCall(VecDestroy(&lbfgs->diag_vec));
@@ -850,7 +894,6 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       PetscCall(MatCreateVecs(lbfgs->StYfull, &lbfgs->diag_vec, NULL));
       PetscCall(MatCreateVecs(lbfgs->StYfull, &lbfgs->rwork1, &lbfgs->rwork2));
       PetscCall(MatCreateVecs(lbfgs->StYfull, &lbfgs->rwork3, &lbfgs->rwork4));
-      PetscCall(MatCreateVecs(lbfgs->StYfull, &lbfgs->rwork5, &lbfgs->rwork6));//TODO temp. need to delete later
     }
     PetscCall(VecDuplicate(lmvm->Xprev, &lbfgs->lwork1));
     PetscCall(VecDuplicate(lmvm->Xprev, &lbfgs->lwork2));
@@ -884,8 +927,6 @@ static PetscErrorCode MatDestroy_LMVMCDBFGS(Mat B)
     PetscCall(VecDestroy(&lbfgs->rwork2));
     PetscCall(VecDestroy(&lbfgs->rwork3));
     PetscCall(VecDestroy(&lbfgs->rwork4));
-    PetscCall(VecDestroy(&lbfgs->rwork5));
-    PetscCall(VecDestroy(&lbfgs->rwork6));//TODO temp need to delete later
     PetscCall(VecDestroy(&lbfgs->lwork1));
     PetscCall(VecDestroy(&lbfgs->lwork2));
     PetscCall(VecDestroy(&lbfgs->diag_vec));
