@@ -219,14 +219,8 @@ PetscErrorCode MatDestroy_SeqSBAIJ(Mat A)
 PetscErrorCode MatSetOption_SeqSBAIJ(Mat A, MatOption op, PetscBool flg)
 {
   Mat_SeqSBAIJ *a = (Mat_SeqSBAIJ *)A->data;
-#if defined(PETSC_USE_COMPLEX)
-  PetscInt bs;
-#endif
 
   PetscFunctionBegin;
-#if defined(PETSC_USE_COMPLEX)
-  PetscCall(MatGetBlockSize(A, &bs));
-#endif
   switch (op) {
   case MAT_ROW_ORIENTED:
     a->roworiented = flg;
@@ -253,23 +247,26 @@ PetscErrorCode MatSetOption_SeqSBAIJ(Mat A, MatOption op, PetscBool flg)
     PetscCall(PetscInfo(A, "Option %s ignored\n", MatOptions[op]));
     break;
   case MAT_HERMITIAN:
-#if defined(PETSC_USE_COMPLEX)
-    if (flg) { /* disable transpose ops */
-      PetscCheck(bs <= 1, PETSC_COMM_SELF, PETSC_ERR_SUP, "No support for Hermitian with block size greater than 1");
-      A->ops->multtranspose    = NULL;
-      A->ops->multtransposeadd = NULL;
-      A->symmetric             = PETSC_BOOL3_FALSE;
+    if (PetscDefined(USE_COMPLEX)) {
+      if (flg) { /* disable transpose ops */
+        PetscInt bs;
+
+        PetscCall(MatGetBlockSize(A, &bs));
+        PetscCheck(bs <= 1, PETSC_COMM_SELF, PETSC_ERR_SUP, "No support for Hermitian with block size greater than 1");
+        A->ops->multtranspose    = NULL;
+        A->ops->multtransposeadd = NULL;
+        A->symmetric             = PETSC_BOOL3_FALSE;
+      }
     }
-#endif
     break;
   case MAT_SYMMETRIC:
   case MAT_SPD:
-#if defined(PETSC_USE_COMPLEX)
-    if (flg) { /* An hermitian and symmetric matrix has zero imaginary part (restore back transpose ops) */
-      A->ops->multtranspose    = A->ops->mult;
-      A->ops->multtransposeadd = A->ops->multadd;
+    if (PetscDefined(USE_COMPLEX)) {
+      if (flg) { /* An hermitian and symmetric matrix has zero imaginary part (restore back transpose ops) */
+        A->ops->multtranspose    = A->ops->mult;
+        A->ops->multtransposeadd = A->ops->multadd;
+      }
     }
-#endif
     break;
     /* These options are handled directly by MatSetOption() */
   case MAT_STRUCTURALLY_SYMMETRIC:
@@ -390,30 +387,30 @@ PetscErrorCode MatView_SeqSBAIJ_ASCII(Mat A, PetscViewer viewer)
       for (i = 0; i < a->mbs; i++) { /* for row block i */
         PetscCall(PetscViewerASCIIPrintf(viewer, "row %" PetscInt_FMT ":", i));
         /* diagonal entry */
-#if defined(PETSC_USE_COMPLEX)
-        if (PetscImaginaryPart(a->a[diag[i]]) > 0.0) {
-          PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g + %g i) ", a->j[diag[i]], (double)PetscRealPart(1.0 / a->a[diag[i]]), (double)PetscImaginaryPart(1.0 / a->a[diag[i]])));
-        } else if (PetscImaginaryPart(a->a[diag[i]]) < 0.0) {
-          PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g - %g i) ", a->j[diag[i]], (double)PetscRealPart(1.0 / a->a[diag[i]]), -(double)PetscImaginaryPart(1.0 / a->a[diag[i]])));
+        if (PetscDefined(USE_COMPLEX)) {
+          if (PetscImaginaryPart(a->a[diag[i]]) > 0.0) {
+            PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g + %g i) ", a->j[diag[i]], (double)PetscRealPart(1.0 / a->a[diag[i]]), (double)PetscImaginaryPart(1.0 / a->a[diag[i]])));
+          } else if (PetscImaginaryPart(a->a[diag[i]]) < 0.0) {
+            PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g - %g i) ", a->j[diag[i]], (double)PetscRealPart(1.0 / a->a[diag[i]]), -(double)PetscImaginaryPart(1.0 / a->a[diag[i]])));
+          } else {
+            PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g) ", a->j[diag[i]], (double)PetscRealPart(1.0 / a->a[diag[i]])));
+          }
         } else {
-          PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g) ", a->j[diag[i]], (double)PetscRealPart(1.0 / a->a[diag[i]])));
+          PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g) ", a->j[diag[i]], (double)(1.0 / a->a[diag[i]])));
         }
-#else
-        PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g) ", a->j[diag[i]], (double)(1.0 / a->a[diag[i]])));
-#endif
         /* off-diagonal entries */
         for (k = a->i[i]; k < a->i[i + 1] - 1; k++) {
-#if defined(PETSC_USE_COMPLEX)
-          if (PetscImaginaryPart(a->a[k]) > 0.0) {
-            PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g + %g i) ", bs * a->j[k], (double)PetscRealPart(a->a[k]), (double)PetscImaginaryPart(a->a[k])));
-          } else if (PetscImaginaryPart(a->a[k]) < 0.0) {
-            PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g - %g i) ", bs * a->j[k], (double)PetscRealPart(a->a[k]), -(double)PetscImaginaryPart(a->a[k])));
+          if (PetscDefined(USE_COMPLEX)) {
+            if (PetscImaginaryPart(a->a[k]) > 0.0) {
+              PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g + %g i) ", bs * a->j[k], (double)PetscRealPart(a->a[k]), (double)PetscImaginaryPart(a->a[k])));
+            } else if (PetscImaginaryPart(a->a[k]) < 0.0) {
+              PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g - %g i) ", bs * a->j[k], (double)PetscRealPart(a->a[k]), -(double)PetscImaginaryPart(a->a[k])));
+            } else {
+              PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g) ", bs * a->j[k], (double)PetscRealPart(a->a[k])));
+            }
           } else {
-            PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g) ", bs * a->j[k], (double)PetscRealPart(a->a[k])));
+            PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g) ", a->j[k], (double)a->a[k]));
           }
-#else
-          PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g) ", a->j[k], (double)a->a[k]));
-#endif
         }
         PetscCall(PetscViewerASCIIPrintf(viewer, "\n"));
       }
@@ -424,17 +421,17 @@ PetscErrorCode MatView_SeqSBAIJ_ASCII(Mat A, PetscViewer viewer)
           PetscCall(PetscViewerASCIIPrintf(viewer, "row %" PetscInt_FMT ":", i * bs + j));
           for (k = a->i[i]; k < a->i[i + 1]; k++) { /* for column block */
             for (l = 0; l < bs; l++) {              /* for column */
-#if defined(PETSC_USE_COMPLEX)
-              if (PetscImaginaryPart(a->a[bs2 * k + l * bs + j]) > 0.0) {
-                PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g + %g i) ", bs * a->j[k] + l, (double)PetscRealPart(a->a[bs2 * k + l * bs + j]), (double)PetscImaginaryPart(a->a[bs2 * k + l * bs + j])));
-              } else if (PetscImaginaryPart(a->a[bs2 * k + l * bs + j]) < 0.0) {
-                PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g - %g i) ", bs * a->j[k] + l, (double)PetscRealPart(a->a[bs2 * k + l * bs + j]), -(double)PetscImaginaryPart(a->a[bs2 * k + l * bs + j])));
+              if (PetscDefined(USE_COMPLEX)) {
+                if (PetscImaginaryPart(a->a[bs2 * k + l * bs + j]) > 0.0) {
+                  PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g + %g i) ", bs * a->j[k] + l, (double)PetscRealPart(a->a[bs2 * k + l * bs + j]), (double)PetscImaginaryPart(a->a[bs2 * k + l * bs + j])));
+                } else if (PetscImaginaryPart(a->a[bs2 * k + l * bs + j]) < 0.0) {
+                  PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g - %g i) ", bs * a->j[k] + l, (double)PetscRealPart(a->a[bs2 * k + l * bs + j]), -(double)PetscImaginaryPart(a->a[bs2 * k + l * bs + j])));
+                } else {
+                  PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g) ", bs * a->j[k] + l, (double)PetscRealPart(a->a[bs2 * k + l * bs + j])));
+                }
               } else {
-                PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g) ", bs * a->j[k] + l, (double)PetscRealPart(a->a[bs2 * k + l * bs + j])));
+                PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g) ", bs * a->j[k] + l, (double)a->a[bs2 * k + l * bs + j]));
               }
-#else
-              PetscCall(PetscViewerASCIIPrintf(viewer, " (%" PetscInt_FMT ", %g) ", bs * a->j[k] + l, (double)a->a[bs2 * k + l * bs + j]));
-#endif
             }
           }
           PetscCall(PetscViewerASCIIPrintf(viewer, "\n"));
@@ -1216,16 +1213,14 @@ PetscErrorCode MatIsHermitian_SeqSBAIJ(Mat A, PetscReal tol, PetscBool *flg)
 
 PetscErrorCode MatConjugate_SeqSBAIJ(Mat A)
 {
-#if defined(PETSC_USE_COMPLEX)
-  Mat_SeqSBAIJ *a = (Mat_SeqSBAIJ *)A->data;
-  PetscInt      i, nz = a->bs2 * a->i[a->mbs];
-  MatScalar    *aa = a->a;
+  PetscFunctionBegin;
+  if (PetscDefined(USE_COMPLEX)) {
+    Mat_SeqSBAIJ *a = (Mat_SeqSBAIJ *)A->data;
+    PetscInt      i, nz = a->bs2 * a->i[a->mbs];
+    MatScalar    *aa = a->a;
 
-  PetscFunctionBegin;
-  for (i = 0; i < nz; i++) aa[i] = PetscConj(aa[i]);
-#else
-  PetscFunctionBegin;
-#endif
+    for (i = 0; i < nz; i++) aa[i] = PetscConj(aa[i]);
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1820,13 +1815,13 @@ PETSC_INTERN PetscErrorCode MatGetFactor_seqsbaij_petsc(Mat A, MatFactorType fty
   PetscInt n = A->rmap->n;
 
   PetscFunctionBegin;
-#if defined(PETSC_USE_COMPLEX)
-  if ((ftype == MAT_FACTOR_CHOLESKY || ftype == MAT_FACTOR_ICC) && A->hermitian == PETSC_BOOL3_TRUE && A->symmetric != PETSC_BOOL3_TRUE) {
-    PetscCall(PetscInfo(A, "Hermitian MAT_FACTOR_CHOLESKY or MAT_FACTOR_ICC are not supported. Use MAT_FACTOR_LU instead.\n"));
-    *B = NULL;
-    PetscFunctionReturn(PETSC_SUCCESS);
+  if (PetscDefined(USE_COMPLEX)) {
+    if ((ftype == MAT_FACTOR_CHOLESKY || ftype == MAT_FACTOR_ICC) && A->hermitian == PETSC_BOOL3_TRUE && A->symmetric != PETSC_BOOL3_TRUE) {
+      PetscCall(PetscInfo(A, "Hermitian MAT_FACTOR_CHOLESKY or MAT_FACTOR_ICC are not supported. Use MAT_FACTOR_LU instead.\n"));
+      *B = NULL;
+      PetscFunctionReturn(PETSC_SUCCESS);
+    }
   }
-#endif
 
   PetscCall(MatCreate(PetscObjectComm((PetscObject)A), B));
   PetscCall(MatSetSizes(*B, n, n, n, n));
@@ -1977,11 +1972,7 @@ PETSC_EXTERN PetscErrorCode MatCreate_SeqSBAIJ(Mat B)
   B->structural_symmetry_eternal = PETSC_TRUE;
   B->symmetric                   = PETSC_BOOL3_TRUE;
   B->structurally_symmetric      = PETSC_BOOL3_TRUE;
-#if defined(PETSC_USE_COMPLEX)
-  B->hermitian = PETSC_BOOL3_FALSE;
-#else
-  B->hermitian = PETSC_BOOL3_TRUE;
-#endif
+  B->hermitian                   = PetscDefined(USE_COMPLEX) ? PETSC_BOOL3_FALSE : PETSC_BOOL3_TRUE;
 
   PetscCall(PetscObjectChangeTypeName((PetscObject)B, MATSEQSBAIJ));
 
