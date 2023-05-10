@@ -492,9 +492,8 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/*------------------------------------------------------------*/
-//Currently only for Replace version...
-//Adds LDL^T to J mat
+/* Adds LDL^T to J mat */
+
 static PetscErrorCode MatAdd_LDLT(Mat B)
 {
   Mat_LMVM     *lmvm  = (Mat_LMVM*)B->data;
@@ -502,7 +501,7 @@ static PetscErrorCode MatAdd_LDLT(Mat B)
 
   const PetscScalar *r_array;
   PetscScalar       *x_array, *buffer;
-  PetscInt           i, j, k;
+  PetscInt           i, j, k, query_idx_i, query_idx_j, query_idx_k;
   Vec                workvec1, workvec2;
 
   PetscFunctionBegin;
@@ -512,32 +511,37 @@ static PetscErrorCode MatAdd_LDLT(Mat B)
    * Struture is similar for inplace version, but just two clockwise shifts in block-form.            */
   PetscCall(VecGetArrayRead(lbfgs->diag_vec, &r_array));
   for (i=0; i<lmvm->m-1; i++) {
-    PetscCall(MatDenseGetColumnVecRead(lbfgs->StYfull, i, &workvec1));
+    query_idx_i = (lbfgs->idx_begin + i) % lmvm->m;
+    PetscCall(MatDenseGetColumnVecRead(lbfgs->StYfull, query_idx_i, &workvec1));
   
     /* Copying to emulate strictly lower triangular */
     PetscCall(VecCopy(workvec1, lbfgs->rwork1));
-    PetscCall(MatDenseRestoreColumnVecRead(lbfgs->StYfull, i, &workvec1));
+    PetscCall(MatDenseRestoreColumnVecRead(lbfgs->StYfull, query_idx_i, &workvec1));
     PetscCall(VecGetArray(lbfgs->rwork1, &x_array));
     for (j=0; j<i+1; j++) {
-      x_array[j] = 0;
+      query_idx_j = (lbfgs->idx_begin + j) % lmvm->m;
+      x_array[query_idx_j] = 0;
     }
   
     /* Creating array for scale = L_i[i+1]/d_0 */
+     //TODO technically we could do adaptive size for k<m, but later..
     PetscCall(PetscCalloc1(lmvm->m-i-1, &buffer));
     for (j=0; j < lmvm->m-i-1; j++) {
-       //TODO technically we could do adaptive size for k<m, but later..
-      if (r_array[i] != 0) {
-        buffer[j] = x_array[i+j+1]/r_array[i];
+      query_idx_j = (lbfgs->idx_begin + j) % lmvm->m;
+      if (r_array[query_idx_i] != 0) {
+        buffer[query_idx_j] = x_array[query_idx_i+query_idx_j+1]/r_array[query_idx_i];
       } else {
-        buffer[j] = 0;
+        buffer[query_idx_j] = 0;
       }
     }
     PetscCall(VecRestoreArray(lbfgs->rwork1, &x_array));
   
     for (j=0, k=i+1; k<lmvm->m; k++, j++) {
-      PetscCall(MatDenseGetColumnVecWrite(lbfgs->J, k, &workvec2));
-      PetscCall(VecAXPY(workvec2, buffer[j], lbfgs->rwork1));
-      PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->J, k, &workvec2));
+      query_idx_j = (lbfgs->idx_begin + j) % lmvm->m;
+      query_idx_k = (lbfgs->idx_begin + k) % lmvm->m;
+      PetscCall(MatDenseGetColumnVecWrite(lbfgs->J, query_idx_k, &workvec2));
+      PetscCall(VecAXPY(workvec2, buffer[query_idx_j], lbfgs->rwork1));
+      PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->J, query_idx_k, &workvec2));
     }
     PetscCall(PetscFree(buffer));
   }
