@@ -602,7 +602,12 @@ typedef enum {
   MAT_STRUCTURAL_SYMMETRY_ETERNAL  = 25,
   MAT_SPD_ETERNAL                  = 26,
   MAT_TRIANGULAR_STORAGE_HERMITIAN = 27,
-  MAT_OPTION_MAX                   = 28
+  MAT_HERMITIAN_ETERNAL            = 28,
+  MAT_POSITIVE_DEFINITE            = 29,
+  MAT_POSITIVE_DEFINITE_ETERNAL    = 30,
+  MAT_HPD                          = 31,
+  MAT_HPD_ETERNAL                  = 31,
+  MAT_OPTION_MAX                   = 33
 } MatOption;
 
 PETSC_EXTERN const char *const *MatOptions;

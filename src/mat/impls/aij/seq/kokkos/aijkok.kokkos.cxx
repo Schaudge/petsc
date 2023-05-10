@@ -304,7 +304,7 @@ static PetscErrorCode MatSeqAIJKokkosGenerateHermitian_Private(Mat A, KokkosCsrM
 
   const auto &Aa = akok->a_dual.view_device();
 
-  if (A->hermitian == PETSC_BOOL3_TRUE) {
+  if (A->property[MAT_SYMPROP_HERMITIAN] == PETSC_BOOL3_TRUE) {
     *csrmatH = akok->csrmat;
   } else {
     // See if we already have a cached hermitian and its value is up to date

@@ -1523,7 +1523,7 @@ PetscErrorCode MatSetOption_MPISBAIJ(Mat A, MatOption op, PetscBool flg)
         A->ops->multhermitiantransposeadd = MatMultAdd_MPISBAIJ_Hermitian;
         A->ops->multtranspose             = NULL;
         A->ops->multtransposeadd          = NULL;
-        A->hermitian                      = PETSC_BOOL3_TRUE;
+        A->property[MAT_SYMPROP_HERMITIAN]                      = PETSC_BOOL3_TRUE;
       } else {
         A->ops->mult                      = MatMult_MPISBAIJ;
         A->ops->multadd                   = MatMultAdd_MPISBAIJ;
@@ -1531,7 +1531,7 @@ PetscErrorCode MatSetOption_MPISBAIJ(Mat A, MatOption op, PetscBool flg)
         A->ops->multhermitiantransposeadd = NULL;
         A->ops->multtranspose             = MatMult_MPISBAIJ;
         A->ops->multtransposeadd          = MatMultAdd_MPISBAIJ;
-        A->symmetric                      = PETSC_BOOL3_TRUE;
+        A->property[MAT_SYMPROP_SYMMETRIC]                      = PETSC_BOOL3_TRUE;
       }
     }
     break;
@@ -1564,6 +1564,47 @@ PetscErrorCode MatSetOption_MPISBAIJ(Mat A, MatOption op, PetscBool flg)
     break;
   default:
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "unknown option %d", op);
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatIsReal_SeqAIJ(Mat A, PetscReal tol, PetscBool *flg)
+{
+  PetscFunctionBegin;
+  Mat_SeqAIJ *a = (Mat_SeqAIJ *) A->data;
+  const MatScalar *v        = a->a;
+  PetscInt nz = a->nz;
+
+  *flg = PETSC_TRUE;
+  for (PetscInt i = 0; i <nz; i++) {
+    if (PetscAbsReal(PetscImaginaryPart(v[i])) > tol) {
+      *flg = PETSC_FALSE;
+      PetscFunctionReturn(PETSC_SUCCESS);
+    }
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatIsSymmetric_MPISBAIJ(Mat A, PetscReal tol, PetscBool *flg)
+{
+  PetscFunctionBegin;
+  *flg = PETSC_TRUE;
+  Mat_MPISBAIJ *a = (Mat_MPISBAIJ *) A->data;
+  if (PetscDefined(USE_COMPLEX) && a->hermitian_storage) {
+    PetscCall(MatIsReal_SeqSBAIJ(a->A, tol, flg));
+    if (flg) PetscCall(MatIsReal_SeqAIJ(a->B, tol, flg));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatIsHermitian_MPISBAIJ(Mat A, PetscReal tol, PetscBool *flg)
+{
+  PetscFunctionBegin;
+  *flg = PETSC_TRUE;
+  Mat_MPISBAIJ *a = (Mat_MPISBAIJ *) A->data;
+  if (PetscDefined(USE_COMPLEX) && !a->hermitian_storage) {
+    PetscCall(MatIsReal_SeqSBAIJ(a->A, tol, flg));
+    if (flg) PetscCall(MatIsReal_SeqAIJ(a->B, tol, flg));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1852,8 +1893,8 @@ static struct _MatOps MatOps_Values = {MatSetValues_MPISBAIJ,
                                        NULL,
                                        NULL,
                                        MatLoad_MPISBAIJ,
-                                       /* 84*/ NULL,
-                                       NULL,
+                                       /* 84*/ MatIsSymmetric_MPISBAIJ,
+                                       MatIsHermitian_MPISBAIJ,
                                        NULL,
                                        NULL,
                                        NULL,
@@ -2167,9 +2208,9 @@ PETSC_EXTERN PetscErrorCode MatCreate_MPISBAIJ(Mat B)
   PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatConvert_mpisbaij_mpiaij_C", MatConvert_MPISBAIJ_Basic));
   PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatConvert_mpisbaij_mpibaij_C", MatConvert_MPISBAIJ_Basic));
 
-  B->symmetric                   = PETSC_BOOL3_TRUE;
+  B->property[MAT_SYMPROP_SYMMETRIC]                   = PETSC_BOOL3_TRUE;
   B->structurally_symmetric      = PETSC_BOOL3_TRUE;
-  B->symmetry_eternal            = PETSC_TRUE;
+  B->property_eternal[MAT_SYMPROP_SYMMETRIC]            = PETSC_TRUE;
   B->structural_symmetry_eternal = PETSC_TRUE;
 
   PetscCall(PetscObjectChangeTypeName((PetscObject)B, MATMPISBAIJ));

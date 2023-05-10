@@ -147,9 +147,9 @@ PETSC_INTERN PetscErrorCode MatProductSetFromOptions_Transpose(Mat D)
   Btrans = Btrans % 2;
   Ctrans = Ctrans % 2;
   ptype  = D->product->type; /* same product type by default */
-  if (Ain->symmetric == PETSC_BOOL3_TRUE) Atrans = 0;
-  if (Bin->symmetric == PETSC_BOOL3_TRUE) Btrans = 0;
-  if (Cin && Cin->symmetric == PETSC_BOOL3_TRUE) Ctrans = 0;
+  if (Ain->property[MAT_SYMPROP_SYMMETRIC] == PETSC_BOOL3_TRUE) Atrans = 0;
+  if (Bin->property[MAT_SYMPROP_SYMMETRIC] == PETSC_BOOL3_TRUE) Btrans = 0;
+  if (Cin && Cin->property[MAT_SYMPROP_SYMMETRIC] == PETSC_BOOL3_TRUE) Ctrans = 0;
 
   if (Atrans || Btrans || Ctrans) {
     ptype = MATPRODUCT_UNSPECIFIED;

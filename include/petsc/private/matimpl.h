@@ -450,6 +450,16 @@ typedef struct { /* used by MatProduct() */
   PetscErrorCode (*destroy)(void *); /* destroy routine */
 } Mat_Product;
 
+enum {
+  MAT_SYMPROP_HERMITIAN,
+#if PetscDefined(USE_COMPLEX)
+  MAT_SYMPROP_SYMMETRIC,
+#else
+  MAT_SYMPROP_SYMMETRIC = MAT_SYMPROP_HERMITIAN,
+#endif
+  MAT_SYMPROP_COUNT
+};
+
 struct _p_Mat {
   PETSCHEADER(struct _MatOps);
   PetscLayout      rmap, cmap;
@@ -472,8 +482,12 @@ struct _p_Mat {
   PetscInt         congruentlayouts;                        /* are the rows and columns layouts congruent? */
   PetscBool        preallocated;
   MatStencilInfo   stencil; /* information for structured grid */
-  PetscBool3       symmetric, hermitian, structurally_symmetric, spd;
-  PetscBool        symmetry_eternal, structural_symmetry_eternal, spd_eternal;
+  PetscBool3       property[MAT_SYMPROP_COUNT];             /* is the matrix is hermitian / symmetric? */
+  PetscBool        property_eternal[MAT_SYMPROP_COUNT];     /* ... will the answer change when entries are updated? */
+  PetscBool3       positive_definite;                       /* do all eigenvalues have positive real part? */
+  PetscBool        positive_definite_eternal;
+  PetscBool3       structurally_symmetric;
+  PetscBool        structural_symmetry_eternal;
   PetscBool        nooffprocentries, nooffproczerorows;
   PetscBool        assembly_subset; /* set by MAT_SUBSET_OFF_PROC_ENTRIES */
   PetscBool        submat_singleis; /* for efficient PCSetUp_ASM() */

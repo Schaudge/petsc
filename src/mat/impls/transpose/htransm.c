@@ -46,9 +46,9 @@ PETSC_INTERN PetscErrorCode MatProductSetFromOptions_HermitianTranspose(Mat D)
   Btrans = Btrans % 2;
   Ctrans = Ctrans % 2;
   ptype  = D->product->type; /* same product type by default */
-  if (Ain->symmetric == PETSC_BOOL3_TRUE) Atrans = 0;
-  if (Bin->symmetric == PETSC_BOOL3_TRUE) Btrans = 0;
-  if (Cin && Cin->symmetric == PETSC_BOOL3_TRUE) Ctrans = 0;
+  if (Ain->property[MAT_SYMPROP_SYMMETRIC] == PETSC_BOOL3_TRUE) Atrans = 0;
+  if (Bin->property[MAT_SYMPROP_SYMMETRIC] == PETSC_BOOL3_TRUE) Btrans = 0;
+  if (Cin && Cin->property[MAT_SYMPROP_SYMMETRIC] == PETSC_BOOL3_TRUE) Ctrans = 0;
 
   if (Atrans || Btrans || Ctrans) {
     PetscCheck(!PetscDefined(USE_COMPLEX), PetscObjectComm((PetscObject)A), PETSC_ERR_SUP, "No support for complex Hermitian transpose matrices");
