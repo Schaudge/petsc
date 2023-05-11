@@ -454,7 +454,7 @@ int main(int argc, char **argv)
     PetscFE        fe;
     Vec uu;
     PetscCall(DMClone(dm, &celldm));
-    PetscCall(PetscFECreateDefault(PETSC_COMM_WORLD, 3, 1, PETSC_FALSE,"dummy", -1, &fe));
+    PetscCall(PetscFECreateDefault(PETSC_COMM_WORLD, ctx->dim, 1, PETSC_FALSE,"dummy", -1, &fe));
     PetscCall(PetscObjectSetName((PetscObject)fe, "cell"));
     PetscCall(PetscFEViewFromOptions(fe, NULL, "-fe_cell_view"));
     PetscCall(DMSetField(celldm, 0, NULL, (PetscObject)fe));
