@@ -258,13 +258,13 @@ PetscErrorCode MatSetOption_SeqSBAIJ(Mat A, MatOption op, PetscBool flg)
         A->ops->multtransposeadd          = NULL;
         A->ops->multhermitiantranspose    = A->ops->mult;
         A->ops->multhermitiantransposeadd = A->ops->multadd;
-        A->property[MAT_SYMPROP_HERMITIAN]                      = PETSC_BOOL3_TRUE;
+        A->is.hermitian                      = PETSC_BOOL3_TRUE;
       } else {
         A->ops->multtranspose             = NULL;
         A->ops->multtransposeadd          = NULL;
         A->ops->multhermitiantranspose    = A->ops->mult;
         A->ops->multhermitiantransposeadd = A->ops->multadd;
-        A->property[MAT_SYMPROP_SYMMETRIC]                      = PETSC_BOOL3_TRUE;
+        A->is.symmetric                      = PETSC_BOOL3_TRUE;
       }
     }
     break;
@@ -1843,7 +1843,7 @@ PETSC_INTERN PetscErrorCode MatGetFactor_seqsbaij_petsc(Mat A, MatFactorType fty
 
   PetscFunctionBegin;
   if (PetscDefined(USE_COMPLEX)) {
-    if ((ftype == MAT_FACTOR_CHOLESKY || ftype == MAT_FACTOR_ICC) && A->property[MAT_SYMPROP_SYMMETRIC] != PETSC_BOOL3_TRUE) {
+    if ((ftype == MAT_FACTOR_CHOLESKY || ftype == MAT_FACTOR_ICC) && A->is.symmetric != PETSC_BOOL3_TRUE) {
       PetscCall(PetscInfo(A, "Hermitian MAT_FACTOR_CHOLESKY or MAT_FACTOR_ICC are not supported. Use MAT_FACTOR_LU instead.\n"));
       *B = NULL;
       PetscFunctionReturn(PETSC_SUCCESS);
@@ -1997,9 +1997,9 @@ PETSC_EXTERN PetscErrorCode MatCreate_SeqSBAIJ(Mat B)
   PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatConvert_seqsbaij_scalapack_C", MatConvert_SBAIJ_ScaLAPACK));
 #endif
 
-  B->property_eternal[MAT_SYMPROP_SYMMETRIC]            = PETSC_TRUE;
+  B->eternally.symmetric            = PETSC_TRUE;
   B->structural_symmetry_eternal = PETSC_TRUE;
-  B->property[MAT_SYMPROP_SYMMETRIC]                   = PETSC_BOOL3_TRUE;
+  B->is.symmetric                   = PETSC_BOOL3_TRUE;
   B->structurally_symmetric      = PETSC_BOOL3_TRUE;
 
   PetscCall(PetscObjectChangeTypeName((PetscObject)B, MATSEQSBAIJ));

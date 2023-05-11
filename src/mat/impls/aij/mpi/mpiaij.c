@@ -7080,7 +7080,7 @@ PetscErrorCode MatProductSymbolic_MPIAIJBACKEND(Mat C)
   MatCheckProduct(C, 1);
   PetscCheck(!product->data, PetscObjectComm((PetscObject)C), PETSC_ERR_PLIB, "Product data not empty");
   ptype = product->type;
-  if (product->A->property[MAT_SYMPROP_SYMMETRIC] == PETSC_BOOL3_TRUE && ptype == MATPRODUCT_AtB) {
+  if (product->A->is.symmetric == PETSC_BOOL3_TRUE && ptype == MATPRODUCT_AtB) {
     ptype                                          = MATPRODUCT_AB;
     product->symbolic_used_the_fact_A_is_symmetric = PETSC_TRUE;
   }

@@ -591,7 +591,7 @@ PetscErrorCode MatConjugate(Mat mat)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(mat, MAT_CLASSID, 1);
   PetscCheck(mat->assembled, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONGSTATE, "Not for unassembled matrix");
-  if (PetscDefined(USE_COMPLEX) && mat->property[MAT_SYMPROP_HERMITIAN] != PETSC_BOOL3_TRUE) {
+  if (PetscDefined(USE_COMPLEX) && mat->is.hermitian != PETSC_BOOL3_TRUE) {
     PetscUseTypeMethod(mat, conjugate);
     PetscCall(PetscObjectStateIncrease((PetscObject)mat));
   }
@@ -2622,7 +2622,7 @@ PetscErrorCode MatMultTranspose(Mat mat, Vec x, Vec y)
   MatCheckPreallocated(mat, 1);
 
   if (!mat->ops->multtranspose) {
-    if (mat->property[MAT_SYMPROP_SYMMETRIC] == PETSC_BOOL3_TRUE && mat->ops->mult) op = mat->ops->mult;
+    if (mat->is.symmetric == PETSC_BOOL3_TRUE && mat->ops->mult) op = mat->ops->mult;
     PetscCheck(op, PetscObjectComm((PetscObject)mat), PETSC_ERR_SUP, "Matrix type %s does not have a multiply transpose defined or is symmetric and does not have a multiply defined", ((PetscObject)mat)->type_name);
   } else op = mat->ops->multtranspose;
   PetscCall(PetscLogEventBegin(MAT_MultTranspose, mat, x, y, 0));
@@ -2678,7 +2678,7 @@ PetscErrorCode MatMultHermitianTranspose(Mat mat, Vec x, Vec y)
 
   PetscCall(PetscLogEventBegin(MAT_MultHermitianTranspose, mat, x, y, 0));
 #if defined(PETSC_USE_COMPLEX)
-  if (mat->ops->multhermitiantranspose || (mat->property[MAT_SYMPROP_HERMITIAN] == PETSC_BOOL3_TRUE && mat->ops->mult)) {
+  if (mat->ops->multhermitiantranspose || (mat->is.hermitian == PETSC_BOOL3_TRUE && mat->ops->mult)) {
     PetscCall(VecLockReadPush(x));
     if (mat->ops->multhermitiantranspose) PetscUseTypeMethod(mat, multhermitiantranspose, x, y);
     else PetscUseTypeMethod(mat, mult, x, y);
@@ -2772,7 +2772,7 @@ PetscErrorCode MatMultAdd(Mat mat, Vec v1, Vec v2, Vec v3)
 @*/
 PetscErrorCode MatMultTransposeAdd(Mat mat, Vec v1, Vec v2, Vec v3)
 {
-  PetscErrorCode (*op)(Mat, Vec, Vec, Vec) = (!mat->ops->multtransposeadd && mat->property[MAT_SYMPROP_SYMMETRIC]) ? mat->ops->multadd : mat->ops->multtransposeadd;
+  PetscErrorCode (*op)(Mat, Vec, Vec, Vec) = (!mat->ops->multtransposeadd && mat->is.symmetric) ? mat->ops->multadd : mat->ops->multtransposeadd;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(mat, MAT_CLASSID, 1);
@@ -3612,7 +3612,7 @@ static PetscErrorCode MatMatSolve_Basic(Mat A, Mat B, Mat X, PetscBool trans)
     PetscCall(MatSetInf(X));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
-  f = (!trans || (!A->ops->solvetranspose && A->property[MAT_SYMPROP_SYMMETRIC])) ? A->ops->solve : A->ops->solvetranspose;
+  f = (!trans || (!A->ops->solvetranspose && A->is.symmetric)) ? A->ops->solve : A->ops->solvetranspose;
   PetscCheck(f, PetscObjectComm((PetscObject)A), PETSC_ERR_SUP, "Mat type %s", ((PetscObject)A)->type_name);
   PetscCall(MatBoundToCPU(A, &Abound));
   if (!Abound) {
@@ -3978,7 +3978,7 @@ PetscErrorCode MatSolveAdd(Mat mat, Vec b, Vec y, Vec x)
 @*/
 PetscErrorCode MatSolveTranspose(Mat mat, Vec b, Vec x)
 {
-  PetscErrorCode (*f)(Mat, Vec, Vec) = (!mat->ops->solvetranspose && mat->property[MAT_SYMPROP_SYMMETRIC]) ? mat->ops->solve : mat->ops->solvetranspose;
+  PetscErrorCode (*f)(Mat, Vec, Vec) = (!mat->ops->solvetranspose && mat->is.symmetric) ? mat->ops->solve : mat->ops->solvetranspose;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(mat, MAT_CLASSID, 1);
@@ -4031,7 +4031,7 @@ PetscErrorCode MatSolveTransposeAdd(Mat mat, Vec b, Vec y, Vec x)
 {
   PetscScalar one = 1.0;
   Vec         tmp;
-  PetscErrorCode (*f)(Mat, Vec, Vec, Vec) = (!mat->ops->solvetransposeadd && mat->property[MAT_SYMPROP_SYMMETRIC]) ? mat->ops->solveadd : mat->ops->solvetransposeadd;
+  PetscErrorCode (*f)(Mat, Vec, Vec, Vec) = (!mat->ops->solvetransposeadd && mat->is.symmetric) ? mat->ops->solveadd : mat->ops->solvetransposeadd;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(mat, MAT_CLASSID, 1);
@@ -4299,8 +4299,8 @@ PetscErrorCode MatConvert(Mat mat, MatType newtype, MatReuse reuse, Mat *M)
   }
 
   /* Cache Mat options because some converters use MatHeaderReplace  */
-  issymmetric = mat->property[MAT_SYMPROP_SYMMETRIC];
-  ishermitian = mat->property[MAT_SYMPROP_HERMITIAN];
+  issymmetric = mat->is.symmetric;
+  ishermitian = mat->is.hermitian;
 
   if ((sametype || issame) && (reuse == MAT_INITIAL_MATRIX) && mat->ops->duplicate) {
     PetscCall(PetscInfo(mat, "Calling duplicate for initial matrix %s %d %d\n", ((PetscObject)mat)->type_name, sametype, issame));
@@ -5206,7 +5206,7 @@ PetscErrorCode MatTranspose(Mat mat, MatReuse reuse, Mat *B)
   }
 
   PetscCall(PetscLogEventBegin(MAT_Transpose, mat, 0, 0, 0));
-  if (reuse != MAT_INPLACE_MATRIX || mat->property[MAT_SYMPROP_SYMMETRIC] != PETSC_BOOL3_TRUE) {
+  if (reuse != MAT_INPLACE_MATRIX || mat->is.symmetric != PETSC_BOOL3_TRUE) {
     PetscUseTypeMethod(mat, transpose, reuse, B);
     PetscCall(PetscObjectStateIncrease((PetscObject)*B));
   }
@@ -5521,7 +5521,7 @@ PetscErrorCode MatDiagonalScale(Mat mat, Vec l, Vec r)
   PetscUseTypeMethod(mat, diagonalscale, l, r);
   PetscCall(PetscLogEventEnd(MAT_Scale, mat, 0, 0, 0));
   PetscCall(PetscObjectStateIncrease((PetscObject)mat));
-  if (l != r) mat->property[MAT_SYMPROP_SYMMETRIC] = PETSC_BOOL3_FALSE;
+  if (l != r) mat->is.symmetric = PETSC_BOOL3_FALSE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -5715,8 +5715,8 @@ PetscErrorCode MatAssemblyEnd(Mat mat, MatAssemblyType type)
   /* Flush assembly is not a true assembly */
   if (type != MAT_FLUSH_ASSEMBLY) {
     if (mat->num_ass) {
-      if (!mat->property_eternal[MAT_SYMPROP_SYMMETRIC]) mat->property[MAT_SYMPROP_SYMMETRIC] = PETSC_BOOL3_UNKNOWN;
-      if (!mat->property_eternal[MAT_SYMPROP_HERMITIAN]) mat->property[MAT_SYMPROP_HERMITIAN] = PETSC_BOOL3_UNKNOWN;
+      if (!mat->eternally.symmetric) mat->is.symmetric = PETSC_BOOL3_UNKNOWN;
+      if (!mat->eternally.hermitian) mat->is.hermitian = PETSC_BOOL3_UNKNOWN;
       if (!mat->structural_symmetry_eternal && mat->ass_nonzerostate != mat->nonzerostate) mat->structurally_symmetric = PETSC_BOOL3_UNKNOWN;
       if (!mat->positive_definite_eternal) mat->positive_definite = PETSC_BOOL3_UNKNOWN;
     }
@@ -5904,31 +5904,31 @@ PetscErrorCode MatSetOption(Mat mat, MatOption op, PetscBool flg)
   case MAT_SPD:
     PetscCheck(flg, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONG, "Cannot set MAT_SPD to PETSC_FALSE: set MAT_SYMMETRIC and/or MAT_POSITIVE_DEFINITE to PETSC_FALSE individually");
     mat->positive_definite      = PETSC_BOOL3_TRUE;
-    mat->property[MAT_SYMPROP_SYMMETRIC]              = PETSC_BOOL3_TRUE;
+    mat->is.symmetric              = PETSC_BOOL3_TRUE;
     mat->structurally_symmetric = PETSC_BOOL3_TRUE;
     break;
   case MAT_POSITIVE_DEFINITE:
     mat->positive_definite = flg ? PETSC_BOOL3_TRUE : PETSC_BOOL3_FALSE;
     break;
   case MAT_SYMMETRIC:
-    mat->property[MAT_SYMPROP_SYMMETRIC] = flg ? PETSC_BOOL3_TRUE : PETSC_BOOL3_FALSE;
+    mat->is.symmetric = flg ? PETSC_BOOL3_TRUE : PETSC_BOOL3_FALSE;
     if (flg) mat->structurally_symmetric = PETSC_BOOL3_TRUE;
     break;
   case MAT_HERMITIAN:
-    mat->property[MAT_SYMPROP_HERMITIAN] = flg ? PETSC_BOOL3_TRUE : PETSC_BOOL3_FALSE;
+    mat->is.hermitian = flg ? PETSC_BOOL3_TRUE : PETSC_BOOL3_FALSE;
     if (flg) mat->structurally_symmetric = PETSC_BOOL3_TRUE;
     break;
   case MAT_STRUCTURALLY_SYMMETRIC:
     mat->structurally_symmetric = flg ? PETSC_BOOL3_TRUE : PETSC_BOOL3_FALSE;
     break;
   case MAT_SYMMETRY_ETERNAL:
-    PetscCheck(mat->property[MAT_SYMPROP_SYMMETRIC] != PETSC_BOOL3_UNKNOWN, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONGSTATE, "Cannot set MAT_SYMMETRY_ETERNAL without first setting MAT_SYMMETRIC to true or false");
-    mat->property_eternal[MAT_SYMPROP_SYMMETRIC] = flg;
+    PetscCheck(mat->is.symmetric != PETSC_BOOL3_UNKNOWN, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONGSTATE, "Cannot set MAT_SYMMETRY_ETERNAL without first setting MAT_SYMMETRIC to true or false");
+    mat->eternally.symmetric = flg;
     if (flg) mat->structural_symmetry_eternal = PETSC_TRUE;
     break;
   case MAT_HERMITIAN_ETERNAL:
-    PetscCheck(mat->property[MAT_SYMPROP_HERMITIAN] != PETSC_BOOL3_UNKNOWN, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONGSTATE, "Cannot set MAT_HERMITIAN_ETERNAL without first setting MAT_HERMITIAN to true or false");
-    mat->property_eternal[MAT_SYMPROP_HERMITIAN] = flg;
+    PetscCheck(mat->is.hermitian != PETSC_BOOL3_UNKNOWN, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONGSTATE, "Cannot set MAT_HERMITIAN_ETERNAL without first setting MAT_HERMITIAN to true or false");
+    mat->eternally.hermitian = flg;
     if (flg) mat->structural_symmetry_eternal = PETSC_TRUE;
     break;
   case MAT_STRUCTURAL_SYMMETRY_ETERNAL:
@@ -5945,7 +5945,7 @@ PetscErrorCode MatSetOption(Mat mat, MatOption op, PetscBool flg)
     mat->positive_definite_eternal = flg;
     if (flg) {
       mat->structural_symmetry_eternal             = PETSC_TRUE;
-      mat->property_eternal[MAT_SYMPROP_SYMMETRIC] = PETSC_TRUE;
+      mat->eternally.symmetric = PETSC_TRUE;
     }
     break;
   case MAT_STRUCTURE_ONLY:
@@ -6013,10 +6013,10 @@ PetscErrorCode MatGetOption(Mat mat, MatOption op, PetscBool *flg)
     SETERRQ(PetscObjectComm((PetscObject)mat), PETSC_ERR_SUP, "Use MatIsSPDKnown()");
     break;
   case MAT_SYMMETRY_ETERNAL:
-    *flg = mat->property_eternal[MAT_SYMPROP_SYMMETRIC];
+    *flg = mat->eternally.symmetric;
     break;
   case MAT_STRUCTURAL_SYMMETRY_ETERNAL:
-    *flg = mat->property_eternal[MAT_SYMPROP_SYMMETRIC];
+    *flg = mat->eternally.symmetric;
     break;
   default:
     break;
@@ -8446,10 +8446,10 @@ PetscErrorCode MatPropagateSymmetryOptions(Mat A, Mat B)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(A, MAT_CLASSID, 1);
   PetscValidHeaderSpecific(B, MAT_CLASSID, 2);
-  B->property[MAT_SYMPROP_SYMMETRIC]                   = A->property[MAT_SYMPROP_SYMMETRIC];
-  B->property[MAT_SYMPROP_HERMITIAN]                   = A->property[MAT_SYMPROP_HERMITIAN];
-  B->property_eternal[MAT_SYMPROP_SYMMETRIC]            = A->property_eternal[MAT_SYMPROP_SYMMETRIC];
-  B->property_eternal[MAT_SYMPROP_HERMITIAN]            = A->property_eternal[MAT_SYMPROP_HERMITIAN];
+  B->is.symmetric                   = A->is.symmetric;
+  B->is.hermitian                   = A->is.hermitian;
+  B->eternally.symmetric            = A->eternally.symmetric;
+  B->eternally.hermitian            = A->eternally.hermitian;
   B->structurally_symmetric      = A->structurally_symmetric;
   B->structural_symmetry_eternal = A->structural_symmetry_eternal;
   B->positive_definite           = A->positive_definite;
@@ -8769,7 +8769,7 @@ PetscErrorCode MatGetNullSpace(Mat mat, MatNullSpace *nullsp)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(mat, MAT_CLASSID, 1);
   PetscValidPointer(nullsp, 2);
-  *nullsp = (mat->property[MAT_SYMPROP_SYMMETRIC] == PETSC_BOOL3_TRUE && !mat->nullsp) ? mat->transnullsp : mat->nullsp;
+  *nullsp = (mat->is.symmetric == PETSC_BOOL3_TRUE && !mat->nullsp) ? mat->transnullsp : mat->nullsp;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -8816,7 +8816,7 @@ PetscErrorCode MatSetNullSpace(Mat mat, MatNullSpace nullsp)
   if (nullsp) PetscCall(PetscObjectReference((PetscObject)nullsp));
   PetscCall(MatNullSpaceDestroy(&mat->nullsp));
   mat->nullsp = nullsp;
-  if (mat->property[MAT_SYMPROP_SYMMETRIC] == PETSC_BOOL3_TRUE) PetscCall(MatSetTransposeNullSpace(mat, nullsp));
+  if (mat->is.symmetric == PETSC_BOOL3_TRUE) PetscCall(MatSetTransposeNullSpace(mat, nullsp));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -8839,7 +8839,7 @@ PetscErrorCode MatGetTransposeNullSpace(Mat mat, MatNullSpace *nullsp)
   PetscValidHeaderSpecific(mat, MAT_CLASSID, 1);
   PetscValidType(mat, 1);
   PetscValidPointer(nullsp, 2);
-  *nullsp = (mat->property[MAT_SYMPROP_SYMMETRIC] == PETSC_BOOL3_TRUE && !mat->transnullsp) ? mat->nullsp : mat->transnullsp;
+  *nullsp = (mat->is.symmetric == PETSC_BOOL3_TRUE && !mat->transnullsp) ? mat->nullsp : mat->transnullsp;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -9115,8 +9115,8 @@ PetscErrorCode MatIsSymmetric(Mat A, PetscReal tol, PetscBool *flg)
   PetscValidHeaderSpecific(A, MAT_CLASSID, 1);
   PetscValidBoolPointer(flg, 3);
 
-  if (A->property[MAT_SYMPROP_SYMMETRIC] == PETSC_BOOL3_TRUE) *flg = PETSC_TRUE;
-  else if (A->property[MAT_SYMPROP_SYMMETRIC] == PETSC_BOOL3_FALSE) *flg = PETSC_FALSE;
+  if (A->is.symmetric == PETSC_BOOL3_TRUE) *flg = PETSC_TRUE;
+  else if (A->is.symmetric == PETSC_BOOL3_FALSE) *flg = PETSC_FALSE;
   else {
     PetscUseTypeMethod(A, issymmetric, tol, flg);
     if (!tol) PetscCall(MatSetOption(A, MAT_SYMMETRIC, *flg));
@@ -9155,8 +9155,8 @@ PetscErrorCode MatIsHermitian(Mat A, PetscReal tol, PetscBool *flg)
   PetscValidHeaderSpecific(A, MAT_CLASSID, 1);
   PetscValidBoolPointer(flg, 3);
 
-  if (A->property[MAT_SYMPROP_HERMITIAN] == PETSC_BOOL3_TRUE) *flg = PETSC_TRUE;
-  else if (A->property[MAT_SYMPROP_HERMITIAN] == PETSC_BOOL3_FALSE) *flg = PETSC_FALSE;
+  if (A->is.hermitian == PETSC_BOOL3_TRUE) *flg = PETSC_TRUE;
+  else if (A->is.hermitian == PETSC_BOOL3_FALSE) *flg = PETSC_FALSE;
   else {
     PetscUseTypeMethod(A, ishermitian, tol, flg);
     if (!tol) PetscCall(MatSetOption(A, MAT_HERMITIAN, *flg));
@@ -9193,9 +9193,9 @@ PetscErrorCode MatIsSymmetricKnown(Mat A, PetscBool *set, PetscBool *flg)
   PetscValidHeaderSpecific(A, MAT_CLASSID, 1);
   PetscValidBoolPointer(set, 2);
   PetscValidBoolPointer(flg, 3);
-  if (A->property[MAT_SYMPROP_SYMMETRIC] != PETSC_BOOL3_UNKNOWN) {
+  if (A->is.symmetric != PETSC_BOOL3_UNKNOWN) {
     *set = PETSC_TRUE;
-    *flg = PetscBool3ToBool(A->property[MAT_SYMPROP_SYMMETRIC]);
+    *flg = PetscBool3ToBool(A->is.symmetric);
   } else {
     *set = PETSC_FALSE;
   }
@@ -9230,9 +9230,9 @@ PetscErrorCode MatIsSPDKnown(Mat A, PetscBool *set, PetscBool *flg)
   PetscValidHeaderSpecific(A, MAT_CLASSID, 1);
   PetscValidBoolPointer(set, 2);
   PetscValidBoolPointer(flg, 3);
-  if (A->positive_definite != PETSC_BOOL3_UNKNOWN && A->property[MAT_SYMPROP_SYMMETRIC] != PETSC_BOOL3_UNKNOWN) {
+  if (A->positive_definite != PETSC_BOOL3_UNKNOWN && A->is.symmetric != PETSC_BOOL3_UNKNOWN) {
     *set = PETSC_TRUE;
-    *flg = (PetscBool3ToBool(A->positive_definite) && PetscBool3ToBool(A->property[MAT_SYMPROP_SYMMETRIC])) ? PETSC_TRUE : PETSC_FALSE;
+    *flg = (PetscBool3ToBool(A->positive_definite) && PetscBool3ToBool(A->is.symmetric)) ? PETSC_TRUE : PETSC_FALSE;
   } else {
     *set = PETSC_FALSE;
   }
@@ -9268,9 +9268,9 @@ PetscErrorCode MatIsHermitianKnown(Mat A, PetscBool *set, PetscBool *flg)
   PetscValidHeaderSpecific(A, MAT_CLASSID, 1);
   PetscValidBoolPointer(set, 2);
   PetscValidBoolPointer(flg, 3);
-  if (A->property[MAT_SYMPROP_HERMITIAN] != PETSC_BOOL3_UNKNOWN) {
+  if (A->is.hermitian != PETSC_BOOL3_UNKNOWN) {
     *set = PETSC_TRUE;
-    *flg = PetscBool3ToBool(A->property[MAT_SYMPROP_HERMITIAN]);
+    *flg = PetscBool3ToBool(A->is.hermitian);
   } else {
     *set = PETSC_FALSE;
   }
@@ -9888,7 +9888,7 @@ PetscErrorCode MatPtAP(Mat A, Mat P, MatReuse scall, PetscReal fill, Mat *C)
   }
 
   PetscCall(MatProductNumeric(*C));
-  (*C)->property[MAT_SYMPROP_SYMMETRIC] = A->property[MAT_SYMPROP_SYMMETRIC];
+  (*C)->is.symmetric = A->is.symmetric;
   (*C)->positive_definite = A->positive_definite;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -9943,7 +9943,7 @@ PetscErrorCode MatRARt(Mat A, Mat R, MatReuse scall, PetscReal fill, Mat *C)
   }
 
   PetscCall(MatProductNumeric(*C));
-  if (A->property[MAT_SYMPROP_SYMMETRIC] == PETSC_BOOL3_TRUE) PetscCall(MatSetOption(*C, MAT_SYMMETRIC, PETSC_TRUE));
+  if (A->is.symmetric == PETSC_BOOL3_TRUE) PetscCall(MatSetOption(*C, MAT_SYMMETRIC, PETSC_TRUE));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

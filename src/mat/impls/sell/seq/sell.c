@@ -723,7 +723,7 @@ PetscErrorCode MatMultTransposeAdd_SeqSELL(Mat A, Vec xx, Vec zz, Vec yy)
 #endif
 
   PetscFunctionBegin;
-  if (A->property[MAT_SYMPROP_SYMMETRIC] == PETSC_BOOL3_TRUE) {
+  if (A->is.symmetric == PETSC_BOOL3_TRUE) {
     PetscCall(MatMultAdd_SeqSELL(A, xx, zz, yy));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
@@ -754,7 +754,7 @@ PetscErrorCode MatMultTransposeAdd_SeqSELL(Mat A, Vec xx, Vec zz, Vec yy)
 PetscErrorCode MatMultTranspose_SeqSELL(Mat A, Vec xx, Vec yy)
 {
   PetscFunctionBegin;
-  if (A->property[MAT_SYMPROP_SYMMETRIC] == PETSC_BOOL3_TRUE) {
+  if (A->is.symmetric == PETSC_BOOL3_TRUE) {
     PetscCall(MatMult_SeqSELL(A, xx, yy));
   } else {
     PetscCall(VecSet(yy, 0.0));

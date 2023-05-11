@@ -86,7 +86,7 @@ int main(int argc, char **args)
   PetscCall(MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY));
   PetscCall(MatViewFromOptions(A, NULL, "-disp_mat"));
 
-  /* Check whether A is Hermitian, then set A->property[MAT_SYMPROP_HERMITIAN] flag */
+  /* Check whether A is Hermitian, then set A->is.hermitian flag */
   PetscCall(PetscOptionsHasName(NULL, NULL, "-check_Hermitian", &flg));
   if (flg && size == 1) {
     PetscCall(MatIsHermitian(A, 0.0, &flg));

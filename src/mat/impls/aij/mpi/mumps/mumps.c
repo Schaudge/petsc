@@ -3298,7 +3298,7 @@ static PetscErrorCode MatGetFactor_aij_mumps(Mat A, MatFactorType ftype, Mat *F)
 
   PetscFunctionBegin;
 #if defined(PETSC_USE_COMPLEX)
-  if (ftype == MAT_FACTOR_CHOLESKY && A->property[MAT_SYMPROP_HERMITIAN] == PETSC_BOOL3_TRUE && A->property[MAT_SYMPROP_SYMMETRIC] != PETSC_BOOL3_TRUE) {
+  if (ftype == MAT_FACTOR_CHOLESKY && A->is.hermitian == PETSC_BOOL3_TRUE && A->is.symmetric != PETSC_BOOL3_TRUE) {
     PetscCall(PetscInfo(A, "Hermitian MAT_FACTOR_CHOLESKY is not supported. Use MAT_FACTOR_LU instead.\n"));
     *F = NULL;
     PetscFunctionReturn(PETSC_SUCCESS);
@@ -3381,7 +3381,7 @@ static PetscErrorCode MatGetFactor_sbaij_mumps(Mat A, MatFactorType ftype, Mat *
 
   PetscFunctionBegin;
 #if defined(PETSC_USE_COMPLEX)
-  if (ftype == MAT_FACTOR_CHOLESKY && A->property[MAT_SYMPROP_HERMITIAN] == PETSC_BOOL3_TRUE && A->property[MAT_SYMPROP_SYMMETRIC] != PETSC_BOOL3_TRUE) {
+  if (ftype == MAT_FACTOR_CHOLESKY && A->is.hermitian == PETSC_BOOL3_TRUE && A->is.symmetric != PETSC_BOOL3_TRUE) {
     PetscCall(PetscInfo(A, "Hermitian MAT_FACTOR_CHOLESKY is not supported. Use MAT_FACTOR_LU instead.\n"));
     *F = NULL;
     PetscFunctionReturn(PETSC_SUCCESS);
@@ -3582,7 +3582,7 @@ static PetscErrorCode MatGetFactor_nest_mumps(Mat A, MatFactorType ftype, Mat *F
 
   PetscFunctionBegin;
 #if defined(PETSC_USE_COMPLEX)
-  if (ftype == MAT_FACTOR_CHOLESKY && A->property[MAT_SYMPROP_HERMITIAN] == PETSC_BOOL3_TRUE && A->property[MAT_SYMPROP_SYMMETRIC] != PETSC_BOOL3_TRUE) {
+  if (ftype == MAT_FACTOR_CHOLESKY && A->is.hermitian == PETSC_BOOL3_TRUE && A->is.symmetric != PETSC_BOOL3_TRUE) {
     PetscCall(PetscInfo(A, "Hermitian MAT_FACTOR_CHOLESKY is not supported. Use MAT_FACTOR_LU instead.\n"));
     *F = NULL;
     PetscFunctionReturn(PETSC_SUCCESS);

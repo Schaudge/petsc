@@ -1523,7 +1523,7 @@ PetscErrorCode MatSetOption_MPISBAIJ(Mat A, MatOption op, PetscBool flg)
         A->ops->multhermitiantransposeadd = MatMultAdd_MPISBAIJ_Hermitian;
         A->ops->multtranspose             = NULL;
         A->ops->multtransposeadd          = NULL;
-        A->property[MAT_SYMPROP_HERMITIAN]                      = PETSC_BOOL3_TRUE;
+        A->is.hermitian                      = PETSC_BOOL3_TRUE;
       } else {
         A->ops->mult                      = MatMult_MPISBAIJ;
         A->ops->multadd                   = MatMultAdd_MPISBAIJ;
@@ -1531,7 +1531,7 @@ PetscErrorCode MatSetOption_MPISBAIJ(Mat A, MatOption op, PetscBool flg)
         A->ops->multhermitiantransposeadd = NULL;
         A->ops->multtranspose             = MatMult_MPISBAIJ;
         A->ops->multtransposeadd          = MatMultAdd_MPISBAIJ;
-        A->property[MAT_SYMPROP_SYMMETRIC]                      = PETSC_BOOL3_TRUE;
+        A->is.symmetric                      = PETSC_BOOL3_TRUE;
       }
     }
     break;
@@ -2208,9 +2208,9 @@ PETSC_EXTERN PetscErrorCode MatCreate_MPISBAIJ(Mat B)
   PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatConvert_mpisbaij_mpiaij_C", MatConvert_MPISBAIJ_Basic));
   PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatConvert_mpisbaij_mpibaij_C", MatConvert_MPISBAIJ_Basic));
 
-  B->property[MAT_SYMPROP_SYMMETRIC]                   = PETSC_BOOL3_TRUE;
+  B->is.symmetric                   = PETSC_BOOL3_TRUE;
   B->structurally_symmetric      = PETSC_BOOL3_TRUE;
-  B->property_eternal[MAT_SYMPROP_SYMMETRIC]            = PETSC_TRUE;
+  B->eternally.symmetric            = PETSC_TRUE;
   B->structural_symmetry_eternal = PETSC_TRUE;
 
   PetscCall(PetscObjectChangeTypeName((PetscObject)B, MATMPISBAIJ));

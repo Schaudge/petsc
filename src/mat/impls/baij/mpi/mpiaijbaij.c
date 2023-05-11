@@ -15,7 +15,7 @@ PETSC_INTERN PetscErrorCode MatConvert_MPIAIJ_MPIBAIJ(Mat A, MatType newtype, Ma
 
   PetscFunctionBegin;
   if (reuse != MAT_REUSE_MATRIX) {
-    PetscBool3 sym = A->property[MAT_SYMPROP_SYMMETRIC], hermitian = A->property[MAT_SYMPROP_HERMITIAN], structurally_symmetric = A->structurally_symmetric, pd = A->positive_definite;
+    PetscBool3 sym = A->is.symmetric, hermitian = A->is.hermitian, structurally_symmetric = A->structurally_symmetric, pd = A->positive_definite;
     PetscCall(MatDisAssemble_MPIAIJ(A));
     PetscCall(MatGetSize(A, &m, &n));
     PetscCall(MatGetLocalSize(A, &lm, &ln));
@@ -30,8 +30,8 @@ PETSC_INTERN PetscErrorCode MatConvert_MPIAIJ_MPIBAIJ(Mat A, MatType newtype, Ma
     PetscCall(PetscFree(o_nnz));
     PetscCall(MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY));
     PetscCall(MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY));
-    A->property[MAT_SYMPROP_SYMMETRIC]              = sym;
-    A->property[MAT_SYMPROP_HERMITIAN]              = hermitian;
+    A->is.symmetric              = sym;
+    A->is.hermitian              = hermitian;
     A->structurally_symmetric = structurally_symmetric;
     A->positive_definite      = pd;
   } else M = *newmat;
