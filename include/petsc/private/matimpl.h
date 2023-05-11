@@ -455,11 +455,21 @@ typedef struct {
   PetscBool3 symmetric;
   PetscBool3 hermitian;
 } MatSymBool3;
+
+typedef struct {
+  PetscBool symmetric;
+  PetscBool hermitian;
+} MatSymBool;
 #else
 typedef union {
   PetscBool3 symmetric;
   PetscBool3 hermitian;
 } MatSymBool3;
+
+typedef union {
+  PetscBool symmetric;
+  PetscBool hermitian;
+} MatSymBool;
 #endif
 
 struct _p_Mat {
@@ -485,7 +495,7 @@ struct _p_Mat {
   PetscBool        preallocated;
   MatStencilInfo   stencil; /* information for structured grid */
   MatSymBool3      is;                                      /* is.hermitian ? is.symmetric ? */
-  MatSymBool3      eternally;                               /* eternally.hermitian ? eternally.symmetric ? */
+  MatSymBool       eternally;                               /* eternally.hermitian ? eternally.symmetric ? */
   PetscBool3       positive_definite;                       /* do all eigenvalues have positive real part? */
   PetscBool        positive_definite_eternal;
   PetscBool3       structurally_symmetric;

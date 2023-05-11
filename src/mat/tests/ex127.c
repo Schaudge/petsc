@@ -93,6 +93,7 @@ int main(int argc, char **args)
     PetscCheck(flg, PETSC_COMM_SELF, PETSC_ERR_USER, "A is not Hermitian");
   }
   PetscCall(MatSetOption(A, MAT_HERMITIAN, PETSC_TRUE));
+  PetscCall(MatSetOption(A, MAT_SYMMETRIC, PETSC_FALSE));
 
 #if defined(PETSC_HAVE_SUPERLU_DIST)
   /* Test Cholesky factorization */

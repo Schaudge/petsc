@@ -5760,13 +5760,18 @@ PetscErrorCode MatAssemblyEnd(Mat mat, MatAssemblyType type)
 -  flg - turn the option on (`PETSC_TRUE`) or off (`PETSC_FALSE`)
 
   Options Describing Matrix Structure:
-+    `MAT_SPD` - symmetric positive definite
-.    `MAT_SYMMETRIC` - symmetric in terms of both structure and value
++    `MAT_SYMMETRIC` - symmetric in terms of both structure and value
+.    `MAT_SYMMETRY_ETERNAL` - indicates the value of `MAT_SYMMETRIC` (true or false) will persist through any changes to the matrix
 .    `MAT_HERMITIAN` - transpose is the complex conjugation
+.    `MAT_HERMITIAN_ETERNAL` - indicates the value of `MAT_HERMETIAN` (true or false) will persist through any changes to the matrix
+.    `MAT_POSTIVE_DEFINITE` - the real parts of the matrix's eigenvalues are all strictly postiive
+.    `MAT_POSTIVE_DEFINITE_ETERNAL` - indicates the value of `MAT_POSITIVE_DEFINITE` (true or false) will persist through any changes to the matrix
+.    `MAT_SPD` - equivalent to `MAT_SYMMETRIC` && `MAT_POSITIVE_DEFINITE`
+.    `MAT_SPD_ETERNAL` - equivalent to `MAT_SYMMETRY_ETERNAL` && `MAT_POSTIIVE_DEFINITE_ETERNAL`
+.    `MAT_HPD` - equivalent to `MAT_HERMITIAN` && `MAT_POSITIVE_DEFINITE`
+.    `MAT_HPD_ETERNAL` - equivalent to `MAT_HERMITIAN_ETERNAL` && `MAT_POSTIIVE_DEFINITE_ETERNAL`
 .    `MAT_STRUCTURALLY_SYMMETRIC` - symmetric nonzero structure
-.    `MAT_SYMMETRY_ETERNAL` - indicates the symmetry (or Hermitian structure) or its absence will persist through any changes to the matrix
-.    `MAT_STRUCTURAL_SYMMETRY_ETERNAL` - indicates the structural symmetry or its absence will persist through any changes to the matrix
--    `MAT_SPD_ETERNAL` - indicates the value of `MAT_SPD` (true or false) will persist through any changes to the matrix
+-    `MAT_STRUCTURAL_SYMMETRY_ETERNAL` - indicates the structural symmetry or its absence will persist through any changes to the matrix
 
    These are not really options of the matrix, they are knowledge about the structure of the matrix that users may provide so that they
    do not need to be computed (usually at a high cost)
@@ -5882,6 +5887,26 @@ PetscErrorCode MatSetOption(Mat mat, MatOption op, PetscBool flg)
 
   PetscCheck(((int)op) > MAT_OPTION_MIN && ((int)op) < MAT_OPTION_MAX, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_OUTOFRANGE, "Options %d is out of range", (int)op);
 
+  if (!PetscDefined(USE_COMPLEX)) {
+    // project SYMMETRIC onto HERMITIAN
+    switch (op) {
+    case MAT_SYMMETRIC:
+      op = MAT_HERMITIAN;
+      break;
+    case MAT_SYMMETRY_ETERNAL:
+      op = MAT_HERMITIAN_ETERNAL;
+      break;
+    case MAT_SPD:
+      op = MAT_HPD;
+      break;
+    case MAT_SPD_ETERNAL:
+      op = MAT_HPD_ETERNAL;
+      break;
+    default:
+      break;
+    }
+  }
+
   switch (op) {
   case MAT_FORCE_DIAGONAL_ENTRIES:
     mat->force_diagonals = flg;
@@ -5941,7 +5966,16 @@ PetscErrorCode MatSetOption(Mat mat, MatOption op, PetscBool flg)
     break;
   case MAT_SPD_ETERNAL:
     PetscCheck(flg, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONG, "Cannot set MAT_SPD_ETERNAL to PETSC_FALSE: set MAT_SYMMETRIC_ETERNAL and/or MAT_POSITIVE_DEFINITE_ETERNAL to PETSC_FALSE individually");
-    PetscCheck(mat->positive_definite != PETSC_BOOL3_UNKNOWN, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONGSTATE, "Cannot set MAT_SPD_ETERNAL without first setting MAT_SPD to true or false");
+    PetscCheck(mat->positive_definite != PETSC_BOOL3_UNKNOWN && mat->is.symmetric != PETSC_BOOL3_UNKNOWN, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONGSTATE, "Cannot set MAT_SPD_ETERNAL without first setting MAT_SPD to true or false");
+    mat->positive_definite_eternal = flg;
+    if (flg) {
+      mat->structural_symmetry_eternal             = PETSC_TRUE;
+      mat->eternally.symmetric = PETSC_TRUE;
+    }
+    break;
+  case MAT_HPD_ETERNAL:
+    PetscCheck(flg, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONG, "Cannot set MAT_HPD_ETERNAL to PETSC_FALSE: set MAT_HERMETIAN_ETERNAL and/or MAT_POSITIVE_DEFINITE_ETERNAL to PETSC_FALSE individually");
+    PetscCheck(mat->positive_definite != PETSC_BOOL3_UNKNOWN && mat->is.hermitian != PETSC_BOOL3_UNKNOWN, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONGSTATE, "Cannot set MAT_HPD_ETERNAL without first setting MAT_SPD to true or false");
     mat->positive_definite_eternal = flg;
     if (flg) {
       mat->structural_symmetry_eternal             = PETSC_TRUE;

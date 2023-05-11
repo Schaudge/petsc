@@ -1499,13 +1499,18 @@ PetscErrorCode MatSetOption_MPIBAIJ(Mat A, MatOption op, PetscBool flg)
     a->ht_fact = 1.39;
     break;
   case MAT_SYMMETRIC:
-  case MAT_STRUCTURALLY_SYMMETRIC:
   case MAT_HERMITIAN:
+  case MAT_STRUCTURALLY_SYMMETRIC:
   case MAT_SUBMAT_SINGLEIS:
   case MAT_SYMMETRY_ETERNAL:
+  case MAT_HERMITIAN_ETERNAL:
   case MAT_STRUCTURAL_SYMMETRY_ETERNAL:
   case MAT_SPD_ETERNAL:
+  case MAT_HPD_ETERNAL:
+  case MAT_POSITIVE_DEFINITE:
     /* if the diagonal matrix is square it inherits some of the properties above */
+    MatCheckPreallocated(A, 1);
+    if (A->rmap->rstart == A->cmap->rstart && A->rmap->rend == A->cmap->rend) PetscCall(MatSetOption(a->A, op, flg));
     break;
   default:
     SETERRQ(PetscObjectComm((PetscObject)A), PETSC_ERR_SUP, "unknown option %d", op);

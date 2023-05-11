@@ -1718,13 +1718,19 @@ PetscErrorCode MatSetOption_MPIAIJ(Mat A, MatOption op, PetscBool flg)
     break;
   /* Symmetry flags are handled directly by MatSetOption() and they don't affect preallocation */
   case MAT_SPD:
+  case MAT_HPD:
   case MAT_SYMMETRIC:
-  case MAT_STRUCTURALLY_SYMMETRIC:
   case MAT_HERMITIAN:
   case MAT_SYMMETRY_ETERNAL:
+  case MAT_HERMITIAN_ETERNAL:
+  case MAT_STRUCTURALLY_SYMMETRIC:
   case MAT_STRUCTURAL_SYMMETRY_ETERNAL:
   case MAT_SPD_ETERNAL:
+  case MAT_HPD_ETERNAL:
+  case MAT_POSITIVE_DEFINITE:
     /* if the diagonal matrix is square it inherits some of the properties above */
+    MatCheckPreallocated(A, 1);
+    if (A->rmap->rstart == A->cmap->rstart && A->rmap->rend == A->cmap->rend) PetscCall(MatSetOption(a->A, op, flg));
     break;
   case MAT_SUBMAT_SINGLEIS:
     A->submat_singleis = flg;

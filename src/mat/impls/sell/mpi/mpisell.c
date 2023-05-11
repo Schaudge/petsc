@@ -777,26 +777,24 @@ PetscErrorCode MatSetOption_MPISELL(Mat A, MatOption op, PetscBool flg)
   case MAT_IGNORE_OFF_PROC_ENTRIES:
     a->donotstash = flg;
     break;
+    break;
+    MatCheckPreallocated(A, 1);
+    PetscCall(MatSetOption(a->A, op, flg));
+    break;
+    MatCheckPreallocated(A, 1);
+    PetscCall(MatSetOption(a->A, op, flg));
+    break;
   case MAT_SPD:
+  case MAT_HPD:
   case MAT_SPD_ETERNAL:
-    break;
+  case MAT_HPD_ETERNAL:
   case MAT_SYMMETRIC:
-    MatCheckPreallocated(A, 1);
-    PetscCall(MatSetOption(a->A, op, flg));
-    break;
-  case MAT_STRUCTURALLY_SYMMETRIC:
-    MatCheckPreallocated(A, 1);
-    PetscCall(MatSetOption(a->A, op, flg));
-    break;
   case MAT_HERMITIAN:
-    MatCheckPreallocated(A, 1);
-    PetscCall(MatSetOption(a->A, op, flg));
-    break;
   case MAT_SYMMETRY_ETERNAL:
-    MatCheckPreallocated(A, 1);
-    PetscCall(MatSetOption(a->A, op, flg));
-    break;
+  case MAT_HERMITIAN_ETERNAL:
+  case MAT_STRUCTURALLY_SYMMETRIC:
   case MAT_STRUCTURAL_SYMMETRY_ETERNAL:
+  case MAT_POSITIVE_DEFINITE:
     MatCheckPreallocated(A, 1);
     PetscCall(MatSetOption(a->A, op, flg));
     break;

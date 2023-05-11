@@ -41,6 +41,8 @@ PETSC_INTERN PetscErrorCode MatConvert_MPIAIJ_MPISBAIJ(Mat A, MatType newtype, M
   if (reuse == MAT_INPLACE_MATRIX) {
     PetscCall(MatHeaderReplace(A, &M));
   } else *newmat = M;
+
+  if (A->is.symmetric == PETSC_BOOL3_FALSE) PetscCall(MatSetOption(M, MAT_TRIANGULAR_STORAGE_HERMITIAN, PETSC_TRUE));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -88,6 +90,8 @@ PETSC_INTERN PetscErrorCode MatConvert_MPIBAIJ_MPISBAIJ(Mat A, MatType newtype, 
   }
   PetscCall(MatAssemblyBegin(M, MAT_FINAL_ASSEMBLY));
   PetscCall(MatAssemblyEnd(M, MAT_FINAL_ASSEMBLY));
+
+  if (A->is.symmetric == PETSC_BOOL3_FALSE) PetscCall(MatSetOption(M, MAT_TRIANGULAR_STORAGE_HERMITIAN, PETSC_TRUE));
 
   if (reuse == MAT_INPLACE_MATRIX) {
     PetscCall(MatHeaderReplace(A, &M));

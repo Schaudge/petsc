@@ -606,7 +606,7 @@ typedef enum {
   MAT_POSITIVE_DEFINITE            = 29,
   MAT_POSITIVE_DEFINITE_ETERNAL    = 30,
   MAT_HPD                          = 31,
-  MAT_HPD_ETERNAL                  = 31,
+  MAT_HPD_ETERNAL                  = 32,
   MAT_OPTION_MAX                   = 33
 } MatOption;
 
