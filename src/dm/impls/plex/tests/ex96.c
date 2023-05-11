@@ -210,31 +210,31 @@ static PetscErrorCode SetupProblem(DM dm,  AppCtx *ctx)
 static PetscErrorCode SetupDiscretization(DM dm, const char name[], AppCtx *ctx)
 {
   PetscFE        fe;
-  DMPolytopeType ct;
-  PetscBool      simplex;
-  PetscInt       dim, cStart;
+  PetscBool      simplex = PETSC_FALSE;
+  PetscInt       dim, cStart,cEnd;
   char           prefix[PETSC_MAX_PATH_LEN];
   DM        cdm = dm;
 
   PetscFunctionBeginUser;
   PetscCall(DMGetDimension(dm, &dim));
   PetscCheck(dim==ctx->dim, PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_WRONG,"Initial DM dim (%d) != ctx (%d)",(int)dim,(int)ctx->dim);
-  PetscCall(DMPlexGetHeightStratum(dm, 0, &cStart, NULL));
-  PetscCall(DMPlexGetCellType(dm, cStart, &ct));
-  PetscCall(DMPlexIsSimplex(dm, &simplex));
-  PetscCall(PetscSNPrintf(prefix, PETSC_MAX_PATH_LEN, "%s_", name));
-  PetscCall(PetscFECreateDefault(PetscObjectComm((PetscObject)dm), dim, 1, simplex, name ? prefix : NULL, -1, &fe));
-  PetscCall(PetscObjectSetName((PetscObject)fe, name));
-  PetscCall(PetscFEViewFromOptions(fe, NULL, "-fe_view"));
-  PetscCall(DMSetField(dm, 0, NULL, (PetscObject)fe));
-  PetscCall(DMCreateDS(dm));
-  PetscCall(SetupProblem(dm, ctx));
-  while (cdm) {
-    PetscCall(PetscInfo(dm, "Setup level\n"));
-    PetscCall(DMCopyDisc(dm, cdm));
-    PetscCall(DMGetCoarseDM(cdm, &cdm));
-  }
-  PetscCall(PetscFEDestroy(&fe));
+  PetscCall(DMPlexGetHeightStratum(dm, 0, &cStart, &cEnd));
+  //if (cEnd - cStart) {
+    PetscCall(DMPlexIsSimplex(dm, &simplex));
+    PetscCall(PetscSNPrintf(prefix, PETSC_MAX_PATH_LEN, "%s_", name));
+    PetscCall(PetscFECreateDefault(PetscObjectComm((PetscObject)dm), dim, 1, simplex, name ? prefix : NULL, -1, &fe));
+    PetscCall(PetscObjectSetName((PetscObject)fe, name));
+    PetscCall(PetscFEViewFromOptions(fe, NULL, "-fe_view"));
+    PetscCall(DMSetField(dm, 0, NULL, (PetscObject)fe));
+    PetscCall(DMCreateDS(dm));
+    PetscCall(SetupProblem(dm, ctx));
+    while (cdm) {
+      PetscCall(PetscInfo(dm, "Setup level\n"));
+      PetscCall(DMCopyDisc(dm, cdm));
+      PetscCall(DMGetCoarseDM(cdm, &cdm));
+    }
+    PetscCall(PetscFEDestroy(&fe));
+    //}
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -247,21 +247,9 @@ static PetscErrorCode CreateCoarseMesh(MPI_Comm comm, AppCtx *user, DM *dm)
   PetscCall(PetscStrlen(user->filename, &len));
   if (len) {
     PetscInt dim;
-    /* PetscMPIInt world_rank, world_size */
-    /* PetscCallMPI(MPI_Comm_rank(comm, &world_rank)); // hardwire for world */
-    /* PetscCallMPI(MPI_Comm_size(comm, &world_size)); */
-    /* PetscCall(PetscPrintf(comm, "CreateCoarseMesh: with file %s (fine grid or coarsened....)\n", user->filename)); */
-    /* if (world_rank==0) { */
     PetscCall(DMPlexCreateFromFile(comm, user->filename, "torus_plex", PETSC_FALSE, dm));
     PetscCall(DMGetDimension(*dm, &dim));
     PetscCheck(dim==2, comm, PETSC_ERR_ARG_WRONG,"Initial DM dim (%d) != 2",(int)dim);
-    // distribute coarse 2D -- how should this work
-    // DM   pdm;
-    /* PetscCall(DMPlexDistribute(*dm, 0, NULL, &pdm)); */
-    /* if (pdm) { */
-    /*   PetscCall(DMDestroy(dm)); */
-    /*   *dm = pdm; */
-    /* } */
   } else {
     PetscCall(DMCreate(comm, dm));
     PetscCall(DMSetType(*dm, DMPLEX));
@@ -322,7 +310,7 @@ static PetscErrorCode CreateHierarchy(DM dm, AppCtx *ctx, DM *a_dmhierarchy[])
     if (ctx->dim > 2) {
       DM ext_dm;
       PetscCall(ExtrudeTorus(dmhierarchy[r], ctx->coarse_toroidal_faces, ctx, &ext_dm));
-      PetscCall(DMDes360roy(&dmhierarchy[r]));
+      PetscCall(DMDestroy(&dmhierarchy[r]));
       dmhierarchy[r] = ext_dm;
       //PetscCall(DMLocalizeCoordinates(ext_dm)); // periodic
     } else {
@@ -360,17 +348,15 @@ static PetscErrorCode CreateHierarchy(DM dm, AppCtx *ctx, DM *a_dmhierarchy[])
       } else {
         PetscCall(OriginShift2D(dmhierarchy[r], ctx)); // shift to center
       }
-      if (!ctx->use_360_domains) {
-        PetscCall(DMPlexDistribute(dmhierarchy[r], 0, NULL, &pdm));
-        if (pdm) {
-          //PetscBool localized;
-          //PetscCall(DMGetCoordinatesLocalized(dmhierarchy[r], &localized));
-          //if (ctx->dim > 2) PetscCheck(localized, comm, PETSC_ERR_ARG_WRONG,"not localized");
-          PetscCall(DMDestroy(&dmhierarchy[r]));
-          dmhierarchy[r] = pdm;
-          //PetscCall(DMGetCoordinatesLocalized(pdm, &localized));
-          //if (ctx->dim > 2) PetscCheck(localized, comm, PETSC_ERR_ARG_WRONG,"not localized");
-        }
+      PetscCall(DMPlexDistribute(dmhierarchy[r], 0, NULL, &pdm));
+      if (pdm) {
+        //PetscBool localized;
+        //PetscCall(DMGetCoordinatesLocalized(dmhierarchy[r], &localized));
+        //if (ctx->dim > 2) PetscCheck(localized, comm, PETSC_ERR_ARG_WRONG,"not localized");
+        PetscCall(DMDestroy(&dmhierarchy[r]));
+        dmhierarchy[r] = pdm;
+        //PetscCall(DMGetCoordinatesLocalized(pdm, &localized));
+        //if (ctx->dim > 2) PetscCheck(localized, comm, PETSC_ERR_ARG_WRONG,"not localized");
       }
       /* view */
       if (ctx->dim > 2) PetscCall(PetscObjectSetName((PetscObject)dmhierarchy[r], torusstr));
