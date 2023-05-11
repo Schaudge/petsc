@@ -1498,19 +1498,21 @@ PetscErrorCode MatSetOption_MPIBAIJ(Mat A, MatOption op, PetscBool flg)
     a->ht_flag = flg;
     a->ht_fact = 1.39;
     break;
-  case MAT_SYMMETRIC:
-  case MAT_HERMITIAN:
-  case MAT_STRUCTURALLY_SYMMETRIC:
-  case MAT_SUBMAT_SINGLEIS:
-  case MAT_SYMMETRY_ETERNAL:
-  case MAT_HERMITIAN_ETERNAL:
-  case MAT_STRUCTURAL_SYMMETRY_ETERNAL:
+  case MAT_SPD:
   case MAT_SPD_ETERNAL:
+  case MAT_HPD:
   case MAT_HPD_ETERNAL:
+  case MAT_SYMMETRIC:
+  case MAT_SYMMETRY_ETERNAL:
+  case MAT_HERMITIAN:
+  case MAT_HERMITIAN_ETERNAL:
+  case MAT_STRUCTURALLY_SYMMETRIC:
+  case MAT_STRUCTURAL_SYMMETRY_ETERNAL:
   case MAT_POSITIVE_DEFINITE:
+  case MAT_POSITIVE_DEFINITE_ETERNAL:
+  case MAT_SUBMAT_SINGLEIS:
     /* if the diagonal matrix is square it inherits some of the properties above */
-    MatCheckPreallocated(A, 1);
-    if (A->rmap->rstart == A->cmap->rstart && A->rmap->rend == A->cmap->rend) PetscCall(MatSetOption(a->A, op, flg));
+    if (a->A) PetscCall(MatSetOption_PropagateDiagonal(A, a->A, op, flg));
     break;
   default:
     SETERRQ(PetscObjectComm((PetscObject)A), PETSC_ERR_SUP, "unknown option %d", op);
@@ -2740,6 +2742,8 @@ PetscErrorCode MatMPIBAIJSetPreallocation_MPIBAIJ(Mat B, PetscInt bs, PetscInt d
 
   PetscCall(MatSeqBAIJSetPreallocation(b->A, bs, d_nz, d_nnz));
   PetscCall(MatSeqBAIJSetPreallocation(b->B, bs, o_nz, o_nnz));
+
+  PetscCall(MatPropagateSymmetryOptions_Diagonal(B, b->A));
   B->preallocated  = PETSC_TRUE;
   B->was_assembled = PETSC_FALSE;
   B->assembled     = PETSC_FALSE;

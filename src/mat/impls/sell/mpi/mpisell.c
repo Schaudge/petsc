@@ -785,18 +785,18 @@ PetscErrorCode MatSetOption_MPISELL(Mat A, MatOption op, PetscBool flg)
     PetscCall(MatSetOption(a->A, op, flg));
     break;
   case MAT_SPD:
-  case MAT_HPD:
   case MAT_SPD_ETERNAL:
+  case MAT_HPD:
   case MAT_HPD_ETERNAL:
   case MAT_SYMMETRIC:
-  case MAT_HERMITIAN:
   case MAT_SYMMETRY_ETERNAL:
+  case MAT_HERMITIAN:
   case MAT_HERMITIAN_ETERNAL:
   case MAT_STRUCTURALLY_SYMMETRIC:
   case MAT_STRUCTURAL_SYMMETRY_ETERNAL:
   case MAT_POSITIVE_DEFINITE:
-    MatCheckPreallocated(A, 1);
-    PetscCall(MatSetOption(a->A, op, flg));
+  case MAT_POSITIVE_DEFINITE_ETERNAL:
+    if (a->A) PetscCall(MatSetOption_PropagateDiagonal(A, a->A, op, flg));
     break;
   default:
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "unknown option %d", op);
@@ -1196,6 +1196,8 @@ PetscErrorCode MatMPISELLSetPreallocation_MPISELL(Mat B, PetscInt d_rlenmax, con
     and MatAssemblyEnd checks was_assembled to determine whether to build garray
   */
   B->assembled = PETSC_FALSE;
+
+  PetscCall(MatPropagateSymmetryOptions_Diagonal(B, b->A));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

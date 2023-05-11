@@ -849,9 +849,6 @@ PetscErrorCode MatSetOption_MPIDense(Mat A, MatOption op, PetscBool flg)
   case MAT_SPD_ETERNAL:
   case MAT_HPD_ETERNAL:
   case MAT_POSITIVE_DEFINITE:
-    /* if the diagonal matrix is square it inherits some of the properties above */
-    MatCheckPreallocated(A, 1);
-    if (A->rmap->rstart == A->cmap->rstart && A->rmap->rend == A->cmap->rend) PetscCall(MatSetOption(a->A, op, flg));
     break;
   default:
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "unknown option %s", MatOptions[op]);

@@ -170,7 +170,7 @@ PETSC_INTERN PetscErrorCode MatConvert_SeqAIJ_SeqSBAIJ(Mat A, MatType newtype, M
   PetscBool     miss = PETSC_FALSE;
 
   PetscFunctionBegin;
-  PetscCheck(A->is.hermitian == PETSC_BOOL3_TRUE || A->is.hermitian == PETSC_BOOL3_TRUE, PetscObjectComm((PetscObject)A), PETSC_ERR_USER, "Matrix must be either symmetric or hermitian. Call MatSetOption(mat,MAT_SYMMETRIC,PETSC_TRUE) and/or MatSetOption(mat,MAT_HERMITIAN,PETSC_TRUE)");
+  PetscCheck(A->is.symmetric == PETSC_BOOL3_TRUE || A->is.hermitian == PETSC_BOOL3_TRUE, PetscObjectComm((PetscObject)A), PETSC_ERR_USER, "Matrix must be either symmetric or hermitian. Call MatSetOption(mat,MAT_SYMMETRIC,PETSC_TRUE) and/or MatSetOption(mat,MAT_HERMITIAN,PETSC_TRUE)");
   PetscCheck(n == m, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Matrix must be square");
 
   if (bs == 1) {

@@ -1514,7 +1514,7 @@ PetscErrorCode MatSetOption_MPISBAIJ(Mat A, MatOption op, PetscBool flg)
     break;
   case MAT_TRIANGULAR_STORAGE_HERMITIAN:
     if (PetscDefined(USE_COMPLEX)) {
-      PetscCall(MatSetOption(a->A, MAT_TRIANGULAR_STORAGE_HERMITIAN, flg));
+      if (a->A) PetscCall(MatSetOption(a->A, MAT_TRIANGULAR_STORAGE_HERMITIAN, flg));
       if (flg) {
         A->ops->mult                      = MatMult_MPISBAIJ_Hermitian;
         A->ops->multadd                   = MatMultAdd_MPISBAIJ_Hermitian;
@@ -1523,6 +1523,7 @@ PetscErrorCode MatSetOption_MPISBAIJ(Mat A, MatOption op, PetscBool flg)
         A->ops->multtranspose             = NULL;
         A->ops->multtransposeadd          = NULL;
         A->is.hermitian                   = PETSC_BOOL3_TRUE;
+        A->eternally.hermitian            = PETSC_TRUE;
         if (a->hermitian_storage != flg) A->is.symmetric = PETSC_BOOL3_UNKNOWN;
       } else {
         A->ops->mult                      = MatMult_MPISBAIJ;
@@ -1532,35 +1533,37 @@ PetscErrorCode MatSetOption_MPISBAIJ(Mat A, MatOption op, PetscBool flg)
         A->ops->multtranspose             = MatMult_MPISBAIJ;
         A->ops->multtransposeadd          = MatMultAdd_MPISBAIJ;
         A->is.symmetric                   = PETSC_BOOL3_TRUE;
+        A->eternally.symmetric            = PETSC_TRUE;
         if (a->hermitian_storage != flg) A->is.hermitian = PETSC_BOOL3_UNKNOWN;
       }
       a->hermitian_storage = flg;
     }
     break;
-  case MAT_HPD:
-  case MAT_SPD:
   case MAT_HERMITIAN:
   case MAT_SYMMETRIC:
-  case MAT_POSITIVE_DEFINITE:
-  case MAT_STRUCTURALLY_SYMMETRIC:
-    MatCheckPreallocated(A, 1);
-    PetscCall(MatSetOption(a->A, op, flg));
+    if (!flg) {
+      if (PetscDefined(USE_COMPLEX)) {
+        if (op == MAT_HERMITIAN) {
+          PetscCheck(!a->hermitian_storage, PetscObjectComm((PetscObject)A), PETSC_ERR_ARG_WRONGSTATE, "Matrix has Hermitian storage, it must be Hermitian.  To change to symmetric storage, call MatSetOption(mat, MAT_TRIANGULAR_STORAGE_HERMITIAN, PETSC_FALSE)");
+        } else {
+          PetscCheck(a->hermitian_storage, PetscObjectComm((PetscObject)A), PETSC_ERR_ARG_WRONGSTATE, "Matrix has symmetric storage, it must be symmetric.  To change to Hermitian storage, call MatSetOption(mat, MAT_TRIANGULAR_STORAGE_HERMITIAN, PETSC_TRUE)");
+        }
+      } else SETERRQ(PetscObjectComm((PetscObject)A), PETSC_ERR_ARG_WRONGSTATE, "Matrix has symmetric storage, it must be symmetric.");
+    } else {
+      if (a->A) PetscCall(MatSetOption_PropagateDiagonal(A, a->A, op, flg));
+    }
     break;
-  case MAT_SYMMETRY_ETERNAL:
-    PetscCheck(flg || a->hermitian_storage, PETSC_COMM_SELF, PETSC_ERR_SUP, "Matrix must be symmetric");
-    MatCheckPreallocated(A, 1);
-    PetscCall(MatSetOption(a->A, op, flg));
-    break;
-  case MAT_HERMITIAN_ETERNAL:
-    PetscCheck(flg || !a->hermitian_storage, PETSC_COMM_SELF, PETSC_ERR_SUP, "Matrix must be hermitian");
-    MatCheckPreallocated(A, 1);
-    PetscCall(MatSetOption(a->A, op, flg));
-    break;
-  case MAT_STRUCTURAL_SYMMETRY_ETERNAL:
-    PetscCall(PetscInfo(A, "Option %s ignored\n", MatOptions[op]));
-    break;
+  case MAT_HPD:
   case MAT_HPD_ETERNAL:
+  case MAT_SPD:
   case MAT_SPD_ETERNAL:
+  case MAT_POSITIVE_DEFINITE:
+  case MAT_POSITIVE_DEFINITE_ETERNAL:
+  case MAT_STRUCTURALLY_SYMMETRIC:
+  case MAT_STRUCTURAL_SYMMETRY_ETERNAL:
+  case MAT_SYMMETRY_ETERNAL:
+  case MAT_HERMITIAN_ETERNAL:
+    if (a->A) PetscCall(MatSetOption_PropagateDiagonal(A, a->A, op, flg));
     break;
   case MAT_IGNORE_LOWER_TRIANGULAR:
     aA->ignore_ltriangular = flg;
@@ -2036,6 +2039,8 @@ PetscErrorCode MatMPISBAIJSetPreallocation_MPISBAIJ(Mat B, PetscInt bs, PetscInt
 
   PetscCall(MatSeqSBAIJSetPreallocation(b->A, bs, d_nz, d_nnz));
   PetscCall(MatSeqBAIJSetPreallocation(b->B, bs, o_nz, o_nnz));
+
+  PetscCall(MatPropagateSymmetryOptions_Diagonal(B, b->A));
 
   B->preallocated  = PETSC_TRUE;
   B->was_assembled = PETSC_FALSE;
