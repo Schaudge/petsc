@@ -50,23 +50,23 @@ PetscErrorCode MatSeqDenseInvertFactors_Private(Mat A)
     PetscCall(PetscFPTrapPop());
     PetscCall(PetscLogFlops((1.0 * A->cmap->n * A->cmap->n * A->cmap->n) / 3.0));
   } else if (A->factortype == MAT_FACTOR_CHOLESKY) {
-    PetscBool is_spd, is_spd_known;
+    PetscBool is_hpd, is_hpd_known;
 
-    PetscCall(MatIsSPDKnown(A, &is_spd_known, &is_spd));
-    is_spd = (is_spd && is_spd_known) ? PETSC_TRUE : PETSC_FALSE;
+    PetscCall(MatIsHPDKnown(A, &is_hpd_known, &is_hpd));
+    is_hpd = (is_hpd && is_hpd_known) ? PETSC_TRUE : PETSC_FALSE;
     
-    if (is_spd) {
+    if (is_hpd) {
+      PetscCall(PetscFPTrapPush(PETSC_FP_TRAP_OFF));
+      PetscCallBLAS("LAPACKpotri", LAPACKpotri_("L", &n, mat->v, &mat->lda, &info));
       PetscCall(PetscFPTrapPop());
       PetscCall(MatSeqDenseSymmetrize_Private(A, PETSC_TRUE));
-#if defined(PETSC_USE_COMPLEX)
-    } else if (A->is.hermitian == PETSC_BOOL3_TRUE) {
+    } else if (PetscDefined(USE_COMPLEX) && A->is.hermitian == PETSC_BOOL3_TRUE) {
       PetscCheck(mat->pivots, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Pivots not present");
       PetscCheck(mat->fwork, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Fwork not present");
       PetscCall(PetscFPTrapPush(PETSC_FP_TRAP_OFF));
       PetscCallBLAS("LAPACKhetri", LAPACKhetri_("L", &n, mat->v, &mat->lda, mat->pivots, mat->fwork, &info));
       PetscCall(PetscFPTrapPop());
       PetscCall(MatSeqDenseSymmetrize_Private(A, PETSC_TRUE));
-#endif
     } else { /* symmetric case */
       PetscCheck(mat->pivots, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Pivots not present");
       PetscCheck(mat->fwork, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Fwork not present");
@@ -425,27 +425,25 @@ static PetscErrorCode MatSolve_SeqDense_Internal_Cholesky(Mat A, PetscScalar *x,
   PetscBLASInt  info;
 
   PetscFunctionBegin;
-  PetscBool is_spd, is_spd_known;
+  PetscBool is_hpd, is_hpd_known;
 
-  PetscCall(MatIsSPDKnown(A, &is_spd_known, &is_spd));
-  is_spd = (is_spd && is_spd_known) ? PETSC_TRUE : PETSC_FALSE;
+  PetscCall(MatIsHPDKnown(A, &is_hpd_known, &is_hpd));
+  is_hpd = (is_hpd && is_hpd_known) ? PETSC_TRUE : PETSC_FALSE;
 
-  if (is_spd) {
+  if (is_hpd) {
     if (PetscDefined(USE_COMPLEX) && T) PetscCall(MatConjugate_SeqDense(A));
     PetscCall(PetscFPTrapPush(PETSC_FP_TRAP_OFF));
     PetscCallBLAS("LAPACKpotrs", LAPACKpotrs_("L", &m, &nrhs, mat->v, &mat->lda, x, &m, &info));
     PetscCall(PetscFPTrapPop());
     PetscCheck(!info, PETSC_COMM_SELF, PETSC_ERR_LIB, "POTRS Bad solve %d", (int)info);
     if (PetscDefined(USE_COMPLEX) && T) PetscCall(MatConjugate_SeqDense(A));
-#if defined(PETSC_USE_COMPLEX)
-  } else if (A->is.hermitian == PETSC_BOOL3_TRUE) {
+  } else if (PetscDefined(USE_COMPLEX) && A->is.hermitian == PETSC_BOOL3_TRUE) {
     if (T) PetscCall(MatConjugate_SeqDense(A));
     PetscCall(PetscFPTrapPush(PETSC_FP_TRAP_OFF));
     PetscCallBLAS("LAPACKhetrs", LAPACKhetrs_("L", &m, &nrhs, mat->v, &mat->lda, mat->pivots, x, &m, &info));
     PetscCall(PetscFPTrapPop());
     PetscCheck(!info, PETSC_COMM_SELF, PETSC_ERR_LIB, "HETRS Bad solve %d", (int)info);
     if (T) PetscCall(MatConjugate_SeqDense(A));
-#endif
   } else { /* symmetric case */
     PetscCall(PetscFPTrapPush(PETSC_FP_TRAP_OFF));
     PetscCallBLAS("LAPACKsytrs", LAPACKsytrs_("L", &m, &nrhs, mat->v, &mat->lda, mat->pivots, x, &m, &info));
@@ -855,11 +853,11 @@ PetscErrorCode MatCholeskyFactor_SeqDense(Mat A, IS perm, const MatFactorInfo *f
   PetscFunctionBegin;
   PetscCall(PetscBLASIntCast(A->cmap->n, &n));
   if (!A->rmap->n || !A->cmap->n) PetscFunctionReturn(PETSC_SUCCESS);
-  PetscBool is_spd, is_spd_known;
+  PetscBool is_hpd, is_hpd_known;
 
-  PetscCall(MatIsSPDKnown(A, &is_spd_known, &is_spd));
-  is_spd = (is_spd && is_spd_known) ? PETSC_TRUE : PETSC_FALSE;
-  if (is_spd) {
+  PetscCall(MatIsHPDKnown(A, &is_hpd_known, &is_hpd));
+  is_hpd = (is_hpd_known && is_hpd) ? PETSC_TRUE : PETSC_FALSE;
+  if (is_hpd) {
     PetscCall(PetscFPTrapPush(PETSC_FP_TRAP_OFF));
     PetscCallBLAS("LAPACKpotrf", LAPACKpotrf_("L", &n, mat->v, &mat->lda, &info));
     PetscCall(PetscFPTrapPop());

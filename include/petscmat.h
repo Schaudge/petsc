@@ -726,6 +726,8 @@ PETSC_EXTERN PetscErrorCode MatIsSymmetricKnown(Mat, PetscBool *, PetscBool *);
 PETSC_EXTERN PetscErrorCode MatIsHermitianKnown(Mat, PetscBool *, PetscBool *);
 PETSC_EXTERN PetscErrorCode MatIsStructurallySymmetricKnown(Mat, PetscBool *, PetscBool *);
 PETSC_EXTERN PetscErrorCode MatIsSPDKnown(Mat, PetscBool *, PetscBool *);
+PETSC_EXTERN PetscErrorCode MatIsHPDKnown(Mat, PetscBool *, PetscBool *);
+PETSC_EXTERN PetscErrorCode MatIsPositiveDefiniteKnown(Mat, PetscBool *, PetscBool *);
 PETSC_EXTERN PetscErrorCode MatMissingDiagonal(Mat, PetscBool *, PetscInt *);
 PETSC_EXTERN PetscErrorCode MatLoad(Mat, PetscViewer);
 

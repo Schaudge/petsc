@@ -5932,6 +5932,12 @@ PetscErrorCode MatSetOption(Mat mat, MatOption op, PetscBool flg)
     mat->is.symmetric              = PETSC_BOOL3_TRUE;
     mat->structurally_symmetric = PETSC_BOOL3_TRUE;
     break;
+  case MAT_HPD:
+    PetscCheck(flg, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONG, "Cannot set MAT_HPD to PETSC_FALSE: set MAT_HERMITIAN and/or MAT_POSITIVE_DEFINITE to PETSC_FALSE individually");
+    mat->positive_definite      = PETSC_BOOL3_TRUE;
+    mat->is.hermitian              = PETSC_BOOL3_TRUE;
+    mat->structurally_symmetric = PETSC_BOOL3_TRUE;
+    break;
   case MAT_POSITIVE_DEFINITE:
     mat->positive_definite = flg ? PETSC_BOOL3_TRUE : PETSC_BOOL3_FALSE;
     break;
@@ -5968,19 +5974,15 @@ PetscErrorCode MatSetOption(Mat mat, MatOption op, PetscBool flg)
     PetscCheck(flg, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONG, "Cannot set MAT_SPD_ETERNAL to PETSC_FALSE: set MAT_SYMMETRIC_ETERNAL and/or MAT_POSITIVE_DEFINITE_ETERNAL to PETSC_FALSE individually");
     PetscCheck(mat->positive_definite != PETSC_BOOL3_UNKNOWN && mat->is.symmetric != PETSC_BOOL3_UNKNOWN, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONGSTATE, "Cannot set MAT_SPD_ETERNAL without first setting MAT_SPD to true or false");
     mat->positive_definite_eternal = flg;
-    if (flg) {
-      mat->structural_symmetry_eternal             = PETSC_TRUE;
-      mat->eternally.symmetric = PETSC_TRUE;
-    }
+    mat->structural_symmetry_eternal = PETSC_TRUE;
+    mat->eternally.symmetric = PETSC_TRUE;
     break;
   case MAT_HPD_ETERNAL:
     PetscCheck(flg, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONG, "Cannot set MAT_HPD_ETERNAL to PETSC_FALSE: set MAT_HERMETIAN_ETERNAL and/or MAT_POSITIVE_DEFINITE_ETERNAL to PETSC_FALSE individually");
     PetscCheck(mat->positive_definite != PETSC_BOOL3_UNKNOWN && mat->is.hermitian != PETSC_BOOL3_UNKNOWN, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONGSTATE, "Cannot set MAT_HPD_ETERNAL without first setting MAT_SPD to true or false");
     mat->positive_definite_eternal = flg;
-    if (flg) {
-      mat->structural_symmetry_eternal             = PETSC_TRUE;
-      mat->eternally.symmetric = PETSC_TRUE;
-    }
+    mat->structural_symmetry_eternal = PETSC_TRUE;
+    mat->eternally.hermitian = PETSC_TRUE;
     break;
   case MAT_STRUCTURE_ONLY:
     mat->structure_only = flg;
@@ -9253,10 +9255,12 @@ PetscErrorCode MatIsSymmetricKnown(Mat A, PetscBool *set, PetscBool *flg)
    Notes:
    Does not check the matrix values directly, so this may return unknown (set = `PETSC_FALSE`).
 
+   In complex arithmetic, `MAT_SPD` means the matrix is positive definite (has eigenvalues with positve real parts) and symmetric, not necessarily Hermitian.  For many algorithms `MAT_HPD` is the more important property to query, which can be done with `MatIsHPDKnown()`.
+
    One can declare that a matrix is SPD with `MatSetOption`(mat,`MAT_SPD`,`PETSC_TRUE`) and if it is known to remain SPD
    after changes to the matrices values one can call `MatSetOption`(mat,`MAT_SPD_ETERNAL`,`PETSC_TRUE`)
 
-.seealso: [](chapter_matrices), `Mat`, `MAT_SPD_ETERNAL`, `MAT_SPD`, `MatTranspose()`, `MatIsTranspose()`, `MatIsHermitian()`, `MatIsStructurallySymmetric()`, `MatSetOption()`, `MatIsSymmetric()`, `MatIsHermitianKnown()`
+.seealso: [](chapter_matrices), `Mat`, `MAT_SPD_ETERNAL`, `MAT_SPD`, `MatTranspose()`, `MatIsTranspose()`, `MatIsHermitian()`, `MatIsStructurallySymmetric()`, `MatSetOption()`, `MatIsSymmetric()`, `MatIsHermitianKnown()`, `MatIsHPDKnown()`
 @*/
 PetscErrorCode MatIsSPDKnown(Mat A, PetscBool *set, PetscBool *flg)
 {
@@ -9267,6 +9271,84 @@ PetscErrorCode MatIsSPDKnown(Mat A, PetscBool *set, PetscBool *flg)
   if (A->positive_definite != PETSC_BOOL3_UNKNOWN && A->is.symmetric != PETSC_BOOL3_UNKNOWN) {
     *set = PETSC_TRUE;
     *flg = (PetscBool3ToBool(A->positive_definite) && PetscBool3ToBool(A->is.symmetric)) ? PETSC_TRUE : PETSC_FALSE;
+  } else {
+    *set = PETSC_FALSE;
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+   MatIsHPDKnown - Checks if a matrix knows if it is hermitian positive definite or not and its hermitian positive definite state
+
+   Not Collective
+
+   Input Parameter:
+.  A - the matrix to check
+
+   Output Parameters:
++  set - `PETSC_TRUE` if the matrix knows its hermitian positive definite state (this tells you if the next flag is valid)
+-  flg - the result (only valid if set is `PETSC_TRUE`)
+
+   Level: advanced
+
+   Notes:
+   Does not check the matrix values directly, so this may return unknown (set = `PETSC_FALSE`).
+
+   In real arithmetic, this is equivalent to `MatIsSPDKnown()`.
+
+   One can declare that a matrix is HPD with `MatSetOption`(mat,`MAT_HPD`,`PETSC_TRUE`) and if it is known to remain HPD
+   after changes to the matrices values one can call `MatSetOption`(mat,`MAT_HPD_ETERNAL`,`PETSC_TRUE`)
+
+.seealso: [](chapter_matrices), `Mat`, `MAT_SPD_ETERNAL`, `MAT_SPD`, `MatTranspose()`, `MatIsTranspose()`, `MatIsHermitian()`, `MatIsStructurallySymmetric()`, `MatSetOption()`, `MatIsSymmetric()`, `MatIsHermitianKnown()`, `MatIsSPDKnown()`
+@*/
+PetscErrorCode MatIsHPDKnown(Mat A, PetscBool *set, PetscBool *flg)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(A, MAT_CLASSID, 1);
+  PetscValidBoolPointer(set, 2);
+  PetscValidBoolPointer(flg, 3);
+  if (A->positive_definite != PETSC_BOOL3_UNKNOWN && A->is.hermitian != PETSC_BOOL3_UNKNOWN) {
+    *set = PETSC_TRUE;
+    *flg = (PetscBool3ToBool(A->positive_definite) && PetscBool3ToBool(A->is.hermitian)) ? PETSC_TRUE : PETSC_FALSE;
+  } else {
+    *set = PETSC_FALSE;
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+   MatIsPositiveDefiniteKnown - Checks if a matrix knows if it is positive definite or not
+
+   Not Collective
+
+   Input Parameter:
+.  A - the matrix to check
+
+   Output Parameters:
++  set - `PETSC_TRUE` if the matrix knows its positive definiteness (this tells you if the next flag is valid)
+-  flg - the result (only valid if set is `PETSC_TRUE`)
+
+   Level: advanced
+
+   Notes:
+   Does not check the matrix values directly, so this may return unknown (set = `PETSC_FALSE`).
+
+   Positive definiteness does not imply the matrix is symmetric, Hermitian, or that its eigenvalues are real: only that the real parts of all its eigenvalues are positive.  Most users will need `MatIsHPDKnown()`.
+
+   One can declare that a matrix is positve definite with `MatSetOption`(mat,`MAT_POSITIVE_DEFINITE`,`PETSC_TRUE`) and if it is known to remain positive definite
+   after changes to the matrices values one can call `MatSetOption`(mat,`MAT_POSTIVE_DEFINITE_ETERNAL`,`PETSC_TRUE`)
+
+.seealso: [](chapter_matrices), `Mat`, `MAT_POSTIVE_DEFINITE`, `MAT_POSITIVE_DEFINITE_ETERNAL`, `MAT_HPD`, `MAT_SPD`, `MatSetOption()`, `MatIsHPDKnown()`
+@*/
+PetscErrorCode MatIsPositiveDefiniteKnown(Mat A, PetscBool *set, PetscBool *flg)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(A, MAT_CLASSID, 1);
+  PetscValidBoolPointer(set, 2);
+  PetscValidBoolPointer(flg, 3);
+  if (A->positive_definite != PETSC_BOOL3_UNKNOWN) {
+    *set = PETSC_TRUE;
+    *flg = PetscBool3ToBool(A->positive_definite) ? PETSC_TRUE : PETSC_FALSE;
   } else {
     *set = PETSC_FALSE;
   }

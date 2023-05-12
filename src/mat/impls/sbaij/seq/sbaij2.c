@@ -89,7 +89,6 @@ PetscErrorCode MatIncreaseOverlap_SeqSBAIJ(Mat A, PetscInt is_max, IS is[], Pets
 PetscErrorCode MatSeqSBAIJZeroOps_Private(Mat Bseq)
 {
   PetscFunctionBegin;
-  PetscCall(MatSetOption(Bseq, MAT_SYMMETRIC, PETSC_FALSE));
   Bseq->ops->mult                   = NULL;
   Bseq->ops->multadd                = NULL;
   Bseq->ops->multtranspose          = NULL;
