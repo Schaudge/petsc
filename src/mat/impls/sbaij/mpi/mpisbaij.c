@@ -1583,17 +1583,22 @@ PetscErrorCode MatSetOption_MPISBAIJ(Mat A, MatOption op, PetscBool flg)
 static PetscErrorCode MatIsReal_SeqAIJ(Mat A, PetscReal tol, PetscBool *flg)
 {
   PetscFunctionBegin;
+
+  *flg = PETSC_TRUE;
+  if (!PetscDefined(USE_COMPLEX)) PetscFunctionReturn(PETSC_SUCCESS);
+#if PetscDefined(USE_COMPLEX)
+  // I don't want to have this #ifdef but CI complains that the variable v is unused
+  // if it's not here (because PetscImaginaryPart(v) turns into (0))
   Mat_SeqAIJ      *a  = (Mat_SeqAIJ *)A->data;
   const MatScalar *v  = a->a;
   PetscInt         nz = a->nz;
-
-  *flg = PETSC_TRUE;
   for (PetscInt i = 0; i < nz; i++) {
     if (PetscAbsReal(PetscImaginaryPart(v[i])) > tol) {
       *flg = PETSC_FALSE;
       PetscFunctionReturn(PETSC_SUCCESS);
     }
   }
+#endif
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

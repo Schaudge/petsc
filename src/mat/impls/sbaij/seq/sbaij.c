@@ -1214,17 +1214,20 @@ PetscErrorCode MatAXPY_SeqSBAIJ(Mat Y, PetscScalar a, Mat X, MatStructure str)
 PETSC_INTERN PetscErrorCode MatIsReal_SeqSBAIJ(Mat A, PetscReal tol, PetscBool *flg)
 {
   PetscFunctionBegin;
+  *flg = PETSC_TRUE;
+  if (!PetscDefined(USE_COMPLEX)) PetscFunctionReturn(PETSC_SUCCESS);
+#if PetscDefined(USE_COMPLEX)
   Mat_SeqSBAIJ    *a  = (Mat_SeqSBAIJ *)A->data;
   const MatScalar *v  = a->a;
   PetscInt         nz = a->nz;
 
-  *flg = PETSC_TRUE;
   for (PetscInt i = 0; i < nz; i++) {
     if (PetscAbsReal(PetscImaginaryPart(v[i])) > tol) {
       *flg = PETSC_FALSE;
       PetscFunctionReturn(PETSC_SUCCESS);
     }
   }
+#endif
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
