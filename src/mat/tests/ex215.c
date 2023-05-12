@@ -22,14 +22,14 @@ int main(int argc, char **args)
   /* Determine which type of solver we want to test for */
   herm = PETSC_FALSE;
   symm = PETSC_FALSE;
-  pd  = PETSC_FALSE;
+  pd   = PETSC_FALSE;
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-symmetric_solve", &symm, NULL));
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-hermitian_solve", &herm, NULL));
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-positive_definite_solve", &pd, NULL));
 
   if (pd) {
     if (PetscDefined(USE_COMPLEX)) herm = PETSC_TRUE;
-    else                           symm = PETSC_TRUE;
+    else symm = PETSC_TRUE;
   }
 
   /* Determine file from which we read the matrix A */
@@ -39,16 +39,16 @@ int main(int argc, char **args)
     PetscCall(PetscStrncpy(file, "${PETSC_DIR}/share/petsc/datafiles/matrices/", sizeof(file)));
     if (pd) {
       if (PetscDefined(USE_COMPLEX)) PetscCall(PetscStrlcat(file, "hpd-complex-", sizeof(file)));
-      else                           PetscCall(PetscStrlcat(file, "spd-real-", sizeof(file)));
+      else PetscCall(PetscStrlcat(file, "spd-real-", sizeof(file)));
       ftyp = MAT_FACTOR_CHOLESKY;
     } else {
       if (PetscDefined(USE_COMPLEX)) PetscCall(PetscStrlcat(file, "nh-complex-", sizeof(file)));
-      else                           PetscCall(PetscStrlcat(file, "ns-real-", sizeof(file)));
+      else PetscCall(PetscStrlcat(file, "ns-real-", sizeof(file)));
     }
     if (PetscDefined(USE_64BIT_INDICES)) PetscCall(PetscStrlcat(file, "int64-", sizeof(file)));
-    else                                 PetscCall(PetscStrlcat(file, "int32-", sizeof(file)));
+    else PetscCall(PetscStrlcat(file, "int32-", sizeof(file)));
     if (PetscDefined(USE_REAL_SINGLE)) PetscCall(PetscStrlcat(file, "float32", sizeof(file)));
-    else                               PetscCall(PetscStrlcat(file, "float64", sizeof(file)));
+    else PetscCall(PetscStrlcat(file, "float64", sizeof(file)));
   }
 
   /* Load matrix A */

@@ -1214,12 +1214,12 @@ PetscErrorCode MatAXPY_SeqSBAIJ(Mat Y, PetscScalar a, Mat X, MatStructure str)
 PETSC_INTERN PetscErrorCode MatIsReal_SeqSBAIJ(Mat A, PetscReal tol, PetscBool *flg)
 {
   PetscFunctionBegin;
-  Mat_SeqSBAIJ *a = (Mat_SeqSBAIJ *) A->data;
-  const MatScalar *v        = a->a;
-  PetscInt nz = a->nz;
+  Mat_SeqSBAIJ    *a  = (Mat_SeqSBAIJ *)A->data;
+  const MatScalar *v  = a->a;
+  PetscInt         nz = a->nz;
 
   *flg = PETSC_TRUE;
-  for (PetscInt i = 0; i <nz; i++) {
+  for (PetscInt i = 0; i < nz; i++) {
     if (PetscAbsReal(PetscImaginaryPart(v[i])) > tol) {
       *flg = PETSC_FALSE;
       PetscFunctionReturn(PETSC_SUCCESS);
@@ -1230,7 +1230,7 @@ PETSC_INTERN PetscErrorCode MatIsReal_SeqSBAIJ(Mat A, PetscReal tol, PetscBool *
 
 PetscErrorCode MatIsSymmetric_SeqSBAIJ(Mat A, PetscReal tol, PetscBool *flg)
 {
-  Mat_SeqSBAIJ *a = (Mat_SeqSBAIJ *) A->data;
+  Mat_SeqSBAIJ *a = (Mat_SeqSBAIJ *)A->data;
 
   PetscFunctionBegin;
   *flg = PETSC_TRUE;
@@ -1248,7 +1248,7 @@ PetscErrorCode MatIsStructurallySymmetric_SeqSBAIJ(Mat A, PetscBool *flg)
 
 PetscErrorCode MatIsHermitian_SeqSBAIJ(Mat A, PetscReal tol, PetscBool *flg)
 {
-  Mat_SeqSBAIJ *a = (Mat_SeqSBAIJ *) A->data;
+  Mat_SeqSBAIJ *a = (Mat_SeqSBAIJ *)A->data;
 
   PetscFunctionBegin;
   *flg = PETSC_TRUE;

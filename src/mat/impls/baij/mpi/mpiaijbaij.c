@@ -30,8 +30,8 @@ PETSC_INTERN PetscErrorCode MatConvert_MPIAIJ_MPIBAIJ(Mat A, MatType newtype, Ma
     PetscCall(PetscFree(o_nnz));
     PetscCall(MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY));
     PetscCall(MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY));
-    A->is.symmetric              = sym;
-    A->is.hermitian              = hermitian;
+    A->is.symmetric           = sym;
+    A->is.hermitian           = hermitian;
     A->structurally_symmetric = structurally_symmetric;
     A->positive_definite      = pd;
   } else M = *newmat;

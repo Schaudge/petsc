@@ -54,7 +54,7 @@ PetscErrorCode MatSeqDenseInvertFactors_Private(Mat A)
 
     PetscCall(MatIsHPDKnown(A, &is_hpd_known, &is_hpd));
     is_hpd = (is_hpd && is_hpd_known) ? PETSC_TRUE : PETSC_FALSE;
-    
+
     if (is_hpd) {
       PetscCall(PetscFPTrapPush(PETSC_FP_TRAP_OFF));
       PetscCallBLAS("LAPACKpotri", LAPACKpotri_("L", &n, mat->v, &mat->lda, &info));

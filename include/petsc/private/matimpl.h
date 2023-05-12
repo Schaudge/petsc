@@ -461,12 +461,14 @@ typedef struct {
   PetscBool hermitian;
 } MatSymBool;
 #else
-typedef union {
+typedef union
+{
   PetscBool3 symmetric;
   PetscBool3 hermitian;
 } MatSymBool3;
 
-typedef union {
+typedef union
+{
   PetscBool symmetric;
   PetscBool hermitian;
 } MatSymBool;
@@ -493,10 +495,10 @@ struct _p_Mat {
   MatNullSpace     nearnullsp;                              /* near null space to be used by multigrid methods */
   PetscInt         congruentlayouts;                        /* are the rows and columns layouts congruent? */
   PetscBool        preallocated;
-  MatStencilInfo   stencil; /* information for structured grid */
-  MatSymBool3      is;                                      /* is.hermitian ? is.symmetric ? */
-  MatSymBool       eternally;                               /* eternally.hermitian ? eternally.symmetric ? */
-  PetscBool3       positive_definite;                       /* do all eigenvalues have positive real part? */
+  MatStencilInfo   stencil;           /* information for structured grid */
+  MatSymBool3      is;                /* is.hermitian ? is.symmetric ? */
+  MatSymBool       eternally;         /* eternally.hermitian ? eternally.symmetric ? */
+  PetscBool3       positive_definite; /* do all eigenvalues have positive real part? */
   PetscBool        positive_definite_eternal;
   PetscBool3       structurally_symmetric;
   PetscBool        structural_symmetry_eternal;

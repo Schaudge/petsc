@@ -2990,23 +2990,23 @@ static PetscErrorCode MatSetOption_IS(Mat A, MatOption op, PetscBool flg)
   Mat_IS *a = (Mat_IS *)A->data;
 
   PetscFunctionBegin;
-    switch (op) {
-    case MAT_SPD:
-    case MAT_HPD:
-    case MAT_SPD_ETERNAL:
-    case MAT_HPD_ETERNAL:
-    case MAT_SYMMETRIC:
-    case MAT_HERMITIAN:
-    case MAT_SYMMETRY_ETERNAL:
-    case MAT_HERMITIAN_ETERNAL:
-    case MAT_STRUCTURALLY_SYMMETRIC:
-    case MAT_STRUCTURAL_SYMMETRY_ETERNAL:
-    case MAT_POSITIVE_DEFINITE:
-      if (a->rmapping == a->cmapping && a->A) PetscCall(MatSetOption_PropagateDiagonal(A, a->A, op, flg));
-      break;
-    default:
-      if (a->A) PetscCall(MatSetOption(a->A, op, flg));
-    }
+  switch (op) {
+  case MAT_SPD:
+  case MAT_HPD:
+  case MAT_SPD_ETERNAL:
+  case MAT_HPD_ETERNAL:
+  case MAT_SYMMETRIC:
+  case MAT_HERMITIAN:
+  case MAT_SYMMETRY_ETERNAL:
+  case MAT_HERMITIAN_ETERNAL:
+  case MAT_STRUCTURALLY_SYMMETRIC:
+  case MAT_STRUCTURAL_SYMMETRY_ETERNAL:
+  case MAT_POSITIVE_DEFINITE:
+    if (a->rmapping == a->cmapping && a->A) PetscCall(MatSetOption_PropagateDiagonal(A, a->A, op, flg));
+    break;
+  default:
+    if (a->A) PetscCall(MatSetOption(a->A, op, flg));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

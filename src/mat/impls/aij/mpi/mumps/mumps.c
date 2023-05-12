@@ -537,7 +537,7 @@ PetscErrorCode MatConvertToTriples_seqaij_seqsbaij(Mat A, PetscInt shift, MatReu
   PetscMUMPSInt     *row, *col;
   Mat_SeqAIJ        *aa = (Mat_SeqAIJ *)A->data;
   PetscBool          missing;
-  PetscBool       is_set, is_symmetric;
+  PetscBool          is_set, is_symmetric;
 
   PetscFunctionBegin;
   PetscCall(MatIsSymmetricKnown(A, &is_set, &is_symmetric));
@@ -645,7 +645,7 @@ PetscErrorCode MatConvertToTriples_mpisbaij_mpisbaij(Mat A, PetscInt shift, MatR
   Mat_SeqSBAIJ      *aa  = (Mat_SeqSBAIJ *)(mat->A)->data;
   Mat_SeqBAIJ       *bb  = (Mat_SeqBAIJ *)(mat->B)->data;
   const PetscInt     bs2 = aa->bs2, mbs = aa->mbs;
-  PetscBool       is_set, is_symmetric;
+  PetscBool          is_set, is_symmetric;
 
   PetscFunctionBegin;
   PetscCall(MatIsSymmetricKnown(A, &is_set, &is_symmetric));
@@ -888,7 +888,7 @@ PetscErrorCode MatConvertToTriples_mpiaij_mpisbaij(Mat A, PetscInt shift, MatReu
   Mat                Ad, Ao;
   Mat_SeqAIJ        *aa;
   Mat_SeqAIJ        *bb;
-  PetscBool       is_set, is_symmetric;
+  PetscBool          is_set, is_symmetric;
 
   PetscFunctionBegin;
   PetscCall(MatIsSymmetricKnown(A, &is_set, &is_symmetric));

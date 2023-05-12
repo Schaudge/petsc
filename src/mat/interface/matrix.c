@@ -5929,13 +5929,13 @@ PetscErrorCode MatSetOption(Mat mat, MatOption op, PetscBool flg)
   case MAT_SPD:
     PetscCheck(flg, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONG, "Cannot set MAT_SPD to PETSC_FALSE: set MAT_SYMMETRIC and/or MAT_POSITIVE_DEFINITE to PETSC_FALSE individually");
     mat->positive_definite      = PETSC_BOOL3_TRUE;
-    mat->is.symmetric              = PETSC_BOOL3_TRUE;
+    mat->is.symmetric           = PETSC_BOOL3_TRUE;
     mat->structurally_symmetric = PETSC_BOOL3_TRUE;
     break;
   case MAT_HPD:
     PetscCheck(flg, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONG, "Cannot set MAT_HPD to PETSC_FALSE: set MAT_HERMITIAN and/or MAT_POSITIVE_DEFINITE to PETSC_FALSE individually");
     mat->positive_definite      = PETSC_BOOL3_TRUE;
-    mat->is.hermitian              = PETSC_BOOL3_TRUE;
+    mat->is.hermitian           = PETSC_BOOL3_TRUE;
     mat->structurally_symmetric = PETSC_BOOL3_TRUE;
     break;
   case MAT_POSITIVE_DEFINITE:
@@ -5973,16 +5973,16 @@ PetscErrorCode MatSetOption(Mat mat, MatOption op, PetscBool flg)
   case MAT_SPD_ETERNAL:
     PetscCheck(flg, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONG, "Cannot set MAT_SPD_ETERNAL to PETSC_FALSE: set MAT_SYMMETRIC_ETERNAL and/or MAT_POSITIVE_DEFINITE_ETERNAL to PETSC_FALSE individually");
     PetscCheck(mat->positive_definite != PETSC_BOOL3_UNKNOWN && mat->is.symmetric != PETSC_BOOL3_UNKNOWN, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONGSTATE, "Cannot set MAT_SPD_ETERNAL without first setting MAT_SPD to true or false");
-    mat->positive_definite_eternal = flg;
+    mat->positive_definite_eternal   = flg;
     mat->structural_symmetry_eternal = PETSC_TRUE;
-    mat->eternally.symmetric = PETSC_TRUE;
+    mat->eternally.symmetric         = PETSC_TRUE;
     break;
   case MAT_HPD_ETERNAL:
     PetscCheck(flg, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONG, "Cannot set MAT_HPD_ETERNAL to PETSC_FALSE: set MAT_HERMETIAN_ETERNAL and/or MAT_POSITIVE_DEFINITE_ETERNAL to PETSC_FALSE individually");
     PetscCheck(mat->positive_definite != PETSC_BOOL3_UNKNOWN && mat->is.hermitian != PETSC_BOOL3_UNKNOWN, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONGSTATE, "Cannot set MAT_HPD_ETERNAL without first setting MAT_SPD to true or false");
-    mat->positive_definite_eternal = flg;
+    mat->positive_definite_eternal   = flg;
     mat->structural_symmetry_eternal = PETSC_TRUE;
-    mat->eternally.hermitian = PETSC_TRUE;
+    mat->eternally.hermitian         = PETSC_TRUE;
     break;
   case MAT_STRUCTURE_ONLY:
     mat->structure_only = flg;
@@ -8482,10 +8482,10 @@ PetscErrorCode MatPropagateSymmetryOptions(Mat A, Mat B)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(A, MAT_CLASSID, 1);
   PetscValidHeaderSpecific(B, MAT_CLASSID, 2);
-  B->is.symmetric                   = A->is.symmetric;
-  B->is.hermitian                   = A->is.hermitian;
-  B->eternally.symmetric            = A->eternally.symmetric;
-  B->eternally.hermitian            = A->eternally.hermitian;
+  B->is.symmetric                = A->is.symmetric;
+  B->is.hermitian                = A->is.hermitian;
+  B->eternally.symmetric         = A->eternally.symmetric;
+  B->eternally.hermitian         = A->eternally.hermitian;
   B->structurally_symmetric      = A->structurally_symmetric;
   B->structural_symmetry_eternal = A->structural_symmetry_eternal;
   B->positive_definite           = A->positive_definite;
@@ -10004,7 +10004,7 @@ PetscErrorCode MatPtAP(Mat A, Mat P, MatReuse scall, PetscReal fill, Mat *C)
   }
 
   PetscCall(MatProductNumeric(*C));
-  (*C)->is.symmetric = A->is.symmetric;
+  (*C)->is.symmetric      = A->is.symmetric;
   (*C)->positive_definite = A->positive_definite;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

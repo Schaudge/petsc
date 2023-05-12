@@ -120,9 +120,9 @@ static PetscErrorCode MatPreallocateWithMats_Private(Mat B, PetscInt nm, Mat X[]
 
 PETSC_INTERN PetscErrorCode MatConvert_MPISBAIJ_Basic(Mat A, MatType newtype, MatReuse reuse, Mat *newmat)
 {
-  Mat_MPISBAIJ *mpisbaij = (Mat_MPISBAIJ *) A->data;
-  Mat      B;
-  PetscInt r;
+  Mat_MPISBAIJ *mpisbaij = (Mat_MPISBAIJ *)A->data;
+  Mat           B;
+  PetscInt      r;
 
   PetscFunctionBegin;
   if (reuse != MAT_REUSE_MATRIX) {
@@ -1583,12 +1583,12 @@ PetscErrorCode MatSetOption_MPISBAIJ(Mat A, MatOption op, PetscBool flg)
 static PetscErrorCode MatIsReal_SeqAIJ(Mat A, PetscReal tol, PetscBool *flg)
 {
   PetscFunctionBegin;
-  Mat_SeqAIJ *a = (Mat_SeqAIJ *) A->data;
-  const MatScalar *v        = a->a;
-  PetscInt nz = a->nz;
+  Mat_SeqAIJ      *a  = (Mat_SeqAIJ *)A->data;
+  const MatScalar *v  = a->a;
+  PetscInt         nz = a->nz;
 
   *flg = PETSC_TRUE;
-  for (PetscInt i = 0; i <nz; i++) {
+  for (PetscInt i = 0; i < nz; i++) {
     if (PetscAbsReal(PetscImaginaryPart(v[i])) > tol) {
       *flg = PETSC_FALSE;
       PetscFunctionReturn(PETSC_SUCCESS);
@@ -1600,8 +1600,8 @@ static PetscErrorCode MatIsReal_SeqAIJ(Mat A, PetscReal tol, PetscBool *flg)
 static PetscErrorCode MatIsSymmetric_MPISBAIJ(Mat A, PetscReal tol, PetscBool *flg)
 {
   PetscFunctionBegin;
-  *flg = PETSC_TRUE;
-  Mat_MPISBAIJ *a = (Mat_MPISBAIJ *) A->data;
+  *flg            = PETSC_TRUE;
+  Mat_MPISBAIJ *a = (Mat_MPISBAIJ *)A->data;
   if (PetscDefined(USE_COMPLEX) && a->hermitian_storage) {
     PetscCall(MatIsReal_SeqSBAIJ(a->A, tol, flg));
     if (flg) PetscCall(MatIsReal_SeqAIJ(a->B, tol, flg));
@@ -1612,8 +1612,8 @@ static PetscErrorCode MatIsSymmetric_MPISBAIJ(Mat A, PetscReal tol, PetscBool *f
 static PetscErrorCode MatIsHermitian_MPISBAIJ(Mat A, PetscReal tol, PetscBool *flg)
 {
   PetscFunctionBegin;
-  *flg = PETSC_TRUE;
-  Mat_MPISBAIJ *a = (Mat_MPISBAIJ *) A->data;
+  *flg            = PETSC_TRUE;
+  Mat_MPISBAIJ *a = (Mat_MPISBAIJ *)A->data;
   if (PetscDefined(USE_COMPLEX) && !a->hermitian_storage) {
     PetscCall(MatIsReal_SeqSBAIJ(a->A, tol, flg));
     if (flg) PetscCall(MatIsReal_SeqAIJ(a->B, tol, flg));
@@ -2222,9 +2222,9 @@ PETSC_EXTERN PetscErrorCode MatCreate_MPISBAIJ(Mat B)
   PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatConvert_mpisbaij_mpiaij_C", MatConvert_MPISBAIJ_Basic));
   PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatConvert_mpisbaij_mpibaij_C", MatConvert_MPISBAIJ_Basic));
 
-  B->is.symmetric                   = PETSC_BOOL3_TRUE;
+  B->is.symmetric                = PETSC_BOOL3_TRUE;
   B->structurally_symmetric      = PETSC_BOOL3_TRUE;
-  B->eternally.symmetric            = PETSC_TRUE;
+  B->eternally.symmetric         = PETSC_TRUE;
   B->structural_symmetry_eternal = PETSC_TRUE;
 
   PetscCall(PetscObjectChangeTypeName((PetscObject)B, MATMPISBAIJ));
