@@ -160,8 +160,11 @@ static PetscErrorCode KSPGuessFormGuess_POD(KSPGuess guess, Vec b, Vec x)
   if (pod->monitor) {
     PetscCall(PetscPrintf(PetscObjectComm((PetscObject)guess), "  KSPGuessPOD alphas = "));
     for (i = 0; i < pod->nen; i++) {
-      if (PetscDefined(USE_COMPLEX)) PetscCall(PetscPrintf(PetscObjectComm((PetscObject)guess), "%g + %g i", (double)PetscRealPart(pod->swork[i]), (double)PetscImaginaryPart(pod->swork[i])));
-      else PetscCall(PetscPrintf(PetscObjectComm((PetscObject)guess), "%g ", (double)pod->swork[i]));
+#if PetscDefined(USE_COMPLEX)
+      PetscCall(PetscPrintf(PetscObjectComm((PetscObject)guess), "%g + %g i", (double)PetscRealPart(pod->swork[i]), (double)PetscImaginaryPart(pod->swork[i])));
+#else
+      PetscCall(PetscPrintf(PetscObjectComm((PetscObject)guess), "%g ", (double)pod->swork[i]));
+#endif
     }
     PetscCall(PetscPrintf(PetscObjectComm((PetscObject)guess), "\n"));
   }
@@ -194,8 +197,11 @@ static PetscErrorCode KSPGuessFormGuess_POD(KSPGuess guess, Vec b, Vec x)
   if (pod->monitor) {
     PetscCall(PetscPrintf(PetscObjectComm((PetscObject)guess), "  KSPGuessPOD sol = "));
     for (i = 0; i < pod->nen; i++) {
-      if (PetscDefined(USE_COMPLEX)) PetscCall(PetscPrintf(PetscObjectComm((PetscObject)guess), "%g + %g i", (double)PetscRealPart(pod->swork[i + pod->n]), (double)PetscImaginaryPart(pod->swork[i + pod->n])));
-      else PetscCall(PetscPrintf(PetscObjectComm((PetscObject)guess), "%g ", (double)pod->swork[i + pod->n]));
+#if PetscDefined(USE_COMPLEX)
+      PetscCall(PetscPrintf(PetscObjectComm((PetscObject)guess), "%g + %g i", (double)PetscRealPart(pod->swork[i + pod->n]), (double)PetscImaginaryPart(pod->swork[i + pod->n])));
+#else
+      PetscCall(PetscPrintf(PetscObjectComm((PetscObject)guess), "%g ", (double)pod->swork[i + pod->n]));
+#endif
     }
     PetscCall(PetscPrintf(PetscObjectComm((PetscObject)guess), "\n"));
   }
