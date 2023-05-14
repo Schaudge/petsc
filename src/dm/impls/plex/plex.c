@@ -950,7 +950,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     char         lname[PETSC_MAX_PATH_LEN];
     PetscReal    scale      = 2.0;
     PetscReal    tikzscale  = 1.0;
-    PetscBool    useNumbers = PETSC_TRUE, drawNumbers[4], drawColors[4], useLabels, useColors, plotEdges, drawHasse = PETSC_FALSE;
+    PetscBool    useNumbers = PETSC_TRUE, drawNumbers[4], drawColors[4], useLabels, useColors = PETSC_TRUE, plotEdges, drawHasse = PETSC_FALSE;
     double       tcoords[3];
     PetscScalar *coords;
     PetscInt     numLabels, l, numColors, numLColors, dim, d, depth, cStart, cEnd, c, vStart, vEnd, v, eStart = 0, eEnd = 0, e, p, n;
@@ -976,8 +976,9 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     PetscCall(PetscOptionsGetReal(((PetscObject)viewer)->options, ((PetscObject)viewer)->prefix, "-dm_plex_view_scale", &scale, NULL));
     PetscCall(PetscOptionsGetReal(((PetscObject)viewer)->options, ((PetscObject)viewer)->prefix, "-dm_plex_view_tikzscale", &tikzscale, NULL));
     PetscCall(PetscOptionsGetBool(((PetscObject)viewer)->options, ((PetscObject)viewer)->prefix, "-dm_plex_view_numbers", &useNumbers, NULL));
+    PetscCall(PetscOptionsGetBool(((PetscObject)viewer)->options, ((PetscObject)viewer)->prefix, "-dm_plex_use_colors", &useColors, NULL));
     for (d = 0; d < 4; ++d) drawNumbers[d] = useNumbers;
-    for (d = 0; d < 4; ++d) drawColors[d] = PETSC_TRUE;
+    for (d = 0; d < 4; ++d) drawColors[d] = useColors;
     n = 4;
     PetscCall(PetscOptionsGetBoolArray(((PetscObject)viewer)->options, ((PetscObject)viewer)->prefix, "-dm_plex_view_numbers_depth", drawNumbers, &n, &flg));
     PetscCheck(!flg || n == dim + 1, PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_SIZ, "Number of flags %" PetscInt_FMT " != %" PetscInt_FMT " dim+1", n, dim + 1);
