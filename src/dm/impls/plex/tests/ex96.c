@@ -6,6 +6,8 @@ static char help[] = "Geometric multigrid Poisson solver on Tokamak domain with 
 
 typedef struct {
   PetscInt  dim;
+  PetscInt  print;
+  /* geometry */
   PetscBool use_360_domains;
   char      filename[PETSC_MAX_PATH_LEN];
   /* torus geometry  */
@@ -25,6 +27,8 @@ typedef struct {
   PetscReal theta;
   PetscReal n;
   PetscReal shift;
+  /* cache */
+  PetscInt seqence_number;
 } AppCtx;
 
 /* q: safty factor */
@@ -53,6 +57,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *ctx)
   ctx->n                     = 1;
   ctx->theta                 = .05;
   ctx->shift                 = 1;
+  ctx->print = 1;
   PetscOptionsBegin(comm, "tor_", "Tokamak solver", "DMPLEX");
   PetscCall(PetscOptionsInt("-dim", "The dimension of problem (2 is for debugging)", "ex96.c", ctx->dim, &ctx->dim, NULL));
   PetscCheck(ctx->dim == 2 || ctx->dim == 3, comm, PETSC_ERR_ARG_WRONG, "dim (%d) != 2 or 3", (int)ctx->dim);
@@ -64,6 +69,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *ctx)
   PetscCall(PetscOptionsInt("-toroidal_refine", "Number of refinement steps in toroidal direction (new levels, semi-coarsening)", "ex96.c", ctx->toroidal_refine, &ctx->toroidal_refine, NULL));
   PetscCall(PetscOptionsInt("-poloidal_refine", "Number of refinement steps in poloidal plane (new levels)", "ex96.c", ctx->poloidal_refine, &ctx->poloidal_refine, NULL));
   PetscCall(PetscOptionsInt("-uniform_poloidal_refine", "Uniform poloidal plane refinement levels are created", "ex96.c", ctx->uniform_poloidal_refine, &ctx->uniform_poloidal_refine, NULL));
+  PetscCall(PetscOptionsInt("-print", "Print period, 0 for no printing, -1 for first and last", "ex96.c", ctx->print, &ctx->print, NULL));
   PetscCall(PetscOptionsBool("-use_360_domains", "inflate domain factor from minor radius", "ex96.c", ctx->use_360_domains, &ctx->use_360_domains, NULL));
   PetscCall(PetscOptionsReal("-anisotropic", "Anisotropic epsilon", "ex96.c", ctx->anisotropic_eps, &ctx->anisotropic_eps, &ctx->anisotropic));
   if (size > 1) {
@@ -92,15 +98,14 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *ctx)
 PetscErrorCode Monitor(TS ts, PetscInt stepi, PetscReal time, Vec X, void *actx)
 {
   TSConvergedReason reason;
+  AppCtx   *ctx = (AppCtx *)actx;
 
   PetscFunctionBeginUser;
   PetscCall(TSGetConvergedReason(ts, &reason));
-  if (reason || 1) {
-    PetscInt id;
+  if (ctx->print && ((ctx->print<0 && (reason || stepi==0)) || (ctx->print>0 && stepi%ctx->print==0))) {
     DM       dm;
-    PetscCall(TSGetDM(ts, &dm));
-    PetscCall(DMGetOutputSequenceNumber(dm, &id, NULL));
-    PetscCall(DMSetOutputSequenceNumber(dm, id + 1, time));
+    PetscCall(VecGetDM(X, &dm));
+    PetscCall(DMSetOutputSequenceNumber(dm, ctx->seqence_number++, time));
     PetscCall(VecViewFromOptions(X, NULL, "-tor_vec_view"));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -277,11 +282,20 @@ static PetscErrorCode b_vec(PetscInt dim, PetscReal time, const PetscReal x[], P
 static void g3_anisotropic(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a_a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal xx[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g3[])
 {
   PetscInt        ii;
-  PetscReal       x_vec[3] = {0, 0, 0}, bb[3] = {0, 0, 0}, aa[] = {0, 0, 0}, xdot = 0, vv[3] = {0, 0, 0}, dphi, qsaf, theta, psi, R, phi = 0.0, cc, ss, RR[3][3], fact, det = 0, invR[3][3];
-  const PetscReal dt = PETSC_SQRT_MACHINE_EPSILON, vpar = 1, (*DD)[3][3] = (PetscReal(*)[3][3])constants;
+  PetscReal       x_vec[3] = {0, 0, 0}, bb[3] = {0, 0, 0}, aa[] = {0, 0, 0}, xdot = 0, vv[3] = {0, 0, 0}, dphi, qsaf, theta, psi, R, phi = 0.0, cc, ss, RR[3][3], fact, det = 0, invR[3][3], vpar;
+  const PetscReal dt = PETSC_SQRT_MACHINE_EPSILON, (*DD)[3][3] = (PetscReal(*)[3][3])constants;
   // push coordinate along field line and do FD to get vector b
   PetscFunctionBegin;
-  for (PetscInt i = 0; i < dim; i++) x_vec[i] = xx[i]; // copy into padded vec for 2D
+  for ( ii = 0, vpar = 0; ii < dim; ii++) {
+    x_vec[ii] = xx[ii]; // copy into padded vec for 2D
+    vpar += xx[ii] * xx[ii];
+  }
+  vpar = 1 / PetscSqrtReal(vpar);
+  if (vpar < PETSC_MACHINE_EPSILON) {
+    for (PetscInt d = 0 ; d < dim; ++d) g3[d * dim + d] = 1;
+    printf("** |b| = 0 ** *********** origin: x = %e %e, |x| = %e  ***********\nD = %e %e \n    %e %e\n", xx[0], xx[1], vpar, g3[0], g3[1], g3[2], g3[3]);
+    return;
+  }
   if (dim == 2) {
     CartTocyl2D(0, R, x_vec, psi, theta);
   } else {
@@ -299,12 +313,6 @@ static void g3_anisotropic(PetscInt dim, PetscInt Nf, PetscInt NfAux, const Pets
   for (PetscInt i = 0; i < 3; i++) {
     bb[i] = (aa[i] - x_vec[i]) / dt;
     xdot += bb[i] * bb[i];
-  }
-  //printf("** xdot = %e\n", xdot);
-  if (xdot < PETSC_MACHINE_EPSILON) {
-    for (PetscInt d = 0 ; d < dim; ++d) g3[d * dim + d] = 1;
-    printf("** |b| = 0 ** *********** origin: x = %e %e, xdot = %e  ***********\nD = %e %e \n    %e %e\n", xx[0], xx[1], xdot, g3[0], g3[1], g3[2], g3[3]);
-    return;
   }
   xdot = 1 / PetscSqrtReal(xdot);
   for (PetscInt i = 0; i < 3; i++) bb[i] *= xdot;
@@ -422,7 +430,6 @@ static PetscErrorCode SetupProblem(DM dm, AppCtx *ctx)
   //const PetscInt id = 1;
 
   PetscFunctionBeginUser;
-  printf("ctx->anisotropic = %d\n", ctx->anisotropic);
   PetscCall(DMGetDS(dm, &ds));
   if (ctx->anisotropic) {
     PetscReal eps[3][3] = {
@@ -716,12 +723,10 @@ int main(int argc, char **argv)
   /* initialize u */
   PetscCall(DMCreateGlobalVector(dm, &u));
   PetscCall(PetscObjectSetName((PetscObject)u, "u"));
+  ctx->seqence_number = 0;
   initu[0] = maxwellian;
   PetscCall(DMProjectFunction(dm, 0.0, initu, (void **)mctxs, INSERT_ALL_VALUES, u));
   PetscCall(TSSetSolution(ts, u));
-  /* view */
-  PetscCall(DMSetOutputSequenceNumber(dm, 0, 0.0));
-  PetscCall(VecViewFromOptions(u, NULL, "-tor_vec_view"));
   /* solve */
   PetscCall(TSSolve(ts, u));
   if (verbose) {
