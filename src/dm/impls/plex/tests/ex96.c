@@ -274,7 +274,7 @@ static PetscErrorCode b_vec(PetscInt dim, PetscReal time, const PetscReal x[], P
     __v[2] = __a[0] * __b[1] - __a[1] * __b[0]; \
   }
 
-static void g3_anisotropic(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar a_u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a_a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal xx[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g3[])
+static void g3_anisotropic(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a_a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal xx[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g3[])
 {
   PetscInt        ii;
   PetscReal       x_vec[3] = {0, 0, 0}, bb[3] = {0, 0, 0}, aa[] = {0, 0, 0}, xdot = 0, vv[3] = {0, 0, 0}, dphi, qsaf, theta, psi, R, phi = 0.0, cc, ss, RR[3][3], fact, det = 0, invR[3][3];
@@ -300,15 +300,15 @@ static void g3_anisotropic(PetscInt dim, PetscInt Nf, PetscInt NfAux, const Pets
     bb[i] = (aa[i] - x_vec[i]) / dt;
     xdot += bb[i] * bb[i];
   }
-  printf("|b| = %e numConstants = %d\n",xdot,numConstants);
-  if (xdot < PETSC_SQRT_MACHINE_EPSILON) {
-    for (PetscInt d = 0, di = (dim==2) ? 1 : 0 ; d < dim; ++d, di++) g3[d * dim + d] = (*DD)[di][di]; // need to rotate this by phi
+  //printf("** xdot = %e\n", xdot);
+  if (xdot < PETSC_MACHINE_EPSILON) {
+    for (PetscInt d = 0 ; d < dim; ++d) g3[d * dim + d] = 1;
+    printf("** |b| = 0 ** *********** origin: x = %e %e, xdot = %e  ***********\nD = %e %e \n    %e %e\n", xx[0], xx[1], xdot, g3[0], g3[1], g3[2], g3[3]);
     return;
   }
   xdot = 1 / PetscSqrtReal(xdot);
   for (PetscInt i = 0; i < 3; i++) bb[i] *= xdot;
   // make unit vector aa: phi vector
-  // printf("%e %e\n",(*DD)[0][0],(*DD)[2][2]);
   // need to rotate diag(eps, eps, 1) by angle between q0_vec and x_vec
   if (dim == 2) { // simply make (0,1)
     aa[0] = 0;
@@ -326,13 +326,18 @@ static void g3_anisotropic(PetscInt dim, PetscInt Nf, PetscInt NfAux, const Pets
   }
   // Let v = a x b
   CROSS3(aa, bb, vv);
-  // if (dim==2) printf("v = %e %e %e; a = %e %e %e; b = %e %e %e; \n",vv[0], vv[1], vv[2], aa[0], aa[1], aa[2], bb[0], bb[1], bb[2]); // (0,1,0)
+  //if (dim==2) printf("v = %e %e %e; a = %e %e %e; b = %e %e %e; x = %e %e\n",vv[0], vv[1], vv[2], aa[0], aa[1], aa[2], bb[0], bb[1], bb[2], xx[0], xx[1]); // (0,1,0)
   // get rotation matrix R
   for (ii = 0, cc = 0; ii < 3; ii++) cc += aa[ii] * bb[ii];
   for (ii = 0, ss = 0; ii < 3; ii++) ss += vv[ii] * vv[ii];
   ss = PetscSqrtReal(ss);
+  if (ss < PETSC_SQRT_MACHINE_EPSILON ||1) {
+    for (PetscInt d = 0, di = (dim==2) ? 1 : 0 ; d < dim; ++d, di++) g3[d * dim + d] = (*DD)[di][di]; // need to rotate this by phi
+    //printf("** a == b ** x = %e %e\nD = %e %e \n    %e %e\n", xx[0], xx[1], g3[0], g3[1], g3[2], g3[3]);
+    return;
+  }
   fact = 1/(1+cc);
-  printf("v = %e %e %e; c = %e;  s = %e; x = %e %e fact = %e\n", vv[0], vv[1], vv[2], cc, ss, xx[0], xx[1], fact);
+  //printf("v = %e %e %e; c = %e;  s = %e fact = %e\n", vv[0], vv[1], vv[2], cc, ss, fact);
   if (dim==2) {
     // ratation matrix
     PetscReal vx[2][2] = {{0,-vv[2]},{vv[2],0}}, vx2[2][2] = {{0,0},{0,0}}, adjA[2][2];
@@ -384,7 +389,22 @@ static void g3_anisotropic(PetscInt dim, PetscInt Nf, PetscInt NfAux, const Pets
   }
 }
 
-static void f0_zero(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
+static void f1_anisotropic(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f1[])
+{
+  PetscScalar g3[9];
+  for (PetscInt i = 0; i < 9; i++) g3[i] = 0;
+  g3_anisotropic( dim,  Nf, NfAux, uOff, uOff_x,  u, u_t, u_x, aOff, aOff_x, a, a_t, a_x, t, 0.0, x, numConstants, constants, g3);
+
+  for (PetscInt i = 0; i < dim; ++i) {
+    f1[i] = 0;
+    for (PetscInt j = 0; j < dim; ++j) {
+      f1[i] += g3[i * dim + j] * u_x[j];
+    }
+  }
+}
+
+
+static void f0_dt(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
 {
   f0[0] = u_t[0];
 }
@@ -402,10 +422,8 @@ static PetscErrorCode SetupProblem(DM dm, AppCtx *ctx)
   //const PetscInt id = 1;
 
   PetscFunctionBeginUser;
-  PetscCall(DMGetDS(dm, &ds));
-  PetscCall(DMGetLabel(dm, "marker", &label));
-  PetscCall(PetscDSSetJacobian(ds, 0, 0, g0_u, NULL, NULL, ctx->anisotropic ? g3_anisotropic : g3_uu));
   printf("ctx->anisotropic = %d\n", ctx->anisotropic);
+  PetscCall(DMGetDS(dm, &ds));
   if (ctx->anisotropic) {
     PetscReal eps[3][3] = {
       {ctx->anisotropic_eps, 0,                    0},
@@ -414,7 +432,15 @@ static PetscErrorCode SetupProblem(DM dm, AppCtx *ctx)
     };
     PetscCall(PetscDSSetConstants(ds, 9, (PetscReal *)eps));
   }
-  PetscCall(PetscDSSetResidual(ds, 0, f0_zero, f1_u));
+  PetscCall(DMGetLabel(dm, "marker", &label));
+  if (ctx->anisotropic) {
+    PetscCall(PetscDSSetJacobian(ds, 0, 0, g0_u, NULL, NULL, g3_anisotropic));
+    PetscCall(PetscDSSetResidual(ds, 0, f0_dt, f1_anisotropic));
+  } else {
+    PetscCall(PetscDSSetJacobian(ds, 0, 0, g0_u, NULL, NULL, g3_uu));
+    PetscCall(PetscDSSetResidual(ds, 0, f0_dt, f1_u));
+  }
+
   PetscCall(PetscDSSetExactSolution(ds, 0, u_zero, ctx));
   PetscCall(PetscDSSetExactSolutionTimeDerivative(ds, 0, u_zero, ctx));
   //PetscCall(DMAddBoundary(dm, DM_BC_ESSENTIAL, "wall", label, 1, &id, 0, 0, NULL, (void (*)(void))u_zero, NULL, ctx, NULL));
