@@ -369,7 +369,7 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
           /* Applying A: x' = A^-T x */
           PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &diff_blas, &diff_blas, &Alpha, &r_array[idx_blas*(lda_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
           /* Applying B: y' = y - B^T A^-T x */
-          PetscCallBLAS("BLASgemv", BLASgemv_("T",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
+          PetscCallBLAS("BLASgemv", BLASgemv_("T",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas], &lda_blas, &x_array[idx_blas], &one, &Alpha, x_array, &one));
           /* Applying C: y' = C^-T (y - B^T A^-T x) */
           PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &idx_blas, &idx_blas, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
           break;
@@ -512,6 +512,7 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   }
   /* Start with reusable part: rwork1 = R^-1 S^T F */
   PetscCall(MatMultTranspose(lbfgs->Sfull, F, lbfgs->rwork1));
+  //FOR REORDER: reorder rwork1
   PetscCall(MatSolveTriangular(H, lbfgs->StYfull, index, lbfgs->rwork1, MAT_CDBFGS_UPPER_TRIANGULAR));
 
   /* lwork1 :H_0 (F - Y R^{-1} S^T X) */
@@ -638,7 +639,7 @@ static PetscErrorCode MatAdd_LDLT(Mat B)
      //TODO technically we could do adaptive size for k<m, but later..
     PetscCall(PetscCalloc1(lmvm->m-i-1, &buffer));
     for (j=0; j < lmvm->m-i-1; j++) {
-      query_idx_j = (index + j) % lmvm->m;
+      query_idx_j = (index + j) % (lmvm->m-1);
       if (r_array[query_idx_i] != 0) {
         buffer[query_idx_j] = x_array[query_idx_i+query_idx_j+1]/r_array[query_idx_i];
       } else {
@@ -753,6 +754,11 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->Yfull, lbfgs->idx_cols, &workvec1));
 
       PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
+      //TODO above is okay for inplace. for reorder, need to shift/reorder so that sty is in canonical order, so that we only have one BLAS call per trsm
+      //
+      //REORDER: only reorder STY, and rwork1,rwork2 in matsolve
+      //INPLACE: no reordering, but 3 blas calls.
+      //
       PetscCall(MatGetDiagonal(lbfgs->StYfull, lbfgs->diag_vec));
 
       switch (lbfgs->strategy) {
@@ -783,10 +789,10 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
           PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->BS, i, &workvec2));
         }
       }
+#if 0      
       /* Compute S^T B S + L D^{-1} L^T
        * J = S^T B S + L D^{-1} L^T */
       PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->BS, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->J));
-#if 0
       /* Adds L D L^T to J matrix */
       PetscCall(MatAdd_LDLT(B));
 
@@ -804,7 +810,7 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
         PetscCall(MatCholeskyFactor(lbfgs->J_solve,NULL,NULL));
         PetscCall(MatDenseRestoreSubMatrix(lbfgs->J, &lbfgs->J_work));
       }
-#endif      
+#endif
     } else {
       /* Update is bad, skip it */
       ++lmvm->nrejects;
