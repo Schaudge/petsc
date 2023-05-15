@@ -331,7 +331,7 @@ static void g3_anisotropic(PetscInt dim, PetscInt Nf, PetscInt NfAux, const Pets
   for (ii = 0, cc = 0; ii < 3; ii++) cc += aa[ii] * bb[ii];
   for (ii = 0, ss = 0; ii < 3; ii++) ss += vv[ii] * vv[ii];
   ss = PetscSqrtReal(ss);
-  if (ss < PETSC_SQRT_MACHINE_EPSILON ||1) {
+  if (ss < PETSC_SQRT_MACHINE_EPSILON) {
     for (PetscInt d = 0, di = (dim==2) ? 1 : 0 ; d < dim; ++d, di++) g3[d * dim + d] = (*DD)[di][di]; // need to rotate this by phi
     //printf("** a == b ** x = %e %e\nD = %e %e \n    %e %e\n", xx[0], xx[1], g3[0], g3[1], g3[2], g3[3]);
     return;
@@ -344,7 +344,7 @@ static void g3_anisotropic(PetscInt dim, PetscInt Nf, PetscInt NfAux, const Pets
     for (PetscInt i = 0; i < dim; ++i)
       for (PetscInt j = 0; j < dim; ++j)
         for (PetscInt k = 0; k < dim; ++k)
-          vx2[i][k] += vx[i][j] + vx[j][k];
+          vx2[i][k] += vx[i][j] * vx[j][k];
     for (PetscInt i = 0; i < dim; ++i) {
       for (PetscInt j = 0; j < dim; ++j) {
         if (i==j) RR[i][j] = 1;
@@ -370,12 +370,12 @@ static void g3_anisotropic(PetscInt dim, PetscInt Nf, PetscInt NfAux, const Pets
         for (PetscInt k = 0, dk = 1; k < dim; ++k, dk++)
           for (PetscInt q = 0; q < dim; ++q)
             g3[i * dim + q] += RR[i][j] * (*DD)[dj][dk] * invR[k][q];
-    printf("D = %e %e \n    %e %e\n", g3[0], g3[1], g3[2], g3[3]);
+    //printf("D = %e %e \n    %e %e\n", g3[0], g3[1], g3[2], g3[3]);
   } else {
     
 
 
-    
+   
     /*  // inverse RR */
     det = 0;
     for(PetscInt i=0;i<3;i++)
