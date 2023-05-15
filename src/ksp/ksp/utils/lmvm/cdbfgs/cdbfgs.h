@@ -7,7 +7,8 @@
 typedef struct {
   Mat       diag_bfgs;                                   /* diagonalized Hessian init */
 
-  PetscInt  idx_begin;                                   // index of the oldest colums in Sfull and Yfull
+  PetscInt  idx_begin, idx_b_r;                // index of the oldest colums in Sfull and Yfull. 
+  PetscInt  idx_rplc;                                    /* idx_begin+1. For reordering STY in replace strat */
   Mat       Sfull, Yfull, StYfull;                                // Stored in recycled order
   Mat       Q; // H_0 Y
   Mat       LDLT, BS; //S^T B_0 S (m x m)                 
