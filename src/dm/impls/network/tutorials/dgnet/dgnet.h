@@ -32,11 +32,6 @@ struct _p_DGNETJunction {
 } PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
 typedef struct _p_DGNETJunction *DGNETJunction;
 
-struct _p_MultirateCtx {
-  PetscInt tobufferlvl, frombufferlvl; /* Level of the buffer on the to and from ends of the edge. lvl 0 refers to no buffer at all */
-} PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
-typedef struct _p_MultirateCtx *MultirateCtx;
-
 struct _p_EdgeFE {
   /* solver objects */
   PetscReal cfl_idt; /* Max allowable value of fvnet->cfl/Delta t on this edge*/
