@@ -16,6 +16,17 @@ typedef struct {
   PetscBool   written; /* something has been written to the current frame */
 } PetscDraw_TikZ;
 
+struct _p_pgfplotAxis {
+PetscReal xmin,xmax; 
+PetscReal ymin,ymax; 
+PetscReal zmin,zmax; 
+char*     xlabel,ylabel,zlabel; 
+PetscReal* xtick,ytick,ztick; 
+PetscInt   numxtick,numytick,numztick; 
+char **   xticklabels,yticklabels,zticklabels; 
+};
+
+typedef struct _p_pgfplotAxis *pgfplotAxis;
 #define TikZ_BEGIN_DOCUMENT \
   "\\documentclass{beamer}\n\n\
 \\usepackage{tikz}\n\
