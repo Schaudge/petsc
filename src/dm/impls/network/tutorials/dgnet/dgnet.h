@@ -14,11 +14,6 @@ PETSC_EXTERN PetscLogEvent DGNET_RHS_COMM;
 PETSC_EXTERN PetscLogEvent DGNET_SetUP;
 PETSC_EXTERN PetscLogEvent DGNET_RHS_Vert;
 
-/* Function Specification for coupling flux calculations at the vertex */
-typedef PetscErrorCode (*VertexFlux)(const void *, const PetscScalar *, const PetscBool *, PetscScalar *, PetscScalar *, const void *);
-
-/* Network Data Structures */
-
 /* Component numbers used for accessing data in DMNetWork*/
 typedef enum {
   FVEDGE = 0
@@ -43,24 +38,16 @@ struct _p_EdgeFE {
 } PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
 typedef struct _p_EdgeFE *EdgeFE;
 
-/* Specification for vertex flux assignment functions */
-typedef PetscErrorCode (*VertexFluxAssignment)(const void *, DGNETJunction);
-typedef PetscErrorCode (*VertexFluxDestroy)(const void *, DGNETJunction);
 
 typedef PetscErrorCode (*RiemannFunction)(void *, PetscInt, const PetscScalar *, const PetscScalar *, PetscScalar *, PetscReal *);
 typedef PetscErrorCode (*ReconstructFunction)(void *, PetscInt, const PetscScalar *, PetscScalar *, PetscScalar *, PetscReal *);
 
-/*
-  TODO : Change phuysics struct to use fluxfunction class to be created.
-*/
 typedef struct {
   PetscErrorCode (*samplenetwork)(void *, PetscInt, PetscReal, PetscReal, PetscReal *, PetscInt);
   PetscErrorCode (*inflow)(void *, PetscReal, PetscReal, PetscReal *);
   PetscErrorCode (*flux)(void *, const PetscReal *, PetscReal *);
   RiemannFunction      riemann;
   ReconstructFunction  characteristic;
-  VertexFluxAssignment vfluxassign;
-  VertexFluxDestroy    vfluxdestroy;
   PetscErrorCode (*destroy)(void *);
   void                  *user;
   PetscInt               dof;
