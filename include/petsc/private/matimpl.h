@@ -112,7 +112,7 @@ struct _MatOps {
   PetscErrorCode (*destroy)(Mat);
   PetscErrorCode (*view)(Mat, PetscViewer);
   PetscErrorCode (*convertfrom)(Mat, MatType, MatReuse, Mat *);
-  PetscErrorCode (*placeholder_63)(void);
+  PetscErrorCode (*isreal)(Mat, PetscReal, PetscBool *);
   /*64*/
   PetscErrorCode (*matmatmultsymbolic)(Mat, Mat, Mat, PetscReal, Mat);
   PetscErrorCode (*matmatmultnumeric)(Mat, Mat, Mat, Mat);
@@ -448,6 +448,7 @@ typedef struct { /* used by MatProduct() */
   PetscBool clear;                   /* whether or not to clear the data structures after MatProductNumeric has been called */
   void     *data;                    /* where to stash those structures */
   PetscErrorCode (*destroy)(void *); /* destroy routine */
+  PetscBool      hermitian_transpose;
 } Mat_Product;
 
 #if PetscDefined(USE_COMPLEX)

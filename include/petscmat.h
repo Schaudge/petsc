@@ -728,6 +728,7 @@ PETSC_EXTERN PetscErrorCode MatIsStructurallySymmetricKnown(Mat, PetscBool *, Pe
 PETSC_EXTERN PetscErrorCode MatIsSPDKnown(Mat, PetscBool *, PetscBool *);
 PETSC_EXTERN PetscErrorCode MatIsHPDKnown(Mat, PetscBool *, PetscBool *);
 PETSC_EXTERN PetscErrorCode MatIsPositiveDefiniteKnown(Mat, PetscBool *, PetscBool *);
+PETSC_EXTERN PetscErrorCode MatIsReal(Mat, PetscReal, PetscBool *);
 PETSC_EXTERN PetscErrorCode MatMissingDiagonal(Mat, PetscBool *, PetscInt *);
 PETSC_EXTERN PetscErrorCode MatLoad(Mat, PetscViewer);
 
@@ -1904,16 +1905,16 @@ typedef enum {
   MATOP_DESTROY                  = 60,
   MATOP_VIEW                     = 61,
   MATOP_CONVERT_FROM             = 62,
-  /* MATOP_PLACEHOLDER_63=63 */
-  MATOP_MATMAT_MULT_SYMBOLIC    = 64,
-  MATOP_MATMAT_MULT_NUMERIC     = 65,
-  MATOP_SET_LOCAL_TO_GLOBAL_MAP = 66,
-  MATOP_SET_VALUES_LOCAL        = 67,
-  MATOP_ZERO_ROWS_LOCAL         = 68,
-  MATOP_GET_ROW_MAX_ABS         = 69,
-  MATOP_GET_ROW_MIN_ABS         = 70,
-  MATOP_CONVERT                 = 71,
-  MATOP_HAS_OPERATION           = 72,
+  MATOP_IS_REAL                  = 63,
+  MATOP_MATMAT_MULT_SYMBOLIC     = 64,
+  MATOP_MATMAT_MULT_NUMERIC      = 65,
+  MATOP_SET_LOCAL_TO_GLOBAL_MAP  = 66,
+  MATOP_SET_VALUES_LOCAL         = 67,
+  MATOP_ZERO_ROWS_LOCAL          = 68,
+  MATOP_GET_ROW_MAX_ABS          = 69,
+  MATOP_GET_ROW_MIN_ABS          = 70,
+  MATOP_CONVERT                  = 71,
+  MATOP_HAS_OPERATION            = 72,
   /* MATOP_PLACEHOLDER_73=73, */
   MATOP_SET_VALUES_ADIFOR = 74,
   MATOP_FD_COLORING_APPLY = 75,

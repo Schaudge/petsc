@@ -9956,6 +9956,26 @@ PetscErrorCode MatFactorFactorizeSchurComplement(Mat F)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode MatPtAPPropagateSymmetry(Mat A, Mat P, Mat PtAP)
+{
+
+  PetscFunctionBegin;
+  if (A->is.symmetric == PETSC_BOOL3_TRUE) PetscCall(MatSetOption(PtAP, MAT_SYMMETRIC, PETSC_TRUE));
+  if (PetscDefined(USE_COMPLEX) && A->is.hermitian) {
+    PetscBool is_real = PETSC_TRUE;
+
+    //PetscCall(MatIsReal(P, PETSC_SMALL, &is_real));
+    if (is_real) PetscCall(MatSetOption(PtAP, MAT_HERMITIAN, PETSC_TRUE));
+    else         PetscCall(PetscInfo(PtAP, "P^T A P computed when P has complex entries, result is not hermitian"));
+
+    if (A->positive_definite == PETSC_BOOL3_TRUE && is_real) PtAP->positive_definite = PETSC_BOOL3_TRUE;
+  } else {
+    if (A->positive_definite == PETSC_BOOL3_TRUE) PtAP->positive_definite = PETSC_BOOL3_TRUE;
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
 /*@
    MatPtAP - Creates the matrix product C = P^T * A * P
 
@@ -10004,8 +10024,7 @@ PetscErrorCode MatPtAP(Mat A, Mat P, MatReuse scall, PetscReal fill, Mat *C)
   }
 
   PetscCall(MatProductNumeric(*C));
-  (*C)->is.symmetric      = A->is.symmetric;
-  (*C)->positive_definite = A->positive_definite;
+  PetscCall(MatPtAPPropagateSymmetry(A, P, *C));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -10059,7 +10078,8 @@ PetscErrorCode MatRARt(Mat A, Mat R, MatReuse scall, PetscReal fill, Mat *C)
   }
 
   PetscCall(MatProductNumeric(*C));
-  if (A->is.symmetric == PETSC_BOOL3_TRUE) PetscCall(MatSetOption(*C, MAT_SYMMETRIC, PETSC_TRUE));
+
+  PetscCall(MatPtAPPropagateSymmetry(A, R, *C));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
