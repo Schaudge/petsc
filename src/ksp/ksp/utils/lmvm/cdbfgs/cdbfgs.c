@@ -127,6 +127,10 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
   PetscCall(MatDenseGetArrayReadAndMemType(lbfgs->StYfull, &r_array, &memtype_r));
   //TODO mat and input vec size check assert
   //TODO only doing for memtype HOST now. waiting for other branch
+  /* We need four int for dimensions. 
+   * C : [index-1 x index-1], strictly LT
+   * D : [index x m-index] 
+   * A : [m-index-1 x m-index-1], strictly LT */
   switch (tri_type) {
   case MAT_CDBFGS_LOWER_TRIANGULAR:
     switch (lbfgs->strategy) {
@@ -138,11 +142,6 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
       break;
     case MAT_LBFGS_CD_INPLACE:
       {
-        /* We need four int for dimensions. 
-         * C : [index-1 x index-1], strictly LT
-         * D : [index x m-index] 
-         * A : [m-index-1 x m-index-1], strictly LT */
-
         PetscBLASInt idx_blas, lda_blas, idx_n_1, diff_blas, diff_blas_n_1, one = 1;
         PetscCall(PetscBLASIntCast(index, &idx_blas));
         PetscCall(PetscBLASIntCast(lda, &lda_blas));
@@ -153,7 +152,6 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
 	} else {
           PetscCall(PetscBLASIntCast(index - 1, &idx_n_1));
 	}
-
         /* Lower Triangular Normal Case:
          * Below, C,A are Strictly LT, and D is rectangular.
          * [ C | D ] [y] => [ C y + D x ]
@@ -198,10 +196,6 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
       break;
     case MAT_LBFGS_CD_INPLACE:
       {
-        /* We need four int for dimensions. 
-         * C : [index-1 x index-1], strictly LT
-         * D : [idx x m - idx]
-         * A : [m-index-1 x m-index-1], strictly LT */
         PetscBLASInt idx_blas, lda_blas, idx_n_1, diff_blas, diff_blas_n_1, one = 1;
         PetscCall(PetscBLASIntCast(index, &idx_blas));
         PetscCall(PetscBLASIntCast(lda, &lda_blas));
@@ -216,12 +210,7 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
         /* Lower Triangular Transpose Case:
          * Below, C,A are Strictly LT, and D is rectangular.
          * [ C^T |  0  ] [y] => [     C^T y     ]
-         * [ D^T | A^T ] [x]    [ D^T y + A^T x ]
-         *
-         * Note: Actual storage is in 
-         * [ C | D ] 
-         * [ B | A ]  form. */
-
+         * [ D^T | A^T ] [x]    [ D^T y + A^T x ] */
         /* Copy  y */
         PetscScalar *buffer;
         PetscCall(PetscCalloc1(index, &buffer));
@@ -330,11 +319,9 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
             PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &m_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
             break;
           case MAT_CDBFGS_LOWER_TRIANGULAR:
-            PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Lower", "Normal", "NotUnitTriangular", &m_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
-            break;
           case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
-            PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Lower", "Transpose", "NotUnitTriangular", &m_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
-            break;
+          default:
+            SETERRQ(comm, PETSC_ERR_SUP, "MatSolveTriangular is only for Upper Triangular Matrices.");
           }  
         }
         break;
@@ -354,11 +341,9 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
             PetscCallCUBLAS("cublastrsm", cublastrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &m_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
             break;
           case MAT_CDBFGS_LOWER_TRIANGULAR:
-            PetscCallCUBLAS("cublastrsm", cublastrsm_("Left", "Lower", "Normal", "NotUnitTriangular", &m_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
-            break;
           case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
-            PetscCallCUBLAS("cublastrsm", cublastrsm_("Left", "Lower", "Transpose", "NotUnitTriangular", &m_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
-            break;
+          default:
+            SETERRQ(comm, PETSC_ERR_SUP, "MatSolveTriangular is only for Upper Triangular Matrices.");
           }
         }
 #endif
@@ -378,11 +363,9 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
             PetscCallHIPBLAS("hipblastrsm", hipblastrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &m_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
             break;
           case MAT_CDBFGS_LOWER_TRIANGULAR:
-            PetscCallHIPBLAS("hipblastrsm", hipblastrsm_("Left", "Lower", "Normal", "NotUnitTriangular", &m_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
-            break;
           case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
-            PetscCallHIPBLAS("hipblastrsm", hipblastrsm_("Left", "Lower", "Transpose", "NotUnitTriangular", &m_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
-            break;
+          default:
+            SETERRQ(comm, PETSC_ERR_SUP, "MatSolveTriangular is only for Upper Triangular Matrices.");
           }
         }
 #endif
@@ -451,29 +434,9 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
           PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &idx_blas, &idx_blas, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
           break;
         case MAT_CDBFGS_LOWER_TRIANGULAR:
-          /* Lower Triangular Case:
-           * Below, C,A are LT.
-           * [ C | D ]^-1 [y] => [C^-1(y - D A^-1 x)]
-           * [ 0 | A ]    [x]    [A^-1 x            ] */
-          /* Applying A: x' = A^-1 x */
-          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Lower", "Normal", "NotUnitTriangular", &diff_blas, &diff_blas, &Alpha, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
-          /* Applying D: y' = y - D A^-1 x */
-          PetscCallBLAS("BLASgemv", BLASgemv_("N",  &idx_blas, &diff_blas, &neg_one, &r_array[idx_blas*lda_blas], &lda_blas, &x_array[idx_blas], &one, &Alpha, &x_array[idx_blas], &one));
-          /* Applying C: y' = C^-1 (y - D A^-1 x) */
-          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Lower", "Normal", "NotUnitTriangular", &idx_blas, &idx_blas, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
-          break;
         case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
-          /* Lower Triangular Transpose Case:
-           * Below, C,A are LT.
-           * [ C | D ]^-T [y] => [C^-T                 ]
-           * [ 0 | A ]    [x]    [A^-T (x - D^T C^-T y)] */
-          /* Applying C: y' = C^-T y */
-          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Lower", "Transpose", "NotUnitTriangular", &idx_blas, &idx_blas, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
-          /* Applying D: x' = x - D^T C^-T y */
-          PetscCallBLAS("BLASgemv", BLASgemv_("T",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas*lda_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
-          /* Applying A: x' = A^-T (x - D^T C^-T y) */
-          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Lower", "Transpose", "NotUnitTriangular", &diff_blas, &diff_blas, &Alpha, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
-          break;
+        default:
+          SETERRQ(comm, PETSC_ERR_SUP, "MatSolveTriangular is only for Upper Triangular Matrices.");
         }
       }
     break;
@@ -501,15 +464,9 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
           PetscCallCUBLAS("cublastrsm", cublastrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
           break;
         case MAT_CDBFGS_LOWER_TRIANGULAR:
-          PetscCallCUBLAS("cublastrsm", cublastrsm_("Left", "Lower", "Normal", "NotUnitTriangular", &diff_blas, &one, &Alpha, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
-          PetscCallCUBLAS("cublasDgemv", cublasDgemv_("N",  &idx_blas, &diff_blas, &neg_one, &r_array[idx_blas*lda_blas], &lda_blas, &x_array[idx_blas], &one, &Alpha, &x_array[idx_blas], &one));
-          PetscCallCUBLAS("cublastrsm", cublastrsm_("Left", "Lower", "Normal", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
-          break;
         case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
-          PetscCallCUBLAS("cublastrsm", cublastrsm_("Left", "Lower", "Transpose", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
-          PetscCallCUBLAS("cublasDgemv", cublasDgemv_("T",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas*lda_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
-          PetscCallCUBLAS("cublastrsm", cublastrsm_("Left", "Lower", "Transpose", "NotUnitTriangular", &diff_blas, &one, &Alpha, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
-          break;
+        default:
+          SETERRQ(comm, PETSC_ERR_SUP, "MatSolveTriangular is only for Upper Triangular Matrices.");
         }  
       }
 #endif      
@@ -537,15 +494,9 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
           PetscCallHIPBLAS("hipblastrsm", hipblastrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
           break;
         case MAT_CDBFGS_LOWER_TRIANGULAR:
-          PetscCallHIPBLAS("hipblastrsm", hipblastrsm_("Left", "Lower", "Normal", "NotUnitTriangular", &diff_blas, &one, &Alpha, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
-          PetscCallHIPBLAS("hipblasDgemv", hipblasDgemv_("N",  &idx_blas, &diff_blas, &neg_one, &r_array[idx_blas*lda_blas], &lda_blas, &x_array[idx_blas], &one, &Alpha, &x_array[idx_blas], &one));
-          PetscCallHIPBLAS("hipblastrsm", hipblastrsm_("Left", "Lower", "Normal", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
-          break;
         case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
-          PetscCallHIPBLAS("hipblastrsm", hipblastrsm_("Left", "Lower", "Transpose", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
-          PetscCallHIPBLAS("hipblasDgemv", hipblasDgemv_("T",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas*lda_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
-          PetscCallHIPBLAS("hipblastrsm", hipblastrsm_("Left", "Lower", "Transpose", "NotUnitTriangular", &diff_blas, &one, &Alpha, &r_array[idx_blas*(m_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
-          break;
+        default:
+          SETERRQ(comm, PETSC_ERR_SUP, "MatSolveTriangular is only for Upper Triangular Matrices.");
         }  
       }
 #endif      
@@ -656,7 +607,7 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
  * where J J^T = S^T B_0 S + L D^{-1} L^T. J exsits and is non singular.
  *
  * Byrd, Nocedal, Schnabel 1994                                            */
-//TODO shift after MultTranspose here...
+
 static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
 {
   Mat_LMVM     *lmvm  = (Mat_LMVM*)B->data;
