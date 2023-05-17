@@ -233,10 +233,10 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
         }
         /* Applying A^T: x' = A^T x */
         if (index != lmvm->k) {
-          PetscCallBLAS("BLAStrsm", BLAStrmv_("Lower", "Transpose", "NotUnitTriangular", &diff_blas_n_1, &r_array[idx_blas*(lda_blas+1)], &lda_blas, &x_array[idx_blas], &one));
+          PetscCallBLAS("BLAStrsm", BLAStrmv_("Lower", "Transpose", "NotUnitTriangular", &diff_blas_n_1, &r_array[idx_blas*(lda_blas+1)+1], &lda_blas, &x_array[idx_blas], &one));
           x_array[lmvm->k] = 0;
         }
-        /* Applying D^T: y' = y' + B^T x */
+        /* Applying D^T: y' = y' + D^T x */
         if (index != 0) {
           PetscCallBLAS("BLASgemv", BLASgemv_("T", &diff_blas, &idx_blas, &Alpha, &r_array[idx_blas*lda], &lda_blas, &x_array[idx_blas], &one, &Alpha, x_array, &one));
           PetscCallBLAS("BLASgemv", BLASgemv_("N", &idx_blas, &diff_blas, &Alpha, &r_array[idx_blas*lda], &lda_blas, buffer, &one, &Alpha, x_array, &one));
