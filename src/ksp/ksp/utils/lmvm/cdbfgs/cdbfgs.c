@@ -139,9 +139,10 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
     case MAT_LBFGS_CD_INPLACE:
       {
         /* We need four int for dimensions. 
-         * C : idx - 1 by idx - 1. C as whole is idx by idx, but it is strictly LT - thus subtracting one. 
-         * B : m - idx by idx. 
-         * A : m - idx - 1 by m - idx - 1. D as whole is m - idx by m - idx. Subtract 1 for strictly LT */
+         * C : [index-1 x index-1], strictly LT
+         * D : [index x m-index] 
+         * A : [m-index-1 x m-index-1], strictly LT */
+
         PetscBLASInt idx_blas, lda_blas, idx_n_1, diff_blas, diff_blas_n_1, one = 1;
         PetscCall(PetscBLASIntCast(index, &idx_blas));
         PetscCall(PetscBLASIntCast(lda, &lda_blas));
@@ -154,19 +155,34 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
 	}
 
         /* Lower Triangular Normal Case:
-         * Below, C,A are Strictly LT, and B is rectangular.
-         * [ C | 0 ] [y] => [    C y    ]
-         * [ B | A ] [x]    [ B y + A x ] */
+         * Below, C,A are Strictly LT, and D is rectangular.
+         * [ C | D ] [y] => [ C y + D x ]
+         * [ 0 | A ] [x]    [    A x    ] */
+        /* Copy x for work */
+        PetscScalar *buffer;
+        PetscCall(PetscCalloc1(lmvm->m - index, &buffer));
+        PetscCall(PetscArraycpy(buffer, &x_array[index], lmvm->m-index));
+
+        //TODO technically, when size of BLAS call is only one, I can just manuall compute it to avoid BLAS kernel launch?
         /* Applying A: x' = A x */
-        PetscCallBLAS("BLAStrsm", BLAStrmv_("Lower", "Normal", "NotUnitTriangular", &diff_blas_n_1, &r_array[idx_blas*(lda_blas+1)], &lda_blas, &x_array[idx_blas+1], &one));
-        x_array[idx_blas] = 0;
-        /* Applying B: x' = x' + B y */
-        PetscCallBLAS("BLASgemv", BLASgemv_("N", &diff_blas, &idx_blas, &Alpha, &r_array[idx_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
-        /* Applying C: y' = C y */
-        if (index != 0) {//TODO this more-or-less assumes that idx=0 until k==m-1, I think?
-          PetscCallBLAS("BLAStrmv", BLAStrmv_("Lower", "Normal", "NotUnitTriangular", &idx_n_1, &r_array[1], &lda_blas, &x_array[1], &one));
-          x_array[0] = 0;
+        if (index != lmvm->k) {
+          PetscCallBLAS("BLAStrsm", BLAStrmv_("Lower", "Normal", "NotUnitTriangular", &diff_blas_n_1, &r_array[idx_blas*(lda_blas+1)+1], &lda_blas, &x_array[idx_blas], &one));
+          PetscCall(PetscArraymove(&x_array[idx_blas+1], &x_array[idx_blas], lmvm->m-index-1));
         }
+        x_array[idx_blas] = 0;
+
+        /* Applying C: buffer2 = C y */
+        if (index > 1) {
+          PetscCallBLAS("BLAStrmv", BLAStrmv_("Lower", "Normal", "NotUnitTriangular", &idx_n_1, &r_array[1], &lda_blas, x_array, &one));
+          PetscCall(PetscArraymove(&x_array[1], x_array, index-1));
+        }
+        x_array[0] = 0;
+
+        /* Applying D: buffer2 =  D x */
+        if (index != 0) {
+          PetscCallBLAS("BLASgemv", BLASgemv_("N", &idx_blas, &diff_blas, &Alpha, &r_array[idx_blas*lda], &lda_blas, buffer, &one, &Alpha, x_array, &one));
+        }
+        PetscCall(PetscFree(buffer));
       }
       break; 
     case MAT_LBFGS_BASIC:
@@ -183,9 +199,9 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
     case MAT_LBFGS_CD_INPLACE:
       {
         /* We need four int for dimensions. 
-         * C : idx - 1 by idx - 1. C as whole is idx by idx, but it is strictly LT - thus subtracting one. 
-         * B : m - idx by idx. 
-         * A : m - idx - 1 by m - idx - 1. D as whole is m - idx by m - idx. Subtract 1 for strictly LT */
+         * C : [index-1 x index-1], strictly LT
+         * D : [idx x m - idx]
+         * A : [m-index-1 x m-index-1], strictly LT */
         PetscBLASInt idx_blas, lda_blas, idx_n_1, diff_blas, diff_blas_n_1, one = 1;
         PetscCall(PetscBLASIntCast(index, &idx_blas));
         PetscCall(PetscBLASIntCast(lda, &lda_blas));
@@ -198,22 +214,28 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
 	}
 
         /* Lower Triangular Transpose Case:
-         * Below, C,A are Strictly LT, and B is rectangular.
-         * [ C^T | B^T ] [y] => [ C^T y + B^T x ]
-         * [  0  | A^T ] [x]    [     A^T x     ]
+         * Below, C,A are Strictly LT, and D is rectangular.
+         * [ C^T |  0  ] [y] => [     C^T y     ]
+         * [ D^T | A^T ] [x]    [ D^T y + A^T x ]
          *
          * Note: Actual storage is in 
          * [ C | D ] 
          * [ B | A ]  form. */
+
+        /* Copy  y */
+        PetscScalar *buffer;
+        PetscCall(PetscCalloc1(index, &buffer));
+        PetscCall(PetscArraycpy(buffer, x_array, index));
         /* Applying C: y' = C^T y */
-        if (index != 0) {//TODO this more-or-less assumes that idx=0 until k==m-1, I think?
+        if (index > 1) {
           PetscCallBLAS("BLAStrmv", BLAStrmv_("Lower", "Transpose", "NotUnitTriangular", &idx_n_1, &r_array[1], &lda_blas, x_array, &one));
-          x_array[idx_n_1] = 0;//TODO what happens when idx=1? x[0] = 0?
+          PetscCall(PetscArraymove(&x_array[1], x_array, index-1));
         }
-        /* Applying B^T: y' = y' + B^T x */
-        PetscCallBLAS("BLASgemv", BLASgemv_("T", &diff_blas, &idx_blas, &Alpha, &r_array[idx_blas], &lda_blas, &x_array[idx_blas+1], &one, &Alpha, x_array, &one));
+        x_array[0] = 0;//TODO what happens when idx=1? x[0] = 0?
         /* Applying A^T: x' = A^T x */
         PetscCallBLAS("BLAStrsm", BLAStrmv_("Lower", "Transpose", "NotUnitTriangular", &diff_blas_n_1, &r_array[idx_blas*(lda_blas+1)], &lda_blas, &x_array[idx_blas+1], &one));
+        /* Applying B^T: y' = y' + B^T x */
+        PetscCallBLAS("BLASgemv", BLASgemv_("T", &diff_blas, &idx_blas, &Alpha, &r_array[idx_blas], &lda_blas, &x_array[idx_blas+1], &one, &Alpha, x_array, &one));
       }
       break;
     case MAT_LBFGS_BASIC:
