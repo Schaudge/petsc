@@ -11,7 +11,7 @@ typedef struct {
   PetscInt  idx_rplc;                                    /* idx_begin+1. For reordering STY in replace strat */
   Mat       Sfull, Yfull, StYfull;                                // Stored in recycled order
   Mat       Q; // H_0 Y
-  Mat       LDLT, BS; //S^T B_0 S (m x m)                 
+  Mat       BS; //S^T B_0 S (m x m)                 
   Mat       L, J, J_work, J_solve, J_temp_copy;
   Vec       diag_vec;
   Vec       lwork1, lwork2, rwork1, rwork2, rwork3, rwork4;
