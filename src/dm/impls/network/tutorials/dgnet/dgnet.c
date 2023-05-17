@@ -291,7 +291,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
       }
       /* Edge */
       fvedges[0].nnodes = Mx;
-      fvedges[1].nnodes = dgnet->hratio * Mx;
+      fvedges[1].nnodes = Mx;
       fvedges[2].nnodes = Mx;
 
       for (i = 0; i < numEdges; i++) { fvedges[i].length = 50.0; }

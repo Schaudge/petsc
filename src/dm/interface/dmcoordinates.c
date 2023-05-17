@@ -309,7 +309,7 @@ PetscErrorCode DMSetCoordinateSection(DM dm, PetscInt dim, PetscSection section)
     }
     if (d >= 0) PetscCall(DMSetCoordinateDim(dm, d));
   } else {
-    PetscCall(DMSetCoordinateDim(dm,dim));
+    PetscCall(DMSetCoordinateDim(dm, dim));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

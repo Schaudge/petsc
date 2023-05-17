@@ -117,7 +117,6 @@ int main(int argc, char *argv[])
   dgnet->comm           = comm;
   dgnet->cfl            = 0.9;
   dgnet->networktype    = 6;
-  dgnet->hratio         = 1;
   maxtime               = 2.0;
   dgnet->Mx             = 10;
   dgnet->initial        = 1;

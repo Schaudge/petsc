@@ -64,7 +64,7 @@ struct _p_DGNetwork {
   Vec       RiemannData, Flux; /*used with NetRS*/
   DM        network;
   PetscInt  moni;
-  PetscBool view, linearcoupling, lincouplediff, tabulated, laxcurve, adaptivecouple;
+  PetscBool view, linearcoupling;
   PetscBool viewglvis, viewfullnet;
   PetscReal ymin, ymax, length, M, dx;
   char      prefix[256];
@@ -115,9 +115,7 @@ struct _p_DGNetwork {
   PetscReal   *uPlus;      /* Solution at the left of the interface in conservative variables, len = dof  uPlus_|_uL___cell_i___uR_|_ */
   PetscReal    cfl;
   PetscInt     initial, networktype, ndaughters;
-  PetscBool    simulation;
   PetscBool    exact;
-  PetscInt     hratio;
   PetscInt     Mx; /* Variable used to specify smallest number of cells for an edge in a problem */
 
   /* Junction */
@@ -187,8 +185,6 @@ struct _p_DGNetworkMonitor_Glvis {
   . physics
 
   Everything else is free to be altered as you see fit.
-
-  NOTE: Look up DMComposite Maybe the right thing for this situation ...
 */
 struct _p_DGNetwork_Nest {
   PetscInt                numsimulations, numwrkvec, nummonitors;
@@ -215,9 +211,6 @@ extern PetscErrorCode DGNetworkCleanUp(DGNetwork);
    the vertex data structures needed for evaluating the edge data they
    'steal' */
 extern PetscErrorCode DGNetworkCreateVectors(DGNetwork);
-/* Assign the coupling condition functions to the vertices of the network based
-   user provided vfluxassign function */
-extern PetscErrorCode DGNetworkAssignCoupling(DGNetwork);
 /* Add dynamic data to the distributed network. */
 extern PetscErrorCode DGNetworkBuildDynamic(DGNetwork);
 
