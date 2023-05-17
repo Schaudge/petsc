@@ -137,7 +137,7 @@ static PetscErrorCode OriginShift2D(DM dm, const PetscReal R_0, AppCtx *ctx)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-// store Cartesian (X,Y,Z) for plotting 3D, (X,Y) for 2D
+// store Cartesian (X,Y,Z) for plotting 3D, (X,Y) for 2D - shift R_0 onto torus
 // (psi,theta,phi) --> (X,Y,Z)
 #define cylToCart(__R_0, __psi, __theta, __phi, __cart) \
   { \
@@ -166,11 +166,12 @@ static PetscErrorCode OriginShift2D(DM dm, const PetscReal R_0, AppCtx *ctx)
   }
 
 #define CartTocyl3D(__R_0, __R, __cart, __psi, __theta, __phi) \
-  { \
+  {                                                                     \
     __R = PetscSqrtReal(__cart[0] * __cart[0] + __cart[2] * __cart[2]); \
-    if (__cart[2] < 0.0) __phi = PetscAcosReal(__cart[0] / __R); \
+    if (__R < PETSC_SQRT_MACHINE_EPSILON) __psi = __theta = __phi = 0;  \
+    else { if (__cart[2] < PETSC_MACHINE_EPSILON) __phi = PetscAcosReal(__cart[0] / __R); \
     else __phi = 2. * PETSC_PI - PetscAcosReal(__cart[0] / __R); \
-    XYToPsiTheta(__R - __R_0, __cart[1], __psi, __theta); \
+      XYToPsiTheta(__R - __R_0, __cart[1], __psi, __theta);}     \
   }
 
 /* Extrude 2D Plex to 3D Plex */
@@ -236,7 +237,7 @@ static void g0_u(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[
   g0[0] = u_tShift * 1.0;
 }
 
-// compute unit vector along field like
+// compute unit vector along field line
 static PetscErrorCode b_vec(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *actx)
 {
   const PetscReal *x_vec = x, dt = PETSC_SQRT_MACHINE_EPSILON, vpar = 1; //, rmaj = (dim==3) ? s_r_major : 0;
@@ -255,7 +256,7 @@ static PetscErrorCode b_vec(PetscInt dim, PetscReal time, const PetscReal x[], P
   while (theta >= 2. * PETSC_PI) theta -= 2. * PETSC_PI;
   while (theta < 0.0) theta += 2. * PETSC_PI;
   if (dim == 2) phi = 0.0; // bring to plane
-  cylToCart((dim == 3) ? s_r_major : 0, psi, theta, phi, xprime_vec);
+  cylToCart(((dim == 3) ? s_r_major : 0), psi, theta, phi, xprime_vec); // don't shift 2D
   // make unit vector and return it
   for (PetscInt i = 0; i < dim; i++) { u[i] = (xprime_vec[i] - x_vec[i]) / dt; }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -271,11 +272,12 @@ static PetscErrorCode b_vec(PetscInt dim, PetscReal time, const PetscReal x[], P
 static void anisotropicg3(PetscInt dim, const PetscReal uu[], const PetscReal xx[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g3[])
 {
   PetscInt        ii;
-  PetscReal       x_vec[3] = {0, 0, 0}, bb[3] = {0, 0, 0}, aa[] = {0, 0, 0}, xdot = 0, vv[3] = {0, 0, 0}, dphi, qsaf, theta, psi, R_scratch, phi, cc, ss, RR[3][3], fact, det = 0;
-  PetscReal invR[3][3], vpar, adjA[3][3], vx[3][3] = {{0,0,0},{0,0,0},{0,0,0}}, vx2[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
-  const PetscReal dt = PETSC_SQRT_MACHINE_EPSILON, (*DD)[3][3] = (PetscReal(*)[3][3])constants;
+  PetscReal       x_vec[3] = {0, 0, 0}, bb[3] = {0, 0, 0}, aa[] = {0, 0, 0}, xdot = 0, vv[3] = {0, 0, 0}, qsaf, theta, psi, R_scratch, phi, cc, ss, RR[3][3], fact, det = 0;
+  PetscReal invR[3][3], adjA[3][3], vx[3][3] = {{0,0,0},{0,0,0},{0,0,0}}, vx2[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
+  const PetscReal dt = PETSC_SQRT_MACHINE_EPSILON, (*DD)[3][3] = (PetscReal(*)[3][3])constants, vpar=1, dphi = dt * vpar / s_r_major; // the push, use R_0 for 2D also
   // push coordinate along field line and do FD to get vector b
   PetscFunctionBegin;
+  // get b_vec, but need theta so copy "b_vec"
   for ( ii = 0; ii < dim; ii++) x_vec[ii] = xx[ii]; // copy into padded vec for 2D
   if (dim == 2) {
     CartTocyl2D(0, R_scratch, x_vec, psi, theta);
@@ -283,24 +285,23 @@ static void anisotropicg3(PetscInt dim, const PetscReal uu[], const PetscReal xx
   } else {
     CartTocyl3D(s_r_major, R_scratch, x_vec, psi, theta, phi);
   }
-  vpar = 1;
+  //  printf("** phi = %e  R = %e; x = %e %e %e ***********\n", phi, R_scratch, x_vec[0], x_vec[1], x_vec[2]);
   if (psi < PETSC_SQRT_MACHINE_EPSILON) {
     for (PetscInt d = 0 ; d < dim; ++d) g3[d * dim + d] = 1;
-    printf("** |b| = 0 ** *********** origin: x = %e %e  ***********\nD = %e %e \n    %e %e\n", xx[0], xx[1], g3[0], g3[1], g3[2], g3[3]);
+    printf("** |b| = 0 ** *********** origin: x = %e %e  ***********\nD = %e %e \n    %e %e\n", x_vec[0], x_vec[1], g3[0], g3[1], g3[2], g3[3]);
     return;
   }
-  dphi = dt * vpar / s_r_major; // the push, use R_0 for 2D also
   qsaf = qsafty(psi / s_r_minor);
   phi += dphi;
   theta += qsaf * dphi;                                  // little twist
   while (theta >= 2. * PETSC_PI) theta -= 2. * PETSC_PI;
   while (theta < 0.0) theta += 2. * PETSC_PI;
   if (dim == 2) phi = 0.0; // bring to plane
-  else {
-    while (phi >= 2. * PETSC_PI) phi -= 2. * PETSC_PI;
-    while (phi < 0.0) phi += 2. * PETSC_PI;
-  }
-  cylToCart((dim == 3) ? s_r_major : 0, psi, theta, phi, aa);
+  /* else { */
+  /*   while (phi >= 2. * PETSC_PI) phi -= 2. * PETSC_PI; */
+  /*   while (phi < 0.0) phi += 2. * PETSC_PI; */
+  /* } */
+  cylToCart(((dim == 3) ? s_r_major : 0), psi, theta, phi, aa); // don't shift 2D
   // make unit vector bb \hat b_0
   for (PetscInt i = 0; i < dim; i++) {
     bb[i] = (aa[i] - x_vec[i]);
