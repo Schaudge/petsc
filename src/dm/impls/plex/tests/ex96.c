@@ -269,6 +269,8 @@ static PetscErrorCode b_vec(PetscInt dim, PetscReal time, const PetscReal x[], P
     __v[2] = __a[0] * __b[1] - __a[1] * __b[0]; \
   }
 
+#define FD_DIR (-1)
+
 static void anisotropicg3(PetscInt dim, const PetscReal uu[], const PetscReal xx[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g3[])
 {
   PetscInt        ii;
@@ -292,8 +294,8 @@ static void anisotropicg3(PetscInt dim, const PetscReal uu[], const PetscReal xx
     return;
   }
   qsaf = qsafty(psi / s_r_minor);
-  phi += dphi;
-  theta += qsaf * dphi;                                  // little twist
+  phi += FD_DIR*dphi;
+  theta += qsaf * FD_DIR*dphi;                                  // little twist
   while (theta >= 2. * PETSC_PI) theta -= 2. * PETSC_PI;
   while (theta < 0.0) theta += 2. * PETSC_PI;
   if (dim == 2) phi = 0.0; // bring to plane
@@ -315,7 +317,7 @@ static void anisotropicg3(PetscInt dim, const PetscReal uu[], const PetscReal xx
     aa[0] = 0;
     aa[1] = x_vec[1] > 0 ? -1 : 1;
   } else {
-    theta -= qsaf * dphi; // remove little twist to get \hat z
+    theta -= FD_DIR*qsaf * dphi; // remove little twist to get \hat z
     cylToCart(s_r_major, psi, theta, phi, aa);
     // make unit vector aa \hat z
     for (ii = 0, xdot = 0; ii < 3; ii++) {
