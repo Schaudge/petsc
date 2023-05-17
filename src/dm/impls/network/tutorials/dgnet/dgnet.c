@@ -1,6 +1,8 @@
 #include "dgnet.h"
 #include <petscdraw.h>
 #include "hydronetwork-2021/src/wash.h"
+#include "petscdmnetwork.h"
+#include "petscerror.h"
 #include "petscmath.h"
 #include "petscnetrs.h"
 #include "petscsystypes.h"
@@ -192,16 +194,14 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
     /* =================================================
       (OUTFLOW) v0 --E0--> v1--E1--> v2 --E2-->v3 (OUTFLOW)
       ====================================================  */
-    nfvedge        = 3;
-    dgnet->nedge   = nfvedge;
-    dgnet->nvertex = nfvedge + 1;
+    nfvedge = 3;
     /* Set local edges and vertices -- proc[0] sets entire network, then distributes */
     numVertices = 0;
     numEdges    = 0;
     edgelist    = NULL;
     if (!rank) {
-      numVertices = dgnet->nvertex;
-      numEdges    = dgnet->nedge;
+      numVertices = nfvedge;
+      numEdges    = nfvedge + 1;
       PetscCall(PetscCalloc1(2 * numEdges, &edgelist));
 
       edgelist[0] = 0;
@@ -228,16 +228,14 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
     /* =================================================
       (OUTFLOW) v0 --E0--> v1 (OUTFLOW)
       ====================================================  */
-    nfvedge        = 1;
-    dgnet->nedge   = nfvedge;
-    dgnet->nvertex = nfvedge + 1;
+    nfvedge = 1;
     /* Set local edges and vertices -- proc[0] sets entire network, then distributes */
     numVertices = 0;
     numEdges    = 0;
     edgelist    = NULL;
     if (!rank) {
-      numVertices = dgnet->nvertex;
-      numEdges    = dgnet->nedge;
+      numVertices = nfvedge;
+      numEdges    = nfvedge + 1;
       PetscCall(PetscCalloc1(2 * numEdges, &edgelist));
 
       for (i = 0; i < numEdges; i++) {
@@ -268,16 +266,14 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
       directed graph formulation of the problem. This is the same problem as
       case 0, but changes the direction of the graph and accordingly how the discretization
       works. The geometry of the vertices is adjusted to compensate. */
-    nfvedge        = 3;
-    dgnet->nedge   = nfvedge;
-    dgnet->nvertex = nfvedge + 1;
+    nfvedge = 3;
     /* Set local edges and vertices -- proc[0] sets entire network, then distributes */
     numVertices = 0;
     numEdges    = 0;
     edgelist    = NULL;
     if (!rank) {
-      numVertices = dgnet->nvertex;
-      numEdges    = dgnet->nedge;
+      numVertices = nfvedge;
+      numEdges    = nfvedge + 1;
       PetscCall(PetscCalloc1(2 * numEdges, &edgelist));
 
       edgelist[0] = 1;
@@ -313,16 +309,14 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
                           v3 (OUTFLOW) 
     ====================================================
     This tests the coupling condition for the simple case */
-    nfvedge        = dgnet->ndaughters + 1;
-    dgnet->nedge   = nfvedge;
-    dgnet->nvertex = nfvedge + 1;
+    nfvedge = dgnet->ndaughters + 1;
     /* Set local edges and vertices -- proc[0] sets entire network, then distributes */
     numVertices = 0;
     numEdges    = 0;
     edgelist    = NULL;
     if (!rank) {
-      numVertices = dgnet->nvertex;
-      numEdges    = dgnet->nedge;
+      numVertices = nfvedge;
+      numEdges    = nfvedge + 1;
       PetscCall(PetscCalloc1(2 * numEdges, &edgelist));
 
       /* Parent Branch (pointing in) */
@@ -386,16 +380,12 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
        v1 --E1--> v0--E0--> v1
     ================================================
           used for convergence tests */
-    nfvedge        = 2;
-    dgnet->nedge   = nfvedge;
-    dgnet->nvertex = 2;
-    /* Set local edges and vertices -- proc[0] sets entire network, then distributes */
     numVertices = 0;
     numEdges    = 0;
     edgelist    = NULL;
     if (!rank) {
-      numVertices = dgnet->nvertex;
-      numEdges    = dgnet->nedge;
+      numVertices = 2;
+      numEdges    = 2;
       PetscCall(PetscCalloc1(2 * numEdges, &edgelist));
 
       edgelist[0] = 0;
@@ -551,12 +541,14 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "not done yet");
   }
 
-  dgnet->nedge    = numEdges;
-  dgnet->nvertex  = numVertices;
   dgnet->edgelist = edgelist;
   dgnet->junction = junctions;
   dgnet->edgefe   = fvedges;
 
+  PetscCall(DMNetworkCreate(dgnet->comm, &dgnet->network));
+  PetscCall(DMNetworkSetNumSubNetworks(dgnet->network, PETSC_DECIDE, 1));
+  PetscCall(DMNetworkAddSubnetwork(dgnet->network, NULL, numEdges, edgelist, NULL));
+  PetscCall(DMNetworkLayoutSetUp(dgnet->network));
   /*
     TODO : Make all this stuff its own class
 
@@ -586,8 +578,8 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
 PetscErrorCode DGNetworkSetComponents(DGNetwork dgnet)
 {
   PetscInt      f, e, v, eStart, eEnd, vStart, vEnd, dof = dgnet->physics.dof;
-  PetscInt      KeyEdge, KeyJunction, nedges;
-  PetscInt     *edgelist = NULL, dmsize = 0, numdof = 0;
+  PetscInt      KeyEdge, KeyJunction;
+  PetscInt      dmsize = 0, numdof = 0;
   EdgeFE        edgefe;
   DGNETJunction junction;
   MPI_Comm      comm = dgnet->comm;
@@ -597,15 +589,10 @@ PetscErrorCode DGNetworkSetComponents(DGNetwork dgnet)
   PetscLogEventBegin(DGNET_SetUP, 0, 0, 0, 0);
   PetscCall(MPI_Comm_rank(comm, &rank));
   PetscCall(MPI_Comm_size(comm, &size));
-  nedges   = dgnet->nedge;
-  edgelist = dgnet->edgelist;
   for (f = 0; f < dof; f++) { numdof += dgnet->physics.order[f] + 1; }
 
   /* Set up the network layout */
-  PetscCall(DMNetworkSetNumSubNetworks(dgnet->network, PETSC_DECIDE, 1));
-  PetscCall(DMNetworkAddSubnetwork(dgnet->network, NULL, nedges, edgelist, NULL));
 
-  PetscCall(DMNetworkLayoutSetUp(dgnet->network));
   PetscCall(DMNetworkGetEdgeRange(dgnet->network, &eStart, &eEnd));
   PetscCall(DMNetworkGetVertexRange(dgnet->network, &vStart, &vEnd));
   PetscCall(DMNetworkRegisterComponent(dgnet->network, "junctionstruct", sizeof(struct _p_DGNETJunction), &KeyJunction));

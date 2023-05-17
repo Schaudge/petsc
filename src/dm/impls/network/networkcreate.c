@@ -231,7 +231,7 @@ static PetscErrorCode DMCreateGlobalVector_Network(DM dm, Vec *vec)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode  DMCreateLocalVector_Network(DM dm, Vec *vec)
+static PetscErrorCode DMCreateLocalVector_Network(DM dm, Vec *vec)
 {
   DM_Network *network = (DM_Network *)dm->data;
 
@@ -343,7 +343,7 @@ PetscErrorCode DMInitialize_Network(DM dm)
   dm->ops->destroy                 = DMDestroy_Network;
   dm->ops->createsubdm             = NULL;
   dm->ops->locatepoints            = NULL;
-  dm->ops->load                      = DMLoad_Network;
+  dm->ops->load                    = DMLoad_Network;
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }

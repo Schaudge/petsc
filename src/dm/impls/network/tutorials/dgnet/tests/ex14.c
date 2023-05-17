@@ -175,6 +175,9 @@ static PetscErrorCode DGNetworkAssignNetRS_TrafficCustom(DGNetwork dgnet)
   PetscCall(NetRPDestroy(&netrpbdry));
   PetscCall(NetRPDestroy(&netrpcouple));
   PetscCall(NetRPDestroy(&netrpcouple_priority));
+          PetscCall(NetRPDestroy(&netrpconstant1));
+        PetscCall(NetRPDestroy(& netrpconstant2));
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -188,13 +191,12 @@ int main(int argc, char *argv[])
   PetscInt               maxorder = 2, systemsize, rhsversion = 2;
   PetscReal              maxtime;
   PetscMPIInt            size, rank;
-  PetscBool              flg,limit = PETSC_TRUE, view3d = PETSC_FALSE, viewglvis = PETSC_FALSE, glvismode = PETSC_FALSE, viewfullnet = PETSC_FALSE, savefinal = PETSC_FALSE;
+  PetscBool              flg, limit = PETSC_TRUE, view3d = PETSC_FALSE, viewglvis = PETSC_FALSE, glvismode = PETSC_FALSE, viewfullnet = PETSC_FALSE, savefinal = PETSC_FALSE;
   DGNetworkMonitor       monitor = NULL;
   DGNetworkMonitor_Glvis monitor_gl;
   PetscViewer            vecbinary;
-    char              ofname[PETSC_MAX_PATH_LEN];   /* Output mesh filename */
-    PetscViewer       viewer; 
-
+  char                   ofname[PETSC_MAX_PATH_LEN]; /* Output mesh filename */
+  PetscViewer            viewer;
 
   PetscCall(PetscInitialize(&argc, &argv, 0, help));
   comm = PETSC_COMM_WORLD;
@@ -259,104 +261,100 @@ int main(int argc, char *argv[])
   }
   PetscCall(PetscMalloc1(dgnet->physics.dof, &dgnet->physics.order)); /* should be constructed by physics */
   PetscCall(MakeOrder(dgnet->physics.dof, dgnet->physics.order, maxorder));
-  if(flg) { /* load a DMNetwork direclty and create tthe DGNet data. REALLY REALLY NEEDS A REWORK */
+  if (flg) { /* load a DMNetwork direclty and create tthe DGNet data. REALLY REALLY NEEDS A REWORK */
     PetscCall(DMNetworkCreate(PETSC_COMM_WORLD, &dgnet->network));
-    PetscCall(PetscViewerHDF5Open(PETSC_COMM_WORLD,ofname,FILE_MODE_READ,&viewer));
-      PetscCall(PetscViewerHDF5SetCollective(viewer, PETSC_TRUE));
+    PetscCall(PetscViewerHDF5Open(PETSC_COMM_WORLD, ofname, FILE_MODE_READ, &viewer));
+    PetscCall(PetscViewerHDF5SetCollective(viewer, PETSC_TRUE));
     PetscCall(PetscViewerPushFormat(viewer, PETSC_VIEWER_NATIVE));
-       PetscCall(DMLoad(dgnet->network, viewer));
-       PetscCall(PetscViewerDestroy(&viewer));
-       PetscCall(DMView(dgnet->network,PETSC_VIEWER_STDOUT_WORLD));
+    PetscCall(DMLoad(dgnet->network, viewer));
+    PetscCall(PetscViewerDestroy(&viewer));
+    PetscCall(DMView(dgnet->network, PETSC_VIEWER_STDOUT_WORLD));
 
     /* recreate the dgnet info */
-    PetscInt nedges,nvertices,cdim,vStart,v,vEnd,off,e,eStart,eEnd,f,dof = dgnet->physics.dof,numdof,field;
-    DGNETJunction junctions = NULL;
-    EdgeFE        DGEdges   = NULL;
-    Vec           lcoord;
-    const PetscInt *cone; 
+    PetscInt           nedges, nvertices, cdim, vStart, v, vEnd, off, e, eStart, eEnd, f, dof = dgnet->physics.dof, numdof, field;
+    DGNETJunction      junctions = NULL;
+    EdgeFE             DGEdges   = NULL;
+    Vec                lcoord;
+    const PetscInt    *cone;
     const PetscScalar *coord;
-    PetscScalar x1,x2,y1,y2; 
-    DM        cdm; 
+    PetscScalar        x1, x2, y1, y2;
+    DM                 cdm;
 
     PetscCall(DMNetworkGetNumEdges(dgnet->network, &nedges, NULL));
     PetscCall(DMNetworkGetNumVertices(dgnet->network, &nvertices, NULL));
     PetscCall(PetscCalloc2(nvertices, &junctions, nedges, &DGEdges));
 
     PetscCall(DMGetCoordinateDim(dgnet->network, &cdim));
-    PetscCall(DMGetCoordinatesLocal(dgnet->network,&lcoord)); 
-    PetscCall(DMGetCoordinateDM(dgnet->network,&cdm));
+    PetscCall(DMGetCoordinatesLocal(dgnet->network, &lcoord));
+    PetscCall(DMGetCoordinateDM(dgnet->network, &cdm));
     PetscCall(DMNetworkGetVertexRange(dgnet->network, &vStart, &vEnd));
-    PetscCall(VecGetArrayRead(lcoord,&coord));
-    for(v=vStart; v<vEnd; v++) {
+    PetscCall(VecGetArrayRead(lcoord, &coord));
+    for (v = vStart; v < vEnd; v++) {
       PetscCall(DMNetworkGetLocalVecOffset(cdm, v, ALL_COMPONENTS, &off));
-      junctions[v-vStart].x = coord[off]; 
-      junctions[v-vStart].y = coord[off+1];
-        //  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "x: %e y: %e offset %"PetscInt_FMT "\n",  coord[off], coord[off+1],off));
-
+      junctions[v - vStart].x = coord[off];
+      junctions[v - vStart].y = coord[off + 1];
+      //  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "x: %e y: %e offset %"PetscInt_FMT "\n",  coord[off], coord[off+1],off));
     }
     PetscCall(DMNetworkGetEdgeRange(dgnet->network, &eStart, &eEnd));
-    for(e=eStart; e<eEnd; e++) {
-      PetscCall(DMNetworkGetConnectedVertices(cdm, e,&cone));
+    for (e = eStart; e < eEnd; e++) {
+      PetscCall(DMNetworkGetConnectedVertices(cdm, e, &cone));
       PetscCall(DMNetworkGetLocalVecOffset(cdm, cone[0], ALL_COMPONENTS, &off));
-      x1 = coord[off]; 
-      y1 = coord[off+1];
+      x1 = coord[off];
+      y1 = coord[off + 1];
       PetscCall(DMNetworkGetLocalVecOffset(cdm, cone[1], ALL_COMPONENTS, &off));
-      x2 = coord[off]; 
-      y2 = coord[off+1];
+      x2 = coord[off];
+      y2 = coord[off + 1];
       /* compute length */
-      DGEdges[e-eStart].nnodes = dgnet->Mx; 
-      DGEdges[e-eStart].length = PetscSqrtScalar( PetscSqr(x2-x1) + PetscSqr(y2-y1));
+      DGEdges[e - eStart].nnodes = dgnet->Mx;
+      DGEdges[e - eStart].length = PetscSqrtScalar(PetscSqr(x2 - x1) + PetscSqr(y2 - y1));
     }
     PetscCall(VecRestoreArrayRead(lcoord, &coord));
     //PetscCall(VecView(lcoord,PETSC_VIEWER_STDOUT_WORLD));
 
-      /* Allocate work space for the DG solver (so it doesn't have to be reallocated on each function evaluation) */
-  PetscCall(PetscMalloc2(dof * dof, &dgnet->R, dof * dof, &dgnet->Rinv));
-  PetscCall(PetscMalloc5(2 * dof, &dgnet->cuLR, 2 * dof, &dgnet->uLR, dof, &dgnet->flux, dof, &dgnet->speeds, dof, &dgnet->uPlus));
-  /* allocate work space for the limiter suff */
+    /* Allocate work space for the DG solver (so it doesn't have to be reallocated on each function evaluation) */
+    PetscCall(PetscMalloc2(dof * dof, &dgnet->R, dof * dof, &dgnet->Rinv));
+    PetscCall(PetscMalloc5(2 * dof, &dgnet->cuLR, 2 * dof, &dgnet->uLR, dof, &dgnet->flux, dof, &dgnet->speeds, dof, &dgnet->uPlus));
+    /* allocate work space for the limiter suff */
 
-  /* this variable should be stored elsewhere */
-  dgnet->physics.maxorder = 0;
-  for (field = 0; field < dof; field++) {
-    if (dgnet->physics.order[field] > dgnet->physics.maxorder) { dgnet->physics.maxorder = dgnet->physics.order[field]; }
-  }
+    /* this variable should be stored elsewhere */
+    dgnet->physics.maxorder = 0;
+    for (field = 0; field < dof; field++) {
+      if (dgnet->physics.order[field] > dgnet->physics.maxorder) { dgnet->physics.maxorder = dgnet->physics.order[field]; }
+    }
 
-  PetscCall(PetscMalloc5(dof, &dgnet->limitactive, (dgnet->physics.maxorder + 1) * dof, &dgnet->charcoeff, dof, &dgnet->cbdryeval_L, dof, &dgnet->cbdryeval_R, dof, &dgnet->cuAvg));
-  PetscCall(PetscMalloc2(3 * dof, &dgnet->uavgs, 2 * dof, &dgnet->cjmpLR));
-  PetscInt      KeyEdge, KeyJunction,dmsize;
+    PetscCall(PetscMalloc5(dof, &dgnet->limitactive, (dgnet->physics.maxorder + 1) * dof, &dgnet->charcoeff, dof, &dgnet->cbdryeval_L, dof, &dgnet->cbdryeval_R, dof, &dgnet->cuAvg));
+    PetscCall(PetscMalloc2(3 * dof, &dgnet->uavgs, 2 * dof, &dgnet->cjmpLR));
+    PetscInt      KeyEdge, KeyJunction, dmsize;
     EdgeFE        edgefe;
-      DGNETJunction junction;
+    DGNETJunction junction;
 
-
-  /* now add the components */
-  numdof =0; 
-  for (f = 0; f < dof; f++) { numdof += dgnet->physics.order[f] + 1; }
-  PetscCall(DMNetworkRegisterComponent(dgnet->network, "junctionstruct", sizeof(struct _p_DGNETJunction), &KeyJunction));
-  PetscCall(DMNetworkRegisterComponent(dgnet->network, "fvedgestruct", sizeof(struct _p_EdgeFE), &KeyEdge));
-  for (e = eStart; e < eEnd; e++) {
-    edgefe = &DGEdges[e - eStart];
-    /*
+    /* now add the components */
+    numdof = 0;
+    for (f = 0; f < dof; f++) { numdof += dgnet->physics.order[f] + 1; }
+    PetscCall(DMNetworkRegisterComponent(dgnet->network, "junctionstruct", sizeof(struct _p_DGNETJunction), &KeyJunction));
+    PetscCall(DMNetworkRegisterComponent(dgnet->network, "fvedgestruct", sizeof(struct _p_EdgeFE), &KeyEdge));
+    for (e = eStart; e < eEnd; e++) {
+      edgefe = &DGEdges[e - eStart];
+      /*
       Add the data from the dmplex to the dmnetwork. We will create the global network vector from the dmnetwork and use the dmplex to manage the
       data on an edge after getting the offset for set the edge. The dmnetwork creates the vectors and, but the dmplex inside an edge is used to actually
       interact with the edge componenent of the network vector
     */
-    dmsize = numdof * edgefe->nnodes;
-    PetscCall(DMNetworkAddComponent(dgnet->network, e, KeyEdge, edgefe, dmsize));
-  }
-  /* Add Junction component to all local vertices. */
-  for (v = vStart; v < vEnd; v++) {
-    junction = &junctions[v - vStart];
-   // PetscCall(PetscPrintf(PETSC_COMM_WORLD, "x: %e y: %e \n", junction->x,junction->y));
-    PetscCall(DMNetworkAddComponent(dgnet->network, v, KeyJunction, junction, 0));
-  }
-  PetscCall(DMSetUp(dgnet->network));
-  PetscCall(DMNetworkFinalizeComponents(dgnet->network));
-  PetscCall(PetscFree2(junctions,DGEdges));
+      dmsize = numdof * edgefe->nnodes;
+      PetscCall(DMNetworkAddComponent(dgnet->network, e, KeyEdge, edgefe, dmsize));
+    }
+    /* Add Junction component to all local vertices. */
+    for (v = vStart; v < vEnd; v++) {
+      junction = &junctions[v - vStart];
+      // PetscCall(PetscPrintf(PETSC_COMM_WORLD, "x: %e y: %e \n", junction->x,junction->y));
+      PetscCall(DMNetworkAddComponent(dgnet->network, v, KeyJunction, junction, 0));
+    }
+    PetscCall(DMSetUp(dgnet->network));
+    PetscCall(DMNetworkFinalizeComponents(dgnet->network));
+    PetscCall(PetscFree2(junctions, DGEdges));
   } else {
     /* Generate Network Data */
     PetscCall(DGNetworkCreate(dgnet, dgnet->networktype, dgnet->Mx));
-    /* Create DMNetwork */
-    PetscCall(DMNetworkCreate(PETSC_COMM_WORLD, &dgnet->network));
     /* Set Network Data into the DMNetwork (on proc[0]) */
     PetscCall(DGNetworkSetComponents(dgnet));
     /* Delete unneeded data in dgnet */
@@ -372,7 +370,7 @@ int main(int argc, char *argv[])
   PetscCall(DGNetworkCreateVectors(dgnet));
   /* Set up component dynamic data structures */
   PetscCall(DGNetworkBuildDynamic(dgnet));
-    PetscCall(PetscPrintf(PETSC_COMM_WORLD, "I made it \n"));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "I made it \n"));
 
   if (size == 1 && dgnet->view) {
     if (viewglvis) {
@@ -411,9 +409,7 @@ int main(int argc, char *argv[])
   /* Set up NetRS */
   PetscCall(DGNetworkAssignNetRS_TrafficCustom(dgnet));
   PetscCall(DGNetworkProject(dgnet, dgnet->X, 0.0));
-  if (viewglvis) {
-    PetscCall(DGNetworkMonitorView_Glvis_NET(monitor_gl, dgnet->X));
-  }
+  if (viewglvis && dgnet->view) { PetscCall(DGNetworkMonitorView_Glvis_NET(monitor_gl, dgnet->X)); }
   PetscCall(VecGetSize(dgnet->X, &systemsize));
   PetscCall(PetscPrintf(comm, "\nWe have %" PetscInt_FMT " Dofs\n\n", systemsize));
   /* Create a time-stepping object */

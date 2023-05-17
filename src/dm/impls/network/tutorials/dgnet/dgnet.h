@@ -38,16 +38,13 @@ struct _p_EdgeFE {
 } PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
 typedef struct _p_EdgeFE *EdgeFE;
 
-
-typedef PetscErrorCode (*RiemannFunction)(void *, PetscInt, const PetscScalar *, const PetscScalar *, PetscScalar *, PetscReal *);
 typedef PetscErrorCode (*ReconstructFunction)(void *, PetscInt, const PetscScalar *, PetscScalar *, PetscScalar *, PetscReal *);
 
 typedef struct {
   PetscErrorCode (*samplenetwork)(void *, PetscInt, PetscReal, PetscReal, PetscReal *, PetscInt);
   PetscErrorCode (*inflow)(void *, PetscReal, PetscReal, PetscReal *);
   PetscErrorCode (*flux)(void *, const PetscReal *, PetscReal *);
-  RiemannFunction      riemann;
-  ReconstructFunction  characteristic;
+  ReconstructFunction characteristic;
   PetscErrorCode (*destroy)(void *);
   void                  *user;
   PetscInt               dof;
@@ -69,8 +66,6 @@ typedef struct {
 /* Global DG information on the entire network. Needs a creation function .... */
 struct _p_DGNetwork {
   MPI_Comm  comm;
-  PetscInt  nedge, nvertex;    /* local number of components */
-  PetscInt  Nedge, Nvertex;    /* global number of components */
   PetscInt *edgelist;          /* local edge list */
   Vec       localX, localF;    /* vectors used in local function evalutation */
   Vec       X;                 /* Global vectors used in function evaluations */
@@ -254,8 +249,6 @@ extern PetscErrorCode DGNetworkProject(DGNetwork, Vec, PetscReal);
 extern PetscErrorCode DGNetworkProject_Coarse_To_Fine(DGNetwork, DGNetwork, Vec, Vec);
 
 extern PetscErrorCode PhysicsDestroy_SimpleFree_Net(void *);
-extern PetscErrorCode RiemannListAdd_Net(PetscFunctionList *, const char *, RiemannFunction);
-extern PetscErrorCode RiemannListFind_Net(PetscFunctionList, const char *, RiemannFunction *);
 
 extern PetscErrorCode DGNetworkMonitorCreate(DGNetwork, DGNetworkMonitor *);
 extern PetscErrorCode DGNetworkMonitorPop(DGNetworkMonitor);

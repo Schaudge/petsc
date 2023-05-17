@@ -180,9 +180,9 @@ PetscErrorCode DMView_Network(DM dm, PetscViewer viewer)
 {
   PetscBool         iascii, isdraw, ishdf5;
   PetscViewerFormat format;
-  DM                cdm,plex,cplex; 
-  Vec               coord; 
-  PetscInt          cdim; 
+  DM                cdm, plex, cplex;
+  Vec               coord;
+  PetscInt          cdim;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
@@ -195,17 +195,17 @@ PetscErrorCode DMView_Network(DM dm, PetscViewer viewer)
     PetscFunctionReturn(PETSC_SUCCESS);
   }
   PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERHDF5, &ishdf5));
-  if(ishdf5) {
+  if (ishdf5) {
     PetscCall(DMGetCoordinateDM(dm, &cdm));
     PetscCall(DMNetworkGetPlex(dm, &plex));
     PetscCall(DMNetworkGetPlex(cdm, &cplex));
     PetscCall(DMGetCoordinateDim(dm, &cdim));
 
-    PetscCall(DMGetCoordinates(dm,&coord));
+    PetscCall(DMGetCoordinates(dm, &coord));
     PetscCall(DMSetCoordinateDM(plex, cplex));
     PetscCall(DMSetCoordinateDim(plex, cdim));
-    PetscCall(DMSetCoordinates(plex,coord));
-    PetscCall(DMView(plex,viewer));
+    PetscCall(DMSetCoordinates(plex, coord));
+    PetscCall(DMView(plex, viewer));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
   PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &iascii));
@@ -269,23 +269,22 @@ PetscErrorCode DMView_Network(DM dm, PetscViewer viewer)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-
 PetscErrorCode DMLoad_Network(DM dm, PetscViewer viewer)
 {
   PetscBool ishdf5;
-  DM   plex; 
+  DM        plex;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   PetscValidHeaderSpecific(viewer, PETSC_VIEWER_CLASSID, 2);
   PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERHDF5, &ishdf5));
   if (ishdf5) {
-      PetscCall(DMCreate(PetscObjectComm((PetscObject)dm),&plex));
-        PetscCall(DMSetType(plex, DMPLEX));
-      PetscCall(DMLoad(plex,viewer));
-      PetscCall(DMSetCoordinateDim(plex, 2));
-        PetscCall(DMNetworkCreateFromPlex(plex, dm)); 
-         PetscCall(DMDestroy(&plex));
-         PetscFunctionReturn(PETSC_SUCCESS);
+    PetscCall(DMCreate(PetscObjectComm((PetscObject)dm), &plex));
+    PetscCall(DMSetType(plex, DMPLEX));
+    PetscCall(DMLoad(plex, viewer));
+    PetscCall(DMSetCoordinateDim(plex, 2));
+    PetscCall(DMNetworkCreateFromPlex(plex, dm));
+    PetscCall(DMDestroy(&plex));
+    PetscFunctionReturn(PETSC_SUCCESS);
   } else SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_SUP, "Viewer type %s not yet supported for DMPlex loading", ((PetscObject)viewer)->type_name);
 }

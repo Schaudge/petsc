@@ -168,8 +168,6 @@ int main(int argc, char *argv[])
 
   /* Generate Network Data */
   PetscCall(DGNetworkCreate(dgnet, dgnet->networktype, dgnet->Mx));
-  /* Create DMNetwork */
-  PetscCall(DMNetworkCreate(PETSC_COMM_WORLD, &dgnet->network));
   /* Set Network Data into the DMNetwork (on proc[0]) */
   PetscCall(DGNetworkSetComponents(dgnet));
   /* Delete unneeded data in dgnet */

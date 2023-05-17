@@ -799,31 +799,31 @@ PetscErrorCode DMNetworkLayoutSetUp(DM dm)
 
 PetscErrorCode DMNetworkCreateFromPlex(DM plex, DM dm)
 {
-  DM_Network     *network = (DM_Network *)dm->data, *cnetwork; 
+  DM_Network     *network = (DM_Network *)dm->data, *cnetwork;
   PetscInt        i, j, ctr, Nsubnet = 1, np, *edges, *subnetvtx, *subnetedge, e, v, vfrom, vto, globaledgeoff;
   const PetscInt *cone, *vertexordering;
   MPI_Comm        comm;
   PetscMPIInt     size;
   PetscSection    sectiong;
-  PetscInt        *edgelist, eStart,eEnd,nvertiecs,vStart,vEnd,cdim; 
-  IS              vertexnumbering; 
+  PetscInt       *edgelist, eStart, eEnd, nvertiecs, vStart, vEnd, cdim;
+  IS              vertexnumbering;
   DM              cdm;
   Vec             coord;
 
-  PetscFunctionBegin; 
+  PetscFunctionBegin;
   PetscCall(PetscObjectGetComm((PetscObject)dm, &comm));
   PetscCallMPI(MPI_Comm_size(comm, &size));
 
   PetscCall(DMPlexGetCones(plex, &edgelist));
-  PetscCall(DMPlexGetHeightStratum(plex, 0, &eStart,&eEnd));
-  PetscCall(DMPlexGetHeightStratum(plex,1,&vStart, &vEnd));
-  PetscCall(DMNetworkSetNumSubNetworks(dm, 1,  1));
+  PetscCall(DMPlexGetHeightStratum(plex, 0, &eStart, &eEnd));
+  PetscCall(DMPlexGetHeightStratum(plex, 1, &vStart, &vEnd));
+  PetscCall(DMNetworkSetNumSubNetworks(dm, 1, 1));
 
   /* Create a 0-size svtable for query shared vertices */
   PetscCall(PetscHMapICreate(&network->cloneshared->svtable));
 
-  PetscCall(PetscObjectReference((PetscObject)plex)); 
-  network->plex = plex; 
+  PetscCall(PetscObjectReference((PetscObject)plex));
+  network->plex = plex;
 
   PetscCall(DMPlexGetChart(network->plex, &network->cloneshared->pStart, &network->cloneshared->pEnd));
   PetscCall(DMPlexGetHeightStratum(network->plex, 0, &network->cloneshared->eStart, &network->cloneshared->eEnd));
@@ -834,20 +834,18 @@ PetscErrorCode DMNetworkCreateFromPlex(DM plex, DM dm)
   /* Recreate needed information for the DMNetwork */
   /* Create a Global Numbering for the Vertices */
   PetscCall(DMPlexGetVertexNumbering(plex, &vertexnumbering));
-  PetscCall(ISGetLocalSize(vertexnumbering,&nvertiecs));
-  PetscCall(ISGetIndices(vertexnumbering,&vertexordering)); 
+  PetscCall(ISGetLocalSize(vertexnumbering, &nvertiecs));
+  PetscCall(ISGetIndices(vertexnumbering, &vertexordering));
 
-  PetscCall(PetscMalloc1(2*(eEnd-eStart),&edges));
+  PetscCall(PetscMalloc1(2 * (eEnd - eStart), &edges));
 
-  for(i=0; i<(eEnd-eStart); i++)
-  {
-    vfrom = edgelist[2*i]-vStart; 
-    vto =edgelist[2*i+1]-vStart;
-    edges[2*i] = vertexordering[vfrom]; 
-    edges[2*i+1] = vertexordering[vto]; 
+  for (i = 0; i < (eEnd - eStart); i++) {
+    vfrom            = edgelist[2 * i] - vStart;
+    vto              = edgelist[2 * i + 1] - vStart;
+    edges[2 * i]     = vertexordering[vfrom];
+    edges[2 * i + 1] = vertexordering[vto];
   }
-  PetscCall(DMNetworkAddSubnetwork(dm, "default",eEnd-eStart,edges, NULL));
-
+  PetscCall(DMNetworkAddSubnetwork(dm, "default", eEnd - eStart, edges, NULL));
 
   /* Create edge and vertex arrays for the subnetworks
      This implementation assumes that DMNetwork reads
@@ -919,7 +917,7 @@ PetscErrorCode DMNetworkCreateFromPlex(DM plex, DM dm)
     PetscCall(PetscHMapIGetWithDefault(network->cloneshared->svtable, network->header[v].index + 1, 0, &i));
     if (i) network->cloneshared->svertices[j++] = v;
   }
-      PetscSection coordsection; 
+  PetscSection coordsection;
 
   PetscCall(DMGetCoordinateSection(plex, &coordsection));
 
@@ -930,40 +928,37 @@ PetscErrorCode DMNetworkCreateFromPlex(DM plex, DM dm)
   PetscCall(DMGetGlobalSection(network->plex, &sectiong));
 
   /* Copy over some stuff from the plex to the DMNetwork */
-  PetscCall(DMGetCoordinateDM(dm,&cdm));
+  PetscCall(DMGetCoordinateDM(dm, &cdm));
 
   cnetwork = (DM_Network *)cdm->data;
-  PetscCall(DMSetCoordinateDM(plex,cnetwork->plex));
+  PetscCall(DMSetCoordinateDM(plex, cnetwork->plex));
 
-  PetscCall(DMGetCoordinateDim(plex,&cdim));
-  if(cdim>0) { /* Has a coordinate vector */
-    PetscInt     key,p,pStart,pEnd,ndof; 
+  PetscCall(DMGetCoordinateDim(plex, &cdim));
+  if (cdim > 0) { /* Has a coordinate vector */
+    PetscInt key, p, pStart, pEnd, ndof;
     PetscCall(DMSetCoordinateDim(dm, cdim));
-    PetscCall(DMGetCoordinates(plex,&coord));
-    PetscCall(DMSetCoordinates(dm,coord));
+    PetscCall(DMGetCoordinates(plex, &coord));
+    PetscCall(DMSetCoordinates(dm, coord));
 
-    if(coordsection){
-      PetscCall(DMNetworkRegisterComponent(cdm, "coordinates",0,&key));
+    if (coordsection) {
+      PetscCall(DMNetworkRegisterComponent(cdm, "coordinates", 0, &key));
       PetscCall(PetscSectionGetChart(coordsection, &pStart, &pEnd));
-      for(p=pStart; p <pEnd; p++) {
-        PetscCall(PetscSectionGetDof(coordsection, p,&ndof));
-        if(ndof>0) {
-          PetscCall(DMNetworkAddComponent(cdm, p, key, NULL, ndof));
-        }
+      for (p = pStart; p < pEnd; p++) {
+        PetscCall(PetscSectionGetDof(coordsection, p, &ndof));
+        if (ndof > 0) { PetscCall(DMNetworkAddComponent(cdm, p, key, NULL, ndof)); }
       }
       PetscCall(DMNetworkFinalizeComponents(cdm));
     }
   }
   PetscFunctionReturn(PETSC_SUCCESS);
-  }
+}
 
-PetscErrorCode DMNetworkGiveMEMYSECTON(DM dm , PetscSection *section)
+PetscErrorCode DMNetworkGiveMEMYSECTON(DM dm, PetscSection *section)
 {
-  DM_Network     *network = (DM_Network *)dm->data;
-  PetscFunctionBegin; 
+  DM_Network *network = (DM_Network *)dm->data;
+  PetscFunctionBegin;
   *section = network->DofSection;
-    PetscFunctionReturn(PETSC_SUCCESS);
-
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
