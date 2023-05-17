@@ -1,4 +1,3 @@
-
 #if !defined(__DGNET_H)
   #define __DGNET_H
 
@@ -28,23 +27,19 @@ struct _p_DGNETJunction {
 typedef struct _p_DGNETJunction *DGNETJunction;
 
 struct _p_EdgeFE {
-  /* solver objects */
-  PetscReal cfl_idt; /* Max allowable value of fvnet->cfl/Delta t on this edge*/
-  /* Mesh object */
   DM dm;
-
   PetscInt  nnodes;
   PetscReal length; /* Used to setup the DMPLex, to be refactored out. */
 } PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
 typedef struct _p_EdgeFE *EdgeFE;
 
+
 typedef PetscErrorCode (*ReconstructFunction)(void *, PetscInt, const PetscScalar *, PetscScalar *, PetscScalar *, PetscReal *);
 
 typedef struct {
   PetscErrorCode (*samplenetwork)(void *, PetscInt, PetscReal, PetscReal, PetscReal *, PetscInt);
-  PetscErrorCode (*inflow)(void *, PetscReal, PetscReal, PetscReal *);
   PetscErrorCode (*flux)(void *, const PetscReal *, PetscReal *);
-  ReconstructFunction characteristic;
+  ReconstructFunction  characteristic;
   PetscErrorCode (*destroy)(void *);
   void                  *user;
   PetscInt               dof;
@@ -58,27 +53,21 @@ typedef struct {
   RiemannSolverRoeMatrix roemat;
   RiemannSolverEigBasis  eigbasis;
   PetscPointFluxDer      fluxder;
-  PetscReal             *lowbound; /* lower bound for the field variables allowed. For example SWE requires height to be positive */
-  PetscReal             *upbound;  /* upper bound for the field variables */
   LaxCurve               laxcurve;
 } PhysicsCtx_Net;
 
 /* Global DG information on the entire network. Needs a creation function .... */
 struct _p_DGNetwork {
   MPI_Comm  comm;
-  PetscInt *edgelist;          /* local edge list */
   Vec       localX, localF;    /* vectors used in local function evalutation */
   Vec       X;                 /* Global vectors used in function evaluations */
   Vec       RiemannData, Flux; /*used with NetRS*/
-  PetscInt  nnodes_loc;        /* num of local nodes */
   DM        network;
   PetscInt  moni;
   PetscBool view, linearcoupling, lincouplediff, tabulated, laxcurve, adaptivecouple;
   PetscBool viewglvis, viewfullnet;
-  PetscReal ymin, ymax, length, diagnosticlow, diagnosticup, M, dx;
+  PetscReal ymin, ymax, length, M, dx;
   char      prefix[256];
-  void (*limit)(const PetscScalar *, const PetscScalar *, PetscScalar *, PetscInt);
-  PetscErrorCode (*gettimestep)(TS ts, PetscReal *dt);
   NetRS netrs;
 
   /* DG Basis Evaluations and Quadrature */

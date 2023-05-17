@@ -42,7 +42,6 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
   PetscCall(PetscLogEventRegister("DGNetLimiter", TS_CLASSID, &DGNET_Limiter));
   PetscCall(PetscLogEventRegister("DGNetSetUp", TS_CLASSID, &DGNET_SetUP));
 
-  dgnet->nnodes_loc = 0;
   PetscCall(MPI_Comm_rank(dgnet->comm, &rank));
   numVertices = 0;
   numEdges    = 0;
@@ -541,7 +540,6 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "not done yet");
   }
 
-  dgnet->edgelist = edgelist;
   dgnet->junction = junctions;
   dgnet->edgefe   = fvedges;
 
@@ -549,6 +547,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork dgnet, PetscInt networktype, PetscInt M
   PetscCall(DMNetworkSetNumSubNetworks(dgnet->network, PETSC_DECIDE, 1));
   PetscCall(DMNetworkAddSubnetwork(dgnet->network, NULL, numEdges, edgelist, NULL));
   PetscCall(DMNetworkLayoutSetUp(dgnet->network));
+  PetscCall(PetscFree(edgelist));
   /*
     TODO : Make all this stuff its own class
 
@@ -1043,7 +1042,6 @@ PetscErrorCode DGNetworkCleanUp(DGNetwork dgnet)
 
   PetscFunctionBegin;
   PetscCall(MPI_Comm_rank(dgnet->comm, &rank));
-  PetscCall(PetscFree(dgnet->edgelist));
   if (!rank) { PetscCall(PetscFree2(dgnet->junction, dgnet->edgefe)); }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

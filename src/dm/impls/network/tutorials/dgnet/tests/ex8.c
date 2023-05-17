@@ -125,8 +125,6 @@ int main(int argc, char *argv[])
   dgnet->length         = 10.0;
   dgnet->view           = PETSC_FALSE;
   dgnet->jumptol        = 0.5;
-  dgnet->diagnosticlow  = 0.5;
-  dgnet->diagnosticup   = 1e-4;
   dgnet->linearcoupling = PETSC_FALSE;
   dgnet->M              = 50;
   dgnet->edgethickness  = -1;
