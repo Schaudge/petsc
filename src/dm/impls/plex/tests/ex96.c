@@ -276,7 +276,7 @@ static void anisotropicg3(PetscInt dim, const PetscReal uu[], const PetscReal xx
   const PetscReal dt = PETSC_SQRT_MACHINE_EPSILON, (*DD)[3][3] = (PetscReal(*)[3][3])constants, vpar=100; // the push, use R_0 for 2D also
   // push coordinate along field line and do FD to get vector b
   PetscFunctionBegin;
-  PetscBool print = s_stage == '3' && fabs(xx[1]) < PETSC_SQRT_MACHINE_EPSILON && PetscSqrtReal(xx[0]*xx[0] + xx[2]*xx[2]) < 3.69; //fabs(xx]) > .4 && fabs(xx[2]-2.913823e-01) < 1e-2 && fabs(fabs(xx[0])-7.192007) < 1e-2 ;
+  PetscBool print = 0;
   // get b_vec, but need theta so copy "b_vec"
   for ( ii = 0; ii < dim; ii++) x_vec[ii] = xx[ii]; // copy into padded vec for 2D
   if (dim == 2) {
@@ -286,7 +286,6 @@ static void anisotropicg3(PetscInt dim, const PetscReal uu[], const PetscReal xx
   } else {
     CartTocyl3D(s_r_major, R_xz, x_vec, psi, theta, phi);
   }
-  //  printf("** phi = %e  R = %e; x = %e %e %e ***********\n", phi, R_xz, x_vec[0], x_vec[1], x_vec[2]);
   if (psi < PETSC_SQRT_MACHINE_EPSILON) {
     for (PetscInt d = 0 ; d < dim; ++d) g3[d * dim + d] = 1;
     printf("** |b| = 0 ** *********** origin: x = %e %e  ***********\nD = %e %e \n    %e %e\n", x_vec[0], x_vec[1], g3[0], g3[1], g3[2], g3[3]);
@@ -304,19 +303,9 @@ static void anisotropicg3(PetscInt dim, const PetscReal uu[], const PetscReal xx
   xdot = 1 / PetscSqrtReal(xdot);
   for (ii = 0; ii < dim; ii++) bb[ii] *= xdot;
   // make unit vector \hat phi
-  aa[0] = 0;
-  if (dim == 2) { // direction of strong conductivity
-    aa[1] = 1;
-  } else {
-    /* theta -= FD_DIR*qsaf * dphi; // remove little twist to get \hat z */
-    /* cylToCart(s_r_major, psi, theta, phi, aa); */
-    /* // make unit vector aa \hat z */
-    /* for (ii = 0, xdot = 0; ii < 3; ii++) { */
-    /*   aa[ii] = (aa[ii] - x_vec[ii]); // / dt not needed */
-    /*   xdot += aa[ii] * aa[ii]; */
-    /* } */
-    /* xdot = 1 / PetscSqrtReal(xdot); */
-    /* for ( ii = 0; ii < 3; ii++) aa[ii] *= xdot; */
+  aa[0] = 0; // direction of strong conductivity (y or z)
+  if (dim == 2) aa[1] = 1;
+  else {
     aa[1] = 0;
     aa[2] = 1;
   }
@@ -326,14 +315,7 @@ static void anisotropicg3(PetscInt dim, const PetscReal uu[], const PetscReal xx
   for (ii = 0, cc = 0; ii < 3; ii++) cc += aa[ii] * bb[ii];
   for (ii = 0, ss = 0; ii < 3; ii++) ss += vv[ii] * vv[ii];
   ss = PetscSqrtReal(ss);
-  if (dim == 3 && print) printf("v = %e %e %e; a = %e %e %e; b = %e %e %e; x = %e %e %e. cos(theta)= %e sin(theta)= %e; psi = %e, theta = %e, phi = %e (dphi = %e) stage %c qsaf = %e\n",vv[0], vv[1], vv[2], aa[0], aa[1], aa[2], bb[0], bb[1], bb[2], xx[0], xx[1], xx[2], cc, ss, psi, theta, phi, dphi, s_stage, qsaf); // (0,1,0)
-  if (ss < PETSC_SQRT_MACHINE_EPSILON) {
-    for (PetscInt d = 0, di = (dim==2) ? 1 : 0 ; d < dim; ++d, di++) g3[d * dim + d] = (*DD)[di][di]; // need to rotate this by phi
-    //printf("** a == b ** x = %e %e\nD = %e %e \n    %e %e\n", xx[0], xx[1], g3[0], g3[1], g3[2], g3[3]);
-    return;
-  }
   fact = 1/(1+cc);
-  //printf("v = %e %e %e; c = %e;  s = %e fact = %e\n", vv[0], vv[1], vv[2], cc, ss, fact);
   // ratation matrix
   vx[0][1] = -vv[2];
   vx[1][0] = vv[2];
@@ -355,6 +337,7 @@ static void anisotropicg3(PetscInt dim, const PetscReal uu[], const PetscReal xx
       RR[i][j] += fact*vx2[i][j];
     }
   }
+  // inverse of R
   if (dim==2) {
     /* Calculate determinant of matrix A */
     det = (RR[0][0]*RR[1][1])-(RR[0][1]*RR[1][0]);
@@ -383,15 +366,11 @@ static void anisotropicg3(PetscInt dim, const PetscReal uu[], const PetscReal xx
     for (PetscInt j = 0, dj = (dim==2) ? 1 : 0; j < dim; ++j, dj++) {
       //double tt = 0;
       for (PetscInt k = 0, dk = (dim==2) ? 1 : 0; k < dim; ++k, dk++) {
-        //tt += invR[i][k] * RR[k][j];
         for (PetscInt q = 0; q < dim; ++q)
           g3[i * dim + q] += RR[i][j] * (*DD)[dj][dk] * invR[k][q];
       }
-      //printf("%e ", tt);
     }
-    //printf("\n");
   }
-  //printf("\n");
   if (print && dim==3) printf("D = %e %e %e\n    %e %e %e\n    %e %e %e\n", g3[0], g3[1], g3[2], g3[3], g3[4], g3[5], g3[6], g3[7], g3[8]);
   if (print && dim==2) printf("D = %e %e\n    %e %e\n", g3[0], g3[1], g3[2], g3[3]);
 }
