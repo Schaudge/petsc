@@ -153,10 +153,10 @@ static PetscErrorCode OriginShift2D(DM dm, const PetscReal R_0, AppCtx *ctx)
   { \
     __psi = PetscSqrtReal((__x) * (__x) + (__y) * (__y)); \
     if (PetscAbsReal(__psi) < PETSC_SQRT_MACHINE_EPSILON) __theta = 0.; \
-    else { \
+    else {                                                              \
       __theta = (__y) > 0. ? PetscAsinReal((__y) / __psi) : -PetscAsinReal(-(__y) / __psi); \
-      if ((__x) < 0) __theta = PETSC_PI - __theta; \
-      else if (__theta < 0.) __theta = __theta + 2. * PETSC_PI; \
+      if ((__x) < 0) __theta = PETSC_PI - __theta;                      \
+      else if (__theta < 0.) __theta = __theta + 2. * PETSC_PI;   if (__theta < 0.) exit(33333); \
     } \
   }
 
@@ -170,9 +170,10 @@ static PetscErrorCode OriginShift2D(DM dm, const PetscReal R_0, AppCtx *ctx)
   {                                                                     \
     __R = PetscSqrtReal(__cart[0] * __cart[0] + __cart[2] * __cart[2]); \
     if (__R < PETSC_SQRT_MACHINE_EPSILON) __psi = __theta = __phi = 0;  \
-    else { if (__cart[2] < PETSC_MACHINE_EPSILON) __phi = PetscAcosReal(__cart[0] / __R); \
-    else __phi = 2. * PETSC_PI - PetscAcosReal(__cart[0] / __R); \
-      XYToPsiTheta(__R - __R_0, __cart[1], __psi, __theta);}     \
+    else { \
+      if (__cart[2] < PETSC_MACHINE_EPSILON) __phi = PetscAcosReal(__cart[0] / __R); \
+      else __phi = 2. * PETSC_PI - PetscAcosReal(__cart[0] / __R);      \
+      XYToPsiTheta(__R - __R_0, __cart[1], __psi, __theta);}            \
   }
 
 /* Extrude 2D Plex to 3D Plex */
@@ -236,28 +237,32 @@ static void g0_u(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[
   g0[0] = u_tShift * 1.0;
 }
 
-// compute unit vector along field line
+// compute unit vector along field line -- used for debugging
+#define FD_DIR (1)
 static PetscErrorCode b_vec(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *actx)
 {
-  const PetscReal *x_vec = x, dt = PETSC_SQRT_MACHINE_EPSILON, vpar = 1; //, rmaj = (dim==3) ? s_r_major : 0;
-  PetscReal        dphi, qsaf, theta, psi, R, phi = 0.0, xprime_vec[3];
+  const PetscReal *x_vec = x, dt = PETSC_SQRT_MACHINE_EPSILON, vpar = 1;
+  PetscReal        dphi, qsaf, theta, psi, R_xz, phi = 0.0, xprime_vec[3], len = 0;
   // push coordinate along field line and do FD to get vector b
   PetscFunctionBegin;
   if (dim == 2) {
-    CartTocyl2D(0, R, x_vec, psi, theta);
+    CartTocyl2D(0, R_xz, x_vec, psi, theta);
   } else {
-    CartTocyl3D(s_r_major, R, x_vec, psi, theta, phi);
+    CartTocyl3D(s_r_major, R_xz, x_vec, psi, theta, phi);
   }
-  dphi = dt * vpar / s_r_major; // the push, use R_0 for 2D also
+  dphi = dt * vpar / R_xz; // the push, use R_0 for 2D also
   qsaf = qsafty(psi / s_r_minor);
-  phi += dphi;
-  theta += qsaf * dphi; // little twist
-  while (theta >= 2. * PETSC_PI) theta -= 2. * PETSC_PI;
-  while (theta < 0.0) theta += 2. * PETSC_PI;
+  phi += FD_DIR*dphi;
+  theta += FD_DIR*qsaf * dphi; // little twist
+  theta = fmod( theta + 20.*PETSC_PI, 2.*PETSC_PI);
   if (dim == 2) phi = 0.0; // bring to plane
+  //else phi = fmod( phi + 20.*PETSC_PI, 2.*PETSC_PI);
   cylToCart(((dim == 3) ? s_r_major : 0), psi, theta, phi, xprime_vec); // don't shift 2D
-  // make unit vector and return it
-  for (PetscInt i = 0; i < dim; i++) { u[i] = (xprime_vec[i] - x_vec[i]) / dt; }
+  // make vector and return it
+  for (PetscInt i = 0; i < dim; i++) { u[i] = (xprime_vec[i] - x_vec[i]) / dt; len += u[i]*u[i]; }
+  
+  /* len = 1 / PetscSqrtReal(len); */
+  /* for (PetscInt i = 0; i < dim; i++) u[i] *= len; */
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -268,63 +273,60 @@ static PetscErrorCode b_vec(PetscInt dim, PetscReal time, const PetscReal x[], P
     __v[2] = __a[0] * __b[1] - __a[1] * __b[0]; \
   }
 
-#define FD_DIR (1)
-
+static char s_stage = '0';
 static void anisotropicg3(PetscInt dim, const PetscReal uu[], const PetscReal xx[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g3[])
 {
   PetscInt        ii;
-  PetscReal       x_vec[3] = {0, 0, 0}, bb[3] = {0, 0, 0}, aa[] = {0, 0, 0}, xdot = 0, vv[3] = {0, 0, 0}, qsaf, theta, psi, R_scratch, phi, cc, ss, RR[3][3], fact, det = 0;
-  PetscReal invR[3][3], adjA[3][3], vx[3][3] = {{0,0,0},{0,0,0},{0,0,0}}, vx2[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
-  const PetscReal dt = PETSC_SQRT_MACHINE_EPSILON, (*DD)[3][3] = (PetscReal(*)[3][3])constants, vpar=1, dphi = dt * vpar / s_r_major; // the push, use R_0 for 2D also
+  PetscReal       x_vec[3] = {0, 0, 0}, bb[3] = {0, 0, 0}, aa[] = {0, 0, 0}, xdot = 0, vv[3] = {0, 0, 0}, qsaf, theta, psi, R_xz, phi, cc, ss, RR[3][3], fact, det = 0;
+  PetscReal invR[3][3], adjA[3][3], vx[3][3] = {{0,0,0},{0,0,0},{0,0,0}}, vx2[3][3] = {{0,0,0},{0,0,0},{0,0,0}}, dphi;
+  const PetscReal dt = PETSC_SQRT_MACHINE_EPSILON, (*DD)[3][3] = (PetscReal(*)[3][3])constants, vpar=1; // the push, use R_0 for 2D also
   // push coordinate along field line and do FD to get vector b
   PetscFunctionBegin;
+  PetscBool print = s_stage == '3' && fabs(xx[1]) < PETSC_SQRT_MACHINE_EPSILON && PetscSqrtReal(xx[0]*xx[0] + xx[2]*xx[2]) < 3.69; //fabs(xx]) > .4 && fabs(xx[2]-2.913823e-01) < 1e-2 && fabs(fabs(xx[0])-7.192007) < 1e-2 ;
   // get b_vec, but need theta so copy "b_vec"
   for ( ii = 0; ii < dim; ii++) x_vec[ii] = xx[ii]; // copy into padded vec for 2D
   if (dim == 2) {
-    CartTocyl2D(0, R_scratch, x_vec, psi, theta);
+    CartTocyl2D(0, R_xz, x_vec, psi, theta);
     phi = 0;
   } else {
-    CartTocyl3D(s_r_major, R_scratch, x_vec, psi, theta, phi);
+    CartTocyl3D(s_r_major, R_xz, x_vec, psi, theta, phi);
   }
-  //  printf("** phi = %e  R = %e; x = %e %e %e ***********\n", phi, R_scratch, x_vec[0], x_vec[1], x_vec[2]);
+  //  printf("** phi = %e  R = %e; x = %e %e %e ***********\n", phi, R_xz, x_vec[0], x_vec[1], x_vec[2]);
   if (psi < PETSC_SQRT_MACHINE_EPSILON) {
     for (PetscInt d = 0 ; d < dim; ++d) g3[d * dim + d] = 1;
     printf("** |b| = 0 ** *********** origin: x = %e %e  ***********\nD = %e %e \n    %e %e\n", x_vec[0], x_vec[1], g3[0], g3[1], g3[2], g3[3]);
     return;
   }
+  dphi = dt * vpar / R_xz; // the push, use R_0 for 2D also
   qsaf = qsafty(psi / s_r_minor);
   phi += FD_DIR*dphi;
   theta += qsaf * FD_DIR*dphi;                                  // little twist
-  while (theta >= 2. * PETSC_PI) theta -= 2. * PETSC_PI;
-  while (theta < 0.0) theta += 2. * PETSC_PI;
+  theta = fmod( theta + 20.*PETSC_PI, 2.*PETSC_PI);
   if (dim == 2) phi = 0.0; // bring to plane
-  /* else { */
-  /*   while (phi >= 2. * PETSC_PI) phi -= 2. * PETSC_PI; */
-  /*   while (phi < 0.0) phi += 2. * PETSC_PI; */
-  /* } */
+  else phi = fmod( phi + 20.*PETSC_PI, 2.*PETSC_PI);
+  // make unit vector bb_0
   cylToCart(((dim == 3) ? s_r_major : 0), psi, theta, phi, aa); // don't shift 2D
-  // make unit vector bb \hat b_0
-  for (PetscInt i = 0; i < dim; i++) {
-    bb[i] = (aa[i] - x_vec[i]);
-    xdot += bb[i] * bb[i];
+  for (ii = 0, xdot = 0; ii < dim; ii++) {
+    bb[ii] = (aa[ii] - x_vec[ii]);
+    xdot += bb[ii] * bb[ii];
   }
   xdot = 1 / PetscSqrtReal(xdot);
-  for (PetscInt i = 0; i < dim; i++) bb[i] *= xdot;
+  for (ii = 0; ii < dim; ii++) bb[ii] *= xdot;
   // make unit vector aa: phi vector
   // need to rotate diag(eps, eps, 1) by angle between q0_vec and x_vec
-  if (dim == 2) { // simply make (0,1)
+  if (dim == 2) { // simply make fake (0,1)
     aa[0] = 0;
-    aa[1] = x_vec[1] > 0 ? -1 : 1;
+    aa[1] = 1; //x_vec[1] > 0 ? -1 : 1;
   } else {
     theta -= FD_DIR*qsaf * dphi; // remove little twist to get \hat z
     cylToCart(s_r_major, psi, theta, phi, aa);
     // make unit vector aa \hat z
     for (ii = 0, xdot = 0; ii < 3; ii++) {
-      aa[ii] = (aa[ii] - x_vec[ii]) / dt;
+      aa[ii] = (aa[ii] - x_vec[ii]); // / dt not needed
       xdot += aa[ii] * aa[ii];
     }
     xdot = 1 / PetscSqrtReal(xdot);
-    for (PetscInt i = 0; i < 3; i++) aa[i] *= xdot;
+    for ( ii = 0; ii < 3; ii++) aa[ii] *= xdot;
   }
   // Let v = a x b
   CROSS3(aa, bb, vv);
@@ -333,8 +335,7 @@ static void anisotropicg3(PetscInt dim, const PetscReal uu[], const PetscReal xx
   if (cc<0.001 && dim==3) exit(13);
   for (ii = 0, ss = 0; ii < 3; ii++) ss += vv[ii] * vv[ii];
   ss = PetscSqrtReal(ss);
-  PetscBool print = 0; //fabs(uu[0]) > .4 && fabs(xx[2]-2.913823e-01) < 1e-2 && fabs(fabs(xx[0])-7.192007) < 1e-2 ;
-  if (dim == 3 && print) printf("v = %e %e %e; a = %e %e %e; b = %e %e %e; x = %e %e %e. cos(theta)= %e sin(theta)= %e; psi = %e, theta = %e, phi = %e (dphi = %e)\n",vv[0], vv[1], vv[2], aa[0], aa[1], aa[2], bb[0], bb[1], bb[2], xx[0], xx[1], xx[2], cc, ss, psi, theta, phi, dphi); // (0,1,0)
+  if (dim == 3 && print) printf("v = %e %e %e; a = %e %e %e; b = %e %e %e; x = %e %e %e. cos(theta)= %e sin(theta)= %e; psi = %e, theta = %e, phi = %e (dphi = %e) stage %c qsaf = %e\n",vv[0], vv[1], vv[2], aa[0], aa[1], aa[2], bb[0], bb[1], bb[2], xx[0], xx[1], xx[2], cc, ss, psi, theta, phi, dphi, s_stage, qsaf); // (0,1,0)
   if (ss < PETSC_SQRT_MACHINE_EPSILON) {
     for (PetscInt d = 0, di = (dim==2) ? 1 : 0 ; d < dim; ++d, di++) g3[d * dim + d] = (*DD)[di][di]; // need to rotate this by phi
     //printf("** a == b ** x = %e %e\nD = %e %e \n    %e %e\n", xx[0], xx[1], g3[0], g3[1], g3[2], g3[3]);
@@ -406,6 +407,7 @@ static void anisotropicg3(PetscInt dim, const PetscReal uu[], const PetscReal xx
 
 static void g3_anisotropic(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a_a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g3[])
 {
+  s_stage = '3';
   anisotropicg3( dim,  u,  x, numConstants, constants, g3);
   //for (PetscInt i = 0; i < 9; i++) g3[i] = 0;
 }
@@ -414,6 +416,7 @@ static void f1_anisotropic(PetscInt dim, PetscInt Nf, PetscInt NfAux, const Pets
 {
   PetscScalar g3[9];
   for (PetscInt i = 0; i < 9; i++) g3[i] = 0;
+  s_stage = '1';
   anisotropicg3( dim, u, x, numConstants, constants, g3);
 
   for (PetscInt i = 0; i < dim; ++i) {
@@ -513,6 +516,7 @@ static PetscErrorCode CreateCoarseMesh(MPI_Comm comm, AppCtx *user, DM *dm)
     PetscCall(DMSetType(*dm, DMPLEX));
     PetscCall(DMPlexDistributeSetDefault(*dm, PETSC_FALSE));
     PetscCall(DMSetFromOptions(*dm)); // gets size of init grid (1x1)
+    PetscCall(DMLocalizeCoordinates(*dm)); // periodic
   }
   PetscCall(PetscObjectSetName((PetscObject)*dm, "Coarse Mesh"));
   PetscCall(DMSetApplicationContext(*dm, user));
@@ -656,10 +660,6 @@ static PetscErrorCode CreateHierarchy(DM dm, AppCtx *ctx, DM *a_dmhierarchy[])
       }
     }
   }
-  // periodic
-  for (PetscInt r = 0; r < ctx->nlevels; r++) {
-    PetscCall(DMLocalizeCoordinates(dmhierarchy[r])); // periodic
-  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -766,8 +766,8 @@ int main(int argc, char **argv)
     PetscCall(PetscSNPrintf(prefix, PETSC_MAX_PATH_LEN, "%s_", name));
     PetscCall(DMClone(dm, &celldm));
     PetscCall(PetscFECreateDefault(PETSC_COMM_WORLD, ctx->dim, ctx->dim, PETSC_FALSE, prefix, -1, &fe));
-    PetscCall(PetscObjectSetName((PetscObject)fe, "D"));
-    PetscCall(PetscFEViewFromOptions(fe, NULL, "-D_fe_view"));
+    PetscCall(PetscObjectSetName((PetscObject)fe, "b0"));
+    PetscCall(PetscFEViewFromOptions(fe, NULL, "-b0_fe_view"));
     PetscCall(DMSetField(celldm, 0, NULL, (PetscObject)fe));
     PetscCall(DMCreateDS(celldm));
     PetscCall(DMCreateGlobalVector(celldm, &uu));
@@ -775,8 +775,8 @@ int main(int argc, char **argv)
     PetscErrorCode (*initu[1])(PetscInt, PetscReal, const PetscReal[], PetscInt, PetscScalar[], void *);
     initu[0] = b_vec;
     PetscCall(DMProjectFunction(celldm, 0.0, initu, NULL, INSERT_ALL_VALUES, uu));
-    PetscCall(DMViewFromOptions(celldm, NULL, "-D_dm_view"));
-    PetscCall(VecViewFromOptions(uu, NULL, "-D_vec_view"));
+    PetscCall(DMViewFromOptions(celldm, NULL, "-b0_dm_view"));
+    PetscCall(VecViewFromOptions(uu, NULL, "-b0_vec_view"));
     PetscCall(PetscFEDestroy(&fe));
     PetscCall(DMDestroy(&celldm));
     PetscCall(VecDestroy(&uu));
