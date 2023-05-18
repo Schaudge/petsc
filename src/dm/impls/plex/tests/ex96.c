@@ -26,7 +26,7 @@ typedef struct {
   /* init Maxwellian */
   PetscReal theta;
   PetscReal n;
-  PetscReal shift;
+  PetscReal source_location[3];
   /* cache */
   PetscInt sequence_number;
 } AppCtx;
@@ -39,7 +39,7 @@ static PetscReal s_r_minor;
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *ctx)
 {
   PetscMPIInt size;
-
+  PetscInt nn;
   PetscFunctionBeginUser;
   PetscCallMPI(MPI_Comm_size(comm, &size));
   ctx->dim = 3; // 2 is for plane solve (debugging)
@@ -56,9 +56,11 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *ctx)
   ctx->anisotropic_eps       = 1.0; // default to no anisotropy (debug)
   ctx->n                     = 1;
   ctx->theta                 = .05;
-  ctx->shift                 = 1;
   ctx->print = 1;
+  for (nn = 0; nn < 3; nn++) ctx->source_location[nn] = 1;
   PetscOptionsBegin(comm, "tor_", "Tokamak solver", "DMPLEX");
+  nn = 3;
+  PetscCall(PetscOptionsRealArray("-source_location", "Maxwellian source location", "ex96.c", ctx->source_location, &nn, NULL));
   PetscCall(PetscOptionsInt("-dim", "The dimension of problem (2 is for debugging)", "ex96.c", ctx->dim, &ctx->dim, NULL));
   PetscCheck(ctx->dim == 2 || ctx->dim == 3, comm, PETSC_ERR_ARG_WRONG, "dim (%d) != 2 or 3", (int)ctx->dim);
   if (ctx->dim == 3) {
@@ -70,7 +72,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *ctx)
   PetscCall(PetscOptionsInt("-poloidal_refine", "Number of refinement steps in poloidal plane (new levels)", "ex96.c", ctx->poloidal_refine, &ctx->poloidal_refine, NULL));
   PetscCall(PetscOptionsInt("-uniform_poloidal_refine", "Uniform poloidal plane refinement levels are created", "ex96.c", ctx->uniform_poloidal_refine, &ctx->uniform_poloidal_refine, NULL));
   PetscCall(PetscOptionsInt("-print", "Print period, 0 for no printing, -1 for first and last", "ex96.c", ctx->print, &ctx->print, NULL));
-  PetscCall(PetscOptionsBool("-use_360_domains", "inflate domain factor from minor radius", "ex96.c", ctx->use_360_domains, &ctx->use_360_domains, NULL));
+  PetscCall(PetscOptionsBool("-use_360_domains", "Use processor domains around the whole torus", "ex96.c", ctx->use_360_domains, &ctx->use_360_domains, NULL));
   PetscCall(PetscOptionsReal("-anisotropic", "Anisotropic epsilon", "ex96.c", ctx->anisotropic_eps, &ctx->anisotropic_eps, &ctx->anisotropic));
   if (size > 1) {
     int nn = (int)(PetscPowInt(4, ctx->poloidal_refine) * PetscPowInt(2, ctx->toroidal_refine));
@@ -87,7 +89,6 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *ctx)
   PetscCall(PetscOptionsString("-file", "2D mesh file on [0, 1]^2 and scaled by 2 * r_minor", "ex96.c", ctx->filename, ctx->filename, sizeof(ctx->filename), NULL));
   PetscCall(PetscOptionsReal("-n", "Maxwellian n", "ex96.c", ctx->n, &ctx->n, NULL));
   PetscCall(PetscOptionsReal("-theta", "Maxwellian kT/m", "ex96.c", ctx->theta, &ctx->theta, NULL));
-  PetscCall(PetscOptionsReal("-shift", "Maxwellian shift", "ex96.c", ctx->shift, &ctx->shift, NULL));
   PetscOptionsEnd();
   s_r_major = ctx->R;
   s_r_minor = ctx->r;
@@ -214,8 +215,6 @@ static PetscErrorCode ExtrudeTorus(DM dm, PetscInt n_extrude, AppCtx *ctx, DM *n
   }
   PetscCall(VecRestoreArrayWrite(coordinates, &coords));
   PetscCall(VecRestoreArrayWrite(coordinates2, &coords2));
-  // set for periodic
-  // PetscCall(DMLocalizeCoordinates(dmtorus));
   *new_dm = dmtorus;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -269,7 +268,7 @@ static PetscErrorCode b_vec(PetscInt dim, PetscReal time, const PetscReal x[], P
     __v[2] = __a[0] * __b[1] - __a[1] * __b[0]; \
   }
 
-#define FD_DIR (-1)
+#define FD_DIR (1)
 
 static void anisotropicg3(PetscInt dim, const PetscReal uu[], const PetscReal xx[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g3[])
 {
@@ -579,17 +578,11 @@ static PetscErrorCode CreateHierarchy(DM dm, AppCtx *ctx, DM *a_dmhierarchy[])
       PetscCall(ExtrudeTorus(dmhierarchy[r], ctx->coarse_toroidal_faces, ctx, &ext_dm));
       PetscCall(DMDestroy(&dmhierarchy[r]));
       dmhierarchy[r] = ext_dm;
-      //PetscCall(DMLocalizeCoordinates(ext_dm)); // periodic
     }
     PetscCall(DMPlexDistribute(dmhierarchy[r], 0, NULL, &pdm));
     if (pdm) {
-      //PetscBool localized;
-      //PetscCall(DMGetCoordinatesLocalized(dmhierarchy[r], &localized));
-      //if (ctx->dim > 2) PetscCheck(localized, comm, PETSC_ERR_ARG_WRONG,"not localized");
       PetscCall(DMDestroy(&dmhierarchy[r]));
       dmhierarchy[r] = pdm;
-      // PetscCall(DMGetCoordinatesLocalized(pdm, &localized));
-      //if (ctx->dim > 2) PetscCheck(localized, comm, PETSC_ERR_ARG_WRONG,"not localized");
     }
     /* view */
     if (ctx->dim > 2) PetscCall(PetscObjectSetName((PetscObject)dmhierarchy[r], torusstr));
@@ -606,16 +599,10 @@ static PetscErrorCode CreateHierarchy(DM dm, AppCtx *ctx, DM *a_dmhierarchy[])
       PetscCall(ExtrudeTorus(dmhierarchy[r], nref, ctx, &ext_dm));
       PetscCall(DMDestroy(&dmhierarchy[r]));
       dmhierarchy[r] = ext_dm;
-      //PetscCall(DMLocalizeCoordinates(ext_dm)); // periodic
       PetscCall(DMPlexDistribute(dmhierarchy[r], 0, NULL, &pdm));
       if (pdm) {
-        //PetscBool localized;
-        //PetscCall(DMGetCoordinatesLocalized(dmhierarchy[r], &localized));
-        //if (ctx->dim > 2) PetscCheck(localized, comm, PETSC_ERR_ARG_WRONG,"not localized");
         PetscCall(DMDestroy(&dmhierarchy[r]));
         dmhierarchy[r] = pdm;
-        //PetscCall(DMGetCoordinatesLocalized(pdm, &localized));
-        //if (ctx->dim > 2) PetscCheck(localized, comm, PETSC_ERR_ARG_WRONG,"not localized");
       }
       /* view */
       if (ctx->dim > 2) PetscCall(PetscObjectSetName((PetscObject)dmhierarchy[r], torusstr));
@@ -669,6 +656,10 @@ static PetscErrorCode CreateHierarchy(DM dm, AppCtx *ctx, DM *a_dmhierarchy[])
       }
     }
   }
+  // periodic
+  for (PetscInt r = 0; r < ctx->nlevels; r++) {
+    PetscCall(DMLocalizeCoordinates(dmhierarchy[r])); // periodic
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -678,14 +669,13 @@ static PetscErrorCode maxwellian(PetscInt dim, PetscReal time, const PetscReal x
   PetscInt  i;
   PetscReal v2 = 0, theta = ctx->theta, shift[3] = {0,0,0}; /* theta = 2kT/mc^2 */
   PetscFunctionBegin;
-  shift[0] = ctx->shift;
-  shift[1] = ctx->shift;
-  if (dim == 3) shift[0] += ctx->R;
   /* evaluate the Maxwellian */
+  for (i = 0; i < dim; ++i) shift[i] = ctx->source_location[i];
   for (i = 0, v2 = 0; i < dim; ++i) v2 += (x[i] - shift[i]) * (x[i] - shift[i]);
   u[0] += ctx->n * PetscPowReal(PETSC_PI * theta, -1.5) * PetscExpReal(-v2 / theta);
-  /* evaluate the Maxwellian */
-  for (i = 0, v2 = 0; i < dim; ++i) v2 += (x[i] + shift[i]) * (x[i] + shift[i]);
+  /* evaluate the Maxwellian (negative density) */
+  for (i = 0; i < dim; ++i) shift[i] = -ctx->source_location[i];
+  for (i = 0, v2 = 0; i < dim; ++i) v2 += (x[i] - shift[i]) * (x[i] - shift[i]);
   u[0] += -ctx->n * PetscPowReal(PETSC_PI * theta, -1.5) * PetscExpReal(-v2 / theta);
   //printf("[%e %e] u[0] = %e  %e shift = %e\n",x[0], x[1], u[0], PetscExpReal(-v2 / theta), shift);
   PetscFunctionReturn(PETSC_SUCCESS);
