@@ -584,7 +584,7 @@ PetscErrorCode PetscBinarySeek(int fd, off_t off, PetscBinarySeekType whence, of
 .seealso: `PetscBinaryWrite()`, `PetscBinaryOpen()`, `PetscBinaryClose()`, `PetscBinaryRead()`, `PetscBinarySynchronizedWrite()`,
           `PetscBinarySynchronizedSeek()`
 @*/
-PetscErrorCode PetscBinarySynchronizedRead(MPI_Comm comm, int fd, void *data, PetscInt num, PetscInt *count, PetscDataType type)
+PetscErrorCode PetscBinarySynchronizedRead(MPI_Comm comm, int fd, void *data, PetscInt64 num, PetscInt *count, PetscDataType type)
 {
   PetscMPIInt  rank, size;
   MPI_Datatype mtype;

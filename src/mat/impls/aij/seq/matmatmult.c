@@ -1294,7 +1294,7 @@ PetscErrorCode MatMatTransposeMultSymbolic_SeqAIJ_SeqAIJ(Mat A, Mat B, PetscReal
 #if defined(PETSC_USE_INFO)
     {
       Mat_SeqAIJ *c = (Mat_SeqAIJ *)C->data;
-      PetscCall(PetscInfo(C, "Use coloring of C=A*B^T; B^T: %" PetscInt_FMT " %" PetscInt_FMT ", Bt_dense: %" PetscInt_FMT ",%" PetscInt_FMT "; Cnz %" PetscInt_FMT " / (cm*ncolors %" PetscInt_FMT ") = %g\n", B->cmap->n, B->rmap->n, Bt_dense->rmap->n,
+      PetscCall(PetscInfo(C, "Use coloring of C=A*B^T; B^T: %" PetscInt_FMT " %" PetscInt_FMT ", Bt_dense: %" PetscInt_FMT ",%" PetscInt_FMT "; Cnz %" PetscInt64_FMT " / (cm*ncolors %" PetscInt_FMT ") = %g\n", B->cmap->n, B->rmap->n, Bt_dense->rmap->n,
                           Bt_dense->cmap->n, c->nz, A->rmap->n * matcoloring->ncolors, (double)(((PetscReal)(c->nz)) / ((PetscReal)(A->rmap->n * matcoloring->ncolors)))));
     }
 #endif
@@ -1928,7 +1928,7 @@ PetscErrorCode MatTransposeColoringCreate_SeqAIJ(Mat mat, ISColoring iscoloring,
   PetscCall(MatRestoreColumnIJ_SeqAIJ_Color(mat, 0, PETSC_FALSE, PETSC_FALSE, &ncols, &ci, &cj, &spidx, NULL));
   PetscCall(PetscFree(rowhit));
   PetscCall(ISColoringRestoreIS(iscoloring, PETSC_USE_POINTER, &isa));
-  PetscCheck(csp->nz == colorforrow[nis], PETSC_COMM_SELF, PETSC_ERR_PLIB, "csp->nz %" PetscInt_FMT " != colorforrow[nis] %" PetscInt_FMT, csp->nz, colorforrow[nis]);
+  PetscCheck(csp->nz == colorforrow[nis], PETSC_COMM_SELF, PETSC_ERR_PLIB, "csp->nz %" PetscInt64_FMT " != colorforrow[nis] %" PetscInt_FMT, csp->nz, colorforrow[nis]);
 
   c->colorforrow = colorforrow;
   c->rows        = rows;

@@ -487,7 +487,7 @@ PetscErrorCode MatSetValues_SeqAIJ_SortedFullNoPreallocation(Mat A, PetscInt m, 
 
   PetscFunctionBegin;
   PetscCheck(!A->was_assembled, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Cannot call on assembled matrix.");
-  PetscCheck(m * n + a->nz <= a->maxnz, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Number of entries in matrix will be larger than maximum nonzeros allocated for %" PetscInt_FMT " in MatSeqAIJSetTotalPreallocation()", a->maxnz);
+  PetscCheck(m * n + a->nz <= a->maxnz, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Number of entries in matrix will be larger than maximum nonzeros allocated for %" PetscInt64_FMT " in MatSeqAIJSetTotalPreallocation()", a->maxnz);
 
   PetscCall(MatSeqAIJGetArray(A, &aa));
   for (k = 0; k < m; k++) { /* loop over added rows */
@@ -730,11 +730,11 @@ PetscErrorCode MatView_SeqAIJ_ASCII(Mat A, PetscViewer viewer)
     }
     PetscCall(PetscViewerASCIIUseTabs(viewer, PETSC_FALSE));
     PetscCall(PetscViewerASCIIPrintf(viewer, "%% Size = %" PetscInt_FMT " %" PetscInt_FMT " \n", m, A->cmap->n));
-    PetscCall(PetscViewerASCIIPrintf(viewer, "%% Nonzeros = %" PetscInt_FMT " \n", a->nz));
+    PetscCall(PetscViewerASCIIPrintf(viewer, "%% Nonzeros = %" PetscInt64_FMT " \n", a->nz));
 #if defined(PETSC_USE_COMPLEX)
     PetscCall(PetscViewerASCIIPrintf(viewer, "zzz = zeros(%" PetscInt_FMT ",4);\n", a->nz + nofinalvalue));
 #else
-    PetscCall(PetscViewerASCIIPrintf(viewer, "zzz = zeros(%" PetscInt_FMT ",3);\n", a->nz + nofinalvalue));
+    PetscCall(PetscViewerASCIIPrintf(viewer, "zzz = zeros(%" PetscInt64_FMT ",3);\n", a->nz + nofinalvalue));
 #endif
     PetscCall(PetscViewerASCIIPrintf(viewer, "zzz = [\n"));
 
@@ -877,7 +877,7 @@ PetscErrorCode MatView_SeqAIJ_ASCII(Mat A, PetscViewer viewer)
 #else
     PetscCall(PetscViewerASCIIPrintf(viewer, "%%%%MatrixMarket matrix coordinate real general\n"));
 #endif
-    PetscCall(PetscViewerASCIIPrintf(viewer, "%" PetscInt_FMT " %" PetscInt_FMT " %" PetscInt_FMT "\n", m, A->cmap->n, a->nz));
+    PetscCall(PetscViewerASCIIPrintf(viewer, "%" PetscInt_FMT " %" PetscInt_FMT " %" PetscInt64_FMT "\n", m, A->cmap->n, a->nz));
     for (i = 0; i < m; i++) {
       for (j = a->i[i]; j < a->i[i + 1]; j++) {
 #if defined(PETSC_USE_COMPLEX)
@@ -1143,7 +1143,7 @@ PetscErrorCode MatAssemblyEnd_SeqAIJ(Mat A, MatAssemblyType mode)
   PetscCheck(!fshift || a->nounused != -1, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Unused space detected in matrix: %" PetscInt_FMT " X %" PetscInt_FMT ", %" PetscInt_FMT " unneeded", m, A->cmap->n, fshift);
 
   PetscCall(MatMarkDiagonal_SeqAIJ(A));
-  PetscCall(PetscInfo(A, "Matrix size: %" PetscInt_FMT " X %" PetscInt_FMT "; storage space: %" PetscInt_FMT " unneeded,%" PetscInt_FMT " used\n", m, A->cmap->n, fshift, a->nz));
+  PetscCall(PetscInfo(A, "Matrix size: %" PetscInt_FMT " X %" PetscInt_FMT "; storage space: %" PetscInt_FMT " unneeded,%" PetscInt64_FMT " used\n", m, A->cmap->n, fshift, a->nz));
   PetscCall(PetscInfo(A, "Number of mallocs during MatSetValues() is %" PetscInt_FMT "\n", a->reallocs));
   PetscCall(PetscInfo(A, "Maximum nonzeros in any row is %" PetscInt_FMT "\n", rmax));
 
@@ -1214,7 +1214,7 @@ PetscErrorCode MatDestroy_SeqAIJ(Mat A)
 
   PetscFunctionBegin;
 #if defined(PETSC_USE_LOG)
-  PetscCall(PetscLogObjectState((PetscObject)A, "Rows=%" PetscInt_FMT ", Cols=%" PetscInt_FMT ", NZ=%" PetscInt_FMT, A->rmap->n, A->cmap->n, a->nz));
+  PetscCall(PetscLogObjectState((PetscObject)A, "Rows=%" PetscInt_FMT ", Cols=%" PetscInt_FMT ", NZ=%" PetscInt64_FMT, A->rmap->n, A->cmap->n, a->nz));
 #endif
   PetscCall(MatSeqXAIJFreeAIJ(A, &a->a, &a->j, &a->i));
   PetscCall(MatResetPreallocationCOO_SeqAIJ(A));
@@ -2714,10 +2714,12 @@ PetscErrorCode MatScale_SeqAIJ(Mat inA, PetscScalar alpha)
   Mat_SeqAIJ  *a = (Mat_SeqAIJ *)inA->data;
   PetscScalar *v;
   PetscBLASInt one = 1, bnz;
+  PetscInt     pnz;
 
   PetscFunctionBegin;
   PetscCall(MatSeqAIJGetArray(inA, &v));
-  PetscCall(PetscBLASIntCast(a->nz, &bnz));
+  PetscCall(PetscIntCast(a->nz, &pnz));
+  PetscCall(PetscBLASIntCast(pnz, &bnz));
   PetscCallBLAS("BLASscal", BLASscal_(&bnz, &alpha, v, &one));
   PetscCall(PetscLogFlops(a->nz));
   PetscCall(MatSeqAIJRestoreArray(inA, &v));
@@ -4980,7 +4982,8 @@ PetscErrorCode MatLoad_SeqAIJ(Mat newMat, PetscViewer viewer)
 PetscErrorCode MatLoad_SeqAIJ_Binary(Mat mat, PetscViewer viewer)
 {
   Mat_SeqAIJ *a = (Mat_SeqAIJ *)mat->data;
-  PetscInt    header[4], *rowlens, M, N, nz, sum, rows, cols, i;
+  PetscInt    header[4], *rowlens, M, N, nz, rows, cols, i;
+  PetscInt64  sum;
 
   PetscFunctionBegin;
   PetscCall(PetscViewerSetUp(viewer));
@@ -5015,7 +5018,11 @@ PetscErrorCode MatLoad_SeqAIJ_Binary(Mat mat, PetscViewer viewer)
   /* check if sum(rowlens) is same as nz */
   sum = 0;
   for (i = 0; i < M; i++) sum += rowlens[i];
-  PetscCheck(sum == nz, PETSC_COMM_SELF, PETSC_ERR_FILE_UNEXPECTED, "Inconsistent matrix data in file: nonzeros = %" PetscInt_FMT ", sum-row-lengths = %" PetscInt_FMT, nz, sum);
+  if (nz < PETSC_MAX_INT) {
+    PetscCheck(sum == nz, PETSC_COMM_SELF, PETSC_ERR_FILE_UNEXPECTED, "Inconsistent matrix data in file: nonzeros = %" PetscInt_FMT ", sum-row-lengths = %" PetscInt64_FMT, nz, sum);
+  } else {
+    PetscCheck(sum < PETSC_MAX_INT, PETSC_COMM_SELF, PETSC_ERR_FILE_UNEXPECTED, "Inconsistent matrix data in file, sum of row counts %" PetscInt64_FMT "is smaller than indicated by header[3]", sum);
+  }
   /* preallocate and check sizes */
   PetscCall(MatSeqAIJSetPreallocation_SeqAIJ(mat, 0, rowlens));
   PetscCall(MatGetSize(mat, &rows, &cols));
@@ -5349,7 +5356,7 @@ PetscErrorCode MatEliminateZeros_SeqAIJ(Mat A)
     ai[m] -= fshift;
     a->nz = ai[m];
   }
-  PetscCall(PetscInfo(A, "Matrix size: %" PetscInt_FMT " X %" PetscInt_FMT "; zeros eliminated: %" PetscInt_FMT "; nonzeros left: %" PetscInt_FMT "\n", m, A->cmap->n, fshift, a->nz));
+  PetscCall(PetscInfo(A, "Matrix size: %" PetscInt_FMT " X %" PetscInt_FMT "; zeros eliminated: %" PetscInt_FMT "; nonzeros left: %" PetscInt64_FMT "\n", m, A->cmap->n, fshift, a->nz));
   A->nonzerostate -= fshift;
   A->info.nz_unneeded += (PetscReal)fshift;
   a->rmax = rmax;

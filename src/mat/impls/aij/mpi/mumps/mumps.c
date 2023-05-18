@@ -526,7 +526,7 @@ PetscErrorCode MatConvertToTriples_seqsbaij_seqsbaij(Mat A, PetscInt shift, MatR
         nz++;
       }
     }
-    PetscCheck(nz == aa->nz, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Different numbers of nonzeros %" PetscInt64_FMT " != %" PetscInt_FMT, nz, aa->nz);
+    PetscCheck(nz == aa->nz, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Different numbers of nonzeros %" PetscInt64_FMT " != %" PetscInt64_FMT, nz, aa->nz);
   }
   if (reuse == MAT_INITIAL_MATRIX) mumps->nnz = nz;
   PetscFunctionReturn(PETSC_SUCCESS);

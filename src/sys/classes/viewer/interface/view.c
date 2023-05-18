@@ -407,7 +407,7 @@ PetscErrorCode PetscViewerView(PetscViewer v, PetscViewer viewer)
           `PetscViewerReadable()`, `PetscViewerBinaryGetDescriptor()`,
           `PetscViewerBinaryGetInfoPointer()`, `PetscFileMode`, `PetscViewer`
 @*/
-PetscErrorCode PetscViewerRead(PetscViewer viewer, void *data, PetscInt num, PetscInt *count, PetscDataType dtype)
+PetscErrorCode PetscViewerRead(PetscViewer viewer, void *data, PetscInt64 num, PetscInt *count, PetscDataType dtype)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(viewer, PETSC_VIEWER_CLASSID, 1);
@@ -441,7 +441,7 @@ PetscErrorCode PetscViewerRead(PetscViewer viewer, void *data, PetscInt num, Pet
       c        = i;
     }
     if (count) *count = c;
-    else PetscCheck(c >= num, PetscObjectComm((PetscObject)viewer), PETSC_ERR_FILE_READ, "Insufficient data, only read %" PetscInt_FMT " < %" PetscInt_FMT " strings", c, num);
+    else PetscCheck(c >= num, PetscObjectComm((PetscObject)viewer), PETSC_ERR_FILE_READ, "Insufficient data, only read %" PetscInt_FMT " < %" PetscInt64_FMT " strings", c, num);
   } else PetscUseTypeMethod(viewer, read, data, num, count, dtype);
   PetscFunctionReturn(PETSC_SUCCESS);
 }

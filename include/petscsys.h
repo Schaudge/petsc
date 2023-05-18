@@ -2072,7 +2072,7 @@ static inline PetscBool PetscBinaryBigEndian(void)
 }
 
 PETSC_EXTERN PetscErrorCode PetscBinaryRead(int, void *, PetscInt, PetscInt *, PetscDataType);
-PETSC_EXTERN PetscErrorCode PetscBinarySynchronizedRead(MPI_Comm, int, void *, PetscInt, PetscInt *, PetscDataType);
+PETSC_EXTERN PetscErrorCode PetscBinarySynchronizedRead(MPI_Comm, int, void *, PetscInt64, PetscInt *, PetscDataType);
 PETSC_EXTERN PetscErrorCode PetscBinaryWrite(int, const void *, PetscInt, PetscDataType);
 PETSC_EXTERN PetscErrorCode PetscBinarySynchronizedWrite(MPI_Comm, int, const void *, PetscInt, PetscDataType);
 PETSC_EXTERN PetscErrorCode PetscBinaryOpen(const char[], PetscFileMode, int *);

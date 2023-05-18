@@ -49,7 +49,7 @@ typedef struct {
   PetscInt          nonew;        /* 1 don't add new nonzeros, -1 generate error on new */ \
   PetscInt          nounused;     /* -1 generate error on unused space */ \
   PetscBool         singlemalloc; /* if true a, i, and j have been obtained with one big malloc */ \
-  PetscInt          maxnz;        /* allocated nonzeros */ \
+  PetscInt64        maxnz;        /* allocated nonzeros */ \
   PetscInt         *imax;         /* maximum space allocated for each row */ \
   PetscInt         *ilen;         /* actual length of each row */ \
   PetscInt         *ipre;         /* space preallocated for each row by user */ \
@@ -62,7 +62,7 @@ typedef struct {
   PetscBool         free_ij;       /* free the column indices j and row offsets i when the matrix is destroyed */ \
   PetscBool         free_a;        /* free the numerical values when matrix is destroy */ \
   Mat_CompressedRow compressedrow; /* use compressed row format */ \
-  PetscInt          nz;            /* nonzeros */ \
+  PetscInt64        nz;            /* nonzeros */ \
   PetscInt         *i;             /* pointer to beginning of each row */ \
   PetscInt         *j;             /* column values: j + i[k] - 1 is start of row k */ \
   PetscInt         *diag;          /* pointers to diagonal elements */ \

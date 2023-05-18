@@ -883,7 +883,7 @@ PetscErrorCode PetscViewerBinaryOpen(MPI_Comm comm, const char name[], PetscFile
 }
 
 #if defined(PETSC_HAVE_MPIIO)
-static PetscErrorCode PetscViewerBinaryWriteReadMPIIO(PetscViewer viewer, void *data, PetscInt num, PetscInt *count, PetscDataType dtype, PetscBool write)
+static PetscErrorCode PetscViewerBinaryWriteReadMPIIO(PetscViewer viewer, void *data, PetscInt64 num, PetscInt *count, PetscDataType dtype, PetscBool write)
 {
   MPI_Comm            comm    = PetscObjectComm((PetscObject)viewer);
   PetscViewer_Binary *vbinary = (PetscViewer_Binary *)viewer->data;
@@ -934,7 +934,7 @@ static PetscErrorCode PetscViewerBinaryWriteReadMPIIO(PetscViewer viewer, void *
           `VecView()`, `MatView()`, `VecLoad()`, `MatLoad()`, `PetscViewerBinaryGetDescriptor()`,
           `PetscViewerBinaryGetInfoPointer()`, `PetscFileMode`, `PetscViewer`, `PetscViewerBinaryRead()`
 @*/
-PetscErrorCode PetscViewerBinaryRead(PetscViewer viewer, void *data, PetscInt num, PetscInt *count, PetscDataType dtype)
+PetscErrorCode PetscViewerBinaryRead(PetscViewer viewer, void *data, PetscInt64 num, PetscInt *count, PetscDataType dtype)
 {
   PetscViewer_Binary *vbinary;
 
@@ -972,7 +972,7 @@ PetscErrorCode PetscViewerBinaryRead(PetscViewer viewer, void *data, PetscInt nu
           `VecView()`, `MatView()`, `VecLoad()`, `MatLoad()`, `PetscViewerBinaryGetDescriptor()`, `PetscDataType`
           `PetscViewerBinaryGetInfoPointer()`, `PetscFileMode`, `PetscViewer`, `PetscViewerBinaryRead()`
 @*/
-PetscErrorCode PetscViewerBinaryWrite(PetscViewer viewer, const void *data, PetscInt count, PetscDataType dtype)
+PetscErrorCode PetscViewerBinaryWrite(PetscViewer viewer, const void *data, PetscInt64 count, PetscDataType dtype)
 {
   PetscViewer_Binary *vbinary;
 
@@ -993,7 +993,7 @@ PetscErrorCode PetscViewerBinaryWrite(PetscViewer viewer, const void *data, Pets
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode PetscViewerBinaryWriteReadAll(PetscViewer viewer, PetscBool write, void *data, PetscInt count, PetscInt start, PetscInt total, PetscDataType dtype)
+static PetscErrorCode PetscViewerBinaryWriteReadAll(PetscViewer viewer, PetscBool write, void *data, PetscInt64 count, PetscInt64 start, PetscInt64 total, PetscDataType dtype)
 {
   MPI_Comm              comm = PetscObjectComm((PetscObject)viewer);
   PetscMPIInt           size, rank;
@@ -1022,12 +1022,12 @@ static PetscErrorCode PetscViewerBinaryWriteReadAll(PetscViewer viewer, PetscBoo
     PetscMPIInt cnt;
 
     if (start == PETSC_DETERMINE) {
-      PetscCallMPI(MPI_Scan(&count, &start, 1, MPIU_INT, MPI_SUM, comm));
+      PetscCallMPI(MPI_Scan(&count, &start, 1, MPIU_INT64, MPI_SUM, comm));
       start -= count;
     }
     if (total == PETSC_DETERMINE) {
       total = start + count;
-      PetscCallMPI(MPI_Bcast(&total, 1, MPIU_INT, size - 1, comm));
+      PetscCallMPI(MPI_Bcast(&total, 1, MPIU_INT64, size - 1, comm));
     }
     PetscCall(PetscMPIIntCast(count, &cnt));
     PetscCall(PetscViewerBinaryGetMPIIODescriptor(viewer, &mfdes));
@@ -1111,7 +1111,7 @@ static PetscErrorCode PetscViewerBinaryWriteReadAll(PetscViewer viewer, PetscBoo
 
 .seealso: [](sec_viewers), `PETSCVIEWERBINARY`, `PetscViewerBinaryOpen()`, `PetscViewerBinarySetUseMPIIO()`, `PetscViewerBinaryRead()`, `PetscViewerBinaryWriteAll()`
 @*/
-PetscErrorCode PetscViewerBinaryReadAll(PetscViewer viewer, void *data, PetscInt count, PetscInt start, PetscInt total, PetscDataType dtype)
+PetscErrorCode PetscViewerBinaryReadAll(PetscViewer viewer, void *data, PetscInt64 count, PetscInt64 start, PetscInt64 total, PetscDataType dtype)
 {
   PetscFunctionBegin;
   PetscCall(PetscViewerBinaryWriteReadAll(viewer, PETSC_FALSE, data, count, start, total, dtype));
@@ -1135,7 +1135,7 @@ PetscErrorCode PetscViewerBinaryReadAll(PetscViewer viewer, void *data, PetscInt
 
 .seealso: [](sec_viewers), `PETSCVIEWERBINARY`, `PetscViewerBinaryOpen()`, `PetscViewerBinarySetUseMPIIO()`, `PetscViewerBinaryWriteAll()`, `PetscViewerBinaryReadAll()`
 @*/
-PetscErrorCode PetscViewerBinaryWriteAll(PetscViewer viewer, const void *data, PetscInt count, PetscInt start, PetscInt total, PetscDataType dtype)
+PetscErrorCode PetscViewerBinaryWriteAll(PetscViewer viewer, const void *data, PetscInt64 count, PetscInt64 start, PetscInt64 total, PetscDataType dtype)
 {
   PetscFunctionBegin;
   PetscCall(PetscViewerBinaryWriteReadAll(viewer, PETSC_TRUE, (void *)data, count, start, total, dtype));

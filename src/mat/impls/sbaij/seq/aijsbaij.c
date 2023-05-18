@@ -65,7 +65,7 @@ PETSC_INTERN PetscErrorCode MatConvert_SeqSBAIJ_SeqAIJ(Mat A, MatType newtype, M
     }
     bi[i + 1] = bi[i] + rowlengths[i * bs] / bs;
   }
-  PetscCheck(bi[mbs] == 2 * a->nz - diagcnt, PETSC_COMM_SELF, PETSC_ERR_PLIB, "bi[mbs]: %" PetscInt_FMT " != 2*a->nz-diagcnt: %" PetscInt_FMT, bi[mbs], 2 * a->nz - diagcnt);
+  PetscCheck(bi[mbs] == 2 * a->nz - diagcnt, PETSC_COMM_SELF, PETSC_ERR_PLIB, "bi[mbs]: %" PetscInt_FMT " != 2*a->nz-diagcnt: %" PetscInt64_FMT, bi[mbs], 2 * a->nz - diagcnt);
 
   /* set b->j and b->a */
   aj = a->j;
@@ -283,7 +283,7 @@ PETSC_INTERN PetscErrorCode MatConvert_SeqSBAIJ_SeqBAIJ(Mat A, MatType newtype, 
     bi[i + 1]    = bi[i] + browlengths[i];
     browstart[i] = bi[i];
   }
-  PetscCheck(bi[mbs] == 2 * a->nz - mbs, PETSC_COMM_SELF, PETSC_ERR_PLIB, "bi[mbs]: %" PetscInt_FMT " != 2*a->nz - mbs: %" PetscInt_FMT, bi[mbs], 2 * a->nz - mbs);
+  PetscCheck(bi[mbs] == 2 * a->nz - mbs, PETSC_COMM_SELF, PETSC_ERR_PLIB, "bi[mbs]: %" PetscInt_FMT " != 2*a->nz - mbs: %" PetscInt64_FMT, bi[mbs], 2 * a->nz - mbs);
 
   /* set b->j and b->a */
   aj = a->j;

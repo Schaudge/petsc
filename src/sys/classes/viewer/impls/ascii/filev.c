@@ -977,7 +977,7 @@ PetscErrorCode PetscViewerASCIISynchronizedPrintf(PetscViewer viewer, const char
           `VecView()`, `MatView()`, `VecLoad()`, `MatLoad()`, `PetscViewerBinaryGetDescriptor()`,
           `PetscViewerBinaryGetInfoPointer()`, `PetscFileMode`, `PetscViewer`, `PetscViewerBinaryRead()`
 @*/
-PetscErrorCode PetscViewerASCIIRead(PetscViewer viewer, void *data, PetscInt num, PetscInt *count, PetscDataType dtype)
+PetscErrorCode PetscViewerASCIIRead(PetscViewer viewer, void *data, PetscInt64 num, PetscInt *count, PetscDataType dtype)
 {
   PetscViewer_ASCII *vascii = (PetscViewer_ASCII *)viewer->data;
   FILE              *fd     = vascii->fd;
@@ -1011,6 +1011,6 @@ PetscErrorCode PetscViewerASCIIRead(PetscViewer viewer, void *data, PetscInt num
     if (ret < 0) break; /* Proxy for EOF, need to check for it in configure */
   }
   if (count) *count = i;
-  else PetscCheck(ret >= 0, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Insufficient data, read only %" PetscInt_FMT " < %" PetscInt_FMT " items", i, num);
+  else PetscCheck(ret >= 0, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Insufficient data, read only %" PetscInt_FMT " < %" PetscInt64_FMT " items", i, num);
   PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -398,7 +398,7 @@ static PetscErrorCode MatView_BlockMat(Mat A, PetscViewer viewer)
   PetscCall(PetscObjectGetName((PetscObject)A, &name));
   PetscCall(PetscViewerGetFormat(viewer, &format));
   if (format == PETSC_VIEWER_ASCII_FACTOR_INFO || format == PETSC_VIEWER_ASCII_INFO) {
-    PetscCall(PetscViewerASCIIPrintf(viewer, "Nonzero block matrices = %" PetscInt_FMT " \n", a->nz));
+    PetscCall(PetscViewerASCIIPrintf(viewer, "Nonzero block matrices = %" PetscInt64_FMT " \n", (PetscInt64)a->nz));
     if (A->symmetric == PETSC_BOOL3_TRUE) PetscCall(PetscViewerASCIIPrintf(viewer, "Only upper triangular part of symmetric matrix is stored\n"));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -642,11 +642,11 @@ static PetscErrorCode MatAssemblyEnd_BlockMat(Mat A, MatAssemblyType mode)
   for (i = 0; i < m; i++) ailen[i] = imax[i] = ai[i + 1] - ai[i];
   a->nz = ai[m];
   for (i = 0; i < a->nz; i++) {
-    PetscAssert(aa[i], PETSC_COMM_SELF, PETSC_ERR_PLIB, "Null matrix at location %" PetscInt_FMT " column %" PetscInt_FMT " nz %" PetscInt_FMT, i, aj[i], a->nz);
+    PetscAssert(aa[i], PETSC_COMM_SELF, PETSC_ERR_PLIB, "Null matrix at location %" PetscInt_FMT " column %" PetscInt_FMT " nz %" PetscInt64_FMT, i, aj[i], a->nz);
     PetscCall(MatAssemblyBegin(aa[i], MAT_FINAL_ASSEMBLY));
     PetscCall(MatAssemblyEnd(aa[i], MAT_FINAL_ASSEMBLY));
   }
-  PetscCall(PetscInfo(A, "Matrix size: %" PetscInt_FMT " X %" PetscInt_FMT "; storage space: %" PetscInt_FMT " unneeded,%" PetscInt_FMT " used\n", m, A->cmap->n / A->cmap->bs, fshift, a->nz));
+  PetscCall(PetscInfo(A, "Matrix size: %" PetscInt_FMT " X %" PetscInt_FMT "; storage space: %" PetscInt_FMT " unneeded,%" PetscInt64_FMT " used\n", m, A->cmap->n / A->cmap->bs, fshift, a->nz));
   PetscCall(PetscInfo(A, "Number of mallocs during MatSetValues() is %" PetscInt_FMT "\n", a->reallocs));
   PetscCall(PetscInfo(A, "Maximum nonzeros in any row is %" PetscInt_FMT "\n", rmax));
 

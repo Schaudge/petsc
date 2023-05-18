@@ -176,7 +176,7 @@ PetscErrorCode MatDestroy_SeqSBAIJ(Mat A)
 
   PetscFunctionBegin;
 #if defined(PETSC_USE_LOG)
-  PetscCall(PetscLogObjectState((PetscObject)A, "Rows=%" PetscInt_FMT ", NZ=%" PetscInt_FMT, A->rmap->N, a->nz));
+  PetscCall(PetscLogObjectState((PetscObject)A, "Rows=%" PetscInt_FMT ", NZ=%" PetscInt64_FMT, A->rmap->N, a->nz));
 #endif
   PetscCall(MatSeqXAIJFreeAIJ(A, &a->a, &a->j, &a->i));
   if (a->free_diag) PetscCall(PetscFree(a->diag));
@@ -845,7 +845,7 @@ PetscErrorCode MatAssemblyEnd_SeqSBAIJ(Mat A, MatAssemblyType mode)
   if (a->diag) PetscCall(PetscArraycpy(a->diag, ai, mbs));
   PetscCheck(!fshift || a->nounused != -1, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Unused space detected in matrix: %" PetscInt_FMT " X %" PetscInt_FMT " block size %" PetscInt_FMT ", %" PetscInt_FMT " unneeded", m, A->cmap->n, A->rmap->bs, fshift * bs2);
 
-  PetscCall(PetscInfo(A, "Matrix size: %" PetscInt_FMT " X %" PetscInt_FMT ", block size %" PetscInt_FMT "; storage space: %" PetscInt_FMT " unneeded, %" PetscInt_FMT " used\n", m, A->rmap->N, A->rmap->bs, fshift * bs2, a->nz * bs2));
+  PetscCall(PetscInfo(A, "Matrix size: %" PetscInt_FMT " X %" PetscInt_FMT ", block size %" PetscInt_FMT "; storage space: %" PetscInt_FMT " unneeded, %" PetscInt64_FMT " used\n", m, A->rmap->N, A->rmap->bs, fshift * bs2, a->nz * bs2));
   PetscCall(PetscInfo(A, "Number of mallocs during MatSetValues is %" PetscInt_FMT "\n", a->reallocs));
   PetscCall(PetscInfo(A, "Most nonzeros blocks in any row is %" PetscInt_FMT "\n", rmax));
 
