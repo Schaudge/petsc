@@ -636,7 +636,12 @@ void PetscValidFunction(T, int);
         b1[2] = -PetscImaginaryPart(b0); \
         b1[3] = PetscImaginaryPart(b0); \
         PetscCall(MPIU_Allreduce(b1, b2, 5, MPIU_REAL, MPIU_MAX, PetscObjectComm((PetscObject)(a)))); \
-        if (!(b2[4] > 0 || (PetscEqualReal(-b2[0], b2[1]) && PetscEqualReal(-b2[2], b2[3])))) { PetscCall(PetscScalarView(1, &b, PETSC_VIEWER_STDERR_(PetscObjectComm((PetscObject)(a))))); } \
+        if (!(b2[4] > 0 || (PetscEqualReal(-b2[0], b2[1]) && PetscEqualReal(-b2[2], b2[3])))) { \
+          Vec tmp; \
+          PetscCall(VecCreateMPIWithArray(PetscObjectComm((PetscObject)(a)), 1, 1, PETSC_DECIDE, &b, &tmp)); \
+          PetscCall(VecViewFromOptions(tmp, NULL, "-my_vec_view")); \
+          PetscCall(VecDestroy(&tmp)); \
+        } \
         PetscCheck(b2[4] > 0 || (PetscEqualReal(-b2[0], b2[1]) && PetscEqualReal(-b2[2], b2[3])), PetscObjectComm((PetscObject)(a)), PETSC_ERR_ARG_WRONG, "Scalar value must be same on all processes, argument # %d", arg); \
       } while (0)
 
