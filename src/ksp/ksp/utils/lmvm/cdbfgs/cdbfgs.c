@@ -750,6 +750,8 @@ static PetscErrorCode Vec_Truncate(Mat H, Vec X)
     for (i=lmvm->k+1;i<lmvm->m;i++) { 
       PetscCall(VecSetValue(X,lmvm->k + 1, 0, INSERT_VALUES)); 
     }
+    PetscCall(VecAssemblyBegin(X));
+    PetscCall(VecAssemblyEnd(X));
   } 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
