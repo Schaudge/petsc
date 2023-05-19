@@ -57,7 +57,10 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *ctx)
   ctx->n                     = 1;
   ctx->theta                 = .05;
   ctx->print = 1;
-  for (nn = 0; nn < 3; nn++) ctx->source_location[nn] = 1;
+  ctx->source_location[0] = 5.4;
+  ctx->source_location[1] = 1.4;
+  ctx->source_location[2] = 3.4;
+
   PetscOptionsBegin(comm, "tor_", "Tokamak solver", "DMPLEX");
   nn = 3;
   PetscCall(PetscOptionsRealArray("-source_location", "Maxwellian source location", "ex96.c", ctx->source_location, &nn, NULL));
@@ -75,9 +78,9 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *ctx)
   PetscCall(PetscOptionsBool("-use_360_domains", "Use processor domains around the whole torus", "ex96.c", ctx->use_360_domains, &ctx->use_360_domains, NULL));
   PetscCall(PetscOptionsReal("-anisotropic", "Anisotropic epsilon", "ex96.c", ctx->anisotropic_eps, &ctx->anisotropic_eps, &ctx->anisotropic));
   if (size > 1) {
-    int nn = (int)(PetscPowInt(4, ctx->poloidal_refine) * PetscPowInt(2, ctx->toroidal_refine));
+    int nn = (int)(PetscPowInt(4, ctx->poloidal_refine + ctx->uniform_poloidal_refine + 1) * PetscPowInt(2, ctx->toroidal_refine));
     PetscCheck(size == nn || ctx->use_360_domains, comm, PETSC_ERR_ARG_WRONG, "Number of procs (%d) != 4^N_pol (%d) * 2^N_tor (%d) = %d (not 360 domains)", (int)size, (int)ctx->poloidal_refine, (int)ctx->toroidal_refine, nn);
-    nn = (int)PetscPowInt(4, ctx->poloidal_refine);
+    nn = (int)PetscPowInt(4, ctx->poloidal_refine + ctx->uniform_poloidal_refine + 1);
     PetscCheck(size == nn || !ctx->use_360_domains, comm, PETSC_ERR_ARG_WRONG, "Number of procs (%d) != 4^N_pol (%d) = %d (360 domains)", (int)size, (int)ctx->poloidal_refine, nn);
   }
   ctx->nlevels = ctx->poloidal_refine + ctx->toroidal_refine + 1;
@@ -179,7 +182,7 @@ static PetscErrorCode ExtrudeTorus(DM dm, PetscInt n_extrude, AppCtx *ctx, DM *n
   PetscReal    L;
   Vec          coordinates, coordinates2;
   PetscScalar *coords, *coords2, R_0 = ctx->R;
-  PetscInt     N, dim = 2;
+  PetscInt     N, N2, dim = 2;
 
   PetscFunctionBeginUser;
   PetscCall(DMGetDimension(dm, &dim));
@@ -192,26 +195,32 @@ static PetscErrorCode ExtrudeTorus(DM dm, PetscInt n_extrude, AppCtx *ctx, DM *n
   PetscCheck(dim == 3, PetscObjectComm((PetscObject)dmtorus), PETSC_ERR_ARG_WRONG, "DM dim (%d) != 3 after extruding", (int)dim);
   PetscCall(DMViewFromOptions(dmtorus, NULL, "-dm_view_extruded"));
   // wrap around torus axis
+  PetscCall(DMGetCoordinatesLocalSetUp(dmtorus));
   PetscCall(DMGetCoordinatesLocal(dmtorus, &coordinates));
   PetscCall(DMGetCoordinates(dmtorus, &coordinates2));
-  PetscCall(VecGetSize(coordinates, &N));
+  PetscCall(VecGetLocalSize(coordinates, &N));
+  PetscCall(VecGetLocalSize(coordinates2, &N2));
+  PetscCheck(N >= N2, PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_WRONG, "DMGetCoordinatesLocal size < DMGetCoordinatesLocal size %d < %d (this whole thing is funky)", (int)N, (int)N2);
   PetscCall(VecGetArrayWrite(coordinates, &coords));
   PetscCall(VecGetArrayWrite(coordinates2, &coords2));
   // shift coordinates to center on (R,0). Assume the domain is (0,1)^2
-  PetscCall(PetscInfo(dm, "N = %d (final domain radius = %d)\n", (int)N, (int)(PetscPowInt(4, ctx->poloidal_refine) * PetscPowInt(2, ctx->toroidal_refine))));
+  PetscCall(PetscInfo(dm, "N = %d / %d (final domain size = %d)\n", (int)N, (int)N2, (int)(PetscPowInt(4, ctx->poloidal_refine) * PetscPowInt(2, ctx->toroidal_refine))));
   for (int ii = 0; ii < N; ii += 3) {
     PetscScalar *v = &coords[ii], *v2 = &coords2[ii], theta, psi, R, phi, Z;
     CartTocyl2D(R_0, R, v, psi, theta);
     Z = v[2], phi = Z / R_0; // Z: 0 : 2pi * R_0
-    //PetscCall(PetscPrintf(PetscObjectComm((PetscObject)dmtorus), "\t\t[%d] ExtrudeTorus %d) psi=%12.4e theta=%12.4e phi=%12.4e. Cart=%12.4e,%12.4e,%12.4e", 0, ii/3,  psi, theta, phi, v[0], v[1], v[2]));
+    //PetscCall(PetscPrintf(PETSC_COMM_SELF, "\t\t[%d] ExtrudeTorus %d) psi=%12.4e theta=%12.4e phi=%12.4e. Cart=%12.4e,%12.4e,%12.4e", 0, ii/3,  psi, theta, phi, v[0], v[1], v[2]));
     cylToCart(R_0, psi, theta, phi, v);
-    //PetscCall(PetscPrintf(PetscObjectComm((PetscObject)dmtorus), "--> X = %12.4e,%12.4e,%12.4e\n", v[0], v[1], v[2]));
-    v2[0] = v[0];
-    v2[1] = v[1];
-    v2[2] = v[2];
+    //PetscCall(PetscPrintf(PETSC_COMM_SELF, "--> X = %12.4e,%12.4e,%12.4e\n", v[0], v[1], v[2]));
+    if (ii < N2) {
+      v2[0] = v[0];
+      v2[1] = v[1];
+      v2[2] = v[2];
+    }
   }
   PetscCall(VecRestoreArrayWrite(coordinates, &coords));
   PetscCall(VecRestoreArrayWrite(coordinates2, &coords2));
+  PetscCall(DMGetCoordinatesLocalSetUp(dmtorus));
   *new_dm = dmtorus;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -490,7 +499,7 @@ static PetscErrorCode CreateCoarseMesh(MPI_Comm comm, AppCtx *user, DM *dm)
   }
   PetscCall(PetscObjectSetName((PetscObject)*dm, "Coarse Mesh"));
   PetscCall(DMSetApplicationContext(*dm, user));
-  PetscCall(DMViewFromOptions(*dm, NULL, "-dm_2d_view"));
+  PetscCall(DMViewFromOptions(*dm, NULL, "-dm_singleton_view"));
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -504,71 +513,82 @@ static PetscErrorCode proc_func(PetscInt dim, PetscReal time, const PetscReal x[
 
 #include <petsc/private/dmpleximpl.h> /*I      "petscdmplex.h"   I*/
 
-static PetscErrorCode CreateHierarchy(DM dm, AppCtx *ctx, DM *a_dmhierarchy[])
+static PetscErrorCode CreateHierarchy(DM *crs_dm, AppCtx *ctx, DM *a_dmhierarchy[])
 {
   DM       *dmhierarchy, pdm;
-  MPI_Comm  comm = PetscObjectComm((PetscObject)dm);
+  MPI_Comm  comm = PetscObjectComm((PetscObject)*crs_dm);
   PetscBool isUniform;
   //PetscMPIInt rank, size;
-  char fin_str[] = "-tor_dm_view_0";
 
   PetscFunctionBeginUser;
   PetscCall(PetscMalloc(sizeof(DM) * ctx->nlevels, &dmhierarchy));
   *a_dmhierarchy = dmhierarchy;
   for (PetscInt r = 0; r < ctx->nlevels; r++) dmhierarchy[r] = NULL;
-  PetscCall(DMPlexGetRefinementUniform(dm, &isUniform));
+  PetscCall(DMPlexGetRefinementUniform(*crs_dm, &isUniform));
   PetscCheck(isUniform, comm, PETSC_ERR_ARG_WRONG, "not isUniform");
   // make 2D refined grid nref_pol + nref_tor
-  dmhierarchy[0] = dm;
+  dmhierarchy[0] = *crs_dm;
   for (PetscInt r = 1; r < ctx->poloidal_refine + 1; r++) {
     PetscCall(DMRefine(dmhierarchy[r - 1], MPI_COMM_NULL, &dmhierarchy[r]));
-    if (dmhierarchy[r]) {
-      ((DM_Plex *)(dmhierarchy[r])->data)->printFEM = ((DM_Plex *)dm->data)->printFEM;
-      ((DM_Plex *)(dmhierarchy[r])->data)->printL2  = ((DM_Plex *)dm->data)->printL2;
+    PetscCheck(dmhierarchy[r], comm, PETSC_ERR_ARG_WRONG, "DMRefine failed");
+    PetscCall(PetscObjectSetName((PetscObject)dmhierarchy[r], "singleton-poloidal-ref"));
+    PetscCall(DMViewFromOptions(dmhierarchy[r], NULL, "-dm_singleton_view"));
+  }
+  // (optional) uniform poloidal refinement
+  for (PetscInt r = 0; r < ctx->poloidal_refine + 1; r++) {
+    char tokstr[] = "poloidal-x-refined";
+    tokstr[9]     = '0' + r;
+    for (PetscInt rx = 0; rx < ctx->uniform_poloidal_refine; rx++) {
+      DM   refdm;
+      PetscCall(DMRefine(dmhierarchy[r], MPI_COMM_NULL, &refdm));
+      PetscCheck(refdm, comm, PETSC_ERR_ARG_WRONG, "uniform_poloidal_refine: DMRefine failed");
+      PetscCall(DMDestroy(&dmhierarchy[r]));
+      dmhierarchy[r] = refdm;
     }
-    PetscCall(PetscObjectSetName((PetscObject)dmhierarchy[r], "plane"));
+    /* view  grid r is done */
+    if (ctx->dim > 2) PetscCall(PetscObjectSetName((PetscObject)dmhierarchy[r], tokstr));
+    else PetscCall(PetscObjectSetName((PetscObject)dmhierarchy[r], "plane"));
     PetscCall(DMViewFromOptions(dmhierarchy[r], NULL, "-dm_2d_view"));
   }
+  *crs_dm = dmhierarchy[0]; // this is replaced with initial refinement
   // duplicate the 2D plane for toroidal refine levels
   for (PetscInt r = ctx->poloidal_refine + 1; r < ctx->poloidal_refine + ctx->toroidal_refine + 1; r++) {
     PetscCall(DMClone(dmhierarchy[r - 1], &dmhierarchy[r]));
-    if (dmhierarchy[r]) {
-      ((DM_Plex *)(dmhierarchy[r])->data)->printFEM = ((DM_Plex *)dm->data)->printFEM;
-      ((DM_Plex *)(dmhierarchy[r])->data)->printL2  = ((DM_Plex *)dm->data)->printL2;
-    }
-    PetscCall(PetscObjectSetName((PetscObject)dmhierarchy[r], "plane"));
+    if (ctx->dim > 2) PetscCall(PetscObjectSetName((PetscObject)dmhierarchy[r], "pre-torus"));
+    else PetscCall(PetscObjectSetName((PetscObject)dmhierarchy[r], "plane"));
     PetscCall(DMViewFromOptions(dmhierarchy[r], NULL, "-dm_2d_view"));
   }
-  // refine plane extrude each grid out to populate the coarse grid torus
+  // extrude poloidal refine grids
   for (PetscInt r = 0; r < ctx->poloidal_refine + 1; r++) {
-    char torusstr[] = "torus-x-pol";
-    torusstr[6]     = '0' + r;
-    PetscCall(PetscInfo(dmhierarchy[r], "%d) extrude (polodal) %s\n", (int)r, torusstr));
-    PetscCheck(dmhierarchy[r], comm, PETSC_ERR_ARG_WRONG, "refinement failed");
-    PetscCall(OriginShift2D(dmhierarchy[r], ctx->dim == 3 ? ctx->R : 0, ctx)); // shift to center, add R in 3D
+    char torusstr[] = "extruded-x-poloidal";
+    torusstr[9]     = '0' + r;
+    PetscCall(OriginShift2D(dmhierarchy[r], ctx->dim == 3 ? ctx->R : 0, ctx)); // shift to center, add R in 3D, expand and shift
     /* extrude coarse */
     if (ctx->dim == 3) {
       DM ext_dm;
+      PetscCall(PetscInfo(dmhierarchy[r], "%d) extrude (polodal) %s\n", (int)r, torusstr));
       PetscCall(ExtrudeTorus(dmhierarchy[r], ctx->coarse_toroidal_faces, ctx, &ext_dm));
       PetscCall(DMDestroy(&dmhierarchy[r]));
       dmhierarchy[r] = ext_dm;
-    }
-    PetscCall(DMPlexDistribute(dmhierarchy[r], 0, NULL, &pdm));
-    if (pdm) {
-      PetscCall(DMDestroy(&dmhierarchy[r]));
-      dmhierarchy[r] = pdm;
+      if (r>0) { // keep root on one proc ???. We want to restrict this distribution to keep 4^N_UNIFORM cells per process
+        PetscCall(DMPlexDistribute(dmhierarchy[r], 0, NULL, &pdm));
+        if (pdm) {
+          PetscCall(DMDestroy(&dmhierarchy[r]));
+          dmhierarchy[r] = pdm;
+        } else PetscCall(PetscInfo(dmhierarchy[r], "%d) DISTRIBUTE FAILED 2 ???\n", (int)r));
+      }
     }
     /* view */
     if (ctx->dim > 2) PetscCall(PetscObjectSetName((PetscObject)dmhierarchy[r], torusstr));
     else PetscCall(PetscObjectSetName((PetscObject)dmhierarchy[r], "plane-single-pol"));
-    PetscCall(DMViewFromOptions(dmhierarchy[r], NULL, "-ref1_dm_view"));
+    PetscCall(DMViewFromOptions(dmhierarchy[r], NULL, "-ref_dm_view"));
   }
-  // extrude the toroidal
-  if (ctx->dim > 2) {
+  // extrude the toroidal refine grids
+  if (ctx->dim == 3) {
     for (PetscInt ri = 0, r = ctx->poloidal_refine + 1, nref = 2 * ctx->coarse_toroidal_faces; ri < ctx->toroidal_refine; ri++, r++, nref *= 2) {
       DM ext_dm;
-      char torusstr[] = "torus-x-tor";
-      torusstr[6]     = '0' + r;
+      char torusstr[] = "extruded-x-toroidal";
+      torusstr[9]     = '0' + r;
       PetscCall(PetscInfo(dmhierarchy[r], "%d) extrude (toroidal) %s, num refine = %d\n", (int)r, torusstr, (int)nref));
       PetscCall(ExtrudeTorus(dmhierarchy[r], nref, ctx, &ext_dm));
       PetscCall(DMDestroy(&dmhierarchy[r]));
@@ -581,53 +601,49 @@ static PetscErrorCode CreateHierarchy(DM dm, AppCtx *ctx, DM *a_dmhierarchy[])
       /* view */
       if (ctx->dim > 2) PetscCall(PetscObjectSetName((PetscObject)dmhierarchy[r], torusstr));
       else PetscCall(PetscObjectSetName((PetscObject)dmhierarchy[r], "plane-single-tor"));
-      PetscCall(DMViewFromOptions(dmhierarchy[r], NULL, "-ref1_dm_view"));
+      PetscCall(DMViewFromOptions(dmhierarchy[r], NULL, "-ref_dm_view"));
     }
   }
-  // uniform refinement, as much as you like
-  for (PetscInt rx = 0; rx < ctx->uniform_poloidal_refine; rx++) {
+  // final pass
+  for (PetscInt r = 0; r < ctx->nlevels; r++) {
+    char fin_str[] = "-tor_dm_view_0";
+    fin_str[13]   = '0' + r;
+    if (r > 0) PetscCall(DMSetCoarseDM(dmhierarchy[r], dmhierarchy[r - 1]));
+    /* view - coarse grid r is done */
+    PetscCall(DMViewFromOptions(dmhierarchy[r], NULL, fin_str));
+    // final clone
+    /* ((DM_Plex *)(dmhierarchy[r])->data)->printFEM = ((DM_Plex *)dm->data)->printFEM; */
+    /* ((DM_Plex *)(dmhierarchy[r])->data)->printL2  = ((DM_Plex *)dm->data)->printL2; */
+  }
+
+  if (ctx->print) { // view partitions
     for (PetscInt r = 0; r < ctx->nlevels; r++) {
-      DM   ext_dm;
-      char tokstr[] = "tokamak-x";
-      fin_str[13]   = '0' + r;
-      tokstr[8]     = '0' + r;
-      PetscCall(DMRefine(dmhierarchy[r], MPI_COMM_NULL, &ext_dm));
-      PetscCall(DMDestroy(&dmhierarchy[r]));
-      dmhierarchy[r] = ext_dm;
-      if (r > 0) PetscCall(DMSetCoarseDM(dmhierarchy[r], dmhierarchy[r - 1]));
-      /* view - coarse grid r is done */
-      if (ctx->dim > 2) PetscCall(PetscObjectSetName((PetscObject)dmhierarchy[r], tokstr));
-      else PetscCall(PetscObjectSetName((PetscObject)dmhierarchy[r], "plane"));
-      PetscCall(DMViewFromOptions(dmhierarchy[r], NULL, fin_str));
-      PetscCall(DMViewFromOptions(dmhierarchy[r], NULL, "-ref_dm_view"));
-      if (ctx->print) { // view partitions
-        PetscErrorCode (*initu[1])(PetscInt, PetscReal, const PetscReal[], PetscInt, PetscScalar[], void *);
-        char part_str_dm[]  = "-tor_part_dm_view_0";
-        char part_str_vec[] = "-tor_part_vec_view_0";
-         DM          celldm;
-        PetscFE     fe;
-        Vec         uu;
-        PetscMPIInt rank;
-        DM dm = dmhierarchy[r];
-        part_str_dm[18]   = '0' + r;
-        part_str_vec[19]  = '0' + r;
-        PetscCall(DMClone(dm, &celldm));
-        PetscCall(PetscFECreateDefault(PETSC_COMM_WORLD, ctx->dim, 1, PETSC_FALSE, "dummy", -1, &fe));
-        PetscCall(PetscObjectSetName((PetscObject)fe, "cell"));
-        PetscCall(PetscFEViewFromOptions(fe, NULL, "-cell_fe_view"));
-        PetscCall(DMSetField(celldm, 0, NULL, (PetscObject)fe));
-        PetscCall(DMCreateDS(celldm));
-        PetscCall(DMCreateGlobalVector(celldm, &uu));
-        PetscCall(PetscObjectSetName((PetscObject)uu, "uu"));
-        initu[0] = proc_func;
-        PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
-        PetscCall(DMProjectFunction(celldm, (PetscReal)rank, initu, NULL, INSERT_ALL_VALUES, uu));
-        PetscCall(DMViewFromOptions(celldm, NULL, part_str_dm));
-        PetscCall(VecViewFromOptions(uu, NULL, part_str_vec));
-        PetscCall(PetscFEDestroy(&fe));
-        PetscCall(DMDestroy(&celldm));
-        PetscCall(VecDestroy(&uu));
-      }
+      PetscErrorCode (*initu[1])(PetscInt, PetscReal, const PetscReal[], PetscInt, PetscScalar[], void *);
+      char part_str_dm[]  = "-tor_part_dm_view_0";
+      char part_str_vec[] = "-tor_part_vec_view_0";
+      DM          celldm;
+      PetscFE     fe;
+      Vec         uu;
+      PetscMPIInt rank;
+      DM dm = dmhierarchy[r];
+      part_str_dm[18]   = '0' + r;
+      part_str_vec[19]  = '0' + r;
+      PetscCall(DMClone(dm, &celldm));
+      PetscCall(PetscFECreateDefault(comm, ctx->dim, 1, PETSC_FALSE, "part_", -1, &fe));
+      PetscCall(PetscObjectSetName((PetscObject)fe, "rank"));
+      PetscCall(PetscFEViewFromOptions(fe, NULL, "-fe_view"));
+      PetscCall(DMSetField(celldm, 0, NULL, (PetscObject)fe));
+      PetscCall(DMCreateDS(celldm));
+      PetscCall(DMCreateGlobalVector(celldm, &uu));
+      PetscCall(PetscObjectSetName((PetscObject)uu, "uu"));
+      initu[0] = proc_func;
+      PetscCallMPI(MPI_Comm_rank(comm, &rank));
+      PetscCall(DMProjectFunction(celldm, (PetscReal)rank+1, initu, NULL, INSERT_ALL_VALUES, uu));
+      PetscCall(DMViewFromOptions(celldm, NULL, part_str_dm));
+      PetscCall(VecViewFromOptions(uu, NULL, part_str_vec));
+      PetscCall(PetscFEDestroy(&fe));
+      PetscCall(DMDestroy(&celldm));
+      PetscCall(VecDestroy(&uu));
     }
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -669,7 +685,7 @@ int main(int argc, char **argv)
   PetscCall(ProcessOptions(PETSC_COMM_WORLD, ctx));
   /* Create Plex - serial DM for serial coarse grid */
   PetscCall(CreateCoarseMesh(PETSC_COMM_WORLD, ctx, &dm_crs));
-  PetscCall(CreateHierarchy(dm_crs, ctx, &dmhierarchy));
+  PetscCall(CreateHierarchy(&dm_crs, ctx, &dmhierarchy));
   dm = dmhierarchy[ctx->nlevels - 1]; // fine grid
   /* Setup problem */
   PetscCall(SetupDiscretization(dm, name, ctx));
@@ -712,7 +728,7 @@ int main(int argc, char **argv)
       PetscCall(MatDestroy(&R));
     }
   }
-  PetscCall(DMViewFromOptions(dm, NULL, "-tor_dm_view2"));
+  PetscCall(DMViewFromOptions(dm, NULL, "-tor_dm_view_aux"));
   PetscCall(DMViewFromOptions(dm, NULL, "-tor_dm_view"));
   /* initialize u */
   PetscCall(DMCreateGlobalVector(dm, &u));
