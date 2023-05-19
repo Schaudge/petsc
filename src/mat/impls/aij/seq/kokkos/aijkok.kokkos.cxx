@@ -314,7 +314,7 @@ static PetscErrorCode MatSeqAIJKokkosGenerateHermitian_Private(Mat A, KokkosCsrM
         auto       &Ta   = T.values;
 
         PetscCallCXX(Kokkos::parallel_for(
-          nz, KOKKOS_LAMBDA(const PetscInt i) { Ta(i) = PetscConj(Aa(perm(i))); }));
+          PetscKokkosRangePolicy(nz), KOKKOS_LAMBDA(const PetscInt i) { Ta(i) = PetscConj(Aa(perm(i))); }));
       }
     } else { // Generate T of size n x m for the first time
       MatRowMapKokkosView perm;

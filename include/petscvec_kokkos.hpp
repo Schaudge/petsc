@@ -1,22 +1,8 @@
 #ifndef PETSCVEC_KOKKOS_HPP
 #define PETSCVEC_KOKKOS_HPP
 
-#include <petscconf.h>
-
-/* SUBMANSEC = Vec */
-
-#if defined(PETSC_HAVE_KOKKOS)
-  #if defined(petsccomplexlib)
-    #error "Error: You must include petscvec_kokkos.hpp before other petsc headers in this C++ file to use petsc complex with Kokkos"
-  #endif
-
-  #define PETSC_DESIRE_KOKKOS_COMPLEX 1 /* To control the definition of petsccomplexlib in petscsystypes.h */
-#endif
-
+#include <petsc_kokkos.hpp>
 #include <petscvec.h>
-
-#if defined(PETSC_HAVE_KOKKOS)
-  #include <Kokkos_Core.hpp>
 
 /*@C
      VecGetKokkosView - Returns a constant Kokkos View that contains up-to-date data of a vector in the specified memory space.
@@ -144,11 +130,9 @@ PetscErrorCode VecGetKokkosViewWrite(Vec, Kokkos::View<PetscScalar *, MemorySpac
 template <class MemorySpace>
 PetscErrorCode VecRestoreKokkosViewWrite(Vec, Kokkos::View<PetscScalar *, MemorySpace> *);
 
-  #if defined(PETSC_HAVE_COMPLEX) && defined(PETSC_USE_COMPLEX)
+#if defined(PETSC_HAVE_COMPLEX) && defined(PETSC_USE_COMPLEX)
 static_assert(std::alignment_of<Kokkos::complex<PetscReal>>::value == std::alignment_of<std::complex<PetscReal>>::value,
               "Alignment of Kokkos::complex<PetscReal> and std::complex<PetscReal> mismatch. Reconfigure your Kokkos with -DKOKKOS_ENABLE_COMPLEX_ALIGN=OFF, or let PETSc install Kokkos for you with --download-kokkos --download-kokkos-kernels");
-  #endif
-
 #endif
 
 #endif

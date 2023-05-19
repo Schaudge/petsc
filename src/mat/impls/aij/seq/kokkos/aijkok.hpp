@@ -16,7 +16,7 @@ PETSC_NODISCARD inline decltype(auto) NoInit(std::string label)
 } // namespace
 
 using MatRowMapType = PetscInt;
-using MatColIdxType = PetscInt;
+using MatColIdxType = PetscInt; 
 using MatScalarType = PetscScalar;
 
 template <class MemorySpace>
