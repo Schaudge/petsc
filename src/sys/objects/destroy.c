@@ -308,7 +308,7 @@ PetscErrorCode PetscObjectBaseTypeCompareAny(PetscObject obj, PetscBool *match, 
 }
 
 #define MAXREGDESOBJS 256
-static int         PetscObjectRegisterDestroy_Count = 0;
+static int         RegObjCnt = 0;
 static PetscObject PetscObjectRegisterDestroy_Objects[MAXREGDESOBJS];
 
 /*@C
@@ -334,8 +334,8 @@ PetscErrorCode PetscObjectRegisterDestroy(PetscObject obj)
 {
   PetscFunctionBegin;
   PetscValidHeader(obj, 1);
-  PetscCheck(PetscObjectRegisterDestroy_Count < (int)PETSC_STATIC_ARRAY_LENGTH(PetscObjectRegisterDestroy_Objects), PETSC_COMM_SELF, PETSC_ERR_PLIB, "No more room in array, limit %zu \n recompile %s with larger value for " PetscStringize_(MAXREGDESOBJS), PETSC_STATIC_ARRAY_LENGTH(PetscObjectRegisterDestroy_Objects), __FILE__);
-  PetscObjectRegisterDestroy_Objects[PetscObjectRegisterDestroy_Count++] = obj;
+  PetscCheck(RegObjCnt < (int)PETSC_STATIC_ARRAY_LENGTH(PetscObjectRegisterDestroy_Objects), PETSC_COMM_SELF, PETSC_ERR_PLIB, "No more room in array, limit %zu \n recompile %s with larger value for " PetscStringize_(MAXREGDESOBJS), PETSC_STATIC_ARRAY_LENGTH(PetscObjectRegisterDestroy_Objects), __FILE__);
+  PetscObjectRegisterDestroy_Objects[RegObjCnt++] = obj;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -351,15 +351,25 @@ PetscErrorCode PetscObjectRegisterDestroy(PetscObject obj)
 @*/
 PetscErrorCode PetscObjectRegisterDestroyAll(void)
 {
+  PetscObject last = NULL;
+
   PetscFunctionBegin;
-  for (PetscInt i = 0; i < PetscObjectRegisterDestroy_Count; i++) PetscCall(PetscObjectDestroy(&PetscObjectRegisterDestroy_Objects[i]));
-  PetscObjectRegisterDestroy_Count = 0;
+  while (RegObjCnt) {
+    PetscObject top = PetscObjectRegisterDestroy_Objects[RegObjCnt];
+
+    PetscCheck(last != top, PETSC_COMM_SELF, PETSC_ERR_ORDER, "Last object %p == top %p of PetscObjectRegisterDestroy() stack. Likely infinite loop!", (void *)last, (void *)top);
+    PetscObjectRegisterDestroy_Objects[RegObjCnt] = NULL;
+    --RegObjCnt;
+    last = top;
+    PetscCall(PetscObjectDestroy(&top));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 #define MAXREGFIN 256
-static int PetscRegisterFinalize_Count = 0;
-static PetscErrorCode (*PetscRegisterFinalize_Functions[MAXREGFIN])(void);
+typedef PetscErrorCode (*PetscFinalizerFunction)(void);
+static int RegFinCnt = 0;
+static PetscFinalizerFunction PetscRegisterFinalize_Functions[MAXREGFIN];
 
 /*@C
    PetscRegisterFinalize - Registers a function that is to be called in `PetscFinalize()`
@@ -381,11 +391,11 @@ static PetscErrorCode (*PetscRegisterFinalize_Functions[MAXREGFIN])(void);
 PetscErrorCode PetscRegisterFinalize(PetscErrorCode (*f)(void))
 {
   PetscFunctionBegin;
-  for (PetscInt i = 0; i < PetscRegisterFinalize_Count; i++) {
+  for (PetscInt i = 0; i < RegFinCnt; i++) {
     if (f == PetscRegisterFinalize_Functions[i]) PetscFunctionReturn(PETSC_SUCCESS);
   }
-  PetscCheck(PetscRegisterFinalize_Count < (int)PETSC_STATIC_ARRAY_LENGTH(PetscRegisterFinalize_Functions), PETSC_COMM_SELF, PETSC_ERR_PLIB, "No more room in array, limit %zu \n recompile %s with larger value for " PetscStringize_(MAXREGFIN), PETSC_STATIC_ARRAY_LENGTH(PetscRegisterFinalize_Functions), __FILE__);
-  PetscRegisterFinalize_Functions[PetscRegisterFinalize_Count++] = f;
+  PetscCheck(RegFinCnt < (int)PETSC_STATIC_ARRAY_LENGTH(PetscRegisterFinalize_Functions), PETSC_COMM_SELF, PETSC_ERR_PLIB, "No more room in array, limit %zu \n recompile %s with larger value for " PetscStringize_(MAXREGFIN), PETSC_STATIC_ARRAY_LENGTH(PetscRegisterFinalize_Functions), __FILE__);
+  PetscRegisterFinalize_Functions[RegFinCnt++] = f;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -400,8 +410,17 @@ PetscErrorCode PetscRegisterFinalize(PetscErrorCode (*f)(void))
 @*/
 PetscErrorCode PetscRegisterFinalizeAll(void)
 {
+  PetscFinalizerFunction last = NULL;
+
   PetscFunctionBegin;
-  for (PetscInt i = 0; i < PetscRegisterFinalize_Count; i++) PetscCall((*PetscRegisterFinalize_Functions[i])());
-  PetscRegisterFinalize_Count = 0;
+  while (RegFinCnt) {
+    PetscFinalizerFunction top = PetscRegisterFinalize_Functions[RegFinCnt];
+
+    PetscCheck(last != top, PETSC_COMM_SELF, PETSC_ERR_ORDER, "Last function %p == top %p of PetscRegisterFinalize() stack. Likely infinite loop!", (void *)last, (void *)top);
+    PetscRegisterFinalize_Functions[RegFinCnt] = NULL;
+    --RegFinCnt;
+    last = top;
+    PetscCall((*top)());
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
