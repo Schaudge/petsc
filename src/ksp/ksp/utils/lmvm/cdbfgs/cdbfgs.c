@@ -324,10 +324,14 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
   case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
     switch (lbfgs->strategy) {
     case MAT_LBFGS_CD_REORDER:
-      PetscBLASInt m_blas, lda_blas, one = 1;
-      PetscCall(PetscBLASIntCast(lmvm->k, &m_blas));
-      PetscCallBLAS("BLAStrmv", BLAStrmv_("Lower", "Transpose", "NotUnitTriangular", &m_blas, &r_array[1], &lda_blas, x_array, &one));
-      x_array[lmvm->k] = 0;
+      {
+        PetscBLASInt m_blas, lda_blas, one = 1;
+        PetscCall(MatDenseGetLDA(lbfgs->StYfull, &lda));
+        PetscCall(PetscBLASIntCast(lda, &lda_blas));
+        PetscCall(PetscBLASIntCast(lmvm->k, &m_blas));
+        PetscCallBLAS("BLAStrmv", BLAStrmv_("Lower", "Transpose", "NotUnitTriangular", &m_blas, &r_array[1], &lda_blas, x_array, &one));
+        x_array[lmvm->k] = 0;
+      }
       break;
     case MAT_LBFGS_CD_INPLACE:
       {
@@ -738,7 +742,7 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
 
 static PetscErrorCode Vec_Truncate(Mat H, Vec X)
 {
-  Mat_LMVM    *lmvm  = (Mat_LMVM*)H->data;
+  Mat_LMVM *lmvm  = (Mat_LMVM*)H->data;
 
   PetscInt i;
 
@@ -748,41 +752,10 @@ static PetscErrorCode Vec_Truncate(Mat H, Vec X)
     PetscFunctionReturn(PETSC_SUCCESS);
   } else {
     PetscMemType memtype_x;
-    PetscCall(VecGetArrayWriteAndMemType(X, &x_array, &memtype_x));
-
-    switch (memtype_x){
-    case PETSC_MEMTYPE_HOST:
-    {    
-      PetscInt    *idx, size;
-      PetscScalar *zeros;
-      size = lmvm->m - lmvm->k - 1;
-      PetscCall(PetscCalloc2(size, &idx, size, &zeros));
-      for (i=0; i<size; i++) {
-        idx[i]  = lmvm->k+i+1;
-        zeros[i] = 0;
-      }
-      PetscCall(VecSetValues(X, size, idx,zeros, INSERT_VALUES)); 
-      PetscCall(PetscFree(idx));
-      PetscCall(PetscFree(zeros));
-      PetscCall(VecAssemblyBegin(X));
-      PetscCall(VecAssemblyEnd(X));
-    }
-      break;
-    case PETSC_MEMTYPE_CUDA:
-#if defined(PETSC_HAVE_CUDA)      
-    {
-      PetscScalar *xx;
-      PetscCall(VecCUDAGetArray(X, &xx));
-    }
-#endif    
-      break;
-    case PETSC_MEMTYPE_NVSHMEM:
-      break;
-    case PETSC_MEMTYPE_HIP:
-      break;
-    default:
-      SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented TRSM");
-    }
+    PetscScalar *x_array;
+    PetscCall(VecGetArrayAndMemType(X, &x_array, &memtype_x));
+    for (i=lmvm->k+1; i<lmvm->m; i++){ x_array[lmvm->k+i+1] = 0; }
+    PetscCall(VecRestoreArrayAndMemType(X, &x_array));
   } 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
