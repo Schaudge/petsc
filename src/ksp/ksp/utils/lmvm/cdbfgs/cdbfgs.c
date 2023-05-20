@@ -747,11 +747,42 @@ static PetscErrorCode Vec_Truncate(Mat H, Vec X)
   if (lmvm->k == lmvm->m - 1){
     PetscFunctionReturn(PETSC_SUCCESS);
   } else {
-    for (i=lmvm->k+1;i<lmvm->m;i++) { 
-      PetscCall(VecSetValue(X,lmvm->k + 1, 0, INSERT_VALUES)); 
+    PetscMemType memtype_x;
+    PetscCall(VecGetArrayWriteAndMemType(X, &x_array, &memtype_x));
+
+    switch (memtype_x){
+    case PETSC_MEMTYPE_HOST:
+    {    
+      PetscInt    *idx, size;
+      PetscScalar *zeros;
+      size = lmvm->m - lmvm->k - 1;
+      PetscCall(PetscCalloc2(size, &idx, size, &zeros));
+      for (i=0; i<size; i++) {
+        idx[i]  = lmvm->k+i+1;
+        zeros[i] = 0;
+      }
+      PetscCall(VecSetValues(X, size, idx,zeros, INSERT_VALUES)); 
+      PetscCall(PetscFree(idx));
+      PetscCall(PetscFree(zeros));
+      PetscCall(VecAssemblyBegin(X));
+      PetscCall(VecAssemblyEnd(X));
     }
-    PetscCall(VecAssemblyBegin(X));
-    PetscCall(VecAssemblyEnd(X));
+      break;
+    case PETSC_MEMTYPE_CUDA:
+#if defined(PETSC_HAVE_CUDA)      
+    {
+      PetscScalar *xx;
+      PetscCall(VecCUDAGetArray(X, &xx));
+    }
+#endif    
+      break;
+    case PETSC_MEMTYPE_NVSHMEM:
+      break;
+    case PETSC_MEMTYPE_HIP:
+      break;
+    default:
+      SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented TRSM");
+    }
   } 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
