@@ -1191,6 +1191,29 @@ PetscErrorCode VecMDot(Vec x, PetscInt nv, const Vec y[], PetscScalar val[])
   PetscFunctionBegin;
   PetscValidHeaderSpecific(x, VEC_CLASSID, 1);
   PetscCall(VecMXDot_Private(x, nv, y, val, x->ops->mdot, VEC_MDot));
+  for (PetscInt i = 0; i < nv; ++i) {
+    PetscScalar b0 = val[i];
+    PetscReal   b1[5], b2[5];
+    if (PetscIsNanScalar(b0)) {
+      b1[4] = 1;
+    } else {
+      b1[4] = 0;
+    };
+    b1[0] = -PetscRealPart(b0);
+    b1[1] = PetscRealPart(b0);
+    b1[2] = -PetscImaginaryPart(b0);
+    b1[3] = PetscImaginaryPart(b0);
+    PetscCall(MPIU_Allreduce(b1, b2, 5, MPIU_REAL, MPIU_MAX, PetscObjectComm((PetscObject)(x))));
+    if (!(b2[4] > 0 || (PetscEqualReal(-b2[0], b2[1]) && PetscEqualReal(-b2[2], b2[3])))) {
+      PetscCall(VecViewFromOptions(x, NULL, "-x_view"));
+      PetscCall(VecViewFromOptions(y[i], NULL, "-y_view"));
+      Vec tmp;
+      PetscCall(VecCreateMPIWithArray(PetscObjectComm((PetscObject)(x)), 1, 1, PETSC_DECIDE, &b0, &tmp));
+      PetscCall(VecViewFromOptions(tmp, NULL, "-z_view"));
+      PetscCall(VecDestroy(&tmp));
+    }
+    PetscCheck(b2[4] > 0 || (PetscEqualReal(-b2[0], b2[1]) && PetscEqualReal(-b2[2], b2[3])), PetscObjectComm((PetscObject)(x)), PETSC_ERR_ARG_WRONG, "%d-th scalar value must be same on all processes\n", (int)i);
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
