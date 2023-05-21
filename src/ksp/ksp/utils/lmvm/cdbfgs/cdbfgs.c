@@ -499,22 +499,16 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
   MPI_Comm     comm  = PetscObjectComm((PetscObject)R);
   PetscScalar  Alpha = 1.0, neg_one = -1.;
   PetscMemType memtype_r, memtype_x;
-  PetscScalar *buffer, *x_array;
-  PetscInt     lda, N, index;
+  PetscScalar *x_array;
+  PetscInt     lda;
 
-  const PetscScalar *array_read, *r_array;
+  const PetscScalar *r_array;
 
   PetscFunctionBegin;
   PetscCall(MatDenseGetArrayReadAndMemType(R, &r_array, &memtype_r));
   PetscCall(VecGetArrayWriteAndMemType(x, &x_array, &memtype_x));
   PetscCall(MatDenseGetLDA(R, &lda));
   PetscAssert(memtype_x == memtype_r, comm, PETSC_ERR_PLIB, "Incompatible device pointers");
-
-  if (lbfgs->idx_begin == -1) {
-    index = 0;
-  } else {
-    index = lbfgs->idx_begin;
-  }
 
   switch (lbfgs->strategy) {
   case MAT_LBFGS_CD_REORDER:
@@ -743,7 +737,6 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
 static PetscErrorCode Vec_Truncate(Mat H, Vec X)
 {
   Mat_LMVM *lmvm  = (Mat_LMVM*)H->data;
-  MPI_Comm    comm = PetscObjectComm((PetscObject)H);
 
   PetscInt i;
 
@@ -755,12 +748,10 @@ static PetscErrorCode Vec_Truncate(Mat H, Vec X)
     PetscMemType memtype_x;
     PetscScalar *x_array;
     PetscCall(VecGetArrayAndMemType(X, &x_array, &memtype_x));
-#if 0 
-    for (i=lmvm->k+1; i<lmvm->m; i++){ x_array[i] = 0; }
     //TODO somehow above returns segv error on cuda????
-#endif
+    for (i=lmvm->k+1; i<lmvm->m; i++){ x_array[i] = 0; }
     PetscCall(VecRestoreArrayAndMemType(X, &x_array));
-
+#if 0    
     switch (memtype_x) {
     case PETSC_MEMTYPE_HOST:
       {
@@ -789,6 +780,7 @@ static PetscErrorCode Vec_Truncate(Mat H, Vec X)
     default:
       SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented L-BFGS strategy");
     }
+#endif
   } 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -826,6 +818,7 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   PetscMemType memtype_temp;
   PetscScalar *temp_stuff;
   VecGetArrayAndMemType(lbfgs->rwork1,&temp_stuff,&memtype_temp);
+  VecRestoreArrayAndMemType(lbfgs->rwork1,&temp_stuff);
   PetscCall(Vec_Truncate(H,lbfgs->rwork1));
 
   /* Reordering rwork1, as STY is in canonical order, while S is in recycled order */
