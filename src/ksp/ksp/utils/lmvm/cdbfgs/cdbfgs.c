@@ -602,6 +602,7 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
   case MAT_LBFGS_CD_INPLACE:
       /* Shift x vector TODO there are x,b vecs. but actually we only need one here... */
     //TODO what is this???
+#if 0 
       PetscCall(VecGetArrayRead(x, &array_read));
       PetscCall(VecGetSize(x, &N));
       PetscCall(PetscMalloc1(N, &buffer));
@@ -611,6 +612,7 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
       }
       PetscCall(VecRestoreArrayReadAndMemType(x, &array_read));
       PetscCall(PetscFree(buffer));
+#endif      
     switch (memtype_x) {
     case PETSC_MEMTYPE_HOST:
       {
@@ -741,6 +743,7 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
 static PetscErrorCode Vec_Truncate(Mat H, Vec X)
 {
   Mat_LMVM *lmvm  = (Mat_LMVM*)H->data;
+  MPI_Comm    comm = PetscObjectComm((PetscObject)H);
 
   PetscInt i;
 
@@ -752,8 +755,40 @@ static PetscErrorCode Vec_Truncate(Mat H, Vec X)
     PetscMemType memtype_x;
     PetscScalar *x_array;
     PetscCall(VecGetArrayAndMemType(X, &x_array, &memtype_x));
-    for (i=lmvm->k+1; i<lmvm->m; i++){ x_array[lmvm->k+i+1] = 0; }
+#if 0 
+    for (i=lmvm->k+1; i<lmvm->m; i++){ x_array[i] = 0; }
+    //TODO somehow above returns segv error on cuda????
+#endif
     PetscCall(VecRestoreArrayAndMemType(X, &x_array));
+
+    switch (memtype_x) {
+    case PETSC_MEMTYPE_HOST:
+      {
+        for (i=lmvm->k+1;i<lmvm->m;i++) {
+          PetscCall(VecSetValue(X,i, 0, INSERT_VALUES));
+        }
+        PetscCall(VecAssemblyBegin(X));
+        PetscCall(VecAssemblyEnd(X));
+      }	    
+      break;
+    case PETSC_MEMTYPE_CUDA:
+    case PETSC_MEMTYPE_NVSHMEM:
+      {
+        PetscCall(VecCUDAGetArrayWrite(X,&x_array));
+        for (i=lmvm->k+1; i<lmvm->m; i++){ x_array[i] = 0; }
+        PetscCall(VecCUDARestoreArrayWrite(X,&x_array));
+      }	    
+      break;
+    case PETSC_MEMTYPE_HIP:
+      {
+        PetscCall(VecHIPGetArrayWrite(X,&x_array));
+        for (i=lmvm->k+1; i<lmvm->m; i++){ x_array[i] = 0; }
+        PetscCall(VecHIPRestoreArrayWrite(X,&x_array));
+      }	    
+      break;
+    default:
+      SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented L-BFGS strategy");
+    }
   } 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -786,6 +821,11 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   }
   /* Start with reusable part: rwork1 = R^-1 S^T F */
   PetscCall(MatMultTranspose(lbfgs->Sfull, F, lbfgs->rwork1));
+
+  //TODO debugging stuff
+  PetscMemType memtype_temp;
+  PetscScalar *temp_stuff;
+  VecGetArrayAndMemType(lbfgs->rwork1,&temp_stuff,&memtype_temp);
   PetscCall(Vec_Truncate(H,lbfgs->rwork1));
 
   /* Reordering rwork1, as STY is in canonical order, while S is in recycled order */
