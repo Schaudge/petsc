@@ -1194,6 +1194,12 @@ PetscErrorCode VecMDot(Vec x, PetscInt nv, const Vec y[], PetscScalar val[])
   for (PetscInt i = 0; i < nv; ++i) {
     PetscScalar b0 = val[i];
     PetscReal   b1[5], b2[5];
+    MPI_Comm    comm;
+    PetscMPIInt rank;
+
+    PetscCall(PetscObjectGetComm((PetscObject)x, &comm));
+    PetscCallMPI(MPI_Comm_rank(comm, &rank));
+
     if (PetscIsNanScalar(b0)) {
       b1[4] = 1;
     } else {
@@ -1203,16 +1209,27 @@ PetscErrorCode VecMDot(Vec x, PetscInt nv, const Vec y[], PetscScalar val[])
     b1[1] = PetscRealPart(b0);
     b1[2] = -PetscImaginaryPart(b0);
     b1[3] = PetscImaginaryPart(b0);
-    PetscCall(MPIU_Allreduce(b1, b2, 5, MPIU_REAL, MPIU_MAX, PetscObjectComm((PetscObject)(x))));
-    if (!(b2[4] > 0 || (PetscEqualReal(-b2[0], b2[1]) && PetscEqualReal(-b2[2], b2[3])))) {
+    PetscCall(MPIU_Allreduce(b1, b2, 5, MPIU_REAL, MPIU_MAX, comm));
+
+    PetscInt err = 0;
+    if (!(b2[4] > 0 || (PetscEqualReal(-b2[0], b2[1]) && PetscEqualReal(-b2[2], b2[3])))) err = 1;
+    PetscCall(MPIU_Allreduce(MPI_IN_PLACE, &err, 1, MPIU_INT, MPIU_MAX, comm));
+
+    if (err) {
+      Vec      tmp;
+      PetscInt n;
+      char     hostname[64];
       PetscCall(VecViewFromOptions(x, NULL, "-x_view"));
       PetscCall(VecViewFromOptions(y[i], NULL, "-y_view"));
-      Vec tmp;
-      PetscCall(VecCreateMPIWithArray(PetscObjectComm((PetscObject)(x)), 1, 1, PETSC_DECIDE, &b0, &tmp));
+      PetscCall(VecCreateMPIWithArray(comm, 1, 1, PETSC_DECIDE, &b0, &tmp));
       PetscCall(VecViewFromOptions(tmp, NULL, "-z_view"));
       PetscCall(VecDestroy(&tmp));
+      PetscCall(VecGetLocalSize(x, &n));
+      PetscCall(PetscGetHostName(hostname, 64));
+      PetscCall(PetscSynchronizedPrintf(comm, "%s : rank %3d with vec local size %4d\n", hostname, rank, n));
+      PetscCall(PetscSynchronizedFlush(comm, PETSC_STDOUT));
+      SETERRQ(comm, PETSC_ERR_ARG_WRONG, "%d-th scalar value must be same on all processes\n", (int)i);
     }
-    PetscCheck(b2[4] > 0 || (PetscEqualReal(-b2[0], b2[1]) && PetscEqualReal(-b2[2], b2[3])), PetscObjectComm((PetscObject)(x)), PETSC_ERR_ARG_WRONG, "%d-th scalar value must be same on all processes\n", (int)i);
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
