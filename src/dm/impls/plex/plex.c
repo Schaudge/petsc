@@ -1107,7 +1107,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
         PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, ") node(%" PetscInt_FMT "_%d) [draw,shape=circle,color=%s] {%" PetscInt_FMT "};\n", v, rank, color, v));
       } else if (drawColors[0]) {
         PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, ") node(%" PetscInt_FMT "_%d) [fill,inner sep=%dpt,shape=circle,color=%s] {};\n", v, rank, !isLabeled ? 1 : 2, color));
-      } else PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, ") node(%" PetscInt_FMT "_%d) [] {};\n", v, rank));
+      } else PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, ") node(%" PetscInt_FMT "_%d) [inner sep=0pt] {};\n", v, rank));
     }
     PetscCall(VecRestoreArray(coordinates, &coords));
     PetscCall(PetscViewerFlush(viewer));
@@ -1160,7 +1160,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     /* Plot cells */
     if (dim == 3 || !drawNumbers[1]) {
       for (e = eStart; e < eEnd; ++e) {
-        const PetscInt *cone;
+        const PetscInt *cone, *ornt;
 
         if (wp && !PetscBTLookup(wp, e - pStart)) continue;
         color = colors[rank % numColors];
@@ -1172,8 +1172,9 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
             break;
           }
         }
-        PetscCall(DMPlexGetCone(dm, e, &cone));
+        PetscCall(DMPlexGetOrientedCone(dm, e, &cone, &ornt));
         PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, "\\draw[color=%s] (%" PetscInt_FMT "_%d) -- (%" PetscInt_FMT "_%d);\n", color, cone[0], rank, cone[1], rank));
+        PetscCall(DMPlexRestoreOrientedCone(dm, e, &cone, &ornt));
       }
     } else {
       DMPolytopeType ct;
