@@ -49,6 +49,7 @@ typedef enum {PATCH_SYS_IDENTITY, PATCH_SYS_LOD} PatchSystemType;
 const char *PatchSystemTypes[] = {"identity", "lod", "PatchSystemType", "PATCH_SYS_", NULL};
 
 typedef struct {
+  PetscBool       computeP;     // Compute the optimized prolongator
   PatchSystemType patchSysType; // Type of patch system
   PetscBool       snesCheck;    // Check KSP solves with equivalent SNES solves
   PetscBool       viewPatchSol; // View patch solution injected into the global P
@@ -115,11 +116,13 @@ static void g0_id_phi(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt 
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 {
   PetscFunctionBeginUser;
+  options->computeP     = PETSC_TRUE;
   options->patchSysType = PATCH_SYS_IDENTITY;
   options->snesCheck    = PETSC_FALSE;
   options->viewPatchSol = PETSC_FALSE;
 
   PetscOptionsBegin(comm, "", "Mesh Patch Integration Options", "DMPLEX");
+  PetscCall(PetscOptionsBool("-compute_p", "Compute the optimized prolongator", NULL, options->computeP, &options->computeP, NULL));
   PetscCall(PetscOptionsEnum("-patch_sys_type", "The type of patch system, e.g. LOD", NULL, PatchSystemTypes, (PetscEnum) options->patchSysType, (PetscEnum *) &options->patchSysType, NULL));
   PetscCall(PetscOptionsBool("-snes_check", "Check KSP solves with equivalent SNES", NULL, options->snesCheck, &options->snesCheck, NULL));
   PetscCall(PetscOptionsBool("-patch_sol_view", "View the patch solution injected into the global P", NULL, options->viewPatchSol, &options->viewPatchSol, NULL));
@@ -167,6 +170,7 @@ static PetscErrorCode CreatePatch(DM dm, PetscInt cell, DM *patch) {
   MPI_Comm        comm;
   PetscInt       *adj     = NULL;
   PetscInt        adjSize = PETSC_DETERMINE;
+  char            prefix[16];
 
   PetscFunctionBegin;
   PetscCall(PetscObjectGetComm((PetscObject)dm, &comm));
@@ -188,14 +192,17 @@ static PetscErrorCode CreatePatch(DM dm, PetscInt cell, DM *patch) {
 
   PetscCall(DMPlexCreateEphemeral(tr, patch));
   PetscCall(PetscObjectSetName((PetscObject)*patch, "Ephemeral Patch"));
-  PetscCall(DMViewFromOptions(*patch, NULL, "-patch_view"));
+  PetscCall(PetscSNPrintf(prefix, 16, "p%" PetscInt_FMT "_", cell));
+  PetscCall(DMPlexSetOptionsPrefix(*patch, prefix));
+  PetscCall(DMViewFromOptions(*patch, NULL, "-dm_view"));
   PetscCall(DMPlexTransformDestroy(&tr));
   PetscCall(DMPlexSetLocationAlg(*patch, DM_PLEX_LOCATE_GRID_HASH));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode RefinePatch(DM patch, DM *rpatch) {
+static PetscErrorCode RefinePatch(DM patch, PetscInt cell, DM *rpatch) {
   DMPlexTransform tr;
+  char            prefix[16];
 
   PetscFunctionBegin;
   PetscCall(DMPlexTransformCreate(PetscObjectComm((PetscObject)patch), &tr));
@@ -208,7 +215,9 @@ static PetscErrorCode RefinePatch(DM patch, DM *rpatch) {
 
   PetscCall(DMPlexCreateEphemeral(tr, rpatch));
   PetscCall(PetscObjectSetName((PetscObject)*rpatch, "Ephemeral Refined Patch"));
-  PetscCall(DMViewFromOptions(*rpatch, NULL, "-patch_view"));
+  PetscCall(PetscSNPrintf(prefix, 16, "rp%" PetscInt_FMT "_", cell));
+  PetscCall(DMPlexSetOptionsPrefix(*rpatch, prefix));
+  PetscCall(DMViewFromOptions(*rpatch, NULL, "-dm_view"));
   PetscCall(DMPlexTransformDestroy(&tr));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -628,7 +637,7 @@ static PetscErrorCode ComputeProlongator(DM dm, DM rdm, Mat P, AppCtx *user)
     DM patch, rpatch;
 
     PetscCall(CreatePatch(dm, c, &patch));
-    PetscCall(RefinePatch(patch, &rpatch));
+    PetscCall(RefinePatch(patch, c, &rpatch));
     PetscCall(PatchSolve(dm, patch, c, rdm, rpatch, P, user));
     PetscCall(DMDestroy(&rpatch));
     PetscCall(DMDestroy(&patch));
@@ -777,11 +786,13 @@ int main(int argc, char **argv)
   PetscCall(RefineMesh(dm, &rdm));
   PetscCall(SetupDiscretization(dm, 1, names, SetupPrimalProblem, &user));
   PetscCall(SetupDiscretization(rdm, 1, names, SetupPrimalProblem, &user));
-  PetscCall(CreateProlongator(dm, rdm, &P));
-  PetscCall(ComputeProlongator(dm, rdm, P, &user));
-  PetscCall(SolveSystems(dm, rdm, P));
-  PetscCall(CheckProlongator(dm, rdm, P, &user));
-  PetscCall(MatDestroy(&P));
+  if (user.computeP) {
+    PetscCall(CreateProlongator(dm, rdm, &P));
+    PetscCall(ComputeProlongator(dm, rdm, P, &user));
+    PetscCall(SolveSystems(dm, rdm, P));
+    PetscCall(CheckProlongator(dm, rdm, P, &user));
+    PetscCall(MatDestroy(&P));
+  }
   PetscCall(DMDestroy(&rdm));
   PetscCall(DMDestroy(&dm));
   PetscCall(PetscFinalize());
