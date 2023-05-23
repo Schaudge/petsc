@@ -6,7 +6,9 @@
 #include <petscsystypes.h>
 #include <petscis.h>
 #include <petscoptions.h>
+#include <petscdevice.h>
 #include <petscdevice_cuda.h>
+#include <petsc/private/deviceimpl.h>
 
 typedef enum{
   MAT_CDBFGS_LOWER_TRIANGULAR,
@@ -56,32 +58,39 @@ static PetscErrorCode VecRightward_Shift(Mat B, Vec X, PetscInt step)
 {
   Mat_LMVM    *lmvm  = (Mat_LMVM*)B->data;
   Mat_CDBFGS  *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
-  PetscScalar *buffer, *x_array;
+  PetscScalar *buffer1, *buffer2, *x_array;
   PetscInt     size, N;
-//TODO get array -> VecCUDAGetArray...?
   PetscFunctionBegin;
   switch (lbfgs->strategy) {
     case MAT_LBFGS_CD_REORDER:
       if ((lbfgs->idx_rplc == lmvm->m) || lbfgs->idx_rplc <= 0) {
         break;
       } else {
+	PetscMemType memtype_x;
         size = PetscAbs(step);
+
         PetscCall(VecGetSize(X, &N));
       
-        PetscCall(VecGetArray(X, &x_array));
-        PetscCall(PetscMalloc1(size, &buffer));
+        PetscCall(VecGetArrayAndMemType(X, &x_array, &memtype_x));
+        PetscCall(PetscDeviceRegisterMemory(x_array, memtype_x, N*sizeof(*x_array)));
+	//TODO devicecontext?
+        PetscCall(PetscDeviceMalloc(NULL, memtype_x, size, &buffer1));
+        PetscCall(PetscDeviceMalloc(NULL, memtype_x, N-size, &buffer2));
       
         if (step < 0) {
-          PetscCall(PetscArraycpy(buffer, x_array, size));
-          PetscCall(PetscArraymove(x_array, &x_array[size], N - size));
-          PetscCall(PetscArraycpy(&x_array[N - size], buffer, size));
+          PetscCall(PetscDeviceArrayCopy(NULL, buffer1, x_array, size));
+          PetscCall(PetscDeviceArrayCopy(NULL, buffer2, &x_array[size], N-size));
+          PetscCall(PetscDeviceArrayCopy(NULL, x_array, buffer2, N-size));
+          PetscCall(PetscDeviceArrayCopy(NULL, &x_array[N - size], buffer1, size));
         } else {
-          PetscCall(PetscArraycpy(buffer, &x_array[N-size], size));
-          PetscCall(PetscArraymove(&x_array[size], x_array, N - size));
-          PetscCall(PetscArraycpy(x_array, buffer, size));
+          PetscCall(PetscDeviceArrayCopy(NULL, buffer1, &x_array[N-size], size));
+          PetscCall(PetscDeviceArrayCopy(NULL, buffer2, x_array, N-size));
+          PetscCall(PetscDeviceArrayCopy(NULL, &x_array[size], buffer2, N-size));
+          PetscCall(PetscDeviceArrayCopy(NULL, x_array, buffer1, size));
         }
-        PetscCall(VecRestoreArray(X, &x_array));
-        PetscCall(PetscFree(buffer));
+        PetscCall(VecRestoreArrayAndMemType(X, &x_array));
+        PetscCall(PetscDeviceFree(NULL, buffer1));
+        PetscCall(PetscDeviceFree(NULL, buffer2));
       }
       break;
     case MAT_LBFGS_CD_INPLACE:
@@ -153,7 +162,7 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
             PetscCuBLASInt m_blas, lda_blas, one = 1;
 
             PetscCall(PetscCUBLASGetHandle(&handle));
-            PetscCallCUBLAS(cublasSetPointerMode(handle, CUBLAS_POINTER_MODE_DEVICE));
+            PetscCallCUBLAS(cublasSetPointerMode(handle, CUBLAS_POINTER_MODE_HOST));
             PetscCall(PetscCuBLASIntCast(lmvm->k, &m_blas));
             PetscCall(MatDenseGetLDA(lbfgs->StYfull, &lda));
             PetscCall(PetscCuBLASIntCast(lda, &lda_blas));
@@ -239,7 +248,7 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
             cublasHandle_t handle;
 
             PetscCall(PetscCUBLASGetHandle(&handle));
-            PetscCallCUBLAS(cublasSetPointerMode(handle, CUBLAS_POINTER_MODE_DEVICE));
+            PetscCallCUBLAS(cublasSetPointerMode(handle, CUBLAS_POINTER_MODE_HOST));
 
             PetscCuBLASInt m_blas, idx_blas, lda_blas, idx_n_1, diff_blas, diff_blas_n_1, one = 1;
             PetscCall(PetscCuBLASIntCast(lmvm->k, &m_blas));
@@ -380,7 +389,7 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
             cublasHandle_t handle;
 
             PetscCall(PetscCUBLASGetHandle(&handle));
-            PetscCallCUBLAS(cublasSetPointerMode(handle, CUBLAS_POINTER_MODE_DEVICE));
+            PetscCallCUBLAS(cublasSetPointerMode(handle, CUBLAS_POINTER_MODE_HOST));
 
             PetscCuBLASInt idx_blas, lda_blas, idx_n_1, diff_blas, diff_blas_n_1, one = 1;
             PetscCall(MatDenseGetLDA(lbfgs->StYfull, &lda));
@@ -543,7 +552,7 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
           cublasHandle_t handle;
 
           PetscCall(PetscCUBLASGetHandle(&handle));
-          PetscCallCUBLAS(cublasSetPointerMode(handle, CUBLAS_POINTER_MODE_DEVICE));
+          PetscCallCUBLAS(cublasSetPointerMode(handle, CUBLAS_POINTER_MODE_HOST));
 
           PetscCuBLASInt m_blas, lda_blas, one = 1;
           PetscCall(PetscCuBLASIntCast(lmvm->k+1, &m_blas));
@@ -662,7 +671,7 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
         cublasHandle_t handle;
 
         PetscCall(PetscCUBLASGetHandle(&handle));
-        PetscCallCUBLAS(cublasSetPointerMode(handle, CUBLAS_POINTER_MODE_DEVICE));
+        PetscCallCUBLAS(cublasSetPointerMode(handle, CUBLAS_POINTER_MODE_HOST));
         //PetscAssert(PetscDefined(BLAS)...));
         PetscCuBLASInt m_blas, idx_blas, lda_blas, diff_blas, one = 1;
         PetscCall(PetscCuBLASIntCast(lmvm->k, &m_blas));
@@ -738,7 +747,7 @@ static PetscErrorCode Vec_Truncate(Mat H, Vec X)
 {
   Mat_LMVM *lmvm  = (Mat_LMVM*)H->data;
 
-  PetscInt i;
+  PetscInt i,N;
 
   PetscFunctionBegin;
 
@@ -747,8 +756,10 @@ static PetscErrorCode Vec_Truncate(Mat H, Vec X)
   } else {
     PetscMemType memtype_x;
     PetscScalar *x_array;
-    PetscCall(VecGetArrayAndMemType(X, &x_array, &memtype_x));
-    //TODO somehow above returns segv error on cuda????
+
+    PetscCall(VecGetSize(X,&N));
+    PetscCall(VecGetArrayWriteAndMemType(X, &x_array, &memtype_x));
+    PetscCall(PetscDeviceRegisterMemory(x_array, memtype_x, N*sizeof(*x_array)));
     for (i=lmvm->k+1; i<lmvm->m; i++){ x_array[i] = 0; }
     PetscCall(VecRestoreArrayAndMemType(X, &x_array));
 #if 0    
@@ -815,10 +826,6 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   PetscCall(MatMultTranspose(lbfgs->Sfull, F, lbfgs->rwork1));
 
   //TODO debugging stuff
-  PetscMemType memtype_temp;
-  PetscScalar *temp_stuff;
-  VecGetArrayAndMemType(lbfgs->rwork1,&temp_stuff,&memtype_temp);
-  VecRestoreArrayAndMemType(lbfgs->rwork1,&temp_stuff);
   PetscCall(Vec_Truncate(H,lbfgs->rwork1));
 
   /* Reordering rwork1, as STY is in canonical order, while S is in recycled order */
@@ -989,10 +996,11 @@ static PetscErrorCode MatRotate_STY_CCW(Mat R)
 {
   Mat_LMVM     *lmvm  = (Mat_LMVM*)R->data;
   Mat_CDBFGS   *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
-  PetscScalar  *x_array, *buffer;
-  PetscInt     a,b,i;
+  PetscScalar  *x_array, *buffer1, *buffer2;
+  PetscInt     a,b,i,N;
   Vec          workvec;
   Mat          B,D,B_work,D_work;
+  PetscMemType memtype_vec;
 
   PetscFunctionBegin;
 
@@ -1019,28 +1027,62 @@ static PetscErrorCode MatRotate_STY_CCW(Mat R)
    * [ B | A ]      [ D | C ]                                                                   */
 
   /* Copy CB */
-  PetscCall(MatDenseGetSubMatrix(lbfgs->StYfull, 0, lmvm->m, 0, b, &B));
-  PetscCall(MatConvert(B, MATSAME,  MAT_INITIAL_MATRIX, &B_work));
-  PetscCall(MatDenseRestoreSubMatrix(lbfgs->StYfull, &B));
+  //TODO cuda doesnt like 0 x 0 memcopy... 
+//  if (b != 0) {
+    PetscCall(MatDenseGetSubMatrix(lbfgs->StYfull, 0, lmvm->m, 0, b, &B));
+    /* Cannot use MatConvert here, as B,D_work is MEMTYPE_HOST TODO can we fix this? */
+    //PetscCall(MatConvert(D, MATSAME,  MAT_INITIAL_MATRIX, &D_work));
+    //PetscCall(MatDenseRestoreSubMatrix(lbfgs->StYfull, &D));
+    PetscCall(VecCreateMatDense(lmvm->Xprev, PETSC_DECIDE, PETSC_DECIDE, lmvm->m, b, NULL, &B_work));
+  
+    PetscScalar *tempo1,*tempo2;
+    PetscMemType temp_type1,temp_type2;
+    MatDenseGetArrayAndMemType(B,&tempo1,&temp_type1);
+    MatDenseGetArrayAndMemType(B_work,&tempo2,&temp_type2);
+    PetscCall(MatCopy(B, B_work, SAME_NONZERO_PATTERN));
+    MatDenseRestoreArrayAndMemType(B,&tempo1);
+    MatDenseRestoreArrayAndMemType(B_work,&tempo2);
+    PetscCall(MatDenseRestoreSubMatrix(lbfgs->StYfull, &B));
+//  }
   /* Copy DA */
-  PetscCall(MatDenseGetSubMatrix(lbfgs->StYfull, 0, lmvm->m, b, lmvm->m, &D));
-  PetscCall(MatConvert(D, MATSAME,  MAT_INITIAL_MATRIX, &D_work));
-  PetscCall(MatDenseRestoreSubMatrix(lbfgs->StYfull, &D));
+  /* Skip if size of DA is zero */
+//  if (lmvm->m != b) {
+    PetscCall(MatDenseGetSubMatrix(lbfgs->StYfull, 0, lmvm->m, b, lmvm->m, &D));
+    PetscCall(VecCreateMatDense(lmvm->Xprev, PETSC_DECIDE, PETSC_DECIDE, lmvm->m, lmvm->m - b, NULL, &D_work));
+  
+    PetscScalar *tempo11,*tempo22;
+    PetscMemType temp_type11,temp_type22;
+    MatDenseGetArrayAndMemType(D,&tempo11,&temp_type11);
+    MatDenseGetArrayAndMemType(D_work,&tempo22,&temp_type22);
+    PetscCall(MatCopy(D, D_work, SAME_NONZERO_PATTERN));
+    MatDenseRestoreArrayAndMemType(D,&tempo11);
+    MatDenseRestoreArrayAndMemType(D_work,&tempo22);
+    PetscCall(MatDenseRestoreSubMatrix(lbfgs->StYfull, &D));
+//  }
 
   /* Turn [C;B] to [B;C] */
+  //TODO prob can unify buffer1,2 creation into one.
   for (i=0; i<b; i++) {
     PetscCall(MatDenseGetColumnVecRead(B_work, i, &workvec));
     PetscCall(VecCopy(workvec, lbfgs->rwork1));
+    PetscCall(VecGetSize(workvec,&N));
     PetscCall(MatDenseRestoreColumnVecRead(B_work, i, &workvec));
-    PetscCall(VecGetArray(lbfgs->rwork1, &x_array));
-    PetscCall(PetscMalloc1(b, &buffer));
-    PetscCall(PetscArraycpy(buffer, x_array, b));
+    PetscCall(VecGetArrayAndMemType(lbfgs->rwork1, &x_array, &memtype_vec));
+    PetscCall(PetscDeviceRegisterMemory(x_array, memtype_vec, N*sizeof(*x_array)));
+    //TODO dctx?
+    //TODO somehow I still need to call PetscDeviceRegisterMemory,
+    //even after getting array via VecGetArrayAndMemType....
+    PetscCall(PetscDeviceMalloc(NULL, memtype_vec, b, &buffer1));
+    PetscCall(PetscDeviceMalloc(NULL, memtype_vec, a, &buffer2));
+    PetscCall(PetscDeviceArrayCopy(NULL, buffer1, x_array, b));
     /* Shift */
-    PetscCall(PetscArraymove(x_array, &x_array[b], a));
+    PetscCall(PetscDeviceArrayCopy(NULL, buffer2, &x_array[b], a));
+    PetscCall(PetscDeviceArrayCopy(NULL, x_array, buffer2, a));
     /* Paste C part */
-    PetscCall(PetscArraycpy(&x_array[a], buffer, b));
-    PetscCall(PetscFree(buffer));
-    PetscCall(VecRestoreArray(lbfgs->rwork1, &x_array));
+    PetscCall(PetscDeviceArrayCopy(NULL, &x_array[a], buffer1, b));
+    PetscCall(PetscDeviceFree(NULL, buffer1));
+    PetscCall(PetscDeviceFree(NULL, buffer2));
+    PetscCall(VecRestoreArrayAndMemType(lbfgs->rwork1, &x_array));
   
     PetscCall(MatDenseGetColumnVecWrite(lbfgs->StYfull, a+i, &workvec));
     PetscCall(VecCopy(lbfgs->rwork1, workvec));
@@ -1052,15 +1094,19 @@ static PetscErrorCode MatRotate_STY_CCW(Mat R)
     PetscCall(MatDenseGetColumnVecRead(D_work, i, &workvec));
     PetscCall(VecCopy(workvec, lbfgs->rwork1));
     PetscCall(MatDenseRestoreColumnVecRead(D_work, i, &workvec));
-    PetscCall(VecGetArray(lbfgs->rwork1, &x_array));
-    PetscCall(PetscMalloc1(a, &buffer));
-    PetscCall(PetscArraycpy(buffer, &x_array[b], a));
+    PetscCall(VecGetArrayAndMemType(lbfgs->rwork1, &x_array, &memtype_vec));
+    PetscCall(PetscDeviceRegisterMemory(x_array, memtype_vec, N*sizeof(*x_array)));
+    PetscCall(PetscDeviceMalloc(NULL, memtype_vec,  a, &buffer1));
+    PetscCall(PetscDeviceMalloc(NULL, memtype_vec,  b, &buffer2));
+    PetscCall(PetscDeviceArrayCopy(NULL, buffer1, &x_array[b], a));
     /* Shift */
-    PetscCall(PetscArraymove(&x_array[a], x_array, b));
+    PetscCall(PetscDeviceArrayCopy(NULL, buffer2, x_array, b));
+    PetscCall(PetscDeviceArrayCopy(NULL, &x_array[a], buffer2, b));
     /* Paste A part */
-    PetscCall(PetscArraycpy(x_array, buffer, a));
-    PetscCall(PetscFree(buffer));
-    PetscCall(VecRestoreArray(lbfgs->rwork1, &x_array));
+    PetscCall(PetscDeviceArrayCopy(NULL, x_array, buffer1, a));
+    PetscCall(PetscDeviceFree(NULL, buffer1));
+    PetscCall(PetscDeviceFree(NULL, buffer2));
+    PetscCall(VecRestoreArrayAndMemType(lbfgs->rwork1, &x_array));
   
     PetscCall(MatDenseGetColumnVecWrite(lbfgs->StYfull, i, &workvec));
     PetscCall(VecCopy(lbfgs->rwork1, workvec));
