@@ -747,7 +747,7 @@ static PetscErrorCode Vec_Truncate(Mat H, Vec X)
 {
   Mat_LMVM *lmvm  = (Mat_LMVM*)H->data;
 
-  PetscInt i,N;
+  PetscInt N;
 
   PetscFunctionBegin;
 
@@ -760,38 +760,11 @@ static PetscErrorCode Vec_Truncate(Mat H, Vec X)
     PetscCall(VecGetSize(X,&N));
     PetscCall(VecGetArrayWriteAndMemType(X, &x_array, &memtype_x));
     PetscCall(PetscDeviceRegisterMemory(x_array, memtype_x, N*sizeof(*x_array)));
-    for (i=lmvm->k+1; i<lmvm->m; i++){ x_array[i] = 0; }
-    PetscCall(VecRestoreArrayAndMemType(X, &x_array));
-#if 0    
-    switch (memtype_x) {
-    case PETSC_MEMTYPE_HOST:
-      {
-        for (i=lmvm->k+1;i<lmvm->m;i++) {
-          PetscCall(VecSetValue(X,i, 0, INSERT_VALUES));
-        }
-        PetscCall(VecAssemblyBegin(X));
-        PetscCall(VecAssemblyEnd(X));
-      }	    
-      break;
-    case PETSC_MEMTYPE_CUDA:
-    case PETSC_MEMTYPE_NVSHMEM:
-      {
-        PetscCall(VecCUDAGetArrayWrite(X,&x_array));
-        for (i=lmvm->k+1; i<lmvm->m; i++){ x_array[i] = 0; }
-        PetscCall(VecCUDARestoreArrayWrite(X,&x_array));
-      }	    
-      break;
-    case PETSC_MEMTYPE_HIP:
-      {
-        PetscCall(VecHIPGetArrayWrite(X,&x_array));
-        for (i=lmvm->k+1; i<lmvm->m; i++){ x_array[i] = 0; }
-        PetscCall(VecHIPRestoreArrayWrite(X,&x_array));
-      }	    
-      break;
-    default:
-      SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented L-BFGS strategy");
+    //TODO dctx
+    if (lmvm->k != lmvm->m -1) {
+      PetscCall(PetscDeviceArrayZero(NULL, &x_array[lmvm->k+1], lmvm->m - lmvm->k -1));
     }
-#endif
+    PetscCall(VecRestoreArrayAndMemType(X, &x_array));
   } 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -824,8 +797,6 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   }
   /* Start with reusable part: rwork1 = R^-1 S^T F */
   PetscCall(MatMultTranspose(lbfgs->Sfull, F, lbfgs->rwork1));
-
-  //TODO debugging stuff
   PetscCall(Vec_Truncate(H,lbfgs->rwork1));
 
   /* Reordering rwork1, as STY is in canonical order, while S is in recycled order */
@@ -1019,7 +990,6 @@ static PetscErrorCode MatRotate_STY_CCW(Mat R)
 
   a = lmvm->k + 1 - lbfgs->idx_rplc;
   b = lbfgs->idx_rplc;
-  //TODO CUDA,HIP?
   /* Currently STY is in permuted format. Need to rotate anti-clockwise twice.                  *
    * diff: k + 1 - idx_rplc                                                                     *
    * A : [diff x diff], B : [diff x idx_rplc], C : [idx_rplc x idx_rplc], D : [idx_rplc x diff] *
@@ -1028,94 +998,76 @@ static PetscErrorCode MatRotate_STY_CCW(Mat R)
 
   /* Copy CB */
   //TODO cuda doesnt like 0 x 0 memcopy... 
-//  if (b != 0) {
-    PetscCall(MatDenseGetSubMatrix(lbfgs->StYfull, 0, lmvm->m, 0, b, &B));
+  if (b != 0) {
     /* Cannot use MatConvert here, as B,D_work is MEMTYPE_HOST TODO can we fix this? */
-    //PetscCall(MatConvert(D, MATSAME,  MAT_INITIAL_MATRIX, &D_work));
-    //PetscCall(MatDenseRestoreSubMatrix(lbfgs->StYfull, &D));
+    PetscCall(MatDenseGetSubMatrix(lbfgs->StYfull, 0, lmvm->m, 0, b, &B));
     PetscCall(VecCreateMatDense(lmvm->Xprev, PETSC_DECIDE, PETSC_DECIDE, lmvm->m, b, NULL, &B_work));
-  
-    PetscScalar *tempo1,*tempo2;
-    PetscMemType temp_type1,temp_type2;
-    MatDenseGetArrayAndMemType(B,&tempo1,&temp_type1);
-    MatDenseGetArrayAndMemType(B_work,&tempo2,&temp_type2);
     PetscCall(MatCopy(B, B_work, SAME_NONZERO_PATTERN));
-    MatDenseRestoreArrayAndMemType(B,&tempo1);
-    MatDenseRestoreArrayAndMemType(B_work,&tempo2);
     PetscCall(MatDenseRestoreSubMatrix(lbfgs->StYfull, &B));
-//  }
+    /* Turn [C;B] to [B;C] */
+    //TODO prob can unify buffer1,2 creation into one.
+    for (i=0; i<b; i++) {
+      PetscCall(MatDenseGetColumnVecRead(B_work, i, &workvec));
+      PetscCall(VecCopy(workvec, lbfgs->rwork1));
+      PetscCall(VecGetSize(workvec,&N));
+      PetscCall(MatDenseRestoreColumnVecRead(B_work, i, &workvec));
+      PetscCall(VecGetArrayAndMemType(lbfgs->rwork1, &x_array, &memtype_vec));
+      PetscCall(PetscDeviceRegisterMemory(x_array, memtype_vec, N*sizeof(*x_array)));
+      //TODO dctx?
+      //TODO somehow I still need to call PetscDeviceRegisterMemory,
+      //even after getting array via VecGetArrayAndMemType....
+      PetscCall(PetscDeviceMalloc(NULL, memtype_vec, b, &buffer1));
+      PetscCall(PetscDeviceMalloc(NULL, memtype_vec, a, &buffer2));
+      PetscCall(PetscDeviceArrayCopy(NULL, buffer1, x_array, b));
+      /* Shift */
+      PetscCall(PetscDeviceArrayCopy(NULL, buffer2, &x_array[b], a));
+      PetscCall(PetscDeviceArrayCopy(NULL, x_array, buffer2, a));
+      /* Paste C part */
+      PetscCall(PetscDeviceArrayCopy(NULL, &x_array[a], buffer1, b));
+      PetscCall(PetscDeviceFree(NULL, buffer1));
+      PetscCall(PetscDeviceFree(NULL, buffer2));
+      PetscCall(VecRestoreArrayAndMemType(lbfgs->rwork1, &x_array));
+    
+      PetscCall(MatDenseGetColumnVecWrite(lbfgs->StYfull, a+i, &workvec));
+      PetscCall(VecCopy(lbfgs->rwork1, workvec));
+      PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->StYfull, a+i, &workvec));
+    }
+    PetscCall(MatDestroy(&B_work));
+  }
+
   /* Copy DA */
   /* Skip if size of DA is zero */
-//  if (lmvm->m != b) {
+  if (a != 0) {
+    /* Cannot use MatConvert here, as B,D_work is MEMTYPE_HOST TODO can we fix this? */
     PetscCall(MatDenseGetSubMatrix(lbfgs->StYfull, 0, lmvm->m, b, lmvm->m, &D));
     PetscCall(VecCreateMatDense(lmvm->Xprev, PETSC_DECIDE, PETSC_DECIDE, lmvm->m, lmvm->m - b, NULL, &D_work));
-  
-    PetscScalar *tempo11,*tempo22;
-    PetscMemType temp_type11,temp_type22;
-    MatDenseGetArrayAndMemType(D,&tempo11,&temp_type11);
-    MatDenseGetArrayAndMemType(D_work,&tempo22,&temp_type22);
     PetscCall(MatCopy(D, D_work, SAME_NONZERO_PATTERN));
-    MatDenseRestoreArrayAndMemType(D,&tempo11);
-    MatDenseRestoreArrayAndMemType(D_work,&tempo22);
     PetscCall(MatDenseRestoreSubMatrix(lbfgs->StYfull, &D));
-//  }
-
-  /* Turn [C;B] to [B;C] */
-  //TODO prob can unify buffer1,2 creation into one.
-  for (i=0; i<b; i++) {
-    PetscCall(MatDenseGetColumnVecRead(B_work, i, &workvec));
-    PetscCall(VecCopy(workvec, lbfgs->rwork1));
-    PetscCall(VecGetSize(workvec,&N));
-    PetscCall(MatDenseRestoreColumnVecRead(B_work, i, &workvec));
-    PetscCall(VecGetArrayAndMemType(lbfgs->rwork1, &x_array, &memtype_vec));
-    PetscCall(PetscDeviceRegisterMemory(x_array, memtype_vec, N*sizeof(*x_array)));
-    //TODO dctx?
-    //TODO somehow I still need to call PetscDeviceRegisterMemory,
-    //even after getting array via VecGetArrayAndMemType....
-    PetscCall(PetscDeviceMalloc(NULL, memtype_vec, b, &buffer1));
-    PetscCall(PetscDeviceMalloc(NULL, memtype_vec, a, &buffer2));
-    PetscCall(PetscDeviceArrayCopy(NULL, buffer1, x_array, b));
-    /* Shift */
-    PetscCall(PetscDeviceArrayCopy(NULL, buffer2, &x_array[b], a));
-    PetscCall(PetscDeviceArrayCopy(NULL, x_array, buffer2, a));
-    /* Paste C part */
-    PetscCall(PetscDeviceArrayCopy(NULL, &x_array[a], buffer1, b));
-    PetscCall(PetscDeviceFree(NULL, buffer1));
-    PetscCall(PetscDeviceFree(NULL, buffer2));
-    PetscCall(VecRestoreArrayAndMemType(lbfgs->rwork1, &x_array));
-  
-    PetscCall(MatDenseGetColumnVecWrite(lbfgs->StYfull, a+i, &workvec));
-    PetscCall(VecCopy(lbfgs->rwork1, workvec));
-    PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->StYfull, a+i, &workvec));
+    /* Turn [D;A] to [A;D] */
+    for (i=0; i<a; i++) {
+      PetscCall(MatDenseGetColumnVecRead(D_work, i, &workvec));
+      PetscCall(VecCopy(workvec, lbfgs->rwork1));
+      PetscCall(MatDenseRestoreColumnVecRead(D_work, i, &workvec));
+      PetscCall(VecGetArrayAndMemType(lbfgs->rwork1, &x_array, &memtype_vec));
+      PetscCall(PetscDeviceRegisterMemory(x_array, memtype_vec, N*sizeof(*x_array)));
+      PetscCall(PetscDeviceMalloc(NULL, memtype_vec,  a, &buffer1));
+      PetscCall(PetscDeviceMalloc(NULL, memtype_vec,  b, &buffer2));
+      PetscCall(PetscDeviceArrayCopy(NULL, buffer1, &x_array[b], a));
+      /* Shift */
+      PetscCall(PetscDeviceArrayCopy(NULL, buffer2, x_array, b));
+      PetscCall(PetscDeviceArrayCopy(NULL, &x_array[a], buffer2, b));
+      /* Paste A part */
+      PetscCall(PetscDeviceArrayCopy(NULL, x_array, buffer1, a));
+      PetscCall(PetscDeviceFree(NULL, buffer1));
+      PetscCall(PetscDeviceFree(NULL, buffer2));
+      PetscCall(VecRestoreArrayAndMemType(lbfgs->rwork1, &x_array));
+    
+      PetscCall(MatDenseGetColumnVecWrite(lbfgs->StYfull, i, &workvec));
+      PetscCall(VecCopy(lbfgs->rwork1, workvec));
+      PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->StYfull, i, &workvec));
+    }
+    PetscCall(MatDestroy(&D_work));
   }
-
-  /* Turn [D;A] to [A;D] */
-  for (i=0; i<a; i++) {
-    PetscCall(MatDenseGetColumnVecRead(D_work, i, &workvec));
-    PetscCall(VecCopy(workvec, lbfgs->rwork1));
-    PetscCall(MatDenseRestoreColumnVecRead(D_work, i, &workvec));
-    PetscCall(VecGetArrayAndMemType(lbfgs->rwork1, &x_array, &memtype_vec));
-    PetscCall(PetscDeviceRegisterMemory(x_array, memtype_vec, N*sizeof(*x_array)));
-    PetscCall(PetscDeviceMalloc(NULL, memtype_vec,  a, &buffer1));
-    PetscCall(PetscDeviceMalloc(NULL, memtype_vec,  b, &buffer2));
-    PetscCall(PetscDeviceArrayCopy(NULL, buffer1, &x_array[b], a));
-    /* Shift */
-    PetscCall(PetscDeviceArrayCopy(NULL, buffer2, x_array, b));
-    PetscCall(PetscDeviceArrayCopy(NULL, &x_array[a], buffer2, b));
-    /* Paste A part */
-    PetscCall(PetscDeviceArrayCopy(NULL, x_array, buffer1, a));
-    PetscCall(PetscDeviceFree(NULL, buffer1));
-    PetscCall(PetscDeviceFree(NULL, buffer2));
-    PetscCall(VecRestoreArrayAndMemType(lbfgs->rwork1, &x_array));
-  
-    PetscCall(MatDenseGetColumnVecWrite(lbfgs->StYfull, i, &workvec));
-    PetscCall(VecCopy(lbfgs->rwork1, workvec));
-    PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->StYfull, i, &workvec));
-  }
-
-  PetscCall(MatDestroy(&B_work));
-  PetscCall(MatDestroy(&D_work));
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1164,7 +1116,6 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       if (!(lmvm->J0 || lmvm->user_pc || lmvm->user_ksp || lmvm->user_scale)) {
         PetscCall(MatLMVMUpdate(lbfgs->diag_bfgs, X, F));
       }
-
 
       if (lmvm->k != lmvm->m-1) {
         lmvm->k = lmvm->k + 1;
