@@ -1011,13 +1011,24 @@ static PetscErrorCode MatRotate_STY_CCW(Mat R)
    * [ B | A ]      [ D | C ]                                                                   */
 
   /* Copy CB */
-  //TODO cuda doesnt like 0 x 0 memcopy... 
   if (b != 0) {
     /* Cannot use MatConvert here, as B,D_work is MEMTYPE_HOST TODO can we fix this? */
     PetscCall(MatDenseGetSubMatrix(lbfgs->StYfull, 0, lmvm->m, 0, b, &B));
     PetscCall(VecCreateMatDense(lmvm->Xprev, PETSC_DECIDE, PETSC_DECIDE, lmvm->m, b, NULL, &B_work));
     PetscCall(MatCopy(B, B_work, SAME_NONZERO_PATTERN));
     PetscCall(MatDenseRestoreSubMatrix(lbfgs->StYfull, &B));
+  }
+
+  if (a != 0) {
+    /* Cannot use MatConvert here, as B,D_work is MEMTYPE_HOST TODO can we fix this? */
+    PetscCall(MatDenseGetSubMatrix(lbfgs->StYfull, 0, lmvm->m, b, lmvm->m, &D));
+    PetscCall(VecCreateMatDense(lmvm->Xprev, PETSC_DECIDE, PETSC_DECIDE, lmvm->m, lmvm->m - b, NULL, &D_work));
+    PetscCall(MatCopy(D, D_work, SAME_NONZERO_PATTERN));
+    PetscCall(MatDenseRestoreSubMatrix(lbfgs->StYfull, &D));
+  }
+
+  //TODO cuda doesnt like 0 x 0 memcopy... 
+  if (b != 0) {
     /* Turn [C;B] to [B;C] */
     //TODO prob can unify buffer1,2 creation into one.
     for (i=0; i<b; i++) {
@@ -1052,11 +1063,6 @@ static PetscErrorCode MatRotate_STY_CCW(Mat R)
   /* Copy DA */
   /* Skip if size of DA is zero */
   if (a != 0) {
-    /* Cannot use MatConvert here, as B,D_work is MEMTYPE_HOST TODO can we fix this? */
-    PetscCall(MatDenseGetSubMatrix(lbfgs->StYfull, 0, lmvm->m, b, lmvm->m, &D));
-    PetscCall(VecCreateMatDense(lmvm->Xprev, PETSC_DECIDE, PETSC_DECIDE, lmvm->m, lmvm->m - b, NULL, &D_work));
-    PetscCall(MatCopy(D, D_work, SAME_NONZERO_PATTERN));
-    PetscCall(MatDenseRestoreSubMatrix(lbfgs->StYfull, &D));
     /* Turn [D;A] to [A;D] */
     for (i=0; i<a; i++) {
       PetscCall(MatDenseGetColumnVecRead(D_work, i, &workvec));

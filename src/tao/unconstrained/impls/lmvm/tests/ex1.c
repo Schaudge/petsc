@@ -1,6 +1,7 @@
 const char help[] = "Test TAOLMVM on a least-squares problem";
 
 #include <petsctao.h>
+#include <petscdevice.h>
 
 typedef struct _n_AppCtx {
   Mat A;
@@ -25,18 +26,28 @@ int main(int argc, char **argv)
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
   MPI_Comm comm = PETSC_COMM_WORLD;
   AppCtx ctx;
+  KSP ksp;
+  PC pc;
+  Mat MM;
+  Vec sol;
+  PetscBool flg, cuda = PETSC_FALSE; 
 
   PetscInt M = 10;
   PetscInt N = 10;
   PetscOptionsBegin(comm, "", help, "TAO");
   PetscCall(PetscOptionsInt("-m", "data size", NULL, M, &M, NULL));
   PetscCall(PetscOptionsInt("-n", "data size", NULL, N, &N, NULL));
+  PetscCall(PetscOptionsGetBool(NULL, NULL, "-cuda", &cuda, &flg));
   PetscOptionsEnd();
 
-  PetscCall(MatCreateDense(comm, PETSC_DECIDE, PETSC_DECIDE, M, N, NULL, &ctx.A));
-  Vec sol;
-
-  PetscCall(MatCreateVecs(ctx.A, &sol, &ctx.b));
+  if (cuda) {
+    PetscCall(VecCreateSeqCUDA(comm, N, &ctx.b)); 
+    PetscCall(VecCreateMatDense(ctx.b, M, N, PETSC_DECIDE, PETSC_DECIDE, NULL, &ctx.A));
+    PetscCall(MatCreateVecs(ctx.A, &sol, NULL));
+  } else {
+    PetscCall(MatCreateDense(comm, PETSC_DECIDE, PETSC_DECIDE, M, N, NULL, &ctx.A));
+    PetscCall(MatCreateVecs(ctx.A, &sol, &ctx.b));
+  }
   PetscCall(VecDuplicate(ctx.b, &ctx.r));
   PetscCall(VecZeroEntries(sol));
 
