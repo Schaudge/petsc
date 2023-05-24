@@ -166,9 +166,9 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
             PetscCall(PetscCuBLASIntCast(lmvm->k, &m_blas));
             PetscCall(MatDenseGetLDA(lbfgs->StYfull, &lda));
             PetscCall(PetscCuBLASIntCast(lda, &lda_blas));
-
-            PetscCallCUBLAS(cublasDtrmv(handle, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m_blas, &r_array[1], lda_blas, x_array, one));
+            PetscCallCUBLAS(cublasXtrmv(handle, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m_blas, &r_array[1], lda_blas, x_array, one));
             /* Shift */
+	    //TODO does this actually work?
             PetscCall(PetscArraymove(&x_array[1],x_array,lmvm->k));
             x_array[0] = 0;
           }
@@ -177,10 +177,15 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
         case PETSC_MEMTYPE_HIP:
 #if defined(PETSC_HAVE_HIP)
           {
+            hipblasHandle_t handle;
+            PetscHIPBLASInt m_blas, lda_blas, one = 1;
+
+            PetscCall(PetscHIPBLASGetHandle(&handle));
+            PetscCallHIPBLAS(hipblasSetPointerMode(handle, HIPBLAS_POINTER_MODE_HOST));
             PetscCall(PetscHIPBLASIntCast(lmvm->k, &m_blas));
             PetscCall(MatDenseGetLDA(lbfgs->StYfull, &lda));
             PetscCall(PetscHIPBLASIntCast(lda, &lda_blas));
-            PetscCallHIPBLAS("hipblasDtrmv", hipblasDtrmv_("Lower", "Normal", "NotUnitTriangular", &m_blas, &r_array[1], &lda_blas, x_array, &one));
+            PetscCallHIPBLAS(hipblasXtrmv(handle, HIPBLAS_FILL_MODE_LOWER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, m_blas, &r_array[1], lda_blas, x_array, one));
             /* Shift */
             PetscCall(PetscArraymove(&x_array[1],x_array,lmvm->k));
             x_array[0] = 0;
@@ -267,17 +272,17 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
             PetscCall(PetscCalloc1(lmvm->m - index, &buffer));
             PetscCall(PetscArraycpy(buffer, &x_array[index], lmvm->m-index));
             if (index != lmvm->k) {
-              PetscCallCUBLAS(cublasDtrmv(handle, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, diff_blas_n_1, &r_array[idx_blas*(lda_blas+1)+1], lda_blas, &x_array[idx_blas], one));
+              PetscCallCUBLAS(cublasXtrmv(handle, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, diff_blas_n_1, &r_array[idx_blas*(lda_blas+1)+1], lda_blas, &x_array[idx_blas], one));
               PetscCall(PetscArraymove(&x_array[idx_blas+1], &x_array[idx_blas], lmvm->m-index-1));
             }
             x_array[idx_blas] = 0;
             if (index > 1) {
-              PetscCallCUBLAS(cublasDtrmv(handle, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, idx_n_1, &r_array[1], lda_blas, x_array, one));
+              PetscCallCUBLAS(cublasXtrmv(handle, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, idx_n_1, &r_array[1], lda_blas, x_array, one));
               PetscCall(PetscArraymove(&x_array[1], x_array, index-1));
             }
             x_array[0] = 0;
             if (index != 0) {
-              PetscCallCUBLAS(cublasDgemv(handle, CUBLAS_OP_N, idx_blas, diff_blas, &Alpha, &r_array[idx_blas*lda], lda_blas, buffer, one, &Alpha, x_array, one));
+              PetscCallCUBLAS(cublasXgemv(handle, CUBLAS_OP_N, idx_blas, diff_blas, &Alpha, &r_array[idx_blas*lda], lda_blas, buffer, one, &Alpha, x_array, one));
             }
             PetscCall(PetscFree(buffer));
           }
@@ -286,7 +291,12 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
         case PETSC_MEMTYPE_HIP:
 #if defined(PETSC_HAVE_HIP)
           {
-            PetscHIPBLASInt idx_blas, lda_blas, idx_n_1, diff_blas, diff_blas_n_1, one = 1;
+            hipblasHandle_t handle;
+
+            PetscCall(PetscHIPBLASGetHandle(&handle));
+            PetscCallHIPBLAS(hipblasSetPointerMode(handle, HIPBLAS_POINTER_MODE_HOST));
+
+            PetscHIPBLASInt m_blas, idx_blas, lda_blas, idx_n_1, diff_blas, diff_blas_n_1, one = 1;
             PetscCall(PetscHIPBLASIntCast(lmvm->k, &m_blas));
             PetscCall(MatDenseGetLDA(lbfgs->StYfull, &lda));
             PetscCall(PetscHIPBLASIntCast(lda, &lda_blas));
@@ -303,17 +313,17 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
             PetscCall(PetscCalloc1(lmvm->m - index, &buffer));
             PetscCall(PetscArraycpy(buffer, &x_array[index], lmvm->m-index));
             if (index != lmvm->k) {
-              PetscCallHIPBLAS("hipblasDtrmv", hipblasDtrmv_("Lower", "Normal", "NotUnitTriangular", &diff_blas_n_1, &r_array[idx_blas*(lda_blas+1)+1], &lda_blas, &x_array[idx_blas], &one));
+              PetscCallHIPBLAS(hipblasXtrmv(handle, HIPBLAS_FILL_MODE_LOWER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, diff_blas_n_1, &r_array[idx_blas*(lda_blas+1)+1], lda_blas, &x_array[idx_blas], one));
               PetscCall(PetscArraymove(&x_array[idx_blas+1], &x_array[idx_blas], lmvm->m-index-1));
             }
             x_array[idx_blas] = 0;
             if (index > 1) {
-              PetscCallHIPBLAS("hipblasDtrmv", hipblasDtrmv_("Lower", "Normal", "NotUnitTriangular", &idx_n_1, &r_array[1], &lda_blas, x_array, &one));
+              PetscCallHIPBLAS(hipblasXtrmv(handle, HIPBLAS_FILL_MODE_LOWER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, idx_n_1, &r_array[1], lda_blas, x_array, one));
               PetscCall(PetscArraymove(&x_array[1], x_array, index-1));
             }
             x_array[0] = 0;
             if (index != 0) {
-              PetscCallHIPBLAS("hipblasDgemv", hipblasDgemv_("N", &idx_blas, &diff_blas, &Alpha, &r_array[idx_blas*lda], &lda_blas, buffer, &one, &Alpha, x_array, &one));
+              PetscCallHIPBLAS(hipblasXgemv(handle, HIPBLAS_OP_N, idx_blas, diff_blas, &Alpha, &r_array[idx_blas*lda], lda_blas, buffer, one, &Alpha, x_array, one));
             }
             PetscCall(PetscFree(buffer));
           }
@@ -406,16 +416,16 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
             PetscCall(PetscCalloc1(index, &buffer));
             PetscCall(PetscArraycpy(buffer, x_array, index));
             if (index > 1) {
-              PetscCallCUBLAS(cublasDtrmv(handle, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, idx_n_1, &r_array[1], lda_blas, x_array, one));
+              PetscCallCUBLAS(cublasXtrmv(handle, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, idx_n_1, &r_array[1], lda_blas, x_array, one));
               x_array[index-1] = 0;
             }
             if (index != lmvm->k) {
-              PetscCallCUBLAS(cublasDtrmv(handle, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, diff_blas_n_1, &r_array[idx_blas*(lda_blas+1)+1], lda_blas, &x_array[idx_blas], one));
+              PetscCallCUBLAS(cublasXtrmv(handle, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, diff_blas_n_1, &r_array[idx_blas*(lda_blas+1)+1], lda_blas, &x_array[idx_blas], one));
               x_array[lmvm->k] = 0;
             }
             if (index != 0) {
-              PetscCallCUBLAS(cublasDgemv(handle, CUBLAS_OP_T, diff_blas, idx_blas, &Alpha, &r_array[idx_blas*lda], lda_blas, &x_array[idx_blas], one, &Alpha, x_array, one));
-              PetscCallCUBLAS(cublasDgemv(handle, CUBLAS_OP_N, idx_blas, diff_blas, &Alpha, &r_array[idx_blas*lda], lda_blas, buffer, one, &Alpha, x_array, one));
+              PetscCallCUBLAS(cublasXgemv(handle, CUBLAS_OP_T, diff_blas, idx_blas, &Alpha, &r_array[idx_blas*lda], lda_blas, &x_array[idx_blas], one, &Alpha, x_array, one));
+              PetscCallCUBLAS(cublasXgemv(handle, CUBLAS_OP_N, idx_blas, diff_blas, &Alpha, &r_array[idx_blas*lda], lda_blas, buffer, one, &Alpha, x_array, one));
             }
           }
 #endif
@@ -423,6 +433,11 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
         case PETSC_MEMTYPE_HIP:
 #if defined(PETSC_HAVE_HIP)
           {
+            hipblasHandle_t handle;
+
+            PetscCall(PetscHIPBLASGetHandle(&handle));
+            PetscCallHIPBLAS(hipblasSetPointerMode(handle, HIPBLAS_POINTER_MODE_HOST));
+
             PetscHIPBLASInt idx_blas, lda_blas, idx_n_1, diff_blas, diff_blas_n_1, one = 1;
             PetscCall(MatDenseGetLDA(lbfgs->StYfull, &lda));
             PetscCall(PetscHIPBLASIntCast(index, &idx_blas));
@@ -438,16 +453,16 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
             PetscCall(PetscCalloc1(index, &buffer));
             PetscCall(PetscArraycpy(buffer, x_array, index));
             if (index > 1) {
-              PetscCallHIPBLAS("hipblasDtrmv", hipblasDtrmv_("Lower", "Transpose", "NotUnitTriangular", &idx_n_1, &r_array[1], &lda_blas, x_array, &one));
+              PetscCallHIPBLAS(hipblasXtrmv(handle, HIPBLAS_FILL_MODE_LOWER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, idx_n_1, &r_array[1], lda_blas, x_array, one));
               x_array[index-1] = 0;
             }
             if (index != lmvm->k) {
-              PetscCallHIPBLAS("hipblasDtrmv", hipblasDtrmv_("Lower", "Transpose", "NotUnitTriangular", &diff_blas_n_1, &r_array[idx_blas*(lda_blas+1)+1], &lda_blas, &x_array[idx_blas], &one));
+              PetscCallHIPBLAS(hipblasXtrmv(handle, HIPBLAS_FILL_MODE_LOWER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, diff_blas_n_1, &r_array[idx_blas*(lda_blas+1)+1], lda_blas, &x_array[idx_blas], one));
               x_array[lmvm->k] = 0;
             }
             if (index != 0) {
-              PetscCallHIPBLAS("hipblasDgemv", hipblasDgemv_("T", &diff_blas, &idx_blas, &Alpha, &r_array[idx_blas*lda], &lda_blas, &x_array[idx_blas], &one, &Alpha, x_array, &one));
-              PetscCallHIPBLAS("hipblasDgemv", hipblasDgemv_("N", &idx_blas, &diff_blas, &Alpha, &r_array[idx_blas*lda], &lda_blas, buffer, &one, &Alpha, x_array, &one));
+              PetscCallHIPBLAS(hipblasXgemv(handle, HIPBLAS_OP_T, diff_blas, idx_blas, &Alpha, &r_array[idx_blas*lda], lda_blas, &x_array[idx_blas], one, &Alpha, x_array, one));
+              PetscCallHIPBLAS(hipblasXgemv(handle, HIPBLAS_OP_N, idx_blas, diff_blas, &Alpha, &r_array[idx_blas*lda], lda_blas, buffer, one, &Alpha, x_array, one));
             }
           }
 #endif
@@ -560,10 +575,10 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
           PetscCuBLASInt ldb_blas = lda_blas;
           switch (tri_type) {
           case MAT_CDBFGS_UPPER_TRIANGULAR:
-            PetscCallCUBLAS(cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
+            PetscCallCUBLAS(cublasXtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
             break;
           case MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE:
-            PetscCallCUBLAS(cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, m_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
+            PetscCallCUBLAS(cublasXtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, m_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
             break;
           case MAT_CDBFGS_LOWER_TRIANGULAR:
           case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
@@ -576,16 +591,21 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
       case PETSC_MEMTYPE_HIP:
 #if defined(PETSC_HAVE_HIP)
         {
+          hipblasHandle_t handle;
+
+          PetscCall(PetscHIPBLASGetHandle(&handle));
+          PetscCallHIPBLAS(hipblasSetPointerMode(handle, HIPBLAS_POINTER_MODE_HOST));
+
           PetscHIPBLASInt m_blas, lda_blas, one = 1;
           PetscCall(PetscHIPBLASIntCast(lmvm->k+1, &m_blas));
           PetscCall(PetscHIPBLASIntCast(lda, &lda_blas));
           PetscHIPBLASInt ldb_blas = lda_blas;
           switch (tri_type) {
           case MAT_CDBFGS_UPPER_TRIANGULAR:
-            PetscCallHIPBLAS("hipblasDtrsm", hipblasDtrsm_("Left", "Upper", "Normal", "NotUnitTriangular", &m_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
+            PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, m_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
             break;
           case MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE:
-            PetscCallHIPBLAS("hipblasDtrsm", hipblasDtrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &m_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
+            PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, m_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
             break;
           case MAT_CDBFGS_LOWER_TRIANGULAR:
           case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
@@ -682,14 +702,14 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
 
         switch (tri_type) {
         case MAT_CDBFGS_UPPER_TRIANGULAR:
-          PetscCallCUBLAS(cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, idx_blas, idx_blas, &Alpha, r_array, lda_blas, x_array, ldb_blas));
-          PetscCallCUBLAS(cublasDgemv(handle, CUBLAS_OP_N, diff_blas, idx_blas, &neg_one, &r_array[idx_blas], lda_blas, x_array, one, &Alpha, &x_array[idx_blas], one));
-          PetscCallCUBLAS(cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, diff_blas, diff_blas, &Alpha, &r_array[idx_blas*(lda_blas+1)], lda_blas, &x_array[idx_blas], ldb_blas));
+          PetscCallCUBLAS(cublasXtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, idx_blas, idx_blas, &Alpha, r_array, lda_blas, x_array, ldb_blas));
+          PetscCallCUBLAS(cublasXgemv(handle, CUBLAS_OP_N, diff_blas, idx_blas, &neg_one, &r_array[idx_blas], lda_blas, x_array, one, &Alpha, &x_array[idx_blas], one));
+          PetscCallCUBLAS(cublasXtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, diff_blas, diff_blas, &Alpha, &r_array[idx_blas*(lda_blas+1)], lda_blas, &x_array[idx_blas], ldb_blas));
           break;
         case MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE:
-          PetscCallCUBLAS(cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, diff_blas, diff_blas, &Alpha, &r_array[idx_blas*(lda_blas+1)], lda_blas, &x_array[idx_blas], ldb_blas));
-          PetscCallCUBLAS(cublasDgemv(handle, CUBLAS_OP_T, diff_blas, idx_blas, &neg_one, &r_array[idx_blas], lda_blas, &x_array[idx_blas], one, &Alpha, x_array, one));
-          PetscCallCUBLAS(cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, idx_blas, idx_blas, &Alpha, r_array, lda_blas, x_array, ldb_blas));
+          PetscCallCUBLAS(cublasXtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, diff_blas, diff_blas, &Alpha, &r_array[idx_blas*(lda_blas+1)], lda_blas, &x_array[idx_blas], ldb_blas));
+          PetscCallCUBLAS(cublasXgemv(handle, CUBLAS_OP_T, diff_blas, idx_blas, &neg_one, &r_array[idx_blas], lda_blas, &x_array[idx_blas], one, &Alpha, x_array, one));
+          PetscCallCUBLAS(cublasXtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, idx_blas, idx_blas, &Alpha, r_array, lda_blas, x_array, ldb_blas));
           break;
         case MAT_CDBFGS_LOWER_TRIANGULAR:
         case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
@@ -702,6 +722,10 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
     case PETSC_MEMTYPE_HIP:
 #if defined(PETSC_HAVE_HIP)
       {
+        hipblasHandle_t handle;
+
+        PetscCall(PetscHIPBLASGetHandle(&handle));
+        PetscCallHIPBLAS(hipblasSetPointerMode(handle, HIPBLAS_POINTER_MODE_HOST));
         //PetscAssert(PetscDefined(BLAS)...));
         PetscHIPBLASInt m_blas, idx_blas, lda_blas, diff_blas, one = 1;
         PetscCall(PetscHIPBLASIntCast(lmvm->k, &m_blas));
@@ -710,16 +734,16 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
         PetscCall(PetscHIPBLASIntCast(lmvm->k + 1 - lowest_index, &diff_blas));
         PetscHIPBLASInt ldb_blas = lda_blas;
 
-        switch (tri_type) {//TODO hipblasDgemv, or hipblasSgemv?
+        switch (tri_type) {
         case MAT_CDBFGS_UPPER_TRIANGULAR:
-          PetscCallHIPBLAS("hipblasDtrsm", hipblasDtrsm_("Left", "Upper", "Normal", "NotUnitTriangular", &idx_blas, &idx_blas, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
-          PetscCallHIPBLAS("hipblasDgemv", hipblasDgemv_("N",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
-          PetscCallHIPBLAS("hipblasDtrsm", hipblasDtrsm_("Left", "Upper", "Normal", "NotUnitTriangular", &diff_blas, &diff_blas, &Alpha, &r_array[idx_blas*(lda_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
+          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, idx_blas, idx_blas, &Alpha, r_array, lda_blas, x_array, ldb_blas));
+          PetscCallHIPBLAS(hipblasXgemv(handle, HIPBLAS_OP_N, diff_blas, idx_blas, &neg_one, &r_array[idx_blas], lda_blas, x_array, one, &Alpha, &x_array[idx_blas], one));
+          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, diff_blas, diff_blas, &Alpha, &r_array[idx_blas*(lda_blas+1)], lda_blas, &x_array[idx_blas], ldb_blas));
           break;
         case MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE:
-          PetscCallHIPBLAS("hipblasDtrsm", hipblasDtrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &diff_blas, &diff_blas, &Alpha, &r_array[idx_blas*(lda_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
-          PetscCallHIPBLAS("hipblasDgemv", hipblasDgemv_("T",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas], &lda_blas, &x_array[idx_blas], &one, &Alpha, x_array, &one));
-          PetscCallHIPBLAS("hipblasDtrsm", hipblasDtrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &idx_blas, &idx_blas, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
+          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, diff_blas, diff_blas, &Alpha, &r_array[idx_blas*(lda_blas+1)], lda_blas, &x_array[idx_blas], ldb_blas));
+          PetscCallHIPBLAS(hipblasXgemv(handle, HIPBLAS_OP_T, diff_blas, idx_blas, &neg_one, &r_array[idx_blas], lda_blas, &x_array[idx_blas], one, &Alpha, x_array, one));
+          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, idx_blas, idx_blas, &Alpha, r_array, lda_blas, x_array, ldb_blas));
           break;
         case MAT_CDBFGS_LOWER_TRIANGULAR:
         case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
