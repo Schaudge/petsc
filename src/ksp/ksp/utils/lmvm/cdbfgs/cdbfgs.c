@@ -747,7 +747,8 @@ static PetscErrorCode Vec_Truncate(Mat H, Vec X)
 {
   Mat_LMVM *lmvm  = (Mat_LMVM*)H->data;
 
-  PetscInt N;
+  PetscInt i, N;
+  MPI_Comm     comm  = PetscObjectComm((PetscObject)H);
 
   PetscFunctionBegin;
 
@@ -759,10 +760,23 @@ static PetscErrorCode Vec_Truncate(Mat H, Vec X)
 
     PetscCall(VecGetSize(X,&N));
     PetscCall(VecGetArrayWriteAndMemType(X, &x_array, &memtype_x));
-    PetscCall(PetscDeviceRegisterMemory(x_array, memtype_x, N*sizeof(*x_array)));
-    //TODO dctx
-    if (lmvm->k != lmvm->m -1) {
-      PetscCall(PetscDeviceArrayZero(NULL, &x_array[lmvm->k+1], lmvm->m - lmvm->k -1));
+    switch (memtype_x) {
+    case PETSC_MEMTYPE_HOST:
+      {	    
+        for (i=lmvm->k+1; i<lmvm->m; i++){ x_array[i] = 0; }
+      }
+      break;      
+    case PETSC_MEMTYPE_CUDA:
+    case PETSC_MEMTYPE_NVSHMEM:
+    case PETSC_MEMTYPE_HIP:
+      PetscCall(PetscDeviceRegisterMemory(x_array, memtype_x, N*sizeof(*x_array)));
+      //TODO dctx
+      if (lmvm->k != lmvm->m -1) {
+        PetscCall(PetscDeviceArrayZero(NULL, &x_array[lmvm->k+1], lmvm->m - lmvm->k -1));
+      }
+      break;
+    default:
+      SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented L-BFGS strategy");
     }
     PetscCall(VecRestoreArrayAndMemType(X, &x_array));
   } 
