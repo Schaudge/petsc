@@ -9,6 +9,7 @@
 #include <petscdevice.h>
 #include <petscdevice_cuda.h>
 #include <petsc/private/deviceimpl.h>
+#include <cuda_profiler_api.h>
 
 typedef enum{
   MAT_CDBFGS_LOWER_TRIANGULAR,
@@ -1362,13 +1363,14 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     if (lmvm->m > 0) {
       /* Create iteration storage matrices */
       PetscCall(VecCreateMatDense(X, n, lmvm->m, N, lmvm->m, NULL, &lbfgs->Sfull));
+      PetscCall(VecCreateMatDense(X, lmvm->m, lmvm->m, lmvm->m, lmvm->m, NULL, &lbfgs->StYfull));
       PetscCall(MatDuplicate(lbfgs->Sfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->Yfull));
       PetscCall(MatDuplicate(lbfgs->Sfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->BS));
       PetscCall(MatZeroEntries(lbfgs->Sfull));
       PetscCall(MatZeroEntries(lbfgs->Yfull));
       /* Create intermediate (sequential and small) matrices */
       //TODO: NOTE: "MMTM: This routine is currently only implemented for pairs of MATSEQAIJ matrices, for the MATSEQDENSE class, and for pairs of MATMPIDENSE matrices."
-      PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
+//      PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
       PetscCall(MatDuplicate(lbfgs->StYfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->J));
       PetscCall(MatDuplicate(lbfgs->StYfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->J_work));
       PetscCall(MatCreateVecs(lbfgs->StYfull, &lbfgs->diag_vec, NULL));

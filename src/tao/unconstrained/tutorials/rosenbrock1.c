@@ -3,6 +3,7 @@
 /*  Include "petsctao.h" so we can use TAO solvers.  */
 #include <petsctao.h>
 #include <petscvec.h>
+#include <cuda_profiler_api.h>
 
 static char help[] = "This example demonstrates use of the TAO package to \n\
 solve an unconstrained minimization problem on a single processor.  We \n\
@@ -92,8 +93,10 @@ int main(int argc, char **argv)
     PetscCall(MatLMVMSetJ0Scale(M, 1.));
   }
 
+  cudaProfilerStart();
   /* SOLVE THE APPLICATION */
   PetscCall(TaoSolve(tao));
+  cudaProfilerStop();
 
   /* Test the LMVM matrix */
   if (test_lmvm) {
@@ -101,10 +104,11 @@ int main(int argc, char **argv)
     PetscCall(KSPGetPC(ksp, &pc));
     PetscCall(PCLMVMGetMatLMVM(pc, &M));
 
+#if 0    
     PetscCall(PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD, PETSC_VIEWER_ASCII_DENSE));
     PetscCall(MatView(M, PETSC_VIEWER_STDOUT_WORLD));
     PetscCall(PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD));
-
+#endif
     PetscCall(VecDuplicate(x, &in));
     PetscCall(VecDuplicate(x, &out));
     PetscCall(VecDuplicate(x, &out2));
@@ -159,11 +163,14 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *f, Vec G, void *p
   PetscReal          ff = 0, t1, t2, alpha = user->alpha;
   PetscScalar       *g;
   const PetscScalar *x;
+  PetscMemType       memtype_x, memtype_g;
 
   PetscFunctionBeginUser;
   /* Get pointers to vector data */
-  PetscCall(VecGetArrayRead(X, &x));
-  PetscCall(VecGetArray(G, &g));
+  PetscCall(VecGetArrayReadAndMemType(X, &x, &memtype_x));
+  PetscCall(VecGetArrayAndMemType(G, &g, &memtype_g));
+  PetscCall(PetscDeviceRegisterMemory(x, memtype_x, user->n*sizeof(*x)));
+  PetscCall(PetscDeviceRegisterMemory(g, memtype_g, user->n*sizeof(*g)));
 
   /* Compute G(X) */
   if (user->chained) {
@@ -216,6 +223,7 @@ PetscErrorCode FormHessian(Tao tao, Vec X, Mat H, Mat Hpre, void *ptr)
   PetscReal          v[2][2];
   const PetscScalar *x;
   PetscBool          assembled;
+  PetscMemType       memtype_x;
 
   PetscFunctionBeginUser;
   /* Zero existing matrix entries */
@@ -223,7 +231,8 @@ PetscErrorCode FormHessian(Tao tao, Vec X, Mat H, Mat Hpre, void *ptr)
   if (assembled) PetscCall(MatZeroEntries(H));
 
   /* Get a pointer to vector data */
-  PetscCall(VecGetArrayRead(X, &x));
+  PetscCall(VecGetArrayReadAndMemType(X, &x, &memtype_x));
+  PetscCall(PetscDeviceRegisterMemory(x, memtype_x, user->n*sizeof(*x)));
 
   /* Compute H(X) entries */
   if (user->chained) {
@@ -375,13 +384,50 @@ PetscErrorCode FormHessian(Tao tao, Vec X, Mat H, Mat Hpre, void *ptr)
      suffix: 28
      args: -tao_fmin 10 -tao_converged_reason
 
-   test:  
+   test: 
      suffix: 29
-     args: -test_lmvm -tao_max_it 10 -tao_bqnk_mat_type lmvmcdbfgs
+     args: -test_lmvm -tao_max_it 10 -tao_bqnk_mat_type lmvmcdbfgs -mat_lbfgs_type cd_reorder 
 
-   test:
+   test: 
+     requires: cuda
      suffix: 30
-     args: -tao_type bqnls -tao_bqnls_mat_type lmvmcdbfgs -tao_monitor
+     args: -test_lmvm -tao_max_it 10 -tao_bqnk_mat_type lmvmcdbfgs -mat_lbfgs_type cd_reorder -cuda
+
+   test: 
+     suffix: 31
+     args: -test_lmvm -tao_max_it 10 -tao_bqnk_mat_type lmvmcdbfgs -mat_lbfgs_type cd_inplace
+
+   test: 
+     requires: cuda
+     suffix: 32
+     args: -test_lmvm -tao_max_it 10 -tao_bqnk_mat_type lmvmcdbfgs -mat_lbfgs_type cd_inplace -cuda
+
+   test: 
+     suffix: 33
+     args: -tao_type bqnls -tao_bqnls_mat_type lmvmcdbfgs -tao_monitor -mat_lbfgs_type cd_reorder 
+
+   test: 
+     requires: cuda
+     suffix: 34
+     args: -tao_type bqnls -tao_bqnls_mat_type lmvmcdbfgs -tao_monitor -mat_lbfgs_type cd_reorder -cuda
+
+   test: 
+     suffix: 35
+     args: -tao_type bqnls -tao_bqnls_mat_type lmvmcdbfgs -tao_monitor -mat_lbfgs_type cd_inplace
+
+   test: 
+     requires: cuda
+     suffix: 36
+     args: -tao_type bqnls -tao_bqnls_mat_type lmvmcdbfgs -tao_monitor -mat_lbfgs_type cd_inplace -cuda
+
+   test: 
+     suffix: 37
+     args: -tao_type bqnls -tao_bqnls_mat_type lmvmcdbfgs -tao_monitor -mat_lbfgs_type cd_inplace -J0_scale
+
+   test: 
+     requires: cuda
+     suffix: 38
+     args: -tao_type bqnls -tao_bqnls_mat_type lmvmcdbfgs -tao_monitor -mat_lbfgs_type cd_inplace -J0_scale -cuda
 
    test:
      suffix: snes
