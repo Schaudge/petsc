@@ -531,7 +531,7 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
 
   PetscFunctionBegin;
   PetscCall(MatDenseGetArrayReadAndMemType(R, &r_array, &memtype_r));
-  PetscCall(VecGetArrayWriteAndMemType(x, &x_array, &memtype_x));
+  PetscCall(VecGetArrayAndMemType(x, &x_array, &memtype_x));
   PetscCall(MatDenseGetLDA(R, &lda));
   PetscAssert(memtype_x == memtype_r, comm, PETSC_ERR_PLIB, "Incompatible device pointers");
 
@@ -619,24 +619,11 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
       default:
         SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented TRSM");
       }
-      PetscCall(VecRestoreArrayWriteAndMemType(x, &x_array));
+      PetscCall(VecRestoreArrayAndMemType(x, &x_array));
       PetscCall(MatDenseRestoreArrayReadAndMemType(R, &r_array));
     }
     break;
   case MAT_LBFGS_CD_INPLACE:
-      /* Shift x vector TODO there are x,b vecs. but actually we only need one here... */
-    //TODO what is this???
-#if 0 
-      PetscCall(VecGetArrayRead(x, &array_read));
-      PetscCall(VecGetSize(x, &N));
-      PetscCall(PetscMalloc1(N, &buffer));
-      PetscCall(PetscMemcpy(buffer, &array_read[index], (N - index)*sizeof(PetscScalar)));
-      if (index != 0 ) {
-        PetscCall(PetscMemcpy(&buffer[N - index], array_read, (index)*sizeof(PetscScalar)));
-      }
-      PetscCall(VecRestoreArrayReadAndMemType(x, &array_read));
-      PetscCall(PetscFree(buffer));
-#endif      
     switch (memtype_x) {
     case PETSC_MEMTYPE_HOST:
       {
