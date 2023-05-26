@@ -3,7 +3,11 @@
 /*  Include "petsctao.h" so we can use TAO solvers.  */
 #include <petsctao.h>
 #include <petscvec.h>
-#include <cuda_profiler_api.h>
+
+#if defined(PETSC_HAVE_CUDA)
+  #include <cuda_profiler_api.h>
+  #include <petscdevice.h>
+#endif
 
 static char help[] = "This example demonstrates use of the TAO package to \n\
 solve an unconstrained minimization problem on a single processor.  We \n\
@@ -163,15 +167,18 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *f, Vec G, void *p
   PetscReal          ff = 0, t1, t2, alpha = user->alpha;
   PetscScalar       *g;
   const PetscScalar *x;
-  PetscMemType       memtype_x, memtype_g;
+//  PetscMemType       memtype_x, memtype_g;
 
   PetscFunctionBeginUser;
   /* Get pointers to vector data */
+  PetscCall(VecGetArrayRead(X, &x));
+  PetscCall(VecGetArray(G, &g));
+#if 0 
   PetscCall(VecGetArrayReadAndMemType(X, &x, &memtype_x));
   PetscCall(VecGetArrayAndMemType(G, &g, &memtype_g));
   PetscCall(PetscDeviceRegisterMemory(x, memtype_x, user->n*sizeof(*x)));
   PetscCall(PetscDeviceRegisterMemory(g, memtype_g, user->n*sizeof(*g)));
-
+#endif
   /* Compute G(X) */
   if (user->chained) {
     g[0] = 0;
@@ -223,7 +230,7 @@ PetscErrorCode FormHessian(Tao tao, Vec X, Mat H, Mat Hpre, void *ptr)
   PetscReal          v[2][2];
   const PetscScalar *x;
   PetscBool          assembled;
-  PetscMemType       memtype_x;
+//  PetscMemType       memtype_x;
 
   PetscFunctionBeginUser;
   /* Zero existing matrix entries */
@@ -231,9 +238,11 @@ PetscErrorCode FormHessian(Tao tao, Vec X, Mat H, Mat Hpre, void *ptr)
   if (assembled) PetscCall(MatZeroEntries(H));
 
   /* Get a pointer to vector data */
+  PetscCall(VecGetArrayRead(X, &x));
+#if 0 
   PetscCall(VecGetArrayReadAndMemType(X, &x, &memtype_x));
   PetscCall(PetscDeviceRegisterMemory(x, memtype_x, user->n*sizeof(*x)));
-
+#endif
   /* Compute H(X) entries */
   if (user->chained) {
     PetscCall(MatZeroEntries(H));

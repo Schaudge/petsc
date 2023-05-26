@@ -7,10 +7,11 @@
 #include <petscis.h>
 #include <petscoptions.h>
 #include <petscdevice.h>
+#if defined(PETSC_HAVE_CUDA)
 #include <petscdevice_cuda.h>
 #include <petsc/private/deviceimpl.h>
 #include <cuda_profiler_api.h>
-
+#endif
 typedef enum{
   MAT_CDBFGS_LOWER_TRIANGULAR,
   MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE,
