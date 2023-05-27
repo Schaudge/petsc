@@ -121,11 +121,12 @@ static PetscErrorCode MatDuplicate_VecDiagonal(Mat A, MatDuplicateOption op, Mat
   Level: developer
 
   Note:
-
-  Although this returns a reference rather than a copy, the user must call
+  The user must call
   `MatVecDiagonalRestoreDiagonal()` before using the matrix again.
 
   For a copy of the diagonal values, rather than a reference, use `MatGetDiagonal()`
+
+  Any changes to the obtained vector immediately change the action of the `Mat`. The matrix can be changed more efficiently by accessing this vector and changing its values, instead of filling a work vector and using `MatDiagonalSet()`
 
 .seealso: [](chapter_matrices), `MATVECDIAGONAL`, `MatCreateVecDiagonal()`, `MatVecDiagonalRestoreDiagonal()`, `MatVecDiagonalGetInverseDiagonal()`, `MatGetDiagonal()`
 @*/
@@ -159,7 +160,6 @@ static PetscErrorCode MatVecDiagonalGetDiagonal_VecDiagonal(Mat A, Vec *diag)
   Level: developer
 
   Note:
-
   Use `MatDiagonalSet()` to change the values by copy, rather than reference.
 
 .seealso: [](chapter_matrices), `MATVECDIAGONAL`, `MatCreateVecDiagonal()`, `MatVecDiagonalGetDiagonal()`
@@ -198,8 +198,7 @@ static PetscErrorCode MatVecDiagonalRestoreDiagonal_VecDiagonal(Mat A, Vec *diag
   Level: developer
 
   Note:
-
-  Although this returns a reference rather than a copy, the user must call
+   The user must call
   `MatVecDiagonalRestoreInverseDiagonal()` before using the matrix again.
 
   If a matrix is created only to call `MatSolve()` (which happens for `MATLMVMDIAGBROYDEN`),
@@ -434,6 +433,7 @@ PetscErrorCode MatGetInfo_VecDiagonal(Mat A, MatInfoType flag, MatInfo *info)
     will affect the matrix.
 
 .seealso: [](chapter_matrices), `Mat`, `MatDestroy()`, `MATCONSTANTDIAGONAL`, `MatScale()`, `MatShift()`, `MatMult()`, `MatGetDiagonal()`, `MatSolve()`
+          `MatVecDiagonalRestoreInverseDiagonal()`, `MatVecDiagonalGetDiagonal()`, `MatVecDiagonalRestoreDiagonal()`, `MatVecDiagonalGetInverseDiagonal()`
 @*/
 PetscErrorCode MatCreateVecDiagonal(Vec diag, Mat *J)
 {
@@ -471,7 +471,7 @@ PetscErrorCode MatCreateVecDiagonal(Vec diag, Mat *J)
 
   Level: advanced
 
-.seealso: [](chapter_matrices), `Mat`, `MatCreateVecDiagonal()`
+.seealso: [](chapter_matrices), `Mat`, `MatCreateVecDiagonal()`, `MatVecDiagonalRestoreInverseDiagonal()`, `MatVecDiagonalGetDiagonal()`, `MatVecDiagonalRestoreDiagonal()`, `MatVecDiagonalGetInverseDiagonal()`
 M*/
 PETSC_INTERN PetscErrorCode MatCreate_VecDiagonal(Mat A)
 {
