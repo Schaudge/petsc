@@ -124,11 +124,10 @@ static PetscErrorCode MatMult_LMVM(Mat B, Vec X, Vec Y)
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
 
   PetscFunctionBegin;
-  VecCheckSameSize(X, 2, Y, 3);
   VecCheckMatCompatible(B, X, 2, Y, 3);
   PetscCheck(lmvm->allocated, PetscObjectComm((PetscObject)B), PETSC_ERR_ORDER, "LMVM matrix must be allocated first");
   PetscCall((*lmvm->ops->mult)(B, X, Y));
-  PetscCall(VecAXPY(Y, lmvm->shift, X));
+  if (lmvm->shift) PetscCall(VecAXPY(Y, lmvm->shift, X));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

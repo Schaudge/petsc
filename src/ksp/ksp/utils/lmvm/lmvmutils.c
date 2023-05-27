@@ -380,7 +380,7 @@ PetscErrorCode MatLMVMApplyJ0Fwd(Mat B, Vec X, Vec Y)
   } else if (lmvm->user_scale) {
     if (lmvm->J0diag) {
       /* User has defined a diagonal vector for J0 */
-      PetscCall(VecPointwiseMult(X, lmvm->J0diag, Y));
+      PetscCall(VecPointwiseMult(Y, lmvm->J0diag, X));
     } else {
       /* User has defined a scalar value for J0 */
       PetscCall(VecAXPBY(Y, lmvm->J0scalar, 0.0, X));
@@ -443,7 +443,7 @@ PetscErrorCode MatLMVMApplyJ0Inv(Mat B, Vec X, Vec Y)
     }
   } else if (lmvm->user_scale) {
     if (lmvm->J0diag) {
-      PetscCall(VecPointwiseDivide(X, Y, lmvm->J0diag));
+      PetscCall(VecPointwiseDivide(Y, X, lmvm->J0diag));
     } else {
       PetscCall(VecAXPBY(Y, 1.0 / lmvm->J0scalar, 0.0, X));
     }

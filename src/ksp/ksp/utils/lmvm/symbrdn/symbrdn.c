@@ -429,6 +429,8 @@ static PetscErrorCode MatDestroy_LMVMSymBrdn(Mat B)
   Mat_SymBrdn *lsb  = (Mat_SymBrdn *)lmvm->ctx;
 
   PetscFunctionBegin;
+  PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMSymBroydenGetPhi_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMSymBroydenSetPhi_C", NULL));
   if (lsb->allocated) {
     PetscCall(VecDestroy(&lsb->work));
     PetscCall(PetscFree6(lsb->stp, lsb->ytq, lsb->yts, lsb->yty, lsb->sts, lsb->workscalar));
@@ -554,6 +556,64 @@ PetscErrorCode MatSetFromOptions_LMVMSymBrdn_Private(Mat B, PetscOptionItems *Pe
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/*@
+  MatLMVMSymBroydenGetPhi - Get the phi parameter for a Broyden class quasi-Newton update matrix
+
+  Input Parameter:
+. B - The matrix
+
+  Output Parameter:
+. phi - a number defining an update that is a convex combination of the BFGS update (phi = 0) and DFP update (phi = 1)
+
+  Level: developer
+
+.seealso: [](chapter_ksp), `MATLMVMSYMBROYDEN`, `MATLMVMDFP`, `MATLMVMBFGS`, `MatLMVMSymBroydenSetPhi()`
+@*/
+PetscErrorCode MatLMVMSymBroydenGetPhi(Mat B, PetscReal *phi)
+{
+  PetscFunctionBegin;
+  PetscUseMethod(B, "MatLMVMSymBroydenGetPhi_C", (Mat, PetscReal *), (B, phi));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatLMVMSymBroydenGetPhi_SymBrdn(Mat B, PetscReal *phi)
+{
+  Mat_LMVM    *lmvm = (Mat_LMVM *)B->data;
+  Mat_SymBrdn *lsb  = (Mat_SymBrdn *)lmvm->ctx;
+
+  PetscFunctionBegin;
+  *phi = lsb->phi;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  MatLMVMSymBroydenSetPhi - Get the phi parameter for a Broyden class quasi-Newton update matrix
+
+  Input Parameter:
++ B - The matrix
+- phi - a number defining an update that is a convex combination of the BFGS update (phi = 0) and DFP update (phi = 1)
+
+  Level: developer
+
+.seealso: [](chapter_ksp), `MATLMVMSYMBROYDEN`, `MATLMVMDFP`, `MATLMVMBFGS`, `MatLMVMSymBroydenGetPhi()`
+@*/
+PetscErrorCode MatLMVMSymBroydenSetPhi(Mat B, PetscReal phi)
+{
+  PetscFunctionBegin;
+  PetscTryMethod(B, "MatLMVMSymBroydenSetPhi_C", (Mat, PetscReal), (B, phi));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatLMVMSymBroydenSetPhi_SymBrdn(Mat B, PetscReal phi)
+{
+  Mat_LMVM    *lmvm = (Mat_LMVM *)B->data;
+  Mat_SymBrdn *lsb  = (Mat_SymBrdn *)lmvm->ctx;
+
+  PetscFunctionBegin;
+  lsb->phi = phi;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /*------------------------------------------------------------*/
 
 PetscErrorCode MatCreate_LMVMSymBrdn(Mat B)
@@ -600,6 +660,8 @@ PetscErrorCode MatCreate_LMVMSymBrdn(Mat B)
 
   PetscCall(MatCreate(PetscObjectComm((PetscObject)B), &lsb->D));
   PetscCall(MatSetType(lsb->D, MATLMVMDIAGBROYDEN));
+  PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMSymBroydenGetPhi_C", MatLMVMSymBroydenGetPhi_SymBrdn));
+  PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMSymBroydenSetPhi_C", MatLMVMSymBroydenSetPhi_SymBrdn));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

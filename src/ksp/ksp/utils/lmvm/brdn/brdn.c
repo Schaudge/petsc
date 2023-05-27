@@ -82,7 +82,6 @@ static PetscErrorCode MatMult_LMVMBrdn(Mat B, Vec X, Vec Z)
   PetscScalar sjtsi, stx;
 
   PetscFunctionBegin;
-  VecCheckSameSize(X, 2, Z, 3);
   VecCheckMatCompatible(B, X, 2, Z, 3);
 
   if (lbrdn->needP) {
@@ -191,7 +190,7 @@ static PetscErrorCode MatAllocate_LMVMBrdn(Mat B, Vec X, Vec F)
   if (!lbrdn->allocated) {
     PetscCall(PetscMalloc2(lmvm->m, &lbrdn->sts, lmvm->m, &lbrdn->stq));
     if (lmvm->m > 0) {
-      PetscCall(VecDuplicateVecs(X, lmvm->m, &lbrdn->P));
+      PetscCall(VecDuplicateVecs(F, lmvm->m, &lbrdn->P));
       PetscCall(VecDuplicateVecs(X, lmvm->m, &lbrdn->Q));
     }
     lbrdn->allocated = PETSC_TRUE;
@@ -230,7 +229,7 @@ static PetscErrorCode MatSetUp_LMVMBrdn(Mat B)
   if (!lbrdn->allocated) {
     PetscCall(PetscMalloc2(lmvm->m, &lbrdn->sts, lmvm->m, &lbrdn->stq));
     if (lmvm->m > 0) {
-      PetscCall(VecDuplicateVecs(lmvm->Xprev, lmvm->m, &lbrdn->P));
+      PetscCall(VecDuplicateVecs(lmvm->Fprev, lmvm->m, &lbrdn->P));
       PetscCall(VecDuplicateVecs(lmvm->Xprev, lmvm->m, &lbrdn->Q));
     }
     lbrdn->allocated = PETSC_TRUE;

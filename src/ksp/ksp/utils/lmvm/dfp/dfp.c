@@ -334,6 +334,8 @@ static PetscErrorCode MatDestroy_LMVMDFP(Mat B)
   Mat_SymBrdn *ldfp = (Mat_SymBrdn *)lmvm->ctx;
 
   PetscFunctionBegin;
+  PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMSymBroydenGetPhi_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMSymBroydenSetPhi_C", NULL));
   if (ldfp->allocated) {
     PetscCall(VecDestroy(&ldfp->work));
     PetscCall(PetscFree5(ldfp->ytq, ldfp->yts, ldfp->yty, ldfp->sts, ldfp->workscalar));

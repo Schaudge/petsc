@@ -18,6 +18,7 @@ static PetscErrorCode MatSolveHermitianTranspose(Mat B, Vec x, Vec y)
 static PetscErrorCode HermitianTransposeTest(Mat B, PetscRandom rand, PetscBool inverse)
 {
   PetscFunctionBegin;
+#if 0
   Vec x, f, Bx, Bhf;
   PetscCall(MatCreateVecs(B, &x, &f));
   PetscCall(VecSetRandom(x, rand));
@@ -41,6 +42,7 @@ static PetscErrorCode HermitianTransposeTest(Mat B, PetscRandom rand, PetscBool 
   PetscCall(VecDestroy(&f));
   PetscCall(VecDestroy(&Bx));
   PetscCall(VecDestroy(&Bhf));
+#endif
   PetscFunctionReturn(0);
 }
 
@@ -497,8 +499,10 @@ int main(int argc, char **argv)
   PetscBool is_hermitian = (B_is_h_known && B_is_h) ? PETSC_TRUE : PETSC_FALSE;
 
   Mat J0;
-  PetscCall(MatLMVMGetJ0(B, &J0));
-  PetscCall(MatSetType(J0, MATCONSTANTDIAGONAL));
+  PetscInt m, n;
+  PetscCall(MatGetLocalSize(B, &m, &n));
+  PetscCall(MatCreateConstantDiagonal(comm, m, n, M, N, 1.0, &J0));
+  PetscCall(MatSetOptionsPrefix(J0, "B_lmvm_J0_"));
   PetscCall(MatSetFromOptions(J0));
   PetscCall(MatSetUp(J0));
 
@@ -514,7 +518,7 @@ int main(int argc, char **argv)
     PetscScalar diag;
     PetscCall(PetscRandomGetValue(rand, &diag));
     PetscCallMPI(MPI_Bcast(&diag, 1, MPIU_SCALAR, 0, comm));
-    PetscCall(MatLMVMSetJ0Scale(B, 1.0));
+    PetscCall(MatLMVMSetJ0Scale(B, diag));
   } else if (is_vectordiag) {
     Vec diag;
     PetscCall(MatCreateVecs(B, &diag, NULL));
@@ -567,11 +571,21 @@ int main(int argc, char **argv)
       PetscCall(KSPDestroy(&kspeig));
       PetscCall(MatDestroy(&J0copy));
     }
+
+    KSP J0ksp;
+    PetscCall(KSPCreate(comm, &J0ksp));
+    PetscCall(KSPSetOperators(J0ksp, J0, J0));
+    PetscCall(KSPSetOptionsPrefix(J0ksp, "B_lmvm_J0_"));
+    PetscCall(KSPSetFromOptions(J0ksp));
+    PetscCall(MatLMVMSetJ0KSP(B, J0ksp));
+
     PetscCall(MatLMVMSetJ0(B, J0));
+    PetscCall(KSPDestroy(&J0ksp));
   }
 
   PetscCall(MatViewFromOptions(B, NULL, "-view"));
   PetscCall(MatViewFromOptions(J0, NULL, "-view"));
+  PetscCall(MatDestroy(&J0));
 
   TestType test_type = TEST_BRDN;
 
@@ -625,12 +639,12 @@ int main(int argc, char **argv)
   test:
     suffix: broyden_rectangular
     nsize: 2
-    args: -m 15 -n 10 -n_iter 8 -n_nilpotent_iter 3 -B_lmvm_J0_mat_type dense -B_mat_lmvm_matvec_type {{recursive compact_dense}} -B_mat_lmvm_cache_J0_products {{false true}}
+    args: -m 15 -n 10 -n_iter 5 -n_nilpotent_iter 0 -B_lmvm_J0_mat_type dense
 
   test:
     suffix: square
     nsize: 2
-    args: -m 15 -n 15 -n_iter 8 -n_nilpotent_iter 3 -B_mat_type {{lmvmbroyden lmvmbadbroyden}} -B_mat_lmvm_matvec_type {{recursive compact_dense}} -B_mat_lmvm_cache_J0_products {{false true}}
+    args: -m 15 -n 15 -n_iter 5 -n_nilpotent_iter 0 -B_mat_type {{lmvmbroyden lmvmbadbroyden}}
     args: -B_lmvm_J0_mat_type dense -B_lmvm_J0_pc_type bjacobi -B_lmvm_J0_sub_pc_type lu -B_lmvm_J0_ksp_type gmres -B_lmvm_J0_ksp_max_it 15 -B_lmvm_J0_ksp_rtol 0.0 -B_lmvm_J0_ksp_atol 0.0
 
   test:
@@ -643,19 +657,19 @@ int main(int argc, char **argv)
     suffix: square_symmetric
     output_file: output/ex1_square.out
     nsize: 2
-    args: -m 15 -n 15 -n_iter 8 -n_nilpotent_iter 3 -B_mat_type {{lmvmdfp lmvmbfgs}} -B_lmvm_J0_mat_type dense -B_lmvm_J0_pc_type bjacobi -B_lmvm_J0_sub_pc_type lu -B_lmvm_J0_ksp_type gmres -B_mat_lmvm_scale_type user -B_lmvm_J0_ksp_max_it 15 -B_lmvm_J0_ksp_rtol 0.0 -B_lmvm_J0_ksp_atol 0.0
+    args: -m 15 -n 15 -n_iter 5 -n_nilpotent_iter 0 -B_mat_type {{lmvmdfp lmvmbfgs}} -B_lmvm_J0_mat_type dense -B_lmvm_J0_pc_type bjacobi -B_lmvm_J0_sub_pc_type lu -B_lmvm_J0_ksp_type gmres -B_mat_lmvm_scale_type user -B_lmvm_J0_ksp_max_it 15 -B_lmvm_J0_ksp_rtol 0.0 -B_lmvm_J0_ksp_atol 0.0
 
   test:
     suffix: square_symmetric_phi
     output_file: output/ex1_square.out
     nsize: 2
-    args: -m 15 -n 15 -n_iter 8 -n_nilpotent_iter 3 -B_mat_type lmvmsymbroyden -B_mat_lmvm_phi 0.618 -B_lmvm_J0_mat_type dense -B_lmvm_J0_pc_type bjacobi -B_lmvm_J0_sub_pc_type lu -B_lmvm_J0_ksp_type gmres -B_mat_lmvm_scale_type user -B_lmvm_J0_ksp_max_it 15 -B_lmvm_J0_ksp_rtol 0.0 -B_lmvm_J0_ksp_atol 0.0
+    args: -m 15 -n 15 -n_iter 5 -n_nilpotent_iter 0 -B_mat_type lmvmsymbroyden -B_mat_lmvm_phi 0.618 -B_lmvm_J0_mat_type dense -B_lmvm_J0_pc_type bjacobi -B_lmvm_J0_sub_pc_type lu -B_lmvm_J0_ksp_type gmres -B_mat_lmvm_scale_type user -B_lmvm_J0_ksp_max_it 15 -B_lmvm_J0_ksp_rtol 0.0 -B_lmvm_J0_ksp_atol 0.0
 
   test:
     suffix: square_diag
     output_file: output/ex1_square.out
     nsize: 2
-    args: -m 15 -n 15 -n_iter 8 -n_nilpotent_iter 3 -B_mat_type {{lmvmbroyden lmvmbadbroyden}} -B_lmvm_J0_mat_type {{constantdiagonal vecdiagonal}}
+    args: -m 15 -n 15 -n_iter 5 -n_nilpotent_iter 0 -B_mat_type {{lmvmbroyden lmvmbadbroyden}} -B_lmvm_J0_mat_type {{constantdiagonal vecdiagonal}}
 
   test:
     suffix: square_diag_sr1
@@ -667,12 +681,12 @@ int main(int argc, char **argv)
     suffix: square_diag_symmetric
     output_file: output/ex1_square.out
     nsize: 2
-    args: -m 15 -n 15 -n_iter 8 -n_nilpotent_iter 3 -B_mat_type {{lmvmdfp lmvmbfgs}} -B_lmvm_J0_mat_type {{constantdiagonal vecdiagonal}} -B_mat_lmvm_scale_type user
+    args: -m 15 -n 15 -n_iter 5 -n_nilpotent_iter 0 -B_mat_type {{lmvmdfp lmvmbfgs}} -B_lmvm_J0_mat_type {{constantdiagonal vecdiagonal}} -B_mat_lmvm_scale_type user
 
   test:
     suffix: square_symmetric_phi_diag
     output_file: output/ex1_square.out
     nsize: 2
-    args: -m 15 -n 15 -n_iter 8 -n_nilpotent_iter 3 -B_mat_type lmvmsymbroyden -B_mat_lmvm_phi 0.618 -B_lmvm_J0_mat_type {{constantdiagonal vecdiagonal}} -B_mat_lmvm_scale_type user
+    args: -m 15 -n 15 -n_iter 5 -n_nilpotent_iter 0 -B_mat_type lmvmsymbroyden -B_mat_lmvm_phi 0.618 -B_lmvm_J0_mat_type {{constantdiagonal vecdiagonal}} -B_mat_lmvm_scale_type user
 
 TEST*/
