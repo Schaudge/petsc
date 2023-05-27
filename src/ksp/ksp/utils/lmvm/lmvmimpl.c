@@ -286,6 +286,25 @@ PetscErrorCode MatDestroy_LMVM(Mat B)
   PetscCall(KSPDestroy(&lmvm->J0ksp));
   PetscCall(MatLMVMClearJ0(B));
   PetscCall(PetscFree(B->data));
+  PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMGetLastUpdate_C", NULL));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode MatLMVMGetLastUpdate(Mat B, Vec *x_prev, Vec *f_prev)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(B, MAT_CLASSID, 1);
+  PetscTryMethod(B, "MatLMVMGetLastUpdate_C", (Mat, Vec *, Vec *), (B, x_prev, f_prev));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatLMVMGetLastUpdate_LMVM(Mat B, Vec *x_prev, Vec *f_prev)
+{
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+
+  PetscFunctionBegin;
+  if (x_prev) { *x_prev = (lmvm->prev_set) ? lmvm->Xprev : NULL; }
+  if (f_prev) { *f_prev = (lmvm->prev_set) ? lmvm->Fprev : NULL; }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -331,6 +350,8 @@ PetscErrorCode MatCreate_LMVM(Mat B)
   lmvm->ops->update   = MatUpdate_LMVM;
   lmvm->ops->allocate = MatAllocate_LMVM;
   lmvm->ops->reset    = MatReset_LMVM;
+
+  PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMGetLastUpdate_C", MatLMVMGetLastUpdate_LMVM));
 
   PetscCall(KSPCreate(PetscObjectComm((PetscObject)B), &lmvm->J0ksp));
   PetscCall(PetscObjectIncrementTabLevel((PetscObject)lmvm->J0ksp, (PetscObject)B, 1));
