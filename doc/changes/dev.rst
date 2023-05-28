@@ -85,6 +85,7 @@ Changes: Development
 
 - Add ``PCMatGetApplyOperation()`` and ``PCMatSetApplyOperation()``
 - Add ``PCReduceFailedReason()``
+- Add ``PCIsSymmetric()``
 
 .. rubric:: KSP:
 
