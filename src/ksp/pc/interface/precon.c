@@ -105,7 +105,7 @@ PetscErrorCode PCGetUseSymmetricForm(PC pc, PetscBool *sym)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(pc, PC_CLASSID, 1);
-  PetscValidPointer(sym, 2);
+  PetscAssertPointer(sym, 2);
   *sym = pc->usesymmetricform;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -135,11 +135,12 @@ PetscErrorCode PCGetUseSymmetricForm(PC pc, PetscBool *sym)
   When PETSc is built for complex numbers this means specially that the operator, if expressed as a matrix, would equal its complex conjugate
   transpose.
 
-  Developer Note:
+  Developer Notes:
   This has different calling sequences than `MatIsSymmetric()` and `MatIsSymmetricKnown()` because it was implemented after
   `PETSC_BOOL3` was introduced
 
-.seealso: `PC`, `PCCreate()`, `PCSetUp()`, `KSPCG`, `MatIsSymmetric()`, `MatIsSymmetricKnown()`
+.seealso: `PC`, `PCCreate()`, `PCSetUp()`, `KSPCG`, `MatIsSymmetric()`, `MatIsSymmetricKnown()`, `PCGetUseSymmetricForm()`,
+          `PCSetUseSymmetricForm()`,
 @*/
 PetscErrorCode PCIsSymmetric(PC pc, PetscBool3 *issym)
 {
