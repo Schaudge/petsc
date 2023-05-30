@@ -105,14 +105,35 @@ int main(int argc, char **argv)
 #if defined(PETSC_HAVE_CUDA)
 PetscLogStagePush(warmup);
 cublasHandle_t handle;
+
 PetscCall(PetscCUBLASGetHandle(&handle));
 PetscCallCUBLAS(cublasSetPointerMode(handle, CUBLAS_POINTER_MODE_HOST));
+
 PetscScalar alpha=1., *r_array, *x_array, *y_array;
-PetscCalloc3(1,&r_array,1,&x_array,1,&y_array);
-x_array[0] = 1.;
-y_array[0] = 1.;
-r_array[0] = 1.;
+Mat mat_warmup;
+Vec vec_warmup;
+PetscInt warmpup_size = 5;
+
+PetscDeviceMalloc(NULL, PETSC_MEMTYPE_CUDA, 1, &x_array);
+PetscDeviceMalloc(NULL, PETSC_MEMTYPE_CUDA, 1, &r_array);
+PetscDeviceMalloc(NULL, PETSC_MEMTYPE_CUDA, 1, &y_array);
+PetscDeviceMemset(NULL, x_array, 1., sizeof(PetscScalar));
+PetscDeviceMemset(NULL, y_array, 1., sizeof(PetscScalar));
+PetscDeviceMemset(NULL, r_array, 1., sizeof(PetscScalar));
+
+MatCreateDenseCUDA(PETSC_COMM_WORLD, warmpup_size,warmpup_size,warmpup_size,warmpup_size,NULL, &mat_warmup);
+MatZeroEntries(mat_warmup);
+VecCreateSeqCUDA(PETSC_COMM_WORLD, warmpup_size, &vec_warmup);
+VecSet(vec_warmup, 5);
+MatDiagonalSet(mat_warmup, vec_warmup,INSERT_VALUES);
+
 PetscCallCUBLAS(cublasDgemv(handle, CUBLAS_OP_N, 1, 1, &alpha, r_array, 1, x_array, 1, &alpha, y_array, 1));
+MatSetOption(mat_warmup, MAT_SPD, PETSC_TRUE);
+MatCholeskyFactor(mat_warmup, NULL,NULL);
+PetscDeviceFree(NULL, x_array);
+PetscDeviceFree(NULL, r_array);
+PetscDeviceFree(NULL, y_array);
+MatDestroy(&mat_warmup);
 cudaDeviceSynchronize();
 #endif  
 
