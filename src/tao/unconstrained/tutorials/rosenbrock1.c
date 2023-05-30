@@ -7,6 +7,7 @@
 #if defined(PETSC_HAVE_CUDA)
   #include <cuda_profiler_api.h>
   #include <petscdevice.h>
+  #include <petscdevice_cuda.h>
 #endif
 
 static char help[] = "This example demonstrates use of the TAO package to \n\
@@ -97,10 +98,30 @@ int main(int argc, char **argv)
     PetscCall(MatLMVMSetJ0Scale(M, 1.));
   }
 
+  PetscLogStage warmup, timing;
+  PetscLogStageRegister("Warmup", &warmup);
+  PetscLogStageRegister("Timing", &timing);
+
+#if defined(PETSC_HAVE_CUDA)
+PetscLogStagePush(warmup);
+cublasHandle_t handle;
+PetscCall(PetscCUBLASGetHandle(&handle));
+PetscCallCUBLAS(cublasSetPointerMode(handle, CUBLAS_POINTER_MODE_HOST));
+PetscScalar alpha=1., *r_array, *x_array, *y_array;
+PetscCalloc3(1,&r_array,1,&x_array,1,&y_array);
+x_array[0] = 1.;
+y_array[0] = 1.;
+r_array[0] = 1.;
+PetscCallCUBLAS(cublasDgemv(handle, CUBLAS_OP_N, 1, 1, &alpha, r_array, 1, x_array, 1, &alpha, y_array, 1));
+cudaDeviceSynchronize();
+#endif  
+
   cudaProfilerStart();
   /* SOLVE THE APPLICATION */
+  PetscLogStagePush(timing);
   PetscCall(TaoSolve(tao));
   cudaProfilerStop();
+  PetscLogStagePop();
 
   /* Test the LMVM matrix */
   if (test_lmvm) {
