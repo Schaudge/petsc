@@ -557,6 +557,7 @@ PetscErrorCode VecMAXPY_SeqKokkos(Vec yin, PetscInt nv, const PetscScalar *alpha
   ConstPetscScalarKokkosView xv[8];
 
   PetscFunctionBegin;
+  PetscCall(PetscLogGpuTimeBegin());
   PetscCall(VecGetKokkosView(yin, &yv));
   for (i = 0; i < ngroup; i++) { /* 8 x's per group */
     for (j = 0; j < 8; j++) {    /* Fill the parameters */
@@ -579,6 +580,7 @@ PetscErrorCode VecMAXPY_SeqKokkos(Vec yin, PetscInt nv, const PetscScalar *alpha
     for (j = 0; j < rem; j++) PetscCall(VecRestoreKokkosView(xin[cur + j], &xv[j]));
   }
   PetscCall(VecRestoreKokkosView(yin, &yv));
+  PetscCall(PetscLogGpuTimeEnd());
   PetscCall(PetscLogGpuFlops(nv * 2.0 * yin->map->n));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
