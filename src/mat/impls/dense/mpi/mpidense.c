@@ -7,6 +7,7 @@
 
 #include <../src/mat/impls/dense/mpi/mpidense.h> /*I   "petscmat.h"  I*/
 #include <../src/mat/impls/aij/mpi/mpiaij.h>
+#include <petsc/private/vecimpl.h>
 #include <petscblaslapack.h>
 
 /*@
@@ -477,14 +478,18 @@ PetscErrorCode MatMult_MPIDense(Mat mat, Vec xx, Vec yy)
   PetscMemType       axmtype, aymtype;
 
   PetscFunctionBegin;
-  if (!mdn->Mvctx) PetscCall(MatSetUpMultiply_MPIDense(mat));
-  PetscCall(VecGetArrayReadAndMemType(xx, &ax, &axmtype));
-  PetscCall(VecGetArrayAndMemType(mdn->lvec, &ay, &aymtype));
-  PetscCall(PetscSFBcastWithMemTypeBegin(mdn->Mvctx, MPIU_SCALAR, axmtype, ax, aymtype, ay, MPI_REPLACE));
-  PetscCall(PetscSFBcastEnd(mdn->Mvctx, MPIU_SCALAR, ax, ay, MPI_REPLACE));
-  PetscCall(VecRestoreArrayAndMemType(mdn->lvec, &ay));
-  PetscCall(VecRestoreArrayReadAndMemType(xx, &ax));
-  PetscCall((*mdn->A->ops->mult)(mdn->A, mdn->lvec, yy));
+  if (mat->cmap->redundant) {
+    PetscCall((*mdn->A->ops->mult)(mdn->A, xx, yy));
+  } else {
+    if (!mdn->Mvctx) PetscCall(MatSetUpMultiply_MPIDense(mat));
+    PetscCall(VecGetArrayReadAndMemType(xx, &ax, &axmtype));
+    PetscCall(VecGetArrayAndMemType(mdn->lvec, &ay, &aymtype));
+    PetscCall(PetscSFBcastWithMemTypeBegin(mdn->Mvctx, MPIU_SCALAR, axmtype, ax, aymtype, ay, MPI_REPLACE));
+    PetscCall(PetscSFBcastEnd(mdn->Mvctx, MPIU_SCALAR, ax, ay, MPI_REPLACE));
+    PetscCall(VecRestoreArrayAndMemType(mdn->lvec, &ay));
+    PetscCall(VecRestoreArrayReadAndMemType(xx, &ax));
+    PetscCall((*mdn->A->ops->mult)(mdn->A, mdn->lvec, yy));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -496,14 +501,18 @@ PetscErrorCode MatMultAdd_MPIDense(Mat mat, Vec xx, Vec yy, Vec zz)
   PetscMemType       axmtype, aymtype;
 
   PetscFunctionBegin;
-  if (!mdn->Mvctx) PetscCall(MatSetUpMultiply_MPIDense(mat));
-  PetscCall(VecGetArrayReadAndMemType(xx, &ax, &axmtype));
-  PetscCall(VecGetArrayAndMemType(mdn->lvec, &ay, &aymtype));
-  PetscCall(PetscSFBcastWithMemTypeBegin(mdn->Mvctx, MPIU_SCALAR, axmtype, ax, aymtype, ay, MPI_REPLACE));
-  PetscCall(PetscSFBcastEnd(mdn->Mvctx, MPIU_SCALAR, ax, ay, MPI_REPLACE));
-  PetscCall(VecRestoreArrayAndMemType(mdn->lvec, &ay));
-  PetscCall(VecRestoreArrayReadAndMemType(xx, &ax));
-  PetscCall((*mdn->A->ops->multadd)(mdn->A, mdn->lvec, yy, zz));
+  if (mat->cmap->redundant) {
+    PetscCall((*mdn->A->ops->multadd)(mdn->A, xx, yy, zz));
+  } else {
+    if (!mdn->Mvctx) PetscCall(MatSetUpMultiply_MPIDense(mat));
+    PetscCall(VecGetArrayReadAndMemType(xx, &ax, &axmtype));
+    PetscCall(VecGetArrayAndMemType(mdn->lvec, &ay, &aymtype));
+    PetscCall(PetscSFBcastWithMemTypeBegin(mdn->Mvctx, MPIU_SCALAR, axmtype, ax, aymtype, ay, MPI_REPLACE));
+    PetscCall(PetscSFBcastEnd(mdn->Mvctx, MPIU_SCALAR, ax, ay, MPI_REPLACE));
+    PetscCall(VecRestoreArrayAndMemType(mdn->lvec, &ay));
+    PetscCall(VecRestoreArrayReadAndMemType(xx, &ax));
+    PetscCall((*mdn->A->ops->multadd)(mdn->A, mdn->lvec, yy, zz));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -515,15 +524,24 @@ PetscErrorCode MatMultTranspose_MPIDense(Mat A, Vec xx, Vec yy)
   PetscMemType       axmtype, aymtype;
 
   PetscFunctionBegin;
-  if (!a->Mvctx) PetscCall(MatSetUpMultiply_MPIDense(A));
-  PetscCall(VecSet(yy, 0.0));
-  PetscCall((*a->A->ops->multtranspose)(a->A, xx, a->lvec));
-  PetscCall(VecGetArrayReadAndMemType(a->lvec, &ax, &axmtype));
-  PetscCall(VecGetArrayAndMemType(yy, &ay, &aymtype));
-  PetscCall(PetscSFReduceWithMemTypeBegin(a->Mvctx, MPIU_SCALAR, axmtype, ax, aymtype, ay, MPIU_SUM));
-  PetscCall(PetscSFReduceEnd(a->Mvctx, MPIU_SCALAR, ax, ay, MPIU_SUM));
-  PetscCall(VecRestoreArrayReadAndMemType(a->lvec, &ax));
-  PetscCall(VecRestoreArrayAndMemType(yy, &ay));
+  if (A->cmap->redundant) {
+    PetscCall(VecRedundantPushDoNotCheckRedundancy(yy));
+    PetscCall((*a->A->ops->multtranspose)(a->A, xx, yy));
+    PetscCall(VecGetArray(yy, &ay));
+    PetscCall(MPIU_Allreduce(MPI_IN_PLACE, ay, A->cmap->N, MPIU_SCALAR, MPI_SUM, PetscObjectComm((PetscObject)A)));
+    PetscCall(VecRestoreArray(yy, &ay));
+    PetscCall(VecRedundantPushDoNotCheckRedundancy(yy));
+  } else {
+    if (!a->Mvctx) PetscCall(MatSetUpMultiply_MPIDense(A));
+    PetscCall(VecSet(yy, 0.0));
+    PetscCall((*a->A->ops->multtranspose)(a->A, xx, a->lvec));
+    PetscCall(VecGetArrayReadAndMemType(a->lvec, &ax, &axmtype));
+    PetscCall(VecGetArrayAndMemType(yy, &ay, &aymtype));
+    PetscCall(PetscSFReduceWithMemTypeBegin(a->Mvctx, MPIU_SCALAR, axmtype, ax, aymtype, ay, MPIU_SUM));
+    PetscCall(PetscSFReduceEnd(a->Mvctx, MPIU_SCALAR, ax, ay, MPIU_SUM));
+    PetscCall(VecRestoreArrayReadAndMemType(a->lvec, &ax));
+    PetscCall(VecRestoreArrayAndMemType(yy, &ay));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -535,15 +553,26 @@ PetscErrorCode MatMultTransposeAdd_MPIDense(Mat A, Vec xx, Vec yy, Vec zz)
   PetscMemType       axmtype, aymtype;
 
   PetscFunctionBegin;
-  if (!a->Mvctx) PetscCall(MatSetUpMultiply_MPIDense(A));
-  PetscCall(VecCopy(yy, zz));
-  PetscCall((*a->A->ops->multtranspose)(a->A, xx, a->lvec));
-  PetscCall(VecGetArrayReadAndMemType(a->lvec, &ax, &axmtype));
-  PetscCall(VecGetArrayAndMemType(zz, &ay, &aymtype));
-  PetscCall(PetscSFReduceWithMemTypeBegin(a->Mvctx, MPIU_SCALAR, axmtype, ax, aymtype, ay, MPIU_SUM));
-  PetscCall(PetscSFReduceEnd(a->Mvctx, MPIU_SCALAR, ax, ay, MPIU_SUM));
-  PetscCall(VecRestoreArrayReadAndMemType(a->lvec, &ax));
-  PetscCall(VecRestoreArrayAndMemType(zz, &ay));
+  if (A->cmap->redundant) {
+    if (yy != zz) {
+      PetscCall(MatMultTranspose_MPIDense(A, xx, zz));
+      PetscCall(VecAXPY(zz, 1.0, yy));
+    } else {
+      if (!a->lvec) PetscCall(MatCreateVecs(a->A, &a->lvec, NULL));
+      PetscCall(MatMultTranspose_MPIDense(A, xx, a->lvec));
+      PetscCall(VecAXPY(zz, 1.0, a->lvec));
+    }
+  } else {
+    if (!a->Mvctx) PetscCall(MatSetUpMultiply_MPIDense(A));
+    PetscCall(VecCopy(yy, zz));
+    PetscCall((*a->A->ops->multtranspose)(a->A, xx, a->lvec));
+    PetscCall(VecGetArrayReadAndMemType(a->lvec, &ax, &axmtype));
+    PetscCall(VecGetArrayAndMemType(zz, &ay, &aymtype));
+    PetscCall(PetscSFReduceWithMemTypeBegin(a->Mvctx, MPIU_SCALAR, axmtype, ax, aymtype, ay, MPIU_SUM));
+    PetscCall(PetscSFReduceEnd(a->Mvctx, MPIU_SCALAR, ax, ay, MPIU_SUM));
+    PetscCall(VecRestoreArrayReadAndMemType(a->lvec, &ax));
+    PetscCall(VecRestoreArrayAndMemType(zz, &ay));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

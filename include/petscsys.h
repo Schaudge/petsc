@@ -2321,7 +2321,7 @@ M*/
     _local_hash[0] = (PetscMPIInt) (h); \
     _local_hash[1] = -_local_hash[0]; \
     PetscCall(MPIU_Allreduce(_local_hash, _global_hash, 2, MPI_INT, MPI_MAX, comm)); \
-    PetscCheck(_global_hash[0] == _global_hash[1], comm, PETSC_ERR_ARG_INCOMP, "Arguments to %s() for a redundant vector are not the same on all processes", PETSC_FUNCTION_NAME); \
+    PetscCheck(_global_hash[0] == -_global_hash[1], comm, PETSC_ERR_ARG_INCOMP, "Arguments to %s() for a redundant vector are not the same on all processes", PETSC_FUNCTION_NAME); \
   } while(0)
 
 // clang-format on

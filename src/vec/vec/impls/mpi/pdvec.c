@@ -318,7 +318,7 @@ PetscErrorCode VecView_MPI_ASCII(Vec xin, PetscViewer viewer)
     } else if (format == PETSC_VIEWER_ASCII_INFO || format == PETSC_VIEWER_ASCII_INFO_DETAIL) {
       /* No info */
     } else {
-      if (format != PETSC_VIEWER_ASCII_COMMON) PetscCall(PetscViewerASCIIPrintf(viewer, "Process [%d]\n", rank));
+      if (format != PETSC_VIEWER_ASCII_COMMON && !xin->map->redundant) PetscCall(PetscViewerASCIIPrintf(viewer, "Process [%d]\n", rank));
       cnt = 0;
       for (i = 0; i < xin->map->n; i++) {
         if (format == PETSC_VIEWER_ASCII_INDEX) PetscCall(PetscViewerASCIIPrintf(viewer, "%" PetscInt_FMT ": ", cnt++));
@@ -338,7 +338,7 @@ PetscErrorCode VecView_MPI_ASCII(Vec xin, PetscViewer viewer)
       for (j = 1; j < size; j++) {
         PetscCallMPI(MPI_Recv(values, (PetscMPIInt)len, MPIU_SCALAR, j, tag, PetscObjectComm((PetscObject)xin), &status));
         PetscCallMPI(MPI_Get_count(&status, MPIU_SCALAR, &n));
-        if (format != PETSC_VIEWER_ASCII_COMMON) PetscCall(PetscViewerASCIIPrintf(viewer, "Process [%d]\n", j));
+        if (format != PETSC_VIEWER_ASCII_COMMON && !xin->map->redundant) PetscCall(PetscViewerASCIIPrintf(viewer, "Process [%d]\n", j));
         for (i = 0; i < n; i++) {
           if (format == PETSC_VIEWER_ASCII_INDEX) PetscCall(PetscViewerASCIIPrintf(viewer, "%" PetscInt_FMT ": ", cnt++));
 #if defined(PETSC_USE_COMPLEX)

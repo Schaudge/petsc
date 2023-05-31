@@ -2,14 +2,45 @@
 #include <../src/vec/vec/impls/dvecimpl.h> /*I  "petscvec.h"   I*/
 #include <../src/vec/vec/impls/mpi/pvecimpl.h>
 
-typedef Vec_Seq Vec_Redundant;
+typedef struct {
+  VECSEQHEADER
+  PetscInt do_not_check_redundancy;
+} Vec_Redundant;
+
+PETSC_INTERN PetscErrorCode VecRedundantPushDoNotCheckRedundancy(Vec v)
+{
+  Vec_Redundant *vr = (Vec_Redundant *) v->data;
+
+  PetscFunctionBegin;
+  vr->do_not_check_redundancy++;
+  PetscFunctionReturn(0);
+}
+
+PETSC_INTERN PetscErrorCode VecRedundantPopDoNotCheckRedundancy(Vec v)
+{
+  Vec_Redundant *vr = (Vec_Redundant *) v->data;
+
+  PetscFunctionBegin;
+  vr->do_not_check_redundancy = PetscMax(0, vr->do_not_check_redundancy - 1);
+  if (PetscDefined(USE_DEBUG) && vr->do_not_check_redundancy == 0) {
+    const PetscScalar *array;
+
+    PetscCall(VecGetArrayRead(v, &array));
+    unsigned int hash = PetscArrayHash(array, v->map->N, NULL);
+    PetscCheckLogicalCollectiveHash(hash, PetscObjectComm((PetscObject)v));
+    PetscCall(VecRestoreArrayRead(v, &array));
+  }
+  PetscFunctionReturn(0);
+}
 
 static PetscErrorCode VecSetValues_Redundant(Vec xin, PetscInt ni, const PetscInt ix[], const PetscScalar y[], InsertMode m)
 {
+  Vec_Redundant *vr = (Vec_Redundant *) xin->data;
+
   PetscFunctionBegin;
   PetscValidLogicalCollectiveInt(xin, ni, 2);
   PetscValidLogicalCollectiveEnum(xin, m, 5);
-  if (PetscDefined(USE_DEBUG)) {
+  if (PetscDefined(USE_DEBUG) && !vr->do_not_check_redundancy) {
     unsigned int hash = PetscArrayHash(ix, ni, NULL);
     hash = PetscArrayHash(y, ni, &hash);
     PetscCheckLogicalCollectiveHash(hash, PetscObjectComm((PetscObject)xin));
@@ -20,10 +51,12 @@ static PetscErrorCode VecSetValues_Redundant(Vec xin, PetscInt ni, const PetscIn
 
 static PetscErrorCode VecSetValuesBlocked_Redundant(Vec xin, PetscInt ni, const PetscInt ix[], const PetscScalar y[], InsertMode m)
 {
+  Vec_Redundant *vr = (Vec_Redundant *) xin->data;
+
   PetscFunctionBegin;
   PetscValidLogicalCollectiveInt(xin, ni, 2);
   PetscValidLogicalCollectiveEnum(xin, m, 5);
-  if (PetscDefined(USE_DEBUG)) {
+  if (PetscDefined(USE_DEBUG) && !vr->do_not_check_redundancy) {
     unsigned int hash = PetscArrayHash(ix, ni, NULL);
     hash = PetscArrayHash(y, ni, &hash);
     PetscCheckLogicalCollectiveHash(hash, PetscObjectComm((PetscObject)xin));
@@ -39,7 +72,7 @@ static PetscErrorCode VecGetLocalSize_Redundant(Vec v, PetscInt *size)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode VecSetRandom_Rednundant(Vec xin, PetscRandom r)
+static PetscErrorCode VecSetRandom_Redundant(Vec xin, PetscRandom r)
 {
   MPI_Comm    comm = PetscObjectComm((PetscObject)xin);
   PetscScalar *xx;
@@ -56,8 +89,10 @@ static PetscErrorCode VecSetRandom_Rednundant(Vec xin, PetscRandom r)
 
 static PetscErrorCode VecPlaceArray_Redundant(Vec vin, const PetscScalar *a)
 {
+  Vec_Redundant *vr = (Vec_Redundant *) vin->data;
+
   PetscFunctionBegin;
-  if (PetscDefined(USE_DEBUG)) {
+  if (PetscDefined(USE_DEBUG) && !vr->do_not_check_redundancy) {
     unsigned int hash = PetscArrayHash(a, vin->map->N, NULL);
     PetscCheckLogicalCollectiveHash(hash, PetscObjectComm((PetscObject)vin));
   }
@@ -67,8 +102,10 @@ static PetscErrorCode VecPlaceArray_Redundant(Vec vin, const PetscScalar *a)
 
 static PetscErrorCode VecReplaceArray_Redundant(Vec vin, const PetscScalar *a)
 {
+  Vec_Redundant *vr = (Vec_Redundant *) vin->data;
+
   PetscFunctionBegin;
-  if (PetscDefined(USE_DEBUG)) {
+  if (PetscDefined(USE_DEBUG) && !vr->do_not_check_redundancy) {
     unsigned int hash = PetscArrayHash(a, vin->map->N, NULL);
     PetscCheckLogicalCollectiveHash(hash, PetscObjectComm((PetscObject)vin));
   }
@@ -93,12 +130,13 @@ static PetscErrorCode VecLoad_Redundant(Vec vec, PetscViewer viewer)
 
 static PetscErrorCode VecSetPreallocationCOO_Redundant(Vec x, PetscCount coo_n, const PetscInt coo_i[])
 {
+  Vec_Redundant *vr = (Vec_Redundant *) x->data;
   PetscBool have_coo_i = coo_i ? PETSC_TRUE : PETSC_FALSE;
 
   PetscFunctionBegin;
   PetscValidLogicalCollectiveInt(x, coo_n, 2);
   PetscValidLogicalCollectiveBool(x, have_coo_i, 3);
-  if (coo_i && PetscDefined(USE_DEBUG)) {
+  if (PetscDefined(USE_DEBUG) && !vr->do_not_check_redundancy && coo_i) {
     unsigned int hash = PetscArrayHash(coo_i, x->map->N, NULL);
     PetscCheckLogicalCollectiveHash(hash, PetscObjectComm((PetscObject)x));
   }
@@ -120,8 +158,10 @@ static PetscErrorCode VecSetValuesCOO_Redundant(Vec x, const PetscScalar coo_v[]
 
 static PetscErrorCode VecRestoreArray_Redundant(Vec x, PetscScalar **a)
 {
+  Vec_Redundant *vr = (Vec_Redundant *) x->data;
+
   PetscFunctionBegin;
-  if (PetscDefined(USE_DEBUG)) {
+  if (!vr->do_not_check_redundancy && PetscDefined(USE_DEBUG)) {
     unsigned int hash = PetscArrayHash((*a), x->map->N, NULL);
     PetscCheckLogicalCollectiveHash(hash, PetscObjectComm((PetscObject)x));
   }
@@ -157,7 +197,7 @@ static struct _VecOps RvOps = {PetscDesignatedInitializer(duplicate, VecDuplicat
                                PetscDesignatedInitializer(restorearray, VecRestoreArray_Redundant),
                                PetscDesignatedInitializer(max, VecMax_Seq),
                                PetscDesignatedInitializer(min, VecMin_Seq),
-                               PetscDesignatedInitializer(setrandom, VecSetRandom_Rednundant),
+                               PetscDesignatedInitializer(setrandom, VecSetRandom_Redundant),
                                PetscDesignatedInitializer(setoption, VecSetOption_Seq),
                                PetscDesignatedInitializer(setvaluesblocked, VecSetValuesBlocked_Redundant),
                                PetscDesignatedInitializer(destroy, VecDestroy_Seq),
@@ -242,6 +282,7 @@ static PetscErrorCode VecCreate_Redundant_Private(Vec v, PetscBool alloc, const 
   PetscCheck(v->map->N >= 0, comm, PETSC_ERR_ARG_OUTOFRANGE, "Must specify global size N >= 0 for a redundant vector, cannot be PETSC_DECIDE or PETSC_DETERMINE");
   PetscCheck(rank == size - 1 || v->map->n == 0, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "By convention the local sizes of all MPI processes but the last are 0 for a redundant vector");
   PetscCall(PetscLayoutSetUp(v->map));
+  v->map->redundant = PETSC_TRUE;
 
   s->array           = (PetscScalar *)array;
   s->array_allocated = NULL;
