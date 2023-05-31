@@ -94,6 +94,7 @@ J*/
 typedef const char *VecType;
 #define VECSEQ         "seq"
 #define VECMPI         "mpi"
+#define VECREDUNDANT   "redundant"
 #define VECSTANDARD    "standard" /* seq on one process and mpi on several */
 #define VECSHARED      "shared"
 #define VECSEQVIENNACL "seqviennacl"
