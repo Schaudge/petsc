@@ -130,8 +130,10 @@ PETSC_EXTERN PetscErrorCode VecFinalizePackage(void);
 PETSC_EXTERN PetscErrorCode VecCreate(MPI_Comm, Vec *);
 PETSC_EXTERN PetscErrorCode VecCreateSeq(MPI_Comm, PetscInt, Vec *);
 PETSC_EXTERN PetscErrorCode VecCreateMPI(MPI_Comm, PetscInt, PetscInt, Vec *);
+PETSC_EXTERN PetscErrorCode VecCreateRedundant(MPI_Comm, PetscInt, Vec *);
 PETSC_EXTERN PetscErrorCode VecCreateSeqWithArray(MPI_Comm, PetscInt, PetscInt, const PetscScalar[], Vec *);
 PETSC_EXTERN PetscErrorCode VecCreateMPIWithArray(MPI_Comm, PetscInt, PetscInt, PetscInt, const PetscScalar[], Vec *);
+PETSC_EXTERN PetscErrorCode VecCreateRedundantWithArray(MPI_Comm, PetscInt, PetscInt, const PetscScalar[], Vec *);
 PETSC_EXTERN PetscErrorCode VecCreateShared(MPI_Comm, PetscInt, PetscInt, Vec *);
 PETSC_EXTERN PetscErrorCode VecCreateNode(MPI_Comm, PetscInt, PetscInt, Vec *);
 
@@ -463,6 +465,7 @@ PETSC_EXTERN PetscErrorCode VecLoad(Vec, PetscViewer);
 
 PETSC_EXTERN PetscErrorCode VecGetSize(Vec, PetscInt *);
 PETSC_EXTERN PetscErrorCode VecGetLocalSize(Vec, PetscInt *);
+PETSC_EXTERN PetscErrorCode VecGetOwnershipSize(Vec, PetscInt *);
 PETSC_EXTERN PetscErrorCode VecGetOwnershipRange(Vec, PetscInt *, PetscInt *);
 PETSC_EXTERN PetscErrorCode VecGetOwnershipRanges(Vec, const PetscInt *[]);
 

@@ -1534,7 +1534,7 @@ PetscErrorCode MatDenseGetSubMatrix_MPIDense(Mat A, PetscInt rbegin, PetscInt re
     PetscCall(MatSetType(a->cmat, ((PetscObject)A)->type_name));
     if (rend - rbegin == A->rmap->N) PetscCall(PetscLayoutReference(A->rmap, &a->cmat->rmap));
     else {
-      PetscCall(PetscLayoutSetLocalSize(a->cmat->rmap, pend - pbegin));
+      PetscCall(PetscLayoutSetOwnershipSize(a->cmat->rmap, pend - pbegin));
       PetscCall(PetscLayoutSetSize(a->cmat->rmap, rend - rbegin));
       PetscCall(PetscLayoutSetUp(a->cmat->rmap));
     }
@@ -1549,7 +1549,7 @@ PetscErrorCode MatDenseGetSubMatrix_MPIDense(Mat A, PetscInt rbegin, PetscInt re
     if (!same) {
       PetscCall(PetscLayoutDestroy(&a->cmat->rmap));
       PetscCall(PetscLayoutCreate(comm, &a->cmat->rmap));
-      PetscCall(PetscLayoutSetLocalSize(a->cmat->rmap, pend - pbegin));
+      PetscCall(PetscLayoutSetOwnershipSize(a->cmat->rmap, pend - pbegin));
       PetscCall(PetscLayoutSetSize(a->cmat->rmap, rend - rbegin));
       PetscCall(PetscLayoutSetUp(a->cmat->rmap));
     }
