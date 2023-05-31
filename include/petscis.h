@@ -282,7 +282,11 @@ struct _n_PetscLayout {
   PetscBool              setupcalled;  /* Forbid setup more than once */
   PetscInt               oldn, oldN;   /* Checking if setup is allowed */
   PetscInt               oldbs;        /* And again */
+  PetscBool              redundant;    /* is the represention a partition (PETSC_FALSE) or redundant
+                                          duplication (PETSC_TRUE) of all degrees of freedom ? */
 };
+
+static inline PetscInt PetscLayoutRepresentedSize(PetscLayout map) { return map->redundant ? map->N : map->n; }
 
 /*@C
      PetscLayoutFindOwner - Find the owning rank for a global index
