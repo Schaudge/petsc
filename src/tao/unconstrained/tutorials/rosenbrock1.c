@@ -8,6 +8,7 @@
   #include <cuda_profiler_api.h>
   #include <petscdevice.h>
   #include <petscdevice_cuda.h>
+  #include <petsc/private/deviceimpl.h>
 #endif
 
 static char help[] = "This example demonstrates use of the TAO package to \n\
@@ -209,40 +210,64 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *f, Vec G, void *p
   PetscReal          ff = 0, t1, t2, alpha = user->alpha;
   PetscScalar       *g;
   const PetscScalar *x;
-//  PetscMemType       memtype_x, memtype_g;
+  PetscMemType       memtype_x, memtype_g;
 
   PetscFunctionBeginUser;
   /* Get pointers to vector data */
-  PetscCall(VecGetArrayRead(X, &x));
-  PetscCall(VecGetArray(G, &g));
-#if 0 
+//  PetscCall(VecGetArrayRead(X, &x));
+//  PetscCall(VecGetArray(G, &g));
   PetscCall(VecGetArrayReadAndMemType(X, &x, &memtype_x));
   PetscCall(VecGetArrayAndMemType(G, &g, &memtype_g));
-  PetscCall(PetscDeviceRegisterMemory(x, memtype_x, user->n*sizeof(*x)));
-  PetscCall(PetscDeviceRegisterMemory(g, memtype_g, user->n*sizeof(*g)));
-#endif
+//  PetscCall(PetscDeviceRegisterMemory(x, memtype_x, user->n*sizeof(*x)));
+//  PetscCall(PetscDeviceRegisterMemory(g, memtype_g, user->n*sizeof(*g)));
   /* Compute G(X) */
-  if (user->chained) {
-    g[0] = 0;
-    for (i = 0; i < user->n - 1; i++) {
-      t1 = x[i + 1] - x[i] * x[i];
-      ff += PetscSqr(1 - x[i]) + alpha * t1 * t1;
-      g[i] += -2 * (1 - x[i]) + 2 * alpha * t1 * (-2 * x[i]);
-      g[i + 1] = 2 * alpha * t1;
+
+  PetscAssert(memtype_x == memtype_g, PETSC_COMM_WORLD, PETSC_ERR_PLIB, "Incompatible device pointers");
+
+  /* Note: Chained is actually not being tested. Should be removed? 
+   * Also, for device memory, one cannot directly access the array. They all need to be vector operations */
+  switch(memtype_x) {
+  case PETSC_MEMTYPE_HOST:
+  {	  
+    if (user->chained) {
+      g[0] = 0;
+      for (i = 0; i < user->n - 1; i++) {
+        t1 = x[i + 1] - x[i] * x[i];
+        ff += PetscSqr(1 - x[i]) + alpha * t1 * t1;
+        g[i] += -2 * (1 - x[i]) + 2 * alpha * t1 * (-2 * x[i]);
+        g[i + 1] = 2 * alpha * t1;
+      }
+    } else {
+      for (i = 0; i < nn; i++) {
+        t1 = x[2 * i + 1] - x[2 * i] * x[2 * i];
+        t2 = 1 - x[2 * i];
+        ff += alpha * t1 * t1 + t2 * t2;
+        g[2 * i]     = -4 * alpha * t1 * x[2 * i] - 2.0 * t2;
+        g[2 * i + 1] = 2 * alpha * t1;
+      }
     }
-  } else {
-    for (i = 0; i < nn; i++) {
-      t1 = x[2 * i + 1] - x[2 * i] * x[2 * i];
-      t2 = 1 - x[2 * i];
-      ff += alpha * t1 * t1 + t2 * t2;
-      g[2 * i]     = -4 * alpha * t1 * x[2 * i] - 2.0 * t2;
-      g[2 * i + 1] = 2 * alpha * t1;
-    }
+  }
+    break;
+  case PETSC_MEMTYPE_CUDA:
+  case PETSC_MEMTYPE_NVSHMEM:
+    /* Note: only implementing chaine==FALSE, and for n==2 */
+    PetscScalar *t1, *t2;
+    PetscDeviceMalloc(NULL, PETSC_MEMTYPE_CUDA, 1, &t1);
+    PetscDeviceMalloc(NULL, PETSC_MEMTYPE_CUDA, 1, &t2);
+    PetscDeviceMemset(NULL, t1, x[0], sizeof(PetscScalar));
+    PetscDeviceMemset(NULL, t2, x[0], sizeof(PetscScalar));
+    ff = 0 ;
+
+    PetscDeviceFree(NULL, t1);
+    PetscDeviceFree(NULL, t2);
+  case PETSC_MEMTYPE_HIP:
+  default:
+    break;
   }
 
   /* Restore vectors */
-  PetscCall(VecRestoreArrayRead(X, &x));
-  PetscCall(VecRestoreArray(G, &g));
+  PetscCall(VecRestoreArrayReadAndMemType(X, &x));
+  PetscCall(VecRestoreArrayAndMemType(G, &g));
   *f = ff;
 
   PetscCall(PetscLogFlops(15.0 * nn));
