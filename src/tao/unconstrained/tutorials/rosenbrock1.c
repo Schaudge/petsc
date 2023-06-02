@@ -3,6 +3,7 @@
 /*  Include "petsctao.h" so we can use TAO solvers.  */
 #include <petsctao.h>
 #include <petscvec.h>
+#include "rosenbrock1.h"
 
 #if defined(PETSC_HAVE_CUDA)
   #include <cuda_profiler_api.h>
@@ -26,7 +27,7 @@ or the chained Rosenbrock function:\n\
 typedef struct {
   PetscInt  n;     /* dimension */
   PetscReal alpha; /* condition parameter */
-  PetscBool chained;
+  PetscBool chained, is_cuda;
 } AppCtx;
 
 /* -------------- User-defined routines ---------- */
@@ -58,6 +59,7 @@ int main(int argc, char **argv)
   user.n       = 2;
   user.alpha   = 99.0;
   user.chained = PETSC_FALSE;
+  user.is_cuda = PETSC_FALSE;
   /* Check for command line arguments to override defaults */
   PetscCall(PetscOptionsGetInt(NULL, NULL, "-n", &user.n, &flg));
   PetscCall(PetscOptionsGetReal(NULL, NULL, "-alpha", &user.alpha, &flg));
@@ -68,6 +70,7 @@ int main(int argc, char **argv)
 
   /* Allocate vectors for the solution and gradient */
   if (cuda){
+    user.is_cuda = PETSC_TRUE;	  
     PetscCall(VecCreateSeqCUDA(PETSC_COMM_SELF, user.n, &x));
     PetscCall(VecCreateMatDense(x, user.n, user.n, PETSC_DECIDE, PETSC_DECIDE, NULL, &H));
   } else {
@@ -210,25 +213,17 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *f, Vec G, void *p
   PetscReal          ff = 0, t1, t2, alpha = user->alpha;
   PetscScalar       *g;
   const PetscScalar *x;
-  PetscMemType       memtype_x, memtype_g;
 
   PetscFunctionBeginUser;
-  /* Get pointers to vector data */
-//  PetscCall(VecGetArrayRead(X, &x));
-//  PetscCall(VecGetArray(G, &g));
-  PetscCall(VecGetArrayReadAndMemType(X, &x, &memtype_x));
-  PetscCall(VecGetArrayAndMemType(G, &g, &memtype_g));
-//  PetscCall(PetscDeviceRegisterMemory(x, memtype_x, user->n*sizeof(*x)));
-//  PetscCall(PetscDeviceRegisterMemory(g, memtype_g, user->n*sizeof(*g)));
-  /* Compute G(X) */
 
-  PetscAssert(memtype_x == memtype_g, PETSC_COMM_WORLD, PETSC_ERR_PLIB, "Incompatible device pointers");
-
-  /* Note: Chained is actually not being tested. Should be removed? 
-   * Also, for device memory, one cannot directly access the array. They all need to be vector operations */
-  switch(memtype_x) {
-  case PETSC_MEMTYPE_HOST:
-  {	  
+  if (user->is_cuda) {
+    /* Not supporting chained. Also, only for n=2 */	  
+    PetscCall(Rosenbrock1ObjAndGradCUDA(X, G, &f, alpha, nn));
+  } else {
+    /* Get pointers to vector data */
+    PetscCall(VecGetArrayRead(X, &x));
+    PetscCall(VecGetArray(G, &g));
+    /* Compute G(X) */
     if (user->chained) {
       g[0] = 0;
       for (i = 0; i < user->n - 1; i++) {
@@ -246,28 +241,11 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *f, Vec G, void *p
         g[2 * i + 1] = 2 * alpha * t1;
       }
     }
+  
+    /* Restore vectors */
+    PetscCall(VecRestoreArrayRead(X, &x));
+    PetscCall(VecRestoreArray(G, &g));
   }
-    break;
-  case PETSC_MEMTYPE_CUDA:
-  case PETSC_MEMTYPE_NVSHMEM:
-    /* Note: only implementing chaine==FALSE, and for n==2 */
-    PetscScalar *t1, *t2;
-    PetscDeviceMalloc(NULL, PETSC_MEMTYPE_CUDA, 1, &t1);
-    PetscDeviceMalloc(NULL, PETSC_MEMTYPE_CUDA, 1, &t2);
-    PetscDeviceMemset(NULL, t1, x[0], sizeof(PetscScalar));
-    PetscDeviceMemset(NULL, t2, x[0], sizeof(PetscScalar));
-    ff = 0 ;
-
-    PetscDeviceFree(NULL, t1);
-    PetscDeviceFree(NULL, t2);
-  case PETSC_MEMTYPE_HIP:
-  default:
-    break;
-  }
-
-  /* Restore vectors */
-  PetscCall(VecRestoreArrayReadAndMemType(X, &x));
-  PetscCall(VecRestoreArrayAndMemType(G, &g));
   *f = ff;
 
   PetscCall(PetscLogFlops(15.0 * nn));
