@@ -9,7 +9,7 @@ PetscErrorCode MatReset_LMVM(Mat B, PetscBool destructive)
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
 
   PetscFunctionBegin;
-  lmvm->k        = -1;
+  lmvm->k        = 0;
   lmvm->prev_set = PETSC_FALSE;
   lmvm->shift    = 0.0;
   if (destructive && lmvm->allocated) {
@@ -76,8 +76,9 @@ PetscErrorCode MatUpdateKernel_LMVM(Mat B, Vec S, Vec Y)
   PetscCall(LMBasisGetNextVec(lmvm->basis[LMBASIS_Y], &y_w));
   PetscCall(VecCopy(Y, y_w));
   PetscCall(LMBasisRestoreNextVec(lmvm->basis[LMBASIS_Y], &y_w));
-  if (lmvm->k < lmvm->m - 1) lmvm->k++;
-  ++lmvm->nupdates;
+  lmvm->k++;
+  PetscAssert(lmvm->k == lmvm->basis[LMBASIS_S]->k, PetscObjectComm((PetscObject)B), PETSC_ERR_PLIB, "Basis S and Mat B out of sync");
+  PetscAssert(lmvm->k == lmvm->basis[LMBASIS_Y]->k, PetscObjectComm((PetscObject)B), PETSC_ERR_PLIB, "Basis Y and Mat B out of sync");
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -86,6 +87,7 @@ PetscErrorCode MatUpdate_LMVM(Mat B, Vec X, Vec F)
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
 
   PetscFunctionBegin;
+  lmvm->nupdates++;
   if (!lmvm->m) PetscFunctionReturn(PETSC_SUCCESS);
   if (lmvm->prev_set) {
     /* Compute the new (S = X - Xprev) and (Y = F - Fprev) vectors */
@@ -253,9 +255,9 @@ PetscErrorCode MatView_LMVM(Mat B, PetscViewer pv)
   if (isascii) {
     PetscCall(MatGetType(B, &type));
     PetscCall(PetscViewerASCIIPrintf(pv, "Max. storage: %" PetscInt_FMT "\n", lmvm->m));
-    PetscCall(PetscViewerASCIIPrintf(pv, "Used storage: %" PetscInt_FMT "\n", lmvm->k + 1));
+    PetscCall(PetscViewerASCIIPrintf(pv, "Used storage: %" PetscInt_FMT "\n", PetscMin(lmvm->k, lmvm->m)));
     PetscCall(PetscViewerASCIIPrintf(pv, "Number of updates: %" PetscInt_FMT "\n", lmvm->nupdates));
-    PetscCall(PetscViewerASCIIPrintf(pv, "Number of rejects: %" PetscInt_FMT "\n", lmvm->nrejects));
+    PetscCall(PetscViewerASCIIPrintf(pv, "Number of rejected updates: %" PetscInt_FMT "\n", lmvm->nrejects));
     PetscCall(PetscViewerASCIIPrintf(pv, "Number of resets: %" PetscInt_FMT "\n", lmvm->nresets));
     if (lmvm->square) {
       PetscCall(PetscViewerASCIIPrintf(pv, "J0 KSP:\n"));
@@ -348,12 +350,6 @@ PetscErrorCode MatCreate_LMVM(Mat B)
   B->data = (void *)lmvm;
 
   lmvm->m        = 5;
-  lmvm->k        = -1;
-  lmvm->nupdates = 0;
-  lmvm->nrejects = 0;
-  lmvm->nresets  = 0;
-
-  lmvm->shift = 0.0;
 
   lmvm->eps       = PetscPowReal(PETSC_MACHINE_EPSILON, 2.0 / 3.0);
   lmvm->allocated = PETSC_FALSE;

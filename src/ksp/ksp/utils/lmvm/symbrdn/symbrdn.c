@@ -225,7 +225,6 @@ static PetscErrorCode MatUpdate_LMVMSymBrdn(Mat B, Vec X, Vec F)
 {
   Mat_LMVM    *lmvm = (Mat_LMVM *)B->data;
   Mat_SymBrdn *lsb  = (Mat_SymBrdn *)lmvm->ctx;
-  PetscInt     old_k;
   PetscReal    curvtol, ststmp;
   PetscScalar  curvature, ytytmp;
 
@@ -247,34 +246,35 @@ static PetscErrorCode MatUpdate_LMVMSymBrdn(Mat B, Vec X, Vec F)
       /* Update is good, accept it */
       lsb->watchdog = 0;
       lsb->needP = lsb->needQ = PETSC_TRUE;
-      old_k                   = lmvm->k;
       PetscCall(MatUpdateKernel_LMVM(B, lmvm->Xprev, lmvm->Fprev));
       /* If we hit the memory limit, shift the yts, yty and sts arrays */
-      if (old_k == lmvm->k) {
+      if (lmvm->k > lmvm->m) {
         for (PetscInt i = 0; i < next - oldest - 1; ++i) {
           lsb->rescale->yts[i] = lsb->rescale->yts[i + 1];
           lsb->rescale->yty[i] = lsb->rescale->yty[i + 1];
           lsb->rescale->sts[i] = lsb->rescale->sts[i + 1];
         }
       }
+
+      PetscCall(MatLMVMGetRange(B, &oldest, &next));
       /* Update history of useful scalars */
-      lsb->rescale->yts[lmvm->k] = PetscRealPart(curvature);
+      lsb->rescale->yts[next - oldest - 1] = PetscRealPart(curvature);
       {
         Vec y_last;
-        PetscCall(MatLMVMGetVecsRead(B, next, LMBASIS_Y, &y_last));
+        PetscCall(MatLMVMGetVecsRead(B, next - 1, LMBASIS_Y, &y_last));
         PetscCall(VecDot(y_last, y_last, &ytytmp));
-        PetscCall(MatLMVMRestoreVecsRead(B, next, LMBASIS_Y, &y_last));
-        lsb->rescale->yty[lmvm->k] = PetscRealPart(ytytmp);
+        PetscCall(MatLMVMRestoreVecsRead(B, next - 1, LMBASIS_Y, &y_last));
+        lsb->rescale->yty[next - oldest - 1] = PetscRealPart(ytytmp);
       }
       {
-        lsb->rescale->sts[lmvm->k] = ststmp;
+        lsb->rescale->sts[next - oldest - 1] = ststmp;
       }
       /* Compute the scalar scale if necessary */
       PetscCall(SymBroydenScalerUpdate(B, lsb->rescale));
     } else {
       /* Update is bad, skip it */
-      ++lmvm->nrejects;
-      ++lsb->watchdog;
+      lmvm->nrejects++;
+      lsb->watchdog++;
     }
   } else {
     PetscCall(SymBroydenScalerInitializeJ0(B, lsb->rescale));

@@ -118,7 +118,7 @@ PetscErrorCode MatMult_LMVMDFP(Mat B, Vec X, Vec Z)
   PetscInt oldest, next;
   PetscCall(MatLMVMGetRange(B, &oldest, &next));
   /* Start the first loop */
-  PetscCall(PetscMalloc1(lmvm->k + 1, &alpha));
+  PetscCall(PetscMalloc1(next - oldest, &alpha));
   for (PetscInt i = next - oldest - 1; i >= 0; --i) {
     Vec s_i, y_i;
 

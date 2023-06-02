@@ -225,7 +225,7 @@ static PetscErrorCode MatUpdate_LMVMSR1(Mat B, Vec X, Vec F)
       PetscCall(MatUpdateKernel_LMVM(B, lmvm->Xprev, lmvm->Fprev));
     } else {
       /* Update is bad, skip it */
-      ++lmvm->nrejects;
+      lmvm->nrejects++;
     }
   }
   /* Save the solution and function to be used in the next update */

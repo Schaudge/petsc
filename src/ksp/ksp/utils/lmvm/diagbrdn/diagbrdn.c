@@ -41,19 +41,19 @@ static PetscErrorCode SymBroydenScalerUpdateScalar(Mat B, SymBroydenScaler ldb)
   if (ldb->sigma_hist == 0) {
     signew = 1.0;
   } else {
-    start  = PetscMax(0, lmvm->k - ldb->sigma_hist + 1);
+    start  = PetscMax(oldest, lmvm->k - ldb->sigma_hist);
     signew = 0.0;
     if (ldb->alpha == 1.0) {
-      for (PetscInt i = start; i < next - oldest; ++i) signew += ldb->yts[i] / ldb->yty[i];
+      for (PetscInt i = start - oldest; i < next - oldest; ++i) signew += ldb->yts[i] / ldb->yty[i];
     } else if (ldb->alpha == 0.5) {
-      for (PetscInt i = start; i < next - oldest; ++i) signew += ldb->sts[i] / ldb->yty[i];
+      for (PetscInt i = start - oldest; i < next - oldest; ++i) signew += ldb->sts[i] / ldb->yty[i];
       signew = PetscSqrtReal(signew);
     } else if (ldb->alpha == 0.0) {
-      for (PetscInt i = start; i < next - oldest; ++i) signew += ldb->sts[i] / ldb->yts[i];
+      for (PetscInt i = start - oldest; i < next - oldest; ++i) signew += ldb->sts[i] / ldb->yts[i];
     } else {
       /* compute coefficients of the quadratic */
       a = b = c = 0.0;
-      for (PetscInt i = start; i < next - oldest; ++i) {
+      for (PetscInt i = start - oldest; i < next - oldest; ++i) {
         a += ldb->yty[i];
         b += ldb->yts[i];
         c += ldb->sts[i];
@@ -158,13 +158,13 @@ static PetscErrorCode SymBroydenScalerUpdateDiagonal(Mat B, SymBroydenScaler ldb
     /*  BFGS = DFP = inv(D); */
     PetscCall(VecCopy(invD, ldb->invDnew));
     PetscCall(VecReciprocal(ldb->invDnew));
-    PetscCall(DiagonalUpdate(ldb, ldb->invDnew, s_last, y_last, ldb->V, ldb->W, ldb->BFGS, ldb->DFP, ldb->theta, ldb->yts[lmvm->k]));
+    PetscCall(DiagonalUpdate(ldb, ldb->invDnew, s_last, y_last, ldb->V, ldb->W, ldb->BFGS, ldb->DFP, ldb->theta, ldb->yts[next - oldest - 1]));
     /*  Obtain inverse and ensure positive definite */
     PetscCall(VecReciprocal(ldb->invDnew));
   } else {
     /* Inverse Hessian update instead. */
     PetscCall(VecCopy(invD, ldb->invDnew));
-    PetscCall(DiagonalUpdate(ldb, ldb->invDnew, y_last, s_last, ldb->V, ldb->W, ldb->DFP, ldb->BFGS, 1.0 - ldb->theta, ldb->yts[lmvm->k]));
+    PetscCall(DiagonalUpdate(ldb, ldb->invDnew, y_last, s_last, ldb->V, ldb->W, ldb->DFP, ldb->BFGS, 1.0 - ldb->theta, ldb->yts[next - oldest - 1]));
   }
   PetscCall(VecAbs(ldb->invDnew));
   PetscCall(MatLMVMRestoreVecsRead(B, next - 1, LMBASIS_S, &s_last, LMBASIS_Y, &y_last));
@@ -192,7 +192,7 @@ static PetscErrorCode SymBroydenScalerUpdateDiagonal(Mat B, SymBroydenScaler ldb
     PetscReal yy_sum = 0; /*  No safeguard required */
     PetscReal ys_sum = 0; /*  No safeguard required */
     PetscReal ss_sum = 0; /*  No safeguard required */
-    PetscInt  start  = PetscMax(0, lmvm->k - ldb->sigma_hist + 1);
+    PetscInt  start  = PetscMax(oldest, lmvm->k - ldb->sigma_hist);
 
     Vec D_minus_beta             = NULL;
     Vec D_minus_beta_squared     = NULL;
@@ -219,7 +219,7 @@ static PetscErrorCode SymBroydenScalerUpdateDiagonal(Mat B, SymBroydenScaler ldb
       PetscCall(VecPow(ldb->BFGS, ldb->beta - 1));
       D_one_minus_beta = ldb->BFGS;
     }
-    for (PetscInt i = start; i < next - oldest; ++i) {
+    for (PetscInt i = start - oldest; i < next - oldest; ++i) {
       Vec s_i, y_i;
       PetscCall(MatLMVMGetVecsRead(B, oldest + i, LMBASIS_S, &s_i, LMBASIS_Y, &y_i));
       if (ldb->beta == 0.5) {
@@ -340,7 +340,6 @@ static PetscErrorCode MatUpdate_DiagBrdn(Mat B, Vec X, Vec F)
   if (!lmvm->m) PetscFunctionReturn(PETSC_SUCCESS);
   if (lmvm->prev_set) {
     SymBroydenScaler ldb = (SymBroydenScaler)lmvm->ctx;
-    PetscInt         old_k;
     PetscScalar      curvature;
     PetscReal        yty, curvtol, ststmp;
     PetscInt         oldest, next;
@@ -358,10 +357,9 @@ static PetscErrorCode MatUpdate_DiagBrdn(Mat B, Vec X, Vec F)
     /* Test the curvature for the update */
     if (PetscRealPart(curvature) > curvtol) {
       /* Update is good so we accept it */
-      old_k = lmvm->k;
       PetscCall(MatUpdateKernel_LMVM(B, lmvm->Xprev, lmvm->Fprev));
       /* If we hit the memory limit, shift the yty and yts arrays */
-      if (old_k == lmvm->k) {
+      if (lmvm->k > lmvm->m) {
         for (PetscInt i = 0; i < next - oldest - 1; ++i) {
           ldb->yty[i] = ldb->yty[i + 1];
           ldb->yts[i] = ldb->yts[i + 1];
@@ -370,12 +368,13 @@ static PetscErrorCode MatUpdate_DiagBrdn(Mat B, Vec X, Vec F)
       }
       /* Accept dot products into the history */
       Vec y_last;
-      PetscCall(MatLMVMGetVecsRead(B, next, LMBASIS_Y, &y_last));
+      PetscCall(MatLMVMGetRange(B, &oldest, &next));
+      PetscCall(MatLMVMGetVecsRead(B, next - 1, LMBASIS_Y, &y_last));
       PetscCall(VecDotRealPart(y_last, y_last, &yty));
-      ldb->yty[lmvm->k] = yty;
-      ldb->yts[lmvm->k] = PetscRealPart(curvature);
-      ldb->sts[lmvm->k] = ststmp;
-      PetscCall(MatLMVMRestoreVecsRead(B, next, LMBASIS_Y, &y_last));
+      ldb->yty[next - oldest - 1] = yty;
+      ldb->yts[next - oldest - 1] = PetscRealPart(curvature);
+      ldb->sts[next - oldest - 1] = ststmp;
+      PetscCall(MatLMVMRestoreVecsRead(B, next - 1, LMBASIS_Y, &y_last));
       PetscCall(SymBroydenScalerUpdate(B, ldb));
     } else {
       PetscCall(SymBroydenScalerInitializeJ0(B, ldb));
