@@ -1101,7 +1101,7 @@ PETSC_INTERN PetscErrorCode MatLMVMGramianInsertDiagonalValue(Mat B, MatLMVMBasi
   gramian = lmvm->gramian[type_X][type_Y];
   PetscCall(LMGramianUpdateNextIndex(gramian, lmvm->k));
   PetscCall(LMGramianInsertDiagonalValue(gramian, idx, v));
-  
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

@@ -63,7 +63,7 @@ PetscErrorCode MatSolve_LMVMBFGS(Mat B, Vec F, Vec dX)
 
   /* Start the second loop */
   for (PetscInt i = 0; i < next - oldest; ++i) {
-    Vec s_i, y_i;
+    Vec         s_i, y_i;
     PetscScalar yitsi;
 
     PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &yitsi));
@@ -129,7 +129,7 @@ PetscErrorCode MatMult_LMVMBFGS(Mat B, Vec X, Vec Z)
         PetscScalar pjtsi, yjtsi, yjtsj;
         Vec         y_j;
 
-        PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &yjtsj));
+        PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + j, &yjtsj));
         PetscCall(MatLMVMGetVecsRead(B, oldest + j, LMBASIS_Y, &y_j));
         PetscCall(VecDot(s_i, lbfgs->P[j], &pjtsi));
         PetscCall(VecDot(s_i, y_j, &yjtsi));

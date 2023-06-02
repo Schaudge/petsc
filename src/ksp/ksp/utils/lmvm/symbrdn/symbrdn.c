@@ -90,7 +90,7 @@ static PetscErrorCode MatSolve_LMVMSymBrdn(Mat B, Vec F, Vec dX)
   if (lsb->needQ) {
     /* Start the loop for (Q[k] = (B_k)^{-1} * Y[k]) */
     for (PetscInt i = 0; i < next - oldest; ++i) {
-      Vec         y_i;
+      Vec y_i;
 
       PetscCall(MatLMVMGetVecsRead(B, oldest + i, LMBASIS_Y, &y_i));
       PetscCall(MatSymBrdnApplyJ0Inv(B, y_i, lsb->Q[i]));
@@ -99,7 +99,7 @@ static PetscErrorCode MatSolve_LMVMSymBrdn(Mat B, Vec F, Vec dX)
         PetscScalar qjtyi, sjtyi;
         PetscReal   yjtqj = lsb->ytq[j];
         PetscScalar yjtsj;
-        PetscReal   psi   = lsb->psi[j];
+        PetscReal   psi = lsb->psi[j];
         Vec         s_j;
 
         PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + j, &yjtsj));
@@ -137,7 +137,7 @@ static PetscErrorCode MatSolve_LMVMSymBrdn(Mat B, Vec F, Vec dX)
   for (PetscInt i = 0; i < next - oldest; ++i) {
     PetscReal   yitqi = lsb->ytq[i];
     PetscScalar yitsi;
-    PetscReal   psi   = lsb->psi[i];
+    PetscReal   psi = lsb->psi[i];
     PetscScalar qitf, sitf;
     Vec         s_i;
 
@@ -232,7 +232,7 @@ static PetscErrorCode MatUpdate_LMVMSymBrdn(Mat B, Vec X, Vec F)
   Mat_LMVM    *lmvm = (Mat_LMVM *)B->data;
   Mat_SymBrdn *lsb  = (Mat_SymBrdn *)lmvm->ctx;
   PetscReal    curvtol, ststmp;
-  PetscScalar  curvature, ytytmp;
+  PetscScalar  curvature;
 
   PetscFunctionBegin;
   if (!lmvm->m) PetscFunctionReturn(PETSC_SUCCESS);

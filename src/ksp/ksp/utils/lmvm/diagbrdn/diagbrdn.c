@@ -31,10 +31,10 @@ static PetscErrorCode SymBroydenScalerUpdateScalar(Mat B, SymBroydenScaler ldb)
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
   PetscReal a, b, c, signew;
   PetscReal sigma_inv, sigma;
-  PetscInt oldest, next;
+  PetscInt  oldest, next;
 
   PetscFunctionBegin;
-  next = ldb->k;
+  next   = ldb->k;
   oldest = PetscMax(0, ldb->k - ldb->sigma_hist);
   PetscCall(MatNorm(lmvm->J0, NORM_INFINITY, &sigma_inv));
   sigma = 1.0 / sigma_inv;
@@ -144,13 +144,15 @@ static PetscErrorCode DiagonalUpdate(SymBroydenScaler ldb, Vec D, Vec s, Vec y, 
 
 static PetscErrorCode SymBroydenScalerUpdateDiagonal(Mat B, SymBroydenScaler ldb)
 {
-  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
-  PetscInt  oldest, next;
-  Vec       invD, s_last, y_last;
+  Mat_LMVM   *lmvm = (Mat_LMVM *)B->data;
+  PetscInt    oldest, next;
+  Vec         invD, s_last, y_last;
+  PetscScalar yts;
 
   PetscFunctionBegin;
-  next = ldb->k;
+  next   = ldb->k;
   oldest = PetscMax(0, ldb->k - ldb->sigma_hist);
+  PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, next - 1, &yts));
   PetscCall(MatLMVMGetVecsRead(B, next - 1, LMBASIS_S, &s_last, LMBASIS_Y, &y_last));
   PetscCall(MatLMVMGetJ0InvDiag(B, &invD));
   if (ldb->forward) {
@@ -158,13 +160,13 @@ static PetscErrorCode SymBroydenScalerUpdateDiagonal(Mat B, SymBroydenScaler ldb
     /*  BFGS = DFP = inv(D); */
     PetscCall(VecCopy(invD, ldb->invDnew));
     PetscCall(VecReciprocal(ldb->invDnew));
-    PetscCall(DiagonalUpdate(ldb, ldb->invDnew, s_last, y_last, ldb->V, ldb->W, ldb->BFGS, ldb->DFP, ldb->theta, ldb->yts[next - oldest - 1]));
+    PetscCall(DiagonalUpdate(ldb, ldb->invDnew, s_last, y_last, ldb->V, ldb->W, ldb->BFGS, ldb->DFP, ldb->theta, yts));
     /*  Obtain inverse and ensure positive definite */
     PetscCall(VecReciprocal(ldb->invDnew));
   } else {
     /* Inverse Hessian update instead. */
     PetscCall(VecCopy(invD, ldb->invDnew));
-    PetscCall(DiagonalUpdate(ldb, ldb->invDnew, y_last, s_last, ldb->V, ldb->W, ldb->DFP, ldb->BFGS, 1.0 - ldb->theta, ldb->yts[next - oldest - 1]));
+    PetscCall(DiagonalUpdate(ldb, ldb->invDnew, y_last, s_last, ldb->V, ldb->W, ldb->DFP, ldb->BFGS, 1.0 - ldb->theta, yts));
   }
   PetscCall(VecAbs(ldb->invDnew));
   PetscCall(MatLMVMRestoreVecsRead(B, next - 1, LMBASIS_S, &s_last, LMBASIS_Y, &y_last));
@@ -378,7 +380,7 @@ static PetscErrorCode MatUpdate_DiagBrdn(Mat B, Vec X, Vec F)
 
 PETSC_INTERN PetscErrorCode SymBroydenScalerUpdate(Mat B, SymBroydenScaler ldb)
 {
-  PetscInt  oldest, next;
+  PetscInt oldest, next;
 
   PetscFunctionBegin;
   PetscCall(MatLMVMGetRange(B, &oldest, &next));
@@ -399,9 +401,9 @@ PETSC_INTERN PetscErrorCode SymBroydenScalerUpdate(Mat B, SymBroydenScaler ldb)
       PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_Y, i, &yty));
       PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, i, &yts));
       PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_S, LMBASIS_S, i, &sts));
-      ldb->yty[i - oldest] = PetscRealPart(yty);
-      ldb->yts[i - oldest] = PetscRealPart(yts);
-      ldb->sts[i - oldest] = PetscRealPart(sts);
+      ldb->yty[i - new_oldest] = PetscRealPart(yty);
+      ldb->yts[i - new_oldest] = PetscRealPart(yts);
+      ldb->sts[i - new_oldest] = PetscRealPart(sts);
     }
     ldb->k = next;
   }

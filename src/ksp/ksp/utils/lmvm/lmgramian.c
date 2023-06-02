@@ -577,13 +577,11 @@ PETSC_INTERN PetscErrorCode LMGramianInsertDiagonalValue(LMGramian dots, PetscIn
   PetscFunctionBegin;
   PetscInt oldest = PetscMax(0, dots->k - dots->m);
   PetscInt next   = dots->k;
-  PetscInt idx = i - oldest;
+  PetscInt idx    = i - oldest;
   PetscCheck(i >= oldest && i < next, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Inserting value %d out of range [%d, %d)", (int)i, (int)oldest, (int)next);
   PetscCall(LMGramianAllocateDiagonal(dots));
-  dots->diagonal[idx]                 = v;
-  if (i == dots->status[LMBLOCK_DIAGONAL].next) {
-    dots->status[LMBLOCK_DIAGONAL].next++;
-  }
+  dots->diagonal[idx] = v;
+  if (i == dots->status[LMBLOCK_DIAGONAL].next) { dots->status[LMBLOCK_DIAGONAL].next++; }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -592,7 +590,7 @@ PETSC_INTERN PetscErrorCode LMGramianGetDiagonalValue(LMGramian dots, PetscInt i
   PetscFunctionBegin;
   PetscInt oldest = PetscMax(0, dots->k - dots->m);
   PetscInt next   = dots->k;
-  PetscInt idx = i - oldest;
+  PetscInt idx    = i - oldest;
   PetscCheck(i >= oldest && i < next, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Inserting value %d out of range [%d, %d)", (int)i, (int)oldest, (int)next);
   PetscCheck(dots->diagonal, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Diagonal values not allocated yet");
   *v = dots->diagonal[idx];

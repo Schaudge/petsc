@@ -33,7 +33,7 @@ static PetscErrorCode MatSolve_LMVMSymBadBrdn(Mat B, Vec F, Vec dX)
       PetscCall(MatSymBrdnApplyJ0Inv(B, y_i, lsb->Q[i]));
       for (PetscInt j = 0; j < i; ++j) {
         PetscScalar yjtsj;
-        Vec s_j, y_j;
+        Vec         s_j, y_j;
 
         PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + j, &yjtsj));
         PetscCall(MatLMVMGetVecsRead(B, oldest + j, LMBASIS_S, &s_j, LMBASIS_Y, &y_j));
@@ -63,7 +63,7 @@ static PetscErrorCode MatSolve_LMVMSymBadBrdn(Mat B, Vec F, Vec dX)
   PetscCall(MatSymBrdnApplyJ0Inv(B, F, dX));
   for (PetscInt i = 0; i < next - oldest; ++i) {
     PetscScalar yitsi;
-    Vec s_i, y_i;
+    Vec         s_i, y_i;
 
     PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &yitsi));
     PetscCall(MatLMVMGetVecsRead(B, oldest + i, LMBASIS_S, &s_i, LMBASIS_Y, &y_i));
@@ -117,7 +117,7 @@ static PetscErrorCode MatMult_LMVMSymBadBrdn(Mat B, Vec X, Vec Z)
       PetscCall(MatSymBrdnApplyJ0Inv(B, y_i, lsb->Q[i]));
       for (PetscInt j = 0; j < i; ++j) {
         PetscScalar yjtsj;
-        Vec s_j, y_j;
+        Vec         s_j, y_j;
 
         PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + j, &yjtsj));
         PetscCall(MatLMVMGetVecsRead(B, oldest + j, LMBASIS_S, &s_j, LMBASIS_Y, &y_j));
@@ -150,7 +150,7 @@ static PetscErrorCode MatMult_LMVMSymBadBrdn(Mat B, Vec X, Vec Z)
       PetscCall(MatSymBrdnApplyJ0Fwd(B, s_i, lsb->P[i]));
       for (PetscInt j = 0; j < i; ++j) {
         PetscScalar yjtsj;
-        Vec s_j, y_j;
+        Vec         s_j, y_j;
 
         PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + j, &yjtsj));
         PetscCall(MatLMVMGetVecsRead(B, oldest + j, LMBASIS_S, &s_j, LMBASIS_Y, &y_j));
@@ -189,7 +189,7 @@ static PetscErrorCode MatMult_LMVMSymBadBrdn(Mat B, Vec X, Vec Z)
   /* Start the outer iterations for (B * X) */
   PetscCall(MatSymBrdnApplyJ0Fwd(B, X, Z));
   for (PetscInt i = 0; i < next - oldest; ++i) {
-    Vec s_i, y_i;
+    Vec         s_i, y_i;
     PetscScalar yitsi;
 
     PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &yitsi));

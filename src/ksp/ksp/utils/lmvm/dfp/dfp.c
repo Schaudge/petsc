@@ -139,7 +139,7 @@ PetscErrorCode MatMult_LMVMDFP(Mat B, Vec X, Vec Z)
   /* Start the second loop */
   for (PetscInt i = 0; i < next - oldest; ++i) {
     PetscScalar yitsi;
-    Vec s_i, y_i;
+    Vec         s_i, y_i;
 
     PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &yitsi));
     PetscCall(MatLMVMGetVecsRead(B, oldest + i, LMBASIS_S, &s_i, LMBASIS_Y, &y_i));
