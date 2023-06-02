@@ -23,9 +23,10 @@ static PetscErrorCode UpdateP(Mat B)
       for (PetscInt j = 0; j < i; ++j) {
         PetscScalar pjtsi, yjtsi;
         PetscReal   sjtpj = lsb->stp[j];
-        PetscReal   yjtsj = lsb->rescale->yts[j];
+        PetscScalar yjtsj;
         Vec         y_j;
 
+        PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + j, &yjtsj));
         PetscCall(MatLMVMGetVecsRead(B, oldest + j, LMBASIS_Y, &y_j));
         PetscCall(VecDot(s_i, lsb->P[j], &pjtsi));
         PetscCall(VecDot(s_i, y_j, &yjtsi));
@@ -89,7 +90,7 @@ static PetscErrorCode MatSolve_LMVMSymBrdn(Mat B, Vec F, Vec dX)
   if (lsb->needQ) {
     /* Start the loop for (Q[k] = (B_k)^{-1} * Y[k]) */
     for (PetscInt i = 0; i < next - oldest; ++i) {
-      Vec y_i;
+      Vec         y_i;
 
       PetscCall(MatLMVMGetVecsRead(B, oldest + i, LMBASIS_Y, &y_i));
       PetscCall(MatSymBrdnApplyJ0Inv(B, y_i, lsb->Q[i]));
@@ -97,10 +98,11 @@ static PetscErrorCode MatSolve_LMVMSymBrdn(Mat B, Vec F, Vec dX)
       for (PetscInt j = 0; j < i; ++j) {
         PetscScalar qjtyi, sjtyi;
         PetscReal   yjtqj = lsb->ytq[j];
-        PetscReal   yjtsj = lsb->rescale->yts[j];
+        PetscScalar yjtsj;
         PetscReal   psi   = lsb->psi[j];
         Vec         s_j;
 
+        PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + j, &yjtsj));
         PetscCall(MatLMVMGetVecsRead(B, oldest + j, LMBASIS_S, &s_j));
         PetscCall(VecDot(y_i, lsb->Q[j], &qjtyi));
         PetscCall(VecDot(y_i, s_j, &sjtyi));
@@ -117,9 +119,11 @@ static PetscErrorCode MatSolve_LMVMSymBrdn(Mat B, Vec F, Vec dX)
       } else if (lsb->phi == 0.0) {
         lsb->psi[i] = 1.0;
       } else {
-        PetscReal numer;
+        PetscScalar yitsi;
+        PetscReal   numer;
 
-        numer       = (1.0 - lsb->phi) * lsb->rescale->yts[i] * lsb->rescale->yts[i];
+        PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &yitsi));
+        numer       = (1.0 - lsb->phi) * PetscRealPart(PetscConj(yitsi) * yitsi);
         lsb->psi[i] = numer / (numer + (lsb->phi * lsb->ytq[i] * lsb->stp[i]));
       }
       PetscCall(MatLMVMRestoreVecsRead(B, oldest + i, LMBASIS_Y, &y_i));
@@ -132,11 +136,12 @@ static PetscErrorCode MatSolve_LMVMSymBrdn(Mat B, Vec F, Vec dX)
   /* Get all the dot products we need */
   for (PetscInt i = 0; i < next - oldest; ++i) {
     PetscReal   yitqi = lsb->ytq[i];
-    PetscReal   yitsi = lsb->rescale->yts[i];
+    PetscScalar yitsi;
     PetscReal   psi   = lsb->psi[i];
     PetscScalar qitf, sitf;
     Vec         s_i;
 
+    PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &yitsi));
     PetscCall(MatLMVMGetVecsRead(B, oldest + i, LMBASIS_S, &s_i));
     PetscCall(VecDot(F, lsb->Q[i], &qitf));
     PetscCall(VecDot(F, s_i, &sitf));
@@ -203,7 +208,7 @@ static PetscErrorCode MatMult_LMVMSymBrdn(Mat B, Vec X, Vec Z)
   PetscCall(MatLMVMGetRange(B, &oldest, &next));
   for (PetscInt i = 0; i < next - oldest; ++i) {
     PetscReal   sitpi = lsb->stp[i];
-    PetscReal   yitsi = lsb->rescale->yts[i];
+    PetscScalar yitsi;
     PetscScalar pitx, yitx;
     Vec         y_i;
 
@@ -211,6 +216,7 @@ static PetscErrorCode MatMult_LMVMSymBrdn(Mat B, Vec X, Vec Z)
     PetscCall(MatLMVMGetVecsRead(B, oldest + i, LMBASIS_Y, &y_i));
     PetscCall(VecDot(X, y_i, &yitx));
 
+    PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &yitsi));
     PetscScalar alpha = ((phi - 1.0) / sitpi) * pitx - (phi / yitsi) * yitx;
     PetscScalar beta  = -(phi / yitsi) * pitx + ((yitsi + phi * sitpi) / (yitsi * yitsi)) * yitx;
     PetscCall(VecAXPBYPCZ(Z, alpha, beta, 1.0, lsb->P[i], y_i));
@@ -247,29 +253,9 @@ static PetscErrorCode MatUpdate_LMVMSymBrdn(Mat B, Vec X, Vec F)
       lsb->watchdog = 0;
       lsb->needP = lsb->needQ = PETSC_TRUE;
       PetscCall(MatUpdateKernel_LMVM(B, lmvm->Xprev, lmvm->Fprev));
-      /* If we hit the memory limit, shift the yts, yty and sts arrays */
-      if (lmvm->k > lmvm->m) {
-        for (PetscInt i = 0; i < next - oldest - 1; ++i) {
-          lsb->rescale->yts[i] = lsb->rescale->yts[i + 1];
-          lsb->rescale->yty[i] = lsb->rescale->yty[i + 1];
-          lsb->rescale->sts[i] = lsb->rescale->sts[i + 1];
-        }
-      }
 
-      PetscCall(MatLMVMGetRange(B, &oldest, &next));
-      /* Update history of useful scalars */
-      lsb->rescale->yts[next - oldest - 1] = PetscRealPart(curvature);
-      {
-        Vec y_last;
-        PetscCall(MatLMVMGetVecsRead(B, next - 1, LMBASIS_Y, &y_last));
-        PetscCall(VecDot(y_last, y_last, &ytytmp));
-        PetscCall(MatLMVMRestoreVecsRead(B, next - 1, LMBASIS_Y, &y_last));
-        lsb->rescale->yty[next - oldest - 1] = PetscRealPart(ytytmp);
-      }
-      {
-        lsb->rescale->sts[next - oldest - 1] = ststmp;
-      }
-      /* Compute the scalar scale if necessary */
+      PetscCall(MatLMVMGramianInsertDiagonalValue(B, LMBASIS_Y, LMBASIS_S, next, PetscRealPart(curvature)));
+      PetscCall(MatLMVMGramianInsertDiagonalValue(B, LMBASIS_S, LMBASIS_S, next, ststmp));
       PetscCall(SymBroydenScalerUpdate(B, lsb->rescale));
     } else {
       /* Update is bad, skip it */

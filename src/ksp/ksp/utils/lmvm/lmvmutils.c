@@ -1090,3 +1090,27 @@ PETSC_INTERN PetscErrorCode MatLMVMGetUpdatedGramian(Mat B, MatLMVMBasisType typ
   *lmwd = lmvm->gramian[type_X][type_Y];
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+PETSC_INTERN PetscErrorCode MatLMVMGramianInsertDiagonalValue(Mat B, MatLMVMBasisType type_X, MatLMVMBasisType type_Y, PetscInt idx, PetscScalar v)
+{
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+  LMGramian gramian;
+
+  PetscFunctionBegin;
+  if (!lmvm->gramian[type_X][type_Y]) PetscCall(LMGramianCreate(lmvm->m, &lmvm->gramian[type_X][type_Y]));
+  gramian = lmvm->gramian[type_X][type_Y];
+  PetscCall(LMGramianUpdateNextIndex(gramian, lmvm->k));
+  PetscCall(LMGramianInsertDiagonalValue(gramian, idx, v));
+  
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode MatLMVMGramianGetDiagonalValue(Mat B, MatLMVMBasisType type_X, MatLMVMBasisType type_Y, PetscInt idx, PetscScalar *v)
+{
+  LMGramian gramian;
+
+  PetscFunctionBegin;
+  PetscCall(MatLMVMGetUpdatedGramian(B, type_X, type_Y, LMBLOCK_DIAGONAL, &gramian));
+  PetscCall(LMGramianGetDiagonalValue(gramian, idx, v));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}

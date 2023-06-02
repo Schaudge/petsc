@@ -47,11 +47,13 @@ PetscErrorCode MatSolve_LMVMBFGS(Mat B, Vec F, Vec dX)
   /* Start the first loop */
   PetscCall(PetscMalloc1(next - oldest, &alpha));
   for (PetscInt i = next - oldest - 1; i >= 0; --i) {
-    Vec s_i, y_i;
+    Vec         s_i, y_i;
+    PetscScalar yitsi;
 
+    PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &yitsi));
     PetscCall(MatLMVMGetVecsRead(B, oldest + i, LMBASIS_S, &s_i, LMBASIS_Y, &y_i));
     PetscCall(VecDot(lbfgs->work, s_i, &stf));
-    alpha[i] = stf / lbfgs->rescale->yts[i];
+    alpha[i] = stf / yitsi;
     PetscCall(VecAXPY(lbfgs->work, -alpha[i], y_i));
     PetscCall(MatLMVMRestoreVecsRead(B, oldest + i, LMBASIS_S, &s_i, LMBASIS_Y, &y_i));
   }
@@ -62,10 +64,12 @@ PetscErrorCode MatSolve_LMVMBFGS(Mat B, Vec F, Vec dX)
   /* Start the second loop */
   for (PetscInt i = 0; i < next - oldest; ++i) {
     Vec s_i, y_i;
+    PetscScalar yitsi;
 
+    PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &yitsi));
     PetscCall(MatLMVMGetVecsRead(B, oldest + i, LMBASIS_S, &s_i, LMBASIS_Y, &y_i));
     PetscCall(VecDot(dX, y_i, &ytx));
-    beta = ytx / lbfgs->rescale->yts[i];
+    beta = ytx / yitsi;
     PetscCall(VecAXPY(dX, alpha[i] - beta, s_i));
     PetscCall(MatLMVMRestoreVecsRead(B, oldest + i, LMBASIS_S, &s_i, LMBASIS_Y, &y_i));
   }
@@ -122,13 +126,14 @@ PetscErrorCode MatMult_LMVMBFGS(Mat B, Vec X, Vec Z)
       PetscCall(MatSymBrdnApplyJ0Fwd(B, s_i, lbfgs->P[i]));
       /* Compute the necessary dot products */
       for (PetscInt j = 0; j < i; ++j) {
-        PetscScalar pjtsi, yjtsi;
+        PetscScalar pjtsi, yjtsi, yjtsj;
         Vec         y_j;
 
+        PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &yjtsj));
         PetscCall(MatLMVMGetVecsRead(B, oldest + j, LMBASIS_Y, &y_j));
         PetscCall(VecDot(s_i, lbfgs->P[j], &pjtsi));
         PetscCall(VecDot(s_i, y_j, &yjtsi));
-        PetscCall(VecAXPBYPCZ(lbfgs->P[i], -pjtsi / lbfgs->stp[j], yjtsi / lbfgs->rescale->yts[j], 1.0, lbfgs->P[j], y_j));
+        PetscCall(VecAXPBYPCZ(lbfgs->P[i], -pjtsi / lbfgs->stp[j], yjtsi / yjtsj, 1.0, lbfgs->P[j], y_j));
         PetscCall(MatLMVMRestoreVecsRead(B, oldest + j, LMBASIS_Y, &y_j));
       }
       PetscCall(VecDotRealPart(s_i, lbfgs->P[i], &stp));
@@ -142,13 +147,14 @@ PetscErrorCode MatMult_LMVMBFGS(Mat B, Vec X, Vec Z)
   PetscCall(MatSymBrdnApplyJ0Fwd(B, X, Z));
   /* Get all the dot products we need */
   for (PetscInt i = 0; i < next - oldest; ++i) {
-    PetscScalar pitx, yitx;
+    PetscScalar pitx, yitx, yitsi;
     Vec         y_i;
 
+    PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &yitsi));
     PetscCall(MatLMVMGetVecsRead(B, oldest + i, LMBASIS_Y, &y_i));
     PetscCall(VecDot(X, lbfgs->P[i], &pitx));
     PetscCall(VecDot(X, y_i, &yitx));
-    PetscCall(VecAXPBYPCZ(Z, -pitx / lbfgs->stp[i], yitx / lbfgs->rescale->yts[i], 1.0, lbfgs->P[i], y_i));
+    PetscCall(VecAXPBYPCZ(Z, -pitx / lbfgs->stp[i], yitx / yitsi, 1.0, lbfgs->P[i], y_i));
     PetscCall(MatLMVMRestoreVecsRead(B, oldest + i, LMBASIS_Y, &y_i));
   }
   PetscFunctionReturn(PETSC_SUCCESS);

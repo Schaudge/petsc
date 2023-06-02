@@ -141,6 +141,7 @@ PETSC_INTERN PetscErrorCode LMGramianDestroy(LMGramian *);
 PETSC_INTERN PetscErrorCode LMGramianReset(LMGramian);
 PETSC_INTERN PetscErrorCode LMGramianUpdateNextIndex(LMGramian, PetscInt);
 PETSC_INTERN PetscErrorCode LMGramianInsertDiagonalValue(LMGramian, PetscInt, PetscScalar);
+PETSC_INTERN PetscErrorCode LMGramianGetDiagonalValue(LMGramian, PetscInt, PetscScalar *);
 PETSC_INTERN PetscErrorCode LMGramianUpdateBlock(LMGramian, LMBasis, LMBasis, LMBlockType);
 PETSC_INTERN PetscErrorCode LMGramianForceUpdateBlock(LMGramian, LMBasis, LMBasis, LMBlockType, PetscInt, PetscInt);
 PETSC_INTERN PetscErrorCode LMGramianGetBlock(LMGramian, LMBasis, LMBasis, LMBlockType, const PetscScalar *[], PetscInt *);
@@ -266,5 +267,6 @@ PETSC_INTERN PetscErrorCode MatLMVMBasisGEMV(Mat, MatLMVMBasisType, PetscInt, Pe
 PETSC_INTERN PetscErrorCode MatLMVMGetUpdatedGramian(Mat, MatLMVMBasisType, MatLMVMBasisType, LMBlockType block_type, LMGramian *);
 PETSC_INTERN PetscErrorCode MatLMVMGramianUpdate(Mat, MatLMVMBasisType, MatLMVMBasisType, LMBlockType block_type);
 PETSC_INTERN PetscErrorCode MatLMVMGramianSolve(Mat, PetscInt, PetscInt, MatLMVMBasisType, MatLMVMBasisType, LMSolveType, PetscScalar *, PetscBool);
-
+PETSC_INTERN PetscErrorCode MatLMVMGramianInsertDiagonalValue(Mat, MatLMVMBasisType, MatLMVMBasisType, PetscInt, PetscScalar);
+PETSC_INTERN PetscErrorCode MatLMVMGramianGetDiagonalValue(Mat, MatLMVMBasisType, MatLMVMBasisType, PetscInt, PetscScalar *);
 #endif

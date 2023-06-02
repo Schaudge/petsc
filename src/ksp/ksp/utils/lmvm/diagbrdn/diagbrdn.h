@@ -9,6 +9,7 @@
 typedef struct _SymBroydenScaler *SymBroydenScaler;
 
 struct _SymBroydenScaler {
+  PetscInt                   k;
   Vec                        invDnew, BFGS, DFP, U, V, W; /* work vectors for diagonal scaling */
   PetscReal                 *yty, *sts, *yts;             /* scalar arrays for recycling dot products */
   PetscReal                  theta, rho, alpha, beta;     /* convex combination factors for the scalar or diagonal scaling */
@@ -24,6 +25,7 @@ PETSC_INTERN PetscErrorCode SymBroydenScalerGetType(SymBroydenScaler, MatLMVMSym
 PETSC_INTERN PetscErrorCode SymBroydenScalerSetType(Mat, SymBroydenScaler, MatLMVMSymBroydenScaleType);
 PETSC_INTERN PetscErrorCode SymBroydenScalerSetDelta(SymBroydenScaler, PetscReal);
 PETSC_INTERN PetscErrorCode SymBroydenScalerInitializeJ0(Mat, SymBroydenScaler);
+PETSC_INTERN PetscErrorCode SymBroydenScalerUpdateJ0(Mat, SymBroydenScaler);
 PETSC_INTERN PetscErrorCode SymBroydenScalerUpdate(Mat, SymBroydenScaler);
 PETSC_INTERN PetscErrorCode SymBroydenScalerCopy(SymBroydenScaler, SymBroydenScaler, PetscInt);
 PETSC_INTERN PetscErrorCode SymBroydenScalerView(SymBroydenScaler, PetscViewer);
