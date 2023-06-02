@@ -183,11 +183,11 @@ PetscErrorCode MatCreate_LMVMDFP(Mat B)
   lmvm            = (Mat_LMVM *)B->data;
   lmvm->ops->mult = MatMult_LMVMDFP;
 
-  ldfp          = (Mat_SymBrdn *)lmvm->ctx;
-  ldfp->needP   = PETSC_FALSE;
-  ldfp->useP    = PETSC_FALSE;
-  ldfp->use_stp = PETSC_FALSE;
-  ldfp->phi     = 1.0;
+  ldfp             = (Mat_SymBrdn *)lmvm->ctx;
+  ldfp->needP      = PETSC_FALSE;
+  ldfp->useP       = PETSC_FALSE;
+  ldfp->use_stp    = PETSC_FALSE;
+  ldfp->phi_scalar = 1.0;
   PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMSymBroydenSetPhi_C", NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

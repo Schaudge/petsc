@@ -11,11 +11,11 @@ static PetscErrorCode MatSolve_LMVMSymBadBrdn(Mat B, Vec F, Vec dX)
 
   PetscFunctionBegin;
   /* Efficient shortcuts for pure BFGS and pure DFP configurations */
-  if (lsb->phi == 0.0) {
+  if (lsb->phi_scalar == 0.0) {
     PetscCall(MatSolve_LMVMBFGS(B, F, dX));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
-  if (lsb->phi == 1.0) {
+  if (lsb->phi_scalar == 1.0) {
     PetscCall(MatSolve_LMVMDFP(B, F, dX));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
@@ -48,7 +48,7 @@ static PetscErrorCode MatSolve_LMVMSymBadBrdn(Mat B, Vec F, Vec dX)
         if (lsb->psi[j] > 0.0) {
           PetscCall(VecAXPBYPCZ(lsb->work, 1.0 / yjtsj, -1.0 / lsb->ytq[j], 0.0, s_j, lsb->Q[j]));
           PetscCall(VecDot(lsb->work, y_i, &wtyi));
-          PetscCall(VecAXPY(lsb->Q[i], lsb->phi * lsb->ytq[j] * PetscRealPart(wtyi), lsb->work));
+          PetscCall(VecAXPY(lsb->Q[i], lsb->phi_scalar * lsb->ytq[j] * PetscRealPart(wtyi), lsb->work));
         }
         PetscCall(MatLMVMRestoreVecsRead(B, oldest + j, LMBASIS_S, &s_j, LMBASIS_Y, &y_j));
       }
@@ -77,7 +77,7 @@ static PetscErrorCode MatSolve_LMVMSymBadBrdn(Mat B, Vec F, Vec dX)
     /* Tack on the convexly scaled extras */
     PetscCall(VecAXPBYPCZ(lsb->work, 1.0 / yitsi, -1.0 / lsb->ytq[i], 0.0, s_i, lsb->Q[i]));
     PetscCall(VecDot(lsb->work, F, &wtf));
-    PetscCall(VecAXPY(dX, lsb->phi * lsb->ytq[i] * PetscRealPart(wtf), lsb->work));
+    PetscCall(VecAXPY(dX, lsb->phi_scalar * lsb->ytq[i] * PetscRealPart(wtf), lsb->work));
     PetscCall(MatLMVMRestoreVecsRead(B, oldest + i, LMBASIS_S, &s_i, LMBASIS_Y, &y_i));
   }
 
@@ -95,11 +95,11 @@ static PetscErrorCode MatMult_LMVMSymBadBrdn(Mat B, Vec X, Vec Z)
 
   PetscFunctionBegin;
   /* Efficient shortcuts for pure BFGS and pure DFP configurations */
-  if (lsb->phi == 0.0) {
+  if (lsb->phi_scalar == 0.0) {
     PetscCall(MatMult_LMVMBFGS(B, X, Z));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
-  if (lsb->phi == 1.0) {
+  if (lsb->phi_scalar == 1.0) {
     PetscCall(MatMult_LMVMDFP(B, X, Z));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
@@ -132,7 +132,7 @@ static PetscErrorCode MatMult_LMVMSymBadBrdn(Mat B, Vec X, Vec Z)
         if (lsb->psi[j] > 0.0) {
           PetscCall(VecAXPBYPCZ(lsb->work, 1.0 / yjtsj, -1.0 / lsb->ytq[j], 0.0, s_j, lsb->Q[j]));
           PetscCall(VecDot(lsb->work, y_i, &wtyi));
-          PetscCall(VecAXPY(lsb->Q[i], lsb->phi * lsb->ytq[j] * PetscRealPart(wtyi), lsb->work));
+          PetscCall(VecAXPY(lsb->Q[i], lsb->phi_scalar * lsb->ytq[j] * PetscRealPart(wtyi), lsb->work));
         }
         PetscCall(MatLMVMRestoreVecsRead(B, oldest + j, LMBASIS_S, &s_j, LMBASIS_Y, &y_j));
       }
@@ -162,7 +162,7 @@ static PetscErrorCode MatMult_LMVMSymBadBrdn(Mat B, Vec X, Vec Z)
         /* Compute the pure BFGS component of the forward product */
         PetscCall(VecAXPBYPCZ(lsb->P[i], -PetscRealPart(sjtpi) / lsb->stp[j], PetscRealPart(yjtsi) / yjtsj, 1.0, lsb->P[j], y_j));
         /* Tack on the convexly scaled extras to the forward product */
-        if (lsb->phi > 0.0) {
+        if (lsb->phi_scalar > 0.0) {
           PetscCall(VecAXPBYPCZ(lsb->work, 1.0 / yjtsj, -1.0 / lsb->stp[j], 0.0, y_j, lsb->P[j]));
           PetscCall(VecDot(lsb->work, s_i, &wtsi));
           PetscCall(VecAXPY(lsb->P[i], lsb->psi[j] * lsb->stp[j] * PetscRealPart(wtsi), lsb->work));
@@ -171,16 +171,16 @@ static PetscErrorCode MatMult_LMVMSymBadBrdn(Mat B, Vec X, Vec Z)
       }
       PetscCall(VecDot(s_i, lsb->P[i], &stp));
       lsb->stp[i] = PetscRealPart(stp);
-      if (lsb->phi == 1.0) {
+      if (lsb->phi_scalar == 1.0) {
         lsb->psi[i] = 0.0;
-      } else if (lsb->phi == 0.0) {
+      } else if (lsb->phi_scalar == 0.0) {
         lsb->psi[i] = 1.0;
       } else {
         PetscScalar yitsi;
 
         PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &yitsi));
-        numer       = (1.0 - lsb->phi) * PetscRealPart(PetscConj(yitsi) * yitsi);
-        lsb->psi[i] = numer / (numer + (lsb->phi * lsb->ytq[i] * lsb->stp[i]));
+        numer       = (1.0 - lsb->phi_scalar) * PetscRealPart(PetscConj(yitsi) * yitsi);
+        lsb->psi[i] = numer / (numer + (lsb->phi_scalar * lsb->ytq[i] * lsb->stp[i]));
       }
     }
     lsb->needP = PETSC_FALSE;

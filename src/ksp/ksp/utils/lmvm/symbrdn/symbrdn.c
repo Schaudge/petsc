@@ -10,7 +10,7 @@ static PetscErrorCode UpdateP(Mat B)
   PetscFunctionBegin;
   if (lsb->needP) {
     /* Start the loop for (P[k] = (B_k) * S[k]) */
-    PetscReal phi = lsb->phi;
+    PetscReal phi = lsb->phi_scalar;
     PetscInt  oldest, next;
 
     PetscCall(MatLMVMGetRange(B, &oldest, &next));
@@ -75,11 +75,11 @@ static PetscErrorCode MatSolve_LMVMSymBrdn(Mat B, Vec F, Vec dX)
 
   PetscFunctionBegin;
   /* Efficient shortcuts for pure BFGS and pure DFP configurations */
-  if (lsb->phi == 0.0) {
+  if (lsb->phi_scalar == 0.0) {
     PetscCall(MatSolve_LMVMBFGS(B, F, dX));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
-  if (lsb->phi == 1.0) {
+  if (lsb->phi_scalar == 1.0) {
     PetscCall(MatSolve_LMVMDFP(B, F, dX));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
@@ -114,17 +114,17 @@ static PetscErrorCode MatSolve_LMVMSymBrdn(Mat B, Vec F, Vec dX)
         PetscCall(MatLMVMRestoreVecsRead(B, oldest + j, LMBASIS_S, &s_j));
       }
       PetscCall(VecDotRealPart(y_i, lsb->Q[i], &lsb->ytq[i]));
-      if (lsb->phi == 1.0) {
+      if (lsb->phi_scalar == 1.0) {
         lsb->psi[i] = 0.0;
-      } else if (lsb->phi == 0.0) {
+      } else if (lsb->phi_scalar == 0.0) {
         lsb->psi[i] = 1.0;
       } else {
         PetscScalar yitsi;
         PetscReal   numer;
 
         PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &yitsi));
-        numer       = (1.0 - lsb->phi) * PetscRealPart(PetscConj(yitsi) * yitsi);
-        lsb->psi[i] = numer / (numer + (lsb->phi * lsb->ytq[i] * lsb->stp[i]));
+        numer       = (1.0 - lsb->phi_scalar) * PetscRealPart(PetscConj(yitsi) * yitsi);
+        lsb->psi[i] = numer / (numer + (lsb->phi_scalar * lsb->ytq[i] * lsb->stp[i]));
       }
       PetscCall(MatLMVMRestoreVecsRead(B, oldest + i, LMBASIS_Y, &y_i));
     }
@@ -185,15 +185,15 @@ static PetscErrorCode MatMult_LMVMSymBrdn(Mat B, Vec X, Vec Z)
 {
   Mat_LMVM    *lmvm = (Mat_LMVM *)B->data;
   Mat_SymBrdn *lsb  = (Mat_SymBrdn *)lmvm->ctx;
-  PetscReal    phi  = lsb->phi;
+  PetscReal    phi  = lsb->phi_scalar;
 
   PetscFunctionBegin;
   /* Efficient shortcuts for pure BFGS and pure DFP configurations */
-  if (lsb->phi == 0.0) {
+  if (lsb->phi_scalar == 0.0) {
     PetscCall(MatMult_LMVMBFGS(B, X, Z));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
-  if (lsb->phi == 1.0) {
+  if (lsb->phi_scalar == 1.0) {
     PetscCall(MatMult_LMVMDFP(B, X, Z));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
@@ -285,13 +285,13 @@ static PetscErrorCode MatCopy_LMVMSymBrdn(Mat B, Mat M, MatStructure str)
   Mat_SymBrdn *mlsb  = (Mat_SymBrdn *)mdata->ctx;
 
   PetscFunctionBegin;
-  mlsb->phi     = blsb->phi;
-  mlsb->needP   = blsb->needP;
-  mlsb->needQ   = blsb->needQ;
-  mlsb->useP    = blsb->useP;
-  mlsb->useQ    = blsb->useQ;
-  mlsb->use_stp = blsb->use_stp;
-  mlsb->use_ytq = blsb->use_ytq;
+  mlsb->phi_scalar = blsb->phi_scalar;
+  mlsb->needP      = blsb->needP;
+  mlsb->needQ      = blsb->needQ;
+  mlsb->useP       = blsb->useP;
+  mlsb->useQ       = blsb->useQ;
+  mlsb->use_stp    = blsb->use_stp;
+  mlsb->use_ytq    = blsb->use_ytq;
   if (blsb->use_stp) PetscCall(PetscArraycpy(mlsb->stp, blsb->stp, bdata->k + 1));
   if (blsb->use_ytq) PetscCall(PetscArraycpy(mlsb->ytq, blsb->ytq, bdata->k + 1));
   for (PetscInt i = 0; i <= bdata->k; ++i) {
@@ -314,6 +314,7 @@ static PetscErrorCode MatReset_LMVMSymBrdn_Internal(Mat B)
   PetscFunctionBegin;
   PetscCall(VecDestroy(&lsb->work));
   PetscCall(PetscFree3(lsb->stp, lsb->ytq, lsb->workscalar));
+  PetscCall(PetscFree(lsb->phi));
   PetscCall(PetscFree(lsb->psi));
   if (lsb->P) PetscCall(VecDestroyVecs(lmvm->m, &lsb->P));
   if (lsb->Q) PetscCall(VecDestroyVecs(lmvm->m, &lsb->Q));
@@ -354,6 +355,7 @@ static PetscErrorCode MatAllocate_LMVMSymBrdn_Internal(Mat B)
     PetscCall(VecDuplicate(lmvm->Xprev, &lsb->work));
     PetscCall(PetscMalloc3(lmvm->m, &lsb->stp, lmvm->m, &lsb->ytq, lmvm->m, &lsb->workscalar));
     PetscCall(PetscCalloc1(lmvm->m, &lsb->psi));
+    PetscCall(PetscCalloc1(lmvm->m, &lsb->phi));
     if (lmvm->m > 0) {
       if (lsb->useP) PetscCall(VecDuplicateVecs(lmvm->Xprev, lmvm->m, &lsb->P));
       if (lsb->useQ) PetscCall(VecDuplicateVecs(lmvm->Xprev, lmvm->m, &lsb->Q));
@@ -409,7 +411,7 @@ PetscErrorCode MatView_LMVMSymBrdn(Mat B, PetscViewer pv)
 
   PetscFunctionBegin;
   PetscCall(PetscObjectTypeCompare((PetscObject)pv, PETSCVIEWERASCII, &isascii));
-  if (isascii) { PetscCall(PetscViewerASCIIPrintf(pv, "Convex factors: phi=%g\n", (double)lsb->phi)); }
+  if (isascii) { PetscCall(PetscViewerASCIIPrintf(pv, "Convex factors: phi=%g\n", (double)lsb->phi_scalar)); }
   PetscCall(SymBroydenScalerView(lsb->rescale, pv));
   PetscCall(MatView_LMVM(B, pv));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -425,8 +427,8 @@ PetscErrorCode MatSetFromOptions_LMVMSymBrdn(Mat B, PetscOptionItems *PetscOptio
   PetscFunctionBegin;
   PetscCall(MatSetFromOptions_LMVM(B, PetscOptionsObject));
   PetscOptionsHeadBegin(PetscOptionsObject, "Restricted/Symmetric Broyden method for approximating SPD Jacobian actions (MATLMVMSYMBRDN)");
-  PetscCall(PetscOptionsReal("-mat_lmvm_phi", "(developer) convex ratio between BFGS and DFP components of the update", "", lsb->phi, &lsb->phi, NULL));
-  PetscCheck(!(lsb->phi < 0.0) && !(lsb->phi > 1.0), PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_OUTOFRANGE, "convex ratio for the update formula cannot be outside the range of [0, 1]");
+  PetscCall(PetscOptionsReal("-mat_lmvm_phi", "(developer) convex ratio between BFGS and DFP components of the update", "", lsb->phi_scalar, &lsb->phi_scalar, NULL));
+  PetscCheck(!(lsb->phi_scalar < 0.0) && !(lsb->phi_scalar > 1.0), PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_OUTOFRANGE, "convex ratio for the update formula cannot be outside the range of [0, 1]");
   PetscCall(SymBroydenScalerSetFromOptions(B, lsb->rescale, PetscOptionsObject));
   PetscOptionsHeadEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -460,7 +462,7 @@ static PetscErrorCode MatLMVMSymBroydenGetPhi_SymBrdn(Mat B, PetscReal *phi)
   Mat_SymBrdn *lsb  = (Mat_SymBrdn *)lmvm->ctx;
 
   PetscFunctionBegin;
-  *phi = lsb->phi;
+  *phi = lsb->phi_scalar;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -488,7 +490,7 @@ static PetscErrorCode MatLMVMSymBroydenSetPhi_SymBrdn(Mat B, PetscReal phi)
   Mat_SymBrdn *lsb  = (Mat_SymBrdn *)lmvm->ctx;
 
   PetscFunctionBegin;
-  lsb->phi = phi;
+  lsb->phi_scalar = phi;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -523,7 +525,7 @@ PetscErrorCode MatCreate_LMVMSymBrdn(Mat B)
   lmvm->ctx      = (void *)lsb;
   lsb->allocated = PETSC_FALSE;
   lsb->needP = lsb->needQ = PETSC_TRUE;
-  lsb->phi                = 0.125;
+  lsb->phi_scalar         = 0.125;
   lsb->watchdog           = 0;
   lsb->max_seq_rejects    = lmvm->m / 2;
 

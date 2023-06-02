@@ -12,7 +12,8 @@ typedef struct {
   PetscBool                  allocated, needP, needQ, useP, useQ, use_stp, use_ytq;
   PetscReal                 *stp, *ytq;  /* scalar arrays for recycling dot products */
   PetscScalar               *workscalar; /* work scalar array */
-  PetscReal                  phi, *psi;  /* convex combination factors between DFP and BFGS */
+  PetscReal                 *phi, *psi;  /* convex combination factors between DFP and BFGS */
+  PetscReal                  phi_scalar, psi_scalar;
   MatLMVMSymBroydenScaleType scale_type;
   PetscInt                   watchdog, max_seq_rejects; /* tracker to reset after a certain # of consecutive rejects */
   SymBroydenScaler           rescale;                   /* context for diagonal or scalar rescaling */

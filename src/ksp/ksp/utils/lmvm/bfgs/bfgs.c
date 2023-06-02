@@ -193,10 +193,10 @@ PetscErrorCode MatCreate_LMVMBFGS(Mat B)
 
   lbfgs = (Mat_SymBrdn *)lmvm->ctx;
 
-  lbfgs->needQ   = PETSC_FALSE;
-  lbfgs->useQ    = PETSC_FALSE;
-  lbfgs->use_ytq = PETSC_FALSE;
-  lbfgs->phi     = 0.0;
+  lbfgs->needQ      = PETSC_FALSE;
+  lbfgs->useQ       = PETSC_FALSE;
+  lbfgs->use_ytq    = PETSC_FALSE;
+  lbfgs->phi_scalar = 0.0;
   PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMSymBroydenSetPhi_C", NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
