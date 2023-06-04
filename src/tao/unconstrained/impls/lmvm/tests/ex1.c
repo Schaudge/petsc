@@ -41,8 +41,10 @@ int main(int argc, char **argv)
   PetscOptionsEnd();
 
   if (cuda) {
+    VecType vec_type;  
     PetscCall(VecCreateSeqCUDA(comm, N, &ctx.b)); 
-    PetscCall(VecCreateMatDense(ctx.b, M, N, PETSC_DECIDE, PETSC_DECIDE, NULL, &ctx.A));
+    PetscCall(VecGetType(ctx.b, &vec_type));
+    PetscCall(MatCreateDenseFromVecType(comm, vec_type, M, N, PETSC_DECIDE, PETSC_DECIDE, -1, NULL, &ctx.A));
     PetscCall(MatCreateVecs(ctx.A, &sol, NULL));
   } else {
     PetscCall(MatCreateDense(comm, PETSC_DECIDE, PETSC_DECIDE, M, N, NULL, &ctx.A));

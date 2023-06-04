@@ -1040,9 +1040,9 @@ static PetscErrorCode MatRotate_STY_CCW(Mat R)
   if (a != 0) {
     /* Cannot use MatConvert here, as B,D_work is MEMTYPE_HOST TODO can we fix this? */
     PetscCall(MatDenseGetSubMatrix(lbfgs->StYfull, 0, lmvm->m, b, lmvm->m, &D));
-    //PetscCall(MatDenseGetLDA(B, &lda));
+    PetscCall(MatDenseGetLDA(D, &lda));
     PetscCall(VecGetType(lmvm->Xprev, &vec_type));
-    PetscCall(MatCreateDenseFromVecType(comm, vec_type, PETSC_DECIDE, PETSC_DECIDE, lmvm->m, lmvm->m - b, -1, NULL, &D_work));
+    PetscCall(MatCreateDenseFromVecType(comm, vec_type, PETSC_DECIDE, PETSC_DECIDE, lmvm->m, lmvm->m - b, lda, NULL, &D_work));
     PetscCall(MatCopy(D, D_work, SAME_NONZERO_PATTERN));
     PetscCall(MatDenseRestoreSubMatrix(lbfgs->StYfull, &D));
   }
