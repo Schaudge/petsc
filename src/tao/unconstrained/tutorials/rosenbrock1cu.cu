@@ -14,7 +14,7 @@ __global__ void Rosenbrock1ObjAndGradCUDA_Internal(const PetscScalar x[], PetscS
   g[idx] = -4*alpha*(t1)*x[idx] - 2*(t2);
   g[idx+1] = 2*alpha*(t1);
 
-  *f = ff;
+  f[idx] = ff;
 }
 
 PetscErrorCode Rosenbrock1ObjAndGradCUDA(Vec X, Vec G, PetscReal *f, PetscReal alpha, PetscInt nn)
@@ -31,6 +31,8 @@ PetscErrorCode Rosenbrock1ObjAndGradCUDA(Vec X, Vec G, PetscReal *f, PetscReal a
   PetscCall(VecGetArrayReadAndMemType(X, &x, &memtype_x));
 
   Rosenbrock1ObjAndGradCUDA_Internal<<<1,1>>>(x, g, f, alpha);
+
+  // reduce all ff values together 
 
   PetscCall(VecRestoreArrayAndMemType(G, &g));
   PetscCall(VecRestoreArrayReadAndMemType(X, &x));

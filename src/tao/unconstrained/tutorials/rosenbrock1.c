@@ -218,10 +218,10 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *f, Vec G, void *p
 
   PetscFunctionBeginUser;
 
-  if (user->is_cuda) {
-    /* Not supporting chained. Also, only for n=2 */	  
-    PetscCall(Rosenbrock1ObjAndGradCUDA(X, G, f, alpha, nn));
-  } else {
+//  if (user->is_cuda) {
+//    /* Not supporting chained. Also, only for n=2 */	  
+//    PetscCall(Rosenbrock1ObjAndGradCUDA(X, G, f, alpha, nn));
+//  } else {
     /* Get pointers to vector data */
     PetscCall(VecGetArrayRead(X, &x));
     PetscCall(VecGetArray(G, &g));
@@ -242,7 +242,7 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *f, Vec G, void *p
         g[2 * i]     = -4 * alpha * t1 * x[2 * i] - 2.0 * t2;
         g[2 * i + 1] = 2 * alpha * t1;
       }
-    }
+//    }
   
     /* Restore vectors */
     PetscCall(VecRestoreArrayRead(X, &x));
