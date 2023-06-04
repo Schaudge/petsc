@@ -995,10 +995,12 @@ static PetscErrorCode MatRotate_STY_CCW(Mat R)
   Mat_LMVM     *lmvm  = (Mat_LMVM*)R->data;
   Mat_CDBFGS   *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
   PetscScalar  *x_array, *buffer1, *buffer2;
-  PetscInt     a,b,i,N;
+  PetscInt     a,b,i,N,lda;
   Vec          workvec;
   Mat          B,D,B_work,D_work;
+  VecType      vec_type;
   PetscMemType memtype_vec;
+  MPI_Comm     comm = PetscObjectComm((PetscObject)R);
 
   PetscFunctionBegin;
 
@@ -1026,8 +1028,11 @@ static PetscErrorCode MatRotate_STY_CCW(Mat R)
   /* Copy CB */
   if (b != 0) {
     /* Cannot use MatConvert here, as B,D_work is MEMTYPE_HOST TODO can we fix this? */
+    /* TODO i would prefer VecGetMemType to make my life easier... */
     PetscCall(MatDenseGetSubMatrix(lbfgs->StYfull, 0, lmvm->m, 0, b, &B));
-    PetscCall(VecCreateMatDense(lmvm->Xprev, PETSC_DECIDE, PETSC_DECIDE, lmvm->m, b, NULL, &B_work));
+    PetscCall(MatDenseGetLDA(B, &lda));
+    PetscCall(VecGetType(lmvm->Xprev, &vec_type));
+    PetscCall(MatCreateDenseFromVecType(comm, vec_type, PETSC_DECIDE, PETSC_DECIDE, lmvm->m, b, lda, NULL, &B_work));
     PetscCall(MatCopy(B, B_work, SAME_NONZERO_PATTERN));
     PetscCall(MatDenseRestoreSubMatrix(lbfgs->StYfull, &B));
   }
@@ -1035,7 +1040,9 @@ static PetscErrorCode MatRotate_STY_CCW(Mat R)
   if (a != 0) {
     /* Cannot use MatConvert here, as B,D_work is MEMTYPE_HOST TODO can we fix this? */
     PetscCall(MatDenseGetSubMatrix(lbfgs->StYfull, 0, lmvm->m, b, lmvm->m, &D));
-    PetscCall(VecCreateMatDense(lmvm->Xprev, PETSC_DECIDE, PETSC_DECIDE, lmvm->m, lmvm->m - b, NULL, &D_work));
+    //PetscCall(MatDenseGetLDA(B, &lda));
+    PetscCall(VecGetType(lmvm->Xprev, &vec_type));
+    PetscCall(MatCreateDenseFromVecType(comm, vec_type, PETSC_DECIDE, PETSC_DECIDE, lmvm->m, lmvm->m - b, -1, NULL, &D_work));
     PetscCall(MatCopy(D, D_work, SAME_NONZERO_PATTERN));
     PetscCall(MatDenseRestoreSubMatrix(lbfgs->StYfull, &D));
   }
@@ -1320,6 +1327,7 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
   PetscBool  same, allocate = PETSC_FALSE;
   VecType    vec_type;
   PetscInt   m, n, M, N;
+  PetscScalar *x_array;
   MPI_Comm   comm = PetscObjectComm((PetscObject)B);
   
   PetscFunctionBegin;
@@ -1350,8 +1358,9 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     PetscCall(VecDuplicate(F, &lmvm->Fprev));
     if (lmvm->m > 0) {
       /* Create iteration storage matrices */
-      PetscCall(VecCreateMatDense(X, n, lmvm->m, N, lmvm->m, NULL, &lbfgs->Sfull));
-      PetscCall(VecCreateMatDense(X, lmvm->m, lmvm->m, lmvm->m, lmvm->m, NULL, &lbfgs->StYfull));
+      PetscCall(VecGetType(X, &vec_type));	    
+      PetscCall(MatCreateDenseFromVecType(comm, vec_type, n, lmvm->m, N, lmvm->m, -1, NULL, &lbfgs->Sfull));//TODO nonsquare... LDA???
+      PetscCall(MatCreateDenseFromVecType(comm, vec_type, lmvm->m, lmvm->m, lmvm->m, lmvm->m, -1, NULL, &lbfgs->StYfull));//TODO nonsquare... LDA???
       PetscCall(MatDuplicate(lbfgs->Sfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->Yfull));
       PetscCall(MatDuplicate(lbfgs->Sfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->BS));
       PetscCall(MatZeroEntries(lbfgs->Sfull));
