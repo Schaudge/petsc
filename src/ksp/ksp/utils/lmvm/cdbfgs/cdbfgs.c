@@ -796,6 +796,69 @@ static PetscErrorCode Vec_Truncate(Mat H, Vec X)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/* Adds LDL^T to J mat */
+
+static PetscErrorCode MatAdd_LDLT(Mat B)
+{
+  Mat_LMVM     *lmvm  = (Mat_LMVM*)B->data;
+  Mat_CDBFGS   *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
+
+  const PetscScalar *r_array;
+  PetscScalar       *x_array, *buffer;
+  PetscInt           i, j, k, query_idx_i, query_idx_j, query_idx_k, index;
+  Vec                workvec1, workvec2;
+
+  PetscFunctionBegin;
+
+  if (lbfgs->idx_begin == -1) {
+    index = 0;
+  } else {
+    index = lbfgs->idx_begin;
+  }
+  /* L D^{-1} L^T :  (L_i is ith column of strictly low tri mat. Below, multiply is pointwise mult.
+   * [ 0 | L_0*L_0[1]/d_0 | L_0*L_0[2]/d_0 + L_1*L_1[2]/d_1 | ... ].  
+   * 
+   * Struture is similar for inplace version, but just two clockwise shifts in block-form.            */
+  PetscCall(VecGetArrayRead(lbfgs->diag_vec, &r_array));
+  for (i=0; i<lmvm->m-1; i++) {
+    query_idx_i = (index + i) % lmvm->m;
+    PetscCall(MatDenseGetColumnVecRead(lbfgs->StYfull, query_idx_i, &workvec1));
+
+    /* Copying to emulate strictly lower triangular */
+    PetscCall(VecCopy(workvec1, lbfgs->rwork1));
+    PetscCall(MatDenseRestoreColumnVecRead(lbfgs->StYfull, query_idx_i, &workvec1));
+    PetscCall(VecGetArray(lbfgs->rwork1, &x_array));
+    for (j=0; j<i+1; j++) {
+      query_idx_j = (index + j) % lmvm->m;
+      x_array[query_idx_j] = 0;
+    }
+
+    /* Creating array for scale = L_i[i+1]/d_0 */
+    PetscCall(PetscCalloc1(lmvm->m-i-1, &buffer));
+    for (j=0; j < lmvm->m-i-1; j++) {
+      query_idx_j = query_idx_i+j+1  % lmvm->m;
+      if (r_array[query_idx_i] != 0) {
+        buffer[j] = x_array[query_idx_j]/r_array[query_idx_i];
+      } else {
+        buffer[j] = 0;
+      }
+    }
+    PetscCall(VecRestoreArray(lbfgs->rwork1, &x_array));
+
+    for (j=0, k=i+1; k<lmvm->m; k++, j++) {
+      query_idx_j = (index + j) % lmvm->m;
+      query_idx_k = (index + k) % lmvm->m;
+      PetscCall(MatDenseGetColumnVecWrite(lbfgs->J, query_idx_k, &workvec2));
+      PetscCall(VecAXPY(workvec2, buffer[j], lbfgs->rwork1));
+      PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->J, query_idx_k, &workvec2));
+    }
+    PetscCall(PetscFree(buffer));
+  }
+  PetscCall(VecRestoreArrayRead(lbfgs->diag_vec, &r_array));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
 /* Solves for 
  * [ I | S R^{-T} ] [   I  | 0 ] [ H_0 | 0 ] [ I | -Y ] [     I      ]
  *                  [ -Y^T | I ] [  0  | D ] [ 0 |  I ] [ R^{-1} S^T ]  */
@@ -889,6 +952,31 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
     PetscFunctionReturn(PETSC_SUCCESS); /* No updates stored yet */
   }
 
+  if (lbfgs->chol_ldlt_lazy) {
+    /* Cholesky, and LDLT is done lazily to avoid unncessary computation, in case MatMult is not so frequently used */	  
+    //Now, SBS is in shifted order in all strategies.
+    /* Compute S^T B S + L D^{-1} L^T
+     * J = S^T B S + L D^{-1} L^T */
+    PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->BS, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->J));
+    /* Adds L D L^T to J matrix */
+    PetscCall(MatAdd_LDLT(B));
+
+    /* Cholesky factorization */
+    if (lmvm->k == lmvm->m - 1) {
+      PetscCall(MatDestroy(&lbfgs->J_solve));
+      PetscCall(MatConvert(lbfgs->J, MATSAME, MAT_INITIAL_MATRIX, &lbfgs->J_solve));
+      PetscCall(MatSetOption(lbfgs->J_solve, MAT_SPD, PETSC_TRUE));
+      PetscCall(MatCholeskyFactor(lbfgs->J_solve,NULL,NULL));
+    } else {
+      PetscCall(MatDenseGetSubMatrix(lbfgs->J, 0, lmvm->k+1, 0, lmvm->k+1, &lbfgs->J_work));
+      PetscCall(MatDestroy(&lbfgs->J_solve));
+      PetscCall(MatDuplicate(lbfgs->J_work, MAT_COPY_VALUES, &lbfgs->J_solve));
+      PetscCall(MatSetOption(lbfgs->J_solve, MAT_SPD, PETSC_TRUE));
+      PetscCall(MatCholeskyFactor(lbfgs->J_solve,NULL,NULL));
+      PetscCall(MatDenseRestoreSubMatrix(lbfgs->J, &lbfgs->J_work));
+    }
+    lbfgs->chol_ldlt_lazy = PETSC_FALSE;
+  }    
   /* Apply Phi^T = [S^TB; Y^t] to incoming vector X */
   /* The result is stored in two halves, (rwork4 = S^T B X) and (rwork3 = Y^T X) */
   PetscCall(MatMultTranspose(lbfgs->Sfull, Z, lbfgs->rwork4));
@@ -923,68 +1011,6 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   PetscCall(VecPointwiseDivide(lbfgs->rwork4, lbfgs->rwork3, lbfgs->diag_vec));
   PetscCall(MatMult(lbfgs->Yfull, lbfgs->rwork4, lbfgs->lwork1));
   PetscCall(VecAXPY(Z, 1., lbfgs->lwork1));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/* Adds LDL^T to J mat */
-
-static PetscErrorCode MatAdd_LDLT(Mat B)
-{
-  Mat_LMVM     *lmvm  = (Mat_LMVM*)B->data;
-  Mat_CDBFGS   *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
-
-  const PetscScalar *r_array;
-  PetscScalar       *x_array, *buffer;
-  PetscInt           i, j, k, query_idx_i, query_idx_j, query_idx_k, index;
-  Vec                workvec1, workvec2;
-
-  PetscFunctionBegin;
-
-  if (lbfgs->idx_begin == -1) {
-    index = 0;
-  } else {
-    index = lbfgs->idx_begin;
-  }
-  /* L D^{-1} L^T :  (L_i is ith column of strictly low tri mat. Below, multiply is pointwise mult.
-   * [ 0 | L_0*L_0[1]/d_0 | L_0*L_0[2]/d_0 + L_1*L_1[2]/d_1 | ... ].  
-   * 
-   * Struture is similar for inplace version, but just two clockwise shifts in block-form.            */
-  PetscCall(VecGetArrayRead(lbfgs->diag_vec, &r_array));
-  for (i=0; i<lmvm->m-1; i++) {
-    query_idx_i = (index + i) % lmvm->m;
-    PetscCall(MatDenseGetColumnVecRead(lbfgs->StYfull, query_idx_i, &workvec1));
-
-    /* Copying to emulate strictly lower triangular */
-    PetscCall(VecCopy(workvec1, lbfgs->rwork1));
-    PetscCall(MatDenseRestoreColumnVecRead(lbfgs->StYfull, query_idx_i, &workvec1));
-    PetscCall(VecGetArray(lbfgs->rwork1, &x_array));
-    for (j=0; j<i+1; j++) {
-      query_idx_j = (index + j) % lmvm->m;
-      x_array[query_idx_j] = 0;
-    }
-
-    /* Creating array for scale = L_i[i+1]/d_0 */
-    PetscCall(PetscCalloc1(lmvm->m-i-1, &buffer));
-    for (j=0; j < lmvm->m-i-1; j++) {
-      query_idx_j = query_idx_i+j+1  % lmvm->m;
-      if (r_array[query_idx_i] != 0) {
-        buffer[j] = x_array[query_idx_j]/r_array[query_idx_i];
-      } else {
-        buffer[j] = 0;
-      }
-    }
-    PetscCall(VecRestoreArray(lbfgs->rwork1, &x_array));
-
-    for (j=0, k=i+1; k<lmvm->m; k++, j++) {
-      query_idx_j = (index + j) % lmvm->m;
-      query_idx_k = (index + k) % lmvm->m;
-      PetscCall(MatDenseGetColumnVecWrite(lbfgs->J, query_idx_k, &workvec2));
-      PetscCall(VecAXPY(workvec2, buffer[j], lbfgs->rwork1));
-      PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->J, query_idx_k, &workvec2));
-    }
-    PetscCall(PetscFree(buffer));
-  }
-  PetscCall(VecRestoreArrayRead(lbfgs->diag_vec, &r_array));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1144,6 +1170,8 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     }
     if (PetscRealPart(curvature) > curvtol) {
 
+      /* LMVM is updated. Need to update Chol and LDLT inside MatMult */	    
+      lbfgs->chol_ldlt_lazy = PETSC_TRUE; 	    
       lbfgs->iter_count++;//TODO for debugging purpose. delete later
 
       /* Update is good, accept it */
@@ -1214,27 +1242,6 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
         }
       }
 
-      //Now, SBS is in shifted order in all strategies.
-      /* Compute S^T B S + L D^{-1} L^T
-       * J = S^T B S + L D^{-1} L^T */
-      PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->BS, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->J));
-      /* Adds L D L^T to J matrix */
-      PetscCall(MatAdd_LDLT(B));
-
-      /* Cholesky factorization */
-      if (lmvm->k == lmvm->m - 1) {
-        PetscCall(MatDestroy(&lbfgs->J_solve));
-        PetscCall(MatConvert(lbfgs->J, MATSAME, MAT_INITIAL_MATRIX, &lbfgs->J_solve));
-        PetscCall(MatSetOption(lbfgs->J_solve, MAT_SPD, PETSC_TRUE));
-        PetscCall(MatCholeskyFactor(lbfgs->J_solve,NULL,NULL));
-      } else {
-        PetscCall(MatDenseGetSubMatrix(lbfgs->J, 0, lmvm->k+1, 0, lmvm->k+1, &lbfgs->J_work));
-        PetscCall(MatDestroy(&lbfgs->J_solve));
-        PetscCall(MatDuplicate(lbfgs->J_work, MAT_COPY_VALUES, &lbfgs->J_solve));
-        PetscCall(MatSetOption(lbfgs->J_solve, MAT_SPD, PETSC_TRUE));
-        PetscCall(MatCholeskyFactor(lbfgs->J_solve,NULL,NULL));
-        PetscCall(MatDenseRestoreSubMatrix(lbfgs->J, &lbfgs->J_work));
-      }
 
     } else {
       /* Update is bad, skip it */
@@ -1327,7 +1334,6 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
   PetscBool  same, allocate = PETSC_FALSE;
   VecType    vec_type;
   PetscInt   m, n, M, N;
-  PetscScalar *x_array;
   MPI_Comm   comm = PetscObjectComm((PetscObject)B);
   
   PetscFunctionBegin;
@@ -1518,6 +1524,7 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   PetscCall(PetscNew(&lbfgs));
   lmvm->ctx = (void*)lbfgs;
   lbfgs->allocated       = PETSC_FALSE;
+  lbfgs->chol_ldlt_lazy  = PETSC_TRUE;
   lbfgs->idx_begin       = -1;
   lbfgs->idx_b_r         = -1;
   lbfgs->idx_rplc        = -1;

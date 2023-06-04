@@ -21,7 +21,7 @@ typedef struct {
 
   PetscInt  watchdog, max_seq_rejects;                   /* tracker to reset after a certain # of consecutive rejects */
   PetscInt  idx_cols, iter_count;
-  PetscBool allocated;
+  PetscBool allocated, chol_ldlt_lazy;
   PetscReal delta, delta_min, delta_max;
 } Mat_CDBFGS;
 
