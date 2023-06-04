@@ -70,9 +70,11 @@ int main(int argc, char **argv)
 
   /* Allocate vectors for the solution and gradient */
   if (cuda){
+    VecType vec_type;
     user.is_cuda = PETSC_TRUE;	  
     PetscCall(VecCreateSeqCUDA(PETSC_COMM_SELF, user.n, &x));
-    PetscCall(VecCreateMatDense(x, user.n, user.n, PETSC_DECIDE, PETSC_DECIDE, NULL, &H));
+    PetscCall(VecGetType(x, &vec_type));    
+    PetscCall(MatCreateDenseFromVecType(PETSC_COMM_WORLD, vec_type, user.n, user.n, PETSC_DECIDE, PETSC_DECIDE,  -1, NULL, &H));
   } else {
     PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &x));
     PetscCall(MatCreateSeqBAIJ(PETSC_COMM_SELF, 2, user.n, user.n, 1, NULL, &H));
@@ -218,7 +220,7 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *f, Vec G, void *p
 
   if (user->is_cuda) {
     /* Not supporting chained. Also, only for n=2 */	  
-    PetscCall(Rosenbrock1ObjAndGradCUDA(X, G, &f, alpha, nn));
+    PetscCall(Rosenbrock1ObjAndGradCUDA(X, G, f, alpha, nn));
   } else {
     /* Get pointers to vector data */
     PetscCall(VecGetArrayRead(X, &x));

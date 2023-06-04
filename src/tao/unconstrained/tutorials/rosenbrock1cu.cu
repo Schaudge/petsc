@@ -2,17 +2,19 @@
 #include <petscdevice.h>
 #include "rosenbrock1.h"
 
-__global__ void Rosenbrock1ObjAndGradCUDA_Internal(const PetscScalar *x, PetscScalar *g, PetscReal *f, PetscReal alpha, PetscInt nn, PetscScalar *t1, PetscScalar *t2, PetscScalar *ff)
+__global__ void Rosenbrock1ObjAndGradCUDA_Internal(const PetscScalar x[], PetscScalar g[], PetscReal f[], PetscReal alpha)
 {
+  PetscReal t1, t2, ff;
+  size_t idx = 0;
 
-  *t1 = x[1] - x[0]*x[0];
-  *t2 = 1 - x[0];
-  *ff = alpha*(*t1)*(*t1) + (*t2)*(*t2);
+  t1 = x[idx + 1] - x[idx]*x[idx];
+  t2 = 1 - x[idx];
+  ff = alpha*(t1)*(t1) + (t2)*(t2);
 
-  g[0] = -4*alpha*(*t1)*x[0] - 2*(*t2);
-  g[1] = 2*alpha*(*t1);
+  g[idx] = -4*alpha*(t1)*x[idx] - 2*(t2);
+  g[idx+1] = 2*alpha*(t1);
 
-  *f = *ff;
+  *f = ff;
 }
 
 PetscErrorCode Rosenbrock1ObjAndGradCUDA(Vec X, Vec G, PetscReal *f, PetscReal alpha, PetscInt nn)
@@ -28,7 +30,7 @@ PetscErrorCode Rosenbrock1ObjAndGradCUDA(Vec X, Vec G, PetscReal *f, PetscReal a
   PetscCall(VecGetArrayAndMemType(G, &g, &memtype_g));
   PetscCall(VecGetArrayReadAndMemType(X, &x, &memtype_x));
 
-  Rosenbrock1ObjAndGradCUDA_Internal<<<1,1>>>(x, g, f, alpha, nn, t1,t2,ff);
+  Rosenbrock1ObjAndGradCUDA_Internal<<<1,1>>>(x, g, f, alpha);
 
   PetscCall(VecRestoreArrayAndMemType(G, &g));
   PetscCall(VecRestoreArrayReadAndMemType(X, &x));
