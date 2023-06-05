@@ -11,18 +11,28 @@ Input parameters include:\n\
 #include <petscksp.h>
 #include <petscmat.h>
 
+static PetscErrorCode BZDestroy(void *ptr)
+{
+  PetscInt *maps = (PetscInt *)ptr;
+
+  PetscFunctionBegin;
+  //PetscCall(PetscFree(maps));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 int main(int argc, char **args)
 {
   Vec         x, b, u; /* approx solution, RHS, exact solution */
   Mat         A, Pmat; /* linear system matrix */
   KSP         ksp;     /* linear solver context */
   PetscReal   norm;    /* norm of solution error */
-  PetscInt    i, j, Ii, J, Istart, Iend, n = 7, m = 8, its, nblocks = 2;
+  PetscInt    i, j, Ii, J, Istart, Iend, n = 7, m = 8, its, nblocks = 2, *block_sizes;
   PetscBool   flg;
   PetscScalar v;
   PetscMPIInt size, rank;
   IS         *is_loc = NULL;
   PC          pc;
+  PetscContainer container;
 
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &args, (char *)0, help));
@@ -112,6 +122,8 @@ int main(int argc, char **args)
     PetscCall(PetscMalloc2(maxcols, &AA, maxcols, &AJ));
     /* make explicit block matrix for batch solver */
     //if (rank==1) PetscCall(PetscPrintf(PETSC_COMM_SELF, "[%d] nblocks = %d\n", rank, nblocks));
+    PetscCall(PetscMalloc(nblocks+1, &block_sizes));
+    block_sizes[0] = nblocks;
     for (PetscInt bid = 0; bid < nblocks; bid++) {
       IS blk_is = is_loc[bid];
       //if (rank==1) PetscCall(ISView(blk_is, PETSC_VIEWER_STDOUT_SELF));
@@ -119,6 +131,7 @@ int main(int argc, char **args)
       PetscInt        n, ncol_row, jj;
       PetscCall(ISGetIndices(blk_is, &subdom));
       PetscCall(ISGetSize(blk_is, &n));
+      block_sizes[bid+1] = n;
       //if (rank==1) PetscCall(PetscPrintf(PETSC_COMM_SELF, "\t[%d] n[%d] = %d\n",rank,bid,n));
       for (PetscInt ii = 0; ii < n; ii++) {
         const MatScalar *vals;
@@ -144,6 +157,11 @@ int main(int argc, char **args)
     PetscCall(MatAssemblyEnd(Pmat, MAT_FINAL_ASSEMBLY));
     PetscCall(MatViewFromOptions(Pmat, NULL, "-view_c"));
   }
+  PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &container));
+  PetscCall(PetscContainerSetPointer(container, (void *)block_sizes));
+  PetscCall(PetscContainerSetUserDestroy(container, BZDestroy));
+  PetscCall(PetscObjectCompose((PetscObject)Pmat, "__bjk_block_sizes", (PetscObject)container));
+  PetscCall(PetscContainerDestroy(&container));
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
                 Create the linear solver and set various options
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
