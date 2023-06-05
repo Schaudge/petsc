@@ -1,13 +1,8 @@
--include ../../../../petsckdir.mk
+-include ../../../../petscdir.mk
 
-SOURCEC  = vector.c veccreate.c vecreg.c vecregall.c dlregisvec.c rvector.c
-SOURCEF  =
-SOURCEH  =
-DIRS     =
 LIBBASE  = libpetscvec
 MANSEC   = Vec
-LOCDIR   = src/vec/vec/interface/
+DIRS     = ftn-custom
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
-include ${PETSC_DIR}/lib/petsc/conf/rules
-include ${PETSC_DIR}/lib/petsc/conf/test
+include ${PETSC_DIR}/lib/petsc/conf/rules.doc

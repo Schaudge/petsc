@@ -4,14 +4,14 @@ static char help[] = "Test MatZeroEntries() on unassembled matrices \n\n";
 
 int main(int argc, char **args)
 {
-  Mat             A;
-  PetscInt        N = 32;
-  MPI_Comm        comm;
+  Mat      A;
+  PetscInt N = 32;
+  MPI_Comm comm;
 
   PetscFunctionBeginUser;
-  PetscCall(PetscInitialize(&argc, &args, (char*) 0, help));
+  PetscCall(PetscInitialize(&argc, &args, (char *)0, help));
   comm = PETSC_COMM_WORLD;
-  PetscCall(PetscOptionsGetInt(NULL,NULL, "-N", &N, NULL));
+  PetscCall(PetscOptionsGetInt(NULL, NULL, "-N", &N, NULL));
   PetscCall(MatCreate(comm, &A));
   PetscCall(MatSetSizes(A, PETSC_DECIDE, PETSC_DECIDE, N, N));
   PetscCall(MatSetFromOptions(A));

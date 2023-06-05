@@ -11,13 +11,13 @@ if __name__ == '__main__':
   configure_options = [
     '--package-prefix-hash='+petsc_hash_pkgs,
     '--with-cc=mpicc -cc=icx', # need to make mpicc/mpicxx also SYCL compilers.
-    '--with-cxx=mpicxx -cxx=dpcpp', # Intel MPI does not accept -cxx=icpx, though it should.
+    '--with-cxx=mpicxx -cxx=icpx',
     '--with-fc=0',
     '--COPTFLAGS=-g -O2',
     '--CXXOPTFLAGS=-g -O2',
     '--CXXPPFLAGS=-std=c++17',
     '--SYCLOPTFLAGS=-g -O2',
-    # To surpress warnings in checking Kokkos-Kernels headers like:
+    # To suppress warnings in checking Kokkos-Kernels headers like:
     # Kokkos_MathematicalFunctions.hpp:299:34: warning: comparison with infinity always evaluates
     # to false in fast floating point modes [-Wtautological-constant-compare]
     # KOKKOS_IMPL_MATH_UNARY_PREDICATE(isinf)
@@ -26,8 +26,8 @@ if __name__ == '__main__':
     '--downoad-kokkos-kernels=1',
     '--with-cuda=0',
     '--with-sycl=1',
-    '--with-syclc=dpcpp',
-    '--with-sycl-dialect=c++17',
+    '--with-syclc=icpx', # dpcpp is deprecated by Intel. One should use 'icpx -fsycl' to compile sycl code. petsc handles that automatically.
+    '--with-strict-petscerrorcode',
   ]
 
   configure.petsc_configure(configure_options)

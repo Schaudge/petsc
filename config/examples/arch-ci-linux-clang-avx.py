@@ -10,6 +10,7 @@ if __name__ == '__main__':
   import configure
   configure_options = [
     '--package-prefix-hash='+petsc_hash_pkgs,
+    '--with-cudac=0',
     '--download-f2cblaslapack',
     '--download-blis',
     '--download-mpich',
@@ -23,5 +24,7 @@ if __name__ == '__main__':
     '--download-codipack=1',
     '--download-adblaslapack=1',
     '--with-mpi-f90module-visibility=0',
+    '--with-strict-petscerrorcode',
+    '--with-coverage',
   ]
   configure.petsc_configure(configure_options)

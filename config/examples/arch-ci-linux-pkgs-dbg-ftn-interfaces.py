@@ -16,6 +16,7 @@ configure_options = [
   '--download-openmpi=1',
   '--download-fblaslapack=1',
   '--with-openmp=1',
+  '--with-threadsafety=1',
   '--download-hwloc=1',
   #'--download-hypre=1', disabled as hypre produces wrong results when openmp is enabled
   #'--download-cmake=1',
@@ -25,17 +26,19 @@ configure_options = [
   '--download-suitesparse=1',
   '--download-triangle=1',
   '--download-superlu=1',
-  '--download-superlu_dist=1',
+  #'--download-superlu_dist=1',
   '--download-scalapack=1',
   '--download-strumpack=1',
   '--download-mumps=1',
-  '--download-elemental=1',
+  # '--download-elemental=1', # disabled since its maxCxxVersion is c++14, but Kokkos-4.0's minCxxVersion is c++17
   '--download-spai=1',
   '--download-parms=1',
   '--download-kokkos=1',
   '--download-kokkos-kernels=1',
   '--with-kokkos-init-warnings=0', # we want to avoid "Kokkos::OpenMP::initialize WARNING: You are likely oversubscribing your CPU cores" in test output
-  '--download-chaco=1'
+  '--download-chaco=1',
+  '--with-strict-petscerrorcode',
+  #'--with-coverage',
   ]
 
 if __name__ == '__main__':

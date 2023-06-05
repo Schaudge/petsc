@@ -31,16 +31,9 @@
 !  in them
 !
 
-      module f90module
-      use petscsys
-      use petscis
-      use petscvec
-      use petscdm
-      use petscdmda
-      use petscmat
-      use petscpc
-      use petscksp
+      module ex5f90module
       use petscsnes
+      use petscdmda
 #include <petsc/finclude/petscsnes.h>
       type userctx
         PetscInt xs,xe,xm,gxs,gxe,gxm
@@ -96,12 +89,11 @@
       PetscCall(DMGlobalToLocalEnd(da,X,INSERT_VALUES,localX,ierr))
 
 !  Get a pointer to vector data.
-!    - For default PETSc vectors, VecGetArray90() returns a pointer to
+!    - For default PETSc vectors, VecGetArrayF90() returns a pointer to
 !      the data array. Otherwise, the routine is implementation dependent.
 !    - You MUST call VecRestoreArrayF90() when you no longer need access to
 !      the array.
-!    - Note that the interface to VecGetArrayF90() differs from VecGetArray(),
-!      and is useable from Fortran-90 Only.
+!    - Note that the interface to VecGetArrayF90() differs from VecGetArray().
 
       PetscCall(VecGetArrayF90(localX,lx_v,ierr))
       PetscCall(VecGetArrayF90(F,lf_v,ierr))
@@ -122,14 +114,14 @@
 !      PetscCallA(VecView(F,PETSC_VIEWER_STDOUT_WORLD,ierr))
       return
       end subroutine formfunction
-      end module f90module
+      end module ex5f90module
 
-      module f90moduleinterfaces
-        use f90module
+      module ex5f90moduleinterfaces
+        use ex5f90module
 
       Interface SNESSetApplicationContext
         Subroutine SNESSetApplicationContext(snes,ctx,ierr)
-        use f90module
+        use ex5f90module
           SNES snes
           type(userctx) ctx
           PetscErrorCode ierr
@@ -138,17 +130,17 @@
 
       Interface SNESGetApplicationContext
         Subroutine SNESGetApplicationContext(snes,ctx,ierr)
-        use f90module
+        use ex5f90module
           SNES snes
           type(userctx), pointer :: ctx
           PetscErrorCode ierr
         End Subroutine
       End Interface SNESGetApplicationContext
-      end module f90moduleinterfaces
+      end module ex5f90moduleinterfaces
 
       program main
-      use f90module
-      use f90moduleinterfaces
+      use ex5f90module
+      use ex5f90moduleinterfaces
       implicit none
 !
 
@@ -192,9 +184,7 @@
       ione = 1
       nfour = 4
       PetscCallA(PetscOptionsGetReal(PETSC_NULL_OPTIONS,PETSC_NULL_CHARACTER,'-par',user%lambda,flg,ierr))
-      if (user%lambda .ge. lambda_max .or. user%lambda .le. lambda_min) then
-         SETERRA(PETSC_COMM_SELF,PETSC_ERR_USER,'Lambda provided with -par is out of range ')
-      endif
+      PetscCheckA(user%lambda .lt. lambda_max .and. user%lambda .gt. lambda_min,PETSC_COMM_SELF,PETSC_ERR_USER,'Lambda provided with -par is out of range')
 
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  Create nonlinear solver context
@@ -332,8 +322,8 @@
 !  the local vector data via VecGetArrayF90() and VecRestoreArrayF90().
 !
       subroutine FormInitialGuess(snes,X,ierr)
-      use f90module
-      use f90moduleinterfaces
+      use ex5f90module
+      use ex5f90moduleinterfaces
       implicit none
 
 !  Input/output variables:
@@ -350,12 +340,11 @@
       PetscCallA(SNESGetDM(snes,da,ierr))
       PetscCallA(SNESGetApplicationContext(snes,puser,ierr))
 !  Get a pointer to vector data.
-!    - For default PETSc vectors, VecGetArray90() returns a pointer to
+!    - For default PETSc vectors, VecGetArrayF90() returns a pointer to
 !      the data array. Otherwise, the routine is implementation dependent.
 !    - You MUST call VecRestoreArrayF90() when you no longer need access to
 !      the array.
-!    - Note that the interface to VecGetArrayF90() differs from VecGetArray(),
-!      and is useable from Fortran-90 Only.
+!    - Note that the interface to VecGetArrayF90() differs from VecGetArray().
 
       PetscCallA(VecGetArrayF90(X,lx_v,ierr))
 
@@ -386,7 +375,7 @@
 !  This routine uses standard Fortran-style computations over a 2-dim array.
 !
       subroutine InitialGuessLocal(user,x,ierr)
-      use f90module
+      use ex5f90module
       implicit none
 
 !  Input/output variables:
@@ -437,7 +426,7 @@
 !  This routine uses standard Fortran-style computations over a 2-dim array.
 !
       subroutine FormFunctionLocal(x,f,user,ierr)
-      use f90module
+      use ex5f90module
 
       implicit none
 
@@ -522,7 +511,7 @@
 !  used in this example.
 !
       subroutine FormJacobian(snes,X,jac,jac_prec,user,ierr)
-      use f90module
+      use ex5f90module
       implicit none
 
 !  Input/output variables:
@@ -613,7 +602,7 @@
 !  used in this example.
 !
       subroutine FormJacobianLocal(x,jac_prec,user,ierr)
-      use f90module
+      use ex5f90module
       implicit none
 
 !  Input/output variables:

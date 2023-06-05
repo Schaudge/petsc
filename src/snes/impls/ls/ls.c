@@ -7,74 +7,77 @@
     0 = (J^T F)^T W = F^T J W iff W not in the null space of J. Thanks for Jorge More
     for this trick. One assumes that the probability that W is in the null space of J is very, very small.
 */
-static PetscErrorCode SNESNEWTONLSCheckLocalMin_Private(SNES snes,Mat A,Vec F,PetscReal fnorm,PetscBool  *ismin)
+static PetscErrorCode SNESNEWTONLSCheckLocalMin_Private(SNES snes, Mat A, Vec F, PetscReal fnorm, PetscBool *ismin)
 {
-  PetscReal      a1;
-  PetscBool      hastranspose;
-  Vec            W;
+  PetscReal a1;
+  PetscBool hastranspose;
+  Vec       W;
+  PetscErrorCode (*objective)(SNES, Vec, PetscReal *, void *);
 
   PetscFunctionBegin;
   *ismin = PETSC_FALSE;
-  PetscCall(MatHasOperation(A,MATOP_MULT_TRANSPOSE,&hastranspose));
-  PetscCall(VecDuplicate(F,&W));
-  if (hastranspose) {
-    /* Compute || J^T F|| */
-    PetscCall(MatMultTranspose(A,F,W));
-    PetscCall(VecNorm(W,NORM_2,&a1));
-    PetscCall(PetscInfo(snes,"|| J^T F|| %14.12e near zero implies found a local minimum\n",(double)(a1/fnorm)));
-    if (a1/fnorm < 1.e-4) *ismin = PETSC_TRUE;
-  } else {
-    Vec         work;
-    PetscScalar result;
-    PetscReal   wnorm;
+  PetscCall(SNESGetObjective(snes, &objective, NULL));
+  if (!objective) {
+    PetscCall(MatHasOperation(A, MATOP_MULT_TRANSPOSE, &hastranspose));
+    PetscCall(VecDuplicate(F, &W));
+    if (hastranspose) {
+      /* Compute || J^T F|| */
+      PetscCall(MatMultTranspose(A, F, W));
+      PetscCall(VecNorm(W, NORM_2, &a1));
+      PetscCall(PetscInfo(snes, "|| J^T F|| %14.12e near zero implies found a local minimum\n", (double)(a1 / fnorm)));
+      if (a1 / fnorm < 1.e-4) *ismin = PETSC_TRUE;
+    } else {
+      Vec         work;
+      PetscScalar result;
+      PetscReal   wnorm;
 
-    PetscCall(VecSetRandom(W,NULL));
-    PetscCall(VecNorm(W,NORM_2,&wnorm));
-    PetscCall(VecDuplicate(W,&work));
-    PetscCall(MatMult(A,W,work));
-    PetscCall(VecDot(F,work,&result));
-    PetscCall(VecDestroy(&work));
-    a1   = PetscAbsScalar(result)/(fnorm*wnorm);
-    PetscCall(PetscInfo(snes,"(F^T J random)/(|| F ||*||random|| %14.12e near zero implies found a local minimum\n",(double)a1));
-    if (a1 < 1.e-4) *ismin = PETSC_TRUE;
+      PetscCall(VecSetRandom(W, NULL));
+      PetscCall(VecNorm(W, NORM_2, &wnorm));
+      PetscCall(VecDuplicate(W, &work));
+      PetscCall(MatMult(A, W, work));
+      PetscCall(VecDot(F, work, &result));
+      PetscCall(VecDestroy(&work));
+      a1 = PetscAbsScalar(result) / (fnorm * wnorm);
+      PetscCall(PetscInfo(snes, "(F^T J random)/(|| F ||*||random|| %14.12e near zero implies found a local minimum\n", (double)a1));
+      if (a1 < 1.e-4) *ismin = PETSC_TRUE;
+    }
+    PetscCall(VecDestroy(&W));
   }
-  PetscCall(VecDestroy(&W));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
      Checks if J^T(F - J*X) = 0
 */
-static PetscErrorCode SNESNEWTONLSCheckResidual_Private(SNES snes,Mat A,Vec F,Vec X)
+static PetscErrorCode SNESNEWTONLSCheckResidual_Private(SNES snes, Mat A, Vec F, Vec X)
 {
-  PetscReal      a1,a2;
-  PetscBool      hastranspose;
+  PetscReal a1, a2;
+  PetscBool hastranspose;
+  PetscErrorCode (*objective)(SNES, Vec, PetscReal *, void *);
 
   PetscFunctionBegin;
-  PetscCall(MatHasOperation(A,MATOP_MULT_TRANSPOSE,&hastranspose));
-  if (hastranspose) {
-    Vec   W1,W2;
+  PetscCall(MatHasOperation(A, MATOP_MULT_TRANSPOSE, &hastranspose));
+  PetscCall(SNESGetObjective(snes, &objective, NULL));
+  if (hastranspose && !objective) {
+    Vec W1, W2;
 
-    PetscCall(VecDuplicate(F,&W1));
-    PetscCall(VecDuplicate(F,&W2));
-    PetscCall(MatMult(A,X,W1));
-    PetscCall(VecAXPY(W1,-1.0,F));
+    PetscCall(VecDuplicate(F, &W1));
+    PetscCall(VecDuplicate(F, &W2));
+    PetscCall(MatMult(A, X, W1));
+    PetscCall(VecAXPY(W1, -1.0, F));
 
     /* Compute || J^T W|| */
-    PetscCall(MatMultTranspose(A,W1,W2));
-    PetscCall(VecNorm(W1,NORM_2,&a1));
-    PetscCall(VecNorm(W2,NORM_2,&a2));
-    if (a1 != 0.0) {
-      PetscCall(PetscInfo(snes,"||J^T(F-Ax)||/||F-AX|| %14.12e near zero implies inconsistent rhs\n",(double)(a2/a1)));
-    }
+    PetscCall(MatMultTranspose(A, W1, W2));
+    PetscCall(VecNorm(W1, NORM_2, &a1));
+    PetscCall(VecNorm(W2, NORM_2, &a2));
+    if (a1 != 0.0) PetscCall(PetscInfo(snes, "||J^T(F-Ax)||/||F-AX|| %14.12e near zero implies inconsistent rhs\n", (double)(a2 / a1)));
     PetscCall(VecDestroy(&W1));
     PetscCall(VecDestroy(&W2));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/*  --------------------------------------------------------------------
-
+/*
      This file implements a truncated Newton method with a line search,
      for solving a system of nonlinear equations, using the KSP, Vec,
      and Mat interfaces for linear solvers, vectors, and matrices,
@@ -109,12 +112,12 @@ static PetscErrorCode SNESNEWTONLSCheckResidual_Private(SNES snes,Mat A,Vec F,Ve
      nonlinear solvers, timesteppers) are all organized similarly, so the
      above description applies to these categories also.
 
-    -------------------------------------------------------------------- */
+*/
 /*
    SNESSolve_NEWTONLS - Solves a nonlinear system with a truncated Newton
    method with a line search.
 
-   Input Parameters:
+   Input Parameter:
 .  snes - the SNES context
 
    Output Parameter:
@@ -122,33 +125,30 @@ static PetscErrorCode SNESNEWTONLSCheckResidual_Private(SNES snes,Mat A,Vec F,Ve
 
    Application Interface Routine: SNESSolve()
 
-   Notes:
-   This implements essentially a truncated Newton method with a
-   line search.  By default a cubic backtracking line search
-   is employed, as described in the text "Numerical Methods for
-   Unconstrained Optimization and Nonlinear Equations" by Dennis
-   and Schnabel.
 */
 PetscErrorCode SNESSolve_NEWTONLS(SNES snes)
 {
-  PetscInt             maxits,i,lits;
+  PetscInt             maxits, i, lits;
   SNESLineSearchReason lssucceed;
-  PetscReal            fnorm,gnorm,xnorm,ynorm;
-  Vec                  Y,X,F;
+  PetscReal            fnorm, xnorm, ynorm;
+  Vec                  Y, X, F;
   SNESLineSearch       linesearch;
   SNESConvergedReason  reason;
+#if defined(PETSC_USE_INFO)
+  PetscReal gnorm;
+#endif
 
   PetscFunctionBegin;
-  PetscCheck(!snes->xl && !snes->xu && !snes->ops->computevariablebounds,PetscObjectComm((PetscObject)snes),PETSC_ERR_ARG_WRONGSTATE, "SNES solver %s does not support bounds", ((PetscObject)snes)->type_name);
+  PetscCheck(!snes->xl && !snes->xu && !snes->ops->computevariablebounds, PetscObjectComm((PetscObject)snes), PETSC_ERR_ARG_WRONGSTATE, "SNES solver %s does not support bounds", ((PetscObject)snes)->type_name);
 
   snes->numFailures            = 0;
   snes->numLinearSolveFailures = 0;
   snes->reason                 = SNES_CONVERGED_ITERATING;
 
-  maxits = snes->max_its;               /* maximum number of iterations */
-  X      = snes->vec_sol;               /* solution vector */
-  F      = snes->vec_func;              /* residual vector */
-  Y      = snes->vec_sol_update;        /* newton step */
+  maxits = snes->max_its;        /* maximum number of iterations */
+  X      = snes->vec_sol;        /* solution vector */
+  F      = snes->vec_func;       /* residual vector */
+  Y      = snes->vec_sol_update; /* newton step */
 
   PetscCall(PetscObjectSAWsTakeAccess((PetscObject)snes));
   snes->iter = 0;
@@ -157,123 +157,120 @@ PetscErrorCode SNESSolve_NEWTONLS(SNES snes)
   PetscCall(SNESGetLineSearch(snes, &linesearch));
 
   /* compute the preconditioned function first in the case of left preconditioning with preconditioned function */
-  if (snes->npc && snes->npcside== PC_LEFT && snes->functype == SNES_FUNCTION_PRECONDITIONED) {
-    PetscCall(SNESApplyNPC(snes,X,NULL,F));
-    PetscCall(SNESGetConvergedReason(snes->npc,&reason));
-    if (reason < 0  && reason != SNES_DIVERGED_MAX_IT) {
+  if (snes->npc && snes->npcside == PC_LEFT && snes->functype == SNES_FUNCTION_PRECONDITIONED) {
+    PetscCall(SNESApplyNPC(snes, X, NULL, F));
+    PetscCall(SNESGetConvergedReason(snes->npc, &reason));
+    if (reason < 0 && reason != SNES_DIVERGED_MAX_IT && reason != SNES_DIVERGED_TR_DELTA) {
       snes->reason = SNES_DIVERGED_INNER;
-      PetscFunctionReturn(0);
+      PetscFunctionReturn(PETSC_SUCCESS);
     }
 
-    PetscCall(VecNormBegin(F,NORM_2,&fnorm));
-    PetscCall(VecNormEnd(F,NORM_2,&fnorm));
+    PetscCall(VecNormBegin(F, NORM_2, &fnorm));
+    PetscCall(VecNormEnd(F, NORM_2, &fnorm));
   } else {
     if (!snes->vec_func_init_set) {
-      PetscCall(SNESComputeFunction(snes,X,F));
+      PetscCall(SNESComputeFunction(snes, X, F));
     } else snes->vec_func_init_set = PETSC_FALSE;
   }
 
-  PetscCall(VecNorm(F,NORM_2,&fnorm));        /* fnorm <- ||F||  */
-  SNESCheckFunctionNorm(snes,fnorm);
+  PetscCall(VecNorm(F, NORM_2, &fnorm)); /* fnorm <- ||F||  */
+  SNESCheckFunctionNorm(snes, fnorm);
   PetscCall(PetscObjectSAWsTakeAccess((PetscObject)snes));
   snes->norm = fnorm;
   PetscCall(PetscObjectSAWsGrantAccess((PetscObject)snes));
-  PetscCall(SNESLogConvergenceHistory(snes,fnorm,0));
-  PetscCall(SNESMonitor(snes,0,fnorm));
+  PetscCall(SNESLogConvergenceHistory(snes, fnorm, 0));
 
   /* test convergence */
-  PetscCall((*snes->ops->converged)(snes,0,0.0,0.0,fnorm,&snes->reason,snes->cnvP));
-  if (snes->reason) PetscFunctionReturn(0);
+  PetscCall(SNESConverged(snes, 0, 0.0, 0.0, fnorm));
+  PetscCall(SNESMonitor(snes, 0, fnorm));
+  if (snes->reason) PetscFunctionReturn(PETSC_SUCCESS);
 
-  for (i=0; i<maxits; i++) {
-
+  for (i = 0; i < maxits; i++) {
     /* Call general purpose update function */
-    if (snes->ops->update) PetscCall((*snes->ops->update)(snes, snes->iter));
+    PetscTryTypeMethod(snes, update, snes->iter);
 
     /* apply the nonlinear preconditioner */
     if (snes->npc) {
-      if (snes->npcside== PC_RIGHT) {
+      if (snes->npcside == PC_RIGHT) {
         PetscCall(SNESSetInitialFunction(snes->npc, F));
-        PetscCall(PetscLogEventBegin(SNES_NPCSolve,snes->npc,X,snes->vec_rhs,0));
+        PetscCall(PetscLogEventBegin(SNES_NPCSolve, snes->npc, X, snes->vec_rhs, 0));
         PetscCall(SNESSolve(snes->npc, snes->vec_rhs, X));
-        PetscCall(PetscLogEventEnd(SNES_NPCSolve,snes->npc,X,snes->vec_rhs,0));
-        PetscCall(SNESGetConvergedReason(snes->npc,&reason));
-        if (reason < 0  && reason != SNES_DIVERGED_MAX_IT) {
+        PetscCall(PetscLogEventEnd(SNES_NPCSolve, snes->npc, X, snes->vec_rhs, 0));
+        PetscCall(SNESGetConvergedReason(snes->npc, &reason));
+        if (reason < 0 && reason != SNES_DIVERGED_MAX_IT && reason != SNES_DIVERGED_TR_DELTA) {
           snes->reason = SNES_DIVERGED_INNER;
-          PetscFunctionReturn(0);
+          PetscFunctionReturn(PETSC_SUCCESS);
         }
-        PetscCall(SNESGetNPCFunction(snes,F,&fnorm));
-      } else if (snes->npcside== PC_LEFT && snes->functype == SNES_FUNCTION_UNPRECONDITIONED) {
-        PetscCall(SNESApplyNPC(snes,X,F,F));
-        PetscCall(SNESGetConvergedReason(snes->npc,&reason));
-        if (reason < 0  && reason != SNES_DIVERGED_MAX_IT) {
+        PetscCall(SNESGetNPCFunction(snes, F, &fnorm));
+      } else if (snes->npcside == PC_LEFT && snes->functype == SNES_FUNCTION_UNPRECONDITIONED) {
+        PetscCall(SNESApplyNPC(snes, X, F, F));
+        PetscCall(SNESGetConvergedReason(snes->npc, &reason));
+        if (reason < 0 && reason != SNES_DIVERGED_MAX_IT && reason != SNES_DIVERGED_TR_DELTA) {
           snes->reason = SNES_DIVERGED_INNER;
-          PetscFunctionReturn(0);
+          PetscFunctionReturn(PETSC_SUCCESS);
         }
       }
     }
 
     /* Solve J Y = F, where J is Jacobian matrix */
-    PetscCall(SNESComputeJacobian(snes,X,snes->jacobian,snes->jacobian_pre));
+    PetscCall(SNESComputeJacobian(snes, X, snes->jacobian, snes->jacobian_pre));
     SNESCheckJacobianDomainerror(snes);
-    PetscCall(KSPSetOperators(snes->ksp,snes->jacobian,snes->jacobian_pre));
-    PetscCall(KSPSolve(snes->ksp,F,Y));
+    PetscCall(KSPSetOperators(snes->ksp, snes->jacobian, snes->jacobian_pre));
+    PetscCall(KSPSolve(snes->ksp, F, Y));
     SNESCheckKSPSolve(snes);
-    PetscCall(KSPGetIterationNumber(snes->ksp,&lits));
-    PetscCall(PetscInfo(snes,"iter=%" PetscInt_FMT ", linear solve iterations=%" PetscInt_FMT "\n",snes->iter,lits));
+    PetscCall(KSPGetIterationNumber(snes->ksp, &lits));
+    PetscCall(PetscInfo(snes, "iter=%" PetscInt_FMT ", linear solve iterations=%" PetscInt_FMT "\n", snes->iter, lits));
 
-    if (PetscLogPrintInfo) PetscCall(SNESNEWTONLSCheckResidual_Private(snes,snes->jacobian,F,Y));
+    if (PetscLogPrintInfo) PetscCall(SNESNEWTONLSCheckResidual_Private(snes, snes->jacobian, F, Y));
 
+#if defined(PETSC_USE_INFO)
+    gnorm = fnorm;
+#endif
     /* Compute a (scaled) negative update in the line search routine:
          X <- X - lambda*Y
        and evaluate F = function(X) (depends on the line search).
     */
-    gnorm = fnorm;
     PetscCall(SNESLineSearchApply(linesearch, X, F, &fnorm, Y));
     PetscCall(SNESLineSearchGetReason(linesearch, &lssucceed));
     PetscCall(SNESLineSearchGetNorms(linesearch, &xnorm, &fnorm, &ynorm));
-    PetscCall(PetscInfo(snes,"fnorm=%18.16e, gnorm=%18.16e, ynorm=%18.16e, lssucceed=%d\n",(double)gnorm,(double)fnorm,(double)ynorm,(int)lssucceed));
+    PetscCall(PetscInfo(snes, "fnorm=%18.16e, gnorm=%18.16e, ynorm=%18.16e, lssucceed=%d\n", (double)gnorm, (double)fnorm, (double)ynorm, (int)lssucceed));
     if (snes->reason) break;
-    SNESCheckFunctionNorm(snes,fnorm);
+    SNESCheckFunctionNorm(snes, fnorm);
     if (lssucceed) {
-      if (snes->stol*xnorm > ynorm) {
+      if (snes->stol * xnorm > ynorm) {
         snes->reason = SNES_CONVERGED_SNORM_RELATIVE;
-        PetscFunctionReturn(0);
+        PetscFunctionReturn(PETSC_SUCCESS);
       }
       if (++snes->numFailures >= snes->maxFailures) {
         PetscBool ismin;
         snes->reason = SNES_DIVERGED_LINE_SEARCH;
-        PetscCall(SNESNEWTONLSCheckLocalMin_Private(snes,snes->jacobian,F,fnorm,&ismin));
+        PetscCall(SNESNEWTONLSCheckLocalMin_Private(snes, snes->jacobian, F, fnorm, &ismin));
         if (ismin) snes->reason = SNES_DIVERGED_LOCAL_MIN;
         if (snes->errorifnotconverged && snes->reason) {
           PetscViewer monitor;
-          PetscCall(SNESLineSearchGetDefaultMonitor(linesearch,&monitor));
-          PetscCheck(monitor,PetscObjectComm((PetscObject)snes),PETSC_ERR_NOT_CONVERGED,"SNESSolve has not converged due to %s. Suggest running with -snes_linesearch_monitor",SNESConvergedReasons[snes->reason]);
-          SETERRQ(PetscObjectComm((PetscObject)snes),PETSC_ERR_NOT_CONVERGED,"SNESSolve has not converged due %s.",SNESConvergedReasons[snes->reason]);
+          PetscCall(SNESLineSearchGetDefaultMonitor(linesearch, &monitor));
+          PetscCheck(monitor, PetscObjectComm((PetscObject)snes), PETSC_ERR_NOT_CONVERGED, "SNESSolve has not converged due to %s. Suggest running with -snes_linesearch_monitor", SNESConvergedReasons[snes->reason]);
+          SETERRQ(PetscObjectComm((PetscObject)snes), PETSC_ERR_NOT_CONVERGED, "SNESSolve has not converged due %s.", SNESConvergedReasons[snes->reason]);
         }
         break;
       }
     }
     /* Monitor convergence */
     PetscCall(PetscObjectSAWsTakeAccess((PetscObject)snes));
-    snes->iter = i+1;
-    snes->norm = fnorm;
+    snes->iter  = i + 1;
+    snes->norm  = fnorm;
     snes->ynorm = ynorm;
     snes->xnorm = xnorm;
     PetscCall(PetscObjectSAWsGrantAccess((PetscObject)snes));
-    PetscCall(SNESLogConvergenceHistory(snes,snes->norm,lits));
-    PetscCall(SNESMonitor(snes,snes->iter,snes->norm));
+    PetscCall(SNESLogConvergenceHistory(snes, snes->norm, lits));
     /* Test for convergence */
-    PetscCall((*snes->ops->converged)(snes,snes->iter,xnorm,ynorm,fnorm,&snes->reason,snes->cnvP));
+    PetscCall(SNESConverged(snes, snes->iter, xnorm, ynorm, fnorm));
+    PetscCall(SNESMonitor(snes, snes->iter, snes->norm));
     if (snes->reason) break;
   }
-  if (i == maxits) {
-    PetscCall(PetscInfo(snes,"Maximum number of iterations has been reached: %" PetscInt_FMT "\n",maxits));
-    if (!snes->reason) snes->reason = SNES_DIVERGED_MAX_IT;
-  }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
-/* -------------------------------------------------------------------------- */
+
 /*
    SNESSetUp_NEWTONLS - Sets up the internal data structures for the later use
    of the SNESNEWTONLS nonlinear solver.
@@ -284,24 +281,19 @@ PetscErrorCode SNESSolve_NEWTONLS(SNES snes)
 
    Application Interface Routine: SNESSetUp()
 
-   Notes:
-   For basic use of the SNES solvers, the user need not explicitly call
-   SNESSetUp(), since these actions will automatically occur during
-   the call to SNESSolve().
  */
 PetscErrorCode SNESSetUp_NEWTONLS(SNES snes)
 {
   PetscFunctionBegin;
   PetscCall(SNESSetUpMatrices(snes));
-  if (snes->npcside== PC_LEFT && snes->functype == SNES_FUNCTION_DEFAULT) snes->functype = SNES_FUNCTION_PRECONDITIONED;
-  PetscFunctionReturn(0);
+  if (snes->npcside == PC_LEFT && snes->functype == SNES_FUNCTION_DEFAULT) snes->functype = SNES_FUNCTION_PRECONDITIONED;
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
-/* -------------------------------------------------------------------------- */
 
 PetscErrorCode SNESReset_NEWTONLS(SNES snes)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -318,9 +310,8 @@ PetscErrorCode SNESDestroy_NEWTONLS(SNES snes)
   PetscFunctionBegin;
   PetscCall(SNESReset_NEWTONLS(snes));
   PetscCall(PetscFree(snes->data));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
-/* -------------------------------------------------------------------------- */
 
 /*
    SNESView_NEWTONLS - Prints info from the SNESNEWTONLS data structure.
@@ -331,18 +322,16 @@ PetscErrorCode SNESDestroy_NEWTONLS(SNES snes)
 
    Application Interface Routine: SNESView()
 */
-static PetscErrorCode SNESView_NEWTONLS(SNES snes,PetscViewer viewer)
+static PetscErrorCode SNESView_NEWTONLS(SNES snes, PetscViewer viewer)
 {
-  PetscBool      iascii;
+  PetscBool iascii;
 
   PetscFunctionBegin;
-  PetscCall(PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii));
-  if (iascii) {
-  }
-  PetscFunctionReturn(0);
+  PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &iascii));
+  if (iascii) { }
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/* -------------------------------------------------------------------------- */
 /*
    SNESSetFromOptions_NEWTONLS - Sets various parameters for the SNESNEWTONLS method.
 
@@ -351,38 +340,36 @@ static PetscErrorCode SNESView_NEWTONLS(SNES snes,PetscViewer viewer)
 
    Application Interface Routine: SNESSetFromOptions()
 */
-static PetscErrorCode SNESSetFromOptions_NEWTONLS(PetscOptionItems *PetscOptionsObject,SNES snes)
+static PetscErrorCode SNESSetFromOptions_NEWTONLS(SNES snes, PetscOptionItems *PetscOptionsObject)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/* -------------------------------------------------------------------------- */
 /*MC
       SNESNEWTONLS - Newton based nonlinear solver that uses a line search
 
-   Options Database:
+   Options Database Keys:
 +   -snes_linesearch_type <bt> - bt,basic.  Select line search type
 .   -snes_linesearch_order <3> - 2, 3. Selects the order of the line search for bt
-.   -snes_linesearch_norms <true> - Turns on/off computation of the norms for basic linesearch (SNESLineSearchSetComputeNorms())
+.   -snes_linesearch_norms <true> - Turns on/off computation of the norms for basic linesearch (`SNESLineSearchSetComputeNorms()`)
 .   -snes_linesearch_alpha <alpha> - Sets alpha used in determining if reduction in function norm is sufficient
 .   -snes_linesearch_maxstep <maxstep> - Sets the maximum stepsize the line search will use (if the 2-norm(y) > maxstep then scale y to be y = (maxstep/2-norm(y)) *y)
 .   -snes_linesearch_minlambda <minlambda>  - Sets the minimum lambda the line search will tolerate
 .   -snes_linesearch_monitor - print information about progress of line searches
 -   -snes_linesearch_damping - damping factor used for basic line search
 
-    Notes:
-    This is the default nonlinear solver in SNES
+    Note:
+    This is the default nonlinear solver in `SNES`
 
    Level: beginner
 
 .seealso: `SNESCreate()`, `SNES`, `SNESSetType()`, `SNESNEWTONTR`, `SNESQN`, `SNESLineSearchSetType()`, `SNESLineSearchSetOrder()`
-          `SNESLineSearchSetPostCheck()`, `SNESLineSearchSetPreCheck()` `SNESLineSearchSetComputeNorms()`
-
+          `SNESLineSearchSetPostCheck()`, `SNESLineSearchSetPreCheck()` `SNESLineSearchSetComputeNorms()`, `SNESGetLineSearch()`
 M*/
 PETSC_EXTERN PetscErrorCode SNESCreate_NEWTONLS(SNES snes)
 {
-  SNES_NEWTONLS  *neP;
+  SNES_NEWTONLS *neP;
   SNESLineSearch linesearch;
 
   PetscFunctionBegin;
@@ -398,13 +385,11 @@ PETSC_EXTERN PetscErrorCode SNESCreate_NEWTONLS(SNES snes)
   snes->usesnpc = PETSC_TRUE;
 
   PetscCall(SNESGetLineSearch(snes, &linesearch));
-  if (!((PetscObject)linesearch)->type_name) {
-    PetscCall(SNESLineSearchSetType(linesearch, SNESLINESEARCHBT));
-  }
+  if (!((PetscObject)linesearch)->type_name) PetscCall(SNESLineSearchSetType(linesearch, SNESLINESEARCHBT));
 
   snes->alwayscomputesfinalresidual = PETSC_TRUE;
 
-  PetscCall(PetscNewLog(snes,&neP));
-  snes->data    = (void*)neP;
-  PetscFunctionReturn(0);
+  PetscCall(PetscNew(&neP));
+  snes->data = (void *)neP;
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

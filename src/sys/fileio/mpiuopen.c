@@ -7,224 +7,216 @@
 #include <errno.h>
 
 /*@C
-    PetscFOpen - Has the first process in the communicator open a file;
+    PetscFOpen - Has the first process in the MPI communicator open a file;
     all others do nothing.
 
-    Logically Collective
+    Logically Collective; No Fortran Support
 
     Input Parameters:
-+   comm - the communicator
++   comm - the MPI communicator
 .   name - the filename
--   mode - the mode for fopen(), usually "w"
+-   mode - the mode for `fopen()`, usually "w"
 
     Output Parameter:
 .   fp - the file pointer
 
     Level: developer
 
-    Notes:
-       NULL (0), "stderr" or "stdout" may be passed in as the filename
-
-    Fortran Note:
-    This routine is not supported in Fortran.
+    Note:
+       `NULL`, "stderr" or "stdout" may be passed in as the filename
 
 .seealso: `PetscFClose()`, `PetscSynchronizedFGets()`, `PetscSynchronizedPrintf()`, `PetscSynchronizedFlush()`,
           `PetscFPrintf()`
 @*/
-PetscErrorCode  PetscFOpen(MPI_Comm comm,const char name[],const char mode[],FILE **fp)
+PetscErrorCode PetscFOpen(MPI_Comm comm, const char name[], const char mode[], FILE **fp)
 {
-  PetscMPIInt    rank;
-  FILE           *fd;
-  char           fname[PETSC_MAX_PATH_LEN],tname[PETSC_MAX_PATH_LEN];
+  PetscMPIInt rank;
+  FILE       *fd;
+  char        fname[PETSC_MAX_PATH_LEN], tname[PETSC_MAX_PATH_LEN];
 
   PetscFunctionBegin;
-  PetscCallMPI(MPI_Comm_rank(comm,&rank));
+  PetscCallMPI(MPI_Comm_rank(comm, &rank));
   if (rank == 0) {
-    PetscBool isstdout,isstderr;
-    PetscCall(PetscStrcmp(name,"stdout",&isstdout));
-    PetscCall(PetscStrcmp(name,"stderr",&isstderr));
+    PetscBool isstdout, isstderr;
+    PetscCall(PetscStrcmp(name, "stdout", &isstdout));
+    PetscCall(PetscStrcmp(name, "stderr", &isstderr));
     if (isstdout || !name) fd = PETSC_STDOUT;
     else if (isstderr) fd = PETSC_STDERR;
     else {
-      PetscBool devnull;
-      PetscCall(PetscStrreplace(PETSC_COMM_SELF,name,tname,PETSC_MAX_PATH_LEN));
-      PetscCall(PetscFixFilename(tname,fname));
-      PetscCall(PetscStrbeginswith(fname,"/dev/null",&devnull));
-      if (devnull) {
-        PetscCall(PetscStrcpy(fname,"/dev/null"));
-      }
-      PetscCall(PetscInfo(0,"Opening file %s\n",fname));
-      fd   = fopen(fname,mode);
-      PetscCheck(fd,PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Unable to open file %s",fname);
+      PetscBool devnull = PETSC_FALSE;
+      PetscCall(PetscStrreplace(PETSC_COMM_SELF, name, tname, PETSC_MAX_PATH_LEN));
+      PetscCall(PetscFixFilename(tname, fname));
+      PetscCall(PetscStrbeginswith(fname, "/dev/null", &devnull));
+      if (devnull) PetscCall(PetscStrncpy(fname, "/dev/null", sizeof(fname)));
+      PetscCall(PetscInfo(0, "Opening file %s\n", fname));
+      fd = fopen(fname, mode);
+      PetscCheck(fd, PETSC_COMM_SELF, PETSC_ERR_FILE_OPEN, "Unable to open file %s", fname);
     }
   } else fd = NULL;
   *fp = fd;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-    PetscFClose - Has the first processor in the communicator close a
-    file; all others do nothing.
+    PetscFClose - Has MPI rank 0 in the communicator close a
+    file (usually obtained with `PetscFOpen()`; all others do nothing.
 
-    Logically Collective
+    Logically Collective; No Fortran Support
 
     Input Parameters:
-+   comm - the communicator
--   fd - the file, opened with PetscFOpen()
++   comm - the MPI communicator
+-   fd - the file, opened with `PetscFOpen()`
 
    Level: developer
 
-    Fortran Note:
-    This routine is not supported in Fortran.
-
 .seealso: `PetscFOpen()`
 @*/
-PetscErrorCode  PetscFClose(MPI_Comm comm,FILE *fd)
+PetscErrorCode PetscFClose(MPI_Comm comm, FILE *fd)
 {
-  PetscMPIInt    rank;
-  int            err;
+  PetscMPIInt rank;
+  int         err;
 
   PetscFunctionBegin;
-  PetscCallMPI(MPI_Comm_rank(comm,&rank));
+  PetscCallMPI(MPI_Comm_rank(comm, &rank));
   if (rank == 0 && fd != PETSC_STDOUT && fd != PETSC_STDERR) {
     err = fclose(fd);
-    PetscCheck(!err,PETSC_COMM_SELF,PETSC_ERR_SYS,"fclose() failed on file");
+    PetscCheck(!err, PETSC_COMM_SELF, PETSC_ERR_SYS, "fclose() failed on file");
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 #if defined(PETSC_HAVE_POPEN)
 static char PetscPOpenMachine[128] = "";
 
 /*@C
-      PetscPClose - Closes (ends) a program on processor zero run with PetscPOpen()
+      PetscPClose - Closes (ends) a program on MPI rank 0 run with `PetscPOpen()`
 
-     Collective, but only process 0 runs the command
+     Collective, but only MPI rank 0 does anything
 
    Input Parameters:
-+   comm - MPI communicator, only processor zero runs the program
--   fp - the file pointer where program input or output may be read or NULL if don't care
++   comm - MPI communicator, only rank 0 performs the close
+-   fd - the file pointer where program input or output may be read or `NULL` if don't care
 
    Level: intermediate
 
-   Notes:
-       Does not work under Windows
+   Note:
+   Does not work under Microsoft Windows
 
 .seealso: `PetscFOpen()`, `PetscFClose()`, `PetscPOpen()`
-
 @*/
-PetscErrorCode PetscPClose(MPI_Comm comm,FILE *fd)
+PetscErrorCode PetscPClose(MPI_Comm comm, FILE *fd)
 {
-  PetscMPIInt    rank;
+  PetscMPIInt rank;
 
   PetscFunctionBegin;
-  PetscCallMPI(MPI_Comm_rank(comm,&rank));
+  PetscCallMPI(MPI_Comm_rank(comm, &rank));
   if (rank == 0) {
     char buf[1024];
-    while (fgets(buf,1024,fd)) ; /* wait till it prints everything */
-    (void) pclose(fd);
+    while (fgets(buf, 1024, fd))
+      ; /* wait till it prints everything */
+    (void)pclose(fd);
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-      PetscPOpen - Runs a program on processor zero and sends either its input or output to
+      PetscPOpen - Runs a program on MPI rank 0 and sends either its input or output to
           a file.
 
-     Logically Collective, but only process 0 runs the command
+     Logically Collective, but only MPI rank 0 runs the command
 
    Input Parameters:
 +   comm - MPI communicator, only processor zero runs the program
-.   machine - machine to run command on or NULL, or string with 0 in first location
+.   machine - machine to run command on or `NULL`, or a string with 0 in first location
 .   program - name of program to run
--   mode - either r or w
+-   mode - either "r" or "w"
 
    Output Parameter:
-.   fp - the file pointer where program input or output may be read or NULL if don't care
+.   fp - the file pointer where program input or output may be read or `NULL` if results are not needed
 
    Level: intermediate
 
    Notes:
-       Use PetscPClose() to close the file pointer when you are finished with it
-       Does not work under Windows
+       Use `PetscPClose()` to close the file pointer when you are finished with it
 
-       If machine is not provided will use the value set with PetsPOpenSetMachine() if that was provided, otherwise
-       will use the machine running node zero of the communicator
+       Does not work under Microsoft Windows
+
+       If machine is not provided will use the value set with `PetsPOpenSetMachine()` if that was provided, otherwise
+       will use the machine running MPI rank 0 of the communicator
 
        The program string may contain ${DISPLAY}, ${HOMEDIRECTORY} or ${WORKINGDIRECTORY}; these
     will be replaced with relevant values.
 
 .seealso: `PetscFOpen()`, `PetscFClose()`, `PetscPClose()`, `PetscPOpenSetMachine()`
-
 @*/
-PetscErrorCode  PetscPOpen(MPI_Comm comm,const char machine[],const char program[],const char mode[],FILE **fp)
+PetscErrorCode PetscPOpen(MPI_Comm comm, const char machine[], const char program[], const char mode[], FILE **fp)
 {
-  PetscMPIInt    rank;
-  size_t         i,len,cnt;
-  char           commandt[PETSC_MAX_PATH_LEN],command[PETSC_MAX_PATH_LEN];
-  FILE           *fd;
+  PetscMPIInt rank;
+  size_t      i, len, cnt;
+  char        commandt[PETSC_MAX_PATH_LEN], command[PETSC_MAX_PATH_LEN];
+  FILE       *fd;
 
   PetscFunctionBegin;
   /* all processors have to do the string manipulation because PetscStrreplace() is a collective operation */
   if (PetscPOpenMachine[0] || (machine && machine[0])) {
-    PetscCall(PetscStrcpy(command,"ssh "));
+    PetscCall(PetscStrncpy(command, "ssh ", sizeof(command)));
     if (PetscPOpenMachine[0]) {
-      PetscCall(PetscStrcat(command,PetscPOpenMachine));
+      PetscCall(PetscStrlcat(command, PetscPOpenMachine, sizeof(command)));
     } else {
-      PetscCall(PetscStrcat(command,machine));
+      PetscCall(PetscStrlcat(command, machine, sizeof(command)));
     }
-    PetscCall(PetscStrcat(command," \" export DISPLAY=${DISPLAY}; "));
+    PetscCall(PetscStrlcat(command, " \" export DISPLAY=${DISPLAY}; ", sizeof(command)));
     /*
         Copy program into command but protect the " with a \ in front of it
     */
-    PetscCall(PetscStrlen(command,&cnt));
-    PetscCall(PetscStrlen(program,&len));
-    for (i=0; i<len; i++) {
+    PetscCall(PetscStrlen(command, &cnt));
+    PetscCall(PetscStrlen(program, &len));
+    for (i = 0; i < len; i++) {
       if (program[i] == '\"') command[cnt++] = '\\';
       command[cnt++] = program[i];
     }
     command[cnt] = 0;
 
-    PetscCall(PetscStrcat(command,"\""));
+    PetscCall(PetscStrlcat(command, "\"", sizeof(command)));
   } else {
-    PetscCall(PetscStrcpy(command,program));
+    PetscCall(PetscStrncpy(command, program, sizeof(command)));
   }
 
-  PetscCall(PetscStrreplace(comm,command,commandt,1024));
+  PetscCall(PetscStrreplace(comm, command, commandt, 1024));
 
-  PetscCallMPI(MPI_Comm_rank(comm,&rank));
+  PetscCallMPI(MPI_Comm_rank(comm, &rank));
   if (rank == 0) {
-    PetscCall(PetscInfo(NULL,"Running command :%s\n",commandt));
-    PetscCheck((fd = popen(commandt,mode)),PETSC_COMM_SELF,PETSC_ERR_LIB,"Cannot run command %s",commandt);
+    PetscCall(PetscInfo(NULL, "Running command :%s\n", commandt));
+    PetscCheck((fd = popen(commandt, mode)), PETSC_COMM_SELF, PETSC_ERR_LIB, "Cannot run command %s", commandt);
     if (fp) *fp = fd;
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-      PetscPOpenSetMachine - Sets the name of the default machine to run PetscPOpen() calls on
+      PetscPOpenSetMachine - Sets the name of the default machine to run `PetscPOpen()` calls on
 
-     Logically Collective, but only process 0 runs the command
+     Logically Collective, but only MPI rank 0 runs the command
 
    Input Parameter:
-.   machine - machine to run command on or NULL for the current machine
+.   machine - machine to run command on or `NULL` for the current machine
 
-   Options Database:
+   Options Database Key:
 .   -popen_machine <machine> - run the process on this machine
 
    Level: intermediate
 
 .seealso: `PetscFOpen()`, `PetscFClose()`, `PetscPClose()`, `PetscPOpen()`
 @*/
-PetscErrorCode  PetscPOpenSetMachine(const char machine[])
+PetscErrorCode PetscPOpenSetMachine(const char machine[])
 {
   PetscFunctionBegin;
   if (machine) {
-    PetscCall(PetscStrcpy(PetscPOpenMachine,machine));
+    PetscCall(PetscStrncpy(PetscPOpenMachine, machine, sizeof(PetscPOpenMachine)));
   } else {
     PetscPOpenMachine[0] = 0;
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 #endif

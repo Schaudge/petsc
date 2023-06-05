@@ -1,21 +1,20 @@
 /*
-       Low cost access to system time. This, in general, should not
-     be included in user programs.
+       Low cost access to a system time. This, in general, should not be included in user programs.
 */
-#if !defined(PETSCTIME_H)
+#ifndef PETSCTIME_H
 #define PETSCTIME_H
 
 #include <petscsys.h>
 
 /* SUBMANSEC = Sys */
 
-PETSC_EXTERN PetscErrorCode PetscGetCPUTime(PetscLogDouble*);
+PETSC_EXTERN PetscErrorCode PetscGetCPUTime(PetscLogDouble *);
 
 /* Global counters */
 PETSC_EXTERN PetscLogDouble petsc_BaseTime;
 
 /*MC
-   PetscTime - Returns the current time of day in seconds.
+   PetscTime - Returns the current time from some base time in the past in seconds.
 
    Synopsis:
     #include <petsctime.h>
@@ -27,26 +26,26 @@ PETSC_EXTERN PetscLogDouble petsc_BaseTime;
 .  v - time counter
 
    Usage:
+.vb
      PetscLogDouble v;
      PetscTime(&v);
      .... perform some calculation ...
      printf("Time for operation %g\n",v);
+.ve
 
    Level: developer
 
    Notes:
    Since the PETSc libraries incorporate timing of phases and operations,
    we do not recommend ever using PetscTime()
-   The options database command  -log_view activate
-   PETSc library timing. See Users-Manual: ch_profiling for more details.
+   The options database command  `-log_view` activates
+   PETSc library timing.
 
 .seealso: `PetscTimeSubtract()`, `PetscTimeAdd()`, `PetscLogStageRegister()`, `PetscLogEventRegister()`, `PetscLogEventBegin()`, `PetscLogEventEnd()`
-
 M*/
 
 /*MC
-   PetscTimeSubtract - Subtracts the current time of day (in seconds) from
-   the value v.
+   PetscTimeSubtract - Subtracts the current time (in seconds) from the value `v`.
 
    Synopsis:
     #include <petsctime.h>
@@ -58,24 +57,22 @@ M*/
 .  v - time counter
 
    Output Parameter:
-.  v - time counter (v = v - current time)
+.  v - time counter (`v` = `v` - current time)
 
    Level: developer
 
    Notes:
    Since the PETSc libraries incorporate timing of phases and operations,
-   we do not every recommend using PetscTimeSubtract()
-   The options database command  -log_view activates
-   PETSc library timing.  See Users-Manual: ch_profiling for more details, also
-   see PetscLogStageRegister(), PetscLogEventRegister(), PetscLogEventBegin(), PetscLogEventEnd() for how to register
+   we do not always recommend using `PetscTimeSubtract()`.
+   The options database command  `-log_view` activates
+   PETSc library timing. See `PetscLogStageRegister()`, `PetscLogEventRegister()`, `PetscLogEventBegin()`, `PetscLogEventEnd()` for how to register
    stages and events in application codes.
 
 .seealso: `PetscTime()`, `PetscTimeAdd()`, `PetscLogStageRegister()`, `PetscLogEventRegister()`, `PetscLogEventBegin()`, `PetscLogEventEnd()`
-
 M*/
 
 /*MC
-   PetscTimeAdd - Adds the current time of day (in seconds) to the value v.
+   PetscTimeAdd - Adds the current time (in seconds) to the value `v`.
 
    Synopsis:
     #include <petsctime.h>
@@ -87,36 +84,35 @@ M*/
 .  v - time counter
 
    Output Parameter:
-.  v - time counter (v = v + current time)
+.  v - time counter (`v` = `v` + current time)
 
    Level: developer
 
    Notes:
    Since the PETSc libraries incorporate timing of phases and operations,
-   we do not ever recommend using PetscTimeAdd().
-   The options database command -log_view activate
-   PETSc library timing. See Users-Manual: ch_profiling for more details.
+   we do not ever recommend using `PetscTimeAdd()`.
+   The options database command `-log_view` activates
+   PETSc library timing.
 
 .seealso: `PetscTime()`, `PetscTimeSubtract()`, `PetscLogStageRegister()`, `PetscLogEventRegister()`, `PetscLogEventBegin()`, `PetscLogEventEnd()`
-
 M*/
 
 static inline PetscErrorCode PetscTime(PetscLogDouble *v)
 {
   *v = MPI_Wtime();
-  return 0;
+  return PETSC_SUCCESS;
 }
 
 static inline PetscErrorCode PetscTimeSubtract(PetscLogDouble *v)
 {
   *v -= MPI_Wtime();
-  return 0;
+  return PETSC_SUCCESS;
 }
 
 static inline PetscErrorCode PetscTimeAdd(PetscLogDouble *v)
 {
   *v += MPI_Wtime();
-  return 0;
+  return PETSC_SUCCESS;
 }
 
 #endif

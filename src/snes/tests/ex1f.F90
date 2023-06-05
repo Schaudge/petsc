@@ -103,8 +103,7 @@
       PetscBool          pc
       external           postcheck
 
-      PetscScalar        lx_v(0:1)
-      PetscOffset        lx_i
+      PetscScalar,pointer :: lx_v(:)
 
 !  Store parameters in common block
 
@@ -123,7 +122,7 @@
       PetscCallMPIA(MPI_Comm_size(PETSC_COMM_WORLD,size,ierr))
       PetscCallMPIA(MPI_Comm_rank(PETSC_COMM_WORLD,rank,ierr))
 
-      if (size .ne. 1) then; SETERRA(PETSC_COMM_SELF,PETSC_ERR_WRONG_MPI_SIZE,'This is a uniprocessor example only'); endif
+      PetscCheckA(size .eq. 1,PETSC_COMM_SELF,PETSC_ERR_WRONG_MPI_SIZE,'This is a uniprocessor example only')
 
 !  Initialize problem parameters
       i5 = 5
@@ -135,7 +134,7 @@
       PetscCallA(PetscOptionsGetInt(PETSC_NULL_OPTIONS,PETSC_NULL_CHARACTER,'-mx',mx,flg,ierr))
       PetscCallA(PetscOptionsGetInt(PETSC_NULL_OPTIONS,PETSC_NULL_CHARACTER,'-my',my,flg,ierr))
       PetscCallA(PetscOptionsGetReal(PETSC_NULL_OPTIONS,PETSC_NULL_CHARACTER,'-par',lambda,flg,ierr))
-      if (lambda .ge. lambda_max .or. lambda .le. lambda_min) then; SETERRA(PETSC_COMM_SELF,PETSC_ERR_USER,'Lambda out of range '); endif
+      PetscCheckA(lambda .lt. lambda_max .and. lambda .gt. lambda_min,PETSC_COMM_SELF,PETSC_ERR_USER,'Lambda out of range ')
       N  = mx*my
       pc = PETSC_FALSE
       PetscCallA(PetscOptionsGetBool(PETSC_NULL_OPTIONS,PETSC_NULL_CHARACTER,'-pc',pc,PETSC_NULL_BOOL,ierr))
@@ -269,9 +268,9 @@
       PetscCallA(PetscDrawCreate(PETSC_COMM_WORLD,PETSC_NULL_CHARACTER,'Solution',300,0,300,300,draw,ierr))
       PetscCallA(PetscDrawSetFromOptions(draw,ierr))
 
-      PetscCallA(VecGetArrayRead(x,lx_v,lx_i,ierr))
-      PetscCallA(PetscDrawTensorContour(draw,mx,my,PETSC_NULL_REAL,PETSC_NULL_REAL,lx_v(lx_i+1),ierr))
-      PetscCallA(VecRestoreArrayRead(x,lx_v,lx_i,ierr))
+      PetscCallA(VecGetArrayReadF90(x,lx_v,ierr))
+      PetscCallA(PetscDrawTensorContour(draw,mx,my,PETSC_NULL_REAL,PETSC_NULL_REAL,lx_v,ierr))
+      PetscCallA(VecRestoreArrayReadF90(x,lx_v,ierr))
 
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  Free work space.  All PETSc objects should be destroyed when they
@@ -305,7 +304,7 @@
 !  done using the standard Fortran style of treating the local
 !  vector data as a multidimensional array over the local mesh.
 !  This routine merely accesses the local vector data via
-!  VecGetArray() and VecRestoreArray().
+!  VecGetArrayF90() and VecRestoreArrayF90().
 !
       subroutine FormInitialGuess(X,ierr)
       use petscsnes
@@ -315,35 +314,29 @@
       Vec           X
       PetscErrorCode    ierr
 
-!  Declarations for use with local arrays:
-      PetscScalar   lx_v(0:1)
-      PetscOffset   lx_i
+!     Declarations for use with local arrays:
+      PetscScalar,pointer :: lx_v(:)
 
       ierr   = 0
 
 !  Get a pointer to vector data.
-!    - For default PETSc vectors, VecGetArray() returns a pointer to
-!      the data array.  Otherwise, the routine is implementation dependent.
-!    - You MUST call VecRestoreArray() when you no longer need access to
+!    - VecGetArrayF90() returns a pointer to the data array.
+!    - You MUST call VecRestoreArrayF90() when you no longer need access to
 !      the array.
-!    - Note that the Fortran interface to VecGetArray() differs from the
-!      C version.  See the users manual for details.
 
-      PetscCallA(VecGetArray(X,lx_v,lx_i,ierr))
+      PetscCallA(VecGetArrayF90(X,lx_v,ierr))
 
 !  Compute initial guess
 
-      PetscCallA(ApplicationInitialGuess(lx_v(lx_i),ierr))
+      PetscCallA(ApplicationInitialGuess(lx_v,ierr))
 
 !  Restore vector
 
-      PetscCallA(VecRestoreArray(X,lx_v,lx_i,ierr))
+      PetscCallA(VecRestoreArrayF90(X,lx_v,ierr))
 
       return
       end
 
-! ---------------------------------------------------------------------
-!
 !  ApplicationInitialGuess - Computes initial approximation, called by
 !  the higher level routine FormInitialGuess().
 !
@@ -416,7 +409,7 @@
 !  done using the standard Fortran style of treating the local
 !  vector data as a multidimensional array over the local mesh.
 !  This routine merely accesses the local vector data via
-!  VecGetArray() and VecRestoreArray().
+!  VecGetArrayF90() and VecRestoreArrayF90().
 !
       subroutine FormFunction(snes,X,F,fdcoloring,ierr)
       use petscsnes
@@ -435,30 +428,25 @@
       common            /params/ lambda,mx,my,fd_coloring
 
 !  Declarations for use with local arrays:
-      PetscScalar       lx_v(0:1),lf_v(0:1)
-      PetscOffset       lx_i,lf_i
-
+      PetscScalar,pointer :: lx_v(:), lf_v(:)
       PetscInt, pointer :: indices(:)
 
 !  Get pointers to vector data.
-!    - For default PETSc vectors, VecGetArray() returns a pointer to
-!      the data array.  Otherwise, the routine is implementation dependent.
-!    - You MUST call VecRestoreArray() when you no longer need access to
+!    - VecGetArrayF90() returns a pointer to the data array.
+!    - You MUST call VecRestoreArrayF90() when you no longer need access to
 !      the array.
-!    - Note that the Fortran interface to VecGetArray() differs from the
-!      C version.  See the Fortran chapter of the users manual for details.
 
-      PetscCallA(VecGetArrayRead(X,lx_v,lx_i,ierr))
-      PetscCallA(VecGetArray(F,lf_v,lf_i,ierr))
+      PetscCallA(VecGetArrayReadF90(X,lx_v,ierr))
+      PetscCallA(VecGetArrayF90(F,lf_v,ierr))
 
 !  Compute function
 
-      PetscCallA(ApplicationFunction(lx_v(lx_i),lf_v(lf_i),ierr))
+      PetscCallA(ApplicationFunction(lx_v,lf_v,ierr))
 
 !  Restore vectors
 
-      PetscCallA(VecRestoreArrayRead(X,lx_v,lx_i,ierr))
-      PetscCallA(VecRestoreArray(F,lf_v,lf_i,ierr))
+      PetscCallA(VecRestoreArrayReadF90(X,lx_v,ierr))
+      PetscCallA(VecRestoreArrayF90(F,lf_v,ierr))
 
       PetscCallA(PetscLogFlops(11.0d0*mx*my,ierr))
 !
@@ -558,7 +546,7 @@
 !  done using the standard Fortran style of treating the local
 !  vector data as a multidimensional array over the local mesh.
 !  This routine merely accesses the local vector data via
-!  VecGetArray() and VecRestoreArray().
+!  VecGetArrayF90() and VecRestoreArrayF90().
 !
       subroutine FormJacobian(snes,X,jac,jac_prec,dummy,ierr)
       use petscsnes
@@ -578,20 +566,19 @@
       common        /params/ lambda,mx,my,fd_coloring
 
 !  Declarations for use with local array:
-      PetscScalar   lx_v(0:1)
-      PetscOffset   lx_i
+      PetscScalar,pointer :: lx_v(:)
 
 !  Get a pointer to vector data
 
-      PetscCallA(VecGetArrayRead(X,lx_v,lx_i,ierr))
+      PetscCallA(VecGetArrayReadF90(X,lx_v,ierr))
 
 !  Compute Jacobian entries
 
-      PetscCallA(ApplicationJacobian(lx_v(lx_i),jac,jac_prec,ierr))
+      PetscCallA(ApplicationJacobian(lx_v,jac,jac_prec,ierr))
 
 !  Restore vector
 
-      PetscCallA(VecRestoreArrayRead(X,lx_v,lx_i,ierr))
+      PetscCallA(VecRestoreArrayReadF90(X,lx_v,ierr))
 
 !  Assemble matrix
 

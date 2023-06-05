@@ -10,12 +10,14 @@ if __name__ == '__main__':
   import configure
   configure_options = [
     '--package-prefix-hash='+petsc_hash_pkgs,
-    'CC=icc',
-    'CXX=icpc',
-    'FC=ifort',
-    'COPTFLAGS=-g -O',
-    'FOPTFLAGS=-g -O',
-    'CXXOPTFLAGS=-g -O',
+    'CC=icx',
+    'CXX=icpx',
+    'FC=ifx',
+    # Intel compilers enable GCC/clangs equivalent of -ffast-math *by default*. This is
+    # bananas, so we make sure they use the same model as everyone else
+    'COPTFLAGS=-g -O -fp-model=precise',
+    'FOPTFLAGS=-g -O -fp-model=precise',
+    'CXXOPTFLAGS=-g -O -fp-model=precise',
     '--with-blaslapack-dir='+os.environ['MKLROOT'],
     '--with-mkl_pardiso-dir='+os.environ['MKLROOT'],
     '--download-mpich=1',
@@ -30,5 +32,6 @@ if __name__ == '__main__':
     '--download-kokkos-cmake-arguments=-DKokkos_ENABLE_DEPRECATION_WARNINGS=OFF', # avoid warnings caused by broken [[deprecated]] in Intel compiler
     '--download-cmake', # need cmake-3.16+ to build Kokkos
     '--download-raja',
+    '--with-strict-petscerrorcode',
   ]
   configure.petsc_configure(configure_options)

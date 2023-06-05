@@ -1,4 +1,4 @@
-#include <petsc/private/dmpleximpl.h>   /*I      "petscdmplex.h"   I*/
+#include <petsc/private/dmpleximpl.h> /*I      "petscdmplex.h"   I*/
 #include <petsc/private/isimpl.h>
 #include <petscsf.h>
 #include <petscds.h>
@@ -6,40 +6,40 @@
 /* get adjacencies due to point-to-point constraints that can't be found with DMPlexGetAdjacency() */
 static PetscErrorCode DMPlexComputeAnchorAdjacencies(DM dm, PetscBool useCone, PetscBool useClosure, PetscSection *anchorSectionAdj, PetscInt *anchorAdj[])
 {
-  PetscInt       pStart, pEnd;
-  PetscSection   section, sectionGlobal, adjSec, aSec;
-  IS             aIS;
+  PetscInt     pStart, pEnd;
+  PetscSection section, sectionGlobal, adjSec, aSec;
+  IS           aIS;
 
   PetscFunctionBegin;
   PetscCall(DMGetLocalSection(dm, &section));
   PetscCall(DMGetGlobalSection(dm, &sectionGlobal));
-  PetscCall(PetscSectionCreate(PetscObjectComm((PetscObject) section), &adjSec));
-  PetscCall(PetscSectionGetChart(section,&pStart,&pEnd));
-  PetscCall(PetscSectionSetChart(adjSec,pStart,pEnd));
+  PetscCall(PetscSectionCreate(PetscObjectComm((PetscObject)section), &adjSec));
+  PetscCall(PetscSectionGetChart(section, &pStart, &pEnd));
+  PetscCall(PetscSectionSetChart(adjSec, pStart, pEnd));
 
-  PetscCall(DMPlexGetAnchors(dm,&aSec,&aIS));
+  PetscCall(DMPlexGetAnchors(dm, &aSec, &aIS));
   if (aSec) {
     const PetscInt *anchors;
-    PetscInt       p, q, a, aSize, *offsets, aStart, aEnd, *inverse, iSize, *adj, adjSize;
+    PetscInt        p, q, a, aSize, *offsets, aStart, aEnd, *inverse, iSize, *adj, adjSize;
     PetscInt       *tmpAdjP = NULL, *tmpAdjQ = NULL;
-    PetscSection   inverseSec;
+    PetscSection    inverseSec;
 
     /* invert the constraint-to-anchor map */
-    PetscCall(PetscSectionCreate(PetscObjectComm((PetscObject)aSec),&inverseSec));
-    PetscCall(PetscSectionSetChart(inverseSec,pStart,pEnd));
+    PetscCall(PetscSectionCreate(PetscObjectComm((PetscObject)aSec), &inverseSec));
+    PetscCall(PetscSectionSetChart(inverseSec, pStart, pEnd));
     PetscCall(ISGetLocalSize(aIS, &aSize));
     PetscCall(ISGetIndices(aIS, &anchors));
 
     for (p = 0; p < aSize; p++) {
       PetscInt a = anchors[p];
 
-      PetscCall(PetscSectionAddDof(inverseSec,a,1));
+      PetscCall(PetscSectionAddDof(inverseSec, a, 1));
     }
     PetscCall(PetscSectionSetUp(inverseSec));
-    PetscCall(PetscSectionGetStorageSize(inverseSec,&iSize));
-    PetscCall(PetscMalloc1(iSize,&inverse));
-    PetscCall(PetscCalloc1(pEnd-pStart,&offsets));
-    PetscCall(PetscSectionGetChart(aSec,&aStart,&aEnd));
+    PetscCall(PetscSectionGetStorageSize(inverseSec, &iSize));
+    PetscCall(PetscMalloc1(iSize, &inverse));
+    PetscCall(PetscCalloc1(pEnd - pStart, &offsets));
+    PetscCall(PetscSectionGetChart(aSec, &aStart, &aEnd));
     for (p = aStart; p < aEnd; p++) {
       PetscInt dof, off;
 
@@ -51,7 +51,7 @@ static PetscErrorCode DMPlexComputeAnchorAdjacencies(DM dm, PetscBool useCone, P
 
         a = anchors[off + q];
         PetscCall(PetscSectionGetOffset(inverseSec, a, &iOff));
-        inverse[iOff + offsets[a-pStart]++] = p;
+        inverse[iOff + offsets[a - pStart]++] = p;
       }
     }
     PetscCall(ISRestoreIndices(aIS, &anchors));
@@ -77,15 +77,15 @@ static PetscErrorCode DMPlexComputeAnchorAdjacencies(DM dm, PetscBool useCone, P
     for (p = pStart; p < pEnd; p++) {
       PetscInt iDof, iOff, i, r, s, numAdjP = PETSC_DETERMINE;
 
-      PetscCall(PetscSectionGetDof(inverseSec,p,&iDof));
+      PetscCall(PetscSectionGetDof(inverseSec, p, &iDof));
       if (!iDof) continue;
-      PetscCall(PetscSectionGetOffset(inverseSec,p,&iOff));
-      PetscCall(DMPlexGetAdjacency_Internal(dm,p,useCone,useClosure,PETSC_TRUE,&numAdjP,&tmpAdjP));
+      PetscCall(PetscSectionGetOffset(inverseSec, p, &iOff));
+      PetscCall(DMPlexGetAdjacency_Internal(dm, p, useCone, useClosure, PETSC_TRUE, &numAdjP, &tmpAdjP));
       for (i = 0; i < iDof; i++) {
         PetscInt iNew = 0, qAdj, qAdjDof, qAdjCDof, numAdjQ = PETSC_DETERMINE;
 
         q = inverse[iOff + i];
-        PetscCall(DMPlexGetAdjacency_Internal(dm,q,useCone,useClosure,PETSC_TRUE,&numAdjQ,&tmpAdjQ));
+        PetscCall(DMPlexGetAdjacency_Internal(dm, q, useCone, useClosure, PETSC_TRUE, &numAdjQ, &tmpAdjQ));
         for (r = 0; r < numAdjQ; r++) {
           qAdj = tmpAdjQ[r];
           if ((qAdj < pStart) || (qAdj >= pEnd)) continue;
@@ -93,33 +93,33 @@ static PetscErrorCode DMPlexComputeAnchorAdjacencies(DM dm, PetscBool useCone, P
             if (qAdj == tmpAdjP[s]) break;
           }
           if (s < numAdjP) continue;
-          PetscCall(PetscSectionGetDof(section,qAdj,&qAdjDof));
-          PetscCall(PetscSectionGetConstraintDof(section,qAdj,&qAdjCDof));
+          PetscCall(PetscSectionGetDof(section, qAdj, &qAdjDof));
+          PetscCall(PetscSectionGetConstraintDof(section, qAdj, &qAdjCDof));
           iNew += qAdjDof - qAdjCDof;
         }
-        PetscCall(PetscSectionAddDof(adjSec,p,iNew));
+        PetscCall(PetscSectionAddDof(adjSec, p, iNew));
       }
     }
 
     PetscCall(PetscSectionSetUp(adjSec));
-    PetscCall(PetscSectionGetStorageSize(adjSec,&adjSize));
-    PetscCall(PetscMalloc1(adjSize,&adj));
+    PetscCall(PetscSectionGetStorageSize(adjSec, &adjSize));
+    PetscCall(PetscMalloc1(adjSize, &adj));
 
     for (p = pStart; p < pEnd; p++) {
       PetscInt iDof, iOff, i, r, s, aOff, aOffOrig, aDof, numAdjP = PETSC_DETERMINE;
 
-      PetscCall(PetscSectionGetDof(inverseSec,p,&iDof));
+      PetscCall(PetscSectionGetDof(inverseSec, p, &iDof));
       if (!iDof) continue;
-      PetscCall(PetscSectionGetOffset(inverseSec,p,&iOff));
-      PetscCall(DMPlexGetAdjacency_Internal(dm,p,useCone,useClosure,PETSC_TRUE,&numAdjP,&tmpAdjP));
-      PetscCall(PetscSectionGetDof(adjSec,p,&aDof));
-      PetscCall(PetscSectionGetOffset(adjSec,p,&aOff));
+      PetscCall(PetscSectionGetOffset(inverseSec, p, &iOff));
+      PetscCall(DMPlexGetAdjacency_Internal(dm, p, useCone, useClosure, PETSC_TRUE, &numAdjP, &tmpAdjP));
+      PetscCall(PetscSectionGetDof(adjSec, p, &aDof));
+      PetscCall(PetscSectionGetOffset(adjSec, p, &aOff));
       aOffOrig = aOff;
       for (i = 0; i < iDof; i++) {
         PetscInt qAdj, qAdjDof, qAdjCDof, qAdjOff, nd, numAdjQ = PETSC_DETERMINE;
 
         q = inverse[iOff + i];
-        PetscCall(DMPlexGetAdjacency_Internal(dm,q,useCone,useClosure,PETSC_TRUE,&numAdjQ,&tmpAdjQ));
+        PetscCall(DMPlexGetAdjacency_Internal(dm, q, useCone, useClosure, PETSC_TRUE, &numAdjQ, &tmpAdjQ));
         for (r = 0; r < numAdjQ; r++) {
           qAdj = tmpAdjQ[r];
           if ((qAdj < pStart) || (qAdj >= pEnd)) continue;
@@ -127,16 +127,14 @@ static PetscErrorCode DMPlexComputeAnchorAdjacencies(DM dm, PetscBool useCone, P
             if (qAdj == tmpAdjP[s]) break;
           }
           if (s < numAdjP) continue;
-          PetscCall(PetscSectionGetDof(section,qAdj,&qAdjDof));
-          PetscCall(PetscSectionGetConstraintDof(section,qAdj,&qAdjCDof));
-          PetscCall(PetscSectionGetOffset(sectionGlobal,qAdj,&qAdjOff));
-          for (nd = 0; nd < qAdjDof-qAdjCDof; ++nd) {
-            adj[aOff++] = (qAdjOff < 0 ? -(qAdjOff+1) : qAdjOff) + nd;
-          }
+          PetscCall(PetscSectionGetDof(section, qAdj, &qAdjDof));
+          PetscCall(PetscSectionGetConstraintDof(section, qAdj, &qAdjCDof));
+          PetscCall(PetscSectionGetOffset(sectionGlobal, qAdj, &qAdjOff));
+          for (nd = 0; nd < qAdjDof - qAdjCDof; ++nd) adj[aOff++] = (qAdjOff < 0 ? -(qAdjOff + 1) : qAdjOff) + nd;
         }
       }
-      PetscCall(PetscSortRemoveDupsInt(&aDof,&adj[aOffOrig]));
-      PetscCall(PetscSectionSetDof(adjSec,p,aDof));
+      PetscCall(PetscSortRemoveDupsInt(&aDof, &adj[aOffOrig]));
+      PetscCall(PetscSectionSetDof(adjSec, p, aDof));
     }
     *anchorAdj = adj;
 
@@ -145,13 +143,12 @@ static PetscErrorCode DMPlexComputeAnchorAdjacencies(DM dm, PetscBool useCone, P
     PetscCall(PetscFree(inverse));
     PetscCall(PetscFree(tmpAdjP));
     PetscCall(PetscFree(tmpAdjQ));
-  }
-  else {
+  } else {
     *anchorAdj = NULL;
     PetscCall(PetscSectionSetUp(adjSec));
   }
   *anchorSectionAdj = adjSec;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, PetscSF sfDof, PetscBool useCone, PetscBool useClosure, PetscBool useAnchors, PetscSection *sA, PetscInt **colIdx)
@@ -169,8 +166,8 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
   PetscInt           adjSize;
 
   PetscFunctionBegin;
-  PetscCall(PetscObjectGetComm((PetscObject) dm, &comm));
-  PetscCall(PetscOptionsGetBool(NULL,NULL, "-dm_view_preallocation", &debug, NULL));
+  PetscCall(PetscObjectGetComm((PetscObject)dm, &comm));
+  PetscCall(PetscOptionsGetBool(NULL, NULL, "-dm_view_preallocation", &debug, NULL));
   PetscCallMPI(MPI_Comm_size(comm, &size));
   PetscCall(DMGetDimension(dm, &dim));
   PetscCall(DMGetPointSF(dm, &sf));
@@ -226,20 +223,16 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
     PetscCall(DMPlexGetAdjacency_Internal(dm, p, useCone, useClosure, useAnchors, &numAdj, &tmpAdj));
     for (q = 0; q < numAdj; ++q) {
       const PetscInt padj = tmpAdj[q];
-      PetscInt ndof, ncdof;
+      PetscInt       ndof, ncdof;
 
       if ((padj < pStart) || (padj >= pEnd)) continue;
       PetscCall(PetscSectionGetDof(section, padj, &ndof));
       PetscCall(PetscSectionGetConstraintDof(section, padj, &ncdof));
-      for (d = off; d < off+dof; ++d) {
-        PetscCall(PetscSectionAddDof(leafSectionAdj, d, ndof-ncdof));
-      }
+      for (d = off; d < off + dof; ++d) PetscCall(PetscSectionAddDof(leafSectionAdj, d, ndof - ncdof));
     }
     PetscCall(PetscSectionGetDof(anchorSectionAdj, p, &anDof));
     if (anDof) {
-      for (d = off; d < off+dof; ++d) {
-        PetscCall(PetscSectionAddDof(leafSectionAdj, d, anDof));
-      }
+      for (d = off; d < off + dof; ++d) PetscCall(PetscSectionAddDof(leafSectionAdj, d, anDof));
     }
   }
   PetscCall(PetscSectionSetUp(leafSectionAdj));
@@ -269,20 +262,16 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
     PetscCall(DMPlexGetAdjacency_Internal(dm, p, useCone, useClosure, useAnchors, &numAdj, &tmpAdj));
     for (q = 0; q < numAdj; ++q) {
       const PetscInt padj = tmpAdj[q];
-      PetscInt ndof, ncdof;
+      PetscInt       ndof, ncdof;
 
       if ((padj < pStart) || (padj >= pEnd)) continue;
       PetscCall(PetscSectionGetDof(section, padj, &ndof));
       PetscCall(PetscSectionGetConstraintDof(section, padj, &ncdof));
-      for (d = off; d < off+dof; ++d) {
-        PetscCall(PetscSectionAddDof(rootSectionAdj, d, ndof-ncdof));
-      }
+      for (d = off; d < off + dof; ++d) PetscCall(PetscSectionAddDof(rootSectionAdj, d, ndof - ncdof));
     }
     PetscCall(PetscSectionGetDof(anchorSectionAdj, p, &anDof));
     if (anDof) {
-      for (d = off; d < off+dof; ++d) {
-        PetscCall(PetscSectionAddDof(rootSectionAdj, d, anDof));
-      }
+      for (d = off; d < off + dof; ++d) PetscCall(PetscSectionAddDof(rootSectionAdj, d, anDof));
     }
   }
   PetscCall(PetscSectionSetUp(rootSectionAdj));
@@ -312,25 +301,25 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
     PetscCall(DMPlexGetAdjacency_Internal(dm, p, useCone, useClosure, useAnchors, &numAdj, &tmpAdj));
     PetscCall(PetscSectionGetDof(anchorSectionAdj, p, &anDof));
     PetscCall(PetscSectionGetOffset(anchorSectionAdj, p, &anOff));
-    for (d = off; d < off+dof; ++d) {
+    for (d = off; d < off + dof; ++d) {
       PetscInt aoff, i = 0;
 
       PetscCall(PetscSectionGetOffset(leafSectionAdj, d, &aoff));
       for (q = 0; q < numAdj; ++q) {
         const PetscInt padj = tmpAdj[q];
-        PetscInt ndof, ncdof, ngoff, nd;
+        PetscInt       ndof, ncdof, ngoff, nd;
 
         if ((padj < pStart) || (padj >= pEnd)) continue;
         PetscCall(PetscSectionGetDof(section, padj, &ndof));
         PetscCall(PetscSectionGetConstraintDof(section, padj, &ncdof));
         PetscCall(PetscSectionGetOffset(sectionGlobal, padj, &ngoff));
-        for (nd = 0; nd < ndof-ncdof; ++nd) {
-          adj[aoff+i] = (ngoff < 0 ? -(ngoff+1) : ngoff) + nd;
+        for (nd = 0; nd < ndof - ncdof; ++nd) {
+          adj[aoff + i] = (ngoff < 0 ? -(ngoff + 1) : ngoff) + nd;
           ++i;
         }
       }
       for (q = 0; q < anDof; q++) {
-        adj[aoff+i] = anchorAdj[anOff+q];
+        adj[aoff + i] = anchorAdj[anOff + q];
         ++i;
       }
     }
@@ -357,12 +346,12 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
     PetscCall(PetscMalloc1(radjsize, &remoteadj));
     PetscCall(PetscSFGatherBegin(sfAdj, MPIU_INT, adj, remoteadj));
     PetscCall(PetscSFGatherEnd(sfAdj, MPIU_INT, adj, remoteadj));
-    for (p = 0, l = 0, r = 0; p < adjSize; ++p, l = PetscMax(p, l + indegree[p-1])) {
+    for (p = 0, l = 0, r = 0; p < adjSize; ++p, l = PetscMax(p, l + indegree[p - 1])) {
       PetscInt s;
-      for (s = 0; s < indegree[p]; ++s, ++r) rootAdj[l+s] = remoteadj[r];
+      for (s = 0; s < indegree[p]; ++s, ++r) rootAdj[l + s] = remoteadj[r];
     }
-    PetscCheck(r == radjsize,PETSC_COMM_SELF, PETSC_ERR_PLIB, "Inconsistency in communication %" PetscInt_FMT " != %" PetscInt_FMT, r, radjsize);
-    PetscCheck(l == adjSize,PETSC_COMM_SELF, PETSC_ERR_PLIB, "Inconsistency in communication %" PetscInt_FMT " != %" PetscInt_FMT, l, adjSize);
+    PetscCheck(r == radjsize, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Inconsistency in communication %" PetscInt_FMT " != %" PetscInt_FMT, r, radjsize);
+    PetscCheck(l == adjSize, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Inconsistency in communication %" PetscInt_FMT " != %" PetscInt_FMT, l, adjSize);
     PetscCall(PetscFree(remoteadj));
   }
   PetscCall(PetscSFDestroy(&sfAdj));
@@ -387,26 +376,26 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
     PetscCall(DMPlexGetAdjacency_Internal(dm, p, useCone, useClosure, useAnchors, &numAdj, &tmpAdj));
     PetscCall(PetscSectionGetDof(anchorSectionAdj, p, &anDof));
     PetscCall(PetscSectionGetOffset(anchorSectionAdj, p, &anOff));
-    for (d = off; d < off+dof; ++d) {
+    for (d = off; d < off + dof; ++d) {
       PetscInt adof, aoff, i;
 
       PetscCall(PetscSectionGetDof(rootSectionAdj, d, &adof));
       PetscCall(PetscSectionGetOffset(rootSectionAdj, d, &aoff));
-      i    = adof-1;
+      i = adof - 1;
       for (q = 0; q < anDof; q++) {
-        rootAdj[aoff+i] = anchorAdj[anOff+q];
+        rootAdj[aoff + i] = anchorAdj[anOff + q];
         --i;
       }
       for (q = 0; q < numAdj; ++q) {
         const PetscInt padj = tmpAdj[q];
-        PetscInt ndof, ncdof, ngoff, nd;
+        PetscInt       ndof, ncdof, ngoff, nd;
 
         if ((padj < pStart) || (padj >= pEnd)) continue;
         PetscCall(PetscSectionGetDof(section, padj, &ndof));
         PetscCall(PetscSectionGetConstraintDof(section, padj, &ncdof));
         PetscCall(PetscSectionGetOffset(sectionGlobal, padj, &ngoff));
-        for (nd = 0; nd < ndof-ncdof; ++nd) {
-          rootAdj[aoff+i] = ngoff < 0 ? -(ngoff+1)+nd : ngoff+nd;
+        for (nd = 0; nd < ndof - ncdof; ++nd) {
+          rootAdj[aoff + i] = ngoff < 0 ? -(ngoff + 1) + nd : ngoff + nd;
           --i;
         }
       }
@@ -432,7 +421,7 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
     if (!dof) continue;
     PetscCall(PetscSectionGetDof(rootSectionAdj, off, &adof));
     if (adof <= 0) continue;
-    for (d = off; d < off+dof-cdof; ++d) {
+    for (d = off; d < off + dof - cdof; ++d) {
       PetscCall(PetscSectionGetDof(rootSectionAdj, d, &adof));
       PetscCall(PetscSectionGetOffset(rootSectionAdj, d, &aoff));
       PetscCall(PetscSortRemoveDupsInt(&adof, &rootAdj[aoff]));
@@ -461,15 +450,15 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
     PetscCall(PetscSectionGetConstraintDof(section, p, &cdof));
     PetscCall(PetscSectionGetOffset(section, p, &off));
     PetscCall(PetscSectionGetOffset(sectionGlobal, p, &goff));
-    for (d = 0; d < dof-cdof; ++d) {
+    for (d = 0; d < dof - cdof; ++d) {
       PetscInt ldof, rdof;
 
-      PetscCall(PetscSectionGetDof(leafSectionAdj, off+d, &ldof));
-      PetscCall(PetscSectionGetDof(rootSectionAdj, off+d, &rdof));
+      PetscCall(PetscSectionGetDof(leafSectionAdj, off + d, &ldof));
+      PetscCall(PetscSectionGetDof(rootSectionAdj, off + d, &rdof));
       if (ldof > 0) {
         /* We do not own this point */
       } else if (rdof > 0) {
-        PetscCall(PetscSectionSetDof(sectionAdj, goff+d, rdof));
+        PetscCall(PetscSectionSetDof(sectionAdj, goff + d, rdof));
       } else {
         found = PETSC_FALSE;
       }
@@ -480,21 +469,17 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
     PetscCall(DMPlexGetAdjacency_Internal(dm, p, useCone, useClosure, useAnchors, &numAdj, &tmpAdj));
     for (q = 0; q < numAdj; ++q) {
       const PetscInt padj = tmpAdj[q];
-      PetscInt ndof, ncdof, noff;
+      PetscInt       ndof, ncdof, noff;
 
       if ((padj < pStart) || (padj >= pEnd)) continue;
       PetscCall(PetscSectionGetDof(section, padj, &ndof));
       PetscCall(PetscSectionGetConstraintDof(section, padj, &ncdof));
       PetscCall(PetscSectionGetOffset(section, padj, &noff));
-      for (d = goff; d < goff+dof-cdof; ++d) {
-        PetscCall(PetscSectionAddDof(sectionAdj, d, ndof-ncdof));
-      }
+      for (d = goff; d < goff + dof - cdof; ++d) PetscCall(PetscSectionAddDof(sectionAdj, d, ndof - ncdof));
     }
     PetscCall(PetscSectionGetDof(anchorSectionAdj, p, &anDof));
     if (anDof) {
-      for (d = goff; d < goff+dof-cdof; ++d) {
-        PetscCall(PetscSectionAddDof(sectionAdj, d, anDof));
-      }
+      for (d = goff; d < goff + dof - cdof; ++d) PetscCall(PetscSectionAddDof(sectionAdj, d, anDof));
     }
   }
   PetscCall(PetscSectionSetUp(sectionAdj));
@@ -513,18 +498,18 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
     PetscCall(PetscSectionGetConstraintDof(section, p, &cdof));
     PetscCall(PetscSectionGetOffset(section, p, &off));
     PetscCall(PetscSectionGetOffset(sectionGlobal, p, &goff));
-    for (d = 0; d < dof-cdof; ++d) {
+    for (d = 0; d < dof - cdof; ++d) {
       PetscInt ldof, rdof;
 
-      PetscCall(PetscSectionGetDof(leafSectionAdj, off+d, &ldof));
-      PetscCall(PetscSectionGetDof(rootSectionAdj, off+d, &rdof));
+      PetscCall(PetscSectionGetDof(leafSectionAdj, off + d, &ldof));
+      PetscCall(PetscSectionGetDof(rootSectionAdj, off + d, &rdof));
       if (ldof > 0) {
         /* We do not own this point */
       } else if (rdof > 0) {
         PetscInt aoff, roff;
 
-        PetscCall(PetscSectionGetOffset(sectionAdj, goff+d, &aoff));
-        PetscCall(PetscSectionGetOffset(rootSectionAdj, off+d, &roff));
+        PetscCall(PetscSectionGetOffset(sectionAdj, goff + d, &aoff));
+        PetscCall(PetscSectionGetOffset(rootSectionAdj, off + d, &roff));
         PetscCall(PetscArraycpy(&cols[aoff], &rootAdj[roff], rdof));
       } else {
         found = PETSC_FALSE;
@@ -534,7 +519,7 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
     PetscCall(DMPlexGetAdjacency_Internal(dm, p, useCone, useClosure, useAnchors, &numAdj, &tmpAdj));
     PetscCall(PetscSectionGetDof(anchorSectionAdj, p, &anDof));
     PetscCall(PetscSectionGetOffset(anchorSectionAdj, p, &anOff));
-    for (d = goff; d < goff+dof-cdof; ++d) {
+    for (d = goff; d < goff + dof - cdof; ++d) {
       PetscInt adof, aoff, i = 0;
 
       PetscCall(PetscSectionGetDof(sectionAdj, d, &adof));
@@ -550,14 +535,10 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
         PetscCall(PetscSectionGetConstraintDof(section, padj, &ncdof));
         PetscCall(PetscSectionGetConstraintIndices(section, padj, &ncind));
         PetscCall(PetscSectionGetOffset(sectionGlobal, padj, &ngoff));
-        for (nd = 0; nd < ndof-ncdof; ++nd, ++i) {
-          cols[aoff+i] = ngoff < 0 ? -(ngoff+1)+nd : ngoff+nd;
-        }
+        for (nd = 0; nd < ndof - ncdof; ++nd, ++i) cols[aoff + i] = ngoff < 0 ? -(ngoff + 1) + nd : ngoff + nd;
       }
-      for (q = 0; q < anDof; q++, i++) {
-        cols[aoff+i] = anchorAdj[anOff + q];
-      }
-      PetscCheck(i == adof,PETSC_COMM_SELF, PETSC_ERR_PLIB, "Invalid number of entries %" PetscInt_FMT " != %" PetscInt_FMT " for dof %" PetscInt_FMT " (point %" PetscInt_FMT ")", i, adof, d, p);
+      for (q = 0; q < anDof; q++, i++) cols[aoff + i] = anchorAdj[anOff + q];
+      PetscCheck(i == adof, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Invalid number of entries %" PetscInt_FMT " != %" PetscInt_FMT " for dof %" PetscInt_FMT " (point %" PetscInt_FMT ")", i, adof, d, p);
     }
   }
   PetscCall(PetscSectionDestroy(&anchorSectionAdj));
@@ -577,18 +558,18 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
 
   *sA     = sectionAdj;
   *colIdx = cols;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode DMPlexUpdateAllocation_Static(DM dm, PetscLayout rLayout, PetscInt bs, PetscInt f, PetscSection sectionAdj, const PetscInt cols[], PetscInt dnz[], PetscInt onz[], PetscInt dnzu[], PetscInt onzu[])
 {
-  PetscSection   section;
-  PetscInt       rStart, rEnd, r, pStart, pEnd, p;
+  PetscSection section;
+  PetscInt     rStart, rEnd, r, pStart, pEnd, p;
 
   PetscFunctionBegin;
   /* This loop needs to change to a loop over points, then field dofs, which means we need to look both sections */
   PetscCall(PetscLayoutGetRange(rLayout, &rStart, &rEnd));
-  PetscCheck((rStart%bs) == 0 && (rEnd%bs) == 0,PetscObjectComm((PetscObject) rLayout), PETSC_ERR_ARG_WRONG, "Invalid layout [%" PetscInt_FMT ", %" PetscInt_FMT ") for matrix, must be divisible by block size %" PetscInt_FMT, rStart, rEnd, bs);
+  PetscCheck((rStart % bs) == 0 && (rEnd % bs) == 0, PetscObjectComm((PetscObject)rLayout), PETSC_ERR_ARG_WRONG, "Invalid layout [%" PetscInt_FMT ", %" PetscInt_FMT ") for matrix, must be divisible by block size %" PetscInt_FMT, rStart, rEnd, bs);
   if (f >= 0 && bs == 1) {
     PetscCall(DMGetLocalSection(dm, &section));
     PetscCall(PetscSectionGetChart(section, &pStart, &pEnd));
@@ -601,50 +582,50 @@ static PetscErrorCode DMPlexUpdateAllocation_Static(DM dm, PetscLayout rLayout, 
 
         PetscCall(PetscSectionGetDof(sectionAdj, r, &numCols));
         PetscCall(PetscSectionGetOffset(sectionAdj, r, &cStart));
-        for (c = cStart; c < cStart+numCols; ++c) {
+        for (c = cStart; c < cStart + numCols; ++c) {
           if ((cols[c] >= rStart) && (cols[c] < rEnd)) {
-            ++dnz[r-rStart];
-            if (cols[c] >= r) ++dnzu[r-rStart];
+            ++dnz[r - rStart];
+            if (cols[c] >= r) ++dnzu[r - rStart];
           } else {
-            ++onz[r-rStart];
-            if (cols[c] >= r) ++onzu[r-rStart];
+            ++onz[r - rStart];
+            if (cols[c] >= r) ++onzu[r - rStart];
           }
         }
       }
     }
   } else {
     /* Only loop over blocks of rows */
-    for (r = rStart/bs; r < rEnd/bs; ++r) {
-      const PetscInt row = r*bs;
+    for (r = rStart / bs; r < rEnd / bs; ++r) {
+      const PetscInt row = r * bs;
       PetscInt       numCols, cStart, c;
 
       PetscCall(PetscSectionGetDof(sectionAdj, row, &numCols));
       PetscCall(PetscSectionGetOffset(sectionAdj, row, &cStart));
-      for (c = cStart; c < cStart+numCols; ++c) {
+      for (c = cStart; c < cStart + numCols; ++c) {
         if ((cols[c] >= rStart) && (cols[c] < rEnd)) {
-          ++dnz[r-rStart/bs];
-          if (cols[c] >= row) ++dnzu[r-rStart/bs];
+          ++dnz[r - rStart / bs];
+          if (cols[c] >= row) ++dnzu[r - rStart / bs];
         } else {
-          ++onz[r-rStart/bs];
-          if (cols[c] >= row) ++onzu[r-rStart/bs];
+          ++onz[r - rStart / bs];
+          if (cols[c] >= row) ++onzu[r - rStart / bs];
         }
       }
     }
-    for (r = 0; r < (rEnd - rStart)/bs; ++r) {
-      dnz[r]  /= bs;
-      onz[r]  /= bs;
+    for (r = 0; r < (rEnd - rStart) / bs; ++r) {
+      dnz[r] /= bs;
+      onz[r] /= bs;
       dnzu[r] /= bs;
       onzu[r] /= bs;
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode DMPlexFillMatrix_Static(DM dm, PetscLayout rLayout, PetscInt bs, PetscInt f, PetscSection sectionAdj, const PetscInt cols[], Mat A)
 {
-  PetscSection   section;
-  PetscScalar   *values;
-  PetscInt       rStart, rEnd, r, pStart, pEnd, p, len, maxRowLen = 0;
+  PetscSection section;
+  PetscScalar *values;
+  PetscInt     rStart, rEnd, r, pStart, pEnd, p, len, maxRowLen = 0;
 
   PetscFunctionBegin;
   PetscCall(PetscLayoutGetRange(rLayout, &rStart, &rEnd));
@@ -653,7 +634,7 @@ static PetscErrorCode DMPlexFillMatrix_Static(DM dm, PetscLayout rLayout, PetscI
     maxRowLen = PetscMax(maxRowLen, len);
   }
   PetscCall(PetscCalloc1(maxRowLen, &values));
-  if (f >=0 && bs == 1) {
+  if (f >= 0 && bs == 1) {
     PetscCall(DMGetLocalSection(dm, &section));
     PetscCall(PetscSectionGetChart(section, &pStart, &pEnd));
     for (p = pStart; p < pEnd; ++p) {
@@ -678,61 +659,59 @@ static PetscErrorCode DMPlexFillMatrix_Static(DM dm, PetscLayout rLayout, PetscI
     }
   }
   PetscCall(PetscFree(values));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-  DMPlexPreallocateOperator - Calculate the matrix nonzero pattern based upon the information in the DM,
-  the PetscDS it contains, and the default PetscSection.
+  DMPlexPreallocateOperator - Calculate the matrix nonzero pattern based upon the information in the `DM`,
+  the `PetscDS` it contains, and the default `PetscSection`.
 
   Collective
 
   Input Parameters:
-+ dm   - The DMPlex
++ dm   - The `DMPLEX`
 . bs   - The matrix blocksize
 . dnz  - An array to hold the number of nonzeros in the diagonal block
 . onz  - An array to hold the number of nonzeros in the off-diagonal block
 . dnzu - An array to hold the number of nonzeros in the upper triangle of the diagonal block
 . onzu - An array to hold the number of nonzeros in the upper triangle of the off-diagonal block
-- fillMatrix - If PETSC_TRUE, fill the matrix with zeros
+- fillMatrix - If `PETSC_TRUE`, fill the matrix with zeros
 
   Output Parameter:
 . A - The preallocated matrix
 
   Level: advanced
 
-.seealso: `DMCreateMatrix()`
+.seealso: [](ch_unstructured), `DM`, `DMPLEX`, `DMCreateMatrix()`
 @*/
 PetscErrorCode DMPlexPreallocateOperator(DM dm, PetscInt bs, PetscInt dnz[], PetscInt onz[], PetscInt dnzu[], PetscInt onzu[], Mat A, PetscBool fillMatrix)
 {
-  MPI_Comm       comm;
-  PetscDS        prob;
-  MatType        mtype;
-  PetscSF        sf, sfDof;
-  PetscSection   section;
-  PetscInt      *remoteOffsets;
-  PetscSection   sectionAdj[4] = {NULL, NULL, NULL, NULL};
-  PetscInt      *cols[4]       = {NULL, NULL, NULL, NULL};
-  PetscBool      useCone, useClosure;
-  PetscInt       Nf, f, idx, locRows;
-  PetscLayout    rLayout;
-  PetscBool      isSymBlock, isSymSeqBlock, isSymMPIBlock, debug = PETSC_FALSE;
-  PetscMPIInt    size;
+  MPI_Comm     comm;
+  MatType      mtype;
+  PetscSF      sf, sfDof;
+  PetscSection section;
+  PetscInt    *remoteOffsets;
+  PetscSection sectionAdj[4] = {NULL, NULL, NULL, NULL};
+  PetscInt    *cols[4]       = {NULL, NULL, NULL, NULL};
+  PetscBool    useCone, useClosure;
+  PetscInt     Nf, f, idx, locRows;
+  PetscLayout  rLayout;
+  PetscBool    isSymBlock, isSymSeqBlock, isSymMPIBlock, debug = PETSC_FALSE;
+  PetscMPIInt  size;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   PetscValidHeaderSpecific(A, MAT_CLASSID, 7);
-  if (dnz) PetscValidIntPointer(dnz,3);
-  if (onz) PetscValidIntPointer(onz,4);
-  if (dnzu) PetscValidIntPointer(dnzu,5);
-  if (onzu) PetscValidIntPointer(onzu,6);
-  PetscCall(DMGetDS(dm, &prob));
+  if (dnz) PetscValidIntPointer(dnz, 3);
+  if (onz) PetscValidIntPointer(onz, 4);
+  if (dnzu) PetscValidIntPointer(dnzu, 5);
+  if (onzu) PetscValidIntPointer(onzu, 6);
   PetscCall(DMGetPointSF(dm, &sf));
   PetscCall(DMGetLocalSection(dm, &section));
-  PetscCall(PetscOptionsGetBool(NULL,NULL, "-dm_view_preallocation", &debug, NULL));
-  PetscCall(PetscObjectGetComm((PetscObject) dm, &comm));
+  PetscCall(PetscOptionsGetBool(NULL, NULL, "-dm_view_preallocation", &debug, NULL));
+  PetscCall(PetscObjectGetComm((PetscObject)dm, &comm));
   PetscCallMPI(MPI_Comm_size(comm, &size));
-  PetscCall(PetscLogEventBegin(DMPLEX_Preallocate,dm,0,0,0));
+  PetscCall(PetscLogEventBegin(DMPLEX_Preallocate, dm, 0, 0, 0));
   /* Create dof SF based on point SF */
   if (debug) {
     PetscSection section, sectionGlobal;
@@ -767,13 +746,13 @@ PetscErrorCode DMPlexPreallocateOperator(DM dm, PetscInt bs, PetscInt dnz[], Pet
   PetscCall(PetscSectionGetNumFields(section, &Nf));
   if (Nf < 1 || bs > 1) {
     PetscCall(DMGetBasicAdjacency(dm, &useCone, &useClosure));
-    idx  = (useCone ? 1 : 0) + (useClosure ? 2 : 0);
+    idx = (useCone ? 1 : 0) + (useClosure ? 2 : 0);
     PetscCall(DMPlexCreateAdjacencySection_Static(dm, bs, sfDof, useCone, useClosure, PETSC_TRUE, &sectionAdj[idx], &cols[idx]));
     PetscCall(DMPlexUpdateAllocation_Static(dm, rLayout, bs, -1, sectionAdj[idx], cols[idx], dnz, onz, dnzu, onzu));
   } else {
     for (f = 0; f < Nf; ++f) {
       PetscCall(DMGetAdjacency(dm, f, &useCone, &useClosure));
-      idx  = (useCone ? 1 : 0) + (useClosure ? 2 : 0);
+      idx = (useCone ? 1 : 0) + (useClosure ? 2 : 0);
       if (!sectionAdj[idx]) PetscCall(DMPlexCreateAdjacencySection_Static(dm, bs, sfDof, useCone, useClosure, PETSC_TRUE, &sectionAdj[idx], &cols[idx]));
       PetscCall(DMPlexUpdateAllocation_Static(dm, rLayout, bs, f, sectionAdj[idx], cols[idx], dnz, onz, dnzu, onzu));
     }
@@ -781,7 +760,7 @@ PetscErrorCode DMPlexPreallocateOperator(DM dm, PetscInt bs, PetscInt dnz[], Pet
   PetscCall(PetscSFDestroy(&sfDof));
   /* Set matrix pattern */
   PetscCall(MatXAIJSetPreallocation(A, bs, dnz, onz, dnzu, onzu));
-  PetscCall(MatSetOption(A, MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_TRUE));
+  PetscCall(MatSetOption(A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_TRUE));
   /* Check for symmetric storage */
   PetscCall(MatGetType(A, &mtype));
   PetscCall(PetscStrcmp(mtype, MATSBAIJ, &isSymBlock));
@@ -792,12 +771,12 @@ PetscErrorCode DMPlexPreallocateOperator(DM dm, PetscInt bs, PetscInt dnz[], Pet
   if (fillMatrix) {
     if (Nf < 1 || bs > 1) {
       PetscCall(DMGetBasicAdjacency(dm, &useCone, &useClosure));
-      idx  = (useCone ? 1 : 0) + (useClosure ? 2 : 0);
+      idx = (useCone ? 1 : 0) + (useClosure ? 2 : 0);
       PetscCall(DMPlexFillMatrix_Static(dm, rLayout, bs, -1, sectionAdj[idx], cols[idx], A));
     } else {
       for (f = 0; f < Nf; ++f) {
         PetscCall(DMGetAdjacency(dm, f, &useCone, &useClosure));
-        idx  = (useCone ? 1 : 0) + (useClosure ? 2 : 0);
+        idx = (useCone ? 1 : 0) + (useClosure ? 2 : 0);
         PetscCall(DMPlexFillMatrix_Static(dm, rLayout, bs, f, sectionAdj[idx], cols[idx], A));
       }
     }
@@ -805,9 +784,12 @@ PetscErrorCode DMPlexPreallocateOperator(DM dm, PetscInt bs, PetscInt dnz[], Pet
     PetscCall(MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY));
   }
   PetscCall(PetscLayoutDestroy(&rLayout));
-  for (idx = 0; idx < 4; ++idx) {PetscCall(PetscSectionDestroy(&sectionAdj[idx])); PetscCall(PetscFree(cols[idx]));}
-  PetscCall(PetscLogEventEnd(DMPLEX_Preallocate,dm,0,0,0));
-  PetscFunctionReturn(0);
+  for (idx = 0; idx < 4; ++idx) {
+    PetscCall(PetscSectionDestroy(&sectionAdj[idx]));
+    PetscCall(PetscFree(cols[idx]));
+  }
+  PetscCall(PetscLogEventEnd(DMPLEX_Preallocate, dm, 0, 0, 0));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 #if 0
@@ -854,6 +836,6 @@ PetscErrorCode DMPlexPreallocateOperator_2(DM dm, PetscInt bs, PetscSection sect
 
   PetscCall(PetscSFReduceBegin(sf,MPIU_INT,ldnz,dnz,MPI_SUM));
   PetscCall(PetscSFReduceEnd  (sf,MPIU_INT,lonz,onz,MPI_SUM));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 #endif

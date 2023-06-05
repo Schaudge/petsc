@@ -1,44 +1,42 @@
 
-#include <petsc/private/matimpl.h>          /*I "petscmat.h" I*/
+#include <petsc/private/matimpl.h> /*I "petscmat.h" I*/
 
-PetscErrorCode MatMult_Centering(Mat A,Vec xx,Vec yy)
+PetscErrorCode MatMult_Centering(Mat A, Vec xx, Vec yy)
 {
   PetscScalar       *y;
   const PetscScalar *x;
-  PetscScalar       sum,mean;
-  PetscInt          i,m=A->rmap->n,size;
+  PetscScalar        sum, mean;
+  PetscInt           i, m = A->rmap->n, size;
 
   PetscFunctionBegin;
-  PetscCall(VecSum(xx,&sum));
-  PetscCall(VecGetSize(xx,&size));
+  PetscCall(VecSum(xx, &sum));
+  PetscCall(VecGetSize(xx, &size));
   mean = sum / (PetscScalar)size;
-  PetscCall(VecGetArrayRead(xx,&x));
-  PetscCall(VecGetArray(yy,&y));
-  for (i=0; i<m; i++) {
-    y[i] = x[i] - mean;
-  }
-  PetscCall(VecRestoreArrayRead(xx,&x));
-  PetscCall(VecRestoreArray(yy,&y));
-  PetscFunctionReturn(0);
+  PetscCall(VecGetArrayRead(xx, &x));
+  PetscCall(VecGetArray(yy, &y));
+  for (i = 0; i < m; i++) y[i] = x[i] - mean;
+  PetscCall(VecRestoreArrayRead(xx, &x));
+  PetscCall(VecRestoreArray(yy, &y));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
    MatCreateCentering - Creates a new matrix object that implements the (symmetric and idempotent) centering matrix, I - (1/N) * ones*ones'
 
-   Collective on Mat
+   Collective
 
    Input Parameters:
 +  comm - MPI communicator
-.  n - number of local rows (or PETSC_DECIDE to have calculated if N is given)
+.  n - number of local rows (or `PETSC_DECIDE` to have calculated if `N` is given)
            This value should be the same as the local size used in creating the
            y vector for the matrix-vector product y = Ax.
--  N - number of global rows (or PETSC_DETERMINE to have calculated if n is given)
+-  N - number of global rows (or `PETSC_DETERMINE` to have calculated if `n` is given)
 
    Output Parameter:
 .  C - the matrix
 
    Notes:
-   The entries of the matrix C are not explicitly stored. Instead, the new matrix
+   The entries of the matrix `C` are not explicitly stored. Instead, the new matrix
    object is a shell that simply performs the action of the centering matrix, i.e.,
    multiplying C*x subtracts the mean of the vector x from each of its elements.
    This is useful for preserving sparsity when mean-centering the columns of a
@@ -47,24 +45,24 @@ PetscErrorCode MatMult_Centering(Mat A,Vec xx,Vec yy)
 
    Level: intermediate
 
-.seealso: `MatCreateLRC()`, `MatCreateComposite()`
+.seealso: [](ch_matrices), `Mat`, `MatCreateLRC()`, `MatCreateComposite()`
 @*/
-PetscErrorCode MatCreateCentering(MPI_Comm comm,PetscInt n,PetscInt N,Mat *C)
+PetscErrorCode MatCreateCentering(MPI_Comm comm, PetscInt n, PetscInt N, Mat *C)
 {
-  PetscMPIInt    size;
+  PetscMPIInt size;
 
   PetscFunctionBegin;
-  PetscCall(MatCreate(comm,C));
-  PetscCall(MatSetSizes(*C,n,n,N,N));
-  PetscCallMPI(MPI_Comm_size(comm,&size));
-  PetscCall(PetscObjectChangeTypeName((PetscObject)*C,MATCENTERING));
+  PetscCall(MatCreate(comm, C));
+  PetscCall(MatSetSizes(*C, n, n, N, N));
+  PetscCallMPI(MPI_Comm_size(comm, &size));
+  PetscCall(PetscObjectChangeTypeName((PetscObject)*C, MATCENTERING));
 
-  (*C)->ops->mult                    = MatMult_Centering;
-  (*C)->assembled                    = PETSC_TRUE;
-  (*C)->preallocated                 = PETSC_TRUE;
-  (*C)->symmetric                    = PETSC_BOOL3_TRUE;
-  (*C)->symmetry_eternal             = PETSC_TRUE;
-  (*C)->structural_symmetry_eternal  = PETSC_TRUE;
+  (*C)->ops->mult                   = MatMult_Centering;
+  (*C)->assembled                   = PETSC_TRUE;
+  (*C)->preallocated                = PETSC_TRUE;
+  (*C)->symmetric                   = PETSC_BOOL3_TRUE;
+  (*C)->symmetry_eternal            = PETSC_TRUE;
+  (*C)->structural_symmetry_eternal = PETSC_TRUE;
   PetscCall(MatSetUp(*C));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

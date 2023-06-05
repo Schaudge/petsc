@@ -6,8 +6,7 @@ static char help[] = "Newton methods to solve u'' + u^{2} = f in parallel. Uses 
 /*
    User-defined application context
 */
-typedef struct
-{
+typedef struct {
   DM        da; /* distributed array */
   Vec       F;  /* right-hand-side of PDE */
   PetscReal h;  /* mesh spacing */
@@ -26,7 +25,7 @@ PetscErrorCode FormInitialGuess(Vec x)
 
   PetscFunctionBeginUser;
   PetscCall(VecSet(x, pfive));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* ------------------------------------------------------------------- */
@@ -79,7 +78,7 @@ PetscErrorCode CpuFunction(SNES snes, Vec x, Vec r, void *ctx)
   PetscCall(DMDAVecRestoreArray(da, r, &R));
   PetscCall(DMDAVecRestoreArray(da, user->F, &F));
   PetscCall(DMRestoreLocalVector(da, &xl));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 using DefaultExecutionSpace            = Kokkos::DefaultExecutionSpace;
@@ -115,7 +114,7 @@ PetscErrorCode KokkosFunction(SNES snes, Vec x, Vec r, void *ctx)
   PetscCall(DMDAVecRestoreKokkosOffsetViewWrite(da, r, &R));
   PetscCall(DMDAVecRestoreKokkosOffsetView(da, user->F, &F));
   PetscCall(DMRestoreLocalVector(da, &xl));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode StubFunction(SNES snes, Vec x, Vec r, void *ctx)
@@ -133,7 +132,7 @@ PetscErrorCode StubFunction(SNES snes, Vec x, Vec r, void *ctx)
   PetscCall(VecNorm(rk, NORM_2, &norm));
   PetscCall(DMRestoreGlobalVector(da, &rk));
   PetscCheck(norm <= 1e-6, PETSC_COMM_SELF, PETSC_ERR_PLIB, "KokkosFunction() different from CpuFunction() with a diff norm = %g", (double)norm);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /* ------------------------------------------------------------------- */
 /*
@@ -216,7 +215,7 @@ PetscErrorCode FormJacobian(SNES snes, Vec x, Mat jac, Mat B, void *ctx)
   PetscCall(DMDAVecRestoreArrayRead(da, x, &xx));
   PetscCall(MatAssemblyEnd(jac, MAT_FINAL_ASSEMBLY));
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 int main(int argc, char **argv)

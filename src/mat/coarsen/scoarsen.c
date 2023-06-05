@@ -24,17 +24,17 @@ PETSC_EXTERN PetscErrorCode MatCoarsenCreate_MISK(MatCoarsen);
  do not wish to register.  Make sure that the replacement routine is
   linked before libpetscmat.a.
 
- .seealso: `MatCoarsenRegister()`, `MatCoarsenRegisterDestroy()`
+.seealso: `MatCoarsen`, `MatCoarsenType`, `MatCoarsenRegister()`, `MatCoarsenRegisterDestroy()`
  @*/
-PetscErrorCode  MatCoarsenRegisterAll(void)
+PetscErrorCode MatCoarsenRegisterAll(void)
 {
   PetscFunctionBegin;
-  if (MatCoarsenRegisterAllCalled) PetscFunctionReturn(0);
+  if (MatCoarsenRegisterAllCalled) PetscFunctionReturn(PETSC_SUCCESS);
   MatCoarsenRegisterAllCalled = PETSC_TRUE;
 
-  PetscCall(MatCoarsenRegister(MATCOARSENMIS,MatCoarsenCreate_MIS));
-  PetscCall(MatCoarsenRegister(MATCOARSENHEM,MatCoarsenCreate_HEM));
-  PetscCall(MatCoarsenRegister(MATCOARSENMISK,MatCoarsenCreate_MISK));
+  PetscCall(MatCoarsenRegister(MATCOARSENMIS, MatCoarsenCreate_MIS));
+  PetscCall(MatCoarsenRegister(MATCOARSENHEM, MatCoarsenCreate_HEM));
+  PetscCall(MatCoarsenRegister(MATCOARSENMISK, MatCoarsenCreate_MISK));
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

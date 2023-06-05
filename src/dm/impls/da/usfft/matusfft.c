@@ -1,26 +1,25 @@
-
 /*
     Provides an implementation of the Unevenly Sampled FFT algorithm as a Mat.
     Testing examples can be found in ~/src/mat/tests FIX: should these be moved to dm/da/tests?
 */
 
-#include <petsc/private/matimpl.h>          /*I "petscmat.h" I*/
-#include <petscdmda.h>                  /*I "petscdmda.h"  I*/ /* Unlike equispaced FFT, USFFT requires geometric information encoded by a DMDA */
+#include <petsc/private/matimpl.h>            /*I "petscmat.h" I*/
+#include <petscdmda.h> /*I "petscdmda.h"  I*/ /* Unlike equispaced FFT, USFFT requires geometric information encoded by a DMDA */
 #include <fftw3.h>
 
 typedef struct {
   PetscInt  dim;
   Vec       sampleCoords;
   PetscInt  dof;
-  DM        freqDA;            /* frequency DMDA */
-  PetscInt  *freqSizes;        /* sizes of the frequency DMDA, one per each dim */
-  DM        resampleDa;        /* the Battle-Lemarie interpolant DMDA */
-  Vec       resample;          /* Vec of samples, one per dof per sample point */
-  fftw_plan p_forward,p_backward;
-  unsigned  p_flag;      /* planner flags, FFTW_ESTIMATE,FFTW_MEASURE, FFTW_PATIENT, FFTW_EXHAUSTIVE */
+  DM        freqDA;     /* frequency DMDA */
+  PetscInt *freqSizes;  /* sizes of the frequency DMDA, one per each dim */
+  DM        resampleDa; /* the Battle-Lemarie interpolant DMDA */
+  Vec       resample;   /* Vec of samples, one per dof per sample point */
+  fftw_plan p_forward, p_backward;
+  unsigned  p_flag; /* planner flags, FFTW_ESTIMATE,FFTW_MEASURE, FFTW_PATIENT, FFTW_EXHAUSTIVE */
 } Mat_USFFT;
 
-PetscErrorCode MatApply_USFFT_Private(Mat A, fftw_plan *plan, int direction, Vec x,Vec y)
+PetscErrorCode MatApply_USFFT_Private(Mat A, fftw_plan *plan, int direction, Vec x, Vec y)
 {
 #if 0
   PetscScalar    *r_array, *y_array;
@@ -37,12 +36,12 @@ PetscErrorCode MatApply_USFFT_Private(Mat A, fftw_plan *plan, int direction, Vec
   PetscCall(VecGetArray(y,&y_array));
   if (!*plan) { /* create a plan then execute it*/
     if (usfft->dof == 1) {
-#if defined(PETSC_DEBUG_USFFT)
+  #if defined(PETSC_DEBUG_USFFT)
       PetscCall(PetscPrintf(PetscObjectComm((PetscObject)A), "direction = %d, usfft->ndim = %d\n", direction, usfft->ndim));
       for (int ii = 0; ii < usfft->ndim; ++ii) {
         PetscCall(PetscPrintf(PetscObjectComm((PetscObject)A), "usfft->outdim[%d] = %d\n", ii, usfft->outdim[ii]));
       }
-#endif
+  #endif
 
       switch (usfft->dim) {
       case 1:
@@ -75,7 +74,7 @@ PetscErrorCode MatApply_USFFT_Private(Mat A, fftw_plan *plan, int direction, Vec
   PetscCall(VecRestoreArray(y,&y_array));
   PetscCall(VecRestoreArray(x,&x_array));
 #endif
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 } /* MatApply_USFFT_Private() */
 
 #if 0
@@ -85,7 +84,7 @@ PetscErrorCode MatUSFFT_ProjectOnBattleLemarie_Private(Vec x,double *r)
   PetscScalar    *x_array, *y_array;
 
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 } /* MatUSFFT_ProjectOnBattleLemarie_Private() */
 
 PetscErrorCode MatInterpolate_USFFT_Private(Vec x,Vec y)
@@ -93,7 +92,7 @@ PetscErrorCode MatInterpolate_USFFT_Private(Vec x,Vec y)
   PetscScalar    *x_array, *y_array;
 
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 } /* MatInterpolate_USFFT_Private() */
 
 PetscErrorCode MatMult_SeqUSFFT(Mat A,Vec x,Vec y)
@@ -103,7 +102,7 @@ PetscErrorCode MatMult_SeqUSFFT(Mat A,Vec x,Vec y)
   PetscFunctionBegin;
   /* NB: for now we use outdim for both x and y; this will change once a full USFFT is implemented */
   PetscCall(MatApply_USFFT_Private(A, &usfft->p_forward, FFTW_FORWARD, x,y));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode MatMultTranspose_SeqUSFFT(Mat A,Vec x,Vec y)
@@ -113,7 +112,7 @@ PetscErrorCode MatMultTranspose_SeqUSFFT(Mat A,Vec x,Vec y)
   PetscFunctionBegin;
   /* NB: for now we use outdim for both x and y; this will change once a full USFFT is implemented */
   PetscCall(MatApply_USFFT_Private(usfft, &usfft->p_backward, FFTW_BACKWARD, x,y));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode MatDestroy_SeqUSFFT(Mat A)
@@ -127,8 +126,8 @@ PetscErrorCode MatDestroy_SeqUSFFT(Mat A)
   PetscCall(PetscFree(usfft->outdim));
   PetscCall(PetscFree(usfft));
   PetscCall(PetscObjectChangeTypeName((PetscObject)A,0));
-  PetscFunctionReturn(0);
-} /* MatDestroy_SeqUSFFT() */
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 /*@C
       MatCreateSeqUSFFT - Creates a matrix object that provides sequential USFFT
@@ -137,16 +136,17 @@ PetscErrorCode MatDestroy_SeqUSFFT(Mat A)
    Collective
 
    Input Parameter:
-.   da - geometry of the domain encoded by a DMDA
+.   da - geometry of the domain encoded by a `DMDA`
 
    Output Parameter:
 .   A  - the matrix
 
-  Options Database Keys:
+  Options Database Key:
 . -mat_usfft_plannerflags - set the FFTW planner flags
 
    Level: intermediate
 
+.seealso: `Mat`, `Vec`, `DMDA`, `DM`
 @*/
 PetscErrorCode  MatCreateSeqUSFFT(Vec sampleCoords, DMDA freqDA, Mat *A)
 {
@@ -167,7 +167,7 @@ PetscErrorCode  MatCreateSeqUSFFT(Vec sampleCoords, DMDA freqDA, Mat *A)
   PetscCallMPI(MPI_Comm_size(comm, &size));
   PetscCheck(size <= 1,comm,PETSC_ERR_USER, "Parallel DMDA (out) not yet supported by USFFT");
   PetscCall(MatCreate(comm,A));
-  PetscCall(PetscNewLog(*A,&usfft));
+  PetscCall(PetscNew(&usfft));
   (*A)->data   = (void*)usfft;
   usfft->inda  = inda;
   usfft->outda = outda;
@@ -194,10 +194,10 @@ PetscErrorCode  MatCreateSeqUSFFT(Vec sampleCoords, DMDA freqDA, Mat *A)
   for (i = usfft->ndim; i > 0; --i) usfft->outdim[usfft->ndim-i] = dim[i-1];
 
   /* TODO: Use the new form of DMDACreate() */
-#if 0
+  #if 0
   PetscCall(DMDACreate(comm,usfft->dim, DMDA_NONPERIODIC, DMDA_STENCIL_STAR, usfft->freqSizes[0], usfft->freqSizes[1], usfft->freqSizes[2],
                        PETSC_DECIDE, PETSC_DECIDE, PETSC_DECIDE, dof, 0, NULL, NULL, NULL,  0, &(usfft->resampleDA)));
-#endif
+  #endif
   PetscCall(DMDAGetVec(usfft->resampleDA, usfft->resample));
 
   /* CONTINUE: Need to build the connectivity "Sieve" attaching sample points to the resample points they are close to */
@@ -230,7 +230,7 @@ PetscErrorCode  MatCreateSeqUSFFT(Vec sampleCoords, DMDA freqDA, Mat *A)
   PetscCall(PetscOptionsEList("-mat_usfft_fftw_plannerflags","Planner Flags","None",p_flags,4,p_flags[0],&p_flag,&flg));
   if (flg) usfft->p_flag = (unsigned)p_flag;
   PetscOptionsEnd();
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 } /* MatCreateSeqUSFFT() */
 
 #endif

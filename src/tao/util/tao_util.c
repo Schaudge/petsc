@@ -1,21 +1,19 @@
 #include <petsc/private/petscimpl.h>
-#include <petsctao.h>      /*I "petsctao.h" I*/
+#include <petsctao.h> /*I "petsctao.h" I*/
 #include <petscsys.h>
 
 static inline PetscReal Fischer(PetscReal a, PetscReal b)
 {
   /* Method suggested by Bob Vanderbei */
-   if (a + b <= 0) {
-     return PetscSqrtReal(a*a + b*b) - (a + b);
-   }
-   return -2.0*a*b / (PetscSqrtReal(a*a + b*b) + (a + b));
+  if (a + b <= 0) return PetscSqrtReal(a * a + b * b) - (a + b);
+  return -2.0 * a * b / (PetscSqrtReal(a * a + b * b) + (a + b));
 }
 
 /*@
    VecFischer - Evaluates the Fischer-Burmeister function for complementarity
    problems.
 
-   Logically Collective on vectors
+   Logically Collective
 
    Input Parameters:
 +  X - current point
@@ -25,6 +23,8 @@ static inline PetscReal Fischer(PetscReal a, PetscReal b)
 
    Output Parameter:
 .  FB - The Fischer-Burmeister function vector
+
+   Level: developer
 
    Notes:
    The Fischer-Burmeister function is defined as
@@ -39,26 +39,25 @@ $        phi(a,b) := sqrt(a*a + b*b) - a - b
 .  l[i] finite < u[i] finite -- fb[i] = phi(x[i]-l[i], phi(u[i]-x[i], -f[u]))
 -  otherwise l[i] == u[i] -- fb[i] = l[i] - x[i]
 
-   Level: developer
-
+.seealso: `Vec`, `VecSFischer()`, `MatDFischer()`, `MatDSFischer()`
 @*/
 PetscErrorCode VecFischer(Vec X, Vec F, Vec L, Vec U, Vec FB)
 {
   const PetscScalar *x, *f, *l, *u;
   PetscScalar       *fb;
-  PetscReal         xval, fval, lval, uval;
-  PetscInt          low[5], high[5], n, i;
+  PetscReal          xval, fval, lval, uval;
+  PetscInt           low[5], high[5], n, i;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(X, VEC_CLASSID,1);
-  PetscValidHeaderSpecific(F, VEC_CLASSID,2);
-  if (L) PetscValidHeaderSpecific(L, VEC_CLASSID,3);
-  if (U) PetscValidHeaderSpecific(U, VEC_CLASSID,4);
-  PetscValidHeaderSpecific(FB, VEC_CLASSID,5);
+  PetscValidHeaderSpecific(X, VEC_CLASSID, 1);
+  PetscValidHeaderSpecific(F, VEC_CLASSID, 2);
+  if (L) PetscValidHeaderSpecific(L, VEC_CLASSID, 3);
+  if (U) PetscValidHeaderSpecific(U, VEC_CLASSID, 4);
+  PetscValidHeaderSpecific(FB, VEC_CLASSID, 5);
 
   if (!L && !U) {
-    PetscCall(VecAXPBY(FB,-1.0,0.0,F));
-    PetscFunctionReturn(0);
+    PetscCall(VecAXPBY(FB, -1.0, 0.0, F));
+    PetscFunctionReturn(PETSC_SUCCESS);
   }
 
   PetscCall(VecGetOwnershipRange(X, low, high));
@@ -67,9 +66,7 @@ PetscErrorCode VecFischer(Vec X, Vec F, Vec L, Vec U, Vec FB)
   PetscCall(VecGetOwnershipRange(U, low + 3, high + 3));
   PetscCall(VecGetOwnershipRange(FB, low + 4, high + 4));
 
-  for (i = 1; i < 4; ++i) {
-    PetscCheck(low[0] == low[i] && high[0] == high[i],PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Vectors must be identically loaded over processors");
-  }
+  for (i = 1; i < 4; ++i) PetscCheck(low[0] == low[i] && high[0] == high[i], PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Vectors must be identically loaded over processors");
 
   PetscCall(VecGetArrayRead(X, &x));
   PetscCall(VecGetArrayRead(F, &f));
@@ -89,13 +86,13 @@ PetscErrorCode VecFischer(Vec X, Vec F, Vec L, Vec U, Vec FB)
       fb[i] = -fval;
     } else if (lval <= -PETSC_INFINITY) {
       fb[i] = -Fischer(uval - xval, -fval);
-    } else if (uval >=  PETSC_INFINITY) {
-      fb[i] = Fischer(xval - lval,  fval);
+    } else if (uval >= PETSC_INFINITY) {
+      fb[i] = Fischer(xval - lval, fval);
     } else if (lval == uval) {
       fb[i] = lval - xval;
     } else {
       fval  = Fischer(uval - xval, -fval);
-      fb[i] = Fischer(xval - lval,  fval);
+      fb[i] = Fischer(xval - lval, fval);
     }
   }
 
@@ -104,23 +101,21 @@ PetscErrorCode VecFischer(Vec X, Vec F, Vec L, Vec U, Vec FB)
   PetscCall(VecRestoreArrayRead(L, &l));
   PetscCall(VecRestoreArrayRead(U, &u));
   PetscCall(VecRestoreArray(FB, &fb));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static inline PetscReal SFischer(PetscReal a, PetscReal b, PetscReal c)
 {
   /* Method suggested by Bob Vanderbei */
-   if (a + b <= 0) {
-     return PetscSqrtReal(a*a + b*b + 2.0*c*c) - (a + b);
-   }
-   return 2.0*(c*c - a*b) / (PetscSqrtReal(a*a + b*b + 2.0*c*c) + (a + b));
+  if (a + b <= 0) return PetscSqrtReal(a * a + b * b + 2.0 * c * c) - (a + b);
+  return 2.0 * (c * c - a * b) / (PetscSqrtReal(a * a + b * b + 2.0 * c * c) + (a + b));
 }
 
 /*@
    VecSFischer - Evaluates the Smoothed Fischer-Burmeister function for
    complementarity problems.
 
-   Logically Collective on vectors
+   Logically Collective
 
    Input Parameters:
 +  X - current point
@@ -147,21 +142,21 @@ $        phi(a,b) := sqrt(a*a + b*b + 2*mu*mu) - a - b
 
    Level: developer
 
-.seealso `VecFischer()`
+.seealso: `Vec`, `VecFischer()`, `MatDFischer()`, `MatDSFischer()`
 @*/
 PetscErrorCode VecSFischer(Vec X, Vec F, Vec L, Vec U, PetscReal mu, Vec FB)
 {
   const PetscScalar *x, *f, *l, *u;
   PetscScalar       *fb;
-  PetscReal         xval, fval, lval, uval;
-  PetscInt          low[5], high[5], n, i;
+  PetscReal          xval, fval, lval, uval;
+  PetscInt           low[5], high[5], n, i;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(X, VEC_CLASSID,1);
-  PetscValidHeaderSpecific(F, VEC_CLASSID,2);
-  PetscValidHeaderSpecific(L, VEC_CLASSID,3);
-  PetscValidHeaderSpecific(U, VEC_CLASSID,4);
-  PetscValidHeaderSpecific(FB, VEC_CLASSID,6);
+  PetscValidHeaderSpecific(X, VEC_CLASSID, 1);
+  PetscValidHeaderSpecific(F, VEC_CLASSID, 2);
+  PetscValidHeaderSpecific(L, VEC_CLASSID, 3);
+  PetscValidHeaderSpecific(U, VEC_CLASSID, 4);
+  PetscValidHeaderSpecific(FB, VEC_CLASSID, 6);
 
   PetscCall(VecGetOwnershipRange(X, low, high));
   PetscCall(VecGetOwnershipRange(F, low + 1, high + 1));
@@ -169,9 +164,7 @@ PetscErrorCode VecSFischer(Vec X, Vec F, Vec L, Vec U, PetscReal mu, Vec FB)
   PetscCall(VecGetOwnershipRange(U, low + 3, high + 3));
   PetscCall(VecGetOwnershipRange(FB, low + 4, high + 4));
 
-  for (i = 1; i < 4; ++i) {
-    PetscCheck(low[0] == low[i] && high[0] == high[i],PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Vectors must be identically loaded over processors");
-  }
+  for (i = 1; i < 4; ++i) PetscCheck(low[0] == low[i] && high[0] == high[i], PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Vectors must be identically loaded over processors");
 
   PetscCall(VecGetArrayRead(X, &x));
   PetscCall(VecGetArrayRead(F, &f));
@@ -182,47 +175,53 @@ PetscErrorCode VecSFischer(Vec X, Vec F, Vec L, Vec U, PetscReal mu, Vec FB)
   PetscCall(VecGetLocalSize(X, &n));
 
   for (i = 0; i < n; ++i) {
-    xval = PetscRealPart(*x++); fval = PetscRealPart(*f++);
-    lval = PetscRealPart(*l++); uval = PetscRealPart(*u++);
+    xval = PetscRealPart(*x++);
+    fval = PetscRealPart(*f++);
+    lval = PetscRealPart(*l++);
+    uval = PetscRealPart(*u++);
 
     if ((lval <= -PETSC_INFINITY) && (uval >= PETSC_INFINITY)) {
-      (*fb++) = -fval - mu*xval;
+      (*fb++) = -fval - mu * xval;
     } else if (lval <= -PETSC_INFINITY) {
       (*fb++) = -SFischer(uval - xval, -fval, mu);
-    } else if (uval >=  PETSC_INFINITY) {
-      (*fb++) =  SFischer(xval - lval,  fval, mu);
+    } else if (uval >= PETSC_INFINITY) {
+      (*fb++) = SFischer(xval - lval, fval, mu);
     } else if (lval == uval) {
       (*fb++) = lval - xval;
     } else {
-      fval    =  SFischer(uval - xval, -fval, mu);
-      (*fb++) =  SFischer(xval - lval,  fval, mu);
+      fval    = SFischer(uval - xval, -fval, mu);
+      (*fb++) = SFischer(xval - lval, fval, mu);
     }
   }
-  x -= n; f -= n; l -=n; u -= n; fb -= n;
+  x -= n;
+  f -= n;
+  l -= n;
+  u -= n;
+  fb -= n;
 
   PetscCall(VecRestoreArrayRead(X, &x));
   PetscCall(VecRestoreArrayRead(F, &f));
   PetscCall(VecRestoreArrayRead(L, &l));
   PetscCall(VecRestoreArrayRead(U, &u));
   PetscCall(VecRestoreArray(FB, &fb));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static inline PetscReal fischnorm(PetscReal a, PetscReal b)
 {
-  return PetscSqrtReal(a*a + b*b);
+  return PetscSqrtReal(a * a + b * b);
 }
 
 static inline PetscReal fischsnorm(PetscReal a, PetscReal b, PetscReal c)
 {
-  return PetscSqrtReal(a*a + b*b + 2.0*c*c);
+  return PetscSqrtReal(a * a + b * b + 2.0 * c * c);
 }
 
 /*@
    MatDFischer - Calculates an element of the B-subdifferential of the
    Fischer-Burmeister function for complementarity problems.
 
-   Collective on jac
+   Collective
 
    Input Parameters:
 +  jac - the jacobian of f at X
@@ -239,25 +238,25 @@ static inline PetscReal fischsnorm(PetscReal a, PetscReal b, PetscReal c)
 
    Level: developer
 
-.seealso: `VecFischer()`
+.seealso: `Mat`, `VecFischer()`, `VecSFischer()`, `MatDSFischer()`
 @*/
 PetscErrorCode MatDFischer(Mat jac, Vec X, Vec Con, Vec XL, Vec XU, Vec T1, Vec T2, Vec Da, Vec Db)
 {
-  PetscInt          i,nn;
-  const PetscScalar *x,*f,*l,*u,*t2;
-  PetscScalar       *da,*db,*t1;
-  PetscReal          ai,bi,ci,di,ei;
+  PetscInt           i, nn;
+  const PetscScalar *x, *f, *l, *u, *t2;
+  PetscScalar       *da, *db, *t1;
+  PetscReal          ai, bi, ci, di, ei;
 
   PetscFunctionBegin;
-  PetscCall(VecGetLocalSize(X,&nn));
-  PetscCall(VecGetArrayRead(X,&x));
-  PetscCall(VecGetArrayRead(Con,&f));
-  PetscCall(VecGetArrayRead(XL,&l));
-  PetscCall(VecGetArrayRead(XU,&u));
-  PetscCall(VecGetArray(Da,&da));
-  PetscCall(VecGetArray(Db,&db));
-  PetscCall(VecGetArray(T1,&t1));
-  PetscCall(VecGetArrayRead(T2,&t2));
+  PetscCall(VecGetLocalSize(X, &nn));
+  PetscCall(VecGetArrayRead(X, &x));
+  PetscCall(VecGetArrayRead(Con, &f));
+  PetscCall(VecGetArrayRead(XL, &l));
+  PetscCall(VecGetArrayRead(XU, &u));
+  PetscCall(VecGetArray(Da, &da));
+  PetscCall(VecGetArray(Db, &db));
+  PetscCall(VecGetArray(T1, &t1));
+  PetscCall(VecGetArrayRead(T2, &t2));
 
   for (i = 0; i < nn; i++) {
     da[i] = 0.0;
@@ -270,17 +269,17 @@ PetscErrorCode MatDFischer(Mat jac, Vec X, Vec Con, Vec XL, Vec XU, Vec T1, Vec 
         da[i] = 1.0;
       }
 
-      if (PetscRealPart(u[i]) <  PETSC_INFINITY && PetscAbsScalar(u[i] - x[i]) <= PETSC_MACHINE_EPSILON) {
+      if (PetscRealPart(u[i]) < PETSC_INFINITY && PetscAbsScalar(u[i] - x[i]) <= PETSC_MACHINE_EPSILON) {
         t1[i] = 1.0;
         db[i] = 1.0;
       }
     }
   }
 
-  PetscCall(VecRestoreArray(T1,&t1));
-  PetscCall(VecRestoreArrayRead(T2,&t2));
-  PetscCall(MatMult(jac,T1,T2));
-  PetscCall(VecGetArrayRead(T2,&t2));
+  PetscCall(VecRestoreArray(T1, &t1));
+  PetscCall(VecRestoreArrayRead(T2, &t2));
+  PetscCall(MatMult(jac, T1, T2));
+  PetscCall(VecGetArrayRead(T2, &t2));
 
   for (i = 0; i < nn; i++) {
     if ((PetscRealPart(l[i]) <= PETSC_NINFINITY) && (PetscRealPart(u[i]) >= PETSC_INFINITY)) {
@@ -300,7 +299,7 @@ PetscErrorCode MatDFischer(Mat jac, Vec X, Vec Con, Vec XL, Vec XU, Vec T1, Vec 
         da[i] = bi / ai - 1.0;
         db[i] = -f[i] / ai - 1.0;
       }
-    } else if (PetscRealPart(u[i]) >=  PETSC_INFINITY) {
+    } else if (PetscRealPart(u[i]) >= PETSC_INFINITY) {
       if (PetscRealPart(da[i]) >= 1) {
         ai = fischnorm(1.0, PetscRealPart(t2[i]));
 
@@ -333,7 +332,7 @@ PetscErrorCode MatDFischer(Mat jac, Vec X, Vec Con, Vec XL, Vec XU, Vec T1, Vec 
       }
 
       if (PetscRealPart(da[i]) >= 1) {
-        bi = ci + di*PetscRealPart(t2[i]);
+        bi = ci + di * PetscRealPart(t2[i]);
         ai = fischnorm(1.0, bi);
 
         bi = bi / ai - 1.0;
@@ -347,26 +346,26 @@ PetscErrorCode MatDFischer(Mat jac, Vec X, Vec Con, Vec XL, Vec XU, Vec T1, Vec 
         ai = (PetscRealPart(x[i]) - PetscRealPart(l[i])) / ai - 1.0;
       }
 
-      da[i] = ai + bi*ci;
-      db[i] = bi*di;
+      da[i] = ai + bi * ci;
+      db[i] = bi * di;
     }
   }
 
-  PetscCall(VecRestoreArray(Da,&da));
-  PetscCall(VecRestoreArray(Db,&db));
-  PetscCall(VecRestoreArrayRead(X,&x));
-  PetscCall(VecRestoreArrayRead(Con,&f));
-  PetscCall(VecRestoreArrayRead(XL,&l));
-  PetscCall(VecRestoreArrayRead(XU,&u));
-  PetscCall(VecRestoreArrayRead(T2,&t2));
-  PetscFunctionReturn(0);
+  PetscCall(VecRestoreArray(Da, &da));
+  PetscCall(VecRestoreArray(Db, &db));
+  PetscCall(VecRestoreArrayRead(X, &x));
+  PetscCall(VecRestoreArrayRead(Con, &f));
+  PetscCall(VecRestoreArrayRead(XL, &l));
+  PetscCall(VecRestoreArrayRead(XU, &u));
+  PetscCall(VecRestoreArrayRead(T2, &t2));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
    MatDSFischer - Calculates an element of the B-subdifferential of the
    smoothed Fischer-Burmeister function for complementarity problems.
 
-   Collective on jac
+   Collective
 
    Input Parameters:
 +  jac - the jacobian of f at X
@@ -385,28 +384,28 @@ PetscErrorCode MatDFischer(Mat jac, Vec X, Vec Con, Vec XL, Vec XU, Vec T1, Vec 
 
    Level: developer
 
-.seealso `MatDFischer()`
+.seealso: `Mat`, `VecFischer()`, `VecDFischer()`, `MatDFischer()`
 @*/
-PetscErrorCode MatDSFischer(Mat jac, Vec X, Vec Con,Vec XL, Vec XU, PetscReal mu,Vec T1, Vec T2,Vec Da, Vec Db, Vec Dm)
+PetscErrorCode MatDSFischer(Mat jac, Vec X, Vec Con, Vec XL, Vec XU, PetscReal mu, Vec T1, Vec T2, Vec Da, Vec Db, Vec Dm)
 {
-  PetscInt          i,nn;
+  PetscInt           i, nn;
   const PetscScalar *x, *f, *l, *u;
   PetscScalar       *da, *db, *dm;
-  PetscReal         ai, bi, ci, di, ei, fi;
+  PetscReal          ai, bi, ci, di, ei, fi;
 
   PetscFunctionBegin;
   if (PetscAbsReal(mu) <= PETSC_MACHINE_EPSILON) {
     PetscCall(VecZeroEntries(Dm));
     PetscCall(MatDFischer(jac, X, Con, XL, XU, T1, T2, Da, Db));
   } else {
-    PetscCall(VecGetLocalSize(X,&nn));
-    PetscCall(VecGetArrayRead(X,&x));
-    PetscCall(VecGetArrayRead(Con,&f));
-    PetscCall(VecGetArrayRead(XL,&l));
-    PetscCall(VecGetArrayRead(XU,&u));
-    PetscCall(VecGetArray(Da,&da));
-    PetscCall(VecGetArray(Db,&db));
-    PetscCall(VecGetArray(Dm,&dm));
+    PetscCall(VecGetLocalSize(X, &nn));
+    PetscCall(VecGetArrayRead(X, &x));
+    PetscCall(VecGetArrayRead(Con, &f));
+    PetscCall(VecGetArrayRead(XL, &l));
+    PetscCall(VecGetArrayRead(XU, &u));
+    PetscCall(VecGetArray(Da, &da));
+    PetscCall(VecGetArray(Db, &db));
+    PetscCall(VecGetArray(Dm, &dm));
 
     for (i = 0; i < nn; ++i) {
       if ((PetscRealPart(l[i]) <= PETSC_NINFINITY) && (PetscRealPart(u[i]) >= PETSC_INFINITY)) {
@@ -421,7 +420,7 @@ PetscErrorCode MatDSFischer(Mat jac, Vec X, Vec Con,Vec XL, Vec XU, PetscReal mu
         da[i] = bi / ai - 1.0;
         db[i] = -PetscRealPart(f[i]) / ai - 1.0;
         dm[i] = 2.0 * mu / ai;
-      } else if (PetscRealPart(u[i]) >=  PETSC_INFINITY) {
+      } else if (PetscRealPart(u[i]) >= PETSC_INFINITY) {
         bi = PetscRealPart(x[i]) - PetscRealPart(l[i]);
         ai = fischsnorm(bi, PetscRealPart(f[i]), mu);
         ai = PetscMax(PETSC_MACHINE_EPSILON, ai);
@@ -450,36 +449,36 @@ PetscErrorCode MatDSFischer(Mat jac, Vec X, Vec Con,Vec XL, Vec XU, PetscReal mu
         ei = 2.0 * mu / ei;
         ai = (PetscRealPart(x[i]) - PetscRealPart(l[i])) / ai - 1.0;
 
-        da[i] = ai + bi*ci;
-        db[i] = bi*di;
-        dm[i] = ei + bi*fi;
+        da[i] = ai + bi * ci;
+        db[i] = bi * di;
+        dm[i] = ei + bi * fi;
       }
     }
 
-    PetscCall(VecRestoreArrayRead(X,&x));
-    PetscCall(VecRestoreArrayRead(Con,&f));
-    PetscCall(VecRestoreArrayRead(XL,&l));
-    PetscCall(VecRestoreArrayRead(XU,&u));
-    PetscCall(VecRestoreArray(Da,&da));
-    PetscCall(VecRestoreArray(Db,&db));
-    PetscCall(VecRestoreArray(Dm,&dm));
+    PetscCall(VecRestoreArrayRead(X, &x));
+    PetscCall(VecRestoreArrayRead(Con, &f));
+    PetscCall(VecRestoreArrayRead(XL, &l));
+    PetscCall(VecRestoreArrayRead(XU, &u));
+    PetscCall(VecRestoreArray(Da, &da));
+    PetscCall(VecRestoreArray(Db, &db));
+    PetscCall(VecRestoreArray(Dm, &dm));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static inline PetscReal ST_InternalPN(PetscScalar in, PetscReal lb, PetscReal ub)
 {
-  return PetscMax(0,(PetscReal)PetscRealPart(in)-ub) - PetscMax(0,-(PetscReal)PetscRealPart(in)-PetscAbsReal(lb));
+  return PetscMax(0, (PetscReal)PetscRealPart(in) - ub) - PetscMax(0, -(PetscReal)PetscRealPart(in) - PetscAbsReal(lb));
 }
 
 static inline PetscReal ST_InternalNN(PetscScalar in, PetscReal lb, PetscReal ub)
 {
-  return PetscMax(0,(PetscReal)PetscRealPart(in) + PetscAbsReal(ub)) - PetscMax(0,-(PetscReal)PetscRealPart(in) - PetscAbsReal(lb));
+  return PetscMax(0, (PetscReal)PetscRealPart(in) + PetscAbsReal(ub)) - PetscMax(0, -(PetscReal)PetscRealPart(in) - PetscAbsReal(lb));
 }
 
 static inline PetscReal ST_InternalPP(PetscScalar in, PetscReal lb, PetscReal ub)
 {
-  return PetscMax(0, (PetscReal)PetscRealPart(in)-ub) + PetscMin(0, (PetscReal)PetscRealPart(in) - lb);
+  return PetscMax(0, (PetscReal)PetscRealPart(in) - ub) + PetscMin(0, (PetscReal)PetscRealPart(in) - lb);
 }
 
 /*@
@@ -505,28 +504,29 @@ static inline PetscReal ST_InternalPP(PetscScalar in, PetscReal lb, PetscReal ub
 
    Level: developer
 
+.seealso: `Tao`, `Vec`
 @*/
 PetscErrorCode TaoSoftThreshold(Vec in, PetscReal lb, PetscReal ub, Vec out)
 {
-  PetscInt       i, nlocal, mlocal;
-  PetscScalar   *inarray, *outarray;
+  PetscInt     i, nlocal, mlocal;
+  PetscScalar *inarray, *outarray;
 
   PetscFunctionBegin;
   PetscCall(VecGetArrayPair(in, out, &inarray, &outarray));
   PetscCall(VecGetLocalSize(in, &nlocal));
   PetscCall(VecGetLocalSize(in, &mlocal));
 
-  PetscCheck(nlocal == mlocal,PETSC_COMM_SELF, PETSC_ERR_ARG_INCOMP, "Input and output vectors need to be of same size.");
-  PetscCheck(lb < ub,PETSC_COMM_SELF, PETSC_ERR_ARG_INCOMP, "Lower bound needs to be lower than upper bound.");
+  PetscCheck(nlocal == mlocal, PETSC_COMM_SELF, PETSC_ERR_ARG_INCOMP, "Input and output vectors need to be of same size.");
+  PetscCheck(lb < ub, PETSC_COMM_SELF, PETSC_ERR_ARG_INCOMP, "Lower bound needs to be lower than upper bound.");
 
   if (ub >= 0 && lb < 0) {
-    for (i=0; i<nlocal; i++) outarray[i] = ST_InternalPN(inarray[i], lb, ub);
+    for (i = 0; i < nlocal; i++) outarray[i] = ST_InternalPN(inarray[i], lb, ub);
   } else if (ub < 0 && lb < 0) {
-    for (i=0; i<nlocal; i++) outarray[i] = ST_InternalNN(inarray[i], lb, ub);
+    for (i = 0; i < nlocal; i++) outarray[i] = ST_InternalNN(inarray[i], lb, ub);
   } else {
-    for (i=0; i<nlocal; i++) outarray[i] = ST_InternalPP(inarray[i], lb, ub);
+    for (i = 0; i < nlocal; i++) outarray[i] = ST_InternalPP(inarray[i], lb, ub);
   }
 
   PetscCall(VecRestoreArrayPair(in, out, &inarray, &outarray));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

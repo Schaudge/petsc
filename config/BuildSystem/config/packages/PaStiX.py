@@ -34,6 +34,7 @@ class Configure(config.package.Package):
     return
 
   def Install(self):
+    usempi = self.mpi.found and not self.mpi.usingMPIUni
     import os
     g = open(os.path.join(os.path.join(self.packageDir,'src'),'config.in'),'w')
 
@@ -60,7 +61,7 @@ class Configure(config.package.Package):
       cflags = ' -DX_ARCHi686_mac    '
     else:
       cflags = ''
-    if self.mpi.found:
+    if usempi:
       g.write('CCFOPT      = '+self.updatePackageCFlags(self.getCompilerFlags())+' '+self.headers.toString(self.mpi.include)+' '+cflags+'\n')
     else:
       g.write('CCFOPT      = '+self.updatePackageCFlags(self.getCompilerFlags())+' '+cflags+'\n')
@@ -123,7 +124,7 @@ class Configure(config.package.Package):
     g.write('#                          MPI/THREADS                            #\n')
     g.write('###################################################################\n')
     g.write('\n')
-    if not self.mpi.found:
+    if not usempi:
       g.write('# uncomment the following lines for sequential (NOMPI) version\n')
       g.write('VERSIONMPI  = _nompi\n')
       g.write('CCTYPES    := $(CCTYPES) -DFORCE_NOMPI\n')
@@ -137,7 +138,7 @@ class Configure(config.package.Package):
     g.write('# Uncomment the following line to enable a progression thread\n')
     g.write('#CCPASTIX   := $(CCPASTIX) -DTHREAD_COMM\n')
     g.write('\n')
-    g.write('# Uncomment the following line if your MPI doesn\'t support MPI_THREAD_MULTIPLE leve\n')
+    g.write('# Uncomment the following line if your MPI doesn\'t support MPI_THREAD_MULTIPLE level\n')
     g.write('#CCPASTIX   := $(CCPASTIX) -DPASTIX_FUNNELED\n')
     g.write('\n')
     g.write('# Uncomment the following line if your MPI doesn\'t support MPI_Datatype correctly\n')
@@ -176,7 +177,7 @@ class Configure(config.package.Package):
     g.write('\n')
     g.write('# Scotch always needed to compile\n')
     g.write('#scotch								\n')
-    if (self.mpi.found):
+    if usempi:
       g.write('CCPASTIX   := $(CCPASTIX) -DDISTRIBUTED -DWITH_SCOTCH '+self.headers.toString(self.scotch.include)+'\n')
     else:
       g.write('CCPASTIX   := $(CCPASTIX) -DWITH_SCOTCH '+self.headers.toString(self.scotch.include)+'\n')
@@ -234,7 +235,7 @@ class Configure(config.package.Package):
       try:
         self.logPrintBox('Compiling PaStiX; this may take several minutes')
         output,err,ret = config.package.Package.executeShellCommand('cd '+os.path.join(self.packageDir,'src')+' && make all',timeout=2500, log = self.log)
-        libDir     = os.path.join(self.installDir, self.libdir)
+        libDir     = self.libDir
         includeDir = os.path.join(self.installDir, self.includedir)
         self.logPrintBox('Installing PaStiX; this may take several minutes')
         output,err,ret = config.package.Package.executeShellCommand('cd '+self.packageDir+' && mkdir -p '+libDir+' && cp -f install/*.a '+libDir+'/. && mkdir -p '+includeDir+' && cp -f install/*.h '+includeDir+'/.', timeout=2500, log = self.log)

@@ -10,16 +10,16 @@ typedef struct {
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 {
   PetscFunctionBeginUser;
-  options->report      = PETSC_FALSE;
-  options->tol         = 0.5;
-  options->condLimit   = PETSC_DETERMINE;
+  options->report    = PETSC_FALSE;
+  options->tol       = 0.5;
+  options->condLimit = PETSC_DETERMINE;
 
   PetscOptionsBegin(comm, "", "Mesh Quality Evaluation Options", "DMPLEX");
   PetscCall(PetscOptionsBool("-report", "Output a mesh quality report", "ex9.c", options->report, &options->report, NULL));
   PetscCall(PetscOptionsReal("-cond_limit", "Condition number limit for cell output", "ex9.c", options->condLimit, &options->condLimit, NULL));
   PetscCall(PetscOptionsReal("-orth_qual_atol", "Absolute tolerance for Orthogonal Quality", "ex9.c", options->tol, &options->tol, NULL));
   PetscOptionsEnd();
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
@@ -29,18 +29,18 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
   PetscCall(DMSetType(*dm, DMPLEX));
   PetscCall(DMSetFromOptions(*dm));
   PetscCall(DMViewFromOptions(*dm, NULL, "-dm_view"));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 int main(int argc, char **argv)
 {
-  DM             dm;
-  DMLabel        OQLabel;
-  Vec            OQ;
-  AppCtx         ctx;
+  DM      dm;
+  DMLabel OQLabel;
+  Vec     OQ;
+  AppCtx  ctx;
 
   PetscFunctionBeginUser;
-  PetscCall(PetscInitialize(&argc, &argv, NULL,help));
+  PetscCall(PetscInitialize(&argc, &argv, NULL, help));
   PetscCall(ProcessOptions(PETSC_COMM_WORLD, &ctx));
   PetscCall(CreateMesh(PETSC_COMM_WORLD, &ctx, &dm));
   PetscCall(DMGetCoordinatesLocalSetUp(dm));

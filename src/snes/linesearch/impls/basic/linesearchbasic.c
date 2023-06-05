@@ -1,13 +1,13 @@
 #include <petsc/private/linesearchimpl.h>
 #include <petsc/private/snesimpl.h>
 
-static PetscErrorCode  SNESLineSearchApply_Basic(SNESLineSearch linesearch)
+static PetscErrorCode SNESLineSearchApply_Basic(SNESLineSearch linesearch)
 {
-  PetscBool      changed_y, changed_w;
-  Vec            X, F, Y, W;
-  SNES           snes;
-  PetscReal      gnorm, xnorm, ynorm, lambda;
-  PetscBool      domainerror;
+  PetscBool changed_y, changed_w;
+  Vec       X, F, Y, W;
+  SNES      snes;
+  PetscReal gnorm, xnorm, ynorm, lambda;
+  PetscBool domainerror;
 
   PetscFunctionBegin;
   PetscCall(SNESLineSearchGetVecs(linesearch, &X, &F, &Y, &W, NULL));
@@ -17,24 +17,24 @@ static PetscErrorCode  SNESLineSearchApply_Basic(SNESLineSearch linesearch)
   PetscCall(SNESLineSearchSetReason(linesearch, SNES_LINESEARCH_SUCCEEDED));
 
   /* precheck */
-  PetscCall(SNESLineSearchPreCheck(linesearch,X,Y,&changed_y));
+  PetscCall(SNESLineSearchPreCheck(linesearch, X, Y, &changed_y));
 
   /* update */
-  PetscCall(VecWAXPY(W,-lambda,Y,X));
+  PetscCall(VecWAXPY(W, -lambda, Y, X));
   if (linesearch->ops->viproject) PetscCall((*linesearch->ops->viproject)(snes, W));
 
   /* postcheck */
-  PetscCall(SNESLineSearchPostCheck(linesearch,X,Y,W,&changed_y,&changed_w));
-  if (changed_y) {
-    PetscCall(VecWAXPY(W,-lambda,Y,X));
+  PetscCall(SNESLineSearchPostCheck(linesearch, X, Y, W, &changed_y, &changed_w));
+  if (changed_y && !changed_w) {
+    PetscCall(VecWAXPY(W, -lambda, Y, X));
     if (linesearch->ops->viproject) PetscCall((*linesearch->ops->viproject)(snes, W));
   }
-  if (linesearch->norms || snes->iter < snes->max_its-1) {
-    PetscCall((*linesearch->ops->snesfunc)(snes,W,F));
+  if (linesearch->norms || snes->iter < snes->max_its - 1) {
+    PetscCall((*linesearch->ops->snesfunc)(snes, W, F));
     PetscCall(SNESGetFunctionDomainError(snes, &domainerror));
     if (domainerror) {
       PetscCall(SNESLineSearchSetReason(linesearch, SNES_LINESEARCH_FAILED_DOMAIN));
-      PetscFunctionReturn(0);
+      PetscFunctionReturn(PETSC_SUCCESS);
     }
   }
 
@@ -51,33 +51,33 @@ static PetscErrorCode  SNESLineSearchApply_Basic(SNESLineSearch linesearch)
 
       PetscCall((*linesearch->ops->vinorm)(snes, F, W, &linesearch->fnorm));
     } else {
-      PetscCall(VecNorm(F,NORM_2,&linesearch->fnorm));
+      PetscCall(VecNorm(F, NORM_2, &linesearch->fnorm));
     }
   }
 
   /* copy the solution over */
   PetscCall(VecCopy(W, X));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*MC
    SNESLINESEARCHBASIC - This line search implementation is not a line
    search at all; it simply uses the full step.  Thus, this routine is intended
-   for methods with well-scaled updates; i.e. Newton's method (SNESNEWTONLS), on
-   well-behaved problems. Also named as SNESLINESEARCHNONE
+   for methods with well-scaled updates; i.e. Newton's method (`SNESNEWTONLS`), on
+   well-behaved problems. Also named as `SNESLINESEARCHNONE`
 
    Options Database Keys:
 +   -snes_linesearch_damping <damping> - search vector is scaled by this amount, default is 1.0
 -   -snes_linesearch_norms <flag> - whether to compute norms or not, default is true (SNESLineSearchSetComputeNorms())
 
-   Notes:
-   For methods with ill-scaled updates (SNESNRICHARDSON, SNESNCG), a small
+   Note:
+   For methods with ill-scaled updates (`SNESNRICHARDSON`, `SNESNCG`), a small
    damping parameter may yield satisfactory but slow convergence despite
-   the simplicity of the line search.
+   the lack of the line search.
 
    Level: advanced
 
-.seealso: `SNESLineSearchCreate()`, `SNESLineSearchSetType()`, `SNESLineSearchSetDamping()`, `SNESLineSearchSetComputeNorms()`
+.seealso: `SNES`, `SNESLineSearch`, `SNESLineSearchType`, `SNESLineSearchCreate()`, `SNESLineSearchSetType()`, `SNESLineSearchSetDamping()`, `SNESLineSearchSetComputeNorms()`
 M*/
 PETSC_EXTERN PetscErrorCode SNESLineSearchCreate_Basic(SNESLineSearch linesearch)
 {
@@ -88,5 +88,5 @@ PETSC_EXTERN PetscErrorCode SNESLineSearchCreate_Basic(SNESLineSearch linesearch
   linesearch->ops->reset          = NULL;
   linesearch->ops->view           = NULL;
   linesearch->ops->setup          = NULL;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

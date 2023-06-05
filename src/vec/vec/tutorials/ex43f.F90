@@ -1,9 +1,9 @@
 
-    module mymoduleex43f
+    module ex43fmodule
 #include <petsc/finclude/petscvec.h>
       use,intrinsic :: iso_c_binding
       interface
-        subroutine fillupvector(vaddr,err) bind ( C, name = "fillupvector")
+        subroutine fillupvector(vaddr,err) bind ( C, name = 'fillupvector')
 !
 !     We need to use iso_c_binding variables or otherwise we get compiler warnings
 !     Warning: Variable 'vaddr' at (1) is a dummy argument of the BIND(C)
@@ -19,10 +19,10 @@
 #include <petsc/finclude/petscvec.h>
         use,intrinsic :: iso_c_binding
         use petscvec
-        use mymoduleex43f
+        use ex43fmodule
        implicit none
 !
-!  This routine demonstates how to call a bind C function from Fortran
+!  This routine demonstrates how to call a bind C function from Fortran
        Vec            v
        PetscErrorCode ierr
        PetscInt five

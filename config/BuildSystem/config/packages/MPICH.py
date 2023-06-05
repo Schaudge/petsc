@@ -4,9 +4,12 @@ import os
 class Configure(config.package.GNUPackage):
   def __init__(self, framework):
     config.package.GNUPackage.__init__(self, framework)
-    self.version          = '4.0.2'
+    self.version          = '4.1.1'
     self.download         = ['https://github.com/pmodels/mpich/releases/download/v'+self.version+'/mpich-'+self.version+'.tar.gz',
-                             'https://www.mpich.org/static/downloads/'+self.version+'/mpich-'+self.version+'.tar.gz']
+                             'https://www.mpich.org/static/downloads/'+self.version+'/mpich-'+self.version+'.tar.gz', # does not always work from Python? So add in ftp.mcs URL below
+                             'https://ftp.mcs.anl.gov/pub/petsc/externalpackages'+'/mpich-'+self.version+'.tar.gz']
+    self.download_git     = ['git://https://github.com/pmodels/mpich.git']
+    self.gitsubmodules    = ['.']
     self.downloaddirnames = ['mpich']
     self.skippackagewithoptions = 1
     self.isMPI = 1
@@ -16,8 +19,10 @@ class Configure(config.package.GNUPackage):
     config.package.GNUPackage.setupDependencies(self, framework)
     self.compilerFlags   = framework.require('config.compilerFlags',self)
     self.cuda            = framework.require('config.packages.cuda',self)
+    self.hip             = framework.require('config.packages.hip',self)
     self.hwloc           = framework.require('config.packages.hwloc',self)
-    self.odeps           = [self.hwloc]
+    self.python          = framework.require('config.packages.python',self)
+    self.odeps           = [self.cuda, self.hip, self.hwloc]
     return
 
   def setupHelp(self, help):
@@ -63,7 +68,13 @@ class Configure(config.package.GNUPackage):
       mpich_device = 'ch3:nemesis'
     if self.cuda.found:
       args.append('--with-cuda='+self.cuda.cudaDir)
+      if hasattr(self.cuda,'cudaArch'):
+        args.append('--with-cuda-sm='+self.cuda.cudaArch) # MPICH's default to --with-cuda-sm=XX is 'all'
       mpich_device = 'ch4:ucx'
+    elif self.hip.found:
+      args.append('--with-hip='+self.hip.hipDir)
+      mpich_device = 'ch4:ofi' # per https://github.com/pmodels/mpich/wiki/Using-MPICH-on-Crusher@OLCF
+
     if 'download-mpich-device' in self.argDB:
       mpich_device = self.argDB['download-mpich-device']
     args.append('--with-device='+mpich_device)
@@ -77,7 +88,18 @@ class Configure(config.package.GNUPackage):
     # MPICH configure errors out on certain standard configure arguments
     args = self.rmArgs(args,['--disable-f90','--enable-f90'])
     args = self.rmArgsStartsWith(args,['F90=','F90FLAGS='])
+    args.append('PYTHON='+self.python.pyexe)
+    args.append('--disable-maintainer-mode')
+    args.append('--disable-dependency-tracking')
     return args
+
+  def gitPreReqCheck(self):
+    return self.programs.autoreconf and self.programs.libtoolize
+
+  def preInstall(self):
+    if self.retriever.isDirectoryGitRepo(self.packageDir):
+      # no need to bootstrap tarballs
+      self.Bootstrap('./autogen.sh')
 
   def Install(self):
     '''After downloading and installing MPICH we need to reset the compilers to use those defined by the MPICH install'''
@@ -89,4 +111,3 @@ class Configure(config.package.GNUPackage):
 
   def configure(self):
     return config.package.Package.configure(self)
-

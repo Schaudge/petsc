@@ -5,11 +5,13 @@
 
 /* ------------------------------ Like petscmacros.h but advanced ------------------------------ */
 
-#define PETSC_IF_INTERNAL_0(result_if_true,...) __VA_ARGS__
-#define PETSC_IF_INTERNAL_1(result_if_true,...) result_if_true
+#define PETSC_IF_INTERNAL_0(result_if_true, ...) __VA_ARGS__
+#define PETSC_IF_INTERNAL_1(result_if_true, ...) result_if_true
 
 /*
   PetscIf - Conditionally expand to the second or remaining args
+
+  No Fortran Support
 
   Input Parameters:
 + cond           - Preprocessor conditional
@@ -17,9 +19,6 @@
 - __VA_ARGS__    - Result of macro expansion if cond expands to 0
 
   Notes:
-  Not available from Fortran, requires variadic macro support, definition is disabled by
-  defining PETSC_SKIP_VARIADIC_MACROS.
-
   cond must be defined and expand (not evaluate!) to either integer literal 0 or 1. Must have
   at least 1 argument for __VA_ARGS__, but it may expand empty.
 
@@ -39,10 +38,12 @@
 
 .seealso: `PetscIfPetscDefined()`, `PetscConcat()`, `PetscExpandToNothing()`, `PetscCompl()`
 */
-#define PetscIf(cond,result_if_true,...) PetscConcat_(PETSC_IF_INTERNAL_,cond)(result_if_true,__VA_ARGS__)
+#define PetscIf(cond, result_if_true, ...) PetscConcat_(PETSC_IF_INTERNAL_, cond)(result_if_true, __VA_ARGS__)
 
 /*
   PetscIfPetscDefined - Like PetscIf(), but passes cond through PetscDefined() first
+
+  No Fortran Support
 
   Input Parameters:
 + cond           - Condition passed to PetscDefined()
@@ -50,9 +51,6 @@
 - __VA_ARGS__    - Result of macro expansion if PetscDefined(cond) expands to 0
 
   Notes:
-  Not available from Fortran, requires variadic macro support, definition is disabled by
-  defining PETSC_SKIP_VARIADIC_MACROS.
-
   cond must satisfy all conditions for PetscDefined(). Must have at least 1 argument for
   __VA_ARGS__, but it may expand empty.
 
@@ -69,6 +67,6 @@
 
 .seealso: `PetscIf()`, `PetscDefined()`, `PetscConcat()`, `PetscExpand()`, `PetscCompl()`
 */
-#define PetscIfPetscDefined(cond,result_if_true,...) PetscIf(PetscDefined(cond),result_if_true,__VA_ARGS__)
+#define PetscIfPetscDefined(cond, result_if_true, ...) PetscIf(PetscDefined(cond), result_if_true, __VA_ARGS__)
 
 #endif /* PETSCADVANCEDMACROS_H */

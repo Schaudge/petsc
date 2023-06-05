@@ -16,6 +16,8 @@ configure_options = [
   '--with-precision=double',
   '--download-mpich',
   '--download-fblaslapack',
+  '--with-strict-petscerrorcode',
+  '--with-coverage',
 ]
 
 if __name__ == '__main__':

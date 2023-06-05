@@ -1,4 +1,4 @@
-#include <petsc/private/sfimpl.h>     /*I  "petscsf.h"  I*/
+#include <petsc/private/sfimpl.h> /*I  "petscsf.h"  I*/
 
 PETSC_INTERN PetscErrorCode PetscSFCreate_Basic(PetscSF);
 #if defined(PETSC_HAVE_MPI_WIN_CREATE)
@@ -17,64 +17,64 @@ PetscFunctionList PetscSFList;
 PetscBool         PetscSFRegisterAllCalled;
 
 /*@C
-   PetscSFRegisterAll - Registers all the PetscSF communication implementations
+   PetscSFRegisterAll - Registers all the `PetscSF` communication implementations
 
    Not Collective
 
    Level: advanced
 
-.seealso: `PetscSFRegisterDestroy()`
+.seealso: `PetscSF`, `PetscSFRegister()`, `PetscSFRegisterDestroy()`
 @*/
-PetscErrorCode  PetscSFRegisterAll(void)
+PetscErrorCode PetscSFRegisterAll(void)
 {
   PetscFunctionBegin;
-  if (PetscSFRegisterAllCalled) PetscFunctionReturn(0);
+  if (PetscSFRegisterAllCalled) PetscFunctionReturn(PETSC_SUCCESS);
   PetscSFRegisterAllCalled = PETSC_TRUE;
-  PetscCall(PetscSFRegister(PETSCSFBASIC,  PetscSFCreate_Basic));
+  PetscCall(PetscSFRegister(PETSCSFBASIC, PetscSFCreate_Basic));
 #if defined(PETSC_HAVE_MPI_WIN_CREATE)
   PetscCall(PetscSFRegister(PETSCSFWINDOW, PetscSFCreate_Window));
 #endif
-  PetscCall(PetscSFRegister(PETSCSFALLGATHERV,PetscSFCreate_Allgatherv));
+  PetscCall(PetscSFRegister(PETSCSFALLGATHERV, PetscSFCreate_Allgatherv));
   PetscCall(PetscSFRegister(PETSCSFALLGATHER, PetscSFCreate_Allgather));
-  PetscCall(PetscSFRegister(PETSCSFGATHERV,   PetscSFCreate_Gatherv));
-  PetscCall(PetscSFRegister(PETSCSFGATHER,    PetscSFCreate_Gather));
-  PetscCall(PetscSFRegister(PETSCSFALLTOALL,  PetscSFCreate_Alltoall));
+  PetscCall(PetscSFRegister(PETSCSFGATHERV, PetscSFCreate_Gatherv));
+  PetscCall(PetscSFRegister(PETSCSFGATHER, PetscSFCreate_Gather));
+  PetscCall(PetscSFRegister(PETSCSFALLTOALL, PetscSFCreate_Alltoall));
 #if defined(PETSC_HAVE_MPI_NEIGHBORHOOD_COLLECTIVES)
-  PetscCall(PetscSFRegister(PETSCSFNEIGHBOR,  PetscSFCreate_Neighbor));
+  PetscCall(PetscSFRegister(PETSCSFNEIGHBOR, PetscSFCreate_Neighbor));
 #endif
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-  PetscSFRegister  - Adds an implementation of the PetscSF communication protocol.
+  PetscSFRegister  - Adds an implementation of the `PetscSF` communication protocol.
 
-   Not collective
+   Not Collective
 
    Input Parameters:
 +  name - name of a new user-defined implementation
 -  create - routine to create method context
 
-   Notes:
-   PetscSFRegister() may be called multiple times to add several user-defined implementations.
-
    Sample usage:
 .vb
-   PetscSFRegister("my_impl",MyImplCreate);
+   PetscSFRegister("my_impl", MyImplCreate);
 .ve
 
    Then, this implementation can be chosen with the procedural interface via
-$     PetscSFSetType(sf,"my_impl")
+$     PetscSFSetType(sf, "my_impl")
    or at runtime via the option
 $     -sf_type my_impl
 
    Level: advanced
 
-.seealso: `PetscSFRegisterAll()`, `PetscSFInitializePackage()`
+   Note:
+   `PetscSFRegister()` may be called multiple times to add several user-defined implementations.
+
+.seealso: `PetscSF`, `PetscSFType`, `PetscSFRegisterAll()`, `PetscSFInitializePackage()`
 @*/
-PetscErrorCode  PetscSFRegister(const char name[],PetscErrorCode (*create)(PetscSF))
+PetscErrorCode PetscSFRegister(const char name[], PetscErrorCode (*create)(PetscSF))
 {
   PetscFunctionBegin;
   PetscCall(PetscSFInitializePackage());
-  PetscCall(PetscFunctionListAdd(&PetscSFList,name,create));
-  PetscFunctionReturn(0);
+  PetscCall(PetscFunctionListAdd(&PetscSFList, name, create));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

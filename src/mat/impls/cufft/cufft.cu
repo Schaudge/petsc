@@ -4,21 +4,21 @@
     Testing examples can be found in ~src/mat/tests
 */
 
-#include <petscdevice.h>
-#include <petsc/private/matimpl.h>          /*I "petscmat.h" I*/
+#include <petscdevice_cuda.h>
+#include <petsc/private/matimpl.h> /*I "petscmat.h" I*/
 
 typedef struct {
-  PetscInt     ndim;
+  PetscInt      ndim;
   PetscInt     *dim;
-  cufftHandle  p_forward, p_backward;
+  cufftHandle   p_forward, p_backward;
   cufftComplex *devArray;
 } Mat_CUFFT;
 
 PetscErrorCode MatMult_SeqCUFFT(Mat A, Vec x, Vec y)
 {
-  Mat_CUFFT    *cufft    = (Mat_CUFFT*) A->data;
+  Mat_CUFFT    *cufft    = (Mat_CUFFT *)A->data;
   cufftComplex *devArray = cufft->devArray;
-  PetscInt      ndim     = cufft->ndim, *dim = cufft->dim;
+  PetscInt      ndim = cufft->ndim, *dim = cufft->dim;
   PetscScalar  *x_array, *y_array;
 
   PetscFunctionBegin;
@@ -41,21 +41,21 @@ PetscErrorCode MatMult_SeqCUFFT(Mat A, Vec x, Vec y)
     }
   }
   /* transfer to GPU memory */
-  PetscCallCUDA(cudaMemcpy(devArray, x_array, sizeof(cufftComplex)*dim[ndim], cudaMemcpyHostToDevice));
+  PetscCallCUDA(cudaMemcpy(devArray, x_array, sizeof(cufftComplex) * dim[ndim], cudaMemcpyHostToDevice));
   /* execute transform */
   PetscCallCUFFT(cufftExecC2C(cufft->p_forward, devArray, devArray, CUFFT_FORWARD));
   /* transfer from GPU memory */
-  PetscCallCUDA(cudaMemcpy(y_array, devArray, sizeof(cufftComplex)*dim[ndim], cudaMemcpyDeviceToHost));
+  PetscCallCUDA(cudaMemcpy(y_array, devArray, sizeof(cufftComplex) * dim[ndim], cudaMemcpyDeviceToHost));
   PetscCall(VecRestoreArray(y, &y_array));
   PetscCall(VecRestoreArray(x, &x_array));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode MatMultTranspose_SeqCUFFT(Mat A, Vec x, Vec y)
 {
-  Mat_CUFFT    *cufft    = (Mat_CUFFT*) A->data;
+  Mat_CUFFT    *cufft    = (Mat_CUFFT *)A->data;
   cufftComplex *devArray = cufft->devArray;
-  PetscInt      ndim     = cufft->ndim, *dim = cufft->dim;
+  PetscInt      ndim = cufft->ndim, *dim = cufft->dim;
   PetscScalar  *x_array, *y_array;
 
   PetscFunctionBegin;
@@ -78,68 +78,70 @@ PetscErrorCode MatMultTranspose_SeqCUFFT(Mat A, Vec x, Vec y)
     }
   }
   /* transfer to GPU memory */
-  PetscCallCUDA(cudaMemcpy(devArray, x_array, sizeof(cufftComplex)*dim[ndim], cudaMemcpyHostToDevice));
+  PetscCallCUDA(cudaMemcpy(devArray, x_array, sizeof(cufftComplex) * dim[ndim], cudaMemcpyHostToDevice));
   /* execute transform */
   PetscCallCUFFT(cufftExecC2C(cufft->p_forward, devArray, devArray, CUFFT_INVERSE));
   /* transfer from GPU memory */
-  PetscCallCUDA(cudaMemcpy(y_array, devArray, sizeof(cufftComplex)*dim[ndim], cudaMemcpyDeviceToHost));
+  PetscCallCUDA(cudaMemcpy(y_array, devArray, sizeof(cufftComplex) * dim[ndim], cudaMemcpyDeviceToHost));
   PetscCall(VecRestoreArray(y, &y_array));
   PetscCall(VecRestoreArray(x, &x_array));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode MatDestroy_SeqCUFFT(Mat A)
 {
-  Mat_CUFFT *cufft = (Mat_CUFFT*) A->data;
+  Mat_CUFFT *cufft = (Mat_CUFFT *)A->data;
 
   PetscFunctionBegin;
   PetscCall(PetscFree(cufft->dim));
-  if (cufft->p_forward)  PetscCallCUFFT(cufftDestroy(cufft->p_forward));
+  if (cufft->p_forward) PetscCallCUFFT(cufftDestroy(cufft->p_forward));
   if (cufft->p_backward) PetscCallCUFFT(cufftDestroy(cufft->p_backward));
   PetscCallCUDA(cudaFree(cufft->devArray));
   PetscCall(PetscFree(A->data));
-  PetscCall(PetscObjectChangeTypeName((PetscObject)A,0));
-  PetscFunctionReturn(0);
+  PetscCall(PetscObjectChangeTypeName((PetscObject)A, 0));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
-  MatCreateSeqCUFFT - Creates a matrix object that provides sequential FFT via the external package CUFFT
+  MatCreateSeqCUFFT - Creates a matrix object that provides `MATSEQCUFFT` via the NVIDIA package CuFFT
 
   Collective
 
   Input Parameters:
-+ comm - MPI communicator, set to PETSC_COMM_SELF
++ comm - MPI communicator, set to `PETSC_COMM_SELF`
 . ndim - the ndim-dimensional transform
-- dim  - array of size ndim, dim[i] contains the vector length in the i-dimension
+- dim  - array of size `ndim`, dim[i] contains the vector length in the i-dimension
 
   Output Parameter:
 . A - the matrix
 
-  Options Database Keys:
-. -mat_cufft_plannerflags - set CUFFT planner flags
+  Options Database Key:
+. -mat_cufft_plannerflags - set CuFFT planner flags
 
   Level: intermediate
+
+.seealso: [](ch_matrices), `Mat`, `MATSEQCUFFT`
 @*/
-PetscErrorCode  MatCreateSeqCUFFT(MPI_Comm comm, PetscInt ndim, const PetscInt dim[], Mat *A)
+PetscErrorCode MatCreateSeqCUFFT(MPI_Comm comm, PetscInt ndim, const PetscInt dim[], Mat *A)
 {
   Mat_CUFFT *cufft;
   PetscInt   m = 1;
 
   PetscFunctionBegin;
-  PetscCheck(ndim >= 0,PETSC_COMM_SELF, PETSC_ERR_USER, "ndim %" PetscInt_FMT " must be > 0", ndim);
-  if (ndim) PetscValidIntPointer(dim,3);
-  PetscValidPointer(A,4);
+  PetscCheck(ndim >= 0, PETSC_COMM_SELF, PETSC_ERR_USER, "ndim %" PetscInt_FMT " must be > 0", ndim);
+  if (ndim) PetscValidIntPointer(dim, 3);
+  PetscValidPointer(A, 4);
   PetscCall(MatCreate(comm, A));
   for (PetscInt d = 0; d < ndim; ++d) {
-    PetscCheck(dim[d] >= 0,PETSC_COMM_SELF, PETSC_ERR_USER, "dim[%" PetscInt_FMT "]=%" PetscInt_FMT " must be > 0", d, dim[d]);
+    PetscCheck(dim[d] >= 0, PETSC_COMM_SELF, PETSC_ERR_USER, "dim[%" PetscInt_FMT "]=%" PetscInt_FMT " must be > 0", d, dim[d]);
     m *= dim[d];
   }
   PetscCall(MatSetSizes(*A, m, m, m, m));
   PetscCall(PetscObjectChangeTypeName((PetscObject)*A, MATSEQCUFFT));
 
-  PetscCall(PetscNewLog(*A,&cufft));
-  (*A)->data = (void*) cufft;
-  PetscCall(PetscMalloc1(ndim+1, &cufft->dim));
+  PetscCall(PetscNew(&cufft));
+  (*A)->data = (void *)cufft;
+  PetscCall(PetscMalloc1(ndim + 1, &cufft->dim));
   PetscCall(PetscArraycpy(cufft->dim, dim, ndim));
 
   cufft->ndim       = ndim;
@@ -148,7 +150,7 @@ PetscErrorCode  MatCreateSeqCUFFT(MPI_Comm comm, PetscInt ndim, const PetscInt d
   cufft->dim[ndim]  = m;
 
   /* GPU memory allocation */
-  PetscCallCUDA(cudaMalloc((void**) &cufft->devArray, sizeof(cufftComplex)*m));
+  PetscCallCUDA(cudaMalloc((void **)&cufft->devArray, sizeof(cufftComplex) * m));
 
   (*A)->ops->mult          = MatMult_SeqCUFFT;
   (*A)->ops->multtranspose = MatMultTranspose_SeqCUFFT;
@@ -158,5 +160,5 @@ PetscErrorCode  MatCreateSeqCUFFT(MPI_Comm comm, PetscInt ndim, const PetscInt d
   /* get runtime options ...what options????? */
   PetscOptionsBegin(comm, ((PetscObject)(*A))->prefix, "CUFFT Options", "Mat");
   PetscOptionsEnd();
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

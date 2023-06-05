@@ -4,15 +4,15 @@ import os
 class Configure(config.package.CMakePackage):
   def __init__(self, framework):
     config.package.CMakePackage.__init__(self, framework)
-    self.gitcommit        = '3.6.01'
+    self.gitcommit        = '4.0.01'
+    self.minversion       = '3.7.01'
     self.versionname      = 'KOKKOSKERNELS_VERSION'
     self.download         = ['git://https://github.com/kokkos/kokkos-kernels.git']
     self.includes         = ['KokkosBlas.hpp','KokkosSparse_CrsMatrix.hpp']
     self.liblist          = [['libkokkoskernels.a']]
     self.functions        = ['']
-    # use one of the only non-templated functions in all of KK to check this library
-    # exists
-    self.functionsCxx     = [1,'namespace KokkosBatched { void print_compiler_info(); }','KokkosBatched::print_compiler_info();']
+    # Even libkokkoskernels exists, we really don't know which KK components are enabled and which functions/symbols are there
+    self.functionsCxx     = [1,'#include <iostream>','std::cout << "Assume Kokkos-Kernels is header only and skip the function test";']
     self.buildLanguages   = ['Cxx']
     self.hastests         = 1
     self.requiresrpath    = 1
@@ -72,7 +72,10 @@ class Configure(config.package.CMakePackage):
 
     if self.cuda.found:
       args = self.rmArgsStartsWith(args,'-DCMAKE_CXX_COMPILER=')
-      args.append('-DCMAKE_CXX_COMPILER='+self.getCompiler('Cxx')) # use the host CXX compiler, let Kokkos handle the nvcc_wrapper business
+      if self.cuda.cudaclang:
+        args.append('-DCMAKE_CXX_COMPILER='+self.getCompiler('CUDA'))
+      else:
+        args.append('-DCMAKE_CXX_COMPILER='+self.getCompiler('Cxx')) # use the host CXX compiler, let Kokkos handle the nvcc_wrapper business
       if not self.argDB['with-kokkos-kernels-tpl']:
         args.append('-DKokkosKernels_ENABLE_TPL_CUBLAS=OFF')  # These are turned ON by KK by default when CUDA is enabled
         args.append('-DKokkosKernels_ENABLE_TPL_CUSPARSE=OFF')
@@ -83,7 +86,9 @@ class Configure(config.package.CMakePackage):
       if self.argDB['with-kokkos-kernels-tpl'] and os.path.isdir(self.hip.rocBlasDir) and os.path.isdir(self.hip.rocSparseDir): # TPL is required either by default or by users
         args.append('-DKokkosKernels_ENABLE_TPL_ROCBLAS=ON')
         args.append('-DKokkosKernels_ENABLE_TPL_ROCSPARSE=ON')
-        args.append('-DKokkosKernels_ROCBLAS_ROOT='+self.hip.rocBlasDir)
+        args.append('-DROCBLAS_ROOT='+self.hip.rocBlasDir) # KK-4.0.1 and higher only support these
+        args.append('-DROCSPARSE_ROOT='+self.hip.rocSparseDir)
+        args.append('-DKokkosKernels_ROCBLAS_ROOT='+self.hip.rocBlasDir) # KK-4.0.0 and lower support these; remove the two lines once self.miniversion >= 4.0.1
         args.append('-DKokkosKernels_ROCSPARSE_ROOT='+self.hip.rocSparseDir)
       elif 'with-kokkos-kernels-tpl' in self.framework.clArgDB and self.argDB['with-kokkos-kernels-tpl']: # TPL is explicitly required by users
         raise RuntimeError('Kokkos-Kernels TPL is required but {x} and {y} do not exist! If not needed, use --with-kokkos-kernels-tpl=0'.format(x=self.hip.rocBlasDir,y=self.hip.rocSparseDir))

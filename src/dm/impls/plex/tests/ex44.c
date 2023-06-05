@@ -16,24 +16,24 @@ PetscErrorCode pyramidNormal(PetscInt dim, PetscReal time, const PetscReal x[], 
   PetscReal apex[3] = {0.5, 0.5, -1.0};
   PetscInt  d;
 
-  for (d = 0;   d < dim; ++d) u[d] = x[d] - apex[d];
-  for (d = dim; d < 3;   ++d) u[d] = 0.0  - apex[d];
-  return 0;
+  for (d = 0; d < dim; ++d) u[d] = x[d] - apex[d];
+  for (d = dim; d < 3; ++d) u[d] = 0.0 - apex[d];
+  return PETSC_SUCCESS;
 }
 
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 {
-  PetscInt       n = 64;
-  PetscBool      flg;
+  PetscInt  n = 64;
+  PetscBool flg;
 
   PetscFunctionBeginUser;
-  PetscCall(PetscStrcpy(options->bdLabel, "marker"));
+  PetscCall(PetscStrncpy(options->bdLabel, "marker", sizeof(options->bdLabel)));
   PetscOptionsBegin(comm, "", "Parallel Mesh Adaptation Options", "DMPLEX");
   PetscCall(PetscOptionsString("-label", "The boundary label name", "ex44.c", options->bdLabel, options->bdLabel, sizeof(options->bdLabel), NULL));
   PetscCall(PetscOptionsIntArray("-bd", "The boundaries to be extruded", "ex44.c", options->bd, &n, &flg));
   options->Nbd = flg ? n : 0;
   PetscOptionsEnd();
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *ctx, DM *dm)
@@ -43,7 +43,7 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *ctx, DM *dm)
   PetscCall(DMSetType(*dm, DMPLEX));
   PetscCall(DMSetFromOptions(*dm));
   PetscCall(DMViewFromOptions(*dm, NULL, "-dm_view"));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode CreateAdaptLabel(DM dm, AppCtx *ctx, DMLabel *adaptLabel)
@@ -52,7 +52,10 @@ static PetscErrorCode CreateAdaptLabel(DM dm, AppCtx *ctx, DMLabel *adaptLabel)
   PetscInt b;
 
   PetscFunctionBegin;
-  if (!ctx->Nbd) {*adaptLabel = NULL; PetscFunctionReturn(0);}
+  if (!ctx->Nbd) {
+    *adaptLabel = NULL;
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
   PetscCall(DMGetLabel(dm, ctx->bdLabel, &label));
   PetscCall(DMLabelCreate(PETSC_COMM_SELF, "Adaptation Label", adaptLabel));
   for (b = 0; b < ctx->Nbd; ++b) {
@@ -64,11 +67,11 @@ static PetscErrorCode CreateAdaptLabel(DM dm, AppCtx *ctx, DMLabel *adaptLabel)
     if (!bdIS) continue;
     PetscCall(ISGetLocalSize(bdIS, &n));
     PetscCall(ISGetIndices(bdIS, &points));
-    for (i = 0; i < n; ++i) {PetscCall(DMLabelSetValue(*adaptLabel, points[i], DM_ADAPT_REFINE));}
+    for (i = 0; i < n; ++i) PetscCall(DMLabelSetValue(*adaptLabel, points[i], DM_ADAPT_REFINE));
     PetscCall(ISRestoreIndices(bdIS, &points));
     PetscCall(ISDestroy(&bdIS));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 int main(int argc, char **argv)
@@ -82,9 +85,12 @@ int main(int argc, char **argv)
   PetscCall(ProcessOptions(PETSC_COMM_WORLD, &ctx));
   PetscCall(CreateMesh(PETSC_COMM_WORLD, &ctx, &dm));
   PetscCall(CreateAdaptLabel(dm, &ctx, &adaptLabel));
-  if (adaptLabel) {PetscCall(DMAdaptLabel(dm, adaptLabel, &dma));}
-  else            {PetscCall(DMExtrude(dm, 3, &dma));}
-  PetscCall(PetscObjectSetName((PetscObject) dma, "Adapted Mesh"));
+  if (adaptLabel) {
+    PetscCall(DMAdaptLabel(dm, adaptLabel, &dma));
+  } else {
+    PetscCall(DMExtrude(dm, 3, &dma));
+  }
+  PetscCall(PetscObjectSetName((PetscObject)dma, "Adapted Mesh"));
   PetscCall(DMLabelDestroy(&adaptLabel));
   PetscCall(DMDestroy(&dm));
   PetscCall(DMViewFromOptions(dma, NULL, "-adapt_dm_view"));
@@ -119,6 +125,11 @@ int main(int argc, char **argv)
   test:
     suffix: quad_symmetric_0
     args: -dm_plex_simplex 0 -dm_plex_transform_extrude_symmetric \
+          -dm_view -adapt_dm_view -dm_plex_check_all
+
+  test:
+    suffix: quad_label
+    args: -dm_plex_simplex 0 -dm_plex_transform_label_replica_inc {{0 100}separate output} \
           -dm_view -adapt_dm_view -dm_plex_check_all
 
   testset:

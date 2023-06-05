@@ -10,7 +10,12 @@ configure_options = [
   #'FOPTFLAGS=-g -O',
   'CXXOPTFLAGS=-g -O',
   '--download-boost=1',
-  '--with-shared-libraries=1'
+  '--download-f2cblaslapack=1',
+  '--with-f2cblaslapack-float128-bindings=1',
+  '--download-hpddm=1',
+  '--with-shared-libraries=1',
+  '--with-strict-petscerrorcode',
+  '--with-coverage',
   ]
 
 if __name__ == '__main__':

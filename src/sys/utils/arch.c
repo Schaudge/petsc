@@ -1,5 +1,5 @@
 
-#include <petscsys.h>         /*I  "petscsys.h"  I*/
+#include <petscsys.h> /*I  "petscsys.h"  I*/
 
 /*@C
      PetscGetArchType - Returns the $PETSC_ARCH that was used for this configuration of PETSc
@@ -15,24 +15,25 @@
 
      Level: developer
 
-   Fortran Version:
-   In Fortran this routine has the format
-
-$       character*(10) str
-$       call PetscGetArchType(str,ierr)
-
-   Notes:
+   Note:
     This name is arbitrary and need not correspond to the physical hardware or the software running on the system.
+
+   Fortran Note:
+   This routine has the format
+.vb
+       character*(10) str
+       call PetscGetArchType(str,ierr)
+.ve
 
 .seealso: `PetscGetUserName()`, `PetscGetHostName()`
 @*/
-PetscErrorCode  PetscGetArchType(char str[], size_t slen)
+PetscErrorCode PetscGetArchType(char str[], size_t slen)
 {
   PetscFunctionBegin;
 #if defined(PETSC_ARCH)
-  PetscCall(PetscStrncpy(str,PETSC_ARCH,slen-1));
+  PetscCall(PetscStrncpy(str, PETSC_ARCH, slen - 1));
 #else
-#error "$PETSC_ARCH/include/petscconf.h is missing PETSC_ARCH"
+  #error "$PETSC_ARCH/include/petscconf.h is missing PETSC_ARCH"
 #endif
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -9,7 +9,7 @@ class Configure(config.package.Package):
   def __init__(self, framework):
     config.package.Package.__init__(self, framework)
     # disable version check
-    self.version          = '2.6.1'
+    self.version          = '2.7.1'
     #self.minversion       = '2.6.0'
     #self.versionname      = ???
     self.gitcommit        = 'v'+self.version
@@ -140,7 +140,7 @@ class Configure(config.package.Package):
       if self.argDB['with-magma-gputarget']:
         gputarget = self.argDB['with-magma-gputarget']
       elif self.cuda.found and hasattr(self.cuda,'cudaArch') and self.cuda.cudaArch:
-        gputarget = 'sm_'+self.cuda.cudaArch
+        gputarget = ' '.join('sm_'+a for a in self.cuda.cudaArchList())
       elif self.hip.found and hasattr(self.hip,'hipArch') and self.hip.hipArch:
         gputarget = self.hip.hipArch
       g.write('CC = '+cc+'\n')
@@ -203,7 +203,7 @@ class Configure(config.package.Package):
         # copy files directly instead of invoking the rule
         if 'sparse-lib' not in self.makerulename:
           incDir = os.path.join(self.installDir,'include')
-          libDir = os.path.join(self.installDir,'lib')
+          libDir = self.libDir
           output,err,ret = config.package.Package.executeShellCommand(self.make.make + ' install_dirs', cwd=self.packageDir, timeout=2500, log = self.log)
           output,err,ret = config.package.Package.executeShellCommand(self.make.make + ' pkgconfig', cwd=self.packageDir, timeout=2500, log = self.log)
           output,err,ret = config.package.Package.executeShellCommand('cp '+os.path.join(self.packageDir,'include','*.h')+' '+incDir, timeout=100, log=self.log)

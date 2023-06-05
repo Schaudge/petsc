@@ -14,7 +14,7 @@ implicit none
 
   PetscCallA(PetscInitialize(ierr))
 
-  PetscCallA(PetscOptionsGetInt(PETSC_NULL_OPTIONS,PETSC_NULL_CHARACTER,"-n",n,flg,ierr))
+  PetscCallA(PetscOptionsGetInt(PETSC_NULL_OPTIONS,PETSC_NULL_CHARACTER,'-n',n,flg,ierr))
 
   !Create multi-component vector with 2 components
   PetscCallA(VecCreate(PETSC_COMM_WORLD,v,ierr))
@@ -41,6 +41,8 @@ implicit none
      myValue = real(i)
      PetscCallA(VecSetValues(v,one,i,myValue,INSERT_VALUES,ierr))
   end do
+  PetscCallA(VecAssemblyBegin(v,ierr));
+  PetscCallA(VecAssemblyEnd(v,ierr));
 
   ! Get the components from the multi-component vector to the other vectors
 

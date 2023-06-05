@@ -1,5 +1,5 @@
 
-#include <../src/vec/vec/impls/mpi/pvecimpl.h>   /*I  "petscvec.h"   I*/
+#include <../src/vec/vec/impls/mpi/pvecimpl.h> /*I  "petscvec.h"   I*/
 
 /*
   This is used in VecGhostGetLocalForm and VecGhostRestoreLocalForm to ensure
@@ -15,22 +15,21 @@
   Note that this function is correct and changes nothing if both arguments are the
   same, which is the case in serial.
 */
-static PetscErrorCode VecGhostStateSync_Private(Vec g,Vec l)
+static PetscErrorCode VecGhostStateSync_Private(Vec g, Vec l)
 {
-  PetscObjectState gstate,lstate;
+  PetscObjectState gstate, lstate;
 
   PetscFunctionBegin;
-  PetscCall(PetscObjectStateGet((PetscObject)g,&gstate));
-  PetscCall(PetscObjectStateGet((PetscObject)l,&lstate));
-  PetscCall(PetscObjectStateSet((PetscObject)g,PetscMax(gstate,lstate)));
-  PetscCall(PetscObjectStateSet((PetscObject)l,PetscMax(gstate,lstate)));
-  PetscFunctionReturn(0);
+  PetscCall(PetscObjectStateGet((PetscObject)g, &gstate));
+  PetscCall(PetscObjectStateGet((PetscObject)l, &lstate));
+  PetscCall(PetscObjectStateSet((PetscObject)g, PetscMax(gstate, lstate)));
+  PetscCall(PetscObjectStateSet((PetscObject)l, PetscMax(gstate, lstate)));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
     VecGhostGetLocalForm - Obtains the local ghosted representation of
-    a parallel vector (obtained with VecCreateGhost(), VecCreateGhostWithArray()
-    or VecCreateSeq()). Returns NULL if the Vec is not ghosted.
+    a parallel vector (obtained with `VecCreateGhost()`, `VecCreateGhostWithArray()` or `VecCreateSeq()`).
 
     Logically Collective
 
@@ -38,7 +37,9 @@ static PetscErrorCode VecGhostStateSync_Private(Vec g,Vec l)
 .   g - the global vector
 
     Output Parameter:
-.   l - the local (ghosted) representation, NULL if g is not ghosted
+.   l - the local (ghosted) representation,`NULL` if `g` is not ghosted
+
+    Level: advanced
 
     Notes:
     This routine does not actually update the ghost values, but rather it
@@ -47,47 +48,46 @@ static PetscErrorCode VecGhostStateSync_Private(Vec g,Vec l)
     vector passed in share the same array that contains the actual vector data.
 
     To update the ghost values from the locations on the other processes one must call
-    VecGhostUpdateBegin() and VecGhostUpdateEnd() before accessing the ghost values. Thus normal
+    `VecGhostUpdateBegin()` and `VecGhostUpdateEnd()` before accessing the ghost values. Thus normal
     usage is
-$     VecGhostUpdateBegin(x,INSERT_VALUES,SCATTER_FORWARD);
-$     VecGhostUpdateEnd(x,INSERT_VALUES,SCATTER_FORWARD);
-$     VecGhostGetLocalForm(x,&xlocal);
-$     VecGetArray(xlocal,&xvalues);
-$        // access the non-ghost values in locations xvalues[0:n-1] and ghost values in locations xvalues[n:n+nghost];
-$     VecRestoreArray(xlocal,&xvalues);
-$     VecGhostRestoreLocalForm(x,&xlocal);
+.vb
+     VecGhostUpdateBegin(x,INSERT_VALUES,SCATTER_FORWARD);
+     VecGhostUpdateEnd(x,INSERT_VALUES,SCATTER_FORWARD);
+     VecGhostGetLocalForm(x,&xlocal);
+     VecGetArray(xlocal,&xvalues);
+        // access the non-ghost values in locations xvalues[0:n-1] and ghost values in locations xvalues[n:n+nghost];
+     VecRestoreArray(xlocal,&xvalues);
+     VecGhostRestoreLocalForm(x,&xlocal);
+.ve
 
-    One should call VecGhostRestoreLocalForm() or VecDestroy() once one is
+    One should call `VecGhostRestoreLocalForm()` or `VecDestroy()` once one is
     finished using the object.
 
-    Level: advanced
-
-.seealso: `VecCreateGhost()`, `VecGhostRestoreLocalForm()`, `VecCreateGhostWithArray()`
-
+.seealso: [](ch_vectors), `Vec`, `VecType`, `VecCreateGhost()`, `VecGhostRestoreLocalForm()`, `VecCreateGhostWithArray()`
 @*/
-PetscErrorCode  VecGhostGetLocalForm(Vec g,Vec *l)
+PetscErrorCode VecGhostGetLocalForm(Vec g, Vec *l)
 {
-  PetscBool      isseq,ismpi;
+  PetscBool isseq, ismpi;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(g,VEC_CLASSID,1);
-  PetscValidPointer(l,2);
+  PetscValidHeaderSpecific(g, VEC_CLASSID, 1);
+  PetscValidPointer(l, 2);
 
-  PetscCall(PetscObjectTypeCompare((PetscObject)g,VECSEQ,&isseq));
-  PetscCall(PetscObjectTypeCompare((PetscObject)g,VECMPI,&ismpi));
+  PetscCall(PetscObjectTypeCompare((PetscObject)g, VECSEQ, &isseq));
+  PetscCall(PetscObjectTypeCompare((PetscObject)g, VECMPI, &ismpi));
   if (ismpi) {
-    Vec_MPI *v = (Vec_MPI*)g->data;
-    *l = v->localrep;
+    Vec_MPI *v = (Vec_MPI *)g->data;
+    *l         = v->localrep;
   } else if (isseq) {
     *l = g;
   } else {
     *l = NULL;
   }
   if (*l) {
-    PetscCall(VecGhostStateSync_Private(g,*l));
+    PetscCall(VecGhostStateSync_Private(g, *l));
     PetscCall(PetscObjectReference((PetscObject)*l));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -100,36 +100,35 @@ PetscErrorCode  VecGhostGetLocalForm(Vec g,Vec *l)
 -   l - the local vector
 
     Output Parameter:
-.   flg - PETSC_TRUE if local vector is local form
+.   flg - `PETSC_TRUE` if `l` is the local form
 
     Level: advanced
 
-.seealso: `VecCreateGhost()`, `VecGhostRestoreLocalForm()`, `VecCreateGhostWithArray()`, `VecGhostGetLocalForm()`
-
+.seealso: [](ch_vectors), `Vec`, `VecType`, `VecCreateGhost()`, `VecGhostRestoreLocalForm()`, `VecCreateGhostWithArray()`, `VecGhostGetLocalForm()`
 @*/
-PetscErrorCode VecGhostIsLocalForm(Vec g,Vec l,PetscBool *flg)
+PetscErrorCode VecGhostIsLocalForm(Vec g, Vec l, PetscBool *flg)
 {
-  PetscBool      isseq,ismpi;
+  PetscBool isseq, ismpi;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(g,VEC_CLASSID,1);
-  PetscValidHeaderSpecific(l,VEC_CLASSID,2);
+  PetscValidHeaderSpecific(g, VEC_CLASSID, 1);
+  PetscValidHeaderSpecific(l, VEC_CLASSID, 2);
 
   *flg = PETSC_FALSE;
-  PetscCall(PetscObjectTypeCompare((PetscObject)g,VECSEQ,&isseq));
-  PetscCall(PetscObjectTypeCompare((PetscObject)g,VECMPI,&ismpi));
+  PetscCall(PetscObjectTypeCompare((PetscObject)g, VECSEQ, &isseq));
+  PetscCall(PetscObjectTypeCompare((PetscObject)g, VECMPI, &ismpi));
   if (ismpi) {
-    Vec_MPI *v = (Vec_MPI*)g->data;
+    Vec_MPI *v = (Vec_MPI *)g->data;
     if (l == v->localrep) *flg = PETSC_TRUE;
   } else if (isseq) {
     if (l == g) *flg = PETSC_TRUE;
-  } else SETERRQ(PetscObjectComm((PetscObject)g),PETSC_ERR_ARG_WRONG,"Global vector is not ghosted");
-  PetscFunctionReturn(0);
+  } else SETERRQ(PetscObjectComm((PetscObject)g), PETSC_ERR_ARG_WRONG, "Global vector is not ghosted");
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
     VecGhostRestoreLocalForm - Restores the local ghosted representation of
-    a parallel vector obtained with VecGhostGetLocalForm().
+    a parallel vector obtained with `VecGhostGetLocalForm()`.
 
     Logically Collective
 
@@ -137,35 +136,37 @@ PetscErrorCode VecGhostIsLocalForm(Vec g,Vec l,PetscBool *flg)
 +   g - the global vector
 -   l - the local (ghosted) representation
 
-    Notes:
+    Level: advanced
+
+    Note:
     This routine does not actually update the ghost values, but rather it
     returns a sequential vector that includes the locations for the ghost values
     and their current values.
 
-    Level: advanced
-
-.seealso: `VecCreateGhost()`, `VecGhostGetLocalForm()`, `VecCreateGhostWithArray()`
+.seealso: [](ch_vectors), `Vec`, `VecType`, `VecCreateGhost()`, `VecGhostGetLocalForm()`, `VecCreateGhostWithArray()`
 @*/
-PetscErrorCode  VecGhostRestoreLocalForm(Vec g,Vec *l)
+PetscErrorCode VecGhostRestoreLocalForm(Vec g, Vec *l)
 {
   PetscFunctionBegin;
   if (*l) {
-    PetscCall(VecGhostStateSync_Private(g,*l));
+    PetscCall(VecGhostStateSync_Private(g, *l));
     PetscCall(PetscObjectDereference((PetscObject)*l));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
    VecGhostUpdateBegin - Begins the vector scatter to update the vector from
    local representation to global or global representation to local.
 
-   Neighbor-wise Collective on Vec
+   Neighbor-wise Collective
 
    Input Parameters:
-+  g - the vector (obtained with VecCreateGhost() or VecDuplicate())
-.  insertmode - one of ADD_VALUES, MAX_VALUES, MIN_VALUES or INSERT_VALUES
--  scattermode - one of SCATTER_FORWARD or SCATTER_REVERSE
++  g - the vector (obtained with `VecCreateGhost()` or `VecDuplicate()`)
+.  insertmode - one of `ADD_VALUES`, `MAX_VALUES`, `MIN_VALUES` or `INSERT_VALUES`
+-  scattermode - one of `SCATTER_FORWARD` or `SCATTER_REVERSE`
+
+   Level: advanced
 
    Notes:
    Use the following to update the ghost regions with correct values from the owning process
@@ -189,49 +190,47 @@ PetscErrorCode  VecGhostRestoreLocalForm(Vec g,Vec *l)
        VecGhostUpdateEnd(v,INSERT_VALUES,SCATTER_FORWARD);
 .ve
 
-   Level: advanced
-
-.seealso: `VecCreateGhost()`, `VecGhostUpdateEnd()`, `VecGhostGetLocalForm()`,
+.seealso: [](ch_vectors), `Vec`, `VecType`, `VecCreateGhost()`, `VecGhostUpdateEnd()`, `VecGhostGetLocalForm()`,
           `VecGhostRestoreLocalForm()`, `VecCreateGhostWithArray()`
-
 @*/
-PetscErrorCode  VecGhostUpdateBegin(Vec g,InsertMode insertmode,ScatterMode scattermode)
+PetscErrorCode VecGhostUpdateBegin(Vec g, InsertMode insertmode, ScatterMode scattermode)
 {
-  Vec_MPI        *v;
-  PetscBool      ismpi,isseq;
+  Vec_MPI  *v;
+  PetscBool ismpi, isseq;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(g,VEC_CLASSID,1);
-  PetscCall(PetscObjectTypeCompare((PetscObject)g,VECMPI,&ismpi));
-  PetscCall(PetscObjectTypeCompare((PetscObject)g,VECSEQ,&isseq));
+  PetscValidHeaderSpecific(g, VEC_CLASSID, 1);
+  PetscCall(PetscObjectTypeCompare((PetscObject)g, VECMPI, &ismpi));
+  PetscCall(PetscObjectTypeCompare((PetscObject)g, VECSEQ, &isseq));
   if (ismpi) {
-    v = (Vec_MPI*)g->data;
-    PetscCheck(v->localrep,PetscObjectComm((PetscObject)g),PETSC_ERR_ARG_WRONG,"Vector is not ghosted");
-    if (!v->localupdate) PetscFunctionReturn(0);
+    v = (Vec_MPI *)g->data;
+    PetscCheck(v->localrep, PetscObjectComm((PetscObject)g), PETSC_ERR_ARG_WRONG, "Vector is not ghosted");
+    if (!v->localupdate) PetscFunctionReturn(PETSC_SUCCESS);
     if (scattermode == SCATTER_REVERSE) {
-      PetscCall(VecScatterBegin(v->localupdate,v->localrep,g,insertmode,scattermode));
+      PetscCall(VecScatterBegin(v->localupdate, v->localrep, g, insertmode, scattermode));
     } else {
-      PetscCall(VecScatterBegin(v->localupdate,g,v->localrep,insertmode,scattermode));
+      PetscCall(VecScatterBegin(v->localupdate, g, v->localrep, insertmode, scattermode));
     }
   } else if (isseq) {
     /* Do nothing */
-  } else SETERRQ(PetscObjectComm((PetscObject)g),PETSC_ERR_ARG_WRONG,"Vector is not ghosted");
-  PetscFunctionReturn(0);
+  } else SETERRQ(PetscObjectComm((PetscObject)g), PETSC_ERR_ARG_WRONG, "Vector is not ghosted");
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
    VecGhostUpdateEnd - End the vector scatter to update the vector from
    local representation to global or global representation to local.
 
-   Neighbor-wise Collective on Vec
+   Neighbor-wise Collective
 
    Input Parameters:
-+  g - the vector (obtained with VecCreateGhost() or VecDuplicate())
-.  insertmode - one of ADD_VALUES, MAX_VALUES, MIN_VALUES or INSERT_VALUES
--  scattermode - one of SCATTER_FORWARD or SCATTER_REVERSE
++  g - the vector (obtained with `VecCreateGhost()` or `VecDuplicate()`)
+.  insertmode - one of `ADD_VALUES`, `MAX_VALUES`, `MIN_VALUES` or `INSERT_VALUES`
+-  scattermode - one of `SCATTER_FORWARD` or `SCATTER_REVERSE`
+
+   Level: advanced
 
    Notes:
-
    Use the following to update the ghost regions with correct values from the owning process
 .vb
        VecGhostUpdateBegin(v,INSERT_VALUES,SCATTER_FORWARD);
@@ -253,29 +252,26 @@ PetscErrorCode  VecGhostUpdateBegin(Vec g,InsertMode insertmode,ScatterMode scat
        VecGhostUpdateEnd(v,INSERT_VALUES,SCATTER_FORWARD);
 .ve
 
-   Level: advanced
-
-.seealso: `VecCreateGhost()`, `VecGhostUpdateBegin()`, `VecGhostGetLocalForm()`,
+.seealso: [](ch_vectors), `Vec`, `VecType`, `VecCreateGhost()`, `VecGhostUpdateBegin()`, `VecGhostGetLocalForm()`,
           `VecGhostRestoreLocalForm()`, `VecCreateGhostWithArray()`
-
 @*/
-PetscErrorCode  VecGhostUpdateEnd(Vec g,InsertMode insertmode,ScatterMode scattermode)
+PetscErrorCode VecGhostUpdateEnd(Vec g, InsertMode insertmode, ScatterMode scattermode)
 {
-  Vec_MPI        *v;
-  PetscBool      ismpi;
+  Vec_MPI  *v;
+  PetscBool ismpi;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(g,VEC_CLASSID,1);
-  PetscCall(PetscObjectTypeCompare((PetscObject)g,VECMPI,&ismpi));
+  PetscValidHeaderSpecific(g, VEC_CLASSID, 1);
+  PetscCall(PetscObjectTypeCompare((PetscObject)g, VECMPI, &ismpi));
   if (ismpi) {
-    v = (Vec_MPI*)g->data;
-    PetscCheck(v->localrep,PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Vector is not ghosted");
-    if (!v->localupdate) PetscFunctionReturn(0);
+    v = (Vec_MPI *)g->data;
+    PetscCheck(v->localrep, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Vector is not ghosted");
+    if (!v->localupdate) PetscFunctionReturn(PETSC_SUCCESS);
     if (scattermode == SCATTER_REVERSE) {
-      PetscCall(VecScatterEnd(v->localupdate,v->localrep,g,insertmode,scattermode));
+      PetscCall(VecScatterEnd(v->localupdate, v->localrep, g, insertmode, scattermode));
     } else {
-      PetscCall(VecScatterEnd(v->localupdate,g,v->localrep,insertmode,scattermode));
+      PetscCall(VecScatterEnd(v->localupdate, g, v->localrep, insertmode, scattermode));
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

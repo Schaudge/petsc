@@ -22,79 +22,64 @@ typedef struct {
   PetscBool trig; /* Use trig function as exact solution */
 } AppCtx;
 
-/*For Primal Problem*/
-static void g0_uu(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                   const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                   const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                   PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g0[])
+/* For Primal Problem */
+static void g0_uu(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g0[])
 {
   PetscInt d;
   for (d = 0; d < dim; ++d) g0[0] = 1.0;
 }
 
-static void g3_uu(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                  const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                  const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                  PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g3[])
+static void g3_uu(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g3[])
 {
   PetscInt d;
-  for (d = 0; d < dim; ++d) g3[d*dim+d] = 1.0;
+  for (d = 0; d < dim; ++d) g3[d * dim + d] = 1.0;
 }
 
 static PetscErrorCode trig_u(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar *u, void *ctx)
 {
   PetscInt d;
   *u = 0.0;
-  for (d = 0; d < dim; ++d) *u += PetscSinReal(2.0*PETSC_PI*x[d]);
-  return 0;
+  for (d = 0; d < dim; ++d) *u += PetscSinReal(2.0 * PETSC_PI * x[d]);
+  return PETSC_SUCCESS;
 }
 
 static PetscErrorCode quad_u(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar *u, void *ctx)
 {
   PetscInt d;
   *u = 1.0;
-  for (d = 0; d < dim; ++d) *u += (d+1)*PetscSqr(x[d]);
-  return 0;
+  for (d = 0; d < dim; ++d) *u += (d + 1) * PetscSqr(x[d]);
+  return PETSC_SUCCESS;
 }
 
-static void f0_trig_u(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                      const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                      const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                      PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
+static void f0_trig_u(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
 {
   PetscInt d;
   f0[0] += u[0];
-  for (d = 0; d < dim; ++d) f0[0] -= 4.0*PetscSqr(PETSC_PI)*PetscSinReal(2.0*PETSC_PI*x[d]) + PetscSinReal(2.0*PETSC_PI*x[d]);
+  for (d = 0; d < dim; ++d) f0[0] -= 4.0 * PetscSqr(PETSC_PI) * PetscSinReal(2.0 * PETSC_PI * x[d]) + PetscSinReal(2.0 * PETSC_PI * x[d]);
 }
 
-static void f0_quad_u(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                      const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                      const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                      PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
+static void f0_quad_u(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
 {
-    PetscInt d;
-    switch (dim) {
-        case 1:
-            f0[0] = 1.0;
-            break;
-        case 2:
-            f0[0] = 5.0;
-            break;
-        case 3:
-            f0[0] = 11.0;
-            break;
-        default:
-            f0[0] = 5.0;
-            break;
-    }
-    f0[0] += u[0];
-    for (d = 0; d < dim; ++d) f0[0] -= (d+1)*PetscSqr(x[d]);
+  PetscInt d;
+  switch (dim) {
+  case 1:
+    f0[0] = 1.0;
+    break;
+  case 2:
+    f0[0] = 5.0;
+    break;
+  case 3:
+    f0[0] = 11.0;
+    break;
+  default:
+    f0[0] = 5.0;
+    break;
+  }
+  f0[0] += u[0];
+  for (d = 0; d < dim; ++d) f0[0] -= (d + 1) * PetscSqr(x[d]);
 }
 
-static void f1_u(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                 const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                 const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                 PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f1[])
+static void f1_u(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f1[])
 {
   PetscInt d;
   for (d = 0; d < dim; ++d) f1[d] = u_x[d];
@@ -102,11 +87,11 @@ static void f1_u(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 
 static PetscErrorCode ProcessOptions(DM dm, AppCtx *options)
 {
-  MPI_Comm       comm;
-  PetscInt       dim;
+  MPI_Comm comm;
+  PetscInt dim;
 
   PetscFunctionBeginUser;
-  PetscCall(PetscObjectGetComm((PetscObject) dm, &comm));
+  PetscCall(PetscObjectGetComm((PetscObject)dm, &comm));
   PetscCall(DMGetDimension(dm, &dim));
   options->trig = PETSC_FALSE;
 
@@ -114,7 +99,7 @@ static PetscErrorCode ProcessOptions(DM dm, AppCtx *options)
   PetscCall(PetscOptionsBool("-exact_trig", "Use trigonometric exact solution (better for more complex finite elements)", "ex26.c", options->trig, &options->trig, NULL));
   PetscOptionsEnd();
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
@@ -124,11 +109,11 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
   PetscCall(DMSetType(*dm, DMPLEX));
   PetscCall(DMSetFromOptions(*dm));
 
-  PetscCall(PetscObjectSetName((PetscObject) *dm, "Mesh"));
+  PetscCall(PetscObjectSetName((PetscObject)*dm, "Mesh"));
   PetscCall(DMSetApplicationContext(*dm, user));
   PetscCall(DMViewFromOptions(*dm, NULL, "-dm_view"));
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode SetupPrimalProblem(DM dm, AppCtx *user)
@@ -144,15 +129,15 @@ static PetscErrorCode SetupPrimalProblem(DM dm, AppCtx *user)
     PetscCall(PetscDSSetResidual(ds, 0, f0_trig_u, f1_u));
     PetscCall(PetscDSSetJacobian(ds, 0, 0, g0_uu, NULL, NULL, g3_uu));
     PetscCall(PetscDSSetExactSolution(ds, 0, trig_u, user));
-    PetscCall(DMAddBoundary(dm, DM_BC_ESSENTIAL, "wall", label, 1, &id, 0, 0, NULL, (void (*)(void)) trig_u, NULL, user, NULL));
-    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"Trig Exact Solution\n"));
+    PetscCall(DMAddBoundary(dm, DM_BC_ESSENTIAL, "wall", label, 1, &id, 0, 0, NULL, (void (*)(void))trig_u, NULL, user, NULL));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Trig Exact Solution\n"));
   } else {
     PetscCall(PetscDSSetResidual(ds, 0, f0_quad_u, f1_u));
     PetscCall(PetscDSSetJacobian(ds, 0, 0, g0_uu, NULL, NULL, g3_uu));
     PetscCall(PetscDSSetExactSolution(ds, 0, quad_u, user));
-    PetscCall(DMAddBoundary(dm, DM_BC_ESSENTIAL, "wall", label, 1, &id, 0, 0, NULL, (void (*)(void)) quad_u, NULL, user, NULL));
+    PetscCall(DMAddBoundary(dm, DM_BC_ESSENTIAL, "wall", label, 1, &id, 0, 0, NULL, (void (*)(void))quad_u, NULL, user, NULL));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode SetupDiscretization(DM dm, const char name[], PetscErrorCode (*setup)(DM, AppCtx *), AppCtx *user)
@@ -169,60 +154,60 @@ static PetscErrorCode SetupDiscretization(DM dm, const char name[], PetscErrorCo
 
   PetscCall(DMPlexGetHeightStratum(dm, 0, &cStart, NULL));
   PetscCall(DMPlexGetCellType(dm, cStart, &ct));
-  simplex = DMPolytopeTypeGetNumVertices(ct) == DMPolytopeTypeGetDim(ct)+1 ? PETSC_TRUE : PETSC_FALSE;
+  simplex = DMPolytopeTypeGetNumVertices(ct) == DMPolytopeTypeGetDim(ct) + 1 ? PETSC_TRUE : PETSC_FALSE;
   /* Create finite element */
   PetscCall(PetscSNPrintf(prefix, PETSC_MAX_PATH_LEN, "%s_", name));
   PetscCall(PetscFECreateDefault(PETSC_COMM_SELF, dim, 1, simplex, name ? prefix : NULL, -1, &fe));
-  PetscCall(PetscObjectSetName((PetscObject) fe, name));
+  PetscCall(PetscObjectSetName((PetscObject)fe, name));
   /* Set discretization and boundary conditions for each mesh */
-  PetscCall(DMSetField(dm, 0, NULL, (PetscObject) fe));
+  PetscCall(DMSetField(dm, 0, NULL, (PetscObject)fe));
   PetscCall(DMCreateDS(dm));
   PetscCall((*setup)(dm, user));
   while (cdm) {
-    PetscCall(DMCopyDisc(dm,cdm));
+    PetscCall(DMCopyDisc(dm, cdm));
     PetscCall(DMGetCoarseDM(cdm, &cdm));
   }
   PetscCall(PetscFEDestroy(&fe));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 int main(int argc, char **argv)
 {
-    DM             dm;   /* Problem specification */
-    PetscDS        ds;
-    SNES           snes; /* Nonlinear solver */
-    Vec            u;    /* Solutions */
-    AppCtx         user; /* User-defined work context */
+  DM      dm; /* Problem specification */
+  PetscDS ds;
+  SNES    snes; /* Nonlinear solver */
+  Vec     u;    /* Solutions */
+  AppCtx  user; /* User-defined work context */
 
-    PetscFunctionBeginUser;
+  PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
-    /* Primal system */
-    PetscCall(SNESCreate(PETSC_COMM_WORLD, &snes));
-    PetscCall(CreateMesh(PETSC_COMM_WORLD, &user, &dm));
-    PetscCall(ProcessOptions(dm, &user));
-    PetscCall(SNESSetDM(snes, dm));
-    PetscCall(SetupDiscretization(dm, "potential", SetupPrimalProblem, &user));
-    PetscCall(DMCreateGlobalVector(dm, &u));
-    PetscCall(VecSet(u, 0.0));
-    PetscCall(PetscObjectSetName((PetscObject) u, "potential"));
-    PetscCall(DMPlexSetSNESLocalFEM(dm, &user, &user, &user));
-    PetscCall(SNESSetFromOptions(snes));
-    PetscCall(DMSNESCheckFromOptions(snes, u));
+  /* Primal system */
+  PetscCall(SNESCreate(PETSC_COMM_WORLD, &snes));
+  PetscCall(CreateMesh(PETSC_COMM_WORLD, &user, &dm));
+  PetscCall(ProcessOptions(dm, &user));
+  PetscCall(SNESSetDM(snes, dm));
+  PetscCall(SetupDiscretization(dm, "potential", SetupPrimalProblem, &user));
+  PetscCall(DMCreateGlobalVector(dm, &u));
+  PetscCall(VecSet(u, 0.0));
+  PetscCall(PetscObjectSetName((PetscObject)u, "potential"));
+  PetscCall(DMPlexSetSNESLocalFEM(dm, &user, &user, &user));
+  PetscCall(SNESSetFromOptions(snes));
+  PetscCall(DMSNESCheckFromOptions(snes, u));
 
-    /*Looking for field error*/
-    PetscInt Nfields;
-    PetscCall(DMGetDS(dm, &ds));
-    PetscCall(PetscDSGetNumFields(ds, &Nfields));
-    PetscCall(SNESSolve(snes, NULL, u));
-    PetscCall(SNESGetSolution(snes, &u));
-    PetscCall(VecViewFromOptions(u, NULL, "-potential_view"));
+  /* Looking for field error */
+  PetscInt Nfields;
+  PetscCall(DMGetDS(dm, &ds));
+  PetscCall(PetscDSGetNumFields(ds, &Nfields));
+  PetscCall(SNESSolve(snes, NULL, u));
+  PetscCall(SNESGetSolution(snes, &u));
+  PetscCall(VecViewFromOptions(u, NULL, "-potential_view"));
 
-    /* Cleanup */
-    PetscCall(VecDestroy(&u));
-    PetscCall(SNESDestroy(&snes));
-    PetscCall(DMDestroy(&dm));
-    PetscCall(PetscFinalize());
-    return 0;
+  /* Cleanup */
+  PetscCall(VecDestroy(&u));
+  PetscCall(SNESDestroy(&snes));
+  PetscCall(DMDestroy(&dm));
+  PetscCall(PetscFinalize());
+  return 0;
 }
 
 /*TEST

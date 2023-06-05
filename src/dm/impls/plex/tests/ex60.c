@@ -7,16 +7,16 @@ static PetscErrorCode bowl(PetscInt dim, PetscReal time, const PetscReal x[], Pe
   PetscInt d;
 
   *u = 0.0;
-  for (d = 0; d < dim; d++) *u += 0.5*(x[d] - 0.5)*(x[d] - 0.5);
+  for (d = 0; d < dim; d++) *u += 0.5 * (x[d] - 0.5) * (x[d] - 0.5);
 
-  return 0;
+  return PETSC_SUCCESS;
 }
 
 static PetscErrorCode CreateIndicator(DM dm, Vec *indicator, DM *dmIndi)
 {
-  MPI_Comm       comm;
-  PetscFE        fe;
-  PetscInt       dim;
+  MPI_Comm comm;
+  PetscFE  fe;
+  PetscInt dim;
 
   PetscFunctionBeginUser;
   PetscCall(PetscObjectGetComm((PetscObject)dm, &comm));
@@ -27,17 +27,18 @@ static PetscErrorCode CreateIndicator(DM dm, Vec *indicator, DM *dmIndi)
   PetscCall(DMCreateDS(*dmIndi));
   PetscCall(PetscFEDestroy(&fe));
   PetscCall(DMCreateLocalVector(*dmIndi, indicator));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-int main(int argc, char **argv) {
-  DM              dm, dmAdapt;
-  DMLabel         bdLabel = NULL, rgLabel = NULL;
-  MPI_Comm        comm;
-  PetscBool       uniform = PETSC_FALSE, isotropic = PETSC_FALSE, noTagging = PETSC_FALSE;
-  PetscInt        dim;
-  PetscReal       scaling = 1.0;
-  Vec             metric;
+int main(int argc, char **argv)
+{
+  DM        dm, dmAdapt;
+  DMLabel   bdLabel = NULL, rgLabel = NULL;
+  MPI_Comm  comm;
+  PetscBool uniform = PETSC_FALSE, isotropic = PETSC_FALSE, noTagging = PETSC_FALSE;
+  PetscInt  dim;
+  PetscReal scaling = 1.0;
+  Vec       metric;
 
   /* Set up */
   PetscFunctionBeginUser;
@@ -51,7 +52,7 @@ int main(int argc, char **argv) {
   PetscCall(DMCreate(comm, &dm));
   PetscCall(DMSetType(dm, DMPLEX));
   PetscCall(DMSetFromOptions(dm));
-  PetscCall(PetscObjectSetName((PetscObject) dm, "DM_init"));
+  PetscCall(PetscObjectSetName((PetscObject)dm, "DM_init"));
   PetscCall(DMViewFromOptions(dm, NULL, "-initial_mesh_view"));
   PetscCall(DMGetDimension(dm, &dim));
 
@@ -73,7 +74,7 @@ int main(int argc, char **argv) {
       PetscCall(DMPlexComputeCellGeometryFVM(dm, c, &volume, centroid, NULL));
       x = centroid[0];
       if (x < 0.5) PetscCall(DMLabelSetValue(rgLabel, c, 3));
-      else         PetscCall(DMLabelSetValue(rgLabel, c, 4));
+      else PetscCall(DMLabelSetValue(rgLabel, c, 4));
     }
 
     /* Face tags */
@@ -86,12 +87,12 @@ int main(int argc, char **argv) {
     PetscCall(DMGetCoordinatesLocal(dm, &coordinates));
     PetscCall(VecGetArrayRead(coordinates, &coords));
     for (f = fStart; f < fEnd; ++f) {
-      PetscBool flg = PETSC_TRUE;
+      PetscBool flg     = PETSC_TRUE;
       PetscInt *closure = NULL, closureSize, cl;
-      PetscReal eps = 1.0e-08;
+      PetscReal eps     = 1.0e-08;
 
       PetscCall(DMPlexGetTransitiveClosure(dm, f, PETSC_TRUE, &closureSize, &closure));
-      for (cl = 0; cl < closureSize*2; cl += 2) {
+      for (cl = 0; cl < closureSize * 2; cl += 2) {
         PetscInt   off = closure[cl];
         PetscReal *x;
 
@@ -111,15 +112,13 @@ int main(int argc, char **argv) {
   PetscCall(DMPlexMetricIsIsotropic(dm, &isotropic));
   if (uniform) {
     PetscCall(DMPlexMetricCreateUniform(dm, 0, scaling, &metric));
-  }
-  else {
+  } else {
     DM  dmIndi;
     Vec indicator;
 
     /* Construct "error indicator" */
     PetscCall(CreateIndicator(dm, &indicator, &dmIndi));
     if (isotropic) {
-
       /* Isotropic case: just specify unity */
       PetscCall(VecSet(indicator, scaling));
       PetscCall(DMPlexMetricCreateIsotropic(dm, 0, indicator, &metric));
@@ -128,9 +127,9 @@ int main(int argc, char **argv) {
       PetscFE fe;
 
       /* 'Anisotropic' case: approximate the identity by recovering the Hessian of a parabola */
-      DM               dmGrad;
-      PetscErrorCode (*funcs[1])(PetscInt, PetscReal, const PetscReal[], PetscInt, PetscScalar*, void*) = {bowl};
-      Vec              gradient;
+      DM dmGrad;
+      PetscErrorCode (*funcs[1])(PetscInt, PetscReal, const PetscReal[], PetscInt, PetscScalar *, void *) = {bowl};
+      Vec gradient;
 
       /* Project the parabola into P1 space */
       PetscCall(DMProjectFunctionLocal(dmIndi, 0.0, funcs, NULL, INSERT_ALL_VALUES, indicator));
@@ -179,7 +178,7 @@ int main(int argc, char **argv) {
     PetscCall(VecNorm(metric, NORM_2, &norm));
     PetscCall(VecNorm(metricComb, NORM_2, &errornorm));
     errornorm /= norm;
-    PetscCall(PetscPrintf(comm, "Metric average L2 error: %.4f%%\n", (double)(100*errornorm)));
+    PetscCall(PetscPrintf(comm, "Metric average L2 error: %.4f%%\n", (double)(100 * errornorm)));
     PetscCheck(errornorm < tol, comm, PETSC_ERR_ARG_OUTOFRANGE, "Metric average test failed");
 
     /* Test metric intersection */
@@ -194,7 +193,7 @@ int main(int argc, char **argv) {
     PetscCall(VecAXPY(metricComb, -1, metric2));
     PetscCall(VecNorm(metricComb, NORM_2, &errornorm));
     errornorm /= norm;
-    PetscCall(PetscPrintf(comm, "Metric intersection L2 error: %.4f%%\n", (double)(100*errornorm)));
+    PetscCall(PetscPrintf(comm, "Metric intersection L2 error: %.4f%%\n", (double)(100 * errornorm)));
     PetscCheck(errornorm < tol, comm, PETSC_ERR_ARG_OUTOFRANGE, "Metric intersection test failed");
     PetscCall(VecDestroy(&metric2));
     PetscCall(VecDestroy(&metricComb));
@@ -211,12 +210,12 @@ int main(int argc, char **argv) {
       PetscCall(VecNorm(err, NORM_2, &errornorm));
       PetscCall(VecDestroy(&err));
       errornorm /= norm;
-      PetscCall(PetscPrintf(comm, "Metric determinant L2 error: %.4f%%\n", (double)(100*errornorm)));
+      PetscCall(PetscPrintf(comm, "Metric determinant L2 error: %.4f%%\n", (double)(100 * errornorm)));
       PetscCheck(errornorm < tol, comm, PETSC_ERR_ARG_OUTOFRANGE, "Determinant is not unit");
       PetscCall(VecAXPY(metric1, -1, metric));
       PetscCall(VecNorm(metric1, NORM_2, &errornorm));
       errornorm /= norm;
-      PetscCall(PetscPrintf(comm, "Metric SPD enforcement L2 error: %.4f%%\n", (double)(100*errornorm)));
+      PetscCall(PetscPrintf(comm, "Metric SPD enforcement L2 error: %.4f%%\n", (double)(100 * errornorm)));
       PetscCheck(errornorm < tol, comm, PETSC_ERR_ARG_OUTOFRANGE, "Metric SPD enforcement test failed");
     }
 
@@ -226,7 +225,7 @@ int main(int argc, char **argv) {
       PetscReal target;
 
       PetscCall(DMPlexMetricGetTargetComplexity(dm, &target));
-      scaling = PetscPowReal(target, 2.0/dim);
+      scaling = PetscPowReal(target, 2.0 / dim);
       if (uniform) {
         PetscCall(DMPlexMetricCreateUniform(dm, 0, scaling, &metric2));
       } else {
@@ -242,7 +241,7 @@ int main(int argc, char **argv) {
       PetscCall(VecAXPY(metric2, -1, metric1));
       PetscCall(VecNorm(metric2, NORM_2, &errornorm));
       errornorm /= norm;
-      PetscCall(PetscPrintf(comm, "Metric normalization L2 error: %.4f%%\n", (double)(100*errornorm)));
+      PetscCall(PetscPrintf(comm, "Metric normalization L2 error: %.4f%%\n", (double)(100 * errornorm)));
       PetscCheck(errornorm < tol, comm, PETSC_ERR_ARG_OUTOFRANGE, "Metric normalization test failed");
     }
     PetscCall(VecDestroy(&determinant));
@@ -255,7 +254,7 @@ int main(int argc, char **argv) {
   /* Adapt the mesh */
   PetscCall(DMAdaptMetric(dm, metric, bdLabel, rgLabel, &dmAdapt));
   PetscCall(DMDestroy(&dm));
-  PetscCall(PetscObjectSetName((PetscObject) dmAdapt, "DM_adapted"));
+  PetscCall(PetscObjectSetName((PetscObject)dmAdapt, "DM_adapted"));
   PetscCall(VecDestroy(&metric));
   PetscCall(DMViewFromOptions(dmAdapt, NULL, "-adapted_mesh_view"));
 

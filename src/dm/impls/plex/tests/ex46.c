@@ -11,25 +11,25 @@ typedef struct {
 static PetscErrorCode constant(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar *u, void *ctx)
 {
   u[0] = 1.;
-  return 0;
+  return PETSC_SUCCESS;
 }
 
 static PetscErrorCode linear(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar *u, void *ctx)
 {
-  u[0] = 2.*x[0] + 1.;
-  return 0;
+  u[0] = 2. * x[0] + 1.;
+  return PETSC_SUCCESS;
 }
 
 static PetscErrorCode quadratic(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar *u, void *ctx)
 {
-  u[0] = 3.*x[0]*x[0] + 2.*x[0] + 1.;
-  return 0;
+  u[0] = 3. * x[0] * x[0] + 2. * x[0] + 1.;
+  return PETSC_SUCCESS;
 }
 
 static PetscErrorCode cubic(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar *u, void *ctx)
 {
-  u[0] = 4.*x[0]*x[0]*x[0] + 3.*x[0]*x[0] + 2.*x[0] + 1.;
-  return 0;
+  u[0] = 4. * x[0] * x[0] * x[0] + 3. * x[0] * x[0] + 2. * x[0] + 1.;
+  return PETSC_SUCCESS;
 }
 
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
@@ -39,7 +39,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   PetscOptionsBegin(comm, "", "1D Refinement Options", "DMPLEX");
   PetscCall(PetscOptionsInt("-num_refine", "Refine cycles", "ex46.c", options->Nr, &options->Nr, NULL));
   PetscOptionsEnd();
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
@@ -50,60 +50,69 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
   PetscCall(DMSetFromOptions(*dm));
   PetscCall(DMSetApplicationContext(*dm, user));
   PetscCall(DMViewFromOptions(*dm, NULL, "-dm_view"));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode SetupDiscretization(DM dm, AppCtx *user)
 {
-  DM             cdm = dm;
-  PetscFE        fe;
-  PetscSpace     sp;
-  PetscInt       dim, deg;
+  DM         cdm = dm;
+  PetscFE    fe;
+  PetscSpace sp;
+  PetscInt   dim, deg;
 
   PetscFunctionBeginUser;
   PetscCall(DMGetDimension(dm, &dim));
   PetscCall(PetscFECreateDefault(PETSC_COMM_SELF, dim, 1, PETSC_FALSE, NULL, -1, &fe));
-  PetscCall(PetscObjectSetName((PetscObject) fe, "scalar"));
-  PetscCall(DMSetField(dm, 0, NULL, (PetscObject) fe));
-  PetscCall(DMSetField(dm, 1, NULL, (PetscObject) fe));
+  PetscCall(PetscObjectSetName((PetscObject)fe, "scalar"));
+  PetscCall(DMSetField(dm, 0, NULL, (PetscObject)fe));
+  PetscCall(DMSetField(dm, 1, NULL, (PetscObject)fe));
   PetscCall(DMCreateDS(dm));
   while (cdm) {
-    PetscCall(DMCopyDisc(dm,cdm));
+    PetscCall(DMCopyDisc(dm, cdm));
     PetscCall(DMGetCoarseDM(cdm, &cdm));
   }
   PetscCall(PetscFEGetBasisSpace(fe, &sp));
   PetscCall(PetscSpaceGetDegree(sp, &deg, NULL));
   switch (deg) {
-  case 0: user->funcs[0] = constant;break;
-  case 1: user->funcs[0] = linear;break;
-  case 2: user->funcs[0] = quadratic;break;
-  case 3: user->funcs[0] = cubic;break;
-  default: SETERRQ(PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_OUTOFRANGE, "Could not determine function to test for degree %" PetscInt_FMT, deg);
+  case 0:
+    user->funcs[0] = constant;
+    break;
+  case 1:
+    user->funcs[0] = linear;
+    break;
+  case 2:
+    user->funcs[0] = quadratic;
+    break;
+  case 3:
+    user->funcs[0] = cubic;
+    break;
+  default:
+    SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_OUTOFRANGE, "Could not determine function to test for degree %" PetscInt_FMT, deg);
   }
   user->funcs[1] = user->funcs[0];
   PetscCall(PetscFEDestroy(&fe));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode CheckError(DM dm, Vec u, PetscSimplePointFunc funcs[])
 {
-  PetscReal      error, tol = PETSC_SMALL;
-  MPI_Comm       comm;
+  PetscReal error, tol = PETSC_SMALL;
+  MPI_Comm  comm;
 
   PetscFunctionBeginUser;
   PetscCall(DMComputeL2Diff(dm, 0.0, funcs, NULL, u, &error));
-  PetscCall(PetscObjectGetComm((PetscObject) dm, &comm));
-  if (error > tol) PetscCall(PetscPrintf(comm, "Function tests FAIL at tolerance %g error %g\n", (double)tol,(double) error));
-  else             PetscCall(PetscPrintf(comm, "Function tests pass at tolerance %g\n", (double)tol));
-  PetscFunctionReturn(0);
+  PetscCall(PetscObjectGetComm((PetscObject)dm, &comm));
+  if (error > tol) PetscCall(PetscPrintf(comm, "Function tests FAIL at tolerance %g error %g\n", (double)tol, (double)error));
+  else PetscCall(PetscPrintf(comm, "Function tests pass at tolerance %g\n", (double)tol));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 int main(int argc, char **argv)
 {
-  DM             dm;
-  Vec            u;
-  AppCtx         user;
-  PetscInt       cStart, cEnd, c, r;
+  DM       dm;
+  Vec      u;
+  AppCtx   user;
+  PetscInt cStart, cEnd, c, r;
 
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
@@ -127,7 +136,7 @@ int main(int argc, char **argv)
     }
     PetscCall(DMAdaptLabel(dm, adapt, &adm));
     PetscCall(DMLabelDestroy(&adapt));
-    PetscCall(PetscObjectSetName((PetscObject) adm, "Adapted Mesh"));
+    PetscCall(PetscObjectSetName((PetscObject)adm, "Adapted Mesh"));
     PetscCall(DMViewFromOptions(adm, NULL, "-dm_view"));
 
     PetscCall(DMCreateInterpolation(dm, adm, &Interp, NULL));
@@ -137,8 +146,8 @@ int main(int argc, char **argv)
     PetscCall(MatDestroy(&Interp));
     PetscCall(DMRestoreGlobalVector(dm, &u));
     PetscCall(DMDestroy(&dm));
-    dm   = adm;
-    u    = au;
+    dm = adm;
+    u  = au;
   }
   PetscCall(DMRestoreGlobalVector(dm, &u));
   PetscCall(DMDestroy(&dm));

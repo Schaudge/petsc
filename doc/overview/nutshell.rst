@@ -2,79 +2,86 @@
 PETSc in a nutshell
 ===================
 
-PETSc/TAO is a tool for writing, analyzing, and optimizing properties of large-scale numerical simulations.
+See :any:`handson` to immediately jump in and run PETSc code.
 
-.. image:: /images/docs/manual/library_structure.svg
+PETSc/TAO is a tool for writing, analyzing, and optimizing large-scale numerical simulations.
+
+.. image:: /images/manual/library_structure.svg
    :alt: PETSc Structure Diagram
    :align: center
 
 Algebraic objects
 =================
 
-* ``Vec`` - containers for simulation solutions, right hand sides of linear systems, etc. (:any:`chapter_vectors`)
+* :any:`Vectors <ch_vectors>` - containers for simulation solutions, right hand sides of linear systems, etc (``Vec``).
 
-* ``Mat`` - contain Jacobians and operators that define linear systems (:any:`chapter_matrices`)
+* :any:`Matrices <ch_matrices>`  - contain Jacobians and operators that define linear systems (``Mat``).
 
-  * Several sparse and dense matrix storage formats (see ``MatType``):
+  * :any:`Multiple sparse and dense matrix storage formats<doc_matrix>`,
 
-  * Limited memory variable metric matrix representations
+  * :any:`Limited memory variable metric representations<sec_matlmvm>`,
 
-  * Block
+  * :any:`block<sec_block_matrices>` and :any:`nested<sec_matnest>` representations,
 
-  * Nested
+  * :any:`Easy, efficient matrix assembly and interface <sec_matcreate>`.
 
-  * :ref:`Easy, efficient matrix assembly and interface <sec_matcreate>`
-
-* ``IS`` indices - used to access portions of vectors and matrix, for example {1,2,4} or 1:10
+* Indices - used to access portions of vectors and matrix, for example {1,2,4} or 1:10 (``IS``).
 
 Solvers
 =======
 
-* ``PC`` preconditioners - approximate solvers to algebra systems without a history of previous iterations
+* :any:`Linear solvers<ch_ksp>` based on preconditioners (``PC``) and Krylov subspace methods (``KSP``).
 
-* ``KSP`` Krylov subspace methods - approximate solvers with a history of previous iterations (:any:`chapter_ksp`)
+* :any:`Nonlinear solvers <ch_snes>` (``SNES``).
 
-* ``SNES`` nonlinear equation solvers (:any:`chapter_snes`)
-
-* ``TS`` time integrators (ODE/PDE), explicit, implicit, local and global error estimators (:any:`chapter_ts`)
+* :any:`Time integrators <ch_ts>`, (ODE/PDE), explicit, implicit, IMEX, (``TS``)
 
   * Local and global error estimators
 
-  * ``TSAdjoint`` derivatives/sensitivities of functions of ODE/PDE integration solutions (:any:`section_sa`)
+  * :any:`section_sa`.
 
-* ``TAO`` - optimization, with equality and inequality constraints, first and second order (Newton) methods (:any:`chapter_tao`)
+* :any:`Optimization <ch_tao>` with equality and inequality constraints, first and second order (Newton) methods (``Tao``).
+
+* Eigenvalue/Eigenvectors and related algorithms in the package `SLEPc <https://slepc.upv.es>`__.
+
+Model/Discretization Interfaces to Solvers
+==========================================
+
+* Simple structured grids, ``DMDA``.
+
+* Staggered grids, :any:`ch_stag`, ``DMSTAG``.
+
+* Unstructured grids, :any:`ch_unstructured`, ``DMPLEX``.
+
+* Networks/graphs, for example the power grid, river networks, the nervous system, :any:`ch_network`, ``DMNETWORK``.
+
+* Quad or octree grids, ``DMFOREST``.
+
+* Particles, ``DMSWARM``.
 
 .. seealso::
 
-   For full feature list and prerequisites see:
+   For full feature list see:
 
-   - :ref:`Linear solver table <doc_linsolve>`
-   - :ref:`Nonlinear solver table <doc_nonlinsolve>`
-   - :ref:`Tao solver table <doc_taosolve>`
+   - :ref:`Vector table <doc_vector>`
+   - :ref:`Matrix table <doc_matrix>`
+   - :ref:`Linear solvers table <doc_linsolve>`
+   - :ref:`Nonlinear solvers table <doc_nonlinsolve>`
+   - :ref:`ODE integrators table <integrator_table>`
+   - :ref:`Optimizers table <doc_taosolve>`
+   - :ref:`Model/discretization interfaces to solvers table <dm_table>`
 
-DM: Interfacing Between Solvers and Models/Discretizations
-==========================================================
+Utilities for Simulations/Solvers
+=================================
 
-* ``DMDA`` - for simulations computed on simple structured grids
+Runtime
 
-* ``DMSTAG`` - for simulations computed on staggered grids (:any:`chapter_stag`)
+* control of the simulation, :any:`sec_options`
 
-* ``DMPLEX``  - for simulation computed on unstructured meshes (:any:`chapter_unstructured`)
+* visualization of the solvers and simulation, :any:`sec_viewers`,
 
-* ``DMNETWORK`` - for simulations on networks or graphs, for example the power grid, river networks, the nervous system (:any:`chapter_network`)
+* :any:`monitoring <sec_kspmonitor>` of solution progress,
 
-* ``DMP4EST`` - for simulations on collections of quad or octree meshes
+* :any:`ch_profiling` of the performance,
 
-* ``DMSWARM`` - for simulations on particles
-
-
-Utilities
-=========
-
-* ``PetscOptions`` - control of discretization and solution process
-
-* ``PetscViewer`` - visualizing algebraic objects, solvers, connectors
-
-* Monitor - monitoring of solution progress
-
-* ``Profiling`` - profiling of the performance of the simulation solution process
+* robust :any:`sec_errors`.

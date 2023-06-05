@@ -27,6 +27,11 @@ configure_options = [
   '--with-blaslapack-dir='+os.environ['MKLROOT'],
   '--download-slepc=1',
   '--download-hpddm=1',
+  '--download-triangle=1',
+  '--download-mmg=1',
+  '--with-tau-perfstubs=0',
+  '--with-strict-petscerrorcode',
+  '--with-coverage',
   ]
 
 if __name__ == '__main__':

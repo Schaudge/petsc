@@ -1,14 +1,9 @@
 -include ../../../../../petscdir.mk
 
-SOURCEC   = pcmat.c
-SOURCEF   =
-SOURCEH   =
 LIBBASE   = libpetscksp
-DIRS      =
 MANSEC    = KSP
 SUBMANSEC = PC
-LOCDIR    = src/ksp/pc/impls/mat/
+DIRS      = tests
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
-include ${PETSC_DIR}/lib/petsc/conf/rules
-include ${PETSC_DIR}/lib/petsc/conf/test
+include ${PETSC_DIR}/lib/petsc/conf/rules.doc

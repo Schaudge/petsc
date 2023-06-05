@@ -313,6 +313,7 @@ class TestMatrix(unittest.TestCase):
         self.assertEqual(getrefcount(ctx), 3)
         self.A.destroy() # XXX
         self.A = None
+        PETSc.garbage_cleanup()
         self.assertEqual(getrefcount(ctx), 2)
         #import gc,pprint; pprint.pprint(gc.get_referrers(ctx))
 
@@ -463,12 +464,12 @@ class TestScaledIdentity(TestMatrix):
         A = PETSc.Mat().create(self.COMM)
         A.setSizes(self.A.getSizes())
         A.setType(PETSc.Mat.Type.AIJ)
-        A.setUp()
+        A.setPreallocationNNZ(None)
         A.setRandom(R)
         B = PETSc.Mat().create(self.COMM)
         B.setSizes(self.A.getSizes())
         B.setType(PETSc.Mat.Type.AIJ)
-        B.setUp()
+        B.setPreallocationNNZ(None)
         B.setRandom(R)
         I = PETSc.Mat().create(self.COMM)
         I.setSizes(self.A.getSizes())

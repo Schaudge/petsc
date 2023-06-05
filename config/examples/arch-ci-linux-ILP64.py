@@ -11,7 +11,9 @@ configure_options = [
   '--download-openblas',
   '--download-openblas-64-bit-blas-indices=1',
   '--download-openblas-make-options=TARGET=GENERIC',
-  ]
+  '--with-strict-petscerrorcode',
+  '--with-coverage',
+]
 
 if __name__ == '__main__':
   import sys,os

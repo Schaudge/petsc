@@ -16,8 +16,13 @@ if __name__ == '__main__':
     'CXXOPTFLAGS=-g -O',
     '--with-cuda=1',
     '--with-openmp',
+    '--with-threadsafety',
     '--download-kokkos',
     '--download-kokkos-kernels',
+    '--download-hypre',
+    '--download-hypre-configure-arguments=--enable-unified-memory',
+    '--with-strict-petscerrorcode',
+    #'--with-coverage',
   ]
 
   configure.petsc_configure(configure_options)

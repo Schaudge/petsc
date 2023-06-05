@@ -30,7 +30,7 @@
 !  in them
 !
 
-      module f90modulet
+      module ex5f90tmodule
 #include <petsc/finclude/petscdm.h>
       use petscdmdef
       type userctx
@@ -87,12 +87,9 @@
       PetscCall(DMGlobalToLocalEnd(user%da,X,INSERT_VALUES,localX,ierr))
 
 !  Get a pointer to vector data.
-!    - For default PETSc vectors, VecGetArray90() returns a pointer to
-!      the data array. Otherwise, the routine is implementation dependent.
+!    - VecGetArray90() returns a pointer to the data array.
 !    - You MUST call VecRestoreArrayF90() when you no longer need access to
 !      the array.
-!    - Note that the interface to VecGetArrayF90() differs from VecGetArray(),
-!      and is useable from Fortran-90 Only.
 
       PetscCall(VecGetArrayF90(localX,lx_v,ierr))
       PetscCall(VecGetArrayF90(F,lf_v,ierr))
@@ -113,16 +110,16 @@
 !      PetscCall(VecView(F,PETSC_VIEWER_STDOUT_WORLD,ierr))
       return
       end subroutine formfunction
-      end module f90modulet
+      end module ex5f90tmodule
 
       module f90moduleinterfacest
-        use f90modulet
+        use ex5f90tmodule
 
       Interface SNESSetApplicationContext
         Subroutine SNESSetApplicationContext(snesIn,ctx,ierr)
 #include <petsc/finclude/petscsnes.h>
         use petscsnes
-        use f90modulet
+        use ex5f90tmodule
           type(tSNES)    snesIn
           type(userctx) ctx
           PetscErrorCode ierr
@@ -133,7 +130,7 @@
         Subroutine SNESGetApplicationContext(snesIn,ctx,ierr)
 #include <petsc/finclude/petscsnes.h>
         use petscsnes
-        use f90modulet
+        use ex5f90tmodule
           type(tSNES)     snesIn
           type(userctx), pointer :: ctx
           PetscErrorCode ierr
@@ -147,7 +144,7 @@
       use petscdmda
       use petscdm
       use petscsnes
-      use f90modulet
+      use ex5f90tmodule
       use f90moduleinterfacest
       implicit none
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -192,9 +189,7 @@
       ione = 1
       nfour = 4
       PetscCallA(PetscOptionsGetReal(options,PETSC_NULL_CHARACTER,'-par',user%lambda,flg,ierr))
-      if (user%lambda .ge. lambda_max .or. user%lambda .le. lambda_min) then
-         SETERRA(PETSC_COMM_SELF,PETSC_ERR_USER,'Lambda provided with -par is out of range ')
-      endif
+      PetscCheckA(user%lambda .lt. lambda_max .and. user%lambda .gt. lambda_min,PETSC_COMM_SELF,PETSC_ERR_USER,'Lambda provided with -par is out of range')
 
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  Create nonlinear solver context
@@ -338,7 +333,7 @@
       subroutine FormInitialGuess(mysnes,X,ierr)
 #include <petsc/finclude/petscsnes.h>
       use petscsnes
-      use f90modulet
+      use ex5f90tmodule
       use f90moduleinterfacest
 !  Input/output variables:
       type(tSNES)     mysnes
@@ -352,12 +347,9 @@
       ierr = 0
       PetscCallA(SNESGetApplicationContext(mysnes,puser,ierr))
 !  Get a pointer to vector data.
-!    - For default PETSc vectors, VecGetArray90() returns a pointer to
-!      the data array. Otherwise, the routine is implementation dependent.
+!    - VecGetArray90() returns a pointer to the data array.
 !    - You MUST call VecRestoreArrayF90() when you no longer need access to
 !      the array.
-!    - Note that the interface to VecGetArrayF90() differs from VecGetArray(),
-!      and is useable from Fortran-90 Only.
 
       PetscCallA(VecGetArrayF90(X,lx_v,ierr))
 
@@ -390,7 +382,7 @@
       subroutine InitialGuessLocal(user,x,ierr)
 #include <petsc/finclude/petscsys.h>
       use petscsys
-      use f90modulet
+      use ex5f90tmodule
 !  Input/output variables:
       type (userctx)         user
       PetscScalar  x(user%xs:user%xe,user%ys:user%ye)
@@ -441,7 +433,7 @@
       subroutine FormFunctionLocal(x,f,user,ierr)
 #include <petsc/finclude/petscsys.h>
       use petscsys
-      use f90modulet
+      use ex5f90tmodule
 !  Input/output variables:
       type (userctx) user
       PetscScalar  x(user%gxs:user%gxe,user%gys:user%gye)
@@ -527,7 +519,7 @@
       subroutine FormJacobian(mysnes,X,jac,jac_prec,user,ierr)
 #include <petsc/finclude/petscsnes.h>
       use petscsnes
-      use f90modulet
+      use ex5f90tmodule
 !  Input/output variables:
       type(tSNES)     mysnes
       type(tVec)      X
@@ -615,7 +607,7 @@
       subroutine FormJacobianLocal(x,jac_prec,user,ierr)
 #include <petsc/finclude/petscmat.h>
       use petscmat
-      use f90modulet
+      use ex5f90tmodule
 !  Input/output variables:
       type (userctx) user
       PetscScalar    x(user%gxs:user%gxe,user%gys:user%gye)

@@ -1,17 +1,16 @@
 #include "../cupmcontext.hpp" /*I "petscdevice.h" I*/
 
-using namespace Petsc::Device::CUPM;
+using namespace Petsc::device::cupm;
 
 PetscErrorCode PetscDeviceContextCreate_HIP(PetscDeviceContext dctx)
 {
-  static constexpr auto     contextHip = CUPMContextHip();
-  PetscDeviceContext_(HIP) *dci;
+  static constexpr auto hip_context = CUPMContextHip();
 
   PetscFunctionBegin;
-  PetscCall(PetscNew(&dci));
-  dctx->data = static_cast<decltype(dctx->data)>(dci);
-  PetscCall(PetscMemcpy(dctx->ops,&contextHip.ops,sizeof(contextHip.ops)));
-  PetscFunctionReturn(0);
+  PetscCall(hip_context.initialize(dctx->device));
+  dctx->data = new PetscDeviceContext_(HIP);
+  *dctx->ops = hip_context.ops;
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -28,10 +27,10 @@ PetscErrorCode PetscHIPBLASGetHandle(hipblasHandle_t *handle)
   PetscDeviceContext dctx;
 
   PetscFunctionBegin;
-  PetscValidPointer(handle,1);
-  PetscCall(PetscDeviceContextGetCurrentContextAssertType_Internal(&dctx,PETSC_DEVICE_HIP));
-  PetscCall(PetscDeviceContextGetBLASHandle_Internal(dctx,handle));
-  PetscFunctionReturn(0);
+  PetscValidPointer(handle, 1);
+  PetscCall(PetscDeviceContextGetCurrentContextAssertType_Internal(&dctx, PETSC_DEVICE_HIP));
+  PetscCall(PetscDeviceContextGetBLASHandle_Internal(dctx, handle));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode PetscHIPSOLVERGetHandle(hipsolverHandle_t *handle)
@@ -39,8 +38,8 @@ PetscErrorCode PetscHIPSOLVERGetHandle(hipsolverHandle_t *handle)
   PetscDeviceContext dctx;
 
   PetscFunctionBegin;
-  PetscValidPointer(handle,1);
-  PetscCall(PetscDeviceContextGetCurrentContextAssertType_Internal(&dctx,PETSC_DEVICE_HIP));
-  PetscCall(PetscDeviceContextGetSOLVERHandle_Internal(dctx,handle));
-  PetscFunctionReturn(0);
+  PetscValidPointer(handle, 1);
+  PetscCall(PetscDeviceContextGetCurrentContextAssertType_Internal(&dctx, PETSC_DEVICE_HIP));
+  PetscCall(PetscDeviceContextGetSOLVERHandle_Internal(dctx, handle));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

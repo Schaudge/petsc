@@ -1,5 +1,5 @@
 
-#if !defined(__GENERAL_H)
+#ifndef __GENERAL_H
 #define __GENERAL_H
 
 /*
@@ -8,9 +8,9 @@
 #include <petsc/private/isimpl.h>
 
 typedef struct {
-  PetscBool   sorted;    /* indicates the indices are sorted */
-  PetscBool   allocated; /* did we allocate the index array ourselves? */
-  PetscInt   *idx;
+  PetscBool sorted;    /* indicates the indices are sorted */
+  PetscBool allocated; /* did we allocate the index array ourselves? */
+  PetscInt *idx;
 } IS_General;
 
 #endif

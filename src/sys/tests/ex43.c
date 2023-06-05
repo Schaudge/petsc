@@ -15,12 +15,12 @@ int main(int argc, char **argv)
   PetscLogDouble t_del = 0;
 
   PetscFunctionBeginUser;
-  PetscCall(PetscInitialize(&argc,&argv,NULL,help));
-  PetscCall(PetscOptionsGetInt(NULL,NULL,"-N",&N,NULL));
+  PetscCall(PetscInitialize(&argc, &argv, NULL, help));
+  PetscCall(PetscOptionsGetInt(NULL, NULL, "-N", &N, NULL));
   PetscCall(PetscHSetIJCreate(&table));
 
   /* The following line silences warnings from Clang Static Analyzer */
-  PetscCall(PetscHSetIJResize(table,0));
+  PetscCall(PetscHSetIJResize(table, 0));
 
   PetscCall(PetscTimeSubtract(&t_add));
   for (i = 0; i < N; ++i) {
@@ -32,7 +32,7 @@ int main(int argc, char **argv)
   }
   PetscCall(PetscTimeAdd(&t_add));
 
-  PetscCall(PetscHSetIJGetSize(table,&n));
+  PetscCall(PetscHSetIJGetSize(table, &n));
 
   PetscCall(PetscTimeSubtract(&t_has));
   for (i = 0; i < N; ++i) {
@@ -54,7 +54,7 @@ int main(int argc, char **argv)
   }
   PetscCall(PetscTimeAdd(&t_del));
 
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"N = %" PetscInt_FMT " - table size: %" PetscInt_FMT ", add: %g, has: %g, del: %g\n",N,n,t_add,t_has,t_del));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "N = %" PetscInt_FMT " - table size: %" PetscInt_FMT ", add: %g, has: %g, del: %g\n", N, n, t_add, t_has, t_del));
 
   PetscCall(PetscHSetIJDestroy(&table));
   PetscCall(PetscFinalize());

@@ -30,14 +30,14 @@
 /*      ROOTLS.                                                 */
 /*                                                              */
 /****************************************************************/
-PetscErrorCode SPARSEPACKfnroot(PetscInt *root,const PetscInt *xadj,const PetscInt *adjncy,PetscInt *mask, PetscInt *nlvl, PetscInt *xls, PetscInt *ls)
+PetscErrorCode SPARSEPACKfnroot(PetscInt *root, const PetscInt *xadj, const PetscInt *adjncy, PetscInt *mask, PetscInt *nlvl, PetscInt *xls, PetscInt *ls)
 {
   /* System generated locals */
   PetscInt i__1, i__2;
 
   /* Local variables */
   PetscInt ndeg, node, j, k, nabor, kstop, jstrt, kstrt, mindeg, ccsize, nunlvl;
-/*       DETERMINE THE LEVEL STRUCTURE ROOTED AT ROOT. */
+  /*       DETERMINE THE LEVEL STRUCTURE ROOTED AT ROOT. */
 
   PetscFunctionBegin;
   /* Parameter adjustments */
@@ -47,9 +47,9 @@ PetscErrorCode SPARSEPACKfnroot(PetscInt *root,const PetscInt *xadj,const PetscI
   --adjncy;
   --xadj;
 
-  SPARSEPACKrootls(root, &xadj[1], &adjncy[1], &mask[1], nlvl, &xls[1], &ls[1]);
+  PetscCall(SPARSEPACKrootls(root, &xadj[1], &adjncy[1], &mask[1], nlvl, &xls[1], &ls[1]));
   ccsize = xls[*nlvl + 1] - 1;
-  if (*nlvl == 1 || *nlvl == ccsize) PetscFunctionReturn(0);
+  if (*nlvl == 1 || *nlvl == ccsize) PetscFunctionReturn(PETSC_SUCCESS);
 
 /*       PICK A NODE WITH MINIMUM DEGREE FROM THE LAST LEVEL.*/
 L100:
@@ -71,15 +71,13 @@ L100:
     if (ndeg >= mindeg) goto L300;
     *root  = node;
     mindeg = ndeg;
-L300:
-    ;
+  L300:;
   }
 /*       AND GENERATE ITS ROOTED LEVEL STRUCTURE.*/
 L400:
-  SPARSEPACKrootls(root, &xadj[1], &adjncy[1], &mask[1], &nunlvl, &xls[1], &ls[1]);
-  if (nunlvl <= *nlvl) PetscFunctionReturn(0);
+  PetscCall(SPARSEPACKrootls(root, &xadj[1], &adjncy[1], &mask[1], &nunlvl, &xls[1], &ls[1]));
+  if (nunlvl <= *nlvl) PetscFunctionReturn(PETSC_SUCCESS);
   *nlvl = nunlvl;
   if (*nlvl < ccsize) goto L100;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
-

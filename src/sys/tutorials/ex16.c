@@ -2,9 +2,9 @@
 static char help[] = "Tests calling PetscOptionsSetValue() before PetscInitialize()\n\n";
 
 #include <petscsys.h>
-int main(int argc,char **argv)
+int main(int argc, char **argv)
 {
-  PetscMPIInt    rank,size;
+  PetscMPIInt rank, size;
 
   /*
     Every PETSc routine should begin with the PetscInitialize() routine.
@@ -21,12 +21,12 @@ int main(int argc,char **argv)
     Since PetscOptionsSetValue() is called before the PetscInitialize() we cannot call
     PetscCall() on the error code and just return it directly.
   */
-  PetscCall(PetscOptionsSetValue(NULL,"-no_signal_handler","true"));
+  PetscCall(PetscOptionsSetValue(NULL, "-no_signal_handler", "true"));
   PetscFunctionBeginUser;
-  PetscCall(PetscInitialize(&argc,&argv,(char*)0,help));
-  PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD,&size));
-  PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD,&rank));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"Number of processors = %d, rank = %d\n",size,rank));
+  PetscCall(PetscInitialize(&argc, &argv, (char *)0, help));
+  PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD, &size));
+  PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Number of processors = %d, rank = %d\n", size, rank));
   PetscCall(PetscFinalize());
   return 0;
 }
@@ -37,6 +37,6 @@ int main(int argc,char **argv)
       requires: defined(PETSC_USE_LOG)
       nsize: 2
       args: -options_view -get_total_flops
-      filter: egrep -v "(cuda_initialize|Total flops|options_left)"
+      filter: grep -E -v "(cuda_initialize|Total flops|options_left)"
 
 TEST*/

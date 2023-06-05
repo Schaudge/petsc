@@ -1,4 +1,4 @@
-#include <petsc/private/dmimpl.h>           /*I      "petscdm.h"          I*/
+#include <petsc/private/dmimpl.h> /*I      "petscdm.h"          I*/
 
 #include <petscdmplex.h>
 
@@ -6,49 +6,49 @@
   DMGetPeriodicity - Get the description of mesh periodicity
 
   Input Parameter:
-. dm      - The DM object
+. dm      - The `DM` object
 
   Output Parameters:
 + maxCell - Over distances greater than this, we can assume a point has crossed over to another sheet, when trying to localize cell coordinates
-. Lstart  - If we assume the mesh is a torus, this is the start of each coordinate, or NULL for 0.0
+. Lstart  - If we assume the mesh is a torus, this is the start of each coordinate, or `NULL` for 0.0
 - L       - If we assume the mesh is a torus, this is the length of each coordinate, otherwise it is < 0.0
 
   Level: developer
 
-.seealso: `DMGetPeriodicity()`
+.seealso: `DM`, `DMGetPeriodicity()`
 @*/
 PetscErrorCode DMGetPeriodicity(DM dm, const PetscReal **maxCell, const PetscReal **Lstart, const PetscReal **L)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   if (maxCell) *maxCell = dm->maxCell;
-  if (Lstart)  *Lstart  = dm->Lstart;
-  if (L)       *L       = dm->L;
-  PetscFunctionReturn(0);
+  if (Lstart) *Lstart = dm->Lstart;
+  if (L) *L = dm->L;
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
   DMSetPeriodicity - Set the description of mesh periodicity
 
   Input Parameters:
-+ dm      - The DM object
-. maxCell - Over distances greater than this, we can assume a point has crossed over to another sheet, when trying to localize cell coordinates. Pass NULL to remove such information.
-. Lstart  - If we assume the mesh is a torus, this is the start of each coordinate, or NULL for 0.0
++ dm      - The `DM` object
+. maxCell - Over distances greater than this, we can assume a point has crossed over to another sheet, when trying to localize cell coordinates. Pass `NULL` to remove such information.
+. Lstart  - If we assume the mesh is a torus, this is the start of each coordinate, or `NULL` for 0.0
 - L       - If we assume the mesh is a torus, this is the length of each coordinate, otherwise it is < 0.0
 
   Level: developer
 
-.seealso: `DMGetPeriodicity()`
+.seealso: `DM`, `DMGetPeriodicity()`
 @*/
 PetscErrorCode DMSetPeriodicity(DM dm, const PetscReal maxCell[], const PetscReal Lstart[], const PetscReal L[])
 {
   PetscInt dim, d;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  if (maxCell) {PetscValidRealPointer(maxCell,2);}
-  if (Lstart)  {PetscValidRealPointer(Lstart,3);}
-  if (L)       {PetscValidRealPointer(L,4);}
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  if (maxCell) PetscValidRealPointer(maxCell, 2);
+  if (Lstart) PetscValidRealPointer(Lstart, 3);
+  if (L) PetscValidRealPointer(L, 4);
   PetscCall(DMGetDimension(dm, &dim));
   if (maxCell) {
     if (!dm->maxCell) PetscCall(PetscMalloc1(dim, &dm->maxCell));
@@ -71,15 +71,15 @@ PetscErrorCode DMSetPeriodicity(DM dm, const PetscReal maxCell[], const PetscRea
     PetscCall(PetscFree(dm->L));
     dm->L = NULL;
   }
-  PetscCheck((dm->maxCell && dm->L) || (!dm->maxCell && !dm->L), PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_WRONG, "Cannot set only one of maxCell/L");
-  PetscFunctionReturn(0);
+  PetscCheck((dm->maxCell && dm->L) || (!dm->maxCell && !dm->L), PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_WRONG, "Cannot set only one of maxCell/L");
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
   DMLocalizeCoordinate - If a mesh is periodic (a torus with lengths L_i, some of which can be infinite), project the coordinate onto [0, L_i) in each dimension.
 
   Input Parameters:
-+ dm     - The DM
++ dm     - The `DM`
 . in     - The input coordinate point (dim numbers)
 - endpoint - Include the endpoint L_i
 
@@ -88,11 +88,11 @@ PetscErrorCode DMSetPeriodicity(DM dm, const PetscReal maxCell[], const PetscRea
 
   Level: developer
 
-.seealso: `DMLocalizeCoordinates()`, `DMLocalizeAddCoordinate()`
+.seealso: `DM`, `DMLocalizeCoordinates()`, `DMLocalizeAddCoordinate()`
 @*/
 PetscErrorCode DMLocalizeCoordinate(DM dm, const PetscScalar in[], PetscBool endpoint, PetscScalar out[])
 {
-  PetscInt       dim, d;
+  PetscInt dim, d;
 
   PetscFunctionBegin;
   PetscCall(DMGetCoordinateDim(dm, &dim));
@@ -101,26 +101,24 @@ PetscErrorCode DMLocalizeCoordinate(DM dm, const PetscScalar in[], PetscBool end
   } else {
     if (endpoint) {
       for (d = 0; d < dim; ++d) {
-        if ((PetscAbsReal(PetscRealPart(in[d])/dm->L[d] - PetscFloorReal(PetscRealPart(in[d])/dm->L[d])) < PETSC_SMALL) && (PetscRealPart(in[d])/dm->L[d] > PETSC_SMALL)) {
-          out[d] = in[d] - dm->L[d]*(PetscFloorReal(PetscRealPart(in[d])/dm->L[d]) - 1);
+        if ((PetscAbsReal(PetscRealPart(in[d]) / dm->L[d] - PetscFloorReal(PetscRealPart(in[d]) / dm->L[d])) < PETSC_SMALL) && (PetscRealPart(in[d]) / dm->L[d] > PETSC_SMALL)) {
+          out[d] = in[d] - dm->L[d] * (PetscFloorReal(PetscRealPart(in[d]) / dm->L[d]) - 1);
         } else {
-          out[d] = in[d] - dm->L[d]*PetscFloorReal(PetscRealPart(in[d])/dm->L[d]);
+          out[d] = in[d] - dm->L[d] * PetscFloorReal(PetscRealPart(in[d]) / dm->L[d]);
         }
       }
     } else {
-      for (d = 0; d < dim; ++d) {
-        out[d] = in[d] - dm->L[d]*PetscFloorReal(PetscRealPart(in[d])/dm->L[d]);
-      }
+      for (d = 0; d < dim; ++d) out[d] = in[d] - dm->L[d] * PetscFloorReal(PetscRealPart(in[d]) / dm->L[d]);
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
   DMLocalizeCoordinate_Internal - If a mesh is periodic, and the input point is far from the anchor, pick the coordinate sheet of the torus which moves it closer.
 
   Input Parameters:
-+ dm     - The DM
++ dm     - The `DM`
 . dim    - The spatial dimension
 . anchor - The anchor point, the input point can be no more than maxCell away from it
 - in     - The input coordinate point (dim numbers)
@@ -130,9 +128,10 @@ PetscErrorCode DMLocalizeCoordinate(DM dm, const PetscScalar in[], PetscBool end
 
   Level: developer
 
-  Note: This is meant to get a set of coordinates close to each other, as in a cell. The anchor is usually the one of the vertices on a containing cell
+  Note:
+  This is meant to get a set of coordinates close to each other, as in a cell. The anchor is usually the one of the vertices on a containing cell
 
-.seealso: `DMLocalizeCoordinates()`, `DMLocalizeAddCoordinate()`
+.seealso: `DM`, `DMLocalizeCoordinates()`, `DMLocalizeAddCoordinate()`
 */
 PetscErrorCode DMLocalizeCoordinate_Internal(DM dm, PetscInt dim, const PetscScalar anchor[], const PetscScalar in[], PetscScalar out[])
 {
@@ -150,7 +149,7 @@ PetscErrorCode DMLocalizeCoordinate_Internal(DM dm, PetscInt dim, const PetscSca
       }
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DMLocalizeCoordinateReal_Internal(DM dm, PetscInt dim, const PetscReal anchor[], const PetscReal in[], PetscReal out[])
@@ -169,14 +168,14 @@ PetscErrorCode DMLocalizeCoordinateReal_Internal(DM dm, PetscInt dim, const Pets
       }
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
   DMLocalizeAddCoordinate_Internal - If a mesh is periodic, and the input point is far from the anchor, pick the coordinate sheet of the torus which moves it closer.
 
   Input Parameters:
-+ dm     - The DM
++ dm     - The `DM`
 . dim    - The spatial dimension
 . anchor - The anchor point, the input point can be no more than maxCell away from it
 . in     - The input coordinate delta (dim numbers)
@@ -187,9 +186,10 @@ PetscErrorCode DMLocalizeCoordinateReal_Internal(DM dm, PetscInt dim, const Pets
 
   Level: developer
 
-  Note: This is meant to get a set of coordinates close to each other, as in a cell. The anchor is usually the one of the vertices on a containing cell
+  Note:
+  This is meant to get a set of coordinates close to each other, as in a cell. The anchor is usually the one of the vertices on a containing cell
 
-.seealso: `DMLocalizeCoordinates()`, `DMLocalizeCoordinate()`
+.seealso: `DM`, `DMLocalizeCoordinates()`, `DMLocalizeCoordinate()`
 */
 PetscErrorCode DMLocalizeAddCoordinate_Internal(DM dm, PetscInt dim, const PetscScalar anchor[], const PetscScalar in[], PetscScalar out[])
 {
@@ -206,30 +206,30 @@ PetscErrorCode DMLocalizeAddCoordinate_Internal(DM dm, PetscInt dim, const Petsc
         const PetscScalar newCoord = PetscRealPart(anchor[d]) > PetscRealPart(in[d]) ? dm->L[d] + in[d] : in[d] - dm->L[d];
 
         if (PetscAbsScalar(newCoord - anchor[d]) > maxC)
-          SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "%" PetscInt_FMT "-Coordinate %g more than %g away from anchor %g", d, (double) PetscRealPart(in[d]), (double) maxC, (double) PetscRealPart(anchor[d]));
+          SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "%" PetscInt_FMT "-Coordinate %g more than %g away from anchor %g", d, (double)PetscRealPart(in[d]), (double)maxC, (double)PetscRealPart(anchor[d]));
         out[d] += newCoord;
       } else {
         out[d] += in[d];
       }
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
-  DMGetCoordinatesLocalizedLocal - Check if the DM coordinates have been localized for cells on this process
+  DMGetCoordinatesLocalizedLocal - Check if the `DM` coordinates have been localized for cells on this process
 
-  Not collective
+  Not Collective
 
   Input Parameter:
-. dm - The DM
+. dm - The `DM`
 
   Output Parameter:
-  areLocalized - True if localized
+  areLocalized - `PETSC_TRUE` if localized
 
   Level: developer
 
-.seealso: `DMLocalizeCoordinates()`, `DMGetCoordinatesLocalized()`, `DMSetPeriodicity()`
+.seealso: `DM`, `DMLocalizeCoordinates()`, `DMGetCoordinatesLocalized()`, `DMSetPeriodicity()`
 @*/
 PetscErrorCode DMGetCoordinatesLocalizedLocal(DM dm, PetscBool *areLocalized)
 {
@@ -237,25 +237,25 @@ PetscErrorCode DMGetCoordinatesLocalizedLocal(DM dm, PetscBool *areLocalized)
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   PetscValidBoolPointer(areLocalized, 2);
   *areLocalized = dm->coordinates[1].dim < 0 ? PETSC_FALSE : PETSC_TRUE;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
-  DMGetCoordinatesLocalized - Check if the DM coordinates have been localized for cells
+  DMGetCoordinatesLocalized - Check if the `DM` coordinates have been localized for cells
 
-  Collective on dm
+  Collective
 
   Input Parameter:
-. dm - The DM
+. dm - The `DM`
 
   Output Parameter:
-  areLocalized - True if localized
+  areLocalized - `PETSC_TRUE` if localized
 
   Level: developer
 
-.seealso: `DMLocalizeCoordinates()`, `DMSetPeriodicity()`, `DMGetCoordinatesLocalizedLocal()`
+.seealso: `DM`, `DMLocalizeCoordinates()`, `DMSetPeriodicity()`, `DMGetCoordinatesLocalizedLocal()`
 @*/
-PetscErrorCode DMGetCoordinatesLocalized(DM dm,PetscBool *areLocalized)
+PetscErrorCode DMGetCoordinatesLocalized(DM dm, PetscBool *areLocalized)
 {
   PetscBool localized;
 
@@ -263,21 +263,21 @@ PetscErrorCode DMGetCoordinatesLocalized(DM dm,PetscBool *areLocalized)
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   PetscValidBoolPointer(areLocalized, 2);
   PetscCall(DMGetCoordinatesLocalizedLocal(dm, &localized));
-  PetscCall(MPIU_Allreduce(&localized, areLocalized, 1, MPIU_BOOL, MPI_LOR, PetscObjectComm((PetscObject) dm)));
-  PetscFunctionReturn(0);
+  PetscCall(MPIU_Allreduce(&localized, areLocalized, 1, MPIU_BOOL, MPI_LOR, PetscObjectComm((PetscObject)dm)));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
   DMLocalizeCoordinates - If a mesh is periodic, create local coordinates for cells having periodic faces
 
-  Collective on dm
+  Collective
 
   Input Parameter:
-. dm - The DM
+. dm - The `DM`
 
   Level: developer
 
-.seealso: `DMSetPeriodicity()`, `DMLocalizeCoordinate()`, `DMLocalizeAddCoordinate()`
+.seealso: `DM`, `DMSetPeriodicity()`, `DMLocalizeCoordinate()`, `DMLocalizeAddCoordinate()`
 @*/
 PetscErrorCode DMLocalizeCoordinates(DM dm)
 {
@@ -296,18 +296,18 @@ PetscErrorCode DMLocalizeCoordinates(DM dm)
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   PetscCall(DMGetPeriodicity(dm, NULL, &Lstart, &L));
   /* Cannot automatically localize without L and maxCell right now */
-  if (!L) PetscFunctionReturn(0);
-  PetscCall(PetscObjectGetComm((PetscObject) dm, &comm));
+  if (!L) PetscFunctionReturn(PETSC_SUCCESS);
+  PetscCall(PetscObjectGetComm((PetscObject)dm, &comm));
   PetscCall(DMGetCoordinatesLocalized(dm, &isLocalized));
-  if (isLocalized) PetscFunctionReturn(0);
+  if (isLocalized) PetscFunctionReturn(PETSC_SUCCESS);
 
   PetscCall(DMGetCoordinateDM(dm, &cdm));
-  PetscCall(DMConvert(dm,  DMPLEX, &plex));
+  PetscCall(DMConvert(dm, DMPLEX, &plex));
   PetscCall(DMConvert(cdm, DMPLEX, &cplex));
   if (cplex) {
     PetscCall(DMPlexGetDepthStratum(cplex, 0, &vStart, &vEnd));
     PetscCall(DMPlexGetMaxProjectionHeight(cplex, &maxHeight));
-    PetscCall(DMGetWorkArray(dm, 2*(maxHeight + 1), MPIU_INT, &pStart));
+    PetscCall(DMGetWorkArray(dm, 2 * (maxHeight + 1), MPIU_INT, &pStart));
     pEnd     = &pStart[maxHeight + 1];
     newStart = vStart;
     newEnd   = vEnd;
@@ -345,26 +345,27 @@ PetscErrorCode DMLocalizeCoordinates(DM dm)
       PetscCall(DMPlexVecGetClosure(cplex, cs, coordinates, c, &dof, &cellCoords));
       PetscCheck(!(dof % Nc), comm, PETSC_ERR_ARG_INCOMP, "Coordinate size on cell %" PetscInt_FMT " closure %" PetscInt_FMT " not divisible by %" PetscInt_FMT " number of components", c, dof, Nc);
       for (d = 0; d < Nc; ++d) anchor[d] = cellCoords[d];
-      for (p = 0; p < dof/Nc; ++p) {
-        PetscCall(DMLocalizeCoordinate_Internal(dm, Nc, anchor, &cellCoords[p*Nc], localized));
-        for (d = 0; d < Nc; ++d) if (cellCoords[p*Nc + d] != localized[d]) break;
+      for (p = 0; p < dof / Nc; ++p) {
+        PetscCall(DMLocalizeCoordinate_Internal(dm, Nc, anchor, &cellCoords[p * Nc], localized));
+        for (d = 0; d < Nc; ++d)
+          if (cellCoords[p * Nc + d] != localized[d]) break;
         if (d < Nc) break;
       }
-      if (p < dof/Nc) useDG = PETSC_TRUE;
-      if (p < dof/Nc || !sparseLocalize) {
+      if (p < dof / Nc) useDG = PETSC_TRUE;
+      if (p < dof / Nc || !sparseLocalize) {
         PetscCall(PetscSectionSetDof(csDG, c, dof));
         PetscCall(PetscSectionSetFieldDof(csDG, c, 0, dof));
       }
       PetscCall(DMPlexVecRestoreClosure(cplex, cs, coordinates, c, &dof, &cellCoords));
     }
   }
-  PetscCallMPI(MPI_Allreduce(&useDG, &useDGGlobal, 1, MPIU_BOOL, MPI_LOR, comm));
+  PetscCall(MPIU_Allreduce(&useDG, &useDGGlobal, 1, MPIU_BOOL, MPI_LOR, comm));
   if (!useDGGlobal) goto end;
 
   PetscCall(PetscSectionSetUp(csDG));
   PetscCall(PetscSectionGetStorageSize(csDG, &coordSize));
   PetscCall(VecCreate(PETSC_COMM_SELF, &cVec));
-  PetscCall(PetscObjectSetName((PetscObject) cVec, "coordinates"));
+  PetscCall(PetscObjectSetName((PetscObject)cVec, "coordinates"));
   PetscCall(VecSetBlockSize(cVec, bs));
   PetscCall(VecSetSizes(cVec, coordSize, PETSC_DETERMINE));
   PetscCall(VecSetType(cVec, VECSTANDARD));
@@ -374,26 +375,26 @@ PetscErrorCode DMLocalizeCoordinates(DM dm)
 
     for (c = cStart; c < cEnd; ++c) {
       PetscScalar *cellCoords = NULL;
-      PetscInt     p = 0, q, dof, cdof, d, offDG;
+      PetscInt     p          = 0, q, dof, cdof, d, offDG;
 
       PetscCall(PetscSectionGetDof(csDG, c, &cdof));
       if (!cdof) continue;
       PetscCall(DMPlexVecGetClosure(cplex, cs, coordinates, c, &dof, &cellCoords));
       PetscCall(PetscSectionGetOffset(csDG, c, &offDG));
       // TODO The coordinates are set in closure order, which might not be the tensor order
-      for (q = 0; q < dof/Nc; ++q) {
+      for (q = 0; q < dof / Nc; ++q) {
         // Select a trial anchor
-        for (d = 0; d < Nc; ++d) anchor[d] = cellCoords[q*Nc+d];
-        for (p = 0; p < dof/Nc; ++p) {
-          PetscCall(DMLocalizeCoordinate_Internal(dm, Nc, anchor, &cellCoords[p*Nc], &coordsDG[offDG + p*Nc]));
+        for (d = 0; d < Nc; ++d) anchor[d] = cellCoords[q * Nc + d];
+        for (p = 0; p < dof / Nc; ++p) {
+          PetscCall(DMLocalizeCoordinate_Internal(dm, Nc, anchor, &cellCoords[p * Nc], &coordsDG[offDG + p * Nc]));
           // We need the cell to fit into the torus [lower, lower+L)
           for (d = 0; d < Nc; ++d)
-            if (L[d] > 0. && ((PetscRealPart(coordsDG[offDG + p*Nc + d]) < (Lstart ? Lstart[d] : 0.)) || (PetscRealPart(coordsDG[offDG + p*Nc + d]) > (Lstart ? Lstart[d] : 0.)+L[d]))) break;
+            if (L[d] > 0. && ((PetscRealPart(coordsDG[offDG + p * Nc + d]) < (Lstart ? Lstart[d] : 0.)) || (PetscRealPart(coordsDG[offDG + p * Nc + d]) > (Lstart ? Lstart[d] : 0.) + L[d]))) break;
           if (d < Nc) break;
         }
-        if (p == dof/Nc) break;
+        if (p == dof / Nc) break;
       }
-      PetscCheck(p == dof/Nc, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Cell %" PetscInt_FMT " does not fit into the torus %s[0, L]", c, Lstart ? "Lstart + " : "");
+      PetscCheck(p == dof / Nc, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Cell %" PetscInt_FMT " does not fit into the torus %s[0, L]", c, Lstart ? "Lstart + " : "");
       PetscCall(DMPlexVecRestoreClosure(cplex, cs, coordinates, c, &dof, &cellCoords));
     }
   }
@@ -411,21 +412,21 @@ PetscErrorCode DMLocalizeCoordinates(DM dm)
     PetscQuadrature q, fq;
     PetscClassId    id;
 
-    PetscCall(DMGetField(cdm, 0, NULL, (PetscObject *) &fe));
-    PetscCall(PetscObjectGetClassId((PetscObject) fe, &id));
+    PetscCall(DMGetField(cdm, 0, NULL, (PetscObject *)&fe));
+    PetscCall(PetscObjectGetClassId((PetscObject)fe, &id));
     if (id == PETSCFE_CLASSID) {
       PetscCall(PetscFEGetBasisSpace(fe, &P));
-      PetscCall(PetscObjectReference((PetscObject) P));
+      PetscCall(PetscObjectReference((PetscObject)P));
       PetscCall(PetscFEGetDualSpace(fe, &Q));
       PetscCall(PetscDualSpaceDuplicate(Q, &dgQ));
       PetscCall(PetscDualSpaceLagrangeSetContinuity(dgQ, PETSC_FALSE));
       PetscCall(PetscDualSpaceSetUp(dgQ));
       PetscCall(PetscFEGetQuadrature(fe, &q));
-      PetscCall(PetscObjectReference((PetscObject) q));
+      PetscCall(PetscObjectReference((PetscObject)q));
       PetscCall(PetscFEGetFaceQuadrature(fe, &fq));
-      PetscCall(PetscObjectReference((PetscObject) fq));
+      PetscCall(PetscObjectReference((PetscObject)fq));
       PetscCall(PetscFECreateFromSpaces(P, dgQ, q, fq, &dgfe));
-      PetscCall(DMSetField(cdgdm, 0, NULL, (PetscObject) dgfe));
+      PetscCall(DMSetField(cdgdm, 0, NULL, (PetscObject)dgfe));
       PetscCall(PetscFEDestroy(&dgfe));
       PetscCall(DMCreateDS(cdgdm));
     }
@@ -434,9 +435,9 @@ PetscErrorCode DMLocalizeCoordinates(DM dm)
 
 end:
   PetscCall(DMRestoreWorkArray(dm, 2 * bs, MPIU_SCALAR, &anchor));
-  PetscCall(DMRestoreWorkArray(dm, 2*(maxHeight + 1), MPIU_INT, &pStart));
+  PetscCall(DMRestoreWorkArray(dm, 2 * (maxHeight + 1), MPIU_INT, &pStart));
   PetscCall(PetscSectionDestroy(&csDG));
   PetscCall(DMDestroy(&plex));
   PetscCall(DMDestroy(&cplex));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

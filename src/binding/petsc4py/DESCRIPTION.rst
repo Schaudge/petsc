@@ -3,6 +3,24 @@ PETSc for Python
 
 Python bindings for PETSc.
 
+Install
+-------
+
+If you have a working MPI implementation and the ``mpicc`` compiler
+wrapper is on your search path, it is highly recommended to install
+``mpi4py`` first::
+
+  $ pip install mpi4py
+
+Ensure you have NumPy installed::
+
+  $ pip install numpy
+
+and finally::
+
+  $ pip install petsc petsc4py
+
+
 Citations
 ---------
 
@@ -17,10 +35,10 @@ project.
 
 * S. Balay, S. Abhyankar, M. Adams, S. Benson, J. Brown,
   P. Brune, K. Buschelman, E. Constantinescu, L. Dalcin, A. Dener,
-  V. Eijkhout, W. Gropp, V. Hapla, T. Isaac, P. Jolivet,
+  V. Eijkhout, J. Faibussowitsch, W. Gropp, V. Hapla, T. Isaac, P. Jolivet,
   D. Karpeyev, D. Kaushik, M. Knepley, F. Kong, S. Kruger,
   D. May, L. Curfman McInnes, R. Mills, L. Mitchell, T. Munson,
   J. Roman, K. Rupp, P. Sanan, J Sarich, B. Smith,
   S. Zampini, H. Zhang, and H. Zhang, J. Zhang,
-  *PETSc Users Manual*, ANL-21/39 - Revision 3.17, 2022.
+  *PETSc/TAO Users Manual*, ANL-21/39 - Revision 3.19, 2023.
   https://petsc.org/release/docs/manual/manual.pdf

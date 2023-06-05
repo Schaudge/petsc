@@ -11,8 +11,16 @@
 !
 ! ----------------------------------------------------------------------
 !
-#include "chwirut1f.h"
+      module chwirut1fmodule
+      use petsctao
+#include <petsc/finclude/petsctao.h>
+      PetscReal t(0:213)
+      PetscReal y(0:213)
+      PetscInt  m,n
+      end module chwirut1fmodule
 
+      program main
+      use chwirut1fmodule
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !                   Variable declarations
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -42,7 +50,7 @@
 
       PetscCallMPIA(MPI_Comm_size(PETSC_COMM_WORLD,size,ierr))
       PetscCallMPIA(MPI_Comm_rank(PETSC_COMM_WORLD,rank,ierr))
-      if (size .ne. 1) then; SETERRA(PETSC_COMM_SELF,PETSC_ERR_WRONG_MPI_SIZE,'This is a uniprocessor example only '); endif
+      PetscCheckA(size .eq. 1,PETSC_COMM_SELF,PETSC_ERR_WRONG_MPI_SIZE,'This is a uniprocessor example only')
 
 !  Initialize problem parameters
       m = 214
@@ -103,7 +111,7 @@
 !  f - function vector
 
       subroutine FormFunction(tao, x, f, dummy, ierr)
-#include "chwirut1f.h"
+      use chwirut1fmodule
 
       Tao        tao
       Vec              x,f
@@ -132,7 +140,7 @@
       end
 
       subroutine FormStartingPoint(x)
-#include "chwirut1f.h"
+      use chwirut1fmodule
 
       Vec             x
       PetscScalar, pointer, dimension(:)  :: x_v
@@ -147,7 +155,7 @@
       end
 
       subroutine InitializeData()
-#include "chwirut1f.h"
+      use chwirut1fmodule
 
       integer i
       i=0

@@ -31,7 +31,6 @@ PC Object: 8 MPI processes
         Threshold scaling factor for each level not specified = 1.
         Using parallel coarse grid solver (all coarse grid equations not put on one process)
         AGG specific options
-          Symmetric graph false
           Number of levels to square graph 1
           Number smoothing steps 1
         Complexity:    grid = 1.036    operator = 1.03899
@@ -55,6 +54,7 @@ PC Object: 8 MPI processes
   Down solver (pre-smoother) on level 1 -------------------------------
     KSP Object: (mg_levels_1_) 8 MPI processes
       type: chebyshev
+        Chebyshev polynomial of first kind
         eigenvalue targets used: min 0.637067, max 3.3446
         eigenvalues provided (min 0.0597913, max 3.18533) with transform: [0. 0.2; 0. 1.05]
       maximum iterations=2, nonzero initial guess
@@ -114,7 +114,6 @@ PC Object: 8 MPI processes
         Threshold scaling factor for each level not specified = 1.
         Using parallel coarse grid solver (all coarse grid equations not put on one process)
         AGG specific options
-          Symmetric graph false
           Number of levels to square graph 1
           Number smoothing steps 1
         Complexity:    grid = 1.036    operator = 1.03899
@@ -139,6 +138,7 @@ PC Object: 8 MPI processes
   Down solver (pre-smoother) on level 1 -------------------------------
     KSP Object: (mg_levels_1_) 8 MPI processes
       type: chebyshev
+        Chebyshev polynomial of first kind
         eigenvalue targets used: min 0.637067, max 3.3446
         eigenvalues provided (min 0.0597913, max 3.18533) with transform: [0. 0.2; 0. 1.05]
       maximum iterations=2, nonzero initial guess
@@ -198,7 +198,6 @@ PC Object: 8 MPI processes
         Threshold scaling factor for each level not specified = 1.
         Using parallel coarse grid solver (all coarse grid equations not put on one process)
         AGG specific options
-          Symmetric graph false
           Number of levels to square graph 1
           Number smoothing steps 1
         Complexity:    grid = 1.036    operator = 1.03899
@@ -223,6 +222,7 @@ PC Object: 8 MPI processes
   Down solver (pre-smoother) on level 1 -------------------------------
     KSP Object: (mg_levels_1_) 8 MPI processes
       type: chebyshev
+        Chebyshev polynomial of first kind
         eigenvalue targets used: min 0.637067, max 3.3446
         eigenvalues provided (min 0.0597913, max 3.18533) with transform: [0. 0.2; 0. 1.05]
       maximum iterations=2, nonzero initial guess

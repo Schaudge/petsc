@@ -1,33 +1,33 @@
 /*
        Provides the calling sequences for all the basic PetscDraw routines.
 */
-#include <petsc/private/drawimpl.h>  /*I "petscdraw.h" I*/
+#include <petsc/private/drawimpl.h> /*I "petscdraw.h" I*/
 
 /*@
    PetscDrawClear - Clears graphical output. All processors must call this routine.
    Does not return until the draw in context is clear.
 
-   Collective on PetscDraw
+   Collective
 
-   Input Parameters:
+   Input Parameter:
 .  draw - the drawing context
 
    Level: intermediate
 
 @*/
-PetscErrorCode  PetscDrawClear(PetscDraw draw)
+PetscErrorCode PetscDrawClear(PetscDraw draw)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(draw,PETSC_DRAW_CLASSID,1);
+  PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
   if (draw->saveonclear) PetscCall(PetscDrawSave(draw));
-  if (draw->ops->clear) PetscCall((*draw->ops->clear)(draw));
-  PetscFunctionReturn(0);
+  PetscTryTypeMethod(draw, clear);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
    PetscDrawBOP - Begins a new page or frame on the selected graphical device.
 
-   Logically Collective on PetscDraw
+   Logically Collective
 
    Input Parameter:
 .  draw - the drawing context
@@ -36,17 +36,17 @@ PetscErrorCode  PetscDrawClear(PetscDraw draw)
 
 .seealso: `PetscDrawEOP()`, `PetscDrawClear()`
 @*/
-PetscErrorCode  PetscDrawBOP(PetscDraw draw)
+PetscErrorCode PetscDrawBOP(PetscDraw draw)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(draw,PETSC_DRAW_CLASSID,1);
-  if (draw->ops->beginpage) PetscCall((*draw->ops->beginpage)(draw));
-  PetscFunctionReturn(0);
+  PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscTryTypeMethod(draw, beginpage);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 /*@
    PetscDrawEOP - Ends a page or frame on the selected graphical device.
 
-   Logically Collective on PetscDraw
+   Logically Collective
 
    Input Parameter:
 .  draw - the drawing context
@@ -55,10 +55,10 @@ PetscErrorCode  PetscDrawBOP(PetscDraw draw)
 
 .seealso: `PetscDrawBOP()`, `PetscDrawClear()`
 @*/
-PetscErrorCode  PetscDrawEOP(PetscDraw draw)
+PetscErrorCode PetscDrawEOP(PetscDraw draw)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(draw,PETSC_DRAW_CLASSID,1);
-  if (draw->ops->endpage) PetscCall((*draw->ops->endpage)(draw));
-  PetscFunctionReturn(0);
+  PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscTryTypeMethod(draw, endpage);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

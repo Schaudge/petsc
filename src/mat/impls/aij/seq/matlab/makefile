@@ -1,15 +1,9 @@
 -include ../../../../../../petscdir.mk
-#requiresdefine   'PETSC_HAVE_MATLAB_ENGINE'
+#requiresdefine   'PETSC_HAVE_MATLAB'
 
 CFLAGS   = ${MATLAB_INCLUDE}
-SOURCEC  = aijmatlab.c
-SOURCEF  =
-SOURCEH  =
 LIBBASE  = libpetscmat
-DIRS     =
 MANSEC   = Mat
-LOCDIR   = src/mat/impls/aij/seq/matlab/
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
-include ${PETSC_DIR}/lib/petsc/conf/rules
-include ${PETSC_DIR}/lib/petsc/conf/test
+include ${PETSC_DIR}/lib/petsc/conf/rules.doc

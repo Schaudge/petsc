@@ -1,51 +1,55 @@
-
-/*
-       Provides the calling sequences for all the basic PetscDraw routines.
-*/
-#include <petsc/private/drawimpl.h>  /*I "petscdraw.h" I*/
+#include <petsc/private/drawimpl.h> /*I "petscdraw.h" I*/
 
 /*@C
-   PetscDrawIndicatorFunction - Draws an indicator function (where a relationship is true) on a PetscDraw
+   PetscDrawIndicatorFunction - Draws an indicator function (where a relationship is true) on a `PetscDraw`
 
-   Not collective
+   Not Collective
 
    Input Parameters:
-+  draw - a PetscDraw
-.  xmin,xmax,ymin,ymax - region to draw indicator function
++  draw - a `PetscDraw`
+.  xmin - region to draw indicator function
+.  xmax - region to draw indicator function
+.  ymin - region to draw indicator function
+.  ymax - region to draw indicator function
 -  f - the indicator function
 
    Level: developer
 
+.seealso: `PetscDraw`
 @*/
-PetscErrorCode PetscDrawIndicatorFunction(PetscDraw draw,PetscReal xmin,PetscReal xmax,PetscReal ymin,PetscReal ymax,int c,PetscErrorCode (*indicator)(void*,PetscReal,PetscReal,PetscBool*),void *ctx)
+PetscErrorCode PetscDrawIndicatorFunction(PetscDraw draw, PetscReal xmin, PetscReal xmax, PetscReal ymin, PetscReal ymax, int c, PetscErrorCode (*indicator)(void *, PetscReal, PetscReal, PetscBool *), void *ctx)
 {
-  int            i,j,xstart,ystart,xend,yend;
-  PetscReal      x,y;
-  PetscBool      isnull,flg;
+  int       i, j, xstart, ystart, xend, yend;
+  PetscReal x, y;
+  PetscBool isnull, flg;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(draw,PETSC_DRAW_CLASSID,1);
-  PetscCall(PetscDrawIsNull(draw,&isnull));
-  if (isnull) PetscFunctionReturn(0);
+  PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscCall(PetscDrawIsNull(draw, &isnull));
+  if (isnull) PetscFunctionReturn(PETSC_SUCCESS);
 
-  PetscCall(PetscDrawCoordinateToPixel(draw,xmin,ymin,&xstart,&ystart));
-  PetscCall(PetscDrawCoordinateToPixel(draw,xmax,ymax,&xend,&yend));
-  if (yend < ystart) { PetscInt tmp = ystart; ystart = yend; yend = tmp; }
+  PetscCall(PetscDrawCoordinateToPixel(draw, xmin, ymin, &xstart, &ystart));
+  PetscCall(PetscDrawCoordinateToPixel(draw, xmax, ymax, &xend, &yend));
+  if (yend < ystart) {
+    PetscInt tmp = ystart;
+    ystart       = yend;
+    yend         = tmp;
+  }
 
-  for (i=xstart; i<=xend; i++) {
-    for (j=ystart; j<=yend; j++) {
-      PetscCall(PetscDrawPixelToCoordinate(draw,i,j,&x,&y));
-      PetscCall(indicator(ctx,x,y,&flg));
-      if (flg) PetscCall(PetscDrawPointPixel(draw,i,j,c));
+  for (i = xstart; i <= xend; i++) {
+    for (j = ystart; j <= yend; j++) {
+      PetscCall(PetscDrawPixelToCoordinate(draw, i, j, &x, &y));
+      PetscCall(indicator(ctx, x, y, &flg));
+      if (flg) PetscCall(PetscDrawPointPixel(draw, i, j, c));
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   PetscDrawCoordinateToPixel - given a coordinate in a PetscDraw returns the pixel location
+   PetscDrawCoordinateToPixel - given a coordinate in a `PetscDraw` returns the pixel location
 
-   Not collective
+   Not Collective
 
    Input Parameters:
 +  draw - the draw where the coordinates are defined
@@ -58,20 +62,20 @@ PetscErrorCode PetscDrawIndicatorFunction(PetscDraw draw,PetscReal xmin,PetscRea
 
    Level: developer
 
+.seealso: `PetscDraw`
 @*/
-PetscErrorCode PetscDrawCoordinateToPixel(PetscDraw draw,PetscReal x,PetscReal y,int *i,int *j)
+PetscErrorCode PetscDrawCoordinateToPixel(PetscDraw draw, PetscReal x, PetscReal y, int *i, int *j)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(draw,PETSC_DRAW_CLASSID,1);
-  PetscCheck(draw->ops->coordinatetopixel,PETSC_COMM_SELF,PETSC_ERR_SUP,"This draw type %s does not support locating pixels",((PetscObject)draw)->type_name);
-  PetscCall((*draw->ops->coordinatetopixel)(draw,x,y,i,j));
-  PetscFunctionReturn(0);
+  PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscUseTypeMethod(draw, coordinatetopixel, x, y, i, j);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   PetscDrawPixelToCoordinate - given a pixel in a PetscDraw returns the coordinate
+   PetscDrawPixelToCoordinate - given a pixel in a `PetscDraw` returns the coordinate
 
-   Not collective
+   Not Collective
 
    Input Parameters:
 +  draw - the draw where the coordinates are defined
@@ -84,37 +88,41 @@ PetscErrorCode PetscDrawCoordinateToPixel(PetscDraw draw,PetscReal x,PetscReal y
 
    Level: developer
 
+.seealso: `PetscDraw`
 @*/
-PetscErrorCode PetscDrawPixelToCoordinate(PetscDraw draw,int i,int j,PetscReal *x,PetscReal *y)
+PetscErrorCode PetscDrawPixelToCoordinate(PetscDraw draw, int i, int j, PetscReal *x, PetscReal *y)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(draw,PETSC_DRAW_CLASSID,1);
-  PetscCheck(draw->ops->pixeltocoordinate,PETSC_COMM_SELF,PETSC_ERR_SUP,"This draw type %s does not support locating coordinates",((PetscObject)draw)->type_name);
-  PetscCall((*draw->ops->pixeltocoordinate)(draw,i,j,x,y));
-  PetscFunctionReturn(0);
+  PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscUseTypeMethod(draw, pixeltocoordinate, i, j, x, y);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
-   PetscDrawRectangle - PetscDraws a rectangle  onto a drawable.
+   PetscDrawRectangle - draws a rectangle onto a `PetscDraw` object
 
    Not Collective
 
    Input Parameters:
 +  draw - the drawing context
-.  xl,yl,xr,yr - the coordinates of the lower left, upper right corners
--  c1,c2,c3,c4 - the colors of the four corners in counter clockwise order
+.  xl - coordinates of the lower left corner
+.  yl - coordinates of the lower left corner
+.  xr - coordinate of the upper right corner
+.  yr - coordinate of the upper right corner
+.  c1 - the color of the first corner
+.  c2 - the color of the second corner
+.  c3 - the color of the third corner
+-  c4 - the color of the fourth corner
 
    Level: beginner
 
-.seealso: `PetscDrawLine()`, `PetscDrawRectangle()`, `PetscDrawTriangle()`, `PetscDrawEllipse()`,
+.seealso: `PetscDraw`, `PetscDrawLine()`, `PetscDrawRectangle()`, `PetscDrawTriangle()`, `PetscDrawEllipse()`,
           `PetscDrawMarker()`, `PetscDrawPoint()`, `PetscDrawString()`, `PetscDrawPoint()`, `PetscDrawArrow()`
-
 @*/
-PetscErrorCode  PetscDrawRectangle(PetscDraw draw,PetscReal xl,PetscReal yl,PetscReal xr,PetscReal yr,int c1,int c2,int c3,int c4)
+PetscErrorCode PetscDrawRectangle(PetscDraw draw, PetscReal xl, PetscReal yl, PetscReal xr, PetscReal yr, int c1, int c2, int c3, int c4)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(draw,PETSC_DRAW_CLASSID,1);
-  PetscCheck(draw->ops->rectangle,PETSC_COMM_SELF,PETSC_ERR_SUP,"This draw type %s does not support drawing rectangles",((PetscObject)draw)->type_name);
-  PetscCall((*draw->ops->rectangle)(draw,xl,yl,xr,yr,c1,c2,c3,c4));
-  PetscFunctionReturn(0);
+  PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
+  PetscUseTypeMethod(draw, rectangle, xl, yl, xr, yr, c1, c2, c3, c4);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

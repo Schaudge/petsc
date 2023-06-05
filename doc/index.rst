@@ -2,16 +2,22 @@
 PETSc |version|
 ===============
 PETSc, the Portable, Extensible Toolkit for Scientific Computation,
-pronounced PET-see (`/ˈpɛt-siː/ <https://en.wikipedia.org/wiki/Help:IPA/English#Key>`__), is a suite of
-data structures and routines for the scalable (parallel) solution of scientific
-applications modeled by partial differential equations. It supports MPI, and GPUs through
-CUDA, HIP or OpenCL, as well as hybrid MPI-GPU parallelism; it also supports the NEC-SX Tsubasa Vector Engine. PETSc (sometimes called PETSc/TAO)
-also contains the TAO, the Toolkit for Advanced Optimization, software library.
+pronounced PET-see (`/ˈpɛt-siː/ <https://en.wikipedia.org/wiki/Help:IPA/English#Key>`__), is
+for the scalable (parallel) solution of scientific
+applications modeled by partial differential equations. It has bindings for C, Fortran, and Python (via :any:`petsc4py<petsc4py_api>`).
+PETSc also contains TAO, the Toolkit for Advanced Optimization, software library.
+It supports MPI, and GPUs through
+CUDA, HIP or OpenCL, as well as hybrid MPI-GPU parallelism; it also supports the NEC-SX Tsubasa Vector Engine.
+Immediately jump in and run PETSc code :any:`handson`.
 
 PETSc is developed as :ref:`open-source <doc_license>`, requests and contributions are welcome.
 
 News
 ====
+.. admonition:: News: PETSc 2023 Annual Meeting
+
+  Registration now open for :any:`The PETSc 2023 Annual Meeting<2023_meeting>`, June 5-7 on the campus of IIT in Chicago.
+
 .. admonition:: News: New Book on PETSc
 
   **PETSc for Partial Differential Equations: Numerical Solutions in C and Python**, by Ed Bueler, is available.
@@ -23,33 +29,29 @@ News
 
   `The Community is the Infrastructure  <https://arxiv.org/abs/2201.00967>`__
 
-.. admonition:: News: Paper on PETSc communication System
-
-  `The PetscSF Scalable Communication Layer <https://ieeexplore.ieee.org/document/9442258>`__
-
-.. admonition:: News: Paper on PETSc usage with GPUs
-
-  `Toward Performance-Portable PETSc for GPU-based Exascale Systems <https://www.sciencedirect.com/science/article/pii/S016781912100079X>`__
-
-
 Main Topics
 ===========
 
 .. toctree::
    :maxdepth: 1
 
-   Overview <overview/index>
-   Download <download/index>
-   Installation <install/index>
-   FAQ <faq/index>
-   Documentation <docs/index>
-   Tutorials <tutorials/index>
-   Community <community/index>
-   Developers <developers/index>
-   Misc. <miscellaneous/index>
+   overview/index
+   install/index
+   tutorials/index
+   manual/index
+   manualpages/index
+   petsc4py/petsc4py
+   faq/index
+   community/index
+   developers/index
+   miscellaneous/index
+
+* `PETSc/TAO Users Manual in PDF <manual/manual.pdf>`__
+
+.. _doc_toolkits_use_petsc:
 
 Toolkits/libraries that use PETSc
-==========================================
+=================================
 
 -  `ADflow <https://github.com/mdolab/adflow>`__ An Open-Source
    Computational Fluid Dynamics Solver for Aerodynamic and
@@ -68,7 +70,7 @@ Toolkits/libraries that use PETSc
    optimization
 -  `DEAL.II <https://www.dealii.org/>`__ C++ based finite element
    simulation package
--  `DUNE-FEM <https://dune-project.org/sphinx/content/sphinx/dune-fem/>`__ Python and C++ based finite element simulation package      
+-  `DUNE-FEM <https://dune-project.org/sphinx/content/sphinx/dune-fem/>`__ Python and C++ based finite element simulation package
 -  `FEniCS <https://fenicsproject.org/>`__ Python based finite
    element simulation package
 -  `Firedrake <https://www.firedrakeproject.org/>`__ Python based
@@ -138,6 +140,14 @@ For general citations on PETSc please use the following:
 .. literalinclude:: /petsc.bib
    :language: none
    :start-at: @inproceedings{petsc-efficient
+   :end-at: year
+   :append: }
+
+For petsc4py usage please cite
+
+.. literalinclude:: /petsc.bib
+   :language: none
+   :start-at: @article{DalcinPazKlerCosimo2011
    :end-at: year
    :append: }
 

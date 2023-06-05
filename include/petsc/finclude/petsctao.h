@@ -1,9 +1,9 @@
-#if !defined(__TAODEF_H)
+#ifndef __TAODEF_H
 #define __TAODEF_H
 
 #include "petsc/finclude/petscts.h"
 
-#define Tao PetscFortranAddr
+#define Tao type(tTao)
 #define TaoLineSearch PetscFortranAddr
 #define TaoConvergedReason PetscEnum
 #define TaoType character*(80)
@@ -45,5 +45,6 @@
 #define TAOADMM     'admm'
 #define TAOALMM     'almm'
 #define TAOPYTHON   'python'
+#define TAOSNES     'snes'
 
 #endif

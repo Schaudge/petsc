@@ -31,8 +31,10 @@ Examples:
 #include <petscdevice.h>
 
 #if defined(PETSC_HAVE_CUDA)
+  #include <petscdevice_cuda.h>
   #define SyncDevice() PetscCallCUDA(cudaDeviceSynchronize())
 #elif defined(PETSC_HAVE_HIP)
+  #include <petscdevice_hip.h>
   #define SyncDevice() PetscCallHIP(hipDeviceSynchronize())
 #elif defined(PETSC_HAVE_KOKKOS)
   #include <Kokkos_Core.hpp>
@@ -41,82 +43,83 @@ Examples:
   #define SyncDevice()
 #endif
 
-int main(int argc,char **args)
+int main(int argc, char **args)
 {
-  Mat             A,A2;
-  Vec             x,y,x2,y2;
-  PetscViewer     fd;
-  char            matfile[PETSC_MAX_PATH_LEN];
-  char            mattype[64];
-  PetscBool       flg;
-  PetscLogStage   stage;
-  PetscInt        i,n=500,nskip=5,M,N;
-  MatInfo         info;
-  PetscLogDouble  tstart=0,tend=0,avgTime;
-  PetscRandom     rctx;
-  PetscReal       norm;
-  PetscMPIInt     size;
+  Mat            A, A2;
+  Vec            x, y, x2, y2;
+  PetscViewer    fd;
+  char           matfile[PETSC_MAX_PATH_LEN];
+  char           mattype[64];
+  PetscBool      flg;
+  PetscLogStage  stage;
+  PetscInt       i, n = 500, nskip = 5, M, N;
+  MatInfo        info;
+  PetscLogDouble tstart = 0, tend = 0, avgTime;
+  PetscRandom    rctx;
+  PetscReal      norm;
+  PetscMPIInt    size;
 
-  PetscInitialize(&argc,&args,(char *)0,help);
-  PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD,&size));
+  PetscFunctionBeginUser;
+  PetscCall(PetscInitialize(&argc, &args, (char *)0, help));
+  PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD, &size));
 
   /* Read options -n */
-  PetscCall(PetscOptionsGetInt(NULL,NULL,"-n",&n,NULL));
+  PetscCall(PetscOptionsGetInt(NULL, NULL, "-n", &n, NULL));
 
   /* Load the matrix from a binary file */
-  PetscCall(PetscOptionsGetString(NULL,NULL,"-f",matfile,PETSC_MAX_PATH_LEN,&flg));
-  PetscCheck(flg,PETSC_COMM_WORLD,PETSC_ERR_USER_INPUT,"Must indicate a petsc matrix binary file with the -f option");
-  PetscCall(PetscOptionsGetString(NULL,NULL,"-mat_type",mattype,sizeof(mattype),&flg));
-  if (!flg) PetscCall(PetscStrncpy(mattype,MATAIJ,sizeof(mattype)));
+  PetscCall(PetscOptionsGetString(NULL, NULL, "-f", matfile, PETSC_MAX_PATH_LEN, &flg));
+  PetscCheck(flg, PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Must indicate a petsc matrix binary file with the -f option");
+  PetscCall(PetscOptionsGetString(NULL, NULL, "-mat_type", mattype, sizeof(mattype), &flg));
+  if (!flg) PetscCall(PetscStrncpy(mattype, MATAIJ, sizeof(mattype)));
 
   /* Read the matrix file to A2 */
-  PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD,matfile,FILE_MODE_READ,&fd));
-  PetscCall(MatCreate(PETSC_COMM_WORLD,&A2));
-  PetscCall(MatSetType(A2,MATAIJ));
-  PetscCall(MatLoad(A2,fd));
-  PetscCall(MatCreateVecs(A2,&x2,&y2));
+  PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, matfile, FILE_MODE_READ, &fd));
+  PetscCall(MatCreate(PETSC_COMM_WORLD, &A2));
+  PetscCall(MatSetType(A2, MATAIJ));
+  PetscCall(MatLoad(A2, fd));
+  PetscCall(MatCreateVecs(A2, &x2, &y2));
   PetscCall(PetscViewerDestroy(&fd));
 
-  PetscCall(MatGetSize(A2,&M,&N));
-  PetscCall(MatGetInfo(A2,MAT_GLOBAL_SUM,&info));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"Input matrix %s: %" PetscInt_FMT " x %" PetscInt_FMT "; %lld nonzeros; %.1f per row\n",matfile,M,N,(long long)info.nz_used,(double)info.nz_used/(double)M));
+  PetscCall(MatGetSize(A2, &M, &N));
+  PetscCall(MatGetInfo(A2, MAT_GLOBAL_SUM, &info));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Input matrix %s: %" PetscInt_FMT " x %" PetscInt_FMT "; %lld nonzeros; %.1f per row\n", matfile, M, N, (long long)info.nz_used, (double)info.nz_used / (double)M));
 
   /* Copy A2 to A and convert A to the specified type */
-  PetscCall(MatDuplicate(A2,MAT_COPY_VALUES,&A));
-  PetscCall(MatConvert(A,mattype,MAT_INPLACE_MATRIX,&A));
-  PetscCall(MatCreateVecs(A,&x,&y));
+  PetscCall(MatDuplicate(A2, MAT_COPY_VALUES, &A));
+  PetscCall(MatConvert(A, mattype, MAT_INPLACE_MATRIX, &A));
+  PetscCall(MatCreateVecs(A, &x, &y));
 
   /* Init x, x2 with the same value */
-  PetscCall(PetscRandomCreate(PETSC_COMM_WORLD,&rctx));
-  PetscCall(VecSetRandom(x2,rctx));
+  PetscCall(PetscRandomCreate(PETSC_COMM_WORLD, &rctx));
+  PetscCall(VecSetRandom(x2, rctx));
   PetscCall(PetscRandomDestroy(&rctx));
-  PetscCall(VecCopy(x2,x));
+  PetscCall(VecCopy(x2, x));
 
   /* Compute the reference y2 = A2 x2 */
-  PetscCall(MatMult(A2,x2,y2));
+  PetscCall(MatMult(A2, x2, y2));
 
   /* Measure y = Ax */
   PetscCall(PetscLogStageRegister("MatMult", &stage));
-  for (i=0; i<n + nskip; i++) {
+  for (i = 0; i < n + nskip; i++) {
     if (i == nskip) {
       SyncDevice();
       PetscCall(PetscLogStagePush(stage));
       PetscCallMPI(MPI_Barrier(PETSC_COMM_WORLD));
       PetscCall(PetscTime(&tstart));
     }
-    PetscCall(MatMult(A,x,y));
+    PetscCall(MatMult(A, x, y));
   }
   SyncDevice();
   PetscCallMPI(MPI_Barrier(PETSC_COMM_WORLD));
   PetscCall(PetscTime(&tend));
-  avgTime = (tend- tstart)*1e6/n; /* microseconds */
+  avgTime = (tend - tstart) * 1e6 / n; /* microseconds */
   PetscCall(PetscLogStagePop());
 
   /* Validate y against y2 */
-  PetscCall(VecAYPX(y2,-1,y));
-  PetscCall(VecNorm(y2,NORM_2,&norm));
-  PetscCheck(norm<1e-6,PETSC_COMM_WORLD,PETSC_ERR_PLIB,"MatMult() error with norm %g",(double)norm);
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"MatMult() average time (us) with %d MPI ranks = %8.2f\n",size,avgTime));
+  PetscCall(VecAYPX(y2, -1, y));
+  PetscCall(VecNorm(y2, NORM_2, &norm));
+  PetscCheck(norm < 1e-6, PETSC_COMM_WORLD, PETSC_ERR_PLIB, "MatMult() error with norm %g", (double)norm);
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "MatMult() average time (us) with %d MPI ranks = %8.2f\n", size, avgTime));
 
   PetscCall(MatDestroy(&A));
   PetscCall(VecDestroy(&x));
@@ -135,7 +138,7 @@ int main(int argc,char **args)
     nsize: 1
     filter: grep "DOES_NOT_EXIST"
     output_file: output/empty.out
-    requires: !complex double !single kokkos_kernels
+    requires: datafilespath !complex double !single kokkos_kernels
 
     test:
       suffix: 1
@@ -145,5 +148,10 @@ int main(int argc,char **args)
     test:
       suffix: 2
       args: -mat_type aijkokkos
+
+    test:
+      suffix: 3
+      requires: hip
+      args: -mat_type aijhipsparse
 
 TEST*/

@@ -1,7 +1,7 @@
 /*
       Objects which encapsulate mesh adaptation operation
 */
-#if !defined(PETSCDMADAPTOR_H)
+#ifndef PETSCDMADAPTOR_H
 #define PETSCDMADAPTOR_H
 
 #include <petscdm.h>
@@ -10,11 +10,12 @@
 /* SUBMANSEC = DM */
 
 /*S
-  DMAdaptor - The adaptor constructs a DMLabel or metric Vec that can be used to modify the DM.
+  DMAdaptor - An object that constructs a `DMLabel` or metric `Vec` that can be used to modify the `DM` based on error estimators or other criteria
 
   Level: developer
 
-.seealso: `PetscConvEstCreate()`, `PetscConvEstDestroy()`
+.seealso: `DM`, `DMAdaptorCreate()`, `DMAdaptorSetSolver()`, `DMAdaptorGetSolver()`, `DMAdaptorSetSequenceLength()`, `DMAdaptorGetSequenceLength()`, `DMAdaptorSetFromOptions()`,
+          `DMAdaptorSetUp()`, `DMAdaptorAdapt()`, `DMAdaptorDestroy()`, `DMAdaptorGetTransferFunction()`, `PetscConvEstCreate()`, `PetscConvEstDestroy()`
 S*/
 typedef struct _p_DMAdaptor *DMAdaptor;
 

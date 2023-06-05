@@ -1,9 +1,9 @@
 -include ../../../petscdir.mk
 
-LOCDIR       = src/mat/tests/
+CLEANFILES   = bench_spmv
 
-ex72: ex72.o ex72mmio.o
+ex72: ex72.o mmloader.o mmio.o
+bench_spmv: bench_spmv.o mmloader.o mmio.o cJSON.o
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
-include ${PETSC_DIR}/lib/petsc/conf/test

@@ -20,10 +20,12 @@ petsc-dist/tmp
 petsc-dist/src/binding/petsc4py/build
 petsc-dist/src/binding/petsc4py/dist
 petsc-dist/src/binding/petsc4py/petsc4py.egg-info
+petsc-dist/src/binding/petsc4py/.eggs
 petsc-dist/lib/petsc/conf/petscvariables
 petsc-dist/config/BuildSystem/.hg
 petsc-dist/config/BuildSystem/.hgignore
 petsc-dist/config/BuildSystem/.hgtags
+petsc-dist/systems
 petsc-dist/doc
 petsc-dist/docs/exampleconcepts
 petsc-dist/docs/.doctrees
@@ -84,8 +86,8 @@ petsc-dist/config/solaris2.9
 petsc-dist/config/solaris2.9-lam
 petsc-dist/src/da/tests/scripts
 petsc-dist/src/ksp/tests/scripts
-petsc-dist/docs/manualpages/logfile.txt
-petsc-dist/docs/manualpages/manualpages.cit
+petsc-dist/manualpages/logfile.txt
+petsc-dist/manualpages/manualpages.cit
 petsc-dist/bmake/linux-mcs
 petsc-dist/bmake/prefefined/alpha_uni
 petsc-dist/bmake/predefined/linux_superludist

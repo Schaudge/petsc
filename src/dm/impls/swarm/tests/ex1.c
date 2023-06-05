@@ -1,177 +1,222 @@
-static char help[] = "Tests projection with DMSwarm using general particle shapes.\n";
-
-#include <petsc/private/dmswarmimpl.h>
-#include <petsc/private/petscfeimpl.h>
+static const char help[] = "Test initialization and migration with swarm.\n";
 
 #include <petscdmplex.h>
-#include <petscds.h>
-#include <petscksp.h>
+#include <petscdmswarm.h>
 
 typedef struct {
-  PetscInt dummy;
+  PetscReal L[3]; /* Dimensions of the mesh bounding box */
 } AppCtx;
+
+static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
+{
+  PetscFunctionBeginUser;
+  PetscOptionsBegin(comm, "", "Swarm configuration options", "DMSWARM");
+  PetscOptionsEnd();
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 static PetscErrorCode CreateMesh(MPI_Comm comm, DM *dm, AppCtx *user)
 {
+  PetscReal low[3], high[3];
+  PetscInt  cdim, d;
+
   PetscFunctionBeginUser;
   PetscCall(DMCreate(comm, dm));
   PetscCall(DMSetType(*dm, DMPLEX));
   PetscCall(DMSetFromOptions(*dm));
   PetscCall(DMViewFromOptions(*dm, NULL, "-dm_view"));
-  PetscFunctionReturn(0);
+  PetscCall(DMGetCoordinateDim(*dm, &cdim));
+  PetscCall(DMGetBoundingBox(*dm, low, high));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "dim: %" PetscInt_FMT "\n", cdim));
+  for (d = 0; d < cdim; ++d) user->L[d] = high[d] - low[d];
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode linear(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar *u, void *ctx)
+/*
+  This function initializes all particles on rank 0.
+  They are sent to other ranks to test migration across non nearest neighbors
+*/
+static PetscErrorCode CreateSwarm(DM dm, DM *sw, AppCtx *user)
 {
-  PetscInt d;
-  u[0] = 0.0;
-  for (d = 0; d < dim; ++d) u[0] += x[d];
-  return 0;
-}
+  PetscInt    particleInitSize = 10;
+  PetscReal  *coords, upper[3], lower[3];
+  PetscInt   *cellid, Np, dim;
+  PetscMPIInt rank, size;
+  MPI_Comm    comm;
 
-static void identity(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                     PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g0[])
-{
-  g0[0] = 1.0;
-}
-
-static PetscErrorCode CreateParticles(DM dm, DM *sw, AppCtx *user)
-{
-  PetscDS          prob;
-  PetscFE          fe;
-  PetscQuadrature  quad;
-  PetscScalar     *vals;
-  PetscReal       *v0, *J, *invJ, detJ, *coords, *xi0;
-  PetscInt        *cellid;
-  const PetscReal *qpoints;
-  PetscInt         Ncell, c, Nq, q, dim;
-  PetscBool        simplex;
-
-  PetscFunctionBeginUser;
+  PetscFunctionBegin;
+  comm = PETSC_COMM_WORLD;
+  PetscCallMPI(MPI_Comm_rank(comm, &rank));
+  PetscCallMPI(MPI_Comm_size(comm, &size));
+  PetscCall(DMGetBoundingBox(dm, lower, upper));
+  PetscCall(DMCreate(PETSC_COMM_WORLD, sw));
   PetscCall(DMGetDimension(dm, &dim));
-  PetscCall(DMPlexIsSimplex(dm, &simplex));
-  PetscCall(PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, simplex, NULL, -1, &fe));
-  PetscCall(DMGetDS(dm, &prob));
-  PetscCall(PetscDSSetDiscretization(prob, 0, (PetscObject) fe));
-  PetscCall(PetscFEDestroy(&fe));
-  PetscCall(PetscDSSetJacobian(prob, 0, 0, identity, NULL, NULL, NULL));
-  PetscCall(DMPlexGetHeightStratum(dm, 0, NULL, &Ncell));
-  PetscCall(PetscDSGetDiscretization(prob, 0, (PetscObject *) &fe));
-  PetscCall(PetscFEGetQuadrature(fe, &quad));
-  PetscCall(PetscQuadratureGetData(quad, NULL, NULL, &Nq, &qpoints, NULL));
-
-  PetscCall(DMCreate(PetscObjectComm((PetscObject) dm), sw));
   PetscCall(DMSetType(*sw, DMSWARM));
   PetscCall(DMSetDimension(*sw, dim));
-
   PetscCall(DMSwarmSetType(*sw, DMSWARM_PIC));
   PetscCall(DMSwarmSetCellDM(*sw, dm));
-  PetscCall(DMSwarmRegisterPetscDatatypeField(*sw, "f_q", 1, PETSC_SCALAR));
   PetscCall(DMSwarmFinalizeFieldRegister(*sw));
-  PetscCall(DMSwarmSetLocalSizes(*sw, Ncell * Nq, 0));
+  PetscCall(DMSwarmSetLocalSizes(*sw, rank == 0 ? particleInitSize : 0, 0));
   PetscCall(DMSetFromOptions(*sw));
-
-  PetscCall(PetscMalloc4(dim, &xi0, dim, &v0, dim*dim, &J, dim*dim, &invJ));
-  for (c = 0; c < dim; c++) xi0[c] = -1.;
-  PetscCall(DMSwarmGetField(*sw, DMSwarmPICField_coor, NULL, NULL, (void **) &coords));
-  PetscCall(DMSwarmGetField(*sw, DMSwarmPICField_cellid, NULL, NULL, (void **) &cellid));
-  PetscCall(DMSwarmGetField(*sw, "f_q", NULL, NULL, (void **) &vals));
-  for (c = 0; c < Ncell; ++c) {
-    for (q = 0; q < Nq; ++q) {
-      PetscCall(DMPlexComputeCellGeometryFEM(dm, c, NULL, v0, J, invJ, &detJ));
-      cellid[c*Nq + q] = c;
-      CoordinatesRefToReal(dim, dim, xi0, v0, J, &qpoints[q*dim], &coords[(c*Nq + q)*dim]);
-      linear(dim, 0.0, &coords[(c*Nq + q)*dim], 1, &vals[c*Nq + q], NULL);
-    }
+  PetscCall(DMSwarmGetField(*sw, DMSwarmPICField_coor, NULL, NULL, (void **)&coords));
+  PetscCall(DMSwarmGetField(*sw, DMSwarmPICField_cellid, NULL, NULL, (void **)&cellid));
+  PetscCall(DMSwarmGetLocalSize(*sw, &Np));
+  for (PetscInt p = 0; p < Np; ++p) {
+    for (PetscInt d = 0; d < dim; ++d) { coords[p * dim + d] = 0.5 * (upper[d] - lower[d]); }
+    coords[p * dim + 1] = (upper[1] - lower[1]) / particleInitSize * p + lower[1];
+    cellid[p]           = 0;
   }
-  PetscCall(DMSwarmRestoreField(*sw, DMSwarmPICField_coor, NULL, NULL, (void **) &coords));
-  PetscCall(DMSwarmRestoreField(*sw, DMSwarmPICField_cellid, NULL, NULL, (void **) &cellid));
-  PetscCall(DMSwarmRestoreField(*sw, "f_q", NULL, NULL, (void **) &vals));
-  PetscCall(PetscFree4(xi0, v0, J, invJ));
-  PetscFunctionReturn(0);
+  PetscCall(DMSwarmRestoreField(*sw, DMSwarmPICField_coor, NULL, NULL, (void **)&coords));
+  PetscCall(DMSwarmRestoreField(*sw, DMSwarmPICField_cellid, NULL, NULL, (void **)&cellid));
+  PetscCall(DMViewFromOptions(*sw, NULL, "-sw_view"));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode TestL2Projection(DM dm, DM sw, AppCtx *user)
+/*
+  Configure the swarm on rank 0 with all particles
+  located there, then migrate where they need to be
+*/
+static PetscErrorCode CheckMigrate(DM sw)
 {
-  PetscErrorCode (*funcs[1])(PetscInt, PetscReal, const PetscReal [], PetscInt, PetscScalar *, void *);
-  KSP              ksp;
-  Mat              mass;
-  Vec              u, rhs, uproj;
-  PetscReal        error;
+  Vec       preMigrate, postMigrate, tmp;
+  PetscInt  preSize, postSize;
+  PetscReal prenorm, postnorm;
 
   PetscFunctionBeginUser;
-  funcs[0] = linear;
-
-  PetscCall(DMSwarmCreateGlobalVectorFromField(sw, "f_q", &u));
-  PetscCall(VecViewFromOptions(u, NULL, "-f_view"));
-  PetscCall(DMGetGlobalVector(dm, &rhs));
-  PetscCall(DMCreateMassMatrix(sw, dm, &mass));
-  PetscCall(MatMult(mass, u, rhs));
-  PetscCall(MatDestroy(&mass));
-  PetscCall(VecDestroy(&u));
-
-  PetscCall(DMGetGlobalVector(dm, &uproj));
-  PetscCall(DMCreateMatrix(dm, &mass));
-  PetscCall(DMPlexSNESComputeJacobianFEM(dm, uproj, mass, mass, user));
-  PetscCall(MatViewFromOptions(mass, NULL, "-mass_mat_view"));
-  PetscCall(KSPCreate(PETSC_COMM_WORLD, &ksp));
-  PetscCall(KSPSetOperators(ksp, mass, mass));
-  PetscCall(KSPSetFromOptions(ksp));
-  PetscCall(KSPSolve(ksp, rhs, uproj));
-  PetscCall(KSPDestroy(&ksp));
-  PetscCall(PetscObjectSetName((PetscObject) uproj, "Full Projection"));
-  PetscCall(VecViewFromOptions(uproj, NULL, "-proj_vec_view"));
-  PetscCall(DMComputeL2Diff(dm, 0.0, funcs, NULL, uproj, &error));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Projected L2 Error: %g\n", (double) error));
-  PetscCall(MatDestroy(&mass));
-  PetscCall(DMRestoreGlobalVector(dm, &rhs));
-  PetscCall(DMRestoreGlobalVector(dm, &uproj));
-  PetscFunctionReturn(0);
+  PetscCall(DMSwarmCreateGlobalVectorFromField(sw, DMSwarmPICField_coor, &tmp));
+  PetscCall(VecDuplicate(tmp, &preMigrate));
+  PetscCall(VecCopy(tmp, preMigrate));
+  PetscCall(DMSwarmDestroyGlobalVectorFromField(sw, DMSwarmPICField_coor, &tmp));
+  PetscCall(DMSwarmMigrate(sw, PETSC_TRUE));
+  PetscCall(DMSwarmCreateGlobalVectorFromField(sw, DMSwarmPICField_coor, &tmp));
+  PetscCall(VecDuplicate(tmp, &postMigrate));
+  PetscCall(VecCopy(tmp, postMigrate));
+  PetscCall(DMSwarmDestroyGlobalVectorFromField(sw, DMSwarmPICField_coor, &tmp));
+  PetscCall(VecGetSize(preMigrate, &preSize));
+  PetscCall(VecGetSize(postMigrate, &postSize));
+  PetscCheck(preSize == postSize, PETSC_COMM_WORLD, PETSC_ERR_ARG_SIZ, "Particles either lost or duplicated. Pre migrate global size %" PetscInt_FMT " != Post migrate size %" PetscInt_FMT "", preSize, postSize);
+  PetscCall(VecNorm(preMigrate, NORM_2, &prenorm));
+  PetscCall(VecNorm(postMigrate, NORM_2, &postnorm));
+  PetscCheck(PetscAbsReal(prenorm - postnorm) < 100. * PETSC_MACHINE_EPSILON, PETSC_COMM_SELF, PETSC_ERR_COR, "Particle coordinates corrupted in migrate with abs(norm(pre) - norm(post)) = %.16g", PetscAbsReal(prenorm - postnorm));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Migrate check passes.\n"));
+  PetscCall(VecDestroy(&preMigrate));
+  PetscCall(VecDestroy(&postMigrate));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-int main (int argc, char * argv[]) {
-  MPI_Comm       comm;
-  DM             dm, sw;
-  AppCtx         user;
+/*
+  Checks added points persist on migrate
+*/
+static PetscErrorCode CheckPointInsertion(DM sw)
+{
+  PetscInt    Np_pre, Np_post;
+  PetscMPIInt rank, size;
+  MPI_Comm    comm;
 
   PetscFunctionBeginUser;
+  comm = PETSC_COMM_WORLD;
+  PetscCallMPI(MPI_Comm_rank(comm, &rank));
+  PetscCallMPI(MPI_Comm_size(comm, &size));
+  PetscCall(PetscPrintf(comm, "Basic point insertion check...\n"));
+  PetscCall(DMSwarmGetSize(sw, &Np_pre));
+  if (rank == 0) PetscCall(DMSwarmAddPoint(sw));
+  PetscCall(DMSwarmGetSize(sw, &Np_post));
+  PetscCheck(Np_post == (Np_pre + 1), PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "Particle insertion failed. Global size pre insertion: %" PetscInt_FMT " global size post insertion: %" PetscInt_FMT, Np_pre, Np_post);
+  PetscCall(CheckMigrate(sw));
+  PetscCall(PetscPrintf(comm, "Basic point insertion check passes.\n"));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*
+  Checks tie breaking works properly when a particle
+  is located at a shared boundary. The higher rank should
+  recieve the particle while the lower rank deletes it.
+
+  TODO: Currently only works for 2 procs.
+*/
+static PetscErrorCode CheckPointInsertion_Boundary(DM sw)
+{
+  PetscInt    Np_loc_pre, Np_loc_post, dim;
+  PetscMPIInt rank, size;
+  PetscReal   lbox_low[3], lbox_high[3], gbox_low[3], gbox_high[3];
+  MPI_Comm    comm;
+  DM          cdm;
+
+  PetscFunctionBeginUser;
+  comm = PETSC_COMM_WORLD;
+  PetscCallMPI(MPI_Comm_rank(comm, &rank));
+  PetscCallMPI(MPI_Comm_size(comm, &size));
+  PetscCall(PetscPrintf(comm, "Rank boundary point insertion check...\n"));
+  PetscCall(DMSwarmGetCellDM(sw, &cdm));
+  PetscCall(DMGetDimension(cdm, &dim));
+  PetscCall(DMGetBoundingBox(cdm, gbox_low, gbox_high));
+  if (rank == 0) {
+    PetscReal *coords;
+    PetscInt   adjacentdim = 0, Np;
+
+    PetscCall(DMGetLocalBoundingBox(cdm, lbox_low, lbox_high));
+    // find a face that belongs to the neighbor.
+    for (PetscInt d = 0; d < dim; ++d) {
+      if ((gbox_high[d] - lbox_high[d]) != 0.) adjacentdim = d;
+    }
+    PetscCall(DMSwarmAddPoint(sw));
+    PetscCall(DMSwarmGetLocalSize(sw, &Np));
+    PetscCall(DMSwarmGetField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&coords));
+    for (PetscInt d = 0; d < dim; ++d) coords[(Np - 1) * dim + d] = 0.5 * (lbox_high[d] - lbox_low[d]);
+    coords[(Np - 1) * dim + adjacentdim] = lbox_high[adjacentdim];
+    PetscCall(DMSwarmRestoreField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&coords));
+  }
+  PetscCall(DMSwarmGetLocalSize(sw, &Np_loc_pre));
+  PetscCall(CheckMigrate(sw));
+  PetscCall(DMSwarmGetLocalSize(sw, &Np_loc_post));
+  if (rank == 0) PetscCheck(Np_loc_pre == (Np_loc_post + 1), PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "Migration tie breaking failed on rank %d. Particle on boundary not sent.", rank);
+  if (rank == 1) PetscCheck(Np_loc_pre == (Np_loc_post - 1), PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "Migration tie breaking failed on rank %d. Particle on boundary not recieved.", rank);
+  PetscCall(PetscPrintf(comm, "Rank boundary point insertion check passes.\n"));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+int main(int argc, char **argv)
+{
+  DM       dm, sw;
+  MPI_Comm comm;
+  AppCtx   user;
+
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
   comm = PETSC_COMM_WORLD;
+  PetscCall(ProcessOptions(comm, &user));
   PetscCall(CreateMesh(comm, &dm, &user));
-  PetscCall(CreateParticles(dm, &sw, &user));
-  PetscCall(PetscObjectSetName((PetscObject) dm, "Mesh"));
-  PetscCall(DMViewFromOptions(dm, NULL, "-dm_view"));
-  PetscCall(DMViewFromOptions(sw, NULL, "-sw_view"));
-  PetscCall(TestL2Projection(dm, sw, &user));
-  PetscCall(DMDestroy(&dm));
+  PetscCall(CreateSwarm(dm, &sw, &user));
+  PetscCall(CheckMigrate(sw));
+  PetscCall(CheckPointInsertion(sw));
+  PetscCall(CheckPointInsertion_Boundary(sw));
   PetscCall(DMDestroy(&sw));
-  PetscFinalize();
+  PetscCall(DMDestroy(&dm));
+  PetscCall(PetscFinalize());
   return 0;
 }
 
 /*TEST
 
+  # Swarm does not handle complex or quad
+  build:
+    requires: !complex double
+  # swarm_migrate_hash and swarm_migrate_scan test swarm migration against point location types
+  # with a distributed mesh where ranks overlap by 1. Points in the shared boundary should
+  # be sent to the process which has the highest rank that has that portion of the domain.
   test:
-    suffix: proj_0
-    requires: pragmatic
-    TODO: broken
-    args: -dm_plex_separate_marker 0 -dm_view -sw_view -petscspace_degree 1 -petscfe_default_quadrature_order 1 -pc_type lu -dm_adaptor pragmatic
+    suffix: swarm_migrate_hash
+    requires: ctetgen
+    nsize: 2
+    args: -dm_plex_dim 3 -dm_plex_simplex 0 -dm_distribute_overlap 1 -dm_plex_box_faces 10,10,10\
+          -dm_plex_box_lower 0.,0.,0. -dm_plex_box_upper 1.,1.,10. -dm_plex_box_bd none,none,none\
+          -dm_plex_hash_location true
+    filter: grep -v marker | grep -v atomic | grep -v usage
   test:
-    suffix: proj_1
-    requires: pragmatic
-    TODO: broken
-    args: -dm_plex_simplex 0 -dm_plex_separate_marker 0 -dm_view -sw_view -petscspace_degree 1 -petscfe_default_quadrature_order 1 -pc_type lu -dm_adaptor pragmatic
-  test:
-    suffix: proj_2
-    requires: pragmatic
-    TODO: broken
-    args: -dm_plex_dim 3 -dm_plex_box_faces 2,2,2 -dm_view -sw_view -petscspace_degree 1 -petscfe_default_quadrature_order 1 -pc_type lu -dm_adaptor pragmatic
-  test:
-    suffix: proj_3
-    requires: pragmatic
-    TODO: broken
-    args: -dm_plex_simplex 0 -dm_plex_separate_marker 0 -dm_view -sw_view -petscspace_degree 1 -petscfe_default_quadrature_order 1 -pc_type lu -dm_adaptor pragmatic
-
+    suffix: swarm_migrate_scan
+    requires: ctetgen
+    nsize: 2
+    args: -dm_plex_dim 3 -dm_plex_simplex 0 -dm_distribute_overlap 1 -dm_plex_box_faces 10,10,10\
+          -dm_plex_box_lower 0.,0.,0. -dm_plex_box_upper 1.,1.,10. -dm_plex_box_bd none,none,none\
+          -dm_plex_hash_location false
+    filter: grep -v marker | grep -v atomic | grep -v usage
 TEST*/

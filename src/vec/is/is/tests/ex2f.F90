@@ -7,11 +7,11 @@
       implicit none
 
       PetscErrorCode ierr
-      PetscInt  i,n,ii(1),start
+      PetscInt  i,n,start
       PetscInt  stride,ssize,first
       IS          is
       PetscBool   flag
-      PetscOffset iis
+      PetscInt, pointer :: ii(:)
 
       PetscCallA(PetscInitialize(ierr))
 
@@ -21,17 +21,16 @@
       first = 2
       PetscCallA(ISCreateStride(PETSC_COMM_SELF,ssize,stride,first,is,ierr))
       PetscCallA(ISGetLocalSize(is,n,ierr))
-      if (n .ne. 0) then; SETERRA(PETSC_COMM_SELF,PETSC_ERR_PLIB,'Wrong result from ISCreateStride'); endif
+      PetscCheckA(n .eq. 0,PETSC_COMM_SELF,PETSC_ERR_PLIB,'Wrong result from ISCreateStride')
 
       PetscCallA(ISStrideGetInfo(is,start,stride,ierr))
-      if (start .ne. 0) then; SETERRA(PETSC_COMM_SELF,PETSC_ERR_PLIB,'Wrong result from ISStrideGetInfo'); endif
-
-      if (stride .ne. 2) then; SETERRA(PETSC_COMM_SELF,PETSC_ERR_PLIB,'Wrong result from ISStrideGetInfo') ; endif
+      PetscCheckA(start .eq. 0,PETSC_COMM_SELF,PETSC_ERR_PLIB,'Wrong result from ISStrideGetInfo')
+      PetscCheckA(stride .eq. 2,PETSC_COMM_SELF,PETSC_ERR_PLIB,'Wrong result from ISStrideGetInfo')
 
       PetscCallA(PetscObjectTypeCompare(is,ISSTRIDE,flag,ierr))
-      if (.not. flag) then; SETERRA(PETSC_COMM_SELF,PETSC_ERR_PLIB,'Wrong result from PetscObjectTypeCompare'); endif
-      PetscCallA(ISGetIndices(is,ii,iis,ierr))
-      PetscCallA(ISRestoreIndices(is,ii,iis,ierr))
+      PetscCheckA(flag,PETSC_COMM_SELF,PETSC_ERR_PLIB,'Wrong result from PetscObjectTypeCompare')
+      PetscCallA(ISGetIndicesF90(is,ii,ierr))
+      PetscCallA(ISRestoreIndicesF90(is,ii,ierr))
       PetscCallA(ISDestroy(is,ierr))
 
 !     Test ISGetIndices()
@@ -41,11 +40,11 @@
       first = 3
       PetscCallA(ISCreateStride(PETSC_COMM_SELF,ssize,stride,first,is,ierr))
       PetscCallA(ISGetLocalSize(is,n,ierr))
-      PetscCallA(ISGetIndices(is,ii,iis,ierr))
+      PetscCallA(ISGetIndicesF90(is,ii,ierr))
       do 10, i=1,n
-        if (ii(i+iis) .ne. -11 + 3*i) then; SETERRA(PETSC_COMM_SELF,PETSC_ERR_PLIB,'Wrong result from ISGetIndices'); endif
+        PetscCheckA(ii(i) .eq. -11 + 3*i,PETSC_COMM_SELF,PETSC_ERR_PLIB,'Wrong result from ISGetIndices')
  10   continue
-      PetscCallA(ISRestoreIndices(is,ii,iis,ierr))
+      PetscCallA(ISRestoreIndicesF90(is,ii,ierr))
       PetscCallA(ISDestroy(is,ierr))
 
       PetscCallA(PetscFinalize(ierr))

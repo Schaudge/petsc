@@ -53,7 +53,7 @@ static char help[] = "Testing integrators on the simple harmonic oscillator\n";
 #include <petscts.h>
 #include <petscdmplex.h>
 #include <petscdmswarm.h>
-#include <petsc/private/dmpleximpl.h>  /* For norm and dot */
+#include <petsc/private/dmpleximpl.h> /* For norm and dot */
 
 typedef struct {
   PetscReal omega; /* Oscillation frequency omega */
@@ -69,11 +69,11 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->ostep = 100;
 
   PetscOptionsBegin(comm, "", "Harmonic Oscillator Options", "DMSWARM");
-  PetscCall(PetscOptionsReal("-omega", "Oscillator frequency", "ex4.c", options->omega, &options->omega, PETSC_NULL));
+  PetscCall(PetscOptionsReal("-omega", "Oscillator frequency", "ex4.c", options->omega, &options->omega, NULL));
   PetscCall(PetscOptionsBool("-error", "Flag to print the error", "ex4.c", options->error, &options->error, NULL));
-  PetscCall(PetscOptionsInt("-output_step", "Number of time steps between output", "ex4.c", options->ostep, &options->ostep, PETSC_NULL));
+  PetscCall(PetscOptionsInt("-output_step", "Number of time steps between output", "ex4.c", options->ostep, &options->ostep, NULL));
   PetscOptionsEnd();
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
@@ -83,7 +83,7 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
   PetscCall(DMSetType(*dm, DMPLEX));
   PetscCall(DMSetFromOptions(*dm));
   PetscCall(DMViewFromOptions(*dm, NULL, "-dm_view"));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode CreateSwarm(DM dm, AppCtx *user, DM *sw)
@@ -93,7 +93,7 @@ static PetscErrorCode CreateSwarm(DM dm, AppCtx *user, DM *sw)
 
   PetscFunctionBeginUser;
   PetscCall(DMGetDimension(dm, &dim));
-  PetscCall(DMCreate(PetscObjectComm((PetscObject) dm), sw));
+  PetscCall(DMCreate(PetscObjectComm((PetscObject)dm), sw));
   PetscCall(DMSetType(*sw, DMSWARM));
   PetscCall(DMSetDimension(*sw, dim));
   PetscCall(DMSwarmSetType(*sw, DMSWARM_PIC));
@@ -108,7 +108,7 @@ static PetscErrorCode CreateSwarm(DM dm, AppCtx *user, DM *sw)
   PetscCall(DMSwarmInitializeVelocitiesFromOptions(*sw, v0));
   PetscCall(DMSetFromOptions(*sw));
   PetscCall(DMSetApplicationContext(*sw, user));
-  PetscCall(PetscObjectSetName((PetscObject) *sw, "Particles"));
+  PetscCall(PetscObjectSetName((PetscObject)*sw, "Particles"));
   PetscCall(DMViewFromOptions(*sw, NULL, "-sw_view"));
   {
     Vec gc, gc0;
@@ -119,12 +119,12 @@ static PetscErrorCode CreateSwarm(DM dm, AppCtx *user, DM *sw)
     PetscCall(DMSwarmDestroyGlobalVectorFromField(*sw, DMSwarmPICField_coor, &gc));
     PetscCall(DMSwarmDestroyGlobalVectorFromField(*sw, "initCoordinates", &gc0));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec U, Vec G, void *ctx)
 {
-  const PetscReal    omega = ((AppCtx *) ctx)->omega;
+  const PetscReal    omega = ((AppCtx *)ctx)->omega;
   DM                 sw;
   const PetscScalar *u;
   PetscScalar       *g;
@@ -136,25 +136,25 @@ static PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec U, Vec G, void *ctx)
   PetscCall(VecGetLocalSize(U, &Np));
   PetscCall(VecGetArray(G, &g));
   PetscCall(VecGetArrayRead(U, &u));
-  Np /= 2*dim;
+  Np /= 2 * dim;
   for (p = 0; p < Np; ++p) {
     for (d = 0; d < dim; ++d) {
-      g[(p*2+0)*dim + d] = u[(p*2+1)*dim + d];
-      g[(p*2+1)*dim + d] = -PetscSqr(omega)*u[(p*2+0)*dim+d];
+      g[(p * 2 + 0) * dim + d] = u[(p * 2 + 1) * dim + d];
+      g[(p * 2 + 1) * dim + d] = -PetscSqr(omega) * u[(p * 2 + 0) * dim + d];
     }
   }
   PetscCall(VecRestoreArrayRead(U, &u));
   PetscCall(VecRestoreArray(G, &g));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* J_{ij} = dF_i/dx_j
    J_p = (  0   1)
          (-w^2  0)
 */
-static PetscErrorCode RHSJacobian(TS ts, PetscReal t, Vec U , Mat J, Mat P, void *ctx)
+static PetscErrorCode RHSJacobian(TS ts, PetscReal t, Vec U, Mat J, Mat P, void *ctx)
 {
-  PetscScalar vals[4] = {0., 1., -PetscSqr(((AppCtx *) ctx)->omega), 0.};
+  PetscScalar vals[4] = {0., 1., -PetscSqr(((AppCtx *)ctx)->omega), 0.};
   DM          sw;
   PetscInt    dim, d, Np, p, rStart;
 
@@ -163,16 +163,16 @@ static PetscErrorCode RHSJacobian(TS ts, PetscReal t, Vec U , Mat J, Mat P, void
   PetscCall(DMGetDimension(sw, &dim));
   PetscCall(VecGetLocalSize(U, &Np));
   PetscCall(MatGetOwnershipRange(J, &rStart, NULL));
-  Np /= 2*dim;
+  Np /= 2 * dim;
   for (p = 0; p < Np; ++p) {
     for (d = 0; d < dim; ++d) {
-      const PetscInt rows[2] = {(p*2+0)*dim+d + rStart, (p*2+1)*dim+d + rStart};
+      const PetscInt rows[2] = {(p * 2 + 0) * dim + d + rStart, (p * 2 + 1) * dim + d + rStart};
       PetscCall(MatSetValues(J, 2, rows, 2, rows, vals, INSERT_VALUES));
     }
   }
   PetscCall(MatAssemblyBegin(J, MAT_FINAL_ASSEMBLY));
   PetscCall(MatAssemblyEnd(J, MAT_FINAL_ASSEMBLY));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode RHSFunctionX(TS ts, PetscReal t, Vec V, Vec Xres, void *ctx)
@@ -188,12 +188,12 @@ static PetscErrorCode RHSFunctionX(TS ts, PetscReal t, Vec V, Vec Xres, void *ct
   for (p = 0; p < Np; ++p) xres[p] = v[p];
   PetscCall(VecRestoreArrayRead(V, &v));
   PetscCall(VecRestoreArray(Xres, &xres));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode RHSFunctionV(TS ts, PetscReal t, Vec X, Vec Vres, void *ctx)
 {
-  const PetscReal    omega = ((AppCtx *) ctx)->omega;
+  const PetscReal    omega = ((AppCtx *)ctx)->omega;
   const PetscScalar *x;
   PetscScalar       *vres;
   PetscInt           Np, p;
@@ -202,10 +202,10 @@ static PetscErrorCode RHSFunctionV(TS ts, PetscReal t, Vec X, Vec Vres, void *ct
   PetscCall(VecGetArray(Vres, &vres));
   PetscCall(VecGetArrayRead(X, &x));
   PetscCall(VecGetLocalSize(Vres, &Np));
-  for (p = 0; p < Np; ++p) vres[p] = -PetscSqr(omega)*x[p];
+  for (p = 0; p < Np; ++p) vres[p] = -PetscSqr(omega) * x[p];
   PetscCall(VecRestoreArrayRead(X, &x));
   PetscCall(VecRestoreArray(Vres, &vres));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode RHSJacobianS(TS ts, PetscReal t, Vec U, Mat S, void *ctx)
@@ -219,21 +219,21 @@ PetscErrorCode RHSJacobianS(TS ts, PetscReal t, Vec U, Mat S, void *ctx)
   PetscCall(DMGetDimension(sw, &dim));
   PetscCall(VecGetLocalSize(U, &Np));
   PetscCall(MatGetOwnershipRange(S, &rStart, NULL));
-  Np /= 2*dim;
+  Np /= 2 * dim;
   for (p = 0; p < Np; ++p) {
     for (d = 0; d < dim; ++d) {
-      const PetscInt rows[2] = {(p*2+0)*dim+d + rStart, (p*2+1)*dim+d + rStart};
+      const PetscInt rows[2] = {(p * 2 + 0) * dim + d + rStart, (p * 2 + 1) * dim + d + rStart};
       PetscCall(MatSetValues(S, 2, rows, 2, rows, vals, INSERT_VALUES));
     }
   }
   PetscCall(MatAssemblyBegin(S, MAT_FINAL_ASSEMBLY));
   PetscCall(MatAssemblyEnd(S, MAT_FINAL_ASSEMBLY));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode RHSObjectiveF(TS ts, PetscReal t, Vec U, PetscScalar *F, void *ctx)
 {
-  const PetscReal    omega = ((AppCtx *) ctx)->omega;
+  const PetscReal    omega = ((AppCtx *)ctx)->omega;
   DM                 sw;
   const PetscScalar *u;
   PetscInt           dim, Np, p;
@@ -243,22 +243,22 @@ PetscErrorCode RHSObjectiveF(TS ts, PetscReal t, Vec U, PetscScalar *F, void *ct
   PetscCall(DMGetDimension(sw, &dim));
   PetscCall(VecGetArrayRead(U, &u));
   PetscCall(VecGetLocalSize(U, &Np));
-  Np /= 2*dim;
+  Np /= 2 * dim;
   for (p = 0; p < Np; ++p) {
-    const PetscReal x2 = DMPlex_DotRealD_Internal(dim, &u[(p*2+0)*dim], &u[(p*2+0)*dim]);
-    const PetscReal v2 = DMPlex_DotRealD_Internal(dim, &u[(p*2+1)*dim], &u[(p*2+1)*dim]);
-    const PetscReal E  = 0.5*(v2 + PetscSqr(omega)*x2);
+    const PetscReal x2 = DMPlex_DotRealD_Internal(dim, &u[(p * 2 + 0) * dim], &u[(p * 2 + 0) * dim]);
+    const PetscReal v2 = DMPlex_DotRealD_Internal(dim, &u[(p * 2 + 1) * dim], &u[(p * 2 + 1) * dim]);
+    const PetscReal E  = 0.5 * (v2 + PetscSqr(omega) * x2);
 
     *F += E;
   }
   PetscCall(VecRestoreArrayRead(U, &u));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* dF/dx = omega^2 x   dF/dv = v */
 PetscErrorCode RHSFunctionG(TS ts, PetscReal t, Vec U, Vec G, void *ctx)
 {
-  const PetscReal    omega = ((AppCtx *) ctx)->omega;
+  const PetscReal    omega = ((AppCtx *)ctx)->omega;
   DM                 sw;
   const PetscScalar *u;
   PetscScalar       *g;
@@ -270,16 +270,16 @@ PetscErrorCode RHSFunctionG(TS ts, PetscReal t, Vec U, Vec G, void *ctx)
   PetscCall(VecGetArray(G, &g));
   PetscCall(VecGetArrayRead(U, &u));
   PetscCall(VecGetLocalSize(U, &Np));
-  Np /= 2*dim;
+  Np /= 2 * dim;
   for (p = 0; p < Np; ++p) {
     for (d = 0; d < dim; ++d) {
-      g[(p*2+0)*dim + d] = PetscSqr(omega)*u[(p*2+0)*dim+d];
-      g[(p*2+1)*dim + d] = u[(p*2+1)*dim + d];
+      g[(p * 2 + 0) * dim + d] = PetscSqr(omega) * u[(p * 2 + 0) * dim + d];
+      g[(p * 2 + 1) * dim + d] = u[(p * 2 + 1) * dim + d];
     }
   }
   PetscCall(VecRestoreArrayRead(U, &u));
   PetscCall(VecRestoreArray(G, &g));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode CreateSolution(TS ts)
@@ -294,11 +294,11 @@ static PetscErrorCode CreateSolution(TS ts)
   PetscCall(DMSwarmGetLocalSize(sw, &Np));
   PetscCall(VecCreate(PETSC_COMM_WORLD, &u));
   PetscCall(VecSetBlockSize(u, dim));
-  PetscCall(VecSetSizes(u, 2*Np*dim, PETSC_DECIDE));
+  PetscCall(VecSetSizes(u, 2 * Np * dim, PETSC_DECIDE));
   PetscCall(VecSetUp(u));
   PetscCall(TSSetSolution(ts, u));
   PetscCall(VecDestroy(&u));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode SetProblem(TS ts)
@@ -308,7 +308,7 @@ static PetscErrorCode SetProblem(TS ts)
 
   PetscFunctionBegin;
   PetscCall(TSGetDM(ts, &sw));
-  PetscCall(DMGetApplicationContext(sw, (void **) &user));
+  PetscCall(DMGetApplicationContext(sw, (void **)&user));
   // Define unified system for (X, V)
   {
     Mat      J;
@@ -317,8 +317,8 @@ static PetscErrorCode SetProblem(TS ts)
     PetscCall(DMGetDimension(sw, &dim));
     PetscCall(DMSwarmGetLocalSize(sw, &Np));
     PetscCall(MatCreate(PETSC_COMM_WORLD, &J));
-    PetscCall(MatSetSizes(J, 2*Np*dim, 2*Np*dim, PETSC_DECIDE, PETSC_DECIDE));
-    PetscCall(MatSetBlockSize(J, 2*dim));
+    PetscCall(MatSetSizes(J, 2 * Np * dim, 2 * Np * dim, PETSC_DECIDE, PETSC_DECIDE));
+    PetscCall(MatSetBlockSize(J, 2 * dim));
     PetscCall(MatSetFromOptions(J));
     PetscCall(MatSetUp(J));
     PetscCall(TSSetRHSFunction(ts, NULL, RHSFunction, user));
@@ -354,7 +354,7 @@ static PetscErrorCode SetProblem(TS ts)
   {
     PetscCall(TSDiscGradSetFormulation(ts, RHSJacobianS, RHSObjectiveF, RHSFunctionG, user));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode InitializeSolve(TS ts, Vec u)
@@ -377,13 +377,13 @@ static PetscErrorCode InitializeSolve(TS ts, Vec u)
   PetscCall(TSRHSSplitGetIS(ts, "position", &isx));
   PetscCall(TSRHSSplitGetIS(ts, "momentum", &isv));
   PetscCall(DMSwarmCreateGlobalVectorFromField(sw, DMSwarmPICField_coor, &gc));
-  PetscCall(DMSwarmCreateGlobalVectorFromField(sw, "initCoordinates",    &gc0));
+  PetscCall(DMSwarmCreateGlobalVectorFromField(sw, "initCoordinates", &gc0));
   PetscCall(VecCopy(gc, gc0));
   PetscCall(VecISCopy(u, isx, SCATTER_FORWARD, gc));
   PetscCall(DMSwarmDestroyGlobalVectorFromField(sw, DMSwarmPICField_coor, &gc));
-  PetscCall(DMSwarmDestroyGlobalVectorFromField(sw, "initCoordinates",    &gc0));
+  PetscCall(DMSwarmDestroyGlobalVectorFromField(sw, "initCoordinates", &gc0));
   PetscCall(VecISSet(u, isv, 0.));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode ComputeError(TS ts, Vec U, Vec E)
@@ -398,7 +398,7 @@ static PetscErrorCode ComputeError(TS ts, Vec U, Vec E)
   PetscInt           dim, d, Np, p;
 
   PetscFunctionBeginUser;
-  PetscCall(PetscObjectGetComm((PetscObject) ts, &comm));
+  PetscCall(PetscObjectGetComm((PetscObject)ts, &comm));
   PetscCall(TSGetDM(ts, &sw));
   PetscCall(DMGetApplicationContext(sw, &user));
   PetscCall(DMGetDimension(sw, &dim));
@@ -406,38 +406,38 @@ static PetscErrorCode ComputeError(TS ts, Vec U, Vec E)
   PetscCall(VecGetArray(E, &e));
   PetscCall(VecGetArrayRead(U, &u));
   PetscCall(VecGetLocalSize(U, &Np));
-  PetscCall(DMSwarmGetField(sw, "initCoordinates", NULL, NULL, (void **) &coords));
-  Np /= 2*dim;
+  PetscCall(DMSwarmGetField(sw, "initCoordinates", NULL, NULL, (void **)&coords));
+  Np /= 2 * dim;
   for (p = 0; p < Np; ++p) {
     const PetscReal omega = user->omega;
-    const PetscReal ct = PetscCosReal(omega*t);
-    const PetscReal st = PetscSinReal(omega*t);
-    const PetscReal x0 = DMPlex_NormD_Internal(dim, &coords[p*dim]);
-    const PetscReal ex =  x0*ct;
-    const PetscReal ev = -x0*omega*st;
-    const PetscReal x  = DMPlex_DotRealD_Internal(dim, &u[(p*2+0)*dim], &coords[p*dim]) / x0;
-    const PetscReal v  = DMPlex_DotRealD_Internal(dim, &u[(p*2+1)*dim], &coords[p*dim]) / x0;
+    const PetscReal ct    = PetscCosReal(omega * t);
+    const PetscReal st    = PetscSinReal(omega * t);
+    const PetscReal x0    = DMPlex_NormD_Internal(dim, &coords[p * dim]);
+    const PetscReal ex    = x0 * ct;
+    const PetscReal ev    = -x0 * omega * st;
+    const PetscReal x     = DMPlex_DotRealD_Internal(dim, &u[(p * 2 + 0) * dim], &coords[p * dim]) / x0;
+    const PetscReal v     = DMPlex_DotRealD_Internal(dim, &u[(p * 2 + 1) * dim], &coords[p * dim]) / x0;
 
     if (user->error) {
-      const PetscReal en   = 0.5*(v*v + PetscSqr(omega)*x*x);
-      const PetscReal exen = 0.5*PetscSqr(omega*x0);
-      PetscCall(PetscPrintf(comm, "p%" PetscInt_FMT " error [%.2g %.2g] sol [%.6lf %.6lf] exact [%.6lf %.6lf] energy/exact energy %g / %g (%.10lf%%)\n", p, (double) PetscAbsReal(x-ex), (double) PetscAbsReal(v-ev), (double) x, (double) v, (double) ex, (double) ev, (double) en, (double) exen, (double) (PetscAbsReal(exen - en)*100./exen)));
+      const PetscReal en   = 0.5 * (v * v + PetscSqr(omega) * x * x);
+      const PetscReal exen = 0.5 * PetscSqr(omega * x0);
+      PetscCall(PetscPrintf(comm, "p%" PetscInt_FMT " error [%.2g %.2g] sol [%.6lf %.6lf] exact [%.6lf %.6lf] energy/exact energy %g / %g (%.10lf%%)\n", p, (double)PetscAbsReal(x - ex), (double)PetscAbsReal(v - ev), (double)x, (double)v, (double)ex, (double)ev, (double)en, (double)exen, (double)(PetscAbsReal(exen - en) * 100. / exen)));
     }
     for (d = 0; d < dim; ++d) {
-      e[(p*2+0)*dim+d] = u[(p*2+0)*dim+d] - coords[p*dim+d]*ct;
-      e[(p*2+1)*dim+d] = u[(p*2+1)*dim+d] + coords[p*dim+d]*omega*st;
+      e[(p * 2 + 0) * dim + d] = u[(p * 2 + 0) * dim + d] - coords[p * dim + d] * ct;
+      e[(p * 2 + 1) * dim + d] = u[(p * 2 + 1) * dim + d] + coords[p * dim + d] * omega * st;
     }
   }
-  PetscCall(DMSwarmRestoreField(sw, "initCoordinates", NULL, NULL, (void **) &coords));
+  PetscCall(DMSwarmRestoreField(sw, "initCoordinates", NULL, NULL, (void **)&coords));
   PetscCall(VecRestoreArrayRead(U, &u));
   PetscCall(VecRestoreArray(E, &e));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode EnergyMonitor(TS ts, PetscInt step, PetscReal t, Vec U, void *ctx)
 {
-  const PetscReal    omega = ((AppCtx *) ctx)->omega;
-  const PetscInt     ostep = ((AppCtx *) ctx)->ostep;
+  const PetscReal    omega = ((AppCtx *)ctx)->omega;
+  const PetscInt     ostep = ((AppCtx *)ctx)->ostep;
   DM                 sw;
   const PetscScalar *u;
   PetscReal          dt;
@@ -445,26 +445,26 @@ static PetscErrorCode EnergyMonitor(TS ts, PetscInt step, PetscReal t, Vec U, vo
   MPI_Comm           comm;
 
   PetscFunctionBeginUser;
-  if (step%ostep == 0) {
-    PetscCall(PetscObjectGetComm((PetscObject) ts, &comm));
+  if (step % ostep == 0) {
+    PetscCall(PetscObjectGetComm((PetscObject)ts, &comm));
     PetscCall(TSGetDM(ts, &sw));
     PetscCall(TSGetTimeStep(ts, &dt));
     PetscCall(DMGetDimension(sw, &dim));
     PetscCall(VecGetArrayRead(U, &u));
     PetscCall(VecGetLocalSize(U, &Np));
-    Np /= 2*dim;
+    Np /= 2 * dim;
     if (!step) PetscCall(PetscPrintf(comm, "Time     Step Part     Energy Mod Energy\n"));
     for (p = 0; p < Np; ++p) {
-      const PetscReal x2 = DMPlex_DotRealD_Internal(dim, &u[(p*2+0)*dim], &u[(p*2+0)*dim]);
-      const PetscReal v2 = DMPlex_DotRealD_Internal(dim, &u[(p*2+1)*dim], &u[(p*2+1)*dim]);
-      const PetscReal E  = 0.5*(v2 + PetscSqr(omega)*x2);
-      const PetscReal mE = 0.5*(v2 + PetscSqr(omega)*x2 - PetscSqr(omega)*dt*PetscSqrtReal(x2*v2));
+      const PetscReal x2 = DMPlex_DotRealD_Internal(dim, &u[(p * 2 + 0) * dim], &u[(p * 2 + 0) * dim]);
+      const PetscReal v2 = DMPlex_DotRealD_Internal(dim, &u[(p * 2 + 1) * dim], &u[(p * 2 + 1) * dim]);
+      const PetscReal E  = 0.5 * (v2 + PetscSqr(omega) * x2);
+      const PetscReal mE = 0.5 * (v2 + PetscSqr(omega) * x2 - PetscSqr(omega) * dt * PetscSqrtReal(x2 * v2));
 
-      PetscCall(PetscPrintf(comm, "%.6lf %4" PetscInt_FMT " %4" PetscInt_FMT " %10.4lf %10.4lf\n", (double) t, step, p, (double) E, (double) mE));
+      PetscCall(PetscPrintf(comm, "%.6lf %4" PetscInt_FMT " %4" PetscInt_FMT " %10.4lf %10.4lf\n", (double)t, step, p, (double)E, (double)mE));
     }
     PetscCall(VecRestoreArrayRead(U, &u));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 int main(int argc, char **argv)

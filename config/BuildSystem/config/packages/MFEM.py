@@ -172,8 +172,8 @@ class Configure(config.package.Package):
         self.popLanguage()
         g.write('MFEM_USE_CUDA = YES\n')
         g.write('CUDA_CXX = '+petscNvcc+'\n')
-        if hasattr(self.cuda,'cudaArch') and self.cuda.cudaArch:
-          g.write('CUDA_ARCH = sm_'+self.cuda.cudaArch+'\n')
+        if hasattr(self.cuda, 'cudaArch'):
+          g.write(self.cuda.cmakeArchProperty()+'\n')
         g.write('CXXFLAGS := '+cudaFlags+' $(addprefix -Xcompiler ,$(CXXFLAGS))\n')
       g.close()
 
@@ -181,7 +181,7 @@ class Configure(config.package.Package):
     self.addMakeMacro('MFEM','yes')
     self.addMakeRule('mfembuild',makedepend, \
                        ['@echo "*** Building MFEM ***"',\
-                          '@${RM} -f ${PETSC_ARCH}/lib/petsc/conf/mfem.errorflg',\
+                          '@${RM} ${PETSC_ARCH}/lib/petsc/conf/mfem.errorflg',\
                           '@(cd '+buildDir+' && \\\n\
            ${OMAKE} -f '+self.packageDir+'/makefile config MFEM_DIR='+self.packageDir+' && \\\n\
            ${OMAKE} clean && \\\n\

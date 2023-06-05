@@ -1,4 +1,4 @@
-#if !defined(PETSCDMDA_KOKKOS_HPP)
+#ifndef PETSCDMDA_KOKKOS_HPP
 #define PETSCDMDA_KOKKOS_HPP
 
 #include <petscvec_kokkos.hpp>
@@ -7,8 +7,8 @@
 /* SUBMANSEC = DMDA */
 
 #if defined(PETSC_HAVE_KOKKOS)
-#include <Kokkos_Core.hpp>
-#include <Kokkos_OffsetView.hpp>
+  #include <Kokkos_Core.hpp>
+  #include <Kokkos_OffsetView.hpp>
 
 /*@C
    DMDAVecGetKokkosOffsetView - Gets a Kokkos OffsetView that contains up-to-date data of a vector in the given memory space.
@@ -25,38 +25,38 @@
    PetscErrorCode DMDAVecGetKokkosOffsetView(DM da,Vec v,Kokkos::Experimental::OffsetView<PetscScalar***,Kokkos::LayoutRight,MemorySpace>* kv);
    PetscErrorCode DMDAVecGetKokkosOffsetViewWrite(DM da,Vec v,Kokkos::Experimental::OffsetView<PetscScalar***,Kokkos::LayoutRight,MemorySpace>* kv);
 
-   Logically collective on da
+   Logically Collective
 
    Input Parameters:
 +  da - the distributed array
--  v - the vector, either a vector the same size as one obtained with DMCreateGlobalVector() or DMCreateLocalVector()
+-  v - the vector, either a vector the same size as one obtained with `DMCreateGlobalVector()` or `DMCreateLocalVector()`
 
    Output Parameter:
 .  kv - the Kokkos OffsetView with a user-specified template parameter MemorySpace
 
    Notes:
-    Call DMDAVecRestoreKokkosOffsetView() or DMDAVecRestoreKokkosOffsetViewWrite() once you have finished accessing the OffsetView.
+    Call `DMDAVecRestoreKokkosOffsetView()` or `DMDAVecRestoreKokkosOffsetViewWrite()` once you have finished accessing the OffsetView.
 
-    If the vector is not a Kokkos vector, an error will be raised.
+    If the vector is not of type `VECKOKKOS`, an error will be raised.
 
-    If the vector is a local vector (obtained with DMCreateLocalVector() etc) then the ghost point locations are accessible. If it is
+    If the vector is a local vector (obtained with `DMCreateLocalVector()` etc) then the ghost point locations are accessible. If it is
     a global vector then the ghost points are not accessible. Of course with the local vector you will have to do the
-    appropriate DMGlobalToLocalBegin() and DMGlobalToLocalEnd() to have correct values in the ghost locations.
+    appropriate `DMGlobalToLocalBegin()` and `DMGlobalToLocalEnd()` to have correct values in the ghost locations.
 
-    These routines are similar to DMDAVecGetArray() and friends. One can read-only, write-only or read/write access the returned
+    These routines are similar to `DMDAVecGetArray()` and friends. One can read-only, write-only or read/write access the returned
     Kokkos OffsetView.  Note that passing in a constant OffsetView enables read-only access.
     Currently, only two memory spaces are supported: Kokkos::HostSpace and Kokkos::DefaultExecutionSpace::memory_space.
     If needed, a memory copy will be internally called to copy the latest vector data to the specified memory space.
 
-    In C, to access the returned array of DMDAVecGetArray(), the indexing is "backwards", i.e., array[k][j][i] (instead of array[i][j][k]),
-    where i, j, k are loop variables for the x, y, z dimensions respectively specified in DMDACreate3d(), for example.
+    In C, to access the returned array of `DMDAVecGetArray()`, the indexing is "backwards", i.e., array[k][j][i] (instead of array[i][j][k]),
+    where i, j, k are loop variables for the x, y, z dimensions respectively specified in `DMDACreate3d()`, for example.
 
-    To give users the same experience as DMDAVecGetArray(), we mandate the returned OffsetView always has Kokkos::LayoutRight (that is, rightest
+    To give users the same experience as `DMDAVecGetArray()`, we mandate the returned OffsetView always has Kokkos::LayoutRight (that is, rightest
     subscript has a stride 1, as in C multi-dimensional arrays), regardless of whether the memory space is host or device. Thus it is important
     to use Iterate::Right as IterateInner if one uses Kokkos::MDRangePolicy to access the OffsetView.
 
-    Note that the OffsetView kv's first dimension (i.e., the leftest, dim 0) corresponds to DA's z direction, and its last dimension
-    (rightest) corresponds to DA's x direction.
+    Note that the OffsetView kv's first dimension (i.e., the leftest, dim 0) corresponds to the DMDA's z direction, and its last dimension
+    (rightest) corresponds to DMDA's x direction.
 
     If the vector is a global vector, we have
 .vb
@@ -108,7 +108,7 @@
       {zs,ys,xs},{zs+zm,ys+ym,xs+xm}), KOKKOS_LAMBDA (PetscInt k,PetscInt j,PetscInt i) {
       kv(k,j,i).omega = ...;
     });
-    DMDAVecRestoreKokkosOffsetViewWrite(da,v,&tv);
+    DMDAVecRestoreKokkosOffsetViewWrite(da,v,&tv)`;
 .ve
 
   Level: intermediate
@@ -117,20 +117,29 @@
           `DMDAVecGetArrayDOF()`, `DMDAVecGetArrayWrite()`, `DMDAVecRestoreArrayWrite()`, `DMDAVecGetArrayRead()`, `DMDAVecRestoreArrayRead()`,
           `DMStagVecGetArray()`
 @*/
-template<class MemorySpace> PetscErrorCode DMDAVecGetKokkosOffsetView         (DM,Vec,Kokkos::Experimental::OffsetView<const PetscScalar*,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecGetKokkosOffsetView         (DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar*,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecGetKokkosOffsetViewWrite    (DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar*,MemorySpace>*);
+template <class MemorySpace>
+PetscErrorCode DMDAVecGetKokkosOffsetView(DM, Vec, Kokkos::Experimental::OffsetView<const PetscScalar *, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecGetKokkosOffsetView(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar *, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecGetKokkosOffsetViewWrite(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar *, MemorySpace> *);
 
-template<class MemorySpace> PetscErrorCode DMDAVecGetKokkosOffsetView         (DM,Vec,Kokkos::Experimental::OffsetView<const PetscScalar**, Kokkos::LayoutRight,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecGetKokkosOffsetView         (DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar**, Kokkos::LayoutRight,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecGetKokkosOffsetViewWrite    (DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar**, Kokkos::LayoutRight,MemorySpace>*);
+template <class MemorySpace>
+PetscErrorCode DMDAVecGetKokkosOffsetView(DM, Vec, Kokkos::Experimental::OffsetView<const PetscScalar **, Kokkos::LayoutRight, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecGetKokkosOffsetView(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar **, Kokkos::LayoutRight, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecGetKokkosOffsetViewWrite(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar **, Kokkos::LayoutRight, MemorySpace> *);
 
-template<class MemorySpace> PetscErrorCode DMDAVecGetKokkosOffsetView         (DM,Vec,Kokkos::Experimental::OffsetView<const PetscScalar***,Kokkos::LayoutRight,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecGetKokkosOffsetView         (DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar***,Kokkos::LayoutRight,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecGetKokkosOffsetViewWrite    (DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar***,Kokkos::LayoutRight,MemorySpace>*);
+template <class MemorySpace>
+PetscErrorCode DMDAVecGetKokkosOffsetView(DM, Vec, Kokkos::Experimental::OffsetView<const PetscScalar ***, Kokkos::LayoutRight, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecGetKokkosOffsetView(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar ***, Kokkos::LayoutRight, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecGetKokkosOffsetViewWrite(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar ***, Kokkos::LayoutRight, MemorySpace> *);
 
 /*@C
-   DMDAVecRestoreKokkosOffsetView - Returns the Kokkos OffsetView that gotten from DMDAVecGetKokkosOffsetView()
+   DMDAVecRestoreKokkosOffsetView - Returns the Kokkos OffsetView that was gotten with `DMDAVecGetKokkosOffsetView()`
 
    Synopsis:
    #include <petscdmda_kokkos.hpp>
@@ -144,33 +153,42 @@ template<class MemorySpace> PetscErrorCode DMDAVecGetKokkosOffsetViewWrite    (D
    PetscErrorCode DMDAVecRestoreKokkosOffsetView(DM da,Vec v,Kokkos::Experimental::OffsetView<PetscScalar***,Kokkos::LayoutRight,MemorySpace>* kv);
    PetscErrorCode DMDAVecRestoreKokkosOffsetViewWrite(DM da,Vec v,Kokkos::Experimental::OffsetView<PetscScalar***,Kokkos::LayoutRight,MemorySpace>* kv);
 
-   Logically collective on da
+   Logically Collective
 
    Input Parameters:
 +  da - the distributed array
-.  v - the vector, either a vector the same size as one obtained with DMCreateGlobalVector() or DMCreateLocalVector()
+.  v - the vector, either a vector the same size as one obtained with `DMCreateGlobalVector()` or `DMCreateLocalVector()`
 -  kv - the Kokkos OffsetView with a user-specified template parameter MemorySpace
 
-   Notes:
-    If the vector is not of type VECKOKKOS, an error will be raised.
-
   Level: intermediate
+
+   Note:
+    If the vector is not of type `VECKOKKOS`, an error will be raised.
 
 .seealso: `DMDAVecGetKokkosOffsetView()`, `DMDAGetGhostCorners()`, `DMDAGetCorners()`, `VecGetArray()`, `VecRestoreArray()`, `DMDAVecRestoreArray()`, `DMDAVecRestoreArrayDOF()`
           `DMDAVecGetArrayDOF()`, `DMDAVecGetArrayWrite()`, `DMDAVecRestoreArrayWrite()`, `DMDAVecGetArrayRead()`, `DMDAVecRestoreArrayRead()`,
           `DMStagVecGetArray()`
 @*/
-template<class MemorySpace> PetscErrorCode DMDAVecRestoreKokkosOffsetView     (DM,Vec,Kokkos::Experimental::OffsetView<const PetscScalar*,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecRestoreKokkosOffsetView     (DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar*,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecRestoreKokkosOffsetViewWrite(DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar*,MemorySpace>*);
+template <class MemorySpace>
+PetscErrorCode DMDAVecRestoreKokkosOffsetView(DM, Vec, Kokkos::Experimental::OffsetView<const PetscScalar *, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecRestoreKokkosOffsetView(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar *, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecRestoreKokkosOffsetViewWrite(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar *, MemorySpace> *);
 
-template<class MemorySpace> PetscErrorCode DMDAVecRestoreKokkosOffsetView     (DM,Vec,Kokkos::Experimental::OffsetView<const PetscScalar**, Kokkos::LayoutRight,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecRestoreKokkosOffsetView     (DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar**, Kokkos::LayoutRight,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecRestoreKokkosOffsetViewWrite(DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar**, Kokkos::LayoutRight,MemorySpace>*);
+template <class MemorySpace>
+PetscErrorCode DMDAVecRestoreKokkosOffsetView(DM, Vec, Kokkos::Experimental::OffsetView<const PetscScalar **, Kokkos::LayoutRight, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecRestoreKokkosOffsetView(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar **, Kokkos::LayoutRight, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecRestoreKokkosOffsetViewWrite(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar **, Kokkos::LayoutRight, MemorySpace> *);
 
-template<class MemorySpace> PetscErrorCode DMDAVecRestoreKokkosOffsetView     (DM,Vec,Kokkos::Experimental::OffsetView<const PetscScalar***,Kokkos::LayoutRight,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecRestoreKokkosOffsetView     (DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar***,Kokkos::LayoutRight,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecRestoreKokkosOffsetViewWrite(DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar***,Kokkos::LayoutRight,MemorySpace>*);
+template <class MemorySpace>
+PetscErrorCode DMDAVecRestoreKokkosOffsetView(DM, Vec, Kokkos::Experimental::OffsetView<const PetscScalar ***, Kokkos::LayoutRight, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecRestoreKokkosOffsetView(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar ***, Kokkos::LayoutRight, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecRestoreKokkosOffsetViewWrite(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar ***, Kokkos::LayoutRight, MemorySpace> *);
 
 /*@C
    DMDAVecGetKokkosOffsetViewDOF - Gets a Kokkos OffsetView that contains up-to-date data of a vector in the given memory space, with DOF as the rightest dimension of the OffsetView
@@ -187,39 +205,39 @@ template<class MemorySpace> PetscErrorCode DMDAVecRestoreKokkosOffsetViewWrite(D
    PetscErrorCode DMDAVecGetKokkosOffsetViewDOF(DM da,Vec v,Kokkos::Experimental::OffsetView<PetscScalar****,Kokkos::LayoutRight,MemorySpace>* kv);
    PetscErrorCode DMDAVecGetKokkosOffsetViewDOFWrite(DM da,Vec v,Kokkos::Experimental::OffsetView<PetscScalar****,Kokkos::LayoutRight,MemorySpace>* kv);
 
-   Logically collective on da
+   Logically Collective
 
    Input Parameters:
 +  da - the distributed array
--  v - the vector, either a vector the same size as one obtained with DMCreateGlobalVector() or DMCreateLocalVector()
+-  v - the vector, either a vector the same size as one obtained with `DMCreateGlobalVector()` or `DMCreateLocalVector()`
 
    Output Parameter:
 .  kv - the Kokkos OffsetView with a user-specified template parameter MemorySpace
 
    Notes:
-    Call DMDAVecRestoreKokkosOffsetViewDOF() or DMDAVecRestoreKokkosOffsetViewDOFWrite() once you have finished accessing the OffsetView.
+    Call `DMDAVecRestoreKokkosOffsetViewDOF()` or `DMDAVecRestoreKokkosOffsetViewDOFWrite()` once you have finished accessing the OffsetView.
 
-    If the vector is not a Kokkos vector, an error will be raised.
+    If the vector is not a `VECKOKKOS` an error will be raised.
 
-    If the vector is a local vector (obtained with DMCreateLocalVector() etc) then the ghost point locations are accessible. If it is
+    If the vector is a local vector (obtained with `DMCreateLocalVector()` etc) then the ghost point locations are accessible. If it is
     a global vector then the ghost points are not accessible. Of course with the local vector you will have to do the
-    appropriate DMGlobalToLocalBegin() and DMGlobalToLocalEnd() to have correct values in the ghost locations.
+    appropriate `DMGlobalToLocalBegin()` and `DMGlobalToLocalEnd()` to have correct values in the ghost locations.
 
-    These routines are similar to DMDAVecGetArrayDOF() and friends. One can read-only, write-only or read/write access the returned
+    These routines are similar to `DMDAVecGetArrayDOF()` and friends. One can read-only, write-only or read/write access the returned
     Kokkos OffsetView.  Note that passing in a constant OffsetView enables read-only access.
     Currently, only two memory spaces are supported: Kokkos::HostSpace and Kokkos::DefaultExecutionSpace::memory_space.
     If needed, a memory copy will be internally called to copy the latest vector data to the given memory space.
 
-    In C, to access the returned array of DMDAVecGetArrayDOF(), the indexing is "backwards", i.e., array[k][j][i][c] (instead of array[c][i][j][k]),
-    where i, j, k are loop variables for the x, y, z dimensions respectively, and c is the loop variable for DOFs, as specified in DMDACreate3d(),
+    In C, to access the returned array of `DMDAVecGetArrayDOF()`, the indexing is "backwards", i.e., array[k][j][i][c] (instead of array[c][i][j][k]),
+    where i, j, k are loop variables for the x, y, z dimensions respectively, and c is the loop variable for DOFs, as specified in `DMDACreate3d()`,
     for example.
 
-    To give users the same experience as DMDAVecGetArrayDOF(), we mandate the returned OffsetView always has Kokkos::LayoutRight (that is, rightest
+    To give users the same experience as `DMDAVecGetArrayDOF()`, we mandate the returned OffsetView always has Kokkos::LayoutRight (that is, rightest
     subscript has a stride 1, as in C multi-dimensional arrays), regardless of whether the memory space is host or device. Thus it is important
     to use Iterate::Right as IterateInner if one uses Kokkos::MDRangePolicy to access the OffsetView.
 
-    Note that for a 3D DA, the OffsetView kv's first dimension (i.e., the leftest, dim 0) corresponds to DA's z direction, and its second-to-last dimension
-    (rightest) corresponds to DA's x direction.
+    Note that for a 3D `DMDA`, the OffsetView kv's first dimension (i.e., the leftest, dim 0) corresponds to DMDA's z direction, and its second-to-last dimension
+    (rightest) corresponds to DMDA's x direction.
 
     If the vector is a global vector, we have
 .vb
@@ -263,20 +281,29 @@ template<class MemorySpace> PetscErrorCode DMDAVecRestoreKokkosOffsetViewWrite(D
           `DMDAVecGetArrayDOF()`, `DMDAVecGetArrayWrite()`, `DMDAVecRestoreArrayWrite()`, `DMDAVecGetArrayRead()`, `DMDAVecRestoreArrayRead()`,
           `DMStagVecGetArray()`
 @*/
-template<class MemorySpace> PetscErrorCode DMDAVecGetKokkosOffsetViewDOF         (DM,Vec,Kokkos::Experimental::OffsetView<const PetscScalar**, Kokkos::LayoutRight,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecGetKokkosOffsetViewDOF         (DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar**, Kokkos::LayoutRight,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecGetKokkosOffsetViewDOFWrite    (DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar**, Kokkos::LayoutRight,MemorySpace>*);
+template <class MemorySpace>
+PetscErrorCode DMDAVecGetKokkosOffsetViewDOF(DM, Vec, Kokkos::Experimental::OffsetView<const PetscScalar **, Kokkos::LayoutRight, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecGetKokkosOffsetViewDOF(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar **, Kokkos::LayoutRight, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecGetKokkosOffsetViewDOFWrite(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar **, Kokkos::LayoutRight, MemorySpace> *);
 
-template<class MemorySpace> PetscErrorCode DMDAVecGetKokkosOffsetViewDOF         (DM,Vec,Kokkos::Experimental::OffsetView<const PetscScalar***, Kokkos::LayoutRight,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecGetKokkosOffsetViewDOF         (DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar***, Kokkos::LayoutRight,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecGetKokkosOffsetViewDOFWrite    (DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar***, Kokkos::LayoutRight,MemorySpace>*);
+template <class MemorySpace>
+PetscErrorCode DMDAVecGetKokkosOffsetViewDOF(DM, Vec, Kokkos::Experimental::OffsetView<const PetscScalar ***, Kokkos::LayoutRight, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecGetKokkosOffsetViewDOF(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar ***, Kokkos::LayoutRight, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecGetKokkosOffsetViewDOFWrite(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar ***, Kokkos::LayoutRight, MemorySpace> *);
 
-template<class MemorySpace> PetscErrorCode DMDAVecGetKokkosOffsetViewDOF         (DM,Vec,Kokkos::Experimental::OffsetView<const PetscScalar****, Kokkos::LayoutRight,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecGetKokkosOffsetViewDOF         (DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar****, Kokkos::LayoutRight,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecGetKokkosOffsetViewDOFWrite    (DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar****, Kokkos::LayoutRight,MemorySpace>*);
+template <class MemorySpace>
+PetscErrorCode DMDAVecGetKokkosOffsetViewDOF(DM, Vec, Kokkos::Experimental::OffsetView<const PetscScalar ****, Kokkos::LayoutRight, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecGetKokkosOffsetViewDOF(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar ****, Kokkos::LayoutRight, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecGetKokkosOffsetViewDOFWrite(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar ****, Kokkos::LayoutRight, MemorySpace> *);
 
 /*@C
-   DMDAVecRestoreKokkosOffsetViewDOF - Returns the Kokkos OffsetView that gotten from DMDAVecGetKokkosOffsetViewDOF()
+   DMDAVecRestoreKokkosOffsetViewDOF - Returns the Kokkos OffsetView that was gotten from `DMDAVecGetKokkosOffsetViewDOF()`
 
    Synopsis:
    #include <petscdmda_kokkos.hpp>
@@ -290,33 +317,42 @@ template<class MemorySpace> PetscErrorCode DMDAVecGetKokkosOffsetViewDOFWrite   
    PetscErrorCode DMDAVecRestoreKokkosOffsetViewDOF(DM da,Vec v,Kokkos::Experimental::OffsetView<PetscScalar****,Kokkos::LayoutRight,MemorySpace>* kv);
    PetscErrorCode DMDAVecRestoreKokkosOffsetViewDOFWrite(DM da,Vec v,Kokkos::Experimental::OffsetView<PetscScalar****,Kokkos::LayoutRight,MemorySpace>* kv);
 
-   Logically collective on da
+   Logically Collective
 
    Input Parameters:
 +  da - the distributed array
-.  v - the vector, either a vector the same size as one obtained with DMCreateGlobalVector() or DMCreateLocalVector()
+.  v - the vector, either a vector the same size as one obtained with `DMCreateGlobalVector()` or `DMCreateLocalVector()`
 -  kv - the Kokkos OffsetView with a user-specified template parameter MemorySpace
 
-   Notes:
-    If the vector is not of type VECKOKKOS, an error will be raised.
-
   Level: intermediate
+
+   Note:
+    If the vector is not of type `VECKOKKOS`, an error will be raised.
 
 .seealso: `DMDAVecGetKokkosOffsetViewDOF()`, `DMDAVecGetKokkosOffsetView()`, `DMDAGetGhostCorners()`, `DMDAGetCorners()`, `VecGetArray()`, `VecRestoreArray()`, `DMDAVecRestoreArray()`, `DMDAVecRestoreArrayDOF()`
           `DMDAVecGetArrayDOF()`, `DMDAVecGetArrayWrite()`, `DMDAVecRestoreArrayWrite()`, `DMDAVecGetArrayRead()`, `DMDAVecRestoreArrayRead()`,
           `DMStagVecGetArray()`
 @*/
-template<class MemorySpace> PetscErrorCode DMDAVecRestoreKokkosOffsetViewDOF     (DM,Vec,Kokkos::Experimental::OffsetView<const PetscScalar**, Kokkos::LayoutRight,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecRestoreKokkosOffsetViewDOF     (DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar**, Kokkos::LayoutRight,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecRestoreKokkosOffsetViewDOFWrite(DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar**, Kokkos::LayoutRight,MemorySpace>*);
+template <class MemorySpace>
+PetscErrorCode DMDAVecRestoreKokkosOffsetViewDOF(DM, Vec, Kokkos::Experimental::OffsetView<const PetscScalar **, Kokkos::LayoutRight, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecRestoreKokkosOffsetViewDOF(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar **, Kokkos::LayoutRight, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecRestoreKokkosOffsetViewDOFWrite(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar **, Kokkos::LayoutRight, MemorySpace> *);
 
-template<class MemorySpace> PetscErrorCode DMDAVecRestoreKokkosOffsetViewDOF     (DM,Vec,Kokkos::Experimental::OffsetView<const PetscScalar***, Kokkos::LayoutRight,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecRestoreKokkosOffsetViewDOF     (DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar***, Kokkos::LayoutRight,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecRestoreKokkosOffsetViewDOFWrite(DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar***, Kokkos::LayoutRight,MemorySpace>*);
+template <class MemorySpace>
+PetscErrorCode DMDAVecRestoreKokkosOffsetViewDOF(DM, Vec, Kokkos::Experimental::OffsetView<const PetscScalar ***, Kokkos::LayoutRight, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecRestoreKokkosOffsetViewDOF(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar ***, Kokkos::LayoutRight, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecRestoreKokkosOffsetViewDOFWrite(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar ***, Kokkos::LayoutRight, MemorySpace> *);
 
-template<class MemorySpace> PetscErrorCode DMDAVecRestoreKokkosOffsetViewDOF     (DM,Vec,Kokkos::Experimental::OffsetView<const PetscScalar****, Kokkos::LayoutRight,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecRestoreKokkosOffsetViewDOF     (DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar****, Kokkos::LayoutRight,MemorySpace>*);
-template<class MemorySpace> PetscErrorCode DMDAVecRestoreKokkosOffsetViewDOFWrite(DM,Vec,Kokkos::Experimental::OffsetView<      PetscScalar****, Kokkos::LayoutRight,MemorySpace>*);
+template <class MemorySpace>
+PetscErrorCode DMDAVecRestoreKokkosOffsetViewDOF(DM, Vec, Kokkos::Experimental::OffsetView<const PetscScalar ****, Kokkos::LayoutRight, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecRestoreKokkosOffsetViewDOF(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar ****, Kokkos::LayoutRight, MemorySpace> *);
+template <class MemorySpace>
+PetscErrorCode DMDAVecRestoreKokkosOffsetViewDOFWrite(DM, Vec, Kokkos::Experimental::OffsetView<PetscScalar ****, Kokkos::LayoutRight, MemorySpace> *);
 #endif
 
 #endif

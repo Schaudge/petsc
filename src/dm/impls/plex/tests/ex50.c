@@ -5,12 +5,12 @@ static char help[] = "Test global numbering\n\n";
 
 int main(int argc, char **argv)
 {
-  DM dm;
-  IS point_numbering;
+  DM      dm;
+  IS      point_numbering;
   PetscSF point_sf;
 
   PetscFunctionBeginUser;
-  PetscCall(PetscInitialize(&argc, &argv, NULL,help));
+  PetscCall(PetscInitialize(&argc, &argv, NULL, help));
   PetscCall(DMCreate(PETSC_COMM_WORLD, &dm));
   PetscCall(DMSetType(dm, DMPLEX));
   PetscCall(DMSetFromOptions(dm));

@@ -6,7 +6,7 @@
 */
 #include <../src/ksp/ksp/impls/gmres/agmres/agmresimpl.h>
 
-static PetscErrorCode KSPAGMRESLejafmaxarray(PetscScalar *re, PetscInt pt, PetscInt n,PetscInt *pos)
+static PetscErrorCode KSPAGMRESLejafmaxarray(PetscScalar *re, PetscInt pt, PetscInt n, PetscInt *pos)
 {
   PetscInt    i;
   PetscScalar mx;
@@ -20,7 +20,7 @@ static PetscErrorCode KSPAGMRESLejafmaxarray(PetscScalar *re, PetscInt pt, Petsc
       *pos = i;
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode KSPAGMRESLejaCfpdMax(PetscScalar *rm, PetscScalar *im, PetscInt *spos, PetscInt nbre, PetscInt n, PetscInt *rpos)
@@ -36,7 +36,7 @@ static PetscErrorCode KSPAGMRESLejaCfpdMax(PetscScalar *rm, PetscScalar *im, Pet
     for (j = 0; j < nbre; j++) {
       rd = rm[i] - rm[spos[j]];
       id = im[i] - im[spos[j]];
-      pd = pd * PetscSqrtReal(rd*rd + id*id);
+      pd = pd * PetscSqrtReal(rd * rd + id * id);
     }
     if (max < pd) {
       *rpos = i;
@@ -44,32 +44,32 @@ static PetscErrorCode KSPAGMRESLejaCfpdMax(PetscScalar *rm, PetscScalar *im, Pet
     }
     pd = 1.0;
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode KSPAGMRESLejaOrdering(PetscScalar *re, PetscScalar *im, PetscScalar *rre, PetscScalar *rim, PetscInt m)
 {
-  PetscInt       *spos;
-  PetscScalar    *n_cmpl,temp;
-  PetscInt       i, pos, j;
+  PetscInt    *spos;
+  PetscScalar *n_cmpl, temp;
+  PetscInt     i, pos, j;
 
   PetscFunctionBegin;
   PetscCall(PetscMalloc1(m, &n_cmpl));
   PetscCall(PetscMalloc1(m, &spos));
   /* Check the proper order of complex conjugate pairs */
   j = 0;
-  while (j  < m) {
-    if (im[j] != 0.0) { /* complex eigenvalue */
+  while (j < m) {
+    if (im[j] != 0.0) {  /* complex eigenvalue */
       if (im[j] < 0.0) { /* change the order */
-        temp    = im[j+1];
-        im[j+1] = im[j];
-        im[j]   = temp;
+        temp      = im[j + 1];
+        im[j + 1] = im[j];
+        im[j]     = temp;
       }
       j += 2;
     } else j++;
   }
 
-  for (i = 0; i < m; i++) n_cmpl[i] = PetscSqrtReal(re[i]*re[i]+im[i]*im[i]);
+  for (i = 0; i < m; i++) n_cmpl[i] = PetscSqrtReal(re[i] * re[i] + im[i] * im[i]);
   PetscCall(KSPAGMRESLejafmaxarray(n_cmpl, 0, m, &pos));
   j = 0;
   if (im[pos] >= 0.0) {
@@ -80,8 +80,8 @@ PetscErrorCode KSPAGMRESLejaOrdering(PetscScalar *re, PetscScalar *im, PetscScal
   }
   while (j < (m)) {
     if (im[pos] > 0) {
-      rre[j]  = re[pos+1];
-      rim[j]  = im[pos+1];
+      rre[j]  = re[pos + 1];
+      rim[j]  = im[pos + 1];
       spos[j] = pos + 1;
       j++;
     }
@@ -97,5 +97,5 @@ PetscErrorCode KSPAGMRESLejaOrdering(PetscScalar *re, PetscScalar *im, PetscScal
   }
   PetscCall(PetscFree(spos));
   PetscCall(PetscFree(n_cmpl));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

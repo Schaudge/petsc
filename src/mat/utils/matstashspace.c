@@ -2,15 +2,15 @@
 #include <petsc/private/matimpl.h>
 
 /* Get new PetscMatStashSpace into the existing space */
-PetscErrorCode PetscMatStashSpaceGet(PetscInt bs2,PetscInt n,PetscMatStashSpace *space)
+PetscErrorCode PetscMatStashSpaceGet(PetscInt bs2, PetscInt n, PetscMatStashSpace *space)
 {
   PetscMatStashSpace a;
 
   PetscFunctionBegin;
-  if (!n) PetscFunctionReturn(0);
+  if (!n) PetscFunctionReturn(PETSC_SUCCESS);
 
-  PetscCall(PetscMalloc(sizeof(struct _MatStashSpace),&a));
-  PetscCall(PetscMalloc3(n*bs2,&(a->space_head),n,&a->idx,n,&a->idy));
+  PetscCall(PetscMalloc(sizeof(struct _MatStashSpace), &a));
+  PetscCall(PetscMalloc3(n * bs2, &(a->space_head), n, &a->idx, n, &a->idy));
 
   a->val              = a->space_head;
   a->local_remaining  = n;
@@ -23,30 +23,30 @@ PetscErrorCode PetscMatStashSpaceGet(PetscInt bs2,PetscInt n,PetscMatStashSpace 
     a->total_space_size = (*space)->total_space_size;
   }
   a->total_space_size += n;
-  *space               = a;
-  PetscFunctionReturn(0);
+  *space = a;
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* Copy the values in space into arrays val, idx and idy. Then destroy space */
-PetscErrorCode PetscMatStashSpaceContiguous(PetscInt bs2,PetscMatStashSpace *space,PetscScalar *val,PetscInt *idx,PetscInt *idy)
+PetscErrorCode PetscMatStashSpaceContiguous(PetscInt bs2, PetscMatStashSpace *space, PetscScalar *val, PetscInt *idx, PetscInt *idy)
 {
   PetscMatStashSpace a;
 
   PetscFunctionBegin;
   while ((*space)) {
-    a    = (*space)->next;
-    PetscCall(PetscArraycpy(val,(*space)->val,(*space)->local_used*bs2));
-    val += bs2*(*space)->local_used;
-    PetscCall(PetscArraycpy(idx,(*space)->idx,(*space)->local_used));
+    a = (*space)->next;
+    PetscCall(PetscArraycpy(val, (*space)->val, (*space)->local_used * bs2));
+    val += bs2 * (*space)->local_used;
+    PetscCall(PetscArraycpy(idx, (*space)->idx, (*space)->local_used));
     idx += (*space)->local_used;
-    PetscCall(PetscArraycpy(idy,(*space)->idy,(*space)->local_used));
+    PetscCall(PetscArraycpy(idy, (*space)->idy, (*space)->local_used));
     idy += (*space)->local_used;
 
-    PetscCall(PetscFree3((*space)->space_head,(*space)->idx,(*space)->idy));
+    PetscCall(PetscFree3((*space)->space_head, (*space)->idx, (*space)->idy));
     PetscCall(PetscFree(*space));
     *space = a;
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode PetscMatStashSpaceDestroy(PetscMatStashSpace *space)
@@ -55,11 +55,11 @@ PetscErrorCode PetscMatStashSpaceDestroy(PetscMatStashSpace *space)
 
   PetscFunctionBegin;
   while (*space) {
-    a      = (*space)->next;
-    PetscCall(PetscFree3((*space)->space_head,(*space)->idx,(*space)->idy));
+    a = (*space)->next;
+    PetscCall(PetscFree3((*space)->space_head, (*space)->idx, (*space)->idy));
     PetscCall(PetscFree((*space)));
     *space = a;
   }
   *space = NULL;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -4,10 +4,10 @@ static char help[] = "Tests mesh reordering\n\n";
 
 int main(int argc, char **argv)
 {
-  DM             dm;
+  DM dm;
 
   PetscFunctionBeginUser;
-  PetscCall(PetscInitialize(&argc, &argv, NULL,help));
+  PetscCall(PetscInitialize(&argc, &argv, NULL, help));
   PetscCall(DMCreate(PETSC_COMM_WORLD, &dm));
   PetscCall(DMSetType(dm, DMPLEX));
   PetscCall(DMSetFromOptions(dm));

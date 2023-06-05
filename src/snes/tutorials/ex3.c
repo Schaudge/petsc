@@ -41,8 +41,7 @@ PetscErrorCode MatrixFreePreconditioner(PC, Vec, Vec);
 /*
    User-defined application context
 */
-typedef struct
-{
+typedef struct {
   DM          da;    /* distributed array */
   Vec         F;     /* right-hand-side of PDE */
   PetscMPIInt rank;  /* rank of processor */
@@ -54,8 +53,7 @@ typedef struct
 /*
    User-defined context for monitoring
 */
-typedef struct
-{
+typedef struct {
   PetscViewer viewer;
 } MonitorCtx;
 
@@ -63,16 +61,14 @@ typedef struct
    User-defined context for checking candidate iterates that are
    determined by line search methods
 */
-typedef struct
-{
+typedef struct {
   Vec             last_step; /* previous iterate */
   PetscReal       tolerance; /* tolerance for changes between successive iterates */
   ApplicationCtx *user;
 } StepCheckCtx;
 
-typedef struct
-{
-  PetscInt its0; /* num of prevous outer KSP iterations */
+typedef struct {
+  PetscInt its0; /* num of previous outer KSP iterations */
 } SetSubKSPCtx;
 
 int main(int argc, char **argv)
@@ -329,7 +325,7 @@ PetscErrorCode FormInitialGuess(Vec x)
 
   PetscFunctionBeginUser;
   PetscCall(VecSet(x, pfive));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* ------------------------------------------------------------------- */
@@ -413,7 +409,7 @@ PetscErrorCode FormFunction(SNES snes, Vec x, Vec f, void *ctx)
   PetscCall(DMDAVecRestoreArray(da, f, &ff));
   PetscCall(DMDAVecRestoreArrayRead(da, user->F, (void *)&FF));
   PetscCall(DMRestoreLocalVector(da, &xlocal));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* ------------------------------------------------------------------- */
@@ -440,7 +436,7 @@ PetscErrorCode FormJacobian(SNES snes, Vec x, Mat jac, Mat B, void *ctx)
   PetscFunctionBeginUser;
   if (user->sjerr) {
     PetscCall(SNESSetJacobianDomainError(snes));
-    PetscFunctionReturn(0);
+    PetscFunctionReturn(PETSC_SUCCESS);
   }
   /*
      Get pointer to vector data
@@ -501,7 +497,7 @@ PetscErrorCode FormJacobian(SNES snes, Vec x, Mat jac, Mat B, void *ctx)
   PetscCall(DMDAVecRestoreArrayRead(da, x, &xx));
   PetscCall(MatAssemblyEnd(jac, MAT_FINAL_ASSEMBLY));
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* ------------------------------------------------------------------- */
@@ -529,7 +525,7 @@ PetscErrorCode Monitor(SNES snes, PetscInt its, PetscReal fnorm, void *ctx)
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "iter = %" PetscInt_FMT ",SNES Function norm %g\n", its, (double)fnorm));
   PetscCall(SNESGetSolution(snes, &x));
   PetscCall(VecView(x, monP->viewer));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* ------------------------------------------------------------------- */
@@ -550,7 +546,7 @@ PetscErrorCode PreCheck(SNESLineSearch linesearch, Vec xcurrent, Vec y, PetscBoo
 {
   PetscFunctionBeginUser;
   *changed_y = PETSC_FALSE;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* ------------------------------------------------------------------- */
@@ -620,7 +616,7 @@ PetscErrorCode PostCheck(SNESLineSearch linesearch, Vec xcurrent, Vec y, Vec x, 
     PetscCall(DMDAVecRestoreArray(da, x, &xa));
   }
   PetscCall(VecCopy(x, check->last_step));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* ------------------------------------------------------------------- */
@@ -670,7 +666,7 @@ PetscErrorCode PostSetSubKSP(SNESLineSearch linesearch, Vec xcurrent, Vec y, Vec
     PetscCall(PetscPrintf(PETSC_COMM_WORLD, "    ...ksp_ratio %g, new maxit %" PetscInt_FMT "\n\n", (double)ksp_ratio, maxit));
   }
   check->its0 = its; /* save current outer KSP iteration number */
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* ------------------------------------------------------------------- */
@@ -688,8 +684,9 @@ PetscErrorCode PostSetSubKSP(SNESLineSearch linesearch, Vec xcurrent, Vec y, Vec
 */
 PetscErrorCode MatrixFreePreconditioner(PC pc, Vec x, Vec y)
 {
+  PetscFunctionBeginUser;
   PetscCall(VecCopy(x, y));
-  return 0;
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*TEST

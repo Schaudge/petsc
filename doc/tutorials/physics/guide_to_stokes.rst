@@ -1,10 +1,22 @@
+:orphan:
+
 .. _tut_stokes:
 
-============================================================
-Guide to the Stokes Equations using Finite Elements in PETSc
-============================================================
+===================================================
+Guide to the Stokes Equations using Finite Elements
+===================================================
 
-This guide accompanies `SNES Example 62 <../../../src/snes/tutorials/ex62.c.html>`__ and `SNES Example 69 <../../../src/snes/tutorials/ex69.c.html>`__.
+The Stokes equations
+
+.. math::
+
+    \begin{aligned}
+    -\nabla \cdot \left(\mu \left(\nabla u + \nabla u^T \right)\right) + \nabla p + f &= 0 \\
+    \nabla\cdot u &= 0 \end{aligned}
+
+describe slow flow of an incompressible fluid with velocity :math:`u`, pressure :math:`p`, and body force :math:`f`.
+
+This guide accompanies `SNES Example 62 <PETSC_DOC_OUT_ROOT_PLACEHOLDER/src/snes/tutorials/ex62.c.html>`__ and `SNES Example 69 <PETSC_DOC_OUT_ROOT_PLACEHOLDER/src/snes/tutorials/ex69.c.html>`__.
 
 The Stokes equations for a fluid, a steady-state form of the Navier-Stokes equations, start with the balance of momentum, just as in elastostatics,
 
@@ -196,7 +208,7 @@ and then add a ``PetscBag`` object to our application context. We then setup the
 
 .. literalinclude:: /../src/snes/tutorials/ex62.c
    :start-at: static PetscErrorCode SetupParameters
-   :end-at: PetscFunctionReturn(0);
+   :end-at: PetscFunctionReturn(PETSC_SUCCESS);
    :append: }
 
 which will allow us to set the value from the command line using ``-mu``. The ``PetscBag`` can also be persisted to disk with ``PetscBagLoad/View()``. We can make these values available as constant to our pointwise functions through the ``PetscDS`` object.

@@ -4,140 +4,147 @@
   and sequential vectors.
 */
 
-#include <../src/vec/vec/impls/dvecimpl.h>          /*I "petscvec.h" I*/
+#include <../src/vec/vec/impls/dvecimpl.h> /*I "petscvec.h" I*/
 #include <petscblaslapack.h>
 
-PetscErrorCode VecDot_Seq(Vec xin,Vec yin,PetscScalar *z)
+#if defined(PETSC_USE_REAL_SINGLE) && defined(PETSC_BLASLAPACK_SNRM2_RETURNS_DOUBLE) && !defined(PETSC_USE_COMPLEX)
+static PetscErrorCode VecXDot_Seq_Private(Vec xin, Vec yin, PetscScalar *z, double (*const BLASfn)(const PetscBLASInt *, const PetscScalar *, const PetscBLASInt *, const PetscScalar *, const PetscBLASInt *))
+#else
+static PetscErrorCode VecXDot_Seq_Private(Vec xin, Vec yin, PetscScalar *z, PetscScalar (*const BLASfn)(const PetscBLASInt *, const PetscScalar *, const PetscBLASInt *, const PetscScalar *, const PetscBLASInt *))
+#endif
 {
-  const PetscScalar *ya,*xa;
-  PetscBLASInt      one = 1,bn = 0;
+  const PetscInt     n   = xin->map->n;
+  const PetscBLASInt one = 1;
+  const PetscScalar *ya, *xa;
+  PetscBLASInt       bn;
 
   PetscFunctionBegin;
-  PetscCall(PetscBLASIntCast(xin->map->n,&bn));
-  PetscCall(VecGetArrayRead(xin,&xa));
-  PetscCall(VecGetArrayRead(yin,&ya));
-  /* arguments ya, xa are reversed because BLAS complex conjugates the first argument, PETSc the second */
-  PetscCallBLAS("BLASdot",*z   = BLASdot_(&bn,ya,&one,xa,&one));
-  PetscCall(VecRestoreArrayRead(xin,&xa));
-  PetscCall(VecRestoreArrayRead(yin,&ya));
-  if (xin->map->n > 0) {
-    PetscCall(PetscLogFlops(2.0*xin->map->n-1));
-  }
-  PetscFunctionReturn(0);
+  PetscCall(PetscBLASIntCast(n, &bn));
+  if (n > 0) PetscCall(PetscLogFlops(2.0 * n - 1));
+  PetscCall(VecGetArrayRead(xin, &xa));
+  PetscCall(VecGetArrayRead(yin, &ya));
+  /* arguments ya, xa are reversed because BLAS complex conjugates the first argument, PETSc
+     the second */
+  PetscCallBLAS("BLASdot", *z = BLASfn(&bn, ya, &one, xa, &one));
+  PetscCall(VecRestoreArrayRead(xin, &xa));
+  PetscCall(VecRestoreArrayRead(yin, &ya));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode VecTDot_Seq(Vec xin,Vec yin,PetscScalar *z)
+PetscErrorCode VecDot_Seq(Vec xin, Vec yin, PetscScalar *z)
 {
-  const PetscScalar *ya,*xa;
-  PetscBLASInt      one = 1,bn = 0;
-
   PetscFunctionBegin;
-  PetscCall(PetscBLASIntCast(xin->map->n,&bn));
-  PetscCall(VecGetArrayRead(xin,&xa));
-  PetscCall(VecGetArrayRead(yin,&ya));
-  PetscCallBLAS("BLASdot",*z   = BLASdotu_(&bn,xa,&one,ya,&one));
-  PetscCall(VecRestoreArrayRead(xin,&xa));
-  PetscCall(VecRestoreArrayRead(yin,&ya));
-  if (xin->map->n > 0) {
-    PetscCall(PetscLogFlops(2.0*xin->map->n-1));
-  }
-  PetscFunctionReturn(0);
+  PetscCall(VecXDot_Seq_Private(xin, yin, z, BLASdot_));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode VecTDot_Seq(Vec xin, Vec yin, PetscScalar *z)
+{
+  PetscFunctionBegin;
+  /*
+    pay close attention!!! xin and yin are SWAPPED here so that the eventual BLAS call is
+    dot(&bn, xa, &one, ya, &one)
+  */
+  PetscCall(VecXDot_Seq_Private(yin, xin, z, BLASdotu_));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode VecScale_Seq(Vec xin, PetscScalar alpha)
 {
-  PetscBLASInt   one = 1,bn;
-
   PetscFunctionBegin;
-  PetscCall(PetscBLASIntCast(xin->map->n,&bn));
   if (alpha == (PetscScalar)0.0) {
-    PetscCall(VecSet_Seq(xin,alpha));
+    PetscCall(VecSet_Seq(xin, alpha));
   } else if (alpha != (PetscScalar)1.0) {
-    PetscScalar a = alpha,*xarray;
-    PetscCall(VecGetArray(xin,&xarray));
-    PetscCallBLAS("BLASscal",BLASscal_(&bn,&a,xarray,&one));
-    PetscCall(VecRestoreArray(xin,&xarray));
+    const PetscBLASInt one = 1;
+    PetscBLASInt       bn;
+    PetscScalar       *xarray;
+
+    PetscCall(PetscBLASIntCast(xin->map->n, &bn));
+    PetscCall(PetscLogFlops(bn));
+    PetscCall(VecGetArray(xin, &xarray));
+    PetscCallBLAS("BLASscal", BLASscal_(&bn, &alpha, xarray, &one));
+    PetscCall(VecRestoreArray(xin, &xarray));
   }
-  PetscCall(PetscLogFlops(xin->map->n));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode VecAXPY_Seq(Vec yin,PetscScalar alpha,Vec xin)
+PetscErrorCode VecAXPY_Seq(Vec yin, PetscScalar alpha, Vec xin)
 {
-  const PetscScalar *xarray;
-  PetscScalar       *yarray;
-  PetscBLASInt      one = 1,bn;
-
   PetscFunctionBegin;
-  PetscCall(PetscBLASIntCast(yin->map->n,&bn));
   /* assume that the BLAS handles alpha == 1.0 efficiently since we have no fast code for it */
   if (alpha != (PetscScalar)0.0) {
-    PetscCall(VecGetArrayRead(xin,&xarray));
-    PetscCall(VecGetArray(yin,&yarray));
-    PetscCallBLAS("BLASaxpy",BLASaxpy_(&bn,&alpha,xarray,&one,yarray,&one));
-    PetscCall(VecRestoreArrayRead(xin,&xarray));
-    PetscCall(VecRestoreArray(yin,&yarray));
-    PetscCall(PetscLogFlops(2.0*yin->map->n));
+    const PetscScalar *xarray;
+    PetscScalar       *yarray;
+    const PetscBLASInt one = 1;
+    PetscBLASInt       bn;
+
+    PetscCall(PetscBLASIntCast(yin->map->n, &bn));
+    PetscCall(PetscLogFlops(2.0 * bn));
+    PetscCall(VecGetArrayRead(xin, &xarray));
+    PetscCall(VecGetArray(yin, &yarray));
+    PetscCallBLAS("BLASaxpy", BLASaxpy_(&bn, &alpha, xarray, &one, yarray, &one));
+    PetscCall(VecRestoreArrayRead(xin, &xarray));
+    PetscCall(VecRestoreArray(yin, &yarray));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode VecAXPBY_Seq(Vec yin,PetscScalar a,PetscScalar b,Vec xin)
+PetscErrorCode VecAXPBY_Seq(Vec yin, PetscScalar a, PetscScalar b, Vec xin)
 {
-  PetscInt          n = yin->map->n,i;
-  const PetscScalar *xx;
-  PetscScalar       *yy;
-
   PetscFunctionBegin;
   if (a == (PetscScalar)0.0) {
-    PetscCall(VecScale_Seq(yin,b));
+    PetscCall(VecScale_Seq(yin, b));
   } else if (b == (PetscScalar)1.0) {
-    PetscCall(VecAXPY_Seq(yin,a,xin));
+    PetscCall(VecAXPY_Seq(yin, a, xin));
   } else if (a == (PetscScalar)1.0) {
-    PetscCall(VecAYPX_Seq(yin,b,xin));
-  } else if (b == (PetscScalar)0.0) {
-    PetscCall(VecGetArrayRead(xin,&xx));
-    PetscCall(VecGetArray(yin,(PetscScalar**)&yy));
-    for (i=0; i<n; i++) yy[i] = a*xx[i];
-    PetscCall(VecRestoreArrayRead(xin,&xx));
-    PetscCall(VecRestoreArray(yin,(PetscScalar**)&yy));
-    PetscCall(PetscLogFlops(xin->map->n));
+    PetscCall(VecAYPX_Seq(yin, b, xin));
   } else {
-    PetscCall(VecGetArrayRead(xin,&xx));
-    PetscCall(VecGetArray(yin,(PetscScalar**)&yy));
-    for (i=0; i<n; i++) yy[i] = a*xx[i] + b*yy[i];
-    PetscCall(VecRestoreArrayRead(xin,&xx));
-    PetscCall(VecRestoreArray(yin,(PetscScalar**)&yy));
-    PetscCall(PetscLogFlops(3.0*xin->map->n));
+    const PetscInt     n = yin->map->n;
+    const PetscScalar *xx;
+    PetscInt           flops;
+    PetscScalar       *yy;
+
+    PetscCall(VecGetArrayRead(xin, &xx));
+    PetscCall(VecGetArray(yin, &yy));
+    if (b == (PetscScalar)0.0) {
+      flops = n;
+      for (PetscInt i = 0; i < n; ++i) yy[i] = a * xx[i];
+    } else {
+      flops = 3 * n;
+      for (PetscInt i = 0; i < n; ++i) yy[i] = a * xx[i] + b * yy[i];
+    }
+    PetscCall(VecRestoreArrayRead(xin, &xx));
+    PetscCall(VecRestoreArray(yin, &yy));
+    PetscCall(PetscLogFlops(flops));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode VecAXPBYPCZ_Seq(Vec zin,PetscScalar alpha,PetscScalar beta,PetscScalar gamma,Vec xin,Vec yin)
+PetscErrorCode VecAXPBYPCZ_Seq(Vec zin, PetscScalar alpha, PetscScalar beta, PetscScalar gamma, Vec xin, Vec yin)
 {
-  PetscInt          n = zin->map->n,i;
-  const PetscScalar *yy,*xx;
+  const PetscInt     n = zin->map->n;
+  const PetscScalar *yy, *xx;
+  PetscInt           flops = 4 * n; // common case
   PetscScalar       *zz;
 
   PetscFunctionBegin;
-  PetscCall(VecGetArrayRead(xin,&xx));
-  PetscCall(VecGetArrayRead(yin,&yy));
-  PetscCall(VecGetArray(zin,&zz));
+  PetscCall(VecGetArrayRead(xin, &xx));
+  PetscCall(VecGetArrayRead(yin, &yy));
+  PetscCall(VecGetArray(zin, &zz));
   if (alpha == (PetscScalar)1.0) {
-    for (i=0; i<n; i++) zz[i] = xx[i] + beta*yy[i] + gamma*zz[i];
-    PetscCall(PetscLogFlops(4.0*n));
+    for (PetscInt i = 0; i < n; ++i) zz[i] = xx[i] + beta * yy[i] + gamma * zz[i];
   } else if (gamma == (PetscScalar)1.0) {
-    for (i=0; i<n; i++) zz[i] = alpha*xx[i] + beta*yy[i] + zz[i];
-    PetscCall(PetscLogFlops(4.0*n));
+    for (PetscInt i = 0; i < n; ++i) zz[i] = alpha * xx[i] + beta * yy[i] + zz[i];
   } else if (gamma == (PetscScalar)0.0) {
-    for (i=0; i<n; i++) zz[i] = alpha*xx[i] + beta*yy[i];
-    PetscCall(PetscLogFlops(3.0*n));
+    for (PetscInt i = 0; i < n; ++i) zz[i] = alpha * xx[i] + beta * yy[i];
+    flops -= n;
   } else {
-    for (i=0; i<n; i++) zz[i] = alpha*xx[i] + beta*yy[i] + gamma*zz[i];
-    PetscCall(PetscLogFlops(5.0*n));
+    for (PetscInt i = 0; i < n; ++i) zz[i] = alpha * xx[i] + beta * yy[i] + gamma * zz[i];
+    flops += n;
   }
-  PetscCall(VecRestoreArrayRead(xin,&xx));
-  PetscCall(VecRestoreArrayRead(yin,&yy));
-  PetscCall(VecRestoreArray(zin,&zz));
-  PetscFunctionReturn(0);
+  PetscCall(VecRestoreArrayRead(xin, &xx));
+  PetscCall(VecRestoreArrayRead(yin, &yy));
+  PetscCall(VecRestoreArray(zin, &zz));
+  PetscCall(PetscLogFlops(flops));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -27,6 +27,7 @@ class BaseTestPlex(object):
     def tearDown(self):
         self.plex.destroy()
         self.plex = None
+        PETSc.garbage_cleanup()
 
     def testTopology(self):
         rank = self.COMM.rank
@@ -186,9 +187,9 @@ class BaseTestPlex(object):
         assert np.allclose(metric.array, metric1.array)
         self.plex.metricIntersection2(metric1, metric2, metric)
         assert np.allclose(metric.array, metric2.array)
-        self.plex.metricEnforceSPD(metric, metric1, det)
+        self.plex.metricEnforceSPD(metric, metric1, det[0])
         assert np.allclose(metric.array, metric1.array)
-        self.plex.metricNormalize(metric, metric1, det, restrictSizes=False, restrictAnisotropy=False)
+        self.plex.metricNormalize(metric, metric1, det[0], restrictSizes=False, restrictAnisotropy=False)
         metric2.scale(pow(target, 2.0/self.DIM))
         assert np.allclose(metric1.array, metric2.array)
 
@@ -231,7 +232,19 @@ class TestPlex_1D(BaseTestPlex, unittest.TestCase):
     pass
 
 class TestPlex_2D(BaseTestPlex_2D, unittest.TestCase):
-    pass
+
+    def testTransform(self):
+            plex = self.plex
+            cstart, cend = plex.getHeightStratum(0)
+            tr = PETSc.DMPlexTransform().create(comm=PETSc.COMM_WORLD)
+            tr.setType(PETSc.DMPlexTransformType.REFINEALFELD)
+            tr.setDM(plex)
+            tr.setUp()
+            newplex = tr.apply(plex)
+            tr.destroy()
+            newcstart, newcend = newplex.getHeightStratum(0)
+            newplex.destroy()
+            self.assertTrue((newcend-newcstart) == 3*(cend-cstart)) 
 
 class TestPlex_3D(BaseTestPlex_3D, unittest.TestCase):
     pass

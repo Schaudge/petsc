@@ -1,18 +1,5 @@
 .. _doc_features:
 
-*******************************
-Core Features and Functionality
-*******************************
-
-PETSc is a general parallel linear and non-linear solver, ODE integrator, and optimization framework, which provides these
-general classes of functionality:
-
-.. contents:: Table Of Contents
-   :local:
-   :backlinks: entry
-   :depth: 1
-
-
 Supported Systems
 =================
 
@@ -33,14 +20,3 @@ Accelerator/GPU Features
 
    PETSc GPU support is under heavy development! See GPU support :ref:`roadmap
    <doc_gpu_roadmap>` for more information on current support.
-
-Support Features
-================
-
-- Complete documentation
-- :ref:`Comprehensive profiling of floating point and memory usage <ch_profiling>`
-- Consistent user interface
-- :ref:`Intensive error checking <sec_errors>`
-- Over one thousand examples
-- :ref:`PETSc is supported and will be actively enhanced for many years
-  <doc_faq_maintenance_strats>`

@@ -3,21 +3,14 @@ import config.package
 class Configure(config.package.Package):
   def __init__(self, framework):
     config.package.Package.__init__(self, framework)
-    self.version          = '5.5.1'
+    self.version          = '5.6.0'
     self.minversion       = '5.2.1'
     self.versionname      = 'MUMPS_VERSION'
     self.requiresversion  = 1
     self.gitcommit        = 'v'+self.version
-    self.download         = ['http://mumps.enseeiht.fr/MUMPS_'+self.version+'.tar.gz',
+    self.download         = ['https://graal.ens-lyon.fr/MUMPS/MUMPS_'+self.version+'.tar.gz',
                              'http://ftp.mcs.anl.gov/pub/petsc/externalpackages/MUMPS_'+self.version+'.tar.gz']
     self.downloaddirnames = ['petsc-pkg-mumps','MUMPS']
-    self.liblist          = [['libcmumps.a','libdmumps.a','libsmumps.a','libzmumps.a','libmumps_common.a','libpord.a'],
-                            ['libcmumps.a','libdmumps.a','libsmumps.a','libzmumps.a','libmumps_common.a','libpord.a','libpthread.a'],
-                            ['libcmumps.a','libdmumps.a','libsmumps.a','libzmumps.a','libmumps_common.a','libpord.a','libmpiseq.a'],
-                            ['libcmumps.a','libdmumps.a','libsmumps.a','libzmumps.a','libmumps_common.a','libpord.a','libpthread.a','libmpiseq.a']]
-    self.functions        = ['dmumps_c']
-    self.includes         = ['dmumps_c.h']
-    #
     self.buildLanguages   = ['C','FC']
     self.precisions       = ['single','double']
     self.downloadonWindows= 1
@@ -42,6 +35,7 @@ class Configure(config.package.Package):
     self.scalapack        = framework.require('config.packages.scalapack',self)
     self.hwloc            = framework.require('config.packages.hwloc',self)
     self.openmp           = framework.require('config.packages.openmp',self)
+    self.scalartypes      = framework.require('PETSc.options.scalarTypes',self)
     if self.argDB['with-mumps-serial']:
       self.deps           = [self.blasLapack,self.flibs]
       self.odeps          = [self.metis,self.openmp]
@@ -54,6 +48,21 @@ class Configure(config.package.Package):
     for arg in ['with-64-bit-blas-indices','known-64-bit-blas-indices']:
       if self.argDB.get(arg):
         raise RuntimeError('MUMPS cannot be used with %s' % arg)
+    if self.scalartypes.precision == 'single':
+      if self.scalartypes.scalartype == 'real': l = 's'
+      else: l = 'c'
+    else:
+      if self.scalartypes.scalartype == 'real': l = 'd'
+      else: l = 'z'
+    self.functions = [l+'mumps_c']
+    self.includes  = [l+'mumps_c.h']
+    liblist_common = [['libmumps_common.a','libpord.a','libpthread.a'],
+                     ['libmumps_common.a','libpord.a'],
+                     ['libmumps_common.a','libpord.a','libmpiseq.a'],
+                     ['libmumps_common.a','libpord.a','libpthread.a','libmpiseq.a']]
+    self.liblist   = []
+    for libc in liblist_common:
+       self.liblist.append(['lib'+l+'mumps.a'] + libc)
     config.package.Package.configureLibrary(self)
 
   def consistencyChecks(self):
@@ -170,7 +179,7 @@ class Configure(config.package.Package):
         self.logPrintBox('Compiling MUMPS; this may take several minutes')
         output2,err2,ret2 = config.package.Package.executeShellCommand(self.make.make_jnp+' prerequisites', cwd=self.packageDir, timeout=2500, log = self.log)
         output3,err3,ret3 = config.package.Package.executeShellCommand(self.make.make_jnp+' all', cwd=os.path.join(self.packageDir,'src'), timeout=2500, log = self.log)
-        libDir     = os.path.join(self.installDir, self.libdir)
+        libDir     = self.libDir
         includeDir = os.path.join(self.installDir, self.includedir)
         self.logPrintBox('Installing MUMPS; this may take several minutes')
         output,err,ret = config.package.Package.executeShellCommandSeq(

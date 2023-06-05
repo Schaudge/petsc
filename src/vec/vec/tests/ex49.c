@@ -20,10 +20,10 @@ static const char help[] = "Test VEC_SUBSET_OFF_PROC_ENTRIES\n\n";
 */
 int main(int argc, char **argv)
 {
-  Vec            v;
-  PetscInt       i, j, k, *ln, n, rstart;
-  PetscBool      saveCommunicationPattern = PETSC_FALSE;
-  PetscMPIInt    size, rank, p;
+  Vec         v;
+  PetscInt    i, j, k, *ln, n, rstart;
+  PetscBool   saveCommunicationPattern = PETSC_FALSE;
+  PetscMPIInt size, rank, p;
 
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
@@ -33,21 +33,21 @@ int main(int argc, char **argv)
 
   PetscCall(PetscMalloc1(size, &ln));
   /* This bug is triggered when one of the local lengths is small. Sometimes in IBAMR this value is actually zero. */
-  for (p=0; p<size; ++p) ln[p] = 10;
+  for (p = 0; p < size; ++p) ln[p] = 10;
   ln[0] = 2;
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "local lengths are:\n"));
   PetscCall(PetscIntView(1, &ln[rank], PETSC_VIEWER_STDOUT_WORLD));
-  n     = ln[rank];
+  n = ln[rank];
   PetscCall(VecCreateMPI(MPI_COMM_WORLD, n, PETSC_DECIDE, &v));
   PetscCall(VecGetOwnershipRange(v, &rstart, NULL));
 
-  for (k=0; k<5; ++k) { /* 5 iterations of VecAssembly */
-    PetscReal norm = 0.0;
-    PetscBool flag  = (k == 2) ?  PETSC_FALSE : PETSC_TRUE;
+  for (k = 0; k < 5; ++k) { /* 5 iterations of VecAssembly */
+    PetscReal norm  = 0.0;
+    PetscBool flag  = (k == 2) ? PETSC_FALSE : PETSC_TRUE;
     PetscInt  shift = (k < 2) ? 0 : (k == 2) ? 1 : 0; /* Used to change patterns */
 
     /* If saveCommunicationPattern, let's see what should happen in the 5 iterations:
-      iter 0: flag is true, and this is the first assebmly, so petsc should keep the
+      iter 0: flag is true, and this is the first assembly, so petsc should keep the
               communication pattern built during this assembly.
       iter 1: flag is true, reuse the pattern.
       iter 2: flag is false, discard/free the pattern built in iter 0; rebuild a new
@@ -62,19 +62,19 @@ int main(int argc, char **argv)
     if (saveCommunicationPattern) PetscCall(VecSetOption(v, VEC_SUBSET_OFF_PROC_ENTRIES, flag));
     PetscCall(VecSet(v, 0.0));
 
-    for (i=0; i<n; ++i) {
+    for (i = 0; i < n; ++i) {
       PetscScalar val = 1.0;
       PetscInt    r   = rstart + i;
 
       PetscCall(VecSetValue(v, r, val, ADD_VALUES));
       /* do assembly on all other processors too (the 'neighbors') */
       {
-        const PetscMPIInt neighbor = (i+shift) % size; /* Adjust communication patterns between iterations */
+        const PetscMPIInt neighbor = (i + shift) % size; /* Adjust communication patterns between iterations */
         const PetscInt    nn       = ln[neighbor];
         PetscInt          nrstart  = 0;
 
-        for (p=0; p<neighbor; ++p) nrstart += ln[p];
-        for (j=0; j<nn/4; j+= 3) {
+        for (p = 0; p < neighbor; ++p) nrstart += ln[p];
+        for (j = 0; j < nn / 4; j += 3) {
           PetscScalar val = 0.01;
           PetscInt    nr  = nrstart + j;
 

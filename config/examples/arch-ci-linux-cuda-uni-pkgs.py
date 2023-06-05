@@ -30,6 +30,8 @@ if __name__ == '__main__':
     '--download-slepc',
     '--download-hpddm',
     '--download-fftw',
+    '--with-strict-petscerrorcode',
+    '--with-coverage',
   ]
   configure.petsc_configure(configure_options)
 

@@ -2,35 +2,35 @@ static char help[] = "Tests using MatShift() to create a constant diagonal matri
 
 #include <petscmat.h>
 
-int main(int argc,char **argv)
+int main(int argc, char **argv)
 {
-  Mat            A,F;
-  MatFactorInfo  info;
-  PetscInt       m = 10;
-  IS             perm;
-  PetscMPIInt    size;
-  PetscBool      issbaij;
+  Mat           A, F;
+  MatFactorInfo info;
+  PetscInt      m = 10;
+  IS            perm;
+  PetscMPIInt   size;
+  PetscBool     issbaij;
 
   PetscFunctionBeginUser;
-  PetscCall(PetscInitialize(&argc,&argv,(char*) 0,help));
-  PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD,&size));
+  PetscCall(PetscInitialize(&argc, &argv, (char *)0, help));
+  PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD, &size));
 
-  PetscCall(MatCreate(PETSC_COMM_WORLD,&A));
-  PetscCall(MatSetSizes(A,PETSC_DECIDE,PETSC_DECIDE,m,m));
+  PetscCall(MatCreate(PETSC_COMM_WORLD, &A));
+  PetscCall(MatSetSizes(A, PETSC_DECIDE, PETSC_DECIDE, m, m));
   PetscCall(MatSetFromOptions(A));
   PetscCall(MatSetUp(A));
-  PetscCall(MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY));
-  PetscCall(MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY));
 
-  PetscCall(MatShift(A,1.0));
+  PetscCall(MatShift(A, 1.0));
 
-  PetscCall(PetscObjectTypeCompare((PetscObject)A,MATSEQSBAIJ,&issbaij));
+  PetscCall(PetscObjectTypeCompare((PetscObject)A, MATSEQSBAIJ, &issbaij));
   if (size == 1 && !issbaij) {
-    PetscCall(MatGetFactor(A,MATSOLVERPETSC,MAT_FACTOR_LU,&F));
+    PetscCall(MatGetFactor(A, MATSOLVERPETSC, MAT_FACTOR_LU, &F));
     PetscCall(MatFactorInfoInitialize(&info));
-    PetscCall(ISCreateStride(PETSC_COMM_SELF,m,0,1,&perm));
-    PetscCall(MatLUFactorSymbolic(F,A,perm,perm,&info));
-    PetscCall(MatLUFactorNumeric(F,A,&info));
+    PetscCall(ISCreateStride(PETSC_COMM_SELF, m, 0, 1, &perm));
+    PetscCall(MatLUFactorSymbolic(F, A, perm, perm, &info));
+    PetscCall(MatLUFactorNumeric(F, A, &info));
     PetscCall(MatDestroy(&F));
     PetscCall(ISDestroy(&perm));
   }
@@ -96,9 +96,9 @@ int main(int argc,char **argv)
    test:
      suffix: 9
      nsize: 1
-     requires: defined(PETSC_USE_INFO)
+     requires: defined(PETSC_USE_INFO) !defined(PETSC_HAVE_THREADSAFETY)
      args: -info ex182info:sys
-     filter: grep -h -ve Running -ve MPI_Comm -ve Initialize -ve communicator -ve HostName -ve PetscDetermineInitialFPTrap -ve libpetscbamg "ex182info.0" | sort -b
+     filter: grep -h -ve Running -ve MPI_Comm -ve Initialize -ve communicator -ve HostName -ve PetscSetFPTrap -ve PetscDetermineInitialFPTrap -ve libpetscbamg "ex182info.0" | sort -b
 
    test:
      suffix: 10
@@ -117,9 +117,9 @@ int main(int argc,char **argv)
    test:
      suffix: 12
      nsize: 2
-     requires: defined(PETSC_USE_INFO)
+     requires: defined(PETSC_USE_INFO) !defined(PETSC_HAVE_THREADSAFETY)
      args: -info ex182info:sys,mat
-     filter: grep -h -ve Running -ve MPI_Comm -ve Initialize -ve communicator -ve HostName -ve PetscDetermineInitialFPTrap -ve libpetscbamg "ex182info.1" | sort -b
+     filter: grep -h -ve Running -ve MPI_Comm -ve Initialize -ve communicator -ve HostName -ve PetscSetFPTrap -ve PetscDetermineInitialFPTrap -ve libpetscbamg "ex182info.1" | sort -b
 
    test:
      suffix: 13
@@ -133,13 +133,13 @@ int main(int argc,char **argv)
      nsize: 2
      requires: defined(PETSC_USE_INFO)
      args: -info ex182info::~self
-     filter: grep -h -ve Running -ve MPI_Comm -ve Initialize -ve communicator -ve HostName -ve PetscDetermineInitialFPTrap "ex182info.1" | sort -b
+     filter: grep -h -ve Running -ve MPI_Comm -ve Initialize -ve communicator -ve HostName -ve PetscSetFPTrap -ve PetscDetermineInitialFPTrap "ex182info.1" | sort -b
 
    test:
      suffix: 15
      nsize: 2
-     requires: defined(PETSC_USE_INFO)
+     requires: defined(PETSC_USE_INFO) !defined(PETSC_HAVE_THREADSAFETY)
      args: -info ex182info::self
-     filter: grep -h -ve Running -ve MPI_Comm -ve Initialize -ve communicator -ve HostName -ve PetscDetermineInitialFPTrap -ve libpetscbamg "ex182info.1" | sort -b
+     filter: grep -h -ve Running -ve MPI_Comm -ve Initialize -ve communicator -ve HostName -ve PetscSetFPTrap -ve PetscDetermineInitialFPTrap -ve libpetscbamg "ex182info.1" | sort -b
 
 TEST*/
