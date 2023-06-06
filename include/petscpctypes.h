@@ -320,7 +320,7 @@ typedef enum {
 .seealso: [](sec_pc), `PCGAMG`, `PCMG`, `PC`, `PCSetType()`, `PCGAMGSetThreshold()`, `PCGAMGSetThreshold()`, `PCGAMGSetReuseInterpolation()`
 J*/
 typedef const char *PCGAMGType;
-#define PCGAMGAGG       "agg"
+#define PCGAMGAGG "agg"
 
 /*E
     PCMGType - Determines the type of multigrid method that is run.
