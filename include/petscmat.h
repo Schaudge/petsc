@@ -133,6 +133,7 @@ typedef const char *MatType;
 #define MATDIAGONAL                  "diagonal"
 #define MATHTOOL                     "htool"
 #define MATH2OPUS                    "h2opus"
+#define MATFOO                       "matfoo"
 
 /*J
     MatSolverType - String with the name of a PETSc factorization based matrix solver type.
