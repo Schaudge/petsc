@@ -335,9 +335,6 @@ PETSC_EXTERN PetscErrorCode PCGAMGInitializePackage(void);
 PETSC_EXTERN PetscErrorCode PCGAMGRegister(PCGAMGType, PetscErrorCode (*)(PC));
 PETSC_EXTERN PetscErrorCode PCGAMGCreateGraph(PC, Mat, Mat *);
 
-PETSC_EXTERN PetscErrorCode PCGAMGClassicalSetType(PC, PCGAMGClassicalType);
-PETSC_EXTERN PetscErrorCode PCGAMGClassicalGetType(PC, PCGAMGClassicalType *);
-
 PETSC_EXTERN PetscErrorCode PCBDDCSetDiscreteGradient(PC, Mat, PetscInt, PetscInt, PetscBool, PetscBool);
 PETSC_EXTERN PetscErrorCode PCBDDCSetDivergenceMat(PC, Mat, PetscBool, IS);
 PETSC_EXTERN PetscErrorCode PCBDDCSetChangeOfBasisMat(PC, Mat, PetscBool);

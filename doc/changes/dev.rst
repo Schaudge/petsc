@@ -67,6 +67,7 @@ Changes: Development
 .. rubric:: PC:
 
 - Add ``PCMatGetApplyOperation()`` and ``PCMatSetApplyOperation()``
+- Remove ``PCCreateGAMG_Classical()`` and ``PCCreateGAMG_GEO()``
 
 .. rubric:: KSP:
 

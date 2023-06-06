@@ -53,9 +53,7 @@ typedef struct gamg_TAG {
 PetscErrorCode PCReset_MG(PC);
 
 /* hooks create derivied classes */
-PetscErrorCode PCCreateGAMG_GEO(PC);
 PetscErrorCode PCCreateGAMG_AGG(PC);
-PetscErrorCode PCCreateGAMG_Classical(PC);
 
 PetscErrorCode PCDestroy_GAMG(PC);
 

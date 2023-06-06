@@ -462,37 +462,6 @@ static PetscErrorCode PCGAMGCreateLevel_GAMG(PC pc, Mat Amat_fine, PetscInt cr_b
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-// used in GEO
-PetscErrorCode PCGAMGSquareGraph_GAMG(PC a_pc, Mat Gmat1, Mat *Gmat2)
-{
-  const char *prefix;
-  char        addp[32];
-  PC_MG      *mg      = (PC_MG *)a_pc->data;
-  PC_GAMG    *pc_gamg = (PC_GAMG *)mg->innerctx;
-
-  PetscFunctionBegin;
-  PetscCall(PCGetOptionsPrefix(a_pc, &prefix));
-  PetscCall(PetscInfo(a_pc, "%s: Square Graph on level %" PetscInt_FMT "\n", ((PetscObject)a_pc)->prefix, pc_gamg->current_level + 1));
-  PetscCall(MatProductCreate(Gmat1, Gmat1, NULL, Gmat2));
-  PetscCall(MatSetOptionsPrefix(*Gmat2, prefix));
-  PetscCall(PetscSNPrintf(addp, sizeof(addp), "pc_gamg_square_%" PetscInt_FMT "_", pc_gamg->current_level));
-  PetscCall(MatAppendOptionsPrefix(*Gmat2, addp));
-  if ((*Gmat2)->structurally_symmetric == PETSC_BOOL3_TRUE) {
-    PetscCall(MatProductSetType(*Gmat2, MATPRODUCT_AB));
-  } else {
-    PetscCall(MatSetOption(Gmat1, MAT_FORM_EXPLICIT_TRANSPOSE, PETSC_TRUE));
-    PetscCall(MatProductSetType(*Gmat2, MATPRODUCT_AtB));
-  }
-  PetscCall(MatProductSetFromOptions(*Gmat2));
-  PetscCall(PetscLogEventBegin(petsc_gamg_setup_matmat_events[pc_gamg->current_level][0], 0, 0, 0, 0));
-  PetscCall(MatProductSymbolic(*Gmat2));
-  PetscCall(PetscLogEventEnd(petsc_gamg_setup_matmat_events[pc_gamg->current_level][0], 0, 0, 0, 0));
-  PetscCall(MatProductClear(*Gmat2));
-  /* we only need the sparsity, cheat and tell PETSc the matrix has been assembled */
-  (*Gmat2)->assembled = PETSC_TRUE;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 /*
    PCSetUp_GAMG - Prepares for the use of the GAMG preconditioner
                     by setting data structures and options.
@@ -1396,10 +1365,10 @@ static PetscErrorCode PCGAMGSetThresholdScale_GAMG(PC pc, PetscReal v)
 
    Input Parameters:
 +  pc - the preconditioner context
--  type - `PCGAMGAGG`, `PCGAMGGEO`, or `PCGAMGCLASSICAL`
+-  type - `PCGAMGAGG`
 
    Options Database Key:
-.  -pc_gamg_type <agg,geo,classical> - type of algebraic multigrid to apply
+.  -pc_gamg_type <agg> - type of algebraic multigrid to apply (only agg implemented)
 
    Level: intermediate
 
@@ -1559,7 +1528,7 @@ PetscErrorCode PCSetFromOptions_GAMG(PC pc, PetscOptionItems *PetscOptionsObject
      PCGAMG - Geometric algebraic multigrid (AMG) preconditioner
 
    Options Database Keys:
-+   -pc_gamg_type <type,default=agg> - one of agg, geo, or classical
++   -pc_gamg_type <type,default=agg> - agg
 .   -pc_gamg_repartition  <bool,default=false> - repartition the degrees of freedom across the coarse grids as they are determined
 .   -pc_gamg_asm_use_agg <bool,default=false> - use the aggregates from the coasening process to defined the subdomains on each level for the PCASM smoother
 .   -pc_gamg_process_eq_limit <limit, default=50> - `PCGAMG` will reduce the number of MPI ranks used directly on the coarse grids so that there are around <limit>
@@ -1589,7 +1558,7 @@ PetscErrorCode PCSetFromOptions_GAMG(PC pc, PetscOptionItems *PetscOptionsObject
 
   See [the Users Manual section on PCGAMG](sec_amg) for more details.
 
-.seealso: `PCCreate()`, `PCSetType()`, `MatSetBlockSize()`, `PCMGType`, `PCSetCoordinates()`, `MatSetNearNullSpace()`, `PCGAMGSetType()`, `PCGAMGAGG`, `PCGAMGGEO`, `PCGAMGCLASSICAL`, `PCGAMGSetProcEqLim()`,
+.seealso: `PCCreate()`, `PCSetType()`, `MatSetBlockSize()`, `PCMGType`, `PCSetCoordinates()`, `MatSetNearNullSpace()`, `PCGAMGSetType()`, `PCGAMGAGG`, `PCGAMGSetProcEqLim()`,
           `PCGAMGSetCoarseEqLim()`, `PCGAMGSetRepartition()`, `PCGAMGRegister()`, `PCGAMGSetReuseInterpolation()`, `PCGAMGASMSetUseAggs()`, `PCGAMGSetUseParallelCoarseGridSolve()`, `PCGAMGSetNlevels()`, `PCGAMGSetThreshold()`, `PCGAMGGetType()`, `PCGAMGSetReuseInterpolation()`, `PCGAMGSetUseSAEstEig()`
 M*/
 
@@ -1679,9 +1648,7 @@ PetscErrorCode PCGAMGInitializePackage(void)
   PetscFunctionBegin;
   if (PCGAMGPackageInitialized) PetscFunctionReturn(PETSC_SUCCESS);
   PCGAMGPackageInitialized = PETSC_TRUE;
-  PetscCall(PetscFunctionListAdd(&GAMGList, PCGAMGGEO, PCCreateGAMG_GEO));
   PetscCall(PetscFunctionListAdd(&GAMGList, PCGAMGAGG, PCCreateGAMG_AGG));
-  PetscCall(PetscFunctionListAdd(&GAMGList, PCGAMGCLASSICAL, PCCreateGAMG_Classical));
   PetscCall(PetscRegisterFinalize(PCGAMGFinalizePackage));
 
   /* general events */
