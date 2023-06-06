@@ -30,14 +30,6 @@
 ! GAMG types
 !
 #define PCGAMGAGG 'agg'
-#define PCGAMGGEO 'geo'
-#define PCGAMGCLASSICAL 'classical'
-!
-! GAMG classical types
-!
-#define PCGAMGCLASSICALDIRECT   'direct'
-#define PCGAMGCLASSICALSTANDARD 'standard'
-
 !
 ! Various preconditioners
 !

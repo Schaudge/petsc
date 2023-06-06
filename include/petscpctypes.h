@@ -314,8 +314,6 @@ typedef enum {
 
    Values:
 +   `PCGAMGAGG` - (the default) smoothed aggregation algorithm, robust, very well tested
-.   `PCGAMGGEO` - geometric coarsening, uses mesh generator to produce coarser meshes, limited to triangles, not well tested
--   `PCGAMGCLASSICAL` - classical algebraic multigrid preconditioner, incomplete, poorly tested
 
      Level: intermediate
 
@@ -323,12 +321,6 @@ typedef enum {
 J*/
 typedef const char *PCGAMGType;
 #define PCGAMGAGG       "agg"
-#define PCGAMGGEO       "geo"
-#define PCGAMGCLASSICAL "classical"
-
-typedef const char *PCGAMGClassicalType;
-#define PCGAMGCLASSICALDIRECT   "direct"
-#define PCGAMGCLASSICALSTANDARD "standard"
 
 /*E
     PCMGType - Determines the type of multigrid method that is run.
