@@ -93,8 +93,6 @@ class PCMGCycleType(object):
 class PCGAMGType(object):
     """The *GAMG* subtype."""
     AGG       = S_(PCGAMGAGG)
-    GEO       = S_(PCGAMGGEO)
-    CLASSICAL = S_(PCGAMGCLASSICAL)
 
 class PCCompositeType(object):
     """The composite type."""

@@ -82,8 +82,6 @@ cdef extern from * nogil:
 
     ctypedef const char* PetscPCGAMGType "PCGAMGType"
     PetscPCGAMGType PCGAMGAGG
-    PetscPCGAMGType PCGAMGGEO
-    PetscPCGAMGType PCGAMGCLASSICAL
 
     ctypedef const char* PetscPCHYPREType "const char*"
 
