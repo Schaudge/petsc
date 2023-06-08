@@ -36,17 +36,22 @@ public:
 
   PetscErrorCode finalize_() noexcept
   {
-    PetscDeviceContext dctx;
+    // ASYNC TODO:
+    // fix this with the register finalize rewrite. The problem is that (when it is not
+    // finalized backwards) the finalizer for the memory pool runs before this one, so the
+    // internal pointers are free'd out from under these objects by the time this finalizer
+    // runs.
+    // PetscDeviceContext dctx;
 
     PetscFunctionBegin;
-    PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
-    PetscCall(v_.Destroy(dctx));
+    // PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+    // PetscCall(v_.Destroy(dctx));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
 
 private:
   value_type   val_{};
-  managed_type v_{};
+  managed_type v_;
 };
 
 } // namespace
