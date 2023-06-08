@@ -7,21 +7,35 @@
 
 #include <petsc/private/taoimpl.h>
 
+typedef struct _TaoPROXOps *TaoPROXOps;
+
+struct _TaoPROXOps {
+  PetscErrorCode (*orig_obj)(Tao, Vec, PetscReal *, void *);
+  PetscErrorCode (*orig_objgrad)(Tao, Vec, PetscReal *, Vec, void *);
+  PetscErrorCode (*orig_grad)(Tao, Vec, Vec, void *);
+  PetscErrorCode (*orig_hess)(Tao, Vec, Mat, Mat, void *);
+};
+
 typedef struct {
-  Mat VM; /* Variable Metric matrix */	
+  PETSCHEADER(struct _TaoPROXOps);        
+  Tao subsolver;
+  Mat vm; /* Variable Metric matrix */	
 
   Vec G_old;
   Vec X_old;
   Vec W; /*  work vector */
 
   PetscReal eta;       /*  Restart tolerance */
-  PetscReal gamma      /*  Step size */
+  PetscReal stepsize;     /*  Step size */
 
   PetscInt step_type;	  
-} TAO_PROX;
 
-#define PROX_DEFAULT  0
-#define PROX_ADAPTIVE 1
-#define PROX_VM       2
+  TaoPROXType strategy;
+
+  void  *orig_objP;
+  void  *orig_objgradP;
+  void  *orig_gradP;
+  void  *orig_hessP;
+} TAO_PROX;
 
 #endif /* ifndef __TAO_PROX_H */

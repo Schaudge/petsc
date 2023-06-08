@@ -142,6 +142,25 @@ typedef enum {
 } TaoALMMType;
 PETSC_EXTERN const char *const TaoALMMTypes[];
 
+/*E
+     TaoPROXType- Determine the update strategy of PROX
+
+   Values:
++  `TAO_PROX_DEFAULT`  - Uses default step size. Default step size is 1, unless otherwise given by user.
+-  `TAO_PROX_ADAPTIVE` - Adapts step size every iteration. What strategy? TBD
+-  `TAO_PROX_VM'       - Uses variable metric matrix for step size. Can be either diagonal, or diag+vv^T ?? Becker et al?
+
+  Level: advanced
+
+.seealso: [](ch_tao), `Tao`, `TAOPROX`, `TaoPROXSetType()`, `TaoPROXGetType()`
+E*/
+typedef enum {
+  TAO_PROX_DEFAULT,
+  TAO_PROX_ADAPTIVE,
+  TAO_PROX_VM
+} TaoPROXType;
+PETSC_EXTERN const char *const TaoPROXTypes[];
+
 /*J
         TaoType - String with the name of a `Tao` method
 
