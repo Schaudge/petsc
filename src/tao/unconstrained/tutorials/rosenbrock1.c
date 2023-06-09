@@ -221,12 +221,12 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *f, Vec G, void *p
   if (user->is_cuda) {
 #if defined(PETSC_HAVE_CUDA)	  
     /* Not supporting chained. Also, only for n=2 */	  
-    PetscScalar *ff;  
+    PetscScalar *fff;  
     /* Just using f causes cuda-segfault, as operation on f is done in cu func... */
-    PetscCall(PetscDeviceMalloc(NULL, PETSC_MEMTYPE_CUDA, 1, &ff));
-    PetscCall(Rosenbrock1ObjAndGradCUDA(X, G, ff, alpha, nn));
-    PetscCallCUDA(cudaMemcpy(f, ff, sizeof(PetscScalar), cudaMemcpyDeviceToHost));
-    PetscCall(PetscDeviceFree(NULL, ff));
+    PetscCall(PetscDeviceCalloc(NULL, PETSC_MEMTYPE_CUDA, 1, &fff));
+    PetscCall(Rosenbrock1ObjAndGradCUDA(X, G, fff, alpha, nn));
+    PetscCallCUDA(cudaMemcpy(f, fff, sizeof(PetscScalar), cudaMemcpyDeviceToHost));
+    PetscCall(PetscDeviceFree(NULL, fff));
 #endif
   } else {
     /* Get pointers to vector data */
@@ -250,12 +250,11 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *f, Vec G, void *p
         g[2 * i + 1] = 2 * alpha * t1;
       }
     }
-  
     /* Restore vectors */
     PetscCall(VecRestoreArrayRead(X, &x));
     PetscCall(VecRestoreArray(G, &g));
+    *f = ff;
   }
-  *f = ff;
 
   PetscCall(PetscLogFlops(15.0 * nn));
   PetscFunctionReturn(PETSC_SUCCESS);
