@@ -11,8 +11,8 @@ __global__ void Rosenbrock1ObjAndGradCUDA_Internal(const PetscScalar x[], PetscS
 
   g[0] = -4*alpha*(t1)*x[0] - 2*(t2);
   g[1] = 2*alpha*(t1);
-  //TODO somehow it gives me zero even though it should be 1??
-  f[0] = (alpha*t1*t1) + (t2*t2);
+  atomicAdd_system(f, alpha*t1*t1);//only for compute capability of 6.x +
+  atomicAdd_system(f, t2*t2);//only for compute capability of 6.x +
 }
 
 PetscErrorCode Rosenbrock1ObjAndGradCUDA(Vec X, Vec G, PetscReal *f, PetscReal alpha, PetscInt nn)
