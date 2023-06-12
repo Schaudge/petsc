@@ -2361,6 +2361,43 @@ static PetscErrorCode MatSetPreallocationCOO_HYPRE(Mat mat, PetscCount coo_n, Pe
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/*
+   On each row the matrix, swap the values of the first entry and the diagonal entry, with column indices unchanged.
+
+   Input Parameter:
++  A       - a matrix derived from `MATSEQAIJ`
+.  memType - memory type of <diag>
+-  diag    - points to the diagonal entries of A
+
+   Output Parameter:
+.  A - the updated matrix
+*/
+static PetscErrorCode MatSeqAIJMoveDiagonalValuesFront_Private(Mat A, HYPRE_MemoryLocation memType, PetscInt *diag)
+{
+  PetscFunctionBegin;
+  if (memType == HYPRE_MEMORY_HOST) {
+    Mat_SeqAIJ  *aij = (Mat_SeqAIJ *)A->data;
+    PetscInt     i, m, *Ai = aij->i, *Adiag;
+    PetscScalar *Aa = aij->a, tmp;
+
+    if (!aij->diag) PetscCall(MatMarkDiagonal_SeqAIJ(A));
+    Adiag = aij->diag;
+    PetscCall(MatGetSize(A, &m, NULL));
+    for (i = 0; i < m; i++) {
+      if (Adiag[i] >= Ai[i] && Adiag[i] < Ai[i + 1]) { // Diagonal of this row exists
+        tmp          = Aa[Ai[i]];
+        Aa[Ai[i]]    = Aa[Adiag[i]];
+        Aa[Adiag[i]] = tmp;
+      }
+    }
+  } else {
+#if defined(PETSC_HAVE_KOKKOS_KERNELS)
+    PetscCall(MatSeqAIJMoveDiagonalValuesFront_SeqAIJKokkos(A, diag));
+#endif
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 static PetscErrorCode MatSetValuesCOO_HYPRE(Mat mat, const PetscScalar v[], InsertMode imode)
 {
   Mat_HYPRE *hmat = (Mat_HYPRE *)mat->data;
@@ -2369,30 +2406,20 @@ static PetscErrorCode MatSetValuesCOO_HYPRE(Mat mat, const PetscScalar v[], Inse
 
   PetscFunctionBegin;
   PetscCheck(hmat->cooMat, PetscObjectComm((PetscObject)mat), PETSC_ERR_PLIB, "HYPRE COO delegate matrix has not been created yet");
-  PetscCall(MatSetValuesCOO(hmat->cooMat, v, imode));
-
   PetscCall(PetscObjectBaseTypeCompare((PetscObject)hmat->cooMat, MATMPIAIJ, &ismpiaij));
 
-  /* Move diagonal elements of the diagonal block to the front of their row, as needed by ParCSRMatrix. So damn hacky */
+  // get the diagonal block as we need to
   A = ismpiaij ? ((Mat_MPIAIJ *)hmat->cooMat->data)->A : hmat->cooMat;
-  if (hmat->memType == HYPRE_MEMORY_HOST) {
-    Mat_SeqAIJ  *aij = (Mat_SeqAIJ *)A->data;
-    PetscInt     i, m, *Ai = aij->i, *Adiag = aij->diag;
-    PetscScalar *Aa = aij->a, tmp;
 
-    PetscCall(MatGetSize(A, &m, NULL));
-    for (i = 0; i < m; i++) {
-      if (Adiag[i] >= Ai[i] && Adiag[i] < Ai[i + 1]) { /* Diagonal element of this row exists in a[] and j[] */
-        tmp          = Aa[Ai[i]];
-        Aa[Ai[i]]    = Aa[Adiag[i]];
-        Aa[Adiag[i]] = tmp;
-      }
-    }
-  } else {
-#if defined(PETSC_HAVE_KOKKOS_KERNELS)
-    PetscCall(MatSeqAIJMoveDiagonalValuesFront_SeqAIJKokkos(A, hmat->diag));
-#endif
-  }
+  // cooMat's value array is already shuffled (with diagonals first). We re-shuffle it into petsc's format so that
+  // ADD_VALUES could correctly add values in v[] to their destination. INSERT_VALUES does not need this operation
+  // as existing values will be treated as zero.
+  if (imode == ADD_VALUES) PetscCall(MatSeqAIJMoveDiagonalValuesFront_Private(A, hmat->memType, hmat->diag));
+
+  PetscCall(MatSetValuesCOO(hmat->cooMat, v, imode));
+
+  // Shuffle the value array to put the diagonal matrix back into hypre's format (with diagonals first)
+  PetscCall(MatSeqAIJMoveDiagonalValuesFront_Private(A, hmat->memType, hmat->diag));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
