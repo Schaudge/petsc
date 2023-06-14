@@ -90,6 +90,10 @@ static PetscErrorCode MatHYPRE_CreateFromMat(Mat A, Mat_HYPRE *hA)
   cstart = A->cmap->rstart;
   cend   = A->cmap->rend;
   PetscHYPREInitialize();
+  if (hA->ij) {
+    if (!hA->inner_free) hypre_IJMatrixObject(hA->ij) = NULL;
+    PetscCallExternal(HYPRE_IJMatrixDestroy, hA->ij);
+  }
   PetscCallExternal(HYPRE_IJMatrixCreate, hA->comm, rstart, rend - 1, cstart, cend - 1, &hA->ij);
   PetscCallExternal(HYPRE_IJMatrixSetObjectType, hA->ij, HYPRE_PARCSR);
   {
@@ -2330,7 +2334,12 @@ static PetscErrorCode MatSetPreallocationCOO_HYPRE(Mat mat, PetscCount coo_n, Pe
 
   /* Do COO preallocation through cooMat */
   hmat = (Mat_HYPRE *)mat->data;
-  PetscCall(MatDestroy(&hmat->cooMat));
+  if (hmat->cooMat) {
+    PetscCall(MatDestroy(&hmat->cooMat));
+    PetscStackCallExternalVoid("hypre_TFree", hypre_TFree(hmat->diagJ, hmat->memType));
+    PetscStackCallExternalVoid("hypre_TFree", hypre_TFree(hmat->offdJ, hmat->memType));
+    PetscStackCallExternalVoid("hypre_TFree", hypre_TFree(hmat->diag, hmat->memType));
+  }
   PetscCall(MatCreate(comm, &cooMat));
   PetscCall(MatSetType(cooMat, matType));
   PetscCall(MatSetLayouts(cooMat, rmap, cmap));
