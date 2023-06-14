@@ -3,26 +3,26 @@
 #include "rosenbrock1.h"
 #include <cuda.h>
 
-__global__ void Rosenbrock1ObjAndGradCUDA_Internal(const PetscScalar x[], PetscScalar g[], PetscReal f[], PetscReal alpha, PetscInt nn)
+__global__ void Rosenbrock1ObjAndGradCUDA_Kernel(const PetscScalar x[], PetscScalar g[], PetscReal f[], PetscReal alpha, PetscInt nn)
 {
   PetscReal t1, t2;
   int i;
   int idx = blockIdx.x*blockDim.x+threadIdx.x;//1D grid
-  PetscInt n_threads = 32;
   PetscInt tid = threadIdx.x;
 
-  __shared__ double f_array[32];
+  __shared__ double f_array[1024];
   f_array[tid] = 0.0;
 
   if (idx >= nn) return;
 
-  for (i = 2*tid; i< nn; i+=2*n_threads) {
+  int total = blockDim.x * gridDim.x;
+  for (i = 2*tid; i< nn; i+=2*total) {
     t1 = x[i+1] - x[i]*x[i];
     t2 = 1 - x[i];
   
     g[i] = -4*alpha*(t1)*x[i] - 2.*(t2);
     g[i+1] = 2*alpha*(t1);
-    f_array[i] = alpha*t1*t1 + t2*t2;
+    f_array[tid] += alpha*t1*t1 + t2*t2;
   }
 
   // Reduction on f_array
@@ -47,7 +47,7 @@ PetscErrorCode Rosenbrock1ObjAndGradCUDA(Vec X, Vec G, PetscReal *f, PetscReal a
   PetscCall(VecGetArrayReadAndMemType(X, &x, &memtype_x));
 
   // n_threads is hardware dependant... Chose 32 for test case. 
-  Rosenbrock1ObjAndGradCUDA_Internal<<<1,32>>>(x, g, f, alpha, nn);
+  Rosenbrock1ObjAndGradCUDA_Kernel<<<1,32>>>(x, g, f, alpha, nn);
   // reduce all ff values together 
 
   PetscCall(VecRestoreArrayAndMemType(G, &g));
