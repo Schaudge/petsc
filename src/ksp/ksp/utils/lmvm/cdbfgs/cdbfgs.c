@@ -1535,6 +1535,8 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     }
     PetscCall(VecDuplicate(lmvm->Xprev, &lbfgs->lwork1));
     PetscCall(VecDuplicate(lmvm->Xprev, &lbfgs->lwork2));
+    //TODO hacky way to turn diagbrdn lmvm off...
+    PetscCall(MatLMVMSetJ0Scale(B,1.));
     if (!(lmvm->J0 || lmvm->user_pc || lmvm->user_ksp || lmvm->user_scale)) {
       PetscCall(MatLMVMAllocate(lbfgs->diag_bfgs, X, F));
     }
