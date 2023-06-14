@@ -80,7 +80,20 @@ static PetscErrorCode DMPlexGetFEGeom(DMField coordField, IS pointIS, PetscQuadr
 
 static PetscErrorCode DMPlexRestoreFEGeom(DMField coordField, IS pointIS, PetscQuadrature quad, PetscBool faceData, PetscFEGeom **geom)
 {
+  PetscBool flush = PETSC_FALSE;
+
   PetscFunctionBegin;
+  PetscCall(PetscOptionsGetBool(NULL, NULL, "-dm_plex_disable_coord_cache", &flush, NULL));
+  if (flush) {
+    char           composeStr[33] = {0};
+    PetscObjectId  id;
+    PetscContainer container;
+
+    PetscCall(PetscObjectGetId((PetscObject)quad, &id));
+    PetscCall(PetscSNPrintf(composeStr, 32, "DMPlexGetFEGeom_%" PetscInt64_FMT "\n", id));
+    PetscCall(PetscObjectQuery((PetscObject)pointIS, composeStr, (PetscObject *)&container));
+    if (container) PetscCall(PetscObjectCompose((PetscObject)pointIS, composeStr, NULL));
+  }
   *geom = NULL;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
