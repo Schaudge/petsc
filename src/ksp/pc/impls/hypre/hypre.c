@@ -992,6 +992,59 @@ static PetscErrorCode PCSetFromOptions_HYPRE_BoomerAMG(PC pc, PetscOptionItems *
 
     PetscCall(PetscOptionsInt("-pc_hypre_boomeramg_Adroptype", "Drops the entries that are not on the diagonal and smaller than its row norm: type 1: 1-norm, 2: 2-norm, -1: infinity norm", "None", jac->Adroptype, &jac->Adroptype, NULL));
     PetscCallExternal(HYPRE_BoomerAMGSetADropType, jac->hsolver, jac->Adroptype);
+    HYPRE_Int  **grid_relax_points;
+    PetscCall(PetscMalloc1(4, &grid_relax_points));
+    char *prerelax[256];
+    char *postrelax[256];
+    char stringF[2] = "F", stringC[2] = "C", stringA[2] = "A";
+    PetscInt num_down, num_up;
+    PetscCall(PetscOptionsStringArray("-pc_hypre_boomeramg_prerelax", "Defines prerelax scheme", "None", prerelax, &num_down, NULL));
+    PetscCall(PetscOptionsStringArray("-pc_hypre_boomeramg_postrelax", "Defines postrelax scheme", "None", postrelax, &num_up, NULL));
+    grid_relax_points[0] = NULL;
+    PetscCall(PetscMalloc1(num_down, &grid_relax_points[1]));
+    PetscCall(PetscMalloc1(num_up, &grid_relax_points[2]));
+    PetscCall(PetscMalloc1(1, &grid_relax_points[3]));
+    grid_relax_points[3][0] = 0;
+    // set down relax scheme
+    for (PetscInt i = 0; i<num_down; i++) {
+      PetscBool matchF, matchC, matchA;
+      PetscCall(PetscStrcasecmp(prerelax[i], stringF, &matchF));
+      PetscCall(PetscStrcasecmp(prerelax[i], stringC, &matchC));
+      PetscCall(PetscStrcasecmp(prerelax[i], stringA, &matchA));
+      if (matchF) {
+        grid_relax_points[1][i] = -1;
+      }
+      else if (matchC) {
+        grid_relax_points[1][i] = 1;
+      }
+      else if (matchA) {
+        grid_relax_points[1][i] = 0;
+      }
+    }
+
+    // set up relax scheme
+    for (PetscInt i = 0; i<num_up; i++) {
+      PetscBool matchF, matchC, matchA;
+      PetscCall(PetscStrcasecmp(postrelax[i], stringF, &matchF));
+      PetscCall(PetscStrcasecmp(postrelax[i], stringC, &matchC));
+      PetscCall(PetscStrcasecmp(postrelax[i], stringA, &matchA));
+      if (matchF) {
+        grid_relax_points[2][i] = -1;
+      }
+      else if (matchC) {
+        grid_relax_points[2][i] = 1;
+      }
+      else if (matchA) {
+        grid_relax_points[2][i] = 0;
+      }
+    }
+    PetscCallExternal(HYPRE_BoomerAMGSetGridRelaxPoints, jac->hsolver, grid_relax_points);
+    for (PetscInt i = 0; i<num_down; i++) {
+      PetscCall(PetscFree(prerelax[i]));
+    }
+    for (PetscInt i = 0; i<num_up; i++) {
+      PetscCall(PetscFree(postrelax[i]));
+    }
   }
 #endif
 
