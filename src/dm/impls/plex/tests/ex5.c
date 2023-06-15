@@ -1100,7 +1100,7 @@ static void g0_bd_lu(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt u
   const PetscInt Nc = uOff[2] - uOff[1];
 
   for (PetscInt c = 0; c < Nc; ++c) {
-    g0[c * Nc + c] = -1.0;
+    g0[c * Nc + c]           = -1.0;
     g0[Nc * Nc + c * Nc + c] = 1.0;
   }
 }
@@ -1256,7 +1256,6 @@ int main(int argc, char **argv)
       args: -dim 3 -test_num 1
       filter: sed -e "s/_start//g" -e "s/f0_bd_u_neg//g" -e "s/f0_bd_u_pos//g" -e "s/f0_bd_l//g" -e "s/g0_bd_ul_neg//g" -e "s/g0_bd_ul_pos//g" -e "s/g0_bd_lu//g" -e "s~_ZL.*~~g"
 
-
   testset:
     args: -orig_dm_plex_check_all -dm_plex_check_all \
           -displacement_petscspace_degree 1 -faulttraction_petscspace_degree 1
@@ -1283,7 +1282,6 @@ int main(int argc, char **argv)
       nsize: 6
       args: -dim 2 -test_num 4
       filter: sed -e "s/_start//g" -e "s/f0_bd_u_neg//g" -e "s/f0_bd_u_pos//g" -e "s/f0_bd_l//g" -e "s/g0_bd_ul_neg//g" -e "s/g0_bd_ul_pos//g" -e "s/g0_bd_lu//g" -e "s~_ZL.*~~g"
-
 
   testset:
     args: -orig_dm_plex_check_all -dm_plex_check_all \
