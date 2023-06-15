@@ -26,6 +26,7 @@ struct _p_DMField {
   DM                dm;
   DMFieldContinuity continuity;
   PetscInt          numComponents;
+  PetscBool         coordCacheValid;
   void             *data;
 };
 

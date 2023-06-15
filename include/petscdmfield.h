@@ -68,4 +68,8 @@ PETSC_EXTERN PetscErrorCode DMFieldShellEvaluateFVDefault(DMField, IS, PetscData
 PETSC_EXTERN PetscErrorCode DMFieldShellSetGetDegree(DMField, PetscErrorCode (*)(DMField, IS, PetscInt *, PetscInt *));
 PETSC_EXTERN PetscErrorCode DMFieldShellSetCreateDefaultQuadrature(DMField, PetscErrorCode (*)(DMField, IS, PetscQuadrature *));
 
+PETSC_EXTERN PetscErrorCode DMFieldIsCoordinateCacheValid(DMField, PetscBool *);
+PETSC_EXTERN PetscErrorCode DMFieldMarkCoordinateCacheInvalid(DMField);
+PETSC_EXTERN PetscErrorCode DMFieldMarkCoordinateCacheValid(DMField);
+
 #endif

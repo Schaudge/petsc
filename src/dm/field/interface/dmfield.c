@@ -501,3 +501,29 @@ PetscErrorCode DMFieldCreateFEGeom(DMField field, IS pointIS, PetscQuadrature qu
   *geom = g;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+PetscErrorCode DMFieldIsCoordinateCacheValid(DMField field, PetscBool *valid)
+{
+  PetscValidHeaderSpecific(field, DMFIELD_CLASSID, 1);
+  PetscValidPointer(valid, 2);
+
+  PetscFunctionBegin;
+  *valid = field->coordCacheValid;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode DMFieldMarkCoordinateCacheInvalid(DMField field)
+{
+  PetscValidHeaderSpecific(field, DMFIELD_CLASSID, 1);
+  PetscFunctionBegin;
+  field->coordCacheValid = PETSC_FALSE;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode DMFieldMarkCoordinateCacheValid(DMField field)
+{
+  PetscValidHeaderSpecific(field, DMFIELD_CLASSID, 1);
+  PetscFunctionBegin;
+  field->coordCacheValid = PETSC_TRUE;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}

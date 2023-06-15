@@ -1,5 +1,6 @@
 #include <petsc/private/dmpleximpl.h> /*I      "petscdmplex.h"   I*/
 #include <petscsf.h>
+#include <petscdmfield.h>
 
 #include <petscblaslapack.h>
 #include <petsc/private/hashsetij.h>
@@ -3965,11 +3966,18 @@ PetscErrorCode DMSNESGetFEGeom(DMField coordField, IS pointIS, PetscQuadrature q
   char           composeStr[33] = {0};
   PetscObjectId  id;
   PetscContainer container;
+  PetscBool      valid;
 
   PetscFunctionBegin;
   PetscCall(PetscObjectGetId((PetscObject)quad, &id));
   PetscCall(PetscSNPrintf(composeStr, 32, "DMSNESGetFEGeom_%" PetscInt64_FMT "\n", id));
   PetscCall(PetscObjectQuery((PetscObject)pointIS, composeStr, (PetscObject *)&container));
+  PetscCall(DMFieldIsCoordinateCacheValid(coordField, &valid));
+  if (!valid && container) {
+    PetscCall(PetscObjectCompose((PetscObject)pointIS, composeStr, NULL));
+    PetscCall(DMFieldMarkCoordinateCacheValid(coordField));
+    container = NULL;
+  }
   if (container) {
     PetscCall(PetscContainerGetPointer(container, (void **)geom));
   } else {
@@ -3979,26 +3987,14 @@ PetscErrorCode DMSNESGetFEGeom(DMField coordField, IS pointIS, PetscQuadrature q
     PetscCall(PetscContainerSetUserDestroy(container, PetscContainerUserDestroy_PetscFEGeom));
     PetscCall(PetscObjectCompose((PetscObject)pointIS, composeStr, (PetscObject)container));
     PetscCall(PetscContainerDestroy(&container));
+    PetscCall(DMFieldMarkCoordinateCacheValid(coordField));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode DMSNESRestoreFEGeom(DMField coordField, IS pointIS, PetscQuadrature quad, PetscBool faceData, PetscFEGeom **geom)
 {
-  PetscBool flush = PETSC_FALSE;
-
   PetscFunctionBegin;
-  PetscCall(PetscOptionsGetBool(NULL, NULL, "-dm_plex_disable_coord_cache", &flush, NULL));
-  if (flush) {
-    char           composeStr[33] = {0};
-    PetscObjectId  id;
-    PetscContainer container;
-
-    PetscCall(PetscObjectGetId((PetscObject)quad, &id));
-    PetscCall(PetscSNPrintf(composeStr, 32, "DMSNESGetFEGeom_%" PetscInt64_FMT "\n", id));
-    PetscCall(PetscObjectQuery((PetscObject)pointIS, composeStr, (PetscObject *)&container));
-    if (container) PetscCall(PetscObjectCompose((PetscObject)pointIS, composeStr, NULL));
-  }
   *geom = NULL;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
