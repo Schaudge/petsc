@@ -51,7 +51,7 @@ static PetscErrorCode Shell_Solve(Tao tao)
   PetscCall(TaoGetPROXParentTao(tao, &prox_tao));
   PetscCall(TaoShellGetContext(tao, &user));
   PetscCall(TaoGetSolution(tao, &out));
-  PetscCall(TaoPROXSetSoftThreshold(user->y, user->lb, user->ub, out));
+  PetscCall(TaoSoftThreshold(user->y, user->lb, user->ub, out));
   PetscFunctionReturn(PETSC_SUCCESS);  
 }
 
@@ -90,11 +90,12 @@ int main(int argc, char **argv)
   PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD, &size));
   PetscCheck(size == 1, PETSC_COMM_WORLD, PETSC_ERR_WRONG_MPI_SIZE, "Incorrect number of processors");
 
+  user.problem = 0;
   user.n = 10;
   user.stepsize = 1;
   user.mu1 = 1;
   user.lb  = -1;
-  user.lb  = 1;
+  user.ub  = 1;
 
 
   PetscCall(PetscOptionsGetInt(NULL, NULL, "-n", &user.n, &flg));
@@ -138,10 +139,14 @@ int main(int argc, char **argv)
       PetscCall(PetscRandomCreate(PETSC_COMM_WORLD, &rctx));
       PetscCall(PetscRandomSetFromOptions(rctx));
       PetscCall(PetscRandomSetInterval(rctx, -10, 10));
-      PetscCall(PetscRandomDestroy(&rctx));
+      PetscCall(MatSetRandom(temp_mat, rctx));
+      PetscCall(MatAssemblyBegin(temp_mat,MAT_FINAL_ASSEMBLY));
+      PetscCall(MatAssemblyEnd(temp_mat,MAT_FINAL_ASSEMBLY));
       PetscCall(MatTransposeMatMult(temp_mat, temp_mat, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &user.A));
+      PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &user.b));
       PetscCall(VecSetRandom(user.b, rctx));
       PetscCall(MatDestroy(&temp_mat));
+      PetscCall(PetscRandomDestroy(&rctx));
 
       PetscCall(TaoSetObjectiveAndGradient(tao, NULL, UserObjGrad, (void *) &user));
       PetscCall(TaoPROXGetSubsolver(tao, &subsolver));
@@ -154,6 +159,7 @@ int main(int argc, char **argv)
       if (shell) {
         //Shell Version
         Tao subsolver;
+        PetscCall(TaoPROXGetSubsolver(tao, &subsolver));
         PetscCall(TaoSetType(subsolver, TAOSHELL));
         PetscCall(TaoShellSetContext(subsolver, (void *)&user));
         PetscCall(TaoShellSetSolve(subsolver, Shell_Solve));
@@ -182,6 +188,7 @@ int main(int argc, char **argv)
     PetscPrintf(PETSC_COMM_WORLD, "CG solver\n "); 
     PetscCall(VecView(x2, PETSC_VIEWER_STDOUT_SELF)); 
     PetscCall(TaoDestroy(&cg_tao));
+  PetscCall(VecDestroy(&user.b));
   }
 
   PetscCall(TaoDestroy(&tao));
@@ -189,7 +196,6 @@ int main(int argc, char **argv)
   PetscCall(VecDestroy(&x));
   PetscCall(VecDestroy(&x2));
   PetscCall(VecDestroy(&user.y));
-  PetscCall(VecDestroy(&user.b));
   PetscCall(VecDestroy(&user.workvec));
 
   PetscCall(PetscFinalize());

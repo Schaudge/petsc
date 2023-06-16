@@ -540,5 +540,6 @@ PETSC_EXTERN PetscErrorCode TaoPROXGetVM(Tao, Mat *);
 PETSC_EXTERN PetscErrorCode TaoPROXSetSoftThreshold(Tao, PetscReal, PetscReal);
 PETSC_EXTERN PetscErrorCode TaoPROXSetInitialVector(Tao, Vec);
 PETSC_EXTERN PetscErrorCode TaoPROXGetInitialVector(Tao, Vec *);
+PETSC_EXTERN PetscErrorCode TaoGetPROXParentTao(Tao, Tao *);
 
 #endif

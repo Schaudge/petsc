@@ -4,8 +4,8 @@
 #include <../src/tao/unconstrained/impls/prox/prox.h>
 
 
-//const char *const TaoPROXStrategies[] = {"STRATEGY_DEFAULT", "STRATEGY_ADAPTIVE", "STRATEGY_VM", "TaoPROXStrategy", "TAO_PROX_", NULL};
-//const char *const TaoPROXTypes[] = {"DEFAULT", "L1", "TaoPROXType", "TAO_PROX_", NULL};
+const char *const TaoPROXStrategies[] = {"STRATEGY_DEFAULT", "STRATEGY_ADAPTIVE", "STRATEGY_VM", "TaoPROXStrategy", "TAO_PROX_", NULL};
+const char *const TaoPROXTypes[] = {"DEFAULT", "L1", "TaoPROXType", "TAO_PROX_", NULL};
 
 
 static PetscErrorCode AddMoreauRegObj(Tao tao, Vec X, PetscReal *f, void *ptr)
@@ -153,19 +153,21 @@ static PetscErrorCode TaoSolve_PROX(Tao tao)
   PetscFunctionBegin;
 
   /*  Check convergence criteria */
-  PetscCall(TaoComputeObjectiveAndGradient(tao, tao->solution, &f, tao->gradient));
-  PetscCall(VecNorm(tao->gradient, NORM_2, &gnorm));
-  PetscCheck(!PetscIsInfOrNanReal(f) && !PetscIsInfOrNanReal(gnorm), PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "User provided compute function generated Inf or NaN");
-
   if (proxP->y == NULL) {
     SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_ARG_WRONGSTATE, "Need to set y vector for TAOPROX first.");
   }
 
-  tao->reason = TAO_CONTINUE_ITERATING;
-  PetscCall(TaoLogConvergenceHistory(tao, f, gnorm, 0.0, tao->ksp_its));
-  PetscCall(TaoMonitor(tao, tao->niter, f, gnorm, 0.0, step));
-  PetscUseTypeMethod(tao, convergencetest, tao->cnvP);
-  if (tao->reason != TAO_CONTINUE_ITERATING) PetscFunctionReturn(PETSC_SUCCESS);
+//  if (proxP->type == TAO_PROX_TYPE_DEFAULT) {
+//  PetscCall(TaoComputeObjectiveAndGradient(tao, tao->solution, &f, tao->gradient));
+//  PetscCall(VecNorm(tao->gradient, NORM_2, &gnorm));
+//  PetscCheck(!PetscIsInfOrNanReal(f) && !PetscIsInfOrNanReal(gnorm), PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "User provided compute function generated Inf or NaN");
+//
+//
+//  tao->reason = TAO_CONTINUE_ITERATING;
+//  PetscCall(TaoLogConvergenceHistory(tao, f, gnorm, 0.0, tao->ksp_its));
+//  PetscCall(TaoMonitor(tao, tao->niter, f, gnorm, 0.0, step));
+//  PetscUseTypeMethod(tao, convergencetest, tao->cnvP);
+//  if (tao->reason != TAO_CONTINUE_ITERATING) PetscFunctionReturn(PETSC_SUCCESS);
 
 
   while (tao->reason == TAO_CONTINUE_ITERATING) {
@@ -181,6 +183,7 @@ static PetscErrorCode TaoSolve_PROX(Tao tao)
       {        
         /* Case 1 and 2 */
         PetscCall(TaoSolve(proxP->subsolver));
+        tao->reason = proxP->subsolver->reason;
       }
       break;
     case TAO_PROX_TYPE_L1:
@@ -188,6 +191,7 @@ static PetscErrorCode TaoSolve_PROX(Tao tao)
         /* Case 3 */      
         //TODO in this case, should I care about subsolver tao??
         PetscCall(TaoSoftThreshold(proxP->y, proxP->L1->lb, proxP->L1->ub, tao->solution));
+        tao->reason = TAO_CONVERGED_USER;
       }
       break;
     default:
@@ -198,9 +202,9 @@ static PetscErrorCode TaoSolve_PROX(Tao tao)
 
     /*  Check for termination */
     tao->niter++;
-    PetscCall(TaoLogConvergenceHistory(tao, f, gnorm, 0.0, tao->ksp_its));
-    PetscCall(TaoMonitor(tao, tao->niter, f, gnorm, 0.0, step));
-    PetscUseTypeMethod(tao, convergencetest, tao->cnvP);
+//    PetscCall(TaoLogConvergenceHistory(tao, f, gnorm, 0.0, tao->ksp_its));
+//    PetscCall(TaoMonitor(tao, tao->niter, f, gnorm, 0.0, step));
+//    PetscUseTypeMethod(tao, convergencetest, tao->cnvP);
     if (tao->reason != TAO_CONTINUE_ITERATING) break;
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -217,6 +221,7 @@ static PetscErrorCode TaoSetUp_PROX(Tao tao)
   if (!proxP->G_old) PetscCall(VecDuplicate(tao->gradient, &proxP->G_old));
   if (!proxP->workvec1) PetscCall(VecDuplicate(tao->solution, &proxP->workvec1));
   if (!proxP->workvec1) PetscCall(VecDuplicate(tao->solution, &proxP->workvec1));
+  PetscCall(TaoSetSolution(proxP->subsolver, tao->solution));
   PetscCall(AddMoreauReg(tao));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -229,6 +234,8 @@ static PetscErrorCode TaoDestroy_PROX(Tao tao)
   if (tao->setupcalled) {
     PetscCall(VecDestroy(&proxP->X_old));
     PetscCall(VecDestroy(&proxP->G_old));
+    PetscCall(VecDestroy(&proxP->workvec1));
+    PetscCall(VecDestroy(&proxP->y));
   }
   PetscCall(TaoLineSearchDestroy(&tao->linesearch));
   PetscCall(PetscFree(tao->data));
@@ -240,8 +247,7 @@ static PetscErrorCode TaoSetFromOptions_PROX(Tao tao, PetscOptionItems *PetscOpt
   TAO_PROX *proxP = (TAO_PROX *)tao->data;
 
   PetscFunctionBegin;
-  PetscCall(TaoLineSearchSetFromOptions(tao->linesearch));
-  PetscOptionsHeadBegin(PetscOptionsObject, "Nonlinear Conjugate Gradient method for unconstrained optimization");
+  PetscOptionsHeadBegin(PetscOptionsObject, "Proximal algorithm optimization");
   PetscCall(PetscOptionsEnum("-tao_prox_strategy", "TAOPROX update strategies", "TaoPROXStrategy", TaoPROXStrategies, (PetscEnum)proxP->strategy, (PetscEnum *)&proxP->strategy, NULL));
   PetscCall(PetscOptionsEnum("-tao_prox_type", "TAOPROX solver type", "TaoPROXType", TaoPROXTypes, (PetscEnum)proxP->type, (PetscEnum *)&proxP->type, NULL));
   PetscOptionsHeadEnd();
@@ -302,6 +308,7 @@ PETSC_EXTERN PetscErrorCode TaoCreate_PROX(Tao tao)
 
   PetscFunctionBegin;
   PetscCall(PetscNew(&proxP));
+  PetscCall(PetscNew(&proxP->L1));
 
   tao->ops->setup          = TaoSetUp_PROX;
   tao->ops->solve          = TaoSolve_PROX;
@@ -313,7 +320,6 @@ PETSC_EXTERN PetscErrorCode TaoCreate_PROX(Tao tao)
   if (!tao->max_it_changed) tao->max_it = 2000;
   if (!tao->max_funcs_changed) tao->max_funcs = 4000;
 
-  PetscCall(PetscNew(&proxP));
   tao->data                = (void *)proxP;
   proxP->y                 = NULL;
   proxP->eta               = 0.1;
@@ -329,7 +335,6 @@ PETSC_EXTERN PetscErrorCode TaoCreate_PROX(Tao tao)
   proxP->ops->orig_grad    = NULL;
   proxP->ops->orig_hess    = NULL;
 
-  proxP->L1 = NULL;
   proxP->L1->lb = 0;
   proxP->L1->ub = 0;
 

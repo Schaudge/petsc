@@ -11,6 +11,8 @@
 #define TaoADMMUpdateType PetscEnum
 #define TaoADMMRegularizerType PetscEnum
 #define TaoALMMType PetscEnum
+#define TaoPROXStrategy PetscEnum
+#define TaoProxTypes PetscEnum
 
 #define TAOLMVM     'lmvm'
 #define TAONLS      'nls'
@@ -44,6 +46,7 @@
 #define TAOSHELL    'shell'
 #define TAOADMM     'admm'
 #define TAOALMM     'almm'
+#define TAOPROX     'prox'
 #define TAOPYTHON   'python'
 #define TAOSNES     'snes'
 

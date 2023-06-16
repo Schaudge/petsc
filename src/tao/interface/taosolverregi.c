@@ -31,6 +31,7 @@ PETSC_EXTERN PetscErrorCode TaoCreate_IPM(Tao);
 PETSC_EXTERN PetscErrorCode TaoCreate_PDIPM(Tao);
 PETSC_EXTERN PetscErrorCode TaoCreate_ADMM(Tao);
 PETSC_EXTERN PetscErrorCode TaoCreate_ALMM(Tao);
+PETSC_EXTERN PetscErrorCode TaoCreate_PROX(Tao);
 PETSC_EXTERN PetscErrorCode TaoCreate_Shell(Tao);
 PETSC_EXTERN PetscErrorCode TaoCreate_SNES(Tao);
 
@@ -110,6 +111,7 @@ PetscErrorCode TaoRegisterAll(void)
   PetscCall(TaoRegister(TAOSHELL, TaoCreate_Shell));
   PetscCall(TaoRegister(TAOADMM, TaoCreate_ADMM));
   PetscCall(TaoRegister(TAOALMM, TaoCreate_ALMM));
+  PetscCall(TaoRegister(TAOPROX, TaoCreate_PROX));
   PetscCall(TaoRegister(TAOSNES, TaoCreate_SNES));
 #endif
   PetscFunctionReturn(PETSC_SUCCESS);
