@@ -1,40 +1,154 @@
 #include <petsctao.h>
 #include <petsc/private/petscimpl.h>
-#include <petsctaolinesearch.h>
+#include <petscmath.h>
 #include <../src/tao/unconstrained/impls/prox/prox.h>
 
 
-const char *const TaoPROXTypes[] = {"DEFAULT", "ADAPTIVE", "VM", "TaoPROXType", "TAO_PROX_", NULL};
+//const char *const TaoPROXStrategies[] = {"STRATEGY_DEFAULT", "STRATEGY_ADAPTIVE", "STRATEGY_VM", "TaoPROXStrategy", "TAO_PROX_", NULL};
+//const char *const TaoPROXTypes[] = {"DEFAULT", "L1", "TaoPROXType", "TAO_PROX_", NULL};
 
-/* Updates Moreau Regularization to the given objective and gradient.
- * For subsolverX, routine needs to be ComputeObjectiveAndGraidnet
- * Separate Objective and Gradient routines are not supported.  */
-static PetscErrorCode AddMoreauRegObjGrad(Tao tao)
+
+static PetscErrorCode AddMoreauRegObj(Tao tao, Vec X, PetscReal *f, void *ptr)
+{
+  TAO_PROX *proxP  =  (TAO_PROX *)&ptr;
+  PetscReal temp;
+
+  PetscFunctionBegin;
+  /* Adding |x-y|_2^2 */
+  /* Ignore VM for now */
+  /* Scalar weight */
+  //TODO what does it mean if tao is subtao???
+  PetscCall((proxP->ops->orig_obj)(tao, X, f, proxP->orig_objP));
+  PetscCall(VecWAXPY(proxP->workvec1, -1., proxP->y, X));
+  PetscCall(VecNorm(proxP->workvec1,NORM_2, &temp));
+  temp = PetscPowReal(temp,2);
+
+  *f += (proxP->stepsize/2)*temp;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode AddMoreauRegGrad(Tao tao, Vec X, Vec G, void *ptr)
 {
   TAO_PROX *proxP  = (TAO_PROX *)tao->data;
 
   PetscFunctionBegin;
+  PetscCall((proxP->ops->orig_grad)(tao, X, G, proxP->orig_gradP));
+  PetscCall(VecWAXPY(proxP->workvec1, -1., proxP->y, X));
+  PetscCall(VecAXPY(G, proxP->stepsize, proxP->workvec1)); 
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
-  // OBJ
+static PetscErrorCode AddMoreauRegObjGrad(Tao tao, Vec X, PetscReal *f, Vec G, void *ptr)
+{
+  TAO_PROX *proxP  = (TAO_PROX *)tao->data;
+  PetscReal temp;
+
+  PetscFunctionBegin;
+  PetscCall((proxP->ops->orig_objgrad)(tao, X, f, G, proxP->orig_objgradP));
+  PetscCall(VecWAXPY(proxP->workvec1, -1., proxP->y, X));
+  PetscCall(VecNorm(proxP->workvec1,NORM_2, &temp));
+  temp = PetscPowReal(temp,2);
+
+  *f += (proxP->stepsize/2)*temp;
+  PetscCall(VecAXPY(G, proxP->stepsize, proxP->workvec1)); 
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode AddMoreauRegHess(Tao tao, Vec X, Mat H, Mat Hpre, void *ptr)
+{
+  TAO_PROX *proxP  = (TAO_PROX *)tao->data;
+
+  PetscFunctionBegin;
+  PetscCall((proxP->ops->orig_hess)(tao, X, H, Hpre, proxP->orig_hessP));
+  if (proxP->stepsize != proxP->stepsize_old) {
+    PetscCall(MatShift(H, proxP->stepsize - proxP->stepsize_old));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+/* Updates Moreau Regularization to the given objective and gradient and Hessian */
+/* Ignoring VM for now ... */
+static PetscErrorCode AddMoreauReg(Tao tao)
+{
+  TAO_PROX *proxP  = (TAO_PROX *)tao->data;
+
+  PetscFunctionBegin;
+  if (proxP->y == NULL) {
+    SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_ARG_WRONGSTATE, "Need to set y vector for TAOPROX first.");
+  }
+
   if (tao->ops->computeobjective) {
-  
-  }
-  if (tao->ops->computegradient) {
-  
-  }
-  //if above two happened, this shouldn't happen. bool trigger seterrq?
-  if (tao->ops->computeobjectiveandgradient) {
-  
+    proxP->orig_objP     = tao->user_objP;
+    proxP->ops->orig_obj = tao->ops->computeobjective;
+
+    if (tao->user_objP) proxP->subsolver->user_objP = tao->user_objP;
+    if (tao->ops->computeobjective) proxP->subsolver->ops->computeobjective = tao->ops->computeobjective;
+
+    /* Adding MR */
+    PetscCall(TaoSetObjective(tao, AddMoreauRegObj, &proxP));
+    PetscCall(TaoSetObjective(proxP->subsolver, AddMoreauRegObj, &proxP));
   }
 
+  if (tao->ops->computegradient) {
+    proxP->orig_gradP     = tao->user_gradP;
+    proxP->ops->orig_grad = tao->ops->computegradient;
+
+    if (tao->user_gradP) proxP->subsolver->user_objP = tao->user_gradP;
+    if (tao->ops->computegradient) proxP->subsolver->ops->computegradient= tao->ops->computegradient;
+
+    if (tao->gradient) {
+      PetscCall(PetscObjectReference((PetscObject)tao->gradient));
+      PetscCall(VecDestroy(&proxP->subsolver->gradient));
+      proxP->subsolver->gradient = tao->gradient;
+    }
+    PetscCall(TaoSetGradient(tao, tao->gradient, AddMoreauRegGrad, &proxP));
+    PetscCall(TaoSetGradient(proxP->subsolver, tao->gradient, AddMoreauRegGrad, &proxP));
+  }
+
+  if (tao->ops->computeobjectiveandgradient) {
+    proxP->orig_objgradP     = tao->user_objgradP;
+    proxP->ops->orig_objgrad = tao->ops->computeobjectiveandgradient;
+
+    if (tao->user_objgradP) proxP->subsolver->user_objgradP = tao->user_objgradP;
+    if (tao->ops->computeobjectiveandgradient) proxP->subsolver->ops->computeobjectiveandgradient= tao->ops->computeobjectiveandgradient;
+
+    if (tao->gradient) {
+      PetscCall(PetscObjectReference((PetscObject)tao->gradient));
+      PetscCall(VecDestroy(&proxP->subsolver->gradient));
+      proxP->subsolver->gradient = tao->gradient;
+    }
+    PetscCall(TaoSetObjectiveAndGradient(tao, tao->gradient, AddMoreauRegObjGrad, &proxP));
+    PetscCall(TaoSetObjectiveAndGradient(proxP->subsolver, tao->gradient, AddMoreauRegObjGrad, &proxP));
+  }
+
+  if (tao->ops->computehessian) {
+    proxP->orig_hessP     = tao->user_hessP;
+    proxP->ops->orig_hess = tao->ops->computehessian;
+    proxP->H_orig         = tao->hessian;
+    proxP->H_pre_orig     = tao->hessian_pre;
+
+    if (tao->user_hessP) proxP->subsolver->user_hessP = tao->user_hessP;
+    if (tao->ops->computehessian) proxP->subsolver->ops->computehessian= tao->ops->computehessian;
+
+    if (tao->hessian) {
+      PetscCall(PetscObjectReference((PetscObject)tao->hessian));
+      PetscCall(MatDestroy(&proxP->subsolver->hessian));
+      proxP->subsolver->hessian = tao->hessian;
+    }
+    if (tao->hessian_pre) {
+      PetscCall(PetscObjectReference((PetscObject)tao->hessian_pre));
+      PetscCall(MatDestroy(&proxP->subsolver->hessian_pre));
+      proxP->subsolver->hessian_pre = tao->hessian_pre;
+    }
+    PetscCall(TaoSetHessian(tao, tao->hessian, tao->hessian_pre, AddMoreauRegHess, &proxP));
+    PetscCall(TaoSetHessian(proxP->subsolver, tao->hessian, tao->hessian_pre, AddMoreauRegHess, &proxP));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode TaoSolve_PROX(Tao tao)
 {
-  TAO_PROX                     *proxP       = (TAO_PROX *)tao->data;
-  TaoLineSearchConvergedReason  ls_status   = TAOLINESEARCH_CONTINUE_ITERATING;
-  PetscReal                     step        = 1.0, f, gnorm, gnorm2, delta, gd, ginner, beta;
+  TAO_PROX  *proxP = (TAO_PROX *)tao->data;
+  PetscReal  step  = 1.0, f, gnorm;
 
   PetscFunctionBegin;
 
@@ -43,23 +157,44 @@ static PetscErrorCode TaoSolve_PROX(Tao tao)
   PetscCall(VecNorm(tao->gradient, NORM_2, &gnorm));
   PetscCheck(!PetscIsInfOrNanReal(f) && !PetscIsInfOrNanReal(gnorm), PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "User provided compute function generated Inf or NaN");
 
+  if (proxP->y == NULL) {
+    SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_ARG_WRONGSTATE, "Need to set y vector for TAOPROX first.");
+  }
+
   tao->reason = TAO_CONTINUE_ITERATING;
   PetscCall(TaoLogConvergenceHistory(tao, f, gnorm, 0.0, tao->ksp_its));
   PetscCall(TaoMonitor(tao, tao->niter, f, gnorm, 0.0, step));
   PetscUseTypeMethod(tao, convergencetest, tao->cnvP);
   if (tao->reason != TAO_CONTINUE_ITERATING) PetscFunctionReturn(PETSC_SUCCESS);
 
-  /*  Set initial direction to -gradient */
-  PetscCall(VecCopy(tao->gradient, tao->stepdirection));
-  PetscCall(VecScale(tao->stepdirection, -1.0));
-  gnorm2 = gnorm * gnorm;
 
-
-  while (1) {
+  while (tao->reason == TAO_CONTINUE_ITERATING) {
     /* Call general purpose update function */
     PetscTryTypeMethod(tao, update, tao->niter, tao->user_update);
 
     /*  Save the current gradient information */
+    PetscCall(VecCopy(tao->solution, proxP->X_old));
+    PetscCall(VecCopy(tao->gradient, proxP->G_old));
+
+    switch (proxP->type) {
+    case TAO_PROX_TYPE_DEFAULT:
+      {        
+        /* Case 1 and 2 */
+        PetscCall(TaoSolve(proxP->subsolver));
+      }
+      break;
+    case TAO_PROX_TYPE_L1:
+      {
+        /* Case 3 */      
+        //TODO in this case, should I care about subsolver tao??
+        PetscCall(TaoSoftThreshold(proxP->y, proxP->L1->lb, proxP->L1->ub, tao->solution));
+      }
+      break;
+    default:
+      break; 
+    }
+
+    /* Update stepsize / VM  TODO */
 
     /*  Check for termination */
     tao->niter++;
@@ -80,8 +215,9 @@ static PetscErrorCode TaoSetUp_PROX(Tao tao)
   if (!tao->stepdirection) PetscCall(VecDuplicate(tao->solution, &tao->stepdirection));
   if (!proxP->X_old) PetscCall(VecDuplicate(tao->solution, &proxP->X_old));
   if (!proxP->G_old) PetscCall(VecDuplicate(tao->gradient, &proxP->G_old));
-
-  PetscCall(AddMoreauRegObjGrad(tao));
+  if (!proxP->workvec1) PetscCall(VecDuplicate(tao->solution, &proxP->workvec1));
+  if (!proxP->workvec1) PetscCall(VecDuplicate(tao->solution, &proxP->workvec1));
+  PetscCall(AddMoreauReg(tao));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -106,7 +242,8 @@ static PetscErrorCode TaoSetFromOptions_PROX(Tao tao, PetscOptionItems *PetscOpt
   PetscFunctionBegin;
   PetscCall(TaoLineSearchSetFromOptions(tao->linesearch));
   PetscOptionsHeadBegin(PetscOptionsObject, "Nonlinear Conjugate Gradient method for unconstrained optimization");
-  PetscCall(PetscOptionsEnum("-tao_prox_type", "TAOPROX update typess", "TaoPROXType", TaoPROXTypes, (PetscEnum)proxP->strategy, (PetscEnum *)&proxP->strategy, NULL));
+  PetscCall(PetscOptionsEnum("-tao_prox_strategy", "TAOPROX update strategies", "TaoPROXStrategy", TaoPROXStrategies, (PetscEnum)proxP->strategy, (PetscEnum *)&proxP->strategy, NULL));
+  PetscCall(PetscOptionsEnum("-tao_prox_type", "TAOPROX solver type", "TaoPROXType", TaoPROXTypes, (PetscEnum)proxP->type, (PetscEnum *)&proxP->type, NULL));
   PetscOptionsHeadEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -120,7 +257,8 @@ static PetscErrorCode TaoView_PROX(Tao tao, PetscViewer viewer)
   PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &isascii));
   if (isascii) {
     PetscCall(PetscViewerASCIIPushTab(viewer));
-    PetscCall(PetscViewerASCIIPrintf(viewer, "PROX Type: %s\n", TaoPROXTypes[proxP->strategy]));
+    PetscCall(PetscViewerASCIIPrintf(viewer, "PROX Strategy: %s\n", TaoPROXStrategies[proxP->strategy]));
+    PetscCall(PetscViewerASCIIPrintf(viewer, "PROX Type: %s\n", TaoPROXTypes[proxP->type]));
     PetscCall(PetscViewerASCIIPopTab(viewer));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -140,6 +278,14 @@ static PetscErrorCode TaoView_PROX(Tao tao, PetscViewer viewer)
    min_x f(x) + 1/2 \|x-y\|_M^2, where \|x\|_M^2 = x^T M x. VM will be diagonal. (future support for diag+ vv^T, a la becker et al?)
 
    Should default solve method be like CG? Gradient descent?
+
+   Issue: prox_f(y) = inf_x f(x) \rho/2 \|x-y\|_2^2.
+
+   But TAO is essentially, min_x T(x). 
+
+   If we are thinking in non=iterative, but just direct ones, (1-iter), this is easy.
+
+   If we want to solve via other methods, it gets tricky..
 
    "Built-in f(x)", see Beck ...
 
@@ -169,9 +315,11 @@ PETSC_EXTERN PetscErrorCode TaoCreate_PROX(Tao tao)
 
   PetscCall(PetscNew(&proxP));
   tao->data                = (void *)proxP;
+  proxP->y                 = NULL;
   proxP->eta               = 0.1;
-  proxP->strategy          = TAO_PROX_DEFAULT;
+  proxP->strategy          = TAO_PROX_STRATEGY_DEFAULT;
   proxP->stepsize          = 1.;
+  proxP->stepsize_old      = 0.;
   proxP->orig_objP         = NULL;
   proxP->orig_objgradP     = NULL;
   proxP->orig_gradP        = NULL;
@@ -181,12 +329,25 @@ PETSC_EXTERN PetscErrorCode TaoCreate_PROX(Tao tao)
   proxP->ops->orig_grad    = NULL;
   proxP->ops->orig_hess    = NULL;
 
+  proxP->L1 = NULL;
+  proxP->L1->lb = 0;
+  proxP->L1->ub = 0;
+
   PetscCall(TaoCreate(PetscObjectComm((PetscObject)tao), &proxP->subsolver));
-  PetscCall(TaoSetOptionsPrefix(proxP->subsolver, "inner_prox_"));
+  PetscCall(TaoSetOptionsPrefix(proxP->subsolver, "prox_subsolver_"));
   PetscCall(PetscObjectIncrementTabLevel((PetscObject)proxP->subsolver, (PetscObject)tao, 1));
   PetscCall(TaoSetType(proxP->subsolver, TAONM));
   
   PetscCall(PetscObjectCompose((PetscObject)proxP->subsolver, "TaoGetPROXParentTao_PROX", (PetscObject)tao));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_EXTERN PetscErrorCode TaoPROXGetSubsolver(Tao tao, Tao *subsolver)
+{
+  TAO_PROX *proxP = (TAO_PROX *)tao->data;
+
+  PetscFunctionBegin;
+  *subsolver= proxP->subsolver;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -226,16 +387,35 @@ PETSC_EXTERN PetscErrorCode TaoPROXGetVM(Tao tao, Mat *vm)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/* Custom set objective. I want user to be able to just simply
- * name the built-in functions, instead of their own??? */
-PETSC_EXTERN PetscErrorCode TaoPROXSetObjective(Tao tao, TaoPROXFunc func_name)
+PETSC_EXTERN PetscErrorCode TaoPROXSetSoftThreshold(Tao tao, PetscReal lb, PetscReal ub)
 {
+  TAO_PROX *proxP = (TAO_PROX *)tao->data;
+
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
-  tao->user_objP = NULL;
-  tao->ops->computeobjective = ...;
+  proxP->type   = TAO_PROX_TYPE_L1;
+  proxP->L1->lb = lb;
+  proxP->L1->ub = ub;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+PETSC_EXTERN PetscErrorCode TaoPROXSetInitialVector(Tao tao, Vec y) 
+{
+  TAO_PROX *proxP = (TAO_PROX *)tao->data;
+
+  PetscFunctionBegin;
+  proxP->y = y;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_EXTERN PetscErrorCode TaoPROXGetInitialVector(Tao tao, Vec *y) 
+{
+  TAO_PROX *proxP = (TAO_PROX *)tao->data;
+
+  PetscFunctionBegin;
+  *y = proxP->y;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 
 /*@
    TaoGetPROXParentTao - Gets pointer to parent `TAOPROX`, used by inner subsolver.

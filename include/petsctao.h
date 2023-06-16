@@ -143,7 +143,7 @@ typedef enum {
 PETSC_EXTERN const char *const TaoALMMTypes[];
 
 /*E
-     TaoPROXType- Determine the update strategy of PROX
+     TaoPROXStrategy- Determine the update strategy of PROX
 
    Values:
 +  `TAO_PROX_DEFAULT`  - Uses default step size. Default step size is 1, unless otherwise given by user.
@@ -155,12 +155,17 @@ PETSC_EXTERN const char *const TaoALMMTypes[];
 .seealso: [](ch_tao), `Tao`, `TAOPROX`, `TaoPROXSetType()`, `TaoPROXGetType()`
 E*/
 typedef enum {
-  TAO_PROX_DEFAULT,
-  TAO_PROX_ADAPTIVE,
-  TAO_PROX_VM
+  TAO_PROX_STRATEGY_DEFAULT,
+  TAO_PROX_STRATEGY_ADAPTIVE,
+  TAO_PROX_STRATEGY_VM
+} TaoPROXStrategy;
+PETSC_EXTERN const char *const TaoPROXStrategies[];
+
+typedef enum {
+  TAO_PROX_TYPE_DEFAULT,
+  TAO_PROX_TYPE_L1
 } TaoPROXType;
 PETSC_EXTERN const char *const TaoPROXTypes[];
-
 /*J
         TaoType - String with the name of a `Tao` method
 
@@ -525,4 +530,15 @@ PETSC_EXTERN PetscErrorCode TaoALMMGetMultipliers(Tao, Vec *);
 PETSC_EXTERN PetscErrorCode TaoALMMSetMultipliers(Tao, Vec);
 PETSC_EXTERN PetscErrorCode TaoALMMGetPrimalIS(Tao, IS *, IS *);
 PETSC_EXTERN PetscErrorCode TaoALMMGetDualIS(Tao, IS *, IS *);
+
+
+PETSC_EXTERN PetscErrorCode TaoPROXGetSubsolver(Tao, Tao *);
+PETSC_EXTERN PetscErrorCode TaoPROXSetStepSize(Tao, PetscReal);
+PETSC_EXTERN PetscErrorCode TaoPROXGetStepSize(Tao, PetscReal *);
+PETSC_EXTERN PetscErrorCode TaoPROXSetVM(Tao, Mat);
+PETSC_EXTERN PetscErrorCode TaoPROXGetVM(Tao, Mat *);
+PETSC_EXTERN PetscErrorCode TaoPROXSetSoftThreshold(Tao, PetscReal, PetscReal);
+PETSC_EXTERN PetscErrorCode TaoPROXSetInitialVector(Tao, Vec);
+PETSC_EXTERN PetscErrorCode TaoPROXGetInitialVector(Tao, Vec *);
+
 #endif

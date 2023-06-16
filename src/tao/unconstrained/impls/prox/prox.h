@@ -17,20 +17,27 @@ struct _TaoPROXOps {
 };
 
 typedef struct {
+  PetscReal lb;
+  PetscReal ub;
+} TAO_PROX_L1;
+
+typedef struct {
   PETSCHEADER(struct _TaoPROXOps);        
   Tao subsolver;
+  TAO_PROX_L1 *L1;
   Mat vm; /* Variable Metric matrix */	
+  Mat H_orig, H_pre_orig;
 
-  Vec G_old;
-  Vec X_old;
-  Vec W; /*  work vector */
+  Vec G_old, X_old, workvec1;
+  Vec y; /* Input y vector for prox(y) */
 
   PetscReal eta;       /*  Restart tolerance */
-  PetscReal stepsize;     /*  Step size */
+  PetscReal stepsize, stepsize_old;     /*  Step size */
 
   PetscInt step_type;	  
 
-  TaoPROXType strategy;
+  TaoPROXStrategy strategy;
+  TaoPROXType     type;
 
   void  *orig_objP;
   void  *orig_objgradP;
