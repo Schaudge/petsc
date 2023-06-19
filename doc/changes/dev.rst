@@ -22,11 +22,13 @@ Changes: Development
 
 - Add ``PetscDeviceContextGetStreamHandle()`` to return a handle to the stream the current device context is using
 - Add ``PetscStrcmpAny()`` to compare against multiple non-empty strings
-- Change arguments 4 and 5 of ``PetscViewerBinaryReadAll()`` and ``PetscViewerBinaryWriteAll()`` to ``PetscInt64``
 
 .. rubric:: Event Logging:
 
 .. rubric:: PetscViewer:
+
+- Change arguments 4 and 5 of ``PetscViewerBinaryReadAll()`` and ``PetscViewerBinaryWriteAll()`` to ``PetscInt64``
+- Make ``-viewer_binary_mpiio`` (``PetscViewerBinarySetUseMPIIO()``) true by default when supported.
 
 .. rubric:: PetscDraw:
 
