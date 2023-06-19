@@ -276,6 +276,22 @@ typedef __int64 PetscInt64;
   #error "cannot determine PetscInt64 type"
 #endif
 
+#if defined(PETSC_HAVE_STDINT_H) && defined(PETSC_HAVE_INTTYPES_H) && defined(PETSC_HAVE_MPI_INT32_T) /* MPI_INT32_T is not guaranteed to be a macro */
+typedef int32_t PetscInt32;
+  #define PETSC_INT32_MIN INT32_MIN
+  #define PETSC_INT32_MAX INT32_MAX
+#elif (PETSC_SIZEOF_INT == 4)
+typedef int PetscInt32;
+  #define PETSC_INT32_MIN INT_MIN
+  #define PETSC_INT32_MAX INT_MAX
+#elif defined(PETSC_HAVE___INT32)
+typedef __int32 PetscInt32;
+  #define PETSC_INT32_MIN INT32_MIN
+  #define PETSC_INT32_MAX INT32_MAX
+#else
+  #error "cannot determine PetscInt32 type"
+#endif
+
 #if defined(PETSC_USE_64BIT_INDICES)
 typedef PetscInt64 PetscInt;
 
@@ -308,6 +324,19 @@ enum {
   #define PetscInt64_FMT "ld"
 #else
   #error "cannot determine PetscInt64 type"
+#endif
+
+#if defined(PETSC_HAVE_STDINT_H) && defined(PETSC_HAVE_INTTYPES_H) && defined(PETSC_HAVE_MPI_INT32_T) /* MPI_INT32_T is not guaranteed to be a macro */
+  #define MPIU_INT32     MPI_INT32_T
+  #define PetscInt32_FMT PRId32
+#elif (PETSC_SIZEOF_INT == 4)
+  #define MPIU_INT32     MPI_INT
+  #define PetscInt32_FMT "d"
+#elif defined(PETSC_HAVE___INT32)
+  #define MPIU_INT32     MPI_INT32_T
+  #define PetscInt32_FMT "d"
+#else
+  #error "cannot determine PetscInt32 type"
 #endif
 
 /*MC
@@ -652,7 +681,7 @@ typedef double PetscLogDouble;
    share/petsc/matlab/PetscBagRead.m and share/petsc/matlab/@PetscOpenSocket/read/write.m
 
    TODO:
-   Add PETSC_INT32 and remove use of improper `PETSC_ENUM`
+   Remove use of improper `PETSC_ENUM`
 
 .seealso: `PetscBinaryRead()`, `PetscBinaryWrite()`, `PetscDataTypeToMPIDataType()`,
           `PetscDataTypeGetSize()`
@@ -676,7 +705,8 @@ typedef enum {
   PETSC_STRUCT           = 15,
   PETSC_INT              = 16,
   PETSC_INT64            = 17,
-  PETSC_COUNT            = 18
+  PETSC_COUNT            = 18,
+  PETSC_INT32            = 19,
 } PetscDataType;
 PETSC_EXTERN const char *const PetscDataTypes[];
 

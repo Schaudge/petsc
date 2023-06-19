@@ -51,6 +51,12 @@ class Configure(config.base.Configure):
       self.addDefine('HAVE___INT64',1)
     return
 
+  def check__int32(self):
+    '''Checks if __int32 exists. This is primarily for windows.'''
+    if self.check('__int32'):
+      self.addDefine('HAVE___INT32',1)
+    return
+
   def checkSizeTypes(self):
     '''Checks for types associated with sizes, such as size_t.'''
     self.check('size_t', 'int')
@@ -192,6 +198,7 @@ char petsc_max_path_len[] = xstr(PETSC_MAX_PATH_LEN);
   def configure(self):
     self.executeTest(self.check_struct_sigaction)
     self.executeTest(self.check__int64)
+    self.executeTest(self.check__int32)
     self.executeTest(self.checkSizeTypes)
     self.executeTest(self.checkFileTypes)
     self.executeTest(self.checkIntegerTypes)
