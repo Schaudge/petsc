@@ -1012,6 +1012,7 @@ static PetscErrorCode PCSetFromOptions_HYPRE_BoomerAMG(PC pc, PetscOptionItems *
       PetscCall(PetscStrcasecmp(prerelax[i], stringF, &matchF));
       PetscCall(PetscStrcasecmp(prerelax[i], stringC, &matchC));
       PetscCall(PetscStrcasecmp(prerelax[i], stringA, &matchA));
+      PetscCheck(matchF || matchC || matchA, PetscObjectComm((PetscObject)jac), PETSC_ERR_ARG_WRONG, "Valid argument options for -pc_hypre_boomeramg_pretrelax are C, F, and A");
       if (matchF) grid_relax_points[1][i] = -1;
       else if (matchC) grid_relax_points[1][i] = 1;
       else if (matchA) grid_relax_points[1][i] = 0;
@@ -1023,6 +1024,7 @@ static PetscErrorCode PCSetFromOptions_HYPRE_BoomerAMG(PC pc, PetscOptionItems *
       PetscCall(PetscStrcasecmp(postrelax[i], stringF, &matchF));
       PetscCall(PetscStrcasecmp(postrelax[i], stringC, &matchC));
       PetscCall(PetscStrcasecmp(postrelax[i], stringA, &matchA));
+      PetscCheck(matchF || matchC || matchA, PetscObjectComm((PetscObject)jac), PETSC_ERR_ARG_WRONG, "Valid argument options for -pc_hypre_boomeramg_postrelax are C, F, and A");
       if (matchF) grid_relax_points[2][i] = -1;
       else if (matchC) grid_relax_points[2][i] = 1;
       else if (matchA) grid_relax_points[2][i] = 0;
