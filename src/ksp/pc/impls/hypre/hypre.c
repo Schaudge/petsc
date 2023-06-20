@@ -1012,15 +1012,9 @@ static PetscErrorCode PCSetFromOptions_HYPRE_BoomerAMG(PC pc, PetscOptionItems *
       PetscCall(PetscStrcasecmp(prerelax[i], stringF, &matchF));
       PetscCall(PetscStrcasecmp(prerelax[i], stringC, &matchC));
       PetscCall(PetscStrcasecmp(prerelax[i], stringA, &matchA));
-      if (matchF) {
-        grid_relax_points[1][i] = -1;
-      }
-      else if (matchC) {
-        grid_relax_points[1][i] = 1;
-      }
-      else if (matchA) {
-        grid_relax_points[1][i] = 0;
-      }
+      if (matchF) grid_relax_points[1][i] = -1;
+      else if (matchC) grid_relax_points[1][i] = 1;
+      else if (matchA) grid_relax_points[1][i] = 0;
     }
 
     // set up relax scheme
@@ -1029,23 +1023,13 @@ static PetscErrorCode PCSetFromOptions_HYPRE_BoomerAMG(PC pc, PetscOptionItems *
       PetscCall(PetscStrcasecmp(postrelax[i], stringF, &matchF));
       PetscCall(PetscStrcasecmp(postrelax[i], stringC, &matchC));
       PetscCall(PetscStrcasecmp(postrelax[i], stringA, &matchA));
-      if (matchF) {
-        grid_relax_points[2][i] = -1;
-      }
-      else if (matchC) {
-        grid_relax_points[2][i] = 1;
-      }
-      else if (matchA) {
-        grid_relax_points[2][i] = 0;
-      }
+      if (matchF) grid_relax_points[2][i] = -1;
+      else if (matchC) grid_relax_points[2][i] = 1;
+      else if (matchA) grid_relax_points[2][i] = 0;
     }
     PetscCallExternal(HYPRE_BoomerAMGSetGridRelaxPoints, jac->hsolver, grid_relax_points);
-    for (PetscInt i = 0; i<ns_down; i++) {
-      PetscCall(PetscFree(prerelax[i]));
-    }
-    for (PetscInt i = 0; i<ns_up; i++) {
-      PetscCall(PetscFree(postrelax[i]));
-    }
+    for (PetscInt i = 0; i<ns_down; i++) { PetscCall(PetscFree(prerelax[i])); }
+    for (PetscInt i = 0; i<ns_up; i++) { PetscCall(PetscFree(postrelax[i])); }
   }
 #endif
 
