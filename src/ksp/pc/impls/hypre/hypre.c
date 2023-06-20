@@ -992,8 +992,7 @@ static PetscErrorCode PCSetFromOptions_HYPRE_BoomerAMG(PC pc, PetscOptionItems *
 
     PetscCall(PetscOptionsInt("-pc_hypre_boomeramg_Adroptype", "Drops the entries that are not on the diagonal and smaller than its row norm: type 1: 1-norm, 2: 2-norm, -1: infinity norm", "None", jac->Adroptype, &jac->Adroptype, NULL));
     PetscCallExternal(HYPRE_BoomerAMGSetADropType, jac->hsolver, jac->Adroptype);
-    HYPRE_Int  **grid_relax_points;
-    PetscCall(PetscMalloc1(4, &grid_relax_points));
+    HYPRE_Int **grid_relax_points = hypre_TAlloc(HYPRE_Int*, 4, HYPRE_MEMORY_DEVICE);
     char *prerelax[256];
     char *postrelax[256];
     char stringF[2] = "F", stringC[2] = "C", stringA[2] = "A";
@@ -1001,9 +1000,9 @@ static PetscErrorCode PCSetFromOptions_HYPRE_BoomerAMG(PC pc, PetscOptionItems *
     PetscCall(PetscOptionsStringArray("-pc_hypre_boomeramg_prerelax", "Defines prerelax scheme", "None", prerelax, &ns_down, NULL));
     PetscCall(PetscOptionsStringArray("-pc_hypre_boomeramg_postrelax", "Defines postrelax scheme", "None", postrelax, &ns_up, NULL));
     grid_relax_points[0] = NULL;
-    PetscCall(PetscMalloc1(ns_down, &grid_relax_points[1]));
-    PetscCall(PetscMalloc1(ns_up, &grid_relax_points[2]));
-    PetscCall(PetscMalloc1(1, &grid_relax_points[3]));
+    grid_relax_points[1] = hypre_TAlloc(HYPRE_Int, ns_down, HYPRE_MEMORY_DEVICE);
+    grid_relax_points[2] = hypre_TAlloc(HYPRE_Int, ns_up, HYPRE_MEMORY_DEVICE);
+    grid_relax_points[3] = hypre_TAlloc(HYPRE_Int, 1, HYPRE_MEMORY_DEVICE);
     grid_relax_points[3][0] = 0;
     // set down relax scheme
     for (PetscInt i = 0; i<ns_down; i++) {
