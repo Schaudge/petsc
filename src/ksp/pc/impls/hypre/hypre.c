@@ -999,6 +999,8 @@ static PetscErrorCode PCSetFromOptions_HYPRE_BoomerAMG(PC pc, PetscOptionItems *
     PetscInt ns_down = 256, ns_up = 256;
     PetscCall(PetscOptionsStringArray("-pc_hypre_boomeramg_prerelax", "Defines prerelax scheme", "None", prerelax, &ns_down, NULL));
     PetscCall(PetscOptionsStringArray("-pc_hypre_boomeramg_postrelax", "Defines postrelax scheme", "None", postrelax, &ns_up, NULL));
+    PetscCheck(ns_down == jac->gridsweeps[0], PetscObjectComm((PetscObject)jac), PETSC_ERR_ARG_SIZ, "The number of arguments passed to -pc_hypre_boomeramg_prerelax must match the number passed to -pc_hypre_bomeramg_grid_sweeps_down");
+    PetscCheck(ns_up == jac->gridsweeps[1], PetscObjectComm((PetscObject)jac), PETSC_ERR_ARG_SIZ, "The number of arguments passed to -pc_hypre_boomeramg_postrelax must match the number passed to -pc_hypre_bomeramg_grid_sweeps_up");
     grid_relax_points[0] = NULL;
     grid_relax_points[1] = hypre_TAlloc(HYPRE_Int, ns_down, HYPRE_MEMORY_DEVICE);
     grid_relax_points[2] = hypre_TAlloc(HYPRE_Int, ns_up, HYPRE_MEMORY_DEVICE);
