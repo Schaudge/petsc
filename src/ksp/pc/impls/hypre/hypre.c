@@ -997,16 +997,16 @@ static PetscErrorCode PCSetFromOptions_HYPRE_BoomerAMG(PC pc, PetscOptionItems *
     char *prerelax[256];
     char *postrelax[256];
     char stringF[2] = "F", stringC[2] = "C", stringA[2] = "A";
-    PetscInt num_down, num_up;
-    PetscCall(PetscOptionsStringArray("-pc_hypre_boomeramg_prerelax", "Defines prerelax scheme", "None", prerelax, &num_down, NULL));
-    PetscCall(PetscOptionsStringArray("-pc_hypre_boomeramg_postrelax", "Defines postrelax scheme", "None", postrelax, &num_up, NULL));
+    PetscInt ns_down = 256, ns_up = 256;
+    PetscCall(PetscOptionsStringArray("-pc_hypre_boomeramg_prerelax", "Defines prerelax scheme", "None", prerelax, &ns_down, NULL));
+    PetscCall(PetscOptionsStringArray("-pc_hypre_boomeramg_postrelax", "Defines postrelax scheme", "None", postrelax, &ns_up, NULL));
     grid_relax_points[0] = NULL;
-    PetscCall(PetscMalloc1(num_down, &grid_relax_points[1]));
-    PetscCall(PetscMalloc1(num_up, &grid_relax_points[2]));
+    PetscCall(PetscMalloc1(ns_down, &grid_relax_points[1]));
+    PetscCall(PetscMalloc1(ns_up, &grid_relax_points[2]));
     PetscCall(PetscMalloc1(1, &grid_relax_points[3]));
     grid_relax_points[3][0] = 0;
     // set down relax scheme
-    for (PetscInt i = 0; i<num_down; i++) {
+    for (PetscInt i = 0; i<ns_down; i++) {
       PetscBool matchF, matchC, matchA;
       PetscCall(PetscStrcasecmp(prerelax[i], stringF, &matchF));
       PetscCall(PetscStrcasecmp(prerelax[i], stringC, &matchC));
@@ -1023,7 +1023,7 @@ static PetscErrorCode PCSetFromOptions_HYPRE_BoomerAMG(PC pc, PetscOptionItems *
     }
 
     // set up relax scheme
-    for (PetscInt i = 0; i<num_up; i++) {
+    for (PetscInt i = 0; i<ns_up; i++) {
       PetscBool matchF, matchC, matchA;
       PetscCall(PetscStrcasecmp(postrelax[i], stringF, &matchF));
       PetscCall(PetscStrcasecmp(postrelax[i], stringC, &matchC));
@@ -1039,10 +1039,10 @@ static PetscErrorCode PCSetFromOptions_HYPRE_BoomerAMG(PC pc, PetscOptionItems *
       }
     }
     PetscCallExternal(HYPRE_BoomerAMGSetGridRelaxPoints, jac->hsolver, grid_relax_points);
-    for (PetscInt i = 0; i<num_down; i++) {
+    for (PetscInt i = 0; i<ns_down; i++) {
       PetscCall(PetscFree(prerelax[i]));
     }
-    for (PetscInt i = 0; i<num_up; i++) {
+    for (PetscInt i = 0; i<ns_up; i++) {
       PetscCall(PetscFree(postrelax[i]));
     }
   }
