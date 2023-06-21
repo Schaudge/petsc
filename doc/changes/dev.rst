@@ -67,6 +67,7 @@ Changes: Development
 .. rubric:: PC:
 
 - Add ``PCMatGetApplyOperation()`` and ``PCMatSetApplyOperation()``
+- Add ``PCReduceFailedReason()``
 
 .. rubric:: KSP:
 
@@ -93,6 +94,8 @@ Changes: Development
 .. rubric:: DMSwarm:
 
 .. rubric:: DMPlex:
+
+- Add ``DMPlexTransformExtrudeGetPeriodic()`` and ``DMPlexTransformExtrudeSetPeriodic()``
 
 .. rubric:: FE/FV:
 

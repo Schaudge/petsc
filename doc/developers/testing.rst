@@ -179,6 +179,8 @@ With this background, these keywords are as follows.
 
    -  Inputs sometimes require external matrices that are found in the
       directory given by the environmental variable ``DATAFILESPATH``.
+      The repository `datafiles <https://gitlab.com/petsc/datafiles>`__
+      contains all the test files needed for the test suite.
       For these tests ``requires: datafilespath`` can be
       specifed.
 
@@ -331,6 +333,15 @@ These arguments have the following effect:
 
 Using both options in tandem allows one to use the normal ``output:`` mechanism to compare
 expected and actual error outputs.
+
+When writing ASCII output that may be not portable, so one wants `-petsc_ci_portable_error_output` to
+cause the output to be skipped, enclose the output with code such as
+
+.. code-block::
+
+   if (!PetscCIEnabledPortableErrorOutput)
+
+to prevent it from being output when the CI test harness is running.
 
 Test Block Examples
 ~~~~~~~~~~~~~~~~~~~

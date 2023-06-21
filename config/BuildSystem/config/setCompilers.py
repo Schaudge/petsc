@@ -558,10 +558,10 @@ class Configure(config.base.Configure):
     except RuntimeError:
       pass
 
-  @staticmethod
-  def isWindows(compiler, log, disambiguate_win32fe = False):
+  @classmethod
+  def isWindows(cls, compiler, log):
     '''Returns true if the compiler is a Windows compiler'''
-    if Configure.isCygwin(log):
+    if cls.isCygwin(log):
       compiler = os.path.basename(compiler)
       if compiler.startswith('win_'):
         if log: log.write('Detected Windows compiler\n')
@@ -571,15 +571,17 @@ class Configure(config.base.Configure):
 
   @classmethod
   def isMSVC(cls, compiler, log):
-    """Returns true if the compiler is MSVC"""
-    if cls.isWindows(compiler,log,disambiguate_win32fe=True):
-      output, error, _ = cls.executeShellCommand(compiler+' --version',checkCommand=noCheck,log=log)
-      output = '\n'.join((output,error)).casefold()
-      if all(sub.casefold() in output for sub in ('microsoft','c/c++ optimizing compiler')):
-        if log:
-          log.write('Detected MSVC\n')
-        return 1
-    return 0
+    """
+    Returns true if the compiler is MSVC. Does not distinguish between raw MSVC and win32fe + MSVC
+    """
+    output, error, _ = cls.executeShellCommand(compiler + ' --version', checkCommand=noCheck, log=log)
+    output           = '\n'.join((output, error)).casefold()
+    found            = all(
+      sub.casefold() in output for sub in ('microsoft', 'c/c++ optimizing compiler')
+    )
+    if log:
+      log.write('Detected MSVC\n' if found else 'Did not detect MSVC\n')
+    return int(found)
 
   @staticmethod
   def isSolarisAR(ar, log):
@@ -1435,9 +1437,13 @@ class Configure(config.base.Configure):
     if not hasattr(self, 'CC'):
       raise RuntimeError('Could not locate a functional C compiler')
     try:
-      self.executeShellCommand(self.CC+' --version', log = self.log)
+      (output,error,status) = self.executeShellCommand(self.CC+' --version', log = self.log)
     except:
       pass
+    else:
+      if self.isDarwin(self.log) and self.isARM(self.log) and output.find('x86_64-apple-darwin') > -1:
+        raise RuntimeError('Running on a macOS arm system but your compilers are configured for Intel processors\n' + output + '\n')
+
     (output, error, status) = config.base.Configure.executeShellCommand(compiler+' -v | head -n 20', log = self.log)
     output = output + error
     if '(gcc version 4.8.5 compatibility)' in output or re.match('^Selected GCC installation:.*4.8.5$', output):
