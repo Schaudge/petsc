@@ -99,6 +99,7 @@ int main(int argc, char **argv)
   PetscCall(VecZeroEntries(x));
   PetscCall(VecZeroEntries(x2));
   PetscCall(PetscRandomDestroy(&rctx));
+  PetscCall(VecView(user.y, PETSC_VIEWER_STDOUT_WORLD));
 
   PetscCall(TaoCreate(PETSC_COMM_SELF, &tao));
 
@@ -136,6 +137,7 @@ int main(int argc, char **argv)
     {
       PetscCall(TaoSetType(tao, TAOPROX));
       PetscCall(TaoPROXSetInitialVector(tao, user.y));
+      PetscCall(TaoSetSolution(tao, x));
       PetscCall(TaoSetFromOptions(tao));
       if (shell) {
         //Shell Version
@@ -165,10 +167,10 @@ int main(int argc, char **argv)
     PetscCall(VecWAXPY(user.workvec, 1., user.b, user.y));
     PetscCall(MatSolve(user.A, user.workvec, user.workvec2));
     PetscCall(VecView(user.workvec2, PETSC_VIEWER_STDOUT_WORLD));
+    PetscCall(MatDestroy(&user.A));
   }
 
   PetscCall(TaoDestroy(&tao));
-  PetscCall(MatDestroy(&user.A));
   PetscCall(VecDestroy(&x));
   PetscCall(VecDestroy(&x2));
   PetscCall(VecDestroy(&user.y));

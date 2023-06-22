@@ -7,7 +7,7 @@
 //Metric would internally add MR.
 //For User, TAOTYPE may not be TAOPROX.
 //TODO do I even need bregman here???
-const char *const TaoMetricTypes[] = {"USER", "L1", "L2", "BREGMAN", "TaoMetricType", "TAO_METRIC_", NULL};
+const char *const TaoMetricTypes[] = {"TYPE_USER", "TYPE_L1", "TYPE_L2", "TYPE_BREGMAN", "TaoMetricType", "TAO_METRIC_", NULL};
 
 const char *const TaoPROXStrategies[] = {"STRATEGY_DEFAULT", "STRATEGY_ADAPTIVE", "STRATEGY_VM", "TaoPROXStrategy", "TAO_PROX_", NULL};
 const char *const TaoPROXTypes[] = {"DEFAULT", "L1", "TaoPROXType", "TAO_PROX_", NULL};
@@ -19,22 +19,31 @@ static PetscErrorCode AddMoreauRegObj(Tao tao, Vec X, PetscReal *f, void *ptr)
   PetscReal temp;
 
   PetscFunctionBegin;
-  //TODO check MetricType stuff
-  /* Adding |x-y|_2^2 */
   /* Ignore VM for now */
   /* Scalar weight */
   //TODO what does it mean if tao is subtao???
   PetscCall((proxP->ops->orig_obj)(tao, X, f, proxP->orig_objP));
 
-  if (tao->metric_type == TAO_METRIC_TYPE_L2) {
+  switch (tao->metric_type) {
+  case TAO_METRIC_TYPE_L2:
     PetscCall(VecWAXPY(proxP->workvec1, -1., proxP->y, X));
     PetscCall(VecNorm(proxP->workvec1,NORM_2, &temp));
     temp = PetscPowReal(temp,2);
-    *f += (proxP->stepsize/2)*temp;
-  } else if (tao->metric_type == TAO_METRIC_TYPE_USER) {
+    break;
+  case TAO_METRIC_TYPE_L1:
+    PetscCall(VecWAXPY(proxP->workvec1, -1., proxP->y, X));
+    PetscCall(VecNorm(proxP->workvec1,NORM_1, &temp));
+    break;
+  case TAO_METRIC_TYPE_USER:
     PetscCall((tao->ops->computemetricandgradient)(tao, X, proxP->y, &temp, NULL, tao->user_metricP));
-    *f += (proxP->stepsize)*temp;
+    break;
+  case TAO_METRIC_TYPE_BREGMAN:
+    SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Bregman metric not yet implemented");
+    break;
+  default:
+    break;          
   }
+  *f += (proxP->stepsize/2)*temp;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -45,8 +54,23 @@ static PetscErrorCode AddMoreauRegGrad(Tao tao, Vec X, Vec G, void *ptr)
   PetscFunctionBegin;
   //TODO check MetricType stuff
   PetscCall((proxP->ops->orig_grad)(tao, X, G, proxP->orig_gradP));
-  PetscCall(VecWAXPY(proxP->workvec1, -1., proxP->y, X));
-  PetscCall(VecAXPY(G, proxP->stepsize, proxP->workvec1)); 
+  switch (tao->metric_type) {
+  case TAO_METRIC_TYPE_L2:
+    PetscCall(VecWAXPY(proxP->workvec1, -1., proxP->y, X));
+    PetscCall(VecAXPY(G, proxP->stepsize, proxP->workvec1)); 
+    break;
+  case TAO_METRIC_TYPE_L1:
+    SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "L1 gradient no-op");
+    break;
+  case TAO_METRIC_TYPE_USER:
+    PetscCall((tao->ops->computemetricandgradient)(tao, X, proxP->y, NULL, G, tao->user_metricP));
+    break;
+  case TAO_METRIC_TYPE_BREGMAN:
+    SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Bregman metric not yet implemented");
+    break;
+  default:
+    break;          
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -56,14 +80,30 @@ static PetscErrorCode AddMoreauRegObjGrad(Tao tao, Vec X, PetscReal *f, Vec G, v
   PetscReal temp;
 
   PetscFunctionBegin;
-  //TODO check MetricType stuff
   PetscCall((proxP->ops->orig_objgrad)(tao, X, f, G, proxP->orig_objgradP));
-  PetscCall(VecWAXPY(proxP->workvec1, -1., proxP->y, X));
-  PetscCall(VecNorm(proxP->workvec1,NORM_2, &temp));
-  temp = PetscPowReal(temp,2);
-
+  switch (tao->metric_type) {
+  case TAO_METRIC_TYPE_L2:
+    PetscCall(VecWAXPY(proxP->workvec1, -1., proxP->y, X));
+    PetscCall(VecNorm(proxP->workvec1,NORM_2, &temp));
+    temp = PetscPowReal(temp,2);
+    PetscCall(VecAXPY(G, proxP->stepsize, proxP->workvec1)); 
+    break;
+  case TAO_METRIC_TYPE_L1:
+    PetscCall(VecWAXPY(proxP->workvec1, -1., proxP->y, X));
+    PetscCall(VecNorm(proxP->workvec1,NORM_1, &temp));
+    //TODO gradient???
+    break;
+  case TAO_METRIC_TYPE_USER:
+    PetscCall((tao->ops->computemetricandgradient)(tao, X, proxP->y, &temp, proxP->workvec1, tao->user_metricP));
+    PetscCall(VecAXPY(G, proxP->stepsize, proxP->workvec1)); 
+    break;
+  case TAO_METRIC_TYPE_BREGMAN:
+    SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Bregman metric not yet implemented");
+    break;
+  default:
+    break;
+  }
   *f += (proxP->stepsize/2)*temp;
-  PetscCall(VecAXPY(G, proxP->stepsize, proxP->workvec1)); 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -79,6 +119,7 @@ static PetscErrorCode AddMoreauRegHess(Tao tao, Vec X, Mat H, Mat Hpre, void *pt
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
 /* Updates Moreau Regularization to the given objective and gradient and Hessian */
 /* Ignoring VM for now ... */
 static PetscErrorCode AddMoreauReg(Tao tao)
@@ -162,7 +203,6 @@ static PetscErrorCode AddMoreauReg(Tao tao)
 static PetscErrorCode TaoSolve_PROX(Tao tao)
 {
   TAO_PROX  *proxP = (TAO_PROX *)tao->data;
-  PetscReal  step  = 1.0, f, gnorm;
 
   PetscFunctionBegin;
 
@@ -484,11 +524,18 @@ PETSC_EXTERN PetscErrorCode TaoApplyProximalMap(Tao tao, PetscReal lambda, Mat V
     } else {
       PetscCall(TaoCreate(PetscObjectComm((PetscObject)tao), &tao->metric_subtao));
       PetscCall(TaoSetType(tao->metric_subtao, TAOPROX));
+      /* set obj grad etc */
+      tao->metric_subtao->ops->computeobjectiveandgradient = tao->ops->computeobjectiveandgradient;
+      tao->metric_subtao->user_objgradP = tao->user_objgradP;
     }
       PetscCall(TaoSetSolution(tao->metric_subtao, x));
       PetscCall(TaoPROXSetInitialVector(tao->metric_subtao, y));
       PetscCall(TaoSetFromOptions(tao->metric_subtao));
+      PetscCall(TaoSolve(tao->metric_subtao));
+  } else {
+    PetscCall(TaoSetSolution(tao, x));
+    PetscCall(TaoPROXSetInitialVector(tao, y));
+    PetscCall(TaoSolve(tao));
   }
-    PetscCall(TaoSolve(tao->metric_subtao));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
