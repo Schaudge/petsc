@@ -14,9 +14,9 @@ static char help[] = "Solves a one-dimensional steady upwind advection system wi
 int main(int argc, char **args)
 {
   Vec         x, b, work_vec; /* approx solution, RHS, work vector */
-  Mat         A;       /* linear system matrix */
-  KSP         ksp;     /* linear solver context */
-  PC          pc;      /* preconditioner context */
+  Mat         A;              /* linear system matrix */
+  KSP         ksp;            /* linear solver context */
+  PC          pc;             /* preconditioner context */
   PetscInt    i, j, n = 10, col[2];
   PetscScalar work_scalar, value[2];
   PetscRandom r;
@@ -65,8 +65,8 @@ int main(int argc, char **args)
     col[1] = i;
     PetscCall(MatSetValues(A, 1, &i, 2, col, value, INSERT_VALUES));
   }
-  i = 0;
-  j = 0;
+  i           = 0;
+  j           = 0;
   work_scalar = 1;
   PetscCall(MatSetValues(A, 1, &i, 1, &j, &work_scalar, INSERT_VALUES));
   PetscCall(MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY));
@@ -117,7 +117,6 @@ int main(int argc, char **args)
                       Solve the linear system
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   PetscCall(KSPSolve(ksp, b, x));
-
 
   /*
      Free work space.  All PETSc objects should be destroyed when they
