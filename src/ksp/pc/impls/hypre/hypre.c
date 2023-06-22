@@ -1143,6 +1143,9 @@ static PetscErrorCode PCView_HYPRE_BoomerAMG(PC pc, PetscViewer viewer)
     PetscCall(PetscViewerASCIIPrintf(viewer, "    Relax weight  (all)      %g\n", (double)jac->relaxweight));
     PetscCall(PetscViewerASCIIPrintf(viewer, "    Outer relax weight (all) %g\n", (double)jac->outerrelaxweight));
 
+    PetscCall(PetscViewerASCIIPrintf(viewer, "    Maximum size of coarsest grid %" PetscInt_FMT "\n", jac->maxc));
+    PetscCall(PetscViewerASCIIPrintf(viewer, "    Minimum size of coarsest grid %" PetscInt_FMT "\n", jac->minc));
+
     if (jac->relaxorder) {
       PetscCall(PetscViewerASCIIPrintf(viewer, "    Using CF-relaxation\n"));
     } else {
