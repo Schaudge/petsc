@@ -127,6 +127,7 @@ int main(int argc, char **args)
   PetscCall(VecDestroy(&work_vec));
   PetscCall(MatDestroy(&A));
   PetscCall(KSPDestroy(&ksp));
+  PetscCall(PetscRandomDestroy(&r));
 
   /*
      Always call PetscFinalize() before exiting a program.  This routine
