@@ -3,6 +3,11 @@
 #include <petscmath.h>
 #include <../src/tao/unconstrained/impls/prox/prox.h>
 
+//User means solving it via user specified types, e.g., TAOCG. 
+//Metric would internally add MR.
+//For User, TAOTYPE may not be TAOPROX.
+//TODO do I even need bregman here???
+const char *const TaoMetricTypes[] = {"USER", "L1", "L2", "BREGMAN", "TaoMetricType", "TAO_METRIC_", NULL};
 
 const char *const TaoPROXStrategies[] = {"STRATEGY_DEFAULT", "STRATEGY_ADAPTIVE", "STRATEGY_VM", "TaoPROXStrategy", "TAO_PROX_", NULL};
 const char *const TaoPROXTypes[] = {"DEFAULT", "L1", "TaoPROXType", "TAO_PROX_", NULL};
@@ -14,16 +19,22 @@ static PetscErrorCode AddMoreauRegObj(Tao tao, Vec X, PetscReal *f, void *ptr)
   PetscReal temp;
 
   PetscFunctionBegin;
+  //TODO check MetricType stuff
   /* Adding |x-y|_2^2 */
   /* Ignore VM for now */
   /* Scalar weight */
   //TODO what does it mean if tao is subtao???
   PetscCall((proxP->ops->orig_obj)(tao, X, f, proxP->orig_objP));
-  PetscCall(VecWAXPY(proxP->workvec1, -1., proxP->y, X));
-  PetscCall(VecNorm(proxP->workvec1,NORM_2, &temp));
-  temp = PetscPowReal(temp,2);
 
-  *f += (proxP->stepsize/2)*temp;
+  if (tao->metric_type == TAO_METRIC_TYPE_L2) {
+    PetscCall(VecWAXPY(proxP->workvec1, -1., proxP->y, X));
+    PetscCall(VecNorm(proxP->workvec1,NORM_2, &temp));
+    temp = PetscPowReal(temp,2);
+    *f += (proxP->stepsize/2)*temp;
+  } else if (tao->metric_type == TAO_METRIC_TYPE_USER) {
+    PetscCall((tao->ops->computemetricandgradient)(tao, X, proxP->y, &temp, NULL, tao->user_metricP));
+    *f += (proxP->stepsize)*temp;
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -32,6 +43,7 @@ static PetscErrorCode AddMoreauRegGrad(Tao tao, Vec X, Vec G, void *ptr)
   TAO_PROX *proxP  = (TAO_PROX *)tao->data;
 
   PetscFunctionBegin;
+  //TODO check MetricType stuff
   PetscCall((proxP->ops->orig_grad)(tao, X, G, proxP->orig_gradP));
   PetscCall(VecWAXPY(proxP->workvec1, -1., proxP->y, X));
   PetscCall(VecAXPY(G, proxP->stepsize, proxP->workvec1)); 
@@ -44,6 +56,7 @@ static PetscErrorCode AddMoreauRegObjGrad(Tao tao, Vec X, PetscReal *f, Vec G, v
   PetscReal temp;
 
   PetscFunctionBegin;
+  //TODO check MetricType stuff
   PetscCall((proxP->ops->orig_objgrad)(tao, X, f, G, proxP->orig_objgradP));
   PetscCall(VecWAXPY(proxP->workvec1, -1., proxP->y, X));
   PetscCall(VecNorm(proxP->workvec1,NORM_2, &temp));
@@ -59,6 +72,7 @@ static PetscErrorCode AddMoreauRegHess(Tao tao, Vec X, Mat H, Mat Hpre, void *pt
   TAO_PROX *proxP  = (TAO_PROX *)tao->data;
 
   PetscFunctionBegin;
+  //TODO check MetricType stuff
   PetscCall((proxP->ops->orig_hess)(tao, X, H, Hpre, proxP->orig_hessP));
   if (proxP->stepsize != proxP->stepsize_old) {
     PetscCall(MatShift(H, proxP->stepsize - proxP->stepsize_old));
@@ -421,7 +435,6 @@ PETSC_EXTERN PetscErrorCode TaoPROXGetInitialVector(Tao tao, Vec *y)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-
 /*@
    TaoGetPROXParentTao - Gets pointer to parent `TAOPROX`, used by inner subsolver.
 
@@ -445,3 +458,37 @@ PetscErrorCode TaoGetPROXParentTao(Tao tao, Tao *prox_tao)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+//TODO
+// does this func belong here?
+//
+//Technically, TAO here isn't really TAOPROX. its whatever, really. 
+//Actually, onlything i need is callback for obj/obj,grad/ and its pointers... 
+PETSC_EXTERN PetscErrorCode TaoApplyProximalMap(Tao tao, PetscReal lambda, Mat VM, Vec y, Vec x)
+{
+  TaoType   tao_type;
+  PetscBool is_prox;
+  PetscFunctionBegin;
+
+  PetscCall(TaoGetType(tao, &tao_type));
+  PetscCall(PetscObjectTypeCompare((PetscObject)tao, TAOPROX, &is_prox));
+
+  if (!is_prox) {
+    if (tao->metric_subtao) {
+    // subtao is already created. probably second+ call to this func?
+      //TODO reference counter thing ?? add tao destroy for master taodestroy
+      TaoType sub_type;
+      PetscBool is_sub_prox;
+      PetscCall(TaoGetType(tao->metric_subtao, &sub_type));
+      PetscCall(PetscObjectTypeCompare((PetscObject)tao->metric_subtao, TAOPROX, &is_sub_prox));
+      if (!is_sub_prox) SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_ARG_WRONGSTATE, "METRIC SUBTAO TYPE IS NOT PROX.");
+    } else {
+      PetscCall(TaoCreate(PetscObjectComm((PetscObject)tao), &tao->metric_subtao));
+      PetscCall(TaoSetType(tao->metric_subtao, TAOPROX));
+    }
+      PetscCall(TaoSetSolution(tao->metric_subtao, x));
+      PetscCall(TaoPROXSetInitialVector(tao->metric_subtao, y));
+      PetscCall(TaoSetFromOptions(tao->metric_subtao));
+  }
+    PetscCall(TaoSolve(tao->metric_subtao));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}

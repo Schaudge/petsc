@@ -166,6 +166,15 @@ typedef enum {
   TAO_PROX_TYPE_L1
 } TaoPROXType;
 PETSC_EXTERN const char *const TaoPROXTypes[];
+
+typedef enum {
+  TAO_METRIC_TYPE_USER,
+  TAO_METRIC_TYPE_L1,
+  TAO_METRIC_TYPE_L2,
+  TAO_METRIC_TYPE_BREGMAN
+} TaoMetricType;
+PETSC_EXTERN const char *const TaoMetricTypes[];
+
 /*J
         TaoType - String with the name of a `Tao` method
 
@@ -531,6 +540,10 @@ PETSC_EXTERN PetscErrorCode TaoALMMSetMultipliers(Tao, Vec);
 PETSC_EXTERN PetscErrorCode TaoALMMGetPrimalIS(Tao, IS *, IS *);
 PETSC_EXTERN PetscErrorCode TaoALMMGetDualIS(Tao, IS *, IS *);
 
+PETSC_EXTERN PetscErrorCode TaoSetMetricRoutine(Tao, PetscErrorCode (*)(Tao, Vec, Vec, PetscReal *, Vec, void *), void *);
+PETSC_EXTERN PetscErrorCode TaoGetMetricRoutine(Tao, PetscErrorCode (**)(Tao, Vec, Vec, PetscReal *, Vec, void *), void **);
+PetscErrorCode TaoSetMetricType(Tao, TaoMetricType);
+PetscErrorCode TaoGetMetricType(Tao, TaoMetricType *);
 
 PETSC_EXTERN PetscErrorCode TaoPROXGetSubsolver(Tao, Tao *);
 PETSC_EXTERN PetscErrorCode TaoPROXSetStepSize(Tao, PetscReal);
@@ -541,5 +554,8 @@ PETSC_EXTERN PetscErrorCode TaoPROXSetSoftThreshold(Tao, PetscReal, PetscReal);
 PETSC_EXTERN PetscErrorCode TaoPROXSetInitialVector(Tao, Vec);
 PETSC_EXTERN PetscErrorCode TaoPROXGetInitialVector(Tao, Vec *);
 PETSC_EXTERN PetscErrorCode TaoGetPROXParentTao(Tao, Tao *);
+
+PETSC_EXTERN PetscErrorCode TaoApplyProximalMap(Tao, PetscReal, Mat, Vec, Vec);
+
 
 #endif

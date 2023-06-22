@@ -31,6 +31,8 @@ struct _TaoOps {
   PetscErrorCode (*convergencetest)(Tao, void *);
   PetscErrorCode (*convergencedestroy)(void *);
 
+  PetscErrorCode (*computemetricandgradient)(Tao, Vec, Vec, PetscReal *, Vec, void *);
+
   /* Methods set by solver */
   PetscErrorCode (*computedual)(Tao, Vec, Vec);
   PetscErrorCode (*setup)(Tao);
@@ -61,6 +63,7 @@ struct _p_Tao {
   void *user_jac_designP;
   void *user_boundsP;
   void *user_update;
+  void *user_metricP;
 
   PetscErrorCode (*monitor[MAXTAOMONITORS])(Tao, void *);
   PetscErrorCode (*monitordestroy[MAXTAOMONITORS])(void **);
@@ -187,6 +190,10 @@ struct _p_Tao {
   PetscInt      hist_len;
   PetscBool     hist_reset;
   PetscBool     hist_malloc;
+
+  /* Distance metric for proximal. Default is L2 */
+  TaoMetricType metric_type;
+  Tao metric_subtao;
 };
 
 PETSC_EXTERN PetscLogEvent TAO_Solve;
