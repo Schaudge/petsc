@@ -24,6 +24,7 @@ Changes: Development
 - Add ``PetscStrcmpAny()`` to compare against multiple non-empty strings
 - Change arguments 4 and 5 of ``PetscViewerBinaryReadAll()`` and ``PetscViewerBinaryWriteAll()`` to ``PetscInt64``
 - Remove ``PetscTextBelt()`` and ``PetscTellMyCell()``, and corresponding options
+- Remove deprecated ``-log_summary`` option
 
 .. rubric:: Event Logging:
 
