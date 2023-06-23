@@ -1161,7 +1161,6 @@ PETSC_INTERN PetscErrorCode PetscInitialize_Common(const char *prog, const char 
 .  -shared_tmp - indicates /tmp directory is shared by all processors
 .  -not_shared_tmp - each processor has own /tmp
 .  -tmp - alternative name of /tmp directory
-.  -get_total_flops - returns total flops done by all processors
 -  -memory_view - Print memory usage at end of run
 
    Options Database Keys for Option Database:
@@ -1472,16 +1471,6 @@ PetscErrorCode PetscFinalize(void)
 #if !defined(PETSC_HAVE_THREADSAFETY)
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-memory_view", &flg2, NULL));
   if (flg2) PetscCall(PetscMemoryView(PETSC_VIEWER_STDOUT_WORLD, "Summary of Memory Usage in PETSc\n"));
-#endif
-
-#if defined(PETSC_USE_LOG)
-  flg1 = PETSC_FALSE;
-  PetscCall(PetscOptionsGetBool(NULL, NULL, "-get_total_flops", &flg1, NULL));
-  if (flg1) {
-    PetscLogDouble flops = 0;
-    PetscCallMPI(MPI_Reduce(&petsc_TotalFlops, &flops, 1, MPI_DOUBLE, MPI_SUM, 0, PETSC_COMM_WORLD));
-    PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Total flops over all processors %g\n", flops));
-  }
 #endif
 
 #if defined(PETSC_USE_LOG)
