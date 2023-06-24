@@ -68,7 +68,8 @@ static PetscErrorCode PCDestroy_HPDDM(PC pc)
 
 static inline PetscErrorCode PCHPDDMSetAuxiliaryMat_Private(PC pc, IS is, Mat A, PetscBool deflation)
 {
-  PC_HPDDM *data = (PC_HPDDM *)pc->data;
+  PC_HPDDM                   *data = (PC_HPDDM *)pc->data;
+  PCHPDDMCoarseCorrectionType type = data->correction;
 
   PetscFunctionBegin;
   if (is) {
@@ -77,6 +78,7 @@ static inline PetscErrorCode PCHPDDMSetAuxiliaryMat_Private(PC pc, IS is, Mat A,
       PetscCall(PCReset_HPDDM(pc));
       pc->setfromoptionscalled = 0;
       pc->setupcalled          = 0;
+      data->correction         = type; /* default value PC_HPDDM_COARSE_CORRECTION_DEFLATED yields an nonsymmetric PC, so need to reset to the previous value in case PCSetUseSymmetricForm() has been called */
     }
     PetscCall(ISDestroy(&data->is));
     data->is = is;
@@ -496,6 +498,58 @@ static PetscErrorCode PCView_HPDDM(PC pc, PetscViewer viewer)
         PetscCall(PetscViewerFlush(viewer));
       }
     }
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode PCSetUpOnBlocks_HPDDM(PC pc)
+{
+  PC_HPDDM *data = (PC_HPDDM *)pc->data;
+
+  PetscFunctionBegin;
+  if (pc->usesymmetricform) {
+    for (PetscInt n = 0; n < data->N; ++n) {
+      if (data->levels[n]->pc) PetscCall(PCSetUseSymmetricForm(data->levels[n]->pc));
+    }
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode PCIsSymmetric_HPDDM(PC pc, PetscBool3 *sym)
+{
+  PC_HPDDM *data = (PC_HPDDM *)pc->data;
+
+  PetscFunctionBegin;
+  if (data->correction == PC_HPDDM_COARSE_CORRECTION_DEFLATED) {
+    *sym = PETSC_BOOL3_FALSE;
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
+  *sym = PETSC_BOOL3_TRUE;
+  for (PetscInt n = 0; n < data->N; ++n) {
+    PetscBool3 flg = PETSC_BOOL3_TRUE;
+
+    if (data->levels[n]->pc) {
+      flg = PETSC_BOOL3_UNKNOWN;
+      PetscCall(PCIsSymmetric(data->levels[n]->pc, &flg));
+    }
+    if (flg == PETSC_BOOL3_FALSE) {
+      *sym = PETSC_BOOL3_FALSE;
+      PetscFunctionReturn(PETSC_SUCCESS);
+    } else if (flg == PETSC_BOOL3_UNKNOWN) {
+      *sym = PETSC_BOOL3_UNKNOWN;
+    }
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode PCSetUseSymmetricForm_HPDDM(PC pc)
+{
+  PC_HPDDM *data = (PC_HPDDM *)pc->data;
+
+  PetscFunctionBegin;
+  if (data->correction == PC_HPDDM_COARSE_CORRECTION_DEFLATED) data->correction = PC_HPDDM_COARSE_CORRECTION_BALANCED;
+  for (PetscInt n = 0; n < data->N; ++n) {
+    if (data->levels[n]->pc) PetscCall(PCSetUseSymmetricForm(data->levels[n]->pc));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1918,16 +1972,19 @@ PETSC_EXTERN PetscErrorCode PCCreate_HPDDM(PC pc)
   }
   PetscCheck(loadedSym, PETSC_COMM_SELF, PETSC_ERR_PLIB, "PCHPDDM_Internal symbol not found in loaded libhpddm_petsc");
   PetscCall(PetscNew(&data));
-  pc->data                = data;
-  data->Neumann           = PETSC_BOOL3_UNKNOWN;
-  pc->ops->reset          = PCReset_HPDDM;
-  pc->ops->destroy        = PCDestroy_HPDDM;
-  pc->ops->setfromoptions = PCSetFromOptions_HPDDM;
-  pc->ops->setup          = PCSetUp_HPDDM;
-  pc->ops->apply          = PCApply_HPDDM;
-  pc->ops->matapply       = PCMatApply_HPDDM;
-  pc->ops->view           = PCView_HPDDM;
-  pc->ops->presolve       = PCPreSolve_HPDDM;
+  pc->data                     = data;
+  data->Neumann                = PETSC_BOOL3_UNKNOWN;
+  pc->ops->reset               = PCReset_HPDDM;
+  pc->ops->destroy             = PCDestroy_HPDDM;
+  pc->ops->setfromoptions      = PCSetFromOptions_HPDDM;
+  pc->ops->setup               = PCSetUp_HPDDM;
+  pc->ops->apply               = PCApply_HPDDM;
+  pc->ops->matapply            = PCMatApply_HPDDM;
+  pc->ops->view                = PCView_HPDDM;
+  pc->ops->setuponblocks       = PCSetUpOnBlocks_HPDDM;
+  pc->ops->issymmetric         = PCIsSymmetric_HPDDM;
+  pc->ops->setusesymmetricform = PCSetUseSymmetricForm_HPDDM;
+  pc->ops->presolve            = PCPreSolve_HPDDM;
 
   PetscCall(PetscObjectComposeFunction((PetscObject)pc, "PCHPDDMSetAuxiliaryMat_C", PCHPDDMSetAuxiliaryMat_HPDDM));
   PetscCall(PetscObjectComposeFunction((PetscObject)pc, "PCHPDDMHasNeumannMat_C", PCHPDDMHasNeumannMat_HPDDM));

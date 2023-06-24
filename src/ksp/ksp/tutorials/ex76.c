@@ -141,6 +141,12 @@ int main(int argc, char **args)
   PetscCall(MatCreateVecs(A, NULL, &b));
   PetscCall(VecSet(b, 1.0));
   PetscCall(KSPSolve(ksp, b, b));
+  PetscCall(PetscObjectTypeCompare((PetscObject)ksp, KSPCG, &flg));
+  if (flg) {
+    PetscBool3 sym;
+    PetscCall(PCIsSymmetric(pc, &sym));
+    PetscCheck(PetscBool3ToBool(sym) == PETSC_TRUE, PetscObjectComm((PetscObject)pc), PETSC_ERR_PLIB, "PC is not symmetric even though PCSetUseSymmetricForm() has been called by a KSP of type %s", ((PetscObject)ksp)->type_name);
+  }
   PetscCall(VecGetLocalSize(b, &m));
   PetscCall(VecDestroy(&b));
   if (N > 1) {
@@ -270,6 +276,11 @@ int main(int argc, char **args)
       test:
         suffix: geneo
         args: -pc_hpddm_coarse_p {{1 2}shared output} -pc_hpddm_levels_1_st_pc_type cholesky -pc_hpddm_levels_1_eps_nev {{5 15}separate output} -mat_type {{aij baij sbaij}shared output}
+      test:
+        suffix: geneo_symmetric
+        output_file: output/ex76_geneo_pc_hpddm_levels_1_eps_nev-15.out
+        filter: sed -e "s/Linear solve converged due to CONVERGED_RTOL iterations 12/Linear solve converged due to CONVERGED_RTOL iterations 11/g"
+        args: -pc_hpddm_coarse_p 1 -pc_hpddm_levels_1_st_pc_type cholesky -pc_hpddm_levels_1_eps_nev 10 -mat_type aij -pc_hpddm_define_subdomains -ksp_type cg
       test:
         suffix: geneo_block_splitting
         output_file: output/ex76_geneo_pc_hpddm_levels_1_eps_nev-15.out
