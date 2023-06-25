@@ -1555,7 +1555,7 @@ static PetscErrorCode DestroyExtent_Private(void *extent)
 
   All point which do not attain the vertex lower or upper bound in any dimension are owned, the rest are leaves owned by another process and present in the SF.
 */
-static PetscErrorCode DMPlexCreateHypercubicMesh_Internal(DM dm, PetscInt dim, const PetscReal lower[], const PetscReal upper[], const PetscInt edges[], const DMBoundaryType bd[])
+static PetscErrorCode DMPlexCreateHypercubicMesh_Internal(DM dm, PetscInt dim, const PetscReal lower[], const PetscReal upper[], const PetscInt edges[], PetscInt overlap, const DMBoundaryType bd[])
 {
   const PetscInt debug = ((DM_Plex *)dm->data)->printAdj;
   PetscSF        sf;
@@ -1568,8 +1568,15 @@ static PetscErrorCode DMPlexCreateHypercubicMesh_Internal(DM dm, PetscInt dim, c
   PetscInt       numVertices = 1;
   PetscSFNode   *remotes;
   PetscScalar   *coords;
-  PetscInt      *procs, *lrank, *rrank, *vtmp, *supp, cone[2], *leaves;
-  PetscInt      *ledges, *vertices, *rvertices, *vert, *rvert, *vstart;
+  PetscInt      *procs;     // The number of processes along each dimension
+  PetscInt      *lrank;     // Rank in each dimension, lrank[d] \in [0, procs[d])
+  PetscInt      *ledges;    // The number of edges along each dimension for this process
+  PetscInt      *vstart;    // The first vertex along each dimension on this processes
+  PetscInt      *vertices;  // The number of vertices along each dimension on this process
+  PetscInt      *rvert;     // The global (not local) vertex number along each dimension
+  PetscInt      *rrank;     // The rank along each dimension for the process owning rvert[]
+  PetscInt      *rvertices; // The number of vertices along each dimension for the process rrank[]
+  PetscInt      *vert, *vtmp, *supp, cone[2], *leaves;
   PetscInt       cell = 0, coordSize, Nl = 0, Nl2 = 0;
   PetscMPIInt    rank, size;
   MPI_Comm       comm;
@@ -1590,6 +1597,8 @@ static PetscErrorCode DMPlexCreateHypercubicMesh_Internal(DM dm, PetscInt dim, c
     PetscCall(DMGetLabel(dm, "periodic_cut", &cutLabel));
   }
   for (PetscInt d = 0; d < dim; ++d) PetscCheck(bd[d] == DM_BOUNDARY_PERIODIC, comm, PETSC_ERR_SUP, "Hypercubic mesh must be periodic now");
+  overlap = overlap == PETSC_DETERMINE ? 1 : overlap;
+  PetscCheck(overlap > 1, comm, PETSC_ERR_SUP, "Overlap %" PetscInt_FMT " must be greater than 0", overlap);
   if (size > 1) {
     PetscInt Npr = 1;
 
@@ -1609,7 +1618,7 @@ static PetscErrorCode DMPlexCreateHypercubicMesh_Internal(DM dm, PetscInt dim, c
       for (PetscInt r = 0; r < lrank[d]; ++r) {
         vstart[d] += edges[d] / procs[d] + (edges[d] % procs[d] > r ? 1 : 0);
       }
-      vstart[d] -= 1; // For halo
+      vstart[d] -= overlap; // For halo
     }
   } else {
     for (PetscInt d = 0; d < dim; ++d) {
@@ -1619,7 +1628,7 @@ static PetscErrorCode DMPlexCreateHypercubicMesh_Internal(DM dm, PetscInt dim, c
   }
   // Calculate local patch size
   for (PetscInt d = 0; d < dim; ++d) {
-    vertices[d] = ledges[d] + (procs[d] > 1 ? 2 : 0);
+    vertices[d] = ledges[d] + (procs[d] > 1 ? 2 * overlap : 0);
     numVertices *= vertices[d];
   }
   numCells = numVertices * dim;
@@ -1641,6 +1650,7 @@ static PetscErrorCode DMPlexCreateHypercubicMesh_Internal(DM dm, PetscInt dim, c
       PetscCall(PetscSynchronizedPrintf(comm, "\n"));
     }
     PetscCall(DMPlexSetCellType(dm, vertex, DM_POLYTOPE_POINT));
+    // Define edge cones
     for (PetscInt d = 0; d < dim; ++d) {
       for (PetscInt e = 0; e < dim; ++e) vtmp[e] = vert[e];
       vtmp[d] = (vert[d] + 1) % vertices[d];
@@ -1655,10 +1665,11 @@ static PetscErrorCode DMPlexCreateHypercubicMesh_Internal(DM dm, PetscInt dim, c
       PetscCall(DMPlexSetCellType(dm, cell, DM_POLYTOPE_SEGMENT));
       if (debug) PetscCall(PetscSynchronizedPrintf(comm, "  Edge %" PetscInt_FMT " (%" PetscInt_FMT " %" PetscInt_FMT ")\n", cell, cone[0], cone[1]));
       ++cell;
-      // Shared vertices are any in the first layer, and those at the top index in the second layer
-      if (vert[d] == 0 || vert[d] == vertices[d] - 1) leaf = PETSC_TRUE;
+      // Shared vertices are any in the first or last overlap layers
+      if (vert[d] < overlap || vert[d] >= vertices[d] - overlap) leaf = PETSC_TRUE;
     }
     if (size > 1 && leaf) ++Nl;
+    // Define vertex supports
     for (PetscInt d = 0; d < dim; ++d) {
       for (PetscInt e = 0; e < dim; ++e) vtmp[e] = vert[e];
       vtmp[d]   = (vert[d] + vertices[d] - 1) % vertices[d];
@@ -1698,7 +1709,7 @@ static PetscErrorCode DMPlexCreateHypercubicMesh_Internal(DM dm, PetscInt dim, c
 
     for (PetscInt d = 0; d < dim; ++d) {
       coords[vertex * dim + d] = lower[d] + ((upper[d] - lower[d]) / edges[d]) * (vert[d] + vstart[d]);
-      if (vert[d] == 0 || vert[d] == vertices[d] - 1) leaf = PETSC_TRUE;
+      if (vert[d] < overlap || vert[d] >= vertices[d] - overlap) leaf = PETSC_TRUE;
     }
     if (size > 1 && leaf) {
       PetscInt rnumCells = 1;
@@ -1709,18 +1720,18 @@ static PetscErrorCode DMPlexCreateHypercubicMesh_Internal(DM dm, PetscInt dim, c
       remotes[Nl2].rank  = TupleToIndex_Private(dim, procs, rrank);
       RanksToSizes_Private(dim, edges, procs, rrank, rvertices);
       for (PetscInt d = 0; d < dim; ++d) {
-        rvertices[d] += 2; // Add halo
+        rvertices[d] += 2 * overlap; // Add halo
         rnumCells    *= rvertices[d];
       }
       rnumCells *= dim;
       for (PetscInt d = 0; d < dim; ++d) {
         const PetscInt diff = rrank[d] - lrank[d];
 
-        if (!diff) rvert[d] = vert[d];
-        else if (rvert[d] == -1) rvert[d] = rvertices[d] - 2;
-        else if (rvert[d] == edges[d]) rvert[d] = 1;
-        else if (diff == -1) rvert[d] = rvertices[d] - 2;
-        else if (diff == 1) rvert[d] = 1;
+        if (!diff) rvert[d] = vert[d]; // Vertex is local
+        else if (rvert[d] < 0) rvert[d] = rvertices[d] - 1 + rvert[d]; // Wrap around at the bottom
+        else if (rvert[d] >= edges[d]) rvert[d] = rvert[d] - edges[d] + 1; // Wrap around at the top
+        else if (diff == -1) rvert[d] = rvertices[d] - 1 + (vert[d] - overlap);
+        else if (diff == 1) rvert[d] = (vertices[d] - vert[d] - 1) + overlap;
         else SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Process distance %" PetscInt_FMT " in direction %" PetscInt_FMT " should not be possible", diff, d);
       }
       remotes[Nl2].index = TupleToIndex_Private(dim, rvertices, rvert) + rnumCells;
@@ -1778,11 +1789,12 @@ static PetscErrorCode DMPlexCreateHypercubicMesh_Internal(DM dm, PetscInt dim, c
   Collective
 
   Input Parameters:
-+ comm        - The communicator for the DM object
-. dim         - The spatial dimension
-. edges       - Number of edges per dimension, or `NULL` for (1,) in 1D and (2, 2) in 2D and (1, 1, 1) in 3D
-. lower       - The lower left corner, or `NULL` for (0, 0, 0)
-- upper       - The upper right corner, or `NULL` for (1, 1, 1)
++ comm    - The communicator for the DM object
+. dim     - The spatial dimension
+. edges   - Number of edges per dimension, or `NULL` for (1,) in 1D and (2, 2) in 2D and (1, 1, 1) in 3D
+. lower   - The lower left corner, or `NULL` for (0, 0, 0)
+. upper   - The upper right corner, or `NULL` for (1, 1, 1)
+- overlap - The number of vertices in each direction to include in the overlap (default is 1)
 
   Output Parameter:
 . dm  - The DM object
@@ -1817,7 +1829,7 @@ static PetscErrorCode DMPlexCreateHypercubicMesh_Internal(DM dm, PetscInt dim, c
 
 .seealso: `DMSetFromOptions()`, `DMPlexCreateFromFile()`, `DMPlexCreateHexCylinderMesh()`, `DMSetType()`, `DMCreate()`
 @*/
-PetscErrorCode DMPlexCreateHypercubicMesh(MPI_Comm comm, PetscInt dim, const PetscInt edges[], const PetscReal lower[], const PetscReal upper[], DM *dm)
+PetscErrorCode DMPlexCreateHypercubicMesh(MPI_Comm comm, PetscInt dim, const PetscInt edges[], const PetscReal lower[], const PetscReal upper[], PetscInt overlap, DM *dm)
 {
   PetscInt       *edg;
   PetscReal      *low, *upp;
@@ -1834,7 +1846,7 @@ PetscErrorCode DMPlexCreateHypercubicMesh(MPI_Comm comm, PetscInt dim, const Pet
     upp[d] = upper ? upper[d] : 1.;
     bdt[d] = DM_BOUNDARY_PERIODIC;
   }
-  PetscCall(DMPlexCreateHypercubicMesh_Internal(*dm, dim, low, upp, edg, bdt));
+  PetscCall(DMPlexCreateHypercubicMesh_Internal(*dm, dim, low, upp, edg, overlap, bdt));
   PetscCall(PetscFree4(edg, low, upp, bdt));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -4150,7 +4162,7 @@ static PetscErrorCode DMPlexCreateFromOptions_Internal(PetscOptionItems *PetscOp
       PetscCall(DMPlexReplace_Internal(dm, &dmnew));
     } break;
     case DM_SHAPE_HYPERCUBIC: {
-      PetscInt       *edges;
+      PetscInt       *edges, overlap = 1;
       PetscReal      *lower, *upper;
       DMBoundaryType *bdt;
       PetscInt        n, d;
@@ -4174,7 +4186,8 @@ static PetscErrorCode DMPlexCreateFromOptions_Internal(PetscOptionItems *PetscOp
       n = dim;
       PetscCall(PetscOptionsEnumArray("-dm_plex_box_bd", "Boundary type for each dimension", "", DMBoundaryTypes, (PetscEnum *)bdt, &n, &flg));
       PetscCheck(!flg || n == dim, comm, PETSC_ERR_ARG_SIZ, "Box boundary types had %" PetscInt_FMT " values, should have been %" PetscInt_FMT, n, dim);
-      PetscCall(DMPlexCreateHypercubicMesh_Internal(dm, dim, lower, upper, edges, bdt));
+      PetscCall(PetscOptionsBoundedInt("-dm_distribute_overlap", "The size of the overlap halo", "DMPlexDistribute", overlap, &overlap, NULL, 0));
+      PetscCall(DMPlexCreateHypercubicMesh_Internal(dm, dim, lower, upper, edges, overlap, bdt));
       PetscCall(PetscFree4(edges, lower, upper, bdt));
     } break;
     default:
