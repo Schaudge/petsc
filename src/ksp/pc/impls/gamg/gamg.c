@@ -676,7 +676,22 @@ PetscErrorCode PCSetUp_GAMG(PC pc)
     if (N <= pc_gamg->coarse_eq_limit) is_last = PETSC_TRUE;
     if (level1 == pc_gamg->Nlevels - 1) is_last = PETSC_TRUE;
     PetscCall(PetscLogEventBegin(petsc_gamg_setup_events[GAMG_LEVEL], 0, 0, 0, 0));
-    PetscCall(pc_gamg->ops->createlevel(pc, Aarr[level], bs, &Parr[level1], &Aarr[level1], &nactivepe, NULL, is_last));
+    /* BAIJ does not suppprt PtAP nor AP */
+    Mat AmatAIJ = NULL, matbaij = NULL, Amat = Aarr[level];
+    if (level == 0) {
+      PetscBool   isBaij;
+      PetscCall(PetscObjectBaseTypeCompareAny((PetscObject)Amat, &isBaij, MATMPIBAIJ, MATSEQBAIJ, ""));
+      if (isBaij) {
+        matbaij = Amat;
+        PetscCall(MatConvert(Amat, MATAIJ, MAT_INITIAL_MATRIX, &AmatAIJ));
+        Amat = AmatAIJ;
+      }
+    }
+    PetscCall(pc_gamg->ops->createlevel(pc, Amat, bs, &Parr[level1], &Aarr[level1], &nactivepe, NULL, is_last));
+    if (AmatAIJ) {
+      PetscCall(MatDestroy(&AmatAIJ));
+      Amat = matbaij;
+    }
     PetscCall(PetscLogEventEnd(petsc_gamg_setup_events[GAMG_LEVEL], 0, 0, 0, 0));
 
     PetscCall(MatGetSize(Aarr[level1], &M, &N)); /* M is loop test variables */

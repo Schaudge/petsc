@@ -272,8 +272,9 @@ PETSC_INTERN PetscErrorCode MatProductCreate_Private(Mat, Mat, Mat, Mat);
    does not rely on the function pointers; used by cuSPARSE/hipSPARSE and KOKKOS-KERNELS */
 PETSC_INTERN PetscErrorCode MatProductSymbolic_ABC_Basic(Mat);
 
-/* CreateGraph is common to AIJ seq and mpi */
+/* CreateGraph is common to [B]AIJ seq and mpi */
 PETSC_INTERN PetscErrorCode MatCreateGraph_Simple_AIJ(Mat, PetscBool, PetscBool, PetscReal, Mat *);
+PETSC_INTERN PetscErrorCode MatCreateGraph_Simple_BAIJ(Mat, PetscBool, PetscBool, PetscReal, Mat *);
 
 #if defined(PETSC_CLANG_STATIC_ANALYZER)
 template <typename Tm>

@@ -1,6 +1,8 @@
 #include <petsc/private/matimpl.h> /*I "petscmat.h" I*/
 #include <../src/mat/impls/aij/seq/aij.h>
 #include <../src/mat/impls/aij/mpi/mpiaij.h>
+#include <../src/mat/impls/baij/seq/baij.h>
+#include <../src/mat/impls/baij/mpi/mpibaij.h>
 #include <petscsf.h>
 
 #define MIS_NOT_DONE       -2
@@ -45,60 +47,95 @@ static PetscErrorCode PetscCoarsenDataView_private(PetscCoarsenData *agg_lists, 
 */
 static PetscErrorCode MatCoarsenApply_MISK_private(IS perm, const PetscInt misk, Mat Gmat, PetscCoarsenData **a_locals_llist)
 {
-  PetscBool   isMPI;
+  PetscBool   isMPI,isBaij;
   MPI_Comm    comm;
   PetscMPIInt rank, size;
   Mat         cMat, Prols[5], Rtot;
-  PetscScalar one = 1;
+  const PetscScalar one = 1;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(perm, IS_CLASSID, 1);
   PetscValidHeaderSpecific(Gmat, MAT_CLASSID, 3);
   PetscValidPointer(a_locals_llist, 4);
   PetscCheck(misk < 5 && misk > 0, PETSC_COMM_SELF, PETSC_ERR_SUP, "too many/few levels: %d", (int)misk);
-  PetscCall(PetscObjectBaseTypeCompare((PetscObject)Gmat, MATMPIAIJ, &isMPI));
+  PetscCall(PetscObjectBaseTypeCompareAny((PetscObject)Gmat, &isMPI, MATMPIAIJ, MATMPIBAIJ, ""));
+  PetscCall(PetscObjectBaseTypeCompareAny((PetscObject)Gmat, &isBaij, MATMPIBAIJ, MATSEQBAIJ, ""));
   PetscCall(PetscObjectGetComm((PetscObject)Gmat, &comm));
   PetscCallMPI(MPI_Comm_rank(comm, &rank));
   PetscCallMPI(MPI_Comm_size(comm, &size));
-  PetscCall(PetscInfo(Gmat, "misk %d\n", (int)misk));
+  PetscCall(PetscInfo(Gmat, "MIS-%d %s %s \n", (int)misk, isBaij ? "BAIJ" : "AIJ" , isMPI ? "MPI" : "serial"));
   /* make a copy of the graph, this gets destroyed in iterates */
   if (misk > 1) PetscCall(MatDuplicate(Gmat, MAT_COPY_VALUES, &cMat));
   else cMat = Gmat;
+  /* MIS iterative algo */
   for (PetscInt iterIdx = 0; iterIdx < misk; iterIdx++) {
-    Mat_SeqAIJ       *matA, *matB = NULL;
-    Mat_MPIAIJ       *mpimat = NULL;
     const PetscInt   *perm_ix;
     const PetscInt    nloc = cMat->rmap->n;
     PetscCoarsenData *agg_lists;
     PetscInt         *cpcol_gid = NULL, *cpcol_state, *lid_cprowID, *lid_state, *lid_parent_gid = NULL;
-    PetscInt          num_fine_ghosts, kk, n, ix, j, *idx, *ai, Iend, my0, nremoved, gid, lid, cpid, lidj, sgid, t1, t2, slid, nDone, nselected = 0, state;
+    PetscInt          num_fine_ghosts, kk, n, ix, j, Iend, my0, nremoved, gid, lid, cpid, lidj, sgid, t1, t2, slid, nDone, nselected = 0, state, comp_n_row;
+    const PetscInt *comprow_i_B=NULL,*comprow_rindex_B=NULL,*ai_A,*aj_A,*aj_B=NULL,*garray=NULL,*idx;
     PetscBool        *lid_removed, isOK;
     PetscLayout       layout;
     PetscSF           sf;
+    Vec mpilvec = NULL;
+    /* get raw graph data, cmat changes in loop */
+    if (isBaij) {
+      Mat_SeqBAIJ *matB = NULL, *matA;
+      if (isMPI) {
+        Mat_MPIBAIJ *mpimat  = (Mat_MPIBAIJ *)cMat->data;
+        mpilvec = mpimat->lvec;
+        garray = mpimat->garray;
+        matB = (Mat_SeqBAIJ *)mpimat->B->data;
+        matA = (Mat_SeqBAIJ *)mpimat->A->data;
+        aj_B  = matB->j;
 
-    if (isMPI) {
-      mpimat = (Mat_MPIAIJ *)cMat->data;
-      matA   = (Mat_SeqAIJ *)mpimat->A->data;
-      matB   = (Mat_SeqAIJ *)mpimat->B->data;
-      /* force compressed storage of B */
-      PetscCall(MatCheckCompressedRow(mpimat->B, matB->nonzerorowcnt, &matB->compressedrow, matB->i, cMat->rmap->n, -1.0));
+        /* force compressed storage of B */
+        PetscCall(MatCheckCompressedRow(mpimat->B, matB->nonzerorowcnt, &matB->compressedrow, matB->i, cMat->rmap->n, -1.0));
+        comprow_i_B  = matB->compressedrow.i; // ai  = matB->compressedrow.i;
+        comp_n_row = matB->compressedrow.nrows;
+        comprow_rindex_B = matB->compressedrow.rindex;
+      } else {
+        matA = (Mat_SeqBAIJ *)cMat->data;
+      }
+      ai_A  = matA->i;
+      aj_A  = matA->j;
     } else {
+      Mat_SeqAIJ *matB = NULL, *matA;
+      if (isMPI) {
+        Mat_MPIAIJ *mpimat  = (Mat_MPIAIJ *)cMat->data;
+        mpilvec = mpimat->lvec;
+        garray = mpimat->garray;
+        matB = (Mat_SeqAIJ *)mpimat->B->data;
+        matA = (Mat_SeqAIJ *)mpimat->A->data;
+        aj_B  = matB->j;
+        /* force compressed storage of B */
+        PetscCall(MatCheckCompressedRow(mpimat->B, matB->nonzerorowcnt, &matB->compressedrow, matB->i, cMat->rmap->n, -1.0));
+        comprow_i_B = matB->compressedrow.i;
+        comp_n_row = matB->compressedrow.nrows;
+        comprow_rindex_B = matB->compressedrow.rindex;
+      } else {
+        matA = (Mat_SeqAIJ *)cMat->data;
+      }
+      ai_A  = matA->i;
+      aj_A  = matA->j;
+    }
+    if (!isMPI) {
       PetscBool isAIJ;
-      PetscCall(PetscObjectBaseTypeCompare((PetscObject)cMat, MATSEQAIJ, &isAIJ));
-      PetscCheck(isAIJ, PETSC_COMM_SELF, PETSC_ERR_USER, "Require AIJ matrix.");
-      matA = (Mat_SeqAIJ *)cMat->data;
+      PetscCall(PetscObjectBaseTypeCompareAny((PetscObject)cMat, &isAIJ, MATSEQAIJ, MATSEQBAIJ, ""));
+      PetscCheck(isAIJ, PETSC_COMM_SELF, PETSC_ERR_USER, "Require AIJ or BAIJ matrix.");
     }
     PetscCall(MatGetOwnershipRange(cMat, &my0, &Iend));
-    if (mpimat) {
+    if (isMPI) {
       PetscInt *lid_gid;
       PetscCall(PetscMalloc1(nloc, &lid_gid)); /* explicit array needed */
       for (kk = 0, gid = my0; kk < nloc; kk++, gid++) lid_gid[kk] = gid;
-      PetscCall(VecGetLocalSize(mpimat->lvec, &num_fine_ghosts));
+      PetscCall(VecGetLocalSize(mpilvec, &num_fine_ghosts));
       PetscCall(PetscMalloc1(num_fine_ghosts, &cpcol_gid));
       PetscCall(PetscMalloc1(num_fine_ghosts, &cpcol_state));
       PetscCall(PetscSFCreate(PetscObjectComm((PetscObject)cMat), &sf));
       PetscCall(MatGetLayouts(cMat, &layout, NULL));
-      PetscCall(PetscSFSetGraphLayout(sf, layout, num_fine_ghosts, NULL, PETSC_COPY_VALUES, mpimat->garray));
+      PetscCall(PetscSFSetGraphLayout(sf, layout, num_fine_ghosts, NULL, PETSC_COPY_VALUES, garray));
       PetscCall(PetscSFBcastBegin(sf, MPIU_INT, lid_gid, cpcol_gid, MPI_REPLACE));
       PetscCall(PetscSFBcastEnd(sf, MPIU_INT, lid_gid, cpcol_gid, MPI_REPLACE));
       for (kk = 0; kk < num_fine_ghosts; kk++) cpcol_state[kk] = MIS_NOT_DONE;
@@ -120,9 +157,9 @@ static PetscErrorCode MatCoarsenApply_MISK_private(IS perm, const PetscInt misk,
       lid_state[kk]      = MIS_NOT_DONE;
     }
     /* set index into cmpressed row 'lid_cprowID' */
-    if (matB) {
-      for (ix = 0; ix < matB->compressedrow.nrows; ix++) {
-        lid              = matB->compressedrow.rindex[ix];
+    if (isMPI) {
+      for (ix = 0; ix < comp_n_row; ix++) {
+        lid              = comprow_rindex_B[ix];
         lid_cprowID[lid] = ix;
       }
     }
@@ -141,9 +178,8 @@ static PetscErrorCode MatCoarsenApply_MISK_private(IS perm, const PetscInt misk,
           isOK = PETSC_TRUE;
           /* parallel test */
           if ((ix = lid_cprowID[lid]) != -1) { /* if I have any ghost neighbors */
-            ai  = matB->compressedrow.i;
-            n   = ai[ix + 1] - ai[ix];
-            idx = matB->j + ai[ix];
+            n   = comprow_i_B[ix + 1] - comprow_i_B[ix];
+            idx = aj_B + comprow_i_B[ix];
             for (j = 0; j < n; j++) {
               cpid = idx[j]; /* compressed row ID in B mat */
               gid  = cpcol_gid[cpid];
@@ -156,12 +192,12 @@ static PetscErrorCode MatCoarsenApply_MISK_private(IS perm, const PetscInt misk,
           if (isOK) { /* select or remove this vertex if it is a true singleton like a BC */
             nDone++;
             /* check for singleton */
-            ai = matA->i;
-            n  = ai[lid + 1] - ai[lid];
+            //ai_A = ai_A;
+            n  = ai_A[lid + 1] - ai_A[lid];
             if (n < 2) {
               /* if I have any ghost adj then not a singleton */
               ix = lid_cprowID[lid];
-              if (ix == -1 || !(matB->compressedrow.i[ix + 1] - matB->compressedrow.i[ix])) {
+              if (ix == -1 || !(comprow_i_B[ix + 1] - comprow_i_B[ix])) {
                 nremoved++;
                 lid_removed[lid] = PETSC_TRUE;
                 /* should select this because it is technically in the MIS but lets not */
@@ -173,7 +209,7 @@ static PetscErrorCode MatCoarsenApply_MISK_private(IS perm, const PetscInt misk,
             nselected++;
             PetscCall(PetscCDAppendID(agg_lists, lid, lid + my0));
             /* delete local adj */
-            idx = matA->j + ai[lid];
+            idx = aj_A + ai_A[lid];
             for (j = 0; j < n; j++) {
               lidj = idx[j];
               if (lid_state[lidj] == MIS_NOT_DONE) {
@@ -185,20 +221,19 @@ static PetscErrorCode MatCoarsenApply_MISK_private(IS perm, const PetscInt misk,
           } /* selected */
         }   /* not done vertex */
       }     /* vertex loop */
-
       /* update ghost states and count todos */
-      if (mpimat) {
+      if (isMPI) {
         /* scatter states, check for done */
         PetscCall(PetscSFBcastBegin(sf, MPIU_INT, lid_state, cpcol_state, MPI_REPLACE));
         PetscCall(PetscSFBcastEnd(sf, MPIU_INT, lid_state, cpcol_state, MPI_REPLACE));
-        ai = matB->compressedrow.i;
-        for (ix = 0; ix < matB->compressedrow.nrows; ix++) {
-          lid   = matB->compressedrow.rindex[ix]; /* local boundary node */
+        //ai = matB->compressedrow.i;
+        for (ix = 0; ix < comp_n_row; ix++) {
+          lid   = comprow_rindex_B[ix]; /* local boundary node */
           state = lid_state[lid];
           if (state == MIS_NOT_DONE) {
             /* look at ghosts */
-            n   = ai[ix + 1] - ai[ix];
-            idx = matB->j + ai[ix];
+            n   = comprow_i_B[ix + 1] - comprow_i_B[ix];
+            idx = aj_B + comprow_i_B[ix];
             for (j = 0; j < n; j++) {
               cpid = idx[j];                            /* compressed row ID in B mat */
               if (MIS_IS_SELECTED(cpcol_state[cpid])) { /* lid is now deleted by ghost */
@@ -218,10 +253,10 @@ static PetscErrorCode MatCoarsenApply_MISK_private(IS perm, const PetscInt misk,
       } else break; /* no mpi - all done */
     }               /* outer parallel MIS loop */
     if (!iterIdx) PetscCall(ISRestoreIndices(perm, &perm_ix));
-    PetscCall(PetscInfo(Gmat, "\t removed %" PetscInt_FMT " of %" PetscInt_FMT " vertices.  %" PetscInt_FMT " selected.\n", nremoved, nloc, nselected));
+    PetscCall(PetscInfo(Gmat, "\t singletons removed %" PetscInt_FMT " of %" PetscInt_FMT " vertices.  %" PetscInt_FMT " selected.  %" PetscInt_FMT " done.\n", nremoved, nloc, nselected, nDone));
 
     /* tell adj who my lid_parent_gid vertices belong to - fill in agg_lists selected ghost lists */
-    if (matB) {
+    if (isMPI) {
       PetscInt *cpcol_sel_gid, *icpcol_gid;
       /* need to copy this to free buffer -- should do this globally */
       PetscCall(PetscMalloc1(num_fine_ghosts, &cpcol_sel_gid));

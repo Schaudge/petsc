@@ -2565,7 +2565,7 @@ static struct _MatOps MatOps_Values = {MatSetValues_MPIBAIJ,
                                        NULL,
                                        NULL,
                                        NULL,
-                                       NULL,
+                                       MatCreateGraph_Simple_BAIJ,
                                        NULL,
                                        /*150*/ NULL,
                                        NULL};
@@ -3647,5 +3647,162 @@ PetscErrorCode MatCreateMPIMatConcatenateSeqMat_MPIBAIJ(MPI_Comm comm, Mat inmat
   }
   PetscCall(MatAssemblyBegin(*outmat, MAT_FINAL_ASSEMBLY));
   PetscCall(MatAssemblyEnd(*outmat, MAT_FINAL_ASSEMBLY));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*
+ MatCreateGraph_Simple_BAIJ - create simple scalar matrix (graph) from blocked matrix
+
+ Input Parameter:
+ . Amat - matrix
+ - symmetrize - make the result symmetric
+ + scale - scale with diagonal
+ . filter - filter values <= arg (< 0 for no filter, required for now)
+
+ Output Parameter:
+ . a_Gmat - output scalar graph >= 0
+
+*/
+PETSC_INTERN PetscErrorCode MatCreateGraph_Simple_BAIJ(Mat Amat, PetscBool symmetrize, PetscBool scale, PetscReal filter, Mat *a_Gmat)
+{
+  Mat_MPIBAIJ       *baij = (Mat_MPIBAIJ *)Amat->data;
+  PetscBool          roworiented = baij->roworiented;
+  PetscInt  my0, Istart, Iend, nloc, *garray = baij->garray, bs, bs2, midx; // bs^2 (no rectangular blocking)
+  MPI_Comm  comm;
+  Mat       Gmat;
+  PetscBool ismpi, isbaij;
+  Mat       a, b, c;
+  MatType   jtype;
+
+  PetscFunctionBegin;
+  PetscCall(PetscObjectGetComm((PetscObject)Amat, &comm));
+  PetscCall(MatGetOwnershipRange(Amat, &Istart, &Iend));
+  PetscCall(MatGetBlockSize(Amat, &bs));
+  bs2 = bs*bs;
+  nloc = (Iend - Istart) / bs; // # block rows
+  my0 = Istart/bs;
+
+  PetscCall(PetscObjectBaseTypeCompareAny((PetscObject)Amat, &isbaij, MATMPIBAIJ, MATSEQBAIJ, ""));
+  PetscCall(PetscObjectBaseTypeCompareAny((PetscObject)Amat, &ismpi, MATMPIBAIJ, MATMPIAIJ,""));
+  PetscCheck(filter <= 0, comm, PETSC_ERR_USER, "Filtering not yet supported");
+  //PetscCheck(roworiented, comm, PETSC_ERR_USER, "not roworiented not supported");
+
+  if (bs > 1) {
+    PetscCall(MatGetType(Amat, &jtype));
+    PetscCall(MatCreate(comm, &Gmat)); // could make AIJ and allow fuller AIJ methods on coarse grids
+    PetscCall(MatSetType(Gmat, jtype));
+    PetscCall(MatSetSizes(Gmat, nloc, nloc, PETSC_DETERMINE, PETSC_DETERMINE));
+    PetscCall(MatSetBlockSizes(Gmat, 1, 1));
+    /* PetscCheck(isbaij || baij->garray, comm, PETSC_ERR_USER, "reality check????"); */
+    /* if (isbaij || baij->garray) { // always true? */
+      PetscInt  *d_nnz, *o_nnz, *AJ;
+      MatScalar *AA;
+      PetscInt  nmax = 0;
+      if (!ismpi) {
+        a = Amat;
+        b = NULL;
+      } else {
+        Mat_MPIBAIJ *d = (Mat_MPIBAIJ *)Amat->data;
+        a             = d->A;
+        b             = d->B;
+      }
+      PetscCall(PetscInfo(Amat, "New bs %d > 1 Graph. nloc=%" PetscInt_FMT " ro=%d bs2=%d\n", bs, nloc, roworiented,bs2));
+      PetscCall(PetscMalloc2(nloc, &d_nnz, ismpi ? nloc : 0, &o_nnz));
+      for (c = a, midx = 0; c && midx < 2; c = b, midx++) {
+        PetscInt  *nnz = (c == a) ? d_nnz : o_nnz;
+        Mat_SeqBAIJ *aseq = (Mat_SeqBAIJ *)c->data;
+        PetscInt *ai = aseq->i;
+        for (PetscInt brow = 0; brow < nloc; brow++) { // block rows
+          PetscInt ncols = ai[brow + 1] - ai[brow];
+          nnz[brow] = ncols;
+          if (ncols > nmax) nmax = ncols;
+        }
+      }
+      PetscCall(MatSeqBAIJSetPreallocation(Gmat, 1, 0, d_nnz));
+      PetscCall(MatMPIBAIJSetPreallocation(Gmat, 1, 0, d_nnz, 0, o_nnz));
+      PetscCall(PetscFree2(d_nnz, o_nnz));
+      PetscCall(PetscMalloc2(nmax, &AA, nmax, &AJ));
+      // do blocks A & B
+      for (c = a, midx = 0; c && midx < 2; c = b, midx++) {
+        Mat_SeqBAIJ *aseq = (Mat_SeqBAIJ *)c->data;
+        PetscInt *ai = aseq->i, k, idx, grow;
+        const MatScalar *aa = aseq->a;
+        for (PetscInt brow = 0; brow < nloc; brow++) { // block rows
+          const PetscInt n = ai[brow + 1] - ai[brow];
+          const PetscInt *aj = aseq->j + ai[brow];
+          for (k = 0, idx = -1; k < n; k++, aa += bs2) {        // block columns
+            MatScalar val = 0;
+            if (c == a) { // diag
+              for (int i = 0; i < bs2; i++) val += PetscAbs(PetscRealPart(aa[i])); // a sort of norm
+              if (filter < 0 || val != 0) AJ[++idx] = my0 + aj[k]; // copy diag idxs (global)
+            } else {
+              for (int i = 0; i < bs2; i++) val += PetscAbs(PetscRealPart(aa[i]));
+              if (filter < 0 || val != 0) AJ[++idx] = garray[aj[k]]; // garray is not blocked ????
+            }
+            if (filter < 0 || val != 0) AA[idx] = val;
+          }
+          grow = Istart / bs + brow;
+          PetscCall(MatSetValuesBlocked(Gmat, 1, &grow, ++idx, AJ, AA, INSERT_VALUES));
+        }
+      }
+      PetscCall(MatAssemblyBegin(Gmat, MAT_FINAL_ASSEMBLY));
+      PetscCall(MatAssemblyEnd(Gmat, MAT_FINAL_ASSEMBLY));
+      PetscCall(PetscFree2(AA, AJ));
+      //}
+  } else {
+    if (symmetrize || filter >= 0 || scale) PetscCall(MatDuplicate(Amat, MAT_COPY_VALUES, &Gmat));
+    else {
+      Gmat = Amat;
+      PetscCall(PetscObjectReference((PetscObject)Gmat));
+    }
+    if (!ismpi) {
+      a = Gmat;
+      b = NULL;
+    } else {
+      Mat_MPIBAIJ *d = (Mat_MPIBAIJ *)Gmat->data;
+      a             = d->A;
+      b             = d->B;
+    }
+    if (filter >= 0 || scale) {
+      /* take absolute value of each entry */
+      for (c = a, midx = 0; c && midx < 2; c = b, midx++) {
+        MatInfo      info;
+        PetscScalar *avals;
+        PetscCall(MatGetInfo(c, MAT_LOCAL, &info));
+        PetscCall(MatSeqBAIJGetArray(c, &avals));
+        for (int jj = 0; jj < info.nz_used; jj++) avals[jj] = PetscAbsScalar(avals[jj]);
+        PetscCall(MatSeqBAIJRestoreArray(c, &avals));
+      }
+    }
+  }
+  if (symmetrize) {
+    PetscBool isset, issym;
+    PetscCall(MatIsSymmetricKnown(Amat, &isset, &issym));
+    if (!isset || !issym) {
+      Mat matTrans;
+      PetscCall(MatTranspose(Gmat, MAT_INITIAL_MATRIX, &matTrans));
+      PetscCall(MatAXPY(Gmat, 1.0, matTrans, Gmat->structurally_symmetric == PETSC_BOOL3_TRUE ? SAME_NONZERO_PATTERN : DIFFERENT_NONZERO_PATTERN));
+      PetscCall(MatDestroy(&matTrans));
+    }
+    PetscCall(MatSetOption(Gmat, MAT_SYMMETRIC, PETSC_TRUE));
+  } else if (Amat != Gmat) PetscCall(MatPropagateSymmetryOptions(Amat, Gmat));
+  if (scale) {
+    /* scale c for all diagonal values = 1 or -1 */
+    Vec diag;
+    PetscCall(MatCreateVecs(Gmat, &diag, NULL));
+    PetscCall(MatGetDiagonal(Gmat, diag));
+    PetscCall(VecReciprocal(diag));
+    PetscCall(VecSqrtAbs(diag));
+    PetscCall(MatDiagonalScale(Gmat, diag, diag));
+    PetscCall(VecDestroy(&diag));
+  }
+  if (filter >= 0) {
+    /* PetscCall(MatFilter_BAIJ(Gmat, filter, &Fmat)); -- not implemented */
+    /* PetscCall(MatDestroy(&Gmat)); */
+    /* Gmat = Fmat; */
+  }
+  PetscCall(MatViewFromOptions(Gmat, NULL, "-mat_graph_view"));
+
+  *a_Gmat = Gmat;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -764,14 +764,28 @@ static PetscErrorCode PCGAMGOptProlongator_AGG(PC pc, Mat Amat, Mat *a_P)
 
   /* smooth P0 */
   for (jj = 0; jj < pc_gamg_agg->nsmooths; jj++) {
-    Mat tMat;
+    Mat tMat, AmatAIJ = NULL, matbaij = NULL;
     Vec diag;
 
     PetscCall(PetscLogEventBegin(petsc_gamg_setup_events[GAMG_OPTSM], 0, 0, 0, 0));
 
     /* smooth P1 := (I - omega/lam D^{-1}A)P0 */
     PetscCall(PetscLogEventBegin(petsc_gamg_setup_matmat_events[pc_gamg->current_level][2], 0, 0, 0, 0));
+    /* BAIJ does not suppprt PtAP nor AP */
+    if (pc_gamg->current_level == 0) {
+      PetscBool   isBaij;
+      PetscCall(PetscObjectBaseTypeCompareAny((PetscObject)Amat, &isBaij, MATMPIBAIJ, MATSEQBAIJ, ""));
+      if (isBaij) {
+        matbaij = Amat;
+        PetscCall(MatConvert(Amat, MATAIJ, MAT_INITIAL_MATRIX, &AmatAIJ));
+        Amat = AmatAIJ;
+      }
+    }
     PetscCall(MatMatMult(Amat, Prol, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &tMat));
+    if (AmatAIJ) {
+      PetscCall(MatDestroy(&AmatAIJ));
+      Amat = matbaij;
+    }
     PetscCall(PetscLogEventEnd(petsc_gamg_setup_matmat_events[pc_gamg->current_level][2], 0, 0, 0, 0));
     PetscCall(MatProductClear(tMat));
     PetscCall(MatCreateVecs(Amat, &diag, NULL));
