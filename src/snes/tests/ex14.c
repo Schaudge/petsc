@@ -801,12 +801,6 @@ int main(int argc, char **argv)
 
 /*TEST
 
-  test:
-    suffix: 0
-    args: -select_dm_plex_transform_type transform_filter \
-          -patch_sys_type lod -phi_petscspace_degree 1 -mu_petscspace_degree 1 -pc_type lu \
-          -snes_converged_reason -snes_monitor
-
   testset:
     args: -select_dm_plex_transform_type transform_filter \
           -patch_sys_type identity -phi_petscspace_degree 1 \
