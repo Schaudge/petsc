@@ -6038,6 +6038,7 @@ PetscErrorCode DMPlexComputeJacobian_Hybrid_Internal(DM dm, PetscFormKey key[], 
         PetscCall(DMPlexMatSetClosure(plex, section, globalSection, JacP, cell, &elemMatCohP[cind * totDim * totDim], ADD_VALUES));
       } else if (hasBdJac) {
         if (mesh->printFEM > 1) PetscCall(DMPrintCellMatrix(cell, name, totDim, totDim, &elemMatCoh[cind * totDim * totDim]));
+        if (1) PetscCall(DMPrintCellMatrix(cell, name, totDim, totDim, &elemMatCoh[cind * totDim * totDim]));
         PetscCall(DMPlexMatSetClosure(plex, section, globalSection, JacP, cell, &elemMatCoh[cind * totDim * totDim], ADD_VALUES));
       }
     }
