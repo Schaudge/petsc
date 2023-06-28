@@ -22,9 +22,16 @@ typedef struct {
 } TAO_PROX_L1;
 
 typedef struct {
+  Vec a;        
+} TAO_PROX_AFFINE;
+
+typedef struct {
   PETSCHEADER(struct _TaoPROXOps);        
   Tao subsolver;
-  TAO_PROX_L1 *L1;
+
+  TAO_PROX_L1     *L1;
+  TAO_PROX_AFFINE *affine;
+
   Mat vm; /* Variable Metric matrix */	
   Mat H_orig, H_pre_orig;
 
@@ -37,7 +44,9 @@ typedef struct {
   PetscInt step_type;	  
 
   TaoPROXStrategy strategy;
-  TaoPROXType     type;
+  TaoPROXType type;
+
+  TaoMetricType metric_type;
 
   void  *orig_objP;
   void  *orig_objgradP;

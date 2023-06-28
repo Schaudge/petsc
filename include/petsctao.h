@@ -162,18 +162,20 @@ typedef enum {
 PETSC_EXTERN const char *const TaoPROXStrategies[];
 
 typedef enum {
-  TAO_PROX_TYPE_DEFAULT,
-  TAO_PROX_TYPE_L1
-} TaoPROXType;
-PETSC_EXTERN const char *const TaoPROXTypes[];
-
-typedef enum {
   TAO_METRIC_TYPE_USER,
   TAO_METRIC_TYPE_L1,
   TAO_METRIC_TYPE_L2,
-  TAO_METRIC_TYPE_BREGMAN
+  TAO_METRIC_TYPE_DIAGONAL,
 } TaoMetricType;
 PETSC_EXTERN const char *const TaoMetricTypes[];
+
+typedef enum {
+  TAO_PROX_TYPE_DEFAULT,
+  TAO_PROX_TYPE_L1,
+  TAO_PROX_TYPE_AFFINE,
+  TAO_PROX_TYPE_SIMPLEX
+} TaoPROXType;
+PETSC_EXTERN const char *const TaoPROXTypes[];
 
 /*J
         TaoType - String with the name of a `Tao` method
@@ -555,7 +557,6 @@ PETSC_EXTERN PetscErrorCode TaoPROXSetInitialVector(Tao, Vec);
 PETSC_EXTERN PetscErrorCode TaoPROXGetInitialVector(Tao, Vec *);
 PETSC_EXTERN PetscErrorCode TaoGetPROXParentTao(Tao, Tao *);
 
-PETSC_EXTERN PetscErrorCode TaoApplyProximalMap(Tao, PetscReal, Mat, Vec, Vec);
-
+PETSC_EXTERN PetscErrorCode TaoApplyProximalMap(Tao, PetscReal, Vec, Vec);
 
 #endif

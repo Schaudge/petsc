@@ -16,6 +16,7 @@ PetscLogEvent TAO_ConstraintsEval;
 
 const char *TaoSubSetTypes[] = {"subvec", "mask", "matrixfree", "TaoSubSetType", "TAO_SUBSET_", NULL};
 
+
 struct _n_TaoMonitorDrawCtx {
   PetscViewer viewer;
   PetscInt    howoften; /* when > 0 uses iteration % howoften, when negative only final solution plotted */
@@ -2749,54 +2750,3 @@ PetscErrorCode TaoMonitorDrawCtxDestroy(TaoMonitorDrawCtx *ictx)
   PetscCall(PetscFree(*ictx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
-/* Setting callback function for Metric.
- *
- * PetscErrorCode func(Tao tao, Vec x, Vec y, PetscReal *f, Vec g, void *ctx)
- * Vec x,y: input. y should be set before hand.
- *
- * f: objective value of the metric 
- * g: gradient of the metric.
- *
- * TODO should we support Hessian?
- * TODO should we support initial compute of thigns?
- * D(x,y)
- *
- * e.g., Bregman: D_h(x,y) = h(x) - h(y) - \langle \nabla h(y), x-y \rangle.
- *
- * If h(.) = \|. \|_2^2, above becomes \|x-y\|_2^2  */
-PetscErrorCode TaoSetMetricRoutine(Tao tao, PetscErrorCode (*func)(Tao, Vec, Vec, PetscReal *, Vec , void *), void *ctx)
-{
-  PetscFunctionBegin;
-  if (ctx) tao->user_metricP = ctx;
-  if (func) tao->ops->computemetricandgradient = func;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode TaoGetMetricRoutine(Tao tao, PetscErrorCode (**func)(Tao, Vec, Vec, PetscReal *, Vec , void *), void **ctx)
-{
-  PetscFunctionBegin;
-  if (ctx) *ctx = tao->user_metricP;
-  if (func) *func = tao->ops->computemetricandgradient;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode TaoSetMetricType(Tao tao, TaoMetricType type)
-{
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
-  PetscValidLogicalCollectiveEnum(tao, type, 2);
-  //TODO perhaps more boilerplates/checks here???
-  tao->metric_type = type;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode TaoGetMetricType(Tao tao, TaoMetricType *type)
-{
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
-  //TODO what if its not set or something like that?
-  *type = tao->metric_type;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-

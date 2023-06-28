@@ -31,6 +31,7 @@ struct _TaoOps {
   PetscErrorCode (*convergencetest)(Tao, void *);
   PetscErrorCode (*convergencedestroy)(void *);
 
+  PetscErrorCode (*applyproximalmap)(Tao, PetscReal, Vec, Vec);
   PetscErrorCode (*computemetricandgradient)(Tao, Vec, Vec, PetscReal *, Vec, void *);
 
   /* Methods set by solver */
@@ -43,6 +44,17 @@ struct _TaoOps {
 };
 
 #define MAXTAOMONITORS 10
+
+typedef struct {
+  PETSCHEADER(struct _TaoOps);
+  void  *orig_objP;
+  void  *orig_objgradP;
+  void  *orig_gradP;
+  void  *orig_hessP;
+  Vec    g,y,workvec;
+  Mat    H,H_pre;
+  PetscReal stepsize;
+} MoreauRegularizer;
 
 struct _p_Tao {
   PETSCHEADER(struct _TaoOps);
@@ -193,7 +205,10 @@ struct _p_Tao {
 
   /* Distance metric for proximal. Default is L2 */
   TaoMetricType metric_type;
-  Tao metric_subtao;
+
+  Tao proximalmap_subtao;
+
+  MoreauRegularizer *MR_internal;
 };
 
 PETSC_EXTERN PetscLogEvent TAO_Solve;
