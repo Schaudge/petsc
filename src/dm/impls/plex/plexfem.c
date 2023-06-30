@@ -3672,6 +3672,7 @@ static PetscErrorCode DMPlexGetHybridCellFields(DM dm, IS cellIS, Vec locX, Vec 
     for (s = 0; s < 2; ++s) {
       const PetscInt *support;
       const PetscInt  face = cone[s];
+      PetscDS         dsC;
       PetscInt        ssize, ncell, Nxc;
 
       // I don't think I need the face to have 0 orientation in the hybrid cell
@@ -3682,19 +3683,21 @@ static PetscErrorCode DMPlexGetHybridCellFields(DM dm, IS cellIS, Vec locX, Vec 
       else if (support[1] == cell) ncell = support[0];
       else SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Face %" PetscInt_FMT " does not have cell %" PetscInt_FMT " in its support", face, cell);
       // Get closure of both face and cell, stick in cell for normal fields and face for cohesive fields
+      PetscCall(DMGetCellDS(dm, ncell, &dsC, NULL));
       PetscCall(DMPlexVecGetClosure(plex, section, locX, ncell, &Nxc, &xc));
       if (locX_t) PetscCall(DMPlexVecGetClosure(plex, section, locX_t, ncell, NULL, &xc_t));
       for (f = 0; f < Nf; ++f) {
-        PetscInt  fdofIn, foffIn;
+        PetscInt  fdofIn, foffIn, foff;
         PetscBool cohesive;
 
         PetscCall(PetscDSGetCohesive(dsIn, f, &cohesive));
         if (cohesive) continue;
         PetscCall(PetscDSGetFieldSize(dsIn, f, &fdofIn));
+        PetscCall(PetscDSGetFieldOffset(dsC, f, &foff));
         PetscCall(PetscDSGetFieldOffsetCohesive(dsIn, f, &foffIn));
-        for (PetscInt i = 0; i < fdofIn; ++i) ul[foffIn + s * fdofIn + i] = xc[foffIn + i];
+        for (PetscInt i = 0; i < fdofIn; ++i) ul[foffIn + s * fdofIn + i] = xc[foff + i];
         if (locX_t)
-          for (PetscInt i = 0; i < fdofIn; ++i) ul_t[foffIn + s * fdofIn + i] = xc_t[foffIn + i];
+          for (PetscInt i = 0; i < fdofIn; ++i) ul_t[foffIn + s * fdofIn + i] = xc_t[foff + i];
         Nx += fdofIn;
       }
       PetscCall(DMPlexVecRestoreClosure(plex, section, locX, ncell, &Nxc, &xc));
