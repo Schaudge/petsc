@@ -4,7 +4,7 @@
     The variable Petsc_Viewer_Stdout_keyval is used to indicate an MPI attribute that
   is attached to a communicator, in this case the attribute is a PetscViewer.
 */
-PetscMPIInt Petsc_Viewer_Stdout_keyval = MPI_KEYVAL_INVALID;
+PetscMPIInt Petsc_Viewer_Stdout_keyval;
 
 /*@
   PetscViewerASCIIGetStdout - Creates a `PETSCVIEWERASCII` `PetscViewer` shared by all processors
@@ -89,7 +89,7 @@ PetscViewer PETSC_VIEWER_STDOUT_(MPI_Comm comm)
     The variable Petsc_Viewer_Stderr_keyval is used to indicate an MPI attribute that
   is attached to a communicator, in this case the attribute is a PetscViewer.
 */
-PetscMPIInt Petsc_Viewer_Stderr_keyval = MPI_KEYVAL_INVALID;
+PetscMPIInt Petsc_Viewer_Stderr_keyval;
 
 /*@
   PetscViewerASCIIGetStderr - Creates a `PETSCVIEWERASCII` `PetscViewer` shared by all MPI processes
@@ -172,7 +172,7 @@ PetscViewer PETSC_VIEWER_STDERR_(MPI_Comm comm)
   PetscFunctionReturn(viewer);
 }
 
-PetscMPIInt Petsc_Viewer_keyval = MPI_KEYVAL_INVALID;
+PetscMPIInt Petsc_Viewer_keyval;
 /*
    Called with MPI_Comm_free() is called on a communicator that has a viewer as an attribute. The viewer is not actually destroyed
    because that is managed by PetscObjectDestroyRegisterAll(). PetscViewerASCIIGetStdout() registers the viewer with PetscObjectDestroyRegister() to be destroyed when PetscFinalize() is called.
