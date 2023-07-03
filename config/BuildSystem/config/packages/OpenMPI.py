@@ -9,7 +9,7 @@ class Configure(config.package.GNUPackage):
                                    'https://web.cels.anl.gov/projects/petsc/download/externalpackages/openmpi-'+self.version+'.tar.gz']
     self.downloaddirnames       = ['openmpi','ompi']
     self.skippackagewithoptions = 1
-    self.isMPI                  = 1
+    self.isMPIImplementation    = 1
     self.buildLanguages         = ['C','Cxx']
     return
 
