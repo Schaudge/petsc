@@ -1,18 +1,16 @@
 #include "../cupmcontext.hpp" /*I "petscdevice.h" I*/
 
-using namespace Petsc::Device::CUPM;
+using namespace Petsc::device::cupm;
 
 PetscErrorCode PetscDeviceContextCreate_HIP(PetscDeviceContext dctx)
 {
-  static constexpr auto     contextHip = CUPMContextHip();
-  PetscDeviceContext_(HIP) *dci;
-  PetscErrorCode            ierr;
+  static constexpr auto hip_context = CUPMContextHip();
 
   PetscFunctionBegin;
-  ierr = PetscNew(&dci);CHKERRQ(ierr);
-  dctx->data = static_cast<decltype(dctx->data)>(dci);
-  ierr = PetscMemcpy(dctx->ops,&contextHip.ops,sizeof(contextHip.ops));CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(hip_context.initialize(dctx->device));
+  dctx->data = new PetscDeviceContext_(HIP);
+  *dctx->ops = hip_context.ops;
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -27,23 +25,21 @@ PetscErrorCode PetscDeviceContextCreate_HIP(PetscDeviceContext dctx)
 PetscErrorCode PetscHIPBLASGetHandle(hipblasHandle_t *handle)
 {
   PetscDeviceContext dctx;
-  PetscErrorCode     ierr;
 
   PetscFunctionBegin;
-  PetscValidPointer(handle,1);
-  ierr = PetscDeviceContextGetCurrentContextAssertType_Internal(&dctx,PETSC_DEVICE_HIP);CHKERRQ(ierr);
-  ierr = PetscDeviceContextGetBLASHandle_Internal(dctx,handle);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscValidPointer(handle, 1);
+  PetscCall(PetscDeviceContextGetCurrentContextAssertType_Internal(&dctx, PETSC_DEVICE_HIP));
+  PetscCall(PetscDeviceContextGetBLASHandle_Internal(dctx, handle));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode PetscHIPSOLVERGetHandle(hipsolverHandle_t *handle)
 {
   PetscDeviceContext dctx;
-  PetscErrorCode     ierr;
 
   PetscFunctionBegin;
-  PetscValidPointer(handle,1);
-  ierr = PetscDeviceContextGetCurrentContextAssertType_Internal(&dctx,PETSC_DEVICE_HIP);CHKERRQ(ierr);
-  ierr = PetscDeviceContextGetSOLVERHandle_Internal(dctx,handle);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscValidPointer(handle, 1);
+  PetscCall(PetscDeviceContextGetCurrentContextAssertType_Internal(&dctx, PETSC_DEVICE_HIP));
+  PetscCall(PetscDeviceContextGetSOLVERHandle_Internal(dctx, handle));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

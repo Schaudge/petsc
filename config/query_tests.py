@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import fnmatch
 import glob
 import inspect
@@ -59,7 +59,7 @@ def pathToLabel(path):
     label=prefix+"-"+suffix+'_*'
   else:
     path=path.rstrip('/')
-    label=path.replace("/","_")+"-*"
+    label=path.replace("/","_").replace('tests_','tests-').replace('tutorials_','tutorials-')
   return label
 
 def get_value(varset):
@@ -92,7 +92,7 @@ def query(invDict,fields,labels):
     Search the keys using fnmatch to find matching names and return list with
     the results 
     """
-    setlist=[]  # setlist is a list of lists that set opertions will operate on
+    setlist=[]  # setlist is a list of lists that set operations will operate on
     llist=labels.replace('|',',').split(',')
     i=-1
     for field in fields.replace('|',',').split(','):
@@ -107,8 +107,9 @@ def query(invDict,fields,labels):
             continue
 
         foundLabel=False   # easy to do if you misspell argument search
+        label=label.lower()
         for key in invDict[field]:
-            if fnmatch.filter([key],label):
+            if fnmatch.filter([key.lower()],label):
               foundLabel=True
               # Do not return values with not unless label itself has not
               if label.startswith('!') and not key.startswith('!'): continue
@@ -173,7 +174,7 @@ def get_inverse_dictionary(dataDict,fields,srcdir):
                         invDict[field][val] = [fname]
               else:
                 # Args are funky.  
-                for varset in re.split('(^|\W)-(?=[a-zA-Z])',values):
+                for varset in re.split(r'(^|\W)-(?=[a-zA-Z])',values):
                   val=get_value(varset)
                   if not val: continue
                   if val in invDict[field]:
@@ -271,6 +272,22 @@ def do_query(use_source, startdir, srcdir, testdir, petsc_dir, petsc_arch,
 
     return
 
+def expand_path_like(petscdir,petscarch,pathlike):
+    def remove_prefix(text,prefix):
+        return text[text.startswith(prefix) and len(prefix):]
+
+    # expand user second, as expandvars may insert a '~'
+    string = os.path.expanduser(os.path.expandvars(pathlike))
+    # if the dirname check succeeds then likely we have a glob expression
+    pardir = os.path.dirname(string)
+    if os.path.exists(pardir):
+        suffix   = string.replace(pardir,'') # get whatever is left over
+        pathlike = remove_prefix(os.path.relpath(os.path.abspath(pardir),petscdir),'.'+os.path.sep)
+        if petscarch == '':
+            pathlike = pathlike.replace(os.path.sep.join(('share','petsc','examples'))+'/','')
+        pathlike += suffix
+    return pathlike
+
 def main():
     parser = optparse.OptionParser(usage="%prog [options] field match_pattern")
     parser.add_option('-s', '--startdir', dest='startdir',
@@ -306,9 +323,50 @@ def main():
         print('  match_pattern:  Matching pattern for field; e.g., cuda')
         return
 
+    def shell_unquote(string):
+      """
+      Remove quotes from STRING. Useful in the case where you need to bury escaped quotes in a query
+      string in order to escape shell characters. For example:
+
+      $ make test query='foo,bar' queryval='requires|name'
+      /usr/bin/bash: line 1: name: command not found
+
+      While the original shell does not see the pipe character, the actual query is done via a second
+      shell, which is (literally) passed '$(queryval)', i.e. 'queryval='requires|name'' when expanded.
+      Note the fact that the expansion cancels out the quoting!!!
+
+      You can fix this by doing:
+
+      $ make test query='foo,bar' queryval='"requires|name"'
+
+      However this then shows up here as labels = 'queryval="requires|name"'. So we need to remove the
+      '"'. Applying shlex.split() on this returns:
+
+      >>> shlex.split('queryval="requires|name"')
+      ['queryval=requires|name']
+
+      And voila. Note also that:
+
+      >>> shlex.split('queryval=requires|name')
+      ['queryval=requires|name']
+      """
+      import shlex
+
+      if string:
+        ret = shlex.split(string)
+        assert len(ret) == 1, "Dont know what to do if shlex.split() produces more than 1 value?"
+        string = ret[0]
+      return string
+
+    def alternate_command_preprocess(string):
+      """
+      Replace the alternate versions in STRING with the regular variants
+      """
+      return string.replace('%OR%', '|').replace('%AND%', ',').replace('%NEG%', '!')
+
     # Process arguments and options -- mostly just paths here
-    field=args[0]
-    match=args[1]
+    field=alternate_command_preprocess(shell_unquote(args[0]))
+    match=alternate_command_preprocess(shell_unquote(args[1]))
     searchin=opts.searchin
 
     petsc_dir = opts.petsc_dir
@@ -347,6 +405,8 @@ def main():
         if not os.path.isdir(petsc_full_src):
             print("Source directory must be a directory"+petsc_full_src)
             return
+
+    match = expand_path_like(petsc_dir,petsc_arch,match)
 
     # Do the actual query
     do_query(opts.use_source, startdir, petsc_full_src, petsc_full_test,

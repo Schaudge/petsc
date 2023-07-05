@@ -1,180 +1,124 @@
 #!/usr/bin/env python
 #!/bin/env python
-#
-# Reads in all the generated manual pages, and Creates the index
-# for the manualpages, ordering the indices into sections based
-# on the 'Level of Difficulty'
-#
-#  Usage:
-#    wwwindex.py PETSC_DIR LOC
-#
-from __future__ import print_function
+
+""" Reads in all the generated manual pages, and creates the index
+for the manualpages, ordering the indices into sections based
+on the 'Level of Difficulty'.
+
+ Usage:
+   wwwindex.py PETSC_DIR LOC
+"""
+
 import os
+import sys
+import re
 import glob
 import posixpath
-from sys import *
 import subprocess
 
-# This routine reorders the entries int he list in such a way, so that
-# When they are printed in a row order, the entries are sorted by columns
-# In this subroutine row,col,nrow,ncol correspond to the new layout
-# of a given data-value
-def maketranspose(data,ncol):
-      nrow = (len(data)+ncol-1)//ncol
-      newdata = []
-      # use the complete nrow by ncol matrix
-      for i in range(nrow*ncol):
-            newdata.append('')
-      for i in range(len(data)):
-            col           = i//nrow
-            row           = i%nrow
-            newi          = row*ncol+col
-            newdata[newi] = data[i]
-      return newdata
+HLIST_COLUMNS = 3
 
-# Now use the level info, and print a html formatted index
-# table. Can also provide a header file, whose contents are
-# first copied over.
-def printindex(outfilename,headfilename,levels,titles,tables):
+# Read an optional header file, whose contents are first copied over
+# Use the level info, and print a formatted index table of all the manual pages
+#
+def printindex(outfilename, headfilename, levels, titles, tables):
       # Read in the header file
       headbuf = ''
       if posixpath.exists(headfilename) :
-            try:
-                  fd = open(headfilename,'r')
-            except:
-                  print('Error reading file',headfilename)
-                  exit()
-            headbuf = fd.read()
-            headbuf = headbuf.replace('PETSC_DIR','../../../')
-            fd.close()
+            with open(headfilename, "r") as fd:
+                headbuf = fd.read()
+                headbuf = headbuf.replace('PETSC_DIR', '../../../')
       else:
-            print('Header file \'' + headfilename + '\' does not exist')
+            print('Error! SUBMANSEC header file "%s" does not exist' % headfilename)
+            print('Likley you introduced a new set of manual pages but did not add the header file that describes them')
 
-      # Now open the output file.
-      try:
-            fd = open(outfilename,'w')
-      except:
-            print('Error writing to file',outfilename)
-            exit()
+      with open(outfilename, "w") as fd:
+          # Since it uses three columns we must remove right sidebar so all columns are displayed completely
+          # https://pydata-sphinx-theme.readthedocs.io/en/stable/user_guide/page-toc.html
+          fd.write(':html_theme.sidebar_secondary.remove: true\n')
+          fd.write(headbuf)
+          fd.write('\n')
+          all_names = []
+          fd.write('\n## Manual Pages by Level\n')
+          for i, level in enumerate(levels):
+                title = titles[i]
+                if not tables[i]:
+                      if level != 'none' and level != 'deprecated':
+                          fd.write('\n### No %s routines\n' % level)
+                      continue
 
-      # Add the HTML Header info here.
-      fd.write(headbuf)
-      # Add some HTML separators
-      fd.write('\n<P>\n')
-      fd.write('<TABLE>\n')
-      for i in range(len(levels)):
-            level = levels[i]
-            title = titles[i]
+                fd.write('\n### %s\n' % title)
+                fd.write('```{hlist}\n')
+                fd.write("---\n")
+                fd.write("columns: %d\n" % HLIST_COLUMNS)
+                fd.write("---\n")
 
-            if len(tables[i]) == 0:
-                  # If no functions in 'None' category, then don't print
-                  # this category.
-                  if level == 'none':
-                        continue
-                  else:
-                        # If no functions in any other category, then print
-                        # the header saying no functions in this cagetory.
-                        fd.write('<TR><TD WIDTH=250 COLSPAN="3">')
-                        fd.write('<B>' + 'No ' + level +' routines' + '</B>')
-                        fd.write('</TD></TR>\n')
-                        continue
+                for filename in tables[i]:
+                      path,name     = posixpath.split(filename)
+                      func_name,ext = posixpath.splitext(name)
+                      fd.write('- [](%s)\n' % name)
+                      all_names.append(name)
+                fd.write('```\n\n\n')
 
-            fd.write('<TR><TD WIDTH=250 COLSPAN="3">')
-            #fd.write('<B>' + upper(title[0])+title[1:] + '</B>')
-            fd.write('<B>' + title + '</B>')
-            fd.write('</TD></TR>\n')
-            # Now make the entries in the table column oriented
-            tables[i] = maketranspose(tables[i],3)
-            for filename in tables[i]:
-                  path,name     = posixpath.split(filename)
-                  func_name,ext = posixpath.splitext(name)
-                  mesg          = ' <TD WIDTH=250><A HREF="'+ './' + name + '">' + \
-                                  func_name + '</A></TD>\n'
-                  fd.write(mesg)
-                  if tables[i].index(filename) % 3 == 2 : fd.write('<TR>\n')
-      fd.write('</TABLE>\n')
-      # Add HTML tail info here
-      fd.write('<BR><A HREF="../../../docs/manualpages/index.html">Table of Contents</A>\n')
-      fd.close()
+          fd.write('\n## Single list of manual pages\n')
+          fd.write('```{hlist}\n')
+          fd.write("---\n")
+          fd.write("columns: %d\n" % HLIST_COLUMNS)
+          fd.write("---\n")
+          for name in sorted(all_names):
+              fd.write('- [](%s)\n' % name)
+          fd.write('```\n\n\n')
+
 
 # This routine takes in as input a dictionary, which contains the
 # alhabetical index to all the man page functions, and prints them all in
 # a single index page
-def printsingleindex(outfilename,alphabet_dict):
-      # Now open the output file.
-      try:
-            fd = open(outfilename,'w')
-      except:
-            print('Error writing to file',outfilename)
-            exit()
-
-      alphabet_index = list(alphabet_dict.keys())
-      alphabet_index.sort()
-
-      # Now print each section, beginning with a title
-      for key in alphabet_index:
-
-            # Print the HTML tag for this section
-            fd.write('<A NAME="' + key + '"></A>\n' )
-
-            # Print the HTML index at the beginning of each section
-            fd.write('<H3> <CENTER> | ')
-            for key_tmp in alphabet_index:
-                  if key == key_tmp:
-                        fd.write( '<FONT COLOR="#CC3333">' + key_tmp.upper() + '</FONT> | \n' )
-                  else:
-                        fd.write('<A HREF="singleindex.html#' + key_tmp + '"> ' + \
-                                 key_tmp.upper() + ' </A> | \n')
-            fd.write('</CENTER></H3> \n')
-
-            # Now write the table entries
-            fd.write('<TABLE>\n')
-            fd.write('<TR><TD WIDTH=250 COLSPAN="3">')
-            fd.write('</TD></TR>\n')
-            function_dict  = alphabet_dict[key]
-            function_index = list(function_dict.keys())
-            function_index.sort()
-            function_index = maketranspose(function_index,3)
-            for name in function_index:
-                  if name:
-                        path_name = function_dict[name]
-                  else:
-                        path_name = ''
-                  mesg = '<TD WIDTH=250><A HREF="'+ './' + path_name + '">' + \
-                         name + '</A></TD>\n'
-                  fd.write(mesg)
-                  if function_index.index(name) %3 == 2: fd.write('<TR>\n')
-
-            fd.write('</TABLE>')
-
-      fd.close()
-      return
+def printsingleindex(outfilename, alphabet_dict):
+      with open(outfilename, "w") as fd:
+          fd.write("# Single Index of all PETSc Manual Pages\n\n")
+          fd.write(" Also see the [Manual page table of contents, by section](/manualpages/index.md).\n\n")
+          for key in sorted(alphabet_dict.keys()):
+                fd.write("## %s\n\n" % key.upper())
+                fd.write("```{hlist}\n")
+                fd.write("---\n")
+                fd.write("columns: %d\n" % HLIST_COLUMNS)
+                fd.write("---\n")
+                function_dict = alphabet_dict[key]
+                for name in sorted(function_dict.keys()):
+                      if name:
+                            path_name = function_dict[name]
+                      else:
+                            path_name = ''
+                      fd.write("- [%s](%s)\n" % (name, path_name))
+                fd.write("```\n")
 
 
 # Read in the filename contents, and search for the formatted
 # String 'Level:' and return the level info.
 # Also adds the BOLD HTML format to Level field
 def modifylevel(filename,secname):
-      import re
-      try:
-            fd = open(filename,'r')
-      except:
-            print('Error! Cannot open file:',filename)
-            exit()
-      buf    = fd.read()
-      fd.close()
+      with open(filename, "r") as fd:
+          buf = fd.read()
 
-      re_name = re.compile('<P><B><FONT COLOR="#CC3333">Location:</FONT></B><A HREF=".*">(.*)<')
+      re_name = re.compile('\*\*Location:\*\*(.*)')  # As defined in myst.def
       m = re_name.search(buf)
       if m:
-        loc =m.group(1)
-        if loc:
-          re_loc = re.compile('<BODY .*>')
+        loc_html = m.group(1)
+        if loc_html:
           git_ref = subprocess.check_output(['git', 'rev-parse', 'HEAD']).rstrip()
-          git_ref_release = subprocess.check_output(['git', 'rev-parse', 'origin/release']).rstrip()
-          edit_branch = 'release' if git_ref == git_ref_release else 'main'
-          replacementtext = '<BODY BGCOLOR="FFFFFF">\n<div id="edit" align=right><a href="https://gitlab.com/petsc/petsc/-/edit/'+edit_branch+'/'+loc+'"><small>Fix/Edit manual page</small></a></div>'
-          buf = re_loc.sub(replacementtext,buf)
+          try:
+              git_ref_release = subprocess.check_output(['git', 'rev-parse', 'origin/release']).rstrip()
+              edit_branch = 'release' if git_ref == git_ref_release else 'main'
+          except subprocess.CalledProcessError:
+              print("WARNING: checking branch for man page edit links failed")
+              edit_branch = 'main'
+          pattern = re.compile(r"<A.*>(.*)</A>")
+          loc = re.match(pattern, loc_html)
+          if loc:
+              source_path = loc.group(1)
+              buf += "\n\n---\n[Edit on GitLab](https://gitlab.com/petsc/petsc/-/edit/%s/%s)\n\n" % (edit_branch, source_path)
+          else:
+              print("Warning. Could not find source path in %s" % filename)
       else:
         print('Error! No location in file:', filename)
 
@@ -186,54 +130,40 @@ def modifylevel(filename,secname):
       else:
             print('Error! No level info in file:', filename)
 
-      # Now takeout the level info, and move it to the end,
-      # and also add the bold format.
+      # Reformat level and location
       tmpbuf = re_level.sub('',buf)
-      re_loc = re.compile('(<FONT COLOR="#CC3333">Location:</FONT>)')
-      tmpbuf = re_loc.sub('</B><H3><FONT COLOR="#CC3333">Level</FONT></H3>' + level + r'<BR>\n<H3><FONT COLOR="#CC3333">Location</FONT></H3>\n',tmpbuf)
+      re_loc = re.compile('(\*\*Location:\*\*)')
+      tmpbuf = re_loc.sub('\n## Level\n' + level + '\n\n## Location\n',tmpbuf)
 
       # Modify .c#,.h#,.cu#,.cxx# to .c.html#,.h.html#,.cu.html#,.cxx.html#
-      re_loc = re.compile('.c#')
-      tmpbuf = re_loc.sub('.c.html#',tmpbuf)
-      re_loc = re.compile('.h#')
-      tmpbuf = re_loc.sub('.h.html#',tmpbuf)
-      re_loc = re.compile('.cu#')
-      tmpbuf = re_loc.sub('.cu.html#',tmpbuf)
-      re_loc = re.compile('.cxx#')
-      tmpbuf = re_loc.sub('.cxx.html#',tmpbuf)
+      tmpbuf = re.sub('.c#', '.c.html#', tmpbuf)
+      tmpbuf = re.sub('.h#', '.h.html#', tmpbuf)
+      tmpbuf = re.sub('.cu#', '.cu.html#', tmpbuf)
+      tmpbuf = re.sub('.cxx#', '.cxx.html#', tmpbuf)
 
-      re_loc = re.compile('</BODY></HTML>')
-      outbuf = re_loc.sub('<BR><A HREF="./index.html">Index of all ' + secname + ' routines</A>\n<BR><A HREF="../../../docs/manualpages/index.html">Table of Contents for all manual pages</A>\n<BR><A HREF="../singleindex.html">Index of all manual pages</A>\n</BODY></HTML>',tmpbuf)
-
-      re_loc = re.compile(r' (http://[A-Za-z09_\(\)\./]*)[ \n]')
-      outbuf = re_loc.sub(' <a href="\\1">\\1 </a> ',outbuf)
+      # Add footer links
+      outbuf = tmpbuf + '\n[Index of all %s routines](index.md)  \n' % secname + '[Table of Contents for all manual pages](/manualpages/index.md)  \n' + '[Index of all manual pages](/manualpages/singleindex.md)  \n'
 
       # write the modified manpage
-      try:
-            #fd = open(filename[:-1],'w')
-            fd = open(filename,'w')
-      except:
-            print('Error! Cannot write to file:',filename)
-            exit()
-      fd.write(outbuf)
-      fd.close()
+      with open(filename, "w") as fd:
+          fd.write(':orphan:\n'+outbuf)
+
       return level
 
 # Go through each manpage file, present in dirname,
 # and create and return a table for it, wrt levels specified.
 def createtable(dirname,levels,secname):
-      htmlfiles = [os.path.join(dirname,f) for f in os.listdir(dirname) if f.endswith('.html')]
-      htmlfiles.sort()
-      if htmlfiles == []:
-            print('Error! Empty directory:',dirname)
+      mdfiles = [os.path.join(dirname,f) for f in os.listdir(dirname) if f.endswith('.md')]
+      mdfiles.sort()
+      if mdfiles == []:
+            print('Cannot create table for empty directory:',dirname)
             return None
 
       table = []
       for level in levels: table.append([])
 
-      for filename in htmlfiles:
+      for filename in mdfiles:
             level = modifylevel(filename,secname)
-            #if not level: continue
             if level.lower() in levels:
                   table[levels.index(level.lower())].append(filename)
             else:
@@ -245,13 +175,13 @@ def createtable(dirname,levels,secname):
 # the union list.
 
 def addtolist(dirname,singlelist):
-      htmlfiles = [os.path.join(dirname,f) for f in os.listdir(dirname) if f.endswith('.html')]
-      htmlfiles.sort()
-      if htmlfiles == []:
+      mdfiles = [os.path.join(dirname,f) for f in os.listdir(dirname) if f.endswith('.md')]
+      mdfiles.sort()
+      if mdfiles == []:
             print('Error! Empty directory:',dirname)
             return None
 
-      for filename in htmlfiles:
+      for filename in mdfiles:
             singlelist.append(filename)
 
       return singlelist
@@ -259,9 +189,7 @@ def addtolist(dirname,singlelist):
 # This routine creates a dictionary, with entries such that each
 # key is the alphabet, and the vaue corresponds to this key is a dictionary
 # of FunctionName/PathToFile Pair.
-
 def createdict(singlelist):
-
       newdict = {}
       for filename in singlelist:
             path,name     = posixpath.split(filename)
@@ -277,9 +205,8 @@ def createdict(singlelist):
       return newdict
 
 
-# Gets the list of man* dirs present in the doc dir.
-# Each dir will have an index created for it.
 def getallmandirs(dirs):
+      """ Gets the list of man* dirs present in the doc dir. Each dir will have an index created for it. """
       mandirs = []
       for filename in dirs:
             path,name = posixpath.split(filename)
@@ -289,36 +216,31 @@ def getallmandirs(dirs):
       return mandirs
 
 
-# Extracts PETSC_DIR from the command line and
-# starts genrating index for all the manpages.
 def main():
-      arg_len = len(argv)
+      arg_len = len(sys.argv)
 
       if arg_len < 3:
             print('Error! Insufficient arguments.')
-            print('Usage:', argv[0], 'PETSC_DIR','LOC')
+            print('Usage:', sys.argv[0], 'PETSC_DIR','LOC')
             exit()
 
-      PETSC_DIR = argv[1]
-      LOC       = argv[2]
-      HEADERDIR = (argv[3] if arg_len > 3 else 'doc/classic/manualpages-sec')
-      #fd        = os.popen('/bin/ls -d '+ PETSC_DIR + '/docs/manualpages/*')
-      #buf       = fd.read()
-      #dirs      = split(strip(buf),'\n')
-      dirs      = glob.glob(LOC + '/docs/manualpages/*')
+      PETSC_DIR = sys.argv[1]
+      LOC       = sys.argv[2]
+      HEADERDIR = (sys.argv[3] if arg_len > 3 else 'doc/classic/manualpages-sec')
+      dirs      = (glob.glob(LOC + '/manualpages/*') if arg_len < 5 else [sys.argv[4]])
       mandirs   = getallmandirs(dirs)
 
       levels = ['beginner','intermediate','advanced','developer','deprecated','none']
       titles = ['Beginner - Basic usage',
                 'Intermediate - Setting options for algorithms and data structures',
                 'Advanced - Setting more advanced options and customization',
-                'Developer - Interfaces intended primarily for library developers, not for typical applications programmers',
-                'Deprecated - Functionality scheduled for removal in future versions',
+                'Developer - Interfaces rarely needed by applications programmers',
+                'Deprecated - Functionality scheduled for removal in the future',
                 'None: Not yet cataloged']
 
       singlelist = []
       for dirname in mandirs:
-            outfilename  = dirname + '/index.html'
+            outfilename  = dirname + '/index.md'
             dname,secname  = posixpath.split(dirname)
             headfilename = PETSC_DIR + '/' + HEADERDIR + '/header_' + secname
             table        = createtable(dirname,levels,secname)
@@ -327,11 +249,9 @@ def main():
             printindex(outfilename,headfilename,levels,titles,table)
 
       alphabet_dict = createdict(singlelist)
-      outfilename   = LOC + '/docs/manualpages' + '/singleindex.html'
+      outfilename   = LOC + '/manualpages/singleindex.md'
       printsingleindex (outfilename,alphabet_dict)
 
-# The classes in this file can also
-# be used in other python-programs by using 'import'
-if __name__ ==  '__main__':
-      main()
 
+if __name__ == '__main__':
+      main()

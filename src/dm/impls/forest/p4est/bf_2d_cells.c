@@ -8,6 +8,8 @@
 #define DMBF_XD_P4estDestroy            DMBF_2D_P4estDestroy
 #define DMBF_XD_GhostCreate             DMBF_2D_GhostCreate
 #define DMBF_XD_GhostDestroy            DMBF_2D_GhostDestroy
+#define DMBF_XD_P4estMeshCreate         DMBF_2D_P4estMeshCreate
+#define DMBF_XD_P4estMeshDestroy        DMBF_2D_P4estMeshDestroy
 
 #define DM_BF_XD_Topology               DM_BF_2D_Topology
 #define DM_BF_XD_Cells                  DM_BF_2D_Cells
@@ -31,8 +33,9 @@
 #define DMBF_XD_GetLocalToGlobalIndices DMBF_2D_GetLocalToGlobalIndices
 #define DMBF_XD_CellsGetP4est           DMBF_2D_CellsGetP4est
 #define DMBF_XD_CellsGetGhost           DMBF_2D_CellsGetGhost
+#define DMBF_XD_CellsGetP4estMesh       DMBF_2D_CellsGetP4estMesh
 
 /* include generic functions */
-#include "bf_xd_cells.c"
+#include "bf_xd_cells.h"
 
 #endif /* defined(PETSC_HAVE_P4EST) */

@@ -1,9 +1,3 @@
-<HTML>
-<HEAD>
-<TITLE>PETSc Sections</TITLE>
-</HEAD>
-<BODY BGCOLOR="FFFFFF">
+# Section Data Layout (PetscSection)
 
-<H2> Petsc Section: </H2>
-
-PetscSection provides a simple interface to describe arbitrary data layouts.
+`PetscSection` provides an interface to describe arbitrary data layouts onto entries of a `Vec` or array. User guide section: [](sec_petscsection).

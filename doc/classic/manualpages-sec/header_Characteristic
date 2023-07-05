@@ -1,11 +1,6 @@
-<HTML>
-<HEAD>
-<TITLE>Semi-Lagrangian Manual Pages</TITLE>
-</HEAD>
-<BODY BGCOLOR="FFFFFF">
+# Semi-Lagrangian Solves using the Method of Characteristics
 
-<H2> SemiLagrange <A HREF="PETSC_DIRsrc/contrib/semiLagrange/tutorials/index.html">Examples</A></H2>
+`Characteristic` objects are used to manage parallel Semi-Lagrangian methods (method of characteristics) for structured mesh (`DMDA`) problems
+in PDE-based simulations.
 
-Characteristic objects are used to manage parallel Semi-Lagrangian methods for structured mesh (DA) problems
-in PDE-based (or other) simulations. 
-<P>
+

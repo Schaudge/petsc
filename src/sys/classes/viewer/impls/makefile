@@ -1,11 +1,8 @@
+-include ../../../../../petscdir.mk
 
-ALL: lib
-
-DIRS      = socket ascii binary string draw vu mathematica hdf5 matlab ams vtk glvis adios
-LOCDIR    = src/sys/classes/viewer/impls/
+DIRS      = socket ascii binary string draw vu mathematica hdf5 matlab ams vtk glvis adios cgns
 MANSEC    = Sys
 SUBMANSEC = Viewer
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
-include ${PETSC_DIR}/lib/petsc/conf/rules
-include ${PETSC_DIR}/lib/petsc/conf/test
+include ${PETSC_DIR}/lib/petsc/conf/rules.doc

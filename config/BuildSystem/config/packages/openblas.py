@@ -3,7 +3,7 @@ import config.package
 #    We do not use CMAKE for OpenBLAS the cmake for OpenBLAS
 #       does not have an install rule https://github.com/xianyi/OpenBLAS/issues/957
 #       fails on mac due to argument list too long https://github.com/xianyi/OpenBLAS/issues/977
-#       does not support 64 bit integers with INTERFACE64
+#       does not support 64-bit integers with INTERFACE64
 
 # OpenBLAS is not always valgrind clean
 # dswap_k_SANDYBRIDGE (in /usr/lib/openblas-base/libblas.so.3)
@@ -11,8 +11,8 @@ import config.package
 class Configure(config.package.Package):
   def __init__(self, framework):
     config.package.Package.__init__(self, framework)
-    self.version                = '0.3.10'
-    self.gitcommit              = '63b03efc2af332c88b86d4fd8079d00f4b439adf'
+    self.version                = '0.3.21'
+    self.gitcommit              = 'v'+self.version
     self.versionname            = 'OPENBLAS_VERSION'
     self.download               = ['git://https://github.com/xianyi/OpenBLAS.git','https://github.com/xianyi/OpenBLAS/archive/'+self.gitcommit+'.tar.gz']
     self.optionalincludes       = ['openblas_config.h']
@@ -20,7 +20,6 @@ class Configure(config.package.Package):
     self.liblist                = [['libopenblas.a']]
     self.precisions             = ['single','double']
     self.buildLanguages         = ['C','FC']
-    self.installwithbatch       = 1
     self.usespthreads           = 0
 
   def __str__(self):
@@ -31,7 +30,7 @@ class Configure(config.package.Package):
   def setupHelp(self, help):
     config.package.Package.setupHelp(self,help)
     import nargs
-    help.addArgument('OPENBLAS', '-download-openblas-64-bit-blas-indices', nargs.ArgBool(None, 0, 'Use 64 bit integers for OpenBLAS (deprecated: use --with-64-bit-blas-indices'))
+    help.addArgument('OPENBLAS', '-download-openblas-64-bit-blas-indices', nargs.ArgBool(None, 0, 'Use 64-bit integers for OpenBLAS (deprecated: use --with-64-bit-blas-indices'))
     help.addArgument('OPENBLAS', '-download-openblas-use-pthreads', nargs.ArgBool(None, 0, 'Use pthreads for OpenBLAS'))
     help.addArgument('OPENBLAS', '-download-openblas-make-options=<options>', nargs.Arg(None, None, 'additional options for building OpenBLAS'))
     return
@@ -52,10 +51,10 @@ class Configure(config.package.Package):
     if self.foundoptionalincludes:
       self.checkVersion()
     if self.found:
-      # TODO: Use openblas_get_config() or openblas_config.h to determine use of OpenMP and 64 bit indices for prebuilt OpenBLAS libraries
+      # TODO: Use openblas_get_config() or openblas_config.h to determine use of OpenMP and 64-bit indices for prebuilt OpenBLAS libraries
       if not hasattr(self,'usesopenmp'): self.usesopenmp = 'unknown'
       if self.directory:
-        self.libDir = os.path.join(self.directory,'lib')
+        self.libDir = os.path.join(self.directory,self.libDirs[0])
         self.include = [os.path.join(self.directory,'include')]
       else:
         self.libDir = None
@@ -65,7 +64,7 @@ class Configure(config.package.Package):
   def versionToStandardForm(self,ver):
     '''Converts from " OpenBLAS 0.3.6<.dev> " to standard 0.3.6 format'''
     import re
-    ver = re.match("\s*OpenBLAS\s*([0-9\.]+)\s*",ver).group(1)
+    ver = re.match(r"\s*OpenBLAS\s*([0-9\.]+)\s*",ver).group(1)
     if ver.endswith('.'): ver = ver[0:-1]
     return ver
 

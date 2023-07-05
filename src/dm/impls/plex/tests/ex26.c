@@ -11,73 +11,75 @@ static char help[] = "Test FEM layout with DM and ExodusII storage\n\n";
 
 #include <petsc/private/dmpleximpl.h>
 
-int main(int argc, char **argv) {
-  DM                dm, dmU, dmA, dmS, dmUA, dmUA2, *dmList;
-  Vec               X, U, A, S, UA, UA2;
-  IS                isU, isA, isS, isUA;
-  PetscSection      section;
-  const PetscInt    fieldU = 0;
-  const PetscInt    fieldA = 2;
-  const PetscInt    fieldS = 1;
-  const PetscInt    fieldUA[2] = {0, 2};
-  char              ifilename[PETSC_MAX_PATH_LEN], ofilename[PETSC_MAX_PATH_LEN];
-  int               exoid = -1;
-  IS                csIS;
-  const PetscInt   *csID;
-  PetscInt         *pStartDepth, *pEndDepth;
-  PetscInt          order = 1;
-  PetscInt          sdim, d, pStart, pEnd, p, numCS, set;
-  PetscMPIInt       rank, size;
-  PetscViewer       viewer;
-  PetscErrorCode    ierr;
+int main(int argc, char **argv)
+{
+  DM              dm, pdm, dmU, dmA, dmS, dmUA, dmUA2, *dmList;
+  Vec             X, U, A, S, UA, UA2;
+  IS              isU, isA, isS, isUA;
+  PetscSection    section;
+  const PetscInt  fieldU     = 0;
+  const PetscInt  fieldA     = 2;
+  const PetscInt  fieldS     = 1;
+  const PetscInt  fieldUA[2] = {0, 2};
+  char            ifilename[PETSC_MAX_PATH_LEN], ofilename[PETSC_MAX_PATH_LEN];
+  int             exoid = -1;
+  IS              csIS;
+  const PetscInt *csID;
+  PetscInt       *pStartDepth, *pEndDepth;
+  PetscInt        order = 1;
+  PetscInt        sdim, d, pStart, pEnd, p, numCS, set;
+  PetscMPIInt     rank, size;
+  PetscViewer     viewer;
 
-  ierr = PetscInitialize(&argc, &argv,NULL, help);if (ierr) return ierr;
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD, &rank);CHKERRMPI(ierr);
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD, &size);CHKERRMPI(ierr);
-  ierr = PetscOptionsBegin(PETSC_COMM_WORLD, NULL, "FEM Layout Options", "ex26");CHKERRQ(ierr);
-  ierr = PetscOptionsString("-i", "Filename to read", "ex26", ifilename, ifilename, sizeof(ifilename), NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsString("-o", "Filename to write", "ex26", ofilename, ofilename, sizeof(ofilename), NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBoundedInt("-order", "FEM polynomial order", "ex26", order, &order, NULL,1);CHKERRQ(ierr);
-  ierr = PetscOptionsEnd();CHKERRQ(ierr);
-  if ((order > 2) || (order < 1)) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Unsupported polynomial order %D not in [1, 2]", order);
+  PetscFunctionBeginUser;
+  PetscCall(PetscInitialize(&argc, &argv, NULL, help));
+  PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
+  PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD, &size));
+  PetscOptionsBegin(PETSC_COMM_WORLD, NULL, "FEM Layout Options", "ex26");
+  PetscCall(PetscOptionsString("-i", "Filename to read", "ex26", ifilename, ifilename, sizeof(ifilename), NULL));
+  PetscCall(PetscOptionsString("-o", "Filename to write", "ex26", ofilename, ofilename, sizeof(ofilename), NULL));
+  PetscCall(PetscOptionsBoundedInt("-order", "FEM polynomial order", "ex26", order, &order, NULL, 1));
+  PetscOptionsEnd();
+  PetscCheck((order >= 1) && (order <= 2), PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Unsupported polynomial order %" PetscInt_FMT " not in [1, 2]", order);
 
   /* Read the mesh from a file in any supported format */
-  ierr = DMPlexCreateFromFile(PETSC_COMM_WORLD, ifilename, NULL, PETSC_TRUE, &dm);CHKERRQ(ierr);
-  ierr = DMSetFromOptions(dm);CHKERRQ(ierr);
-  ierr = DMViewFromOptions(dm, NULL, "-dm_view");CHKERRQ(ierr);
-  ierr = DMGetDimension(dm, &sdim);CHKERRQ(ierr);
+  PetscCall(DMPlexCreateFromFile(PETSC_COMM_WORLD, ifilename, NULL, PETSC_TRUE, &dm));
+  PetscCall(DMPlexDistributeSetDefault(dm, PETSC_FALSE));
+  PetscCall(DMSetFromOptions(dm));
+  PetscCall(DMViewFromOptions(dm, NULL, "-dm_view"));
+  PetscCall(DMGetDimension(dm, &sdim));
 
   /* Create the exodus result file */
   {
-    PetscInt      numstep = 3, step;
-    char         *nodalVarName[4];
-    char         *zonalVarName[6];
-    int          *truthtable;
-    PetscInt      numNodalVar, numZonalVar, i;
+    PetscInt numstep = 3, step;
+    char    *nodalVarName[4];
+    char    *zonalVarName[6];
+    int     *truthtable;
+    PetscInt numNodalVar, numZonalVar, i;
 
     /* enable exodus debugging information */
-    ex_opts(EX_VERBOSE|EX_DEBUG);
+    ex_opts(EX_VERBOSE | EX_DEBUG);
     /* Create the exodus file */
-    ierr = PetscViewerExodusIIOpen(PETSC_COMM_WORLD,ofilename,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+    PetscCall(PetscViewerExodusIIOpen(PETSC_COMM_WORLD, ofilename, FILE_MODE_WRITE, &viewer));
     /* The long way would be */
     /*
-      ierr = PetscViewerCreate(PETSC_COMM_WORLD,&viewer);CHKERRQ(ierr);
-      ierr = PetscViewerSetType(viewer,PETSCVIEWEREXODUSII);CHKERRQ(ierr);
-      ierr = PetscViewerFileSetMode(viewer,FILE_MODE_APPEND);CHKERRQ(ierr);
-      ierr = PetscViewerFileSetName(viewer,ofilename);CHKERRQ(ierr);
+      PetscCall(PetscViewerCreate(PETSC_COMM_WORLD,&viewer));
+      PetscCall(PetscViewerSetType(viewer,PETSCVIEWEREXODUSII));
+      PetscCall(PetscViewerFileSetMode(viewer,FILE_MODE_APPEND));
+      PetscCall(PetscViewerFileSetName(viewer,ofilename));
     */
     /* set the mesh order */
-    ierr = PetscViewerExodusIISetOrder(viewer,order);CHKERRQ(ierr);
-    ierr = PetscViewerView(viewer,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+    PetscCall(PetscViewerExodusIISetOrder(viewer, order));
+    PetscCall(PetscViewerView(viewer, PETSC_VIEWER_STDOUT_WORLD));
     /*
       Notice how the exodus file is actually NOT open at this point (exoid is -1)
-      Since we are overwritting the file (mode is FILE_MODE_WRITE), we are going to have to
+      Since we are overwriting the file (mode is FILE_MODE_WRITE), we are going to have to
       write the geometry (the DM), which can only be done on a brand new file.
     */
 
     /* Save the geometry to the file, erasing all previous content */
-    ierr = DMView(dm,viewer);CHKERRQ(ierr);
-    ierr = PetscViewerView(viewer,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+    PetscCall(DMView(dm, viewer));
+    PetscCall(PetscViewerView(viewer, PETSC_VIEWER_STDOUT_WORLD));
     /*
       Note how the exodus file is now open
     */
@@ -85,114 +87,120 @@ int main(int argc, char **argv) {
     /* "Format" the exodus result file, i.e. allocate space for nodal and zonal variables */
     switch (sdim) {
     case 2:
-      numNodalVar = 3;
-      nodalVarName[0] = (char *) "U_x";
-      nodalVarName[1] = (char *) "U_y";
-      nodalVarName[2] = (char *) "Alpha";
-      numZonalVar = 3;
-      zonalVarName[0] = (char *) "Sigma_11";
-      zonalVarName[1] = (char *) "Sigma_22";
-      zonalVarName[2] = (char *) "Sigma_12";
+      numNodalVar     = 3;
+      nodalVarName[0] = (char *)"U_x";
+      nodalVarName[1] = (char *)"U_y";
+      nodalVarName[2] = (char *)"Alpha";
+      numZonalVar     = 3;
+      zonalVarName[0] = (char *)"Sigma_11";
+      zonalVarName[1] = (char *)"Sigma_22";
+      zonalVarName[2] = (char *)"Sigma_12";
       break;
     case 3:
-      numNodalVar = 4;
-      nodalVarName[0] = (char *) "U_x";
-      nodalVarName[1] = (char *) "U_y";
-      nodalVarName[2] = (char *) "U_z";
-      nodalVarName[3] = (char *) "Alpha";
-      numZonalVar = 6;
-      zonalVarName[0] = (char *) "Sigma_11";
-      zonalVarName[1] = (char *) "Sigma_22";
-      zonalVarName[2] = (char *) "Sigma_33";
-      zonalVarName[3] = (char *) "Sigma_23";
-      zonalVarName[4] = (char *) "Sigma_13";
-      zonalVarName[5] = (char *) "Sigma_12";
+      numNodalVar     = 4;
+      nodalVarName[0] = (char *)"U_x";
+      nodalVarName[1] = (char *)"U_y";
+      nodalVarName[2] = (char *)"U_z";
+      nodalVarName[3] = (char *)"Alpha";
+      numZonalVar     = 6;
+      zonalVarName[0] = (char *)"Sigma_11";
+      zonalVarName[1] = (char *)"Sigma_22";
+      zonalVarName[2] = (char *)"Sigma_33";
+      zonalVarName[3] = (char *)"Sigma_23";
+      zonalVarName[4] = (char *)"Sigma_13";
+      zonalVarName[5] = (char *)"Sigma_12";
       break;
-    default: SETERRQ1(PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_OUTOFRANGE, "No layout for dimension %D", sdim);
+    default:
+      SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_OUTOFRANGE, "No layout for dimension %" PetscInt_FMT, sdim);
     }
-    ierr = PetscViewerExodusIIGetId(viewer,&exoid);CHKERRQ(ierr);
-    PetscStackCallStandard(ex_put_variable_param,(exoid, EX_ELEM_BLOCK, numZonalVar));
-    PetscStackCallStandard(ex_put_variable_names,(exoid, EX_ELEM_BLOCK, numZonalVar, zonalVarName));
-    PetscStackCallStandard(ex_put_variable_param,(exoid, EX_NODAL, numNodalVar));
-    PetscStackCallStandard(ex_put_variable_names,(exoid, EX_NODAL, numNodalVar, nodalVarName));
+    PetscCall(PetscViewerExodusIIGetId(viewer, &exoid));
+    PetscCallExternal(ex_put_variable_param, exoid, EX_ELEM_BLOCK, numZonalVar);
+    PetscCallExternal(ex_put_variable_names, exoid, EX_ELEM_BLOCK, numZonalVar, zonalVarName);
+    PetscCallExternal(ex_put_variable_param, exoid, EX_NODAL, numNodalVar);
+    PetscCallExternal(ex_put_variable_names, exoid, EX_NODAL, numNodalVar, nodalVarName);
     numCS = ex_inquire_int(exoid, EX_INQ_ELEM_BLK);
 
     /*
       An exodusII truth table specifies which fields are saved at which time step
       It speeds up I/O but reserving space for fieldsin the file ahead of time.
     */
-    ierr = PetscMalloc1(numZonalVar * numCS, &truthtable);CHKERRQ(ierr);
+    PetscCall(PetscMalloc1(numZonalVar * numCS, &truthtable));
     for (i = 0; i < numZonalVar * numCS; ++i) truthtable[i] = 1;
-    PetscStackCallStandard(ex_put_truth_table,(exoid, EX_ELEM_BLOCK, numCS, numZonalVar, truthtable));
-    ierr = PetscFree(truthtable);CHKERRQ(ierr);
+    PetscCallExternal(ex_put_truth_table, exoid, EX_ELEM_BLOCK, numCS, numZonalVar, truthtable);
+    PetscCall(PetscFree(truthtable));
 
     /* Writing time step information in the file. Note that this is currently broken in the exodus library for netcdf4 (HDF5-based) files */
     for (step = 0; step < numstep; ++step) {
       PetscReal time = step;
-      PetscStackCallStandard(ex_put_time,(exoid, step+1, &time));
+      PetscCallExternal(ex_put_time, exoid, step + 1, &time);
     }
   }
 
   /* Create the main section containing all fields */
-  ierr = PetscSectionCreate(PetscObjectComm((PetscObject) dm), &section);CHKERRQ(ierr);
-  ierr = PetscSectionSetNumFields(section, 3);CHKERRQ(ierr);
-  ierr = PetscSectionSetFieldName(section, fieldU, "U");CHKERRQ(ierr);
-  ierr = PetscSectionSetFieldName(section, fieldA, "Alpha");CHKERRQ(ierr);
-  ierr = PetscSectionSetFieldName(section, fieldS, "Sigma");CHKERRQ(ierr);
-  ierr = DMPlexGetChart(dm, &pStart, &pEnd);CHKERRQ(ierr);
-  ierr = PetscSectionSetChart(section, pStart, pEnd);CHKERRQ(ierr);
-  ierr = PetscMalloc2(sdim+1, &pStartDepth, sdim+1, &pEndDepth);CHKERRQ(ierr);
-  for (d = 0; d <= sdim; ++d) {ierr = DMPlexGetDepthStratum(dm, d, &pStartDepth[d], &pEndDepth[d]);CHKERRQ(ierr);}
+  PetscCall(PetscSectionCreate(PetscObjectComm((PetscObject)dm), &section));
+  PetscCall(PetscSectionSetNumFields(section, 3));
+  PetscCall(PetscSectionSetFieldName(section, fieldU, "U"));
+  PetscCall(PetscSectionSetFieldName(section, fieldA, "Alpha"));
+  PetscCall(PetscSectionSetFieldName(section, fieldS, "Sigma"));
+  PetscCall(DMPlexGetChart(dm, &pStart, &pEnd));
+  PetscCall(PetscSectionSetChart(section, pStart, pEnd));
+  PetscCall(PetscMalloc2(sdim + 1, &pStartDepth, sdim + 1, &pEndDepth));
+  for (d = 0; d <= sdim; ++d) PetscCall(DMPlexGetDepthStratum(dm, d, &pStartDepth[d], &pEndDepth[d]));
   /* Vector field U, Scalar field Alpha, Tensor field Sigma */
-  ierr = PetscSectionSetFieldComponents(section, fieldU, sdim);CHKERRQ(ierr);
-  ierr = PetscSectionSetFieldComponents(section, fieldA, 1);CHKERRQ(ierr);
-  ierr = PetscSectionSetFieldComponents(section, fieldS, sdim*(sdim+1)/2);CHKERRQ(ierr);
+  PetscCall(PetscSectionSetFieldComponents(section, fieldU, sdim));
+  PetscCall(PetscSectionSetFieldComponents(section, fieldA, 1));
+  PetscCall(PetscSectionSetFieldComponents(section, fieldS, sdim * (sdim + 1) / 2));
 
   /* Going through cell sets then cells, and setting up storage for the sections */
-  ierr = DMGetLabelSize(dm, "Cell Sets", &numCS);CHKERRQ(ierr);
-  ierr = DMGetLabelIdIS(dm, "Cell Sets", &csIS);CHKERRQ(ierr);
-  if (csIS) {ierr = ISGetIndices(csIS, &csID);CHKERRQ(ierr);}
+  PetscCall(DMGetLabelSize(dm, "Cell Sets", &numCS));
+  PetscCall(DMGetLabelIdIS(dm, "Cell Sets", &csIS));
+  if (csIS) PetscCall(ISGetIndices(csIS, &csID));
   for (set = 0; set < numCS; set++) {
-    IS                cellIS;
-    const PetscInt   *cellID;
-    PetscInt          numCells, cell, closureSize, *closureA = NULL;
+    IS              cellIS;
+    const PetscInt *cellID;
+    PetscInt        numCells, cell, closureSize, *closureA = NULL;
 
-    ierr = DMGetStratumSize(dm, "Cell Sets", csID[set], &numCells);CHKERRQ(ierr);
-    ierr = DMGetStratumIS(dm, "Cell Sets", csID[set], &cellIS);CHKERRQ(ierr);
+    PetscCall(DMGetStratumSize(dm, "Cell Sets", csID[set], &numCells));
+    PetscCall(DMGetStratumIS(dm, "Cell Sets", csID[set], &cellIS));
     if (numCells > 0) {
       /* dof layout ordered by increasing height in the DAG: cell, face, edge, vertex */
-      PetscInt          dofUP1Tri[]  = {2, 0, 0};
-      PetscInt          dofAP1Tri[]  = {1, 0, 0};
-      PetscInt          dofUP2Tri[]  = {2, 2, 0};
-      PetscInt          dofAP2Tri[]  = {1, 1, 0};
-      PetscInt          dofUP1Quad[] = {2, 0, 0};
-      PetscInt          dofAP1Quad[] = {1, 0, 0};
-      PetscInt          dofUP2Quad[] = {2, 2, 2};
-      PetscInt          dofAP2Quad[] = {1, 1, 1};
-      PetscInt          dofS2D[]     = {0, 0, 3};
-      PetscInt          dofUP1Tet[]  = {3, 0, 0, 0};
-      PetscInt          dofAP1Tet[]  = {1, 0, 0, 0};
-      PetscInt          dofUP2Tet[]  = {3, 3, 0, 0};
-      PetscInt          dofAP2Tet[]  = {1, 1, 0, 0};
-      PetscInt          dofUP1Hex[]  = {3, 0, 0, 0};
-      PetscInt          dofAP1Hex[]  = {1, 0, 0, 0};
-      PetscInt          dofUP2Hex[]  = {3, 3, 3, 3};
-      PetscInt          dofAP2Hex[]  = {1, 1, 1, 1};
-      PetscInt          dofS3D[]     = {0, 0, 0, 6};
-      PetscInt         *dofU, *dofA, *dofS;
+      PetscInt  dofUP1Tri[]  = {2, 0, 0};
+      PetscInt  dofAP1Tri[]  = {1, 0, 0};
+      PetscInt  dofUP2Tri[]  = {2, 2, 0};
+      PetscInt  dofAP2Tri[]  = {1, 1, 0};
+      PetscInt  dofUP1Quad[] = {2, 0, 0};
+      PetscInt  dofAP1Quad[] = {1, 0, 0};
+      PetscInt  dofUP2Quad[] = {2, 2, 2};
+      PetscInt  dofAP2Quad[] = {1, 1, 1};
+      PetscInt  dofS2D[]     = {0, 0, 3};
+      PetscInt  dofUP1Tet[]  = {3, 0, 0, 0};
+      PetscInt  dofAP1Tet[]  = {1, 0, 0, 0};
+      PetscInt  dofUP2Tet[]  = {3, 3, 0, 0};
+      PetscInt  dofAP2Tet[]  = {1, 1, 0, 0};
+      PetscInt  dofUP1Hex[]  = {3, 0, 0, 0};
+      PetscInt  dofAP1Hex[]  = {1, 0, 0, 0};
+      PetscInt  dofUP2Hex[]  = {3, 3, 3, 3};
+      PetscInt  dofAP2Hex[]  = {1, 1, 1, 1};
+      PetscInt  dofS3D[]     = {0, 0, 0, 6};
+      PetscInt *dofU, *dofA, *dofS;
 
       switch (sdim) {
-      case 2: dofS = dofS2D;break;
-      case 3: dofS = dofS3D;break;
-      default: SETERRQ1(PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_OUTOFRANGE, "No layout for dimension %D", sdim);
+      case 2:
+        dofS = dofS2D;
+        break;
+      case 3:
+        dofS = dofS3D;
+        break;
+      default:
+        SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_OUTOFRANGE, "No layout for dimension %" PetscInt_FMT, sdim);
       }
 
       /* Identify cell type based on closure size only. This works for Tri/Tet/Quad/Hex meshes
          It will not be enough to identify more exotic elements like pyramid or prisms...  */
-      ierr = ISGetIndices(cellIS, &cellID);CHKERRQ(ierr);
-      ierr = DMPlexGetTransitiveClosure(dm, cellID[0], PETSC_TRUE, &closureSize, &closureA);CHKERRQ(ierr);
+      PetscCall(ISGetIndices(cellIS, &cellID));
+      PetscCall(DMPlexGetTransitiveClosure(dm, cellID[0], PETSC_TRUE, &closureSize, &closureA));
       switch (closureSize) {
-        case 7: /* Tri */
+      case 7: /* Tri */
         if (order == 1) {
           dofU = dofUP1Tri;
           dofA = dofAP1Tri;
@@ -201,7 +209,7 @@ int main(int argc, char **argv) {
           dofA = dofAP2Tri;
         }
         break;
-        case 9: /* Quad */
+      case 9: /* Quad */
         if (order == 1) {
           dofU = dofUP1Quad;
           dofA = dofAP1Quad;
@@ -210,7 +218,7 @@ int main(int argc, char **argv) {
           dofA = dofAP2Quad;
         }
         break;
-        case 15: /* Tet */
+      case 15: /* Tet */
         if (order == 1) {
           dofU = dofUP1Tet;
           dofA = dofAP1Tet;
@@ -219,7 +227,7 @@ int main(int argc, char **argv) {
           dofA = dofAP2Tet;
         }
         break;
-        case 27: /* Hex */
+      case 27: /* Hex */
         if (order == 1) {
           dofU = dofUP1Hex;
           dofA = dofAP1Hex;
@@ -228,87 +236,83 @@ int main(int argc, char **argv) {
           dofA = dofAP2Hex;
         }
         break;
-        default: SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_INCOMP, "Unknown element with closure size %D", closureSize);
+      default:
+        SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_INCOMP, "Unknown element with closure size %" PetscInt_FMT, closureSize);
       }
-      ierr = DMPlexRestoreTransitiveClosure(dm, cellID[0], PETSC_TRUE, &closureSize, &closureA);CHKERRQ(ierr);
+      PetscCall(DMPlexRestoreTransitiveClosure(dm, cellID[0], PETSC_TRUE, &closureSize, &closureA));
 
       for (cell = 0; cell < numCells; cell++) {
         PetscInt *closure = NULL;
 
-        ierr = DMPlexGetTransitiveClosure(dm, cellID[cell], PETSC_TRUE, &closureSize, &closure);CHKERRQ(ierr);
+        PetscCall(DMPlexGetTransitiveClosure(dm, cellID[cell], PETSC_TRUE, &closureSize, &closure));
         for (p = 0; p < closureSize; ++p) {
           /* Find depth of p */
           for (d = 0; d <= sdim; ++d) {
-            if ((closure[2*p] >= pStartDepth[d]) && (closure[2*p] < pEndDepth[d])) {
-              ierr = PetscSectionSetDof(section, closure[2*p], dofU[d]+dofA[d]+dofS[d]);CHKERRQ(ierr);
-              ierr = PetscSectionSetFieldDof(section, closure[2*p], fieldU, dofU[d]);CHKERRQ(ierr);
-              ierr = PetscSectionSetFieldDof(section, closure[2*p], fieldA, dofA[d]);CHKERRQ(ierr);
-              ierr = PetscSectionSetFieldDof(section, closure[2*p], fieldS, dofS[d]);CHKERRQ(ierr);
+            if ((closure[2 * p] >= pStartDepth[d]) && (closure[2 * p] < pEndDepth[d])) {
+              PetscCall(PetscSectionSetDof(section, closure[2 * p], dofU[d] + dofA[d] + dofS[d]));
+              PetscCall(PetscSectionSetFieldDof(section, closure[2 * p], fieldU, dofU[d]));
+              PetscCall(PetscSectionSetFieldDof(section, closure[2 * p], fieldA, dofA[d]));
+              PetscCall(PetscSectionSetFieldDof(section, closure[2 * p], fieldS, dofS[d]));
             }
           }
         }
-        ierr = DMPlexRestoreTransitiveClosure(dm, cellID[cell], PETSC_TRUE, &closureSize, &closure);CHKERRQ(ierr);
+        PetscCall(DMPlexRestoreTransitiveClosure(dm, cellID[cell], PETSC_TRUE, &closureSize, &closure));
       }
-      ierr = ISRestoreIndices(cellIS, &cellID);CHKERRQ(ierr);
-      ierr = ISDestroy(&cellIS);CHKERRQ(ierr);
+      PetscCall(ISRestoreIndices(cellIS, &cellID));
+      PetscCall(ISDestroy(&cellIS));
     }
   }
-  if (csIS) {ierr = ISRestoreIndices(csIS, &csID);CHKERRQ(ierr);}
-  ierr = ISDestroy(&csIS);CHKERRQ(ierr);
-  ierr = PetscSectionSetUp(section);CHKERRQ(ierr);
-  ierr = DMSetLocalSection(dm, section);CHKERRQ(ierr);
-  ierr = PetscObjectViewFromOptions((PetscObject) section, NULL, "-dm_section_view");CHKERRQ(ierr);
-  ierr = PetscSectionDestroy(&section);CHKERRQ(ierr);
+  if (csIS) PetscCall(ISRestoreIndices(csIS, &csID));
+  PetscCall(ISDestroy(&csIS));
+  PetscCall(PetscSectionSetUp(section));
+  PetscCall(DMSetLocalSection(dm, section));
+  PetscCall(PetscObjectViewFromOptions((PetscObject)section, NULL, "-dm_section_view"));
+  PetscCall(PetscSectionDestroy(&section));
 
   {
-    DM               pdm;
     PetscSF          migrationSF;
     PetscInt         ovlp = 0;
     PetscPartitioner part;
 
-    ierr = DMSetUseNatural(dm,PETSC_TRUE);CHKERRQ(ierr);
-    ierr = DMPlexGetPartitioner(dm,&part);CHKERRQ(ierr);
-    ierr = PetscPartitionerSetFromOptions(part);CHKERRQ(ierr);
-    ierr = DMPlexDistribute(dm,ovlp,&migrationSF,&pdm);CHKERRQ(ierr);
-    if (pdm) {
-      ierr = DMPlexSetMigrationSF(pdm,migrationSF);CHKERRQ(ierr);
-      ierr = PetscSFDestroy(&migrationSF);CHKERRQ(ierr);
-      ierr = DMDestroy(&dm);CHKERRQ(ierr);
-      dm = pdm;
-      ierr = DMViewFromOptions(dm,NULL,"-dm_view");CHKERRQ(ierr);
+    PetscCall(DMSetUseNatural(dm, PETSC_TRUE));
+    PetscCall(DMPlexGetPartitioner(dm, &part));
+    PetscCall(PetscPartitionerSetFromOptions(part));
+    PetscCall(DMPlexDistribute(dm, ovlp, &migrationSF, &pdm));
+    if (!pdm) pdm = dm;
+    /* Set the migrationSF is mandatory since useNatural = PETSC_TRUE */
+    if (migrationSF) {
+      PetscCall(DMPlexSetMigrationSF(pdm, migrationSF));
+      PetscCall(PetscSFDestroy(&migrationSF));
     }
+    PetscCall(DMViewFromOptions(pdm, NULL, "-dm_view"));
   }
 
   /* Get DM and IS for each field of dm */
-  ierr = DMCreateSubDM(dm, 1, &fieldU, &isU,  &dmU);CHKERRQ(ierr);
-  ierr = DMCreateSubDM(dm, 1, &fieldA, &isA,  &dmA);CHKERRQ(ierr);
-  ierr = DMCreateSubDM(dm, 1, &fieldS, &isS,  &dmS);CHKERRQ(ierr);
-  ierr = DMCreateSubDM(dm, 2, fieldUA, &isUA, &dmUA);CHKERRQ(ierr);
+  PetscCall(DMCreateSubDM(pdm, 1, &fieldU, &isU, &dmU));
+  PetscCall(DMCreateSubDM(pdm, 1, &fieldA, &isA, &dmA));
+  PetscCall(DMCreateSubDM(pdm, 1, &fieldS, &isS, &dmS));
+  PetscCall(DMCreateSubDM(pdm, 2, fieldUA, &isUA, &dmUA));
 
-  ierr = PetscMalloc1(2,&dmList);CHKERRQ(ierr);
+  PetscCall(PetscMalloc1(2, &dmList));
   dmList[0] = dmU;
   dmList[1] = dmA;
-  /* We temporarily disable dmU->useNatural to test that we can reconstruct the
-     NaturaltoGlobal SF from any of the dm in dms
-  */
-  dmU->useNatural = PETSC_FALSE;
-  ierr = DMCreateSuperDM(dmList,2,NULL,&dmUA2);CHKERRQ(ierr);
-  dmU->useNatural = PETSC_TRUE;
-  ierr = PetscFree(dmList);CHKERRQ(ierr);
 
-  ierr = DMGetGlobalVector(dm,   &X);CHKERRQ(ierr);
-  ierr = DMGetGlobalVector(dmU,  &U);CHKERRQ(ierr);
-  ierr = DMGetGlobalVector(dmA,  &A);CHKERRQ(ierr);
-  ierr = DMGetGlobalVector(dmS,  &S);CHKERRQ(ierr);
-  ierr = DMGetGlobalVector(dmUA, &UA);CHKERRQ(ierr);
-  ierr = DMGetGlobalVector(dmUA2, &UA2);CHKERRQ(ierr);
+  PetscCall(DMCreateSuperDM(dmList, 2, NULL, &dmUA2));
+  PetscCall(PetscFree(dmList));
 
-  ierr = PetscObjectSetName((PetscObject) U,  "U");CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) A,  "Alpha");CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) S,  "Sigma");CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) UA, "UAlpha");CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) UA2, "UAlpha2");CHKERRQ(ierr);
-  ierr = VecSet(X, -111.);CHKERRQ(ierr);
+  PetscCall(DMGetGlobalVector(pdm, &X));
+  PetscCall(DMGetGlobalVector(dmU, &U));
+  PetscCall(DMGetGlobalVector(dmA, &A));
+  PetscCall(DMGetGlobalVector(dmS, &S));
+  PetscCall(DMGetGlobalVector(dmUA, &UA));
+  PetscCall(DMGetGlobalVector(dmUA2, &UA2));
+
+  PetscCall(PetscObjectSetName((PetscObject)U, "U"));
+  PetscCall(PetscObjectSetName((PetscObject)A, "Alpha"));
+  PetscCall(PetscObjectSetName((PetscObject)S, "Sigma"));
+  PetscCall(PetscObjectSetName((PetscObject)UA, "UAlpha"));
+  PetscCall(PetscObjectSetName((PetscObject)UA2, "UAlpha2"));
+  PetscCall(VecSet(X, -111.));
 
   /* Setting u to [x,y,z]  and alpha to x^2+y^2+z^2 by writing in UAlpha then restricting to U and Alpha */
   {
@@ -319,49 +323,47 @@ int main(int argc, char **argv) {
     PetscScalar *cval, *xyz;
     PetscInt     clSize, i, j;
 
-    ierr = DMGetLocalSection(dmUA, &sectionUA);CHKERRQ(ierr);
-    ierr = DMGetLocalVector(dmUA, &UALoc);CHKERRQ(ierr);
-    ierr = VecGetArray(UALoc, &cval);CHKERRQ(ierr);
-    ierr = DMGetCoordinateSection(dmUA, &coordSection);CHKERRQ(ierr);
-    ierr = DMGetCoordinatesLocal(dmUA, &coord);CHKERRQ(ierr);
-    ierr = DMPlexGetChart(dmUA, &pStart, &pEnd);CHKERRQ(ierr);
+    PetscCall(DMGetLocalSection(dmUA, &sectionUA));
+    PetscCall(DMGetLocalVector(dmUA, &UALoc));
+    PetscCall(VecGetArray(UALoc, &cval));
+    PetscCall(DMGetCoordinateSection(dmUA, &coordSection));
+    PetscCall(DMGetCoordinatesLocal(dmUA, &coord));
+    PetscCall(DMPlexGetChart(dmUA, &pStart, &pEnd));
 
     for (p = pStart; p < pEnd; ++p) {
       PetscInt dofUA, offUA;
 
-      ierr = PetscSectionGetDof(sectionUA, p, &dofUA);CHKERRQ(ierr);
+      PetscCall(PetscSectionGetDof(sectionUA, p, &dofUA));
       if (dofUA > 0) {
-        xyz=NULL;
-        ierr = PetscSectionGetOffset(sectionUA, p, &offUA);CHKERRQ(ierr);
-        ierr = DMPlexVecGetClosure(dmUA, coordSection, coord, p, &clSize, &xyz);CHKERRQ(ierr);
-        cval[offUA+sdim] = 0.;
+        xyz = NULL;
+        PetscCall(PetscSectionGetOffset(sectionUA, p, &offUA));
+        PetscCall(DMPlexVecGetClosure(dmUA, coordSection, coord, p, &clSize, &xyz));
+        cval[offUA + sdim] = 0.;
         for (i = 0; i < sdim; ++i) {
-          cval[offUA+i] = 0;
-          for (j = 0; j < clSize/sdim; ++j) {
-            cval[offUA+i] += xyz[j*sdim+i];
-          }
-          cval[offUA+i] = cval[offUA+i] * sdim / clSize;
-          cval[offUA+sdim] += PetscSqr(cval[offUA+i]);
+          cval[offUA + i] = 0;
+          for (j = 0; j < clSize / sdim; ++j) cval[offUA + i] += xyz[j * sdim + i];
+          cval[offUA + i] = cval[offUA + i] * sdim / clSize;
+          cval[offUA + sdim] += PetscSqr(cval[offUA + i]);
         }
-        ierr = DMPlexVecRestoreClosure(dmUA, coordSection, coord, p, &clSize, &xyz);CHKERRQ(ierr);
+        PetscCall(DMPlexVecRestoreClosure(dmUA, coordSection, coord, p, &clSize, &xyz));
       }
     }
-    ierr = VecRestoreArray(UALoc, &cval);CHKERRQ(ierr);
-    ierr = DMLocalToGlobalBegin(dmUA, UALoc, INSERT_VALUES, UA);CHKERRQ(ierr);
-    ierr = DMLocalToGlobalEnd(dmUA, UALoc, INSERT_VALUES, UA);CHKERRQ(ierr);
-    ierr = DMRestoreLocalVector(dmUA, &UALoc);CHKERRQ(ierr);
+    PetscCall(VecRestoreArray(UALoc, &cval));
+    PetscCall(DMLocalToGlobalBegin(dmUA, UALoc, INSERT_VALUES, UA));
+    PetscCall(DMLocalToGlobalEnd(dmUA, UALoc, INSERT_VALUES, UA));
+    PetscCall(DMRestoreLocalVector(dmUA, &UALoc));
 
     /* Update X */
-    ierr = VecISCopy(X, isUA, SCATTER_FORWARD, UA);CHKERRQ(ierr);
-    ierr = VecViewFromOptions(UA, NULL, "-ua_vec_view");CHKERRQ(ierr);
+    PetscCall(VecISCopy(X, isUA, SCATTER_FORWARD, UA));
+    PetscCall(VecViewFromOptions(UA, NULL, "-ua_vec_view"));
 
     /* Restrict to U and Alpha */
-    ierr = VecISCopy(X, isU, SCATTER_REVERSE, U);CHKERRQ(ierr);
-    ierr = VecISCopy(X, isA, SCATTER_REVERSE, A);CHKERRQ(ierr);
+    PetscCall(VecISCopy(X, isU, SCATTER_REVERSE, U));
+    PetscCall(VecISCopy(X, isA, SCATTER_REVERSE, A));
 
     /* restrict to UA2 */
-    ierr = VecISCopy(X, isUA, SCATTER_REVERSE, UA2);CHKERRQ(ierr);
-    ierr = VecViewFromOptions(UA2, NULL, "-ua2_vec_view");CHKERRQ(ierr);
+    PetscCall(VecISCopy(X, isUA, SCATTER_REVERSE, UA2));
+    PetscCall(VecViewFromOptions(UA2, NULL, "-ua2_vec_view"));
   }
 
   {
@@ -372,11 +374,11 @@ int main(int argc, char **argv) {
     PetscReal    time = 1.234;
 
     /* Writing nodal variables to ExodusII file */
-    ierr = DMSetOutputSequenceNumber(dmU,0,time);CHKERRQ(ierr);
-    ierr = DMSetOutputSequenceNumber(dmA,0,time);CHKERRQ(ierr);
+    PetscCall(DMSetOutputSequenceNumber(dmU, 0, time));
+    PetscCall(DMSetOutputSequenceNumber(dmA, 0, time));
 
-    ierr = VecView(U, viewer);CHKERRQ(ierr);
-    ierr = VecView(A, viewer);CHKERRQ(ierr);
+    PetscCall(VecView(U, viewer));
+    PetscCall(VecView(A, viewer));
 
     /* Saving U and Alpha in one shot.
        For this, we need to cheat and change the Vec's name
@@ -384,104 +386,109 @@ int main(int argc, char **argv) {
        so that there is no real values in doing this
     */
 
-    ierr = DMSetOutputSequenceNumber(dmUA,1,time);CHKERRQ(ierr);
-    ierr = DMGetGlobalVector(dmUA, &tmpVec);CHKERRQ(ierr);
-    ierr = VecCopy(UA, tmpVec);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) tmpVec, "U");CHKERRQ(ierr);
-    ierr = VecView(tmpVec, viewer);CHKERRQ(ierr);
+    PetscCall(DMSetOutputSequenceNumber(dmUA, 1, time));
+    PetscCall(DMGetGlobalVector(dmUA, &tmpVec));
+    PetscCall(VecCopy(UA, tmpVec));
+    PetscCall(PetscObjectSetName((PetscObject)tmpVec, "U"));
+    PetscCall(VecView(tmpVec, viewer));
     /* Reading nodal variables in Exodus file */
-    ierr = VecSet(tmpVec, -1000.0);CHKERRQ(ierr);
-    ierr = VecLoad(tmpVec, viewer);CHKERRQ(ierr);
-    ierr = VecAXPY(UA, -1.0, tmpVec);CHKERRQ(ierr);
-    ierr = VecNorm(UA, NORM_INFINITY, &norm);CHKERRQ(ierr);
-    if (norm > PETSC_SQRT_MACHINE_EPSILON) SETERRQ1(PetscObjectComm((PetscObject) dm), PETSC_ERR_PLIB, "UAlpha ||Vin - Vout|| = %g", (double) norm);
-    ierr = DMRestoreGlobalVector(dmUA, &tmpVec);CHKERRQ(ierr);
+    PetscCall(VecSet(tmpVec, -1000.0));
+    PetscCall(VecLoad(tmpVec, viewer));
+    PetscCall(VecAXPY(UA, -1.0, tmpVec));
+    PetscCall(VecNorm(UA, NORM_INFINITY, &norm));
+    PetscCheck(norm <= PETSC_SQRT_MACHINE_EPSILON, PetscObjectComm((PetscObject)dm), PETSC_ERR_PLIB, "UAlpha ||Vin - Vout|| = %g", (double)norm);
+    PetscCall(DMRestoreGlobalVector(dmUA, &tmpVec));
 
     /* same thing with the UA2 Vec obtained from the superDM */
-    ierr = DMGetGlobalVector(dmUA2, &tmpVec);CHKERRQ(ierr);
-    ierr = VecCopy(UA2, tmpVec);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) tmpVec, "U");CHKERRQ(ierr);
-    ierr = DMSetOutputSequenceNumber(dmUA2,2,time);CHKERRQ(ierr);
-    ierr = VecView(tmpVec, viewer);CHKERRQ(ierr);
+    PetscCall(DMGetGlobalVector(dmUA2, &tmpVec));
+    PetscCall(VecCopy(UA2, tmpVec));
+    PetscCall(PetscObjectSetName((PetscObject)tmpVec, "U"));
+    PetscCall(DMSetOutputSequenceNumber(dmUA2, 2, time));
+    PetscCall(VecView(tmpVec, viewer));
     /* Reading nodal variables in Exodus file */
-    ierr = VecSet(tmpVec, -1000.0);CHKERRQ(ierr);
-    ierr = VecLoad(tmpVec,viewer);CHKERRQ(ierr);
-    ierr = VecAXPY(UA2, -1.0, tmpVec);CHKERRQ(ierr);
-    ierr = VecNorm(UA2, NORM_INFINITY, &norm);CHKERRQ(ierr);
-    if (norm > PETSC_SQRT_MACHINE_EPSILON) SETERRQ1(PetscObjectComm((PetscObject) dm), PETSC_ERR_PLIB, "UAlpha2 ||Vin - Vout|| = %g", (double) norm);
-    ierr = DMRestoreGlobalVector(dmUA2, &tmpVec);CHKERRQ(ierr);
+    PetscCall(VecSet(tmpVec, -1000.0));
+    PetscCall(VecLoad(tmpVec, viewer));
+    PetscCall(VecAXPY(UA2, -1.0, tmpVec));
+    PetscCall(VecNorm(UA2, NORM_INFINITY, &norm));
+    PetscCheck(norm <= PETSC_SQRT_MACHINE_EPSILON, PetscObjectComm((PetscObject)dm), PETSC_ERR_PLIB, "UAlpha2 ||Vin - Vout|| = %g", (double)norm);
+    PetscCall(DMRestoreGlobalVector(dmUA2, &tmpVec));
 
     /* Building and saving Sigma
        We set sigma_0 = rank (to see partitioning)
               sigma_1 = cell set ID
               sigma_2 = x_coordinate of the cell center of mass
     */
-    ierr = DMGetCoordinateSection(dmS, &coordSection);CHKERRQ(ierr);
-    ierr = DMGetCoordinatesLocal(dmS, &coord);CHKERRQ(ierr);
-    ierr = DMGetLabelIdIS(dmS, "Cell Sets", &csIS);CHKERRQ(ierr);
-    ierr = DMGetLabelSize(dmS, "Cell Sets", &numCS);CHKERRQ(ierr);
-    ierr = ISGetIndices(csIS, &csID);CHKERRQ(ierr);
+    PetscCall(DMGetCoordinateSection(dmS, &coordSection));
+    PetscCall(DMGetCoordinatesLocal(dmS, &coord));
+    PetscCall(DMGetLabelIdIS(dmS, "Cell Sets", &csIS));
+    PetscCall(DMGetLabelSize(dmS, "Cell Sets", &numCS));
+    PetscCall(ISGetIndices(csIS, &csID));
     for (set = 0; set < numCS; ++set) {
       /* We know that all cells in a cell set have the same type, so we can dimension cval and xyz once for each cell set */
       IS              cellIS;
       const PetscInt *cellID;
       PetscInt        numCells, cell;
-      PetscScalar    *cval = NULL, *xyz  = NULL;
+      PetscScalar    *cval = NULL, *xyz = NULL;
       PetscInt        clSize, cdimCoord, c;
 
-      ierr = DMGetStratumIS(dmS, "Cell Sets", csID[set], &cellIS);CHKERRQ(ierr);
-      ierr = ISGetIndices(cellIS, &cellID);CHKERRQ(ierr);
-      ierr = ISGetSize(cellIS, &numCells);CHKERRQ(ierr);
+      PetscCall(DMGetStratumIS(dmS, "Cell Sets", csID[set], &cellIS));
+      PetscCall(ISGetIndices(cellIS, &cellID));
+      PetscCall(ISGetSize(cellIS, &numCells));
       for (cell = 0; cell < numCells; cell++) {
-        ierr = DMPlexVecGetClosure(dmS, NULL, S, cellID[cell], &clSize, &cval);CHKERRQ(ierr);
-        ierr = DMPlexVecGetClosure(dmS, coordSection, coord, cellID[cell], &cdimCoord, &xyz);CHKERRQ(ierr);
+        PetscCall(DMPlexVecGetClosure(dmS, NULL, S, cellID[cell], &clSize, &cval));
+        PetscCall(DMPlexVecGetClosure(dmS, coordSection, coord, cellID[cell], &cdimCoord, &xyz));
         cval[0] = rank;
         cval[1] = csID[set];
         cval[2] = 0.;
-        for (c = 0; c < cdimCoord/sdim; c++) cval[2] += xyz[c*sdim];
+        for (c = 0; c < cdimCoord / sdim; c++) cval[2] += xyz[c * sdim];
         cval[2] = cval[2] * sdim / cdimCoord;
-        ierr = DMPlexVecSetClosure(dmS, NULL, S, cellID[cell], cval, INSERT_ALL_VALUES);CHKERRQ(ierr);
+        PetscCall(DMPlexVecSetClosure(dmS, NULL, S, cellID[cell], cval, INSERT_ALL_VALUES));
       }
-      ierr = DMPlexVecRestoreClosure(dmS, NULL, S, cellID[0], &clSize, &cval);CHKERRQ(ierr);
-      ierr = DMPlexVecRestoreClosure(dmS, coordSection, coord, cellID[0], NULL, &xyz);CHKERRQ(ierr);
-      ierr = ISRestoreIndices(cellIS, &cellID);CHKERRQ(ierr);
-      ierr = ISDestroy(&cellIS);CHKERRQ(ierr);
+      PetscCall(DMPlexVecRestoreClosure(dmS, NULL, S, cellID[0], &clSize, &cval));
+      PetscCall(DMPlexVecRestoreClosure(dmS, coordSection, coord, cellID[0], NULL, &xyz));
+      PetscCall(ISRestoreIndices(cellIS, &cellID));
+      PetscCall(ISDestroy(&cellIS));
     }
-    ierr = ISRestoreIndices(csIS, &csID);CHKERRQ(ierr);
-    ierr = ISDestroy(&csIS);CHKERRQ(ierr);
-    ierr = VecViewFromOptions(S, NULL, "-s_vec_view");CHKERRQ(ierr);
+    PetscCall(ISRestoreIndices(csIS, &csID));
+    PetscCall(ISDestroy(&csIS));
+    PetscCall(VecViewFromOptions(S, NULL, "-s_vec_view"));
 
     /* Writing zonal variables in Exodus file */
-    ierr = DMSetOutputSequenceNumber(dmS,0,time);CHKERRQ(ierr);
-    ierr = VecView(S,viewer);CHKERRQ(ierr);
+    PetscCall(DMSetOutputSequenceNumber(dmS, 0, time));
+    PetscCall(VecView(S, viewer));
 
     /* Reading zonal variables in Exodus file */
-    ierr = DMGetGlobalVector(dmS, &tmpVec);CHKERRQ(ierr);
-    ierr = VecSet(tmpVec, -1000.0);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) tmpVec, "Sigma");CHKERRQ(ierr);
-    ierr = VecLoad(tmpVec,viewer);CHKERRQ(ierr);
-    ierr = VecAXPY(S, -1.0, tmpVec);CHKERRQ(ierr);
-    ierr = VecNorm(S, NORM_INFINITY, &norm);CHKERRQ(ierr);
-    if (norm > PETSC_SQRT_MACHINE_EPSILON) SETERRQ1(PetscObjectComm((PetscObject) dm), PETSC_ERR_PLIB, "Sigma ||Vin - Vout|| = %g", (double) norm);
-    ierr = DMRestoreGlobalVector(dmS, &tmpVec);CHKERRQ(ierr);
+    PetscCall(DMGetGlobalVector(dmS, &tmpVec));
+    PetscCall(VecSet(tmpVec, -1000.0));
+    PetscCall(PetscObjectSetName((PetscObject)tmpVec, "Sigma"));
+    PetscCall(VecLoad(tmpVec, viewer));
+    PetscCall(VecAXPY(S, -1.0, tmpVec));
+    PetscCall(VecNorm(S, NORM_INFINITY, &norm));
+    PetscCheck(norm <= PETSC_SQRT_MACHINE_EPSILON, PetscObjectComm((PetscObject)dm), PETSC_ERR_PLIB, "Sigma ||Vin - Vout|| = %g", (double)norm);
+    PetscCall(DMRestoreGlobalVector(dmS, &tmpVec));
   }
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  PetscCall(PetscViewerDestroy(&viewer));
 
-  ierr = DMRestoreGlobalVector(dmUA2, &UA2);CHKERRQ(ierr);
-  ierr = DMRestoreGlobalVector(dmUA, &UA);CHKERRQ(ierr);
-  ierr = DMRestoreGlobalVector(dmS,  &S);CHKERRQ(ierr);
-  ierr = DMRestoreGlobalVector(dmA,  &A);CHKERRQ(ierr);
-  ierr = DMRestoreGlobalVector(dmU,  &U);CHKERRQ(ierr);
-  ierr = DMRestoreGlobalVector(dm,   &X);CHKERRQ(ierr);
-  ierr = DMDestroy(&dmU);CHKERRQ(ierr); ierr = ISDestroy(&isU);CHKERRQ(ierr);
-  ierr = DMDestroy(&dmA);CHKERRQ(ierr); ierr = ISDestroy(&isA);CHKERRQ(ierr);
-  ierr = DMDestroy(&dmS);CHKERRQ(ierr); ierr = ISDestroy(&isS);CHKERRQ(ierr);
-  ierr = DMDestroy(&dmUA);CHKERRQ(ierr);ierr = ISDestroy(&isUA);CHKERRQ(ierr);
-  ierr = DMDestroy(&dmUA2);CHKERRQ(ierr);
-  ierr = DMDestroy(&dm);CHKERRQ(ierr);
-  ierr = PetscFree2(pStartDepth, pEndDepth);CHKERRQ(ierr);
-  ierr = PetscFinalize();
-  return ierr;
+  PetscCall(DMRestoreGlobalVector(dmUA2, &UA2));
+  PetscCall(DMRestoreGlobalVector(dmUA, &UA));
+  PetscCall(DMRestoreGlobalVector(dmS, &S));
+  PetscCall(DMRestoreGlobalVector(dmA, &A));
+  PetscCall(DMRestoreGlobalVector(dmU, &U));
+  PetscCall(DMRestoreGlobalVector(pdm, &X));
+  PetscCall(DMDestroy(&dmU));
+  PetscCall(ISDestroy(&isU));
+  PetscCall(DMDestroy(&dmA));
+  PetscCall(ISDestroy(&isA));
+  PetscCall(DMDestroy(&dmS));
+  PetscCall(ISDestroy(&isS));
+  PetscCall(DMDestroy(&dmUA));
+  PetscCall(ISDestroy(&isUA));
+  PetscCall(DMDestroy(&dmUA2));
+  PetscCall(DMDestroy(&pdm));
+  if (size > 1) PetscCall(DMDestroy(&dm));
+  PetscCall(PetscFree2(pStartDepth, pEndDepth));
+  PetscCall(PetscFinalize());
+  return 0;
 }
 
 /*TEST
@@ -491,88 +498,88 @@ int main(int argc, char **argv) {
   # 2D seq
   test:
     suffix: 0
-    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareT-large.exo -o FourSquareT-large_out.exo -dm_view -dm_section_view -petscpartitioner_type simple -order 1
+    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareT-large.exo -o FourSquareT-large_out.exo -dm_view -petscpartitioner_type simple -order 1
     #TODO: bug in call to NetCDF failed to complete invalid type definition in file id 65536 NetCDF: One or more variable sizes violate format constraints
   test:
     suffix: 1
-    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareQ-large.exo -o FourSquareQ-large_out.exo -dm_view -dm_section_view -petscpartitioner_type simple -order 1
+    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareQ-large.exo -o FourSquareQ-large_out.exo -dm_view -petscpartitioner_type simple -order 1
   test:
     suffix: 2
-    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareH-large.exo -o FourSquareH-large_out.exo -dm_view -dm_section_view -petscpartitioner_type simple -order 1
+    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareH-large.exo -o FourSquareH-large_out.exo -dm_view -petscpartitioner_type simple -order 1
     #TODO: bug in call to NetCDF failed to complete invalid type definition in file id 65536 NetCDF: One or more variable sizes violate format constraints
   test:
     suffix: 3
-    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareT-large.exo -o FourSquareT-large_out.exo -dm_view -dm_section_view -petscpartitioner_type simple -order 2
+    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareT-large.exo -o FourSquareT-large_out.exo -dm_view -petscpartitioner_type simple -order 2
   test:
     suffix: 4
-    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareQ-large.exo -o FourSquareQ-large_out.exo -dm_view -dm_section_view -petscpartitioner_type simple -order 2
+    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareQ-large.exo -o FourSquareQ-large_out.exo -dm_view -petscpartitioner_type simple -order 2
   test:
     suffix: 5
-    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareH-large.exo -o FourSquareH-large_out.exo -dm_view -dm_section_view -petscpartitioner_type simple -order 2
+    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareH-large.exo -o FourSquareH-large_out.exo -dm_view -petscpartitioner_type simple -order 2
 
   # 2D par
   test:
     suffix: 6
     nsize: 2
-    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareT-large.exo -o FourSquareT-large_out.exo -dm_view -dm_section_view -petscpartitioner_type simple -order 1
+    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareT-large.exo -o FourSquareT-large_out.exo -dm_view -petscpartitioner_type simple -order 1
     #TODO: bug in call to NetCDF failed to complete invalid type definition in file id 65536 NetCDF: One or more variable sizes violate format constraints
   test:
     suffix: 7
     nsize: 2
-    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareQ-large.exo -o FourSquareQ-large_out.exo -dm_view -dm_section_view -petscpartitioner_type simple -order 1
+    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareQ-large.exo -o FourSquareQ-large_out.exo -dm_view -petscpartitioner_type simple -order 1
   test:
     suffix: 8
     nsize: 2
-    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareH-large.exo -o FourSquareH-large_out.exo -dm_view -dm_section_view -petscpartitioner_type simple -order 1
+    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareH-large.exo -o FourSquareH-large_out.exo -dm_view -petscpartitioner_type simple -order 1
     #TODO: bug in call to NetCDF failed to complete invalid type definition in file id 65536 NetCDF: invalid dimension ID or name
   test:
     suffix: 9
     nsize: 2
-    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareT-large.exo -o FourSquareT-large_out.exo -dm_view -dm_section_view -petscpartitioner_type simple -order 2
+    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareT-large.exo -o FourSquareT-large_out.exo -dm_view -petscpartitioner_type simple -order 2
   test:
     suffix: 10
     nsize: 2
-    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareQ-large.exo -o FourSquareQ-large_out.exo -dm_view -dm_section_view -petscpartitioner_type simple -order 2
+    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareQ-large.exo -o FourSquareQ-large_out.exo -dm_view -petscpartitioner_type simple -order 2
   test:
-    # Something is now broken with parallel read/write for wahtever shape H is
+    # Something is now broken with parallel read/write for whatever shape H is
     TODO: broken
     suffix: 11
     nsize: 2
-    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareH-large.exo -o FourSquareH-large_out.exo -dm_view -dm_section_view -petscpartitioner_type simple -order 2
+    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareH-large.exo -o FourSquareH-large_out.exo -dm_view -petscpartitioner_type simple -order 2
 
   #3d seq
   test:
     suffix: 12
-    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourBrickHex-large.exo -o FourBrickHex-large_out.exo -dm_view -dm_section_view -petscpartitioner_type simple -order 1
+    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourBrickHex-large.exo -o FourBrickHex-large_out.exo -dm_view -petscpartitioner_type simple -order 1
   test:
     suffix: 13
-    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourBrickTet-large.exo -o FourBrickTet-large_out.exo -dm_view -dm_section_view -petscpartitioner_type simple -order 1
+    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourBrickTet-large.exo -o FourBrickTet-large_out.exo -dm_view -petscpartitioner_type simple -order 1
     #TODO: bug in call to NetCDF failed to complete invalid type definition in file id 65536 NetCDF: One or more variable sizes violate format constraints
   test:
     suffix: 14
-    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourBrickHex-large.exo -o FourBrickHex-large_out.exo -dm_view -dm_section_view -petscpartitioner_type simple -order 2
+    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourBrickHex-large.exo -o FourBrickHex-large_out.exo -dm_view -petscpartitioner_type simple -order 2
   test:
     suffix: 15
-    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourBrickTet-large.exo -o FourBrickTet-large_out.exo -dm_view -dm_section_view -petscpartitioner_type simple -order 2
+    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourBrickTet-large.exo -o FourBrickTet-large_out.exo -dm_view -petscpartitioner_type simple -order 2
     #TODO: bug in call to NetCDF failed to complete invalid type definition in file id 65536 NetCDF: One or more variable sizes violate format constraints
   #3d par
   test:
     suffix: 16
     nsize: 2
-    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourBrickHex-large.exo -o FourBrickHex-large_out.exo -dm_view -dm_section_view -petscpartitioner_type simple -order 1
+    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourBrickHex-large.exo -o FourBrickHex-large_out.exo -dm_view -petscpartitioner_type simple -order 1
   test:
     suffix: 17
     nsize: 2
-    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourBrickTet-large.exo -o FourBrickTet-large_out.exo -dm_view -dm_section_view -petscpartitioner_type simple -order 1
+    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourBrickTet-large.exo -o FourBrickTet-large_out.exo -dm_view -petscpartitioner_type simple -order 1
     #TODO: bug in call to NetCDF failed to complete invalid type definition in file id 65536 NetCDF: One or more variable sizes violate format constraints
   test:
     suffix: 18
     nsize: 2
-    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourBrickHex-large.exo -o FourBrickHex-large_out.exo -dm_view -dm_section_view -petscpartitioner_type simple -order 2
+    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourBrickHex-large.exo -o FourBrickHex-large_out.exo -dm_view -petscpartitioner_type simple -order 2
   test:
     suffix: 19
     nsize: 2
-    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourBrickTet-large.exo -o FourBrickTet-large_out.exo -dm_view -dm_section_view -petscpartitioner_type simple -order 2
+    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourBrickTet-large.exo -o FourBrickTet-large_out.exo -dm_view -petscpartitioner_type simple -order 2
     #TODO: bug in call to NetCDF failed to complete invalid type definition in file id 65536 NetCDF: One or more variable sizes violate format constraints
 
 TEST*/

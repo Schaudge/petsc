@@ -9,33 +9,33 @@ typedef struct _handlerCtx {
   int signum;
 } HandlerCtx;
 
-int handleSignal(int signum, void *ctx)
+PetscErrorCode handleSignal(int signum, void *ctx)
 {
-  HandlerCtx *user = (HandlerCtx*) ctx;
+  HandlerCtx *user = (HandlerCtx *)ctx;
 
   user->signum = signum;
   if (signum == SIGHUP) user->exitHandler = 1;
-  return 0;
+  return PETSC_SUCCESS;
 }
 
 int main(int argc, char *args[])
 {
-  HandlerCtx     user;
-  PetscErrorCode ierr;
+  HandlerCtx user;
 
   user.exitHandler = 0;
 
-  ierr = PetscInitialize(&argc, &args, (char*) 0, help);if (ierr) return ierr;
-  ierr = PetscPushSignalHandler(handleSignal, &user);CHKERRQ(ierr);
+  PetscFunctionBeginUser;
+  PetscCall(PetscInitialize(&argc, &args, (char *)0, help));
+  PetscCall(PetscPushSignalHandler(handleSignal, &user));
   while (!user.exitHandler) {
     if (user.signum > 0) {
-      ierr        = PetscPrintf(PETSC_COMM_SELF, "Caught signal %d\n", user.signum);CHKERRQ(ierr);
+      PetscCall(PetscPrintf(PETSC_COMM_SELF, "Caught signal %d\n", user.signum));
       user.signum = -1;
     }
   }
-  ierr = PetscPopSignalHandler();CHKERRQ(ierr);
-  ierr = PetscFinalize();
-  return ierr;
+  PetscCall(PetscPopSignalHandler());
+  PetscCall(PetscFinalize());
+  return 0;
 }
 
 /*TEST

@@ -16,48 +16,53 @@
 #define DMBF_XD_TopologyGetConnectivity DMBF_3D_TopologyGetConnectivity
 
 /* include generic functions */
-#include "bf_xd_topology.c"
+#include "bf_xd_topology.h"
 
 static PetscErrorCode DMBF_3D_ConnectivityCreate(DM dm, p4est_connectivity_t **connectivity)
 {
   const char       *prefix;
   DMForestTopology topologyName;
   PetscBool        isBrick;
-  PetscErrorCode   ierr;
 
   PetscFunctionBegin;
-  ierr = PetscObjectGetOptionsPrefix((PetscObject)dm,&prefix);CHKERRQ(ierr);
+  PetscCall(PetscObjectGetOptionsPrefix((PetscObject)dm, &prefix));
 
   /* get topology name */
-  ierr = DMForestGetTopology(dm,&topologyName);CHKERRQ(ierr);
-  if (!topologyName) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"DMBF needs a topology");
-  ierr = PetscStrcmp((const char*) topologyName,"brick",&isBrick);CHKERRQ(ierr);
+  PetscCall(DMForestGetTopology(dm,&topologyName));
+  if (!topologyName) SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_WRONGSTATE, "DMBF needs a topology");
+  PetscCall(PetscStrcmp((const char*) topologyName, "brick", &isBrick));
 
   if (isBrick && dm->setfromoptionscalled) { /* if brick topology with given uptions */
-    PetscBool flgN, flgP, flgB, periodic=PETSC_FALSE;
-    PetscInt  N[3]={2,2,2}, P[3]={0,0,0}, nretN=P4EST_DIM, nretP=P4EST_DIM, nretB=2*P4EST_DIM, i, j;
-    PetscReal B[6]={0.0,1.0,0.0,1.0,0.0,1.0};
+    PetscBool flgN, flgP, flgB, periodic = PETSC_FALSE;
+    PetscInt  N[3] = {2, 2, 2}, P[3] = {0, 0, 0}, nretN = P4EST_DIM, nretP = P4EST_DIM, nretB = 2 * P4EST_DIM, i, j;
+    PetscReal B[6] = {0.0, 1.0, 0.0, 1.0, 0.0, 1.0}, Lstart[3] = {0., 0., 0.}, L[3] = {-1.0, -1.0, -1.0}, maxCell[3] = {-1.0, -1.0, -1.0};
 
     /* get brick options */
-    ierr = PetscOptionsGetIntArray(((PetscObject)dm)->options,prefix,"-dm_p4est_brick_size",N,&nretN,&flgN);CHKERRQ(ierr);
-    ierr = PetscOptionsGetIntArray(((PetscObject)dm)->options,prefix,"-dm_p4est_brick_periodicity",P,&nretP,&flgP);CHKERRQ(ierr);
-    ierr = PetscOptionsGetRealArray(((PetscObject)dm)->options,prefix,"-dm_p4est_brick_bounds",B,&nretB,&flgB);CHKERRQ(ierr);
-    if (flgN && nretN != P4EST_DIM)   SETERRQ2(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_SIZ,"Need to give %d sizes in -dm_p4est_brick_size, gave %d",P4EST_DIM,nretN);
-    if (flgP && nretP != P4EST_DIM)   SETERRQ2(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_SIZ,"Need to give %d periodicities in -dm_p4est_brick_periodicity, gave %d",P4EST_DIM,nretP);
-    if (flgB && nretB != 2*P4EST_DIM) SETERRQ2(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_SIZ,"Need to give %d bounds in -dm_p4est_brick_bounds, gave %d",P4EST_DIM,nretP);
+    PetscCall(PetscOptionsGetIntArray(((PetscObject)dm)->options, prefix, "-dm_p4est_brick_size", N, &nretN, &flgN));
+    PetscCall(PetscOptionsGetIntArray(((PetscObject)dm)->options, prefix, "-dm_p4est_brick_periodicity", P, &nretP, &flgP));
+    PetscCall(PetscOptionsGetRealArray(((PetscObject)dm)->options, prefix, "-dm_p4est_brick_bounds", B, &nretB, &flgB));
+    PetscCheck(!flgN || nretN == P4EST_DIM, PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_SIZ, "Need to give %d sizes in -dm_p4est_brick_size, gave %" PetscInt_FMT, P4EST_DIM, nretN);
+    PetscCheck(!flgP || nretP == P4EST_DIM, PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_SIZ, "Need to give %d periodicities in -dm_p4est_brick_periodicity, gave %" PetscInt_FMT, P4EST_DIM, nretP);
+    PetscCheck(!flgB || nretB == 2 * P4EST_DIM, PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_SIZ, "Need to give %d bounds in -dm_p4est_brick_bounds, gave %" PetscInt_FMT, P4EST_DIM, nretP);
 
     /* update periodicity */
     for (i=0; i<P4EST_DIM; i++) {
       P[i] = (P[i] ? DM_BOUNDARY_PERIODIC : DM_BOUNDARY_NONE);
       periodic = (PetscBool)(P[i] || periodic);
       if (!flgB) B[2*i+1] = N[i];
+      if (P[i]) {
+        Lstart[i]  = B[2 * i + 0];
+        L[i]       = B[2 * i + 1] - B[2 * i + 0];
+        maxCell[i] = 1.1 * (L[i] / N[i]);
+      }
     }
-    ierr = DMSetPeriodicity(dm,periodic,PETSC_NULL,PETSC_NULL,PETSC_NULL);CHKERRQ(ierr);
+    if (periodic) PetscCall(DMSetPeriodicity(dm, maxCell, Lstart, L));
 
     /* create connectivity */
-    PetscStackCallP4estReturn(
-        *connectivity,p8est_connectivity_new_brick,
-        ((int) N[0], (int) N[1], (int) N[2], (P[0] == DM_BOUNDARY_PERIODIC), (P[1] == DM_BOUNDARY_PERIODIC), (P[2] == DM_BOUNDARY_PERIODIC)) );
+    PetscCallP4estReturn(
+        *connectivity, p8est_connectivity_new_brick,
+        ((int) N[0], (int) N[1], (int) N[2], (P[0] == DM_BOUNDARY_PERIODIC), (P[1] == DM_BOUNDARY_PERIODIC), (P[2] == DM_BOUNDARY_PERIODIC))
+    );
 
     { /* scale to bounds */
       double *vertices = (*connectivity)->vertices;
@@ -69,9 +74,9 @@ static PetscErrorCode DMBF_3D_ConnectivityCreate(DM dm, p4est_connectivity_t **c
     }
   } else { /* otherwise call generic function */
     /* create connectivity */
-    PetscStackCallP4estReturn(*connectivity,p8est_connectivity_new_byname,((const char*)topologyName));
+    PetscCallP4estReturn(*connectivity, p8est_connectivity_new_byname, ((const char*)topologyName));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 #endif /* defined(PETSC_HAVE_P4EST) */

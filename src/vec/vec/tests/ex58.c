@@ -3,54 +3,60 @@ static char help[] = "Test VecCreate{Seq|MPI}CUDAWithArrays.\n\n";
 
 #include "petsc.h"
 
-int main(int argc,char **argv)
+int main(int argc, char **argv)
 {
-  PetscErrorCode ierr;
-  Vec            x,y;
-  PetscMPIInt    size;
-  PetscInt       n = 5;
-  PetscScalar    xHost[5] = {0.,1.,2.,3.,4.};
+  Vec         x, y, z;
+  PetscMPIInt size;
+  PetscInt    n        = 5;
+  PetscScalar xHost[5] = {0., 1., 2., 3., 4.};
+  PetscScalar zHost[5];
+  PetscBool   equal;
 
-  ierr = PetscInitialize(&argc, &argv, (char*)0, help); if (ierr) return ierr;
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
+  PetscFunctionBeginUser;
+  PetscCall(PetscInitialize(&argc, &argv, (char *)0, help));
+  PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD, &size));
 
-  if (size == 1) {
-    ierr = VecCreateSeqCUDAWithArrays(PETSC_COMM_WORLD,1,n,xHost,NULL,&x);CHKERRQ(ierr);
-  } else {
-    ierr = VecCreateMPICUDAWithArrays(PETSC_COMM_WORLD,1,n,PETSC_DECIDE,xHost,NULL,&x);CHKERRQ(ierr);
-  }
-  /* print x should be equivalent too xHost */
-  ierr = VecView(x,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  ierr = VecSet(x,42.0);CHKERRQ(ierr);
-  /* print x should be all 42 */
-  ierr = VecView(x,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  PetscCall(PetscArraycpy(zHost, xHost, n));
+  PetscCall(VecCreateMPIWithArray(PETSC_COMM_WORLD, 1, n, PETSC_DECIDE, zHost, &z)); /* build z for comparison */
 
-  if (size == 1) {
-    ierr = VecCreateSeqWithArray(PETSC_COMM_WORLD,1,n,xHost,&y);CHKERRQ(ierr);
-  } else {
-    ierr = VecCreateMPIWithArray(PETSC_COMM_WORLD,1,n,PETSC_DECIDE,xHost,&y);CHKERRQ(ierr);
-  }
+  if (size == 1) PetscCall(VecCreateSeqCUDAWithArrays(PETSC_COMM_WORLD, 1, n, xHost, NULL, &x));
+  else PetscCall(VecCreateMPICUDAWithArrays(PETSC_COMM_WORLD, 1, n, PETSC_DECIDE, xHost, NULL, &x));
 
-  /* print y should be all 42 */
-  ierr = VecView(y, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  PetscCall(VecEqual(z, x, &equal));
+  PetscCheck(equal, PETSC_COMM_WORLD, PETSC_ERR_PLIB, "x, z are different");
 
-  ierr = VecDestroy(&y);CHKERRQ(ierr);
-  ierr = VecDestroy(&x);CHKERRQ(ierr);
-  ierr = PetscFinalize();
-  return ierr;
+  PetscCall(VecSet(x, 42.0));
+  PetscCall(VecSet(z, 42.0));
+  PetscCall(VecEqual(z, x, &equal));
+  PetscCheck(equal, PETSC_COMM_WORLD, PETSC_ERR_PLIB, "x, z are different");
+
+  PetscCall(VecCreateMPIWithArray(PETSC_COMM_WORLD, 1, n, PETSC_DECIDE, xHost, &y));
+  PetscCall(VecSetFromOptions(y)); /* changing y's type should not lose its value */
+  PetscCall(VecEqual(z, y, &equal));
+  PetscCheck(equal, PETSC_COMM_WORLD, PETSC_ERR_PLIB, "y, z are different");
+
+  PetscCall(VecDestroy(&y));
+  PetscCall(VecDestroy(&x));
+  PetscCall(VecDestroy(&z));
+  PetscCall(PetscFinalize());
+  return 0;
 }
 
 /*TEST
 
-   build:
-      requires: cuda
+  build:
+    requires: cuda
 
-   test:
-      nsize: 1
-      suffix: 1
+  testset:
+    output_file: output/empty.out
+    nsize: {{1 2}}
 
-   test:
-      nsize: 2
-      suffix: 2
+    test:
+      suffix: y_host
 
+    test:
+      TODO: we need something like VecConvert()
+      requires: kokkos_kernels
+      suffix: y_dev
+      args: -vec_type {{standard mpi cuda kokkos}}
 TEST*/

@@ -1,12 +1,12 @@
 
-#include <../src/ksp/ksp/impls/gmres/gmresimpl.h>       /*I  "petscksp.h"  I*/
+#include <../src/ksp/ksp/impls/gmres/gmresimpl.h> /*I  "petscksp.h"  I*/
 
 /*@
     KSPGMRESSetPreAllocateVectors - Causes GMRES and FGMRES to preallocate all its
     needed work vectors at initial setup rather than the default, which
     is to allocate them in chunks when needed.
 
-    Logically Collective on ksp
+    Logically Collective
 
     Input Parameter:
 .   ksp   - iterative context obtained from KSPCreate
@@ -16,14 +16,11 @@
 
     Level: intermediate
 
-.seealso: KSPGMRESSetRestart(), KSPGMRESSetOrthogonalization(), KSPGMRESGetOrthogonalization()
+.seealso: [](ch_ksp), `KSPGMRESSetRestart()`, `KSPGMRESSetOrthogonalization()`, `KSPGMRESGetOrthogonalization()`
 @*/
-PetscErrorCode  KSPGMRESSetPreAllocateVectors(KSP ksp)
+PetscErrorCode KSPGMRESSetPreAllocateVectors(KSP ksp)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  ierr = PetscTryMethod(ksp,"KSPGMRESSetPreAllocateVectors_C",(KSP),(ksp));CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscTryMethod(ksp, "KSPGMRESSetPreAllocateVectors_C", (KSP), (ksp));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
-

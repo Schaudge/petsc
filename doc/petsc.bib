@@ -135,29 +135,32 @@ author = {Richard Tran Mills and Mark F. Adams and Satish Balay and Jed Brown an
   petsc_uses={KSP},
 }
 
-@article{ZhangConstantinescu2021,
-  title   = {Optimal checkpointing for adjoint multistage time-stepping schemes},
-  author  = {Hong Zhang and Emil M. Constantinescu},
-  journal = {SIAM Journal on Scientific Computing},
-  note    = {submitted},
-  year    = {2021},
+@article{Zhang2021CAMS,
+  title = {Optimal checkpointing for adjoint multistage time-stepping schemes},
+  author = {Hong Zhang and Emil M. Constantinescu},
+  journal = {arXiv e-preprints},
+  eprint = {2202.11890},
+  archivePrefix = {arXiv},
+  year = {2022},
   petsc_uses={KSP},
 }
 @inproceedings{ZhangConstantinescu2021b,
-  title     = {Revolve-based adjoint checkpointing for multistage time integration},
-  author    = {Hong Zhang and Emil M. Constantinescu},
+  title = {Revolve-based adjoint checkpointing for multistage time integration},
+  author = {Hong Zhang and Emil M. Constantinescu},
   booktitle = {Proceedings of the International Conference on Computational Science (ICCS)},
-  month     = {June},
-  year      = {2021},
+  month = {June},
+  year = {2021},
   petsc_uses={KSP},
 }
-@techreport{ZhangConstantinescuSmith2019,
-  author        = {Hong Zhang and Emil M. Constantinescu and Barry F. Smith},
-  title         = {{PETSc TSAdjoint}: a discrete adjoint {ODE} solver for first-order and second-order sensitivity analysis},
-  journal       = {arXiv e-preprints},
-  eprint        = {1912.07696},
-  archivePrefix = {arXiv},
-  year          = {2019},
+@article{Zhang2022tsadjoint,
+  author = {Zhang, Hong and Constantinescu, Emil M. and Smith, Barry F.},
+  title = {{PETSc TSAdjoint: A Discrete Adjoint ODE Solver for First-Order and Second-Order Sensitivity Analysis}},
+  journal = {SIAM Journal on Scientific Computing},
+  volume = {44},
+  number = {1},
+  pages = {C1-C24},
+  year = {2022},
+  doi = {10.1137/21M140078X},
   petsc_uses={KSP},
 }
 
@@ -1248,11 +1251,11 @@ year = 2003,
 % LiteralHTML:
 % LiteralHTML:  <a name="fusion"><H3><center>Fusion</center></H3>
 % LiteralHTML:
-@article{AdamsBrennanKnepleyWang2022,
+@inproceedings{AdamsBrennanKnepleyWang2022,
   title     = {{Landau} collision operator in the {CUDA} programming model applied to thermal quench plasmas},
   author    = {Mark. F. Adams and Dylan P. Brennan and Matthew G. Knepley and Peng Wang},
   booktitle = {36th IEEE International Parallel \& Distributed Processing Symposium Conference (IPDPS '22)},
-  note      = {Accepted},
+  doi       = {10.1109/IPDPS53621.2022.00020},
   year      = {2022},
   petsc_uses={DMPlex},
 }
@@ -1278,8 +1281,11 @@ year = 2003,
   title   = {Conservative Projection Between FEM and Particle Bases},
   author  = {Joseph V. Pusztay and Matthew G. Knepley and Mark F. Adams},
   journal = {SIAM Journal on Scientific Computing},
-  note    = {Submitted},
-  year    = {2021}
+  volume  = {44},
+  number  = {4},
+  pages   = {C310--C319},
+  doi     = {10.1137/21M145407},
+  year    = {2022}
 }
 @article{Hirvijoki2017,
   author  = {Eero Hirvijoki and Mark F. Adams},
@@ -1589,6 +1595,31 @@ year    = 2014,
   year    = {2021},
   petsc_uses={KSP},
 }
+@article{AmbartsumyanBouakaramThanhGhattasKeyesStadlerTurkiyyahZampini2020,
+  title   = {Hierarchical matrix approximations of {Hessians} arising in inverse problems governed by {PDEs}},
+  author  = {I. Ambartsumyan and W. Bouakaram and Than Bui-Thanh and Omar Ghattas and David Keyes and Georg Stadler and George Turkiyyah and Stefano Zampini},
+  journal = {SIAM Journal of Scientific Computing},
+  volume  = {42},
+  number  = {5},
+  pages   = {A3397--A3426},
+  year    = {2020}
+}
+@article{ZampiniBouakaramTurkiyyahKnioKeyes2022,
+  title   = {H2Opus: a distributed memory {multi-GPU} software for non-local operators},
+  author  = {Stefano Zampini and W. Bouakaram and George Turkiyyah and O. Knio and David E. Keyes},
+  journal = {Advances on Computational Mathematics},
+  note    = {In press},
+  year    = {2022}
+}
+@article{DassiZampiniScacchi2022,
+  title   = {Robust and scalable adaptive {BDDC} preconditioners for virtual element discretizations of elliptic equations in mixed form},
+  author  = {F. Dassi and Stefano Zampini and S. Scacchi},
+  journal = {Computer Methods in Applied Mechanics and Engineering},
+  volume  = {391},
+  pages   = {114620},
+  year    = {2022}
+}
+
 @article {YoungOppenheimDimant2017,
   author  = {Matthew A. Young and Meers M. Oppenheim and Yakov S. Dimant},
   title   = {Hybrid simulations of coupled Farley-Buneman/gradient drift instabilities in the equatorial E region ionosphere},
@@ -1654,7 +1685,6 @@ author = "D.A. May and J. Brown and L. {Le Pourhiet}",
   author    = {Matthew G. Knepley and Michael Lange and Gerard J. Gorman},
   journal   = {arXiv},
   eprint    = {1506.06194},
-  note      = {submitted},
   year      = {2017},
   petsc_uses={DMPlex},
 }
@@ -1688,7 +1718,14 @@ author = "D.A. May and J. Brown and L. {Le Pourhiet}",
   address   = {Seattle, WA},
   pages     = {1--5},
   url       = {http://imr.sandia.gov/papers/imr31/2026_imr31RJ_Wallwork.pdf},
-  year      = {2021},
+  year      = {2022},
+  petsc_uses={DMPlex},
+}
+@inproceedings{TimalsinaKnepley2023,
+  title     = {Tetrahedralization of a Hexahedral Mesh},
+  author    = {Aman Timalsina and Matthew G. Knepley},
+  booktitle = {SIAM International Meshing Roundtable Workshop 2023},
+  year      = {2023},
   petsc_uses={DMPlex},
 }
 @article{FarrellKnepleyWechsungMitchell2020,
@@ -1702,12 +1739,22 @@ author = "D.A. May and J. Brown and L. {Le Pourhiet}",
   year    = {2021},
   petsc_uses={KSP,DMPlex},
 }
-@article{FarrellMitchellScottWechsung2020,
-  title={Robust multigrid methods for nearly incompressible elasticity using macro elements},
-  author={Patrick E Farrell and Lawrence Mitchell and L Ridgway Scott and Florian Wechsung},
-  journal={arXiv preprint arXiv:2002.02051},
-  year={2020},
+@article{FarrellMitchellScottWechsung2022,
+  title   = {Robust multigrid methods for nearly incompressible elasticity using macro elements},
+  author  = {Patrick E Farrell and Lawrence Mitchell and L Ridgway Scott and Florian Wechsung},
+  journal = {IMA Journal of Numerical Analysis},
+  issn    = {0272-4979},
+  doi     = {10.1093/imanum/drab083},
+  url     = {https://doi.org/10.1093/imanum/drab083},
+  year    = {2022},
   petsc_uses={KSP,DMPlex},
+}
+@misc{firedrakeproject,
+  title={{The Firedrake project}},
+  author={David A Ham and Firedrake Team},
+  url={http://firedrakeproject.org},
+  year={2022},
+  petsc_uses={KSP},
 }
 @article{RathgeberHamMitchellLangeLuporiniMcRaeBerceaMarkallKelly2016,
   title   = {Firedrake: automating the finite element method by composing abstractions},
@@ -1990,8 +2037,8 @@ doi = {10.1190/1.3628198},
   author    = {Blaise Bourdin and Matthew G. Knepley and C. Maurini},
   title     = {Numerical Simulation of Reservoir Stimulation - A Variational Approach},
   booktitle = {Proceedings of the 37th Stanford Geothermal Workshop},
-  url       = {http://www.geothermal-energy.org/pdf/IGAstandard/SGW/2011/bourdin.pdf},
-  note      = {\url{http://www.geothermal-energy.org/pdf/IGAstandard/SGW/2011/bourdin.pdf}},
+  url       = {https://es.stanford.edu/ERE/pdf/IGAstandard/SGW/2011/bourdin.pdf},
+  note      = {\url{https://es.stanford.edu/ERE/pdf/IGAstandard/SGW/2011/bourdin.pdf}},
   address   = {Stanford, CA},
   year      = {2010},
   petsc_uses={KSP},
@@ -6049,8 +6096,8 @@ ISSN={0885-8950},
   author = {Brad Aagaard and Matthew G. Knepley and Charles Williams},
   title  = {{PyLith}},
   year   = {2012},
-  url    = {http://geodynamics.org/cig/software/pylith/},
-  howpublished = {\url{http://geodynamics.org/cig/software/pylith/}},
+  url    = {http://geodynamics.org/resources/pylith/},
+  howpublished = {\url{http://geodynamics.org/resources/pylith/}},
   petsc_uses={KSP},
 }
 @Misc{GaleManual,
@@ -6221,7 +6268,7 @@ url    = "http://lyre.mit.edu/\~{ }powell/rheoplast.html",
 @misc{petsc-web-page,
   author = {Satish Balay and Shrirang Abhyankar and Mark~F. Adams and Steven Benson and Jed Brown
     and Peter Brune and Kris Buschelman and Emil~M. Constantinescu and Lisandro Dalcin and Alp Dener
-    and Victor Eijkhout and William~D. Gropp and V\'{a}clav Hapla and Tobin Isaac and Pierre Jolivet
+    and Victor Eijkhout and Jacob Faibussowitsch and William~D. Gropp and V\'{a}clav Hapla and Tobin Isaac and Pierre Jolivet
     and Dmitry Karpeev and Dinesh Kaushik and Matthew~G. Knepley and Fande Kong and Scott Kruger
     and Dave~A. May and Lois Curfman McInnes and Richard Tran Mills and Lawrence Mitchell and Todd Munson
     and Jose~E. Roman and Karl Rupp and Patrick Sanan and Jason Sarich and Barry~F. Smith
@@ -6229,7 +6276,7 @@ url    = "http://lyre.mit.edu/\~{ }powell/rheoplast.html",
   title        = {{PETS}c {W}eb page},
   url          = {https://petsc.org/},
   howpublished = {\url{https://petsc.org/}},
-  year         = {2021},
+  year         = {2023},
 }
 @Unpublished{petsc-debian-package,
     author = "Adam C. Powell, IV",
@@ -6308,14 +6355,20 @@ url    = "http://lyre.mit.edu/\~{ }powell/rheoplast.html",
 % LiteralHTML:
 % LiteralHTML:  <a name="software"><H3><center>Software Engineering</center></H3>
 % LiteralHTML:
-@article{PETScCommunity2021,
-  title  = {The Community is the Infrastructure: A Short Discussion of the {PETSc} User Community},
-  author = {Mark Adams and Satish Balay and Jed Brown and Victor Eijkhout and Jacob Faibussowitsch and Fande Kong and Matthew Knepley and Scott Kruger and Oana Marin and Richard Mills and Todd Munson and Patrick Sanan and Barry Smith and Hong Zhang and Hong Zhang and Junchao Zhang},
-  url    = {https://figshare.com/articles/conference_contribution/The_Community_is_the_Infrastructure_A_Short_Discussion_of_the_PETSc_User_Community/16523043},
-  doi    = "10.6084/m9.figshare.16523043.v1",
-  month  = {8},
-  year   = {2021},
-  note   = {submitted to Computing in Science and Engineering},
+@article{PETScCommunity2022,
+  title     = {The Community is the Infrastructure: A Short Discussion of the {PETSc} User Community},
+  author    = {Mark Adams and Satish Balay and Jed Brown and Victor Eijkhout and Jacob Faibussowitsch and Fande Kong and Matthew Knepley and Scott Kruger and Oana Marin and Richard Mills and Todd Munson and Patrick Sanan and Barry Smith and Hong Zhang and Hong Zhang and Junchao Zhang},
+  journal   = {Computing in Science and Engineering},
+  volume    = {24},
+  number    = {03},
+  pages     = {6--15},
+  issn      = {1558-366X},
+  doi       = {10.1109/MCSE.2022.3169974},
+  publisher = {IEEE Computer Society},
+  address   = {Los Alamitos, CA, USA},
+  month     = {may},
+  year      = {2022},
+  url       = {https://figshare.com/articles/conference_contribution/The_Community_is_the_Infrastructure_A_Short_Discussion_of_the_PETSc_User_Community/16523043},
   petsc_uses={KSP},
 }
 
@@ -6647,24 +6700,25 @@ url    = "http://lyre.mit.edu/\~{ }powell/rheoplast.html",
 @techreport{petsc-user-ref,
   author = {Satish Balay and Shrirang Abhyankar and Mark~F. Adams and Steven Benson and Jed Brown
     and Peter Brune and Kris Buschelman and Emil Constantinescu and Lisandro Dalcin and Alp Dener
-    and Victor Eijkhout and William~D. Gropp and V\'{a}clav Hapla and Tobin Isaac and Pierre Jolivet
+    and Victor Eijkhout and Jacob Faibussowitsch and William~D. Gropp and V\'{a}clav Hapla and Tobin Isaac and Pierre Jolivet
     and Dmitry Karpeev and Dinesh Kaushik and Matthew~G. Knepley and Fande Kong and Scott Kruger
     and Dave~A. May and Lois Curfman McInnes and Richard Tran Mills and Lawrence Mitchell and Todd Munson
     and Jose~E. Roman and Karl Rupp and Patrick Sanan and Jason Sarich and Barry~F. Smith
     and Stefano Zampini and Hong Zhang and Hong Zhang and Junchao Zhang},
   title       = {{PETSc/TAO} Users Manual},
   institution = {Argonne National Laboratory},
-  number      = {ANL-21/39 - Revision 3.16},
-  year        = {2021},
+  number      = {ANL-21/39 - Revision 3.19},
+  doi         = {10.2172/1968587},
+  year        = {2023},
 }
-%  url    = {http://www.mcs.anl.gov/petsc}
+%  url    = {https://petsc.org/release}
 @TechReport{petsc-developers,
   author = {Scott Kruger and Patrick Sanan and Barry~F. Smith},
   title  = {{PETS}c Developers Guide},
   institution = {Argonne National Laboratory},
   number      = {ANL-18/18},
   year   = 2018,
-  url    = {http://www.mcs.anl.gov/petsc},
+  url    = {https://petsc.org/release/developers},
   petsc_uses={KSP},
 }
 @Unpublished{alice-memory-snooper,
@@ -8343,6 +8397,50 @@ url    = "http://lyre.mit.edu/\~{ }powell/rheoplast.html",
   year={2016},
   publisher={SIAM},
   petsc_uses={KSP},
+}
+@article{JolivetRomanZampini2020,
+  title   = {{KSPHPDDM} and {PCHPDDM}: extending {PETSc} with advanced {Krylov} methods and robust multilevel overlapping {Schwarz} preconditioners},
+  author  = {Pierre Jolivet and Jose Roman and Stefano Zampini},
+  journal = {Computers and Mathematics with Applications},
+  volume  = {84},
+  pages   = {277--295},
+  year    = {2020}
+}
+@article{ZampiniTu2017,
+  title   = {Multilevel {BDDC} deluxe algorithms with adaptive coarse spaces for flow in porous media},
+  author  = {Stefano Zampini and Xuemin Tu},
+  journal = {SIAM Journal of Scientific Computing},
+  volume  = {39},
+  number  = {4},
+  pages   = {A1389--A1415},
+  year    = {2017}
+}
+@article{OhWidlundZampiniDohrmann2017,
+  title   = {{BDDC} algorithms with deluxe scaling and adaptive selection of primal constraints for {Raviart-Thomas} vector fields},
+  author  = {D.-S. Oh and Olof B. Widlund and Stefano Zampini and Clark Dohrmann},
+  journal = {Mathematics of Computation},
+  volume  = {87},
+  number  = {310},
+  pages   = {659--692},
+  year    = {2017}
+}
+@article{VeigaPavarinoScacchiWidlundZampini2016,
+  title   = {Adaptive selection of primal constraints for isogeometric {BDDC} deluxe preconditioners},
+  author  = {L. Beirao Da Veiga and Luca F. Pavarino and S. Scacchi and Olof B. Widlund and Stefano Zampini},
+  journal = {SIAM Journal of Scientific Computing},
+  volume  = {39},
+  number  = {1},
+  pages   = {A281--A302},
+  year    = {2016}
+}
+@article{PavarinoScacchiWidlundZampini2018,
+  title   = {Isogeometric {BDDC} deluxe preconditioners for linear elasticity for isogeometric analysis},
+  author  = {Luca F. Pavarino and S. Scacchi and Olof B. Widlund and Stefano Zampini},
+  journal = {Mathematical Models and Methods in Applied Sciences},
+  volume  = {28},
+  number  = {7},
+  pages   = {1337--1370},
+  year    = {2018}
 }
 @article{BergerVergiatWaisman2017,
   title   = {An overlapping Domain Decomposition preconditioning method for monolithic solution of shear bands},
@@ -10609,7 +10707,7 @@ University of Colorado-Boulder",
     AUTHOR    = "Youcef Saad",
     TITLE     = "{SPARSKIT}, a basic tool kit for sparse matrix computations",
     INSTITUTION= "Center for Supercomputing Research and Development,
-	          University of Illinois at Urbana-Chanpaign",
+	          University of Illinois at Urbana-Champaign",
     NUMBER    = "1029",
     YEAR      = 1990
     }
@@ -10797,7 +10895,7 @@ Alvin P. Leung and Manfred Morari",
 
 @Article{ vorst92,
   author = 	 "H. van der Vorst",
-  title = 	 "Bi-{CGSTAB}: A fast and smoothly converging varient of
+  title = 	 "Bi-{CGSTAB}: A fast and smoothly converging variant of
 		  {Bi-CG} for the solution of nonsymmetric linear systems",
   journal =	 "SIAM J. Sci. Stat. Comput.",
   year =	 1992,
@@ -12181,16 +12279,17 @@ mesh refinement",
 @TechReport{hypre-users-manual,
   author      = "R. Falgout",
   title       = "{hypre} Users Manual",
-  number      = "Revision 2.11.2",
+  number      = "Revision 2.28",
   institution = "Lawrence Livermore National Laboratory",
-  year        = 2017
+  year        = 2023,
+  url         = {https://hypre.readthedocs.io/}
 }
 
 
 @misc{hypre:homepage,
    author = "R. Falgout",
    title = "{hypre Web page}",
-   howpublished  = "\url{http://www.llnl.gov/CASC/hypre}"
+   howpublished  = "\url{https://www.llnl.gov/casc/hypre}"
 }
 
 @InProceedings{trilinos:gpu,
@@ -12977,13 +13076,13 @@ note  = "\url{https://ice.txcorp.com/trac/2011_FspDefinitionWorkshop}"
 @misc{petsc:driven-cavity-example,
   title =    {{PETSc Driven Cavity Example Code}},
   author =	 {B. F. {Smith et al.}},
-  howpublished = {\url{http://www.mcs.anl.gov/petsc/petsc-current/src/snes/tutorials/ex19.c.html}}
+  howpublished = {\url{https://petsc.org/release/src/snes/tutorials/ex19.c.html}}
 }
 
 @misc{petsc-dm:webpage,
    author =	 {B. F. {Smith et al.}},
    title = "{PETSc DM Webpage}",
-   howpublished  = "\url{http://www.mcs.anl.gov/petsc/petsc-current/docs/manualpages/DM}",
+   howpublished  = "\url{https://petsc.org/release/manualpages/DM/}",
    year = 2018
 }
 
@@ -13554,6 +13653,17 @@ It begins with a general introduction to bundles, including such topics as diffe
   school = "TU Cottbus",
   year   = "2000",
   note   = "\url{http://www.math.tu-cottbus.de/~berti/diss}"
+}
+
+@article{Whitehead1949,
+  title   = {Combinatorial homotopy. I},
+  author  = {John HC Whitehead},
+  journal = {Bulletin of the American Mathematical Society},
+  volume  = {55},
+  number  = {3. P1},
+  pages   = {213--245},
+  year    = {1949},
+  publisher = {American Mathematical Society}
 }
 
 @article{BeylkinCoifmanRokhlin91,
@@ -14616,8 +14726,29 @@ year = {1993}
   number={1},
   pages={1790--1808},
   year={2008},
-  publisher={Academic Press}
+  publisher={Academic Press},
+  url={http://chess.cs.umd.edu/~elman/papers/tax.pdf},
 }
+
+@article{Arioli2013,
+  title     = {Generalized {G}olub--{K}ahan bidiagonalization and stopping criteria},
+  author    = {Arioli, Mario},
+  journal   = {SIAM Journal on Matrix Analysis and Applications},
+  volume    = {34},
+  number    = {2},
+  pages     = {571--592},
+  year      = {2013},
+  publisher = {SIAM}
+}
+
+@book{Wesseling2009,
+  title     = {Principles of computational fluid dynamics},
+  author    = {Wesseling, Pieter},
+  volume    = {29},
+  year      = {2009},
+  publisher = {Springer Science \& Business Media}
+}
+
 @article{silvester2001efficient,
   title={{Efficient preconditioning of the linearized Navier-Stokes equations for incompressible flow}},
   author={Silvester, D. and Elman, H. and Kay, D. and Wathen, A.},
@@ -16776,6 +16907,15 @@ part I: Theory},
   pages   = {1444--1460}
 }
 
+@article{Bereux1996,
+  title   = {Zero-relaxation limit versus operator splitting for two-phase fluid flow computations},
+  author  = {Fran{\c{c}}ois B{\'e}reux},
+  journal = {Computer Methods in Applied Mechanics and Engineering},
+  volume  = {133},
+  number  = {1-2},
+  pages   = {93--124},
+  year    = {1996}
+}
 @article{pawlowski2006globalization,
   title={Globalization techniques for {N}ewton-{K}rylov methods and applications to the fully coupled solution of the {N}avier-{S}tokes equations},
   author={Pawlowski, Roger P and Shadid, John N and Simonis, Joseph P and Walker, Homer F},
@@ -16785,6 +16925,15 @@ part I: Theory},
   pages={700--721},
   year={2006},
   publisher={SIAM}
+}
+@article{RoppShadid2009,
+  title   = {Stability of operator splitting methods for systems with indefinite operators: Advection--diffusion--reaction systems},
+  author  = {David L Ropp and John N Shadid},
+  journal = {Journal of Computational Physics},
+  volume  = {228},
+  number  = {9},
+  pages   = {3508--3516},
+  year    = {2009}
 }
 @article{brown1985experiments,
   title={Experiments with quasi-{N}ewton methods in solving stiff {ODE} systems},
@@ -17917,7 +18066,8 @@ year = {2009}
   booktitle = {Proceedings of the 2010 ACM/IEEE International Conference for High Performance Computing, Networking, Storage and Analysis},
   pages     = {1--12},
   year      = {2010},
-  organization = {IEEE Computer Society}
+  organization = {IEEE Computer Society},
+  doi       = {10.1109/SC.2010.25}
 }
 @inproceedings{IsaacBursteddeGhattas2012,
   title     = {Low-cost parallel algorithms for 2: 1 octree balance},
@@ -17925,7 +18075,8 @@ year = {2009}
   booktitle = {Parallel \& Distributed Processing Symposium (IPDPS), 2012 IEEE 26th International},
   pages     = {426--437},
   year      = {2012},
-  organization = {IEEE}
+  organization = {IEEE},
+  doi       = {10.1109/IPDPS.2012.47}
 }
 @article{IsaacPetraStadlerGhattas2015,
   title   = {Scalable and efficient algorithms for the propagation of uncertainty from data through inference to prediction for large-scale problems, with application to flow of the {Antarctic} ice sheet},
@@ -17934,25 +18085,31 @@ year = {2009}
   volume  = {296},
   pages   = {348--368},
   year    = {2015},
-  publisher = {Elsevier}
+  publisher = {Elsevier},
+  doi     = {10.1016/j.jcp.2015.04.047}
 }
 @article{IsaacBursteddeWilcoxGhattas2015,
   title   = {Recursive Algorithms for Distributed Forests of Octrees},
   author  = {Tobin Isaac and Carsten Burstedde and Lucas C Wilcox and Omar Ghattas},
   journal = {SIAM Journal on Scientific Computing},
+  volume = {37},
+  number = {5},
+  pages = {C497-C531},
   eprint  = {1406.0089},
-  note    = {accepted},
-  year    = {2015}
+  eprinttype = {arXiv},
+  year    = {2015},
+  doi     = {10.1137/140970963}
 }
 
 @article{IsaacStadlerGhattas2015,
   title   = {Solution of nonlinear {S}tokes equations discretized by high-order finite elements on nonconforming and anisotropic meshes, with application to ice sheet dynamics},
   author  = {Isaac, Tobin and Stadler, Georg and Ghattas, Omar},
-  journal = {SIAM J. Sci. Comput.},
+  journal = {SIAM Journal on Scientific Computing},
   number  = {6},
   pages   = {804--833},
   volume  = {37},
   year    = {2015},
+  doi     = {10.1137/140974407}
 }
 
 @inproceedings{RudiMalossiIsaacStadlerGurnisStaarIneichenBekasCurioniGhattas2015,
@@ -17961,7 +18118,8 @@ year = {2009}
   booktitle = {Proceedings of the International Conference for High Performance Computing, Networking, Storage and Analysis},
   pages     = {5},
   year      = {2015},
-  organization = {ACM}
+  organization = {ACM},
+  doi       = {10.1145/2807591.2807675}
 }
 
 @article{BunchHopcroft1974,
@@ -19183,6 +19341,16 @@ year = {2009}
   journal = {BIT Numerical Mathematics},
   pages   = {1--36},
   year    = {2021}
+}
+@article{PiersantiLeeThompsonMardalRognes2021,
+  title={Parameter robust preconditioning by congruence for multiple-network poroelasticity},
+  author={Piersanti, Eleonora and Lee, Jeonghun J and Thompson, Travis and Mardal, K-A and Rognes, Marie E},
+  journal={SIAM Journal on Scientific Computing},
+  volume={43},
+  number={4},
+  pages={B984--B1007},
+  year={2021},
+  publisher={SIAM}
 }
 @inproceedings{ActorFuentesRiviere2020B,
   title     = {Identification of Kernels in a Convolutional Neural Network: Connections Between Level Set Equation and Deep Learning for Image Segmentation},
@@ -36453,7 +36621,24 @@ year  = 1999,
   institution = {University of Waterloo},
   year        = {2021}
 }
-
+@article{BrooksHughes1982,
+  title={Streamline upwind/{Petrov-Galerkin} formulations for convection dominated flows with particular emphasis on the incompressible {Navier-Stokes} equations},
+  author={Alexander N Brooks and Thomas JR Hughes},
+  journal={Computer methods in applied mechanics and engineering},
+  volume={32},
+  number={1-3},
+  pages={199--259},
+  year={1982},
+  publisher={Elsevier}
+}
+@inproceedings{SuhIsaac2020,
+  title  = {Evaluation of a minimally synchronous algorithm for 2: 1 octree balance},
+  author = {Hansol Suh and Tobin Isaac},
+  booktitle = {SC20: International Conference for High Performance Computing, Networking, Storage and Analysis},
+  pages  = {1--12},
+  year   = {2020},
+  organization = {IEEE}
+}
 @misc{Alauzet2010,
   title        = {Metric-Based Anisotropic Mesh Adaptation},
   author       = {Fr\'{e}d\'{e}ric Alauzet},
@@ -36482,3 +36667,120 @@ year  = 1999,
   year={2019},
   publisher={Wiley Online Library}
 }
+
+@article{MishraSalacKnepley2022,
+  title   = {On the order of accuracy for finite difference approximations of partial differential equations using stencil composition},
+  author  = {Abhishek Mishra and David Salac and Matthew G. Knepley},
+  journal = {International Journal on Numerical Methods in Engineering},
+  note    = {Submitted},
+  year    = {2022}
+}
+
+@article{NathawaniKnepley2022,
+  title   = {Droplet formation simulation using mixed finite elements},
+  author  = {Darsh K. Nathawani and Matthew G. Knepley},
+  journal = {Physics of Fluids},
+  volume  = {34},
+  pages   = {064105},
+  doi     = {10.1063/5.0089752},
+  year    = {2022}
+}
+
+@inproceedings{NathawaniKnepley2022b,
+  title        = {Simulating Paraffin Wax Droplets Using Mixed Finite Element Method},
+  author       = {Darsh K. Nathawani and Matthew G. Knepley},
+  booktitle    = {Proceeedings of the International Conference on Computational Fluid Dynamics 11 (ICCFD11)},
+  editor       = {Christoph Brehm and Shishir Pandya},
+  number       = {4103},
+  year         = {2022}
+}
+
+@article{NathawaniKnepley2023,
+  title   = {One-dimensional model to simulate shear-induced droplet formation},
+  author  = {Darsh K. Nathawani and Matthew G. Knepley},
+  journal = {Physics of Fluids},
+  note    = {Submitted},
+  year    = {2023}
+}
+
+@article{GeorgalisNathawaniKnepleyPatra2023,
+  title   = {Uncertainty quantification of droplet atomization and pinch-off with {Gaussian Processes}},
+  author  = {Georgios Georgalis and Darsh K. Nathawani and Matthew G. Knepley and Abani Patra},
+  note    = {In preparation},
+  year    = {2023}
+}
+
+@article{BrownBarraBeamsGhaffariKnepleyMosesShakeriStengelThompsonZhang2022,
+  title     = {Performance Portable Solid Mechanics via Matrix-Free $p$-Multigrid},
+  author    = {Jed Brown and Valeria Barra and Natalie Beams and Leila Ghaffari and Matthew Knepley and William Moses and Rezgar Shakeri and Karen Stengel and Jeremy L. Thompson and Junchao Zhang},
+  doi       = {10.48550/ARXIV.2204.01722},
+  url       = {https://arxiv.org/abs/2204.01722},
+  publisher = {arXiv},
+  note      = {Submitted},
+  year      = {2022}
+}
+
+@incollection{MayKnepley2023,
+  title     = {Numerical Modeling of Subduction},
+  author    = {Dave A. May and Matthew G. Knepley},
+  booktitle = {Dynamics of Plate Tectonics and Mantle Convection},
+  editor    = {João C. Duarte},
+  pages     = {539-571},
+  isbn      = {978-0-323-85733-8},
+  doi       = {https://doi.org/10.1016/B978-0-323-85733-8.00020-2},
+  url       = {https://www.sciencedirect.com/science/article/pii/B9780323857338000202},
+  year      = {2023}
+}
+@article{AdamsKnepley2023,
+  title  = {A bespoke multigrid approach for magnetohydrodynamics models of magnetized plasmas in {PETSc}},
+  author = {Mark F. Adams and Matthew G. Knepley},
+  url    = {https://arxiv.org/abs/2302.10242},
+  note   = {In preparation},
+  year   = {2023},
+  petsc_uses = {DMPlex},
+}
+@article{FinnKnepleyPusztayAdams2023,
+  title   = {A Numerical Study of {Landau} Damping with {PETSc-PIC}},
+  author  = {Daniel S. Finn and Matthew G. Knepley and Joseph V. Pusztay and Mark F. Adams},
+  url     = {https://arxiv.org/abs/2303.12620},
+  journal = {Communications in Applied Mathematics and Computational Science},
+  note    = {Submitted},
+  year    = {2023}
+}
+@article{EggersDupont1994,
+  title   = {Drop formation in a one-dimensional approximation of the {Navier--Stokes} equation},
+  author  = {Jens Eggers and Todd F. Dupont},
+  journal = {Journal of fluid mechanics},
+  volume  = {262},
+  pages   = {205--221},
+  year    = {1994},
+  publisher = {Cambridge University Press}
+}
+@phdthesis{PusztayThesis2023,
+  title   = {A Particle Basis Vlasov-Poisson-Landau Solver for Plasma Simulation in PETSc},
+  author  = {Joseph V. Pusztay},
+  type    = {{PhD} thesis},
+  school  = {University at Buffalo, Department of Computer Science and Engineering},
+  address = {Buffalo, NY},
+  month   = {May},
+  year    = {2022}
+}
+@phdthesis{FinnThesis2023,
+  title   = {Structure-Preserving Particle-In-Cell Methods for the Vlasov-Poisson-Landau System},
+  author  = {Daniel S. Finn},
+  type    = {{PhD} thesis},
+  school  = {University at Buffalo, Program in Computational and Data-Enabled Science and Engineering},
+  address = {Buffalo, NY},
+  month   = {May},
+  year    = {2023}
+}
+@phdthesis{NathawaniThesis2023,
+  title   = {Droplet Formation: One-dimensional Mathematical Model and Computations},
+  author  = {Darsh Kiritbhai Nathawani},
+  type    = {{PhD} thesis},
+  school  = {University at Buffalo, Program in Computational and Data-Enabled Science and Engineering},
+  address = {Buffalo, NY},
+  month   = {May},
+  year    = {2023}
+}
+

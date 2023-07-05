@@ -12,11 +12,11 @@
     one to reinitialize and set the seed.
  */
 
-#include <petsc/private/randomimpl.h>                              /*I "petscsys.h" I*/
+#include <petsc/private/randomimpl.h> /*I "petscsys.h" I*/
 
 /*@
    PetscRandomGetValue - Generates a random number.  Call this after first calling
-   PetscRandomCreate().
+   `PetscRandomCreate()`.
 
    Not Collective
 
@@ -29,14 +29,14 @@
    Level: intermediate
 
    Notes:
-   Use VecSetRandom() to set the elements of a vector to random numbers.
+   Use `VecSetRandom()` to set the elements of a vector to random numbers.
 
    When PETSc is compiled for complex numbers this returns a complex number with random real and complex parts.
-   Use PetscRandomGetValueReal() to get a random real number.
+   Use `PetscRandomGetValueReal()` to get a random real number.
 
-   To get a complex number with only a random real part, first call PetscRandomSetInterval() with a equal
+   To get a complex number with only a random real part, first call `PetscRandomSetInterval()` with a equal
    low and high imaginary part. Similarly to get a complex number with only a random imaginary part call
-   PetscRandomSetInterval() with a equal low and high real part.
+   `PetscRandomSetInterval()` with a equal low and high real part.
 
    Example of Usage:
 .vb
@@ -47,28 +47,22 @@
       PetscRandomDestroy(&r);
 .ve
 
-.seealso: PetscRandomCreate(), PetscRandomDestroy(), VecSetRandom(), PetscRandomGetValueReal()
+.seealso: `PetscRandom`, `PetscRandomCreate()`, `PetscRandomDestroy()`, `VecSetRandom()`, `PetscRandomGetValueReal()`, `PetscRandomSetInterval()`
 @*/
-PetscErrorCode  PetscRandomGetValue(PetscRandom r,PetscScalar *val)
+PetscErrorCode PetscRandomGetValue(PetscRandom r, PetscScalar *val)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(r,PETSC_RANDOM_CLASSID,1);
-  PetscValidType(r,1);
-  if (!r->ops->getvalue) {
-    if (!r->ops->getvalues) SETERRQ1(PetscObjectComm((PetscObject)r),PETSC_ERR_SUP,"Random type %s cannot generate PetscScalar",((PetscObject)r)->type_name);
-    ierr = (*r->ops->getvalues)(r,1,val);CHKERRQ(ierr);
-  } else {
-    ierr = (*r->ops->getvalue)(r,val);CHKERRQ(ierr);
-  }
-  ierr = PetscObjectStateIncrease((PetscObject)r);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscValidHeaderSpecific(r, PETSC_RANDOM_CLASSID, 1);
+  PetscValidType(r, 1);
+  if (!r->ops->getvalue) PetscUseTypeMethod(r, getvalues, 1, val);
+  else PetscUseTypeMethod(r, getvalue, val);
+  PetscCall(PetscObjectStateIncrease((PetscObject)r));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
    PetscRandomGetValueReal - Generates a real random number.  Call this after first calling
-   PetscRandomCreate().
+   `PetscRandomCreate()`.
 
    Not Collective
 
@@ -80,8 +74,8 @@ PetscErrorCode  PetscRandomGetValue(PetscRandom r,PetscScalar *val)
 
    Level: intermediate
 
-   Notes:
-   Use VecSetRandom() to set the elements of a vector to random numbers.
+   Note:
+   Use `VecSetRandom()` to set the elements of a vector to random numbers.
 
    Example of Usage:
 .vb
@@ -92,28 +86,22 @@ PetscErrorCode  PetscRandomGetValue(PetscRandom r,PetscScalar *val)
       PetscRandomDestroy(&r);
 .ve
 
-.seealso: PetscRandomCreate(), PetscRandomDestroy(), VecSetRandom(), PetscRandomGetValue()
+.seealso: `PetscRandom`, `PetscRandomCreate()`, `PetscRandomDestroy()`, `VecSetRandom()`, `PetscRandomGetValue()`
 @*/
-PetscErrorCode  PetscRandomGetValueReal(PetscRandom r,PetscReal *val)
+PetscErrorCode PetscRandomGetValueReal(PetscRandom r, PetscReal *val)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(r,PETSC_RANDOM_CLASSID,1);
-  PetscValidType(r,1);
-  if (!r->ops->getvaluereal) {
-    if (!r->ops->getvaluesreal) SETERRQ1(PetscObjectComm((PetscObject)r),PETSC_ERR_SUP,"Random type %s cannot generate PetscReal",((PetscObject)r)->type_name);
-    ierr = (*r->ops->getvaluesreal)(r,1,val);CHKERRQ(ierr);
-  } else {
-    ierr = (*r->ops->getvaluereal)(r,val);CHKERRQ(ierr);
-  }
-  ierr = PetscObjectStateIncrease((PetscObject)r);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscValidHeaderSpecific(r, PETSC_RANDOM_CLASSID, 1);
+  PetscValidType(r, 1);
+  if (!r->ops->getvaluereal) PetscUseTypeMethod(r, getvaluesreal, 1, val);
+  else PetscUseTypeMethod(r, getvaluereal, val);
+  PetscCall(PetscObjectStateIncrease((PetscObject)r));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
    PetscRandomGetValues - Generates a sequence of random numbers.  Call this after first calling
-   PetscRandomCreate().
+   `PetscRandomCreate()`.
 
    Not Collective
 
@@ -127,36 +115,30 @@ PetscErrorCode  PetscRandomGetValueReal(PetscRandom r,PetscReal *val)
    Level: intermediate
 
    Notes:
-   Use VecSetRandom() to set the elements of a vector to random numbers.
+   Use `VecSetRandom()` to set the elements of a vector to random numbers.
 
    When PETSc is compiled for complex numbers this returns an array of complex numbers with random real and complex parts.
-   Use PetscRandomGetValuesReal() to get an array of random real numbers.
+   Use `PetscRandomGetValuesReal()` to get an array of random real numbers.
 
-.seealso: PetscRandomCreate(), PetscRandomDestroy(), VecSetRandom(), PetscRandomGetValue()
+.seealso: `PetscRandom`, `PetscRandomCreate()`, `PetscRandomDestroy()`, `VecSetRandom()`, `PetscRandomGetValue()`
 @*/
-PetscErrorCode  PetscRandomGetValues(PetscRandom r, PetscInt n, PetscScalar *val)
+PetscErrorCode PetscRandomGetValues(PetscRandom r, PetscInt n, PetscScalar *val)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(r,PETSC_RANDOM_CLASSID,1);
-  PetscValidType(r,1);
+  PetscValidHeaderSpecific(r, PETSC_RANDOM_CLASSID, 1);
+  PetscValidType(r, 1);
   if (!r->ops->getvalues) {
-    PetscInt i;
-    if (!r->ops->getvalue) SETERRQ1(PetscObjectComm((PetscObject)r),PETSC_ERR_SUP,"Random type %s cannot generate PetscScalar",((PetscObject)r)->type_name);
-    for (i = 0; i < n; i++) {
-      ierr = (*r->ops->getvalue)(r,val+i);CHKERRQ(ierr);
-    }
-  } else {
-    ierr = (*r->ops->getvalues)(r,n,val);CHKERRQ(ierr);
-  }
-  ierr = PetscObjectStateIncrease((PetscObject)r);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+    PetscErrorCode (*const getvalue)(PetscRandom, PetscScalar *) = r->ops->getvalue;
+
+    for (PetscInt i = 0; i < n; ++i) PetscCall(getvalue(r, val + i));
+  } else PetscUseTypeMethod(r, getvalues, n, val);
+  PetscCall(PetscObjectStateIncrease((PetscObject)r));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
    PetscRandomGetValuesReal - Generates a sequence of real random numbers.  Call this after first calling
-   PetscRandomCreate().
+   `PetscRandomCreate()`.
 
    Not Collective
 
@@ -169,36 +151,29 @@ PetscErrorCode  PetscRandomGetValues(PetscRandom r, PetscInt n, PetscScalar *val
 
    Level: intermediate
 
-   Notes:
-   Use VecSetRandom() to set the elements of a vector to random numbers.
+   Note:
+   Use `VecSetRandom()` to set the elements of a vector to random numbers.
 
-.seealso: PetscRandomCreate(), PetscRandomDestroy(), VecSetRandom(), PetscRandomGetValues()
+.seealso: `PetscRandom`, `PetscRandomCreate()`, `PetscRandomDestroy()`, `VecSetRandom()`, `PetscRandomGetValues()`
 @*/
-PetscErrorCode  PetscRandomGetValuesReal(PetscRandom r, PetscInt n, PetscReal *val)
+PetscErrorCode PetscRandomGetValuesReal(PetscRandom r, PetscInt n, PetscReal *val)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(r,PETSC_RANDOM_CLASSID,1);
-  PetscValidType(r,1);
+  PetscValidHeaderSpecific(r, PETSC_RANDOM_CLASSID, 1);
+  PetscValidType(r, 1);
   if (!r->ops->getvaluesreal) {
     PetscInt i;
-    if (!r->ops->getvaluereal) SETERRQ1(PetscObjectComm((PetscObject)r),PETSC_ERR_SUP,"Random type %s cannot generate PetscReal",((PetscObject)r)->type_name);
-    for (i = 0; i < n; i++) {
-      ierr = (*r->ops->getvaluereal)(r,val+i);CHKERRQ(ierr);
-    }
-  } else {
-    ierr = (*r->ops->getvaluesreal)(r,n,val);CHKERRQ(ierr);
-  }
-  ierr = PetscObjectStateIncrease((PetscObject)r);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+    for (i = 0; i < n; i++) PetscCall((*r->ops->getvaluereal)(r, val + i));
+  } else PetscUseTypeMethod(r, getvaluesreal, n, val);
+  PetscCall(PetscObjectStateIncrease((PetscObject)r));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
    PetscRandomGetInterval - Gets the interval over which the random numbers
-   will be randomly distributed.  By default, this interval is [0,1).
+   will be distributed.  By default, this interval is [0,1).
 
-   Not collective
+   Not Collective
 
    Input Parameter:
 .  r  - the random number generator context
@@ -209,28 +184,28 @@ PetscErrorCode  PetscRandomGetValuesReal(PetscRandom r, PetscInt n, PetscReal *v
 
    Level: intermediate
 
-.seealso: PetscRandomCreate(), PetscRandomSetInterval()
+.seealso: `PetscRandom`, `PetscRandomCreate()`, `PetscRandomSetInterval()`
 @*/
-PetscErrorCode  PetscRandomGetInterval(PetscRandom r,PetscScalar *low,PetscScalar *high)
+PetscErrorCode PetscRandomGetInterval(PetscRandom r, PetscScalar *low, PetscScalar *high)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(r,PETSC_RANDOM_CLASSID,1);
+  PetscValidHeaderSpecific(r, PETSC_RANDOM_CLASSID, 1);
   if (low) {
-    PetscValidScalarPointer(low,2);
+    PetscValidScalarPointer(low, 2);
     *low = r->low;
   }
   if (high) {
-    PetscValidScalarPointer(high,3);
-    *high = r->low+r->width;
+    PetscValidScalarPointer(high, 3);
+    *high = r->low + r->width;
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
    PetscRandomSetInterval - Sets the interval over which the random numbers
-   will be randomly distributed.  By default, this interval is [0,1).
+   will be distributed.  By default, this interval is [0,1).
 
-   Not collective
+   Not Collective
 
    Input Parameters:
 +  r  - the random number generator context
@@ -241,22 +216,23 @@ PetscErrorCode  PetscRandomGetInterval(PetscRandom r,PetscScalar *low,PetscScala
 
    Notes:
     for complex numbers either the real part or the imaginary part of high must be greater than its low part; or both of them can be greater.
+
     If the real or imaginary part of low and high are the same then that value is always returned in the real or imaginary part.
 
-.seealso: PetscRandomCreate(), PetscRandomGetInterval()
+.seealso: `PetscRandomCreate()`, `PetscRandomGetInterval()`
 @*/
-PetscErrorCode  PetscRandomSetInterval(PetscRandom r,PetscScalar low,PetscScalar high)
+PetscErrorCode PetscRandomSetInterval(PetscRandom r, PetscScalar low, PetscScalar high)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(r,PETSC_RANDOM_CLASSID,1);
+  PetscValidHeaderSpecific(r, PETSC_RANDOM_CLASSID, 1);
 #if defined(PETSC_USE_COMPLEX)
-  if (PetscRealPart(low) > PetscRealPart(high))           SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"only low <= high");
-  if (PetscImaginaryPart(low) > PetscImaginaryPart(high)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"only low <= high");
+  PetscCheck(PetscRealPart(low) <= PetscRealPart(high), PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "only low <= high");
+  PetscCheck(PetscImaginaryPart(low) <= PetscImaginaryPart(high), PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "only low <= high");
 #else
-  if (low >= high) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"only low <= high: Instead %g %g",(double)low,(double)high);
+  PetscCheck(low < high, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "only low <= high: Instead %g %g", (double)low, (double)high);
 #endif
   r->low   = low;
-  r->width = high-low;
+  r->width = high - low;
   r->iset  = PETSC_TRUE;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

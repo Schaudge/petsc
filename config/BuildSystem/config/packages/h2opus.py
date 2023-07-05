@@ -3,12 +3,12 @@ import config.package
 class Configure(config.package.Package):
   def __init__(self, framework):
     config.package.Package.__init__(self, framework)
-    self.gitcommit              = 'cd09022' # Sep 30 2021, VMM handling
+    self.gitcommit              = 'c75d74cc96d728c11b7bf0f291ba71dc369a89f4' # Thu Apr 28, 2022
     self.download               = ['git://https://github.com/ecrc/h2opus']
     self.precisions             = ['single','double']
     self.skippackagewithoptions = 1
     self.buildLanguages         = ['Cxx']
-    self.requirescxx14          = 1
+    self.minCxxVersion          = 'c++14'
     self.liblist                = [['libh2opus.a']]
     self.includes               = ['h2opusconf.h']
     self.functionsCxx           = [1,'','h2opusCreateHandle']
@@ -118,14 +118,14 @@ class Configure(config.package.Package):
         g.write('H2OPUS_USE_MAGMA_POTRF = 1\n')
         g.write('NVCC = '+nvcc+'\n')
         g.write('NVCCFLAGS = '+nvopts+' --expt-relaxed-constexpr\n')
-        if self.cuda.cudaArch:
-          g.write('GENCODE_FLAGS = -gencode arch=compute_'+self.cuda.cudaArch+',code=sm_'+self.cuda.cudaArch+'\n')
+        if hasattr(self.cuda, 'cudaArch'):
+          g.write('GENCODE_FLAGS = '+self.cuda.nvccArchFlags()+'\n')
         g.write('CXXCPPFLAGS += '+self.headers.toString(self.cuda.include)+'\n')
         g.write('CXXCPPFLAGS += '+self.headers.toString(self.magma.include)+'\n')
         g.write('CXXCPPFLAGS += '+self.headers.toString(self.kblas.include)+'\n')
-        g.write('CUDA_LIBS = '+self.libraries.toString(self.cuda.dlib)+'\n')
-        g.write('MAGMA_LIBS = '+self.libraries.toString(self.magma.dlib)+'\n')
-        g.write('KBLAS_LIBS = '+self.libraries.toString(self.kblas.dlib)+'\n')
+        g.write('CUDA_LIBS = '+self.libraries.toString(self.cuda.lib)+'\n')
+        g.write('MAGMA_LIBS = '+self.libraries.toString(self.magma.lib)+'\n')
+        g.write('KBLAS_LIBS = '+self.libraries.toString(self.kblas.lib)+'\n')
       else:
         if self.thrust.found:
           g.write('CXXCPPFLAGS += '+self.headers.toString(self.thrust.include)+'\n')
@@ -140,22 +140,17 @@ class Configure(config.package.Package):
       if not self.mpi.usingMPIUni:
         g.write('H2OPUS_USE_MPI = 1\n')
 
-      g.write('LDFLAGS = '+ldflags+' '+ self.libraries.toString(self.math.dlib)+'\n')
+      g.write('LDFLAGS = '+ldflags+' '+ self.libraries.toString(self.math.lib)+'\n')
 
       if not self.argDB['with-shared-libraries']:
         g.write('H2OPUS_DISABLE_SHARED = 1\n')
 
     if self.installNeeded('make.inc'):
       try:
-        output1,err1,ret1  = config.package.Package.executeShellCommand('make distclean', cwd=self.packageDir, timeout=60, log = self.log)
-      except RuntimeError as e:
-        self.logPrint('Error running make clean on H2OPUS: '+str(e))
-        raise RuntimeError('Error running make clean on H2OPUS')
-      try:
         self.logPrintBox('Compiling H2OPUS; this may take several minutes')
-        output2,err2,ret2 = config.package.Package.executeShellCommand('make config && make', cwd=self.packageDir, timeout=2500, log = self.log)
+        output1,err1,ret1 = config.package.Package.executeShellCommand('make config && make', cwd=self.packageDir, timeout=2500, log = self.log)
         self.logPrintBox('Installing H2OPUS; this may take several minutes')
-        output,err,ret = config.package.Package.executeShellCommand('make install', cwd=self.packageDir, timeout=60, log = self.log)
+        output2,err2,ret2 = config.package.Package.executeShellCommand('make install', cwd=self.packageDir, timeout=60, log = self.log)
       except RuntimeError as e:
         self.logPrint('Error running make on H2OPUS: '+str(e))
         raise RuntimeError('Error running make on H2OPUS')

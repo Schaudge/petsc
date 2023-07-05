@@ -11,14 +11,14 @@ Online Documentation
 
 + `User Manual (HTML)`_ (generated with Sphinx_).
 + `User Manual (PDF)`_  (generated with Sphinx_).
-+ `API Reference`_      (generated with Epydoc_).
++ `API Reference`_      (generated with Sphinx_).
 
-.. _User Manual (HTML): usrman/index.html
+.. _User Manual (HTML): html/index.html
 .. _User Manual (PDF):  petsc4py.pdf
-.. _API Reference:      apiref/index.html
+.. _API Reference:      html/reference/index.html
 
-.. _Sphinx:    http://sphinx.pocoo.org/
-.. _Epydoc:    http://epydoc.sourceforge.net/
+.. _Sphinx:    https://www.sphinx-doc.org/
+.. _Epydoc:    https://epydoc.sourceforge.net/
 
 
 Discussion and Support
@@ -30,8 +30,8 @@ Discussion and Support
 Downloads and Development
 -------------------------
 
-+ Issue Tracker:   https://gitlab.com/petsc/petsc/-/issues
-+ Git Repository:  https://gitlab.com/petsc/petsc.git
++ Issue Tracker:  https://gitlab.com/petsc/petsc/-/issues
++ Git Repository: https://gitlab.com/petsc/petsc.git
 + The source code is in ``src/binding/petsc4py``
 + Previous source releases: https://pypi.org/project/petsc4py/
 
@@ -54,8 +54,8 @@ project.
   D. May, L. Curfman McInnes, R. Mills, T. Munson,
   K. Rupp, P. Sanan, B. Smith,
   S. Zampini, H. Zhang, and H. Zhang,
-  *PETSc Users Manual*, ANL-95/11 - Revision 3.14, 2021.
-  http://www.mcs.anl.gov/petsc/petsc-current/docs/manual.pdf
+  *PETSc Users Manual*, ANL-95/11 - Revision 3.17, 2022.
+  https://petsc.org/release/docs/manual
 
 
 Acknowledgments

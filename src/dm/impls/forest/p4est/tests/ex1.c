@@ -4,11 +4,10 @@ static char help[] = "Test interaction with p4est/libsc error and logging routin
 
 int main(int argc, char **argv)
 {
-  PetscErrorCode ierr;
-
-  ierr = PetscInitialize(&argc,&argv,NULL,help);if (ierr) return ierr;
-  ierr = PetscP4estInitialize();CHKERRQ(ierr);
-  PetscStackCallP4est(sc_abort_verbose,(__FILE__,__LINE__,"Abort in main()\n"));
-  ierr = PetscFinalize();
-  return ierr;
+  PetscFunctionBeginUser;
+  PetscCall(PetscInitialize(&argc, &argv, NULL, help));
+  PetscCall(PetscP4estInitialize());
+  PetscCallP4est(sc_abort_verbose, (__FILE__, __LINE__, "Abort in main()\n"));
+  PetscCall(PetscFinalize());
+  return 0;
 }

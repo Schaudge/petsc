@@ -1,18 +1,10 @@
+-include ../../../../../petscdir.mk
+#requiresdefine 'PETSC_HAVE_CXX'
 
-ALL: lib
-
-CFLAGS    =
-FFLAGS    =
-CPPFLAGS  =
-SOURCEC	  =
-SOURCEF	  =
-SOURCEH	  =
 MANSEC	  = Sys
 LIBBASE	  = libpetscsys
-DIRS	    = cupm sycl
-LOCDIR	  = src/sys/objects/device/impls/
+DIRS	  = cupm sycl host
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
-include ${PETSC_DIR}/lib/petsc/conf/rules
-include ${PETSC_DIR}/lib/petsc/conf/test
+include ${PETSC_DIR}/lib/petsc/conf/rules.doc
 

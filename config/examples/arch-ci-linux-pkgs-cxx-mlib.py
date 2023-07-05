@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import os
 
 petsc_hash_pkgs=os.path.join(os.getenv('HOME'),'petsc-hash-pkgs')
@@ -37,9 +37,10 @@ configure_options = [
   '--with-petsc4py=1',
   '--download-mpi4py=1',
   '--download-saws',
-  '--package-prefix-hash='+petsc_hash_pkgs,
   '--download-adolc',
   '--download-colpack',
+  '--with-strict-petscerrorcode',
+  '--with-coverage',
   ]
 
 if __name__ == '__main__':

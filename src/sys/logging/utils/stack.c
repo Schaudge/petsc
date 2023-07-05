@@ -17,16 +17,15 @@
 
   Level: developer
 
-.seealso: PetscIntStackCreate(), PetscIntStackEmpty(), PetscIntStackPush(), PetscIntStackPop(), PetscIntStackTop()
+.seealso: `PetscIntStackCreate()`, `PetscIntStackEmpty()`, `PetscIntStackPush()`, `PetscIntStackPop()`, `PetscIntStackTop()`
 @*/
 PetscErrorCode PetscIntStackDestroy(PetscIntStack stack)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  ierr = PetscFree(stack->stack);CHKERRQ(ierr);
-  ierr = PetscFree(stack);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscValidPointer(stack, 1);
+  PetscCall(PetscFree(stack->stack));
+  PetscCall(PetscFree(stack));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
@@ -38,19 +37,19 @@ PetscErrorCode PetscIntStackDestroy(PetscIntStack stack)
 . stack - The stack
 
   Output Parameter:
-. empty - PETSC_TRUE if the stack is empty
+. empty - `PETSC_TRUE` if the stack is empty
 
   Level: developer
 
-.seealso: PetscIntStackCreate(), PetscIntStackDestroy(), PetscIntStackPush(), PetscIntStackPop(), PetscIntStackTop()
+.seealso: `PetscIntStackCreate()`, `PetscIntStackDestroy()`, `PetscIntStackPush()`, `PetscIntStackPop()`, `PetscIntStackTop()`
 @*/
-PetscErrorCode PetscIntStackEmpty(PetscIntStack stack, PetscBool  *empty)
+PetscErrorCode PetscIntStackEmpty(PetscIntStack stack, PetscBool *empty)
 {
   PetscFunctionBegin;
-  PetscValidBoolPointer(empty,2);
-  if (stack->top == -1) *empty = PETSC_TRUE;
-  else *empty = PETSC_FALSE;
-  PetscFunctionReturn(0);
+  PetscValidPointer(stack, 1);
+  PetscValidBoolPointer(empty, 2);
+  *empty = stack->top == -1 ? PETSC_TRUE : PETSC_FALSE;
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
@@ -66,14 +65,15 @@ PetscErrorCode PetscIntStackEmpty(PetscIntStack stack, PetscBool  *empty)
 
   Level: developer
 
-.seealso: PetscIntStackCreate(), PetscIntStackDestroy(), PetscIntStackEmpty(), PetscIntStackPush(), PetscIntStackPop()
+.seealso: `PetscIntStackCreate()`, `PetscIntStackDestroy()`, `PetscIntStackEmpty()`, `PetscIntStackPush()`, `PetscIntStackPop()`
 @*/
 PetscErrorCode PetscIntStackTop(PetscIntStack stack, int *top)
 {
   PetscFunctionBegin;
-  PetscValidIntPointer(top,2);
+  PetscValidPointer(stack, 1);
+  PetscValidIntPointer(top, 2);
   *top = stack->stack[stack->top];
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
@@ -87,25 +87,18 @@ PetscErrorCode PetscIntStackTop(PetscIntStack stack, int *top)
 
   Level: developer
 
-.seealso: PetscIntStackCreate(), PetscIntStackDestroy(), PetscIntStackEmpty(), PetscIntStackPop(), PetscIntStackTop()
+.seealso: `PetscIntStackCreate()`, `PetscIntStackDestroy()`, `PetscIntStackEmpty()`, `PetscIntStackPop()`, `PetscIntStackTop()`
 @*/
 PetscErrorCode PetscIntStackPush(PetscIntStack stack, int item)
 {
-  int            *array;
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  stack->top++;
-  if (stack->top >= stack->max) {
-    ierr = PetscMalloc1(stack->max*2, &array);CHKERRQ(ierr);
-    ierr = PetscArraycpy(array, stack->stack, stack->max);CHKERRQ(ierr);
-    ierr = PetscFree(stack->stack);CHKERRQ(ierr);
-
-    stack->stack = array;
-    stack->max  *= 2;
+  PetscValidPointer(stack, 1);
+  if (++stack->top >= stack->max) {
+    stack->max *= 2;
+    PetscCall(PetscRealloc(stack->max * sizeof(*stack->stack), &stack->stack));
   }
   stack->stack[stack->top] = item;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
@@ -121,15 +114,19 @@ PetscErrorCode PetscIntStackPush(PetscIntStack stack, int item)
 
   Level: developer
 
-.seealso: PetscIntStackCreate(), PetscIntStackDestroy(), PetscIntStackEmpty(), PetscIntStackPush(), PetscIntStackTop()
+.seealso: `PetscIntStackCreate()`, `PetscIntStackDestroy()`, `PetscIntStackEmpty()`, `PetscIntStackPush()`, `PetscIntStackTop()`
 @*/
 PetscErrorCode PetscIntStackPop(PetscIntStack stack, int *item)
 {
   PetscFunctionBegin;
-  PetscValidPointer(item,2);
-  if (stack->top == -1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE, "Stack is empty");
-  *item = stack->stack[stack->top--];
-  PetscFunctionReturn(0);
+  PetscValidPointer(stack, 1);
+  PetscCheck(stack->top != -1, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Stack is empty");
+  if (item) {
+    PetscValidIntPointer(item, 2);
+    PetscCall(PetscIntStackTop(stack, item));
+  }
+  --stack->top;
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
@@ -142,21 +139,17 @@ PetscErrorCode PetscIntStackPop(PetscIntStack stack, int *item)
 
   Level: developer
 
-.seealso: PetscIntStackDestroy(), PetscIntStackEmpty(), PetscIntStackPush(), PetscIntStackPop(), PetscIntStackTop()
+.seealso: `PetscIntStackDestroy()`, `PetscIntStackEmpty()`, `PetscIntStackPush()`, `PetscIntStackPop()`, `PetscIntStackTop()`
 @*/
 PetscErrorCode PetscIntStackCreate(PetscIntStack *stack)
 {
-  PetscIntStack  s;
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  PetscValidPointer(stack,1);
-  ierr = PetscNew(&s);CHKERRQ(ierr);
+  PetscValidPointer(stack, 1);
+  PetscCall(PetscNew(stack));
 
-  s->top = -1;
-  s->max = 128;
+  (*stack)->top = -1;
+  (*stack)->max = 128;
 
-  ierr = PetscCalloc1(s->max, &s->stack);CHKERRQ(ierr);
-  *stack = s;
-  PetscFunctionReturn(0);
+  PetscCall(PetscCalloc1((*stack)->max, &(*stack)->stack));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

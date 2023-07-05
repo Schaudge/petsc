@@ -14,6 +14,7 @@ class Configure(config.package.Package):
 
   def setupDependencies(self, framework):
     config.package.Package.setupDependencies(self, framework)
+    self.python          = framework.require('config.packages.python',self)
     self.setCompilers    = framework.require('config.setCompilers',self)
     self.sharedLibraries = framework.require('PETSc.options.sharedLibraries',self)
     self.mathlib         = framework.require('config.packages.mathlib',self)
@@ -23,6 +24,14 @@ class Configure(config.package.Package):
     self.parch           = framework.require('PETSc.options.arch',self)
     self.scalartypes     = framework.require('PETSc.options.scalarTypes',self)
     self.deps            = [self.blasLapack,self.mathlib,self.mpi,self.slepc]
+
+    # Must force --have-petsc4py into SLEPc configure arguments so it does not test PETSc before BAMG is built
+    if self.argDB['download-'+self.downloadname.lower()]:
+      if 'download-slepc-configure-arguments' in self.argDB:
+        if not '--have-petsc4py' in self.argDB['download-slepc-configure-arguments']:
+          self.argDB['download-slepc-configure-arguments'] = self.argDB['download-slepc-configure-arguments']+' --have-petsc4py'
+      else:
+        self.argDB['download-slepc-configure-arguments'] = '--have-petsc4py'
     return
 
   def Install(self):
@@ -50,9 +59,9 @@ class Configure(config.package.Package):
       self.addMakeMacro('BAMG','yes')
       self.addMakeRule('bamgbuild',slepcbuilddep, \
                          ['@echo "*** Building PETSc BAMG ***"',\
-                            '@${RM} -f ${PETSC_ARCH}/lib/petsc/conf/bamg.errorflg',\
+                            '@${RM} ${PETSC_ARCH}/lib/petsc/conf/bamg.errorflg',\
                             '@(cd '+self.packageDir+' && \\\n\
-             '+carg+'./configure --prefix='+prefix+' --with-clean && \\\n\
+             '+carg+self.python.pyexe+' ./configure --prefix='+prefix+' --with-clean && \\\n\
                mkdir -p ${PETSC_ARCH}/tests && \\\n\
                touch ${PETSC_ARCH}/tests/testfiles && \\\n\
              '+barg+'${OMAKE} '+barg+') > ${PETSC_ARCH}/lib/petsc/conf/bamg.log 2>&1 || \\\n\
@@ -66,7 +75,7 @@ class Configure(config.package.Package):
                             '@(cd '+self.packageDir+' && \\\n\
              '+barg+'${OMAKE} install '+barg+') >> ${PETSC_ARCH}/lib/petsc/conf/bamg.log 2>&1 || \\\n\
                (echo "**************************ERROR*************************************" && \\\n\
-               echo "Error building bamg. Check ${PETSC_ARCH}/lib/petsc/conf/bamg.log" && \\\n\
+               echo "Error installing bamg. Check ${PETSC_ARCH}/lib/petsc/conf/bamg.log" && \\\n\
                echo "********************************************************************" && \\\n\
                exit 1)'])
       if self.argDB['prefix'] and not 'package-prefix-hash' in self.argDB:
@@ -79,8 +88,7 @@ class Configure(config.package.Package):
     else:
       self.addMakeRule('bamg-build','')
       self.addMakeRule('bamg-install','')
-      self.logPrintBox('***** WARNING: Skipping BAMG installation,\n\
-remove --with-shared-libraries=0 *****')
+      self.logPrintWarning('Skipping BAMG installation, remove --with-shared-libraries=0')
     return self.installDir
 
   def alternateConfigureLibrary(self):

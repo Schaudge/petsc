@@ -18,16 +18,20 @@
       PetscEnum, parameter :: KSP_CG_SYMMETRIC=0
       PetscEnum, parameter :: KSP_CG_HERMITIAN=1
 
+      PetscEnum, parameter :: MAT_SCHUR_COMPLEMENT_AINV_DIAG=0
+      PetscEnum, parameter :: MAT_SCHUR_COMPLEMENT_AINV_LUMP=1
+      PetscEnum, parameter :: MAT_SCHUR_COMPLEMENT_AINV_BLOCK_DIAG=2
+      PetscEnum, parameter :: MAT_SCHUR_COMPLEMENT_AINV_FULL=3
+
       PetscEnum, parameter :: KSP_FCD_TRUNC_TYPE_STANDARD=0
       PetscEnum, parameter :: KSP_FCD_TRUNC_TYPE_NOTAY=1
 
       PetscEnum, parameter :: KSP_CONVERGED_RTOL            = 2
       PetscEnum, parameter :: KSP_CONVERGED_ATOL            = 3
       PetscEnum, parameter :: KSP_CONVERGED_ITS             = 4
-      PetscEnum, parameter :: KSP_CONVERGED_CG_NEG_CURVE    = 5
-      PetscEnum, parameter :: KSP_CONVERGED_CG_CONSTRAINED  = 6
-      PetscEnum, parameter :: KSP_CONVERGED_STEP_LENGTH     = 7
-      PetscEnum, parameter :: KSP_CONVERGED_HAPPY_BREAKDOWN = 8
+      PetscEnum, parameter :: KSP_CONVERGED_NEG_CURVE       = 5
+      PetscEnum, parameter :: KSP_CONVERGED_STEP_LENGTH     = 6
+      PetscEnum, parameter :: KSP_CONVERGED_HAPPY_BREAKDOWN = 7
 
       PetscEnum, parameter :: KSP_DIVERGED_NULL           = -2
       PetscEnum, parameter :: KSP_DIVERGED_ITS            = -3
@@ -75,3 +79,7 @@
       PetscEnum, parameter :: KSP_GMRES_CGS_REFINE_NEVER = 0
       PetscEnum, parameter :: KSP_GMRES_CGS_REFINE_IFNEEDED = 1
       PetscEnum, parameter :: KSP_GMRES_CGS_REFINE_ALWAYS = 2
+
+#if defined(_WIN32) && defined(PETSC_USE_SHARED_LIBRARIES)
+!DEC$ ATTRIBUTES DLLEXPORT::PETSC_NULL_KSP
+#endif

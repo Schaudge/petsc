@@ -4,13 +4,16 @@ import os
 class Configure(config.package.GNUPackage):
   def __init__(self, framework):
     config.package.GNUPackage.__init__(self, framework)
-    self.download          = ['http://ftp.mcs.anl.gov/pub/petsc/externalpackages/c2html.tar.gz']
-    self.complex           = 1
+    self.gitcommit         = 'v0.9.4-p3'
+    self.download          = ['git://https://gitlab.com/petsc/pkg-c2html.git' ,
+                              'https://gitlab.com/petsc/pkg-c2html/-/archive/'+self.gitcommit+'/pkg-c2html-'+self.gitcommit+'.tar.gz']
+    self.downloaddirnames  = ['pkg-c2html']
     self.downloadonWindows = 1
     self.publicInstall     = 0  # always install in PETSC_DIR/PETSC_ARCH (not --prefix) since this is not used by users
     self.parallelMake      = 0
     self.lookforbydefault  = 1
     self.executablename    = 'c2html'
+    self.skippackagelibincludedirs = 1
 
   def setupHelp(self, help):
     import nargs
@@ -22,12 +25,13 @@ class Configure(config.package.GNUPackage):
   def formGNUConfigureArgs(self):
     '''Does not use the standard arguments at all since this does not use the MPI compilers etc
        Sowing will chose its own compilers if they are not provided explicitly here'''
-    args = ['--prefix='+self.confDir]
+    args = ['--prefix='+self.installDir]
     if 'download-c2html-cc' in self.argDB and self.argDB['download-c2html-cc']:
       args.append('CC="'+self.argDB['download-c2html-cc']+'"')
     return args
 
   def locateC2html(self):
+    '''Determine location of c2html executable'''
     if 'with-c2html-exec' in self.argDB:
       self.log.write('Looking for specified C2html executable '+self.argDB['with-c2html-exec']+'\n')
       self.getExecutable(self.argDB['with-c2html-exec'], getFullPath=1, resultName='c2html')
@@ -38,9 +42,10 @@ class Configure(config.package.GNUPackage):
 
   def Install(self):
     # check if flex or lex are in PATH
-    self.getExecutable('flex')
-    self.getExecutable('lex')
-    if not hasattr(self, 'flex') and not hasattr(self, 'lex'):
+    if not hasattr(self.programs, 'flex') and not hasattr(self.programs, 'lex'):
+      self.programs.getExecutable('flex', getFullPath = 1)
+      self.programs.getExecutable('lex')
+    if not hasattr(self.programs, 'flex') and not hasattr(self.programs, 'lex'):
       raise RuntimeError('Cannot build c2html. It requires either "flex" or "lex" in PATH. Please install flex and retry.\nOr disable c2html with --with-c2html=0')
     return config.package.GNUPackage.Install(self)
 

@@ -19,22 +19,22 @@
 /*    OUTPUT PARAMETERS -*/
 /*       DEG - ARRAY CONTAINING THE DEGREES OF THE NODES IN*/
 /*             THE COMPONENT.*/
-/*       CCSIZE-SIZE OF THE COMPONENT SPECIFED BY MASK AND ROOT*/
+/*       CCSIZE-SIZE OF THE COMPONENT SPECIFIED BY MASK AND ROOT*/
 /*    WORKING PARAMETER -*/
 /*       LS - A TEMPORARY VECTOR USED TO STORE THE NODES OF THE*/
 /*              COMPONENT LEVEL BY LEVEL.*/
 /*****************************************************************/
-PetscErrorCode SPARSEPACKdegree(const PetscInt *root,const PetscInt *inxadj,const PetscInt *adjncy,PetscInt *mask,PetscInt *deg,PetscInt *ccsize,PetscInt *ls)
+PetscErrorCode SPARSEPACKdegree(const PetscInt *root, const PetscInt *inxadj, const PetscInt *adjncy, PetscInt *mask, PetscInt *deg, PetscInt *ccsize, PetscInt *ls)
 {
-  PetscInt *xadj = (PetscInt*)inxadj; /* Used as temporary and reset within this function */
+  PetscInt *xadj = (PetscInt *)inxadj; /* Used as temporary and reset within this function */
   /* System generated locals */
-  PetscInt i__1,i__2;
+  PetscInt i__1, i__2;
 
   /* Local variables */
-  PetscInt ideg,node,i,j,jstop,jstrt,lbegin,lvlend,lvsize,nbr;
-/*       INITIALIZATION ...*/
-/*       THE ARRAY XADJ IS USED AS A TEMPORARY MARKER TO*/
-/*       INDICATE WHICH NODES HAVE BEEN CONSIDERED SO FAR.*/
+  PetscInt ideg, node, i, j, jstop, jstrt, lbegin, lvlend, lvsize, nbr;
+  /*       INITIALIZATION ...*/
+  /*       THE ARRAY XADJ IS USED AS A TEMPORARY MARKER TO*/
+  /*       INDICATE WHICH NODES HAVE BEEN CONSIDERED SO FAR.*/
 
   PetscFunctionBegin;
   /* Parameter adjustments */
@@ -53,8 +53,8 @@ PetscErrorCode SPARSEPACKdegree(const PetscInt *root,const PetscInt *inxadj,cons
 L100:
   lbegin = lvlend + 1;
   lvlend = *ccsize;
-/*       FIND THE DEGREES OF NODES IN THE CURRENT LEVEL,*/
-/*       AND AT THE SAME TIME, GENERATE THE NEXT LEVEL.*/
+  /*       FIND THE DEGREES OF NODES IN THE CURRENT LEVEL,*/
+  /*       AND AT THE SAME TIME, GENERATE THE NEXT LEVEL.*/
   i__1 = lvlend;
   for (i = lbegin; i <= i__1; ++i) {
     node  = ls[i];
@@ -72,23 +72,20 @@ L100:
       xadj[nbr] = -xadj[nbr];
       ++(*ccsize);
       ls[*ccsize] = nbr;
-L200:
-      ;
+    L200:;
     }
-L300:
+  L300:
     deg[node] = ideg;
   }
-/*       COMPUTE THE CURRENT LEVEL WIDTH. */
-/*       IF IT IS NONZERO, GENERATE ANOTHER LEVEL.*/
+  /*       COMPUTE THE CURRENT LEVEL WIDTH. */
+  /*       IF IT IS NONZERO, GENERATE ANOTHER LEVEL.*/
   lvsize = *ccsize - lvlend;
   if (lvsize > 0) goto L100;
-/*       RESET XADJ TO ITS CORRECT SIGN AND RETURN. */
-/*       ------------------------------------------*/
+  /*       RESET XADJ TO ITS CORRECT SIGN AND RETURN. */
   i__1 = *ccsize;
   for (i = 1; i <= i__1; ++i) {
     node       = ls[i];
     xadj[node] = -xadj[node];
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
-

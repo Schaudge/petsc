@@ -13,6 +13,7 @@
 #include <p4est_bits.h>
 #include <p4est_algorithms.h>
 #include <p4est_mesh.h>
+#include <p4est_search.h>
 #else
 #include <p8est.h>
 #include <p8est_extended.h>
@@ -20,6 +21,7 @@
 #include <p8est_bits.h>
 #include <p8est_algorithms.h>
 #include <p8est_mesh.h>
+#include <p8est_search.h>
 #endif /* !defined(P4_TO_P8) */
 
 #endif /* defined(PETSC_HAVE_P4EST) */

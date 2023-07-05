@@ -1,4 +1,4 @@
-DM Object: Generated Mesh 1 MPI processes
+DM Object: Generated Mesh 1 MPI process
   type: plex
 Generated Mesh in 2 dimensions:
 Supports:
@@ -12794,8 +12794,3 @@ Label 'Face Sets':
 [0]: 2226 (0)
 [0]: 2229 (0)
 [0]: 2230 (0)
-Label 'Vertex Sets':
-[0]: 720 (0)
-[0]: 721 (0)
-[0]: 722 (0)
-[0]: 723 (0)

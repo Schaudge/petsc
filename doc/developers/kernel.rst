@@ -33,7 +33,7 @@ so on are not used in PETSc source code. Rather, it has
 * ``PetscBT`` - bit storage of logical true and false.
 
 ``PetscInt`` can be set using ``configure`` to be either ``int`` (32
-bit, the default) or ``long long`` (64 bit, with
+bit, the default) or ``long long`` (64-bit, with
 ``configure –with-64-bit-indices``) to allow indexing into very large
 arrays. ``PetscMPIInt`` is used for integers passed to MPI as counts and
 sizes. These are always ``int`` since that is what the MPI standard
@@ -67,7 +67,7 @@ The simplified macro-based interface consists of the following two
 calls:
 
 * ``SETERRQ(comm,error code,Error message);``
-* ``CHKERRQ(ierr);``
+* ``PetscCall(ierr);``
 
 The macro ``SETERRQ()`` is given by
 
@@ -83,23 +83,20 @@ one is absolutely sure the same error will be generated on all processes
 in the communicator. This feature is to prevent the same error message
 from being printed by many processes.
 
-The macro ``CHKERRQ()`` is defined by
+The macro ``PetscCall()`` is defined by
 
 .. literalinclude:: /../include/petscerror.h
    :language: c
-   :start-at: #define CHKERRQ
-   :end-at: #define CHKERRQ
+   :start-at: #define PetscCall
+   :end-at: #define PetscCall
 
-In addition to ``SETERRQ()``, the macros ``SETERRQ1()``, ``SETERRQ2()``,
-``SETERRQ3()``, and ``SETERRQ4()`` allow one to provide additional
-arguments to a formatted message string, for example,
+The message passed to ``SETERRQ()`` is treated as a ``printf()``-style
+format string, with all additional parameters passed after the string as
+its arguments. For example:
 
 .. code-block::
 
-    SETERRQ2(comm,PETSC_ERR,"Iteration overflow: its %D norm %g",its,(double)norm);
-
-The reason for the numbered format is that C89 CPP macros cannot handle
-a variable number of arguments.
+    SETERRQ(comm,PETSC_ERR,"Iteration overflow: its %" PetscInt_FMT " norm %g",its,(double)norm);
 
 Error Handlers
 ~~~~~~~~~~~~~~
@@ -161,7 +158,7 @@ C++ Exceptions
 
 In PETSc code, when one calls C++ functions that do not return with an error code but might
 instead throw C++ exceptions, one can use ``CHKERRCXX(func)``, which catches the exceptions
-in *func* and then calls ``SETERRQ1()``.  The macro ``CHKERRCXX(func)`` is given by
+in *func* and then calls ``SETERRQ()``.  The macro ``CHKERRCXX(func)`` is given by
 
 .. literalinclude:: /../include/petscerror.h
    :language: c
@@ -189,13 +186,13 @@ The most basic interfaces are
 .. literalinclude:: /../src/sys/memory/mal.c
    :language: c
    :start-at: PetscErrorCode PetscMallocA(
-   :end-at: PetscFunctionReturn(0)
+   :end-at: PetscFunctionReturn(PETSC_SUCCESS)
    :append: }
 
 .. literalinclude:: /../src/sys/memory/mal.c
    :language: c
    :start-at: PetscErrorCode PetscFreeA(
-   :end-at: PetscFunctionReturn(0)
+   :end-at: PetscFunctionReturn(PETSC_SUCCESS)
    :append: }
 
 which allow the use of any number of profiling and error-checking

@@ -4,7 +4,7 @@
 Reporting Bugs And Errors
 *************************
 Bug reports can be sent to petsc-users@mcs.anl.gov (public mailing list with public archives)
-or petsc-maint@mcs.anl.gov, a private maintenance e-mail without archives. Installation
+or petsc-maint@mcs.anl.gov (private maintenance mailing list without archives). Installation
 issues generally require sending in ``configure.log``, ``make.log`` i.e uncompressed large
 attachments - here petsc-maint@mcs.anl.gov is preferable.
 Check :ref:`Mailing lists <doc_mail>`
@@ -32,6 +32,14 @@ whether a fix or work-around to the problem already exists. Also, see the chapte
 :ref:`performance tuning <ch_performance>` in the PETSc users manual for guidelines on
 achieving good efficiency within PETSc codes.
 
+.. _sec_doc_fixes:
+
+Small Documentation fixes
+=========================
+We welcome corrections to our documentation directly by clicking "Edit this page", on the upper right corner of the page,
+making your edits, and following the instructions to make a merge request. Merge requests for such fixes should always have the GitLab ``docs-only`` label set.
+
+
 Guidelines For Bug Reports
 ==========================
 
@@ -50,7 +58,7 @@ the problem. We suggest providing the following information:
 .. admonition:: Do's
 
    - Detailed steps to recreate the problem if possible.
-   - Copy of the **complete** error message if pheasible, otherwise include the full error
+   - Copy of the **complete** error message if feasible, otherwise include the full error
      message as an attachment.
    - If the problem involves installation, send the entire ``configure.log`` and
      ``make.log`` as attachments.

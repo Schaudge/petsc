@@ -1,10 +1,13 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from __future__ import print_function
-import os, sys
+import os
+import sys
+import pickle
+import traceback
 
+banner_length = 93
 extraLogs     = []
 petsc_arch    = ''
-banner_length = 93
 
 # Use en_US as language so that BuildSystem parses compiler messages in english
 def fixLang(lang):
@@ -19,7 +22,6 @@ def fixLang(lang):
 
 fixLang('LC_LOCAL')
 fixLang('LANG')
-
 
 def check_for_option_mistakes(opts):
   for opt in opts[1:]:
@@ -47,7 +49,7 @@ def check_for_unsupported_combinations(opts):
     sys.exit(ValueError('PETSc does not support single precision complex with C++ clanguage, run with --with-clanguage=c'))
 
 def check_for_option_changed(opts):
-# Document changes in command line options here.
+# Document changes in command line options here. (matlab-engine is deprecated, no longer needed but still allowed)
   optMap = [('with-64bit-indices','with-64-bit-indices'),
             ('with-mpi-exec','with-mpiexec'),
             ('c-blas-lapack','f2cblaslapack'),
@@ -92,10 +94,6 @@ def chkenable():
   #Would it mean --with-fc=
   en_dash = u'\N{EN DASH}'
   no_break_space = u'\N{NO-BREAK SPACE}'
-  if sys.version_info < (3, 0):
-    en_dash = en_dash.encode('utf-8')
-    no_break_space = no_break_space.encode('utf-8')
-
   for l in range(0,len(sys.argv)):
     name = sys.argv[l]
     if name.find(no_break_space) >= 0:
@@ -200,7 +198,7 @@ def chksynonyms():
 
 def chkwincompilerusinglink():
   for arg in sys.argv:
-    if (arg.find('win32fe') >= 0 and (arg.find('f90') >=0 or arg.find('ifort') >=0 or arg.find('icl') >=0)):
+    if (arg.find('win32fe') >= 0 and (arg.find('ifort') >=0 or arg.find('icl') >=0)):
       return 1
   return 0
 
@@ -264,13 +262,22 @@ def chkcygwinpython():
   return 0
 
 def chkcygwinwindowscompilers():
-  '''Adds win32fe for Microsoft/Intel compilers'''
+  ''' Converts Microsoft and Intel Windows compilers to PETSc script using win32fe'''
   if os.path.exists('/usr/bin/cygcheck.exe'):
+    path = os.path.join(os.getcwd(),'lib','petsc','bin','win32fe')
     for l in range(1,len(sys.argv)):
       option = sys.argv[l]
-      for i in ['cl','icl','ifort']:
-        if option.startswith(i):
-          sys.argv[l] = 'win32fe '+option
+      for i in ['cl','icl','ifort','lib','nvcc']:
+        if option.endswith('="win32fe '+i+'"'):
+          sys.argv[l] = option[:option.find('=')+1]+os.path.join(path,'win_'+i)
+          print('===============================================================================')
+          print(' *** Arguments of the form XXX="win32fe '+i+'" are deprecated              ****')
+          print(' *** Use XXX='+i+'                                                         ****')
+          print('===============================================================================')
+
+          break
+        if option.endswith('='+i):
+          sys.argv[l] = option[:option.find('=')+1]+os.path.join(path,'win_'+i)
           break
   return 0
 
@@ -392,10 +399,17 @@ def petsc_configure(configure_options):
       petscnagupgrade.currentversion(petscdir)
   except:
     pass
-  banner_line = banner_length*'='
-  print(banner_line)
-  print('Configuring PETSc to compile on your system'.center(banner_length))
-  print(banner_line)
+
+  # Should be run from the toplevel
+  configDir = os.path.abspath('config')
+  bsDir     = os.path.join(configDir, 'BuildSystem')
+  if not os.path.isdir(configDir):
+    raise RuntimeError('Run configure from $PETSC_DIR, not '+os.path.abspath('.'))
+  sys.path.insert(0, bsDir)
+  sys.path.insert(0, configDir)
+  import logger
+  import config.base
+  import config.framework
 
   try:
     # Command line arguments take precedence (but don't destroy argv[0])
@@ -403,17 +417,7 @@ def petsc_configure(configure_options):
     check_for_option_mistakes(sys.argv)
     check_for_option_changed(sys.argv)
   except (TypeError, ValueError) as e:
-    emsg = str(e)
-    if not emsg.endswith('\n'): emsg = emsg+'\n'
-    banner_line = banner_length*'*'
-    msg = '\n'.join([
-      banner_line,
-      'ERROR in COMMAND LINE ARGUMENT to ./configure'.center(banner_length),
-      banner_length*'-',
-      emsg,
-      banner_line,
-      '' # to add an additional newline at the end
-    ])
+    msg = logger.build_multiline_error_message('ERROR in COMMAND LINE ARGUMENT to ./configure', str(e))
     sys.exit(msg)
   # check PETSC_ARCH
   check_for_unsupported_combinations(sys.argv)
@@ -445,18 +449,6 @@ def petsc_configure(configure_options):
       break
 
 
-  # Should be run from the toplevel
-  configDir = os.path.abspath('config')
-  bsDir     = os.path.join(configDir, 'BuildSystem')
-  if not os.path.isdir(configDir):
-    raise RuntimeError('Run configure from $PETSC_DIR, not '+os.path.abspath('.'))
-  sys.path.insert(0, bsDir)
-  sys.path.insert(0, configDir)
-  import config.base
-  import config.framework
-  import pickle
-  import traceback
-
   # Check Cray without modules
   check_cray_modules()
 
@@ -465,6 +457,7 @@ def petsc_configure(configure_options):
   try:
     framework = config.framework.Framework(['--configModules=PETSc.Configure','--optionsModule=config.compilerOptions']+sys.argv[1:], loadArgDB = 0)
     framework.setup()
+    framework.logPrintBox('Configuring PETSc to compile on your system')
     framework.logPrint('\n'.join(extraLogs))
     framework.configure(out = sys.stdout)
     framework.storeSubstitutions(framework.argDB)
@@ -482,41 +475,21 @@ def petsc_configure(configure_options):
     return 0
   except (RuntimeError, config.base.ConfigureSetupError) as e:
     tbo = sys.exc_info()[2]
-    emsg = str(e)
-    if not emsg.endswith('\n'): emsg = emsg+'\n'
-    msg ='*******************************************************************************\n'\
-    +'         UNABLE to CONFIGURE with GIVEN OPTIONS    (see configure.log for details):\n' \
-    +'-------------------------------------------------------------------------------\n'  \
-    +emsg+'*******************************************************************************\n'
+    msg = logger.build_multiline_error_message('UNABLE to CONFIGURE with GIVEN OPTIONS (see configure.log for details):', str(e))
     se = ''
   except (TypeError, ValueError) as e:
     # this exception is automatically deleted by Python so we need to save it to print below
     tbo = sys.exc_info()[2]
-    emsg = str(e)
-    if not emsg.endswith('\n'): emsg = emsg+'\n'
-    msg ='*******************************************************************************\n'\
-    +'    TypeError or ValueError possibly related to ERROR in COMMAND LINE ARGUMENT while running ./configure \n' \
-    +'-------------------------------------------------------------------------------\n'  \
-    +emsg+'*******************************************************************************\n'
+    msg = logger.build_multiline_error_message('TypeError or ValueError possibly related to ERROR in COMMAND LINE ARGUMENT while running ./configure', str(e))
     se = ''
   except ImportError as e :
     # this exception is automatically deleted by Python so we need to save it to print below
     tbo = sys.exc_info()[2]
-    emsg = str(e)
-    if not emsg.endswith('\n'): emsg = emsg+'\n'
-    msg ='*******************************************************************************\n'\
-    +'                     ImportError while runing ./configure \n' \
-    +'-------------------------------------------------------------------------------\n'  \
-    +emsg+'*******************************************************************************\n'
+    msg = logger.build_multiline_error_message('ImportError while running ./configure', str(e))
     se = ''
   except OSError as e :
     tbo = sys.exc_info()[2]
-    emsg = str(e)
-    if not emsg.endswith('\n'): emsg = emsg+'\n'
-    msg ='*******************************************************************************\n'\
-    +'                    OSError while running ./configure \n' \
-    +'-------------------------------------------------------------------------------\n'  \
-    +emsg+'*******************************************************************************\n'
+    msg = logger.build_multiline_error_message('OSError while running ./configure', str(e))
     se = ''
   except SystemExit as e:
     tbo = sys.exc_info()[2]
@@ -524,18 +497,14 @@ def petsc_configure(configure_options):
       return
     if e.code == 10:
       sys.exit(10)
-    msg ='*******************************************************************************\n'\
-    +'         CONFIGURATION FAILURE  (Please send configure.log to petsc-maint@mcs.anl.gov)\n' \
-    +'*******************************************************************************\n'
+    msg = logger.build_multiline_error_message('CONFIGURATION FAILURE (Please send configure.log to petsc-maint@mcs.anl.gov)', str(e))
     se  = str(e)
   except Exception as e:
     tbo = sys.exc_info()[2]
-    msg ='*******************************************************************************\n'\
-    +'        CONFIGURATION CRASH  (Please send configure.log to petsc-maint@mcs.anl.gov)\n' \
-    +'*******************************************************************************\n'
+    msg = logger.build_multiline_error_message('CONFIGURATION CRASH (Please send configure.log to petsc-maint@mcs.anl.gov)', str(e))
     se  = str(e)
 
-  print(msg)
+  print('\n'+msg)
   if not framework is None:
     framework.logClear()
     if hasattr(framework, 'log'):
@@ -549,6 +518,7 @@ def petsc_configure(configure_options):
       except Exception as e:
         framework.log.write('Problem writing headers to log: '+str(e))
       try:
+        if hasattr(framework,'additional_error_message'): se += logger.build_multiline_message('',framework.additional_error_message)+'\n\n'
         framework.log.write(msg+se)
         traceback.print_tb(tbo, file = framework.log)
         print_final_timestamp(framework)

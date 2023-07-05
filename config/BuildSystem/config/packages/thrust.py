@@ -10,12 +10,11 @@ class Configure(config.package.GNUPackage):
     self.minversion       = '1.9.8'
     self.versionname      = 'THRUST_VERSION'
     self.versioninclude   = 'thrust/version.h'
-    self.gitcommit        = '92589346340b17049687b09cfc2c82b530dc852f' # main 2021-12-24 1.16-pre
-    self.download         = ['git://https://github.com/NVIDIA/thrust.git']
+    self.gitcommit        = '1.17.2'
+    self.download         = ['git://https://github.com/NVIDIA/thrust.git','https://github.com/NVIDIA/thrust/archive/'+self.gitcommit+'.tar.gz']
     self.includes         = ['thrust/version.h']
     self.precisions       = ['single','double']
     self.buildLanguages   = ['Cxx']
-    self.minCxxVersion    = 'c++11'
     return
 
   def versionToStandardForm(self,ver):

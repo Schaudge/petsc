@@ -1,138 +1,138 @@
-#include <petscsys.h>
+#include <petsc/private/petscimpl.h>
 
-void testDuplicatesWithChanges(PetscInt *a, PetscScalar *b)
+PetscErrorCode testDuplicatesWithChanges(PetscInt *a, PetscScalar *b)
 {
   /* no remove */
-  PetscValidIntPointer(a,1);
+  PetscValidIntPointer(a, 1);
   /* remove */
-  PetscValidIntPointer(a,1);
+  PetscValidIntPointer(a, 1);
   /* no remove */
-  PetscValidIntPointer(b,5);
+  PetscValidIntPointer(b, 5);
   /* ~should~ be removed but won't be */
-  PetscValidScalarPointer(b,7);
-  PetscValidScalarPointer(b,3);
-  return;
+  PetscValidScalarPointer(b, 7);
+  PetscValidScalarPointer(b, 3);
+  return 0;
 }
 
-void testDuplicatesScoped(PetscInt *a, PetscScalar *b)
+PetscErrorCode testDuplicatesScoped(PetscInt *a, PetscScalar *b)
 {
   /* no remove */
-  PetscValidIntPointer(a,1);
-  PetscValidScalarPointer(b,2);
+  PetscValidIntPointer(a, 1);
+  PetscValidScalarPointer(b, 2);
   /* remove */
-  PetscValidIntPointer(a,1);
-  PetscValidScalarPointer(b,2);
+  PetscValidIntPointer(a, 1);
+  PetscValidScalarPointer(b, 2);
   {
     /* remove */
-    PetscValidIntPointer(a,1);
-    PetscValidScalarPointer(b,2);
+    PetscValidIntPointer(a, 1);
+    PetscValidScalarPointer(b, 2);
   }
-  return;
+  return 0;
 }
 
-void testDuplicatesDoubleScoped(PetscInt *a, PetscScalar *b)
+PetscErrorCode testDuplicatesDoubleScoped(PetscInt *a, PetscScalar *b)
 {
   /* no remove */
-  PetscValidIntPointer(a,1);
-  PetscValidScalarPointer(b,2);
+  PetscValidIntPointer(a, 1);
+  PetscValidScalarPointer(b, 2);
   /* remove */
-  PetscValidIntPointer(a,1);
-  PetscValidScalarPointer(b,2);
+  PetscValidIntPointer(a, 1);
+  PetscValidScalarPointer(b, 2);
   {
     /* remove */
-    PetscValidIntPointer(a,1);
-    PetscValidScalarPointer(b,2);
+    PetscValidIntPointer(a, 1);
+    PetscValidScalarPointer(b, 2);
   }
   {
     /* remove */
-    PetscValidIntPointer(a,1);
-    PetscValidScalarPointer(b,2);
+    PetscValidIntPointer(a, 1);
+    PetscValidScalarPointer(b, 2);
   }
-  return;
+  return 0;
 }
 
-void testNoDuplicatesSwitch(PetscInt *a, PetscScalar *b, PetscBool cond)
+PetscErrorCode testNoDuplicatesSwitch(PetscInt *a, PetscScalar *b, PetscBool cond)
 {
   switch (cond) {
   case PETSC_TRUE:
     /* no remove */
-    PetscValidIntPointer(a,1);
-    PetscValidScalarPointer(b,2);
+    PetscValidIntPointer(a, 1);
+    PetscValidScalarPointer(b, 2);
     break;
   case PETSC_FALSE:
     /* no remove */
-    PetscValidIntPointer(a,1);
-    PetscValidScalarPointer(b,2);
+    PetscValidIntPointer(a, 1);
+    PetscValidScalarPointer(b, 2);
     break;
   }
-  return;
+  return 0;
 }
 
-void testDuplicatesNoChangesSwitch(PetscInt *a, PetscScalar *b, PetscBool cond)
+PetscErrorCode testDuplicatesNoChangesSwitch(PetscInt *a, PetscScalar *b, PetscBool cond)
 {
   /* no remove */
-  PetscValidIntPointer(a,1);
-  PetscValidScalarPointer(b,2);
+  PetscValidIntPointer(a, 1);
+  PetscValidScalarPointer(b, 2);
   switch (cond) {
   case PETSC_TRUE:
     /* remove */
-    PetscValidIntPointer(a,1);
-    PetscValidScalarPointer(b,2);
+    PetscValidIntPointer(a, 1);
+    PetscValidScalarPointer(b, 2);
     break;
   case PETSC_FALSE:
     /* remove */
-    PetscValidIntPointer(a,1);
-    PetscValidScalarPointer(b,2);
+    PetscValidIntPointer(a, 1);
+    PetscValidScalarPointer(b, 2);
     break;
   }
-  return;
+  return 0;
 }
 
-void testNoDuplicatesIfElse(PetscInt *a, PetscScalar *b, PetscBool cond)
+PetscErrorCode testNoDuplicatesIfElse(PetscInt *a, PetscScalar *b, PetscBool cond)
 {
   if (cond) {
     /* no remove */
-    PetscValidIntPointer(a,1);
-    PetscValidScalarPointer(b,2);
+    PetscValidIntPointer(a, 1);
+    PetscValidScalarPointer(b, 2);
   } else {
     /* no remove */
-    PetscValidIntPointer(a,1);
-    PetscValidScalarPointer(b,2);
+    PetscValidIntPointer(a, 1);
+    PetscValidScalarPointer(b, 2);
   }
-  return;
+  return 0;
 }
 
-void testDuplicatesIfElse(PetscInt *a, PetscScalar *b, PetscBool cond)
+PetscErrorCode testDuplicatesIfElse(PetscInt *a, PetscScalar *b, PetscBool cond)
 {
   /* no remove */
-  PetscValidIntPointer(a,1);
-  PetscValidScalarPointer(b,2);
+  PetscValidIntPointer(a, 1);
+  PetscValidScalarPointer(b, 2);
   if (cond) {
     /* remove */
-    PetscValidIntPointer(a,1);
-    PetscValidScalarPointer(b,2);
+    PetscValidIntPointer(a, 1);
+    PetscValidScalarPointer(b, 2);
   } else {
     /* remove */
-    PetscValidIntPointer(a,1);
-    PetscValidScalarPointer(b,2);
+    PetscValidIntPointer(a, 1);
+    PetscValidScalarPointer(b, 2);
   }
-  return;
+  return 0;
 }
 
-void testNoDuplicatesIfElseIfElse(PetscInt *a, PetscScalar *b, PetscBool cond)
+PetscErrorCode testNoDuplicatesIfElseIfElse(PetscInt *a, PetscScalar *b, PetscBool cond)
 {
   if (cond) {
     /* no remove */
-    PetscValidIntPointer(a,1);
-    PetscValidScalarPointer(b,2);
+    PetscValidIntPointer(a, 1);
+    PetscValidScalarPointer(b, 2);
   } else if (!cond) {
     /* no remove */
-    PetscValidIntPointer(a,1);
-    PetscValidScalarPointer(b,2);
+    PetscValidIntPointer(a, 1);
+    PetscValidScalarPointer(b, 2);
   } else {
     /* no remove */
-    PetscValidIntPointer(a,1);
-    PetscValidScalarPointer(b,2);
+    PetscValidIntPointer(a, 1);
+    PetscValidScalarPointer(b, 2);
   }
-  return;
+  return 0;
 }

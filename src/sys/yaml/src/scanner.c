@@ -273,7 +273,7 @@
  * The tokens BLOCK-SEQUENCE-START and BLOCK-MAPPING-START denote indentation
  * increase that precedes a block collection (cf. the INDENT token in Python).
  * The token BLOCK-END denote indentation decrease that ends a block collection
- * (cf. the DEDENT token in Python).  However YAML has some syntax pecularities
+ * (cf. the DEDENT token in Python).  However YAML has some syntax peculiarities
  * that makes detections of these tokens more complex.
  *
  * The tokens BLOCK-ENTRY, KEY, and VALUE are used to represent the indicators
@@ -3178,25 +3178,25 @@ yaml_parser_scan_flow_scalar(yaml_parser_t *parser, yaml_token_t *token,
                         break;
 
                     case 'N':   /* NEL (#x85) */
-                        *(string.pointer++) = '\xC2';
-                        *(string.pointer++) = '\x85';
+                        *(string.pointer++) = (unsigned char)'\xC2';
+                        *(string.pointer++) = (unsigned char)'\x85';
                         break;
 
                     case '_':   /* #xA0 */
-                        *(string.pointer++) = '\xC2';
-                        *(string.pointer++) = '\xA0';
+                        *(string.pointer++) = (unsigned char)'\xC2';
+                        *(string.pointer++) = (unsigned char) '\xA0';
                         break;
 
                     case 'L':   /* LS (#x2028) */
-                        *(string.pointer++) = '\xE2';
-                        *(string.pointer++) = '\x80';
-                        *(string.pointer++) = '\xA8';
+                        *(string.pointer++) = (unsigned char)'\xE2';
+                        *(string.pointer++) = (unsigned char)'\x80';
+                        *(string.pointer++) = (unsigned char)'\xA8';
                         break;
 
                     case 'P':   /* PS (#x2029) */
-                        *(string.pointer++) = '\xE2';
-                        *(string.pointer++) = '\x80';
-                        *(string.pointer++) = '\xA9';
+                        *(string.pointer++) = (unsigned char)'\xE2';
+                        *(string.pointer++) = (unsigned char)'\x80';
+                        *(string.pointer++) = (unsigned char)'\xA9';
                         break;
 
                     case 'x':
@@ -3234,7 +3234,7 @@ yaml_parser_scan_flow_scalar(yaml_parser_t *parser, yaml_token_t *token,
                     for (k = 0; k < code_length; k ++) {
                         if (!IS_HEX_AT(parser->buffer, k)) {
                             yaml_parser_set_scanner_error(parser, "while parsing a quoted scalar",
-                                    start_mark, "did not find expected hexdecimal number");
+                                    start_mark, "did not find expected hexadecimal number");
                             goto error;
                         }
                         value = (value << 4) + AS_HEX_AT(parser->buffer, k);
@@ -3287,7 +3287,7 @@ yaml_parser_scan_flow_scalar(yaml_parser_t *parser, yaml_token_t *token,
 
         /* Check if we are at the end of the scalar. */
 
-        /* Fix for crash unitialized value crash
+        /* Fix for crash uninitialized value crash
          * Credit for the bug and input is to OSS Fuzz
          * Credit for the fix to Alex Gaynor
          */

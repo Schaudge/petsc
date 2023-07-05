@@ -29,20 +29,24 @@ becomes a natural condition in the weak form, <t_n, g>_\Gamma.
 #include <petscds.h>
 #include <petscconvest.h>
 
-typedef enum {SOL_LINEAR, SOL_QUADRATIC, SOL_QUARTIC, SOL_QUARTIC_NEUMANN, SOL_UNKNOWN, NUM_SOLTYPE} SolType;
-const char *SolTypeNames[NUM_SOLTYPE+3] = {"linear", "quadratic", "quartic", "quartic_neumann", "unknown", "SolType", "SOL_", NULL};
+typedef enum {
+  SOL_LINEAR,
+  SOL_QUADRATIC,
+  SOL_QUARTIC,
+  SOL_QUARTIC_NEUMANN,
+  SOL_UNKNOWN,
+  NUM_SOLTYPE
+} SolType;
+const char *SolTypeNames[NUM_SOLTYPE + 3] = {"linear", "quadratic", "quartic", "quartic_neumann", "unknown", "SolType", "SOL_", NULL};
 
 typedef struct {
   SolType solType; /* The type of exact solution */
 } AppCtx;
 
-static void f0_u(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                 const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                 const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                 PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
+static void f0_u(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
 {
   PetscInt d;
-  for (d = 0; d < dim; ++d) f0[0] += u_x[uOff_x[0]+d*dim+d];
+  for (d = 0; d < dim; ++d) f0[0] += u_x[uOff_x[0] + d * dim + d];
 }
 
 /* 2D Dirichlet potential example
@@ -56,33 +60,27 @@ static void f0_u(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 static PetscErrorCode linear_u(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar *u, void *ctx)
 {
   u[0] = x[0];
-  return 0;
+  return PETSC_SUCCESS;
 }
 static PetscErrorCode linear_q(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar *u, void *ctx)
 {
   PetscInt c;
   for (c = 0; c < Nc; ++c) u[c] = c ? 0.0 : 1.0;
-  return 0;
+  return PETSC_SUCCESS;
 }
 
-static void f0_linear_u(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                        const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                        const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                        PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
+static void f0_linear_u(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
 {
   f0[0] = 0.0;
   f0_u(dim, Nf, NfAux, uOff, uOff_x, u, u_t, u_x, aOff, aOff_x, a, a_t, a_x, t, x, numConstants, constants, f0);
 }
-static void f0_bd_linear_q(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                           const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                           const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                           PetscReal t, const PetscReal x[], const PetscReal n[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
+static void f0_bd_linear_q(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], const PetscReal n[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
 {
   PetscScalar potential;
   PetscInt    d;
 
-  linear_u(dim, t, x, dim, &potential, NULL);
-  for (d = 0; d < dim; ++d) f0[d] = -potential*n[d];
+  PetscCallAbort(PETSC_COMM_SELF, linear_u(dim, t, x, dim, &potential, NULL));
+  for (d = 0; d < dim; ++d) f0[d] = -potential * n[d];
 }
 
 /* 2D Dirichlet potential example
@@ -98,34 +96,28 @@ static PetscErrorCode quadratic_u(PetscInt dim, PetscReal time, const PetscReal 
   PetscInt d;
 
   u[0] = 0.0;
-  for (d = 0; d < dim; ++d) u[0] += x[d]*x[d];
-  return 0;
+  for (d = 0; d < dim; ++d) u[0] += x[d] * x[d];
+  return PETSC_SUCCESS;
 }
 static PetscErrorCode quadratic_q(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar *u, void *ctx)
 {
   PetscInt c;
-  for (c = 0; c < Nc; ++c) u[c] = 2.0*x[c];
-  return 0;
+  for (c = 0; c < Nc; ++c) u[c] = 2.0 * x[c];
+  return PETSC_SUCCESS;
 }
 
-static void f0_quadratic_u(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                           const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                           const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                           PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
+static void f0_quadratic_u(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
 {
   f0[0] = -4.0;
   f0_u(dim, Nf, NfAux, uOff, uOff_x, u, u_t, u_x, aOff, aOff_x, a, a_t, a_x, t, x, numConstants, constants, f0);
 }
-static void f0_bd_quadratic_q(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                              const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                              const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                              PetscReal t, const PetscReal x[], const PetscReal n[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
+static void f0_bd_quadratic_q(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], const PetscReal n[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
 {
   PetscScalar potential;
   PetscInt    d;
 
-  quadratic_u(dim, t, x, dim, &potential, NULL);
-  for (d = 0; d < dim; ++d) f0[d] = -potential*n[d];
+  PetscCallAbort(PETSC_COMM_SELF, quadratic_u(dim, t, x, dim, &potential, NULL));
+  for (d = 0; d < dim; ++d) f0[d] = -potential * n[d];
 }
 
 /* 2D Dirichlet potential example
@@ -141,8 +133,8 @@ static PetscErrorCode quartic_u(PetscInt dim, PetscReal time, const PetscReal x[
   PetscInt d;
 
   u[0] = 1.0;
-  for (d = 0; d < dim; ++d) u[0] *= x[d]*(1.0 - x[d]);
-  return 0;
+  for (d = 0; d < dim; ++d) u[0] *= x[d] * (1.0 - x[d]);
+  return PETSC_SUCCESS;
 }
 static PetscErrorCode quartic_q(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar *u, void *ctx)
 {
@@ -151,21 +143,18 @@ static PetscErrorCode quartic_q(PetscInt dim, PetscReal time, const PetscReal x[
   for (c = 0; c < Nc; ++c) {
     u[c] = 1.0;
     for (d = 0; d < dim; ++d) {
-      if (c == d) u[c] *= 1 - 2.0*x[d];
-      else        u[c] *= x[d]*(1.0 - x[d]);
+      if (c == d) u[c] *= 1 - 2.0 * x[d];
+      else u[c] *= x[d] * (1.0 - x[d]);
     }
   }
-  return 0;
+  return PETSC_SUCCESS;
 }
 
-static void f0_quartic_u(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                        const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                        const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                        PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
+static void f0_quartic_u(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
 {
   PetscInt d;
   f0[0] = 0.0;
-  for (d = 0; d < dim; ++d) f0[0] += 2.0*x[d]*(1.0 - x[d]);
+  for (d = 0; d < dim; ++d) f0[0] += 2.0 * x[d] * (1.0 - x[d]);
   f0_u(dim, Nf, NfAux, uOff, uOff_x, u, u_t, u_x, aOff, aOff_x, a, a_t, a_x, t, x, numConstants, constants, f0);
 }
 
@@ -178,80 +167,60 @@ static void f0_quartic_u(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   du/dn_\Gamma = {(1-2x) y (1-y), x (1-x) (1-2y)} . n produces an essential condition on q
 */
 
-static void f0_q(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                 const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                 const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                 PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
+static void f0_q(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
 {
   PetscInt c;
-  for (c = 0; c < dim; ++c) f0[c] = u[uOff[0]+c];
+  for (c = 0; c < dim; ++c) f0[c] = u[uOff[0] + c];
 }
 
 /* <\nabla\cdot w, u> = <\nabla w, Iu> */
-static void f1_q(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                 const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                 const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                 PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f1[])
+static void f1_q(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f1[])
 {
   PetscInt c;
-  for (c = 0; c < dim; ++c) f1[c*dim+c] = u[uOff[1]];
+  for (c = 0; c < dim; ++c) f1[c * dim + c] = u[uOff[1]];
 }
 
 /* <t, q> */
-static void g0_qq(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                  const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                  const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                  PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g0[])
+static void g0_qq(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g0[])
 {
   PetscInt c;
-  for (c = 0; c < dim; ++c) g0[c*dim+c] = 1.0;
+  for (c = 0; c < dim; ++c) g0[c * dim + c] = 1.0;
 }
 
 /* <\nabla\cdot t, u> = <\nabla t, Iu> */
-static void g2_qu(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                  const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                  const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                  PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g2[])
+static void g2_qu(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g2[])
 {
   PetscInt d;
-  for (d = 0; d < dim; ++d) g2[d*dim+d] = 1.0;
+  for (d = 0; d < dim; ++d) g2[d * dim + d] = 1.0;
 }
 
 /* <v, \nabla\cdot q> */
-static void g1_uq(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                  const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                  const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                  PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g1[])
+static void g1_uq(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g1[])
 {
   PetscInt d;
-  for (d = 0; d < dim; ++d) g1[d*dim+d] = 1.0;
+  for (d = 0; d < dim; ++d) g1[d * dim + d] = 1.0;
 }
 
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBeginUser;
   options->solType = SOL_LINEAR;
-
-  ierr = PetscOptionsBegin(comm, "", "Poisson Problem Options", "DMPLEX");CHKERRQ(ierr);
-  ierr = PetscOptionsEnum("-sol_type", "Type of exact solution", "ex24.c", SolTypeNames, (PetscEnum) options->solType, (PetscEnum *) &options->solType, NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsEnd();CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscOptionsBegin(comm, "", "Poisson Problem Options", "DMPLEX");
+  PetscCall(PetscOptionsEnum("-sol_type", "Type of exact solution", "ex24.c", SolTypeNames, (PetscEnum)options->solType, (PetscEnum *)&options->solType, NULL));
+  PetscOptionsEnd();
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBeginUser;
-  ierr = DMCreate(comm, dm);CHKERRQ(ierr);
-  ierr = DMSetType(*dm, DMPLEX);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject)*dm, "Example Mesh");CHKERRQ(ierr);
-  ierr = DMSetApplicationContext(*dm, user);CHKERRQ(ierr);
-  ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
-  ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(DMCreate(comm, dm));
+  PetscCall(DMSetType(*dm, DMPLEX));
+  PetscCall(PetscObjectSetName((PetscObject)*dm, "Example Mesh"));
+  PetscCall(DMSetApplicationContext(*dm, user));
+  PetscCall(DMSetFromOptions(*dm));
+  PetscCall(DMViewFromOptions(*dm, NULL, "-dm_view"));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode SetupPrimalProblem(DM dm, AppCtx *user)
@@ -261,47 +230,46 @@ static PetscErrorCode SetupPrimalProblem(DM dm, AppCtx *user)
   PetscWeakForm  wf;
   const PetscInt id = 1;
   PetscInt       bd;
-  PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
-  ierr = DMGetLabel(dm, "marker", &label);CHKERRQ(ierr);
-  ierr = DMGetDS(dm, &ds);CHKERRQ(ierr);
-  ierr = PetscDSSetResidual(ds, 0, f0_q, f1_q);CHKERRQ(ierr);
-  ierr = PetscDSSetJacobian(ds, 0, 0, g0_qq, NULL, NULL, NULL);CHKERRQ(ierr);
-  ierr = PetscDSSetJacobian(ds, 0, 1, NULL, NULL, g2_qu, NULL);CHKERRQ(ierr);
-  ierr = PetscDSSetJacobian(ds, 1, 0, NULL, g1_uq, NULL, NULL);CHKERRQ(ierr);
-  switch (user->solType)
-  {
-    case SOL_LINEAR:
-      ierr = PetscDSSetResidual(ds, 1, f0_linear_u, NULL);CHKERRQ(ierr);
-      ierr = DMAddBoundary(dm, DM_BC_NATURAL, "Dirichlet Bd Integral", label, 1, &id, 0, 0, NULL, NULL, NULL, user, &bd);CHKERRQ(ierr);
-      ierr = PetscDSGetBoundary(ds, bd, &wf, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);CHKERRQ(ierr);
-      ierr = PetscWeakFormSetIndexBdResidual(wf, label, 1, 0, 0, 0, f0_bd_linear_q, 0, NULL);CHKERRQ(ierr);
-      ierr = PetscDSSetExactSolution(ds, 0, linear_q, user);CHKERRQ(ierr);
-      ierr = PetscDSSetExactSolution(ds, 1, linear_u, user);CHKERRQ(ierr);
-      break;
-    case SOL_QUADRATIC:
-      ierr = PetscDSSetResidual(ds, 1, f0_quadratic_u, NULL);CHKERRQ(ierr);
-      ierr = DMAddBoundary(dm, DM_BC_NATURAL, "Dirichlet Bd Integral", label, 1, &id, 0, 0, NULL, NULL, NULL, user, &bd);CHKERRQ(ierr);
-      ierr = PetscDSGetBoundary(ds, bd, &wf, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);CHKERRQ(ierr);
-      ierr = PetscWeakFormSetIndexBdResidual(wf, label, 1, 0, 0, 0, f0_bd_quadratic_q, 0, NULL);CHKERRQ(ierr);
-      ierr = PetscDSSetExactSolution(ds, 0, quadratic_q, user);CHKERRQ(ierr);
-      ierr = PetscDSSetExactSolution(ds, 1, quadratic_u, user);CHKERRQ(ierr);
-      break;
-    case SOL_QUARTIC:
-      ierr = PetscDSSetResidual(ds, 1, f0_quartic_u, NULL);CHKERRQ(ierr);
-      ierr = PetscDSSetExactSolution(ds, 0, quartic_q, user);CHKERRQ(ierr);
-      ierr = PetscDSSetExactSolution(ds, 1, quartic_u, user);CHKERRQ(ierr);
-      break;
-    case SOL_QUARTIC_NEUMANN:
-      ierr = PetscDSSetResidual(ds, 1, f0_quartic_u, NULL);CHKERRQ(ierr);
-      ierr = PetscDSSetExactSolution(ds, 0, quartic_q, user);CHKERRQ(ierr);
-      ierr = PetscDSSetExactSolution(ds, 1, quartic_u, user);CHKERRQ(ierr);
-      ierr = DMAddBoundary(dm, DM_BC_ESSENTIAL, "Flux condition", label, 1, &id, 0, 0, NULL, (void (*)(void)) quartic_q, NULL, user, NULL);CHKERRQ(ierr);
-      break;
-    default: SETERRQ1(PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_WRONG, "Invalid exact solution type %s", SolTypeNames[PetscMin(user->solType, SOL_UNKNOWN)]);
+  PetscCall(DMGetLabel(dm, "marker", &label));
+  PetscCall(DMGetDS(dm, &ds));
+  PetscCall(PetscDSSetResidual(ds, 0, f0_q, f1_q));
+  PetscCall(PetscDSSetJacobian(ds, 0, 0, g0_qq, NULL, NULL, NULL));
+  PetscCall(PetscDSSetJacobian(ds, 0, 1, NULL, NULL, g2_qu, NULL));
+  PetscCall(PetscDSSetJacobian(ds, 1, 0, NULL, g1_uq, NULL, NULL));
+  switch (user->solType) {
+  case SOL_LINEAR:
+    PetscCall(PetscDSSetResidual(ds, 1, f0_linear_u, NULL));
+    PetscCall(DMAddBoundary(dm, DM_BC_NATURAL, "Dirichlet Bd Integral", label, 1, &id, 0, 0, NULL, NULL, NULL, user, &bd));
+    PetscCall(PetscDSGetBoundary(ds, bd, &wf, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
+    PetscCall(PetscWeakFormSetIndexBdResidual(wf, label, 1, 0, 0, 0, f0_bd_linear_q, 0, NULL));
+    PetscCall(PetscDSSetExactSolution(ds, 0, linear_q, user));
+    PetscCall(PetscDSSetExactSolution(ds, 1, linear_u, user));
+    break;
+  case SOL_QUADRATIC:
+    PetscCall(PetscDSSetResidual(ds, 1, f0_quadratic_u, NULL));
+    PetscCall(DMAddBoundary(dm, DM_BC_NATURAL, "Dirichlet Bd Integral", label, 1, &id, 0, 0, NULL, NULL, NULL, user, &bd));
+    PetscCall(PetscDSGetBoundary(ds, bd, &wf, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
+    PetscCall(PetscWeakFormSetIndexBdResidual(wf, label, 1, 0, 0, 0, f0_bd_quadratic_q, 0, NULL));
+    PetscCall(PetscDSSetExactSolution(ds, 0, quadratic_q, user));
+    PetscCall(PetscDSSetExactSolution(ds, 1, quadratic_u, user));
+    break;
+  case SOL_QUARTIC:
+    PetscCall(PetscDSSetResidual(ds, 1, f0_quartic_u, NULL));
+    PetscCall(PetscDSSetExactSolution(ds, 0, quartic_q, user));
+    PetscCall(PetscDSSetExactSolution(ds, 1, quartic_u, user));
+    break;
+  case SOL_QUARTIC_NEUMANN:
+    PetscCall(PetscDSSetResidual(ds, 1, f0_quartic_u, NULL));
+    PetscCall(PetscDSSetExactSolution(ds, 0, quartic_q, user));
+    PetscCall(PetscDSSetExactSolution(ds, 1, quartic_u, user));
+    PetscCall(DMAddBoundary(dm, DM_BC_ESSENTIAL, "Flux condition", label, 1, &id, 0, 0, NULL, (void (*)(void))quartic_q, NULL, user, NULL));
+    break;
+  default:
+    SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_WRONG, "Invalid exact solution type %s", SolTypeNames[PetscMin(user->solType, SOL_UNKNOWN)]);
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode SetupDiscretization(DM dm, PetscErrorCode (*setup)(DM, AppCtx *), AppCtx *user)
@@ -311,63 +279,62 @@ static PetscErrorCode SetupDiscretization(DM dm, PetscErrorCode (*setup)(DM, App
   DMPolytopeType ct;
   PetscBool      simplex;
   PetscInt       dim, cStart;
-  PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
-  ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
-  ierr = DMPlexGetHeightStratum(dm, 0, &cStart, NULL);CHKERRQ(ierr);
-  ierr = DMPlexGetCellType(dm, cStart, &ct);CHKERRQ(ierr);
-  simplex = DMPolytopeTypeGetNumVertices(ct) == DMPolytopeTypeGetDim(ct)+1 ? PETSC_TRUE : PETSC_FALSE;
+  PetscCall(DMGetDimension(dm, &dim));
+  PetscCall(DMPlexGetHeightStratum(dm, 0, &cStart, NULL));
+  PetscCall(DMPlexGetCellType(dm, cStart, &ct));
+  simplex = DMPolytopeTypeGetNumVertices(ct) == DMPolytopeTypeGetDim(ct) + 1 ? PETSC_TRUE : PETSC_FALSE;
   /* Create finite element */
-  ierr = PetscFECreateDefault(PETSC_COMM_SELF, dim, dim, simplex, "field_",     -1, &feq);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) feq, "field");CHKERRQ(ierr);
-  ierr = PetscFECreateDefault(PETSC_COMM_SELF, dim, 1,   simplex, "potential_", -1, &feu);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) feu, "potential");CHKERRQ(ierr);
-  ierr = PetscFECopyQuadrature(feq, feu);CHKERRQ(ierr);
+  PetscCall(PetscFECreateDefault(PETSC_COMM_SELF, dim, dim, simplex, "field_", -1, &feq));
+  PetscCall(PetscObjectSetName((PetscObject)feq, "field"));
+  PetscCall(PetscFECreateDefault(PETSC_COMM_SELF, dim, 1, simplex, "potential_", -1, &feu));
+  PetscCall(PetscObjectSetName((PetscObject)feu, "potential"));
+  PetscCall(PetscFECopyQuadrature(feq, feu));
   /* Set discretization and boundary conditions for each mesh */
-  ierr = DMSetField(dm, 0, NULL, (PetscObject) feq);CHKERRQ(ierr);
-  ierr = DMSetField(dm, 1, NULL, (PetscObject) feu);CHKERRQ(ierr);
-  ierr = DMCreateDS(dm);CHKERRQ(ierr);
-  ierr = (*setup)(dm, user);CHKERRQ(ierr);
+  PetscCall(DMSetField(dm, 0, NULL, (PetscObject)feq));
+  PetscCall(DMSetField(dm, 1, NULL, (PetscObject)feu));
+  PetscCall(DMCreateDS(dm));
+  PetscCall((*setup)(dm, user));
   while (cdm) {
-    ierr = DMCopyDisc(dm,cdm);CHKERRQ(ierr);
-    ierr = DMGetCoarseDM(cdm, &cdm);CHKERRQ(ierr);
+    PetscCall(DMCopyDisc(dm, cdm));
+    PetscCall(DMGetCoarseDM(cdm, &cdm));
   }
-  ierr = PetscFEDestroy(&feq);CHKERRQ(ierr);
-  ierr = PetscFEDestroy(&feu);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(PetscFEDestroy(&feq));
+  PetscCall(PetscFEDestroy(&feu));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 int main(int argc, char **argv)
 {
-  DM             dm;   /* Problem specification */
-  SNES           snes; /* Nonlinear solver */
-  Vec            u;    /* Solutions */
-  AppCtx         user; /* User-defined work context */
-  PetscErrorCode ierr;
+  DM     dm;   /* Problem specification */
+  SNES   snes; /* Nonlinear solver */
+  Vec    u;    /* Solutions */
+  AppCtx user; /* User-defined work context */
 
-  ierr = PetscInitialize(&argc, &argv, NULL, help);if (ierr) return ierr;
-  ierr = ProcessOptions(PETSC_COMM_WORLD, &user);CHKERRQ(ierr);
+  PetscFunctionBeginUser;
+  PetscCall(PetscInitialize(&argc, &argv, NULL, help));
+  PetscCall(ProcessOptions(PETSC_COMM_WORLD, &user));
   /* Primal system */
-  ierr = SNESCreate(PETSC_COMM_WORLD, &snes);CHKERRQ(ierr);
-  ierr = CreateMesh(PETSC_COMM_WORLD, &user, &dm);CHKERRQ(ierr);
-  ierr = SNESSetDM(snes, dm);CHKERRQ(ierr);
-  ierr = SetupDiscretization(dm, SetupPrimalProblem, &user);CHKERRQ(ierr);
-  ierr = DMCreateGlobalVector(dm, &u);CHKERRQ(ierr);
-  ierr = VecSet(u, 0.0);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) u, "potential");CHKERRQ(ierr);
-  ierr = DMPlexSetSNESLocalFEM(dm, &user, &user, &user);CHKERRQ(ierr);
-  ierr = SNESSetFromOptions(snes);CHKERRQ(ierr);
-  ierr = DMSNESCheckFromOptions(snes, u);CHKERRQ(ierr);
-  ierr = SNESSolve(snes, NULL, u);CHKERRQ(ierr);
-  ierr = SNESGetSolution(snes, &u);CHKERRQ(ierr);
-  ierr = VecViewFromOptions(u, NULL, "-potential_view");CHKERRQ(ierr);
+  PetscCall(SNESCreate(PETSC_COMM_WORLD, &snes));
+  PetscCall(CreateMesh(PETSC_COMM_WORLD, &user, &dm));
+  PetscCall(SNESSetDM(snes, dm));
+  PetscCall(SetupDiscretization(dm, SetupPrimalProblem, &user));
+  PetscCall(DMCreateGlobalVector(dm, &u));
+  PetscCall(VecSet(u, 0.0));
+  PetscCall(PetscObjectSetName((PetscObject)u, "potential"));
+  PetscCall(DMPlexSetSNESLocalFEM(dm, &user, &user, &user));
+  PetscCall(SNESSetFromOptions(snes));
+  PetscCall(DMSNESCheckFromOptions(snes, u));
+  PetscCall(SNESSolve(snes, NULL, u));
+  PetscCall(SNESGetSolution(snes, &u));
+  PetscCall(VecViewFromOptions(u, NULL, "-potential_view"));
   /* Cleanup */
-  ierr = VecDestroy(&u);CHKERRQ(ierr);
-  ierr = SNESDestroy(&snes);CHKERRQ(ierr);
-  ierr = DMDestroy(&dm);CHKERRQ(ierr);
-  ierr = PetscFinalize();
-  return ierr;
+  PetscCall(VecDestroy(&u));
+  PetscCall(SNESDestroy(&snes));
+  PetscCall(DMDestroy(&dm));
+  PetscCall(PetscFinalize());
+  return 0;
 }
 
 /*TEST

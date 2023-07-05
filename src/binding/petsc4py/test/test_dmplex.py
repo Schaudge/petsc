@@ -27,6 +27,7 @@ class BaseTestPlex(object):
     def tearDown(self):
         self.plex.destroy()
         self.plex = None
+        PETSc.garbage_cleanup()
 
     def testTopology(self):
         rank = self.COMM.rank
@@ -139,14 +140,17 @@ class BaseTestPlex(object):
         h_min = 1.0e-30
         h_max = 1.0e+30
         a_max = 1.0e+10
-        target = 10.0
+        target = 8.0
         p = 1.0
         beta = 1.3
+        hausd = 0.01
+        self.plex.metricSetUniform(False)
         self.plex.metricSetIsotropic(False)
         self.plex.metricSetRestrictAnisotropyFirst(False)
         self.plex.metricSetNoInsertion(False)
         self.plex.metricSetNoSwapping(False)
         self.plex.metricSetNoMovement(False)
+        self.plex.metricSetNoSurf(False)
         self.plex.metricSetVerbosity(-1)
         self.plex.metricSetNumIterations(3)
         self.plex.metricSetMinimumMagnitude(h_min)
@@ -155,12 +159,15 @@ class BaseTestPlex(object):
         self.plex.metricSetTargetComplexity(target)
         self.plex.metricSetNormalizationOrder(p)
         self.plex.metricSetGradationFactor(beta)
+        self.plex.metricSetHausdorffNumber(hausd)
 
+        self.assertFalse(self.plex.metricIsUniform())
         self.assertFalse(self.plex.metricIsIsotropic())
         self.assertFalse(self.plex.metricRestrictAnisotropyFirst())
         self.assertFalse(self.plex.metricNoInsertion())
         self.assertFalse(self.plex.metricNoSwapping())
         self.assertFalse(self.plex.metricNoMovement())
+        self.assertFalse(self.plex.metricNoSurf())
         assert self.plex.metricGetVerbosity() == -1
         assert self.plex.metricGetNumIterations() == 3
         assert np.isclose(self.plex.metricGetMinimumMagnitude(), h_min)
@@ -169,19 +176,22 @@ class BaseTestPlex(object):
         assert np.isclose(self.plex.metricGetTargetComplexity(), target)
         assert np.isclose(self.plex.metricGetNormalizationOrder(), p)
         assert np.isclose(self.plex.metricGetGradationFactor(), beta)
+        assert np.isclose(self.plex.metricGetHausdorffNumber(), hausd)
 
-        metric1 = self.plex.metricCreateUniform(1.0)
-        metric2 = self.plex.metricCreateUniform(2.0)
-        metric = self.plex.metricAverage2(metric1, metric2)
-        metric2.array[:] *= 0.75
+        metric1 = self.plex.metricCreateUniform(0.5)
+        metric2 = self.plex.metricCreateUniform(1.0)
+        metric = self.plex.metricCreate()
+        det = self.plex.metricDeterminantCreate()
+        self.plex.metricAverage2(metric1, metric2, metric)
+        metric1.array[:] *= 1.5
+        assert np.allclose(metric.array, metric1.array)
+        self.plex.metricIntersection2(metric1, metric2, metric)
         assert np.allclose(metric.array, metric2.array)
-        metric = self.plex.metricIntersection2(metric1, metric2)
+        self.plex.metricEnforceSPD(metric, metric1, det[0])
         assert np.allclose(metric.array, metric1.array)
-        metric = self.plex.metricEnforceSPD(metric)
-        assert np.allclose(metric.array, metric1.array)
-        nMetric = self.plex.metricNormalize(metric, restrictSizes=False, restrictAnisotropy=False)
-        metric.scale(pow(target, 2.0/self.DIM))
-        assert np.allclose(metric.array, nMetric.array)
+        self.plex.metricNormalize(metric, metric1, det[0], restrictSizes=False, restrictAnisotropy=False)
+        metric2.scale(pow(target, 2.0/self.DIM))
+        assert np.allclose(metric1.array, metric2.array)
 
     def testAdapt(self):
         if self.DIM == 1: return
@@ -222,7 +232,19 @@ class TestPlex_1D(BaseTestPlex, unittest.TestCase):
     pass
 
 class TestPlex_2D(BaseTestPlex_2D, unittest.TestCase):
-    pass
+
+    def testTransform(self):
+            plex = self.plex
+            cstart, cend = plex.getHeightStratum(0)
+            tr = PETSc.DMPlexTransform().create(comm=PETSc.COMM_WORLD)
+            tr.setType(PETSc.DMPlexTransformType.REFINEALFELD)
+            tr.setDM(plex)
+            tr.setUp()
+            newplex = tr.apply(plex)
+            tr.destroy()
+            newcstart, newcend = newplex.getHeightStratum(0)
+            newplex.destroy()
+            self.assertTrue((newcend-newcstart) == 3*(cend-cstart)) 
 
 class TestPlex_3D(BaseTestPlex_3D, unittest.TestCase):
     pass
@@ -408,6 +430,7 @@ class BaseTestPlexHDF5(object):
                 vwr.pushFormat(format=informt)
                 plex.load(viewer=vwr)
                 plex.setOptionsPrefix("loaded_")
+                plex.distributeSetDefault(False)
                 plex.setFromOptions()
                 vwr.popFormat()
                 vwr.destroy()
@@ -425,6 +448,7 @@ class BaseTestPlexHDF5(object):
                 part = plex.getPartitioner()
                 part.setType(self.partitionerType())
                 _ = plex.distribute(overlap=0)
+                plex.setName("DMPlex Object")
                 plex.setOptionsPrefix("redistributed_")
                 plex.setFromOptions()
                 self.outputPlex(plex)

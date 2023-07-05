@@ -1,4 +1,4 @@
-#if !defined(PETSCDMPLEXTRANSFORM_H)
+#ifndef PETSCDMPLEXTRANSFORM_H
 #define PETSCDMPLEXTRANSFORM_H
 
 #include <petscdmplex.h>
@@ -6,7 +6,7 @@
 
 PETSC_EXTERN PetscClassId DMPLEXTRANSFORM_CLASSID;
 
-typedef const char* DMPlexTransformType;
+typedef const char *DMPlexTransformType;
 #define DMPLEXREFINEREGULAR       "refine_regular"
 #define DMPLEXREFINEALFELD        "refine_alfeld"
 #define DMPLEXREFINEPOWELLSABIN   "refine_powell_sabin"
@@ -19,16 +19,16 @@ typedef const char* DMPlexTransformType;
 #define DMPLEXTRANSFORMFILTER     "transform_filter"
 
 PETSC_EXTERN PetscFunctionList DMPlexTransformList;
-PETSC_EXTERN PetscErrorCode DMPlexTransformCreate(MPI_Comm, DMPlexTransform *);
-PETSC_EXTERN PetscErrorCode DMPlexTransformSetType(DMPlexTransform, DMPlexTransformType);
-PETSC_EXTERN PetscErrorCode DMPlexTransformGetType(DMPlexTransform, DMPlexTransformType *);
-PETSC_EXTERN PetscErrorCode DMPlexTransformRegister(const char[], PetscErrorCode (*)(DMPlexTransform));
-PETSC_EXTERN PetscErrorCode DMPlexTransformRegisterAll(void);
-PETSC_EXTERN PetscErrorCode DMPlexTransformRegisterDestroy(void);
-PETSC_EXTERN PetscErrorCode DMPlexTransformSetFromOptions(DMPlexTransform);
-PETSC_EXTERN PetscErrorCode DMPlexTransformSetUp(DMPlexTransform);
-PETSC_EXTERN PetscErrorCode DMPlexTransformView(DMPlexTransform, PetscViewer);
-PETSC_EXTERN PetscErrorCode DMPlexTransformDestroy(DMPlexTransform *);
+PETSC_EXTERN PetscErrorCode    DMPlexTransformCreate(MPI_Comm, DMPlexTransform *);
+PETSC_EXTERN PetscErrorCode    DMPlexTransformSetType(DMPlexTransform, DMPlexTransformType);
+PETSC_EXTERN PetscErrorCode    DMPlexTransformGetType(DMPlexTransform, DMPlexTransformType *);
+PETSC_EXTERN PetscErrorCode    DMPlexTransformRegister(const char[], PetscErrorCode (*)(DMPlexTransform));
+PETSC_EXTERN PetscErrorCode    DMPlexTransformRegisterAll(void);
+PETSC_EXTERN PetscErrorCode    DMPlexTransformRegisterDestroy(void);
+PETSC_EXTERN PetscErrorCode    DMPlexTransformSetFromOptions(DMPlexTransform);
+PETSC_EXTERN PetscErrorCode    DMPlexTransformSetUp(DMPlexTransform);
+PETSC_EXTERN PetscErrorCode    DMPlexTransformView(DMPlexTransform, PetscViewer);
+PETSC_EXTERN PetscErrorCode    DMPlexTransformDestroy(DMPlexTransform *);
 
 PETSC_EXTERN PetscErrorCode DMPlexGetTransformType(DM, DMPlexTransformType *);
 PETSC_EXTERN PetscErrorCode DMPlexSetTransformType(DM, DMPlexTransformType);
@@ -36,6 +36,11 @@ PETSC_EXTERN PetscErrorCode DMPlexSetTransformType(DM, DMPlexTransformType);
 PETSC_EXTERN PetscErrorCode DMPlexTransformGetDM(DMPlexTransform, DM *);
 PETSC_EXTERN PetscErrorCode DMPlexTransformSetDM(DMPlexTransform, DM);
 PETSC_EXTERN PetscErrorCode DMPlexTransformSetDimensions(DMPlexTransform, DM, DM);
+PETSC_EXTERN PetscErrorCode DMPlexTransformGetChart(DMPlexTransform, PetscInt *, PetscInt *);
+PETSC_EXTERN PetscErrorCode DMPlexTransformGetCellType(DMPlexTransform, PetscInt, DMPolytopeType *);
+PETSC_EXTERN PetscErrorCode DMPlexTransformGetCellTypeStratum(DMPlexTransform, DMPolytopeType, PetscInt *, PetscInt *);
+PETSC_EXTERN PetscErrorCode DMPlexTransformGetDepth(DMPlexTransform, PetscInt *);
+PETSC_EXTERN PetscErrorCode DMPlexTransformGetDepthStratum(DMPlexTransform, PetscInt, PetscInt *, PetscInt *);
 PETSC_EXTERN PetscErrorCode DMPlexTransformGetActive(DMPlexTransform, DMLabel *);
 PETSC_EXTERN PetscErrorCode DMPlexTransformSetActive(DMPlexTransform, DMLabel);
 PETSC_EXTERN PetscErrorCode DMPlexTransformGetTargetPoint(DMPlexTransform, DMPolytopeType, DMPolytopeType, PetscInt, PetscInt, PetscInt *);
@@ -47,6 +52,7 @@ PETSC_EXTERN PetscErrorCode DMPlexTransformGetSubcellOrientation(DMPlexTransform
 PETSC_EXTERN PetscErrorCode DMPlexTransformMapCoordinates(DMPlexTransform, DMPolytopeType, DMPolytopeType, PetscInt, PetscInt, PetscInt, PetscInt, const PetscScalar[], PetscScalar[]);
 PETSC_EXTERN PetscErrorCode DMPlexTransformCreateDiscLabels(DMPlexTransform, DM);
 PETSC_EXTERN PetscErrorCode DMPlexTransformApply(DMPlexTransform, DM, DM *);
+PETSC_EXTERN PetscErrorCode DMPlexTransformGetConeSize(DMPlexTransform, PetscInt, PetscInt *);
 PETSC_EXTERN PetscErrorCode DMPlexTransformGetCone(DMPlexTransform, PetscInt, const PetscInt *[], const PetscInt *[]);
 PETSC_EXTERN PetscErrorCode DMPlexTransformGetConeOriented(DMPlexTransform, PetscInt, PetscInt, const PetscInt *[], const PetscInt *[]);
 PETSC_EXTERN PetscErrorCode DMPlexTransformRestoreCone(DMPlexTransform, PetscInt, const PetscInt *[], const PetscInt *[]);
@@ -65,7 +71,13 @@ PETSC_EXTERN PetscErrorCode DMPlexTransformExtrudeGetTensor(DMPlexTransform, Pet
 PETSC_EXTERN PetscErrorCode DMPlexTransformExtrudeSetTensor(DMPlexTransform, PetscBool);
 PETSC_EXTERN PetscErrorCode DMPlexTransformExtrudeGetSymmetric(DMPlexTransform, PetscBool *);
 PETSC_EXTERN PetscErrorCode DMPlexTransformExtrudeSetSymmetric(DMPlexTransform, PetscBool);
+PETSC_EXTERN PetscErrorCode DMPlexTransformExtrudeGetPeriodic(DMPlexTransform, PetscBool *);
+PETSC_EXTERN PetscErrorCode DMPlexTransformExtrudeSetPeriodic(DMPlexTransform, PetscBool);
+PETSC_EXTERN PetscErrorCode DMPlexTransformExtrudeGetNormal(DMPlexTransform, PetscReal[]);
 PETSC_EXTERN PetscErrorCode DMPlexTransformExtrudeSetNormal(DMPlexTransform, const PetscReal[]);
+PETSC_EXTERN PetscErrorCode DMPlexTransformExtrudeSetNormalFunction(DMPlexTransform, PetscErrorCode (*)(PetscInt, PetscReal, const PetscReal[], PetscInt, PetscScalar[], void *));
 PETSC_EXTERN PetscErrorCode DMPlexTransformExtrudeSetThicknesses(DMPlexTransform, PetscInt, const PetscReal[]);
+
+PETSC_EXTERN PetscErrorCode DMPlexCreateEphemeral(DMPlexTransform, const char[], DM *);
 
 #endif

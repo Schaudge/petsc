@@ -1,7 +1,6 @@
 import unittest
 from petsc4py import PETSc
 from sys import getrefcount
-import gc
 
 # --------------------------------------------------------------------
 
@@ -31,9 +30,11 @@ class MyODE:
         if J != P: J.assemble()
         return False # same_nz
 
-class MyTS:
+class MyTS(object):
+
     def __init__(self):
         self.log = {}
+
     def _log(self, method, *args):
         self.log.setdefault(method, 0)
         self.log[method] += 1
@@ -83,8 +84,14 @@ class TestTSPython(unittest.TestCase):
         self.assertTrue('destroy' not in ctx.log)
         self.ts.destroy() # XXX
         self.ts = None
+        PETSc.garbage_cleanup()
         self.assertEqual(ctx.log['destroy'], 1)
         self.assertEqual(getrefcount(ctx),   2)
+
+    def testGetType(self):
+        ctx = self.ts.getPythonContext()
+        pytype = "{0}.{1}".format(ctx.__module__, type(ctx).__name__)
+        self.assertTrue(self.ts.getPythonType() == pytype)
 
     def testSolve(self):
         ts = self.ts
@@ -100,7 +107,7 @@ class TestTSPython(unittest.TestCase):
         ts.setIFunction(ode.function, f)
         ts.setIJacobian(ode.jacobian, J, J)
         ts.snes.ksp.pc.setType('none')
-        
+
         T0, dT, nT = 0.0, 0.1, 10
         T = T0 + nT*dT
         ts.setTime(T0)
@@ -114,7 +121,7 @@ class TestTSPython(unittest.TestCase):
 
         self.assertTrue(ode.function_calls > 0)
         self.assertTrue(ode.jacobian_calls > 0)
-        
+
         ctx = self.ts.getPythonContext()
         ncalls = self.nsolve * ts.step_number
         self.assertTrue(ctx.log['solveStep'] == ncalls)

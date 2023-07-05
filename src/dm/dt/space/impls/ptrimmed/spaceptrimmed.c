@@ -1,77 +1,68 @@
 #include <petsc/private/petscfeimpl.h> /*I "petscfe.h" I*/
 
-static PetscErrorCode PetscSpaceSetFromOptions_Ptrimmed(PetscOptionItems *PetscOptionsObject,PetscSpace sp)
+static PetscErrorCode PetscSpaceSetFromOptions_Ptrimmed(PetscSpace sp, PetscOptionItems *PetscOptionsObject)
 {
-  PetscSpace_Ptrimmed *pt = (PetscSpace_Ptrimmed *) sp->data;
-  PetscErrorCode   ierr;
+  PetscSpace_Ptrimmed *pt = (PetscSpace_Ptrimmed *)sp->data;
 
   PetscFunctionBegin;
-  ierr = PetscOptionsHead(PetscOptionsObject,"PetscSpace polynomial options");CHKERRQ(ierr);
-  ierr = PetscOptionsInt("-petscspace_ptrimmed_form_degree", "form degree of trimmed space", "PetscSpacePTrimmedSetFormDegree", pt->formDegree, &(pt->formDegree), NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsTail();CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscOptionsHeadBegin(PetscOptionsObject, "PetscSpace polynomial options");
+  PetscCall(PetscOptionsInt("-petscspace_ptrimmed_form_degree", "form degree of trimmed space", "PetscSpacePTrimmedSetFormDegree", pt->formDegree, &(pt->formDegree), NULL));
+  PetscOptionsHeadEnd();
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PetscSpacePTrimmedView_Ascii(PetscSpace sp, PetscViewer v)
 {
-  PetscSpace_Ptrimmed *pt = (PetscSpace_Ptrimmed *) sp->data;
+  PetscSpace_Ptrimmed *pt = (PetscSpace_Ptrimmed *)sp->data;
   PetscInt             f, tdegree;
-  PetscErrorCode       ierr;
 
   PetscFunctionBegin;
-  f = pt->formDegree;
+  f       = pt->formDegree;
   tdegree = f == 0 ? sp->degree : sp->degree + 1;
-  ierr = PetscViewerASCIIPrintf(v, "Trimmed polynomials %D%s-forms of degree %D (P-%D/\\%D)\n", PetscAbsInt(f), f < 0 ? "*" : "", sp->degree, tdegree, PetscAbsInt(f));CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(PetscViewerASCIIPrintf(v, "Trimmed polynomials %" PetscInt_FMT "%s-forms of degree %" PetscInt_FMT " (P-%" PetscInt_FMT "/\\%" PetscInt_FMT ")\n", PetscAbsInt(f), f < 0 ? "*" : "", sp->degree, tdegree, PetscAbsInt(f)));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PetscSpaceView_Ptrimmed(PetscSpace sp, PetscViewer viewer)
 {
-  PetscBool      iascii;
-  PetscErrorCode ierr;
+  PetscBool iascii;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(sp, PETSCSPACE_CLASSID, 1);
   PetscValidHeaderSpecific(viewer, PETSC_VIEWER_CLASSID, 2);
-  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERASCII, &iascii);CHKERRQ(ierr);
-  if (iascii) {ierr = PetscSpacePTrimmedView_Ascii(sp, viewer);CHKERRQ(ierr);}
-  PetscFunctionReturn(0);
+  PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &iascii));
+  if (iascii) PetscCall(PetscSpacePTrimmedView_Ascii(sp, viewer));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PetscSpaceDestroy_Ptrimmed(PetscSpace sp)
 {
-  PetscSpace_Ptrimmed *pt = (PetscSpace_Ptrimmed *) sp->data;
-  PetscErrorCode       ierr;
+  PetscSpace_Ptrimmed *pt = (PetscSpace_Ptrimmed *)sp->data;
 
   PetscFunctionBegin;
-  ierr = PetscObjectComposeFunction((PetscObject) sp, "PetscSpacePTrimmedGetFormDegree_C", NULL);CHKERRQ(ierr);
-  ierr = PetscObjectComposeFunction((PetscObject) sp, "PetscSpacePTrimmedSetFormDegree_C", NULL);CHKERRQ(ierr);
+  PetscCall(PetscObjectComposeFunction((PetscObject)sp, "PetscSpacePTrimmedGetFormDegree_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)sp, "PetscSpacePTrimmedSetFormDegree_C", NULL));
   if (pt->subspaces) {
     PetscInt d;
 
-    for (d = 0; d < sp->Nv; ++d) {
-      ierr = PetscSpaceDestroy(&pt->subspaces[d]);CHKERRQ(ierr);
-    }
+    for (d = 0; d < sp->Nv; ++d) PetscCall(PetscSpaceDestroy(&pt->subspaces[d]));
   }
-  ierr = PetscFree(pt->subspaces);CHKERRQ(ierr);
-  ierr = PetscFree(pt);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(PetscFree(pt->subspaces));
+  PetscCall(PetscFree(pt));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PetscSpaceSetUp_Ptrimmed(PetscSpace sp)
 {
-  PetscSpace_Ptrimmed *pt = (PetscSpace_Ptrimmed *) sp->data;
+  PetscSpace_Ptrimmed *pt = (PetscSpace_Ptrimmed *)sp->data;
   PetscInt             Nf;
-  PetscErrorCode       ierr;
 
   PetscFunctionBegin;
-  if (pt->setupCalled) PetscFunctionReturn(0);
-  if (pt->formDegree < -sp->Nv || pt->formDegree > sp->Nv) SETERRQ3(PetscObjectComm((PetscObject)sp), PETSC_ERR_ARG_OUTOFRANGE, "Form degree %D not in valid range [%D,%D]", pt->formDegree, sp->Nv, sp->Nv);
-  ierr = PetscDTBinomialInt(sp->Nv, PetscAbsInt(pt->formDegree), &Nf);CHKERRQ(ierr);
-  if (sp->Nc == PETSC_DETERMINE) {
-    sp->Nc = Nf;
-  }
-  if (sp->Nc % Nf) SETERRQ2(PetscObjectComm((PetscObject)sp), PETSC_ERR_ARG_INCOMP, "Number of components %D is not a multiple of form dimension %D", sp->Nc, Nf);
+  if (pt->setupCalled) PetscFunctionReturn(PETSC_SUCCESS);
+  PetscCheck(pt->formDegree >= -sp->Nv && pt->formDegree <= sp->Nv, PetscObjectComm((PetscObject)sp), PETSC_ERR_ARG_OUTOFRANGE, "Form degree %" PetscInt_FMT " not in valid range [%" PetscInt_FMT ",%" PetscInt_FMT "]", pt->formDegree, sp->Nv, sp->Nv);
+  PetscCall(PetscDTBinomialInt(sp->Nv, PetscAbsInt(pt->formDegree), &Nf));
+  if (sp->Nc == PETSC_DETERMINE) sp->Nc = Nf;
+  PetscCheck(sp->Nc % Nf == 0, PetscObjectComm((PetscObject)sp), PETSC_ERR_ARG_INCOMP, "Number of components %" PetscInt_FMT " is not a multiple of form dimension %" PetscInt_FMT, sp->Nc, Nf);
   if (sp->Nc != Nf) {
     PetscSpace  subsp;
     PetscInt    nCopies = sp->Nc / Nf;
@@ -81,66 +72,61 @@ static PetscErrorCode PetscSpaceSetUp_Ptrimmed(PetscSpace sp)
     const char *name;
     char        subname[PETSC_MAX_PATH_LEN];
 
-    ierr = PetscSpaceSetType(sp, PETSCSPACESUM);CHKERRQ(ierr);
-    ierr = PetscSpaceSumSetConcatenate(sp, PETSC_TRUE);CHKERRQ(ierr);
-    ierr = PetscSpaceSumSetNumSubspaces(sp, nCopies);CHKERRQ(ierr);
-    ierr = PetscSpaceCreate(PetscObjectComm((PetscObject)sp), &subsp);CHKERRQ(ierr);
-    ierr = PetscObjectGetOptionsPrefix((PetscObject)sp, &prefix);CHKERRQ(ierr);
-    ierr = PetscObjectSetOptionsPrefix((PetscObject)subsp, prefix);CHKERRQ(ierr);
-    ierr = PetscObjectAppendOptionsPrefix((PetscObject)subsp, "sumcomp_");CHKERRQ(ierr);
+    PetscCall(PetscSpaceSetType(sp, PETSCSPACESUM));
+    PetscCall(PetscSpaceSumSetConcatenate(sp, PETSC_TRUE));
+    PetscCall(PetscSpaceSumSetNumSubspaces(sp, nCopies));
+    PetscCall(PetscSpaceCreate(PetscObjectComm((PetscObject)sp), &subsp));
+    PetscCall(PetscObjectGetOptionsPrefix((PetscObject)sp, &prefix));
+    PetscCall(PetscObjectSetOptionsPrefix((PetscObject)subsp, prefix));
+    PetscCall(PetscObjectAppendOptionsPrefix((PetscObject)subsp, "sumcomp_"));
     if (((PetscObject)sp)->name) {
-      ierr = PetscObjectGetName((PetscObject)sp, &name);CHKERRQ(ierr);
-      ierr = PetscSNPrintf(subname, PETSC_MAX_PATH_LEN-1, "%s sum component", name);CHKERRQ(ierr);
-      ierr = PetscObjectSetName((PetscObject)subsp, subname);CHKERRQ(ierr);
-    } else {
-      ierr = PetscObjectSetName((PetscObject)subsp, "sum component");CHKERRQ(ierr);
-    }
-    ierr = PetscSpaceSetType(subsp, PETSCSPACEPTRIMMED);CHKERRQ(ierr);
-    ierr = PetscSpaceGetNumVariables(sp, &Nv);CHKERRQ(ierr);
-    ierr = PetscSpaceSetNumVariables(subsp, Nv);CHKERRQ(ierr);
-    ierr = PetscSpaceSetNumComponents(subsp, Nf);CHKERRQ(ierr);
-    ierr = PetscSpaceGetDegree(sp, &deg, &maxDeg);CHKERRQ(ierr);
-    ierr = PetscSpaceSetDegree(subsp, deg, maxDeg);CHKERRQ(ierr);
-    ierr = PetscSpacePTrimmedSetFormDegree(subsp, formDegree);CHKERRQ(ierr);
-    ierr = PetscSpaceSetUp(subsp);CHKERRQ(ierr);
-    for (PetscInt i = 0; i < nCopies; i++) {
-      ierr = PetscSpaceSumSetSubspace(sp, i, subsp);CHKERRQ(ierr);
-    }
-    ierr = PetscSpaceDestroy(&subsp);CHKERRQ(ierr);
-    ierr = PetscSpaceSetUp(sp);CHKERRQ(ierr);
-    PetscFunctionReturn(0);
+      PetscCall(PetscObjectGetName((PetscObject)sp, &name));
+      PetscCall(PetscSNPrintf(subname, PETSC_MAX_PATH_LEN - 1, "%s sum component", name));
+      PetscCall(PetscObjectSetName((PetscObject)subsp, subname));
+    } else PetscCall(PetscObjectSetName((PetscObject)subsp, "sum component"));
+    PetscCall(PetscSpaceSetType(subsp, PETSCSPACEPTRIMMED));
+    PetscCall(PetscSpaceGetNumVariables(sp, &Nv));
+    PetscCall(PetscSpaceSetNumVariables(subsp, Nv));
+    PetscCall(PetscSpaceSetNumComponents(subsp, Nf));
+    PetscCall(PetscSpaceGetDegree(sp, &deg, &maxDeg));
+    PetscCall(PetscSpaceSetDegree(subsp, deg, maxDeg));
+    PetscCall(PetscSpacePTrimmedSetFormDegree(subsp, formDegree));
+    PetscCall(PetscSpaceSetUp(subsp));
+    for (PetscInt i = 0; i < nCopies; i++) PetscCall(PetscSpaceSumSetSubspace(sp, i, subsp));
+    PetscCall(PetscSpaceDestroy(&subsp));
+    PetscCall(PetscSpaceSetUp(sp));
+    PetscFunctionReturn(PETSC_SUCCESS);
   }
   if (sp->degree == PETSC_DEFAULT) {
     sp->degree = 0;
   } else if (sp->degree < 0) {
-    SETERRQ1(PetscObjectComm((PetscObject)sp), PETSC_ERR_ARG_OUTOFRANGE, "Invalid negative degree %D", sp->degree);
+    SETERRQ(PetscObjectComm((PetscObject)sp), PETSC_ERR_ARG_OUTOFRANGE, "Invalid negative degree %" PetscInt_FMT, sp->degree);
   }
   sp->maxDegree = (pt->formDegree == 0 || PetscAbsInt(pt->formDegree) == sp->Nv) ? sp->degree : sp->degree + 1;
   if (pt->formDegree == 0 || PetscAbsInt(pt->formDegree) == sp->Nv) {
     // Convert to regular polynomial space
-    ierr = PetscSpaceSetType(sp, PETSCSPACEPOLYNOMIAL);CHKERRQ(ierr);
-    ierr = PetscSpaceSetUp(sp);CHKERRQ(ierr);
-    PetscFunctionReturn(0);
+    PetscCall(PetscSpaceSetType(sp, PETSCSPACEPOLYNOMIAL));
+    PetscCall(PetscSpaceSetUp(sp));
+    PetscFunctionReturn(PETSC_SUCCESS);
   }
   pt->setupCalled = PETSC_TRUE;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PetscSpaceGetDimension_Ptrimmed(PetscSpace sp, PetscInt *dim)
 {
-  PetscSpace_Ptrimmed *pt = (PetscSpace_Ptrimmed *) sp->data;
+  PetscSpace_Ptrimmed *pt = (PetscSpace_Ptrimmed *)sp->data;
   PetscInt             f;
   PetscInt             Nf;
-  PetscErrorCode       ierr;
 
   PetscFunctionBegin;
   f = pt->formDegree;
   // For PetscSpace, degree refers to the largest complete polynomial degree contained in the space which
   // is equal to the index of a P trimmed space only for 0-forms: otherwise, the index is degree + 1
-  ierr = PetscDTPTrimmedSize(sp->Nv, f == 0 ? sp->degree : sp->degree + 1, pt->formDegree, dim);CHKERRQ(ierr);
-  ierr = PetscDTBinomialInt(sp->Nv, PetscAbsInt(pt->formDegree), &Nf);CHKERRQ(ierr);
+  PetscCall(PetscDTPTrimmedSize(sp->Nv, f == 0 ? sp->degree : sp->degree + 1, pt->formDegree, dim));
+  PetscCall(PetscDTBinomialInt(sp->Nv, PetscAbsInt(pt->formDegree), &Nf));
   *dim *= (sp->Nc / Nf);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -150,21 +136,20 @@ static PetscErrorCode PetscSpaceGetDimension_Ptrimmed(PetscSpace sp, PetscInt *d
 */
 static PetscErrorCode PetscSpaceEvaluate_Ptrimmed(PetscSpace sp, PetscInt npoints, const PetscReal points[], PetscReal B[], PetscReal D[], PetscReal H[])
 {
-  PetscSpace_Ptrimmed *pt    = (PetscSpace_Ptrimmed *) sp->data;
-  DM               dm      = sp->dm;
-  PetscInt         jet, degree, Nf, Ncopies, Njet;
-  PetscInt         Nc      = sp->Nc;
-  PetscInt         f;
-  PetscInt         dim     = sp->Nv;
-  PetscReal       *eval;
-  PetscInt         Nb;
-  PetscErrorCode   ierr;
+  PetscSpace_Ptrimmed *pt = (PetscSpace_Ptrimmed *)sp->data;
+  DM                   dm = sp->dm;
+  PetscInt             jet, degree, Nf, Ncopies, Njet;
+  PetscInt             Nc = sp->Nc;
+  PetscInt             f;
+  PetscInt             dim = sp->Nv;
+  PetscReal           *eval;
+  PetscInt             Nb;
 
   PetscFunctionBegin;
   if (!pt->setupCalled) {
-    ierr = PetscSpaceSetUp(sp);CHKERRQ(ierr);
-    ierr = PetscSpaceEvaluate(sp, npoints, points, B, D, H);CHKERRQ(ierr);
-    PetscFunctionReturn(0);
+    PetscCall(PetscSpaceSetUp(sp));
+    PetscCall(PetscSpaceEvaluate(sp, npoints, points, B, D, H));
+    PetscFunctionReturn(PETSC_SUCCESS);
   }
   if (H) {
     jet = 2;
@@ -173,88 +158,82 @@ static PetscErrorCode PetscSpaceEvaluate_Ptrimmed(PetscSpace sp, PetscInt npoint
   } else {
     jet = 0;
   }
-  f = pt->formDegree;
+  f      = pt->formDegree;
   degree = f == 0 ? sp->degree : sp->degree + 1;
-  ierr = PetscDTBinomialInt(dim, PetscAbsInt(f), &Nf);CHKERRQ(ierr);
+  PetscCall(PetscDTBinomialInt(dim, PetscAbsInt(f), &Nf));
   Ncopies = Nc / Nf;
-  if (Ncopies != 1) SETERRQ(PetscObjectComm((PetscObject) sp), PETSC_ERR_PLIB, "Multicopy spaces should have been converted to PETSCSPACESUM");
-  ierr = PetscDTBinomialInt(dim + jet, dim, &Njet);CHKERRQ(ierr);
-  ierr = PetscDTPTrimmedSize(dim, degree, f, &Nb);CHKERRQ(ierr);
-  ierr = DMGetWorkArray(dm, Nb * Nf * Njet * npoints, MPIU_REAL, &eval);CHKERRQ(ierr);
-  ierr = PetscDTPTrimmedEvalJet(dim, npoints, points, degree, f, jet, eval);CHKERRQ(ierr);
+  PetscCheck(Ncopies == 1, PetscObjectComm((PetscObject)sp), PETSC_ERR_PLIB, "Multicopy spaces should have been converted to PETSCSPACESUM");
+  PetscCall(PetscDTBinomialInt(dim + jet, dim, &Njet));
+  PetscCall(PetscDTPTrimmedSize(dim, degree, f, &Nb));
+  PetscCall(DMGetWorkArray(dm, Nb * Nf * Njet * npoints, MPIU_REAL, &eval));
+  PetscCall(PetscDTPTrimmedEvalJet(dim, npoints, points, degree, f, jet, eval));
   if (B) {
-    PetscInt p_strl = Nf*Nb;
+    PetscInt p_strl = Nf * Nb;
     PetscInt b_strl = Nf;
     PetscInt v_strl = 1;
 
-    PetscInt b_strr = Nf*Njet*npoints;
-    PetscInt v_strr = Njet*npoints;
+    PetscInt b_strr = Nf * Njet * npoints;
+    PetscInt v_strr = Njet * npoints;
     PetscInt p_strr = 1;
 
     for (PetscInt v = 0; v < Nf; v++) {
       for (PetscInt b = 0; b < Nb; b++) {
-        for (PetscInt p = 0; p < npoints; p++) {
-          B[p*p_strl + b*b_strl + v*v_strl] = eval[b*b_strr + v*v_strr + p*p_strr];
-        }
+        for (PetscInt p = 0; p < npoints; p++) B[p * p_strl + b * b_strl + v * v_strl] = eval[b * b_strr + v * v_strr + p * p_strr];
       }
     }
   }
   if (D) {
-    PetscInt p_strl = dim*Nf*Nb;
-    PetscInt b_strl = dim*Nf;
+    PetscInt p_strl = dim * Nf * Nb;
+    PetscInt b_strl = dim * Nf;
     PetscInt v_strl = dim;
     PetscInt d_strl = 1;
 
-    PetscInt b_strr = Nf*Njet*npoints;
-    PetscInt v_strr = Njet*npoints;
+    PetscInt b_strr = Nf * Njet * npoints;
+    PetscInt v_strr = Njet * npoints;
     PetscInt d_strr = npoints;
     PetscInt p_strr = 1;
 
     for (PetscInt v = 0; v < Nf; v++) {
       for (PetscInt d = 0; d < dim; d++) {
         for (PetscInt b = 0; b < Nb; b++) {
-          for (PetscInt p = 0; p < npoints; p++) {
-            D[p*p_strl + b*b_strl + v*v_strl + d*d_strl] = eval[b*b_strr + v*v_strr + (1+d)*d_strr + p*p_strr];
-          }
+          for (PetscInt p = 0; p < npoints; p++) D[p * p_strl + b * b_strl + v * v_strl + d * d_strl] = eval[b * b_strr + v * v_strr + (1 + d) * d_strr + p * p_strr];
         }
       }
     }
   }
   if (H) {
-    PetscInt p_strl  = dim*dim*Nf*Nb;
-    PetscInt b_strl  = dim*dim*Nf;
-    PetscInt v_strl  = dim*dim;
+    PetscInt p_strl  = dim * dim * Nf * Nb;
+    PetscInt b_strl  = dim * dim * Nf;
+    PetscInt v_strl  = dim * dim;
     PetscInt d1_strl = dim;
     PetscInt d2_strl = 1;
 
-    PetscInt b_strr = Nf*Njet*npoints;
-    PetscInt v_strr = Njet*npoints;
+    PetscInt b_strr = Nf * Njet * npoints;
+    PetscInt v_strr = Njet * npoints;
     PetscInt j_strr = npoints;
     PetscInt p_strr = 1;
 
     PetscInt *derivs;
-    ierr = PetscCalloc1(dim, &derivs);CHKERRQ(ierr);
+    PetscCall(PetscCalloc1(dim, &derivs));
     for (PetscInt d1 = 0; d1 < dim; d1++) {
       for (PetscInt d2 = 0; d2 < dim; d2++) {
         PetscInt j;
         derivs[d1]++;
         derivs[d2]++;
-        ierr = PetscDTGradedOrderToIndex(dim, derivs, &j);CHKERRQ(ierr);
+        PetscCall(PetscDTGradedOrderToIndex(dim, derivs, &j));
         derivs[d1]--;
         derivs[d2]--;
         for (PetscInt v = 0; v < Nf; v++) {
           for (PetscInt b = 0; b < Nb; b++) {
-            for (PetscInt p = 0; p < npoints; p++) {
-              H[p*p_strl + b*b_strl + v*v_strl + d1*d1_strl + d2*d2_strl] = eval[b*b_strr + v*v_strr + j*j_strr + p*p_strr];
-            }
+            for (PetscInt p = 0; p < npoints; p++) H[p * p_strl + b * b_strl + v * v_strl + d1 * d1_strl + d2 * d2_strl] = eval[b * b_strr + v * v_strr + j * j_strr + p * p_strr];
           }
         }
       }
     }
-    ierr = PetscFree(derivs);CHKERRQ(ierr);
+    PetscCall(PetscFree(derivs));
   }
-  ierr = DMRestoreWorkArray(dm, Nb * Nf * Njet * npoints, MPIU_REAL, &eval);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(DMRestoreWorkArray(dm, Nb * Nf * Njet * npoints, MPIU_REAL, &eval));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -264,114 +243,107 @@ static PetscErrorCode PetscSpaceEvaluate_Ptrimmed(PetscSpace sp, PetscInt npoint
 + sp         - the function space object
 - formDegree - the form degree
 
-  Options Database:
+  Options Database Key:
 . -petscspace_ptrimmed_form_degree <int> - The trimmed polynomial form degree
 
   Level: intermediate
 
-.seealso: PetscDTAltV, PetscDTPTrimmedEvalJet(), PetscSpacePTrimmedGetFormDegree()
+.seealso: `PetscSpace`, `PetscDTAltV`, `PetscDTPTrimmedEvalJet()`, `PetscSpacePTrimmedGetFormDegree()`
 @*/
 PetscErrorCode PetscSpacePTrimmedSetFormDegree(PetscSpace sp, PetscInt formDegree)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
   PetscValidHeaderSpecific(sp, PETSCSPACE_CLASSID, 1);
-  ierr = PetscTryMethod(sp,"PetscSpacePTrimmedSetFormDegree_C",(PetscSpace,PetscInt),(sp,formDegree));CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscTryMethod(sp, "PetscSpacePTrimmedSetFormDegree_C", (PetscSpace, PetscInt), (sp, formDegree));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
   PetscSpacePTrimmedGetFormDegree - Get the form degree of the trimmed polynomials.
 
-  Input Parameters:
-. sp     - the function space object
+  Input Parameter:
+. sp - the function space object
 
-  Output Parameters:
+  Output Parameter:
 . formDegee - the form degree
 
   Level: intermediate
 
-.seealso: PetscDTAltV, PetscDTPTrimmedEvalJet(), PetscSpacePTrimmedSetFormDegree()
+.seealso: `PetscSpace`, `PetscDTAltV`, `PetscDTPTrimmedEvalJet()`, `PetscSpacePTrimmedSetFormDegree()`
 @*/
 PetscErrorCode PetscSpacePTrimmedGetFormDegree(PetscSpace sp, PetscInt *formDegree)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
   PetscValidHeaderSpecific(sp, PETSCSPACE_CLASSID, 1);
-  PetscValidPointer(formDegree, 2);
-  ierr = PetscTryMethod(sp,"PetscSpacePTrimmedGetFormDegree_C",(PetscSpace,PetscInt*),(sp,formDegree));CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscValidIntPointer(formDegree, 2);
+  PetscTryMethod(sp, "PetscSpacePTrimmedGetFormDegree_C", (PetscSpace, PetscInt *), (sp, formDegree));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PetscSpacePTrimmedSetFormDegree_Ptrimmed(PetscSpace sp, PetscInt formDegree)
 {
-  PetscSpace_Ptrimmed *pt = (PetscSpace_Ptrimmed *) sp->data;
+  PetscSpace_Ptrimmed *pt = (PetscSpace_Ptrimmed *)sp->data;
 
   PetscFunctionBegin;
   pt->formDegree = formDegree;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PetscSpacePTrimmedGetFormDegree_Ptrimmed(PetscSpace sp, PetscInt *formDegree)
 {
-  PetscSpace_Ptrimmed *pt = (PetscSpace_Ptrimmed *) sp->data;
+  PetscSpace_Ptrimmed *pt = (PetscSpace_Ptrimmed *)sp->data;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(sp, PETSCSPACE_CLASSID, 1);
-  PetscValidPointer(formDegree, 2);
+  PetscValidIntPointer(formDegree, 2);
   *formDegree = pt->formDegree;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PetscSpaceGetHeightSubspace_Ptrimmed(PetscSpace sp, PetscInt height, PetscSpace *subsp)
 {
-  PetscSpace_Ptrimmed *pt = (PetscSpace_Ptrimmed *) sp->data;
-  PetscInt         dim;
-  PetscErrorCode   ierr;
+  PetscSpace_Ptrimmed *pt = (PetscSpace_Ptrimmed *)sp->data;
+  PetscInt             dim;
 
   PetscFunctionBegin;
-  ierr = PetscSpaceGetNumVariables(sp, &dim);CHKERRQ(ierr);
-  if (height > dim || height < 0) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Asked for space at height %D for dimension %D space", height, dim);
-  if (!pt->subspaces) {ierr = PetscCalloc1(dim, &(pt->subspaces));CHKERRQ(ierr);}
+  PetscCall(PetscSpaceGetNumVariables(sp, &dim));
+  PetscCheck(height <= dim && height >= 0, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Asked for space at height %" PetscInt_FMT " for dimension %" PetscInt_FMT " space", height, dim);
+  if (!pt->subspaces) PetscCall(PetscCalloc1(dim, &(pt->subspaces)));
   if ((dim - height) <= PetscAbsInt(pt->formDegree)) {
-    if (!pt->subspaces[height-1]) {
-      PetscInt Nc, degree, Nf, Ncopies, Nfsub;
+    if (!pt->subspaces[height - 1]) {
+      PetscInt    Nc, degree, Nf, Ncopies, Nfsub;
       PetscSpace  sub;
       const char *name;
 
-      ierr = PetscSpaceGetNumComponents(sp, &Nc);CHKERRQ(ierr);
-      ierr = PetscDTBinomialInt(dim, PetscAbsInt(pt->formDegree), &Nf);CHKERRQ(ierr);
-      ierr = PetscDTBinomialInt((dim-height), PetscAbsInt(pt->formDegree), &Nfsub);CHKERRQ(ierr);
+      PetscCall(PetscSpaceGetNumComponents(sp, &Nc));
+      PetscCall(PetscDTBinomialInt(dim, PetscAbsInt(pt->formDegree), &Nf));
+      PetscCall(PetscDTBinomialInt((dim - height), PetscAbsInt(pt->formDegree), &Nfsub));
       Ncopies = Nf / Nc;
-      ierr = PetscSpaceGetDegree(sp, &degree, NULL);CHKERRQ(ierr);
+      PetscCall(PetscSpaceGetDegree(sp, &degree, NULL));
 
-      ierr = PetscSpaceCreate(PetscObjectComm((PetscObject) sp), &sub);CHKERRQ(ierr);
-      ierr = PetscObjectGetName((PetscObject) sp,  &name);CHKERRQ(ierr);
-      ierr = PetscObjectSetName((PetscObject) sub,  name);CHKERRQ(ierr);
-      ierr = PetscSpaceSetType(sub, PETSCSPACEPTRIMMED);CHKERRQ(ierr);
-      ierr = PetscSpaceSetNumComponents(sub, Nfsub * Ncopies);CHKERRQ(ierr);
-      ierr = PetscSpaceSetDegree(sub, degree, PETSC_DETERMINE);CHKERRQ(ierr);
-      ierr = PetscSpaceSetNumVariables(sub, dim-height);CHKERRQ(ierr);
-      ierr = PetscSpacePTrimmedSetFormDegree(sub, pt->formDegree);CHKERRQ(ierr);
-      ierr = PetscSpaceSetUp(sub);CHKERRQ(ierr);
-      pt->subspaces[height-1] = sub;
+      PetscCall(PetscSpaceCreate(PetscObjectComm((PetscObject)sp), &sub));
+      PetscCall(PetscObjectGetName((PetscObject)sp, &name));
+      PetscCall(PetscObjectSetName((PetscObject)sub, name));
+      PetscCall(PetscSpaceSetType(sub, PETSCSPACEPTRIMMED));
+      PetscCall(PetscSpaceSetNumComponents(sub, Nfsub * Ncopies));
+      PetscCall(PetscSpaceSetDegree(sub, degree, PETSC_DETERMINE));
+      PetscCall(PetscSpaceSetNumVariables(sub, dim - height));
+      PetscCall(PetscSpacePTrimmedSetFormDegree(sub, pt->formDegree));
+      PetscCall(PetscSpaceSetUp(sub));
+      pt->subspaces[height - 1] = sub;
     }
-    *subsp = pt->subspaces[height-1];
+    *subsp = pt->subspaces[height - 1];
   } else {
     *subsp = NULL;
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode PetscSpaceInitialize_Ptrimmed(PetscSpace sp)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  ierr = PetscObjectComposeFunction((PetscObject) sp, "PetscSpacePTrimmedGetFormDegree_C", PetscSpacePTrimmedGetFormDegree_Ptrimmed);CHKERRQ(ierr);
-  ierr = PetscObjectComposeFunction((PetscObject) sp, "PetscSpacePTrimmedSetFormDegree_C", PetscSpacePTrimmedSetFormDegree_Ptrimmed);CHKERRQ(ierr);
+  PetscCall(PetscObjectComposeFunction((PetscObject)sp, "PetscSpacePTrimmedGetFormDegree_C", PetscSpacePTrimmedGetFormDegree_Ptrimmed));
+  PetscCall(PetscObjectComposeFunction((PetscObject)sp, "PetscSpacePTrimmedSetFormDegree_C", PetscSpacePTrimmedSetFormDegree_Ptrimmed));
   sp->ops->setfromoptions    = PetscSpaceSetFromOptions_Ptrimmed;
   sp->ops->setup             = PetscSpaceSetUp_Ptrimmed;
   sp->ops->view              = PetscSpaceView_Ptrimmed;
@@ -379,31 +351,32 @@ static PetscErrorCode PetscSpaceInitialize_Ptrimmed(PetscSpace sp)
   sp->ops->getdimension      = PetscSpaceGetDimension_Ptrimmed;
   sp->ops->evaluate          = PetscSpaceEvaluate_Ptrimmed;
   sp->ops->getheightsubspace = PetscSpaceGetHeightSubspace_Ptrimmed;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*MC
-  PETSCSPACEPTRIMMED = "ptrimmed" - A PetscSpace object that encapsulates a trimmed polynomial space.
+  PETSCSPACEPTRIMMED = "ptrimmed" - A `PetscSpace` object that encapsulates a trimmed polynomial space.
 
   Level: intermediate
 
-.seealso: PetscSpaceType, PetscSpaceCreate(), PetscSpaceSetType(), PetscDTPTrimmedEvalJet()
+  Developer Note:
+  Need a good easy to understand reference for trimmed poynomial spaces
+
+.seealso: `PetscSpace`, `PetscSpaceType`, `PetscSpaceCreate()`, `PetscSpaceSetType()`, `PetscDTPTrimmedEvalJet()`
 M*/
 
 PETSC_EXTERN PetscErrorCode PetscSpaceCreate_Ptrimmed(PetscSpace sp)
 {
   PetscSpace_Ptrimmed *pt;
-  PetscErrorCode   ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(sp, PETSCSPACE_CLASSID, 1);
-  ierr     = PetscNewLog(sp,&pt);CHKERRQ(ierr);
+  PetscCall(PetscNew(&pt));
   sp->data = pt;
 
   pt->subspaces = NULL;
   sp->Nc        = PETSC_DETERMINE;
 
-  ierr = PetscSpaceInitialize_Ptrimmed(sp);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(PetscSpaceInitialize_Ptrimmed(sp));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
-

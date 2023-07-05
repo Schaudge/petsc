@@ -1,282 +1,347 @@
-#if !defined(PETSCDEVICE_H)
+#ifndef PETSCDEVICE_H
 #define PETSCDEVICE_H
 
-#include <petscsys.h>
 #include <petscdevicetypes.h>
-#include <petscpkg_version.h>
+#include <petscviewertypes.h>
 
-#if defined(PETSC_HAVE_CUDA)
-#include <cuda.h>
-#include <cuda_runtime.h>
-#include <cublas_v2.h>
-#include <cusolverDn.h>
-#include <cusolverSp.h>
-#include <cufft.h>
+#if PETSC_CPP_VERSION >= 11 // C++11
+  #define PETSC_DEVICE_ALIGNOF(...) alignof(decltype(__VA_ARGS__))
+#elif PETSC_C_VERSION >= 11 // C11
+  #ifdef __GNUC__
+    #define PETSC_DEVICE_ALIGNOF(...) _Alignof(__typeof__(__VA_ARGS__))
+  #else
+    #include <stddef.h> // max_align_t
+    // Note we cannot just do _Alignof(expression) since clang warns that "'_Alignof' applied to an
+    // expression is a GNU extension", so we just default to max_align_t which is ultra safe
+    #define PETSC_DEVICE_ALIGNOF(...) _Alignof(max_align_t)
+  #endif // __GNUC__
+#else
+  #define PETSC_DEVICE_ALIGNOF(...) PETSC_MEMALIGN
+#endif
 
-/* cuBLAS does not have cublasGetErrorName(). We create one on our own. */
-PETSC_EXTERN const char* PetscCUBLASGetErrorName(cublasStatus_t); /* PETSC_EXTERN since it is exposed by the CHKERRCUBLAS macro */
-PETSC_EXTERN const char* PetscCUSolverGetErrorName(cusolverStatus_t);
-PETSC_EXTERN const char* PetscCUFFTGetErrorName(cufftResult);
+/* SUBMANSEC = Sys */
 
-/* REMOVE ME */
-#define WaitForCUDA() cudaDeviceSynchronize()
+// REVIEW ME: this should probably go somewhere better, configure-time?
+#define PETSC_HAVE_HOST 1
 
-/* CUDART_VERSION = 1000 x major + 10 x minor version */
+/* logging support */
+PETSC_EXTERN PetscClassId PETSC_DEVICE_CLASSID;
+PETSC_EXTERN PetscClassId PETSC_DEVICE_CONTEXT_CLASSID;
 
-/* Could not find exactly which CUDART_VERSION introduced cudaGetErrorName. At least it was in CUDA 8.0 (Sep. 2016) */
-#if PETSC_PKG_CUDA_VERSION_GE(8,0,0)
-#define CHKERRCUDA(cerr) do {                                           \
-    const cudaError_t _p_cuda_err__ = cerr;                             \
-    if (PetscUnlikely(_p_cuda_err__ != cudaSuccess)) {                  \
-      const char *name  = cudaGetErrorName(_p_cuda_err__);              \
-      const char *descr = cudaGetErrorString(_p_cuda_err__);            \
-      SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_GPU,"cuda error %d (%s) : %s", \
-               (PetscErrorCode)_p_cuda_err__,name,descr);               \
-    }                                                                   \
-  } while (0)
-#else /* PETSC_PKG_CUDA_VERSION_GE(8,0,0) */
-#define CHKERRCUDA(cerr) do {                                   \
-    const cudaError_t _p_cuda_err__ = cerr;                     \
-    if (PetscUnlikely(_p_cuda_err__ != cudaSuccess)) {          \
-      SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_GPU,"cuda error %d",   \
-               (PetscErrorCode)_p_cuda_err__);                  \
-    }                                                           \
-  } while (0)
-#endif /* PETSC_PKG_CUDA_VERSION_GE(8,0,0) */
-
-#define CHKERRCUBLAS(stat)   do {                                       \
-    const cublasStatus_t _p_cublas_stat__ = stat;                       \
-    if (PetscUnlikely(_p_cublas_stat__ != CUBLAS_STATUS_SUCCESS)) {     \
-      const char *name = PetscCUBLASGetErrorName(_p_cublas_stat__);     \
-      if (((_p_cublas_stat__ == CUBLAS_STATUS_NOT_INITIALIZED) ||       \
-           (_p_cublas_stat__ == CUBLAS_STATUS_ALLOC_FAILED))   &&       \
-          PetscDeviceInitialized(PETSC_DEVICE_CUDA)) {                  \
-        SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_GPU_RESOURCE,                \
-                 "cuBLAS error %d (%s). "                               \
-                 "Reports not initialized or alloc failed; "            \
-                 "this indicates the GPU may have run out resources",   \
-                 (PetscErrorCode)_p_cublas_stat__,name);                \
-      } else {                                                          \
-        SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_GPU,"cuBLAS error %d (%s)",  \
-                 (PetscErrorCode)_p_cublas_stat__,name);                \
-      }                                                                 \
-    }                                                                   \
-  } while (0)
-
-#if (CUSPARSE_VER_MAJOR > 10 || CUSPARSE_VER_MAJOR == 10 && CUSPARSE_VER_MINOR >= 2) /* According to cuda/10.1.168 on OLCF Summit */
-#define CHKERRCUSPARSE(stat)\
-do {\
-  if (PetscUnlikely(stat)) {\
-    const char *name  = cusparseGetErrorName(stat);\
-    const char *descr = cusparseGetErrorString(stat);\
-    if ((stat == CUSPARSE_STATUS_NOT_INITIALIZED) || (stat == CUSPARSE_STATUS_ALLOC_FAILED)) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_GPU_RESOURCE,"cuSPARSE errorcode %d (%s) : %s. Reports not initialized or alloc failed; this indicates the GPU has run out resources",(int)stat,name,descr); \
-    else SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_GPU,"cuSPARSE errorcode %d (%s) : %s",(int)stat,name,descr);\
-  }\
-} while (0)
-#else  /* (CUSPARSE_VER_MAJOR > 10 || CUSPARSE_VER_MAJOR == 10 && CUSPARSE_VER_MINOR >= 2) */
-#define CHKERRCUSPARSE(stat) do {if (PetscUnlikely(stat)) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_GPU,"cuSPARSE errorcode %d",(int)stat);} while (0)
-#endif /* (CUSPARSE_VER_MAJOR > 10 || CUSPARSE_VER_MAJOR == 10 && CUSPARSE_VER_MINOR >= 2) */
-
-#define CHKERRCUSOLVER(stat) do {                                       \
-    const cusolverStatus_t _p_cusolver_stat__ = stat;                   \
-    if (PetscUnlikely(_p_cusolver_stat__ != CUSOLVER_STATUS_SUCCESS)) { \
-      const char *name = PetscCUSolverGetErrorName(_p_cusolver_stat__); \
-      if (((_p_cusolver_stat__ == CUSOLVER_STATUS_NOT_INITIALIZED) ||   \
-           (_p_cusolver_stat__ == CUSOLVER_STATUS_ALLOC_FAILED)    ||   \
-           (_p_cusolver_stat__ == CUSOLVER_STATUS_INTERNAL_ERROR)) &&   \
-          PetscDeviceInitialized(PETSC_DEVICE_CUDA)) {                  \
-        SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_GPU_RESOURCE,                \
-                 "cuSolver error %d (%s). "                             \
-                 "This indicates the GPU may have run out resources",   \
-                 (PetscErrorCode)_p_cusolver_stat__,name);              \
-      } else {                                                          \
-        SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_GPU,                         \
-                 "cuSolver error %d (%s)",                              \
-                 (PetscErrorCode)_p_cusolver_stat__,name);              \
-      }                                                                 \
-    }                                                                   \
-  } while (0)
-
-#define CHKERRCUFFT(res)     do {                                       \
-    const cufftResult_t _p_cufft_stat__ = res;                          \
-    if (PetscUnlikely(_p_cufft_stat__ != CUFFT_SUCCESS)) {              \
-      const char *name = PetscCUFFTGetErrorName(_p_cufft_stat__);       \
-      if (((_p_cufft_stat__ == CUFFT_SETUP_FAILED)  ||                  \
-           (_p_cufft_stat__ == CUFFT_ALLOC_FAILED)) &&                  \
-          PetscDeviceInitialized(PETSC_DEVICE_CUDA)) {                  \
-        SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_GPU_RESOURCE,                \
-                 "cuFFT error %d (%s). "                                \
-                 "Reports not initialized or alloc failed; "            \
-                 "this indicates the GPU has run out resources",        \
-                 (PetscErrorCode)_p_cufft_stat__,name);                 \
-      } else {                                                          \
-        SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_GPU,                         \
-                 "cuFFT error %d (%s)",                                 \
-                 (PetscErrorCode)_p_cufft_stat__,name);                 \
-      }                                                                 \
-    }                                                                   \
-  } while (0)
-
-#define CHKERRCURAND(stat)   do {                                       \
-    const curandStatus_t _p_curand_stat__ = stat;                       \
-    if (PetscUnlikely(_p_curand_stat__ != CURAND_STATUS_SUCCESS)) {     \
-      if (((_p_curand_stat__ == CURAND_STATUS_INITIALIZATION_FAILED) || \
-           (_p_curand_stat__ == CURAND_STATUS_ALLOCATION_FAILED))    && \
-          PetscDeviceInitialized(PETSC_DEVICE_CUDA)) {                  \
-        SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_GPU_RESOURCE,                \
-                 "cuRAND error %d. "                                    \
-                 "Reports not initialized or alloc failed; "            \
-                 "this indicates the GPU has run out resources",        \
-                 (PetscErrorCode)_p_curand_stat__);                     \
-      } else {                                                          \
-        SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_GPU,                         \
-                 "cuRand error %d",(PetscErrorCode)_p_curand_stat__);   \
-      }                                                                 \
-    }                                                                   \
-  } while (0)
-
-PETSC_EXTERN cudaStream_t   PetscDefaultCudaStream; /* The default stream used by PETSc */
-
-PETSC_EXTERN PetscErrorCode PetscCUBLASGetHandle(cublasHandle_t*);
-PETSC_EXTERN PetscErrorCode PetscCUSOLVERDnGetHandle(cusolverDnHandle_t*);
-#endif /* PETSC_HAVE_CUDA */
-
-#if defined(PETSC_HAVE_HIP)
-#include <hip/hip_runtime.h>
-#include <hipblas.h>
-#if defined(__HIP_PLATFORM_NVCC__)
-#include <cusolverDn.h>
-#else /* __HIP_PLATFORM_HCC__ */
-#include <rocsolver.h>
-#endif /* __HIP_PLATFORM_NVCC__ */
-
-/* REMOVE ME */
-#define WaitForHIP() hipDeviceSynchronize()
-
-/* hipBLAS does not have hipblasGetErrorName(). We create one on our own. */
-PETSC_EXTERN const char* PetscHIPBLASGetErrorName(hipblasStatus_t); /* PETSC_EXTERN since it is exposed by the CHKERRHIPBLAS macro */
-
-#define CHKERRHIP(cerr)     do {                                        \
-    const hipError_t _p_hip_err__ = cerr;                               \
-    if (PetscUnlikely(_p_hip_err__ != hipSuccess)) {                    \
-      const char *name  = hipGetErrorName(_p_hip_err__);                \
-      const char *descr = hipGetErrorString(_p_hip_err__);              \
-      SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_GPU,"hip error %d (%s) : %s",  \
-               (PetscErrorCode)_p_hip_err__,name,descr);                \
-    }                                                                   \
-  } while (0)
-
-#define CHKERRHIPBLAS(stat) do {                                        \
-    const hipblasStatus_t _p_hipblas_stat__ = stat;                     \
-    if (PetscUnlikely(_p_hipblas_stat__ != HIPBLAS_STATUS_SUCCESS)) {   \
-      const char *name = PetscHIPBLASGetErrorName(_p_hipblas_stat__);   \
-      SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_GPU,"hipBLAS error %d (%s)",   \
-               (PetscErrorCode)_p_hipblas_stat__,name);                 \
-    }                                                                   \
-  } while (0)
-
-/* TODO: SEK:  Need to figure out the hipsolver issues */
-#define CHKERRHIPSOLVER(stat) do {                                      \
-    const hipsolverStatus_t _p_hipsolver_stat__ = stat;                 \
-    if (PetscUnlikely(_p_hipsolver_stat__ /* != HIPSOLVER_STATUS_SUCCESS */)) { \
-      SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_GPU,"HIPSOLVER error %d",      \
-               (PetscErrorCode)_p_hipsolver_stat__);                    \
-    }                                                                   \
-  } while (0)
-
-/* hipSolver does not exist yet so we work around it
-   rocSOLVER users rocBLAS for the handle
- * */
-#if defined(__HIP_PLATFORM_NVCC__)
-typedef cusolverDnHandle_t hipsolverHandle_t;
-typedef cusolverStatus_t   hipsolverStatus_t;
-
-/* Alias hipsolverDestroy to cusolverDnDestroy */
-PETSC_STATIC_INLINE hipsolverStatus_t hipsolverDestroy(hipsolverHandle_t *hipsolverhandle)
-{
-  return cusolverDnDestroy(hipsolverhandle)
-}
-
-/* Alias hipsolverCreate to cusolverDnCreate */
-PETSC_STATIC_INLINE hipsolverStatus_t hipsolverCreate(hipsolverHandle_t *hipsolverhandle)
-{
-  return cusolverDnCreate(hipsolverhandle)
-}
-
-/* Alias hipsolverGetStream to cusolverDnGetStream */
-PETSC_STATIC_INLINE hipsolverStatus_t hipsolverGetStream(hipsolverHandle_t handle, hipStream_t *stream)
-{
-  return cusolverDnGetStream(handle,stream);
-}
-
-/* Alias hipsolverSetStream to cusolverDnSetStream */
-PETSC_STATIC_INLINE hipsolverStatus_t hipsolverSetStream(hipsolverHandle_t handle, hipStream_t stream)
-{
-  return cusolveDnSetStream(handle,stream);
-}
-#else /* __HIP_PLATFORM_HCC__ */
-typedef rocblas_handle hipsolverHandle_t;
-typedef rocblas_status hipsolverStatus_t;
-
-/* Alias hipsolverDestroy to rocblas_destroy_handle */
-PETSC_STATIC_INLINE hipsolverStatus_t hipsolverDestroy(hipsolverHandle_t  hipsolverhandle)
-{
-  return rocblas_destroy_handle(hipsolverhandle);
-}
-
-/* Alias hipsolverCreate to rocblas_destroy_handle */
-PETSC_STATIC_INLINE hipsolverStatus_t hipsolverCreate(hipsolverHandle_t *hipsolverhandle)
-{
-  return rocblas_create_handle(hipsolverhandle);
-}
-
-/* Alias hipsolverGetStream to rocblas_get_stream */
-PETSC_STATIC_INLINE hipsolverStatus_t hipsolverGetStream(hipsolverHandle_t handle, hipStream_t *stream)
-{
-  return rocblas_get_stream(handle,stream);
-}
-
-/* Alias hipsolverSetStream to rocblas_set_stream */
-PETSC_STATIC_INLINE hipsolverStatus_t hipsolverSetStream(hipsolverHandle_t handle, hipStream_t stream)
-{
-  return rocblas_set_stream(handle,stream);
-}
-#endif /* __HIP_PLATFORM_NVCC__ */
-PETSC_EXTERN hipStream_t    PetscDefaultHipStream; /* The default stream used by PETSc */
-
-PETSC_EXTERN PetscErrorCode PetscHIPBLASGetHandle(hipblasHandle_t*);
-PETSC_EXTERN PetscErrorCode PetscHIPSOLVERGetHandle(hipsolverHandle_t*);
-#endif /* PETSC_HAVE_HIP */
-
-/* Cannot use the device context api without C++11 */
-#if defined(PETSC_HAVE_CXX_DIALECT_CXX11)
 PETSC_EXTERN PetscErrorCode PetscDeviceInitializePackage(void);
 PETSC_EXTERN PetscErrorCode PetscDeviceFinalizePackage(void);
+PETSC_EXTERN PetscErrorCode PetscGetMemType(const void *, PetscMemType *);
 
 /* PetscDevice */
-PETSC_EXTERN PetscErrorCode PetscDeviceInitialize(PetscDeviceType);
-PETSC_EXTERN PetscBool      PetscDeviceInitialized(PetscDeviceType);
-PETSC_EXTERN PetscErrorCode PetscDeviceCreate(PetscDeviceType,PetscInt,PetscDevice*);
-PETSC_EXTERN PetscErrorCode PetscDeviceConfigure(PetscDevice);
-PETSC_EXTERN PetscErrorCode PetscDeviceView(PetscDevice,PetscViewer);
-PETSC_EXTERN PetscErrorCode PetscDeviceDestroy(PetscDevice*);
+#if PetscDefined(HAVE_CXX)
+PETSC_EXTERN PetscErrorCode  PetscDeviceCreate(PetscDeviceType, PetscInt, PetscDevice *);
+PETSC_EXTERN PetscErrorCode  PetscDeviceDestroy(PetscDevice *);
+PETSC_EXTERN PetscErrorCode  PetscDeviceConfigure(PetscDevice);
+PETSC_EXTERN PetscErrorCode  PetscDeviceView(PetscDevice, PetscViewer);
+PETSC_EXTERN PetscErrorCode  PetscDeviceGetType(PetscDevice, PetscDeviceType *);
+PETSC_EXTERN PetscErrorCode  PetscDeviceGetDeviceId(PetscDevice, PetscInt *);
+PETSC_EXTERN PetscDeviceType PETSC_DEVICE_DEFAULT(void);
+PETSC_EXTERN PetscErrorCode  PetscDeviceSetDefaultDeviceType(PetscDeviceType);
+PETSC_EXTERN PetscErrorCode  PetscDeviceInitialize(PetscDeviceType);
+PETSC_EXTERN PetscBool       PetscDeviceInitialized(PetscDeviceType);
+#else
+  #define PetscDeviceCreate(PetscDeviceType, PetscInt, dev) (*(dev) = PETSC_NULLPTR, PETSC_SUCCESS)
+  #define PetscDeviceDestroy(dev)                           (*(dev) = PETSC_NULLPTR, PETSC_SUCCESS)
+  #define PetscDeviceConfigure(PetscDevice)                 PETSC_SUCCESS
+  #define PetscDeviceView(PetscDevice, PetscViewer)         PETSC_SUCCESS
+  #define PetscDeviceGetType(PetscDevice, type)             (*(type) = PETSC_DEVICE_DEFAULT(), PETSC_SUCCESS)
+  #define PetscDeviceGetDeviceId(PetscDevice, id)           (*(id) = 0, PETSC_SUCCESS)
+  #define PETSC_DEVICE_DEFAULT()                            PETSC_DEVICE_HOST
+  #define PetscDeviceSetDefaultDeviceType(PetscDeviceType)  PETSC_SUCCESS
+  #define PetscDeviceInitialize(PetscDeviceType)            PETSC_SUCCESS
+  #define PetscDeviceInitialized(dtype)                     ((dtype) == PETSC_DEVICE_HOST)
+#endif /* PetscDefined(HAVE_CXX) */
 
 /* PetscDeviceContext */
-PETSC_EXTERN PetscErrorCode PetscDeviceContextCreate(PetscDeviceContext*);
-PETSC_EXTERN PetscErrorCode PetscDeviceContextDestroy(PetscDeviceContext*);
-PETSC_EXTERN PetscErrorCode PetscDeviceContextSetDevice(PetscDeviceContext,PetscDevice);
-PETSC_EXTERN PetscErrorCode PetscDeviceContextGetDevice(PetscDeviceContext,PetscDevice*);
-PETSC_EXTERN PetscErrorCode PetscDeviceContextSetStreamType(PetscDeviceContext,PetscStreamType);
-PETSC_EXTERN PetscErrorCode PetscDeviceContextGetStreamType(PetscDeviceContext,PetscStreamType*);
+#if PetscDefined(HAVE_CXX)
+PETSC_EXTERN PetscErrorCode PetscDeviceContextCreate(PetscDeviceContext *);
+PETSC_EXTERN PetscErrorCode PetscDeviceContextDestroy(PetscDeviceContext *);
+PETSC_EXTERN PetscErrorCode PetscDeviceContextSetStreamType(PetscDeviceContext, PetscStreamType);
+PETSC_EXTERN PetscErrorCode PetscDeviceContextGetStreamType(PetscDeviceContext, PetscStreamType *);
+PETSC_EXTERN PetscErrorCode PetscDeviceContextSetDevice(PetscDeviceContext, PetscDevice);
+PETSC_EXTERN PetscErrorCode PetscDeviceContextGetDevice(PetscDeviceContext, PetscDevice *);
+PETSC_EXTERN PetscErrorCode PetscDeviceContextGetDeviceType(PetscDeviceContext, PetscDeviceType *);
 PETSC_EXTERN PetscErrorCode PetscDeviceContextSetUp(PetscDeviceContext);
-PETSC_EXTERN PetscErrorCode PetscDeviceContextDuplicate(PetscDeviceContext,PetscDeviceContext*);
-PETSC_EXTERN PetscErrorCode PetscDeviceContextQueryIdle(PetscDeviceContext,PetscBool*);
-PETSC_EXTERN PetscErrorCode PetscDeviceContextWaitForContext(PetscDeviceContext,PetscDeviceContext);
-PETSC_EXTERN PetscErrorCode PetscDeviceContextFork(PetscDeviceContext,PetscInt,PetscDeviceContext**);
-PETSC_EXTERN PetscErrorCode PetscDeviceContextJoin(PetscDeviceContext,PetscInt,PetscDeviceContextJoinMode,PetscDeviceContext**);
+PETSC_EXTERN PetscErrorCode PetscDeviceContextDuplicate(PetscDeviceContext, PetscDeviceContext *);
+PETSC_EXTERN PetscErrorCode PetscDeviceContextQueryIdle(PetscDeviceContext, PetscBool *);
+PETSC_EXTERN PetscErrorCode PetscDeviceContextWaitForContext(PetscDeviceContext, PetscDeviceContext);
+PETSC_EXTERN PetscErrorCode PetscDeviceContextForkWithStreamType(PetscDeviceContext, PetscStreamType, PetscInt, PetscDeviceContext **);
+PETSC_EXTERN PetscErrorCode PetscDeviceContextFork(PetscDeviceContext, PetscInt, PetscDeviceContext **);
+PETSC_EXTERN PetscErrorCode PetscDeviceContextJoin(PetscDeviceContext, PetscInt, PetscDeviceContextJoinMode, PetscDeviceContext **);
 PETSC_EXTERN PetscErrorCode PetscDeviceContextSynchronize(PetscDeviceContext);
-PETSC_EXTERN PetscErrorCode PetscDeviceContextGetCurrentContext(PetscDeviceContext*);
+PETSC_EXTERN PetscErrorCode PetscDeviceContextSetFromOptions(MPI_Comm, PetscDeviceContext);
+PETSC_EXTERN PetscErrorCode PetscDeviceContextView(PetscDeviceContext, PetscViewer);
+PETSC_EXTERN PetscErrorCode PetscDeviceContextViewFromOptions(PetscDeviceContext, PetscObject, const char name[]);
+PETSC_EXTERN PetscErrorCode PetscDeviceContextGetCurrentContext(PetscDeviceContext *);
 PETSC_EXTERN PetscErrorCode PetscDeviceContextSetCurrentContext(PetscDeviceContext);
-PETSC_EXTERN PetscErrorCode PetscDeviceContextSetFromOptions(MPI_Comm,const char[],PetscDeviceContext);
-#endif /* PETSC_HAVE_CXX_DIALECT_CXX11 */
+PETSC_EXTERN PetscErrorCode PetscDeviceContextGetStreamHandle(PetscDeviceContext, void *);
+#else
+  #define PetscDeviceContextCreate(dctx)                                                                            (*(dctx) = PETSC_NULLPTR, PETSC_SUCCESS)
+  #define PetscDeviceContextDestroy(dctx)                                                                           (*(dctx) = PETSC_NULLPTR, PETSC_SUCCESS)
+  #define PetscDeviceContextSetStreamType(PetscDeviceContext, PetscStreamType)                                      PETSC_SUCCESS
+  #define PetscDeviceContextGetStreamType(PetscDeviceContext, type)                                                 (*(type) = PETSC_STREAM_GLOBAL_BLOCKING, PETSC_SUCCESS)
+  #define PetscDeviceContextSetDevice(PetscDeviceContext, PetscDevice)                                              PETSC_SUCCESS
+  #define PetscDeviceContextGetDevice(PetscDeviceContext, device)                                                   (*(device) = PETSC_NULLPTR, PETSC_SUCCESS)
+  #define PetscDeviceContextGetDeviceType(PetscDeviceContext, type)                                                 (*(type) = PETSC_DEVICE_DEFAULT(), PETSC_SUCCESS)
+  #define PetscDeviceContextSetUp(PetscDeviceContext)                                                               PETSC_SUCCESS
+  #define PetscDeviceContextDuplicate(PetscDeviceContextl, PetscDeviceContextr)                                     (*(PetscDeviceContextr) = PETSC_NULLPTR, PETSC_SUCCESS)
+  #define PetscDeviceContextQueryIdle(PetscDeviceContext, idle)                                                     (*(idle) = PETSC_TRUE, PETSC_SUCCESS)
+  #define PetscDeviceContextWaitForContext(PetscDeviceContextl, PetscDeviceContextr)                                PETSC_SUCCESS
+  #define PetscDeviceContextForkWithStreamType(PetscDeviceContextp, PetscStreamType, PetscInt, PetscDeviceContextc) (*(PetscDeviceContextc) = PETSC_NULLPTR, PETSC_SUCCESS)
+  #define PetscDeviceContextFork(PetscDeviceContextp, PetscInt, PetscDeviceContextc)                                (*(PetscDeviceContextc) = PETSC_NULLPTR, PETSC_SUCCESS)
+  #define PetscDeviceContextJoin(PetscDeviceContextp, PetscInt, PetscDeviceContextJoinMode, PetscDeviceContextc)    (*(PetscDeviceContextc) = PETSC_NULLPTR, PETSC_SUCCESS)
+  #define PetscDeviceContextSynchronize(PetscDeviceContext)                                                         PETSC_SUCCESS
+  #define PetscDeviceContextSetFromOptions(MPI_Comm, PetscDeviceContext)                                            PETSC_SUCCESS
+  #define PetscDeviceContextView(PetscDeviceContext, PetscViewer)                                                   PETSC_SUCCESS
+  #define PetscDeviceContextViewFromOptions(PetscDeviceContext, PetscObject, PetscViewer)                           PETSC_SUCCESS
+  #define PetscDeviceContextGetCurrentContext(dctx)                                                                 (*(dctx) = PETSC_NULLPTR, PETSC_SUCCESS)
+  #define PetscDeviceContextSetCurrentContext(PetscDeviceContext)                                                   PETSC_SUCCESS
+  #define PetscDeviceContextGetStreamHandle(PetscDeviceContext, handle)                                             (*(handle) = PETSC_NULLPTR, PETSC_SUCCESS)
+#endif /* PetscDefined(HAVE_CXX) */
+
+/* memory */
+#if PetscDefined(HAVE_CXX)
+PETSC_EXTERN PetscErrorCode PetscDeviceAllocate_Private(PetscDeviceContext, PetscBool, PetscMemType, size_t, size_t, void **PETSC_RESTRICT);
+PETSC_EXTERN PetscErrorCode PetscDeviceDeallocate_Private(PetscDeviceContext, void *PETSC_RESTRICT);
+PETSC_EXTERN PetscErrorCode PetscDeviceMemcpy(PetscDeviceContext, void *PETSC_RESTRICT, const void *PETSC_RESTRICT, size_t);
+PETSC_EXTERN PetscErrorCode PetscDeviceMemset(PetscDeviceContext, void *PETSC_RESTRICT, PetscInt, size_t);
+#else
+  #include <string.h> // memset()
+  #define PetscDeviceAllocate_Private(PetscDeviceContext, clear, PetscMemType, size, alignment, ptr) PetscMallocA(1, (clear), __LINE__, PETSC_FUNCTION_NAME, __FILE__, (size), (ptr))
+  #define PetscDeviceDeallocate_Private(PetscDeviceContext, ptr)                                     PetscFree((ptr))
+  #define PetscDeviceMemcpy(PetscDeviceContext, dest, src, size)                                     PetscMemcpy((dest), (src), (size))
+  #define PetscDeviceMemset(PetscDeviceContext, ptr, v, size)                                        ((void)memset((ptr), (unsigned char)(v), (size)), PETSC_SUCCESS)
+#endif /* PetscDefined(HAVE_CXX) */
+
+/*MC
+  PetscDeviceMalloc - Allocate device-aware memory
+
+  Synopsis:
+  #include <petscdevice.h>
+  PetscErrorCode PetscDeviceMalloc(PetscDeviceContext dctx, PetscMemType mtype, size_t n, Type **ptr)
+
+  Not Collective, Asynchronous, Auto-dependency aware
+
+  Input Parameters:
++ dctx  - The `PetscDeviceContext` used to allocate the memory
+. mtype - The type of memory to allocate
+- n     - The amount (in elements) to allocate
+
+  Output Parameter:
+. ptr - The pointer to store the result in
+
+  Notes:
+  Memory allocated with this function must be freed with `PetscDeviceFree()`.
+
+  If `n` is zero, then `ptr` is set to `PETSC_NULLPTR`.
+
+  This routine falls back to using `PetscMalloc1()` if PETSc was not configured with device
+  support. The user should note that `mtype` is ignored in this case, as `PetscMalloc1()`
+  allocates only host memory.
+
+  This routine uses the `sizeof()` of the memory type requested to determine the total memory
+  to be allocated, therefore you should not multiply the number of elements requested by the
+  `sizeof()` the type\:
+
+.vb
+  PetscInt *arr;
+
+  // correct
+  PetscDeviceMalloc(dctx,PETSC_MEMTYPE_DEVICE,n,&arr);
+
+  // incorrect
+  PetscDeviceMalloc(dctx,PETSC_MEMTYPE_DEVICE,n*sizeof(*arr),&arr);
+.ve
+
+  Note result stored `ptr` is immediately valid and the user may freely inspect or manipulate
+  its value on function return, i.e.\:
+
+.vb
+  PetscInt *ptr;
+
+  PetscDeviceMalloc(dctx, PETSC_MEMTYPE_DEVICE, 20, &ptr);
+
+  PetscInt *sub_ptr = ptr + 10; // OK, no need to synchronize
+
+  ptr[0] = 10; // ERROR, directly accessing contents of ptr is undefined until synchronization
+.ve
+
+  DAG representation:
+.vb
+  time ->
+
+  -> dctx - |= CALL =| -\- dctx -->
+                         \- ptr ->
+.ve
+
+  Level: beginner
+
+.N ASYNC_API
+
+.seealso: `PetscDeviceFree()`, `PetscDeviceCalloc()`, `PetscDeviceArrayCopy()`,
+`PetscDeviceArrayZero()`
+M*/
+#define PetscDeviceMalloc(dctx, mtype, n, ptr) PetscDeviceAllocate_Private((dctx), PETSC_FALSE, (mtype), (size_t)(n) * sizeof(**(ptr)), PETSC_DEVICE_ALIGNOF(**(ptr)), (void **)(ptr))
+
+/*MC
+  PetscDeviceCalloc - Allocate zeroed device-aware memory
+
+  Synopsis:
+  #include <petscdevice.h>
+  PetscErrorCode PetscDeviceCalloc(PetscDeviceContext dctx, PetscMemType mtype, size_t n, Type **ptr)
+
+  Not Collective, Asynchronous, Auto-dependency aware
+
+  Input Parameters:
++ dctx  - The `PetscDeviceContext` used to allocate the memory
+. mtype - The type of memory to allocate
+- n     - The amount (in elements) to allocate
+
+  Output Parameter:
+. ptr - The pointer to store the result in
+
+  Notes:
+  Has identical usage to `PetscDeviceMalloc()` except that the memory is zeroed before it is
+  returned. See `PetscDeviceMalloc()` for further discussion.
+
+  This routine falls back to using `PetscCalloc1()` if PETSc was not configured with device
+  support. The user should note that `mtype` is ignored in this case, as `PetscCalloc1()`
+  allocates only host memory.
+
+  Level: beginner
+
+.N ASYNC_API
+
+.seealso: `PetscDeviceFree()`, `PetscDeviceMalloc()`, `PetscDeviceArrayCopy()`,
+`PetscDeviceArrayZero()`
+M*/
+#define PetscDeviceCalloc(dctx, mtype, n, ptr) PetscDeviceAllocate_Private((dctx), PETSC_TRUE, (mtype), (size_t)(n) * sizeof(**(ptr)), PETSC_DEVICE_ALIGNOF(**(ptr)), (void **)(ptr))
+
+/*MC
+  PetscDeviceFree - Free device-aware memory
+
+  Synopsis:
+  #include <petscdevice.h>
+  PetscErrorCode PetscDeviceFree(PetscDeviceContext dctx, void *ptr)
+
+  Not Collective, Asynchronous, Auto-dependency aware
+
+  Input Parameters:
++ dctx - The `PetscDeviceContext` used to free the memory
+- ptr  - The pointer to free
+
+  Notes:
+  `ptr` may be `NULL`, and is set to `PETSC_NULLPTR` on successful deallocation.
+
+  `ptr` must have been allocated using `PetscDeviceMalloc()`, `PetscDeviceCalloc()`.
+
+  This routine falls back to using `PetscFree()` if PETSc was not configured with device
+  support. The user should note that `PetscFree()` frees only host memory.
+
+  DAG representation:
+.vb
+  time ->
+
+  -> dctx -/- |= CALL =| - dctx ->
+  -> ptr -/
+.ve
+
+  Level: beginner
+
+.N ASYNC_API
+
+.seealso: `PetscDeviceMalloc()`, `PetscDeviceCalloc()`
+M*/
+#define PetscDeviceFree(dctx, ptr) ((PetscErrorCode)(PetscDeviceDeallocate_Private((dctx), (ptr)) || ((ptr) = PETSC_NULLPTR, PETSC_SUCCESS)))
+
+/*MC
+  PetscDeviceArrayCopy - Copy memory in a device-aware manner
+
+  Synopsis:
+  #include <petscdevice.h>
+  PetscErrorCode PetscDeviceArrayCopy(PetscDeviceContext dctx, void *dest, const void *src, size_t n)
+
+  Not Collective, Asynchronous, Auto-dependency aware
+
+  Input Parameters:
++ dctx - The `PetscDeviceContext` used to copy the memory
+. dest - The pointer to copy to
+. src  - The pointer to copy from
+- n    - The amount (in elements) to copy
+
+  Notes:
+  Both `dest` and `src` must have been allocated using any of `PetscDeviceMalloc()`,
+  `PetscDeviceCalloc()`.
+
+  This uses the `sizeof()` of the `src` memory type requested to determine the total memory to
+  be copied, therefore you should not multiply the number of elements by the `sizeof()` the
+  type\:
+
+.vb
+  PetscInt *to,*from;
+
+  // correct
+  PetscDeviceArrayCopy(dctx,to,from,n);
+
+  // incorrect
+  PetscDeviceArrayCopy(dctx,to,from,n*sizeof(*from));
+.ve
+
+  See `PetscDeviceMemcpy()` for further discussion.
+
+  Level: beginner
+
+.N ASYNC_API
+
+.seealso: `PetscDeviceMalloc()`, `PetscDeviceCalloc()`, `PetscDeviceFree()`,
+`PetscDeviceArrayZero()`, `PetscDeviceMemcpy()`
+M*/
+#define PetscDeviceArrayCopy(dctx, dest, src, n) PetscDeviceMemcpy((dctx), (dest), (src), (size_t)(n) * sizeof(*(src)))
+
+/*MC
+  PetscDeviceArrayZero - Zero memory in a device-aware manner
+
+  Synopsis:
+  #include <petscdevice.h>
+  PetscErrorCode PetscDeviceArrayZero(PetscDeviceContext dctx, void *ptr, size_t n)
+
+  Not Collective, Asynchronous, Auto-dependency aware
+
+  Input Parameters:
++ dctx  - The `PetscDeviceContext` used to zero the memory
+. ptr   - The pointer to the memory
+- n     - The amount (in elements) to zero
+
+  Notes:
+  `ptr` must have been allocated using `PetscDeviceMalloc()` or `PetscDeviceCalloc()`.
+
+  This uses the `sizeof()` of the memory type requested to determine the total memory to be
+  zeroed, therefore you should not multiply the number of elements by the `sizeof()` the type\:
+
+.vb
+  PetscInt *ptr;
+
+  // correct
+  PetscDeviceArrayZero(dctx,ptr,n);
+
+  // incorrect
+  PetscDeviceArrayZero(dctx,ptr,n*sizeof(*ptr));
+.ve
+
+  See `PetscDeviceMemset()` for further discussion.
+
+  Level: beginner
+
+.N ASYNC_API
+
+.seealso: `PetscDeviceMalloc()`, `PetscDeviceCalloc()`, `PetscDeviceFree()`,
+`PetscDeviceArrayCopy()`, `PetscDeviceMemset()`
+M*/
+#define PetscDeviceArrayZero(dctx, ptr, n) PetscDeviceMemset((dctx), (ptr), 0, (size_t)(n) * sizeof(*(ptr)))
+
 #endif /* PETSCDEVICE_H */

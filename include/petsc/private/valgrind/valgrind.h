@@ -89,7 +89,7 @@
         || (__VALGRIND_MAJOR__ == 3 && __VALGRIND_MINOR__ >= 6))
 */
 #define __VALGRIND_MAJOR__    3
-#define __VALGRIND_MINOR__    17
+#define __VALGRIND_MINOR__    19
 
 
 #include <stdarg.h>
@@ -110,6 +110,8 @@
 */
 #undef PLAT_x86_darwin
 #undef PLAT_amd64_darwin
+#undef PLAT_x86_freebsd
+#undef PLAT_amd64_freebsd
 #undef PLAT_x86_win32
 #undef PLAT_amd64_win64
 #undef PLAT_x86_linux
@@ -131,6 +133,10 @@
 #  define PLAT_x86_darwin 1
 #elif defined(__APPLE__) && defined(__x86_64__)
 #  define PLAT_amd64_darwin 1
+#elif defined(__FreeBSD__) && defined(__i386__)
+#  define PLAT_x86_freebsd 1
+#elif defined(__FreeBSD__) && defined(__amd64__)
+#  define PLAT_amd64_freebsd 1
 #elif (defined(__MINGW32__) && defined(__i386__)) \
       || defined(__CYGWIN32__) \
       || (defined(_WIN32) && defined(_M_IX86))
@@ -258,7 +264,7 @@
 
 #if defined(PLAT_x86_linux)  ||  defined(PLAT_x86_darwin)  \
     ||  (defined(PLAT_x86_win32) && defined(__GNUC__)) \
-    ||  defined(PLAT_x86_solaris)
+    ||  defined(PLAT_x86_solaris) || defined(PLAT_x86_freebsd)
 
 typedef
    struct { 
@@ -398,6 +404,7 @@ valgrind_do_client_request_expr(uintptr_t _zzq_default, uintptr_t _zzq_request,
 
 #if defined(PLAT_amd64_linux)  ||  defined(PLAT_amd64_darwin) \
     ||  defined(PLAT_amd64_solaris) \
+    ||  defined(PLAT_amd64_freebsd) \
     ||  (defined(PLAT_amd64_win64) && defined(__GNUC__))
 
 typedef
@@ -1149,7 +1156,7 @@ typedef
 
 /* Use these to write the name of your wrapper.  NOTE: duplicates
    VG_WRAP_FUNCTION_Z{U,Z} in pub_tool_redir.h.  NOTE also: inserts
-   the default behaviour equivalance class tag "0000" into the name.
+   the default behaviour equivalence class tag "0000" into the name.
    See pub_tool_redir.h for details -- normally you don't need to
    think about this, though. */
 
@@ -1219,7 +1226,7 @@ typedef
 /* ----------------- x86-{linux,darwin,solaris} ---------------- */
 
 #if defined(PLAT_x86_linux)  ||  defined(PLAT_x86_darwin) \
-    ||  defined(PLAT_x86_solaris)
+    ||  defined(PLAT_x86_solaris)  || defined(PLAT_x86_freebsd)
 
 /* These regs are trashed by the hidden call.  No need to mention eax
    as gcc can already see that, plus causes gcc to bomb. */
@@ -1651,7 +1658,7 @@ typedef
 /* ---------------- amd64-{linux,darwin,solaris} --------------- */
 
 #if defined(PLAT_amd64_linux)  ||  defined(PLAT_amd64_darwin) \
-    ||  defined(PLAT_amd64_solaris)
+    ||  defined(PLAT_amd64_solaris)  ||  defined(PLAT_amd64_freebsd)
 
 /* ARGREGS: rdi rsi rdx rcx r8 r9 (the rest on stack in R-to-L order) */
 
@@ -1747,7 +1754,7 @@ typedef
 /* NB 9 Sept 07.  There is a nasty kludge here in all these CALL_FN_
    macros.  In order not to trash the stack redzone, we need to drop
    %rsp by 128 before the hidden call, and restore afterwards.  The
-   nastyness is that it is only by luck that the stack still appears
+   nastiness is that it is only by luck that the stack still appears
    to be unwindable during the hidden call - since then the behaviour
    of any routine using this macro does not match what the CFI data
    says.  Sigh.

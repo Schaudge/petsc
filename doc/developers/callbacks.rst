@@ -89,15 +89,14 @@ solver routine for setting a callback a similar routine exists at the
 
     PetscErrorCode KSPSetComputeOperators(KSP ksp,PetscErrorCode (*func)(KSP,Mat,Mat,void*),void *ctx)
     {
-      PetscErrorCode ierr;
-      DM             dm;
+      DM dm;
 
       PetscFunctionBegin;
       PetscValidHeaderSpecific(ksp,KSP_CLASSID,1);
-      ierr = KSPGetDM(ksp,&dm);CHKERRQ(ierr);
-      ierr = DMKSPSetComputeOperators(dm,func,ctx);CHKERRQ(ierr);
+      PetscCall(KSPGetDM(ksp,&dm));
+      PetscCall(DMKSPSetComputeOperators(dm,func,ctx));
       if (ksp->setupstage == KSP_SETUP_NEWRHS) ksp->setupstage = KSP_SETUP_NEWMATRIX;
-      PetscFunctionReturn(0);
+      PetscFunctionReturn(PETSC_SUCCESS);
     }
 
 The implementation of ``DMXXXSetY(DM,...)`` gets a “writable” version of
@@ -108,15 +107,14 @@ function callback and its context into the ``DMXXX`` object.
 
     PetscErrorCode DMKSPSetComputeOperators(DM dm,PetscErrorCode (*func)(KSP,Mat,Mat,void*),void *ctx)
     {
-      PetscErrorCode ierr;
-      DMKSP          kdm;
+      DMKSP kdm;
 
       PetscFunctionBegin;
       PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-      ierr = DMGetDMKSPWrite(dm,&kdm);CHKERRQ(ierr);
+      PetscCall(DMGetDMKSPWrite(dm,&kdm));
       if (func) kdm->ops->computeoperators = func;
       if (ctx) kdm->operatorsctx = ctx;
-      PetscFunctionReturn(0);
+      PetscFunctionReturn(PETSC_SUCCESS);
     }
 
 The routine for ``DMGetDMXXXWrite(DM,DMXXX*)`` entails a duplication of
@@ -128,24 +126,23 @@ seen in the following code.
 
     PetscErrorCode DMGetDMKSPWrite(DM dm,DMKSP *kspdm)
     {
-      PetscErrorCode ierr;
-      DMKSP          kdm;
+      DMKSP kdm;
 
       PetscFunctionBegin;
       PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-      ierr = DMGetDMKSP(dm,&kdm);CHKERRQ(ierr);
+      PetscCall(DMGetDMKSP(dm,&kdm));
       if (!kdm->originaldm) kdm->originaldm = dm;
       if (kdm->originaldm != dm) {  /* Copy on write */
         DMKSP oldkdm = kdm;
-        ierr      = PetscInfo(dm,"Copying DMKSP due to write\n");CHKERRQ(ierr);
-        ierr      = DMKSPCreate(PetscObjectComm((PetscObject)dm),&kdm);CHKERRQ(ierr);
-        ierr      = DMKSPCopy(oldkdm,kdm);CHKERRQ(ierr);
-        ierr      = DMKSPDestroy((DMKSP*)&dm->dmksp);CHKERRQ(ierr);
+        PetscCall(PetscInfo(dm,"Copying DMKSP due to write\n"));
+        PetscCall(DMKSPCreate(PetscObjectComm((PetscObject)dm),&kdm));
+        PetscCall(DMKSPCopy(oldkdm,kdm));
+        PetscCall(DMKSPDestroy((DMKSP*)&dm->dmksp));
         dm->dmksp = (PetscObject)kdm;
         kdm->originaldm = dm;
       }
       *kspdm = kdm;
-      PetscFunctionReturn(0);
+      PetscFunctionReturn(PETSC_SUCCESS);
     }
 
 The routine ``DMGetDMXXX(DM,DMXXX*)`` has the following form.
@@ -154,20 +151,18 @@ The routine ``DMGetDMXXX(DM,DMXXX*)`` has the following form.
 
     PetscErrorCode DMGetDMKSP(DM dm,DMKSP *kspdm)
     {
-      PetscErrorCode ierr;
-
       PetscFunctionBegin;
       PetscValidHeaderSpecific(dm,DM_CLASSID,1);
       *kspdm = (DMKSP) dm->dmksp;
       if (!*kspdm) {
-        ierr      = PetscInfo(dm,"Creating new DMKSP\n");CHKERRQ(ierr);
-        ierr      = DMKSPCreate(PetscObjectComm((PetscObject)dm),kspdm);CHKERRQ(ierr);
+        PetscCall(PetscInfo(dm,"Creating new DMKSP\n"));
+        PetscCall(DMKSPCreate(PetscObjectComm((PetscObject)dm),kspdm));
         dm->dmksp = (PetscObject) *kspdm;
         (*kspdm)->originaldm = dm;
-        ierr      = DMCoarsenHookAdd(dm,DMCoarsenHook_DMKSP,NULL,NULL);CHKERRQ(ierr);
-        ierr      = DMRefineHookAdd(dm,DMRefineHook_DMKSP,NULL,NULL);CHKERRQ(ierr);
+        PetscCall(DMCoarsenHookAdd(dm,DMCoarsenHook_DMKSP,NULL,NULL));
+        PetscCall(DMRefineHookAdd(dm,DMRefineHook_DMKSP,NULL,NULL));
       }
-      PetscFunctionReturn(0);
+      PetscFunctionReturn(PETSC_SUCCESS);
     }
 
 This routine uses ``DMCoarsenHookAdd()`` and ``DMRefineHookAdd()`` to
@@ -179,11 +174,9 @@ when the object is coarsened or refined. The hooks
 
     static PetscErrorCode DMCoarsenHook_DMKSP(DM dm,DM dmc,void *ctx)
     {
-      PetscErrorCode ierr;
-
       PetscFunctionBegin;
-      ierr = DMCopyDMKSP(dm,dmc);CHKERRQ(ierr);
-      PetscFunctionReturn(0);
+      PetscCall(DMCopyDMKSP(dm,dmc));
+      PetscFunctionReturn(PETSC_SUCCESS);
     }
 
 where
@@ -192,17 +185,15 @@ where
 
     PetscErrorCode DMCopyDMKSP(DM dmsrc,DM dmdest)
     {
-      PetscErrorCode ierr;
-
       PetscFunctionBegin;
       PetscValidHeaderSpecific(dmsrc,DM_CLASSID,1);
       PetscValidHeaderSpecific(dmdest,DM_CLASSID,2);
-      ierr          = DMKSPDestroy((DMKSP*)&dmdest->dmksp);CHKERRQ(ierr);
+      PetscCall(DMKSPDestroy((DMKSP*)&dmdest->dmksp));
       dmdest->dmksp = dmsrc->dmksp;
-      ierr          = PetscObjectReference(dmdest->dmksp);CHKERRQ(ierr);
-      ierr          = DMCoarsenHookAdd(dmdest,DMCoarsenHook_DMKSP,NULL,NULL);CHKERRQ(ierr);
-      ierr          = DMRefineHookAdd(dmdest,DMRefineHook_DMKSP,NULL,NULL);CHKERRQ(ierr);
-      PetscFunctionReturn(0);
+      PetscCall(PetscObjectReference(dmdest->dmksp));
+      PetscCall(DMCoarsenHookAdd(dmdest,DMCoarsenHook_DMKSP,NULL,NULL));
+      PetscCall(DMRefineHookAdd(dmdest,DMRefineHook_DMKSP,NULL,NULL));
+      PetscFunctionReturn(PETSC_SUCCESS);
     }
 
 ensures that the new ``DM`` shares the same ``DMXXX`` as the parent

@@ -1,15 +1,8 @@
-ALL: lib
+-include ../../../../../petscdir.mk
 
-CFLAGS   =
-FFLAGS   =
-SOURCEC  = pounders.c gqt.c
-SOURCEF  =
-SOURCEH  = pounders.h
 LIBBASE  = libpetsctao
 MANSEC   = Tao
-LOCDIR   = src/tao/leastsquares/impls/pounders/
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
-include ${PETSC_DIR}/lib/petsc/conf/rules
-include ${PETSC_DIR}/lib/petsc/conf/test
+include ${PETSC_DIR}/lib/petsc/conf/rules.doc
 

@@ -1,58 +1,87 @@
 #include <petsc.h>
 
+#if PetscDefined(HAVE_HYPRE_DEVICE)
+  #include <petsc/private/petschypre.h>
+#endif
+
 static char help[] = "Solves a linear system with a block of right-hand sides, apply a preconditioner to the same block.\n\n";
 
 PetscErrorCode MatApply(PC pc, Mat X, Mat Y)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBeginUser;
-  ierr = MatCopy(X,Y,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(MatCopy(X, Y, SAME_NONZERO_PATTERN));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-int main(int argc,char **args)
+int main(int argc, char **args)
 {
-  Mat                X,B;         /* computed solutions and RHS */
-  Mat                A;           /* linear system matrix */
-  KSP                ksp;         /* linear solver context */
-  PC                 pc;          /* preconditioner context */
-  PetscInt           m = 10;
+  Mat       A, X, B; /* computed solutions and RHS */
+  KSP       ksp;     /* linear solver context */
+  PC        pc;      /* preconditioner context */
+  PetscInt  m = 10;
+  PetscBool flg, transpose = PETSC_FALSE;
 #if defined(PETSC_USE_LOG)
-  PetscLogEvent      event;
+  PetscLogEvent event;
 #endif
   PetscEventPerfInfo info;
-  PetscErrorCode     ierr;
 
-  ierr = PetscInitialize(&argc,&args,NULL,help);if (ierr) return ierr;
-  ierr = PetscLogDefaultBegin();CHKERRQ(ierr);
-  ierr = PetscOptionsGetInt(NULL,NULL,"-m",&m,NULL);CHKERRQ(ierr);
-  ierr = MatCreateAIJ(PETSC_COMM_WORLD,m,m,PETSC_DECIDE,PETSC_DECIDE,m,NULL,m,NULL,&A);CHKERRQ(ierr);
-  ierr = MatCreateDense(PETSC_COMM_WORLD,m,PETSC_DECIDE,PETSC_DECIDE,m,NULL,&B);CHKERRQ(ierr);
-  ierr = MatCreateDense(PETSC_COMM_WORLD,m,PETSC_DECIDE,PETSC_DECIDE,m,NULL,&X);CHKERRQ(ierr);
-  ierr = MatSetRandom(A,NULL);CHKERRQ(ierr);
-  ierr = MatSetOption(A,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE);CHKERRQ(ierr);
-  ierr = MatShift(A,10.0);CHKERRQ(ierr);
-  ierr = MatSetRandom(B,NULL);CHKERRQ(ierr);
-  ierr = KSPCreate(PETSC_COMM_WORLD,&ksp);CHKERRQ(ierr);
-  ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
-  ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);
-  ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
-  ierr = PCShellSetMatApply(pc,MatApply);CHKERRQ(ierr);
-  ierr = KSPMatSolve(ksp,B,X);CHKERRQ(ierr);
-  ierr = PCMatApply(pc,B,X);CHKERRQ(ierr);
-  ierr = MatDestroy(&X);CHKERRQ(ierr);
-  ierr = MatDestroy(&B);CHKERRQ(ierr);
-  ierr = MatDestroy(&A);CHKERRQ(ierr);
-  ierr = KSPDestroy(&ksp);CHKERRQ(ierr);
-  ierr = PetscLogEventRegister("PCApply",PC_CLASSID,&event);CHKERRQ(ierr);
-  ierr = PetscLogEventGetPerfInfo(PETSC_DETERMINE,event,&info);CHKERRQ(ierr);
-  if (PetscDefined(USE_LOG) && m > 1 && info.count) SETERRQ1(PetscObjectComm((PetscObject)ksp),PETSC_ERR_PLIB,"PCApply() called %d times",info.count);
-  ierr = PetscLogEventRegister("PCMatApply",PC_CLASSID,&event);CHKERRQ(ierr);
-  ierr = PetscLogEventGetPerfInfo(PETSC_DETERMINE,event,&info);CHKERRQ(ierr);
-  if (PetscDefined(USE_LOG) && m > 1 && !info.count) SETERRQ(PetscObjectComm((PetscObject)ksp),PETSC_ERR_PLIB,"PCMatApply() never called");
-  ierr = PetscFinalize();
-  return ierr;
+  PetscFunctionBeginUser;
+  PetscCall(PetscInitialize(&argc, &args, NULL, help));
+  PetscCall(PetscLogIsActive(&flg));
+  if (!flg) PetscCall(PetscLogDefaultBegin());
+  PetscCall(PetscOptionsGetInt(NULL, NULL, "-m", &m, NULL));
+  PetscCall(MatCreateAIJ(PETSC_COMM_WORLD, m, m, PETSC_DECIDE, PETSC_DECIDE, m, NULL, m, NULL, &A));
+  PetscCall(MatSetRandom(A, NULL));
+  PetscCall(MatSetOption(A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE));
+  PetscCall(PetscOptionsGetBool(NULL, NULL, "-transpose", &transpose, NULL));
+  if (transpose) {
+    PetscCall(MatTranspose(A, MAT_INITIAL_MATRIX, &B));
+    PetscCall(MatAXPY(A, 1.0, B, DIFFERENT_NONZERO_PATTERN));
+    PetscCall(MatDestroy(&B));
+  }
+  PetscCall(MatShift(A, 10.0));
+  PetscCall(MatCreateDense(PETSC_COMM_WORLD, m, PETSC_DECIDE, PETSC_DECIDE, m, NULL, &B));
+  PetscCall(MatCreateDense(PETSC_COMM_WORLD, m, PETSC_DECIDE, PETSC_DECIDE, m, NULL, &X));
+  PetscCall(MatSetRandom(B, NULL));
+  PetscCall(MatSetFromOptions(A));
+  PetscCall(PetscObjectTypeCompareAny((PetscObject)A, &flg, MATSEQAIJCUSPARSE, MATMPIAIJCUSPARSE, ""));
+  if (flg) {
+    PetscCall(MatConvert(B, MATDENSECUDA, MAT_INPLACE_MATRIX, &B));
+    PetscCall(MatConvert(X, MATDENSECUDA, MAT_INPLACE_MATRIX, &X));
+  }
+  PetscCall(KSPCreate(PETSC_COMM_WORLD, &ksp));
+  PetscCall(KSPSetOperators(ksp, A, A));
+  PetscCall(KSPSetFromOptions(ksp));
+  PetscCall(KSPGetPC(ksp, &pc));
+  PetscCall(PetscObjectTypeCompare((PetscObject)pc, PCHYPRE, &flg));
+  if (flg && PetscDefined(HAVE_HYPRE_DEVICE)) {
+#if defined(HYPRE_USING_HIP)
+    PetscCall(MatConvert(B, MATDENSEHIP, MAT_INPLACE_MATRIX, &B));
+    PetscCall(MatConvert(X, MATDENSEHIP, MAT_INPLACE_MATRIX, &X));
+#elif defined(HYPRE_USING_CUDA)
+    PetscCall(MatConvert(B, MATDENSECUDA, MAT_INPLACE_MATRIX, &B));
+    PetscCall(MatConvert(X, MATDENSECUDA, MAT_INPLACE_MATRIX, &X));
+#endif
+  } else PetscCall(PCShellSetMatApply(pc, MatApply));
+  PetscCall(KSPMatSolve(ksp, B, X));
+  PetscCall(PCMatApply(pc, B, X));
+  if (transpose) {
+    PetscCall(KSPMatSolveTranspose(ksp, B, X));
+    PetscCall(PCMatApply(pc, B, X));
+    PetscCall(KSPMatSolve(ksp, B, X));
+  }
+  PetscCall(MatDestroy(&X));
+  PetscCall(MatDestroy(&B));
+  PetscCall(MatDestroy(&A));
+  PetscCall(KSPDestroy(&ksp));
+  PetscCall(PetscLogEventRegister("PCApply", PC_CLASSID, &event));
+  PetscCall(PetscLogEventGetPerfInfo(PETSC_DETERMINE, event, &info));
+  PetscCheck(!PetscDefined(USE_LOG) || m <= 1 || !info.count, PetscObjectComm((PetscObject)ksp), PETSC_ERR_PLIB, "PCApply() called %d times", info.count);
+  PetscCall(PetscLogEventRegister("PCMatApply", PC_CLASSID, &event));
+  PetscCall(PetscLogEventGetPerfInfo(PETSC_DETERMINE, event, &info));
+  PetscCheck(!PetscDefined(USE_LOG) || m <= 1 || info.count, PetscObjectComm((PetscObject)ksp), PETSC_ERR_PLIB, "PCMatApply() never called");
+  PetscCall(PetscFinalize());
+  return 0;
 }
 
 /*TEST
@@ -150,5 +179,43 @@ int main(int argc,char **args)
          output_file: output/ex77_preonly.out
          requires: hpddm
          args: -ksp_type hpddm -ksp_hpddm_type preonly
+
+   testset:
+      nsize: 1
+      requires: hpddm cuda
+      args: -mat_type aijcusparse -ksp_type hpddm
+      test:
+         suffix: 8_hpddm
+         output_file: output/ex77_preonly.out
+      test:
+         suffix: 8_hpddm_transpose
+         output_file: output/ex77_preonly.out
+         args: -pc_type icc -transpose
+
+   testset:
+      nsize: 1
+      args: -pc_type {{cholesky icc none}shared output} -transpose
+      test:
+         suffix: 1_transpose
+         output_file: output/ex77_preonly.out
+         args: -ksp_type preonly
+      test:
+         suffix: 1_hpddm_transpose
+         output_file: output/ex77_preonly.out
+         requires: hpddm
+         args: -ksp_type hpddm -ksp_hpddm_type preonly
+
+   testset:
+      requires: hypre !complex
+      args: -pc_type hypre -pc_hypre_boomeramg_relax_type_all l1scaled-Jacobi -pc_hypre_boomeramg_no_CF
+      test:
+         suffix: 9
+         output_file: output/ex77_preonly.out
+         args: -ksp_type preonly
+      test:
+         suffix: 9_hpddm
+         output_file: output/ex77_preonly.out
+         requires: hpddm !hip
+         args: -ksp_type hpddm -ksp_max_it 15 -ksp_error_if_not_converged
 
 TEST*/

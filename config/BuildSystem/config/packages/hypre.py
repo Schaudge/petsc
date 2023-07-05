@@ -4,19 +4,19 @@ import os
 class Configure(config.package.GNUPackage):
   def __init__(self, framework):
     config.package.GNUPackage.__init__(self, framework)
-    self.version         = '2.23.0'
+    self.version         = '2.29.0'
     self.minversion      = '2.14'
     self.versionname     = 'HYPRE_RELEASE_VERSION'
     self.versioninclude  = 'HYPRE_config.h'
     self.requiresversion = 1
     self.gitcommit       = 'v'+self.version
+    # self.gitcommit       = '5e0bf05b42d856022d0a4d5c9294dfbe64cd5675' # master, june-20-2023
     self.download        = ['git://https://github.com/hypre-space/hypre','https://github.com/hypre-space/hypre/archive/'+self.gitcommit+'.tar.gz']
     self.functions       = ['HYPRE_IJMatrixCreate']
     self.includes        = ['HYPRE.h']
     self.liblist         = [['libHYPRE.a']]
-    self.license         = 'https://computation.llnl.gov/casc/linear_solvers/sls_hypre.html'
+    self.buildLanguages  = ['C','Cxx']
     # Per hypre users guide section 7.5 - install manually on windows for MS compilers.
-    self.downloadonWindows = 0
     self.precisions        = ['double']
     # HYPRE is supposed to work with complex number
     #self.complex           = 0
@@ -49,12 +49,10 @@ class Configure(config.package.GNUPackage):
   def formGNUConfigureArgs(self):
     self.packageDir = os.path.join(self.packageDir,'src')
     args = config.package.GNUPackage.formGNUConfigureArgs(self)
-    if not hasattr(self.compilers, 'CXX'):
-      raise RuntimeError('Error: Hypre requires C++ compiler. None specified')
     if not hasattr(self.compilers, 'FC'):
       args.append('--disable-fortran')
     if self.mpi.include:
-      # just use the first dir - and assume the subsequent one isn't necessary [relavant only on AIX?]
+      # just use the first dir - and assume the subsequent one isn't necessary [relevant only on AIX?]
       args.append('--with-MPI-include="'+self.mpi.include[0]+'"')
     libdirs = []
     for l in self.mpi.lib:
@@ -90,6 +88,7 @@ class Configure(config.package.GNUPackage):
     cudabuild = False
     hasharch = 'with-gpu-arch' in args
     if self.hip.found:
+      stdflag  = '-std=c++14'
       hipbuild = True
       args.append('--with-hip')
       if not hasharch:
@@ -102,25 +101,26 @@ class Configure(config.package.GNUPackage):
           args.append('--with-gpu-arch='+self.argDB['with-hypre-gpu-arch'])
       self.pushLanguage('HIP')
       cucc = self.getCompiler()
-      devflags += ' -x hip -std=c++14 '
+      devflags += ' '.join(('','-x','hip',stdflag,''))
       devflags += self.getCompilerFlags() + ' ' + self.setCompilers.HIPPPFLAGS + ' ' + self.mpi.includepaths + ' ' + self.headers.toString(self.dinclude)
       devflags = devflags.replace('-fvisibility=hidden','')
       self.popLanguage()
     elif self.cuda.found:
+      stdflag   = '-std=c++11'
       cudabuild = True
       args.append('CUDA_HOME="'+self.cuda.cudaDir+'"')
       args.append('--with-cuda')
       if not hasharch:
         if not 'with-hypre-gpu-arch' in self.framework.clArgDB:
           if hasattr(self.cuda,'cudaArch'):
-            args.append('--with-gpu-arch=' + self.cuda.cudaArch)
+            args.append('--with-gpu-arch="' + ' '.join(self.cuda.cudaArchList()) + '"')
           else:
             args.append('--with-gpu-arch=70') # default
         else:
           args.append('--with-gpu-arch='+self.argDB['with-hypre-gpu-arch'])
       self.pushLanguage('CUDA')
       cucc = self.getCompiler()
-      devflags += ' -expt-extended-lambda -std=c++11 --x cu '
+      devflags += ' '.join(('','-expt-extended-lambda',stdflag,'-x','cu',''))
       devflags += self.getCompilerFlags() + ' ' + self.setCompilers.CUDAPPFLAGS + ' ' + self.mpi.includepaths+ ' ' + self.headers.toString(self.dinclude)
       self.popLanguage()
     elif self.openmp.found:
@@ -143,7 +143,7 @@ class Configure(config.package.GNUPackage):
     args.append('--without-superlu')
 
     if self.getDefaultIndexSize() == 64:
-      if cudabuild: # HYPRE 2.23 supports only mixedint configurations with CUDA
+      if cudabuild or hipbuild: # HYPRE 2.23 supports only mixedint configurations with CUDA/HIP
         args.append('--enable-bigint=no --enable-mixedint=yes')
       else:
         args.append('--enable-bigint')
@@ -161,12 +161,20 @@ class Configure(config.package.GNUPackage):
     args.append('LDFLAGS="'+self.setCompilers.LDFLAGS.replace('-dynamic','')+'"')
 
     # Prevent NVCC from complaining about different standards
-    if cudabuild:
-      args = [arg.replace('-std=gnu++14','-std=c++11') for arg in args]
-      args = [arg.replace('-std=c++14','-std=c++11') for arg in args]
-      args = [arg.replace('-std=c++17','-std=c++11') for arg in args]
-    if hipbuild:
-      args = [arg.replace('-std=c++17','-std=c++14') for arg in args]
+    if cudabuild or hipbuild:
+      for dialect in ('20','17','14','11'):
+        if dialect < stdflag[-2:]:
+          break
+        gnuflag = '-std=gnu++'+dialect
+        cppflag = '-std=c++'+dialect
+        args    = [a.replace(gnuflag,stdflag).replace(cppflag,stdflag) for a in args]
+
+    # On MSYS2, need to bypass the following error by forcing the architecture
+    # configure:2898: checking host system type
+    # configure:2911: result:
+    # configure:2915: error: invalid value of canonical host
+    if 'MSYSTEM' in os.environ and os.environ['MSYSTEM'].endswith('64'):
+      args.append('--host=x86_64-linux-gnu')
 
     return args
 

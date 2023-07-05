@@ -16,6 +16,7 @@ class BaseTestObject(object):
 
     def tearDown(self):
         self.obj = None
+        PETSc.garbage_cleanup()
 
     def testTypeRegistry(self):
         type_reg = PETSc.__type_registry__
@@ -265,6 +266,14 @@ class TestObjectDMLabel(BaseTestObject, unittest.TestCase):
     CLASS  = PETSc.DMLabel
     FACTORY = 'create'
     TARGS = ("test",)
+
+class TestObjectSpace(BaseTestObject, unittest.TestCase):
+    CLASS  = PETSc.Space
+    FACTORY = 'create'
+
+class TestObjectDualSpace(BaseTestObject, unittest.TestCase):
+    CLASS  = PETSc.DualSpace
+    FACTORY = 'create'
 
 # --------------------------------------------------------------------
 

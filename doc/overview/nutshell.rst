@@ -2,59 +2,86 @@
 PETSc in a nutshell
 ===================
 
-PETSc/TAO is a tool for writing, analyzing, and optimizing properties of large-scale numerical simulations.
+See :any:`handson` to immediately jump in and run PETSc code.
 
-.. image:: /images/docs/manual/library_structure.svg
+PETSc/TAO is a tool for writing, analyzing, and optimizing large-scale numerical simulations.
+
+.. image:: /images/manual/library_structure.svg
    :alt: PETSc Structure Diagram
    :align: center
 
 Algebraic objects
 =================
 
-- ``Vec`` - containers for simulation solutions, right hand sides of linear systems, etc.
+* :any:`Vectors <ch_vectors>` - containers for simulation solutions, right hand sides of linear systems, etc (``Vec``).
 
-- ``Mat`` - contain Jacobians and operators that define linear systems
+* :any:`Matrices <ch_matrices>`  - contain Jacobians and operators that define linear systems (``Mat``).
 
-- ``IS`` indices - used to access portions of vectors and matrix, for example {1,2,4} or 1:10
+  * :any:`Multiple sparse and dense matrix storage formats<doc_matrix>`,
+
+  * :any:`Limited memory variable metric representations<sec_matlmvm>`,
+
+  * :any:`block<sec_block_matrices>` and :any:`nested<sec_matnest>` representations,
+
+  * :any:`Easy, efficient matrix assembly and interface <sec_matcreate>`.
+
+* Indices - used to access portions of vectors and matrix, for example {1,2,4} or 1:10 (``IS``).
 
 Solvers
 =======
 
-- ``PC`` preconditioners - approximate solvers to algebra systems without a history of previous iterations
+* :any:`Linear solvers<ch_ksp>` based on preconditioners (``PC``) and Krylov subspace methods (``KSP``).
 
-- ``KSP`` Krylov Subspace methods - approximate solvers with a history of previous iterations
+* :any:`Nonlinear solvers <ch_snes>` (``SNES``).
 
-- ``SNES`` nolinear equation solvers
+* :any:`Time integrators <ch_ts>`, (ODE/PDE), explicit, implicit, IMEX, (``TS``)
 
-- ``TS`` time integrators (ODE/PDE), explicit, implicit, local and global error estimators
+  * Local and global error estimators
 
-- ``TSAdjoint`` derivatives/sensitivities of functions of ODE/PDE integration solutions
+  * :any:`section_sa`.
 
-- ``TAO`` - optimization, with equality and inequality constraints, first and second order (Newton) methods
+* :any:`Optimization <ch_tao>` with equality and inequality constraints, first and second order (Newton) methods (``Tao``).
 
-Connectors of continuum models, meshes, and discretizations to solvers and algebraic objects
-============================================================================================
+* Eigenvalue/Eigenvectors and related algorithms in the package `SLEPc <https://slepc.upv.es>`__.
 
-- ``DMDA`` - for simulations computed on simple structured grids
+Model/Discretization Interfaces to Solvers
+==========================================
 
-- ``DMSTAG`` - for simulations computed on staggered grids
+* Simple structured grids, ``DMDA``.
 
-- ``DMPLEX``  - for simulation computed on unstructured meshes
+* Staggered grids, :any:`ch_stag`, ``DMSTAG``.
 
-- ``DMNETWORK`` - for simulations on networks or graphs, for example the power grid, river networks, the nervous system
+* Unstructured grids, :any:`ch_unstructured`, ``DMPLEX``.
 
-- ``DMP4EST`` - for simulations on collections of quad or octree meshes
+* Networks/graphs, for example the power grid, river networks, the nervous system, :any:`ch_network`, ``DMNETWORK``.
 
-- ``DMSWARM`` - for simulations on particles
+* Quad or octree grids, ``DMFOREST``.
 
+* Particles, ``DMSWARM``.
 
-Utilities
-=========
+.. seealso::
 
-- ``PetscOptions`` - control of discretization and solution process
+   For full feature list see:
 
-- ``PetscViewer`` - visualizing algebraic objects, solvers, connectors
+   - :ref:`Vector table <doc_vector>`
+   - :ref:`Matrix table <doc_matrix>`
+   - :ref:`Linear solvers table <doc_linsolve>`
+   - :ref:`Nonlinear solvers table <doc_nonlinsolve>`
+   - :ref:`ODE integrators table <integrator_table>`
+   - :ref:`Optimizers table <doc_taosolve>`
+   - :ref:`Model/discretization interfaces to solvers table <dm_table>`
 
-- Monitor - monitoring of solution progress
+Utilities for Simulations/Solvers
+=================================
 
-- ``Profiling`` - profiling of the performance of the simulation solution process
+Runtime
+
+* control of the simulation, :any:`sec_options`
+
+* visualization of the solvers and simulation, :any:`sec_viewers`,
+
+* :any:`monitoring <sec_kspmonitor>` of solution progress,
+
+* :any:`ch_profiling` of the performance,
+
+* robust :any:`sec_errors`.

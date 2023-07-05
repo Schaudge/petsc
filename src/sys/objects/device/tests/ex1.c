@@ -1,98 +1,108 @@
 static const char help[] = "Tests creation and destruction of PetscDevice.\n\n";
 
-#include <petsc/private/deviceimpl.h>
 #include "petscdevicetestcommon.h"
 
 int main(int argc, char *argv[])
 {
-  const PetscInt n = 10;
+  const PetscInt n      = 10;
   PetscDevice    device = NULL;
-  PetscDevice    devices[n];
-  PetscErrorCode ierr;
+  PetscDevice    devices[10];
 
-  ierr = PetscInitialize(&argc,&argv,NULL,help);if (ierr) return ierr;
+  PetscFunctionBeginUser;
+  PetscCall(PetscInitialize(&argc, &argv, NULL, help));
+  // would have just done
+  //
+  // const PetscInt n = 10;
+  // PetscDevice devices[n];
+  //
+  // but alas the reliably insane MSVC balks at this to the tune of
+  // 'ex1.c(9): error C2057: expected constant expression'. So instead we have a runtime check
+  PetscCheck(PETSC_STATIC_ARRAY_LENGTH(devices) == n, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Forgot to update n");
 
   /* normal create and destroy */
-  ierr = PetscDeviceCreate(PETSC_DEVICE_DEFAULT,PETSC_DECIDE,&device);CHKERRQ(ierr);
-  ierr = AssertDeviceExists(device);CHKERRQ(ierr);
-  ierr = PetscDeviceDestroy(&device);CHKERRQ(ierr);
-  ierr = AssertDeviceDoesNotExist(device);CHKERRQ(ierr);
+  PetscCall(PetscDeviceCreate(PETSC_DEVICE_DEFAULT(), PETSC_DECIDE, &device));
+  PetscCall(AssertDeviceExists(device));
+  PetscCall(PetscDeviceDestroy(&device));
+  PetscCall(AssertDeviceDoesNotExist(device));
   /* should not destroy twice */
-  ierr = PetscDeviceDestroy(&device);CHKERRQ(ierr);
-  ierr = AssertDeviceDoesNotExist(device);CHKERRQ(ierr);
+  PetscCall(PetscDeviceDestroy(&device));
+  PetscCall(AssertDeviceDoesNotExist(device));
 
   /* test reference counting */
   device = NULL;
-  ierr = PetscArrayzero(devices,n);CHKERRQ(ierr);
-  ierr = PetscDeviceCreate(PETSC_DEVICE_DEFAULT,PETSC_DECIDE,&device);CHKERRQ(ierr);
-  ierr = AssertDeviceExists(device);CHKERRQ(ierr);
+  PetscCall(PetscArrayzero(devices, n));
+  PetscCall(PetscDeviceCreate(PETSC_DEVICE_DEFAULT(), PETSC_DECIDE, &device));
+  PetscCall(AssertDeviceExists(device));
   for (int i = 0; i < n; ++i) {
-    ierr = PetscDeviceReference_Internal(device);CHKERRQ(ierr);
+    PetscCall(PetscDeviceReference_Internal(device));
     devices[i] = device;
   }
-  ierr = AssertDeviceExists(device);CHKERRQ(ierr);
+  PetscCall(AssertDeviceExists(device));
   for (int i = 0; i < n; ++i) {
-    ierr = PetscDeviceDestroy(&devices[i]);CHKERRQ(ierr);
-    ierr = AssertDeviceExists(device);CHKERRQ(ierr);
-    ierr = AssertDeviceDoesNotExist(devices[i]);CHKERRQ(ierr);
+    PetscCall(PetscDeviceDestroy(&devices[i]));
+    PetscCall(AssertDeviceExists(device));
+    PetscCall(AssertDeviceDoesNotExist(devices[i]));
   }
-  ierr = PetscDeviceDestroy(&device);CHKERRQ(ierr);
-  ierr = AssertDeviceDoesNotExist(device);CHKERRQ(ierr);
+  PetscCall(PetscDeviceDestroy(&device));
+  PetscCall(AssertDeviceDoesNotExist(device));
 
   /* test the default devices exist */
   device = NULL;
-  ierr = PetscArrayzero(devices,n);CHKERRQ(ierr);
+  PetscCall(PetscArrayzero(devices, n));
   {
     PetscDeviceContext dctx;
     /* global context will have the default device */
-    ierr = PetscDeviceContextGetCurrentContext(&dctx);CHKERRQ(ierr);
-    ierr = PetscDeviceContextGetDevice(dctx,&device);CHKERRQ(ierr);
+    PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+    PetscCall(PetscDeviceContextGetDevice(dctx, &device));
   }
-  ierr = AssertDeviceExists(device);CHKERRQ(ierr);
+  PetscCall(AssertDeviceExists(device));
   /* test reference counting for default device */
   for (int i = 0; i < n; ++i) {
-    ierr = PetscDeviceReference_Internal(device);CHKERRQ(ierr);
+    PetscCall(PetscDeviceReference_Internal(device));
     devices[i] = device;
   }
-  ierr = AssertDeviceExists(device);CHKERRQ(ierr);
+  PetscCall(AssertDeviceExists(device));
   for (int i = 0; i < n; ++i) {
-    ierr = PetscDeviceDestroy(&devices[i]);CHKERRQ(ierr);
-    ierr = AssertDeviceExists(device);CHKERRQ(ierr);
-    ierr = AssertDeviceDoesNotExist(devices[i]);CHKERRQ(ierr);
+    PetscCall(PetscDeviceDestroy(&devices[i]));
+    PetscCall(AssertDeviceExists(device));
+    PetscCall(AssertDeviceDoesNotExist(devices[i]));
   }
 
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"EXIT_SUCCESS\n");CHKERRQ(ierr);
-  ierr = PetscFinalize();
-  return ierr;
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "EXIT_SUCCESS\n"));
+  PetscCall(PetscFinalize());
+  return 0;
 }
 
 /*TEST
 
- build:
-   requires: defined(PETSC_HAVE_CXX_DIALECT_CXX11)
+  testset:
+    requires: cxx
+    output_file: ./output/ExitSuccess.out
+    nsize: {{1 2 5}}
+    args: -device_enable {{none lazy eager}}
+    test:
+      requires: !device
+      suffix: host_no_device
+    test:
+      requires: device
+      args: -default_device_type host
+      suffix: host_with_device
+    test:
+      requires: cuda
+      args: -default_device_type cuda
+      suffix: cuda
+    test:
+      requires: hip
+      args: -default_device_type hip
+      suffix: hip
+    test:
+      requires: sycl
+      args: -default_device_type sycl
+      suffix: sycl
 
- testset:
-   requires: !device
-   suffix: no_device
-   filter: Error: grep -E -o -e ".*No support for this operation for this object type" -e ".*PETSc is not configured with device support.*" -e "^\[0\]PETSC ERROR:.*[0-9]{1} [A-z]+\(\)"
-   test:
-     requires: debug
-     suffix:   debug
-   test:
-     requires: !debug
-     suffix:   opt
-
- testset:
-   output_file: ./output/ExitSuccess.out
-   nsize: {{1 2 5}}
-   test:
-     requires: cuda
-     suffix: cuda
-   test:
-     requires: hip
-     suffix: hip
-   test:
-     requires: sycl
-     suffix: sycl
+  testset:
+    requires: !cxx
+    output_file: ./output/ExitSuccess.out
+    suffix: no_cxx
 
 TEST*/

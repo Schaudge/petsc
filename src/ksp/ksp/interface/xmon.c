@@ -1,93 +1,89 @@
 
-#include <petsc/private/kspimpl.h>              /*I  "petscksp.h"   I*/
+#include <petsc/private/kspimpl.h> /*I  "petscksp.h"   I*/
 #include <petscdraw.h>
 
-PetscErrorCode KSPMonitorLGCreate(MPI_Comm comm,const char host[],const char label[],const char metric[],PetscInt l,const char *names[],int x,int y,int m,int n,PetscDrawLG *lgctx)
+PetscErrorCode KSPMonitorLGCreate(MPI_Comm comm, const char host[], const char label[], const char metric[], PetscInt l, const char *names[], int x, int y, int m, int n, PetscDrawLG *lgctx)
 {
-  PetscDraw      draw;
-  PetscDrawAxis  axis;
-  PetscDrawLG    lg;
-  PetscErrorCode ierr;
+  PetscDraw     draw;
+  PetscDrawAxis axis;
+  PetscDrawLG   lg;
 
   PetscFunctionBegin;
-  ierr = PetscDrawCreate(comm,host,label,x,y,m,n,&draw);CHKERRQ(ierr);
-  ierr = PetscDrawSetFromOptions(draw);CHKERRQ(ierr);
-  ierr = PetscDrawLGCreate(draw,l,&lg);CHKERRQ(ierr);
-  if (names) {ierr = PetscDrawLGSetLegend(lg,names);CHKERRQ(ierr);}
-  ierr = PetscDrawLGSetFromOptions(lg);CHKERRQ(ierr);
-  ierr = PetscDrawLGGetAxis(lg,&axis);CHKERRQ(ierr);
-  ierr = PetscDrawAxisSetLabels(axis,"Convergence","Iteration",metric);CHKERRQ(ierr);
-  ierr = PetscDrawDestroy(&draw);CHKERRQ(ierr);
+  PetscCall(PetscDrawCreate(comm, host, label, x, y, m, n, &draw));
+  PetscCall(PetscDrawSetFromOptions(draw));
+  PetscCall(PetscDrawLGCreate(draw, l, &lg));
+  if (names) PetscCall(PetscDrawLGSetLegend(lg, names));
+  PetscCall(PetscDrawLGSetFromOptions(lg));
+  PetscCall(PetscDrawLGGetAxis(lg, &axis));
+  PetscCall(PetscDrawAxisSetLabels(axis, "Convergence", "Iteration", metric));
+  PetscCall(PetscDrawDestroy(&draw));
   *lgctx = lg;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode KSPMonitorLGRange(KSP ksp,PetscInt n,PetscReal rnorm,void *monctx)
+PetscErrorCode KSPMonitorLGRange(KSP ksp, PetscInt n, PetscReal rnorm, void *monctx)
 {
   PetscDrawLG      lg;
-  PetscErrorCode   ierr;
-  PetscReal        x,y,per;
+  PetscReal        x, y, per;
   PetscViewer      v = (PetscViewer)monctx;
   static PetscReal prev; /* should be in the context */
   PetscDraw        draw;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(v,PETSC_VIEWER_CLASSID,4);
+  PetscValidHeaderSpecific(v, PETSC_VIEWER_CLASSID, 4);
 
-  ierr = KSPMonitorRange_Private(ksp,n,&per);CHKERRQ(ierr);
+  PetscCall(KSPMonitorRange_Private(ksp, n, &per));
   if (!n) prev = rnorm;
 
-  ierr = PetscViewerDrawGetDrawLG(v,0,&lg);CHKERRQ(ierr);
-  if (!n) {ierr = PetscDrawLGReset(lg);CHKERRQ(ierr);}
-  ierr = PetscDrawLGGetDraw(lg,&draw);CHKERRQ(ierr);
-  ierr = PetscDrawSetTitle(draw,"Residual norm");CHKERRQ(ierr);
-  x    = (PetscReal) n;
+  PetscCall(PetscViewerDrawGetDrawLG(v, 0, &lg));
+  if (!n) PetscCall(PetscDrawLGReset(lg));
+  PetscCall(PetscDrawLGGetDraw(lg, &draw));
+  PetscCall(PetscDrawSetTitle(draw, "Residual norm"));
+  x = (PetscReal)n;
   if (rnorm > 0.0) y = PetscLog10Real(rnorm);
   else y = -15.0;
-  ierr = PetscDrawLGAddPoint(lg,&x,&y);CHKERRQ(ierr);
+  PetscCall(PetscDrawLGAddPoint(lg, &x, &y));
   if (n < 20 || !(n % 5) || ksp->reason) {
-    ierr = PetscDrawLGDraw(lg);CHKERRQ(ierr);
-    ierr = PetscDrawLGSave(lg);CHKERRQ(ierr);
+    PetscCall(PetscDrawLGDraw(lg));
+    PetscCall(PetscDrawLGSave(lg));
   }
 
-  ierr = PetscViewerDrawGetDrawLG(v,1,&lg);CHKERRQ(ierr);
-  if (!n) {ierr = PetscDrawLGReset(lg);CHKERRQ(ierr);}
-  ierr = PetscDrawLGGetDraw(lg,&draw);CHKERRQ(ierr);
-  ierr = PetscDrawSetTitle(draw,"% elemts > .2*max elemt");CHKERRQ(ierr);
-  x    = (PetscReal) n;
-  y    = 100.0*per;
-  ierr = PetscDrawLGAddPoint(lg,&x,&y);CHKERRQ(ierr);
+  PetscCall(PetscViewerDrawGetDrawLG(v, 1, &lg));
+  if (!n) PetscCall(PetscDrawLGReset(lg));
+  PetscCall(PetscDrawLGGetDraw(lg, &draw));
+  PetscCall(PetscDrawSetTitle(draw, "% elements > .2*max element"));
+  x = (PetscReal)n;
+  y = 100.0 * per;
+  PetscCall(PetscDrawLGAddPoint(lg, &x, &y));
   if (n < 20 || !(n % 5) || ksp->reason) {
-    ierr = PetscDrawLGDraw(lg);CHKERRQ(ierr);
-    ierr = PetscDrawLGSave(lg);CHKERRQ(ierr);
+    PetscCall(PetscDrawLGDraw(lg));
+    PetscCall(PetscDrawLGSave(lg));
   }
 
-  ierr = PetscViewerDrawGetDrawLG(v,2,&lg);CHKERRQ(ierr);
-  if (!n) {ierr = PetscDrawLGReset(lg);CHKERRQ(ierr);}
-  ierr = PetscDrawLGGetDraw(lg,&draw);CHKERRQ(ierr);
-  ierr = PetscDrawSetTitle(draw,"(norm-oldnorm)/oldnorm");CHKERRQ(ierr);
-  x    = (PetscReal) n;
-  y    = (prev - rnorm)/prev;
-  ierr = PetscDrawLGAddPoint(lg,&x,&y);CHKERRQ(ierr);
+  PetscCall(PetscViewerDrawGetDrawLG(v, 2, &lg));
+  if (!n) PetscCall(PetscDrawLGReset(lg));
+  PetscCall(PetscDrawLGGetDraw(lg, &draw));
+  PetscCall(PetscDrawSetTitle(draw, "(norm-oldnorm)/oldnorm"));
+  x = (PetscReal)n;
+  y = (prev - rnorm) / prev;
+  PetscCall(PetscDrawLGAddPoint(lg, &x, &y));
   if (n < 20 || !(n % 5) || ksp->reason) {
-    ierr = PetscDrawLGDraw(lg);CHKERRQ(ierr);
-    ierr = PetscDrawLGSave(lg);CHKERRQ(ierr);
+    PetscCall(PetscDrawLGDraw(lg));
+    PetscCall(PetscDrawLGSave(lg));
   }
 
-  ierr = PetscViewerDrawGetDrawLG(v,3,&lg);CHKERRQ(ierr);
-  if (!n) {ierr = PetscDrawLGReset(lg);CHKERRQ(ierr);}
-  ierr = PetscDrawLGGetDraw(lg,&draw);CHKERRQ(ierr);
-  ierr = PetscDrawSetTitle(draw,"(norm -oldnorm)/oldnorm*(% > .2 max)");CHKERRQ(ierr);
-  x    = (PetscReal) n;
-  y    = (prev - rnorm)/(prev*per);
-  if (n > 5) {
-    ierr = PetscDrawLGAddPoint(lg,&x,&y);CHKERRQ(ierr);
-  }
+  PetscCall(PetscViewerDrawGetDrawLG(v, 3, &lg));
+  if (!n) PetscCall(PetscDrawLGReset(lg));
+  PetscCall(PetscDrawLGGetDraw(lg, &draw));
+  PetscCall(PetscDrawSetTitle(draw, "(norm -oldnorm)/oldnorm*(% > .2 max)"));
+  x = (PetscReal)n;
+  y = (prev - rnorm) / (prev * per);
+  if (n > 5) PetscCall(PetscDrawLGAddPoint(lg, &x, &y));
   if (n < 20 || !(n % 5) || ksp->reason) {
-    ierr = PetscDrawLGDraw(lg);CHKERRQ(ierr);
-    ierr = PetscDrawLGSave(lg);CHKERRQ(ierr);
+    PetscCall(PetscDrawLGDraw(lg));
+    PetscCall(PetscDrawLGSave(lg));
   }
 
   prev = rnorm;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

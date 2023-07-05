@@ -1,13 +1,12 @@
 .. _doc_config_faq:
 
-#####################
-Configuring PETSc FAQ
-#####################
+#################
+Configuring PETSc
+#################
 
 .. important::
 
-   Please obtain PETSc via the repository or download the latest patched tarball. See
-   :ref:`download documentation <doc_download>` for more information.
+   Obtain PETSc via the repository or download the latest tarball: :ref:`download documentation <doc_download>`.
 
    See :ref:`quick-start tutorial <tut_install>` for a step-by-step walk-through of the installation process.
 
@@ -71,7 +70,7 @@ Common Example Usages
    :class: yellow
 
    Do not specify ``--with-cc``, ``--with-fc`` etc for the above when using
-   ``--with-mpi-dir`` - so that ``mpicc``/ ``mpif90`` can be picked up from mpi-dir!
+   ``--with-mpi-dir`` - so that ``mpicc``/ ``mpif90`` will be picked up from mpi-dir!
 
 * Build Complex version of PETSc (using c++ compiler):
 
@@ -114,7 +113,7 @@ Compilers
 .. important::
 
    It's best to use MPI compilers as this will avoid the situation where MPI is compiled
-   with one set of compilers (like ``gcc``/``gfortran``) and user specified incompatible
+   with one set of compilers (like ``gcc``/``gfortran``) and the user specified incompatible
    compilers to PETSc (perhaps ``icc``/``ifort``). This can be done by either specifying
    ``--with-cc=mpicc`` or ``--with-mpi-dir`` (and not ``--with-cc=gcc``)
 
@@ -268,10 +267,6 @@ The following modes can be used to download/install :ref:`external packages
      ``--with-PACKAGENAME-dir``. Architectures like Microsoft Windows might have issues
      with these options. In these cases, ``--with-PACKAGENAME-include`` and
      ``--with-PACKAGENAME-lib`` options should be preferred.
-   - If you want to download a compatible external package manually, then the URL for this
-     package is listed in configure source for this package. For example, check
-     ``config/BuildSystem/config/packages/SuperLU.py`` for the url for download this
-     package.
 
 - ``--with-packages-build-dir=PATH``: By default, external packages will be unpacked and
   the build process is run in ``$PETSC_DIR/$PETSC_ARCH/externalpackages``. However one
@@ -360,7 +355,7 @@ It's best to install PETSc with MPI compiler wrappers (often called ``mpicc``,
 build PETSc. See the section on :ref:`compilers <doc_config_compilers>` above for more
 details.
 
-- Vendor provided MPI might already be installed. IBM, SGI, Cray etc provide their own:
+- Vendor provided MPI might already be installed. IBM, Intel, NVIDIA, and Cray provide their own:
 
   .. code-block:: console
 
@@ -409,6 +404,46 @@ or when running a code compiled with `OpenMPI`_:
 .. code-block:: text
 
    error while loading shared libraries: libmpi.so.0: cannot open shared object file: No such file or directory
+
+.. _doc_macos_install:
+
+Installing On macOS
+===================
+
+For development on macOS we recommend installing **both** the Apple Xcode GUI development system (install from the Apple macOS store) and the Xcode Command Line tools [#]_ install with
+
+.. code-block:: console
+
+   $ xcode-select --install
+
+The Apple compilers are ``clang`` and ``clang++`` [#]_. Apple also provides ``/usr/bin/gcc``, which is, confusingly, a wrapper to the ``clang`` compiler, not the GNU compiler.
+
+We also recommend installing the package manager `homebrew <https://brew.sh/>`__.  To install ``gfortran`` one can use
+
+.. code-block:: console
+
+   $ brew update
+   $ brew list            # Show all packages installed through brew
+   $ brew upgrade         # Update packages already installed through brew
+   $ brew install gcc
+
+This installs gfortran, gcc, and g++  with the compiler names
+``gfortran-version`` (also available as ``gfortran``), ``gcc-version`` and ``g++-version``, for example ``gfortran-12``, ``gcc-12``, and ``g++-12``.
+
+After upgrading macOS, you generally need to update the Xcode GUI development system (using the standard Apple software update system),
+and the Xcode Command Line tools (run ``xcode-select --install`` again).
+
+Its best to update ``brew`` after all macOS or Xcode upgrades (use ``brew upgrade``). Sometimes gfortran will not work correctly after an upgrade. If this happens
+it is best to reinstall all ``brew`` packages using, for example,
+
+.. code-block:: console
+
+   $ brew leaves > leaves.lst      # save packages list to re-install
+   $ emacs leaves.lst 	           # edit leaves.lst to remove any un-needed pkgs
+   $ brew uninstall `brew list`	   # delete all installed packages
+   $ brew cleanup
+   $ brew update
+   $ brew install `cat leaves.lst` # install needed packages
 
 .. _doc_config_install:
 
@@ -478,10 +513,10 @@ configure time. For example:
 
 .. code-block:: console
 
-   $ ./configure --prefix=/opt/petsc/petsc-3.16.0-mpich --with-mpi-dir=/opt/mpich
+   $ ./configure --prefix=/opt/petsc/petsc-3.19.0-mpich --with-mpi-dir=/opt/mpich
    $ make
    $ make install [DESTDIR=/tmp/petsc-pkg]
-   $ ./configure --prefix=/opt/petsc/petsc-3.16.0-openmpi --with-mpi-dir=/opt/openmpi
+   $ ./configure --prefix=/opt/petsc/petsc-3.19.0-openmpi --with-mpi-dir=/opt/openmpi
    $ make
    $ make install [DESTDIR=/tmp/petsc-pkg]
 
@@ -578,8 +613,8 @@ PETSc is able to take adavantage of GPU's and certain accelerator libraries, how
 On Linux - make sure you have compatible `NVIDIA driver
 <https://developer.nvidia.com/cuda-downloads>`__ installed.
 
-On Windows - Use either `Cygwin`_ or `WSL`_ the latter of which is entirely untested right
-now. If you have experience with `WSL`_ and/or have successfully built PETSc on windows
+On Microsoft Windows - Use either `Cygwin`_ or `WSL`_ the latter of which is entirely untested right
+now. If you have experience with `WSL`_ and/or have successfully built PETSc on Microsoft Windows
 for use with `CUDA`_ we welcome your input at petsc-maint@mcs.anl.gov. See the
 bug-reporting :ref:`documentation <doc_creepycrawly>` for more details.
 
@@ -595,14 +630,15 @@ Examples that use CUDA have the suffix .cu; see ``$PETSC_DIR/src/snes/tutorials/
 `Kokkos`_
 ^^^^^^^^^
 
-In most cases you need only pass the configure option ``--download-kokkos`` and one of
-``--with-cuda``, ``--with-openmp``, or ``--with-pthread`` (or nothing to use sequential
+In most cases you need only pass the configure option ``--download-kokkos`` ``--download-kokkos-kernels``
+and one of ``--with-cuda``, ``--with-openmp``, or ``--with-pthread`` (or nothing to use sequential
 `Kokkos`_). See the :ref:`CUDA installation documenation <doc_config_accel_cuda>`,
 :ref:`OpenMPI installation documentation <doc_config_mpi>` for further reference on their
 respective requirements.
 
-Examples that use `Kokkos`_ have the suffix .kokkos.cxx; see
-``src/snes/tutorials/ex3k.kokkos.cxx``
+Examples that use `Kokkos`_ at user-level have the suffix .kokkos.cxx; see
+``src/snes/tutorials/ex3k.kokkos.cxx``. More examples use `Kokkos`_ through options database;
+search them with ``grep -r -l "requires:.*kokkos_kernels" src/``.
 
 .. _doc_config_accel_opencl:
 
@@ -623,112 +659,38 @@ Run ``configure`` with ``--download-viennacl``; check
 
 `OpenCL`_/`ViennaCL`_ builds of PETSc currently work on Mac OS X, Linux, and Microsoft Windows.
 
+.. _doc_emcc:
+
+Installing To Run in Browser with Emscripten
+============================================
+
+PETSc can be used to run applications in the browser using https://emscripten.org, see https://emscripten.org/docs/getting_started/downloads.html,
+for instructions on installing Emscripten. Run
+
+.. code-block:: console
+
+   $  ./configure --with-cc=emcc --with-cxx=0 --with-fc=0 --with-ranlib=emranlib --with-ar=emar --with-shared-libraries=0 --download-f2cblaslapack=1 --with-mpi=0 --with-batch
+
+Applications may be compiled with, for example,
+
+.. code-block:: console
+
+   $  make ex19.html
+
+The rule for linking may be found in `lib/petsc/conf/rules <PETSC_DOC_OUT_ROOT_PLACEHOLDER/lib/petsc/conf/rules>`__
+
 .. _doc_config_hpc:
 
 Installing On Large Scale DOE Systems
 =====================================
 
-NERSC - CORI machine
-^^^^^^^^^^^^^^^^^^^^
-
-- Project ID: m3353
-- PI: Richard Mills
-- Notes on usage:
-
-ALCF - Argonne National Laboratory - theta machine - Intel KNL based system
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-- Project ID:
-- PI:
-- Notes on usage:
-
-  - Log into theta.alcf.anl.gov (Use crypto card or MobilePass app for the password)
-  - There are three compiler suites `Modules`_
-
-    - module load PrgEnv-intel intel
-    - module load PrgEnv-gnu gcc/7.1.0/
-    - module load PrgEnv-cray
-
-  - List currently loaded modules: module list
-  - List all available modules: module avail
-  - BLAS/LAPACK will automatically be found so you do not need to provide it
-
-    - It is best not to use built-in modules for external packages (except BLAS/LAPACK
-      because they are often buggy. Most external packages can be built using
-      the ``--download-packagename`` option with the intel or Gnu environment but not cray
-    - You can use ``config/examples/arch-cray-xc40-knl-opt.py`` as a template for running
-      configure but it is outdated
-    - When using the Intel module you may need to use ``--download-sowing-cc=icc``,
-      ``--download-sowing-cxx=icpc``, ``--download-sowing-cpp="icc E"``,
-      ``--download-sowing-cxxpp="icpc -E"`` since the GNU compilers may not work as they
-      access Intel files
-    - To get an interactive node use ``qsub -A CSC250STMS07 -n 1 -t 60 -q debug-flat-quad
-      -I``
-    - To run on interactive node using two MPI ranks use ``aprun -n 2 ./program options``
-
-ALCF - Argonne National Laboratory - thetagpu machine - AMD CPUs with NVIDIA GPUs
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Notes on usage:
-
-  - Log into theta.alcf.anl.gov
-  - The GPU front-end and compute nodes do not support git via ssh - so best to use ``git clone/fetch`` etc. (in PETSc clone) on theta.alcf.anl.gov
-  - ``ssh thetagpusn1`` (this is the GPU front end)
-  - ``export http_proxy=http://proxy.tmi.alcf.anl.gov:3128``
-  - ``export https_proxy=http://proxy.tmi.alcf.anl.gov:3128``
-  - ``module load nvhpc`` (Do not module load any MPI)
-  - ``module load libtool-2.4.6-gcc-7.5.0-jdxbjft cmake-3.20.2-gcc-10.2.0-wmku2nn``
-  - ``./configure --with-mpi-dir=$CUDA_DIR/../comm_libs/mpi/ -with-cuda-dir=$CUDA_DIR/11.0  --download-f2cblaslapack=1``
-  - to install Kokkos (with ``--download-kokkos --download-kokkos-kernels``, set CUDA_ROOT before running configure - i.e: ``export CUDA_ROOT=$CUDA_DIR/11.0``
-  - Log into interactive compute nodes with ``qsub -I -t TimeInMinutes -n 1 -A AProjectName`` (for example, ``gpu_hack``) (``-q single-gpu`` will give you access to one GPU, and is often much quicker; otherwise you get access to all eight GPUs on a node)
-  - Run executables with ``$CUDA_DIR/../comm_libs/mpi/bin/mpirun``
-  - It's also possible to build petsc on compute nodes. For this - one can use ``qsub --attrs=pubnet`` to obtain a compute node with network access enabled (for the build) as an alternative to setting up ``http_proxy/https_proxy``
-
-
-OLCF - Oak Ridge National Laboratory - Summit machine - NVIDIA GPUs and IBM Power PC processors
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-- Project ID: CSC314
-- PI: Barry Smith
-- Apply at: https://docs.olcf.ornl.gov/accounts/accounts_and_projects.html#applying-for-a-user-account
-- Notes on usage:
-
-  - `Getting Started <https://www.olcf.ornl.gov/for-users/documents-forms/olcf-account-application/>`__
-  - Log into summit.olcf.ornl.gov
-
-    .. code-block:: console
-
-       $ module load cmake hdf5 cuda
-       $ module load pgi
-       $ module load essl netlib-lapack xl
-       $ module load gcc
-
-  - Use ``config/examples/arch-olcf-opt.py`` as a template for running ``configure``
-  - You configure PETSc and build examples in your home directory, but launch them from
-    your "work" directory.
-  - Use the ``bsub`` command to submit jobs to the queue. See the "Batch Scripts" section
-    here `running jobs
-    <https://docs.olcf.ornl.gov/systems/summit_user_guide.html#running-jobs>`__
-  - Tools for profiling
-    - ``-log_view`` that adds GPU communication and computation to the summary table
-    - ``nvprof`` and ``nvvp`` from the CUDA toolkit
-
-Installing PETSc on an iOS or Android platform
-==============================================
-
-For iOS see ``$PETSC_DIR/systems/Apple/iOS/bin/makeall``. A thorough discussion of the
-installation procedure is given `here
-<https://www.researchgate.net/publication/308973080_Comparison_of_Migration_Techniques_for_High-Performance_Code_to_Android_and_iOS>`__.
-
-For Android, you must have your standalone bin folder in the path, so that the compilers
-are visible.
-
-Check ``config/examples/arch-arm64-opt.py`` for iOS and
-``config/examples/arch-armv7-opt.py`` for example usage.
+There are some notes on our `GitLab Wiki <https://gitlab.com/petsc/petsc/-/wikis/Installing-and-Running-on-Large-Scale-Systems>`__
+which may be helpful in installing and running PETSc on large scale
+systems.  Also note the configuration examples in ``config/examples``.
 
 .. _MPICH: https://www.mpich.org/
 .. _BLAS/LAPACK: https://www.netlib.org/lapack/lug/node11.html
-.. _MUMPS: http://mumps.enseeiht.fr/
+.. _MUMPS: https://mumps-solver.org/
 .. _HYPRE: https://computing.llnl.gov/projects/hypre-scalable-linear-solvers-multigrid-methods
 .. _SuperLU_DIST: https://github.com/xiaoyeli/superlu_dist
 .. _SuperLU: https://portal.nersc.gov/project/sparse/superlu/
@@ -749,3 +711,9 @@ Check ``config/examples/arch-arm64-opt.py`` for iOS and
 .. _OpenCL: https://www.khronos.org/opencl/
 .. _ViennaCL: http://viennacl.sourceforge.net/
 .. _Modules: https://www.alcf.anl.gov/support-center/theta/compiling-and-linking-overview-theta-thetagpu
+
+.. rubric:: Footnotes
+
+.. [#] The two packages provide slightly different (though largely overlapping) functionality which can only be fully used if both packages are installed.
+.. [#] Apple provides customized ``clang`` and ``clang++`` for its system. To use the unmodified LLVM project ``clang`` and ``clang++``
+       install them with brew.

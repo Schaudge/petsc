@@ -10,11 +10,10 @@ class Configure(config.package.CMakePackage):
     self.includes          = []
     self.functions         = []
     self.buildLanguages    = ['Cxx']
-    self.minCxxVersion     = 'c++11'
-    self.downloadonWindows = 0
     self.hastests          = 1
     self.linkedbypetsc     = 0
     self.useddirectly      = 0
+    self.skippackagelibincludedirs = 1
     return
 
   def setupDependencies(self, framework):
@@ -28,8 +27,6 @@ class Configure(config.package.CMakePackage):
     self.flibs    = framework.require('config.packages.flibs',self)
     self.cxxlibs  = framework.require('config.packages.cxxlibs',self)
     self.mathlib  = framework.require('config.packages.mathlib',self)
-    #
-    # also requires the ./configure option --with-cxx-dialect=C++11
     return
 
   # the install is delayed until postProcess() since xSDKTrilinos install requires PETSc to be installed before xSDKTrilinos can be built
@@ -42,10 +39,6 @@ class Configure(config.package.CMakePackage):
       raise RuntimeError('Xsdktrilinos does not support --with-xsdktrilinos; only --download-xsdktrilinos')
     if 'with-xsdktrilinos-dir' in self.framework.clArgDB:
       raise RuntimeError('Xsdktrilinos does not support --with-xsdktrilinos-dir; only --download-xsdktrilinos')
-    if 'with-xsdktrilinos-include' in self.framework.clArgDB:
-      raise RuntimeError('Xsdktrilinos does not support --with-xsdktrilinos-include; only --download-xsdktrilinos')
-    if 'with-xsdktrilinos-lib' in self.framework.clArgDB:
-      raise RuntimeError('Xsdktrilinos does not support --with-xsdktrilinos-lib; only --download-xsdktrilinos')
 
     self.checkDownload()
     self.include = [os.path.join(self.installDir,'include')]

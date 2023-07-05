@@ -1,3 +1,6 @@
+# Portions of this code are under:
+# Copyright (c) 2022 Advanced Micro Devices, Inc. All rights reserved.
+
 import config.package
 import os
 
@@ -5,21 +8,19 @@ class Configure(config.package.Package):
   def __init__(self, framework):
     config.package.Package.__init__(self, framework)
 
-    self.minversion       = '3.8'
+    self.minversion       = '4.1'
     self.versionname      = 'HIP_VERSION_MAJOR.HIP_VERSION_MINOR'
     self.versioninclude   = 'hip/hip_version.h'
     self.requiresversion  = 1
     self.functionsCxx     = [1,'', 'rocblas_create']
     self.includes         = ['hip/hip_runtime.h']
     # PETSc does not use hipsparse or hipblas, but dependencies can (e.g., magma)
-    self.liblist          = [['libhipsparse.a','libhipblas.a','librocsparse.a','librocsolver.a','librocblas.a','librocrand.a','libamdhip64.a'],
-                             ['hipsparse.lib','hipblas.lib','rocsparse.lib','rocsolver.lib','rocblas.lib','rocrand.lib','amdhip64.lib'],]
+    self.liblist          = [['libhipsparse.a','libhipblas.a','libhipsolver.a','librocsparse.a','librocsolver.a','librocblas.a','librocrand.a','libamdhip64.a'],
+                             ['hipsparse.lib','hipblas.lib','hipsolver.lib','rocsparse.lib','rocsolver.lib','rocblas.lib','rocrand.lib','amdhip64.lib'],]
     self.precisions       = ['single','double']
     self.buildLanguages   = ['HIP']
-    self.complex          = 1
-    self.hastests         = 0
-    self.hastestsdatafiles= 0
     self.devicePackage    = 1
+    self.fullPathHIPC     = ''
     return
 
   def setupHelp(self, help):
@@ -75,7 +76,15 @@ class Configure(config.package.Package):
     if not hasattr(self,'fullPathHIPC'):
       raise RuntimeError('Unable to locate the HIPC compiler')
 
+  def getSearchDirectories(self):
+    # Package.getSearchDirectories() return '' by default, so that HIPC's default include path could
+    # be checked. But here we lower priority of '', so that once we validated a header path, it will
+    # be added to HIP_INCLUDE.  Other compilers, ex. CC or CXX, might need this path for compilation.
+    yield os.path.dirname(os.path.dirname(self.fullPathHIPC)) # yield /opt/rocm from /opt/rocm/bin/hipcc
+    yield ''
+
   def configureLibrary(self):
+    self.setFullPathHIPC()
     config.package.Package.configureLibrary(self)
     self.getExecutable('hipconfig',getFullPath=1,resultName='hip_config')
     if hasattr(self,'hip_config'):
@@ -136,22 +145,21 @@ class Configure(config.package.Package):
         self.hipArch.lower() # to have a uniform format even if user set hip arch in weird cases
         if not self.hipArch.startswith('gfx'):
           raise RuntimeError('HIP arch name ' + self.hipArch + ' is not in the supported gfxnnn format')
-        self.setCompilers.HIPFLAGS += ' --amdgpu-target=' + self.hipArch +' '
+        self.setCompilers.HIPFLAGS += ' --offload-arch=' + self.hipArch +' '
       else:
         raise RuntimeError('You must set --with-hip-arch=gfx900, gfx906, gfx908, gfx90a etc or make ROCM utility "rocminfo" available on your PATH')
 
-      # Record rocBlas and rocSparse directories as they are needed by Kokkos-Kernels HIP TPL, so that we can hanle
+      # Record rocBlas and rocSparse directories as they are needed by Kokkos-Kernels HIP TPL, so that we can handle
       # a weird (but valid) case --with-hipcc=/opt/rocm-4.5.2/hip/bin/hipcc --with-hip-dir=/opt/rocm-4.5.2 (which
       # should be better written as --with-hipcc=/opt/rocm-4.5.2/bin/hipcc --with-hip-dir=/opt/rocm-4.5.2 or simply
       # --with-hip-dir=/opt/rocm-4.5.2)
       if self.directory:
-        self.rocBlasDir   = self.directory
-        self.rocSparseDir = self.directory
+        self.hipDir = self.directory
       else: # directory is '', indicating we are using the compiler's default, so the last resort is to guess the dir from hipcc
-        self.setFullPathHIPC()
-        hipDir            = os.path.dirname(os.path.dirname(self.fullPathHIPC)) # Ex. peel /opt/rocm-4.5.2/bin/hipcc twice
-        self.rocBlasDir   = hipDir
-        self.rocSparseDir = hipDir
+        self.hipDir = os.path.dirname(os.path.dirname(self.fullPathHIPC)) # Ex. peel /opt/rocm-4.5.2/bin/hipcc twice
+
+      self.rocBlasDir   = self.hipDir
+      self.rocSparseDir = self.hipDir
     #self.checkHIPDoubleAlign()
     self.configureTypes()
     self.libraries.popLanguage()

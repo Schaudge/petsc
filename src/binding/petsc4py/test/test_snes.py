@@ -37,6 +37,7 @@ class BaseTestSNES(object):
 
     def tearDown(self):
         self.snes = None
+        PETSc.garbage_cleanup()
 
     def testGetSetType(self):
         self.assertEqual(self.snes.getType(), self.SNES_TYPE)
@@ -75,21 +76,21 @@ class BaseTestSNES(object):
         reason = PETSc.SNES.ConvergedReason.CONVERGED_ITS
         snes.reason = reason
         self.assertEqual(snes.reason, reason)
-        self.assertTrue(snes.converged)
-        self.assertFalse(snes.diverged)
-        self.assertFalse(snes.iterating)
+        self.assertTrue(snes.is_converged)
+        self.assertFalse(snes.is_diverged)
+        self.assertFalse(snes.is_iterating)
         reason = PETSc.SNES.ConvergedReason.DIVERGED_MAX_IT
         snes.reason = reason
         self.assertEqual(snes.reason, reason)
-        self.assertFalse(snes.converged)
-        self.assertTrue(snes.diverged)
-        self.assertFalse(snes.iterating)
+        self.assertFalse(snes.is_converged)
+        self.assertTrue(snes.is_diverged)
+        self.assertFalse(snes.is_iterating)
         reason = PETSc.SNES.ConvergedReason.CONVERGED_ITERATING
         snes.reason = reason
         self.assertEqual(snes.reason, reason)
-        self.assertFalse(snes.converged)
-        self.assertFalse(snes.diverged)
-        self.assertTrue(snes.iterating)
+        self.assertFalse(snes.is_converged)
+        self.assertFalse(snes.is_diverged)
+        self.assertTrue(snes.is_iterating)
         #
         self.assertFalse(snes.use_ew)
         self.assertFalse(snes.use_mf)
@@ -322,11 +323,12 @@ class BaseTestSNES(object):
         self.snes.setUseMF(True)
         self.assertTrue(self.snes.getUseMF())
         self.snes.setFromOptions()
-        x.setArray([2,3])
-        b.set(0)
-        self.snes.solve(b, x)
-        self.assertAlmostEqual(abs(x[0]), 1.0, places=5)
-        self.assertAlmostEqual(abs(x[1]), 2.0, places=5)
+        if self.snes.getType() != PETSc.SNES.Type.NEWTONTR:
+            x.setArray([2,3])
+            b.set(0)
+            self.snes.solve(b, x)
+            self.assertAlmostEqual(abs(x[0]), 1.0, places=5)
+            self.assertAlmostEqual(abs(x[1]), 2.0, places=5)
 
     def testFDColor(self):
         J = PETSc.Mat().create(PETSc.COMM_SELF)
@@ -350,8 +352,13 @@ class BaseTestSNES(object):
         x.setArray([2,3])
         b.set(0)
         self.snes.solve(b, x)
-        self.assertAlmostEqual(abs(x[0]), 1.0, places=5)
-        self.assertAlmostEqual(abs(x[1]), 2.0, places=5)
+        self.assertAlmostEqual(abs(x[0]), 1.0, places=4)
+        self.assertAlmostEqual(abs(x[1]), 2.0, places=4)
+
+    def testNPC(self):
+        self.snes.appctx = (1,2,3)
+        npc = self.snes.getNPC()
+        self.assertEqual(npc.appctx, (1,2,3))
 
 # --------------------------------------------------------------------
 

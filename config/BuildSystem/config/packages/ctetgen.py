@@ -4,12 +4,13 @@ import os
 class Configure(config.package.GNUPackage):
   def __init__(self, framework):
     config.package.GNUPackage.__init__(self, framework)
-    self.gitcommit         = 'ctetgen-0.9'
+    self.gitcommit         = 'ctetgen-0.11'
     self.download          = ['git://https://bitbucket.org/petsc/ctetgen','https://bitbucket.org/petsc/ctetgen/get/'+self.gitcommit+'.tar.gz']
     self.downloaddirnames  = ['ctetgen','petsc-ctetgen']
     self.functions         = []
     self.includes          = []
     self.hastests          = 1
+    self.skippackagelibincludedirs = 1
     return
 
   def setupDependencies(self, framework):
@@ -27,10 +28,6 @@ class Configure(config.package.GNUPackage):
       raise RuntimeError('Ctetgen does not support --with-ctetgen; only --download-ctetgen')
     if 'with-ctetgen-dir' in self.framework.clArgDB:
       self.ctetgenDir = self.framework.argDB['with-ctetgen-dir']
-    if 'with-ctetgen-include' in self.framework.clArgDB:
-      raise RuntimeError('Ctetgen does not support --with-ctetgen-include; only --download-ctetgen')
-    if 'with-ctetgen-lib' in self.framework.clArgDB:
-      raise RuntimeError('Ctetgen does not support --with-ctetgen-lib; only --download-ctetgen')
     if 'with-ctetgen-shared' in self.framework.clArgDB:
       raise RuntimeError('Ctetgen does not support --with-ctetgen-shared')
 

@@ -4,23 +4,29 @@ import os
 class Configure(config.package.CMakePackage):
   def __init__(self, framework):
     config.package.CMakePackage.__init__(self, framework)
-    self.gitcommit        = '1ec0d1ee961cd86d69b950ff8525729cc9a3a60f' # develop of 2022-01-26
-    self.minversion       = '3.5.00'
+    self.gitcommit        = '4.1.00'
+    self.minversion       = '3.7.01'
     self.versionname      = 'KOKKOS_VERSION'
     self.download         = ['git://https://github.com/kokkos/kokkos.git']
     self.downloaddirnames = ['kokkos']
     self.excludedDirs     = ['kokkos-kernels'] # Do not wrongly think kokkos-kernels as kokkos-vernum
     self.includes         = ['Kokkos_Macros.hpp']
-    self.liblist          = [['libkokkoscontainers.a','libkokkoscore.a']]
+    self.liblist          = [['libkokkoscontainers.a','libkokkoscore.a','libkokkossimd.a'],
+                             ['libkokkoscontainers.a','libkokkoscore.a']]
     self.functions        = ['']
     self.functionsCxx     = [1,'namespace Kokkos {void initialize(int&,char*[]);}','int one = 1;char* args[1];Kokkos::initialize(one,args);']
-    self.minCxxVersion    = 'c++14'
-    self.buildLanguages   = ['Cxx'] # Depending on if cuda, hip or sycl is avaiable, it will be modified.
-    self.downloadonWindows= 0
+    self.minCxxVersion    = 'c++17'
+    # nvcc_wrapper in Kokkos-4.0.00 does not handle -std=c++20 correctly (it wrongly passes that to -Xcompiler).
+    # Though Kokkos/develop fixed the problem, we set maxCxxVersion to c++17 here to lower the standard petsc would use as a workaround.
+    # TODO: remove this line once we use newer Kokkos versions
+    self.maxCxxVersion    = 'c++17'
+    self.buildLanguages   = ['Cxx'] # Depending on if cuda, hip or sycl is available, it will be modified.
     self.hastests         = 1
     self.requiresrpath    = 1
     self.precisions       = ['single','double']
     self.devicePackage    = 1
+    self.minCmakeVersion  = (3,16,0)
+    self.macros           = ['KOKKOS_ENABLE_CUDA', 'KOKKOS_ENABLE_HIP', 'KOKKOS_ENABLE_SYCL']
     return
 
   def __str__(self):
@@ -72,6 +78,11 @@ class Configure(config.package.CMakePackage):
   def formCMakeConfigureArgs(self):
     args = config.package.CMakePackage.formCMakeConfigureArgs(self)
     args.append('-DUSE_XSDK_DEFAULTS=YES')
+
+    # always use C/C++'s alignment (i.e., sizeof(RealType)) for complex,
+    # instead of Kokkos's default "alignas(2 * sizeof(RealType))"
+    args.append('-DKokkos_ENABLE_COMPLEX_ALIGN=OFF')
+
     if not self.compilerFlags.debugging:
       args.append('-DXSDK_ENABLE_DEBUG=NO')
 
@@ -79,7 +90,7 @@ class Configure(config.package.CMakePackage):
       args.append('-DCMAKE_INSTALL_RPATH_USE_LINK_PATH:BOOL=ON')
       args.append('-DCMAKE_BUILD_WITH_INSTALL_RPATH:BOOL=ON')
 
-    if self.mpi.found:
+    if self.mpi.found and not self.mpi.usingMPIUni:
       args.append('-DKokkos_ENABLE_MPI=ON')
 
     if self.hwloc.found:
@@ -90,9 +101,6 @@ class Configure(config.package.CMakePackage):
     pthreadfound = self.pthread.found
     if not 'with-pthread' in self.framework.clArgDB:
       pthreadfound = 0
-
-    if self.openmp.found + pthreadfound + self.cuda.found > 1:
-      raise RuntimeError("Kokkos only supports a single parallel system during its configuration")
 
     args.append('-DKokkos_ENABLE_SERIAL=ON')
     if self.openmp.found:
@@ -110,33 +118,46 @@ class Configure(config.package.CMakePackage):
       # what nvcc thinks, instead of taking the c++ dialect directly from the host compiler.
       lang = 'cuda'
       args.append('-DKokkos_ENABLE_CUDA=ON')
+      args.append('-DKokkos_ENABLE_CUDA_LAMBDA:BOOL=ON')
       self.system = 'CUDA'
       self.pushLanguage('CUDA')
       petscNvcc = self.getCompiler()
-      cudaFlags = self.getCompilerFlags()
+      cudaFlags = self.updatePackageCUDAFlags(self.getCompilerFlags())
       self.popLanguage()
-      args.append('-DKOKKOS_CUDA_OPTIONS="'+cudaFlags.replace(' ',';')+'"')
-      args = self.rmArgsStartsWith(args,'-DCMAKE_CXX_COMPILER=')
-      args.append('-DCMAKE_CXX_COMPILER='+self.getCompiler('Cxx')) # use the host CXX compiler, let Kokkos handle the nvcc_wrapper business
-      genToName = {'3': 'KEPLER','5': 'MAXWELL', '6': 'PASCAL', '7': 'VOLTA', '8': 'AMPERE', '9': 'LOVELACE', '10': 'HOPPER'}
+      args = self.rmArgsStartsWith(args, '-DCMAKE_CUDA_COMPILER')
+      args = self.rmArgsStartsWith(args, '-DCMAKE_CUDA_FLAGS')
+      args = self.rmArgsStartsWith(args, '-DCMAKE_C_COMPILER')
+      args = self.rmArgsStartsWith(args, '-DCMAKE_C_FLAGS')
+      args = self.rmArgsStartsWith(args, '-DCMAKE_CXX_COMPILER')
+      if self.cuda.cudaclang:
+        args = self.rmArgsStartsWith(args, '-DCMAKE_CXX_FLAGS')
+        args.append('-DCMAKE_CXX_COMPILER="'+petscNvcc+'"')
+        args.append('-DCMAKE_CXX_FLAGS="'+cudaFlags.replace('-x cuda', '')+'"')
+      else:
+        args.append('-DKOKKOS_CUDA_OPTIONS="'+cudaFlags.replace(' ', ';')+'"')
+        args = self.rmArgsStartsWith(args,'-DCMAKE_CXX_COMPILER=')
+        # Kokkos passes the C++ compiler flags to nvcc which barfs with
+        # nvcc fatal   : 'g': expected a number
+        args = [a.replace('-Og', '-O1') if a.startswith('-DCMAKE_CXX_FLAG') else a for a in args]
+        args.append('-DCMAKE_CXX_COMPILER='+self.getCompiler('Cxx')) # use the host CXX compiler, let Kokkos handle the nvcc_wrapper business
+        #  Kokkos nvcc_wrapper REQUIRES nvcc be visible in the PATH!
+        path = os.getenv('PATH')
+        nvccpath = os.path.dirname(petscNvcc)
+        if nvccpath:
+          # Put nvccpath in the beginning of PATH, as there might be other nvcc in PATH and we got this one from --with-cuda-dir.
+          # Kokkos provides Kokkos_CUDA_DIR and CUDA_ROOT. But they do not actually work (as of Jan. 2022) in the aforementioned
+          # case, since these cmake options are not passed correctly to nvcc_wrapper.
+          os.environ['PATH'] = nvccpath+':'+path
       if hasattr(self.cuda,'cudaArch'):
-        generation = self.cuda.cudaArch[:-1] # cudaArch is a number 'nn', such as '75'
+        genToName = {'3': 'KEPLER','5': 'MAXWELL', '6': 'PASCAL', '7': 'VOLTA', '8': 'AMPERE', '9': 'LOVELACE', '10': 'HOPPER'}
+        generation = self.cuda.cudaArchSingle()[:-1]  # cudaArchSingle() returns a number 'nn', such as '75'
         try:
           # Kokkos uses names like VOLTA75, AMPERE86
-          deviceArchName = genToName[generation] + self.cuda.cudaArch
+          deviceArchName = genToName[generation] + self.cuda.cudaArchSingle()
         except KeyError:
-          raise RuntimeError('Could not find an arch name for CUDA gen number '+ self.cuda.cudaArch)
+          raise RuntimeError('Could not find an arch name for CUDA gen number '+ self.cuda.cudaArchSingle())
       else:
         raise RuntimeError('You must set --with-cuda-arch=60, 70, 75, 80 etc.')
-      args.append('-DKokkos_ENABLE_CUDA_LAMBDA:BOOL=ON')
-      #  Kokkos nvcc_wrapper REQUIRES nvcc be visible in the PATH!
-      path = os.getenv('PATH')
-      nvccpath = os.path.dirname(petscNvcc)
-      if nvccpath:
-        # Put nvccpath in the beginning of PATH, as there might be other nvcc in PATH and we got this one from --with-cuda-dir.
-        # Kokkos provids Kokkos_CUDA_DIR and CUDA_ROOT. But they do not actually work (as of Jan. 2022) in the aforementioned
-        # case, since these cmake options are not passed correctly to nvcc_wrapper.
-        os.environ['PATH'] = nvccpath+':'+path
     elif self.hip.found:
       lang = 'hip'
       self.system = 'HIP'
@@ -174,10 +195,10 @@ class Configure(config.package.CMakePackage):
 
     if deviceArchName: args.append('-DKokkos_ARCH_'+deviceArchName+'=ON')
 
-    langdialect = getattr(self.compilers,lang+'dialect',None)
+    langdialect = getattr(self.setCompilers,lang+'dialect',None)
     if langdialect:
       # langdialect is only set as an attribute if the user specifically chose a dialect
-      # (see config/compilers.py::checkCxxDialect())
+      # (see config/setCompilers.py::checkCxxDialect())
       args = self.rmArgsStartsWith(args,'-DCMAKE_CXX_STANDARD=')
       args.append('-DCMAKE_CXX_STANDARD='+langdialect[-2:]) # e.g., extract 14 from C++14
     return args
@@ -186,7 +207,10 @@ class Configure(config.package.CMakePackage):
     import os
     if self.cuda.found:
       self.buildLanguages = ['CUDA']
-      self.addMakeMacro('KOKKOS_USE_CUDA_COMPILER',1) # use the CUDA compiler to compile PETSc Kokkos code
+      if self.cuda.cudaclang:
+        self.addMakeMacro('KOKKOS_USE_CUDACLANG_COMPILER',1) # use the clang compiler to compile PETSc Kokkos code
+      else:
+        self.addMakeMacro('KOKKOS_USE_CUDA_COMPILER',1) # use the CUDA compiler to compile PETSc Kokkos code
     elif self.hip.found:
       self.buildLanguages= ['HIP']
       self.addMakeMacro('KOKKOS_USE_HIP_COMPILER',1)  # use the HIP compiler to compile PETSc Kokkos code

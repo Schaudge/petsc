@@ -1,2 +1,2 @@
 #include "bf_2d_amr.h"
-#include "bf_xd_amr.c"
+#include "bf_xd_amr.h"

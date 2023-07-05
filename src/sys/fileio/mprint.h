@@ -1,15 +1,15 @@
 
-#if !defined(__MPRINT_H)
+#ifndef __MPRINT_H
 #define __MPRINT_H
 
-#include <petscsys.h>             /*I    "petscsys.h"   I*/
+#include <petscsys.h> /*I    "petscsys.h"   I*/
 #include <petsc/private/petscimpl.h>
 
 /* ----------------------------------------------------------------------- */
 typedef struct _PrintfQueue *PrintfQueue;
 struct _PrintfQueue {
-  char        *string;
-  int         size;
+  char       *string;
+  size_t      size;
   PrintfQueue next;
 };
 

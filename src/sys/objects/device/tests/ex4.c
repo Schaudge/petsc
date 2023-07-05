@@ -1,26 +1,46 @@
 static const char help[] = "Tests PetscDeviceContextFork/Join.\n\n";
 
-#include <petsc/private/deviceimpl.h>
 #include "petscdevicetestcommon.h"
+
+static PetscErrorCode DoFork(PetscDeviceContext parent, PetscInt n, PetscDeviceContext **sub)
+{
+  PetscDeviceType dtype;
+  PetscStreamType stype;
+
+  PetscFunctionBegin;
+  PetscCall(PetscDeviceContextGetDeviceType(parent, &dtype));
+  PetscCall(PetscDeviceContextGetStreamType(parent, &stype));
+  PetscCall(PetscDeviceContextFork(parent, n, sub));
+  if (n) PetscCheck(*sub, PETSC_COMM_SELF, PETSC_ERR_PLIB, "PetscDeviceContextFork() return NULL pointer for %" PetscInt_FMT " children", n);
+  for (PetscInt i = 0; i < n; ++i) {
+    PetscDeviceType sub_dtype;
+    PetscStreamType sub_stype;
+
+    PetscCall(AssertDeviceContextExists((*sub)[i]));
+    PetscCall(PetscDeviceContextGetStreamType((*sub)[i], &sub_stype));
+    PetscCall(AssertPetscStreamTypesValidAndEqual(sub_stype, stype, "Child stream type %s != parent stream type %s"));
+    PetscCall(PetscDeviceContextGetDeviceType((*sub)[i], &sub_dtype));
+    PetscCall(AssertPetscDeviceTypesValidAndEqual(sub_dtype, dtype, "Child device type %s != parent device type %s"));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 static PetscErrorCode TestNestedPetscDeviceContextForkJoin(PetscDeviceContext parCtx, PetscDeviceContext *sub)
 {
   const PetscInt      nsub = 4;
   PetscDeviceContext *subsub;
-  PetscErrorCode      ierr;
 
   PetscFunctionBegin;
-  PetscValidDeviceContext(parCtx,1);
-  PetscValidPointer(sub,2);
-  ierr = AssertPetscDeviceContextsValidAndEqual(parCtx,sub[0],"Current global context does not match expected global context");CHKERRQ(ierr);
+  PetscValidPointer(sub, 2);
+  PetscCall(AssertPetscDeviceContextsValidAndEqual(parCtx, sub[0], "Current global context does not match expected global context"));
   /* create some children from an active child */
-  ierr = PetscDeviceContextFork(sub[1],nsub,&subsub);CHKERRQ(ierr);
+  PetscCall(DoFork(sub[1], nsub, &subsub));
   /* join on a sibling to the parent */
-  ierr = PetscDeviceContextJoin(sub[2],nsub-2,PETSC_DEVICE_CONTEXT_JOIN_SYNC,&subsub);CHKERRQ(ierr);
+  PetscCall(PetscDeviceContextJoin(sub[2], nsub - 2, PETSC_DEVICE_CONTEXT_JOIN_SYNC, &subsub));
   /* join on the grandparent */
-  ierr = PetscDeviceContextJoin(parCtx,nsub-2,PETSC_DEVICE_CONTEXT_JOIN_NO_SYNC,&subsub);CHKERRQ(ierr);
-  ierr = PetscDeviceContextJoin(sub[1],nsub,PETSC_DEVICE_CONTEXT_JOIN_DESTROY,&subsub);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(PetscDeviceContextJoin(parCtx, nsub - 2, PETSC_DEVICE_CONTEXT_JOIN_NO_SYNC, &subsub));
+  PetscCall(PetscDeviceContextJoin(sub[1], nsub, PETSC_DEVICE_CONTEXT_JOIN_DESTROY, &subsub));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* test fork-join */
@@ -28,68 +48,73 @@ static PetscErrorCode TestPetscDeviceContextForkJoin(PetscDeviceContext dctx)
 {
   PetscDeviceContext *sub;
   const PetscInt      n = 10;
-  PetscErrorCode      ierr;
 
   PetscFunctionBegin;
-  PetscValidDeviceContext(dctx,1);
   /* mostly for valgrind to catch errors */
-  ierr = PetscDeviceContextFork(dctx,n,&sub);CHKERRQ(ierr);
-  ierr = PetscDeviceContextJoin(dctx,n,PETSC_DEVICE_CONTEXT_JOIN_DESTROY,&sub);CHKERRQ(ierr);
+  PetscCall(DoFork(dctx, n, &sub));
+  PetscCall(PetscDeviceContextJoin(dctx, n, PETSC_DEVICE_CONTEXT_JOIN_DESTROY, &sub));
   /* do it twice */
-  ierr = PetscDeviceContextFork(dctx,n,&sub);CHKERRQ(ierr);
-  ierr = PetscDeviceContextJoin(dctx,n,PETSC_DEVICE_CONTEXT_JOIN_DESTROY,&sub);CHKERRQ(ierr);
+  PetscCall(DoFork(dctx, n, &sub));
+  PetscCall(PetscDeviceContextJoin(dctx, n, PETSC_DEVICE_CONTEXT_JOIN_DESTROY, &sub));
 
   /* create some children */
-  ierr = PetscDeviceContextFork(dctx,n+1,&sub);CHKERRQ(ierr);
+  PetscCall(DoFork(dctx, n + 1, &sub));
   /* test forking within nested function */
-  ierr = TestNestedPetscDeviceContextForkJoin(sub[0],sub);CHKERRQ(ierr);
+  PetscCall(TestNestedPetscDeviceContextForkJoin(sub[0], sub));
   /* join a subset */
-  ierr = PetscDeviceContextJoin(dctx,n-1,PETSC_DEVICE_CONTEXT_JOIN_NO_SYNC,&sub);CHKERRQ(ierr);
+  PetscCall(PetscDeviceContextJoin(dctx, n - 1, PETSC_DEVICE_CONTEXT_JOIN_NO_SYNC, &sub));
   /* back to the ether from whence they came */
-  ierr = PetscDeviceContextJoin(dctx,n+1,PETSC_DEVICE_CONTEXT_JOIN_DESTROY,&sub);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(PetscDeviceContextJoin(dctx, n + 1, PETSC_DEVICE_CONTEXT_JOIN_DESTROY, &sub));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 int main(int argc, char *argv[])
 {
+  MPI_Comm           comm;
   PetscDeviceContext dctx;
-  PetscErrorCode     ierr;
 
-  ierr = PetscInitialize(&argc,&argv,NULL,help);if (ierr) return ierr;
+  PetscFunctionBeginUser;
+  PetscCall(PetscInitialize(&argc, &argv, NULL, help));
+  comm = PETSC_COMM_WORLD;
 
-  ierr = PetscDeviceContextCreate(&dctx);CHKERRQ(ierr);
-  ierr = PetscDeviceContextSetFromOptions(PETSC_COMM_WORLD,"local_",dctx);CHKERRQ(ierr);
-  ierr = PetscDeviceContextSetUp(dctx);CHKERRQ(ierr);
-  ierr = TestPetscDeviceContextForkJoin(dctx);CHKERRQ(ierr);
-  ierr = PetscDeviceContextDestroy(&dctx);CHKERRQ(ierr);
+  PetscCall(PetscDeviceContextCreate(&dctx));
+  PetscCall(PetscObjectSetOptionsPrefix((PetscObject)dctx, "local_"));
+  PetscCall(PetscDeviceContextSetFromOptions(comm, dctx));
+  PetscCall(TestPetscDeviceContextForkJoin(dctx));
+  PetscCall(PetscDeviceContextDestroy(&dctx));
 
-  ierr = PetscDeviceContextGetCurrentContext(&dctx);CHKERRQ(ierr);
-  ierr = TestPetscDeviceContextForkJoin(dctx);CHKERRQ(ierr);
+  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+  PetscCall(TestPetscDeviceContextForkJoin(dctx));
 
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"EXIT_SUCCESS\n");CHKERRQ(ierr);
-  ierr = PetscFinalize();
-  return ierr;
+  PetscCall(TestPetscDeviceContextForkJoin(NULL));
+
+  PetscCall(PetscPrintf(comm, "EXIT_SUCCESS\n"));
+  PetscCall(PetscFinalize());
+  return 0;
 }
 
 /*TEST
 
- build:
-   requires: defined(PETSC_HAVE_CXX_DIALECT_CXX11)
-
- test:
-   requires: !device
-   suffix: no_device
-   filter: Error: grep -E -o -e ".*No support for this operation for this object type" -e ".*PETSc is not configured with device support.*" -e "^\[0\]PETSC ERROR:.*[0-9]{1} [A-z]+\(\)"
-
- testset:
-   output_file: ./output/ExitSuccess.out
-   nsize: {{1 3}}
-   args: -local_device_context_stream_type {{global_blocking default_blocking global_nonblocking}}
-   test:
-     requires: cuda
-     suffix: cuda
-   test:
-     requires: hip
-     suffix: hip
+  testset:
+    requires: cxx
+    output_file: ./output/ExitSuccess.out
+    nsize: {{1 3}}
+    args: -device_enable {{lazy eager}}
+    args: -local_device_context_stream_type {{global_blocking default_blocking global_nonblocking}}
+    test:
+      requires: !device
+      suffix: host_no_device
+    test:
+      requires: device
+      args: -root_device_context_device_type host
+      suffix: host_with_device
+    test:
+      requires: cuda
+      args: -root_device_context_device_type cuda
+      suffix: cuda
+    test:
+      requires: hip
+      args: -root_device_context_device_type hip
+      suffix: hip
 
 TEST*/

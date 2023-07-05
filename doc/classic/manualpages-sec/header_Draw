@@ -1,12 +1,3 @@
-<HTML>
-<HEAD>
-<TITLE>Draw Manual Pages</TITLE>
-</HEAD>
-<BODY BGCOLOR="FFFFFF">
+# Graphics (Draw)
 
-<H2> PetscDraw Manual Pages 
-</H2>
-
-The PetscDraw routines are used to produce simple on-screen graphics.
-
-<P>
+The `PetscDraw` classes are used to produce simple graphics, with, for example X Windows.

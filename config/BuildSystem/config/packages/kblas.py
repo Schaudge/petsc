@@ -4,7 +4,8 @@ class Configure(config.package.Package):
   def __init__(self, framework):
     config.package.Package.__init__(self, framework)
     self.version                = '4.0.0'
-    self.gitcommit              = 'v'+self.version
+    #self.gitcommit              = 'v'+self.version
+    self.gitcommit              = '8af76dc862c74cbe880569ff2ccf6e5e54245430' # mar-27,2023 master
     self.download               = ['git://https://github.com/ecrc/kblas-gpu.git']
     self.buildLanguages         = ['CUDA'] # uses nvcc to compile everything
     self.functionsCxx           = [1,'struct KBlasHandle; typedef struct KBlasHandle *kblasHandle_t;extern "C" int kblasCreate(kblasHandle_t*);','kblasHandle_t h; kblasCreate(&h)']
@@ -66,10 +67,16 @@ class Configure(config.package.Package):
       g.write('_USE_MAGMA_ = TRUE\n')
       g.write('_MAGMA_ROOT_ = '+self.magma.directory+'\n')
       g.write('_CUDA_ROOT_ = '+cudaDir+'\n')
-      if self.cuda.cudaArch:
-        gencodestr = '-DTARGET_SM='+self.cuda.cudaArch+' -arch sm_'+self.cuda.cudaArch
+      if hasattr(self.cuda, 'cudaArch'):
+        # TARGET_SM is just used to check min version compatibility, so we pass
+        # it the smallest version (or 35 if "all" etc are specified)
+        if self.cuda.cudaArchIsVersionList():
+          gencodestr = '-DTARGET_SM='+str(min(int(v) for v in self.cuda.cudaArchList()))
+        else:
+          gencodestr = '-DTARGET_SM=35'
+        gencodestr += self.cuda.nvccArchFlags()
       else:
-        # kblas as of v4.0.0 uses __ldg intrinsincs, available starting from 35
+        # kblas as of v4.0.0 uses __ldg intrinsics, available starting from 35
         gencodestr = '-DTARGET_SM=35 -arch sm_35'
       g.write('NVCC = '+nvcc+'\n')
       g.write('CC = '+cxx+'\n')
@@ -94,8 +101,8 @@ class Configure(config.package.Package):
         pass
       try:
         self.logPrintBox('Compiling KBLAS; this may take several minutes')
-        output2,err2,ret2 = config.package.Package.executeShellCommand('cd src && ' + self.make.make, cwd=self.packageDir, timeout=2500, log = self.log)
-        libDir     = os.path.join(self.installDir, self.libdir)
+        output2,err2,ret2 = config.package.Package.executeShellCommand('cd src && ' + self.make.make_jnp, cwd=self.packageDir, timeout=2500, log = self.log)
+        libDir     = self.libDir
         includeDir = os.path.join(self.installDir, self.includedir)
         self.logPrintBox('Installing KBLAS; this may take several minutes')
         output,err,ret = config.package.Package.executeShellCommandSeq(

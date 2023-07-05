@@ -18,6 +18,7 @@ class BaseTestVec(object):
     def tearDown(self):
         self.vec.destroy()
         self.vec = None
+        PETSc.garbage_cleanup()
 
     def testDuplicate(self):
         self.vec.set(1)
@@ -95,9 +96,11 @@ class BaseTestVec(object):
         start, end = self.vec.getOwnershipRange()
         self.vec[start] = -7
         self.vec[end-1]   = -7
+        self.vec.assemble()
         self.assertEqual(self.vec[start], -7)
         self.assertEqual(self.vec[end-1], -7)
         for i in range(start, end): self.vec[i] = i
+        self.vec.assemble()
         values = [self.vec[i] for i in range(start, end)]
         self.assertEqual(values, list(range(start, end)))
         sz = self.vec.getSize()
@@ -158,6 +161,19 @@ class BaseTestVec(object):
         self.vec.resetArray()
         self.assertAlmostEqual(abs(self.vec.sum()), self.vec.getSize())
 
+    def testLocalVector(self):
+        rank = self.vec.getComm().Get_rank()
+        self.vec.getArray()[:] = rank + 1
+        ln = self.vec.getLocalSize()
+        lvec = self.vec.createLocalVector()
+        self.vec.getLocalVector(lvec)
+        self.assertEqual(abs(lvec.sum()), (rank+1)*ln)
+        self.vec.restoreLocalVector(lvec)
+        self.vec.getLocalVector(lvec,readonly=True)
+        self.assertEqual(abs(lvec.sum()), (rank+1)*ln)
+        self.vec.restoreLocalVector(lvec,readonly=True)
+        lvec.destroy()
+
     def testSetOption(self):
         opt1 = PETSc.Vec.Option.IGNORE_OFF_PROC_ENTRIES
         opt2 = PETSc.Vec.Option.IGNORE_NEGATIVE_INDICES
@@ -184,6 +200,7 @@ class BaseTestVec(object):
         s, e = v.getOwnershipRange()
         v.setRandom()
         w[s:e] = v.getArray().copy()
+        w.assemble()
         self.assertTrue(w.equal(v))
         w1, v1 = w[s],   v[s]
         w2, v2 = w[e-1], v[e-1]

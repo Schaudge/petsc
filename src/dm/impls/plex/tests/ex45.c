@@ -4,17 +4,17 @@ static char help[] = "Tests mesh reordering\n\n";
 
 int main(int argc, char **argv)
 {
-  DM             dm;
-  PetscErrorCode ierr;
+  DM dm;
 
-  ierr = PetscInitialize(&argc, &argv, NULL,help);if (ierr) return ierr;
-  ierr = DMCreate(PETSC_COMM_WORLD, &dm);CHKERRQ(ierr);
-  ierr = DMSetType(dm, DMPLEX);CHKERRQ(ierr);
-  ierr = DMSetFromOptions(dm);CHKERRQ(ierr);
-  ierr = DMViewFromOptions(dm, NULL, "-dm_view");CHKERRQ(ierr);
-  ierr = DMDestroy(&dm);CHKERRQ(ierr);
-  ierr = PetscFinalize();
-  return ierr;
+  PetscFunctionBeginUser;
+  PetscCall(PetscInitialize(&argc, &argv, NULL, help));
+  PetscCall(DMCreate(PETSC_COMM_WORLD, &dm));
+  PetscCall(DMSetType(dm, DMPLEX));
+  PetscCall(DMSetFromOptions(dm));
+  PetscCall(DMViewFromOptions(dm, NULL, "-dm_view"));
+  PetscCall(DMDestroy(&dm));
+  PetscCall(PetscFinalize());
+  return 0;
 }
 
 /*TEST
@@ -29,7 +29,7 @@ int main(int argc, char **argv)
     test:
       suffix: 1
       nsize: 2
-      args: -dm_distribute -petscpartitioner_type simple
+      args: -petscpartitioner_type simple
 
   testset:
     args: -dm_plex_simplex 0 -dm_plex_box_faces 4,4 -dm_plex_reorder rcm -dm_view ::ascii_info_detail
@@ -40,6 +40,6 @@ int main(int argc, char **argv)
     test:
       suffix: 3
       nsize: 2
-      args: -dm_distribute -petscpartitioner_type simple
+      args: -petscpartitioner_type simple
 
 TEST*/

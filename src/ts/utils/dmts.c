@@ -1,170 +1,221 @@
-#include <petsc/private/tsimpl.h>     /*I "petscts.h" I*/
+#include <petsc/private/tsimpl.h> /*I "petscts.h" I*/
 #include <petsc/private/dmimpl.h>
+
+static PetscErrorCode DMTSUnsetRHSFunctionContext_DMTS(DMTS tsdm)
+{
+  PetscFunctionBegin;
+  PetscCall(PetscObjectCompose((PetscObject)tsdm, "rhs function ctx", NULL));
+  tsdm->rhsfunctionctxcontainer = NULL;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode DMTSUnsetRHSJacobianContext_DMTS(DMTS tsdm)
+{
+  PetscFunctionBegin;
+  PetscCall(PetscObjectCompose((PetscObject)tsdm, "rhs jacobian ctx", NULL));
+  tsdm->rhsjacobianctxcontainer = NULL;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode DMTSUnsetIFunctionContext_DMTS(DMTS tsdm)
+{
+  PetscFunctionBegin;
+  PetscCall(PetscObjectCompose((PetscObject)tsdm, "ifunction ctx", NULL));
+  tsdm->ifunctionctxcontainer = NULL;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode DMTSUnsetIJacobianContext_DMTS(DMTS tsdm)
+{
+  PetscFunctionBegin;
+  PetscCall(PetscObjectCompose((PetscObject)tsdm, "ijacobian ctx", NULL));
+  tsdm->ijacobianctxcontainer = NULL;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode DMTSUnsetI2FunctionContext_DMTS(DMTS tsdm)
+{
+  PetscFunctionBegin;
+  PetscCall(PetscObjectCompose((PetscObject)tsdm, "i2function ctx", NULL));
+  tsdm->i2functionctxcontainer = NULL;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode DMTSUnsetI2JacobianContext_DMTS(DMTS tsdm)
+{
+  PetscFunctionBegin;
+  PetscCall(PetscObjectCompose((PetscObject)tsdm, "i2jacobian ctx", NULL));
+  tsdm->i2jacobianctxcontainer = NULL;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 static PetscErrorCode DMTSDestroy(DMTS *kdm)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  if (!*kdm) PetscFunctionReturn(0);
-  PetscValidHeaderSpecific((*kdm),DMTS_CLASSID,1);
-  if (--((PetscObject)(*kdm))->refct > 0) {*kdm = NULL; PetscFunctionReturn(0);}
-  if ((*kdm)->ops->destroy) {ierr = ((*kdm)->ops->destroy)(*kdm);CHKERRQ(ierr);}
-  ierr = PetscHeaderDestroy(kdm);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  if (!*kdm) PetscFunctionReturn(PETSC_SUCCESS);
+  PetscValidHeaderSpecific((*kdm), DMTS_CLASSID, 1);
+  if (--((PetscObject)(*kdm))->refct > 0) {
+    *kdm = NULL;
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
+  PetscCall(DMTSUnsetRHSFunctionContext_DMTS(*kdm));
+  PetscCall(DMTSUnsetRHSJacobianContext_DMTS(*kdm));
+  PetscCall(DMTSUnsetIFunctionContext_DMTS(*kdm));
+  PetscCall(DMTSUnsetIJacobianContext_DMTS(*kdm));
+  PetscCall(DMTSUnsetI2FunctionContext_DMTS(*kdm));
+  PetscCall(DMTSUnsetI2JacobianContext_DMTS(*kdm));
+  PetscTryTypeMethod(*kdm, destroy);
+  PetscCall(PetscHeaderDestroy(kdm));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode DMTSLoad(DMTS kdm,PetscViewer viewer)
+PetscErrorCode DMTSLoad(DMTS kdm, PetscViewer viewer)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  ierr = PetscViewerBinaryRead(viewer,&kdm->ops->ifunction,1,NULL,PETSC_FUNCTION);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,&kdm->ops->ifunctionview,1,NULL,PETSC_FUNCTION);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,&kdm->ops->ifunctionload,1,NULL,PETSC_FUNCTION);CHKERRQ(ierr);
+  PetscCall(PetscViewerBinaryRead(viewer, &kdm->ops->ifunction, 1, NULL, PETSC_FUNCTION));
+  PetscCall(PetscViewerBinaryRead(viewer, &kdm->ops->ifunctionview, 1, NULL, PETSC_FUNCTION));
+  PetscCall(PetscViewerBinaryRead(viewer, &kdm->ops->ifunctionload, 1, NULL, PETSC_FUNCTION));
   if (kdm->ops->ifunctionload) {
-    ierr = (*kdm->ops->ifunctionload)(&kdm->ifunctionctx,viewer);CHKERRQ(ierr);
+    void *ctx;
+
+    PetscCall(PetscContainerGetPointer(kdm->ifunctionctxcontainer, &ctx));
+    PetscCall((*kdm->ops->ifunctionload)(&ctx, viewer));
   }
-  ierr = PetscViewerBinaryRead(viewer,&kdm->ops->ijacobian,1,NULL,PETSC_FUNCTION);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,&kdm->ops->ijacobianview,1,NULL,PETSC_FUNCTION);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,&kdm->ops->ijacobianload,1,NULL,PETSC_FUNCTION);CHKERRQ(ierr);
+  PetscCall(PetscViewerBinaryRead(viewer, &kdm->ops->ijacobian, 1, NULL, PETSC_FUNCTION));
+  PetscCall(PetscViewerBinaryRead(viewer, &kdm->ops->ijacobianview, 1, NULL, PETSC_FUNCTION));
+  PetscCall(PetscViewerBinaryRead(viewer, &kdm->ops->ijacobianload, 1, NULL, PETSC_FUNCTION));
   if (kdm->ops->ijacobianload) {
-    ierr = (*kdm->ops->ijacobianload)(&kdm->ijacobianctx,viewer);CHKERRQ(ierr);
+    void *ctx;
+
+    PetscCall(PetscContainerGetPointer(kdm->ijacobianctxcontainer, &ctx));
+    PetscCall((*kdm->ops->ijacobianload)(&ctx, viewer));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode DMTSView(DMTS kdm,PetscViewer viewer)
+PetscErrorCode DMTSView(DMTS kdm, PetscViewer viewer)
 {
-  PetscErrorCode ierr;
-  PetscBool      isascii,isbinary;
+  PetscBool isascii, isbinary;
 
   PetscFunctionBegin;
-  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&isascii);CHKERRQ(ierr);
-  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERBINARY,&isbinary);CHKERRQ(ierr);
+  PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &isascii));
+  PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERBINARY, &isbinary));
   if (isascii) {
 #if defined(PETSC_SERIALIZE_FUNCTIONS)
     const char *fname;
 
-    ierr = PetscFPTFind(kdm->ops->ifunction,&fname);CHKERRQ(ierr);
-    if (fname) {
-      ierr = PetscViewerASCIIPrintf(viewer,"  IFunction used by TS: %s\n",fname);CHKERRQ(ierr);
-    }
-    ierr = PetscFPTFind(kdm->ops->ijacobian,&fname);CHKERRQ(ierr);
-    if (fname) {
-      ierr = PetscViewerASCIIPrintf(viewer,"  IJacobian function used by TS: %s\n",fname);CHKERRQ(ierr);
-    }
+    PetscCall(PetscFPTFind(kdm->ops->ifunction, &fname));
+    if (fname) PetscCall(PetscViewerASCIIPrintf(viewer, "  IFunction used by TS: %s\n", fname));
+    PetscCall(PetscFPTFind(kdm->ops->ijacobian, &fname));
+    if (fname) PetscCall(PetscViewerASCIIPrintf(viewer, "  IJacobian function used by TS: %s\n", fname));
 #endif
   } else if (isbinary) {
     struct {
       TSIFunction ifunction;
     } funcstruct;
     struct {
-      PetscErrorCode (*ifunctionview)(void*,PetscViewer);
+      PetscErrorCode (*ifunctionview)(void *, PetscViewer);
     } funcviewstruct;
     struct {
-      PetscErrorCode (*ifunctionload)(void**,PetscViewer);
+      PetscErrorCode (*ifunctionload)(void **, PetscViewer);
     } funcloadstruct;
     struct {
       TSIJacobian ijacobian;
     } jacstruct;
     struct {
-      PetscErrorCode (*ijacobianview)(void*,PetscViewer);
+      PetscErrorCode (*ijacobianview)(void *, PetscViewer);
     } jacviewstruct;
     struct {
-      PetscErrorCode (*ijacobianload)(void**,PetscViewer);
+      PetscErrorCode (*ijacobianload)(void **, PetscViewer);
     } jacloadstruct;
 
     funcstruct.ifunction         = kdm->ops->ifunction;
     funcviewstruct.ifunctionview = kdm->ops->ifunctionview;
     funcloadstruct.ifunctionload = kdm->ops->ifunctionload;
-    ierr = PetscViewerBinaryWrite(viewer,&funcstruct,1,PETSC_FUNCTION);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryWrite(viewer,&funcviewstruct,1,PETSC_FUNCTION);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryWrite(viewer,&funcloadstruct,1,PETSC_FUNCTION);CHKERRQ(ierr);
+    PetscCall(PetscViewerBinaryWrite(viewer, &funcstruct, 1, PETSC_FUNCTION));
+    PetscCall(PetscViewerBinaryWrite(viewer, &funcviewstruct, 1, PETSC_FUNCTION));
+    PetscCall(PetscViewerBinaryWrite(viewer, &funcloadstruct, 1, PETSC_FUNCTION));
     if (kdm->ops->ifunctionview) {
-      ierr = (*kdm->ops->ifunctionview)(kdm->ifunctionctx,viewer);CHKERRQ(ierr);
+      void *ctx;
+
+      PetscCall(PetscContainerGetPointer(kdm->ifunctionctxcontainer, &ctx));
+      PetscCall((*kdm->ops->ifunctionview)(ctx, viewer));
     }
-    jacstruct.ijacobian = kdm->ops->ijacobian;
+    jacstruct.ijacobian         = kdm->ops->ijacobian;
     jacviewstruct.ijacobianview = kdm->ops->ijacobianview;
     jacloadstruct.ijacobianload = kdm->ops->ijacobianload;
-    ierr = PetscViewerBinaryWrite(viewer,&jacstruct,1,PETSC_FUNCTION);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryWrite(viewer,&jacviewstruct,1,PETSC_FUNCTION);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryWrite(viewer,&jacloadstruct,1,PETSC_FUNCTION);CHKERRQ(ierr);
+    PetscCall(PetscViewerBinaryWrite(viewer, &jacstruct, 1, PETSC_FUNCTION));
+    PetscCall(PetscViewerBinaryWrite(viewer, &jacviewstruct, 1, PETSC_FUNCTION));
+    PetscCall(PetscViewerBinaryWrite(viewer, &jacloadstruct, 1, PETSC_FUNCTION));
     if (kdm->ops->ijacobianview) {
-      ierr = (*kdm->ops->ijacobianview)(kdm->ijacobianctx,viewer);CHKERRQ(ierr);
+      void *ctx;
+
+      PetscCall(PetscContainerGetPointer(kdm->ijacobianctxcontainer, &ctx));
+      PetscCall((*kdm->ops->ijacobianview)(ctx, viewer));
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode DMTSCreate(MPI_Comm comm,DMTS *kdm)
+static PetscErrorCode DMTSCreate(MPI_Comm comm, DMTS *kdm)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  ierr = TSInitializePackage();CHKERRQ(ierr);
-  ierr = PetscHeaderCreate(*kdm, DMTS_CLASSID, "DMTS", "DMTS", "DMTS", comm, DMTSDestroy, DMTSView);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(TSInitializePackage());
+  PetscCall(PetscHeaderCreate(*kdm, DMTS_CLASSID, "DMTS", "DMTS", "DMTS", comm, DMTSDestroy, DMTSView));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* Attaches the DMTS to the coarse level.
  * Under what conditions should we copy versus duplicate?
  */
-static PetscErrorCode DMCoarsenHook_DMTS(DM dm,DM dmc,void *ctx)
+static PetscErrorCode DMCoarsenHook_DMTS(DM dm, DM dmc, void *ctx)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  ierr = DMCopyDMTS(dm,dmc);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(DMCopyDMTS(dm, dmc));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* This could restrict auxiliary information to the coarse level.
  */
-static PetscErrorCode DMRestrictHook_DMTS(DM dm,Mat Restrict,Vec rscale,Mat Inject,DM dmc,void *ctx)
+static PetscErrorCode DMRestrictHook_DMTS(DM dm, Mat Restrict, Vec rscale, Mat Inject, DM dmc, void *ctx)
 {
-
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode DMSubDomainHook_DMTS(DM dm,DM subdm,void *ctx)
+static PetscErrorCode DMSubDomainHook_DMTS(DM dm, DM subdm, void *ctx)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  ierr = DMCopyDMTS(dm,subdm);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(DMCopyDMTS(dm, subdm));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* This could restrict auxiliary information to the coarse level.
  */
-static PetscErrorCode DMSubDomainRestrictHook_DMTS(DM dm,VecScatter gscat,VecScatter lscat,DM subdm,void *ctx)
+static PetscErrorCode DMSubDomainRestrictHook_DMTS(DM dm, VecScatter gscat, VecScatter lscat, DM subdm, void *ctx)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   DMTSCopy - copies the information in a DMTS to another DMTS
+   DMTSCopy - copies the information in a `DMTS` to another `DMTS`
 
    Not Collective
 
    Input Parameters:
-+  kdm - Original DMTS
--  nkdm - DMTS to receive the data, should have been created with DMTSCreate()
++  kdm - Original `DMTS`
+-  nkdm - `DMTS` to receive the data, should have been created with `DMTSCreate()`
 
    Level: developer
 
-.seealso: DMTSCreate(), DMTSDestroy()
+.seealso: [](ch_ts), `DMTSCreate()`, `DMTSDestroy()`
 @*/
-PetscErrorCode DMTSCopy(DMTS kdm,DMTS nkdm)
+PetscErrorCode DMTSCopy(DMTS kdm, DMTS nkdm)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(kdm,DMTS_CLASSID,1);
-  PetscValidHeaderSpecific(nkdm,DMTS_CLASSID,2);
+  PetscValidHeaderSpecific(kdm, DMTS_CLASSID, 1);
+  PetscValidHeaderSpecific(nkdm, DMTS_CLASSID, 2);
   nkdm->ops->rhsfunction = kdm->ops->rhsfunction;
   nkdm->ops->rhsjacobian = kdm->ops->rhsjacobian;
   nkdm->ops->ifunction   = kdm->ops->ifunction;
@@ -175,13 +226,19 @@ PetscErrorCode DMTSCopy(DMTS kdm,DMTS nkdm)
   nkdm->ops->destroy     = kdm->ops->destroy;
   nkdm->ops->duplicate   = kdm->ops->duplicate;
 
-  nkdm->rhsfunctionctx = kdm->rhsfunctionctx;
-  nkdm->rhsjacobianctx = kdm->rhsjacobianctx;
-  nkdm->ifunctionctx   = kdm->ifunctionctx;
-  nkdm->ijacobianctx   = kdm->ijacobianctx;
-  nkdm->i2functionctx  = kdm->i2functionctx;
-  nkdm->i2jacobianctx  = kdm->i2jacobianctx;
-  nkdm->solutionctx    = kdm->solutionctx;
+  nkdm->solutionctx             = kdm->solutionctx;
+  nkdm->rhsfunctionctxcontainer = kdm->rhsfunctionctxcontainer;
+  nkdm->rhsjacobianctxcontainer = kdm->rhsjacobianctxcontainer;
+  nkdm->ifunctionctxcontainer   = kdm->ifunctionctxcontainer;
+  nkdm->ijacobianctxcontainer   = kdm->ijacobianctxcontainer;
+  nkdm->i2functionctxcontainer  = kdm->i2functionctxcontainer;
+  nkdm->i2jacobianctxcontainer  = kdm->i2jacobianctxcontainer;
+  if (nkdm->rhsfunctionctxcontainer) PetscCall(PetscObjectCompose((PetscObject)nkdm, "rhs function ctx", (PetscObject)nkdm->rhsfunctionctxcontainer));
+  if (nkdm->rhsjacobianctxcontainer) PetscCall(PetscObjectCompose((PetscObject)nkdm, "rhs jacobian ctx", (PetscObject)nkdm->rhsjacobianctxcontainer));
+  if (nkdm->ifunctionctxcontainer) PetscCall(PetscObjectCompose((PetscObject)nkdm, "ifunction ctx", (PetscObject)nkdm->ifunctionctxcontainer));
+  if (nkdm->ijacobianctxcontainer) PetscCall(PetscObjectCompose((PetscObject)nkdm, "ijacobian ctx", (PetscObject)nkdm->ijacobianctxcontainer));
+  if (nkdm->i2functionctxcontainer) PetscCall(PetscObjectCompose((PetscObject)nkdm, "i2function ctx", (PetscObject)nkdm->i2functionctxcontainer));
+  if (nkdm->i2jacobianctxcontainer) PetscCall(PetscObjectCompose((PetscObject)nkdm, "i2jacobian ctx", (PetscObject)nkdm->i2jacobianctxcontainer));
 
   nkdm->data = kdm->data;
 
@@ -192,128 +249,123 @@ PetscErrorCode DMTSCopy(DMTS kdm,DMTS nkdm)
   */
 
   /* implementation specific copy hooks */
-  if (kdm->ops->duplicate) {ierr = (*kdm->ops->duplicate)(kdm,nkdm);CHKERRQ(ierr);}
-  PetscFunctionReturn(0);
+  PetscTryTypeMethod(kdm, duplicate, nkdm);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   DMGetDMTS - get read-only private DMTS context from a DM
+   DMGetDMTS - get read-only private `DMTS` context from a `DM`
 
    Not Collective
 
    Input Parameter:
-.  dm - DM to be used with TS
+.  dm - `DM` to be used with `TS`
 
    Output Parameter:
-.  tsdm - private DMTS context
+.  tsdm - private `DMTS` context
 
    Level: developer
 
    Notes:
-   Use DMGetDMTSWrite() if write access is needed. The DMTSSetXXX API should be used wherever possible.
+   Use `DMGetDMTSWrite()` if write access is needed. The `DMTSSetXXX()` API should be used wherever possible.
 
-.seealso: DMGetDMTSWrite()
+.seealso: [](ch_ts), `DMTS`, `DMGetDMTSWrite()`
 @*/
-PetscErrorCode DMGetDMTS(DM dm,DMTS *tsdm)
+PetscErrorCode DMGetDMTS(DM dm, DMTS *tsdm)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  *tsdm = (DMTS) dm->dmts;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  *tsdm = (DMTS)dm->dmts;
   if (!*tsdm) {
-    ierr = PetscInfo(dm,"Creating new DMTS\n");CHKERRQ(ierr);
-    ierr = DMTSCreate(PetscObjectComm((PetscObject)dm),tsdm);CHKERRQ(ierr);
-    dm->dmts = (PetscObject) *tsdm;
+    PetscCall(PetscInfo(dm, "Creating new DMTS\n"));
+    PetscCall(DMTSCreate(PetscObjectComm((PetscObject)dm), tsdm));
+    dm->dmts            = (PetscObject)*tsdm;
     (*tsdm)->originaldm = dm;
-    ierr = DMCoarsenHookAdd(dm,DMCoarsenHook_DMTS,DMRestrictHook_DMTS,NULL);CHKERRQ(ierr);
-    ierr = DMSubDomainHookAdd(dm,DMSubDomainHook_DMTS,DMSubDomainRestrictHook_DMTS,NULL);CHKERRQ(ierr);
+    PetscCall(DMCoarsenHookAdd(dm, DMCoarsenHook_DMTS, DMRestrictHook_DMTS, NULL));
+    PetscCall(DMSubDomainHookAdd(dm, DMSubDomainHook_DMTS, DMSubDomainRestrictHook_DMTS, NULL));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   DMGetDMTSWrite - get write access to private DMTS context from a DM
+   DMGetDMTSWrite - get write access to private `DMTS` context from a `DM`
 
    Not Collective
 
    Input Parameter:
-.  dm - DM to be used with TS
+.  dm - `DM` to be used with `TS`
 
    Output Parameter:
-.  tsdm - private DMTS context
+.  tsdm - private `DMTS` context
 
    Level: developer
 
-.seealso: DMGetDMTS()
+.seealso: [](ch_ts), `DMTS`, `DMGetDMTS()`
 @*/
-PetscErrorCode DMGetDMTSWrite(DM dm,DMTS *tsdm)
+PetscErrorCode DMGetDMTSWrite(DM dm, DMTS *tsdm)
 {
-  PetscErrorCode ierr;
-  DMTS           sdm;
+  DMTS sdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  ierr = DMGetDMTS(dm,&sdm);CHKERRQ(ierr);
-  if (!sdm->originaldm) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"DMTS has a NULL originaldm");
-  if (sdm->originaldm != dm) {  /* Copy on write */
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTS(dm, &sdm));
+  PetscCheck(sdm->originaldm, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "DMTS has a NULL originaldm");
+  if (sdm->originaldm != dm) { /* Copy on write */
     DMTS oldsdm = sdm;
-    ierr     = PetscInfo(dm,"Copying DMTS due to write\n");CHKERRQ(ierr);
-    ierr     = DMTSCreate(PetscObjectComm((PetscObject)dm),&sdm);CHKERRQ(ierr);
-    ierr     = DMTSCopy(oldsdm,sdm);CHKERRQ(ierr);
-    ierr     = DMTSDestroy((DMTS*)&dm->dmts);CHKERRQ(ierr);
-    dm->dmts = (PetscObject) sdm;
+    PetscCall(PetscInfo(dm, "Copying DMTS due to write\n"));
+    PetscCall(DMTSCreate(PetscObjectComm((PetscObject)dm), &sdm));
+    PetscCall(DMTSCopy(oldsdm, sdm));
+    PetscCall(DMTSDestroy((DMTS *)&dm->dmts));
+    dm->dmts        = (PetscObject)sdm;
     sdm->originaldm = dm;
   }
   *tsdm = sdm;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   DMCopyDMTS - copies a DM context to a new DM
+   DMCopyDMTS - copies a `DM` context to a new `DM`
 
    Logically Collective
 
    Input Parameters:
-+  dmsrc - DM to obtain context from
--  dmdest - DM to add context to
++  dmsrc - `DM` to obtain context from
+-  dmdest - `DM` to add context to
 
    Level: developer
 
    Note:
    The context is copied by reference. This function does not ensure that a context exists.
 
-.seealso: DMGetDMTS(), TSSetDM()
+.seealso: [](ch_ts), `DMTS`, `DMGetDMTS()`, `TSSetDM()`
 @*/
-PetscErrorCode DMCopyDMTS(DM dmsrc,DM dmdest)
+PetscErrorCode DMCopyDMTS(DM dmsrc, DM dmdest)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dmsrc,DM_CLASSID,1);
-  PetscValidHeaderSpecific(dmdest,DM_CLASSID,2);
-  ierr         = DMTSDestroy((DMTS*)&dmdest->dmts);CHKERRQ(ierr);
+  PetscValidHeaderSpecific(dmsrc, DM_CLASSID, 1);
+  PetscValidHeaderSpecific(dmdest, DM_CLASSID, 2);
+  PetscCall(DMTSDestroy((DMTS *)&dmdest->dmts));
   dmdest->dmts = dmsrc->dmts;
-  ierr         = PetscObjectReference(dmdest->dmts);CHKERRQ(ierr);
-  ierr         = DMCoarsenHookAdd(dmdest,DMCoarsenHook_DMTS,DMRestrictHook_DMTS,NULL);CHKERRQ(ierr);
-  ierr         = DMSubDomainHookAdd(dmdest,DMSubDomainHook_DMTS,DMSubDomainRestrictHook_DMTS,NULL);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(PetscObjectReference(dmdest->dmts));
+  PetscCall(DMCoarsenHookAdd(dmdest, DMCoarsenHook_DMTS, DMRestrictHook_DMTS, NULL));
+  PetscCall(DMSubDomainHookAdd(dmdest, DMSubDomainHook_DMTS, DMSubDomainRestrictHook_DMTS, NULL));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   DMTSSetIFunction - set TS implicit function evaluation function
+   DMTSSetIFunction - set `TS` implicit function evaluation function
 
    Not Collective
 
    Input Parameters:
-+  dm - DM to be used with TS
++  dm - `DM` to be used with `TS`
 .  func - function evaluating f(t,u,u_t)
 -  ctx - context for residual evaluation
 
-   Calling sequence of func:
-$     PetscErrorCode func(TS ts,PetscReal t,Vec u,Vec u_t,Vec F,ctx);
-
-+  t   - time at step/stage being solved
+   Calling sequence of `func`:
+$     PetscErrorCode func(TS ts, PetscReal t, Vec u, Vec u_t, Vec F,void *ctx);
++  ts  - the `TS` context obtained from `TSCreate()`
+.  t   - time at step/stage being solved
 .  u   - state vector
 .  u_t - time derivative of state vector
 .  F   - function vector
@@ -322,222 +374,354 @@ $     PetscErrorCode func(TS ts,PetscReal t,Vec u,Vec u_t,Vec F,ctx);
    Level: advanced
 
    Note:
-   TSSetFunction() is normally used, but it calls this function internally because the user context is actually
-   associated with the DM.  This makes the interface consistent regardless of whether the user interacts with a DM or
+   `TSSetFunction()` is normally used, but it calls this function internally because the user context is actually
+   associated with the `DM`.  This makes the interface consistent regardless of whether the user interacts with a `DM` or
    not. If DM took a more central role at some later date, this could become the primary method of setting the residual.
 
-.seealso: DMTSSetContext(), TSSetIFunction(), DMTSSetJacobian()
+.seealso: [](ch_ts), `TS`, `DM`, `DMTSSetContext()`, `TSSetIFunction()`, `DMTSSetJacobian()`
 @*/
-PetscErrorCode DMTSSetIFunction(DM dm,TSIFunction func,void *ctx)
+PetscErrorCode DMTSSetIFunction(DM dm, TSIFunction func, void *ctx)
 {
-  PetscErrorCode ierr;
-  DMTS           tsdm;
+  DMTS tsdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  ierr = DMGetDMTSWrite(dm,&tsdm);CHKERRQ(ierr);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
   if (func) tsdm->ops->ifunction = func;
-  if (ctx)  tsdm->ifunctionctx = ctx;
-  PetscFunctionReturn(0);
+  if (ctx) {
+    PetscContainer ctxcontainer;
+    PetscCall(PetscContainerCreate(PetscObjectComm((PetscObject)tsdm), &ctxcontainer));
+    PetscCall(PetscContainerSetPointer(ctxcontainer, ctx));
+    PetscCall(PetscObjectCompose((PetscObject)tsdm, "ifunction ctx", (PetscObject)ctxcontainer));
+    tsdm->ifunctionctxcontainer = ctxcontainer;
+    PetscCall(PetscContainerDestroy(&ctxcontainer));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   DMTSGetIFunction - get TS implicit residual evaluation function
+   DMTSSetIFunctionContextDestroy - set `TS` implicit evaluation context destroy function
+
+   Not Collective
+
+   Input Parameters:
++  dm - `DM` to be used with `TS`
+-  f - implicit evaluation context destroy function
+
+   Level: advanced
+
+.seealso: [](ch_ts), `DM`, `TS`, `DMTSSetIFunction()`, `TSSetIFunction()`
+@*/
+PetscErrorCode DMTSSetIFunctionContextDestroy(DM dm, PetscErrorCode (*f)(void *))
+{
+  DMTS tsdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
+  if (tsdm->ifunctionctxcontainer) PetscCall(PetscContainerSetUserDestroy(tsdm->ifunctionctxcontainer, f));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode DMTSUnsetIFunctionContext_Internal(DM dm)
+{
+  DMTS tsdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
+  PetscCall(DMTSUnsetIFunctionContext_DMTS(tsdm));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+   DMTSGetIFunction - get `TS` implicit residual evaluation function
 
    Not Collective
 
    Input Parameter:
-.  dm - DM to be used with TS
+.  dm - `DM` to be used with `TS`
 
    Output Parameters:
-+  func - function evaluation function, see TSSetIFunction() for calling sequence
++  func - function evaluation function, for calling sequence see `TSSetIFunction()`
 -  ctx - context for residual evaluation
 
    Level: advanced
 
    Note:
-   TSGetFunction() is normally used, but it calls this function internally because the user context is actually
-   associated with the DM.
+   `TSGetFunction()` is normally used, but it calls this function internally because the user context is actually
+   associated with the `DM`.
 
-.seealso: DMTSSetContext(), DMTSSetFunction(), TSSetFunction()
+.seealso: [](ch_ts), `TS`, `DM`, `DMTSSetContext()`, `DMTSSetFunction()`, `TSSetFunction()`
 @*/
-PetscErrorCode DMTSGetIFunction(DM dm,TSIFunction *func,void **ctx)
+PetscErrorCode DMTSGetIFunction(DM dm, TSIFunction *func, void **ctx)
 {
-  PetscErrorCode ierr;
-  DMTS           tsdm;
+  DMTS tsdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  ierr = DMGetDMTS(dm,&tsdm);CHKERRQ(ierr);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTS(dm, &tsdm));
   if (func) *func = tsdm->ops->ifunction;
-  if (ctx)  *ctx = tsdm->ifunctionctx;
-  PetscFunctionReturn(0);
+  if (ctx) {
+    if (tsdm->ifunctionctxcontainer) PetscCall(PetscContainerGetPointer(tsdm->ifunctionctxcontainer, ctx));
+    else *ctx = NULL;
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   DMTSSetI2Function - set TS implicit function evaluation function for 2nd order systems
+   DMTSSetI2Function - set `TS` implicit function evaluation function for 2nd order systems
 
    Not Collective
 
    Input Parameters:
-+  dm - DM to be used with TS
++  dm - `DM` to be used with `TS`
 .  fun - function evaluation routine
 -  ctx - context for residual evaluation
 
-   Calling sequence of fun:
-$     PetscErrorCode fun(TS ts,PetscReal t,Vec U,Vec U_t,Vec U_tt,Vec F,ctx);
-
-+  t    - time at step/stage being solved
+   Calling sequence of `fun`:
+$  PetscErrorCode fun(TS ts, PetscReal t, Vec U, Vec U_t, Vec U_tt, Vec F,void *ctx);
++  ts  - the `TS` context obtained from `TSCreate()`
+.  t    - time at step/stage being solved
 .  U    - state vector
 .  U_t  - time derivative of state vector
 .  U_tt - second time derivative of state vector
 .  F    - function vector
--  ctx  - [optional] user-defined context for matrix evaluation routine (may be NULL)
+-  ctx  - [optional] user-defined context for matrix evaluation routine (may be `NULL`)
 
    Level: advanced
 
    Note:
-   TSSetI2Function() is normally used, but it calls this function internally because the user context is actually
-   associated with the DM.
+   `TSSetI2Function()` is normally used, but it calls this function internally because the user context is actually
+   associated with the `DM`.
 
-.seealso: TSSetI2Function()
+.seealso: [](ch_ts), `DM`, `TS`, `TSSetI2Function()`
 @*/
-PetscErrorCode DMTSSetI2Function(DM dm,TSI2Function fun,void *ctx)
+PetscErrorCode DMTSSetI2Function(DM dm, TSI2Function fun, void *ctx)
 {
-  DMTS           tsdm;
-  PetscErrorCode ierr;
+  DMTS tsdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  ierr = DMGetDMTSWrite(dm,&tsdm);CHKERRQ(ierr);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
   if (fun) tsdm->ops->i2function = fun;
-  if (ctx) tsdm->i2functionctx   = ctx;
-  PetscFunctionReturn(0);
+  if (ctx) {
+    PetscContainer ctxcontainer;
+    PetscCall(PetscContainerCreate(PetscObjectComm((PetscObject)tsdm), &ctxcontainer));
+    PetscCall(PetscContainerSetPointer(ctxcontainer, ctx));
+    PetscCall(PetscObjectCompose((PetscObject)tsdm, "i2function ctx", (PetscObject)ctxcontainer));
+    tsdm->i2functionctxcontainer = ctxcontainer;
+    PetscCall(PetscContainerDestroy(&ctxcontainer));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   DMTSGetI2Function - get TS implicit residual evaluation function for 2nd order systems
+   DMTSSetI2FunctionContextDestroy - set `TS` implicit evaluation for 2nd order systems context destroy
+
+   Not Collective
+
+   Input Parameters:
++  dm - `DM` to be used with `TS`
+-  f - implicit evaluation context destroy function
+
+   Level: advanced
+
+   Note:
+   `TSSetI2FunctionContextDestroy()` is normally used, but it calls this function internally because the user context is actually
+   associated with the `DM`.
+
+.seealso: [](ch_ts), `TSSetI2FunctionContextDestroy()`, `DMTSSetI2Function()`, `TSSetI2Function()`
+@*/
+PetscErrorCode DMTSSetI2FunctionContextDestroy(DM dm, PetscErrorCode (*f)(void *))
+{
+  DMTS tsdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
+  if (tsdm->i2functionctxcontainer) PetscCall(PetscContainerSetUserDestroy(tsdm->i2functionctxcontainer, f));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode DMTSUnsetI2FunctionContext_Internal(DM dm)
+{
+  DMTS tsdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
+  PetscCall(DMTSUnsetI2FunctionContext_DMTS(tsdm));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+   DMTSGetI2Function - get `TS` implicit residual evaluation function for 2nd order systems
 
    Not Collective
 
    Input Parameter:
-.  dm - DM to be used with TS
+.  dm - `DM` to be used with `TS`
 
    Output Parameters:
-+  fun - function evaluation function, see TSSetI2Function() for calling sequence
++  fun - function evaluation function, for calling sequence see `TSSetI2Function()`
 -  ctx - context for residual evaluation
 
    Level: advanced
 
    Note:
-   TSGetI2Function() is normally used, but it calls this function internally because the user context is actually
-   associated with the DM.
+   `TSGetI2Function()` is normally used, but it calls this function internally because the user context is actually
+   associated with the `DM`.
 
-.seealso: DMTSSetI2Function(),TSGetI2Function()
+.seealso: [](ch_ts), `DM`, `TS`, `DMTSSetI2Function()`, `TSGetI2Function()`
 @*/
-PetscErrorCode DMTSGetI2Function(DM dm,TSI2Function *fun,void **ctx)
+PetscErrorCode DMTSGetI2Function(DM dm, TSI2Function *fun, void **ctx)
 {
-  DMTS           tsdm;
-  PetscErrorCode ierr;
+  DMTS tsdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  ierr = DMGetDMTS(dm,&tsdm);CHKERRQ(ierr);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTS(dm, &tsdm));
   if (fun) *fun = tsdm->ops->i2function;
-  if (ctx) *ctx = tsdm->i2functionctx;
-  PetscFunctionReturn(0);
+  if (ctx) {
+    if (tsdm->i2functionctxcontainer) PetscCall(PetscContainerGetPointer(tsdm->i2functionctxcontainer, ctx));
+    else *ctx = NULL;
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   DMTSSetI2Jacobian - set TS implicit Jacobian evaluation function for 2nd order systems
+   DMTSSetI2Jacobian - set `TS` implicit Jacobian evaluation function for 2nd order systems
 
    Not Collective
 
    Input Parameters:
-+  dm - DM to be used with TS
++  dm - `DM` to be used with `TS`
 .  fun - Jacobian evaluation routine
 -  ctx - context for Jacobian evaluation
 
-   Calling sequence of jac:
-$    PetscErrorCode jac(TS ts,PetscReal t,Vec U,Vec U_t,Vec U_tt,PetscReal v,PetscReal a,Mat J,Mat P,void *ctx);
-
-+  t    - time at step/stage being solved
+   Calling sequence of `jac`:
+$    PetscErrorCode jac(TS ts, PetscReal t, Vec U, Vec U_t, Vec U_tt, PetscReal v, PetscReal a, Mat J, Mat P, void *ctx)
++  ts  - the `TS` context obtained from `TSCreate()`
+.  t    - time at step/stage being solved
 .  U    - state vector
 .  U_t  - time derivative of state vector
 .  U_tt - second time derivative of state vector
 .  v    - shift for U_t
 .  a    - shift for U_tt
 .  J    - Jacobian of G(U) = F(t,U,W+v*U,W'+a*U), equivalent to dF/dU + v*dF/dU_t  + a*dF/dU_tt
-.  P    - preconditioning matrix for J, may be same as J
+.  P    - preconditioning matrix for J, may be same as `J`
 -  ctx  - [optional] user-defined context for matrix evaluation routine
 
    Level: advanced
 
    Note:
-   TSSetI2Jacobian() is normally used, but it calls this function internally because the user context is actually
-   associated with the DM.
+   `TSSetI2Jacobian()` is normally used, but it calls this function internally because the user context is actually
+   associated with the `DM`.
 
-.seealso: TSSetI2Jacobian()
+.seealso: [](ch_ts), `DM`, `TS`, `TSSetI2Jacobian()`
 @*/
-PetscErrorCode DMTSSetI2Jacobian(DM dm,TSI2Jacobian jac,void *ctx)
+PetscErrorCode DMTSSetI2Jacobian(DM dm, TSI2Jacobian jac, void *ctx)
 {
-  DMTS           tsdm;
-  PetscErrorCode ierr;
+  DMTS tsdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  ierr = DMGetDMTSWrite(dm,&tsdm);CHKERRQ(ierr);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
   if (jac) tsdm->ops->i2jacobian = jac;
-  if (ctx) tsdm->i2jacobianctx   = ctx;
-  PetscFunctionReturn(0);
+  if (ctx) {
+    PetscContainer ctxcontainer;
+    PetscCall(PetscContainerCreate(PetscObjectComm((PetscObject)tsdm), &ctxcontainer));
+    PetscCall(PetscContainerSetPointer(ctxcontainer, ctx));
+    PetscCall(PetscObjectCompose((PetscObject)tsdm, "i2jacobian ctx", (PetscObject)ctxcontainer));
+    tsdm->i2jacobianctxcontainer = ctxcontainer;
+    PetscCall(PetscContainerDestroy(&ctxcontainer));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   DMTSGetI2Jacobian - get TS implicit Jacobian evaluation function for 2nd order systems
+   DMTSSetI2JacobianContextDestroy - set `TS` implicit Jacobian evaluation for 2nd order systems context destroy function
+
+   Not Collective
+
+   Input Parameters:
++  dm - `DM` to be used with `TS`
+-  f - implicit Jacobian evaluation context destroy function
+
+   Level: advanced
+
+.seealso: [](ch_ts), `DM`, `TS`, `TSSetI2JacobianContextDestroy()`, `DMTSSetI2Jacobian()`, `TSSetI2Jacobian()`
+@*/
+PetscErrorCode DMTSSetI2JacobianContextDestroy(DM dm, PetscErrorCode (*f)(void *))
+{
+  DMTS tsdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
+  if (tsdm->i2jacobianctxcontainer) PetscCall(PetscContainerSetUserDestroy(tsdm->i2jacobianctxcontainer, f));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode DMTSUnsetI2JacobianContext_Internal(DM dm)
+{
+  DMTS tsdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
+  PetscCall(DMTSUnsetI2JacobianContext_DMTS(tsdm));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+   DMTSGetI2Jacobian - get `TS` implicit Jacobian evaluation function for 2nd order systems
 
    Not Collective
 
    Input Parameter:
-.  dm - DM to be used with TS
+.  dm - `DM` to be used with `TS`
 
    Output Parameters:
-+  jac - Jacobian evaluation function, see TSSetI2Jacobian() for calling sequence
++  jac - Jacobian evaluation function,  for calling sequence see `TSSetI2Jacobian()`
 -  ctx - context for Jacobian evaluation
 
    Level: advanced
 
    Note:
-   TSGetI2Jacobian() is normally used, but it calls this function internally because the user context is actually
-   associated with the DM.
+   `TSGetI2Jacobian()` is normally used, but it calls this function internally because the user context is actually
+   associated with the `DM`.
 
-.seealso: DMTSSetI2Jacobian(),TSGetI2Jacobian()
+.seealso: [](ch_ts), `DM`, `TS`, `DMTSSetI2Jacobian()`, `TSGetI2Jacobian()`
 @*/
-PetscErrorCode DMTSGetI2Jacobian(DM dm,TSI2Jacobian *jac,void **ctx)
+PetscErrorCode DMTSGetI2Jacobian(DM dm, TSI2Jacobian *jac, void **ctx)
 {
-  DMTS           tsdm;
-  PetscErrorCode ierr;
+  DMTS tsdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  ierr = DMGetDMTS(dm,&tsdm);CHKERRQ(ierr);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTS(dm, &tsdm));
   if (jac) *jac = tsdm->ops->i2jacobian;
-  if (ctx) *ctx = tsdm->i2jacobianctx;
-  PetscFunctionReturn(0);
+  if (ctx) {
+    if (tsdm->i2jacobianctxcontainer) PetscCall(PetscContainerGetPointer(tsdm->i2jacobianctxcontainer, ctx));
+    else *ctx = NULL;
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   DMTSSetRHSFunction - set TS explicit residual evaluation function
+   DMTSSetRHSFunction - set `TS` explicit residual evaluation function
 
    Not Collective
 
    Input Parameters:
-+  dm - DM to be used with TS
++  dm - `DM` to be used with `TS`
 .  func - RHS function evaluation routine
 -  ctx - context for residual evaluation
 
-    Calling sequence of func:
-$     PetscErrorCode func(TS ts,PetscReal t,Vec u,Vec F,void *ctx);
-
+    Calling sequence of `func`:
+$   PetscErrorCode func(TS ts, PetscReal t, Vec u, Vec F, void *ctx);
 +   ts - timestep context
 .   t - current timestep
 .   u - input vector
@@ -547,23 +731,73 @@ $     PetscErrorCode func(TS ts,PetscReal t,Vec u,Vec F,void *ctx);
    Level: advanced
 
    Note:
-   TSSetRSHFunction() is normally used, but it calls this function internally because the user context is actually
-   associated with the DM.  This makes the interface consistent regardless of whether the user interacts with a DM or
-   not. If DM took a more central role at some later date, this could become the primary method of setting the residual.
+   `TSSetRHSFunction()` is normally used, but it calls this function internally because the user context is actually
+   associated with the `DM`.  This makes the interface consistent regardless of whether the user interacts with a `DM` or
+   not. If `DM` took a more central role at some later date, this could become the primary method of setting the residual.
 
-.seealso: DMTSSetContext(), TSSetRHSFunction(), DMTSSetJacobian()
+.seealso: [](ch_ts), `DM`, `TS`, `DMTSSetContext()`, `TSSetRHSFunction()`, `DMTSSetJacobian()`
 @*/
-PetscErrorCode DMTSSetRHSFunction(DM dm,TSRHSFunction func,void *ctx)
+PetscErrorCode DMTSSetRHSFunction(DM dm, TSRHSFunction func, void *ctx)
 {
-  PetscErrorCode ierr;
-  DMTS           tsdm;
+  DMTS tsdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  ierr = DMGetDMTSWrite(dm,&tsdm);CHKERRQ(ierr);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
   if (func) tsdm->ops->rhsfunction = func;
-  if (ctx)  tsdm->rhsfunctionctx = ctx;
-  PetscFunctionReturn(0);
+  if (ctx) {
+    PetscContainer ctxcontainer;
+    PetscCall(PetscContainerCreate(PetscObjectComm((PetscObject)tsdm), &ctxcontainer));
+    PetscCall(PetscContainerSetPointer(ctxcontainer, ctx));
+    PetscCall(PetscObjectCompose((PetscObject)tsdm, "rhs function ctx", (PetscObject)ctxcontainer));
+    tsdm->rhsfunctionctxcontainer = ctxcontainer;
+    PetscCall(PetscContainerDestroy(&ctxcontainer));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+   DMTSSetRHSFunctionContextDestroy - set `TS` explicit residual evaluation context destroy function
+
+   Not Collective
+
+   Input Parameters:
++  dm - `DM` to be used with `TS`
+-  f - explicit evaluation context destroy function
+
+   Level: advanced
+
+   Note:
+   `TSSetRHSFunctionContextDestroy()` is normally used, but it calls this function internally because the user context is actually
+   associated with the `DM`.  This makes the interface consistent regardless of whether the user interacts with a `DM` or
+   not.
+
+   Developer Note:
+   If `DM` took a more central role at some later date, this could become the primary method of setting the residual.
+
+.seealso: [](ch_ts), `TSSetRHSFunctionContextDestroy()`, `DMTSSetRHSFunction()`, `TSSetRHSFunction()`
+@*/
+PetscErrorCode DMTSSetRHSFunctionContextDestroy(DM dm, PetscErrorCode (*f)(void *))
+{
+  DMTS tsdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
+  if (tsdm->rhsfunctionctxcontainer) PetscCall(PetscContainerSetUserDestroy(tsdm->rhsfunctionctxcontainer, f));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode DMTSUnsetRHSFunctionContext_Internal(DM dm)
+{
+  DMTS tsdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
+  PetscCall(DMTSUnsetRHSFunctionContext_DMTS(tsdm));
+  tsdm->rhsfunctionctxcontainer = NULL;
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
@@ -572,22 +806,21 @@ PetscErrorCode DMTSSetRHSFunction(DM dm,TSRHSFunction func,void *ctx)
    Logically Collective
 
    Input Parameters:
-+  dm - DM to be used with TS
++  dm - `DM` to be used with `TS`
 .  tvar - a function that transforms to transient variables
 -  ctx - a context for tvar
 
-    Calling sequence of tvar:
-$     PetscErrorCode tvar(TS ts,Vec p,Vec c,void *ctx);
-
+    Calling sequence of `tvar`:
+$   PetscErrorCode tvar(TS ts, Vec p, Vec c, void *ctx);
 +   ts - timestep context
-.   p - input vector (primative form)
+.   p - input vector (primitive form)
 .   c - output vector, transient variables (conservative form)
 -   ctx - [optional] user-defined function context
 
    Level: advanced
 
    Notes:
-   This is typically used to transform from primitive to conservative variables so that a time integrator (e.g., TSBDF)
+   This is typically used to transform from primitive to conservative variables so that a time integrator (e.g., `TSBDF`)
    can be conservative.  In this context, primitive variables P are used to model the state (e.g., because they lead to
    well-conditioned formulations even in limiting cases such as low-Mach or zero porosity).  The transient variable is
    C(P), specified by calling this function.  An IFunction thus receives arguments (P, Cdot) and the IJacobian must be
@@ -595,28 +828,27 @@ $     PetscErrorCode tvar(TS ts,Vec p,Vec c,void *ctx);
 
      dF/dP + shift * dF/dCdot dC/dP.
 
-.seealso: TSSetTransientVariable(), DMTSGetTransientVariable(), DMTSSetIFunction(), DMTSSetIJacobian()
+.seealso: [](ch_ts), `TS`, `TSBDF`, `TSSetTransientVariable()`, `DMTSGetTransientVariable()`, `DMTSSetIFunction()`, `DMTSSetIJacobian()`
 @*/
-PetscErrorCode DMTSSetTransientVariable(DM dm,TSTransientVariable tvar,void *ctx)
+PetscErrorCode DMTSSetTransientVariable(DM dm, TSTransientVariable tvar, void *ctx)
 {
-  PetscErrorCode ierr;
-  DMTS           dmts;
+  DMTS dmts;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  ierr = DMGetDMTSWrite(dm,&dmts);CHKERRQ(ierr);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &dmts));
   dmts->ops->transientvar = tvar;
-  dmts->transientvarctx = ctx;
-  PetscFunctionReturn(0);
+  dmts->transientvarctx   = ctx;
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   DMTSGetTransientVariable - gets function to transform from state to transient variables
+   DMTSGetTransientVariable - gets function to transform from state to transient variables set with `DMTSSetTransientVariable()`
 
    Logically Collective
 
    Input Parameter:
-.  dm - DM to be used with TS
+.  dm - `DM` to be used with `TS`
 
    Output Parameters:
 +  tvar - a function that transforms to transient variables
@@ -624,63 +856,60 @@ PetscErrorCode DMTSSetTransientVariable(DM dm,TSTransientVariable tvar,void *ctx
 
    Level: advanced
 
-.seealso: DMTSSetTransientVariable(), DMTSGetIFunction(), DMTSGetIJacobian()
+.seealso: [](ch_ts), `DM`, `DMTSSetTransientVariable()`, `DMTSGetIFunction()`, `DMTSGetIJacobian()`
 @*/
-PetscErrorCode DMTSGetTransientVariable(DM dm,TSTransientVariable *tvar,void *ctx)
+PetscErrorCode DMTSGetTransientVariable(DM dm, TSTransientVariable *tvar, void *ctx)
 {
-  PetscErrorCode ierr;
-  DMTS           dmts;
+  DMTS dmts;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  ierr = DMGetDMTS(dm,&dmts);CHKERRQ(ierr);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTS(dm, &dmts));
   if (tvar) *tvar = dmts->ops->transientvar;
-  if (ctx)  *(void**)ctx = dmts->transientvarctx;
-  PetscFunctionReturn(0);
+  if (ctx) *(void **)ctx = dmts->transientvarctx;
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   DMTSGetSolutionFunction - gets the TS solution evaluation function
+   DMTSGetSolutionFunction - gets the `TS` solution evaluation function
 
    Not Collective
 
    Input Parameter:
-.  dm - DM to be used with TS
+.  dm - `DM` to be used with `TS`
 
    Output Parameters:
-+  func - solution function evaluation function, see TSSetSolution() for calling sequence
++  func - solution function evaluation function, for calling sequence see `TSSetSolution()`
 -  ctx - context for solution evaluation
 
    Level: advanced
 
-.seealso: DMTSSetContext(), TSSetFunction(), DMTSSetJacobian(), DMTSSetSolutionFunction()
+.seealso: [](ch_ts), `TS`, `DM`, `DMTSSetContext()`, `TSSetFunction()`, `DMTSSetJacobian()`, `DMTSSetSolutionFunction()`
 @*/
-PetscErrorCode DMTSGetSolutionFunction(DM dm,TSSolutionFunction *func,void **ctx)
+PetscErrorCode DMTSGetSolutionFunction(DM dm, TSSolutionFunction *func, void **ctx)
 {
-  PetscErrorCode ierr;
-  DMTS           tsdm;
+  DMTS tsdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  ierr = DMGetDMTS(dm,&tsdm);CHKERRQ(ierr);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTS(dm, &tsdm));
   if (func) *func = tsdm->ops->solution;
-  if (ctx)  *ctx  = tsdm->solutionctx;
-  PetscFunctionReturn(0);
+  if (ctx) *ctx = tsdm->solutionctx;
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   DMTSSetSolutionFunction - set TS solution evaluation function
+   DMTSSetSolutionFunction - set `TS` solution evaluation function
 
    Not Collective
 
    Input Parameters:
-+  dm - DM to be used with TS
++  dm - `DM` to be used with `TS`
 .  func - solution function evaluation routine
 -  ctx - context for solution evaluation
 
-    Calling sequence of f:
-$     PetscErrorCode f(TS ts,PetscReal t,Vec u,void *ctx);
-
+    Calling sequence of `f`:
+$   PetscErrorCode f(TS ts, PetscReal t, Vec u, void *ctx);
 +   ts - timestep context
 .   t - current timestep
 .   u - output vector
@@ -689,38 +918,36 @@ $     PetscErrorCode f(TS ts,PetscReal t,Vec u,void *ctx);
    Level: advanced
 
    Note:
-   TSSetSolutionFunction() is normally used, but it calls this function internally because the user context is actually
-   associated with the DM.  This makes the interface consistent regardless of whether the user interacts with a DM or
-   not. If DM took a more central role at some later date, this could become the primary method of setting the residual.
+   `TSSetSolutionFunction()` is normally used, but it calls this function internally because the user context is actually
+   associated with the `DM`.  This makes the interface consistent regardless of whether the user interacts with a `DM` or
+   not. If `DM` took a more central role at some later date, this could become the primary method of setting the residual.
 
-.seealso: DMTSSetContext(), TSSetFunction(), DMTSSetJacobian(), DMTSGetSolutionFunction()
+.seealso: [](ch_ts), `DM`, `TS`, `DMTSSetContext()`, `TSSetFunction()`, `DMTSSetJacobian()`, `DMTSGetSolutionFunction()`
 @*/
-PetscErrorCode DMTSSetSolutionFunction(DM dm,TSSolutionFunction func,void *ctx)
+PetscErrorCode DMTSSetSolutionFunction(DM dm, TSSolutionFunction func, void *ctx)
 {
-  PetscErrorCode ierr;
-  DMTS           tsdm;
+  DMTS tsdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  ierr = DMGetDMTSWrite(dm,&tsdm);CHKERRQ(ierr);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
   if (func) tsdm->ops->solution = func;
-  if (ctx)  tsdm->solutionctx   = ctx;
-  PetscFunctionReturn(0);
+  if (ctx) tsdm->solutionctx = ctx;
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   DMTSSetForcingFunction - set TS forcing function evaluation function
+   DMTSSetForcingFunction - set `TS` forcing function evaluation function
 
    Not Collective
 
    Input Parameters:
-+  dm - DM to be used with TS
-.  f - forcing function evaluation routine
++  dm - `DM` to be used with `TS`
+.  func - forcing function evaluation routine
 -  ctx - context for solution evaluation
 
-    Calling sequence of func:
-$     PetscErrorCode func (TS ts,PetscReal t,Vec f,void *ctx);
-
+    Calling sequence of `func`:
+$     PetscErrorCode func (TS ts, PetscReal t, Vec f,void *ctx)
 +   ts - timestep context
 .   t - current timestep
 .   f - output vector
@@ -729,106 +956,106 @@ $     PetscErrorCode func (TS ts,PetscReal t,Vec f,void *ctx);
    Level: advanced
 
    Note:
-   TSSetForcingFunction() is normally used, but it calls this function internally because the user context is actually
-   associated with the DM.  This makes the interface consistent regardless of whether the user interacts with a DM or
-   not. If DM took a more central role at some later date, this could become the primary method of setting the residual.
+   `TSSetForcingFunction()` is normally used, but it calls this function internally because the user context is actually
+   associated with the `DM`.  This makes the interface consistent regardless of whether the user interacts with a `DM` or
+   not. If `DM` took a more central role at some later date, this could become the primary method of setting the residual.
 
-.seealso: DMTSSetContext(), TSSetFunction(), DMTSSetJacobian(), TSSetForcingFunction(), DMTSGetForcingFunction()
+.seealso: [](ch_ts), `DM`, `TS`, `DMTSSetContext()`, `TSSetFunction()`, `DMTSSetJacobian()`, `TSSetForcingFunction()`, `DMTSGetForcingFunction()`
 @*/
-PetscErrorCode DMTSSetForcingFunction(DM dm,TSForcingFunction f,void *ctx)
+PetscErrorCode DMTSSetForcingFunction(DM dm, TSForcingFunction func, void *ctx)
 {
-  PetscErrorCode ierr;
-  DMTS           tsdm;
+  DMTS tsdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  ierr = DMGetDMTSWrite(dm,&tsdm);CHKERRQ(ierr);
-  if (f)    tsdm->ops->forcing = f;
-  if (ctx)  tsdm->forcingctx   = ctx;
-  PetscFunctionReturn(0);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
+  if (func) tsdm->ops->forcing = func;
+  if (ctx) tsdm->forcingctx = ctx;
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   DMTSGetForcingFunction - get TS forcing function evaluation function
+   DMTSGetForcingFunction - get `TS` forcing function evaluation function
 
    Not Collective
 
    Input Parameter:
-.   dm - DM to be used with TS
+.   dm - `DM` to be used with `TS`
 
    Output Parameters:
-+  f - forcing function evaluation function; see TSForcingFunction for details
++  f - forcing function evaluation function; see `TSForcingFunction` for details
 -  ctx - context for solution evaluation
 
    Level: advanced
 
    Note:
-   TSSetForcingFunction() is normally used, but it calls this function internally because the user context is actually
-   associated with the DM.  This makes the interface consistent regardless of whether the user interacts with a DM or
-   not. If DM took a more central role at some later date, this could become the primary method of setting the residual.
+   `TSSetForcingFunction()` is normally used, but it calls this function internally because the user context is actually
+   associated with the `DM`.  This makes the interface consistent regardless of whether the user interacts with a `DM` or
+   not. If `DM` took a more central role at some later date, this could become the primary method of setting the residual.
 
-.seealso: DMTSSetContext(), TSSetFunction(), DMTSSetJacobian(), TSSetForcingFunction(), DMTSGetForcingFunction()
+.seealso: [](ch_ts), `TS`, `DM`, `DMTSSetContext()`, `TSSetFunction()`, `DMTSSetJacobian()`, `TSSetForcingFunction()`, `DMTSGetForcingFunction()`
 @*/
-PetscErrorCode DMTSGetForcingFunction(DM dm,TSForcingFunction *f,void **ctx)
+PetscErrorCode DMTSGetForcingFunction(DM dm, TSForcingFunction *f, void **ctx)
 {
-  PetscErrorCode ierr;
-  DMTS           tsdm;
+  DMTS tsdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  ierr = DMGetDMTSWrite(dm,&tsdm);CHKERRQ(ierr);
-  if (f)   *f   = tsdm->ops->forcing;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
+  if (f) *f = tsdm->ops->forcing;
   if (ctx) *ctx = tsdm->forcingctx;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   DMTSGetRHSFunction - get TS explicit residual evaluation function
+   DMTSGetRHSFunction - get `TS` explicit residual evaluation function
 
    Not Collective
 
    Input Parameter:
-.  dm - DM to be used with TS
+.  dm - `DM` to be used with `TS`
 
    Output Parameters:
-+  func - residual evaluation function, see TSSetRHSFunction() for calling sequence
++  func - residual evaluation function, for calling sequence see `TSSetRHSFunction()`
 -  ctx - context for residual evaluation
 
    Level: advanced
 
    Note:
-   TSGetFunction() is normally used, but it calls this function internally because the user context is actually
+   `TSGetFunction()` is normally used, but it calls this function internally because the user context is actually
    associated with the DM.
 
-.seealso: DMTSSetContext(), DMTSSetRHSFunction(), TSSetRHSFunction()
+.seealso: [](ch_ts), `DM`, `TS`, `DMTSSetContext()`, `DMTSSetRHSFunction()`, `TSSetRHSFunction()`
 @*/
-PetscErrorCode DMTSGetRHSFunction(DM dm,TSRHSFunction *func,void **ctx)
+PetscErrorCode DMTSGetRHSFunction(DM dm, TSRHSFunction *func, void **ctx)
 {
-  PetscErrorCode ierr;
-  DMTS           tsdm;
+  DMTS tsdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  ierr = DMGetDMTS(dm,&tsdm);CHKERRQ(ierr);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTS(dm, &tsdm));
   if (func) *func = tsdm->ops->rhsfunction;
-  if (ctx)  *ctx = tsdm->rhsfunctionctx;
-  PetscFunctionReturn(0);
+  if (ctx) {
+    if (tsdm->rhsfunctionctxcontainer) PetscCall(PetscContainerGetPointer(tsdm->rhsfunctionctxcontainer, ctx));
+    else *ctx = NULL;
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   DMTSSetIJacobian - set TS Jacobian evaluation function
+   DMTSSetIJacobian - set `TS` Jacobian evaluation function
 
    Not Collective
 
    Input Parameters:
-+  dm - DM to be used with TS
++  dm - `DM` to be used with `TS`
 .  func - Jacobian evaluation routine
 -  ctx - context for residual evaluation
 
-   Calling sequence of f:
-$    PetscErrorCode f(TS ts,PetscReal t,Vec U,Vec U_t,PetscReal a,Mat Amat,Mat Pmat,void *ctx);
-
-+  t    - time at step/stage being solved
+   Calling sequence of `f`:
+$    PetscErrorCode f(TS ts, PetscReal t, Vec U, Vec U_t, PetscReal a, Mat Amat, Mat Pmat, void *ctx);
++  ts  - the `TS` context obtained from `TSCreate()`
+.  t    - time at step/stage being solved
 .  U    - state vector
 .  U_t  - time derivative of state vector
 .  a    - shift
@@ -839,73 +1066,124 @@ $    PetscErrorCode f(TS ts,PetscReal t,Vec U,Vec U_t,PetscReal a,Mat Amat,Mat P
    Level: advanced
 
    Note:
-   TSSetJacobian() is normally used, but it calls this function internally because the user context is actually
-   associated with the DM.  This makes the interface consistent regardless of whether the user interacts with a DM or
-   not. If DM took a more central role at some later date, this could become the primary method of setting the Jacobian.
+   `TSSetJacobian()` is normally used, but it calls this function internally because the user context is actually
+   associated with the `DM`.  This makes the interface consistent regardless of whether the user interacts with a `DM` or
+   not. If `DM` took a more central role at some later date, this could become the primary method of setting the Jacobian.
 
-.seealso: DMTSSetContext(), TSSetRHSFunction(), DMTSGetJacobian(), TSSetIJacobian(), TSSetIFunction()
+.seealso: [](ch_ts), `TS`, `DM`, `DMTSSetContext()`, `TSSetRHSFunction()`, `DMTSGetJacobian()`, `TSSetIJacobian()`, `TSSetIFunction()`
 @*/
-PetscErrorCode DMTSSetIJacobian(DM dm,TSIJacobian func,void *ctx)
+PetscErrorCode DMTSSetIJacobian(DM dm, TSIJacobian func, void *ctx)
 {
-  PetscErrorCode ierr;
-  DMTS           sdm;
+  DMTS tsdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  ierr = DMGetDMTSWrite(dm,&sdm);CHKERRQ(ierr);
-  if (func) sdm->ops->ijacobian = func;
-  if (ctx)  sdm->ijacobianctx   = ctx;
-  PetscFunctionReturn(0);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
+  if (func) tsdm->ops->ijacobian = func;
+  if (ctx) {
+    PetscContainer ctxcontainer;
+    PetscCall(PetscContainerCreate(PetscObjectComm((PetscObject)tsdm), &ctxcontainer));
+    PetscCall(PetscContainerSetPointer(ctxcontainer, ctx));
+    PetscCall(PetscObjectCompose((PetscObject)tsdm, "ijacobian ctx", (PetscObject)ctxcontainer));
+    tsdm->ijacobianctxcontainer = ctxcontainer;
+    PetscCall(PetscContainerDestroy(&ctxcontainer));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   DMTSGetIJacobian - get TS Jacobian evaluation function
+   DMTSSetIJacobianContextDestroy - set `TS` Jacobian evaluation context destroy function
+
+   Not Collective
+
+   Input Parameters:
++  dm - `DM` to be used with `TS`
+-  f - Jacobian evaluation context destroy function
+
+   Level: advanced
+
+   Note:
+   `TSSetIJacobianContextDestroy()` is normally used, but it calls this function internally because the user context is actually
+   associated with the `DM`.  This makes the interface consistent regardless of whether the user interacts with a `DM` or
+   not.
+
+   Developer Note:
+   If `DM` took a more central role at some later date, this could become the primary method of setting the Jacobian.
+
+.seealso: [](ch_ts), `TSSetIJacobianContextDestroy()`, `TSSetI2JacobianContextDestroy()`, `DMTSSetIJacobian()`, `TSSetIJacobian()`
+@*/
+PetscErrorCode DMTSSetIJacobianContextDestroy(DM dm, PetscErrorCode (*f)(void *))
+{
+  DMTS tsdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
+  if (tsdm->ijacobianctxcontainer) PetscCall(PetscContainerSetUserDestroy(tsdm->ijacobianctxcontainer, f));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode DMTSUnsetIJacobianContext_Internal(DM dm)
+{
+  DMTS tsdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
+  PetscCall(DMTSUnsetIJacobianContext_DMTS(tsdm));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+   DMTSGetIJacobian - get `TS` Jacobian evaluation function
 
    Not Collective
 
    Input Parameter:
-.  dm - DM to be used with TS
+.  dm - `DM` to be used with `TS`
 
    Output Parameters:
-+  func - Jacobian evaluation function, see TSSetIJacobian() for calling sequence
++  func - Jacobian evaluation function, for calling sequence see `TSSetIJacobian()`
 -  ctx - context for residual evaluation
 
    Level: advanced
 
    Note:
-   TSGetJacobian() is normally used, but it calls this function internally because the user context is actually
-   associated with the DM.  This makes the interface consistent regardless of whether the user interacts with a DM or
-   not. If DM took a more central role at some later date, this could become the primary method of setting the Jacobian.
+   `TSGetJacobian()` is normally used, but it calls this function internally because the user context is actually
+   associated with the `DM`.  This makes the interface consistent regardless of whether the user interacts with a `DM` or
+   not. If `DM` took a more central role at some later date, this could become the primary method of setting the Jacobian.
 
-.seealso: DMTSSetContext(), TSSetFunction(), DMTSSetJacobian()
+.seealso: [](ch_ts), `DM`, `TS`, `DMTSSetContext()`, `TSSetFunction()`, `DMTSSetJacobian()`
 @*/
-PetscErrorCode DMTSGetIJacobian(DM dm,TSIJacobian *func,void **ctx)
+PetscErrorCode DMTSGetIJacobian(DM dm, TSIJacobian *func, void **ctx)
 {
-  PetscErrorCode ierr;
-  DMTS           tsdm;
+  DMTS tsdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  ierr = DMGetDMTS(dm,&tsdm);CHKERRQ(ierr);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTS(dm, &tsdm));
   if (func) *func = tsdm->ops->ijacobian;
-  if (ctx)  *ctx = tsdm->ijacobianctx;
-  PetscFunctionReturn(0);
+  if (ctx) {
+    if (tsdm->ijacobianctxcontainer) PetscCall(PetscContainerGetPointer(tsdm->ijacobianctxcontainer, ctx));
+    else *ctx = NULL;
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   DMTSSetRHSJacobian - set TS Jacobian evaluation function
+   DMTSSetRHSJacobian - set `TS` Jacobian evaluation function
 
    Not Collective
 
    Input Parameters:
-+  dm - DM to be used with TS
++  dm - `DM` to be used with `TS`
 .  func - Jacobian evaluation routine
 -  ctx - context for residual evaluation
 
-   Calling sequence of func:
-$     PetscErrorCode func(TS ts,PetscReal t,Vec u,Mat A,Mat B,void *ctx);
-
-+  t - current timestep
+   Calling sequence of `func`:
+$     PetscErrorCode func(TS ts, PetscReal t, Vec u, Mat A, Mat B, void *ctx);
++  ts  - the `TS` context obtained from `TSCreate()`
+.  t - current timestep
 .  u - input vector
 .  Amat - (approximate) Jacobian matrix
 .  Pmat - matrix from which preconditioner is to be constructed (usually the same as Amat)
@@ -914,57 +1192,106 @@ $     PetscErrorCode func(TS ts,PetscReal t,Vec u,Mat A,Mat B,void *ctx);
    Level: advanced
 
    Note:
-   TSSetJacobian() is normally used, but it calls this function internally because the user context is actually
-   associated with the DM.  This makes the interface consistent regardless of whether the user interacts with a DM or
-   not. If DM took a more central role at some later date, this could become the primary method of setting the Jacobian.
+   `TSSetJacobian()` is normally used, but it calls this function internally because the user context is actually
+   associated with the `DM`.  This makes the interface consistent regardless of whether the user interacts with a `DM` or
+   not.
 
-.seealso: DMTSSetContext(), TSSetFunction(), DMTSGetJacobian(), TSSetRHSJacobian()
+   Developer Note:
+   If `DM` took a more central role at some later date, this could become the primary method of setting the Jacobian.
+
+.seealso: [](ch_ts), `DMTSSetContext()`, `TSSetFunction()`, `DMTSGetJacobian()`, `TSSetRHSJacobian()`
 @*/
-PetscErrorCode DMTSSetRHSJacobian(DM dm,TSRHSJacobian func,void *ctx)
+PetscErrorCode DMTSSetRHSJacobian(DM dm, TSRHSJacobian func, void *ctx)
 {
-  PetscErrorCode ierr;
-  DMTS           tsdm;
+  DMTS tsdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  ierr = DMGetDMTSWrite(dm,&tsdm);CHKERRQ(ierr);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
   if (func) tsdm->ops->rhsjacobian = func;
-  if (ctx)  tsdm->rhsjacobianctx = ctx;
-  PetscFunctionReturn(0);
+  if (ctx) {
+    PetscContainer ctxcontainer;
+    PetscCall(PetscContainerCreate(PetscObjectComm((PetscObject)tsdm), &ctxcontainer));
+    PetscCall(PetscContainerSetPointer(ctxcontainer, ctx));
+    PetscCall(PetscObjectCompose((PetscObject)tsdm, "rhs jacobian ctx", (PetscObject)ctxcontainer));
+    tsdm->rhsjacobianctxcontainer = ctxcontainer;
+    PetscCall(PetscContainerDestroy(&ctxcontainer));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   DMTSGetRHSJacobian - get TS Jacobian evaluation function
+   DMTSSetRHSJacobianContextDestroy - set `TS` Jacobian evaluation context destroy function
+
+   Not Collective
+
+   Input Parameters:
++  dm - `DM` to be used with `TS`
+-  f - Jacobian evaluation context destroy function
+
+   Level: advanced
+
+   Note:
+   The user usually calls `TSSetRHSJacobianContextDestroy()` which calls this routine
+
+.seealso: [](ch_ts), `TS`, `TSSetRHSJacobianContextDestroy()`, `DMTSSetRHSJacobian()`, `TSSetRHSJacobian()`
+@*/
+PetscErrorCode DMTSSetRHSJacobianContextDestroy(DM dm, PetscErrorCode (*f)(void *))
+{
+  DMTS tsdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
+  if (tsdm->rhsjacobianctxcontainer) PetscCall(PetscContainerSetUserDestroy(tsdm->rhsjacobianctxcontainer, f));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode DMTSUnsetRHSJacobianContext_Internal(DM dm)
+{
+  DMTS tsdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
+  PetscCall(DMTSUnsetRHSJacobianContext_DMTS(tsdm));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+   DMTSGetRHSJacobian - get `TS` Jacobian evaluation function
 
    Not Collective
 
    Input Parameter:
-.  dm - DM to be used with TS
+.  dm - `DM` to be used with `TS`
 
    Output Parameters:
-+  func - Jacobian evaluation function, see TSSetRHSJacobian() for calling sequence
++  func - Jacobian evaluation function, for calling sequence see `TSSetRHSJacobian()`
 -  ctx - context for residual evaluation
 
    Level: advanced
 
    Note:
-   TSGetJacobian() is normally used, but it calls this function internally because the user context is actually
-   associated with the DM.  This makes the interface consistent regardless of whether the user interacts with a DM or
-   not. If DM took a more central role at some later date, this could become the primary method of setting the Jacobian.
+   `TSGetJacobian()` is normally used, but it calls this function internally because the user context is actually
+   associated with the `DM`.  This makes the interface consistent regardless of whether the user interacts with a `DM` or
+   not. If `DM` took a more central role at some later date, this could become the primary method of setting the Jacobian.
 
-.seealso: DMTSSetContext(), TSSetRHSFunction(), DMTSSetRHSJacobian(), TSSetRHSJacobian()
+.seealso: [](ch_ts), `DM`, `TS`, `DMTSSetContext()`, `TSSetRHSFunction()`, `DMTSSetRHSJacobian()`, `TSSetRHSJacobian()`
 @*/
-PetscErrorCode DMTSGetRHSJacobian(DM dm,TSRHSJacobian *func,void **ctx)
+PetscErrorCode DMTSGetRHSJacobian(DM dm, TSRHSJacobian *func, void **ctx)
 {
-  PetscErrorCode ierr;
-  DMTS           tsdm;
+  DMTS tsdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  ierr = DMGetDMTS(dm,&tsdm);CHKERRQ(ierr);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTS(dm, &tsdm));
   if (func) *func = tsdm->ops->rhsjacobian;
-  if (ctx)  *ctx = tsdm->rhsjacobianctx;
-  PetscFunctionReturn(0);
+  if (ctx) {
+    if (tsdm->rhsjacobianctxcontainer) PetscCall(PetscContainerGetPointer(tsdm->rhsjacobianctxcontainer, ctx));
+    else *ctx = NULL;
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
@@ -973,25 +1300,24 @@ PetscErrorCode DMTSGetRHSJacobian(DM dm,TSRHSJacobian *func,void **ctx)
    Not Collective
 
    Input Parameters:
-+  dm - DM to be used with TS
++  dm - `DM` to be used with `TS`
 .  view - viewer function
 -  load - loading function
 
    Level: advanced
 
-.seealso: DMTSSetContext(), TSSetFunction(), DMTSSetJacobian()
+.seealso: [](ch_ts), `DM`, `TS`, `DMTSSetContext()`, `TSSetFunction()`, `DMTSSetJacobian()`
 @*/
-PetscErrorCode DMTSSetIFunctionSerialize(DM dm,PetscErrorCode (*view)(void*,PetscViewer),PetscErrorCode (*load)(void**,PetscViewer))
+PetscErrorCode DMTSSetIFunctionSerialize(DM dm, PetscErrorCode (*view)(void *, PetscViewer), PetscErrorCode (*load)(void **, PetscViewer))
 {
-  PetscErrorCode ierr;
-  DMTS           tsdm;
+  DMTS tsdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  ierr = DMGetDMTSWrite(dm,&tsdm);CHKERRQ(ierr);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
   tsdm->ops->ifunctionview = view;
   tsdm->ops->ifunctionload = load;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
@@ -1000,23 +1326,22 @@ PetscErrorCode DMTSSetIFunctionSerialize(DM dm,PetscErrorCode (*view)(void*,Pets
    Not Collective
 
    Input Parameters:
-+  dm - DM to be used with TS
++  dm - `DM` to be used with `TS`
 .  view - viewer function
 -  load - loading function
 
    Level: advanced
 
-.seealso: DMTSSetContext(), TSSetFunction(), DMTSSetJacobian()
+.seealso: [](ch_ts), `DM`, `TS`, `DMTSSetContext()`, `TSSetFunction()`, `DMTSSetJacobian()`
 @*/
-PetscErrorCode DMTSSetIJacobianSerialize(DM dm,PetscErrorCode (*view)(void*,PetscViewer),PetscErrorCode (*load)(void**,PetscViewer))
+PetscErrorCode DMTSSetIJacobianSerialize(DM dm, PetscErrorCode (*view)(void *, PetscViewer), PetscErrorCode (*load)(void **, PetscViewer))
 {
-  PetscErrorCode ierr;
-  DMTS           tsdm;
+  DMTS tsdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  ierr = DMGetDMTSWrite(dm,&tsdm);CHKERRQ(ierr);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTSWrite(dm, &tsdm));
   tsdm->ops->ijacobianview = view;
   tsdm->ops->ijacobianload = load;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

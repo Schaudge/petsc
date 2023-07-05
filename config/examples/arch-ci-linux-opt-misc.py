@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os
 petsc_hash_pkgs=os.path.join(os.getenv('HOME'),'petsc-hash-pkgs')
@@ -22,13 +22,15 @@ configure_options = [
   '--download-suitesparse=1',
   '--download-triangle=1',
   '--download-superlu=1',
-  '--download-superlu_dist=1',
+  #'--download-superlu_dist=1', Release 7.2 has MPI leaks
   #'--download-scalapack=1',
   '--download-elemental=1',
   #'--download-spai=1',
   '--download-parms=1',
   '--download-libceed',
-  '--download-chaco=1'
+  '--download-chaco=1',
+  '--with-strict-petscerrorcode',
+  '--with-coverage',
   ]
 
 if __name__ == '__main__':

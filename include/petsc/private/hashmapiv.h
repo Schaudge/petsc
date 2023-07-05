@@ -1,11 +1,12 @@
-#if !defined(_PETSC_HASHMAPIV_H)
+#ifndef _PETSC_HASHMAPIV_H
 #define _PETSC_HASHMAPIV_H
 
 #include <petsc/private/hashmap.h>
 
+/* SUBMANSEC = Sys */
 /*
- * Hash map from PetscInt --> PetscScalar
- * */
+   Hash map from PetscInt --> PetscScalar
+*/
 PETSC_HASH_MAP(HMapIV, PetscInt, PetscScalar, PetscHashInt, PetscHashEqual, -1)
 
 /*MC
@@ -14,7 +15,7 @@ PETSC_HASH_MAP(HMapIV, PetscInt, PetscScalar, PetscHashInt, PetscHashEqual, -1)
 
   Synopsis:
   #include <petsc/private/hashmapiv.h>
-  PetscErrorCode PetscHMapIVAddValue(PetscHMapT ht,KeyType key,ValType val)
+  PetscErrorCode PetscHMapIVAddValue(PetscHMapT ht,PetscInt key,PetscScalar val)
 
   Input Parameters:
 + ht  - The hash table
@@ -23,20 +24,19 @@ PETSC_HASH_MAP(HMapIV, PetscInt, PetscScalar, PetscHashInt, PetscHashEqual, -1)
 
   Level: developer
 
-.seealso: PetscHMapTGet(), PetscHMapTIterSet(), PetscHMapIVSet()
+.seealso: `PetscHMapIVGet()`, `PetscHMapIVIterSet()`, `PetscHMapIVSet()`
 M*/
-PETSC_STATIC_INLINE
-PetscErrorCode PetscHMapIVAddValue(PetscHMapIV ht,PetscInt key,PetscScalar val)
+static inline PetscErrorCode PetscHMapIVAddValue(PetscHMapIV ht, PetscInt key, PetscScalar val)
 {
   int      ret;
   khiter_t iter;
   PetscFunctionBeginHot;
-  PetscValidPointer(ht,1);
-  iter = kh_put(HMapIV,ht,key,&ret);
-  PetscHashAssert(ret>=0);
-  if (ret) kh_val(ht,iter) = val;
-  else  kh_val(ht,iter) += val;
-  PetscFunctionReturn(0);
+  PetscValidPointer(ht, 1);
+  iter = kh_put(HMapIV, ht, key, &ret);
+  PetscHashAssert(ret >= 0);
+  if (ret) kh_val(ht, iter) = val;
+  else kh_val(ht, iter) += val;
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 #endif /* _PETSC_HASHMAPIV_H */

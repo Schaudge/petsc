@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os
 petsc_hash_pkgs=os.path.join(os.getenv('HOME'),'petsc-hash-pkgs')
@@ -16,6 +16,8 @@ configure_options = [
   '--with-precision=double',
   '--download-mpich',
   '--download-fblaslapack',
+  '--with-strict-petscerrorcode',
+  '--with-coverage',
 ]
 
 if __name__ == '__main__':

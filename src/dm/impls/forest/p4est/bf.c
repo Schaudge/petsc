@@ -813,7 +813,7 @@ static PetscErrorCode DMBFCopyOptions(DM srcdm, DM trgdm)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMSetFromOptions_BF(PetscOptionItems *PetscOptionsObject,DM dm)
+static PetscErrorCode DMSetFromOptions_BF(DM dm,PetscOptionItems *PetscOptionsObject)
 {
   PetscInt          blockSize[3], blockDim=3;
   PetscBool         set;
@@ -821,7 +821,7 @@ static PetscErrorCode DMSetFromOptions_BF(PetscOptionItems *PetscOptionsObject,D
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,2,DMBF);
-  ierr = DMSetFromOptions_Forest(PetscOptionsObject,dm);CHKERRQ(ierr);
+  ierr = DMSetFromOptions_Forest(dm,PetscOptionsObject);CHKERRQ(ierr);
   /* block_size */
   ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
   ierr = PetscOptionsIntArray(

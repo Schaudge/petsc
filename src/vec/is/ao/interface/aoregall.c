@@ -1,26 +1,24 @@
 
-#include <../src/vec/is/ao/aoimpl.h>      /*I "petscao.h" I*/
+#include <../src/vec/is/ao/aoimpl.h> /*I "petscao.h" I*/
 PETSC_EXTERN PetscErrorCode AOCreate_Basic(AO ao);
 PETSC_EXTERN PetscErrorCode AOCreate_MemoryScalable(AO ao);
 
 /*@C
-  AORegisterAll - Registers all of the application ordering components in the AO package.
+  AORegisterAll - Registers all of the application ordering components in the `AO` package.
 
   Not Collective
 
   Level: advanced
 
-.seealso:  AORegister(), AORegisterDestroy()
+.seealso: `AO`, `AOType`, `AORegister()`, `AORegisterDestroy()`
 @*/
-PetscErrorCode  AORegisterAll(void)
+PetscErrorCode AORegisterAll(void)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  if (AORegisterAllCalled) PetscFunctionReturn(0);
+  if (AORegisterAllCalled) PetscFunctionReturn(PETSC_SUCCESS);
   AORegisterAllCalled = PETSC_TRUE;
 
-  ierr = AORegister(AOBASIC,          AOCreate_Basic);CHKERRQ(ierr);
-  ierr = AORegister(AOMEMORYSCALABLE, AOCreate_MemoryScalable);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(AORegister(AOBASIC, AOCreate_Basic));
+  PetscCall(AORegister(AOMEMORYSCALABLE, AOCreate_MemoryScalable));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

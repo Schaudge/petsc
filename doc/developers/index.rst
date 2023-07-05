@@ -1,8 +1,8 @@
 .. _ind_developers:
 
-===============================
-PETSc Developer's Documentation
-===============================
+==========
+Developers
+==========
 
 Information for PETSc developers and those interested in contributing.
 
@@ -10,10 +10,9 @@ Information for PETSc developers and those interested in contributing.
    :maxdepth: 1
 
    communication
-   contributing
+   contributing/index
+   mrmanagement
    style
-   integration
-   pipelines
    buildsystem
    testing
    documentation

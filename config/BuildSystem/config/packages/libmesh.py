@@ -39,7 +39,7 @@ class Configure(config.package.Package):
     self.addMakeMacro('LIBMESH','yes')
     self.addMakeRule('libmeshbuild','', \
                        ['@echo "*** Building libmesh ***"',\
-                          '@${RM} -f ${PETSC_ARCH}/lib/petsc/conf/libmesh.errorflg',\
+                          '@${RM} ${PETSC_ARCH}/lib/petsc/conf/libmesh.errorflg',\
                           '@(cd '+self.packageDir+' && \\\n\
            '+newdir+' ./configure --prefix='+prefix+' && \\\n\
            '+newdir+' '+self.make.make_jnp+' ) > ${PETSC_ARCH}/lib/petsc/conf/libmesh.log 2>&1 || \\\n\
@@ -53,7 +53,7 @@ class Configure(config.package.Package):
                           '@(cd '+self.packageDir+' && \\\n\
            '+newdir+' make install ) >> ${PETSC_ARCH}/lib/petsc/conf/libmesh.log 2>&1 || \\\n\
              (echo "**************************ERROR*************************************" && \\\n\
-             echo "Error building libmesh. Check ${PETSC_ARCH}/lib/petsc/conf/libmesh.log" && \\\n\
+             echo "Error installing libmesh. Check ${PETSC_ARCH}/lib/petsc/conf/libmesh.log" && \\\n\
              echo "********************************************************************" && \\\n\
              exit 1)'])
     if self.argDB['prefix']:

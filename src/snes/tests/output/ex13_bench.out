@@ -8,5 +8,24 @@ box in 3 dimensions:
 Labels:
   celltype: 4 strata with value/size (0 (125), 1 (300), 4 (240), 7 (64))
   depth: 4 strata with value/size (0 (125), 1 (300), 2 (240), 3 (64))
-  marker: 1 strata with value/size (1 (312))
-  Face Sets: 5 strata with value/size (1 (36), 3 (36), 4 (36), 5 (36), 6 (36))
+  marker: 1 strata with value/size (1 (281))
+  Face Sets: 4 strata with value/size (1 (49), 2 (49), 3 (49), 6 (49))
+Number equations N = 1575
+    0 KSP Residual norm 9.464430422668e+00 
+    1 KSP Residual norm 1.648903690233e+00 
+    2 KSP Residual norm 1.976446161065e-01 
+    3 KSP Residual norm 2.818749234372e-02 
+    4 KSP Residual norm 3.316106550102e-03 
+    5 KSP Residual norm 3.940639845036e-04 
+    6 KSP Residual norm 5.247443192884e-05 
+    7 KSP Residual norm 6.634764421308e-06 
+  Linear solve converged due to CONVERGED_RTOL iterations 7
+    0 KSP Residual norm 9.464430422668e+00 
+    1 KSP Residual norm 1.648903690233e+00 
+    2 KSP Residual norm 1.976446161065e-01 
+    3 KSP Residual norm 2.818749234372e-02 
+    4 KSP Residual norm 3.316106550102e-03 
+    5 KSP Residual norm 3.940639845036e-04 
+    6 KSP Residual norm 5.247443192884e-05 
+    7 KSP Residual norm 6.634764421308e-06 
+  Linear solve converged due to CONVERGED_RTOL iterations 7

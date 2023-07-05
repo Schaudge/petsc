@@ -129,7 +129,6 @@ class PC_PYTHON_CLASS(object):
 class TestPCPYTHON(unittest.TestCase):
 
     PC_TYPE = PETSc.PC.Type.PYTHON
-
     PC_PREFIX = 'test-'
 
     def setUp(self):
@@ -149,10 +148,16 @@ class TestPCPYTHON(unittest.TestCase):
         ctx = self._getCtx()
         self.assertEqual(getrefcount(ctx), 3)
 
+    def testGetType(self):
+        ctx = self.pc.getPythonContext()
+        pytype = "{0}.{1}".format(ctx.__module__, type(ctx).__name__)
+        self.assertTrue(self.pc.getPythonType() == pytype)
+
     def tearDown(self):
         ctx = self._getCtx()
         self.pc.destroy() # XXX
         self.pc = None
+        PETSc.garbage_cleanup()
         assert ctx.log['destroy'] == 1
         self.assertEqual(getrefcount(ctx), 2)
 
@@ -254,7 +259,8 @@ class TestPCPYTHON(unittest.TestCase):
         assert self._getCtx().log['setUp'         ] == 1
         assert self._getCtx().log['applyTranspose'] == 2
         del ksp # ksp.destroy()
-        assert self.pc.getRefCount() == 1
+        PETSc.garbage_cleanup()
+        self.assertEqual(self.pc.getRefCount(), 1)
 
     def testGetSetContext(self):
         ctx = self.pc.getPythonContext()

@@ -207,6 +207,32 @@ To check for an object of any type, use
 
     PetscValidHeader(x,1);
 
+The ``obj->ops`` functions provide implementations of the standard methods of the object class. Each type
+of the class may have different function pointers in the array. Subtypes sometimes replace some of the
+function pointers of the parent, so they play the role of virtual methods in C++.
+
+PETSc code that calls these function pointers should be done via
+
+.. code-block::
+
+    PetscUseTypeMethod(obj,method,other arguments);
+    PetscTryTypeMethod(obj,method,other arguments);
+
+For example,
+
+.. code-block::
+
+    PetscErrorCode XXXOp(XXX x,YYY y)
+    {
+      PetscFunctionBegin;
+      PetscUseTypeMethod(x,op,y);
+      PetscFunctionReturn(PETSC_SUCCESS);
+    }
+
+The ``Try`` variant skips the function call if the method has not been set while the ``Use`` version generates an error in that case.
+
+See also, ``PetscUseMethod()``, and ``PetscTryMethod()``.
+
 Common Object Functions
 -----------------------
 
@@ -314,20 +340,16 @@ The PETSc object ``compose()`` and ``query()`` functions are as follows
 
     PetscErrorCode PetscObjectCompose_Petsc(PetscObject obj,const char *name,PetscObject ptr)
     {
-      PetscErrorCode ierr;
-
       PetscFunctionBegin;
-      PetscObjectListAdd(&obj->olist,name,ptr);
-      PetscFunctionReturn(0);
+      PetscCall(PetscObjectListAdd(&obj->olist,name,ptr));
+      PetscFunctionReturn(PETSC_SUCCESS);
     }
 
     PetscErrorCode PetscObjectQuery_Petsc(PetscObject obj,const char *name,PetscObject *ptr)
     {
-      PetscErrorCode ierr;
-
       PetscFunctionBegin;
-      PetscObjectListFind(obj->olist,name,ptr);
-      PetscFunctionReturn(0);
+      PetscCall(PetscObjectListFind(obj->olist,name,ptr));
+      PetscFunctionReturn(PETSC_SUCCESS);
     }
 
 Compose and Query Functions
@@ -355,32 +377,52 @@ following.
 
     PetscErrorCode PetscObjectComposeFunction_Petsc(PetscObject obj,const char *name,void *ptr)
     {
-      PetscErrorCode ierr;
-
       PetscFunctionBegin;
-      PetscFunctionListAdd(&obj->qlist,name,fname,ptr);
-      PetscFunctionReturn(0);
+      PetscCall(PetscFunctionListAdd(&obj->qlist,name,fname,ptr));
+      PetscFunctionReturn(PETSC_SUCCESS);
     }
 
     PetscErrorCode PetscObjectQueryFunction_Petsc(PetscObject obj,const char *name,void (**ptr)(void))
     {
-      PetscErrorCode ierr;
-
       PetscFunctionBegin;
-      PetscFunctionListFind(obj->qlist,name,ptr);
-      PetscFunctionReturn(0);
+      PetscCall(PetscFunctionListFind(obj->qlist,name,ptr));
+      PetscFunctionReturn(PETSC_SUCCESS);
     }
 
 In addition to using the ``PetscFunctionList`` mechanism to compose
 functions into PETSc objects, it is also used to allow registration of
 new class implementations; for example, new preconditioners.
 
+PETSc code that calls composed functions should be done via
+
+.. code-block::
+
+    PetscUseMethod(obj,"method",(Argument types),(argument variables));
+    PetscTryMethod(obj,"method",(Argument types),(argument variables));
+
+For example,
+
+.. code-block::
+
+    PetscErrorCode  KSPGMRESSetRestart(KSP ksp, PetscInt restart)
+    {
+      PetscFunctionBegin;
+      PetscValidLogicalCollectiveInt(ksp,restart,2);
+
+      PetscTryMethod(ksp,"KSPGMRESSetRestart_C",(KSP,PetscInt),(ksp,restart));
+      PetscFunctionReturn(PETSC_SUCCESS);
+    }
+
+The ``Try`` variant skips the function call if the method has not been composed with
+the object while the ``Use`` version generates an error in that case.
+See also, ``PetscUseTypeMethod()``, and ``PetscTryTypeMethod()``.
+
 Simple PETSc Objects
 ~~~~~~~~~~~~~~~~~~~~
 
 Some simple PETSc objects do not need ``PETSCHEADER`` and the associated
 functionality. These objects are internally named as ``_n_<class>`` as
-opposed to ``_p_<class>``, for example, ``_n_PetscTable`` vs ``_p_Vec``.
+opposed to ``_p_<class>``, for example, ``_n_PetscFunctionList`` vs ``_p_Vec``.
 
 PETSc Packages
 --------------

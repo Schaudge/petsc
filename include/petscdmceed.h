@@ -1,18 +1,21 @@
-#if !defined(PETSCDMCEED_H)
+#ifndef PETSCDMCEED_H
 #define PETSCDMCEED_H
 
 #include <petscdm.h>
 
 #if defined(PETSC_HAVE_LIBCEED)
-#include <ceed.h>
+  #include <ceed.h>
 
-#define CHKERRQ_CEED(ierr)                                                     \
-  do {                                                                         \
-    PetscErrorCode ierr_ = (ierr);                                             \
-    if (ierr_ != CEED_ERROR_SUCCESS)                                           \
-      SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_LIB, "libCEED error: %s",             \
-              CeedErrorTypes[ierr_]);                                          \
-  } while (0)
+  #if defined(PETSC_CLANG_STATIC_ANALYZER)
+void PetscCallCEED(CeedErrorType);
+  #else
+    #define PetscCallCEED(...) \
+      do { \
+        CeedErrorType ierr_ceed_ = __VA_ARGS__; \
+        PetscCheck(ierr_ceed_ == CEED_ERROR_SUCCESS, PETSC_COMM_SELF, PETSC_ERR_LIB, "libCEED error: %s", CeedErrorTypes[ierr_ceed_]); \
+      } while (0)
+  #endif /* PETSC_CLANG_STATIC_ANALYZER */
+  #define CHKERRQ_CEED(...) PetscCallCEED(__VA_ARGS__)
 
 PETSC_EXTERN PetscErrorCode DMGetCeed(DM, Ceed *);
 

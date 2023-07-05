@@ -1,8 +1,8 @@
 .. _doc_faq:
 
-==================================
- Frequently Asked Questions (FAQ)
-==================================
+===
+FAQ
+===
 
 .. contents:: Table Of Contents
    :local:
@@ -84,11 +84,11 @@ uses a different memory bus:
 
      $ mpiexec.hydra -n 4 --binding cpu:sockets
 
-- `Open MPI binding <http://www.open-mpi.org/doc/v1.5/man1/mpiexec.1.php#sect8>`__
+- `Open MPI binding <https://www.open-mpi.org/faq/?category=tuning#using-paffinity>`__
 
   .. code-block:: console
 
-     $ mpiexec -n 4 --bysocket --bind-to-socket --report-bindings
+     $ mpiexec -n 4 --map-by socket --bind-to socket --report-bindings
 
 - ``taskset``, part of the `util-linux <https://github.com/karelzak/util-linux>`__ package
 
@@ -151,16 +151,15 @@ How do such a small group of people manage to write and maintain such a large an
 
 #. **We work very efficiently**.
 
-   - We use Emacs for all editing (and strongly *discourage* our developers from using
-     other editors). Having a uniform editing environment speeds development up immensely.
+   - We use powerful editors and programming environments.
 
    - Our manual pages are generated automatically from formatted comments in the code,
      thus alleviating the need for creating and maintaining manual pages.
 
-   - We employ automatic nightly tests of the entire PETSc library on several different
+   - We employ continuous integration testing of the entire PETSc library on many different
      machine architectures. This process **significantly** protects (no bug-catching
      process is perfect) against inadvertently introducing bugs with new additions. Every
-     new feature **must** pass our suite of hundreds of tests as well as formal code
+     new feature **must** pass our suite of thousands of tests as well as formal code
      review before it may be included.
 
 #. **We are very careful in our design (and are constantly revising our design)**
@@ -185,7 +184,7 @@ How do such a small group of people manage to write and maintain such a large an
      name of a particular object or routine. Our memories are terrible, so careful
      consistent naming puts less stress on our limited human RAM.
 
-#. **The PETSc directory tree is carefully designed to make it easy to move throughout the
+#. **The PETSc directory tree is designed to make it easy to move throughout the
    entire package**
 
 #. **We have a rich, robust, and fast bug reporting system**
@@ -223,7 +222,7 @@ How come when I run the same program on the same number of processes I get a "di
 Inner products and norms in PETSc are computed using the ``MPI_Allreduce()`` command. For
 different runs the order at which values arrive at a given process (via MPI) can be in a
 different order, thus the order in which some floating point arithmetic operations are
-performed will be different. Since floating point arithmetic arithmetic is not
+performed will be different. Since floating point arithmetic is not
 associative, the computed quantity may be slightly different.
 
 Over a run the many slight differences in the inner products and norms will effect all the
@@ -304,7 +303,7 @@ must be built with the ``configure`` option ``--with-precision=single``.
 Can I run PETSc with extended precision?
 ----------------------------------------
 
-Yes, with gcc 4.6 and later (and gfortran 4.6 and later). ``configure`` PETSc using the
+Yes, with gcc and gfortran. ``configure`` PETSc using the
 options ``--with-precision=__float128`` and `` --download-f2cblaslapack``.
 
 .. admonition:: Warning
@@ -338,13 +337,13 @@ architecture and level of optimization, a new user must merely:
 
 #. Set ``PETSC_DIR`` to the full path of the PETSc home
    directory. This will be the location of the ``configure`` script, and usually called
-   "petsc" or some vairation of that (for example, /home/username/petsc).
+   "petsc" or some variation of that (for example, /home/username/petsc).
 
 #. Set ``PETSC_ARCH``, which indicates the configuration on which PETSc will be
    used. Note that ``$PETSC_ARCH`` is simply a name the installer used when installing
    the libraries. There will exist a directory within ``$PETSC_DIR`` that is named after
    its corresponding ``$PETSC_ARCH``. There many be several on a single system, for
-   example "linux-c-debug" for the debug versions compiled by a c compiler or
+   example "linux-c-debug" for the debug versions compiled by a C compiler or
    "linux-c-opt" for the optimized version.
 
 .. admonition:: Still Stuck?
@@ -357,17 +356,14 @@ architecture and level of optimization, a new user must merely:
 The PETSc distribution is SO Large. How can I reduce my disk space usage?
 -------------------------------------------------------------------------
 
-#. The directory ``$PETSC_DIR/docs`` contains a set of HTML manual pages in for use with a
-   browser. You can delete these pages to save some disk space.
-
-#. The PETSc users manual is provided in PDF format at ``$PETSC_DIR/docs/manual.pdf``. You
+#. The PETSc users manual is provided in PDF format at ``$PETSC_DIR/manual.pdf``. You
    can delete this.
 
 #. The PETSc test suite contains sample output for many of the examples. These are
    contained in the PETSc directories ``$PETSC_DIR/src/*/tutorials/output`` and
    ``$PETSC_DIR/src/*/tests/output``. Once you have run the test examples, you may remove
    all of these directories to save some disk space. You can locate the largest with
-   e.g. ``find . -name output -type d | xargs du -sh | sort -hr`` on a unix-based system.
+   e.g. ``find . -name output -type d | xargs du -sh | sort -hr`` on a Unix-based system.
 
 #. The debugging versions of the libraries are larger than the optimized versions. In a
    pinch you can work with the optimized version, although we bid you good luck in
@@ -378,15 +374,15 @@ I want to use PETSc only for uniprocessor programs. Must I still install and use
 
 No, run ``configure`` with the option ``--with-mpi=0``
 
-Can I install PETSc to not use X windows (either under Unix or Windows with GCC)?
----------------------------------------------------------------------------------
+Can I install PETSc to not use X windows (either under Unix or Microsoft Windows with GCC)?
+-------------------------------------------------------------------------------------------
 
 Yes. Run ``configure`` with the additional flag ``--with-x=0``
 
 Why do you use MPI?
 -------------------
 
-MPI is the message-passing standard. Because it is a standard, it will not change over
+MPI is the message-passing standard. Because it is a standard, it will not frequently change over
 time; thus, we do not have to change PETSc every time the provider of the message-passing
 system decides to make an interface change. MPI was carefully designed by experts from
 industry, academia, and government labs to provide the highest quality performance and
@@ -423,7 +419,7 @@ When should/can I use the ``configure`` option ``--with-64-bit-indices``?
 -------------------------------------------------------------------------
 
 By default the type that PETSc uses to index into arrays and keep sizes of arrays is a
-``PetscInt`` defined to be a 32 bit ``int``. If your problem:
+``PetscInt`` defined to be a 32-bit ``int``. If your problem:
 
 - Involves more than 2^31 - 1 unknowns (around 2 billion).
 
@@ -431,8 +427,8 @@ By default the type that PETSc uses to index into arrays and keep sizes of array
 
 Then you need to use this option. Otherwise you will get strange crashes.
 
-This option can be used when you are using either 32 bit or 64 bit pointers. You do not
-need to use this option if you are using 64 bit pointers unless the two conditions above
+This option can be used when you are using either 32 or 64-bit pointers. You do not
+need to use this option if you are using 64-bit pointers unless the two conditions above
 hold.
 
 What if I get an internal compiler error?
@@ -463,10 +459,8 @@ What Fortran compiler do you recommend on macOS?
 ------------------------------------------------
 
 We recommend using `homebrew <https://brew.sh/>`__ to install `gfortran
-<https://gcc.gnu.org/wiki/GFortran>`__
+<https://gcc.gnu.org/wiki/GFortran>`__, see :any:`doc_macos_install`
 
-Please contact Apple at https://www.apple.com/feedback/ and urge them to bundle gfortran
-with future versions of Xcode.
 
 How can I find the URL locations of the packages you install using ``--download-PACKAGE``?
 ------------------------------------------------------------------------------------------
@@ -491,8 +485,8 @@ This happens for generally one of two reasons:
 
 .. _mpi-network-misconfigure:
 
-What does it mean when ``make check`` errors on ``PetscOptionsInsertFile()``?
------------------------------------------------------------------------------
+What does it mean when ``make check`` hangs or errors on ``PetscOptionsInsertFile()``?
+--------------------------------------------------------------------------------------
 
 For example:
 
@@ -504,18 +498,34 @@ For example:
    [0]PETSC ERROR: #2 PetscOptionsInsert() line 720 in /Users/barrysmith/Src/PETSc/src/sys/objects/options.c
    [0]PETSC ERROR: #3 PetscInitialize() line 828 in /Users/barrysmith/Src/PETSc/src/sys/objects/pinit.c
 
-- You may be using the wrong ``mpiexec`` for the MPI you have linked PETSc with.
+or
 
-- You have VPN enabled on your machine whose network settings may not play well with MPI.
+.. code-block:: none
 
-The machine has a funky network configuration and for some reason MPICH is unable to
-communicate between processes with the socket connections it has established. This can
-happen even if you are running MPICH on just one machine. Often you will find that ``ping
-hostname`` fails with this network configuration; that is, processes on the machine cannot
-even connect to the same machine. You can try completely disconnecting your machine from
-the network and see if ``make check`` then works or speaking with your system
-administrator. You can also try the ``configure`` options ``--download-mpich`` or
-``--download-mpich-device=ch3:nemesis``.
+   $ make check
+   Running check examples to verify correct installation
+   Using PETSC_DIR=/Users/barrysmith/Src/petsc and PETSC_ARCH=arch-fix-mpiexec-hang-2-ranks
+   C/C++ example src/snes/tutorials/ex19 run successfully with 1 MPI process
+   PROGRAM SEEMS TO BE HANGING HERE
+
+This usually occurs when network settings are misconfigured (perhaps due to VPN) resulting in a failure or hang in system call ``gethostbyname()``.
+
+- Verify you are using the correct ``mpiexec`` for the MPI you have linked PETSc with.
+
+- If you have a VPN enabled on your machine, try turning it off and then running ``make check`` to
+  verify that it is not the VPN playing poorly with MPI.
+
+- If ``ping `hostname` `` (``/sbin/ping`` on macOS) fails or hangs do:
+
+  .. code-block:: none
+
+     echo 127.0.0.1 `hostname` | sudo tee -a /etc/hosts
+
+  and try ``make check`` again.
+
+- Try completely disconnecting your machine from the network and see if ``make check`` then works
+
+- Try the PETSc ``configure`` option ``--download-mpich-device=ch3:nemesis`` with ``--download-mpich``.
 
 --------------------------------------------------
 
@@ -609,20 +619,18 @@ following function:
 
    PetscErrorCode mypetscvfprintf(FILE *fd, const char format[], va_list Argp)
    {
-     PetscErrorCode ierr;
-
      PetscFunctionBegin;
      if (fd != stdout && fd != stderr) { /* handle regular files */
-       ierr = PetscVFPrintfDefault(fd, format, Argp);CHKERRQ(ierr);
+       PetscCall(PetscVFPrintfDefault(fd, format, Argp));
      } else {
        char buff[1024]; /* Make sure to assign a large enough buffer */
        int  length;
 
-       ierr = PetscVSNPrintf(buff, 1024, format, &length, Argp);CHKERRQ(ierr);
+       PetscCall(PetscVSNPrintf(buff, 1024, format, &length, Argp));
 
        /* now send buff to whatever stream or whatever you want */
      }
-     PetscFunctionReturn(0);
+     PetscFunctionReturn(PETSC_SUCCESS);
    }
 
 Then assign ``PetscVFPrintf = mypetscprintf`` before ``PetscInitialize()`` in your main
@@ -661,11 +669,11 @@ PETSc also contains a balancing Neumann-Neumann type preconditioner, see the man
 for ``PCBDDC``. This requires matrices be constructed with ``MatCreateIS()`` via the finite
 element method. See ``src/ksp/ksp/tests/ex59.c`` for an example.
 
-You have AIJ and BAIJ matrix formats, and SBAIJ for symmetric storage, how come no SAIJ?
-----------------------------------------------------------------------------------------
+You have ``MATAIJ`` and ``MATBAIJ`` matrix formats, and ``MATSBAIJ`` for symmetric storage, how come no `MATSAIJ``?
+-------------------------------------------------------------------------------------------------------------------
 
-Just for historical reasons; the SBAIJ format with blocksize one is just as efficient as
-an SAIJ would be.
+Just for historical reasons; the ``MATSBAIJ`` format with blocksize one is just as efficient as
+a `MATSAIJ` would be.
 
 Can I Create BAIJ matrices with different size blocks for different block rows?
 -------------------------------------------------------------------------------
@@ -692,7 +700,7 @@ How do I access the values of a remote parallel PETSc Vec?
 For example, assuming we have distributed a vector ``vecGlobal`` of size :math:`N` to
 :math:`R` ranks and each remote rank holds :math:`N/R = m` values (similarly assume that
 :math:`N` is cleanly divisible by :math:`R`). We want each rank :math:`r` to gather the
-first :math:`n` (also assume :math:`n \leq m`) values from it's immediately superior neighbor
+first :math:`n` (also assume :math:`n \leq m`) values from its immediately superior neighbor
 :math:`r+1` (final rank will retrieve from rank 0).
 
 .. code-block::
@@ -704,41 +712,40 @@ first :math:`n` (also assume :math:`n \leq m`) values from it's immediately supe
    PetscInt       N, firstGlobalIndex;
    MPI_Comm       comm;
    PetscMPIInt    r, R;
-   PetscErrorCode ierr;
 
    /* Create sequential local vector, big enough to hold local portion */
-   ierr = VecCreateSeq(PETSC_COMM_SELF, n, &vecLocal);CHKERRQ(ierr);
+   PetscCall(VecCreateSeq(PETSC_COMM_SELF, n, &vecLocal));
 
    /* Create IS to describe where we want to scatter to */
-   ierr = ISCreateStride(PETSC_COMM_SELF, n, 0, 1, &isLocal);CHKERRQ(ierr);
+   PetscCall(ISCreateStride(PETSC_COMM_SELF, n, 0, 1, &isLocal));
 
    /* Compute the global indices */
-   ierr = VecGetSize(vecGlobal, &N);CHKERRQ(ierr);
-   ierr = PetscObjectGetComm((PetscObject) vecGlobal, &comm);CHKERRQ(ierr);
-   ierr = MPI_Comm_rank(comm, &r);CHKERRMPI(ierr);
-   ierr = MPI_Comm_size(comm, &R);CHKERRMPI(ierr);
+   PetscCall(VecGetSize(vecGlobal, &N));
+   PetscCall(PetscObjectGetComm((PetscObject) vecGlobal, &comm));
+   PetscCallMPI(MPI_Comm_rank(comm, &r));
+   PetscCallMPI(MPI_Comm_size(comm, &R));
    firstGlobalIndex = r == R-1 ? 0 : (N/R)*(r+1);
 
    /* Create IS that describes where we want to scatter from */
-   ierr = ISCreateStride(comm, n, firstGlobalIndex, 1, &isGlobal);CHKERRQ(ierr);
+   PetscCall(ISCreateStride(comm, n, firstGlobalIndex, 1, &isGlobal));
 
    /* Create the VecScatter context */
-   ierr = VecScatterCreate(vecGlobal, isGlobal, vecLocal, isLocal, &ctx);CHKERRQ(ierr);
+   PetscCall(VecScatterCreate(vecGlobal, isGlobal, vecLocal, isLocal, &ctx));
 
    /* Gather the values */
-   ierr = VecScatterBegin(ctx, vecGlobal, vecLocal, INSERT_VALUES, SCATTER_FORWARD);CHKERRQ(ierr);
-   ierr = VecScatterEnd(ctx, vecGlobal, vecLocal, INSERT_VALUES, SCATTER_FORWARD);CHKERRQ(ierr);
+   PetscCall(VecScatterBegin(ctx, vecGlobal, vecLocal, INSERT_VALUES, SCATTER_FORWARD));
+   PetscCall(VecScatterEnd(ctx, vecGlobal, vecLocal, INSERT_VALUES, SCATTER_FORWARD));
 
    /* Retrieve and do work */
-   ierr = VecGetArray(vecLocal, &arr);CHKERRQ(ierr);
+   PetscCall(VecGetArray(vecLocal, &arr));
    /* Work */
-   ierr = VecRestoreArray(vecLocal, &arr);CHKERRQ(ierr);
+   PetscCall(VecRestoreArray(vecLocal, &arr));
 
    /* Don't forget to clean up */
-   ierr = ISDestroy(&isLocal);CHKERRQ(ierr);
-   ierr = ISDestroy(&isGlobal);CHKERRQ(ierr);
-   ierr = VecScatterDestroy(&ctx);CHKERRQ(ierr);
-   ierr = VecDestroy(&vecLocal);CHKERRQ(ierr);
+   PetscCall(ISDestroy(&isLocal));
+   PetscCall(ISDestroy(&isGlobal));
+   PetscCall(VecScatterDestroy(&ctx));
+   PetscCall(VecDestroy(&vecLocal));
 
 .. _doc_faq_usage_alltoone:
 
@@ -749,20 +756,19 @@ How do I collect to a single processor all the values from a parallel PETSc Vec?
 
    ::
 
-      Vec            in_par, out_seq;
-      VecScatter     ctx;
-      PetscErrorCode ierr;
+      Vec        in_par,out_seq;
+      VecScatter ctx;
 
-      ierr = VecScatterCreateToAll(in_par, &ctx, &out_seq);CHKERRQ(ierr);
+      PetscCall(VecScatterCreateToAll(in_par, &ctx, &out_seq));
 
 #. Initiate the communication (this may be repeated if you wish):
 
    ::
 
-      ierr = VecScatterBegin(ctx, in_par, out_seq, INSERT_VALUES, SCATTER_FORWARD);CHKERRQ(ierr);
-      ierr = VecScatterEnd(ctx, in_par, out_seq, INSERT_VALUES, SCATTER_FORWARD);CHKERRQ(ierr);
+      PetscCall(VecScatterBegin(ctx, in_par, out_seq, INSERT_VALUES, SCATTER_FORWARD));
+      PetscCall(VecScatterEnd(ctx, in_par, out_seq, INSERT_VALUES, SCATTER_FORWARD));
       /* May destroy context now if no additional scatters are needed, otherwise reuse it */
-      ierr = VecScatterDestroy(&ctx);CHKERRQ(ierr);
+      PetscCall(VecScatterDestroy(&ctx));
 
 Note that this simply concatenates in the parallel ordering of the vector (computed by the
 ``MPI_Comm_rank`` of the owning process). If you are using a ``Vec`` from
@@ -779,13 +785,13 @@ replace
 
 .. code-block::
 
-   ierr = VecScatterCreateToAll(in_par, &ctx, &out_seq);CHKERRQ(ierr);
+   PetscCall(VecScatterCreateToAll(in_par, &ctx, &out_seq));
 
 with
 
 .. code-block::
 
-   ierr = VecScatterCreateToZero(in_par, &ctx, &out_seq);CHKERRQ(ierr);
+   PetscCall(VecScatterCreateToZero(in_par, &ctx, &out_seq));
 
 .. note::
 
@@ -837,11 +843,10 @@ with
 
 .. code-block::
 
-   KSP            ksp;
-   PetscErrorCode ierr;
+   KSP ksp;
 
-   ierr = KSPCreate(PETSC_COMM_WORLD, &ksp);CHKERRQ(ierr);
-   ierr = KSPGMRESSetRestart(ksp, 10);CHKERRQ(ierr);
+   PetscCall(KSPCreate(PETSC_COMM_WORLD, &ksp));
+   PetscCall(KSPGMRESSetRestart(ksp, 10));
 
 the restart will be ignored since the type has not yet been set to ``KSPGMRES``. To have
 those values take effect you should do one of the following:
@@ -875,15 +880,15 @@ How do I compile and link my own PETSc application codes and can I use my own ``
 See the :ref:`section <sec_writing_application_codes>` of the users manual on writing
 application codes with PETSc. 
 
-Can I use Cmake to build my own project that depends on PETSc?
+Can I use CMake to build my own project that depends on PETSc?
 --------------------------------------------------------------
 
 See the :ref:`section <sec_writing_application_codes>` of the users manual on writing
 application codes with PETSc. 
 
 
-How can I put carriage returns in PetscPrintf() statements from Fortran?
-------------------------------------------------------------------------
+How can I put carriage returns in ``PetscPrintf()`` statements from Fortran?
+----------------------------------------------------------------------------
 
 You can use the same notation as in C, just put a ``\n`` in the string. Note that no other C
 format instruction is supported.
@@ -925,7 +930,7 @@ time is:
 
 You are free to have your ``FormFunction()`` compute as much of the Jacobian at that point
 as you like, keep the information in the user context (the final argument to
-``FormFunction()`` and ``FormJacobian()``) and then retreive the information in your
+``FormFunction()`` and ``FormJacobian()``) and then retrieve the information in your
 ``FormJacobian()`` function.
 
 Computing the Jacobian or preconditioner is time consuming. Is there any way to compute it less often?
@@ -933,7 +938,7 @@ Computing the Jacobian or preconditioner is time consuming. Is there any way to 
 
 PETSc has a variety of ways of lagging the computation of the Jacobian or the
 preconditioner. They are documented in the manual page for ``SNESComputeJacobian()``
-and in the :ref:`users manual <chapter_snes>`:
+and in the :ref:`users manual <ch_snes>`:
 
 -snes_lag_jacobian  (``SNESSetLagJacobian()``) How often Jacobian is rebuilt (use -1 to
                     never rebuild, use -2 to rebuild the next time requested and then
@@ -970,10 +975,10 @@ the only general purpose way to determine which approach is best for your proble
 .. important::
 
    It is also vital to experiment on your true problem at the scale you will be solving
-   the problem since the performance benifits depend on the exact problem and and problem
+   the problem since the performance benefits depend on the exact problem and and problem
    size!
 
-How can I use Newton's Method Jacobian free? Can I difference a different function than provided with SNESSetFunction()?
+How can I use Newton's Method Jacobian free? Can I difference a different function than provided with ``SNESSetFunction()``?
 ----------------------------------------------------------------------------------------------------------------------------
 
 The simplest way is with the option ``-snes_mf``, this will use finite differencing of the
@@ -1026,6 +1031,8 @@ to get approximations to the condition number of the operator. This will general
 accurate for the largest singular values, but may overestimate the smallest singular value
 unless the method has converged. Make sure to avoid restarts. To estimate the condition
 number of the preconditioned operator, use ``-pc_type somepc`` in the last command.
+
+You can use `SLEPc <https://slepc.upv.es>`__ for highly scalable, efficient, and quality eigenvalue computations.
 
 How can I compute the inverse of a matrix in PETSc?
 ---------------------------------------------------
@@ -1134,13 +1141,16 @@ type ``MATSCHURCOMPLEMENT``.
 Do you have examples of doing unstructured grid Finite Element Method (FEM) with PETSc?
 ---------------------------------------------------------------------------------------
 
-There are at least two ways to write a finite element code using PETSc:
+There are at least three ways to write finite element codes using PETSc:
 
 #. Use ``DMPLEX``, which is a high level approach to manage your mesh and
    discretization. See the :ref:`tutorials sections <tut_stokes>` for further information,
    or see ``src/snes/tutorial/ex62.c``.
 
-#. Manage the grid data structure yourself and use PETSc ``IS`` and ``VecScatter`` to
+#. Use packages such as `deal.ii <https://www.dealii.org>`__, `libMesh <https://libmesh.github.io>`__, or
+   `Firedrake <https://www.firedrakeproject.org>`__, which use PETSc for the solvers.
+
+#. Manage the grid data structure yourself and use PETSc ``PetscSF``, ``IS``, and ``VecScatter`` to
    communicate the required ghost point communication. See
    ``src/snes/tutorials/ex10d/ex10.c``.
 
@@ -1160,13 +1170,12 @@ provided by Rolf Kuiper:
    // the numbers of processors per direction are (int) x_procs, y_procs, z_procs respectively
    // (no parallelization in direction 'dir' means dir_procs = 1)
 
-   MPI_Comm       NewComm;
-   int            x, y, z;
-   PetscMPIInt    MPI_Rank, NewRank;
-   PetscErrorCode ierr;
+   MPI_Comm    NewComm;
+   int         x, y, z;
+   PetscMPIInt MPI_Rank, NewRank;
 
    // get rank from MPI ordering:
-   ierr = MPI_Comm_rank(MPI_COMM_WORLD, &MPI_Rank);CHKERRMPI(ierr);
+   PetscCallMPI(MPI_Comm_rank(MPI_COMM_WORLD, &MPI_Rank));
 
    // calculate coordinates of cpus in MPI ordering:
    x = MPI_rank / (z_procs*y_procs);
@@ -1177,7 +1186,7 @@ provided by Rolf Kuiper:
    NewRank = z*y_procs*x_procs + y*x_procs + x;
 
    // create communicator with new ranks according to PETSc ordering
-   ierr = MPI_Comm_split(PETSC_COMM_WORLD, 1, NewRank, &NewComm);CHKERRMPI(ierr);
+   PetscCallMPI(MPI_Comm_split(PETSC_COMM_WORLD, 1, NewRank, &NewComm));
 
    // override the default communicator (was MPI_COMM_WORLD as default)
    PETSC_COMM_WORLD = NewComm;
@@ -1196,7 +1205,7 @@ When solving a system with Dirichlet boundary conditions I can use MatZeroRows()
   balancing. In this case the new matrix solved remains symmetric even though
   ``MatZeroRows()`` is used.
 
-An alternative approach is, when assemblying the matrix (generating values and passing
+An alternative approach is, when assembling the matrix (generating values and passing
 them to the matrix), never to include locations for the Dirichlet grid points in the
 vector and matrix, instead taking them into account as you put the other values into the
 load.
@@ -1204,13 +1213,8 @@ load.
 How can I get PETSc vectors and matrices to MATLAB or vice versa?
 -----------------------------------------------------------------
 
-There are numerous  ways to work with PETSc and MATLAB:
-
-#. Using the `MATLAB Engine
-   <https://www.mathworks.com/help/matlab/calling-matlab-engine-from-c-programs-1.html>`__,
-   allowing PETSc to automatically call MATLAB to perform some specific computations. This
-   does not allow MATLAB to be used interactively by the user. See the
-   ``PetscMatlabEngine``.
+There are numerous  ways to work with PETSc and MATLAB. All but the first approach
+require PETSc to be configured with --with-matlab.
 
 #. To save PETSc ``Mat`` and ``Vec`` to files that can be read from MATLAB use
    ``PetscViewerBinaryOpen()`` viewer and ``VecView()`` or ``MatView()`` to save objects
@@ -1218,13 +1222,19 @@ There are numerous  ways to work with PETSc and MATLAB:
    saved. See ``share/petsc/matlab/PetscBinaryRead.m`` and
    ``share/petsc/matlab/PetscBinaryWrite.m`` for loading and saving the objects in MATLAB.
 
+#. Using the `MATLAB Engine
+   <https://www.mathworks.com/help/matlab/calling-matlab-engine-from-c-programs-1.html>`__,
+   allows PETSc to automatically call MATLAB to perform some specific computations. This
+   does not allow MATLAB to be used interactively by the user. See the
+   ``PetscMatlabEngine``.
+
 #. You can open a socket connection between MATLAB and PETSc to allow sending objects back
    and forth between an interactive MATLAB session and a running PETSc program. See
    ``PetscViewerSocketOpen()`` for access from the PETSc side and
    ``share/petsc/matlab/PetscReadBinary.m`` for access from the MATLAB side.
 
 #. You can save PETSc ``Vec`` (**not** ``Mat``) with the ``PetscViewerMatlabOpen()``
-   viewer that saves ``.mat`` files can then be loaded into MATLAB.
+   viewer that saves ``.mat`` files can then be loaded into MATLAB using the ``load()`` command
 
 How do I get started with Cython so that I can extend petsc4py?
 ---------------------------------------------------------------
@@ -1251,8 +1261,8 @@ appropriate norm on the resulting residual. Note that depending on the
 ``KSPSetNormType()`` of the method you may not return the same norm as provided by the
 method. See also ``KSPSetPCSide()``.
 
-If I have a sequential program can I use a parallel direct solver?
-------------------------------------------------------------------
+If I have a sequential program can I use a PETSc parallel solver?
+-----------------------------------------------------------------
 
 .. important::
 
@@ -1285,6 +1295,7 @@ available.
    cores available for each MPI process. For example if your compute nodes have 6 cores
    and you use 2 MPI processes per node then set ``$OMP_NUM_THREADS`` to 2 or 3.
 
+Another approach that allows using a PETSc parallel solver is to use ``PCMPI``.
 
 TS or SNES produces infeasible (out of domain) solutions or states. How can I prevent this?
 -------------------------------------------------------------------------------------------
@@ -1301,7 +1312,7 @@ tightening ``TS`` tolerances for adaptive time stepping).
 Can PETSc work with Hermitian matrices?
 ---------------------------------------
 
-PETSc's support of Hermitian matrices is very limited. Many operations and solvers work
+PETSc's support of Hermitian matrices is limited. Many operations and solvers work
 for symmetric (``MATSBAIJ``) matrices and operations on transpose matrices but there is
 little direct support for Hermitian matrices and Hermitian transpose (complex conjugate
 transpose) operations. There is ``KSPSolveTranspose()`` for solving the transpose of a
@@ -1357,30 +1368,29 @@ Assuming you have an existing matrix :math:`A` whose nullspace :math:`V` you wan
 
 .. code-block::
 
-   Mat            F, work, V;
-   PetscInt       N, rows;
-   PetscErrorCode ierr;
+   Mat      F, work, V;
+   PetscInt N, rows;
 
    /* Determine factorability */
-   ierr = MatGetFactor(A, MATSOLVERMUMPS, MAT_FACTOR_LU, &F);CHKERRQ(ierr);
-   ierr = MatGetLocalSize(A, &rows, NULL);CHKERRQ(ierr);
+   PetscCall(MatGetFactor(A, MATSOLVERMUMPS, MAT_FACTOR_LU, &F));
+   PetscCall(MatGetLocalSize(A, &rows, NULL));
 
    /* Set MUMPS options, see MUMPS documentation for more information */
-   ierr = MatMumpsSetIcntl(F, 24, 1);CHKERRQ(ierr);
-   ierr = MatMumpsSetIcntl(F, 25, 1);CHKERRQ(ierr);
+   PetscCall(MatMumpsSetIcntl(F, 24, 1));
+   PetscCall(MatMumpsSetIcntl(F, 25, 1));
 
    /* Perform factorization */
-   ierr = MatLUFactorSymbolic(F, A, NULL, NULL, NULL);CHKERRQ(ierr);
-   ierr = MatLUFactorNumeric(F, A, NULL);CHKERRQ(ierr);
+   PetscCall(MatLUFactorSymbolic(F, A, NULL, NULL, NULL));
+   PetscCall(MatLUFactorNumeric(F, A, NULL));
 
    /* This is the dimension of the null space */
-   ierr = MatMumpsGetInfog(F, 28, &N);CHKERRQ(ierr);
+   PetscCall(MatMumpsGetInfog(F, 28, &N));
 
    /* This will contain the null space in the columns */
-   ierr = MatCreateDense(comm, rows, N, PETSC_DETERMINE, PETSC_DETERMINE, NULL, &V);CHKERRQ(ierr);
+   PetscCall(MatCreateDense(comm, rows, N, PETSC_DETERMINE, PETSC_DETERMINE, NULL, &V));
 
-   ierr = MatDuplicate(V, MAT_DO_NOT_COPY_VALUES, &work);CHKERRQ(ierr);
-   ierr = MatMatSolve(F, work, V);CHKERRQ(ierr);
+   PetscCall(MatDuplicate(V, MAT_DO_NOT_COPY_VALUES, &work));
+   PetscCall(MatMatSolve(F, work, V));
 
 --------------------------------------------------
 
@@ -1427,7 +1437,8 @@ PETSc has so many options for my program that it is hard to keep them straight
 Running the PETSc program with the option ``-help`` will print out many of the options. To
 print the options that have been specified within a program, employ ``-options_left`` to
 print any options that the user specified but were not actually used by the program and
-all options used; this is helpful for detecting typo errors.
+all options used; this is helpful for detecting typo errors. The PETSc website has a search option,
+in the upper right hand corner, that quickly finds answers to most PETSc questions.
 
 PETSc automatically handles many of the details in parallel PDE solvers. How can I understand what is really happening within my program?
 -----------------------------------------------------------------------------------------------------------------------------------------
@@ -1443,24 +1454,19 @@ the solvers have converged.
 Assembling large sparse matrices takes a long time. What can I do to make this process faster? Or MatSetValues() is so slow; what can I do to speed it up?
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-See the :ref:`performance chapter <ch_performance>` of the users manual.
+You probably need to do preallocation, as explained in :any:`sec_matsparse`.
+See also the :ref:`performance chapter <ch_performance>` of the users manual.
+
+For GPUs (and even CPUs) you can use ``MatSetPreallocationCOO()`` and ``MatSetValuesCOO()`` for more rapid assembly.
 
 How can I generate performance summaries with PETSc?
 ----------------------------------------------------
 
-Use these options at runtime:
+Use this option at runtime:
 
--log_view  Outputs a comprehensive timing, memory consumption, and comunications digest
+-log_view  Outputs a comprehensive timing, memory consumption, and communications digest
            for your program. See the :ref:`profiling chapter <ch_profiling>` of the users
            manual for information on interpreting the summary data.
-
--snes_view  Generates performance and operational summaries for nonlinear solvers.
-
--ksp_view   Generates performance and operational summaries for nonlinear solvers.
-
-.. note::
-
-   Only the highest level PETSc object used needs to specify the view option.
 
 How do I know the amount of time spent on each level of the multigrid solver/preconditioner?
 --------------------------------------------------------------------------------------------
@@ -1496,9 +1502,10 @@ This can happen for many reasons:
    with ``-log_view``). Often the slower time is in generating the matrix or some other
    operation.
 
-#. There must be enough work for each process to overweigh the communication time. We
+#. There must be enough work for each process to outweigh the communication time. We
    recommend an absolute minimum of about 10,000 unknowns per process, better is 20,000 or
-   more.
+   more. This is even more true when using multiple GPUs, where you need to have millions
+   of unknowns per GPU.
 
 #. Make sure the :ref:`communication speed of the parallel computer
    <doc_faq_general_parallel>` is good enough for parallel solvers.
@@ -1510,6 +1517,8 @@ This can happen for many reasons:
    processes. You may also consider multigrid preconditioners like ``PCMG`` or BoomerAMG
    in ``PCHYPRE``.
 
+.. _doc_faq_pipelined:
+
 What steps are necessary to make the pipelined solvers execute efficiently?
 ---------------------------------------------------------------------------
 
@@ -1517,7 +1526,7 @@ Pipelined solvers like ``KSPPGMRES``, ``KSPPIPECG``, ``KSPPIPECR``, and ``KSPGRO
 require special MPI configuration to effectively overlap reductions with computation. In
 general, this requires an MPI-3 implementation, an implementation that supports multiple
 threads, and use of a "progress thread". Consult the documentation from your vendor or
-computing facility for more.
+computing facility for more details.
 
 .. glossary::
    :sorted:
@@ -1833,6 +1842,20 @@ the program after ``PetscFinalize()``. Use the following code-snippet:
 Debugging
 =========
 
+What does the message hwloc/linux: Ignoring PCI device with non-16bit domain mean?
+----------------------------------------------------------------------------------
+
+This is printed by the hwloc library that is used by some MPI implementations. It can be ignored.
+To prevent the message from always being printed set the environmental variable ``HWLOC_HIDE_ERRORS`` to 2.
+For example
+
+.. code-block::
+
+   export HWLOC_HIDE_ERRORS=2
+
+which can be added to your login profile file such as ``~/.bashrc``.
+
+
 How do I turn off PETSc signal handling so I can use the ``-C`` Option On ``xlf``?
 ----------------------------------------------------------------------------------
 
@@ -1859,7 +1882,7 @@ On newer Ubuntu linux machines - one has to disable ``ptrace_scope`` with
 
 to get start in debugger working.
 
-If ``-start_in_debugger`` does not really work on your OS, for a uniprocessor job, just
+If ``-start_in_debugger`` does not work on your OS, for a uniprocessor job, just
 try the debugger directly, for example: ``gdb ex1``. You can also use `TotalView
 <https://totalview.io/products/totalview>`__ which is a good graphical parallel debugger.
 
@@ -1954,26 +1977,24 @@ Many operations on PETSc objects require that the specific type of the object be
 
 .. code-block::
 
-   Mat            A;
-   PetscErrorCode ierr;
+   Mat A;
 
-   ierr = MatCreate(PETSC_COMM_WORLD, &A);CHKERRQ(ierr);
-   ierr = MatSetValues(A,....);CHKERRQ(ierr);
+   PetscCall(MatCreate(PETSC_COMM_WORLD, &A));
+   PetscCall(MatSetValues(A,....));
 
 will not work. You must add ``MatSetType()`` or ``MatSetFromOptions()`` before the call to ``MatSetValues()``. I.e.
 
 .. code-block::
 
-   Mat            A;
-   PetscErrorCode ierr;
+   Mat A;
 
-   ierr = MatCreate(PETSC_COMM_WORLD, &A);CHKERRQ(ierr);
+   PetscCall(MatCreate(PETSC_COMM_WORLD, &A));
 
-   ierr = MatSetType(A, MATAIJ);CHKERRQ(ierr);
+   PetscCall(MatSetType(A, MATAIJ));
    /* Will override MatSetType() */
-   ierr = MatSetFromOptions();CHKERRQ(ierr);
+   PetscCall(MatSetFromOptions());
 
-   ierr = MatSetValues(A,....);CHKERRQ(ierr);
+   PetscCall(MatSetValues(A,....));
 
 .. _split-ownership:
 
@@ -2004,20 +2025,10 @@ to determine exactly what line is causing the problem.
 
 If ``-malloc_debug`` does not help: on NVIDIA CUDA systems you can use https://docs.nvidia.com/cuda/cuda-memcheck/index.html
 
-If ``-malloc_debug`` does not help: on GNU/Linux and (supported) macOS machines - you can
+If ``-malloc_debug`` does not help: on GNU/Linux (not macOS machines) - you can
 use `valgrind <http://valgrind.org>`__. Follow the below instructions:
 
-#. ``configure`` PETSc with ``--download-mpich --with-debugging``.
-
-#. On macOS you need to:
-
-   #. use valgrind from https://github.com/LouisBrunner/valgrind-macos. Follow the Usage
-      instructions in the README.md on that page (no need to clone the repository).
-
-   #. use the additional ``configure`` options ``--download-fblaslapack`` or
-      ``--download-f2cblaslapack``
-
-   #. use the additional valgrind option ``--dsymutil=yes``
+#. ``configure`` PETSc with ``--download-mpich --with-debugging`` (You can use other MPI implementations but most produce spurious Valgrind messages)
 
 #. Compile your application code with this build of PETSc.
 
@@ -2089,8 +2100,8 @@ This error can also happen if your matrix is singular, see ``MatSetNullSpace()``
 to handle this. If this error occurs in the zeroth row of the matrix, it is likely you
 have an error in the code that generates the matrix.
 
-You create draw windows or ViewerDraw windows or use options ``-ksp_monitor draw::draw_lg`` or ``-snes_monitor draw::draw_lg`` and the program seems to run OK but windows never open
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+You create draw windows or ``PETSCVIEWERDRAW`` windows or use options ``-ksp_monitor draw::draw_lg`` or ``-snes_monitor draw::draw_lg`` and the program seems to run OK but windows never open
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 The libraries were compiled without support for X windows. Make sure that ``configure``
 was run with the option ``--with-x``.

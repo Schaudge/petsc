@@ -1,16 +1,3 @@
-<HTML>
-<HEAD>
-<TITLE>TAO Line Search Manual Pages</TITLE>
-</HEAD>
-<BODY BGCOLOR="FFFFFF">
+# Optimization Line Search (TaoLineSearch)
 
-<H2> TAO Line Search Manual Pages
-</H2>
-
-The Toolkit for Advance Optimization provides an
-interface to create line searches, customize
-them to a particular application, and apply them to a problem.
-Many of the options for TAO Line Searches can also be set at runtime.
-<P>
-
-
+The `TaoLineSearch` class manages the line searches needed by some of the `Tao` methods. Users guide chapter: [](ch_tao).

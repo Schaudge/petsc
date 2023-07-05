@@ -1,5 +1,5 @@
 
-#include <petsc/private/matimpl.h>               /*I "petscmatcoarsen.h" I*/
+#include <petsc/private/matimpl.h> /*I "petscmatcoarsen.h" I*/
 
 /* Logging support */
 PetscClassId MAT_COARSEN_CLASSID;
@@ -13,38 +13,36 @@ PetscBool         MatCoarsenRegisterAllCalled = PETSC_FALSE;
    Logically Collective
 
    Input Parameters:
-+  sname - name of coarsen (for example MATCOARSENMIS)
++  sname - name of coarsen (for example `MATCOARSENMIS`)
 -  function - function pointer that creates the coarsen type
 
    Level: developer
 
    Sample usage:
 .vb
-   MatCoarsenRegister("my_agg",MyAggCreate);
+   MatCoarsenRegister("my_agg", MyAggCreate);
 .ve
 
    Then, your aggregator can be chosen with the procedural interface via
-$     MatCoarsenSetType(agg,"my_agg")
+$     MatCoarsenSetType(agg, "my_agg")
    or at runtime via the option
 $     -mat_coarsen_type my_agg
 
-.seealso: MatCoarsenRegisterDestroy(), MatCoarsenRegisterAll()
+.seealso: `MatCoarsen`, `MatCoarsenType`, `MatCoarsenSetType()`, `MatCoarsenCreate()`, `MatCoarsenRegisterDestroy()`, `MatCoarsenRegisterAll()`
 @*/
-PetscErrorCode  MatCoarsenRegister(const char sname[],PetscErrorCode (*function)(MatCoarsen))
+PetscErrorCode MatCoarsenRegister(const char sname[], PetscErrorCode (*function)(MatCoarsen))
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  ierr = MatInitializePackage();CHKERRQ(ierr);
-  ierr = PetscFunctionListAdd(&MatCoarsenList,sname,function);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(MatInitializePackage());
+  PetscCall(PetscFunctionListAdd(&MatCoarsenList, sname, function));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
    MatCoarsenGetType - Gets the Coarsen method type and name (as a string)
         from the coarsen context.
 
-   Not collective
+   Not Collective
 
    Input Parameter:
 .  coarsen - the coarsen context
@@ -54,65 +52,57 @@ PetscErrorCode  MatCoarsenRegister(const char sname[],PetscErrorCode (*function)
 
    Level: advanced
 
-   Not Collective
-
-.seealso: MatCoarsenCreate(), MatCoarsenType, MatCoarsenSetType()
+.seealso: `MatCoarsen`, `MatCoarsenCreate()`, `MatCoarsenType`, `MatCoarsenSetType()`, `MatCoarsenRegister()`
 @*/
-PetscErrorCode  MatCoarsenGetType(MatCoarsen coarsen,MatCoarsenType *type)
+PetscErrorCode MatCoarsenGetType(MatCoarsen coarsen, MatCoarsenType *type)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(coarsen,MAT_COARSEN_CLASSID,1);
-  PetscValidPointer(type,2);
+  PetscValidHeaderSpecific(coarsen, MAT_COARSEN_CLASSID, 1);
+  PetscValidPointer(type, 2);
   *type = ((PetscObject)coarsen)->type_name;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
    MatCoarsenApply - Gets a coarsen for a matrix.
 
-   Collective on MatCoarsen
+   Collective
 
    Input Parameter:
 .   coarsen - the coarsen
 
    Options Database Keys:
-   To specify the coarsen through the options database, use one of
-   the following
-$    -mat_coarsen_type mis
-   To see the coarsen result
-$    -mat_coarsen_view
++    -mat_coarsen_type mis|hem|misk - set the coarsening type
+-    -mat_coarsen_view - view the coarsening object
 
    Level: advanced
 
    Notes:
-    Use MatCoarsenGetData() to access the results of the coarsening
+    Use `MatCoarsenGetData()` to access the results of the coarsening
 
-   The user can define additional coarsens; see MatCoarsenRegister().
+   The user can define additional coarsens; see `MatCoarsenRegister()`.
 
-.seealso:  MatCoarsenRegister(), MatCoarsenCreate(),
-           MatCoarsenDestroy(), MatCoarsenSetAdjacency()
-           MatCoarsenGetData()
+.seealso: `MatCoarsen`, `MatCoarseSetFromOptions()`, `MatCoarsenSetType()`, `MatCoarsenRegister()`, `MatCoarsenCreate()`,
+          `MatCoarsenDestroy()`, `MatCoarsenSetAdjacency()`
+          `MatCoarsenGetData()`
 @*/
-PetscErrorCode  MatCoarsenApply(MatCoarsen coarser)
+PetscErrorCode MatCoarsenApply(MatCoarsen coarser)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(coarser,MAT_COARSEN_CLASSID,1);
-  PetscValidPointer(coarser,1);
-  if (!coarser->graph->assembled) SETERRQ(PetscObjectComm((PetscObject)coarser),PETSC_ERR_ARG_WRONGSTATE,"Not for unassembled matrix");
-  if (coarser->graph->factortype) SETERRQ(PetscObjectComm((PetscObject)coarser),PETSC_ERR_ARG_WRONGSTATE,"Not for factored matrix");
-  if (!coarser->ops->apply) SETERRQ(PetscObjectComm((PetscObject)coarser),PETSC_ERR_ARG_WRONGSTATE,"Must set type with MatCoarsenSetFromOptions() or MatCoarsenSetType()");
-  ierr = PetscLogEventBegin(MAT_Coarsen,coarser,0,0,0);CHKERRQ(ierr);
-  ierr = (*coarser->ops->apply)(coarser);CHKERRQ(ierr);
-  ierr = PetscLogEventEnd(MAT_Coarsen,coarser,0,0,0);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscValidHeaderSpecific(coarser, MAT_COARSEN_CLASSID, 1);
+  PetscValidPointer(coarser, 1);
+  PetscCheck(coarser->graph->assembled, PetscObjectComm((PetscObject)coarser), PETSC_ERR_ARG_WRONGSTATE, "Not for unassembled matrix");
+  PetscCheck(!coarser->graph->factortype, PetscObjectComm((PetscObject)coarser), PETSC_ERR_ARG_WRONGSTATE, "Not for factored matrix");
+  PetscCall(PetscLogEventBegin(MAT_Coarsen, coarser, 0, 0, 0));
+  PetscUseTypeMethod(coarser, apply);
+  PetscCall(PetscLogEventEnd(MAT_Coarsen, coarser, 0, 0, 0));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
    MatCoarsenSetAdjacency - Sets the adjacency graph (matrix) of the thing to be coarsened.
 
-   Collective on MatCoarsen
+   Collective
 
    Input Parameters:
 +  agg - the coarsen context
@@ -120,68 +110,66 @@ PetscErrorCode  MatCoarsenApply(MatCoarsen coarser)
 
    Level: advanced
 
-.seealso: MatCoarsenCreate(), MatCoarsenApply()
+.seealso: `MatCoarsen`, `MatCoarsenSetFromOptions()`, `Mat`, `MatCoarsenCreate()`, `MatCoarsenApply()`
 @*/
-PetscErrorCode  MatCoarsenSetAdjacency(MatCoarsen agg, Mat adj)
+PetscErrorCode MatCoarsenSetAdjacency(MatCoarsen agg, Mat adj)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(agg,MAT_COARSEN_CLASSID,1);
-  PetscValidHeaderSpecific(adj,MAT_CLASSID,2);
+  PetscValidHeaderSpecific(agg, MAT_COARSEN_CLASSID, 1);
+  PetscValidHeaderSpecific(adj, MAT_CLASSID, 2);
   agg->graph = adj;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
    MatCoarsenSetStrictAggs - Set whether to keep strict (non overlapping) aggregates in the linked list of aggregates for a coarsen context
 
-   Logically Collective on MatCoarsen
+   Logically Collective
 
    Input Parameters:
 +  agg - the coarsen context
--  str - PETSC_TRUE keep strict aggregates, PETSC_FALSE allow overlap
+-  str - `PETSC_TRUE` keep strict aggregates, `PETSC_FALSE` allow overlap
+
    Level: advanced
 
-.seealso: MatCoarsenCreate()
+.seealso: `MatCoarsen`, `MatCoarsenCreate()`, `MatCoarsenSetFromOptions()`
 @*/
 PetscErrorCode MatCoarsenSetStrictAggs(MatCoarsen agg, PetscBool str)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(agg,MAT_COARSEN_CLASSID,1);
+  PetscValidHeaderSpecific(agg, MAT_COARSEN_CLASSID, 1);
   agg->strict_aggs = str;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
    MatCoarsenDestroy - Destroys the coarsen context.
 
-   Collective on MatCoarsen
+   Collective
 
-   Input Parameters:
+   Input Parameter:
 .  agg - the coarsen context
 
    Level: advanced
 
-.seealso: MatCoarsenCreate()
+.seealso: `MatCoarsen`, `MatCoarsenCreate()`
 @*/
-PetscErrorCode  MatCoarsenDestroy(MatCoarsen *agg)
+PetscErrorCode MatCoarsenDestroy(MatCoarsen *agg)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  if (!*agg) PetscFunctionReturn(0);
-  PetscValidHeaderSpecific((*agg),MAT_COARSEN_CLASSID,1);
-  if (--((PetscObject)(*agg))->refct > 0) {*agg = NULL; PetscFunctionReturn(0);}
-
-  if ((*agg)->ops->destroy) {
-    ierr = (*(*agg)->ops->destroy)((*agg));CHKERRQ(ierr);
+  if (!*agg) PetscFunctionReturn(PETSC_SUCCESS);
+  PetscValidHeaderSpecific((*agg), MAT_COARSEN_CLASSID, 1);
+  if (--((PetscObject)(*agg))->refct > 0) {
+    *agg = NULL;
+    PetscFunctionReturn(PETSC_SUCCESS);
   }
 
-  if ((*agg)->agg_lists) {
-    ierr = PetscCDDestroy((*agg)->agg_lists);CHKERRQ(ierr);
-  }
+  if ((*agg)->ops->destroy) PetscCall((*(*agg)->ops->destroy)((*agg)));
 
-  ierr = PetscHeaderDestroy(agg);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  if ((*agg)->agg_lists) PetscCall(PetscCDDestroy((*agg)->agg_lists));
+
+  PetscCall(PetscHeaderDestroy(agg));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -197,145 +185,141 @@ PetscErrorCode  MatCoarsenDestroy(MatCoarsen *agg)
 
    Level: advanced
 
-.seealso: MatCoarsenSetType(), MatCoarsenApply(), MatCoarsenDestroy(),
-          MatCoarsenSetAdjacency(), MatCoarsenGetData()
+.seealso: `MatCoarsen`, `MatCoarsenSetType()`, `MatCoarsenApply()`, `MatCoarsenDestroy()`,
+          `MatCoarsenSetAdjacency()`, `MatCoarsenGetData()`
 
 @*/
-PetscErrorCode  MatCoarsenCreate(MPI_Comm comm, MatCoarsen *newcrs)
+PetscErrorCode MatCoarsenCreate(MPI_Comm comm, MatCoarsen *newcrs)
 {
-  MatCoarsen     agg;
-  PetscErrorCode ierr;
+  MatCoarsen agg;
 
   PetscFunctionBegin;
   *newcrs = NULL;
 
-  ierr = MatInitializePackage();CHKERRQ(ierr);
-  ierr = PetscHeaderCreate(agg, MAT_COARSEN_CLASSID,"MatCoarsen","Matrix/graph coarsen", "MatCoarsen", comm, MatCoarsenDestroy, MatCoarsenView);CHKERRQ(ierr);
+  PetscCall(MatInitializePackage());
+  PetscCall(PetscHeaderCreate(agg, MAT_COARSEN_CLASSID, "MatCoarsen", "Matrix/graph coarsen", "MatCoarsen", comm, MatCoarsenDestroy, MatCoarsenView));
 
   *newcrs = agg;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   MatCoarsenViewFromOptions - View from Options
+   MatCoarsenViewFromOptions - View the coarsener from the options database
 
-   Collective on MatCoarsen
+   Collective
 
    Input Parameters:
 +  A - the coarsen context
-.  obj - Optional object
--  name - command line option
+.  obj - Optional object that provides the prefix for the option name
+-  name - command line option (usually `-mat_coarsen_view`)
+
+  Options Database Key:
+.  -mat_coarsen_view [viewertype]:... - the viewer and its options
+
+  Note:
+.vb
+    If no value is provided ascii:stdout is used
+       ascii[:[filename][:[format][:append]]]    defaults to stdout - format can be one of ascii_info, ascii_info_detail, or ascii_matlab,
+                                                  for example ascii::ascii_info prints just the information about the object not all details
+                                                  unless :append is given filename opens in write mode, overwriting what was already there
+       binary[:[filename][:[format][:append]]]   defaults to the file binaryoutput
+       draw[:drawtype[:filename]]                for example, draw:tikz, draw:tikz:figure.tex  or draw:x
+       socket[:port]                             defaults to the standard output port
+       saws[:communicatorname]                    publishes object to the Scientific Application Webserver (SAWs)
+.ve
 
    Level: intermediate
-.seealso:  MatCoarsen, MatCoarsenView, PetscObjectViewFromOptions(), MatCoarsenCreate()
-@*/
-PetscErrorCode  MatCoarsenViewFromOptions(MatCoarsen A,PetscObject obj,const char name[])
-{
-  PetscErrorCode ierr;
 
+.seealso: `MatCoarsen`, `MatCoarsenView`, `PetscObjectViewFromOptions()`, `MatCoarsenCreate()`
+@*/
+PetscErrorCode MatCoarsenViewFromOptions(MatCoarsen A, PetscObject obj, const char name[])
+{
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(A,MAT_COARSEN_CLASSID,1);
-  ierr = PetscObjectViewFromOptions((PetscObject)A,obj,name);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscValidHeaderSpecific(A, MAT_COARSEN_CLASSID, 1);
+  PetscCall(PetscObjectViewFromOptions((PetscObject)A, obj, name));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
    MatCoarsenView - Prints the coarsen data structure.
 
-   Collective on MatCoarsen
+   Collective
 
    Input Parameters:
 +  agg - the coarsen context
 -  viewer - optional visualization context
 
+   For viewing the options database see `MatCoarsenViewFromOptions()`
+
    Level: advanced
 
-   Note:
-   The available visualization contexts include
-+     PETSC_VIEWER_STDOUT_SELF - standard output (default)
--     PETSC_VIEWER_STDOUT_WORLD - synchronized standard
-         output where only the first processor opens
-         the file.  All other processors send their
-         data to the first processor to print.
-
-   The user can open alternative visualization contexts with
-.     PetscViewerASCIIOpen() - output to a specified file
-
-.seealso: PetscViewerASCIIOpen()
+.seealso: `MatCoarsen`, `PetscViewer`, `PetscViewerASCIIOpen()`, `MatCoarsenViewFromOptions`
 @*/
-PetscErrorCode  MatCoarsenView(MatCoarsen agg,PetscViewer viewer)
+PetscErrorCode MatCoarsenView(MatCoarsen agg, PetscViewer viewer)
 {
-  PetscErrorCode ierr;
-  PetscBool      iascii;
+  PetscBool iascii;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(agg,MAT_COARSEN_CLASSID,1);
-  if (!viewer) {
-    ierr = PetscViewerASCIIGetStdout(PetscObjectComm((PetscObject)agg),&viewer);CHKERRQ(ierr);
-  }
-  PetscValidHeaderSpecific(viewer,PETSC_VIEWER_CLASSID,2);
-  PetscCheckSameComm(agg,1,viewer,2);
+  PetscValidHeaderSpecific(agg, MAT_COARSEN_CLASSID, 1);
+  if (!viewer) PetscCall(PetscViewerASCIIGetStdout(PetscObjectComm((PetscObject)agg), &viewer));
+  PetscValidHeaderSpecific(viewer, PETSC_VIEWER_CLASSID, 2);
+  PetscCheckSameComm(agg, 1, viewer, 2);
 
-  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
-  ierr = PetscObjectPrintClassNamePrefixType((PetscObject)agg,viewer);CHKERRQ(ierr);
+  PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &iascii));
+  PetscCall(PetscObjectPrintClassNamePrefixType((PetscObject)agg, viewer));
   if (agg->ops->view) {
-    ierr = PetscViewerASCIIPushTab(viewer);CHKERRQ(ierr);
-    ierr = (*agg->ops->view)(agg,viewer);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPopTab(viewer);CHKERRQ(ierr);
+    PetscCall(PetscViewerASCIIPushTab(viewer));
+    PetscUseTypeMethod(agg, view, viewer);
+    PetscCall(PetscViewerASCIIPopTab(viewer));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
    MatCoarsenSetType - Sets the type of aggregator to use
 
-   Collective on MatCoarsen
+   Collective
 
    Input Parameters:
 +  coarser - the coarsen context.
 -  type - a known coarsening method
 
-   Options Database Command:
-$  -mat_coarsen_type  <type>
-$      Use -help for a list of available methods
-$      (for instance, mis)
+   Options Database Key:
+.  -mat_coarsen_type  <type> - (for instance, misk), use -help for a list of available methods
 
    Level: advanced
 
-.seealso: MatCoarsenCreate(), MatCoarsenApply(), MatCoarsenType, MatCoarsenGetType()
-
+.seealso: `MatCoarsen`, `MatCoarsenCreate()`, `MatCoarsenApply()`, `MatCoarsenType`, `MatCoarsenGetType()`
 @*/
-PetscErrorCode  MatCoarsenSetType(MatCoarsen coarser, MatCoarsenType type)
+PetscErrorCode MatCoarsenSetType(MatCoarsen coarser, MatCoarsenType type)
 {
-  PetscErrorCode ierr,(*r)(MatCoarsen);
-  PetscBool      match;
+  PetscBool match;
+  PetscErrorCode (*r)(MatCoarsen);
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(coarser,MAT_COARSEN_CLASSID,1);
-  PetscValidCharPointer(type,2);
+  PetscValidHeaderSpecific(coarser, MAT_COARSEN_CLASSID, 1);
+  PetscValidCharPointer(type, 2);
 
-  ierr = PetscObjectTypeCompare((PetscObject)coarser,type,&match);CHKERRQ(ierr);
-  if (match) PetscFunctionReturn(0);
+  PetscCall(PetscObjectTypeCompare((PetscObject)coarser, type, &match));
+  if (match) PetscFunctionReturn(PETSC_SUCCESS);
 
-  if (coarser->ops->destroy) {
-    ierr = (*coarser->ops->destroy)(coarser);CHKERRQ(ierr);
-    coarser->ops->destroy = NULL;
-  }
-  ierr = PetscMemzero(coarser->ops,sizeof(struct _MatCoarsenOps));CHKERRQ(ierr);
+  PetscTryTypeMethod(coarser, destroy);
+  coarser->ops->destroy = NULL;
+  PetscCall(PetscMemzero(coarser->ops, sizeof(struct _MatCoarsenOps)));
 
-  ierr = PetscFunctionListFind(MatCoarsenList,type,&r);CHKERRQ(ierr);
-  if (!r) SETERRQ1(PetscObjectComm((PetscObject)coarser),PETSC_ERR_ARG_UNKNOWN_TYPE,"Unknown coarsen type %s",type);
-  ierr = (*r)(coarser);CHKERRQ(ierr);
+  PetscCall(PetscFunctionListFind(MatCoarsenList, type, &r));
+  PetscCheck(r, PetscObjectComm((PetscObject)coarser), PETSC_ERR_ARG_UNKNOWN_TYPE, "Unknown coarsen type %s", type);
+  PetscCall((*r)(coarser));
 
-  ierr = PetscFree(((PetscObject)coarser)->type_name);CHKERRQ(ierr);
-  ierr = PetscStrallocpy(type,&((PetscObject)coarser)->type_name);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(PetscFree(((PetscObject)coarser)->type_name));
+  PetscCall(PetscStrallocpy(type, &((PetscObject)coarser)->type_name));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
    MatCoarsenSetGreedyOrdering - Sets the ordering of the vertices to use with a greedy coarsening method
 
-   Logically Collective on Coarsen
+   Logically Collective
 
    Input Parameters:
 +  coarser - the coarsen context
@@ -343,23 +327,23 @@ PetscErrorCode  MatCoarsenSetType(MatCoarsen coarser, MatCoarsenType type)
 
    Level: advanced
 
-   Notes:
-      The IS weights is freed by PETSc, so user has given this to us
+   Note:
+   The `IS` weights is freed by PETSc, the user should not destroy it or change it after this call
 
-.seealso: MatCoarsenCreate(), MatCoarsenSetType()
+.seealso: `MatCoarsen`, `MatCoarsenType`, `MatCoarsenCreate()`, `MatCoarsenSetType()`
 @*/
 PetscErrorCode MatCoarsenSetGreedyOrdering(MatCoarsen coarser, const IS perm)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(coarser,MAT_COARSEN_CLASSID,1);
+  PetscValidHeaderSpecific(coarser, MAT_COARSEN_CLASSID, 1);
   coarser->perm = perm;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   MatCoarsenGetData - Gets the weights for vertices for a coarsen.
+   MatCoarsenGetData - Gets the weights for vertices for a coarsener.
 
-   Logically Collective on Coarsen
+   Logically Collective
 
    Input Parameter:
 .  coarser - the coarsen context
@@ -369,65 +353,59 @@ PetscErrorCode MatCoarsenSetGreedyOrdering(MatCoarsen coarser, const IS perm)
 
    Level: advanced
 
-.seealso: MatCoarsenCreate(), MatCoarsenSetType()
+.seealso: `MatCoarsen`, `MatCoarsenApply()`, `MatCoarsenCreate()`, `MatCoarsenSetType()`
 @*/
 PetscErrorCode MatCoarsenGetData(MatCoarsen coarser, PetscCoarsenData **llist)
 {
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(coarser,MAT_COARSEN_CLASSID,1);
-  if (!coarser->agg_lists) SETERRQ(PetscObjectComm((PetscObject)coarser),PETSC_ERR_ARG_WRONGSTATE,"No linked list - generate it or call ApplyCoarsen");
+  PetscValidHeaderSpecific(coarser, MAT_COARSEN_CLASSID, 1);
+  PetscCheck(coarser->agg_lists, PetscObjectComm((PetscObject)coarser), PETSC_ERR_ARG_WRONGSTATE, "No linked list - generate it or call ApplyCoarsen");
   *llist             = coarser->agg_lists;
   coarser->agg_lists = NULL; /* giving up ownership */
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
-   MatCoarsenSetFromOptions - Sets various coarsen options from the
-        options database.
+   MatCoarsenSetFromOptions - Sets various coarsen options from the options database.
 
-   Collective on MatCoarsen
+   Collective
 
    Input Parameter:
 .  coarser - the coarsen context.
 
-   Options Database Command:
-$  -mat_coarsen_type  <type>
-$      Use -help for a list of available methods
-$      (for instance, mis)
+   Options Database Key:
+.  -mat_coarsen_type  <type> - (for instance, mis), use -help for a list of available methods
 
    Level: advanced
 
+   Note:
+   Sets the `MatCoarsenType` to `MATCOARSENMISK` if has not been set previously
+
+.seealso: `MatCoarsen`, `MatCoarsenType`, `MatCoarsenApply()`, `MatCoarsenCreate()`, `MatCoarsenSetType()`
 @*/
 PetscErrorCode MatCoarsenSetFromOptions(MatCoarsen coarser)
 {
-  PetscErrorCode ierr;
-  PetscBool      flag;
-  char           type[256];
-  const char     *def;
+  PetscBool   flag;
+  char        type[256];
+  const char *def;
 
   PetscFunctionBegin;
-  ierr = PetscObjectOptionsBegin((PetscObject)coarser);CHKERRQ(ierr);
+  PetscObjectOptionsBegin((PetscObject)coarser);
   if (!((PetscObject)coarser)->type_name) {
-    def = MATCOARSENMIS;
+    def = MATCOARSENMISK;
   } else {
     def = ((PetscObject)coarser)->type_name;
   }
 
-  ierr = PetscOptionsFList("-mat_coarsen_type","Type of aggregator","MatCoarsenSetType",MatCoarsenList,def,type,256,&flag);CHKERRQ(ierr);
-  if (flag) {
-    ierr = MatCoarsenSetType(coarser,type);CHKERRQ(ierr);
-  }
+  PetscCall(PetscOptionsFList("-mat_coarsen_type", "Type of aggregator", "MatCoarsenSetType", MatCoarsenList, def, type, 256, &flag));
+  if (flag) PetscCall(MatCoarsenSetType(coarser, type));
   /*
    Set the type if it was never set.
    */
-  if (!((PetscObject)coarser)->type_name) {
-    ierr = MatCoarsenSetType(coarser,def);CHKERRQ(ierr);
-  }
+  if (!((PetscObject)coarser)->type_name) PetscCall(MatCoarsenSetType(coarser, def));
 
-  if (coarser->ops->setfromoptions) {
-    ierr = (*coarser->ops->setfromoptions)(PetscOptionsObject,coarser);CHKERRQ(ierr);
-  }
-  ierr = PetscOptionsEnd();CHKERRQ(ierr);
-  ierr = MatCoarsenViewFromOptions(coarser,NULL,"-mat_coarsen_view");CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscTryTypeMethod(coarser, setfromoptions, PetscOptionsObject);
+  PetscOptionsEnd();
+
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

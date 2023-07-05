@@ -1,10 +1,7 @@
 -include ../../../../petscdir.mk
-ALL: lib
 
-DIRS   = mis hem
-LOCDIR = src/mat/coarsen/impls/
+DIRS   = mis hem misk
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
-include ${PETSC_DIR}/lib/petsc/conf/rules
-include ${PETSC_DIR}/lib/petsc/conf/test
+include ${PETSC_DIR}/lib/petsc/conf/rules.doc
 

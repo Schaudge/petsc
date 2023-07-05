@@ -114,6 +114,7 @@ class Configure(config.base.Configure):
     return
 
   def configureFortranFlush(self):
+    '''Determine if Fortran has a flush() command'''
     self.pushLanguage('FC')
     for baseName in ['flush','flush_']:
       if self.checkLink(body='      call '+baseName+'(6)'):
@@ -159,6 +160,17 @@ class Configure(config.base.Configure):
     self.popLanguage()
     return
 
+  def checkFortran90LineLength(self):
+    '''Determine whether the Fortran compiler has infinite line length'''
+    self.pushLanguage('FC')
+    if self.checkLink(body = '      INTEGER, PARAMETER ::        int = SELECTED_INT_KIND(8);              INTEGER (KIND=int) :: ierr,ierr2;       ierr                            =                                                                                                               1; ierr2 =                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      2'):
+      self.addDefine('HAVE_FORTRAN_FREE_LINE_LENGTH_NONE', 1)
+      self.logPrint('Fortran compiler has unlimited line length')
+    else:
+      self.logPrint('Fortran compiler does not have unlimited line length')
+    self.popLanguage()
+    return
+
   def checkFortran90FreeForm(self):
     '''Determine whether the Fortran compiler handles F90FreeForm
        We also require that the compiler handles lines longer than 132 characters'''
@@ -196,7 +208,8 @@ class Configure(config.base.Configure):
       character(kind=c_char,len=5),dimension(:),pointer::list1
 
       allocate(list1(5))
-      CArray = (/(c_loc(list1(i)),i=1,5),c_loc(nullc)/)'''):
+      CArray(1:Len) = c_loc(list1)
+      CArray(Len+1) = c_loc(nullc)'''):
       self.addDefine('USING_F2003', 1)
       self.fortranIsF2003 = 1
       self.logPrint('Fortran compiler supports F2003')
@@ -213,7 +226,7 @@ class Configure(config.base.Configure):
     if not self.fortranIsF90:
       self.logPrint('Not a Fortran90 compiler - hence skipping f90-array test')
       return
-    # do an apporximate test when batch mode is used, as we cannot run the proper test..
+    # do an approximate test when batch mode is used, as we cannot run the proper test..
     if self.argDB['with-batch']:
       if config.setCompilers.Configure.isPGI(self.setCompilers.FC, self.log):
         self.addDefine('HAVE_F90_2PTR_ARG', 1)
@@ -296,6 +309,7 @@ class Configure(config.base.Configure):
     return
 
   def checkFortran90AssumedType(self):
+    '''Check if Fortran compiler array pointer is a raw pointer in C''' 
     if config.setCompilers.Configure.isIBM(self.setCompilers.FC, self.log):
       self.addDefine('HAVE_F90_ASSUMED_TYPE_NOT_PTR', 1)
       self.logPrint('IBM F90 compiler detected so using HAVE_F90_ASSUMED_TYPE_NOT_PTR', 3, 'compilers')
@@ -468,5 +482,6 @@ class Configure(config.base.Configure):
       self.executeTest(self.checkFortranTypeInitialize)
       self.executeTest(self.configureFortranFlush)
       self.executeTest(self.checkDependencyGenerationFlag)
+      self.executeTest(self.checkFortran90LineLength)
     return
 

@@ -5,10 +5,10 @@ track dependencies between them. It initiates the run, compiles the results, and
 handles the final output. It maintains the help list for all options available
 in the run.
 
-  The setup() method preforms generic Script setup and then is called recursively
+  The setup() method performs generic Script setup and then is called recursively
 on all the child modules. The cleanup() method performs the final output and
 logging actions
-    - Subtitute files
+    - Substitute files
     - Output configure header
     - Log filesystem actions
 
@@ -51,16 +51,8 @@ import os
 import re
 import sys
 import platform
-# workaround for python2.2 which does not have pathsep
-if not hasattr(os.path,'pathsep'): os.path.pathsep=':'
-
 import pickle
-
-try:
-  from hashlib import md5 as new_md5
-except ImportError:
-  from md5 import new as new_md5 # novermin
-
+from hashlib import md5 as new_md5
 
 class Framework(config.base.Configure, script.LanguageProcessor):
   '''This needs to manage configure information in itself just as Builder manages it for configurations'''
@@ -178,9 +170,9 @@ class Framework(config.base.Configure, script.LanguageProcessor):
     packagedirs = []
 
     help.addArgument('Framework', '-configModules',       nargs.Arg(None, None, 'A list of Python modules with a Configure class'))
-    help.addArgument('Framework', '-ignoreCompileOutput=<bool>', nargs.ArgBool(None, 1, 'Ignore compiler output'))
-    help.addArgument('Framework', '-ignoreLinkOutput=<bool>',    nargs.ArgBool(None, 0, 'Ignore linker output'))
-    help.addArgument('Framework', '-ignoreWarnings=<bool>',      nargs.ArgBool(None, 0, 'Ignore compiler and linker warnings'))
+    help.addArgument('Framework', '-ignoreCompileOutput=<bool>', nargs.ArgBool(None, 1, 'Ignore compiler terminal output when checking if compiles succeed'))
+    help.addArgument('Framework', '-ignoreLinkOutput=<bool>',    nargs.ArgBool(None, 1, 'Ignore linker terminal output when checking if links succeed'))
+    help.addArgument('Framework', '-ignoreWarnings=<bool>',      nargs.ArgBool(None, 0, 'Ignore compiler and linker warnings in terminal output when checking if it succeeded'))
     help.addArgument('Framework', '-doCleanup=<bool>',           nargs.ArgBool(None, 1, 'Delete any configure generated files (turn off for debugging)'))
     help.addArgument('Framework', '-with-executables-search-path', nargs.Arg(None, searchdirs, 'A list of directories used to search for executables'))
     help.addArgument('Framework', '-with-packages-search-path',  nargs.Arg(None, packagedirs, 'A list of directories used to search for packages'))
@@ -203,7 +195,7 @@ class Framework(config.base.Configure, script.LanguageProcessor):
     '''Change titles and setup all children'''
     argDB = script.Script.setupArguments(self, argDB)
 
-    self.help.title = 'Configure Help\n   Comma separated lists should be given between [] (use \[ \] in tcsh/csh)\n      For example: --with-mpi-lib=\[/usr/local/lib/libmpich.a,/usr/local/lib/libpmpich.a\]\n   Options beginning with --known- are to provide values you already know\n    Options beginning with --with- indicate that you are requesting something\n      For example: --with-clanguage=c++\n   <prog> means a program name or a full path to a program\n      For example:--with-cmake=/Users/bsmith/bin/cmake\n   <bool> means a boolean, use either 0 or 1\n   <dir> means a directory\n      For example: --with-packages-download-dir=/Users/bsmith/Downloads\n   For packages use --with-PACKAGE-dir=<dir> OR\n      --with-PACKAGE-include=<dir> --with-PACKAGE-lib=<lib> OR --download-PACKAGE'
+    self.help.title = 'Configure Help\n   Comma separated lists should be given between [] (use \\[ \\] in tcsh/csh)\n      For example: --with-mpi-lib=\\[/usr/local/lib/libmpich.a,/usr/local/lib/libpmpich.a\\]\n   Options beginning with --known- are to provide values you already know\n    Options beginning with --with- indicate that you are requesting something\n      For example: --with-clanguage=c++\n   <prog> means a program name or a full path to a program\n      For example:--with-cmake-exec=/Users/bsmith/bin/cmake\n   <bool> means a boolean, use either 0 or 1\n   <dir> means a directory\n      For example: --with-packages-download-dir=/Users/bsmith/Downloads\n   For packages use --with-PACKAGE-dir=<dir> OR\n      --with-PACKAGE-include=<dir> --with-PACKAGE-lib=<lib> OR --download-PACKAGE'
     self.actions.title = 'Configure Actions\n   These are the actions performed by configure on the filesystem'
 
     for child in self.childGraph.vertices:
@@ -211,10 +203,13 @@ class Framework(config.base.Configure, script.LanguageProcessor):
     return argDB
 
   def outputBasics(self):
+    if 'CONDA_PREFIX' in os.environ and os.environ['CONDA_PREFIX'] is not None:
+      self.conda_active = True
+      self.addMakeMacro('CONDA_ACTIVE',1)
+
     buf = 'Environmental variables'
     for key,val in os.environ.items():
       buf += '\n'+str(key)+'='+str(val)
-    buf = buf.encode('ascii', 'ignore').decode()
     self.logPrint(buf)
     def logPrintFilesInPath(path):
       for d in path:
@@ -227,14 +222,14 @@ class Framework(config.base.Configure, script.LanguageProcessor):
       self.logWrite('    Files in path provided by default path\n')
       logPrintFilesInPath(os.environ['PATH'].split(os.path.pathsep))
     dirs = self.argDB['with-executables-search-path']
-    if not isinstance(dirs, list): dirs = [dirs]
+    if not isinstance(dirs, list): dirs = dirs.split(os.path.pathsep)
     if dirs:
       self.logWrite('    Files in path provided by --with-executables-search-path\n')
       logPrintFilesInPath(dirs)
 
   def dumpConfFiles(self):
     '''Performs:
-       - Subtitute files
+       - Substitute files
        - Output configure header
        - Log actions'''
     self.substitute()
@@ -286,7 +281,7 @@ class Framework(config.base.Configure, script.LanguageProcessor):
   def printSummary(self):
     # __str__(), __str1__(), __str2__() are used to create 3 different groups of summary outputs.
     for child in self.childGraph.vertices:
-      self.logWrite(str(child), debugSection = 'screen', forceScroll = 1)
+      self.logWrite(str(child), debugSection = 'screen', forceScroll = 1, rmDir = 0)
     for child in self.childGraph.vertices:
       if hasattr(child,'__str1__'):
         self.logWrite(child.__str1__(), debugSection = 'screen', forceScroll = 1)
@@ -347,18 +342,38 @@ class Framework(config.base.Configure, script.LanguageProcessor):
       self.getChild(moduleName)
     return
 
-  def require(self, moduleName, depChild = None, keywordArgs = {}):
-    '''Return a child from moduleName, creating it if necessary and making sure it runs before depChild'''
-    config = self.getChild(moduleName, keywordArgs)
-    if not config is depChild:
-      self.childGraph.addEdges(depChild, [config])
-    return config
-
   def requireModule(self, mod, depChild):
     '''Return the input module, making sure it runs before depChild'''
     if not mod is depChild:
       self.childGraph.addEdges(depChild, [mod])
     return mod
+
+  def require(self, moduleName, depChild = None, keywordArgs = {}):
+    '''Return a child from moduleName, creating it if necessary and making sure it runs before depChild'''
+    return self.requireModule(self.getChild(moduleName, keywordArgs), depChild)
+
+  @staticmethod
+  def findModule(obj, module):
+    """
+    Search OBJ's attributes for an attribute of type MODULE_TYPE.
+
+    Return the module if found, otherwise return None.
+    """
+    import inspect
+
+    if not inspect.ismodule(module):
+      raise NotImplementedError
+
+    if isinstance(module, str):
+      module_name = module
+    else:
+      module_name = module.__name__
+
+    for attr in dir(obj):
+      obj_attr = getattr(obj, attr)
+      if inspect.ismodule(obj_attr) and obj_attr.__name__ == module_name:
+        return module
+    return
 
   ###############################################
   # Dependency Mechanisms
@@ -428,10 +443,9 @@ class Framework(config.base.Configure, script.LanguageProcessor):
   # Filtering Mechanisms
 
   def filterPreprocessOutput(self,output, log = None):
+    output = output.strip()
     if log is None: log = self.log
-    log.write("Preprocess output before filtering:\n"+output+":\n")
-    if output == '\n':
-      output = ''
+    log.write("Preprocess output before filtering:\n"+(output if not output else output+'\n'))
     # Another PGI license warning, multiline so have to discard all
     if output.find('your evaluation license will expire') > -1 and output.lower().find('error') == -1:
       output = ''
@@ -439,6 +453,7 @@ class Framework(config.base.Configure, script.LanguageProcessor):
     # Intel
     lines = [s for s in lines if s.find("icc: command line remark #10148: option '-i-dynamic' not supported") < 0]
     lines = [s for s in lines if s.find("[: unexpected operator") < 0]  # Deals with error in mpiicc and mpiicpc wrappers from some versions of Intel MPI.
+    lines = [s for s in lines if s.find(': remark #10441:') < 0]
     # IBM:
     lines = [s for s in lines if not s.startswith('cc_r:')]
     # PGI: Ignore warning about temporary license
@@ -451,14 +466,24 @@ class Framework(config.base.Configure, script.LanguageProcessor):
     # Cray GPU system at Nersc
     lines = [s for s in lines if s.find('No supported cpu target is set, CRAY_CPU_TARGET=x86-64 will be used.') < 0]
     lines = [s for s in lines if s.find('Load a valid targeting module or set CRAY_CPU_TARGET') < 0]
+    lines = [s for s in lines if s.find('The -gpu option has no effect unless a language-specific option to enable GPU code generation is used') < 0]
     # pgi dumps filename on stderr - but returns 0 errorcode'
     lines = [s for s in lines if lines != 'conftest.c:']
+
+    lines = [s for s in lines if len(s)]
     if lines: output = '\n'.join(lines)
     else: output = ''
-    log.write("Preprocess output after filtering:\n"+output+":\n")
+    log.write("Preprocess output after filtering:\n"+(output if not output else output+'\n'))
     return output
 
-  def filterCompileOutput(self, output):
+  def filterCompileOutput(self, output,flag = '', filterAlways = 0):
+    '''
+       With --ignoreCompileOutput=1 (default), it filters all compiler messages
+       With --ignoreCompileOutput=0 it filters only compiler messages known to be harmless
+    '''
+    output = output.strip()
+    if flag and output.find("ignoring unknown option '"+flag+"'"): return output
+    if flag and output.find("invalid value"): return output
     if output.find('warning:  attribute "deprecated" is unknown, ignored') >= 0: return output
     if output.find('PGC-W-0129-Floating point overflow') >= 0: return output
     if output.find('warning #264: floating-point value does not fit in required floating-point type') >= 0: return output
@@ -467,15 +492,13 @@ class Framework(config.base.Configure, script.LanguageProcessor):
     if output.find('warning #2650: attributes ignored here') >= 0: return output
     if output.find('Warning: attribute visibility is unsupported and will be skipped') >= 0: return output
     if output.find('(E) Invalid statement found within an interface block. Executable statement, statement function or syntax error encountered.') >= 0: return output
-    elif self.argDB['ignoreCompileOutput']:
-      output = ''
-    elif output == '\n':
+    elif self.argDB['ignoreCompileOutput'] and not filterAlways:
       output = ''
     elif output:
-      self.log.write("Compiler output before filtering:\n"+output+":\n")
+      self.log.write("Compiler output before filtering:\n"+(output if not output or output.endswith('\n') else output+'\n'))
       lines = output.splitlines()
       if self.argDB['ignoreWarnings']:
-        # EXCEPT warnings that those bastards say we want
+        # ACCEPT compiler warnings
         extraLines = [s for s in lines if s.find('implicit declaration of function') >= 0]
         lines = [s for s in lines if not self.warningRE.search(s)]
         lines = [s for s in lines if s.find('In file included from') < 0]
@@ -491,6 +514,7 @@ class Framework(config.base.Configure, script.LanguageProcessor):
       lines = [s for s in lines if s.find('warning: unused variable') < 0]
       # Intel
       lines = [s for s in lines if s.find("icc: command line remark #10148: option '-i-dynamic' not supported") < 0]
+      lines = [s for s in lines if s.find(': remark #10441:') < 0]
       # PGI: Ignore warning about temporary license
       lines = [s for s in lines if s.find('license.dat') < 0]
       # Cray XT3
@@ -502,26 +526,35 @@ class Framework(config.base.Configure, script.LanguageProcessor):
       # Cray GPU system at Nersc
       lines = [s for s in lines if s.find('No supported cpu target is set, CRAY_CPU_TARGET=x86-64 will be used.') < 0]
       lines = [s for s in lines if s.find('Load a valid targeting module or set CRAY_CPU_TARGET') < 0]
+      lines = [s for s in lines if s.find('The -gpu option has no effect unless a language-specific option to enable GPU code generation is used') < 0]
       # pgi dumps filename on stderr - but returns 0 errorcode'
       lines = [s for s in lines if lines != 'conftest.c:']
+
+      lines = [s for s in lines if len(s)]
       if lines: output = '\n'.join(lines)
       else: output = ''
-      self.log.write("Compiler output after filtering:\n"+output+":\n")
+      self.log.write("Compiler output after filtering:\n"+(output if not output else output+'\n'))
     return output
 
-  def filterLinkOutput(self, output):
+  def filterLinkOutput(self, output, filterAlways = 0):
+    '''
+       With --ignoreLinkOutput=1 (default), it filters all linker messages
+       With --ignoreLinkOutput=0 it filters only linker messages known to be harmless
+    '''
+    output = output.strip()
     if output.find('relocation R_AARCH64_ADR_PREL_PG_HI21 against symbol') >= 0: return output
-    elif self.argDB['ignoreLinkOutput']:
-      output = ''
-    elif output == '\n':
+    elif self.argDB['ignoreLinkOutput'] and not filterAlways:
       output = ''
     elif output:
-      self.log.write("Linker output before filtering:\n"+output+":\n")
+      self.log.write("Linker output before filtering:\n"+(output if not output else output+'\n'))
       lines = output.splitlines()
       if self.argDB['ignoreWarnings']:
         lines = [s for s in lines if not self.warningRE.search(s)]
       #Intel
       lines = [s for s in lines if s.find(": command line warning #10121: overriding") < 0]
+      lines = [s for s in lines if s.find(': remark #10441:') < 0]
+      #Intel icpx
+      lines = [s for s in lines if s.find("warning: Note that use of '-g' without any optimization-level option will turn off most compiler optimizations similar to use") < 0] 
       # PGI: Ignore warning about temporary license
       lines = [s for s in lines if s.find('license.dat') < 0]
       # Cray XT3
@@ -532,6 +565,7 @@ class Framework(config.base.Configure, script.LanguageProcessor):
       # Cray GPU system at Nersc
       lines = [s for s in lines if s.find('No supported cpu target is set, CRAY_CPU_TARGET=x86-64 will be used.') < 0]
       lines = [s for s in lines if s.find('Load a valid targeting module or set CRAY_CPU_TARGET') < 0]
+      lines = [s for s in lines if s.find('The -gpu option has no effect unless a language-specific option to enable GPU code generation is used') < 0]
       # Cray link warnings
       rmidx = []
       for i in range(len(lines)-1):
@@ -555,6 +589,8 @@ class Framework(config.base.Configure, script.LanguageProcessor):
       lines = [s for s in lines if s.find(' was built for newer macOS version') < 0]
       lines = [s for s in lines if s.find(' was built for newer OSX version') < 0]
       lines = [s for s in lines if s.find(' stack subq instruction is too different from dwarf stack size') < 0]
+      lines = [s for s in lines if s.find('could not create compact unwind') < 0]
+      lines = [s for s in lines if s.find('ld: warning: -undefined dynamic_lookup may not work with chained fixups') < 0]
       # Nvidia linker
       lines = [s for s in lines if s.find('nvhpc.ld contains output sections') < 0]
       # Intel dpcpp linker
@@ -562,10 +598,17 @@ class Framework(config.base.Configure, script.LanguageProcessor):
       lines = [s for s in lines if s.find('clang-offload-bundler: error:') < 0]
       lines = [s for s in lines if s.find('Compilation from IR - skipping loading of FCL') < 0]
       lines = [s for s in lines if s.find('Build succeeded') < 0]
+      # emcc complaints incompatible linking
+      lines = [s for s in lines if s.find('wasm-ld: warning: function signature mismatch') < 0]
+      lines = [s for s in lines if s.find('>>> defined as') < 0]
+
+      lines = [s for s in lines if len(s)]
+      # a line with a single : can be created on macOS when the linker jumbles the output from warning messages with was "built for newer" warnings
+      lines = [s for s in lines if s != ':']
 
       if lines: output = '\n'.join(lines)
       else: output = ''
-      self.log.write("Linker output after filtering:\n"+output+":\n")
+      self.log.write("Linker output after filtering:\n"+(output if not output else output+'\n'))
     return output
 
   ###############################################
@@ -860,8 +903,9 @@ class Framework(config.base.Configure, script.LanguageProcessor):
     self.outputMakeMacros(f, self)
     for child in self.childGraph.vertices:
       self.outputMakeMacros(f, child)
-    # The testoptions are provided in packages/
-    testoptions = ''
+    # This options are used in all runs of the test harness
+    testoptions = '-checkfunctionlist'
+    # Additional testoptions are provided in packages/
     for child in self.childGraph.vertices:
         if hasattr(child,'found') and child.found and hasattr(child,'testoptions') and child.testoptions:
           testoptions += ' '+child.testoptions
@@ -1033,6 +1077,7 @@ class Framework(config.base.Configure, script.LanguageProcessor):
     return
 
   def configureExternalPackagesDir(self):
+    '''Set alternative directory external packages are built in'''
     if 'with-packages-build-dir' in self.argDB:
       self.externalPackagesDir = self.argDB['with-packages-build-dir']
     else:
@@ -1234,7 +1279,7 @@ class Framework(config.base.Configure, script.LanguageProcessor):
             out += tb.getvalue()
             tb.close()
           except: pass
-        # Udpate queue
+        # Update queue
         #self.logPrint('PUSH  %s to DONE ' % child.__class__.__module__)
         done.put((ret, out, emsg, child))
         q.task_done() # novermin
@@ -1274,7 +1319,7 @@ class Framework(config.base.Configure, script.LanguageProcessor):
   def serialEvaluation(self, depGraph):
     import graph
 
-    def findModule(dependencyGraph,moduleType):
+    def findGraphModule(dependencyGraph,moduleType):
       moduleList = [c for c in dependencyGraph if isinstance(c,moduleType)]
       if len(moduleList) != 1:
         if len(moduleList) < 1:
@@ -1284,12 +1329,28 @@ class Framework(config.base.Configure, script.LanguageProcessor):
         raise RuntimeError(errorMessage)
       return moduleList[0]
 
+    def checkChildCxxDialectBounds(child,minCxx,maxCxx):
+      def assign_blame(key, blame_list, name):
+        if key not in blame_list:
+          blame_list[key] = set()
+        blame_list[key].add(name)
+        return
+
+      child_name = child.name
+      if child.minCxxVersion > minCxx or 'Cxx' in child.buildLanguages:
+        minCxx = child.minCxxVersion
+        self.logPrint('serialEvaluation: child {child} raised minimum cxx dialect version to {minver}'.format(child=child_name,minver=minCxx))
+        assign_blame(minCxx, minCxxVersionBlameList, child_name)
+      if child.maxCxxVersion < maxCxx:
+        maxCxx = child.maxCxxVersion
+        self.logPrint('serialEvaluation: child {child} decreased maximum cxx dialect version to {maxver}'.format(child=child_name,maxver=maxCxx))
+        assign_blame(maxCxx, maxCxxVersionBlameList, child_name)
+      return minCxx,maxCxx
 
     ndepGraph     = list(graph.DirectedGraph.topologicalSort(depGraph))
-    setCompilers  = findModule(ndepGraph,config.setCompilers.Configure)
-    compilers     = findModule(ndepGraph,config.compilers.Configure)
-    minCxx,maxCxx = compilers.cxxDialectRange['Cxx']
-    self.logPrint('serialEvaluation: initial cxxDialectRanges {rng}'.format(rng=compilers.cxxDialectRange['Cxx']))
+    setCompilers  = findGraphModule(ndepGraph,config.setCompilers.Configure)
+    minCxx,maxCxx = setCompilers.cxxDialectRange['Cxx']
+    self.logPrint('serialEvaluation: initial cxxDialectRanges {rng}'.format(rng=setCompilers.cxxDialectRange['Cxx']))
     minCxxVersionBlameList = {}
     maxCxxVersionBlameList = {}
     for child in ndepGraph:
@@ -1311,20 +1372,7 @@ class Framework(config.base.Configure, script.LanguageProcessor):
         elif 'with-'+child.package+'-dir' in self.framework.clArgDB and self.argDB['with-'+child.package+'-dir']: found = 1
         if not found: continue
         msg = ''
-        if child.minCxxVersion > minCxx:
-          minCxx = child.minCxxVersion
-          self.logPrint('serialEvaluation: child {child} raised minimum cxx dialect version to {minver}'.format(child=child.name,minver=minCxx))
-          try:
-            minCxxVersionBlameList[minCxx].add([child.name])
-          except KeyError:
-            minCxxVersionBlameList[minCxx] = set([child.name])
-        if child.maxCxxVersion < maxCxx:
-          maxCxx = child.maxCxxVersion
-          self.logPrint('serialEvaluation: child {child} decreased maximum cxx dialect version to {maxver}'.format(child=child.name,maxver=maxCxx))
-          try:
-            maxCxxVersionBlameList[maxCxx].add([child.name])
-          except KeyError:
-            maxCxxVersionBlameList[maxCxx] = set([child.name])
+        minCxx,maxCxx = checkChildCxxDialectBounds(child,minCxx,maxCxx)
         for dep in child.deps:
           if dep.required or dep.lookforbydefault:
             continue
@@ -1350,8 +1398,8 @@ class Framework(config.base.Configure, script.LanguageProcessor):
       loPack = ', '.join(minCxxVersionBlameList[minCxx])
       # high water mark
       hiPack = ', '.join(maxCxxVersionBlameList[maxCxx])
-      raise RuntimeError('Requested package(s) have incompatible C++ requirements. Package(s) {loPacks} require at least {mincxx} but package(s) {hiPack} require at most {maxcxx}'.format(loPack=loPack,mincxx=minCxx,hiPack=hiPack,maxcxx=maxCxx))
-    compilers.cxxDialectPackageRanges = (minCxxVersionBlameList,maxCxxVersionBlameList)
+      raise RuntimeError('Requested package(s) have incompatible C++ requirements. Package(s) {loPack} require at least {mincxx} but package(s) {hiPack} require at most {maxcxx}'.format(loPack=loPack,mincxx=minCxx,hiPack=hiPack,maxcxx=maxCxx))
+    setCompilers.cxxDialectPackageRanges = (minCxxVersionBlameList,maxCxxVersionBlameList)
     self.logPrint('serialEvaluation: new cxxDialectRanges {rng}'.format(rng=(minCxx,maxCxx)))
     depGraph  = graph.DirectedGraph.topologicalSort(depGraph)
     totaltime = 0

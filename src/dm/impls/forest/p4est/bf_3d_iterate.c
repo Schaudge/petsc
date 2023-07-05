@@ -19,6 +19,6 @@
 #define DMBF_XD_IterateFVMatAssembly    DMBF_3D_IterateFVMatAssembly
 
 /* include generic functions */
-#include "bf_xd_iterate.c"
+#include "bf_xd_iterate.h"
 
 #endif /* defined(PETSC_HAVE_P4EST) */

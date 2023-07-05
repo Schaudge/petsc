@@ -6,7 +6,6 @@ class Configure(config.package.Package):
     config.package.Package.__init__(self, framework)
     self.functions              = []
     self.includes               = []
-    self.skippackagewithoptions = 1
     self.useddirectly           = 0
     self.linkedbypetsc          = 0
     self.builtafterpetsc        = 1
@@ -19,6 +18,10 @@ class Configure(config.package.Package):
     help.addArgument('PETSc', '-with-petsc4py-test-np=<np>',nargs.ArgInt(None, None, min=1, help='Number of processes to use for petsc4py tests'))
     help.addArgument('PETSc', '-with-numpy-include=<dir>', nargs.Arg(None, None, 'Path to numpy headers from numpy.get_include() (default: autodetect)'))
     return
+
+  def __str__(self):
+    if self.found: return 'petsc4py:\n  PYTHONPATH: '+self.petsc4pypythonpath+'\n'
+    return ''
 
   def setupDependencies(self, framework):
     config.package.Package.setupDependencies(self, framework)
@@ -43,7 +46,9 @@ class Configure(config.package.Package):
     self.logResetRemoveDirectory()
     archflags = ""
     if self.setCompilers.isDarwin(self.log):
-      if self.types.sizes['void-p'] == 4:
+      if self.setCompilers.isARM(self.log):
+        archflags = "ARCHFLAGS=\'-arch arm64\' "
+      elif self.types.sizes['void-p'] == 4:
         archflags = "ARCHFLAGS=\'-arch i386\' "
       else:
         archflags = "ARCHFLAGS=\'-arch x86_64\' "
@@ -69,9 +74,9 @@ class Configure(config.package.Package):
     self.addMakeMacro('PETSC4PY','yes')
     self.addMakeRule('petsc4pybuild','', \
                        ['@echo "*** Building petsc4py ***"',\
-                          '@${RM} -f ${PETSC_ARCH}/lib/petsc/conf/petsc4py.errorflg',\
-                          '@(cd '+self.packageDir+' && \\\n\
-           '+newdir+archflags+self.python.pyexe+' setup.py build )  || \\\n\
+                          '@${RM} ${PETSC_ARCH}/lib/petsc/conf/petsc4py.errorflg',\
+                          '@(cd '+self.packageDir+' && ${RM} -rf build && \\\n\
+           '+newdir+archflags+self.python.pyexe+' setup.py build ) || \\\n\
              (echo "**************************ERROR*************************************" && \\\n\
              echo "Error building petsc4py." && \\\n\
              echo "********************************************************************" && \\\n\
@@ -83,13 +88,14 @@ class Configure(config.package.Package):
            '+newdir+archflags+self.python.pyexe+' setup.py install --install-lib='+installLibPath+' \\\n\
                $(if $(DESTDIR),--root=\'$(DESTDIR)\') ) || \\\n\
              (echo "**************************ERROR*************************************" && \\\n\
-             echo "Error building petsc4py." && \\\n\
+             echo "Error installing petsc4py." && \\\n\
              echo "********************************************************************" && \\\n\
              exit 1)',\
                           '@echo "====================================="',\
                           '@echo "To use petsc4py, add '+installLibPath+' to PYTHONPATH"',\
                           '@echo "====================================="'])
 
+    self.petsc4pypythonpath = installLibPath
     np = self.make.make_test_np
     if self.mpi.usingMPIUni:
       np = 1
@@ -100,8 +106,8 @@ class Configure(config.package.Package):
     self.addMakeMacro('PETSC4PY_NP',np)
     self.addMakeRule('petsc4pytest', '',
         ['@echo "*** Testing petsc4py on ${PETSC4PY_NP} processes ***"',
-         '@PYTHONPATH=%s:${PETSC_MPI4PY_PYTHONPATH}:${PYTHONPATH} ${MPIEXEC} -n ${PETSC4PY_NP} %s %s --verbose' % \
-             (installLibPath, self.python.pyexe, os.path.join(self.packageDir, 'test', 'runtests.py')),
+         '@PYTHONPATH=%s:${PETSC_MPI4PY_PYTHONPATH}:${PYTHONPATH} PETSC_OPTIONS="%s" ${MPIEXEC} -n ${PETSC4PY_NP} %s %s --verbose' % \
+             (installLibPath, '${PETSC_OPTIONS} -check_pointer_intensity 0 -error_output_stdout -malloc_dump ${PETSC_TEST_OPTIONS}', self.python.pyexe, os.path.join(self.packageDir, 'test', 'runtests.py')),
          '@echo "====================================="'])
 
     if self.argDB['prefix'] and not 'package-prefix-hash' in self.argDB:
@@ -111,12 +117,13 @@ class Configure(config.package.Package):
     else:
       self.addMakeRule('petsc4py-build','petsc4pybuild petsc4pyinstall')
       self.addMakeRule('petsc4py-install','')
+    self.found = True
     return self.installDir
 
   def configureLibrary(self):
     if not self.sharedLibraries.useShared and not self.setCompilers.isCygwin(self.log):
         raise RuntimeError('petsc4py requires PETSc be built with shared libraries; rerun with --with-shared-libraries')
-    chkpkgs = ['cython','numpy']
+    chkpkgs = ['numpy']
     npkgs  = []
     for pkg in chkpkgs:
       if not getattr(self.python,pkg): npkgs.append(pkg)
@@ -127,6 +134,7 @@ class Configure(config.package.Package):
     self.getInstallDir()
 
   def alternateConfigureLibrary(self):
+    '''Adds rules for building petsc4py to PETSc makefiles'''
     self.addMakeRule('petsc4py-build','')
     self.addMakeRule('petsc4py-install','')
     self.addMakeRule('petsc4pytest','')

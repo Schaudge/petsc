@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 Parse the test file and return a dictionary.
 
@@ -50,8 +50,8 @@ sys.path.insert(0,maintdir)
 # These are special keys describing build
 buildkeys="requires TODO SKIP depends".split()
 
-acceptedkeys="test nsize requires command suffix diff_args args filter filter_output localrunfiles comments TODO SKIP output_file timeoutfactor".split()
-appendlist="args diff_args requires comments".split()
+acceptedkeys=set("test nsize requires command suffix diff_args args filter filter_output localrunfiles comments TODO SKIP output_file timeoutfactor env".split())
+appendlist="args diff_args requires comments env".split()
 
 import re
 
@@ -160,7 +160,7 @@ def _getLoopVars(testDict):
 
   # Now check args
   if 'args' not in testDict: return loopVars
-  for varset in re.split('(^|\W)-(?=[a-zA-Z])',testDict['args']):
+  for varset in re.split(r'(^|\W)-(?=[a-zA-Z])',testDict['args']):
     if not varset.strip(): continue
     if '{{' in varset:
       # Assuming only one for loop per var specification
@@ -178,7 +178,7 @@ def _getNewArgs(args,separate=True):
   """
   newargs=''
   if not args.strip(): return args
-  for varset in re.split('(^|\W)-(?=[a-zA-Z])',args):
+  for varset in re.split(r'(^|\W)-(?=[a-zA-Z])',args):
     if not varset.strip(): continue
     if '{{' in varset:
       if separate:
@@ -227,7 +227,7 @@ def genTestsSeparateTestvars(intests,indicts,final=False):
     if len(loopVars['shared'])>0 and not final:
       # Need to remove shared loop vars and push down to subtests
       if 'subtests' in sdict:
-        for varset in re.split('(^|\W)-(?=[a-zA-Z])',sdict['args']):
+        for varset in re.split(r'(^|\W)-(?=[a-zA-Z])',sdict['args']):
           if '{{' in varset:
               for stest in sdict['subtests']:
                 if 'args' in sdict[stest]:
@@ -395,7 +395,7 @@ def parseTest(testStr,srcfile,verbosity):
   but in practice we only support two levels of test:
   """
   basename=os.path.basename(srcfile)
-  # Handle the new at the begininng
+  # Handle the new at the beginning
   bn=re.sub("new_","",basename)
   # This is the default
   testname="run"+getlangsplit(bn)
@@ -419,11 +419,13 @@ def parseTest(testStr,srcfile,verbosity):
     if comment: comments.append(comment)
     if not line.strip(): continue
     lsplit=line.split(':')
-    if len(lsplit)==0: raise Exception("Missing : in line: "+line)
+    if len(lsplit)==0:
+      raise Exception("\n\nError in test harness parsing file: "+srcfile+"\nMissing : in line: "+line)
     indentcount=lsplit[0].count(" ")
     var=lsplit[0].strip()
     val=line[line.find(':')+1:].strip()
-    if not var in acceptedkeys: raise Exception("Keyword: "+var+" from: "+line+" is not valid")
+    if not var in acceptedkeys:
+      raise Exception("\n\nError in test harness parsing file: "+srcfile+"\n"+var+" from: "+line+" is not a valid keyword")
     # Start by seeing if we are in a subtest
     if line.startswith(" "):
       if var in subdict[subtestname]:
@@ -446,12 +448,14 @@ def parseTest(testStr,srcfile,verbosity):
         if var in appendlist:
           subdict[var]+=" "+val
         else:
-          raise Exception(var+" entered twice: "+line)
+          raise Exception("\n\nError in test harness parsing file: "+srcfile+"\n"+var+" entered twice: "+line)
       else:
         subdict[var]=val
       if var=="suffix":
         if len(val)>0:
           testname+="_"+val
+      if var == "env" and len(val) == 0:
+        raise Exception("\n\nError in test harness parsing file: "+srcfile+"\nvalue for {}: directive cannot be empty!".format(var))
 
   if len(comments): subdict['comments']="\n".join(comments).lstrip("\n")
 

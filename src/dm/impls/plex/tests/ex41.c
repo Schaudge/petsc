@@ -9,68 +9,64 @@ typedef struct {
 
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 {
-  PetscMPIInt    size;
-  PetscInt       n;
-  PetscErrorCode ierr;
+  PetscMPIInt size;
+  PetscInt    n;
 
   PetscFunctionBeginUser;
-  options->metric  = PETSC_FALSE;
-  ierr = MPI_Comm_size(comm, &size);CHKERRMPI(ierr);
-  ierr = PetscCalloc1(size, &options->refcell);CHKERRQ(ierr);
-  n    = size;
+  options->metric = PETSC_FALSE;
+  PetscCallMPI(MPI_Comm_size(comm, &size));
+  PetscCall(PetscCalloc1(size, &options->refcell));
+  n = size;
 
-  ierr = PetscOptionsBegin(comm, "", "Parallel Mesh Adaptation Options", "DMPLEX");CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-metric", "Flag for metric refinement", "ex41.c", options->metric, &options->metric, NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsIntArray("-refcell", "The cell to be refined", "ex41.c", options->refcell, &n, NULL);CHKERRQ(ierr);
-  if (n && n != size) SETERRQ2(comm, PETSC_ERR_ARG_SIZ, "Only gave %D cells to refine, must give one for all %D processes", n, size);
-  ierr = PetscOptionsEnd();CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscOptionsBegin(comm, "", "Parallel Mesh Adaptation Options", "DMPLEX");
+  PetscCall(PetscOptionsBool("-metric", "Flag for metric refinement", "ex41.c", options->metric, &options->metric, NULL));
+  PetscCall(PetscOptionsIntArray("-refcell", "The cell to be refined", "ex41.c", options->refcell, &n, NULL));
+  if (n) PetscCheck(n == size, comm, PETSC_ERR_ARG_SIZ, "Only gave %" PetscInt_FMT " cells to refine, must give one for all %d processes", n, size);
+  PetscOptionsEnd();
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *ctx, DM *dm)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  ierr = DMCreate(comm, dm);CHKERRQ(ierr);
-  ierr = DMSetType(*dm, DMPLEX);CHKERRQ(ierr);
-  ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
-  ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(DMCreate(comm, dm));
+  PetscCall(DMSetType(*dm, DMPLEX));
+  PetscCall(DMSetFromOptions(*dm));
+  PetscCall(DMViewFromOptions(*dm, NULL, "-dm_view"));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode CreateAdaptLabel(DM dm, AppCtx *ctx, DMLabel *adaptLabel)
 {
-  PetscMPIInt    rank;
-  PetscErrorCode ierr;
+  PetscMPIInt rank;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject) dm), &rank);CHKERRMPI(ierr);
-  ierr = DMLabelCreate(PETSC_COMM_SELF, "Adaptation Label", adaptLabel);CHKERRQ(ierr);
-  if (ctx->refcell[rank] >= 0) {ierr = DMLabelSetValue(*adaptLabel, ctx->refcell[rank], DM_ADAPT_REFINE);CHKERRQ(ierr);}
-  PetscFunctionReturn(0);
+  PetscCallMPI(MPI_Comm_rank(PetscObjectComm((PetscObject)dm), &rank));
+  PetscCall(DMLabelCreate(PETSC_COMM_SELF, "Adaptation Label", adaptLabel));
+  if (ctx->refcell[rank] >= 0) PetscCall(DMLabelSetValue(*adaptLabel, ctx->refcell[rank], DM_ADAPT_REFINE));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 int main(int argc, char **argv)
 {
-  DM             dm, dma;
-  DMLabel        adaptLabel;
-  AppCtx         ctx;
-  PetscErrorCode ierr;
+  DM      dm, dma;
+  DMLabel adaptLabel;
+  AppCtx  ctx;
 
-  ierr = PetscInitialize(&argc, &argv, NULL, help); if (ierr) return ierr;
-  ierr = ProcessOptions(PETSC_COMM_WORLD, &ctx);CHKERRQ(ierr);
-  ierr = CreateMesh(PETSC_COMM_WORLD, &ctx, &dm);CHKERRQ(ierr);
-  ierr = CreateAdaptLabel(dm, &ctx, &adaptLabel);CHKERRQ(ierr);
-  ierr = DMAdaptLabel(dm, adaptLabel, &dma);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) dma, "Adapted Mesh");CHKERRQ(ierr);
-  ierr = DMLabelDestroy(&adaptLabel);CHKERRQ(ierr);
-  ierr = DMDestroy(&dm);CHKERRQ(ierr);
-  ierr = DMViewFromOptions(dma, NULL, "-adapt_dm_view");CHKERRQ(ierr);
-  ierr = DMDestroy(&dma);CHKERRQ(ierr);
-  ierr = PetscFree(ctx.refcell);CHKERRQ(ierr);
-  ierr = PetscFinalize();
-  return ierr;
+  PetscFunctionBeginUser;
+  PetscCall(PetscInitialize(&argc, &argv, NULL, help));
+  PetscCall(ProcessOptions(PETSC_COMM_WORLD, &ctx));
+  PetscCall(CreateMesh(PETSC_COMM_WORLD, &ctx, &dm));
+  PetscCall(CreateAdaptLabel(dm, &ctx, &adaptLabel));
+  PetscCall(DMAdaptLabel(dm, adaptLabel, &dma));
+  PetscCall(PetscObjectSetName((PetscObject)dma, "Adapted Mesh"));
+  PetscCall(DMLabelDestroy(&adaptLabel));
+  PetscCall(DMDestroy(&dm));
+  PetscCall(DMViewFromOptions(dma, NULL, "-adapt_dm_view"));
+  PetscCall(DMDestroy(&dma));
+  PetscCall(PetscFree(ctx.refcell));
+  PetscCall(PetscFinalize());
+  return 0;
 }
 
 /*TEST
@@ -92,6 +88,6 @@ int main(int argc, char **argv)
       suffix: 2
       requires: triangle
       nsize: 2
-      args: -refcell 2,-1 -dm_distribute -petscpartitioner_type simple -dm_view -adapt_dm_view
+      args: -refcell 2,-1 -petscpartitioner_type simple -dm_view -adapt_dm_view
 
 TEST*/

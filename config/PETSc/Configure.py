@@ -15,17 +15,25 @@ class Configure(config.base.Configure):
     return
 
   def __str2__(self):
+    import logger
+
     desc = ['  Using GNU make: ' + self.make.make]
+    if self.defines.get('USE_COVERAGE'):
+      desc.extend([
+        '  Code coverage: yes',
+        '  Using code coverage executable: {}'.format(self.getMakeMacro('PETSC_COVERAGE_EXEC'))
+      ])
+    banner_ends   = 'xxx'
+    banner_middle = '=' * (logger.get_global_divider_length() - 2 * len(banner_ends))
+    banner_line   = banner_middle.join((banner_ends, banner_ends))
+    desc.append(banner_line)
     if not self.installed:
-      desc.append('xxx=========================================================================xxx')
       desc.append(' Configure stage complete. Now build PETSc libraries with:')
       desc.append('   %s PETSC_DIR=%s PETSC_ARCH=%s all' % (self.make.make_user, self.petscdir.dir, self.arch.arch))
-      desc.append('xxx=========================================================================xxx')
     else:
-      desc.append('xxx=========================================================================xxx')
       desc.append(' Installation complete. You do not need to run make to compile or install the software')
-      desc.append('xxx=========================================================================xxx')
-    return '\n'.join(desc)+'\n'
+    desc.extend([banner_line, ''])
+    return '\n'.join(desc)
 
   def setupHelp(self, help):
     import nargs
@@ -38,6 +46,10 @@ class Configure(config.base.Configure):
     help.addArgument('PETSc', '-with-ios=<bool>',                            nargs.ArgBool(None, 0, 'Build an iPhone/iPad version of PETSc library'))
     help.addArgument('PETSc', '-with-display=<x11display>',                  nargs.Arg(None, '', 'Specifiy DISPLAY env variable for use with matlab test)'))
     help.addArgument('PETSc', '-with-package-scripts=<pyscripts>',           nargs.ArgFileList(None,None,'Specify configure package scripts for user provided packages'))
+    help.addArgument('PETSc', '-with-coverage=<bool>',                       nargs.ArgFuzzyBool(None, value=0, help='Enable or disable code-coverage collection'))
+    help.addArgument('PETSc', '-with-coverage-exec=<executable>',            nargs.ArgExecutable(None, value='default-auto', mustExist=0, help='Name of executable to use for post-processing coverage data, e.g. \'gcov\' or \'llvm-cov\'. Pass \'auto\' to let configure infer from compiler'))
+    help.addArgument('PETSc', '-with-tau-perfstubs=<bool>',                  nargs.ArgBool(None, 1,'Enable TAU profiler stubs'))
+    help.addArgument('PETSc', '-with-strict-petscerrorcode=<bool>',          nargs.ArgFuzzyBool(None, value=0, help='Enable strict PetscErrorCode mode, which enables additional compile-time checking for misuse of PetscErrorCode and error handling'))
     return
 
   def registerPythonFile(self,filename,directory):
@@ -62,6 +74,7 @@ class Configure(config.base.Configure):
     config.base.Configure.setupDependencies(self, framework)
     self.programs      = framework.require('config.programs',           self)
     self.setCompilers  = framework.require('config.setCompilers',       self)
+    self.compilerFlags = framework.require('config.compilerFlags',      self)
     self.compilers     = framework.require('config.compilers',          self)
     self.arch          = framework.require('PETSc.options.arch',        self.setCompilers)
     self.petscdir      = framework.require('PETSc.options.petscdir',    self.arch)
@@ -104,13 +117,14 @@ class Configure(config.base.Configure):
     framework.require('PETSc.options.scalarTypes', self.blaslapack)
     framework.require('PETSc.options.scalarTypes', self.opencl)
 
-    self.programs.headerPrefix   = self.headerPrefix
-    self.compilers.headerPrefix  = self.headerPrefix
-    self.fortran.headerPrefix    = self.headerPrefix
-    self.types.headerPrefix      = self.headerPrefix
-    self.headers.headerPrefix    = self.headerPrefix
-    self.functions.headerPrefix  = self.headerPrefix
-    self.libraries.headerPrefix  = self.headerPrefix
+    self.programs.headerPrefix     = self.headerPrefix
+    self.setCompilers.headerPrefix = self.headerPrefix
+    self.compilers.headerPrefix    = self.headerPrefix
+    self.fortran.headerPrefix      = self.headerPrefix
+    self.types.headerPrefix        = self.headerPrefix
+    self.headers.headerPrefix      = self.headerPrefix
+    self.functions.headerPrefix    = self.headerPrefix
+    self.libraries.headerPrefix    = self.headerPrefix
 
     # Register user provided package scripts
     if 'with-package-scripts' in self.framework.argDB:
@@ -124,16 +138,17 @@ class Configure(config.base.Configure):
 
     # test for a variety of basic headers and functions
     headersC = map(lambda name: name+'.h',['setjmp','dos','fcntl','float','io','malloc','pwd','strings',
-                                            'unistd','sys/sysinfo','machine/endian','sys/param','sys/procfs','sys/resource',
+                                            'unistd','machine/endian','sys/param','sys/procfs','sys/resource',
                                             'sys/systeminfo','sys/times','sys/utsname',
                                             'sys/socket','sys/wait','netinet/in','netdb','direct','time','Ws2tcpip','sys/types',
-                                            'WindowsX','float','ieeefp','stdint','pthread','inttypes','immintrin','zmmintrin'])
+                                            'WindowsX','float','ieeefp','stdint','inttypes','immintrin'])
     functions = ['access','_access','clock','drand48','getcwd','_getcwd','getdomainname','gethostname',
-                 'getwd','memalign','popen','PXFGETARG','rand','getpagesize',
+                 'posix_memalign','popen','PXFGETARG','rand','getpagesize',
                  'readlink','realpath','usleep','sleep','_sleep',
                  'uname','snprintf','_snprintf','lseek','_lseek','time','fork','stricmp',
                  'strcasecmp','bzero','dlopen','dlsym','dlclose','dlerror',
-                 '_set_output_format','_mkdir','socket','gethostbyname','_pipe','fpresetsticky','fpsetsticky']
+                 '_set_output_format','_mkdir','socket','gethostbyname','fpresetsticky',
+                 'fpsetsticky','__gcov_dump']
     libraries = [(['fpe'],'handle_sigfpes')]
     librariessock = [(['socket','nsl'],'socket')]
     self.headers.headers.extend(headersC)
@@ -263,7 +278,8 @@ prepend-path PATH "%s"
 
     # Sometimes we need C compiler, even if built with C++
     self.setCompilers.pushLanguage('C')
-    self.addMakeMacro('CC_FLAGS',self.setCompilers.getCompilerFlags())
+    # do not use getCompilerFlags() because that automatically includes the CPPFLAGS so one ends up with duplication flags in makefile usage
+    self.addMakeMacro('CC_FLAGS',self.setCompilers.CFLAGS)
     self.setCompilers.popLanguage()
 
     # And sometimes we need a C++ compiler even when PETSc is built with C
@@ -271,11 +287,14 @@ prepend-path PATH "%s"
       self.setCompilers.pushLanguage('Cxx')
       self.addDefine('HAVE_CXX','1')
       self.addMakeMacro('CXXPP_FLAGS',self.setCompilers.CXXPPFLAGS)
-      self.addMakeMacro('CXX_FLAGS',self.setCompilers.getCompilerFlags())
+      # do not use getCompilerFlags() because that automatically includes the CXXPPFLAGS so one ends up with duplication flags in makefile usage
+      self.addMakeMacro('CXX_FLAGS',self.setCompilers.CXXFLAGS+' '+self.setCompilers.CXX_CXXFLAGS)
       cxx_linker = self.setCompilers.getLinker()
       self.addMakeMacro('CXX_LINKER',cxx_linker)
       self.addMakeMacro('CXX_LINKER_FLAGS',self.setCompilers.getLinkerFlags())
       self.setCompilers.popLanguage()
+    else:
+      self.addMakeMacro('CXX','')
 
     # C preprocessor values
     self.addMakeMacro('CPP_FLAGS',self.setCompilers.CPPFLAGS)
@@ -283,7 +302,11 @@ prepend-path PATH "%s"
     # compiler values
     self.setCompilers.pushLanguage(self.languages.clanguage)
     self.addMakeMacro('PCC',self.setCompilers.getCompiler())
-    self.addMakeMacro('PCC_FLAGS',self.setCompilers.getCompilerFlags())
+    # do not use getCompilerFlags() because that automatically includes the preprocessor flags so one ends up with duplication flags in makefile usage
+    if self.languages.clanguage == 'C':
+      self.addMakeMacro('PCC_FLAGS','$(CC_FLAGS)')
+    else:
+      self.addMakeMacro('PCC_FLAGS','$(CXX_FLAGS)')
     self.setCompilers.popLanguage()
     # .o or .obj
     self.addMakeMacro('CC_SUFFIX','o')
@@ -292,7 +315,11 @@ prepend-path PATH "%s"
     self.setCompilers.pushLanguage(self.languages.clanguage)
     pcc_linker = self.setCompilers.getLinker()
     self.addMakeMacro('PCC_LINKER',pcc_linker)
-    self.addMakeMacro('PCC_LINKER_FLAGS',self.setCompilers.getLinkerFlags())
+    # We need to add sycl flags when linking petsc. See more in sycl.py.
+    if hasattr(self.compilers, 'SYCLC'):
+      self.addMakeMacro('PCC_LINKER_FLAGS',self.setCompilers.getLinkerFlags()+' '+self.setCompilers.SYCLFLAGS+' '+self.setCompilers.SYCLC_LINKER_FLAGS)
+    else:
+      self.addMakeMacro('PCC_LINKER_FLAGS',self.setCompilers.getLinkerFlags())
     self.setCompilers.popLanguage()
     # '' for Unix, .exe for Windows
     self.addMakeMacro('CC_LINKER_SUFFIX','')
@@ -316,9 +343,6 @@ prepend-path PATH "%s"
       self.setCompilers.pushLanguage('FC')
       self.addMakeMacro('FC_LINKER',self.setCompilers.getLinker())
       self.addMakeMacro('FC_LINKER_FLAGS',self.setCompilers.getLinkerFlags())
-      # apple requires this shared library linker flag on SOME versions of the os
-      if self.setCompilers.getLinkerFlags().find('-Wl,-commons,use_dylibs') > -1:
-        self.addMakeMacro('DARWIN_COMMONS_USE_DYLIBS',' -Wl,-commons,use_dylibs ')
       self.setCompilers.popLanguage()
 
       # F90 Modules
@@ -346,6 +370,7 @@ prepend-path PATH "%s"
     if hasattr(self.compilers, 'SYCLC'):
       self.setCompilers.pushLanguage('SYCL')
       self.addMakeMacro('SYCLC_FLAGS',self.setCompilers.getCompilerFlags())
+      self.addMakeMacro('SYCLC_LINKER_FLAGS',self.setCompilers.getLinkerFlags())
       self.addMakeMacro('SYCLPP_FLAGS',self.setCompilers.SYCLPPFLAGS)
       self.setCompilers.popLanguage()
 
@@ -470,6 +495,9 @@ prepend-path PATH "%s"
 
     # add a makefile entry for configure options
     self.addMakeMacro('CONFIGURE_OPTIONS', self.framework.getOptionsString(['configModules', 'optionsModule']).replace('\"','\\"'))
+
+    if self.framework.argDB['with-tau-perfstubs']:
+      self.addDefine('HAVE_TAU_PERFSTUBS',1)
     return
 
   def dumpConfigInfo(self):
@@ -588,7 +616,7 @@ prepend-path PATH "%s"
 
   def configureAtoll(self):
     '''Checks if atoll exists'''
-    if self.checkLink('#define _POSIX_C_SOURCE 200112L\n#include <stdlib.h>','long v = atoll("25")') or self.checkLink ('#include <stdlib.h>','long v = atoll("25")'):
+    if self.checkLink('#define _POSIX_C_SOURCE 200112L\n#include <stdlib.h>','long v = atoll("25");\n(void)v') or self.checkLink ('#include <stdlib.h>','long v = atoll("25");\n(void)v'):
        self.addDefine('HAVE_ATOLL', '1')
 
   def configureUnused(self):
@@ -597,7 +625,7 @@ prepend-path PATH "%s"
       self.addDefine('UNUSED', ' ')
       return
     self.pushLanguage(self.languages.clanguage)
-    if self.checkLink('__attribute((unused)) static int myfunc(__attribute((unused)) void *name){ return 1;}', 'int i = 0;\nint j = myfunc(&i);\ntypedef void* atype;\n__attribute((unused))  atype a;\n'):
+    if self.checkLink('__attribute((unused)) static int myfunc(__attribute((unused)) void *name){ return 1;}', 'int i = 0;\nint j = myfunc(&i);\n(void)j;\ntypedef void* atype;\n__attribute((unused))  atype a'):
       self.addDefine('UNUSED', '__attribute((unused))')
     else:
       self.addDefine('UNUSED', ' ')
@@ -611,36 +639,52 @@ prepend-path PATH "%s"
 
   def configureDeprecated(self):
     '''Check if __attribute((deprecated)) is supported'''
-    self.pushLanguage(self.languages.clanguage)
-    ## Recent versions of gcc and clang support __attribute((deprecated("string argument"))), which is very useful, but
-    ## Intel has conspired to make a supremely environment-sensitive compiler.  The Intel compiler looks at the gcc
-    ## executable in the environment to determine the language compatibility that it should attempt to emulate.  Some
-    ## important Cray installations have built PETSc using the Intel compiler, but with a newer gcc module loaded (e.g.,
-    ## 4.7).  Thus at PETSc configure time, the Intel compiler decides to support the string argument, but the gcc
-    ## found in the default user environment is older and does not support the argument.  If GCC and Intel were cool
-    ## like Clang and supported __has_attribute, we could avoid configure tests entirely, but they don't.  And that is
-    ## why we can't have nice things.
-    #
-    # if self.checkCompile("""__attribute((deprecated("Why you shouldn't use myfunc"))) static int myfunc(void) { return 1;}""", ''):
-    #   self.addDefine('DEPRECATED_FUNCTION(why)', '__attribute((deprecated(why)))')
-    #   self.addDefine('DEPRECATED_TYPEDEF(why)', '__attribute((deprecated(why)))')
-    if self.checkCompile("""__attribute((deprecated)) static int myfunc(void) { return 1;}""", ''):
-      self.addDefine('DEPRECATED_FUNCTION(why)', '__attribute((deprecated))')
-      self.addDefine('DEPRECATED_TYPEDEF(why)', '__attribute((deprecated))')
-    else:
-      self.addDefine('DEPRECATED_FUNCTION(why)', ' ')
-      self.addDefine('DEPRECATED_TYPEDEF(why)', ' ')
-    if self.checkCompile("""enum E {oldval __attribute((deprecated)), newval };""", ''):
-      self.addDefine('DEPRECATED_ENUM(why)', '__attribute((deprecated))')
-    else:
-      self.addDefine('DEPRECATED_ENUM(why)', ' ')
-    # I was unable to make a CPP macro that takes the old and new values as separate arguments and builds the message needed by _Pragma
-    # hence the deprecation message is handled as it is
-    if self.checkCompile('#define TEST _Pragma("GCC warning \"Testing _Pragma\"") value'):
-      self.addDefine('DEPRECATED_MACRO(why)', '_Pragma(why)')
-    else:
-      self.addDefine('DEPRECATED_MACRO(why)', ' ')
-    self.popLanguage()
+    def checkDeprecated(macro_base, src, is_intel):
+      '''
+      run through the various attribute deprecated combinations and define MACRO_BAS(why) to the result
+      it if it compiles.
+
+      If none of the combos work, defines MACRO_BASE(why) as empty
+      '''
+      full_macro_name = macro_base + '(why)'
+      for prefix in ('__attribute__', '__attribute','__declspec'):
+        if prefix == '__declspec':
+          # declspec does not have an extra set of brackets around the arguments
+          attr_bodies = ('deprecated(why)', 'deprecated')
+        else:
+          attr_bodies = ('(deprecated(why))', '(deprecated)')
+
+        for attr_body in attr_bodies:
+          attr_def = '{}({})'.format(prefix, attr_body)
+          test_src = '\n'.join((
+            '#define {} {}'.format(full_macro_name, attr_def),
+            src.format(macro_base + '("asdasdadsasd")')
+          ))
+          if self.checkCompile(test_src, ''):
+            self.logPrint('configureDeprecated: \'{}\' appears to work'.format(attr_def))
+            if is_intel and '(why)' in attr_body:
+              self.logPrint('configureDeprecated: Intel has conspired to make a supremely environment-sensitive compiler. The Intel compiler looks at the gcc executable in the environment to determine the language compatibility that it should attempt to emulate. Some important Cray installations have built PETSc using the Intel compiler, but with a newer gcc module loaded (e.g. 4.7). Thus at PETSc configure time, the Intel compiler decides to support the string argument, but the gcc found in the default user environment is older and does not support the argument.\n'.format(attr_def))
+              self.logPrint('*** WE WILL THEREFORE REJECT \'{}\' AND CONTINUE TESTING ***'.format(attr_def))
+              continue
+            self.addDefine(full_macro_name, attr_def)
+            return
+
+      self.addDefine(full_macro_name, ' ')
+      return
+
+    lang = self.languages.clanguage
+    with self.Language(lang):
+      is_intel = self.setCompilers.isIntel(self.getCompiler(lang=lang), self.log)
+      checkDeprecated('DEPRECATED_FUNCTION', '{} int myfunc(void) {{ return 1; }}', is_intel)
+      checkDeprecated('DEPRECATED_TYPEDEF', 'typedef int my_int {};', is_intel)
+      checkDeprecated('DEPRECATED_ENUM', 'enum E {{ oldval {}, newval }};', is_intel)
+      # I was unable to make a CPP macro that takes the old and new values as separate
+      # arguments and builds the message needed by _Pragma hence the deprecation message is
+      # handled as it is
+      if self.checkCompile('#define TEST _Pragma("GCC warning \"Testing _Pragma\"") value'):
+        self.addDefine('DEPRECATED_MACRO(why)', '_Pragma(why)')
+      else:
+        self.addDefine('DEPRECATED_MACRO(why)', ' ')
 
   def configureAlign(self):
     '''Check if __attribute(aligned) is supported'''
@@ -684,30 +728,55 @@ char assert_aligned[(sizeof(struct mystruct)==16)*2-1];
       self.addDefine('FUNCTION_NAME_CXX', getFunctionName('Cxx'))
 
   def configureIntptrt(self):
-    '''Determine what to use for uintptr_t'''
+    '''Determine what to use for uintptr_t and intptr_t'''
     def staticAssertSizeMatchesVoidStar(inc,typename):
       # The declaration is an error if either array size is negative.
       # It should be okay to use an int that is too large, but it would be very unlikely for this to be the case
       return self.checkCompile(inc, ('#define STATIC_ASSERT(cond) char negative_length_if_false[2*(!!(cond))-1]\n'
                                      + 'STATIC_ASSERT(sizeof(void*) == sizeof(%s));'%typename))
-    self.pushLanguage(self.languages.clanguage)
-    if self.checkCompile('#include <stdint.h>', 'int x; uintptr_t i = (uintptr_t)&x;'):
-      self.addDefine('UINTPTR_T', 'uintptr_t')
-    elif staticAssertSizeMatchesVoidStar('','unsigned long long'):
-      self.addDefine('UINTPTR_T', 'unsigned long long')
-    elif staticAssertSizeMatchesVoidStar('#include <stdlib.h>','size_t') or staticAssertSizeMatchesVoidStar('#include <string.h>', 'size_t'):
-      self.addDefine('UINTPTR_T', 'size_t')
-    elif staticAssertSizeMatchesVoidStar('','unsigned long'):
-      self.addDefine('UINTPTR_T', 'unsigned long')
-    elif staticAssertSizeMatchesVoidStar('','unsigned'):
-      self.addDefine('UINTPTR_T', 'unsigned')
-    else:
-      raise RuntimeError('Could not find any unsigned integer type matching void*')
-    self.popLanguage()
+
+    def generate_uintptr_guesses():
+      for suff in ('max', '64', '32', '16'):
+        yield '#include <stdint.h>', 'uint{}_t'.format(suff), 'PRIx{}'.format(suff.upper())
+      yield '#include <stdlib.h>\n#include <string.h>', 'size_t', 'zx'
+      yield '', 'unsigned long long', 'llx'
+      yield '', 'unsigned long', 'lx'
+      yield '', 'unsigned', 'x'
+
+    def generate_intptr_guesses():
+      for suff in ('max', '64', '32', '16'):
+        yield '#include <stdint.h>', 'int{}_t'.format(suff), 'PRIx{}'.format(suff.upper())
+      yield '', 'long long', 'llx'
+      yield '', 'long', 'lx'
+      yield '', 'int', 'x'
+
+    def check(default_typename, generator):
+      macro_name = default_typename.upper()
+      with self.Language(self.languages.clanguage):
+        if self.checkCompile(
+            '#include <stdint.h>',
+            'int x; {type_name} i = ({type_name})&x; (void)i'.format(type_name=default_typename)
+        ):
+          typename     = default_typename
+          print_format = 'PRIxPTR'
+        else:
+          for include, typename, print_format in generator():
+            if staticAssertSizeMatchesVoidStar(include, typename):
+              break
+          else:
+            raise RuntimeError('Could not find any {} type matching void*'.format(macro_name))
+      self.addDefine(macro_name         , typename)
+      self.addDefine(macro_name + '_FMT', '\"#\" ' + print_format)
+      return
+
+    check('uintptr_t', generate_uintptr_guesses)
+    check('intptr_t', generate_intptr_guesses)
+    return
 
   def configureRTLDDefault(self):
+    '''Check for dynamic library feature'''
     if self.checkCompile('#include <dlfcn.h>\n void *ptr =  RTLD_DEFAULT;'):
-      self.addDefine('RTLD_DEFAULT','1')
+      self.addDefine('HAVE_RTLD_DEFAULT','1')
     return
 
   def configureSolaris(self):
@@ -775,10 +844,10 @@ char assert_aligned[(sizeof(struct mystruct)==16)*2-1];
       self.libraries.add('gdi32','CreateCompatibleDC',prototype='#include <windows.h>',call='CreateCompatibleDC(0);')
 
     self.types.check('int32_t', 'int')
-    if not self.checkCompile('#include <sys/types.h>\n','uid_t u;\n'):
+    if not self.checkCompile('#include <sys/types.h>\n','uid_t u;\n(void)u'):
       self.addTypedef('int', 'uid_t')
       self.addTypedef('int', 'gid_t')
-    if not self.checkLink('#if defined(PETSC_HAVE_UNISTD_H)\n#include <unistd.h>\n#endif\n','int a=R_OK;\n'):
+    if not self.checkLink('#if defined(PETSC_HAVE_UNISTD_H)\n#include <unistd.h>\n#endif\n','int a=R_OK;\n(void)a'):
       self.framework.addDefine('R_OK', '04')
       self.framework.addDefine('W_OK', '02')
       self.framework.addDefine('X_OK', '01')
@@ -813,6 +882,368 @@ char assert_aligned[(sizeof(struct mystruct)==16)*2-1];
       if self.dataFilesPath.datafilespath:
         self.addMakeMacro('DATAFILESPATH',self.dataFilesPath.datafilespath)
     self.addDefine('ARCH','"'+self.installdir.petscArch+'"')
+    return
+
+  def configureCoverageForLang(self, log_printer_cls, lang, extra_coverage_flags=None, extra_debug_flags=None):
+    """
+    Check that a compiler accepts code-coverage flags. If the compiler does accept code-coverage flags
+    try to set debugging flags equivalent to -Og.
+
+    Arguments:
+    - lang: the language to check the coverage flag for
+    - extra_coverage_flags: a list of extra flags to use when checking the coverage flags
+    - extra_debug_flags: a list of extra flags to try when setting debug flags
+
+    On success:
+    - defines PETSC_USE_COVERAGE to 1
+    """
+    log_print = log_printer_cls(self)
+
+    def quoted(string):
+      return string.join(("'", "'"))
+
+    def make_flag_list(default, extra):
+      ret = [default]
+      if extra is not None:
+        assert isinstance(extra, list)
+        ret.extend(extra)
+      return ret
+
+    log_print('Checking coverage flag for language {}'.format(lang))
+
+    compiler = self.getCompiler(lang=lang)
+    if self.setCompilers.isGNU(compiler, self.log):
+      is_gnuish = True
+    elif self.setCompilers.isClang(compiler, self.log):
+      is_gnuish = True
+    else:
+      is_gnuish = False
+
+    # if not gnuish and we don't have a set of extra flags, bail
+    if not is_gnuish and extra_coverage_flags is None:
+      log_print('Don\'t know how to add coverage for compiler {}. Only know how to add coverage for gnu-like compilers (either gcc or clang). Skipping it!'.format(quoted(compiler)))
+      return
+
+    coverage_flags = make_flag_list('--coverage', extra_coverage_flags)
+    log_print('Checking set of coverage flags: {}'.format(coverage_flags))
+
+    found = None
+    with self.Language(lang):
+      with self.setCompilers.Language(lang):
+        for flag in coverage_flags:
+          # the linker also needs to see the coverage flag
+          with self.setCompilers.extraCompilerFlags([flag], compilerOnly=False) as skip_flags:
+            if not skip_flags and self.checkRun():
+              # flag was accepted
+              found = flag
+              break
+
+          log_print(
+            'Compiler {} did not accept coverage flag {}'.format(quoted(compiler), quoted(flag))
+          )
+
+        if found is None:
+          log_print(
+            'Compiler {} did not accept ANY coverage flags: {}, bailing!'.format(
+              quoted(compiler), coverage_flags
+            )
+          )
+          return
+
+        # must do this exactly here since:
+        #
+        # 1. setCompilers.extraCompilerFlags() will reset the compiler flags on __exit__()
+        #    (so cannot do it in the loop)
+        # 2. we need to set the compiler flag while setCompilers.Language() is still in
+        #    effect (so cannot do it outside the with statements)
+        self.setCompilers.insertCompilerFlag(flag, False)
+
+    if not self.functions.haveFunction('__gcov_dump'):
+      self.functions.checkClassify(['__gcov_dump'])
+
+    # now check if we can override the optimization level. It is only kosher to do so if
+    # the user did not explicitly set the optimization flags (via CFLAGS, CXXFLAGS,
+    # CXXOPTFLAGS, etc). If they have done so, we sternly warn them about their lapse in
+    # judgement
+    with self.Language(lang):
+      compiler_flags = self.getCompilerFlags()
+
+    user_set          = 0
+    allowed_opt_flags = re.compile(r'|'.join((r'-O[01g]', r'-g[1-9]*')))
+    for flagsname in [self.getCompilerFlagsName(lang), self.compilerFlags.getOptionalFlagsName(lang)]:
+      if flagsname in self.argDB:
+        opt_flags = [
+          f for f in self.compilerFlags.findOptFlags(compiler_flags) if not allowed_opt_flags.match(f)
+        ]
+        if opt_flags:
+          self.logPrintWarning('Coverage requested, but optimization flag(s) {} found in {}. Coverage collection will work, but may be less accurate. Suggest removing the flag and/or using -Og (or equivalent) instead'.format(', '.join(map(quoted, opt_flags)), quoted(flagsname)))
+          user_set = 1
+          break
+
+    # disable this for now, the warning should be sufficient. If the user still chooses to
+    # ignore it, then that's on them
+    if 0 and not user_set:
+      debug_flags = make_flag_list('-Og', extra_debug_flags)
+      with self.setCompilers.Language(lang):
+        for flag in debug_flags:
+          try:
+            self.setCompilers.addCompilerFlag(flag)
+          except RuntimeError:
+            continue
+          break
+
+    self.addDefine('USE_COVERAGE', 1)
+    return
+
+  def configureCoverage(self):
+    """
+    Configure coverage for all available languages.
+
+    If user did not request coverage, this function does nothing and returns immediatel.
+    Therefore the following only apply to the case where the user requested coverage.
+
+    On success:
+    - defines PETSC_USE_COVERAGE to 1
+
+    On failure:
+    - If no compilers supported the coverage flag, throws RuntimeError
+    -
+    """
+    class LogPrinter:
+      def __init__(self, cfg):
+        self.cfg = cfg
+        try:
+          import inspect
+
+          calling_func_stack = inspect.stack()[1]
+          if sys.version_info >= (3, 5):
+            func_name = calling_func_stack.function
+          else:
+            func_name = calling_func_stack[3]
+        except:
+          func_name = 'Unknown'
+        self.fmt_str = func_name + '(): {}'
+
+      def __call__(self, msg, *args, **kwargs):
+        return self.cfg.logPrint(self.fmt_str.format(msg), *args, **kwargs)
+
+    argdb_flag = 'with-coverage'
+    log_print  = LogPrinter(self)
+    if not self.argDB[argdb_flag]:
+      log_print('coverage was disabled from command line or default')
+      return
+
+    tested_langs = []
+    for LANG in ['C', 'Cxx', 'CUDA', 'HIP', 'SYCL', 'FC']:
+      compilerName = LANG.upper() if LANG in {'Cxx', 'FC'} else LANG + 'C'
+      if hasattr(self.setCompilers, compilerName):
+        kwargs = {}
+        if LANG in {'CUDA'}:
+          # nvcc preprocesses the base file into a bunch of intermediate files, which are
+          # then compiled by the host compiler. Why is this a problem?  Because the
+          # generated coverage data is based on these preprocessed source files! So gcov
+          # tries to read it later, but since its in the tmp directory it cannot. Thus we
+          # need to keep them around (in a place we know about).
+          nvcc_tmp_dir = os.path.join(self.petscdir.dir, self.arch.arch, 'nvcc_tmp')
+          try:
+            os.mkdir(nvcc_tmp_dir)
+          except FileExistsError:
+            pass
+          kwargs['extra_coverage_flags'] = [
+            '-Xcompiler --coverage -Xcompiler -fPIC --keep --keep-dir={}'.format(nvcc_tmp_dir)
+          ]
+          if self.kokkos.found:
+            # yet again the kokkos nvcc_wrapper goes out of its way to be as useless as
+            # possible. Its default arch (sm_35) is actually too low to compile kokkos,
+            # for whatever reason this works if you dont use the --keep and --keep-dir
+            # flags above.
+            kwargs['extra_coverage_flags'].append('-arch=native')
+            kwargs['extra_debug_flags'] = ['-Xcompiler -Og']
+        tested_langs.append(LANG)
+        self.executeTest(self.configureCoverageForLang, args=[LogPrinter, LANG], kargs=kwargs)
+
+    if not self.defines.get('USE_COVERAGE'):
+      # coverage was requested but no compilers accepted it, this is an error
+      raise RuntimeError(
+        'Coverage was requested (--{}={}) but none of the compilers supported it:\n{}\n'.format(
+          argdb_flag, self.argDB[argdb_flag],
+          '\n'.join(['  - {} ({})'.format(self.getCompiler(lang=lang), lang) for lang in tested_langs])
+        )
+      )
+
+    return
+    # Disabled for now, since this does not really work. It solves the problem of
+    # "undefined reference to __gcov_flush()" but if we add -lgcov we get:
+    #
+    # duplicate symbol '___gcov_reset' in:
+    #     /Library/.../libclang_rt.profile_osx.a(GCDAProfiling.c.o)
+    #     /opt/.../libgcov.a(_gcov_reset.o)
+    # duplicate symbol '___gcov_dump' in:
+    #     /opt/.../libgcov.a(_gcov_dump.o)
+    #     /Library/.../libclang_rt.profile_osx.a(GCDAProfiling.c.o)
+    # duplicate symbol '___gcov_fork' in:
+    #     /opt/.../libgcov.a(_gcov_fork.o)
+    #     /Library/.../libclang_rt.profile_osx.a(GCDAProfiling.c.o)
+    #
+    # I don't know how to solve this.
+
+    log_print('Checking if compilers can cross-link disparate coverage libraries')
+    # At least one of the compilers has coverage enabled. Now need to make sure multiple
+    # code coverage impls work together, specifically when using clang C/C++ compiler with
+    # gfortran.
+    if not hasattr(self.setCompilers, 'FC'):
+      log_print('No fortran compiler detected. No need to check cross-linking!')
+      return
+
+    c_lang = self.languages.clanguage
+    if not self.setCompilers.isClang(self.getCompiler(lang=c_lang), self.log):
+      # must be GCC
+      log_print('C-language ({}) compiler is not clang, assuming it is GCC, so cross-linking with FC ({}) assumed to be OK'.format(c_lang, self.getCompiler(lang='FC')))
+      return
+
+    # If we are here we:
+    #   1. Have both C/C++ compiler and fortran compiler
+    #   2. The C/C++ compiler is *not* the same as the fortran compiler (unless we start
+    #      using flang)
+    #
+    # Now we check if we can cross-link
+    def can_cross_link(**kwargs):
+      f_body = "      subroutine foo()\n      print*,'testing'\n      return\n      end\n"
+      c_body = "int main() { }"
+
+      return self.compilers.checkCrossLink(
+        f_body, c_body, language1='FC', language2=c_lang, extralibs=self.compilers.flibs, **kwargs
+      )
+
+    log_print('Trying to cross-link WITHOUT extra libs')
+    if can_cross_link():
+      log_print('Successfully cross-linked WITHOUT extra libs')
+      # success, we already can cross-link
+      return
+
+    extra_libs = ['-lgcov']
+    log_print('Trying to cross-link with extra libs: {}'.format(extra_libs))
+    if can_cross_link(extraObjs=extra_libs):
+      log_print(
+        'Successfully cross-linked using extra libs: {}, adding them to LIBS'.format(extra_libs)
+      )
+      self.setCompilers.LIBS += ' ' + ' '.join(extra_libs)
+    else:
+      # maybe should be an error?
+      self.logPrintWarning("Could not successfully cross-link covered code between {} and FC. Sometimes this is a false positive. Assuming this does eventually end up working when the full link-line is assembled when building PETSc. If you later encounter linker errors about missing __gcov_exit(), __gcov_init(), __llvm_cov_flush() etc. this is why!".format(c_lang))
+    return
+
+  def configureCoverageExecutable(self):
+    """
+    Check that a code-coverage collecting tool exists and is on PATH.
+
+    On success:
+    - Adds PETSC_COVERAGE_EXEC make macro containing the full path to the coverage tool executable.
+
+    Raises RuntimeError if:
+    - User explicitly requests auto-detection of the coverage tool from command line, and this
+      routine fails to guess the suitable tool name.
+    - The routine fails to find the tool, and --with-coverage is true
+    """
+    def log_print(msg, *args, **kwargs):
+      self.logPrint('checkCoverage: '+str(msg), *args, **kwargs)
+      return
+
+    def quoted(string):
+      return string.join(("'", "'"))
+
+    required         = bool(self.argDB['with-coverage'])
+    arg_opt          = self.argDB['with-coverage-exec']
+    use_default_path = True
+    search_path      = ''
+
+    log_print('{} to find an executable'.format('REQUIRED' if required else 'NOT required'))
+    if arg_opt in {'auto', 'default-auto', '1'}:
+      # detect it based on the C language compiler, hopefully this does not clash!
+      lang     = self.setCompilers.languages.clanguage
+      compiler = self.getCompiler(lang=lang)
+      log_print('User did not explicitly set coverage exec (got {}), trying to auto-detect based on compiler {}'.format(quoted(arg_opt), quoted(compiler)))
+      if self.setCompilers.isGNU(compiler, self.log):
+        compiler_version_re = re.compile(r'[gG][cC\+\-]+[0-9]* \(.+\) (\d+)\.(\d+)\.(\d+)')
+        exec_names          = ['gcov']
+      elif self.setCompilers.isClang(compiler, self.log):
+        compiler_version_re = re.compile(r'clang version (\d+)\.(\d+)\.(\d+)')
+        exec_names          = ['llvm-cov']
+        if self.setCompilers.isDarwin(self.log):
+          # macOS masquerades llvm-cov as just 'gcov', so we add this to the list in case
+          # bare llvm-cov does not work
+          exec_names.append('gcov')
+      elif arg_opt == 'default-auto' and not required:
+        # default-auto implies the user did not set it via command line!
+        log_print('Could not auto-detect coverage tool for {}, not a gnuish compiler. Bailing since user did not explicitly set exec on the commandline'.format(quoted(compiler)))
+        return
+      else:
+        # implies 'auto' explicitly set by user, or we were required to find
+        # something. either way we should error
+        raise RuntimeError('Could not auto-detect coverage tool for {}, please set coverage tool name explicitly'.format(quoted(compiler)))
+
+      try:
+        compiler_version_str = self.compilerFlags.version[lang]
+      except KeyError:
+        compiler_version_str = 'Unknown'
+
+      log_print('Searching version string {} (for compiler {}) using pattern {}'.format(quoted(compiler_version_str), quoted(compiler), quoted(compiler_version_re.pattern)))
+      compiler_version = compiler_version_re.search(compiler_version_str)
+      if compiler_version is not None:
+        log_print('Found major = {}, minor = {}, patch = {}'.format(compiler_version.group(1), compiler_version.group(2), compiler_version.group(3)))
+        # form [llvm-cov-14, llvm-cov-14.0, llvm-cov, etc.]
+        cov_exec_name = exec_names[0]
+        exec_names    = [
+          # llvm-cov-14
+          '{}-{}'.format(cov_exec_name, compiler_version.group(1)),
+           # llvm-cov-14.0
+          '{}-{}.{}'.format(cov_exec_name, compiler_version.group(1), compiler_version.group(2))
+        ] + exec_names
+    else:
+      log_print('User explicitly set coverage exec as {}'.format(quoted(arg_opt)))
+      par_dir = os.path.dirname(arg_opt)
+      if os.path.exists(par_dir):
+        # arg_opt is path-like, we should only search the provided directory when we go
+        # looking for the tool
+        use_default_path = False
+        search_path      = par_dir
+      exec_names = [arg_opt]
+
+    make_macro_name = 'PETSC_COVERAGE_EXEC'
+    log_print('Checking for coverage tool(s):\n{}'.format('\n'.join('- '+t for t in exec_names)))
+    found_exec = self.getExecutables(
+      exec_names,
+      path=search_path, getFullPath=True, useDefaultPath=use_default_path, resultName=make_macro_name
+    )
+
+    if found_exec is None:
+      # didn't find the coverage tool
+      if required:
+        raise RuntimeError('Coverage tool(s) {} could not be found. Please provide explicit path to coverage tool'.format(exec_names))
+      return
+
+    found_exec_name = os.path.basename(found_exec)
+    if 'llvm-cov' in found_exec_name and 'gcov' not in found_exec_name:
+      # llvm-cov needs to be called as 'llvm-cov gcov' to work
+      self.addMakeMacro(make_macro_name, found_exec + ' gcov')
+    return
+
+  def configureStrictPetscErrorCode(self):
+    """
+    Enables or disables strict PetscErrorCode checking.
+
+    If --with-strict-petscerrorcode = 1:
+    - defines PETSC_USE_STRICT_PETSCERRORCODE to 1
+
+    Else:
+    - deletes any prior PETSC_USE_STRICT_PETSCERRORCODE definitions (if they exist)
+    """
+    define_name = 'USE_STRICT_PETSCERRORCODE'
+    if self.argDB['with-strict-petscerrorcode']:
+      self.addDefine(define_name, 1)
+    else:
+      # in case it was somehow added previously
+      self.delDefine(define_name)
     return
 
 #-----------------------------------------------------------------------------------------------------
@@ -904,11 +1335,6 @@ char assert_aligned[(sizeof(struct mystruct)==16)*2-1];
         '-@echo "========================================="'])
       return
 
-  def configureGCOV(self):
-    if self.framework.argDB['with-gcov']:
-      self.addDefine('USE_GCOV','1')
-    return
-
   def postProcessPackages(self):
     postPackages=[]
     for i in self.framework.packages:
@@ -969,14 +1395,16 @@ char assert_aligned[(sizeof(struct mystruct)==16)*2-1];
     self.executeTest(self.configureIntptrt)
     self.executeTest(self.configureSolaris)
     self.executeTest(self.configureLinux)
-    self.executeTest(self.configureDarwin)    
+    self.executeTest(self.configureDarwin)
     self.executeTest(self.configureWin32)
     self.executeTest(self.configureCygwinBrokenPipe)
     self.executeTest(self.configureDefaultArch)
     self.executeTest(self.configureScript)
     self.executeTest(self.configureInstall)
-    self.executeTest(self.configureGCOV)
     self.executeTest(self.configureAtoll)
+    self.executeTest(self.configureCoverage)
+    self.executeTest(self.configureCoverageExecutable)
+    self.executeTest(self.configureStrictPetscErrorCode)
 
     self.Dump()
     self.dumpConfigInfo()

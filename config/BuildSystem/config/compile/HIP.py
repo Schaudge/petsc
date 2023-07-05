@@ -10,7 +10,7 @@ import config.setsOrdered as sets
 
 '''
 HIP is a C++ compiler with extensions to support the HIP programming model.
-Because of it's slowness, and in some ways the exensions make it a new language,
+Because of its slowness, and in some ways the extensions make it a new language,
 we have a separate compiler for it.
 But we use the extension .hip.cpp to denote these files similar to what is done
 for SYCL and following the recommendations of AMD
@@ -25,7 +25,7 @@ class Preprocessor(config.compile.processor.Processor):
 
 class Compiler(config.compile.processor.Processor):
   '''The HIP compiler'''
-  def __init__(self, argDB, usePreprocessorFlags = False):
+  def __init__(self, argDB, usePreprocessorFlags = True):
     config.compile.processor.Processor.__init__(self, argDB, 'HIPC', 'HIPFLAGS', '.hip.cpp', '.o')
     self.language        = 'HIP'
     self.requiredFlags[-1]  = '-c'

@@ -7,49 +7,45 @@ static const char help[] = "Tests for Plex transforms, including regular refinem
 
 static PetscErrorCode LabelPoints(DM dm)
 {
-  DMLabel        label;
-  PetscInt       pStart, pEnd, p;
-  PetscBool      flg = PETSC_FALSE;
-  PetscErrorCode ierr;
+  DMLabel   label;
+  PetscInt  pStart, pEnd, p;
+  PetscBool flg = PETSC_FALSE;
 
   PetscFunctionBegin;
-  ierr = PetscOptionsGetBool(NULL, NULL, "-label_mesh", &flg, NULL);CHKERRQ(ierr);
-  if (!flg) PetscFunctionReturn(0);
-  ierr = DMCreateLabel(dm, "test");CHKERRQ(ierr);
-  ierr = DMGetLabel(dm, "test", &label);CHKERRQ(ierr);
-  ierr = DMPlexGetChart(dm, &pStart, &pEnd);CHKERRQ(ierr);
-  for (p = pStart; p < pEnd; ++p) {
-    ierr = DMLabelSetValue(label, p, p);CHKERRQ(ierr);
-  }
-  PetscFunctionReturn(0);
+  PetscCall(PetscOptionsGetBool(NULL, NULL, "-label_mesh", &flg, NULL));
+  if (!flg) PetscFunctionReturn(PETSC_SUCCESS);
+  PetscCall(DMCreateLabel(dm, "test"));
+  PetscCall(DMGetLabel(dm, "test", &label));
+  PetscCall(DMPlexGetChart(dm, &pStart, &pEnd));
+  for (p = pStart; p < pEnd; ++p) PetscCall(DMLabelSetValue(label, p, p));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode CreateMesh(MPI_Comm comm, DM *dm)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  ierr = DMCreate(comm, dm);CHKERRQ(ierr);
-  ierr = DMSetType(*dm, DMPLEX);CHKERRQ(ierr);
-  ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
-  ierr = LabelPoints(*dm);CHKERRQ(ierr);
-  ierr = PetscObjectSetOptionsPrefix((PetscObject) *dm, "post_label_");CHKERRQ(ierr);
-  ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
-  ierr = PetscObjectSetOptionsPrefix((PetscObject) *dm, NULL);CHKERRQ(ierr);
-  ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(DMCreate(comm, dm));
+  PetscCall(DMSetType(*dm, DMPLEX));
+  PetscCall(DMSetFromOptions(*dm));
+  PetscCall(LabelPoints(*dm));
+  PetscCall(PetscObjectSetOptionsPrefix((PetscObject)*dm, "post_label_"));
+  PetscCall(DMPlexDistributeSetDefault(*dm, PETSC_FALSE));
+  PetscCall(DMSetFromOptions(*dm));
+  PetscCall(PetscObjectSetOptionsPrefix((PetscObject)*dm, NULL));
+  PetscCall(DMViewFromOptions(*dm, NULL, "-dm_view"));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 int main(int argc, char **argv)
 {
-  DM             dm;
-  PetscErrorCode ierr;
+  DM dm;
 
-  ierr = PetscInitialize(&argc, &argv, NULL, help); if (ierr) return ierr;
-  ierr = CreateMesh(PETSC_COMM_WORLD, &dm);CHKERRQ(ierr);
-  ierr = DMDestroy(&dm);CHKERRQ(ierr);
-  ierr = PetscFinalize();
-  return ierr;
+  PetscFunctionBeginUser;
+  PetscCall(PetscInitialize(&argc, &argv, NULL, help));
+  PetscCall(CreateMesh(PETSC_COMM_WORLD, &dm));
+  PetscCall(DMDestroy(&dm));
+  PetscCall(PetscFinalize());
+  return 0;
 }
 
 /*TEST
@@ -63,9 +59,9 @@ int main(int argc, char **argv)
 
   test:
     suffix: box_tri
-    requires: triangle
+    requires: triangle parmetis
     nsize: {{1 3 5}}
-    args: -dm_distribute -dm_plex_box_faces 3,3 -dm_refine 2 -dm_plex_check_all
+    args: -dm_plex_box_faces 3,3 -dm_refine 2 -dm_plex_check_all -petscpartitioner_type parmetis
 
   test:
     suffix: ref_quad
@@ -74,7 +70,12 @@ int main(int argc, char **argv)
   test:
     suffix: box_quad
     nsize: {{1 3 5}}
-    args: -dm_distribute -dm_plex_box_faces 3,3 -dm_plex_simplex 0 -dm_refine 2 -dm_plex_check_all
+    requires: parmetis
+    args: -dm_plex_box_faces 3,3 -dm_plex_simplex 0 -dm_refine 2 -dm_plex_check_all -petscpartitioner_type parmetis
+
+  test:
+    suffix: box_quad_label
+    args: -dm_plex_box_faces 3,3 -dm_plex_simplex 0 -dm_refine 2 -dm_plex_check_all -dm_plex_transform_label_match_strata {{0 1}separate output} -dm_view
 
   test:
     suffix: ref_tet
@@ -82,9 +83,9 @@ int main(int argc, char **argv)
 
   test:
     suffix: box_tet
-    requires: ctetgen
+    requires: ctetgen parmetis
     nsize: {{1 3 5}}
-    args: -dm_distribute -dm_plex_dim 3 -dm_plex_box_faces 3,3,3 -dm_refine 2 -dm_plex_check_all
+    args: -dm_plex_dim 3 -dm_plex_box_faces 3,3,3 -dm_refine 2 -dm_plex_check_all -petscpartitioner_type parmetis
 
   test:
     suffix: ref_hex
@@ -92,8 +93,9 @@ int main(int argc, char **argv)
 
   test:
     suffix: box_hex
+    requires: parmetis
     nsize: {{1 3 5}}
-    args: -dm_distribute -dm_plex_dim 3 -dm_plex_box_faces 3,3,3 -dm_plex_simplex 0 -dm_refine 2 -dm_plex_check_all
+    args: -dm_plex_dim 3 -dm_plex_box_faces 3,3,3 -dm_plex_simplex 0 -dm_refine 2 -dm_plex_check_all -petscpartitioner_type parmetis
 
   test:
     suffix: ref_trip
@@ -124,9 +126,9 @@ int main(int argc, char **argv)
 
     test:
       suffix: box_tri_tobox
-      requires: triangle
+      requires: triangle parmetis
       nsize: {{1 3 5}}
-      args: -dm_distribute -dm_plex_box_faces 3,3 -dm_refine 2
+      args: -dm_plex_box_faces 3,3 -dm_refine 2 -petscpartitioner_type parmetis
 
     test:
       suffix: ref_tet_tobox
@@ -134,9 +136,9 @@ int main(int argc, char **argv)
 
     test:
       suffix: box_tet_tobox
-      requires: ctetgen
+      requires: ctetgen parmetis
       nsize: {{1 3 5}}
-      args: -dm_distribute -dm_plex_dim 3 -dm_plex_box_faces 3,3,3 -dm_refine 2
+      args: -dm_plex_dim 3 -dm_plex_box_faces 3,3,3 -dm_refine 2 -petscpartitioner_type parmetis
 
     test:
       suffix: ref_trip_tobox

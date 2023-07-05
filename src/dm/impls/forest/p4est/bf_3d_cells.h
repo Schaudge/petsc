@@ -20,5 +20,6 @@ PetscErrorCode DMBF_3D_GetLocalToGlobalIndices(DM,DM_BF_3D_Cells*,PetscInt*,Pets
 
 PetscErrorCode DMBF_3D_CellsGetP4est(DM_BF_3D_Cells*,void*);
 PetscErrorCode DMBF_3D_CellsGetGhost(DM_BF_3D_Cells*,void*);
+PetscErrorCode DMBF_3D_CellsGetP4estMesh(DM_BF_3D_Cells*,void*);
 
 #endif /* defined(PETSCDMBF_3D_CELLS_H) */

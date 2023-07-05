@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import config.base
 
 import os
@@ -15,8 +14,10 @@ class Configure(config.base.Configure):
 
   def setupHelp(self, help):
     import nargs
-    help.addArgument('PETSc', '-with-autoreconf=<prog>', nargs.Arg(None, 'autoreconf', 'Specify autoreconf'))
-    help.addArgument('PETSc', '-with-libtoolize=<prog>', nargs.Arg(None, 'libtoolize', 'Specify libtoolize'))
+    help.addArgument('PETSc', '-with-autoreconf-exec=<prog>', nargs.Arg(None, 'autoreconf', 'Specify autoreconf'))
+    help.addArgument('PETSc', '-with-libtoolize-exec=<prog>', nargs.Arg(None, 'libtoolize', 'Specify libtoolize'))
+    help.addArgument('PETSc', '-with-autoreconf=<prog>', nargs.Arg(None, 'autoreconf', 'Deprecated, use -with-autoreconf-exec=<prog>'))
+    help.addArgument('PETSc', '-with-libtoolize=<prog>', nargs.Arg(None, 'libtoolize', 'Deprecated, use -with-libtoolize-exec=<prog>'))
     return
 
   def configureMkdir(self):
@@ -44,13 +45,16 @@ class Configure(config.base.Configure):
   def configureAutoreconf(self):
     '''Check for autoreconf'''
     self.autoreconf = None
-    if self.getExecutable(self.argDB['with-autoreconf'], getFullPath = 1,resultName = 'autoreconf',setMakeMacro = 0):
+    if self.getExecutable(self.argDB['with-autoreconf-exec'], getFullPath = 1,resultName = 'autoreconf',setMakeMacro = 0) or self.getExecutable(self.argDB['with-autoreconf'], getFullPath = 1,resultName = 'autoreconf',setMakeMacro = 0):
       import shutil,os
       testdir = os.path.join(self.tmpDir, 'autoconfdir')
       acfile  = os.path.join(testdir,'configure.ac')
       if not os.path.isdir(testdir):
         os.mkdir(testdir)
-      accode='AC_INIT(petscconftest, version-0.1)'
+      accode = '''
+AC_INIT(petscconftest, version-0.1)
+AC_OUTPUT
+'''
       fd = open(acfile,'w')
       fd.write(accode)
       fd.close()
@@ -62,10 +66,9 @@ class Configure(config.base.Configure):
         self.logPrint('autoreconf test error: '+str(e))
       shutil.rmtree(testdir)
     self.libtoolize = None
-    if not self.getExecutable(self.argDB['with-libtoolize'], getFullPath = 1,resultName = 'libtoolize',setMakeMacro = 0):
+    if not self.getExecutable(self.argDB['with-libtoolize-exec'], getFullPath = 1,resultName = 'libtoolize',setMakeMacro = 0) and not self.getExecutable(self.argDB['with-libtoolize'], getFullPath = 1,resultName = 'libtoolize',setMakeMacro = 0):
       # it is called blibtoolize on Apple to prevent conflict with Apple's libtool
-      self.getExecutable('glibtoolize', getFullPath = 1,resultName = 'libtoolize',setMakeMacro = 0\
-)
+      self.getExecutable('glibtoolize', getFullPath = 1,resultName = 'libtoolize',setMakeMacro = 0)
     return
 
   def configurePrograms(self):

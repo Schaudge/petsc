@@ -1,4 +1,4 @@
-PetscSection Object: 1 MPI processes
+PetscSection Object: 1 MPI process
   type not yet set
 3 fields
   field 0 with 1 components
@@ -106,4 +106,4 @@ Process 0:
   (  30) dim  1 offset  38
   (  31) dim  1 offset  39
   (  32) dim  1 offset  40
-[0] DMPlexGetFieldType_Internal(): Could not classify VTK output type of section field 2 "w"
+[0] <dm:plex> DMPlexGetFieldType_Internal(): Could not classify VTK output type of section field 2 "w"

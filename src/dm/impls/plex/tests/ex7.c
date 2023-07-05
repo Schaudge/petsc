@@ -146,238 +146,209 @@ typedef struct {
 
 PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
   options->testNum      = 0;
   options->dim          = 2;
   options->simplex      = PETSC_TRUE;
   options->useGenerator = PETSC_FALSE;
 
-  ierr = PetscOptionsBegin(comm, "", "Meshing Interpolation Test Options", "DMPLEX");CHKERRQ(ierr);
-  ierr = PetscOptionsBoundedInt("-testnum", "The mesh to create", "ex7.c", options->testNum, &options->testNum, NULL,0);CHKERRQ(ierr);
-  ierr = PetscOptionsRangeInt("-dim", "The topological mesh dimension", "ex7.c", options->dim, &options->dim, NULL,1,3);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-simplex", "Use simplices if true, otherwise hexes", "ex7.c", options->simplex, &options->simplex, NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-use_generator", "Use a mesh generator to build the mesh", "ex7.c", options->useGenerator, &options->useGenerator, NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsEnd();CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscOptionsBegin(comm, "", "Meshing Interpolation Test Options", "DMPLEX");
+  PetscCall(PetscOptionsBoundedInt("-testnum", "The mesh to create", "ex7.c", options->testNum, &options->testNum, NULL, 0));
+  PetscCall(PetscOptionsRangeInt("-dim", "The topological mesh dimension", "ex7.c", options->dim, &options->dim, NULL, 1, 3));
+  PetscCall(PetscOptionsBool("-simplex", "Use simplices if true, otherwise hexes", "ex7.c", options->simplex, &options->simplex, NULL));
+  PetscCall(PetscOptionsBool("-use_generator", "Use a mesh generator to build the mesh", "ex7.c", options->useGenerator, &options->useGenerator, NULL));
+  PetscOptionsEnd();
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode CreateSimplex_2D(MPI_Comm comm, DM dm)
 {
-  PetscInt       depth = 1, testNum  = 0, p;
-  PetscMPIInt    rank;
-  PetscErrorCode ierr;
+  PetscInt    depth = 1, testNum = 0, p;
+  PetscMPIInt rank;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_rank(comm, &rank);CHKERRMPI(ierr);
+  PetscCallMPI(MPI_Comm_rank(comm, &rank));
   if (rank == 0) {
     switch (testNum) {
-    case 0:
-    {
+    case 0: {
       PetscInt    numPoints[2]        = {4, 2};
       PetscInt    coneSize[6]         = {3, 3, 0, 0, 0, 0};
-      PetscInt    cones[6]            = {2, 3, 4,  5, 4, 3};
-      PetscInt    coneOrientations[6] = {0, 0, 0,  0, 0, 0};
+      PetscInt    cones[6]            = {2, 3, 4, 5, 4, 3};
+      PetscInt    coneOrientations[6] = {0, 0, 0, 0, 0, 0};
       PetscScalar vertexCoords[8]     = {-0.5, 0.5, 0.0, 0.0, 0.0, 1.0, 0.5, 0.5};
       PetscInt    markerPoints[8]     = {2, 1, 3, 1, 4, 1, 5, 1};
 
-      ierr = DMPlexCreateFromDAG(dm, depth, numPoints, coneSize, cones, coneOrientations, vertexCoords);CHKERRQ(ierr);
-      for (p = 0; p < 4; ++p) {
-        ierr = DMSetLabelValue(dm, "marker", markerPoints[p*2], markerPoints[p*2+1]);CHKERRQ(ierr);
-      }
-    }
-    break;
+      PetscCall(DMPlexCreateFromDAG(dm, depth, numPoints, coneSize, cones, coneOrientations, vertexCoords));
+      for (p = 0; p < 4; ++p) PetscCall(DMSetLabelValue(dm, "marker", markerPoints[p * 2], markerPoints[p * 2 + 1]));
+    } break;
     default:
-      SETERRQ1(comm, PETSC_ERR_ARG_OUTOFRANGE, "No test mesh %d", testNum);
+      SETERRQ(comm, PETSC_ERR_ARG_OUTOFRANGE, "No test mesh %" PetscInt_FMT, testNum);
     }
   } else {
     PetscInt numPoints[2] = {0, 0};
 
-    ierr = DMPlexCreateFromDAG(dm, depth, numPoints, NULL, NULL, NULL, NULL);CHKERRQ(ierr);
-    ierr = DMCreateLabel(dm, "marker");CHKERRQ(ierr);
+    PetscCall(DMPlexCreateFromDAG(dm, depth, numPoints, NULL, NULL, NULL, NULL));
+    PetscCall(DMCreateLabel(dm, "marker"));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode CreateSimplex_3D(MPI_Comm comm, DM dm)
 {
-  PetscInt       depth = 1, testNum  = 0, p;
-  PetscMPIInt    rank;
-  PetscErrorCode ierr;
+  PetscInt    depth = 1, testNum = 0, p;
+  PetscMPIInt rank;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_rank(comm, &rank);CHKERRMPI(ierr);
+  PetscCallMPI(MPI_Comm_rank(comm, &rank));
   if (rank == 0) {
     switch (testNum) {
-    case 0:
-    {
+    case 0: {
       PetscInt    numPoints[2]        = {5, 2};
       PetscInt    coneSize[23]        = {4, 4, 0, 0, 0, 0, 0};
-      PetscInt    cones[8]            = {2, 4, 3, 5,  3, 4, 6, 5};
-      PetscInt    coneOrientations[8] = {0, 0, 0, 0,  0, 0, 0, 0};
-      PetscScalar vertexCoords[15]    = {0.0, 0.0, -0.5,  0.0, -0.5, 0.0,  1.0, 0.0, 0.0,  0.0, 0.5, 0.0,  0.0, 0.0, 0.5};
+      PetscInt    cones[8]            = {2, 4, 3, 5, 3, 4, 6, 5};
+      PetscInt    coneOrientations[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+      PetscScalar vertexCoords[15]    = {0.0, 0.0, -0.5, 0.0, -0.5, 0.0, 1.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.5};
       PetscInt    markerPoints[8]     = {2, 1, 3, 1, 4, 1, 5, 1};
 
-      ierr = DMPlexCreateFromDAG(dm, depth, numPoints, coneSize, cones, coneOrientations, vertexCoords);CHKERRQ(ierr);
-      for (p = 0; p < 4; ++p) {
-        ierr = DMSetLabelValue(dm, "marker", markerPoints[p*2], markerPoints[p*2+1]);CHKERRQ(ierr);
-      }
-    }
-    break;
+      PetscCall(DMPlexCreateFromDAG(dm, depth, numPoints, coneSize, cones, coneOrientations, vertexCoords));
+      for (p = 0; p < 4; ++p) PetscCall(DMSetLabelValue(dm, "marker", markerPoints[p * 2], markerPoints[p * 2 + 1]));
+    } break;
     default:
-      SETERRQ1(comm, PETSC_ERR_ARG_OUTOFRANGE, "No test mesh %d", testNum);
+      SETERRQ(comm, PETSC_ERR_ARG_OUTOFRANGE, "No test mesh %" PetscInt_FMT, testNum);
     }
   } else {
     PetscInt numPoints[2] = {0, 0};
 
-    ierr = DMPlexCreateFromDAG(dm, depth, numPoints, NULL, NULL, NULL, NULL);CHKERRQ(ierr);
-    ierr = DMCreateLabel(dm, "marker");CHKERRQ(ierr);
+    PetscCall(DMPlexCreateFromDAG(dm, depth, numPoints, NULL, NULL, NULL, NULL));
+    PetscCall(DMCreateLabel(dm, "marker"));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode CreateQuad_2D(MPI_Comm comm, PetscInt testNum, DM dm)
 {
-  PetscInt       depth = 1, p;
-  PetscMPIInt    rank;
-  PetscErrorCode ierr;
+  PetscInt    depth = 1, p;
+  PetscMPIInt rank;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_rank(comm, &rank);CHKERRMPI(ierr);
+  PetscCallMPI(MPI_Comm_rank(comm, &rank));
   if (rank == 0) {
     switch (testNum) {
-    case 0:
-    {
+    case 0: {
       PetscInt    numPoints[2]        = {6, 2};
       PetscInt    coneSize[8]         = {4, 4, 0, 0, 0, 0, 0, 0};
-      PetscInt    cones[8]            = {2, 3, 4, 5,  3, 6, 7, 4};
-      PetscInt    coneOrientations[8] = {0, 0, 0, 0,  0, 0, 0, 0};
+      PetscInt    cones[8]            = {2, 3, 4, 5, 3, 6, 7, 4};
+      PetscInt    coneOrientations[8] = {0, 0, 0, 0, 0, 0, 0, 0};
       PetscScalar vertexCoords[12]    = {-0.5, 0.0, 0.0, 0.0, 0.0, 1.0, -0.5, 1.0, 0.5, 0.0, 0.5, 1.0};
       PetscInt    markerPoints[12]    = {2, 1, 3, 1, 4, 1, 5, 1, 6, 1, 7, 1};
 
-      ierr = DMPlexCreateFromDAG(dm, depth, numPoints, coneSize, cones, coneOrientations, vertexCoords);CHKERRQ(ierr);
-      for (p = 0; p < 6; ++p) {
-        ierr = DMSetLabelValue(dm, "marker", markerPoints[p*2], markerPoints[p*2+1]);CHKERRQ(ierr);
-      }
-    }
-    break;
-    case 1:
-    {
+      PetscCall(DMPlexCreateFromDAG(dm, depth, numPoints, coneSize, cones, coneOrientations, vertexCoords));
+      for (p = 0; p < 6; ++p) PetscCall(DMSetLabelValue(dm, "marker", markerPoints[p * 2], markerPoints[p * 2 + 1]));
+    } break;
+    case 1: {
       PetscInt    numPoints[2]        = {5, 2};
       PetscInt    coneSize[7]         = {4, 3, 0, 0, 0, 0, 0};
-      PetscInt    cones[7]            = {2, 3, 4, 5,  3, 6, 4};
-      PetscInt    coneOrientations[7] = {0, 0, 0, 0,  0, 0, 0};
+      PetscInt    cones[7]            = {2, 3, 4, 5, 3, 6, 4};
+      PetscInt    coneOrientations[7] = {0, 0, 0, 0, 0, 0, 0};
       PetscScalar vertexCoords[10]    = {-0.5, 0.0, 0.0, 0.0, 0.0, 1.0, -0.5, 1.0, 0.5, 0.0};
       PetscInt    markerPoints[10]    = {2, 1, 3, 1, 4, 1, 5, 1, 6, 1};
 
-      ierr = DMPlexCreateFromDAG(dm, depth, numPoints, coneSize, cones, coneOrientations, vertexCoords);CHKERRQ(ierr);
-      for (p = 0; p < 5; ++p) {
-        ierr = DMSetLabelValue(dm, "marker", markerPoints[p*2], markerPoints[p*2+1]);CHKERRQ(ierr);
-      }
-    }
-    break;
+      PetscCall(DMPlexCreateFromDAG(dm, depth, numPoints, coneSize, cones, coneOrientations, vertexCoords));
+      for (p = 0; p < 5; ++p) PetscCall(DMSetLabelValue(dm, "marker", markerPoints[p * 2], markerPoints[p * 2 + 1]));
+    } break;
     default:
-      SETERRQ1(comm, PETSC_ERR_ARG_OUTOFRANGE, "No test mesh %d", testNum);
+      SETERRQ(comm, PETSC_ERR_ARG_OUTOFRANGE, "No test mesh %" PetscInt_FMT, testNum);
     }
   } else {
     PetscInt numPoints[2] = {0, 0};
 
-    ierr = DMPlexCreateFromDAG(dm, depth, numPoints, NULL, NULL, NULL, NULL);CHKERRQ(ierr);
-    ierr = DMCreateLabel(dm, "marker");CHKERRQ(ierr);
+    PetscCall(DMPlexCreateFromDAG(dm, depth, numPoints, NULL, NULL, NULL, NULL));
+    PetscCall(DMCreateLabel(dm, "marker"));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode CreateHex_3D(MPI_Comm comm, DM dm)
 {
-  PetscInt       depth = 1, testNum  = 0, p;
-  PetscMPIInt    rank;
-  PetscErrorCode ierr;
+  PetscInt    depth = 1, testNum = 0, p;
+  PetscMPIInt rank;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_rank(comm, &rank);CHKERRMPI(ierr);
+  PetscCallMPI(MPI_Comm_rank(comm, &rank));
   if (rank == 0) {
     switch (testNum) {
-    case 0:
-    {
+    case 0: {
       PetscInt    numPoints[2]         = {12, 2};
-      PetscInt    coneSize[14]         = {8, 8, 0,0,0,0,0,0,0,0,0,0,0,0};
-      PetscInt    cones[16]            = {2,5,4,3,6,7,8,9,  3,4,11,10,7,12,13,8};
-      PetscInt    coneOrientations[16] = {0,0,0,0,0,0,0,0,  0,0, 0, 0,0, 0, 0,0};
-      PetscScalar vertexCoords[36]     = {-0.5,0.0,0.0, 0.0,0.0,0.0, 0.0,1.0,0.0, -0.5,1.0,0.0,
-                                          -0.5,0.0,1.0, 0.0,0.0,1.0, 0.0,1.0,1.0, -0.5,1.0,1.0,
-                                           0.5,0.0,0.0, 0.5,1.0,0.0, 0.5,0.0,1.0,  0.5,1.0,1.0};
-      PetscInt    markerPoints[16]     = {2,1,3,1,4,1,5,1,6,1,7,1,8,1,9,1};
+      PetscInt    coneSize[14]         = {8, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+      PetscInt    cones[16]            = {2, 5, 4, 3, 6, 7, 8, 9, 3, 4, 11, 10, 7, 12, 13, 8};
+      PetscInt    coneOrientations[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+      PetscScalar vertexCoords[36]     = {-0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -0.5, 1.0, 0.0, -0.5, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, -0.5, 1.0, 1.0, 0.5, 0.0, 0.0, 0.5, 1.0, 0.0, 0.5, 0.0, 1.0, 0.5, 1.0, 1.0};
+      PetscInt    markerPoints[16]     = {2, 1, 3, 1, 4, 1, 5, 1, 6, 1, 7, 1, 8, 1, 9, 1};
 
-      ierr = DMPlexCreateFromDAG(dm, depth, numPoints, coneSize, cones, coneOrientations, vertexCoords);CHKERRQ(ierr);
-      for (p = 0; p < 8; ++p) {
-        ierr = DMSetLabelValue(dm, "marker", markerPoints[p*2], markerPoints[p*2+1]);CHKERRQ(ierr);
-      }
-    }
-    break;
+      PetscCall(DMPlexCreateFromDAG(dm, depth, numPoints, coneSize, cones, coneOrientations, vertexCoords));
+      for (p = 0; p < 8; ++p) PetscCall(DMSetLabelValue(dm, "marker", markerPoints[p * 2], markerPoints[p * 2 + 1]));
+    } break;
     default:
-      SETERRQ1(comm, PETSC_ERR_ARG_OUTOFRANGE, "No test mesh %d", testNum);
+      SETERRQ(comm, PETSC_ERR_ARG_OUTOFRANGE, "No test mesh %" PetscInt_FMT, testNum);
     }
   } else {
     PetscInt numPoints[2] = {0, 0};
 
-    ierr = DMPlexCreateFromDAG(dm, depth, numPoints, NULL, NULL, NULL, NULL);CHKERRQ(ierr);
-    ierr = DMCreateLabel(dm, "marker");CHKERRQ(ierr);
+    PetscCall(DMPlexCreateFromDAG(dm, depth, numPoints, NULL, NULL, NULL, NULL));
+    PetscCall(DMCreateLabel(dm, "marker"));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode CreateMesh(MPI_Comm comm, PetscInt testNum, AppCtx *user, DM *dm)
 {
-  PetscBool      useGenerator = user->useGenerator;
-  PetscErrorCode ierr;
+  PetscBool useGenerator = user->useGenerator;
 
   PetscFunctionBegin;
-  ierr = DMCreate(comm, dm);CHKERRQ(ierr);
-  ierr = DMSetType(*dm, DMPLEX);CHKERRQ(ierr);
+  PetscCall(DMCreate(comm, dm));
+  PetscCall(DMSetType(*dm, DMPLEX));
   if (!useGenerator) {
     PetscInt  dim     = user->dim;
     PetscBool simplex = user->simplex;
 
-    ierr = DMSetDimension(*dm, dim);CHKERRQ(ierr);
+    PetscCall(DMSetDimension(*dm, dim));
     switch (dim) {
     case 2:
       if (simplex) {
-        ierr = CreateSimplex_2D(comm, *dm);CHKERRQ(ierr);
+        PetscCall(CreateSimplex_2D(comm, *dm));
       } else {
-        ierr = CreateQuad_2D(comm, testNum, *dm);CHKERRQ(ierr);
+        PetscCall(CreateQuad_2D(comm, testNum, *dm));
       }
       break;
     case 3:
       if (simplex) {
-        ierr = CreateSimplex_3D(comm, *dm);CHKERRQ(ierr);
+        PetscCall(CreateSimplex_3D(comm, *dm));
       } else {
-        ierr = CreateHex_3D(comm, *dm);CHKERRQ(ierr);
+        PetscCall(CreateHex_3D(comm, *dm));
       }
       break;
     default:
-      SETERRQ1(comm, PETSC_ERR_ARG_OUTOFRANGE, "Cannot make meshes for dimension %d", dim);
+      SETERRQ(comm, PETSC_ERR_ARG_OUTOFRANGE, "Cannot make meshes for dimension %" PetscInt_FMT, dim);
     }
   }
-  ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) *dm, "Interpolated Mesh");CHKERRQ(ierr);
-  ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(DMSetFromOptions(*dm));
+  PetscCall(PetscObjectSetName((PetscObject)*dm, "Interpolated Mesh"));
+  PetscCall(DMViewFromOptions(*dm, NULL, "-dm_view"));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 int main(int argc, char **argv)
 {
-  DM             dm;
-  AppCtx         user;                 /* user-defined work context */
-  PetscErrorCode ierr;
+  DM     dm;
+  AppCtx user; /* user-defined work context */
 
-  ierr = PetscInitialize(&argc, &argv, NULL,help);if (ierr) return ierr;
-  ierr = ProcessOptions(PETSC_COMM_WORLD, &user);CHKERRQ(ierr);
-  ierr = CreateMesh(PETSC_COMM_WORLD, user.testNum, &user, &dm);CHKERRQ(ierr);
-  ierr = DMDestroy(&dm);CHKERRQ(ierr);
-  ierr = PetscFinalize();
-  return ierr;
+  PetscFunctionBeginUser;
+  PetscCall(PetscInitialize(&argc, &argv, NULL, help));
+  PetscCall(ProcessOptions(PETSC_COMM_WORLD, &user));
+  PetscCall(CreateMesh(PETSC_COMM_WORLD, user.testNum, &user, &dm));
+  PetscCall(DMDestroy(&dm));
+  PetscCall(PetscFinalize());
+  return 0;
 }
 
 /*TEST
@@ -391,28 +362,28 @@ int main(int argc, char **argv)
     test:
       suffix: 1
       nsize: 2
-      args: -dm_distribute -petscpartitioner_type simple -dim 2 -dm_view ascii::ascii_info_detail
+      args: -petscpartitioner_type simple -dim 2 -dm_view ascii::ascii_info_detail
     test:
       suffix: 2
       args: -dim 2 -simplex 0 -dm_view ascii::ascii_info_detail
     test:
       suffix: 3
       nsize: 2
-      args: -dm_distribute -petscpartitioner_type simple -dim 2 -simplex 0 -dm_view ascii::ascii_info_detail
+      args: -petscpartitioner_type simple -dim 2 -simplex 0 -dm_view ascii::ascii_info_detail
     test:
       suffix: 4
       args: -dim 3 -dm_view ascii::ascii_info_detail
     test:
       suffix: 5
       nsize: 2
-      args: -dm_distribute -petscpartitioner_type simple -dim 3 -dm_view ascii::ascii_info_detail
+      args: -petscpartitioner_type simple -dim 3 -dm_view ascii::ascii_info_detail
     test:
       suffix: 6
       args: -dim 3 -simplex 0 -dm_view ascii::ascii_info_detail
     test:
       suffix: 7
       nsize: 2
-      args: -dm_distribute -petscpartitioner_type simple -dim 3 -simplex 0 -dm_view ascii::ascii_info_detail
+      args: -petscpartitioner_type simple -dim 3 -simplex 0 -dm_view ascii::ascii_info_detail
     # 2D Hybrid Mesh 8
     test:
       suffix: 8

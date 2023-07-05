@@ -10,7 +10,6 @@ class Configure(config.package.GNUPackage):
     self.includes         = ['png.h']
     self.liblist          = [['libpng.a']]
     self.functions        = ['png_create_write_struct']
-    self.lookforbydefault = 0
 
   def setupDependencies(self, framework):
     config.package.Package.setupDependencies(self, framework)
@@ -21,7 +20,7 @@ class Configure(config.package.GNUPackage):
 
   def versionToStandardForm(self,ver):
     import re
-    return re.compile('[=A-Za-z]([\.0-9]*)-[A-Za-z]*').search(ver).group(1)
+    return re.compile(r'[=A-Za-z]([\.0-9]*)-[A-Za-z]*').search(ver).group(1)
 
   def formGNUConfigureArgs(self):
     args = config.package.GNUPackage.formGNUConfigureArgs(self)

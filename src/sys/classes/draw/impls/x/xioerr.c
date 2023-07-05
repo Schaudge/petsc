@@ -1,4 +1,4 @@
-#include <../src/sys/classes/draw/impls/x/ximpl.h>         /*I  "petscsys.h" I*/
+#include <../src/sys/classes/draw/impls/x/ximpl.h> /*I  "petscsys.h" I*/
 
 #if defined(PETSC_HAVE_SETJMP_H)
 

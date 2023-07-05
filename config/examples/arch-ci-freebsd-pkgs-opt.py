@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os
 petsc_hash_pkgs=os.path.join(os.getenv('HOME'),'petsc-hash-pkgs')
@@ -8,7 +8,7 @@ configure_options = [
   '--with-debugging=0',
 
   '--useThreads=0', # for some reason cmake hangs when invoked from configure on bsd?
-  #'-download-fblaslapack=1',
+  '--download-netlib-lapack=1',
   '--download-mpich=1',
   '--download-mpich-device=ch3:sock',
   '--download-cmake=1',
@@ -29,6 +29,7 @@ configure_options = [
   '--download-spai=1',
   '--download-concurrencykit=1',
   '--download-revolve=1',
+  '--with-strict-petscerrorcode',
   ]
 
 if __name__ == '__main__':

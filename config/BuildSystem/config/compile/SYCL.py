@@ -10,7 +10,7 @@ import config.setsOrdered as sets
 
 '''
 SYCL is a C++ compiler with extensions to support the SYCL programming model.
-Because of it's slowness, and in some ways the exensions make it a new language,
+Because of its slowness, and in some ways the extensions make it a new language,
 we have a separate compiler for it.
 We use the extension .sycl.cxx to denote these files similar to what is done
 for HIP (which is also C++ and has similar issue).
@@ -25,7 +25,7 @@ class Preprocessor(config.compile.processor.Processor):
 
 class Compiler(config.compile.processor.Processor):
   '''The SYCL compiler'''
-  def __init__(self, argDB, usePreprocessorFlags = False):
+  def __init__(self, argDB, usePreprocessorFlags = True):
     config.compile.processor.Processor.__init__(self, argDB, 'SYCLC', 'SYCLFLAGS', '.sycl.cxx', '.o')
     self.language        = 'SYCL'
     self.requiredFlags[-1]  = '-c'

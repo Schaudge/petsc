@@ -1,7 +1,7 @@
 Number of labels: 12
-Label 0: name: celltype
+Label 0: name: celltype type: concrete
 IS of values
-  IS Object: 1 MPI processes
+  IS Object: 1 MPI process
     type: general
   Number of indices in set 4
   0 0
@@ -9,9 +9,9 @@ IS of values
   2 4
   3 1
 
-Label 1: name: depth
+Label 1: name: depth type: concrete
 IS of values
-  IS Object: 1 MPI processes
+  IS Object: 1 MPI process
     type: general
   Number of indices in set 4
   0 0
@@ -19,16 +19,16 @@ IS of values
   2 2
   3 3
 
-Label 2: name: Cell Sets
+Label 2: name: Cell Sets type: concrete
 IS of values
-  IS Object: 1 MPI processes
+  IS Object: 1 MPI process
     type: general
   Number of indices in set 1
   0 10
 
-Label 3: name: Face Sets
+Label 3: name: Face Sets type: concrete
 IS of values
-  IS Object: 1 MPI processes
+  IS Object: 1 MPI process
     type: general
   Number of indices in set 4
   0 100
@@ -36,58 +36,58 @@ IS of values
   2 200
   3 201
 
-Label 4: name: OuterBoundary
+Label 4: name: OuterBoundary type: concrete
 IS of values
-  IS Object: 1 MPI processes
+  IS Object: 1 MPI process
     type: general
   Number of indices in set 1
   0 100
 
-Label 5: name: InnerBoundary
+Label 5: name: InnerBoundary type: concrete
 IS of values
-  IS Object: 1 MPI processes
+  IS Object: 1 MPI process
     type: general
   Number of indices in set 1
   0 101
 
-Label 6: name: TopBoundary
+Label 6: name: TopBoundary type: concrete
 IS of values
-  IS Object: 1 MPI processes
+  IS Object: 1 MPI process
     type: general
   Number of indices in set 1
   0 200
 
-Label 7: name: BottomBoundary
+Label 7: name: BottomBoundary type: concrete
 IS of values
-  IS Object: 1 MPI processes
+  IS Object: 1 MPI process
     type: general
   Number of indices in set 1
   0 201
 
-Label 8: name: label0
+Label 8: name: label0 type: concrete
 IS of values
-  IS Object: 1 MPI processes
+  IS Object: 1 MPI process
     type: general
   Number of indices in set 1
   0 1
 
-Label 9: name: label1
+Label 9: name: label1 type: concrete
 IS of values
-  IS Object: 1 MPI processes
+  IS Object: 1 MPI process
     type: general
   Number of indices in set 1
   0 2
 
-Label 10: name: label2
+Label 10: name: label2 type: concrete
 IS of values
-  IS Object: 1 MPI processes
+  IS Object: 1 MPI process
     type: general
   Number of indices in set 1
   0 1
 
-Label 11: name: label3
+Label 11: name: label3 type: concrete
 IS of values
-  IS Object: 1 MPI processes
+  IS Object: 1 MPI process
     type: general
   Number of indices in set 1
   0 2
@@ -95,7 +95,7 @@ IS of values
 
 
 Cell Set label IS
-IS Object: 1 MPI processes
+IS Object: 1 MPI process
   type: general
 Number of indices in set 1
 0 10

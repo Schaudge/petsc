@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 from __future__ import generators
 import config.base
 
@@ -32,7 +31,7 @@ class Configure(config.base.Configure):
     return
 
   def checkSharedDynamicPicOptions(self):
-    # uf user specified 'with-shared' or 'with-dynamic' - flag an error
+    '''if user specified out-dated 'with-shared' or 'with-dynamic' - flag an error'''
     if 'with-shared' in self.framework.argDB:
       raise RuntimeError('Option "--with-shared" no longer exists. Use "--with-shared-libraries".')
     if 'with-dynamic' in self.framework.argDB or 'with-dynamic-loading' in self.framework.argDB:
@@ -110,7 +109,7 @@ class Configure(config.base.Configure):
     if self.headers.haveHeader('dlfcn.h') and self.functions.haveFunction('dlerror'):
       ftm = ''
       if self.ftm.defines.get('_GNU_SOURCE'): ftm = '#define _GNU_SOURCE\n'
-      if self.checkCompile('%s#include<stdlib.h>\n#include <dlfcn.h>\n' % ftm, 'Dl_info info;\n\nif (dladdr(exit, &info)) return 0;\n'):
+      if self.checkCompile('%s#include<stdlib.h>\n#include <dlfcn.h>\n' % ftm, 'Dl_info info;\nif (dladdr(*(void **)&exit, &info) == 0) return 1;\n'):
         self.addDefine('HAVE_DLADDR', 1)
         self.headers.check('cxxabi.h')
 

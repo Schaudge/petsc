@@ -54,7 +54,7 @@ Output
   The object may define a headerPrefix member, which will be appended, followed
 by an underscore, to every define which is output from it. Similarly, a substPrefix
 can be defined which applies to every substitution from the object. Typedefs and
-function prototypes are placed in a separate header in order to accommodate languges
+function prototypes are placed in a separate header in order to accommodate languages
 such as Fortran whose preprocessor can sometimes fail at these statements.
 '''
 import script
@@ -119,7 +119,7 @@ class Configure(script.Script):
     if status:
       exitstr = ' exit code ' + str(status)
     else:
-      exitstr = ''
+      exitstr = 'exit code 0'
     self.logWrite('Possible ERROR while running %s:%s\n' % (component, exitstr))
     if output:
       self.logWrite('stdout:\n' + output)
@@ -216,9 +216,9 @@ class Configure(script.Script):
   def checkExecutable(self, dir, name):
     prog  = os.path.join(dir, name)
     # also strip any \ before spaces, braces, so that we can specify paths the way we want them in makefiles.
-    prog  = prog.replace('\ ',' ').replace('\(','(').replace('\)',')')
+    prog  = prog.replace(r'\ ',' ').replace(r'\(','(').replace(r'\)',')')
     found = 0
-    self.logWrite('Checking for program '+prog+'...')
+    self.logWrite('    Checking for program '+prog+'...')
     if os.path.isfile(prog) and os.access(prog, os.X_OK):
       found = 1
       self.logWrite('found\n')
@@ -279,7 +279,7 @@ class Configure(script.Script):
         if found: break
     if not found:
       dirs = self.argDB['with-executables-search-path']
-      if not isinstance(dirs, list): dirs = [dirs]
+      if not isinstance(dirs, list): dirs = dirs.split(os.path.pathsep)
       for d in dirs:
         for name in names:
           name, options, varName = getNames(name, resultName)
@@ -335,9 +335,10 @@ class Configure(script.Script):
     if lang is None:
       yield
     else:
-      self.pushLanguage(lang)
-      yield
-      self.popLanguage()
+      try:
+        yield self.pushLanguage(lang)
+      finally:
+        self.popLanguage()
 
   def getHeaders(self):
     self.compilerDefines = os.path.join(self.tmpDir, 'confdefs.h')
@@ -443,9 +444,14 @@ class Configure(script.Script):
       codeStr += '#include "conffix.h"\n'+includes
       if not body is None:
         if codeBegin is None:
-          codeBegin = '\nint main() {\n'
+          codeBegin = '\nint main(void) {\n'
         if codeEnd is None:
-          codeEnd   = ';\n  return 0;\n}\n'
+          if len(body) == 0:
+            codeEnd = '  return 0;\n}\n'
+          elif body.strip().endswith(';') or body.strip().endswith('}') or body.strip().endswith('\n#endif'):
+            codeEnd = '\n  return 0;\n}\n'
+          else:
+            codeEnd = ';\n  return 0;\n}\n'
         codeStr += codeBegin+body+codeEnd
     elif language == 'FC':
       if not includes is None and body is None:
@@ -517,8 +523,8 @@ class Configure(script.Script):
     '''Return the name of the argument which holds the preprocessor flags for the current language'''
     return self.getPreprocessorFlagsName(self.language[-1])
 
-  def filterCompileOutput(self, output):
-    return self.framework.filterCompileOutput(output)
+  def filterCompileOutput(self, output, flag = '', filterAlways = 0):
+    return self.framework.filterCompileOutput(output, flag = flag, filterAlways = filterAlways)
 
   def outputCompile(self, includes = '', body = '', cleanup = 1, codeBegin = None, codeEnd = None):
     '''Return the error output from this compile and the return code'''
@@ -543,11 +549,10 @@ class Configure(script.Script):
         if os.path.isfile(filename): os.remove(filename)
     return (out, err, ret)
 
-  def checkCompile(self, includes = '', body = '', cleanup = 1, codeBegin = None, codeEnd = None):
+  def checkCompile(self, includes = '', body = '', cleanup = 1, codeBegin = None, codeEnd = None, flag = ''):
     '''Returns True if the compile was successful'''
-    self.logWrite('===== Checking compiler\n')
     (output, error, returnCode) = self.outputCompile(includes, body, cleanup, codeBegin, codeEnd)
-    output = self.filterCompileOutput(output+'\n'+error)
+    output = self.filterCompileOutput(output+'\n'+error,flag=flag)
     return not (returnCode or len(output))
 
   def getCompilerFlagsName(language, compilerOnly = 0):
@@ -575,15 +580,15 @@ class Configure(script.Script):
     '''Return the name of the argument which holds the compiler flags for the current language'''
     return self.getCompilerFlagsName(self.language[-1], compilerOnly)
 
-  def filterLinkOutput(self, output):
-    return self.framework.filterLinkOutput(output)
+  def filterLinkOutput(self, output, filterAlways = 0):
+    return self.framework.filterLinkOutput(output, filterAlways = filterAlways)
 
-  def outputLink(self, includes, body, cleanup = 1, codeBegin = None, codeEnd = None, shared = 0, linkLanguage=None, examineOutput=lambda ret,out,err:None):
+  def outputLink(self, includes, body, cleanup = 1, codeBegin = None, codeEnd = None, shared = 0, linkLanguage=None, examineOutput=lambda ret,out,err:None,flag=''):
     import sys
 
     (out, err, ret) = self.outputCompile(includes, body, cleanup = 0, codeBegin = codeBegin, codeEnd = codeEnd)
     examineOutput(ret, out, err)
-    out = self.filterCompileOutput(out+'\n'+err)
+    out = self.filterCompileOutput(out+'\n'+err,flag=flag)
     if ret or len(out):
       self.logPrint('Compile failed inside link\n'+out)
       self.linkerObj = ''
@@ -620,14 +625,15 @@ class Configure(script.Script):
     return (out+'\n'+err, ret)
 
   def checkLink(self, includes = '', body = '', cleanup = 1, codeBegin = None, codeEnd = None, shared = 0, linkLanguage=None, examineOutput=lambda ret,out,err:None):
-    self.logWrite('===== Checking linker\n')
     (output, returnCode) = self.outputLink(includes, body, cleanup, codeBegin, codeEnd, shared, linkLanguage, examineOutput)
     output = self.filterLinkOutput(output)
     return not (returnCode or len(output))
 
   def getLinkerFlagsName(language):
-    if language in ['C', 'CUDA', 'Cxx', 'FC', 'HIP', 'SYCL']:
+    if language in ['C', 'CUDA', 'Cxx', 'FC', 'HIP']:
       flagsArg = 'LDFLAGS'
+    elif language == 'SYCL':
+      flagsArg = 'SYCLC_LINKER_FLAGS' # refer to SYCL.py. I need standalone sycl linker flags in make macros, so I don't use LDFLAGS
     else:
       raise RuntimeError('Unknown language: '+language)
     return flagsArg

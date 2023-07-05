@@ -203,13 +203,13 @@ function petsc_testrun() {
     cmd_res=$?
   fi
   touch "$2" "$3"
-  # It appears current MPICH and OpenMPI just shut down the job executation and do not return an error code to the executable
+  # It appears current MPICH and OpenMPI just shut down the job execution and do not return an error code to the executable
   # ETIMEDOUT=110 was used by OpenMPI 3.0.  MPICH used 255
   # Earlier OpenMPI versions returned 1 and the error string
   if [ $cmd_res -eq 110 -o $cmd_res -eq 255 ] || \
-        fgrep -q -s 'APPLICATION TIMED OUT' "$2" "$3" || \
-        fgrep -q -s MPIEXEC_TIMEOUT "$2" "$3" || \
-        fgrep -q -s 'APPLICATION TERMINATED WITH THE EXIT STRING: job ending due to timeout' "$2" "$3" || \
+        grep -F -q -s 'APPLICATION TIMED OUT' "$2" "$3" || \
+        grep -F -q -s MPIEXEC_TIMEOUT "$2" "$3" || \
+        grep -F -q -s 'APPLICATION TERMINATED WITH THE EXIT STRING: job ending due to timeout' "$2" "$3" || \
         grep -q -s "Timeout after [0-9]* seconds. Terminating job" "$2" "$3"; then
     timed_out=1
     # If timed out, then ensure non-zero error code
@@ -272,7 +272,7 @@ function petsc_testend() {
     printf "skip $skip\n" >> $logfile
   fi
   ENDTIME=`date +%s`
-  timing=`touch timing.out && egrep '(user|sys)' timing.out | awk '{if( sum1 == "" || $2 > sum1 ) { sum1=sprintf("%.2f",$2) } ; sum2 += sprintf("%.2f",$2)} END {printf "%.2f %.2f\n",sum1,sum2}'`
+  timing=`touch timing.out && grep -E '(user|sys)' timing.out | awk '{if( sum1 == "" || $2 > sum1 ) { sum1=sprintf("%.2f",$2) } ; sum2 += sprintf("%.2f",$2)} END {printf "%.2f %.2f\n",sum1,sum2}'`
   printf "time $timing\n" >> $logfile
   if $cleanup; then
     echo "Cleaning up"
@@ -281,13 +281,59 @@ function petsc_testend() {
 }
 
 function petsc_mpiexec_cudamemcheck() {
-  _mpiexec=$1;shift
-  npopt=$1;shift
-  np=$1;shift
-
-  cudamemchk="cuda-memcheck"
-
-  $_mpiexec $npopt $np $cudamemchk $*
+  # loops over the argument list to find the call to the test executable and insert the
+  # cuda memcheck command before it.
+  # first check if compute-sanitizer exists, since cuda-memcheck is deprecated from CUDA
+  # 11-ish onwards
+  if command -v compute-sanitizer &> /dev/null; then
+    memcheck_cmd="${PETSC_CUDAMEMCHECK_COMMAND:-compute-sanitizer}"
+    declare -a default_args_to_check=('--target-processes all' '--track-stream-ordered-races all')
+  else
+    memcheck_cmd="${PETSC_CUDAMEMCHECK_COMMAND:-cuda-memcheck}"
+    declare -a default_args_to_check=('--flush-to-disk yes')
+  fi
+  if [[ -z ${PETSC_CUDAMEMCHECK_ARGS} ]]; then
+    # if user has not set the memcheck args themselves loop over the predefined default
+    # arguments and check if they can be used
+    memcheck_args='--leak-check full --report-api-errors no '
+    for option in "${default_args_to_check[@]}"; do
+      ${memcheck_cmd} ${memcheck_args} ${option} &> /dev/null
+      if [ $? -eq 0 ]; then
+        memcheck_args+="${option} "
+      fi
+    done
+  else
+    memcheck_args="${PETSC_CUDAMEMCHECK_ARGS}"
+  fi
+  pre_args=()
+  # regex to detect a path containing petsc-arch path, which is where the test lives. This
+  # marks the end of the options to mpiexec, and hence where we should insert the
+  # cuda-memcheck command
+  re=".*${petsc_arch}.*"
+  for i in "$@"; do
+    if [[ $i =~ ${re} ]]; then
+      # found it, put cuda memcheck command in
+      pre_args+=("${memcheck_cmd} ${memcheck_args}")
+      break
+    fi
+    pre_args+=("$i")
+    shift
+  done
+  # run command, but filter out
+  # ===== CUDA-MEMCHECK or ==== COMPUTE-SANITIZER
+  # and
+  # ===== ERROR SUMMARY: 0 errors
+  if ${printcmd}; then
+    echo ${pre_args[@]} $*
+  else
+    ${pre_args[@]} $* \
+      | grep -v 'CUDA-MEMCHECK' \
+      | grep -v 'COMPUTE-SANITIZER' \
+      | grep -v 'LEAK SUMMARY: 0 bytes leaked in 0 allocations' \
+      | grep -v 'ERROR SUMMARY: 0 errors' || [[ $? == 1 ]]
+  fi
+  # last or is needed to suppress grep exiting with error code 1 if it doesn't find a
+  # match
 }
 
 function petsc_mpiexec_valgrind() {

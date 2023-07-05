@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os
 petsc_hash_pkgs=os.path.join(os.getenv('HOME'),'petsc-hash-pkgs')
@@ -20,6 +20,13 @@ configure_options = [
   '--download-parmetis=1',
   '--download-scalapack=1',
   '--download-mumps=1',
+  # 09/03/2023, PGI compilers would produce strange segmentation violation errors in C++20
+  # mode that could not be reproduced with any other compiler. Normally the first response
+  # would be 'there must be a bug in the code' -- and that may still be true -- but no
+  # less than 3 other CI jobs reproduce the same package/env without these seg faults. So
+  # limiting to C++17 because maybe it *is* the compilers fault this time.
+  '--with-cxx-dialect=17',
+  '--with-strict-petscerrorcode',
   ]
 
 if __name__ == '__main__':

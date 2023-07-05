@@ -3,6 +3,10 @@ import os
 import re
 import nargs
 
+re_win32fe_cl    = re.compile(r'win32fe\s+cl')
+re_win32fe_icl   = re.compile(r'win32fe\s+icl')
+re_win32fe_ifort = re.compile(r'win32fe\s+ifort')
+
 class CompilerOptions(config.base.Configure):
   def getCFlags(self, compiler, bopt, language):
     import config.setCompilers
@@ -21,9 +25,9 @@ class CompilerOptions(config.base.Configure):
     # GNU gcc
     if config.setCompilers.Configure.isGNU(compiler, self.log) or config.setCompilers.Configure.isClang(compiler, self.log):
       if bopt == '':
-        flags.extend(['-Wall', '-Wwrite-strings', '-Wno-strict-aliasing','-Wno-unknown-pragmas'])
+        flags.extend(['-Wall', '-Wwrite-strings', '-Wno-unknown-pragmas', '-Wno-lto-type-mismatch'])
         if config.setCompilers.Configure.isGcc110plus(compiler, self.log):
-          flags.extend(['-Wno-misleading-indentation','-Wno-stringop-overflow'])
+          flags.extend(['-Wno-stringop-overflow'])
         # skip -fstack-protector for brew gcc - as this gives SEGV
         if not (config.setCompilers.Configure.isDarwin(self.log) and config.setCompilers.Configure.isGNU(compiler, self.log)):
           flags.extend(['-fstack-protector'])
@@ -32,15 +36,12 @@ class CompilerOptions(config.base.Configure):
         flags.extend(['-mfp16-format=ieee']) #  arm for utilizing 16 bit storage of floating point
         if config.setCompilers.Configure.isClang(compiler, self.log):
           flags.extend(['-Qunused-arguments'])
-        if self.argDB['with-visibility']:
+        if self.argDB['with-visibility'] and language != 'CUDA':
           flags.extend(['-fvisibility=hidden'])
-        arg = nargs.Arg.findArgument('with-errorchecking', self.clArgs)
-        if not nargs.ArgBool('with-errorchecking', arg if arg is not None else '1', isTemporary=True).getValue():
-          flags.extend(['-Wno-unused-but-set-variable'])
+        if language == 'CUDA':
+          flags.extend(['-x cuda'])
       elif bopt == 'g':
         flags.extend(['-g3','-O0'])
-      elif bopt == 'gcov':
-        flags.extend(['--coverage','-Og']) # --coverage is equal to -fprofile-arcs -ftest-coverage. Use -Og to have accurate coverage results and good performance
       elif bopt == 'O':
         flags.append('-g')
         if config.setCompilers.Configure.isClang(compiler, self.log):
@@ -60,7 +61,7 @@ class CompilerOptions(config.base.Configure):
           flags.append('-g')
           flags.append('-O3')
       # Windows Intel
-      elif compiler.find('win32fe icl') >= 0:
+      elif 'win_icl' in compiler or re_win32fe_icl.search(compiler):
         if bopt == '':
           flags.extend(['-Qstd=c99'])
           if self.argDB['with-shared-libraries']:
@@ -72,21 +73,21 @@ class CompilerOptions(config.base.Configure):
         elif bopt == 'O':
           flags.extend(['-O3', '-QxW'])
       # Windows Microsoft
-      elif compiler.find('win32fe cl') >= 0:
+      elif 'win_cl' in compiler or re_win32fe_cl.search(compiler):
         if bopt == '':
           dir(self)
+          # cause compiler to generate only a single copy of static strings; needed usage of __func__ in PETSc
+          flags.extend(['-GF'])
           if self.argDB['with-shared-libraries']:
             flags.extend(['-MD','-wd4996'])
           else:
             flags.extend(['-MT','-wd4996'])
+          # cause compiler to handle preprocessor per the standard https://docs.microsoft.com/en-us/cpp/build/reference/zc-preprocessor?view=msvc-170
+          flags.extend(['-Zc:preprocessor ','-experimental:preprocessor'])
         elif bopt == 'g':
           flags.extend(['-Z7','-Od'])
         elif bopt == 'O':
           flags.extend(['-O2', '-QxW'])
-      # Windows Borland
-      elif compiler.find('win32fe bcc32') >= 0:
-        if bopt == '':
-          flags.append('-RT -w-8019 -w-8060 -w-8057 -w-8004 -w-8066')
       elif config.setCompilers.Configure.isNVCC(compiler, self.log):
         if bopt == 'g':
           # nvcc --help says:
@@ -115,7 +116,7 @@ class CompilerOptions(config.base.Configure):
       elif bopt == 'O':
         flags.append('-O')
     if bopt == 'O':
-      self.logPrintBox('***** WARNING: Using default optimization '+language+' flags '+' '.join(flags)+'\nYou might consider manually setting optimal optimization flags for your system with\n '+language.upper()+'OPTFLAGS="optimization flags" see config/examples/arch-*-opt.py for examples')
+      self.logPrintWarning('Using default optimization '+language+' flags "'+' '.join(flags)+'". You might consider manually setting optimal optimization flags for your system with '+language.upper()+'OPTFLAGS="optimization flags" see config/examples/arch-*-opt.py for examples')
     return flags
 
   def getCxxFlags(self, compiler, bopt, language):
@@ -134,7 +135,9 @@ class CompilerOptions(config.base.Configure):
     # GNU g++
     if config.setCompilers.Configure.isGNU(compiler, self.log) or config.setCompilers.Configure.isClang(compiler, self.log):
       if bopt == '':
-        flags.extend(['-Wall', '-Wwrite-strings', '-Wno-strict-aliasing','-Wno-unknown-pragmas'])
+        flags.extend(['-Wall', '-Wwrite-strings', '-Wno-strict-aliasing', '-Wno-unknown-pragmas', '-Wno-lto-type-mismatch'])
+        if config.setCompilers.Configure.isGNU(compiler, self.log):
+          flags.extend(['-Wno-psabi'])
         if not any([
             # skip -fstack-protector for brew gcc - as this gives SEGV
             config.setCompilers.Configure.isDarwin(self.log) and config.setCompilers.Configure.isGNU(compiler, self.log),
@@ -148,9 +151,6 @@ class CompilerOptions(config.base.Configure):
         # flags.extend([('-x','c++')])
         if self.argDB['with-visibility']:
           flags.extend(['-fvisibility=hidden'])
-        arg = nargs.Arg.findArgument('with-errorchecking', self.clArgs)
-        if not nargs.ArgBool('with-errorchecking', arg if arg is not None else '1', isTemporary=True).getValue():
-          flags.extend(['-Wno-unused-but-set-variable'])
       elif bopt in ['g']:
         # -g3 causes an as SEGV on OSX
         if config.setCompilers.Configure.isHIP(compiler, self.log):
@@ -158,8 +158,6 @@ class CompilerOptions(config.base.Configure):
           flags.extend(['-g'])
         else:
           flags.extend(['-g','-O0'])
-      elif bopt == 'gcov':
-        flags.extend(['--coverage','-Og'])
       elif bopt in ['O']:
         flags.append('-g')
         if 'USER' in os.environ:
@@ -186,7 +184,7 @@ class CompilerOptions(config.base.Configure):
           flags.append('-g')
           flags.append('-O3')
       # Windows Intel
-      elif compiler.find('win32fe icl') >= 0:
+      elif 'win_icl' in compiler or re_win32fe_icl.search(compiler):
         if bopt == '':
           if self.argDB['with-shared-libraries']:
             flags.extend(['-MD','-GR','-EHsc'])
@@ -197,20 +195,24 @@ class CompilerOptions(config.base.Configure):
         elif bopt in ['O']:
           flags.extend(['-O3', '-QxW'])
       # Windows Microsoft
-      elif compiler.find('win32fe cl') >= 0:
+      elif 'win_cl' in compiler or re_win32fe_cl.search(compiler):
         if bopt == '':
+          # cause compiler to generate only a single copy of static strings; needed usage of __func__ in PETSc
+          flags.extend(['-GF'])
           if self.argDB['with-shared-libraries']:
             flags.extend(['-MD','-GR','-EHsc'])
           else:
             flags.extend(['-MT','-GR','-EHsc']) # removing GX in favor of EHsc
+          # cause compiler to handle preprocessor per the standard https://docs.microsoft.com/en-us/cpp/build/reference/zc-preprocessor?view=msvc-170
+          flags.extend(['-Zc:preprocessor ','-experimental:preprocessor'])
+          # cause compiler to emit the correct value for __cplusplus macro as per the
+          # standard
+          # https://learn.microsoft.com/en-us/cpp/build/reference/zc-cplusplus?view=msvc-170
+          flags.extend(['-Zc:__cplusplus'])
         elif bopt == 'g':
           flags.extend(['-Z7','-Zm200','-Od'])
         elif bopt == 'O':
           flags.extend(['-O2','-QxW','-Zm200'])
-      # Windows Borland
-      elif compiler.find('win32fe bcc32') >= 0:
-        if bopt == '':
-          flags.append('-RT -w-8019 -w-8060 -w-8057 -w-8004 -w-8066')
       # NEC
       elif config.setCompilers.Configure.isNEC(compiler, self.log):
         if bopt == '':
@@ -232,7 +234,7 @@ class CompilerOptions(config.base.Configure):
       elif bopt in ['O']:
         flags.append('-O')
     if bopt == 'O':
-      self.logPrintBox('***** WARNING: Using default ' + language + ' optimization flags '+' '.join(flags)+'\nYou might consider manually setting optimal optimization flags for your system with\n ' + language.upper() + 'OPTFLAGS="optimization flags" see config/examples/arch-*-opt.py for examples')
+      self.logPrintWarning('Using default ' + language + ' optimization flags "'+' '.join(flags)+'". You might consider manually setting optimal optimization flags for your system with ' + language.upper() + 'OPTFLAGS="optimization flags" see config/examples/arch-*-opt.py for examples')
     return flags
 
   def getFortranFlags(self, compiler, bopt):
@@ -249,18 +251,18 @@ class CompilerOptions(config.base.Configure):
     flags = []
     if config.setCompilers.Configure.isGNU(compiler, self.log):
       if bopt == '':
-        flags.extend(['-Wall', '-ffree-line-length-0'])
+        flags.extend(['-Wall', '-ffree-line-length-none', '-ffree-line-length-0', '-Wno-lto-type-mismatch'])
         if config.setCompilers.Configure.isGfortran46plus(compiler, self.log):
           flags.extend(['-Wno-unused-dummy-argument']) # Silence warning because dummy parameters are sometimes necessary
         if not config.setCompilers.Configure.isGfortran47plus(compiler, self.log):
           flags.extend(['-Wno-unused-variable']) # older gfortran warns about unused common block constants
         if config.setCompilers.Configure.isGfortran45x(compiler, self.log):
           flags.extend(['-Wno-line-truncation']) # Work around bug in this series, fixed in 4.6: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=42852
+        if config.setCompilers.Configure.isMINGW(compiler, self.log):
+          flags.extend(['-fallow-invalid-boz'])
       elif bopt == 'g':
         # g77 3.2.3 preprocesses the file into nothing if we give -g3
         flags.extend(['-g','-O0'])
-      elif bopt == 'gcov':
-        flags.extend(['--coverage','-Og'])
       elif bopt == 'O':
         flags.append('-g')
         flags.extend(['-O'])
@@ -280,7 +282,7 @@ class CompilerOptions(config.base.Configure):
           flags.append('-g')
           flags.append('-O3')
       # Windows Intel
-      elif compiler.find('win32fe ifl') >= 0 or compiler.find('win32fe ifort') >= 0:
+      elif 'win_ifort' in compiler or re_win32fe_ifort.search(compiler):
         if bopt == '':
           if self.argDB['with-shared-libraries']:
             flags.extend(['-MD'])
@@ -290,20 +292,13 @@ class CompilerOptions(config.base.Configure):
          flags.extend(['-Z7','-Od'])
         elif bopt == 'O':
           flags.extend(['-O3', '-QxW'])
-      # Compaq Visual FORTRAN
-      elif compiler.find('win32fe f90') >= 0 or compiler.find('win32fe df') >= 0:
-        if bopt == '':
-          flags.append('-threads')
-        elif bopt == 'g':
-          flags.extend(['-debug:full','-Od'])
-        elif bopt == 'O':
-          flags.extend(['-optimize:5', '-fast'])
       # NEC
       elif config.setCompilers.Configure.isNEC(compiler, self.log):
         if bopt == '':
           flags.extend(['-Wall', '-fdiag-vector=0', '-fdiag-parallel=0', '-fdiag-inline=0'])
         elif bopt == 'O':
           flags.append('-O2')
+          flags.append('-fno-reciprocal-math')
         elif bopt == 'g':
           flags.append('-g')
           flags.append('-traceback=verbose')
@@ -315,14 +310,13 @@ class CompilerOptions(config.base.Configure):
       elif bopt == 'O':
         flags.append('-O')
     if bopt == 'O':
-      self.logPrintBox('***** WARNING: Using default FORTRAN optimization flags '+' '.join(flags)+'\nYou might consider manually setting optimal optimization flags for your system with\n FOPTFLAGS="optimization flags" see config/examples/arch-*-opt.py for examples')
+      self.logPrintWarning('Using default FORTRAN optimization flags "'+' '.join(flags)+'". You might consider manually setting optimal optimization flags for your system with FOPTFLAGS="optimization flags" see config/examples/arch-*-opt.py for examples')
     return flags
 
   def getCompilerFlags(self, language, compiler, bopt):
-    if bopt == 'gcov' and (language == 'CUDA' or language == 'HIP' or language == 'SYCL'):
-      return ''
-    if bopt == 'gcov' and not config.setCompilers.Configure.isGNU(compiler, self.log) and not config.setCompilers.Configure.isClang(compiler, self.log):
-      raise RuntimeError('Have --with-gcov but the compiler is neither GCC nor Clang, we do not know how to do gcov with other compilers')
+    if bopt == 'gcov':
+      raise RuntimeError('Internal error! bopt = gcov is deprecated')
+
     flags = ''
     if language == 'C' or language == 'CUDA':
       flags = self.getCFlags(compiler, bopt, language)
@@ -366,6 +360,9 @@ class CompilerOptions(config.base.Configure):
           #PGI/Windows writes an empty '\r\n' on the first line of output
           if output.count('\n') > 1 and output.split('\n')[0] == '\r':
             version = output.split('\r\n')[1]
+          #NVCC
+          elif output.find('Cuda compiler driver') >= 0:
+            version = output.split('\n')[3]
           else:
             version = output.split('\n')[0]
 
