@@ -214,13 +214,15 @@ PETSC_EXTERN PetscErrorCode PetscOptionsGetViewer(MPI_Comm, PetscOptions, const 
 #define PetscOptionsViewer(a, b, c, d, e, f) PetscOptionsViewer_Private(PetscOptionsObject, a, b, c, d, e, f)
 PETSC_EXTERN PetscErrorCode PetscOptionsViewer_Private(PetscOptionItems *, const char[], const char[], const char[], PetscViewer *, PetscViewerFormat *, PetscBool *);
 
-typedef struct {
+typedef struct PetscViewerAndFormat_ PetscViewerAndFormat;
+struct PetscViewerAndFormat_ {
   PetscViewer       viewer;
   PetscViewerFormat format;
   PetscDrawLG       lg;
   PetscInt          view_interval;
-  void             *data;
-} PetscViewerAndFormat;
+  PetscErrorCode (*data_destroy)(PetscViewerAndFormat *); // callback to destroy data
+  void *data;
+};
 PETSC_EXTERN PetscErrorCode PetscViewerAndFormatCreate(PetscViewer, PetscViewerFormat, PetscViewerAndFormat **);
 PETSC_EXTERN PetscErrorCode PetscViewerAndFormatDestroy(PetscViewerAndFormat **);
 
