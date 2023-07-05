@@ -51,6 +51,7 @@ static PetscErrorCode TSAdaptSetDefaultType(TSAdapt adapt, TSAdaptType default_t
 .  -ts_fd_color - Use finite differences with coloring to compute IJacobian
 .  -ts_monitor - print information at each timestep
 .  -ts_monitor_cancel - Cancel all monitors
+   -ts_monitor_speed - Monitor solver speed in terms of wall-clock time
 .  -ts_monitor_lg_solution - Monitor solution graphically
 .  -ts_monitor_lg_error - Monitor error graphically
 .  -ts_monitor_error - Monitors norm of error
@@ -138,6 +139,7 @@ PetscErrorCode TSSetFromOptions(TS ts)
   /* Monitor options */
   PetscCall(PetscOptionsInt("-ts_monitor_frequency", "Number of time steps between monitor output", "TSMonitorSetFrequency", ts->monitorFrequency, &ts->monitorFrequency, NULL));
   PetscCall(TSMonitorSetFromOptions(ts, "-ts_monitor", "Monitor time and timestep size", "TSMonitorDefault", TSMonitorDefault, NULL));
+  PetscCall(TSMonitorSetFromOptions(ts, "-ts_monitor_speed", "Monitor solver speed in terms of wall-clock time", "TSMonitorSpeed", TSMonitorSpeed, TSMonitorSpeedSetUp));
   PetscCall(TSMonitorSetFromOptions(ts, "-ts_monitor_extreme", "Monitor extreme values of the solution", "TSMonitorExtreme", TSMonitorExtreme, NULL));
   PetscCall(TSMonitorSetFromOptions(ts, "-ts_monitor_solution", "View the solution at each timestep", "TSMonitorSolution", TSMonitorSolution, NULL));
   PetscCall(TSMonitorSetFromOptions(ts, "-ts_dmswarm_monitor_moments", "Monitor moments of particle distribution", "TSDMSwarmMonitorMoments", TSDMSwarmMonitorMoments, NULL));
