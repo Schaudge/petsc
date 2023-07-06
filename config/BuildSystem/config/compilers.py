@@ -1455,6 +1455,24 @@ Otherwise you need a different combination of C, C++, and Fortran compilers")
     if self.checkCompile(includes, body):
       self.addDefine('HAVE_STATIC_ASSERT_WITH_MESSAGE', 1)
 
+  def check_Alignof(self):
+    includes = """
+    """
+    body = """
+    (void)_Alignof(char);
+    """
+    if self.checkCompile(includes, body):
+      self.addDefine('HAVE__ALIGNOF', 1)
+
+  def checkAlignof(self):
+    includes = """
+    """
+    body = """
+    (void)alignof(char);
+    """
+    if self.checkCompile(includes, body):
+      self.addDefine('HAVE_ALIGNOF', 1)
+
   def configure(self):
     import config.setCompilers
     if hasattr(self.setCompilers, 'CC'):
@@ -1465,6 +1483,8 @@ Otherwise you need a different combination of C, C++, and Fortran compilers")
       self.executeTest(self.checkStdAtomic)
       self.executeTest(self.checkStatic_assert)
       self.executeTest(self.check_Static_assert)
+      self.executeTest(self.check_Alignof)
+      self.executeTest(self.checkAlignof)
       if self.argDB['with-clib-autodetect']:
         self.executeTest(self.checkCLibraries)
       self.executeTest(self.checkDependencyGenerationFlag)
