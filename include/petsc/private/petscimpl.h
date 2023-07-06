@@ -16,7 +16,7 @@
   #define PETSC_STATIC_ASSERT(cond, msg) (void)(cond)
 #endif
 
-#if defined(__cpluslus) || defined(PETSC_HAVE_ALIGNOF)
+#if defined(__cplusplus) || defined(PETSC_HAVE_ALIGNOF)
   #define PETSC_ALIGNOF(expr) alignof(expr)
 #elif defined(PETSC_HAVE__ALIGNOF)
   #define PETSC_ALIGNOF(expr) _Alignof(expr)
