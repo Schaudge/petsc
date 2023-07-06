@@ -1443,7 +1443,7 @@ Otherwise you need a different combination of C, C++, and Fortran compilers")
     body = """
     _Static_assert(1 == 1, "Tautology");
     """
-    if self.checkCompile(includes, body):
+    if self.checkLink(includes, body):
       self.addDefine('HAVE__STATIC_ASSERT_WITH_MESSAGE', 1)
 
   def checkStatic_assert(self):
@@ -1452,7 +1452,7 @@ Otherwise you need a different combination of C, C++, and Fortran compilers")
     body = """
     static_assert(1 == 1, "Tautology");
     """
-    if self.checkCompile(includes, body):
+    if self.checkLink(includes, body):
       self.addDefine('HAVE_STATIC_ASSERT_WITH_MESSAGE', 1)
 
   def check_Alignof(self):
