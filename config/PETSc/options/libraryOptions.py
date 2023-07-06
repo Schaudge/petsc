@@ -99,10 +99,12 @@ class Configure(config.base.Configure):
       max_value = 'UCHAR_MAX'
       mpi_type = 'MPI_UNSIGNED_CHAR'
       type_f = 'integer1'
+      self.addDefine('IS_COLORING_VALUE_CHAR',1)
     else:
       max_value = 'USHRT_MAX'
       mpi_type = 'MPI_UNSIGNED_SHORT'
       type_f = 'integer2'
+      self.addDefine('IS_COLORING_VALUE_SHORT',1)
 
     self.addDefine('MPIU_IS_COLORING_VALUE_TYPE',mpi_type)
     self.addDefine('IS_COLORING_MAX',max_value)
