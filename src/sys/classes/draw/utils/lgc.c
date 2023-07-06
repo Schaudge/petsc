@@ -197,7 +197,7 @@ PetscErrorCode PetscDrawLGSetColors(PetscDrawLG lg, const int colors[])
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(lg, PETSC_DRAWLG_CLASSID, 1);
-  if (lg->dim) PetscValidIntPointer(colors, 2);
+  if (lg->dim) PetscValidSystemIntPointer(colors, 2);
 
   PetscCall(PetscFree(lg->colors));
   PetscCall(PetscMalloc1(lg->dim, &lg->colors));

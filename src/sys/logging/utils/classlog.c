@@ -266,7 +266,7 @@ PetscErrorCode PetscClassRegLogGetClass(PetscClassRegLog classLog, PetscClassId 
   int c;
 
   PetscFunctionBegin;
-  PetscValidIntPointer(oclass, 3);
+  PetscValidSystemIntPointer(oclass, 3);
   for (c = 0; c < classLog->numClasses; c++) {
     /* Could do bisection here */
     if (classLog->classInfo[c].classid == classid) break;

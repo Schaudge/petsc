@@ -989,7 +989,7 @@ PetscErrorCode TaoLineSearchGetSolution(TaoLineSearch ls, Vec x, PetscReal *f, V
   PetscValidHeaderSpecific(x, VEC_CLASSID, 2);
   PetscValidRealPointer(f, 3);
   PetscValidHeaderSpecific(g, VEC_CLASSID, 4);
-  PetscValidIntPointer(reason, 6);
+  PetscValidEnumPointer(reason, 6);
   if (ls->new_x) PetscCall(VecCopy(ls->new_x, x));
   *f = ls->new_f;
   if (ls->new_g) PetscCall(VecCopy(ls->new_g, g));

@@ -171,7 +171,7 @@ PetscErrorCode PetscStageLogRegister(PetscStageLog stageLog, const char sname[],
 
   PetscFunctionBegin;
   PetscValidCharPointer(sname, 2);
-  PetscValidIntPointer(stage, 3);
+  PetscValidSystemIntPointer(stage, 3);
   /* Check stage already registered */
   for (s = 0; s < stageLog->numStages; ++s) {
     PetscBool same;
@@ -528,7 +528,7 @@ PetscErrorCode PetscStageLogGetStage(PetscStageLog stageLog, const char name[], 
 
   PetscFunctionBegin;
   PetscValidCharPointer(name, 2);
-  PetscValidIntPointer(stage, 3);
+  PetscValidSystemIntPointer(stage, 3);
   *stage = -1;
   for (s = 0; s < stageLog->numStages; s++) {
     PetscCall(PetscStrcasecmp(stageLog->stageInfo[s].name, name, &match));

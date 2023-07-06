@@ -416,6 +416,22 @@ PETSC_EXTERN PetscBool PetscCheckPointer(const void *, PetscDataType);
       do { \
         (void)(h); \
       } while (0)
+    #define PetscValidSystemIntPointer(h, arg) \
+      do { \
+        (void)(h); \
+      } while (0)
+    #define PetscValidMPIIntPointer(h, arg) \
+      do { \
+        (void)(h); \
+      } while (0)
+    #define PetscValidEnumPointer(h, arg) \
+      do { \
+        (void)(h); \
+      } while (0)
+    #define PetscValidShortPointer(h, arg) \
+      do { \
+        (void)(h); \
+      } while (0)
     #define PetscValidFunction(h, arg) \
       do { \
         (void)(h); \
@@ -455,19 +471,23 @@ PETSC_EXTERN PetscBool PetscCheckPointer(const void *, PetscDataType);
       } while (0)
 
     #define PetscValidTypePointerWithStaticAssert(h, arg, PETSC_TYPE, type) \
-    do { \
-      PETSC_STATIC_ASSERT(PETSC_ALIGNOF(*(h)) >= PETSC_ALIGNOF(type), "Pointer has a smaller alignment than the target type"); \
-      PetscValidPointer_Internal(h, arg, PETSC_TYPE, type); \
-    } while(0)
+      do { \
+        PETSC_STATIC_ASSERT(PETSC_ALIGNOF(*(h)) >= PETSC_ALIGNOF(type), "Pointer has a smaller alignment than the target type"); \
+        PetscValidPointer_Internal(h, arg, PETSC_TYPE, type); \
+      } while (0)
 
-    #define PetscValidPointer(h, arg)       PetscValidPointer_Internal(h, arg, PETSC_CHAR, memory)
-    #define PetscValidCharPointer(h, arg)   PetscValidPointer_Internal(h, arg, PETSC_CHAR, char)
-    #define PetscValidIntPointer(h, arg)    PetscValidTypePointerWithStaticAssert(h, arg, PETSC_INT, PetscInt)
-    #define PetscValidInt64Pointer(h, arg)  PetscValidTypePointerWithStaticAssert(h, arg, PETSC_INT64, PetscInt64)
-    #define PetscValidCountPointer(h, arg)  PetscValidTypePointerWithStaticAssert(h, arg, PETSC_COUNT, PetscCount)
-    #define PetscValidBoolPointer(h, arg)   PetscValidTypePointerWithStaticAssert(h, arg, PETSC_BOOL, PetscBool)
-    #define PetscValidScalarPointer(h, arg) PetscValidTypePointerWithStaticAssert(h, arg, PETSC_SCALAR, PetscScalar)
-    #define PetscValidRealPointer(h, arg)   PetscValidTypePointerWithStaticAssert(h, arg, PETSC_REAL, PetscReal)
+    #define PetscValidPointer(h, arg)          PetscValidPointer_Internal(h, arg, PETSC_CHAR, memory)
+    #define PetscValidCharPointer(h, arg)      PetscValidPointer_Internal(h, arg, PETSC_CHAR, char)
+    #define PetscValidIntPointer(h, arg)       PetscValidTypePointerWithStaticAssert(h, arg, PETSC_INT, PetscInt)
+    #define PetscValidInt64Pointer(h, arg)     PetscValidTypePointerWithStaticAssert(h, arg, PETSC_INT64, PetscInt64)
+    #define PetscValidCountPointer(h, arg)     PetscValidTypePointerWithStaticAssert(h, arg, PETSC_COUNT, PetscCount)
+    #define PetscValidBoolPointer(h, arg)      PetscValidTypePointerWithStaticAssert(h, arg, PETSC_BOOL, PetscBool)
+    #define PetscValidScalarPointer(h, arg)    PetscValidTypePointerWithStaticAssert(h, arg, PETSC_SCALAR, PetscScalar)
+    #define PetscValidRealPointer(h, arg)      PetscValidTypePointerWithStaticAssert(h, arg, PETSC_REAL, PetscReal)
+    #define PetscValidSystemIntPointer(h, arg) PetscValidTypePointerWithStaticAssert(h, arg, PETSC_SYSTEM_INT, int)
+    #define PetscValidMPIIntPointer(h, arg)    PetscValidTypePointerWithStaticAssert(h, arg, PETSC_MPIINT, PetscMPIInt)
+    #define PetscValidEnumPointer(h, arg)      PetscValidTypePointerWithStaticAssert(h, arg, PETSC_ENUM, PetscEnum)
+    #define PetscValidShortPointer(h, arg)     PetscValidTypePointerWithStaticAssert(h, arg, PETSC_SHORT, short)
 
     #define PetscValidFunction(f, arg) \
       do { \
@@ -500,8 +520,24 @@ void PetscValidScalarPointer(T *, int);
 template <typename T>
 void PetscValidRealPointer(T *, int);
 template <typename T>
+void PetscValidSystemIntPointer(T *, int);
+template <typename T>
+void PetscValidMPIIntPointer(T *, int);
+template <typename T>
+void PetscValidEnumPointer(T *, int);
+template <typename T>
+void PetscValidShortPointer(T *, int);
+template <typename T>
 void PetscValidFunction(T, int);
 #endif /* PETSC_CLANG_STATIC_ANALYZER */
+
+#if defined(PETSC_IS_COLORING_VALUE_CHAR)
+  #define PetscValidISColoringValuePointer(h, arg) PetscValidCharPointer(h, arg)
+#elif defined(PETSC_IS_COLORING_VALUE_SHORT)
+  #define PetscValidISColoringValuePointer(h, arg) PetscValidShortPointer(h, arg)
+#else
+  #define PetscValidISColoringValuePointer(h, arg) PetscValidPointer(h, arg)
+#endif
 
 #define PetscSorted(n, idx, sorted) \
   do { \

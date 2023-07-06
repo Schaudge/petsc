@@ -211,7 +211,7 @@ PetscErrorCode PetscDeviceContextGetStreamType(PetscDeviceContext dctx, PetscStr
 {
   PetscFunctionBegin;
   PetscCall(PetscDeviceContextGetOptionalNullContext_Internal(&dctx));
-  PetscValidIntPointer(type, 2);
+  PetscValidEnumPointer(type, 2);
   *type = dctx->streamType;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

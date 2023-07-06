@@ -8122,7 +8122,7 @@ PetscErrorCode MatColoringPatch(Mat mat, PetscInt ncolors, PetscInt n, ISColorin
   PetscFunctionBegin;
   PetscValidHeaderSpecific(mat, MAT_CLASSID, 1);
   PetscValidType(mat, 1);
-  PetscValidIntPointer(colorarray, 4);
+  PetscValidISColoringValuePointer(colorarray, 4);
   PetscValidPointer(iscoloring, 5);
   MatCheckPreallocated(mat, 1);
 

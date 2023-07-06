@@ -2871,7 +2871,7 @@ PetscErrorCode PCFieldSplitGetType(PC pc, PCCompositeType *type)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(pc, PC_CLASSID, 1);
-  PetscValidIntPointer(type, 2);
+  PetscValidEnumPointer(type, 2);
   *type = jac->type;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

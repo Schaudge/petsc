@@ -3793,7 +3793,7 @@ PetscErrorCode VecLockGetLocation(Vec x, const char *file[], const char *func[],
   PetscValidHeaderSpecific(x, VEC_CLASSID, 1);
   PetscValidPointer(file, 2);
   PetscValidPointer(func, 3);
-  PetscValidIntPointer(line, 4);
+  PetscValidSystemIntPointer(line, 4);
   #if !PetscDefined(HAVE_THREADSAFETY)
   {
     const int index = x->lockstack.currentsize - 1;

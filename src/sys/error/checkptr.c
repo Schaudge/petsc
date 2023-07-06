@@ -92,10 +92,12 @@ PetscBool PetscCheckPointer(const void *ptr, PetscDataType dtype)
       PETSC_UNUSED PetscInt x = (PetscInt) * (volatile PetscInt *)ptr;
       break;
     }
+    // clang-format off
     case PETSC_SYSTEM_INT: {
       PETSC_UNUSED int x = (int) * (volatile int *)ptr;
       break;
     }
+    // clang-format on
     case PETSC_MPIINT: {
       PETSC_UNUSED PetscMPIInt x = (PetscMPIInt) * (volatile PetscMPIInt *)ptr;
       break;

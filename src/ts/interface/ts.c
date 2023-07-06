@@ -2492,7 +2492,7 @@ PetscErrorCode TSGetProblemType(TS ts, TSProblemType *type)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ts, TS_CLASSID, 1);
-  PetscValidIntPointer(type, 2);
+  PetscValidEnumPointer(type, 2);
   *type = ts->problem_type;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

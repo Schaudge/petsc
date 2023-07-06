@@ -589,7 +589,7 @@ PetscErrorCode PetscFindMPIInt(PetscMPIInt key, PetscInt n, const PetscMPIInt X[
     *loc = -1;
     PetscFunctionReturn(PETSC_SUCCESS);
   }
-  PetscValidIntPointer(X, 3);
+  PetscValidMPIIntPointer(X, 3);
   PetscCheckSorted(n, X);
   while (hi - lo > 1) {
     PetscInt mid = lo + (hi - lo) / 2;

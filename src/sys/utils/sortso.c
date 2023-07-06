@@ -1240,7 +1240,7 @@ PetscErrorCode PetscMPIIntSortSemiOrdered(PetscInt n, PetscMPIInt arr[])
 {
   PetscFunctionBegin;
   if (n <= 1) PetscFunctionReturn(PETSC_SUCCESS);
-  PetscValidIntPointer(arr, 2);
+  PetscValidMPIIntPointer(arr, 2);
   if (n < 64) {
     PetscCall(PetscSortMPIInt(n, arr));
   } else {
@@ -1277,8 +1277,8 @@ PetscErrorCode PetscMPIIntSortSemiOrderedWithArray(PetscInt n, PetscMPIInt arr1[
 {
   PetscFunctionBegin;
   if (n <= 1) PetscFunctionReturn(PETSC_SUCCESS);
-  PetscValidIntPointer(arr1, 2);
-  PetscValidIntPointer(arr2, 3);
+  PetscValidMPIIntPointer(arr1, 2);
+  PetscValidMPIIntPointer(arr2, 3);
   /* cannot export out to PetscMPIIntSortWithArray here since it isn't stable */
   PetscCall(PetscTimSortWithArray(n, arr1, sizeof(PetscMPIInt), arr2, sizeof(PetscMPIInt), Compare_PetscMPIInt_Private, NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
