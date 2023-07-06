@@ -454,14 +454,20 @@ PETSC_EXTERN PetscBool PetscCheckPointer(const void *, PetscDataType);
         PetscCheck(((PetscObject)(h))->classid >= PETSC_SMALLEST_CLASSID && ((PetscObject)(h))->classid <= PETSC_LARGEST_CLASSID, PETSC_COMM_SELF, PETSC_ERR_ARG_CORRUPT, "Invalid type of object: Parameter # %d", arg); \
       } while (0)
 
+    #define PetscValidTypePointerWithStaticAssert(h, arg, PETSC_TYPE, type) \
+    do { \
+      PETSC_STATIC_ASSERT(PETSC_ALIGNOF(*(h)) >= PETSC_ALIGNOF(type), "Pointer has a smaller alignment than the target type"); \
+      PetscValidPointer_Internal(h, arg, PETSC_TYPE, type); \
+    } while(0)
+
     #define PetscValidPointer(h, arg)       PetscValidPointer_Internal(h, arg, PETSC_CHAR, memory)
     #define PetscValidCharPointer(h, arg)   PetscValidPointer_Internal(h, arg, PETSC_CHAR, char)
-    #define PetscValidIntPointer(h, arg)    PetscValidPointer_Internal(h, arg, PETSC_INT, PetscInt)
-    #define PetscValidInt64Pointer(h, arg)  PetscValidPointer_Internal(h, arg, PETSC_INT64, PetscInt)
-    #define PetscValidCountPointer(h, arg)  PetscValidPointer_Internal(h, arg, PETSC_COUNT, PetscCount)
-    #define PetscValidBoolPointer(h, arg)   PetscValidPointer_Internal(h, arg, PETSC_BOOL, PetscBool)
-    #define PetscValidScalarPointer(h, arg) PetscValidPointer_Internal(h, arg, PETSC_SCALAR, PetscScalar)
-    #define PetscValidRealPointer(h, arg)   PetscValidPointer_Internal(h, arg, PETSC_REAL, PetscReal)
+    #define PetscValidIntPointer(h, arg)    PetscValidTypePointerWithStaticAssert(h, arg, PETSC_INT, PetscInt)
+    #define PetscValidInt64Pointer(h, arg)  PetscValidTypePointerWithStaticAssert(h, arg, PETSC_INT64, PetscInt64)
+    #define PetscValidCountPointer(h, arg)  PetscValidTypePointerWithStaticAssert(h, arg, PETSC_COUNT, PetscCount)
+    #define PetscValidBoolPointer(h, arg)   PetscValidTypePointerWithStaticAssert(h, arg, PETSC_BOOL, PetscBool)
+    #define PetscValidScalarPointer(h, arg) PetscValidTypePointerWithStaticAssert(h, arg, PETSC_SCALAR, PetscScalar)
+    #define PetscValidRealPointer(h, arg)   PetscValidTypePointerWithStaticAssert(h, arg, PETSC_REAL, PetscReal)
 
     #define PetscValidFunction(f, arg) \
       do { \
