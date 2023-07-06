@@ -1437,6 +1437,24 @@ Otherwise you need a different combination of C, C++, and Fortran compilers")
       else:
         self.addDefine('HAVE_STDATOMIC_H', 1)
 
+  def check_Static_assert(self):
+    includes = """
+    """
+    body = """
+    _Static_assert(1 == 1, "Tautology");
+    """
+    if self.checkCompile(includes, body):
+      self.addDefine('HAVE__STATIC_ASSERT_WITH_MESSAGE', 1)
+
+  def checkStatic_assert(self):
+    includes = """
+    """
+    body = """
+    static_assert(1 == 1, "Tautology");
+    """
+    if self.checkCompile(includes, body):
+      self.addDefine('HAVE_STATIC_ASSERT_WITH_MESSAGE', 1)
+
   def configure(self):
     import config.setCompilers
     if hasattr(self.setCompilers, 'CC'):
@@ -1445,6 +1463,8 @@ Otherwise you need a different combination of C, C++, and Fortran compilers")
       self.executeTest(self.checkCFormatting)
       self.executeTest(self.checkDynamicLoadFlag)
       self.executeTest(self.checkStdAtomic)
+      self.executeTest(self.checkStatic_assert)
+      self.executeTest(self.check_Static_assert)
       if self.argDB['with-clib-autodetect']:
         self.executeTest(self.checkCLibraries)
       self.executeTest(self.checkDependencyGenerationFlag)

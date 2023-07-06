@@ -8,6 +8,14 @@
 
 /* SUBMANSEC = Sys */
 
+#if defined(__cplusplus) || defined(PETSC_HAVE_STATIC_ASSERT_WITH_MESSAGE)
+  #define PETSC_STATIC_ASSERT(cond, msg) static_assert(cond, msg)
+#elif defined(PETSC_HAVE__STATIC_ASSERT_WITH_MESSAGE)
+  #define PETSC_STATIC_ASSERT(cond, msg) _Static_assert(cond, msg)
+#else
+  #define PETSC_STATIC_ASSERT(cond, msg) (void)(cond)
+#endif
+
 #if defined(PETSC_CLANG_STATIC_ANALYZER)
   #define PetscDisableStaticAnalyzerForExpressionUnderstandingThatThisIsDangerousAndBugprone(...)
 #else
