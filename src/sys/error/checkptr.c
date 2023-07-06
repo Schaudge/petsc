@@ -92,6 +92,14 @@ PetscBool PetscCheckPointer(const void *ptr, PetscDataType dtype)
       PETSC_UNUSED PetscInt x = (PetscInt) * (volatile PetscInt *)ptr;
       break;
     }
+    case PETSC_SYSTEM_INT: {
+      PETSC_UNUSED int x = (int) * (volatile int *)ptr;
+      break;
+    }
+    case PETSC_MPIINT: {
+      PETSC_UNUSED PetscMPIInt x = (PetscMPIInt) * (volatile PetscMPIInt *)ptr;
+      break;
+    }
   #if defined(PETSC_USE_COMPLEX)
     case PETSC_SCALAR: { /* C++ is seriously dysfunctional with volatile std::complex. */
     #if defined(PETSC_USE_CXXCOMPLEX)

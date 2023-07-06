@@ -685,6 +685,8 @@ typedef enum {
   PETSC_INT64            = 17,
   PETSC_COUNT            = 18,
   PETSC_INT32            = 19,
+  PETSC_SYSTEM_INT       = 20,
+  PETSC_MPIINT           = 21,
 } PetscDataType;
 PETSC_EXTERN const char *const PetscDataTypes[];
 
