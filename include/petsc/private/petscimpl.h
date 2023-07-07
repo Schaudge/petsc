@@ -8,20 +8,30 @@
 
 /* SUBMANSEC = Sys */
 
-#if defined(__cplusplus) || defined(PETSC_HAVE_STATIC_ASSERT_WITH_MESSAGE)
+#if defined(__cplusplus)
+  // we require c++ >= c++11, so static_assert with two arguments is available
   #define PETSC_STATIC_ASSERT(cond, msg) static_assert(cond, msg)
-#elif defined(PETSC_HAVE__STATIC_ASSERT_WITH_MESSAGE)
-  #define PETSC_STATIC_ASSERT(cond, msg) _Static_assert(cond, msg)
 #else
-  #define PETSC_STATIC_ASSERT(cond, msg) (void)(cond)
+  #if PETSC_C_VERSION >= 11
+    // static_assert() either requires no header (c23) or is an alias of _Static_assert() in <assert.h>
+    #include <assert.h>
+    #define PETSC_STATIC_ASSERT(cond, msg) static_assert(cond, msg)
+  #else
+    #define PETSC_STATIC_ASSERT(cond, msg) (void)(cond)
+  #endif
 #endif
 
-#if defined(__cplusplus) || defined(PETSC_HAVE_ALIGNOF)
-  #define PETSC_ALIGNOF(expr) alignof(expr)
-#elif defined(PETSC_HAVE__ALIGNOF)
-  #define PETSC_ALIGNOF(expr) _Alignof(expr)
+#if defined(__cplusplus)
+  // we require c++ >= c++11, so static_assert with two arguments is available
+  #define PETSC_ALIGNOF(type) alignof(type)
 #else
-  #define PETSC_ALIGNOF(expr) PETSC_MEMALIGN
+  #if PETSC_C_VERSION >= 11
+    // alignof() either requires no header (c23) or is an alias of _Alignof() in <stdalign.h>
+    #include <stdalign.h>
+    #define PETSC_ALIGNOF(type) alignof(type)
+  #else
+    #define PETSC_ALIGNOF(expr) PETSC_MEMALIGN
+  #endif
 #endif
 
 #if defined(PETSC_CLANG_STATIC_ANALYZER)
