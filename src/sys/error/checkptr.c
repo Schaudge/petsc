@@ -89,17 +89,7 @@ PetscBool PetscCheckPointer(const void *ptr, PetscDataType dtype)
   } else {
     switch (dtype) {
     case PETSC_INT: {
-      PETSC_UNUSED PetscInt x = (PetscInt) * (volatile PetscInt *)ptr;
-      break;
-    }
-    // clang-format off
-    case PETSC_SYSTEM_INT: {
-      PETSC_UNUSED int x = (int) * (volatile int *)ptr;
-      break;
-    }
-    // clang-format on
-    case PETSC_MPIINT: {
-      PETSC_UNUSED PetscMPIInt x = (PetscMPIInt) * (volatile PetscMPIInt *)ptr;
+      PETSC_UNUSED PetscInt x = *(volatile PetscInt *)ptr;
       break;
     }
   #if defined(PETSC_USE_COMPLEX)

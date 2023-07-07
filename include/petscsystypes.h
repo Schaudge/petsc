@@ -685,8 +685,15 @@ typedef enum {
   PETSC_INT64            = 17,
   PETSC_COUNT            = 18,
   PETSC_INT32            = 19,
-  PETSC_SYSTEM_INT       = 20,
-  PETSC_MPIINT           = 21,
+#if PETSC_SIZEOF_INT == 4
+  PETSC_SYSTEM_INT = PETSC_INT32,
+  PETSC_MPIINT     = PETSC_INT32,
+#elif PETSC_SIZEOF_INT == 8
+  PETSC_SYSTEM_INT = PETSC_INT64,
+  PETSC_MPIINT     = PETSC_INT64
+#else
+  #error "PETSc requires int to be 4 bytes or 8 bytes"
+#endif
 } PetscDataType;
 PETSC_EXTERN const char *const PetscDataTypes[];
 
