@@ -1437,6 +1437,18 @@ Otherwise you need a different combination of C, C++, and Fortran compilers")
       else:
         self.addDefine('HAVE_STDATOMIC_H', 1)
 
+  def checkAlignofExpr(self):
+    includes = """
+    #include <stdalign.h>
+    """
+    body = """
+    int a = 0;
+    int *b = &a;
+    (void)alignof(*b);
+    """
+    if self.checkLink(includes, body):
+      self.addDefine('HAVE_C_ALIGNOF_EXPR', 1)
+
   def configure(self):
     import config.setCompilers
     if hasattr(self.setCompilers, 'CC'):
@@ -1445,6 +1457,7 @@ Otherwise you need a different combination of C, C++, and Fortran compilers")
       self.executeTest(self.checkCFormatting)
       self.executeTest(self.checkDynamicLoadFlag)
       self.executeTest(self.checkStdAtomic)
+      self.executeTest(self.checkAlignofExpr)
       if self.argDB['with-clib-autodetect']:
         self.executeTest(self.checkCLibraries)
       self.executeTest(self.checkDependencyGenerationFlag)

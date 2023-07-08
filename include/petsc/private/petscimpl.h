@@ -22,15 +22,23 @@
 #endif
 
 #if defined(__cplusplus)
-  // we require c++ >= c++11, so static_assert with two arguments is available
-  #define PETSC_ALIGNOF(type) alignof(type)
+  // we require c++ >= c++11, so alignof() and decltype() are available
+  #define PETSC_ALIGNOF(type)      alignof(type)
+  #define PETSC_ALIGNOF_EXPR(expr) alignof(decltype(expr))
 #else
   #if PETSC_C_VERSION >= 11
     // alignof() either requires no header (c23) or is an alias of _Alignof() in <stdalign.h>
     #include <stdalign.h>
     #define PETSC_ALIGNOF(type) alignof(type)
+    // alignof(expr) is a compiler extension, so we run a confgure check for it
+    #if defined(PETSC_HAVE_C_ALIGNOF_EXPR)
+      #define PETSC_ALIGNOF_EXPR(expr) alignof(expr)
+    #else
+      #define PETSC_ALIGNOF_EXPR(expr) PETSC_MEMALIGN
+    #endif
   #else
-    #define PETSC_ALIGNOF(expr) PETSC_MEMALIGN
+    #define PETSC_ALIGNOF(expr)      PETSC_MEMALIGN
+    #define PETSC_ALIGNOF_EXPR(expr) PETSC_MEMALIGN
   #endif
 #endif
 
@@ -482,7 +490,7 @@ PETSC_EXTERN PetscBool PetscCheckPointer(const void *, PetscDataType);
 
     #define PetscValidTypePointerWithStaticAssert(h, arg, PETSC_TYPE, type) \
       do { \
-        PETSC_STATIC_ASSERT(PETSC_ALIGNOF(*(h)) >= PETSC_ALIGNOF(type), "Pointer has a smaller alignment than the target type"); \
+        PETSC_STATIC_ASSERT(PETSC_ALIGNOF_EXPR(*(h)) >= PETSC_ALIGNOF(type), "Pointer has a smaller alignment than the target type"); \
         PetscValidPointer_Internal(h, arg, PETSC_TYPE, type); \
       } while (0)
 
