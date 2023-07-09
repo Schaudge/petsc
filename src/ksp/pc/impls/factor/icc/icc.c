@@ -63,6 +63,13 @@ static PetscErrorCode PCSetUp_ICC(PC pc)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode PCISSymmetric_ICC(PC pc, PetscBool3 *issym)
+{
+  PetscFunctionBegin;
+  *issym = PETSC_BOOL3_TRUE;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 static PetscErrorCode PCReset_ICC(PC pc)
 {
   PC_ICC *icc = (PC_ICC *)pc->data;
@@ -197,6 +204,7 @@ PETSC_EXTERN PetscErrorCode PCCreate_ICC(PC pc)
   pc->ops->matapply            = PCMatApply_ICC;
   pc->ops->applytranspose      = PCApply_ICC;
   pc->ops->setup               = PCSetUp_ICC;
+  pc->ops->issymmetric         = PCISSymmetric_ICC;
   pc->ops->reset               = PCReset_ICC;
   pc->ops->destroy             = PCDestroy_ICC;
   pc->ops->setfromoptions      = PCSetFromOptions_ICC;

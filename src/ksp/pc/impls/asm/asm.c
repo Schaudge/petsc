@@ -1241,6 +1241,7 @@ static PetscErrorCode PCIsSymmetric_ASM(PC pc, PetscBool3 *issym)
     *issym = PETSC_BOOL3_FALSE;
     PetscFunctionReturn(PETSC_SUCCESS);
   }
+  *issym = PETSC_BOOL3_TRUE;
   for (PetscInt i = 0; i < jac->n_local; i++) {
     PetscBool3 lissym;
     PC         subpc;
@@ -1250,6 +1251,8 @@ static PetscErrorCode PCIsSymmetric_ASM(PC pc, PetscBool3 *issym)
     if (lissym == PETSC_BOOL3_FALSE) {
       *issym = PETSC_BOOL3_FALSE;
       PetscFunctionReturn(PETSC_SUCCESS);
+    } else if (lissym == PETSC_BOOL3_UNKNOWN) {
+      *issym = PETSC_BOOL3_UNKNOWN;
     }
   }
   PetscFunctionReturn(PETSC_SUCCESS);

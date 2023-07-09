@@ -140,6 +140,13 @@ static PetscErrorCode PCSetUp_Cholesky(PC pc)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode PCISSymmetric_Cholesky(PC pc, PetscBool3 *issym)
+{
+  PetscFunctionBegin;
+  *issym = PETSC_BOOL3_TRUE;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 static PetscErrorCode PCReset_Cholesky(PC pc)
 {
   PC_Cholesky *dir = (PC_Cholesky *)pc->data;
@@ -301,6 +308,7 @@ PETSC_EXTERN PetscErrorCode PCCreate_Cholesky(PC pc)
   pc->ops->applysymmetricright = PCApplySymmetricRight_Cholesky;
   pc->ops->applytranspose      = PCApplyTranspose_Cholesky;
   pc->ops->setup               = PCSetUp_Cholesky;
+  pc->ops->issymmetric         = PCISSymmetric_Cholesky;
   pc->ops->setfromoptions      = PCSetFromOptions_Cholesky;
   pc->ops->view                = PCView_Factor;
   pc->ops->applyrichardson     = NULL;
