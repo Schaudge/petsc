@@ -328,6 +328,7 @@ static PetscErrorCode TSPostEvent(TS ts, PetscReal t, Vec U)
   if (event->postevent) {
     PetscCall(VecLockReadPush(U));
     PetscCall((*event->eventhandler)(ts, t, U, event->fvalue, event->ctx));
+    for (i = 0; i < event->nevents; i++) PetscCheck(!PetscIsInfOrNanReal(event->fvalue[i]), PETSC_COMM_SELF, PETSC_ERR_USER, "Event function value is infinity or not a number");
     PetscCall(VecLockReadPop(U));
   }
 
@@ -348,9 +349,11 @@ static PetscErrorCode TSPostEvent(TS ts, PetscReal t, Vec U)
 }
 
 /* Uses Anderson-Bjorck variant of regula falsi method */
-static inline PetscReal TSEventComputeStepSize(PetscReal tleft, PetscReal t, PetscReal tright, PetscScalar fleft, PetscScalar f, PetscScalar fright, PetscInt side, PetscReal dt)
+static inline PetscErrorCode TSEventComputeStepSize(PetscReal tleft, PetscReal t, PetscReal tright, PetscScalar fleft, PetscScalar f, PetscScalar fright, PetscInt side, PetscReal dt, PetscReal *ndt)
 {
   PetscReal new_dt, scal = 1.0;
+
+  PetscFunctionBegin;
   if (PetscRealPart(fleft) * PetscRealPart(f) < 0) {
     if (side == 1) {
       scal = (PetscRealPart(fright) - PetscRealPart(f)) / PetscRealPart(fright);
@@ -364,7 +367,9 @@ static inline PetscReal TSEventComputeStepSize(PetscReal tleft, PetscReal t, Pet
     }
     new_dt = (PetscRealPart(f) * tright - scal * PetscRealPart(fright) * t) / (PetscRealPart(f) - scal * PetscRealPart(fright)) - t;
   }
-  return PetscMin(dt, new_dt);
+  //  PetscCheck(new_dt > 0, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Selected a time step of zero");
+  *ndt = PetscMin(dt, new_dt);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode TSEventDetection(TS ts)
@@ -378,6 +383,10 @@ static PetscErrorCode TSEventDetection(TS ts)
   PetscFunctionBegin;
   PetscCall(TSGetTime(ts, &t));
   for (i = 0; i < event->nevents; i++) {
+    fvalue_sign     = PetscSign(PetscRealPart(event->fvalue[i]));
+    fvalueprev_sign = PetscSign(PetscRealPart(event->fvalue_prev[i]));
+    if (fvalueprev_sign > 0 && event->direction[i] > 0) continue;
+    if (fvalueprev_sign < 0 && event->direction[i] < 0) continue;
     if (PetscAbsScalar(event->fvalue[i]) < event->vtol[i]) {
       if (!event->iterctr) event->zerocrossing[i] = PETSC_TRUE;
       event->status = TSEVENT_LOCATED_INTERVAL;
@@ -387,8 +396,6 @@ static PetscErrorCode TSEventDetection(TS ts)
       continue;
     }
     if (PetscAbsScalar(event->fvalue_prev[i]) < event->vtol[i]) continue; /* avoid duplicative detection if the previous endpoint is an event location */
-    fvalue_sign     = PetscSign(PetscRealPart(event->fvalue[i]));
-    fvalueprev_sign = PetscSign(PetscRealPart(event->fvalue_prev[i]));
     if (fvalueprev_sign != 0 && (fvalue_sign != fvalueprev_sign)) {
       if (!event->iterctr) event->zerocrossing[i] = PETSC_TRUE;
       event->status = TSEVENT_LOCATED_INTERVAL;
@@ -421,7 +428,8 @@ static PetscErrorCode TSEventLocation(TS ts, PetscReal *dt)
         continue;
       }
       /* Compute new time step */
-      *dt             = TSEventComputeStepSize(event->ptime_prev, t, event->ptime_right, event->fvalue_prev[i], event->fvalue[i], event->fvalue_right[i], event->side[i], *dt);
+      PetscCall(TSEventComputeStepSize(event->ptime_prev, t, event->ptime_right, event->fvalue_prev[i], event->fvalue[i], event->fvalue_right[i], event->side[i], *dt, dt));
+      *dt = PetscMax(*dt,event->timestep_min);
       fvalue_sign     = PetscSign(PetscRealPart(event->fvalue[i]));
       fvalueprev_sign = PetscSign(PetscRealPart(event->fvalue_prev[i]));
       switch (event->direction[i]) {
@@ -506,6 +514,7 @@ PetscErrorCode TSEventHandler(TS ts)
 
   PetscCall(VecLockReadPush(U));
   PetscCall((*event->eventhandler)(ts, t, U, event->fvalue, event->ctx));
+  for (i = 0; i < event->nevents; i++) PetscCheck(!PetscIsInfOrNanReal(event->fvalue[i]), PETSC_COMM_SELF, PETSC_ERR_USER, "Event function value is infinity or not a number");
   PetscCall(VecLockReadPop(U));
 
   /* Detect the events */

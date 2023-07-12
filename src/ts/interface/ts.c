@@ -4221,6 +4221,7 @@ PetscErrorCode SNESTSFormFunction(SNES snes, Vec U, Vec F, void *ctx)
   PetscValidHeaderSpecific(U, VEC_CLASSID, 2);
   PetscValidHeaderSpecific(F, VEC_CLASSID, 3);
   PetscValidHeaderSpecific(ts, TS_CLASSID, 4);
+  PetscCheck(ts->time_step > 0, PetscObjectComm((PetscObject)snes), PETSC_ERR_PLIB, "Time-step must be great than zero");
   PetscCall((ts->ops->snesfunction)(snes, U, F, ts));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

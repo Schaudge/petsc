@@ -1,6 +1,5 @@
       TSAdapt basic alpha 0: step   0 rejected t=0          + 2.500e-01 dt=2.500e-02  wlte=  538  wltea=   -1 wlter=   -1
       TSAdapt basic alpha 0: step   0 rejected t=0          + 2.500e-02 dt=2.500e-03  wlte= 20.5  wltea=   -1 wlter=   -1
-Ball hit the ground at t =  0.00 seconds
 TS Object: 1 MPI process
   type: alpha
     Alpha_m=0.5, Alpha_f=0.5, Gamma=0.5
@@ -20,7 +19,7 @@ TS Object: 1 MPI process
     clip fastest increase 10.
     clip fastest decrease 0.1
     maximum allowed timestep 0.5
-    minimum allowed timestep 0.
+    minimum allowed timestep 1e-20
     maximum solution absolute value to be ignored -1.
   SNES Object: 1 MPI process
     type: newtonls

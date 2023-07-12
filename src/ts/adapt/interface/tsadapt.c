@@ -883,6 +883,7 @@ PetscErrorCode TSAdaptChoose(TSAdapt adapt, TS ts, PetscReal h, PetscInt *next_s
 
   PetscUseTypeMethod(adapt, choose, ts, h, &scheme, next_h, accept, &wlte, &wltea, &wlter);
   PetscCheck(scheme >= 0 && (ncandidates <= 0 || scheme < ncandidates), PetscObjectComm((PetscObject)adapt), PETSC_ERR_ARG_OUTOFRANGE, "Chosen scheme %" PetscInt_FMT " not in valid range 0..%" PetscInt_FMT, scheme, ncandidates - 1);
+  /* because TSADAPTHISTORY can return a zero step size cannot do a proper check here */
   PetscCheck(*next_h >= 0, PetscObjectComm((PetscObject)adapt), PETSC_ERR_ARG_OUTOFRANGE, "Computed step size %g must be positive", (double)*next_h);
   if (next_sc) *next_sc = scheme;
 
@@ -923,6 +924,7 @@ PetscErrorCode TSAdaptChoose(TSAdapt adapt, TS ts, PetscReal h, PetscInt *next_s
     }
     PetscCall(PetscViewerASCIISubtractTab(adapt->monitor, ((PetscObject)adapt)->tablevel));
   }
+  PetscCheck(*next_h >= 0, PetscObjectComm((PetscObject)adapt), PETSC_ERR_ARG_OUTOFRANGE, "Computed step size %g must be positive", (double)*next_h);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

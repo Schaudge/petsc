@@ -238,7 +238,7 @@ int main(int argc, char **argv)
      the same event occurring multiple times in the same interval. A maximum step size
      limit is enforced here to avoid this issue. */
   PetscCall(TSGetAdapt(ts, &adapt));
-  PetscCall(TSAdaptSetStepLimits(adapt, 0.0, 0.5));
+  PetscCall(TSAdaptSetStepLimits(adapt, PETSC_DEFAULT, 0.5));
 
   /* Set directions and terminate flags for the two events */
   direction[0] = -1;
