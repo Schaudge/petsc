@@ -69,4 +69,3 @@ int main(int argc, char **argv)
     filter: grep -o "\\(External runtime initialization\\|Unrelated event\\)"
 
 TEST*/
-
