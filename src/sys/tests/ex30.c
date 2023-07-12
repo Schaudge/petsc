@@ -176,5 +176,6 @@ int main(int argc, char **argv)
     nsize: 1
     requires: defined(PETSC_USE_LOG) defined(PETSC_HAVE_TAU_PERFSTUBS) defined(PETSC_HAVE_DLFCN_H) defined(PETSC_USE_SHARED_LIBRARIES)
     args: -log_perfstubs
+    filter: grep "\\(Main Stage\\|Event1\\|Event2\\|Event3\\|Stage1\\|Stage2\\)"
 
  TEST*/

@@ -1,10 +1,5 @@
-Found ps_tool_initialize(), registering tool
-ps_tool_initialize()
 ps_tool_timer_create("Main Stage")
 ps_tool_timer_start() [Main Stage]
-ps_tool_timer_create("PetscBarrier")
-ps_tool_timer_create("BuildTwoSided")
-ps_tool_timer_create("BuildTwoSidedF")
 ps_tool_timer_create("Event2")
 ps_tool_timer_create("Event1")
 ps_tool_timer_create("Event3")
@@ -49,4 +44,3 @@ ps_tool_timer_stop() [Stage1]
 ps_tool_timer_stop() [Event1]
 ps_tool_timer_stop() [Stage2]
 ps_tool_timer_stop() [Main Stage]
-ps_tool_finalize()
