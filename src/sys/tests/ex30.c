@@ -3,7 +3,11 @@ static char help[] = "Tests nested events.\n\n";
 
 #include <petscsys.h>
 
-// Create a phony perfstubs implementation for testing
+// Create a phony perfstubs implementation for testing.
+//
+// The dynamic loading in perfstubs is only enabled with the following
+// flags, so we only try to export these functions if they are present
+#if defined(__linux__) && PetscDefined(HAVE_DLFCN_H)
 
 PETSC_EXTERN void ps_tool_initialize(void)
 {
@@ -43,6 +47,7 @@ PETSC_EXTERN void *ps_tool_timer_stop(void *arg)
   PetscCallContinue(PetscPrintf(PETSC_COMM_SELF, "ps_tool_timer_stop() [%s]\n", name));
   PetscFunctionReturn(NULL);
 }
+#endif
 
 static PetscErrorCode CallEvents(PetscLogEvent event1, PetscLogEvent event2, PetscLogEvent event3)
 {
