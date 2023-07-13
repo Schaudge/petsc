@@ -79,36 +79,6 @@ typedef int PetscLogStage;
 M*/
 typedef int PetscLogClass;
 
-/*E
-   PetscLogHandlerOpType - Operations performed by a log handler
-
-   Level: developer
-
-   Values:
-+ `PETSC_LOG_HANDLER_OP_DESTROY`               - Destroy's the user context if necessary in `PetscLogHandlerDestroy()`
-. `PETSC_LOG_HANDLER_OP_EVENT_BEGIN`           - `PetscLogHandlerEventBegin()`
-. `PETSC_LOG_HANDLER_OP_EVENT_END`             - `PetscLogHandlerEventEnd()`
-. `PETSC_LOG_HANDLER_OP_EVENT_SYNC`            - `PetscLogHandlerEventSync()`
-. `PETSC_LOG_HANDLER_OP_OBJECT_CREATE`         - `PetscLogHandlerObjectCreate()`
-. `PETSC_LOG_HANDLER_OP_OBJECT_DESTROY`        - `PetscLogHandlerObjectDestroy()`
-. `PETSC_LOG_HANDLER_OP_STAGE_PUSH`            - `PetscLogHandlerStagePush()`
-. `PETSC_LOG_HANDLER_OP_STAGE_POP`             - `PetscLogHandlerStagePop()`
-- `PETSC_LOG_HANDLER_OP_VIEW`                  - `PetscLogHandlerView()`
-
-.seealso: [](ch_profiling), `PetscLogHandler`, `PetscLogHandlerSetOperation()`, `PetscLogHandlerGetOperation()`
-E*/
-typedef enum {
-  PETSC_LOG_HANDLER_OP_DESTROY,
-  PETSC_LOG_HANDLER_OP_EVENT_BEGIN,
-  PETSC_LOG_HANDLER_OP_EVENT_END,
-  PETSC_LOG_HANDLER_OP_EVENT_SYNC,
-  PETSC_LOG_HANDLER_OP_OBJECT_CREATE,
-  PETSC_LOG_HANDLER_OP_OBJECT_DESTROY,
-  PETSC_LOG_HANDLER_OP_STAGE_PUSH,
-  PETSC_LOG_HANDLER_OP_STAGE_POP,
-  PETSC_LOG_HANDLER_OP_VIEW,
-} PetscLogHandlerOpType;
-
 /*S
   PetscLogHandler - Interface for performance logging.  A log handler receives a `PetscLogState` that has
   information about the events (`PetscLogEvent`) and stages (`PetscLogStage`) in the logging environment.
@@ -145,7 +115,7 @@ int main() {
   // ... fill in ctx
   PetscLogHandlerCreate(PETSC_COMM_WORLD, &handler);
   PetscLogHandlerSetContext(handler, (void *) &ctx));
-  PetscLogHandlerSetOperation(handler, PETSC_LOG_HANDLER_OP_EVENT_BEGIN, (void (*)(void)) UserEventBegin);
+  PetscLogHandlerSetEventBegin(handler, UserEventBegin);
   // ... set other operations
   PetscLogHandlerStart(handler); // connect your handler to global logging state
   // ... run code to be profiled
@@ -158,7 +128,20 @@ int main() {
 
   Level: developer
 
-.seealso: [](ch_profiling), `PetscLogHandlerCreate()`, `PetscLogHandlerDestroy()`, `PetscLogHandlerSetContext()`, `PetscLogHandlerSetOperation()`, `PetscLogHandlerStart()`
+.seealso: [](ch_profiling), `PetscLogHandlerCreate()`,
+          `PetscLogHandlerStart()`, `PetscLogHandlerStop()`,
+          `PetscLogHandlerSetContext()`, `PetscLogHandlerGetContext()`,
+          `PetscLogHandlerSetState()`, `PetscLogHandlerGetState()`,
+          `PetscLogHandlerEventBegin()`, `PetscLogHandlerSetEventBegin()`,
+          `PetscLogHandlerEventEnd()`, `PetscLogHandlerSetEventEnd()`,
+          `PetscLogHandlerEventSync()`, `PetscLogHandlerSetEventSync()`,
+          `PetscLogHandlerObjectCreate()`, `PetscLogHandlerSetObjectCreate()`,
+          `PetscLogHandlerObjectDestroy()`, `PetscLogHandlerSetObjectDestroy()`,
+          `PetscLogHandlerStagePush()`, `PetscLogHandlerSetStagePush()`,
+          `PetscLogHandlerStagePop()`, `PetscLogHandlerSetStagePop()`,
+          `PetscLogHandlerView()`, `PetscLogHandlerSetView()`,
+          `PetscLogHandlerView()`, `PetscLogHandlerSetView()`,
+          `PetscLogHandlerDestroy()`, `PetscLogHandlerSetDestroy()`
 S*/
 typedef struct _n_PetscLogHandler *PetscLogHandler;
 

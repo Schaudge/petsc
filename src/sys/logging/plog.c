@@ -305,11 +305,11 @@ static PetscErrorCode PetscLogHandlerCopyToHot(PetscLogHandler h, PetscLogHandle
 {
   PetscFunctionBegin;
   hot->handler       = h;
-  hot->EventBegin    = h->eventBegin;
-  hot->EventEnd      = h->eventEnd;
-  hot->EventSync     = h->eventSync;
-  hot->ObjectCreate  = h->objectCreate;
-  hot->ObjectDestroy = h->objectDestroy;
+  hot->eventBegin    = h->eventBegin;
+  hot->eventEnd      = h->eventEnd;
+  hot->eventSync     = h->eventSync;
+  hot->objectCreate  = h->objectCreate;
+  hot->objectDestroy = h->objectDestroy;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -472,7 +472,7 @@ PETSC_UNUSED static PetscErrorCode PetscLogEventBeginIsActive(PetscBool *isActiv
   *isActive = PETSC_FALSE;
   if (petsc_log_state) {
     for (PetscInt i = 0; i < PETSC_LOG_HANDLER_MAX; i++) {
-      if (PetscLogHandlers[i].EventBegin) {
+      if (PetscLogHandlers[i].eventBegin) {
         *isActive = PETSC_TRUE;
         PetscFunctionReturn(PETSC_SUCCESS);
       }
@@ -487,7 +487,7 @@ PETSC_UNUSED static PetscErrorCode PetscLogEventEndIsActive(PetscBool *isActive)
   *isActive = PETSC_FALSE;
   if (petsc_log_state) {
     for (PetscInt i = 0; i < PETSC_LOG_HANDLER_MAX; i++) {
-      if (PetscLogHandlers[i].EventEnd) {
+      if (PetscLogHandlers[i].eventEnd) {
         *isActive = PETSC_TRUE;
         PetscFunctionReturn(PETSC_SUCCESS);
       }

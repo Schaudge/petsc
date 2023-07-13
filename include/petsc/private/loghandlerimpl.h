@@ -3,10 +3,6 @@
 
 #include <petsc/private/petscimpl.h>
 
-typedef PetscErrorCode (*PetscLogDestroyFn)(PetscLogHandler);
-typedef PetscErrorCode (*PetscLogStageFn)(PetscLogHandler, PetscLogStage);
-typedef PetscErrorCode (*PetscLogViewFn)(PetscLogHandler, PetscViewer);
-
 typedef enum {
   PETSC_LOG_HANDLER_DEFAULT,
   PETSC_LOG_HANDLER_TRACE,
@@ -22,15 +18,15 @@ struct _n_PetscLogHandler {
   PetscLogState       state;
   int                 refct;
   PetscLogHandlerType type;
-  PetscLogDestroyFn   destroy;
-  PetscLogEventFn     eventBegin;
-  PetscLogEventFn     eventEnd;
-  PetscLogEventSyncFn eventSync;
-  PetscLogObjectFn    objectCreate;
-  PetscLogObjectFn    objectDestroy;
-  PetscLogStageFn     stagePush;
-  PetscLogStageFn     stagePop;
-  PetscLogViewFn      view;
+  PetscErrorCode (*destroy)(PetscLogHandler);
+  PetscErrorCode (*eventBegin)(PetscLogHandler, PetscLogEvent, PetscObject, PetscObject, PetscObject, PetscObject);
+  PetscErrorCode (*eventEnd)(PetscLogHandler, PetscLogEvent, PetscObject, PetscObject, PetscObject, PetscObject);
+  PetscErrorCode (*eventSync)(PetscLogHandler, PetscLogEvent, MPI_Comm);
+  PetscErrorCode (*objectCreate)(PetscLogHandler, PetscObject);
+  PetscErrorCode (*objectDestroy)(PetscLogHandler, PetscObject);
+  PetscErrorCode (*stagePush)(PetscLogHandler, PetscLogStage);
+  PetscErrorCode (*stagePop)(PetscLogHandler, PetscLogStage);
+  PetscErrorCode (*view)(PetscLogHandler, PetscViewer);
 };
 
 #endif /* #define PETSCLOGHANDLERIMPL_H */

@@ -22,7 +22,7 @@
 
   See `PetscLogHandler` for example usage.
 
-.seealso: [](ch_profiling), `PetscLogHandler`, `PetscLogHandlerSetContext()`, `PetscLogHandlerSetOperation()`, `PetscLogHandlerStart()`, `PetscLogHandlerStop()`
+.seealso: [](ch_profiling), `PetscLogHandler`, `PetscLogHandlerSetContext()`, `PetscLogHandlerStart()`, `PetscLogHandlerStop()`
 @*/
 PetscErrorCode PetscLogHandlerCreate(MPI_Comm comm, PetscLogHandler *handler)
 {
@@ -113,82 +113,195 @@ PetscErrorCode PetscLogHandlerGetContext(PetscLogHandler handler, void *ctx)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/*@
-  PetscLogHandlerSetOperation - Set the callback a `PetscLogHandler` uses for a profiling event
+/*@C
+  PetscLogHandlerSetEventBegin - Set the callback for `PetscLogHandlerEventBegin()`
 
   Logically collective
 
-  Input Parameters:
-+ handler - the `PetscLogHandler`
-. op - the type of the operation
-- f - the callback function, which is cast to `(void (*) (void))` but should have the signature of the corresponding function (see `PetscLogHandlerOpType` for a list)
+  Input parameters:
++ handler - a `PetscLogHandler`
+- eventBegin - a callback function with the arguments as `PetscLogHandlerEventBegin()` (or `NULL`)
 
   Level: developer
 
-.seealso: [](ch_profiling), `PetscLogHandler`, `PetscLogHandlerCreate()`, `PetscLogHandlerSetContext()`, `PetscLogHandlerGetContext()`, `PetscLogHandlerOpType`, `PescLogHandlerGetOperation()`
+.seealso: [](ch_profiling), `PetscLogHandler`, `PetscLogEventBegin()`, `PetscLogHandlerSetEventEnd()`
 @*/
-PetscErrorCode PetscLogHandlerSetOperation(PetscLogHandler h, PetscLogHandlerOpType type, void (*f)(void))
+PetscErrorCode PetscLogHandlerSetEventBegin(PetscLogHandler handler, PetscErrorCode (*eventBegin)(PetscLogHandler, PetscLogEvent, PetscObject, PetscObject, PetscObject, PetscObject))
 {
   PetscFunctionBegin;
-  PetscValidPointer(h, 1);
-#define PETSC_LOG_HANDLER_SET_OP_CASE(NAME, name, Type, h, f) \
-  case PETSC_LOG_HANDLER_OP_##NAME: \
-    (h)->name = (PetscLog##Type##Fn)f; \
-    break;
-  switch (type) {
-    PETSC_LOG_HANDLER_SET_OP_CASE(DESTROY, destroy, Destroy, h, f)
-    PETSC_LOG_HANDLER_SET_OP_CASE(EVENT_BEGIN, eventBegin, Event, h, f)
-    PETSC_LOG_HANDLER_SET_OP_CASE(EVENT_END, eventEnd, Event, h, f)
-    PETSC_LOG_HANDLER_SET_OP_CASE(EVENT_SYNC, eventSync, EventSync, h, f)
-    PETSC_LOG_HANDLER_SET_OP_CASE(OBJECT_CREATE, objectCreate, Object, h, f)
-    PETSC_LOG_HANDLER_SET_OP_CASE(OBJECT_DESTROY, objectDestroy, Object, h, f)
-    PETSC_LOG_HANDLER_SET_OP_CASE(STAGE_PUSH, stagePush, Stage, h, f)
-    PETSC_LOG_HANDLER_SET_OP_CASE(STAGE_POP, stagePop, Stage, h, f)
-    PETSC_LOG_HANDLER_SET_OP_CASE(VIEW, view, View, h, f)
-  }
-#undef PETSC_LOG_HANDLER_SET_OP_CASE
-
+  PetscValidPointer(handler, 1);
+  handler->eventBegin = eventBegin;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/*@
-  PetscLogHandlerGetOperation - Get the callback a `PetscLogHandler` uses for a profiling event
+/*@C
+  PetscLogHandlerSetEventEnd - Set the callback for `PetscLogHandlerEventEnd()`
 
   Logically collective
 
-  Input Parameters:
-+ handler - the `PetscLogHandler`
-- op - the type of the operation
-
-  Output Parameter:
-. f - the callback function, which is cast to `(void (*) (void))` but should have the signature of the corresponding function (see `PetscLogHandlerOpType` for a list)
+  Input parameters:
++ handler - a `PetscLogHandler`
+- eventEnd - a callback function with the arguments as `PetscLogHandlerEventEnd()` (or `NULL`)
 
   Level: developer
 
-.seealso: [](ch_profiling), `PetscLogHandler`, `PetscLogHandlerCreate()`, `PetscLogHandlerSetContext()`, `PetscLogHandlerGetContext()`, `PetscLogHandlerOpType`, `PetscLogHandlerSetOperation()`
+.seealso: [](ch_profiling), `PetscLogHandler`, `PetscLogEventEnd()`, `PetscLogHandlerSetEventBegin()`
 @*/
-PetscErrorCode PetscLogHandlerGetOperation(PetscLogHandler h, PetscLogHandlerOpType type, void (**f)(void))
+PetscErrorCode PetscLogHandlerSetEventEnd(PetscLogHandler handler, PetscErrorCode (*eventEnd)(PetscLogHandler, PetscLogEvent, PetscObject, PetscObject, PetscObject, PetscObject))
 {
   PetscFunctionBegin;
-  PetscValidPointer(h, 1);
-  PetscValidPointer(f, 3);
-#define PETSC_LOG_HANDLER_GET_OP_CASE(NAME, name, Type, h, f) \
-  case PETSC_LOG_HANDLER_OP_##NAME: \
-    *f = (void (*)(void))(h)->name; \
-    break;
-  switch (type) {
-    PETSC_LOG_HANDLER_GET_OP_CASE(DESTROY, destroy, Destroy, h, f)
-    PETSC_LOG_HANDLER_GET_OP_CASE(EVENT_BEGIN, eventBegin, Event, h, f)
-    PETSC_LOG_HANDLER_GET_OP_CASE(EVENT_END, eventEnd, Event, h, f)
-    PETSC_LOG_HANDLER_GET_OP_CASE(EVENT_SYNC, eventSync, EventSync, h, f)
-    PETSC_LOG_HANDLER_GET_OP_CASE(OBJECT_CREATE, objectCreate, Object, h, f)
-    PETSC_LOG_HANDLER_GET_OP_CASE(OBJECT_DESTROY, objectDestroy, Object, h, f)
-    PETSC_LOG_HANDLER_GET_OP_CASE(STAGE_PUSH, stagePush, Stage, h, f)
-    PETSC_LOG_HANDLER_GET_OP_CASE(STAGE_POP, stagePop, Stage, h, f)
-    PETSC_LOG_HANDLER_GET_OP_CASE(VIEW, view, View, h, f)
-  }
-#undef PETSC_LOG_HANDLER_GET_OP_CASE
+  PetscValidPointer(handler, 1);
+  handler->eventEnd = eventEnd;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
+/*@C
+  PetscLogHandlerSetEventSync - Set the callback for `PetscLogHandlerEventSync()`
+
+  Logically collective
+
+  Input parameters:
++ handler - a `PetscLogHandler`
+- eventSync - a callback function with the arguments as `PetscLogHandlerEventSync()` (or `NULL`)
+
+  Level: developer
+
+.seealso: [](ch_profiling), `PetscLogHandler`, `PetscLogEventSync()`
+@*/
+PetscErrorCode PetscLogHandlerSetEventSync(PetscLogHandler handler, PetscErrorCode (*eventSync)(PetscLogHandler, PetscLogEvent, MPI_Comm))
+{
+  PetscFunctionBegin;
+  PetscValidPointer(handler, 1);
+  handler->eventSync = eventSync;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  PetscLogHandlerSetObjectCreate - Set the callback for `PetscLogHandlerObjectCreate()`
+
+  Logically collective
+
+  Input parameters:
++ handler - a `PetscLogHandler`
+- objectCreate - a callback function with the arguments as `PetscLogHandlerObjectCreate()` (or `NULL`)
+
+  Level: developer
+
+.seealso: [](ch_profiling), `PetscLogHandler`, `PetscLogObjectCreate()`, `PetscLogHandlerSetObjectDestroy()`
+@*/
+PetscErrorCode PetscLogHandlerSetObjectCreate(PetscLogHandler handler, PetscErrorCode (*objectCreate)(PetscLogHandler, PetscObject))
+{
+  PetscFunctionBegin;
+  PetscValidPointer(handler, 1);
+  handler->objectCreate = objectCreate;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  PetscLogHandlerSetObjectDestroy - Set the callback for `PetscLogHandlerObjectDestroy()`
+
+  Logically collective
+
+  Input parameters:
++ handler - a `PetscLogHandler`
+- objectDestroy - a callback function with the arguments as `PetscLogHandlerObjectDestroy()` (or `NULL`)
+
+  Level: developer
+
+.seealso: [](ch_profiling), `PetscLogHandler`, `PetscLogObjectDestroy()`, `PetscLogHandlerSetObjectCreate()`
+@*/
+PetscErrorCode PetscLogHandlerSetObjectDestroy(PetscLogHandler handler, PetscErrorCode (*objectDestroy)(PetscLogHandler, PetscObject))
+{
+  PetscFunctionBegin;
+  PetscValidPointer(handler, 1);
+  handler->objectDestroy = objectDestroy;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  PetscLogHandlerSetStagePush - Set the callback for `PetscLogHandlerStagePush()`
+
+  Logically collective
+
+  Input parameters:
++ handler - a `PetscLogHandler`
+- stagePush - a callback function with the arguments as `PetscLogHandlerStagePush()` (or `NULL`)
+
+  Level: developer
+
+.seealso: [](ch_profiling), `PetscLogHandler`, `PetscLogStagePush()`, `PetscLogHandlerSetStagePop()`
+@*/
+PetscErrorCode PetscLogHandlerSetStagePush(PetscLogHandler handler, PetscErrorCode (*stagePush)(PetscLogHandler, PetscLogStage))
+{
+  PetscFunctionBegin;
+  PetscValidPointer(handler, 1);
+  handler->stagePush = stagePush;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  PetscLogHandlerSetStagePop - Set the callback for `PetscLogHandlerStagePop()`
+
+  Logically collective
+
+  Input parameters:
++ handler - a `PetscLogHandler`
+- stagePop - a callback function with the arguments as `PetscLogHandlerStagePop()` (or `NULL`)
+
+  Level: developer
+
+.seealso: [](ch_profiling), `PetscLogHandler`, `PetscLogStagePop()`, `PetscLogHandlerSetStagePush()`
+@*/
+PetscErrorCode PetscLogHandlerSetStagePop(PetscLogHandler handler, PetscErrorCode (*stagePop)(PetscLogHandler, PetscLogStage))
+{
+  PetscFunctionBegin;
+  PetscValidPointer(handler, 1);
+  handler->stagePop = stagePop;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  PetscLogHandlerSetView - Set the callback for `PetscLogHandlerView()`
+
+  Logically collective
+
+  Input parameters:
++ handler - a `PetscLogHandler`
+- view - a callback function with the arguments as `PetscLogHandlerView()` (or `NULL`)
+
+  Level: developer
+
+.seealso: [](ch_profiling), `PetscLogHandler`, `PetscLogView()`
+@*/
+PetscErrorCode PetscLogHandlerSetView(PetscLogHandler handler, PetscErrorCode (*view)(PetscLogHandler, PetscViewer))
+{
+  PetscFunctionBegin;
+  PetscValidPointer(handler, 1);
+  handler->view = view;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  PetscLogHandlerSetDestroy - Set the callback for `PetscLogHandlerDestroy()`
+
+  Logically collective
+
+  Input parameters:
++ handler - a `PetscLogHandler`
+- destroy - a callback function with the arguments as `PetscLogHandlerDestroy()` (or `NULL`)
+
+  Level: developer
+
+  Note:
+  This callback should only free resources associated with the user-supplied context (`PetscLogHandlerSetContext()`)
+
+.seealso: [](ch_profiling), `PetscLogHandler`
+@*/
+PetscErrorCode PetscLogHandlerSetDestroy(PetscLogHandler handler, PetscErrorCode (*destroy)(PetscLogHandler))
+{
+  PetscFunctionBegin;
+  PetscValidPointer(handler, 1);
+  handler->destroy = destroy;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
