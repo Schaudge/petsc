@@ -35,6 +35,10 @@ PETSC_EXTERN PetscErrorCode TaoCreate_PROX(Tao);
 PETSC_EXTERN PetscErrorCode TaoCreate_Shell(Tao);
 PETSC_EXTERN PetscErrorCode TaoCreate_SNES(Tao);
 
+PETSC_EXTERN PetscErrorCode TaoApplyProximalMap_Affine(Tao, PetscReal, Vec, Vec, void*);
+PETSC_EXTERN PetscErrorCode TaoApplyProximalMap_L1(Tao, PetscReal, Vec, Vec, void*);
+PETSC_EXTERN PetscErrorCode TaoApplyProximalMap_Simplex(Tao, PetscReal, Vec, Vec, void*);
+
 /*
    Offset the convergence reasons so negative number represent diverged and
    positive represent converged.
@@ -115,4 +119,28 @@ PetscErrorCode TaoRegisterAll(void)
   PetscCall(TaoRegister(TAOSNES, TaoCreate_SNES));
 #endif
   PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode TaoProxRegisterAll(void)
+{
+PetscFunctionBegin;
+  if (TaoProxRegisterAllCalled) PetscFunctionReturn(PETSC_SUCCESS);
+  TaoProxRegisterAllCalled = PETSC_TRUE;
+#if !defined(PETSC_USE_COMPLEX)
+  PetscCall(TaoProxRegister(TAOPROX_L1, TaoApplyProximalMap_L1));
+  PetscCall(TaoProxRegister(TAOPROX_SIMPLEX, TaoApplyProximalMap_Simplex));
+  PetscCall(TaoProxRegister(TAOPROX_AFFINE, TaoApplyProximalMap_Affine));
+#endif
+PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode TaoMetricRegisterAll(void)
+{
+PetscFunctionBegin;
+  if (TaoMetricRegisterAllCalled) PetscFunctionReturn(PETSC_SUCCESS);
+  TaoMetricRegisterAllCalled = PETSC_TRUE;
+#if !defined(PETSC_USE_COMPLEX)
+//  PetscCall(TaoMetricRegister(TAOMETRIC_L2, TaoApplyProximalMap_Affine));
+#endif
+PetscFunctionReturn(PETSC_SUCCESS);
 }

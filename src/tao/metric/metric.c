@@ -1,9 +1,6 @@
 #include <petsc/private/taoimpl.h> /*I "petsctao.h" I*/
 #include <petsc/private/snesimpl.h>
 
-const char *const TaoMetricTypes[] = {"TYPE_USER", "TYPE_L1", "TYPE_L2", "TYPE_DIAGONAL", "TYPE_AFFINE", "TaoMetricType", "TAO_METRIC_", NULL};
-
-
 
 /* Setting callback function for Metric.
  *
@@ -20,6 +17,8 @@ const char *const TaoMetricTypes[] = {"TYPE_USER", "TYPE_L1", "TYPE_L2", "TYPE_D
  * e.g., Bregman: D_h(x,y) = h(x) - h(y) - \langle \nabla h(y), x-y \rangle.
  *
  * If h(.) = \|. \|_2^2, above becomes \|x-y\|_2^2  */
+
+#if 0
 PetscErrorCode TaoSetMetricRoutine(Tao tao, PetscErrorCode (*func)(Tao, Vec, Vec, PetscReal *, Vec , void *), void *ctx)
 {
   PetscFunctionBegin;
@@ -35,26 +34,34 @@ PetscErrorCode TaoGetMetricRoutine(Tao tao, PetscErrorCode (**func)(Tao, Vec, Ve
   if (func) *func = tao->ops->computemetricandgradient;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+#endif
 
-PetscErrorCode TaoSetMetricType(Tao tao, TaoMetricType type)
+static PetscErrorCode TaoAddMoreauRegHess_Private(Tao tao, Vec X, Mat H, Mat H_pre, void *ptr)
 {
+  Vec y, workvec;
+  PetscReal stepsize, temp;
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
-  PetscValidLogicalCollectiveEnum(tao, type, 2);
-  //TODO perhaps more boilerplates/checks here???
-  tao->metric_type = type;
+
+  y = tao->MR_internal->y;
+  workvec = tao->MR_internal->workvec;
+  stepsize = tao->MR_internal->stepsize;
+
+  PetscCall((tao->MR_internal->ops->computehessian)(tao, X, H, H_pre, tao->MR_internal->orig_hessP));
+  switch (tao->metric_type) {
+  case TAO_METRIC_TYPE_L2:
+    PetscCall(MatShift(H,stepsize));//TODO make sure H is "flushed every time its called to avoid aI stacking?
+    break;
+  case TAO_METRIC_TYPE_L1:
+    break;
+  case TAO_METRIC_TYPE_USER:
+    //TODO
+    break;
+  default:
+    temp = 0; //TODO
+    break;
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
-PetscErrorCode TaoGetMetricType(Tao tao, TaoMetricType *type)
-{
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
-  //TODO what if its not set or something like that?
-  *type = tao->metric_type;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 
 static PetscErrorCode TaoAddMoreauRegObjGrad_Private(Tao tao, Vec X, PetscReal *f, Vec G, void *ptr)
 {
@@ -96,6 +103,10 @@ static PetscErrorCode TaoAddMoreauRegGrad_Private(Tao tao, Vec X, Vec G, void *p
 {
   Vec y, workvec;
   PetscReal stepsize;
+  PetscBool isl2;
+
+  //PetscErrorCode (*metric_xxx)(Tao, PetscReal *, Vec, Vec, PetscReal *, Vec, Mat, Mat, void *);
+
   PetscFunctionBegin;
 
   y = tao->MR_internal->y;
@@ -103,20 +114,14 @@ static PetscErrorCode TaoAddMoreauRegGrad_Private(Tao tao, Vec X, Vec G, void *p
   stepsize = tao->MR_internal->stepsize;
 
   PetscCall((tao->MR_internal->ops->computegradient)(tao, X, G, tao->MR_internal->orig_gradP));
-  switch (tao->metric_type) {
-  case TAO_METRIC_TYPE_L2:
+  PetscCall(PetscStrcmp(tao->metric_type, TAOMETRIC_L2, &isl2));
+  if (isl2) {
     PetscCall(VecWAXPY(workvec, -1., y, X));
     PetscCall(VecAXPY(G, stepsize, workvec)); 
-    break;
-  case TAO_METRIC_TYPE_L1:
-    SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "L1 gradient no-op");
-    break;
-  case TAO_METRIC_TYPE_USER://TODO so something about metric to subtao stuff
-    PetscCall((tao->ops->computemetricandgradient)(tao, X, y, NULL, G, tao->user_metricP));
-    break;
-  default:
-    break;          
+  } else {
+   
   }
+    //SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "L1 gradient no-op");
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -204,16 +209,11 @@ PetscErrorCode TaoAddMoreauRegularizer(Tao tao, Tao subtao, Vec y)
     PetscCall(TaoSetObjectiveAndGradient(subtao, tao->gradient, TaoAddMoreauRegObjGrad_Private, &tao->user_gradP));
   }
 
-  //TODO should we bother with hessian?
-#if 0  
   if (tao->ops->computehessian) {
-    proxP->orig_hessP     = tao->user_hessP;
-    proxP->ops->orig_hess = tao->ops->computehessian;
-    proxP->H_orig         = tao->hessian;
-    proxP->H_pre_orig     = tao->hessian_pre;
-
-    if (tao->user_hessP) subtao->user_hessP = tao->user_hessP;
-    if (tao->ops->computehessian) subtao->ops->computehessian= tao->ops->computehessian;
+    subtao->MR_internal->orig_hessP          = tao->user_hessP;
+    subtao->MR_internal->ops->computehessian = tao->ops->computehessian;
+    subtao->MR_internal->H                   = tao->hessian;
+    subtao->MR_internal->H_pre               = tao->hessian_pre;
 
     if (tao->hessian) {
       PetscCall(PetscObjectReference((PetscObject)tao->hessian));
@@ -225,45 +225,8 @@ PetscErrorCode TaoAddMoreauRegularizer(Tao tao, Tao subtao, Vec y)
       PetscCall(MatDestroy(&subtao->hessian_pre));
       subtao->hessian_pre = tao->hessian_pre;
     }
-    PetscCall(TaoSetHessian(tao, tao->hessian, tao->hessian_pre, AddMoreauRegHess, &proxP));
-    PetscCall(TaoSetHessian(subtao, tao->hessian, tao->hessian_pre, AddMoreauRegHess, &proxP));
+    PetscCall(TaoSetHessian(subtao, tao->hessian, tao->hessian_pre, TaoAddMoreauRegHess_Private, &tao->user_hessP));
   }
-#endif
 
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-//TODO
-// does this func belong here?
-//
-//Technically, TAO here isn't really TAOPROX. its whatever, really. 
-//Actually, onlything i need is callback for obj/obj,grad/ and its pointers... 
-PETSC_EXTERN PetscErrorCode TaoApplyProximalMap(Tao tao, PetscReal lambda, Vec y, Vec x)
-{
-  TaoType   tao_type;
-  PetscBool is_prox;
-  PetscFunctionBegin;
-
-  /* if lambda == 0.0, just call TaoSolve.
-   * if y == NULL, y == 0 */
-  PetscCall(TaoGetType(tao, &tao_type));
-  PetscCall(PetscObjectTypeCompare((PetscObject)tao, TAOPROX, &is_prox));
-
-  if (is_prox) {
-    /* Proximal Case */
-    PetscUseTypeMethod(tao, applyproximalmap, lambda, y, x);
-  } else {
-    /* Type is non-prox. */
-    // first time this called. need to initialize subtao
-    if (tao->proximalmap_subtao == NULL) {
-      TaoType type;
-      TaoGetType(tao, &type);
-      PetscCall(TaoCreate(PetscObjectComm((PetscObject)tao), &tao->proximalmap_subtao));
-      PetscCall(TaoSetType(tao->proximalmap_subtao, type));
-      PetscCall(TaoSetSolution(tao, x));
-      PetscCall(TaoAddMoreauRegularizer(tao, tao->proximalmap_subtao, y));
-    }
-    PetscCall(TaoSolve(tao));
-  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

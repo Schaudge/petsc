@@ -15,30 +15,29 @@ static PetscErrorCode AddMoreauRegObj(Tao tao, Vec X, PetscReal *f, void *ptr)
 {
   TAO_PROX *proxP  =  (TAO_PROX *)&ptr;
   PetscReal temp;
+  PetscBool is_l2, is_l1;
 
   PetscFunctionBegin;
   /* Ignore VM for now */
   /* Scalar weight */
   //TODO what does it mean if tao is subtao???
   PetscCall((proxP->ops->orig_obj)(tao, X, f, proxP->orig_objP));
+  PetscCall(PetscStrcmp(tao->metric_type, TAOMETRIC_L2, &is_l2));
+  PetscCall(PetscStrcmp(tao->metric_type, TAOMETRIC_L2, &is_l1));
 
-  switch (tao->metric_type) {
-  case TAO_METRIC_TYPE_L2:
+  if (is_l2) {
     PetscCall(VecWAXPY(proxP->workvec1, -1., proxP->y, X));
     PetscCall(VecNorm(proxP->workvec1,NORM_2, &temp));
     temp = PetscPowReal(temp,2);
-    break;
-  case TAO_METRIC_TYPE_L1:
+  } else if (is_l1) {
+    temp = 0;
     PetscCall(VecWAXPY(proxP->workvec1, -1., proxP->y, X));
     PetscCall(VecNorm(proxP->workvec1,NORM_1, &temp));
-    break;
-  case TAO_METRIC_TYPE_USER:
-    PetscCall((tao->ops->computemetricandgradient)(tao, X, proxP->y, &temp, NULL, tao->user_metricP));
-    break;
-  default:
-    temp = 0;//TODO
-    break;          
-  }
+  } else {
+     temp = 0;//or seterrq??
+  } 
+  //TODO else if TaoMetricRegisterSet ??? something -> do user stuff or try??
+//    PetscCall((tao->ops->computemetricandgradient)(tao, X, proxP->y, &temp, NULL, tao->user_metricP));
   *f += (proxP->stepsize/2)*temp;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -46,23 +45,21 @@ static PetscErrorCode AddMoreauRegObj(Tao tao, Vec X, PetscReal *f, void *ptr)
 static PetscErrorCode AddMoreauRegGrad(Tao tao, Vec X, Vec G, void *ptr)
 {
   TAO_PROX *proxP  = (TAO_PROX *)tao->data;
+  PetscBool is_l2, is_l1;
 
   PetscFunctionBegin;
   //TODO check MetricType stuff
   PetscCall((proxP->ops->orig_grad)(tao, X, G, proxP->orig_gradP));
-  switch (tao->metric_type) {
-  case TAO_METRIC_TYPE_L2:
+  PetscCall(PetscStrcmp(tao->metric_type, TAOMETRIC_L2, &is_l2));
+  PetscCall(PetscStrcmp(tao->metric_type, TAOMETRIC_L2, &is_l1));
+
+  if (is_l2) {
     PetscCall(VecWAXPY(proxP->workvec1, -1., proxP->y, X));
     PetscCall(VecAXPY(G, proxP->stepsize, proxP->workvec1)); 
-    break;
-  case TAO_METRIC_TYPE_L1:
+  } else if (is_l1) {
     SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "L1 gradient no-op");
-    break;
-  case TAO_METRIC_TYPE_USER:
-    PetscCall((tao->ops->computemetricandgradient)(tao, X, proxP->y, NULL, G, tao->user_metricP));
-    break;
-  default:
-    break;          
+  } else {
+    //PetscCall((tao->ops->computemetricandgradient)(tao, X, proxP->y, NULL, G, tao->user_metricP));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -71,28 +68,25 @@ static PetscErrorCode AddMoreauRegObjGrad(Tao tao, Vec X, PetscReal *f, Vec G, v
 {
   TAO_PROX *proxP  = (TAO_PROX *)tao->data;
   PetscReal temp;
+  PetscBool is_l2, is_l1;
 
   PetscFunctionBegin;
   PetscCall((proxP->ops->orig_objgrad)(tao, X, f, G, proxP->orig_objgradP));
-  switch (tao->metric_type) {
-  case TAO_METRIC_TYPE_L2:
+  PetscCall(PetscStrcmp(tao->metric_type, TAOMETRIC_L2, &is_l2));
+  PetscCall(PetscStrcmp(tao->metric_type, TAOMETRIC_L2, &is_l1));
+
+  if (is_l2) {
     PetscCall(VecWAXPY(proxP->workvec1, -1., proxP->y, X));
     PetscCall(VecNorm(proxP->workvec1,NORM_2, &temp));
     temp = PetscPowReal(temp,2);
     PetscCall(VecAXPY(G, proxP->stepsize, proxP->workvec1)); 
-    break;
-  case TAO_METRIC_TYPE_L1:
+  } else if (is_l1) {
     PetscCall(VecWAXPY(proxP->workvec1, -1., proxP->y, X));
     PetscCall(VecNorm(proxP->workvec1,NORM_1, &temp));
-    //TODO gradient???
-    break;
-  case TAO_METRIC_TYPE_USER:
-    PetscCall((tao->ops->computemetricandgradient)(tao, X, proxP->y, &temp, proxP->workvec1, tao->user_metricP));
-    PetscCall(VecAXPY(G, proxP->stepsize, proxP->workvec1)); 
-    break;
-  default:
-    temp = 0; //TODO
-    break;
+  } else {
+    temp = 0;
+    //PetscCall((tao->ops->computemetricandgradient)(tao, X, proxP->y, &temp, proxP->workvec1, tao->user_metricP));
+    //PetscCall(VecAXPY(G, proxP->stepsize, proxP->workvec1)); 
   }
   *f += (proxP->stepsize/2)*temp;
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -285,6 +279,7 @@ static PetscErrorCode TaoDestroy_PROX(Tao tao)
     PetscCall(VecDestroy(&proxP->y));
   }
   PetscCall(TaoLineSearchDestroy(&tao->linesearch));
+
   PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoPROXMSetType_C", NULL));
   PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoPROXMGetType_C", NULL));
   PetscCall(PetscFree(tao->data));
@@ -390,6 +385,8 @@ PETSC_EXTERN PetscErrorCode TaoCreate_PROX(Tao tao)
   
   PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoPROXSetType_C", TaoPROXSetType_Private));
   PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoPROXGetType_C", TaoPROXGetType_Private));
+
+  PetscCall(PetscProxTableCreate(&proxP->proxHash));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -478,3 +475,6 @@ PetscErrorCode TaoGetPROXParentTao(Tao tao, Tao *prox_tao)
   PetscCall(PetscObjectQuery((PetscObject)tao, "TaoGetPROXParentTao_ADMM", (PetscObject *)prox_tao));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+
+

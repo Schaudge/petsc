@@ -12,6 +12,8 @@ PetscErrorCode TaoFinalizePackage(void)
 {
   PetscFunctionBegin;
   PetscCall(PetscFunctionListDestroy(&TaoList));
+  PetscCall(PetscFunctionListDestroy(&TaoProxList));
+  PetscCall(PetscFunctionListDestroy(&TaoMetricList));
   TaoPackageInitialized = PETSC_FALSE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -38,6 +40,8 @@ PetscErrorCode TaoInitializePackage(void)
   PetscCall(PetscClassIdRegister("Tao", &TAO_CLASSID));
   /* Register Constructors */
   PetscCall(TaoRegisterAll());
+  PetscCall(TaoProxRegisterAll());
+  PetscCall(TaoMetricRegisterAll());
   /* Register Events */
   PetscCall(PetscLogEventRegister("TaoSolve", TAO_CLASSID, &TAO_Solve));
   PetscCall(PetscLogEventRegister("TaoObjectiveEval", TAO_CLASSID, &TAO_ObjectiveEval));
@@ -46,6 +50,8 @@ PetscErrorCode TaoInitializePackage(void)
   PetscCall(PetscLogEventRegister("TaoHessianEval", TAO_CLASSID, &TAO_HessianEval));
   PetscCall(PetscLogEventRegister("TaoConstrEval", TAO_CLASSID, &TAO_ConstraintsEval));
   PetscCall(PetscLogEventRegister("TaoJacobianEval", TAO_CLASSID, &TAO_JacobianEval));
+  PetscCall(PetscLogEventRegister("TaoProximalEval", TAO_CLASSID, &TAO_ProximalEval));
+  PetscCall(PetscLogEventRegister("TaoMetricEval", TAO_CLASSID, &TAO_MetricEval));
   /* Process Info */
   {
     PetscClassId classids[1];

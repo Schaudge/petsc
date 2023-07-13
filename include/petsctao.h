@@ -162,14 +162,6 @@ typedef enum {
 PETSC_EXTERN const char *const TaoPROXStrategies[];
 
 typedef enum {
-  TAO_METRIC_TYPE_USER,
-  TAO_METRIC_TYPE_L1,
-  TAO_METRIC_TYPE_L2,
-  TAO_METRIC_TYPE_DIAGONAL,
-} TaoMetricType;
-PETSC_EXTERN const char *const TaoMetricTypes[];
-
-typedef enum {
   TAO_PROX_TYPE_DEFAULT,
   TAO_PROX_TYPE_L1,
   TAO_PROX_TYPE_AFFINE,
@@ -234,8 +226,21 @@ typedef const char *TaoType;
 #define TAOSNES     "snes"
 #define TAOPROX     "prox"
 
+typedef const char *TaoProxType;
+#define TAOPROX_L1        "prox_l1"
+#define TAOPROX_AFFINE    "prox_affine"
+#define TAOPROX_SIMPLEX   "prox_simplex"
+
+//TODO 1,2, is being used for other things...
+typedef const char *TaoMetricType;
+#define TAOMETRIC_L2     "metric_l2"
+#define TAOMETRIC_L1     "metric_l1"
+#define TAOMETRIC_DIAG   "metric_diag"
+
 PETSC_EXTERN PetscClassId      TAO_CLASSID;
 PETSC_EXTERN PetscFunctionList TaoList;
+PETSC_EXTERN PetscFunctionList TaoProxList;
+PETSC_EXTERN PetscFunctionList TaoMetricList;
 
 /*E
     TaoConvergedReason - reason a `Tao` optimizer was said to have converged or diverged
@@ -316,6 +321,12 @@ PETSC_EXTERN PetscErrorCode TaoSolve(Tao);
 
 PETSC_EXTERN PetscErrorCode TaoRegister(const char[], PetscErrorCode (*)(Tao));
 PETSC_EXTERN PetscErrorCode TaoRegisterDestroy(void);
+
+PETSC_EXTERN PetscErrorCode TaoProxRegister(const char[], PetscErrorCode (*)(Tao, PetscReal, Vec, Vec, void *));
+PETSC_EXTERN PetscErrorCode TaoProxRegisterDestroy(void);
+
+PETSC_EXTERN PetscErrorCode TaoMetricRegister(const char[], PetscErrorCode (*)(Tao, PetscReal *, Vec, Vec, PetscReal *, Vec, Mat, void *));
+PETSC_EXTERN PetscErrorCode TaoMetricRegisterDestroy(void);
 
 PETSC_EXTERN PetscErrorCode TaoGetConvergedReason(Tao, TaoConvergedReason *);
 PETSC_EXTERN PetscErrorCode TaoGetSolutionStatus(Tao, PetscInt *, PetscReal *, PetscReal *, PetscReal *, PetscReal *, TaoConvergedReason *);
@@ -542,10 +553,11 @@ PETSC_EXTERN PetscErrorCode TaoALMMSetMultipliers(Tao, Vec);
 PETSC_EXTERN PetscErrorCode TaoALMMGetPrimalIS(Tao, IS *, IS *);
 PETSC_EXTERN PetscErrorCode TaoALMMGetDualIS(Tao, IS *, IS *);
 
-PETSC_EXTERN PetscErrorCode TaoSetMetricRoutine(Tao, PetscErrorCode (*)(Tao, Vec, Vec, PetscReal *, Vec, void *), void *);
-PETSC_EXTERN PetscErrorCode TaoGetMetricRoutine(Tao, PetscErrorCode (**)(Tao, Vec, Vec, PetscReal *, Vec, void *), void **);
-PetscErrorCode TaoSetMetricType(Tao, TaoMetricType);
-PetscErrorCode TaoGetMetricType(Tao, TaoMetricType *);
+//TODO is this necessary, or should all users use TaoMetricRegister?
+PETSC_EXTERN PetscErrorCode TaoSetMetric(Tao, PetscErrorCode (*)(Tao, PetscReal *, Vec, Vec, PetscReal *, Vec, Mat, Mat, void *), void *);
+PETSC_EXTERN PetscErrorCode TaoGetMetric(Tao, PetscErrorCode (**)(Tao, PetscReal *, Vec, Vec, PetscReal *, Vec, Mat, Mat, void *), void **);
+PETSC_EXTERN PetscErrorCode TaoSetMetricType(Tao, TaoMetricType);
+PETSC_EXTERN PetscErrorCode TaoGetMetricType(Tao, TaoMetricType *);
 
 PETSC_EXTERN PetscErrorCode TaoPROXGetSubsolver(Tao, Tao *);
 PETSC_EXTERN PetscErrorCode TaoPROXSetStepSize(Tao, PetscReal);
@@ -558,5 +570,7 @@ PETSC_EXTERN PetscErrorCode TaoPROXGetInitialVector(Tao, Vec *);
 PETSC_EXTERN PetscErrorCode TaoGetPROXParentTao(Tao, Tao *);
 
 PETSC_EXTERN PetscErrorCode TaoApplyProximalMap(Tao, PetscReal, Vec, Vec);
+
+PETSC_EXTERN PetscErrorCode TaoComputeObjectiveAndGradient_MR(Tao, PetscReal, Vec, Vec, PetscReal *, Vec);
 
 #endif

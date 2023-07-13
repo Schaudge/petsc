@@ -10,7 +10,19 @@
 
 static const char *CG_Table[64] = {"fr", "pr", "prp", "hs", "dy"};
 
+static PetscErrorCode TaoApplyProximalMap_CG(Tao, PetscReal, Vec, Vec);
+
 static PetscErrorCode TaoSolve_CG(Tao tao)
+{
+  Vec x;
+  PetscFunctionBegin;
+  PetscCall(TaoGetSolution(tao, &x));
+  PetscCall(TaoApplyProximalMap_CG(tao, 0.0, NULL, x));
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode TaoTaoApplyProximalMap_CG(Tao tao, PetscReal lambda, Vec y, Vec x)
 {
   TAO_CG                      *cgP       = (TAO_CG *)tao->data;
   TaoLineSearchConvergedReason ls_status = TAOLINESEARCH_CONTINUE_ITERATING;
@@ -21,7 +33,8 @@ static PetscErrorCode TaoSolve_CG(Tao tao)
   if (tao->XL || tao->XU || tao->ops->computebounds) PetscCall(PetscInfo(tao, "WARNING: Variable bounds have been set but will be ignored by cg algorithm\n"));
 
   /*  Check convergence criteria */
-  PetscCall(TaoComputeObjectiveAndGradient(tao, tao->solution, &f, tao->gradient));
+  //PetscCall(TaoComputeObjectiveAndGradient(tao, tao->solution, &f, tao->gradient));//TODO
+  PetscCall(TaoComputeObjectiveAndGradient_MR(tao, tao->solution, &f, tao->gradient));//TODO
   PetscCall(VecNorm(tao->gradient, NORM_2, &gnorm));
   PetscCheck(!PetscIsInfOrNanReal(f) && !PetscIsInfOrNanReal(gnorm), PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "User provided compute function generated Inf or NaN");
 

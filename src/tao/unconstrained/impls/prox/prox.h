@@ -6,8 +6,12 @@
 #define __TAO_PROX_H
 
 #include <petsc/private/taoimpl.h>
+#include <petsc/private/hashmap.h>
+
 
 typedef struct _TaoPROXOps *TaoPROXOps;
+
+
 
 struct _TaoPROXOps {
   PetscErrorCode (*orig_obj)(Tao, Vec, PetscReal *, void *);
@@ -28,6 +32,9 @@ typedef struct {
 typedef struct {
   PETSCHEADER(struct _TaoPROXOps);        
   Tao subsolver;
+
+  /* Hash-version multiple dispatch map */
+//  PetscProxTable proxHash;
 
   TAO_PROX_L1     *L1;
   TAO_PROX_AFFINE *affine;

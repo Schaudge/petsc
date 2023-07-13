@@ -6,7 +6,11 @@
 #include <petsc/private/petscimpl.h>
 
 PETSC_EXTERN PetscBool      TaoRegisterAllCalled;
+PETSC_EXTERN PetscBool      TaoProxRegisterAllCalled;
+PETSC_EXTERN PetscBool      TaoMetricRegisterAllCalled;
 PETSC_EXTERN PetscErrorCode TaoRegisterAll(void);
+PETSC_EXTERN PetscErrorCode TaoProxRegisterAll(void);
+PETSC_EXTERN PetscErrorCode TaoMetricRegisterAll(void);
 
 typedef struct _TaoOps *TaoOps;
 
@@ -31,8 +35,10 @@ struct _TaoOps {
   PetscErrorCode (*convergencetest)(Tao, void *);
   PetscErrorCode (*convergencedestroy)(void *);
 
-  PetscErrorCode (*applyproximalmap)(Tao, PetscReal, Vec, Vec);
-  PetscErrorCode (*computemetricandgradient)(Tao, Vec, Vec, PetscReal *, Vec, void *);
+  PetscErrorCode (*applyproximalmap)(Tao, PetscReal, Vec, Vec, void *);
+  // Vec y, Vec x, real stepsize, (input), PetscReal * func_value, Vec g, Mat H, void *
+  // Computes all obj, grad, and hessian. cant tell whether i need to separate them...
+  PetscErrorCode (*computemetric)(Tao, PetscReal *, Vec, Vec, PetscReal *, Vec, Mat, void *);
 
   /* Methods set by solver */
   PetscErrorCode (*computedual)(Tao, Vec, Vec);
@@ -51,8 +57,8 @@ typedef struct {
   void  *orig_objgradP;
   void  *orig_gradP;
   void  *orig_hessP;
-  Vec    g,y,workvec;
-  Mat    H,H_pre;
+  Vec    g,y,workvec, diag_metric;
+  Mat    H,H_pre, H_work;
   PetscReal stepsize;
 } MoreauRegularizer;
 
@@ -76,6 +82,7 @@ struct _p_Tao {
   void *user_boundsP;
   void *user_update;
   void *user_metricP;
+  void *user_proxP;
 
   PetscErrorCode (*monitor[MAXTAOMONITORS])(Tao, void *);
   PetscErrorCode (*monitordestroy[MAXTAOMONITORS])(void **);
@@ -205,6 +212,11 @@ struct _p_Tao {
 
   /* Distance metric for proximal. Default is L2 */
   TaoMetricType metric_type;
+  TaoProxType   prox_type; //TODO can't tell whether I actually need this here?
+  //TODO prolly need flag for below? or should it be automatically done, depening whether _<TAOTYPE> is implemented?
+  PetscBool     prox_copy;
+  
+  Vec diag_metric;
 
   Tao proximalmap_subtao;
 
@@ -218,6 +230,8 @@ PETSC_EXTERN PetscLogEvent TAO_ObjGradEval;
 PETSC_EXTERN PetscLogEvent TAO_HessianEval;
 PETSC_EXTERN PetscLogEvent TAO_ConstraintsEval;
 PETSC_EXTERN PetscLogEvent TAO_JacobianEval;
+PETSC_EXTERN PetscLogEvent TAO_ProximalEval;
+PETSC_EXTERN PetscLogEvent TAO_MetricEval;
 
 static inline PetscErrorCode TaoLogConvergenceHistory(Tao tao, PetscReal obj, PetscReal resid, PetscReal cnorm, PetscInt totits)
 {
