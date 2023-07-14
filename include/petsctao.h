@@ -143,7 +143,7 @@ typedef enum {
 PETSC_EXTERN const char *const TaoALMMTypes[];
 
 /*E
-     TaoPROXStrategy- Determine the update strategy of PROX
+     TaoProxStrategy- Determine the update strategy of Prox
 
    Values:
 +  `TAO_PROX_DEFAULT`  - Uses default step size. Default step size is 1, unless otherwise given by user.
@@ -152,22 +152,14 @@ PETSC_EXTERN const char *const TaoALMMTypes[];
 
   Level: advanced
 
-.seealso: [](ch_tao), `Tao`, `TAOPROX`, `TaoPROXSetType()`, `TaoPROXGetType()`
+.seealso: [](ch_tao), `Tao`, `TAOPROX`, `TaoProxSetType()`, `TaoProxGetType()`
 E*/
 typedef enum {
   TAO_PROX_STRATEGY_DEFAULT,
   TAO_PROX_STRATEGY_ADAPTIVE,
   TAO_PROX_STRATEGY_VM
-} TaoPROXStrategy;
-PETSC_EXTERN const char *const TaoPROXStrategies[];
-
-typedef enum {
-  TAO_PROX_TYPE_DEFAULT,
-  TAO_PROX_TYPE_L1,
-  TAO_PROX_TYPE_AFFINE,
-  TAO_PROX_TYPE_SIMPLEX
-} TaoPROXType;
-PETSC_EXTERN const char *const TaoPROXTypes[];
+} TaoProxStrategy;
+PETSC_EXTERN const char *const TaoProxStrategies[];
 
 /*J
         TaoType - String with the name of a `Tao` method
@@ -233,9 +225,9 @@ typedef const char *TaoProxType;
 
 //TODO 1,2, is being used for other things...
 typedef const char *TaoMetricType;
-#define TAOMETRIC_L2     "metric_l2"
-#define TAOMETRIC_L1     "metric_l1"
-#define TAOMETRIC_DIAG   "metric_diag"
+#define TAOMETRIC_L2      "metric_l2"
+#define TAOMETRIC_DIAG    "metric_diag"
+#define TAOMETRIC_SHANNON "metric_shannon" //TODO or KL-unit, and KL_general?
 
 PETSC_EXTERN PetscClassId      TAO_CLASSID;
 PETSC_EXTERN PetscFunctionList TaoList;
@@ -312,6 +304,7 @@ PETSC_EXTERN PetscErrorCode TaoGetType(Tao, TaoType *);
 PETSC_EXTERN PetscErrorCode TaoSetApplicationContext(Tao, void *);
 PETSC_EXTERN PetscErrorCode TaoGetApplicationContext(Tao, void *);
 PETSC_EXTERN PetscErrorCode TaoDestroy(Tao *);
+PETSC_EXTERN PetscErrorCode TaoCopy(Tao , Tao , PetscBool);
 
 PETSC_EXTERN PetscErrorCode TaoSetOptionsPrefix(Tao, const char[]);
 PETSC_EXTERN PetscErrorCode TaoView(Tao, PetscViewer);
@@ -559,18 +552,23 @@ PETSC_EXTERN PetscErrorCode TaoGetMetric(Tao, PetscErrorCode (**)(Tao, PetscReal
 PETSC_EXTERN PetscErrorCode TaoSetMetricType(Tao, TaoMetricType);
 PETSC_EXTERN PetscErrorCode TaoGetMetricType(Tao, TaoMetricType *);
 
-PETSC_EXTERN PetscErrorCode TaoPROXGetSubsolver(Tao, Tao *);
-PETSC_EXTERN PetscErrorCode TaoPROXSetStepSize(Tao, PetscReal);
-PETSC_EXTERN PetscErrorCode TaoPROXGetStepSize(Tao, PetscReal *);
-PETSC_EXTERN PetscErrorCode TaoPROXSetVM(Tao, Mat);
-PETSC_EXTERN PetscErrorCode TaoPROXGetVM(Tao, Mat *);
-PETSC_EXTERN PetscErrorCode TaoPROXSetSoftThreshold(Tao, PetscReal, PetscReal);
-PETSC_EXTERN PetscErrorCode TaoPROXSetInitialVector(Tao, Vec);
-PETSC_EXTERN PetscErrorCode TaoPROXGetInitialVector(Tao, Vec *);
-PETSC_EXTERN PetscErrorCode TaoGetPROXParentTao(Tao, Tao *);
+PETSC_EXTERN PetscErrorCode TaoProxSetType(Tao, TaoProxType);
+PETSC_EXTERN PetscErrorCode TaoProxGetType(Tao, TaoProxType *);
+
+
+PETSC_EXTERN PetscErrorCode TaoProxGetSubsolver(Tao, Tao *);
+PETSC_EXTERN PetscErrorCode TaoProxSetStepSize(Tao, PetscReal);
+PETSC_EXTERN PetscErrorCode TaoProxGetStepSize(Tao, PetscReal *);
+PETSC_EXTERN PetscErrorCode TaoProxSetVM(Tao, Mat);
+PETSC_EXTERN PetscErrorCode TaoProxGetVM(Tao, Mat *);
+PETSC_EXTERN PetscErrorCode TaoProxSetSoftThreshold(Tao, PetscReal, PetscReal);
+PETSC_EXTERN PetscErrorCode TaoProxSetInitialVector(Tao, Vec);
+PETSC_EXTERN PetscErrorCode TaoProxGetInitialVector(Tao, Vec *);
+PETSC_EXTERN PetscErrorCode TaoGetProxParentTao(Tao, Tao *);
 
 PETSC_EXTERN PetscErrorCode TaoApplyProximalMap(Tao, PetscReal, Vec, Vec);
 
-PETSC_EXTERN PetscErrorCode TaoComputeObjectiveAndGradient_MR(Tao, PetscReal, Vec, Vec, PetscReal *, Vec);
+//                                                                 x    f(x)         grad  lambda       y 
+PETSC_EXTERN PetscErrorCode TaoComputeObjectiveAndGradient_MR(Tao, Vec, PetscReal *, Vec,  PetscReal *, Vec);
 
 #endif

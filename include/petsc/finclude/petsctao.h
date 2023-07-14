@@ -13,7 +13,7 @@
 #define TaoADMMUpdateType PetscEnum
 #define TaoADMMRegularizerType PetscEnum
 #define TaoALMMType PetscEnum
-#define TaoPROXStrategy PetscEnum
+#define TaoProxStrategy PetscEnum
 
 #define TAOLMVM     'lmvm'
 #define TAONLS      'nls'

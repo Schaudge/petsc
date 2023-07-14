@@ -50,10 +50,8 @@ typedef struct {
 
   PetscInt step_type;	  
 
-  TaoPROXStrategy strategy;
-  TaoPROXType type;
-
-  TaoMetricType metric_type;
+  TaoProxStrategy strategy;
+  TaoProxType     type;
 
   void  *orig_objP;
   void  *orig_objgradP;

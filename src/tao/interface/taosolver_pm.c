@@ -3,11 +3,10 @@
 PetscBool         TaoProxRegisterAllCalled   = PETSC_FALSE;
 PetscFunctionList TaoProxList                = NULL;
 
-//TODO should it be TaoProx<T> or Tao<T>Prox ?
 //TODO should most of the code here be in proxutil.c? or here?
 
 /*@C
-   TaoSetProxType - Sets the `TaoProxType` for the prox routine.
+   TaoProxSetType - Sets the `TaoProxType` for the prox routine.
 
    Collective
 
@@ -21,9 +20,9 @@ PetscFunctionList TaoProxList                = NULL;
 
   Level: intermediate
 
-.seealso: [](ch_tao), `Tao`, `TaoCreate()`, `TaoGetProxType()`, `TaoProxType`
+.seealso: [](ch_tao), `Tao`, `TaoCreate()`, `TaoProxGetType()`, `TaoProxType`
 @*/
-PetscErrorCode TaoSetProxType(Tao tao, TaoProxType type)
+PetscErrorCode TaoProxSetType(Tao tao, TaoProxType type)
 {
   PetscErrorCode (*prox_xxx)(Tao, PetscReal, Vec, Vec, void *);
 
@@ -51,10 +50,10 @@ PetscErrorCode TaoSetProxType(Tao tao, TaoProxType type)
 
    Level: intermediate
 
-.seealso: [](ch_tao), `Tao`, `TaoProxType`, `TaoSetProxType()`
+.seealso: [](ch_tao), `Tao`, `TaoProxType`, `TaoProxGetType()`
 @*/
 
-PetscErrorCode TaoGetProxType(Tao tao, TaoProxType *type)
+PetscErrorCode TaoProxGetType(Tao tao, TaoProxType *type)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
@@ -62,7 +61,6 @@ PetscErrorCode TaoGetProxType(Tao tao, TaoProxType *type)
   *type = tao->prox_type;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
 
 /*@C
    TaoProxRegister - Adds a method to the Tao package for minimization.
@@ -131,20 +129,17 @@ PetscErrorCode TaoProxRegisterDestroy(void)
 static PetscErrorCode TaoAddMoreauRegHess_Private(Tao tao, Vec X, Mat H, Mat H_pre, void *ptr)
 {
   PetscReal stepsize;
-  PetscBool is_l2, is_l1, is_diag;
+  PetscBool is_l2, is_diag;
   PetscFunctionBegin;
 
   stepsize = tao->MR_internal->stepsize;
   PetscCall((tao->MR_internal->ops->computehessian)(tao, X, H, H_pre, tao->MR_internal->orig_hessP));
 
   PetscCall(PetscStrcmp(tao->metric_type, TAOMETRIC_L2, &is_l2));
-  PetscCall(PetscStrcmp(tao->metric_type, TAOMETRIC_L1, &is_l1));
   PetscCall(PetscStrcmp(tao->metric_type, TAOMETRIC_DIAG, &is_diag));
 
   if (is_l2) {
     PetscCall(MatShift(H,stepsize));//TODO make sure H is "flushed every time its called to avoid aI stacking?
-  } else if (is_l1) {
-    SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "L1 Metric does not have Hessian routine.");
   } else if (is_diag) {
     PetscCall(MatDiagonalScale(H, tao->MR_internal->diag_metric, NULL));//TODO make sure H is "flushed every time its called to avoid aI stacking?
   } else {
@@ -165,7 +160,7 @@ static PetscErrorCode TaoAddMoreauRegObjGrad_Private(Tao tao, Vec X, PetscReal *
 {
   Vec y, workvec;
   PetscReal stepsize, temp;
-  PetscBool is_l2, is_l1, is_diag;
+  PetscBool is_l2, is_diag;
   PetscFunctionBegin;
 
   y = tao->MR_internal->y;
@@ -175,7 +170,6 @@ static PetscErrorCode TaoAddMoreauRegObjGrad_Private(Tao tao, Vec X, PetscReal *
   PetscCall((tao->MR_internal->ops->computeobjectiveandgradient)(tao, X, f, G, tao->MR_internal->orig_objgradP));
 
   PetscCall(PetscStrcmp(tao->metric_type, TAOMETRIC_L2, &is_l2));
-  PetscCall(PetscStrcmp(tao->metric_type, TAOMETRIC_L1, &is_l1));
   PetscCall(PetscStrcmp(tao->metric_type, TAOMETRIC_DIAG, &is_diag));
 
   if (is_l2) {
@@ -183,10 +177,6 @@ static PetscErrorCode TaoAddMoreauRegObjGrad_Private(Tao tao, Vec X, PetscReal *
     PetscCall(VecNorm(workvec,NORM_2, &temp));
     temp = PetscPowReal(temp,2);
     PetscCall(VecAXPY(G, stepsize, workvec)); 
-  } else if (is_l1) {
-          //TODO grad for l1???
-    PetscCall(VecWAXPY(workvec, -1., y, X));
-    PetscCall(VecNorm(workvec,NORM_1, &temp));
   } else if (is_diag) {
     Vec diag;
     diag = tao->MR_internal->diag_metric;
@@ -206,7 +196,7 @@ static PetscErrorCode TaoAddMoreauRegGrad_Private(Tao tao, Vec X, Vec G, void *p
 {
   Vec y, workvec;
   PetscReal stepsize;
-  PetscBool is_l2, is_l1, is_diag;
+  PetscBool is_l2, is_diag;
 
   //PetscErrorCode (*metric_xxx)(Tao, PetscReal *, Vec, Vec, PetscReal *, Vec, Mat, Mat, void *);
 
@@ -218,14 +208,10 @@ static PetscErrorCode TaoAddMoreauRegGrad_Private(Tao tao, Vec X, Vec G, void *p
 
   PetscCall((tao->MR_internal->ops->computegradient)(tao, X, G, tao->MR_internal->orig_gradP));
   PetscCall(PetscStrcmp(tao->metric_type, TAOMETRIC_L2, &is_l2));
-  PetscCall(PetscStrcmp(tao->metric_type, TAOMETRIC_L1, &is_l1));
   PetscCall(PetscStrcmp(tao->metric_type, TAOMETRIC_DIAG, &is_diag));
   if (is_l2) {
     PetscCall(VecWAXPY(workvec, -1., y, X));
     PetscCall(VecAXPY(G, stepsize, workvec)); 
-  } else if (is_l1) {
-    //TODO i think this is technically wrong...?
-    PetscCall(VecWAXPY(workvec, -1., y, X));
   } else if (is_diag) {
     Vec diag;
     diag = tao->MR_internal->diag_metric;
@@ -243,7 +229,7 @@ static PetscErrorCode TaoAddMoreauRegObj_Private(Tao tao, Vec X, PetscReal *f, v
 {
   Vec       y, workvec;
   PetscReal temp, stepsize;
-  PetscBool is_l2, is_l1, is_diag;
+  PetscBool is_l2, is_diag;
 
   PetscFunctionBegin;
   PetscCall((tao->MR_internal->ops->computeobjective)(tao, X, f, tao->MR_internal->orig_objP));
@@ -253,16 +239,12 @@ static PetscErrorCode TaoAddMoreauRegObj_Private(Tao tao, Vec X, PetscReal *f, v
   stepsize = tao->MR_internal->stepsize;
 
   PetscCall(PetscStrcmp(tao->metric_type, TAOMETRIC_L2, &is_l2));
-  PetscCall(PetscStrcmp(tao->metric_type, TAOMETRIC_L1, &is_l1));
   PetscCall(PetscStrcmp(tao->metric_type, TAOMETRIC_DIAG, &is_diag));
 
   if (is_l2) {
     PetscCall(VecWAXPY(workvec, -1., y, X));
     PetscCall(VecNorm(workvec,NORM_2, &temp));
     temp = PetscPowReal(temp,2);
-  } else if (is_l1) {
-    PetscCall(VecWAXPY(workvec, -1., y, X));
-    PetscCall(VecNorm(workvec,NORM_1, &temp));
   } else if (is_diag) {
     Vec diag;
     diag = tao->MR_internal->diag_metric;
@@ -367,7 +349,8 @@ PETSC_EXTERN PetscErrorCode TaoApplyProximalMap(Tao tao, PetscReal lambda, Vec y
    * if y == NULL, y == 0 */
   PetscCall(TaoGetType(tao, &tao_type));
   PetscCall(PetscObjectTypeCompare((PetscObject)tao, TAOPROX, &is_prox));
-
+//TODO lock push, etc boilerplates...
+  PetscCall(PetscLogEventBegin(TAO_ProximalEval, tao, 0, 0, 0));
   if (is_prox) {
     /* Proximal Case */
     PetscUseTypeMethod(tao, applyproximalmap, lambda, y, x, tao->user_proxP);
@@ -395,5 +378,44 @@ PETSC_EXTERN PetscErrorCode TaoApplyProximalMap(Tao tao, PetscReal lambda, Vec y
       PetscCall(TaoSolve(tao));
     }
   }
+  PetscCall(PetscLogEventEnd(TAO_ProximalEval, tao, 0, 0, 0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+PETSC_EXTERN PetscErrorCode TaoComputeObjectiveAndGradient_MR(Tao tao, Vec X, PetscReal *f, Vec G,  PetscReal *stepsize, Vec y)
+{
+  Vec workvec;
+  PetscReal temp;
+  PetscBool is_l2, is_diag;
+
+  PetscFunctionBegin;
+  workvec = tao->MR_internal->workvec;
+
+  PetscCall(PetscStrcmp(tao->metric_type, TAOMETRIC_L2, &is_l2));
+  PetscCall(PetscStrcmp(tao->metric_type, TAOMETRIC_DIAG, &is_diag));
+
+  PetscCall(TaoComputeObjectiveAndGradient(tao, X, f, G));
+
+  PetscCall(PetscLogEventBegin(TAO_MetricEval, tao, 0, 0, 0));
+  if (is_l2) {
+    PetscCall(VecWAXPY(workvec, -1., y, X));
+    PetscCall(VecNorm(workvec,NORM_2, &temp));
+    temp = PetscPowReal(temp,2);
+    PetscCall(VecAXPY(G, *stepsize, workvec)); 
+  } else if (is_diag) {
+    Vec diag;
+    diag = tao->MR_internal->diag_metric;
+
+    PetscCall(VecWAXPY(workvec, -1., y, X));
+    PetscCall(VecPointwiseMult(G, diag, workvec));
+    PetscCall(VecDot(G, workvec, &temp));
+  } else {
+    PetscCallBack("User provided Metric callback, ObjGrad part", (*tao->ops->computemetric)(tao, stepsize, y, X, &temp, workvec, NULL, tao->user_metricP));
+    PetscCall(VecAXPY(G, *stepsize, workvec)); 
+  }
+  *f += (*stepsize/2)*temp;
+  PetscCall(PetscLogEventEnd(TAO_MetricEval, tao, 0, 0, 0));
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+

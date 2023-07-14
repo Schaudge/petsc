@@ -123,7 +123,8 @@ PetscErrorCode TaoCreate(MPI_Comm comm, Tao *newtao)
   tao->trust0  = PETSC_INFINITY;
   tao->fmin    = PETSC_NINFINITY;
 
-  tao->hist_reset = PETSC_TRUE;
+  tao->hist_reset  = PETSC_TRUE;
+  tao->metric_type = TAOMETRIC_L2;
 
   PetscCall(TaoResetStatistics(tao));
   *newtao = tao;
@@ -298,6 +299,75 @@ PetscErrorCode TaoDestroy(Tao *tao)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/*@C
+  TaoCopy - Copys the `Tao`, from tao to dest_tao. Flag determines shallow-copy, or deep-copy. 
+            False is shallow-copy, true is deep-copy.
+
+  Collective
+
+  Input Parameter:
++ tao - the `Tao` context to copy from
+. dest_tao - the `Tao` context to copy to 
+- flg - Flag to determine type of copy
+
+  Level: beginner
+
+.seealso: [](ch_tao), `Tao`, `TaoCreate()`, `TaoSolve()`, `TaoDestroy()`
+@*/
+PetscErrorCode TaoCopy(Tao tao, Tao dest_tao, PetscBool flg)
+{
+  PetscFunctionBegin;
+  dest_tao->ops->computeobjective             = tao->ops->computeobjective;
+  dest_tao->ops->computeobjectiveandgradient  = tao->ops->computeobjectiveandgradient;
+  dest_tao->ops->computegradient              = tao->ops->computegradient;
+  dest_tao->ops->computehessian               = tao->ops->computehessian;
+  dest_tao->ops->computeresidual              = tao->ops->computeresidual;
+  dest_tao->ops->computeresidualjacobian      = tao->ops->computeresidualjacobian;
+  dest_tao->ops->computeconstraints           = tao->ops->computeconstraints;
+  dest_tao->ops->computeinequalityconstraints = tao->ops->computeinequalityconstraints;
+  dest_tao->ops->computeequalityconstraints   = tao->ops->computeequalityconstraints;
+  dest_tao->ops->computejacobian              = tao->ops->computejacobian;
+  dest_tao->ops->computejacobianstate         = tao->ops->computejacobianstate;
+  dest_tao->ops->computejacobiandesign        = tao->ops->computejacobiandesign;
+  dest_tao->ops->computejacobianinequality    = tao->ops->computejacobianinequality;
+  dest_tao->ops->computejacobianequality      = tao->ops->computejacobianequality;
+  dest_tao->ops->computebounds                = tao->ops->computebounds;
+  dest_tao->ops->update                       = tao->ops->update;
+  dest_tao->ops->convergencetest              = tao->ops->convergencetest;
+  dest_tao->ops->convergencedestroy           = tao->ops->convergencedestroy;
+  dest_tao->ops->applyproximalmap             = tao->ops->applyproximalmap;
+  dest_tao->ops->computemetric                = tao->ops->computemetric;
+  dest_tao->ops->computedual                  = tao->ops->computedual;
+  dest_tao->ops->setup                        = tao->ops->setup;
+  dest_tao->ops->solve                        = tao->ops->solve;
+  dest_tao->ops->view                         = tao->ops->view;
+  dest_tao->ops->setfromoptions               = tao->ops->setfromoptions;
+  dest_tao->ops->destroy                      = tao->ops->destroy;
+  //TODO lets ignore MR struct...
+  
+  dest_tao->user                 = tao->user;
+  dest_tao->user_objP            = tao->user_objP;
+  dest_tao->user_objgradP        = tao->user_objgradP;
+  dest_tao->user_gradP           = tao->user_gradP;
+  dest_tao->user_hessP           = tao->user_hessP;
+  dest_tao->user_lsresP          = tao->user_lsresP;
+  dest_tao->user_lsjacP          = tao->user_lsjacP;
+  dest_tao->user_conP            = tao->user_conP;
+  dest_tao->user_con_equalityP   = tao->user_con_equalityP;
+  dest_tao->user_con_inequalityP = tao->user_con_inequalityP;
+  dest_tao->user_jacP            = tao->user_jacP;
+  dest_tao->user_jac_equalityP   = tao->user_jac_equalityP;
+  dest_tao->user_jac_inequalityP = tao->user_jac_inequalityP;
+  dest_tao->user_jac_stateP      = tao->user_jac_stateP;
+  dest_tao->user_jac_designP     = tao->user_jac_designP;
+  dest_tao->user_boundsP         = tao->user_boundsP;
+  dest_tao->user_update          = tao->user_update;
+  dest_tao->user_metricP         = tao->user_metricP;
+  dest_tao->user_proxP           = tao->user_proxP;
+
+  //TODO...
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 /*@
    TaoKSPSetUseEW - Sets `SNES` use Eisenstat-Walker method for computing relative tolerance for linear solvers.
 
@@ -2823,12 +2893,19 @@ $     -tao_metric_type my_metric_solver
 
 .seealso: [](ch_tao), `Tao`, `TaoSetType()`, `TaoMetricRegisterAll()`, `TaoMetricRegisterDestroy()`
 @*/
+
+#if 0
+int TaoMetricSetContext(Tao tao, void *ptr)
+{
+ tao->user_metricP = ptr;
+}
+#endif
+
 PetscErrorCode TaoMetricRegister(const char name[], PetscErrorCode (*func)(Tao, PetscReal *, Vec, Vec, PetscReal *, Vec, Mat, void *))
 {
   PetscFunctionBegin;
   PetscCall(TaoInitializePackage());
   PetscCall(PetscFunctionListAdd(&TaoMetricList, name, (void (*)(void))func));
-  //TODO context?
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

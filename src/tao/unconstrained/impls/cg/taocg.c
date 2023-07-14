@@ -34,7 +34,7 @@ static PetscErrorCode TaoTaoApplyProximalMap_CG(Tao tao, PetscReal lambda, Vec y
 
   /*  Check convergence criteria */
   //PetscCall(TaoComputeObjectiveAndGradient(tao, tao->solution, &f, tao->gradient));//TODO
-  PetscCall(TaoComputeObjectiveAndGradient_MR(tao, tao->solution, &f, tao->gradient));//TODO
+  PetscCall(TaoComputeObjectiveAndGradient_MR(tao, tao->solution, &f, tao->gradient, &lambda, y));//TODO
   PetscCall(VecNorm(tao->gradient, NORM_2, &gnorm));
   PetscCheck(!PetscIsInfOrNanReal(f) && !PetscIsInfOrNanReal(gnorm), PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "User provided compute function generated Inf or NaN");
 
