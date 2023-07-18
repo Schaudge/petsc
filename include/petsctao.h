@@ -318,7 +318,9 @@ PETSC_EXTERN PetscErrorCode TaoRegisterDestroy(void);
 PETSC_EXTERN PetscErrorCode TaoProxRegister(const char[], PetscErrorCode (*)(Tao, PetscReal, Vec, Vec, void *));
 PETSC_EXTERN PetscErrorCode TaoProxRegisterDestroy(void);
 
-PETSC_EXTERN PetscErrorCode TaoMetricRegister(const char[], PetscErrorCode (*)(Tao, PetscReal *, Vec, Vec, PetscReal *, Vec, Mat, void *));
+PETSC_EXTERN PetscErrorCode TaoMetricSetContext(Tao, void *);
+PETSC_EXTERN PetscErrorCode TaoMetricGetContext(Tao, void *);
+PETSC_EXTERN PetscErrorCode TaoMetricRegister(const char[], PetscErrorCode (*)(Tao, PetscReal *, Vec, Vec, PetscReal *, Vec, Mat, void *), void *);
 PETSC_EXTERN PetscErrorCode TaoMetricRegisterDestroy(void);
 
 PETSC_EXTERN PetscErrorCode TaoGetConvergedReason(Tao, TaoConvergedReason *);

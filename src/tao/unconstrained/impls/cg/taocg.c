@@ -10,19 +10,7 @@
 
 static const char *CG_Table[64] = {"fr", "pr", "prp", "hs", "dy"};
 
-static PetscErrorCode TaoApplyProximalMap_CG(Tao, PetscReal, Vec, Vec);
-
-static PetscErrorCode TaoSolve_CG(Tao tao)
-{
-  Vec x;
-  PetscFunctionBegin;
-  PetscCall(TaoGetSolution(tao, &x));
-  PetscCall(TaoApplyProximalMap_CG(tao, 0.0, NULL, x));
-
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-static PetscErrorCode TaoTaoApplyProximalMap_CG(Tao tao, PetscReal lambda, Vec y, Vec x)
+PetscErrorCode TaoApplyProximalMap_CG(Tao tao, PetscReal lambda, Vec y, Vec x)
 {
   TAO_CG                      *cgP       = (TAO_CG *)tao->data;
   TaoLineSearchConvergedReason ls_status = TAOLINESEARCH_CONTINUE_ITERATING;
@@ -201,6 +189,16 @@ static PetscErrorCode TaoTaoApplyProximalMap_CG(Tao tao, PetscReal lambda, Vec y
     delta = PetscMax(delta, cgP->delta_min);
     delta = PetscMin(delta, cgP->delta_max);
   }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode TaoSolve_CG(Tao tao)
+{
+  Vec x;
+  PetscFunctionBegin;
+  PetscCall(TaoGetSolution(tao, &x));
+  PetscCall(TaoApplyProximalMap_CG(tao, 0.0, NULL, x));
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

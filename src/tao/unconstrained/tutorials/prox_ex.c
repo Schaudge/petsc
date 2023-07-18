@@ -19,22 +19,6 @@ typedef struct {
  * 1: L1        : \|x\|_1
  *.....  */
 
-/*------------------------------------------------------------*/
-
-static PetscErrorCode Shell_Solve(Tao tao)
-{
-  Tao     prox_tao;
-  AppCtx *user;
-  Vec     out;
-
-  PetscFunctionBegin;
-  PetscCall(TaoGetPROXParentTao(tao, &prox_tao));
-  PetscCall(TaoShellGetContext(tao, &user));
-  PetscCall(TaoGetSolution(tao, &out));
-  PetscCall(TaoSoftThreshold(user->y, user->lb, user->ub, out));
-  PetscFunctionReturn(PETSC_SUCCESS);  
-}
-
 
 /* Obj and Grad for iterative refinement.
  *
@@ -56,19 +40,43 @@ PetscErrorCode UserObjGrad(Tao tao, Vec X, PetscReal *f, Vec G, void *ptr)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+//KL divergnce. sum x_i log (x/y)
+//grad: log (x/y) + 1. Ignoring Hessian.
+//
+//TODO fix internal context for applyproximalmap etc
+PetscErrorCode Metric_Magic(Tao tao, PetscReal *step, Vec y, Vec x, PetscReal *obj, Vec g, Mat H, void *ptr)
+{
+  AppCtx *user = (AppCtx *)ptr;
+  Vec    workv;
+
+  PetscFunctionBegin;
+  workv = user->workvec;
+
+  PetscCall(VecPointwiseDivide(workv, x, y));
+  PetscCall(VecLog(workv));
+  PetscCall(VecCopy(workv, g));
+  PetscCall(VecShift(workv, 1.));
+
+  PetscCall(VecPointwiseMult(workv, x, workv));
+  PetscCall(VecSum(workv, obj));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 int main(int argc, char **argv)
 {
   Tao       tao;
-  Vec       x, x2;
+  Vec       x;
+  Mat       temp_mat;
   PetscInt  size;
   AppCtx    user;
-  PetscBool flg, shell = PETSC_FALSE;
+  PetscBool flg;
   PetscRandom rctx;
 
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, (char *)0, help));
   PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD, &size));
   PetscCheck(size == 1, PETSC_COMM_WORLD, PETSC_ERR_WRONG_MPI_SIZE, "Incorrect number of processors");
+
 
   user.problem = 0;
   user.n = 10;
@@ -83,10 +91,8 @@ int main(int argc, char **argv)
   PetscCall(PetscOptionsGetInt(NULL, NULL, "-problem", &user.problem, &flg));
   /* If stepsize ==1, default case. Else, adaptive version */
 //  PetscCall(PetscOptionsGetReal(NULL, NULL, "-stepsize", &user.stepsize, &flg));
-  PetscCall(PetscOptionsGetBool(NULL, NULL, "-shell", &shell, &flg));
 
   PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &x));
-  PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &x2));
   PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &user.y));
   PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &user.workvec));
   PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &user.workvec2));
@@ -97,57 +103,66 @@ int main(int argc, char **argv)
   PetscCall(VecSetRandom(user.y, rctx));
   /* x: zero vec */
   PetscCall(VecZeroEntries(x));
-  PetscCall(VecZeroEntries(x2));
   PetscCall(PetscRandomDestroy(&rctx));
-  PetscCall(VecView(user.y, PETSC_VIEWER_STDOUT_WORLD));
 
+  /* A,b data */
+  PetscCall(VecView(user.y, PETSC_VIEWER_STDOUT_WORLD));
+  PetscCall(MatCreateSeqAIJ(PETSC_COMM_WORLD, user.n, user.n, 0, NULL, &temp_mat));
+  PetscCall(PetscRandomCreate(PETSC_COMM_WORLD, &rctx));
+  PetscCall(PetscRandomSetFromOptions(rctx));
+  PetscCall(PetscRandomSetInterval(rctx, -10, 10));
+  PetscCall(MatSetRandom(temp_mat, rctx));
+  PetscCall(MatAssemblyBegin(temp_mat,MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyEnd(temp_mat,MAT_FINAL_ASSEMBLY));
+  PetscCall(MatTransposeMatMult(temp_mat, temp_mat, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &user.A));
+  PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &user.b));
+  PetscCall(VecSetRandom(user.b, rctx));
+  PetscCall(MatDestroy(&temp_mat));
+  PetscCall(PetscRandomDestroy(&rctx));
+
+  /* Registering KL */
+  PetscCall(TaoMetricRegister("TAOMETRIC_KL_USER", Metric_Magic, (void *) &user));
   PetscCall(TaoCreate(PETSC_COMM_SELF, &tao));
+
+  /* Cases that we want to try:
+   *
+   *  - Built-in TAOPROX solve for Soft-Threshold
+   *  - Dispatch version for TAOCG - via TaoApplyProximalMap_CG, with L2 metric
+   *  - TAOCG with KL metric */
 
   /* Testing default case */
   switch (user.problem) {
   case 0:
+    /* L1 */
+    {
+      /* Stepsize of 1 */
+      PetscCall(TaoSetType(tao, TAOPROX));
+      PetscCall(TaoProxSetInitialVector(tao, user.y));
+      PetscCall(TaoSetSolution(tao, x));
+      PetscCall(TaoProxSetType(tao, TAOPROX_L1));
+      PetscCall(TaoSetFromOptions(tao));
+    }
+    break;
+  case 1:
+  case 2:
     /* user version */
     /* Solving iterative refinement (/
      * f(x) = 0.5 x.T A x - b.T x, where A is spsd 
-     * sol = (A + I)^-1 (b + y)*/
+     * sol = (A + I)^-1 (b + y) .
+     * Will be solved via VecApplyProximalMap_CG */
     {
       PetscCall(TaoSetType(tao, TAOCG));
       PetscCall(TaoSetSolution(tao, x));
       PetscCall(TaoSetFromOptions(tao));
-      /* Creating data */
-      Mat temp_mat;
-      PetscCall(MatCreateSeqAIJ(PETSC_COMM_WORLD, user.n, user.n, 0, NULL, &temp_mat));
-      PetscCall(PetscRandomCreate(PETSC_COMM_WORLD, &rctx));
-      PetscCall(PetscRandomSetFromOptions(rctx));
-      PetscCall(PetscRandomSetInterval(rctx, -10, 10));
-      PetscCall(MatSetRandom(temp_mat, rctx));
-      PetscCall(MatAssemblyBegin(temp_mat,MAT_FINAL_ASSEMBLY));
-      PetscCall(MatAssemblyEnd(temp_mat,MAT_FINAL_ASSEMBLY));
-      PetscCall(MatTransposeMatMult(temp_mat, temp_mat, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &user.A));
-      PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &user.b));
-      PetscCall(VecSetRandom(user.b, rctx));
-      PetscCall(MatDestroy(&temp_mat));
-      PetscCall(PetscRandomDestroy(&rctx));
-
       PetscCall(TaoSetObjectiveAndGradient(tao, NULL, UserObjGrad, (void *) &user));
-    }
-    break;
-  case 1:
-    /* L1 */
-    {
-      PetscCall(TaoSetType(tao, TAOPROX));
-      PetscCall(TaoPROXSetInitialVector(tao, user.y));
-      PetscCall(TaoSetSolution(tao, x));
-      PetscCall(TaoSetFromOptions(tao));
-      if (shell) {
-        //Shell Version
-        Tao subsolver;
-        PetscCall(TaoPROXGetSubsolver(tao, &subsolver));
-        PetscCall(TaoSetType(subsolver, TAOSHELL));
-        PetscCall(TaoShellSetContext(subsolver, (void *)&user));
-        PetscCall(TaoShellSetSolve(subsolver, Shell_Solve));
+
+      if (user.problem == 1) {
+        /* L2 metric */
+        PetscCall(TaoSetMetricType(tao, TAOMETRIC_L2));
+      } else if (user.problem == 2){
+        PetscCall(TaoSetMetricType(tao, "TAOMETRIC_KL_USER"));
       } else {
-        PetscCall(TaoPROXSetSoftThreshold(tao, user.lb, user.ub));
+        SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER, "Problem not 0,1,or 2 ");
       }
     }
     break;
@@ -155,9 +170,8 @@ int main(int argc, char **argv)
     break;
   }
 
-  PetscCall(TaoApplyProximalMap(tao, 1., NULL, user.y, x));
+  PetscCall(TaoApplyProximalMap(tao, 1., user.y, x));
   PetscCall(VecView(x, PETSC_VIEWER_STDOUT_WORLD));
-//  PetscCall(TaoSolve(tao));
 
   if (user.problem == 0) {
     /* workvec2 = (A + I)^-1 (b + y)*/          
@@ -172,7 +186,6 @@ int main(int argc, char **argv)
 
   PetscCall(TaoDestroy(&tao));
   PetscCall(VecDestroy(&x));
-  PetscCall(VecDestroy(&x2));
   PetscCall(VecDestroy(&user.y));
   PetscCall(VecDestroy(&user.workvec));
   PetscCall(VecDestroy(&user.workvec2));

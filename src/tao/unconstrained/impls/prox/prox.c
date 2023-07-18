@@ -133,7 +133,7 @@ static PetscErrorCode TaoView_Prox(Tao tao, PetscViewer viewer)
   Level: beginner
 M*/
 
-PETSC_EXTERN PetscErrorCode TaoCreate_Prox(Tao tao)
+PETSC_EXTERN PetscErrorCode TaoCreate_PROX(Tao tao)
 {
   TAO_PROX *proxP  = (TAO_PROX *)tao->data;
 

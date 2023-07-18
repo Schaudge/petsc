@@ -360,9 +360,8 @@ PETSC_EXTERN PetscErrorCode TaoApplyProximalMap(Tao tao, PetscReal lambda, Vec y
     if (tao->ops->applyproximalmap) {
       PetscTryTypeMethod(tao, applyproximalmap, lambda, y, x, tao->user_proxP);
     } else {
-      //TODO TaoCopy is fall-back 
+      //TODO TaoCopy is fall-back . shallow vs deep
       // first time this called. need to initialize subtao
-      // TODO shallow copy vs deep copy issue. Dumb version RN
       if (tao->proximalmap_subtao == NULL) {
         TaoType       type;
         TaoMetricType metric_type;

@@ -4,9 +4,9 @@
 
 PetscBool         TaoRegisterAllCalled       = PETSC_FALSE;
 PetscBool         TaoMetricRegisterAllCalled = PETSC_FALSE;
-PetscBool         TaoProxRegisterAllCalled   = PETSC_FALSE;
 PetscFunctionList TaoList                    = NULL;
 PetscFunctionList TaoMetricList              = NULL;
+PetscObjectList   TaoMetricContextList       = NULL;
 
 PetscClassId TAO_CLASSID;
 
@@ -365,7 +365,6 @@ PetscErrorCode TaoCopy(Tao tao, Tao dest_tao, PetscBool flg)
   dest_tao->user_metricP         = tao->user_metricP;
   dest_tao->user_proxP           = tao->user_proxP;
 
-  //TODO...
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 /*@
@@ -2835,25 +2834,6 @@ PetscErrorCode TaoMonitorDrawCtxDestroy(TaoMonitorDrawCtx *ictx)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-typedef struct {
-  TaoProxType    prox;
-  TaoMetricType metric;
-} PetscProxTableKey;
-
-
-
-#define PetscProxTableHash(key) PetscHashCombine(kh_str_hash_func((key).prox), kh_str_hash_func((key).metric))
-#define PetscProxTableEqual(a,b) (kh_str_hash_equal((a).prox,(b).prox) && kh_str_hash_equal((a).metric,(b).metric))
-
-//             typename   key                output          hashfn              equal
-//PETSC_HASH_MAP(ProxTable, PetscProxTableKey, TaoProximalMap, PetscProxTableHash, PetscProxTableEqual, PETSC_NULLPTR);
-PETSC_HASH_MAP(ProxTable, PetscProxTableKey, PetscVoidFunction, PetscProxTableHash, PetscProxTableEqual, PETSC_NULLPTR);
-
-struct _n_PetscFunctionList {
-  PetscProxTable    map;
-  PetscProxTableKey key;
-};
-
 /*@C
    TaoMetricRegister - Adds a method to the Tao package for minimization.
 
@@ -2869,9 +2849,10 @@ struct _n_PetscFunctionList {
   Calling sequence of `func`:
 $ PetscErrorCode func(Tao tao, Vec y, Vec x, PetscReal s, Vec g, Mat H, Mat Hpre, void *ctx);
 + tao - the optimization object
+. s - step size  ??TODO
 . y - centraling vector term
 . x - input vector
-. s - step size 
+. o - objective (output)
 . g - gradient value (output)
 . H - Hessian matrix (output)
 - ctx - [optional] user-defined function context
@@ -2893,19 +2874,27 @@ $     -tao_metric_type my_metric_solver
 
 .seealso: [](ch_tao), `Tao`, `TaoSetType()`, `TaoMetricRegisterAll()`, `TaoMetricRegisterDestroy()`
 @*/
-
-#if 0
-int TaoMetricSetContext(Tao tao, void *ptr)
-{
- tao->user_metricP = ptr;
-}
-#endif
-
-PetscErrorCode TaoMetricRegister(const char name[], PetscErrorCode (*func)(Tao, PetscReal *, Vec, Vec, PetscReal *, Vec, Mat, void *))
+PetscErrorCode TaoMetricRegister(const char name[], PetscErrorCode (*func)(Tao, PetscReal *, Vec, Vec, PetscReal *, Vec, Mat, void *), void *ptr)
 {
   PetscFunctionBegin;
   PetscCall(TaoInitializePackage());
   PetscCall(PetscFunctionListAdd(&TaoMetricList, name, (void (*)(void))func));
+  PetscCall(PetscObjectListAdd(&TaoMetricContextList, name, ptr));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
+PetscErrorCode TaoMetricSetContext(Tao tao, void *ptr)
+{
+  PetscFunctionBegin;
+   tao->user_metricP = ptr;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode TaoMetricGetContext(Tao tao, void *ptr)
+{
+  PetscFunctionBegin;
+  ptr = tao->user_metricP;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -2947,15 +2936,20 @@ PetscErrorCode TaoMetricRegisterDestroy(void)
 PetscErrorCode TaoSetMetricType(Tao tao, TaoMetricType type)
 {
   PetscErrorCode (*metric_xxx)(Tao, PetscReal *, Vec, Vec, PetscReal *, Vec, Mat, void *);
+  PetscBool      issame;
+  void          *ptr = NULL;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
-  //TODO issame check needed or not?
+  PetscCall(PetscStrcmp(tao->metric_type, type, &issame));//TODO if metric_Type is null, is this still okay?
+  if (issame) PetscFunctionReturn(PETSC_SUCCESS);
 
   PetscCall(PetscFunctionListFind(TaoMetricList, type, (void (**)(void)) & metric_xxx));
+  PetscCall(PetscObjectListFind(TaoMetricContextList, type, (PetscObject *)ptr));
   PetscCheck(metric_xxx, PetscObjectComm((PetscObject)tao), PETSC_ERR_ARG_UNKNOWN_TYPE, "Unable to find requested Tao metric type %s", type);
   tao->metric_type        = type;
   tao->ops->computemetric = metric_xxx;
+  tao->user_metricP       = ptr;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
