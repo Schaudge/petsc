@@ -429,7 +429,7 @@ static PetscErrorCode TSEventLocation(TS ts, PetscReal *dt)
       }
       /* Compute new time step */
       PetscCall(TSEventComputeStepSize(event->ptime_prev, t, event->ptime_right, event->fvalue_prev[i], event->fvalue[i], event->fvalue_right[i], event->side[i], *dt, dt));
-      *dt = PetscMax(*dt,event->timestep_min);
+      *dt             = PetscMax(*dt, event->timestep_min);
       fvalue_sign     = PetscSign(PetscRealPart(event->fvalue[i]));
       fvalueprev_sign = PetscSign(PetscRealPart(event->fvalue_prev[i]));
       switch (event->direction[i]) {

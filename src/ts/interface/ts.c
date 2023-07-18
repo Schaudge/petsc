@@ -3839,17 +3839,18 @@ PetscErrorCode TSSolve(TS ts, Vec u)
       PetscCall(TSMonitor(ts, ts->steps, ts->ptime, ts->vec_sol));
       if (!ts->steprollback) PetscCall(TSPreStep(ts));
       PetscCall(TSStep(ts));
+      if (ts->reason < 0) break;
       if (ts->testjacobian) PetscCall(TSRHSJacobianTest(ts, NULL));
       if (ts->testjacobiantranspose) PetscCall(TSRHSJacobianTestTranspose(ts, NULL));
       if (ts->quadraturets && ts->costintegralfwd) { /* Must evaluate the cost integral before event is handled. The cost integral value can also be rolled back. */
-        if (ts->reason >= 0) ts->steps--;            /* Revert the step number changed by TSStep() */
+        ts->steps--;                                 /* Revert the step number changed by TSStep() */
         PetscCall(TSForwardCostIntegral(ts));
-        if (ts->reason >= 0) ts->steps++;
+        ts->steps++;
       }
-      if (ts->forward_solve) {            /* compute forward sensitivities before event handling because postevent() may change RHS and jump conditions may have to be applied */
-        if (ts->reason >= 0) ts->steps--; /* Revert the step number changed by TSStep() */
+      if (ts->forward_solve) { /* compute forward sensitivities before event handling because postevent() may change RHS and jump conditions may have to be applied */
+        ts->steps--;           /* Revert the step number changed by TSStep() */
         PetscCall(TSForwardStep(ts));
-        if (ts->reason >= 0) ts->steps++;
+        ts->steps++;
       }
       PetscCall(TSPostEvaluate(ts));
       PetscCall(TSEventHandler(ts)); /* The right-hand side may be changed due to event. Be careful with Any computation using the RHS information after this point. */
