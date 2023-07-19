@@ -49,7 +49,7 @@ static PetscErrorCode DMLocalTSGetContext(DM dm, DMTS tdm, DMTS_Local **dmlocalt
 static PetscErrorCode TSComputeIFunction_DMLocal(TS ts, PetscReal time, Vec X, Vec X_t, Vec F, void *ctx)
 {
   DM          dm;
-  Vec         locX, locX_t, locF;
+  Vec         U, U_t, locX, locX_t, locF;
   DMTS_Local *dmlocalts = (DMTS_Local *)ctx;
 
   PetscFunctionBegin;
@@ -58,25 +58,52 @@ static PetscErrorCode TSComputeIFunction_DMLocal(TS ts, PetscReal time, Vec X, V
   PetscValidHeaderSpecific(X_t, VEC_CLASSID, 4);
   PetscValidHeaderSpecific(F, VEC_CLASSID, 5);
   PetscCall(TSGetDM(ts, &dm));
-  PetscCall(DMGetLocalVector(dm, &locX));
-  PetscCall(DMGetLocalVector(dm, &locX_t));
+  PetscCall(DMGetAuxiliaryVec(dm, NULL, 0, 1024, &U));
+  if (U) {
+    DM sdm;
+    IS subis;
+
+    PetscCall(DMGetAuxiliaryVec(dm, NULL, 0, 1025, &U_t));
+    PetscCall(DMGetSubdofIS(dm, &subis));
+    PetscCall(VecISCopy(U, subis, SCATTER_FORWARD, X));
+    PetscCall(VecISCopy(U_t, subis, SCATTER_FORWARD, X_t));
+    PetscCall(VecGetDM(U, &sdm));
+    PetscCall(DMGetLocalVector(sdm, &locX));
+    PetscCall(DMGetLocalVector(sdm, &locX_t));
+    PetscCall(VecZeroEntries(locX));
+    PetscCall(VecZeroEntries(locX_t));
+    if (dmlocalts->boundarylocal) PetscCall((*dmlocalts->boundarylocal)(sdm, time, locX, locX_t, dmlocalts->boundarylocalctx));
+    PetscCall(DMGlobalToLocalBegin(sdm, U, INSERT_VALUES, locX));
+    PetscCall(DMGlobalToLocalEnd(sdm, U, INSERT_VALUES, locX));
+    PetscCall(DMGlobalToLocalBegin(sdm, U_t, INSERT_VALUES, locX_t));
+    PetscCall(DMGlobalToLocalEnd(sdm, U_t, INSERT_VALUES, locX_t));
+  } else {
+    PetscCall(DMGetLocalVector(dm, &locX));
+    PetscCall(VecZeroEntries(locX));
+    PetscCall(DMGetLocalVector(dm, &locX_t));
+    PetscCall(VecZeroEntries(locX_t));
+    if (dmlocalts->boundarylocal) PetscCall((*dmlocalts->boundarylocal)(dm, time, locX, locX_t, dmlocalts->boundarylocalctx));
+    PetscCall(DMGlobalToLocalBegin(dm, X, INSERT_VALUES, locX));
+    PetscCall(DMGlobalToLocalEnd(dm, X, INSERT_VALUES, locX));
+    PetscCall(DMGlobalToLocalBegin(dm, X_t, INSERT_VALUES, locX_t));
+    PetscCall(DMGlobalToLocalEnd(dm, X_t, INSERT_VALUES, locX_t));
+  }
   PetscCall(DMGetLocalVector(dm, &locF));
-  PetscCall(VecZeroEntries(locX));
-  PetscCall(VecZeroEntries(locX_t));
-  if (dmlocalts->boundarylocal) PetscCall((*dmlocalts->boundarylocal)(dm, time, locX, locX_t, dmlocalts->boundarylocalctx));
-  PetscCall(DMGlobalToLocalBegin(dm, X, INSERT_VALUES, locX));
-  PetscCall(DMGlobalToLocalEnd(dm, X, INSERT_VALUES, locX));
-  PetscCall(DMGlobalToLocalBegin(dm, X_t, INSERT_VALUES, locX_t));
-  PetscCall(DMGlobalToLocalEnd(dm, X_t, INSERT_VALUES, locX_t));
   PetscCall(VecZeroEntries(locF));
-  CHKMEMQ;
   PetscCall((*dmlocalts->ifunctionlocal)(dm, time, locX, locX_t, locF, dmlocalts->ifunctionlocalctx));
-  CHKMEMQ;
   PetscCall(VecZeroEntries(F));
   PetscCall(DMLocalToGlobalBegin(dm, locF, ADD_VALUES, F));
   PetscCall(DMLocalToGlobalEnd(dm, locF, ADD_VALUES, F));
-  PetscCall(DMRestoreLocalVector(dm, &locX));
-  PetscCall(DMRestoreLocalVector(dm, &locX_t));
+  if (U) {
+    DM sdm;
+
+    PetscCall(VecGetDM(U, &sdm));
+    PetscCall(DMRestoreLocalVector(sdm, &locX));
+    PetscCall(DMRestoreLocalVector(sdm, &locX_t));
+  } else {
+    PetscCall(DMRestoreLocalVector(dm, &locX));
+    PetscCall(DMRestoreLocalVector(dm, &locX_t));
+  }
   PetscCall(DMRestoreLocalVector(dm, &locF));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -143,26 +170,58 @@ static PetscErrorCode TSComputeRHSFunction_DMLocal(TS ts, PetscReal time, Vec X,
 static PetscErrorCode TSComputeIJacobian_DMLocal(TS ts, PetscReal time, Vec X, Vec X_t, PetscReal a, Mat A, Mat B, void *ctx)
 {
   DM          dm;
-  Vec         locX, locX_t;
+  Vec         U, U_t, locX, locX_t;
   DMTS_Local *dmlocalts = (DMTS_Local *)ctx;
 
   PetscFunctionBegin;
+  PetscValidHeaderSpecific(ts, TS_CLASSID, 1);
+  PetscValidHeaderSpecific(X, VEC_CLASSID, 3);
+  PetscValidHeaderSpecific(X_t, VEC_CLASSID, 4);
+  PetscValidHeaderSpecific(A, MAT_CLASSID, 6);
+  PetscValidHeaderSpecific(B, MAT_CLASSID, 7);
   PetscCall(TSGetDM(ts, &dm));
+  PetscCall(DMGetAuxiliaryVec(dm, NULL, 0, 1024, &U));
   if (dmlocalts->ijacobianlocal) {
-    PetscCall(DMGetLocalVector(dm, &locX));
-    PetscCall(DMGetLocalVector(dm, &locX_t));
-    PetscCall(VecZeroEntries(locX));
-    PetscCall(VecZeroEntries(locX_t));
-    if (dmlocalts->boundarylocal) PetscCall((*dmlocalts->boundarylocal)(dm, time, locX, locX_t, dmlocalts->boundarylocalctx));
-    PetscCall(DMGlobalToLocalBegin(dm, X, INSERT_VALUES, locX));
-    PetscCall(DMGlobalToLocalEnd(dm, X, INSERT_VALUES, locX));
-    PetscCall(DMGlobalToLocalBegin(dm, X_t, INSERT_VALUES, locX_t));
-    PetscCall(DMGlobalToLocalEnd(dm, X_t, INSERT_VALUES, locX_t));
-    CHKMEMQ;
+    if (U) {
+      DM sdm;
+      IS subis;
+
+      PetscCall(DMGetAuxiliaryVec(dm, NULL, 0, 1025, &U_t));
+      PetscCall(DMGetSubdofIS(dm, &subis));
+      PetscCall(VecISCopy(U, subis, SCATTER_FORWARD, X));
+      PetscCall(VecISCopy(U_t, subis, SCATTER_FORWARD, X_t));
+      PetscCall(VecGetDM(U, &sdm));
+      PetscCall(DMGetLocalVector(sdm, &locX));
+      PetscCall(DMGetLocalVector(sdm, &locX_t));
+      PetscCall(VecZeroEntries(locX));
+      PetscCall(VecZeroEntries(locX_t));
+      if (dmlocalts->boundarylocal) PetscCall((*dmlocalts->boundarylocal)(sdm, time, locX, locX_t, dmlocalts->boundarylocalctx));
+      PetscCall(DMGlobalToLocalBegin(sdm, U, INSERT_VALUES, locX));
+      PetscCall(DMGlobalToLocalEnd(sdm, U, INSERT_VALUES, locX));
+      PetscCall(DMGlobalToLocalBegin(sdm, U_t, INSERT_VALUES, locX_t));
+      PetscCall(DMGlobalToLocalEnd(sdm, U_t, INSERT_VALUES, locX_t));
+    } else {
+      PetscCall(DMGetLocalVector(dm, &locX));
+      PetscCall(DMGetLocalVector(dm, &locX_t));
+      PetscCall(VecZeroEntries(locX));
+      PetscCall(VecZeroEntries(locX_t));
+      if (dmlocalts->boundarylocal) PetscCall((*dmlocalts->boundarylocal)(dm, time, locX, locX_t, dmlocalts->boundarylocalctx));
+      PetscCall(DMGlobalToLocalBegin(dm, X, INSERT_VALUES, locX));
+      PetscCall(DMGlobalToLocalEnd(dm, X, INSERT_VALUES, locX));
+      PetscCall(DMGlobalToLocalBegin(dm, X_t, INSERT_VALUES, locX_t));
+      PetscCall(DMGlobalToLocalEnd(dm, X_t, INSERT_VALUES, locX_t));
+    }
     PetscCall((*dmlocalts->ijacobianlocal)(dm, time, locX, locX_t, a, A, B, dmlocalts->ijacobianlocalctx));
-    CHKMEMQ;
-    PetscCall(DMRestoreLocalVector(dm, &locX));
-    PetscCall(DMRestoreLocalVector(dm, &locX_t));
+    if (U) {
+      DM sdm;
+
+      PetscCall(VecGetDM(U, &sdm));
+      PetscCall(DMRestoreLocalVector(sdm, &locX));
+      PetscCall(DMRestoreLocalVector(sdm, &locX_t));
+    } else {
+      PetscCall(DMRestoreLocalVector(dm, &locX));
+      PetscCall(DMRestoreLocalVector(dm, &locX_t));
+    }
   } else {
     MatFDColoring fdcoloring;
     PetscCall(PetscObjectQuery((PetscObject)dm, "DMDASNES_FDCOLORING", (PetscObject *)&fdcoloring));

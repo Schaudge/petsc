@@ -154,6 +154,7 @@ PetscErrorCode DMClone(DM dm, DM *newdm)
   PetscCall(DMSetDimension(*newdm, dim));
   PetscTryTypeMethod(dm, clone, newdm);
   (*newdm)->setupcalled = dm->setupcalled;
+  (*newdm)->cloneOpts   = dm->cloneOpts;
   PetscCall(DMGetPointSF(dm, &sf));
   PetscCall(DMSetPointSF(*newdm, sf));
   PetscCall(DMGetApplicationContext(dm, &ctx));

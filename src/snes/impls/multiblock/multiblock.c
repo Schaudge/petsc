@@ -86,13 +86,13 @@ static PetscErrorCode SNESMultiblockSetFieldsFromOptions_Private(SNES snes)
   PetscCall(DMGetNumFields(dm, &Nf));
   PetscCall(PetscMalloc1(Nf, &ifields));
   for (i = 0;; ++i) {
-    PetscInt nfields;
+    PetscInt nfields = Nf;
 
     PetscCall(PetscSNPrintf(name, sizeof(name), "%" PetscInt_FMT, i));
     PetscCall(PetscSNPrintf(optionname, sizeof(optionname), "-snes_multiblock_%" PetscInt_FMT "_fields", i));
     PetscCall(PetscOptionsGetIntArray(NULL, ((PetscObject)snes)->prefix, optionname, ifields, &nfields, &flg));
     if (!flg) break;
-    PetscCheck(nfields, PETSC_COMM_SELF, PETSC_ERR_USER, "Cannot list zero fields for option %s", optionname);
+    PetscCheck(nfields, PETSC_COMM_SELF, PETSC_ERR_USER, "Cannot give zero fields for option %s", optionname);
     PetscCall(SNESMultiblockAddBlock(snes, name, nfields, ifields));
   }
   PetscCall(PetscFree(ifields));
@@ -143,10 +143,20 @@ static PetscErrorCode SNESMultiblockSetDefaults(SNES snes)
 
 static PetscErrorCode TSCopyToSubTS_Private(TS ts, IS is, TS subts)
 {
+  DM        subdm;
+  Vec       X, Xdot;
+  PetscBool isimex;
+
   PetscFunctionBegin;
   PetscCall(TSCopy(ts, subts));
   PetscCall(TSSetUp(subts));
-  {
+  PetscCall(PetscObjectTypeCompare((PetscObject)ts, TSARKIMEX, &isimex));
+  PetscCall(TSGetDM(subts, &subdm));
+  PetscCall(TSGetSolution(ts, &X));
+  PetscCall(VecDuplicate(X, &Xdot));
+  PetscCall(DMSetAuxiliaryVec(subdm, NULL, 0, 1025, Xdot));
+  PetscCall(VecDestroy(&Xdot));
+  if (isimex) {
     DM dm, subdm;
     Vec Z, subZ;
 

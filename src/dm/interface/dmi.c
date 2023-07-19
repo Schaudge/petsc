@@ -103,7 +103,7 @@ PetscErrorCode DMSetSubdofIS(DM dm, IS subdofIS)
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   PetscValidHeaderSpecific(subdofIS, IS_CLASSID, 2);
   PetscCall(DMGetGlobalSection(dm, &gs));
-  PetscCall(PetscSectionGetStorageSize(gs, &n));
+  PetscCall(PetscSectionGetConstrainedStorageSize(gs, &n));
   PetscCall(ISGetLocalSize(subdofIS, &n2));
   PetscCheck(n2 == n, PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_SIZ, "Subdof IS size %" PetscInt_FMT " != %" PetscInt_FMT " local size of global vector", n2, n);
   PetscCall(PetscObjectReference((PetscObject)subdofIS));
