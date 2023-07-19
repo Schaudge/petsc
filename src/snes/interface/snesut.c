@@ -72,7 +72,9 @@ PetscErrorCode SNESMonitorResidual(SNES snes, PetscInt its, PetscReal fgnorm, Pe
   PetscValidHeaderSpecific(vf->viewer, PETSC_VIEWER_CLASSID, 4);
   PetscCall(SNESGetFunction(snes, &x, NULL, NULL));
   PetscCall(PetscViewerPushFormat(vf->viewer, vf->format));
+  PetscCall(PetscObjectCompose((PetscObject)x, "__Vec_bc_zero__", (PetscObject)snes));
   PetscCall(VecView(x, vf->viewer));
+  PetscCall(PetscObjectCompose((PetscObject)x, "__Vec_bc_zero__", NULL));
   PetscCall(PetscViewerPopFormat(vf->viewer));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

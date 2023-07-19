@@ -1,0 +1,567 @@
+0 TS dt 0.0001 time 0.
+N = 2 	 nu = 3.2e-05 	 Inlet Velocity = 0.0026 	 update factor = 1.00029 	 Predicted length = 0.00260075 
+    0 SNES Function norm 4.377511025148e-02 
+      0 KSP preconditioned resid norm 1.446315554492e+00 true resid norm 4.377511025148e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.605830832672e-16 true resid norm 2.502229771161e-17 ||r(i)||/||b|| 5.716101585550e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 3.970703020818e-02 
+      0 KSP preconditioned resid norm 7.255457947756e-01 true resid norm 3.970703020818e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.611096748560e-16 true resid norm 9.815477584882e-18 ||r(i)||/||b|| 2.471974744377e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 3.294767267853e-02 
+      0 KSP preconditioned resid norm 3.658251357506e-03 true resid norm 3.294767267853e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 4.540869133340e-19 true resid norm 1.430489787543e-17 ||r(i)||/||b|| 4.341702072555e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    3 SNES Function norm 2.590743685932e-06 
+      0 KSP preconditioned resid norm 2.715029854839e-07 true resid norm 2.590743685932e-06 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 6.259643983465e-23 true resid norm 8.470337566252e-22 ||r(i)||/||b|| 3.269461819881e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    4 SNES Function norm 2.352022484389e-14 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 4
+
+CORRECTION due to V_lost = 13.1816% (V_target = 3.68217e-08  V_new = 3.1968e-08)  update factor = 1.15183  Corrected length = 0.0029956199
+
+    0 SNES Function norm 6.194880539345e+00 
+      0 KSP preconditioned resid norm 1.886689774909e+00 true resid norm 6.194880539345e+00 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.399719171068e-16 true resid norm 1.831032060728e-15 ||r(i)||/||b|| 2.955718111268e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 2.043968555354e-01 
+      0 KSP preconditioned resid norm 2.308710320071e-02 true resid norm 2.043968555354e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 8.177311959603e-18 true resid norm 3.103173610539e-17 ||r(i)||/||b|| 1.518210053873e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 1.448292220568e-04 
+      0 KSP preconditioned resid norm 2.036925411720e-05 true resid norm 1.448292220568e-04 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.261452022169e-21 true resid norm 2.710531280485e-20 ||r(i)||/||b|| 1.871536173426e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    3 SNES Function norm 2.098993527968e-10 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 3
+
+CORRECTION due to V_lost = 4.29738% (V_target = 3.68217e-08  V_new = 3.52393e-08)  update factor = 1.0449  Corrected length = 0.0031301337
+
+    0 SNES Function norm 8.312304197843e-01 
+      0 KSP preconditioned resid norm 1.592094960706e+00 true resid norm 8.312304197843e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 5.325707110080e-16 true resid norm 3.510844852410e-16 ||r(i)||/||b|| 4.223672243999e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 4.970351442183e-02 
+      0 KSP preconditioned resid norm 5.333129118720e-03 true resid norm 4.970351442183e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 6.619840115717e-19 true resid norm 3.622209038957e-17 ||r(i)||/||b|| 7.287631631469e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 7.800293313972e-06 
+      0 KSP preconditioned resid norm 8.916155158004e-07 true resid norm 7.800293313972e-06 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.106733090316e-22 true resid norm 1.746216480437e-21 ||r(i)||/||b|| 2.238654894309e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    3 SNES Function norm 3.340118364947e-13 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 3
+
+CORRECTION due to V_lost = -2.36069% (V_target = 3.68217e-08  V_new = 3.7691e-08)  update factor = 0.976937  Corrected length = 0.0030579449
+
+    0 SNES Function norm 1.879438175277e-01 
+      0 KSP preconditioned resid norm 1.459153550535e+00 true resid norm 1.879438175277e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 5.218297506759e-18 true resid norm 5.838607383088e-19 ||r(i)||/||b|| 3.106570601732e-18
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 4.222054309649e-02 
+      0 KSP preconditioned resid norm 4.614188946471e-03 true resid norm 4.222054309649e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 5.763126398994e-19 true resid norm 6.938894110702e-18 ||r(i)||/||b|| 1.643487648855e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 5.123834977617e-06 
+      0 KSP preconditioned resid norm 5.575848318608e-07 true resid norm 5.123834977617e-06 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.313189748522e-22 true resid norm 1.697372201450e-21 ||r(i)||/||b|| 3.312698806391e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    3 SNES Function norm 8.672215579362e-14 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 3
+
+CORRECTION due to V_lost = -3.37049% (V_target = 3.68217e-08  V_new = 3.80628e-08)  update factor = 0.967394  Corrected length = 0.0029582379
+
+    0 SNES Function norm 3.543485283858e-01 
+      0 KSP preconditioned resid norm 1.425996947034e+00 true resid norm 3.543485283858e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.587035135844e-16 true resid norm 1.144424697259e-16 ||r(i)||/||b|| 3.229658388795e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 4.180277393595e-02 
+      0 KSP preconditioned resid norm 4.722064108032e-03 true resid norm 4.180277393595e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 3.276594467258e-19 true resid norm 1.398578860614e-17 ||r(i)||/||b|| 3.345660416596e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 5.155125759972e-06 
+      0 KSP preconditioned resid norm 5.671925825185e-07 true resid norm 5.155125759972e-06 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 6.297117658531e-23 true resid norm 8.536315559543e-22 ||r(i)||/||b|| 1.655888906887e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    3 SNES Function norm 8.458632625225e-14 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 3
+
+CORRECTION due to V_lost = -0.453582% (V_target = 3.68217e-08  V_new = 3.69887e-08)  update factor = 0.995485  Corrected length = 0.0029448804
+
+    0 SNES Function norm 1.489577045352e-02 
+      0 KSP preconditioned resid norm 1.481808914721e+00 true resid norm 1.489577045352e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.645191718275e-16 true resid norm 8.553920985250e-18 ||r(i)||/||b|| 5.742516650577e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 1.390803082238e-02 
+      0 KSP preconditioned resid norm 1.323930343525e+00 true resid norm 1.390803082238e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 5.741676423691e-19 true resid norm 1.227405816937e-17 ||r(i)||/||b|| 8.825158878434e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 1.301840662216e-02 
+      0 KSP preconditioned resid norm 1.177783153866e+00 true resid norm 1.301840662216e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.615228891457e-16 true resid norm 8.848111194400e-18 ||r(i)||/||b|| 6.796616092278e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    3 SNES Function norm 1.217215485789e-02 
+      0 KSP preconditioned resid norm 1.050290950674e+00 true resid norm 1.217215485789e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.668893118272e-21 true resid norm 4.911627308210e-18 ||r(i)||/||b|| 4.035133766826e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    4 SNES Function norm 1.134845440037e-02 
+      0 KSP preconditioned resid norm 9.452494361594e-01 true resid norm 1.134845440037e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.049597807428e-16 true resid norm 1.748866856508e-18 ||r(i)||/||b|| 1.541061711850e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    5 SNES Function norm 1.050850689320e-02 
+      0 KSP preconditioned resid norm 8.507559940574e-01 true resid norm 1.050850689320e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.889072198468e-16 true resid norm 5.558139067581e-18 ||r(i)||/||b|| 5.289180588705e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    6 SNES Function norm 9.651062709710e-03 
+      0 KSP preconditioned resid norm 7.657455142980e-01 true resid norm 9.651062709710e-03 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 3.400677522759e-16 true resid norm 2.649366978655e-17 ||r(i)||/||b|| 2.745155697713e-15
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    7 SNES Function norm 8.787738819113e-03 
+      0 KSP preconditioned resid norm 6.892575705686e-01 true resid norm 8.787738819113e-03 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 7.652529774523e-17 true resid norm 6.992914412470e-18 ||r(i)||/||b|| 7.957581075647e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    8 SNES Function norm 7.936825515337e-03 
+      0 KSP preconditioned resid norm 6.204283662332e-01 true resid norm 7.936825515337e-03 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.066471351432e-16 true resid norm 3.885229978126e-18 ||r(i)||/||b|| 4.895193891585e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    9 SNES Function norm 7.117507743386e-03 
+      0 KSP preconditioned resid norm 5.584826729739e-01 true resid norm 7.117507743386e-03 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 5.415831400563e-19 true resid norm 6.993790141220e-18 ||r(i)||/||b|| 9.826178479004e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+   10 SNES Function norm 6.345869693576e-03 
+      0 KSP preconditioned resid norm 5.027256166709e-01 true resid norm 6.345869693576e-03 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 5.453389069660e-20 true resid norm 3.471140604460e-18 ||r(i)||/||b|| 5.469921022762e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+   11 SNES Function norm 5.632990121980e-03 
+      0 KSP preconditioned resid norm 4.525345299007e-01 true resid norm 5.632990121980e-03 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.507263451391e-16 true resid norm 6.993735154919e-18 ||r(i)||/||b|| 1.241567090208e-15
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+   12 SNES Function norm 4.984713193480e-03 
+      0 KSP preconditioned resid norm 4.073511978455e-01 true resid norm 4.984713193480e-03 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 9.045030831376e-17 true resid norm 4.851658026798e-19 ||r(i)||/||b|| 9.733073576116e-17
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+   13 SNES Function norm 4.402421196343e-03 
+      0 KSP preconditioned resid norm 3.666747524219e-01 true resid norm 4.402421196343e-03 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 4.071039523613e-17 true resid norm 3.498134089741e-18 ||r(i)||/||b|| 7.945932326164e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+   14 SNES Function norm 3.883726555615e-03 
+      0 KSP preconditioned resid norm 3.300259711026e-01 true resid norm 3.883726555615e-03 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.099242936683e-16 true resid norm 1.301060253383e-18 ||r(i)||/||b|| 3.350030530604e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+   15 SNES Function norm 3.356458926690e-03 
+      0 KSP preconditioned resid norm 2.928192571176e-01 true resid norm 3.356458926690e-03 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 3.251046022661e-17 true resid norm 1.788940803617e-18 ||r(i)||/||b|| 5.329845657850e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+   16 SNES Function norm 2.818960519228e-03 
+      0 KSP preconditioned resid norm 2.547214621382e-01 true resid norm 2.818960519228e-03 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 5.656136033518e-17 true resid norm 3.880483781762e-18 ||r(i)||/||b|| 1.376565494725e-15
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+   17 SNES Function norm 2.272090201868e-03 
+      0 KSP preconditioned resid norm 2.154493586116e-01 true resid norm 2.272090201868e-03 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.642781706194e-19 true resid norm 6.938899073784e-18 ||r(i)||/||b|| 3.053971654858e-15
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+   18 SNES Function norm 1.722025463114e-03 
+      0 KSP preconditioned resid norm 1.748592144631e-01 true resid norm 1.722025463114e-03 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.941579033181e-17 true resid norm 8.690607572778e-19 ||r(i)||/||b|| 5.046735811364e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+   19 SNES Function norm 1.185717228693e-03 
+      0 KSP preconditioned resid norm 1.331631361872e-01 true resid norm 1.185717228693e-03 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.155006643143e-19 true resid norm 2.335605767358e-18 ||r(i)||/||b|| 1.969783107506e-15
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+   20 SNES Function norm 6.997108098393e-04 
+      0 KSP preconditioned resid norm 9.138204710968e-02 true resid norm 6.997108098393e-04 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.014575488473e-17 true resid norm 1.168037550016e-18 ||r(i)||/||b|| 1.669314713437e-15
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+   21 SNES Function norm 3.268317481099e-04 
+      0 KSP preconditioned resid norm 5.204753697196e-02 true resid norm 3.268317481099e-04 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 5.778613733732e-18 true resid norm 2.168441567779e-19 ||r(i)||/||b|| 6.634733560369e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+   22 SNES Function norm 2.530383175747e-04 
+      0 KSP preconditioned resid norm 2.190068262073e-05 true resid norm 2.530383175747e-04 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 5.470794601445e-21 true resid norm 9.394965768223e-24 ||r(i)||/||b|| 3.712862881112e-20
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+   23 SNES Function norm 1.785409149204e-10 
+      0 KSP preconditioned resid norm 2.144081733224e-11 true resid norm 1.785409149204e-10 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 8.906679594450e-27 true resid norm 5.521434893599e-26 ||r(i)||/||b|| 3.092531981289e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+   24 SNES Function norm 7.281427682220e-17 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 24
+
+CORRECTION due to V_lost = 1.46393% (V_target = 3.68217e-08  V_new = 3.62827e-08)  update factor = 1.01486  Corrected length = 0.0029886319
+
+    0 SNES Function norm 1.820605233081e-01 
+      0 KSP preconditioned resid norm 1.524388242681e+00 true resid norm 1.820605233081e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.692423840666e-16 true resid norm 5.648037764901e-17 ||r(i)||/||b|| 3.102285801597e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 4.437390456128e-02 
+      0 KSP preconditioned resid norm 4.952341035898e-03 true resid norm 4.437390456128e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.133483701384e-18 true resid norm 7.757926079036e-18 ||r(i)||/||b|| 1.748308190532e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 6.358613022619e-06 
+      0 KSP preconditioned resid norm 7.281110771724e-07 true resid norm 6.358613022619e-06 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.588035354660e-22 true resid norm 1.197896053331e-21 ||r(i)||/||b|| 1.883895197066e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    3 SNES Function norm 1.850621924080e-13 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 3
+
+CORRECTION due to V_lost = 0.911736% (V_target = 3.68217e-08  V_new = 3.6486e-08)  update factor = 1.0092  Corrected length = 0.0030161311
+
+    0 SNES Function norm 1.100168726373e-01 
+      0 KSP preconditioned resid norm 1.516559180082e+00 true resid norm 1.100168726373e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 3.633328448173e-21 true resid norm 2.797493733690e-17 ||r(i)||/||b|| 2.542786089651e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 4.396170138998e-02 
+      0 KSP preconditioned resid norm 4.861394013659e-03 true resid norm 4.396170138998e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.526567615996e-18 true resid norm 1.387778780822e-17 ||r(i)||/||b|| 3.156790426537e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 6.075076556693e-06 
+      0 KSP preconditioned resid norm 6.854526150333e-07 true resid norm 6.075076556693e-06 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 9.320391600599e-23 true resid norm 8.470410314623e-22 ||r(i)||/||b|| 1.394288653908e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    3 SNES Function norm 1.579076184126e-13 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 3
+
+CORRECTION due to V_lost = -0.254718% (V_target = 3.68217e-08  V_new = 3.69155e-08)  update factor = 0.997459  Corrected length = 0.0030084680
+
+    0 SNES Function norm 4.320234909189e-02 
+      0 KSP preconditioned resid norm 1.492900893334e+00 true resid norm 4.320234909189e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.657503525989e-16 true resid norm 4.065758146821e-20 ||r(i)||/||b|| 9.410965450450e-19
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 3.786524113896e-02 
+      0 KSP preconditioned resid norm 7.466560095062e-01 true resid norm 3.786524113896e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.487074884992e-16 true resid norm 2.964615547719e-17 ||r(i)||/||b|| 7.829385099752e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 3.357650248408e-02 
+      0 KSP preconditioned resid norm 3.115882354536e-03 true resid norm 3.357650248408e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 7.439559092033e-19 true resid norm 7.152451385912e-18 ||r(i)||/||b|| 2.130195480993e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    3 SNES Function norm 2.119699722138e-06 
+      0 KSP preconditioned resid norm 1.982173535679e-07 true resid norm 2.119699722138e-06 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.268382941459e-23 true resid norm 1.588235242976e-22 ||r(i)||/||b|| 7.492736949433e-17
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    4 SNES Function norm 1.152567636604e-14 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 4
+
+CORRECTION due to V_lost = -0.569071% (V_target = 3.68217e-08  V_new = 3.70312e-08)  update factor = 0.994341  Corrected length = 0.0029914445
+
+    0 SNES Function norm 2.531927337127e-02 
+      0 KSP preconditioned resid norm 1.484818694252e+00 true resid norm 2.531927337127e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.287884748912e-18 true resid norm 1.789395542926e-18 ||r(i)||/||b|| 7.067325814164e-17
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 2.276845276856e-02 
+      0 KSP preconditioned resid norm 1.103214687540e+00 true resid norm 2.276845276856e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.449722138845e-16 true resid norm 2.023490337722e-17 ||r(i)||/||b|| 8.887254475701e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 1.961877480914e-02 
+      0 KSP preconditioned resid norm 7.992420385499e-01 true resid norm 1.961877480914e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 8.874452244337e-17 true resid norm 6.942310972828e-18 ||r(i)||/||b|| 3.538605769405e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    3 SNES Function norm 1.534892869317e-02 
+      0 KSP preconditioned resid norm 6.026823030386e-01 true resid norm 1.534892869317e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 6.691526075406e-17 true resid norm 9.698016941521e-18 ||r(i)||/||b|| 6.318367317607e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    4 SNES Function norm 1.135295806101e-02 
+      0 KSP preconditioned resid norm 4.593742114613e-01 true resid norm 1.135295806101e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.020086449405e-16 true resid norm 8.674742272573e-19 ||r(i)||/||b|| 7.640953332120e-17
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    5 SNES Function norm 7.747553782324e-03 
+      0 KSP preconditioned resid norm 3.389521056473e-01 true resid norm 7.747553782324e-03 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 3.763131497479e-17 true resid norm 7.023926524513e-18 ||r(i)||/||b|| 9.065992598255e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    6 SNES Function norm 4.574027415954e-03 
+      0 KSP preconditioned resid norm 2.302566322620e-01 true resid norm 4.574027415954e-03 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.824411194115e-19 true resid norm 1.940255757623e-18 ||r(i)||/||b|| 4.241897962517e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    7 SNES Function norm 2.097875496758e-03 
+      0 KSP preconditioned resid norm 1.320531681295e-01 true resid norm 2.097875496758e-03 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 4.398403167563e-17 true resid norm 1.567446083799e-18 ||r(i)||/||b|| 7.471587738267e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    8 SNES Function norm 1.692355783511e-03 
+      0 KSP preconditioned resid norm 1.419208148073e-04 true resid norm 1.692355783511e-03 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.396057405487e-20 true resid norm 4.336808763148e-19 ||r(i)||/||b|| 2.562586901290e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    9 SNES Function norm 8.004875583361e-09 
+      0 KSP preconditioned resid norm 9.667494732261e-10 true resid norm 8.004875583361e-09 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 5.366642537620e-26 true resid norm 1.169821201287e-24 ||r(i)||/||b|| 1.461385863034e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+   10 SNES Function norm 1.988517378776e-17 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 10
+
+CORRECTION due to V_lost = -0.154194% (V_target = 3.68217e-08  V_new = 3.68785e-08)  update factor = 0.99846  Corrected length = 0.0029868390
+
+    0 SNES Function norm 3.208502349308e-02 
+      0 KSP preconditioned resid norm 1.492652520405e+00 true resid norm 3.208502349308e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.657290981363e-16 true resid norm 9.813115885526e-18 ||r(i)||/||b|| 3.058472401506e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 2.882820216508e-02 
+      0 KSP preconditioned resid norm 9.631785983347e-01 true resid norm 2.882820216508e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.069375690061e-16 true resid norm 9.815480508691e-18 ||r(i)||/||b|| 3.404818813357e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 2.090983537586e-02 
+      0 KSP preconditioned resid norm 5.993905727684e-01 true resid norm 2.090983537586e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.331079422705e-16 true resid norm 7.758680500110e-18 ||r(i)||/||b|| 3.710541169094e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    3 SNES Function norm 1.211630533920e-02 
+      0 KSP preconditioned resid norm 3.825327811184e-01 true resid norm 1.211630533920e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 6.687531208116e-19 true resid norm 5.223342316574e-18 ||r(i)||/||b|| 4.311002546026e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    4 SNES Function norm 5.544215986358e-03 
+      0 KSP preconditioned resid norm 2.205411438877e-01 true resid norm 5.544215986358e-03 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.449339039310e-17 true resid norm 1.227834663997e-18 ||r(i)||/||b|| 2.214622711342e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    5 SNES Function norm 4.853349198758e-03 
+      0 KSP preconditioned resid norm 4.028489526320e-04 true resid norm 4.853349198758e-03 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.054842310057e-19 true resid norm 1.839952127485e-18 ||r(i)||/||b|| 3.791097759782e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    6 SNES Function norm 6.730077480873e-08 
+      0 KSP preconditioned resid norm 8.265687069057e-09 true resid norm 6.730077480873e-08 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.891836854110e-24 true resid norm 9.358632049226e-24 ||r(i)||/||b|| 1.390568247665e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    7 SNES Function norm 3.448207676161e-17 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 7
+
+CORRECTION due to V_lost = 0.201369% (V_target = 3.68217e-08  V_new = 3.67476e-08)  update factor = 1.00202  Corrected length = 0.0029928657
+
+    0 SNES Function norm 7.135216904168e-02 
+      0 KSP preconditioned resid norm 1.500028351294e+00 true resid norm 7.135216904168e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 3.330757437829e-16 true resid norm 2.862299510581e-17 ||r(i)||/||b|| 4.011510160131e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 4.347458248380e-02 
+      0 KSP preconditioned resid norm 4.832509144595e-03 true resid norm 4.347458248380e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.554104059569e-18 true resid norm 6.938897422655e-18 ||r(i)||/||b|| 1.596081440286e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 5.893296963573e-06 
+      0 KSP preconditioned resid norm 6.634312321470e-07 true resid norm 5.893296963573e-06 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 3.682784902012e-23 true resid norm 8.731078468534e-22 ||r(i)||/||b|| 1.481526982689e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    3 SNES Function norm 1.407397920677e-13 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 3
+
+CORRECTION due to V_lost = 0.176537% (V_target = 3.68217e-08  V_new = 3.67567e-08)  update factor = 1.00177  Corrected length = 0.0029981586
+
+    0 SNES Function norm 5.286390569350e-02 
+      0 KSP preconditioned resid norm 1.500378730446e+00 true resid norm 5.286390569350e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.665755012238e-16 true resid norm 1.040836953142e-17 ||r(i)||/||b|| 1.968899080549e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 4.347893098962e-02 
+      0 KSP preconditioned resid norm 4.826056303713e-03 true resid norm 4.347893098962e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 5.722347573196e-19 true resid norm 2.327375774859e-17 ||r(i)||/||b|| 5.352881779487e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 5.879621085645e-06 
+      0 KSP preconditioned resid norm 6.610818184760e-07 true resid norm 5.879621085645e-06 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.834878514476e-22 true resid norm 1.894026320624e-21 ||r(i)||/||b|| 3.221340785460e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    3 SNES Function norm 1.395883369535e-13 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 3
+V_target = 3.68217e-08  V_new = 3.68273e-08  V_lost = -0.0150937%  tip velocity = 0.0529286973  Predicted length = 0.0029981586
+
+1 TS dt 0.0001 time 0.0001
+N = 2 	 nu = 3.2e-05 	 Inlet Velocity = 0.0026 	 update factor = 1.00029 	 Predicted length = 0.00299902 
+    0 SNES Function norm 1.210651858186e-01 
+      0 KSP preconditioned resid norm 1.034020475437e-02 true resid norm 1.210651858186e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.366649048037e-18 true resid norm 4.388541996755e-17 ||r(i)||/||b|| 3.624941362854e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 3.941840728279e-05 
+      0 KSP preconditioned resid norm 4.829412465025e-06 true resid norm 3.941840728279e-05 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.443690158617e-21 true resid norm 7.576142138952e-21 ||r(i)||/||b|| 1.921980785424e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 7.374738755013e-12 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 2
+V_target = 3.68323e-08  V_new = 3.68376e-08  V_lost = -0.0143038%  tip velocity = 0.0086460403  Predicted length = 0.0029990232
+
+2 TS dt 0.0001 time 0.0002
+N = 2 	 nu = 3.2e-05 	 Inlet Velocity = 0.0026 	 update factor = 1.00029 	 Predicted length = 0.00299989 
+    0 SNES Function norm 1.059485351514e-01 
+      0 KSP preconditioned resid norm 9.515465329120e-03 true resid norm 1.059485351514e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 3.256132500054e-18 true resid norm 2.860979735582e-17 ||r(i)||/||b|| 2.700348552713e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 2.712279289908e-05 
+      0 KSP preconditioned resid norm 3.761000322501e-06 true resid norm 2.712279289908e-05 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 6.263330367347e-22 true resid norm 5.929293407548e-21 ||r(i)||/||b|| 2.186092497778e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 6.675008239931e-12 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 2
+V_target = 3.68429e-08  V_new = 3.68558e-08  V_lost = -0.0349742%  tip velocity = 0.0086460403  Predicted length = 0.0029998878
+
+3 TS dt 0.0001 time 0.0003
+N = 2 	 nu = 3.2e-05 	 Inlet Velocity = 0.0026 	 update factor = 1.00029 	 Predicted length = 0.00300075 
+    0 SNES Function norm 1.242690132783e-01 
+      0 KSP preconditioned resid norm 1.135400807135e-02 true resid norm 1.242690132783e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.782684457378e-18 true resid norm 1.962615692164e-17 ||r(i)||/||b|| 1.579328297851e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 3.592448400351e-05 
+      0 KSP preconditioned resid norm 5.512185323760e-06 true resid norm 3.592448400351e-05 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 6.119755062439e-22 true resid norm 2.648270114486e-23 ||r(i)||/||b|| 7.371769387773e-19
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 1.796302844879e-11 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 2
+V_target = 3.68536e-08  V_new = 3.68806e-08  V_lost = -0.0732826%  tip velocity = 0.0086460403  Predicted length = 0.0030007524
+
+4 TS dt 0.0001 time 0.0004
+N = 2 	 nu = 3.2e-05 	 Inlet Velocity = 0.0026 	 update factor = 1.00029 	 Predicted length = 0.00300162 
+    0 SNES Function norm 1.095117825066e-01 
+      0 KSP preconditioned resid norm 1.083378024167e-02 true resid norm 1.095117825066e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.202792373874e-18 true resid norm 2.443216578666e-20 ||r(i)||/||b|| 2.231007954344e-19
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 2.349773952488e-05 
+      0 KSP preconditioned resid norm 4.600762144032e-06 true resid norm 2.349773952488e-05 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.149312023699e-21 true resid norm 3.492531793592e-21 ||r(i)||/||b|| 1.486326712361e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 1.794991659957e-11 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 2
+
+CORRECTION due to V_lost = -0.133078% (V_target = 3.68642e-08  V_new = 3.69132e-08)  update factor = 0.998671  Corrected length = 0.0029976278
+
+    0 SNES Function norm 1.165616991949e-01 
+      0 KSP preconditioned resid norm 1.388885702084e-02 true resid norm 1.165616991949e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 7.709879130518e-19 true resid norm 6.939318234587e-18 ||r(i)||/||b|| 5.953343407414e-17
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 1.827183193336e-05 
+      0 KSP preconditioned resid norm 7.057741035254e-06 true resid norm 1.827183193336e-05 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.627221408571e-21 true resid norm 6.985815847522e-21 ||r(i)||/||b|| 3.823270634823e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 5.450872040922e-11 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 2
+V_target = 3.68642e-08  V_new = 3.68829e-08  V_lost = -0.0507385%  tip velocity = -0.0398919203  Predicted length = 0.0029976278
+
+5 TS dt 0.0001 time 0.0005
+N = 2 	 nu = 3.2e-05 	 Inlet Velocity = 0.0026 	 update factor = 1.00029 	 Predicted length = 0.00299849 
+    0 SNES Function norm 1.287416988832e-01 
+      0 KSP preconditioned resid norm 1.295442728811e-02 true resid norm 1.287416988832e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.607991635724e-18 true resid norm 1.387789627145e-17 ||r(i)||/||b|| 1.077964357456e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 3.064923191041e-05 
+      0 KSP preconditioned resid norm 6.696717963581e-06 true resid norm 3.064923191041e-05 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.868028215753e-21 true resid norm 1.361246869118e-20 ||r(i)||/||b|| 4.441373516626e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 4.390412349978e-11 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 2
+
+CORRECTION due to V_lost = -0.121366% (V_target = 3.68748e-08  V_new = 3.69196e-08)  update factor = 0.998788  Corrected length = 0.0029948565
+
+    0 SNES Function norm 1.197946596171e-01 
+      0 KSP preconditioned resid norm 1.482701720385e-02 true resid norm 1.197946596171e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 7.189175117061e-21 true resid norm 5.463198353652e-20 ||r(i)||/||b|| 4.560469031852e-19
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 1.939632995799e-05 
+      0 KSP preconditioned resid norm 7.869093003110e-06 true resid norm 1.939632995799e-05 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 7.876258930430e-22 true resid norm 1.198204224037e-20 ||r(i)||/||b|| 6.177479072756e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 7.520579687236e-11 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 2
+V_target = 3.68748e-08  V_new = 3.68924e-08  V_lost = -0.0478017%  tip velocity = -0.0363474714  Predicted length = 0.0029948565
+
+6 TS dt 0.0001 time 0.0006
+N = 2 	 nu = 3.2e-05 	 Inlet Velocity = 0.0026 	 update factor = 1.00029 	 Predicted length = 0.00299572 
+    0 SNES Function norm 1.314659184738e-01 
+      0 KSP preconditioned resid norm 1.391359211252e-02 true resid norm 1.314659184738e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 3.454101043674e-18 true resid norm 1.387808558964e-17 ||r(i)||/||b|| 1.055641321397e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 2.824646061083e-05 
+      0 KSP preconditioned resid norm 7.464359620698e-06 true resid norm 2.824646061083e-05 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.789365927527e-21 true resid norm 1.713273809417e-20 ||r(i)||/||b|| 6.065445979311e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 6.622265128681e-11 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 2
+
+CORRECTION due to V_lost = -0.132526% (V_target = 3.68854e-08  V_new = 3.69343e-08)  update factor = 0.998676  Corrected length = 0.0029917541
+
+    0 SNES Function norm 1.219013028202e-01 
+      0 KSP preconditioned resid norm 1.620293150726e-02 true resid norm 1.219013028202e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.011217309694e-18 true resid norm 1.962624931813e-17 ||r(i)||/||b|| 1.610011448940e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 2.564112257888e-05 
+      0 KSP preconditioned resid norm 9.108108748881e-06 true resid norm 2.564112257888e-05 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 5.095860613262e-22 true resid norm 6.985815847522e-21 ||r(i)||/||b|| 2.724457880513e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 1.102902307950e-10 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 2
+V_target = 3.68854e-08  V_new = 3.6903e-08  V_lost = -0.0476862%  tip velocity = -0.0396483958  Predicted length = 0.0029917541
+
+7 TS dt 0.0001 time 0.0007
+N = 2 	 nu = 3.2e-05 	 Inlet Velocity = 0.0026 	 update factor = 1.00029 	 Predicted length = 0.00299262 
+    0 SNES Function norm 1.179388167667e-01 
+      0 KSP preconditioned resid norm 1.382573542557e-02 true resid norm 1.179388167667e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.457150639989e-18 true resid norm 2.775567156841e-17 ||r(i)||/||b|| 2.353395797019e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 2.319319652049e-05 
+      0 KSP preconditioned resid norm 6.873991767852e-06 true resid norm 2.319319652049e-05 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 8.094711766140e-22 true resid norm 3.788419657828e-21 ||r(i)||/||b|| 1.633418513261e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 6.820400612315e-11 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 2
+
+CORRECTION due to V_lost = -0.149929% (V_target = 3.6896e-08  V_new = 3.69514e-08)  update factor = 0.998503  Corrected length = 0.0029881353
+
+    0 SNES Function norm 1.074739272724e-01 
+      0 KSP preconditioned resid norm 1.684378818680e-02 true resid norm 1.074739272724e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 4.675126034696e-19 true resid norm 1.551595720372e-17 ||r(i)||/||b|| 1.443695005617e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 4.331013490758e-05 
+      0 KSP preconditioned resid norm 9.312874319878e-06 true resid norm 4.331013490758e-05 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 7.311259980889e-22 true resid norm 6.985665401935e-21 ||r(i)||/||b|| 1.612940115943e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 1.141841028014e-10 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 2
+V_target = 3.6896e-08  V_new = 3.69139e-08  V_lost = -0.0483994%  tip velocity = -0.0448008407  Predicted length = 0.0029881353
+
+8 TS dt 0.0001 time 0.0008
+N = 2 	 nu = 3.2e-05 	 Inlet Velocity = 0.0026 	 update factor = 1.00029 	 Predicted length = 0.002989 
+    0 SNES Function norm 1.376038752492e-01 
+      0 KSP preconditioned resid norm 1.591031928866e-02 true resid norm 1.376038752492e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.766408703173e-18 true resid norm 1.150469073195e-19 ||r(i)||/||b|| 8.360731637179e-19
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 3.217380835471e-05 
+      0 KSP preconditioned resid norm 9.393823014043e-06 true resid norm 3.217380835471e-05 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.880255928567e-21 true resid norm 2.443619461907e-20 ||r(i)||/||b|| 7.595058175790e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 1.383896757730e-10 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 2
+
+CORRECTION due to V_lost = -0.162354% (V_target = 3.69067e-08  V_new = 3.69666e-08)  update factor = 0.998379  Corrected length = 0.0029841504
+
+    0 SNES Function norm 1.263641806312e-01 
+      0 KSP preconditioned resid norm 1.917730788100e-02 true resid norm 1.263641806312e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.079207886700e-21 true resid norm 1.387784777828e-17 ||r(i)||/||b|| 1.098242216184e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 6.160327147062e-05 
+      0 KSP preconditioned resid norm 1.278836466885e-05 true resid norm 6.160327147062e-05 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 4.503791436290e-21 true resid norm 1.084783161686e-20 ||r(i)||/||b|| 1.760918106766e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 2.290663249807e-10 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 2
+V_target = 3.69067e-08  V_new = 3.69238e-08  V_lost = -0.0464134%  tip velocity = -0.0484489416  Predicted length = 0.0029841504
+
+9 TS dt 0.0001 time 0.0009
+N = 2 	 nu = 3.2e-05 	 Inlet Velocity = 0.0026 	 update factor = 1.00029 	 Predicted length = 0.00298501 
+    0 SNES Function norm 1.249333067524e-01 
+      0 KSP preconditioned resid norm 1.605239736169e-02 true resid norm 1.249333067524e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.837023854423e-18 true resid norm 2.861028360619e-17 ||r(i)||/||b|| 2.290044532552e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 4.488902454496e-05 
+      0 KSP preconditioned resid norm 9.487362777646e-06 true resid norm 4.488902454496e-05 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 6.586394033345e-23 true resid norm 1.358064807241e-20 ||r(i)||/||b|| 3.025382754488e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 1.475912607628e-10 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 2
+
+CORRECTION due to V_lost = -0.175495% (V_target = 3.69173e-08  V_new = 3.69821e-08)  update factor = 0.998248  Corrected length = 0.0029797796
+
+    0 SNES Function norm 1.130645734467e-01 
+      0 KSP preconditioned resid norm 2.001642403106e-02 true resid norm 1.130645734467e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.111136860816e-18 true resid norm 6.939754945502e-18 ||r(i)||/||b|| 6.137868594862e-17
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 9.650167062738e-05 
+      0 KSP preconditioned resid norm 1.456694065175e-05 true resid norm 9.650167062738e-05 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 3.705609510841e-21 true resid norm 1.355294114395e-20 ||r(i)||/||b|| 1.404425545780e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 2.464345305728e-10 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 2
+V_target = 3.69173e-08  V_new = 3.69333e-08  V_lost = -0.0434778%  tip velocity = -0.0522935275  Predicted length = 0.0029797796
+
+10 TS dt 0.0001 time 0.001
+WARNING! There are options you set that were not used!
+WARNING! could be spelling mistake, etc!
+There is one unused database option. It is:
+Option left: name:-dm_plex_box_faces value: 100

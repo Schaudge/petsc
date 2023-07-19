@@ -1,0 +1,136 @@
+0 TS dt 0.0001 time 0.
+ nu = 0.0005 	 Inlet Velocity = 0.01 
+scale = 1 	 factor = 1
+    0 SNES Function norm 1.889750975685e+01 
+      0 KSP preconditioned resid norm 3.541194154317e+00 true resid norm 1.889750975685e+01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.617781924704e-15 true resid norm 1.158734428307e-14 ||r(i)||/||b|| 6.131677894157e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 2.328736306942e-01 
+      0 KSP preconditioned resid norm 1.347172436137e-01 true resid norm 2.328736306942e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 3.559495920936e-17 true resid norm 3.131761490004e-17 ||r(i)||/||b|| 1.344833024103e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 4.432329578164e-03 
+      0 KSP preconditioned resid norm 4.381104951362e-03 true resid norm 4.432329578164e-03 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 6.947794482747e-18 true resid norm 6.052150343869e-18 ||r(i)||/||b|| 1.365455848249e-15
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    3 SNES Function norm 2.629805234436e-06 
+      0 KSP preconditioned resid norm 2.994485421078e-06 true resid norm 2.629805234436e-06 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.274727367816e-21 true resid norm 3.577506129044e-21 ||r(i)||/||b|| 1.360369232747e-15
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    4 SNES Function norm 2.456627470692e-10 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 4
+
+ CORRECTION because of Volume_lost = -0.117502 % 
+ Previus length = 0.0026015000 	 Corrected length = 0.0025984468
+
+    0 SNES Function norm 2.215061310086e+01 
+      0 KSP preconditioned resid norm 3.980694680340e+00 true resid norm 2.215061310086e+01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.477844962674e-15 true resid norm 1.533983429666e-14 ||r(i)||/||b|| 6.925241403845e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 5.148972322116e-01 
+      0 KSP preconditioned resid norm 2.728779783175e-01 true resid norm 5.148972322116e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.732171841354e-16 true resid norm 3.918330825004e-16 ||r(i)||/||b|| 7.609927923236e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 2.491452638758e-02 
+      0 KSP preconditioned resid norm 1.911406276203e-02 true resid norm 2.491452638758e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.029442854369e-17 true resid norm 2.162468979562e-17 ||r(i)||/||b|| 8.679550820761e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    3 SNES Function norm 5.796309013934e-05 
+      0 KSP preconditioned resid norm 6.845797321472e-05 true resid norm 5.796309013934e-05 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.651662957727e-20 true resid norm 6.266759580580e-20 ||r(i)||/||b|| 1.081163817442e-15
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    4 SNES Function norm 5.695833356896e-09 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 4
+V_target = 3.68323e-08 	 V_new = 3.68361e-08 	 Volume_lost = -0.0103481 % 	 tip velocity = -0.0155323237 	 Predicted length = 0.0025984468
+ 
+1 TS dt 0.0001 time 0.0001
+ nu = 0.000500269 	 Inlet Velocity = 0.01 
+scale = 0 	 factor = 1
+    0 SNES Function norm 1.926387699347e+01 
+      0 KSP preconditioned resid norm 3.909927446327e-01 true resid norm 1.926387699347e+01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.826383772247e-15 true resid norm 9.129873562737e-14 ||r(i)||/||b|| 4.739374927399e-15
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 1.258518613231e-01 
+      0 KSP preconditioned resid norm 3.408801353719e-02 true resid norm 1.258518613231e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.527245473726e-17 true resid norm 5.675414780220e-17 ||r(i)||/||b|| 4.509599397700e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 4.219057530934e-04 
+      0 KSP preconditioned resid norm 2.829804450287e-04 true resid norm 4.219057530934e-04 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.206668264205e-19 true resid norm 2.235385918040e-19 ||r(i)||/||b|| 5.298306319954e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    3 SNES Function norm 4.412961699858e-08 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 3
+V_target = 3.68536e-08 	 V_new = 3.68575e-08 	 Volume_lost = -0.0107304 % 	 tip velocity = -0.0002749642 	 Predicted length = 0.0025999450
+ 
+2 TS dt 0.0001 time 0.0002
+ nu = 0.00050001 	 Inlet Velocity = 0.01 
+scale = 1 	 factor = 1
+Coordinates size = 101 
+    0 SNES Function norm 1.561719134154e+01 
+      0 KSP preconditioned resid norm 9.909692311194e+00 true resid norm 1.561719134154e+01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 4.125967384500e-15 true resid norm 4.522273935375e-15 ||r(i)||/||b|| 2.895702457936e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 1.537162677572e+00 
+      0 KSP preconditioned resid norm 7.443642412430e-01 true resid norm 1.537162677572e+00 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 3.476072080587e-16 true resid norm 2.576525543766e-16 ||r(i)||/||b|| 1.676156714809e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 4.537423732755e-02 
+      0 KSP preconditioned resid norm 2.633867029335e-02 true resid norm 4.537423732755e-02 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 6.329328530904e-17 true resid norm 6.488808797783e-17 ||r(i)||/||b|| 1.430064543221e-15
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    3 SNES Function norm 9.219996020580e-04 
+      0 KSP preconditioned resid norm 1.862756780724e-04 true resid norm 9.219996020580e-04 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 5.234473260512e-19 true resid norm 3.697318039584e-19 ||r(i)||/||b|| 4.010108064398e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    4 SNES Function norm 1.036022375086e-06 
+      0 KSP preconditioned resid norm 1.997313861157e-07 true resid norm 1.036022375086e-06 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.500522821737e-22 true resid norm 4.128050433655e-22 ||r(i)||/||b|| 3.984518609757e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    5 SNES Function norm 1.615201907955e-10 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 5
+V_target = 3.68748e-08 	 V_new = 3.68568e-08 	 Volume_lost = 0.0487757 % 	 tip velocity = 0.0048108223 	 Predicted length = 0.0026014432
+ 
+3 TS dt 0.0001 time 0.0003
+ nu = 0.00049975 	 Inlet Velocity = 0.01 
+scale = 1 	 factor = 1
+    0 SNES Function norm 7.269131889879e+00 
+      0 KSP preconditioned resid norm 1.519700720128e+00 true resid norm 7.269131889879e+00 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 4.608373558627e-15 true resid norm 3.191576432603e-15 ||r(i)||/||b|| 4.390588148561e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 1.793599604245e-01 
+      0 KSP preconditioned resid norm 2.975173809985e-02 true resid norm 1.793599604245e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.795193811918e-17 true resid norm 8.757426104909e-17 ||r(i)||/||b|| 4.882598147425e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 1.467173728568e-04 
+      0 KSP preconditioned resid norm 9.390661398765e-06 true resid norm 1.467173728568e-04 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 3.788910549687e-20 true resid norm 5.630921019248e-20 ||r(i)||/||b|| 3.837937464124e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    3 SNES Function norm 8.311266444885e-09 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 3
+V_target = 3.6896e-08 	 V_new = 3.68778e-08 	 Volume_lost = 0.049398 % 	 tip velocity = 0.0073537156 	 Predicted length = 0.0026029415
+ 
+4 TS dt 0.0001 time 0.0004
+ nu = 0.000499491 	 Inlet Velocity = 0.01 
+scale = 1 	 factor = 1
+Coordinates size = 201 
+    0 SNES Function norm 3.309078742486e+01 
+      0 KSP preconditioned resid norm 5.771368998749e+00 true resid norm 3.309078742486e+01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.573363700124e-14 true resid norm 2.236989245321e-14 ||r(i)||/||b|| 6.760157189974e-16
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    1 SNES Function norm 1.241058229299e+01 
+      0 KSP preconditioned resid norm 1.712186606655e-01 true resid norm 1.241058229299e+01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 1.760093605297e-15 true resid norm 1.293704961105e-14 ||r(i)||/||b|| 1.042420839380e-15
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    2 SNES Function norm 3.209154346501e-01 
+      0 KSP preconditioned resid norm 3.142257515271e-03 true resid norm 3.209154346501e-01 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 6.245900627928e-17 true resid norm 2.641275379521e-15 ||r(i)||/||b|| 8.230440466041e-15
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    3 SNES Function norm 1.652708441819e-04 
+      0 KSP preconditioned resid norm 2.684313791422e-06 true resid norm 1.652708441819e-04 ||r(i)||/||b|| 1.000000000000e+00
+      1 KSP preconditioned resid norm 2.080034577465e-20 true resid norm 5.094156788420e-19 ||r(i)||/||b|| 3.082308203625e-15
+    Linear solve converged due to CONVERGED_RTOL iterations 1
+    4 SNES Function norm 6.745521701269e-09 
+  Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 4
+V_target = 3.69173e-08 	 V_new = 3.68875e-08 	 Volume_lost = 0.0806022 % 	 tip velocity = 0.0088794515 	 Predicted length = 0.0026044397
+ 
+5 TS dt 0.0001 time 0.0005
