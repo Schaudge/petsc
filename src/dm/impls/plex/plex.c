@@ -164,6 +164,7 @@ PetscErrorCode DMPlexGetFieldType_Internal(DM dm, PetscSection section, PetscInt
 @*/
 PetscErrorCode DMPlexVecView1D(DM dm, PetscInt n, Vec u[], PetscViewer viewer)
 {
+  DM                 cdm;
   PetscDS            ds;
   PetscDraw          draw = NULL;
   PetscDrawLG        lg;
@@ -208,13 +209,14 @@ PetscErrorCode DMPlexVecView1D(DM dm, PetscInt n, Vec u[], PetscViewer viewer)
   PetscCall(PetscDrawLGSetLegend(lg, (const char *const *)names));
   /* Just add P_1 support for now */
   PetscCall(DMPlexGetDepthStratum(dm, 0, &vStart, &vEnd));
+  PetscCall(DMGetCoordinateDM(dm, &cdm));
   PetscCall(DMGetCoordinatesLocal(dm, &coordinates));
   PetscCall(VecGetArrayRead(coordinates, &coords));
   for (i = 0; i < n; ++i) PetscCall(VecGetArrayRead(u[i], &sol[i]));
   for (v = vStart; v < vEnd; ++v) {
     PetscScalar *x, *svals;
 
-    PetscCall(DMPlexPointLocalRead(dm, v, coords, &x));
+    PetscCall(DMPlexPointLocalRead(cdm, v, coords, &x));
     for (i = 0; i < n; ++i) {
       PetscCall(DMPlexPointLocalRead(dm, v, sol[i], &svals));
       for (l = 0; l < Nl; ++l) vals[i * Nl + l] = PetscRealPart(svals[l]);
