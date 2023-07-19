@@ -9,6 +9,7 @@ For visualization, use
 #include <petscts.h>
 #include <petscds.h>
 #include <petscbag.h>
+#include <petscdraw.h>
 #include <petsc/private/petscfeimpl.h>
 #include <petsc/private/tsimpl.h>
 #include <petscviewerhdf5.h>
@@ -45,6 +46,7 @@ typedef struct {
   PetscBool dtRefine;
   PetscBool adapt;
   PetscBool PinchOffRefine;
+  PetscInt  pauseStart;
   DMLabel   adaptLabel;
   PetscInt  N_adapts;
   Vec       locX;
@@ -662,14 +664,16 @@ static void g1_wh(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 {
-  PetscInt       n=1;
+  PetscInt n = 1;
 
   PetscFunctionBeginUser;
   PetscOptionsBegin(comm, "", "1D Droplet Problem Options", "DMPLEX");
   options->cells[0] = 100;
   options->G = 0.0;
+  options->pauseStart = 0;
   PetscCall(PetscOptionsIntArray("-cells", "The initial mesh division", "droplet.c", options->cells, &n, NULL));
-  PetscCall(PetscOptionsGetReal(NULL, NULL, "-G", &(options->G), NULL));
+  PetscCall(PetscOptionsReal("-G", "Oxidizer flux", "droplet.c", options->G, &options->G, NULL));
+  PetscCall(PetscOptionsInt("-draw_pause_start", "Timestep to start pausing", "droplet.c", options->pauseStart, &options->pauseStart, NULL));
   PetscOptionsEnd();
   PetscFunctionReturn(0);
 }
@@ -1475,6 +1479,12 @@ static PetscErrorCode MonitorSolAndCoords(TS ts, PetscInt step, PetscReal crtime
   PetscFunctionBeginUser;
   PetscCall(TSGetDM(ts, &dm));
   PetscCall(DMGetApplicationContext(dm, &user));
+  if (step > user->pauseStart) {
+    PetscDraw draw;
+
+    PetscCall(PetscViewerDrawGetDraw(PETSC_VIEWER_DRAW_(PetscObjectComm((PetscObject)ts)), 0, &draw));
+    PetscCall(PetscDrawSetPause(draw, -1));
+  }
 
   PetscCall(DMGetCoordinates(dm, &coordinates));
   PetscCall(PetscSNPrintf(coords_name, PETSC_MAX_PATH_LEN, "Length_%d.out", user->N_adapts));
@@ -1561,6 +1571,8 @@ int main(int argc, char **argv)
 /*TEST
 
   # Paraffin wax
+  # Fails at 2096 with dt = 1e-6
+  # Also test -u_0 0.01
   test:
     suffix: glycerol_gravity
     args: -h_0 0.00135 -u_0 0.05 -rho_d 1.20 -nu_d 1.5E-05 -gamma 0.0728 -rho_c 1000.00 -nu_c 1.0E-06 -R 0.0254 -G 0.00 -gr -9.81 \
