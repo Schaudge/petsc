@@ -3938,9 +3938,13 @@ PetscErrorCode SNESConverged(SNES snes, PetscInt it, PetscReal xnorm, PetscReal 
 @*/
 PetscErrorCode SNESMonitor(SNES snes, PetscInt iter, PetscReal rnorm)
 {
+  DM       dm;
   PetscInt i, n = snes->numbermonitors;
 
   PetscFunctionBegin;
+  PetscCall(SNESGetDM(snes, &dm));
+  PetscCall(DMSetOutputSequenceNumber(dm, iter, rnorm));
+
   PetscCall(VecLockReadPush(snes->vec_sol));
   for (i = 0; i < n; i++) PetscCall((*snes->monitor[i])(snes, iter, rnorm, snes->monitorcontext[i]));
   PetscCall(VecLockReadPop(snes->vec_sol));
