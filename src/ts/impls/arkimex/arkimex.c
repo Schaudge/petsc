@@ -1912,7 +1912,7 @@ static PetscErrorCode TSAdjointReset_ARKIMEX(TS ts)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode TSARKIMEXGetVecs(TS ts, DM dm, Vec *Z, Vec *Ydot)
+PetscErrorCode TSARKIMEXGetVecs(TS ts, DM dm, Vec *Z, Vec *Ydot)
 {
   TS_ARKIMEX *ax = (TS_ARKIMEX *)ts->data;
 
@@ -2192,6 +2192,17 @@ static PetscErrorCode TSView_ARKIMEX(TS ts, PetscViewer viewer)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode TSCopy_ARKIMEX(TS ts, TS tsout)
+{
+  TS_ARKIMEX *ark    = (TS_ARKIMEX *)ts->data;
+  TS_ARKIMEX *arkout = (TS_ARKIMEX *)tsout->data;
+
+  PetscFunctionBegin;
+  arkout->imex   = ark->imex;
+  arkout->scoeff = ark->scoeff;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 static PetscErrorCode TSLoad_ARKIMEX(TS ts, PetscViewer viewer)
 {
   SNES    snes;
@@ -2408,6 +2419,7 @@ PETSC_EXTERN PetscErrorCode TSCreate_ARKIMEX(TS ts)
   ts->ops->adjointreset   = TSAdjointReset_ARKIMEX;
   ts->ops->destroy        = TSDestroy_ARKIMEX;
   ts->ops->view           = TSView_ARKIMEX;
+  ts->ops->copy           = TSCopy_ARKIMEX;
   ts->ops->load           = TSLoad_ARKIMEX;
   ts->ops->setup          = TSSetUp_ARKIMEX;
   ts->ops->adjointsetup   = TSAdjointSetUp_ARKIMEX;

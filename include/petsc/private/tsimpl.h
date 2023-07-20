@@ -43,6 +43,7 @@ struct _TSOps {
   PetscErrorCode (*destroy)(TS);
   PetscErrorCode (*view)(TS, PetscViewer);
   PetscErrorCode (*reset)(TS);
+  PetscErrorCode (*copy)(TS, TS);
   PetscErrorCode (*linearstability)(TS, PetscReal, PetscReal, PetscReal *, PetscReal *);
   PetscErrorCode (*load)(TS, PetscViewer);
   PetscErrorCode (*rollback)(TS);
@@ -568,3 +569,5 @@ struct _n_TSMonitorDrawCtx {
   PetscInt    howoften; /* when > 0 uses step % howoften, when negative only final solution plotted */
   PetscBool   showtimestepandtime;
 };
+
+PETSC_EXTERN PetscErrorCode TSARKIMEXGetVecs(TS, DM, Vec *, Vec *);
