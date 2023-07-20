@@ -130,6 +130,14 @@ struct _DMSubDomainHookLink {
   DMSubDomainHookLink next;
 };
 
+typedef struct _DMSubFieldsHookLink *DMSubFieldsHookLink;
+struct _DMSubFieldsHookLink {
+  PetscErrorCode (*fhook)(DM, DM, PetscObject *, void *);
+  PetscErrorCode (*restricthook)(PetscObject, IS, PetscObject, void *);
+  void               *ctx;
+  DMSubFieldsHookLink next;
+};
+
 typedef struct _DMGlobalToLocalHookLink *DMGlobalToLocalHookLink;
 struct _DMGlobalToLocalHookLink {
   PetscErrorCode (*beginhook)(DM, Vec, InsertMode, Vec, void *);
@@ -253,6 +261,7 @@ struct _p_DM {
   DMCoarsenHookLink       coarsenhook; /* For transferring auxiliary problem data to coarser grids */
   DMRefineHookLink        refinehook;
   DMSubDomainHookLink     subdomainhook;
+  DMSubFieldsHookLink     subfieldshook;
   DMGlobalToLocalHookLink gtolhook;
   DMLocalToGlobalHookLink ltoghook;
   /* Topology */

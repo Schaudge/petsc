@@ -680,6 +680,14 @@ PetscErrorCode DMDestroy(DM *dm)
     (*dm)->subdomainhook = NULL;
   }
   {
+    DMSubFieldsHookLink link, next;
+    for (link = (*dm)->subfieldshook; link; link = next) {
+      next = link->next;
+      PetscCall(PetscFree(link));
+    }
+    (*dm)->subfieldshook = NULL;
+  }
+  {
     DMGlobalToLocalHookLink link, next;
     for (link = (*dm)->gtolhook; link; link = next) {
       next = link->next;
@@ -3624,6 +3632,144 @@ PetscErrorCode DMSetCoarsenLevel(DM dm, PetscInt level)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   dm->leveldown = level;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  DMSubFieldsHookAdd - adds a callback to be run when restricting a problem to a subset of fields
+
+  Logically Collective; No Fortran Support
+
+  Input Parameters:
++ global       - global `DM`
+. fhook         - function to run to pass data to the subfield `DM` upon its creation
+. restricthook - function to run to update data on block solve (at the beginning of the block solve)
+- ctx          - [optional] user-defined context for provide data for the hooks (may be `NULL`)
+
+  Calling sequence of `fhook`:
+  FIXME
++ global - global `DM`
+. block  - block `DM`
+- ctx    - optional user-defined function context
+
+  Calling sequence of `restricthook`:
++ global - global solver, e.g. `SNES` or `TS`
+. is     - the `IS` defining the field subset
+. block  - block solver, e.g. `SNES` or `TS`
+- ctx    - optional user-defined function context
+
+  Level: advanced
+
+  Notes:
+  This function is only needed if auxiliary data needs to be set up on subfield `DM`s.
+
+  If this function is called multiple times, the hooks will be run in the order they are added.
+
+  In order to compose with nonlinear preconditioning without duplicating storage, the hook should be implemented to
+  extract the global information from its context (instead of from the `SNES`).
+
+.seealso: [](ch_dmbase), `DM`, `DMSubDomainHookRemove()`, `DMRefineHookAdd()`, `SNESFASGetInterpolation()`, `SNESFASGetInjection()`, `PetscObjectCompose()`, `PetscContainerCreate()`
+@*/
+PetscErrorCode DMSubFieldsHookAdd(DM global, PetscErrorCode (*fhook)(DM, DM, PetscObject *, void *ctx), PetscErrorCode (*restricthook)(PetscObject, IS, PetscObject, void *), void *ctx)
+{
+  DMSubFieldsHookLink link, *p;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(global, DM_CLASSID, 1);
+  for (p = &global->subfieldshook; *p; p = &(*p)->next) { /* Scan to the end of the current list of hooks */
+    if ((*p)->fhook == fhook && (*p)->restricthook == restricthook && (*p)->ctx == ctx) PetscFunctionReturn(PETSC_SUCCESS);
+  }
+  PetscCall(PetscNew(&link));
+  link->restricthook = restricthook;
+  link->fhook        = fhook;
+  link->ctx          = ctx;
+  link->next         = NULL;
+  *p                 = link;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  DMSubFieldsHookRemove - remove a callback from the list to be run when restricting a problem to a subset of fields
+
+  Logically Collective; No Fortran Support
+
+  Input Parameters:
++ global       - global `DM`
+. fhook        - function to run to pass data to the subfield `DM` upon its creation
+. restricthook - function to run to update data on block solve (at the beginning of the block solve)
+- ctx          - [optional] user-defined context for provide data for the hooks (may be `NULL`)
+
+  Level: advanced
+
+.seealso: [](ch_dmbase), `DM`, `DMSubDomainHookAdd()`, `SNESFASGetInterpolation()`, `SNESFASGetInjection()`, `PetscObjectCompose()`, `PetscContainerCreate()`
+@*/
+PetscErrorCode DMSubFieldsHookRemove(DM global, PetscErrorCode (*fhook)(DM, DM, PetscObject *, void *), PetscErrorCode (*restricthook)(PetscObject, IS, PetscObject, void *), void *ctx)
+{
+  DMSubFieldsHookLink link, *p;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(global, DM_CLASSID, 1);
+  for (p = &global->subfieldshook; *p; p = &(*p)->next) { /* Search the list of current hooks */
+    if ((*p)->fhook == fhook && (*p)->restricthook == restricthook && (*p)->ctx == ctx) {
+      link = *p;
+      *p   = link->next;
+      PetscCall(PetscFree(link));
+      break;
+    }
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  DMSubFieldsCreateSolver - creates subsolver for the block `DM` by running hooks registered by `DMSubFieldsHookAdd()`
+
+  Collective if any hooks are
+
+  Input Parameters:
++ dm    - The global `DM`
+. subdm - The sub `DM`
+
+  Output Parameter:
+. solver - block solver, e.g. `SNES` or `TS`
+
+  Level: developer
+
+.seealso: [](ch_dmbase), `DM`, `DMCoarsenHookAdd()`, `MatRestrict()`
+@*/
+PetscErrorCode DMSubFieldsCreateSolver(DM dm, DM subdm, PetscObject *solver)
+{
+  DMSubFieldsHookLink link;
+
+  PetscFunctionBegin;
+  for (link = dm->subfieldshook; link; link = link->next) {
+    if (link->fhook) PetscCall((*link->fhook)(dm, subdm, solver, link->ctx));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  DMSubFieldsRestrict - restricts user-defined problem data to a block `DM` by running hooks registered by `DMSubFieldsHookAdd()`
+
+  Collective if any hooks are
+
+  Input Parameters:
++ dm     - The global DM
+. global - global solver, e.g. `SNES` or `TS`
+. is     - the `IS` defining the field subset
+- block  - block solver, e.g. `SNES` or `TS`
+
+  Level: developer
+
+.seealso: [](ch_dmbase), `DM`, `DMCoarsenHookAdd()`, `MatRestrict()`
+@*/
+PetscErrorCode DMSubFieldsRestrict(DM dm, PetscObject global, IS is, PetscObject sub)
+{
+  DMSubFieldsHookLink link;
+
+  PetscFunctionBegin;
+  for (link = dm->subfieldshook; link; link = link->next) {
+    if (link->restricthook) PetscCall((*link->restricthook)(global, is, sub, link->ctx));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

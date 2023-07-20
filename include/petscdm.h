@@ -182,6 +182,10 @@ PETSC_EXTERN PetscErrorCode DMGetCoordinatesLocalizedLocal(DM, PetscBool *);
 PETSC_EXTERN PetscErrorCode DMSubDomainHookAdd(DM, PetscErrorCode (*)(DM, DM, void *), PetscErrorCode (*)(DM, VecScatter, VecScatter, DM, void *), void *);
 PETSC_EXTERN PetscErrorCode DMSubDomainHookRemove(DM, PetscErrorCode (*)(DM, DM, void *), PetscErrorCode (*)(DM, VecScatter, VecScatter, DM, void *), void *);
 PETSC_EXTERN PetscErrorCode DMSubDomainRestrict(DM, VecScatter, VecScatter, DM);
+PETSC_EXTERN PetscErrorCode DMSubFieldsHookAdd(DM, PetscErrorCode (*)(DM, DM, PetscObject *, void *), PetscErrorCode (*)(PetscObject, IS, PetscObject, void *), void *);
+PETSC_EXTERN PetscErrorCode DMSubFieldsHookRemove(DM, PetscErrorCode (*)(DM, DM, PetscObject *, void *), PetscErrorCode (*)(PetscObject, IS, PetscObject, void *), void *);
+PETSC_EXTERN PetscErrorCode DMSubFieldsCreateSolver(DM, DM, PetscObject *);
+PETSC_EXTERN PetscErrorCode DMSubFieldsRestrict(DM, PetscObject, IS, PetscObject);
 
 PETSC_EXTERN PetscErrorCode DMSetOptionsPrefix(DM, const char[]);
 PETSC_EXTERN PetscErrorCode DMAppendOptionsPrefix(DM, const char[]);
@@ -211,6 +215,8 @@ PETSC_EXTERN PetscErrorCode DMCreateDomainDecomposition(DM, PetscInt *, char ***
 PETSC_EXTERN PetscErrorCode DMCreateDomainDecompositionScatters(DM, PetscInt, DM *, VecScatter **, VecScatter **, VecScatter **);
 PETSC_EXTERN PetscErrorCode DMGetSubdofIS(DM, IS *);
 PETSC_EXTERN PetscErrorCode DMSetSubdofIS(DM, IS);
+PETSC_EXTERN PetscErrorCode DMCreateSubDMIS(DM, PetscInt, const PetscInt[], IS *);
+PETSC_EXTERN PetscErrorCode DMVecNormField(DM, Vec, NormType, PetscReal[]);
 
 PETSC_EXTERN PetscErrorCode DMGetRefineLevel(DM, PetscInt *);
 PETSC_EXTERN PetscErrorCode DMSetRefineLevel(DM, PetscInt);

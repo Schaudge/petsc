@@ -570,4 +570,7 @@ struct _n_TSMonitorDrawCtx {
   PetscBool   showtimestepandtime;
 };
 
+PETSC_EXTERN PetscErrorCode TSThetaGetX0AndXdot(TS, DM, Vec *, Vec *);
+PETSC_EXTERN PetscErrorCode TSThetaRestoreX0AndXdot(TS, DM, Vec *, Vec *);
 PETSC_EXTERN PetscErrorCode TSARKIMEXGetVecs(TS, DM, Vec *, Vec *);
+PETSC_EXTERN PetscErrorCode TSARKIMEXRestoreVecs(TS, DM, Vec *, Vec *);

@@ -1930,7 +1930,7 @@ PetscErrorCode TSARKIMEXGetVecs(TS ts, DM dm, Vec *Z, Vec *Ydot)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode TSARKIMEXRestoreVecs(TS ts, DM dm, Vec *Z, Vec *Ydot)
+PetscErrorCode TSARKIMEXRestoreVecs(TS ts, DM dm, Vec *Z, Vec *Ydot)
 {
   PetscFunctionBegin;
   if (Z) {
@@ -2056,6 +2056,64 @@ static PetscErrorCode DMSubDomainRestrictHook_TSARKIMEX(DM dm, VecScatter gscat,
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode DMSubFieldsHook_TSARKIMEX(DM dm, DM subdm, PetscObject *subsolver, void *fctx)
+{
+  PetscErrorCode (*func)(SNES, Vec, Vec, void *);
+  PetscErrorCode (*jac)(SNES, Vec, Mat, Mat, void *);
+  TS    subts;
+  void *ctx;
+
+  PetscFunctionBegin;
+  PetscCall(DMTSCreateSubDMTS(dm, subdm));
+  // If we are in a TS, that TS is the context for DMSNES computefunction and computejacobian
+  PetscCall(DMSNESGetFunction(subdm, &func, &ctx));
+  PetscCall(DMSNESGetJacobian(subdm, &jac, &ctx));
+  // TODO Need a way to create the subTS
+  PetscCall(TSCreate(PetscObjectComm((PetscObject)ctx), &subts));
+  PetscCall(TSSetDM(subts, subdm));
+  // TODO Need to propgate SNES
+  //PetscCall(TSSetSNES(subts, blocks->snes));
+  PetscCall(DMSNESSetFunction(subdm, func, subts));
+  PetscCall(DMSNESSetJacobian(subdm, jac, subts));
+  *subsolver = (PetscObject) subts;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode DMSubFieldsRestrictHook_TSARKIMEX(PetscObject global, IS is, PetscObject sub, void *ctx)
+{
+  TS  ts    = (TS) global;
+  TS  subts = (TS) sub;
+  DM  dm, subdm;
+  Vec X, Xdot;
+  Vec X0, subX0;
+  Vec Z, subZ;
+
+  PetscFunctionBegin;
+  PetscCall(TSCopy(ts, subts));
+  PetscCall(TSSetUp(subts));
+  PetscCall(TSGetDM(ts, &dm));
+  PetscCall(TSGetDM(subts, &subdm));
+
+  // Create a global Xdot that can be passed into each subTS
+  PetscCall(TSGetSolution(ts, &X));
+  PetscCall(VecDuplicate(X, &Xdot));
+  PetscCall(DMSetAuxiliaryVec(subdm, NULL, 0, 1025, Xdot));
+  PetscCall(VecDestroy(&Xdot));
+
+  // Restrict X0, but not Xdot since we pass in the full vector
+  PetscCall(TSARKIMEXGetVecs(ts, dm, &Z, NULL));
+  PetscCall(TSARKIMEXGetVecs(subts, subdm, &subZ, NULL));
+  PetscCall(VecISCopy(Z, is, SCATTER_REVERSE, subZ));
+  PetscCall(TSARKIMEXRestoreVecs(ts, dm, &Z, NULL));
+  PetscCall(TSARKIMEXRestoreVecs(subts, subdm, &subZ, NULL));
+  PetscCall(TSThetaGetX0AndXdot(ts, dm, &X0, NULL));
+  PetscCall(TSThetaGetX0AndXdot(subts, subdm, &subX0, NULL));
+  PetscCall(VecISCopy(X0, is, SCATTER_REVERSE, subX0));
+  PetscCall(TSThetaRestoreX0AndXdot(ts, dm, &X0, NULL));
+  PetscCall(TSThetaRestoreX0AndXdot(subts, subdm, &subX0, NULL));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 static PetscErrorCode TSARKIMEXTableauSetUp(TS ts)
 {
   TS_ARKIMEX *ark = (TS_ARKIMEX *)ts->data;
@@ -2088,6 +2146,7 @@ static PetscErrorCode TSSetUp_ARKIMEX(TS ts)
   PetscCall(TSGetDM(ts, &dm));
   PetscCall(DMCoarsenHookAdd(dm, DMCoarsenHook_TSARKIMEX, DMRestrictHook_TSARKIMEX, ts));
   PetscCall(DMSubDomainHookAdd(dm, DMSubDomainHook_TSARKIMEX, DMSubDomainRestrictHook_TSARKIMEX, ts));
+  PetscCall(DMSubFieldsHookAdd(dm, DMSubFieldsHook_TSARKIMEX, DMSubFieldsRestrictHook_TSARKIMEX, ts));
   PetscCall(TSGetSNES(ts, &snes));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -2372,6 +2431,7 @@ static PetscErrorCode TSDestroy_ARKIMEX(TS ts)
   if (ts->dm) {
     PetscCall(DMCoarsenHookRemove(ts->dm, DMCoarsenHook_TSARKIMEX, DMRestrictHook_TSARKIMEX, ts));
     PetscCall(DMSubDomainHookRemove(ts->dm, DMSubDomainHook_TSARKIMEX, DMSubDomainRestrictHook_TSARKIMEX, ts));
+    PetscCall(DMSubFieldsHookRemove(ts->dm, DMSubFieldsHook_TSARKIMEX, DMSubFieldsRestrictHook_TSARKIMEX, ts));
   }
   PetscCall(PetscFree(ts->data));
   PetscCall(PetscObjectComposeFunction((PetscObject)ts, "TSDIRKGetType_C", NULL));
