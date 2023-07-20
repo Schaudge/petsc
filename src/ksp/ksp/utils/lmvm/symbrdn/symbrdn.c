@@ -255,6 +255,7 @@ static PetscErrorCode MatUpdate_LMVMSymBrdn(Mat B, Vec X, Vec F)
       PetscCall(MatUpdateKernel_LMVM(B, lmvm->Xprev, lmvm->Fprev));
 
       PetscCall(MatLMVMGramianInsertDiagonalValue(B, LMBASIS_Y, LMBASIS_S, next, PetscRealPart(curvature)));
+      PetscCall(MatLMVMGramianInsertDiagonalValue(B, LMBASIS_S, LMBASIS_Y, next, PetscRealPart(curvature)));
       PetscCall(MatLMVMGramianInsertDiagonalValue(B, LMBASIS_S, LMBASIS_S, next, ststmp));
       PetscCall(SymBroydenScalerUpdate(B, lsb->rescale));
     } else {
@@ -413,7 +414,10 @@ PetscErrorCode MatView_LMVMSymBrdn(Mat B, PetscViewer pv)
 
   PetscFunctionBegin;
   PetscCall(PetscObjectTypeCompare((PetscObject)pv, PETSCVIEWERASCII, &isascii));
-  if (isascii) { PetscCall(PetscViewerASCIIPrintf(pv, "Convex factors: phi=%g\n", (double)lsb->phi_scalar)); }
+  if (isascii) {
+    if (lsb->phi_scalar != PETSC_DETERMINE) PetscCall(PetscViewerASCIIPrintf(pv, "Convex factor phi = %g\n", (double)lsb->phi_scalar));
+    if (lsb->psi_scalar != PETSC_DETERMINE) PetscCall(PetscViewerASCIIPrintf(pv, "Dual convex factor psi = %g\n", (double)lsb->psi_scalar));
+  }
   PetscCall(SymBroydenScalerView(lsb->rescale, pv));
   PetscCall(MatView_LMVM(B, pv));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -598,7 +602,6 @@ static PetscErrorCode MatLMVMSymBadBroydenSetPsi_SymBrdn(Mat B, PetscReal psi)
 }
 
 /*------------------------------------------------------------*/
-
 
 PetscErrorCode MatCreate_LMVMSymBrdn(Mat B)
 {
