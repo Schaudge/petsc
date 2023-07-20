@@ -1026,6 +1026,8 @@ PETSC_EXTERN PetscErrorCode MatLMVMSymBroydenSetDelta(Mat, PetscScalar);
 PETSC_EXTERN PetscErrorCode MatLMVMSymBroydenSetScaleType(Mat, MatLMVMSymBroydenScaleType);
 PETSC_EXTERN PetscErrorCode MatLMVMSymBroydenGetPhi(Mat, PetscReal *);
 PETSC_EXTERN PetscErrorCode MatLMVMSymBroydenSetPhi(Mat, PetscReal);
+PETSC_EXTERN PetscErrorCode MatLMVMSymBadBroydenGetPsi(Mat, PetscReal *);
+PETSC_EXTERN PetscErrorCode MatLMVMSymBadBroydenSetPsi(Mat, PetscReal);
 
 PETSC_EXTERN PetscErrorCode KSPSetDM(KSP, DM);
 PETSC_EXTERN PetscErrorCode KSPSetDMActive(KSP, PetscBool);

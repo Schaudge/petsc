@@ -72,14 +72,15 @@ static PetscErrorCode MatSolve_LMVMSymBrdn(Mat B, Vec F, Vec dX)
 {
   Mat_LMVM    *lmvm = (Mat_LMVM *)B->data;
   Mat_SymBrdn *lsb  = (Mat_SymBrdn *)lmvm->ctx;
+  PetscReal    phi  = lsb->phi_scalar;
 
   PetscFunctionBegin;
   /* Efficient shortcuts for pure BFGS and pure DFP configurations */
-  if (lsb->phi_scalar == 0.0) {
+  if (phi == 0.0) {
     PetscCall(MatSolve_LMVMBFGS(B, F, dX));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
-  if (lsb->phi_scalar == 1.0) {
+  if (phi == 1.0) {
     PetscCall(MatSolve_LMVMDFP(B, F, dX));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
@@ -114,17 +115,17 @@ static PetscErrorCode MatSolve_LMVMSymBrdn(Mat B, Vec F, Vec dX)
         PetscCall(MatLMVMRestoreVecsRead(B, oldest + j, LMBASIS_S, &s_j));
       }
       PetscCall(VecDotRealPart(y_i, lsb->Q[i], &lsb->ytq[i]));
-      if (lsb->phi_scalar == 1.0) {
+      if (phi == 1.0) {
         lsb->psi[i] = 0.0;
-      } else if (lsb->phi_scalar == 0.0) {
+      } else if (phi == 0.0) {
         lsb->psi[i] = 1.0;
       } else {
         PetscScalar yitsi;
         PetscReal   numer;
 
         PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &yitsi));
-        numer       = (1.0 - lsb->phi_scalar) * PetscRealPart(PetscConj(yitsi) * yitsi);
-        lsb->psi[i] = numer / (numer + (lsb->phi_scalar * lsb->ytq[i] * lsb->stp[i]));
+        numer       = (1.0 - phi) * PetscRealPart(PetscConj(yitsi) * yitsi);
+        lsb->psi[i] = numer / (numer + (phi * lsb->ytq[i] * lsb->stp[i]));
       }
       PetscCall(MatLMVMRestoreVecsRead(B, oldest + i, LMBASIS_Y, &y_i));
     }
@@ -133,7 +134,6 @@ static PetscErrorCode MatSolve_LMVMSymBrdn(Mat B, Vec F, Vec dX)
 
   /* Start the outer iterations for ((B^{-1}) * dX) */
   PetscCall(MatSymBrdnApplyJ0Inv(B, F, dX));
-  /* Get all the dot products we need */
   for (PetscInt i = 0; i < next - oldest; ++i) {
     PetscReal   yitqi = lsb->ytq[i];
     PetscScalar yitsi;
@@ -189,11 +189,11 @@ static PetscErrorCode MatMult_LMVMSymBrdn(Mat B, Vec X, Vec Z)
 
   PetscFunctionBegin;
   /* Efficient shortcuts for pure BFGS and pure DFP configurations */
-  if (lsb->phi_scalar == 0.0) {
+  if (phi == 0.0) {
     PetscCall(MatMult_LMVMBFGS(B, X, Z));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
-  if (lsb->phi_scalar == 1.0) {
+  if (phi == 1.0) {
     PetscCall(MatMult_LMVMDFP(B, X, Z));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
@@ -384,6 +384,8 @@ static PetscErrorCode MatDestroy_LMVMSymBrdn(Mat B)
   PetscFunctionBegin;
   PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMSymBroydenGetPhi_C", NULL));
   PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMSymBroydenSetPhi_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMSymBadBroydenGetPsi_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMSymBadBroydenSetPsi_C", NULL));
   PetscCall(SymBroydenScalerDestroy(&(lsb->rescale)));
   if (lsb->allocated) { PetscCall(MatReset_LMVMSymBrdn_Internal(B)); }
   PetscCall(PetscFree(lmvm->ctx));
@@ -427,8 +429,8 @@ PetscErrorCode MatSetFromOptions_LMVMSymBrdn(Mat B, PetscOptionItems *PetscOptio
   PetscFunctionBegin;
   PetscCall(MatSetFromOptions_LMVM(B, PetscOptionsObject));
   PetscOptionsHeadBegin(PetscOptionsObject, "Restricted/Symmetric Broyden method for approximating SPD Jacobian actions (MATLMVMSYMBRDN)");
-  PetscCall(PetscOptionsReal("-mat_lmvm_phi", "(developer) convex ratio between BFGS and DFP components of the update", "", lsb->phi_scalar, &lsb->phi_scalar, NULL));
-  PetscCheck(!(lsb->phi_scalar < 0.0) && !(lsb->phi_scalar > 1.0), PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_OUTOFRANGE, "convex ratio for the update formula cannot be outside the range of [0, 1]");
+  PetscCall(PetscOptionsReal("-mat_lmvm_phi", "convex ratio between BFGS and DFP components of the update", "", lsb->phi_scalar, &lsb->phi_scalar, NULL));
+  PetscCheck(lsb->phi_scalar >= 0.0 && lsb->phi_scalar <= 1.0, PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_OUTOFRANGE, "convex ratio for the update formula cannot be outside the range of [0, 1]");
   PetscCall(SymBroydenScalerSetFromOptions(B, lsb->rescale, PetscOptionsObject));
   PetscOptionsHeadEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -443,15 +445,27 @@ PetscErrorCode MatSetFromOptions_LMVMSymBrdn(Mat B, PetscOptionItems *PetscOptio
 . B - The matrix
 
   Output Parameter:
-. phi - a number defining an update that is a convex combination of the BFGS update (phi = 0) and DFP update (phi = 1)
+. phi - a number defining an update that is an affine combination of the BFGS update (phi = 0) and DFP update (phi = 1)
 
-  Level: developer
+  Level: advanced
 
-.seealso: [](chapter_ksp), `MATLMVMSYMBROYDEN`, `MATLMVMDFP`, `MATLMVMBFGS`, `MatLMVMSymBroydenSetPhi()`
+  Note:
+  If `B` does not have a constant value of `phi` for all iterations this will
+  return `phi` = `PETSC_DETERMINE` = -1, a negative value that `phi` cannot
+  attain for a valid general Broyden update.
+  This is the case if `B` is a `MATLMVMSYMBADBROYDEN`, where `phi`'s dual value
+  `psi` is constant and `phi` changes from iteration to iteration.
+
+.seealso: [](chapter_ksp),
+          `MATLMVMSYMBROYDEN`, `MATLMVMSYMBADBROYDEN`,
+          `MATLMVMDFP`, `MATLMVMBFGS`,
+          `MatLMVMSymBroydenSetPhi()`,
+          `MatLMVMSymBadBroydenGetPsi()`, `MatLMVMSymBadBroydenGetPsi()`
 @*/
 PetscErrorCode MatLMVMSymBroydenGetPhi(Mat B, PetscReal *phi)
 {
   PetscFunctionBegin;
+  *phi = PETSC_DETERMINE;
   PetscUseMethod(B, "MatLMVMSymBroydenGetPhi_C", (Mat, PetscReal *), (B, phi));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -473,9 +487,18 @@ static PetscErrorCode MatLMVMSymBroydenGetPhi_SymBrdn(Mat B, PetscReal *phi)
 + B - The matrix
 - phi - a number defining an update that is a convex combination of the BFGS update (phi = 0) and DFP update (phi = 1)
 
-  Level: developer
+  Level: advanced
 
-.seealso: [](chapter_ksp), `MATLMVMSYMBROYDEN`, `MATLMVMDFP`, `MATLMVMBFGS`, `MatLMVMSymBroydenGetPhi()`
+  Note:
+  If `B` cannot have a constant value of `phi` for all iterations this will be ignored.
+  This is the case if `B` is a `MATLMVMSYMBADBROYDEN`, where `phi`'s dual value
+  `psi` is constant and `phi` changes from iteration to iteration.
+
+.seealso: [](chapter_ksp),
+          `MATLMVMSYMBROYDEN`, `MATLMVMSYMBADBROYDEN`,
+          `MATLMVMDFP`, `MATLMVMBFGS`,
+          `MatLMVMSymBroydenGetPhi()`,
+          `MatLMVMSymBadBroydenGetPsi()`, `MatLMVMSymBadBroydenGetPsi()`
 @*/
 PetscErrorCode MatLMVMSymBroydenSetPhi(Mat B, PetscReal phi)
 {
@@ -493,6 +516,89 @@ static PetscErrorCode MatLMVMSymBroydenSetPhi_SymBrdn(Mat B, PetscReal phi)
   lsb->phi_scalar = phi;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+/*@
+  MatLMVMSymBadBroydenGetPsi - Get the psi parameter for a Broyden class quasi-Newton update matrix
+
+  Input Parameter:
+. B - The matrix
+
+  Output Parameter:
+. psi - a number defining an update that is an affine combination of the BFGS update (psi = 1) and DFP update (psi = 0)
+
+  Level: advanced
+
+  Note:
+  If B does not have a constant value of `psi` for all iterations this  will
+  return `psi` = `PETSC_DETERMINE` = -1, a negative value that `psi` cannot
+  attain for a valid general Broyden update.
+  This is the case if `B` is a `MATLMVMSYMBROYDEN`, where `psi`'s dual value
+  `phi` is constant and `psi` changes from iteration to iteration.
+
+.seealso: [](chapter_ksp),
+          `MATLMVMSYMBROYDEN`, `MATLMVMSYMBADBROYDEN`,
+          `MATLMVMDFP`, `MATLMVMBFGS`,
+          `MatLMVMSymBadBroydenSetPsi()`,
+          `MatLMVMSymBroydenGetPhi()`, `MatLMVMSymBroydenGetPhi()`
+@*/
+PetscErrorCode MatLMVMSymBadBroydenGetPsi(Mat B, PetscReal *psi)
+{
+  PetscFunctionBegin;
+  *psi = PETSC_DETERMINE;
+  PetscTryMethod(B, "MatLMVMSymBadBroydenGetPsi_C", (Mat, PetscReal *), (B, psi));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatLMVMSymBadBroydenGetPsi_SymBrdn(Mat B, PetscReal *psi)
+{
+  Mat_LMVM    *lmvm = (Mat_LMVM *)B->data;
+  Mat_SymBrdn *lsb  = (Mat_SymBrdn *)lmvm->ctx;
+
+  PetscFunctionBegin;
+  *psi = lsb->psi_scalar;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  MatLMVMSymBadBroydenSetPsi - Get the psi parameter for a Broyden class quasi-Newton update matrix
+
+  Input Parameter:
++ B - The matrix
+- psi - a number defining an update that is a convex combination of the BFGS update (psi = 1) and DFP update (psi = 0)
+
+  Level: developer
+
+  Note:
+  If `B` cannot have a constant value of `psi` for all iterations this will
+  be ignored.
+  This is the case if `B` is a `MATLMVMSYMBROYDEN`, where `psi`'s dual value
+  `phi` is constant and `psi` changes from iteration to iteration.
+
+.seealso: [](chapter_ksp),
+          `MATLMVMSYMBROYDEN`, `MATLMVMSYMBADBROYDEN`,
+          `MATLMVMDFP`, `MATLMVMBFGS`,
+          `MatLMVMSymBadBroydenGetPsi()`,
+          `MatLMVMSymBroydenGetPhi()`, `MatLMVMSymBroydenGetPhi()`
+@*/
+PetscErrorCode MatLMVMSymBadBroydenSetPsi(Mat B, PetscReal psi)
+{
+  PetscFunctionBegin;
+  PetscTryMethod(B, "MatLMVMSymBadBroydenSetPsi_C", (Mat, PetscReal), (B, psi));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatLMVMSymBadBroydenSetPsi_SymBrdn(Mat B, PetscReal psi)
+{
+  Mat_LMVM    *lmvm = (Mat_LMVM *)B->data;
+  Mat_SymBrdn *lsb  = (Mat_SymBrdn *)lmvm->ctx;
+
+  PetscFunctionBegin;
+  lsb->psi_scalar = psi;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*------------------------------------------------------------*/
+
 
 PetscErrorCode MatCreate_LMVMSymBrdn(Mat B)
 {
@@ -542,6 +648,8 @@ PetscErrorCode MatCreate_LMVMSymBrdn(Mat B)
   PetscCall(MatLMVMRestoreJ0InvDiag(B, &J0inv));
   PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMSymBroydenGetPhi_C", MatLMVMSymBroydenGetPhi_SymBrdn));
   PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMSymBroydenSetPhi_C", MatLMVMSymBroydenSetPhi_SymBrdn));
+  PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMSymBadBroydenGetPsi_C", MatLMVMSymBadBroydenGetPsi_SymBrdn));
+  PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMSymBadBroydenSetPsi_C", MatLMVMSymBadBroydenSetPsi_SymBrdn));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

@@ -26,7 +26,8 @@ static PetscErrorCode UpdateQ(Mat B)
         PetscScalar sjtyj;
         Vec         s_j;
 
-        PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_S, LMBASIS_Y, oldest + j, &sjtyj));
+        PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + j, &sjtyj));
+        sjtyj = PetscConj(sjtyj);
         PetscCall(MatLMVMGetVecsRead(B, oldest + j, LMBASIS_S, &s_j));
         PetscCall(VecDot(y_i, lsb->Q[j], &qjtyi));
         PetscCall(VecDot(y_i, s_j, &sjtyi));
@@ -48,46 +49,42 @@ static PetscErrorCode MatSolve_LMVMSymBadBrdn(Mat B, Vec F, Vec dX)
 {
   Mat_LMVM    *lmvm = (Mat_LMVM *)B->data;
   Mat_SymBrdn *lsb  = (Mat_SymBrdn *)lmvm->ctx;
+  PetscReal    psi  = lsb->psi_scalar;
 
   PetscFunctionBegin;
   /* Efficient shortcuts for pure BFGS and pure DFP configurations */
-  if (lsb->phi_scalar == 0.0) {
-    PetscCall(MatSolve_LMVMBFGS(B, F, dX));
-    PetscFunctionReturn(PETSC_SUCCESS);
-  }
-  if (lsb->phi_scalar == 1.0) {
+  if (psi == 0.0) {
     PetscCall(MatSolve_LMVMDFP(B, F, dX));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
+  if (psi == 1.0) {
+    PetscCall(MatSolve_LMVMBFGS(B, F, dX));
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
 
-  VecCheckSameSize(F, 2, dX, 3);
-  VecCheckMatCompatible(B, dX, 3, F, 2);
-
-  PetscInt oldest, next;
-  PetscCall(MatLMVMGetRange(B, &oldest, &next));
   PetscCall(UpdateQ(B));
 
   /* Start the outer iterations for ((B^{-1}) * dX) */
   PetscCall(MatSymBrdnApplyJ0Inv(B, F, dX));
-  for (PetscInt i = 0; i < next - oldest; ++i) {
-    PetscScalar ytx, stf, wtf;
-    PetscScalar yitsi;
-    Vec         s_i, y_i;
 
-    PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &yitsi));
-    PetscCall(MatLMVMGetVecsRead(B, oldest + i, LMBASIS_S, &s_i, LMBASIS_Y, &y_i));
-    /* Compute the necessary dot products -- store yTs and yTp for inner iterations later */
-    PetscCall(VecDotBegin(y_i, dX, &ytx));
-    PetscCall(VecDotBegin(s_i, F, &stf));
-    PetscCall(VecDotEnd(y_i, dX, &ytx));
-    PetscCall(VecDotEnd(s_i, F, &stf));
-    /* Compute the pure DFP component */
-    PetscCall(VecAXPBYPCZ(dX, -PetscRealPart(ytx) / lsb->ytq[i], PetscRealPart(stf) / yitsi, 1.0, lsb->Q[i], s_i));
-    /* Tack on the convexly scaled extras */
-    PetscCall(VecAXPBYPCZ(lsb->work, 1.0 / yitsi, -1.0 / lsb->ytq[i], 0.0, s_i, lsb->Q[i]));
-    PetscCall(VecDot(lsb->work, F, &wtf));
-    PetscCall(VecAXPY(dX, lsb->phi_scalar * lsb->ytq[i] * PetscRealPart(wtf), lsb->work));
-    PetscCall(MatLMVMRestoreVecsRead(B, oldest + i, LMBASIS_S, &s_i, LMBASIS_Y, &y_i));
+  PetscInt oldest, next;
+  PetscCall(MatLMVMGetRange(B, &oldest, &next));
+  for (PetscInt i = 0; i < next - oldest; ++i) {
+    PetscReal   yitqi = lsb->ytq[i];
+    PetscScalar sityi;
+    PetscScalar qitf, sitf;
+    Vec         s_i;
+
+    PetscCall(VecDot(F, lsb->Q[i], &qitf));
+    PetscCall(MatLMVMGetVecsRead(B, oldest + i, LMBASIS_S, &s_i));
+    PetscCall(VecDot(F, s_i, &sitf));
+
+    PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &sityi));
+    sityi = PetscConj(sityi);
+    PetscScalar alpha = ((psi - 1.0) / yitqi) * qitf - (psi / sityi) * sitf;
+    PetscScalar beta  = -(psi / sityi) * qitf + ((sityi + psi * yitqi) / (sityi * sityi)) * sitf;
+    PetscCall(VecAXPBYPCZ(dX, alpha, beta, 1.0, lsb->Q[i], s_i));
+    PetscCall(MatLMVMRestoreVecsRead(B, oldest + i, LMBASIS_S, &s_i));
   }
 
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -99,67 +96,64 @@ static PetscErrorCode MatMult_LMVMSymBadBrdn(Mat B, Vec X, Vec Z)
 {
   Mat_LMVM    *lmvm = (Mat_LMVM *)B->data;
   Mat_SymBrdn *lsb  = (Mat_SymBrdn *)lmvm->ctx;
+  PetscReal    psi  = lsb->psi_scalar;
 
   PetscFunctionBegin;
   /* Efficient shortcuts for pure BFGS and pure DFP configurations */
-  if (lsb->phi_scalar == 0.0) {
+  if (psi == 1.0) {
     PetscCall(MatMult_LMVMBFGS(B, X, Z));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
-  if (lsb->phi_scalar == 1.0) {
+  if (psi == 0.0) {
     PetscCall(MatMult_LMVMDFP(B, X, Z));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
-
-  VecCheckSameSize(X, 2, Z, 3);
-  VecCheckMatCompatible(B, X, 2, Z, 3);
 
   PetscInt oldest, next;
   PetscCall(MatLMVMGetRange(B, &oldest, &next));
   PetscCall(UpdateQ(B));
   if (lsb->needP) {
-    PetscReal   numer;
-    PetscScalar sjtpi, yjtsi, wtsi, stp;
-
     /* Start the loop for (P[k] = (B_k) * S[k]) */
     for (PetscInt i = 0; i < next - oldest; ++i) {
       Vec s_i;
+
       PetscCall(MatLMVMGetVecsRead(B, oldest + i, LMBASIS_S, &s_i));
       PetscCall(MatSymBrdnApplyJ0Fwd(B, s_i, lsb->P[i]));
+      /* Compute the necessary dot products */
       for (PetscInt j = 0; j < i; ++j) {
-        PetscScalar yjtsj;
-        Vec         s_j, y_j;
+        PetscScalar pjtsi, yjtsi;
+        PetscReal   sjtpj = lsb->stp[j];
+        PetscScalar sjtyj;
+        PetscReal   phi = lsb->phi[j];
+        Vec         y_j;
 
-        PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + j, &yjtsj));
-        PetscCall(MatLMVMGetVecsRead(B, oldest + j, LMBASIS_S, &s_j, LMBASIS_Y, &y_j));
-        /* Compute the necessary dot products */
-        PetscCall(VecDotBegin(s_j, lsb->P[i], &sjtpi));
-        PetscCall(VecDotBegin(y_j, s_i, &yjtsi));
-        PetscCall(VecDotEnd(s_j, lsb->P[i], &sjtpi));
-        PetscCall(VecDotEnd(y_j, s_i, &yjtsi));
-        /* Compute the pure BFGS component of the forward product */
-        PetscCall(VecAXPBYPCZ(lsb->P[i], -PetscRealPart(sjtpi) / lsb->stp[j], PetscRealPart(yjtsi) / yjtsj, 1.0, lsb->P[j], y_j));
-        /* Tack on the convexly scaled extras to the forward product */
-        if (lsb->phi_scalar > 0.0) {
-          PetscCall(VecAXPBYPCZ(lsb->work, 1.0 / yjtsj, -1.0 / lsb->stp[j], 0.0, y_j, lsb->P[j]));
-          PetscCall(VecDot(lsb->work, s_i, &wtsi));
-          PetscCall(VecAXPY(lsb->P[i], lsb->psi[j] * lsb->stp[j] * PetscRealPart(wtsi), lsb->work));
-        }
-        PetscCall(MatLMVMRestoreVecsRead(B, oldest + j, LMBASIS_S, &s_j, LMBASIS_Y, &y_j));
+        PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + j, &sjtyj));
+        sjtyj = PetscConj(sjtyj);
+        PetscCall(MatLMVMGetVecsRead(B, oldest + j, LMBASIS_Y, &y_j));
+        PetscCall(VecDot(s_i, lsb->P[j], &pjtsi));
+        PetscCall(VecDot(s_i, y_j, &yjtsi));
+
+        PetscScalar alpha = ((phi - 1.0) / sjtpj) * pjtsi - (phi / sjtyj) * yjtsi;
+        PetscScalar beta  = -(phi / sjtyj) * pjtsi + ((sjtyj + phi * sjtpj) / (sjtyj * sjtyj)) * yjtsi;
+
+        PetscCall(VecAXPBYPCZ(lsb->P[i], alpha, beta, 1.0, lsb->P[j], y_j));
+        PetscCall(MatLMVMRestoreVecsRead(B, oldest + j, LMBASIS_Y, &y_j));
       }
-      PetscCall(VecDot(s_i, lsb->P[i], &stp));
-      lsb->stp[i] = PetscRealPart(stp);
-      if (lsb->phi_scalar == 1.0) {
-        lsb->psi[i] = 0.0;
-      } else if (lsb->phi_scalar == 0.0) {
-        lsb->psi[i] = 1.0;
+      PetscCall(VecDotRealPart(s_i, lsb->P[i], &lsb->stp[i]));
+      if (psi == 1.0) {
+        lsb->phi[i] = 0.0;
+      } else if (psi == 0.0) {
+        lsb->phi[i] = 1.0;
       } else {
-        PetscScalar yitsi;
+        PetscScalar sityi;
+        PetscReal   numer;
 
-        PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &yitsi));
-        numer       = (1.0 - lsb->phi_scalar) * PetscRealPart(PetscConj(yitsi) * yitsi);
-        lsb->psi[i] = numer / (numer + (lsb->phi_scalar * lsb->ytq[i] * lsb->stp[i]));
+        PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &sityi));
+        sityi = PetscConj(sityi);
+        numer       = (1.0 - psi) * PetscRealPart(PetscConj(sityi) * sityi);
+        lsb->phi[i] = numer / (numer + (psi * lsb->stp[i] * lsb->ytq[i]));
       }
+      PetscCall(MatLMVMRestoreVecsRead(B, oldest + i, LMBASIS_S, &s_i));
     }
     lsb->needP = PETSC_FALSE;
   }
@@ -167,24 +161,22 @@ static PetscErrorCode MatMult_LMVMSymBadBrdn(Mat B, Vec X, Vec Z)
   /* Start the outer iterations for (B * X) */
   PetscCall(MatSymBrdnApplyJ0Fwd(B, X, Z));
   for (PetscInt i = 0; i < next - oldest; ++i) {
-    PetscScalar stz, ytx, wtx;
-    PetscScalar yitsi;
-    Vec         s_i, y_i;
+    PetscReal   sitpi = lsb->stp[i];
+    PetscScalar sityi;
+    PetscReal   phi = lsb->phi[i];
+    PetscScalar pitx, yitx;
+    Vec         y_i;
 
-    PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &yitsi));
-    PetscCall(MatLMVMGetVecsRead(B, oldest + i, LMBASIS_S, &s_i, LMBASIS_Y, &y_i));
-    /* Compute the necessary dot products */
-    PetscCall(VecDotBegin(s_i, Z, &stz));
-    PetscCall(VecDotBegin(y_i, X, &ytx));
-    PetscCall(VecDotEnd(s_i, Z, &stz));
-    PetscCall(VecDotEnd(y_i, X, &ytx));
-    /* Compute the pure BFGS component */
-    PetscCall(VecAXPBYPCZ(Z, -PetscRealPart(stz) / lsb->stp[i], PetscRealPart(ytx) / yitsi, 1.0, lsb->P[i], y_i));
-    /* Tack on the convexly scaled extras */
-    PetscCall(VecAXPBYPCZ(lsb->work, 1.0 / yitsi, -1.0 / lsb->stp[i], 0.0, y_i, lsb->P[i]));
-    PetscCall(VecDot(lsb->work, X, &wtx));
-    PetscCall(VecAXPY(Z, lsb->psi[i] * lsb->stp[i] * PetscRealPart(wtx), lsb->work));
-    PetscCall(MatLMVMRestoreVecsRead(B, oldest + i, LMBASIS_S, &s_i, LMBASIS_Y, &y_i));
+    PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &sityi));
+    sityi = PetscConj(sityi);
+    PetscCall(MatLMVMGetVecsRead(B, oldest + i, LMBASIS_Y, &y_i));
+    PetscCall(VecDot(X, lsb->P[i], &pitx));
+    PetscCall(VecDot(X, y_i, &yitx));
+
+    PetscScalar alpha = ((phi - 1.0) / sitpi) * pitx - (phi / sityi) * yitx;
+    PetscScalar beta  = -(phi / sityi) * pitx + ((sityi + phi * sitpi) / (sityi * sityi)) * yitx;
+    PetscCall(VecAXPBYPCZ(Z, alpha, beta, 1.0, lsb->P[i], y_i));
+    PetscCall(MatLMVMRestoreVecsRead(B, oldest + i, LMBASIS_Y, &y_i));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -198,7 +190,12 @@ static PetscErrorCode MatSetFromOptions_LMVMSymBadBrdn(Mat B, PetscOptionItems *
   MatLMVMSymBroydenScaleType stype;
 
   PetscFunctionBegin;
-  PetscCall(MatSetFromOptions_LMVMSymBrdn(B, PetscOptionsObject));
+  PetscCall(MatSetFromOptions_LMVM(B, PetscOptionsObject));
+  PetscOptionsHeadBegin(PetscOptionsObject, "Restricted/Symmetric Bad Broyden method for approximating SPD Jacobian actions (MATLMVMSYMBADBROYDEN)");
+  PetscCall(PetscOptionsReal("-mat_lmvm_psi", "convex ratio between DFP and BFGS components of the update", "", lsb->psi_scalar, &lsb->psi_scalar, NULL));
+  PetscCheck(lsb->psi_scalar >= 0.0 && lsb->psi_scalar <= 1.0, PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_OUTOFRANGE, "convex ratio for the update formula cannot be outside the range of [0, 1]");
+  PetscCall(SymBroydenScalerSetFromOptions(B, lsb->rescale, PetscOptionsObject));
+  PetscOptionsHeadEnd();
   PetscCall(SymBroydenScalerGetType(lsb->rescale, &stype));
   if (stype == MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL) PetscCall(SymBroydenScalerSetDiagonalMode(lsb->rescale, PETSC_TRUE));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -208,7 +205,8 @@ static PetscErrorCode MatSetFromOptions_LMVMSymBadBrdn(Mat B, PetscOptionItems *
 
 PetscErrorCode MatCreate_LMVMSymBadBrdn(Mat B)
 {
-  Mat_LMVM *lmvm;
+  Mat_LMVM    *lmvm;
+  Mat_SymBrdn *lsb;
 
   PetscFunctionBegin;
   PetscCall(MatCreate_LMVMSymBrdn(B));
@@ -218,6 +216,10 @@ PetscErrorCode MatCreate_LMVMSymBadBrdn(Mat B)
 
   lmvm            = (Mat_LMVM *)B->data;
   lmvm->ops->mult = MatMult_LMVMSymBadBrdn;
+
+  lsb = (Mat_SymBrdn *)lmvm->ctx;
+  lsb->psi_scalar = 0.124;
+  lsb->phi_scalar = PETSC_DETERMINE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
