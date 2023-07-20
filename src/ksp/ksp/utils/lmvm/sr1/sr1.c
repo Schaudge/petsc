@@ -19,12 +19,12 @@ typedef enum {
   SR1_GRAMIAN_COUNT
 } SR1GramianType;
 
-static inline SR1BasisType SR1BasisMap(SR1BasisType type, MatLMVMMode mode)
+static inline SR1BasisType LMVMModeMap(SR1BasisType type, MatLMVMMode mode)
 {
   return type ^ mode;
 }
 
-static inline SR1GramianType SR1GramianMap(SR1GramianType type, MatLMVMMode mode)
+static inline SR1GramianType LMVMModeMap(SR1GramianType type, MatLMVMMode mode)
 {
   return type ^ mode;
 }
@@ -38,7 +38,7 @@ static PetscErrorCode SR1CompactGramianUpdate(Mat B, MatLMVMMode mode)
 {
   Mat_LMVM      *lmvm              = (Mat_LMVM *)B->data;
   Mat_LSR1      *lsr1              = (Mat_LSR1 *)lmvm->ctx;
-  SR1GramianType YtS_minus_StB0S_t = SR1GramianMap(SR1_GRAMIAN_YTS_MINUS_STB0S, mode);
+  SR1GramianType YtS_minus_StB0S_t = LMVMModeMap(SR1_GRAMIAN_YTS_MINUS_STB0S, mode);
   LMGramian      YtS_minus_StB0S;
   PetscInt       oldest, next;
 
@@ -48,9 +48,9 @@ static PetscErrorCode SR1CompactGramianUpdate(Mat B, MatLMVMMode mode)
 
   PetscCall(MatLMVMGetRange(B, &oldest, &next));
   if (YtS_minus_StB0S->k < next) {
-    MatLMVMBasisType S_t   = MatLMVMBasisMap(LMBASIS_S, mode);
-    MatLMVMBasisType Y_t   = MatLMVMBasisMap(LMBASIS_Y, mode);
-    MatLMVMBasisType B0S_t = MatLMVMBasisMap(LMBASIS_B0S, mode);
+    MatLMVMBasisType S_t   = LMVMModeMap(LMBASIS_S, mode);
+    MatLMVMBasisType Y_t   = LMVMModeMap(LMBASIS_Y, mode);
+    MatLMVMBasisType B0S_t = LMVMModeMap(LMBASIS_B0S, mode);
     LMGramian        StB0S, YtS;
 
     PetscCall(MatLMVMGetUpdatedGramian(B, Y_t, S_t, LMBLOCK_UPPER_TRIANGLE, &YtS));
@@ -71,8 +71,8 @@ static PetscErrorCode SR1Kernel_CompactDense(Mat B, MatLMVMMode mode, Vec X, Vec
   if (next > oldest) {
     Mat_LMVM        *lmvm              = (Mat_LMVM *)B->data;
     Mat_LSR1        *lsr1              = (Mat_LSR1 *)lmvm->ctx;
-    MatLMVMBasisType Y_minus_B0S_t     = MatLMVMBasisMap(LMBASIS_Y_MINUS_B0S, mode);
-    SR1GramianType   YtS_minus_StB0S_t = SR1GramianMap(SR1_GRAMIAN_YTS_MINUS_STB0S, mode);
+    MatLMVMBasisType Y_minus_B0S_t     = LMVMModeMap(LMBASIS_Y_MINUS_B0S, mode);
+    SR1GramianType   YtS_minus_StB0S_t = LMVMModeMap(SR1_GRAMIAN_YTS_MINUS_STB0S, mode);
     LMGramian        YtS_minus_StB0S;
     PetscScalar     *YmB0StX;
 
@@ -92,8 +92,8 @@ static PetscErrorCode SR1Kernel_Recursive_Inner(Mat B, MatLMVMMode mode, PetscIn
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
   Mat_LSR1 *lsr1 = (Mat_LSR1 *)lmvm->ctx;
   ;
-  SR1BasisType   Y_minus_BkS_t     = SR1BasisMap(SR1_BASIS_Y_MINUS_BKS, mode);
-  SR1GramianType YtS_minus_StBkS_t = SR1GramianMap(SR1_GRAMIAN_STY_MINUS_YTHKY, mode);
+  SR1BasisType   Y_minus_BkS_t     = LMVMModeMap(SR1_BASIS_Y_MINUS_BKS, mode);
+  SR1GramianType YtS_minus_StBkS_t = LMVMModeMap(SR1_GRAMIAN_STY_MINUS_YTHKY, mode);
   LMBasis        Y_minus_BkS       = lsr1->basis[Y_minus_BkS_t];
   LMGramian      YtS_minus_StBkS   = lsr1->gramian[YtS_minus_StBkS_t];
   PetscScalar   *YmBkStX;
@@ -112,11 +112,11 @@ static PetscErrorCode SR1RecursiveBasisUpdate(Mat B, MatLMVMMode mode)
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
   Mat_LSR1 *lsr1 = (Mat_LSR1 *)lmvm->ctx;
   ;
-  MatLMVMBasisType B0S_t             = MatLMVMBasisMap(LMBASIS_B0S, mode);
-  MatLMVMBasisType S_t               = MatLMVMBasisMap(LMBASIS_S, mode);
-  MatLMVMBasisType Y_t               = MatLMVMBasisMap(LMBASIS_Y, mode);
-  SR1BasisType     Y_minus_BkS_t     = SR1BasisMap(SR1_BASIS_Y_MINUS_BKS, mode);
-  SR1GramianType   YtS_minus_StBkS_t = SR1GramianMap(SR1_GRAMIAN_STY_MINUS_YTHKY, mode);
+  MatLMVMBasisType B0S_t             = LMVMModeMap(LMBASIS_B0S, mode);
+  MatLMVMBasisType S_t               = LMVMModeMap(LMBASIS_S, mode);
+  MatLMVMBasisType Y_t               = LMVMModeMap(LMBASIS_Y, mode);
+  SR1BasisType     Y_minus_BkS_t     = LMVMModeMap(SR1_BASIS_Y_MINUS_BKS, mode);
+  SR1GramianType   YtS_minus_StBkS_t = LMVMModeMap(SR1_GRAMIAN_STY_MINUS_YTHKY, mode);
   LMBasis          Y_minus_BkS;
   LMGramian        YtS_minus_StBkS;
   PetscInt         oldest, next;

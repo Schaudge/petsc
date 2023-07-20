@@ -26,6 +26,7 @@ static inline PETSC_UNUSED BroydenBasisType BroydenBasisMap(BroydenBasisType typ
 {
   return mode ^ type;
 }
+
 static inline PETSC_UNUSED BroydenGramianType BroydenGramianMap(BroydenGramianType type, MatLMVMMode mode)
 {
   return mode ^ type;

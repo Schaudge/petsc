@@ -156,6 +156,63 @@ static PetscErrorCode MatSolve_LMVMSymBrdn(Mat B, Vec F, Vec dX)
 
 /*------------------------------------------------------------*/
 
+static PetscErrorCode SymBroydenRecursiveBasisUpdate(Mat B, MatLMVMMode mode)
+{
+  Mat_LMVM             *lmvm  = (Mat_LMVM *)B->data;
+  Mat_SymBrdn          *lsb   = (Mat_SymBrdn *)lmvm->ctx;
+  MatLMVMBasisType      B0S_t = LMVMModeMap(LMBASIS_B0S, mode); 
+  LMGramian             Phi   = lsb->gramian[LMVMModeMap(SYMBROYDEN_GRAMIAN_PHI, mode)];
+  SymBroydenBasisType   BkS_t = LMVMModeMap(SYMBROYDEN_BASIS_BKS, mode);
+  LMBasis               BkS;
+  SymBroydenGramianType StBkS_t = LMVMModeMap(SYMBROYDEN_GRAMIAN_STBKS, mode);
+  LMGramian             StBkS;
+  PetscInt              oldest, next;
+
+  PetscFunctionBegin;
+  if (!lsb->basis[BkS_t]) PetscCall(LMBasisCreate(B0S_t == LMBASIS_B0S ? lmvm->Fprev : lmvm->Xprev, lmvm->m, &lsb->basis[BkS_t]));
+  BkS = lsb->basis[BkS_t];
+  if (!lsb->gramian[StBkS_t]) PetscCall(LMGramianCreate(lmvm->m, &lsb->gramian[StBkS_t]));
+  StBkS = lsb->gramian[StBkS_t];
+  PetscCall(MatLMVMGetRange(B, &oldest, &next));
+  if (BkS->k < next) {
+    LMBasis B0S;
+
+    PetscCall(MatLMVMGetUpdatedBasis(B, B0S_t, &B0S));
+
+    PetscCall(LMGramianReset(StBkS));
+    PetscCall(LMGramianUpdateNextIndex(StBkS, next));
+    BkS->k = next; /* k has to be the same as the other window vecs for the
+                      ordering of the computations to be correct */
+    // recompute each column in Y_minus_BkS in order
+    for (PetscInt j = oldest; j < next; j++) {
+      Vec p_j, y_j, B0s_j;
+
+      PetscCall(LMBasisGetVec(BkS, j, PETSC_MEMORY_ACCESS_WRITE, &p_j));
+
+      // p_j starts as B_0 * s_j
+      PetscCall(LMBasisGetVec(B0S, j, PETSC_MEMORY_ACCESS_READ, &B0s_j));
+      PetscCall(VecCopy(B0s_j, p_j));
+      PetscCall(LMBasisRestoreVec(B0S, j, PETSC_MEMORY_ACCESS_READ, &B0s_j));
+
+      // Use the matsolve kernel to compute q_j = H_j * y_j
+      //PetscCall(BadBroydenKernel_Recursive_Inner(B, mode, oldest, j, p_j));
+      //PetscCall(LMBasisRestoreVec(Y_minus_BkS, j, PETSC_MEMORY_ACCESS_WRITE, &p_j));
+
+      //// computes y_j^T B_k s_j and stores it on the diagonal of Y_minus_BkS
+      //PetscCall(LMGramianForceUpdateBlock(YtBkS, Y, Y_minus_BkS, LMBLOCK_DIAGONAL, j, j + 1));
+
+      //PetscCall(LMBasisGetVec(Y, j, PETSC_MEMORY_ACCESS_READ, &y_j));
+      //PetscCall(LMBasisGetVec(Y_minus_BkS, j, PETSC_MEMORY_ACCESS_WRITE, &p_j));
+      //PetscCall(VecAYPX(p_j, -1.0, y_j));
+      //PetscCall(LMBasisRestoreVec(Y, j, PETSC_MEMORY_ACCESS_READ, &y_j));
+      //PetscCall(LMBasisRestoreVec(Y_minus_BkS, j, PETSC_MEMORY_ACCESS_WRITE, &p_j));
+    }
+  }
+
+  
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /*
   The forward-product below is the matrix-free implementation of
   Equation 16 in Dennis and Wolkowicz "Sizing and Least Change Secant
@@ -217,6 +274,9 @@ static PetscErrorCode MatMult_LMVMSymBrdn(Mat B, Vec X, Vec Z)
     PetscCall(VecDot(X, y_i, &yitx));
 
     PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &yitsi));
+    /* [1  |     0     ][ (phi - 1) / sitpi  |                    phi ][1  |     0     ]
+       [---------------][---------------------------------------------][---------------]
+       [   | -1 / yitsi][ phi                |  (yitsi + phi * sitpi) ][   | -1 / yitsi] */
     PetscScalar alpha = ((phi - 1.0) / sitpi) * pitx - (phi / yitsi) * yitx;
     PetscScalar beta  = -(phi / yitsi) * pitx + ((yitsi + phi * sitpi) / (yitsi * yitsi)) * yitx;
     PetscCall(VecAXPBYPCZ(Z, alpha, beta, 1.0, lsb->P[i], y_i));
@@ -266,6 +326,14 @@ static PetscErrorCode MatUpdate_LMVMSymBrdn(Mat B, Vec X, Vec F)
   } else {
     PetscCall(SymBroydenScalerInitializeJ0(B, lsb->rescale));
   }
+  if (lsb->phi_scalar != PETSC_DETERMINE) {
+    if (!lsb->gramian[SYMBROYDEN_GRAMIAN_PHI]) PetscCall(LMGramianCreate(lmvm->m, &lsb->gramian[SYMBROYDEN_GRAMIAN_PHI]));
+    PetscCall(LMGramianInsertDiagonalValue(lsb->gramian[SYMBROYDEN_GRAMIAN_PHI], next, lsb->phi_scalar));
+  }
+  if (lsb->psi_scalar != PETSC_DETERMINE) {
+    if (!lsb->gramian[SYMBROYDEN_GRAMIAN_PSI]) PetscCall(LMGramianCreate(lmvm->m, &lsb->gramian[SYMBROYDEN_GRAMIAN_PSI]));
+    PetscCall(LMGramianInsertDiagonalValue(lsb->gramian[SYMBROYDEN_GRAMIAN_PSI], next, lsb->psi_scalar));
+  }
 
   if (lsb->watchdog > lsb->max_seq_rejects) { PetscCall(MatLMVMReset(B, PETSC_FALSE)); }
 
@@ -299,6 +367,8 @@ static PetscErrorCode MatCopy_LMVMSymBrdn(Mat B, Mat M, MatStructure str)
     if (blsb->useP) PetscCall(VecCopy(blsb->P[i], mlsb->P[i]));
     if (blsb->useQ) PetscCall(VecCopy(blsb->Q[i], mlsb->Q[i]));
   }
+  for (PetscInt i = 0; i < SYMBROYDEN_BASIS_COUNT; i++) PetscCall(LMBasisCopy(blsb->basis[i], mlsb->basis[i]));
+  for (PetscInt i = 0; i < SYMBROYDEN_GRAMIAN_COUNT; i++) PetscCall(LMGramianCopy(blsb->gramian[i], mlsb->gramian[i]));
   mlsb->watchdog        = blsb->watchdog;
   mlsb->max_seq_rejects = blsb->max_seq_rejects;
   PetscCall(SymBroydenScalerCopy(blsb->rescale, mlsb->rescale, bdata->k + 1));
@@ -320,6 +390,8 @@ static PetscErrorCode MatReset_LMVMSymBrdn_Internal(Mat B)
   if (lsb->P) PetscCall(VecDestroyVecs(lmvm->m, &lsb->P));
   if (lsb->Q) PetscCall(VecDestroyVecs(lmvm->m, &lsb->Q));
   lsb->allocated = PETSC_FALSE;
+  for (PetscInt i = 0; i < SYMBROYDEN_BASIS_COUNT; i++) PetscCall(LMBasisDestroy(&lsb->basis[i]));
+  for (PetscInt i = 0; i < SYMBROYDEN_GRAMIAN_COUNT; i++) PetscCall(LMGramianDestroy(&lsb->gramian[i]));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

@@ -165,6 +165,8 @@ typedef enum {
   MATLMVM_MODE_DUAL   = 1,
 } MatLMVMMode;
 
+#define LMVMModeMap(a, mode) ((a) ^ mode)
+
 static inline PETSC_UNUSED MatLMVMBasisType MatLMVMBasisMap(MatLMVMBasisType type, MatLMVMMode mode)
 {
   return mode ^ type;

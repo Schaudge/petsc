@@ -6,6 +6,31 @@
   the forward product and inverse application of a Jacobian.
 */
 
+typedef enum {
+  SYMBROYDEN_BASIS_BKS = 0,
+  SYMBROYDEN_BASIS_HKY = 1,
+  SYMBROYDEN_BASIS_COUNT
+} SymBroydenBasisType;
+
+typedef enum {
+  SYMBROYDEN_GRAMIAN_PHI   = 0,
+  SYMBROYDEN_GRAMIAN_PSI   = 1,
+  SYMBROYDEN_GRAMIAN_STBKS = 2,
+  SYMBROYDEN_GRAMIAN_YTHKY = 3,
+  SYMBROYDEN_GRAMIAN_COUNT
+} SymBroydenGramianType;
+
+PETSC_UNUSED static inline SymBroydenBasisType SymBroydenBasisMap(SymBroydenBasisType type, MatLMVMMode mode)
+{
+  return mode ^ type;
+}
+
+PETSC_UNUSED static inline SymBroydenGramianType SymBroydenGramianMap(SymBroydenGramianType type, MatLMVMMode mode)
+{
+  return mode ^ type;
+}
+
+
 typedef struct {
   Vec                       *P, *Q; /* storage vectors for (B_i)*S[i] and (B_i)^{-1}*Y[i] */
   Vec                        work;
@@ -17,6 +42,8 @@ typedef struct {
   MatLMVMSymBroydenScaleType scale_type;
   PetscInt                   watchdog, max_seq_rejects; /* tracker to reset after a certain # of consecutive rejects */
   SymBroydenScaler           rescale;                   /* context for diagonal or scalar rescaling */
+  LMBasis                    basis[SYMBROYDEN_BASIS_COUNT];
+  LMGramian                  gramian[SYMBROYDEN_GRAMIAN_COUNT];
 } Mat_SymBrdn;
 
 PETSC_INTERN PetscErrorCode MatSymBrdnApplyJ0Fwd(Mat, Vec, Vec);

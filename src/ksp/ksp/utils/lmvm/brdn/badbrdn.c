@@ -44,9 +44,9 @@ static PetscErrorCode BadBroydenKernel_Recursive_Inner(Mat B, MatLMVMMode mode, 
 {
   Mat_LMVM        *lmvm        = (Mat_LMVM *)B->data;
   Mat_Brdn        *lbrdn       = (Mat_Brdn *)lmvm->ctx;
-  MatLMVMBasisType Y_t         = MatLMVMBasisMap(LMBASIS_Y, mode);
-  LMBasis          Y_minus_BkS = lbrdn->basis[BroydenBasisMap(BROYDEN_BASIS_Y_MINUS_BKS, mode)];
-  LMGramian        YtBkS       = lbrdn->gramian[BroydenGramianMap(BROYDEN_GRAMIAN_YTBKS, mode)];
+  MatLMVMBasisType Y_t         = LMVMModeMap(LMBASIS_Y, mode);
+  LMBasis          Y_minus_BkS = lbrdn->basis[LMVMModeMap(BROYDEN_BASIS_Y_MINUS_BKS, mode)];
+  LMGramian        YtBkS       = lbrdn->gramian[LMVMModeMap(BROYDEN_GRAMIAN_YTBKS, mode)];
   PetscScalar     *StBiX;
 
   PetscFunctionBegin;
@@ -69,12 +69,12 @@ static PetscErrorCode BadBroydenRecursiveBasisUpdate(Mat B, MatLMVMMode mode)
 {
   Mat_LMVM          *lmvm  = (Mat_LMVM *)B->data;
   Mat_Brdn          *lbrdn = (Mat_Brdn *)lmvm->ctx;
-  MatLMVMBasisType   Y_t   = MatLMVMBasisMap(LMBASIS_Y, mode);
-  MatLMVMBasisType   B0S_t = MatLMVMBasisMap(LMBASIS_B0S, mode);
+  MatLMVMBasisType   Y_t   = LMVMModeMap(LMBASIS_Y, mode);
+  MatLMVMBasisType   B0S_t = LMVMModeMap(LMBASIS_B0S, mode);
   LMBasis            Y_minus_BkS;
   LMGramian          YtBkS;
-  BroydenBasisType   Y_minus_BkS_t = BroydenBasisMap(BROYDEN_BASIS_Y_MINUS_BKS, mode);
-  BroydenGramianType YtBkS_t       = BroydenGramianMap(BROYDEN_GRAMIAN_YTBKS, mode);
+  BroydenBasisType   Y_minus_BkS_t = LMVMModeMap(BROYDEN_BASIS_Y_MINUS_BKS, mode);
+  BroydenGramianType YtBkS_t       = LMVMModeMap(BROYDEN_GRAMIAN_YTBKS, mode);
   PetscInt           oldest, next;
 
   PetscFunctionBegin;
@@ -138,9 +138,9 @@ PETSC_INTERN PetscErrorCode BadBroydenKernel_Recursive(Mat B, MatLMVMMode mode, 
 
 static PetscErrorCode BadBroydenKernelHermitianTranspose_Recursive_Inner(Mat B, MatLMVMMode mode, PetscInt oldest, PetscInt next, Vec X)
 {
-  MatLMVMBasisType   Y_t           = MatLMVMBasisMap(LMBASIS_Y, mode);
-  BroydenBasisType   Y_minus_BkS_t = BroydenBasisMap(BROYDEN_BASIS_Y_MINUS_BKS, mode);
-  BroydenGramianType YtBkS_t       = BroydenGramianMap(BROYDEN_GRAMIAN_YTBKS, mode);
+  MatLMVMBasisType   Y_t           = LMVMModeMap(LMBASIS_Y, mode);
+  BroydenBasisType   Y_minus_BkS_t = LMVMModeMap(BROYDEN_BASIS_Y_MINUS_BKS, mode);
+  BroydenGramianType YtBkS_t       = LMVMModeMap(BROYDEN_GRAMIAN_YTBKS, mode);
   Mat_LMVM          *lmvm          = (Mat_LMVM *)B->data;
   Mat_Brdn          *lbrdn         = (Mat_Brdn *)lmvm->ctx;
   LMBasis            Y_minus_BkS   = lbrdn->basis[Y_minus_BkS_t];
@@ -161,7 +161,7 @@ static PetscErrorCode BadBroydenKernelHermitianTranspose_Recursive_Inner(Mat B, 
 
 PETSC_INTERN PetscErrorCode BadBroydenKernelHermitianTranspose_Recursive(Mat B, MatLMVMMode mode, Vec X, Vec BX)
 {
-  MatLMVMBasisType Y_t = MatLMVMBasisMap(LMBASIS_Y, mode);
+  MatLMVMBasisType Y_t = LMVMModeMap(LMBASIS_Y, mode);
   PetscInt         oldest, next;
   Vec              G = X;
 
@@ -191,9 +191,9 @@ PETSC_INTERN PetscErrorCode BadBroydenKernelHermitianTranspose_Recursive(Mat B, 
 
 static PetscErrorCode BadBroydenCompactGramianUpdate(Mat B, MatLMVMMode mode)
 {
-  MatLMVMBasisType   Y_t               = MatLMVMBasisMap(LMBASIS_Y, mode);
-  MatLMVMBasisType   B0S_t             = MatLMVMBasisMap(LMBASIS_B0S, mode);
-  BroydenGramianType YtB0S_minus_YtY_t = BroydenGramianMap(BROYDEN_GRAMIAN_YTB0S_MINUS_YTY, mode);
+  MatLMVMBasisType   Y_t               = LMVMModeMap(LMBASIS_Y, mode);
+  MatLMVMBasisType   B0S_t             = LMVMModeMap(LMBASIS_B0S, mode);
+  BroydenGramianType YtB0S_minus_YtY_t = LMVMModeMap(BROYDEN_GRAMIAN_YTB0S_MINUS_YTY, mode);
   Mat_LMVM          *lmvm              = (Mat_LMVM *)B->data;
   Mat_Brdn          *lbrdn             = (Mat_Brdn *)lmvm->ctx;
   LMGramian          YtB0S, YtY, YtB0S_minus_YtY;
@@ -222,9 +222,9 @@ PETSC_INTERN PetscErrorCode BadBroydenKernel_CompactDense(Mat B, MatLMVMMode mod
   if (next > oldest) {
     Mat_LMVM          *lmvm              = (Mat_LMVM *)B->data;
     Mat_Brdn          *lbrdn             = (Mat_Brdn *)lmvm->ctx;
-    MatLMVMBasisType   Y_t               = MatLMVMBasisMap(LMBASIS_Y, mode);
-    MatLMVMBasisType   Y_minus_B0S_t     = MatLMVMBasisMap(LMBASIS_Y_MINUS_B0S, mode);
-    BroydenGramianType YtB0S_minus_YtY_t = BroydenGramianMap(BROYDEN_GRAMIAN_YTB0S_MINUS_YTY, mode);
+    MatLMVMBasisType   Y_t               = LMVMModeMap(LMBASIS_Y, mode);
+    MatLMVMBasisType   Y_minus_B0S_t     = LMVMModeMap(LMBASIS_Y_MINUS_B0S, mode);
+    BroydenGramianType YtB0S_minus_YtY_t = LMVMModeMap(BROYDEN_GRAMIAN_YTB0S_MINUS_YTY, mode);
     LMGramian          YtB0S_minus_YtY;
     PetscScalar       *YtB0X;
 
@@ -241,7 +241,7 @@ PETSC_INTERN PetscErrorCode BadBroydenKernel_CompactDense(Mat B, MatLMVMMode mod
 
 PETSC_INTERN PetscErrorCode BadBroydenKernelHermitianTranspose_CompactDense(Mat B, MatLMVMMode mode, Vec X, Vec BHX)
 {
-  MatLMVMBasisType Y_t = MatLMVMBasisMap(LMBASIS_Y, mode);
+  MatLMVMBasisType Y_t = LMVMModeMap(LMBASIS_Y, mode);
   PetscInt         oldest, next;
   Vec              G = X;
 
@@ -250,8 +250,8 @@ PETSC_INTERN PetscErrorCode BadBroydenKernelHermitianTranspose_CompactDense(Mat 
   if (next > oldest) {
     Mat_LMVM          *lmvm              = (Mat_LMVM *)B->data;
     Mat_Brdn          *lbrdn             = (Mat_Brdn *)lmvm->ctx;
-    MatLMVMBasisType   Y_minus_B0S_t     = MatLMVMBasisMap(LMBASIS_Y_MINUS_B0S, mode);
-    BroydenGramianType YtB0S_minus_YtY_t = BroydenGramianMap(BROYDEN_GRAMIAN_YTB0S_MINUS_YTY, mode);
+    MatLMVMBasisType   Y_minus_B0S_t     = LMVMModeMap(LMBASIS_Y_MINUS_B0S, mode);
+    BroydenGramianType YtB0S_minus_YtY_t = LMVMModeMap(BROYDEN_GRAMIAN_YTB0S_MINUS_YTY, mode);
     LMGramian          YtB0S_minus_YtY;
     PetscScalar       *YmB0StG;
 

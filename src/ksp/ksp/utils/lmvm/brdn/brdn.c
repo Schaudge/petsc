@@ -43,8 +43,8 @@ PETSC_INTERN PetscErrorCode BroydenKernel_Recursive(Mat B, MatLMVMMode mode, Vec
 {
   Vec              G   = X;
   Vec              W   = BX;
-  MatLMVMBasisType S_t = MatLMVMBasisMap(LMBASIS_S, mode);
-  MatLMVMBasisType Y_t = MatLMVMBasisMap(LMBASIS_Y, mode);
+  MatLMVMBasisType S_t = LMVMModeMap(LMBASIS_S, mode);
+  MatLMVMBasisType Y_t = LMVMModeMap(LMBASIS_Y, mode);
   PetscInt         oldest, next;
 
   PetscFunctionBegin;
@@ -77,8 +77,8 @@ PETSC_INTERN PetscErrorCode BroydenKernel_Recursive(Mat B, MatLMVMMode mode, Vec
 
 PETSC_INTERN PetscErrorCode BroydenKernelHermitianTranspose_Recursive(Mat B, MatLMVMMode mode, Vec X, Vec BHX)
 {
-  MatLMVMBasisType S_t = MatLMVMBasisMap(LMBASIS_S, mode);
-  MatLMVMBasisType Y_t = MatLMVMBasisMap(LMBASIS_Y, mode);
+  MatLMVMBasisType S_t = LMVMModeMap(LMBASIS_S, mode);
+  MatLMVMBasisType Y_t = LMVMModeMap(LMBASIS_Y, mode);
   PetscInt         oldest, next;
 
   PetscFunctionBegin;
@@ -124,8 +124,8 @@ PETSC_INTERN PetscErrorCode BroydenKernel_CompactDense(Mat B, MatLMVMMode mode, 
   PetscCall((mode == MATLMVM_MODE_PRIMAL ? MatLMVMApplyJ0Fwd : MatLMVMApplyJ0Inv)(B, X, BX));
   PetscCall(MatLMVMGetRange(B, &oldest, &next));
   if (next > oldest) {
-    MatLMVMBasisType S_t           = MatLMVMBasisMap(LMBASIS_S, mode);
-    MatLMVMBasisType Y_minus_B0S_t = MatLMVMBasisMap(LMBASIS_Y_MINUS_B0S, mode);
+    MatLMVMBasisType S_t           = LMVMModeMap(LMBASIS_S, mode);
+    MatLMVMBasisType Y_minus_B0S_t = LMVMModeMap(LMBASIS_Y_MINUS_B0S, mode);
     LMGramian        StS;
     PetscScalar     *StX;
 
@@ -147,8 +147,8 @@ PETSC_INTERN PetscErrorCode BroydenKernelHermitianTranspose_CompactDense(Mat B, 
   PetscCall((mode == MATLMVM_MODE_PRIMAL ? MatLMVMApplyJ0HermitianTranspose : MatLMVMApplyJ0InvHermitianTranspose)(B, X, BHX));
   PetscCall(MatLMVMGetRange(B, &oldest, &next));
   if (next > oldest) {
-    MatLMVMBasisType S_t           = MatLMVMBasisMap(LMBASIS_S, mode);
-    MatLMVMBasisType Y_minus_B0S_t = MatLMVMBasisMap(LMBASIS_Y_MINUS_B0S, mode);
+    MatLMVMBasisType S_t           = LMVMModeMap(LMBASIS_S, mode);
+    MatLMVMBasisType Y_minus_B0S_t = LMVMModeMap(LMBASIS_Y_MINUS_B0S, mode);
     LMGramian        StS;
     PetscScalar     *YmB0StX;
 
