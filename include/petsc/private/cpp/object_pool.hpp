@@ -921,13 +921,13 @@ public:
   PetscErrorCode allocate(value_type **, Args &&...) noexcept;
   PetscErrorCode deallocate(value_type **) noexcept;
 
-  PETSC_NODISCARD constructor_type       &constructor() noexcept { return pair_.first(); }
-  PETSC_NODISCARD const constructor_type &constructor() const noexcept { return pair_.first(); }
-  PETSC_NODISCARD allocator_type         &allocator() noexcept { return pair_.second(); }
-  PETSC_NODISCARD const allocator_type   &allocator() const noexcept { return pair_.second(); }
+  PETSC_NODISCARD constructor_type       &constructor() noexcept;
+  PETSC_NODISCARD const constructor_type &constructor() const noexcept;
+  PETSC_NODISCARD allocator_type         &allocator() noexcept;
+  PETSC_NODISCARD const allocator_type   &allocator() const noexcept;
 
 private:
-  util::compressed_pair<constructor_type, allocator_type> pair_{};
+  util::compressed_pair<constructor_type, allocator_type> pair_;
 
   using align_type = typename allocator_type::align_type;
   using size_type  = typename allocator_type::size_type;
@@ -968,6 +968,30 @@ inline ObjectPool<T, Constructor>::~ObjectPool() noexcept
   PetscFunctionBegin;
   PetscCallAbort(PETSC_COMM_SELF, this->finalize());
   PetscFunctionReturnVoid();
+}
+
+template <typename T, typename C>
+inline typename ObjectPool<T, C>::constructor_type &ObjectPool<T, C>::constructor() noexcept
+{
+  return pair_.first();
+}
+
+template <typename T, typename C>
+inline const typename ObjectPool<T, C>::constructor_type &ObjectPool<T, C>::constructor() const noexcept
+{
+  return pair_.first();
+}
+
+template <typename T, typename C>
+inline typename ObjectPool<T, C>::allocator_type &ObjectPool<T, C>::allocator() noexcept
+{
+  return pair_.second();
+}
+
+template <typename T, typename C>
+inline const typename ObjectPool<T, C>::allocator_type &ObjectPool<T, C>::allocator() const noexcept
+{
+  return pair_.second();
 }
 
 /*

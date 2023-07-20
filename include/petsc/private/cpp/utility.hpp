@@ -102,21 +102,6 @@ using index_sequence_for = make_index_sequence<sizeof...(T)>;
 namespace detail
 {
 
-template <bool t_empty, bool u_empty>
-struct compressed_pair_selector;
-
-template <>
-struct compressed_pair_selector<false, false> : std::integral_constant<int, 0> { };
-
-template <>
-struct compressed_pair_selector<true, false> : std::integral_constant<int, 1> { };
-
-template <>
-struct compressed_pair_selector<false, true> : std::integral_constant<int, 2> { };
-
-template <>
-struct compressed_pair_selector<true, true> : std::integral_constant<int, 3> { };
-
 template <typename T, typename U, int selector>
 class compressed_pair_impl;
 
@@ -151,7 +136,7 @@ public:
 
   compressed_pair_impl(first_type x, second_type y) : base_type(std::move_if_noexcept(x)), second_(std::move_if_noexcept(y)) { }
 
-  compressed_pair_impl(second_type x) : second_(std::move_if_noexcept(x)) { }
+  explicit compressed_pair_impl(second_type x) : second_(std::move_if_noexcept(x)) { }
 
   first_type       &first() noexcept { return *this; }
   const first_type &first() const noexcept { return *this; }
@@ -177,7 +162,7 @@ public:
 
   compressed_pair_impl(first_type x, second_type y) : base_type(std::move_if_noexcept(y)), first_(std::move_if_noexcept(x)) { }
 
-  compressed_pair_impl(first_type x) : first_(std::move_if_noexcept(x)) { }
+  explicit compressed_pair_impl(first_type x) : first_(std::move_if_noexcept(x)) { }
 
   first_type       &first() noexcept { return first_; }
   const first_type &first() const noexcept { return first_; }
@@ -218,6 +203,21 @@ public:
   second_type       &second() noexcept { return static_cast<second_type &>(*this); }
   const second_type &second() const noexcept { return static_cast<const second_type &>(*this); }
 };
+
+template <bool t_empty, bool u_empty>
+struct compressed_pair_selector;
+
+template <>
+struct compressed_pair_selector<false, false> : std::integral_constant<int, 0> { };
+
+template <>
+struct compressed_pair_selector<true, false> : std::integral_constant<int, 1> { };
+
+template <>
+struct compressed_pair_selector<false, true> : std::integral_constant<int, 2> { };
+
+template <>
+struct compressed_pair_selector<true, true> : std::integral_constant<int, 3> { };
 
 } // namespace detail
 
