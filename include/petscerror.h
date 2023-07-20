@@ -6,30 +6,6 @@
 
 #include <petscmacros.h>
 #include <petscsystypes.h>
-#define PETSC_USE_NVTX 0
-#if __has_include(<nvToolsExt.h>) && PETSC_USE_NVTX
-  #include <nvToolsExt.h>
-PETSC_EXTERN nvtxDomainHandle_t PetscGlobalNVTXDomain;
-  #define NVTX_RANGE_START \
-    do { \
-      static int                   nvtx_func_registered_ = 0; \
-      static nvtxStringHandle_t    nvtx_message_; \
-      static nvtxEventAttributes_t nvtx_event_attrib_; \
-      if (!nvtx_func_registered_) { \
-        nvtx_func_registered_                 = 1; \
-        nvtx_event_attrib_.version            = NVTX_VERSION; \
-        nvtx_event_attrib_.size               = NVTX_EVENT_ATTRIB_STRUCT_SIZE; \
-        nvtx_event_attrib_.messageType        = NVTX_MESSAGE_TYPE_REGISTERED; \
-        nvtx_message_                         = nvtxDomainRegisterStringA(PetscGlobalNVTXDomain, PETSC_FUNCTION_NAME); \
-        nvtx_event_attrib_.message.registered = nvtx_message_; \
-      } \
-      nvtxDomainRangePushEx(PetscGlobalNVTXDomain, &nvtx_event_attrib_); \
-    } while (0)
-  #define NVTX_RANGE_END nvtxDomainRangePop(PetscGlobalNVTXDomain)
-#else
-  #define NVTX_RANGE_START
-  #define NVTX_RANGE_END
-#endif
 
 #if defined(__cplusplus)
   #include <exception> // std::exception
@@ -1496,7 +1472,6 @@ M*/
 M*/
   #define PetscFunctionBegin \
     do { \
-      NVTX_RANGE_START; \
       PetscStackPushNoCheck(PETSC_FUNCTION_NAME, 1, PETSC_FALSE); \
       PetscRegister__FUNCT__(); \
     } while (0)
@@ -1525,7 +1500,6 @@ M*/
 M*/
   #define PetscFunctionBeginHot \
     do { \
-      NVTX_RANGE_START; \
       PetscStackPushNoCheck(PETSC_FUNCTION_NAME, 1, PETSC_TRUE); \
       PetscRegister__FUNCT__(); \
     } while (0)
@@ -1681,7 +1655,6 @@ M*/
   #define PetscFunctionReturn(...) \
     do { \
       PetscStackPopNoCheck(PETSC_FUNCTION_NAME); \
-      NVTX_RANGE_END; \
       return __VA_ARGS__; \
     } while (0)
 
@@ -1716,7 +1689,6 @@ M*/
   #define PetscFunctionReturnVoid() \
     do { \
       PetscStackPopNoCheck(PETSC_FUNCTION_NAME); \
-      NVTX_RANGE_END; \
       return; \
     } while (0)
 #else /* PETSC_USE_DEBUG */
@@ -1725,21 +1697,13 @@ M*/
   #define PetscStackPushExternal(funct)
   #define PetscStackPopNoCheck(...)
   #define PetscStackClearTop
-  #define PetscFunctionBegin     NVTX_RANGE_START
-  #define PetscFunctionBeginUser NVTX_RANGE_START
-  #define PetscFunctionBeginHot  NVTX_RANGE_START
-  #define PetscFunctionReturn(...) \
-    do { \
-      NVTX_RANGE_END; \
-      return __VA_ARGS__; \
-    } while (0)
-  #define PetscFunctionReturnVoid() \
-    do { \
-      NVTX_RANGE_END; \
-      return; \
-    } while (0)
-  #define PetscStackPop     CHKMEMQ
-  #define PetscStackPush(f) CHKMEMQ
+  #define PetscFunctionBegin
+  #define PetscFunctionBeginUser
+  #define PetscFunctionBeginHot
+  #define PetscFunctionReturn(...)  return __VA_ARGS__
+  #define PetscFunctionReturnVoid() return
+  #define PetscStackPop             CHKMEMQ
+  #define PetscStackPush(f)         CHKMEMQ
 #endif /* PETSC_USE_DEBUG */
 
 #if defined(PETSC_CLANG_STATIC_ANALYZER)

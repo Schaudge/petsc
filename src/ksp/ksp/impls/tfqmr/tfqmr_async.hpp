@@ -18,9 +18,9 @@ static PetscErrorCode       KSPSetUp_TFQMR_Async(KSP ksp)
   PetscFunctionBegin;
   PetscCall(KSPSetUp_TFQMR(ksp));
   PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
-  tfqmr->work_scalars.resize(6);
+  PetscCallCXX(tfqmr->work_scalars.resize(6));
   for (auto &&scal : tfqmr->work_scalars) PetscCall(scal.Reserve(dctx, 1));
-  tfqmr->work_reals.resize(4);
+  PetscCallCXX(tfqmr->work_reals.resize(4));
   for (auto &&real : tfqmr->work_reals) PetscCall(real.Reserve(dctx, 1));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -44,61 +44,43 @@ static PetscErrorCode KSPSolve_TFQMR_Async(KSP ksp)
 {
   using namespace Petsc;
 
-  PetscInt i, m;
-  auto     tfqmr = static_cast<KSP_TFQMR_Async *>(ksp->data);
-
-  auto &work_reals = tfqmr->work_reals;
-  auto &dp         = work_reals[0];
-  auto &dpold      = work_reals[1];
-  auto &tau        = work_reals[2];
-
-  auto &work_scalars = tfqmr->work_scalars;
-  auto &rhoold       = work_scalars[0];
+  PetscInt i;
+  auto     tfqmr        = static_cast<KSP_TFQMR_Async *>(ksp->data);
+  auto    &work_reals   = tfqmr->work_reals;
+  auto    &dp           = work_reals[0];
+  auto    &dpold        = work_reals[1];
+  auto    &tau          = work_reals[2];
+  auto    &work_scalars = tfqmr->work_scalars;
+  auto    &rhoold       = work_scalars[0];
+  auto     X            = ksp->vec_sol;
+  auto     B            = ksp->vec_rhs;
+  auto     R            = ksp->work[0];
+  auto     RP           = ksp->work[1];
+  auto     V            = ksp->work[2];
+  auto     T            = ksp->work[3];
+  auto     Q            = ksp->work[4];
+  auto     P            = ksp->work[5];
+  auto     U            = ksp->work[6];
+  auto     D            = ksp->work[7];
+  auto     T1           = ksp->work[8];
+  auto     AUQ          = V;
 
   PetscDeviceContext dctx;
 
   PetscFunctionBegin;
-  auto X   = ksp->vec_sol;
-  auto B   = ksp->vec_rhs;
-  auto R   = ksp->work[0];
-  auto RP  = ksp->work[1];
-  auto V   = ksp->work[2];
-  auto T   = ksp->work[3];
-  auto Q   = ksp->work[4];
-  auto P   = ksp->work[5];
-  auto U   = ksp->work[6];
-  auto D   = ksp->work[7];
-  auto T1  = ksp->work[8];
-  auto AUQ = V;
-  // #define SET_NAME(obj) PetscObjectSetName((PetscObject)(obj), PetscStringize(obj))
-  //   PetscCall(SET_NAME(X));
-  //   PetscCall(SET_NAME(B));
-  //   PetscCall(SET_NAME(R));
-  //   PetscCall(SET_NAME(RP));
-  //   PetscCall(SET_NAME(V));
-  //   PetscCall(SET_NAME(T));
-  //   PetscCall(SET_NAME(Q));
-  //   PetscCall(SET_NAME(P));
-  //   PetscCall(SET_NAME(U));
-  //   PetscCall(SET_NAME(D));
-  //   PetscCall(SET_NAME(T1));
-  // #undef SET_NAME
-
+  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
   /* Compute initial preconditioned residual */
   PetscCall(KSPInitialResidual(ksp, X, V, T, R, B));
-
-  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
   /* Test for nothing to do */
   PetscCall(VecNormAsync(R, NORM_2, &dp, dctx));
-  //KSPCheckNorm(ksp, dp);
-  PetscCall(PetscObjectSAWsTakeAccess((PetscObject)ksp));
+  PetscCall(PetscObjectSAWsTakeAccess(PetscObjectCast(ksp)));
   if (ksp->normtype == KSP_NORM_NONE) {
     ksp->rnorm = 0.0;
   } else {
     ksp->rnorm = dp.cfront(dctx);
   }
   ksp->its = 0;
-  PetscCall(PetscObjectSAWsGrantAccess((PetscObject)ksp));
+  PetscCall(PetscObjectSAWsGrantAccess(PetscObjectCast(ksp)));
   PetscCall(KSPMonitor(ksp, 0, ksp->rnorm));
   PetscCall((*ksp->converged)(ksp, 0, ksp->rnorm, &ksp->reason, ksp->cnvP));
   if (ksp->reason) PetscFunctionReturn(PETSC_SUCCESS);
@@ -123,25 +105,24 @@ static PetscErrorCode KSPSolve_TFQMR_Async(KSP ksp)
   PetscCall(KSP_PCApplyBAorAB(ksp, P, V, T));
   PetscCall(VecSetAsync(D, MANAGED_SCAL_ZERO(), dctx));
 
-  i = 0;
-  do {
+  for (i = 0; i < ksp->max_it; ++i) {
     auto &a   = work_scalars[1];
     auto &s   = work_scalars[2];
     auto &rho = work_scalars[3];
 
-    PetscCall(PetscObjectSAWsTakeAccess((PetscObject)ksp));
+    PetscCall(PetscObjectSAWsTakeAccess(PetscObjectCast(ksp)));
     ksp->its++;
-    PetscCall(PetscObjectSAWsGrantAccess((PetscObject)ksp));
+    PetscCall(PetscObjectSAWsGrantAccess(PetscObject(ksp)));
     PetscCall(VecDotAsync(V, RP, &s, dctx)); /* s <- (v,rp)          */
-    //KSPCheckDot(ksp, s);
+    // KSPCheckDot(ksp, s);
     a = Eval(-rhoold / s, dctx);                                 /* a <- -rho / s         */
     PetscCall(VecWAXPYAsync(Q, a, V, U, dctx));                  /* q <- u - a v         */
     PetscCall(VecWAXPYAsync(T, MANAGED_SCAL_ONE(), U, Q, dctx)); /* t <- u + q           */
     PetscCall(KSP_PCApplyBAorAB(ksp, T, AUQ, T1));
     PetscCall(VecAXPYAsync(R, a, AUQ, dctx)); /* r <- r - a K (u + q) */
     PetscCall(VecNormAsync(R, NORM_2, &dp, dctx));
-    //KSPCheckNorm(ksp, dp);
-    for (m = 0; m < 2; m++) {
+    // KSPCheckNorm(ksp, dp);
+    for (auto m = 0; m < 2; ++m) {
       auto &psi    = work_reals[3];
       auto &psiold = work_scalars[4];
       auto &eta    = work_scalars[5];
@@ -202,34 +183,32 @@ static PetscErrorCode KSPSolve_TFQMR_Async(KSP ksp)
       )
     );
     // clang-format on
-
-    i++;
-  } while (i < ksp->max_it);
+  }
   if (i >= ksp->max_it) ksp->reason = KSP_DIVERGED_ITS;
-
   PetscCall(KSPUnwindPreconditioner(ksp, X, T));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+PETSC_EXTERN PetscErrorCode KSPCreate_TFQMR(KSP);
+
 /*MC
-     KSPTFQMR - A transpose free QMR (quasi minimal residual),
+  KSPTFQMRASYNC - A transpose free QMR (quasi minimal residual),
 
-   Level: beginner
+  Level: beginner
 
-   Notes:
-   Supports left and right preconditioning, but not symmetric
+  Notes:
+  Supports left and right preconditioning, but not symmetric
 
-   The "residual norm" computed in this algorithm is actually just an upper bound on the actual residual norm.
-   That is for left preconditioning it is a bound on the preconditioned residual and for right preconditioning
-   it is a bound on the true residual.
+  The "residual norm" computed in this algorithm is actually just an upper bound on the actual
+  residual norm. That is for left preconditioning it is a bound on the preconditioned residual
+  and for right preconditioning it is a bound on the true residual.
 
-   References:
-.  * - Freund, 1993
+  References:
+. * - Freund, 1993
 
 .seealso: [](chapter_ksp), `KSPCreate()`, `KSPSetType()`, `KSPType`, `KSP`, `KSPTCQMR`
 M*/
-PETSC_EXTERN PetscErrorCode KSPCreate_TFQMR(KSP);
-PETSC_EXTERN PetscErrorCode KSPCreate_TFQMR_Async(KSP ksp)
+PETSC_INTERN PetscErrorCode KSPCreate_TFQMR_Async(KSP ksp)
 {
   PetscFunctionBegin;
   PetscCall(KSPCreate_TFQMR(ksp));

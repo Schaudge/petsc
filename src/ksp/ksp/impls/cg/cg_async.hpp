@@ -21,11 +21,11 @@ static PetscErrorCode       KSPSetUp_CG_Async(KSP ksp)
   PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
   if (!cga->work_ctx) {
     PetscCall(PetscDeviceContextDuplicate(dctx, &cga->work_ctx));
-    PetscCall(PetscObjectSetName((PetscObject)(cga->work_ctx), "work ctx"));
+    PetscCall(PetscObjectSetName(PetscObjectCast(cga->work_ctx), "work ctx"));
   }
 
-  cga->work_scalars.resize(5);
-  cga->work_reals.resize(1);
+  PetscCallCXX(cga->work_scalars.resize(5));
+  PetscCallCXX(cga->work_reals.resize(1));
 
   for (auto &&scal : cga->work_scalars) PetscCall(scal.Reserve(dctx, 1));
   for (auto &&real : cga->work_reals) PetscCall(real.Reserve(dctx, 1));
@@ -47,30 +47,25 @@ static PetscErrorCode KSPSolve_CG_Async(KSP ksp)
   using namespace Petsc;
 
   PetscInt           i;
-  Vec                X, B, Z, R, P, W;
   const auto         cga = static_cast<KSP_CG_Async *>(ksp->data);
   const auto         cg  = &cga->cg;
+  const auto         X = ksp->vec_sol, B = ksp->vec_rhs;
+  const auto         R = ksp->work[0], Z = ksp->work[1], P = ksp->work[2], W = Z;
+  auto              &dp   = cga->work_reals[0];
+  auto              &beta = cga->work_scalars[0];
   Mat                Amat, Pmat;
-  PetscBool          diagonalscale;
   PetscDeviceContext dctx, sub_ctx = cga->work_ctx;
-  const auto         VecXDotAsync = [&cg](Vec x, Vec y, Petsc::ManagedScalar *a, PetscDeviceContext d) { return cg->type == KSP_CG_HERMITIAN ? VecDotAsync(x, y, a, d) : VecTDotAsync(x, y, a, d); };
+  const auto         VecXDotAsync = [&cg](Vec x, Vec y, ManagedScalar *a, PetscDeviceContext d) { return cg->type == KSP_CG_HERMITIAN ? VecDotAsync(x, y, a, d) : VecTDotAsync(x, y, a, d); };
 
   PetscFunctionBegin;
-  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
-  PetscCall(PCGetDiagonalScale(ksp->pc, &diagonalscale));
-  PetscCheck(!diagonalscale, PetscObjectComm((PetscObject)ksp), PETSC_ERR_SUP, "Krylov method %s does not support diagonal scaling", ((PetscObject)ksp)->type_name);
+  {
+    PetscBool diagonalscale;
+
+    PetscCall(PCGetDiagonalScale(ksp->pc, &diagonalscale));
+    PetscCheck(!diagonalscale, PetscObjectComm(ksp), PETSC_ERR_SUP, "Krylov method %s does not support diagonal scaling", PetscObjectCast(ksp)->type_name);
+  }
   PetscCheck(!ksp->calc_sings, PETSC_COMM_SELF, PETSC_ERR_SUP, "Not implemented");
-
-  X = ksp->vec_sol;
-  B = ksp->vec_rhs;
-  R = ksp->work[0];
-  Z = ksp->work[1];
-  P = ksp->work[2];
-  W = Z;
-
-  auto &dp   = cga->work_reals[0];
-  auto &beta = cga->work_scalars[0];
-
+  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
   PetscCall(PCGetOperators(ksp->pc, &Amat, &Pmat));
 
   ksp->its = 0;
@@ -101,15 +96,12 @@ static PetscErrorCode KSPSolve_CG_Async(KSP ksp)
     dp.front(dctx) = 0.0;
     break;
   default:
-    SETERRQ(PetscObjectComm((PetscObject)ksp), PETSC_ERR_SUP, "%s", KSPNormTypes[ksp->normtype]);
+    SETERRQ(PetscObjectComm(ksp), PETSC_ERR_SUP, "%s", KSPNormTypes[ksp->normtype]);
   }
-  {
-    ksp->rnorm = dp.cfront(dctx);
-    PetscCall(KSPLogResidualHistory(ksp, ksp->rnorm));
-    PetscCall(KSPMonitor(ksp, 0, ksp->rnorm));
-    PetscCall((*ksp->converged)(ksp, 0, ksp->rnorm, &ksp->reason, ksp->cnvP)); /* test for convergence */
-  }
-
+  ksp->rnorm = dp.cfront(dctx);
+  PetscCall(KSPLogResidualHistory(ksp, ksp->rnorm));
+  PetscCall(KSPMonitor(ksp, 0, ksp->rnorm));
+  PetscCall((*ksp->converged)(ksp, 0, ksp->rnorm, &ksp->reason, ksp->cnvP)); /* test for convergence */
   if (ksp->reason) PetscFunctionReturn(PETSC_SUCCESS);
 
   if (ksp->normtype != KSP_NORM_NATURAL) {
@@ -121,7 +113,6 @@ static PetscErrorCode KSPSolve_CG_Async(KSP ksp)
     auto &betaold = cga->work_scalars[1];
 
     ksp->its = i + 1;
-
     if (beta.KnownAndEqual(0.0)) {
       ksp->reason = KSP_CONVERGED_ATOL;
       PetscCall(PetscInfo(ksp, "converged due to beta = 0\n"));
@@ -176,7 +167,6 @@ static PetscErrorCode KSPSolve_CG_Async(KSP ksp)
       PetscCall(KSPMonitor(ksp, i + 1, ksp->rnorm));
       PetscCall((*ksp->converged)(ksp, i + 1, ksp->rnorm, &ksp->reason, ksp->cnvP));
     }
-
     if (ksp->reason) break;
 
     if ((ksp->normtype != KSP_NORM_NATURAL) || (ksp->chknorm >= i + 2)) {
@@ -191,11 +181,13 @@ static PetscErrorCode KSPSolve_CG_Async(KSP ksp)
 static PetscErrorCode KSPDestroy_CG_Async(KSP ksp)
 {
   KSP_CG *old_cg;
+  auto    cga = static_cast<KSP_CG_Async *>(ksp->data);
 
   PetscFunctionBegin;
-  auto cga = static_cast<KSP_CG_Async *>(ksp->data);
-  PetscCall(PetscNew(&old_cg));
+  PetscCall(PetscMalloc1(1, &old_cg));
   *old_cg = cga->cg;
+  for (auto &&scal : cga->work_scalars) PetscCall(scal.Destroy(cga->work_ctx));
+  for (auto &&real : cga->work_reals) PetscCall(real.Destroy(cga->work_ctx));
   PetscCall(PetscDeviceContextDestroy(&cga->work_ctx));
   delete cga;
   ksp->data = static_cast<void *>(old_cg);
@@ -219,19 +211,6 @@ static PetscErrorCode KSPView_CG_Async(KSP ksp, PetscViewer viewer)
 }
 
 /*
-    KSPSetFromOptions_CG - Checks the options database for options related to the
-                           conjugate gradient method.
-*/
-static PetscErrorCode KSPSetFromOptions_CG_Async(KSP ksp, PetscOptionItems *PetscOptionsObject)
-{
-  PetscFunctionBegin;
-  PetscCall(KSPSetFromOptions_CG(ksp, PetscOptionsObject));
-  PetscOptionsHeadBegin(PetscOptionsObject, "KSP CG Async Options");
-  PetscOptionsHeadEnd();
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/*
     KSPCGUseSingleReduction_CG
 
     This routine sets a flag to use a variant of CG. Note that (in somewhat
@@ -247,13 +226,7 @@ static PetscErrorCode KSPCGUseSingleReduction_CG_Async(KSP ksp, PetscBool flg)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode KSPBuildResidual_CG_Async(KSP ksp, Vec, Vec v, Vec *V)
-{
-  PetscFunctionBegin;
-  PetscCall(VecCopy(ksp->work[0], v));
-  *V = v;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
+PETSC_EXTERN PetscErrorCode KSPCreate_CG(KSP);
 
 /*MC
      KSPCG - The Preconditioned Conjugate Gradient (PCG) iterative method
@@ -301,8 +274,7 @@ M*/
 
     It must be labeled as PETSC_EXTERN to be dynamically linkable in C++
 */
-PETSC_EXTERN PetscErrorCode KSPCreate_CG(KSP);
-PETSC_EXTERN PetscErrorCode KSPCreate_CG_Async(KSP ksp)
+PETSC_INTERN PetscErrorCode KSPCreate_CG_Async(KSP ksp)
 {
   KSP_CG_Async *cg;
 
@@ -314,12 +286,10 @@ PETSC_EXTERN PetscErrorCode KSPCreate_CG_Async(KSP ksp)
   PetscCall(PetscFree(ksp->data));
   ksp->data = cg;
 
-  ksp->ops->setup          = KSPSetUp_CG_Async;
-  ksp->ops->solve          = KSPSolve_CG_Async;
-  ksp->ops->destroy        = KSPDestroy_CG_Async;
-  ksp->ops->view           = KSPView_CG_Async;
-  ksp->ops->setfromoptions = KSPSetFromOptions_CG_Async;
-  ksp->ops->buildresidual  = KSPBuildResidual_CG_Async;
+  ksp->ops->setup   = KSPSetUp_CG_Async;
+  ksp->ops->solve   = KSPSolve_CG_Async;
+  ksp->ops->destroy = KSPDestroy_CG_Async;
+  ksp->ops->view    = KSPView_CG_Async;
 
   PetscCall(PetscObjectComposeFunction((PetscObject)ksp, "KSPCGUseSingleReduction_C", KSPCGUseSingleReduction_CG_Async));
   PetscFunctionReturn(PETSC_SUCCESS);

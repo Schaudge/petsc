@@ -85,7 +85,6 @@ typedef const char *KSPType;
 #define KSPHPDDM      "hpddm"
 #define KSPCGASYNC    "cgasync"
 #define KSPTFQMRASYNC "tfqmrasync"
-#define KSPGMRESASYNC "gmresasync"
 
 /* Logging support */
 PETSC_EXTERN PetscClassId KSP_CLASSID;
