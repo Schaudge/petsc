@@ -526,6 +526,7 @@ PetscErrorCode MatCreate_LMVMSymBrdn(Mat B)
   lsb->allocated = PETSC_FALSE;
   lsb->needP = lsb->needQ = PETSC_TRUE;
   lsb->phi_scalar         = 0.125;
+  lsb->psi_scalar         = PETSC_DETERMINE;
   lsb->watchdog           = 0;
   lsb->max_seq_rejects    = lmvm->m / 2;
 
