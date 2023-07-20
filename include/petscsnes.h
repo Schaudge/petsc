@@ -50,6 +50,7 @@ typedef const char *SNESType;
 #define SNESCOMPOSITE        "composite"
 #define SNESPATCH            "patch"
 #define SNESMULTIBLOCK       "multiblock"
+#define SNESNONE             "none"
 
 /* Logging support */
 PETSC_EXTERN PetscClassId SNES_CLASSID;
@@ -813,6 +814,7 @@ PETSC_EXTERN PetscErrorCode DMSNESGetJacobianLocal(DM, PetscErrorCode (**)(DM, V
 
 /* Routines for Multiblock solver */
 PETSC_EXTERN PetscErrorCode SNESMultiblockAddBlock(SNES, const char[], PetscInt, const PetscInt *);
+PETSC_EXTERN PetscErrorCode SNESMultiblockAddDomainBlock(SNES, const char[], const char[], PetscInt);
 PETSC_EXTERN PetscErrorCode SNESMultiblockSetType(SNES, PCCompositeType);
 PETSC_EXTERN PetscErrorCode SNESMultiblockGetSubSNES(SNES, PetscInt *, SNES *[]);
 

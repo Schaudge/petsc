@@ -42,7 +42,7 @@ typedef struct {
   Vec vec_lte_work;
 } TS_Theta;
 
-static PetscErrorCode TSThetaGetX0AndXdot(TS ts, DM dm, Vec *X0, Vec *Xdot)
+PetscErrorCode TSThetaGetX0AndXdot(TS ts, DM dm, Vec *X0, Vec *Xdot)
 {
   TS_Theta *th = (TS_Theta *)ts->data;
 
@@ -60,7 +60,7 @@ static PetscErrorCode TSThetaGetX0AndXdot(TS ts, DM dm, Vec *X0, Vec *Xdot)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode TSThetaRestoreX0AndXdot(TS ts, DM dm, Vec *X0, Vec *Xdot)
+PetscErrorCode TSThetaRestoreX0AndXdot(TS ts, DM dm, Vec *X0, Vec *Xdot)
 {
   PetscFunctionBegin;
   if (X0) {
@@ -930,6 +930,8 @@ static PetscErrorCode SNESTSFormFunction_Theta(SNES snes, Vec x, Vec y, TS ts)
   PetscCall(SNESGetDM(snes, &dm));
   /* When using the endpoint variant, this is actually 1/Theta * Xdot */
   PetscCall(TSThetaGetX0AndXdot(ts, dm, &X0, &Xdot));
+  PetscCall(PetscObjectSetName((PetscObject)X0, "X0"));
+  PetscCall(VecViewFromOptions(X0, NULL, "-X0_view"));
   if (x != X0) {
     PetscCall(VecAXPBYPCZ(Xdot, -shift, shift, 0, X0, x));
   } else {

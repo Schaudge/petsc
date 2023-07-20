@@ -8,12 +8,14 @@ PETSC_EXTERN PetscErrorCode DMCopyDMTS(DM, DM);
 
 typedef struct _BlockDesc *BlockDesc;
 struct _BlockDesc {
-  char      *name;   // Block name
-  PetscInt   Nf;     // Number of DM fields
-  PetscInt  *fields; // DM fields numbers
-  IS         is;     // Index set defining the block
-  SNES       snes;   // subSNES for this block
-  TS         ts;     // subTS in case the SNES in embedded in a TS loop
+  char      *name;      // Block name
+  PetscInt   Nf;        // Number of DM fields
+  PetscInt  *fields;    // DM fields numbers, or NULL
+  char      *labelname; // The label name, or NULL
+  PetscInt   labelval;  // The label value
+  IS         is;        // Index set defining the block
+  SNES       snes;      // subSNES for this block
+  TS         ts;        // subTS in case the SNES in embedded in a TS loop
   BlockDesc  next, previous;
 };
 
@@ -23,6 +25,7 @@ typedef struct {
   PCCompositeType type;           // Solver combination method (additive, multiplicative, etc.)
   PetscInt        Nb;             // Number of blocks
   BlockDesc       blocks;         // Linked list of block descriptors
+  PetscBool       useLabel;       // Divide by label instead of fields
 } SNES_Multiblock;
 
 static PetscErrorCode SNESReset_Multiblock(SNES snes)
@@ -59,12 +62,14 @@ static PetscErrorCode SNESDestroy_Multiblock(SNES snes)
     next = blocks->next;
     PetscCall(PetscFree(blocks->name));
     PetscCall(PetscFree(blocks->fields));
+    PetscCall(PetscFree(blocks->labelname));
     PetscCall(SNESDestroy(&blocks->snes));
     PetscCall(TSDestroy(&blocks->ts));
     PetscCall(PetscFree(blocks));
     blocks = next;
   }
   PetscCall(PetscObjectComposeFunction((PetscObject)snes, "SNESMultiblockAddBlock_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)snes, "SNESMultiblockAddDomainBlock_C", NULL));
   PetscCall(PetscObjectComposeFunction((PetscObject)snes, "SNESMultiblockSetType_C", NULL));
   PetscCall(PetscObjectComposeFunction((PetscObject)snes, "SNESMultiblockGetSubSNES_C", NULL));
   PetscCall(PetscObjectComposeFunction((PetscObject)snes, "SNESMultiblockSchurPrecondition_C", NULL));
@@ -72,7 +77,7 @@ static PetscErrorCode SNESDestroy_Multiblock(SNES snes)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode SNESMultiblockSetFieldsFromOptions_Private(SNES snes)
+static PetscErrorCode SNESMultiblockSetBlocksFromOptions_Private(SNES snes)
 {
   SNES_Multiblock *mb = (SNES_Multiblock *)snes->data;
   DM               dm;
@@ -91,9 +96,21 @@ static PetscErrorCode SNESMultiblockSetFieldsFromOptions_Private(SNES snes)
     PetscCall(PetscSNPrintf(name, sizeof(name), "%" PetscInt_FMT, i));
     PetscCall(PetscSNPrintf(optionname, sizeof(optionname), "-snes_multiblock_%" PetscInt_FMT "_fields", i));
     PetscCall(PetscOptionsGetIntArray(NULL, ((PetscObject)snes)->prefix, optionname, ifields, &nfields, &flg));
-    if (!flg) break;
-    PetscCheck(nfields, PETSC_COMM_SELF, PETSC_ERR_USER, "Cannot give zero fields for option %s", optionname);
-    PetscCall(SNESMultiblockAddBlock(snes, name, nfields, ifields));
+    if (!flg) {
+      char    *domain[2];
+      PetscInt nmax = 2, val;
+
+      PetscCall(PetscSNPrintf(optionname, sizeof(optionname), "-snes_multiblock_%" PetscInt_FMT "_domain", i));
+      PetscCall(PetscOptionsGetStringArray(NULL, ((PetscObject)snes)->prefix, optionname, domain, &nmax, &flg));
+      if (!flg) break;
+      PetscCheck(nmax == 2, PETSC_COMM_SELF, PETSC_ERR_USER, "Must give labelname,value not %s", domain[0]);
+      PetscCall(PetscOptionsStringToInt(domain[1], &val));
+      PetscCall(SNESMultiblockAddDomainBlock(snes, name, domain[0], val));
+      mb->useLabel = PETSC_TRUE;
+    } else {
+      PetscCheck(nfields, PETSC_COMM_SELF, PETSC_ERR_USER, "Cannot give zero fields for option %s", optionname);
+      PetscCall(SNESMultiblockAddBlock(snes, name, nfields, ifields));
+    }
   }
   PetscCall(PetscFree(ifields));
   if (i > 0) {
@@ -116,9 +133,9 @@ static PetscErrorCode SNESMultiblockSetDefaults(SNES snes)
   PetscFunctionBegin;
   PetscCall(SNESGetDM(snes, &dm));
   PetscCall(DMGetNumFields(dm, &Nf));
-  if (!mb->defined && mb->setfromoptions) PetscCall(SNESMultiblockSetFieldsFromOptions_Private(snes));
+  if (!mb->defined && mb->setfromoptions) PetscCall(SNESMultiblockSetBlocksFromOptions_Private(snes));
   if (mb->Nb == 0) for (PetscInt f = 0; f < Nf; ++f) PetscCall(SNESMultiblockAddBlock(snes, NULL, 1, &f));
-  else if (mb->Nb == 1) {
+  else if (!mb->useLabel && mb->Nb == 1) {
     PetscInt n = 0, *fields;
 
     for (PetscInt f = 0; f < Nf; ++f) {
@@ -136,7 +153,7 @@ static PetscErrorCode SNESMultiblockSetDefaults(SNES snes)
     PetscCall(SNESMultiblockAddBlock(snes, NULL, n, fields));
     PetscCall(PetscFree(fields));
   }
-  PetscCheck(mb->Nb >= 2, PETSC_COMM_SELF, PETSC_ERR_PLIB, "SNESMultiblock: Must have at least two blocks, not %" PetscInt_FMT, mb->Nb);
+  PetscCheck(mb->Nb >= 1, PETSC_COMM_SELF, PETSC_ERR_PLIB, "SNESMultiblock: Must have at least one block, not %" PetscInt_FMT, mb->Nb);
   mb->defined = PETSC_TRUE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -145,52 +162,79 @@ static PetscErrorCode TSCopyToSubTS_Private(TS ts, IS is, TS subts)
 {
   DM        subdm;
   Vec       X, Xdot;
-  PetscBool isimex;
+  PetscBool isbeuler, istheta, isimex;
 
   PetscFunctionBegin;
   PetscCall(TSCopy(ts, subts));
   PetscCall(TSSetUp(subts));
+  PetscCall(PetscObjectTypeCompare((PetscObject)ts, TSBEULER, &isbeuler));
+  PetscCall(PetscObjectTypeCompare((PetscObject)ts, TSTHETA, &istheta));
   PetscCall(PetscObjectTypeCompare((PetscObject)ts, TSARKIMEX, &isimex));
   PetscCall(TSGetDM(subts, &subdm));
   PetscCall(TSGetSolution(ts, &X));
   PetscCall(VecDuplicate(X, &Xdot));
   PetscCall(DMSetAuxiliaryVec(subdm, NULL, 0, 1025, Xdot));
   PetscCall(VecDestroy(&Xdot));
-  if (isimex) {
+  // Eventually do this with the restrict hook
+  if (isbeuler || istheta) {
+    DM dm, subdm;
+    Vec X0, subX0;
+
+    PetscCall(TSGetDM(ts, &dm));
+    PetscCall(TSGetDM(subts, &subdm));
+    PetscCall(TSThetaGetX0AndXdot(ts, dm, &X0, NULL));
+    PetscCall(TSThetaGetX0AndXdot(subts, subdm, &subX0, NULL));
+    PetscCall(VecISCopy(X0, is, SCATTER_REVERSE, subX0));
+    PetscCall(TSThetaRestoreX0AndXdot(ts, dm, &X0, NULL));
+    PetscCall(TSThetaRestoreX0AndXdot(subts, subdm, &subX0, NULL));
+  } else if (isimex) {
     DM dm, subdm;
     Vec Z, subZ;
 
-    // Eventually do this with the restrict hook
     PetscCall(TSGetDM(ts, &dm));
     PetscCall(TSGetDM(subts, &subdm));
     PetscCall(TSARKIMEXGetVecs(ts, dm, &Z, NULL));
     PetscCall(TSARKIMEXGetVecs(subts, subdm, &subZ, NULL));
     PetscCall(VecISCopy(Z, is, SCATTER_REVERSE, subZ));
+    PetscCall(TSARKIMEXRestoreVecs(ts, dm, &Z, NULL));
+    PetscCall(TSARKIMEXRestoreVecs(subts, subdm, &subZ, NULL));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode SNESSetUp_Multiblock(SNES snes)
+static PetscErrorCode SNESMultiblockResetDM_Private(SNES snes, DM dm)
 {
   SNES_Multiblock *mb = (SNES_Multiblock *)snes->data;
   BlockDesc        blocks;
-  DM               dm;
   DMTS             tdm;
 
   PetscFunctionBegin;
-  PetscCall(SNESGetDM(snes, &dm));
   PetscCall(DMGetDMTS(dm, &tdm));
-  if (tdm) {
-    // This SNES is embedded in a TS
-  }
-
-  PetscCall(SNESMultiblockSetDefaults(snes));
   blocks = mb->blocks;
   while (blocks) {
     DM          subdm;
     const char *prefix;
 
-    PetscCall(DMCreateSubDM(dm, blocks->Nf, blocks->fields, &blocks->is, &subdm));
+    if (blocks->fields) {
+      PetscCall(DMCreateSubDM(dm, blocks->Nf, blocks->fields, &blocks->is, &subdm));
+    } else {
+      DMLabel label;
+
+      PetscCall(DMGetLabel(dm, blocks->labelname, &label));
+      PetscCheck(label, PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_WRONG, "Could not find label %s in DM", blocks->labelname);
+      PetscCall(DMPlexFilter(dm, label, blocks->labelval, &subdm));
+      PetscCall(DMCopyDisc(dm, subdm));
+      PetscCall(DMCreateSubDomainIS(dm, subdm, &blocks->is));
+      if (PetscDefined(USE_DEBUG)) {
+        PetscSection gs;
+        PetscInt     n, n2;
+
+        PetscCall(DMGetGlobalSection(subdm, &gs));
+        PetscCall(ISGetLocalSize(blocks->is, &n));
+        PetscCall(PetscSectionGetConstrainedStorageSize(gs, &n2));
+        PetscCheck(n == n2, PETSC_COMM_SELF, PETSC_ERR_PLIB, "%" PetscInt_FMT " != %" PetscInt_FMT, n, n2);
+      }
+    }
     // Turn off preallocation in Plex
     PetscCall(DMSetMatrixPreallocateSkip(subdm, PETSC_TRUE));
     PetscCall(SNESSetDM(blocks->snes, subdm));
@@ -204,6 +248,7 @@ static PetscErrorCode SNESSetUp_Multiblock(SNES snes)
     PetscCall(DMViewDSFromOptions(subdm, NULL, "-dm_petscds_view"));
 
     PetscCall(DMCopyDMSNES(dm, subdm));
+    // This SNES is embedded in a TS
     if (tdm) {
       PetscErrorCode (*func)(SNES, Vec, Vec, void *);
       PetscErrorCode (*jac)(SNES, Vec, Mat, Mat, void *);
@@ -228,6 +273,17 @@ static PetscErrorCode SNESSetUp_Multiblock(SNES snes)
     PetscCall(SNESSetUp(blocks->snes));
     blocks = blocks->next;
   }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode SNESSetUp_Multiblock(SNES snes)
+{
+  DM dm;
+
+  PetscFunctionBegin;
+  PetscCall(SNESMultiblockSetDefaults(snes));
+  PetscCall(SNESGetDM(snes, &dm));
+  PetscCall(SNESMultiblockResetDM_Private(snes, dm));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -267,13 +323,18 @@ static PetscErrorCode SNESView_Multiblock(SNES snes, PetscViewer viewer)
     PetscCall(PetscViewerASCIIPrintf(viewer, "Solver info for each split is in the following SNES objects:\n"));
     PetscCall(PetscViewerASCIIPushTab(viewer));
     while (blocks) {
-      PetscCall(PetscViewerASCIIPrintf(viewer, "Block %s Fields ", blocks->name));
-      PetscCall(PetscViewerASCIIUseTabs(viewer, PETSC_FALSE));
-      for (PetscInt j = 0; j < blocks->Nf; ++j) {
-        if (j > 0) PetscCall(PetscViewerASCIIPrintf(viewer, ","));
-        PetscCall(PetscViewerASCIIPrintf(viewer, " %" PetscInt_FMT, blocks->fields[j]));
+      PetscCall(PetscViewerASCIIPrintf(viewer, "Block %s", blocks->name));
+      if (blocks->fields) {
+        PetscCall(PetscViewerASCIIPrintf(viewer, " Fields "));
+        PetscCall(PetscViewerASCIIUseTabs(viewer, PETSC_FALSE));
+        for (PetscInt j = 0; j < blocks->Nf; ++j) {
+          if (j > 0) PetscCall(PetscViewerASCIIPrintf(viewer, ","));
+          PetscCall(PetscViewerASCIIPrintf(viewer, " %" PetscInt_FMT, blocks->fields[j]));
+        }
+        PetscCall(PetscViewerASCIIPrintf(viewer, "\n"));
+      } else {
+        PetscCall(PetscViewerASCIIPrintf(viewer, " Domain %s (%" PetscInt_FMT")\n", blocks->labelname, blocks->labelval));
       }
-      PetscCall(PetscViewerASCIIPrintf(viewer, "\n"));
       PetscCall(PetscViewerASCIIUseTabs(viewer, PETSC_TRUE));
       PetscCall(SNESView(blocks->snes, viewer));
       blocks = blocks->next;
@@ -306,12 +367,14 @@ static PetscErrorCode SNESSolve_Multiblock(SNES snes)
     PetscCall(SNESGetDM(snes, &dm));
     PetscCall(DMSNESGetFunction(dm, NULL, (void **)&ts));
     while (blocks) {
-      DM dm;
+      DM  dm;
+      Vec tmpX;
 
       PetscCall(TSCopyToSubTS_Private(ts, blocks->is, blocks->ts));
       // Set the solution as an auxiliary vec on the subdm with a special key
       PetscCall(SNESGetDM(blocks->snes, &dm));
-      PetscCall(DMSetAuxiliaryVec(dm, NULL, 0, 1024, X));
+      PetscCall(VecDuplicate(X, &tmpX));
+      PetscCall(DMSetAuxiliaryVec(dm, NULL, 0, 1024, tmpX));
       PetscCall(DMSetSubdofIS(dm, blocks->is));
       blocks = blocks->next;
     }
@@ -342,24 +405,57 @@ static PetscErrorCode SNESSolve_Multiblock(SNES snes)
   for (PetscInt i = 0; i < maxit; ++i) {
     /* Call general purpose update function */
     PetscTryTypeMethod(snes, update, snes->iter);
+    // Update our copy of X^n
+    {
+      DM  dm;
+      Vec tmpX;
+
+      PetscCall(SNESGetDM(mb->blocks->snes, &dm));
+      PetscCall(DMGetAuxiliaryVec(dm, NULL, 0, 1024, &tmpX));
+      PetscCall(VecCopy(X, tmpX));
+    }
     /* Compute X^{new} from subsolves */
     if (mb->type == PC_COMPOSITE_MULTIPLICATIVE) {
       BlockDesc blocks = mb->blocks;
+      PetscInt  b      = 0;
+      const char *name;
 
+      PetscCall(PetscObjectGetName((PetscObject)X, &name));
       while (blocks) {
         DM  dm;
         Vec u;
 
-        PetscCall(SNESGetDM(blocks->snes, &dm));
-        PetscCall(DMGetGlobalVector(dm, &u));
-        PetscCall(VecISCopy(X, blocks->is, SCATTER_REVERSE, u));
-        PetscCall(SNESSolve(blocks->snes, NULL, u));
-        PetscCall(VecISCopy(X, blocks->is, SCATTER_FORWARD, u));
-        PetscCall(DMRestoreGlobalVector(dm, &u));
+        if (b >= 0) {
+          PetscCall(SNESGetDM(blocks->snes, &dm));
+          PetscCall(DMGetGlobalVector(dm, &u));
+          PetscCall(PetscObjectSetName((PetscObject)u, "sol"));
+          PetscCall(VecISCopy(X, blocks->is, SCATTER_REVERSE, u));
+          PetscCall(PetscObjectSetName((PetscObject)X, "BEFORE Solution"));
+          PetscCall(VecViewFromOptions(X, NULL, "-multiblock_sol_view"));
+          PetscCall(VecLockReadPush(X));
+          // SOMETHING is changing u here
+          PetscCall(SNESSolve(blocks->snes, NULL, u));
+          PetscCall(VecLockReadPop(X));
+          PetscCall(VecISCopy(X, blocks->is, SCATTER_FORWARD, u));
+          PetscCall(PetscObjectSetName((PetscObject)X, "AFTER Solution"));
+          PetscCall(VecViewFromOptions(X, NULL, "-multiblock_sol_view"));
+          PetscCall(DMRestoreGlobalVector(dm, &u));
+        }
+        ++b;
         blocks = blocks->next;
       }
+      PetscCall(PetscObjectSetName((PetscObject)X, name));
     } else SETERRQ(PetscObjectComm((PetscObject)snes), PETSC_ERR_SUP, "Unsupported or unknown composition %d", (int)mb->type);
 
+    {
+      DM dm, tdm;
+      TS ts;
+
+      PetscCall(SNESGetDM(snes, &dm));
+      PetscCall(DMSNESGetFunction(dm, NULL, (void **)&ts));
+      PetscCall(TSGetDM(ts, &tdm));
+      PetscCheck(dm == tdm, PETSC_COMM_SELF, PETSC_ERR_PLIB, "How the hell are these different?");
+    }
     // Compute F(X^{new})
     PetscCall(SNESComputeFunction(snes, X, F));
     PetscCall(VecNorm(F, NORM_2, &fnorm));
@@ -415,7 +511,55 @@ static PetscErrorCode SNESMultiblockAddBlock_Multiblock(SNES snes, const char na
   PetscCall(PetscMalloc1(n, &newblock->fields));
   PetscCall(PetscArraycpy(newblock->fields, fields, n));
 
-  newblock->next = NULL;
+  newblock->labelname = NULL;
+  newblock->labelval  = -1;
+  newblock->next      = NULL;
+
+  PetscCall(SNESCreate(PetscObjectComm((PetscObject)snes), &newblock->snes));
+  PetscCall(PetscObjectIncrementTabLevel((PetscObject)newblock->snes, (PetscObject)snes, 1));
+  PetscCall(PetscSNPrintf(prefix, sizeof(prefix), "%smultiblock_%s_", ((PetscObject)snes)->prefix ? ((PetscObject)snes)->prefix : "", newblock->name));
+  PetscCall(SNESSetOptionsPrefix(newblock->snes, prefix));
+
+  if (!next) {
+    mb->blocks         = newblock;
+    newblock->previous = NULL;
+  } else {
+    while (next->next) next = next->next;
+    next->next         = newblock;
+    newblock->previous = next;
+  }
+  mb->Nb++;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode SNESMultiblockAddDomainBlock_Multiblock(SNES snes, const char name[], const char labelname[], PetscInt val)
+{
+  SNES_Multiblock *mb = (SNES_Multiblock *)snes->data;
+  BlockDesc        newblock, next = mb->blocks;
+  DM               dm;
+  char             prefix[128];
+
+  PetscFunctionBegin;
+  if (mb->defined) {
+    PetscCall(PetscInfo(snes, "Ignoring new block \"%s\" because the blocks have already been defined\n", name));
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
+  PetscCall(SNESGetDM(snes, &dm));
+  PetscCall(PetscNew(&newblock));
+  if (name) {
+    PetscCall(PetscStrallocpy(name, &newblock->name));
+  } else {
+    PetscInt len = floor(log10(PetscMax(1, mb->Nb))) + 1;
+
+    PetscCall(PetscMalloc1(len + 1, &newblock->name));
+    PetscCall(PetscSNPrintf(newblock->name, len + 1, "%" PetscInt_FMT, mb->Nb));
+  }
+  newblock->Nf     = 0;
+  newblock->fields = NULL;
+  newblock->next   = NULL;
+
+  PetscCall(PetscStrallocpy(labelname, &newblock->labelname));
+  newblock->labelval = val;
 
   PetscCall(SNESCreate(PetscObjectComm((PetscObject)snes), &newblock->snes));
   PetscCall(PetscObjectIncrementTabLevel((PetscObject)newblock->snes, (PetscObject)snes, 1));
@@ -510,6 +654,36 @@ PetscErrorCode SNESMultiblockAddBlock(SNES snes, const char name[], PetscInt n, 
 }
 
 /*@
+  SNESMultiblockAddDomainBlock - Sets the domain for one particular block in a `SNESMULTBLOCK` solver
+
+  Logically Collective
+
+  Input Parameters:
++ snes      - the solver
+. name      - name of this block, if NULL the number of the block is used
+. labelname - the label name defining the domain
+- val       - the label value defining the domain
+
+  Level: intermediate
+
+  Note:
+  The `SNESMultiblockAddBlock()` is for defining blocks as a group of fields in a DM.
+  This function is called once per block (it creates a new block each time). Solve options
+  for this block will be available under the prefix -multiblock_BLOCKNAME_.
+
+.seealso: `SNESMULTBLOCK`, `SNESMultiblockGetSubSNES()`, `SNESMULTIBLOCK`
+@*/
+PetscErrorCode SNESMultiblockAddDomainBlock(SNES snes, const char name[], const char labelname[], PetscInt val)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(snes, SNES_CLASSID, 1);
+  if (name) PetscValidCharPointer(name, 2);
+  PetscValidPointer(labelname, 3);
+  PetscTryMethod(snes, "SNESMultiblockAddDomainBlock_C", (SNES, const char[], const char[], PetscInt), (snes, name, labelname, val));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
   SNESMultiblockSetType - Sets the type of block combination used for a `SNESMULTBLOCK` solver
 
   Logically Collective
@@ -564,6 +738,13 @@ PetscErrorCode SNESMultiblockGetSubSNES(SNES snes, PetscInt *n, SNES *subsnes[])
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode SNESSetDM_Multiblock(SNES snes, DM dm)
+{
+  PetscFunctionBegin;
+  PetscCall(SNESMultiblockResetDM_Private(snes, dm));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /*MC
   SNESMULTIBLOCK - Multiblock nonlinear solver that can use overlapping or nonoverlapping blocks, organized
   additively (Jacobi) or multiplicatively (Gauss-Seidel).
@@ -584,6 +765,7 @@ PETSC_EXTERN PetscErrorCode SNESCreate_Multiblock(SNES snes)
   snes->ops->view           = SNESView_Multiblock;
   snes->ops->solve          = SNESSolve_Multiblock;
   snes->ops->reset          = SNESReset_Multiblock;
+  snes->ops->setdm          = SNESSetDM_Multiblock;
 
   snes->usesksp = PETSC_FALSE;
   snes->usesnpc = PETSC_FALSE;
@@ -598,6 +780,7 @@ PETSC_EXTERN PetscErrorCode SNESCreate_Multiblock(SNES snes)
   mb->Nb             = 0;
 
   PetscCall(PetscObjectComposeFunction((PetscObject)snes, "SNESMultiblockAddBlock_C", SNESMultiblockAddBlock_Multiblock));
+  PetscCall(PetscObjectComposeFunction((PetscObject)snes, "SNESMultiblockAddDomainBlock_C", SNESMultiblockAddDomainBlock_Multiblock));
   PetscCall(PetscObjectComposeFunction((PetscObject)snes, "SNESMultiblockSetType_C", SNESMultiblockSetType_Multiblock));
   PetscCall(PetscObjectComposeFunction((PetscObject)snes, "SNESMultiblockGetSubSNES_C", SNESMultiblockGetSubSNES_Multiblock));
   PetscFunctionReturn(PETSC_SUCCESS);
