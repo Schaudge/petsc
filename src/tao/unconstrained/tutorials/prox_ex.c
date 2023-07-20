@@ -1,6 +1,7 @@
 /* TAOPROX example */
 
 #include <petsctao.h>
+#include <petsc/private/taoimpl.h> 
 
 static char help[] = "This example demonstrates various ways to use TAOPROX. \n";
 
@@ -40,31 +41,72 @@ PetscErrorCode UserObjGrad(Tao tao, Vec X, PetscReal *f, Vec G, void *ptr)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+PetscErrorCode TaoDestroy_Magic(Tao tao)
+{
+  PetscFunctionBegin;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode TaoSetUp_Magic(Tao tao)
+{
+  PetscFunctionBegin;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode TaoSetFromOptions_Magic(Tao tao, PetscOptionItems *PetscOptionsObject)
+{
+  PetscFunctionBegin;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode TaoView_Magic(Tao tao, PetscViewer viewer)
+{
+  PetscFunctionBegin;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode TaoSolve_Magic(Tao tao)
+{
+  PetscFunctionBegin;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Magic_Create(Tao tao)
+{
+  PetscFunctionBegin;
+  tao->ops->destroy        = TaoDestroy_Magic;
+  tao->ops->setup          = TaoSetUp_Magic;
+  tao->ops->setfromoptions = TaoSetFromOptions_Magic;
+  tao->ops->view           = TaoView_Magic;
+  tao->ops->solve          = TaoSolve_Magic;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 //KL divergnce. sum x_i log (x/y)
 //grad: log (x/y) + 1. Ignoring Hessian.
-//
-//TODO fix internal context for applyproximalmap etc
-PetscErrorCode Metric_Magic(Tao tao, PetscReal *step, Vec y, Vec x, PetscReal *obj, Vec g, Mat H, void *ptr)
+PetscErrorCode Magic_ObjGrad(Tao tao, Vec X, PetscReal *f, Vec G, void *ptr)
 {
-  AppCtx *user = (AppCtx *)ptr;
-  Vec    workv;
+  AppCtx *user;
+  Vec    y, workv;
 
   PetscFunctionBegin;
+  PetscCall(TaoMetricGetContext(tao, &user));
+  PetscCall(TaoMetricGetCentralVector(tao, &y)); 
   workv = user->workvec;
 
-  PetscCall(VecPointwiseDivide(workv, x, y));
+  PetscCall(VecPointwiseDivide(workv, X, y));
   PetscCall(VecLog(workv));
-  PetscCall(VecCopy(workv, g));
+  PetscCall(VecCopy(workv, G));
   PetscCall(VecShift(workv, 1.));
 
-  PetscCall(VecPointwiseMult(workv, x, workv));
-  PetscCall(VecSum(workv, obj));
+  PetscCall(VecPointwiseMult(workv, X, workv));
+  PetscCall(VecSum(workv, f));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 int main(int argc, char **argv)
 {
-  Tao       tao;
+  Tao       tao, metric_tao;
   Vec       x;
   Mat       temp_mat;
   PetscInt  size;
@@ -121,14 +163,17 @@ int main(int argc, char **argv)
   PetscCall(PetscRandomDestroy(&rctx));
 
   /* Registering KL */
-  PetscCall(TaoMetricRegister("TAOMETRIC_KL_USER", Metric_Magic, (void *) &user));
+  PetscCall(TaoMetricRegister("TAOMETRIC_KL_USER", Magic_Create));
   PetscCall(TaoCreate(PETSC_COMM_SELF, &tao));
+  PetscCall(TaoCreate(PETSC_COMM_SELF, &metric_tao));
 
   /* Cases that we want to try:
    *
-   *  - Built-in TAOPROX solve for Soft-Threshold
-   *  - Dispatch version for TAOCG - via TaoApplyProximalMap_CG, with L2 metric
-   *  - TAOCG with KL metric */
+   *  0: Built-in TAOPROX solve for Soft-Threshold
+   *  1: Dispatch version for TAOCG - via TaoApplyProximalMap_CG, with L2 metric, via TaoMetricSetType
+   *  2: TAOCG, L2 Metric, with TaoMetricCreate
+   *  3: TAOCG with KL metric 
+   *  4: TAOCG with user-set KL metric */
 
   /* Testing default case */
   switch (user.problem) {
@@ -137,33 +182,56 @@ int main(int argc, char **argv)
     {
       /* Stepsize of 1 */
       PetscCall(TaoSetType(tao, TAOPROX));
-      PetscCall(TaoProxSetInitialVector(tao, user.y));
-      PetscCall(TaoSetSolution(tao, x));
       PetscCall(TaoProxSetType(tao, TAOPROX_L1));
+      PetscCall(TaoMetricSetType(tao, TAO_METRIC_L2));
       PetscCall(TaoSetFromOptions(tao));
+      //Note: TAOPROX isnt' meant for TaoSolve. no implicit use of metric in taosolve.
     }
     break;
   case 1:
   case 2:
+  case 3:
     /* user version */
-    /* Solving iterative refinement (/
+    /* Solving iterative refinement
      * f(x) = 0.5 x.T A x - b.T x, where A is spsd 
-     * sol = (A + I)^-1 (b + y) .
-     * Will be solved via VecApplyProximalMap_CG */
+     * sol = (A + lambda I)^-1 (b + y) .
+     * just TaoSolve will give you A^-1 b
+     * Will be solved via TaoApplyProximalMap_CG */
     {
       PetscCall(TaoSetType(tao, TAOCG));
       PetscCall(TaoSetSolution(tao, x));
       PetscCall(TaoSetFromOptions(tao));
       PetscCall(TaoSetObjectiveAndGradient(tao, NULL, UserObjGrad, (void *) &user));
+      PetscCall(TaoMetricSetCentralVector(tao, user.y));
 
-      if (user.problem == 1) {
-        /* L2 metric */
-        PetscCall(TaoSetMetricType(tao, TAOMETRIC_L2));
+      if (user.problem == 2) {
+        /* L2 metric. Built-in */
+        PetscCall(TaoCreate(PETSC_COMM_SELF, &metric_tao));
+        PetscCall(TaoMetricSetType(metric_tao, TAO_METRIC_L2));
       } else if (user.problem == 2){
-        PetscCall(TaoSetMetricType(tao, "TAOMETRIC_KL_USER"));
-      } else {
-        SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER, "Problem not 0,1,or 2 ");
+        /* L2 metric, via TaoMetricCreate */
+        PetscCall(TaoMetricCreate(PETSC_COMM_WORLD, &metric_tao, TAO_METRIC_L2));
+      } else if (user.problem == 3){
+        /* User-Registered Metric */
+#if 0 
+        PetscCall(TaoCreate(PETSC_COMM_SELF, &metric_tao));
+        PetscCall(TaoMetricSetType(metric_tao, "TAOMETRIC_KL_USER"));
+        PetscCall(TaoMetricSetContext(metric_tao, (void *) &user));
+#endif
+      } else if (user.problem == 4){
+        /* User-set (not registered) metric */
+        PetscCall(TaoCreate(PETSC_COMM_SELF, &metric_tao));
+        PetscCall(TaoSetObjectiveAndGradient(tao, NULL, Magic_ObjGrad, (void *) &user));
+        //This will make it metric_user
+
+        //Unclear how P3 is better than P4.... Unclear how to implement create_metric(tao).
+        //if you have access to objgrad of your metric, just use this version???
+        //
+        // metric_tao is needed, only for obj and grad... then lets just use P4, not register version...
+      } else {       
+        SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER, "Problem not 0,1,2,3, or 4. ");
       }
+      PetscCall(TaoSetMetricTao(tao, metric_tao));
     }
     break;
   default:

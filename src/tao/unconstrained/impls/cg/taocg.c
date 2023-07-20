@@ -10,7 +10,7 @@
 
 static const char *CG_Table[64] = {"fr", "pr", "prp", "hs", "dy"};
 
-PetscErrorCode TaoApplyProximalMap_CG(Tao tao, PetscReal lambda, Vec y, Vec x)
+PetscErrorCode TaoApplyProximalMap_CG(Tao tao, PetscReal lambda, Vec y, Vec x, void * ptr)
 {
   TAO_CG                      *cgP       = (TAO_CG *)tao->data;
   TaoLineSearchConvergedReason ls_status = TAOLINESEARCH_CONTINUE_ITERATING;
@@ -197,7 +197,7 @@ static PetscErrorCode TaoSolve_CG(Tao tao)
   Vec x;
   PetscFunctionBegin;
   PetscCall(TaoGetSolution(tao, &x));
-  PetscCall(TaoApplyProximalMap_CG(tao, 0.0, NULL, x));
+  PetscCall(TaoApplyProximalMap_CG(tao, 0.0, NULL, x, NULL));
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -286,11 +286,12 @@ PETSC_EXTERN PetscErrorCode TaoCreate_CG(Tao tao)
   const char *morethuente_type = TAOLINESEARCHMT;
 
   PetscFunctionBegin;
-  tao->ops->setup          = TaoSetUp_CG;
-  tao->ops->solve          = TaoSolve_CG;
-  tao->ops->view           = TaoView_CG;
-  tao->ops->setfromoptions = TaoSetFromOptions_CG;
-  tao->ops->destroy        = TaoDestroy_CG;
+  tao->ops->setup            = TaoSetUp_CG;
+  tao->ops->solve            = TaoSolve_CG;
+  tao->ops->view             = TaoView_CG;
+  tao->ops->setfromoptions   = TaoSetFromOptions_CG;
+  tao->ops->destroy          = TaoDestroy_CG;
+  tao->ops->applyproximalmap = TaoApplyProximalMap_CG;
 
   /* Override default settings (unless already changed) */
   if (!tao->max_it_changed) tao->max_it = 2000;

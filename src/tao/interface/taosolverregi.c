@@ -34,6 +34,7 @@ PETSC_EXTERN PetscErrorCode TaoCreate_ALMM(Tao);
 PETSC_EXTERN PetscErrorCode TaoCreate_PROX(Tao);
 PETSC_EXTERN PetscErrorCode TaoCreate_Shell(Tao);
 PETSC_EXTERN PetscErrorCode TaoCreate_SNES(Tao);
+PETSC_EXTERN PetscErrorCode TaoCreate_METRIC(Tao);
 
 PETSC_EXTERN PetscErrorCode TaoApplyProximalMap_Affine(Tao, PetscReal, Vec, Vec, void*);
 PETSC_EXTERN PetscErrorCode TaoApplyProximalMap_L1(Tao, PetscReal, Vec, Vec, void*);
@@ -117,6 +118,7 @@ PetscErrorCode TaoRegisterAll(void)
   PetscCall(TaoRegister(TAOALMM, TaoCreate_ALMM));
   PetscCall(TaoRegister(TAOPROX, TaoCreate_PROX));
   PetscCall(TaoRegister(TAOSNES, TaoCreate_SNES));
+  PetscCall(TaoRegister(TAOMETRIC, TaoCreate_METRIC));
 #endif
   PetscFunctionReturn(PETSC_SUCCESS);
 }

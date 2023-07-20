@@ -3,10 +3,7 @@
 #include <petsc/private/hashmap.h>
 
 PetscBool         TaoRegisterAllCalled       = PETSC_FALSE;
-PetscBool         TaoMetricRegisterAllCalled = PETSC_FALSE;
 PetscFunctionList TaoList                    = NULL;
-PetscFunctionList TaoMetricList              = NULL;
-PetscObjectList   TaoMetricContextList       = NULL;
 
 PetscClassId TAO_CLASSID;
 
@@ -441,8 +438,7 @@ PetscErrorCode TaoKSPSetUseEW(Tao tao, PetscBool flag)
 PetscErrorCode TaoSetFromOptions(Tao tao)
 {
   TaoType       default_type   = TAOLMVM;
-  TaoMetricType default_metric = TAOMETRIC_L2;
-  char          type[256], monfilename[PETSC_MAX_PATH_LEN], type_metric[256];
+  char          type[256], monfilename[PETSC_MAX_PATH_LEN];
   PetscViewer   monviewer;
   PetscBool     flg;
   MPI_Comm      comm;
@@ -460,13 +456,6 @@ PetscErrorCode TaoSetFromOptions(Tao tao)
     PetscCall(TaoSetType(tao, type));
   } else if (!((PetscObject)tao)->type_name) {
     PetscCall(TaoSetType(tao, default_type));
-  }
-
-  PetscCall(PetscOptionsFList("-tao_metric_type", "Tao Metric type", "TaoSetMetricType", TaoMetricList, default_metric, type_metric, 256, &flg));
-  if (flg) {
-    PetscCall(TaoSetMetricType(tao, type_metric));
-  } else {
-    PetscCall(TaoSetMetricType(tao, default_metric));
   }
 
   /* Tao solvers do not set the prefix, set it here if not yet done
@@ -2831,149 +2820,5 @@ PetscErrorCode TaoMonitorDrawCtxDestroy(TaoMonitorDrawCtx *ictx)
   PetscFunctionBegin;
   PetscCall(PetscViewerDestroy(&(*ictx)->viewer));
   PetscCall(PetscFree(*ictx));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/*@C
-   TaoMetricRegister - Adds a method to the Tao package for minimization.
-
-   Not Collective
-
-   Input Parameters:
-+  sname - name of a new user-defined metric 
-.  func -  a callback for metric function, that evalues objective, gradient, and Hessian. 
--  ctx - [optional] user-defined context for private data for metric routine. 
-         (may be 'NULL')
-
-   
-  Calling sequence of `func`:
-$ PetscErrorCode func(Tao tao, Vec y, Vec x, PetscReal s, Vec g, Mat H, Mat Hpre, void *ctx);
-+ tao - the optimization object
-. s - step size  ??TODO
-. y - centraling vector term
-. x - input vector
-. o - objective (output)
-. g - gradient value (output)
-. H - Hessian matrix (output)
-- ctx - [optional] user-defined function context
-
-   Sample usage:
-.vb
-   TaoMetricRegister("my_metric_solver", MyMetricCallBack);
-.ve
-
-   Then, your metricimal solver can be chosen with the procedural interface via
-$     TaoSetMetricType(tao, "my_metric_solver")
-   or at runtime via the option
-$     -tao_metric_type my_metric_solver
-
-   Level: advanced
-
-   Note:
-   `TaoMetricRegister()` may be called multiple times to add several user-defined solvers.
-
-.seealso: [](ch_tao), `Tao`, `TaoSetType()`, `TaoMetricRegisterAll()`, `TaoMetricRegisterDestroy()`
-@*/
-PetscErrorCode TaoMetricRegister(const char name[], PetscErrorCode (*func)(Tao, PetscReal *, Vec, Vec, PetscReal *, Vec, Mat, void *), void *ptr)
-{
-  PetscFunctionBegin;
-  PetscCall(TaoInitializePackage());
-  PetscCall(PetscFunctionListAdd(&TaoMetricList, name, (void (*)(void))func));
-  PetscCall(PetscObjectListAdd(&TaoMetricContextList, name, ptr));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-
-PetscErrorCode TaoMetricSetContext(Tao tao, void *ptr)
-{
-  PetscFunctionBegin;
-   tao->user_metricP = ptr;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode TaoMetricGetContext(Tao tao, void *ptr)
-{
-  PetscFunctionBegin;
-  ptr = tao->user_metricP;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/*@C
-   TaoMetricRegisterDestroy - Frees the list of metricimal solvers that were
-   registered by `TaoMetricRegister()`.
-
-   Not Collective
-
-   Level: advanced
-
-.seealso: [](ch_tao), `Tao`, `TaoMetricRegisterAll()`, `TaoMetricRegister()`
-@*/
-PetscErrorCode TaoMetricRegisterDestroy(void)
-{
-  PetscFunctionBegin;
-  PetscCall(PetscFunctionListDestroy(&TaoMetricList));
-  TaoMetricRegisterAllCalled = PETSC_FALSE;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/*@C
-   TaoSetMetricType - Sets the `TaoMetricType` for the metric routine.
-
-   Collective
-
-   Input Parameters:
-+  tao - the `Tao` solver context
--  type - a known method
-
-   Options Database Key:
-.  -tao_metric_type <type> - Sets the method; use -help for a list
-   of available methods (for instance, "-tao_metric_type metric_l2")
-
-  Level: intermediate
-
-.seealso: [](ch_tao), `Tao`, `TaoCreate()`, `TaoGetMetricType()`, `TaoMetricType`
-@*/
-PetscErrorCode TaoSetMetricType(Tao tao, TaoMetricType type)
-{
-  PetscErrorCode (*metric_xxx)(Tao, PetscReal *, Vec, Vec, PetscReal *, Vec, Mat, void *);
-  PetscBool      issame;
-  void          *ptr = NULL;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
-  PetscCall(PetscStrcmp(tao->metric_type, type, &issame));//TODO if metric_Type is null, is this still okay?
-  if (issame) PetscFunctionReturn(PETSC_SUCCESS);
-
-  PetscCall(PetscFunctionListFind(TaoMetricList, type, (void (**)(void)) & metric_xxx));
-  PetscCall(PetscObjectListFind(TaoMetricContextList, type, (PetscObject *)ptr));
-  PetscCheck(metric_xxx, PetscObjectComm((PetscObject)tao), PETSC_ERR_ARG_UNKNOWN_TYPE, "Unable to find requested Tao metric type %s", type);
-  tao->metric_type        = type;
-  tao->ops->computemetric = metric_xxx;
-  tao->user_metricP       = ptr;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/*@C
-   TaoMetricGetType - Gets the current `TaoMetricType` being used in the `Tao` object
-
-   Not Collective
-
-   Input Parameter:
-.  tao - the `Tao` solver context
-
-   Output Parameter:
-.  type - the `TaoMetricType`
-
-   Level: intermediate
-
-.seealso: [](ch_tao), `Tao`, `TaoMetricType`, `TaoSetMetricType()`
-@*/
-
-PetscErrorCode TaoGetMetricType(Tao tao, TaoMetricType *type)
-{
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
-  PetscValidPointer(type, 2);
-  *type = tao->metric_type;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

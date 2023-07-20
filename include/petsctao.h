@@ -143,6 +143,29 @@ typedef enum {
 PETSC_EXTERN const char *const TaoALMMTypes[];
 
 /*E
+     TaoMetricType - Determine the metric type for the `TAOMETRIC`.
+
+   Values:
++  `TAO_METRIC_L2 `  - Euclidean distance.
+.  `TAO_METRIC_DIAG` - Euclidean distance, weighted with diagonal matrix. Also known as Variable Metric, or Mahalanobis distance. 
+.  `TAO_METRIC_KL `  - KL Divergence. Currently only for unit version.
+-  `TAO_METRIC_USER' - User-defined. Set to this whenever use sets routines for metric tao.
+
+  Level: advanced
+
+.seealso: [](ch_tao), `Tao`, `TAOMETRIC`, `TaoMetricSetType()`, `TaoMetricGetType()`
+E*/
+typedef enum {
+  TAO_METRIC_L2,
+  TAO_METRIC_DIAG,
+  TAO_METRIC_KL,
+  TAO_METRIC_USER
+} TaoMetricType;
+PETSC_EXTERN const char *const TaoMetricTypes[];
+
+
+//TODO is this even necessary? i dont think so...
+/*E
      TaoProxStrategy- Determine the update strategy of Prox
 
    Values:
@@ -217,17 +240,21 @@ typedef const char *TaoType;
 #define TAOPYTHON   "python"
 #define TAOSNES     "snes"
 #define TAOPROX     "prox"
+#define TAOMETRIC   "metric"
 
 typedef const char *TaoProxType;
 #define TAOPROX_L1        "prox_l1"
 #define TAOPROX_AFFINE    "prox_affine"
 #define TAOPROX_SIMPLEX   "prox_simplex"
 
-//TODO 1,2, is being used for other things...
+#if 0
 typedef const char *TaoMetricType;
 #define TAOMETRIC_L2      "metric_l2"
 #define TAOMETRIC_DIAG    "metric_diag"
 #define TAOMETRIC_SHANNON "metric_shannon" //TODO or KL-unit, and KL_general?
+#define TAOMETRIC_KL      "metric_kl"
+#define TAOMETRIC_USER    "metric_user"
+#endif
 
 PETSC_EXTERN PetscClassId      TAO_CLASSID;
 PETSC_EXTERN PetscFunctionList TaoList;
@@ -320,7 +347,7 @@ PETSC_EXTERN PetscErrorCode TaoProxRegisterDestroy(void);
 
 PETSC_EXTERN PetscErrorCode TaoMetricSetContext(Tao, void *);
 PETSC_EXTERN PetscErrorCode TaoMetricGetContext(Tao, void *);
-PETSC_EXTERN PetscErrorCode TaoMetricRegister(const char[], PetscErrorCode (*)(Tao, PetscReal *, Vec, Vec, PetscReal *, Vec, Mat, void *), void *);
+PETSC_EXTERN PetscErrorCode TaoMetricRegister(const char[], PetscErrorCode (*)(Tao));
 PETSC_EXTERN PetscErrorCode TaoMetricRegisterDestroy(void);
 
 PETSC_EXTERN PetscErrorCode TaoGetConvergedReason(Tao, TaoConvergedReason *);
@@ -551,8 +578,8 @@ PETSC_EXTERN PetscErrorCode TaoALMMGetDualIS(Tao, IS *, IS *);
 //TODO is this necessary, or should all users use TaoMetricRegister?
 PETSC_EXTERN PetscErrorCode TaoSetMetric(Tao, PetscErrorCode (*)(Tao, PetscReal *, Vec, Vec, PetscReal *, Vec, Mat, Mat, void *), void *);
 PETSC_EXTERN PetscErrorCode TaoGetMetric(Tao, PetscErrorCode (**)(Tao, PetscReal *, Vec, Vec, PetscReal *, Vec, Mat, Mat, void *), void **);
-PETSC_EXTERN PetscErrorCode TaoSetMetricType(Tao, TaoMetricType);
-PETSC_EXTERN PetscErrorCode TaoGetMetricType(Tao, TaoMetricType *);
+PETSC_EXTERN PetscErrorCode TaoMetricSetType(Tao, TaoMetricType);
+PETSC_EXTERN PetscErrorCode TaoMetricGetType(Tao, TaoMetricType *);
 
 PETSC_EXTERN PetscErrorCode TaoProxSetType(Tao, TaoProxType);
 PETSC_EXTERN PetscErrorCode TaoProxGetType(Tao, TaoProxType *);
@@ -569,6 +596,16 @@ PETSC_EXTERN PetscErrorCode TaoProxGetInitialVector(Tao, Vec *);
 PETSC_EXTERN PetscErrorCode TaoGetProxParentTao(Tao, Tao *);
 
 PETSC_EXTERN PetscErrorCode TaoApplyProximalMap(Tao, PetscReal, Vec, Vec);
+
+PETSC_EXTERN PetscErrorCode TaoMetricSetContext(Tao, void *);
+PETSC_EXTERN PetscErrorCode TaoMetricGetContext(Tao, void *);
+
+PETSC_EXTERN PetscErrorCode TaoSetMetricTao(Tao, Tao);
+PETSC_EXTERN PetscErrorCode TaoGetMetricTao(Tao, Tao *);
+PETSC_EXTERN PetscErrorCode TaoMetricSetCentralVector(Tao, Vec);
+PETSC_EXTERN PetscErrorCode TaoMetricGetCentralVector(Tao, Vec *);
+
+PETSC_EXTERN PetscErrorCode TaoMetricCreate(MPI_Comm, Tao *, TaoMetricType);
 
 //                                                                 x    f(x)         grad  lambda       y 
 PETSC_EXTERN PetscErrorCode TaoComputeObjectiveAndGradient_MR(Tao, Vec, PetscReal *, Vec,  PetscReal *, Vec);
