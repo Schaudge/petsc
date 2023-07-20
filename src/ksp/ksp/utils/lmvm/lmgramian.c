@@ -58,7 +58,7 @@ static PetscErrorCode PetscScalarArraycpy2D(PetscScalar dest[], PetscInt dest_ld
    |BBB|CCC|DDD|     =>    |   |   |AAA|
    +---+---+---+ hi        +---+---+---+ start (= rem + lo)
    |   |EEE|   |           |DDD|BBB|CCC|
-   +---+---+---+ m         +---+---+---+ m  
+   +---+---+---+ m         +---+---+---+ m
    recycle order           history order (dots)
    */
 static PetscErrorCode LMGramianComputeBlockInner(Mat X, Mat Y, PetscInt lo, PetscInt hi, PetscInt m, PetscScalar dots[], PetscInt lda, LMBlockType block_type)

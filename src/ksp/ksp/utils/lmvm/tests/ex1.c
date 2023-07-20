@@ -36,7 +36,7 @@ static PetscErrorCode HermitianTransposeTest(Mat B, PetscRandom rand, PetscBool 
   PetscReal err   = PetscAbsScalar(dot_a - dot_b);
   PetscReal scale = PetscMax(x_norm * Bhf_norm, Bx_norm * f_norm);
   PetscCall(PetscInfo((PetscObject)B, "Hermitian transpose error %g, relative error %g \n", (double)err, (double)(err / scale)));
-  if (err > PETSC_SMALL * scale) SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_PLIB, "Hermitian transpose error %g", (double)err);
+  PetscCheck(err <= PETSC_SMALL * scale, PetscObjectComm((PetscObject)B), PETSC_ERR_PLIB, "Hermitian transpose error %g", (double)err);
   PetscCall(VecDestroy(&x));
   PetscCall(VecDestroy(&f));
   PetscCall(VecDestroy(&Bx));
@@ -60,7 +60,7 @@ static PetscErrorCode InverseTest(Mat B, PetscRandom rand)
   PetscCall(VecNorm(BinvBx, NORM_2, &err));
   PetscReal scale = PetscMax(x_norm, Bx_norm);
   PetscCall(PetscInfo((PetscObject)B, "Inverse error %g, relative error %g\n", (double)err, (double)(err / scale)));
-  if (err > 10.0 * PETSC_SMALL * scale) SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_PLIB, "Inverse error %g", (double)err);
+  PetscCheck(err <= 10.0 * PETSC_SMALL * scale, PetscObjectComm((PetscObject)B), PETSC_ERR_PLIB, "Inverse error %g", (double)err);
   PetscCall(VecDestroy(&BinvBx));
   PetscCall(VecDestroy(&Bx));
   PetscCall(VecDestroy(&x));
@@ -89,7 +89,7 @@ static PetscErrorCode IsHermitianTest(Mat B, PetscRandom rand)
   PetscReal err   = PetscAbsScalar(dot_a - dot_b);
   PetscReal scale = PetscMax(x_norm * By_norm, Bx_norm * y_norm);
   PetscCall(PetscInfo((PetscObject)B, "Is Hermitian error %g, relative error %g\n", (double)err, (double)(err / scale)));
-  if (err > PETSC_SMALL * scale) SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_PLIB, "Is Hermitian error %g", (double)err);
+  PetscCheck(err <= PETSC_SMALL * scale, PetscObjectComm((PetscObject)B), PETSC_ERR_PLIB, "Is Hermitian error %g", (double)err);
   PetscCall(VecDestroy(&By));
   PetscCall(VecDestroy(&Bx));
   PetscCall(VecDestroy(&y));
@@ -108,7 +108,7 @@ static PetscErrorCode SecantTest(Mat B, Vec dx, Vec df, PetscBool is_hermitian)
   PetscCall(VecNorm(B_x, NORM_2, &err));
   PetscCall(VecNorm(df, NORM_2, &scale));
   PetscCall(PetscInfo((PetscObject)B, "Secant error %g, relative error %g\n", (double)err, (double)(err / scale)));
-  if (err > PETSC_SMALL * scale) SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_PLIB, "Secant error %g", (double)err);
+  PetscCheck(err <= PETSC_SMALL * scale, PetscObjectComm((PetscObject)B), PETSC_ERR_PLIB, "Secant error %g", (double)err);
 
   if (is_hermitian) {
     PetscCall(MatMultHermitianTranspose(B, dx, B_x));
@@ -116,7 +116,7 @@ static PetscErrorCode SecantTest(Mat B, Vec dx, Vec df, PetscBool is_hermitian)
     PetscReal err;
     PetscCall(VecNorm(B_x, NORM_2, &err));
     PetscCall(PetscInfo((PetscObject)B, "Adjoint secant error %g, relative error %g\n", (double)err, (double)(err / scale)));
-    if (err > PETSC_SMALL * scale) SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_PLIB, "Adjoint secant error %g", (double)err);
+    PetscCheck(err <= PETSC_SMALL * scale, PetscObjectComm((PetscObject)B), PETSC_ERR_PLIB, "Adjoint secant error %g", (double)err);
   }
 
   PetscLayout rmap, cmap;
@@ -131,7 +131,7 @@ static PetscErrorCode SecantTest(Mat B, Vec dx, Vec df, PetscBool is_hermitian)
     PetscCall(VecNorm(B_x, NORM_2, &err));
     PetscCall(VecNorm(dx, NORM_2, &scale));
     PetscCall(PetscInfo((PetscObject)B, "Inverse secant error %g, relative error %g\n", (double)err, (double)(err / scale)));
-    if (err > PETSC_SMALL * scale) SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_PLIB, "Inverse secant error %g", (double)err);
+    PetscCheck(err <= PETSC_SMALL * scale, PetscObjectComm((PetscObject)B), PETSC_ERR_PLIB, "Inverse secant error %g", (double)err);
 
     if (is_hermitian) {
       PetscCall(MatSolveHermitianTranspose(B, df, B_x));
@@ -139,7 +139,7 @@ static PetscErrorCode SecantTest(Mat B, Vec dx, Vec df, PetscBool is_hermitian)
       PetscReal err;
       PetscCall(VecNorm(B_x, NORM_2, &err));
       PetscCall(PetscInfo((PetscObject)B, "Adjoint inverse secant error %g, relative error %g\n", (double)err, (double)(err / scale)));
-      if (err > PETSC_SMALL * scale) SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_PLIB, "Adjoint inverse secant error %g", (double)err);
+      PetscCheck(err <= PETSC_SMALL * scale, PetscObjectComm((PetscObject)B), PETSC_ERR_PLIB, "Adjoint inverse secant error %g", (double)err);
     }
   }
   PetscCall(VecDestroy(&B_x));
@@ -221,7 +221,7 @@ static PetscErrorCode BroydenUpdateTest(Mat B_k, Mat B_kplus, Vec dx, Vec df)
   PetscReal err;
   PetscCall(MatNorm(D, NORM_FROBENIUS, &err));
   PetscCall(PetscInfo((PetscObject)B_k, "Broyden update error %g, relative error %g\n", (double)err, (double)(err / scale)));
-  if (err > PETSC_SMALL) SETERRQ(PetscObjectComm((PetscObject)B_k), PETSC_ERR_PLIB, "Broyden update error %g", (double)err);
+  PetscCheck(err <= PETSC_SMALL, PetscObjectComm((PetscObject)B_k), PETSC_ERR_PLIB, "Broyden update error %g", (double)err);
 
   PetscCall(MatDestroy(&D));
   PetscCall(VecDestroy(&v));
@@ -266,7 +266,7 @@ static PetscErrorCode SymmetricBroydenUpdateTest(Mat B_k, Mat B_kplus, Vec dx, V
   PetscReal err;
   PetscCall(MatNorm(D, NORM_FROBENIUS, &err));
   PetscCall(PetscInfo((PetscObject)B_k, "Symmetric Broyden update error %g, relative error %g\n", (double)err, (double)(err / scale)));
-  if (err > PETSC_SMALL * scale) SETERRQ(PetscObjectComm((PetscObject)B_k), PETSC_ERR_PLIB, "Symmetric Broyden update error %g", (double)err);
+  PetscCheck(err <= PETSC_SMALL * scale, PetscObjectComm((PetscObject)B_k), PETSC_ERR_PLIB, "Symmetric Broyden update error %g", (double)err);
 
   PetscCall(MatDestroy(&D));
   PetscCall(VecDestroy(&p));
@@ -314,7 +314,7 @@ static PetscErrorCode SymmetricBroydenPhiUpdateTest(Mat B_k, Mat B_kplus, PetscR
   PetscReal err;
   PetscCall(MatNorm(D, NORM_FROBENIUS, &err));
   PetscCall(PetscInfo((PetscObject)B_k, "Symmetric Broyden phi update error %g, relative error %g\n", (double)err, (double)(err / scale)));
-  if (err > PETSC_SMALL * scale) SETERRQ(PetscObjectComm((PetscObject)B_k), PETSC_ERR_PLIB, "Symmetric Broyden phi update error %g", (double)err);
+  PetscCheck(err <= PETSC_SMALL * scale, PetscObjectComm((PetscObject)B_k), PETSC_ERR_PLIB, "Symmetric Broyden phi update error %g", (double)err);
 
   PetscCall(MatDestroy(&D));
   PetscCall(VecDestroy(&p));
@@ -350,7 +350,7 @@ static PetscErrorCode SR1UpdateTest(Mat B_k, Mat B_kplus, Vec dx, Vec df)
   PetscReal err;
   PetscCall(MatNorm(D, NORM_FROBENIUS, &err));
   PetscCall(PetscInfo((PetscObject)B_k, "SR1 update error %g, relative error %g\n", (double)err, (double)(err / scale)));
-  if (err > PETSC_SMALL * scale) SETERRQ(PetscObjectComm((PetscObject)B_k), PETSC_ERR_PLIB, "SR1 update error %g", (double)err);
+  PetscCheck(err <= PETSC_SMALL * scale, PetscObjectComm((PetscObject)B_k), PETSC_ERR_PLIB, "SR1 update error %g", (double)err);
 
   PetscCall(MatDestroy(&D));
   PetscCall(VecDestroy(&p));
