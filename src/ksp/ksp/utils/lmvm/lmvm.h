@@ -149,6 +149,7 @@ PETSC_INTERN PetscErrorCode LMGramianBlockRead(LMGramian, LMBlockType, const Pet
 PETSC_INTERN PetscErrorCode LMGramianCopy(LMGramian, LMGramian);
 PETSC_INTERN PetscErrorCode LMGramianAXPY(LMGramian, LMBlockType, PetscScalar, LMGramian, LMBlockType);
 PETSC_INTERN PetscErrorCode LMGramianSolve(LMGramian, PetscInt, PetscInt, LMSolveType, PetscScalar[], PetscBool);
+PETSC_INTERN PetscErrorCode LMGramianGEMV(PetscBool, LMBlockType, PetscInt, PetscInt, PetscScalar, LMGramian, PetscScalar[], PetscScalar, PetscScalar[]);
 
 typedef enum {
   LMBASIS_S           = 0,

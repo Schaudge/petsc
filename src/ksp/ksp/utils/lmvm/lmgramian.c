@@ -562,6 +562,29 @@ PETSC_INTERN PetscErrorCode LMGramianSolve(LMGramian dots, PetscInt oldest, Pets
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+PETSC_INTERN PetscErrorCode LMGramianGEMV(PetscBool hermitian_transpose, LMBlockType block_type, PetscInt oldest, PetscInt next, PetscScalar alpha, LMGramian dots, PetscScalar x[], PetscScalar beta, PetscScalar y[])
+{
+  PetscInt    dots_oldest = PetscMax(0, dots->k - dots->m);
+  PetscInt    dots_next   = dots->k;
+
+  PetscFunctionBegin;
+  PetscCheck(oldest >= dots_oldest && next <= dots_next, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Invalid indices");
+  switch (block_type) {
+  case LMBLOCK_DIAGONAL: {
+    if (hermitian_transpose) {
+      for (PetscInt i = oldest - dots_oldest; i < next - dots_oldest; i++) y[i] = beta * y[i] + alpha * PetscConj(dots->diagonal[i]) * x[i];
+    } else {
+      for (PetscInt i = oldest - dots_oldest; i < next - dots_oldest; i++) y[i] = beta * y[i] + alpha * dots->diagonal[i] * x[i];
+    }
+    break;
+  }
+  default:
+    SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "Not implemented");
+  }
+  
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PETSC_INTERN PetscErrorCode LMGramianReset(LMGramian dots)
 {
   PetscFunctionBegin;

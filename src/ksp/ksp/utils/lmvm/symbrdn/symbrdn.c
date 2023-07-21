@@ -179,6 +179,7 @@ static PetscErrorCode SymBroydenKernel_Recursive_Inner(Mat B, MatLMVMMode mode, 
   /* [1  |    0     ][ (phi - 1) / sitpi  |          -phi          ][1  |    0     ]
      [--------------][---------------------------------------------][--------------]
      [   | 1 / yitsi][       -phi         |  (yitsi + phi * sitpi) ][   | 1 / yitsi] */
+
   PetscCall(MatLMVMGramianSolve(B, oldest, next, Y_t, S_t, LMSOLVE_DIAGONAL, V, PETSC_TRUE));
   PetscCall(LMBasisGEMV(1.0, BkS, oldest, next, U, 0.0, B0X));
   PetscCall(MatLMVMBasisMultAdd(B, Y_t, oldest, next, V, B0X));
