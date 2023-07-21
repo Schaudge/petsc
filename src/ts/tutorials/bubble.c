@@ -50,6 +50,9 @@ typedef struct {
   DMLabel   adaptLabel;
   PetscInt  N_adapts;
   Vec       locX;
+
+  PetscInt              restartStep; // Timestep to restart from
+  PetscViewerAndFormat *restarter;   // Viewer and format for restart
 } AppCtx;
 
 /* Initial conditions */
@@ -261,6 +264,7 @@ static void f1_q(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   PetscReal lambda;
   const PetscReal h = PetscRealPart(constants[6]);
   lambda = (1.0)*h/2.0;
+
   f1[0] =  (3.0*nu_d + 2.0*(nu_c*rho_c/rho_d))*u_x[uOff_x[0]] + gamma*dpdz/rho_d;
   // f1[0] =  (3.0*nu_d)*u_x[uOff_x[0]] + gamma*dpdz/rho_d;
   f1[0] += lambda*(u[uOff[0]] - (6.0*nu_d*(1.0 + mu_ratio))*u_x[uOff_x[1]]/u[uOff[1]] )*u_x[uOff_x[0]];
@@ -412,7 +416,7 @@ static void g2_qh(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   PetscReal mu_ratio = nu_c*rho_c/(nu_d*rho_d);
   PetscReal lambda = (1.0)*h/2.0;
 
-  g2[0] = lambda*(6.0*nu_d)*u_x[uOff_x[1]]*u_x[uOff_x[0]]/(u[uOff[1]]*u[uOff[1]]);
+  g2[0] = lambda*(6.0*nu_d)*(1.0 + mu_ratio)*u_x[uOff_x[1]]*u_x[uOff_x[0]]/(u[uOff[1]]*u[uOff[1]]);
 }
 static void g0_bd_qh(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                  const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
@@ -427,7 +431,7 @@ static void g0_bd_qh(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   PetscReal mu_ratio = nu_c*rho_c/(nu_d*rho_d);
   PetscReal lambda = (1.0)*h/2.0;
 
-  g0[0] = -lambda*(6.0*nu_d)*u_x[uOff_x[1]]*u_x[uOff_x[0]]/(u[uOff[1]]*u[uOff[1]]);
+  g0[0] = -lambda*(6.0*nu_d)*(1.0 + mu_ratio)*u_x[uOff_x[1]]*u_x[uOff_x[0]]/(u[uOff[1]]*u[uOff[1]]);
 }
 static void g3_qh(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                  const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
@@ -442,7 +446,7 @@ static void g3_qh(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   PetscReal mu_ratio = nu_c*rho_c/(nu_d*rho_d);
   PetscReal lambda = (1.0)*h/2.0;
 
-  g3[0] = -lambda*(6.0*nu_d)*u_x[uOff_x[0]]/u[uOff[1]];
+  g3[0] = -lambda*(6.0*nu_d)*(1.0 + mu_ratio)*u_x[uOff_x[0]]/u[uOff[1]];
 }
 static void g1_bd_qh(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                  const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
@@ -457,7 +461,7 @@ static void g1_bd_qh(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   PetscReal mu_ratio = nu_c*rho_c/(nu_d*rho_d);
   PetscReal lambda = (1.0)*h/2.0;
 
-  g1[0] = lambda*(6.0*nu_d)*u_x[uOff_x[0]]/u[uOff[1]];
+  g1[0] = lambda*(6.0*nu_d)*(1.0 + mu_ratio)*u_x[uOff_x[0]]/u[uOff[1]];
 }
 /*********************/
 static void g0_qh(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -471,12 +475,15 @@ static void g0_qh(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   const PetscReal nu_c = PetscRealPart(constants[9]);
   const PetscReal rho_c = PetscRealPart(constants[10]);
   PetscReal mu_ratio = nu_c*rho_c/(nu_d*rho_d);
-
+  PetscReal as = 1. + PetscSqr(PetscRealPart(u[uOff[2]]));
+  PetscReal h  = PetscRealPart(u[uOff[1]]);
+  PetscReal s  = PetscRealPart(u[uOff[2]]);
+  PetscReal sx = PetscRealPart(u_x[uOff_x[2]]);
 
   g0[0]  = 6.0*nu_d*( 1.0 + mu_ratio )*u_x[uOff_x[0]]*u_x[uOff_x[1]]/(u[uOff[1]]*u[uOff[1]]);
   // g0[0]  = 6.0*nu_d*( 1.0 + mu_ratio/(1.0 + PetscSqr(u[uOff[2]])) )*u_x[uOff_x[0]]*u_x[uOff_x[1]]/(u[uOff[1]]*u[uOff[1]]);
-  g0[0] += (gamma/rho_d)*(u[uOff[2]]*u_x[uOff_x[2]])/(u[uOff[1]]*u[uOff[1]]*PetscSqrtReal(PetscPowReal((1+u[uOff[2]]*u[uOff[2]]),3))); // from first term
-  g0[0] += (gamma/rho_d)*(2.0*u[uOff[2]])/(u[uOff[1]]*u[uOff[1]]*u[uOff[1]]*PetscSqrtReal(1+u[uOff[2]]*u[uOff[2]])); // from second term
+  g0[0] += (gamma/rho_d)*(s*sx)/(h*h*PetscSqrtReal(PetscPowReal(as,3))); // from first term
+  g0[0] += (gamma/rho_d)*(2.0*s)/(h*h*h*PetscSqrtReal(as)); // from second term
 }
 
 static void g1_qh(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -664,16 +671,27 @@ static void g1_wh(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 {
-  PetscInt n = 1;
+  PetscViewer       viewer;
+  PetscViewerFormat format;
+  PetscBool         flg;
+  PetscInt          n = 1;
 
   PetscFunctionBeginUser;
   PetscOptionsBegin(comm, "", "1D Droplet Problem Options", "DMPLEX");
-  options->cells[0] = 100;
-  options->G = 0.0;
-  options->pauseStart = 0;
+  options->cells[0]    = 100;
+  options->G           = 0.0;
+  options->pauseStart  = 0;
+  options->restartStep = -1;
+  options->restarter   = NULL;
   PetscCall(PetscOptionsIntArray("-cells", "The initial mesh division", "droplet.c", options->cells, &n, NULL));
   PetscCall(PetscOptionsReal("-G", "Oxidizer flux", "droplet.c", options->G, &options->G, NULL));
   PetscCall(PetscOptionsInt("-draw_pause_start", "Timestep to start pausing", "droplet.c", options->pauseStart, &options->pauseStart, NULL));
+  PetscCall(PetscOptionsInt("-restart_step", "Timestep on which to restart", "droplet.c", options->restartStep, &options->restartStep, NULL));
+  PetscCall(PetscOptionsGetViewer(comm, PetscOptionsObject->options, NULL, "-restart", &viewer, &format, &flg));
+  if (flg) {
+    PetscCall(PetscViewerAndFormatCreate(viewer, format, &options->restarter));
+    PetscCall(PetscObjectDereference((PetscObject)viewer));
+  }
   PetscOptionsEnd();
   PetscFunctionReturn(0);
 }
@@ -701,8 +719,14 @@ static PetscErrorCode SetupParameters(PetscBag bag, AppCtx *user)
   PetscCall(PetscBagRegisterReal(bag, &param->cellsize, 0.0,                                         "cellsize",   "Cell size"));
   PetscCall(PetscBagSetFromOptions(bag));
   mu_ratio = (param->nu_c*param->rho_c)/(param->nu_d*param->rho_d);
-  Oh_d     = (param->nu_d*param->rho_d)/PetscSqrtReal(param->rho_d*param->h_0*param->gamma);
-  Ca_c     = (param->nu_c*user->G)/param->gamma;
+  if (param->gamma == 0.0) {
+    // Only for testing
+    Oh_d   = (param->nu_d*param->rho_d)/PetscSqrtReal(param->rho_d*param->h_0);
+    Ca_c   = param->nu_c*user->G;
+  } else {
+    Oh_d   = (param->nu_d*param->rho_d)/PetscSqrtReal(param->rho_d*param->h_0*param->gamma);
+    Ca_c   = (param->nu_c*user->G)/param->gamma;
+  }
 
   if(!param->C) param->C = 1.0 + (0.45*PetscTanhReal(2.5*Oh_d - 2.0) + 0.45)*( 20.0*PetscExpReal(-45.0*Ca_c*PetscPowReal(mu_ratio, -0.6)) + 0.045);
 
@@ -722,8 +746,16 @@ static PetscErrorCode SetupParameters(PetscBag bag, AppCtx *user)
 static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
 {
   PetscFunctionBeginUser;
-  PetscCall(DMPlexCreateBoxMesh(comm, 1, PETSC_FALSE, user->cells, NULL, &user->l, NULL, PETSC_TRUE, dm));
-  PetscCall(PetscObjectSetName((PetscObject) *dm, "Mesh"));
+  if (user->restarter) {
+    PetscCall(DMCreate(comm, dm));
+    PetscCall(DMSetType(*dm, DMPLEX));
+    PetscCall(PetscObjectSetName((PetscObject) *dm, "Mesh"));
+    PetscCall(PetscViewerPushFormat(user->restarter->viewer, user->restarter->format));
+    PetscCall(DMLoad(*dm, user->restarter->viewer));
+  } else {
+    PetscCall(DMPlexCreateBoxMesh(comm, 1, PETSC_FALSE, user->cells, NULL, &user->l, NULL, PETSC_TRUE, dm));
+    PetscCall(PetscObjectSetName((PetscObject) *dm, "Mesh"));
+  }
   PetscCall(DMSetFromOptions(*dm));
   PetscCall(DMViewFromOptions(*dm, NULL, "-dm_view"));
   PetscFunctionReturn(0);
@@ -754,6 +786,7 @@ static PetscErrorCode SetupProblem(DM dm, AppCtx *user)
 
   PetscCall(PetscDSSetJacobian(ds, 0, 1, g0_qh, g1_qh, g2_qh,  g3_qh));
   PetscCall(PetscDSSetBdJacobian(ds, 0, 1, g0_bd_qh, g1_bd_qh, NULL,  NULL));
+
   PetscCall(PetscDSSetJacobian(ds, 0, 2, g0_qs, g1_qs, g2_qs, g3_qs));
   PetscCall(PetscDSSetBdJacobian(ds, 0, 2, g0_bd_qs, g1_bd_qs, NULL,  NULL));
 
@@ -1350,7 +1383,8 @@ static PetscErrorCode PreStep(TS ts)
   }
 
   /* Decide when to adapt */
-  if(user->necking && (user->l / param->h_0)>=user->factor){
+  //if (!stepi || (user->necking && (user->l / param->h_0) >= user->factor)) {
+  if (user->necking && (user->l / param->h_0) >= user->factor) {
     PetscCall(DMLabelCreate(PETSC_COMM_SELF, "adapt", &user->adaptLabel));
     PetscCall(DMLabelSetDefaultValue(user->adaptLabel, DM_ADAPT_COARSEN));
     user->Bool = PETSC_TRUE;
@@ -1471,9 +1505,7 @@ static PetscErrorCode MonitorSolAndCoords(TS ts, PetscInt step, PetscReal crtime
   AppCtx        *user = (AppCtx *) ctx;
   DM             dm;
   Vec            coordinates;
-  char           coords_name[PETSC_MAX_PATH_LEN];
   char           sol_name[PETSC_MAX_PATH_LEN];
-  PetscViewer    viewer;
 
 
   PetscFunctionBeginUser;
@@ -1484,18 +1516,52 @@ static PetscErrorCode MonitorSolAndCoords(TS ts, PetscInt step, PetscReal crtime
 
     PetscCall(PetscViewerDrawGetDraw(PETSC_VIEWER_DRAW_(PetscObjectComm((PetscObject)ts)), 0, &draw));
     PetscCall(PetscDrawSetPause(draw, -1));
+    //PetscCall(PetscOptionsSetValue(NULL, "-dm_plex_print_fem", "5"));
+    //PetscCall(PetscOptionsSetValue(NULL, "-sub_1_dm_plex_print_fem", "5"));
+    //PetscCall(PetscOptionsSetValue(NULL, "-sub_1_multiblock_0_dm_plex_print_fem", "5"));
   }
 
   PetscCall(DMGetCoordinates(dm, &coordinates));
-  PetscCall(PetscSNPrintf(coords_name, PETSC_MAX_PATH_LEN, "Length_%d.out", user->N_adapts));
-  PetscCall(PetscObjectSetName((PetscObject) coordinates, coords_name));
+  // This information is also in the HDF5
+  if (0) {
+    char        coords_name[PETSC_MAX_PATH_LEN];
+    PetscViewer viewer;
 
-  PetscCall(PetscViewerASCIIOpen(PETSC_COMM_WORLD, coords_name, &viewer));
-  PetscCall(VecView(coordinates, viewer));
+    PetscCall(PetscSNPrintf(coords_name, PETSC_MAX_PATH_LEN, "Length_%d.out", user->N_adapts));
+    PetscCall(PetscObjectSetName((PetscObject) coordinates, coords_name));
+    PetscCall(PetscViewerASCIIOpen(PETSC_COMM_WORLD, coords_name, &viewer));
+    PetscCall(VecView(coordinates, viewer));
+    PetscCall(PetscObjectSetName((PetscObject) coordinates, "coordinates"));
+  }
 
   PetscCall(PetscSNPrintf(sol_name, PETSC_MAX_PATH_LEN, "Numerical_Solution_%d", user->N_adapts));
   PetscCall(PetscObjectSetName((PetscObject) u, sol_name));
   PetscCall(VecViewFromOptions(u, NULL, "-sol_vec_view"));
+  {
+    DM        cdm;
+    PetscReal val;
+    PetscInt  num;
+
+    // We are changing coordinates, so treat it as another field, have to turn on timestepping
+    // TODO The coordinate vector has an old DM PetscCall(DMGetCoordinateDM(dm, &cdm));
+    PetscCall(VecGetDM(coordinates, &cdm));
+    PetscCall(DMGetOutputSequenceNumber(dm, &num, &val));
+    PetscCall(DMSetOutputSequenceNumber(cdm, num, val));
+    PetscCall(VecViewFromOptions(coordinates, NULL, "-sol_vec_view"));
+  }
+  {
+    PetscViewer       viewer;
+    PetscViewerFormat format;
+    PetscBool         flg;
+
+
+    PetscCall(PetscOptionsGetViewer(PetscObjectComm((PetscObject)dm), NULL, NULL, "-sol_vec_view", &viewer, &format, &flg));
+    if (flg) {
+      PetscCall(PetscViewerPushFormat(viewer, format));
+      PetscCall(DMSequenceView_HDF5(dm, "length", step, (PetscScalar)user->l, viewer));
+      PetscCall(PetscViewerDestroy(&viewer));
+    }
+  }
   {
     PetscPointFunc funcs[3] = {u_radial, surface_energy, Curvature};
     Vec            curve;
@@ -1532,7 +1598,17 @@ int main(int argc, char **argv)
   PetscCall(SetupDiscretization(dm, &user));
   PetscCall(DMPlexCreateClosureIndex(dm, NULL));
   PetscCall(DMCreateGlobalVector(dm, &u));
-  PetscCall(PetscObjectSetName((PetscObject) u, "Numerical Solution"));
+  PetscCall(PetscObjectSetName((PetscObject) u, "Numerical_Solution_0"));
+
+  {
+    DMLabel  label;
+    PetscInt cStart, cEnd;
+
+    PetscCall(DMCreateLabel(dm, "multiblock_domain"));
+    PetscCall(DMGetLabel(dm, "multiblock_domain", &label));
+    PetscCall(DMPlexGetHeightStratum(dm, 0, &cStart, &cEnd));
+    for (PetscInt c = 0.9 * (cEnd - cStart); c < cEnd; ++c) PetscCall(DMLabelSetValue(label, c, 1));
+  }
 
   PetscCall(DMTSSetBoundaryLocal(dm, DMPlexTSComputeBoundary, &user));
   PetscCall(DMTSSetIFunctionLocal(dm, DMPlexTSComputeIFunctionFEM , &user));
@@ -1541,8 +1617,31 @@ int main(int argc, char **argv)
   PetscCall(TSSetFromOptions(ts));
   PetscCall(PetscOptionsHasName(NULL,NULL,"-monitor_off",&monitor_off));
 
-  PetscCall(TSSetComputeInitialCondition(ts, SetInitialConditions)); /* Must come after SetFromOptions() */
-  PetscCall(SetInitialConditions(ts, u));
+  if (user.restarter) {
+    Vec         coordinates;
+    Parameter  *param;
+    PetscScalar t, l;
+
+    PetscCall(DMOutputSequenceLoad(dm, user.restarter->viewer, "time", user.restartStep, &t));
+    PetscCall(DMOutputSequenceLoad(dm, user.restarter->viewer, "length", user.restartStep, &l));
+    PetscCall(DMGetCoordinates(dm, &coordinates));
+    PetscCall(PetscObjectSetName((PetscObject)coordinates, "coordinates"));
+    PetscCall(PetscViewerHDF5PushTimestepping(user.restarter->viewer));
+    PetscCall(VecLoad(u, user.restarter->viewer));
+    PetscCall(VecLoad(coordinates, user.restarter->viewer));
+    PetscCall(PetscViewerHDF5PopTimestepping(user.restarter->viewer));
+    PetscCall(PetscBagGetData(user.bag, (void **) &param));
+    user.l = PetscRealPart(l);
+    PetscCall(VecScale(coordinates, user.l/param->h_0));
+    PetscCall(DMSetCoordinates(dm, coordinates));
+    PetscCall(VecViewFromOptions(u, NULL, "-restarted_sol_view"));
+    PetscCall(TSSetTime(ts, PetscRealPart(t)));
+    PetscCall(TSSetStepNumber(ts, user.restartStep));
+    PetscCall(PetscViewerAndFormatDestroy(&user.restarter));
+  } else {
+    PetscCall(TSSetComputeInitialCondition(ts, SetInitialConditions)); /* Must come after SetFromOptions() */
+    PetscCall(SetInitialConditions(ts, u));
+  }
   PetscCall(TSGetTime(ts, &t));
   PetscCall(DMSetOutputSequenceNumber(dm, 0, t));
   PetscCall(DMTSCheckFromOptions(ts, u));
@@ -1569,17 +1668,104 @@ int main(int argc, char **argv)
 }
 
 /*TEST
+  testset:
+    args: -h_0 0.00135 -u_0 0.01 -rho_d 1.20 -nu_d 1.5E-05 -gamma 0.0728 -rho_c 1000.00 -nu_c 1.0E-06 -R 0.0254 -G 0.00 -gr -9.81 \
+          -cells 100 -dm_plex_separate_marker -dm_plex_transform_type refine_1d -dm_plex_hash_location \
+          -vel_petscspace_degree 3 -rad_petscspace_degree 3 -slope_petscspace_degree 2 \
+          -ts_dt 1e-6 -ts_type beuler -ts_max_reject 20 -ts_monitor \
+          -snes_converged_reason -snes_max_funcs 1000000
+
+    # -dm_view hdf5:${PWD}/b.h5 -sol_vec_view hdf5:${PWD}/b.h5::append
+    test:
+      suffix: glycerol_gravity_restart_save
+      args: -snes_mf_operator -pc_type lu -ts_max_steps 11
+
+    # -dm_view -restarted_sol_view
+    test:
+      suffix: glycerol_gravity_restart_restore
+      args: -snes_mf_operator -pc_type lu -ts_max_steps 21 -restart_step 9 -restart hdf5:${wPETSC_DIR}/b.h5::read
 
   # Paraffin wax
-  # Fails at 2096 with dt = 1e-6
-  # Also test -u_0 0.01
-  test:
-    suffix: glycerol_gravity
-    args: -h_0 0.00135 -u_0 0.05 -rho_d 1.20 -nu_d 1.5E-05 -gamma 0.0728 -rho_c 1000.00 -nu_c 1.0E-06 -R 0.0254 -G 0.00 -gr -9.81 \
+  # Also test -u_0 0.05
+  # Top-level monitoring
+  #  -snes_monitor_field -snes_monitor_solution draw -dm_plex_field_scale 0.1,1.,0.00001 -draw_pause_start 2000000
+  testset:
+    args: -h_0 0.00135 -u_0 0.01 -rho_d 1.20 -nu_d 1.5E-05 -gamma 0.0728 -rho_c 1000.00 -nu_c 1.0E-06 -R 0.0254 -G 0.00 -gr -9.81 \
           -cells 100 -dm_plex_separate_marker -dm_plex_transform_type refine_1d -dm_plex_hash_location \
           -vel_petscspace_degree 3 -rad_petscspace_degree 3 -slope_petscspace_degree 2 \
           -ts_max_steps 10000000 -ts_dt 1e-6 -ts_type beuler -ts_max_reject 20 -ts_monitor \
-            -snes_converged_reason -snes_max_funcs 1000000  \
-              -pc_type lu \ \
-              -monitor_off
+          -snes_converged_reason -snes_max_funcs 1000000 \
+          -monitor_off
+
+    # Fails at 76745 TS dt 5.0625e-06 time 0.0767749
+    test:
+      suffix: glycerol_gravity
+      args: -snes_mf_operator -pc_type lu -ksp_rtol 1e-10
+
+    # Debugging:
+    #  -dm_petscds_view -dm_plex_field_scale 0.1,1.,0.00001 \
+    #  -snes_monitor_residual draw -snes_monitor_field \
+    #  -snes_monitor_field -snes_linesearch_monitor -snes_monitor_field \
+    #  -multiblock_0_dm_petscds_view -multiblock_0_snes_monitor -multiblock_0_snes_monitor_solution draw \
+    #  -multiblock_1_dm_petscds_view -multiblock_1_snes_monitor -multiblock_1_snes_monitor_solution draw \
+    #    -multiblock_1_dm_plex_field_scale 1.0,0.000001 \
+    #  -geometry 0,0,800,800 -draw_pause -1 -draw_pause_start 5
+    # More debugging:
+    #  -u_view draw -u_t_view draw -X0_view draw
+    #    -multiblock_0_X0_view draw \
+    #    -multiblock_1_X0_view draw
+    test:
+      suffix: glycerol_gravity_ngs
+      args: -snes_type multiblock -snes_multiblock_0_fields 0 -snes_multiblock_1_fields 1,2 \
+            -multiblock_0_snes_mf_operator -multiblock_0_pc_type lu \
+            -multiblock_1_snes_mf_operator -multiblock_1_pc_type lu
+
+    # Debugging:
+    #  -dm_petscds_view -dm_plex_field_scale 0.1,1.,0.00001 \
+    #  -snes_monitor_residual draw -snes_monitor_field \
+    #  -sub_1_snes_monitor_field -sub_1_snes_linesearch_monitor \
+    #    -sub_1_ksp_monitor_true_residual -sub_1_ksp_view_eigenvalues_explicit \
+    #  -sub_0_snes_monitor_field -sub_0_multiblock_0_dm_petscds_view \
+    #    -sub_0_multiblock_0_snes_monitor -sub_0_multiblock_0_snes_monitor_solution draw \
+    #  -sub_0_multiblock_1_dm_petscds_view -sub_0_multiblock_1_snes_monitor -sub_0_multiblock_1_snes_monitor_solution draw \
+    #    -sub_0_multiblock_1_dm_plex_field_scale 1.0,0.000001 \
+    #  -geometry 0,0,800,800 -draw_pause -1 -draw_pause_start 5
+    # More debugging:
+    # -u_view draw -u_t_view draw -X0_view draw \
+    #    -sub_0_multiblock_0_X0_view draw \
+    #    -sub_0_multiblock_1_X0_view draw \
+    #
+    test:
+      suffix: glycerol_gravity_ngs_newton
+      args: -snes_type composite -snes_composite_type multiplicative -snes_composite_sneses multiblock,newtonls \
+              -sub_0_snes_multiblock_0_fields 0 -sub_0_snes_multiblock_1_fields 1,2 -sub_0_snes_max_it 1 \
+                 -sub_0_multiblock_0_snes_ mf_operator -sub_0_multiblock_0_pc_type lu \
+                 -sub_0_multiblock_1_snes_type none \
+              -sub_1_snes_mf_operator -sub_1_ksp_rtol 1e-10 -sub_1_pc_type lu -sub_1_snes_max_it 1
+
+    # Debugging
+    # -snes_monitor_field -snes_monitor_solution draw -dm_plex_field_scale 0.1,1.,0.00001 -draw_pause_start 2000000 -sub_0_snes_monitor_field -sub_0_snes_linesearch_monitor -sub_0_ksp_monitor_true_residual -sub_0_ksp_view_eigenvalues_explicit_no -sub_1_snes_monitor_field -geometry 0,0,800,800 -draw_pause -1
+    # Why do we need 4 SNES iterates to get into the basin of convergence?
+    #   -sub_0_snes_monitor_solution draw
+    #   It seems like the match between the curvature and velocity at the end needs to happen. Without that,
+    #   velocity is very inaccurate and cannot be improved, and then h cannnot be updated
+    test:
+      suffix: glycerol_gravity_newton_ngs
+      args: -snes_type composite -snes_composite_type multiplicative -snes_composite_sneses newtonls,multiblock \
+              -sub_0_snes_mf_operator -sub_0_snes_atol 1.e-11 -sub_0_snes_max_it 10 -sub_0_snes_max_linear_solve_fail 20 \
+                -sub_0_ksp_rtol 1e-10 -sub_0_ksp_max_it 20 -sub_0_pc_type lu \
+              -sub_1_snes_multiblock_0_fields 0 -sub_1_snes_multiblock_1_fields 1,2 -sub_1_snes_max_it 1 \
+                -sub_1_multiblock_0_snes_ mf_operator -sub_1_multiblock_0_pc_type lu \
+                -sub_1_multiblock_1_snes_type none               -
+
+    # Debugging
+    # -snes_monitor_field -snes_linesearch_monitor -snes_monitor_solution draw -dm_plex_field_scale 0.1,1.,0.00001 -draw_pause_start 2000000 -ksp_monitor_true_residual -ksp_view_eigenvalues_explicit_no -npc_snes_monitor_field -geometry 0,0,800,800 -draw_pause -1
+    test:
+      suffix: glycerol_gravity_ngs_newton_npc
+      args: -snes_mf_operator -ksp_rtol 1e-10 -pc_type lu \
+            -npc_snes_type multiblock -snes_npc_side right \
+              -npc_snes_multiblock_0_fields 0 -npc_snes_multiblock_1_fields 1,2 -npc_snes_max_it 1 \
+                 -npc_multiblock_0_snes_mf_operator -npc_multiblock_0_ksp_atol 1e-8 -npc_multiblock_0_pc_type lu \
+                 -npc_multiblock_1_snes_type none
+
 TEST*/
