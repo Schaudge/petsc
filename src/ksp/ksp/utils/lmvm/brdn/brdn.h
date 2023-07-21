@@ -22,16 +22,6 @@ typedef enum {
   BROYDEN_GRAMIAN_COUNT
 } BroydenGramianType;
 
-static inline PETSC_UNUSED BroydenBasisType BroydenBasisMap(BroydenBasisType type, MatLMVMMode mode)
-{
-  return mode ^ type;
-}
-
-static inline PETSC_UNUSED BroydenGramianType BroydenGramianMap(BroydenGramianType type, MatLMVMMode mode)
-{
-  return mode ^ type;
-}
-
 typedef struct {
   LMBasis   basis[BROYDEN_BASIS_COUNT];
   LMGramian gramian[BROYDEN_GRAMIAN_COUNT];

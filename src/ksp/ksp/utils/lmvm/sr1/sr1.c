@@ -19,16 +19,6 @@ typedef enum {
   SR1_GRAMIAN_COUNT
 } SR1GramianType;
 
-static inline SR1BasisType LMVMModeMap(SR1BasisType type, MatLMVMMode mode)
-{
-  return type ^ mode;
-}
-
-static inline SR1GramianType LMVMModeMap(SR1GramianType type, MatLMVMMode mode)
-{
-  return type ^ mode;
-}
-
 typedef struct {
   LMBasis   basis[SR1_BASIS_COUNT];
   LMGramian gramian[SR1_GRAMIAN_COUNT];

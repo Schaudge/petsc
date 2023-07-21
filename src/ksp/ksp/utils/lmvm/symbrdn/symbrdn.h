@@ -20,17 +20,6 @@ typedef enum {
   SYMBROYDEN_GRAMIAN_COUNT
 } SymBroydenGramianType;
 
-PETSC_UNUSED static inline SymBroydenBasisType SymBroydenBasisMap(SymBroydenBasisType type, MatLMVMMode mode)
-{
-  return mode ^ type;
-}
-
-PETSC_UNUSED static inline SymBroydenGramianType SymBroydenGramianMap(SymBroydenGramianType type, MatLMVMMode mode)
-{
-  return mode ^ type;
-}
-
-
 typedef struct {
   Vec                       *P, *Q; /* storage vectors for (B_i)*S[i] and (B_i)^{-1}*Y[i] */
   Vec                        work;

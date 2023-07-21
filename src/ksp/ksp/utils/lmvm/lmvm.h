@@ -167,10 +167,6 @@ typedef enum {
 
 #define LMVMModeMap(a, mode) ((a) ^ mode)
 
-static inline PETSC_UNUSED MatLMVMBasisType MatLMVMBasisMap(MatLMVMBasisType type, MatLMVMMode mode)
-{
-  return mode ^ type;
-}
 static inline PETSC_UNUSED MatLMVMBasisType MatLMVMBasisSizeOf(MatLMVMBasisType type)
 {
   return (type & LMBASIS_Y);

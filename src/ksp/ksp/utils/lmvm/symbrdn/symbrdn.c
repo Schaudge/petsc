@@ -156,11 +156,45 @@ static PetscErrorCode MatSolve_LMVMSymBrdn(Mat B, Vec F, Vec dX)
 
 /*------------------------------------------------------------*/
 
+static PetscErrorCode SymBroydenKernel_Recursive_Inner(Mat B, MatLMVMMode mode, PetscInt oldest, PetscInt next, Vec X, Vec B0X)
+{
+  Mat_LMVM        *lmvm  = (Mat_LMVM *)B->data;
+  Mat_SymBrdn     *lsb   = (Mat_SymBrdn *)lmvm->ctx;
+  MatLMVMBasisType S_t   = LMVMModeMap(LMBASIS_S, mode);
+  MatLMVMBasisType Y_t   = LMVMModeMap(LMBASIS_Y, mode);
+  LMBasis          BkS   = lsb->basis[LMVMModeMap(SYMBROYDEN_BASIS_BKS, mode)];
+  LMGramian        StBkS = lsb->gramian[LMVMModeMap(SYMBROYDEN_GRAMIAN_STBKS, mode)];
+  PetscScalar     *StBkX, *YtX, *U, *V;
+
+  PetscFunctionBegin;
+  PetscCall(MatLMVMBasisGetWorkRow(B, Y_t, &StBkX));
+  PetscCall(MatLMVMBasisGetWorkRow(B, Y_t, &YtX));
+  PetscCall(MatLMVMBasisGetWorkRow(B, Y_t, &U));
+  PetscCall(MatLMVMBasisGetWorkRow(B, Y_t, &V));
+  PetscCall(MatLMVMBasisMultHermitianTranspose(B, Y_t, oldest, next, X, NULL, YtX));
+  PetscCall(LMBasisGEMVH(1.0, BkS, oldest, next, X, 0.0, StBkX));
+  PetscCall(MatLMVMGramianSolve(B, oldest, next, Y_t, S_t, LMSOLVE_DIAGONAL, YtX, PETSC_FALSE));
+  // compute U and V from StBkX and YtX
+
+  /* [1  |    0     ][ (phi - 1) / sitpi  |          -phi          ][1  |    0     ]
+     [--------------][---------------------------------------------][--------------]
+     [   | 1 / yitsi][       -phi         |  (yitsi + phi * sitpi) ][   | 1 / yitsi] */
+  PetscCall(MatLMVMGramianSolve(B, oldest, next, Y_t, S_t, LMSOLVE_DIAGONAL, V, PETSC_TRUE));
+  PetscCall(LMBasisGEMV(1.0, BkS, oldest, next, U, 0.0, B0X));
+  PetscCall(MatLMVMBasisMultAdd(B, Y_t, oldest, next, V, B0X));
+  PetscCall(MatLMVMBasisGetWorkRow(B, Y_t, &V));
+  PetscCall(MatLMVMBasisGetWorkRow(B, Y_t, &U));
+  PetscCall(MatLMVMBasisRestoreWorkRow(B, Y_t, &YtX));
+  PetscCall(MatLMVMBasisRestoreWorkRow(B, Y_t, &StBkX));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 static PetscErrorCode SymBroydenRecursiveBasisUpdate(Mat B, MatLMVMMode mode)
 {
   Mat_LMVM             *lmvm  = (Mat_LMVM *)B->data;
   Mat_SymBrdn          *lsb   = (Mat_SymBrdn *)lmvm->ctx;
-  MatLMVMBasisType      B0S_t = LMVMModeMap(LMBASIS_B0S, mode); 
+  MatLMVMBasisType      S_t   = LMVMModeMap(LMBASIS_S, mode);
+  MatLMVMBasisType      B0S_t = LMVMModeMap(LMBASIS_B0S, mode);
   LMGramian             Phi   = lsb->gramian[LMVMModeMap(SYMBROYDEN_GRAMIAN_PHI, mode)];
   SymBroydenBasisType   BkS_t = LMVMModeMap(SYMBROYDEN_BASIS_BKS, mode);
   LMBasis               BkS;
@@ -169,23 +203,24 @@ static PetscErrorCode SymBroydenRecursiveBasisUpdate(Mat B, MatLMVMMode mode)
   PetscInt              oldest, next;
 
   PetscFunctionBegin;
-  if (!lsb->basis[BkS_t]) PetscCall(LMBasisCreate(B0S_t == LMBASIS_B0S ? lmvm->Fprev : lmvm->Xprev, lmvm->m, &lsb->basis[BkS_t]));
+  if (!lsb->basis[BkS_t]) PetscCall(LMBasisCreate(MatLMVMBasisSizeOf(B0S_t) == LMBASIS_S ? lmvm->Xprev : lmvm->Fprev, lmvm->m, &lsb->basis[BkS_t]));
   BkS = lsb->basis[BkS_t];
   if (!lsb->gramian[StBkS_t]) PetscCall(LMGramianCreate(lmvm->m, &lsb->gramian[StBkS_t]));
   StBkS = lsb->gramian[StBkS_t];
   PetscCall(MatLMVMGetRange(B, &oldest, &next));
   if (BkS->k < next) {
-    LMBasis B0S;
+    LMBasis S, B0S;
 
+    PetscCall(MatLMVMGetUpdatedBasis(B, S_t, &S));
     PetscCall(MatLMVMGetUpdatedBasis(B, B0S_t, &B0S));
 
     PetscCall(LMGramianReset(StBkS));
     PetscCall(LMGramianUpdateNextIndex(StBkS, next));
     BkS->k = next; /* k has to be the same as the other window vecs for the
                       ordering of the computations to be correct */
-    // recompute each column in Y_minus_BkS in order
+    // recompute each column in BkS in order
     for (PetscInt j = oldest; j < next; j++) {
-      Vec p_j, y_j, B0s_j;
+      Vec p_j, B0s_j, s_j;
 
       PetscCall(LMBasisGetVec(BkS, j, PETSC_MEMORY_ACCESS_WRITE, &p_j));
 
@@ -194,22 +229,15 @@ static PetscErrorCode SymBroydenRecursiveBasisUpdate(Mat B, MatLMVMMode mode)
       PetscCall(VecCopy(B0s_j, p_j));
       PetscCall(LMBasisRestoreVec(B0S, j, PETSC_MEMORY_ACCESS_READ, &B0s_j));
 
-      // Use the matsolve kernel to compute q_j = H_j * y_j
-      //PetscCall(BadBroydenKernel_Recursive_Inner(B, mode, oldest, j, p_j));
-      //PetscCall(LMBasisRestoreVec(Y_minus_BkS, j, PETSC_MEMORY_ACCESS_WRITE, &p_j));
+      // Use the matsolve kernel to compute p_j = B_j * s_j
+      PetscCall(LMBasisGetVec(S, j, PETSC_MEMORY_ACCESS_READ, &s_j));
+      PetscCall(SymBroydenKernel_Recursive_Inner(B, mode, oldest, j, s_j, p_j));
+      PetscCall(LMBasisRestoreVec(BkS, j, PETSC_MEMORY_ACCESS_WRITE, &p_j));
 
-      //// computes y_j^T B_k s_j and stores it on the diagonal of Y_minus_BkS
-      //PetscCall(LMGramianForceUpdateBlock(YtBkS, Y, Y_minus_BkS, LMBLOCK_DIAGONAL, j, j + 1));
-
-      //PetscCall(LMBasisGetVec(Y, j, PETSC_MEMORY_ACCESS_READ, &y_j));
-      //PetscCall(LMBasisGetVec(Y_minus_BkS, j, PETSC_MEMORY_ACCESS_WRITE, &p_j));
-      //PetscCall(VecAYPX(p_j, -1.0, y_j));
-      //PetscCall(LMBasisRestoreVec(Y, j, PETSC_MEMORY_ACCESS_READ, &y_j));
-      //PetscCall(LMBasisRestoreVec(Y_minus_BkS, j, PETSC_MEMORY_ACCESS_WRITE, &p_j));
+      // computes s_j^T B_k s_j and stores it on the diagonal of Y_minus_BkS
+      PetscCall(LMGramianForceUpdateBlock(StBkS, S, BkS, LMBLOCK_DIAGONAL, j, j + 1));
     }
   }
-
-  
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -274,9 +302,9 @@ static PetscErrorCode MatMult_LMVMSymBrdn(Mat B, Vec X, Vec Z)
     PetscCall(VecDot(X, y_i, &yitx));
 
     PetscCall(MatLMVMGramianGetDiagonalValue(B, LMBASIS_Y, LMBASIS_S, oldest + i, &yitsi));
-    /* [1  |     0     ][ (phi - 1) / sitpi  |                    phi ][1  |     0     ]
-       [---------------][---------------------------------------------][---------------]
-       [   | -1 / yitsi][ phi                |  (yitsi + phi * sitpi) ][   | -1 / yitsi] */
+    /* [1  |    0     ][ (phi - 1) / sitpi  |          -phi          ][1  |    0     ]
+       [--------------][---------------------------------------------][--------------]
+       [   | 1 / yitsi][       -phi         |  (yitsi + phi * sitpi) ][   | 1 / yitsi] */
     PetscScalar alpha = ((phi - 1.0) / sitpi) * pitx - (phi / yitsi) * yitx;
     PetscScalar beta  = -(phi / yitsi) * pitx + ((yitsi + phi * sitpi) / (yitsi * yitsi)) * yitx;
     PetscCall(VecAXPBYPCZ(Z, alpha, beta, 1.0, lsb->P[i], y_i));
