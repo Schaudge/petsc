@@ -927,7 +927,8 @@ public:
   PETSC_NODISCARD const allocator_type   &allocator() const noexcept;
 
 private:
-  util::compressed_pair<constructor_type, allocator_type> pair_;
+  constructor_type ctor_{};
+  allocator_type   alloc_{};
 
   using align_type = typename allocator_type::align_type;
   using size_type  = typename allocator_type::size_type;
@@ -973,25 +974,25 @@ inline ObjectPool<T, Constructor>::~ObjectPool() noexcept
 template <typename T, typename C>
 inline typename ObjectPool<T, C>::constructor_type &ObjectPool<T, C>::constructor() noexcept
 {
-  return pair_.first();
+  return ctor_;
 }
 
 template <typename T, typename C>
 inline const typename ObjectPool<T, C>::constructor_type &ObjectPool<T, C>::constructor() const noexcept
 {
-  return pair_.first();
+  return ctor_;
 }
 
 template <typename T, typename C>
 inline typename ObjectPool<T, C>::allocator_type &ObjectPool<T, C>::allocator() noexcept
 {
-  return pair_.second();
+  return alloc_;
 }
 
 template <typename T, typename C>
 inline const typename ObjectPool<T, C>::allocator_type &ObjectPool<T, C>::allocator() const noexcept
 {
-  return pair_.second();
+  return alloc_;
 }
 
 /*
