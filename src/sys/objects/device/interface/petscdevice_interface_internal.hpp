@@ -7,7 +7,6 @@
 #include <petsc/private/cpp/memory.hpp>  // std::weak_ptr, std::shared_ptr
 
 #include <unordered_map>
-#include <algorithm> // std::lower_bound
 
 // clang's unordered_set implementaiton outperforms the flat vector implementation in all
 // cases. GCC on the other hand only does so for n > 512, before which it is almost twice as
@@ -23,6 +22,7 @@
   #define PETSC_USE_UNORDERED_SET_FOR_MARKED 1
 #else
   #include <vector>
+  #include <algorithm> // std::lower_bound
   #define PETSC_USE_UNORDERED_SET_FOR_MARKED 0
 #endif
 
@@ -144,11 +144,11 @@ inline PetscErrorCode CxxData::add_mark(PetscObjectId id) noexcept
 {
   PetscFunctionBegin;
 #if PETSC_USE_UNORDERED_SET_FOR_MARKED
-  PetscCallCXX(marked_objects_.emplace(id));
+  PetscCallCXX(this->marked_objects().emplace(id));
 #else
   const auto pair   = get_marked_(id);
 
-  if (!pair.first) PetscCallCXX(marked_objects_.insert(pair.second, id));
+  if (!pair.first) PetscCallCXX(this->marked_objects().insert(pair.second, id));
 #endif
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -156,7 +156,7 @@ inline PetscErrorCode CxxData::add_mark(PetscObjectId id) noexcept
 inline bool CxxData::has_marked(PetscObjectId id) const noexcept
 {
 #if PETSC_USE_UNORDERED_SET_FOR_MARKED
-  return marked_objects().find(id) != marked_objects().end();
+  return this->marked_objects().find(id) != this->marked_objects().end();
 #else
   return const_cast<CxxData *>(this)->get_marked_(id).first;
 #endif
