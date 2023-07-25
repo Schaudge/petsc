@@ -3,7 +3,6 @@
 
 #include <petscmacros.h> // PETSC_NODISCARD
 
-#include <petsc/private/cpp/crtp.hpp>        // crtp
 #include <petsc/private/cpp/type_traits.hpp> // disjunction, decay_t, is_crtp_base_of
 
 #include <cstddef> // std::size_t
@@ -19,7 +18,7 @@ namespace expr
 // ==========================================================================================
 
 template <typename D>
-class ExpressionBase : public util::crtp<ExpressionBase, D> {
+class ExpressionBase {
 public:
   using size_type = std::size_t;
 
@@ -33,7 +32,7 @@ public:
 template <typename D>
 inline typename ExpressionBase<D>::size_type ExpressionBase<D>::size() const noexcept
 {
-  return this->underlying().size_impl_();
+  return static_cast<const D *>(this)->size_impl_();
 }
 
 template <typename T>

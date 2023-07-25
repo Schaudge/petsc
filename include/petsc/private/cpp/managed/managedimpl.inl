@@ -18,16 +18,7 @@ namespace Petsc
 template <typename T>
 inline memory::ManagedStorage<T> ManagedMemory<T>::ConstructStorage_(PetscCopyMode mode, PetscDeviceContext dctx, value_type *ptr_begin, value_type *ptr_end, const PetscPointerAttributes &attr) noexcept
 {
-  switch (mode) {
-  case PETSC_OWN_POINTER:
-    return {move_init_t{}, dctx, ptr_begin, ptr_end, attr};
-  case PETSC_USE_POINTER:
-    return {reference_init_t{}, dctx, ptr_begin, ptr_end, attr};
-  case PETSC_COPY_VALUES:
-    return {copy_init_t{}, dctx, ptr_begin, ptr_end, attr};
-  }
-  PetscUnreachable();
-  return {dctx, attr.mtype, 0};
+  return {mode, dctx, ptr_begin, ptr_end, attr};
 }
 
 template <typename T>
@@ -206,7 +197,7 @@ inline PetscErrorCode ManagedMemory<T>::Destroy(PetscDeviceContext dctx) noexcep
   PetscCall(PetscDeviceContextGetOptionalNullContext_Internal(&dctx));
   PetscCall(this->host().destroy(dctx));
   if (PetscDefined(HAVE_DEVICE)) PetscCall(this->device().destroy(dctx));
-  PetscCall(Clear());
+  PetscCall(this->Clear());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -261,7 +252,7 @@ inline PetscErrorCode ManagedMemory<T>::GetArray(PetscDeviceContext dctx, PetscM
   PetscFunctionBegin;
   PetscCall(PetscDeviceContextGetOptionalNullContext_Internal(&dctx));
   PetscAssertPointer(ptr, 5);
-  PetscCheck(!(PetscOffloadUnallocated(this->offload_mask()) && PetscMemoryAccessRead(mode)), PetscObjectComm(PetscObjectCast(dctx)), PETSC_ERR_ARG_WRONG, "Trying to read (using %s) from a managed type (id %d) that has not been written to (has offload mask %s)", PetscMemoryAccessModeToString(mode), -1,
+  PetscCheck(!(PetscOffloadUnallocated(this->offload_mask()) && PetscMemoryAccessRead(mode)), PetscObjectComm(dctx), PETSC_ERR_ARG_WRONG, "Trying to read (using %s) from a managed type (id %d) that has not been written to (has offload mask %s)", PetscMemoryAccessModeToString(mode), -1,
              PetscOffloadMaskToString(this->offload_mask()));
   *ptr = nullptr;
   if (this->empty()) PetscFunctionReturn(PETSC_SUCCESS);
@@ -281,8 +272,8 @@ inline PetscErrorCode ManagedMemory<T>::GetArray(PetscDeviceContext dctx, PetscM
 
   // if user intends to write to device in any capacity then we are impure
   if (PetscMemTypeDevice(mtype) && PetscMemoryAccessWrite(mode)) PetscCall(this->SetPurity_(false));
-  PetscAssert(*ptr, PetscObjectComm(PetscObjectCast(dctx)), PETSC_ERR_PLIB, "ManagedType (id %d) Returned null pointer for mtype %s", -1, PetscMemTypeToString(mtype));
-  if (sync) PetscCall(Sync_(dctx, mtype));
+  PetscAssert(*ptr, PetscObjectComm(dctx), PETSC_ERR_PLIB, "ManagedType (id %d) Returned null pointer for mtype %s", -1, PetscMemTypeToString(mtype));
+  if (sync) PetscCall(this->Sync_(dctx, mtype));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -298,7 +289,7 @@ inline PetscErrorCode ManagedMemory<T>::RestoreArray(PetscDeviceContext dctx, Pe
   PetscFunctionBegin;
   PetscCall(PetscDeviceContextGetOptionalNullContext_Internal(&dctx));
   PetscAssertPointer(ptr, 4);
-  PetscCheck(!PetscOffloadUnallocated(this->offload_mask()), PetscObjectComm(PetscObjectCast(dctx)), PETSC_ERR_ARG_WRONG, "Trying to restore an array to an unallocated managed type (offload mask %s)", PetscOffloadMaskToString(this->offload_mask()));
+  PetscCheck(!PetscOffloadUnallocated(this->offload_mask()), PetscObjectComm(dctx), PETSC_ERR_ARG_WRONG, "Trying to restore an array to an unallocated managed type (offload mask %s)", PetscOffloadMaskToString(this->offload_mask()));
   *ptr = nullptr;
   switch (mtype) {
   case PETSC_MEMTYPE_HOST:
@@ -311,7 +302,7 @@ inline PetscErrorCode ManagedMemory<T>::RestoreArray(PetscDeviceContext dctx, Pe
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "PetscMemType must be either %s or %s not %d", PetscMemTypeToString(PETSC_MEMTYPE_HOST), PetscMemTypeToString(PETSC_MEMTYPE_DEVICE), static_cast<int>(mtype));
     break;
   }
-  if (sync) PetscCall(Sync_(dctx, PetscOffloadMaskToMemType(this->offload_mask())));
+  if (sync) PetscCall(this->Sync_(dctx, PetscOffloadMaskToMemType(this->offload_mask())));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -378,7 +369,7 @@ inline PetscErrorCode ManagedMemory<T>::EqualTo(const value_type &value, PetscBo
   PetscAssertPointer(known, 3);
   // REVIEW ME: it if is unknown we can technically just forgo the equal check since it is
   // worthless anyways
-  if (is_nosync_available(PETSC_MEMTYPE_HOST)) {
+  if (this->is_nosync_available(PETSC_MEMTYPE_HOST)) {
     auto hend = this->host().cend(this->size());
 
     *known = PETSC_TRUE;

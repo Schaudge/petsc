@@ -28,7 +28,7 @@ public:
   using const_reference = const value_type &;
 
   template <typename... T>
-  ManagedMemoryFacadeBase(size_type, T &&...) noexcept;
+  explicit ManagedMemoryFacadeBase(size_type, T &&...) noexcept;
   ManagedMemoryFacadeBase(ManagedMemoryFacadeBase &&) noexcept;
   ManagedMemoryFacadeBase &operator=(ManagedMemoryFacadeBase &&) noexcept;
 
@@ -132,7 +132,7 @@ struct MaxCap {
   template <typename U>
   void operator()(U &&s) noexcept
   {
-    value = std::max(value, s.capacity());
+    this->value = std::max(this->value, s.capacity());
   }
 
   T value{};
@@ -143,19 +143,19 @@ struct MaxCap {
 template <typename... S>
 inline typename ManagedMemoryFacadeBase<S...>::size_type ManagedMemoryFacadeBase<S...>::capacity() const noexcept
 {
-  return util::tuple_for_each(storage(), detail::MaxCap<size_type>{}).value;
+  return util::tuple_for_each(this->storage(), detail::MaxCap<size_type>{}).value;
 }
 
 template <typename... S>
 inline auto ManagedMemoryFacadeBase<S...>::host() noexcept -> util::tuple_element_t<0, storages_type> &
 {
-  return storage<0>();
+  return this->storage<0>();
 }
 
 template <typename... S>
 inline auto ManagedMemoryFacadeBase<S...>::host() const noexcept -> const util::tuple_element_t<0, storages_type> &
 {
-  return storage<0>();
+  return this->storage<0>();
 }
 
 template <typename... S>
