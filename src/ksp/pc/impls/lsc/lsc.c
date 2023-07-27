@@ -1,9 +1,10 @@
 #include <petsc/private/pcimpl.h> /*I "petscpc.h" I*/
 
 typedef struct {
-  PetscBool allocated, commute, scalediag;
+  PetscBool allocated, commute, scalediag, stabilized;
+  PetscReal reynolds;
   KSP       kspL, kspMass;
-  Vec       Avec0, Avec1, Svec0, scale;
+  Vec       Avec0, Avec1, Svec0, Svec1, Svec2, scale;
   Mat       L;
 } PC_LSC;
 
@@ -24,6 +25,14 @@ static PetscErrorCode PCLSCAllocate_Private(PC pc)
   PetscCall(MatSchurComplementGetSubMatrices(pc->mat, &A, NULL, NULL, NULL, NULL));
   PetscCall(MatCreateVecs(A, &lsc->Avec0, &lsc->Avec1));
   PetscCall(MatCreateVecs(pc->pmat, &lsc->Svec0, NULL));
+  if (lsc->stabilized) {
+    PetscCall(VecDuplicate(lsc->Svec0, &lsc->Svec1));
+    PetscCall(VecDuplicate(lsc->Svec0, &lsc->Svec2));
+  }
+  else {
+    lsc->Svec1 = NULL;
+    lsc->Svec2 = NULL;
+  }
   if (lsc->scalediag) PetscCall(VecDuplicate(lsc->Avec0, &lsc->scale));
 
   if (lsc->commute) {
@@ -70,8 +79,8 @@ static PetscErrorCode PCSetUp_LSC(PC pc)
       PetscCall(VecReciprocal(lsc->scale));
     }
     if (!L) {
-      Mat B, C;
-      PetscCall(MatSchurComplementGetSubMatrices(pc->mat, NULL, NULL, &B, &C, NULL));
+      Mat B, C, D;
+      PetscCall(MatSchurComplementGetSubMatrices(pc->mat, NULL, NULL, &B, &C, &D));
       if (lsc->scale) {
         Mat CAdiaginv;
         PetscCall(MatDuplicate(C, MAT_COPY_VALUES, &CAdiaginv));
@@ -88,6 +97,7 @@ static PetscErrorCode PCSetUp_LSC(PC pc)
         }
         PetscCall(MatProductNumeric(lsc->L));
       }
+      if (lsc->stabilized) PetscCall(MatAXPY(lsc->L, -1.0, D, UNKNOWN_NONZERO_PATTERN));
       Lp = L = lsc->L;
     }
   }
@@ -104,10 +114,10 @@ static PetscErrorCode PCSetUp_LSC(PC pc)
 static PetscErrorCode PCApply_LSC(PC pc, Vec x, Vec y)
 {
   PC_LSC *lsc = (PC_LSC *)pc->data;
-  Mat     A, B, C;
+  Mat     A, B, C, D;
 
   PetscFunctionBegin;
-  PetscCall(MatSchurComplementGetSubMatrices(pc->mat, &A, NULL, &B, &C, NULL));
+  PetscCall(MatSchurComplementGetSubMatrices(pc->mat, &A, NULL, &B, &C, &D));
   if (lsc->commute) {
     PetscCall(KSPSolve(lsc->kspMass, x, lsc->Svec0));
     PetscCall(KSPCheckSolve(lsc->kspMass, pc, lsc->Svec0));
@@ -123,11 +133,17 @@ static PetscErrorCode PCApply_LSC(PC pc, Vec x, Vec y)
   } else {
     PetscCall(KSPSolve(lsc->kspL, x, lsc->Svec0));
     PetscCall(KSPCheckSolve(lsc->kspL, pc, lsc->Svec0));
+    if (lsc->stabilized) {
+      PetscCall(VecCopy(lsc->Svec0, lsc->Svec1));
+      PetscCall(VecScale(lsc->Svec1, 1.0/lsc->reynolds));
+      PetscCall(MatMult(D, lsc->Svec1, lsc->Svec2));
+    }
     PetscCall(MatMult(B, lsc->Svec0, lsc->Avec0));
     if (lsc->scale) PetscCall(VecPointwiseMult(lsc->Avec0, lsc->Avec0, lsc->scale));
     PetscCall(MatMult(A, lsc->Avec0, lsc->Avec1));
     if (lsc->scale) PetscCall(VecPointwiseMult(lsc->Avec1, lsc->Avec1, lsc->scale));
     PetscCall(MatMult(C, lsc->Avec1, lsc->Svec0));
+    if (lsc->stabilized) PetscCall(VecAXPY(lsc->Svec0, -1.0, lsc->Svec2));
     PetscCall(KSPSolve(lsc->kspL, lsc->Svec0, y));
     PetscCall(KSPCheckSolve(lsc->kspL, pc, y));
   }
@@ -146,6 +162,8 @@ static PetscErrorCode PCReset_LSC(PC pc)
   if (lsc->commute) PetscCall(KSPDestroy(&lsc->kspMass));
   if (lsc->L) PetscCall(MatDestroy(&lsc->L));
   if (lsc->scale) PetscCall(VecDestroy(&lsc->scale));
+  if (lsc->Svec1) PetscCall(VecDestroy(&lsc->Svec1));
+  if (lsc->Svec2) PetscCall(VecDestroy(&lsc->Svec2));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -166,7 +184,11 @@ static PetscErrorCode PCSetFromOptions_LSC(PC pc, PetscOptionItems *PetscOptions
   {
     PetscCall(PetscOptionsBool("-pc_lsc_commute", "Whether to commute the LSC preconditioner in the style of Olshanskii", "None", lsc->commute, &lsc->commute, NULL));
     PetscCall(PetscOptionsBool("-pc_lsc_scale_diag", "Whether to scale BBt products. Will use the inverse of the diagonal of Qscale or A if the former is not provided.", "None", lsc->scalediag, &lsc->scalediag, NULL));
+    PetscCall(PetscOptionsBool("-pc_lsc_stabilized", "Whether LSC should be adapted for the contribution of a non-zero A11/D matrix", "None", lsc->stabilized, &lsc->stabilized, NULL));
     PetscCheck(!lsc->scalediag || !lsc->commute, PetscObjectComm((PetscObject)pc), PETSC_ERR_USER, "Diagonal-based scaling is not used when doing a commuted LSC. Either do not ask for diagonal-based scaling or use non-commuted LSC in the original style of Elman");
+    PetscCheck(!lsc->commute || !lsc->stabilized, PetscObjectComm((PetscObject)pc), PETSC_ERR_USER, "The commuted LSC preconditioner cannot currently adapt for a non-zero A11/D matrix");
+    lsc->reynolds = 1.0;
+    if (lsc->stabilized) PetscCall(PetscOptionsReal("-pc_lsc_reynolds", "Reynolds number", "None", lsc->reynolds, &lsc->reynolds, NULL));
   }
   PetscOptionsHeadEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
