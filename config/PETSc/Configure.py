@@ -1366,7 +1366,7 @@ char assert_aligned[(sizeof(struct mystruct)==16)*2-1];
         textwrap.dedent(
           """
           int  y      = 10;
-          auto lambda = [=] __host__ __device__ (int x) { return x + y; }
+          auto lambda = [=] __host__ __device__ (int x) { return x + y; };
 
           kernel<<<1, 1>>>(lambda);
           host_func(lambda);
