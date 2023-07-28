@@ -15,7 +15,7 @@ PetscLogEvent DMSWARM_DataExchangerTopologySetup, DMSWARM_DataExchangerBegin, DM
 PetscLogEvent DMSWARM_DataExchangerSendCount, DMSWARM_DataExchangerPack;
 
 const char *DMSwarmTypeNames[]          = {"basic", "pic", NULL};
-const char *DMSwarmMigrateTypeNames[]   = {"basic", "dmcellnscatter", "dmcellexact", "user", NULL};
+const char *DMSwarmMigrateTypeNames[]   = {"basic", "dmcellnscatter", "dmcellexact", "alltoall", "user", "DMswarmMigrateType", "DMSWARM_MIGRATE_", NULL};
 const char *DMSwarmCollectTypeNames[]   = {"basic", "boundingbox", "general", "user", NULL};
 const char *DMSwarmPICLayoutTypeNames[] = {"regular", "gauss", "subdivision", NULL};
 
@@ -1279,6 +1279,9 @@ PetscErrorCode DMSwarmMigrate(DM dm, PetscBool remove_sent_points)
     SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_SUP, "DMSWARM_MIGRATE_DMCELLEXACT not implemented");
   case DMSWARM_MIGRATE_USER:
     SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_SUP, "DMSWARM_MIGRATE_USER not implemented");
+  case DMSWARM_MIGRATE_ALLTOALL:
+    PetscCall(DMSwarmMigrate_AllToAll(dm, remove_sent_points));
+    break;
   default:
     SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_SUP, "DMSWARM_MIGRATE type unknown");
   }
@@ -1378,6 +1381,7 @@ static PetscErrorCode DMSwarmSetUpPIC(DM dm)
   PetscCheck(dim <= 3, PetscObjectComm((PetscObject)dm), PETSC_ERR_USER, "Dimension must be 1,2,3 - found %" PetscInt_FMT, dim);
   PetscCall(DMSwarmRegisterPetscDatatypeField(dm, DMSwarmPICField_coor, dim, PETSC_DOUBLE));
   PetscCall(DMSwarmRegisterPetscDatatypeField(dm, DMSwarmPICField_cellid, 1, PETSC_INT));
+  dm->ops->setfromoptions = DMSetFromOptions_SwarmPIC;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

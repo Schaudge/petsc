@@ -964,3 +964,17 @@ PetscErrorCode DMSwarmInitializeVelocitiesFromOptions(DM sw, const PetscReal v0[
   PetscCall(DMSwarmInitializeVelocities(sw, sampler, v0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+PetscErrorCode DMSetFromOptions_SwarmPIC(DM sw, PetscOptionItems *PetscOptionsObject)
+{
+  DMSwarmMigrateType migrateType = DMSWARM_MIGRATE_BASIC;
+  PetscBool   flg;
+  
+  PetscFunctionBegin;
+  PetscOptionsHeadBegin(PetscOptionsObject, "DMSwarm_PIC Options");
+  PetscCall(DMSetUp(sw));
+  PetscCall(PetscOptionsEnum("-dm_swarm_migrate_type", "Method for particle migration", "", DMSwarmMigrateTypeNames, (PetscEnum)migrateType, (PetscEnum*)&migrateType, &flg));
+  if (flg) DMSwarmSetMigrateType(sw, migrateType);
+  PetscOptionsHeadEnd();
+  PetscFunctionReturn(PETSC_SUCCESS);
+}

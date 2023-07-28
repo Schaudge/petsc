@@ -242,4 +242,15 @@ int main(int argc, char **argv)
           -dm_plex_box_lower 0.,0.,0. -dm_plex_box_upper 1.,1.,10. -dm_plex_box_bd none,none,none\
           -dm_plex_hash_location false -set_closure_permutation
     filter: grep -v marker | grep -v atomic | grep -v usage
+  # In rare cases, either in initialization or simulations that allow it particles may skip over ranks either by being initialized on one process
+  # and being sent to appropriate ranks, or in simulations that allow extremly high relative velocity. This test cases ensures particles are sent to the 
+  # appropriate ranks in initialization
+  test:
+    suffix: swarm_migrate_all2all
+    requires: ctetgen
+    nsize: 4
+    args: -dm_swarm_migrate_type alltoall -dm_plex_dim 3 -dm_plex_simplex 0 -dm_distribute_overlap 1 -dm_plex_box_faces 10,10,10\
+          -dm_plex_box_lower 0.,0.,0. -dm_plex_box_upper 1.,1.,10. -dm_plex_box_bd none,none,none\
+          -dm_plex_hash_location false
+    filter: grep -v marker | grep -v atomic | grep -v usage  
 TEST*/

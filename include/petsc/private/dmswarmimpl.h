@@ -78,3 +78,6 @@ struct _p_DMSwarmSort {
 PETSC_INTERN PetscErrorCode DMSwarmMigrate_Push_Basic(DM, PetscBool);
 PETSC_INTERN PetscErrorCode DMSwarmMigrate_CellDMScatter(DM, PetscBool);
 PETSC_INTERN PetscErrorCode DMSwarmMigrate_CellDMExact(DM, PetscBool);
+PETSC_INTERN PetscErrorCode DMSwarmMigrate_AllToAll(DM, PetscBool);
+PETSC_INTERN PetscErrorCode DMSetFromOptions_SwarmPIC(DM, PetscOptionItems*);
+#endif /* _SWARMIMPL_H */
