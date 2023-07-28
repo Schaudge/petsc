@@ -139,10 +139,11 @@ template <typename Expr, typename T>
 inline PetscErrorCode ExecutePrepare(PetscDeviceContext dctx, PetscDeviceType dtype, PetscMemType mtype, Expr &&expr, ManagedMemory<T> &dest)
 {
   using value_type      = typename ManagedMemory<T>::value_type;
-  const auto  man_vec   = util::tuple_for_each(expr.expr(), Collector<T>::MakeCollector()).get_unique();
+  auto        collector = Collector<T>::MakeCollector();
+  const auto  man_vec   = util::tuple_for_each(expr.expr(), collector).get_unique();
   const auto  dest_ptr  = std::addressof(dest);
   auto        dest_mode = PETSC_MEMORY_ACCESS_WRITE;
-  value_type *array;
+  value_type *array     = nullptr;
 
   PetscFunctionBegin;
   for (auto &&man : *man_vec) {
