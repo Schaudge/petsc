@@ -11,12 +11,6 @@ namespace Petsc
 template <typename>
 class ManagedMemory;
 
-#if PetscDefined(USE_DEBUG)
-  #define PETSC_OPT_CONSTEXPR
-#else
-  #define PETSC_OPT_CONSTEXPR constexpr
-#endif
-
 // ==========================================================================================
 // ProxyReference
 // ==========================================================================================
@@ -30,7 +24,7 @@ public:
 
   ProxyReference() noexcept = delete;
 
-  PETSC_OPT_CONSTEXPR explicit ProxyReference(managed_type *, PetscDeviceContext, size_type) noexcept;
+  explicit ProxyReference(managed_type *, PetscDeviceContext, size_type) noexcept;
 
   ProxyReference  &operator=(const value_type &) const  & = delete;
   ProxyReference &&operator=(const value_type &) && noexcept;
@@ -49,7 +43,7 @@ private:
 // ==========================================================================================
 
 template <typename T>
-inline PETSC_OPT_CONSTEXPR ProxyReference<T>::ProxyReference(managed_type *man, PetscDeviceContext dctx, size_type idx) noexcept : man_{man}, dctx_{dctx}, idx_{idx}
+inline ProxyReference<T>::ProxyReference(managed_type *man, PetscDeviceContext dctx, size_type idx) noexcept : man_{man}, dctx_{dctx}, idx_{idx}
 {
   PetscFunctionBegin;
   PetscAssertAbort(man_->size() > idx_, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "index %zu >= size %zu", idx_, man_->size());

@@ -127,11 +127,20 @@ PETSC_BINARY_OPERATOR_FUNCTOR(logical_not_equal_to, !=, true)
 PETSC_UNARY_MATH_FUNCTOR(fabs)
 PETSC_UNARY_MATH_FUNCTOR(abs)
 PETSC_UNARY_MATH_FUNCTOR(sqrt)
-#ifdef __clang__
-PETSC_UNARY_MATH_FUNCTOR(sqrtf)
-#else
-// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79700
+// See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79700
+//
+// GCC has a longstanging bug where half the functions in <cmath> are not in namespace std,
+// but instead in the global namespace, leading to confusing error messages:
+//
+// operators.hpp:131:26: error: no member named 'sqrtf' in namespace 'std'; did you mean
+// 'sqrt'?
+//
+// According to the latest message (2023-07-27 10:42:27 UTC) there is a patch targeted for gcc
+// 13.3, hopefully it is fixed by then?
+#if defined(__GLIBCXX__) && (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__) < 130300
 PETSC_UNARY_MATH_FUNCTOR_NO_STD(sqrtf, sqrtf)
+#else
+PETSC_UNARY_MATH_FUNCTOR(sqrtf)
 #endif
 PETSC_UNARY_MATH_FUNCTOR_NO_STD(sign, PetscSign)
 
