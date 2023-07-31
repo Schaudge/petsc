@@ -123,8 +123,6 @@ static PetscErrorCode TaoView_Metric(Tao tao, PetscViewer viewer)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-//TODO metric type should be enum not char... shouldn't really support metricregister - doesnt makes sense...
-
 PETSC_EXTERN PetscErrorCode TaoCreate_METRIC(Tao tao)
 {
   TAO_METRIC *mP;

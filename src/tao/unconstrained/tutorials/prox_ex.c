@@ -169,7 +169,7 @@ int main(int argc, char **argv)
 
   /* Cases that we want to try:
    *
-   *  0: Built-in TAOPROX solve for Soft-Threshold
+   *  0: Built-in TAOPROX solve for Soft-Threshold TODO do register version of TAOPROX too?
    *  1: Dispatch version for TAOCG - via TaoApplyProximalMap_CG, with L2 metric, via TaoMetricSetType
    *  2: TAOCG, L2 Metric, with TaoMetricCreate
    *  3: TAOCG with KL metric 

@@ -259,7 +259,6 @@ typedef const char *TaoMetricType;
 PETSC_EXTERN PetscClassId      TAO_CLASSID;
 PETSC_EXTERN PetscFunctionList TaoList;
 PETSC_EXTERN PetscFunctionList TaoProxList;
-PETSC_EXTERN PetscFunctionList TaoMetricList;
 
 /*E
     TaoConvergedReason - reason a `Tao` optimizer was said to have converged or diverged
@@ -347,8 +346,6 @@ PETSC_EXTERN PetscErrorCode TaoProxRegisterDestroy(void);
 
 PETSC_EXTERN PetscErrorCode TaoMetricSetContext(Tao, void *);
 PETSC_EXTERN PetscErrorCode TaoMetricGetContext(Tao, void *);
-PETSC_EXTERN PetscErrorCode TaoMetricRegister(const char[], PetscErrorCode (*)(Tao));
-PETSC_EXTERN PetscErrorCode TaoMetricRegisterDestroy(void);
 
 PETSC_EXTERN PetscErrorCode TaoGetConvergedReason(Tao, TaoConvergedReason *);
 PETSC_EXTERN PetscErrorCode TaoGetSolutionStatus(Tao, PetscInt *, PetscReal *, PetscReal *, PetscReal *, PetscReal *, TaoConvergedReason *);
@@ -575,9 +572,6 @@ PETSC_EXTERN PetscErrorCode TaoALMMSetMultipliers(Tao, Vec);
 PETSC_EXTERN PetscErrorCode TaoALMMGetPrimalIS(Tao, IS *, IS *);
 PETSC_EXTERN PetscErrorCode TaoALMMGetDualIS(Tao, IS *, IS *);
 
-//TODO is this necessary, or should all users use TaoMetricRegister?
-PETSC_EXTERN PetscErrorCode TaoSetMetric(Tao, PetscErrorCode (*)(Tao, PetscReal *, Vec, Vec, PetscReal *, Vec, Mat, Mat, void *), void *);
-PETSC_EXTERN PetscErrorCode TaoGetMetric(Tao, PetscErrorCode (**)(Tao, PetscReal *, Vec, Vec, PetscReal *, Vec, Mat, Mat, void *), void **);
 PETSC_EXTERN PetscErrorCode TaoMetricSetType(Tao, TaoMetricType);
 PETSC_EXTERN PetscErrorCode TaoMetricGetType(Tao, TaoMetricType *);
 

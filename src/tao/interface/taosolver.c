@@ -121,7 +121,7 @@ PetscErrorCode TaoCreate(MPI_Comm comm, Tao *newtao)
   tao->fmin    = PETSC_NINFINITY;
 
   tao->hist_reset  = PETSC_TRUE;
-  tao->metric_type = TAOMETRIC_L2;
+  tao->metric_type = TAO_METRIC_L2;
 
   PetscCall(TaoResetStatistics(tao));
   *newtao = tao;

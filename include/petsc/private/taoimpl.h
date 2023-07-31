@@ -219,6 +219,7 @@ struct _p_Tao {
   Vec diag_metric;
 
   Tao metric_tao;
+  Tao prox_MR_tao;
 
   MoreauRegularizer *MR_internal;
 };

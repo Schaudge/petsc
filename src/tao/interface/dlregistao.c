@@ -13,7 +13,6 @@ PetscErrorCode TaoFinalizePackage(void)
   PetscFunctionBegin;
   PetscCall(PetscFunctionListDestroy(&TaoList));
   PetscCall(PetscFunctionListDestroy(&TaoProxList));
-  PetscCall(PetscFunctionListDestroy(&TaoMetricList));
   TaoPackageInitialized = PETSC_FALSE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -41,7 +40,6 @@ PetscErrorCode TaoInitializePackage(void)
   /* Register Constructors */
   PetscCall(TaoRegisterAll());
   PetscCall(TaoProxRegisterAll());
-  PetscCall(TaoMetricRegisterAll());
   /* Register Events */
   PetscCall(PetscLogEventRegister("TaoSolve", TAO_CLASSID, &TAO_Solve));
   PetscCall(PetscLogEventRegister("TaoObjectiveEval", TAO_CLASSID, &TAO_ObjectiveEval));
