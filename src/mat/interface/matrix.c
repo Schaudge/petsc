@@ -11213,3 +11213,51 @@ PetscErrorCode MatEliminateZeros(Mat A, PetscBool keep)
   PetscUseTypeMethod(A, eliminatezeros, keep);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+/*@
+  MatGetStorageType - Get the `MatStorageType` of a matrix
+
+  Input Parameter:
+. mat - a matrix
+
+  Output Parameter:
+. type - the storage type
+
+  Level: advanced
+
+  Note:
+  Any `MatType` that does not support setting the storage type with `MatSetStorageType()` will return `MAT_STORAGE_ALL`
+
+.seealso: [](ch_matrices), `MatSetStorageType()`
+@*/
+PetscErrorCode MatGetStorageType(Mat mat, MatStorageType *type)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(mat, MAT_CLASSID, 1);
+  PetscAssertPointer(type, 2);
+  *type = MAT_STORAGE_ALL;
+  PetscTryMethod((PetscObject)mat, "MatGetStorageType_C", (Mat, MatStorageType *), (mat, type));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  MatSetStorageType - Set the `MatStorageType` of a matrix
+
+  Input Parameters:
++ mat - a matrix
+- type - the storage type
+
+  Level: advanced
+
+  Note:
+  Any `MatType` that does not support setting the stoage type will ignore this operation
+
+.seealso: [](ch_matrices), `MatGetStorageType()`
+@*/
+PetscErrorCode MatSetStorageType(Mat mat, MatStorageType type)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(mat, MAT_CLASSID, 1);
+  PetscTryMethod((PetscObject)mat, "MatSetStorageType_C", (Mat, MatStorageType), (mat, type));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}

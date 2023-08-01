@@ -252,6 +252,9 @@ PETSC_DEPRECATED_FUNCTION(3, 9, 0, "MatSolverTypeGet()", ) static inline PetscEr
   return MatSolverTypeGet(stype, mtype, ftype, foundmtype, foundstype, f);
 }
 
+PETSC_EXTERN PetscErrorCode MatGetStorageType(Mat, MatStorageType *);
+PETSC_EXTERN PetscErrorCode MatSetStorageType(Mat, MatStorageType);
+
 /*E
     MatProductType - indicates what type of matrix product is requested
 
