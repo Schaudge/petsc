@@ -47,6 +47,9 @@ PetscLogEvent MAT_H2Opus_Build, MAT_H2Opus_Compress, MAT_H2Opus_Orthog, MAT_H2Op
 
 const char *const MatFactorTypes[] = {"NONE", "LU", "CHOLESKY", "ILU", "ICC", "ILUDT", "QR", "MatFactorType", "MAT_FACTOR_", NULL};
 
+const char *const MatStorageTypes[] = {"ALL", "LOWER_TRIANGULAR", "UNIT_LOWER_TRIANGULAR", "UPPER_TRIANGULAR", "UNIT_UPPER_TRIANGULAR", "HERMITIAN_LOWER", "HERMITIAN_UPPER", "SYMMETRIC_LOWER", "SYMMETRIC_UPPER", "MatStorageType", "MAT_STORAGE_",
+                                       NULL};
+
 /*@
   MatSetRandom - Sets all components of a matrix to random numbers.
 

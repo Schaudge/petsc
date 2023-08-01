@@ -198,6 +198,37 @@ typedef enum {
 } MatFactorType;
 PETSC_EXTERN const char *const MatFactorTypes[];
 
+/*E
+  MatStorageType - How values in memory correspond to the represented matrix
+
+  Values:
++ `MAT_STORAGE_ALL`                   - All values stored in memory are entries in the matrix
+. `MAT_STORAGE_LOWER_TRIANGULAR`      - Lower-triangular values (`A[i,j]` for `i >= j`) are in the matrix; strictly upper-triangular values (`A[i,j]` for `i < j`) are ignored
+. `MAT_STORAGE_UNIT_LOWER_TRIANGULAR` - Strictly lower-triangular values (`A[i,j]` for `i > j`) are in the matrix; diagonal values are implicitly 1 (stored values are ignored); strictly upper-triangular values (`A[i,j]` for `i < j`) are implicitly 0 (stored valued are ignored)
+. `MAT_STORAGE_UPPER_TRIANGULAR`      - Upper-triangular values (`A[i,j]` for `i <= j`) are in the matrix; strictly lower-triangular values (`A[i,j]` for `i > j`) are implicitly 0 (stored values are ignored)
+. `MAT_STORAGE_UNIT_UPPER_TRIANGULAR` - Strictly upper-triangular values (`A[i,j]` for `i < j`) are in the matrix; diagonal values are implicitly 1 (stored values are ignored); strictly lower-triangular values (`A[i,j]` for `i > j`) are implicitly 0 (stored values are ignored)
+. `MAT_STORAGE_HERMITIAN_LOWER`       - Lower-triangular values (`A[i,j]` for `i <= j`) are in the matrix; strictly upper-triangular values (`A[i,j]` for `i > j`) are implicitly `A[i,j] = PetscConj(A[j,i])` (stored values are ignored)
+. `MAT_STORAGE_HERMITIAN_UPPER`       - Upper-triangular values (`A[i,j]` for `i >= j`) are in the matrix; strictly lower-triangular values (`A[i,j]` for `i < j`) are implicitly `A[i,j] = PetscConj(A[j,i])` (stored values are ignored)
+. `MAT_STORAGE_SYMMETRIC_LOWER`       - Lower-triangular values (`A[i,j]` for `i <= j`) are in the matrix; strictly upper-triangular values (`A[i,j]` for `i > j`) are implicitly `A[i,j] = A[j,i]` (stored values are ignored)
+- `MAT_STORAGE_SYMMETRIC_UPPER`       - Upper-triangular values (`A[i,j]` for `i >= j`) are in the matrix; strictly lower-triangular values (`A[i,j]` for `i < j`) are implicitly `A[i,j] = A[j,i]` (stored values are ignored)
+
+  Level: advanced
+
+.seealso: [](ch_matrices), `MatSetValue()`, `MatSetValues()`
+E*/
+typedef enum {
+  MAT_STORAGE_ALL,
+  MAT_STORAGE_LOWER_TRIANGULAR,
+  MAT_STORAGE_UNIT_LOWER_TRIANGULAR,
+  MAT_STORAGE_UPPER_TRIANGULAR,
+  MAT_STORAGE_UNIT_UPPER_TRIANGULAR,
+  MAT_STORAGE_HERMITIAN_LOWER,
+  MAT_STORAGE_HERMITIAN_UPPER,
+  MAT_STORAGE_SYMMETRIC_LOWER,
+  MAT_STORAGE_SYMMETRIC_UPPER,
+} MatStorageType;
+PETSC_EXTERN const char *const MatStorageTypes[];
+
 PETSC_EXTERN PetscErrorCode MatGetFactor(Mat, MatSolverType, MatFactorType, Mat *);
 PETSC_EXTERN PetscErrorCode MatGetFactorAvailable(Mat, MatSolverType, MatFactorType, PetscBool *);
 PETSC_EXTERN PetscErrorCode MatFactorGetCanUseOrdering(Mat, PetscBool *);
