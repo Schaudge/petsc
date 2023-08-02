@@ -160,8 +160,10 @@
 #define BLASgemv_     PETSCBLAS(gemv, GEMV)
 #define LAPACKgetrs_  PETSCBLAS(getrs, GETRS)
 #define BLAStrmv_     PETSCBLAS(trmv, TRMV)
+#define BLAStrmm_     PETSCBLAS(trmm, TRMV)
 #define BLASgemm_     PETSCBLAS(gemm, GEMM)
 #define BLASsymm_     PETSCBLAS(symm, SYMM)
+#define BLASsymv_     PETSCBLAS(symv, SYMV) /* we use BLASsymv_ even though csymv and zsymv are lapack */
 #define BLASsyrk_     PETSCBLAS(syrk, SYRK)
 #define BLASsyr2k_    PETSCBLAS(syr2k, SYR2K)
 #define BLAStrsm_     PETSCBLAS(trsm, TRSM)
@@ -216,6 +218,9 @@
   #if !defined(PETSC_MISSING_LAPACK_STEBZ)
     #define LAPACKstebz_ PETSCBLAS(stebz, STEBZ) /* eigenvalues of symm tridiagonal matrix */
   #endif
+
+  #define BLAShemv_ PETSCBLAS(hemv, HEMV)
+  #define BLAShemm_ PETSCBLAS(hemm, HEMM)
 #else
   #define LAPACKhetrf_ PETSCBLAS(hetrf, HETRF)
   #define LAPACKhetrs_ PETSCBLAS(hetrs, HETRS)
@@ -233,4 +238,7 @@
   #define LAPACKsyevx_ PETSCBLAS(heevx, HEEVX) /* selected eigenvalues and eigenvectors of a symm matrix */
   #define LAPACKsygv_  PETSCBLAS(hegv, HEGV)
   #define LAPACKsygvx_ PETSCBLAS(hegvx, HEGVX)
+
+  #define BLAShemv_ PETSCBLAS(symv, HEMV)
+  #define BLAShemm_ PETSCBLAS(symm, HEMM)
 #endif

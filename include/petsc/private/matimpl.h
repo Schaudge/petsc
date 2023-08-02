@@ -1607,6 +1607,216 @@ static inline PetscErrorCode PetscLLCondensedDestroy_fast(PetscInt *lnk)
   return PetscFree(lnk);
 }
 
+static inline PetscBool MatStorageIsStructurallySymmetric(MatStorageType storage)
+{
+  switch (storage) {
+  case MAT_STORAGE_HERMITIAN_LOWER:
+  case MAT_STORAGE_SYMMETRIC_LOWER:
+  case MAT_STORAGE_HERMITIAN_UPPER:
+  case MAT_STORAGE_SYMMETRIC_UPPER:
+    return PETSC_TRUE;
+  default:
+    return PETSC_FALSE;
+  }
+}
+
+static inline PetscBool MatStorageIsHermitian(MatStorageType storage)
+{
+  switch (storage) {
+  case MAT_STORAGE_HERMITIAN_LOWER:
+  case MAT_STORAGE_HERMITIAN_UPPER:
+    return PETSC_TRUE;
+  case MAT_STORAGE_SYMMETRIC_LOWER:
+  case MAT_STORAGE_SYMMETRIC_UPPER:
+    return (PetscDefined(USE_COMPLEX)) ? PETSC_FALSE : PETSC_TRUE;
+  default:
+    return PETSC_FALSE;
+  }
+}
+
+static inline PetscBool MatStorageIsTriangular(MatStorageType storage)
+{
+  switch (storage) {
+  case MAT_STORAGE_LOWER_TRIANGULAR:
+  case MAT_STORAGE_UNIT_LOWER_TRIANGULAR:
+  case MAT_STORAGE_UPPER_TRIANGULAR:
+  case MAT_STORAGE_UNIT_UPPER_TRIANGULAR:
+    return PETSC_TRUE;
+    break;
+  default:
+    return PETSC_FALSE;
+  }
+  return PETSC_SUCCESS;
+}
+
+static inline PetscBool MatStorageIsUpperTriangular(MatStorageType storage)
+{
+  switch (storage) {
+  case MAT_STORAGE_UPPER_TRIANGULAR:
+  case MAT_STORAGE_UNIT_UPPER_TRIANGULAR:
+    return PETSC_TRUE;
+    break;
+  default:
+    return PETSC_FALSE;
+  }
+  return PETSC_SUCCESS;
+}
+
+static inline PetscBool MatStorageIsLower(MatStorageType storage)
+{
+  switch (storage) {
+  case MAT_STORAGE_LOWER_TRIANGULAR:
+  case MAT_STORAGE_UNIT_LOWER_TRIANGULAR:
+  case MAT_STORAGE_SYMMETRIC_LOWER:
+  case MAT_STORAGE_HERMITIAN_LOWER:
+    return PETSC_TRUE;
+    break;
+  default:
+    return PETSC_FALSE;
+  }
+  return PETSC_SUCCESS;
+}
+
+static inline PetscBool MatStorageIsLowerTriangular(MatStorageType storage)
+{
+  switch (storage) {
+  case MAT_STORAGE_LOWER_TRIANGULAR:
+  case MAT_STORAGE_UNIT_LOWER_TRIANGULAR:
+    return PETSC_TRUE;
+    break;
+  default:
+    return PETSC_FALSE;
+  }
+  return PETSC_SUCCESS;
+}
+
+static inline PetscBool MatStorageIsSymmetric(MatStorageType storage)
+{
+  switch (storage) {
+  case MAT_STORAGE_SYMMETRIC_LOWER:
+  case MAT_STORAGE_SYMMETRIC_UPPER:
+    return PETSC_TRUE;
+  case MAT_STORAGE_HERMITIAN_LOWER:
+  case MAT_STORAGE_HERMITIAN_UPPER:
+    return (PetscDefined(USE_COMPLEX)) ? PETSC_FALSE : PETSC_TRUE;
+  default:
+    return PETSC_FALSE;
+  }
+}
+
+static inline PetscBool MatStorageIsUnitDiagonal(MatStorageType storage)
+{
+  switch (storage) {
+  case MAT_STORAGE_UNIT_LOWER_TRIANGULAR:
+  case MAT_STORAGE_UNIT_UPPER_TRIANGULAR:
+    return PETSC_TRUE;
+  default:
+    return PETSC_FALSE;
+  }
+}
+
+static inline PetscScalar MatStorageDenseValue(MatStorageType storage, const PetscScalar *v, PetscInt i, PetscInt j, PetscBLASInt ld)
+{
+  PetscInt idx   = j + i * ld;
+  PetscInt idx_t = i + j * ld;
+  switch (storage) {
+  case MAT_STORAGE_ALL:
+    return v[idx];
+  case MAT_STORAGE_LOWER_TRIANGULAR:
+    return i < j ? 0.0 : v[idx];
+  case MAT_STORAGE_UNIT_LOWER_TRIANGULAR:
+    return i == j ? 1.0 : i < j ? 0.0 : v[idx];
+  case MAT_STORAGE_UPPER_TRIANGULAR:
+    return i > j ? 0.0 : v[idx];
+  case MAT_STORAGE_UNIT_UPPER_TRIANGULAR:
+    return i == j ? 1.0 : i > j ? 0.0 : v[idx];
+  case MAT_STORAGE_SYMMETRIC_LOWER:
+    return i < j ? v[idx_t] : v[idx];
+  case MAT_STORAGE_SYMMETRIC_UPPER:
+    return i > j ? v[idx_t] : v[idx];
+  case MAT_STORAGE_HERMITIAN_LOWER:
+    return i < j ? PetscConj(v[idx_t]) : v[idx];
+  case MAT_STORAGE_HERMITIAN_UPPER:
+    return i > j ? PetscConj(v[idx_t]) : v[idx];
+  }
+  return v[idx];
+}
+
+static inline PetscErrorCode MatStorageGetColumnLimits(MatStorageType storage, PetscInt j, PetscInt n, PetscInt *lo, PetscInt *hi)
+{
+  switch (storage) {
+  case MAT_STORAGE_ALL:
+    *lo = 0;
+    *hi = n;
+    break;
+  case MAT_STORAGE_LOWER_TRIANGULAR:
+  case MAT_STORAGE_UNIT_LOWER_TRIANGULAR:
+  case MAT_STORAGE_HERMITIAN_LOWER:
+  case MAT_STORAGE_SYMMETRIC_LOWER:
+    *lo = (storage == MAT_STORAGE_UNIT_LOWER_TRIANGULAR) ? j + 1 : j;
+    *hi = n;
+    break;
+  case MAT_STORAGE_UPPER_TRIANGULAR:
+  case MAT_STORAGE_UNIT_UPPER_TRIANGULAR:
+  case MAT_STORAGE_HERMITIAN_UPPER:
+  case MAT_STORAGE_SYMMETRIC_UPPER:
+    *lo = 0;
+    *hi = (storage == MAT_STORAGE_UNIT_LOWER_TRIANGULAR) ? j : j + 1;
+    break;
+  }
+  return PETSC_SUCCESS;
+}
+
+static inline PetscErrorCode MatStorageGetRowLimits(MatStorageType storage, PetscInt i, PetscInt n, PetscInt *lo, PetscInt *hi)
+{
+  switch (storage) {
+  case MAT_STORAGE_ALL:
+    *lo = 0;
+    *hi = n;
+    break;
+  case MAT_STORAGE_LOWER_TRIANGULAR:
+  case MAT_STORAGE_UNIT_LOWER_TRIANGULAR:
+  case MAT_STORAGE_HERMITIAN_LOWER:
+  case MAT_STORAGE_SYMMETRIC_LOWER:
+    *lo = 0;
+    *hi = (storage == MAT_STORAGE_UNIT_LOWER_TRIANGULAR) ? i : i + 1;
+    break;
+  case MAT_STORAGE_UPPER_TRIANGULAR:
+  case MAT_STORAGE_UNIT_UPPER_TRIANGULAR:
+  case MAT_STORAGE_HERMITIAN_UPPER:
+  case MAT_STORAGE_SYMMETRIC_UPPER:
+    *lo = (storage == MAT_STORAGE_UNIT_LOWER_TRIANGULAR) ? i + 1 : i;
+    *hi = n;
+    break;
+  }
+  return PETSC_SUCCESS;
+}
+
+static inline PetscErrorCode MatStorageTranspose(MatStorageType storage)
+{
+  switch (storage) {
+  case MAT_STORAGE_ALL:
+    return MAT_STORAGE_ALL;
+  case MAT_STORAGE_LOWER_TRIANGULAR:
+    return MAT_STORAGE_UPPER_TRIANGULAR;
+  case MAT_STORAGE_UNIT_LOWER_TRIANGULAR:
+    return MAT_STORAGE_UNIT_UPPER_TRIANGULAR;
+  case MAT_STORAGE_UPPER_TRIANGULAR:
+    return MAT_STORAGE_LOWER_TRIANGULAR;
+  case MAT_STORAGE_UNIT_UPPER_TRIANGULAR:
+    return MAT_STORAGE_UNIT_LOWER_TRIANGULAR;
+  case MAT_STORAGE_SYMMETRIC_LOWER:
+    return MAT_STORAGE_SYMMETRIC_UPPER;
+  case MAT_STORAGE_SYMMETRIC_UPPER:
+    return MAT_STORAGE_SYMMETRIC_LOWER;
+  case MAT_STORAGE_HERMITIAN_LOWER:
+    return MAT_STORAGE_HERMITIAN_UPPER;
+  case MAT_STORAGE_HERMITIAN_UPPER:
+    return MAT_STORAGE_HERMITIAN_LOWER;
+  }
+  return storage;
+}
+
 /* this is extern because it is used in MatFDColoringUseDM() which is in the DM library */
 PETSC_EXTERN PetscErrorCode MatFDColoringApply_AIJ(Mat, MatFDColoring, Vec, void *);
 
