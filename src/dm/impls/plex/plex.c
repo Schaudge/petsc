@@ -1417,7 +1417,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     PetscInt      *sizes, *hybsizes, *ghostsizes;
     PetscInt       locDepth, depth, cellHeight, dim, d;
     PetscInt       pStart, pEnd, p, gcStart, gcEnd, gcNum;
-    PetscInt       numLabels, l, maxSize = 17;
+    PetscInt       numLabels, l, maxSize = 117;
     DMPolytopeType ct0 = DM_POLYTOPE_UNKNOWN;
     MPI_Comm       comm;
     PetscMPIInt    size, rank;
