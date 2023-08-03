@@ -4098,12 +4098,24 @@ static PetscErrorCode MatGetStorageType_SeqDense(Mat mat, MatStorageType *type)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode MatSetStorageType_SeqDense(Mat mat, MatStorageType *type)
+static PetscErrorCode MatSetStorageType_SeqDense(Mat mat, MatStorageType type)
 {
   Mat_SeqDense *a = (Mat_SeqDense *)mat->data;
 
   PetscFunctionBegin;
-  a->storage_type = *type;
+  if (type != a->storage_type && a->storage_type != MAT_STORAGE_ALL) {
+    PetscScalar  *v;
+
+    PetscCall(MatDenseGetArray(mat, &v));
+    // fill entries before switch types
+    for (PetscInt j = 0; j < mat->cmap->n; j++) {
+      for (PetscInt i = 0; i < mat->rmap->n; i++) {
+        v[i + j * a->lda] = MatStorageDenseValue(a->storage_type, v, i, j, a->lda);
+      }
+    }
+    PetscCall(MatDenseRestoreArray(mat, &v));
+  }
+  a->storage_type = type;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
