@@ -5393,7 +5393,7 @@ PetscErrorCode DMPlexComputeResidual_Hybrid_Internal(DM dm, PetscFormKey key[], 
     } else {
       for (f = 0; f < Nf; ++f) {
         if (quadsF[f]) PetscCall(DMSNESGetFEGeom(coordField, chunkISF, quadsF[f], PETSC_TRUE, &geomsF[f]));
-        if (quadsN[f]) PetscCall(DMSNESGetFEGeom(coordField, chunkISF, quadsN[f], PETSC_FALSE, &geomsN[f]));
+        if (quadsN[f]) PetscCall(DMSNESGetFEGeom(coordField, chunkISN, quadsN[f], PETSC_FALSE, &geomsN[f]));
       }
     }
     /* Loop over fields */
