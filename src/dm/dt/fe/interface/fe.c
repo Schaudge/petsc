@@ -804,6 +804,45 @@ PetscErrorCode PetscFEGetCellTabulation(PetscFE fem, PetscInt k, PetscTabulation
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+PetscErrorCode PetscFEExpandFaceQuadrature(PetscFE fe, PetscQuadrature fq, PetscQuadrature *efq)
+{
+  DM               dm;
+  PetscDualSpace   sp;
+  const PetscInt  *faces;
+  const PetscReal *points, *weights;
+  DMPolytopeType   ct;
+  PetscReal       *facePoints, *faceWeights;
+  PetscInt         dim, cStart, Nf, Nc, Np, order;
+
+  PetscFunctionBegin;
+  PetscCall(PetscFEGetDualSpace(fe, &sp));
+  PetscCall(PetscDualSpaceGetDM(sp, &dm));
+  PetscCall(DMGetDimension(dm, &dim));
+  PetscCall(DMPlexGetHeightStratum(dm, 0, &cStart, NULL));
+  PetscCall(DMPlexGetConeSize(dm, cStart, &Nf));
+  PetscCall(DMPlexGetCone(dm, cStart, &faces));
+  PetscCall(PetscQuadratureGetData(fq, NULL, &Nc, &Np, &points, &weights));
+  PetscCall(PetscMalloc1(Nf * Np * dim, &facePoints));
+  PetscCall(PetscMalloc1(Nf * Np * Nc, &faceWeights));
+  for (PetscInt f = 0; f < Nf; ++f) {
+    const PetscReal  xi0[3] = {-1., -1., -1.};
+    PetscReal        v0[3], J[9], detJ;
+
+    PetscCall(DMPlexComputeCellGeometryFEM(dm, faces[f], NULL, v0, J, NULL, &detJ));
+    for (PetscInt q = 0; q < Np; ++q) {
+      CoordinatesRefToReal(dim, dim - 1, xi0, v0, J, &points[q * (dim - 1)], &facePoints[(f * Np + q) * dim]);
+      for (PetscInt c = 0; c < Nc; ++c) faceWeights[(f * Np + q) * Nc + c] = weights[q * Nc + c];
+    }
+  }
+  PetscCall(PetscQuadratureCreate(PetscObjectComm((PetscObject)fq), efq));
+  PetscCall(PetscQuadratureGetCellType(fq, &ct));
+  PetscCall(PetscQuadratureSetCellType(*efq, ct));
+  PetscCall(PetscQuadratureGetOrder(fq, &order));
+  PetscCall(PetscQuadratureSetOrder(*efq, order));
+  PetscCall(PetscQuadratureSetData(*efq, dim, Nc, Nf * Np, facePoints, faceWeights));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /*@C
   PetscFEGetFaceTabulation - Returns the tabulation of the basis functions at the face quadrature points for each face of the reference cell
 
@@ -833,31 +872,30 @@ PetscErrorCode PetscFEGetFaceTabulation(PetscFE fem, PetscInt k, PetscTabulation
   PetscValidHeaderSpecific(fem, PETSCFE_CLASSID, 1);
   PetscAssertPointer(Tf, 3);
   if (!fem->Tf) {
-    const PetscReal  xi0[3] = {-1., -1., -1.};
-    PetscReal        v0[3], J[9], detJ;
-    PetscQuadrature  fq;
-    PetscDualSpace   sp;
-    DM               dm;
-    const PetscInt  *faces;
-    PetscInt         dim, numFaces, f, npoints, q;
-    const PetscReal *points;
-    PetscReal       *facePoints;
+    PetscQuadrature fq;
 
-    PetscCall(PetscFEGetDualSpace(fem, &sp));
-    PetscCall(PetscDualSpaceGetDM(sp, &dm));
-    PetscCall(DMGetDimension(dm, &dim));
-    PetscCall(DMPlexGetConeSize(dm, 0, &numFaces));
-    PetscCall(DMPlexGetCone(dm, 0, &faces));
     PetscCall(PetscFEGetFaceQuadrature(fem, &fq));
     if (fq) {
-      PetscCall(PetscQuadratureGetData(fq, NULL, NULL, &npoints, &points, NULL));
-      PetscCall(PetscMalloc1(numFaces * npoints * dim, &facePoints));
-      for (f = 0; f < numFaces; ++f) {
-        PetscCall(DMPlexComputeCellGeometryFEM(dm, faces[f], NULL, v0, J, NULL, &detJ));
-        for (q = 0; q < npoints; ++q) CoordinatesRefToReal(dim, dim - 1, xi0, v0, J, &points[q * (dim - 1)], &facePoints[(f * npoints + q) * dim]);
+      PetscQuadrature  efq;
+      const PetscReal *facePoints;
+      PetscInt         Np, eNp;
+
+      PetscCall(PetscFEExpandFaceQuadrature(fem, fq, &efq));
+      PetscCall(PetscQuadratureGetData(fq, NULL, NULL, &Np, NULL, NULL));
+      PetscCall(PetscQuadratureGetData(efq, NULL, NULL, &eNp, &facePoints, NULL));
+      if (PetscDefined(USE_DEBUG)) {
+        PetscDualSpace sp;
+        DM             dm;
+        PetscInt       cStart, Nf;
+
+        PetscCall(PetscFEGetDualSpace(fem, &sp));
+        PetscCall(PetscDualSpaceGetDM(sp, &dm));
+        PetscCall(DMPlexGetHeightStratum(dm, 0, &cStart, NULL));
+        PetscCall(DMPlexGetConeSize(dm, cStart, &Nf));
+        PetscCheck(Nf == eNp / Np, PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "Number of faces %" PetscInt_FMT " != %" PetscInt_FMT " number of quadrature replicas", Nf, eNp / Np);
       }
-      PetscCall(PetscFECreateTabulation(fem, numFaces, npoints, facePoints, k, &fem->Tf));
-      PetscCall(PetscFree(facePoints));
+      PetscCall(PetscFECreateTabulation(fem, eNp / Np, Np, facePoints, k, &fem->Tf));
+      PetscCall(PetscQuadratureDestroy(&efq));
     }
   }
   PetscCheck(!fem->Tf || k <= fem->Tf->K, PetscObjectComm((PetscObject)fem), PETSC_ERR_ARG_OUTOFRANGE, "Requested %" PetscInt_FMT " derivatives, but only tabulated %" PetscInt_FMT, k, fem->Tf->K);

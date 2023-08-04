@@ -111,6 +111,7 @@ PETSC_EXTERN PetscErrorCode PetscFESetQuadrature(PetscFE, PetscQuadrature);
 PETSC_EXTERN PetscErrorCode PetscFEGetQuadrature(PetscFE, PetscQuadrature *);
 PETSC_EXTERN PetscErrorCode PetscFESetFaceQuadrature(PetscFE, PetscQuadrature);
 PETSC_EXTERN PetscErrorCode PetscFEGetFaceQuadrature(PetscFE, PetscQuadrature *);
+PETSC_EXTERN PetscErrorCode PetscFEExpandFaceQuadrature(PetscFE, PetscQuadrature, PetscQuadrature *);
 PETSC_EXTERN PetscErrorCode PetscFECopyQuadrature(PetscFE, PetscFE);
 PETSC_EXTERN PetscErrorCode PetscFEGetNumDof(PetscFE, const PetscInt **);
 
