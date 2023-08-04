@@ -1677,6 +1677,21 @@ static inline PetscBool MatStorageIsLower(MatStorageType storage)
   return PETSC_SUCCESS;
 }
 
+static inline PetscBool MatStorageIsUpper(MatStorageType storage)
+{
+  switch (storage) {
+  case MAT_STORAGE_UPPER_TRIANGULAR:
+  case MAT_STORAGE_UNIT_UPPER_TRIANGULAR:
+  case MAT_STORAGE_SYMMETRIC_UPPER:
+  case MAT_STORAGE_HERMITIAN_UPPER:
+    return PETSC_TRUE;
+    break;
+  default:
+    return PETSC_FALSE;
+  }
+  return PETSC_SUCCESS;
+}
+
 static inline PetscBool MatStorageIsLowerTriangular(MatStorageType storage)
 {
   switch (storage) {
@@ -1715,12 +1730,13 @@ static inline PetscBool MatStorageIsUnitDiagonal(MatStorageType storage)
   }
 }
 
+// for column-major storage
 static inline PetscScalar MatStorageDenseValue(MatStorageType storage, const PetscScalar *v, PetscInt i, PetscInt j, PetscBLASInt ld)
 {
-  PetscInt idx   = j + i * ld;
-  PetscInt idx_t = i + j * ld;
+  PetscInt idx   = i + j * ld;
+  PetscInt idx_t = j + i * ld;
   switch (storage) {
-  case MAT_STORAGE_ALL:
+  case MAT_STORAGE_FULL:
     return v[idx];
   case MAT_STORAGE_LOWER_TRIANGULAR:
     return i < j ? 0.0 : v[idx];
@@ -1745,7 +1761,7 @@ static inline PetscScalar MatStorageDenseValue(MatStorageType storage, const Pet
 static inline PetscErrorCode MatStorageGetColumnLimits(MatStorageType storage, PetscInt j, PetscInt n, PetscInt *lo, PetscInt *hi)
 {
   switch (storage) {
-  case MAT_STORAGE_ALL:
+  case MAT_STORAGE_FULL:
     *lo = 0;
     *hi = n;
     break;
@@ -1770,7 +1786,7 @@ static inline PetscErrorCode MatStorageGetColumnLimits(MatStorageType storage, P
 static inline PetscErrorCode MatStorageGetRowLimits(MatStorageType storage, PetscInt i, PetscInt n, PetscInt *lo, PetscInt *hi)
 {
   switch (storage) {
-  case MAT_STORAGE_ALL:
+  case MAT_STORAGE_FULL:
     *lo = 0;
     *hi = n;
     break;
@@ -1795,8 +1811,8 @@ static inline PetscErrorCode MatStorageGetRowLimits(MatStorageType storage, Pets
 static inline PetscErrorCode MatStorageTranspose(MatStorageType storage)
 {
   switch (storage) {
-  case MAT_STORAGE_ALL:
-    return MAT_STORAGE_ALL;
+  case MAT_STORAGE_FULL:
+    return MAT_STORAGE_FULL;
   case MAT_STORAGE_LOWER_TRIANGULAR:
     return MAT_STORAGE_UPPER_TRIANGULAR;
   case MAT_STORAGE_UNIT_LOWER_TRIANGULAR:

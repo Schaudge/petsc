@@ -202,7 +202,7 @@ PETSC_EXTERN const char *const MatFactorTypes[];
   MatStorageType - How values in memory correspond to the represented matrix
 
   Values:
-+ `MAT_STORAGE_ALL`                   - All values stored in memory are entries in the matrix
++ `MAT_STORAGE_FULL`                  - All values stored in memory are entries in the matrix
 . `MAT_STORAGE_LOWER_TRIANGULAR`      - Lower-triangular values (`A[i,j]` for `i >= j`) are in the matrix; strictly upper-triangular values (`A[i,j]` for `i < j`) are ignored
 . `MAT_STORAGE_UNIT_LOWER_TRIANGULAR` - Strictly lower-triangular values (`A[i,j]` for `i > j`) are in the matrix; diagonal values are implicitly 1 (stored values are ignored); strictly upper-triangular values (`A[i,j]` for `i < j`) are implicitly 0 (stored valued are ignored)
 . `MAT_STORAGE_UPPER_TRIANGULAR`      - Upper-triangular values (`A[i,j]` for `i <= j`) are in the matrix; strictly lower-triangular values (`A[i,j]` for `i > j`) are implicitly 0 (stored values are ignored)
@@ -217,7 +217,7 @@ PETSC_EXTERN const char *const MatFactorTypes[];
 .seealso: [](ch_matrices), `MatSetValue()`, `MatSetValues()`
 E*/
 typedef enum {
-  MAT_STORAGE_ALL,
+  MAT_STORAGE_FULL,
   MAT_STORAGE_LOWER_TRIANGULAR,
   MAT_STORAGE_UNIT_LOWER_TRIANGULAR,
   MAT_STORAGE_UPPER_TRIANGULAR,

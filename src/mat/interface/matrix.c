@@ -47,7 +47,7 @@ PetscLogEvent MAT_H2Opus_Build, MAT_H2Opus_Compress, MAT_H2Opus_Orthog, MAT_H2Op
 
 const char *const MatFactorTypes[] = {"NONE", "LU", "CHOLESKY", "ILU", "ICC", "ILUDT", "QR", "MatFactorType", "MAT_FACTOR_", NULL};
 
-const char *const MatStorageTypes[] = {"all", "lower_triangular", "unit_lower_triangular", "upper_triangular", "unit_upper_triangular", "hermitian_lower", "hermitian_upper", "symmetric_lower", "symmetric_upper", "MatStorageType", "MAT_STORAGE_",
+const char *const MatStorageTypes[] = {"full", "lower_triangular", "unit_lower_triangular", "upper_triangular", "unit_upper_triangular", "hermitian_lower", "hermitian_upper", "symmetric_lower", "symmetric_upper", "MatStorageType", "MAT_STORAGE_",
                                        NULL};
 
 /*@
@@ -11235,7 +11235,7 @@ PetscErrorCode MatGetStorageType(Mat mat, MatStorageType *type)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(mat, MAT_CLASSID, 1);
   PetscAssertPointer(type, 2);
-  *type = MAT_STORAGE_ALL;
+  *type = MAT_STORAGE_FULL;
   PetscTryMethod((PetscObject)mat, "MatGetStorageType_C", (Mat, MatStorageType *), (mat, type));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

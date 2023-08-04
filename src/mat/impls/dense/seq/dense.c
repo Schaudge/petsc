@@ -9,8 +9,8 @@
 #include <petscblaslapack.h>
 #include <../src/mat/impls/aij/seq/aij.h>
 
-#define PetscCheckStorageAll(mat) \
-  PetscCheck((mat)->storage_type == MAT_STORAGE_ALL, PetscObjectComm((PetscObject)A), PETSC_ERR_ARG_WRONGSTATE, "%s requires all storage, incompatible with %s", PETSC_FUNCTION_NAME, MatStorageTypes[(mat)->storage_type]);
+#define PetscCheckStorageFull(mat) \
+  PetscCheck((mat)->storage_type == MAT_STORAGE_FULL, PetscObjectComm((PetscObject)A), PETSC_ERR_ARG_WRONGSTATE, "%s requires all storage, incompatible with %s", PETSC_FUNCTION_NAME, MatStorageTypes[(mat)->storage_type]);
 
 PetscErrorCode MatSeqDenseSymmetrize_Private(Mat A, PetscBool hermitian)
 {
@@ -19,7 +19,7 @@ PetscErrorCode MatSeqDenseSymmetrize_Private(Mat A, PetscBool hermitian)
   PetscScalar  *v;
 
   PetscFunctionBegin;
-  PetscCheckStorageAll(mat);
+  PetscCheckStorageFull(mat);
   PetscCheck(A->rmap->n == A->cmap->n, PetscObjectComm((PetscObject)A), PETSC_ERR_SUP, "Cannot symmetrize a rectangular matrix");
   PetscCall(MatDenseGetArray(A, &v));
   if (!hermitian) {
@@ -35,6 +35,43 @@ PetscErrorCode MatSeqDenseSymmetrize_Private(Mat A, PetscBool hermitian)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode MatSolve_SeqDense_Triangular_Internal(Mat A, Vec B, Vec X, const char *trans)
+{
+  PetscBLASInt       m, n, minmn;
+  const PetscScalar *b;
+  PetscScalar       *x;
+  Mat_SeqDense      *mat     = (Mat_SeqDense *)A->data;
+  MatStorageType     storage = mat->storage_type;
+  PetscBool          lower   = MatStorageIsLowerTriangular(storage);
+  PetscBool          unit    = MatStorageIsUnitDiagonal(storage);
+  PetscBLASInt       _One    = 1;
+
+  PetscFunctionBegin;
+  PetscCheck(MatStorageIsTriangular(storage), PetscObjectComm((PetscObject)A), PETSC_ERR_ARG_WRONGSTATE, "Storage type %s is not triangular, cannot solve directly", MatStorageTypes[storage]);
+  if (!A->rmap->n || !A->cmap->n) {
+    PetscCall(VecZeroEntries(X));
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
+  PetscCall(PetscBLASIntCast(A->rmap->n, &m));
+  PetscCall(PetscBLASIntCast(A->cmap->n, &n));
+  minmn = PetscMin(m, n);
+  PetscCall(VecGetArrayRead(B, &b));
+  PetscCall(VecGetArrayWrite(X, &x));
+  PetscCall(PetscArraycpy(x, b, minmn));
+  PetscCall(PetscArrayzero(&x[minmn], (trans[0] == 'N' ? n  : m) - minmn));
+  PetscCallBLAS("BLAStrmv", BLAStrsv_(lower ? "L" : "U", trans, unit ? "U" : "N", &minmn, mat->v, &mat->lda, x, &_One));
+  PetscCall(VecRestoreArrayWrite(X, &x));
+  PetscCall(VecRestoreArrayRead(B, &b));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatSolve_SeqDense_Triangular(Mat A, Vec B, Vec X)
+{
+  PetscFunctionBegin;
+  PetscCall(MatSolve_SeqDense_Triangular_Internal(A, B, X, "N"));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode MatSeqDenseInvertFactors_Private(Mat A)
 {
   Mat_SeqDense *mat = (Mat_SeqDense *)A->data;
@@ -44,7 +81,7 @@ PetscErrorCode MatSeqDenseInvertFactors_Private(Mat A)
   if (!A->rmap->n || !A->cmap->n) PetscFunctionReturn(PETSC_SUCCESS);
   PetscCall(PetscBLASIntCast(A->cmap->n, &n));
   if (A->factortype == MAT_FACTOR_LU) {
-    PetscCheckStorageAll(mat);
+    PetscCheckStorageFull(mat);
     PetscCheck(mat->pivots, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Pivots not present");
     if (!mat->fwork) {
       mat->lfwork = n;
@@ -63,7 +100,7 @@ PetscErrorCode MatSeqDenseInvertFactors_Private(Mat A)
       PetscCall(PetscFPTrapPush(PETSC_FP_TRAP_OFF));
       PetscCallBLAS("LAPACKpotri", LAPACKpotri_(lower ? "L" : "U", &n, mat->v, &mat->lda, &info));
       PetscCall(PetscFPTrapPop());
-      if (mat->storage_type == MAT_STORAGE_ALL) PetscCall(MatSeqDenseSymmetrize_Private(A, PETSC_TRUE));
+      if (mat->storage_type == MAT_STORAGE_FULL) PetscCall(MatSeqDenseSymmetrize_Private(A, PETSC_TRUE));
 #if defined(PETSC_USE_COMPLEX)
     } else if (A->hermitian == PETSC_BOOL3_TRUE) {
       PetscCheck(mat->pivots, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Pivots not present");
@@ -71,7 +108,7 @@ PetscErrorCode MatSeqDenseInvertFactors_Private(Mat A)
       PetscCall(PetscFPTrapPush(PETSC_FP_TRAP_OFF));
       PetscCallBLAS("LAPACKhetri", LAPACKhetri_(lower ? "L" : "U", &n, mat->v, &mat->lda, mat->pivots, mat->fwork, &info));
       PetscCall(PetscFPTrapPop());
-      if (mat->storage_type == MAT_STORAGE_ALL) PetscCall(MatSeqDenseSymmetrize_Private(A, PETSC_TRUE));
+      if (mat->storage_type == MAT_STORAGE_FULL) PetscCall(MatSeqDenseSymmetrize_Private(A, PETSC_TRUE));
 #endif
     } else { /* symmetric case */
       PetscCheck(mat->pivots, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Pivots not present");
@@ -79,7 +116,7 @@ PetscErrorCode MatSeqDenseInvertFactors_Private(Mat A)
       PetscCall(PetscFPTrapPush(PETSC_FP_TRAP_OFF));
       PetscCallBLAS("LAPACKsytri", LAPACKsytri_(lower ? "L" : "U", &n, mat->v, &mat->lda, mat->pivots, mat->fwork, &info));
       PetscCall(PetscFPTrapPop());
-      if (mat->storage_type == MAT_STORAGE_ALL) PetscCall(MatSeqDenseSymmetrize_Private(A, PETSC_FALSE));
+      if (mat->storage_type == MAT_STORAGE_FULL) PetscCall(MatSeqDenseSymmetrize_Private(A, PETSC_FALSE));
     }
     PetscCheck(!info, PETSC_COMM_SELF, PETSC_ERR_MAT_CH_ZRPVT, "Bad Inversion: zero pivot in row %" PetscInt_FMT, (PetscInt)info - 1);
     PetscCall(PetscLogFlops((1.0 * A->cmap->n * A->cmap->n * A->cmap->n) / 3.0));
@@ -203,38 +240,40 @@ PETSC_INTERN PetscErrorCode MatConvert_SeqAIJ_SeqDense(Mat A, MatType newtype, M
 
 PETSC_INTERN PetscErrorCode MatConvert_SeqDense_SeqAIJ(Mat A, MatType newtype, MatReuse reuse, Mat *newmat)
 {
-  Mat           B = NULL;
-  Mat_SeqDense *a = (Mat_SeqDense *)A->data;
-  PetscInt      i, j;
-  PetscInt     *rows, *nnz;
-  MatScalar    *aa = a->v, *vals;
+  Mat            B = NULL;
+  Mat_SeqDense  *a = (Mat_SeqDense *)A->data;
+  PetscInt       i, j;
+  PetscInt      *rows, *nnz;
+  MatScalar     *aa      = a->v, *vals;
+  MatStorageType storage = a->storage_type;
 
   PetscFunctionBegin;
-  PetscCheckStorageAll(a);
   PetscCall(PetscCalloc3(A->rmap->n, &rows, A->rmap->n, &nnz, A->rmap->n, &vals));
   if (reuse != MAT_REUSE_MATRIX) {
     PetscCall(MatCreate(PetscObjectComm((PetscObject)A), &B));
     PetscCall(MatSetSizes(B, A->rmap->n, A->cmap->n, A->rmap->N, A->cmap->N));
     PetscCall(MatSetType(B, MATSEQAIJ));
     for (j = 0; j < A->cmap->n; j++) {
-      for (i = 0; i < A->rmap->n; i++)
-        if (aa[i] != 0.0 || (i == j && A->cmap->n == A->rmap->n)) ++nnz[i];
-      aa += a->lda;
+      for (i = 0; i < A->rmap->n; i++) {
+        PetscScalar v = MatStorageDenseValue(storage, aa, i, j, a->lda);
+
+        if (v != 0.0 || (i == j && A->cmap->n == A->rmap->n)) ++nnz[i];
+      }
     }
     PetscCall(MatSeqAIJSetPreallocation(B, PETSC_DETERMINE, nnz));
   } else B = *newmat;
-  aa = a->v;
   for (j = 0; j < A->cmap->n; j++) {
     PetscInt numRows = 0;
 
     for (i = 0; i < A->rmap->n; i++) {
-      if (aa[i] != 0.0 || (i == j && A->cmap->n == A->rmap->n)) {
+      PetscScalar v = MatStorageDenseValue(storage, aa, i, j, a->lda);
+
+      if (v != 0.0 || (i == j && A->cmap->n == A->rmap->n)) {
         rows[numRows]   = i;
-        vals[numRows++] = aa[i];
+        vals[numRows++] = v;
       }
     }
     PetscCall(MatSetValues(B, numRows, rows, 1, &j, vals, INSERT_VALUES));
-    aa += a->lda;
   }
   PetscCall(PetscFree3(rows, nnz, vals));
   PetscCall(MatAssemblyBegin(B, MAT_FINAL_ASSEMBLY));
@@ -320,7 +359,7 @@ PetscErrorCode MatShift_SeqDense(Mat A, PetscScalar alpha)
   PetscInt      j, k;
 
   PetscFunctionBegin;
-  PetscCheck(a->storage_type != MAT_STORAGE_UNIT_LOWER_TRIANGULAR && a->storage_type != MAT_STORAGE_UNIT_UPPER_TRIANGULAR, PetscObjectComm((PetscObject)A), PETSC_ERR_ARG_WRONGSTATE, "Cannot shift unit-diagonal matrix (storage type %s)", MatStorageTypes[a->storage_type]);
+  PetscCheck(!MatStorageIsUnitDiagonal(a->storage_type), PetscObjectComm((PetscObject)A), PETSC_ERR_ARG_WRONGSTATE, "Cannot shift unit-diagonal matrix (storage type %s)", MatStorageTypes[a->storage_type]);
   PetscCall(MatDenseGetArray(A, &v));
   k = PetscMin(A->rmap->n, A->cmap->n);
   for (j = 0; j < k; j++) v[j + j * a->lda] += alpha;
@@ -398,7 +437,6 @@ PetscErrorCode MatDuplicateNoCreate_SeqDense(Mat newi, Mat A, MatDuplicateOption
   PetscCall(PetscLayoutReference(A->cmap, &newi->cmap));
   if (cpvalues == MAT_SHARE_NONZERO_PATTERN) { /* propagate LDA */
     PetscCall(MatDenseSetLDA(newi, lda));
-    PetscCall(MatSetStorageType(newi, mat->storage_type));
   }
   PetscCall(PetscObjectTypeCompare((PetscObject)newi, MATSEQDENSE, &isdensecpu));
   if (isdensecpu) PetscCall(MatSeqDenseSetPreallocation(newi, NULL));
@@ -418,6 +456,7 @@ PetscErrorCode MatDuplicateNoCreate_SeqDense(Mat newi, Mat A, MatDuplicateOption
     PetscCall(MatDenseRestoreArrayWrite(newi, &v));
     PetscCall(MatDenseRestoreArrayRead(A, &av));
   }
+  PetscCall(MatSetStorageType(newi, mat->storage_type));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -454,7 +493,7 @@ static PetscErrorCode MatSolve_SeqDense_Internal_Cholesky(Mat A, PetscScalar *x,
   PetscBLASInt  info;
 
   PetscFunctionBegin;
-  if (mat->storage_type == MAT_STORAGE_HERMITIAN_UPPER) lower = PETSC_FALSE;
+  if (MatStorageIsUpper(mat->storage_type)) lower = PETSC_FALSE;
   if (A->spd == PETSC_BOOL3_TRUE) {
     if (PetscDefined(USE_COMPLEX) && T) PetscCall(MatConjugate_SeqDense(A));
     PetscCall(PetscFPTrapPush(PETSC_FP_TRAP_OFF));
@@ -828,7 +867,7 @@ PetscErrorCode MatLUFactor_SeqDense(Mat A, IS row, IS col, const MatFactorInfo *
   PetscBLASInt  n, m, info;
 
   PetscFunctionBegin;
-  PetscCheckStorageAll(mat);
+  PetscCheckStorageFull(mat);
   PetscCall(PetscBLASIntCast(A->cmap->n, &n));
   PetscCall(PetscBLASIntCast(A->rmap->n, &m));
   if (!mat->pivots) { PetscCall(PetscMalloc1(A->rmap->n, &mat->pivots)); }
@@ -880,7 +919,7 @@ PetscErrorCode MatCholeskyFactor_SeqDense(Mat A, IS perm, const MatFactorInfo *f
   PetscBool     lower = PETSC_TRUE;
 
   PetscFunctionBegin;
-  if (mat->storage_type == MAT_STORAGE_HERMITIAN_UPPER) lower = PETSC_FALSE;
+  if (MatStorageIsUpper(mat->storage_type)) lower = PETSC_FALSE;
   PetscCall(PetscBLASIntCast(A->cmap->n, &n));
   if (!A->rmap->n || !A->cmap->n) PetscFunctionReturn(PETSC_SUCCESS);
   if (A->spd == PETSC_BOOL3_TRUE) {
@@ -962,7 +1001,7 @@ PetscErrorCode MatQRFactor_SeqDense(Mat A, IS col, const MatFactorInfo *minfo)
   PetscBLASInt  n, m, info, min, max;
 
   PetscFunctionBegin;
-  PetscCheckStorageAll(mat);
+  PetscCheckStorageFull(mat);
   PetscCall(PetscBLASIntCast(A->cmap->n, &n));
   PetscCall(PetscBLASIntCast(A->rmap->n, &m));
   max = PetscMax(m, n);
@@ -1020,7 +1059,7 @@ PetscErrorCode MatQRFactorSymbolic_SeqDense(Mat fact, Mat A, IS row, const MatFa
   Mat_SeqDense *mat = (Mat_SeqDense *)A->data;
 
   PetscFunctionBegin;
-  PetscCheckStorageAll(mat);
+  PetscCheckStorageFull(mat);
   fact->assembled    = PETSC_TRUE;
   fact->preallocated = PETSC_TRUE;
   PetscCall(PetscObjectComposeFunction((PetscObject)fact, "MatQRFactorNumeric_C", MatQRFactorNumeric_SeqDense));
@@ -1038,13 +1077,13 @@ PETSC_INTERN PetscErrorCode MatGetFactor_seqdense_petsc(Mat A, MatFactorType fty
   PetscCall(MatSetType(*fact, MATDENSE));
   (*fact)->trivialsymbolic = PETSC_TRUE;
   if (ftype == MAT_FACTOR_LU || ftype == MAT_FACTOR_ILU) {
-    PetscCheckStorageAll(mat);
+    PetscCheckStorageFull(mat);
     (*fact)->ops->lufactorsymbolic  = MatLUFactorSymbolic_SeqDense;
     (*fact)->ops->ilufactorsymbolic = MatLUFactorSymbolic_SeqDense;
   } else if (ftype == MAT_FACTOR_CHOLESKY || ftype == MAT_FACTOR_ICC) {
     (*fact)->ops->choleskyfactorsymbolic = MatCholeskyFactorSymbolic_SeqDense;
   } else if (ftype == MAT_FACTOR_QR) {
-    PetscCheckStorageAll(mat);
+    PetscCheckStorageFull(mat);
     PetscCall(PetscObjectComposeFunction((PetscObject)(*fact), "MatQRFactorSymbolic_C", MatQRFactorSymbolic_SeqDense));
   }
   (*fact)->factortype = ftype;
@@ -1424,7 +1463,7 @@ static PetscErrorCode MatGetRow_SeqDense(Mat A, PetscInt row, PetscInt *ncols, P
   PetscInt      i;
 
   PetscFunctionBegin;
-  PetscCheckStorageAll(mat);
+  PetscCheckStorageFull(mat);
   *ncols = A->cmap->n;
   if (cols) {
     PetscCall(PetscMalloc1(A->cmap->n, cols));
@@ -2143,13 +2182,9 @@ static PetscErrorCode MatEqual_SeqDense(Mat A1, Mat A2, PetscBool *flg)
     *flg = PETSC_FALSE;
     PetscFunctionReturn(PETSC_SUCCESS);
   }
-  if (mat1->storage_type != mat2->storage_type) {
-    *flg = PETSC_FALSE;
-    PetscFunctionReturn(PETSC_SUCCESS);
-  }
   PetscCall(MatDenseGetArrayRead(A1, &v1));
   PetscCall(MatDenseGetArrayRead(A2, &v2));
-  if (mat1->storage_type == MAT_STORAGE_ALL) {
+  if (mat1->storage_type == MAT_STORAGE_FULL && mat2->storage_type == MAT_STORAGE_FULL) {
     for (i = 0; i < A1->cmap->n; i++) {
       PetscCall(PetscArraycmp(v1, v2, A1->rmap->n, flg));
       if (*flg == PETSC_FALSE) PetscFunctionReturn(PETSC_SUCCESS);
@@ -2157,12 +2192,13 @@ static PetscErrorCode MatEqual_SeqDense(Mat A1, Mat A2, PetscBool *flg)
       v2 += mat2->lda;
     }
   } else {
-    MatStorageType storage = mat1->storage_type;
+    MatStorageType storage1 = mat1->storage_type;
+    MatStorageType storage2 = mat2->storage_type;
 
     for (PetscInt j = 0; j < A2->cmap->n; j++) {
       for (PetscInt i = 0; i < A1->rmap->n; i++) {
-        PetscScalar _v1 = MatStorageDenseValue(storage, v1, i, j, mat1->lda);
-        PetscScalar _v2 = MatStorageDenseValue(storage, v2, i, j, mat2->lda);
+        PetscScalar _v1 = MatStorageDenseValue(storage1, v1, i, j, mat1->lda);
+        PetscScalar _v2 = MatStorageDenseValue(storage2, v2, i, j, mat2->lda);
 
         if (_v1 != _v2) {
           *flg = PETSC_FALSE;
@@ -2251,7 +2287,7 @@ PetscErrorCode MatNorm_SeqDense(Mat A, NormType type, PetscReal *nrm)
   PetscCall(MatDenseGetArrayRead(A, (const PetscScalar **)&vv));
   PetscCall(MatDenseGetLDA(A, &lda));
   if (type == NORM_FROBENIUS) {
-    if (lda > m || storage != MAT_STORAGE_ALL) {
+    if (lda > m || storage != MAT_STORAGE_FULL) {
       for (j = 0; j < A->cmap->n; j++) {
         for (i = 0; i < m; i++) {
           PetscScalar v = MatStorageDenseValue(storage, vv, i, j, mat->lda);
@@ -2369,7 +2405,7 @@ static PetscErrorCode MatZeroRows_SeqDense(Mat A, PetscInt N, const PetscInt row
   const PetscScalar *xx;
 
   PetscFunctionBegin;
-  PetscCheckStorageAll(l);
+  PetscCheckStorageFull(l);
   if (PetscDefined(USE_DEBUG)) {
     for (i = 0; i < N; i++) {
       PetscCheck(rows[i] >= 0, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Negative row requested to be zeroed");
@@ -3268,8 +3304,8 @@ static PetscErrorCode MatMatMultNumeric_SeqDense_SeqDense_Internal(Mat A, Mat B,
   MatStorageType b_storage = b->storage_type;
 
   PetscFunctionBegin;
-  PetscCheck(a_storage == MAT_STORAGE_ALL || b_storage == MAT_STORAGE_ALL, PetscObjectComm((PetscObject)A), PETSC_ERR_SUP, "One of the two matrix storage types (%s, %s), must be all", MatStorageTypes[a_storage], MatStorageTypes[b_storage]);
-  if (a_storage == MAT_STORAGE_ALL && b_storage == MAT_STORAGE_ALL) {
+  PetscCheck(a_storage == MAT_STORAGE_FULL || b_storage == MAT_STORAGE_FULL, PetscObjectComm((PetscObject)A), PETSC_ERR_SUP, "One of the two matrix storage types (%s, %s), must be all", MatStorageTypes[a_storage], MatStorageTypes[b_storage]);
+  if (a_storage == MAT_STORAGE_FULL && b_storage == MAT_STORAGE_FULL) {
     PetscCall(MatMatMultNumeric_SeqDense_General_SeqDense_General_Internal(A, B, C, trans_a, trans_b, PETSC_FALSE));
   } else if (MatStorageIsTriangular(a_storage)) {
     PetscCall(MatMatMultNumeric_SeqDense_Triangular_SeqDense_General_Internal(A, B, C, "L", trans_a, trans_b));
@@ -3494,7 +3530,7 @@ PetscErrorCode MatGetColumnVector_SeqDense(Mat A, Vec v, PetscInt col)
   const PetscScalar *aa;
 
   PetscFunctionBegin;
-  PetscCheckStorageAll(a);
+  PetscCheckStorageFull(a);
   PetscCheck(!A->factortype, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Not for factored matrix");
   PetscCall(MatDenseGetArrayRead(A, &aa));
   PetscCall(VecGetArray(v, &x));
@@ -3595,7 +3631,7 @@ static PetscErrorCode MatDenseGetColumn_SeqDense(Mat A, PetscInt col, PetscScala
   PetscScalar  *v;
 
   PetscFunctionBegin;
-  PetscCheckStorageAll(a);
+  PetscCheckStorageFull(a);
   PetscCheck(!A->factortype, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Not for factored matrix");
   PetscCall(MatDenseGetArray(A, &v));
   *vals = v + col * a->lda;
@@ -3961,7 +3997,7 @@ PetscErrorCode MatDenseGetColumnVec_SeqDense(Mat A, PetscInt col, Vec *v)
   Mat_SeqDense *a = (Mat_SeqDense *)A->data;
 
   PetscFunctionBegin;
-  PetscCheckStorageAll(a);
+  PetscCheckStorageFull(a);
   PetscCheck(!a->vecinuse, PETSC_COMM_SELF, PETSC_ERR_ORDER, "Need to call MatDenseRestoreColumnVec() first");
   PetscCheck(!a->matinuse, PETSC_COMM_SELF, PETSC_ERR_ORDER, "Need to call MatDenseRestoreSubMatrix() first");
   if (!a->cvec) PetscCall(MatDenseCreateColumnVec_Private(A, &a->cvec));
@@ -3991,7 +4027,7 @@ PetscErrorCode MatDenseGetColumnVecRead_SeqDense(Mat A, PetscInt col, Vec *v)
   Mat_SeqDense *a = (Mat_SeqDense *)A->data;
 
   PetscFunctionBegin;
-  PetscCheckStorageAll(a);
+  PetscCheckStorageFull(a);
   PetscCheck(!a->vecinuse, PETSC_COMM_SELF, PETSC_ERR_ORDER, "Need to call MatDenseRestoreColumnVec() first");
   PetscCheck(!a->matinuse, PETSC_COMM_SELF, PETSC_ERR_ORDER, "Need to call MatDenseRestoreSubMatrix() first");
   if (!a->cvec) PetscCall(MatDenseCreateColumnVec_Private(A, &a->cvec));
@@ -4023,7 +4059,7 @@ PetscErrorCode MatDenseGetColumnVecWrite_SeqDense(Mat A, PetscInt col, Vec *v)
   Mat_SeqDense *a = (Mat_SeqDense *)A->data;
 
   PetscFunctionBegin;
-  PetscCheckStorageAll(a);
+  PetscCheckStorageFull(a);
   PetscCheck(!a->vecinuse, PETSC_COMM_SELF, PETSC_ERR_ORDER, "Need to call MatDenseRestoreColumnVec() first");
   PetscCheck(!a->matinuse, PETSC_COMM_SELF, PETSC_ERR_ORDER, "Need to call MatDenseRestoreSubMatrix() first");
   if (!a->cvec) PetscCall(MatDenseCreateColumnVec_Private(A, &a->cvec));
@@ -4053,7 +4089,7 @@ PetscErrorCode MatDenseGetSubMatrix_SeqDense(Mat A, PetscInt rbegin, PetscInt re
   Mat_SeqDense *a = (Mat_SeqDense *)A->data;
 
   PetscFunctionBegin;
-  if (rbegin != cbegin || rend != cend) PetscCheckStorageAll(a);
+  if (rbegin != cbegin || rend != cend) PetscCheckStorageFull(a);
   PetscCheck(!a->vecinuse, PETSC_COMM_SELF, PETSC_ERR_ORDER, "Need to call MatDenseRestoreColumnVec() first");
   PetscCheck(!a->matinuse, PETSC_COMM_SELF, PETSC_ERR_ORDER, "Need to call MatDenseRestoreSubMatrix() first");
   if (a->cmat && (cend - cbegin != a->cmat->cmap->N || rend - rbegin != a->cmat->rmap->N)) PetscCall(MatDestroy(&a->cmat));
@@ -4103,17 +4139,25 @@ static PetscErrorCode MatSetStorageType_SeqDense(Mat mat, MatStorageType type)
   Mat_SeqDense *a = (Mat_SeqDense *)mat->data;
 
   PetscFunctionBegin;
-  if (type != a->storage_type && a->storage_type != MAT_STORAGE_ALL) {
+  if (type != a->storage_type && a->storage_type != MAT_STORAGE_FULL) {
     PetscScalar  *v;
 
     PetscCall(MatDenseGetArray(mat, &v));
-    // fill entries before switch types
+    // fill entries before switching types
     for (PetscInt j = 0; j < mat->cmap->n; j++) {
       for (PetscInt i = 0; i < mat->rmap->n; i++) {
         v[i + j * a->lda] = MatStorageDenseValue(a->storage_type, v, i, j, a->lda);
       }
     }
     PetscCall(MatDenseRestoreArray(mat, &v));
+  }
+  if (mat->factortype == MAT_FACTOR_NONE) {
+    if (MatStorageIsTriangular(type)) {
+      // set up triangular solve
+      mat->ops->solve = MatSolve_SeqDense_Triangular;
+    } else {
+      mat->ops->solve = NULL;
+    }
   }
   a->storage_type = type;
   PetscFunctionReturn(PETSC_SUCCESS);
