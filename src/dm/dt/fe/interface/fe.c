@@ -2346,6 +2346,12 @@ PetscErrorCode PetscFEEvaluateFieldJets_Hybrid_Internal(PetscDS ds, PetscInt Nf,
             for (d = 0; d < dEt; ++d) u_x[(fOffset + c) * dE + d] += Dq[cidx * dEt + d] * coefficients[dOffset + b];
           }
         }
+        // Offset for replica (side)
+        if (s) {
+          fegeomNbr->J    = &fegeomNbr->J[fegeomNbr->dim * fegeomNbr->dimEmbed * fegeomNbr->numPoints];
+          fegeomNbr->invJ = &fegeomNbr->invJ[fegeomNbr->dim * fegeomNbr->dimEmbed * fegeomNbr->numPoints];
+          fegeomNbr->detJ = &fegeomNbr->detJ[fegeomNbr->numPoints];
+        }
         PetscCall(PetscFEPushforward(fe, isCohesive ? fegeom : fegeomNbr, 1, &u[fOffset]));
         PetscCall(PetscFEPushforwardGradient(fe, isCohesive ? fegeom : fegeomNbr, 1, &u_x[fOffset * dE]));
         if (u_t) {
