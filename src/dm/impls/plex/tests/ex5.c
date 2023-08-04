@@ -753,6 +753,9 @@ static PetscErrorCode CreateFaultLabel(DM dm)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/*
+  Create a displacement field, and some number of vector fault fields
+*/
 static PetscErrorCode CreateDiscretization(DM dm, AppCtx *user)
 {
   PetscFE  fe;
@@ -824,8 +827,6 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
   PetscCall(PetscObjectSetOptionsPrefix((PetscObject)*dm, "orig_"));
   PetscCall(DMPlexDistributeSetDefault(*dm, PETSC_FALSE));
   PetscCall(DMSetFromOptions(*dm));
-  PetscCall(DMGetLabel(*dm, "material", &matLabel));
-  if (matLabel) PetscCall(DMPlexLabelComplete(*dm, matLabel));
   PetscCall(DMViewFromOptions(*dm, NULL, "-dm_view"));
   PetscCall(DMHasLabel(*dm, "fault", &hasFault));
   if (hasFault) {
@@ -862,6 +863,8 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
     PetscCall(DMDestroy(dm));
     *dm = dmHybrid;
   }
+  PetscCall(DMGetLabel(*dm, "material", &matLabel));
+  if (matLabel) PetscCall(DMPlexLabelComplete(*dm, matLabel));
   if (user->testPartition && size > 1) {
     PetscPartitioner part;
     PetscInt        *sizes  = NULL;
