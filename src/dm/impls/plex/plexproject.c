@@ -294,7 +294,7 @@ static PetscErrorCode DMProjectPoint_Field_Private(DM dm, PetscDS ds, DM dmIn, D
         fegeom.detJ = &cgeom->detJ[tp];
       }
       if (coefficients) {
-        if (isCohesiveIn) PetscCall(PetscFEEvaluateFieldJets_Hybrid_Internal(dsIn, NfIn, 0, tp, T, face, qpt, T, &fegeom, coefficients, coefficients_t, u, u_x, u_t));
+        if (isCohesiveIn) PetscCall(PetscFEEvaluateFieldJets_Hybrid_Internal(dsIn, NfIn, 0, tp, T, face, qpt, T, &fegeom, NULL, coefficients, coefficients_t, u, u_x, u_t));
         else PetscCall(PetscFEEvaluateFieldJets_Internal(dsIn, NfIn, 0, tp, T, &fegeom, coefficients, coefficients_t, u, u_x, u_t));
       }
       if (dsAux) PetscCall(PetscFEEvaluateFieldJets_Internal(dsAux, NfAux, 0, tp, TAux, &fegeom, coefficientsAux, coefficientsAux_t, a, a_x, a_t));
