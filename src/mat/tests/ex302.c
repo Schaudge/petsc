@@ -84,8 +84,9 @@ static PetscErrorCode testStorage(MatStorageType storage, PetscInt m, PetscInt n
 
   if (m == n && MatStorageIsTriangular(storage)) {
     // Compare triangular solve to factorization of full matrix
-    Mat A_full_fac;
-    Vec b, x, x_full;
+    Mat       A_full_fac;
+    Vec       b, x, x_full;
+    PetscReal err;
 
     PetscCall(MatCreateVecs(A, &x, &b));
     PetscCall(VecDuplicate(x, &x_full));
@@ -93,10 +94,19 @@ static PetscErrorCode testStorage(MatStorageType storage, PetscInt m, PetscInt n
     PetscCall(MatLUFactorSymbolic(A_full_fac, A_full, NULL, NULL, NULL));
     PetscCall(MatLUFactorNumeric(A_full_fac, A_full, NULL));
     PetscCall(VecSetRandom(b, NULL));
+
     PetscCall(MatSolve(A, b, x));
     PetscCall(MatSolve(A_full_fac, b, x_full));
-    PetscCall(VecEqual(x, x_full, &check));
-    PetscCheck(check, comm, PETSC_ERR_PLIB, "AXPY %s", MatStorageTypes[storage]);
+    PetscCall(VecAXPY(x_full, -1.0, x));
+    PetscCall(VecNorm(x_full, NORM_INFINITY, &err));
+    PetscCheck(err < PETSC_SMALL, comm, PETSC_ERR_PLIB, "Solve %s", MatStorageTypes[storage]);
+
+    PetscCall(MatSolveTranspose(A, b, x));
+    PetscCall(MatSolveTranspose(A_full_fac, b, x_full));
+    PetscCall(VecAXPY(x_full, -1.0, x));
+    PetscCall(VecNorm(x_full, NORM_INFINITY, &err));
+    PetscCheck(err < PETSC_SMALL, comm, PETSC_ERR_PLIB, "SolveTranspose %s", MatStorageTypes[storage]);
+
     PetscCall(VecDestroy(&x_full));
     PetscCall(VecDestroy(&x));
     PetscCall(VecDestroy(&b));

@@ -59,7 +59,7 @@ static PetscErrorCode MatSolve_SeqDense_Triangular_Internal(Mat A, Vec B, Vec X,
   PetscCall(VecGetArrayWrite(X, &x));
   PetscCall(PetscArraycpy(x, b, minmn));
   PetscCall(PetscArrayzero(&x[minmn], (trans[0] == 'N' ? n  : m) - minmn));
-  PetscCallBLAS("BLAStrmv", BLAStrsv_(lower ? "L" : "U", trans, unit ? "U" : "N", &minmn, mat->v, &mat->lda, x, &_One));
+  PetscCallBLAS("BLAStrsv", BLAStrsv_(lower ? "L" : "U", trans, unit ? "U" : "N", &minmn, mat->v, &mat->lda, x, &_One));
   PetscCall(VecRestoreArrayWrite(X, &x));
   PetscCall(VecRestoreArrayRead(B, &b));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -69,6 +69,13 @@ static PetscErrorCode MatSolve_SeqDense_Triangular(Mat A, Vec B, Vec X)
 {
   PetscFunctionBegin;
   PetscCall(MatSolve_SeqDense_Triangular_Internal(A, B, X, "N"));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatSolveTranspose_SeqDense_Triangular(Mat A, Vec B, Vec X)
+{
+  PetscFunctionBegin;
+  PetscCall(MatSolve_SeqDense_Triangular_Internal(A, B, X, "T"));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -4154,9 +4161,11 @@ static PetscErrorCode MatSetStorageType_SeqDense(Mat mat, MatStorageType type)
   if (mat->factortype == MAT_FACTOR_NONE) {
     if (MatStorageIsTriangular(type)) {
       // set up triangular solve
-      mat->ops->solve = MatSolve_SeqDense_Triangular;
+      mat->ops->solve          = MatSolve_SeqDense_Triangular;
+      mat->ops->solvetranspose = MatSolveTranspose_SeqDense_Triangular;
     } else {
-      mat->ops->solve = NULL;
+      mat->ops->solve          = NULL;
+      mat->ops->solvetranspose = NULL;
     }
   }
   a->storage_type = type;
