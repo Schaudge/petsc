@@ -43,7 +43,7 @@ PetscErrorCode PetscDrawSPCreate(PetscDraw draw, int dim, PetscDrawSP *drawsp)
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
   PetscAssertPointer(drawsp, 3);
 
-  PetscCall(PetscHeaderCreate(sp, PETSC_DRAWSP_CLASSID, "DrawSP", "Scatter Plot", "Draw", PetscObjectComm((PetscObject)draw), PetscDrawSPDestroy, NULL));
+  PetscCall(PetscHeaderCreate(sp, PETSC_DRAWSP_CLASSID, "DrawSP", "Scatter Plot", "Draw", PetscObjectComm((PetscObject)draw), PetscDrawSPDestroy, NULL, NULL));
   PetscCall(PetscObjectReference((PetscObject)draw));
   sp->win       = draw;
   sp->view      = NULL;

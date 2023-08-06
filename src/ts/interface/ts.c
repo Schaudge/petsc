@@ -5439,7 +5439,7 @@ PetscErrorCode TSClone(TS tsin, TS *tsout)
   PetscAssertPointer(tsin, 1);
   *tsout = NULL;
 
-  PetscCall(PetscHeaderCreate(t, TS_CLASSID, "TS", "Time stepping", "TS", PetscObjectComm((PetscObject)tsin), TSDestroy, TSView));
+  PetscCall(PetscHeaderCreate(t, TS_CLASSID, "TS", "Time stepping", "TS", PetscObjectComm((PetscObject)tsin), TSDestroy, TSView, TSLoad));
 
   /* General TS description */
   t->numbermonitors    = 0;

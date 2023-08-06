@@ -1107,7 +1107,7 @@ PetscErrorCode PetscWeakFormCreate(MPI_Comm comm, PetscWeakForm *wf)
   *wf = NULL;
   PetscCall(PetscDSInitializePackage());
 
-  PetscCall(PetscHeaderCreate(p, PETSCWEAKFORM_CLASSID, "PetscWeakForm", "Weak Form System", "PetscWeakForm", comm, PetscWeakFormDestroy, PetscWeakFormView));
+  PetscCall(PetscHeaderCreate(p, PETSCWEAKFORM_CLASSID, "PetscWeakForm", "Weak Form System", "PetscWeakForm", comm, PetscWeakFormDestroy, PetscWeakFormView, NULL));
 
   p->Nf = 0;
   PetscCall(PetscChunkBufferCreate(sizeof(&PetscWeakFormCreate), 2, &p->funcs));

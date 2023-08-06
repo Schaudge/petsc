@@ -1062,7 +1062,7 @@ PetscErrorCode TSAdaptCreate(MPI_Comm comm, TSAdapt *inadapt)
   *inadapt = NULL;
   PetscCall(TSAdaptInitializePackage());
 
-  PetscCall(PetscHeaderCreate(adapt, TSADAPT_CLASSID, "TSAdapt", "Time stepping adaptivity", "TS", comm, TSAdaptDestroy, TSAdaptView));
+  PetscCall(PetscHeaderCreate(adapt, TSADAPT_CLASSID, "TSAdapt", "Time stepping adaptivity", "TS", comm, TSAdaptDestroy, TSAdaptView, TSAdaptLoad));
 
   adapt->always_accept      = PETSC_FALSE;
   adapt->safety             = 0.9;

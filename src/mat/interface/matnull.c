@@ -269,7 +269,7 @@ PetscErrorCode MatNullSpaceCreate(MPI_Comm comm, PetscBool has_cnst, PetscInt n,
   *SP = NULL;
   PetscCall(MatInitializePackage());
 
-  PetscCall(PetscHeaderCreate(sp, MAT_NULLSPACE_CLASSID, "MatNullSpace", "Null space", "Mat", comm, MatNullSpaceDestroy, MatNullSpaceView));
+  PetscCall(PetscHeaderCreate(sp, MAT_NULLSPACE_CLASSID, "MatNullSpace", "Null space", "Mat", comm, MatNullSpaceDestroy, MatNullSpaceView, NULL));
 
   sp->has_cnst = has_cnst;
   sp->n        = n;

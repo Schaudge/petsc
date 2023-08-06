@@ -63,7 +63,7 @@ PetscErrorCode PetscSFCreate(MPI_Comm comm, PetscSF *sf)
   PetscAssertPointer(sf, 2);
   PetscCall(PetscSFInitializePackage());
 
-  PetscCall(PetscHeaderCreate(b, PETSCSF_CLASSID, "PetscSF", "Star Forest", "PetscSF", comm, PetscSFDestroy, PetscSFView));
+  PetscCall(PetscHeaderCreate(b, PETSCSF_CLASSID, "PetscSF", "Star Forest", "PetscSF", comm, PetscSFDestroy, PetscSFView, NULL));
 
   b->nroots    = -1;
   b->nleaves   = -1;

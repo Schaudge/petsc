@@ -93,7 +93,7 @@ PetscErrorCode TaoCreate(MPI_Comm comm, Tao *newtao)
   PetscAssertPointer(newtao, 2);
   PetscCall(TaoInitializePackage());
   PetscCall(TaoLineSearchInitializePackage());
-  PetscCall(PetscHeaderCreate(tao, TAO_CLASSID, "Tao", "Optimization solver", "Tao", comm, TaoDestroy, TaoView));
+  PetscCall(PetscHeaderCreate(tao, TAO_CLASSID, "Tao", "Optimization solver", "Tao", comm, TaoDestroy, TaoView, NULL));
 
   /* Set non-NULL defaults */
   tao->ops->convergencetest = TaoDefaultConvergenceTest;

@@ -39,7 +39,7 @@ PetscErrorCode DMAdaptorCreate(MPI_Comm comm, DMAdaptor *adaptor)
   PetscFunctionBegin;
   PetscAssertPointer(adaptor, 2);
   PetscCall(PetscSysInitializePackage());
-  PetscCall(PetscHeaderCreate(*adaptor, DM_CLASSID, "DMAdaptor", "DM Adaptor", "SNES", comm, DMAdaptorDestroy, DMAdaptorView));
+  PetscCall(PetscHeaderCreate(*adaptor, DM_CLASSID, "DMAdaptor", "DM Adaptor", "SNES", comm, DMAdaptorDestroy, DMAdaptorView, NULL));
 
   (*adaptor)->monitor                    = PETSC_FALSE;
   (*adaptor)->adaptCriterion             = DM_ADAPTATION_NONE;

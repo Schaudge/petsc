@@ -596,7 +596,7 @@ PetscErrorCode MatPartitioningCreate(MPI_Comm comm, MatPartitioning *newp)
   *newp = NULL;
 
   PetscCall(MatInitializePackage());
-  PetscCall(PetscHeaderCreate(part, MAT_PARTITIONING_CLASSID, "MatPartitioning", "Matrix/graph partitioning", "MatOrderings", comm, MatPartitioningDestroy, MatPartitioningView));
+  PetscCall(PetscHeaderCreate(part, MAT_PARTITIONING_CLASSID, "MatPartitioning", "Matrix/graph partitioning", "MatOrderings", comm, MatPartitioningDestroy, MatPartitioningView, NULL));
   part->vertex_weights   = NULL;
   part->part_weights     = NULL;
   part->use_edge_weights = PETSC_FALSE; /* By default we don't use edge weights */

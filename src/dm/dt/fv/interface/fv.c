@@ -275,7 +275,7 @@ PetscErrorCode PetscLimiterCreate(MPI_Comm comm, PetscLimiter *lim)
   *lim = NULL;
   PetscCall(PetscFVInitializePackage());
 
-  PetscCall(PetscHeaderCreate(l, PETSCLIMITER_CLASSID, "PetscLimiter", "Finite Volume Slope Limiter", "PetscLimiter", comm, PetscLimiterDestroy, PetscLimiterView));
+  PetscCall(PetscHeaderCreate(l, PETSCLIMITER_CLASSID, "PetscLimiter", "Finite Volume Slope Limiter", "PetscLimiter", comm, PetscLimiterDestroy, PetscLimiterView, NULL));
 
   *lim = l;
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -1164,7 +1164,7 @@ PetscErrorCode PetscFVCreate(MPI_Comm comm, PetscFV *fvm)
   *fvm = NULL;
   PetscCall(PetscFVInitializePackage());
 
-  PetscCall(PetscHeaderCreate(f, PETSCFV_CLASSID, "PetscFV", "Finite Volume", "PetscFV", comm, PetscFVDestroy, PetscFVView));
+  PetscCall(PetscHeaderCreate(f, PETSCFV_CLASSID, "PetscFV", "Finite Volume", "PetscFV", comm, PetscFVDestroy, PetscFVView, NULL));
   PetscCall(PetscMemzero(f->ops, sizeof(struct _PetscFVOps)));
 
   PetscCall(PetscLimiterCreate(comm, &f->limiter));

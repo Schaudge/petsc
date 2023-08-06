@@ -1193,6 +1193,7 @@ PETSC_EXTERN PetscErrorCode PetscObjectsListGetGlobalNumbering(MPI_Comm, PetscIn
 PETSC_EXTERN PetscErrorCode PetscMemoryView(PetscViewer, const char[]);
 PETSC_EXTERN PetscErrorCode PetscObjectPrintClassNamePrefixType(PetscObject, PetscViewer);
 PETSC_EXTERN PetscErrorCode PetscObjectView(PetscObject, PetscViewer);
+PETSC_EXTERN PetscErrorCode PetscObjectLoad(PetscObject, PetscViewer);
 #define PetscObjectQueryFunction(obj, name, fptr) PetscObjectQueryFunction_Private((obj), (name), (PetscVoidFunction *)(fptr))
 PETSC_EXTERN PetscErrorCode PetscObjectQueryFunction_Private(PetscObject, const char[], void (**)(void));
 PETSC_EXTERN PetscErrorCode PetscObjectSetOptionsPrefix(PetscObject, const char[]);
@@ -1203,6 +1204,7 @@ PETSC_EXTERN PetscErrorCode PetscObjectChangeTypeName(PetscObject, const char[])
 PETSC_EXTERN PetscErrorCode PetscObjectRegisterDestroy(PetscObject);
 PETSC_EXTERN PetscErrorCode PetscObjectRegisterDestroyAll(void);
 PETSC_EXTERN PetscErrorCode PetscObjectViewFromOptions(PetscObject, PetscObject, const char[]);
+PETSC_EXTERN PetscErrorCode PetscObjectLoadFromOptions(PetscObject, PetscObject, const char[]);
 PETSC_EXTERN PetscErrorCode PetscObjectName(PetscObject);
 PETSC_EXTERN PetscErrorCode PetscObjectTypeCompare(PetscObject, const char[], PetscBool *);
 PETSC_EXTERN PetscErrorCode PetscObjectObjectTypeCompare(PetscObject, PetscObject, PetscBool *);

@@ -351,7 +351,7 @@ PetscErrorCode PetscFECreate(MPI_Comm comm, PetscFE *fem)
   *fem = NULL;
   PetscCall(PetscFEInitializePackage());
 
-  PetscCall(PetscHeaderCreate(f, PETSCFE_CLASSID, "PetscFE", "Finite Element", "PetscFE", comm, PetscFEDestroy, PetscFEView));
+  PetscCall(PetscHeaderCreate(f, PETSCFE_CLASSID, "PetscFE", "Finite Element", "PetscFE", comm, PetscFEDestroy, PetscFEView, NULL));
 
   f->basisSpace    = NULL;
   f->dualSpace     = NULL;

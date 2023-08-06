@@ -78,7 +78,7 @@ PetscErrorCode MatColoringCreate(Mat m, MatColoring *mcptr)
   *mcptr = NULL;
 
   PetscCall(MatInitializePackage());
-  PetscCall(PetscHeaderCreate(mc, MAT_COLORING_CLASSID, "MatColoring", "Matrix coloring", "MatColoring", PetscObjectComm((PetscObject)m), MatColoringDestroy, MatColoringView));
+  PetscCall(PetscHeaderCreate(mc, MAT_COLORING_CLASSID, "MatColoring", "Matrix coloring", "MatColoring", PetscObjectComm((PetscObject)m), MatColoringDestroy, MatColoringView, NULL));
   PetscCall(PetscObjectReference((PetscObject)m));
   mc->mat          = m;
   mc->dist         = 2; /* default to Jacobian computation case */

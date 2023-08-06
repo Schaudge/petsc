@@ -457,7 +457,7 @@ PetscErrorCode MatFDColoringCreate(Mat mat, ISColoring iscoloring, MatFDColoring
   PetscCall(MatGetSize(mat, &M, &N));
   PetscCheck(M == N, PetscObjectComm((PetscObject)mat), PETSC_ERR_SUP, "Only for square matrices");
   PetscCall(PetscObjectGetComm((PetscObject)mat, &comm));
-  PetscCall(PetscHeaderCreate(c, MAT_FDCOLORING_CLASSID, "MatFDColoring", "Jacobian computation via finite differences with coloring", "Mat", comm, MatFDColoringDestroy, MatFDColoringView));
+  PetscCall(PetscHeaderCreate(c, MAT_FDCOLORING_CLASSID, "MatFDColoring", "Jacobian computation via finite differences with coloring", "Mat", comm, MatFDColoringDestroy, MatFDColoringView, NULL));
 
   c->ctype = iscoloring->ctype;
   PetscCall(PetscObjectGetId((PetscObject)mat, &c->matid));

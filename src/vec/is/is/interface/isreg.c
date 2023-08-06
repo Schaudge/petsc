@@ -31,7 +31,7 @@ PetscErrorCode ISCreate(MPI_Comm comm, IS *is)
   PetscAssertPointer(is, 2);
   PetscCall(ISInitializePackage());
 
-  PetscCall(PetscHeaderCreate(*is, IS_CLASSID, "IS", "Index Set", "IS", comm, ISDestroy, ISView));
+  PetscCall(PetscHeaderCreate(*is, IS_CLASSID, "IS", "Index Set", "IS", comm, ISDestroy, ISView, ISLoad));
   PetscCall(PetscLayoutCreate(comm, &(*is)->map));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

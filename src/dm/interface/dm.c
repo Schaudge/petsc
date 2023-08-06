@@ -58,7 +58,7 @@ PetscErrorCode DMCreate(MPI_Comm comm, DM *dm)
   *dm = NULL;
   PetscCall(DMInitializePackage());
 
-  PetscCall(PetscHeaderCreate(v, DM_CLASSID, "DM", "Distribution Manager", "DM", comm, DMDestroy, DMView));
+  PetscCall(PetscHeaderCreate(v, DM_CLASSID, "DM", "Distribution Manager", "DM", comm, DMDestroy, DMView, DMLoad));
 
   ((PetscObject)v)->non_cyclic_references = &DMCountNonCyclicReferences;
 
@@ -914,7 +914,7 @@ PetscErrorCode DMSetFromOptions(DM dm)
   Note:
   See `PetscObjectViewFromOptions()` for a list of values that can be provided in the options database to determine how the `DM` is viewed
 
-.seealso: [](ch_dmbase), `DM`, `DMView()`, `PetscObjectViewFromOptions()`, `DMCreate()`
+.seealso: [](ch_dmbase), `DMLoadFromOptions()`, `DM`, `DMView()`, `PetscObjectViewFromOptions()`, `DMCreate()`
 @*/
 PetscErrorCode DMViewFromOptions(DM dm, PetscObject obj, const char name[])
 {
@@ -4128,6 +4128,31 @@ PetscErrorCode DMLoad(DM newdm, PetscViewer viewer)
     PetscTryTypeMethod(newdm, load, viewer);
   } else SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Invalid viewer; open viewer with PetscViewerBinaryOpen() or PetscViewerHDF5Open()");
   PetscCall(PetscLogEventEnd(DM_Load, viewer, 0, 0, 0));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  DMLoadFromOptions - Load a `DM` in a particular way based on a request in the options database
+
+  Collective
+
+  Input Parameters:
++ dm   - the `DM` object
+. obj  - optional object that provides the prefix for the options database (if `NULL` then the prefix in obj is used)
+- name - option string that is used to activate viewing
+
+  Level: intermediate
+
+  Note:
+  See `PetscObjectLoadFromOptions()` for a list of values that can be provided in the options database to determine how the `DM` is viewed
+
+.seealso: [](ch_dmbase), `DMViewFromOptions()`, `DM`, `DMLoad()`, `PetscObjectLoadFromOptions()`, `DMCreate()`
+@*/
+PetscErrorCode DMLoadFromOptions(DM dm, PetscObject obj, const char name[])
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(PetscObjectLoadFromOptions((PetscObject)dm, obj, name));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

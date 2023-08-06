@@ -199,7 +199,7 @@ PetscErrorCode TSGLLEAdaptCreate(MPI_Comm comm, TSGLLEAdapt *inadapt)
 
   PetscFunctionBegin;
   *inadapt = NULL;
-  PetscCall(PetscHeaderCreate(adapt, TSGLLEADAPT_CLASSID, "TSGLLEAdapt", "General Linear adaptivity", "TS", comm, TSGLLEAdaptDestroy, TSGLLEAdaptView));
+  PetscCall(PetscHeaderCreate(adapt, TSGLLEADAPT_CLASSID, "TSGLLEAdapt", "General Linear adaptivity", "TS", comm, TSGLLEAdaptDestroy, TSGLLEAdaptView, TSAdaptLoad));
   *inadapt = adapt;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

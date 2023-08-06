@@ -74,7 +74,7 @@ PetscErrorCode PetscP4estInitialize(void)
     PetscCall(PetscStrInList("p4est", logList, ',', &pkg));
     if (pkg) PetscCall(PetscLogEventExcludeClass(P4ESTLOGGING_CLASSID));
   }
-  PetscCall(PetscHeaderCreate(P4estLoggingObject, P4ESTLOGGING_CLASSID, "p4est", "p4est logging", "DM", PETSC_COMM_WORLD, NULL, PetscObjectView));
+  PetscCall(PetscHeaderCreate(P4estLoggingObject, P4ESTLOGGING_CLASSID, "p4est", "p4est logging", "DM", PETSC_COMM_WORLD, NULL, PetscObjectView, NULL));
   if (sc_package_id == -1) {
     int       log_threshold_shifted = psc_log_threshold + 1;
     PetscBool set;

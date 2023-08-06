@@ -64,7 +64,7 @@ PetscErrorCode PetscDrawHGCreate(PetscDraw draw, int bins, PetscDrawHG *hist)
   PetscValidLogicalCollectiveInt(draw, bins, 2);
   PetscAssertPointer(hist, 3);
 
-  PetscCall(PetscHeaderCreate(h, PETSC_DRAWHG_CLASSID, "DrawHG", "Histogram", "Draw", PetscObjectComm((PetscObject)draw), PetscDrawHGDestroy, NULL));
+  PetscCall(PetscHeaderCreate(h, PETSC_DRAWHG_CLASSID, "DrawHG", "Histogram", "Draw", PetscObjectComm((PetscObject)draw), PetscDrawHGDestroy, NULL, NULL));
 
   PetscCall(PetscObjectReference((PetscObject)draw));
   h->win = draw;

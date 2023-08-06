@@ -66,7 +66,7 @@ PetscErrorCode PetscObjectDestroy(PetscObject *obj)
 
   Level: intermediate
 
-.seealso: `PetscObject`, `PetscObjectViewFromOptions()`
+.seealso: `PetscObjectLoad()`, `PetscObject`, `PetscObjectViewFromOptions()`
 @*/
 PetscErrorCode PetscObjectView(PetscObject obj, PetscViewer viewer)
 {
@@ -109,7 +109,7 @@ PetscErrorCode PetscObjectView(PetscObject obj, PetscViewer viewer)
 
   This is not called directly but is called by, for example, `MatViewFromOptions()`
 
-.seealso: `PetscObject`, `PetscObjectView()`, `PetscOptionsGetViewer()`
+.seealso: `PetscObjectLoadFromOptions()`, `PetscObject`, `PetscObjectView()`, `PetscOptionsGetViewer()`
 @*/
 PetscErrorCode PetscObjectViewFromOptions(PetscObject obj, PetscObject bobj, const char optionname[])
 {
@@ -129,6 +129,85 @@ PetscErrorCode PetscObjectViewFromOptions(PetscObject obj, PetscObject bobj, con
   if (flg) {
     PetscCall(PetscViewerPushFormat(viewer, format));
     PetscCall(PetscObjectView(obj, viewer));
+    PetscCall(PetscViewerFlush(viewer));
+    PetscCall(PetscViewerPopFormat(viewer));
+    PetscCall(PetscViewerDestroy(&viewer));
+  }
+  incall = PETSC_FALSE;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  PetscObjectLoad - Loads any `PetscObject`, regardless of the type.
+
+  Collective
+
+  Input Parameters:
++ obj    - any PETSc object, for example a `Vec`, `Mat` or `KSP`.
+         This must be cast with a (`PetscObject`), for example,
+         `PetscObjectView`((`PetscObject`)mat,viewer);
+- viewer - any PETSc viewer
+
+  Level: intermediate
+
+.seealso: `PetscObjectView()`, `PetscObject`, `PetscObjectViewFromOptions()`
+@*/
+PetscErrorCode PetscObjectLoad(PetscObject obj, PetscViewer viewer)
+{
+  PetscFunctionBegin;
+  PetscValidHeader(obj, 1);
+  PetscCheck(obj->bops->load, PETSC_COMM_SELF, PETSC_ERR_SUP, "This PETSc object does not have a generic load routine");
+  if (!viewer) PetscCall(PetscViewerASCIIGetStdout(obj->comm, &viewer));
+  PetscValidHeaderSpecific(viewer, PETSC_VIEWER_CLASSID, 2);
+
+  PetscCall((*obj->bops->load)(obj, viewer));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  PetscObjectLoadFromOptions - Processes command line options to determine if/how a `PetscObject` is to be loaded.
+
+  Collective
+
+  Input Parameters:
++ obj        - the object
+. bobj       - optional other object that provides prefix (if `NULL` then the prefix in `obj` is used)
+- optionname - option string that is used to activate loading
+
+  Options Database Key:
+. -optionname [viewertype]:... - option name and values. In actual usage this would be something like `-mat_coarse_view`
+
+  Level: developer
+
+  Notes:
+.vb
+    If no value is provided ascii:stdout is used
+       ascii[:[filename][:[format][:mode]]]    defaults to stdin
+       binary[:[filename][:[format][:mode]]]   defaults to the file binaryoutput
+.ve
+
+  This is not called directly but is called by, for example, `DMLoadFromOptions()`
+
+.seealso: `PetscObjectViewFromOptions()`, `PetscObject`, `PetscObjectView()`, `PetscOptionsGetViewer()`
+@*/
+PetscErrorCode PetscObjectLoadFromOptions(PetscObject obj, PetscObject bobj, const char optionname[])
+{
+  PetscViewer       viewer;
+  PetscBool         flg;
+  static PetscBool  incall = PETSC_FALSE;
+  PetscViewerFormat format;
+  const char       *prefix;
+
+  PetscFunctionBegin;
+  PetscValidHeader(obj, 1);
+  if (bobj) PetscValidHeader(bobj, 2);
+  if (incall) PetscFunctionReturn(PETSC_SUCCESS);
+  incall = PETSC_TRUE;
+  prefix = bobj ? bobj->prefix : obj->prefix;
+  PetscCall(PetscOptionsGetViewer(PetscObjectComm((PetscObject)obj), obj->options, prefix, optionname, &viewer, &format, &flg));
+  if (flg) {
+    PetscCall(PetscViewerPushFormat(viewer, format));
+    PetscCall(PetscObjectLoad(obj, viewer));
     PetscCall(PetscViewerFlush(viewer));
     PetscCall(PetscViewerPopFormat(viewer));
     PetscCall(PetscViewerDestroy(&viewer));

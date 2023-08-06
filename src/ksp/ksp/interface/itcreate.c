@@ -708,7 +708,7 @@ PetscErrorCode KSPCreate(MPI_Comm comm, KSP *inksp)
   *inksp = NULL;
   PetscCall(KSPInitializePackage());
 
-  PetscCall(PetscHeaderCreate(ksp, KSP_CLASSID, "KSP", "Krylov Method", "KSP", comm, KSPDestroy, KSPView));
+  PetscCall(PetscHeaderCreate(ksp, KSP_CLASSID, "KSP", "Krylov Method", "KSP", comm, KSPDestroy, KSPView, KSPLoad));
 
   ksp->max_it  = 10000;
   ksp->pc_side = ksp->pc_side_set = PC_SIDE_DEFAULT;

@@ -35,7 +35,7 @@ PetscErrorCode TSCreate(MPI_Comm comm, TS *ts)
   *ts = NULL;
   PetscCall(TSInitializePackage());
 
-  PetscCall(PetscHeaderCreate(t, TS_CLASSID, "TS", "Time stepping", "TS", comm, TSDestroy, TSView));
+  PetscCall(PetscHeaderCreate(t, TS_CLASSID, "TS", "Time stepping", "TS", comm, TSDestroy, TSView, TSLoad));
 
   /* General TS description */
   t->problem_type  = TS_NONLINEAR;

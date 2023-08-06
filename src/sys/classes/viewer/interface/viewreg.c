@@ -489,7 +489,7 @@ PetscErrorCode PetscViewerCreate(MPI_Comm comm, PetscViewer *inviewer)
   PetscFunctionBegin;
   *inviewer = NULL;
   PetscCall(PetscViewerInitializePackage());
-  PetscCall(PetscHeaderCreate(viewer, PETSC_VIEWER_CLASSID, "PetscViewer", "PetscViewer", "Viewer", comm, PetscViewerDestroy, PetscViewerView));
+  PetscCall(PetscHeaderCreate(viewer, PETSC_VIEWER_CLASSID, "PetscViewer", "PetscViewer", "Viewer", comm, PetscViewerDestroy, PetscViewerView, NULL));
   *inviewer    = viewer;
   viewer->data = NULL;
   PetscFunctionReturn(PETSC_SUCCESS);

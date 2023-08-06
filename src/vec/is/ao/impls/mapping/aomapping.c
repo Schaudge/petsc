@@ -248,7 +248,7 @@ PetscErrorCode AOCreateMapping(MPI_Comm comm, PetscInt napp, const PetscInt myap
   *aoout = NULL;
   PetscCall(AOInitializePackage());
 
-  PetscCall(PetscHeaderCreate(ao, AO_CLASSID, "AO", "Application Ordering", "AO", comm, AODestroy, AOView));
+  PetscCall(PetscHeaderCreate(ao, AO_CLASSID, "AO", "Application Ordering", "AO", comm, AODestroy, AOView, NULL));
   PetscCall(PetscNew(&aomap));
   ao->ops[0] = AOps;
   ao->data   = (void *)aomap;

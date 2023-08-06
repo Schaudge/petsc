@@ -108,6 +108,7 @@ PETSC_EXTERN PetscErrorCode DMInterpolateSolution(DM, DM, Mat, Vec, Vec);
 PETSC_EXTERN PetscErrorCode DMExtrude(DM, PetscInt, DM *);
 PETSC_EXTERN PetscErrorCode DMSetFromOptions(DM);
 PETSC_EXTERN PetscErrorCode DMViewFromOptions(DM, PetscObject, const char[]);
+PETSC_EXTERN PetscErrorCode DMLoadFromOptions(DM, PetscObject, const char[]);
 
 PETSC_EXTERN PetscErrorCode DMGenerate(DM, const char[], PetscBool, DM *);
 PETSC_EXTERN PetscErrorCode DMGenerateRegister(const char[], PetscErrorCode (*)(DM, PetscBool, DM *), PetscErrorCode (*)(DM, PetscReal *, DM *), PetscErrorCode (*)(DM, Vec, DMLabel, DMLabel, DM *), PetscInt);

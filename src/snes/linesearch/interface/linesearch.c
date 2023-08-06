@@ -171,7 +171,7 @@ PetscErrorCode SNESLineSearchCreate(MPI_Comm comm, SNESLineSearch *outlinesearch
   PetscCall(SNESInitializePackage());
   *outlinesearch = NULL;
 
-  PetscCall(PetscHeaderCreate(linesearch, SNESLINESEARCH_CLASSID, "SNESLineSearch", "Linesearch", "SNESLineSearch", comm, SNESLineSearchDestroy, SNESLineSearchView));
+  PetscCall(PetscHeaderCreate(linesearch, SNESLINESEARCH_CLASSID, "SNESLineSearch", "Linesearch", "SNESLineSearch", comm, SNESLineSearchDestroy, SNESLineSearchView, NULL));
 
   linesearch->vec_sol_new  = NULL;
   linesearch->vec_func_new = NULL;

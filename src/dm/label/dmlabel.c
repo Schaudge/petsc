@@ -33,7 +33,7 @@ PetscErrorCode DMLabelCreate(MPI_Comm comm, const char name[], DMLabel *label)
   PetscAssertPointer(label, 3);
   PetscCall(DMInitializePackage());
 
-  PetscCall(PetscHeaderCreate(*label, DMLABEL_CLASSID, "DMLabel", "DMLabel", "DM", comm, DMLabelDestroy, DMLabelView));
+  PetscCall(PetscHeaderCreate(*label, DMLABEL_CLASSID, "DMLabel", "DMLabel", "DM", comm, DMLabelDestroy, DMLabelView, NULL));
 
   (*label)->numStrata     = 0;
   (*label)->defaultValue  = -1;

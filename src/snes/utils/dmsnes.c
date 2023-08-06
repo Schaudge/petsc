@@ -76,7 +76,7 @@ static PetscErrorCode DMSNESCreate(MPI_Comm comm, DMSNES *kdm)
 {
   PetscFunctionBegin;
   PetscCall(SNESInitializePackage());
-  PetscCall(PetscHeaderCreate(*kdm, DMSNES_CLASSID, "DMSNES", "DMSNES", "DMSNES", comm, DMSNESDestroy, DMSNESView));
+  PetscCall(PetscHeaderCreate(*kdm, DMSNES_CLASSID, "DMSNES", "DMSNES", "DMSNES", comm, DMSNESDestroy, DMSNESView, NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

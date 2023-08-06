@@ -337,7 +337,7 @@ PetscErrorCode PetscRandomCreate(MPI_Comm comm, PetscRandom *r)
   *r = NULL;
   PetscCall(PetscRandomInitializePackage());
 
-  PetscCall(PetscHeaderCreate(rr, PETSC_RANDOM_CLASSID, "PetscRandom", "Random number generator", "Sys", comm, PetscRandomDestroy, PetscRandomView));
+  PetscCall(PetscHeaderCreate(rr, PETSC_RANDOM_CLASSID, "PetscRandom", "Random number generator", "Sys", comm, PetscRandomDestroy, PetscRandomView, NULL));
 
   PetscCallMPI(MPI_Comm_rank(comm, &rank));
 

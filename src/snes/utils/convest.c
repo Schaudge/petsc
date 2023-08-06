@@ -525,7 +525,7 @@ PetscErrorCode PetscConvEstCreate(MPI_Comm comm, PetscConvEst *ce)
   PetscFunctionBegin;
   PetscAssertPointer(ce, 2);
   PetscCall(PetscSysInitializePackage());
-  PetscCall(PetscHeaderCreate(*ce, PETSC_OBJECT_CLASSID, "PetscConvEst", "ConvergenceEstimator", "SNES", comm, PetscConvEstDestroy, PetscConvEstView));
+  PetscCall(PetscHeaderCreate(*ce, PETSC_OBJECT_CLASSID, "PetscConvEst", "ConvergenceEstimator", "SNES", comm, PetscConvEstDestroy, PetscConvEstView, NULL));
   (*ce)->monitor           = PETSC_FALSE;
   (*ce)->r                 = 2.0;
   (*ce)->Nr                = 4;

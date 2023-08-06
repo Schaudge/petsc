@@ -76,7 +76,7 @@ PetscErrorCode MatCreate(MPI_Comm comm, Mat *A)
   *A = NULL;
   PetscCall(MatInitializePackage());
 
-  PetscCall(PetscHeaderCreate(B, MAT_CLASSID, "Mat", "Matrix", "Mat", comm, MatDestroy, MatView));
+  PetscCall(PetscHeaderCreate(B, MAT_CLASSID, "Mat", "Matrix", "Mat", comm, MatDestroy, MatView, MatLoad));
   PetscCall(PetscLayoutCreate(comm, &B->rmap));
   PetscCall(PetscLayoutCreate(comm, &B->cmap));
   PetscCall(PetscStrallocpy(VECSTANDARD, &B->defaultvectype));

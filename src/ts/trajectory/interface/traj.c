@@ -402,7 +402,7 @@ PetscErrorCode TSTrajectoryCreate(MPI_Comm comm, TSTrajectory *tj)
   *tj = NULL;
   PetscCall(TSInitializePackage());
 
-  PetscCall(PetscHeaderCreate(t, TSTRAJECTORY_CLASSID, "TSTrajectory", "Time stepping", "TS", comm, TSTrajectoryDestroy, TSTrajectoryView));
+  PetscCall(PetscHeaderCreate(t, TSTRAJECTORY_CLASSID, "TSTrajectory", "Time stepping", "TS", comm, TSTrajectoryDestroy, TSTrajectoryView, NULL));
   t->setupcalled = PETSC_FALSE;
   PetscCall(TSHistoryCreate(comm, &t->tsh));
 

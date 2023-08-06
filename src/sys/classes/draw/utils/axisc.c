@@ -32,7 +32,7 @@ PetscErrorCode PetscDrawAxisCreate(PetscDraw draw, PetscDrawAxis *axis)
   PetscValidHeaderSpecific(draw, PETSC_DRAW_CLASSID, 1);
   PetscAssertPointer(axis, 2);
 
-  PetscCall(PetscHeaderCreate(ad, PETSC_DRAWAXIS_CLASSID, "DrawAxis", "Draw Axis", "Draw", PetscObjectComm((PetscObject)draw), PetscDrawAxisDestroy, NULL));
+  PetscCall(PetscHeaderCreate(ad, PETSC_DRAWAXIS_CLASSID, "DrawAxis", "Draw Axis", "Draw", PetscObjectComm((PetscObject)draw), PetscDrawAxisDestroy, NULL, NULL));
 
   PetscCall(PetscObjectReference((PetscObject)draw));
   ad->win = draw;

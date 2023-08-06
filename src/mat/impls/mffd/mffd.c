@@ -586,7 +586,7 @@ PETSC_EXTERN PetscErrorCode MatCreate_MFFD(Mat A)
   PetscFunctionBegin;
   PetscCall(MatMFFDInitializePackage());
 
-  PetscCall(PetscHeaderCreate(mfctx, MATMFFD_CLASSID, "MatMFFD", "Matrix-free Finite Differencing", "Mat", PetscObjectComm((PetscObject)A), NULL, NULL));
+  PetscCall(PetscHeaderCreate(mfctx, MATMFFD_CLASSID, "MatMFFD", "Matrix-free Finite Differencing", "Mat", PetscObjectComm((PetscObject)A), NULL, NULL, NULL));
 
   mfctx->error_rel                = PETSC_SQRT_MACHINE_EPSILON;
   mfctx->recomputeperiod          = 1;

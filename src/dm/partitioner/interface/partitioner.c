@@ -384,7 +384,7 @@ PetscErrorCode PetscPartitionerCreate(MPI_Comm comm, PetscPartitioner *part)
   *part = NULL;
   PetscCall(PetscPartitionerInitializePackage());
 
-  PetscCall(PetscHeaderCreate(p, PETSCPARTITIONER_CLASSID, "PetscPartitioner", "Graph Partitioner", "PetscPartitioner", comm, PetscPartitionerDestroy, PetscPartitionerView));
+  PetscCall(PetscHeaderCreate(p, PETSCPARTITIONER_CLASSID, "PetscPartitioner", "Graph Partitioner", "PetscPartitioner", comm, PetscPartitionerDestroy, PetscPartitionerView, NULL));
   PetscCall(PetscPartitionerGetDefaultType(comm, &partitionerType));
   PetscCall(PetscPartitionerSetType(p, partitionerType));
 

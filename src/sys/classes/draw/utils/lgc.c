@@ -153,7 +153,7 @@ PetscErrorCode PetscDrawLGCreate(PetscDraw draw, PetscInt dim, PetscDrawLG *outl
   PetscValidLogicalCollectiveInt(draw, dim, 2);
   PetscAssertPointer(outlg, 3);
 
-  PetscCall(PetscHeaderCreate(lg, PETSC_DRAWLG_CLASSID, "DrawLG", "Line Graph", "Draw", PetscObjectComm((PetscObject)draw), PetscDrawLGDestroy, NULL));
+  PetscCall(PetscHeaderCreate(lg, PETSC_DRAWLG_CLASSID, "DrawLG", "Line Graph", "Draw", PetscObjectComm((PetscObject)draw), PetscDrawLGDestroy, NULL, NULL));
   PetscCall(PetscDrawLGSetOptionsPrefix(lg, ((PetscObject)draw)->prefix));
 
   PetscCall(PetscObjectReference((PetscObject)draw));

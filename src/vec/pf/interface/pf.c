@@ -90,7 +90,7 @@ PetscErrorCode PFCreate(MPI_Comm comm, PetscInt dimin, PetscInt dimout, PF *pf)
   *pf = NULL;
   PetscCall(PFInitializePackage());
 
-  PetscCall(PetscHeaderCreate(newpf, PF_CLASSID, "PF", "Mathematical functions", "Vec", comm, PFDestroy, PFView));
+  PetscCall(PetscHeaderCreate(newpf, PF_CLASSID, "PF", "Mathematical functions", "Vec", comm, PFDestroy, PFView, NULL));
   newpf->data          = NULL;
   newpf->ops->destroy  = NULL;
   newpf->ops->apply    = NULL;

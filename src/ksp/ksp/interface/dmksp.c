@@ -20,7 +20,7 @@ static PetscErrorCode DMKSPCreate(MPI_Comm comm, DMKSP *kdm)
 {
   PetscFunctionBegin;
   PetscCall(KSPInitializePackage());
-  PetscCall(PetscHeaderCreate(*kdm, DMKSP_CLASSID, "DMKSP", "DMKSP", "DMKSP", comm, DMKSPDestroy, NULL));
+  PetscCall(PetscHeaderCreate(*kdm, DMKSP_CLASSID, "DMKSP", "DMKSP", "DMKSP", comm, DMKSPDestroy, NULL, NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

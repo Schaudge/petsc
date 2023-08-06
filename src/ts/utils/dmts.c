@@ -161,7 +161,7 @@ static PetscErrorCode DMTSCreate(MPI_Comm comm, DMTS *kdm)
 {
   PetscFunctionBegin;
   PetscCall(TSInitializePackage());
-  PetscCall(PetscHeaderCreate(*kdm, DMTS_CLASSID, "DMTS", "DMTS", "DMTS", comm, DMTSDestroy, DMTSView));
+  PetscCall(PetscHeaderCreate(*kdm, DMTS_CLASSID, "DMTS", "DMTS", "DMTS", comm, DMTSDestroy, DMTSView, NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

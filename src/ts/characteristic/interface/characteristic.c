@@ -67,7 +67,7 @@ PetscErrorCode CharacteristicCreate(MPI_Comm comm, Characteristic *c)
   *c = NULL;
   PetscCall(CharacteristicInitializePackage());
 
-  PetscCall(PetscHeaderCreate(newC, CHARACTERISTIC_CLASSID, "Characteristic", "Characteristic", "Characteristic", comm, CharacteristicDestroy, CharacteristicView));
+  PetscCall(PetscHeaderCreate(newC, CHARACTERISTIC_CLASSID, "Characteristic", "Characteristic", "Characteristic", comm, CharacteristicDestroy, CharacteristicView, NULL));
   *c = newC;
 
   newC->structured          = PETSC_TRUE;

@@ -500,7 +500,7 @@ PetscErrorCode AOCreate(MPI_Comm comm, AO *ao)
   *ao = NULL;
   PetscCall(AOInitializePackage());
 
-  PetscCall(PetscHeaderCreate(aonew, AO_CLASSID, "AO", "Application Ordering", "AO", comm, AODestroy, AOView));
+  PetscCall(PetscHeaderCreate(aonew, AO_CLASSID, "AO", "Application Ordering", "AO", comm, AODestroy, AOView, NULL));
   *ao = aonew;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

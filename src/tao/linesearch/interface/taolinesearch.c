@@ -119,7 +119,7 @@ PetscErrorCode TaoLineSearchCreate(MPI_Comm comm, TaoLineSearch *newls)
   PetscAssertPointer(newls, 2);
   PetscCall(TaoLineSearchInitializePackage());
 
-  PetscCall(PetscHeaderCreate(ls, TAOLINESEARCH_CLASSID, "TaoLineSearch", "Linesearch", "Tao", comm, TaoLineSearchDestroy, TaoLineSearchView));
+  PetscCall(PetscHeaderCreate(ls, TAOLINESEARCH_CLASSID, "TaoLineSearch", "Linesearch", "Tao", comm, TaoLineSearchDestroy, TaoLineSearchView, NULL));
   ls->max_funcs = 30;
   ls->ftol      = 0.0001;
   ls->gtol      = 0.9;

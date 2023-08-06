@@ -216,7 +216,7 @@ PetscErrorCode KSPGuessCreate(MPI_Comm comm, KSPGuess *guess)
   PetscAssertPointer(guess, 2);
   *guess = NULL;
   PetscCall(KSPInitializePackage());
-  PetscCall(PetscHeaderCreate(tguess, KSPGUESS_CLASSID, "KSPGuess", "Initial guess for Krylov Method", "KSPGuess", comm, KSPGuessDestroy, KSPGuessView));
+  PetscCall(PetscHeaderCreate(tguess, KSPGUESS_CLASSID, "KSPGuess", "Initial guess for Krylov Method", "KSPGuess", comm, KSPGuessDestroy, KSPGuessView, NULL));
   tguess->omatstate = -1;
   *guess            = tguess;
   PetscFunctionReturn(PETSC_SUCCESS);

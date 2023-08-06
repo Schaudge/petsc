@@ -428,7 +428,7 @@ PetscErrorCode PCCreate(MPI_Comm comm, PC *newpc)
   *newpc = NULL;
   PetscCall(PCInitializePackage());
 
-  PetscCall(PetscHeaderCreate(pc, PC_CLASSID, "PC", "Preconditioner", "PC", comm, PCDestroy, PCView));
+  PetscCall(PetscHeaderCreate(pc, PC_CLASSID, "PC", "Preconditioner", "PC", comm, PCDestroy, PCView, PCLoad));
 
   pc->mat                  = NULL;
   pc->pmat                 = NULL;

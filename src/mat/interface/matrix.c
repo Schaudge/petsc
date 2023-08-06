@@ -10794,7 +10794,7 @@ PetscErrorCode MatTransposeColoringCreate(Mat mat, ISColoring iscoloring, MatTra
   PetscFunctionBegin;
   PetscCall(PetscLogEventBegin(MAT_TransposeColoringCreate, mat, 0, 0, 0));
   PetscCall(PetscObjectGetComm((PetscObject)mat, &comm));
-  PetscCall(PetscHeaderCreate(c, MAT_TRANSPOSECOLORING_CLASSID, "MatTransposeColoring", "Matrix product C=A*B^T via coloring", "Mat", comm, MatTransposeColoringDestroy, NULL));
+  PetscCall(PetscHeaderCreate(c, MAT_TRANSPOSECOLORING_CLASSID, "MatTransposeColoring", "Matrix product C=A*B^T via coloring", "Mat", comm, MatTransposeColoringDestroy, NULL, NULL));
 
   c->ctype = iscoloring->ctype;
   PetscUseTypeMethod(mat, transposecoloringcreate, iscoloring, c);

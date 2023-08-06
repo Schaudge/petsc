@@ -683,7 +683,7 @@ PetscErrorCode PetscDSCreate(MPI_Comm comm, PetscDS *ds)
   *ds = NULL;
   PetscCall(PetscDSInitializePackage());
 
-  PetscCall(PetscHeaderCreate(p, PETSCDS_CLASSID, "PetscDS", "Discrete System", "PetscDS", comm, PetscDSDestroy, PetscDSView));
+  PetscCall(PetscHeaderCreate(p, PETSCDS_CLASSID, "PetscDS", "Discrete System", "PetscDS", comm, PetscDSDestroy, PetscDSView, NULL));
 
   p->Nf           = 0;
   p->setup        = PETSC_FALSE;

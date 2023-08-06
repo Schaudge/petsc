@@ -40,7 +40,7 @@ PetscErrorCode VecTaggerCreate(MPI_Comm comm, VecTagger *tagger)
   PetscAssertPointer(tagger, 2);
   PetscCall(VecTaggerInitializePackage());
 
-  PetscCall(PetscHeaderCreate(b, VEC_TAGGER_CLASSID, "VecTagger", "Vec Tagger", "Vec", comm, VecTaggerDestroy, VecTaggerView));
+  PetscCall(PetscHeaderCreate(b, VEC_TAGGER_CLASSID, "VecTagger", "Vec Tagger", "Vec", comm, VecTaggerDestroy, VecTaggerView, NULL));
 
   b->blocksize   = 1;
   b->invert      = PETSC_FALSE;

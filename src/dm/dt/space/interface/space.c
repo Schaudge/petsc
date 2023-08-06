@@ -291,7 +291,7 @@ PetscErrorCode PetscSpaceCreate(MPI_Comm comm, PetscSpace *sp)
   *sp = NULL;
   PetscCall(PetscFEInitializePackage());
 
-  PetscCall(PetscHeaderCreate(s, PETSCSPACE_CLASSID, "PetscSpace", "Linear Space", "PetscSpace", comm, PetscSpaceDestroy, PetscSpaceView));
+  PetscCall(PetscHeaderCreate(s, PETSCSPACE_CLASSID, "PetscSpace", "Linear Space", "PetscSpace", comm, PetscSpaceDestroy, PetscSpaceView, NULL));
 
   s->degree    = 0;
   s->maxDegree = PETSC_DETERMINE;

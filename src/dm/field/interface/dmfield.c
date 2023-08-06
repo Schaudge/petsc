@@ -13,7 +13,7 @@ PETSC_INTERN PetscErrorCode DMFieldCreate(DM dm, PetscInt numComponents, DMField
   PetscAssertPointer(field, 4);
   PetscCall(DMFieldInitializePackage());
 
-  PetscCall(PetscHeaderCreate(b, DMFIELD_CLASSID, "DMField", "Field over DM", "DM", PetscObjectComm((PetscObject)dm), DMFieldDestroy, DMFieldView));
+  PetscCall(PetscHeaderCreate(b, DMFIELD_CLASSID, "DMField", "Field over DM", "DM", PetscObjectComm((PetscObject)dm), DMFieldDestroy, DMFieldView, NULL));
   PetscCall(PetscObjectReference((PetscObject)dm));
   b->dm            = dm;
   b->continuity    = continuity;

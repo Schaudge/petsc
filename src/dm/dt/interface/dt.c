@@ -62,7 +62,7 @@ PetscErrorCode PetscQuadratureCreate(MPI_Comm comm, PetscQuadrature *q)
   PetscFunctionBegin;
   PetscAssertPointer(q, 2);
   PetscCall(DMInitializePackage());
-  PetscCall(PetscHeaderCreate(*q, PETSCQUADRATURE_CLASSID, "PetscQuadrature", "Quadrature", "DT", comm, PetscQuadratureDestroy, PetscQuadratureView));
+  PetscCall(PetscHeaderCreate(*q, PETSCQUADRATURE_CLASSID, "PetscQuadrature", "Quadrature", "DT", comm, PetscQuadratureDestroy, PetscQuadratureView, NULL));
   (*q)->ct        = DM_POLYTOPE_UNKNOWN;
   (*q)->dim       = -1;
   (*q)->Nc        = 1;

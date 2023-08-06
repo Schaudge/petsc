@@ -606,7 +606,7 @@ PetscErrorCode ISLocalToGlobalMappingCreate(MPI_Comm comm, PetscInt bs, PetscInt
   *mapping = NULL;
   PetscCall(ISInitializePackage());
 
-  PetscCall(PetscHeaderCreate(*mapping, IS_LTOGM_CLASSID, "ISLocalToGlobalMapping", "Local to global mapping", "IS", comm, ISLocalToGlobalMappingDestroy, ISLocalToGlobalMappingView));
+  PetscCall(PetscHeaderCreate(*mapping, IS_LTOGM_CLASSID, "ISLocalToGlobalMapping", "Local to global mapping", "IS", comm, ISLocalToGlobalMappingDestroy, ISLocalToGlobalMappingView, NULL));
   (*mapping)->n  = n;
   (*mapping)->bs = bs;
   if (mode == PETSC_COPY_VALUES) {

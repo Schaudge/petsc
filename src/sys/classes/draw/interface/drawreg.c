@@ -142,7 +142,7 @@ PetscErrorCode PetscDrawCreate(MPI_Comm comm, const char display[], const char t
   PetscFunctionBegin;
   PetscCall(PetscDrawInitializePackage());
   *indraw = NULL;
-  PetscCall(PetscHeaderCreate(draw, PETSC_DRAW_CLASSID, "Draw", "Graphics", "Draw", comm, PetscDrawDestroy, PetscDrawView));
+  PetscCall(PetscHeaderCreate(draw, PETSC_DRAW_CLASSID, "Draw", "Graphics", "Draw", comm, PetscDrawDestroy, PetscDrawView, NULL));
 
   draw->data = NULL;
   PetscCall(PetscStrallocpy(display, &draw->display));

@@ -197,7 +197,7 @@ PetscErrorCode MatCoarsenCreate(MPI_Comm comm, MatCoarsen *newcrs)
   *newcrs = NULL;
 
   PetscCall(MatInitializePackage());
-  PetscCall(PetscHeaderCreate(agg, MAT_COARSEN_CLASSID, "MatCoarsen", "Matrix/graph coarsen", "MatCoarsen", comm, MatCoarsenDestroy, MatCoarsenView));
+  PetscCall(PetscHeaderCreate(agg, MAT_COARSEN_CLASSID, "MatCoarsen", "Matrix/graph coarsen", "MatCoarsen", comm, MatCoarsenDestroy, MatCoarsenView, NULL));
 
   *newcrs = agg;
   PetscFunctionReturn(PETSC_SUCCESS);

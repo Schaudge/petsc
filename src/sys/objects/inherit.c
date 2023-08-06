@@ -23,7 +23,7 @@ PetscObjectId PetscObjectNewId_Internal(void)
    PetscHeaderCreate_Private - Creates a base PETSc object header and fills
    in the default values.  Called by the macro PetscHeaderCreate().
 */
-PetscErrorCode PetscHeaderCreate_Private(PetscObject h, PetscClassId classid, const char class_name[], const char descr[], const char mansec[], MPI_Comm comm, PetscObjectDestroyFunction destroy, PetscObjectViewFunction view)
+PetscErrorCode PetscHeaderCreate_Private(PetscObject h, PetscClassId classid, const char class_name[], const char descr[], const char mansec[], MPI_Comm comm, PetscObjectDestroyFunction destroy, PetscObjectViewFunction view, PetscObjectViewFunction load)
 {
   void       *get_tmp;
   PetscInt64 *cidx;
@@ -39,6 +39,7 @@ PetscErrorCode PetscHeaderCreate_Private(PetscObject h, PetscClassId classid, co
   h->id                    = PetscObjectNewId_Internal();
   h->bops->destroy         = destroy;
   h->bops->view            = view;
+  h->bops->load            = load;
 
   PetscCall(PetscCommDuplicate(comm, &h->comm, &h->tag));
 
@@ -164,6 +165,7 @@ PetscErrorCode PetscHeaderDestroy_Private(PetscObject obj, PetscBool clear_for_r
 
   - classid
   - bops->view
+  - bops->load
   - bops->destroy
   - comm
   - tag
@@ -954,7 +956,7 @@ PetscErrorCode PetscContainerCreate(MPI_Comm comm, PetscContainer *container)
   PetscFunctionBegin;
   PetscAssertPointer(container, 2);
   PetscCall(PetscSysInitializePackage());
-  PetscCall(PetscHeaderCreate(*container, PETSC_CONTAINER_CLASSID, "PetscContainer", "Container", "Sys", comm, PetscContainerDestroy, NULL));
+  PetscCall(PetscHeaderCreate(*container, PETSC_CONTAINER_CLASSID, "PetscContainer", "Container", "Sys", comm, PetscContainerDestroy, NULL, NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
