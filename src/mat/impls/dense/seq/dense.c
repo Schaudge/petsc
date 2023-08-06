@@ -2352,17 +2352,19 @@ static PetscErrorCode MatSetOption_SeqDense(Mat A, MatOption op, PetscBool flg)
     aij->roworiented = flg;
     break;
   case MAT_IGNORE_LOWER_TRIANGULAR:
-    PetscCall(MatSetStorageType(A, MAT_STORAGE_UPPER_TRIANGULAR));
+    if (aij->storage_type == MAT_STORAGE_FULL) PetscCall(MatSetStorageType(A, MAT_STORAGE_UPPER_TRIANGULAR));
     break;
   case MAT_SYMMETRIC:
-    if (PetscDefined(USE_COMPLEX)) {
-      PetscCall(MatSetStorageType(A, MAT_STORAGE_SYMMETRIC_UPPER));
-    } else {
-      PetscCall(MatSetStorageType(A, MAT_STORAGE_HERMITIAN_UPPER));
+    if (aij->storage_type == MAT_STORAGE_FULL) {
+      if (PetscDefined(USE_COMPLEX)) {
+        PetscCall(MatSetStorageType(A, MAT_STORAGE_SYMMETRIC_UPPER));
+      } else {
+        PetscCall(MatSetStorageType(A, MAT_STORAGE_HERMITIAN_UPPER));
+      }
     }
     break;
   case MAT_HERMITIAN:
-    PetscCall(MatSetStorageType(A, MAT_STORAGE_HERMITIAN_UPPER));
+    if (aij->storage_type == MAT_STORAGE_FULL) PetscCall(MatSetStorageType(A, MAT_STORAGE_HERMITIAN_UPPER));
     break;
   case MAT_NEW_NONZERO_LOCATIONS:
   case MAT_NEW_NONZERO_LOCATION_ERR:

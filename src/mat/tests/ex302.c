@@ -90,27 +90,62 @@ static PetscErrorCode testStorage(MatStorageType storage, PetscInt m, PetscInt n
 
     PetscCall(MatCreateVecs(A, &x, &b));
     PetscCall(VecDuplicate(x, &x_full));
+    PetscCall(VecSetRandom(b, NULL));
+
     PetscCall(MatGetFactor(A_full, MATSOLVERPETSC, MAT_FACTOR_LU, &A_full_fac));
     PetscCall(MatLUFactorSymbolic(A_full_fac, A_full, NULL, NULL, NULL));
     PetscCall(MatLUFactorNumeric(A_full_fac, A_full, NULL));
-    PetscCall(VecSetRandom(b, NULL));
 
     PetscCall(MatSolve(A, b, x));
     PetscCall(MatSolve(A_full_fac, b, x_full));
     PetscCall(VecAXPY(x_full, -1.0, x));
     PetscCall(VecNorm(x_full, NORM_INFINITY, &err));
-    PetscCheck(err < PETSC_SMALL, comm, PETSC_ERR_PLIB, "Solve %s", MatStorageTypes[storage]);
+    PetscCheck(err < PETSC_SMALL, comm, PETSC_ERR_PLIB, "Solve %s, error %g", MatStorageTypes[storage], (double)err);
 
     PetscCall(MatSolveTranspose(A, b, x));
     PetscCall(MatSolveTranspose(A_full_fac, b, x_full));
     PetscCall(VecAXPY(x_full, -1.0, x));
     PetscCall(VecNorm(x_full, NORM_INFINITY, &err));
-    PetscCheck(err < PETSC_SMALL, comm, PETSC_ERR_PLIB, "SolveTranspose %s", MatStorageTypes[storage]);
+    PetscCheck(err < PETSC_SMALL, comm, PETSC_ERR_PLIB, "SolveTranspose %s, error %g", MatStorageTypes[storage], (double)err);
 
     PetscCall(VecDestroy(&x_full));
     PetscCall(VecDestroy(&x));
     PetscCall(VecDestroy(&b));
     PetscCall(MatDestroy(&A_full_fac));
+  }
+
+  if (m == n && MatStorageIsHermitian(storage)) {
+    Mat       A_fac, A_full_fac;
+    Vec       b, x, x_full;
+    PetscReal err;
+
+    PetscCall(MatCreateVecs(A, &x, &b));
+    PetscCall(VecDuplicate(x, &x_full));
+    PetscCall(VecSetRandom(b, NULL));
+
+    PetscCall(MatSetOption(A, MAT_HERMITIAN, PETSC_TRUE));
+    PetscCall(MatSetOption(A, MAT_SPD, PETSC_TRUE));
+    PetscCall(MatGetFactor(A, MATSOLVERPETSC, MAT_FACTOR_CHOLESKY, &A_fac));
+    PetscCall(MatGetFactor(A_full, MATSOLVERPETSC, MAT_FACTOR_CHOLESKY, &A_full_fac));
+    PetscCall(MatCholeskyFactorSymbolic(A_fac, A, NULL, NULL));
+    PetscCall(MatCholeskyFactorSymbolic(A_full_fac, A_full, NULL, NULL));
+    PetscCall(MatCholeskyFactorNumeric(A_fac, A, NULL));
+    PetscCall(MatCholeskyFactorNumeric(A_full_fac, A_full, NULL));
+
+    PetscCall(MatSolve(A_fac, b, x));
+    PetscCall(MatSolve(A_full_fac, b, x_full));
+    PetscCall(VecAXPY(x_full, -1.0, x));
+    PetscCall(VecNorm(x_full, NORM_INFINITY, &err));
+    PetscCheck(err < PETSC_SMALL, comm, PETSC_ERR_PLIB, "Solve %s, error %g", MatStorageTypes[storage], (double)err);
+
+    PetscCall(MatSolveTranspose(A_fac, b, x));
+    PetscCall(MatSolveTranspose(A_full_fac, b, x_full));
+    PetscCall(VecAXPY(x_full, -1.0, x));
+    PetscCall(VecNorm(x_full, NORM_INFINITY, &err));
+    PetscCheck(err < PETSC_SMALL, comm, PETSC_ERR_PLIB, "SolveTranspose %s, error %g", MatStorageTypes[storage], (double)err);
+
+    PetscCall(MatDestroy(&A_full_fac));
+    PetscCall(MatDestroy(&A_fac));
   }
 
   PetscCall(MatDestroy(&A_full));
