@@ -1261,21 +1261,25 @@ char assert_aligned[(sizeof(struct mystruct)==16)*2-1];
       self.delDefine(define_name)
     return
 
-  def configureHostDeviceLambdaFlagsForLang(self, lang, lambda_flags, includes, body):
-    r"""Do the actual checking for host-device lambda flags. See configureHostDeviceLambdaFlags for
+  def configureHostDeviceFeatureFlagsForLang(self, lang, feature_name, flag_list, includes, body, additional_notes = ''):
+    r"""Do the actual checking for host-device lambda flags. See configureHostDeviceFeatureFlags for
     more info
 
     Parameters
     ----------
     lang : str
       the language to test, e.g. 'CUDA'
-    lambda_flags : array[str]
+    feature_name : str
+      the name of the feature to output in logging, e.g. '__host__ __device__ lambdas'
+    flag_list : array[str]
       the set of flags to test, e.g. ('--extended-lambda', '--exp-extended-lambda'), must not be a
       generator!
     includes : str
       the preamble section of the source snippet to use to test compilation
     body : str
       the body of the source snippet to use to test compilation
+    additonal_notes : optional, str
+      additional notes to add to the error message in case the compiler cannot compile `feature_name`
 
     Returns
     -------
@@ -1284,20 +1288,23 @@ char assert_aligned[(sizeof(struct mystruct)==16)*2-1];
     Raises
     ------
     config.base.ConfigureSetupError
-      if the compiler exists but could not compile __host__ __device__ lambdas. should not be caught
+      if the compiler exists but could not compile the feature, should not be caught
 
     Notes
     -----
     Does nothing if there is no compiler for `lang`
     """
     assert isinstance(lang, str)
-    for f in lambda_flags:
+    assert isinstance(feature_name, str)
+    assert isinstance(flag_list, (tuple, list))
+    for f in flag_list:
       assert isinstance(f, str)
     assert isinstance(includes, str)
     assert isinstance(body, str)
+    assert isinstance(additional_notes, str)
 
     log_print = LogPrinter(self)
-    log_print('Testing host-device lambdas for {}'.format(lang))
+    log_print('Testing {} for {}'.format(lang, feature_name))
     try:
       device_cc = self.getCompiler(lang=lang)
     except RuntimeError:
@@ -1312,17 +1319,19 @@ char assert_aligned[(sizeof(struct mystruct)==16)*2-1];
     log_print('Found {} compiler {}'.format(lang, quoted_device_cc))
     with self.Language(lang):
       with self.setCompilers.Language(lang):
-        for flag in lambda_flags:
+        for flag in flag_list:
           # the linker should not get the flag
           with self.setCompilers.extraCompilerFlags([flag], compilerOnly=True) as skip_flags:
             if not skip_flags and self.checkLink(includes=includes, body=body):
               # flag was accepted
               break
           log_print(
-            'Compiler {} did not accept lambda flag {}'.format(quoted_device_cc, quoted(flag))
+            'Compiler {} did not accept {} flag {}'.format(quoted_device_cc, feature_name, quoted(flag))
           )
         else:
-          mess = 'Compiler {} did not accept any of the following flags {} to enable __host__ __device__ lambdas. If you know the correct flag, set it via --{}=\'<the flag>\' and re-run configure. If not, it\'s possible your compiler is too old. NVCC, for example, requires at least CUDA 8 for this feature.'.format(quoted_device_cc, lambda_flags, self.getCompilerFlagsName(lang))
+          mess = 'Compiler {} did not accept any of the following flags {} to enable {}. If you know the correct flag, set it via --{}=\'<the flag>\' and re-run configure. If not, it\'s possible your compiler is too old.'.format(quoted_device_cc, flag_list, feature_name, self.getCompilerFlagsName(lang))
+          if additional_notes:
+            mess += ' ' + additional_notes
           raise config.base.ConfigureSetupError(mess)
         # must do this exactly here since:
         #
@@ -1333,18 +1342,18 @@ char assert_aligned[(sizeof(struct mystruct)==16)*2-1];
         self.setCompilers.insertCompilerFlag(flag, True)
     return
 
-  def configureHostDeviceLambdaFlags(self):
-    r"""Adds the required flags to device compiler to allow __host__ __device__ C++ lambdas
+  def configureHostDeviceFeatureFlags(self):
+    r"""Adds the required flags to device compiler to allow certain C++ features in host/device code
 
     Notes
     -----
-    See self.configureHostDeviceLambdaFlagsForLang() for more information. This routine acts as a thin
+    See self.configureHostDeviceFeatureFlagsForLang() for more information. This routine acts as a thin
     wrapper over it.
     """
     self.executeTest(
-      self.configureHostDeviceLambdaFlagsForLang,
+      self.configureHostDeviceFeatureFlagsForLang,
       args=[
-        'CUDA',
+        'CUDA', '__host__ __device__ lambdas',
         ('', '--extended-lambda', '--exp-extended-lambda', '—expt-extended-lambda'),
         textwrap.dedent(
           """
@@ -1370,6 +1379,48 @@ char assert_aligned[(sizeof(struct mystruct)==16)*2-1];
 
           kernel<<<1, 1>>>(lambda);
           host_func(lambda);
+          """
+        )
+      ],
+      kargs=dict(additional_notes='NVCC, for example, requires at least CUDA 8 for this feature.')
+    )
+    self.executeTest(
+      self.configureHostDeviceFeatureFlagsForLang,
+      args=[
+        'CUDA', 'relaxed __host__ __device__ constexpr',
+        ('', '--expt-relaxed-constexpr'),
+        textwrap.dedent(
+          """
+          #include <tuple>
+          #include <cuda_runtime.h>
+
+          __host__ __device__ tuple_get(std::tuple<int, int>& x)
+          {
+            return std::get<0>(x);
+          }
+
+          __global__ void kernel(int x, int y, int *ret)
+          {
+            std::tuple<int, int> tup{x, y};
+
+            *ret = tuple_get(tup)
+          }
+
+
+          void host_func(int x, int y, int *ret)
+          {
+            std::tuple<int, int> tup{x, y};
+
+            *ret = tuple_get(tup);
+          }
+          """
+        ),
+        textwrap.dedent(
+          """
+          int x = 1, y = 2, z = 3;
+
+          kernel<<<1, 1>>>(x, y, &z);
+          host_func(x, y, &z);
           """
         )
       ]
@@ -1514,7 +1565,7 @@ char assert_aligned[(sizeof(struct mystruct)==16)*2-1];
       raise RuntimeError('PETSc requires a functional math library. Please send configure.log to petsc-maint@mcs.anl.gov.')
     if self.languages.clanguage == 'Cxx' and not hasattr(self.compilers, 'CXX'):
       raise RuntimeError('Cannot set C language to C++ without a functional C++ compiler.')
-    self.executeTest(self.configureHostDeviceLambdaFlags)
+    self.executeTest(self.configureHostDeviceFeatureFlags)
     self.executeTest(self.configureRTLDDefault)
     self.executeTest(self.configurePrefetch)
     self.executeTest(self.configureUnused)
