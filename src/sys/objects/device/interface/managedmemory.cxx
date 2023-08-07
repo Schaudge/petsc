@@ -70,6 +70,13 @@ const ManagedReal &MANAGED_REAL_ZERO() noexcept
   return scal.get();
 }
 
+const ManagedReal &MANAGED_REAL_MINUS_ONE() noexcept
+{
+  static StaticScalar<ManagedReal> scal{-1.0};
+
+  return scal.get();
+}
+
 const ManagedScalar &MANAGED_SCAL_ONE() noexcept
 {
 #if PetscDefined(USE_COMPLEX)
@@ -89,6 +96,17 @@ const ManagedScalar &MANAGED_SCAL_ZERO() noexcept
   return scal.get();
 #else
   return MANAGED_REAL_ZERO();
+#endif
+}
+
+const ManagedScalar &MANAGED_SCAL_MINUS_ONE() noexcept
+{
+#if PetscDefined(USE_COMPLEX)
+  static StaticScalar<ManagedScalar> scal{-1.0};
+
+  return scal.get();
+#else
+  return MANAGED_REAL_MINUS_ONE();
 #endif
 }
 

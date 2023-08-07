@@ -15,6 +15,8 @@ using ManagedScalar = ManagedMemory<PetscScalar>;
 
 PETSC_NODISCARD PETSC_CXX_EXTERN const ManagedScalar &MANAGED_SCAL_ONE() noexcept;
 PETSC_NODISCARD PETSC_CXX_EXTERN const ManagedReal   &MANAGED_REAL_ONE() noexcept;
+PETSC_NODISCARD PETSC_CXX_EXTERN const ManagedScalar &MANAGED_SCAL_MINUS_ONE() noexcept;
+PETSC_NODISCARD PETSC_CXX_EXTERN const ManagedReal   &MANAGED_REAL_MINUS_ONE() noexcept;
 PETSC_NODISCARD PETSC_CXX_EXTERN const ManagedScalar &MANAGED_SCAL_ZERO() noexcept;
 PETSC_NODISCARD PETSC_CXX_EXTERN const ManagedReal   &MANAGED_REAL_ZERO() noexcept;
 

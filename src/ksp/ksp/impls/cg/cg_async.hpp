@@ -73,7 +73,7 @@ static PetscErrorCode KSPSolve_CG_Async(KSP ksp)
     PetscCall(VecCopyAsync(B, R, dctx)); // r <- b (x is 0)
   } else {
     PetscCall(KSP_MatMult(ksp, Amat, X, R)); // r <- b - Ax
-    PetscCall(VecAYPXAsync(R, {dctx, -1.0}, B, dctx));
+    PetscCall(VecAYPXAsync(R, MANAGED_SCAL_MINUS_ONE(), B, dctx));
   }
   /* This may be true only on a subset of MPI ranks; setting it here so it will be detected by
      the first norm computation below */
