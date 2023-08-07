@@ -88,9 +88,9 @@ PetscErrorCode VecCopyAsync(Vec x, Vec y, PetscDeviceContext dctx)
       dctx, {{PETSC_MEMORY_ACCESS_READ, x}, {PETSC_MEMORY_ACCESS_WRITE, y}}
     };
 
-    PetscCall(PetscLogEventBegin(VEC_Copy, x, y, 0, 0));
+    PetscCall(PetscLogEventBegin(VEC_Copy, x, y, nullptr, nullptr));
     PetscUseTypeMethod(x, copy_async, y, dctx);
-    PetscCall(PetscLogEventEnd(VEC_Copy, x, y, 0, 0));
+    PetscCall(PetscLogEventEnd(VEC_Copy, x, y, nullptr, nullptr));
   }
 
   PetscCall(PetscObjectStateIncrease(PetscObjectCast(y)));
@@ -127,9 +127,9 @@ PetscErrorCode VecAYPXAsync(Vec y, const ManagedScalar &beta, Vec x, PetscDevice
       dctx, {{PETSC_MEMORY_ACCESS_READ, x}, {PETSC_MEMORY_ACCESS_READ_WRITE, y}}
     };
 
-    PetscCall(PetscLogEventBegin(VEC_AYPX, x, y, 0, 0));
+    PetscCall(PetscLogEventBegin(VEC_AYPX, x, y, nullptr, nullptr));
     PetscUseTypeMethod(y, aypx_async, beta, x, dctx);
-    PetscCall(PetscLogEventEnd(VEC_AYPX, x, y, 0, 0));
+    PetscCall(PetscLogEventEnd(VEC_AYPX, x, y, nullptr, nullptr));
     PetscCall(PetscObjectStateIncrease(PetscObjectCast(y)));
   }
   PetscCall(VecLockReadPop(x));
@@ -156,9 +156,9 @@ PetscErrorCode VecDotAsync(Vec x, Vec y, ManagedScalar *val, PetscDeviceContext 
       dctx, {{PETSC_MEMORY_ACCESS_READ, x}, {PETSC_MEMORY_ACCESS_READ, y}}
     };
 
-    PetscCall(PetscLogEventBegin(VEC_Dot, x, y, 0, 0));
+    PetscCall(PetscLogEventBegin(VEC_Dot, x, y, nullptr, nullptr));
     PetscUseTypeMethod(x, dot_async, y, *val, dctx);
-    PetscCall(PetscLogEventEnd(VEC_Dot, x, y, 0, 0));
+    PetscCall(PetscLogEventEnd(VEC_Dot, x, y, nullptr, nullptr));
   }
   PetscCall(VecLockReadPop(x));
   PetscCall(VecLockReadPop(y));
@@ -185,9 +185,9 @@ PetscErrorCode VecTDotAsync(Vec x, Vec y, ManagedScalar *val, PetscDeviceContext
       dctx, {{PETSC_MEMORY_ACCESS_READ, x}, {PETSC_MEMORY_ACCESS_READ, y}}
     };
 
-    PetscCall(PetscLogEventBegin(VEC_TDot, x, y, 0, 0));
+    PetscCall(PetscLogEventBegin(VEC_TDot, x, y, nullptr, nullptr));
     PetscUseTypeMethod(x, tdot_async, y, *val, dctx);
-    PetscCall(PetscLogEventEnd(VEC_TDot, x, y, 0, 0));
+    PetscCall(PetscLogEventEnd(VEC_TDot, x, y, nullptr, nullptr));
   }
   PetscCall(VecLockReadPop(x));
   PetscCall(VecLockReadPop(y));
@@ -217,9 +217,9 @@ PetscErrorCode VecNormAsync(Vec x, NormType type, ManagedReal *val, PetscDeviceC
   {
     auto _ = MarkVecGuard{dctx, {{PETSC_MEMORY_ACCESS_READ, x}}};
 
-    PetscCall(PetscLogEventBegin(VEC_Norm, x, 0, 0, 0));
+    PetscCall(PetscLogEventBegin(VEC_Norm, x, nullptr, nullptr, nullptr));
     PetscUseTypeMethod(x, norm_async, type, val, dctx);
-    PetscCall(PetscLogEventEnd(VEC_Norm, x, 0, 0, 0));
+    PetscCall(PetscLogEventEnd(VEC_Norm, x, nullptr, nullptr, nullptr));
   }
   PetscCall(VecLockReadPop(x));
 
@@ -256,9 +256,9 @@ PetscErrorCode VecAXPYAsync(Vec y, const ManagedScalar &alpha, Vec x, PetscDevic
       dctx, {{PETSC_MEMORY_ACCESS_READ, x}, {PETSC_MEMORY_ACCESS_READ_WRITE, y}}
     };
 
-    PetscCall(PetscLogEventBegin(VEC_AXPY, x, y, 0, 0));
+    PetscCall(PetscLogEventBegin(VEC_AXPY, x, y, nullptr, nullptr));
     PetscUseTypeMethod(y, axpy_async, alpha, x, dctx);
-    PetscCall(PetscLogEventEnd(VEC_AXPY, x, y, 0, 0));
+    PetscCall(PetscLogEventEnd(VEC_AXPY, x, y, nullptr, nullptr));
   }
   PetscCall(VecLockReadPop(x));
   PetscCall(PetscObjectStateIncrease(PetscObjectCast(y)));
@@ -287,9 +287,9 @@ PetscErrorCode VecPointwiseMultAsync(Vec w, Vec x, Vec y, PetscDeviceContext dct
       dctx, {{PETSC_MEMORY_ACCESS_READ, x}, {PETSC_MEMORY_ACCESS_READ, y}, {PETSC_MEMORY_ACCESS_WRITE, w}}
     };
 
-    PetscCall(PetscLogEventBegin(VEC_PointwiseMult, x, y, w, 0));
+    PetscCall(PetscLogEventBegin(VEC_PointwiseMult, x, y, w, nullptr));
     PetscUseTypeMethod(w, pointwisemult_async, x, y, dctx);
-    PetscCall(PetscLogEventEnd(VEC_PointwiseMult, x, y, w, 0));
+    PetscCall(PetscLogEventEnd(VEC_PointwiseMult, x, y, w, nullptr));
   }
   PetscCall(PetscObjectStateIncrease(PetscObjectCast(w)));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -313,9 +313,9 @@ PetscErrorCode VecScaleAsync(Vec x, const ManagedScalar &alpha, PetscDeviceConte
   {
     auto _ = MarkVecGuard{dctx, {std::make_pair(PETSC_MEMORY_ACCESS_READ_WRITE, x)}};
 
-    PetscCall(PetscLogEventBegin(VEC_Scale, x, 0, 0, 0));
+    PetscCall(PetscLogEventBegin(VEC_Scale, x, nullptr, nullptr, nullptr));
     PetscUseTypeMethod(x, scale_async, alpha, dctx);
-    PetscCall(PetscLogEventEnd(VEC_Scale, x, 0, 0, 0));
+    PetscCall(PetscLogEventEnd(VEC_Scale, x, nullptr, nullptr, nullptr));
   }
 
   PetscCall(PetscObjectStateIncrease(PetscObjectCast(x)));
@@ -340,15 +340,14 @@ PetscErrorCode VecSetAsync(Vec x, const ManagedScalar &alpha, PetscDeviceContext
   {
     auto _ = MarkVecGuard{dctx, {std::make_pair(PETSC_MEMORY_ACCESS_WRITE, x)}};
 
-    PetscCall(PetscLogEventBegin(VEC_Set, x, 0, 0, 0));
+    PetscCall(PetscLogEventBegin(VEC_Set, x, nullptr, nullptr, nullptr));
     PetscUseTypeMethod(x, set_async, alpha, dctx);
-    PetscCall(PetscLogEventEnd(VEC_Set, x, 0, 0, 0));
+    PetscCall(PetscLogEventEnd(VEC_Set, x, nullptr, nullptr, nullptr));
   }
 
   PetscCall(PetscObjectStateIncrease(pobj));
 
-/*  norms can be simply set (if |alpha|*N not too large) */
-#if 0
+  /*  norms can be simply set (if |alpha|*N not too large) */
   {
     const auto N = x->map->N;
 
@@ -358,6 +357,7 @@ PetscErrorCode VecSetAsync(Vec x, const ManagedScalar &alpha, PetscDeviceContext
       PetscCall(PetscObjectComposedDataSetReal(pobj, NormIds[NORM_2], 0.0));
       PetscCall(PetscObjectComposedDataSetReal(pobj, NormIds[NORM_FROBENIUS], 0.0));
     } else {
+#if 0
       PetscReal val = PetscAbsScalar(alpha);
 
       if (val > PETSC_MAX_REAL / N) {
@@ -369,9 +369,9 @@ PetscErrorCode VecSetAsync(Vec x, const ManagedScalar &alpha, PetscDeviceContext
         PetscCall(PetscObjectComposedDataSetReal(pobj, NormIds[NORM_2], val));
         PetscCall(PetscObjectComposedDataSetReal(pobj, NormIds[NORM_FROBENIUS], val));
       }
+#endif
     }
   }
-#endif
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -404,9 +404,9 @@ PetscErrorCode VecWAXPYAsync(Vec w, const ManagedScalar &alpha, Vec x, Vec y, Pe
       dctx, {{PETSC_MEMORY_ACCESS_WRITE, w}, {PETSC_MEMORY_ACCESS_READ, x}, {PETSC_MEMORY_ACCESS_READ, y}}
     };
 
-    PetscCall(PetscLogEventBegin(VEC_WAXPY, x, y, w, 0));
+    PetscCall(PetscLogEventBegin(VEC_WAXPY, x, y, w, nullptr));
     PetscUseTypeMethod(w, waxpy_async, alpha, x, y, dctx);
-    PetscCall(PetscLogEventEnd(VEC_WAXPY, x, y, w, 0));
+    PetscCall(PetscLogEventEnd(VEC_WAXPY, x, y, w, nullptr));
     PetscCall(PetscObjectStateIncrease(PetscObjectCast(w)));
   }
   PetscCall(VecLockReadPop(x));
@@ -422,14 +422,14 @@ PetscErrorCode VecNormalizeAsync(Vec x, ManagedReal *val, PetscDeviceContext dct
   PetscCall(VecSetErrorIfLocked(x, 1));
   PetscAssertPointer(val, 2);
   PetscCall(PetscDeviceContextGetOptionalNullContext_Internal(&dctx));
-  PetscCall(PetscLogEventBegin(VEC_Normalize, x, 0, 0, 0));
+  PetscCall(PetscLogEventBegin(VEC_Normalize, x, nullptr, nullptr, nullptr));
   PetscCall(VecNormAsync(x, NORM_2, val, dctx));
   {
     ManagedScalar scal{Eval(1.0 / (*val), dctx)};
 
     PetscCall(VecScaleAsync(x, scal, dctx));
   }
-  PetscCall(PetscLogEventEnd(VEC_Normalize, x, 0, 0, 0));
+  PetscCall(PetscLogEventEnd(VEC_Normalize, x, nullptr, nullptr, nullptr));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -465,9 +465,9 @@ PetscErrorCode VecMAXPYAsync(Vec y, PetscInt nv, const Petsc::ManagedScalar *alp
         dctx, {{PETSC_MEMORY_ACCESS_READ_WRITE, 1, &y}, {PETSC_MEMORY_ACCESS_READ, nv, x}}
       };
 
-      PetscCall(PetscLogEventBegin(VEC_MAXPY, y, *x, 0, 0));
+      PetscCall(PetscLogEventBegin(VEC_MAXPY, y, *x, nullptr, nullptr));
       PetscUseTypeMethod(y, maxpy_async, nv, alpha, x, dctx);
-      PetscCall(PetscLogEventEnd(VEC_MAXPY, y, *x, 0, 0));
+      PetscCall(PetscLogEventEnd(VEC_MAXPY, y, *x, nullptr, nullptr));
       PetscCall(PetscObjectStateIncrease((PetscObject)y));
     }
 
