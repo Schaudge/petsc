@@ -74,7 +74,7 @@ int main(int argc, char **argv)
     user.is_cuda = PETSC_TRUE;	  
     PetscCall(VecCreateSeqCUDA(PETSC_COMM_SELF, user.n, &x));
     PetscCall(VecGetType(x, &vec_type));    
-    PetscCall(MatCreateDenseFromVecType(PETSC_COMM_WORLD, vec_type, user.n, user.n, PETSC_DECIDE, PETSC_DECIDE,  -1, NULL, &H));
+//    PetscCall(MatCreateDenseFromVecType(PETSC_COMM_WORLD, vec_type, user.n, user.n, PETSC_DECIDE, PETSC_DECIDE,  -1, NULL, &H));
   } else {
     PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &x));
     PetscCall(MatCreateSeqBAIJ(PETSC_COMM_SELF, 2, user.n, user.n, 1, NULL, &H));
@@ -91,7 +91,7 @@ int main(int argc, char **argv)
 
   /* Set routines for function, gradient, hessian evaluation */
   PetscCall(TaoSetObjectiveAndGradient(tao, NULL, FormFunctionGradient, &user));
-  PetscCall(TaoSetHessian(tao, H, H, FormHessian, &user));
+//  PetscCall(TaoSetHessian(tao, H, H, FormHessian, &user));
 
   /* Test the LMVM matrix */
   if (test_lmvm) PetscCall(PetscOptionsSetValue(NULL, "-tao_type", "bqnktr"));
@@ -184,7 +184,7 @@ cudaDeviceSynchronize();
 
   PetscCall(TaoDestroy(&tao));
   PetscCall(VecDestroy(&x));
-  PetscCall(MatDestroy(&H));
+//  PetscCall(MatDestroy(&H));
 
   PetscCall(PetscFinalize());
   return 0;
@@ -219,14 +219,18 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *f, Vec G, void *p
   PetscFunctionBeginUser;
 
   if (user->is_cuda) {
-#if defined(PETSC_HAVE_CUDA)	  
+#if defined(PETSC_HAVE_CUDA)	 
+    PetscDeviceContext dctx;
+    PetscCall(PetscDeviceContextCreate(&dctx));
+    PetscCall(PetscDeviceContextSetUp(dctx));
     /* Not supporting chained. Also, only for n=2 */	  
     PetscScalar *fff;  
     /* Just using f causes cuda-segfault, as operation on f is done in cu func... */
-    PetscCall(PetscDeviceCalloc(NULL, PETSC_MEMTYPE_CUDA, 1, &fff));
+    PetscCall(PetscDeviceCalloc(dctx, PETSC_MEMTYPE_CUDA, 1, &fff));
     PetscCall(Rosenbrock1ObjAndGradCUDA(X, G, fff, alpha, nn));
     PetscCallCUDA(cudaMemcpy(f, fff, sizeof(PetscScalar), cudaMemcpyDeviceToHost));
-    PetscCall(PetscDeviceFree(NULL, fff));
+    PetscCall(PetscDeviceFree(dctx, fff));
+    PetscCall(PetscDeviceContextDestroy(&dctx));
 #endif
   } else {
     /* Get pointers to vector data */

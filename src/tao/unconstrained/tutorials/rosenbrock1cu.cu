@@ -16,12 +16,12 @@ __global__ void Rosenbrock1ObjAndGradCUDA_Kernel(const PetscScalar x[], PetscSca
   if (idx >= nn) return;
 
   int total = blockDim.x * gridDim.x;
-  for (i = 2*tid; i< nn; i+=2*total) {
-    t1 = x[i+1] - x[i]*x[i];
-    t2 = 1 - x[i];
+  for (i = tid; i< nn; i+=total) {
+    t1 = x[2*i+1] - x[2*i]*x[2*i];
+    t2 = 1 - x[2*i];
   
-    g[i] = -4*alpha*(t1)*x[i] - 2.*(t2);
-    g[i+1] = 2*alpha*(t1);
+    g[2*i] = -4*alpha*(t1)*x[2*i] - 2.*(t2);
+    g[2*i+1] = 2*alpha*(t1);
     f_array[tid] += alpha*t1*t1 + t2*t2;
   }
 
