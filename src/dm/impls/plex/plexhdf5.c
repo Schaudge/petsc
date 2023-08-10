@@ -594,17 +594,20 @@ static PetscErrorCode DMPlexDistributionView_HDF5_Private(DM dm, IS globalPointN
 
 static PetscErrorCode DMPlexTopologyView_HDF5_Inner_Private(DM dm, IS globalPointNumbers, PetscViewer viewer, PetscInt pStart, PetscInt pEnd, const char pointsName[], const char coneSizesName[], const char conesName[], const char orientationsName[])
 {
+  DM_Plex        *mesh = (DM_Plex *)dm->data;
+  PetscSection    pSec = mesh->parentSection;
   IS              coneSizesIS, conesIS, orientationsIS;
+  IS              parentSizesIS, parentsIS, childIDsIS;
   PetscInt       *coneSizes, *cones, *orientations;
+  PetscInt       *parentSizes, *parents, *childIDs;
   const PetscInt *gpoint;
-  PetscInt        nPoints = 0, conesSize = 0;
-  PetscInt        p, c, s;
+  PetscInt        nPoints = 0, conesSize = 0, parentsSize = 0, c = 0, s = 0, ppStart, ppEnd;
   MPI_Comm        comm;
 
   PetscFunctionBegin;
   PetscCall(PetscObjectGetComm((PetscObject)dm, &comm));
   PetscCall(ISGetIndices(globalPointNumbers, &gpoint));
-  for (p = pStart; p < pEnd; ++p) {
+  for (PetscInt p = pStart; p < pEnd; ++p) {
     if (gpoint[p] >= 0) {
       PetscInt coneSize;
 
@@ -616,16 +619,31 @@ static PetscErrorCode DMPlexTopologyView_HDF5_Inner_Private(DM dm, IS globalPoin
   PetscCall(PetscMalloc1(nPoints, &coneSizes));
   PetscCall(PetscMalloc1(conesSize, &cones));
   PetscCall(PetscMalloc1(conesSize, &orientations));
-  for (p = pStart, c = 0, s = 0; p < pEnd; ++p) {
+  if (pSec) {
+    // Force parent section to have same chart as cones on save
+    PetscCall(PetscSectionGetChart(pSec, &ppStart, &ppEnd));
+    for (PetscInt p = ppStart; p < ppEnd; ++p) {
+      if (gpoint[p] >= 0) {
+        PetscInt dof;
+
+        PetscCall(PetscSectionGetDof(pSec, p, &dof));
+        parentsSize += dof;
+      }
+    }
+    PetscCall(PetscMalloc1(nPoints, &parentSizes));
+    PetscCall(PetscMalloc1(parentsSize, &parents));
+    PetscCall(PetscMalloc1(parentsSize, &childIDs));
+  }
+  for (PetscInt p = pStart; p < pEnd; ++p) {
     if (gpoint[p] >= 0) {
       const PetscInt *cone, *ornt;
-      PetscInt        coneSize, cp;
+      PetscInt        coneSize;
 
       PetscCall(DMPlexGetConeSize(dm, p, &coneSize));
       PetscCall(DMPlexGetCone(dm, p, &cone));
       PetscCall(DMPlexGetConeOrientation(dm, p, &ornt));
       coneSizes[s] = coneSize;
-      for (cp = 0; cp < coneSize; ++cp, ++c) {
+      for (PetscInt cp = 0; cp < coneSize; ++cp, ++c) {
         cones[c]        = gpoint[cone[cp]] < 0 ? -(gpoint[cone[cp]] + 1) : gpoint[cone[cp]];
         orientations[c] = ornt[cp];
       }
@@ -634,6 +652,32 @@ static PetscErrorCode DMPlexTopologyView_HDF5_Inner_Private(DM dm, IS globalPoin
   }
   PetscCheck(s == nPoints, PETSC_COMM_SELF, PETSC_ERR_LIB, "Total number of points %" PetscInt_FMT " != %" PetscInt_FMT, s, nPoints);
   PetscCheck(c == conesSize, PETSC_COMM_SELF, PETSC_ERR_LIB, "Total number of cone points %" PetscInt_FMT " != %" PetscInt_FMT, c, conesSize);
+  if (pSec) {
+    s = c = 0;
+    for (PetscInt p = pStart; p < pEnd; ++p) {
+      if (gpoint[p] >= 0) {
+        PetscInt dof, off;
+
+        if (p < ppStart || p >= ppEnd) {
+          parentSizes[s++] = 0;
+          continue;
+        }
+        PetscCall(PetscSectionGetDof(pSec, p, &dof));
+        PetscCall(PetscSectionGetOffset(pSec, p, &off));
+        parentSizes[s] = dof;
+        for (PetscInt pp = 0; pp < dof; ++pp, ++c) {
+          const PetscInt parent = mesh->parents[off + pp];
+          const PetscInt child  = mesh->childIDs[off + pp];
+
+          parents[c]  = gpoint[parent] < 0 ? -(gpoint[parent] + 1) : gpoint[parent];
+          childIDs[c] = child;
+        }
+        ++s;
+      }
+    }
+    PetscCheck(s == nPoints, PETSC_COMM_SELF, PETSC_ERR_LIB, "Total number of points %" PetscInt_FMT " != %" PetscInt_FMT, s, nPoints);
+    PetscCheck(c == parentsSize, PETSC_COMM_SELF, PETSC_ERR_LIB, "Total number of parent points %" PetscInt_FMT " != %" PetscInt_FMT, c, parentsSize);
+  }
   PetscCall(ISCreateGeneral(comm, nPoints, coneSizes, PETSC_OWN_POINTER, &coneSizesIS));
   PetscCall(ISCreateGeneral(comm, conesSize, cones, PETSC_OWN_POINTER, &conesIS));
   PetscCall(ISCreateGeneral(comm, conesSize, orientations, PETSC_OWN_POINTER, &orientationsIS));
@@ -646,12 +690,26 @@ static PetscErrorCode DMPlexTopologyView_HDF5_Inner_Private(DM dm, IS globalPoin
   PetscCall(ISDestroy(&coneSizesIS));
   PetscCall(ISDestroy(&conesIS));
   PetscCall(ISDestroy(&orientationsIS));
+  if (pSec) {
+    PetscCall(ISCreateGeneral(comm, nPoints, parentSizes, PETSC_OWN_POINTER, &parentSizesIS));
+    PetscCall(ISCreateGeneral(comm, parentsSize, parents, PETSC_OWN_POINTER, &parentsIS));
+    PetscCall(ISCreateGeneral(comm, parentsSize, childIDs, PETSC_OWN_POINTER, &childIDsIS));
+    PetscCall(PetscObjectSetName((PetscObject)parentSizesIS, "parentSizes"));
+    PetscCall(PetscObjectSetName((PetscObject)parentsIS, "parents"));
+    PetscCall(PetscObjectSetName((PetscObject)childIDsIS, "childIDs"));
+    PetscCall(ISView(parentSizesIS, viewer));
+    PetscCall(ISView(parentsIS, viewer));
+    PetscCall(ISView(childIDsIS, viewer));
+    PetscCall(ISDestroy(&parentSizesIS));
+    PetscCall(ISDestroy(&parentsIS));
+    PetscCall(ISDestroy(&childIDsIS));
+  }
   if (pointsName) {
     IS        pointsIS;
     PetscInt *points;
 
     PetscCall(PetscMalloc1(nPoints, &points));
-    for (p = pStart, c = 0, s = 0; p < pEnd; ++p) {
+    for (PetscInt p = pStart, s = 0; p < pEnd; ++p) {
       if (gpoint[p] >= 0) {
         points[s] = gpoint[p];
         ++s;
@@ -1843,9 +1901,11 @@ static PetscErrorCode DMPlexTopologyLoad_HDF5_Legacy_Private(DM dm, PetscViewer 
   MPI_Comm        comm;
   const char     *pointsName, *coneSizesName, *conesName, *orientationsName;
   IS              pointsIS, coneSizesIS, conesIS, orientationsIS;
+  IS              parentSizesIS = NULL, parentsIS = NULL, childIDsIS = NULL;
   const PetscInt *points, *coneSizes, *cones, *orientations;
   PetscInt       *cone, *ornt;
   PetscInt        dim, N, Np, pEnd, p, q, maxConeSize = 0, c;
+  PetscBool       hasParents;
   PetscMPIInt     size, rank;
 
   PetscFunctionBegin;
@@ -1856,6 +1916,7 @@ static PetscErrorCode DMPlexTopologyLoad_HDF5_Legacy_Private(DM dm, PetscViewer 
   PetscCall(PetscObjectGetComm((PetscObject)dm, &comm));
   PetscCallMPI(MPI_Comm_size(comm, &size));
   PetscCallMPI(MPI_Comm_rank(comm, &rank));
+  PetscCall(PetscViewerHDF5HasDataset(viewer, "parents", &hasParents));
   PetscCall(ISCreate(comm, &pointsIS));
   PetscCall(PetscObjectSetName((PetscObject)pointsIS, pointsName));
   PetscCall(ISCreate(comm, &coneSizesIS));
@@ -1864,6 +1925,14 @@ static PetscErrorCode DMPlexTopologyLoad_HDF5_Legacy_Private(DM dm, PetscViewer 
   PetscCall(PetscObjectSetName((PetscObject)conesIS, conesName));
   PetscCall(ISCreate(comm, &orientationsIS));
   PetscCall(PetscObjectSetName((PetscObject)orientationsIS, orientationsName));
+  if (hasParents) {
+    PetscCall(ISCreate(comm, &parentSizesIS));
+    PetscCall(PetscObjectSetName((PetscObject)parentSizesIS, "parentSizes"));
+    PetscCall(ISCreate(comm, &parentsIS));
+    PetscCall(PetscObjectSetName((PetscObject)parentsIS, "parents"));
+    PetscCall(ISCreate(comm, &childIDsIS));
+    PetscCall(PetscObjectSetName((PetscObject)childIDsIS, "childIDs"));
+  }
   PetscCall(PetscViewerHDF5ReadObjectAttribute(viewer, (PetscObject)conesIS, "cell_dim", PETSC_INT, NULL, &dim));
   PetscCall(DMSetDimension(dm, dim));
   {
@@ -1881,11 +1950,27 @@ static PetscErrorCode DMPlexTopologyLoad_HDF5_Legacy_Private(DM dm, PetscViewer 
     PetscCall(PetscViewerHDF5ReadSizes(viewer, orientationsName, NULL, &N));
     PetscCall(PetscLayoutSetLocalSize(orientationsIS->map, rank == 0 ? N : 0));
     PetscCall(PetscLayoutSetSize(orientationsIS->map, N));
+    if (hasParents) {
+      PetscCall(PetscViewerHDF5ReadSizes(viewer, "parentSizes", NULL, &Np));
+      PetscCall(PetscLayoutSetLocalSize(parentSizesIS->map, rank == 0 ? Np : 0));
+      PetscCall(PetscLayoutSetSize(parentSizesIS->map, Np));
+      PetscCall(PetscViewerHDF5ReadSizes(viewer, "parents", NULL, &N));
+      PetscCall(PetscLayoutSetLocalSize(parentsIS->map, rank == 0 ? N : 0));
+      PetscCall(PetscLayoutSetSize(parentsIS->map, N));
+      PetscCall(PetscViewerHDF5ReadSizes(viewer, "childIDs", NULL, &N));
+      PetscCall(PetscLayoutSetLocalSize(childIDsIS->map, rank == 0 ? N : 0));
+      PetscCall(PetscLayoutSetSize(childIDsIS->map, N));
+    }
   }
   PetscCall(ISLoad(pointsIS, viewer));
   PetscCall(ISLoad(coneSizesIS, viewer));
   PetscCall(ISLoad(conesIS, viewer));
   PetscCall(ISLoad(orientationsIS, viewer));
+  if (hasParents) {
+    PetscCall(ISLoad(parentSizesIS, viewer));
+    PetscCall(ISLoad(parentsIS, viewer));
+    PetscCall(ISLoad(childIDsIS, viewer));
+  }
   /* Create Plex */
   PetscCall(DMPlexSetChart(dm, 0, pEnd));
   PetscCall(ISGetIndices(pointsIS, &points));
@@ -1937,6 +2022,35 @@ static PetscErrorCode DMPlexTopologyLoad_HDF5_Legacy_Private(DM dm, PetscViewer 
   /* Fill in the rest of the topology structure */
   PetscCall(DMPlexSymmetrize(dm));
   PetscCall(DMPlexStratify(dm));
+  // Handle parents
+  if (hasParents) {
+    PetscSection    parentSection;
+    const PetscInt *parentSizes, *parents, *childIDs;
+    PetscInt        ppStart, ppEnd, n;
+
+    PetscCall(PetscSectionCreate(comm, &parentSection));
+    // Squeeze down the chart
+    PetscCall(ISGetIndices(parentSizesIS, &parentSizes));
+    for (ppStart = 0; ppStart < pEnd; ++ppStart) if (parentSizes[ppStart]) break;
+    if (ppStart == pEnd) {ppStart = ppEnd = 0;}
+    else for (ppEnd = pEnd - 1; ppEnd > 0; --ppEnd) if (parentSizes[ppEnd]) {++ppEnd; break;}
+    PetscCall(PetscSectionSetChart(parentSection, ppStart, ppEnd));
+    for (p = ppStart; p < ppEnd; ++p) {
+      PetscCall(PetscSectionSetDof(parentSection, points[p], parentSizes[p]));
+    }
+    PetscCall(ISRestoreIndices(parentSizesIS, &parentSizes));
+    PetscCall(PetscSectionSetUp(parentSection));
+    PetscCall(ISGetLocalSize(parentsIS, &n));
+    PetscCall(ISGetIndices(parentsIS, &parents));
+    PetscCall(ISGetIndices(childIDsIS, &childIDs));
+    PetscCall(DMPlexSetTree(dm, parentSection, parents, childIDs));
+    PetscCall(ISRestoreIndices(parentsIS, &parents));
+    PetscCall(ISRestoreIndices(childIDsIS, &childIDs));
+    PetscCall(PetscSectionDestroy(&parentSection));
+  }
+  PetscCall(ISDestroy(&parentSizesIS));
+  PetscCall(ISDestroy(&parentsIS));
+  PetscCall(ISDestroy(&childIDsIS));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

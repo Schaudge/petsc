@@ -863,6 +863,22 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
       PetscCall(PetscSectionGetOffset(mesh->coneSection, p, &off));
       for (c = off; c < off + dof; ++c) PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, "[%d]: %" PetscInt_FMT " <---- %" PetscInt_FMT " (%" PetscInt_FMT ")\n", rank, p, mesh->cones[c], mesh->coneOrientations[c]));
     }
+    {
+      DM_Plex *mesh = (DM_Plex *)dm->data;
+      PetscInt ppStart, ppEnd;
+
+      if (mesh->parents) {
+        PetscCall(PetscViewerASCIIPrintf(viewer, "Parents:\n"));
+        PetscCall(PetscSectionGetChart(mesh->parentSection, &ppStart, &ppEnd));
+        for (p = ppStart; p < ppEnd; ++p) {
+          PetscInt dof, off;
+
+          PetscCall(PetscSectionGetDof(mesh->parentSection, p, &dof));
+          PetscCall(PetscSectionGetOffset(mesh->parentSection, p, &off));
+          for (PetscInt c = off; c < off + dof; ++c) PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, "[%d]: %" PetscInt_FMT " <---- %" PetscInt_FMT " (%" PetscInt_FMT ")\n", rank, p, mesh->parents[c], mesh->childIDs[c]));
+        }
+      }
+    }
     PetscCall(PetscViewerFlush(viewer));
     PetscCall(PetscViewerASCIIPopSynchronized(viewer));
     if (coordSection && coordinates) {
@@ -1507,6 +1523,11 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
         PetscCall(PetscViewerASCIIPrintf(viewer, " coordinates %s\n", localized ? "localized" : "not localized"));
         PetscCall(PetscViewerASCIIUseTabs(viewer, PETSC_TRUE));
       }
+    }
+    {
+      DM_Plex *mesh = (DM_Plex *)dm->data;
+
+      if (mesh->parents) PetscCall(PetscViewerASCIIPrintf(viewer, "Geometrically non-conforming mesh\n"));
     }
     PetscCall(DMGetNumLabels(dm, &numLabels));
     if (numLabels) PetscCall(PetscViewerASCIIPrintf(viewer, "Labels:\n"));

@@ -454,7 +454,7 @@ PETSC_EXTERN PetscErrorCode DMPlexSetReferenceTree(DM, DM);
 PETSC_EXTERN PetscErrorCode DMPlexGetReferenceTree(DM, DM *);
 PETSC_EXTERN PetscErrorCode DMPlexReferenceTreeGetChildSymmetry(DM, PetscInt, PetscInt, PetscInt, PetscInt, PetscInt, PetscInt *, PetscInt *);
 PETSC_EXTERN PetscErrorCode DMPlexCreateDefaultReferenceTree(MPI_Comm, PetscInt, PetscBool, DM *);
-PETSC_EXTERN PetscErrorCode DMPlexSetTree(DM, PetscSection, PetscInt[], PetscInt[]);
+PETSC_EXTERN PetscErrorCode DMPlexSetTree(DM, PetscSection, const PetscInt[], const PetscInt[]);
 PETSC_EXTERN PetscErrorCode DMPlexGetTree(DM, PetscSection *, PetscInt *[], PetscInt *[], PetscSection *, PetscInt *[]);
 PETSC_EXTERN PetscErrorCode DMPlexGetTreeParent(DM, PetscInt, PetscInt *, PetscInt *);
 PETSC_EXTERN PetscErrorCode DMPlexGetTreeChildren(DM, PetscInt, PetscInt *, const PetscInt *[]);

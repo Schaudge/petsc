@@ -201,7 +201,7 @@ PetscErrorCode DMPlexReferenceTreeGetChildSymmetry(DM dm, PetscInt parent, Petsc
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode DMPlexSetTree_Internal(DM, PetscSection, PetscInt *, PetscInt *, PetscBool, PetscBool);
+static PetscErrorCode DMPlexSetTree_Internal(DM, PetscSection, const PetscInt[], const PetscInt[], PetscBool, PetscBool);
 
 PetscErrorCode DMPlexCreateReferenceTree_SetTree(DM dm, PetscSection parentSection, PetscInt parents[], PetscInt childIDs[])
 {
@@ -891,7 +891,7 @@ static PetscErrorCode DMPlexTreeExchangeSupports(DM dm)
 static PetscErrorCode DMPlexComputeAnchorMatrix_Tree_Direct(DM, PetscSection, PetscSection, Mat);
 static PetscErrorCode DMPlexComputeAnchorMatrix_Tree_FromReference(DM, PetscSection, PetscSection, Mat);
 
-static PetscErrorCode DMPlexSetTree_Internal(DM dm, PetscSection parentSection, PetscInt *parents, PetscInt *childIDs, PetscBool computeCanonical, PetscBool exchangeSupports)
+static PetscErrorCode DMPlexSetTree_Internal(DM dm, PetscSection parentSection, const PetscInt parents[], const PetscInt childIDs[], PetscBool computeCanonical, PetscBool exchangeSupports)
 {
   DM_Plex *mesh = (DM_Plex *)dm->data;
   DM       refTree;
@@ -991,7 +991,7 @@ static PetscErrorCode DMPlexSetTree_Internal(DM dm, PetscSection parentSection, 
 
 .seealso: [](ch_unstructured), `DM`, `DMPLEX`, `DMPlexGetTree()`, `DMPlexSetReferenceTree()`, `DMPlexSetAnchors()`, `DMPlexGetTreeParent()`, `DMPlexGetTreeChildren()`
 @*/
-PetscErrorCode DMPlexSetTree(DM dm, PetscSection parentSection, PetscInt parents[], PetscInt childIDs[])
+PetscErrorCode DMPlexSetTree(DM dm, PetscSection parentSection, const PetscInt parents[], const PetscInt childIDs[])
 {
   PetscFunctionBegin;
   PetscCall(DMPlexSetTree_Internal(dm, parentSection, parents, childIDs, PETSC_FALSE, PETSC_TRUE));

@@ -171,6 +171,7 @@ Changes: Development
 
 - Add ``DMPlexTransformExtrudeGetPeriodic()`` and ``DMPlexTransformExtrudeSetPeriodic()``
 - Replace ``DMPlexGetGhostCellStratum()`` with ``DMPlexGetCellTypeStratum()``
+- Correct signature of ``DMPlexSetTree()``
 
 .. rubric:: FE/FV:
 
