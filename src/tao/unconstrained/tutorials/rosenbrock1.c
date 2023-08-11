@@ -140,6 +140,11 @@ PetscDeviceFree(NULL, x_array);
 PetscDeviceFree(NULL, r_array);
 PetscDeviceFree(NULL, y_array);
 MatDestroy(&mat_warmup);
+
+//PetscClassIdRegister("MyClass", &CU_MyId);
+//PetscLogEventRegister("Cuda gradient", CU_MyId, &CU_grad);
+//PetscLogEventRegister("Cuda function", CU_MyId, &CU_func);
+
 cudaDeviceSynchronize();
 #endif  
 
@@ -227,7 +232,7 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *f, Vec G, void *p
     PetscScalar *fff;  
     /* Just using f causes cuda-segfault, as operation on f is done in cu func... */
     PetscCall(PetscDeviceCalloc(dctx, PETSC_MEMTYPE_CUDA, 1, &fff));
-    PetscCall(Rosenbrock1ObjAndGradCUDA(X, G, fff, alpha, nn));
+    PetscCall(Rosenbrock1ObjAndGradCUDA(X,  G, fff, alpha, nn));
     PetscCallCUDA(cudaMemcpy(f, fff, sizeof(PetscScalar), cudaMemcpyDeviceToHost));
     PetscCall(PetscDeviceFree(dctx, fff));
     PetscCall(PetscDeviceContextDestroy(&dctx));
