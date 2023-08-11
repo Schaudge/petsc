@@ -21,6 +21,11 @@ typedef enum{
 
 const char *const MatLBFGSTypes[] = {"basic", "cd_reorder", "cd_inplace", "MatLBFGSType", "MAT_LBFGS_", NULL};
 
+PetscLogEvent CDBFGS_MatMult;
+PetscLogEvent CDBFGS_MatSolve;
+PetscLogEvent CDBFGS_J0Inv;
+PetscLogEvent CDBFGS_J0Fwd;
+
 /*------------------------------------------------------------*/
 
 PetscErrorCode MatCDBFGSApplyJ0Fwd(Mat B, Vec X, Vec Z)
@@ -29,11 +34,13 @@ PetscErrorCode MatCDBFGSApplyJ0Fwd(Mat B, Vec X, Vec Z)
   Mat_CDBFGS *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
   
   PetscFunctionBegin;
+  PetscCall(PetscLogEventBegin(CDBFGS_J0Fwd, B, X, Z, 0));
   if (lmvm->J0 || lmvm->user_pc || lmvm->user_ksp || lmvm->user_scale) {
     PetscCall(MatLMVMApplyJ0Fwd(B, X, Z));
   } else {
     PetscCall(MatMult(lbfgs->diag_bfgs, X, Z));
   }
+  PetscCall(PetscLogEventEnd(CDBFGS_J0Fwd, B, X, Z, 0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -45,11 +52,13 @@ PetscErrorCode MatCDBFGSApplyJ0Inv(Mat B, Vec F, Vec dX)
   Mat_CDBFGS *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
   
   PetscFunctionBegin;
+  PetscCall(PetscLogEventBegin(CDBFGS_J0Inv, B, F, dX, 0));
   if (lmvm->J0 || lmvm->user_pc || lmvm->user_ksp || lmvm->user_scale) {
     PetscCall(MatLMVMApplyJ0Inv(B, F, dX));
   } else {
     PetscCall(MatSolve(lbfgs->diag_bfgs, F, dX));
   }
+  PetscCall(PetscLogEventEnd(CDBFGS_J0Inv, B, F, dX, 0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -971,12 +980,14 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   PetscInt index;
   
   PetscFunctionBegin;
+  PetscCall(PetscLogEventBegin(CDBFGS_MatSolve, H, F, dX,0));
   VecCheckSameSize(F, 2, dX, 3);
   VecCheckMatCompatible(H, dX, 3, F, 2);
 
   /* Block Version */
   if (lmvm->k == -1) {
     PetscCall(MatCDBFGSApplyJ0Inv(H, F, dX));
+    PetscCall(PetscLogEventEnd(CDBFGS_MatSolve, H, F, dX,0));
     PetscFunctionReturn(PETSC_SUCCESS); /* No updates stored yet */
   }
 
@@ -986,7 +997,9 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
     index = lbfgs->idx_begin;
   }
   /* Start with reusable part: rwork1 = R^-1 S^T F */
-  PetscCall(MatMultTranspose(lbfgs->Sfull, F, lbfgs->rwork1));
+  //STYFull: host
+  PetscCall(MatMultTranspose(lbfgs->Sfull, F, lbfgs->rwork1));//sync 
+  PetscCall(VecBindToCPU(lbfgs->rwork1,lbfgs->bind));
   PetscCall(Vec_Truncate(H,lbfgs->rwork1));
 
   /* Reordering rwork1, as STY is in canonical order, while S is in recycled order */
@@ -996,24 +1009,25 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   PetscCall(Vec_Truncate(H,lbfgs->rwork1));
 
   /* lwork1 :H_0 (F - Y R^{-1} S^T X) */
-  PetscCall(MatMult(lbfgs->Yfull, lbfgs->rwork1, lbfgs->lwork1));
-  PetscCall(VecWAXPY(lbfgs->lwork2, -1., lbfgs->lwork1, F));
-  PetscCall(MatCDBFGSApplyJ0Inv(H, lbfgs->lwork2, lbfgs->lwork1));
-  PetscCall(VecCopy(lbfgs->lwork1, dX));
+  /* dX : H_0 ( F + (Y (-R^{-1} S^T X)) */
+  /* dX : H_0 ( F + rwork ) */
+  PetscCall(VecScale(lbfgs->rwork1, -1.0));
+  PetscCall(MatMultAdd(lbfgs->Yfull, lbfgs->rwork1, F, lbfgs->lwork1));//sync
+  PetscCall(MatCDBFGSApplyJ0Inv(H, lbfgs->lwork1, dX));
 
   /* -S R^{-T} ( Y^T lwork1 - D rwork1 ) */
   PetscCall(VecPointwiseMult(lbfgs->rwork1, lbfgs->diag_vec, lbfgs->rwork1));
-  PetscCall(MatMultTranspose(lbfgs->Yfull, lbfgs->lwork1, lbfgs->rwork2));
-  PetscCall(Vec_Truncate(H,lbfgs->rwork2));
-  PetscCall(VecAXPY(lbfgs->rwork2, -1., lbfgs->rwork1));
+  PetscCall(MatMultTransposeAdd(lbfgs->Yfull, dX, lbfgs->rwork1, lbfgs->rwork1));
+  PetscCall(Vec_Truncate(H,lbfgs->rwork1));
 
   /* Reordering rwork2, as STY is in canonical order, while S is in recycled order */
-  PetscCall(VecRightward_Shift(H, lbfgs->rwork2, -lbfgs->idx_rplc));      
-  PetscCall(MatSolveTriangular(H, lbfgs->StYfull, index, lbfgs->rwork2, MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE));
-  PetscCall(VecRightward_Shift(H, lbfgs->rwork2, lbfgs->idx_rplc));      
-  PetscCall(Vec_Truncate(H,lbfgs->rwork2));
-  PetscCall(MatMult(lbfgs->Sfull, lbfgs->rwork2, lbfgs->lwork1));
-  PetscCall(VecAXPY(dX, -1., lbfgs->lwork1));
+  PetscCall(VecRightward_Shift(H, lbfgs->rwork1, -lbfgs->idx_rplc));      
+  PetscCall(MatSolveTriangular(H, lbfgs->StYfull, index, lbfgs->rwork1, MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE));
+  PetscCall(VecRightward_Shift(H, lbfgs->rwork1, lbfgs->idx_rplc));      
+  PetscCall(Vec_Truncate(H,lbfgs->rwork1));
+  PetscCall(VecScale(lbfgs->rwork1, -1.0));
+  PetscCall(MatMultAdd(lbfgs->Sfull, lbfgs->rwork1, dX, dX));
+  PetscCall(PetscLogEventEnd(CDBFGS_MatSolve, H, F, dX,0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1043,12 +1057,14 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   Vec temp_1, temp_2;
   
   PetscFunctionBegin;
+  PetscCall(PetscLogEventBegin(CDBFGS_MatMult, B, X, Z,0));
   VecCheckSameSize(X, 2, Z, 3);
   VecCheckMatCompatible(B, X, 2, Z, 3);
 
   /* Start with the B0 term */
   PetscCall(MatCDBFGSApplyJ0Fwd(B, X, Z));
   if (lmvm->k == -1) {
+    PetscCall(PetscLogEventEnd(CDBFGS_MatMult, B, X, Z,0));
     PetscFunctionReturn(PETSC_SUCCESS); /* No updates stored yet */
   }
 
@@ -1111,6 +1127,7 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   PetscCall(VecPointwiseDivide(lbfgs->rwork4, lbfgs->rwork3, lbfgs->diag_vec));
   PetscCall(MatMult(lbfgs->Yfull, lbfgs->rwork4, lbfgs->lwork1));
   PetscCall(VecAXPY(Z, 1., lbfgs->lwork1));
+  PetscCall(PetscLogEventEnd(CDBFGS_MatMult, B, X, Z,0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1645,9 +1662,10 @@ static PetscErrorCode MatSetFromOptions_LMVMCDBFGS(Mat B, PetscOptionItems *Pets
 
   PetscFunctionBegin;
   PetscCall(MatSetFromOptions_LMVM(B, PetscOptionsObject));
-  PetscOptionsBegin(PetscObjectComm((PetscObject)B), NULL, "Compact dense BFGS method (MATLMVMCDBFGS)", NULL);
-  PetscOptionsEnum("-mat_lbfgs_type", "Implementation options for L-BFGS", "MatLBFGSType", MatLBFGSTypes, (PetscEnum)lbfgs->strategy, (PetscEnum *)&lbfgs->strategy, NULL);
-  PetscOptionsEnd();
+  PetscOptionsHeadBegin(PetscOptionsObject, "Compact dense BFGS method (MATLMVMCDBFGS)");
+  PetscCall(PetscOptionsEnum("-mat_lbfgs_type", "Implementation options for L-BFGS", "MatLBFGSType", MatLBFGSTypes, (PetscEnum)lbfgs->strategy, (PetscEnum *)&lbfgs->strategy, NULL));
+  PetscCall(PetscOptionsBool("-mat_lbfgs_bind_to_cpu", "Bind work vectors to CPU for Device Memtype", "", lbfgs->bind, &lbfgs->bind, NULL));
+  PetscOptionsHeadEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1689,6 +1707,7 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   lbfgs->delta_max       = 100.0;
   lbfgs->max_seq_rejects = lmvm->m/2;
   lbfgs->strategy        = MAT_LBFGS_CD_REORDER;
+  lbfgs->bind            = PETSC_FALSE;
 
   lbfgs->iter_count =0;
   
