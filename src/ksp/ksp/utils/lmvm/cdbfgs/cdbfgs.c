@@ -574,12 +574,12 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
   PetscCall(MatDenseGetArrayReadAndMemType(R, &r_array, &memtype_r));
   PetscCall(VecGetArrayAndMemType(x, &x_array, &memtype_x));
   PetscCall(MatDenseGetLDA(R, &lda));
-  PetscAssert(memtype_x == memtype_r, comm, PETSC_ERR_PLIB, "Incompatible device pointers");
+  //PetscAssert(memtype_x == memtype_r, comm, PETSC_ERR_PLIB, "Incompatible device pointers");
 
   switch (lbfgs->strategy) {
   case MAT_LBFGS_CD_REORDER:
     {
-      switch (memtype_x) {
+      switch (memtype_r) {
       case PETSC_MEMTYPE_HOST:
         /* Compute A^{-T} = (R^{-1} Q^T)^T = Q R^{-T} */
         {
@@ -665,7 +665,7 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
     }
     break;
   case MAT_LBFGS_CD_INPLACE:
-    switch (memtype_x) {
+    switch (memtype_r) {
     case PETSC_MEMTYPE_HOST:
       {
         //PetscAssert(PetscDefined(BLAS)...));
@@ -998,13 +998,13 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   }
   /* Start with reusable part: rwork1 = R^-1 S^T F */
   //STYFull: host
-  PetscCall(MatMultTranspose(lbfgs->Sfull, F, lbfgs->rwork1));//sync 
-  PetscCall(VecBindToCPU(lbfgs->rwork1,lbfgs->bind));
+  PetscCall(MatMultTranspose(lbfgs->Sfull, F, lbfgs->rwork1));//sync doesnt work on TAO ITER 2...
   PetscCall(Vec_Truncate(H,lbfgs->rwork1));
 
   /* Reordering rwork1, as STY is in canonical order, while S is in recycled order */
   PetscCall(VecRightward_Shift(H, lbfgs->rwork1, -lbfgs->idx_rplc));      
-  PetscCall(MatSolveTriangular(H, lbfgs->StYfull, index, lbfgs->rwork1, MAT_CDBFGS_UPPER_TRIANGULAR));
+  PetscCall(VecBindToCPU(lbfgs->rwork1,lbfgs->bind));
+  PetscCall(MatSolveTriangular(H, lbfgs->StYfull, index, lbfgs->rwork1, MAT_CDBFGS_UPPER_TRIANGULAR));//blas call depends on memtype of matrix.
   PetscCall(VecRightward_Shift(H, lbfgs->rwork1, lbfgs->idx_rplc));      
   PetscCall(Vec_Truncate(H,lbfgs->rwork1));
 
@@ -1017,11 +1017,14 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
 
   /* -S R^{-T} ( Y^T lwork1 - D rwork1 ) */
   PetscCall(VecPointwiseMult(lbfgs->rwork1, lbfgs->diag_vec, lbfgs->rwork1));
-  PetscCall(MatMultTransposeAdd(lbfgs->Yfull, dX, lbfgs->rwork1, lbfgs->rwork1));
+  PetscCall(MatMultTranspose(lbfgs->Yfull, dX, lbfgs->rwork2));
+  PetscCall(VecAXPY(lbfgs->rwork1, 1., lbfgs->rwork2));
+//  PetscCall(MatMultTransposeAdd(lbfgs->Yfull, dX, lbfgs->rwork1, lbfgs->rwork1));//NUMERICALLY INCORRECT HERE??
   PetscCall(Vec_Truncate(H,lbfgs->rwork1));
 
   /* Reordering rwork2, as STY is in canonical order, while S is in recycled order */
   PetscCall(VecRightward_Shift(H, lbfgs->rwork1, -lbfgs->idx_rplc));      
+  //PetscCall(VecBindToCPU(lbfgs->rwork1,lbfgs->bind));
   PetscCall(MatSolveTriangular(H, lbfgs->StYfull, index, lbfgs->rwork1, MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE));
   PetscCall(VecRightward_Shift(H, lbfgs->rwork1, lbfgs->idx_rplc));      
   PetscCall(Vec_Truncate(H,lbfgs->rwork1));
@@ -1536,7 +1539,12 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       /* Create iteration storage matrices */
       PetscCall(VecGetType(X, &vec_type));	    
       PetscCall(MatCreateDenseFromVecType(comm, vec_type, n, lmvm->m, N, lmvm->m, -1, NULL, &lbfgs->Sfull));//TODO nonsquare... LDA???
-      PetscCall(MatCreateDenseFromVecType(comm, vec_type, lmvm->m, lmvm->m, lmvm->m, lmvm->m, -1, NULL, &lbfgs->StYfull));//TODO nonsquare... LDA???
+      /* If rwork is bound to CPU, then STYfull is on host */
+      if (lbfgs->bind) {
+        PetscCall(MatCreateDense(comm, lmvm->m, lmvm->m, lmvm->m, lmvm->m,  NULL, &lbfgs->StYfull));//TODO nonsquare... LDA???
+      } else {
+        PetscCall(MatCreateDenseFromVecType(comm, vec_type, lmvm->m, lmvm->m, lmvm->m, lmvm->m, -1, NULL, &lbfgs->StYfull));//TODO nonsquare... LDA???
+     }
       PetscCall(MatDuplicate(lbfgs->Sfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->Yfull));
       PetscCall(MatDuplicate(lbfgs->Sfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->BS));
       PetscCall(MatZeroEntries(lbfgs->Sfull));
@@ -1544,11 +1552,11 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       /* Create intermediate (sequential and small) matrices */
       //TODO: NOTE: "MMTM: This routine is currently only implemented for pairs of MATSEQAIJ matrices, for the MATSEQDENSE class, and for pairs of MATMPIDENSE matrices."
 //      PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
-      PetscCall(MatDuplicate(lbfgs->StYfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->J));
-      PetscCall(MatDuplicate(lbfgs->StYfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->J_work));
-      PetscCall(MatCreateVecs(lbfgs->StYfull, &lbfgs->diag_vec, NULL));
-      PetscCall(MatCreateVecs(lbfgs->StYfull, &lbfgs->rwork1, &lbfgs->rwork2));
-      PetscCall(MatCreateVecs(lbfgs->StYfull, &lbfgs->rwork3, &lbfgs->rwork4));
+      PetscCall(MatCreateDenseFromVecType(comm, vec_type, lmvm->m, lmvm->m, lmvm->m, lmvm->m, -1, NULL, &lbfgs->J));//TODO nonsquare... LDA???
+      PetscCall(MatDuplicate(lbfgs->J, MAT_DO_NOT_COPY_VALUES, &lbfgs->J_work));
+      PetscCall(MatCreateVecs(lbfgs->J, &lbfgs->diag_vec, NULL));
+      PetscCall(MatCreateVecs(lbfgs->J, &lbfgs->rwork1, &lbfgs->rwork2));
+      PetscCall(MatCreateVecs(lbfgs->J, &lbfgs->rwork3, &lbfgs->rwork4));
     }
     PetscCall(VecDuplicate(lmvm->Xprev, &lbfgs->lwork1));
     PetscCall(VecDuplicate(lmvm->Xprev, &lbfgs->lwork2));
