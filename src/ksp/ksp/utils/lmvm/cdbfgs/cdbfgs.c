@@ -1006,6 +1006,9 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   PetscCall(VecRightward_Shift(H, lbfgs->rwork1, -lbfgs->idx_rplc));      
   PetscCall(VecBindToCPU(lbfgs->rwork1,lbfgs->bind));
   PetscCall(MatSolveTriangular(H, lbfgs->StYfull, index, lbfgs->rwork1, MAT_CDBFGS_UPPER_TRIANGULAR));//blas call depends on memtype of matrix.
+  if (lbfgs->bind) {
+    PetscCall(VecBindToCPU(lbfgs->rwork1,unbind));
+  }
   PetscCall(VecRightward_Shift(H, lbfgs->rwork1, lbfgs->idx_rplc));      
   PetscCall(Vec_Truncate(H,lbfgs->rwork1));
 
@@ -1018,20 +1021,22 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
 
   /* -S R^{-T} ( Y^T lwork1 - D rwork1 ) */
   PetscCall(VecPointwiseMult(lbfgs->rwork1, lbfgs->diag_vec, lbfgs->rwork1));
-  PetscCall(MatMultTranspose(lbfgs->Yfull, dX, lbfgs->rwork2));
-  PetscCall(VecAXPY(lbfgs->rwork1, 1., lbfgs->rwork2));
-//  PetscCall(MatMultTransposeAdd(lbfgs->Yfull, dX, lbfgs->rwork1, lbfgs->rwork1));//NUMERICALLY INCORRECT HERE??
+  //PetscCall(MatMultTranspose(lbfgs->Yfull, dX, lbfgs->rwork2));
+  //PetscCall(VecAXPY(lbfgs->rwork1, 1., lbfgs->rwork2));
+  PetscCall(MatMultTransposeAdd(lbfgs->Yfull, dX, lbfgs->rwork1, lbfgs->rwork1));//NUMERICALLY INCORRECT HERE??
   PetscCall(Vec_Truncate(H,lbfgs->rwork1));
 
   /* Reordering rwork2, as STY is in canonical order, while S is in recycled order */
   PetscCall(VecRightward_Shift(H, lbfgs->rwork1, -lbfgs->idx_rplc));      
   PetscCall(VecBindToCPU(lbfgs->rwork1,lbfgs->bind));
   PetscCall(MatSolveTriangular(H, lbfgs->StYfull, index, lbfgs->rwork1, MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE));
+  if (lbfgs->bind) {
+    PetscCall(VecBindToCPU(lbfgs->rwork1,unbind));
+  }
   PetscCall(VecRightward_Shift(H, lbfgs->rwork1, lbfgs->idx_rplc));      
   PetscCall(Vec_Truncate(H,lbfgs->rwork1));
   PetscCall(VecScale(lbfgs->rwork1, -1.0));
   PetscCall(MatMultAdd(lbfgs->Sfull, lbfgs->rwork1, dX, dX));
-  PetscCall(VecBindToCPU(lbfgs->rwork1,unbind));
   PetscCall(PetscLogEventEnd(CDBFGS_MatSolve, H, F, dX,0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
