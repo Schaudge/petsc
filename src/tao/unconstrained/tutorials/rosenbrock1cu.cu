@@ -2,6 +2,7 @@
 #include <petscdevice.h>
 #include "rosenbrock1.h"
 #include <cuda.h>
+#include <thrust/reduce.h>
 
 __global__ void Rosenbrock1ObjAndGradCUDA_Kernel(const PetscScalar x[], PetscScalar g[], PetscReal f[], PetscReal alpha, PetscInt nn)
 {
@@ -24,9 +25,9 @@ __global__ void Rosenbrock1ObjAndGradCUDA_Kernel(const PetscScalar x[], PetscSca
     g[2*i+1] = 2*alpha*(t1);
     f_array[tid] += alpha*t1*t1 + t2*t2;
   }
-
+  
   // Reduction on f_array
-  for (unsigned int s=blockDim.x/2; s>0; s>>=1) {
+  for (unsigned int s=blockDim.x/2; s>0 ; s>>=1) {
     if (tid < s) {
       f_array[tid] += f_array[tid+s];
     }
@@ -46,13 +47,11 @@ PetscErrorCode Rosenbrock1ObjAndGradCUDA(Vec X, Vec G, PetscReal *f, PetscReal a
   PetscCall(VecGetArrayAndMemType(G, &g, &memtype_g));
   PetscCall(VecGetArrayReadAndMemType(X, &x, &memtype_x));
 
-  // n_threads is hardware dependant... Chose 32 for test case. 
-  Rosenbrock1ObjAndGradCUDA_Kernel<<<1,32>>>(x, g, f, alpha, nn);
-  // reduce all ff values together 
+  // ObjGrad Together
+  Rosenbrock1ObjAndGradCUDA_Kernel<<<1,256>>>(x, g, f, alpha, nn);
+  
 
   PetscCall(VecRestoreArrayAndMemType(G, &g));
   PetscCall(VecRestoreArrayReadAndMemType(X, &x));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
-

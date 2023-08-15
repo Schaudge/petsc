@@ -456,6 +456,11 @@ static inline PetscErrorCode KSP_PCApplyBAorABTranspose(KSP ksp, Vec x, Vec y, V
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+PETSC_EXTERN PetscLogEvent CDBFGS_MatMult;
+PETSC_EXTERN PetscLogEvent CDBFGS_MatSolve;
+PETSC_EXTERN PetscLogEvent CDBFGS_J0Inv;
+PETSC_EXTERN PetscLogEvent CDBFGS_J0Fwd;
+
 PETSC_EXTERN PetscLogEvent KSP_GMRESOrthogonalization;
 PETSC_EXTERN PetscLogEvent KSP_SetUp;
 PETSC_EXTERN PetscLogEvent KSP_Solve;

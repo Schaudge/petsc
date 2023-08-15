@@ -977,6 +977,11 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   Mat_LMVM    *lmvm  = (Mat_LMVM*)H->data;
   Mat_CDBFGS  *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
 
+  Vec rwork1 = lbfgs->rwork1;
+  Vec rwork2 = lbfgs->rwork2;
+  Vec rwork1_host =  lbfgs->bind ? lbfgs->rwork1_host : lbfgs->rwork1;
+  Vec rwork2_host =  lbfgs->bind ? lbfgs->rwork2_host : lbfgs->rwork2;
+
   PetscInt index;
   
   PetscFunctionBegin;
@@ -996,47 +1001,47 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   } else {
     index = lbfgs->idx_begin;
   }
+
   /* Start with reusable part: rwork1 = R^-1 S^T F */
   //STYFull: host
-  PetscBool unbind = PETSC_FALSE;
-  PetscCall(MatMultTranspose(lbfgs->Sfull, F, lbfgs->rwork1));//sync doesnt work on TAO ITER 2...
-  PetscCall(Vec_Truncate(H,lbfgs->rwork1));
+  PetscCall(MatMultTranspose(lbfgs->Sfull, F, rwork1));
+  PetscCall(VecCopy(rwork1, rwork1_host));//Should be no-op if not bind. check
+  PetscCall(Vec_Truncate(H,rwork1_host));
 
   /* Reordering rwork1, as STY is in canonical order, while S is in recycled order */
-  PetscCall(VecRightward_Shift(H, lbfgs->rwork1, -lbfgs->idx_rplc));      
-  PetscCall(VecBindToCPU(lbfgs->rwork1,lbfgs->bind));
-  PetscCall(MatSolveTriangular(H, lbfgs->StYfull, index, lbfgs->rwork1, MAT_CDBFGS_UPPER_TRIANGULAR));//blas call depends on memtype of matrix.
-  if (lbfgs->bind) {
-    PetscCall(VecBindToCPU(lbfgs->rwork1,unbind));
-  }
-  PetscCall(VecRightward_Shift(H, lbfgs->rwork1, lbfgs->idx_rplc));      
-  PetscCall(Vec_Truncate(H,lbfgs->rwork1));
+  PetscCall(VecRightward_Shift(H, rwork1_host, -lbfgs->idx_rplc));      
+  PetscCall(MatSolveTriangular(H, lbfgs->StYfull, index, rwork1_host, MAT_CDBFGS_UPPER_TRIANGULAR));//blas call depends on memtype of matrix.
+  PetscCall(VecRightward_Shift(H, rwork1_host, lbfgs->idx_rplc));      
+  PetscCall(Vec_Truncate(H,rwork1_host));
 
   /* lwork1 :H_0 (F - Y R^{-1} S^T X) */
   /* dX : H_0 ( F + (Y (-R^{-1} S^T X)) */
   /* dX : H_0 ( F + rwork ) */
-  PetscCall(VecScale(lbfgs->rwork1, -1.0));
-  PetscCall(MatMultAdd(lbfgs->Yfull, lbfgs->rwork1, F, lbfgs->lwork1));//sync
-  PetscCall(MatCDBFGSApplyJ0Inv(H, lbfgs->lwork1, dX));
+  PetscCall(VecScale(rwork1_host, -1.0));
+  PetscCall(VecCopy(rwork1_host, rwork1));
+  PetscCall(MatMultAdd(lbfgs->Yfull, rwork1, F, lbfgs->lwork1));//done on cuda. cudaStreamSynchronize
+  PetscCall(MatCDBFGSApplyJ0Inv(H, lbfgs->lwork1, dX));//streamSync. internal VexAXPBY
 
   /* -S R^{-T} ( Y^T lwork1 - D rwork1 ) */
-  PetscCall(VecPointwiseMult(lbfgs->rwork1, lbfgs->diag_vec, lbfgs->rwork1));
-  //PetscCall(MatMultTranspose(lbfgs->Yfull, dX, lbfgs->rwork2));
-  //PetscCall(VecAXPY(lbfgs->rwork1, 1., lbfgs->rwork2));
-  PetscCall(MatMultTransposeAdd(lbfgs->Yfull, dX, lbfgs->rwork1, lbfgs->rwork1));//NUMERICALLY INCORRECT HERE??
-  PetscCall(Vec_Truncate(H,lbfgs->rwork1));
+  PetscCall(VecPointwiseMult(rwork1, lbfgs->diag_vec, rwork1));//TODO check where memsync happens here
+  PetscCall(VecCopy(rwork1, rwork1_host));
+  if (lbfgs->bind) {
+    PetscCall(MatMultTranspose(lbfgs->Yfull, dX, rwork2));
+    PetscCall(VecCopy(rwork2, rwork2_host));
+    PetscCall(VecAXPY(rwork1_host, 1.0, rwork2_host));
+  } else {
+    PetscCall(MatMultTransposeAdd(lbfgs->Yfull, dX, rwork1, rwork1_host));
+  }
+  PetscCall(Vec_Truncate(H,rwork1_host));
 
   /* Reordering rwork2, as STY is in canonical order, while S is in recycled order */
-  PetscCall(VecRightward_Shift(H, lbfgs->rwork1, -lbfgs->idx_rplc));      
-  PetscCall(VecBindToCPU(lbfgs->rwork1,lbfgs->bind));
-  PetscCall(MatSolveTriangular(H, lbfgs->StYfull, index, lbfgs->rwork1, MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE));
-  if (lbfgs->bind) {
-    PetscCall(VecBindToCPU(lbfgs->rwork1,unbind));
-  }
-  PetscCall(VecRightward_Shift(H, lbfgs->rwork1, lbfgs->idx_rplc));      
-  PetscCall(Vec_Truncate(H,lbfgs->rwork1));
-  PetscCall(VecScale(lbfgs->rwork1, -1.0));
-  PetscCall(MatMultAdd(lbfgs->Sfull, lbfgs->rwork1, dX, dX));
+  PetscCall(VecRightward_Shift(H, rwork1_host, -lbfgs->idx_rplc));      
+  PetscCall(MatSolveTriangular(H, lbfgs->StYfull, index, rwork1_host, MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE));
+  PetscCall(VecRightward_Shift(H, rwork1_host, lbfgs->idx_rplc));      
+  PetscCall(Vec_Truncate(H,rwork1_host));
+  PetscCall(VecScale(rwork1_host, -1.0));
+  PetscCall(VecCopy(rwork1_host, rwork1));
+  PetscCall(MatMultAdd(lbfgs->Sfull, rwork1, dX, dX));
   PetscCall(PetscLogEventEnd(CDBFGS_MatSolve, H, F, dX,0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1564,6 +1569,15 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       PetscCall(MatCreateVecs(lbfgs->J, &lbfgs->diag_vec, NULL));
       PetscCall(MatCreateVecs(lbfgs->J, &lbfgs->rwork1, &lbfgs->rwork2));
       PetscCall(MatCreateVecs(lbfgs->J, &lbfgs->rwork3, &lbfgs->rwork4));
+
+      if (lbfgs->bind) {
+        PetscCall(MatCreateVecs(lbfgs->StYfull, &lbfgs->rwork1_host, &lbfgs->rwork2_host));
+      } else {
+        PetscObjectReference((PetscObject)lbfgs->rwork1);
+        PetscObjectReference((PetscObject)lbfgs->rwork2);
+	lbfgs->rwork1_host = lbfgs->rwork1;
+	lbfgs->rwork2_host = lbfgs->rwork2;
+      }
     }
     PetscCall(VecDuplicate(lmvm->Xprev, &lbfgs->lwork1));
     PetscCall(VecDuplicate(lmvm->Xprev, &lbfgs->lwork2));
@@ -1608,6 +1622,8 @@ static PetscErrorCode MatDestroy_LMVMCDBFGS(Mat B)
     PetscCall(VecDestroy(&lbfgs->rwork2));
     PetscCall(VecDestroy(&lbfgs->rwork3));
     PetscCall(VecDestroy(&lbfgs->rwork4));
+    PetscCall(VecDestroy(&lbfgs->rwork1_host));
+    PetscCall(VecDestroy(&lbfgs->rwork2_host));
     PetscCall(VecDestroy(&lbfgs->lwork1));
     PetscCall(VecDestroy(&lbfgs->lwork2));
     PetscCall(VecDestroy(&lbfgs->diag_vec));
