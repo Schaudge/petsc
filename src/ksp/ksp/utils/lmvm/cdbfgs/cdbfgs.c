@@ -998,6 +998,7 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   }
   /* Start with reusable part: rwork1 = R^-1 S^T F */
   //STYFull: host
+  PetscBool unbind = PETSC_FALSE;
   PetscCall(MatMultTranspose(lbfgs->Sfull, F, lbfgs->rwork1));//sync doesnt work on TAO ITER 2...
   PetscCall(Vec_Truncate(H,lbfgs->rwork1));
 
@@ -1024,12 +1025,13 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
 
   /* Reordering rwork2, as STY is in canonical order, while S is in recycled order */
   PetscCall(VecRightward_Shift(H, lbfgs->rwork1, -lbfgs->idx_rplc));      
-  //PetscCall(VecBindToCPU(lbfgs->rwork1,lbfgs->bind));
+  PetscCall(VecBindToCPU(lbfgs->rwork1,lbfgs->bind));
   PetscCall(MatSolveTriangular(H, lbfgs->StYfull, index, lbfgs->rwork1, MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE));
   PetscCall(VecRightward_Shift(H, lbfgs->rwork1, lbfgs->idx_rplc));      
   PetscCall(Vec_Truncate(H,lbfgs->rwork1));
   PetscCall(VecScale(lbfgs->rwork1, -1.0));
   PetscCall(MatMultAdd(lbfgs->Sfull, lbfgs->rwork1, dX, dX));
+  PetscCall(VecBindToCPU(lbfgs->rwork1,unbind));
   PetscCall(PetscLogEventEnd(CDBFGS_MatSolve, H, F, dX,0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
