@@ -2,20 +2,11 @@
 #include <petscdmbf.h>
 #include <petscdmforest.h>
 
-/* TODO
-  A Poisson problem with Dirichlet boundary conditions on the square [-1,1]^2.
-  We add a slit on the strip \Gamma = {(x,y) : y = 0, -1 <= x <= 0} and treat \Gamma as part of the boundary.
-  The exact solution is r^{1/2}*Sin(\theta/2) in polar coordinates, and has a singularity at the origin which we resolve using AMR.
-
-  Three steps to applying the matrix-free operator:
-    1. Transcribe unknowns from Vec into cell data.
-    2. Set guard layer by iterating over faces, interpolating where necessary.
-    3. Apply operator by looping over cells, using guard layer for fluxes.
+/* 3-D advection-diffusion problem with Neuman boundary conditions, and with dynamic-in-time AMR.
+   We use an explicit (dimension-by-dimension) Lax-Wendrof scheme.  A matrix-free apply function for the PDE operator is used.
  */
 
-// TODO need a chart how cell data is organized
-
-static char help[] = "";
+static char help[] = "3-D advection-diffusion problem with dynamic AMR\n";
 
 /*** Advection-Diffusion Parameters ***/
 

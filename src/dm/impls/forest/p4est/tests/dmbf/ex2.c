@@ -2,8 +2,8 @@
 #include <petscdmbf.h>
 #include <petscdmforest.h>
 
-/* A Poisson problem with Dirichlet boundary conditions on the square [-1,1]^2.
-   We add a slit on the strip \Gamma = {(x,y) : y = 0, -1 <= x <= 0} and treat \Gamma as part of the boundary.
+/* 3-D Poisson problem with Dirichlet boundary conditions on the square [-1,1]^3.
+   We add a slit on the strip \Gamma = {(x,y,z) : y,z = 0, -1 <= x <= 0} and treat \Gamma as part of the boundary.
    The exact solution is r^{1/2}*Sin(\theta/2) in polar coordinates, and has a singularity at the origin which we resolve using AMR.
 
   Three steps to applying the matrix-free operator:
@@ -12,9 +12,7 @@
     3. Apply operator by looping over cells, using guard layer for fluxes.
  */
 
-// TODO need a chart how cell data is organized
-
-static char help[] = "";
+static char help[] = "3-D Poisson problem on the unit cube with AMR\n";
 
 /*
 stencils of convergence order O(h^p), we refer to p as the order of the stencil
