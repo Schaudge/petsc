@@ -117,7 +117,12 @@ static PetscErrorCode MtMT_Internal(Mat H, Mat S, Mat Y, MatReuse scall, PetscRe
       PetscCall(PetscCuBLASIntCast(lda_sty, &lda_sty_blas));
       PetscCall(PetscCuBLASIntCast(rown, &row_blas));
       PetscCall(PetscCuBLASIntCast(coln, &col_blas));
-      PetscCallCUBLAS(cublasDgemv(handle, CUBLAS_OP_T, row_blas, col_blas, &Alpha, s_array, lda_blas, &y_array[idx*lda], one, &Alpha, &sty_array[idx*lda_sty_blas], one));
+      PetscCallCUBLAS(cublasDgemv(handle, CUBLAS_OP_T, row_blas, col_blas, &Alpha, s_array, lda_blas, &y_array[idx*lda], one, &zero, &sty_array[idx*lda_sty_blas], one));
+      PetscCallCUBLAS(cublasDgemv(handle, CUBLAS_OP_T, row_blas, col_blas, &Alpha, y_array, lda_blas, &s_array[idx*lda], one, &zero, vec_array, one));
+      //Is this legal?
+      for (i=0; i<lda_sty; i++) {
+        sty_array[i*lda_sty+idx] = vec_array[i];
+      }
     }
 #endif
     break;
@@ -1483,12 +1488,12 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       case MAT_LBFGS_CD_INPLACE:
         //TODO technically can make MTMMult to be just updating idx_col row and col of new MTMMult
         if (lbfgs->bind) {
-	  //PetscCall(MtMT_Internal(B, lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
-          PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull_device));//TODO 
+	  PetscCall(MtMT_Internal(B, lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
+          //PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull_device));//TODO 
           PetscCall(MatCopy(lbfgs->StYfull_device, lbfgs->StYfull, SAME_NONZERO_PATTERN)); 
         } else {
 	  PetscCall(MtMT_Internal(B, lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
-          //PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));//TODO 
+         // PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));//TODO 
         }
 
         if (lmvm->k == lmvm->m-1) {
