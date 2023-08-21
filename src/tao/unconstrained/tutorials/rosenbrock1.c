@@ -2,6 +2,15 @@
 
 /*  Include "petsctao.h" so we can use TAO solvers.  */
 #include <petsctao.h>
+#include <petscvec.h>
+#include "rosenbrock1.h"
+
+#if defined(PETSC_HAVE_CUDA)
+  #include <cuda_profiler_api.h>
+  #include <petscdevice.h>
+  #include <petscdevice_cuda.h>
+  #include <petsc/private/deviceimpl.h>
+#endif
 
 static char help[] = "This example demonstrates use of the TAO package to \n\
 solve an unconstrained minimization problem on a single processor.  We \n\
@@ -18,7 +27,7 @@ or the chained Rosenbrock function:\n\
 typedef struct {
   PetscInt  n;     /* dimension */
   PetscReal alpha; /* condition parameter */
-  PetscBool chained;
+  PetscBool chained, is_cuda;
 } AppCtx;
 
 /* -------------- User-defined routines ---------- */
@@ -31,7 +40,7 @@ int main(int argc, char **argv)
   Vec         x; /* solution vector */
   Mat         H;
   Tao         tao; /* Tao solver context */
-  PetscBool   flg, test_lmvm = PETSC_FALSE;
+  PetscBool   flg, cuda = PETSC_FALSE, test_lmvm = PETSC_FALSE, J0_scale = PETSC_FALSE;
   PetscMPIInt size; /* number of processes running */
   AppCtx      user; /* user-defined application context */
   KSP         ksp;
@@ -50,16 +59,26 @@ int main(int argc, char **argv)
   user.n       = 2;
   user.alpha   = 99.0;
   user.chained = PETSC_FALSE;
+  user.is_cuda = PETSC_FALSE;
   /* Check for command line arguments to override defaults */
   PetscCall(PetscOptionsGetInt(NULL, NULL, "-n", &user.n, &flg));
   PetscCall(PetscOptionsGetReal(NULL, NULL, "-alpha", &user.alpha, &flg));
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-chained", &user.chained, &flg));
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-test_lmvm", &test_lmvm, &flg));
+  PetscCall(PetscOptionsGetBool(NULL, NULL, "-cuda", &cuda, &flg));
+  PetscCall(PetscOptionsGetBool(NULL, NULL, "-J0_scale", &J0_scale, &flg));
 
   /* Allocate vectors for the solution and gradient */
-  PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &x));
-  PetscCall(MatCreateSeqBAIJ(PETSC_COMM_SELF, 2, user.n, user.n, 1, NULL, &H));
-
+  if (cuda){
+    VecType vec_type;
+    user.is_cuda = PETSC_TRUE;	  
+    PetscCall(VecCreateSeqCUDA(PETSC_COMM_SELF, user.n, &x));
+    PetscCall(VecGetType(x, &vec_type));    
+//    PetscCall(MatCreateDenseFromVecType(PETSC_COMM_WORLD, vec_type, user.n, user.n, PETSC_DECIDE, PETSC_DECIDE,  -1, NULL, &H));
+  } else {
+    PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &x));
+    PetscCall(MatCreateSeqBAIJ(PETSC_COMM_SELF, 2, user.n, user.n, 1, NULL, &H));
+  }
   /* The TAO code begins here */
 
   /* Create TAO solver with desired solution method */
@@ -72,28 +91,88 @@ int main(int argc, char **argv)
 
   /* Set routines for function, gradient, hessian evaluation */
   PetscCall(TaoSetObjectiveAndGradient(tao, NULL, FormFunctionGradient, &user));
-  PetscCall(TaoSetHessian(tao, H, H, FormHessian, &user));
+//  PetscCall(TaoSetHessian(tao, H, H, FormHessian, &user));
 
   /* Test the LMVM matrix */
   if (test_lmvm) PetscCall(PetscOptionsSetValue(NULL, "-tao_type", "bqnktr"));
-
   /* Check for TAO command line options */
   PetscCall(TaoSetFromOptions(tao));
+  if (J0_scale) {
+    PetscCall(TaoGetKSP(tao, &ksp));
+    PetscCall(KSPGetPC(ksp, &pc));
+    PetscCall(PCLMVMGetMatLMVM(pc, &M));
+    PetscCall(MatLMVMSetJ0Scale(M, 1.));
+  }
 
+  PetscLogStage warmup, timing;
+  PetscLogStageRegister("Warmup", &warmup);
+  PetscLogStageRegister("Timing", &timing);
+
+#if defined(PETSC_HAVE_CUDA)
+PetscLogStagePush(warmup);
+cublasHandle_t handle;
+
+PetscCall(PetscCUBLASGetHandle(&handle));
+PetscCallCUBLAS(cublasSetPointerMode(handle, CUBLAS_POINTER_MODE_HOST));
+
+PetscScalar alpha=1., *r_array, *x_array, *y_array;
+Mat mat_warmup;
+Vec vec_warmup;
+PetscInt warmpup_size = 5;
+
+PetscDeviceMalloc(NULL, PETSC_MEMTYPE_CUDA, 1, &x_array);
+PetscDeviceMalloc(NULL, PETSC_MEMTYPE_CUDA, 1, &r_array);
+PetscDeviceMalloc(NULL, PETSC_MEMTYPE_CUDA, 1, &y_array);
+PetscDeviceMemset(NULL, x_array, 1., sizeof(PetscScalar));
+PetscDeviceMemset(NULL, y_array, 1., sizeof(PetscScalar));
+PetscDeviceMemset(NULL, r_array, 1., sizeof(PetscScalar));
+
+MatCreateDenseCUDA(PETSC_COMM_WORLD, warmpup_size,warmpup_size,warmpup_size,warmpup_size,NULL, &mat_warmup);
+MatZeroEntries(mat_warmup);
+VecCreateSeqCUDA(PETSC_COMM_WORLD, warmpup_size, &vec_warmup);
+VecSet(vec_warmup, 5);
+MatDiagonalSet(mat_warmup, vec_warmup,INSERT_VALUES);
+
+PetscCallCUBLAS(cublasDgemv(handle, CUBLAS_OP_N, 1, 1, &alpha, r_array, 1, x_array, 1, &alpha, y_array, 1));
+MatSetOption(mat_warmup, MAT_SPD, PETSC_TRUE);
+MatCholeskyFactor(mat_warmup, NULL,NULL);
+PetscDeviceFree(NULL, x_array);
+PetscDeviceFree(NULL, r_array);
+PetscDeviceFree(NULL, y_array);
+MatDestroy(&mat_warmup);
+
+//PetscClassIdRegister("MyClass", &CU_MyId);
+//PetscLogEventRegister("Cuda gradient", CU_MyId, &CU_grad);
+//PetscLogEventRegister("Cuda function", CU_MyId, &CU_func);
+
+cudaDeviceSynchronize();
+#endif  
+
+  cudaProfilerStart();
   /* SOLVE THE APPLICATION */
+  PetscLogStagePush(timing);
   PetscCall(TaoSolve(tao));
+  cudaProfilerStop();
+  PetscLogStagePop();
 
   /* Test the LMVM matrix */
   if (test_lmvm) {
     PetscCall(TaoGetKSP(tao, &ksp));
     PetscCall(KSPGetPC(ksp, &pc));
     PetscCall(PCLMVMGetMatLMVM(pc, &M));
+
+#if 0    
+    PetscCall(PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD, PETSC_VIEWER_ASCII_DENSE));
+    PetscCall(MatView(M, PETSC_VIEWER_STDOUT_WORLD));
+    PetscCall(PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD));
+#endif
     PetscCall(VecDuplicate(x, &in));
     PetscCall(VecDuplicate(x, &out));
     PetscCall(VecDuplicate(x, &out2));
     PetscCall(VecSet(in, 1.0));
     PetscCall(MatMult(M, in, out));
     PetscCall(MatSolve(M, out, out2));
+
     PetscCall(VecAXPY(out2, -1.0, in));
     PetscCall(VecNorm(out2, NORM_2, &mult_solve_dist));
     if (mult_solve_dist < 1.e-11) {
@@ -110,7 +189,7 @@ int main(int argc, char **argv)
 
   PetscCall(TaoDestroy(&tao));
   PetscCall(VecDestroy(&x));
-  PetscCall(MatDestroy(&H));
+//  PetscCall(MatDestroy(&H));
 
   PetscCall(PetscFinalize());
   return 0;
@@ -143,33 +222,48 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *f, Vec G, void *p
   const PetscScalar *x;
 
   PetscFunctionBeginUser;
-  /* Get pointers to vector data */
-  PetscCall(VecGetArrayRead(X, &x));
-  PetscCall(VecGetArray(G, &g));
 
-  /* Compute G(X) */
-  if (user->chained) {
-    g[0] = 0;
-    for (i = 0; i < user->n - 1; i++) {
-      t1 = x[i + 1] - x[i] * x[i];
-      ff += PetscSqr(1 - x[i]) + alpha * t1 * t1;
-      g[i] += -2 * (1 - x[i]) + 2 * alpha * t1 * (-2 * x[i]);
-      g[i + 1] = 2 * alpha * t1;
-    }
+  if (user->is_cuda) {
+#if defined(PETSC_HAVE_CUDA)	 
+    PetscDeviceContext dctx;
+    PetscCall(PetscDeviceContextCreate(&dctx));
+    PetscCall(PetscDeviceContextSetUp(dctx));
+    /* Not supporting chained. Also, only for n=2 */	  
+    PetscScalar *fff;  
+    /* Just using f causes cuda-segfault, as operation on f is done in cu func... */
+    PetscCall(PetscDeviceCalloc(dctx, PETSC_MEMTYPE_CUDA, 1, &fff));
+    PetscCall(Rosenbrock1ObjAndGradCUDA(X,  G, fff, alpha, nn));
+    PetscCallCUDA(cudaMemcpy(f, fff, sizeof(PetscScalar), cudaMemcpyDeviceToHost));
+    PetscCall(PetscDeviceFree(dctx, fff));
+    PetscCall(PetscDeviceContextDestroy(&dctx));
+#endif
   } else {
-    for (i = 0; i < nn; i++) {
-      t1 = x[2 * i + 1] - x[2 * i] * x[2 * i];
-      t2 = 1 - x[2 * i];
-      ff += alpha * t1 * t1 + t2 * t2;
-      g[2 * i]     = -4 * alpha * t1 * x[2 * i] - 2.0 * t2;
-      g[2 * i + 1] = 2 * alpha * t1;
+    /* Get pointers to vector data */
+    PetscCall(VecGetArrayRead(X, &x));
+    PetscCall(VecGetArray(G, &g));
+    /* Compute G(X) */
+    if (user->chained) {
+      g[0] = 0;
+      for (i = 0; i < user->n - 1; i++) {
+        t1 = x[i + 1] - x[i] * x[i];
+        ff += PetscSqr(1 - x[i]) + alpha * t1 * t1;
+        g[i] += -2 * (1 - x[i]) + 2 * alpha * t1 * (-2 * x[i]);
+        g[i + 1] = 2 * alpha * t1;
+      }
+    } else {
+      for (i = 0; i < nn; i++) {
+        t1 = x[2 * i + 1] - x[2 * i] * x[2 * i];
+        t2 = 1 - x[2 * i];
+        ff += alpha * t1 * t1 + t2 * t2;
+        g[2 * i]     = -4 * alpha * t1 * x[2 * i] - 2.0 * t2;
+        g[2 * i + 1] = 2 * alpha * t1;
+      }
     }
+    /* Restore vectors */
+    PetscCall(VecRestoreArrayRead(X, &x));
+    PetscCall(VecRestoreArray(G, &g));
+    *f = ff;
   }
-
-  /* Restore vectors */
-  PetscCall(VecRestoreArrayRead(X, &x));
-  PetscCall(VecRestoreArray(G, &g));
-  *f = ff;
 
   PetscCall(PetscLogFlops(15.0 * nn));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -198,6 +292,7 @@ PetscErrorCode FormHessian(Tao tao, Vec X, Mat H, Mat Hpre, void *ptr)
   PetscReal          v[2][2];
   const PetscScalar *x;
   PetscBool          assembled;
+//  PetscMemType       memtype_x;
 
   PetscFunctionBeginUser;
   /* Zero existing matrix entries */
@@ -206,7 +301,10 @@ PetscErrorCode FormHessian(Tao tao, Vec X, Mat H, Mat Hpre, void *ptr)
 
   /* Get a pointer to vector data */
   PetscCall(VecGetArrayRead(X, &x));
-
+#if 0 
+  PetscCall(VecGetArrayReadAndMemType(X, &x, &memtype_x));
+  PetscCall(PetscDeviceRegisterMemory(x, memtype_x, user->n*sizeof(*x)));
+#endif
   /* Compute H(X) entries */
   if (user->chained) {
     PetscCall(MatZeroEntries(H));
@@ -357,6 +455,51 @@ PetscErrorCode FormHessian(Tao tao, Vec X, Mat H, Mat Hpre, void *ptr)
      suffix: 28
      args: -tao_fmin 10 -tao_converged_reason
 
+   test: 
+     suffix: 29
+     args: -test_lmvm -tao_max_it 10 -tao_bqnk_mat_type lmvmcdbfgs -mat_lbfgs_type cd_reorder 
+
+   test: 
+     requires: cuda
+     suffix: 30
+     args: -test_lmvm -tao_max_it 10 -tao_bqnk_mat_type lmvmcdbfgs -mat_lbfgs_type cd_reorder -cuda
+
+   test: 
+     suffix: 31
+     args: -test_lmvm -tao_max_it 10 -tao_bqnk_mat_type lmvmcdbfgs -mat_lbfgs_type cd_inplace
+
+   test: 
+     requires: cuda
+     suffix: 32
+     args: -test_lmvm -tao_max_it 10 -tao_bqnk_mat_type lmvmcdbfgs -mat_lbfgs_type cd_inplace -cuda
+
+   test: 
+     suffix: 33
+     args: -tao_type bqnls -tao_bqnls_mat_type lmvmcdbfgs -tao_monitor -mat_lbfgs_type cd_reorder 
+
+   test: 
+     requires: cuda
+     suffix: 34
+     args: -tao_type bqnls -tao_bqnls_mat_type lmvmcdbfgs -tao_monitor -mat_lbfgs_type cd_reorder -cuda
+
+   test: 
+     suffix: 35
+     args: -tao_type bqnls -tao_bqnls_mat_type lmvmcdbfgs -tao_monitor -mat_lbfgs_type cd_inplace
+
+   test: 
+     requires: cuda
+     suffix: 36
+     args: -tao_type bqnls -tao_bqnls_mat_type lmvmcdbfgs -tao_monitor -mat_lbfgs_type cd_inplace -cuda
+
+   test: 
+     suffix: 37
+     args: -tao_type bqnls -tao_bqnls_mat_type lmvmcdbfgs -tao_monitor -mat_lbfgs_type cd_inplace -J0_scale
+
+   test: 
+     requires: cuda
+     suffix: 38
+     args: -tao_type bqnls -tao_bqnls_mat_type lmvmcdbfgs -tao_monitor -mat_lbfgs_type cd_inplace -J0_scale -cuda
+
    test:
      suffix: snes
      args: -snes_monitor ::ascii_info_detail -tao_type snes -snes_type newtontr -snes_atol 1.e-4 -pc_type none -tao_mf_hessian -ksp_type cg
@@ -369,5 +512,4 @@ PetscErrorCode FormHessian(Tao tao, Vec X, Mat H, Mat Hpre, void *ptr)
      suffix: snes_tr_cgnegcurve_kmdc
      args: -snes_monitor ::ascii_info_detail -tao_type snes -snes_type newtontr -snes_atol 1.e-4 -pc_type none  -ksp_type cg -snes_tr_kmdc 0.01 -ksp_converged_neg_curve -ksp_converged_reason
      requires: !single
-
 TEST*/

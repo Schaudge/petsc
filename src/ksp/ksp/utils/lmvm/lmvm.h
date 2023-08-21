@@ -21,6 +21,7 @@ struct _MatOps_LMVM {
   PetscErrorCode (*allocate)(Mat, Vec, Vec);
   PetscErrorCode (*reset)(Mat, PetscBool);
   PetscErrorCode (*mult)(Mat, Vec, Vec);
+  PetscErrorCode (*solve)(Mat, Vec, Vec);
   PetscErrorCode (*copy)(Mat, Mat, MatStructure);
 };
 
@@ -64,9 +65,11 @@ PETSC_INTERN PetscErrorCode MatView_LMVM(Mat, PetscViewer);
 PETSC_INTERN PetscErrorCode MatDestroy_LMVM(Mat);
 PETSC_INTERN PetscErrorCode MatCreate_LMVM(Mat);
 
-/* Create functions for derived LMVM types */
+/* Create functions for derived LMVM types
+   NOTE: MatCreateXYZ() declarations for subtypes live under petscksp.h */
 PETSC_EXTERN PetscErrorCode MatCreate_LMVMDFP(Mat);
 PETSC_EXTERN PetscErrorCode MatCreate_LMVMBFGS(Mat);
+PETSC_EXTERN PetscErrorCode MatCreate_LMVMCDBFGS(Mat);
 PETSC_EXTERN PetscErrorCode MatCreate_LMVMSR1(Mat);
 PETSC_EXTERN PetscErrorCode MatCreate_LMVMBrdn(Mat);
 PETSC_EXTERN PetscErrorCode MatCreate_LMVMBadBrdn(Mat);
