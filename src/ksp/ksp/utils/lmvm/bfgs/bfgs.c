@@ -1,5 +1,7 @@
 #include <../src/ksp/ksp/utils/lmvm/symbrdn/symbrdn.h> /*I "petscksp.h" I*/
 #include <../src/ksp/ksp/utils/lmvm/diagbrdn/diagbrdn.h>
+#include <petsc/private/vecimpl.h>
+#include <petscdevice.h>
 
 /*
   Limited-memory Broyden-Fletcher-Goldfarb-Shano method for approximating both
@@ -42,14 +44,22 @@ PetscErrorCode MatSolve_LMVMBFGS(Mat B, Vec F, Vec dX)
   VecCheckMatCompatible(B, dX, 3, F, 2);
 
   /* Copy the function into the work vector for the first loop */
-  PetscCall(VecCopy(F, lbfgs->work));
+  if (lmvm->async) {
+    PetscCall(VecCopyAsync_Private(F, lbfgs->work, lmvm->dctx_async));
+  } else {
+    PetscCall(VecCopy(F, lbfgs->work));
+  }
 
   /* Start the first loop */
   PetscCall(PetscMalloc1(lmvm->k + 1, &alpha));
   for (i = lmvm->k; i >= 0; --i) {
     PetscCall(VecDot(lmvm->S[i], lbfgs->work, &stf));
     alpha[i] = PetscRealPart(stf) / lbfgs->yts[i];
-    PetscCall(VecAXPY(lbfgs->work, -alpha[i], lmvm->Y[i]));
+    if (lmvm->async) {
+      PetscCall(VecAXPYAsync_Private(lbfgs->work, -alpha[i], lmvm->Y[i], lmvm->dctx_async));
+    } else {
+      PetscCall(VecAXPY(lbfgs->work, -alpha[i], lmvm->Y[i]));
+    }
   }
 
   /* Invert the initial Jacobian onto the work vector (or apply scaling) */
@@ -59,7 +69,11 @@ PetscErrorCode MatSolve_LMVMBFGS(Mat B, Vec F, Vec dX)
   for (i = 0; i <= lmvm->k; ++i) {
     PetscCall(VecDot(lmvm->Y[i], dX, &ytx));
     beta = PetscRealPart(ytx) / lbfgs->yts[i];
-    PetscCall(VecAXPY(dX, alpha[i] - beta, lmvm->S[i]));
+    if (lmvm->async) {
+      PetscCall(VecAXPYAsync_Private(dX, alpha[i] - beta, lmvm->S[i], lmvm->dctx_async));
+    } else {
+      PetscCall(VecAXPY(dX, alpha[i] - beta, lmvm->S[i]));
+    }
   }
   PetscCall(PetscFree(alpha));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -309,6 +323,13 @@ static PetscErrorCode MatAllocate_LMVMBFGS(Mat B, Vec X, Vec F)
   PetscFunctionBegin;
   PetscCall(MatAllocate_LMVM(B, X, F));
   if (!lbfgs->allocated) {
+    if (lmvm->async) {
+      PetscCall(PetscDeviceContextCreate(&lmvm->dctx_async));
+      PetscCall(PetscDeviceContextSetStreamType(lmvm->dctx_async, PETSC_STREAM_GLOBAL_NONBLOCKING));
+      PetscCall(PetscDeviceContextSetUp(lmvm->dctx_async));
+      lmvm->async_allocated = PETSC_TRUE; 
+    }
+
     PetscCall(VecDuplicate(X, &lbfgs->work));
     PetscCall(PetscMalloc5(lmvm->m, &lbfgs->stp, lmvm->m, &lbfgs->yts, lmvm->m, &lbfgs->yty, lmvm->m, &lbfgs->sts, lmvm->m, &lbfgs->workscalar));
     if (lmvm->m > 0) PetscCall(VecDuplicateVecs(X, lmvm->m, &lbfgs->P));
@@ -335,6 +356,9 @@ static PetscErrorCode MatDestroy_LMVMBFGS(Mat B)
     PetscCall(PetscFree5(lbfgs->stp, lbfgs->yts, lbfgs->yty, lbfgs->sts, lbfgs->workscalar));
     PetscCall(VecDestroyVecs(lmvm->m, &lbfgs->P));
     lbfgs->allocated = PETSC_FALSE;
+    if (lmvm->async_allocated) {
+      PetscCall(PetscDeviceContextDestroy(&lmvm->dctx_async));
+    }
   }
   PetscCall(MatDestroy(&lbfgs->D));
   PetscCall(PetscFree(lmvm->ctx));
