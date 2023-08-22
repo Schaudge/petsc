@@ -1951,7 +1951,6 @@ static PetscErrorCode SNESTSFormFunction_ARKIMEX(SNES snes, Vec X, Vec F, TS ts)
   TS_ARKIMEX *ark = (TS_ARKIMEX *)ts->data;
   DM          dm, dmsave;
   Vec         Z, Ydot;
-  PetscReal   shift = ark->scoeff / ts->time_step;
 
   PetscFunctionBegin;
   PetscCall(SNESGetDM(snes, &dm));
@@ -1963,6 +1962,7 @@ static PetscErrorCode SNESTSFormFunction_ARKIMEX(SNES snes, Vec X, Vec F, TS ts)
     /* We are solving F(t,x_n,xdot) = 0 to start the method */
     PetscCall(TSComputeIFunction(ts, ark->stage_time, Z, X, F, ark->imex));
   } else {
+    PetscReal shift = ark->scoeff / ts->time_step;
     PetscCall(VecAXPBYPCZ(Ydot, -shift, shift, 0, Z, X)); /* Ydot = shift*(X-Z) */
     PetscCall(TSComputeIFunction(ts, ark->stage_time, X, Ydot, F, ark->imex));
   }
@@ -1977,7 +1977,7 @@ static PetscErrorCode SNESTSFormJacobian_ARKIMEX(SNES snes, Vec X, Mat A, Mat B,
   TS_ARKIMEX *ark = (TS_ARKIMEX *)ts->data;
   DM          dm, dmsave;
   Vec         Ydot, Z;
-  PetscReal   shift = ark->scoeff;
+  PetscReal   shift;
 
   PetscFunctionBegin;
   PetscCall(SNESGetDM(snes, &dm));
