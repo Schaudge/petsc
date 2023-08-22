@@ -383,19 +383,35 @@ PetscErrorCode MatLMVMApplyJ0Fwd(Mat B, Vec X, Vec Y)
       PetscCall(MatMult(Amat, X, Y));
     } else {
       /* there's no product, so treat J0 as identity */
-      PetscCall(VecCopy(X, Y));
+      if (lmvm->async) {
+        PetscCall(VecCopyAsync_Private(X, Y, lmvm->dctx_async));
+      } else {
+        PetscCall(VecCopy(X, Y));
+      }
     }
   } else if (lmvm->user_scale) {
     if (lmvm->J0diag) {
       /* User has defined a diagonal vector for J0 */
-      PetscCall(VecPointwiseMult(X, lmvm->J0diag, Y));
+      if (lmvm->async) {
+        PetscCall(VecPointwiseMultAsync_Private(X, lmvm->J0diag, Y, lmvm->dctx_async));
+      } else {
+        PetscCall(VecPointwiseMult(X, lmvm->J0diag, Y));
+      }
     } else {
       /* User has defined a scalar value for J0 */
-      PetscCall(VecAXPBY(Y, lmvm->J0scalar, 0.0, X));
+      if (lmvm->async) {
+        PetscCall(VecAXPBYAsync_Private(Y, lmvm->J0scalar, 0.0, X, lmvm->dctx_async));
+      } else {
+        PetscCall(VecAXPBY(Y, lmvm->J0scalar, 0.0, X));
+      }	   
     }
   } else {
     /* There is no J0 representation so just apply an identity matrix */
-    PetscCall(VecCopy(X, Y));
+    if (lmvm->async) {
+      PetscCall(VecCopyAsync_Private(X, Y, lmvm->dctx_async));
+    } else {
+      PetscCall(VecCopy(X, Y));
+    }	  
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -454,13 +470,21 @@ PetscErrorCode MatLMVMApplyJ0Inv(Mat B, Vec X, Vec Y)
     }
   } else if (lmvm->user_scale) {
     if (lmvm->J0diag) {
-      PetscCall(VecPointwiseDivide(X, Y, lmvm->J0diag));
+      if (lmvm->async) {
+        PetscCall(VecPointwiseDivideAsync_Private(X, Y, lmvm->J0diag, lmvm->dctx_async));
+      } else {
+        PetscCall(VecPointwiseDivide(X, Y, lmvm->J0diag));
+      }	 
     } else {
       PetscCall(VecAXPBY(Y, 1.0 / lmvm->J0scalar, 0.0, X));
     }
   } else {
     /* There is no J0 representation so just apply an identity matrix */
-    PetscCall(VecCopy(X, Y));
+    if (lmvm->async) {
+      PetscCall(VecCopyAsync_Private(X, Y, lmvm->dctx_async));
+    } else {
+      PetscCall(VecCopy(X, Y));
+    }	  
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

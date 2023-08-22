@@ -259,6 +259,7 @@ PetscErrorCode MatSetFromOptions_LMVM(Mat B, PetscOptionItems *PetscOptionsObjec
   PetscCall(PetscOptionsInt("-mat_lmvm_hist_size", "number of past updates kept in memory for the approximation", "", lmvm->m, &lmvm->m, NULL));
   PetscCall(PetscOptionsInt("-mat_lmvm_ksp_its", "(developer) fixed number of KSP iterations to take when inverting J0", "", lmvm->ksp_max_it, &lmvm->ksp_max_it, NULL));
   PetscCall(PetscOptionsReal("-mat_lmvm_eps", "(developer) machine zero definition", "", lmvm->eps, &lmvm->eps, NULL));
+  PetscCall(PetscOptionsBool("-mat_lmvm_async", "Do Vector operations async for GPU version", "", lmvm->async, &lmvm->async, NULL));
   PetscOptionsHeadEnd();
   PetscCall(KSPSetFromOptions(lmvm->J0ksp));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -323,13 +324,15 @@ PetscErrorCode MatCreate_LMVM(Mat B)
 
   lmvm->shift = 0.0;
 
-  lmvm->eps        = PetscPowReal(PETSC_MACHINE_EPSILON, 2.0 / 3.0);
-  lmvm->allocated  = PETSC_FALSE;
-  lmvm->prev_set   = PETSC_FALSE;
-  lmvm->user_scale = PETSC_FALSE;
-  lmvm->user_pc    = PETSC_FALSE;
-  lmvm->user_ksp   = PETSC_FALSE;
-  lmvm->square     = PETSC_FALSE;
+  lmvm->eps             = PetscPowReal(PETSC_MACHINE_EPSILON, 2.0 / 3.0);
+  lmvm->allocated       = PETSC_FALSE;
+  lmvm->prev_set        = PETSC_FALSE;
+  lmvm->user_scale      = PETSC_FALSE;
+  lmvm->user_pc         = PETSC_FALSE;
+  lmvm->user_ksp        = PETSC_FALSE;
+  lmvm->square          = PETSC_FALSE;
+  lmvm->async           = PETSC_FALSE;
+  lmvm->async_allocated = PETSC_FALSE;
 
   B->ops->destroy        = MatDestroy_LMVM;
   B->ops->setfromoptions = MatSetFromOptions_LMVM;

@@ -43,6 +43,11 @@ typedef struct {
   PC        J0pc;
   KSP       J0ksp;
 
+  /* Flag to decide how to do vector operations */
+  PetscBool async, async_allocated;
+
+  PetscDeviceContext dctx_async;
+
   /* Data structures to support common Mat functions */
   PetscReal shift;
 
