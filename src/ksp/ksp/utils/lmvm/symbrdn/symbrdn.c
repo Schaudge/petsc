@@ -726,14 +726,22 @@ PetscErrorCode MatSymBrdnApplyJ0Fwd(Mat B, Vec X, Vec Z)
   } else {
     switch (lsb->scale_type) {
     case MAT_LMVM_SYMBROYDEN_SCALE_SCALAR:
-      PetscCall(VecAXPBY(Z, 1.0 / lsb->sigma, 0.0, X));
+      if (lmvm->async) {
+        PetscCall(VecAXPBYAsync_Private(Z, 1.0 / lsb->sigma, 0.0, X, lmvm->dctx_async));
+      } else {
+        PetscCall(VecAXPBY(Z, 1.0 / lsb->sigma, 0.0, X));
+      }
       break;
     case MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL:
       PetscCall(MatMult(lsb->D, X, Z));
       break;
     case MAT_LMVM_SYMBROYDEN_SCALE_NONE:
     default:
-      PetscCall(VecCopy(X, Z));
+      if (lmvm->async) {
+        PetscCall(VecCopyAsync_Private(X, Z, lmvm->dctx_async));
+      } else {
+        PetscCall(VecCopy(X, Z));
+      }
       break;
     }
   }
@@ -752,14 +760,22 @@ PetscErrorCode MatSymBrdnApplyJ0Inv(Mat B, Vec F, Vec dX)
   } else {
     switch (lsb->scale_type) {
     case MAT_LMVM_SYMBROYDEN_SCALE_SCALAR:
-      PetscCall(VecAXPBY(dX, lsb->sigma, 0.0, F));
+      if (lmvm->async) {
+        PetscCall(VecAXPBYAsync_Private(dX, lsb->sigma, 0.0, F, lmvm->dctx_async));
+      } else {
+        PetscCall(VecAXPBY(dX, lsb->sigma, 0.0, F));
+      }
       break;
     case MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL:
       PetscCall(MatSolve(lsb->D, F, dX));
       break;
     case MAT_LMVM_SYMBROYDEN_SCALE_NONE:
     default:
-      PetscCall(VecCopy(F, dX));
+      if (lmvm->async) {
+        PetscCall(VecCopyAsync_Private(F, dX, lmvm->dctx_async));
+      } else {
+        PetscCall(VecCopy(F, dX));
+      }
       break;
     }
   }

@@ -22,10 +22,8 @@ typedef struct {
 
   PetscInt  watchdog, max_seq_rejects;                   /* tracker to reset after a certain # of consecutive rejects */
   PetscInt  idx_cols, iter_count;
-  PetscBool allocated, chol_ldlt_lazy, bind, async;
+  PetscBool allocated, chol_ldlt_lazy, bind;
   PetscReal delta, delta_min, delta_max;
-
-  PetscDeviceContext dctx_async;
 } Mat_CDBFGS;
 
 PETSC_INTERN PetscErrorCode MatView_LMVMCDBFGS(Mat, PetscViewer);
