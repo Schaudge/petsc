@@ -476,7 +476,11 @@ PetscErrorCode MatLMVMApplyJ0Inv(Mat B, Vec X, Vec Y)
         PetscCall(VecPointwiseDivide(X, Y, lmvm->J0diag));
       }	 
     } else {
-      PetscCall(VecAXPBY(Y, 1.0 / lmvm->J0scalar, 0.0, X));
+      if (lmvm->async) {
+        PetscCall(VecAXPBYAsync_Private(Y, 1.0 / lmvm->J0scalar, 0.0, X, lmvm->dctx_async));
+      } else {
+        PetscCall(VecAXPBY(Y, 1.0 / lmvm->J0scalar, 0.0, X));
+      }
     }
   } else {
     /* There is no J0 representation so just apply an identity matrix */
