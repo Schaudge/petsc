@@ -1,57 +1,70 @@
-#include <petscdevice_cuda.h>
-#include <petscdevice.h>
+const char help[] = "Copy of rosenbrock1.c\n";
+
+/* ------------------------------------------------------------------------
+
+  Copy of rosenbrock1.c.
+  Once petsc test harness supports conditional linking, we can remove this duplicate.
+  See https://gitlab.com/petsc/petsc/-/issues/1173
+  ------------------------------------------------------------------------- */
+
 #include "rosenbrock1.h"
-#include <cuda.h>
-#include <thrust/reduce.h>
 
-__global__ void Rosenbrock1ObjAndGradCUDA_Kernel(const PetscScalar x[], PetscScalar g[], PetscReal f[], PetscReal alpha, PetscInt nn)
+#include <cuda_profiler_api.h>
+
+int main(int argc, char **argv)
 {
-  PetscReal t1, t2;
-  int i;
-  int idx = blockIdx.x*blockDim.x+threadIdx.x;//1D grid
-  PetscInt tid = threadIdx.x;
+  Vec           x;    /* solution vector */
+  Vec           g;    /* gradient vector */
+  Mat           H;    /* Hessian matrix */
+  Tao           tao;  /* Tao solver context */
+  AppCtx        user; /* user-defined application context */
 
-  __shared__ double f_array[1024];
-  f_array[tid] = 0.0;
-
-  if (idx >= nn) return;
-
-  int total = blockDim.x * gridDim.x;
-  for (i = tid; i< nn; i+=total) {
-    t1 = x[2*i+1] - x[2*i]*x[2*i];
-    t2 = 1 - x[2*i];
-  
-    g[2*i] = -4*alpha*(t1)*x[2*i] - 2.*(t2);
-    g[2*i+1] = 2*alpha*(t1);
-    f_array[tid] += alpha*t1*t1 + t2*t2;
-  }
-  
-  // Reduction on f_array
-  for (unsigned int s=blockDim.x/2; s>0 ; s>>=1) {
-    if (tid < s) {
-      f_array[tid] += f_array[tid+s];
-    }
-    __syncthreads();
-  }
-
-  if (tid ==0) atomicAdd(f,f_array[0]);
-}
-
-PetscErrorCode Rosenbrock1ObjAndGradCUDA(Vec X, Vec G, PetscReal *f, PetscReal alpha, PetscInt nn)
-{
-  PetscScalar *g;
-  PetscMemType memtype_x, memtype_g;
-  const PetscScalar *x;  
-
+  /* Initialize TAO and PETSc */
   PetscFunctionBeginUser;
-  PetscCall(VecGetArrayAndMemType(G, &g, &memtype_g));
-  PetscCall(VecGetArrayReadAndMemType(X, &x, &memtype_x));
+  PetscCall(PetscInitialize(&argc, &argv, (char *)0, help));
 
-  // ObjGrad Together
-  Rosenbrock1ObjAndGradCUDA_Kernel<<<1,256>>>(x, g, f, alpha, nn);
-  
+  PetscCall(AppCtxCreate(PETSC_COMM_WORLD, &user));
+  PetscCall(CreateHessian(user, &H));
+  PetscCall(CreateVectors(user, H, &x, &g));
 
-  PetscCall(VecRestoreArrayAndMemType(G, &g));
-  PetscCall(VecRestoreArrayReadAndMemType(X, &x));
-  PetscFunctionReturn(PETSC_SUCCESS);
+  /* The TAO code begins here */
+
+  /* Create TAO solver with desired solution method */
+  PetscCall(TaoCreate(user->comm, &tao));
+  PetscCall(TaoSetFromOptions(tao));
+
+  /* Set solution vec and an initial guess */
+  PetscCall(VecZeroEntries(x));
+  PetscCall(TaoSetSolution(tao, x));
+
+  /* Set routines for function, gradient, hessian evaluation */
+  PetscCall(TaoSetObjectiveAndGradient(tao, g, FormFunctionGradient, user));
+  PetscCall(TaoSetHessian(tao, H, H, FormHessian, user));
+
+  /* SOLVE THE APPLICATION */
+  cudaProfilerStart();
+  PetscCall(TaoSolve(tao));
+  cudaProfilerStop();
+
+  PetscCall(TestLMVM(tao));
+
+  PetscCall(TaoDestroy(&tao));
+  PetscCall(VecDestroy(&g));
+  PetscCall(VecDestroy(&x));
+  PetscCall(MatDestroy(&H));
+  PetscCall(AppCtxDestroy(&user));
+  PetscCall(PetscFinalize());
+  return 0;
 }
+
+/*TEST
+
+  build:
+    requires: !complex cuda
+
+  test:
+    output_file: output/rosenbrock1_1.out
+    args: -mat_type aijcusparse -tao_smonitor -tao_type nls -tao_gatol 1.e-4
+    requires: !single
+
+TEST*/
