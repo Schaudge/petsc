@@ -964,7 +964,9 @@ static PetscErrorCode MatAdd_LDLT(Mat B)
 
   const PetscScalar *r_array;
   PetscScalar       *x_array, *buffer;
+  PetscMemType       x_type, r_type;
   PetscInt           i, j, k, query_idx_i, query_idx_j, query_idx_k, index;
+  MPI_Comm           comm = PetscObjectComm((PetscObject)B);
   Vec                workvec1, workvec2;
 
   PetscFunctionBegin;
@@ -978,7 +980,7 @@ static PetscErrorCode MatAdd_LDLT(Mat B)
    * [ 0 | L_0*L_0[1]/d_0 | L_0*L_0[2]/d_0 + L_1*L_1[2]/d_1 | ... ].  
    * 
    * Struture is similar for inplace version, but just two clockwise shifts in block-form.            */
-  PetscCall(VecGetArrayRead(lbfgs->diag_vec, &r_array));
+  PetscCall(VecGetArrayReadAndMemType(lbfgs->diag_vec, &r_array, &r_type));
   for (i=0; i<lmvm->m-1; i++) {
     query_idx_i = (index + i) % lmvm->m;
     PetscCall(MatDenseGetColumnVecRead(lbfgs->StYfull, query_idx_i, &workvec1));
@@ -986,12 +988,10 @@ static PetscErrorCode MatAdd_LDLT(Mat B)
     /* Copying to emulate strictly lower triangular */
     PetscCall(VecCopy(workvec1, lbfgs->rwork1));
     PetscCall(MatDenseRestoreColumnVecRead(lbfgs->StYfull, query_idx_i, &workvec1));
-    PetscCall(VecGetArray(lbfgs->rwork1, &x_array));
-#if 0
-    switch (memtype_x) {
+    PetscCall(VecGetArrayAndMemType(lbfgs->rwork1, &x_array, &x_type));
+    switch (x_type) {
     case PETSC_MEMTYPE_HOST:
     {
-#endif	    
       for (j=0; j<i+1; j++) {
         query_idx_j = (index + j) % lmvm->m;
         x_array[query_idx_j] = 0;
@@ -1015,7 +1015,6 @@ static PetscErrorCode MatAdd_LDLT(Mat B)
         PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->J, query_idx_k, &workvec2));
       }
       PetscCall(PetscFree(buffer));
-#if 0      
     }
       break;
     case PETSC_MEMTYPE_CUDA:
@@ -1023,57 +1022,59 @@ static PetscErrorCode MatAdd_LDLT(Mat B)
     case PETSC_MEMTYPE_HIP:
     {
 #if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
-      PetscInt nn = 1;	    
       PetscDeviceContext dctx;
-      PetscCall(PetscDeviceContextCreate(&dctx));
-      PetscCall(PetscDeviceContextSetUp(dctx));
+      PetscInt           N;
+      PetscCall(VecGetSize(lbfgs->rwork1,&N));
+      PetscCall(PetscDeviceContextGetCurrentContext(&dctx));//TODO async thing here?
+
+      PetscCall(PetscDeviceRegisterMemory(x_array, x_type, N*sizeof(*x_array)));
+      PetscCall(PetscDeviceRegisterMemory(r_array, r_type, N*sizeof(*x_array)));
 
       for (j=0; j<i+1; j++) {
         query_idx_j = (index + j) % lmvm->m;
-        PetscCall(PetscDeviceArrayZero(dctx, &x_array[query_idx_j],nn));
+        PetscCall(PetscDeviceArrayZero(dctx, &x_array[query_idx_j],1));
       }
 
-      PetscCall(PetscDeviceCalloc(dctx, memtype_x, lmvm->m-i-1, &buffer));
+      PetscCall(PetscDeviceCalloc(dctx, x_type, lmvm->m-i-1, &buffer));
       for (j=0; j < lmvm->m-i-1; j++) {
         query_idx_j = query_idx_i+j+1  % lmvm->m;
-	PetscInt try;
+	/* TODO 
+	 * 1. host alloc size 1, and devicearraycpy r[idx_i]
+	 * 2. do the same for tmp1, tmp2?
+	 * 3. buffer[j] at the end */
 
-        if (r_array[query_idx_i] != 0) {
-          // maybe create vector with x[j]/r[i], copy, and set zero elsewhere?
+        if (r_array[query_idx_i] != 0) {//TODO can't do this..
+          // TODO maybe create vector with x[j]/r[i], copy, and set zero elsewhere?
           PetscScalar *tmp1, *tmp2;
-          PetscCall(PetscDeviceMalloc(dctx, memtype_x, nn, &tmp1));
-          PetscCall(PetscDeviceMalloc(dctx, memtype_x, nn, &tmp2));
-	  PetscCall(PetscDeviceMemcpy(dctx, tmp1, &x_array[query_idx_i], sizeof(PetscScalar)));
-	  PetscCall(PetscDeviceMemcpy(dctx, tmp2, &r_array[query_idx_i], sizeof(PetscScalar)));
-//          PetscCall(PetscDeviceArrayCopy(dctx, tmp1, &x_array[query_idx_j], nn));
-//          PetscCall(PetscDeviceArrayCopy(dctx, tmp2, &r_array[query_idx_i], nn));
-	  *tmp1 /= *tmp2;
-          PetscCall(PetscDeviceMemcpy(dctx, &buffer[j], tmp1, nn));
+          PetscCall(PetscDeviceMalloc(dctx, x_type, 1, &tmp1));
+          PetscCall(PetscDeviceMalloc(dctx, x_type, 1, &tmp2));
+	  PetscCall(PetscDeviceArrayCopy(dctx, tmp1, &x_array[query_idx_i], 1));
+	  PetscCall(PetscDeviceArrayCopy(dctx, tmp2, &r_array[query_idx_i], 1));
+	  *tmp1 /= *tmp2;//TODO is this legal?
+          PetscCall(PetscDeviceArrayCopy(dctx, &buffer[j], tmp1, 1));
           PetscCall(PetscDeviceFree(dctx, tmp1));
           PetscCall(PetscDeviceFree(dctx, tmp2));
         } else {
-          PetscCall(PetscDeviceArrayZero(dctx, &buffer[j],nn));
+          PetscCall(PetscDeviceArrayZero(dctx, &buffer[j],1));
         }
       }
       for (j=0, k=i+1; k<lmvm->m; k++, j++) {
         query_idx_j = (index + j) % lmvm->m;
         query_idx_k = (index + k) % lmvm->m;
         PetscCall(MatDenseGetColumnVecWrite(lbfgs->J, query_idx_k, &workvec2));
-        PetscCall(VecAXPY(workvec2, buffer[j], lbfgs->rwork1));
+        PetscCall(VecAXPY(workvec2, buffer[j], lbfgs->rwork1));//TODO prob illegal
         PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->J, query_idx_k, &workvec2));
       }
       PetscCall(PetscDeviceFree(dctx, buffer));
-      PetscCall(PetscDeviceContextDestroy(&dctx));
 #endif
     }
       break;
     default:
       SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented MEMTYPE");
     }
-#endif
-    PetscCall(VecRestoreArray(lbfgs->rwork1, &x_array));
+    PetscCall(VecRestoreArrayAndMemType(lbfgs->rwork1, &x_array));
   }
-  PetscCall(VecRestoreArrayRead(lbfgs->diag_vec, &r_array));
+  PetscCall(VecRestoreArrayReadAndMemType(lbfgs->diag_vec, &r_array));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
