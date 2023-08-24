@@ -22,13 +22,31 @@ struct _AppCtx {
   Vec       Hvalues; /* vector for writing COO values of this MPI process */
   Vec       gvalues; /* vector for writing COO values of this MPI process */
   Vec       fvector;
+  Vec       gtemplate;
   PetscSF   off_process_scatter;
   Vec       off_process_values; /* buffer for off-process values if chained */
 };
 
 /* -------------- User-defined routines ---------- */
 
-static PETSC_HOSTDEVICE_INLINE_DECL PetscReal RosenbrockFunctionGradient(PetscScalar alpha, PetscScalar x_1, PetscScalar x_2, PetscScalar g[2])
+static PETSC_HOSTDEVICE_INLINE_DECL PetscReal RosenbrockObjective(PetscScalar alpha, PetscScalar x_1, PetscScalar x_2)
+{
+  PetscScalar d   = x_2 - x_1 * x_1;
+  PetscScalar e   = 1.0 - x_1;
+  return alpha * d * d + e * e;
+}
+
+static PETSC_HOSTDEVICE_INLINE_DECL void RosenbrockGradient(PetscScalar alpha, PetscScalar x_1, PetscScalar x_2, PetscScalar g[2])
+{
+  PetscScalar d   = x_2 - x_1 * x_1;
+  PetscScalar e   = 1.0 - x_1;
+  PetscScalar g2  = alpha * d * 2.0;
+
+  g[0] = -2.0 * x_1 * g2 - 2.0 * e;
+  g[1] = g2;
+}
+
+static PETSC_HOSTDEVICE_INLINE_DECL PetscReal RosenbrockObjectiveGradient(PetscScalar alpha, PetscScalar x_1, PetscScalar x_2, PetscScalar g[2])
 {
   PetscScalar d   = x_2 - x_1 * x_1;
   PetscScalar e   = 1.0 - x_1;
@@ -114,6 +132,7 @@ static PetscErrorCode AppCtxDestroy(AppCtx *ctx)
   PetscCall(VecDestroy(&user->fvector));
   PetscCall(VecDestroy(&user->off_process_values));
   PetscCall(PetscSFDestroy(&user->off_process_scatter));
+  PetscCall(VecDestroy(&user->gtemplate));
   PetscCall(PetscFree(user));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -215,6 +234,7 @@ static PetscErrorCode CreateVectors(AppCtx user, Mat H, Vec *solution, Vec *grad
   }
 
   // create COO data for writing the gradient
+  PetscCall(VecDuplicate(*gradient, &user->gtemplate));
   n_coo = user->n_local_comp * 2;
   PetscCall(PetscMalloc1(n_coo, &coo_i));
   i_stride = user->chained ? 1 : 2;
@@ -222,7 +242,7 @@ static PetscErrorCode CreateVectors(AppCtx user, Mat H, Vec *solution, Vec *grad
     coo_i[k + 0] = i;
     coo_i[k + 1] = i + 1;
   }
-  PetscCall(VecSetPreallocationCOO(*gradient, n_coo, coo_i));
+  PetscCall(VecSetPreallocationCOO(user->gtemplate, n_coo, coo_i));
   PetscCall(PetscFree(coo_i));
   PetscCall(VecCreate(user->comm, &user->gvalues));
   PetscCall(VecSetSizes(user->gvalues, n_coo, PETSC_DETERMINE));
@@ -231,7 +251,20 @@ static PetscErrorCode CreateVectors(AppCtx user, Mat H, Vec *solution, Vec *grad
 }
 
 #if PetscDefined(USING_NVCC)
-PETSC_KERNEL_DECL void RosenbrockFunctionGradient_CUDA_Kernel(PetscInt n_comp, PetscInt n, PetscInt stride, PetscReal alpha, const PetscScalar x[], const PetscScalar o[], PetscScalar f_vec[], PetscScalar g[])
+PETSC_KERNEL_DECL void RosenbrockObjective_CUDA_Kernel(PetscInt n_comp, PetscInt n, PetscInt stride, PetscReal alpha, const PetscScalar x[], const PetscScalar o[], PetscScalar f_vec[])
+{
+  int idx         = blockIdx.x * blockDim.x + threadIdx.x; // 1D grid
+  int num_threads = gridDim.x * blockDim.x;
+
+  for (int c = idx, i = c * stride; c < n_comp; c += num_threads, i += num_threads * stride) {
+    PetscScalar x_a = x[i + 0];
+    PetscScalar x_b = ((i + 1) < n) ? x[i + 1] : o[0];
+
+    f_vec[c] = RosenbrockObjective(alpha, x_a, x_b);
+  }
+}
+
+PETSC_KERNEL_DECL void RosenbrockGradient_CUDA_Kernel(PetscInt n_comp, PetscInt n, PetscInt stride, PetscReal alpha, const PetscScalar x[], const PetscScalar o[], PetscScalar g[])
 {
   int idx         = blockIdx.x * blockDim.x + threadIdx.x; // 1D grid
   int num_threads = gridDim.x * blockDim.x;
@@ -240,7 +273,20 @@ PETSC_KERNEL_DECL void RosenbrockFunctionGradient_CUDA_Kernel(PetscInt n_comp, P
     PetscScalar x_a = x[i + 0];
     PetscScalar x_b = ((i + 1) < n) ? x[i + 1] : o[0];
 
-    f_vec[c] = RosenbrockFunctionGradient(alpha, x_a, x_b, &g[k]);
+    RosenbrockGradient(alpha, x_a, x_b, &g[k]);
+  }
+}
+
+PETSC_KERNEL_DECL void RosenbrockObjectiveGradient_CUDA_Kernel(PetscInt n_comp, PetscInt n, PetscInt stride, PetscReal alpha, const PetscScalar x[], const PetscScalar o[], PetscScalar f_vec[], PetscScalar g[])
+{
+  int idx         = blockIdx.x * blockDim.x + threadIdx.x; // 1D grid
+  int num_threads = gridDim.x * blockDim.x;
+
+  for (int c = idx, i = c * stride, k = c * 2; c < n_comp; c += num_threads, i += num_threads * stride, k += num_threads * 2) {
+    PetscScalar x_a = x[i + 0];
+    PetscScalar x_b = ((i + 1) < n) ? x[i + 1] : o[0];
+
+    f_vec[c] = RosenbrockObjectiveGradient(alpha, x_a, x_b, &g[k]);
   }
 }
 
@@ -257,10 +303,24 @@ PETSC_KERNEL_DECL void RosenbrockHessian_CUDA_Kernel(PetscInt n_comp, PetscInt n
   }
 }
 
-static PetscErrorCode RosenbrockFunctionGradient_CUDA(PetscInt n_comp, PetscInt n, PetscInt stride, PetscReal alpha, const PetscScalar x[], const PetscScalar o[], PetscScalar f_vec[], PetscScalar g[])
+static PetscErrorCode RosenbrockObjective_CUDA(PetscInt n_comp, PetscInt n, PetscInt stride, PetscReal alpha, const PetscScalar x[], const PetscScalar o[], PetscScalar f_vec[])
 {
   PetscFunctionBegin;
-  RosenbrockFunctionGradient_CUDA_Kernel<<<(n_comp + 255) / 256, 256>>>(n_comp, n, stride, alpha, x, o, f_vec, g);
+  RosenbrockObjective_CUDA_Kernel<<<(n_comp + 255) / 256, 256>>>(n_comp, n, stride, alpha, x, o, f_vec);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode RosenbrockGradient_CUDA(PetscInt n_comp, PetscInt n, PetscInt stride, PetscReal alpha, const PetscScalar x[], const PetscScalar o[], PetscScalar g[])
+{
+  PetscFunctionBegin;
+  RosenbrockGradient_CUDA_Kernel<<<(n_comp + 255) / 256, 256>>>(n_comp, n, stride, alpha, x, o, g);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode RosenbrockObjectiveGradient_CUDA(PetscInt n_comp, PetscInt n, PetscInt stride, PetscReal alpha, const PetscScalar x[], const PetscScalar o[], PetscScalar f_vec[], PetscScalar g[])
+{
+  PetscFunctionBegin;
+  RosenbrockObjectiveGradient_CUDA_Kernel<<<(n_comp + 255) / 256, 256>>>(n_comp, n, stride, alpha, x, o, f_vec, g);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -272,7 +332,36 @@ static PetscErrorCode RosenbrockHessian_CUDA(PetscInt n_comp, PetscInt n, PetscI
 }
 #endif
 
-static PetscErrorCode RosenbrockFunctionGradient_Host(PetscInt n_comp, PetscInt n, PetscInt stride, PetscReal alpha, const PetscScalar x[], const PetscScalar o[], PetscReal *f, PetscScalar g[])
+static PetscErrorCode RosenbrockObjective_Host(PetscInt n_comp, PetscInt n, PetscInt stride, PetscReal alpha, const PetscScalar x[], const PetscScalar o[], PetscReal *f)
+{
+  PetscReal _f = 0.0;
+
+  PetscFunctionBegin;
+  for (PetscInt c = 0, i = 0; c < n_comp; c++, i += stride) {
+    PetscScalar x_a = x[i + 0];
+    PetscScalar x_b = ((i + 1) < n) ? x[i + 1] : o[0];
+
+    _f += RosenbrockObjective(alpha, x_a, x_b);
+  }
+  *f = _f;
+  PetscCall(PetscLogFlops(14.0 * n_comp));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode RosenbrockGradient_Host(PetscInt n_comp, PetscInt n, PetscInt stride, PetscReal alpha, const PetscScalar x[], const PetscScalar o[], PetscScalar g[])
+{
+  PetscFunctionBegin;
+  for (PetscInt c = 0, i = 0, k = 0; c < n_comp; c++, k += 2, i += stride) {
+    PetscScalar x_a = x[i + 0];
+    PetscScalar x_b = ((i + 1) < n) ? x[i + 1] : o[0];
+
+    RosenbrockGradient(alpha, x_a, x_b, &g[k]);
+  }
+  PetscCall(PetscLogFlops(14.0 * n_comp));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode RosenbrockObjectiveGradient_Host(PetscInt n_comp, PetscInt n, PetscInt stride, PetscReal alpha, const PetscScalar x[], const PetscScalar o[], PetscReal *f, PetscScalar g[])
 {
   PetscReal _f = 0.0;
 
@@ -281,7 +370,7 @@ static PetscErrorCode RosenbrockFunctionGradient_Host(PetscInt n_comp, PetscInt 
     PetscScalar x_a = x[i + 0];
     PetscScalar x_b = ((i + 1) < n) ? x[i + 1] : o[0];
 
-    _f += RosenbrockFunctionGradient(alpha, x_a, x_b, &g[k]);
+    _f += RosenbrockObjectiveGradient(alpha, x_a, x_b, &g[k]);
   }
   *f = _f;
   PetscCall(PetscLogFlops(14.0 * n_comp));
@@ -302,13 +391,87 @@ static PetscErrorCode RosenbrockHessian_Host(PetscInt n_comp, PetscInt n, PetscI
 }
 
 /* -------------------------------------------------------------------- */
+
+static PetscErrorCode FormObjective(Tao tao, Vec X, PetscReal *f, void *ptr)
+{
+  AppCtx             user = (AppCtx)ptr;
+  PetscReal          f_local = 0.0;
+  const PetscScalar *x;
+  const PetscScalar *o = NULL;
+  PetscMemType       memtype_x;
+
+  PetscFunctionBeginUser;
+  if (user->chained) {
+    PetscCall(VecScatterBegin(user->off_process_scatter, X, user->off_process_values, INSERT_VALUES, SCATTER_FORWARD));
+    PetscCall(VecScatterEnd(user->off_process_scatter, X, user->off_process_values, INSERT_VALUES, SCATTER_FORWARD));
+    PetscCall(VecGetArrayReadAndMemType(user->off_process_values, &o, NULL));
+  }
+  PetscCall(VecGetArrayReadAndMemType(X, &x, &memtype_x));
+  if (memtype_x == PETSC_MEMTYPE_HOST) {
+    PetscCall(RosenbrockObjective_Host(user->n_local_comp, user->n_local, user->chained ? 1 : 2, user->alpha, x, o, &f_local));
+    PetscCallMPI(MPI_Allreduce(&f_local, f, 1, MPIU_REAL, MPI_SUM, user->comm));
+#if PetscDefined(HAVE_CUDA) && PetscDefined(USING_NVCC)
+  } else if (memtype_x == PETSC_MEMTYPE_CUDA) {
+    PetscScalar *_fvec;
+    PetscScalar f_scalar;
+
+    PetscCall(VecGetArrayWriteAndMemType(user->fvector, &_fvec, NULL));
+    PetscCall(RosenbrockObjective_CUDA(user->n_local_comp, user->n_local, user->chained ? 1 : 2, user->alpha, x, o, _fvec));
+    PetscCall(VecRestoreArrayWriteAndMemType(user->fvector, &_fvec));
+    PetscCall(VecSum(user->fvector, &f_scalar));
+    *f = PetscRealPart(f_scalar);
+#endif
+  } else SETERRQ(user->comm, PETSC_ERR_SUP, "Unsuported memtype %d", (int) memtype_x);
+
+  PetscCall(VecRestoreArrayReadAndMemType(X, &x));
+  if (user->chained) PetscCall(VecRestoreArrayReadAndMemType(user->off_process_values, &o));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode FormGradient(Tao tao, Vec X, Vec G, void *ptr)
+{
+  AppCtx             user = (AppCtx)ptr;
+  PetscScalar       *g;
+  const PetscScalar *x;
+  const PetscScalar *o = NULL;
+  PetscMemType       memtype_x, memtype_g;
+
+  PetscFunctionBeginUser;
+  if (user->chained) {
+    PetscCall(VecScatterBegin(user->off_process_scatter, X, user->off_process_values, INSERT_VALUES, SCATTER_FORWARD));
+    PetscCall(VecScatterEnd(user->off_process_scatter, X, user->off_process_values, INSERT_VALUES, SCATTER_FORWARD));
+    PetscCall(VecGetArrayReadAndMemType(user->off_process_values, &o, NULL));
+  }
+  PetscCall(VecGetArrayReadAndMemType(X, &x, &memtype_x));
+  PetscCall(VecGetArrayWriteAndMemType(user->chained ? user->gvalues : G, &g, &memtype_g));
+  PetscAssert(memtype_x == memtype_g, user->comm, PETSC_ERR_ARG_INCOMP, "solution vector and gradient must have save memtype");
+  if (memtype_x == PETSC_MEMTYPE_HOST) {
+    PetscCall(RosenbrockGradient_Host(user->n_local_comp, user->n_local, user->chained ? 1 : 2, user->alpha, x, o, g));
+#if PetscDefined(HAVE_CUDA) && PetscDefined(USING_NVCC)
+  } else if (memtype_x == PETSC_MEMTYPE_CUDA) {
+    PetscCall(RosenbrockGradient_CUDA(user->n_local_comp, user->n_local, user->chained ? 1 : 2, user->alpha, x, o, g));
+#endif
+  } else SETERRQ(user->comm, PETSC_ERR_SUP, "Unsuported memtype %d", (int) memtype_x);
+
+  if (user->chained) {
+    PetscCall(VecSetValuesWithBorrowedCOO(G, user->gtemplate, g, INSERT_VALUES));
+    PetscCall(VecRestoreArrayWriteAndMemType(user->gvalues, &g));
+  } else {
+    PetscCall(VecRestoreArrayWriteAndMemType(G, &g));
+  }
+
+  PetscCall(VecRestoreArrayReadAndMemType(X, &x));
+  if (user->chained) PetscCall(VecRestoreArrayReadAndMemType(user->off_process_values, &o));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /*
-    FormFunctionGradient - Evaluates the function, f(X), and gradient, G(X).
+    FormObjectiveGradient - Evaluates the function, f(X), and gradient, G(X).
 
     Input Parameters:
 .   tao  - the Tao context
 .   X    - input vector
-.   ptr  - optional user-defined context, as set by TaoSetFunctionGradient()
+.   ptr  - optional user-defined context, as set by TaoSetObjectiveGradient()
 
     Output Parameters:
 .   G - vector containing the newly evaluated gradient
@@ -319,7 +482,7 @@ static PetscErrorCode RosenbrockHessian_Host(PetscInt n_comp, PetscInt n, PetscI
     at the same time.  Evaluating both at once may be more efficient that
     evaluating each separately.
 */
-static PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *f, Vec G, void *ptr)
+static PetscErrorCode FormObjectiveGradient(Tao tao, Vec X, PetscReal *f, Vec G, void *ptr)
 {
   AppCtx             user = (AppCtx)ptr;
   PetscReal          f_local = 0.0;
@@ -338,7 +501,7 @@ static PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *f, Vec G, 
   PetscCall(VecGetArrayWriteAndMemType(user->chained ? user->gvalues : G, &g, &memtype_g));
   PetscAssert(memtype_x == memtype_g, user->comm, PETSC_ERR_ARG_INCOMP, "solution vector and gradient must have save memtype");
   if (memtype_x == PETSC_MEMTYPE_HOST) {
-    PetscCall(RosenbrockFunctionGradient_Host(user->n_local_comp, user->n_local, user->chained ? 1 : 2, user->alpha, x, o, &f_local, g));
+    PetscCall(RosenbrockObjectiveGradient_Host(user->n_local_comp, user->n_local, user->chained ? 1 : 2, user->alpha, x, o, &f_local, g));
     PetscCallMPI(MPI_Allreduce(&f_local, f, 1, MPIU_REAL, MPI_SUM, user->comm));
 #if PetscDefined(HAVE_CUDA) && PetscDefined(USING_NVCC)
   } else if (memtype_x == PETSC_MEMTYPE_CUDA) {
@@ -346,7 +509,7 @@ static PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *f, Vec G, 
     PetscScalar f_scalar;
 
     PetscCall(VecGetArrayWriteAndMemType(user->fvector, &_fvec, NULL));
-    PetscCall(RosenbrockFunctionGradient_CUDA(user->n_local_comp, user->n_local, user->chained ? 1 : 2, user->alpha, x, o, _fvec, g));
+    PetscCall(RosenbrockObjectiveGradient_CUDA(user->n_local_comp, user->n_local, user->chained ? 1 : 2, user->alpha, x, o, _fvec, g));
     PetscCall(VecRestoreArrayWriteAndMemType(user->fvector, &_fvec));
     PetscCall(VecSum(user->fvector, &f_scalar));
     *f = PetscRealPart(f_scalar);
@@ -354,7 +517,7 @@ static PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *f, Vec G, 
   } else SETERRQ(user->comm, PETSC_ERR_SUP, "Unsuported memtype %d", (int) memtype_x);
 
   if (user->chained) {
-    PetscCall(VecSetValuesCOO(G, g, INSERT_VALUES));
+    PetscCall(VecSetValuesWithBorrowedCOO(G, user->gtemplate, g, INSERT_VALUES));
     PetscCall(VecRestoreArrayWriteAndMemType(user->gvalues, &g));
   } else {
     PetscCall(VecRestoreArrayWriteAndMemType(G, &g));
