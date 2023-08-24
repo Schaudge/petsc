@@ -176,63 +176,58 @@ static PetscErrorCode VecRightward_Shift(Mat B, Vec X, PetscInt step)
       if ((lbfgs->idx_rplc == lmvm->m) || lbfgs->idx_rplc <= 0) {
         break;
       } else {
-	PetscMemType memtype_x;
+        PetscMemType memtype_x;
         size = PetscAbs(step);
 
         PetscCall(VecGetSize(X, &N));
-      
+
         PetscCall(VecGetArrayAndMemType(X, &x_array, &memtype_x));
         switch (memtype_x) {
-        case PETSC_MEMTYPE_HOST:
-          {
-            PetscCall(PetscMalloc1(size, &buffer1));
-            if (step < 0) {
-              PetscCall(PetscArraycpy(buffer1, x_array, size));
-              PetscCall(PetscArraymove(x_array, &x_array[size], N - size));
-              PetscCall(PetscArraycpy(&x_array[N - size], buffer1, size));
-            } else {
-              PetscCall(PetscArraycpy(buffer1, &x_array[N-size], size));
-              PetscCall(PetscArraymove(&x_array[size], x_array, N - size));
-              PetscCall(PetscArraycpy(x_array, buffer1, size));
+          case PETSC_MEMTYPE_HOST:
+            {
+              PetscCall(PetscMalloc1(size, &buffer1));
+              if (step < 0) {
+                PetscCall(PetscArraycpy(buffer1, x_array, size));
+                PetscCall(PetscArraymove(x_array, &x_array[size], N - size));
+                PetscCall(PetscArraycpy(&x_array[N - size], buffer1, size));
+              } else {
+                PetscCall(PetscArraycpy(buffer1, &x_array[N-size], size));
+                PetscCall(PetscArraymove(&x_array[size], x_array, N - size));
+                PetscCall(PetscArraycpy(x_array, buffer1, size));
+              }
             }
-          }
             PetscCall(PetscFree(buffer1));
             break;
-        case PETSC_MEMTYPE_CUDA:
-        case PETSC_MEMTYPE_NVSHMEM:
-        case PETSC_MEMTYPE_HIP:
+          case PETSC_MEMTYPE_CUDA:
+          case PETSC_MEMTYPE_NVSHMEM:
+          case PETSC_MEMTYPE_HIP:
 #if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
-          {
-            PetscScalar *buffer2;
-            PetscDeviceContext dctx;
-	    if (!lmvm->async) {
-              PetscCall(PetscDeviceContextGetCurrentContext(&dctx));		   
-	    } else {
-	      dctx = lmvm->dctx_async;
-	    }
-            PetscCall(PetscDeviceRegisterMemory(x_array, memtype_x, N*sizeof(*x_array)));
-            PetscCall(PetscDeviceMalloc(dctx, memtype_x, size, &buffer1));
-            PetscCall(PetscDeviceMalloc(dctx, memtype_x, N-size, &buffer2));
-            if (step < 0) {
-              PetscCall(PetscDeviceArrayCopy(dctx, buffer1, x_array, size));
-              PetscCall(PetscDeviceArrayCopy(dctx, buffer2, &x_array[size], N-size));
-              PetscCall(PetscDeviceArrayCopy(dctx, x_array, buffer2, N-size));
-              PetscCall(PetscDeviceArrayCopy(dctx, &x_array[N - size], buffer1, size));
-            } else {
-              PetscCall(PetscDeviceArrayCopy(dctx, buffer1, &x_array[N-size], size));
-              PetscCall(PetscDeviceArrayCopy(dctx, buffer2, x_array, N-size));
-              PetscCall(PetscDeviceArrayCopy(dctx, &x_array[size], buffer2, N-size));
-              PetscCall(PetscDeviceArrayCopy(dctx, x_array, buffer1, size));
+            {
+              PetscScalar *buffer2;
+              PetscDeviceContext dctx = lmvm->dctx;
+              PetscCall(PetscDeviceRegisterMemory(x_array, memtype_x, N*sizeof(*x_array)));
+              PetscCall(PetscDeviceMalloc(dctx, memtype_x, size, &buffer1));
+              PetscCall(PetscDeviceMalloc(dctx, memtype_x, N-size, &buffer2));
+              if (step < 0) {
+                PetscCall(PetscDeviceArrayCopy(dctx, buffer1, x_array, size));
+                PetscCall(PetscDeviceArrayCopy(dctx, buffer2, &x_array[size], N-size));
+                PetscCall(PetscDeviceArrayCopy(dctx, x_array, buffer2, N-size));
+                PetscCall(PetscDeviceArrayCopy(dctx, &x_array[N - size], buffer1, size));
+              } else {
+                PetscCall(PetscDeviceArrayCopy(dctx, buffer1, &x_array[N-size], size));
+                PetscCall(PetscDeviceArrayCopy(dctx, buffer2, x_array, N-size));
+                PetscCall(PetscDeviceArrayCopy(dctx, &x_array[size], buffer2, N-size));
+                PetscCall(PetscDeviceArrayCopy(dctx, x_array, buffer1, size));
+              }
+              PetscCall(PetscDeviceFree(dctx, buffer1));
+              PetscCall(PetscDeviceFree(dctx, buffer2));
             }
-            PetscCall(PetscDeviceFree(dctx, buffer1));
-            PetscCall(PetscDeviceFree(dctx, buffer2));
-          }
 #endif
-          break;
-        default:
-          SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented TRSM");
+            break;
+          default:
+            SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented TRSM");
         }
-      
+
         PetscCall(VecRestoreArrayAndMemType(X, &x_array));
       }
       break;
@@ -706,11 +701,8 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
         {
           cublasHandle_t handle;
 
-	  if (lmvm->async) {
-	    PetscCall(PetscDeviceContextGetBLASHandle_Internal(lmvm->dctx_async, &handle));
-	  } else {
-            PetscCall(PetscCUBLASGetHandle(&handle));
-	  }
+          PetscCall(PetscDeviceContextGetBLASHandle_Internal(lmvm->dctx, &handle));
+
           PetscCallCUBLAS(cublasSetPointerMode(handle, CUBLAS_POINTER_MODE_HOST));
 
           PetscCuBLASInt m_blas, lda_blas, one = 1;
@@ -821,11 +813,8 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
       {
         cublasHandle_t handle;
 
-	if (lmvm->async) {
-	  PetscCall(PetscDeviceContextGetBLASHandle_Internal(lmvm->dctx_async, &handle));
-	} else {
-          PetscCall(PetscCUBLASGetHandle(&handle));
-	}
+        PetscCall(PetscDeviceContextGetBLASHandle_Internal(lmvm->dctx, &handle));
+
         //PetscAssert(PetscDefined(BLAS)...));
         PetscCuBLASInt m_blas, idx_blas, lda_blas, diff_blas, one = 1;
         PetscCall(PetscCuBLASIntCast(lmvm->k, &m_blas));
@@ -897,7 +886,7 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/* Truncates vector and zeros the entries. 
+/* Truncates vector and zeros the entries.
  * When Reset happens, only indices are reset'd, but data is still preserved.
  * In this case, we need to zero out all the "corrupted data" in resulting vectors. */
 
@@ -920,37 +909,25 @@ static PetscErrorCode Vec_Truncate(Mat H, Vec X)
     PetscCall(VecGetArrayWriteAndMemType(X, &x_array, &memtype_x));
     switch (memtype_x) {
     case PETSC_MEMTYPE_HOST:
-      {	    
+      {
         for (i=lmvm->k+1; i<lmvm->m; i++){ x_array[i] = 0; }
       }
-      break;      
+      break;
     case PETSC_MEMTYPE_CUDA:
     case PETSC_MEMTYPE_NVSHMEM:
     case PETSC_MEMTYPE_HIP:
 #if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
-      {
-        PetscDeviceContext dctx;
-	if (!lmvm->async) {
-          PetscCall(PetscDeviceContextCreate(&dctx));
-          PetscCall(PetscDeviceContextSetUp(dctx));
-	} else {
-	  dctx = lmvm->dctx_async;
-	}
-        PetscCall(PetscDeviceRegisterMemory(x_array, memtype_x, N*sizeof(*x_array)));
-        if (lmvm->k != lmvm->m -1) {
-          PetscCall(PetscDeviceArrayZero(dctx, &x_array[lmvm->k+1], lmvm->m - lmvm->k -1));
-        }
-	if (!lmvm->async){
-          PetscCall(PetscDeviceContextDestroy(&dctx));
-	}
+      PetscCall(PetscDeviceRegisterMemory(x_array, memtype_x, N*sizeof(*x_array)));
+      if (lmvm->k != lmvm->m -1) {
+        PetscCall(PetscDeviceArrayZero(lmvm->dctx, &x_array[lmvm->k+1], lmvm->m - lmvm->k -1));
       }
-#endif      
+#endif
       break;
     default:
       SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented L-BFGS strategy");
     }
     PetscCall(VecRestoreArrayAndMemType(X, &x_array));
-  } 
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1089,7 +1066,7 @@ static PetscErrorCode MatAdd_LDLT(Mat B)
 }
 
 
-/* Solves for 
+/* Solves for
  * [ I | S R^{-T} ] [   I  | 0 ] [ H_0 | 0 ] [ I | -Y ] [     I      ]
  *                  [ -Y^T | I ] [  0  | D ] [ 0 |  I ] [ R^{-1} S^T ]  */
 
@@ -1104,7 +1081,7 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   Vec rwork2_host =  lbfgs->bind ? lbfgs->rwork2_host : lbfgs->rwork2;
 
   PetscInt index;
-  
+
   PetscFunctionBegin;
   PetscCall(PetscLogEventBegin(CDBFGS_MatSolve, H, F, dX,0));
   VecCheckSameSize(F, 2, dX, 3);
@@ -1113,18 +1090,15 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   /* Block Version */
   if (lmvm->k == -1) {
     PetscCall(MatCDBFGSApplyJ0Inv(H, F, dX));
-    if (lmvm->async) {
-      PetscCall(PetscDeviceContextSynchronize(lmvm->dctx_async));
-    }
+    PetscCall(PetscDeviceContextSynchronize(lmvm->dctx));
     PetscCall(PetscLogEventEnd(CDBFGS_MatSolve, H, F, dX,0));
     PetscFunctionReturn(PETSC_SUCCESS); /* No updates stored yet */
   }
 
-  PetscDeviceContext dctx_current;  
-  if (lmvm->async) {
-    PetscCall(PetscDeviceContextGetCurrentContext(&dctx_current));
-    PetscCall(PetscDeviceContextSetCurrentContext(lmvm->dctx_async));
-  }
+  PetscDeviceContext dctx_current;
+
+  PetscCall(PetscDeviceContextGetCurrentContext(&dctx_current));
+  PetscCall(PetscDeviceContextSetCurrentContext(lmvm->dctx));
 
   if (lbfgs->idx_begin == -1) {
     index = 0;
@@ -1135,35 +1109,23 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   /* Start with reusable part: rwork1 = R^-1 S^T F */
   //STYFull: host
   PetscCall(MatMultTranspose(lbfgs->Sfull, F, rwork1));
-  if (lmvm->async) {
-    PetscCall(VecCopyAsync_Private(rwork1, rwork1_host, lmvm->dctx_async));
-  } else {
-    PetscCall(VecCopy(rwork1, rwork1_host));
-  }
+  PetscCall(VecCopyAsync_Private(rwork1, rwork1_host, lmvm->dctx));
 
   /* Reordering rwork1, as STY is in canonical order, while S is in recycled order */
-  PetscCall(VecRightward_Shift(H, rwork1_host, -lbfgs->idx_rplc));      
+  PetscCall(VecRightward_Shift(H, rwork1_host, -lbfgs->idx_rplc));
   PetscCall(MatSolveTriangular(H, lbfgs->StYfull, index, rwork1_host, MAT_CDBFGS_UPPER_TRIANGULAR));
   PetscCall(VecRightward_Shift(H, rwork1_host, lbfgs->idx_rplc));
 
   /* lwork1 :H_0 (F - Y R^{-1} S^T X) */
   /* dX : H_0 ( F + (Y (-R^{-1} S^T X)) */
   /* dX : H_0 ( F + rwork ) */
-  if (lmvm->async) {
-    PetscCall(VecScaleAsync_Private(rwork1_host, -1.0, lmvm->dctx_async));
-  } else {
-    PetscCall(VecScale(rwork1_host, -1.0));
-  }
+  PetscCall(VecScaleAsync_Private(rwork1_host, -1.0, lmvm->dctx));
 
   if (lbfgs->bind) {
     PetscCall(VecCopy(rwork1_host, rwork1));
   }
 
-  if (lmvm->async) {
-    PetscCall(VecCopyAsync_Private(F, lbfgs->lwork1, lmvm->dctx_async));
-  } else {
-    PetscCall(VecCopy(F, lbfgs->lwork1));
-  }
+  PetscCall(VecCopyAsync_Private(F, lbfgs->lwork1, lmvm->dctx));
   PetscCall(MatMultAdd(lbfgs->Yfull, rwork1, lbfgs->lwork1, lbfgs->lwork1));
   PetscCall(MatCDBFGSApplyJ0Inv(H, lbfgs->lwork1, dX));
 
@@ -1171,11 +1133,7 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   if (lbfgs->bind) {
     PetscCall(VecCopy(rwork1, rwork1_host));
   }
-  if (lmvm->async) {
-    PetscCall(VecPointwiseMultAsync_Private(rwork1_host, lbfgs->diag_vec, rwork1_host, lmvm->dctx_async));
-  } else {
-    PetscCall(VecPointwiseMult(rwork1_host, lbfgs->diag_vec, rwork1_host));
-  }
+  PetscCall(VecPointwiseMultAsync_Private(rwork1_host, lbfgs->diag_vec, rwork1_host, lmvm->dctx));
 
   if (lbfgs->bind) {
     PetscCall(MatMultTranspose(lbfgs->Yfull, dX, rwork2));
@@ -1186,30 +1144,23 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   }
 
   /* Reordering rwork2, as STY is in canonical order, while S is in recycled order */
-  PetscCall(VecRightward_Shift(H, rwork1_host, -lbfgs->idx_rplc));      
+  PetscCall(VecRightward_Shift(H, rwork1_host, -lbfgs->idx_rplc));
   PetscCall(MatSolveTriangular(H, lbfgs->StYfull, index, rwork1_host, MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE));
-  PetscCall(VecRightward_Shift(H, rwork1_host, lbfgs->idx_rplc));      
-  if (lmvm->async) {
-    PetscCall(VecScaleAsync_Private(rwork1_host, -1.0, lmvm->dctx_async));
-  } else {
-    PetscCall(VecScale(rwork1_host, -1.0));
-  }
+  PetscCall(VecRightward_Shift(H, rwork1_host, lbfgs->idx_rplc));
+  PetscCall(VecScaleAsync_Private(rwork1_host, -1.0, lmvm->dctx));
   if (lbfgs->bind) {
     PetscCall(VecCopy(rwork1_host, rwork1));
   }
   PetscCall(MatMultAdd(lbfgs->Sfull, rwork1, dX, dX));
-  if (lmvm->async) {
-    PetscCall(PetscDeviceContextSetCurrentContext(dctx_current));
-    PetscCall(PetscDeviceContextSynchronize(lmvm->dctx_async));
-    //PetscCall(PetscDeviceContextWaitForContext(dctx_current, lmvm->dctx_async));
-  }
+  PetscCall(PetscDeviceContextSetCurrentContext(dctx_current));
+  PetscCall(PetscDeviceContextSynchronize(lmvm->dctx));
   PetscCall(PetscLogEventEnd(CDBFGS_MatSolve, H, F, dX,0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/* Solves for 
+/* Solves for
  * B_0 - [ Y | B_0 S] [ -D  |    L^T    ]^-1 [   Y^T   ]
- *                    [  L  | S^T B_0 S ]    [ S^T B_0 ] 
+ *                    [  L  | S^T B_0 S ]    [ S^T B_0 ]
  * Above is equivalent to
  *
  * B_0 - [ Y | B_0 S] [ -D^{1/2} | D^{-1/2} L^T ]^{-1} [   D^{1/2}   | 0 ]^{-1} [   Y^T   ]
@@ -1231,7 +1182,7 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
 
   IS  temp_is;
   Vec temp_1, temp_2;
-  
+
   PetscFunctionBegin;
   PetscCall(PetscLogEventBegin(CDBFGS_MatMult, B, X, Z,0));
   VecCheckSameSize(X, 2, Z, 3);
@@ -1709,12 +1660,6 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     allocate = PETSC_TRUE;
   }
   if (allocate) {
-    if (lmvm->async) {
-      PetscCall(PetscDeviceContextCreate(&lmvm->dctx_async));
-      PetscCall(PetscDeviceContextSetStreamType(lmvm->dctx_async, PETSC_STREAM_GLOBAL_NONBLOCKING));
-      PetscCall(PetscDeviceContextSetUp(lmvm->dctx_async));
-      lmvm->async_allocated = PETSC_TRUE;
-    }
     PetscCall(VecGetLocalSize(X, &n));
     PetscCall(VecGetSize(X, &N));
     PetscCall(VecGetLocalSize(F, &m));
@@ -1727,7 +1672,7 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     PetscCall(VecDuplicate(F, &lmvm->Fprev));
     if (lmvm->m > 0) {
       /* Create iteration storage matrices */
-      PetscCall(VecGetType(X, &vec_type));	    
+      PetscCall(VecGetType(X, &vec_type));
       PetscCall(MatCreateDenseFromVecType(comm, vec_type, n, lmvm->m, N, lmvm->m, -1, NULL, &lbfgs->Sfull));
       /* If rwork is bound to CPU, then STYfull is on host */
       if (lbfgs->bind) {
@@ -1755,8 +1700,8 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       } else {
         PetscObjectReference((PetscObject)lbfgs->rwork1);
         PetscObjectReference((PetscObject)lbfgs->rwork2);
-	lbfgs->rwork1_host = lbfgs->rwork1;
-	lbfgs->rwork2_host = lbfgs->rwork2;
+        lbfgs->rwork1_host = lbfgs->rwork1;
+        lbfgs->rwork2_host = lbfgs->rwork2;
         PetscCall(MatCreateVecs(lbfgs->J, &lbfgs->diag_vec, NULL));
       }
     }
@@ -1790,7 +1735,7 @@ static PetscErrorCode MatDestroy_LMVMCDBFGS(Mat B)
 {
   Mat_LMVM   *lmvm  = (Mat_LMVM*)B->data;
   Mat_CDBFGS *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
-  
+
   PetscFunctionBegin;
   if (lbfgs->allocated) {
     PetscCall(MatDestroy(&lbfgs->StYfull));
@@ -1810,10 +1755,6 @@ static PetscErrorCode MatDestroy_LMVMCDBFGS(Mat B)
     PetscCall(VecDestroy(&lbfgs->lwork2));
     PetscCall(VecDestroy(&lbfgs->diag_vec));
     lbfgs->allocated = PETSC_FALSE;
-
-    if (lmvm->async_allocated) {
-      PetscCall(PetscDeviceContextDestroy(&lmvm->dctx_async));
-    }
   }
   PetscCall(MatDestroy(&lbfgs->diag_bfgs));
   PetscCall(PetscFree(lmvm->ctx));
@@ -1826,7 +1767,7 @@ static PetscErrorCode MatDestroy_LMVMCDBFGS(Mat B)
 static PetscErrorCode MatSetUp_LMVMCDBFGS(Mat B)
 {
   Mat_LMVM    *lmvm = (Mat_LMVM*)B->data;
-  
+
   PetscInt    m, n, M, N;
   PetscMPIInt size;
   MPI_Comm    comm = PetscObjectComm((PetscObject)B);
@@ -1860,7 +1801,7 @@ PetscErrorCode MatView_LMVMCDBFGS(Mat B, PetscViewer pv)
 {
   Mat_LMVM   *lmvm  = (Mat_LMVM*)B->data;
   Mat_CDBFGS *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
-  
+
   PetscBool  isascii;
 
   PetscFunctionBegin;
@@ -1903,7 +1844,7 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   B->ops->setup = MatSetUp_LMVMCDBFGS;
   B->ops->setfromoptions = MatSetFromOptions_LMVMCDBFGS;
   B->ops->destroy = MatDestroy_LMVMCDBFGS;
-  
+
   lmvm = (Mat_LMVM*)B->data;
   lmvm->square = PETSC_TRUE;
   lmvm->ops->allocate = MatAllocate_LMVMCDBFGS;
@@ -1912,7 +1853,7 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   lmvm->ops->mult = MatMult_LMVMCDBFGS;
   lmvm->ops->solve = MatSolve_LMVMCDBFGS;
   lmvm->ops->copy = MatCopy_LMVMCDBFGS;
-  
+
   PetscCall(PetscNew(&lbfgs));
   lmvm->ctx = (void*)lbfgs;
   lbfgs->allocated       = PETSC_FALSE;
@@ -1929,7 +1870,7 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   lbfgs->bind            = PETSC_FALSE;
 
   lbfgs->iter_count =0;
-  
+
   PetscCall(MatCreate(PetscObjectComm((PetscObject)B), &lbfgs->diag_bfgs));
   PetscCall(MatSetType(lbfgs->diag_bfgs, MATLMVMDIAGBROYDEN));
   PetscCall(MatSetOptionsPrefix(lbfgs->diag_bfgs, "J0_"));
@@ -1940,11 +1881,11 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
 
 /*@
    MatCreateLMVMCDBFGS - Creates a compact dense representation of the limited-memory
-   Broyden-Fletcher-Goldfarb-Shanno (BFGS) approximation to a Hessian. This compact 
-   dense representation reduces the L-BFGS update to a series of matrix-vector products 
-   with compact dense matrices in lieu of the conventional matrix-free two-loop 
+   Broyden-Fletcher-Goldfarb-Shanno (BFGS) approximation to a Hessian. This compact
+   dense representation reduces the L-BFGS update to a series of matrix-vector products
+   with compact dense matrices in lieu of the conventional matrix-free two-loop
    algorithm. For most problems on CPUs, this compact dense representation is not as
-   fast as the matrix-free two-loop implementation provided via MATLMVMBFGS. However, 
+   fast as the matrix-free two-loop implementation provided via MATLMVMBFGS. However,
    it may be faster on GPUs for large enough problems (note: requires CUDA/HIP/KOKKOS).
 
    Collective
