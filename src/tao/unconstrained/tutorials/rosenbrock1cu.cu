@@ -38,7 +38,10 @@ int main(int argc, char **argv)
   PetscCall(TaoSetSolution(tao, x));
 
   /* Set routines for function, gradient, hessian evaluation */
-  PetscCall(TaoSetObjectiveAndGradient(tao, g, FormFunctionGradient, user));
+  PetscCall(TaoSetObjective(tao, FormObjective, user));
+  PetscCall(TaoSetObjectiveAndGradient(tao, g, FormObjectiveGradient, user));
+  PetscCall(TaoSetGradient(tao, g, FormGradient, user));
+  PetscCall(TaoSetObjectiveAndGradient(tao, g, FormObjectiveGradient, user));
   PetscCall(TaoSetHessian(tao, H, H, FormHessian, user));
 
   /* SOLVE THE APPLICATION */
