@@ -129,10 +129,10 @@ static PetscErrorCode VecSetPreallocationCOO_MPIKokkos(Vec x, PetscCount ncoo, c
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode VecSetValuesCOO_MPIKokkos(Vec x, const PetscScalar v[], InsertMode imode)
+static PetscErrorCode VecSetValuesCOO_MPIKokkos(Vec x, Vec template_vec, const PetscScalar v[], InsertMode imode)
 {
-  const auto                  vecmpi  = static_cast<Vec_MPI *>(x->data);
-  const auto                  veckok  = static_cast<Vec_Kokkos *>(x->spptr);
+  const auto                  vecmpi  = static_cast<Vec_MPI *>(template_vec->data);
+  const auto                  veckok  = static_cast<Vec_Kokkos *>(template_vec->spptr);
   const PetscCountKokkosView &jmap1   = veckok->jmap1_d;
   const PetscCountKokkosView &perm1   = veckok->perm1_d;
   const PetscCountKokkosView &imap2   = veckok->imap2_d;

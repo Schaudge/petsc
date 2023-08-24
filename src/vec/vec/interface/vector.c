@@ -277,12 +277,23 @@ PetscErrorCode VecSetPreallocationCOOLocal(Vec x, PetscCount ncoo, PetscInt coo_
 PetscErrorCode VecSetValuesCOO(Vec x, const PetscScalar coo_v[], InsertMode imode)
 {
   PetscFunctionBegin;
+  PetscCall(VecSetValuesWithBorrowedCOO(x, x, coo_v, imode));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode VecSetValuesWithBorrowedCOO(Vec x, Vec template_vec, const PetscScalar coo_v[], InsertMode imode)
+{
+  PetscFunctionBegin;
   PetscValidHeaderSpecific(x, VEC_CLASSID, 1);
   PetscValidType(x, 1);
-  PetscValidLogicalCollectiveEnum(x, imode, 3);
+  PetscValidHeaderSpecific(template_vec, VEC_CLASSID, 2);
+  PetscValidType(template_vec, 2);
+  PetscCheckSameTypeAndComm(x, 1, template_vec, 2);
+  VecCheckSameSize(x, 1, template_vec, 2);
+  PetscValidLogicalCollectiveEnum(x, imode, 4);
   PetscCall(PetscLogEventBegin(VEC_SetValuesCOO, x, 0, 0, 0));
   if (x->ops->setvaluescoo) {
-    PetscUseTypeMethod(x, setvaluescoo, coo_v, imode);
+    PetscUseTypeMethod(x, setvaluescoo, template_vec, coo_v, imode);
     PetscCall(PetscObjectStateIncrease((PetscObject)x));
   } else {
     IS              is_coo_i;
@@ -292,7 +303,7 @@ PetscErrorCode VecSetValuesCOO(Vec x, const PetscScalar coo_v[], InsertMode imod
 
     PetscCall(PetscGetMemType(coo_v, &mtype));
     PetscCheck(mtype == PETSC_MEMTYPE_HOST, PetscObjectComm((PetscObject)x), PETSC_ERR_ARG_WRONG, "The basic VecSetValuesCOO() only supports v[] on host");
-    PetscCall(PetscObjectQuery((PetscObject)x, "__PETSc_coo_i", (PetscObject *)&is_coo_i));
+    PetscCall(PetscObjectQuery((PetscObject)template_vec, "__PETSc_coo_i", (PetscObject *)&is_coo_i));
     PetscCheck(is_coo_i, PetscObjectComm((PetscObject)x), PETSC_ERR_COR, "Missing coo_i IS");
     PetscCall(ISGetLocalSize(is_coo_i, &ncoo));
     PetscCall(ISGetIndices(is_coo_i, &coo_i));

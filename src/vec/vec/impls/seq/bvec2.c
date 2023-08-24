@@ -698,9 +698,9 @@ PetscErrorCode VecSetPreallocationCOO_Seq(Vec x, PetscCount coo_n, const PetscIn
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode VecSetValuesCOO_Seq(Vec x, const PetscScalar coo_v[], InsertMode imode)
+PetscErrorCode VecSetValuesCOO_Seq(Vec x, Vec template_vec, const PetscScalar coo_v[], InsertMode imode)
 {
-  Vec_Seq          *vs    = (Vec_Seq *)x->data;
+  Vec_Seq          *vs    = (Vec_Seq *)template_vec->data;
   const PetscCount *perm1 = vs->perm1, *jmap1 = vs->jmap1;
   PetscScalar      *xv;
   PetscInt          m;

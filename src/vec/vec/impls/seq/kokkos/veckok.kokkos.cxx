@@ -1357,10 +1357,10 @@ static PetscErrorCode VecSetPreallocationCOO_SeqKokkos(Vec x, PetscCount ncoo, c
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode VecSetValuesCOO_SeqKokkos(Vec x, const PetscScalar v[], InsertMode imode)
+static PetscErrorCode VecSetValuesCOO_SeqKokkos(Vec x, Vec template_vec, const PetscScalar v[], InsertMode imode)
 {
-  Vec_Seq                    *vecseq = static_cast<Vec_Seq *>(x->data);
-  Vec_Kokkos                 *veckok = static_cast<Vec_Kokkos *>(x->spptr);
+  Vec_Seq                    *vecseq = static_cast<Vec_Seq *>(template_vec->data);
+  Vec_Kokkos                 *veckok = static_cast<Vec_Kokkos *>(template_vec->spptr);
   const PetscCountKokkosView &jmap1  = veckok->jmap1_d;
   const PetscCountKokkosView &perm1  = veckok->perm1_d;
   PetscScalarKokkosView       xv; /* View for vector x */

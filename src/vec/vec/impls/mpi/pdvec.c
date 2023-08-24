@@ -1221,9 +1221,9 @@ PetscErrorCode VecSetPreallocationCOO_MPI(Vec x, PetscCount coo_n, const PetscIn
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode VecSetValuesCOO_MPI(Vec x, const PetscScalar v[], InsertMode imode)
+PetscErrorCode VecSetValuesCOO_MPI(Vec x, Vec template_vec, const PetscScalar v[], InsertMode imode)
 {
-  Vec_MPI          *vmpi = (Vec_MPI *)x->data;
+  Vec_MPI          *vmpi = (Vec_MPI *)template_vec->data;
   PetscInt          m;
   PetscScalar      *a, *sendbuf = vmpi->sendbuf, *recvbuf = vmpi->recvbuf;
   const PetscCount *jmap1 = vmpi->jmap1;
