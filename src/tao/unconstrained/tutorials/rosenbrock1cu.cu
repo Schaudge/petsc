@@ -70,4 +70,9 @@ int main(int argc, char **argv)
     args: -mat_type aijcusparse -tao_smonitor -tao_type nls -tao_gatol 1.e-4
     requires: !single
 
+  test:
+    suffix: chained_bfgs
+    output_file: output/rosenbrock1_chained_bfgs.out
+    args: -mat_type aijcusparse -tao_smonitor -chained -n 10000 -tao_type lmvm -tao_max_it 20 -tao_lmvm_mat_lmvm_scale_type none
+
 TEST*/

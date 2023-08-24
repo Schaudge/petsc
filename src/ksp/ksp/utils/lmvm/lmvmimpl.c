@@ -1,3 +1,4 @@
+#include <petscdevice.h>
 #include <../src/ksp/ksp/utils/lmvm/lmvm.h> /*I "petscksp.h" I*/
 
 PetscErrorCode MatReset_LMVM(Mat B, PetscBool destructive)
@@ -252,6 +253,7 @@ PetscErrorCode MatView_LMVM(Mat B, PetscViewer pv)
 
 PetscErrorCode MatSetFromOptions_LMVM(Mat B, PetscOptionItems *PetscOptionsObject)
 {
+  PetscBool async = PETSC_FALSE;
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
 
   PetscFunctionBegin;
@@ -259,8 +261,16 @@ PetscErrorCode MatSetFromOptions_LMVM(Mat B, PetscOptionItems *PetscOptionsObjec
   PetscCall(PetscOptionsInt("-mat_lmvm_hist_size", "number of past updates kept in memory for the approximation", "", lmvm->m, &lmvm->m, NULL));
   PetscCall(PetscOptionsInt("-mat_lmvm_ksp_its", "(developer) fixed number of KSP iterations to take when inverting J0", "", lmvm->ksp_max_it, &lmvm->ksp_max_it, NULL));
   PetscCall(PetscOptionsReal("-mat_lmvm_eps", "(developer) machine zero definition", "", lmvm->eps, &lmvm->eps, NULL));
-  PetscCall(PetscOptionsBool("-mat_lmvm_async", "Do Vector operations async for GPU version", "", lmvm->async, &lmvm->async, NULL));
+  PetscCall(PetscOptionsBool("-mat_lmvm_async", "use a nonblocking device context for internal linear algebra operations", "", async, &async, NULL));
   PetscOptionsHeadEnd();
+  if (async) {
+    PetscDeviceContext dctx;
+
+    PetscCall(PetscDeviceContextCreate(&dctx));
+    PetscCall(PetscDeviceContextSetStreamType(dctx, PETSC_STREAM_GLOBAL_NONBLOCKING));
+    PetscCall(MatLMVMSetInternalDeviceContext(B, dctx));
+    PetscCall(PetscDeviceContextDestroy(&dctx));
+  }
   PetscCall(KSPSetFromOptions(lmvm->J0ksp));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -297,9 +307,56 @@ PetscErrorCode MatDestroy_LMVM(Mat B)
     PetscCall(VecDestroy(&lmvm->Xprev));
     PetscCall(VecDestroy(&lmvm->Fprev));
   }
+  PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMSetInternalDeviceContext_C", NULL));
   PetscCall(KSPDestroy(&lmvm->J0ksp));
   PetscCall(MatLMVMClearJ0(B));
   PetscCall(PetscFree(B->data));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  MatLMVMSetInternalDeviceContext - Set a device context for the internal linear-algebra operations of a `MATLMVM`
+
+  Logically collective
+
+  Input Parameters:
++ mat - a `MATLMVM`
+- dctx - a device context
+
+  Options Database Key:
+. -mat_lmvm_async - boolean that creates a nonblocking internal device context for a `MATLMVM`
+
+  Level: advanced
+
+  Notes:
+  If the vector type of the matrix (`MatGetVecType()`) uses GPUs, the time for the linear algebra within
+  `MatMult()` or `MatSolve()` within a `MatLMVM` will be dominated by the synchronization costs if the
+  computations are conducted on a blocking stream (like the default CUDA stream).  This method
+  can specify a device context with a nonblocking stream (`PetscDeviceContextSetStreamType()`).
+
+  Not all implementations of `MATLMVM` are guaranteed to use the supplied device context.
+  If a nonblocking device context has been specified, you can verify that it is working
+  by comparing the Performance improvements can be verified by comparing the time for the `
+
+.seealso: `MATLMVM`, `PetscDeviceContext`, `PetscDeviceContextCreate()`, `PetscDeviceContextGeStreamType()`
+@*/
+PetscErrorCode MatLMVMSetInternalDeviceContext(Mat mat, PetscDeviceContext dctx)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(mat, MAT_CLASSID, 1);
+  if (dctx) PetscValidHeaderSpecific(dctx, PETSC_DEVICE_CONTEXT_CLASSID, 2);
+  PetscTryMethod(mat, "MatLMVMSetInternalDeviceContext_C", (Mat, PetscDeviceContext), (mat, dctx));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatLMVMSetInternalDeviceContext_LMVM(Mat mat, PetscDeviceContext dctx)
+{
+  Mat_LMVM *lmvm = (Mat_LMVM *)mat->data;
+
+  PetscFunctionBegin;
+  PetscCall(PetscObjectReference((PetscObject) dctx));
+  PetscCall(PetscDeviceContextDestroy(&lmvm->dctx));
+  lmvm->dctx = dctx;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -331,8 +388,6 @@ PetscErrorCode MatCreate_LMVM(Mat B)
   lmvm->user_pc         = PETSC_FALSE;
   lmvm->user_ksp        = PETSC_FALSE;
   lmvm->square          = PETSC_FALSE;
-  lmvm->async           = PETSC_FALSE;
-  lmvm->async_allocated = PETSC_FALSE;
 
   B->ops->destroy        = MatDestroy_LMVM;
   B->ops->setfromoptions = MatSetFromOptions_LMVM;
@@ -348,6 +403,8 @@ PetscErrorCode MatCreate_LMVM(Mat B)
   lmvm->ops->update   = MatUpdate_LMVM;
   lmvm->ops->allocate = MatAllocate_LMVM;
   lmvm->ops->reset    = MatReset_LMVM;
+
+  PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMSetInternalDeviceContext_C", MatLMVMSetInternalDeviceContext_LMVM));
 
   PetscCall(KSPCreate(PetscObjectComm((PetscObject)B), &lmvm->J0ksp));
   PetscCall(PetscObjectIncrementTabLevel((PetscObject)lmvm->J0ksp, (PetscObject)B, 1));
