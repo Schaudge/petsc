@@ -4,6 +4,8 @@
 */
 
 #pragma once
+
+#include <petscdevice.h>
 #include <petsc/private/taoimpl.h>
 
 typedef struct {
@@ -22,4 +24,6 @@ typedef struct {
   Mat      H0;
 
   PetscBool recycle;
+
+  PetscDeviceContext dctx;
 } TAO_LMVM;
