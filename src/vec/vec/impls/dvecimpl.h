@@ -34,7 +34,7 @@ PETSC_INTERN PetscErrorCode VecCreate_Seq(Vec);
 
 PETSC_SINGLE_LIBRARY_INTERN PetscErrorCode VecCreate_Seq_Private(Vec, const PetscScalar[]);
 PETSC_SINGLE_LIBRARY_INTERN PetscErrorCode VecSetPreallocationCOO_Seq(Vec, PetscCount, const PetscInt[]);
-PETSC_SINGLE_LIBRARY_INTERN PetscErrorCode VecSetValuesCOO_Seq(Vec, const PetscScalar[], InsertMode);
+PETSC_SINGLE_LIBRARY_INTERN PetscErrorCode VecSetValuesCOO_Seq(Vec, Vec, const PetscScalar[], InsertMode);
 
 PETSC_SINGLE_LIBRARY_INTERN PetscErrorCode VecMDot_Seq(Vec, PetscInt, const Vec[], PetscScalar *);
 PETSC_SINGLE_LIBRARY_INTERN PetscErrorCode VecMTDot_Seq(Vec, PetscInt, const Vec[], PetscScalar *);

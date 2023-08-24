@@ -133,7 +133,7 @@ public:
   static PetscErrorCode SetRandom(Vec, PetscRandom) noexcept;
   static PetscErrorCode BindToCPU(Vec, PetscBool) noexcept;
   static PetscErrorCode SetPreallocationCOO(Vec, PetscCount, const PetscInt[]) noexcept;
-  static PetscErrorCode SetValuesCOO(Vec, const PetscScalar[], InsertMode) noexcept;
+  static PetscErrorCode SetValuesCOO(Vec, Vec, const PetscScalar[], InsertMode) noexcept;
 };
 
 namespace kernels

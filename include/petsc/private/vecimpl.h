@@ -103,7 +103,7 @@ struct _VecOps {
   PetscErrorCode (*concatenate)(PetscInt, const Vec[], Vec *, IS *[]);
   PetscErrorCode (*sum)(Vec, PetscScalar *);
   PetscErrorCode (*setpreallocationcoo)(Vec, PetscCount, const PetscInt[]);
-  PetscErrorCode (*setvaluescoo)(Vec, const PetscScalar[], InsertMode);
+  PetscErrorCode (*setvaluescoo)(Vec, Vec, const PetscScalar[], InsertMode);
   PetscErrorCode (*errorwnorm)(Vec, Vec, Vec, NormType, PetscReal, Vec, PetscReal, Vec, PetscReal, PetscReal *, PetscInt *, PetscReal *, PetscInt *, PetscReal *, PetscInt *);
   PetscErrorCode (*maxpby)(Vec, PetscInt, const PetscScalar *, PetscScalar, Vec *); /* y = beta y + alpha[j] x[j] */
 };

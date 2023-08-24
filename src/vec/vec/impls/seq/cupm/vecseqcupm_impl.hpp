@@ -2170,7 +2170,7 @@ inline PetscErrorCode VecSeq_CUPM<T>::SetPreallocationCOO(Vec v, PetscCount ncoo
 
 // v->ops->setvaluescoo
 template <device::cupm::DeviceType T>
-inline PetscErrorCode VecSeq_CUPM<T>::SetValuesCOO(Vec x, const PetscScalar v[], InsertMode imode) noexcept
+inline PetscErrorCode VecSeq_CUPM<T>::SetValuesCOO(Vec x, Vec template_vec, const PetscScalar v[], InsertMode imode) noexcept
 {
   auto               vv = const_cast<PetscScalar *>(v);
   PetscMemType       memtype;
@@ -2181,7 +2181,7 @@ inline PetscErrorCode VecSeq_CUPM<T>::SetValuesCOO(Vec x, const PetscScalar v[],
   PetscCall(GetHandles_(&dctx, &stream));
   PetscCall(PetscGetMemType(v, &memtype));
   if (PetscMemTypeHost(memtype)) {
-    const auto size = VecIMPLCast(x)->coo_n;
+    const auto size = VecIMPLCast(template_vec)->coo_n;
 
     // If user gave v[] in host, we might need to copy it to device if any
     PetscCall(PetscDeviceMalloc(dctx, PETSC_MEMTYPE_CUPM(), size, &vv));
@@ -2189,7 +2189,7 @@ inline PetscErrorCode VecSeq_CUPM<T>::SetValuesCOO(Vec x, const PetscScalar v[],
   }
 
   if (const auto n = x->map->n) {
-    const auto vcu = VecCUPMCast(x);
+    const auto vcu = VecCUPMCast(template_vec);
 
     PetscCall(PetscCUPMLaunchKernel1D(n, 0, stream, kernels::add_coo_values, vv, n, vcu->jmap1_d, vcu->perm1_d, imode, imode == INSERT_VALUES ? DeviceArrayWrite(dctx, x).data() : DeviceArrayReadWrite(dctx, x).data()));
   } else {

@@ -232,7 +232,7 @@ PetscErrorCode VecSetPreallocationCOO(Vec x, PetscCount ncoo, const PetscInt coo
 
   Entries can be repeated. Negative indices and remote indices might be allowed. see `VecSetPreallocationCOO()`.
 
-.seealso: [](ch_vectors), `Vec`, `VecSetPreallocationCOO()`, `VecSetValuesCOO()`
+.seealso: [](ch_vectors), `Vec`, `VecSetPreallocationCOO()`, `VecSetValuesCOO()`, `VecSetValuesWithBorrowedCOO()`
 @*/
 PetscErrorCode VecSetPreallocationCOOLocal(Vec x, PetscCount ncoo, PetscInt coo_i[])
 {
@@ -272,17 +272,49 @@ PetscErrorCode VecSetPreallocationCOOLocal(Vec x, PetscCount ncoo, PetscInt coo_
   The imode flag indicates if `coo_v` must be added to the current values of the vector (`ADD_VALUES`) or overwritten (`INSERT_VALUES`).
   `VecAssemblyBegin()` and `VecAssemblyEnd()` do not need to be called after this routine. It automatically handles the assembly process.
 
-.seealso: [](ch_vectors), `Vec`, `VecSetPreallocationCOO()`, `VecSetPreallocationCOOLocal()`, `VecSetValues()`
+.seealso: [](ch_vectors), `Vec`, `VecSetPreallocationCOO()`, `VecSetPreallocationCOOLocal()`, `VecSetValues()`, `VecSetValuesWithBorrowedCOO()`
 @*/
 PetscErrorCode VecSetValuesCOO(Vec x, const PetscScalar coo_v[], InsertMode imode)
 {
   PetscFunctionBegin;
+  PetscCall(VecSetValuesWithBorrowedCOO(x, x, coo_v, imode));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  VecSetValuesWithBorrowedCOO - set values at once in a vector using the preallocated COO data from another vector
+
+  Collective
+
+  Input Parameters:
++ x            - vector being set
+. template_vec - a vector that has COO preallocation from `VecSetPreallocationCOO()`
+. coo_v        - the value array
+- imode        - the insert mode
+
+  Level: intermediate
+
+  Note:
+  Suppose there is an function, `g = F(x)` that can be be computed as `VecSetValuesCOO(g, F_values)` if `g` has COO
+  preallocation data.  Many solver algorithms may ask for `v = F(x)` where `v` is a temporary vector that does not
+  have preallocation data.  Rather than setting the COO preallocation data for every `v` that is encountered, the
+  context that computes `F(x)` can keep a `g_template` vector and compute `VecSetValuesCOO(v, g_template, F_values)`.
+
+.seealso: [](ch_vectors), `Vec`, `VecSetPreallocationCOO()`, `VecSetPreallocationCOOLocal()`, `VecSetValues()`, `VecSetValuesCOO()`
+@*/
+PetscErrorCode VecSetValuesWithBorrowedCOO(Vec x, Vec template_vec, const PetscScalar coo_v[], InsertMode imode)
+{
+  PetscFunctionBegin;
   PetscValidHeaderSpecific(x, VEC_CLASSID, 1);
   PetscValidType(x, 1);
-  PetscValidLogicalCollectiveEnum(x, imode, 3);
+  PetscValidHeaderSpecific(template_vec, VEC_CLASSID, 2);
+  PetscValidType(template_vec, 2);
+  PetscCheckSameTypeAndComm(x, 1, template_vec, 2);
+  VecCheckSameSize(x, 1, template_vec, 2);
+  PetscValidLogicalCollectiveEnum(x, imode, 4);
   PetscCall(PetscLogEventBegin(VEC_SetValuesCOO, x, 0, 0, 0));
   if (x->ops->setvaluescoo) {
-    PetscUseTypeMethod(x, setvaluescoo, coo_v, imode);
+    PetscUseTypeMethod(x, setvaluescoo, template_vec, coo_v, imode);
     PetscCall(PetscObjectStateIncrease((PetscObject)x));
   } else {
     IS              is_coo_i;
@@ -292,7 +324,7 @@ PetscErrorCode VecSetValuesCOO(Vec x, const PetscScalar coo_v[], InsertMode imod
 
     PetscCall(PetscGetMemType(coo_v, &mtype));
     PetscCheck(mtype == PETSC_MEMTYPE_HOST, PetscObjectComm((PetscObject)x), PETSC_ERR_ARG_WRONG, "The basic VecSetValuesCOO() only supports v[] on host");
-    PetscCall(PetscObjectQuery((PetscObject)x, "__PETSc_coo_i", (PetscObject *)&is_coo_i));
+    PetscCall(PetscObjectQuery((PetscObject)template_vec, "__PETSc_coo_i", (PetscObject *)&is_coo_i));
     PetscCheck(is_coo_i, PetscObjectComm((PetscObject)x), PETSC_ERR_COR, "Missing coo_i IS");
     PetscCall(ISGetLocalSize(is_coo_i, &ncoo));
     PetscCall(ISGetIndices(is_coo_i, &coo_i));
