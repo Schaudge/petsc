@@ -18,10 +18,12 @@ int main(int argc, char **argv)
   Mat           H;    /* Hessian matrix */
   Tao           tao;  /* Tao solver context */
   AppCtx        user; /* user-defined application context */
+  PetscLogStage solve;
 
   /* Initialize TAO and PETSc */
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, (char *)0, help));
+  PetscCall(PetscLogStageRegister("Rosenbrock solve", &solve));
 
   PetscCall(AppCtxCreate(PETSC_COMM_WORLD, &user));
   PetscCall(CreateHessian(user, &H));
@@ -44,7 +46,9 @@ int main(int argc, char **argv)
   PetscCall(TaoSetHessian(tao, H, H, FormHessian, user));
 
   /* SOLVE THE APPLICATION */
+  PetscCall(PetscLogStagePush(solve));
   PetscCall(TaoSolve(tao));
+  PetscCall(PetscLogStagePop());
 
   PetscCall(TestLMVM(tao));
 
