@@ -3,6 +3,7 @@
 #include <petscvec.h>
 #include <petsc/private/petscimpl.h>
 #include <petsctaolinesearch.h>
+#include <petscdevice.h>
 
 typedef struct _TaoLineSearchOps *TaoLineSearchOps;
 struct _TaoLineSearchOps {
@@ -64,8 +65,12 @@ struct _p_TaoLineSearch {
   PetscReal stepmax; /* upper bound for step */
 
   Tao tao;
+
+  PetscDeviceContext dctx;
 };
 
 PETSC_EXTERN PetscLogEvent TAOLINESEARCH_Apply;
 PETSC_EXTERN PetscLogEvent TAOLINESEARCH_Eval;
+
+PETSC_INTERN PetscErrorCode TaoLineSearchSetInternalDeviceContext_Private(TaoLineSearch, PetscDeviceContext);
 #endif

@@ -320,7 +320,7 @@ PetscErrorCode MatDestroy_LMVM(Mat B)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/*@
+/*@C
   MatLMVMSetInternalDeviceContext - Set a device context for the internal linear-algebra operations of a `MATLMVM`
 
   Logically collective

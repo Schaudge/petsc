@@ -1,6 +1,7 @@
 
 #include <petsc/private/taolinesearchimpl.h>
 #include <../src/tao/linesearch/impls/morethuente/morethuente.h>
+#include <petsc/private/vecimpl.h>
 
 /*
    This algorithm is taken from More' and Thuente, "Line search algorithms
@@ -102,7 +103,6 @@ static PetscErrorCode TaoLineSearchApply_MT(TaoLineSearch ls, Vec x, PetscReal *
   dgtest      = ls->ftol * dginit;
   width       = ls->stepmax - ls->stepmin;
   width1      = width * 2.0;
-  PetscCall(VecCopy(x, mt->work));
   /* Variable dictionary:
    stx, fx, dgx - the step, function, and derivative at the best step
    sty, fy, dgy - the step, function, and derivative at the other endpoint
@@ -267,7 +267,7 @@ static PetscErrorCode TaoLineSearchApply_MT(TaoLineSearch ls, Vec x, PetscReal *
   PetscCall(PetscInfo(ls, "%" PetscInt_FMT " function evals in line search, step = %g\n", ls->nfeval + ls->nfgeval, (double)ls->step));
 
   /* Set new solution vector and compute gradient if needed */
-  PetscCall(VecCopy(mt->work, x));
+  if (ls->max_funcs > 0) PetscCall(VecCopy(mt->work, x));
   if (!g_computed) PetscCall(TaoLineSearchComputeGradient(ls, mt->work, g));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -1,6 +1,7 @@
 #include <petsctaolinesearch.h>
 #include <../src/tao/unconstrained/impls/lmvm/lmvm.h>
 #include <petsc/private/vecimpl.h>
+#include <petsc/private/taolinesearchimpl.h>
 
 #define LMVM_STEP_BFGS 0
 #define LMVM_STEP_GRAD 1
@@ -242,7 +243,7 @@ static PetscErrorCode TaoView_LMVM(Tao tao, PetscViewer viewer)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/*@
+/*@C
   TaoLMVMSetInternalDeviceContext - Set the device context for use within the `TaoSolve()`
 
   Logically collective
@@ -283,6 +284,7 @@ static PetscErrorCode TaoLMVMSetInternalDeviceContext_LMVM(Tao tao, PetscDeviceC
   PetscCall(PetscDeviceContextDestroy(&lmP->dctx));
   lmP->dctx = dctx;
   if (M) PetscCall(MatLMVMSetInternalDeviceContext(M, dctx));
+  if (tao->linesearch) PetscCall(TaoLineSearchSetInternalDeviceContext_Private(tao->linesearch, dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
