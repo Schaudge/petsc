@@ -5,6 +5,10 @@
 #include <petscsf.h>
 #include <petscdevice_cuda.h>
 
+#if PetscDefined(USING_NVCC)
+  #include <cuda_profiler_api.h>
+#endif
+
 /*
    User-defined application context - contains data needed by the
    application-provided call-back routines that evaluate the function,
@@ -619,6 +623,58 @@ static PetscErrorCode TestLMVM(Tao tao)
     PetscCall(VecDestroy(&out));
     PetscCall(VecDestroy(&out2));
   }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode RosenbrockMain(void)
+{
+  Vec           x;    /* solution vector */
+  Vec           g;    /* gradient vector */
+  Mat           H;    /* Hessian matrix */
+  Tao           tao;  /* Tao solver context */
+  AppCtx        user; /* user-defined application context */
+  PetscLogStage solve;
+
+  /* Initialize TAO and PETSc */
+  PetscFunctionBegin;
+  PetscCall(PetscLogStageRegister("Rosenbrock solve", &solve));
+
+  PetscCall(AppCtxCreate(PETSC_COMM_WORLD, &user));
+  PetscCall(CreateHessian(user, &H));
+  PetscCall(CreateVectors(user, H, &x, &g));
+
+  /* The TAO code begins here */
+
+  PetscCall(TaoCreate(user->comm, &tao));
+  PetscCall(VecZeroEntries(x));
+  PetscCall(TaoSetSolution(tao, x));
+
+  /* Set routines for function, gradient, hessian evaluation */
+  PetscCall(TaoSetObjective(tao, FormObjective, user));
+  PetscCall(TaoSetObjectiveAndGradient(tao, g, FormObjectiveGradient, user));
+  PetscCall(TaoSetGradient(tao, g, FormGradient, user));
+  PetscCall(TaoSetHessian(tao, H, H, FormHessian, user));
+
+  PetscCall(TaoSetFromOptions(tao));
+
+  /* SOLVE THE APPLICATION */
+#if PetscDefined(USING_NVCC)
+  cudaProfilerStart();
+#endif
+  PetscCall(PetscLogStagePush(solve));
+  PetscCall(TaoSolve(tao));
+  PetscCall(PetscLogStagePop());
+#if PetscDefined(USING_NVCC)
+  cudaProfilerStop();
+#endif
+
+  PetscCall(TestLMVM(tao));
+
+  PetscCall(TaoDestroy(&tao));
+  PetscCall(VecDestroy(&g));
+  PetscCall(VecDestroy(&x));
+  PetscCall(MatDestroy(&H));
+  PetscCall(AppCtxDestroy(&user));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

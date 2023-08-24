@@ -326,8 +326,8 @@ PetscErrorCode MatDestroy_LMVM(Mat B)
   Logically collective
 
   Input Parameters:
-+ mat - a `MATLMVM`
-- dctx - a device context
++ mat  - a `MATLMVM`
+- dctx - a `PetscDeviceContext`
 
   Options Database Key:
 . -mat_lmvm_async - boolean that creates a nonblocking internal device context for a `MATLMVM`
