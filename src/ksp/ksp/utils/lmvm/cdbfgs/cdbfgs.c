@@ -63,13 +63,14 @@ PetscErrorCode MatCDBFGSApplyJ0Inv(Mat B, Vec F, Vec dX)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/* MatTransposeMatMult, but for CDINPLACE, just updates idx col and idx row. */
-static PetscErrorCode MtMT_Internal(Mat H, Mat S, Mat Y, MatReuse scall, PetscReal fill, Mat *STY)
+/* MatTransposeMatMult, but for CDINPLACE. Instead of computing
+ * the whole matrix again, this routine just updates row and col at certain index. */
+static PetscErrorCode MtMT_Internal(Mat H, Mat S, Mat Y, Mat *STY)
 {
   Mat_LMVM    *lmvm  = (Mat_LMVM*)H->data;
   Mat_CDBFGS  *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
 
-  PetscMemType        stype, ytype, stytype, vec_type;
+  PetscMemType       stype, ytype, stytype, vec_type;
   const PetscScalar  *s_array, *y_array;
   PetscScalar        *sty_array, *vec_array, Alpha = 1.0, zero = 0.;
 
@@ -78,10 +79,10 @@ static PetscErrorCode MtMT_Internal(Mat H, Mat S, Mat Y, MatReuse scall, PetscRe
   PetscFunctionBegin;
 
   PetscCall(VecGetArrayAndMemType(lbfgs->rwork1, &vec_array, &vec_type));
-  PetscCall(MatDenseGetArrayReadAndMemType(S,   &s_array,   &stype));
-  PetscCall(MatDenseGetArrayReadAndMemType(Y,   &y_array,   &ytype));
+  PetscCall(MatDenseGetArrayReadAndMemType(S, &s_array, &stype));
+  PetscCall(MatDenseGetArrayReadAndMemType(Y, &y_array, &ytype));
   PetscCall(MatDenseGetArrayAndMemType(*STY, &sty_array, &stytype));
-//ASSERT memtype same
+  PetscAssert((vec_type == stype) == (ytype == stytype), comm, PETSC_ERR_PLIB, "Incompatible device pointers");
   PetscCall(MatDenseGetLDA(S, &lda));
   PetscCall(MatDenseGetLDA(*STY, &lda_sty));
   PetscCall(MatGetSize(S, &rown, &coln));
@@ -100,7 +101,7 @@ static PetscErrorCode MtMT_Internal(Mat H, Mat S, Mat Y, MatReuse scall, PetscRe
       PetscCallBLAS("BLASgemv", BLASgemv_("T", &row_blas, &col_blas, &Alpha, y_array, &lda_blas, &s_array[idx*lda], &one, &zero, vec_array, &one));
 
       /* Write it back */
-      for (i=0; i<lda_sty; i++) {
+      for (i=0; i< lmvm->m; i++) {
         sty_array[i*lda_sty+idx] = vec_array[i];
       }
     }
@@ -123,7 +124,7 @@ static PetscErrorCode MtMT_Internal(Mat H, Mat S, Mat Y, MatReuse scall, PetscRe
       PetscCallCUBLAS(cublasDgemv(handle, CUBLAS_OP_T, row_blas, col_blas, &Alpha, s_array, lda_blas, &y_array[idx*lda], one, &zero, &sty_array[idx*lda_sty_blas], one));
       PetscCallCUBLAS(cublasDgemv(handle, CUBLAS_OP_T, row_blas, col_blas, &Alpha, y_array, lda_blas, &s_array[idx*lda], one, &zero, vec_array, one));
 
-      for (i=0; i<lda_sty; i++) {
+      for (i=0; i< lmvm->m ; i++) {
         PetscCall(PetscDeviceRegisterMemory(&sty_array[i*lda_sty+idx], stytype, 1*sizeof(*sty_array)));
         PetscCall(PetscDeviceRegisterMemory(&vec_array[i], vec_type, 1*sizeof(*vec_array)));
 	PetscCall(PetscDeviceArrayCopy(dctx, &sty_array[i*lda_sty+idx], &vec_array[i], 1));
@@ -205,8 +206,7 @@ static PetscErrorCode VecRightward_Shift(Mat B, Vec X, PetscInt step)
             PetscScalar *buffer2;
             PetscDeviceContext dctx;
 	    if (!lmvm->async) {
-              PetscCall(PetscDeviceContextCreate(&dctx));
-              PetscCall(PetscDeviceContextSetUp(dctx));
+              PetscCall(PetscDeviceContextGetCurrentContext(&dctx));		   
 	    } else {
 	      dctx = lmvm->dctx_async;
 	    }
@@ -226,9 +226,6 @@ static PetscErrorCode VecRightward_Shift(Mat B, Vec X, PetscInt step)
             }
             PetscCall(PetscDeviceFree(dctx, buffer1));
             PetscCall(PetscDeviceFree(dctx, buffer2));
-	    if (!lmvm->async) {
-              PetscCall(PetscDeviceContextDestroy(&dctx));
-	    }
           }
 #endif
           break;
@@ -277,7 +274,6 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
   PetscCall(VecGetArrayWriteAndMemType(X, &x_array, &memtype_x));
   PetscCall(MatDenseGetArrayReadAndMemType(lbfgs->StYfull, &r_array, &memtype_r));
   PetscAssert(memtype_x == memtype_r, comm, PETSC_ERR_PLIB, "Incompatible device pointers");
-  //TODO mat and input vec size check assert
   /* We need four int for dimensions. 
    * C : [index-1 x index-1], strictly LT
    * D : [index x m-index] 
@@ -1043,7 +1039,6 @@ static PetscErrorCode MatAdd_LDLT(Mat B)
 	PetscInt try;
 
         if (r_array[query_idx_i] != 0) {
-          // TODO is there better way to do this???
           // maybe create vector with x[j]/r[i], copy, and set zero elsewhere?
           PetscScalar *tmp1, *tmp2;
           PetscCall(PetscDeviceMalloc(dctx, memtype_x, nn, &tmp1));
@@ -1130,17 +1125,15 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   //STYFull: host
   PetscCall(MatMultTranspose(lbfgs->Sfull, F, rwork1));
   if (lmvm->async) {
-    PetscCall(VecCopyAsync_Private(rwork1, rwork1_host, lmvm->dctx_async));//Should be no-op if not bind. check
+    PetscCall(VecCopyAsync_Private(rwork1, rwork1_host, lmvm->dctx_async));
   } else {
-    PetscCall(VecCopy(rwork1, rwork1_host));//Should be no-op if not bind. check
+    PetscCall(VecCopy(rwork1, rwork1_host));
   }
-//  PetscCall(Vec_Truncate(H,rwork1_host));
 
   /* Reordering rwork1, as STY is in canonical order, while S is in recycled order */
   PetscCall(VecRightward_Shift(H, rwork1_host, -lbfgs->idx_rplc));      
-  PetscCall(MatSolveTriangular(H, lbfgs->StYfull, index, rwork1_host, MAT_CDBFGS_UPPER_TRIANGULAR));//blas call depends on memtype of matrix.
-  PetscCall(VecRightward_Shift(H, rwork1_host, lbfgs->idx_rplc));//TODO make this aware of context  (just this call, so change signature)    
-//  PetscCall(Vec_Truncate(H,rwork1_host));
+  PetscCall(MatSolveTriangular(H, lbfgs->StYfull, index, rwork1_host, MAT_CDBFGS_UPPER_TRIANGULAR));
+  PetscCall(VecRightward_Shift(H, rwork1_host, lbfgs->idx_rplc));
 
   /* lwork1 :H_0 (F - Y R^{-1} S^T X) */
   /* dX : H_0 ( F + (Y (-R^{-1} S^T X)) */
@@ -1160,10 +1153,8 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   } else {
     PetscCall(VecCopy(F, lbfgs->lwork1));
   }
-//  PetscCall(PetscDeviceContextSynchronize(lmvm->dctx_async));
-  PetscCall(MatMultAdd(lbfgs->Yfull, rwork1, lbfgs->lwork1, lbfgs->lwork1));//done on cuda. cudaStreamSynchronize TODO check whether dctx in dispatch is correct
-  PetscCall(MatCDBFGSApplyJ0Inv(H, lbfgs->lwork1, dX));//streamSync. internal VexAXPBY. essentially dX \gets lwork1 if scale=1
-//  PetscCall(VecCopy(lbfgs->lwork1, dX));//see what happens
+  PetscCall(MatMultAdd(lbfgs->Yfull, rwork1, lbfgs->lwork1, lbfgs->lwork1));
+  PetscCall(MatCDBFGSApplyJ0Inv(H, lbfgs->lwork1, dX));
 
   /* -S R^{-T} ( Y^T lwork1 - D rwork1 ) */
   if (lbfgs->bind) {
@@ -1180,18 +1171,13 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
     PetscCall(VecCopy(rwork2, rwork2_host));
     PetscCall(VecAXPY(rwork1_host, 1.0, rwork2_host));
   } else {
-//    PetscCall(PetscDeviceContextSynchronize(lmvm->dctx_async));
-// TODO Get old strea, set current, and revert back  b4 leaving the func
-    //PetscCall(PetscDeviceContextSetCurrentContext(lmvm->dctx_async));
     PetscCall(MatMultTransposeAdd(lbfgs->Yfull, dX, rwork1, rwork1_host));
   }
-//  PetscCall(Vec_Truncate(H,rwork1_host));
 
   /* Reordering rwork2, as STY is in canonical order, while S is in recycled order */
   PetscCall(VecRightward_Shift(H, rwork1_host, -lbfgs->idx_rplc));      
   PetscCall(MatSolveTriangular(H, lbfgs->StYfull, index, rwork1_host, MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE));
   PetscCall(VecRightward_Shift(H, rwork1_host, lbfgs->idx_rplc));      
-//  PetscCall(Vec_Truncate(H,rwork1_host));
   if (lmvm->async) {
     PetscCall(VecScaleAsync_Private(rwork1_host, -1.0, lmvm->dctx_async));
   } else {
@@ -1200,13 +1186,11 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   if (lbfgs->bind) {
     PetscCall(VecCopy(rwork1_host, rwork1));
   }
- // PetscCall(PetscDeviceContextSetCurrentContext(lmvm->dctx_async));
   PetscCall(MatMultAdd(lbfgs->Sfull, rwork1, dX, dX));
   if (lmvm->async) {
     PetscCall(PetscDeviceContextSetCurrentContext(dctx_current));
     PetscCall(PetscDeviceContextSynchronize(lmvm->dctx_async));
     //PetscCall(PetscDeviceContextWaitForContext(dctx_current, lmvm->dctx_async));
-    //TODO prolly too strong, do ctxWaitForCtx 
   }
   PetscCall(PetscLogEventEnd(CDBFGS_MatSolve, H, F, dX,0));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -1250,9 +1234,9 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   }
 
   if (lbfgs->chol_ldlt_lazy) {
-    /* Cholesky, and LDLT is done lazily to avoid unncessary computation, in case MatMult is not so frequently used */	  
-    //Now, SBS is in shifted order in all strategies.
-    /* Compute S^T B S + L D^{-1} L^T
+    /* Cholesky, and LDLT is done lazily to avoid unncessary computation, in case MatMult is not so frequently used *	 
+     * Now, SBS is in shifted order in all strategies. *
+     * Compute S^T B S + L D^{-1} L^T *
      * J = S^T B S + L D^{-1} L^T */
     PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->BS, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->J));
     /* Adds L D L^T to J matrix */
@@ -1352,7 +1336,7 @@ static PetscErrorCode MatRotate_STY_CCW(Mat R)
 
   /* Copy CB */
   if (b != 0) {
-    /* Cannot use MatConvert here, as B,D_work is MEMTYPE_HOST TODO can we fix this? */
+    /* Cannot use MatConvert here, as B,D_work is MEMTYPE_HOST */
     PetscCall(MatDenseGetSubMatrix(lbfgs->StYfull, 0, lmvm->m, 0, b, &B));
     PetscCall(MatDenseGetLDA(B, &lda));
     PetscCall(VecGetType(lmvm->Xprev, &vec_type));
@@ -1362,7 +1346,7 @@ static PetscErrorCode MatRotate_STY_CCW(Mat R)
   }
 
   if (a != 0) {
-    /* Cannot use MatConvert here, as B,D_work is MEMTYPE_HOST TODO can we fix this? */
+    /* Cannot use MatConvert here, as B,D_work is MEMTYPE_HOST */
     PetscCall(MatDenseGetSubMatrix(lbfgs->StYfull, 0, lmvm->m, b, lmvm->m, &D));
     PetscCall(MatDenseGetLDA(D, &lda));
     PetscCall(VecGetType(lmvm->Xprev, &vec_type));
@@ -1373,7 +1357,6 @@ static PetscErrorCode MatRotate_STY_CCW(Mat R)
 
   if (b != 0) {
     /* Turn [C;B] to [B;C] */
-    //TODO prob can unify buffer1,2 creation into one.
     for (i=0; i<b; i++) {
       PetscCall(MatDenseGetColumnVecRead(B_work, i, &workvec));
       PetscCall(VecCopy(workvec, lbfgs->rwork1));
@@ -1549,18 +1532,16 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       PetscCall(VecCopy(lmvm->Fprev, workvec1));
       PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->Yfull, lbfgs->idx_cols, &workvec1));
 
-
       /* TODO perhaps unify idx? too many idx floating around rn */
       switch (lbfgs->strategy) {
       case MAT_LBFGS_CD_INPLACE:
-        //TODO technically can make MTMMult to be just updating idx_col row and col of new MTMMult
         if (lbfgs->bind) {
-	  //PetscCall(MtMT_Internal(B, lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
+//          PetscCall(MtMT_Internal(B, lbfgs->Sfull, lbfgs->Yfull, &lbfgs->StYfull));
           PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull_device));
           PetscCall(MatCopy(lbfgs->StYfull_device, lbfgs->StYfull, SAME_NONZERO_PATTERN)); 
         } else {
-	  PetscCall(MtMT_Internal(B, lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
-//          PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));//TODO 
+//	  PetscCall(MtMT_Internal(B, lbfgs->Sfull, lbfgs->Yfull, &lbfgs->StYfull));
+          PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
         }
 
         if (lmvm->k == lmvm->m-1) {
@@ -1604,7 +1585,6 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
           PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->BS, i, &workvec2));
         }
       }
-
     } else {
       /* Update is bad, skip it */
       ++lmvm->nrejects;
@@ -1613,8 +1593,12 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     }
   } else {
     if (!(lmvm->J0 || lmvm->user_pc || lmvm->user_ksp || lmvm->user_scale)) {
-	    //TODO whats the point here???
       /* No previous updates have been set, so we just update the diagonal with an initial scalar */
+	    //TODO THIS PART IS ERROR AFTER RESET 
+	    //1. USER_SCALE DISAPPEARS. NEED TO ADDRESS THIS
+	    //2. invD disappears (or was it ever there?)
+	    //
+	    //This is more fundamental to overall MATLMVM - set J0Scale is "Wrong", for an example
       dbase = (Mat_LMVM*)lbfgs->diag_bfgs->data;
       dctx = (Mat_DiagBrdn*)dbase->ctx;
       PetscCall(VecSet(dctx->invD, lbfgs->delta));
@@ -1681,7 +1665,6 @@ static PetscErrorCode MatReset_LMVMCDBFGS(Mat B, PetscBool destructive)
     PetscCall(VecDestroy(&lbfgs->diag_vec));
     lbfgs->allocated = PETSC_FALSE;
   }
-  //TODO this is dirty, but cant think of anything else rn? also goes against actual description in lmvmutil...
   lbfgs->idx_begin = -1;
   PetscCall(MatReset_LMVM(B, destructive));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -1734,13 +1717,13 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     if (lmvm->m > 0) {
       /* Create iteration storage matrices */
       PetscCall(VecGetType(X, &vec_type));	    
-      PetscCall(MatCreateDenseFromVecType(comm, vec_type, n, lmvm->m, N, lmvm->m, -1, NULL, &lbfgs->Sfull));//TODO nonsquare... LDA???
+      PetscCall(MatCreateDenseFromVecType(comm, vec_type, n, lmvm->m, N, lmvm->m, -1, NULL, &lbfgs->Sfull));
       /* If rwork is bound to CPU, then STYfull is on host */
       if (lbfgs->bind) {
-        PetscCall(MatCreateDense(comm, lmvm->m, lmvm->m, lmvm->m, lmvm->m,  NULL, &lbfgs->StYfull));//TODO nonsquare... LDA???
-        PetscCall(MatCreateDenseFromVecType(comm, vec_type, lmvm->m, lmvm->m, lmvm->m, lmvm->m, -1, NULL, &lbfgs->StYfull_device));//TODO nonsquare... LDA???
+        PetscCall(MatCreateDense(comm, lmvm->m, lmvm->m, lmvm->m, lmvm->m,  NULL, &lbfgs->StYfull));
+        PetscCall(MatCreateDenseFromVecType(comm, vec_type, lmvm->m, lmvm->m, lmvm->m, lmvm->m, -1, NULL, &lbfgs->StYfull_device));
       } else {
-        PetscCall(MatCreateDenseFromVecType(comm, vec_type, lmvm->m, lmvm->m, lmvm->m, lmvm->m, -1, NULL, &lbfgs->StYfull));//TODO nonsquare... LDA???
+        PetscCall(MatCreateDenseFromVecType(comm, vec_type, lmvm->m, lmvm->m, lmvm->m, lmvm->m, -1, NULL, &lbfgs->StYfull));
 //        PetscObjectReference((PetscObject)lbfgs->StYfull_device);
       }
       PetscCall(MatDuplicate(lbfgs->Sfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->Yfull));
@@ -1750,7 +1733,7 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       /* Create intermediate (sequential and small) matrices */
       //TODO: NOTE: "MMTM: This routine is currently only implemented for pairs of MATSEQAIJ matrices, for the MATSEQDENSE class, and for pairs of MATMPIDENSE matrices."
 //      PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
-      PetscCall(MatCreateDenseFromVecType(comm, vec_type, lmvm->m, lmvm->m, lmvm->m, lmvm->m, -1, NULL, &lbfgs->J));//TODO nonsquare... LDA???
+      PetscCall(MatCreateDenseFromVecType(comm, vec_type, lmvm->m, lmvm->m, lmvm->m, lmvm->m, -1, NULL, &lbfgs->J));
       PetscCall(MatDuplicate(lbfgs->J, MAT_DO_NOT_COPY_VALUES, &lbfgs->J_work));
       PetscCall(MatCreateVecs(lbfgs->J, &lbfgs->rwork1, &lbfgs->rwork2));
       PetscCall(MatCreateVecs(lbfgs->J, &lbfgs->rwork3, &lbfgs->rwork4));
@@ -1951,7 +1934,7 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
    with compact dense matrices in lieu of the conventional matrix-free two-loop 
    algorithm. For most problems on CPUs, this compact dense representation is not as
    fast as the matrix-free two-loop implementation provided via MATLMVMBFGS. However, 
-   it may be faster on GPUs for large enough problems (note: requires CUDA).
+   it may be faster on GPUs for large enough problems (note: requires CUDA/HIP/KOKKOS).
 
    Collective
 
