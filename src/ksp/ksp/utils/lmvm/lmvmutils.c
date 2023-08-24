@@ -1,6 +1,10 @@
 #include <petscdevice.h>
 #include <../src/ksp/ksp/utils/lmvm/lmvm.h> /*I "petscksp.h" I*/
 
+PetscLogEvent LMVM_Update;
+PetscLogEvent LMVM_J0Fwd;
+PetscLogEvent LMVM_J0Inv;
+
 /*@
   MatLMVMUpdate - Adds (X-Xprev) and (F-Fprev) updates to an `MATLMVM` matrix.
   The first time the function is called for an `MATLMVM` matrix, no update is
@@ -40,7 +44,9 @@ PetscErrorCode MatLMVMUpdate(Mat B, Vec X, Vec F)
     PetscCall(PetscObjectBaseTypeCompare((PetscObject)lmvm->J0, MATLMVM, &same));
     if (same) PetscCall(MatLMVMUpdate(lmvm->J0, X, F));
   }
+  PetscCall(PetscLogEventBegin(LMVM_Update, (PetscObject)B, NULL, NULL, NULL));
   PetscCall((*lmvm->ops->update)(B, X, F));
+  PetscCall(PetscLogEventEnd(LMVM_Update, (PetscObject)B, NULL, NULL, NULL));
   if (lmvm->dctx) PetscCall(PetscDeviceContextSynchronize(lmvm->dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -370,6 +376,7 @@ PetscErrorCode MatLMVMApplyJ0Fwd(Mat B, Vec X, Vec Y)
   PetscCheck(same, PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_WRONG, "Matrix must be an LMVM-type.");
   PetscCheck(lmvm->allocated, comm, PETSC_ERR_ORDER, "LMVM matrix must be allocated first");
   VecCheckMatCompatible(B, X, 2, Y, 3);
+  PetscCall(PetscLogEventBegin(LMVM_J0Fwd, (PetscObject)B, NULL, NULL, NULL));
   if (lmvm->user_pc || lmvm->user_ksp || lmvm->J0) {
     /* User may have defined a PC or KSP for J0^{-1} so let's try to use its operators. */
     if (lmvm->user_pc) {
@@ -399,6 +406,7 @@ PetscErrorCode MatLMVMApplyJ0Fwd(Mat B, Vec X, Vec Y)
     /* There is no J0 representation so just apply an identity matrix */
     PetscCall(VecCopyAsync_Private(X, Y, lmvm->dctx));
   }
+  PetscCall(PetscLogEventEnd(LMVM_J0Fwd, (PetscObject)B, NULL, NULL, NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -440,6 +448,7 @@ PetscErrorCode MatLMVMApplyJ0Inv(Mat B, Vec X, Vec Y)
   PetscCheck(lmvm->allocated, comm, PETSC_ERR_ORDER, "LMVM matrix must be allocated first");
   VecCheckMatCompatible(B, X, 2, Y, 3);
 
+  PetscCall(PetscLogEventBegin(LMVM_J0Inv, (PetscObject)B, NULL, NULL, NULL));
   /* Invert the initial Jacobian onto q (or apply scaling) */
   if (lmvm->user_pc) {
     /* User has defined a J0 inverse so we can directly apply it as a preconditioner */
@@ -464,6 +473,7 @@ PetscErrorCode MatLMVMApplyJ0Inv(Mat B, Vec X, Vec Y)
     /* There is no J0 representation so just apply an identity matrix */
     PetscCall(VecCopyAsync_Private(X, Y, lmvm->dctx));
   }
+  PetscCall(PetscLogEventEnd(LMVM_J0Inv, (PetscObject)B, NULL, NULL, NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
