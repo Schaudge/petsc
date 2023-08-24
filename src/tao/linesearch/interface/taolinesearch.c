@@ -243,7 +243,19 @@ PetscErrorCode TaoLineSearchDestroy(TaoLineSearch *ls)
   PetscCall(VecDestroy(&(*ls)->lower));
   if ((*ls)->ops->destroy) PetscCall((*(*ls)->ops->destroy)(*ls));
   if ((*ls)->usemonitor) PetscCall(PetscViewerDestroy(&(*ls)->viewer));
+  PetscCall(PetscDeviceContextDestroy(&((*ls)->dctx)));
   PetscCall(PetscHeaderDestroy(ls));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode TaoLineSearchSetInternalDeviceContext_Private(TaoLineSearch ls, PetscDeviceContext dctx)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(ls, TAOLINESEARCH_CLASSID, 1);
+  if (dctx) PetscValidHeaderSpecific(dctx, PETSC_DEVICE_CONTEXT_CLASSID, 2);
+  PetscCall(PetscObjectReference((PetscObject)dctx));
+  PetscCall(PetscDeviceContextDestroy(&ls->dctx));
+  ls->dctx = dctx;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
