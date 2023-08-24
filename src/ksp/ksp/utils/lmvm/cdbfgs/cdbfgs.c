@@ -1036,6 +1036,7 @@ static PetscErrorCode MatAdd_LDLT(Mat B)
       }
 
       PetscCall(PetscDeviceCalloc(dctx, x_type, lmvm->m-i-1, &buffer));
+      PetscCall(PetscDeviceRegisterMemory(buffer, x_type, (lmvm->m-i-1)*sizeof(*buffer)));
       for (j=0; j < lmvm->m-i-1; j++) {
         query_idx_j = query_idx_i+j+1  % lmvm->m;
 	/* TODO 
@@ -1043,26 +1044,35 @@ static PetscErrorCode MatAdd_LDLT(Mat B)
 	 * 2. do the same for tmp1, tmp2?
 	 * 3. buffer[j] at the end */
 
-        if (r_array[query_idx_i] != 0) {//TODO can't do this..
+        PetscScalar *r_q_i;
+	PetscCall(PetscMalloc1(1, &r_q_i));
+	PetscCall(PetscDeviceRegisterMemory(r_q_i, PETSC_MEMTYPE_HOST, sizeof(*r_q_i)));
+	PetscCall(PetscDeviceArrayCopy(dctx, r_q_i, &r_array[query_idx_i], 1));
+        if (r_q_i != 0) {//TODO can't do this..
           // TODO maybe create vector with x[j]/r[i], copy, and set zero elsewhere?
           PetscScalar *tmp1, *tmp2;
-          PetscCall(PetscDeviceMalloc(dctx, x_type, 1, &tmp1));
-          PetscCall(PetscDeviceMalloc(dctx, x_type, 1, &tmp2));
+	  PetscCall(PetscMalloc2(1, &tmp1, 1, &tmp2));
+          PetscCall(PetscDeviceRegisterMemory(tmp1, PETSC_MEMTYPE_HOST, sizeof(*tmp1)));
+          PetscCall(PetscDeviceRegisterMemory(tmp2, PETSC_MEMTYPE_HOST, sizeof(*tmp2)));
 	  PetscCall(PetscDeviceArrayCopy(dctx, tmp1, &x_array[query_idx_i], 1));
 	  PetscCall(PetscDeviceArrayCopy(dctx, tmp2, &r_array[query_idx_i], 1));
-	  *tmp1 /= *tmp2;//TODO is this legal?
+	  *tmp1 /= *tmp2;
           PetscCall(PetscDeviceArrayCopy(dctx, &buffer[j], tmp1, 1));
-          PetscCall(PetscDeviceFree(dctx, tmp1));
-          PetscCall(PetscDeviceFree(dctx, tmp2));
+	  PetscCall(PetscFree2(tmp1, tmp2));
         } else {
           PetscCall(PetscDeviceArrayZero(dctx, &buffer[j],1));
         }
       }
       for (j=0, k=i+1; k<lmvm->m; k++, j++) {
+	PetscScalar *b_j;
         query_idx_j = (index + j) % lmvm->m;
         query_idx_k = (index + k) % lmvm->m;
+	PetscCall(PetscMalloc1(1, &b_j));
+        PetscCall(PetscDeviceRegisterMemory(b_j, PETSC_MEMTYPE_HOST, sizeof(*b_j)));
         PetscCall(MatDenseGetColumnVecWrite(lbfgs->J, query_idx_k, &workvec2));
-        PetscCall(VecAXPY(workvec2, buffer[j], lbfgs->rwork1));//TODO prob illegal
+	PetscCall(PetscDeviceArrayCopy(dctx, &b_j, &buffer[j], 1));
+        PetscCall(VecAXPY(workvec2, *b_j, lbfgs->rwork1));
+	PetscCall(PetscFree(b_j));
         PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->J, query_idx_k, &workvec2));
       }
       PetscCall(PetscDeviceFree(dctx, buffer));
