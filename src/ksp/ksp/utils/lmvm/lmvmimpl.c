@@ -85,8 +85,8 @@ PetscErrorCode MatUpdateKernel_LMVM(Mat B, Vec S, Vec Y)
     ++lmvm->k;
   }
   /* Put the precomputed update into the last vector */
-  PetscCall(VecCopy(S, lmvm->S[lmvm->k]));
-  PetscCall(VecCopy(Y, lmvm->Y[lmvm->k]));
+  PetscCall(VecCopyAsync_Private(S, lmvm->S[lmvm->k], lmvm->dctx));
+  PetscCall(VecCopyAsync_Private(Y, lmvm->Y[lmvm->k], lmvm->dctx));
   ++lmvm->nupdates;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -129,7 +129,8 @@ static PetscErrorCode MatMult_LMVM(Mat B, Vec X, Vec Y)
   VecCheckMatCompatible(B, X, 2, Y, 3);
   PetscCheck(lmvm->allocated, PetscObjectComm((PetscObject)B), PETSC_ERR_ORDER, "LMVM matrix must be allocated first");
   PetscCall((*lmvm->ops->mult)(B, X, Y));
-  PetscCall(VecAXPY(Y, lmvm->shift, X));
+  if (lmvm->shift) PetscCall(VecAXPYAsync_Private(Y, lmvm->shift, X, lmvm->dctx));
+  if (lmvm->dctx) PetscCall(PetscDeviceContextSynchronize(lmvm->dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -143,6 +144,7 @@ static PetscErrorCode MatSolve_LMVM(Mat B, Vec F, Vec dX)
   PetscCheck(lmvm->allocated, PetscObjectComm((PetscObject)B), PETSC_ERR_ORDER, "LMVM matrix must be allocated first");
   PetscCheck(*lmvm->ops->solve, PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "LMVM matrix does not have a solution or inversion implementation");
   PetscCall((*lmvm->ops->solve)(B, F, dX));
+  if (lmvm->dctx) PetscCall(PetscDeviceContextSynchronize(lmvm->dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -265,8 +267,11 @@ PetscErrorCode MatSetFromOptions_LMVM(Mat B, PetscOptionItems *PetscOptionsObjec
   PetscOptionsHeadEnd();
   if (async) {
     PetscDeviceContext dctx;
+    PetscDevice        device;;
 
     PetscCall(PetscDeviceContextCreate(&dctx));
+    PetscCall(PetscDeviceContextGetDevice(NULL, &device));
+    PetscCall(PetscDeviceContextSetDevice(dctx, device));
     PetscCall(PetscDeviceContextSetStreamType(dctx, PETSC_STREAM_GLOBAL_NONBLOCKING));
     PetscCall(MatLMVMSetInternalDeviceContext(B, dctx));
     PetscCall(PetscDeviceContextDestroy(&dctx));
@@ -307,6 +312,7 @@ PetscErrorCode MatDestroy_LMVM(Mat B)
     PetscCall(VecDestroy(&lmvm->Xprev));
     PetscCall(VecDestroy(&lmvm->Fprev));
   }
+  PetscCall(PetscDeviceContextDestroy(&lmvm->dctx));
   PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatLMVMSetInternalDeviceContext_C", NULL));
   PetscCall(KSPDestroy(&lmvm->J0ksp));
   PetscCall(MatLMVMClearJ0(B));

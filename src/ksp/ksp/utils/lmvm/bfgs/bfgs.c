@@ -65,7 +65,6 @@ PetscErrorCode MatSolve_LMVMBFGS(Mat B, Vec F, Vec dX)
     beta = PetscRealPart(ytx) / lbfgs->yts[i];
     PetscCall(VecAXPYAsync_Private(dX, alpha[i] - beta, lmvm->S[i], lmvm->dctx));
   }
-  PetscCall(PetscDeviceContextSynchronize(lmvm->dctx));
   PetscCall(PetscFree(alpha));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -149,13 +148,14 @@ static PetscErrorCode MatUpdate_LMVMBFGS(Mat B, Vec X, Vec F)
   PetscInt      old_k, i;
   PetscReal     curvtol, ststmp;
   PetscScalar   curvature, ytytmp;
+  PetscBool     copy_XF = PETSC_TRUE;;
 
   PetscFunctionBegin;
   if (!lmvm->m) PetscFunctionReturn(PETSC_SUCCESS);
   if (lmvm->prev_set) {
     /* Compute the new (S = X - Xprev) and (Y = F - Fprev) vectors */
-    PetscCall(VecAYPX(lmvm->Xprev, -1.0, X));
-    PetscCall(VecAYPX(lmvm->Fprev, -1.0, F));
+    PetscCall(VecAYPXAsync_Private(lmvm->Xprev, -1.0, X, lmvm->dctx));
+    PetscCall(VecAYPXAsync_Private(lmvm->Fprev, -1.0, F, lmvm->dctx));
 
     /* Test if the updates can be accepted */
     PetscCall(VecDotNorm2(lmvm->Xprev, lmvm->Fprev, &curvature, &ststmp));
@@ -168,6 +168,7 @@ static PetscErrorCode MatUpdate_LMVMBFGS(Mat B, Vec X, Vec F)
       lbfgs->needP    = PETSC_TRUE;
       old_k           = lmvm->k;
       PetscCall(MatUpdateKernel_LMVM(B, lmvm->Xprev, lmvm->Fprev));
+      copy_XF = PETSC_FALSE; // copied in MatUpdateKernel_LMVM
       /* If we hit the memory limit, shift the yts, yty and sts arrays */
       if (old_k == lmvm->k) {
         for (i = 0; i <= lmvm->k - 1; ++i) {
@@ -193,7 +194,7 @@ static PetscErrorCode MatUpdate_LMVMBFGS(Mat B, Vec X, Vec F)
     case MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL:
       dbase = (Mat_LMVM *)lbfgs->D->data;
       dctx  = (Mat_DiagBrdn *)dbase->ctx;
-      PetscCall(VecSet(dctx->invD, lbfgs->delta));
+      PetscCall(VecSetAsync_Private(dctx->invD, lbfgs->delta, lmvm->dctx));
       break;
     case MAT_LMVM_SYMBROYDEN_SCALE_SCALAR:
       lbfgs->sigma = lbfgs->delta;
@@ -215,8 +216,10 @@ static PetscErrorCode MatUpdate_LMVMBFGS(Mat B, Vec X, Vec F)
   }
 
   /* Save the solution and function to be used in the next update */
-  PetscCall(VecCopy(X, lmvm->Xprev));
-  PetscCall(VecCopy(F, lmvm->Fprev));
+  if (copy_XF) {
+    PetscCall(VecCopyAsync_Private(X, lmvm->Xprev, lmvm->dctx));
+    PetscCall(VecCopyAsync_Private(F, lmvm->Fprev, lmvm->dctx));
+  }
   lmvm->prev_set = PETSC_TRUE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -397,7 +400,6 @@ PetscErrorCode MatCreate_LMVMBFGS(Mat B)
   B->ops->setup          = MatSetUp_LMVMBFGS;
   B->ops->destroy        = MatDestroy_LMVMBFGS;
   B->ops->setfromoptions = MatSetFromOptions_LMVMBFGS;
-  B->ops->solve          = MatSolve_LMVMBFGS;
 
   lmvm                = (Mat_LMVM *)B->data;
   lmvm->ops->allocate = MatAllocate_LMVMBFGS;
