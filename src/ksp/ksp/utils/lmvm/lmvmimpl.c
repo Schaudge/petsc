@@ -1,5 +1,6 @@
 #include <petscdevice.h>
 #include <../src/ksp/ksp/utils/lmvm/lmvm.h> /*I "petscksp.h" I*/
+#include <petsc/private/deviceimpl.h>
 
 PetscErrorCode MatReset_LMVM(Mat B, PetscBool destructive)
 {
@@ -130,7 +131,7 @@ static PetscErrorCode MatMult_LMVM(Mat B, Vec X, Vec Y)
   PetscCheck(lmvm->allocated, PetscObjectComm((PetscObject)B), PETSC_ERR_ORDER, "LMVM matrix must be allocated first");
   PetscCall((*lmvm->ops->mult)(B, X, Y));
   if (lmvm->shift) PetscCall(VecAXPYAsync_Private(Y, lmvm->shift, X, lmvm->dctx));
-  if (lmvm->dctx) PetscCall(PetscDeviceContextSynchronize(lmvm->dctx));
+  if (lmvm->dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(NULL, lmvm->dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -144,7 +145,7 @@ static PetscErrorCode MatSolve_LMVM(Mat B, Vec F, Vec dX)
   PetscCheck(lmvm->allocated, PetscObjectComm((PetscObject)B), PETSC_ERR_ORDER, "LMVM matrix must be allocated first");
   PetscCheck(*lmvm->ops->solve, PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "LMVM matrix does not have a solution or inversion implementation");
   PetscCall((*lmvm->ops->solve)(B, F, dX));
-  if (lmvm->dctx) PetscCall(PetscDeviceContextSynchronize(lmvm->dctx));
+  if (lmvm->dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(NULL, lmvm->dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -255,7 +256,8 @@ PetscErrorCode MatView_LMVM(Mat B, PetscViewer pv)
 
 PetscErrorCode MatSetFromOptions_LMVM(Mat B, PetscOptionItems *PetscOptionsObject)
 {
-  PetscBool async = PETSC_FALSE;
+  PetscStreamType stream_type = PETSC_STREAM_GLOBAL_BLOCKING;
+  PetscBool flg;
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
 
   PetscFunctionBegin;
@@ -263,16 +265,17 @@ PetscErrorCode MatSetFromOptions_LMVM(Mat B, PetscOptionItems *PetscOptionsObjec
   PetscCall(PetscOptionsInt("-mat_lmvm_hist_size", "number of past updates kept in memory for the approximation", "", lmvm->m, &lmvm->m, NULL));
   PetscCall(PetscOptionsInt("-mat_lmvm_ksp_its", "(developer) fixed number of KSP iterations to take when inverting J0", "", lmvm->ksp_max_it, &lmvm->ksp_max_it, NULL));
   PetscCall(PetscOptionsReal("-mat_lmvm_eps", "(developer) machine zero definition", "", lmvm->eps, &lmvm->eps, NULL));
-  PetscCall(PetscOptionsBool("-mat_lmvm_async", "use a nonblocking device context for internal linear algebra operations", "", async, &async, NULL));
+  PetscCall(PetscOptionsEnum("-mat_lmvm_internal_device_context", "use a device context with the specified stream type for internal linear algebra operations", "MatLMVMSetInternalDeviceContext()", PetscStreamTypes, (PetscEnum) stream_type, (PetscEnum *) &stream_type, &flg));
   PetscOptionsHeadEnd();
-  if (async) {
+  if (flg) {
     PetscDeviceContext dctx;
     PetscDevice        device;;
 
     PetscCall(PetscDeviceContextCreate(&dctx));
     PetscCall(PetscDeviceContextGetDevice(NULL, &device));
     PetscCall(PetscDeviceContextSetDevice(dctx, device));
-    PetscCall(PetscDeviceContextSetStreamType(dctx, PETSC_STREAM_GLOBAL_NONBLOCKING));
+    PetscCall(PetscDeviceContextSetStreamType(dctx, stream_type));
+    PetscCall(PetscDeviceContextSetUp(dctx));
     PetscCall(MatLMVMSetInternalDeviceContext(B, dctx));
     PetscCall(PetscDeviceContextDestroy(&dctx));
   }

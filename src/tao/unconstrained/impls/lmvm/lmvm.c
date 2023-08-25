@@ -2,6 +2,7 @@
 #include <../src/tao/unconstrained/impls/lmvm/lmvm.h>
 #include <petsc/private/vecimpl.h>
 #include <petsc/private/taolinesearchimpl.h>
+#include <petsc/private/deviceimpl.h>
 
 #define LMVM_STEP_BFGS 0
 #define LMVM_STEP_GRAD 1
@@ -80,7 +81,7 @@ static PetscErrorCode TaoSolve_LMVM(Tao tao)
     PetscCall(VecCopyAsync_Private(tao->gradient, lmP->Gold, lmP->dctx));
 
     // synchronize lmp->D before entering line search
-    if (lmP->dctx) PetscCall(PetscDeviceContextSynchronize(lmP->dctx));
+    if (lmP->dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(NULL, lmP->dctx));
 
     PetscCall(TaoLineSearchApply(tao->linesearch, tao->solution, &f, tao->gradient, lmP->D, &step, &ls_status));
     PetscCall(TaoAddLineSearchCounts(tao));
@@ -133,7 +134,7 @@ static PetscErrorCode TaoSolve_LMVM(Tao tao)
     }
 
     // synchronize tao->solution and tao->gradient before entering convergence and monitor callbacks
-    if (lmP->dctx) PetscCall(PetscDeviceContextSynchronize(lmP->dctx));
+    if (lmP->dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(NULL, lmP->dctx));
 
     /* Check convergence */
     tao->niter++;
@@ -193,24 +194,26 @@ static PetscErrorCode TaoDestroy_LMVM(Tao tao)
 /*------------------------------------------------------------*/
 static PetscErrorCode TaoSetFromOptions_LMVM(Tao tao, PetscOptionItems *PetscOptionsObject)
 {
-  PetscBool async = PETSC_FALSE;
+  PetscStreamType stream_type = PETSC_STREAM_GLOBAL_BLOCKING;
+  PetscBool flg;
   TAO_LMVM *lm = (TAO_LMVM *)tao->data;
 
   PetscFunctionBegin;
   PetscOptionsHeadBegin(PetscOptionsObject, "Limited-memory variable-metric method for unconstrained optimization");
   PetscCall(PetscOptionsBool("-tao_lmvm_recycle", "enable recycling of the BFGS matrix between subsequent TaoSolve() calls", "", lm->recycle, &lm->recycle, NULL));
-  PetscCall(PetscOptionsBool("-tao_lmvm_async", "use a nonblocking device context for internal linear algebra operations", "", async, &async, NULL));
+  PetscCall(PetscOptionsEnum("-tao_lmvm_internal_device_context", "use a device context with the specified stream type for internal linear algebra operations", "TaoLMVMSetInternalDeviceContext()", PetscStreamTypes, (PetscEnum) stream_type, (PetscEnum *) &stream_type, &flg));
   PetscCall(TaoLineSearchSetFromOptions(tao->linesearch));
   PetscCall(MatSetFromOptions(lm->M));
   PetscOptionsHeadEnd();
-  if (async) {
+  if (flg) {
     PetscDeviceContext dctx;
     PetscDevice        device;;
 
     PetscCall(PetscDeviceContextCreate(&dctx));
     PetscCall(PetscDeviceContextGetDevice(NULL, &device));
     PetscCall(PetscDeviceContextSetDevice(dctx, device));
-    PetscCall(PetscDeviceContextSetStreamType(dctx, PETSC_STREAM_GLOBAL_NONBLOCKING));
+    PetscCall(PetscDeviceContextSetStreamType(dctx, stream_type));
+    PetscCall(PetscDeviceContextSetUp(dctx));
     PetscCall(TaoLMVMSetInternalDeviceContext(tao, dctx));
     PetscCall(PetscDeviceContextDestroy(&dctx));
   }

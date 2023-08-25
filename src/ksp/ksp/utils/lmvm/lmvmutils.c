@@ -1,5 +1,6 @@
 #include <petscdevice.h>
 #include <../src/ksp/ksp/utils/lmvm/lmvm.h> /*I "petscksp.h" I*/
+#include <petsc/private/deviceimpl.h>
 
 PetscLogEvent LMVM_Update;
 PetscLogEvent LMVM_J0Fwd;
@@ -47,7 +48,7 @@ PetscErrorCode MatLMVMUpdate(Mat B, Vec X, Vec F)
   PetscCall(PetscLogEventBegin(LMVM_Update, (PetscObject)B, NULL, NULL, NULL));
   PetscCall((*lmvm->ops->update)(B, X, F));
   PetscCall(PetscLogEventEnd(LMVM_Update, (PetscObject)B, NULL, NULL, NULL));
-  if (lmvm->dctx) PetscCall(PetscDeviceContextSynchronize(lmvm->dctx));
+  if (lmvm->dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(NULL, lmvm->dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
