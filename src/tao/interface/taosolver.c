@@ -1,5 +1,7 @@
 #include <petsc/private/taoimpl.h> /*I "petsctao.h" I*/
 #include <petsc/private/snesimpl.h>
+#include <petscdevice.h>
+#include <petsc/private/deviceimpl.h>
 
 PetscBool         TaoRegisterAllCalled = PETSC_FALSE;
 PetscFunctionList TaoList              = NULL;
@@ -287,6 +289,8 @@ PetscErrorCode TaoDestroy(Tao *tao)
     PetscCall(PetscFree((*tao)->res_weights_cols));
     PetscCall(PetscFree((*tao)->res_weights_w));
   }
+  PetscCall(PetscDeviceContextDestroy(&((*tao)->dctx)));
+  PetscCall(PetscDeviceContextDestroy(&((*tao)->callback_dctx)));
   PetscCall(PetscHeaderDestroy(tao));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -316,6 +320,113 @@ PetscErrorCode TaoKSPSetUseEW(Tao tao, PetscBool flag)
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
   PetscValidLogicalCollectiveBool(tao, flag, 2);
   tao->ksp_ewconv = flag;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  TaoGetCallbackDeviceContext - Get the `PetscDeviceContext` that is used by a `Tao`'s callback functions.
+
+  Not collective
+
+  Input Parameter:
+. tao - a `Tao`
+
+  Output Parameter:
+. dctx - the `PetscDeviceContext` that is used by callback functions like those set in `TaoSetObjectiveAndGradient()` and `TaoSetHessian()`
+
+  Level: advanced
+
+.seealso: [](ch_tao), `Tao`, `TaoGetInternalDeviceContext()`, `TaoSetInternalDeviceContext()`, `TaoSetCallbackDeviceContext()`
+@*/
+PetscErrorCode TaoGetCallbackDeviceContext(Tao tao, PetscDeviceContext *dctx)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
+  PetscAssertPointer(dctx, 2);
+  *dctx = tao->callback_dctx;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  TaoSetCallbackDeviceContext - Specify a `PetscDeviceContext` that will be used by a `Tao`'s callback functions.
+
+  Logically collective
+
+  Input Parameters:
++ tao  - a `Tao`
+- dctx - the `PetscDeviceContext` that is used by callback functions like those set in `TaoSetObjectiveAndGradient()` and `TaoSetHessian()`
+
+  Level: advanced
+
+  Note:
+  If an internal device context is specified for `tao` (`TaoSetInternalDeviceContext()`), then
+  the two contexts will wait for each other (`PetscDeviceContextWaitForContext()`) prior to and following
+  each callback.
+
+.seealso: [](ch_tao), `Tao`, `TaoGetInternalDeviceContext()`
+@*/
+PetscErrorCode TaoSetCallbackDeviceContext(Tao tao, PetscDeviceContext dctx)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
+  if (dctx) PetscValidHeaderSpecific(dctx, PETSC_DEVICE_CONTEXT_CLASSID, 2);
+  PetscCall(PetscObjectReference((PetscObject)dctx));
+  PetscCall(PetscDeviceContextDestroy(&tao->callback_dctx));
+  tao->callback_dctx = dctx;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  TaoGetInternalDeviceContext - Get the `PetscDeviceContext` that is used for a `Tao`'s internal operations
+
+  Not collective
+
+  Input Parameter:
+. tao - a `Tao`
+
+  Output Parameter:
+. dctx - the `PetscDeviceContext` that is used for the internal operations
+
+  Level: advanced
+
+
+.seealso: [](ch_tao), `Tao`, `TaoSetInternalDeviceContext()`, `TaoGetCallbackDeviceContext()`, `TaoSetCallbackDeviceContext()`
+@*/
+PetscErrorCode TaoGetInternalDeviceContext(Tao tao, PetscDeviceContext *dctx)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
+  PetscAssertPointer(dctx, 2);
+  *dctx = tao->dctx;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  TaoSetInternalDeviceContext - Set the `PetscDeviceContext` that is used for a `Tao`'s internal operations
+
+  Logically collective
+
+  Input Parameters:
++ tao  - a `Tao`
+- dctx - the `PetscDeviceContext` that is used for the internal operations
+
+  Level: advanced
+
+  Options Database Key:
+. -tao_internal_device_context - "global_blocking", "default_blocking", or "global_nonblocking" (see `PetscStreamType`)
+
+  Note:
+  Not all `Tao` implementations are capable of using a device context other than the null device context.
+  Implementations that cannot use an arbitrary `PetscDeviceContext` will ignore this operation.
+
+.seealso: [](ch_tao), `Tao`, `TaoGetInternalDeviceContext()`, `TaoGetCallbackDeviceContext()`, `TaoSetCallbackDeviceContext()`
+@*/
+PetscErrorCode TaoSetInternalDeviceContext(Tao tao, PetscDeviceContext dctx)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
+  if (dctx) PetscValidHeaderSpecific(dctx, PETSC_DEVICE_CONTEXT_CLASSID, 2);
+  PetscTryMethod(tao, "TaoSetInternalDeviceContext_C", (Tao, PetscDeviceContext), (tao, dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -517,6 +628,44 @@ PetscErrorCode TaoSetFromOptions(Tao tao)
   if (tao->ksp) {
     PetscCall(PetscOptionsBool("-tao_ksp_ew", "Use Eisentat-Walker linear system convergence test", "TaoKSPSetUseEW", tao->ksp_ewconv, &tao->ksp_ewconv, NULL));
     PetscCall(TaoKSPSetUseEW(tao, tao->ksp_ewconv));
+  }
+
+  {
+    PetscStreamType stream_type = PETSC_STREAM_GLOBAL_BLOCKING;
+
+    PetscCall(PetscOptionsEnum("-tao_internal_device_context", "use a device context with the specified stream type for internal linear algebra operations", "TaoSetInternalDeviceContext()", PetscStreamTypes, (PetscEnum) stream_type, (PetscEnum *) &stream_type, &flg));
+
+    if (flg) {
+      PetscDeviceContext dctx;
+      PetscDevice        device;
+
+      PetscCall(PetscDeviceContextCreate(&dctx));
+      PetscCall(PetscDeviceContextGetDevice(NULL, &device));
+      PetscCall(PetscDeviceContextSetDevice(dctx, device));
+      PetscCall(PetscDeviceContextSetStreamType(dctx, stream_type));
+      PetscCall(PetscDeviceContextSetUp(dctx));
+      PetscCall(TaoSetInternalDeviceContext(tao, dctx));
+      PetscCall(PetscDeviceContextDestroy(&dctx));
+    }
+  }
+
+  {
+    PetscStreamType stream_type = PETSC_STREAM_GLOBAL_BLOCKING;
+
+    PetscCall(PetscOptionsEnum("-tao_callback_device_context", "use a device context with the specified stream type for callback functions", "TaoSetCallbackDeviceContext()", PetscStreamTypes, (PetscEnum) stream_type, (PetscEnum *) &stream_type, &flg));
+
+    if (flg) {
+      PetscDeviceContext dctx;
+      PetscDevice        device;
+
+      PetscCall(PetscDeviceContextCreate(&dctx));
+      PetscCall(PetscDeviceContextGetDevice(NULL, &device));
+      PetscCall(PetscDeviceContextSetDevice(dctx, device));
+      PetscCall(PetscDeviceContextSetStreamType(dctx, stream_type));
+      PetscCall(PetscDeviceContextSetUp(dctx));
+      PetscCall(TaoSetCallbackDeviceContext(tao, dctx));
+      PetscCall(PetscDeviceContextDestroy(&dctx));
+    }
   }
 
   PetscTryTypeMethod(tao, setfromoptions, PetscOptionsObject);

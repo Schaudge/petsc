@@ -1,4 +1,5 @@
 #include <petsc/private/taoimpl.h> /*I "petsctao.h" I*/
+#include <petsc/private/deviceimpl.h>
 
 /*@
   TaoSetVariableBounds - Sets the upper and lower bounds for the optimization problem
@@ -114,7 +115,9 @@ PetscErrorCode TaoComputeVariableBounds(Tao tao)
       PetscCall(VecDuplicate(tao->solution, &tao->XU));
       PetscCall(VecSet(tao->XU, PETSC_INFINITY));
     }
+    if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->callback_dctx, tao->dctx));
     PetscCallBack("Tao callback variable bounds", (*tao->ops->computebounds)(tao, tao->XL, tao->XU, tao->user_boundsP));
+    if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->dctx, tao->callback_dctx));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -199,9 +202,11 @@ PetscErrorCode TaoComputeConstraints(Tao tao, Vec X, Vec C)
   PetscValidHeaderSpecific(C, VEC_CLASSID, 3);
   PetscCheckSameComm(tao, 1, X, 2);
   PetscCheckSameComm(tao, 1, C, 3);
+  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->callback_dctx, tao->dctx));
   PetscCall(PetscLogEventBegin(TAO_ConstraintsEval, tao, X, C, NULL));
   PetscCallBack("Tao callback constraints", (*tao->ops->computeconstraints)(tao, X, C, tao->user_conP));
   PetscCall(PetscLogEventEnd(TAO_ConstraintsEval, tao, X, C, NULL));
+  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->dctx, tao->callback_dctx));
   tao->nconstraints++;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -400,9 +405,11 @@ PetscErrorCode TaoComputeEqualityConstraints(Tao tao, Vec X, Vec CE)
   PetscValidHeaderSpecific(CE, VEC_CLASSID, 3);
   PetscCheckSameComm(tao, 1, X, 2);
   PetscCheckSameComm(tao, 1, CE, 3);
+  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->callback_dctx, tao->dctx));
   PetscCall(PetscLogEventBegin(TAO_ConstraintsEval, tao, X, CE, NULL));
   PetscCallBack("Tao callback equality constraints", (*tao->ops->computeequalityconstraints)(tao, X, CE, tao->user_con_equalityP));
   PetscCall(PetscLogEventEnd(TAO_ConstraintsEval, tao, X, CE, NULL));
+  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->dctx, tao->callback_dctx));
   tao->nconstraints++;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -432,9 +439,11 @@ PetscErrorCode TaoComputeInequalityConstraints(Tao tao, Vec X, Vec CI)
   PetscValidHeaderSpecific(CI, VEC_CLASSID, 3);
   PetscCheckSameComm(tao, 1, X, 2);
   PetscCheckSameComm(tao, 1, CI, 3);
+  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->callback_dctx, tao->dctx));
   PetscCall(PetscLogEventBegin(TAO_ConstraintsEval, tao, X, CI, NULL));
   PetscCallBack("Tao callback inequality constraints", (*tao->ops->computeinequalityconstraints)(tao, X, CI, tao->user_con_inequalityP));
   PetscCall(PetscLogEventEnd(TAO_ConstraintsEval, tao, X, CI, NULL));
+  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->dctx, tao->callback_dctx));
   tao->nconstraints++;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

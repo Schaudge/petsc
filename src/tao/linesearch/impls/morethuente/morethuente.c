@@ -17,6 +17,7 @@ static PetscErrorCode TaoLineSearchDestroy_MT(TaoLineSearch ls)
 
   PetscFunctionBegin;
   PetscCall(PetscObjectDereference((PetscObject)mt->x));
+  PetscCall(PetscObjectComposeFunction((PetscObject)ls, "TaoLineSearchSetInternalDeviceContext_C", NULL));
   PetscCall(VecDestroy(&mt->work));
   PetscCall(PetscFree(ls->data));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -77,6 +78,7 @@ static PetscErrorCode TaoLineSearchApply_MT(TaoLineSearch ls, Vec x, PetscReal *
     PetscCall(VecGetSize(ls->upper, &nn1));
     PetscCall(VecGetSize(mt->x, &nn2));
     PetscCheck(n1 == n2 && nn1 == nn2, PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "Variable vector not compatible with bounds vector");
+    // TODO: make these async
     PetscCall(VecScale(s, -1.0));
     PetscCall(VecBoundGradientProjection(s, x, ls->lower, ls->upper, s));
     PetscCall(VecScale(s, -1.0));
@@ -136,7 +138,7 @@ static PetscErrorCode TaoLineSearchApply_MT(TaoLineSearch ls, Vec x, PetscReal *
     if (stx != 0 && ((mt->bracket && (ls->step <= ls->stepmin || ls->step >= ls->stepmax)) || (mt->bracket && (ls->stepmax - ls->stepmin <= ls->rtol * ls->stepmax)) || (ls->nfeval + ls->nfgeval >= ls->max_funcs - 1) || mt->infoc == 0))
       ls->step = stx;
 
-    PetscCall(VecWAXPY(mt->work, ls->step, s, x)); /* W = X + step*S */
+    PetscCall(VecWAXPYAsync_Private(mt->work, ls->step, s, x, ls->dctx)); /* W = X + step*S */
 
     if (ls->step == 0.0) {
       PetscCall(PetscInfo(ls, "Step size is zero.\n"));
@@ -267,8 +269,19 @@ static PetscErrorCode TaoLineSearchApply_MT(TaoLineSearch ls, Vec x, PetscReal *
   PetscCall(PetscInfo(ls, "%" PetscInt_FMT " function evals in line search, step = %g\n", ls->nfeval + ls->nfgeval, (double)ls->step));
 
   /* Set new solution vector and compute gradient if needed */
-  if (ls->max_funcs > 0) PetscCall(VecCopy(mt->work, x));
+  if (ls->max_funcs > 0) PetscCall(VecCopyAsync_Private(mt->work, x, ls->dctx));
   if (!g_computed) PetscCall(TaoLineSearchComputeGradient(ls, mt->work, g));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode TaoLineSearchSetInternalDeviceContext_MT(TaoLineSearch ls, PetscDeviceContext dctx)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(ls, TAOLINESEARCH_CLASSID, 1);
+  if (dctx) PetscValidHeaderSpecific(dctx, PETSC_DEVICE_CONTEXT_CLASSID, 2);
+  PetscCall(PetscObjectReference((PetscObject)dctx));
+  PetscCall(PetscDeviceContextDestroy(&ls->dctx));
+  ls->dctx = dctx;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -305,6 +318,7 @@ PETSC_EXTERN PetscErrorCode TaoLineSearchCreate_MT(TaoLineSearch ls)
   ls->ops->destroy        = TaoLineSearchDestroy_MT;
   ls->ops->setfromoptions = TaoLineSearchSetFromOptions_MT;
   ls->ops->monitor        = TaoLineSearchMonitor_MT;
+  PetscCall(PetscObjectComposeFunction((PetscObject)ls, "TaoLineSearchSetInternalDeviceContext_C", TaoLineSearchSetInternalDeviceContext_MT));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

@@ -66,9 +66,8 @@ struct _p_TaoLineSearch {
   Tao tao;
 
   PetscDeviceContext dctx;
+  PetscDeviceContext callback_dctx;
 };
 
 PETSC_EXTERN PetscLogEvent TAOLINESEARCH_Apply;
 PETSC_EXTERN PetscLogEvent TAOLINESEARCH_Eval;
-
-PETSC_INTERN PetscErrorCode TaoLineSearchSetInternalDeviceContext_Private(TaoLineSearch, PetscDeviceContext);
