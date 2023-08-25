@@ -373,7 +373,6 @@ PETSC_EXTERN PetscErrorCode TaoLMVMSetH0(Tao, Mat);
 PETSC_EXTERN PetscErrorCode TaoLMVMGetH0(Tao, Mat *);
 PETSC_EXTERN PetscErrorCode TaoLMVMGetH0KSP(Tao, KSP *);
 PETSC_EXTERN PetscErrorCode TaoLMVMRecycle(Tao, PetscBool);
-PETSC_EXTERN PetscErrorCode TaoLMVMSetInternalDeviceContext(Tao, PetscDeviceContext);
 PETSC_EXTERN PetscErrorCode TaoSetResidualRoutine(Tao, Vec, PetscErrorCode (*)(Tao, Vec, Vec, void *), void *);
 PETSC_EXTERN PetscErrorCode TaoSetResidualWeights(Tao, Vec, PetscInt, PetscInt *, PetscInt *, PetscReal *);
 PETSC_EXTERN PetscErrorCode TaoSetConstraintsRoutine(Tao, Vec, PetscErrorCode (*)(Tao, Vec, Vec, void *), void *);
@@ -385,6 +384,11 @@ PETSC_EXTERN PetscErrorCode TaoSetJacobianStateRoutine(Tao, Mat, Mat, Mat, Petsc
 PETSC_EXTERN PetscErrorCode TaoSetJacobianDesignRoutine(Tao, Mat, PetscErrorCode (*)(Tao, Vec, Mat, void *), void *);
 PETSC_EXTERN PetscErrorCode TaoSetJacobianInequalityRoutine(Tao, Mat, Mat, PetscErrorCode (*)(Tao, Vec, Mat, Mat, void *), void *);
 PETSC_EXTERN PetscErrorCode TaoSetJacobianEqualityRoutine(Tao, Mat, Mat, PetscErrorCode (*)(Tao, Vec, Mat, Mat, void *), void *);
+
+PETSC_EXTERN PetscErrorCode TaoGetCallbackDeviceContext(Tao, PetscDeviceContext *);
+PETSC_EXTERN PetscErrorCode TaoSetCallbackDeviceContext(Tao, PetscDeviceContext);
+PETSC_EXTERN PetscErrorCode TaoGetInternalDeviceContext(Tao, PetscDeviceContext *);
+PETSC_EXTERN PetscErrorCode TaoSetInternalDeviceContext(Tao, PetscDeviceContext);
 
 PETSC_EXTERN PetscErrorCode TaoPythonSetType(Tao, const char[]);
 PETSC_EXTERN PetscErrorCode TaoPythonGetType(Tao, const char *[]);

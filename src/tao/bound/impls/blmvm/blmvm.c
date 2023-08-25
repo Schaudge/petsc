@@ -1,4 +1,3 @@
-#include <petscdevice.h>
 #include <petsctaolinesearch.h> /*I "petsctaolinesearch.h" I*/
 #include <../src/tao/unconstrained/impls/lmvm/lmvm.h>
 #include <../src/tao/bound/impls/blmvm/blmvm.h>
@@ -148,8 +147,6 @@ static PetscErrorCode TaoDestroy_BLMVM(Tao tao)
   }
   PetscCall(MatDestroy(&blmP->M));
   if (blmP->H0) PetscCall(PetscObjectDereference((PetscObject)blmP->H0));
-  PetscCall(PetscDeviceContextDestroy(&blmP->dctx));
-  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoLMVMSetInternalDeviceContext_C", NULL));
   PetscCall(PetscFree(tao->data));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -157,26 +154,13 @@ static PetscErrorCode TaoDestroy_BLMVM(Tao tao)
 /*------------------------------------------------------------*/
 static PetscErrorCode TaoSetFromOptions_BLMVM(Tao tao, PetscOptionItems *PetscOptionsObject)
 {
-  PetscBool async = PETSC_FALSE;
   TAO_BLMVM *blmP = (TAO_BLMVM *)tao->data;
   PetscBool  is_spd, is_set;
 
   PetscFunctionBegin;
   PetscOptionsHeadBegin(PetscOptionsObject, "Limited-memory variable-metric method for bound constrained optimization");
   PetscCall(PetscOptionsBool("-tao_blmvm_recycle", "enable recycling of the BFGS matrix between subsequent TaoSolve() calls", "", blmP->recycle, &blmP->recycle, NULL));
-  PetscCall(PetscOptionsBool("-tao_lmvm_async", "use a nonblocking device context for internal linear algebra operations", "", async, &async, NULL));
   PetscOptionsHeadEnd();
-  if (async) {
-    PetscDeviceContext dctx;
-    PetscDevice        device;;
-
-    PetscCall(PetscDeviceContextCreate(&dctx));
-    PetscCall(PetscDeviceContextGetDevice(NULL, &device));
-    PetscCall(PetscDeviceContextSetDevice(dctx, device));
-    PetscCall(PetscDeviceContextSetStreamType(dctx, PETSC_STREAM_GLOBAL_NONBLOCKING));
-    PetscCall(TaoLMVMSetInternalDeviceContext(tao, dctx));
-    PetscCall(PetscDeviceContextDestroy(&dctx));
-  }
   PetscCall(MatSetOptionsPrefix(blmP->M, ((PetscObject)tao)->prefix));
   PetscCall(MatAppendOptionsPrefix(blmP->M, "tao_blmvm_"));
   PetscCall(MatSetFromOptions(blmP->M));
@@ -220,24 +204,6 @@ static PetscErrorCode TaoComputeDual_BLMVM(Tao tao, Vec DXL, Vec DXU)
   PetscCall(VecCopy(blm->unprojected_gradient, DXU));
   PetscCall(VecAXPY(DXU, -1.0, tao->gradient));
   PetscCall(VecAXPY(DXU, 1.0, DXL));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-static PetscErrorCode TaoLMVMSetInternalDeviceContext_BLMVM(Tao tao, PetscDeviceContext dctx)
-{
-  TAO_BLMVM  *lmP;
-  PetscBool   is_lmvm, is_blmvm;
-  Mat         M = NULL;
-
-  PetscFunctionBegin;
-  PetscCall(PetscObjectTypeCompare((PetscObject)tao, TAOLMVM, &is_lmvm));
-  PetscCall(PetscObjectTypeCompare((PetscObject)tao, TAOBLMVM, &is_blmvm));
-  PetscCall(PetscObjectReference((PetscObject) dctx));
-  lmP = (TAO_BLMVM *)tao->data;
-  M   = lmP->M;
-  PetscCall(PetscDeviceContextDestroy(&lmP->dctx));
-  lmP->dctx = dctx;
-  if (M) PetscCall(MatLMVMSetInternalDeviceContext(M, dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -285,8 +251,6 @@ PETSC_EXTERN PetscErrorCode TaoCreate_BLMVM(Tao tao)
   PetscCall(MatCreate(((PetscObject)tao)->comm, &blmP->M));
   PetscCall(MatSetType(blmP->M, MATLMVMBFGS));
   PetscCall(PetscObjectIncrementTabLevel((PetscObject)blmP->M, (PetscObject)tao, 1));
-
-  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoLMVMSetInternalDeviceContext_C", TaoLMVMSetInternalDeviceContext_BLMVM));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

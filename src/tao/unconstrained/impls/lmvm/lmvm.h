@@ -24,8 +24,6 @@ typedef struct {
   Mat      H0;
 
   PetscBool recycle;
-
-  PetscDeviceContext dctx;
 } TAO_LMVM;
 
 #endif /* ifndef __TAO_LMVM_H */

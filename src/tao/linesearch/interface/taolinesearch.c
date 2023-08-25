@@ -1,5 +1,6 @@
 #include <petsctaolinesearch.h> /*I "petsctaolinesearch.h" I*/
 #include <petsc/private/taolinesearchimpl.h>
+#include <petsc/private/deviceimpl.h>
 
 PetscFunctionList TaoLineSearchList = NULL;
 
@@ -244,18 +245,111 @@ PetscErrorCode TaoLineSearchDestroy(TaoLineSearch *ls)
   if ((*ls)->ops->destroy) PetscCall((*(*ls)->ops->destroy)(*ls));
   if ((*ls)->usemonitor) PetscCall(PetscViewerDestroy(&(*ls)->viewer));
   PetscCall(PetscDeviceContextDestroy(&((*ls)->dctx)));
+  PetscCall(PetscDeviceContextDestroy(&((*ls)->callback_dctx)));
   PetscCall(PetscHeaderDestroy(ls));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode TaoLineSearchSetInternalDeviceContext_Private(TaoLineSearch ls, PetscDeviceContext dctx)
+/*@C
+  TaoLineSearchGetInternalDeviceContext - Get the `PetscDeviceContext` that is used for a `TaoLineSearch`'s internal operations
+
+  Not collective
+
+  Input Parameter:
+. ls - a `TaoLineSearch`
+
+  Output Parameter:
+. dctx - the `PetscDeviceContext` that is used for internal computations
+
+  Level: advanced
+
+.seealso: [](ch_tao), `TaoLineSearch`, `TaoLineSearchSetInternalDeviceContext()`, `TaoLineSearchGetCallbackDeviceContext()`, `TaoLineSearchSetCallbackDeviceContext()`
+@*/
+PetscErrorCode TaoLineSearchGetInternalDeviceContext(TaoLineSearch ls, PetscDeviceContext *dctx)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(ls, TAOLINESEARCH_CLASSID, 1);
+  PetscAssertPointer(dctx, 2);
+  *dctx = ls->dctx;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  TaoLineSearchSetInternalDeviceContext - Set the `PetscDeviceContext` that is used for a `TaoLineSearch`'s internal operations
+
+  Logically collective
+
+  Input Parameters:
++ ls  - a `TaoLineSearch`
+- dctx - the `PetscDeviceContext` that is used for the internal operations
+
+  Level: advanced
+
+  Note:
+  Not all `TaoLineSearch` implementations are capable of using a device context other than the null device context.
+  Implementations that cannot use an arbitrary `PetscDeviceContext` will ignore this operation.
+
+.seealso: [](ch_tao), `TaoLineSearch`, `TaoLineSearchGetInternalDeviceContext()`, `TaoLineSearchGetCallbackDeviceContext()`, `TaoLineSearchSetCallbackDeviceContext()`
+@*/
+PetscErrorCode TaoLineSearchSetInternalDeviceContext(TaoLineSearch ls, PetscDeviceContext dctx)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(ls, TAOLINESEARCH_CLASSID, 1);
+  if (dctx) PetscValidHeaderSpecific(dctx, PETSC_DEVICE_CONTEXT_CLASSID, 2);
+  PetscTryMethod(ls, "TaoLineSearchSetInternalDeviceContext_C", (TaoLineSearch, PetscDeviceContext), (ls, dctx));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  TaoLineSearchGetCallbackDeviceContext - Get the `PetscDeviceContext` that is used by a `TaoLineSearch`'s callback functions.
+
+  Not collective
+
+  Input Parameter:
+. ls - a `TaoLineSearch`
+
+  Output Parameter:
+. dctx - the `PetscDeviceContext` that is used by callback functions
+
+  Level: advanced
+
+.seealso: [](ch_tao), `TaoLineSearch`, `TaoLineSearchGetInternalDeviceContext()`, `TaoLineSearchSetInternalDeviceContext()`, `TaoLineSearchSetCallbackDeviceContext()`
+@*/
+PetscErrorCode TaoLineSearchGetCallbackDeviceContext(TaoLineSearch ls, PetscDeviceContext *dctx)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(ls, TAOLINESEARCH_CLASSID, 1);
+  PetscAssertPointer(dctx, 2);
+  *dctx = ls->callback_dctx;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  TaoLineSearchSetCallbackDeviceContext - Specify a `PetscDeviceContext` that will be used by a `TaoLineSearch`'s callback functions.
+
+  Logically collective
+
+  Input Parameters:
++ ls   - a `TaoLineSearch`
+- dctx - the `PetscDeviceContext` that is used by callback functions
+
+  Level: advanced
+
+  Note:
+  If an internal device context is specified for `ls` (`TaoLineSearchSetInternalDeviceContext()`), then
+  the two contexts will wait for each other (`PetscDeviceContextWaitForContext()`) prior to and following
+  each callback.
+
+.seealso: [](ch_tao), `TaoLineSearch`, `TaoLineSearchGetInternalDeviceContext()`, `TaoLineSearchSetInternalDeviceContext()`, `TaoLineSearchGetCallbackDeviceContext()`
+@*/
+PetscErrorCode TaoLineSearchSetCallbackDeviceContext(TaoLineSearch ls, PetscDeviceContext dctx)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ls, TAOLINESEARCH_CLASSID, 1);
   if (dctx) PetscValidHeaderSpecific(dctx, PETSC_DEVICE_CONTEXT_CLASSID, 2);
   PetscCall(PetscObjectReference((PetscObject)dctx));
-  PetscCall(PetscDeviceContextDestroy(&ls->dctx));
-  ls->dctx = dctx;
+  PetscCall(PetscDeviceContextDestroy(&ls->callback_dctx));
+  ls->callback_dctx = dctx;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -829,6 +923,7 @@ PetscErrorCode TaoLineSearchComputeObjective(TaoLineSearch ls, Vec x, PetscReal 
   PetscValidHeaderSpecific(x, VEC_CLASSID, 2);
   PetscAssertPointer(f, 3);
   PetscCheckSameComm(ls, 1, x, 2);
+  if (ls->dctx != ls->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(ls->callback_dctx, ls->dctx));
   if (ls->usetaoroutines) {
     PetscCall(TaoComputeObjective(ls->tao, x, f));
   } else {
@@ -842,6 +937,7 @@ PetscErrorCode TaoLineSearchComputeObjective(TaoLineSearch ls, Vec x, PetscReal 
     } else PetscCallBack("TaoLineSearch callback objective", (*ls->ops->computeobjectiveandgts)(ls, x, ls->stepdirection, f, &gts, ls->userctx_funcgts));
     PetscCall(PetscLogEventEnd(TAOLINESEARCH_Eval, ls, 0, 0, 0));
   }
+  if (ls->dctx != ls->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(ls->dctx, ls->callback_dctx));
   ls->nfeval++;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -876,6 +972,7 @@ PetscErrorCode TaoLineSearchComputeObjectiveAndGradient(TaoLineSearch ls, Vec x,
   PetscValidHeaderSpecific(g, VEC_CLASSID, 4);
   PetscCheckSameComm(ls, 1, x, 2);
   PetscCheckSameComm(ls, 1, g, 4);
+  if (ls->dctx != ls->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(ls->callback_dctx, ls->dctx));
   if (ls->usetaoroutines) {
     PetscCall(TaoComputeObjectiveAndGradient(ls->tao, x, f, g));
   } else {
@@ -888,6 +985,7 @@ PetscErrorCode TaoLineSearchComputeObjectiveAndGradient(TaoLineSearch ls, Vec x,
     PetscCall(PetscLogEventEnd(TAOLINESEARCH_Eval, ls, 0, 0, 0));
     PetscCall(PetscInfo(ls, "TaoLineSearch Function evaluation: %14.12e\n", (double)(*f)));
   }
+  if (ls->dctx != ls->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(ls->dctx, ls->callback_dctx));
   ls->nfgeval++;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -922,6 +1020,7 @@ PetscErrorCode TaoLineSearchComputeGradient(TaoLineSearch ls, Vec x, Vec g)
   PetscValidHeaderSpecific(g, VEC_CLASSID, 3);
   PetscCheckSameComm(ls, 1, x, 2);
   PetscCheckSameComm(ls, 1, g, 3);
+  if (ls->dctx != ls->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(ls->callback_dctx, ls->dctx));
   if (ls->usetaoroutines) {
     PetscCall(TaoComputeGradient(ls->tao, x, g));
   } else {
@@ -930,6 +1029,7 @@ PetscErrorCode TaoLineSearchComputeGradient(TaoLineSearch ls, Vec x, Vec g)
     else PetscCallBack("TaoLineSearch callback gradient", (*ls->ops->computeobjectiveandgradient)(ls, x, &fdummy, g, ls->userctx_funcgrad));
     PetscCall(PetscLogEventEnd(TAOLINESEARCH_Eval, ls, 0, 0, 0));
   }
+  if (ls->dctx != ls->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(ls->dctx, ls->callback_dctx));
   ls->ngeval++;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -965,7 +1065,9 @@ PetscErrorCode TaoLineSearchComputeObjectiveAndGTS(TaoLineSearch ls, Vec x, Pets
   PetscAssertPointer(gts, 4);
   PetscCheckSameComm(ls, 1, x, 2);
   PetscCall(PetscLogEventBegin(TAOLINESEARCH_Eval, ls, 0, 0, 0));
+  if (ls->dctx != ls->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(ls->callback_dctx, ls->dctx));
   PetscCallBack("TaoLineSearch callback objective/gts", (*ls->ops->computeobjectiveandgts)(ls, x, ls->stepdirection, f, gts, ls->userctx_funcgts));
+  if (ls->dctx != ls->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(ls->dctx, ls->callback_dctx));
   PetscCall(PetscLogEventEnd(TAOLINESEARCH_Eval, ls, 0, 0, 0));
   PetscCall(PetscInfo(ls, "TaoLineSearch Function evaluation: %14.12e\n", (double)(*f)));
   ls->nfeval++;

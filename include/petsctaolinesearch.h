@@ -119,4 +119,9 @@ PETSC_EXTERN PetscErrorCode TaoLineSearchFinalizePackage(void);
 PETSC_EXTERN PetscErrorCode TaoLineSearchRegister(const char[], PetscErrorCode (*)(TaoLineSearch));
 PETSC_EXTERN PetscErrorCode TaoLineSearchUseTaoRoutines(TaoLineSearch, Tao);
 
+PETSC_EXTERN PetscErrorCode TaoLineSearchGetInternalDeviceContext(TaoLineSearch, PetscDeviceContext *);
+PETSC_EXTERN PetscErrorCode TaoLineSearchSetInternalDeviceContext(TaoLineSearch, PetscDeviceContext);
+PETSC_EXTERN PetscErrorCode TaoLineSearchGetCallbackDeviceContext(TaoLineSearch, PetscDeviceContext *);
+PETSC_EXTERN PetscErrorCode TaoLineSearchSetCallbackDeviceContext(TaoLineSearch, PetscDeviceContext);
+
 #endif

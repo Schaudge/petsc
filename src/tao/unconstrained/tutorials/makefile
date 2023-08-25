@@ -6,7 +6,7 @@ CLEANFILES       = eptorsion1 eptorsion2 minsurf2 rosenbrock1 eptorsion2f rosenb
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
 
-rosenbrock1.c: rosenbrock1.h
+rosenbrock1.o: rosenbrock1.h
 
-rosenbrock1cu.cu: rosenbrock1.h
+rosenbrock1cu.o: rosenbrock1.h
 

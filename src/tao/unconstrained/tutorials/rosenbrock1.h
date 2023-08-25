@@ -117,7 +117,7 @@ static PetscErrorCode AppCtxCreate(MPI_Comm comm, AppCtx *ctx)
     PetscCall(VecDestroy(&b));
     PetscCall(VecDestroy(&x));
     PetscCall(MatDestroy(&A));
-    cudaDeviceSynchronize();
+    PetscCallCUDA(cudaDeviceSynchronize());
   }
   PetscLogStagePop();
 #endif
@@ -307,31 +307,31 @@ PETSC_KERNEL_DECL void RosenbrockHessian_CUDA_Kernel(PetscInt n_comp, PetscInt n
   }
 }
 
-static PetscErrorCode RosenbrockObjective_CUDA(PetscInt n_comp, PetscInt n, PetscInt stride, PetscReal alpha, const PetscScalar x[], const PetscScalar o[], PetscScalar f_vec[])
+static PetscErrorCode RosenbrockObjective_CUDA(cudaStream_t stream, PetscInt n_comp, PetscInt n, PetscInt stride, PetscReal alpha, const PetscScalar x[], const PetscScalar o[], PetscScalar f_vec[])
 {
   PetscFunctionBegin;
-  RosenbrockObjective_CUDA_Kernel<<<(n_comp + 255) / 256, 256>>>(n_comp, n, stride, alpha, x, o, f_vec);
+  RosenbrockObjective_CUDA_Kernel<<<(n_comp + 255) / 256, 256, 0, stream>>>(n_comp, n, stride, alpha, x, o, f_vec);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode RosenbrockGradient_CUDA(PetscInt n_comp, PetscInt n, PetscInt stride, PetscReal alpha, const PetscScalar x[], const PetscScalar o[], PetscScalar g[])
+static PetscErrorCode RosenbrockGradient_CUDA(cudaStream_t stream, PetscInt n_comp, PetscInt n, PetscInt stride, PetscReal alpha, const PetscScalar x[], const PetscScalar o[], PetscScalar g[])
 {
   PetscFunctionBegin;
-  RosenbrockGradient_CUDA_Kernel<<<(n_comp + 255) / 256, 256>>>(n_comp, n, stride, alpha, x, o, g);
+  RosenbrockGradient_CUDA_Kernel<<<(n_comp + 255) / 256, 256, 0, stream>>>(n_comp, n, stride, alpha, x, o, g);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode RosenbrockObjectiveGradient_CUDA(PetscInt n_comp, PetscInt n, PetscInt stride, PetscReal alpha, const PetscScalar x[], const PetscScalar o[], PetscScalar f_vec[], PetscScalar g[])
+static PetscErrorCode RosenbrockObjectiveGradient_CUDA(cudaStream_t stream, PetscInt n_comp, PetscInt n, PetscInt stride, PetscReal alpha, const PetscScalar x[], const PetscScalar o[], PetscScalar f_vec[], PetscScalar g[])
 {
   PetscFunctionBegin;
-  RosenbrockObjectiveGradient_CUDA_Kernel<<<(n_comp + 255) / 256, 256>>>(n_comp, n, stride, alpha, x, o, f_vec, g);
+  RosenbrockObjectiveGradient_CUDA_Kernel<<<(n_comp + 255) / 256, 256, 0, stream>>>(n_comp, n, stride, alpha, x, o, f_vec, g);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode RosenbrockHessian_CUDA(PetscInt n_comp, PetscInt n, PetscInt stride, PetscReal alpha, const PetscScalar x[], const PetscScalar o[], PetscScalar h[])
+static PetscErrorCode RosenbrockHessian_CUDA(cudaStream_t stream, PetscInt n_comp, PetscInt n, PetscInt stride, PetscReal alpha, const PetscScalar x[], const PetscScalar o[], PetscScalar h[])
 {
   PetscFunctionBegin;
-  RosenbrockHessian_CUDA_Kernel<<<(n_comp + 255) / 256, 256>>>(n_comp, n, stride, alpha, x, o, h);
+  RosenbrockHessian_CUDA_Kernel<<<(n_comp + 255) / 256, 256, 0, stream>>>(n_comp, n, stride, alpha, x, o, h);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 #endif
@@ -403,8 +403,12 @@ static PetscErrorCode FormObjective(Tao tao, Vec X, PetscReal *f, void *ptr)
   const PetscScalar *x;
   const PetscScalar *o = NULL;
   PetscMemType       memtype_x;
+  PetscDeviceContext dctx, current_dctx;
 
   PetscFunctionBeginUser;
+  PetscCall(TaoGetCallbackDeviceContext(tao, &dctx));
+  PetscCall(PetscDeviceContextGetCurrentContext(&current_dctx));
+  PetscCall(PetscDeviceContextSetCurrentContext(dctx));
   if (user->chained) {
     PetscCall(VecScatterBegin(user->off_process_scatter, X, user->off_process_values, INSERT_VALUES, SCATTER_FORWARD));
     PetscCall(VecScatterEnd(user->off_process_scatter, X, user->off_process_values, INSERT_VALUES, SCATTER_FORWARD));
@@ -416,11 +420,15 @@ static PetscErrorCode FormObjective(Tao tao, Vec X, PetscReal *f, void *ptr)
     PetscCallMPI(MPI_Allreduce(&f_local, f, 1, MPIU_REAL, MPI_SUM, user->comm));
 #if PetscDefined(HAVE_CUDA) && PetscDefined(USING_NVCC)
   } else if (memtype_x == PETSC_MEMTYPE_CUDA) {
-    PetscScalar *_fvec;
-    PetscScalar f_scalar;
+    PetscScalar       *_fvec;
+    PetscScalar        f_scalar;
+    void              *handle;
+    cudaStream_t       stream;
 
+    PetscCall(PetscDeviceContextGetStreamHandle(dctx, &handle));
+    stream = *((cudaStream_t *) handle);
     PetscCall(VecGetArrayWriteAndMemType(user->fvector, &_fvec, NULL));
-    PetscCall(RosenbrockObjective_CUDA(user->n_local_comp, user->n_local, user->chained ? 1 : 2, user->alpha, x, o, _fvec));
+    PetscCall(RosenbrockObjective_CUDA(stream, user->n_local_comp, user->n_local, user->chained ? 1 : 2, user->alpha, x, o, _fvec));
     PetscCall(VecRestoreArrayWriteAndMemType(user->fvector, &_fvec));
     PetscCall(VecSum(user->fvector, &f_scalar));
     *f = PetscRealPart(f_scalar);
@@ -429,6 +437,7 @@ static PetscErrorCode FormObjective(Tao tao, Vec X, PetscReal *f, void *ptr)
 
   PetscCall(VecRestoreArrayReadAndMemType(X, &x));
   if (user->chained) PetscCall(VecRestoreArrayReadAndMemType(user->off_process_values, &o));
+  PetscCall(PetscDeviceContextSetCurrentContext(current_dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -439,8 +448,12 @@ static PetscErrorCode FormGradient(Tao tao, Vec X, Vec G, void *ptr)
   const PetscScalar *x;
   const PetscScalar *o = NULL;
   PetscMemType       memtype_x, memtype_g;
+  PetscDeviceContext dctx, current_dctx;
 
   PetscFunctionBeginUser;
+  PetscCall(TaoGetCallbackDeviceContext(tao, &dctx));
+  PetscCall(PetscDeviceContextGetCurrentContext(&current_dctx));
+  PetscCall(PetscDeviceContextSetCurrentContext(dctx));
   if (user->chained) {
     PetscCall(VecScatterBegin(user->off_process_scatter, X, user->off_process_values, INSERT_VALUES, SCATTER_FORWARD));
     PetscCall(VecScatterEnd(user->off_process_scatter, X, user->off_process_values, INSERT_VALUES, SCATTER_FORWARD));
@@ -453,7 +466,12 @@ static PetscErrorCode FormGradient(Tao tao, Vec X, Vec G, void *ptr)
     PetscCall(RosenbrockGradient_Host(user->n_local_comp, user->n_local, user->chained ? 1 : 2, user->alpha, x, o, g));
 #if PetscDefined(HAVE_CUDA) && PetscDefined(USING_NVCC)
   } else if (memtype_x == PETSC_MEMTYPE_CUDA) {
-    PetscCall(RosenbrockGradient_CUDA(user->n_local_comp, user->n_local, user->chained ? 1 : 2, user->alpha, x, o, g));
+    void              *handle;
+    cudaStream_t       stream;
+
+    PetscCall(PetscDeviceContextGetStreamHandle(dctx, &handle));
+    stream = *((cudaStream_t *) handle);
+    PetscCall(RosenbrockGradient_CUDA(stream, user->n_local_comp, user->n_local, user->chained ? 1 : 2, user->alpha, x, o, g));
 #endif
   } else SETERRQ(user->comm, PETSC_ERR_SUP, "Unsuported memtype %d", (int) memtype_x);
 
@@ -466,6 +484,7 @@ static PetscErrorCode FormGradient(Tao tao, Vec X, Vec G, void *ptr)
 
   PetscCall(VecRestoreArrayReadAndMemType(X, &x));
   if (user->chained) PetscCall(VecRestoreArrayReadAndMemType(user->off_process_values, &o));
+  PetscCall(PetscDeviceContextSetCurrentContext(current_dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -494,8 +513,12 @@ static PetscErrorCode FormObjectiveGradient(Tao tao, Vec X, PetscReal *f, Vec G,
   const PetscScalar *x;
   const PetscScalar *o = NULL;
   PetscMemType       memtype_x, memtype_g;
+  PetscDeviceContext dctx, current_dctx;
 
   PetscFunctionBeginUser;
+  PetscCall(TaoGetCallbackDeviceContext(tao, &dctx));
+  PetscCall(PetscDeviceContextGetCurrentContext(&current_dctx));
+  PetscCall(PetscDeviceContextSetCurrentContext(dctx));
   if (user->chained) {
     PetscCall(VecScatterBegin(user->off_process_scatter, X, user->off_process_values, INSERT_VALUES, SCATTER_FORWARD));
     PetscCall(VecScatterEnd(user->off_process_scatter, X, user->off_process_values, INSERT_VALUES, SCATTER_FORWARD));
@@ -511,9 +534,13 @@ static PetscErrorCode FormObjectiveGradient(Tao tao, Vec X, PetscReal *f, Vec G,
   } else if (memtype_x == PETSC_MEMTYPE_CUDA) {
     PetscScalar *_fvec;
     PetscScalar f_scalar;
+    void              *handle;
+    cudaStream_t       stream;
 
+    PetscCall(PetscDeviceContextGetStreamHandle(dctx, &handle));
+    stream = *((cudaStream_t *) handle);
     PetscCall(VecGetArrayWriteAndMemType(user->fvector, &_fvec, NULL));
-    PetscCall(RosenbrockObjectiveGradient_CUDA(user->n_local_comp, user->n_local, user->chained ? 1 : 2, user->alpha, x, o, _fvec, g));
+    PetscCall(RosenbrockObjectiveGradient_CUDA(stream, user->n_local_comp, user->n_local, user->chained ? 1 : 2, user->alpha, x, o, _fvec, g));
     PetscCall(VecRestoreArrayWriteAndMemType(user->fvector, &_fvec));
     PetscCall(VecSum(user->fvector, &f_scalar));
     *f = PetscRealPart(f_scalar);
@@ -529,6 +556,7 @@ static PetscErrorCode FormObjectiveGradient(Tao tao, Vec X, PetscReal *f, Vec G,
 
   PetscCall(VecRestoreArrayReadAndMemType(X, &x));
   if (user->chained) PetscCall(VecRestoreArrayReadAndMemType(user->off_process_values, &o));
+  PetscCall(PetscDeviceContextSetCurrentContext(current_dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -554,8 +582,12 @@ static PetscErrorCode FormHessian(Tao tao, Vec X, Mat H, Mat Hpre, void *ptr)
   const PetscScalar *x;
   const PetscScalar *o = NULL;
   PetscMemType       memtype_x, memtype_h;
+  PetscDeviceContext dctx, current_dctx;
 
   PetscFunctionBeginUser;
+  PetscCall(TaoGetCallbackDeviceContext(tao, &dctx));
+  PetscCall(PetscDeviceContextGetCurrentContext(&current_dctx));
+  PetscCall(PetscDeviceContextSetCurrentContext(dctx));
   if (user->chained) {
     PetscCall(VecScatterBegin(user->off_process_scatter, X, user->off_process_values, INSERT_VALUES, SCATTER_FORWARD));
     PetscCall(VecScatterEnd(user->off_process_scatter, X, user->off_process_values, INSERT_VALUES, SCATTER_FORWARD));
@@ -568,7 +600,12 @@ static PetscErrorCode FormHessian(Tao tao, Vec X, Mat H, Mat Hpre, void *ptr)
     PetscCall(RosenbrockHessian_Host(user->n_local_comp, user->n_local, user->chained ? 1 : 2, user->alpha, x, o, h));
 #if PetscDefined(HAVE_CUDA) && PetscDefined(USING_NVCC)
   } else if (memtype_x == PETSC_MEMTYPE_CUDA) {
-    PetscCall(RosenbrockHessian_CUDA(user->n_local_comp, user->n_local, user->chained ? 1 : 2, user->alpha, x, o, h));
+    void              *handle;
+    cudaStream_t       stream;
+
+    PetscCall(PetscDeviceContextGetStreamHandle(dctx, &handle));
+    stream = *((cudaStream_t *) handle);
+    PetscCall(RosenbrockHessian_CUDA(stream, user->n_local_comp, user->n_local, user->chained ? 1 : 2, user->alpha, x, o, h));
 #endif
   } else SETERRQ(user->comm, PETSC_ERR_SUP, "Unsuported memtype %d", (int) memtype_x);
 
@@ -581,6 +618,7 @@ static PetscErrorCode FormHessian(Tao tao, Vec X, Mat H, Mat Hpre, void *ptr)
   if (Hpre != H) {
     PetscCall(MatCopy(H, Hpre, SAME_NONZERO_PATTERN));
   }
+  PetscCall(PetscDeviceContextSetCurrentContext(current_dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

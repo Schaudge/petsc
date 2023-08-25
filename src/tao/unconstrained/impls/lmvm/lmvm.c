@@ -73,15 +73,15 @@ static PetscErrorCode TaoSolve_LMVM(Tao tao)
          scaled gradient step.  No need to check for this condition. */
       stepType = LMVM_STEP_GRAD;
     }
-    PetscCall(VecScaleAsync_Private(lmP->D, -1.0, lmP->dctx));
+    PetscCall(VecScaleAsync_Private(lmP->D, -1.0, tao->dctx));
 
     /*  Perform the linesearch */
     fold = f;
-    PetscCall(VecCopyAsync_Private(tao->solution, lmP->Xold, lmP->dctx));
-    PetscCall(VecCopyAsync_Private(tao->gradient, lmP->Gold, lmP->dctx));
+    PetscCall(VecCopyAsync_Private(tao->solution, lmP->Xold, tao->dctx));
+    PetscCall(VecCopyAsync_Private(tao->gradient, lmP->Gold, tao->dctx));
 
     // synchronize lmp->D before entering line search
-    if (lmP->dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(NULL, lmP->dctx));
+    if (tao->dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(NULL, tao->dctx));
 
     PetscCall(TaoLineSearchApply(tao->linesearch, tao->solution, &f, tao->gradient, lmP->D, &step, &ls_status));
     PetscCall(TaoAddLineSearchCounts(tao));
@@ -89,8 +89,8 @@ static PetscErrorCode TaoSolve_LMVM(Tao tao)
     if (ls_status != TAOLINESEARCH_SUCCESS && ls_status != TAOLINESEARCH_SUCCESS_USER && (stepType != LMVM_STEP_GRAD)) {
       /*  Reset factors and use scaled gradient step */
       f = fold;
-      PetscCall(VecCopyAsync_Private(lmP->Xold, tao->solution, lmP->dctx));
-      PetscCall(VecCopyAsync_Private(lmP->Gold, tao->gradient, lmP->dctx));
+      PetscCall(VecCopyAsync_Private(lmP->Xold, tao->solution, tao->dctx));
+      PetscCall(VecCopyAsync_Private(lmP->Gold, tao->gradient, tao->dctx));
 
       /*  Failed to obtain acceptable iterate with BFGS step */
       /*  Attempt to use the scaled gradient direction */
@@ -113,8 +113,8 @@ static PetscErrorCode TaoSolve_LMVM(Tao tao)
     if (ls_status != TAOLINESEARCH_SUCCESS && ls_status != TAOLINESEARCH_SUCCESS_USER) {
       /*  Failed to find an improving point */
       f = fold;
-      PetscCall(VecCopyAsync_Private(lmP->Xold, tao->solution, lmP->dctx));
-      PetscCall(VecCopyAsync_Private(lmP->Gold, tao->gradient, lmP->dctx));
+      PetscCall(VecCopyAsync_Private(lmP->Xold, tao->solution, tao->dctx));
+      PetscCall(VecCopyAsync_Private(lmP->Gold, tao->gradient, tao->dctx));
       step        = 0.0;
       tao->reason = TAO_DIVERGED_LS_FAILURE;
     } else {
@@ -134,7 +134,7 @@ static PetscErrorCode TaoSolve_LMVM(Tao tao)
     }
 
     // synchronize tao->solution and tao->gradient before entering convergence and monitor callbacks
-    if (lmP->dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(NULL, lmP->dctx));
+    if (tao->dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(NULL, tao->dctx));
 
     /* Check convergence */
     tao->niter++;
@@ -185,8 +185,7 @@ static PetscErrorCode TaoDestroy_LMVM(Tao tao)
   }
   PetscCall(MatDestroy(&lmP->M));
   if (lmP->H0) PetscCall(PetscObjectDereference((PetscObject)lmP->H0));
-  PetscCall(PetscDeviceContextDestroy(&lmP->dctx));
-  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoLMVMSetInternalDeviceContext_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoSetInternalDeviceContext_C", NULL));
   PetscCall(PetscFree(tao->data));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -194,29 +193,14 @@ static PetscErrorCode TaoDestroy_LMVM(Tao tao)
 /*------------------------------------------------------------*/
 static PetscErrorCode TaoSetFromOptions_LMVM(Tao tao, PetscOptionItems *PetscOptionsObject)
 {
-  PetscStreamType stream_type = PETSC_STREAM_GLOBAL_BLOCKING;
-  PetscBool flg;
   TAO_LMVM *lm = (TAO_LMVM *)tao->data;
 
   PetscFunctionBegin;
   PetscOptionsHeadBegin(PetscOptionsObject, "Limited-memory variable-metric method for unconstrained optimization");
   PetscCall(PetscOptionsBool("-tao_lmvm_recycle", "enable recycling of the BFGS matrix between subsequent TaoSolve() calls", "", lm->recycle, &lm->recycle, NULL));
-  PetscCall(PetscOptionsEnum("-tao_lmvm_internal_device_context", "use a device context with the specified stream type for internal linear algebra operations", "TaoLMVMSetInternalDeviceContext()", PetscStreamTypes, (PetscEnum) stream_type, (PetscEnum *) &stream_type, &flg));
   PetscCall(TaoLineSearchSetFromOptions(tao->linesearch));
   PetscCall(MatSetFromOptions(lm->M));
   PetscOptionsHeadEnd();
-  if (flg) {
-    PetscDeviceContext dctx;
-    PetscDevice        device;;
-
-    PetscCall(PetscDeviceContextCreate(&dctx));
-    PetscCall(PetscDeviceContextGetDevice(NULL, &device));
-    PetscCall(PetscDeviceContextSetDevice(dctx, device));
-    PetscCall(PetscDeviceContextSetStreamType(dctx, stream_type));
-    PetscCall(PetscDeviceContextSetUp(dctx));
-    PetscCall(TaoLMVMSetInternalDeviceContext(tao, dctx));
-    PetscCall(PetscDeviceContextDestroy(&dctx));
-  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -246,51 +230,21 @@ static PetscErrorCode TaoView_LMVM(Tao tao, PetscViewer viewer)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/*@C
-  TaoLMVMSetInternalDeviceContext - Set the device context for use within the `TaoSolve()`
-
-  Logically collective
-
-  Input Parameters:
-+ tao  - a `TAOLMVM`
-- dctx - a `PetscDeviceContext`
-
-  Options Database Key:
-. -tao_lmvm_async - boolean that creates a nonblocking internal device context for a `TAOLMVM`
-
-  Note:
-  See notes to `MatLMVMSetInternalDeviceContext()` for explanation.
-
-.seealso: `TAOLMVM`, `PetscDeviceContext`, `PetscDeviceContextCreate()`, `PetscDeviceContextGeStreamType()`
-@*/
-PetscErrorCode TaoLMVMSetInternalDeviceContext(Tao tao, PetscDeviceContext dctx)
+static PetscErrorCode TaoSetInternalDeviceContext_LMVM(Tao tao, PetscDeviceContext dctx)
 {
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
-  if (dctx) PetscValidHeaderSpecific(dctx, PETSC_DEVICE_CONTEXT_CLASSID, 2);
-  PetscTryMethod(tao, "TaoLMVMSetInternalDeviceContext_C", (Tao, PetscDeviceContext), (tao, dctx));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-static PetscErrorCode TaoLMVMSetInternalDeviceContext_LMVM(Tao tao, PetscDeviceContext dctx)
-{
-  TAO_LMVM  *lmP;
-  PetscBool  is_lmvm, is_blmvm;
-  Mat        M = NULL;
+  TAO_LMVM  *lmP = (TAO_LMVM *)tao->data;
 
   PetscFunctionBegin;
-  PetscCall(PetscObjectTypeCompare((PetscObject)tao, TAOLMVM, &is_lmvm));
-  PetscCall(PetscObjectTypeCompare((PetscObject)tao, TAOBLMVM, &is_blmvm));
   PetscCall(PetscObjectReference((PetscObject) dctx));
-  lmP = (TAO_LMVM *)tao->data;
-  M   = lmP->M;
-  PetscCall(PetscDeviceContextDestroy(&lmP->dctx));
-  lmP->dctx = dctx;
-  if (M) PetscCall(MatLMVMSetInternalDeviceContext(M, dctx));
-  if (tao->linesearch) PetscCall(TaoLineSearchSetInternalDeviceContext_Private(tao->linesearch, dctx));
+  PetscCall(PetscDeviceContextDestroy(&tao->dctx));
+  tao->dctx = dctx;
+  if (lmP->M) PetscCall(MatLMVMSetInternalDeviceContext(lmP->M, dctx));
+  if (tao->linesearch) {
+    PetscCall(TaoLineSearchSetInternalDeviceContext(tao->linesearch, dctx));
+    if (tao->linesearch->usetaoroutines) PetscCall(TaoLineSearchSetCallbackDeviceContext(tao->linesearch, dctx));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
 
 /* ---------------------------------------------------------- */
 
@@ -348,6 +302,6 @@ PETSC_EXTERN PetscErrorCode TaoCreate_LMVM(Tao tao)
   PetscCall(MatSetType(lmP->M, MATLMVMBFGS));
   PetscCall(MatSetOptionsPrefix(lmP->M, "tao_lmvm_"));
 
-  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoLMVMSetInternalDeviceContext_C", TaoLMVMSetInternalDeviceContext_LMVM));
+  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoSetInternalDeviceContext_C", TaoSetInternalDeviceContext_LMVM));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
