@@ -429,4 +429,21 @@ static inline PetscErrorCode PetscDeviceContextSynchronizeIfGlobalBlocking_Inter
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static inline PetscErrorCode PetscDeviceContextWaitForContextIfNecessary_Internal(PetscDeviceContext dctxa, PetscDeviceContext dctxb)
+{
+  PetscStreamType streama, streamb;
+
+  PetscFunctionBegin;
+  PetscCall(PetscDeviceContextGetOptionalNullContext_Internal(&dctxa));
+  PetscCall(PetscDeviceContextGetOptionalNullContext_Internal(&dctxb));
+  PetscCheckCompatibleDeviceContexts(dctxa, 1, dctxb, 2);
+  PetscCall(PetscDeviceContextGetStreamType(dctxa, &streama));
+  PetscCall(PetscDeviceContextGetStreamType(dctxb, &streamb));
+  // in the following two cases the streams are implicitly synchronous
+  if (streama == PETSC_STREAM_GLOBAL_BLOCKING && streamb != PETSC_STREAM_GLOBAL_NONBLOCKING) PetscFunctionReturn(PETSC_SUCCESS);
+  if (streamb == PETSC_STREAM_GLOBAL_BLOCKING && streama != PETSC_STREAM_GLOBAL_NONBLOCKING) PetscFunctionReturn(PETSC_SUCCESS);
+  PetscCall(PetscDeviceContextWaitForContext(dctxa, dctxb));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 #endif /* PETSCDEVICEIMPL_H */
