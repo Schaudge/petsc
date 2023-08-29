@@ -30,7 +30,7 @@ int main(int argc, char **argv)
   PC pc;
   Mat MM;
   Vec sol;
-  PetscBool flg, cuda = PETSC_FALSE; 
+  PetscBool flg, cuda = PETSC_FALSE;
 
   PetscInt M = 10;
   PetscInt N = 10;
@@ -41,8 +41,8 @@ int main(int argc, char **argv)
   PetscOptionsEnd();
 
   if (cuda) {
-    VecType vec_type;  
-    PetscCall(VecCreateSeqCUDA(comm, N, &ctx.b)); 
+    VecType vec_type;
+    PetscCall(VecCreateSeqCUDA(comm, N, &ctx.b));
     PetscCall(VecGetType(ctx.b, &vec_type));
     PetscCall(MatCreateDenseFromVecType(comm, vec_type, M, N, PETSC_DECIDE, PETSC_DECIDE, -1, NULL, &ctx.A));
     PetscCall(MatCreateVecs(ctx.A, &sol, NULL));
@@ -86,6 +86,7 @@ int main(int argc, char **argv)
 
   test:
     suffix: 1
+
     args: -tao_monitor -tao_ls_gtol 1.e-6 -tao_view -tao_lmvm_mat_lmvm_hist_size 20 -tao_lmvm_mat_type lmvmcdbfgs
 
 TEST*/
