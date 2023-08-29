@@ -148,7 +148,6 @@ static PetscErrorCode MatUpdate_LMVMBFGS(Mat B, Vec X, Vec F)
   PetscInt      old_k, i;
   PetscReal     curvtol, ststmp;
   PetscScalar   curvature, ytytmp;
-  PetscBool     copy_XF = PETSC_TRUE;;
 
   PetscFunctionBegin;
   if (!lmvm->m) PetscFunctionReturn(PETSC_SUCCESS);
@@ -168,7 +167,6 @@ static PetscErrorCode MatUpdate_LMVMBFGS(Mat B, Vec X, Vec F)
       lbfgs->needP    = PETSC_TRUE;
       old_k           = lmvm->k;
       PetscCall(MatUpdateKernel_LMVM(B, lmvm->Xprev, lmvm->Fprev));
-      copy_XF = PETSC_FALSE; // copied in MatUpdateKernel_LMVM
       /* If we hit the memory limit, shift the yts, yty and sts arrays */
       if (old_k == lmvm->k) {
         for (i = 0; i <= lmvm->k - 1; ++i) {
@@ -216,10 +214,8 @@ static PetscErrorCode MatUpdate_LMVMBFGS(Mat B, Vec X, Vec F)
   }
 
   /* Save the solution and function to be used in the next update */
-  if (copy_XF) {
-    PetscCall(VecCopyAsync_Private(X, lmvm->Xprev, lmvm->dctx));
-    PetscCall(VecCopyAsync_Private(F, lmvm->Fprev, lmvm->dctx));
-  }
+  PetscCall(VecCopyAsync_Private(X, lmvm->Xprev, lmvm->dctx));
+  PetscCall(VecCopyAsync_Private(F, lmvm->Fprev, lmvm->dctx));
   lmvm->prev_set = PETSC_TRUE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

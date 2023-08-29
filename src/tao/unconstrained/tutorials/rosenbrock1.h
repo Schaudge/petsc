@@ -108,6 +108,8 @@ static PetscErrorCode AppCtxCreate(MPI_Comm comm, AppCtx *ctx)
   PetscCall(PetscOptionsInt("-bs", "Rosenbrock block size (2 <= bs <= n)", NULL, user->problem.bs, &user->problem.bs, NULL));
   PetscCall(PetscOptionsReal("-alpha", "Rosenbrock off-diagonal coefficient", NULL, user->problem.alpha, &user->problem.alpha, NULL));
   PetscOptionsEnd();
+  PetscCheck(user->problem.bs >= 1, comm, PETSC_ERR_ARG_INCOMP, "Block size %" PetscInt_FMT " is not bigger than 1", user->problem.bs);
+  PetscCheck((user->n % user->problem.bs) == 0, comm, PETSC_ERR_ARG_INCOMP, "Block size %" PetscInt_FMT " doest not divide problem size % " PetscInt_FMT, user->problem.bs, user->n);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -664,7 +666,7 @@ static PetscErrorCode TestLMVM(Tao tao)
     PetscCall(VecDuplicate(x, &in));
     PetscCall(VecDuplicate(x, &out));
     PetscCall(VecDuplicate(x, &out2));
-    PetscCall(VecSet(in, 1.0));
+    PetscCall(VecSetRandom(in, NULL));
     PetscCall(MatMult(M, in, out));
     PetscCall(MatSolve(M, out, out2));
 
