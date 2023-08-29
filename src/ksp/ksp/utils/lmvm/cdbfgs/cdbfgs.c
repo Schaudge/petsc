@@ -171,6 +171,8 @@ static PetscErrorCode VecRightward_Shift(Mat B, Vec X, PetscInt step)
   MPI_Comm     comm = PetscObjectComm((PetscObject)B);
 
   PetscFunctionBegin;
+  PetscCall(VecGetLocalSize(X, &N));
+  if (!N) PetscFunctionReturn(PETSC_SUCCESS);
   switch (lbfgs->strategy) {
     case MAT_LBFGS_CD_REORDER:
       if ((lbfgs->idx_rplc == lmvm->m) || lbfgs->idx_rplc <= 0) {
@@ -178,9 +180,6 @@ static PetscErrorCode VecRightward_Shift(Mat B, Vec X, PetscInt step)
       } else {
         PetscMemType memtype_x;
         size = PetscAbs(step);
-
-        PetscCall(VecGetSize(X, &N));
-
         PetscCall(VecGetArrayAndMemType(X, &x_array, &memtype_x));
         switch (memtype_x) {
           case PETSC_MEMTYPE_HOST:
@@ -659,11 +658,13 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
   PetscScalar  Alpha = 1.0, neg_one = -1.;
   PetscMemType memtype_r, memtype_x;
   PetscScalar *x_array;
-  PetscInt     lda;
+  PetscInt     lda, M;
 
   const PetscScalar *r_array;
 
   PetscFunctionBegin;
+  PetscCall(MatGetLocalSize(R, &M, NULL));
+  if (!M) PetscFunctionReturn(PETSC_SUCCESS);
   PetscCall(MatDenseGetArrayReadAndMemType(R, &r_array, &memtype_r));
   PetscCall(VecGetArrayAndMemType(x, &x_array, &memtype_x));
   PetscCall(MatDenseGetLDA(R, &lda));
@@ -1671,15 +1672,22 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     PetscCall(VecDuplicate(X, &lmvm->Xprev));
     PetscCall(VecDuplicate(F, &lmvm->Fprev));
     if (lmvm->m > 0) {
+      PetscMPIInt rank;
+      PetscInt m, M;
+
+      PetscCall(MPI_Comm_rank(comm, &rank));
+      M = lmvm->m;
+      m = (rank == 0) ? N : 0;
+
       /* Create iteration storage matrices */
       PetscCall(VecGetType(X, &vec_type));
-      PetscCall(MatCreateDenseFromVecType(comm, vec_type, n, lmvm->m, N, lmvm->m, -1, NULL, &lbfgs->Sfull));
+      PetscCall(MatCreateDenseFromVecType(comm, vec_type, n, m, N, M, -1, NULL, &lbfgs->Sfull));
       /* If rwork is bound to CPU, then STYfull is on host */
       if (lbfgs->bind) {
-        PetscCall(MatCreateDense(comm, lmvm->m, lmvm->m, lmvm->m, lmvm->m,  NULL, &lbfgs->StYfull));
-        PetscCall(MatCreateDenseFromVecType(comm, vec_type, lmvm->m, lmvm->m, lmvm->m, lmvm->m, -1, NULL, &lbfgs->StYfull_device));
+        PetscCall(MatCreateDense(comm, m, m, M, M,  NULL, &lbfgs->StYfull));
+        PetscCall(MatCreateDenseFromVecType(comm, vec_type, m, m, M, M, -1, NULL, &lbfgs->StYfull_device));
       } else {
-        PetscCall(MatCreateDenseFromVecType(comm, vec_type, lmvm->m, lmvm->m, lmvm->m, lmvm->m, -1, NULL, &lbfgs->StYfull));
+        PetscCall(MatCreateDenseFromVecType(comm, vec_type, m, m, M, M, -1, NULL, &lbfgs->StYfull));
 //        PetscObjectReference((PetscObject)lbfgs->StYfull_device);
       }
       PetscCall(MatDuplicate(lbfgs->Sfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->Yfull));
@@ -1689,7 +1697,7 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       /* Create intermediate (sequential and small) matrices */
       //TODO: NOTE: "MMTM: This routine is currently only implemented for pairs of MATSEQAIJ matrices, for the MATSEQDENSE class, and for pairs of MATMPIDENSE matrices."
 //      PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
-      PetscCall(MatCreateDenseFromVecType(comm, vec_type, lmvm->m, lmvm->m, lmvm->m, lmvm->m, -1, NULL, &lbfgs->J));
+      PetscCall(MatCreateDenseFromVecType(comm, vec_type, m, m, M, M, -1, NULL, &lbfgs->J));
       PetscCall(MatDuplicate(lbfgs->J, MAT_DO_NOT_COPY_VALUES, &lbfgs->J_work));
       PetscCall(MatCreateVecs(lbfgs->J, &lbfgs->rwork1, &lbfgs->rwork2));
       PetscCall(MatCreateVecs(lbfgs->J, &lbfgs->rwork3, &lbfgs->rwork4));
@@ -1778,6 +1786,7 @@ static PetscErrorCode MatSetUp_LMVMCDBFGS(Mat B)
   PetscCall(MatGetSize(B, &M, &N));
   if (M == 0 && N == 0) SETERRQ(comm, PETSC_ERR_ORDER, "MatSetSizes() must be called before MatSetUp()");
   if (!lmvm->allocated) {
+    // MatCreateVecs() ???
     PetscCall(MPI_Comm_size(comm, &size));
     if (size == 1) {
       PetscCall(VecCreateSeq(comm, N, &Xtmp));
