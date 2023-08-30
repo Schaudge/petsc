@@ -12,6 +12,57 @@ static PetscErrorCode makeFullDuplicate(Mat A, Mat *A_dup)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode testSymmetricSolve(Mat A, Mat A_full, PetscBool positive_definite)
+{
+  Mat            A_fac, A_full_fac;
+  Vec            b, x, x_full;
+  PetscReal      err;
+  MatStorageType storage;
+  MPI_Comm       comm;
+
+  PetscFunctionBegin;
+  PetscCall(MatGetStorageType(A, &storage));
+  PetscCall(PetscObjectGetComm((PetscObject)A, &comm));
+  PetscCall(MatCreateVecs(A, &x, &b));
+  PetscCall(VecDuplicate(x, &x_full));
+  PetscCall(VecSetRandom(b, NULL));
+
+  if (MatStorageIsHermitian(storage)) {
+    PetscCall(MatSetOption(A, MAT_HERMITIAN, PETSC_TRUE));
+    PetscCall(MatSetOption(A_full, MAT_HERMITIAN, PETSC_TRUE));
+  } else if (MatStorageIsSymmetric(storage)) {
+    PetscCall(MatSetOption(A, MAT_SYMMETRIC, PETSC_TRUE));
+    PetscCall(MatSetOption(A_full, MAT_SYMMETRIC, PETSC_TRUE));
+  }
+  PetscCall(MatSetOption(A, MAT_SPD, positive_definite));
+  PetscCall(MatSetOption(A_full, MAT_SPD, positive_definite));
+  PetscCall(MatGetFactor(A, MATSOLVERPETSC, MAT_FACTOR_CHOLESKY, &A_fac));
+  PetscCall(MatGetFactor(A_full, MATSOLVERPETSC, MAT_FACTOR_CHOLESKY, &A_full_fac));
+  PetscCall(MatCholeskyFactorSymbolic(A_fac, A, NULL, NULL));
+  PetscCall(MatCholeskyFactorSymbolic(A_full_fac, A_full, NULL, NULL));
+  PetscCall(MatCholeskyFactorNumeric(A_fac, A, NULL));
+  PetscCall(MatCholeskyFactorNumeric(A_full_fac, A_full, NULL));
+
+  PetscCall(MatSolve(A_fac, b, x));
+  PetscCall(MatSolve(A_full_fac, b, x_full));
+  PetscCall(VecAXPY(x_full, -1.0, x));
+  PetscCall(VecNorm(x_full, NORM_INFINITY, &err));
+  PetscCheck(err < PETSC_SMALL, comm, PETSC_ERR_PLIB, "Solve %s, error %g", MatStorageTypes[storage], (double)err);
+
+  PetscCall(MatSolveTranspose(A_fac, b, x));
+  PetscCall(MatSolveTranspose(A_full_fac, b, x_full));
+  PetscCall(VecAXPY(x_full, -1.0, x));
+  PetscCall(VecNorm(x_full, NORM_INFINITY, &err));
+  PetscCheck(err < PETSC_SMALL, comm, PETSC_ERR_PLIB, "SolveTranspose %s, error %g", MatStorageTypes[storage], (double)err);
+
+  PetscCall(VecDestroy(&x_full));
+  PetscCall(VecDestroy(&b));
+  PetscCall(VecDestroy(&x));
+  PetscCall(MatDestroy(&A_full_fac));
+  PetscCall(MatDestroy(&A_fac));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 static PetscErrorCode testStorage(MatStorageType storage, PetscInt m, PetscInt n)
 {
   Mat       A, A_full;
@@ -66,9 +117,7 @@ static PetscErrorCode testStorage(MatStorageType storage, PetscInt m, PetscInt n
     PetscCall(MatDenseGetLDA(B, &ld));
     PetscCall(MatDenseGetArray(B, &b));
     for (PetscInt j = 0; j < n; j++) {
-      for (PetscInt i = 0; i < m; i++) {
-        b[i + j * ld] = 1.0;
-      }
+      for (PetscInt i = 0; i < m; i++) { b[i + j * ld] = 1.0; }
     }
     PetscCall(MatDenseRestoreArray(B, &b));
     PetscCall(makeFullDuplicate(B, &B_full));
@@ -115,37 +164,10 @@ static PetscErrorCode testStorage(MatStorageType storage, PetscInt m, PetscInt n
   }
 
   if (m == n && MatStorageIsHermitian(storage)) {
-    Mat       A_fac, A_full_fac;
-    Vec       b, x, x_full;
-    PetscReal err;
-
-    PetscCall(MatCreateVecs(A, &x, &b));
-    PetscCall(VecDuplicate(x, &x_full));
-    PetscCall(VecSetRandom(b, NULL));
-
-    PetscCall(MatSetOption(A, MAT_HERMITIAN, PETSC_TRUE));
-    PetscCall(MatSetOption(A, MAT_SPD, PETSC_TRUE));
-    PetscCall(MatGetFactor(A, MATSOLVERPETSC, MAT_FACTOR_CHOLESKY, &A_fac));
-    PetscCall(MatGetFactor(A_full, MATSOLVERPETSC, MAT_FACTOR_CHOLESKY, &A_full_fac));
-    PetscCall(MatCholeskyFactorSymbolic(A_fac, A, NULL, NULL));
-    PetscCall(MatCholeskyFactorSymbolic(A_full_fac, A_full, NULL, NULL));
-    PetscCall(MatCholeskyFactorNumeric(A_fac, A, NULL));
-    PetscCall(MatCholeskyFactorNumeric(A_full_fac, A_full, NULL));
-
-    PetscCall(MatSolve(A_fac, b, x));
-    PetscCall(MatSolve(A_full_fac, b, x_full));
-    PetscCall(VecAXPY(x_full, -1.0, x));
-    PetscCall(VecNorm(x_full, NORM_INFINITY, &err));
-    PetscCheck(err < PETSC_SMALL, comm, PETSC_ERR_PLIB, "Solve %s, error %g", MatStorageTypes[storage], (double)err);
-
-    PetscCall(MatSolveTranspose(A_fac, b, x));
-    PetscCall(MatSolveTranspose(A_full_fac, b, x_full));
-    PetscCall(VecAXPY(x_full, -1.0, x));
-    PetscCall(VecNorm(x_full, NORM_INFINITY, &err));
-    PetscCheck(err < PETSC_SMALL, comm, PETSC_ERR_PLIB, "SolveTranspose %s, error %g", MatStorageTypes[storage], (double)err);
-
-    PetscCall(MatDestroy(&A_full_fac));
-    PetscCall(MatDestroy(&A_fac));
+    PetscCall(testSymmetricSolve(A, A_full, PETSC_TRUE));  // test Cholesky
+    PetscCall(testSymmetricSolve(A, A_full, PETSC_FALSE)); // test L D L^H / U^H D U
+  } else if (m == n && MatStorageIsSymmetric(storage)) {
+    PetscCall(testSymmetricSolve(A, A_full, PETSC_FALSE)); // test L D L^T / U^T D U
   }
 
   PetscCall(MatDestroy(&A_full));

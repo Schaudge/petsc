@@ -58,7 +58,7 @@ static PetscErrorCode MatSolve_SeqDense_Triangular_Internal(Mat A, Vec B, Vec X,
   PetscCall(VecGetArrayRead(B, &b));
   PetscCall(VecGetArrayWrite(X, &x));
   PetscCall(PetscArraycpy(x, b, minmn));
-  PetscCall(PetscArrayzero(&x[minmn], (trans[0] == 'N' ? n  : m) - minmn));
+  PetscCall(PetscArrayzero(&x[minmn], (trans[0] == 'N' ? n : m) - minmn));
   PetscCallBLAS("BLAStrsv", BLAStrsv_(lower ? "L" : "U", trans, unit ? "U" : "N", &minmn, mat->v, &mat->lda, x, &_One));
   PetscCall(VecRestoreArrayWrite(X, &x));
   PetscCall(VecRestoreArrayRead(B, &b));
@@ -989,6 +989,9 @@ static PetscErrorCode MatCholeskyFactorNumeric_SeqDense(Mat fact, Mat A, const M
   info.fill = 1.0;
 
   PetscCall(MatDuplicateNoCreate_SeqDense(fact, A, MAT_COPY_VALUES));
+  fact->hermitian = A->hermitian;
+  fact->symmetric = A->symmetric;
+  fact->spd       = A->spd;
   PetscUseTypeMethod(fact, choleskyfactor, NULL, &info);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -2354,18 +2357,6 @@ static PetscErrorCode MatSetOption_SeqDense(Mat A, MatOption op, PetscBool flg)
   case MAT_IGNORE_LOWER_TRIANGULAR:
     if (aij->storage_type == MAT_STORAGE_FULL) PetscCall(MatSetStorageType(A, MAT_STORAGE_UPPER_TRIANGULAR));
     break;
-  case MAT_SYMMETRIC:
-    if (aij->storage_type == MAT_STORAGE_FULL) {
-      if (PetscDefined(USE_COMPLEX)) {
-        PetscCall(MatSetStorageType(A, MAT_STORAGE_SYMMETRIC_UPPER));
-      } else {
-        PetscCall(MatSetStorageType(A, MAT_STORAGE_HERMITIAN_UPPER));
-      }
-    }
-    break;
-  case MAT_HERMITIAN:
-    if (aij->storage_type == MAT_STORAGE_FULL) PetscCall(MatSetStorageType(A, MAT_STORAGE_HERMITIAN_UPPER));
-    break;
   case MAT_NEW_NONZERO_LOCATIONS:
   case MAT_NEW_NONZERO_LOCATION_ERR:
   case MAT_NEW_NONZERO_ALLOCATION_ERR:
@@ -2378,7 +2369,9 @@ static PetscErrorCode MatSetOption_SeqDense(Mat A, MatOption op, PetscBool flg)
     PetscCall(PetscInfo(A, "Option %s ignored\n", MatOptions[op]));
     break;
   case MAT_SPD:
+  case MAT_SYMMETRIC:
   case MAT_STRUCTURALLY_SYMMETRIC:
+  case MAT_HERMITIAN:
   case MAT_SYMMETRY_ETERNAL:
   case MAT_STRUCTURAL_SYMMETRY_ETERNAL:
   case MAT_SPD_ETERNAL:
@@ -4149,14 +4142,12 @@ static PetscErrorCode MatSetStorageType_SeqDense(Mat mat, MatStorageType type)
 
   PetscFunctionBegin;
   if (type != a->storage_type && a->storage_type != MAT_STORAGE_FULL) {
-    PetscScalar  *v;
+    PetscScalar *v;
 
     PetscCall(MatDenseGetArray(mat, &v));
     // fill entries before switching types
     for (PetscInt j = 0; j < mat->cmap->n; j++) {
-      for (PetscInt i = 0; i < mat->rmap->n; i++) {
-        v[i + j * a->lda] = MatStorageDenseValue(a->storage_type, v, i, j, a->lda);
-      }
+      for (PetscInt i = 0; i < mat->rmap->n; i++) { v[i + j * a->lda] = MatStorageDenseValue(a->storage_type, v, i, j, a->lda); }
     }
     PetscCall(MatDenseRestoreArray(mat, &v));
   }

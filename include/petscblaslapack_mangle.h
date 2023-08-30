@@ -220,8 +220,8 @@
     #define LAPACKstebz_ PETSCBLAS(stebz, STEBZ) /* eigenvalues of symm tridiagonal matrix */
   #endif
 
-  #define BLAShemv_ PETSCBLAS(hemv, HEMV)
-  #define BLAShemm_ PETSCBLAS(hemm, HEMM)
+  #define BLAShemv_ PETSCBLAS(symv, SYMV)
+  #define BLAShemm_ PETSCBLAS(symm, SYMM)
 #else
   #define LAPACKhetrf_ PETSCBLAS(hetrf, HETRF)
   #define LAPACKhetrs_ PETSCBLAS(hetrs, HETRS)
@@ -240,6 +240,6 @@
   #define LAPACKsygv_  PETSCBLAS(hegv, HEGV)
   #define LAPACKsygvx_ PETSCBLAS(hegvx, HEGVX)
 
-  #define BLAShemv_ PETSCBLAS(symv, HEMV)
-  #define BLAShemm_ PETSCBLAS(symm, HEMM)
+  #define BLAShemv_ PETSCBLAS(hemv, HEMV)
+  #define BLAShemm_ PETSCBLAS(hemm, HEMM)
 #endif
