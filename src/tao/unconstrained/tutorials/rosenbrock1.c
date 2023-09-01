@@ -140,48 +140,27 @@ int main(int argc, char **argv)
 
    test: 
      suffix: 29
-     args: -tao_type bqnktr -tao_max_it 10 -tao_bqnk_mat_type lmvmcdbfgs -mat_lbfgs_type cd_reorder 
+     args: -tao_type lmvm -tao_max_it 10 -tao_lmvm_mat_type lmvmcdbfgs -mat_lbfgs_type cd_reorder 
 
    test: 
-     requires: cuda
      suffix: 30
-     args: -tao_type bqnktr -tao_max_it 10 -tao_bqnk_mat_type lmvmcdbfgs -mat_lbfgs_type cd_reorder -cuda
+     args: -tao_type lmvm -tao_max_it 10 -tao_lmvm_mat_type lmvmcdbfgs -mat_lbfgs_type cd_inplace
 
    test: 
      suffix: 31
-     args: -tao_type bqnktr -tao_max_it 10 -tao_bqnk_mat_type lmvmcdbfgs -mat_lbfgs_type cd_inplace
+     args: -tao_type lmvm -tao_max_it 10 -tao_lmvm_mat_type lmvmcdbfgs -mat_lbfgs_type cd_reorder -tao_lmvm_mat_lmvm_scale_type none
 
    test: 
-     requires: cuda
      suffix: 32
-     args: -tao_type bqnktr -tao_max_it 10 -tao_bqnk_mat_type lmvmcdbfgs -mat_lbfgs_type cd_inplace -cuda
+     args: -tao_type lmvm -tao_max_it 10 -tao_lmvm_mat_type lmvmcdbfgs -mat_lbfgs_type cd_inplace -tao_lmvm_mat_lmvm_scale_type none
 
    test: 
      suffix: 33
      args: -tao_type bqnls -tao_bqnls_mat_type lmvmcdbfgs -tao_monitor -mat_lbfgs_type cd_reorder 
 
    test: 
-     requires: cuda
      suffix: 34
-     args: -tao_type bqnls -tao_bqnls_mat_type lmvmcdbfgs -tao_monitor -mat_lbfgs_type cd_reorder -cuda
-
-   test: 
-     suffix: 35
      args: -tao_type bqnls -tao_bqnls_mat_type lmvmcdbfgs -tao_monitor -mat_lbfgs_type cd_inplace
-
-   test: 
-     requires: cuda
-     suffix: 36
-     args: -tao_type bqnls -tao_bqnls_mat_type lmvmcdbfgs -tao_monitor -mat_lbfgs_type cd_inplace -cuda
-
-   test: 
-     suffix: 37
-     args: -tao_type bqnls -tao_bqnls_mat_type lmvmcdbfgs -tao_monitor -mat_lbfgs_type cd_inplace -J0_scale
-
-   test: 
-     requires: cuda
-     suffix: 38
-     args: -tao_type bqnls -tao_bqnls_mat_type lmvmcdbfgs -tao_monitor -mat_lbfgs_type cd_inplace -J0_scale -cuda
 
    test:
      suffix: snes

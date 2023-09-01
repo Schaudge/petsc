@@ -202,8 +202,13 @@ static PetscErrorCode VecRightward_Shift(Mat B, Vec X, PetscInt step)
           case PETSC_MEMTYPE_HIP:
 #if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
             {
-              PetscScalar *buffer2;
-              PetscDeviceContext dctx = lmvm->dctx;
+              PetscScalar       *buffer2;
+              PetscDeviceContext dctx;
+	      if (!lmvm->dctx){
+		PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+	      } else {
+	        dctx = lmvm->dctx;
+	      }
               PetscCall(PetscDeviceRegisterMemory(x_array, memtype_x, N*sizeof(*x_array)));
               PetscCall(PetscDeviceMalloc(dctx, memtype_x, size, &buffer1));
               PetscCall(PetscDeviceMalloc(dctx, memtype_x, N-size, &buffer2));
@@ -702,7 +707,11 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
         {
           cublasHandle_t handle;
 
-          PetscCall(PetscDeviceContextGetBLASHandle_Internal(lmvm->dctx, &handle));
+	  if (!lmvm->dctx) {
+            PetscCall(PetscCUBLASGetHandle(&handle));
+	  } else {
+            PetscCall(PetscDeviceContextGetBLASHandle_Internal(lmvm->dctx, &handle));
+	  }
 
           PetscCallCUBLAS(cublasSetPointerMode(handle, CUBLAS_POINTER_MODE_HOST));
 
@@ -814,7 +823,12 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
       {
         cublasHandle_t handle;
 
-        PetscCall(PetscDeviceContextGetBLASHandle_Internal(lmvm->dctx, &handle));
+	if (!lmvm->dctx) {
+	  PetscCall(PetscCUBLASGetHandle(&handle));
+	} else {
+          PetscCall(PetscDeviceContextGetBLASHandle_Internal(lmvm->dctx, &handle));
+	}
+
 
         //PetscAssert(PetscDefined(BLAS)...));
         PetscCuBLASInt m_blas, idx_blas, lda_blas, diff_blas, one = 1;
@@ -1677,7 +1691,7 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
 
       PetscCall(MPI_Comm_rank(comm, &rank));
       M = lmvm->m;
-      m = (rank == 0) ? N : 0;
+      m = (rank == 0) ? M : 0;
 
       /* Create iteration storage matrices */
       PetscCall(VecGetType(X, &vec_type));

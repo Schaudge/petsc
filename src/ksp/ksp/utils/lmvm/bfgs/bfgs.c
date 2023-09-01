@@ -31,6 +31,9 @@
      dX <- dX + ((alpha[i] - beta) * S[i])
    end
 */
+
+PetscLogEvent BFGS_MatSolve;
+
 PetscErrorCode MatSolve_LMVMBFGS(Mat B, Vec F, Vec dX)
 {
   Mat_LMVM    *lmvm  = (Mat_LMVM *)B->data;
@@ -40,6 +43,7 @@ PetscErrorCode MatSolve_LMVMBFGS(Mat B, Vec F, Vec dX)
   PetscScalar  stf, ytx;
 
   PetscFunctionBegin;
+  PetscCall(PetscLogEventBegin(BFGS_MatSolve, B, F, dX, 0));
   VecCheckSameSize(F, 2, dX, 3);
   VecCheckMatCompatible(B, dX, 3, F, 2);
 
@@ -66,6 +70,7 @@ PetscErrorCode MatSolve_LMVMBFGS(Mat B, Vec F, Vec dX)
     PetscCall(VecAXPYAsync_Private(dX, alpha[i] - beta, lmvm->S[i], lmvm->dctx));
   }
   PetscCall(PetscFree(alpha));
+  PetscCall(PetscLogEventEnd(BFGS_MatSolve, B, F, dX, 0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -78,7 +83,7 @@ PetscErrorCode MatSolve_LMVMBFGS(Mat B, Vec F, Vec dX)
   application in the DFP formulation, except with S and Y exchanging
   roles.
 
-  Note: P[i] = (B_i)*S[i] terms are computed ahead of time whenever
+Note: P[i] = (B_i)*S[i] terms are computed ahead of time whenever
   the matrix is updated with a new (S[i], Y[i]) pair. This allows
   repeated calls of MatMult inside KSP solvers without unnecessarily
   recomputing P[i] terms in expensive nested-loops.

@@ -579,6 +579,7 @@ static PetscErrorCode FormObjectiveGradient(Tao tao, Vec X, PetscReal *f, Vec G,
 #endif
   } else SETERRQ(user->comm, PETSC_ERR_SUP, "Unsuported memtype %d", (int) memtype_x);
 
+//  PetscCall(VecSetValuesCOO(G, g, INSERT_VALUES));
   PetscCall(VecSetValuesWithBorrowedCOO(G, user->gtemplate, g, INSERT_VALUES));
   PetscCall(VecRestoreArrayWriteAndMemType(user->gvalues, &g));
 

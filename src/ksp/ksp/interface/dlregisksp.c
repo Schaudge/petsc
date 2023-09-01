@@ -84,6 +84,8 @@ PetscErrorCode PCInitializePackage(void)
   PetscCall(PetscLogEventRegister("MatLMVMJ0Fwd", MAT_CLASSID, &LMVM_J0Fwd));
   PetscCall(PetscLogEventRegister("MatLMVMJ0Inv", MAT_CLASSID, &LMVM_J0Inv));
 
+  PetscCall(PetscLogEventRegister("BFGSMatSolve", MAT_CLASSID, &BFGS_MatSolve));
+
   PetscCall(PetscLogEventRegister("CDBFGSMatMult", MAT_CLASSID, &CDBFGS_MatMult));
   PetscCall(PetscLogEventRegister("CDBFGSMatSolve", MAT_CLASSID, &CDBFGS_MatSolve));
   PetscCall(PetscLogEventRegister("CDBFGSJ0Inv", MAT_CLASSID, &CDBFGS_J0Inv));
