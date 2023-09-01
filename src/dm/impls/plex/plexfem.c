@@ -448,6 +448,155 @@ static PetscErrorCode DMPlexBasisTransformGetMatrix_Rotation_Internal(DM dm, con
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+typedef struct {
+  PetscInt     dim;   /* The dimension of the ball */
+  PetscScalar *R;     /* The rotation matrix, transforming a vector in the local basis to the global basis */
+  PetscScalar *RT;    /* The transposed rotation matrix, transforming a vector in the global basis to the local basis */
+} SphCtx;
+
+static PetscErrorCode DMPlexBasisTransformSetUp_Spherical_Internal(DM dm, void *ctx)
+{
+  SphCtx  *sc  = (SphCtx *)ctx;
+  PetscInt dim = sc->dim;
+
+  PetscFunctionBegin;
+  PetscCheck(dim <= 3, PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_OUTOFRANGE, "Dimension %" PetscInt_FMT " not in [0, 3]", dim);
+  PetscCall(PetscMalloc2(PetscSqr(dim), &sc->R, PetscSqr(dim), &sc->RT));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode DMPlexBasisTransformDestroy_Spherical_Internal(DM dm, void *ctx)
+{
+  SphCtx *sc = (SphCtx *)ctx;
+
+  PetscFunctionBegin;
+  PetscCall(PetscFree2(sc->R, sc->RT));
+  PetscCall(PetscFree(sc));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode DMPlexBasisTransformGetMatrix_Spherical_Internal(DM dm, const PetscReal x[], PetscBool l2g, const PetscScalar **A, void *ctx)
+{
+  SphCtx *sc = (SphCtx *)ctx;
+
+  PetscFunctionBeginHot;
+  PetscAssertPointer(ctx, 5);
+  if (l2g) {
+    switch (sc->dim) {
+    case 2:
+      /* In 2D, for a given (x, y), we have
+
+         r = sqrt(x^2 + y^2)
+         theta = atan2(y, x)
+
+         and we want to rotate
+
+           \hat x --> \hat r
+           \hat y --> \hat theta
+
+         which means we rotate by angle theta. */
+      {
+        const PetscReal theta = PetscAtan2Real(x[1], x[0]);
+        const PetscReal c1    = PetscCosReal(theta);
+        const PetscReal s1    = PetscSinReal(theta);
+        sc->R[0] = c1;
+        sc->R[1] = s1;
+        sc->R[2] = -s1;
+        sc->R[3] = c1;
+      }
+      break;
+    case 3:
+      /* In 3D, for a given (x, y, z), we have
+
+         r          = sqrt(x^2 + y^2 + z^2)
+         cos(theta) = z / r
+         phi        = atan2(y, x)
+
+         and we want to rotate
+
+           \hat x --> \hat theta
+           \hat y --> \hat phi
+           \hat z --> \hat r
+
+         which means we rotate by angle phi around z, then by angle theta around y. */
+      {
+        const PetscReal r   = PetscSqrtReal(x[0] * x[0] + x[1] * x[1] + x[2] * x[2]);
+        const PetscReal phi = PetscAtan2Real(x[1], x[0]);
+        const PetscReal cp  = PetscCosReal(phi);
+        const PetscReal sp  = PetscSinReal(phi);
+        const PetscReal ct  = x[2] / r;
+        const PetscReal st  = PetscSqrtReal(1. - ct * ct);
+        sc->R[0] = cp * ct;
+        sc->R[1] = sp * ct;
+        sc->R[2] = -st;
+        sc->R[3] = -sp;
+        sc->R[4] = cp;
+        sc->R[5] = 0.;
+        sc->R[6] = cp * st;
+        sc->R[7] = sp * st;
+        sc->R[8] = ct;
+      }
+      break;
+    }
+    *A = sc->R;
+  } else {
+    switch (sc->dim) {
+    case 2:
+      /* In 2D, for a given (x, y), we have
+
+         r = sqrt(x^2 + y^2)
+         theta = atan2(y, x)
+
+         and we want to rotate \hat x into \hat r, and \hat y into \hat theta,
+         which means we rotate by angle -theta. */
+      {
+        const PetscReal theta = PetscAtan2Real(x[1], x[0]);
+        const PetscReal c1    = PetscCosReal(-theta);
+        const PetscReal s1    = PetscSinReal(-theta);
+        sc->R[0] = c1;
+        sc->R[1] = s1;
+        sc->R[2] = -s1;
+        sc->R[3] = c1;
+      }
+      break;
+    case 3:
+      /* In 3D, for a given (x, y, z), we have
+
+         r          = sqrt(x^2 + y^2 + z^2)
+         cos(theta) = z / r
+         phi        = atan2(y, x)
+
+         and we want to rotate
+
+           \hat x --> \hat theta
+           \hat y --> \hat phi
+           \hat z --> \hat r
+
+         which means we rotate by angle -theta around y, then by angle -phi around z. */
+      {
+        const PetscReal r   = PetscSqrtReal(x[0] * x[0] + x[1] * x[1] + x[2] * x[2]);
+        const PetscReal phi = PetscAtan2Real(x[1], x[0]);
+        const PetscReal cp  = PetscCosReal(phi);
+        const PetscReal sp  = PetscSinReal(phi);
+        const PetscReal ct  = x[2] / r;
+        const PetscReal st  = PetscSqrtReal(1. - ct * ct);
+        sc->R[0] = cp * ct;
+        sc->R[1] = -sp;
+        sc->R[2] = cp * st;
+        sc->R[3] = sp * ct;
+        sc->R[4] = cp;
+        sc->R[5] = sp * st;
+        sc->R[6] = -st;
+        sc->R[7] = 0.;
+        sc->R[8] = ct;
+      }
+      break;
+    }
+    *A = sc->RT;
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode DMPlexBasisTransformApplyReal_Internal(DM dm, const PetscReal x[], PetscBool l2g, PetscInt dim, const PetscReal *y, PetscReal *z, void *ctx)
 {
   PetscFunctionBegin;
@@ -758,6 +907,35 @@ PetscErrorCode DMPlexCreateBasisRotation(DM dm, PetscReal alpha, PetscReal beta,
   rc->alpha              = alpha;
   rc->beta               = beta;
   rc->gamma              = gamma;
+  PetscCall((*dm->transformSetUp)(dm, dm->transformCtx));
+  PetscCall(DMConstructBasisTransform_Internal(dm));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  DMPlexCreateBasisSpherical - Create an internal transformation from the global basis, used to specify boundary conditions
+  and global solutions, to a local basis, appropriate for discretization integrals and assembly.
+
+  Input Parameter:
+. dm - The `DM`
+
+  Level: developer
+
+.seealso: [](ch_unstructured), `DM`, `DMPLEX`, `DMPlexGlobalToLocalBasis()`, `DMPlexLocalToGlobalBasis()`
+@*/
+PetscErrorCode DMPlexCreateBasisSpherical(DM dm)
+{
+  SphCtx  *sc;
+  PetscInt cdim;
+
+  PetscFunctionBegin;
+  PetscCall(DMGetCoordinateDim(dm, &cdim));
+  PetscCall(PetscMalloc1(1, &sc));
+  dm->transformCtx       = sc;
+  dm->transformSetUp     = DMPlexBasisTransformSetUp_Spherical_Internal;
+  dm->transformDestroy   = DMPlexBasisTransformDestroy_Spherical_Internal;
+  dm->transformGetMatrix = DMPlexBasisTransformGetMatrix_Spherical_Internal;
+  sc->dim                = cdim;
   PetscCall((*dm->transformSetUp)(dm, dm->transformCtx));
   PetscCall(DMConstructBasisTransform_Internal(dm));
   PetscFunctionReturn(PETSC_SUCCESS);
