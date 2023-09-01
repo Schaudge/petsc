@@ -149,19 +149,6 @@ static PetscErrorCode MatSolve_LMVM(Mat B, Vec F, Vec dX)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode MatSolve_LMVM(Mat B, Vec F, Vec dX)
-{
-  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
-
-  PetscFunctionBegin;
-  VecCheckSameSize(F, 2, dX, 3);
-  VecCheckMatCompatible(B, F, 2, dX, 3);
-  PetscCheck(lmvm->allocated, PetscObjectComm((PetscObject)B), PETSC_ERR_ORDER, "LMVM matrix must be allocated first");
-  PetscCheck(*lmvm->ops->solve, PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "LMVM matrix does not have a solution or inversion implementation");
-  PetscCall((*lmvm->ops->solve)(B, F, dX));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 static PetscErrorCode MatCopy_LMVM(Mat B, Mat M, MatStructure str)
 {
   Mat_LMVM *bctx = (Mat_LMVM *)B->data;
@@ -410,11 +397,6 @@ PetscErrorCode MatCreate_LMVM(Mat B)
   lmvm->user_pc         = PETSC_FALSE;
   lmvm->user_ksp        = PETSC_FALSE;
   lmvm->square          = PETSC_FALSE;
-<<<<<<< HEAD
-=======
-  lmvm->async           = PETSC_FALSE;
-  lmvm->async_allocated = PETSC_FALSE;
->>>>>>> 51c515833905daf5e8f228dffbe376aa9139b46d
 
   B->ops->destroy        = MatDestroy_LMVM;
   B->ops->setfromoptions = MatSetFromOptions_LMVM;
