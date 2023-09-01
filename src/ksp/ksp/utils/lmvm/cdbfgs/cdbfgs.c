@@ -829,7 +829,6 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
           PetscCall(PetscDeviceContextGetBLASHandle_Internal(lmvm->dctx, &handle));
 	}
 
-
         //PetscAssert(PetscDefined(BLAS)...));
         PetscCuBLASInt m_blas, idx_blas, lda_blas, diff_blas, one = 1;
         PetscCall(PetscCuBLASIntCast(lmvm->k, &m_blas));
@@ -932,9 +931,17 @@ static PetscErrorCode Vec_Truncate(Mat H, Vec X)
     case PETSC_MEMTYPE_NVSHMEM:
     case PETSC_MEMTYPE_HIP:
 #if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
-      PetscCall(PetscDeviceRegisterMemory(x_array, memtype_x, N*sizeof(*x_array)));
-      if (lmvm->k != lmvm->m -1) {
-        PetscCall(PetscDeviceArrayZero(lmvm->dctx, &x_array[lmvm->k+1], lmvm->m - lmvm->k -1));
+      {
+        PetscDeviceContext dctx;
+        if (!lmvm->dctx) {
+          PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+        } else {
+          dctx = lmvm->dctx;
+        }
+        PetscCall(PetscDeviceRegisterMemory(x_array, memtype_x, N*sizeof(*x_array)));
+        if (lmvm->k != lmvm->m -1) {
+          PetscCall(PetscDeviceArrayZero(lmvm->dctx, &x_array[lmvm->k+1], lmvm->m - lmvm->k -1));
+        }
       }
 #endif
       break;
@@ -942,7 +949,7 @@ static PetscErrorCode Vec_Truncate(Mat H, Vec X)
       SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented L-BFGS strategy");
     }
     PetscCall(VecRestoreArrayAndMemType(X, &x_array));
-  }
+  } 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1081,7 +1088,7 @@ static PetscErrorCode MatAdd_LDLT(Mat B)
 }
 
 
-/* Solves for
+/* Solves for 
  * [ I | S R^{-T} ] [   I  | 0 ] [ H_0 | 0 ] [ I | -Y ] [     I      ]
  *                  [ -Y^T | I ] [  0  | D ] [ 0 |  I ] [ R^{-1} S^T ]  */
 
@@ -1096,7 +1103,6 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   Vec rwork2_host =  lbfgs->bind ? lbfgs->rwork2_host : lbfgs->rwork2;
 
   PetscInt index;
-
   PetscFunctionBegin;
   PetscCall(PetscLogEventBegin(CDBFGS_MatSolve, H, F, dX,0));
   VecCheckSameSize(F, 2, dX, 3);
@@ -1789,7 +1795,6 @@ static PetscErrorCode MatDestroy_LMVMCDBFGS(Mat B)
 static PetscErrorCode MatSetUp_LMVMCDBFGS(Mat B)
 {
   Mat_LMVM    *lmvm = (Mat_LMVM*)B->data;
-
   PetscInt    m, n, M, N;
   PetscMPIInt size;
   MPI_Comm    comm = PetscObjectComm((PetscObject)B);
@@ -1824,7 +1829,6 @@ PetscErrorCode MatView_LMVMCDBFGS(Mat B, PetscViewer pv)
 {
   Mat_LMVM   *lmvm  = (Mat_LMVM*)B->data;
   Mat_CDBFGS *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
-
   PetscBool  isascii;
 
   PetscFunctionBegin;
@@ -1867,7 +1871,6 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   B->ops->setup = MatSetUp_LMVMCDBFGS;
   B->ops->setfromoptions = MatSetFromOptions_LMVMCDBFGS;
   B->ops->destroy = MatDestroy_LMVMCDBFGS;
-
   lmvm = (Mat_LMVM*)B->data;
   lmvm->square = PETSC_TRUE;
   lmvm->ops->allocate = MatAllocate_LMVMCDBFGS;
@@ -1876,7 +1879,6 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   lmvm->ops->mult = MatMult_LMVMCDBFGS;
   lmvm->ops->solve = MatSolve_LMVMCDBFGS;
   lmvm->ops->copy = MatCopy_LMVMCDBFGS;
-
   PetscCall(PetscNew(&lbfgs));
   lmvm->ctx = (void*)lbfgs;
   lbfgs->allocated       = PETSC_FALSE;
@@ -1893,7 +1895,6 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   lbfgs->bind            = PETSC_FALSE;
 
   lbfgs->iter_count =0;
-
   PetscCall(MatCreate(PetscObjectComm((PetscObject)B), &lbfgs->diag_bfgs));
   PetscCall(MatSetType(lbfgs->diag_bfgs, MATLMVMDIAGBROYDEN));
   PetscCall(MatSetOptionsPrefix(lbfgs->diag_bfgs, "J0_"));
