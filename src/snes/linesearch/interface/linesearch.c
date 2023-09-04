@@ -601,10 +601,9 @@ PetscErrorCode SNESLineSearchApply(SNESLineSearch linesearch, Vec X, Vec F, Pets
   if (fnorm) linesearch->fnorm = *fnorm;
   else PetscCall(VecNorm(F, NORM_2, &linesearch->fnorm));
 
+  PetscCheckHasTypeMethod(linesearch, apply);
   PetscCall(PetscLogEventBegin(SNESLINESEARCH_Apply, linesearch, X, F, Y));
-
   PetscUseTypeMethod(linesearch, apply);
-
   PetscCall(PetscLogEventEnd(SNESLINESEARCH_Apply, linesearch, X, F, Y));
 
   if (fnorm) *fnorm = linesearch->fnorm;

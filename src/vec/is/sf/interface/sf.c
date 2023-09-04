@@ -1435,6 +1435,7 @@ PetscErrorCode PetscSFBcastBegin(PetscSF sf, MPI_Datatype unit, const void *root
   PetscFunctionBegin;
   PetscValidHeaderSpecific(sf, PETSCSF_CLASSID, 1);
   PetscCall(PetscSFSetUp(sf));
+  PetscCheckHasTypeMethod(sf, BcastBegin);
   if (!sf->vscat.logging) PetscCall(PetscLogEventBegin(PETSCSF_BcastBegin, sf, 0, 0, 0));
   PetscCall(PetscGetMemType(rootdata, &rootmtype));
   PetscCall(PetscGetMemType(leafdata, &leafmtype));
@@ -1469,6 +1470,7 @@ PetscErrorCode PetscSFBcastWithMemTypeBegin(PetscSF sf, MPI_Datatype unit, Petsc
   PetscFunctionBegin;
   PetscValidHeaderSpecific(sf, PETSCSF_CLASSID, 1);
   PetscCall(PetscSFSetUp(sf));
+  PetscCheckHasTypeMethod(sf, BcastBegin);
   if (!sf->vscat.logging) PetscCall(PetscLogEventBegin(PETSCSF_BcastBegin, sf, 0, 0, 0));
   PetscUseTypeMethod(sf, BcastBegin, unit, rootmtype, rootdata, leafmtype, leafdata, op);
   if (!sf->vscat.logging) PetscCall(PetscLogEventEnd(PETSCSF_BcastBegin, sf, 0, 0, 0));
@@ -1497,6 +1499,7 @@ PetscErrorCode PetscSFBcastEnd(PetscSF sf, MPI_Datatype unit, const void *rootda
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(sf, PETSCSF_CLASSID, 1);
+  PetscCheckHasTypeMethod(sf, BcastEnd);
   if (!sf->vscat.logging) PetscCall(PetscLogEventBegin(PETSCSF_BcastEnd, sf, 0, 0, 0));
   PetscUseTypeMethod(sf, BcastEnd, unit, rootdata, leafdata, op);
   if (!sf->vscat.logging) PetscCall(PetscLogEventEnd(PETSCSF_BcastEnd, sf, 0, 0, 0));
@@ -1594,6 +1597,7 @@ PetscErrorCode PetscSFReduceEnd(PetscSF sf, MPI_Datatype unit, const void *leafd
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(sf, PETSCSF_CLASSID, 1);
+  PetscCheckHasTypeMethod(sf, ReduceEnd);
   if (!sf->vscat.logging) PetscCall(PetscLogEventBegin(PETSCSF_ReduceEnd, sf, 0, 0, 0));
   PetscUseTypeMethod(sf, ReduceEnd, unit, leafdata, rootdata, op);
   if (!sf->vscat.logging) PetscCall(PetscLogEventEnd(PETSCSF_ReduceEnd, sf, 0, 0, 0));
@@ -1633,11 +1637,12 @@ PetscErrorCode PetscSFFetchAndOpBegin(PetscSF sf, MPI_Datatype unit, void *rootd
   PetscFunctionBegin;
   PetscValidHeaderSpecific(sf, PETSCSF_CLASSID, 1);
   PetscCall(PetscSFSetUp(sf));
-  PetscCall(PetscLogEventBegin(PETSCSF_FetchAndOpBegin, sf, 0, 0, 0));
   PetscCall(PetscGetMemType(rootdata, &rootmtype));
   PetscCall(PetscGetMemType(leafdata, &leafmtype));
   PetscCall(PetscGetMemType(leafupdate, &leafupdatemtype));
   PetscCheck(leafmtype == leafupdatemtype, PETSC_COMM_SELF, PETSC_ERR_SUP, "No support for leafdata and leafupdate in different memory types");
+  PetscCheckHasTypeMethod(sf, FetchAndOpBegin);
+  PetscCall(PetscLogEventBegin(PETSCSF_FetchAndOpBegin, sf, 0, 0, 0));
   PetscUseTypeMethod(sf, FetchAndOpBegin, unit, rootmtype, rootdata, leafmtype, leafdata, leafupdate, op);
   PetscCall(PetscLogEventEnd(PETSCSF_FetchAndOpBegin, sf, 0, 0, 0));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -1674,8 +1679,9 @@ PetscErrorCode PetscSFFetchAndOpWithMemTypeBegin(PetscSF sf, MPI_Datatype unit, 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(sf, PETSCSF_CLASSID, 1);
   PetscCall(PetscSFSetUp(sf));
-  PetscCall(PetscLogEventBegin(PETSCSF_FetchAndOpBegin, sf, 0, 0, 0));
   PetscCheck(leafmtype == leafupdatemtype, PETSC_COMM_SELF, PETSC_ERR_SUP, "No support for leafdata and leafupdate in different memory types");
+  PetscCheckHasTypeMethod(sf, FetchAndOpBegin);
+  PetscCall(PetscLogEventBegin(PETSCSF_FetchAndOpBegin, sf, 0, 0, 0));
   PetscUseTypeMethod(sf, FetchAndOpBegin, unit, rootmtype, rootdata, leafmtype, leafdata, leafupdate, op);
   PetscCall(PetscLogEventEnd(PETSCSF_FetchAndOpBegin, sf, 0, 0, 0));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -1705,6 +1711,7 @@ PetscErrorCode PetscSFFetchAndOpEnd(PetscSF sf, MPI_Datatype unit, void *rootdat
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(sf, PETSCSF_CLASSID, 1);
+  PetscCheckHasTypeMethod(sf, FetchAndOpEnd);
   PetscCall(PetscLogEventBegin(PETSCSF_FetchAndOpEnd, sf, 0, 0, 0));
   PetscUseTypeMethod(sf, FetchAndOpEnd, unit, rootdata, leafdata, leafupdate, op);
   PetscCall(PetscLogEventEnd(PETSCSF_FetchAndOpEnd, sf, 0, 0, 0));
@@ -2231,9 +2238,10 @@ PetscErrorCode PetscSFBcastToZero_Private(PetscSF sf, MPI_Datatype unit, const v
   PetscFunctionBegin;
   PetscValidHeaderSpecific(sf, PETSCSF_CLASSID, 1);
   PetscCall(PetscSFSetUp(sf));
-  PetscCall(PetscLogEventBegin(PETSCSF_BcastBegin, sf, 0, 0, 0));
   PetscCall(PetscGetMemType(rootdata, &rootmtype));
   PetscCall(PetscGetMemType(leafdata, &leafmtype));
+  PetscCheckHasTypeMethod(sf, BcastToZero);
+  PetscCall(PetscLogEventBegin(PETSCSF_BcastBegin, sf, 0, 0, 0));
   PetscUseTypeMethod(sf, BcastToZero, unit, rootmtype, rootdata, leafmtype, leafdata);
   PetscCall(PetscLogEventEnd(PETSCSF_BcastBegin, sf, 0, 0, 0));
   PetscFunctionReturn(PETSC_SUCCESS);

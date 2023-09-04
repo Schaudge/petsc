@@ -1137,6 +1137,7 @@ PetscErrorCode DMLocatePoints(DM dm, Vec v, DMPointLocationType ltype, PetscSF *
   } else {
     PetscCall(PetscSFCreate(PetscObjectComm((PetscObject)v), cellSF));
   }
+  PetscCheckHasTypeMethod(dm, locatepoints);
   PetscCall(PetscLogEventBegin(DM_LocatePoints, dm, 0, 0, 0));
   PetscUseTypeMethod(dm, locatepoints, v, ltype, *cellSF);
   PetscCall(PetscLogEventEnd(DM_LocatePoints, dm, 0, 0, 0));

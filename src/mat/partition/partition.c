@@ -267,6 +267,7 @@ PetscErrorCode MatPartitioningApplyND(MatPartitioning matp, IS *partitioning)
   PetscAssertPointer(partitioning, 2);
   PetscCheck(matp->adj->assembled, PetscObjectComm((PetscObject)matp), PETSC_ERR_ARG_WRONGSTATE, "Not for unassembled matrix");
   PetscCheck(!matp->adj->factortype, PetscObjectComm((PetscObject)matp), PETSC_ERR_ARG_WRONGSTATE, "Not for factored matrix");
+  PetscCheckHasTypeMethod(matp, applynd);
   PetscCall(PetscLogEventBegin(MAT_PartitioningND, matp, 0, 0, 0));
   PetscUseTypeMethod(matp, applynd, partitioning);
   PetscCall(PetscLogEventEnd(MAT_PartitioningND, matp, 0, 0, 0));
@@ -309,6 +310,7 @@ PetscErrorCode MatPartitioningApply(MatPartitioning matp, IS *partitioning)
   PetscAssertPointer(partitioning, 2);
   PetscCheck(matp->adj->assembled, PetscObjectComm((PetscObject)matp), PETSC_ERR_ARG_WRONGSTATE, "Not for unassembled matrix");
   PetscCheck(!matp->adj->factortype, PetscObjectComm((PetscObject)matp), PETSC_ERR_ARG_WRONGSTATE, "Not for factored matrix");
+  PetscCheckHasTypeMethod(matp, apply);
   PetscCall(PetscLogEventBegin(MAT_Partitioning, matp, 0, 0, 0));
   PetscUseTypeMethod(matp, apply, partitioning);
   PetscCall(PetscLogEventEnd(MAT_Partitioning, matp, 0, 0, 0));

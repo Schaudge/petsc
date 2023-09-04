@@ -4631,6 +4631,7 @@ PetscErrorCode SNESSolve(SNES snes, Vec b, Vec x)
     }
 
     snes->reason = SNES_CONVERGED_ITERATING;
+    PetscCheckHasTypeMethod(snes, solve);
     PetscCall(PetscLogEventBegin(SNES_Solve, snes, 0, 0, 0));
     PetscUseTypeMethod(snes, solve);
     PetscCall(PetscLogEventEnd(SNES_Solve, snes, 0, 0, 0));

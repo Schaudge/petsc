@@ -1465,6 +1465,7 @@ PetscErrorCode TSAdjointStep(TS ts)
 
   ts->reason     = TS_CONVERGED_ITERATING;
   ts->ptime_prev = ts->ptime;
+  PetscCheckHasTypeMethod(ts, adjointstep);
   PetscCall(PetscLogEventBegin(TS_AdjointStep, ts, 0, 0, 0));
   PetscUseTypeMethod(ts, adjointstep);
   PetscCall(PetscLogEventEnd(TS_AdjointStep, ts, 0, 0, 0));
@@ -1733,6 +1734,7 @@ PetscErrorCode TSForwardStep(TS ts)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ts, TS_CLASSID, 1);
+  PetscCheckHasTypeMethod(ts, forwardstep);
   PetscCall(PetscLogEventBegin(TS_ForwardStep, ts, 0, 0, 0));
   PetscUseTypeMethod(ts, forwardstep);
   PetscCall(PetscLogEventEnd(TS_ForwardStep, ts, 0, 0, 0));

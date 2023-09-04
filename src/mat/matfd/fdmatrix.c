@@ -231,6 +231,7 @@ PetscErrorCode MatFDColoringSetUp(Mat mat, ISColoring iscoloring, MatFDColoring 
   PetscCall(PetscObjectCompareId((PetscObject)mat, color->matid, &eq));
   PetscCheck(eq, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONG, "Matrix used with MatFDColoringSetUp() must be that used with MatFDColoringCreate()");
 
+  PetscCheckHasTypeMethod(mat, fdcoloringsetup);
   PetscCall(PetscLogEventBegin(MAT_FDColoringSetUp, mat, 0, 0, 0));
   PetscUseTypeMethod(mat, fdcoloringsetup, iscoloring, color);
 
@@ -453,9 +454,10 @@ PetscErrorCode MatFDColoringCreate(Mat mat, ISColoring iscoloring, MatFDColoring
   PetscFunctionBegin;
   PetscValidHeaderSpecific(mat, MAT_CLASSID, 1);
   PetscCheck(mat->assembled, PetscObjectComm((PetscObject)mat), PETSC_ERR_ARG_WRONGSTATE, "Matrix must be assembled by calls to MatAssemblyBegin/End();");
-  PetscCall(PetscLogEventBegin(MAT_FDColoringCreate, mat, 0, 0, 0));
+  PetscCheckHasTypeMethod(mat, fdcoloringcreate);
   PetscCall(MatGetSize(mat, &M, &N));
   PetscCheck(M == N, PetscObjectComm((PetscObject)mat), PETSC_ERR_SUP, "Only for square matrices");
+  PetscCall(PetscLogEventBegin(MAT_FDColoringCreate, mat, 0, 0, 0));
   PetscCall(PetscObjectGetComm((PetscObject)mat, &comm));
   PetscCall(PetscHeaderCreate(c, MAT_FDCOLORING_CLASSID, "MatFDColoring", "Jacobian computation via finite differences with coloring", "Mat", comm, MatFDColoringDestroy, MatFDColoringView));
 
@@ -609,6 +611,7 @@ PetscErrorCode MatFDColoringApply(Mat J, MatFDColoring coloring, Vec x1, void *s
   PetscCheck(coloring->setupcalled, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Must call MatFDColoringSetUp()");
 
   PetscCall(MatSetUnfactored(J));
+  PetscCheckHasTypeMethod(J, fdcoloringapply);
   PetscCall(PetscLogEventBegin(MAT_FDColoringApply, coloring, J, x1, 0));
   PetscUseTypeMethod(J, fdcoloringapply, coloring, x1, sctx);
   PetscCall(PetscLogEventEnd(MAT_FDColoringApply, coloring, J, x1, 0));

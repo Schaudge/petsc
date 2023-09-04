@@ -316,6 +316,7 @@ static PetscErrorCode MatMult_MFFD(Mat mat, Vec a, Vec y)
      separate the performance monitoring from the cases that use conventional
      storage.  We may eventually modify event logging to associate events
      with particular objects, hence alleviating the more general problem. */
+  PetscCheckHasTypeMethod(ctx, compute);
   PetscCall(PetscLogEventBegin(MATMFFD_Mult, a, y, 0, 0));
 
   w = ctx->w;

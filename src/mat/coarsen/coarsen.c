@@ -93,6 +93,7 @@ PetscErrorCode MatCoarsenApply(MatCoarsen coarser)
   PetscAssertPointer(coarser, 1);
   PetscCheck(coarser->graph->assembled, PetscObjectComm((PetscObject)coarser), PETSC_ERR_ARG_WRONGSTATE, "Not for unassembled matrix");
   PetscCheck(!coarser->graph->factortype, PetscObjectComm((PetscObject)coarser), PETSC_ERR_ARG_WRONGSTATE, "Not for factored matrix");
+  PetscCheckHasTypeMethod(coarser, apply);
   PetscCall(PetscLogEventBegin(MAT_Coarsen, coarser, 0, 0, 0));
   PetscUseTypeMethod(coarser, apply);
   PetscCall(PetscLogEventEnd(MAT_Coarsen, coarser, 0, 0, 0));

@@ -116,6 +116,7 @@ PetscErrorCode VecDot(Vec x, Vec y, PetscScalar *val)
   VecCheckAssembled(x);
   VecCheckAssembled(y);
 
+  PetscCheckHasTypeMethod(x, dot);
   PetscCall(VecLockReadPush(x));
   PetscCall(VecLockReadPush(y));
   PetscCall(PetscLogEventBegin(VEC_Dot, x, y, 0, 0));
@@ -209,6 +210,7 @@ PetscErrorCode VecNorm(Vec x, NormType type, PetscReal *val)
   PetscCall(VecNormAvailable(x, type, &flg, val));
   if (flg) PetscFunctionReturn(PETSC_SUCCESS);
 
+  PetscCheckHasTypeMethod(x, norm);
   PetscCall(VecLockReadPush(x));
   PetscCall(PetscLogEventBegin(VEC_Norm, x, 0, 0, 0));
   PetscUseTypeMethod(x, norm, type, val);
@@ -326,6 +328,7 @@ PetscErrorCode VecMax(Vec x, PetscInt *p, PetscReal *val)
   VecCheckAssembled(x);
   if (p) PetscAssertPointer(p, 2);
   PetscAssertPointer(val, 3);
+  PetscCheckHasTypeMethod(x, max);
   PetscCall(VecLockReadPush(x));
   PetscCall(PetscLogEventBegin(VEC_Max, x, 0, 0, 0));
   PetscUseTypeMethod(x, max, p, val);
@@ -363,6 +366,7 @@ PetscErrorCode VecMin(Vec x, PetscInt *p, PetscReal *val)
   VecCheckAssembled(x);
   if (p) PetscAssertPointer(p, 2);
   PetscAssertPointer(val, 3);
+  PetscCheckHasTypeMethod(x, min);
   PetscCall(VecLockReadPush(x));
   PetscCall(PetscLogEventBegin(VEC_Min, x, 0, 0, 0));
   PetscUseTypeMethod(x, min, p, val);
@@ -410,6 +414,7 @@ PetscErrorCode VecTDot(Vec x, Vec y, PetscScalar *val)
   VecCheckAssembled(x);
   VecCheckAssembled(y);
 
+  PetscCheckHasTypeMethod(x, tdot);
   PetscCall(VecLockReadPush(x));
   PetscCall(VecLockReadPush(y));
   PetscCall(PetscLogEventBegin(VEC_TDot, x, y, 0, 0));
@@ -900,6 +905,7 @@ PetscErrorCode VecSetValues(Vec x, PetscInt ni, const PetscInt ix[], const Petsc
   PetscAssertPointer(y, 4);
   PetscValidType(x, 1);
 
+  PetscCheckHasTypeMethod(x, setvalues);
   PetscCall(PetscLogEventBegin(VEC_SetValues, x, 0, 0, 0));
   PetscUseTypeMethod(x, setvalues, ni, ix, y, iora);
   PetscCall(PetscLogEventEnd(VEC_SetValues, x, 0, 0, 0));
@@ -995,6 +1001,7 @@ PetscErrorCode VecSetValuesBlocked(Vec x, PetscInt ni, const PetscInt ix[], cons
   PetscAssertPointer(y, 4);
   PetscValidType(x, 1);
 
+  PetscCheckHasTypeMethod(x, setvaluesblocked);
   PetscCall(PetscLogEventBegin(VEC_SetValues, x, 0, 0, 0));
   PetscUseTypeMethod(x, setvaluesblocked, ni, ix, y, iora);
   PetscCall(PetscLogEventEnd(VEC_SetValues, x, 0, 0, 0));
@@ -1098,6 +1105,7 @@ PetscErrorCode VecSetValuesBlockedLocal(Vec x, PetscInt ni, const PetscInt ix[],
   PetscAssertPointer(ix, 3);
   PetscAssertPointer(y, 4);
   PetscValidType(x, 1);
+  PetscCheckHasTypeMethod(x, setvaluesblocked);
   PetscCall(PetscLogEventBegin(VEC_SetValues, x, 0, 0, 0));
   if (x->map->mapping) {
     if (ni > 128) PetscCall(PetscMalloc1(ni, &lix));
@@ -1325,6 +1333,7 @@ PetscErrorCode VecMAXPBY(Vec y, PetscInt nv, const PetscScalar alpha[], PetscSca
     }
 
     if (zeros < nv) { // has nonzero alpha
+      PetscCheckHasTypeMethod(y, maxpby);
       PetscCall(PetscLogEventBegin(VEC_MAXPY, y, *x, 0, 0));
       PetscUseTypeMethod(y, maxpby, nv, alpha, beta, x);
       PetscCall(PetscLogEventEnd(VEC_MAXPY, y, *x, 0, 0));

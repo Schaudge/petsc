@@ -60,6 +60,7 @@ PetscErrorCode TSTrajectorySet(TSTrajectory tj, TS ts, PetscInt stepnum, PetscRe
   PetscValidHeaderSpecific(X, VEC_CLASSID, 5);
   PetscCheck(tj->setupcalled, PetscObjectComm((PetscObject)tj), PETSC_ERR_ORDER, "TSTrajectorySetUp should be called first");
   if (tj->monitor) PetscCall(PetscViewerASCIIPrintf(tj->monitor, "TSTrajectorySet: stepnum %" PetscInt_FMT ", time %g (stages %" PetscInt_FMT ")\n", stepnum, (double)time, (PetscInt)!tj->solution_only));
+  PetscCheckHasTypeMethod(tj, set);
   PetscCall(PetscLogEventBegin(TSTrajectory_Set, tj, ts, 0, 0));
   PetscUseTypeMethod(tj, set, ts, stepnum, time, X);
   PetscCall(PetscLogEventEnd(TSTrajectory_Set, tj, ts, 0, 0));
@@ -126,6 +127,7 @@ PetscErrorCode TSTrajectoryGet(TSTrajectory tj, TS ts, PetscInt stepnum, PetscRe
     PetscCall(PetscViewerASCIIPrintf(tj->monitor, "TSTrajectoryGet: stepnum %" PetscInt_FMT ", stages %" PetscInt_FMT "\n", stepnum, (PetscInt)!tj->solution_only));
     PetscCall(PetscViewerFlush(tj->monitor));
   }
+  PetscCheckHasTypeMethod(tj, get);
   PetscCall(PetscLogEventBegin(TSTrajectory_Get, tj, ts, 0, 0));
   PetscUseTypeMethod(tj, get, ts, stepnum, time);
   PetscCall(PetscLogEventEnd(TSTrajectory_Get, tj, ts, 0, 0));

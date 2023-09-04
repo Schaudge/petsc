@@ -188,6 +188,7 @@ PetscErrorCode PetscDeviceContextSetStreamType(PetscDeviceContext dctx, PetscStr
   // only need to do complex swapping if the object has already been setup
   if (dctx->setup && (dctx->streamType != type)) {
     dctx->setup = PETSC_FALSE;
+    PetscCheckHasTypeMethod(dctx, changestreamtype);
     PetscCall(PetscLogEventBegin(DCONTEXT_ChangeStream, dctx, nullptr, nullptr, nullptr));
     PetscUseTypeMethod(dctx, changestreamtype, type);
     PetscCall(PetscLogEventEnd(DCONTEXT_ChangeStream, dctx, nullptr, nullptr, nullptr));
@@ -389,6 +390,7 @@ PetscErrorCode PetscDeviceContextSetUp(PetscDeviceContext dctx)
     PetscCall(PetscInfo(dctx, "PetscDeviceContext %" PetscInt64_FMT " did not have an explicitly attached PetscDevice, using default with type %s\n", PetscObjectCast(dctx)->id, PetscDeviceTypes[default_dtype]));
     PetscCall(PetscDeviceContextSetDefaultDeviceForType_Internal(dctx, default_dtype));
   }
+  PetscCheckHasTypeMethod(dctx, setup);
   PetscCall(PetscLogEventBegin(DCONTEXT_SetUp, dctx, nullptr, nullptr, nullptr));
   PetscUseTypeMethod(dctx, setup);
   PetscCall(PetscLogEventEnd(DCONTEXT_SetUp, dctx, nullptr, nullptr, nullptr));
@@ -477,6 +479,7 @@ PetscErrorCode PetscDeviceContextQueryIdle(PetscDeviceContext dctx, PetscBool *i
   PetscFunctionBegin;
   PetscCall(PetscDeviceContextGetOptionalNullContext_Internal(&dctx));
   PetscAssertPointer(idle, 2);
+  PetscCheckHasTypeMethod(dctx, query);
   PetscCall(PetscLogEventBegin(DCONTEXT_QueryIdle, dctx, nullptr, nullptr, nullptr));
   PetscUseTypeMethod(dctx, query, idle);
   PetscCall(PetscLogEventEnd(DCONTEXT_QueryIdle, dctx, nullptr, nullptr, nullptr));
@@ -527,6 +530,7 @@ PetscErrorCode PetscDeviceContextWaitForContext(PetscDeviceContext dctxa, PetscD
   PetscCheckCompatibleDeviceContexts(dctxa, 1, dctxb, 2);
   if (dctxa == dctxb) PetscFunctionReturn(PETSC_SUCCESS);
   bid = PetscObjectCast(dctxb)->id;
+  PetscCheckHasTypeMethod(dctxa, waitforcontext);
   PetscCall(PetscLogEventBegin(DCONTEXT_WaitForCtx, dctxa, dctxb, nullptr, nullptr));
   PetscUseTypeMethod(dctxa, waitforcontext, dctxb);
   PetscCallCXX(CxxDataCast(dctxa)->upstream()[bid] = CxxDataCast(dctxb)->weak_snapshot());
@@ -844,13 +848,14 @@ PetscErrorCode PetscDeviceContextSynchronize(PetscDeviceContext dctx)
 {
   PetscFunctionBegin;
   PetscCall(PetscDeviceContextGetOptionalNullContext_Internal(&dctx));
-  PetscCall(PetscLogEventBegin(DCONTEXT_Sync, dctx, nullptr, nullptr, nullptr));
   /* if it isn't setup there is nothing to sync on */
   if (dctx->setup) {
+    PetscCheckHasTypeMethod(dctx, synchronize);
+    PetscCall(PetscLogEventBegin(DCONTEXT_Sync, dctx, nullptr, nullptr, nullptr));
     PetscUseTypeMethod(dctx, synchronize);
     PetscCall(PetscDeviceContextSyncClearMap_Internal(dctx));
+    PetscCall(PetscLogEventEnd(DCONTEXT_Sync, dctx, nullptr, nullptr, nullptr));
   }
-  PetscCall(PetscLogEventEnd(DCONTEXT_Sync, dctx, nullptr, nullptr, nullptr));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

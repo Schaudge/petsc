@@ -3375,6 +3375,7 @@ PetscErrorCode TSStep(TS ts)
   ts->ptime_prev_rollback = ts->ptime_prev;
   ts->reason              = TS_CONVERGED_ITERATING;
 
+  PetscCheckHasTypeMethod(ts, step);
   PetscCall(PetscLogEventBegin(TS_Step, ts, 0, 0, 0));
   PetscUseTypeMethod(ts, step);
   PetscCall(PetscLogEventEnd(TS_Step, ts, 0, 0, 0));

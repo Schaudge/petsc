@@ -362,6 +362,7 @@ PetscErrorCode MatColoringApply(MatColoring mc, ISColoring *coloring)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(mc, MAT_COLORING_CLASSID, 1);
   PetscAssertPointer(coloring, 2);
+  PetscCheckHasTypeMethod(mc, apply);
   PetscCall(PetscLogEventBegin(MATCOLORING_Apply, mc, 0, 0, 0));
   PetscUseTypeMethod(mc, apply, coloring);
   PetscCall(PetscLogEventEnd(MATCOLORING_Apply, mc, 0, 0, 0));

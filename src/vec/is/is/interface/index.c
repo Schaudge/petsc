@@ -1617,6 +1617,7 @@ PetscErrorCode ISView(IS is, PetscViewer viewer)
   PetscCheckSameComm(is, 1, viewer, 2);
 
   PetscCall(PetscObjectPrintClassNamePrefixType((PetscObject)is, viewer));
+  PetscCheckHasTypeMethod(is, view);
   PetscCall(PetscLogEventBegin(IS_View, is, viewer, 0, 0));
   PetscUseTypeMethod(is, view, viewer);
   PetscCall(PetscLogEventEnd(IS_View, is, viewer, 0, 0));
@@ -1653,6 +1654,7 @@ PetscErrorCode ISLoad(IS is, PetscViewer viewer)
   PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERHDF5, &ishdf5));
   PetscCheck(isbinary || ishdf5, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Invalid viewer; open viewer with PetscViewerBinaryOpen()");
   if (!((PetscObject)is)->type_name) PetscCall(ISSetType(is, ISGENERAL));
+  PetscCheckHasTypeMethod(is, load);
   PetscCall(PetscLogEventBegin(IS_Load, is, viewer, 0, 0));
   PetscUseTypeMethod(is, load, viewer);
   PetscCall(PetscLogEventEnd(IS_Load, is, viewer, 0, 0));

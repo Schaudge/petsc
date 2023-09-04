@@ -797,6 +797,11 @@ PetscErrorCode VecView(Vec vec, PetscViewer viewer)
       PetscCall(PetscViewerASCIIPopTab(viewer));
     }
   }
+  if ((format == PETSC_VIEWER_NATIVE || format == PETSC_VIEWER_LOAD_BALANCE) && vec->ops->viewnative) {
+    PetscCheckHasTypeMethod(vec, viewnative);
+  } else {
+    PetscCheckHasTypeMethod(vec, view);
+  }
   PetscCall(VecLockReadPush(vec));
   PetscCall(PetscLogEventBegin(VEC_View, vec, viewer, 0, 0));
   if ((format == PETSC_VIEWER_NATIVE || format == PETSC_VIEWER_LOAD_BALANCE) && vec->ops->viewnative) {
@@ -1135,6 +1140,7 @@ PetscErrorCode VecLoad(Vec vec, PetscViewer viewer)
 {
   PetscBool         isbinary, ishdf5, isadios, isexodusii;
   PetscViewerFormat format;
+  PetscErrorCode    ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(vec, VEC_CLASSID, 1);
@@ -1148,15 +1154,20 @@ PetscErrorCode VecLoad(Vec vec, PetscViewer viewer)
 
   PetscCall(VecSetErrorIfLocked(vec, 1));
   if (!((PetscObject)vec)->type_name && !vec->ops->create) PetscCall(VecSetType(vec, VECSTANDARD));
+  if (format == PETSC_VIEWER_NATIVE && vec->ops->loadnative) {
+    PetscCheckHasTypeMethod(vec, loadnative);
+  } else {
+    PetscCheckHasTypeMethod(vec, load);
+  }
   PetscCall(PetscLogEventBegin(VEC_Load, viewer, 0, 0, 0));
   PetscCall(PetscViewerGetFormat(viewer, &format));
   if (format == PETSC_VIEWER_NATIVE && vec->ops->loadnative) {
-    PetscUseTypeMethod(vec, loadnative, viewer);
+    ierr = (*(vec->ops->loadnative))(vec, viewer);
   } else {
-    PetscUseTypeMethod(vec, load, viewer);
+    ierr = (*(vec->ops->load))(vec, viewer);
   }
   PetscCall(PetscLogEventEnd(VEC_Load, viewer, 0, 0, 0));
-  PetscFunctionReturn(PETSC_SUCCESS);
+  PetscFunctionReturn(ierr);
 }
 
 /*@
@@ -1320,6 +1331,7 @@ PetscErrorCode VecSetRandom(Vec x, PetscRandom rctx)
   PetscValidType(x, 1);
   VecCheckAssembled(x);
   PetscCall(VecSetErrorIfLocked(x, 1));
+  PetscCheckHasTypeMethod(x, setrandom);
 
   if (!rctx) {
     PetscCall(PetscRandomCreate(PetscObjectComm((PetscObject)x), &randObj));

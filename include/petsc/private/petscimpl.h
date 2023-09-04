@@ -852,6 +852,32 @@ M*/
     PetscCall((*_7_f)C); \
   } while (0)
 
+/*MC
+  PetscCheckHasTypeMethod - Error if a `PetscObject` does not have a method
+
+  Synopsis:
+  #include "petsc/private/petscimpl.h"
+  PetscCheckHasTypeMethod(obj, method)
+
+  Input Parameters:
++ obj    - the object, for example a `Mat`, that does not need to be cast to `PetscObject`
+- method - the name of the method, for example, mult for the PETSc routine `MatMult()`
+
+  Level: developer
+
+  Note:
+  This does not return an error code, it is a macro that returns with an error code on error.
+
+  This macro does not actually call the method: it is appropriate for ensuring an exit before additional setup steps (like logging events)
+  if the method does not exist.
+
+.seealso: `PetscTryMethod()`, `PetscUseMethod()`, `PetscCall()`, `PetscCheck()`, `PetscTryTypeMethod()`, `PetscUseTypeMethod()`
+M*/
+#define PetscCheckHasTypeMethod(obj, OP) \
+  do { \
+    PetscCheck((obj)->ops->OP, PetscObjectComm((PetscObject)obj), PETSC_ERR_SUP, "No method %s for %s of type %s", PetscStringize(OP), ((PetscObject)obj)->class_name, ((PetscObject)obj)->type_name); \
+  } while(0)
+
 /*
   Use Microsoft traditional preprocessor.
 
@@ -870,7 +896,7 @@ M*/
     do { \
       PetscErrorCode ierr_p_; \
       PetscStackUpdateLine; \
-      PetscCheck((obj)->ops->OP, PetscObjectComm((PetscObject)obj), PETSC_ERR_SUP, "No method %s for %s of type %s", PetscStringize(OP), ((PetscObject)obj)->class_name, ((PetscObject)obj)->type_name); \
+      PetscCheckHasTypeMethod(obj, OP); \
       ierr_p_ = (*(obj)->ops->OP)(obj, __VA_ARGS__); \
       PetscCall(ierr_p_); \
     } while (0)
@@ -906,12 +932,11 @@ M*/
 
    Use `PetscUseMethod()` or `PetscTryMethod()` to call functions that have been composed to an object with `PetscObjectComposeFunction()`
 
-.seealso: `PetscTryMethod()`, `PetscUseMethod()`, `PetscCall()`, `PetscCheck()`, `PetscTryTypeMethod()`
+.seealso: `PetscTryMethod()`, `PetscUseMethod()`, `PetscCall()`, `PetscCheck()`, `PetscTryTypeMethod()`, `PetscCheckHasTypeMethod()`
 M*/
   #define PetscUseTypeMethod(obj, ...) \
     do { \
-      PetscCheck((obj)->ops->PETSC_FIRST_ARG((__VA_ARGS__, unused)), PetscObjectComm((PetscObject)obj), PETSC_ERR_SUP, "No method %s for %s of type %s", \
-                 PetscStringize(PETSC_FIRST_ARG((__VA_ARGS__,unused))), ((PetscObject)obj)->class_name, ((PetscObject)obj)->type_name); \
+      PetscCheckHasTypeMethod(obj, PETSC_FIRST_ARG((__VA_ARGS__, unused))); \
       PetscCall((*(obj)->ops->PETSC_FIRST_ARG((__VA_ARGS__, unused)))(obj PETSC_REST_ARG(__VA_ARGS__))); \
     } while (0)
 

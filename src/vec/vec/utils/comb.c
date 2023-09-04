@@ -352,6 +352,7 @@ PetscErrorCode VecDotBegin(Vec x, Vec y, PetscScalar *result)
   if (sr->numopsbegin >= sr->maxops) PetscCall(PetscSplitReductionExtend(sr));
   sr->reducetype[sr->numopsbegin] = PETSC_SR_REDUCE_SUM;
   sr->invecs[sr->numopsbegin]     = (void *)x;
+  PetscCheckHasTypeMethod(x, dot_local);
   PetscCall(PetscLogEventBegin(VEC_ReduceArithmetic, 0, 0, 0, 0));
   PetscUseTypeMethod(x, dot_local, y, sr->lvalues + sr->numopsbegin++);
   PetscCall(PetscLogEventEnd(VEC_ReduceArithmetic, 0, 0, 0, 0));
@@ -429,6 +430,7 @@ PetscErrorCode VecTDotBegin(Vec x, Vec y, PetscScalar *result)
   if (sr->numopsbegin >= sr->maxops) PetscCall(PetscSplitReductionExtend(sr));
   sr->reducetype[sr->numopsbegin] = PETSC_SR_REDUCE_SUM;
   sr->invecs[sr->numopsbegin]     = (void *)x;
+  PetscCheckHasTypeMethod(x, tdot_local);
   PetscCall(PetscLogEventBegin(VEC_ReduceArithmetic, 0, 0, 0, 0));
   PetscUseTypeMethod(x, tdot_local, y, sr->lvalues + sr->numopsbegin++);
   PetscCall(PetscLogEventEnd(VEC_ReduceArithmetic, 0, 0, 0, 0));
@@ -492,6 +494,7 @@ PetscErrorCode VecNormBegin(Vec x, NormType ntype, PetscReal *result)
   if (sr->numopsbegin >= sr->maxops || (sr->numopsbegin == sr->maxops - 1 && ntype == NORM_1_AND_2)) PetscCall(PetscSplitReductionExtend(sr));
 
   sr->invecs[sr->numopsbegin] = (void *)x;
+  PetscCheckHasTypeMethod(x, norm_local);
   PetscCall(PetscLogEventBegin(VEC_ReduceArithmetic, 0, 0, 0, 0));
   PetscUseTypeMethod(x, norm_local, ntype, lresult);
   PetscCall(PetscLogEventEnd(VEC_ReduceArithmetic, 0, 0, 0, 0));
@@ -596,6 +599,7 @@ PetscErrorCode VecMDotBegin(Vec x, PetscInt nv, const Vec y[], PetscScalar resul
     sr->reducetype[sr->numopsbegin + i] = PETSC_SR_REDUCE_SUM;
     sr->invecs[sr->numopsbegin + i]     = (void *)x;
   }
+  PetscCheckHasTypeMethod(x, mdot_local);
   PetscCall(PetscLogEventBegin(VEC_ReduceArithmetic, 0, 0, 0, 0));
   PetscUseTypeMethod(x, mdot_local, nv, y, sr->lvalues + sr->numopsbegin);
   PetscCall(PetscLogEventEnd(VEC_ReduceArithmetic, 0, 0, 0, 0));
@@ -681,6 +685,7 @@ PetscErrorCode VecMTDotBegin(Vec x, PetscInt nv, const Vec y[], PetscScalar resu
     sr->reducetype[sr->numopsbegin + i] = PETSC_SR_REDUCE_SUM;
     sr->invecs[sr->numopsbegin + i]     = (void *)x;
   }
+  PetscCheckHasTypeMethod(x, mtdot_local);
   PetscCall(PetscLogEventBegin(VEC_ReduceArithmetic, 0, 0, 0, 0));
   PetscUseTypeMethod(x, mtdot_local, nv, y, sr->lvalues + sr->numopsbegin);
   PetscCall(PetscLogEventEnd(VEC_ReduceArithmetic, 0, 0, 0, 0));

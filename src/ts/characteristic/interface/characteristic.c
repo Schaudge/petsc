@@ -188,9 +188,12 @@ PetscErrorCode CharacteristicSetUp(Characteristic c)
 
   if (c->setupcalled == 2) PetscFunctionReturn(PETSC_SUCCESS);
 
-  PetscCall(PetscLogEventBegin(CHARACTERISTIC_SetUp, c, NULL, NULL, NULL));
-  if (!c->setupcalled) PetscUseTypeMethod(c, setup);
-  PetscCall(PetscLogEventEnd(CHARACTERISTIC_SetUp, c, NULL, NULL, NULL));
+  if (!c->setupcalled) {
+    PetscCheckHasTypeMethod(c, setup);
+    PetscCall(PetscLogEventBegin(CHARACTERISTIC_SetUp, c, NULL, NULL, NULL));
+    PetscUseTypeMethod(c, setup);
+    PetscCall(PetscLogEventEnd(CHARACTERISTIC_SetUp, c, NULL, NULL, NULL));
+  }
   c->setupcalled = 2;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

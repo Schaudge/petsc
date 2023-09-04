@@ -482,6 +482,7 @@ PetscErrorCode PCApply(PC pc, Vec x, Vec y)
   PetscCall(VecSetErrorIfLocked(y, 3));
 
   PetscCall(PCSetUp(pc));
+  PetscCheckHasTypeMethod(pc, apply);
   PetscCall(VecLockReadPush(x));
   PetscCall(PetscLogEventBegin(PC_Apply, pc, x, y, 0));
   PetscUseTypeMethod(pc, apply, x, y);
@@ -581,6 +582,7 @@ PetscErrorCode PCApplySymmetricLeft(PC pc, Vec x, Vec y)
   PetscCheck(x != y, PetscObjectComm((PetscObject)pc), PETSC_ERR_ARG_IDN, "x and y must be different vectors");
   if (pc->erroriffailure) PetscCall(VecValidValues_Internal(x, 2, PETSC_TRUE));
   PetscCall(PCSetUp(pc));
+  PetscCheckHasTypeMethod(pc, applysymmetricleft);
   PetscCall(VecLockReadPush(x));
   PetscCall(PetscLogEventBegin(PC_ApplySymmetricLeft, pc, x, y, 0));
   PetscUseTypeMethod(pc, applysymmetricleft, x, y);
@@ -618,6 +620,7 @@ PetscErrorCode PCApplySymmetricRight(PC pc, Vec x, Vec y)
   PetscCheck(x != y, PetscObjectComm((PetscObject)pc), PETSC_ERR_ARG_IDN, "x and y must be different vectors");
   if (pc->erroriffailure) PetscCall(VecValidValues_Internal(x, 2, PETSC_TRUE));
   PetscCall(PCSetUp(pc));
+  PetscCheckHasTypeMethod(pc, applysymmetricright);
   PetscCall(VecLockReadPush(x));
   PetscCall(PetscLogEventBegin(PC_ApplySymmetricRight, pc, x, y, 0));
   PetscUseTypeMethod(pc, applysymmetricright, x, y);
@@ -658,6 +661,7 @@ PetscErrorCode PCApplyTranspose(PC pc, Vec x, Vec y)
   PetscCheck(x != y, PetscObjectComm((PetscObject)pc), PETSC_ERR_ARG_IDN, "x and y must be different vectors");
   if (pc->erroriffailure) PetscCall(VecValidValues_Internal(x, 2, PETSC_TRUE));
   PetscCall(PCSetUp(pc));
+  PetscCheckHasTypeMethod(pc, applytranspose);
   PetscCall(VecLockReadPush(x));
   PetscCall(PetscLogEventBegin(PC_Apply, pc, x, y, 0));
   PetscUseTypeMethod(pc, applytranspose, x, y);

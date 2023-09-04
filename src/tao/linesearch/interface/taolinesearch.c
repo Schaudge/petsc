@@ -341,6 +341,7 @@ PetscErrorCode TaoLineSearchApply(TaoLineSearch ls, Vec x, PetscReal *f, Vec g, 
   PetscCall(VecDestroy(&ls->start_x));
   ls->start_x = x;
 
+  PetscCheckHasTypeMethod(ls, apply);
   PetscCall(PetscLogEventBegin(TAOLINESEARCH_Apply, ls, 0, 0, 0));
   PetscUseTypeMethod(ls, apply, x, f, g, s);
   PetscCall(PetscLogEventEnd(TAOLINESEARCH_Apply, ls, 0, 0, 0));

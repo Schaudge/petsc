@@ -1198,6 +1198,7 @@ PetscErrorCode DMCreateInterpolation(DM dmc, DM dmf, Mat *mat, Vec *vec)
   PetscValidHeaderSpecific(dmc, DM_CLASSID, 1);
   PetscValidHeaderSpecific(dmf, DM_CLASSID, 2);
   PetscAssertPointer(mat, 3);
+  PetscCheckHasTypeMethod(dmc, createinterpolation);
   PetscCall(PetscLogEventBegin(DM_CreateInterpolation, dmc, dmf, 0, 0));
   PetscUseTypeMethod(dmc, createinterpolation, dmf, mat, vec);
   PetscCall(PetscLogEventEnd(DM_CreateInterpolation, dmc, dmf, 0, 0));
@@ -1284,6 +1285,7 @@ PetscErrorCode DMCreateRestriction(DM dmc, DM dmf, Mat *mat)
   PetscValidHeaderSpecific(dmc, DM_CLASSID, 1);
   PetscValidHeaderSpecific(dmf, DM_CLASSID, 2);
   PetscAssertPointer(mat, 3);
+  PetscCheckHasTypeMethod(dmc, createrestriction);
   PetscCall(PetscLogEventBegin(DM_CreateRestriction, dmc, dmf, 0, 0));
   PetscUseTypeMethod(dmc, createrestriction, dmf, mat);
   PetscCall(PetscLogEventEnd(DM_CreateRestriction, dmc, dmf, 0, 0));
@@ -1324,6 +1326,7 @@ PetscErrorCode DMCreateInjection(DM dac, DM daf, Mat *mat)
   PetscValidHeaderSpecific(dac, DM_CLASSID, 1);
   PetscValidHeaderSpecific(daf, DM_CLASSID, 2);
   PetscAssertPointer(mat, 3);
+  PetscCheckHasTypeMethod(dac, createinjection);
   PetscCall(PetscLogEventBegin(DM_CreateInjection, dac, daf, 0, 0));
   PetscUseTypeMethod(dac, createinjection, daf, mat);
   PetscCall(PetscLogEventEnd(DM_CreateInjection, dac, daf, 0, 0));
@@ -1358,6 +1361,7 @@ PetscErrorCode DMCreateMassMatrix(DM dmc, DM dmf, Mat *mat)
   PetscValidHeaderSpecific(dmc, DM_CLASSID, 1);
   PetscValidHeaderSpecific(dmf, DM_CLASSID, 2);
   PetscAssertPointer(mat, 3);
+  PetscCheckHasTypeMethod(dmc, createmassmatrix);
   PetscCall(PetscLogEventBegin(DM_CreateMassMatrix, 0, 0, 0, 0));
   PetscUseTypeMethod(dmc, createmassmatrix, dmf, mat);
   PetscCall(PetscLogEventEnd(DM_CreateMassMatrix, 0, 0, 0, 0));
@@ -1462,6 +1466,7 @@ PetscErrorCode DMCreateMatrix(DM dm, Mat *mat)
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   PetscAssertPointer(mat, 2);
   PetscCall(MatInitializePackage());
+  PetscCheckHasTypeMethod(dm, creatematrix);
   PetscCall(PetscLogEventBegin(DM_CreateMatrix, 0, 0, 0, 0));
   PetscUseTypeMethod(dm, creatematrix, mat);
   if (PetscDefined(USE_DEBUG)) {
@@ -2282,6 +2287,7 @@ PetscErrorCode DMRefine(DM dm, MPI_Comm comm, DM *dmf)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCheckHasTypeMethod(dm, refine);
   PetscCall(PetscLogEventBegin(DM_Refine, dm, 0, 0, 0));
   PetscUseTypeMethod(dm, refine, comm, dmf);
   if (*dmf) {
@@ -3277,6 +3283,7 @@ PetscErrorCode DMCoarsen(DM dm, MPI_Comm comm, DM *dmc)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCheckHasTypeMethod(dm, coarsen);
   PetscCall(PetscLogEventBegin(DM_Coarsen, dm, 0, 0, 0));
   PetscUseTypeMethod(dm, coarsen, comm, dmc);
   if (*dmc) {
