@@ -24,6 +24,7 @@ typedef struct {
   PetscInt  idx_cols, iter_count;
   PetscBool allocated, chol_ldlt_lazy, bind;
   PetscReal delta, delta_min, delta_max;
+  MPI_Comm  sub_comm, sub_comm2; /* Subcomm for Matrices, as in MPIRUN cases, all the CDBFGS mat operations are only on on rank 0, this necessiates creating separate comm for rank 0, otherwise stalls are Allreduce winthin validity checks.  */
 } Mat_CDBFGS;
 
 PETSC_INTERN PetscErrorCode MatView_LMVMCDBFGS(Mat, PetscViewer);

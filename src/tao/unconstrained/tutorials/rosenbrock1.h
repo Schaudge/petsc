@@ -35,6 +35,7 @@ struct _AppCtx {
   Vec        gvalues; /* vector for writing COO values of this MPI process */
   Vec        fvector;
   Vec        gtemplate;
+  PetscBool  test_lmvm;
   PetscSF    off_process_scatter;
   Vec        off_process_values; /* buffer for off-process values if chained */
 };
@@ -100,11 +101,13 @@ static PetscErrorCode AppCtxCreate(MPI_Comm comm, AppCtx *ctx)
 
   /* Initialize problem parameters */
   user->n             = 2;
+  user->test_lmvm     = PETSC_FALSE;
   user->problem.alpha = 99.0;
   user->problem.bs    = 2; // bs = 2 is block Rosenbrock, bs = n is chained Rosenbrock
   /* Check for command line arguments to override defaults */
   PetscOptionsBegin(user->comm, NULL, "Rosenbrock example", NULL);
   PetscCall(PetscOptionsInt("-n", "Rosenbrock problem size", NULL, user->n, &user->n, NULL));
+  PetscCall(PetscOptionsGetBool(NULL, NULL, "-test_lmvm", &user->test_lmvm, NULL));
   PetscCall(PetscOptionsInt("-bs", "Rosenbrock block size (2 <= bs <= n)", NULL, user->problem.bs, &user->problem.bs, NULL));
   PetscCall(PetscOptionsReal("-alpha", "Rosenbrock off-diagonal coefficient", NULL, user->problem.alpha, &user->problem.alpha, NULL));
   PetscOptionsEnd();
@@ -521,6 +524,7 @@ static PetscErrorCode FormGradient(Tao tao, Vec X, Vec G, void *ptr)
   PetscCall(VecRestoreArrayReadAndMemType(X, &x));
   PetscCall(VecRestoreArrayReadAndMemType(user->off_process_values, &o));
   PetscCall(PetscDeviceContextSetCurrentContext(current_dctx));
+  //VecView(G, PETSC_VIEWER_STDOUT_SELF);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -586,6 +590,7 @@ static PetscErrorCode FormObjectiveGradient(Tao tao, Vec X, PetscReal *f, Vec G,
   PetscCall(VecRestoreArrayReadAndMemType(X, &x));
   PetscCall(VecRestoreArrayReadAndMemType(user->off_process_values, &o));
   PetscCall(PetscDeviceContextSetCurrentContext(current_dctx));
+  //VecView(G, PETSC_VIEWER_STDOUT_SELF);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -668,8 +673,8 @@ static PetscErrorCode TestLMVM(Tao tao)
     PetscCall(VecDuplicate(x, &out));
     PetscCall(VecDuplicate(x, &out2));
     PetscCall(VecSetRandom(in, NULL));
-    PetscCall(MatMult(M, in, out));
-    PetscCall(MatSolve(M, out, out2));
+    PetscCall(MatSolve(M, in, out));
+    PetscCall(MatMult(M, out, out2));
 
     PetscCall(VecAXPY(out2, -1.0, in));
     PetscCall(VecNorm(out2, NORM_2, &mult_solve_dist));
@@ -716,6 +721,7 @@ static PetscErrorCode RosenbrockMain(void)
   PetscCall(TaoSetGradient(tao, g, FormGradient, user));
   PetscCall(TaoSetHessian(tao, H, H, FormHessian, user));
 
+  if (user->test_lmvm) PetscCall(PetscOptionsSetValue(NULL, "-tao_type", "bqnktr"));
   PetscCall(TaoSetFromOptions(tao));
 
   /* SOLVE THE APPLICATION */
@@ -729,8 +735,9 @@ static PetscErrorCode RosenbrockMain(void)
   cudaProfilerStop();
 #endif
 
-  PetscCall(TestLMVM(tao));
-
+  if (user->test_lmvm) {
+    PetscCall(TestLMVM(tao));
+  }
   PetscCall(TaoDestroy(&tao));
   PetscCall(VecDestroy(&g));
   PetscCall(VecDestroy(&x));
