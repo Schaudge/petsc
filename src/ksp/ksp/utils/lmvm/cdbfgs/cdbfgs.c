@@ -1048,40 +1048,40 @@ static PetscErrorCode MatAdd_LDLT(Mat B)
       PetscCall(PetscDeviceRegisterMemory(buffer, x_type, (lmvm->m-i-1)*sizeof(*buffer)));
       for (j=0; j < lmvm->m-i-1; j++) {
         query_idx_j = query_idx_i+j+1  % lmvm->m;
-	/* TODO 
-	 * 1. host alloc size 1, and devicearraycpy r[idx_i]
-	 * 2. do the same for tmp1, tmp2?
-	 * 3. buffer[j] at the end */
+        /* TODO 
+         * 1. host alloc size 1, and devicearraycpy r[idx_i]
+         * 2. do the same for tmp1, tmp2?
+         * 3. buffer[j] at the end */
 
         PetscScalar *r_q_i;
-	PetscCall(PetscMalloc1(1, &r_q_i));
-	PetscCall(PetscDeviceRegisterMemory(r_q_i, PETSC_MEMTYPE_HOST, sizeof(*r_q_i)));
-	PetscCall(PetscDeviceArrayCopy(dctx, r_q_i, &r_array[query_idx_i], 1));
+        PetscCall(PetscMalloc1(1, &r_q_i));
+        PetscCall(PetscDeviceRegisterMemory(r_q_i, PETSC_MEMTYPE_HOST, sizeof(*r_q_i)));
+        PetscCall(PetscDeviceArrayCopy(dctx, r_q_i, &r_array[query_idx_i], 1));
         if (r_q_i != 0) {//TODO can't do this..
           // TODO maybe create vector with x[j]/r[i], copy, and set zero elsewhere?
           PetscScalar *tmp1, *tmp2;
-	  PetscCall(PetscMalloc2(1, &tmp1, 1, &tmp2));
+          PetscCall(PetscMalloc2(1, &tmp1, 1, &tmp2));
           PetscCall(PetscDeviceRegisterMemory(tmp1, PETSC_MEMTYPE_HOST, sizeof(*tmp1)));
           PetscCall(PetscDeviceRegisterMemory(tmp2, PETSC_MEMTYPE_HOST, sizeof(*tmp2)));
-	  PetscCall(PetscDeviceArrayCopy(dctx, tmp1, &x_array[query_idx_i], 1));
-	  PetscCall(PetscDeviceArrayCopy(dctx, tmp2, &r_array[query_idx_i], 1));
-	  *tmp1 /= *tmp2;
+          PetscCall(PetscDeviceArrayCopy(dctx, tmp1, &x_array[query_idx_i], 1));
+          PetscCall(PetscDeviceArrayCopy(dctx, tmp2, &r_array[query_idx_i], 1));
+          *tmp1 /= *tmp2;
           PetscCall(PetscDeviceArrayCopy(dctx, &buffer[j], tmp1, 1));
-	  PetscCall(PetscFree2(tmp1, tmp2));
+          PetscCall(PetscFree2(tmp1, tmp2));
         } else {
           PetscCall(PetscDeviceArrayZero(dctx, &buffer[j],1));
         }
       }
       for (j=0, k=i+1; k<lmvm->m; k++, j++) {
-	PetscScalar *b_j;
+        PetscScalar *b_j;
         query_idx_j = (index + j) % lmvm->m;
         query_idx_k = (index + k) % lmvm->m;
-	PetscCall(PetscMalloc1(1, &b_j));
+        PetscCall(PetscMalloc1(1, &b_j));
         PetscCall(PetscDeviceRegisterMemory(b_j, PETSC_MEMTYPE_HOST, sizeof(*b_j)));
         PetscCall(MatDenseGetColumnVecWrite(lbfgs->J, query_idx_k, &workvec2));
-	PetscCall(PetscDeviceArrayCopy(dctx, &b_j, &buffer[j], 1));
+        PetscCall(PetscDeviceArrayCopy(dctx, &b_j, &buffer[j], 1));
         PetscCall(VecAXPY(workvec2, *b_j, lbfgs->rwork1));
-	PetscCall(PetscFree(b_j));
+        PetscCall(PetscFree(b_j));
         PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->J, query_idx_k, &workvec2));
       }
       PetscCall(PetscDeviceFree(dctx, buffer));
@@ -1233,7 +1233,7 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   }
 
   if (lbfgs->chol_ldlt_lazy) {
-    /* Cholesky, and LDLT is done lazily to avoid unncessary computation, in case MatMult is not so frequently used *	 
+    /* Cholesky, and LDLT is done lazily to avoid unncessary computation, in case MatMult is not so frequently used * 
      * Now, SBS is in shifted order in all strategies. *
      * Compute S^T B S + L D^{-1} L^T *
      * J = S^T B S + L D^{-1} L^T */
@@ -1353,9 +1353,9 @@ static PetscErrorCode MatRotate_STY_CCW(Mat R)
     PetscCall(MatDenseGetLDA(B, &lda));
     PetscCall(VecGetType(lmvm->Xprev, &vec_type));
     //PetscCall(MatCreateDenseFromVecType(comm, vec_type, PETSC_DECIDE, PETSC_DECIDE, lmvm->m, b, lda, NULL, &B_work));
-    PetscCall(MatCreateDenseFromVecType(comm, vec_type, m, bb, M, b, lda, NULL, &B_work));
+    PetscCall(MatCreateDenseFromVecType(PetscObjectComm((PetscObject)B), vec_type, m, bb, m, bb, lda, NULL, &B_work));
     PetscCall(MatCopy(B, B_work, SAME_NONZERO_PATTERN));
-    PetscCall(MatDenseRestoreSubMatrix(lbfgs->StYfull, &B));
+    PetscCall(MatDenseRestoreSubMatrix(sty_local, &B));
   }
 
   if (a != 0) {
@@ -1366,69 +1366,71 @@ static PetscErrorCode MatRotate_STY_CCW(Mat R)
     mmb = (rank == 0) ? M - b : 0;
     /* Cannot use MatConvert here, as B,D_work is MEMTYPE_HOST */
     //PetscCall(MatDenseGetSubMatrix(lbfgs->StYfull, 0, lmvm->m, b, lmvm->m, &D));
-    PetscCall(MatDenseGetSubMatrix(sty_local, 0, m, bb, lmvm->m, &D));
+    PetscCall(MatDenseGetSubMatrix(sty_local, 0, m, bb, m, &D));
     PetscCall(MatDenseGetLDA(D, &lda));
     PetscCall(VecGetType(lmvm->Xprev, &vec_type));
     //PetscCall(MatCreateDenseFromVecType(comm, vec_type, PETSC_DECIDE, PETSC_DECIDE, lmvm->m, lmvm->m - b, lda, NULL, &D_work));
-    PetscCall(MatCreateDenseFromVecType(comm, vec_type, m, mmb, M, M-b, lda, NULL, &D_work));
+    PetscCall(MatCreateDenseFromVecType(PetscObjectComm((PetscObject)D), vec_type, m, mmb, m, mmb, lda, NULL, &D_work));
     PetscCall(MatCopy(D, D_work, SAME_NONZERO_PATTERN));
-    PetscCall(MatDenseRestoreSubMatrix(lbfgs->StYfull, &D));
+    PetscCall(MatDenseRestoreSubMatrix(sty_local, &D));
   }
 
   if (b != 0) {
     Mat B_work_local;
     PetscCall(MatGetDiagonalBlock(B_work, &B_work_local));
 
+    if (rank == 0) {
     /* Turn [C;B] to [B;C] */
-    for (i=0; i<b; i++) {
-      PetscCall(MatDenseGetColumnVecRead(B_work_local, i, &workvec));
-      PetscCall(VecCopy(workvec, lbfgs->rwork1));
-      PetscCall(VecGetSize(workvec,&N));
-      PetscCall(MatDenseRestoreColumnVecRead(B_work_local, i, &workvec));
-      PetscCall(VecGetArrayAndMemType(lbfgs->rwork1, &x_array, &memtype_vec));
+      for (i=0; i<b; i++) {
+        PetscCall(MatDenseGetColumnVecRead(B_work_local, i, &workvec));
+        PetscCall(VecCopy(workvec, lbfgs->rwork1));
+        PetscCall(VecGetSize(workvec,&N));
+        PetscCall(MatDenseRestoreColumnVecRead(B_work_local, i, &workvec));
+        PetscCall(VecGetArrayAndMemType(lbfgs->rwork1, &x_array, &memtype_vec));
 
-      switch (memtype_vec) {
-      case PETSC_MEMTYPE_HOST:
-        {
-          PetscCall(PetscMalloc2(b, &buffer1, a, &buffer2));
-          PetscCall(PetscArraycpy(buffer1, x_array, b));
-          PetscCall(PetscArraycpy(buffer2, &x_array[b], a));
-          PetscCall(PetscArraycpy(x_array, buffer2, a));
-          PetscCall(PetscArraycpy(&x_array[a], buffer1, b));
-          PetscCall(PetscFree2(buffer1, buffer2));
-        }
-        break;
-      case PETSC_MEMTYPE_CUDA:
-      case PETSC_MEMTYPE_NVSHMEM:
-      case PETSC_MEMTYPE_HIP:
-        {
+        switch (memtype_vec) {
+        case PETSC_MEMTYPE_HOST:
+          {
+            PetscCall(PetscMalloc2(b, &buffer1, a, &buffer2));
+            PetscCall(PetscArraycpy(buffer1, x_array, b));
+            PetscCall(PetscArraycpy(buffer2, &x_array[b], a));
+            PetscCall(PetscArraycpy(x_array, buffer2, a));
+            PetscCall(PetscArraycpy(&x_array[a], buffer1, b));
+            PetscCall(PetscFree2(buffer1, buffer2));
+          }
+          break;
+        case PETSC_MEMTYPE_CUDA:
+        case PETSC_MEMTYPE_NVSHMEM:
+        case PETSC_MEMTYPE_HIP:
+          {
 #if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
-        PetscDeviceContext dctx;
-        PetscCall(PetscDeviceContextCreate(&dctx));
-        PetscCall(PetscDeviceContextSetUp(dctx));
+          PetscDeviceContext dctx;
+          PetscCall(PetscDeviceContextCreate(&dctx));
+          PetscCall(PetscDeviceContextSetUp(dctx));
   
-        PetscCall(PetscDeviceRegisterMemory(x_array, memtype_vec, N*sizeof(*x_array)));
-        PetscCall(PetscDeviceMalloc(dctx, memtype_vec, b, &buffer1));
-        PetscCall(PetscDeviceMalloc(dctx, memtype_vec, a, &buffer2));
-        PetscCall(PetscDeviceArrayCopy(dctx, buffer1, x_array, b));
-        /* Shift */
-        PetscCall(PetscDeviceArrayCopy(dctx, buffer2, &x_array[b], a));
-        PetscCall(PetscDeviceArrayCopy(dctx, x_array, buffer2, a));
-        /* Paste C part */
-        PetscCall(PetscDeviceArrayCopy(dctx, &x_array[a], buffer1, b));
-        PetscCall(PetscDeviceFree(dctx, buffer1));
-        PetscCall(PetscDeviceFree(dctx, buffer2));
-        PetscCall(PetscDeviceContextDestroy(&dctx));
+          PetscCall(PetscDeviceRegisterMemory(x_array, memtype_vec, N*sizeof(*x_array)));
+          PetscCall(PetscDeviceMalloc(dctx, memtype_vec, b, &buffer1));
+          PetscCall(PetscDeviceMalloc(dctx, memtype_vec, a, &buffer2));
+          PetscCall(PetscDeviceArrayCopy(dctx, buffer1, x_array, b));
+          /* Shift */
+          PetscCall(PetscDeviceArrayCopy(dctx, buffer2, &x_array[b], a));
+          PetscCall(PetscDeviceArrayCopy(dctx, x_array, buffer2, a));
+          /* Paste C part */
+          PetscCall(PetscDeviceArrayCopy(dctx, &x_array[a], buffer1, b));
+          PetscCall(PetscDeviceFree(dctx, buffer1));
+          PetscCall(PetscDeviceFree(dctx, buffer2));
+          PetscCall(PetscDeviceContextDestroy(&dctx));
 #endif
+          }
+          break;
+        default:
+          SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented MEMTYPE");
         }
-        break;
-      default:
-        SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented MEMTYPE");
+        PetscCall(VecRestoreArrayAndMemType(lbfgs->rwork1, &x_array));
+        PetscCall(MatDenseGetColumnVecWrite(sty_local, a+i, &workvec));
+        PetscCall(VecCopy(lbfgs->rwork1, workvec));
+        PetscCall(MatDenseRestoreColumnVecWrite(sty_local, a+i, &workvec));
       }
-      PetscCall(VecRestoreArrayAndMemType(lbfgs->rwork1, &x_array));
-      PetscCall(MatDenseGetColumnVecWrite(lbfgs->StYfull, a+i, &workvec));
-      PetscCall(VecCopy(lbfgs->rwork1, workvec));
-      PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->StYfull, a+i, &workvec));
     }
     PetscCall(MatDestroy(&B_work));
   }
@@ -1439,55 +1441,57 @@ static PetscErrorCode MatRotate_STY_CCW(Mat R)
     Mat D_work_local;
     PetscCall(MatGetDiagonalBlock(D_work, &D_work_local));
     /* Turn [D;A] to [A;D] */
-    for (i=0; i<a; i++) {
-      PetscCall(MatDenseGetColumnVecRead(D_work_local, i, &workvec));
-      PetscCall(VecCopy(workvec, lbfgs->rwork1));
-      PetscCall(MatDenseRestoreColumnVecRead(D_work_local, i, &workvec));
-      PetscCall(VecGetArrayAndMemType(lbfgs->rwork1, &x_array, &memtype_vec));
-
-      switch (memtype_vec) {
-      case PETSC_MEMTYPE_HOST:
-        {
-          PetscCall(PetscMalloc2(a, &buffer1, b, &buffer2));
-          PetscCall(PetscArraycpy(buffer1, &x_array[b], a));
-          PetscCall(PetscArraycpy(buffer2, x_array, b));
-          PetscCall(PetscArraycpy(&x_array[b], buffer2, b));
-          PetscCall(PetscArraycpy(x_array, buffer1, a));
-          PetscCall(PetscFree2(buffer1,buffer2));
-        }
-        break;
-      case PETSC_MEMTYPE_CUDA:
-      case PETSC_MEMTYPE_NVSHMEM:
-      case PETSC_MEMTYPE_HIP:
-        {
-#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
-        PetscDeviceContext dctx;
-        PetscCall(PetscDeviceContextCreate(&dctx));
-        PetscCall(PetscDeviceContextSetUp(dctx));
+    if (rank == 0) {
+      for (i=0; i<a; i++) {
+        PetscCall(MatDenseGetColumnVecRead(D_work_local, i, &workvec));
+        PetscCall(VecCopy(workvec, lbfgs->rwork1));
+        PetscCall(MatDenseRestoreColumnVecRead(D_work_local, i, &workvec));
+        PetscCall(VecGetArrayAndMemType(lbfgs->rwork1, &x_array, &memtype_vec));
   
-        PetscCall(PetscDeviceRegisterMemory(x_array, memtype_vec, N*sizeof(*x_array)));
-        PetscCall(PetscDeviceMalloc(dctx, memtype_vec,  a, &buffer1));
-        PetscCall(PetscDeviceMalloc(dctx, memtype_vec,  b, &buffer2));
-        PetscCall(PetscDeviceArrayCopy(dctx, buffer1, &x_array[b], a));
-        /* Shift */
-        PetscCall(PetscDeviceArrayCopy(dctx, buffer2, x_array, b));
-        PetscCall(PetscDeviceArrayCopy(dctx, &x_array[a], buffer2, b));
-        /* Paste A part */
-        PetscCall(PetscDeviceArrayCopy(dctx, x_array, buffer1, a));
-        PetscCall(PetscDeviceFree(dctx, buffer1));
-        PetscCall(PetscDeviceFree(dctx, buffer2));
-      
-        PetscCall(PetscDeviceContextDestroy(&dctx));
+        switch (memtype_vec) {
+        case PETSC_MEMTYPE_HOST:
+          {
+            PetscCall(PetscMalloc2(a, &buffer1, b, &buffer2));
+            PetscCall(PetscArraycpy(buffer1, &x_array[b], a));
+            PetscCall(PetscArraycpy(buffer2, x_array, b));
+            PetscCall(PetscArraycpy(&x_array[b], buffer2, b));
+            PetscCall(PetscArraycpy(x_array, buffer1, a));
+            PetscCall(PetscFree2(buffer1,buffer2));
+          }
+          break;
+        case PETSC_MEMTYPE_CUDA:
+        case PETSC_MEMTYPE_NVSHMEM:
+        case PETSC_MEMTYPE_HIP:
+          {
+#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
+          PetscDeviceContext dctx;
+          PetscCall(PetscDeviceContextCreate(&dctx));
+          PetscCall(PetscDeviceContextSetUp(dctx));
+    
+          PetscCall(PetscDeviceRegisterMemory(x_array, memtype_vec, N*sizeof(*x_array)));
+          PetscCall(PetscDeviceMalloc(dctx, memtype_vec,  a, &buffer1));
+          PetscCall(PetscDeviceMalloc(dctx, memtype_vec,  b, &buffer2));
+          PetscCall(PetscDeviceArrayCopy(dctx, buffer1, &x_array[b], a));
+          /* Shift */
+          PetscCall(PetscDeviceArrayCopy(dctx, buffer2, x_array, b));
+          PetscCall(PetscDeviceArrayCopy(dctx, &x_array[a], buffer2, b));
+          /* Paste A part */
+          PetscCall(PetscDeviceArrayCopy(dctx, x_array, buffer1, a));
+          PetscCall(PetscDeviceFree(dctx, buffer1));
+          PetscCall(PetscDeviceFree(dctx, buffer2));
+        
+          PetscCall(PetscDeviceContextDestroy(&dctx));
 #endif
-        }
-        break;
-      default:
-        SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented MEMTYPE");
-      }            
-      PetscCall(VecRestoreArrayAndMemType(lbfgs->rwork1, &x_array));
-      PetscCall(MatDenseGetColumnVecWrite(lbfgs->StYfull, i, &workvec));
-      PetscCall(VecCopy(lbfgs->rwork1, workvec));
-      PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->StYfull, i, &workvec));
+          }
+          break;
+        default:
+          SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented MEMTYPE");
+        }            
+        PetscCall(VecRestoreArrayAndMemType(lbfgs->rwork1, &x_array));
+        PetscCall(MatDenseGetColumnVecWrite(sty_local, i, &workvec));
+        PetscCall(VecCopy(lbfgs->rwork1, workvec));
+        PetscCall(MatDenseRestoreColumnVecWrite(sty_local, i, &workvec));
+      }
     }
     PetscCall(MatDestroy(&D_work));
   }
@@ -1527,8 +1531,8 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     }
     if (PetscRealPart(curvature) > curvtol) {
 
-      /* LMVM is updated. Need to update Chol and LDLT inside MatMult */	    
-      lbfgs->chol_ldlt_lazy = PETSC_TRUE; 	    
+      /* LMVM is updated. Need to update Chol and LDLT inside MatMult */    
+      lbfgs->chol_ldlt_lazy = PETSC_TRUE;     
       lbfgs->iter_count++;//TODO for debugging purpose. delete later
 
       /* Update is good, accept it */
@@ -1565,7 +1569,7 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
           PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull_device));
           PetscCall(MatCopy(lbfgs->StYfull_device, lbfgs->StYfull, SAME_NONZERO_PATTERN)); 
         } else {
-//	  PetscCall(MtMT_Internal(B, lbfgs->Sfull, lbfgs->Yfull, &lbfgs->StYfull));
+//  PetscCall(MtMT_Internal(B, lbfgs->Sfull, lbfgs->Yfull, &lbfgs->StYfull));
           PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
         }
 
@@ -1619,11 +1623,11 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
   } else {
     if (!(lmvm->J0 || lmvm->user_pc || lmvm->user_ksp || lmvm->user_scale)) {
       /* No previous updates have been set, so we just update the diagonal with an initial scalar */
-	    //TODO THIS PART IS ERROR AFTER RESET 
-	    //1. USER_SCALE DISAPPEARS. NEED TO ADDRESS THIS
-	    //2. invD disappears (or was it ever there?)
-	    //
-	    //This is more fundamental to overall MATLMVM - set J0Scale is "Wrong", for an example
+    //TODO THIS PART IS ERROR AFTER RESET 
+    //1. USER_SCALE DISAPPEARS. NEED TO ADDRESS THIS
+    //2. invD disappears (or was it ever there?)
+    //
+    //This is more fundamental to overall MATLMVM - set J0Scale is "Wrong", for an example
       dbase = (Mat_LMVM*)lbfgs->diag_bfgs->data;
       dctx = (Mat_DiagBrdn*)dbase->ctx;
       PetscCall(VecSet(dctx->invD, lbfgs->delta));
