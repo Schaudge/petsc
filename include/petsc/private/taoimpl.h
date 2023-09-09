@@ -186,9 +186,6 @@ struct _p_Tao {
   PetscInt      hist_len;
   PetscBool     hist_reset;
   PetscBool     hist_malloc;
-
-  PetscDeviceContext dctx;
-  PetscDeviceContext callback_dctx;
 };
 
 PETSC_EXTERN PetscLogEvent TAO_Solve;

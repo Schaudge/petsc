@@ -4,8 +4,6 @@
 */
 
 #pragma once
-
-#include <petscdevice.h>
 #include <petsc/private/taoimpl.h>
 
 typedef struct {

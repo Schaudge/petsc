@@ -1,5 +1,4 @@
 #include <petsc/private/taoimpl.h> /*I "petsctao.h" I*/
-#include <petsc/private/deviceimpl.h>
 
 /*@C
   TaoSetHessian - Sets the function to compute the Hessian as well as the location to store the matrix.
@@ -257,13 +256,11 @@ PetscErrorCode TaoComputeHessian(Tao tao, Vec X, Mat H, Mat Hpre)
   PetscCheck(tao->ops->computehessian, PetscObjectComm((PetscObject)tao), PETSC_ERR_ARG_WRONGSTATE, "TaoSetHessian() not called");
 
   ++tao->nhess;
-  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->callback_dctx, tao->dctx));
   PetscCall(VecLockReadPush(X));
   PetscCall(PetscLogEventBegin(TAO_HessianEval, tao, X, H, Hpre));
   PetscCallBack("Tao callback Hessian", (*tao->ops->computehessian)(tao, X, H, Hpre, tao->user_hessP));
   PetscCall(PetscLogEventEnd(TAO_HessianEval, tao, X, H, Hpre));
   PetscCall(VecLockReadPop(X));
-  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->dctx, tao->callback_dctx));
 
   PetscCall(TaoTestHessian(tao));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -302,13 +299,11 @@ PetscErrorCode TaoComputeJacobian(Tao tao, Vec X, Mat J, Mat Jpre)
   PetscValidHeaderSpecific(X, VEC_CLASSID, 2);
   PetscCheckSameComm(tao, 1, X, 2);
   ++tao->njac;
-  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->callback_dctx, tao->dctx));
   PetscCall(VecLockReadPush(X));
   PetscCall(PetscLogEventBegin(TAO_JacobianEval, tao, X, J, Jpre));
   PetscCallBack("Tao callback Jacobian", (*tao->ops->computejacobian)(tao, X, J, Jpre, tao->user_jacP));
   PetscCall(PetscLogEventEnd(TAO_JacobianEval, tao, X, J, Jpre));
   PetscCall(VecLockReadPop(X));
-  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->dctx, tao->callback_dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -345,13 +340,11 @@ PetscErrorCode TaoComputeResidualJacobian(Tao tao, Vec X, Mat J, Mat Jpre)
   PetscValidHeaderSpecific(X, VEC_CLASSID, 2);
   PetscCheckSameComm(tao, 1, X, 2);
   ++tao->njac;
-  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->callback_dctx, tao->dctx));
   PetscCall(VecLockReadPush(X));
   PetscCall(PetscLogEventBegin(TAO_JacobianEval, tao, X, J, Jpre));
   PetscCallBack("Tao callback least-squares residual Jacobian", (*tao->ops->computeresidualjacobian)(tao, X, J, Jpre, tao->user_lsjacP));
   PetscCall(PetscLogEventEnd(TAO_JacobianEval, tao, X, J, Jpre));
   PetscCall(VecLockReadPop(X));
-  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->dctx, tao->callback_dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -385,13 +378,11 @@ PetscErrorCode TaoComputeJacobianState(Tao tao, Vec X, Mat J, Mat Jpre, Mat Jinv
   PetscValidHeaderSpecific(X, VEC_CLASSID, 2);
   PetscCheckSameComm(tao, 1, X, 2);
   ++tao->njac_state;
-  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->callback_dctx, tao->dctx));
   PetscCall(VecLockReadPush(X));
   PetscCall(PetscLogEventBegin(TAO_JacobianEval, tao, X, J, Jpre));
   PetscCallBack("Tao callback Jacobian(state)", (*tao->ops->computejacobianstate)(tao, X, J, Jpre, Jinv, tao->user_jac_stateP));
   PetscCall(PetscLogEventEnd(TAO_JacobianEval, tao, X, J, Jpre));
   PetscCall(VecLockReadPop(X));
-  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->dctx, tao->callback_dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -423,13 +414,11 @@ PetscErrorCode TaoComputeJacobianDesign(Tao tao, Vec X, Mat J)
   PetscValidHeaderSpecific(X, VEC_CLASSID, 2);
   PetscCheckSameComm(tao, 1, X, 2);
   ++tao->njac_design;
-  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->callback_dctx, tao->dctx));
   PetscCall(VecLockReadPush(X));
   PetscCall(PetscLogEventBegin(TAO_JacobianEval, tao, X, J, NULL));
   PetscCallBack("Tao callback Jacobian(design)", (*tao->ops->computejacobiandesign)(tao, X, J, tao->user_jac_designP));
   PetscCall(PetscLogEventEnd(TAO_JacobianEval, tao, X, J, NULL));
   PetscCall(VecLockReadPop(X));
-  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->dctx, tao->callback_dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -699,13 +688,11 @@ PetscErrorCode TaoComputeJacobianEquality(Tao tao, Vec X, Mat J, Mat Jpre)
   PetscValidHeaderSpecific(X, VEC_CLASSID, 2);
   PetscCheckSameComm(tao, 1, X, 2);
   ++tao->njac_equality;
-  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->callback_dctx, tao->dctx));
   PetscCall(VecLockReadPush(X));
   PetscCall(PetscLogEventBegin(TAO_JacobianEval, tao, X, J, Jpre));
   PetscCallBack("Tao callback Jacobian(equality)", (*tao->ops->computejacobianequality)(tao, X, J, Jpre, tao->user_jac_equalityP));
   PetscCall(PetscLogEventEnd(TAO_JacobianEval, tao, X, J, Jpre));
   PetscCall(VecLockReadPop(X));
-  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->dctx, tao->callback_dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -738,13 +725,11 @@ PetscErrorCode TaoComputeJacobianInequality(Tao tao, Vec X, Mat J, Mat Jpre)
   PetscValidHeaderSpecific(X, VEC_CLASSID, 2);
   PetscCheckSameComm(tao, 1, X, 2);
   ++tao->njac_inequality;
-  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->callback_dctx, tao->dctx));
   PetscCall(VecLockReadPush(X));
   PetscCall(PetscLogEventBegin(TAO_JacobianEval, tao, X, J, Jpre));
   PetscCallBack("Tao callback Jacobian (inequality)", (*tao->ops->computejacobianinequality)(tao, X, J, Jpre, tao->user_jac_inequalityP));
   PetscCall(PetscLogEventEnd(TAO_JacobianEval, tao, X, J, Jpre));
   PetscCall(VecLockReadPop(X));
-  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->dctx, tao->callback_dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

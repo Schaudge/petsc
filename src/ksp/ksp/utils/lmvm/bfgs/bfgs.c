@@ -33,26 +33,27 @@
 */
 PetscErrorCode MatSolve_LMVMBFGS(Mat B, Vec F, Vec dX)
 {
-  Mat_LMVM    *lmvm  = (Mat_LMVM *)B->data;
-  Mat_SymBrdn *lbfgs = (Mat_SymBrdn *)lmvm->ctx;
-  PetscInt     i;
-  PetscReal   *alpha, beta;
-  PetscScalar  stf, ytx;
+  Mat_LMVM          *lmvm  = (Mat_LMVM *)B->data;
+  Mat_SymBrdn       *lbfgs = (Mat_SymBrdn *)lmvm->ctx;
+  PetscInt           i;
+  PetscReal         *alpha, beta;
+  PetscScalar        stf, ytx;
+  PetscDeviceContext dctx;
 
   PetscFunctionBegin;
   VecCheckSameSize(F, 2, dX, 3);
   VecCheckMatCompatible(B, dX, 3, F, 2);
+  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
 
   /* Copy the function into the work vector for the first loop */
-  PetscCall(VecCopyAsync_Private(F, lbfgs->work, lmvm->dctx));
+  PetscCall(VecCopyAsync_Private(F, lbfgs->work, dctx));
 
   /* Start the first loop */
   PetscCall(PetscMalloc1(lmvm->k + 1, &alpha));
   for (i = lmvm->k; i >= 0; --i) {
-    // dot product performed on default blocking stream, last write to lbfgs->work completes before dot product starts
     PetscCall(VecDot(lmvm->S[i], lbfgs->work, &stf));
     alpha[i] = PetscRealPart(stf) / lbfgs->yts[i];
-    PetscCall(VecAXPYAsync_Private(lbfgs->work, -alpha[i], lmvm->Y[i], lmvm->dctx));
+    PetscCall(VecAXPYAsync_Private(lbfgs->work, -alpha[i], lmvm->Y[i], dctx));
   }
 
   /* Invert the initial Jacobian onto the work vector (or apply scaling) */
@@ -63,7 +64,7 @@ PetscErrorCode MatSolve_LMVMBFGS(Mat B, Vec F, Vec dX)
     // dot product performed on default blocking stream, last write to lbfgs->work completes before dot product starts
     PetscCall(VecDot(lmvm->Y[i], dX, &ytx));
     beta = PetscRealPart(ytx) / lbfgs->yts[i];
-    PetscCall(VecAXPYAsync_Private(dX, alpha[i] - beta, lmvm->S[i], lmvm->dctx));
+    PetscCall(VecAXPYAsync_Private(dX, alpha[i] - beta, lmvm->S[i], dctx));
   }
   PetscCall(PetscFree(alpha));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -141,20 +142,22 @@ PetscErrorCode MatMult_LMVMBFGS(Mat B, Vec X, Vec Z)
 
 static PetscErrorCode MatUpdate_LMVMBFGS(Mat B, Vec X, Vec F)
 {
-  Mat_LMVM     *lmvm  = (Mat_LMVM *)B->data;
-  Mat_SymBrdn  *lbfgs = (Mat_SymBrdn *)lmvm->ctx;
-  Mat_LMVM     *dbase;
-  Mat_DiagBrdn *dctx;
-  PetscInt      old_k, i;
-  PetscReal     curvtol, ststmp;
-  PetscScalar   curvature, ytytmp;
+  Mat_LMVM          *lmvm  = (Mat_LMVM *)B->data;
+  Mat_SymBrdn       *lbfgs = (Mat_SymBrdn *)lmvm->ctx;
+  Mat_LMVM          *dbase;
+  Mat_DiagBrdn      *diagctx;
+  PetscInt           old_k, i;
+  PetscReal          curvtol, ststmp;
+  PetscScalar        curvature, ytytmp;
+  PetscDeviceContext dctx;
 
   PetscFunctionBegin;
   if (!lmvm->m) PetscFunctionReturn(PETSC_SUCCESS);
+  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
   if (lmvm->prev_set) {
     /* Compute the new (S = X - Xprev) and (Y = F - Fprev) vectors */
-    PetscCall(VecAYPXAsync_Private(lmvm->Xprev, -1.0, X, lmvm->dctx));
-    PetscCall(VecAYPXAsync_Private(lmvm->Fprev, -1.0, F, lmvm->dctx));
+    PetscCall(VecAYPXAsync_Private(lmvm->Xprev, -1.0, X, dctx));
+    PetscCall(VecAYPXAsync_Private(lmvm->Fprev, -1.0, F, dctx));
 
     /* Test if the updates can be accepted */
     PetscCall(VecDotNorm2(lmvm->Xprev, lmvm->Fprev, &curvature, &ststmp));
@@ -191,8 +194,8 @@ static PetscErrorCode MatUpdate_LMVMBFGS(Mat B, Vec X, Vec F)
     switch (lbfgs->scale_type) {
     case MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL:
       dbase = (Mat_LMVM *)lbfgs->D->data;
-      dctx  = (Mat_DiagBrdn *)dbase->ctx;
-      PetscCall(VecSetAsync_Private(dctx->invD, lbfgs->delta, lmvm->dctx));
+      diagctx  = (Mat_DiagBrdn *)dbase->ctx;
+      PetscCall(VecSetAsync_Private(diagctx->invD, lbfgs->delta, dctx));
       break;
     case MAT_LMVM_SYMBROYDEN_SCALE_SCALAR:
       lbfgs->sigma = lbfgs->delta;
@@ -214,8 +217,8 @@ static PetscErrorCode MatUpdate_LMVMBFGS(Mat B, Vec X, Vec F)
   }
 
   /* Save the solution and function to be used in the next update */
-  PetscCall(VecCopyAsync_Private(X, lmvm->Xprev, lmvm->dctx));
-  PetscCall(VecCopyAsync_Private(F, lmvm->Fprev, lmvm->dctx));
+  PetscCall(VecCopyAsync_Private(X, lmvm->Xprev, dctx));
+  PetscCall(VecCopyAsync_Private(F, lmvm->Fprev, dctx));
   lmvm->prev_set = PETSC_TRUE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

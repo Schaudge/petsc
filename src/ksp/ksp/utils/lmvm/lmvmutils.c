@@ -48,7 +48,6 @@ PetscErrorCode MatLMVMUpdate(Mat B, Vec X, Vec F)
   PetscCall(PetscLogEventBegin(LMVM_Update, (PetscObject)B, NULL, NULL, NULL));
   PetscCall((*lmvm->ops->update)(B, X, F));
   PetscCall(PetscLogEventEnd(LMVM_Update, (PetscObject)B, NULL, NULL, NULL));
-  if (lmvm->dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(NULL, lmvm->dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -364,10 +363,11 @@ PetscErrorCode MatLMVMGetJ0KSP(Mat B, KSP *J0ksp)
 @*/
 PetscErrorCode MatLMVMApplyJ0Fwd(Mat B, Vec X, Vec Y)
 {
-  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
-  PetscBool same, hasMult;
-  MPI_Comm  comm = PetscObjectComm((PetscObject)B);
-  Mat       Amat, Pmat;
+  Mat_LMVM          *lmvm = (Mat_LMVM *)B->data;
+  PetscBool          same, hasMult;
+  MPI_Comm           comm = PetscObjectComm((PetscObject)B);
+  Mat                Amat, Pmat;
+  PetscDeviceContext dctx;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(B, MAT_CLASSID, 1);
@@ -378,6 +378,7 @@ PetscErrorCode MatLMVMApplyJ0Fwd(Mat B, Vec X, Vec Y)
   PetscCheck(lmvm->allocated, comm, PETSC_ERR_ORDER, "LMVM matrix must be allocated first");
   VecCheckMatCompatible(B, X, 2, Y, 3);
   PetscCall(PetscLogEventBegin(LMVM_J0Fwd, (PetscObject)B, NULL, NULL, NULL));
+  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
   if (lmvm->user_pc || lmvm->user_ksp || lmvm->J0) {
     /* User may have defined a PC or KSP for J0^{-1} so let's try to use its operators. */
     if (lmvm->user_pc) {
@@ -393,19 +394,19 @@ PetscErrorCode MatLMVMApplyJ0Fwd(Mat B, Vec X, Vec Y)
       PetscCall(MatMult(Amat, X, Y));
     } else {
       /* there's no product, so treat J0 as identity */
-      PetscCall(VecCopyAsync_Private(X, Y, lmvm->dctx));
+      PetscCall(VecCopyAsync_Private(X, Y, dctx));
     }
   } else if (lmvm->user_scale) {
     if (lmvm->J0diag) {
       /* User has defined a diagonal vector for J0 */
-      PetscCall(VecPointwiseMultAsync_Private(X, lmvm->J0diag, Y, lmvm->dctx));
+      PetscCall(VecPointwiseMultAsync_Private(X, lmvm->J0diag, Y, dctx));
     } else {
       /* User has defined a scalar value for J0 */
-      PetscCall(VecAXPBYAsync_Private(Y, lmvm->J0scalar, 0.0, X, lmvm->dctx));
+      PetscCall(VecAXPBYAsync_Private(Y, lmvm->J0scalar, 0.0, X, dctx));
     }
   } else {
     /* There is no J0 representation so just apply an identity matrix */
-    PetscCall(VecCopyAsync_Private(X, Y, lmvm->dctx));
+    PetscCall(VecCopyAsync_Private(X, Y, dctx));
   }
   PetscCall(PetscLogEventEnd(LMVM_J0Fwd, (PetscObject)B, NULL, NULL, NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -439,6 +440,7 @@ PetscErrorCode MatLMVMApplyJ0Inv(Mat B, Vec X, Vec Y)
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
   PetscBool same, hasSolve;
   MPI_Comm  comm = PetscObjectComm((PetscObject)B);
+  PetscDeviceContext dctx;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(B, MAT_CLASSID, 1);
@@ -450,6 +452,7 @@ PetscErrorCode MatLMVMApplyJ0Inv(Mat B, Vec X, Vec Y)
   VecCheckMatCompatible(B, X, 2, Y, 3);
 
   PetscCall(PetscLogEventBegin(LMVM_J0Inv, (PetscObject)B, NULL, NULL, NULL));
+  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
   /* Invert the initial Jacobian onto q (or apply scaling) */
   if (lmvm->user_pc) {
     /* User has defined a J0 inverse so we can directly apply it as a preconditioner */
@@ -466,13 +469,13 @@ PetscErrorCode MatLMVMApplyJ0Inv(Mat B, Vec X, Vec Y)
     }
   } else if (lmvm->user_scale) {
     if (lmvm->J0diag) {
-      PetscCall(VecPointwiseDivideAsync_Private(X, Y, lmvm->J0diag, lmvm->dctx));
+      PetscCall(VecPointwiseDivideAsync_Private(X, Y, lmvm->J0diag, dctx));
     } else {
-      PetscCall(VecAXPBYAsync_Private(Y, 1.0 / lmvm->J0scalar, 0.0, X, lmvm->dctx));
+      PetscCall(VecAXPBYAsync_Private(Y, 1.0 / lmvm->J0scalar, 0.0, X, dctx));
     }
   } else {
     /* There is no J0 representation so just apply an identity matrix */
-    PetscCall(VecCopyAsync_Private(X, Y, lmvm->dctx));
+    PetscCall(VecCopyAsync_Private(X, Y, dctx));
   }
   PetscCall(PetscLogEventEnd(LMVM_J0Inv, (PetscObject)B, NULL, NULL, NULL));
   PetscFunctionReturn(PETSC_SUCCESS);

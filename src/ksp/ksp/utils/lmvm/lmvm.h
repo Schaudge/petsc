@@ -42,8 +42,6 @@ typedef struct {
   PC        J0pc;
   KSP       J0ksp;
 
-  PetscDeviceContext dctx; /* internal device context for iterations */
-
   /* Data structures to support common Mat functions */
   PetscReal shift;
 

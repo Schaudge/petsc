@@ -27,4 +27,3 @@ iter =   4, Function value 0.000253283, Residual: 0.624198
 iter =   5, Function value 1.76738e-09, Residual: 0.00109947 
   iter =   0,   Function value 1.76738e-09,   Residual: 0.00109947 
   iter =   1,   Function value 1.15741e-09,   Residual: 3.05181e-05 
-error between LMVM MatMult and MatSolve: < 1.e-11

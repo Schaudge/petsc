@@ -203,7 +203,8 @@ static PetscErrorCode VecRightward_Shift(Mat B, Vec X, PetscInt step)
 #if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
             {
               PetscScalar *buffer2;
-              PetscDeviceContext dctx = lmvm->dctx;
+              PetscDeviceContext dctx;
+              PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
               PetscCall(PetscDeviceRegisterMemory(x_array, memtype_x, N*sizeof(*x_array)));
               PetscCall(PetscDeviceMalloc(dctx, memtype_x, size, &buffer1));
               PetscCall(PetscDeviceMalloc(dctx, memtype_x, N-size, &buffer2));
@@ -701,8 +702,10 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
 #if defined(PETSC_HAVE_CUDA)
         {
           cublasHandle_t handle;
+          PetscDeviceContext dctx;
 
-          PetscCall(PetscDeviceContextGetBLASHandle_Internal(lmvm->dctx, &handle));
+          PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+          PetscCall(PetscDeviceContextGetBLASHandle_Internal(dctx, &handle));
 
           PetscCallCUBLAS(cublasSetPointerMode(handle, CUBLAS_POINTER_MODE_HOST));
 
@@ -813,8 +816,11 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
 #if defined(PETSC_HAVE_CUDA)
       {
         cublasHandle_t handle;
+        PetscDeviceContext dctx;
 
-        PetscCall(PetscDeviceContextGetBLASHandle_Internal(lmvm->dctx, &handle));
+
+        PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+        PetscCall(PetscDeviceContextGetBLASHandle_Internal(dctx, &handle));
 
         //PetscAssert(PetscDefined(BLAS)...));
         PetscCuBLASInt m_blas, idx_blas, lda_blas, diff_blas, one = 1;
@@ -920,7 +926,10 @@ static PetscErrorCode Vec_Truncate(Mat H, Vec X)
 #if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
       PetscCall(PetscDeviceRegisterMemory(x_array, memtype_x, N*sizeof(*x_array)));
       if (lmvm->k != lmvm->m -1) {
-        PetscCall(PetscDeviceArrayZero(lmvm->dctx, &x_array[lmvm->k+1], lmvm->m - lmvm->k -1));
+        PetscDeviceContext dctx;
+
+        PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+        PetscCall(PetscDeviceArrayZero(dctx, &x_array[lmvm->k+1], lmvm->m - lmvm->k -1));
       }
 #endif
       break;
@@ -1091,15 +1100,13 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   /* Block Version */
   if (lmvm->k == -1) {
     PetscCall(MatCDBFGSApplyJ0Inv(H, F, dX));
-    PetscCall(PetscDeviceContextSynchronize(lmvm->dctx));
     PetscCall(PetscLogEventEnd(CDBFGS_MatSolve, H, F, dX,0));
     PetscFunctionReturn(PETSC_SUCCESS); /* No updates stored yet */
   }
 
-  PetscDeviceContext dctx_current;
+  PetscDeviceContext dctx;
 
-  PetscCall(PetscDeviceContextGetCurrentContext(&dctx_current));
-  PetscCall(PetscDeviceContextSetCurrentContext(lmvm->dctx));
+  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
 
   if (lbfgs->idx_begin == -1) {
     index = 0;
@@ -1110,7 +1117,7 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   /* Start with reusable part: rwork1 = R^-1 S^T F */
   //STYFull: host
   PetscCall(MatMultTranspose(lbfgs->Sfull, F, rwork1));
-  PetscCall(VecCopyAsync_Private(rwork1, rwork1_host, lmvm->dctx));
+  PetscCall(VecCopyAsync_Private(rwork1, rwork1_host, dctx));
 
   /* Reordering rwork1, as STY is in canonical order, while S is in recycled order */
   PetscCall(VecRightward_Shift(H, rwork1_host, -lbfgs->idx_rplc));
@@ -1120,13 +1127,13 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   /* lwork1 :H_0 (F - Y R^{-1} S^T X) */
   /* dX : H_0 ( F + (Y (-R^{-1} S^T X)) */
   /* dX : H_0 ( F + rwork ) */
-  PetscCall(VecScaleAsync_Private(rwork1_host, -1.0, lmvm->dctx));
+  PetscCall(VecScaleAsync_Private(rwork1_host, -1.0, dctx));
 
   if (lbfgs->bind) {
     PetscCall(VecCopy(rwork1_host, rwork1));
   }
 
-  PetscCall(VecCopyAsync_Private(F, lbfgs->lwork1, lmvm->dctx));
+  PetscCall(VecCopyAsync_Private(F, lbfgs->lwork1, dctx));
   PetscCall(MatMultAdd(lbfgs->Yfull, rwork1, lbfgs->lwork1, lbfgs->lwork1));
   PetscCall(MatCDBFGSApplyJ0Inv(H, lbfgs->lwork1, dX));
 
@@ -1134,7 +1141,7 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   if (lbfgs->bind) {
     PetscCall(VecCopy(rwork1, rwork1_host));
   }
-  PetscCall(VecPointwiseMultAsync_Private(rwork1_host, lbfgs->diag_vec, rwork1_host, lmvm->dctx));
+  PetscCall(VecPointwiseMultAsync_Private(rwork1_host, lbfgs->diag_vec, rwork1_host, dctx));
 
   if (lbfgs->bind) {
     PetscCall(MatMultTranspose(lbfgs->Yfull, dX, rwork2));
@@ -1148,13 +1155,13 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   PetscCall(VecRightward_Shift(H, rwork1_host, -lbfgs->idx_rplc));
   PetscCall(MatSolveTriangular(H, lbfgs->StYfull, index, rwork1_host, MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE));
   PetscCall(VecRightward_Shift(H, rwork1_host, lbfgs->idx_rplc));
-  PetscCall(VecScaleAsync_Private(rwork1_host, -1.0, lmvm->dctx));
+  PetscCall(VecScaleAsync_Private(rwork1_host, -1.0, dctx));
   if (lbfgs->bind) {
     PetscCall(VecCopy(rwork1_host, rwork1));
   }
   PetscCall(MatMultAdd(lbfgs->Sfull, rwork1, dX, dX));
-  PetscCall(PetscDeviceContextSetCurrentContext(dctx_current));
-  PetscCall(PetscDeviceContextSynchronize(lmvm->dctx));
+  PetscCall(PetscDeviceContextSetCurrentContext(dctx));
+  PetscCall(PetscDeviceContextSynchronize(dctx));
   PetscCall(PetscLogEventEnd(CDBFGS_MatSolve, H, F, dX,0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

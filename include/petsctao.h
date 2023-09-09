@@ -384,11 +384,6 @@ PETSC_EXTERN PetscErrorCode TaoSetJacobianDesignRoutine(Tao, Mat, PetscErrorCode
 PETSC_EXTERN PetscErrorCode TaoSetJacobianInequalityRoutine(Tao, Mat, Mat, PetscErrorCode (*)(Tao, Vec, Mat, Mat, void *), void *);
 PETSC_EXTERN PetscErrorCode TaoSetJacobianEqualityRoutine(Tao, Mat, Mat, PetscErrorCode (*)(Tao, Vec, Mat, Mat, void *), void *);
 
-PETSC_EXTERN PetscErrorCode TaoGetCallbackDeviceContext(Tao, PetscDeviceContext *);
-PETSC_EXTERN PetscErrorCode TaoSetCallbackDeviceContext(Tao, PetscDeviceContext);
-PETSC_EXTERN PetscErrorCode TaoGetInternalDeviceContext(Tao, PetscDeviceContext *);
-PETSC_EXTERN PetscErrorCode TaoSetInternalDeviceContext(Tao, PetscDeviceContext);
-
 PETSC_EXTERN PetscErrorCode TaoPythonSetType(Tao, const char[]);
 PETSC_EXTERN PetscErrorCode TaoPythonGetType(Tao, const char *[]);
 

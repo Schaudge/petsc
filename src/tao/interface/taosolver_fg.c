@@ -1,5 +1,4 @@
 #include <petsc/private/taoimpl.h> /*I "petsctao.h" I*/
-#include <petsc/private/deviceimpl.h>
 
 /*@
   TaoSetSolution - Sets the vector holding the initial guess for the solve
@@ -135,7 +134,6 @@ PetscErrorCode TaoComputeGradient(Tao tao, Vec X, Vec G)
   PetscValidHeaderSpecific(G, VEC_CLASSID, 3);
   PetscCheckSameComm(tao, 1, X, 2);
   PetscCheckSameComm(tao, 1, G, 3);
-  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->callback_dctx, tao->dctx));
   PetscCall(VecLockReadPush(X));
   if (tao->ops->computegradient) {
     PetscCall(PetscLogEventBegin(TAO_GradientEval, tao, X, G, NULL));
@@ -149,7 +147,6 @@ PetscErrorCode TaoComputeGradient(Tao tao, Vec X, Vec G)
     tao->nfuncgrads++;
   } else SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_ARG_WRONGSTATE, "TaoSetGradient() has not been called");
   PetscCall(VecLockReadPop(X));
-  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->dctx, tao->callback_dctx));
 
   PetscCall(TaoTestGradient(tao, X, G));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -183,7 +180,6 @@ PetscErrorCode TaoComputeObjective(Tao tao, Vec X, PetscReal *f)
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
   PetscValidHeaderSpecific(X, VEC_CLASSID, 2);
   PetscCheckSameComm(tao, 1, X, 2);
-  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->callback_dctx, tao->dctx));
   PetscCall(VecLockReadPush(X));
   if (tao->ops->computeobjective) {
     PetscCall(PetscLogEventBegin(TAO_ObjectiveEval, tao, X, NULL, NULL));
@@ -201,7 +197,6 @@ PetscErrorCode TaoComputeObjective(Tao tao, Vec X, PetscReal *f)
   } else SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_ARG_WRONGSTATE, "TaoSetObjective() has not been called");
   PetscCall(PetscInfo(tao, "TAO Function evaluation: %20.19e\n", (double)(*f)));
   PetscCall(VecLockReadPop(X));
-  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->dctx, tao->callback_dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -234,7 +229,6 @@ PetscErrorCode TaoComputeObjectiveAndGradient(Tao tao, Vec X, PetscReal *f, Vec 
   PetscValidHeaderSpecific(G, VEC_CLASSID, 4);
   PetscCheckSameComm(tao, 1, X, 2);
   PetscCheckSameComm(tao, 1, G, 4);
-  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->callback_dctx, tao->dctx));
   PetscCall(VecLockReadPush(X));
   if (tao->ops->computeobjectiveandgradient) {
     PetscCall(PetscLogEventBegin(TAO_ObjGradEval, tao, X, G, NULL));
@@ -256,7 +250,6 @@ PetscErrorCode TaoComputeObjectiveAndGradient(Tao tao, Vec X, PetscReal *f, Vec 
   } else SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_ARG_WRONGSTATE, "TaoSetObjective() or TaoSetGradient() not set");
   PetscCall(PetscInfo(tao, "TAO Function evaluation: %20.19e\n", (double)(*f)));
   PetscCall(VecLockReadPop(X));
-  if (tao->dctx != tao->callback_dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(tao->dctx, tao->callback_dctx));
 
   PetscCall(TaoTestGradient(tao, X, G));
   PetscFunctionReturn(PETSC_SUCCESS);

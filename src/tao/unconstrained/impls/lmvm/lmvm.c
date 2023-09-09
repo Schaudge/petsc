@@ -14,8 +14,10 @@ static PetscErrorCode TaoSolve_LMVM(Tao tao)
   PetscReal                    step      = 1.0;
   PetscInt                     stepType  = LMVM_STEP_GRAD, nupdates;
   TaoLineSearchConvergedReason ls_status = TAOLINESEARCH_CONTINUE_ITERATING;
+  PetscDeviceContext           dctx;
 
   PetscFunctionBegin;
+  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
 
   if (tao->XL || tao->XU || tao->ops->computebounds) PetscCall(PetscInfo(tao, "WARNING: Variable bounds have been set but will be ignored by lmvm algorithm\n"));
 
@@ -73,15 +75,12 @@ static PetscErrorCode TaoSolve_LMVM(Tao tao)
          scaled gradient step.  No need to check for this condition. */
       stepType = LMVM_STEP_GRAD;
     }
-    PetscCall(VecScaleAsync_Private(lmP->D, -1.0, tao->dctx));
+    PetscCall(VecScaleAsync_Private(lmP->D, -1.0, dctx));
 
     /*  Perform the linesearch */
     fold = f;
-    PetscCall(VecCopyAsync_Private(tao->solution, lmP->Xold, tao->dctx));
-    PetscCall(VecCopyAsync_Private(tao->gradient, lmP->Gold, tao->dctx));
-
-    // synchronize lmp->D before entering line search
-    if (tao->dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(NULL, tao->dctx));
+    PetscCall(VecCopyAsync_Private(tao->solution, lmP->Xold, dctx));
+    PetscCall(VecCopyAsync_Private(tao->gradient, lmP->Gold, dctx));
 
     PetscCall(TaoLineSearchApply(tao->linesearch, tao->solution, &f, tao->gradient, lmP->D, &step, &ls_status));
     PetscCall(TaoAddLineSearchCounts(tao));
@@ -89,8 +88,8 @@ static PetscErrorCode TaoSolve_LMVM(Tao tao)
     if (ls_status != TAOLINESEARCH_SUCCESS && ls_status != TAOLINESEARCH_SUCCESS_USER && (stepType != LMVM_STEP_GRAD)) {
       /*  Reset factors and use scaled gradient step */
       f = fold;
-      PetscCall(VecCopyAsync_Private(lmP->Xold, tao->solution, tao->dctx));
-      PetscCall(VecCopyAsync_Private(lmP->Gold, tao->gradient, tao->dctx));
+      PetscCall(VecCopyAsync_Private(lmP->Xold, tao->solution, dctx));
+      PetscCall(VecCopyAsync_Private(lmP->Gold, tao->gradient, dctx));
 
       /*  Failed to obtain acceptable iterate with BFGS step */
       /*  Attempt to use the scaled gradient direction */
@@ -113,8 +112,8 @@ static PetscErrorCode TaoSolve_LMVM(Tao tao)
     if (ls_status != TAOLINESEARCH_SUCCESS && ls_status != TAOLINESEARCH_SUCCESS_USER) {
       /*  Failed to find an improving point */
       f = fold;
-      PetscCall(VecCopyAsync_Private(lmP->Xold, tao->solution, tao->dctx));
-      PetscCall(VecCopyAsync_Private(lmP->Gold, tao->gradient, tao->dctx));
+      PetscCall(VecCopyAsync_Private(lmP->Xold, tao->solution, dctx));
+      PetscCall(VecCopyAsync_Private(lmP->Gold, tao->gradient, dctx));
       step        = 0.0;
       tao->reason = TAO_DIVERGED_LS_FAILURE;
     } else {
@@ -132,9 +131,6 @@ static PetscErrorCode TaoSolve_LMVM(Tao tao)
       /*  Compute new gradient norm */
       PetscCall(TaoGradientNorm(tao, tao->gradient, NORM_2, &gnorm));
     }
-
-    // synchronize tao->solution and tao->gradient before entering convergence and monitor callbacks
-    if (tao->dctx) PetscCall(PetscDeviceContextWaitForContextIfNecessary_Internal(NULL, tao->dctx));
 
     /* Check convergence */
     tao->niter++;
@@ -185,7 +181,6 @@ static PetscErrorCode TaoDestroy_LMVM(Tao tao)
   }
   PetscCall(MatDestroy(&lmP->M));
   if (lmP->H0) PetscCall(PetscObjectDereference((PetscObject)lmP->H0));
-  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoSetInternalDeviceContext_C", NULL));
   PetscCall(PetscFree(tao->data));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -226,22 +221,6 @@ static PetscErrorCode TaoView_LMVM(Tao tao, PetscViewer viewer)
     PetscCall(MatView(lm->M, viewer));
     PetscCall(PetscViewerASCIIPopTab(viewer));
     PetscCall(PetscViewerASCIIPopTab(viewer));
-  }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-static PetscErrorCode TaoSetInternalDeviceContext_LMVM(Tao tao, PetscDeviceContext dctx)
-{
-  TAO_LMVM  *lmP = (TAO_LMVM *)tao->data;
-
-  PetscFunctionBegin;
-  PetscCall(PetscObjectReference((PetscObject) dctx));
-  PetscCall(PetscDeviceContextDestroy(&tao->dctx));
-  tao->dctx = dctx;
-  if (lmP->M) PetscCall(MatLMVMSetInternalDeviceContext(lmP->M, dctx));
-  if (tao->linesearch) {
-    PetscCall(TaoLineSearchSetInternalDeviceContext(tao->linesearch, dctx));
-    if (tao->linesearch->usetaoroutines) PetscCall(TaoLineSearchSetCallbackDeviceContext(tao->linesearch, dctx));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -302,6 +281,5 @@ PETSC_EXTERN PetscErrorCode TaoCreate_LMVM(Tao tao)
   PetscCall(MatSetType(lmP->M, MATLMVMBFGS));
   PetscCall(MatSetOptionsPrefix(lmP->M, "tao_lmvm_"));
 
-  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoSetInternalDeviceContext_C", TaoSetInternalDeviceContext_LMVM));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
