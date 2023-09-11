@@ -687,7 +687,7 @@ static PetscErrorCode PCSetUp_GAMG(PC pc)
     PetscCall(MatGetInfo(Aarr[level1], MAT_GLOBAL_SUM, &info));
     nnztot += info.nz_used;
 #endif
-    PetscCall(PetscInfo(pc, "%s: %d) N=%" PetscInt_FMT ", n data cols=%" PetscInt_FMT ", nnz/row (ave)=%" PetscInt_FMT ", %d active pes\n", ((PetscObject)pc)->prefix, (int)level1, M, pc_gamg->data_cell_cols, (PetscInt)(info.nz_used / (PetscReal)M), nactivepe));
+    PetscCall(PetscInfo(pc, "%s: %d) N=%" PetscInt_FMT ", n data cols=%" PetscInt_FMT ", nnz/row (ave)=%" PetscInt_FMT ", %d active processes\n", ((PetscObject)pc)->prefix, (int)level1, M, pc_gamg->data_cell_cols, (PetscInt)(info.nz_used / (PetscReal)M), nactivepe));
 
 #if defined(GAMG_STAGES)
     PetscCall(PetscLogStagePop());
