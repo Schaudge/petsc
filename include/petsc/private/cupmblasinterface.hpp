@@ -262,6 +262,7 @@ struct BlasInterfaceImpl<DeviceType::CUDA> : Interface<DeviceType::CUDA> {
 
   // level 1 BLAS
   PETSC_CUPMBLAS_ALIAS_BLAS_FUNCTION(STANDARD, axpy)
+  PETSC_CUPMBLAS_ALIAS_BLAS_FUNCTION(STANDARD, copy)
   PETSC_CUPMBLAS_ALIAS_BLAS_FUNCTION(STANDARD, scal)
   PETSC_CUPMBLAS_ALIAS_BLAS_FUNCTION_EXACT(STANDARD, dot, PetscIfPetscDefined(USE_COMPLEX, dotc, dot))
   PETSC_CUPMBLAS_ALIAS_BLAS_FUNCTION_EXACT(STANDARD, dotu, PetscIfPetscDefined(USE_COMPLEX, dotu, dot))
@@ -385,6 +386,7 @@ struct BlasInterfaceImpl<DeviceType::HIP> : Interface<DeviceType::HIP> {
   using ::Petsc::device::cupm::impl::BlasInterfaceImpl<T>::cupmBlasSetPointerMode; \
   /* level 1 BLAS */ \
   using ::Petsc::device::cupm::impl::BlasInterfaceImpl<T>::cupmBlasXaxpy; \
+  using ::Petsc::device::cupm::impl::BlasInterfaceImpl<T>::cupmBlasXcopy; \
   using ::Petsc::device::cupm::impl::BlasInterfaceImpl<T>::cupmBlasXscal; \
   using ::Petsc::device::cupm::impl::BlasInterfaceImpl<T>::cupmBlasXdot; \
   using ::Petsc::device::cupm::impl::BlasInterfaceImpl<T>::cupmBlasXdotu; \

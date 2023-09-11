@@ -7,6 +7,7 @@
   #include <petsc/private/deviceimpl.h>
   #include <petsc/private/cupmsolverinterface.hpp>
   #include <petsc/private/cupmobject.hpp>
+  #include <petsc/private/cupmblasinterface.hpp>
 
   #include "../src/sys/objects/device/impls/cupm/cupmthrustutility.hpp"
   #include "../src/sys/objects/device/impls/cupm/kernels.hpp"
@@ -438,9 +439,6 @@ inline PetscErrorCode MatDense_CUPM<T, D>::Shift(Mat A, PetscScalar alpha) noexc
 template <device::cupm::DeviceType T, typename D>
 inline PetscErrorCode MatDense_CUPM<T, D>::GetDiagonal(Mat A, Vec v) noexcept
 {
-  const auto         rstart = A->rmap->rstart;
-  const auto         rend   = A->rmap->rend;
-  const auto         gcols  = A->cmap->N;
   PetscInt           lda;
   PetscDeviceContext dctx;
 
@@ -449,22 +447,13 @@ inline PetscErrorCode MatDense_CUPM<T, D>::GetDiagonal(Mat A, Vec v) noexcept
   PetscCall(GetHandles_(&dctx));
   PetscCall(MatDenseGetLDA(A, &lda));
   {
-    auto dv       = VecSeq_CUPM::DeviceArrayWrite(dctx, v);
-    auto da       = D::DeviceArrayRead(dctx, A);
-    auto diagonal = detail::MakeDiagonalIterator(da.data(), rstart, rend, gcols, lda);
-    // We must have this cast outside of THRUST_CALL(). Without it, GCC 6.4 - 7.5, and 11.3.0
-    // throw spurious warnings:
-    //
-    // warning: 'MatDense_CUPM<...>::GetDiagonal(Mat, Vec)::<lambda()>' declared with greater
-    // visibility than the type of its field 'MatDense_CUPM<...>::GetDiagonal(Mat,
-    // Vec)::<lambda()>::<dv capture>' [-Wattributes]
-    // 460 |     PetscCallThrust(
-    //     |     ^~~~~~~~~~~~~~~~
-    auto         dvp = thrust::device_pointer_cast(dv.data());
-    cupmStream_t stream;
+    cupmBlasHandle_t cupmBlasHandle;
+    auto             dv = VecSeq_CUPM::DeviceArrayWrite(dctx, v);
+    auto             da = D::DeviceArrayRead(dctx, A);
+    const auto       n = static_cast<cupmBlasInt_t>(A->cmap->n);
 
-    PetscCall(GetHandlesFrom_(dctx, &stream));
-    PetscCallThrust(THRUST_CALL(thrust::copy, stream, diagonal.begin(), diagonal.end(), dvp));
+    PetscCall(GetHandles_(&dctx, &cupmBlasHandle));
+    PetscCallCUPMBLAS(cupmBlasXcopy(cupmBlasHandle, n, da.data(), lda, dv.data(), 1));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
