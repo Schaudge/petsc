@@ -631,18 +631,23 @@ PetscErrorCode MatLMVMSetHistorySize(Mat B, PetscInt hist_size)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
   PetscBool same;
-  Vec       X, F;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(B, MAT_CLASSID, 1);
   PetscCall(PetscObjectBaseTypeCompare((PetscObject)B, MATLMVM, &same));
   if (!same) PetscFunctionReturn(PETSC_SUCCESS);
   if (hist_size > 0) {
-    lmvm->m = hist_size;
-    if (lmvm->allocated && lmvm->m != lmvm->m_old) {
+    PetscBool reallocate = PETSC_FALSE;
+    Vec       X = NULL, F = NULL;
+    //lmvm->m = hist_size;
+    if (lmvm->allocated && hist_size != lmvm->m) {
       PetscCall(VecDuplicate(lmvm->Xprev, &X));
       PetscCall(VecDuplicate(lmvm->Fprev, &F));
       PetscCall(MatLMVMReset(B, PETSC_TRUE));
+      reallocate = PETSC_TRUE;
+    }
+    lmvm->m = hist_size;
+    if (reallocate) {
       PetscCall(MatLMVMAllocate(B, X, F));
       PetscCall(VecDestroy(&X));
       PetscCall(VecDestroy(&F));
