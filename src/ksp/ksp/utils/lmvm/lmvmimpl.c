@@ -259,13 +259,15 @@ PetscErrorCode MatView_LMVM(Mat B, PetscViewer pv)
 PetscErrorCode MatSetFromOptions_LMVM(Mat B, PetscOptionItems *PetscOptionsObject)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+  PetscInt  m_new = lmvm->m;
 
   PetscFunctionBegin;
   PetscOptionsHeadBegin(PetscOptionsObject, "Limited-memory Variable Metric matrix for approximating Jacobians");
-  PetscCall(PetscOptionsInt("-mat_lmvm_hist_size", "number of past updates kept in memory for the approximation", "", lmvm->m, &lmvm->m, NULL));
+  PetscCall(PetscOptionsInt("-mat_lmvm_hist_size", "number of past updates kept in memory for the approximation", "", m_new, &m_new, NULL));
   PetscCall(PetscOptionsInt("-mat_lmvm_ksp_its", "(developer) fixed number of KSP iterations to take when inverting J0", "", lmvm->ksp_max_it, &lmvm->ksp_max_it, NULL));
   PetscCall(PetscOptionsReal("-mat_lmvm_eps", "(developer) machine zero definition", "", lmvm->eps, &lmvm->eps, NULL));
   PetscOptionsHeadEnd();
+  if (m_new != lmvm->m) PetscCall(MatLMVMSetHistorySize(B, m_new));
   PetscCall(KSPSetFromOptions(lmvm->J0ksp));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
