@@ -467,7 +467,6 @@ PetscErrorCode MatCreate_LMVMDiagBrdn(Mat B)
   B->ops->setup          = MatSetUp_DiagBrdn;
   B->ops->setfromoptions = MatSetFromOptions_DiagBrdn;
   B->ops->destroy        = MatDestroy_DiagBrdn;
-  B->ops->solve          = MatSolve_DiagBrdn;
   B->ops->view           = MatView_DiagBrdn;
 
   lmvm                = (Mat_LMVM *)B->data;
@@ -476,6 +475,7 @@ PetscErrorCode MatCreate_LMVMDiagBrdn(Mat B)
   lmvm->ops->allocate = MatAllocate_DiagBrdn;
   lmvm->ops->reset    = MatReset_DiagBrdn;
   lmvm->ops->mult     = MatMult_DiagBrdn;
+  lmvm->ops->solve    = MatSolve_DiagBrdn;
   lmvm->ops->update   = MatUpdate_DiagBrdn;
   lmvm->ops->copy     = MatCopy_DiagBrdn;
 
