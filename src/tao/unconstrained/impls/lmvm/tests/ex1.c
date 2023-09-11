@@ -79,6 +79,10 @@ int main(int argc, char **argv)
 
   test:
     suffix: 0
-    args: -tao_monitor -tao_ls_gtol 1.e-6 -tao_view -tao_lmvm_mat_lmvm_hist_size 20 -tao_ls_type more-thuente -tao_lmvm_mat_lmvm_scale_type none
+    args: -tao_monitor -tao_ls_gtol 1.e-6 -tao_view -tao_lmvm_mat_lmvm_hist_size 20 -tao_ls_type more-thuente -tao_lmvm_mat_lmvm_scale_type none -tao_lmvm_mat_type {{lmvmbfgs lmvmcdbfgs}}
+
+  test:
+    suffix: 1
+    args: -tao_monitor -tao_ls_gtol 1.e-6 -tao_view -tao_lmvm_mat_lmvm_hist_size 20 -tao_ls_type more-thuente -tao_lmvm_mat_type lmvmcdbfgs -mat_lbfgs_type {{cd_inplace cd_reorder}}
 
 TEST*/

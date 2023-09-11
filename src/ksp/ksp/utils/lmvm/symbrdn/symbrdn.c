@@ -1,4 +1,5 @@
 #include <../src/ksp/ksp/utils/lmvm/symbrdn/symbrdn.h> /*I "petscksp.h" I*/
+#include <../src/ksp/ksp/utils/lmvm/cdbfgs/cdbfgs.h>
 #include <../src/ksp/ksp/utils/lmvm/diagbrdn/diagbrdn.h>
 #include <petsc/private/kspimpl.h>
 #include <petscdevice.h>
@@ -599,17 +600,37 @@ PetscErrorCode MatLMVMSymBroydenSetDelta(Mat B, PetscScalar delta)
 {
   Mat_LMVM    *lmvm = (Mat_LMVM *)B->data;
   Mat_SymBrdn *lsb  = (Mat_SymBrdn *)lmvm->ctx;
-  PetscBool    is_bfgs, is_dfp, is_symbrdn, is_symbadbrdn;
+  Mat_CDBFGS  *lcd;
+  PetscBool    is_bfgs, is_dfp, is_symbrdn, is_symbadbrdn, is_cdbfgs;
+  PetscReal    del_min, del_max, del_buf;
 
   PetscFunctionBegin;
   PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMBFGS, &is_bfgs));
+  PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMCDBFGS, &is_cdbfgs));
   PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMDFP, &is_dfp));
   PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMSYMBROYDEN, &is_symbrdn));
   PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMSYMBADBROYDEN, &is_symbadbrdn));
-  PetscCheck(is_bfgs || is_dfp || is_symbrdn || is_symbadbrdn, PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "diagonal scaling is only available for DFP, BFGS and SymBrdn matrices");
-  lsb->delta = PetscAbsReal(PetscRealPart(delta));
-  lsb->delta = PetscMin(lsb->delta, lsb->delta_max);
-  lsb->delta = PetscMax(lsb->delta, lsb->delta_min);
+
+  if (is_cdbfgs) {
+    lcd     = (Mat_CDBFGS*)lmvm->ctx;
+    del_min = lcd->delta_min;
+    del_max = lcd->delta_max;
+  } else if (is_bfgs || is_dfp || is_symbrdn || is_symbadbrdn) {
+    lsb     = (Mat_SymBrdn*)lmvm->ctx;
+    del_min = lsb->delta_min;
+    del_max = lsb->delta_max;
+  } else {
+    SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "diagonal scaling only available for SymBrdn-derived types (CDBFGS, BFGS, DFP, SymBrdn, SymBadBrdn\n");
+  }
+
+  del_buf = PetscAbsReal(PetscRealPart(delta));
+  del_buf = PetscMin(del_buf, del_max);
+  del_buf = PetscMax(del_buf, del_min);
+  if (is_cdbfgs) {
+    lcd->delta = del_buf;
+  } else {
+    lsb->delta = del_buf;
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
