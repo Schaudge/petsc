@@ -453,7 +453,7 @@ inline PetscErrorCode MatDense_CUPM<T, D>::GetDiagonal(Mat A, Vec v) noexcept
     const auto       n = static_cast<cupmBlasInt_t>(A->cmap->n);
 
     PetscCall(GetHandles_(&dctx, &cupmBlasHandle));
-    PetscCallCUPMBLAS(cupmBlasXcopy(cupmBlasHandle, n, da.data(), lda, dv.data(), 1));
+    PetscCallCUPMBLAS(cupmBlasXcopy(cupmBlasHandle, n, da.data(), lda + 1, dv.data(), 1));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

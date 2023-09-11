@@ -796,11 +796,11 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
            * [ B | A ]    [x]    [A^-1(x- BC^-1 y)] */
           //TODO for number of rows, does it have to be local, or is global size fine?
           /* Applying C: y' = C^-1 y */
-          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Upper", "Normal", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
+          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Upper", "Normal", "NotUnitTriangular", &idx_blas, &idx_blas, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
           /* Applying B: x' = x - BC^-1 y' */
           PetscCallBLAS("BLASgemv", BLASgemv_("N",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas], &lda_blas, x_array, &one, &Alpha, &x_array[idx_blas], &one));
           /* Applying A: x' = A^-1 (x - BC^-1 y) */
-          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Upper", "Normal", "NotUnitTriangular", &diff_blas, &one, &Alpha, &r_array[idx_blas*(lda_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
+          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Upper", "Normal", "NotUnitTriangular", &diff_blas, &diff_blas, &Alpha, &r_array[idx_blas*(lda_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
           break;
         case MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE:
           /* Upper Triangular Transpose Case: 
@@ -808,11 +808,11 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
            * [ C | 0 ]^-T [y] => [C^-T(y - B^T A^-T x)]
            * [ B | A ]    [x]    [A^-T x              ] */
           /* Applying A: x' = A^-T x */
-          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &diff_blas, &one, &Alpha, &r_array[idx_blas*(lda_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
+          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &diff_blas, &diff_blas, &Alpha, &r_array[idx_blas*(lda_blas+1)], &lda_blas, &x_array[idx_blas], &ldb_blas));
           /* Applying B: y' = y - B^T A^-T x */
           PetscCallBLAS("BLASgemv", BLASgemv_("T",  &diff_blas, &idx_blas, &neg_one, &r_array[idx_blas], &lda_blas, &x_array[idx_blas], &one, &Alpha, x_array, &one));
           /* Applying C: y' = C^-T (y - B^T A^-T x) */
-          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &idx_blas, &one, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
+          PetscCallBLAS("BLAStrsm", BLAStrsm_("Left", "Upper", "Transpose", "NotUnitTriangular", &idx_blas, &idx_blas, &Alpha, r_array, &lda_blas, x_array, &ldb_blas));
           break;
         case MAT_CDBFGS_LOWER_TRIANGULAR:
         case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
@@ -842,14 +842,14 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
 
         switch (tri_type) {
         case MAT_CDBFGS_UPPER_TRIANGULAR:
-          PetscCallCUBLAS(cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, idx_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
+          PetscCallCUBLAS(cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, idx_blas, idx_blas, &Alpha, r_array, lda_blas, x_array, ldb_blas));
           PetscCallCUBLAS(cublasDgemv(handle, CUBLAS_OP_N, diff_blas, idx_blas, &neg_one, &r_array[idx_blas], lda_blas, x_array, one, &Alpha, &x_array[idx_blas], one));
-          PetscCallCUBLAS(cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, diff_blas, one, &Alpha, &r_array[idx_blas*(lda_blas+1)], lda_blas, &x_array[idx_blas], ldb_blas));
+          PetscCallCUBLAS(cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, diff_blas, diff_blas, &Alpha, &r_array[idx_blas*(lda_blas+1)], lda_blas, &x_array[idx_blas], ldb_blas));
           break;
         case MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE:
-          PetscCallCUBLAS(cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, diff_blas, one, &Alpha, &r_array[idx_blas*(lda_blas+1)], lda_blas, &x_array[idx_blas], ldb_blas));
+          PetscCallCUBLAS(cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, diff_blas, diff_blas, &Alpha, &r_array[idx_blas*(lda_blas+1)], lda_blas, &x_array[idx_blas], ldb_blas));
           PetscCallCUBLAS(cublasDgemv(handle, CUBLAS_OP_T, diff_blas, idx_blas, &neg_one, &r_array[idx_blas], lda_blas, &x_array[idx_blas], one, &Alpha, x_array, one));
-          PetscCallCUBLAS(cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, idx_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
+          PetscCallCUBLAS(cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, idx_blas, idx_blas, &Alpha, r_array, lda_blas, x_array, ldb_blas));
           break;
         case MAT_CDBFGS_LOWER_TRIANGULAR:
         case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
@@ -876,14 +876,14 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
 
         switch (tri_type) {
         case MAT_CDBFGS_UPPER_TRIANGULAR:
-          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, idx_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
+          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, idx_blas, idx_blas, &Alpha, r_array, lda_blas, x_array, ldb_blas));
           PetscCallHIPBLAS(hipblasXgemv(handle, HIPBLAS_OP_N, diff_blas, idx_blas, &neg_one, &r_array[idx_blas], lda_blas, x_array, one, &Alpha, &x_array[idx_blas], one));
-          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, diff_blas, one, &Alpha, &r_array[idx_blas*(lda_blas+1)], lda_blas, &x_array[idx_blas], ldb_blas));
+          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, diff_blas, diff_blas, &Alpha, &r_array[idx_blas*(lda_blas+1)], lda_blas, &x_array[idx_blas], ldb_blas));
           break;
         case MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE:
-          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, diff_blas, one, &Alpha, &r_array[idx_blas*(lda_blas+1)], lda_blas, &x_array[idx_blas], ldb_blas));
+          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, diff_blas, diff_blas, &Alpha, &r_array[idx_blas*(lda_blas+1)], lda_blas, &x_array[idx_blas], ldb_blas));
           PetscCallHIPBLAS(hipblasXgemv(handle, HIPBLAS_OP_T, diff_blas, idx_blas, &neg_one, &r_array[idx_blas], lda_blas, &x_array[idx_blas], one, &Alpha, x_array, one));
-          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, idx_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
+          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, idx_blas, idx_blas, &Alpha, r_array, lda_blas, x_array, ldb_blas));
           break;
         case MAT_CDBFGS_LOWER_TRIANGULAR:
         case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
@@ -1590,10 +1590,10 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       PetscCall(VecRightward_Shift(B, lbfgs->diag_vec, lbfgs->idx_rplc));
 
       if (lmvm->user_scale) {
-        ///* Update B_0 S matrix */
-        //PetscCall(MatDenseGetColumnVecWrite(lbfgs->BS, lbfgs->idx_cols, &workvec1));
-        //PetscCall(MatCDBFGSApplyJ0Fwd(B, lmvm->Xprev, workvec1));
-        //PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->BS, lbfgs->idx_cols, &workvec1));
+        ///* Update B_0 S matrix TODO why is this commented? uncommenting now */
+        PetscCall(MatDenseGetColumnVecWrite(lbfgs->BS, lbfgs->idx_cols, &workvec1));
+        PetscCall(MatCDBFGSApplyJ0Fwd(B, lmvm->Xprev, workvec1));
+        PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->BS, lbfgs->idx_cols, &workvec1));
       } else {
         /* J0 is non-static. Need to manually compute BS matrix. */
         for (i=0; i<lmvm->m; i++) {
@@ -1802,23 +1802,25 @@ static PetscErrorCode MatDestroy_LMVMCDBFGS(Mat B)
   Mat_CDBFGS *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
 
   PetscFunctionBegin;
-  PetscCall(MatDestroy(&lbfgs->StYfull));
-  PetscCall(MatDestroy(&lbfgs->StYfull_device));
-  PetscCall(MatDestroy(&lbfgs->Sfull));
-  PetscCall(MatDestroy(&lbfgs->Yfull));
-  PetscCall(MatDestroy(&lbfgs->J));
-  PetscCall(MatDestroy(&lbfgs->J_work));
-  PetscCall(MatDestroy(&lbfgs->BS));
-  PetscCall(VecDestroy(&lbfgs->rwork1));
-  PetscCall(VecDestroy(&lbfgs->rwork2));
-  PetscCall(VecDestroy(&lbfgs->rwork3));
-  PetscCall(VecDestroy(&lbfgs->rwork4));
-  PetscCall(VecDestroy(&lbfgs->rwork1_host));
-  PetscCall(VecDestroy(&lbfgs->rwork2_host));
-  PetscCall(VecDestroy(&lbfgs->lwork1));
-  PetscCall(VecDestroy(&lbfgs->lwork2));
-  PetscCall(VecDestroy(&lbfgs->diag_vec));
-  lbfgs->allocated = PETSC_FALSE;
+  if (lbfgs->allocated) {
+    PetscCall(MatDestroy(&lbfgs->StYfull));
+    PetscCall(MatDestroy(&lbfgs->StYfull_device));
+    PetscCall(MatDestroy(&lbfgs->Sfull));
+    PetscCall(MatDestroy(&lbfgs->Yfull));
+    PetscCall(MatDestroy(&lbfgs->J));
+    PetscCall(MatDestroy(&lbfgs->J_work));
+    PetscCall(MatDestroy(&lbfgs->BS));
+    PetscCall(VecDestroy(&lbfgs->rwork1));
+    PetscCall(VecDestroy(&lbfgs->rwork2));
+    PetscCall(VecDestroy(&lbfgs->rwork3));
+    PetscCall(VecDestroy(&lbfgs->rwork4));
+    PetscCall(VecDestroy(&lbfgs->rwork1_host));
+    PetscCall(VecDestroy(&lbfgs->rwork2_host));
+    PetscCall(VecDestroy(&lbfgs->lwork1));
+    PetscCall(VecDestroy(&lbfgs->lwork2));
+    PetscCall(VecDestroy(&lbfgs->diag_vec));
+    lbfgs->allocated = PETSC_FALSE;
+  }
   PetscCall(MatDestroy(&lbfgs->diag_bfgs));
   PetscCall(PetscFree(lmvm->ctx));
   PetscCall(MatDestroy_LMVM(B));
