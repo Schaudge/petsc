@@ -1,4 +1,6 @@
+#include <petscdevice.h>
 #include <../src/ksp/ksp/utils/lmvm/lmvm.h> /*I "petscksp.h" I*/
+#include <petsc/private/deviceimpl.h>
 
 PetscErrorCode MatReset_LMVM(Mat B, PetscBool destructive)
 {
@@ -64,11 +66,13 @@ PetscErrorCode MatAllocate_LMVM(Mat B, Vec X, Vec F)
 
 PetscErrorCode MatUpdateKernel_LMVM(Mat B, Vec S, Vec Y)
 {
-  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
-  PetscInt  i;
-  Vec       Stmp, Ytmp;
+  Mat_LMVM          *lmvm = (Mat_LMVM *)B->data;
+  PetscInt           i;
+  Vec                Stmp, Ytmp;
+  PetscDeviceContext dctx;
 
   PetscFunctionBegin;
+  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
   if (lmvm->k == lmvm->m - 1) {
     /* We hit the memory limit, so shift all the vectors back one spot
        and shift the oldest to the front to receive the latest update. */
@@ -84,8 +88,8 @@ PetscErrorCode MatUpdateKernel_LMVM(Mat B, Vec S, Vec Y)
     ++lmvm->k;
   }
   /* Put the precomputed update into the last vector */
-  PetscCall(VecCopy(S, lmvm->S[lmvm->k]));
-  PetscCall(VecCopy(Y, lmvm->Y[lmvm->k]));
+  PetscCall(VecCopyAsync_Private(S, lmvm->S[lmvm->k], dctx));
+  PetscCall(VecCopyAsync_Private(Y, lmvm->Y[lmvm->k], dctx));
   ++lmvm->nupdates;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -121,14 +125,16 @@ static PetscErrorCode MatMultAdd_LMVM(Mat B, Vec X, Vec Y, Vec Z)
 
 static PetscErrorCode MatMult_LMVM(Mat B, Vec X, Vec Y)
 {
-  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+  Mat_LMVM          *lmvm = (Mat_LMVM *)B->data;
+  PetscDeviceContext dctx;
 
   PetscFunctionBegin;
   VecCheckSameSize(X, 2, Y, 3);
   VecCheckMatCompatible(B, X, 2, Y, 3);
   PetscCheck(lmvm->allocated, PetscObjectComm((PetscObject)B), PETSC_ERR_ORDER, "LMVM matrix must be allocated first");
   PetscCall((*lmvm->ops->mult)(B, X, Y));
-  PetscCall(VecAXPY(Y, lmvm->shift, X));
+  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+  if (lmvm->shift) PetscCall(VecAXPYAsync_Private(Y, lmvm->shift, X, dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
