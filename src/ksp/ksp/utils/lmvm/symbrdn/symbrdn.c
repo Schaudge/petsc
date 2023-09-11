@@ -703,6 +703,7 @@ PetscErrorCode MatSymBrdnApplyJ0Fwd(Mat B, Vec X, Vec Z)
     lsb->scale_type = MAT_LMVM_SYMBROYDEN_SCALE_USER;
     PetscCall(MatLMVMApplyJ0Fwd(B, X, Z));
   } else {
+    PetscCall(PetscLogEventBegin(LMVM_J0Fwd, (PetscObject)B, NULL, NULL, NULL));
     switch (lsb->scale_type) {
     case MAT_LMVM_SYMBROYDEN_SCALE_SCALAR:
       PetscCall(VecAXPBY(Z, 1.0 / lsb->sigma, 0.0, X));
@@ -715,6 +716,7 @@ PetscErrorCode MatSymBrdnApplyJ0Fwd(Mat B, Vec X, Vec Z)
       PetscCall(VecCopy(X, Z));
       break;
     }
+    PetscCall(PetscLogEventEnd(LMVM_J0Fwd, (PetscObject)B, NULL, NULL, NULL));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -729,6 +731,7 @@ PetscErrorCode MatSymBrdnApplyJ0Inv(Mat B, Vec F, Vec dX)
     lsb->scale_type = MAT_LMVM_SYMBROYDEN_SCALE_USER;
     PetscCall(MatLMVMApplyJ0Inv(B, F, dX));
   } else {
+    PetscCall(PetscLogEventBegin(LMVM_J0Inv, (PetscObject)B, NULL, NULL, NULL));
     switch (lsb->scale_type) {
     case MAT_LMVM_SYMBROYDEN_SCALE_SCALAR:
       PetscCall(VecAXPBY(dX, lsb->sigma, 0.0, F));
@@ -741,6 +744,7 @@ PetscErrorCode MatSymBrdnApplyJ0Inv(Mat B, Vec F, Vec dX)
       PetscCall(VecCopy(F, dX));
       break;
     }
+    PetscCall(PetscLogEventEnd(LMVM_J0Inv, (PetscObject)B, NULL, NULL, NULL));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

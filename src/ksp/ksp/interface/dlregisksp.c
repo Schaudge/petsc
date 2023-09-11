@@ -79,6 +79,10 @@ PetscErrorCode PCInitializePackage(void)
   PetscCall(PetscLogEventRegister("PCPATCHApply", PC_CLASSID, &PC_Patch_Apply));
   PetscCall(PetscLogEventRegister("PCPATCHPrealloc", PC_CLASSID, &PC_Patch_Prealloc));
 
+  PetscCall(PetscLogEventRegister("MatLMVMUpdate", MAT_CLASSID, &LMVM_Update));
+  PetscCall(PetscLogEventRegister("MatLMVMJ0Fwd", MAT_CLASSID, &LMVM_J0Fwd));
+  PetscCall(PetscLogEventRegister("MatLMVMJ0Inv", MAT_CLASSID, &LMVM_J0Inv));
+
   PetscCall(PetscLogEventRegister("KSPSolve_FS_0", KSP_CLASSID, &KSP_Solve_FS_0));
   PetscCall(PetscLogEventRegister("KSPSolve_FS_1", KSP_CLASSID, &KSP_Solve_FS_1));
   PetscCall(PetscLogEventRegister("KSPSolve_FS_2", KSP_CLASSID, &KSP_Solve_FS_2));
