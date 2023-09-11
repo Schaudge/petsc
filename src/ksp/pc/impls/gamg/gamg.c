@@ -89,8 +89,10 @@ static PetscErrorCode PCGAMGCreateLevel_GAMG(PC pc, Mat Amat_fine, PetscInt cr_b
     PetscCall(MatGetBlockSize(Cmat, &bs));
     ncrs = ncrs_eq / bs;
   }
-  /* get number of PEs to make active 'new_size', reduce, can be any integer 1-P */
-  if (pc_gamg->level_reduction_factors[pc_gamg->current_level] == 0 && PetscDefined(HAVE_CUDA) && pc_gamg->current_level == 0) { /* 0 turns reducing to 1 process/device on; do for HIP, etc. */
+
+  /* get number of MPI processes to make active 'new_size', reduce, can be any integer 1-P */
+  if (nactive == 1) new_size = 1;
+  else if (pc_gamg->level_reduction_factors[pc_gamg->current_level] == 0 && PetscDefined(HAVE_CUDA) && pc_gamg->current_level == 0) { /* 0 turns reducing to 1 process/device on; do for HIP, etc. */
 #if defined(PETSC_HAVE_CUDA)
     PetscShmComm pshmcomm;
     PetscMPIInt  locrank;
