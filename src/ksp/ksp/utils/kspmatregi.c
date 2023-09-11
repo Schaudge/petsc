@@ -21,6 +21,7 @@ PetscErrorCode KSPMatRegisterAll(void)
   PetscCall(MatRegister(MATSCHURCOMPLEMENT, MatCreate_SchurComplement));
   PetscCall(MatRegister(MATLMVMDFP, MatCreate_LMVMDFP));
   PetscCall(MatRegister(MATLMVMBFGS, MatCreate_LMVMBFGS));
+  PetscCall(MatRegister(MATLMVMCDBFGS, MatCreate_LMVMCDBFGS));
   PetscCall(MatRegister(MATLMVMSR1, MatCreate_LMVMSR1));
   PetscCall(MatRegister(MATLMVMBROYDEN, MatCreate_LMVMBrdn));
   PetscCall(MatRegister(MATLMVMBADBROYDEN, MatCreate_LMVMBadBrdn));
