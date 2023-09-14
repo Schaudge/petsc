@@ -12,6 +12,7 @@ typedef struct {
   Mat       Sfull, Yfull, StYfull, StYfull_device;                                // Stored in recycled order
   Mat       Q; // H_0 Y
   Mat       BS; //S^T B_0 S (m x m)                 
+  Mat       temp_shift;
   Mat       L, J, J_work, J_solve, J_temp_copy;
   Vec       diag_vec;
   Vec       lwork1, lwork2, rwork1, rwork2, rwork3, rwork4;
