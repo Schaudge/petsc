@@ -660,10 +660,12 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
   PetscMemType memtype_r, memtype_x;
   PetscScalar *x_array;
   PetscInt     lda, M = 0;
+  Mat r_local;
 
   const PetscScalar *r_array;
 
   PetscFunctionBegin;
+//  PetscCall(MatGetDiagonalBlock(R, &r_local));
   PetscMPIInt rank;
   PetscCall(MPI_Comm_rank(comm, &rank));
 
@@ -726,10 +728,18 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
           PetscCuBLASInt ldb_blas = lda_blas;
           switch (tri_type) {
           case MAT_CDBFGS_UPPER_TRIANGULAR:
+            PetscCall(VecRestoreArrayAndMemType(x, &x_array));
+            PetscCall(VecGetArrayAndMemType(x, &x_array, &memtype_x));
             PetscCallCUBLAS(cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
+            PetscCall(VecRestoreArrayAndMemType(x, &x_array));
+            PetscCall(VecGetArrayAndMemType(x, &x_array, &memtype_x));
             break;
           case MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE:
+            PetscCall(VecRestoreArrayAndMemType(x, &x_array));
+            PetscCall(VecGetArrayAndMemType(x, &x_array, &memtype_x));
             PetscCallCUBLAS(cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, m_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
+            PetscCall(VecRestoreArrayAndMemType(x, &x_array));
+            PetscCall(VecGetArrayAndMemType(x, &x_array, &memtype_x));
             break;
           case MAT_CDBFGS_LOWER_TRIANGULAR:
           case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
@@ -875,14 +885,14 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
 
         switch (tri_type) {
         case MAT_CDBFGS_UPPER_TRIANGULAR:
-          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, idx_blas, idx_blas, &Alpha, r_array, lda_blas, x_array, ldb_blas));
+          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, idx_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
           PetscCallHIPBLAS(hipblasXgemv(handle, HIPBLAS_OP_N, diff_blas, idx_blas, &neg_one, &r_array[idx_blas], lda_blas, x_array, one, &Alpha, &x_array[idx_blas], one));
-          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, diff_blas, diff_blas, &Alpha, &r_array[idx_blas*(lda_blas+1)], lda_blas, &x_array[idx_blas], ldb_blas));
+          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, diff_blas, one, &Alpha, &r_array[idx_blas*(lda_blas+1)], lda_blas, &x_array[idx_blas], ldb_blas));
           break;
         case MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE:
-          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, diff_blas, diff_blas, &Alpha, &r_array[idx_blas*(lda_blas+1)], lda_blas, &x_array[idx_blas], ldb_blas));
+          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, diff_blas, one, &Alpha, &r_array[idx_blas*(lda_blas+1)], lda_blas, &x_array[idx_blas], ldb_blas));
           PetscCallHIPBLAS(hipblasXgemv(handle, HIPBLAS_OP_T, diff_blas, idx_blas, &neg_one, &r_array[idx_blas], lda_blas, &x_array[idx_blas], one, &Alpha, x_array, one));
-          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, idx_blas, idx_blas, &Alpha, r_array, lda_blas, x_array, ldb_blas));
+          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, idx_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
           break;
         case MAT_CDBFGS_LOWER_TRIANGULAR:
         case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
@@ -1284,7 +1294,7 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
 
 static PetscErrorCode MatMove_LR(Mat H, Mat R)
 {
-  Mat_LMVM     *lmvm  = (Mat_LMVM*)R->data;
+  Mat_LMVM     *lmvm  = (Mat_LMVM*)H->data;
   Mat_CDBFGS   *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
 
   PetscScalar *x_array, *buffer1, *buffer2;
@@ -1312,9 +1322,9 @@ static PetscErrorCode MatMove_LR(Mat H, Mat R)
         {
           PetscCall(PetscMalloc1(N-1, &buffer1));
           PetscCall(PetscArraycpy(buffer1, &x_array[1], N-1));
-          PetscCall(PetscArraycpy(x_array, buffer2, N-1));
+          PetscCall(PetscArraycpy(x_array, buffer1, N-1));
           PetscCall(PetscFree(buffer1));
-          x_array[N] = 0;
+          x_array[N-1] = 0;
         }
         break;
       case PETSC_MEMTYPE_CUDA:
@@ -1328,7 +1338,7 @@ static PetscErrorCode MatMove_LR(Mat H, Mat R)
           PetscCall(PetscDeviceCalloc(dctx, memtype_vec, 1, &buffer2));
           PetscCall(PetscDeviceArrayCopy(dctx, buffer1, &x_array[1], N-1));
           PetscCall(PetscDeviceArrayCopy(dctx, x_array, buffer1, N-1));
-          PetscCall(PetscDeviceArrayCopy(dctx, &x_array[N], buffer2, 1));
+          PetscCall(PetscDeviceArrayCopy(dctx, &x_array[N-1], buffer2, 1));
           PetscCall(PetscDeviceFree(dctx, buffer1));
           PetscCall(PetscDeviceFree(dctx, buffer2));
 #  endif
@@ -1346,7 +1356,7 @@ static PetscErrorCode MatMove_LR(Mat H, Mat R)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode MatRotate_STY_CCW(Mat R)
+static PetscErrorCode MatRotate_STY_CCW(Mat R, Mat In)
 {
   Mat_LMVM     *lmvm  = (Mat_LMVM*)R->data;
   Mat_CDBFGS   *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
@@ -1387,7 +1397,8 @@ static PetscErrorCode MatRotate_STY_CCW(Mat R)
   bb = (rank == 0) ? b : 0;
 
   Mat sty_local;
-  sty_local = lbfgs->StYfull;
+  //sty_local = lbfgs->StYfull;
+  sty_local = In;
 //  PetscCall(MatGetDiagonalBlock(lbfgs->StYfull, &sty_local));
 
   /* Copy CB */
@@ -1626,9 +1637,9 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
         } else {
           Vec this_sy_col;
 
-          PetscCall(MatDenseGetColumnVecWrite(lbfgs->StYfull, 1, &this_sy_col));
+          PetscCall(MatDenseGetColumnVecWrite(lbfgs->StYfull, lbfgs->idx_cols, &this_sy_col));
           PetscCall(MatMultTranspose(lbfgs->Sfull, lmvm->Fprev, this_sy_col));
-          PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->StYfull, 1, &this_sy_col));
+          PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->StYfull, lbfgs->idx_cols, &this_sy_col));
           //PetscCall(MatDenseGetSubMatrix(lbfgs->Sfull, PETSC_DECIDE, PETSC_DECIDE, lbfgs->idx_cols, lbfgs->idx_cols+1, &this_s));
           //PetscCall(MatDenseGetSubMatrix(lbfgs->StYfull, lbfgs->idx_cols, lbfgs->idx_cols+1, PETSC_DECIDE, PETSC_DECIDE, &this_sy_row));
           //PetscCall(MatTransposeMatMult(this_s, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DECIDE, &this_sy_row));
@@ -1642,6 +1653,7 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
         }
         break;
       case MAT_LBFGS_CD_REORDER:
+        {
         //lets forget about bind for a moment TODO
 #if 0        
         if (lbfgs->bind) {
@@ -1651,16 +1663,27 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
           PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
         }
 #endif
+          PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->temp_mat));
         if (lmvm->k == lmvm->m - 1) {
           Vec workvec;
           lbfgs->idx_b_r = (lbfgs->idx_b_r+ 1) % lmvm->m;
           lbfgs->idx_cols = lbfgs->idx_b_r;
-          PetscCall(MatMove_LR(B, lbfgs->StYfull));
-          PetscCall(MatDenseGetColumnVecWrite(lbfgs->StYfull, lmvm->m, &workvec));
+          if (lbfgs->rotate_counter) {
+            PetscCall(MatMove_LR(B, lbfgs->StYfull));
+          } else {
+            lbfgs->rotate_counter = PETSC_TRUE;
+          }
+          PetscCall(MatDenseGetColumnVecWrite(lbfgs->StYfull, lmvm->m-1, &workvec));
           PetscCall(MatMultTranspose(lbfgs->Sfull, lmvm->Fprev, lbfgs->rwork1));
-          PetscCall(VecRightward_Shift(B, lbfgs->rwork1, lbfgs->idx_rplc));
-          PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->StYfull, lmvm->m, &workvec));
-//          PetscCall(MatRotate_STY_CCW(B));
+          PetscCall(VecRightward_Shift(B, lbfgs->rwork1, -lbfgs->idx_cols));
+          PetscCall(VecCopy(lbfgs->rwork1, workvec));
+          PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->StYfull, lmvm->m-1, &workvec));
+          //PetscCall(MatRotate_STY_CCW(B, lbfgs->StYfull));
+          PetscCall(MatRotate_STY_CCW(B, lbfgs->temp_mat));
+        } else {
+          PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
+        }
+        //TODO delete later. debugging purpose
         }
       case MAT_LBFGS_BASIC:
       default:
@@ -1767,6 +1790,7 @@ static PetscErrorCode MatReset_LMVMCDBFGS(Mat B, PetscBool destructive)
     lbfgs->allocated = PETSC_FALSE;
   }
   lbfgs->idx_begin = -1;
+  lbfgs->rotate_counter = PETSC_FALSE;
   PetscCall(MatReset_LMVM(B, destructive));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1811,12 +1835,11 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     PetscCall(VecDuplicate(F, &lmvm->Fprev));
     if (lmvm->m > 0) {
       PetscMPIInt rank;
-      PetscInt m, M, mm1;
+      PetscInt m, M;
 
       PetscCall(MPI_Comm_rank(comm, &rank));
       M = lmvm->m;
       m = (rank == 0) ? M : 0;
-      mm1 = (rank == 0) ? M - 1 : 0;
 
       /* Create iteration storage matrices */
       PetscCall(VecGetType(X, &vec_type));
@@ -1825,10 +1848,11 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       if (lbfgs->bind) {
         PetscCall(MatCreateDense(comm, m, m, M, M,  NULL, &lbfgs->StYfull));
         PetscCall(MatCreateDenseFromVecType(comm, vec_type, m, m, M, M, -1, NULL, &lbfgs->StYfull_device));
-        PetscCall(MatCreateDenseFromVecType(comm, vec_type, mm1, mm1, M-1, M-1, -1, NULL, &lbfgs->temp_shift));
       } else {
         PetscCall(MatCreateDenseFromVecType(comm, vec_type, m, m, M, M, -1, NULL, &lbfgs->StYfull));
-        PetscCall(MatCreateDenseFromVecType(comm, vec_type, mm1, mm1, M-1, M-1, -1, NULL, &lbfgs->temp_shift));
+        //TODO debugging purpose delete later
+        PetscCall(MatCreateDenseFromVecType(comm, vec_type, m, m, M, M, -1, NULL, &lbfgs->temp_mat));
+
 //        PetscObjectReference((PetscObject)lbfgs->StYfull_device);
       }
       PetscCall(MatDuplicate(lbfgs->Sfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->Yfull));
@@ -1892,7 +1916,6 @@ static PetscErrorCode MatDestroy_LMVMCDBFGS(Mat B)
     PetscCall(MatDestroy(&lbfgs->StYfull_device));
     PetscCall(MatDestroy(&lbfgs->Sfull));
     PetscCall(MatDestroy(&lbfgs->Yfull));
-    PetscCall(MatDestroy(&lbfgs->temp_shift));
     PetscCall(MatDestroy(&lbfgs->J));
     PetscCall(MatDestroy(&lbfgs->J_work));
     PetscCall(MatDestroy(&lbfgs->BS));
@@ -2009,6 +2032,7 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   PetscCall(PetscNew(&lbfgs));
   lmvm->ctx = (void*)lbfgs;
   lbfgs->allocated       = PETSC_FALSE;
+  lbfgs->rotate_counter  = PETSC_FALSE;
   lbfgs->chol_ldlt_lazy  = PETSC_TRUE;
   lbfgs->idx_begin       = -1;
   lbfgs->idx_b_r         = -1;
