@@ -1337,6 +1337,38 @@ static PetscErrorCode MatMove_LR2(Mat H, Mat R)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/* Shifts R[1:end,1:end] to R[0:end-1, 0:end-1] */
+
+static PetscErrorCode MatMove_LR3(Mat H, Mat R)
+{
+  Mat_LMVM     *lmvm  = (Mat_LMVM*)H->data;
+  Mat_CDBFGS   *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
+
+  PetscInt     M, lda;
+  PetscMPIInt  rank;
+  MPI_Comm     comm = PetscObjectComm((PetscObject)R);
+  Mat          mat_local, local_sub;
+
+  PetscFunctionBegin;
+
+  PetscCall(MPI_Comm_rank(comm, &rank));
+
+  PetscCall(MatGetLocalSize(R, &M, NULL));
+  if (M == 0) PetscFunctionReturn(PETSC_SUCCESS);
+  
+  PetscCall(MatDenseGetLocalMatrix(R, &mat_local));
+  PetscCall(MatDenseGetLDA(mat_local, &lda));
+
+  PetscCall(MatDenseGetSubMatrix(mat_local, 1, lmvm->m, 1, lmvm->m, &local_sub));
+  PetscCall(MatDuplicate(local_sub, MAT_COPY_VALUES, &lbfgs->temp_mat));
+  PetscCall(MatDenseRestoreSubMatrix(mat_local, &local_sub));
+
+  PetscCall(MatDenseGetSubMatrix(mat_local, 0, lmvm->m-1, 0, lmvm->m-1, &local_sub));
+  PetscCall(MatCopy(lbfgs->temp_mat, local_sub, DIFFERENT_NONZERO_PATTERN));
+  PetscCall(MatDenseRestoreSubMatrix(mat_local, &local_sub));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /* Fills last row of STY matrix with Y^T @ Xprev  */
 
 static PetscErrorCode FillLastRow(Mat R, Mat STY)
@@ -1505,10 +1537,10 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
               //When STY becomes full for first time, this routine shouldn't be run.
             } else if (lbfgs->idx_rplc == 0) {
               lbfgs->idx_rplc++;
-              PetscCall(MatMove_LR2(B, lbfgs->StYfull));
+              PetscCall(MatMove_LR3(B, lbfgs->StYfull));
             } else {
               lbfgs->idx_rplc = (lbfgs->idx_rplc ) % lmvm->m + 1;
-              PetscCall(MatMove_LR2(B, lbfgs->StYfull));
+              PetscCall(MatMove_LR3(B, lbfgs->StYfull));
             }
             /* Filling last column */
             PetscCall(MatDenseGetColumnVecWrite(lbfgs->StYfull, lmvm->m-1, &workvec));
@@ -1672,11 +1704,12 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     PetscCall(VecDuplicate(F, &lmvm->Fprev));
     if (lmvm->m > 0) {
       PetscMPIInt rank;
-      PetscInt m, M;
+      PetscInt m, M, mm1;
 
       PetscCall(MPI_Comm_rank(comm, &rank));
-      M = lmvm->m;
-      m = (rank == 0) ? M : 0;
+      M   = lmvm->m;
+      m   = (rank == 0) ? M : 0;
+      mm1 = (rank == 0) ? M-1 : 0;
 
       /* Create iteration storage matrices */
       PetscCall(VecGetType(X, &vec_type));
@@ -1687,8 +1720,6 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
         PetscCall(MatCreateDenseFromVecType(comm, vec_type, m, m, M, M, -1, NULL, &lbfgs->StYfull_device));
       } else {
         PetscCall(MatCreateDenseFromVecType(comm, vec_type, m, m, M, M, -1, NULL, &lbfgs->StYfull));
-        //TODO debugging purpose delete later
-
 //        PetscObjectReference((PetscObject)lbfgs->StYfull_device);
       }
       PetscCall(MatDuplicate(lbfgs->Sfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->Yfull));
@@ -1754,6 +1785,7 @@ static PetscErrorCode MatDestroy_LMVMCDBFGS(Mat B)
     PetscCall(MatDestroy(&lbfgs->Yfull));
     PetscCall(MatDestroy(&lbfgs->J));
     PetscCall(MatDestroy(&lbfgs->J_work));
+    PetscCall(MatDestroy(&lbfgs->temp_mat));
     PetscCall(MatDestroy(&lbfgs->BS));
     PetscCall(VecDestroy(&lbfgs->rwork1));
     PetscCall(VecDestroy(&lbfgs->rwork2));
