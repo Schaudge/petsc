@@ -660,7 +660,6 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
   PetscMemType memtype_r, memtype_x;
   PetscScalar *x_array;
   PetscInt     lda, M = 0;
-  Mat r_local;
 
   const PetscScalar *r_array;
 
@@ -728,18 +727,10 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
           PetscCuBLASInt ldb_blas = lda_blas;
           switch (tri_type) {
           case MAT_CDBFGS_UPPER_TRIANGULAR:
-            PetscCall(VecRestoreArrayAndMemType(x, &x_array));
-            PetscCall(VecGetArrayAndMemType(x, &x_array, &memtype_x));
             PetscCallCUBLAS(cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
-            PetscCall(VecRestoreArrayAndMemType(x, &x_array));
-            PetscCall(VecGetArrayAndMemType(x, &x_array, &memtype_x));
             break;
           case MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE:
-            PetscCall(VecRestoreArrayAndMemType(x, &x_array));
-            PetscCall(VecGetArrayAndMemType(x, &x_array, &memtype_x));
             PetscCallCUBLAS(cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, m_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
-            PetscCall(VecRestoreArrayAndMemType(x, &x_array));
-            PetscCall(VecGetArrayAndMemType(x, &x_array, &memtype_x));
             break;
           case MAT_CDBFGS_LOWER_TRIANGULAR:
           case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
