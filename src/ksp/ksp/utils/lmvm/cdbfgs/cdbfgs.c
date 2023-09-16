@@ -74,7 +74,7 @@ static PETSC_UNUSED PetscErrorCode MtMT_Internal(Mat H, Mat S, Mat Y, Mat *STY)
   const PetscScalar  *s_array, *y_array;
   PetscScalar        *sty_array, *vec_array, Alpha = 1.0, zero = 0.;
 
-  PetscInt idx = lbfgs->idx_cols, lda, lda_sty, rown, coln, i;
+  PetscInt idx = lbfgs->idx_rplc, lda, lda_sty, rown, coln, i;
   MPI_Comm comm = PetscObjectComm((PetscObject)H);
   PetscFunctionBegin;
 
@@ -1330,7 +1330,7 @@ static PetscErrorCode FillLastRow(Mat R, Mat STY)
   PetscCall(MPI_Comm_rank(comm, &rank));
 
   PetscCall(MatMultTranspose(lbfgs->Yfull, lmvm->Xprev, lbfgs->rwork1));
-  PetscCall(VecRightward_Shift(R, lbfgs->rwork1, -lbfgs->idx_cols));
+  PetscCall(VecRightward_Shift(R, lbfgs->rwork1, -lbfgs->idx_rplc));
 
   PetscCall(MatGetLocalSize(STY, &M, NULL));
   PetscCall(VecGetLocalSize(lbfgs->rwork1, &M_vec));
@@ -1413,6 +1413,7 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       curvtol = lmvm->eps * PetscRealPart(ststmp);
     }
     if (PetscRealPart(curvature) > curvtol) {
+      PetscInt  StYidx;
 
       /* LMVM is updated. Need to update Chol and LDLT inside MatMult */
       lbfgs->chol_ldlt_lazy = PETSC_TRUE;
@@ -1430,80 +1431,93 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
         PetscCall(MatLMVMUpdate(lbfgs->diag_bfgs, X, F));
       }
 
+      lbfgs->idx_rplc = (lbgs->idx_rplc + 1) % lmvm->m;
       if (lmvm->k != lmvm->m-1) {
         lmvm->k = lmvm->k + 1;
-        lbfgs->idx_cols = lmvm->k;
+      } else if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) {
+        PetscCall(MatMove_LR3(B, lbfgs->StYfull));
       }
 
+
       /* First update the S^T matrix */
-      PetscCall(MatDenseGetColumnVecWrite(lbfgs->Sfull, lbfgs->idx_cols, &workvec1));
+      PetscCall(MatDenseGetColumnVecWrite(lbfgs->Sfull, lbfgs->idx_rplc, &workvec1));
       PetscCall(VecCopyAsync_Private(lmvm->Xprev, workvec1, dctx));
-      PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->Sfull, lbfgs->idx_cols, &workvec1));
+      PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->Sfull, lbfgs->idx_rplc, &workvec1));
 
       /* Now repeat update for the Y^T matrix */
       PetscCall(MatDenseGetColumnVecWrite(lbfgs->Yfull, lbfgs->idx_cols, &workvec1));
       PetscCall(VecCopyAsync_Private(lmvm->Fprev, workvec1, dctx));
       PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->Yfull, lbfgs->idx_cols, &workvec1));
 
-      /* TODO perhaps unify idx? too many idx floating around rn */
-      switch (lbfgs->strategy) {
-      case MAT_LBFGS_CD_INPLACE:
-        if (lbfgs->bind) {
-//          PetscCall(MtMT_Internal(B, lbfgs->Sfull, lbfgs->Yfull, &lbfgs->StYfull));
-          PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull_device));
-          PetscCall(MatCopy(lbfgs->StYfull_device, lbfgs->StYfull, SAME_NONZERO_PATTERN)); 
-        } else {
-          Vec this_sy_col;
+      StYidx = (lbfgs->strategy == MAT_LBFGS_CD_REORDER) ?  lmvm->k : lbfgs->idx_cols;
 
-          PetscCall(MatDenseGetColumnVecWrite(lbfgs->StYfull, lbfgs->idx_cols, &this_sy_col));
-          PetscCall(MatMultTranspose(lbfgs->Sfull, lmvm->Fprev, this_sy_col));
-          PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->StYfull, lbfgs->idx_cols, &this_sy_col));
-          //PetscCall(MatDenseGetSubMatrix(lbfgs->Sfull, PETSC_DECIDE, PETSC_DECIDE, lbfgs->idx_cols, lbfgs->idx_cols+1, &this_s));
-          //PetscCall(MatDenseGetSubMatrix(lbfgs->StYfull, lbfgs->idx_cols, lbfgs->idx_cols+1, PETSC_DECIDE, PETSC_DECIDE, &this_sy_row));
-          //PetscCall(MatTransposeMatMult(this_s, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DECIDE, &this_sy_row));
-          //PetscCall(MatDenseRestoreSubMatrix(lbfgs->StYfull, &this_sy_row));
-          //PetscCall(MatDenseRestoreSubMatrix(lbfgs->Sfull, &this_s));
-        }
+      {
+        Vec this_sy_col;
 
-        if (lmvm->k == lmvm->m-1) {
-          lbfgs->idx_begin = (lbfgs->idx_begin + 1) % lmvm->m;
-          lbfgs->idx_cols = lbfgs->idx_begin;
-        }
-        break;
-      case MAT_LBFGS_CD_REORDER:
-        {
-          if (lmvm->k == lmvm->m - 1) {
-            Vec workvec;
-            lbfgs->idx_b_r = (lbfgs->idx_b_r+ 1) % lmvm->m;
-            lbfgs->idx_cols = lbfgs->idx_b_r;
-            if (lbfgs->idx_rplc == -1) {
-              lbfgs->idx_rplc++;
-              //When STY becomes full for first time, this routine shouldn't be run.
-            } else if (lbfgs->idx_rplc == 0) {
-              lbfgs->idx_rplc++;
-              PetscCall(MatMove_LR3(B, lbfgs->StYfull));
-            } else {
-              lbfgs->idx_rplc = (lbfgs->idx_rplc ) % lmvm->m + 1;
-              PetscCall(MatMove_LR3(B, lbfgs->StYfull));
-            }
-            /* Filling last column */
-            PetscCall(MatDenseGetColumnVecWrite(lbfgs->StYfull, lmvm->m-1, &workvec));
-            PetscCall(MatMultTranspose(lbfgs->Sfull, lmvm->Fprev, lbfgs->rwork1));
-            PetscCall(VecRightward_Shift(B, lbfgs->rwork1, -lbfgs->idx_cols));
-            PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
-            PetscCall(VecCopyAsync_Private(lbfgs->rwork1, workvec, dctx));
-            PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->StYfull, lmvm->m-1, &workvec));
-            /* Filling last row */
-            PetscCall(FillLastRow(B, lbfgs->StYfull));
-          } else {
-            PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
-          }
-        }
-      case MAT_LBFGS_BASIC:
-      default:
-        //TODO seterrq here? do we even need basic flag?
-        break;
+        PetscCall(MatDenseGetColumnVecWrite(lbfgs->StYfull, StYidx, &this_sy_col));
+        PetscCall(MatMultTranspose(lbfgs->Sfull, lmvm->Fprev, this_sy_col));
+        if ((lmvm->k == lmvm->m - 1) && (lbfgs->idx_cols != lmvm->m - 1)) PetscCall(VecRightward_Shift(B, this_sy_col, -lbfgs->idx_cols));
+        PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->StYfull, StYidx, &this_sy_col));
       }
+
+      ///* TODO perhaps unify idx? too many idx floating around rn */
+      //switch (lbfgs->strategy) {
+      //case MAT_LBFGS_CD_INPLACE:
+      //  if (lbfgs->bind) {
+//    //      PetscCall(MtMT_Internal(B, lbfgs->Sfull, lbfgs->Yfull, &lbfgs->StYfull));
+      //    PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull_device));
+      //    PetscCall(MatCopy(lbfgs->StYfull_device, lbfgs->StYfull, SAME_NONZERO_PATTERN)); 
+      //  } else {
+      //    Vec this_sy_col;
+
+      //    PetscCall(MatDenseGetColumnVecWrite(lbfgs->StYfull, lbfgs->idx_cols, &this_sy_col));
+      //    PetscCall(MatMultTranspose(lbfgs->Sfull, lmvm->Fprev, this_sy_col));
+      //    PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->StYfull, lbfgs->idx_cols, &this_sy_col));
+      //    //PetscCall(MatDenseGetSubMatrix(lbfgs->Sfull, PETSC_DECIDE, PETSC_DECIDE, lbfgs->idx_cols, lbfgs->idx_cols+1, &this_s));
+      //    //PetscCall(MatDenseGetSubMatrix(lbfgs->StYfull, lbfgs->idx_cols, lbfgs->idx_cols+1, PETSC_DECIDE, PETSC_DECIDE, &this_sy_row));
+      //    //PetscCall(MatTransposeMatMult(this_s, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DECIDE, &this_sy_row));
+      //    //PetscCall(MatDenseRestoreSubMatrix(lbfgs->StYfull, &this_sy_row));
+      //    //PetscCall(MatDenseRestoreSubMatrix(lbfgs->Sfull, &this_s));
+      //  }
+
+      //  if (lmvm->k == lmvm->m-1) {
+      //    lbfgs->idx_begin = (lbfgs->idx_begin + 1) % lmvm->m;
+      //    lbfgs->idx_cols = lbfgs->idx_begin;
+      //  }
+      //  break;
+      //case MAT_LBFGS_CD_REORDER:
+      //  {
+      //    if (lmvm->k == lmvm->m - 1) {
+      //      Vec workvec;
+      //      lbfgs->idx_b_r = (lbfgs->idx_b_r+ 1) % lmvm->m;
+      //      lbfgs->idx_cols = lbfgs->idx_b_r;
+      //      if (lbfgs->idx_rplc == -1) {
+      //        lbfgs->idx_rplc++;
+      //        //When STY becomes full for first time, this routine shouldn't be run.
+      //      } else if (lbfgs->idx_rplc == 0) {
+      //        lbfgs->idx_rplc++;
+      //        PetscCall(MatMove_LR3(B, lbfgs->StYfull));
+      //      } else {
+      //        lbfgs->idx_rplc = (lbfgs->idx_rplc ) % lmvm->m + 1;
+      //      }
+      //      /* Filling last column */
+      //      PetscCall(MatDenseGetColumnVecWrite(lbfgs->StYfull, lmvm->m-1, &workvec));
+      //      PetscCall(MatMultTranspose(lbfgs->Sfull, lmvm->Fprev, lbfgs->rwork1));
+      //      PetscCall(VecRightward_Shift(B, lbfgs->rwork1, -lbfgs->idx_cols));
+      //      PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+      //      PetscCall(VecCopyAsync_Private(lbfgs->rwork1, workvec, dctx));
+      //      PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->StYfull, lmvm->m-1, &workvec));
+      //      /* Filling last row */
+      //      //PetscCall(FillLastRow(B, lbfgs->StYfull));
+      //    } else {
+      //      PetscCall(MatTransposeMatMult(lbfgs->Sfull, lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull));
+      //    }
+      //  }
+      //case MAT_LBFGS_BASIC:
+      //default:
+      //  //TODO seterrq here? do we even need basic flag?
+      //  break;
+      //}
 
       PetscCall(MatGetDiagonal(lbfgs->StYfull, lbfgs->diag_vec));
       PetscCall(VecRightward_Shift(B, lbfgs->diag_vec, lbfgs->idx_rplc));
