@@ -13,6 +13,11 @@
 #include <petsc/private/vecimpl.h>
 #include <cuda_profiler_api.h>
 #endif
+#if defined(PETSC_HAVE_HIP)
+#include <petscdevice_hip.h>
+#include <petsc/private/deviceimpl.h>
+#include <petsc/private/vecimpl.h>
+#endif
 typedef enum{
   MAT_CDBFGS_LOWER_TRIANGULAR,
   MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE,
@@ -135,16 +140,25 @@ static PETSC_UNUSED PetscErrorCode MtMT_Internal(Mat H, Mat S, Mat Y, Mat *STY)
   case PETSC_MEMTYPE_HIP:
 #if defined(PETSC_HAVE_HIP)
     {
-      hipblasHandle_t handle;
-      PetscHIPBLASInt row_blas, col_blas, lda_blas, lda_sty_blas, one = 1;
+      PetscDeviceContext dctx;
+      hipblasHandle_t    handle;
+      PetscHipBLASInt    row_blas, col_blas, lda_blas, lda_sty_blas, one = 1;
 
+      PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
       PetscCall(PetscHIPBLASGetHandle(&handle));
-      PetscCallHIPBLAS(cublasSetPointerMode(handle, HIPBLAS_POINTER_MODE_HOST));
-      PetscCall(PetscHIPBLASIntCast(lda, &lda_blas));
-      PetscCall(PetscHIPBLASIntCast(lda_sty, &lda_sty_blas));
-      PetscCall(PetscHIPBLASIntCast(rown, &row_blas));
-      PetscCall(PetscHIPBLASIntCast(coln, &col_blas));
-      PetscCallHIPBLAS(cublasDgemv(handle, HIPBLAS_OP_T, row_blas, col_blas, &Alpha, s_array, lda_blas, &y_array[idx*lda], one, &Alpha, &sty_array[idx*lda_sty_blas], one));
+      PetscCallHIPBLAS(hipblasSetPointerMode(handle, HIPBLAS_POINTER_MODE_HOST));
+      PetscCall(PetscHipBLASIntCast(lda, &lda_blas));
+      PetscCall(PetscHipBLASIntCast(lda_sty, &lda_sty_blas));
+      PetscCall(PetscHipBLASIntCast(rown, &row_blas));
+      PetscCall(PetscHipBLASIntCast(coln, &col_blas));
+      PetscCallHIPBLAS(hipblasDgemv(handle, HIPBLAS_OP_T, row_blas, col_blas, &Alpha, s_array, lda_blas, &y_array[idx*lda], one, &zero, &sty_array[idx*lda_sty_blas], one));
+      PetscCallHIPBLAS(hipblasDgemv(handle, HIPBLAS_OP_T, row_blas, col_blas, &Alpha, y_array, lda_blas, &s_array[idx*lda], one, &zero, vec_array, one));
+
+      for (i=0; i< lmvm->m ; i++) {
+        PetscCall(PetscDeviceRegisterMemory(&sty_array[i*lda_sty+idx], stytype, 1*sizeof(*sty_array)));
+        PetscCall(PetscDeviceRegisterMemory(&vec_array[i], vec_type, 1*sizeof(*vec_array)));
+	PetscCall(PetscDeviceArrayCopy(dctx, &sty_array[i*lda_sty+idx], &vec_array[i], 1));
+      }
     }
 #endif
     break;
@@ -314,14 +328,14 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
 #if defined(PETSC_HAVE_HIP)
           {
             hipblasHandle_t handle;
-            PetscHIPBLASInt m_blas, lda_blas, one = 1;
+            PetscHipBLASInt m_blas, lda_blas, one = 1;
 
             PetscCall(PetscHIPBLASGetHandle(&handle));
             PetscCallHIPBLAS(hipblasSetPointerMode(handle, HIPBLAS_POINTER_MODE_HOST));
-            PetscCall(PetscHIPBLASIntCast(lmvm->k, &m_blas));
+            PetscCall(PetscHipBLASIntCast(lmvm->k, &m_blas));
             PetscCall(MatDenseGetLDA(lbfgs->StYfull, &lda));
-            PetscCall(PetscHIPBLASIntCast(lda, &lda_blas));
-            PetscCallHIPBLAS(hipblasXtrmv(handle, HIPBLAS_FILL_MODE_LOWER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, m_blas, &r_array[1], lda_blas, x_array, one));
+            PetscCall(PetscHipBLASIntCast(lda, &lda_blas));
+            PetscCallHIPBLAS(hipblasDtrmv(handle, HIPBLAS_FILL_MODE_LOWER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, m_blas, &r_array[1], lda_blas, x_array, one));
             /* Shift */
             PetscCall(PetscArraymove(&x_array[1],x_array,lmvm->k));
             x_array[0] = 0;
@@ -431,34 +445,34 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
             PetscCall(PetscHIPBLASGetHandle(&handle));
             PetscCallHIPBLAS(hipblasSetPointerMode(handle, HIPBLAS_POINTER_MODE_HOST));
 
-            PetscHIPBLASInt m_blas, idx_blas, lda_blas, idx_n_1, diff_blas, diff_blas_n_1, one = 1;
-            PetscCall(PetscHIPBLASIntCast(lmvm->k, &m_blas));
+            PetscHipBLASInt m_blas, idx_blas, lda_blas, idx_n_1, diff_blas, diff_blas_n_1, one = 1;
+            PetscCall(PetscHipBLASIntCast(lmvm->k, &m_blas));
             PetscCall(MatDenseGetLDA(lbfgs->StYfull, &lda));
-            PetscCall(PetscHIPBLASIntCast(lda, &lda_blas));
-            PetscCall(PetscHIPBLASIntCast(index, &idx_blas));
-            PetscCall(PetscHIPBLASIntCast(lda, &lda_blas));
-            PetscCall(PetscHIPBLASIntCast(lda - index, &diff_blas));
-            PetscCall(PetscHIPBLASIntCast(lda - index - 1, &diff_blas_n_1));
+            PetscCall(PetscHipBLASIntCast(lda, &lda_blas));
+            PetscCall(PetscHipBLASIntCast(index, &idx_blas));
+            PetscCall(PetscHipBLASIntCast(lda, &lda_blas));
+            PetscCall(PetscHipBLASIntCast(lda - index, &diff_blas));
+            PetscCall(PetscHipBLASIntCast(lda - index - 1, &diff_blas_n_1));
             if (index == 0 ) {
-              PetscCall(PetscHIPBLASIntCast(0, &idx_n_1));
+              PetscCall(PetscHipBLASIntCast(0, &idx_n_1));
             } else {
-              PetscCall(PetscHIPBLASIntCast(index - 1, &idx_n_1));
+              PetscCall(PetscHipBLASIntCast(index - 1, &idx_n_1));
             }
             PetscScalar *buffer;
             PetscCall(PetscCalloc1(lmvm->m - index, &buffer));
             PetscCall(PetscArraycpy(buffer, &x_array[index], lmvm->m-index));
             if (index != lmvm->k) {
-              PetscCallHIPBLAS(hipblasXtrmv(handle, HIPBLAS_FILL_MODE_LOWER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, diff_blas_n_1, &r_array[idx_blas*(lda_blas+1)+1], lda_blas, &x_array[idx_blas], one));
+              PetscCallHIPBLAS(hipblasDtrmv(handle, HIPBLAS_FILL_MODE_LOWER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, diff_blas_n_1, &r_array[idx_blas*(lda_blas+1)+1], lda_blas, &x_array[idx_blas], one));
               PetscCall(PetscArraymove(&x_array[idx_blas+1], &x_array[idx_blas], lmvm->m-index-1));
             }
             x_array[idx_blas] = 0;
             if (index > 1) {
-              PetscCallHIPBLAS(hipblasXtrmv(handle, HIPBLAS_FILL_MODE_LOWER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, idx_n_1, &r_array[1], lda_blas, x_array, one));
+              PetscCallHIPBLAS(hipblasDtrmv(handle, HIPBLAS_FILL_MODE_LOWER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, idx_n_1, &r_array[1], lda_blas, x_array, one));
               PetscCall(PetscArraymove(&x_array[1], x_array, index-1));
             }
             x_array[0] = 0;
             if (index != 0) {
-              PetscCallHIPBLAS(hipblasXgemv(handle, HIPBLAS_OP_N, idx_blas, diff_blas, &Alpha, &r_array[idx_blas*lda], lda_blas, buffer, one, &Alpha, x_array, one));
+              PetscCallHIPBLAS(hipblasDgemv(handle, HIPBLAS_OP_N, idx_blas, diff_blas, &Alpha, &r_array[idx_blas*lda], lda_blas, buffer, one, &Alpha, x_array, one));
             }
             PetscCall(PetscFree(buffer));
           }
@@ -573,31 +587,31 @@ PetscErrorCode MatLowerTriangularMult(Mat B, Vec X, TriangularTypes tri_type)
             PetscCall(PetscHIPBLASGetHandle(&handle));
             PetscCallHIPBLAS(hipblasSetPointerMode(handle, HIPBLAS_POINTER_MODE_HOST));
 
-            PetscHIPBLASInt idx_blas, lda_blas, idx_n_1, diff_blas, diff_blas_n_1, one = 1;
+            PetscHipBLASInt idx_blas, lda_blas, idx_n_1, diff_blas, diff_blas_n_1, one = 1;
             PetscCall(MatDenseGetLDA(lbfgs->StYfull, &lda));
-            PetscCall(PetscHIPBLASIntCast(index, &idx_blas));
-            PetscCall(PetscHIPBLASIntCast(lda, &lda_blas));
-            PetscCall(PetscHIPBLASIntCast(lda - index, &diff_blas));
-            PetscCall(PetscHIPBLASIntCast(lda - index - 1, &diff_blas_n_1));
+            PetscCall(PetscHipBLASIntCast(index, &idx_blas));
+            PetscCall(PetscHipBLASIntCast(lda, &lda_blas));
+            PetscCall(PetscHipBLASIntCast(lda - index, &diff_blas));
+            PetscCall(PetscHipBLASIntCast(lda - index - 1, &diff_blas_n_1));
             if (index == 0 ) {
-              PetscCall(PetscHIPBLASIntCast(0, &idx_n_1));
+              PetscCall(PetscHipBLASIntCast(0, &idx_n_1));
             } else {
-              PetscCall(PetscHIPBLASIntCast(index - 1, &idx_n_1));
+              PetscCall(PetscHipBLASIntCast(index - 1, &idx_n_1));
             }
             PetscScalar *buffer;
             PetscCall(PetscCalloc1(index, &buffer));
             PetscCall(PetscArraycpy(buffer, x_array, index));
             if (index > 1) {
-              PetscCallHIPBLAS(hipblasXtrmv(handle, HIPBLAS_FILL_MODE_LOWER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, idx_n_1, &r_array[1], lda_blas, x_array, one));
+              PetscCallHIPBLAS(hipblasDtrmv(handle, HIPBLAS_FILL_MODE_LOWER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, idx_n_1, &r_array[1], lda_blas, x_array, one));
               x_array[index-1] = 0;
             }
             if (index != lmvm->k) {
-              PetscCallHIPBLAS(hipblasXtrmv(handle, HIPBLAS_FILL_MODE_LOWER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, diff_blas_n_1, &r_array[idx_blas*(lda_blas+1)+1], lda_blas, &x_array[idx_blas], one));
+              PetscCallHIPBLAS(hipblasDtrmv(handle, HIPBLAS_FILL_MODE_LOWER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, diff_blas_n_1, &r_array[idx_blas*(lda_blas+1)+1], lda_blas, &x_array[idx_blas], one));
               x_array[lmvm->k] = 0;
             }
             if (index != 0) {
-              PetscCallHIPBLAS(hipblasXgemv(handle, HIPBLAS_OP_T, diff_blas, idx_blas, &Alpha, &r_array[idx_blas*lda], lda_blas, &x_array[idx_blas], one, &Alpha, x_array, one));
-              PetscCallHIPBLAS(hipblasXgemv(handle, HIPBLAS_OP_N, idx_blas, diff_blas, &Alpha, &r_array[idx_blas*lda], lda_blas, buffer, one, &Alpha, x_array, one));
+              PetscCallHIPBLAS(hipblasDgemv(handle, HIPBLAS_OP_T, diff_blas, idx_blas, &Alpha, &r_array[idx_blas*lda], lda_blas, &x_array[idx_blas], one, &Alpha, x_array, one));
+              PetscCallHIPBLAS(hipblasDgemv(handle, HIPBLAS_OP_N, idx_blas, diff_blas, &Alpha, &r_array[idx_blas*lda], lda_blas, buffer, one, &Alpha, x_array, one));
             }
           }
 #endif
@@ -661,7 +675,7 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
   PetscScalar *x_array;
   PetscInt     lda, M = 0;
 
-  const PetscScalar *r_array;
+  PetscScalar *r_array;
 
   PetscFunctionBegin;
 //  PetscCall(MatGetDiagonalBlock(R, &r_local));
@@ -669,11 +683,11 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
   PetscCall(MPI_Comm_rank(comm, &rank));
 
   PetscCall(MatGetLocalSize(R, &M, NULL));
-  PetscCall(MatDenseGetArrayReadAndMemType(R, &r_array, &memtype_r));
+  PetscCall(MatDenseGetArrayAndMemType(R, &r_array, &memtype_r));
   PetscCall(VecGetArrayAndMemType(x, &x_array, &memtype_x));
   if (M == 0) {
     PetscCall(VecRestoreArrayAndMemType(x, &x_array));
-    PetscCall(MatDenseRestoreArrayReadAndMemType(R, &r_array));
+    PetscCall(MatDenseRestoreArrayAndMemType(R, &r_array));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
   // TODO rank non zero exits, but rank 0 goes on 
@@ -744,20 +758,23 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
 #if defined(PETSC_HAVE_HIP)
         {
           hipblasHandle_t handle;
+          PetscDeviceContext dctx;
 
-          PetscCall(PetscHIPBLASGetHandle(&handle));
+          PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+          PetscCall(PetscDeviceContextGetBLASHandle_Internal(dctx, &handle));
+
           PetscCallHIPBLAS(hipblasSetPointerMode(handle, HIPBLAS_POINTER_MODE_HOST));
 
-          PetscHIPBLASInt m_blas, lda_blas, one = 1;
-          PetscCall(PetscHIPBLASIntCast(lmvm->k+1, &m_blas));
-          PetscCall(PetscHIPBLASIntCast(lda, &lda_blas));
-          PetscHIPBLASInt ldb_blas = lda_blas;
+          PetscHipBLASInt m_blas, lda_blas, one = 1;
+          PetscCall(PetscHipBLASIntCast(lmvm->k+1, &m_blas));
+          PetscCall(PetscHipBLASIntCast(lda, &lda_blas));
+          PetscHipBLASInt ldb_blas = lda_blas;
           switch (tri_type) {
           case MAT_CDBFGS_UPPER_TRIANGULAR:
-            PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, m_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
+            PetscCallHIPBLAS(hipblasDtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, m_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
             break;
           case MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE:
-            PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, m_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
+            PetscCallHIPBLAS(hipblasDtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, m_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
             break;
           case MAT_CDBFGS_LOWER_TRIANGULAR:
           case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
@@ -828,7 +845,6 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
         cublasHandle_t handle;
         PetscDeviceContext dctx;
 
-
         PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
         PetscCall(PetscDeviceContextGetBLASHandle_Internal(dctx, &handle));
 
@@ -863,27 +879,29 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
 #if defined(PETSC_HAVE_HIP)
       {
         hipblasHandle_t handle;
+        PetscDeviceContext dctx;
 
-        PetscCall(PetscHIPBLASGetHandle(&handle));
-        PetscCallHIPBLAS(hipblasSetPointerMode(handle, HIPBLAS_POINTER_MODE_HOST));
+        PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+        PetscCall(PetscDeviceContextGetBLASHandle_Internal(dctx, &handle));
+
         //PetscAssert(PetscDefined(BLAS)...));
-        PetscHIPBLASInt m_blas, idx_blas, lda_blas, diff_blas, one = 1;
-        PetscCall(PetscHIPBLASIntCast(lmvm->k, &m_blas));
-        PetscCall(PetscHIPBLASIntCast(lowest_index, &idx_blas));
-        PetscCall(PetscHIPBLASIntCast(lda, &lda_blas));
-        PetscCall(PetscHIPBLASIntCast(lmvm->k + 1 - lowest_index, &diff_blas));
-        PetscHIPBLASInt ldb_blas = lda_blas;
+        PetscHipBLASInt m_blas, idx_blas, lda_blas, diff_blas, one = 1;
+        PetscCall(PetscHipBLASIntCast(lmvm->k, &m_blas));
+        PetscCall(PetscHipBLASIntCast(lowest_index, &idx_blas));
+        PetscCall(PetscHipBLASIntCast(lda, &lda_blas));
+        PetscCall(PetscHipBLASIntCast(lmvm->k + 1 - lowest_index, &diff_blas));
+        PetscHipBLASInt ldb_blas = lda_blas;
 
         switch (tri_type) {
         case MAT_CDBFGS_UPPER_TRIANGULAR:
-          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, idx_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
-          PetscCallHIPBLAS(hipblasXgemv(handle, HIPBLAS_OP_N, diff_blas, idx_blas, &neg_one, &r_array[idx_blas], lda_blas, x_array, one, &Alpha, &x_array[idx_blas], one));
-          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, diff_blas, one, &Alpha, &r_array[idx_blas*(lda_blas+1)], lda_blas, &x_array[idx_blas], ldb_blas));
+          PetscCallHIPBLAS(hipblasDtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, idx_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
+          PetscCallHIPBLAS(hipblasDgemv(handle, HIPBLAS_OP_N, diff_blas, idx_blas, &neg_one, &r_array[idx_blas], lda_blas, x_array, one, &Alpha, &x_array[idx_blas], one));
+          PetscCallHIPBLAS(hipblasDtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, diff_blas, one, &Alpha, &r_array[idx_blas*(lda_blas+1)], lda_blas, &x_array[idx_blas], ldb_blas));
           break;
         case MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE:
-          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, diff_blas, one, &Alpha, &r_array[idx_blas*(lda_blas+1)], lda_blas, &x_array[idx_blas], ldb_blas));
-          PetscCallHIPBLAS(hipblasXgemv(handle, HIPBLAS_OP_T, diff_blas, idx_blas, &neg_one, &r_array[idx_blas], lda_blas, &x_array[idx_blas], one, &Alpha, x_array, one));
-          PetscCallHIPBLAS(hipblasXtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, idx_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
+          PetscCallHIPBLAS(hipblasDtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, diff_blas, one, &Alpha, &r_array[idx_blas*(lda_blas+1)], lda_blas, &x_array[idx_blas], ldb_blas));
+          PetscCallHIPBLAS(hipblasDgemv(handle, HIPBLAS_OP_T, diff_blas, idx_blas, &neg_one, &r_array[idx_blas], lda_blas, &x_array[idx_blas], one, &Alpha, x_array, one));
+          PetscCallHIPBLAS(hipblasDtrsm(handle, HIPBLAS_SIDE_LEFT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_T, HIPBLAS_DIAG_NON_UNIT, idx_blas, one, &Alpha, r_array, lda_blas, x_array, ldb_blas));
           break;
         case MAT_CDBFGS_LOWER_TRIANGULAR:
         case MAT_CDBFGS_LOWER_TRIANGULAR_TRANSPOSE:
@@ -901,7 +919,7 @@ static PetscErrorCode MatSolveTriangular(Mat B, Mat R, PetscInt lowest_index, Ve
     SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented L-BFGS strategy");
   }
   PetscCall(VecRestoreArrayAndMemType(x, &x_array));
-  PetscCall(MatDenseRestoreArrayReadAndMemType(R, &r_array));
+  PetscCall(MatDenseRestoreArrayAndMemType(R, &r_array));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1281,62 +1299,6 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-
-/* Shifts R[1:end,1:end] to R[0:end-1, 0:end-1] */
-
-static PetscErrorCode MatMove_LR2(Mat H, Mat R)
-{
-  Mat_LMVM     *lmvm  = (Mat_LMVM*)H->data;
-
-  PetscScalar *r_array;
-  PetscInt     i, j, M, lda;
-  PetscMPIInt  rank;
-  PetscMemType memtype_r;
-  MPI_Comm     comm = PetscObjectComm((PetscObject)R);
-
-  PetscDeviceContext dctx;
-  PetscFunctionBegin;
-
-  PetscCall(MPI_Comm_rank(comm, &rank));
-
-  PetscCall(MatGetLocalSize(R, &M, NULL));
-  PetscCall(MatDenseGetArrayAndMemType(R, &r_array, &memtype_r));
-  if (M == 0) {
-    PetscCall(MatDenseRestoreArrayAndMemType(R, &r_array));
-    PetscFunctionReturn(PETSC_SUCCESS);
-  }
-  PetscCall(MatDenseGetLDA(R, &lda));
-
-  /* i: col, j: row. Not caring about setting zero at bottom of col since 
-   * we only care about upper triangular part */
-  for (i=0; i< lmvm->m-1; i++) {
-    for (j=0; j < lmvm->m-1; j++) {
-      switch (memtype_r) {
-      case PETSC_MEMTYPE_HOST:
-        {
-          r_array[lda*i+j] = r_array[lda*(i+1)+j+1];
-        }
-        break;
-      case PETSC_MEMTYPE_CUDA:
-      case PETSC_MEMTYPE_NVSHMEM:
-      case PETSC_MEMTYPE_HIP:
-        {
-#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
-          PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
-          PetscCall(PetscDeviceRegisterMemory(r_array, memtype_r, M*M*sizeof(*r_array)));
-          PetscCall(PetscDeviceArrayCopy(dctx, &r_array[lda*i+j], &r_array[lda*(i+1)+j+1], 1));
-#endif
-        }
-        break;
-      default:
-        SETERRQ(comm, PETSC_ERR_SUP, "Unimplemented MEMTYPE");
-      }
-    }
-  }
-  PetscCall(MatDenseRestoreArrayAndMemType(R, &r_array));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 /* Shifts R[1:end,1:end] to R[0:end-1, 0:end-1] */
 
 static PetscErrorCode MatMove_LR3(Mat H, Mat R)
@@ -1705,12 +1667,11 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     PetscCall(VecDuplicate(F, &lmvm->Fprev));
     if (lmvm->m > 0) {
       PetscMPIInt rank;
-      PetscInt m, M, mm1;
+      PetscInt m, M;
 
       PetscCall(MPI_Comm_rank(comm, &rank));
       M   = lmvm->m;
       m   = (rank == 0) ? M : 0;
-      mm1 = (rank == 0) ? M-1 : 0;
 
       /* Create iteration storage matrices */
       PetscCall(VecGetType(X, &vec_type));
