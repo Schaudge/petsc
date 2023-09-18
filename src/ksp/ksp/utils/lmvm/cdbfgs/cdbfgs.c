@@ -1564,11 +1564,12 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       PetscCall(MatGetDiagonal(lbfgs->StYfull, lbfgs->diag_vec));
       PetscCall(VecRightward_Shift(B, lbfgs->diag_vec, lbfgs->idx_rplc));
 
+      /* Below: needed for MatMult. Perhaps triger to not do it if not needed? */
       if (lmvm->user_scale) {
-        ///* Update B_0 S matrix */
-        //PetscCall(MatDenseGetColumnVecWrite(lbfgs->BS, lbfgs->idx_cols, &workvec1));
-        //PetscCall(MatCDBFGSApplyJ0Fwd(B, lmvm->Xprev, workvec1));
-        //PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->BS, lbfgs->idx_cols, &workvec1));
+        ///* Update B_0 S matrix TODO MatMult BS filling weird wrt idx_cols ? */
+        PetscCall(MatDenseGetColumnVecWrite(lbfgs->BS, lbfgs->idx_cols, &workvec1));
+        PetscCall(MatCDBFGSApplyJ0Fwd(B, lmvm->Xprev, workvec1));
+        PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->BS, lbfgs->idx_cols, &workvec1));
       } else {
         /* J0 is non-static. Need to manually compute BS matrix. */
         for (i=0; i<lmvm->m; i++) {
