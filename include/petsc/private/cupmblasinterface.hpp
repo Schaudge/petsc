@@ -273,6 +273,8 @@ struct BlasInterfaceImpl<DeviceType::CUDA> : Interface<DeviceType::CUDA> {
 
   // level 2 BLAS
   PETSC_CUPMBLAS_ALIAS_BLAS_FUNCTION(STANDARD, gemv)
+  PETSC_CUPMBLAS_ALIAS_BLAS_FUNCTION(STANDARD, trmv)
+  PETSC_CUPMBLAS_ALIAS_BLAS_FUNCTION(STANDARD, trsv)
 
   // level 3 BLAS
   PETSC_CUPMBLAS_ALIAS_BLAS_FUNCTION(STANDARD, gemm)
@@ -338,6 +340,8 @@ struct BlasInterfaceImpl<DeviceType::HIP> : Interface<DeviceType::HIP> {
 
   // level 2 BLAS
   PETSC_CUPMBLAS_ALIAS_BLAS_FUNCTION(STANDARD, gemv)
+  PETSC_CUPMBLAS_ALIAS_BLAS_FUNCTION(STANDARD, trmv)
+  PETSC_CUPMBLAS_ALIAS_BLAS_FUNCTION(STANDARD, trsv)
 
   // level 3 BLAS
   PETSC_CUPMBLAS_ALIAS_BLAS_FUNCTION(STANDARD, gemm)
@@ -396,6 +400,8 @@ struct BlasInterfaceImpl<DeviceType::HIP> : Interface<DeviceType::HIP> {
   using ::Petsc::device::cupm::impl::BlasInterfaceImpl<T>::cupmBlasXasum; \
   /* level 2 BLAS */ \
   using ::Petsc::device::cupm::impl::BlasInterfaceImpl<T>::cupmBlasXgemv; \
+  using ::Petsc::device::cupm::impl::BlasInterfaceImpl<T>::cupmBlasXtrmv; \
+  using ::Petsc::device::cupm::impl::BlasInterfaceImpl<T>::cupmBlasXtrsv; \
   /* level 3 BLAS */ \
   using ::Petsc::device::cupm::impl::BlasInterfaceImpl<T>::cupmBlasXgemm; \
   using ::Petsc::device::cupm::impl::BlasInterfaceImpl<T>::cupmBlasXtrsm; \
