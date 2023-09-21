@@ -370,4 +370,9 @@ PetscErrorCode FormHessian(Tao tao, Vec X, Mat H, Mat Hpre, void *ptr)
      args: -snes_monitor ::ascii_info_detail -tao_type snes -snes_type newtontr -snes_atol 1.e-4 -pc_type none  -ksp_type cg -snes_tr_kmdc 0.01 -ksp_converged_neg_curve -ksp_converged_reason
      requires: !single
 
+   test:
+     suffix: test_cdbfgs
+     output_file: output/rosenbrock1_14.out
+     args: -test_lmvm -tao_max_it 10 -tao_bqnk_mat_type lmvmcdbfgs -tao_bqnk_mat_lbfgs_type {{cd_inplace cd_reorder}}
+
 TEST*/

@@ -19,7 +19,7 @@ typedef struct {
   Vec       diag_vec;
   Vec       diag_vec_recycle_order;
   Vec       inv_diag_vec;
-  Vec       lwork1, lwork2, rwork1, rwork2, rwork3, rwork4;
+  Vec       column_work, rwork1, rwork2, rwork3;
   Vec       rwork2_local, rwork3_local;
   Vec       local_work_vec, local_work_vec_copy;
   MatType   dense_type;
@@ -32,7 +32,5 @@ typedef struct {
 
 PETSC_INTERN PetscErrorCode MatView_LMVMCDBFGS(Mat, PetscViewer);
 
-PETSC_INTERN PetscErrorCode MatUpperTriangularMultInPlace_CUPM(PetscBool, PetscInt, const PetscScalar[], PetscInt, PetscScalar[], PetscInt);
-PETSC_INTERN PetscErrorCode MatUpperTriangularMultInPlaceCyclic_CUPM(PetscBool, PetscInt, PetscInt, const PetscScalar[], PetscInt, PetscScalar[], PetscInt);
 PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlace_CUPM(PetscBool, PetscInt, const PetscScalar[], PetscInt, PetscScalar[], PetscInt);
 PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlaceCyclic_CUPM(PetscBool, PetscInt, PetscInt, const PetscScalar[], PetscInt, PetscScalar[], PetscInt);
