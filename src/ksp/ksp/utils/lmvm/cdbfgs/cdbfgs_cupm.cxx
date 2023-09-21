@@ -15,10 +15,9 @@ namespace impl
 {
 
 template <DeviceType T>
-class UpperTriangular : CUPMObject<T> {
+struct UpperTriangular : CUPMObject<T> {
   PETSC_CUPMOBJECT_HEADER(T);
 
-public:
   static PetscErrorCode SolveInPlace(PetscDeviceContext, PetscBool, PetscInt, const PetscScalar[], PetscInt, PetscScalar[], PetscInt) noexcept;
   static PetscErrorCode SolveInPlaceCyclic(PetscDeviceContext, PetscBool, PetscInt, PetscInt, const PetscScalar[], PetscInt, PetscScalar[], PetscInt) noexcept;
 };
@@ -75,7 +74,7 @@ PetscErrorCode UpperTriangular<T>::SolveInPlaceCyclic(PetscDeviceContext dctx, P
 }
 
 #if PetscDefined(HAVE_CUDA)
-static UpperTriangular<DeviceType::CUDA>;
+template struct UpperTriangular<DeviceType::CUDA>;
 #endif
 
 #if PetscDefined(HAVE_HIP)
@@ -89,34 +88,6 @@ static UpperTriangular<DeviceType::HIP>;
 } // namespace device
 
 } // namespace Petsc
-
-PETSC_INTERN PetscErrorCode MatUpperTriangularMultInPlaceCyclic_CUPM(PetscBool hermitian_transpose, PetscInt n, PetscInt oldest_index, const PetscScalar A[], PetscInt lda, PetscScalar x[], PetscInt stride)
-{
-  using ::Petsc::device::cupm::impl::UpperTriangular;
-  using ::Petsc::device::cupm::DeviceType;
-  PetscDeviceContext dctx;
-  PetscDeviceType    device_type;
-
-  PetscFunctionBegin;
-  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
-  PetscCall(PetscDeviceContextGetDeviceType(dctx, &device_type));
-  switch (device_type) {
-#if PetscDefined(HAVE_CUDA)
-  case PETSC_DEVICE_CUDA:
-    PetscCall(UpperTriangular<DeviceType::CUDA>::MultInPlaceCyclic(dctx, hermitian_transpose, n, oldest_index, A, lda, x, stride));
-    break;
-#endif
-#if PetscDefined(HAVE_HIP)
-  case PETSC_DEVICE_HIP:
-    PetscCall(UpperTriangular<DeviceType::HIP>::MultInPlaceCyclic(dctx, hermitian_transpose, n, oldest_index, A, lda, x, stride));
-    break;
-#endif
-  default:
-    SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "Unsupported device type %s", PetscDeviceTypes[device_type]);
-  }
-
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
 
 PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlace_CUPM(PetscBool hermitian_transpose, PetscInt n, const PetscScalar A[], PetscInt lda, PetscScalar x[], PetscInt stride)
 {

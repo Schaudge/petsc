@@ -162,4 +162,10 @@ int main(int argc, char **argv)
     args: -mat_type aijcusparse -tao_fmin 10 -tao_converged_reason
     output_file: output/rosenbrock1_28.out
 
+  test:
+    suffix: test_cdbfgs
+    nsize: {{1 2 3}}
+    output_file: output/rosenbrock1_14.out
+    args: -mat_type aijcusparse -n 10 -tao_type bqnktr -test_lmvm -tao_max_it 10 -tao_bqnk_mat_type lmvmcdbfgs -tao_bqnk_mat_lbfgs_type {{cd_inplace cd_reorder}}
+
 TEST*/
