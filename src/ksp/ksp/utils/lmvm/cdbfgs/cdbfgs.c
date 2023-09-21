@@ -277,7 +277,7 @@ static PetscErrorCode MatMove_LR3(Mat B, Mat R, PetscInt m_keep)
   PetscCall(MatDenseGetSubMatrix(mat_local, 0, m_keep, 0, m_keep, &local_sub));
   PetscCall(MatCopy(temp_sub, local_sub, SAME_NONZERO_PATTERN));
   PetscCall(MatDenseRestoreSubMatrix(mat_local, &local_sub));
-  PetscCall(MatDenseRestoreSubMatrix(lbfgs->temp_mat, &temp_sub));
+  PetscCall(MatDenseRestoreSubMatrix(local_temp, &temp_sub));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -311,6 +311,7 @@ static PetscErrorCode MatLMVMCDBFGSUpdateMultData(Mat B)
   PetscInt    k = lbfgs->num_updates;
   PetscInt    j_0;
   PetscInt    prev_oldest;
+  Mat         J_local;
 
   PetscFunctionBegin;
   if (!lbfgs->YtS_triu_strict) {
@@ -389,10 +390,11 @@ static PetscErrorCode MatLMVMCDBFGSUpdateMultData(Mat B)
     PetscCall(VecCopyAsync_Private(lbfgs->diag_vec, lbfgs->inv_diag_vec, dctx));
     PetscCall(VecReciprocalAsync_Private(lbfgs->inv_diag_vec, dctx));
   }
-  PetscCall(MatSetFactorType(lbfgs->J, MAT_FACTOR_NONE));
+  PetscCall(MatDenseGetLocalMatrix(lbfgs->J, &J_local));
+  PetscCall(MatSetFactorType(J_local, MAT_FACTOR_NONE));
   PetscCall(MatGetLDLT(B, lbfgs->J));
   PetscCall(MatAXPY(lbfgs->J, 1.0, lbfgs->StBS, SAME_NONZERO_PATTERN));
-  PetscCall(MatCholeskyFactor(lbfgs->J, NULL, NULL));
+  if (m_local) PetscCall(MatCholeskyFactor(J_local, NULL, NULL));
   lbfgs->num_mult_updates = lbfgs->num_updates;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -517,7 +519,12 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   PetscCall(VecGetLocalVector(lbfgs->rwork3, lbfgs->rwork3_local));
   PetscCall(MatDenseGetLocalMatrix(lbfgs->J, &J_local));
   PetscCall(VecGetSize(lbfgs->rwork2_local, &m_local));
-  if (m_local) PetscCall(MatSolve(lbfgs->J, lbfgs->rwork2_local, lbfgs->rwork3_local));
+  if (m_local) {
+    Mat J_local;
+
+    PetscCall(MatDenseGetLocalMatrix(lbfgs->J, &J_local));
+    PetscCall(MatSolve(J_local, lbfgs->rwork2_local, lbfgs->rwork3_local));
+  }
   PetscCall(VecRestoreLocalVector(lbfgs->rwork3, lbfgs->rwork3_local));
   PetscCall(VecRestoreLocalVectorRead(lbfgs->rwork2, lbfgs->rwork2_local));
   PetscCall(VecScale(lbfgs->rwork3, -1.0));
