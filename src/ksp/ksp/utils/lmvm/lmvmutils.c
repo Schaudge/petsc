@@ -636,7 +636,8 @@ PetscErrorCode MatLMVMSetHistorySize(Mat B, PetscInt hist_size)
   PetscValidHeaderSpecific(B, MAT_CLASSID, 1);
   PetscCall(PetscObjectBaseTypeCompare((PetscObject)B, MATLMVM, &same));
   if (!same) PetscFunctionReturn(PETSC_SUCCESS);
-  if (hist_size > 0) {
+  PetscCheck(hist_size >= 0, PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_WRONG, "QN history size must be a non-negative integer.");
+  {
     PetscBool reallocate = PETSC_FALSE;
     Vec       X = NULL, F = NULL;
     //lmvm->m = hist_size;
@@ -652,7 +653,7 @@ PetscErrorCode MatLMVMSetHistorySize(Mat B, PetscInt hist_size)
       PetscCall(VecDestroy(&X));
       PetscCall(VecDestroy(&F));
     }
-  } else PetscCheck(hist_size >= 0, PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_WRONG, "QN history size must be a non-negative integer.");
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
