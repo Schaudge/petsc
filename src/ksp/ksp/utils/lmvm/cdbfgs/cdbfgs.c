@@ -142,7 +142,7 @@ static PetscErrorCode VecHistoryOrderToRecycleOrder(Mat B, Vec X)
 
   PetscFunctionBegin;
   oldest_index = recycle_index(m, oldest_update(m, k));
-  if (oldest_index == 0) PetscFunctionReturn(PETSC_SUCCESS); // vector is already in history order
+  if (oldest_index == 0) PetscFunctionReturn(PETSC_SUCCESS); // vector is already in recycle order
   PetscCall(VecCyclicShift(B, X, m - oldest_index));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
