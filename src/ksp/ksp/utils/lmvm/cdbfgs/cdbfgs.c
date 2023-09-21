@@ -86,20 +86,15 @@ static PetscErrorCode VecCyclicShift(Mat B, Vec X, PetscInt d)
 
   PetscFunctionBegin;
   PetscCall(VecGetLocalSize(X, &n));
-  if (!lbfgs->local_work_vec) {
-    PetscCall(VecCreateLocalVector(X, &lbfgs->local_work_vec));
-  }
-  PetscCall(VecGetLocalVector(X, lbfgs->local_work_vec));
+  if (!lbfgs->cyclic_work_vec) PetscCall(VecDuplicate(X, &lbfgs->cyclic_work_vec));
+  PetscCall(VecCopy(X, lbfgs->cyclic_work_vec));
+  PetscCall(VecGetArrayReadAndMemType(lbfgs->cyclic_work_vec, &src, &src_memtype));
+  PetscCall(VecGetArrayWriteAndMemType(X, &dest, &dest_memtype));
   if (n == 0) { // no work on this process
-    PetscCall(VecRestoreLocalVector(X, lbfgs->local_work_vec));
+    PetscCall(VecRestoreArrayWriteAndMemType(X, &dest));
+    PetscCall(VecRestoreArrayReadAndMemType(lbfgs->cyclic_work_vec, &src));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
-  if (!lbfgs->local_work_vec_copy) {
-    PetscCall(VecDuplicate(lbfgs->local_work_vec, &lbfgs->local_work_vec_copy));
-  }
-  PetscCall(VecCopy(lbfgs->local_work_vec, lbfgs->local_work_vec_copy));
-  PetscCall(VecGetArrayReadAndMemType(lbfgs->local_work_vec_copy, &src, &src_memtype));
-  PetscCall(VecGetArrayWriteAndMemType(lbfgs->local_work_vec, &dest, &dest_memtype));
   PetscAssert(src_memtype == dest_memtype, PETSC_COMM_SELF, PETSC_ERR_PLIB, "memtype of duplicate does not match");
   if (PetscMemTypeHost(src_memtype)) {
     PetscCall(PetscArraycpy(dest, &src[d], m - d));
@@ -108,12 +103,13 @@ static PetscErrorCode VecCyclicShift(Mat B, Vec X, PetscInt d)
     PetscDeviceContext dctx;
 
     PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+    PetscCall(PetscDeviceRegisterMemory(dest, dest_memtype, m * sizeof(*dest)));
+    PetscCall(PetscDeviceRegisterMemory(src, src_memtype, m * sizeof(*src)));
     PetscCall(PetscDeviceArrayCopy(dctx, dest, &src[d], m - d));
-    PetscCall(PetscDeviceArrayCopy(dctx, &dest[m - d], &src, d));
+    PetscCall(PetscDeviceArrayCopy(dctx, &dest[m - d], src, d));
   }
-  PetscCall(VecRestoreArrayWriteAndMemType(lbfgs->local_work_vec, &dest));
-  PetscCall(VecRestoreArrayReadAndMemType(lbfgs->local_work_vec_copy, &src));
-  PetscCall(VecRestoreLocalVector(X, lbfgs->local_work_vec));
+  PetscCall(VecRestoreArrayWriteAndMemType(X, &dest));
+  PetscCall(VecRestoreArrayReadAndMemType(lbfgs->cyclic_work_vec, &src));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -379,7 +375,10 @@ static PetscErrorCode MatLMVMCDBFGSUpdateMultData(Mat B)
   PetscCall(MatSetFactorType(J_local, MAT_FACTOR_NONE));
   PetscCall(MatGetLDLT(B, lbfgs->J));
   PetscCall(MatAXPY(lbfgs->J, 1.0, lbfgs->StBS, SAME_NONZERO_PATTERN));
-  if (m_local) PetscCall(MatCholeskyFactor(J_local, NULL, NULL));
+  if (m_local) {
+    PetscCall(MatSetOption(J_local, MAT_SPD, PETSC_TRUE));
+    PetscCall(MatCholeskyFactor(J_local, NULL, NULL));
+  }
   lbfgs->num_mult_updates = lbfgs->num_updates;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -697,8 +696,7 @@ static PetscErrorCode MatLMVMCDBFGSResetDetructive(Mat B)
   PetscCall(VecDestroy(&lbfgs->rwork3));
   PetscCall(VecDestroy(&lbfgs->rwork2_local));
   PetscCall(VecDestroy(&lbfgs->rwork3_local));
-  PetscCall(VecDestroy(&lbfgs->local_work_vec));
-  PetscCall(VecDestroy(&lbfgs->local_work_vec_copy));
+  PetscCall(VecDestroy(&lbfgs->cyclic_work_vec));
   lbfgs->allocated = PETSC_FALSE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
