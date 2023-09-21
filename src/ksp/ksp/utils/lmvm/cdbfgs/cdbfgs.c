@@ -14,21 +14,6 @@
 #include <cuda_profiler_api.h>
 #endif
 
-typedef enum{
-  MAT_CDBFGS_STRICTLY_LOWER_TRIANGULAR =           0x0,
-  MAT_CDBFGS_STRICTLY_LOWER_TRIANGULAR_TRANSPOSE = 0x1,
-  MAT_CDBFGS_UPPER_TRIANGULAR                    = 0x2,
-  MAT_CDBFGS_UPPER_TRIANGULAR_TRANSPOSE          = 0x3,
-} TriangularType;
-
-static inline PetscBool cdbfgs_transpose(TriangularType type) {
-  return (type & 1) ? PETSC_TRUE : PETSC_FALSE;
-}
-
-static inline PetscBool cdbfgs_upper_triangular(TriangularType type) {
-  return (type & 2) ? PETSC_TRUE : PETSC_FALSE;
-}
-
 const char *const MatLBFGSTypes[] = {"basic", "cd_reorder", "cd_inplace", "MatLBFGSType", "MAT_LBFGS_", NULL};
 
 PetscLogEvent CDBFGS_MatMult;
