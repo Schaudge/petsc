@@ -154,6 +154,7 @@ Changes: Development
 - Add ``PCGAMGSetAggressiveMISk()`` to set the number of levels (k) of aggressive MIS-k coarseing (2 is very common)
 - Add ``PCGAMGSetMinDegreeOrderingMISk()`` to use a minimum degree ordering for the (greedy) MIS-k algorithm
 - Change ``PCGAMGSetUseParallelCoarseGridSolve()`` to ``PCGAMGSetParallelCoarseGridSolve()``
+- Add ``PCGAMGSetLowMemoryFilter()`` Use the system ``MatFilter`` graph/matrix filter, without a temporary copy of the graph, otherwise use method that can be faster
 
 .. rubric:: KSP:
 
