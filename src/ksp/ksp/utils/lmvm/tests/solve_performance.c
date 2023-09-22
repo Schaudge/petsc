@@ -35,26 +35,30 @@ int main(int argc, char **argv)
   PetscCall(PetscLogStageRegister("LMVM MatSolve Loop", &matsolve_loop));
   PetscCall(PetscLogStageGetId("Main Stage", &main_stage));
   PetscCall(PetscLogStageSetVisible(main_stage, PETSC_FALSE));
-  for (PetscInt epoch = 0; epoch < n_epochs; epoch++) {
-    if (epoch == 1) PetscCall(PetscLogStagePush(matsolve_loop));
+  for (PetscInt epoch = 0; epoch < n_epochs + 1; epoch++) {
+    PetscScalar dot;
+    PetscReal   xscale, fscale, absdot;
+
+    PetscCall(VecSetRandom(dx, rand));
+    PetscCall(VecSetRandom(df, rand));
+    PetscCall(VecDot(dx, df, &dot));
+    absdot = PetscAbsScalar(dot);
     PetscCall(VecZeroEntries(x));
     PetscCall(VecZeroEntries(f));
-    PetscCall(MatLMVMUpdate(B, x, f));
-    for (PetscInt iter = 0; iter < n_iters; iter++) {
-      PetscScalar dot;
-      PetscReal   absdot;
+    xscale = 1.0;
+    fscale = absdot / dot;
 
-      PetscCall(VecSetRandom(dx, rand));
-      PetscCall(VecSetRandom(df, rand));
-      PetscCall(VecDot(dx, df, &dot));
-      absdot = PetscAbsScalar(dot);
-      PetscCall(VecAXPY(x, 1.0, dx));
-      PetscCall(VecAXPY(f, absdot / dot, df));
+    if (epoch > 0) PetscCall(PetscLogStagePush(matsolve_loop));
+    PetscCall(MatLMVMUpdate(B, x, f));
+    for (PetscInt iter = 0; iter < n_iters; iter++, xscale *= -1.0, fscale *= -1.0) {
+
+      PetscCall(VecAXPY(x, xscale, dx));
+      PetscCall(VecAXPY(f, fscale, df));
       PetscCall(MatLMVMUpdate(B, x, f));
       PetscCall(MatSolve(B, r, s));
     }
     PetscCall(MatLMVMReset(B, PETSC_FALSE));
-    if (epoch + 1 == n_epochs) PetscCall(PetscLogStagePop());
+    if (epoch > 0) PetscCall(PetscLogStagePop());
   }
   PetscCall(MatView(B, PETSC_VIEWER_STDOUT_(PETSC_COMM_WORLD)));
   PetscCall(PetscRandomDestroy(&rand));
