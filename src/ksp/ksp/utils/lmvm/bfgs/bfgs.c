@@ -179,12 +179,14 @@ static PetscErrorCode MatUpdate_LMVMBFGS(Mat B, Vec X, Vec F)
         }
       }
       /* Update history of useful scalars */
-      PetscCall(VecDot(lmvm->Y[lmvm->k], lmvm->Y[lmvm->k], &ytytmp));
       lbfgs->yts[lmvm->k] = PetscRealPart(curvature);
-      lbfgs->yty[lmvm->k] = PetscRealPart(ytytmp);
       lbfgs->sts[lmvm->k] = ststmp;
       /* Compute the scalar scale if necessary */
-      if (lbfgs->scale_type == MAT_LMVM_SYMBROYDEN_SCALE_SCALAR) PetscCall(MatSymBrdnComputeJ0Scalar(B));
+      if (lbfgs->scale_type == MAT_LMVM_SYMBROYDEN_SCALE_SCALAR) {
+        PetscCall(VecDot(lmvm->Y[lmvm->k], lmvm->Y[lmvm->k], &ytytmp));
+        lbfgs->yty[lmvm->k] = PetscRealPart(ytytmp);
+        PetscCall(MatSymBrdnComputeJ0Scalar(B));
+      }
     } else {
       /* Update is bad, skip it */
       ++lmvm->nrejects;
