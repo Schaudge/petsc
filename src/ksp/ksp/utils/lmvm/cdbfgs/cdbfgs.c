@@ -8,10 +8,8 @@
 #include <petscoptions.h>
 #include <petscdevice.h>
 #include <petsc/private/deviceimpl.h>
-#if defined(PETSC_HAVE_CUDA)
-#include <petscdevice_cuda.h>
+#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
 #include <petsc/private/vecimpl.h>
-#include <cuda_profiler_api.h>
 #endif
 
 static PETSC_UNUSED PetscErrorCode MatMultColumnRange(Mat A, Vec xx, Vec yy, PetscInt c_start, PetscInt c_end)

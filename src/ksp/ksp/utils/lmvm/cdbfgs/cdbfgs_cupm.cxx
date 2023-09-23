@@ -78,7 +78,7 @@ template struct UpperTriangular<DeviceType::CUDA>;
 #endif
 
 #if PetscDefined(HAVE_HIP)
-static UpperTriangular<DeviceType::HIP>;
+template struct UpperTriangular<DeviceType::HIP>;
 #endif
 
 } // namespace impl
