@@ -150,26 +150,18 @@ static PetscErrorCode MatUpperTriangularSolveInPlace_Internal(MatLBFGSType lbfgs
   if (oldest_index == 0) lbfgs_type = MAT_LBFGS_CD_REORDER;
   switch (lbfgs_type) {
   case MAT_LBFGS_CD_REORDER:
-    switch (memtype) {
-    case PETSC_MEMTYPE_HOST: {
+    if (PetscMemTypeHost(memtype)) {
       PetscBLASInt n, lda_blas, one = 1;
       PetscCall(PetscBLASIntCast(N, &n));
       PetscCall(PetscBLASIntCast(lda, &lda_blas));
       PetscCallBLAS("BLAStrsv", BLAStrsv_("U", hermitian_transpose ? "C" : "N", "NotUnitTriangular", &n, A, &lda_blas, x, &one));
       PetscCall(PetscLogFlops(1.0 * n * n));
-      break;
-    }
-    case PETSC_MEMTYPE_DEVICE: {
+    } else if (PetscMemTypeDevice(memtype)) {
       PetscCall(MatUpperTriangularSolveInPlace_CUPM(hermitian_transpose, N, A, lda, x, 1));
-      break;
-    }
-    default:
-      SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "Unsupported memtype");
-    }
+    } else SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "Unsupported memtype");
     break;
   case MAT_LBFGS_CD_INPLACE:
-    switch (memtype) {
-    case PETSC_MEMTYPE_HOST: {
+    if (PetscMemTypeHost(memtype)) {
       PetscBLASInt n_old, n_new, lda_blas, one = 1;
       PetscScalar  minus_one = -1.0;
       PetscScalar  sone = 1.0;
@@ -186,15 +178,9 @@ static PetscErrorCode MatUpperTriangularSolveInPlace_Internal(MatLBFGSType lbfgs
         PetscCallBLAS("BLAStrsv", BLAStrsv_("U", "C", "NotUnitTriangular", &n_new, A, &lda_blas, x, &one));
       }
       PetscCall(PetscLogFlops(1.0 * N * N));
-      break;
-    }
-    case PETSC_MEMTYPE_DEVICE: {
+    } else if (PetscMemtypeDevice(memtype)) {
       PetscCall(MatUpperTriangularSolveInPlaceCyclic_CUPM(hermitian_transpose, N, oldest_index, A, lda, x, stride));
-      break;
-    }
-    default:
-      SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "Unsupported memtype");
-    }
+    } else SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "Unsupported memtype");
     break;
   default:
     PetscUnreachable();
