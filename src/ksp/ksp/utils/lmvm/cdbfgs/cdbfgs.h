@@ -27,6 +27,7 @@ typedef struct {
   MatType   dense_type;
   MatLBFGSType strategy;
 
+  PetscInt         S_count, St_count, Y_count, Yt_count;
   PetscInt         watchdog, max_seq_rejects;                   /* tracker to reset after a certain # of consecutive rejects */
   PetscBool        allocated;
   PetscReal        delta, delta_min, delta_max;
