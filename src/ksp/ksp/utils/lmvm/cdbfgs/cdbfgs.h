@@ -11,6 +11,7 @@ typedef struct {
   PetscInt  num_mult_updates;
   Mat       Sfull, Yfull, BS; // Stored in recycled order
   Mat       StY_triu;        // triu(StY) is the R matrix
+  Vec       StFprev;
   Mat       YtS_triu_strict; // strict_triu(YtS) is the L^T matrix
   Mat       LDLt;
   Mat       StBS;
@@ -26,9 +27,11 @@ typedef struct {
   MatType   dense_type;
   MatLBFGSType strategy;
 
-  PetscInt  watchdog, max_seq_rejects;                   /* tracker to reset after a certain # of consecutive rejects */
-  PetscBool allocated;
-  PetscReal delta, delta_min, delta_max;
+  PetscInt         watchdog, max_seq_rejects;                   /* tracker to reset after a certain # of consecutive rejects */
+  PetscBool        allocated;
+  PetscReal        delta, delta_min, delta_max;
+  Vec              Fprev_ref;
+  PetscObjectState Fprev_state;
 } Mat_CDBFGS;
 
 PETSC_INTERN PetscErrorCode MatView_LMVMCDBFGS(Mat, PetscViewer);
