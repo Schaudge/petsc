@@ -1055,7 +1055,7 @@ static PetscErrorCode MatSOR_SeqDense(Mat A, Vec bb, PetscReal omega, MatSORType
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode MatMultTranspose_SeqDense(Mat A, Vec xx, Vec yy)
+PetscErrorCode MatMultTransposeColumnRange_SeqDense(Mat A, Vec xx, Vec yy, PetscInt c_start, PetscInt c_end)
 {
   Mat_SeqDense      *mat = (Mat_SeqDense *)A->data;
   const PetscScalar *v   = mat->v, *x;
@@ -1065,22 +1065,29 @@ PetscErrorCode MatMultTranspose_SeqDense(Mat A, Vec xx, Vec yy)
 
   PetscFunctionBegin;
   PetscCall(PetscBLASIntCast(A->rmap->n, &m));
-  PetscCall(PetscBLASIntCast(A->cmap->n, &n));
+  PetscCall(PetscBLASIntCast(c_end - c_start, &n));
   PetscCall(VecGetArrayRead(xx, &x));
   PetscCall(VecGetArrayWrite(yy, &y));
-  if (!A->rmap->n || !A->cmap->n) {
+  if (!m || !n) {
     PetscBLASInt i;
     for (i = 0; i < n; i++) y[i] = 0.0;
   } else {
-    PetscCallBLAS("BLASgemv", BLASgemv_("T", &m, &n, &_DOne, v, &mat->lda, x, &_One, &_DZero, y, &_One));
-    PetscCall(PetscLogFlops(2.0 * A->rmap->n * A->cmap->n - A->cmap->n));
+    PetscCallBLAS("BLASgemv", BLASgemv_("T", &m, &n, &_DOne, v + c_start * mat->lda, &mat->lda, x, &_One, &_DZero, y + c_start, &_One));
+    PetscCall(PetscLogFlops(2.0 * m * n - n));
   }
   PetscCall(VecRestoreArrayRead(xx, &x));
   PetscCall(VecRestoreArrayWrite(yy, &y));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode MatMult_SeqDense(Mat A, Vec xx, Vec yy)
+PetscErrorCode MatMultTranspose_SeqDense(Mat A, Vec xx, Vec yy)
+{
+  PetscFunctionBegin;
+  PetscCall(MatMultTransposeColumnRange_SeqDense(A, xx, yy, 0, A->cmap->n));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode MatMultColumnRange_SeqDense(Mat A, Vec xx, Vec yy, PetscInt c_start, PetscInt c_end)
 {
   Mat_SeqDense      *mat = (Mat_SeqDense *)A->data;
   PetscScalar       *y, _DOne = 1.0, _DZero = 0.0;
@@ -1089,22 +1096,29 @@ PetscErrorCode MatMult_SeqDense(Mat A, Vec xx, Vec yy)
 
   PetscFunctionBegin;
   PetscCall(PetscBLASIntCast(A->rmap->n, &m));
-  PetscCall(PetscBLASIntCast(A->cmap->n, &n));
+  PetscCall(PetscBLASIntCast(c_end - c_start, &n));
   PetscCall(VecGetArrayRead(xx, &x));
   PetscCall(VecGetArrayWrite(yy, &y));
-  if (!A->rmap->n || !A->cmap->n) {
+  if (!m || !n) {
     PetscBLASInt i;
     for (i = 0; i < m; i++) y[i] = 0.0;
   } else {
-    PetscCallBLAS("BLASgemv", BLASgemv_("N", &m, &n, &_DOne, v, &(mat->lda), x, &_One, &_DZero, y, &_One));
-    PetscCall(PetscLogFlops(2.0 * A->rmap->n * A->cmap->n - A->rmap->n));
+    PetscCallBLAS("BLASgemv", BLASgemv_("N", &m, &n, &_DOne, v + c_start * mat->lda, &(mat->lda), x + c_start, &_One, &_DZero, y, &_One));
+    PetscCall(PetscLogFlops(2.0 * m * n - m));
   }
   PetscCall(VecRestoreArrayRead(xx, &x));
   PetscCall(VecRestoreArrayWrite(yy, &y));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode MatMultAdd_SeqDense(Mat A, Vec xx, Vec zz, Vec yy)
+PetscErrorCode MatMult_SeqDense(Mat A, Vec xx, Vec yy)
+{
+  PetscFunctionBegin;
+  PetscCall(MatMultColumnRange_SeqDense(A, xx, yy, 0, A->cmap->n));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode MatMultAddColumnRange_SeqDense(Mat A, Vec xx, Vec zz, Vec yy, PetscInt c_start, PetscInt c_end)
 {
   Mat_SeqDense      *mat = (Mat_SeqDense *)A->data;
   const PetscScalar *v   = mat->v, *x;
@@ -1113,19 +1127,26 @@ PetscErrorCode MatMultAdd_SeqDense(Mat A, Vec xx, Vec zz, Vec yy)
 
   PetscFunctionBegin;
   PetscCall(PetscBLASIntCast(A->rmap->n, &m));
-  PetscCall(PetscBLASIntCast(A->cmap->n, &n));
+  PetscCall(PetscBLASIntCast(c_end - c_start, &n));
   PetscCall(VecCopy(zz, yy));
-  if (!A->rmap->n || !A->cmap->n) PetscFunctionReturn(PETSC_SUCCESS);
+  if (!m || !n) PetscFunctionReturn(PETSC_SUCCESS);
   PetscCall(VecGetArrayRead(xx, &x));
   PetscCall(VecGetArray(yy, &y));
-  PetscCallBLAS("BLASgemv", BLASgemv_("N", &m, &n, &_DOne, v, &(mat->lda), x, &_One, &_DOne, y, &_One));
+  PetscCallBLAS("BLASgemv", BLASgemv_("N", &m, &n, &_DOne, v + c_start * mat->lda, &(mat->lda), x + c_start, &_One, &_DOne, y, &_One));
   PetscCall(VecRestoreArrayRead(xx, &x));
   PetscCall(VecRestoreArray(yy, &y));
-  PetscCall(PetscLogFlops(2.0 * A->rmap->n * A->cmap->n));
+  PetscCall(PetscLogFlops(2.0 * m * n));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode MatMultTransposeAdd_SeqDense(Mat A, Vec xx, Vec zz, Vec yy)
+PetscErrorCode MatMultAdd_SeqDense(Mat A, Vec xx, Vec zz, Vec yy)
+{
+  PetscFunctionBegin;
+  PetscCall(MatMultAddColumnRange_SeqDense(A, xx, zz, yy, 0, A->cmap->n));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode MatMultTransposeAddColumnRange_SeqDense(Mat A, Vec xx, Vec zz, Vec yy, PetscInt c_start, PetscInt c_end)
 {
   Mat_SeqDense      *mat = (Mat_SeqDense *)A->data;
   const PetscScalar *v   = mat->v, *x;
@@ -1135,15 +1156,22 @@ PetscErrorCode MatMultTransposeAdd_SeqDense(Mat A, Vec xx, Vec zz, Vec yy)
 
   PetscFunctionBegin;
   PetscCall(PetscBLASIntCast(A->rmap->n, &m));
-  PetscCall(PetscBLASIntCast(A->cmap->n, &n));
+  PetscCall(PetscBLASIntCast(c_end - c_start, &n));
   PetscCall(VecCopy(zz, yy));
-  if (!A->rmap->n || !A->cmap->n) PetscFunctionReturn(PETSC_SUCCESS);
+  if (!m || !n) PetscFunctionReturn(PETSC_SUCCESS);
   PetscCall(VecGetArrayRead(xx, &x));
   PetscCall(VecGetArray(yy, &y));
-  PetscCallBLAS("BLASgemv", BLASgemv_("T", &m, &n, &_DOne, v, &(mat->lda), x, &_One, &_DOne, y, &_One));
+  PetscCallBLAS("BLASgemv", BLASgemv_("T", &m, &n, &_DOne, v + c_start * mat->lda, &(mat->lda), x, &_One, &_DOne, y + c_start, &_One));
   PetscCall(VecRestoreArrayRead(xx, &x));
   PetscCall(VecRestoreArray(yy, &y));
   PetscCall(PetscLogFlops(2.0 * A->rmap->n * A->cmap->n));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode MatMultTransposeAdd_SeqDense(Mat A, Vec xx, Vec zz, Vec yy)
+{
+  PetscFunctionBegin;
+  PetscCall(MatMultTransposeAddColumnRange_SeqDense(A, xx, zz, yy, 0, A->cmap->n));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1747,6 +1775,10 @@ PetscErrorCode MatDestroy_SeqDense(Mat mat)
   PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatDenseRestoreColumnVecWrite_C", NULL));
   PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatDenseGetSubMatrix_C", NULL));
   PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatDenseRestoreSubMatrix_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatMultColumnRange_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatMultAddColumnRange_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatMultTransposeColumnRange_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)mat, "MatMultTransposeAddColumnRange_C", NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -3632,6 +3664,10 @@ PetscErrorCode MatCreate_SeqDense(Mat B)
   PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatDenseRestoreColumnVecWrite_C", MatDenseRestoreColumnVecWrite_SeqDense));
   PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatDenseGetSubMatrix_C", MatDenseGetSubMatrix_SeqDense));
   PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatDenseRestoreSubMatrix_C", MatDenseRestoreSubMatrix_SeqDense));
+  PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatMultColumnRange_C", MatMultColumnRange_SeqDense));
+  PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatMultAddColumnRange_C", MatMultAddColumnRange_SeqDense));
+  PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatMultTransposeColumnRange_C", MatMultTransposeColumnRange_SeqDense));
+  PetscCall(PetscObjectComposeFunction((PetscObject)B, "MatMultTransposeAddColumnRange_C", MatMultTransposeAddColumnRange_SeqDense));
   PetscCall(PetscObjectChangeTypeName((PetscObject)B, MATSEQDENSE));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
