@@ -1164,7 +1164,7 @@ PetscErrorCode MatMultTransposeAddColumnRange_SeqDense(Mat A, Vec xx, Vec zz, Ve
   PetscCallBLAS("BLASgemv", BLASgemv_("T", &m, &n, &_DOne, v + c_start * mat->lda, &(mat->lda), x, &_One, &_DOne, y + c_start, &_One));
   PetscCall(VecRestoreArrayRead(xx, &x));
   PetscCall(VecRestoreArray(yy, &y));
-  PetscCall(PetscLogFlops(2.0 * A->rmap->n * A->cmap->n));
+  PetscCall(PetscLogFlops(2.0 * m * n));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
