@@ -67,6 +67,8 @@ private:
   template <bool transpose>
   static PetscErrorCode MatMultAddColumnRange_Dispatch_(Mat, Vec, Vec, Vec, PetscInt, PetscInt) noexcept;
   template <bool transpose>
+  static PetscErrorCode MatMultColumnRange_Dispatch_(Mat, Vec, Vec, PetscInt, PetscInt) noexcept;
+  template <bool transpose>
   static PetscErrorCode MatMultAdd_Dispatch_(Mat, Vec, Vec, Vec) noexcept;
 
   template <bool to_host>
@@ -834,6 +836,15 @@ inline PetscErrorCode MatDense_Seq_CUPM<T>::MatMultAddColumnRange_Dispatch_(Mat 
 
 template <device::cupm::DeviceType T>
 template <bool transpose>
+inline PetscErrorCode MatDense_Seq_CUPM<T>::MatMultColumnRange_Dispatch_(Mat A, Vec xx, Vec yy, PetscInt c_start, PetscInt c_end) noexcept
+{
+  PetscFunctionBegin;
+  PetscCall(MatMultAddColumnRange_Dispatch_<transpose>(A, xx, nullptr, yy, c_start, c_end));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+template <device::cupm::DeviceType T>
+template <bool transpose>
 inline PetscErrorCode MatDense_Seq_CUPM<T>::MatMultAdd_Dispatch_(Mat A, Vec xx, Vec yy, Vec zz) noexcept
 {
   PetscFunctionBegin;
@@ -1047,10 +1058,10 @@ inline PetscErrorCode MatDense_Seq_CUPM<T>::BindToCPU(Mat A, PetscBool to_host) 
   MatComposeOp_CUPM(to_host, pobj, "MatDenseGetSubMatrix_C", MatDenseGetSubMatrix_SeqDense, GetSubMatrix);
   MatComposeOp_CUPM(to_host, pobj, "MatDenseRestoreSubMatrix_C", MatDenseRestoreSubMatrix_SeqDense, RestoreSubMatrix);
   MatComposeOp_CUPM(to_host, pobj, "MatQRFactor_C", MatQRFactor_SeqDense, SolveQR::Factor);
-  MatComposeOp_CUPM(to_host, pobj, "MatMultColumnRange_C", MatMultColumnRange_SeqDense, [](Mat A, Vec xx, Vec yy, PetscInt c_start, PetscInt c_end) { return MatMultAdd_Dispatch_</* transpose */ false>(A, xx, nullptr, yy, c_start, c_end); });
-  MatComposeOp_CUPM(to_host, pobj, "MatMultAddColumnRange_C", MatMultColumnRange_SeqDense, MatMultAdd_Dispatch_</* transpose */ false>);
-  MatComposeOp_CUPM(to_host, pobj, "MatMultTransposeColumnRange_C", MatMultColumnRange_SeqDense, [](Mat A, Vec xx, Vec yy, PetscInt c_start, PetscInt c_end) { return MatMultAdd_Dispatch_</* transpose */ true>(A, xx, nullptr, yy, c_start, c_end); });
-  MatComposeOp_CUPM(to_host, pobj, "MatMultTransposeAddColumnRange_C", MatMultColumnRange_SeqDense, MatMultAdd_Dispatch_</* transpose */ true>);
+  MatComposeOp_CUPM(to_host, pobj, "MatMultColumnRange_C", MatMultColumnRange_SeqDense, MatMultColumnRange_Dispatch_</* transpose */ false>);
+  MatComposeOp_CUPM(to_host, pobj, "MatMultAddColumnRange_C", MatMultColumnRange_SeqDense, MatMultAddColumnRange_Dispatch_</* transpose */ false>);
+  MatComposeOp_CUPM(to_host, pobj, "MatMultTransposeColumnRange_C", MatMultColumnRange_SeqDense, MatMultColumnRange_Dispatch_</* transpose */ true>);
+  MatComposeOp_CUPM(to_host, pobj, "MatMultTransposeAddColumnRange_C", MatMultColumnRange_SeqDense, MatMultAddColumnRange_Dispatch_</* transpose */ true>);
   // always the same
   PetscCall(PetscObjectComposeFunction(pobj, "MatDenseSetLDA_C", MatDenseSetLDA_SeqDense));
 
