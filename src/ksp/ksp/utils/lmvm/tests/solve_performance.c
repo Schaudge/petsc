@@ -41,8 +41,8 @@ int main(int argc, char **argv)
     PetscCall(VecSetRandom(df, rand));
     PetscCall(VecDot(dx, df, &dot));
     absdot = PetscAbsScalar(dot);
-    PetscCall(VecZeroEntries(x));
-    PetscCall(VecZeroEntries(g));
+    PetscCall(VecSetRandom(x, rand));
+    PetscCall(VecSetRandom(g, rand));
     xscale = 1.0;
     fscale = absdot / dot;
 
