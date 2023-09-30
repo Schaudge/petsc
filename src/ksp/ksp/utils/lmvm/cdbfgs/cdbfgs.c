@@ -17,28 +17,36 @@
 static PETSC_UNUSED PetscErrorCode MatMultColumnRange(Mat A, Vec xx, Vec yy, PetscInt c_start, PetscInt c_end)
 {
   PetscFunctionBegin;
+  PetscCall(PetscLogEventBegin(MAT_Mult, (PetscObject)A, NULL, NULL, NULL));
   PetscUseMethod(A, "MatMultColumnRange_C", (Mat, Vec, Vec, PetscInt, PetscInt), (A, xx, yy, c_start, c_end));
+  PetscCall(PetscLogEventEnd(MAT_Mult, (PetscObject)A, NULL, NULL, NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode MatMultAddColumnRange(Mat A, Vec xx, Vec zz, Vec yy, PetscInt c_start, PetscInt c_end)
 {
   PetscFunctionBegin;
+  PetscCall(PetscLogEventBegin(MAT_MultAdd, (PetscObject)A, NULL, NULL, NULL));
   PetscUseMethod(A, "MatMultAddColumnRange_C", (Mat, Vec, Vec, Vec, PetscInt, PetscInt), (A, xx, zz, yy, c_start, c_end));
+  PetscCall(PetscLogEventEnd(MAT_MultAdd, (PetscObject)A, NULL, NULL, NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode MatMultTransposeColumnRange(Mat A, Vec xx, Vec yy, PetscInt c_start, PetscInt c_end)
 {
   PetscFunctionBegin;
+  PetscCall(PetscLogEventBegin(MAT_MultTranspose, (PetscObject)A, NULL, NULL, NULL));
   PetscUseMethod(A, "MatMultTransposeColumnRange_C", (Mat, Vec, Vec, PetscInt, PetscInt), (A, xx, yy, c_start, c_end));
+  PetscCall(PetscLogEventEnd(MAT_MultTranspose, (PetscObject)A, NULL, NULL, NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode MatMultTransposeAddColumnRange(Mat A, Vec xx, Vec zz, Vec yy, PetscInt c_start, PetscInt c_end)
 {
   PetscFunctionBegin;
+  PetscCall(PetscLogEventBegin(MAT_MultTransposeAdd, (PetscObject)A, NULL, NULL, NULL));
   PetscUseMethod(A, "MatMultTransposeAddColumnRange_C", (Mat, Vec, Vec, Vec, PetscInt, PetscInt), (A, xx, zz, yy, c_start, c_end));
+  PetscCall(PetscLogEventEnd(MAT_MultTransposeAdd, (PetscObject)A, NULL, NULL, NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
