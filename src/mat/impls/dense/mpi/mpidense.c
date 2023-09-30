@@ -556,7 +556,6 @@ static PetscErrorCode MatMultTransposeColumnRange_MPIDense(Mat A, Vec xx, Vec yy
   if (!a->Mvctx) PetscCall(MatSetUpMultiply_MPIDense(A));
   PetscCall(VecSet(yy, 0.0));
   PetscUseMethod(a->A, "MatMultTransposeColumnRange_C", (Mat, Vec, Vec, PetscInt, PetscInt), (a->A, xx, a->lvec, c_start, c_end));
-  PetscCall((*a->A->ops->multtranspose)(a->A, xx, a->lvec));
   PetscCall(VecGetArrayReadAndMemType(a->lvec, &ax, &axmtype));
   PetscCall(VecGetArrayAndMemType(yy, &ay, &aymtype));
   PetscCall(PetscSFReduceWithMemTypeBegin(a->Mvctx, MPIU_SCALAR, axmtype, ax, aymtype, ay, MPIU_SUM));
@@ -597,7 +596,6 @@ static PetscErrorCode MatMultTransposeAddColumnRange_MPIDense(Mat A, Vec xx, Vec
   if (!a->Mvctx) PetscCall(MatSetUpMultiply_MPIDense(A));
   PetscCall(VecCopy(yy, zz));
   PetscUseMethod(a->A, "MatMultTransposeColumnRange_C", (Mat, Vec, Vec, PetscInt, PetscInt), (a->A, xx, a->lvec, c_start, c_end));
-  PetscCall((*a->A->ops->multtranspose)(a->A, xx, a->lvec));
   PetscCall(VecGetArrayReadAndMemType(a->lvec, &ax, &axmtype));
   PetscCall(VecGetArrayAndMemType(zz, &ay, &aymtype));
   PetscCall(PetscSFReduceWithMemTypeBegin(a->Mvctx, MPIU_SCALAR, axmtype, ax, aymtype, ay, MPIU_SUM));
