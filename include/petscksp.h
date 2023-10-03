@@ -1026,6 +1026,7 @@ PETSC_EXTERN PetscErrorCode MatLMVMGetJ0(Mat, Mat *);
 PETSC_EXTERN PetscErrorCode MatLMVMGetJ0PC(Mat, PC *);
 PETSC_EXTERN PetscErrorCode MatLMVMGetJ0KSP(Mat, KSP *);
 PETSC_EXTERN PetscErrorCode MatLMVMSetHistorySize(Mat, PetscInt);
+PETSC_EXTERN PetscErrorCode MatLMVMGetHistorySize(Mat, PetscInt *);
 PETSC_EXTERN PetscErrorCode MatLMVMGetUpdateCount(Mat, PetscInt *);
 PETSC_EXTERN PetscErrorCode MatLMVMGetRejectCount(Mat, PetscInt *);
 PETSC_EXTERN PetscErrorCode MatLMVMSymBroydenSetDelta(Mat, PetscScalar);

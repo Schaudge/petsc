@@ -657,6 +657,19 @@ PetscErrorCode MatLMVMSetHistorySize(Mat B, PetscInt hist_size)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+PetscErrorCode MatLMVMGetHistorySize(Mat B, PetscInt *hist_size)
+{
+  Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
+  PetscBool same;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(B, MAT_CLASSID, 1);
+  PetscCall(PetscObjectBaseTypeCompare((PetscObject)B, MATLMVM, &same));
+  if (!same) PetscFunctionReturn(PETSC_SUCCESS);
+  *hist_size = lmvm->m;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /*@
   MatLMVMGetUpdateCount - Returns the number of accepted updates.
 
