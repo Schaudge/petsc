@@ -36,6 +36,7 @@ int main(int argc, char **argv)
   for (PetscInt epoch = 0; epoch < n_epochs + 1; epoch++) {
     PetscScalar dot;
     PetscReal   xscale, fscale, absdot;
+    PetscInt    history_size;
 
     PetscCall(VecSetRandom(dx, rand));
     PetscCall(VecSetRandom(df, rand));
@@ -45,11 +46,17 @@ int main(int argc, char **argv)
     PetscCall(VecSetRandom(g, rand));
     xscale = 1.0;
     fscale = absdot / dot;
+    PetscCall(MatLMVMGetHistorySize(B, &history_size));
 
-    if (epoch > 0) PetscCall(PetscLogStagePush(matsolve_loop));
     PetscCall(MatLMVMUpdate(B, x, g));
+    for (PetscInt iter = 0; iter < history_size; iter++, xscale *= -1.0, fscale *= -1.0) {
+      PetscCall(VecAXPY(x, xscale, dx));
+      PetscCall(VecAXPY(g, fscale, df));
+      PetscCall(MatLMVMUpdate(B, x, g));
+      PetscCall(MatSolve(B, g, p));
+    }
+    if (epoch > 0) PetscCall(PetscLogStagePush(matsolve_loop));
     for (PetscInt iter = 0; iter < n_iters; iter++, xscale *= -1.0, fscale *= -1.0) {
-
       PetscCall(VecAXPY(x, xscale, dx));
       PetscCall(VecAXPY(g, fscale, df));
       PetscCall(MatLMVMUpdate(B, x, g));
