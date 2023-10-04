@@ -20,18 +20,19 @@ typedef struct _Rosenbrock {
 
 typedef struct _AppCtx *AppCtx;
 struct _AppCtx {
-  MPI_Comm   comm;
-  PetscInt   n; /* dimension */
-  PetscInt   n_local;
-  PetscInt   n_local_comp;
-  Rosenbrock problem;
-  Vec        Hvalues; /* vector for writing COO values of this MPI process */
-  Vec        gvalues; /* vector for writing gradient values of this mpi process */
-  Vec        fvector;
-  PetscSF    off_process_scatter;
-  PetscSF    gscatter;
-  Vec        off_process_values; /* buffer for off-process values if chained */
-  PetscBool  test_lmvm;
+  MPI_Comm      comm;
+  PetscInt      n; /* dimension */
+  PetscInt      n_local;
+  PetscInt      n_local_comp;
+  Rosenbrock    problem;
+  Vec           Hvalues; /* vector for writing COO values of this MPI process */
+  Vec           gvalues; /* vector for writing gradient values of this mpi process */
+  Vec           fvector;
+  PetscSF       off_process_scatter;
+  PetscSF       gscatter;
+  Vec           off_process_values; /* buffer for off-process values if chained */
+  PetscBool     test_lmvm;
+  PetscLogEvent event_f, event_g, event_fg;
 };
 
 /* -------------- User-defined routines ---------- */
@@ -86,7 +87,8 @@ static const PetscLogDouble RosenbrockHessianFlops = 11.0;
 
 static PetscErrorCode AppCtxCreate(MPI_Comm comm, AppCtx *ctx)
 {
-  AppCtx user;
+  AppCtx             user;
+  PetscDeviceContext dctx;
 
   PetscFunctionBegin;
   PetscCall(PetscNew(ctx));
@@ -107,6 +109,11 @@ static PetscErrorCode AppCtxCreate(MPI_Comm comm, AppCtx *ctx)
   PetscOptionsEnd();
   PetscCheck(user->problem.bs >= 1, comm, PETSC_ERR_ARG_INCOMP, "Block size %" PetscInt_FMT " is not bigger than 1", user->problem.bs);
   PetscCheck((user->n % user->problem.bs) == 0, comm, PETSC_ERR_ARG_INCOMP, "Block size %" PetscInt_FMT " doest not divide problem size % " PetscInt_FMT, user->problem.bs, user->n);
+  PetscCall(PetscLogEventRegister("Rbock_Obj", TAO_CLASSID, &user->event_f));
+  PetscCall(PetscLogEventRegister("Rbock_Grad", TAO_CLASSID, &user->event_g));
+  PetscCall(PetscLogEventRegister("Rbock_ObjGrad", TAO_CLASSID, &user->event_fg));
+  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+  PetscCall(PetscDeviceContextSetUp(dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -464,6 +471,7 @@ static PetscErrorCode FormObjective(Tao tao, Vec X, PetscReal *f, void *ptr)
   PetscMemType       memtype_x;
 
   PetscFunctionBeginUser;
+  PetscCall(PetscLogEventBegin(user->event_f, tao, NULL, NULL, NULL));
   PetscCall(VecScatterBegin(user->off_process_scatter, X, user->off_process_values, INSERT_VALUES, SCATTER_FORWARD));
   PetscCall(VecScatterEnd(user->off_process_scatter, X, user->off_process_values, INSERT_VALUES, SCATTER_FORWARD));
   PetscCall(VecGetArrayReadAndMemType(user->off_process_values, &o, NULL));
@@ -489,6 +497,7 @@ static PetscErrorCode FormObjective(Tao tao, Vec X, PetscReal *f, void *ptr)
   } else SETERRQ(user->comm, PETSC_ERR_SUP, "Unsuported memtype %d", (int)memtype_x);
   PetscCall(VecRestoreArrayReadAndMemType(X, &x));
   PetscCall(VecRestoreArrayReadAndMemType(user->off_process_values, &o));
+  PetscCall(PetscLogEventEnd(user->event_f, tao, NULL, NULL, NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -501,6 +510,7 @@ static PetscErrorCode FormGradient(Tao tao, Vec X, Vec G, void *ptr)
   PetscMemType       memtype_x, memtype_g;
 
   PetscFunctionBeginUser;
+  PetscCall(PetscLogEventBegin(user->event_g, tao, NULL, NULL, NULL));
   PetscCall(VecScatterBegin(user->off_process_scatter, X, user->off_process_values, INSERT_VALUES, SCATTER_FORWARD));
   PetscCall(VecScatterEnd(user->off_process_scatter, X, user->off_process_values, INSERT_VALUES, SCATTER_FORWARD));
   PetscCall(VecGetArrayReadAndMemType(user->off_process_values, &o, NULL));
@@ -525,6 +535,7 @@ static PetscErrorCode FormGradient(Tao tao, Vec X, Vec G, void *ptr)
   PetscCall(VecZeroEntries(G));
   PetscCall(VecScatterBegin(user->gscatter, user->gvalues, G, ADD_VALUES, SCATTER_REVERSE));
   PetscCall(VecScatterEnd(user->gscatter, user->gvalues, G, ADD_VALUES, SCATTER_REVERSE));
+  PetscCall(PetscLogEventEnd(user->event_g, tao, NULL, NULL, NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -555,6 +566,7 @@ static PetscErrorCode FormObjectiveGradient(Tao tao, Vec X, PetscReal *f, Vec G,
   PetscMemType       memtype_x, memtype_g;
 
   PetscFunctionBeginUser;
+  PetscCall(PetscLogEventBegin(user->event_fg, tao, NULL, NULL, NULL));
   PetscCall(VecScatterBegin(user->off_process_scatter, X, user->off_process_values, INSERT_VALUES, SCATTER_FORWARD));
   PetscCall(VecScatterEnd(user->off_process_scatter, X, user->off_process_values, INSERT_VALUES, SCATTER_FORWARD));
   PetscCall(VecGetArrayReadAndMemType(user->off_process_values, &o, NULL));
@@ -587,6 +599,7 @@ static PetscErrorCode FormObjectiveGradient(Tao tao, Vec X, PetscReal *f, Vec G,
   PetscCall(VecZeroEntries(G));
   PetscCall(VecScatterBegin(user->gscatter, user->gvalues, G, ADD_VALUES, SCATTER_REVERSE));
   PetscCall(VecScatterEnd(user->gscatter, user->gvalues, G, ADD_VALUES, SCATTER_REVERSE));
+  PetscCall(PetscLogEventEnd(user->event_fg, tao, NULL, NULL, NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
