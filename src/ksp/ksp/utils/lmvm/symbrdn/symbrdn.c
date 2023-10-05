@@ -600,7 +600,6 @@ PetscErrorCode MatLMVMSymBroydenSetDelta(Mat B, PetscScalar delta)
 {
   Mat_LMVM    *lmvm = (Mat_LMVM *)B->data;
   Mat_SymBrdn *lsb  = (Mat_SymBrdn *)lmvm->ctx;
-  Mat_CDBFGS  *lcd;
   PetscBool    is_bfgs, is_dfp, is_symbrdn, is_symbadbrdn, is_cdbfgs;
   PetscReal    del_min, del_max, del_buf;
 
@@ -611,11 +610,7 @@ PetscErrorCode MatLMVMSymBroydenSetDelta(Mat B, PetscScalar delta)
   PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMSYMBROYDEN, &is_symbrdn));
   PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMSYMBADBROYDEN, &is_symbadbrdn));
 
-  if (is_cdbfgs) {
-    lcd     = (Mat_CDBFGS*)lmvm->ctx;
-    del_min = lcd->delta_min;
-    del_max = lcd->delta_max;
-  } else if (is_bfgs || is_dfp || is_symbrdn || is_symbadbrdn) {
+  if (is_bfgs || is_dfp || is_symbrdn || is_symbadbrdn) {
     lsb     = (Mat_SymBrdn*)lmvm->ctx;
     del_min = lsb->delta_min;
     del_max = lsb->delta_max;
@@ -626,9 +621,7 @@ PetscErrorCode MatLMVMSymBroydenSetDelta(Mat B, PetscScalar delta)
   del_buf = PetscAbsReal(PetscRealPart(delta));
   del_buf = PetscMin(del_buf, del_max);
   del_buf = PetscMax(del_buf, del_min);
-  if (is_cdbfgs) {
-    lcd->delta = del_buf;
-  } else {
+  if (!is_cdbfgs) {
     lsb->delta = del_buf;
   }
   PetscFunctionReturn(PETSC_SUCCESS);

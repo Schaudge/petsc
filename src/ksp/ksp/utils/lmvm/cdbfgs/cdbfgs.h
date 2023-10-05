@@ -26,11 +26,11 @@ typedef struct {
   Vec       cyclic_work_vec;
   MatType   dense_type;
   MatLBFGSType strategy;
+  MatLMVMSymBroydenScaleType scale_type;
 
   PetscInt         S_count, St_count, Y_count, Yt_count;
   PetscInt         watchdog, max_seq_rejects;                   /* tracker to reset after a certain # of consecutive rejects */
   PetscBool        allocated;
-  PetscReal        delta, delta_min, delta_max;
   Vec              Fprev_ref;
   PetscObjectState Fprev_state;
 } Mat_CDBFGS;

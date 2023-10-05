@@ -1,12 +1,15 @@
+#include <petscdevice.h>
 #include <../src/ksp/ksp/utils/lmvm/diagbrdn/diagbrdn.h> /*I "petscksp.h" I*/
 
 static PetscErrorCode MatSolve_DiagBrdn(Mat B, Vec F, Vec dX)
 {
   Mat_LMVM     *lmvm = (Mat_LMVM *)B->data;
   Mat_DiagBrdn *ldb  = (Mat_DiagBrdn *)lmvm->ctx;
+  PetscDeviceContext dctx;
 
   PetscFunctionBegin;
-  PetscCall(VecPointwiseMult(dX, ldb->invD, F));
+  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+  PetscCall(VecPointwiseMultAsync_Private(dX, ldb->invD, F, dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -14,9 +17,11 @@ static PetscErrorCode MatMult_DiagBrdn(Mat B, Vec X, Vec Z)
 {
   Mat_LMVM     *lmvm = (Mat_LMVM *)B->data;
   Mat_DiagBrdn *ldb  = (Mat_DiagBrdn *)lmvm->ctx;
+  PetscDeviceContext dctx;
 
   PetscFunctionBegin;
-  PetscCall(VecPointwiseDivide(Z, X, ldb->invD));
+  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+  PetscCall(VecPointwiseDivideAsync_Private(Z, X, ldb->invD, dctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -451,6 +456,7 @@ static PetscErrorCode MatSetUp_DiagBrdn(Mat B)
     PetscCall(VecDuplicate(lmvm->Xprev, &ldb->U));
     PetscCall(VecDuplicate(lmvm->Xprev, &ldb->V));
     PetscCall(VecDuplicate(lmvm->Xprev, &ldb->W));
+    PetscCall(VecSet(ldb->invD, ldb->delta));
     ldb->allocated = PETSC_TRUE;
   }
   PetscFunctionReturn(PETSC_SUCCESS);
