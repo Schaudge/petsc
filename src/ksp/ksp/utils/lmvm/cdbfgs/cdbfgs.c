@@ -100,9 +100,26 @@ PetscErrorCode MatCDBFGSApplyJ0Inv(Mat B, Vec F, Vec dX)
   PetscFunctionBegin;
   PetscCall(PetscLogEventBegin(CDBFGS_J0Inv, B, F, dX, 0));
   if (lmvm->J0 || lmvm->user_pc || lmvm->user_ksp || lmvm->user_scale) {
+    lbfgs->scale_type = MAT_LMVM_SYMBROYDEN_SCALE_USER;
     PetscCall(MatLMVMApplyJ0Inv(B, F, dX));
   } else {
-    PetscCall(MatSolve(lbfgs->diag_bfgs, F, dX));
+    PetscDeviceContext dctx;
+    Mat_LMVM *dbase = (Mat_LMVM*)lbfgs->diag_bfgs->data;
+    Mat_DiagBrdn *diagctx = (Mat_DiagBrdn *) dbase->ctx;
+
+    PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+    switch (lbfgs->scale_type) {
+    case MAT_LMVM_SYMBROYDEN_SCALE_SCALAR:
+      PetscCall(VecAXPBYAsync_Private(dX, diagctx->sigma, 0.0, F, dctx));
+      break;
+    case MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL:
+      PetscCall(VecPointwiseMultAsync_Private(dX, diagctx->invD, F, dctx));
+      break;
+    case MAT_LMVM_SYMBROYDEN_SCALE_NONE:
+    default:
+      PetscCall(VecCopyAsync_Private(F, dX, dctx));
+      break;
+    }
   }
   PetscCall(PetscLogEventEnd(CDBFGS_J0Inv, B, F, dX, 0));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -581,8 +598,8 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
 {
   Mat_LMVM          *lmvm  = (Mat_LMVM*)B->data;
   Mat_CDBFGS        *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
-  Mat_LMVM          *dbase;
-  Mat_DiagBrdn      *diag_ctx;
+  Mat_LMVM          *dbase = (Mat_LMVM *)lbfgs->diag_bfgs->data;
+  Mat_DiagBrdn      *diagctx = (Mat_DiagBrdn *)dbase->ctx;
 
   PetscScalar        curvature, ststmp;
   PetscReal          curvtol;
@@ -600,13 +617,13 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     /* Compute the new (S = X - Xprev) and (Y = F - Fprev) vectors */
     PetscCall(VecAYPXAsync_Private(lmvm->Xprev, -1.0, X, dctx));
     /* Test if the updates can be accepted */
-    FX[0] = lmvm->Xprev;
-    FX[1] = F;
-    FX[2] = lmvm->Fprev;
+    FX[0] = lmvm->Xprev; // dotFX[0] = s^T s
+    FX[1] = F;           // dotFX[1] = s^T F
+    FX[2] = lmvm->Fprev; // dotFX[1] = s^T Fprev
     PetscCall(VecMDot(lmvm->Xprev, 3, FX, dotFX));
     PetscCall(VecAYPXAsync_Private(lmvm->Fprev, -1.0, F, dctx));
     ststmp = dotFX[0];
-    curvature = (dotFX[1] - dotFX[2]);
+    curvature = (dotFX[1] - dotFX[2]); // s^T y
     stF = dotFX[2];
     if (PetscRealPart(ststmp) < lmvm->eps) {
       curvtol = 0.0;
@@ -699,6 +716,32 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
           lbfgs->diag_vec_recycle_order = lbfgs->diag_vec;
         }
       }
+
+      if (lbfgs->scale_type == MAT_LMVM_SYMBROYDEN_SCALE_SCALAR) {
+        PetscScalar yTy;
+        PetscScalar sTy = curvature;
+
+        PetscCall(VecDot(lmvm->Fprev, lmvm->Fprev, &yTy));
+        diagctx->sigma = sTy / yTy;
+      } else if (lbfgs->scale_type == MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL) {
+        PetscScalar yThy;
+        PetscScalar sTy = curvature;
+
+        if (!diagctx->invD) {
+          PetscCall(VecDuplicate(lmvm->Fprev, &diagctx->invD));
+          PetscCall(VecSetAsync_Private(diagctx->invD, diagctx->delta, dctx));
+        }
+        if (!diagctx->U) PetscCall(VecDuplicate(lmvm->Fprev, &diagctx->U));
+        PetscCall(VecPointwiseMultAsync_Private(diagctx->U, lmvm->Fprev, lmvm->Xprev, dctx)); // s o y
+        PetscCall(VecScaleAsync_Private(diagctx->U, - 1.0 / curvature, dctx)); // -(s o y) / s^T y
+        PetscCall(VecShiftAsync_Private(diagctx->U, 1.0, dctx)); // 1 - (s o y) / s^T y
+        PetscCall(VecPointwiseMultAsync_Private(diagctx->invD, diagctx->U, diagctx->U, dctx)); // ((1 - (s o y) / s^T y) o h_{k-1} o ((1 - (s o y) / s^T y)
+        PetscCall(VecPointwiseMultAsync_Private(diagctx->U, lmvm->Xprev, lmvm->Xprev, dctx)); // s o s
+        PetscCall(VecAXPYAsync_Private(diagctx->invD, 1.0 / curvature, diagctx->U, dctx)); // h_k = ((1 - (s o y) / s^T y) o h_{k-1} o ((1 - (s o y) / s^T y) - (s o s) / s^T y
+        PetscCall(VecPointwiseMultAsync_Private(diagctx->U, diagctx->invD, lmvm->Fprev, dctx));
+        PetscCall(VecDot(diagctx->U, lmvm->Fprev, &yThy));
+        PetscCall(VecScaleAsync_Private(diagctx->invD, sTy / yThy, dctx)); // h_k <- (s^Ty / y^T (h_k o y)) h_k
+      }
     } else {
       /* Update is bad, skip it */
       ++lmvm->nrejects;
@@ -717,26 +760,20 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       lbfgs->St_count++;
     }
   } else {
-    if (!(lmvm->J0 || lmvm->user_pc || lmvm->user_ksp || lmvm->user_scale)) {
-      /* No previous updates have been set, so we just update the diagonal with an initial scalar */
-
-      //TODO THIS PART IS ERROR AFTER RESET
-      //1. USER_SCALE DISAPPEARS. NEED TO ADDRESS THIS
-      //2. invD disappears (or was it ever there?)
-      //
-      //This is more fundamental to overall MATLMVM - set J0Scale is "Wrong", for an example
-      dbase    = (Mat_LMVM *)lbfgs->diag_bfgs->data;
-      diag_ctx = (Mat_DiagBrdn *)dbase->ctx;
-      PetscCall(VecSet(diag_ctx->invD, lbfgs->delta));
+    switch (lbfgs->scale_type) {
+    case MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL:
+      PetscCall(VecSetAsync_Private(diagctx->invD, diagctx->delta, dctx));
+      break;
+    case MAT_LMVM_SYMBROYDEN_SCALE_SCALAR:
+      diagctx->sigma = diagctx->delta;
+      break;
+    default:
+      diagctx->sigma = 1.0;
+      break;
     }
   }
 
-  if (lbfgs->watchdog > lbfgs->max_seq_rejects) {
-    PetscCall(MatLMVMReset(B, PETSC_FALSE));
-    if (!(lmvm->J0 || lmvm->user_pc || lmvm->user_ksp || lmvm->user_scale)) {
-      PetscCall(MatLMVMReset(lbfgs->diag_bfgs, PETSC_FALSE));
-    }
-  }
+  if (lbfgs->watchdog > lbfgs->max_seq_rejects) PetscCall(MatLMVMReset(B, PETSC_FALSE));
 
   /* Save the solution and function to be used in the next update */
   PetscCall(VecCopyAsync_Private(X, lmvm->Xprev, dctx));
@@ -808,25 +845,23 @@ static PetscErrorCode MatReset_LMVMCDBFGS(Mat B, PetscBool destructive)
 
   PetscFunctionBegin;
   lbfgs->watchdog = 0;
-  if (!(lmvm->J0 || lmvm->user_pc || lmvm->user_ksp || lmvm->user_scale)) {
-    PetscCall(MatLMVMReset(lbfgs->diag_bfgs, destructive));
-    if (lbfgs->Sfull) PetscCall(MatZeroEntries(lbfgs->Sfull));
-    if (lbfgs->Yfull) PetscCall(MatZeroEntries(lbfgs->Yfull));
-    if (lbfgs->BS) PetscCall(MatZeroEntries(lbfgs->BS));
-    if (lbfgs->StY_triu) { // Set to identity by default so it is invertible
-      PetscCall(MatZeroEntries(lbfgs->StY_triu));
-      PetscCall(MatShift(lbfgs->StY_triu, 1.0));
-    }
-    if (lbfgs->YtS_triu_strict) PetscCall(MatZeroEntries(lbfgs->YtS_triu_strict));
-    if (lbfgs->LDLt) PetscCall(MatZeroEntries(lbfgs->LDLt));
-    if (lbfgs->StBS) {
-      PetscCall(MatZeroEntries(lbfgs->StBS));
-      PetscCall(MatShift(lbfgs->StBS, 1.0));
-    }
-    if (lbfgs->Fprev_ref) PetscCall(VecDestroy(&lbfgs->Fprev_ref));
-    lbfgs->Fprev_state = 0;
-    if (lbfgs->StFprev) PetscCall(VecZeroEntries(lbfgs->StFprev));
+  if (lbfgs->scale_type == MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL) PetscCall(MatLMVMReset(lbfgs->diag_bfgs, destructive));
+  if (lbfgs->Sfull) PetscCall(MatZeroEntries(lbfgs->Sfull));
+  if (lbfgs->Yfull) PetscCall(MatZeroEntries(lbfgs->Yfull));
+  if (lbfgs->BS) PetscCall(MatZeroEntries(lbfgs->BS));
+  if (lbfgs->StY_triu) { // Set to identity by default so it is invertible
+    PetscCall(MatZeroEntries(lbfgs->StY_triu));
+    PetscCall(MatShift(lbfgs->StY_triu, 1.0));
   }
+  if (lbfgs->YtS_triu_strict) PetscCall(MatZeroEntries(lbfgs->YtS_triu_strict));
+  if (lbfgs->LDLt) PetscCall(MatZeroEntries(lbfgs->LDLt));
+  if (lbfgs->StBS) {
+    PetscCall(MatZeroEntries(lbfgs->StBS));
+    PetscCall(MatShift(lbfgs->StBS, 1.0));
+  }
+  if (lbfgs->Fprev_ref) PetscCall(VecDestroy(&lbfgs->Fprev_ref));
+  lbfgs->Fprev_state = 0;
+  if (lbfgs->StFprev) PetscCall(VecZeroEntries(lbfgs->StFprev));
   if (destructive) {
     PetscCall(MatLMVMCDBFGSResetDetructive(B));
   }
@@ -901,7 +936,7 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     }
     PetscCall(VecDuplicate(lmvm->Xprev, &lbfgs->column_work));
     //TODO hacky way to turn diagbrdn lmvm off...
-    PetscCall(MatLMVMSetJ0Scale(B,1.));
+    //PetscCall(MatLMVMSetJ0Scale(B,1.));
     if (!(lmvm->J0 || lmvm->user_pc || lmvm->user_ksp || lmvm->user_scale)) {
       PetscCall(MatLMVMAllocate(lbfgs->diag_bfgs, X, F));
     }
@@ -993,7 +1028,16 @@ static PetscErrorCode MatSetFromOptions_LMVMCDBFGS(Mat B, PetscOptionItems *Pets
   PetscCall(MatSetFromOptions_LMVM(B, PetscOptionsObject));
   PetscOptionsBegin(PetscObjectComm((PetscObject)B), ((PetscObject)B)->prefix,  "Compact dense BFGS method (MATLMVMCDBFGS)", NULL);
   PetscCall(PetscOptionsEnum("-mat_lbfgs_type", "Implementation options for L-BFGS", "MatLBFGSType", MatLBFGSTypes, (PetscEnum)lbfgs->strategy, (PetscEnum *)&lbfgs->strategy, NULL));
+  PetscCall(PetscOptionsEnum("-mat_lmvm_scale_type", "(developer) scaling type applied to J0", "MatLMVMSymBrdnScaleType", MatLMVMSymBroydenScaleTypes, (PetscEnum)lbfgs->scale_type, (PetscEnum *)&lbfgs->scale_type, NULL));
   PetscOptionsEnd();
+  if (lbfgs->scale_type == MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL) {
+    const char *prefix;
+
+    PetscCall(MatGetOptionsPrefix(B, &prefix));
+    PetscCall(MatSetOptionsPrefix(lbfgs->diag_bfgs, prefix));
+    PetscCall(MatAppendOptionsPrefix(lbfgs->diag_bfgs, "J0_"));
+    PetscCall(MatSetFromOptions(lbfgs->diag_bfgs));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1008,6 +1052,7 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   PetscCall(MatCreate_LMVM(B));
   PetscCall(PetscObjectChangeTypeName((PetscObject)B, MATLMVMCDBFGS));
   PetscCall(MatSetOption(B, MAT_SPD, PETSC_TRUE));
+  PetscCall(MatSetOption(B, MAT_SPD_ETERNAL, PETSC_TRUE));
   B->ops->view = MatView_LMVMCDBFGS;
   B->ops->setup = MatSetUp_LMVMCDBFGS;
   B->ops->setfromoptions = MatSetFromOptions_LMVMCDBFGS;
@@ -1026,11 +1071,9 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   lmvm->ctx = (void*)lbfgs;
   lbfgs->allocated       = PETSC_FALSE;
   lbfgs->watchdog        = 0;
-  lbfgs->delta           = 1.0;
-  lbfgs->delta_min       = 1e-7;
-  lbfgs->delta_max       = 100.0;
   lbfgs->max_seq_rejects = lmvm->m/2;
   lbfgs->strategy        = MAT_LBFGS_CD_INPLACE;
+  lbfgs->scale_type      = MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL;
 
   PetscCall(MatCreate(PetscObjectComm((PetscObject)B), &lbfgs->diag_bfgs));
   PetscCall(MatSetType(lbfgs->diag_bfgs, MATLMVMDIAGBROYDEN));
