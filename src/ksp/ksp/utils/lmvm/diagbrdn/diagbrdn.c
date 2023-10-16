@@ -30,8 +30,8 @@ static PetscErrorCode MatUpdate_DiagBrdn(Mat B, Vec X, Vec F)
   Mat_LMVM     *lmvm = (Mat_LMVM *)B->data;
   Mat_DiagBrdn *ldb  = (Mat_DiagBrdn *)lmvm->ctx;
   PetscInt      old_k, i, start;
-  PetscScalar   yty, curvature, ytDy, stDs, ytDs;
-  PetscReal     curvtol, sigma, yy_sum, ss_sum, ys_sum, denom, ststmp;
+  PetscScalar   curvature, ytDy, sts, stDs, ytDs;
+  PetscReal     curvtol, sigma, yy_sum, ss_sum, ys_sum, denom, ytytmp;
   PetscReal     stDsr, ytDyr;
 
   PetscFunctionBegin;
@@ -42,9 +42,9 @@ static PetscErrorCode MatUpdate_DiagBrdn(Mat B, Vec X, Vec F)
     PetscCall(VecAYPX(lmvm->Fprev, -1.0, F));
 
     /* Test if the updates can be accepted */
-    PetscCall(VecDotNorm2(lmvm->Xprev, lmvm->Fprev, &curvature, &ststmp));
-    if (ststmp < lmvm->eps) curvtol = 0.0;
-    else curvtol = lmvm->eps * ststmp;
+    PetscCall(VecDotNorm2(lmvm->Xprev, lmvm->Fprev, &curvature, &ytytmp));
+    if (ytytmp < lmvm->eps) curvtol = 0.0;
+    else curvtol = lmvm->eps * ytytmp;
 
     /* Test the curvature for the update */
     if (PetscRealPart(curvature) > curvtol) {
@@ -60,10 +60,10 @@ static PetscErrorCode MatUpdate_DiagBrdn(Mat B, Vec X, Vec F)
         }
       }
       /* Accept dot products into the history */
-      PetscCall(VecDot(lmvm->Y[lmvm->k], lmvm->Y[lmvm->k], &yty));
-      ldb->yty[lmvm->k] = PetscRealPart(yty);
+      PetscCall(VecDot(lmvm->S[lmvm->k], lmvm->S[lmvm->k], &sts));
+      ldb->yty[lmvm->k] = ytytmp;
       ldb->yts[lmvm->k] = PetscRealPart(curvature);
-      ldb->sts[lmvm->k] = ststmp;
+      ldb->sts[lmvm->k] = PetscRealPart(sts);
       if (ldb->forward) {
         /* We are doing diagonal scaling of the forward Hessian B */
         /*  BFGS = DFP = inv(D); */
