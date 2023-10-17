@@ -587,9 +587,9 @@ PetscErrorCode KSPLSQRConvergedDefault(KSP ksp, PetscInt n, PetscReal rnorm, KSP
 
   PetscCall(VecNorm(ksp->vec_sol, NORM_2, &xnorm));
   /* check for convergence in min{|b-A*x|} */
-  if (lsqr->arnorm < ksp->rtol * ksp->rnorm0 + ksp->abstol * lsqr->anorm * xnorm) {
-    PetscCall(PetscInfo(ksp, "LSQR solver has converged. Normal equation residual %14.12e is less then relative tolerance %14.12e times initial rhs norm %14.12e + absolute tolerance %14.12e times %s Frobenius norm of matrix %14.12e times solution %14.12e at iteration %" PetscInt_FMT "\n",
-                        (double)lsqr->arnorm, (double)ksp->rtol, (double)ksp->rnorm0, (double)ksp->abstol, lsqr->exact_norm ? "exact" : "approx.", (double)lsqr->anorm, (double)xnorm, n));
+  if (rnorm < ksp->rtol * ksp->rnorm0 + ksp->abstol * lsqr->anorm * xnorm) {
+    PetscCall(PetscInfo(ksp, "LSQR solver has converged. Equation residual %14.12e is less then relative tolerance %14.12e times initial rhs norm %14.12e + absolute tolerance %14.12e times %s Frobenius norm of matrix %14.12e times solution %14.12e at iteration %" PetscInt_FMT "\n",
+                        (double)rnorm, (double)ksp->rtol, (double)ksp->rnorm0, (double)ksp->abstol, lsqr->exact_norm ? "exact" : "approx.", (double)lsqr->anorm, (double)xnorm, n));
     *reason = KSP_CONVERGED_RTOL_NORMAL;
   } else if (lsqr->arnorm < ksp->abstol * lsqr->anorm * rnorm) {
     PetscCall(PetscInfo(ksp, "LSQR solver has converged. Normal equation residual %14.12e is less than absolute tolerance %14.12e times %s Frobenius norm of matrix %14.12e times residual %14.12e at iteration %" PetscInt_FMT "\n", (double)lsqr->arnorm,
