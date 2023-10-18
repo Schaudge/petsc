@@ -93,7 +93,7 @@ def main():
     parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                         help='how many batches to wait before logging training status')
     parser.add_argument('--save-model', action='store_true', default=False,
-                        help='For Saving the current Model')
+                        help='For Saving the current model')
     parser.add_argument('--torch-optimizer', action='store_true', default=False,
                         help='Use PyTorch optimizer instead of TAO optimizer')
     args, unknown = parser.parse_known_args()
