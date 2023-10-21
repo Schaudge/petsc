@@ -1683,6 +1683,55 @@ PetscErrorCode DMLabelPermute(DMLabel label, IS permutation, DMLabel *labelNew)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/*@
+  DMLabelPermuteValues - Permute the values in a label
+
+  Not collective
+
+  Input Parameters:
++ label - the `DMLabel`
+- permutation - the value permutation, permutation[old value] = new value
+
+  Output Parameter:
+. label - the `DMLabel` now with permuted values
+
+  Note:
+  The modification is done in-place
+
+  Level: intermediate
+
+.seealso: `DMLabel`, `DM`, `DMLabelPermute()`, `DMLabelCreate()`, `DMLabelGetValue()`, `DMLabelSetValue()`, `DMLabelClearValue()`
+@*/
+PetscErrorCode DMLabelPermuteValues(DMLabel label, IS permutation)
+{
+  const PetscInt *perm;
+  PetscInt        Nv, Np;
+  const char     *name = NULL;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(label, DMLABEL_CLASSID, 1);
+  PetscValidHeaderSpecific(permutation, IS_CLASSID, 2);
+  PetscCall(DMLabelMakeAllValid_Private(label));
+  PetscCall(DMLabelGetNumValues(label, &Nv));
+  PetscCall(ISGetLocalSize(permutation, &Np));
+  PetscCall(ISGetIndices(permutation, &perm));
+  PetscCall(PetscObjectGetName((PetscObject)label, &name));
+  if (strcmp(name, "EGADS Body ID")==0 || strcmp(name, "EGADS Face ID")==0 || strcmp(name, "EGADS Edge ID")==0 || strcmp(name, "EGADS Vertex ID")==0) {
+    /* Do not perform check. Np may != Nv due to Degenerate Geometry which is not stored in labels.               */
+    /* We do not know in advance which IDs have been omitted. This may also change due to geometry modifications. */
+  } else {
+    PetscCheck(Np == Nv, PetscObjectComm((PetscObject)label), PETSC_ERR_ARG_SIZ, "Permutation has size %" PetscInt_FMT " != %" PetscInt_FMT " number of label values", Np, Nv);
+  }
+  if (PetscDefined(USE_DEBUG)) {
+    PetscBool flg;
+    PetscCall(ISGetInfo(permutation, IS_PERMUTATION, IS_LOCAL, PETSC_TRUE, &flg));
+    PetscCheck(flg, PetscObjectComm((PetscObject)label), PETSC_ERR_ARG_WRONG, "IS is not a permutation");
+  }
+  for (PetscInt v = 0; v < Nv; ++v) label->stratumValues[v] = perm[label->stratumValues[v]];
+  PetscCall(ISRestoreIndices(permutation, &perm));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 static PetscErrorCode DMLabelDistribute_Internal(DMLabel label, PetscSF sf, PetscSection *leafSection, PetscInt **leafStrata)
 {
   MPI_Comm     comm;
