@@ -597,5 +597,3 @@ PETSC_EXTERN PetscErrorCode DMPlexGetGeomCntrlPntAndWeightData(DM, PetscHMapI *,
 PETSC_EXTERN PetscErrorCode DMPlexGetGeomGradData(DM, PetscHMapI *, Mat *, PetscInt *, PetscScalar **, PetscScalar **, PetscInt *, PetscScalar **, PetscScalar **);
 PETSC_EXTERN PetscErrorCode DMPlexGetGeomCntrlPntMaps(DM dm, PetscInt *, PetscInt **, PetscInt **, PetscInt **, PetscInt **, PetscInt **, PetscInt **);
 #endif
-
-#endif
