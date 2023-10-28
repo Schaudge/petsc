@@ -13,6 +13,9 @@ Changes: Development
 
 .. rubric:: Configure/Build:
 
+- Change ``make test REPLACE=1`` to ``make test ADD=1`` to add a new alt file if no currently output file matches
+- Remove ``make test ALT=1``
+
 .. rubric:: Sys:
 
 .. rubric:: Event Logging:
