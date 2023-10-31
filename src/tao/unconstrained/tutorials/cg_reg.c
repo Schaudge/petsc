@@ -10,7 +10,7 @@ typedef struct {
   PetscReal stepsize;
   PetscReal mu1; /* Parameter for soft-threshold */
   Mat       A;
-  Vec       b, workvec, workvec2;
+  Vec       b, workvec;
 } AppCtx;
 
 /* Objective
@@ -129,7 +129,6 @@ int main(int argc, char **argv)
   PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &x));
   PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &x_full));
   PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &user.workvec));
-  PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &user.workvec2));
   PetscCall(PetscRandomCreate(PETSC_COMM_WORLD, &rctx));
   PetscCall(PetscRandomSetInterval(rctx, 10, 100));
   PetscCall(PetscRandomSetFromOptions(rctx));
@@ -140,7 +139,7 @@ int main(int argc, char **argv)
   PetscCall(PetscRandomDestroy(&rctx));
 
   /* A,b data */
-  PetscCall(MatCreateSeqDense(PETSC_COMM_WORLD, user.n, user.n, NULL, &temp_mat));
+  PetscCall(MatCreateSeqDense(PETSC_COMM_SELF, user.n, user.n, NULL, &temp_mat));
   PetscCall(PetscRandomCreate(PETSC_COMM_WORLD, &rctx));
   //  PetscCall(PetscRandomSetFromOptions(rctx));
   PetscCall(MatSetRandom(temp_mat, rctx));
@@ -153,8 +152,8 @@ int main(int argc, char **argv)
   PetscCall(PetscRandomDestroy(&rctx));
 
   /* f(x) = 0.5 x^T A x - b^T x */
-  PetscCall(TaoCreate(PETSC_COMM_SELF, &tao));
-  PetscCall(TaoCreate(PETSC_COMM_SELF, &tao_full));
+  PetscCall(TaoCreate(PETSC_COMM_WORLD, &tao));
+  PetscCall(TaoCreate(PETSC_COMM_WORLD, &tao_full));
   PetscCall(TaoSetType(tao, TAOCG));
   PetscCall(TaoSetType(tao_full, TAOCG));
   PetscCall(TaoSetSolution(tao, x));
@@ -168,7 +167,7 @@ int main(int argc, char **argv)
    * Cases:
    * 0: f(x) + L2 Metric with y vector
    * 1: f(x) + built-in L2 Metric  */
-  PetscCall(TaoRegularizerCreate(PETSC_COMM_WORLD, &reg));
+  PetscCall(TaoRegularizerCreate(PetscObjectComm((PetscObject)tao), &reg));
   if (user.problem == 0 || user.problem == 1) {
     PetscCall(TaoRegularizerSetType(reg, TAOREGULARIZERL2));
   } else if (user.problem == 2) {
@@ -207,8 +206,9 @@ int main(int argc, char **argv)
   PetscCall(TaoDestroy(&tao_full));
   PetscCall(VecDestroy(&x));
   PetscCall(VecDestroy(&x_full));
+  PetscCall(VecDestroy(&user.b));
   PetscCall(VecDestroy(&user.workvec));
-  PetscCall(VecDestroy(&user.workvec2));
+  PetscCall(MatDestroy(&user.A));
 
   PetscCall(PetscFinalize());
   return 0;

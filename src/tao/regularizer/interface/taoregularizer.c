@@ -722,7 +722,9 @@ PetscErrorCode TaoSetRegularizer(Tao tao, TaoRegularizer reg)
   PetscCall(TaoRegularizerDestroy(&tao->reg));
   tao->reg = reg;
   PetscCheck(tao->solution, PetscObjectComm((PetscObject)reg), PETSC_ERR_USER, "TaoSetSolution needs to be called first.");
-  PetscCall(VecDuplicate(tao->solution, &reg->workvec));
+  if (!reg->workvec) {
+    PetscCall(VecDuplicate(tao->solution, &reg->workvec));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
