@@ -244,6 +244,7 @@ PetscErrorCode TaoDestroy(Tao *tao)
   PetscCall(KSPDestroy(&(*tao)->ksp));
   PetscCall(SNESDestroy(&(*tao)->snes_ewdummy));
   PetscCall(TaoLineSearchDestroy(&(*tao)->linesearch));
+  PetscCall(TaoRegularizerDestroy(&(*tao)->reg));
 
   if ((*tao)->ops->convergencedestroy) {
     PetscCall((*(*tao)->ops->convergencedestroy)((*tao)->cnvP));

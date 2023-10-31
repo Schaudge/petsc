@@ -63,7 +63,6 @@ static PetscErrorCode TaoDestroy_Prox(Tao tao)
     PetscCall(VecDestroy(&proxP->workvec1));
     PetscCall(VecDestroy(&proxP->y));
   }
-  PetscCall(TaoLineSearchDestroy(&tao->linesearch));
 
   PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoProxMSetType_C", NULL));
   PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoProxMGetType_C", NULL));
