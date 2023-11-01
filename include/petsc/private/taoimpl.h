@@ -215,7 +215,6 @@ PETSC_EXTERN PetscLogEvent TAO_JacobianEval;
 
 PetscErrorCode TaoApplyProximalMap_L1(Tao, PetscReal, Vec, Vec, void *);
 PetscErrorCode TaoApplyProximalMap_Simplex(Tao, PetscReal, Vec, Vec, void *);
-PetscErrorCode TaoApplyProximalMap_Affine(Tao, PetscReal, Vec, Vec, void *);
 
 static inline PetscErrorCode TaoLogConvergenceHistory(Tao tao, PetscReal obj, PetscReal resid, PetscReal cnorm, PetscInt totits)
 {

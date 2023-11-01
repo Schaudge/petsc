@@ -6,6 +6,9 @@
 static PetscFunctionList TaoProxList = NULL;
 static PetscBool         TaoProxPackageInitialized;
 
+PETSC_EXTERN PetscErrorCode TaoProxCreate_L1(Tao);
+PETSC_EXTERN PetscErrorCode TaoProxCreate_Simplex(Tao);
+
 static PetscErrorCode TaoSolve_Prox(Tao tao)
 {
   TAO_PROX          *proxP = (TAO_PROX *)tao->data;
@@ -63,6 +66,8 @@ static PetscErrorCode TaoDestroy_Prox(Tao tao)
     PetscCall(VecDestroy(&proxP->workvec1));
     PetscCall(VecDestroy(&proxP->y));
   }
+
+  if ((proxP)->ops->destroy) PetscCall((proxP->ops->destroy)(tao));
 
   PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoProxMSetType_C", NULL));
   PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoProxMGetType_C", NULL));
@@ -131,7 +136,6 @@ PETSC_EXTERN PetscErrorCode TaoCreate_PROX(Tao tao)
   PetscFunctionBegin;
   PetscCall(TaoProxInitializePackage());
   PetscCall(PetscNew(&proxP));
-  PetscCall(PetscNew(&proxP->L1));
 
   tao->ops->setup          = TaoSetUp_Prox;
   tao->ops->solve          = TaoSolve_Prox;
@@ -234,14 +238,16 @@ TAO_PROX *proxP  = (TAO_PROX *)tao->data;
 PetscErrorCode TaoProxSetType(Tao tao, TaoProxType type)
 {
   TAO_PROX *proxP = (TAO_PROX *)tao->data;
-  PetscErrorCode (*prox_xxx)(Tao, PetscReal, Vec, Vec, void *);
+  PetscErrorCode (*prox_xxx)(Tao);
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
+  PetscAssertPointer(type, 2);
+  if (proxP->type == type) PetscFunctionReturn(PETSC_SUCCESS);
   PetscCall(PetscFunctionListFind(TaoProxList, type, &prox_xxx));
   PetscCheck(prox_xxx, PetscObjectComm((PetscObject)tao), PETSC_ERR_ARG_UNKNOWN_TYPE, "Unable to find requested Tao prox type %s", type);
-  proxP->type                = type;
-  tao->ops->applyproximalmap = prox_xxx;
+  proxP->type = type;
+  PetscCall((*prox_xxx)(tao));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -285,9 +291,8 @@ PetscErrorCode TaoProxInitializePackage(void)
   if (TaoProxPackageInitialized) PetscFunctionReturn(PETSC_SUCCESS);
   TaoProxPackageInitialized = PETSC_TRUE;
 #if !defined(PETSC_USE_COMPLEX)
-  PetscCall(PetscFunctionListAdd(&TaoProxList, TAOPROX_L1, TaoApplyProximalMap_L1));
-  PetscCall(PetscFunctionListAdd(&TaoProxList, TAOPROX_SIMPLEX, TaoApplyProximalMap_Simplex));
-  PetscCall(PetscFunctionListAdd(&TaoProxList, TAOPROX_AFFINE, TaoApplyProximalMap_Affine));
+  PetscCall(PetscFunctionListAdd(&TaoProxList, TAOPROX_L1, TaoProxCreate_L1));
+  PetscCall(PetscFunctionListAdd(&TaoProxList, TAOPROX_SIMPLEX, TaoProxCreate_Simplex));
 #endif
   PetscCall(PetscRegisterFinalize(TaoProxFinalizePackage));
   PetscFunctionReturn(PETSC_SUCCESS);

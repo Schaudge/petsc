@@ -14,7 +14,12 @@ struct _TaoProxOps {
   PetscErrorCode (*orig_objgrad)(Tao, Vec, PetscReal *, Vec, void *);
   PetscErrorCode (*orig_grad)(Tao, Vec, Vec, void *);
   PetscErrorCode (*orig_hess)(Tao, Vec, Mat, Mat, void *);
+  PetscErrorCode (*destroy)(Tao);
 };
+
+typedef struct {
+  PetscReal size;
+} TAO_PROX_SIMPLEX;
 
 typedef struct {
   PetscReal lb;
@@ -22,18 +27,10 @@ typedef struct {
 } TAO_PROX_L1;
 
 typedef struct {
-  Vec a;
-} TAO_PROX_AFFINE;
-
-typedef struct {
   PETSCHEADER(struct _TaoProxOps);
   Tao subsolver;
 
-  /* Hash-version multiple dispatch map */
-  //  PetscProxTable proxHash;
-
-  TAO_PROX_L1     *L1;
-  TAO_PROX_AFFINE *affine;
+  void *data;
 
   Mat vm; /* Variable Metric matrix */
   Mat H_orig, H_pre_orig;

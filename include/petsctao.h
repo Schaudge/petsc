@@ -239,7 +239,6 @@ typedef const char *TaoType;
 
 typedef const char *TaoProxType;
 #define TAOPROX_L1      "prox_l1"
-#define TAOPROX_AFFINE  "prox_affine"
 #define TAOPROX_SIMPLEX "prox_simplex"
 
 PETSC_EXTERN PetscClassId      TAO_CLASSID;
@@ -575,7 +574,7 @@ PETSC_EXTERN PetscErrorCode TaoProxGetInitialVector(Tao, Vec *);
 PETSC_EXTERN PetscErrorCode TaoGetProxParentTao(Tao, Tao *);
 
 PETSC_EXTERN PetscErrorCode TaoProxSetSoftThresholdContext(Tao, PetscReal, PetscReal);
-PETSC_EXTERN PetscErrorCode TaoProxSetAffineContext(Tao, Vec);
+PETSC_EXTERN PetscErrorCode TaoProxSetSimplexContext(Tao, PetscReal);
 
 PETSC_EXTERN PetscErrorCode TaoProxInitializePackage(void);
 PETSC_EXTERN PetscErrorCode TaoProxFinalizePackage(void);

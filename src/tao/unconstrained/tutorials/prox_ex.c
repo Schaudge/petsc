@@ -88,6 +88,7 @@ int main(int argc, char **argv)
     PetscCall(PetscPrintf(PetscObjectComm((PetscObject)tao), "error between TaoSolve with TAOPROX and SoftThreshold: %e\n", (double)vec_dist));
   }
 
+  PetscCall(TaoRegularizerDestroy(&reg));
   PetscCall(TaoDestroy(&tao));
   PetscCall(VecDestroy(&x));
   PetscCall(VecDestroy(&x_test));

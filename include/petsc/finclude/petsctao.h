@@ -15,7 +15,7 @@
 #define TaoALMMType PetscEnum
 #define TaoBNCGType PetscEnum
 
-#define TAOPROX_L1 'prox_l1'
+#define TAOPROX_L1      'prox_l1'
 #define TAOPROX_SIMPLEX 'prox_simplex'
 
 #define TAOLMVM     'lmvm'
