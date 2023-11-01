@@ -15,6 +15,8 @@ PetscErrorCode KSPComputeEigenvalues_CG(KSP ksp, PetscInt nmax, PetscReal *r, Pe
   PetscBLASInt bn, lierr = 0, ldz = 1;
 
   PetscFunctionBegin;
+  // the final value of cgP->d is missing in this case
+  if (ksp->reason == KSP_DIVERGED_INDEFINITE_MAT || ksp->reason == KSP_DIVERGED_INDEFINITE_PC) n = (n > 0 ? n - 1 : 0);
   PetscCheck(nmax >= n, PetscObjectComm((PetscObject)ksp), PETSC_ERR_ARG_SIZ, "Not enough room in work space r and c for eigenvalues");
   *neig = n;
 
@@ -48,6 +50,8 @@ PetscErrorCode KSPComputeExtremeSingularValues_CG(KSP ksp, PetscReal *emax, Pets
   PetscBLASInt bn, lierr = 0, ldz = 1;
 
   PetscFunctionBegin;
+  // the final value of cgP->d is missing in this case
+  if (ksp->reason == KSP_DIVERGED_INDEFINITE_MAT || ksp->reason == KSP_DIVERGED_INDEFINITE_PC) n = (n > 0 ? n - 1 : 0);
   if (!n) {
     *emax = *emin = 1.0;
     PetscFunctionReturn(PETSC_SUCCESS);
