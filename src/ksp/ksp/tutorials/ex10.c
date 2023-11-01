@@ -293,4 +293,8 @@ int main(int argc, char **args)
       args: -f ${DATAFILESPATH}/matrices/medium -ksp_type bicg -permute rcm
       requires: datafilespath double !complex !defined(PETSC_USE_64BIT_INDICES)
 
+   test:
+      suffix: cg_indefinite
+      args: -f ${wPETSC_DIR}/share/petsc/datafiles/matrices/ratel-indefinite -rhs one -ksp_type cg -pc_type none -ksp_view_singularvalues
+
 TEST*/
