@@ -219,17 +219,17 @@ PETSC_EXTERN PetscErrorCode TaoProxGetInitialVector(Tao tao, Vec *y)
 }
 
 /*@C
-   TaoProxSetType - Sets the `TaoProxType` for the prox routine.
+  TaoProxSetType - Sets the `TaoProxType` for the prox routine.
 
-   Collective
-TAO_PROX *proxP  = (TAO_PROX *)tao->data;
-   Input Parameters:
-+  tao - the `Tao` solver context
--  type - a known method
+  Collective
 
-   Options Database Key:
-.  -tao_prox_type <type> - Sets the method; use -help for a list
-   of available methods (for instance, "-tao_prox_type prox_l2")
+  Input Parameters:
++ tao  - the `Tao` solver context
+- type - a known method
+
+  Options Database Key:
+. -tao_prox_type <type> - Sets the method; use -help for a list
+  of available methods (for instance, "-tao_prox_type prox_l2")
 
   Level: intermediate
 
@@ -252,21 +252,20 @@ PetscErrorCode TaoProxSetType(Tao tao, TaoProxType type)
 }
 
 /*@C
-   TaoProxGetType - Gets the current `TaoProxType` being used in the `Tao` object
+  TaoProxGetType - Gets the current `TaoProxType` being used in the `Tao` object
 
-   Not Collective
+  Not Collective
 
-   Input Parameter:
-.  tao - the `Tao` solver context
+  Input Parameter:
+. tao - the `Tao` solver context
 
-   Output Parameter:
-.  type - the `TaoProxType`
+  Output Parameter:
+. type - the `TaoProxType`
 
-   Level: intermediate
+  Level: intermediate
 
-.seealso: [](ch_tao), `Tao`, `TaoProxType`, `TaoProxGetType()`
+.seealso: [](ch_tao), `Tao`, `TaoProxType`, `TaoProxSetType()`
 @*/
-
 PetscErrorCode TaoProxGetType(Tao tao, TaoProxType *type)
 {
   TAO_PROX *proxP = (TAO_PROX *)tao->data;
@@ -315,15 +314,15 @@ PetscErrorCode TaoProxFinalizePackage(void)
 }
 
 /*@C
-   TaoProxRegister - Adds a method to the Tao package for minimization.
+  TaoProxRegister - Adds a method to the Tao package for minimization.
 
-   Not Collective
+  Not Collective
 
-   Input Parameters:
-+  type - name of a new user-defined proximal mapping
--  func -  a callback for proximal mapping solver
+  Input Parameters:
++ type - name of a new user-defined proximal mapping
+- func - a callback for proximal mapping solver
 
-   Level: advanced
+  Level: advanced
 
 .seealso: [](ch_tao), `Tao`, `TaoSetType()`, `TaoProxRegisterAll()`, `TaoProxRegisterDestroy()`
 @*/

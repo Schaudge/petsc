@@ -9,19 +9,19 @@ PetscLogEvent TAOREGULARIZER_Apply;
 PetscLogEvent TAOREGULARIZER_Eval;
 
 /*@C
-   TaoRegularizerViewFromOptions - View a `TaoRegularizer` object based on values in the options database
+  TaoRegularizerViewFromOptions - View a `TaoRegularizer` object based on values in the options database
 
-   Collective
+  Collective
 
-   Input Parameters:
-+  A - the `Tao` context
-.  obj - Optional object
--  name - command line option
+  Input Parameters:
++ A    - the `Tao` context
+. obj  - Optional object
+- name - command line option
 
-   Level: intermediate
+  Level: intermediate
 
-   Note:
-   See `PetscObjectViewFromOptions()` for available viewer options
+  Note:
+  See `PetscObjectViewFromOptions()` for available viewer options
 
 .seealso: [](ch_tao), `Tao`, `TaoRegularizer`, `TaoRegularizerView()`, `PetscObjectViewFromOptions()`, `TaoRegularizerCreate()`
 @*/
@@ -38,8 +38,8 @@ PetscErrorCode TaoRegularizerViewFromOptions(TaoRegularizer A, PetscObject obj, 
 
   Collective
 
-  InputParameters:
-+ reg - the `TaoRegularizer` context
+  Input Parameters:
++ reg    - the `TaoRegularizer` context
 - viewer - visualization context
 
   Options Database Key:
@@ -51,9 +51,9 @@ PetscErrorCode TaoRegularizerViewFromOptions(TaoRegularizer A, PetscObject obj, 
   The available visualization contexts include
 +     `PETSC_VIEWER_STDOUT_SELF` - standard output (default)
 -     `PETSC_VIEWER_STDOUT_WORLD` - synchronized standard
-         output where only the first processor opens
-         the file.  All other processors send their
-         data to the first processor to print.
+  output where only the first processor opens
+  the file.  All other processors send their
+  data to the first processor to print.
 
 .seealso: [](ch_tao), `Tao`, `TaoRegularizer`, `PetscViewerASCIIOpen()`, `TaoRegularizerViewFromOptions()`
 @*/
@@ -96,10 +96,10 @@ PetscErrorCode TaoRegularizerView(TaoRegularizer reg, PetscViewer viewer)
   Output Parameter:
 . newreg - the new `TaoRegularizer` context
 
-   Options Database Key:
-.   -tao_reg_type - select which method `Tao` should use
+  Options Database Key:
+. -tao_reg_type - select which method `Tao` should use
 
-   Level: developer
+  Level: developer
 
 .seealso: [](ch_tao), `Tao`, `TaoRegularizer`, `TaoRegularizerType`, `TaoRegularizerSetType()`, `TaoRegularizerApply()`, `TaoRegularizerDestroy()`
 @*/
@@ -176,11 +176,11 @@ PetscErrorCode TaoRegularizerSetUp(TaoRegularizer reg)
   Collective
 
   Input Parameter:
-. reg  - the `TaoRegularizer` context
+. reg - the `TaoRegularizer` context
 
   Level: developer
 
-.seealse: `TaoRegularizerCreate()`
+.seealso: [](ch_ta), `TaoRegularizerCreate()`
 @*/
 PetscErrorCode TaoRegularizerDestroy(TaoRegularizer *reg)
 {
@@ -199,20 +199,20 @@ PetscErrorCode TaoRegularizerDestroy(TaoRegularizer *reg)
 }
 
 /*@C
-   TaoRegularizerSetType - Sets the algorithm used in a line search
+  TaoRegularizerSetType - Sets the algorithm used in a line search
 
-   Collective
+  Collective
 
-   Input Parameters:
-+  reg  - the `TaoRegularizer` context
--  type - the `TaoRegularizerType` selection
+  Input Parameters:
++ reg  - the `TaoRegularizer` context
+- type - the `TaoRegularizerType` selection
 
   Options Database Key:
-.  -tao_reg_type <type> - select which method Tao should use at runtime
+. -tao_reg_type <type> - select which method Tao should use at runtime
 
   Level: beginner
 
-.seearego: [](ch_tao), `Tao`, `TaoRegularizer`, `TaoRegularizerType`, `TaoRegularizerCreate()`, `TaoRegularizerGetType()`,
+.seealso: [](ch_tao), `Tao`, `TaoRegularizer`, `TaoRegularizerType`, `TaoRegularizerCreate()`, `TaoRegularizerGetType()`,
 @*/
 PetscErrorCode TaoRegularizerSetType(TaoRegularizer reg, TaoRegularizerType type)
 {
@@ -251,9 +251,9 @@ PetscErrorCode TaoRegularizerSetType(TaoRegularizer reg, TaoRegularizerType type
 . reg - the `TaoRegularizer` context
 
   Options Database Keys:
-+ -tao_reg_type <type> - The type of `TaoRegularizer` (L1,L2,KL,USER)
++ -tao_reg_type <type>   - The type of `TaoRegularizer` (L1,L2,KL,USER)
 . -tao_reg_scale <scale> - scalar scale for regularizer
-- -tao_reg_view - display line-search results to standard output
+- -tao_reg_view          - display line-search results to standard output
 
   Level: beginner
 
@@ -303,7 +303,7 @@ PetscErrorCode TaoRegularizerSetFromOptions(TaoRegularizer reg)
 
   Level: developer
 
-.seearego: `TaoRegularizer`
+.seealso: `TaoRegularizer`
 @*/
 PetscErrorCode TaoRegularizerGetType(TaoRegularizer reg, TaoRegularizerType *type)
 {
@@ -370,7 +370,7 @@ PetscErrorCode TaoRegularizerUseTaoRoutines(TaoRegularizer reg, Tao ts)
 
   Input Parameters:
 + reg - the `TaoRegularizer` context
-- x - input vector
+- x   - input vector
 
   Output Parameter:
 . f - Objective value at `x`
@@ -420,7 +420,7 @@ PetscErrorCode TaoRegularizerComputeObjective(TaoRegularizer reg, Vec x, PetscRe
 
   Note:
 
-.seealso: [](ch_tao), `Tao`, `TaoRegularizer`, `TaoRegularizerComputeGradient()`, `TaoRegularizerComputeObjectiveAndGradient()`, `TaoRegularizerSetObjectiveRoutine()`
+.seealso: [](ch_tao), `Tao`, `TaoRegularizer`, `TaoRegularizerComputeGradient()`, `TaoRegularizerSetObjectiveRoutine()`
 @*/
 PetscErrorCode TaoRegularizerComputeObjectiveAndGradient(TaoRegularizer reg, Vec x, PetscReal *f, Vec g)
 {
@@ -453,7 +453,7 @@ PetscErrorCode TaoRegularizerComputeObjectiveAndGradient(TaoRegularizer reg, Vec
 
   Input Parameters:
 + reg - the `TaoRegularizer` context
-- x - input vector
+- x   - input vector
 
   Output Parameter:
 . g - gradient vector
@@ -579,28 +579,23 @@ PetscErrorCode TaoRegularizerGetScale(TaoRegularizer reg, PetscReal *s)
 }
 
 /*@C
-   TaoRegularizerRegister - Adds a regularizer type to the registry
+  TaoRegularizerRegister - Adds a regularizer type to the registry
 
-   Not Collective
+  Not Collective
 
-   Input Parameters:
-+  sname - name of a new user-defined regularizer
--  func  - routine to Create method context
+  Input Parameters:
++ sname - name of a new user-defined regularizer
+- func  - routine to Create method context
 
-   Sample usage:
-.vb
-   TaoRegularizerRegister("my_regularizer", MyRegularizerCreate);
-.ve
+  Your solver can be chosen with the procedural interface via
+$    TaoRegularizerSetType(reg, "my_regularizer")
+  or at runtime via the option
+$    -tao_reg_type my_regularizer
 
-   Then, your solver can be chosen with the procedural interface via
-$     TaoRegularizerSetType(reg, "my_regularizer")
-   or at runtime via the option
-$     -tao_reg_type my_regularizer
+  Level: developer
 
-   Level: developer
-
-   Note:
-   `TaoRegularizerRegister()` may be called multiple times to add several user-defined solvers.
+  Note:
+  `TaoRegularizerRegister()` may be called multiple times to add several user-defined solvers.
 
 .seealso: [](ch_tao), `Tao`, `TaoRegularizer`
 @*/
@@ -613,22 +608,22 @@ PetscErrorCode TaoRegularizerRegister(const char sname[], PetscErrorCode (*func)
 }
 
 /*@C
-   TaoRegularizerAppendOptionsPrefix - Appends to the prefix used for searching
-   for all `TaoRegularizer` options in the database.
+  TaoRegularizerAppendOptionsPrefix - Appends to the prefix used for searching
+  for all `TaoRegularizer` options in the database.
 
-   Collective
+  Collective
 
-   Input Parameters:
-+  ls - the `TaoRegularizer` solver context
--  prefix - the prefix string to prepend to all line search requests
+  Input Parameters:
++ reg - the `TaoRegularizer` solver context
+- p   - the prefix string to prepend to all line search requests
 
-   Level: advanced
+  Level: advanced
 
-   Notes:
-   A hyphen (-) must NOT be given at the beginning of the prefix name.
-   The first character of all runtime options is AUTOMATICALLY the hyphen.
+  Notes:
+  A hyphen (-) must NOT be given at the beginning of the prefix name.
+  The first character of all runtime options is AUTOMATICALLY the hyphen.
 
-   This is inherited from the `Tao` object so rarely needs to be set
+  This is inherited from the `Tao` object so rarely needs to be set
 
 .seealso: [](ch_tao), `Tao`, `TaoRegularizer`, `TaoRegularizerSetOptionsPrefix()`, `TaoRegularizerGetOptionsPrefix()`
 @*/
@@ -647,7 +642,7 @@ PetscErrorCode TaoRegularizerAppendOptionsPrefix(TaoRegularizer reg, const char 
 . reg - the `TaoRegularizer` context
 
   Output Parameter:
-. prefix - pointer to the prefix string used is returned
+. p - pointer to the prefix string used is returned
 
   Level: advanced
 
@@ -663,31 +658,31 @@ PetscErrorCode TaoRegularizerGetOptionsPrefix(TaoRegularizer reg, const char *p[
 }
 
 /*@C
-   TaoRegularizerSetOptionsPrefix - Sets the prefix used for searching for all
-   `TaoRegularizer` options in the database.
+  TaoRegularizerSetOptionsPrefix - Sets the prefix used for searching for all
+  `TaoRegularizer` options in the database.
 
-   Logically Collective
+  Logically Collective
 
-   Input Parameters:
-+  reg - the `TaoRegularizer` context
--  prefix - the prefix string to prepend to all `reg` option requests
+  Input Parameters:
++ reg - the `TaoRegularizer` context
+- p   - the prefix string to prepend to all `reg` option requests
 
-   Level: advanced
+  Level: advanced
 
-   Notes:
-   A hyphen (-) must NOT be given at the beginning of the prefix name.
-   The first character of all runtime options is AUTOMATICALLY the hyphen.
+  Notes:
+  A hyphen (-) must NOT be given at the beginning of the prefix name.
+  The first character of all runtime options is AUTOMATICALLY the hyphen.
 
-   This is inherited from the `Tao` object so rarely needs to be set
+  This is inherited from the `Tao` object so rarely needs to be set
 
-   For example, to distinguish between the runtime options for two
-   different line searches, one could call
+  For example, to distinguish between the runtime options for two
+  different line searches, one could call
 .vb
-      TaoRegularizerSetOptionsPrefix(reg1,"sys1_")
-      TaoRegularizerSetOptionsPrefix(reg2,"sys2_")
+     TaoRegularizerSetOptionsPrefix(reg1,"sys1_")
+     TaoRegularizerSetOptionsPrefix(reg2,"sys2_")
 .ve
 
-   This would enable use of different options for each system, such as
+  This would enable use of different options for each system, such as
 .vb
       -sys1_tao_reg_type regl1
       -sys2_tao_reg_type regl2
@@ -701,15 +696,14 @@ PetscErrorCode TaoRegularizerSetOptionsPrefix(TaoRegularizer reg, const char p[]
 }
 
 /*@
-   TaoSetRegularizer - Sets an TaoRegularizer to Tao object.
-                       This routine needs to be set after
-                       TaoSetSolution() has been called.
+  TaoSetRegularizer - Sets an TaoRegularizer to Tao object.
+  This routine needs to be set after TaoSetSolution() has been called.
 
-   Input Parameters:
-+  tao - Tao solver context
--  reg - TaoRegularizer context
+  Input Parameters:
++ tao - Tao solver context
+- reg - TaoRegularizer context
 
-   Level: advanced
+  Level: advanced
 
 .seealso: `TaoGetRegularizer()`
 @*/
@@ -727,15 +721,15 @@ PetscErrorCode TaoSetRegularizer(Tao tao, TaoRegularizer reg)
 }
 
 /*@
-   TaoGetRegularizer - Gets an TaoRegularizer to Tao object.
+  TaoGetRegularizer - Gets an TaoRegularizer to Tao object.
 
-   Input Parameters:
-.  tao - Tao solver context
+  Input Parameters:
+. tao - Tao solver context
 
-   Output Parameter:
-.  reg - TaoRegularizer context
+  Output Parameter:
+. reg - TaoRegularizer context
 
-   Level: advanced
+  Level: advanced
 
 .seealso: `TaoSetRegularizer()`
 @*/
@@ -815,13 +809,13 @@ PetscErrorCode TaoRegularizerSetGradient(TaoRegularizer reg, PetscErrorCode (*fu
   Logically Collective
 
   Input Parameters:
-+ reg - the `TaoRegularizer` context
++ reg  - the `TaoRegularizer` context
 . func - the gradient function
 - ctx  - [optional] user-defined context for private data for the gradient evaluation
         routine (may be `NULL`)
 
   Calling sequence of `func`:
-+ regg - the regularizer object
++ reg - the regularizer object
 . x   - input vector
 . f   - objective value (output)
 . g   - gradient value (output)
@@ -843,5 +837,3 @@ PetscErrorCode TaoRegularizerSetObjectiveAndGradient(TaoRegularizer reg, PetscEr
   reg->usetaoroutines = PETSC_FALSE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
-/*TODO Hessian */
