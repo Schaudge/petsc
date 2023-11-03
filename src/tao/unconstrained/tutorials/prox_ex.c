@@ -10,7 +10,7 @@ typedef struct {
   PetscScalar lb, ub;
   PetscInt    n;       /* dimension */
   PetscInt    problem; /* Types of problems to solve. */
-  PetscReal   stepsize;
+  PetscReal   stepsize, simp; /* simp: size of simplex */
   PetscReal   mu1; /* Parameter for soft-threshold */
 } AppCtx;
 
@@ -36,10 +36,13 @@ int main(int argc, char **argv)
   user.mu1      = 1;
   user.lb       = -1;
   user.ub       = 1;
+  user.simp     = 1;
 
   PetscCall(PetscOptionsGetInt(NULL, NULL, "-n", &user.n, &flg));
   /* Types of problems to solve */
   PetscCall(PetscOptionsGetInt(NULL, NULL, "-problem", &user.problem, &flg));
+  /* Simplex problem size */
+  PetscCall(PetscOptionsGetReal(NULL, NULL, "-simplex", &user.simp, &flg));
   /* If stepsize ==1, default case. Else, adaptive version */
 
   PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &x));
@@ -52,41 +55,65 @@ int main(int argc, char **argv)
   PetscCall(VecDuplicate(x, &x_test));
   PetscCall(VecCopy(x, x_test));
   /* y : all zeros */
-  PetscCall(VecZeroEntries(y));
+  //PetscCall(VecZeroEntries(y));
+  PetscCall(VecSetRandom(y, rctx));
   PetscCall(PetscRandomDestroy(&rctx));
 
   PetscCall(TaoCreate(PETSC_COMM_SELF, &tao));
   PetscCall(TaoRegularizerCreate(PETSC_COMM_SELF, &reg));
 
-  /* Cases that we want to try:
-   *
-   *  0: Built-in TAOPROX solve for Soft-Threshold */
-
-  /* Stepsize of 1 */
   PetscCall(TaoSetType(tao, TAOPROX));
   PetscCall(TaoSetSolution(tao, x));
-  PetscCall(TaoProxSetType(tao, TAOPROX_L1));
-  /* TODO should it be SetSTContext, or SetL1Context ? */
-  PetscCall(TaoProxSetSoftThresholdContext(tao, user.lb, user.ub));
+
+  /* Cases that we want to try:
+   *
+   *  0: TAOPROX_L1 vs Soft-Threshold
+   *  1: TAOPROX_SIMPLEX  */
+
+  if (user.problem == 0) {
+    PetscCall(TaoProxSetType(tao, TAOPROX_L1));
+    /* TODO should it be SetSTContext, or SetL1Context ? */
+    /* Stepsize of 1 */
+    PetscCall(TaoProxSetSoftThresholdContext(tao, user.lb, user.ub));
+    /* Try built-in Soft-Threshold */
+    PetscCall(TaoSoftThreshold(y, user.lb, user.ub, x_test));
+  } else if (user.problem == 1) {
+    PetscCall(TaoProxSetType(tao, TAOPROX_SIMPLEX));
+    PetscCall(TaoProxSetSimplexContext(tao, user.simp));
+  } else SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Unsupported problem type!");
+
   PetscCall(TaoRegularizerSetType(reg, TAOREGULARIZERL2));
   PetscCall(TaoRegularizerSetCentralVector(reg, y));
   PetscCall(TaoSetRegularizer(tao, reg));
   PetscCall(TaoSetFromOptions(tao));
   PetscCall(TaoSolve(tao));
 
-  /* Try built-in Soft-Threshold */
-  PetscCall(TaoSoftThreshold(y, user.lb, user.ub, x_test));
+  if (user.problem == 0) {
+    /* Testing Regularizer version vs Full version */
+    PetscCall(VecAXPY(x, -1., x_test));
+    PetscCall(VecNorm(x, NORM_2, &vec_dist));
+    if (vec_dist < 1.e-11) {
+      PetscCall(PetscPrintf(PetscObjectComm((PetscObject)tao), "error between TaoSolve with TAOPROX and SoftThreshold: < 1.e-11\n"));
+    } else if (vec_dist < 1.e-6) {
+      PetscCall(PetscPrintf(PetscObjectComm((PetscObject)tao), "error between TaoSolve with TAOPROX and SoftThreshold: < 1.e-6\n"));
+    } else {
+      PetscCall(PetscPrintf(PetscObjectComm((PetscObject)tao), "error between TaoSolve with TAOPROX and SoftThreshold: %e\n", (double)vec_dist));
+    }
+  } else if (user.problem == 1) {
+    PetscReal sum, min;
+    PetscCall(VecSum(x, &sum));
+    PetscCall(VecMin(x, NULL, &min));
+    vec_dist = PetscAbsReal(sum - user.simp);
+    PetscCall(PetscPrintf(PetscObjectComm((PetscObject)tao), "Smallest element of solution: %e\n", (double)min));
+    if (vec_dist < 1.e-11) {
+      PetscCall(PetscPrintf(PetscObjectComm((PetscObject)tao), "distance between VecSum and Simplex Size: < 1.e-11\n"));
+    } else if (vec_dist < 1.e-6) {
+      PetscCall(PetscPrintf(PetscObjectComm((PetscObject)tao), "distance between VecSum and Simplex Size: < 1.e-6\n"));
+    } else {
+      PetscCall(PetscPrintf(PetscObjectComm((PetscObject)tao), "distance between VecSum and Simplex Size: %e\n", (double)vec_dist));
+    }
 
-  /* Testing Regularizer version vs Full version */
-  PetscCall(VecAXPY(x, -1., x_test));
-  PetscCall(VecNorm(x, NORM_2, &vec_dist));
-  if (vec_dist < 1.e-11) {
-    PetscCall(PetscPrintf(PetscObjectComm((PetscObject)tao), "error between TaoSolve with TAOPROX and SoftThreshold: < 1.e-11\n"));
-  } else if (vec_dist < 1.e-6) {
-    PetscCall(PetscPrintf(PetscObjectComm((PetscObject)tao), "error between TaoSolve with TAOPROX and SoftThreshold: < 1.e-6\n"));
-  } else {
-    PetscCall(PetscPrintf(PetscObjectComm((PetscObject)tao), "error between TaoSolve with TAOPROX and SoftThreshold: %e\n", (double)vec_dist));
-  }
+  } else SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Unsupported problem type!");
 
   PetscCall(TaoRegularizerDestroy(&reg));
   PetscCall(TaoDestroy(&tao));
@@ -106,6 +133,11 @@ int main(int argc, char **argv)
    test:
       suffix: soft
       args: -tao_gatol 1.e-4 -problem 0
+      requires: !single
+
+   test:
+      suffix: simplex
+      args: -tao_gatol 1.e-4 -problem 1
       requires: !single
 
 TEST*/
