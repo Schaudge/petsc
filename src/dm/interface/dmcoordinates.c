@@ -984,7 +984,7 @@ static PetscErrorCode DMCreateAffineCoordinates_Internal(DM dm)
   // Work around current bug in PetscDualSpaceSetUp_Lagrange()
   //   Can be seen in plex_tutorials-ex10_1
   if (ct != DM_POLYTOPE_SEG_PRISM_TENSOR && ct != DM_POLYTOPE_TRI_PRISM_TENSOR && ct != DM_POLYTOPE_QUAD_PRISM_TENSOR) {
-    PetscCall(PetscFECreateLagrangeByCell(PETSC_COMM_SELF, dim, dE, ct, 1, -1, &feLinear));
+    PetscCall(PetscFECreateLagrangeByCell(PETSC_COMM_SELF, dim, dE, ct, 1, PETSC_TRUE, -1, &feLinear));
     PetscCall(DMSetField(cdm, 0, NULL, (PetscObject)feLinear));
     PetscCall(PetscFEDestroy(&feLinear));
     PetscCall(DMCreateDS(cdm));

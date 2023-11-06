@@ -1116,7 +1116,7 @@ PetscErrorCode DMFieldCreateDSWithDG(DM dm, DM dmDG, PetscInt fieldNum, Vec vec,
     PetscCall(DMPlexGetHeightStratum(dm, cellHeight, &cStart, &cEnd));
     if (cEnd > cStart) PetscCall(DMPlexGetCellType(dm, cStart, &locct));
     PetscCallMPI(MPI_Allreduce(&locct, &ct, 1, MPI_INT, MPI_MIN, comm));
-    PetscCall(PetscFECreateLagrangeByCell(PETSC_COMM_SELF, dim, numComponents, ct, 1, PETSC_DETERMINE, &fe));
+    PetscCall(PetscFECreateLagrangeByCell(PETSC_COMM_SELF, dim, numComponents, ct, 1, PETSC_TRUE, PETSC_DETERMINE, &fe));
     PetscCall(PetscFEViewFromOptions(fe, NULL, "-field_fe_view"));
     disc = (PetscObject)fe;
   } else PetscCall(PetscObjectReference(disc));

@@ -853,7 +853,7 @@ static PetscErrorCode DMPlexP1FieldCreate_Private(DM dm, PetscInt f, PetscInt si
   PetscCall(DMGetDimension(dm, &dim));
 
   /* Create a P1 field of the requested size */
-  PetscCall(PetscFECreateLagrange(comm, dim, size, PETSC_TRUE, 1, PETSC_DETERMINE, &fe));
+  PetscCall(PetscFECreateLagrange(comm, dim, size, PETSC_TRUE, 1, PETSC_TRUE, PETSC_DETERMINE, &fe));
   PetscCall(DMSetField(dm, f, NULL, (PetscObject)fe));
   PetscCall(DMCreateDS(dm));
   PetscCall(PetscFEDestroy(&fe));

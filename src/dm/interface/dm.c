@@ -8957,7 +8957,7 @@ PetscErrorCode DMComputeError(DM dm, Vec sol, PetscReal errors[], Vec *errorVec)
       const char     *name;
 
       PetscCall(DMGetField(dm, f, NULL, (PetscObject *)&fe));
-      PetscCall(PetscFECreateLagrange(PETSC_COMM_SELF, dim, Nf, simplex, 0, PETSC_DETERMINE, &efe));
+      PetscCall(PetscFECreateLagrange(PETSC_COMM_SELF, dim, Nf, simplex, 0, PETSC_FALSE, PETSC_DETERMINE, &efe));
       PetscCall(PetscObjectGetName((PetscObject)fe, &name));
       PetscCall(PetscObjectSetName((PetscObject)efe, name));
       PetscCall(PetscFEGetQuadrature(fe, &q));

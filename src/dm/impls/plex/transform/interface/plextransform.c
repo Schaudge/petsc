@@ -662,7 +662,7 @@ static PetscErrorCode DMPlexTransformGetCoordinateFE(DMPlexTransform tr, DMPolyt
 
     dim = DMPolytopeTypeGetDim(ct);
     PetscCall(DMGetCoordinateDim(tr->dm, &cdim));
-    PetscCall(PetscFECreateLagrangeByCell(PETSC_COMM_SELF, dim, cdim, ct, 1, PETSC_DETERMINE, &tr->coordFE[ct]));
+    PetscCall(PetscFECreateLagrangeByCell(PETSC_COMM_SELF, dim, cdim, ct, 1, PETSC_TRUE, PETSC_DETERMINE, &tr->coordFE[ct]));
     {
       PetscDualSpace  dsp;
       PetscQuadrature quad;
