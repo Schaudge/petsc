@@ -8,10 +8,10 @@ static char help[] = "This example demonstrates various ways to use TAOPROX, and
 
 typedef struct {
   PetscScalar lb, ub;
-  PetscInt    n;       /* dimension */
-  PetscInt    problem; /* Types of problems to solve. */
+  PetscInt    n;              /* dimension */
+  PetscInt    problem;        /* Types of problems to solve. */
   PetscReal   stepsize, simp; /* simp: size of simplex */
-  PetscReal   mu1; /* Parameter for soft-threshold */
+  PetscReal   mu1;            /* Parameter for soft-threshold */
 } AppCtx;
 
 int main(int argc, char **argv)
@@ -115,7 +115,6 @@ int main(int argc, char **argv)
     }
   } else SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Unsupported problem type!");
 
-
   PetscCall(TaoRegularizerDestroy(&reg));
   PetscCall(TaoDestroy(&tao));
   PetscCall(VecDestroy(&x));
@@ -140,5 +139,4 @@ int main(int argc, char **argv)
       suffix: simplex
       args: -tao_gatol 1.e-4 -problem 1
       requires: !single
-
 TEST*/

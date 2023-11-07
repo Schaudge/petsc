@@ -3,7 +3,6 @@
 #include <petsc/private/petscimpl.h>
 #include <petsc/private/vecimpl.h>
 
-
 static PetscErrorCode TaoProxContextDestroy_L1(Tao tao)
 {
   TAO_PROX *proxP = (TAO_PROX *)tao->data;
@@ -12,7 +11,6 @@ static PetscErrorCode TaoProxContextDestroy_L1(Tao tao)
   PetscCall(PetscFree(proxP->data));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
 
 PETSC_EXTERN PetscErrorCode TaoProxCreate_L1(Tao tao)
 {

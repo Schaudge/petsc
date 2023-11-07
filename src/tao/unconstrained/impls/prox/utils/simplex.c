@@ -65,9 +65,7 @@ PetscErrorCode TaoApplyProximalMap_Simplex(Tao tao, PetscReal lambda, Vec y, Vec
   size = ctx->size;
   PetscCall(VecSum(y, &sum));
   PetscCall(VecMin(y, NULL, &min));
-  if (PetscAbsReal(sum - size) < ctx->tol) {
-    PetscFunctionReturn(PETSC_SUCCESS);
-  }
+  if (PetscAbsReal(sum - size) < ctx->tol) { PetscFunctionReturn(PETSC_SUCCESS); }
 
   PetscCall(VecGetSize(y, &len));
   PetscCall(VecGetArray(y, &yarray));
@@ -76,23 +74,19 @@ PetscErrorCode TaoApplyProximalMap_Simplex(Tao tao, PetscReal lambda, Vec y, Vec
   /* Not thinking about parallelism right now... */
   /* Scalar Version. Technically one can du cumulative sum,
    * but VecCumSum/PrefixSum isn't there yet. */
-  for (i=len-1; i>=0; i--) {
-     cumsum += yarray[i];
-     tmax = (cumsum - size)/(len-i);
-     if (tmax >= yarray[i-1]) {
-       bget = PETSC_TRUE;
-       break;
-     }
+  for (i = len - 1; i >= 0; i--) {
+    cumsum += yarray[i];
+    tmax = (cumsum - size) / (len - i);
+    if (tmax >= yarray[i - 1]) {
+      bget = PETSC_TRUE;
+      break;
+    }
   }
-  if (!bget) {
-    tmax = (cumsum - size)/len;
-  }
+  if (!bget) { tmax = (cumsum - size) / len; }
 
   /* Ideally, VecShift(y, -tmax), and set all neg to 0 in two kernel calls... */
   PetscCall(VecGetArray(x, &xarray));
-  for (i=0; i< len; i++) {
-    xarray[i] = Clip_Internal(yarray[i], tmax);
-  }
+  for (i = 0; i < len; i++) { xarray[i] = Clip_Internal(yarray[i], tmax); }
   PetscCall(VecRestoreArray(y, &yarray));
   PetscCall(VecRestoreArray(x, &xarray));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -107,11 +101,11 @@ PETSC_EXTERN PetscErrorCode TaoProxCreate_Simplex(Tao tao)
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
   PetscCall(PetscNew(&ctx));
   /* Default is unit simplex */
-  ctx->size                  = 1;
+  ctx->size = 1;
 #if defined(PETSC_USE_REAL_SINGLE)
-  ctx->tol                   = 1.e-5;
+  ctx->tol = 1.e-5;
 #else
-  ctx->tol                   = 1.e-5;
+  ctx->tol = 1.e-5;
 #endif
   proxP->data                = (void *)ctx;
   tao->ops->applyproximalmap = TaoApplyProximalMap_Simplex;
