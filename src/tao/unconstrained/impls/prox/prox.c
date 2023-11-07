@@ -52,7 +52,6 @@ static PetscErrorCode TaoSetUp_Prox(Tao tao)
   PetscCheck(reg, PetscObjectComm((PetscObject)reg), PETSC_ERR_ARG_WRONG, "TaoRegularizer has not been set for TAOPROX.");
   PetscCall(TaoRegularizerGetCentralVector(reg, &y));
   proxP->y = y;
-  PetscCall(PetscObjectReference((PetscObject)proxP->y));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
