@@ -14,11 +14,13 @@ struct _TaoProxOps {
   PetscErrorCode (*orig_objgrad)(Tao, Vec, PetscReal *, Vec, void *);
   PetscErrorCode (*orig_grad)(Tao, Vec, Vec, void *);
   PetscErrorCode (*orig_hess)(Tao, Vec, Mat, Mat, void *);
+  PetscErrorCode (*setfromoptions)(Tao, PetscOptionItems *);
   PetscErrorCode (*destroy)(Tao);
 };
 
 typedef struct {
   PetscReal size;
+  PetscReal tol;
 } TAO_PROX_SIMPLEX;
 
 typedef struct {

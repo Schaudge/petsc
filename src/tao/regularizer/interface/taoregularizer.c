@@ -9,31 +9,6 @@ PetscLogEvent TAOREGULARIZER_Apply;
 PetscLogEvent TAOREGULARIZER_Eval;
 
 /*@C
-  TaoRegularizerViewFromOptions - View a `TaoRegularizer` object based on values in the options database
-
-  Collective
-
-  Input Parameters:
-+ A    - the `Tao` context
-. obj  - Optional object
-- name - command line option
-
-  Level: intermediate
-
-  Note:
-  See `PetscObjectViewFromOptions()` for available viewer options
-
-.seealso: [](ch_tao), `Tao`, `TaoRegularizer`, `TaoRegularizerView()`, `PetscObjectViewFromOptions()`, `TaoRegularizerCreate()`
-@*/
-PetscErrorCode TaoRegularizerViewFromOptions(TaoRegularizer A, PetscObject obj, const char name[])
-{
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(A, TAOREGULARIZER_CLASSID, 1);
-  PetscCall(PetscObjectViewFromOptions((PetscObject)A, obj, name));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/*@C
   TaoRegularizerView - Prints information about the `TaoRegularizer`
 
   Collective
@@ -55,7 +30,7 @@ PetscErrorCode TaoRegularizerViewFromOptions(TaoRegularizer A, PetscObject obj, 
   the file.  All other processors send their
   data to the first processor to print.
 
-.seealso: [](ch_tao), `Tao`, `TaoRegularizer`, `PetscViewerASCIIOpen()`, `TaoRegularizerViewFromOptions()`
+.seealso: [](ch_tao), `Tao`, `TaoRegularizer`, `PetscViewerASCIIOpen()`
 @*/
 PetscErrorCode TaoRegularizerView(TaoRegularizer reg, PetscViewer viewer)
 {
@@ -73,7 +48,6 @@ PetscErrorCode TaoRegularizerView(TaoRegularizer reg, PetscViewer viewer)
   if (isascii) {
     PetscCall(PetscObjectPrintClassNamePrefixType((PetscObject)reg, viewer));
     PetscCall(PetscViewerASCIIPushTab(viewer));
-    PetscTryTypeMethod(reg, view, viewer);
     PetscCall(PetscViewerASCIIPopTab(viewer));
     PetscCall(PetscViewerASCIIPushTab(viewer));
     /* TODO viewer stuff */
@@ -232,7 +206,6 @@ PetscErrorCode TaoRegularizerSetType(TaoRegularizer reg, TaoRegularizerType type
 
   reg->ops->setup          = NULL;
   reg->ops->apply          = NULL;
-  reg->ops->view           = NULL;
   reg->ops->setfromoptions = NULL;
   reg->ops->destroy        = NULL;
   reg->setupcalled         = PETSC_FALSE;
@@ -261,7 +234,7 @@ PetscErrorCode TaoRegularizerSetType(TaoRegularizer reg, TaoRegularizerType type
 @*/
 PetscErrorCode TaoRegularizerSetFromOptions(TaoRegularizer reg)
 {
-  const char *default_type = TAOREGULARIZERL2; //TODO ?? do i need this?
+  const char *default_type = TAOREGULARIZERL2;
   char        type[256], monfilename[PETSC_MAX_PATH_LEN];
   PetscViewer monviewer;
   PetscBool   flg;
@@ -574,6 +547,7 @@ PetscErrorCode TaoRegularizerGetScale(TaoRegularizer reg, PetscReal *s)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(reg, TAOREGULARIZER_CLASSID, 1);
+  PetscAssertPointer(s, 2);
   *s = reg->scale;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

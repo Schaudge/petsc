@@ -1,9 +1,7 @@
 #define TAOREGULARIZER_DLL
 #include <petsc/private/taoregularizerimpl.h>
 
-PETSC_EXTERN PetscErrorCode TaoRegularizerCreate_L1(TaoRegularizer);
 PETSC_EXTERN PetscErrorCode TaoRegularizerCreate_L2(TaoRegularizer);
-PETSC_EXTERN PetscErrorCode TaoRegularizerCreate_KL(TaoRegularizer);
 static PetscBool            TaoRegularizerPackageInitialized = PETSC_FALSE;
 
 /*@C
@@ -38,9 +36,7 @@ PetscErrorCode TaoRegularizerInitializePackage(void)
   TaoRegularizerPackageInitialized = PETSC_TRUE;
 #if !defined(PETSC_USE_COMPLEX)
   PetscCall(PetscClassIdRegister("TaoRegularizer", &TAOREGULARIZER_CLASSID));
-  PetscCall(TaoRegularizerRegister("l1", TaoRegularizerCreate_L1));
   PetscCall(TaoRegularizerRegister("l2", TaoRegularizerCreate_L2));
-  PetscCall(TaoRegularizerRegister("kl", TaoRegularizerCreate_KL));
   PetscCall(PetscLogEventRegister("TaoRegEval", TAOREGULARIZER_CLASSID, &TAOREGULARIZER_Eval));
 #endif
   PetscCall(PetscRegisterFinalize(TaoRegularizerFinalizePackage));

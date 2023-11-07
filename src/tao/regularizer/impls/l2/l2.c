@@ -15,16 +15,6 @@ static PetscErrorCode TaoRegularizerSetFromOptions_L2(TaoRegularizer reg, PetscO
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode TaoRegularizerView_L2(TaoRegularizer reg, PetscViewer pv)
-{
-  PetscBool isascii;
-
-  PetscFunctionBegin;
-  PetscCall(PetscObjectTypeCompare((PetscObject)pv, PETSCVIEWERASCII, &isascii));
-  if (isascii) { PetscCall(PetscViewerASCIIPrintf(pv, "  L2 regularizer")); }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 static PetscErrorCode TaoRegularizerComputeObjective_L2(TaoRegularizer reg, Vec X, PetscReal *f, void *ctx)
 {
   Vec       y;
@@ -82,18 +72,7 @@ static PetscErrorCode TaoRegularizerComputeObjectiveAndGradient_L2(TaoRegularize
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode TaoRegularizerComputeHessian_L2(TaoRegularizer reg, Vec X, Mat H, Mat Hpre, void *ctx)
-{
-  Vec       y;
-  PetscReal scale;
-
-  PetscFunctionBegin;
-  PetscCall(TaoRegularizerGetCentralVector(reg, &y));
-  PetscCall(TaoRegularizerGetScale(reg, &scale));
-  /* Hess: 2*scale*I, where I is identity matrix
-   * TODO */
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
+/* TODO Need to implement Hessian Routine */
 
 PETSC_EXTERN PetscErrorCode TaoRegularizerCreate_L2(TaoRegularizer reg)
 {
@@ -101,14 +80,12 @@ PETSC_EXTERN PetscErrorCode TaoRegularizerCreate_L2(TaoRegularizer reg)
 
   PetscValidHeaderSpecific(reg, TAOREGULARIZER_CLASSID, 1);
 
-  reg->ops->view           = TaoRegularizerView_L2;
   reg->ops->destroy        = TaoRegularizerDestroy_L2;
   reg->ops->setfromoptions = TaoRegularizerSetFromOptions_L2;
 
   reg->ops->computeobjective            = TaoRegularizerComputeObjective_L2;
   reg->ops->computegradient             = TaoRegularizerComputeGradient_L2;
   reg->ops->computeobjectiveandgradient = TaoRegularizerComputeObjectiveAndGradient_L2;
-  reg->ops->computehessian              = TaoRegularizerComputeHessian_L2;
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }

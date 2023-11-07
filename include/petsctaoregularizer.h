@@ -43,7 +43,6 @@ PETSC_EXTERN PetscErrorCode TaoRegularizerSetUp(TaoRegularizer);
 PETSC_EXTERN PetscErrorCode TaoRegularizerDestroy(TaoRegularizer *);
 PETSC_EXTERN PetscErrorCode TaoRegularizerMonitor(TaoRegularizer, PetscInt, PetscReal, PetscReal);
 PETSC_EXTERN PetscErrorCode TaoRegularizerView(TaoRegularizer, PetscViewer);
-PETSC_EXTERN PetscErrorCode TaoRegularizerViewFromOptions(TaoRegularizer, PetscObject, const char[]);
 
 PETSC_EXTERN PetscErrorCode TaoRegularizerSetOptionsPrefix(TaoRegularizer, const char prefix[]);
 PETSC_EXTERN PetscErrorCode TaoRegularizerReset(TaoRegularizer);

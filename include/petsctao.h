@@ -573,8 +573,8 @@ PETSC_EXTERN PetscErrorCode TaoProxSetInitialVector(Tao, Vec);
 PETSC_EXTERN PetscErrorCode TaoProxGetInitialVector(Tao, Vec *);
 PETSC_EXTERN PetscErrorCode TaoGetProxParentTao(Tao, Tao *);
 
-PETSC_EXTERN PetscErrorCode TaoProxSetSoftThresholdContext(Tao, PetscReal, PetscReal);
-PETSC_EXTERN PetscErrorCode TaoProxSetSimplexContext(Tao, PetscReal);
+PETSC_EXTERN PetscErrorCode TaoProxL1SetContext(Tao, PetscReal, PetscReal);
+PETSC_EXTERN PetscErrorCode TaoProxSimplexSetContext(Tao, PetscReal);
 
 PETSC_EXTERN PetscErrorCode TaoProxInitializePackage(void);
 PETSC_EXTERN PetscErrorCode TaoProxFinalizePackage(void);

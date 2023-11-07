@@ -532,6 +532,7 @@ PetscErrorCode TaoSetFromOptions(Tao tao)
   PetscOptionsEnd();
 
   if (tao->linesearch) PetscCall(TaoLineSearchSetFromOptions(tao->linesearch));
+  if (tao->reg) PetscCall(TaoRegularizerSetFromOptions(tao->reg));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

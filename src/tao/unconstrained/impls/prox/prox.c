@@ -52,6 +52,7 @@ static PetscErrorCode TaoSetUp_Prox(Tao tao)
   PetscCheck(reg, PetscObjectComm((PetscObject)reg), PETSC_ERR_ARG_WRONG, "TaoRegularizer has not been set for TAOPROX.");
   PetscCall(TaoRegularizerGetCentralVector(reg, &y));
   proxP->y = y;
+  PetscCall(PetscObjectReference((PetscObject)proxP->y));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -67,7 +68,7 @@ static PetscErrorCode TaoDestroy_Prox(Tao tao)
     PetscCall(VecDestroy(&proxP->y));
   }
 
-  if ((proxP)->ops->destroy) PetscCall((proxP->ops->destroy)(tao));
+  if (proxP->ops->destroy) PetscCall((*proxP->ops->destroy)(tao));
 
   PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoProxMSetType_C", NULL));
   PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoProxMGetType_C", NULL));
