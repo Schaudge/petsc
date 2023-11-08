@@ -286,6 +286,21 @@ PETSC_EXTERN PetscErrorCode PetscRegressorPredict_Linear(PetscRegressor regresso
   PetscFunctionReturn(0);
 }
 
+/* -------------------------------------------------------------------------- */
+/*MC
+     PETSCREGRESSORLINEAR - Linear regression model (ordinary least squares or regularized variants)
+
+   Options Database:
++  -regressor_linear_fit_intercept - Calculate the intercept for the linear model
+-  -regressor_linear_use_ksp - Use KSP instead of TAO for linear model fitting (non-regularized variants only)
+
+   Notes:
+   This is the default regressor in PetscRegressor
+
+   Level: beginner
+
+.seealso: PetscRegressorCreate(), PetscRegressor, PetscRegressorSetType()
+M*/
 PETSC_EXTERN PetscErrorCode PetscRegressorCreate_Linear(PetscRegressor regressor)
 {
   PETSCREGRESSOR_LINEAR *linear;
