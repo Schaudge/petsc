@@ -23,8 +23,8 @@ struct _AppCtx {
   PetscInt    k;     // Number of copies
   PetscInt    r_start;
   PetscInt    r_end;
-  PetscInt    g_start;
-  PetscInt    g_end;
+  PetscInt    q_start;
+  PetscInt    q_end;
   Vec         x;     // solution
   Vec         x_next; // k values from the next process
   VecScatter  x_next_scatter;
@@ -33,14 +33,20 @@ struct _AppCtx {
   Vec         xl;    // lower bound
   Vec         xu;    // upper bound
   Vec         g;     // gradient
+  Vec         g_end;
+  Vec         g_end_local;
+  Vec         g_end_ones;
+  Mat         g_end_mat; // gradient
   Vec         g_lin; // from the linear term
+  Vec         g_y_qrt;
+  VecScatter  g_y_qrt_scatter;
   Vec         vcopy; // local copies of the global v variables
   Vec         gvals; // gradient entries (excluding last k variables)
-  Vec         arrowhead_ones;
   Mat         H;  // Hessian preconditioner
   Vec         Hvals; // Hessian entries
   PetscLayout layout;
   PetscBool   set_from_options_called;
+  PetscBool   owns_end;
 };
 
 static PetscErrorCode AppCtxCreate(MPI_Comm comm, AppCtx *ctx)
@@ -76,8 +82,9 @@ static PetscErrorCode AppCtxSetUp(AppCtx ctx)
 {
   PetscInt     m, n, k, r_start, r_end;
   PetscScalar *ga, *la, *ua;
-  PetscInt     g_start, g_end;
+  PetscInt     q_start, q_end;
   PetscInt    *h_i, *h_j;
+  VecType      vec_type;
 
   PetscFunctionBegin;
   n = ctx->n;
@@ -105,48 +112,46 @@ static PetscErrorCode AppCtxSetUp(AppCtx ctx)
 
   // COO Preallocation for H
   {
-    ctx->g_start = g_start = r_start / k;
-    ctx->g_end   = g_end   = PetscMax(g_start, PetscMin(n - 1, r_end / k));
-    PetscCall(PetscMalloc2(4 * k * (g_end - g_start), &h_i, 4 * k * (g_end - g_start), &h_j));
+    ctx->q_start = q_start = r_start / k;
+    ctx->q_end   = q_end   = PetscMax(q_start, PetscMin(n - 1, r_end / k));
+    PetscCall(PetscMalloc2(4 * k * (q_end - q_start), &h_i, 4 * k * (q_end - q_start), &h_j));
+
+    PetscInt *h_i_xx = &h_i[0 * k * (q_end - q_start)];
+    PetscInt *h_i_xy = &h_i[1 * k * (q_end - q_start)];
+    PetscInt *h_i_yx = &h_i[2 * k * (q_end - q_start)];
+    PetscInt *h_i_yy = &h_i[3 * k * (q_end - q_start)];
+    PetscInt *h_j_xx = &h_j[0 * k * (q_end - q_start)];
+    PetscInt *h_j_xy = &h_j[1 * k * (q_end - q_start)];
+    PetscInt *h_j_yx = &h_j[2 * k * (q_end - q_start)];
+    PetscInt *h_j_yy = &h_j[3 * k * (q_end - q_start)];
     // Tridiagonal structure for the quartic terms
-    for (PetscInt g = g_start; g < PetscMin(m, g_end); g++) {
-      PetscInt *PETSC_RESTRICT g_i = &h_i[(g - g_start) * 4 * k];
-      PetscInt *PETSC_RESTRICT g_j = &h_j[(g - g_start) * 4 * k];
-
-      for (PetscInt i = 0; i < k; i++) {
-        g_i[i + 0 * k] = i + k * g;
-        g_j[i + 0 * k] = i + k * g;
-
-        g_i[i + 1 * k] = i + k * g;
-        g_j[i + 1 * k] = i + k * (g + 1);
-
-        g_i[i + 2 * k] = i + k * (g + 1);
-        g_j[i + 2 * k] = i + k * g;
-
-        g_i[i + 3 * k] = i + k * (g + 1);
-        g_j[i + 3 * k] = i + k * (g + 1);
-      }
+    for (PetscInt r = r_start; r < k * PetscMin(m, q_end); r++) {
+      h_i_xx[r - r_start] = r;
+      h_i_xy[r - r_start] = r;
+      h_i_yx[r - r_start] = r + k;
+      h_i_yy[r - r_start] = r + k;
+      h_j_xx[r - r_start] = r;
+      h_j_xy[r - r_start] = r + k;
+      h_j_yx[r - r_start] = r;
+      h_j_yy[r - r_start] = r + k;
     }
     // Arrowhead structrure for the quadratic terms
-    for (PetscInt g = PetscMax(g_start,PetscMin(m, g_end)); g < g_end; g++) {
-      PetscInt *PETSC_RESTRICT g_i = &h_i[(g - g_start) * 4 * k];
-      PetscInt *PETSC_RESTRICT g_j = &h_j[(g - g_start) * 4 * k];
-
+    for (PetscInt q = PetscMax(q_start,PetscMin(m, q_end)); q < q_end; q++) {
       for (PetscInt i = 0; i < k; i++) {
-        g_i[i + 0 * k] = i + k * g;
-        g_j[i + 0 * k] = i + k * g;
+        PetscInt r = i + k * q;
+        PetscInt s = i + k * (n-1);
 
-        g_i[i + 1 * k] = i + k * g;
-        g_j[i + 1 * k] = i + k * (n - 1);
-
-        g_i[i + 2 * k] = i + k * (n - 1);
-        g_j[i + 2 * k] = i + k * g;
-
-        g_i[i + 3 * k] = i + k * (n - 1);
-        g_j[i + 3 * k] = i + k * (n - 1);
+        h_i_xx[r - r_start] = r;
+        h_i_xy[r - r_start] = r;
+        h_i_yx[r - r_start] = s;
+        h_i_yy[r - r_start] = s;
+        h_j_xx[r - r_start] = r;
+        h_j_xy[r - r_start] = s;
+        h_j_yx[r - r_start] = r;
+        h_j_yy[r - r_start] = s;
       }
     }
-    PetscCall(MatSetPreallocationCOO(ctx->H, 4 * (g_end - g_start), h_i, h_j));
+    PetscCall(MatSetPreallocationCOO(ctx->H, 4 * k * (q_end - q_start), h_i, h_j));
     PetscCall(PetscFree2(h_i, h_j));
   }
   PetscCall(MatSetUp(ctx->H));
@@ -157,23 +162,22 @@ static PetscErrorCode AppCtxSetUp(AppCtx ctx)
 
   PetscCall(MatCreateVecs(ctx->H, &ctx->x, &ctx->g));
   PetscCall(VecZeroEntries(ctx->x));
+  PetscCall(VecGetType(ctx->x, &vec_type));
+
+  PetscCall(VecCreate(ctx->comm, &ctx->Hvals));
+  PetscCall(VecSetSizes(ctx->Hvals, 4 * k * (q_end - q_start), PETSC_DETERMINE));
+  PetscCall(VecSetType(ctx->Hvals, vec_type));
+  PetscCall(VecSetUp(ctx->Hvals));
 
   // the quartic terms need ghost data
   {
     PetscInt n_next = 0;
-    PetscInt *next_nodes = NULL;
-    VecType  vec_type;
     IS       next_nodes_is;
 
-    if (r_start < r_end && r_end <= k * m) {
-      // This process had quartic terms
-      n_next = k;
-    }
-    PetscCall(PetscMalloc1(n_next, &next_nodes));
-    for (PetscInt i = 0; i < n_next; i++) next_nodes[i] = r_end + i;
-    PetscCall(ISCreateGeneral(ctx->comm, n_next, next_nodes, PETSC_OWN_POINTER, &next_nodes_is));
+    // This process had quartic terms unless
+    if (r_start < r_end && r_end <= k * m) n_next = k;
+    PetscCall(ISCreateStride(ctx->comm, n_next, r_end, 1, &next_nodes_is));
 
-    PetscCall(VecGetType(ctx->x, &vec_type));
     PetscCall(VecCreate(ctx->comm, &ctx->x_next));
     PetscCall(VecSetSizes(ctx->x_next, n_next, PETSC_DETERMINE));
     PetscCall(VecSetType(ctx->x_next, vec_type));
@@ -188,14 +192,14 @@ static PetscErrorCode AppCtxSetUp(AppCtx ctx)
   {
     PetscLayout gather_layout;
     PetscBool   owns_end = PETSC_FALSE;
-    VecType     vec_type;
 
-    if (r_start < r_end && r_end == n) owns_end = PETSC_TRUE;
+    if (r_start < r_end && r_end == k * n) owns_end = PETSC_TRUE;
+    ctx->owns_end = owns_end;
 
-    PetscCall(VecGetType(ctx->x, &vec_type));
     PetscCall(VecCreate(ctx->comm, &ctx->x_end));
     PetscCall(VecSetSizes(ctx->x_end, k, PETSC_DETERMINE));
     PetscCall(VecSetType(ctx->x_end, vec_type));
+    PetscCall(VecSetUp(ctx->x_end));
 
     PetscCall(PetscSFCreate(ctx->comm, &ctx->x_end_bcast));
     PetscCall(PetscLayoutCreate(ctx->comm, &gather_layout));
@@ -207,15 +211,6 @@ static PetscErrorCode AppCtxSetUp(AppCtx ctx)
     PetscCall(PetscSFSetUp(ctx->x_end_bcast));
     PetscCall(VecScatterViewFromOptions(ctx->x_end_bcast, NULL, "-x_end_bcast_view"));
   }
-
-  // the vector for the linear portion of the gradient
-  PetscCall(VecDuplicate(ctx->g, &ctx->g_lin));
-  PetscCall(VecGetArray(ctx->g_lin, &ga));
-  for (PetscInt i = r_start; i < r_end; i++) {
-    ga[i - r_start] = -10.0 * (((PetscInt)(i / k)) + 1);
-  }
-  PetscCall(VecRestoreArray(ctx->g_lin, &ga));
-  PetscCall(VecViewFromOptions(ctx->g_lin, NULL, "-linear_gradient_view"));
 
   // create bounds for the first m variables
   PetscCall(VecDuplicate(ctx->x, &ctx->xl));
@@ -233,6 +228,44 @@ static PetscErrorCode AppCtxSetUp(AppCtx ctx)
   PetscCall(VecRestoreArray(ctx->xl, &la));
   PetscCall(VecViewFromOptions(ctx->xl, NULL, "-xl_view"));
   PetscCall(VecViewFromOptions(ctx->xu, NULL, "-xu_view"));
+
+  // the vector for the linear portion of the gradient
+  PetscCall(VecDuplicate(ctx->g, &ctx->g_lin));
+  PetscCall(VecGetArray(ctx->g_lin, &ga));
+  for (PetscInt i = r_start; i < r_end; i++) {
+    ga[i - r_start] = -10.0 * (((PetscInt)(i / k)) + 1);
+  }
+  PetscCall(VecRestoreArray(ctx->g_lin, &ga));
+  PetscCall(VecViewFromOptions(ctx->g_lin, NULL, "-linear_gradient_view"));
+
+  PetscCall(VecDuplicate(ctx->x_end, &ctx->g_end));
+  {
+    PetscInt q_quad_local = PetscMax(0, q_end - PetscMax(m, q_start));
+
+    PetscCall(MatCreateDenseFromVecType(PETSC_COMM_SELF, vec_type, k, q_quad_local, k, q_quad_local, k, NULL, &ctx->g_end_mat));
+    PetscCall(VecCreateLocalVector(ctx->g_end, &ctx->g_end_local));
+    PetscCall(MatCreateVecs(ctx->g_end_mat, &ctx->g_end_ones, NULL));
+    PetscCall(VecSet(ctx->g_end_ones, 1.0));
+  }
+
+  PetscCall(VecCreate(ctx->comm, &ctx->g_y_qrt));
+  PetscCall(VecSetSizes(ctx->g_y_qrt, PetscMax(0, k * (m - q_start)), k * m));
+  PetscCall(VecSetType(ctx->g_y_qrt, vec_type));
+  PetscCall(VecSetUp(ctx->g_y_qrt));
+
+  // the quartic terms need a scatter for writing the y gradient terms
+  {
+    PetscInt n_y_qrt = k * PetscMax(0, PetscMin(m, q_end) - q_start);
+    IS       y_qrt_is;
+
+    PetscCall(ISCreateStride(ctx->comm, n_y_qrt, k * (q_start + 1), 1, &y_qrt_is));
+
+    PetscCall(VecScatterCreate(ctx->g, y_qrt_is, ctx->g_y_qrt, NULL, &ctx->g_y_qrt_scatter));
+    PetscCall(ISDestroy(&y_qrt_is));
+    PetscCall(VecScatterSetUp(ctx->g_y_qrt_scatter));
+    PetscCall(VecScatterViewFromOptions(ctx->g_y_qrt_scatter, NULL, "-g_y_qrt_scatter_view"));
+  }
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -246,29 +279,29 @@ static PETSC_HOSTDEVICE_INLINE_DECL PetscReal QrtObjective(PetscScalar x, PetscS
 
 static const PetscLogDouble QrtObjectiveFlops = 4.0;
 
-static PETSC_HOSTDEVICE_INLINE_DECL void QrtGradient(PetscScalar x, PetscScalar y, PetscReal p, PetscScalar g[2])
+static PETSC_HOSTDEVICE_INLINE_DECL void QrtGradient(PetscScalar x, PetscScalar y, PetscReal p, PetscScalar *PETSC_RESTRICT g_x, PetscScalar *PETSC_RESTRICT g_y)
 {
   PetscScalar a  = x * y;
   PetscScalar a2 = a * a;
   PetscScalar a3 = a * a2;
-  g[0] = y * (p * 4.0 * a3);
-  g[1] = x * (p * 4.0 * a3);
+  *g_x += y * (p * 4.0 * a3);
+  *g_y = x * (p * 4.0 * a3);
 }
 
-static const PetscLogDouble QrtGradientFlops = 7.0;
+static const PetscLogDouble QrtGradientFlops = 8.0;
 
-static PETSC_HOSTDEVICE_INLINE_DECL PetscReal QrtObjectiveGradient(PetscScalar x, PetscScalar y, PetscReal p, PetscScalar g[2])
+static PETSC_HOSTDEVICE_INLINE_DECL PetscReal QrtObjectiveGradient(PetscScalar x, PetscScalar y, PetscReal p, PetscScalar *PETSC_RESTRICT g_x, PetscScalar *PETSC_RESTRICT g_y)
 {
   PetscScalar a  = x * y;
   PetscScalar a2 = a * a;
   PetscScalar a3 = a * a2;
   PetscScalar a4 = a * a3;
-  g[0] = y * (p * 4.0 * a3);
-  g[1] = x * (p * 4.0 * a3);
+  *g_x += y * (p * 4.0 * a3);
+  *g_y = x * (p * 4.0 * a3);
   return p * a4;
 }
 
-static const PetscLogDouble QrtObjectiveGradientFlops = 9.0;
+static const PetscLogDouble QrtObjectiveGradientFlops = 10.0;
 
 static PETSC_HOSTDEVICE_INLINE_DECL void QrtHessian(PetscScalar x, PetscScalar y, PetscReal p, PetscScalar *PETSC_RESTRICT h_xx, PetscScalar *PETSC_RESTRICT h_xy, PetscScalar *PETSC_RESTRICT h_yx, PetscScalar *PETSC_RESTRICT h_yy)
 {
@@ -276,7 +309,7 @@ static PETSC_HOSTDEVICE_INLINE_DECL void QrtHessian(PetscScalar x, PetscScalar y
   PetscScalar a2 = a * a;
   PetscScalar a3 = a * a2;
   *h_xx = (y*y) * (p * 12.0 * a2);
-  *h_xy = *h_yx = (x*y) * (p * 12.0 * a2) + (p * 4.0 * a3);
+  *h_xy = *h_yx = (p * 16.0 * a3);
   *h_yy = (x*x) * (p * 12.0 * a2);
 }
 
@@ -289,22 +322,22 @@ static PETSC_HOSTDEVICE_INLINE_DECL PetscReal QuadObjective(PetscScalar x, Petsc
 
 static const PetscLogDouble QuadObjectiveFlops = 8.0;
 
-static PETSC_HOSTDEVICE_INLINE_DECL void QuadGradient(PetscScalar x, PetscScalar y, PetscScalar g[2])
+static PETSC_HOSTDEVICE_INLINE_DECL void QuadGradient(PetscScalar x, PetscScalar y, PetscScalar *PETSC_RESTRICT g_x, PetscScalar *PETSC_RESTRICT g_y)
 {
-  g[0] = 8.0 * x + y;
-  g[1] = 4.0 * y + x;
+  *g_x += 8.0 * x + y;
+  *g_y = 4.0 * y + x;
 }
 
-static const PetscLogDouble QuadGradientFlops = 4.0;
+static const PetscLogDouble QuadGradientFlops = 5.0;
 
-static PETSC_HOSTDEVICE_INLINE_DECL PetscReal QuadObjectiveGradient(PetscScalar x, PetscScalar y, PetscScalar g[2])
+static PETSC_HOSTDEVICE_INLINE_DECL PetscReal QuadObjectiveGradient(PetscScalar x, PetscScalar y, PetscScalar *PETSC_RESTRICT g_x, PetscScalar *PETSC_RESTRICT g_y)
 {
-  g[0] = 8.0 * x + y;
-  g[1] = 4.0 * y + x;
+  *g_x += 8.0 * x + y;
+  *g_y = 4.0 * y + x;
   return (4.0 * x * x + 2.0 * y * y + x * y);
 }
 
-static const PetscLogDouble QuadObjectiveGradientFlops = 12.0;
+static const PetscLogDouble QuadObjectiveGradientFlops = 13.0;
 
 static PETSC_HOSTDEVICE_INLINE_DECL void QuadHessian(PetscScalar x, PetscScalar y, PetscScalar *PETSC_RESTRICT h_xx, PetscScalar *PETSC_RESTRICT h_xy, PetscScalar *PETSC_RESTRICT h_yx, PetscScalar *PETSC_RESTRICT h_yy)
 {
@@ -318,52 +351,298 @@ static const PetscLogDouble QuadHessianFlops = 9.0;
 static PetscErrorCode QrtQuadObjective_Host(AppCtx ctx, const PetscScalar *PETSC_RESTRICT X, const PetscScalar *PETSC_RESTRICT X_next, const PetscScalar *PETSC_RESTRICT X_end, PetscReal *f)
 {
   PetscReal _f = 0.0;
-  PetscInt  m, k, g_start, g_end, g_mid, g_mid_local;
+  PetscInt  m, k, q_start, q_end, q_mid, q_mid_local;
 
   PetscFunctionBegin;
   m           = ctx->m;
   k           = ctx->k;
-  g_start     = ctx->g_start;
-  g_end       = ctx->g_end;
-  g_mid       = PetscMax(g_start,PetscMin(m, g_end));
-  g_mid_local = g_mid;
+  q_start     = ctx->q_start;
+  q_end       = ctx->q_end;
+  q_mid       = PetscMax(q_start,PetscMin(m, q_end));
+  q_mid_local = q_mid;
 
   // quartic terms
-  if (g_mid == g_end) g_mid_local = PetscMax(g_start, g_mid - 1);
-  for (PetscInt g = g_start; g < g_mid_local; g++) {
+  if (q_mid == q_end) q_mid_local = PetscMax(q_start, q_mid - 1);
+  for (PetscInt q = q_start; q < q_mid_local; q++) {
+    PetscReal   p = ((PetscReal)q + 1.0) * (1.0 / (PetscReal)m);
+
     PetscPragmaSIMD
     for (PetscInt i = 0; i < k; i++) {
-      PetscScalar x = X[i + k * (g - g_start)];
-      PetscScalar y = X[i + k * (g + 1 - g_start)];
-      PetscReal   p = ((PetscReal)i) * (1.0 / (PetscReal)m);
+      PetscInt j = i + k * (q - q_start);
 
-      _f += QrtObjective(x, y, p);
+      _f += QrtObjective(X[j], X[j+k], p);
     }
   }
-  if (g_mid_local + 1 == g_mid) {
+  if (q_mid_local + 1 == q_mid) {
+    PetscReal   p = ((PetscReal)q_mid_local + 1.0) * (1.0 / (PetscReal)m);
+
     PetscPragmaSIMD
     for (PetscInt i = 0; i < k; i++) {
-      PetscScalar x = X[i + k * (g_mid_local - g_start)];
-      PetscScalar y = X_next[i];
-      PetscReal   p = ((PetscReal)i) * (1.0 / (PetscReal)m);
+      PetscInt j = i + k * (q_mid_local - q_start);
 
-      _f += QrtObjective(x, y, p);
+      _f += QrtObjective(X[j], X_next[i], p);
     }
   }
-  PetscCall(PetscLogFlops(QrtObjectiveFlops * (g_mid - g_end) * k));
+  PetscCall(PetscLogFlops((QrtObjectiveFlops + 1) * (q_mid - q_start) * k));
 
   // quadratic terms
-  for (PetscInt g = g_mid; g < g_end; g++) {
+  for (PetscInt q = q_mid; q < q_end; q++) {
     PetscPragmaSIMD
     for (PetscInt i = 0; i < k; i++) {
-      PetscScalar x = X[i + k * (g - g_start)];
-      PetscScalar y = X_end[i];
+      PetscInt j = i + k * (q - q_start);
 
-      _f += QuadObjective(x, y);
+      _f += QuadObjective(X[j], X_end[i]);
     }
   }
-  PetscCall(PetscLogFlops(QuadObjectiveFlops * (g_end - g_mid) * k));
+  PetscCall(PetscLogFlops((QuadObjectiveFlops + 1) * (q_end - q_mid) * k));
   *f += _f;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode QrtQuadGradient_Host(AppCtx ctx, const PetscScalar *PETSC_RESTRICT X, const PetscScalar *PETSC_RESTRICT X_next, const PetscScalar *PETSC_RESTRICT X_end, PetscScalar *PETSC_RESTRICT g_x, PetscScalar *PETSC_RESTRICT g_y_qrt, PetscScalar *PETSC_RESTRICT g_y_quad)
+{
+  PetscInt  m, k, q_start, q_end, q_mid, q_mid_local;
+
+  PetscFunctionBegin;
+  m           = ctx->m;
+  k           = ctx->k;
+  q_start     = ctx->q_start;
+  q_end       = ctx->q_end;
+  q_mid       = PetscMax(q_start,PetscMin(m, q_end));
+  q_mid_local = q_mid;
+
+  // quartic terms
+  if (q_mid == q_end) q_mid_local = PetscMax(q_start, q_mid - 1);
+  for (PetscInt q = q_start; q < q_mid_local; q++) {
+    PetscReal p = ((PetscReal)q + 1.0) * (1.0 / (PetscReal)m);
+
+    PetscPragmaSIMD
+    for (PetscInt i = 0; i < k; i++) {
+      PetscInt j = i + k * (q - q_start);
+
+      QrtGradient(X[j], X[j + k], p, &g_x[j], &g_y_qrt[j]);
+    }
+  }
+  if (q_mid_local + 1 == q_mid) {
+    PetscReal   p = ((PetscReal)q_mid_local + 1.0) * (1.0 / (PetscReal)m);
+
+    PetscPragmaSIMD
+    for (PetscInt i = 0; i < k; i++) {
+      PetscInt    j = i + k * (q_mid_local - q_start);
+
+      QrtGradient(X[j], X_next[i], p, &g_x[j], &g_y_qrt[j]);
+    }
+  }
+  PetscCall(PetscLogFlops(QrtGradientFlops * (q_mid - q_start) * k));
+
+  // quadratic terms
+  for (PetscInt q = q_mid ; q < q_end; q++) {
+    PetscPragmaSIMD
+    for (PetscInt i = 0; i < k; i++) {
+      PetscInt j = i + k * (q - q_start);
+      PetscInt j_quad = i + k * (q - q_mid);
+
+      QuadGradient(X[j], X_end[i], &g_x[j], &g_y_quad[j_quad]);
+    }
+  }
+  PetscCall(PetscLogFlops(QuadGradientFlops * (q_end - q_mid) * k));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode QrtQuadObjectiveGradient_Host(AppCtx ctx, const PetscScalar *PETSC_RESTRICT X, const PetscScalar *PETSC_RESTRICT X_next, const PetscScalar *PETSC_RESTRICT X_end, PetscScalar *PETSC_RESTRICT g_x, PetscScalar *PETSC_RESTRICT g_y_qrt, PetscScalar *PETSC_RESTRICT g_y_quad, PetscReal *f)
+{
+  PetscReal _f = 0.0;
+  PetscInt  m, k, q_start, q_end, q_mid, q_mid_local;
+
+  PetscFunctionBegin;
+  m           = ctx->m;
+  k           = ctx->k;
+  q_start     = ctx->q_start;
+  q_end       = ctx->q_end;
+  q_mid       = PetscMax(q_start,PetscMin(m, q_end));
+  q_mid_local = q_mid;
+
+  // quartic terms
+  if (q_mid == q_end) q_mid_local = PetscMax(q_start, q_mid - 1);
+  for (PetscInt q = q_start; q < q_mid_local; q++) {
+    PetscReal p = ((PetscReal)q + 1.0) * (1.0 / (PetscReal)m);
+
+    PetscPragmaSIMD
+    for (PetscInt i = 0; i < k; i++) {
+      PetscInt j = i + k * (q - q_start);
+
+      _f += QrtObjectiveGradient(X[j], X[j + k], p, &g_x[j], &g_y_qrt[j]);
+    }
+  }
+  if (q_mid_local + 1 == q_mid) {
+    PetscReal   p = ((PetscReal)q_mid_local + 1.0) * (1.0 / (PetscReal)m);
+
+    PetscPragmaSIMD
+    for (PetscInt i = 0; i < k; i++) {
+      PetscInt    j = i + k * (q_mid_local - q_start);
+
+      _f += QrtObjectiveGradient(X[j], X_next[i], p, &g_x[j], &g_y_qrt[j]);
+    }
+  }
+  PetscCall(PetscLogFlops((QrtObjectiveGradientFlops + 1) * (q_mid - q_start) * k));
+
+  // quadratic terms
+  for (PetscInt q = q_mid ; q < q_end; q++) {
+    PetscPragmaSIMD
+    for (PetscInt i = 0; i < k; i++) {
+      PetscInt j = i + k * (q - q_start);
+      PetscInt j_quad = i + k * (q - q_mid);
+
+      _f += QuadObjectiveGradient(X[j], X_end[i], &g_x[j], &g_y_quad[j_quad]);
+    }
+  }
+  PetscCall(PetscLogFlops((QuadObjectiveGradientFlops + 1) * (q_end - q_mid) * k));
+  *f += _f;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode QrtQuadHessian_Host(AppCtx ctx, const PetscScalar *PETSC_RESTRICT X, const PetscScalar *PETSC_RESTRICT X_next, const PetscScalar *PETSC_RESTRICT X_end, PetscScalar *PETSC_RESTRICT h_xx, PetscScalar *PETSC_RESTRICT h_xy, PetscScalar *PETSC_RESTRICT h_yx, PetscScalar *PETSC_RESTRICT h_yy)
+{
+  PetscInt  m, k, q_start, q_end, q_mid, q_mid_local;
+
+  PetscFunctionBegin;
+  m           = ctx->m;
+  k           = ctx->k;
+  q_start     = ctx->q_start;
+  q_end       = ctx->q_end;
+  q_mid       = PetscMax(q_start,PetscMin(m, q_end));
+  q_mid_local = q_mid;
+
+  // quartic terms
+  if (q_mid == q_end) q_mid_local = PetscMax(q_start, q_mid - 1);
+  for (PetscInt q = q_start; q < q_mid_local; q++) {
+    PetscReal p = ((PetscReal)q + 1.0) * (1.0 / (PetscReal)m);
+
+    PetscPragmaSIMD
+    for (PetscInt i = 0; i < k; i++) {
+      PetscInt j = i + k * (q - q_start);
+
+      QrtHessian(X[j], X[j + k], p, &h_xx[j], &h_xy[j], &h_yx[j], &h_yy[j]);
+    }
+  }
+  if (q_mid_local + 1 == q_mid) {
+    PetscReal   p = ((PetscReal)q_mid_local + 1.0) * (1.0 / (PetscReal)m);
+
+    PetscPragmaSIMD
+    for (PetscInt i = 0; i < k; i++) {
+      PetscInt    j = i + k * (q_mid_local - q_start);
+
+      QrtHessian(X[j], X_next[i], p, &h_xx[j], &h_xy[j], &h_yx[j], &h_yy[j]);
+    }
+  }
+  PetscCall(PetscLogFlops((QrtHessianFlops + 1) * (q_mid - q_start) * k));
+
+  // quadratic terms
+  for (PetscInt q = q_mid ; q < q_end; q++) {
+    PetscPragmaSIMD
+    for (PetscInt i = 0; i < k; i++) {
+      PetscInt j = i + k * (q - q_start);
+
+      QuadHessian(X[j], X_end[i], &h_xx[j], &h_xy[j], &h_yx[j], &h_yy[j]);
+    }
+  }
+  PetscCall(PetscLogFlops((QuadHessianFlops + 1) * (q_end - q_mid) * k));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode AppCtxGetSolutionArraysRead(AppCtx ctx, Vec x, const PetscScalar **x_a, const PetscScalar **x_next_a, const PetscScalar **x_end_a)
+{
+  PetscInt           k, r_start, r_end;
+  const PetscScalar *xa, *xnexta, *xa_root = NULL;
+  PetscScalar       *xenda;
+
+  PetscFunctionBegin;
+  r_start = ctx->r_start;
+  r_end = ctx->r_end;
+  k = ctx->k;
+  PetscCall(VecScatterBegin(ctx->x_next_scatter, x, ctx->x_next, INSERT_VALUES, SCATTER_FORWARD));
+  PetscCall(VecScatterEnd(ctx->x_next_scatter, x, ctx->x_next, INSERT_VALUES, SCATTER_FORWARD));
+  PetscCall(VecGetArrayRead(x, &xa));
+  PetscCall(VecGetArrayRead(ctx->x_next, &xnexta));
+  PetscCall(VecGetArray(ctx->x_end, &xenda));
+  if (ctx->owns_end) xa_root = &xa[(r_end - r_start) - k];
+  PetscCall(PetscSFBcastBegin(ctx->x_end_bcast, MPIU_SCALAR, xa_root, xenda, MPI_REPLACE));
+  PetscCall(PetscSFBcastEnd(ctx->x_end_bcast, MPIU_SCALAR, xa_root, xenda, MPI_REPLACE));
+  *x_a = xa;
+  *x_next_a = xnexta;
+  *x_end_a = xenda;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode AppCtxRestoreSolutionArraysRead(AppCtx ctx, Vec x, const PetscScalar **x_a, const PetscScalar **x_next_a, const PetscScalar **x_end_a)
+{
+  PetscFunctionBegin;
+  PetscCall(VecRestoreArray(ctx->x_end, (PetscScalar **) x_end_a));
+  PetscCall(VecRestoreArrayRead(ctx->x_next, x_next_a));
+  PetscCall(VecRestoreArrayRead(x, x_a));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode AppCtxGetGradientArrays(AppCtx ctx, Vec g, PetscScalar **g_x, PetscScalar **g_y_qrt, PetscScalar **g_y_quad)
+{
+  PetscFunctionBegin;
+  PetscCall(VecGetArray(g, g_x));
+  PetscCall(VecGetArrayWrite(ctx->g_y_qrt, g_y_qrt));
+  PetscCall(MatDenseGetArrayWrite(ctx->g_end_mat, g_y_quad));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode AppCtxRestoreGradientArrays(AppCtx ctx, Vec g, PetscScalar **g_x, PetscScalar **g_y_qrt, PetscScalar **g_y_quad)
+{
+  PetscInt           k, r_start, r_end;
+  const PetscScalar *g_end_a;
+  PetscScalar *g_end_root_a = NULL;
+
+  PetscFunctionBegin;
+  r_start = ctx->r_start;
+  r_end = ctx->r_end;
+  k = ctx->k;
+  PetscCall(MatDenseRestoreArrayWrite(ctx->g_end_mat, g_y_quad));
+  PetscCall(VecGetLocalVector(ctx->g_end, ctx->g_end_local));
+  PetscCall(MatMult(ctx->g_end_mat, ctx->g_end_ones, ctx->g_end_local));
+  PetscCall(VecRestoreLocalVector(ctx->g_end, ctx->g_end_local));
+  PetscCall(VecGetArrayRead(ctx->g_end, &g_end_a));
+  if (ctx->owns_end) g_end_root_a = &((*g_x)[(r_end - r_start) - k]);
+  PetscCall(PetscSFReduceBegin(ctx->x_end_bcast, MPIU_SCALAR, g_end_a, g_end_root_a, MPI_SUM));
+  PetscCall(PetscSFReduceEnd(ctx->x_end_bcast, MPIU_SCALAR, g_end_a, g_end_root_a, MPI_SUM));
+  PetscCall(VecRestoreArrayRead(ctx->g_end, &g_end_a));
+  PetscCall(VecRestoreArrayWrite(ctx->g_y_qrt, g_y_qrt));
+  PetscCall(VecRestoreArray(g, g_x));
+  PetscCall(VecScatterBegin(ctx->g_y_qrt_scatter, ctx->g_y_qrt, g, ADD_VALUES, SCATTER_REVERSE));
+  PetscCall(VecScatterEnd(ctx->g_y_qrt_scatter, ctx->g_y_qrt, g, ADD_VALUES, SCATTER_REVERSE));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode AppCtxGetHessianArraysWrite(AppCtx ctx, Mat H, PetscScalar **h_xx, PetscScalar **h_xy, PetscScalar **h_yx, PetscScalar **h_yy)
+{
+  PetscScalar *ha;
+  PetscInt k, q_start, q_end;
+
+  PetscFunctionBegin;
+  q_start = ctx->q_start;
+  q_end = ctx->q_end;
+  k = ctx->k;
+  PetscCall(VecGetArrayWrite(ctx->Hvals, &ha));
+  *h_xx = &ha[0 * k * (q_end - q_start)];
+  *h_xy = &ha[1 * k * (q_end - q_start)];
+  *h_yx = &ha[2 * k * (q_end - q_start)];
+  *h_yy = &ha[3 * k * (q_end - q_start)];
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode AppCtxRestoreHessianArraysWrite(AppCtx ctx, Mat H, PetscScalar **h_xx, PetscScalar **h_xy, PetscScalar **h_yx, PetscScalar **h_yy)
+{
+  PetscFunctionBegin;
+  PetscCall(MatSetValuesCOO(H, *h_xx, INSERT_VALUES));
+  PetscCall(MatAssemblyBegin(H, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyEnd(H, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatViewFromOptions(H, NULL, "-hessian_view"));
+  PetscCall(VecRestoreArrayWrite(ctx->Hvals, h_xx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -372,50 +651,67 @@ static PetscErrorCode QrtQuadObjective(Tao tao, Vec x, PetscReal *f, void *data)
   AppCtx      ctx = (AppCtx) data;
   PetscScalar f_lin;
   PetscReal   _f = 0.0;
-  PetscInt    n, k, r_start, r_end;
-  const PetscScalar *xa, *xnexta, *xa_root = NULL;
-  PetscScalar *xenda;
+  const PetscScalar *xa, *xnexta, *xenda;
 
   PetscFunctionBegin;
-  r_start = ctx->r_start;
-  r_end = ctx->r_end;
-  n = ctx->n;
-  k = ctx->k;
   PetscCall(VecDot(x, ctx->g_lin, &f_lin));
   _f = PetscRealPart(f_lin);
-  PetscCall(VecScatterBegin(ctx->x_next_scatter, x, ctx->x_next, INSERT_VALUES, SCATTER_FORWARD));
-  PetscCall(VecScatterEnd(ctx->x_next_scatter, x, ctx->x_next, INSERT_VALUES, SCATTER_FORWARD));
-  PetscCall(VecGetArrayRead(x, &xa));
-  PetscCall(VecGetArrayRead(ctx->x_next, &xnexta));
-  PetscCall(VecGetArray(ctx->x_end, &xenda));
-  if (ctx->r_start < ctx->r_end && ctx->r_end == n) xa_root = &xa[(r_end - r_start) - k];
-  PetscCall(PetscSFBcastBegin(ctx->x_end_bcast, MPIU_SCALAR, xa_root, xenda, MPI_REPLACE));
-  PetscCall(PetscSFBcastEnd(ctx->x_end_bcast, MPIU_SCALAR, xa_root, xenda, MPI_REPLACE));
+  PetscCall(AppCtxGetSolutionArraysRead(ctx, x, &xa, &xnexta, &xenda));
   PetscCall(QrtQuadObjective_Host(ctx, xa, xnexta, xenda, &_f));
-  PetscCall(VecRestoreArray(ctx->x_end, &xenda));
-  PetscCall(VecRestoreArrayRead(ctx->x_next, &xnexta));
-  PetscCall(VecRestoreArrayRead(x, &xa));
+  PetscCall(AppCtxRestoreSolutionArraysRead(ctx, x, &xa, &xnexta, &xenda));
   *f = _f;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode QrtQuadObjectiveAndGradient(Tao tao, Vec x, PetscReal *f, Vec g, void *ctx)
+static PetscErrorCode QrtQuadGradient(Tao tao, Vec x, Vec g, void *data)
 {
-  PetscReal _f = 0.0;
-  PetscInt r_start, r_end;
+  AppCtx      ctx = (AppCtx) data;
+  const PetscScalar *xa, *xnexta, *xenda;
+  PetscScalar *g_x, *g_y_qrt, *g_y_quad;
 
   PetscFunctionBegin;
-  *f = 0.0;
-  PetscCall(VecZeroEntries(g));
+  PetscCall(VecCopy(ctx->g_lin, g));
+  PetscCall(AppCtxGetSolutionArraysRead(ctx, x, &xa, &xnexta, &xenda));
+  PetscCall(AppCtxGetGradientArrays(ctx, g, &g_x, &g_y_qrt, &g_y_quad));
+  PetscCall(QrtQuadGradient_Host(ctx, xa, xnexta, xenda, g_x, g_y_qrt, g_y_quad));
+  PetscCall(AppCtxRestoreGradientArrays(ctx, g, &g_x, &g_y_qrt, &g_y_quad));
+  PetscCall(AppCtxRestoreSolutionArraysRead(ctx, x, &xa, &xnexta, &xenda));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode QrtQuadGradient(Tao tao, Vec x, Vec g, void *ctx)
+static PetscErrorCode QrtQuadObjectiveAndGradient(Tao tao, Vec x, PetscReal *f, Vec g, void *data)
 {
-  PetscReal _f = 0.0;
+  AppCtx      ctx = (AppCtx) data;
+  PetscReal   _f = 0.0;
+  PetscScalar f_lin;
+  const PetscScalar *xa, *xnexta, *xenda;
+  PetscScalar *g_x, *g_y_qrt, *g_y_quad;
 
   PetscFunctionBegin;
-  PetscCall(VecZeroEntries(g));
+  PetscCall(VecDot(x, ctx->g_lin, &f_lin));
+  _f = PetscRealPart(f_lin);
+  PetscCall(VecCopy(ctx->g_lin, g));
+  PetscCall(AppCtxGetSolutionArraysRead(ctx, x, &xa, &xnexta, &xenda));
+  PetscCall(AppCtxGetGradientArrays(ctx, g, &g_x, &g_y_qrt, &g_y_quad));
+  PetscCall(QrtQuadObjectiveGradient_Host(ctx, xa, xnexta, xenda, g_x, g_y_qrt, g_y_quad, &_f));
+  PetscCall(AppCtxRestoreGradientArrays(ctx, g, &g_x, &g_y_qrt, &g_y_quad));
+  PetscCall(AppCtxRestoreSolutionArraysRead(ctx, x, &xa, &xnexta, &xenda));
+  *f = _f;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode QrtQuadHessian(Tao tao, Vec x, Mat H, Mat Hpre, void *data)
+{
+  AppCtx      ctx = (AppCtx) data;
+  const PetscScalar *xa, *xnexta, *xenda;
+  PetscScalar *h_xx, *h_xy, *h_yx, *h_yy;
+
+  PetscFunctionBegin;
+  PetscCall(AppCtxGetSolutionArraysRead(ctx, x, &xa, &xnexta, &xenda));
+  PetscCall(AppCtxGetHessianArraysWrite(ctx, H, &h_xx, &h_xy, &h_yx, &h_yy));
+  PetscCall(QrtQuadHessian_Host(ctx, xa, xnexta, xenda, h_xx, h_xy, h_yx, h_yy));
+  PetscCall(AppCtxRestoreHessianArraysWrite(ctx, H, &h_xx, &h_xy, &h_yx, &h_yy));
+  PetscCall(AppCtxRestoreSolutionArraysRead(ctx, x, &xa, &xnexta, &xenda));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -432,6 +728,7 @@ static PetscErrorCode AppCtxCreateTao(AppCtx ctx, Tao *tao)
   PetscCall(TaoSetObjective(t, QrtQuadObjective, (void *) ctx));
   PetscCall(TaoSetGradient(t, ctx->g, QrtQuadGradient, (void *) ctx));
   PetscCall(TaoSetObjectiveAndGradient(t, ctx->g,  QrtQuadObjectiveAndGradient, (void *) ctx));
+  PetscCall(TaoSetHessian(t, ctx->H, ctx->H, QrtQuadHessian, (void *) ctx));
   if (ctx->set_from_options_called) PetscCall(TaoSetFromOptions(t));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -443,15 +740,22 @@ static PetscErrorCode AppCtxDestroy(AppCtx *ctx)
   PetscFunctionBegin;
   c = *ctx;
   *ctx = NULL;
-  PetscCall(VecDestroy(&c->xu));
-  PetscCall(VecDestroy(&c->xl));
+  PetscCall(VecScatterDestroy(&c->g_y_qrt_scatter));
+  PetscCall(VecDestroy(&c->g_y_qrt));
+  PetscCall(VecDestroy(&c->g_end_local));
+  PetscCall(VecDestroy(&c->g_end_ones));
+  PetscCall(MatDestroy(&c->g_end_mat));
+  PetscCall(VecDestroy(&c->g_end));
   PetscCall(VecDestroy(&c->g_lin));
   PetscCall(VecDestroy(&c->g));
+  PetscCall(VecDestroy(&c->xu));
+  PetscCall(VecDestroy(&c->xl));
   PetscCall(PetscSFDestroy(&c->x_end_bcast));
   PetscCall(VecDestroy(&c->x_end));
   PetscCall(VecScatterDestroy(&c->x_next_scatter));
   PetscCall(VecDestroy(&c->x_next));
   PetscCall(VecDestroy(&c->x));
+  PetscCall(VecDestroy(&c->Hvals));
   PetscCall(MatDestroy(&c->H));
   PetscCall(PetscLayoutDestroy(&c->layout));
   PetscCall(PetscFree(c));
@@ -481,5 +785,7 @@ int main(int argc, char **argv)
 
   test:
     suffix: 0
+    nsize: 1
+    args: -n 50 -m 11 -k 2 -tao_type bnls
 
 TEST*/
