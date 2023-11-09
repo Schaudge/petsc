@@ -37,7 +37,7 @@ PetscErrorCode TaoProxL1SetContext(Tao tao, PetscReal lb, PetscReal ub)
 
   PetscFunctionBegin;
   PetscCall(PetscStrcmp(proxP->type, TAOPROX_L1, &is_l1));
-  if (is_l1) PetscFunctionReturn(PETSC_SUCCESS);
+  if (!is_l1) PetscFunctionReturn(PETSC_SUCCESS);
   ctx->lb = lb;
   ctx->ub = ub;
   PetscFunctionReturn(PETSC_SUCCESS);

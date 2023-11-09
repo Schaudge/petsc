@@ -33,7 +33,7 @@ PetscErrorCode TaoProxSimplexSetContext(Tao tao, PetscReal size)
 
   PetscFunctionBegin;
   PetscCall(PetscStrcmp(proxP->type, TAOPROX_SIMPLEX, &is_s));
-  if (is_s) PetscFunctionReturn(PETSC_SUCCESS);
+  if (!is_s) PetscFunctionReturn(PETSC_SUCCESS);
   ctx->size = size;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

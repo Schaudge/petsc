@@ -182,24 +182,6 @@ PETSC_EXTERN PetscErrorCode TaoProxGetStepSize(Tao tao, PetscReal *step)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PETSC_EXTERN PetscErrorCode TaoProxSetVM(Tao tao, Mat vm)
-{
-  TAO_PROX *proxP = (TAO_PROX *)tao->data;
-
-  PetscFunctionBegin;
-  proxP->vm = vm;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PETSC_EXTERN PetscErrorCode TaoProxGetVM(Tao tao, Mat *vm)
-{
-  TAO_PROX *proxP = (TAO_PROX *)tao->data;
-
-  PetscFunctionBegin;
-  *vm = proxP->vm;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 PETSC_EXTERN PetscErrorCode TaoProxSetInitialVector(Tao tao, Vec y)
 {
   TAO_PROX *proxP = (TAO_PROX *)tao->data;
@@ -331,14 +313,5 @@ PetscErrorCode TaoProxRegister(TaoProxType type, PetscErrorCode (*func)(Tao, Pet
   PetscFunctionBegin;
   PetscCall(TaoProxInitializePackage());
   PetscCall(PetscFunctionListAdd(&TaoProxList, type, func));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/* TODO should we support this? wrt to usemethod in taosolve in taoprox... */
-PETSC_EXTERN PetscErrorCode TaoApplyProximalMap(Tao tao, PetscReal lambda, Vec y, Vec x)
-{
-  PetscFunctionBegin;
-  /*TODO lock push, etc boilerplates... */
-  PetscUseTypeMethod(tao, applyproximalmap, lambda, y, x, tao->user_proxP);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
