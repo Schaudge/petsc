@@ -216,8 +216,7 @@ PetscErrorCode PetscRegressorLinearGetKSP(PetscRegressor regressor,KSP *ksp)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(regressor,PETSCREGRESSOR_CLASSID,1);
   PetscValidPointer(ksp,2);
-  /* Analogous to how SNESGetKSP() operates, this routine should create the KSP if it doesn't exist.
-   * TODO: Follow what SNESGetKSP() does when setting this up. */
+  /* Analogous to how SNESGetKSP() operates, this routine should create the KSP if it doesn't exist. */
   if (!linear->ksp) {
     ierr = KSPCreate(PetscObjectComm((PetscObject)regressor),&linear->ksp);CHKERRQ(ierr);
     ierr = PetscObjectIncrementTabLevel((PetscObject)linear->ksp,(PetscObject)regressor,1);CHKERRQ(ierr);
@@ -253,12 +252,12 @@ PetscErrorCode PetscRegressorLinearGetTao(PetscRegressor regressor,Tao *tao)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(regressor,PETSCREGRESSOR_CLASSID,1);
   PetscValidPointer(tao,2);
-  /* Analogous to how SNESGetKSP() operates, this routine should create the TAO if it doesn't exist.
-   * TODO: Follow what SNESGetKSP() does when setting this up. */
   if (!linear->tao) {
     ierr = TaoCreate(PetscObjectComm((PetscObject)regressor),&linear->tao);CHKERRQ(ierr);
     ierr = PetscObjectIncrementTabLevel((PetscObject)linear->tao,(PetscObject)regressor,1);CHKERRQ(ierr);
     ierr = PetscLogObjectParent((PetscObject)regressor,(PetscObject)linear->tao);CHKERRQ(ierr);
+    /* Note: If attempting to follow the pattern used by SNESGetKSP(), I should call TaoMonitorSetFromOptions() here.
+     *       But this function does not exist? Should it be added? */
     ierr = PetscObjectSetOptions((PetscObject)linear->tao,((PetscObject)regressor)->options);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);

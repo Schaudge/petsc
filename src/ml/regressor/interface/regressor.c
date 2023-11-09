@@ -262,7 +262,6 @@ PetscErrorCode PetscRegressorReset(PetscRegressor regressor)
   if (regressor->ops->reset) {
     ierr = (*regressor->ops->reset)(regressor);CHKERRQ(ierr);
   }
-  // TODO: Finish putting all of the Reset, Destroy, and free calls needed here!
   ierr = MatDestroy(&regressor->training);CHKERRQ(ierr);
   ierr = VecDestroy(&regressor->target);CHKERRQ(ierr);
   regressor->setupcalled = PETSC_FALSE;
