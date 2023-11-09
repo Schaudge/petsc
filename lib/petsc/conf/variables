@@ -69,7 +69,8 @@ PETSC_KSP_LIB_BASIC            = -lpetscksp ${PETSC_DM_LIB_BASIC}
 PETSC_SNES_LIB_BASIC           = -lpetscsnes ${PETSC_KSP_LIB_BASIC}
 PETSC_TS_LIB_BASIC             = -lpetscts ${PETSC_SNES_LIB_BASIC}
 PETSC_TAO_LIB_BASIC            = -lpetsctao ${PETSC_SNES_LIB_BASIC}
-PETSC_LIB_BASIC                = -lpetsctao ${PETSC_TS_LIB_BASIC}
+PETSC_ML_LIB_BASIC             = -lpetscml ${PETSC_TAO_LIB_BASIC}
+PETSC_LIB_BASIC                = -lpetscml -lpetsctao ${PETSC_TS_LIB_BASIC}
 PETSC_CONTRIB_BASIC            = -lpetsccontrib
 
 PETSC_SYS_LIB            = ${C_SH_LIB_PATH} -L${PETSC_LIB_DIR} ${PETSC_SYS_LIB_BASIC}  ${PETSC_EXTERNAL_LIB_BASIC}
@@ -80,6 +81,7 @@ PETSC_KSP_LIB            = ${C_SH_LIB_PATH} -L${PETSC_LIB_DIR} ${PETSC_KSP_LIB_B
 PETSC_SNES_LIB           = ${C_SH_LIB_PATH} -L${PETSC_LIB_DIR} ${PETSC_SNES_LIB_BASIC} ${PETSC_EXTERNAL_LIB_BASIC}
 PETSC_TS_LIB             = ${C_SH_LIB_PATH} -L${PETSC_LIB_DIR} ${PETSC_TS_LIB_BASIC}   ${PETSC_EXTERNAL_LIB_BASIC}
 PETSC_TAO_LIB            = ${C_SH_LIB_PATH} -L${PETSC_LIB_DIR} ${PETSC_TAO_LIB_BASIC}  ${PETSC_EXTERNAL_LIB_BASIC}
+PETSC_ML_LIB             = ${C_SH_LIB_PATH} -L${PETSC_LIB_DIR} ${PETSC_ML_LIB_BASIC}  ${PETSC_EXTERNAL_LIB_BASIC}
 PETSC_LIB                = ${C_SH_LIB_PATH} -L${PETSC_LIB_DIR} ${PETSC_LIB_BASIC}      ${PETSC_EXTERNAL_LIB_BASIC}
 PETSC_CONTRIB            = ${C_SH_LIB_PATH} -L${PETSC_LIB_DIR} ${PETSC_CONTRIB_BASIC}
 
@@ -94,7 +96,7 @@ PETSC_MAKE_STOP_ON_ERROR = -
 # ----------------------------------------------------------------------------------------
 #
 # Some variables used to build shared libraries
-SHLIBS   = libpetscsys libpetscmat libpetscvec libpetscdm libpetscksp libpetscsnes libpetscts libpetsctao
+SHLIBS   = libpetscsys libpetscmat libpetscvec libpetscdm libpetscksp libpetscsnes libpetscts libpetsctao libpetscml
 #
 # The following include files set customized site, optimization, and version
 # options.

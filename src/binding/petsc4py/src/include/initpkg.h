@@ -23,6 +23,7 @@ static PetscErrorCode PetscInitializePackageAll(void)
   ierr = DMInitializePackage();CHKERRQ(ierr);
   ierr = PetscDSInitializePackage();CHKERRQ(ierr);
   ierr = PetscFEInitializePackage();CHKERRQ(ierr);
+  ierr = PetscRegressorInitializePackage();CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
