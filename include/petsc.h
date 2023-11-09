@@ -30,3 +30,6 @@
 
 #include <petscts.h>
 #include <petsctao.h>
+
+#include <petscmldr.h>
+#include <petscregressor.h>
