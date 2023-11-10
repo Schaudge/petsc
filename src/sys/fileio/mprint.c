@@ -312,7 +312,6 @@ PetscErrorCode PetscFFlush(FILE *fd)
 .vb
    PetscErrorCode mypetscvfprintf(FILE *fd, const char format[], va_list Argp)
    {
-     PetscErrorCode ierr;
 
      PetscFunctionBegin;
       if (fd != stdout && fd != stderr) {  handle regular files
