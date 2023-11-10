@@ -673,7 +673,7 @@ static PetscErrorCode PCGAMGCreateGraph_AGG(PC pc, Mat Amat, Mat *a_Gmat)
     } else {
       PetscCall(MatCreateVecs(mass, NULL, &BB_m_idiag));
       PetscCall(MatGetRowSum(mass, BB_m_idiag));
-      PetscCall(VecReciprocal(BB_m_idiag)); // preconditioner B
+      PetscCall(VecReciprocal(BB_m_idiag));                       // preconditioner B
       PetscCall(MatDuplicate(Amat, MAT_DO_NOT_COPY_VALUES, &XX)); // solution, X = 0
       PetscCall(MatDiagonalScale(XX, BB_m_idiag, NULL));
     }
