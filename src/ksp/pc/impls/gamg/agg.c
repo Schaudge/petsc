@@ -634,7 +634,7 @@ static PetscErrorCode PCGAMGCreateGraph_AGG(PC pc, Mat Amat, Mat *a_Gmat)
   if (container) { // use mass matrix to get better graph -- only works on fine grid -- do Pt M P -- TODO
     Mat       mass, matTrans, XX;
     Vec       BB_m_idiag, A_idiag_ssqrt;
-    PetscInt  m, M, bs, max_it = 1;
+    PetscInt  m, M, bs, max_it = 2;
     PetscReal scale = 1, dt = 100;
     PetscCall(PetscInfo(pc, "Have mass matrix, use ODE based strength of connections. dt = %g, %d iterations of Jacobi for M^-1A\n", (double)dt, (int)max_it));
     PetscCall(MatGetBlockSize(Amat, &bs));
