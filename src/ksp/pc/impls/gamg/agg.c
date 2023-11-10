@@ -632,7 +632,7 @@ static PetscErrorCode PCGAMGCreateGraph_AGG(PC pc, Mat Amat, Mat *a_Gmat)
   PetscCall(MatGetInfo(Amat, MAT_LOCAL, &info0)); /* global reduction */
   PetscCall(PetscObjectQuery((PetscObject)Amat, "Mass", (PetscObject *)&container));
   if (container) { // use mass matrix to get better graph -- only works on fine grid -- do Pt M P -- TODO
-    Mat       mass, Id, matTrans, RR, XX, ZZ, BB;
+    Mat       mass, matTrans, XX;
     Vec       BB_m_idiag, A_idiag_ssqrt;
     PetscInt  m, M, bs, max_it = 1;
     PetscReal scale = 1, dt = 100;
@@ -640,29 +640,42 @@ static PetscErrorCode PCGAMGCreateGraph_AGG(PC pc, Mat Amat, Mat *a_Gmat)
     PetscCall(MatGetBlockSize(Amat, &bs));
     // get mass matrix and setup objects for iteration
     PetscCall(PetscContainerGetPointer(container, (void **)&mass));
-    PetscCall(MatCreateVecs(mass, &A_idiag_ssqrt, &BB_m_idiag));
-    PetscCall(MatGetDiagonal(mass, BB_m_idiag));
-    PetscCall(VecReciprocal(BB_m_idiag)); // preconditioner B
-    PetscCall(MatGetDiagonal(Amat, A_idiag_ssqrt));
-    PetscCall(VecReciprocal(A_idiag_ssqrt)); // preconditioner B
-    PetscCall(VecSqrtAbs(A_idiag_ssqrt));
-    // R = B (A) - A (M) x = B (A)
-    PetscCall(MatDuplicate(Amat, MAT_COPY_VALUES, &RR));
-    PetscCall(MatDiagonalScale(RR, A_idiag_ssqrt, A_idiag_ssqrt));
-    PetscCall(MatDuplicate(RR, MAT_COPY_VALUES, &BB));          // scaled RHS to make invariant to scaling
-    PetscCall(MatDuplicate(Amat, MAT_DO_NOT_COPY_VALUES, &XX)); // solution, X = 0
-    PetscCall(MatZeroEntries(XX));
-    PetscCall(MatDuplicate(Amat, MAT_DO_NOT_COPY_VALUES, &ZZ)); // solution, X = 0
-    // S^k+1 = S^k + D^-1 (A - M S^k)
-    for (int ii = 0; ii < max_it; ii++) {
-      PetscCall(MatCopy(RR, ZZ, DIFFERENT_NONZERO_PATTERN));
-      PetscCall(MatDiagonalScale(ZZ, BB_m_idiag, NULL));            // z <- B r
-      PetscCall(MatAXPY(XX, scale, ZZ, DIFFERENT_NONZERO_PATTERN)); // x <- x + scale z
-      if (ii < max_it - 1) {
-        PetscCall(MatDestroy(&RR));
-        PetscCall(MatMatMult(mass, XX, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &RR));
-        PetscCall(MatAYPX(RR, -1., BB, DIFFERENT_NONZERO_PATTERN)); // A - M S^k
+    if (1) {
+      Mat RR, ZZ, BB;
+      PetscCall(MatCreateVecs(mass, &A_idiag_ssqrt, &BB_m_idiag));
+      PetscCall(MatGetDiagonal(mass, BB_m_idiag));
+      PetscCall(VecReciprocal(BB_m_idiag)); // preconditioner B
+      PetscCall(MatGetDiagonal(Amat, A_idiag_ssqrt));
+      PetscCall(VecReciprocal(A_idiag_ssqrt)); // preconditioner B
+      PetscCall(VecSqrtAbs(A_idiag_ssqrt));
+      // R = B (A) - A (M) x = B (A)
+      PetscCall(MatDuplicate(Amat, MAT_COPY_VALUES, &RR));
+      PetscCall(MatDiagonalScale(RR, A_idiag_ssqrt, A_idiag_ssqrt));
+      PetscCall(MatDuplicate(RR, MAT_COPY_VALUES, &BB));          // scaled RHS to make invariant to scaling
+      PetscCall(MatDuplicate(Amat, MAT_DO_NOT_COPY_VALUES, &XX)); // solution, X = 0
+      PetscCall(MatZeroEntries(XX));
+      PetscCall(MatDuplicate(Amat, MAT_DO_NOT_COPY_VALUES, &ZZ)); // solution, X = 0
+      // S^k+1 = S^k + D^-1 (A - M S^k)
+      for (int ii = 0; ii < max_it; ii++) {
+        PetscCall(MatCopy(RR, ZZ, DIFFERENT_NONZERO_PATTERN));
+        PetscCall(MatDiagonalScale(ZZ, BB_m_idiag, NULL));            // z <- B r
+        PetscCall(MatAXPY(XX, scale, ZZ, DIFFERENT_NONZERO_PATTERN)); // x <- x + scale z
+        if (ii < max_it - 1) {
+          PetscCall(MatDestroy(&RR));
+          PetscCall(MatMatMult(mass, XX, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &RR));
+          PetscCall(MatAYPX(RR, -1., BB, DIFFERENT_NONZERO_PATTERN)); // A - M S^k
+        }
       }
+      PetscCall(MatDestroy(&RR));
+      PetscCall(MatDestroy(&ZZ));
+      PetscCall(MatDestroy(&BB));
+      PetscCall(VecDestroy(&A_idiag_ssqrt));
+    } else {
+      PetscCall(MatCreateVecs(mass, NULL, &BB_m_idiag));
+      PetscCall(MatGetRowSum(mass, BB_m_idiag));
+      PetscCall(VecReciprocal(BB_m_idiag)); // preconditioner B
+      PetscCall(MatDuplicate(Amat, MAT_DO_NOT_COPY_VALUES, &XX)); // solution, X = 0
+      PetscCall(MatDiagonalScale(XX, BB_m_idiag, NULL));
     }
     PetscCall(MatGetSize(Amat, &M, NULL));
     PetscCall(MatGetLocalSize(Amat, &m, NULL));
@@ -688,8 +701,9 @@ static PetscErrorCode PCGAMGCreateGraph_AGG(PC pc, Mat Amat, Mat *a_Gmat)
       PetscCall(KSPDestroy(&ksp));
     }
     // forward Euler: G = I + dt * M^-1 A
-    PetscCall(MatCreateConstantDiagonal(PetscObjectComm((PetscObject)pc), m, m, M, M, 1.0, &Id));
-    PetscCall(MatAYPX(XX, dt, Id, DIFFERENT_NONZERO_PATTERN));
+    /* PetscCall(MatCreateConstantDiagonal(PetscObjectComm((PetscObject)pc), m, m, M, M, 1.0, &Id)); */
+    PetscCall(MatScale(XX, dt));
+    PetscCall(MatShift(XX, 1.0));
     // absolute value MiA & scalarize
     {
       Mat                A;
@@ -731,11 +745,6 @@ static PetscErrorCode PCGAMGCreateGraph_AGG(PC pc, Mat Amat, Mat *a_Gmat)
     PetscCall(MatDiagonalScale(XX, BB_m_idiag, BB_m_idiag));
     //
     PetscCall(VecDestroy(&BB_m_idiag));
-    PetscCall(VecDestroy(&A_idiag_ssqrt));
-    PetscCall(MatDestroy(&Id));
-    PetscCall(MatDestroy(&RR));
-    PetscCall(MatDestroy(&ZZ));
-    PetscCall(MatDestroy(&BB));
     /* PetscCall(MatView(XX, PETSC_VIEWER_STDOUT_WORLD)); */
     *a_Gmat = XX;
   } else if (pc_gamg_agg->use_low_mem_filter) {
