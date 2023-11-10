@@ -1848,14 +1848,14 @@ static PetscErrorCode DMPlexView_Draw(DM dm, PetscViewer viewer)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode DMPlexCreateHighOrderSurrogate_Internal(DM dm, DM *hdm)
+static PetscErrorCode DMPlexCreateHighOrderSurrogate_Internal(DM dm, PetscBool hoViewDefault, DM *hdm)
 {
   DM           odm = dm, rdm = dm, cdm;
   PetscFE      fe;
   PetscSpace   sp;
   PetscClassId id;
   PetscInt     degree;
-  PetscBool    hoView = PETSC_TRUE;
+  PetscBool    hoView = hoViewDefault;
 
   PetscFunctionBegin;
   PetscObjectOptionsBegin((PetscObject)dm);
@@ -1921,7 +1921,11 @@ PetscErrorCode DMView_Plex(DM dm, PetscViewer viewer)
     else PetscCall(DMPlexView_Ascii(dm, viewer));
   } else if (ishdf5) {
 #if defined(PETSC_HAVE_HDF5)
-    PetscCall(DMPlexView_HDF5_Internal(dm, viewer));
+    DM hdm;
+
+    PetscCall(DMPlexCreateHighOrderSurrogate_Internal(dm, PETSC_FALSE, &hdm));
+    PetscCall(DMPlexView_HDF5_Internal(hdm, viewer));
+    PetscCall(DMDestroy(&hdm));
 #else
     SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_SUP, "HDF5 not supported in this build.\nPlease reconfigure using --download-hdf5");
 #endif
@@ -1930,7 +1934,7 @@ PetscErrorCode DMView_Plex(DM dm, PetscViewer viewer)
   } else if (isdraw) {
     DM hdm;
 
-    PetscCall(DMPlexCreateHighOrderSurrogate_Internal(dm, &hdm));
+    PetscCall(DMPlexCreateHighOrderSurrogate_Internal(dm, PETSC_TRUE, &hdm));
     PetscCall(DMPlexView_Draw(hdm, viewer));
     PetscCall(DMDestroy(&hdm));
   } else if (isglvis) {
