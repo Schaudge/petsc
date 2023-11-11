@@ -19,10 +19,24 @@ This example supports automatic convergence estimation.\n\n\n";
   and many formats are supported such as VTK, HDF5, and drawing,
 
     make -f ./gmakefile test search="snes_tutorials-plexGMG_*" EXTRA_OPTIONS="-dm_view draw -draw_pause -1"
+
+  We can visualize the solution using HDF5 and XDMF
+
+    make -f ./gmakefile test search="snes_tutorials-plexGMG_*" EXTRA_OPTIONS="-dm_view hdf5:poisson.h5 -potential_view hdf5:poisson.h5::append"
+    ${PETSC_DIR}/lib/petsc/bin/petsc_gen_xdmf.py poisson.h5
+
+  We can visualize the error using X-windows (for example)
+
+    make -f ./gmakefile test search="snes_tutorials-plexGMG_*" EXTRA_OPTIONS="-error_view -error_vec_view draw -draw_pause -1"
+
+  We can check the consistency of the finite element using
+
+    make -f ./gmakefile test search="snes_tutorials-plexGMG_*" EXTRA_OPTIONS="-snes_convergence_estimate -convest_num_refine 3 -convest_monitor"
 */
 
 #include <petscdmplex.h>
 #include <petscds.h>
+#include <petscsnes.h>
 
 typedef struct {
   PetscBool viewError; // Output the solution error
@@ -120,10 +134,47 @@ static PetscErrorCode SetupDiscretization(DM dm, const char name[], PetscErrorCo
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode ErrorView(Vec u, AppCtx *user)
+{
+  DM                   dm, edm;
+  PetscDS              ds;
+  PetscFE              fe;
+  Vec                  error;
+  PetscSimplePointFunc sol;
+  void                *ctx;
+  DMPolytopeType       ct;
+  PetscInt             dim, cStart;
+
+  PetscFunctionBegin;
+  if (!user->viewError) PetscFunctionReturn(PETSC_SUCCESS);
+  PetscCall(VecGetDM(u, &dm));
+  PetscCall(DMGetDS(dm, &ds));
+  PetscCall(PetscDSGetExactSolution(ds, 0, &sol, &ctx));
+
+  PetscCall(DMClone(dm, &edm));
+  PetscCall(DMGetDimension(edm, &dim));
+  PetscCall(DMPlexGetHeightStratum(edm, 0, &cStart, NULL));
+  PetscCall(DMPlexGetCellType(edm, cStart, &ct));
+  PetscCall(PetscFECreateLagrangeByCell(PETSC_COMM_SELF, dim, 1, ct, 0, -1, &fe));
+  PetscCall(PetscObjectSetName((PetscObject)fe, "Error"));
+  PetscCall(DMSetField(edm, 0, NULL, (PetscObject)fe));
+  PetscCall(PetscFEDestroy(&fe));
+  PetscCall(DMCreateDS(edm));
+  PetscCall(DMCreateGlobalVector(edm, &error));
+  PetscCall(DMDestroy(&edm));
+  PetscCall(PetscObjectSetOptionsPrefix((PetscObject)error, "error_"));
+
+  PetscCall(DMPlexComputeL2DiffVec(dm, 0.0, &sol, &ctx, u, error));
+  PetscCall(VecViewFromOptions(error, NULL, "-vec_view"));
+  PetscCall(VecDestroy(&error));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 int main(int argc, char **argv)
 {
   DM     dm;   // DMPLEX mesh
   Vec    u;    // The solution vector
+  SNES   snes; // The solver
   AppCtx user; // User-defined work context
 
   PetscFunctionBeginUser;
@@ -134,7 +185,17 @@ int main(int argc, char **argv)
   PetscCall(DMCreateGlobalVector(dm, &u));
   PetscCall(PetscObjectSetName((PetscObject)u, "Potential"));
   PetscCall(VecSet(u, 0.0));
+
+  PetscCall(SNESCreate(PETSC_COMM_WORLD, &snes));
+  PetscCall(SNESSetDM(snes, dm));
+  PetscCall(DMPlexSetSNESLocalFEM(dm, &user, &user, &user));
+  PetscCall(SNESSetFromOptions(snes));
+  PetscCall(SNESSolve(snes, NULL, u));
+  PetscCall(SNESGetSolution(snes, &u));
+
   PetscCall(VecViewFromOptions(u, NULL, "-potential_view"));
+  PetscCall(ErrorView(u, &user));
+  PetscCall(SNESDestroy(&snes));
   PetscCall(VecDestroy(&u));
   PetscCall(DMDestroy(&dm));
   PetscCall(PetscFinalize());
@@ -146,6 +207,7 @@ int main(int argc, char **argv)
   test:
     suffix: 2d_p1_gmg_vcycle
     requires: triangle
-    args: -potential_petscspace_degree 1
+    args: -potential_petscspace_degree 1 \
+          -ksp_rtol 1e-10
 
 TEST*/
