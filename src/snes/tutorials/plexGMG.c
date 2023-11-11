@@ -123,6 +123,7 @@ static PetscErrorCode SetupDiscretization(DM dm, const char name[], PetscErrorCo
 int main(int argc, char **argv)
 {
   DM     dm;   // DMPLEX mesh
+  Vec    u;    // The solution vector
   AppCtx user; // User-defined work context
 
   PetscFunctionBeginUser;
@@ -130,6 +131,11 @@ int main(int argc, char **argv)
   PetscCall(ProcessOptions(PETSC_COMM_WORLD, &user));
   PetscCall(CreateMesh(PETSC_COMM_WORLD, &user, &dm));
   PetscCall(SetupDiscretization(dm, "potential", SetupPrimalProblem, &user));
+  PetscCall(DMCreateGlobalVector(dm, &u));
+  PetscCall(PetscObjectSetName((PetscObject)u, "Potential"));
+  PetscCall(VecSet(u, 0.0));
+  PetscCall(VecViewFromOptions(u, NULL, "-potential_view"));
+  PetscCall(VecDestroy(&u));
   PetscCall(DMDestroy(&dm));
   PetscCall(PetscFinalize());
   return 0;
