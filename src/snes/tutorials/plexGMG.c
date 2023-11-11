@@ -32,6 +32,10 @@ This example supports automatic convergence estimation.\n\n\n";
   We can check the consistency of the finite element using
 
     make -f ./gmakefile test search="snes_tutorials-plexGMG_*" EXTRA_OPTIONS="-snes_convergence_estimate -convest_num_refine 3 -convest_monitor"
+
+  We can check that the GMG takes a constant number of iterates as the problem size is increased
+
+    make -f ./gmakefile test search="snes_tutorials-plexGMG_*" EXTRA_OPTIONS="-snes_monitor -ksp_converged_reason -snes_convergence_estimate -convest_num_refine 3 -convest_monitor"
 */
 
 #include <petscdmplex.h>
@@ -207,7 +211,12 @@ int main(int argc, char **argv)
   test:
     suffix: 2d_p1_gmg_vcycle
     requires: triangle
-    args: -potential_petscspace_degree 1 \
-          -ksp_rtol 1e-10
+    args: -potential_petscspace_degree 1 -dm_plex_box_faces 2,2 -dm_refine_hierarchy 3 \
+          -ksp_rtol 1e-10 -pc_type mg \
+            -mg_levels_ksp_max_it 1 \
+            -mg_levels_esteig_ksp_type cg \
+            -mg_levels_esteig_ksp_max_it 10 \
+            -mg_levels_ksp_chebyshev_esteig 0,0.1,0,1.1 \
+            -mg_levels_pc_type jacobi
 
 TEST*/
