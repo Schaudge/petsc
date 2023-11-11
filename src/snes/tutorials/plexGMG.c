@@ -44,6 +44,7 @@ This example supports automatic convergence estimation.\n\n\n";
 
 typedef struct {
   PetscBool viewError; // Output the solution error
+  PetscBool userOp;    // Use a user-defined operator
 } AppCtx;
 
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
@@ -53,6 +54,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 
   PetscOptionsBegin(comm, "", "Poisson Problem Options", "DMPLEX");
   PetscCall(PetscOptionsBool("-error_view", "Output the solution error", "plexGMG.c", options->viewError, &options->viewError, NULL));
+  PetscCall(PetscOptionsBool("-user_operator", "Construct GMG with a user-defined operator", "plexGMG.c", options->userOp, &options->userOp, NULL));
   PetscOptionsEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -192,8 +194,55 @@ int main(int argc, char **argv)
 
   PetscCall(SNESCreate(PETSC_COMM_WORLD, &snes));
   PetscCall(SNESSetDM(snes, dm));
-  PetscCall(DMPlexSetSNESLocalFEM(dm, &user, &user, &user));
   PetscCall(SNESSetFromOptions(snes));
+  PetscCall(DMPlexSetSNESLocalFEM(dm, &user, &user, &user));
+  if (user.userOp) {
+    DM cdm;
+    KSP ksp;
+    PC pc;
+    PetscInt Nl = 0, l;
+
+    PetscCall(SNESSetUp(snes));
+    PetscCall(SNESGetKSP(snes, &ksp));
+    PetscCall(KSPGetPC(ksp, &pc));
+    PetscCall(PCSetType(pc, PCMG));
+    cdm = dm;
+    while (cdm) {
+      ++Nl;
+      PetscCall(DMGetCoarseDM(cdm, &cdm));
+    }
+    PetscCall(PCMGSetLevels(pc, Nl, NULL));
+    // Set operator on each level
+    cdm = dm;
+    l   = Nl - 1;
+    while (cdm) {
+      DM  odm = cdm;
+      Mat A;
+
+      PetscCall(DMCreateMatrix(cdm, &A));
+      PetscCall(DMPlexSNESComputeJacobianFEM(cdm, u, A, A, &user));
+      PetscCall(PCMGSetOperators(pc, l, A, A));
+      PetscCall(MatDestroy(&A));
+      PetscCall(DMGetCoarseDM(cdm, &cdm));
+      if (cdm) {
+        KSP smoother;
+        Mat Interp;
+        Vec scale;
+
+        PetscCall(DMCreateInterpolation(cdm, odm, &Interp, &scale));
+        PetscCall(PCMGSetInterpolation(pc, l, Interp));
+        PetscCall(PCMGSetRScale(pc, l, scale));
+        PetscCall(MatDestroy(&Interp));
+        PetscCall(VecDestroy(&scale));
+
+        PetscCall(PCMGGetSmoother(pc, l - 1, &smoother));
+        PetscCall(KSPSetDM(smoother, cdm));
+        PetscCall(KSPSetDMActive(smoother, PETSC_FALSE));
+      }
+      --l;
+    }
+    PetscCall(PCSetFromOptions(pc));
+  }
   PetscCall(SNESSolve(snes, NULL, u));
   PetscCall(SNESGetSolution(snes, &u));
 
@@ -213,6 +262,17 @@ int main(int argc, char **argv)
     requires: triangle
     args: -potential_petscspace_degree 1 -dm_plex_box_faces 2,2 -dm_refine_hierarchy 3 \
           -ksp_rtol 1e-10 -pc_type mg \
+            -mg_levels_ksp_max_it 1 \
+            -mg_levels_esteig_ksp_type cg \
+            -mg_levels_esteig_ksp_max_it 10 \
+            -mg_levels_ksp_chebyshev_esteig 0,0.1,0,1.1 \
+            -mg_levels_pc_type jacobi
+
+  test:
+    suffix: 2d_p1_gmg_vcycle_op
+    requires: triangle
+    args: -potential_petscspace_degree 1 -dm_plex_box_faces 2,2 -dm_refine_hierarchy 3 \
+          -ksp_rtol 1e-10 -user_operator \
             -mg_levels_ksp_max_it 1 \
             -mg_levels_esteig_ksp_type cg \
             -mg_levels_esteig_ksp_max_it 10 \
