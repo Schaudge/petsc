@@ -35,7 +35,7 @@ static PetscErrorCode SNESTR_KSPConverged_Private(KSP ksp, PetscInt n, PetscReal
   if (*reason) PetscCall(PetscInfo(snes, "Default or user provided convergence test KSP iterations=%" PetscInt_FMT ", rnorm=%g\n", n, (double)rnorm));
   /* Determine norm of solution */
   PetscCall(KSPBuildSolution(ksp, NULL, &x));
-  PetscCall(VecNorm(x, NORM_2, &nrm));
+  PetscCall(VecNorm(x, neP->norm, &nrm));
   if (nrm >= neP->delta) {
     PetscCall(PetscInfo(snes, "Ending linear iteration early, delta=%g, length=%g\n", (double)neP->delta, (double)nrm));
     *reason = KSP_CONVERGED_STEP_LENGTH;
@@ -393,7 +393,7 @@ static PetscErrorCode SNESSolve_NEWTONTR(SNES snes)
   PetscInt                  maxits, lits;
   PetscReal                 rho, fnorm, gnorm = 0.0, xnorm = 0.0, delta, ynorm, lam = neP->lammax;
   PetscReal                 deltaM, fk, fkp1, deltaqm = 0.0, gTy = 0.0, yTHy = 0.0;
-  PetscReal                 auk, tauk, gfnorm, ycnorm, gTBg, objmin = 0.0, beta_k = 1.0;
+  PetscReal                 auk, tauk, gfnorm, gfnorm_k, ycnorm, gTBg, objmin = 0.0, beta_k = 1.0;
   PC                        pc;
   Mat                       J, Jp;
   PetscBool                 already_done = PETSC_FALSE;
@@ -523,6 +523,7 @@ static PetscErrorCode SNESSolve_NEWTONTR(SNES snes)
         PetscCall(MatMultTranspose(J, F, GradF)); /* grad f = J^T F */
         PetscCall(VecNorm(GradF, NORM_2, &gfnorm));
       }
+      PetscCall(VecNorm(GradF, neP->norm, &gfnorm_k));
     }
     already_done = PETSC_TRUE;
 
@@ -533,9 +534,9 @@ static PetscErrorCode SNESSolve_NEWTONTR(SNES snes)
     if (has_objective) PetscCall(VecDotRealPart(GradF, W, &gTBg));
     else PetscCall(VecDotRealPart(W, W, &gTBg)); /* B = J^t * J */
     /* Eqs 4.11 and 4.12 in Nocedal and Wright (2nd Edition, 4.7 and 4.8 in 1st Edition) */
-    auk = delta / gfnorm;
+    auk = delta / gfnorm_k;
     if (gTBg < 0.0) tauk = 1.0;
-    else tauk = PetscMin(gfnorm * gfnorm * gfnorm / (delta * gTBg), 1);
+    else tauk = PetscMin(gfnorm * gfnorm * gfnorm_k / (delta * gTBg), 1);
     auk *= tauk;
     ycnorm = auk * gfnorm;
     PetscCall(VecAXPBY(Yc, auk, 0.0, GradF));
@@ -550,9 +551,8 @@ static PetscErrorCode SNESSolve_NEWTONTR(SNES snes)
       PetscCall(MatShift(snes->jacobian, lam));
       if (snes->jacobian != snes->jacobian_pre) PetscCall(MatShift(snes->jacobian_pre, lam));
 
-      /* don't specify radius if not looking for Newton step only */
-      PetscCall(KSPCGSetRadius(snes->ksp, neP->fallback == SNES_TR_FALLBACK_NEWTON ? delta : 0.0));
       /* specify radius if looking for Newton step and trust region norm is the l2 norm */
+      PetscCall(KSPCGSetRadius(snes->ksp, neP->fallback == SNES_TR_FALLBACK_NEWTON && neP->norm == NORM_2 ? delta : 0.0));
       PetscCall(KSPSetOperators(snes->ksp, J, Jp));
       PetscCall(KSPSolve(snes->ksp, F, Y));
       SNESCheckKSPSolve(snes);
@@ -569,17 +569,17 @@ static PetscErrorCode SNESSolve_NEWTONTR(SNES snes)
         PetscCall(MatShift(snes->jacobian, -lam));
         if (snes->jacobian != snes->jacobian_pre) PetscCall(MatShift(snes->jacobian_pre, -lam));
       }
-      PetscCall(VecNorm(Y, NORM_2, &ynorm));
     } else { /* Cauchy point is on the boundary, accept it */
       PetscCall(VecCopy(Yc, Y));
-      ynorm = delta;
-      PetscCall(PetscInfo(snes, "Using Cauchy point on the boundary\n"));
+      PetscCall(PetscInfo(snes, "CP evaluated on boundary. delta: %g, ycnorm: %g, gTBg: %g\n", (double)delta, (double)ycnorm, (double)gTBg));
     }
+    PetscCall(VecNorm(Y, neP->norm, &ynorm));
 
     /* decide what to do when the update is outside of trust region */
     if (ynorm > delta || ynorm == 0.0) {
       SNESNewtonTRFallbackType fallback = ynorm > 0.0 ? neP->fallback : SNES_TR_FALLBACK_CAUCHY;
 
+      PetscCheck(neP->norm == NORM_2 || fallback != SNES_TR_FALLBACK_DOGLEG, PetscObjectComm((PetscObject)snes), PETSC_ERR_SUP, "DOGLEG without l2 norm not implemented");
       switch (fallback) {
       case SNES_TR_FALLBACK_NEWTON:
         auk = delta / ynorm;
@@ -851,6 +851,7 @@ PETSC_EXTERN PetscErrorCode SNESCreate_NEWTONTR(SNES snes)
   neP->t1       = 0.25;
   neP->t2       = 2.0;
   neP->deltaM   = 1.e10;
+  neP->norm     = NORM_2;
   neP->lamup    = 2.0;
   neP->lamdown  = 0.5;
   neP->fallback = SNES_TR_FALLBACK_NEWTON;

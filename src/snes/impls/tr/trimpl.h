@@ -37,6 +37,9 @@ typedef struct {
   PetscBool qn;
   Mat       qnB;
 
+  /* The type of norm for the trust region */
+  NormType norm;
+
   SNESNewtonTRFallbackType fallback; /* enum to distinguish fallback in case Newton step is outside of the trust region */
 
   PetscErrorCode (*precheck)(SNES, Vec, Vec, PetscBool *, void *);
