@@ -179,6 +179,7 @@ PETSC_EXTERN PetscErrorCode SNESNewtonTRGetPostCheck(SNES, PetscErrorCode (**)(S
 PETSC_EXTERN PetscErrorCode SNESNewtonTRSetFallbackType(SNES, SNESNewtonTRFallbackType);
 PETSC_EXTERN PetscErrorCode SNESNewtonTRPreCheck(SNES, Vec, Vec, PetscBool *);
 PETSC_EXTERN PetscErrorCode SNESNewtonTRPostCheck(SNES, Vec, Vec, Vec, PetscBool *, PetscBool *);
+PETSC_EXTERN PetscErrorCode SNESNewtonTRSetUseQNModel(SNES, PetscBool);
 
 /* TRDC API, to be removed after 3.19 */
 PETSC_EXTERN PetscErrorCode SNESNewtonTRDCGetRhoFlag(SNES, PetscBool *);

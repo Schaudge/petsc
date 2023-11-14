@@ -33,6 +33,10 @@ typedef struct {
   PetscReal t1;
   PetscReal t2;
 
+  /* Use Quasi-Newton model */
+  PetscBool qn;
+  Mat       qnB;
+
   SNESNewtonTRFallbackType fallback; /* enum to distinguish fallback in case Newton step is outside of the trust region */
 
   PetscErrorCode (*precheck)(SNES, Vec, Vec, PetscBool *, void *);

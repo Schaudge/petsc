@@ -8,6 +8,19 @@ typedef struct {
 } SNES_TR_KSPConverged_Ctx;
 
 const char *const SNESNewtonTRFallbackTypes[] = {"NEWTON", "CAUCHY", "DOGLEG", "SNESNewtonTRFallbackType", "SNES_TR_FALLBACK_", NULL};
+static PetscErrorCode SNESComputeJacobianLMVM(SNES snes, Vec X, Mat J, Mat B, void *dummy)
+{
+  PetscFunctionBegin;
+  // PetscCall(MatLMVMSymBroydenSetDelta(B, delta));
+  PetscCall(MatLMVMUpdate(B, X, snes->vec_func));
+  PetscCall(MatAssemblyBegin(B, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyEnd(B, MAT_FINAL_ASSEMBLY));
+  if (J != B) {
+    PetscCall(MatAssemblyBegin(J, MAT_FINAL_ASSEMBLY));
+    PetscCall(MatAssemblyEnd(J, MAT_FINAL_ASSEMBLY));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 static PetscErrorCode SNESTR_KSPConverged_Private(KSP ksp, PetscInt n, PetscReal rnorm, KSPConvergedReason *reason, void *cctx)
 {
@@ -52,6 +65,36 @@ static PetscErrorCode SNESTR_Converged_Private(SNES snes, PetscInt it, PetscReal
   } else if (snes->nfuncs >= snes->max_funcs && snes->max_funcs >= 0) {
     PetscCall(PetscInfo(snes, "Exceeded maximum number of function evaluations: %" PetscInt_FMT "\n", snes->max_funcs));
     *reason = SNES_DIVERGED_FUNCTION_COUNT;
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  SNESNewtonTRSetUseQNModel - Use a Quasi-Newton model.
+
+  Input Parameters:
++ snes - the nonlinear solver object
+- use  - whether or not to use the Quasi-Newton approximation
+
+  Level: intermediate
+
+  Notes:
+  Options for the approximation can be set with the snes_tr_ prefix.
+
+.seealso: `SNESNEWTONTR`, `MATLMVM`
+@*/
+PetscErrorCode SNESNewtonTRSetUseQNModel(SNES snes, PetscBool use)
+{
+  SNES_NEWTONTR *tr = (SNES_NEWTONTR *)snes->data;
+  PetscBool      flg;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(snes, SNES_CLASSID, 1);
+  PetscValidLogicalCollectiveBool(snes, use, 2);
+  PetscCall(PetscObjectTypeCompare((PetscObject)snes, SNESNEWTONTR, &flg));
+  if (flg) {
+    if (!use) PetscCall(MatDestroy(&tr->qnB));
+    tr->qn = use;
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -295,12 +338,12 @@ static inline void PetscQuadraticRoots(PetscReal a, PetscReal b, PetscReal c, Pe
 }
 
 /* Computes the quadratic model difference */
-static PetscErrorCode SNESNewtonTRQuadraticDelta(SNES snes, PetscBool has_objective, Vec Y, Vec GradF, Vec W, PetscReal *yTHy_, PetscReal *gTy_, PetscReal *deltaqm)
+static PetscErrorCode SNESNewtonTRQuadraticDelta(SNES snes, Mat J, PetscBool has_objective, Vec Y, Vec GradF, Vec W, PetscReal *yTHy_, PetscReal *gTy_, PetscReal *deltaqm)
 {
   PetscReal yTHy, gTy;
 
   PetscFunctionBegin;
-  PetscCall(MatMult(snes->jacobian, Y, W));
+  PetscCall(MatMult(J, Y, W));
   if (has_objective) PetscCall(VecDotRealPart(Y, W, &yTHy));
   else PetscCall(VecDotRealPart(W, W, &yTHy)); /* Gauss-Newton approximation J^t * J */
   PetscCall(VecDotRealPart(GradF, Y, &gTy));
@@ -310,6 +353,9 @@ static PetscErrorCode SNESNewtonTRQuadraticDelta(SNES snes, PetscBool has_object
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/* Computes the new objective given X = Xk, Y = direction
+   W work vector, on output W = X - Y
+   G work vector, on output G = SNESFunction(W) */
 static PetscErrorCode SNESNewtonTRObjective(SNES snes, PetscBool has_objective, Vec X, Vec Y, Vec W, Vec G, PetscReal *gnorm, PetscReal *fkp1)
 {
   PetscBool changed_y, changed_w;
@@ -328,18 +374,9 @@ static PetscErrorCode SNESNewtonTRObjective(SNES snes, PetscBool has_objective, 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/* Computes the quadratic model difference and the new objective given X = Xk, Y = direction
-   W work vector, on output W = X - Y
-   G work vector, on output G = SNESFunction(W)
-*/
-static PetscErrorCode SNESNewtonTRQuadraticDeltaAndObj(SNES snes, PetscBool has_objective, Vec X, Vec Y, Vec GradF, Vec W, Vec G, PetscReal *yTHy, PetscReal *gTy, PetscReal *deltaqm, PetscReal *gnorm, PetscReal *fkp1)
 {
   PetscFunctionBegin;
-  /* compute the quadratic model difference */
-  PetscCall(SNESNewtonTRQuadraticDelta(snes, has_objective, Y, GradF, W, yTHy, gTy, deltaqm));
 
-  /* Compute new objective function */
-  PetscCall(SNESNewtonTRObjective(snes, has_objective, X, Y, W, G, gnorm, fkp1));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -358,10 +395,12 @@ static PetscErrorCode SNESSolve_NEWTONTR(SNES snes)
   PetscReal                 deltaM, fk, fkp1, deltaqm = 0.0, gTy = 0.0, yTHy = 0.0;
   PetscReal                 auk, tauk, gfnorm, ycnorm, gTBg, objmin = 0.0, beta_k = 1.0;
   PC                        pc;
+  Mat                       J, Jp;
   PetscBool                 already_done = PETSC_FALSE;
   PetscBool                 clear_converged_test, rho_satisfied, has_objective;
   SNES_TR_KSPConverged_Ctx *ctx;
   void                     *convctx;
+
   PetscErrorCode (*convtest)(KSP, PetscInt, PetscReal, KSPConvergedReason *, void *), (*convdestroy)(void *);
   PetscErrorCode (*objective)(SNES, Vec, PetscReal *, void *);
 
@@ -450,24 +489,38 @@ static PetscErrorCode SNESSolve_NEWTONTR(SNES snes)
         }
         // XXX
         PetscCall(SNESGetNPCFunction(snes, F, &fnorm));
-        if (has_objective) PetscCall(SNESComputeObjective(snes, X, &fk));
-        else fk = 0.5 * PetscSqr(fnorm); /* obj(x) = 0.5 * ||F(x)||^2 */
-        // XXX
       } else if (snes->ops->update) { /* if update is present, recompute objective function and function norm */
         PetscCall(SNESComputeFunction(snes, X, F));
-        PetscCall(VecNorm(F, NORM_2, &fnorm));
-        if (has_objective) PetscCall(SNESComputeObjective(snes, X, &fk));
-        else fk = 0.5 * PetscSqr(fnorm); /* obj(x) = 0.5 * ||F(x)||^2 */
       }
 
       /* Jacobian */
-      PetscCall(SNESComputeJacobian(snes, X, snes->jacobian, snes->jacobian_pre));
+      J  = NULL;
+      Jp = NULL;
+      if (!neP->qn) {
+        PetscCall(SNESComputeJacobian(snes, X, snes->jacobian, snes->jacobian_pre));
+        J  = snes->jacobian;
+        Jp = snes->jacobian_pre;
+      }
       SNESCheckJacobianDomainerror(snes);
+
+      /* QN model */
+      if (neP->qn) {
+        PetscCall(SNESComputeJacobianLMVM(snes, X, neP->qnB, neP->qnB, NULL));
+        PetscCall(PetscObjectReference((PetscObject)neP->qnB));
+        PetscCall(PetscObjectReference((PetscObject)neP->qnB));
+        J  = neP->qnB;
+        Jp = neP->qnB;
+      }
+
+      /* objective function */
+      PetscCall(VecNorm(F, NORM_2, &fnorm));
+      if (has_objective) PetscCall(SNESComputeObjective(snes, X, &fk));
+      else fk = 0.5 * PetscSqr(fnorm); /* obj(x) = 0.5 * ||F(x)||^2 */
 
       /* GradF */
       if (has_objective) gfnorm = fnorm;
       else {
-        PetscCall(MatMultTranspose(snes->jacobian, F, GradF)); /* grad f = J^T F */
+        PetscCall(MatMultTranspose(J, F, GradF)); /* grad f = J^T F */
         PetscCall(VecNorm(GradF, NORM_2, &gfnorm));
       }
     }
@@ -476,7 +529,7 @@ static PetscErrorCode SNESSolve_NEWTONTR(SNES snes)
     /* solve trust-region subproblem */
 
     /* first compute Cauchy Point */
-    PetscCall(MatMult(snes->jacobian, GradF, W));
+    PetscCall(MatMult(J, GradF, W));
     if (has_objective) PetscCall(VecDotRealPart(GradF, W, &gTBg));
     else PetscCall(VecDotRealPart(W, W, &gTBg)); /* B = J^t * J */
     /* Eqs 4.11 and 4.12 in Nocedal and Wright (2nd Edition, 4.7 and 4.8 in 1st Edition) */
@@ -499,7 +552,8 @@ static PetscErrorCode SNESSolve_NEWTONTR(SNES snes)
 
       /* don't specify radius if not looking for Newton step only */
       PetscCall(KSPCGSetRadius(snes->ksp, neP->fallback == SNES_TR_FALLBACK_NEWTON ? delta : 0.0));
-      PetscCall(KSPSetOperators(snes->ksp, snes->jacobian, snes->jacobian_pre));
+      /* specify radius if looking for Newton step and trust region norm is the l2 norm */
+      PetscCall(KSPSetOperators(snes->ksp, J, Jp));
       PetscCall(KSPSolve(snes->ksp, F, Y));
       SNESCheckKSPSolve(snes);
       PetscCall(KSPGetIterationNumber(snes->ksp, &lits));
@@ -573,8 +627,10 @@ static PetscErrorCode SNESSolve_NEWTONTR(SNES snes)
       }
     }
 
-    /* Evaluate the solution to meet the improvement ratio criteria */
-    PetscCall(SNESNewtonTRQuadraticDeltaAndObj(snes, has_objective, X, Y, GradF, W, G, &yTHy, &gTy, &deltaqm, &gnorm, &fkp1));
+    /* compute the quadratic model difference */
+    PetscCall(SNESNewtonTRQuadraticDelta(snes, J, has_objective, Y, GradF, W, &yTHy, &gTy, &deltaqm));
+
+    /* Compute new objective function */
     if (PetscIsInfOrNanReal(fkp1)) rho = neP->eta1;
     else {
       if (deltaqm > 0.0) rho = (fk - fkp1) / deltaqm; /* actual improvement over predicted improvement */
@@ -626,6 +682,9 @@ static PetscErrorCode SNESSolve_NEWTONTR(SNES snes)
       PetscCall(PetscObjectSAWsGrantAccess((PetscObject)snes));
       PetscCall(SNESLogConvergenceHistory(snes, snes->norm, lits));
 
+      PetscCall(MatDestroy(&J));
+      PetscCall(MatDestroy(&Jp));
+
       /* Test for convergence, xnorm = || X || */
       PetscCall(VecNorm(X, NORM_2, &xnorm));
       PetscCall(SNESConverged(snes, snes->iter, xnorm, ynorm, fnorm));
@@ -634,6 +693,8 @@ static PetscErrorCode SNESSolve_NEWTONTR(SNES snes)
     }
   }
 
+  PetscCall(MatDestroy(&J));
+  PetscCall(MatDestroy(&Jp));
   if (clear_converged_test) {
     PetscCall(KSPGetAndClearConvergenceTest(snes->ksp, &ctx->convtest, &ctx->convctx, &ctx->convdestroy));
     PetscCall(PetscFree(ctx));
@@ -644,22 +705,55 @@ static PetscErrorCode SNESSolve_NEWTONTR(SNES snes)
 
 static PetscErrorCode SNESSetUp_NEWTONTR(SNES snes)
 {
+  SNES_NEWTONTR *tr = (SNES_NEWTONTR *)snes->data;
+
   PetscFunctionBegin;
   PetscCall(SNESSetWorkVecs(snes, 5));
+  if (tr->qn) {
+    PetscInt    n, N;
+    const char *optionsprefix;
+    Mat         B;
+
+    PetscCall(MatDestroy(&tr->qnB));
+    PetscCall(MatCreate(PetscObjectComm((PetscObject)snes), &B));
+    PetscCall(SNESGetOptionsPrefix(snes, &optionsprefix));
+    PetscCall(MatSetOptionsPrefix(B, "snes_tr_qn_"));
+    PetscCall(MatAppendOptionsPrefix(B, optionsprefix));
+    PetscCall(MatSetType(B, MATLMVMBFGS));
+    PetscCall(VecGetLocalSize(snes->vec_sol, &n));
+    PetscCall(VecGetSize(snes->vec_sol, &N));
+    PetscCall(MatSetSizes(B, n, n, N, N));
+    PetscCall(MatSetUp(B));
+    PetscCall(MatSetFromOptions(B));
+    PetscCall(MatLMVMAllocate(B, snes->vec_sol, snes->vec_func));
+    tr->qnB = B;
+  }
   PetscCall(SNESSetUpMatrices(snes));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode SNESReset_NEWTONTR(SNES snes)
+{
+  SNES_NEWTONTR *tr = (SNES_NEWTONTR *)snes->data;
+
+  PetscFunctionBegin;
+  PetscCall(SNESTRResetScaling(snes));
+  PetscCall(MatDestroy(&tr->qnB));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode SNESDestroy_NEWTONTR(SNES snes)
 {
   PetscFunctionBegin;
+  PetscCall(SNESReset_NEWTONTR(snes));
   PetscCall(PetscFree(snes->data));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode SNESSetFromOptions_NEWTONTR(SNES snes, PetscOptionItems *PetscOptionsObject)
 {
-  SNES_NEWTONTR *ctx = (SNES_NEWTONTR *)snes->data;
+  SNES_NEWTONTR          *ctx = (SNES_NEWTONTR *)snes->data;
+  PetscBool               flg;
 
   PetscFunctionBegin;
   PetscOptionsHeadBegin(PetscOptionsObject, "SNES trust region options for nonlinear equations");
@@ -677,6 +771,10 @@ static PetscErrorCode SNESSetFromOptions_NEWTONTR(SNES snes, PetscOptionItems *P
   PetscCall(PetscOptionsReal("-snes_tr_lambda_upfactor", "Uphill factor for regularization", "None", ctx->lamup, &ctx->lamup, NULL));
   PetscCall(PetscOptionsReal("-snes_tr_lambda_downfactor", "Downhill factor for regularization", "None", ctx->lamdown, &ctx->lamdown, NULL));
   PetscCall(PetscOptionsEnum("-snes_tr_fallback_type", "Type of fallback if subproblem solution is outside of the trust region", "SNESNewtonTRSetFallbackType", SNESNewtonTRFallbackTypes, (PetscEnum)ctx->fallback, (PetscEnum *)&ctx->fallback, NULL));
+  flg = ctx->qn;
+  PetscCall(PetscOptionsBool("-snes_tr_qn", "Use a Quasi-Newton approximation for the model", "SNESNewtonTRSetUseQNModel", flg, &flg, NULL));
+  if (flg != ctx->qn) PetscCall(SNESNewtonTRSetUseQNModel(snes, flg));
+  PetscCall(PetscOptionsEnum("-snes_tr_norm_type", "Type of norm for trust region bounds", "XXX", NormTypes, (PetscEnum)ctx->norm, (PetscEnum *)&ctx->norm, NULL));
   PetscOptionsHeadEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -722,7 +820,7 @@ static PetscErrorCode SNESView_NEWTONTR(SNES snes, PetscViewer viewer)
 
 .seealso: `SNESCreate()`, `SNES`, `SNESSetType()`, `SNESNEWTONLS`, `SNESSetTrustRegionTolerance()`,
           `SNESNewtonTRPreCheck()`, `SNESNewtonTRGetPreCheck()`, `SNESNewtonTRSetPostCheck()`, `SNESNewtonTRGetPostCheck()`,
-          `SNESNewtonTRSetPreCheck()`, `SNESNewtonTRSetFallbackType()`
+          `SNESNewtonTRSetPreCheck()`, `SNESNewtonTRSetFallbackType()`, `SNESNewtonTRSetUseQNModel()`
 M*/
 PETSC_EXTERN PetscErrorCode SNESCreate_NEWTONTR(SNES snes)
 {
@@ -731,6 +829,7 @@ PETSC_EXTERN PetscErrorCode SNESCreate_NEWTONTR(SNES snes)
   PetscFunctionBegin;
   snes->ops->setup          = SNESSetUp_NEWTONTR;
   snes->ops->solve          = SNESSolve_NEWTONTR;
+  snes->ops->reset          = SNESReset_NEWTONTR;
   snes->ops->destroy        = SNESDestroy_NEWTONTR;
   snes->ops->setfromoptions = SNESSetFromOptions_NEWTONTR;
   snes->ops->view           = SNESView_NEWTONTR;
