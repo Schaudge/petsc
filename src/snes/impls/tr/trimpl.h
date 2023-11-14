@@ -42,8 +42,19 @@ typedef struct {
 
   SNESNewtonTRFallbackType fallback; /* enum to distinguish fallback in case Newton step is outside of the trust region */
 
+  SNESNewtonTRScalingType scaling; /* enum to distinguish trust region scaling */
+  PetscErrorCode (*scaling_update)(SNES, Vec, void *);
+  PetscErrorCode (*scaling_apply)(SNES, Vec, Mat, Mat, Mat *, Mat *, void *);
+  PetscErrorCode (*scaling_destroy)(void *);
+  void *scaling_ctx;
+
   PetscErrorCode (*precheck)(SNES, Vec, Vec, PetscBool *, void *);
   void *precheckctx;
   PetscErrorCode (*postcheck)(SNES, Vec, Vec, Vec, PetscBool *, PetscBool *, void *);
   void *postcheckctx;
 } SNES_NEWTONTR;
+
+typedef struct {
+  Vec Gacc;
+  Vec W;
+} SNES_NEWTONTR_DEFAULT_SCALING_CTX;
