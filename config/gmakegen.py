@@ -107,7 +107,7 @@ class Petsc(object):
                     space = define.find(' ')
                     key = define[:space]
                     val = define[space+1:]
-                    self.conf[key] = val
+                    self.conf[key] = val.strip('\n')
         self.conf.update(parse_makefile(self.arch_path('lib','petsc','conf', 'petscvariables')))
         # allow parsing package additional configurations (if any)
         if self.pkg_name != 'petsc' :
@@ -128,6 +128,7 @@ class Petsc(object):
 
     def inconf(self, key, val):
         if key in ['package', 'function', 'define']:
+            print('inconf '+key+' '+val+' '+str(self.conf.get(val)))
             return self.conf.get(val)
         elif key == 'precision':
             return val == self.conf['PETSC_PRECISION']
@@ -153,7 +154,14 @@ class Petsc(object):
         pkgsrcs = dict()
         for lang in LANGS:
             pkgsrcs[lang] = []
-        for root, dirs, files in chain.from_iterable(os.walk(path) for path in [os.path.join(self.pkg_dir, 'src', pkg),os.path.join(self.pkg_dir, self.pkg_arch, 'src', pkg)]):
+        srcdirectories = [os.path.join(self.pkg_dir, 'src', pkg),os.path.join(self.pkg_dir, self.pkg_arch, 'src', pkg),os.path.join(self.pkg_dir, self.pkg_arch, 'src', pkg)]
+        print(self.conf)
+        if 'PETSC_GMAKEGENSRC_'+pkg in self.conf:
+          print('found '+'PETSC_GMAKEGENSRC_'+pkg)
+          srcdirectories.append(self.conf['PETSC_GMAKEGENSRC_'+pkg].strip('\n'))
+        print(srcdirectories)
+        for root, dirs, files in chain.from_iterable(os.walk(path) for path in srcdirectories):
+            print('root:'+root)
             if SKIPDIRS.intersection(pathsplit(self.pkg_dir, root)): continue
             dirs.sort()
             dirs[:] = list(set(dirs).difference(SKIPDIRS))
@@ -164,7 +172,11 @@ class Petsc(object):
                 conditions = set(tuple(stripsplit(line)) for line in mklines if line.startswith('#requires'))
               if not all(self.inconf(key, val) for key, val in conditions):
                 dirs[:] = []
+                print('reject '+root)
+                print(conditions)
                 continue
+              print('accepting '+root)
+              print(conditions)
             allsource = []
             def mkrel(src):
                 return self.relpath(root, src)
