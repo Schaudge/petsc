@@ -5331,7 +5331,8 @@ PetscErrorCode DMPlexComputeResidual_Hybrid_Internal(DM dm, PetscFormKey key[], 
   if (maxDegree > 1) {
     PetscCall(PetscCalloc4(Nf, &quadsF, Nf, &geomsF, Nf, &quadsN, Nf, &geomsN));
     for (f = 0; f < Nf; ++f) {
-      PetscFE fe;
+      PetscFE   fe;
+      PetscBool isCohesiveField;
 
       PetscCall(PetscDSGetDiscretization(ds, f, (PetscObject *)&fe));
       if (fe) {
@@ -5339,9 +5340,20 @@ PetscErrorCode DMPlexComputeResidual_Hybrid_Internal(DM dm, PetscFormKey key[], 
         PetscCall(PetscObjectReference((PetscObject)quadsF[f]));
       }
       PetscCall(PetscDSGetDiscretization(dsIn, f, (PetscObject *)&fe));
+      PetscCall(PetscDSGetCohesive(dsIn, f, &isCohesiveField));
       if (fe) {
-        PetscCall(PetscFEGetQuadrature(fe, &quadsN[f]));
-        PetscCall(PetscObjectReference((PetscObject)quadsN[f]));
+        if (isCohesiveField) {
+          for (PetscInt g = 0; g < Nf; ++g) {
+            PetscCall(PetscDSGetDiscretization(dsIn, g, (PetscObject *)&fe));
+            PetscCall(PetscDSGetCohesive(dsIn, g, &isCohesiveField));
+            if (!isCohesiveField) break;
+          }
+          PetscCall(PetscFEGetQuadrature(fe, &quadsN[f]));
+          PetscCall(PetscObjectReference((PetscObject)quadsN[f]));
+        } else {
+          PetscCall(PetscFEGetQuadrature(fe, &quadsN[f]));
+          PetscCall(PetscObjectReference((PetscObject)quadsN[f]));
+        }
       }
     }
   }
