@@ -93,6 +93,7 @@ PetscErrorCode TaoCreate(MPI_Comm comm, Tao *newtao)
   PetscAssertPointer(newtao, 2);
   PetscCall(TaoInitializePackage());
   PetscCall(TaoLineSearchInitializePackage());
+  PetscCall(TaoPDInitializePackage());
   PetscCall(PetscHeaderCreate(tao, TAO_CLASSID, "Tao", "Optimization solver", "Tao", comm, TaoDestroy, TaoView));
 
   /* Set non-NULL defaults */
@@ -100,6 +101,7 @@ PetscErrorCode TaoCreate(MPI_Comm comm, Tao *newtao)
 
   tao->max_it    = 10000;
   tao->max_funcs = -1;
+  tao->num_terms = 0;
 #if defined(PETSC_USE_REAL_SINGLE)
   tao->gatol = 1e-5;
   tao->grtol = 1e-5;
@@ -227,6 +229,7 @@ PetscErrorCode TaoSetUp(Tao tao)
 @*/
 PetscErrorCode TaoDestroy(Tao *tao)
 {
+  PetscInt i;
   PetscFunctionBegin;
   if (!*tao) PetscFunctionReturn(PETSC_SUCCESS);
   PetscValidHeaderSpecific(*tao, TAO_CLASSID, 1);
@@ -239,7 +242,11 @@ PetscErrorCode TaoDestroy(Tao *tao)
   PetscCall(KSPDestroy(&(*tao)->ksp));
   PetscCall(SNESDestroy(&(*tao)->snes_ewdummy));
   PetscCall(TaoLineSearchDestroy(&(*tao)->linesearch));
-
+  for (i = 0; i < (*tao)->num_terms; i++) {
+    PetscCall(TaoPDDestroy(&(*tao)->pds[i])); //TODO list of pd?
+  }
+  PetscCall(PetscFree((*tao)->pds));
+  if ((*tao)->is_child_pd) { PetscCall(PetscObjectCompose((PetscObject)*tao, "TaoGetParentPD", NULL)); }
   if ((*tao)->ops->convergencedestroy) {
     PetscCall((*(*tao)->ops->convergencedestroy)((*tao)->cnvP));
     if ((*tao)->jacobian_state_inv) PetscCall(MatDestroy(&(*tao)->jacobian_state_inv));
@@ -369,6 +376,7 @@ PetscErrorCode TaoSetFromOptions(Tao tao)
   PetscViewer monviewer;
   PetscBool   flg;
   MPI_Comm    comm;
+  PetscInt    i;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
@@ -526,6 +534,9 @@ PetscErrorCode TaoSetFromOptions(Tao tao)
   PetscOptionsEnd();
 
   if (tao->linesearch) PetscCall(TaoLineSearchSetFromOptions(tao->linesearch));
+  for (i = 0; i < tao->num_terms; i++) {
+    if (tao->pds[i]) PetscCall(TaoPDSetFromOptions(tao->pds[i]));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -2556,6 +2567,48 @@ PetscErrorCode TaoGetConvergenceHistory(Tao tao, PetscReal **obj, PetscReal **re
   if (resid) *resid = tao->hist_resid;
   if (lits) *lits = tao->hist_lits;
   if (nhist) *nhist = tao->hist_len;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  TaoSetNumTerms - Sets the number PD terms for a `Tao` solver.
+
+  Logically Collective
+
+  Input Parameters:
++ tao - the `Tao` context
+- num - number of terms
+
+  Level: intermediate
+
+.seealso: [](ch_tao), `Tao`, `TaoGetNumTerms()`
+@*/
+PetscErrorCode TaoSetNumTerms(Tao tao, PetscInt num)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
+  tao->num_terms = num;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  TaoGetNumTerms - Gets the number PD terms for a `Tao` solver.
+
+  Logically Collective
+
+  Input Parameters:
++ tao - the `Tao` context
+- num - number of terms
+
+  Level: intermediate
+
+.seealso: [](ch_tao), `Tao`, `TaoSetNumTerms()`
+@*/
+PetscErrorCode TaoGetNumTerms(Tao tao, PetscInt *num)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
+  *num = tao->num_terms;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

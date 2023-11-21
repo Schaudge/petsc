@@ -2,6 +2,7 @@
 
 #include <petsctao.h>
 #include <petsctaolinesearch.h>
+#include <petsctaopd.h>
 #include <petsc/private/petscimpl.h>
 
 PETSC_EXTERN PetscBool      TaoRegisterAllCalled;
@@ -29,6 +30,8 @@ struct _TaoOps {
   PetscErrorCode (*update)(Tao, PetscInt, void *);
   PetscErrorCode (*convergencetest)(Tao, void *);
   PetscErrorCode (*convergencedestroy)(void *);
+
+  PetscErrorCode (*applyproximalmap)(Tao, PetscReal, Vec, Vec, void *);
 
   /* Methods set by solver */
   PetscErrorCode (*computedual)(Tao, Vec, Vec);
@@ -70,6 +73,12 @@ struct _p_Tao {
 
   PetscBool setupcalled;
   void     *data;
+
+  PetscInt  num_terms;
+  TaoPD    *pds;
+  TaoPD     reg;
+  TaoPD     parent_reg;
+  PetscBool is_child_pd;
 
   Vec        solution;
   Vec        gradient;
@@ -195,6 +204,9 @@ PETSC_EXTERN PetscLogEvent TAO_ObjGradEval;
 PETSC_EXTERN PetscLogEvent TAO_HessianEval;
 PETSC_EXTERN PetscLogEvent TAO_ConstraintsEval;
 PETSC_EXTERN PetscLogEvent TAO_JacobianEval;
+
+PetscErrorCode TaoApplyProximalMap_L1(Tao, PetscReal, Vec, Vec, void *);
+PetscErrorCode TaoApplyProximalMap_Simplex(Tao, PetscReal, Vec, Vec, void *);
 
 static inline PetscErrorCode TaoLogConvergenceHistory(Tao tao, PetscReal obj, PetscReal resid, PetscReal cnorm, PetscInt totits)
 {
