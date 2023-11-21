@@ -380,7 +380,7 @@ PetscErrorCode TaoPDUseTaoRoutines(TaoPD pd, Tao tao)
 
   Note:
 
-.seealso: [](ch_tao), `Tao`, `TaoPD`, `TaoPDComputeGradient()`, `TaoPDComputeObjectiveAndGradient()`, `TaoPDSetObjectiveRoutine()`
+.seealso: [](ch_tao), `Tao`, `TaoPD`, `TaoPDComputeGradient()`, `TaoPDComputeObjectiveAndGradient()`, `TaoPDSetObjective()`
 @*/
 PetscErrorCode TaoPDComputeObjective(TaoPD pd, Vec x, PetscReal *f)
 {
@@ -420,7 +420,7 @@ PetscErrorCode TaoPDComputeObjective(TaoPD pd, Vec x, PetscReal *f)
 
   Note:
 
-.seealso: [](ch_tao), `Tao`, `TaoPD`, `TaoPDComputeGradient()`, `TaoPDSetObjectiveRoutine()`
+.seealso: [](ch_tao), `Tao`, `TaoPD`, `TaoPDComputeGradient()`, `TaoPDSetObjective()`
 @*/
 PetscErrorCode TaoPDComputeObjectiveAndGradient(TaoPD pd, Vec x, PetscReal *f, Vec g)
 {
@@ -474,14 +474,14 @@ PetscErrorCode TaoPDComputeGradient(TaoPD pd, Vec x, Vec g)
   PetscValidHeaderSpecific(g, VEC_CLASSID, 3);
   PetscCheckSameComm(pd, 1, x, 2);
   PetscCheckSameComm(pd, 1, g, 3);
+  PetscCall(PetscLogEventBegin(TAOPD_Eval, pd, x, g, NULL));
   if (pd->usetaoroutines) {
     PetscCall(TaoComputeGradient(pd->pd_tao, x, g));
   } else {
-    PetscCall(PetscLogEventBegin(TAOPD_Eval, pd, x, g, NULL));
     if (pd->ops->computegradient) PetscCallBack("TaoPD callback gradient", (*pd->ops->computegradient)(pd, x, g, pd->userctx_grad));
     else PetscCallBack("TaoPD callback gradient", (*pd->ops->computeobjectiveandgradient)(pd, x, &fdummy, g, pd->userctx_funcgrad));
-    PetscCall(PetscLogEventEnd(TAOPD_Eval, pd, x, g, NULL));
   }
+  PetscCall(PetscLogEventEnd(TAOPD_Eval, pd, x, g, NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -820,7 +820,7 @@ PetscErrorCode TaoGetRegularizer(Tao tao, TaoPD *pd)
 }
 
 /*@C
-  TaoPDSetObjective- Sets the function evaluation routine for the pd
+  TaoPDSetObjective - Sets the function evaluation routine for the pd
 
   Logically Collective
 
@@ -941,7 +941,6 @@ PetscErrorCode TaoPDApplyProximalMap(TaoPD pd0, TaoPD pd1, PetscReal lambda, Vec
   //TODO boilerplates
   PetscValidHeaderSpecific(pd0, TAOPD_CLASSID, 1);
   PetscValidHeaderSpecific(pd1, TAOPD_CLASSID, 2);
-  PetscAssertPointer(&lambda, 3);
   PetscValidHeaderSpecific(y, VEC_CLASSID, 4);
   PetscValidHeaderSpecific(x, VEC_CLASSID, 5);
   PetscTryTypeMethod(pd0, applyproximalmap, pd1, lambda, y, x, ctx);
