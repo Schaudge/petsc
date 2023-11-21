@@ -66,9 +66,9 @@ PETSC_EXTERN PetscErrorCode TaoPDSetGradient(TaoPD, PetscErrorCode (*)(TaoPD, Ve
 PETSC_EXTERN PetscErrorCode TaoPDSetObjectiveAndGradient(TaoPD, PetscErrorCode (*)(TaoPD, Vec, PetscReal *, Vec, void *), void *);
 PETSC_EXTERN PetscErrorCode TaoPDUseTaoRoutines(TaoPD, Tao);
 
-//PETSC_EXTERN PetscErrorCode TaoPDComputeObjective(TaoPD, Vec, PetscReal *);
-//PETSC_EXTERN PetscErrorCode TaoPDComputeObjectiveAndGradient(TaoPD, Vec, PetscReal *, Vec);
-//PETSC_EXTERN PetscErrorCode TaoPDComputeGradient(TaoPD, Vec, Vec);
+PETSC_EXTERN PetscErrorCode TaoPDComputeObjective(TaoPD, Vec, PetscReal *);
+PETSC_EXTERN PetscErrorCode TaoPDComputeObjectiveAndGradient(TaoPD, Vec, PetscReal *, Vec);
+PETSC_EXTERN PetscErrorCode TaoPDComputeGradient(TaoPD, Vec, Vec);
 
 //                                                          yvec, lb,       up,
 PETSC_EXTERN PetscErrorCode TaoPDCreate_L1(MPI_Comm, TaoPD *, Vec, PetscReal, PetscReal);

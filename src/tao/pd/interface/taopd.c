@@ -359,10 +359,8 @@ PetscErrorCode TaoPDUseTaoRoutines(TaoPD pd, Tao tao)
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 2);
   pd->pd_tao         = tao;
   pd->usetaoroutines = PETSC_TRUE;
-  //  PetscCall(PetscObjectReference((PetscObject)pd));
-  PetscCall(PetscObjectCompose((PetscObject)tao, "TaoGetParentPD", (PetscObject)pd)); //TODO this is needed for TaoPDGetCentralVector? Maybe for VM later?
+  PetscCall(PetscObjectCompose((PetscObject)tao, "TaoGetParentPD", (PetscObject)pd));
   tao->is_child_pd = PETSC_TRUE;
-  //tao->parent_reg = pd;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -391,18 +389,17 @@ PetscErrorCode TaoPDComputeObjective(TaoPD pd, Vec x, PetscReal *f)
   PetscValidHeaderSpecific(x, VEC_CLASSID, 2);
   PetscAssertPointer(f, 3);
   PetscCheckSameComm(pd, 1, x, 2);
+  PetscCall(PetscLogEventBegin(TAOPD_Eval, pd, x, NULL, NULL));
   if (pd->usetaoroutines) {
     PetscCall(TaoComputeObjective(pd->pd_tao, x, f));
   } else {
     PetscCheck(pd->ops->computeobjective || pd->ops->computeobjectiveandgradient, PetscObjectComm((PetscObject)pd), PETSC_ERR_ARG_WRONGSTATE, "PD does not have objective function set");
-    PetscCall(PetscLogEventBegin(TAOPD_Eval, pd, 0, 0, 0));
     if (pd->ops->computeobjective) PetscCallBack("TaoPD callback objective", (*pd->ops->computeobjective)(pd, x, f, pd->userctx_func));
     else {
-      /* Unlike Linesearch, we have workvec inside TaoReg, so no need to create dummy vector */
       PetscCallBack("TaoPD callback objective", (*pd->ops->computeobjectiveandgradient)(pd, x, f, pd->workvec, pd->userctx_funcgrad));
     }
-    PetscCall(PetscLogEventEnd(TAOPD_Eval, pd, 0, 0, 0));
   }
+  PetscCall(PetscLogEventEnd(TAOPD_Eval, pd, x, NULL, NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -434,18 +431,18 @@ PetscErrorCode TaoPDComputeObjectiveAndGradient(TaoPD pd, Vec x, PetscReal *f, V
   PetscValidHeaderSpecific(g, VEC_CLASSID, 4);
   PetscCheckSameComm(pd, 1, x, 2);
   PetscCheckSameComm(pd, 1, g, 4);
+  PetscCall(PetscLogEventBegin(TAOPD_Eval, pd, x, g, NULL));
   if (pd->usetaoroutines) {
     PetscCall(TaoComputeObjectiveAndGradient(pd->pd_tao, x, f, g));
   } else {
-    PetscCall(PetscLogEventBegin(TAOPD_Eval, pd, 0, 0, 0));
     if (pd->ops->computeobjectiveandgradient) PetscCallBack("TaoPD callback objective/gradient", (*pd->ops->computeobjectiveandgradient)(pd, x, f, g, pd->userctx_funcgrad));
     else {
       PetscCallBack("TaoPD callback objective", (*pd->ops->computeobjective)(pd, x, f, pd->userctx_func));
       PetscCallBack("TaoPD callback gradient", (*pd->ops->computegradient)(pd, x, g, pd->userctx_grad));
     }
-    PetscCall(PetscLogEventEnd(TAOPD_Eval, pd, 0, 0, 0));
     PetscCall(PetscInfo(pd, "TaoPD Function evaluation: %14.12e\n", (double)(*f)));
   }
+  PetscCall(PetscLogEventEnd(TAOPD_Eval, pd, x, g, NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -480,10 +477,10 @@ PetscErrorCode TaoPDComputeGradient(TaoPD pd, Vec x, Vec g)
   if (pd->usetaoroutines) {
     PetscCall(TaoComputeGradient(pd->pd_tao, x, g));
   } else {
-    PetscCall(PetscLogEventBegin(TAOPD_Eval, pd, 0, 0, 0));
+    PetscCall(PetscLogEventBegin(TAOPD_Eval, pd, x, g, NULL));
     if (pd->ops->computegradient) PetscCallBack("TaoPD callback gradient", (*pd->ops->computegradient)(pd, x, g, pd->userctx_grad));
     else PetscCallBack("TaoPD callback gradient", (*pd->ops->computeobjectiveandgradient)(pd, x, &fdummy, g, pd->userctx_funcgrad));
-    PetscCall(PetscLogEventEnd(TAOPD_Eval, pd, 0, 0, 0));
+    PetscCall(PetscLogEventEnd(TAOPD_Eval, pd, x, g, NULL));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -954,9 +951,9 @@ PetscErrorCode TaoPDApplyProximalMap(TaoPD pd0, TaoPD pd1, PetscReal lambda, Vec
   PetscCall(VecGetOwnershipRange(x, &low2, &high2));
   PetscCheck(low1 == low2 && high1 == high2, PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "Incompatible vector local lengths");
 
-  PetscCall(PetscLogEventBegin(TAOPD_Apply, pd0, 0, 0, 0));
+  PetscCall(PetscLogEventBegin(TAOPD_Apply, pd0, pd1, y, x));
   PetscUseTypeMethod(pd0, applyproximalmap, pd1, lambda, y, x, ctx);
-  PetscCall(PetscLogEventEnd(TAOPD_Apply, pd0, 0, 0, 0));
+  PetscCall(PetscLogEventEnd(TAOPD_Apply, pd0, pd1, y, x));
   PetscCall(TaoPDViewFromOptions(pd0, NULL, "-tao_pd_view"));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
