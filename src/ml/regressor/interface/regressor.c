@@ -43,17 +43,17 @@ PetscErrorCode PetscRegressorRegister(const char sname[], PetscErrorCode (*funct
 }
 
 /*@
-   PetscRegressorCreate - Creates a regressor object.
+  PetscRegressorCreate - Creates a regressor object.
 
-   Collective
+  Collective
 
-   Input Parameter:
-.  comm - MPI communicator
+  Input Parameter:
+. comm - MPI communicator
 
-   Output Parameter:
-.  newregressor - the new regressor object
+  Output Parameter:
+. newregressor - the new regressor object
 
-   Level: beginner
+  Level: beginner
 
 .seealso: PetscRegressorFit(), PetscRegressorPredict(), PetscRegressor
 @*/

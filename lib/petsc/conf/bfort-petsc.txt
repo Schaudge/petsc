@@ -195,6 +195,9 @@ native    TaoADMMUpdateType
 native    TaoADMMRegularizerType
 native    TaoALMMType
 
+# petscregressor.h
+nativeptr PetscRegressor
+
 # petscsys.h
 native    PetscBool
 native    PetscBool3

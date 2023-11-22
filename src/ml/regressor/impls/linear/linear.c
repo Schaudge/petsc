@@ -139,6 +139,7 @@ PetscErrorCode PetscRegressorDestroy_Linear(PetscRegressor regressor)
 /*@
    PetscRegressorLinearSetFitIntercept - Set a flag to indicate that the intercept (also known as the "bias" or "offset") should
    be calculated; data are assumed to be mean-centered if false.
+   TODO: Add companion PetscRegressorLinearGetFitIntercept(), and put it in the
 
    Logically Collective on PetscRegressor
 
@@ -148,7 +149,6 @@ PetscErrorCode PetscRegressorDestroy_Linear(PetscRegressor regressor)
 
    Level: intermediate
 @*/
-/* TODO: Add companion PetscRegressorLinearGetFitIntercept(), and put it in the .seealso: */
 PetscErrorCode PetscRegressorLinearSetFitIntercept(PetscRegressor regressor, PetscBool flg)
 {
   PETSCREGRESSOR_LINEAR *linear = (PETSCREGRESSOR_LINEAR *)regressor->data;
@@ -161,6 +161,7 @@ PetscErrorCode PetscRegressorLinearSetFitIntercept(PetscRegressor regressor, Pet
 /*@
    PetscRegressorLinearSetUseKSP - Set a flag to indicate that a KSP object, instead of a Tao one, should be used
    to fit the regressor
+   TODO: Add companion PetscRegressorLinearGetUseKSP(), and put it in the .seealso:
 
    Logically Collective on PetscRegressor
 
@@ -170,7 +171,6 @@ PetscErrorCode PetscRegressorLinearSetFitIntercept(PetscRegressor regressor, Pet
 
    Level: intermediate
 @*/
-/* TODO: Add companion PetscRegressorLinearGetUseKSP(), and put it in the .seealso: */
 PetscErrorCode PetscRegressorLinearSetUseKSP(PetscRegressor regressor, PetscBool flg)
 {
   PETSCREGRESSOR_LINEAR *linear = (PETSCREGRESSOR_LINEAR *)regressor->data;

@@ -252,6 +252,7 @@ $(OBJDIR)/src/ksp/f90-mod/petsckspmod.o   : $(OBJDIR)/src/ksp/f90-mod/petscpcmod
 $(OBJDIR)/src/snes/f90-mod/petscsnesmod.o : $(OBJDIR)/src/ksp/f90-mod/petsckspmod.o
 $(OBJDIR)/src/ts/f90-mod/petsctsmod.o     : $(OBJDIR)/src/snes/f90-mod/petscsnesmod.o
 $(OBJDIR)/src/tao/f90-mod/petsctaomod.o   : $(OBJDIR)/src/ts/f90-mod/petsctsmod.o
+$(OBJDIR)/src/ml/f90-mod/petscmlmod.o     : $(OBJDIR)/src/tao/f90-mod/petsctaomod.o
 # F2003 interface
 $(OBJDIR)/src/sys/objects/f2003-src/fsrc/optionenum.o   : $(OBJDIR)/src/sys/f90-mod/petscsysmod.o
 $(OBJDIR)/src/sys/classes/bag/f2003-src/fsrc/bagenum.o  : $(OBJDIR)/src/sys/f90-mod/petscsysmod.o

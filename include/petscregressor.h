@@ -1,12 +1,16 @@
-#ifndef PETSCREGRESSOR_H
-#define PETSCREGRESSOR_H
+#pragma once
 
 #include <petsctao.h>
+
+/* SUBMANSEC = Regressor */
 
 typedef struct _p_PetscRegressor *PetscRegressor;
 
 /*J
     PetscRegressorType - String with the name of a PETSc regression method.
+
+  Values:
+.    `PETSCREGRESSORLINEAR` - linear
 
    Level: beginner
 
@@ -19,6 +23,20 @@ typedef const char *PetscRegressorType;
    PetscOptionsEList() should be used to ensure that the user picks a valid linear regression type from the possible options here.
 
    If the list of PetscRegressorLinearTypes changes, be sure to update the list at the top of linear.c as well! */
+
+/*J
+       PetscRegressorLinearType - String with the name of a PETSc Regressor linear method
+
+  Values:
++    `PETSCREGRESSORLINEARDEFAULT` - ols
+.    `PETSCREGRESSORLINEAROLS`     - ols
+.    `PETSCREGRESSORLINEARLASSO`   - lasso
+-    `PETSCREGRESSORLINEARRIDGE    - ridge
+
+      Level: beginner
+
+.seealso: 'PetscRegressor`
+J*/
 typedef const char *PetscRegressorLinearType;
 #define PETSCREGRESSORLINEARDEFAULT "ols"
 #define PETSCREGRESSORLINEAROLS   "ols"
@@ -51,4 +69,3 @@ PETSC_EXTERN PetscErrorCode PetscRegressorLinearGetKSP(PetscRegressor, KSP *);
 PETSC_EXTERN PetscErrorCode PetscRegressorLinearGetCoefficients(PetscRegressor, Vec *);
 PETSC_EXTERN PetscErrorCode PetscRegressorLinearGetIntercept(PetscRegressor, PetscScalar *);
 PETSC_EXTERN PetscErrorCode PetscRegressorLinearSetType(PetscRegressor, PetscRegressorLinearType);
-#endif
