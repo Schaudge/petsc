@@ -1,6 +1,7 @@
 #include <petsc/private/fortranimpl.h>
 #include <petsc/private/f90impl.h>
 #include <petsc/private/regressorimpl.h>
+#include <petsc/private/mlimpl.h>
 
 #if defined(PETSC_HAVE_FORTRAN_CAPS)
   #define petscregressordestroy_  PETSCREGRESSORDESTROY

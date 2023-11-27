@@ -205,20 +205,20 @@ PetscErrorCode PetscRegressorView_Linear(PetscRegressor regressor, PetscViewer v
 }
 
 /*@
-   PetscRegressorLinearGetKSP - Returns the KSP context for a PETSCREGRESSORLINEAR object.
+  PetscRegressorLinearGetKSP - Returns the KSP context for a PETSCREGRESSORLINEAR object.
 
-   Not Collective, but if the PetscRegressor is parallel, then the KSP object is parallel
+  Not Collective, but if the PetscRegressor is parallel, then the KSP object is parallel
 
-   Input Parameter:
-.  regressor - the regressor context
+  Input Parameter:
+. regressor - the regressor context
 
-   Output Parameter:
-.  ksp - the KSP context
+  Output Parameter:
+. ksp - the KSP context
 
-   Notes:
-   Depending on the type of the linear regressor and the options that are set, the regressor may use a Tao object instead of a KSP.
+  Notes:
+  Depending on the type of the linear regressor and the options that are set, the regressor may use a Tao object instead of a KSP.
 
-   Level: beginner
+  Level: beginner
 
 .seealso: PetscRegressorGetTao()
 @*/
@@ -241,19 +241,19 @@ PetscErrorCode PetscRegressorLinearGetKSP(PetscRegressor regressor, KSP *ksp)
 }
 
 /*@
-   PetscRegressorLinearGetCoefficients - Get a vector of the fitted coefficients from a linear regression model
+  PetscRegressorLinearGetCoefficients - Get a vector of the fitted coefficients from a linear regression model
 
-   Not Collective
+  Not Collective
 
-   Input Parameter:
-.  regressor - the regressor context
+  Input Parameter:
+. regressor - the regressor context
 
-   Output Parameter:
-.  coefficients - the vector of the coefficients
+  Output Parameter:
+. coefficients - the vector of the coefficients
 
-   Level: beginner
+  Level: beginner
 
-.seealso: PetscRegressorLinearGetIntercept(), PETSCREGRESSORLINEAR
+.seealso: PetscRegressorLinearGetIntercept()
 @*/
 PETSC_EXTERN PetscErrorCode PetscRegressorLinearGetCoefficients(PetscRegressor regressor, Vec *coefficients)
 {
@@ -267,17 +267,19 @@ PETSC_EXTERN PetscErrorCode PetscRegressorLinearGetCoefficients(PetscRegressor r
 }
 
 /*@
-   PetscRegressorLinearGetIntercept - Get the intercept from a linear regression model
+  PetscRegressorLinearGetIntercept - Get the intercept from a linear regression model
 
-   Not Collective
+  Not Collective
 
-   Input Parameter:
-.  regressor - the regressor context
+  Input Parameter:
+. regressor - the regressor context
 
-   Output Parameter
-.  intercept - the intercept
+  Output Parameter
+. intercept - the intercept
 
-.seealso: PetscRegressorLinearGetCoefficients(), PETSCREGRESSORLINEAR
+  Level: beginner
+
+.seealso: PetscRegressorLinearGetCoefficients()
 @*/
 PETSC_EXTERN PetscErrorCode PetscRegressorLinearGetIntercept(PetscRegressor regressor, PetscScalar *intercept)
 {
@@ -291,19 +293,19 @@ PETSC_EXTERN PetscErrorCode PetscRegressorLinearGetIntercept(PetscRegressor regr
 }
 
 /*@C
-   PetscRegressorLinearSetType - Sets the type of linear regression to be performed
+  PetscRegressorLinearSetType - Sets the type of linear regression to be performed
 
-   Logically Collective
+  Logically Collective
 
-   Input Parameters:
-+  regressor - the `PetscRegressor` context (should be of type `PETSCREGRESSORLINEAR`)
--  type - a known linear regression method
+  Input Parameters:
++ regressor - the `PetscRegressor` context (should be of type `PETSCREGRESSORLINEAR`)
+- type - a known linear regression method
 
-   Options Database Key:
-.  -regressor_linear_type - Sets the linear regression method; use -help for a list of available methods
-   (for instance "-regressor_linear_type ols" or "-regressor_linear_type lasso")
+  Options Database Key:
+. -regressor_linear_type - Sets the linear regression method; use -help for a list of available methods
+  (for instance "-regressor_linear_type ols" or "-regressor_linear_type lasso")
 
-   Level: intermediate
+  Level: intermediate
 
 .seealso: `PetscRegressorLinearGetType()`, `PetscRegressorLinearType`, `PetscRegressorSetType()`
 @*/
@@ -384,16 +386,16 @@ PETSC_EXTERN PetscErrorCode PetscRegressorPredict_Linear(PetscRegressor regresso
 
 /* -------------------------------------------------------------------------- */
 /*MC
-     PETSCREGRESSORLINEAR - Linear regression model (ordinary least squares or regularized variants)
+  PETSCREGRESSORLINEAR - Linear regression model (ordinary least squares or regularized variants)
 
-   Options Database:
-+  -regressor_linear_fit_intercept - Calculate the intercept for the linear model
--  -regressor_linear_use_ksp - Use KSP instead of TAO for linear model fitting (non-regularized variants only)
+  Options Database:
++ -regressor_linear_fit_intercept - Calculate the intercept for the linear model
+- -regressor_linear_use_ksp - Use KSP instead of TAO for linear model fitting (non-regularized variants only)
 
-   Notes:
-   This is the default regressor in PetscRegressor
+  Notes:
+  This is the default regressor in PetscRegressor
 
-   Level: beginner
+  Level: beginner
 
 .seealso: PetscRegressorCreate(), PetscRegressor, PetscRegressorSetType()
 M*/

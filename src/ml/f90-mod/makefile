@@ -2,7 +2,8 @@
 #requiresdefine   'PETSC_USE_FORTRAN_BINDINGS'
 
 LIBBASE    = libpetscml
-MANSEC     = PetscRegressor
+MANSEC     = ML
+SUBMANSEC  = PetscRegressor
 CLEANFILES = *.mod
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
