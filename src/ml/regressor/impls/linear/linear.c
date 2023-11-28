@@ -12,7 +12,7 @@ PetscErrorCode EvaluateResidual(Tao tao, Vec x, Vec f, void *ptr)
   /* Evaluate f = A * x - b */
   PetscCall(MatMult(linear->X, x, f));
   PetscCall(VecAXPY(f, -1.0, linear->rhs));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode EvaluateJacobian(Tao tao, Vec x, Mat J, Mat Jpre, void *ptr)
@@ -22,7 +22,7 @@ PetscErrorCode EvaluateJacobian(Tao tao, Vec x, Mat J, Mat Jpre, void *ptr)
   PetscFunctionBegin;
   J    = linear->X;
   Jpre = linear->X;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode PetscRegressorSetUp_Linear(PetscRegressor regressor)
@@ -105,7 +105,7 @@ PetscErrorCode PetscRegressorSetUp_Linear(PetscRegressor regressor)
     }
     PetscCall(TaoSetFromOptions(tao));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode PetscRegressorReset_Linear(PetscRegressor regressor)
@@ -124,7 +124,7 @@ PetscErrorCode PetscRegressorReset_Linear(PetscRegressor regressor)
 
   /* Reset options/parameters to the setupcalled = 0 state. */
   /* TODO: Add the reset code once the linear regressor is fleshed out enough to need resetting! */
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode PetscRegressorDestroy_Linear(PetscRegressor regressor)
@@ -133,7 +133,7 @@ PetscErrorCode PetscRegressorDestroy_Linear(PetscRegressor regressor)
   PetscCall(PetscRegressorReset_Linear(regressor));
   PetscCall(PetscFree(regressor->data));
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -155,7 +155,7 @@ PetscErrorCode PetscRegressorLinearSetFitIntercept(PetscRegressor regressor, Pet
 
   PetscFunctionBegin;
   linear->fit_intercept = flg;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -177,7 +177,7 @@ PetscErrorCode PetscRegressorLinearSetUseKSP(PetscRegressor regressor, PetscBool
 
   PetscFunctionBegin;
   linear->use_ksp = flg;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode PetscRegressorSetFromOptions_Linear(PetscOptionItems *PetscOptionsObject, PetscRegressor regressor)
@@ -201,7 +201,7 @@ PetscErrorCode PetscRegressorSetFromOptions_Linear(PetscOptionItems *PetscOption
 PetscErrorCode PetscRegressorView_Linear(PetscRegressor regressor, PetscViewer viewer)
 {
   PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -237,7 +237,7 @@ PetscErrorCode PetscRegressorLinearGetKSP(PetscRegressor regressor, KSP *ksp)
     PetscCall(PetscObjectSetOptions((PetscObject)linear->ksp, ((PetscObject)regressor)->options));
   }
   *ksp = linear->ksp;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -263,7 +263,7 @@ PETSC_EXTERN PetscErrorCode PetscRegressorLinearGetCoefficients(PetscRegressor r
   PetscValidHeaderSpecific(regressor, PETSCREGRESSOR_CLASSID, 1);
   PetscAssertPointer(coefficients, 2);
   *coefficients = linear->coefficients;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -289,7 +289,7 @@ PETSC_EXTERN PetscErrorCode PetscRegressorLinearGetIntercept(PetscRegressor regr
   PetscValidHeaderSpecific(regressor, PETSCREGRESSOR_CLASSID, 1);
   PetscAssertPointer(intercept, 2);
   *intercept = linear->intercept;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
@@ -371,7 +371,7 @@ PetscErrorCode PetscRegressorFit_Linear(PetscRegressor regressor)
     linear->intercept = 0.0;
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PETSC_EXTERN PetscErrorCode PetscRegressorPredict_Linear(PetscRegressor regressor, Mat X, Vec y)
@@ -381,7 +381,7 @@ PETSC_EXTERN PetscErrorCode PetscRegressorPredict_Linear(PetscRegressor regresso
   PetscFunctionBegin;
   PetscCall(MatMult(X, linear->coefficients, y));
   PetscCall(VecShift(y, linear->intercept));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -421,5 +421,5 @@ PETSC_EXTERN PetscErrorCode PetscRegressorCreate_Linear(PetscRegressor regressor
   PetscCall(PetscStrallocpy(PETSCREGRESSORLINEARDEFAULT, (char**)&linear->type));
     /* Above, manually set the default linear regressor type.
        We don't use PetscRegressorLinearSetType() here, because that expects the SetUp event to already have happened. */
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
