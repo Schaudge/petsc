@@ -1,5 +1,5 @@
-#if !defined (PETSCSNESDEF_H)
-#define PETSCSNESDEF_H
+#if !defined (PETSCREGRESSORDEF_H)
+#define PETSCREGRESSORDEF_H
 
 #include "petsc/finclude/petsctao.h"
 

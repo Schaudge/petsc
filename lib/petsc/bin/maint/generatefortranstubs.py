@@ -234,7 +234,7 @@ def processf90interfaces(petscdir,petscarch,verbose):
   import shutil
   ''' Takes all the individually generated fortran interface files and merges them into one for each mansec'''
   ptypes = set()
-  mansecs = ['sys','vec','mat','dm','ksp','snes','ts','tao']
+  mansecs = ['sys','vec','mat','dm','ksp','snes','ts','tao','ml']
   badSrc = []
   for ms in mansecs:
     badSrc = checkHandWrittenF90Interfaces(badSrc,os.path.join(petscdir,'src',ms,'f90-mod'))
