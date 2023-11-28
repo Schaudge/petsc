@@ -84,6 +84,7 @@ PetscErrorCode DMPlexGetSimplexOrBoxCells(DM dm, PetscInt height, PetscInt *cSta
   DMLabel         ctLabel;
   IS              valueIS;
   const PetscInt *ctypes;
+  PetscBool       found = PETSC_FALSE;
   PetscInt        Nct, cS = PETSC_MAX_INT, cE = 0;
 
   PetscFunctionBegin;
@@ -91,7 +92,6 @@ PetscErrorCode DMPlexGetSimplexOrBoxCells(DM dm, PetscInt height, PetscInt *cSta
   PetscCall(DMLabelGetValueIS(ctLabel, &valueIS));
   PetscCall(ISGetLocalSize(valueIS, &Nct));
   PetscCall(ISGetIndices(valueIS, &ctypes));
-  if (!Nct) cS = cE = 0;
   for (PetscInt t = 0; t < Nct; ++t) {
     const PetscInt ct = ctypes[t];
     PetscInt       ctS, ctE, ht;
@@ -109,7 +109,9 @@ PetscErrorCode DMPlexGetSimplexOrBoxCells(DM dm, PetscInt height, PetscInt *cSta
     if (ht != height) continue;
     cS = PetscMin(cS, ctS);
     cE = PetscMax(cE, ctE);
+    found = PETSC_TRUE;
   }
+  if (!Nct || !found) cS = cE = 0;
   PetscCall(ISDestroy(&valueIS));
   // Reset label for fast lookup
   PetscCall(DMLabelMakeAllInvalid_Internal(ctLabel));
