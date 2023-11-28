@@ -4,7 +4,7 @@
 #include <petscts.h>
 
 PETSC_EXTERN PetscErrorCode DMPlexLandauPrintNorms(Vec, PetscInt);
-PETSC_EXTERN PetscErrorCode DMPlexLandauCreateVelocitySpace(MPI_Comm, PetscInt, const char[], Vec *, Mat *, DM *);
+PETSC_DEPRECATED_FUNCTION(3, 20, 0, "DMPlexLandauCreateVelocitySpace", "DMPlexLandauCreateVelocitySpace deprecated.") static inline PetscErrorCode DMPlexLandauCreateVelocitySpace(MPI_Comm, PetscInt, const char[], Vec *, Mat *, DM *);
 PETSC_EXTERN PetscErrorCode DMPlexLandauDestroyVelocitySpace(DM *);
 PETSC_EXTERN PetscErrorCode DMPlexLandauAccess(DM, Vec, PetscErrorCode (*)(DM, Vec, PetscInt, PetscInt, PetscInt, void *), void *);
 PETSC_EXTERN PetscErrorCode DMPlexLandauAddMaxwellians(DM, Vec, PetscReal, PetscReal[], PetscReal[], PetscInt, PetscInt, PetscInt, void *);
