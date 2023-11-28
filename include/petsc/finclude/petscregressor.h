@@ -1,5 +1,5 @@
-#ifndef __PETSCML_H
-#define __PETSCML_H
+#if !defined (PETSCSNESDEF_H)
+#define PETSCSNESDEF_H
 
 #include "petsc/finclude/petsctao.h"
 

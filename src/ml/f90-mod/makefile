@@ -3,7 +3,6 @@
 
 LIBBASE    = libpetscml
 MANSEC     = ML
-SUBMANSEC  = PetscRegressor
 CLEANFILES = *.mod
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
