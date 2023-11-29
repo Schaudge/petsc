@@ -2,7 +2,7 @@
 
 #include <petsctao.h>
 
-/* SUBMANSEC = Regressor */
+/* SUBMANSEC = PetscRegressor */
 
 /*S
      PetscRegressor - Abstract PETSc object that manages regression and classification problems

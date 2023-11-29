@@ -39,7 +39,7 @@ PetscErrorCode PetscRegressorRegister(const char sname[], PetscErrorCode (*funct
   PetscFunctionBegin;
   PetscCall(PetscRegressorInitializePackage());
   PetscCall(PetscFunctionListAdd(&PetscRegressorList, sname, function));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -77,7 +77,7 @@ PetscErrorCode PetscRegressorCreate(MPI_Comm comm, PetscRegressor *newregressor)
   regressor->regularizer_weight_is_set = PETSC_FALSE;
 
   *newregressor = regressor;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -121,7 +121,7 @@ PetscErrorCode PetscRegressorSetFromOptions(PetscRegressor regressor)
   /* TODO: Is there code that must be added to handle other options that apply to all PetscRegressor types? */
   if (regressor->ops->setfromoptions) { PetscCall((*regressor->ops->setfromoptions)(PetscOptionsObject, regressor)); }
   PetscOptionsEnd();
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -148,7 +148,7 @@ PetscErrorCode PetscRegressorSetUp(PetscRegressor regressor)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(regressor, PETSCREGRESSOR_CLASSID, 1);
-  if (regressor->setupcalled) PetscFunctionReturn(0);
+  if (regressor->setupcalled) PetscFunctionReturn(PETSC_SUCCESS);
   PetscCall(PetscLogEventBegin(PetscRegressor_SetUp, regressor, 0, 0, 0));
 
   if (!((PetscObject)regressor)->type_name) { PetscCall(PetscRegressorSetType(regressor, PETSCREGRESSORLINEAR)); }
@@ -157,7 +157,7 @@ PetscErrorCode PetscRegressorSetUp(PetscRegressor regressor)
 
   PetscCall(PetscLogEventEnd(PetscRegressor_SetUp, regressor, 0, 0, 0));
   regressor->setupcalled = PETSC_TRUE;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /* NOTE: I've decided to make this take X and y, like the Scikit-learn Fit routines do.
@@ -198,7 +198,7 @@ PetscErrorCode PetscRegressorFit(PetscRegressor regressor, Mat X, Vec y)
   PetscCall(PetscLogEventBegin(PetscRegressor_Fit, regressor, X, y, 0));
   PetscCall((*regressor->ops->fit)(regressor));
   PetscCall(PetscLogEventEnd(PetscRegressor_Fit, regressor, X, y, 0));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -225,7 +225,7 @@ PetscErrorCode PetscRegressorPredict(PetscRegressor regressor, Mat X, Vec y)
   PetscCall(PetscLogEventBegin(PetscRegressor_Predict, regressor, X, y, 0));
   PetscCall((*regressor->ops->predict)(regressor, X, y));
   PetscCall(PetscLogEventEnd(PetscRegressor_Predict, regressor, X, y, 0));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -250,7 +250,7 @@ PetscErrorCode PetscRegressorReset(PetscRegressor regressor)
   PetscCall(VecDestroy(&regressor->target));
   PetscCall(TaoDestroy(&regressor->tao));
   regressor->setupcalled = PETSC_FALSE;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
@@ -268,18 +268,18 @@ PetscErrorCode PetscRegressorReset(PetscRegressor regressor)
 PetscErrorCode PetscRegressorDestroy(PetscRegressor *regressor)
 {
   PetscFunctionBegin;
-  if (!*regressor) PetscFunctionReturn(0);
+  if (!*regressor) PetscFunctionReturn(PETSC_SUCCESS);
   PetscValidHeaderSpecific((*regressor), PETSCREGRESSOR_CLASSID, 1);
   if (--((PetscObject)(*regressor))->refct > 0) {
     *regressor = NULL;
-    PetscFunctionReturn(0);
+    PetscFunctionReturn(PETSC_SUCCESS);
   }
 
   PetscCall(PetscRegressorReset((*regressor)));
   if ((*regressor)->ops->destroy) PetscCall((*(*regressor)->ops->destroy)(*regressor));
 
   PetscCall(PetscHeaderDestroy(regressor));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
@@ -319,7 +319,7 @@ PetscErrorCode PetscRegressorSetType(PetscRegressor regressor, PetscRegressorTyp
   PetscAssertPointer(type, 2);
 
   PetscCall(PetscObjectTypeCompare((PetscObject)regressor, type, &match));
-  if (match) PetscFunctionReturn(0);
+  if (match) PetscFunctionReturn(PETSC_SUCCESS);
 
   PetscCall(PetscFunctionListFind(PetscRegressorList, type, &r));
   if (!r) SETERRQ(PetscObjectComm((PetscObject)regressor), PETSC_ERR_ARG_UNKNOWN_TYPE, "Unable to find requested PetscRegressor type %s", type);
@@ -344,7 +344,7 @@ PetscErrorCode PetscRegressorSetType(PetscRegressor regressor, PetscRegressorTyp
   regressor->setupcalled = PETSC_FALSE;
   PetscCall((*r)(regressor));
   PetscCall(PetscObjectChangeTypeName((PetscObject)regressor, type));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -373,7 +373,7 @@ PetscErrorCode PetscRegressorView(PetscRegressor regressor, PetscViewer viewer)
 {
   PetscFunctionBegin;
   // TODO: Complete this when I have a good idea of what bits of the PetscRegressor should be shown!
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
@@ -414,5 +414,5 @@ PetscErrorCode PetscRegressorGetTao(PetscRegressor regressor, Tao *tao)
     PetscCall(PetscObjectSetOptions((PetscObject)regressor->tao, ((PetscObject)regressor)->options));
   }
   *tao = regressor->tao;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -195,7 +195,7 @@ PetscErrorCode PetscRegressorSetFromOptions_Linear(PetscOptionItems *PetscOption
   PetscCall(PetscOptionsEList("-regressor_linear_type", "Linear regression method", "", PetscRegressor_Linear_Types_Table, PETSCREGRESSOR_LINEAR_NUM_TYPES, linear->type, &i, &set));
   if (set) PetscCall(PetscRegressorLinearSetType(regressor, PetscRegressor_Linear_Types_Table[i]));
   PetscOptionsHeadEnd();
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode PetscRegressorView_Linear(PetscRegressor regressor, PetscViewer viewer)

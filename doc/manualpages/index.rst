@@ -25,6 +25,7 @@ sophisticated library features.
    NonlinearSolvers
    Timestepping
    Optimization
+   MachineLearning
    Visualization
    System
    ../changes/index.rst
