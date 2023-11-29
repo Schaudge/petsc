@@ -12,11 +12,11 @@ int main(int argc, char **argv)
   PetscCall(PetscLogEventRegister("Event-2", PETSC_OBJECT_CLASSID, &e2));
   PetscCall(PetscLogStageRegister("User Stage", &s));
   PetscCall(PetscLogStagePush(s));
-  PetscCall(PetscSleep(0.1));
+  PetscCall(PetscSleep(0.2));
   PetscCall(PetscLogEventBegin(e1, NULL, NULL, NULL, NULL));
-  PetscCall(PetscSleep(0.1));
+  PetscCall(PetscSleep(0.2));
   PetscCall(PetscLogEventBegin(e2, NULL, NULL, NULL, NULL));
-  PetscCall(PetscSleep(0.1));
+  PetscCall(PetscSleep(0.2));
   PetscCall(PetscLogStagePop());
   PetscCall(PetscLogEventBegin(e1, NULL, NULL, NULL, NULL));
   PetscCall(PetscSleep(0.1));
