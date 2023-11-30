@@ -2972,7 +2972,6 @@ cdef extern from * nogil:
         PetscKSP ksp
         PetscVec gradient
         PetscVec stepdirection
-        PetscRegressorLineSearch linesearch
 
 @cython.internal
 cdef class _PyRegressor(_PyObj): pass
