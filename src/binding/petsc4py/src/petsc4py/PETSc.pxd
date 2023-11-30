@@ -98,7 +98,7 @@ cdef extern from "<petsc.h>":
     struct _p_DM
     ctypedef _p_DM* PetscDM "DM"
 
-    struct _p_DMPlexTransform 
+    struct _p_DMPlexTransform
     ctypedef _p_DMPlexTransform* PetscDMPlexTransform "DMPlexTransform"
 
     struct _p_PetscDS
