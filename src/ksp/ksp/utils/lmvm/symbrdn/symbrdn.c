@@ -610,7 +610,7 @@ PetscErrorCode MatLMVMSymBroydenSetDelta(Mat B, PetscScalar delta)
   PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMSYMBROYDEN, &is_symbrdn));
   PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMSYMBADBROYDEN, &is_symbadbrdn));
 
-  if (is_bfgs || is_dfp || is_symbrdn || is_symbadbrdn) {
+  if (is_bfgs || is_cdbfgs || is_dfp || is_symbrdn || is_symbadbrdn) {
     lsb     = (Mat_SymBrdn*)lmvm->ctx;
     del_min = lsb->delta_min;
     del_max = lsb->delta_max;
