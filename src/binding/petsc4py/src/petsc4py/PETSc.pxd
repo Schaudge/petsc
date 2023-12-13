@@ -107,8 +107,8 @@ cdef extern from "<petsc.h>":
     struct _p_PetscPartitioner
     ctypedef _p_PetscPartitioner* PetscPartitioner "PetscPartitioner"
 
-    struct _p_PetscRegressor
-    ctypedef _p_PetscRegressor* PetscRegressor "PetscRegressor"
+    struct _p_Regressor "_p_PetscRegressor"
+    ctypedef _p_Regressor* PetscRegressor "PetscRegressor"
 
 # --------------------------------------------------------------------
 
