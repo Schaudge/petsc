@@ -2969,7 +2969,7 @@ cdef extern from * nogil:
       PetscErrorCode (*setfromoptions)(PetscRegressor,PetscOptionItems*) except PETSC_ERR_PYTHON
       PetscErrorCode (*view)(PetscRegressor,PetscViewer) except PETSC_ERR_PYTHON
     ctypedef _RegressorOps *RegressorOps
-    struct _p_Regressor:
+    struct _p_PetscRegressor:
         void *data
         RegressorOps ops
         PetscInt niter, max_it
