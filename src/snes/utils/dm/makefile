@@ -1,8 +1,8 @@
 -include ../../../../petscdir.mk
 
-LIBBASE  = libpetscksp
-DIRS     = lmvm schurm dm
-MANSEC   = KSP
+LIBBASE        = libpetscsnes
+MANSEC         = DM
+BFORTSUBMANSEC = SNES
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules.doc
