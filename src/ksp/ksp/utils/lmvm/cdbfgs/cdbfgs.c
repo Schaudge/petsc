@@ -535,24 +535,46 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
                       [ 0      | I ][ 0 |  I  ][ 0 | -J^{-1} ][ L D^{-1} | I ] [ S^T B_0 ]
 
                       (Note that YtS_triu_strict is L^T)
-   Byrd, Nocedal, Schnabel 1994                                            */
+   Byrd, Nocedal, Schnabel 1994
+
+   Alternative approach: considering the fact that DFP is dual to BFGS, use MatMult of DPF:
+
+   (Theorem 1, Erway, Jain, and Marcia, 2013)
+
+   B_0 - [ Y | B_0 S] [ -R^{-T} (D + S^T B_0 S) R^{-1} | R^{-T} ] [   Y^T   ]
+                      ---------------------------------+--------] [---------]
+                      [             R^{-1}             |   0    ] [ S^T B_0 ]
+
+   which becomes,
+
+   [ I | -Y R^{-T} ] [  I  | 0 ] [ B_0 | 0 ] [ I | S ] [      I      ]
+                     [-----+---] [-----+---] [---+---] [-------------]
+                     [ S^T | I ] [  0  | D ] [ 0 | I ] [ -R^{-1} Y^T ]
+
+   (Note: R here is upper triangular, not strictly upper triangular)
+
+
+*/
 
 static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
 {
   Mat_LMVM          *lmvm  = (Mat_LMVM*)B->data;
   Mat_CDBFGS        *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
   Mat                J_local;
+  Vec rwork1 = lbfgs->rwork1;
   PetscInt           m_local;
   PetscInt           m = lmvm->m;
   PetscInt           k = lbfgs->num_updates;
   PetscInt           h = k - oldest_update(m, k);
   PetscDeviceContext dctx;
+  PetscObjectState   Xstate;
 
   PetscFunctionBegin;
   PetscCall(PetscLogEventBegin(CDBFGS_MatMult, B, X, Z,0));
   VecCheckSameSize(X, 2, Z, 3);
   VecCheckMatCompatible(B, X, 2, Z, 3);
 
+  if (lbfgs->mult_type) {
   /* Start with the B0 term */
   PetscCall(MatCDBFGSApplyJ0Fwd(B, X, Z));
   if (!lbfgs->num_updates) {
@@ -607,6 +629,53 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   lbfgs->S_count++;
   PetscCall(PetscLogEventEnd(CDBFGS_MatMult, B, X, Z,0));
   PetscFunctionReturn(PETSC_SUCCESS);
+
+  } else {
+
+  /* Block Version */
+  if (!lbfgs->num_updates) {
+    PetscCall(MatCDBFGSApplyJ0Fwd(B, X, Z));
+    PetscCall(PetscLogEventEnd(CDBFGS_MatMult, B, X, Z,0));
+    PetscFunctionReturn(PETSC_SUCCESS); /* No updates stored yet */
+  }
+
+  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+//  PetscCall(MatLMVMCDBFGSUpdateMultData(B));
+
+  PetscCall(PetscObjectStateGet((PetscObject)X, &Xstate));
+  if (X == lbfgs->Xprev_ref && Xstate == lbfgs->Xprev_state) {
+    PetscCall(VecCopyAsync_Private(lbfgs->YtXprev, rwork1, dctx));
+  } else {
+    PetscCall(MatMultTransposeColumnRange(lbfgs->Yfull, X, rwork1, 0, h));
+    lbfgs->Yt_count++;
+  }
+
+  /* Reordering rwork1, as STY is in history order, while S is in recycled order */
+  if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, rwork1));
+  PetscCall(MatUpperTriangularSolveInPlace(B, lbfgs->StY_triu, rwork1, PETSC_FALSE));
+  PetscCall(VecScaleAsync_Private(rwork1, -1.0, dctx));
+  if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(B, rwork1));
+
+  PetscCall(VecCopyAsync_Private(X, lbfgs->column_work, dctx));
+  PetscCall(MatMultAddColumnRange(lbfgs->Sfull, rwork1, lbfgs->column_work, lbfgs->column_work, 0, h));
+  lbfgs->S_count++;
+
+  PetscCall(VecPointwiseMultAsync_Private(rwork1, lbfgs->diag_vec_recycle_order, rwork1, dctx));
+  PetscCall(MatCDBFGSApplyJ0Fwd(B, lbfgs->column_work, Z));
+
+  PetscCall(MatMultTransposeAddColumnRange(lbfgs->Sfull, Z, rwork1, rwork1, 0, h));
+  lbfgs->St_count++;
+
+  if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, rwork1));
+  PetscCall(MatUpperTriangularSolveInPlace(B, lbfgs->StY_triu, rwork1, PETSC_TRUE));
+  PetscCall(VecScaleAsync_Private(rwork1, -1.0, dctx));
+  if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(B, rwork1));
+
+  PetscCall(MatMultAddColumnRange(lbfgs->Yfull, rwork1, Z, Z, 0, h));
+  lbfgs->Y_count++;
+  PetscCall(PetscLogEventEnd(CDBFGS_MatMult, B, X, Z,0));
+  PetscFunctionReturn(PETSC_SUCCESS);
+  }
 }
 
 /*------------------------------------------------------------*/
@@ -628,18 +697,25 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
   PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
   if (lmvm->prev_set) {
     Vec FX[2];
+    Vec XF[2];
     PetscScalar dotFX[2];
+    PetscScalar dotXF[2];
     PetscScalar stFprev;
+    PetscScalar ytXprev;
 
     /* Compute the new (S = X - Xprev) and (Y = F - Fprev) vectors */
     PetscCall(VecAYPXAsync_Private(lmvm->Xprev, -1.0, X, dctx));
     /* Test if the updates can be accepted */
     FX[0] = lmvm->Fprev; // dotFX[0] = s^T Fprev
     FX[1] = F;           // dotFX[1] = s^T F
+    XF[0] = lmvm->Xprev; // dotXF[0] = y^T Xprev
+    XF[1] = X;           // dotXF[1] = y^T X
     PetscCall(VecMDot(lmvm->Xprev, 2, FX, dotFX));
+    PetscCall(VecMDot(lmvm->Fprev, 2, XF, dotXF));
     PetscCall(VecAYPXAsync_Private(lmvm->Fprev, -1.0, F, dctx));
     PetscCall(VecDot(lmvm->Fprev, lmvm->Fprev, &yTy));
     stFprev = dotFX[0];
+    ytXprev = dotXF[0];
     curvature = (dotFX[1] - dotFX[0]); // s^T y
     if (PetscRealPart(yTy) < lmvm->eps) {
       curvtol = 0.0;
@@ -713,6 +789,34 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
 
         if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, this_sy_col));
         PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->StY_triu, StYidx, &this_sy_col));
+      }
+
+      { // implement the scheme of Byrd, Nocedal, and Schnabel to save a MatMultTranspose call in the common case the
+        // B_k is immediately applied to X after begin updated.   The Y^T x computation can be split up as Y^T (X - X_prev)
+        PetscInt local_n;
+        PetscScalar *YtXprev;
+        PetscMemType memtype;
+
+        if (!lbfgs->YtXprev) {
+          PetscCall(VecDuplicate(lbfgs->rwork1, &lbfgs->YtXprev));
+          PetscCall(VecZeroEntries(lbfgs->YtXprev));
+        }
+        PetscCall(VecGetLocalSize(lbfgs->YtXprev, &local_n));
+        PetscCall(VecGetArrayAndMemType(lbfgs->YtXprev, &YtXprev, &memtype));
+        if (local_n) {
+          if (PetscMemTypeHost(memtype)) {
+            YtXprev[idx] = ytXprev;
+          } else {
+            PetscCall(PetscDeviceRegisterMemory(&ytXprev, PETSC_MEMTYPE_HOST, 1 * sizeof(ytXprev)));
+            PetscCall(PetscDeviceRegisterMemory(YtXprev, memtype, local_n * sizeof(*YtXprev)));
+            PetscCall(PetscDeviceArrayCopy(dctx, &YtXprev[idx], &ytXprev, 1));
+          }
+        }
+        PetscCall(VecRestoreArrayAndMemType(lbfgs->YtXprev, &YtXprev));
+
+        // Now compute the new YtXprev
+        PetscCall(MatMultTransposeColumnRange(lbfgs->Yfull, X, lbfgs->YtXprev, 0, h_new));
+        lbfgs->Yt_count++;
       }
 
       PetscCall(MatGetDiagonal(lbfgs->StY_triu, lbfgs->diag_vec));
@@ -818,6 +922,13 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       }
       PetscCall(MatMultTransposeColumnRange(lbfgs->Sfull, F, lbfgs->StFprev, 0, h));
       lbfgs->St_count++;
+      // we still have to maintain YtXprev
+      if (!lbfgs->YtXprev) {
+        PetscCall(VecDuplicate(lbfgs->rwork1, &lbfgs->YtXprev));
+        PetscCall(VecZeroEntries(lbfgs->YtXprev));
+      }
+      PetscCall(MatMultTransposeColumnRange(lbfgs->Yfull, X, lbfgs->YtXprev, 0, h));
+      lbfgs->Yt_count++;
     }
   } else {
     switch (lbfgs->scale_type) {
@@ -844,6 +955,11 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
   PetscCall(VecDestroy(&lbfgs->Fprev_ref));
   lbfgs->Fprev_ref = F;
   PetscCall(PetscObjectStateGet((PetscObject)F, &lbfgs->Fprev_state));
+
+  PetscCall(PetscObjectReference((PetscObject)X));
+  PetscCall(VecDestroy(&lbfgs->Xprev_ref));
+  lbfgs->Xprev_ref = X;
+  PetscCall(PetscObjectStateGet((PetscObject)X, &lbfgs->Xprev_state));
   lmvm->prev_set = PETSC_TRUE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -880,7 +996,9 @@ static PetscErrorCode MatLMVMCDBFGSResetDetructive(Mat B)
   PetscCall(MatDestroy(&lbfgs->StY_triu));
   PetscCall(VecDestroy(&lbfgs->StFprev));
   PetscCall(VecDestroy(&lbfgs->Fprev_ref));
+  PetscCall(VecDestroy(&lbfgs->Xprev_ref));
   lbfgs->Fprev_state = 0;
+  lbfgs->Xprev_state = 0;
   PetscCall(MatDestroy(&lbfgs->YtS_triu_strict));
   PetscCall(MatDestroy(&lbfgs->LDLt));
   PetscCall(MatDestroy(&lbfgs->StBS));
@@ -922,8 +1040,11 @@ static PetscErrorCode MatReset_LMVMCDBFGS(Mat B, PetscBool destructive)
     PetscCall(MatShift(lbfgs->StBS, 1.0));
   }
   if (lbfgs->Fprev_ref) PetscCall(VecDestroy(&lbfgs->Fprev_ref));
+  if (lbfgs->Xprev_ref) PetscCall(VecDestroy(&lbfgs->Xprev_ref));
   lbfgs->Fprev_state = 0;
+  lbfgs->Xprev_state = 0;
   if (lbfgs->StFprev) PetscCall(VecZeroEntries(lbfgs->StFprev));
+  if (lbfgs->YtXprev) PetscCall(VecZeroEntries(lbfgs->YtXprev));
   if (destructive) {
     PetscCall(MatLMVMCDBFGSResetDetructive(B));
   }
@@ -1091,6 +1212,8 @@ static PetscErrorCode MatSetFromOptions_LMVMCDBFGS(Mat B, PetscOptionItems *Pets
   PetscOptionsBegin(PetscObjectComm((PetscObject)B), ((PetscObject)B)->prefix,  "Compact dense BFGS method (MATLMVMCDBFGS)", NULL);
   PetscCall(PetscOptionsEnum("-mat_lbfgs_type", "Implementation options for L-BFGS", "MatLBFGSType", MatLBFGSTypes, (PetscEnum)lbfgs->strategy, (PetscEnum *)&lbfgs->strategy, NULL));
   PetscCall(PetscOptionsEnum("-mat_lmvm_scale_type", "(developer) scaling type applied to J0", "MatLMVMSymBrdnScaleType", MatLMVMSymBroydenScaleTypes, (PetscEnum)lbfgs->scale_type, (PetscEnum *)&lbfgs->scale_type, NULL));
+  PetscCall(PetscOptionsBool("-mat_lbfgs_mult_type", "True for Cholesky type MatMult_CDBFGS, False for DFP type..", "", lbfgs->mult_type, &lbfgs->mult_type, NULL));
+  lbfgs->allocated       = PETSC_FALSE;
   PetscOptionsEnd();
   if (lbfgs->scale_type == MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL) {
     const char *prefix;
@@ -1132,6 +1255,7 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   PetscCall(PetscNew(&lbfgs));
   lmvm->ctx = (void*)lbfgs;
   lbfgs->allocated       = PETSC_FALSE;
+  lbfgs->mult_type       = PETSC_FALSE;
   lbfgs->watchdog        = 0;
   lbfgs->max_seq_rejects = lmvm->m/2;
   lbfgs->strategy        = MAT_LBFGS_CD_INPLACE;

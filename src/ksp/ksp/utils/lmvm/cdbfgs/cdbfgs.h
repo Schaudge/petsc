@@ -12,6 +12,7 @@ typedef struct {
   Mat       Sfull, Yfull, BS; // Stored in recycled order
   Mat       StY_triu;        // triu(StY) is the R matrix
   Vec       StFprev;
+  Vec       YtXprev;
   Mat       YtS_triu_strict; // strict_triu(YtS) is the L^T matrix
   Mat       LDLt;
   Mat       StBS;
@@ -31,8 +32,11 @@ typedef struct {
   PetscInt         S_count, St_count, Y_count, Yt_count;
   PetscInt         watchdog, max_seq_rejects;                   /* tracker to reset after a certain # of consecutive rejects */
   PetscBool        allocated;
+  PetscBool        mult_type;
   Vec              Fprev_ref;
   PetscObjectState Fprev_state;
+  Vec              Xprev_ref;
+  PetscObjectState Xprev_state;
 } Mat_CDBFGS;
 
 PETSC_INTERN PetscErrorCode MatView_LMVMCDBFGS(Mat, PetscViewer);
