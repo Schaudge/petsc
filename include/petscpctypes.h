@@ -509,7 +509,8 @@ typedef enum {
 
     Values:
 +   `PC_HPDDM_SCHUR_PRE_LEAST_SQUARES` (default) - only with a near-zero A11 block and A10 = A01^T; a preconditioner for solving A01^T A00^-1 A01 x = b is built by approximating the Schur complement with (inv(sqrt(diag(A00))) A01)^T (inv(sqrt(diag(A00))) A01) and by considering the associated linear least squares problem
--   `PC_HPDDM_SCHUR_PRE_GENEO` - only with A10 = A01^T, `PCHPDDMSetAuxiliaryMat()` called on the `PC` of the A00 block, and if A11 is nonzero, then `PCHPDDMSetAuxiliaryMat()` must be called on the associated `PC` as well (it is built automatically for the user otherwise); the Schur complement `PC` is set internally to `PCKSP`, with the prefix `-fieldsplit_1_pc_hpddm_`; the operator associated to the `PC` is spectrally equivalent to the original Schur complement
+.   `PC_HPDDM_SCHUR_PRE_GENEO`                   - only with A10 = A01^T, `PCHPDDMSetAuxiliaryMat()` called on the `PC` of the A00 block, and if A11 is nonzero, then `PCHPDDMSetAuxiliaryMat()` must be called on the associated `PC` as well (it is built automatically for the user otherwise); the Schur complement `PC` is set internally to `PCKSP`, with the prefix `-fieldsplit_1_pc_hpddm_`; the operator associated to the `PC` is spectrally equivalent to the original Schur complement
+-   `PC_HPDDM_SCHUR_PRE_LOW_RANK_CORRECTION`     - extension of `PC_HPDDM_SCHUR_PRE_GENEO` that handles nonsymmetric systems better, with no inner `PCKSP`
 
     Level: advanced
 
@@ -518,6 +519,7 @@ E*/
 typedef enum {
   PC_HPDDM_SCHUR_PRE_LEAST_SQUARES,
   PC_HPDDM_SCHUR_PRE_GENEO,
+  PC_HPDDM_SCHUR_PRE_LOW_RANK_CORRECTION
 } PCHPDDMSchurPreType;
 
 /*E
