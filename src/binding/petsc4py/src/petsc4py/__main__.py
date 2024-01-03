@@ -64,6 +64,10 @@ def help(args=None):
         tao = PETSc.TAO().create(comm=COMM)
         tao.setFromOptions()
         tao.destroy()
+    if 'regressor' in args:
+        reg = PETSc.Regressor().create(comm=COMM)
+        reg.setFromOptions()
+        reg.destroy()
     if 'dmda' in args:
         dmda = PETSc.DMDA().create(comm=COMM)
         dmda.setFromOptions()

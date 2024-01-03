@@ -24,6 +24,7 @@ from .PETSc import (
     TAO,
     TAOLineSearch,
     DM,
+    PetscRegressor,
 )
 
 __all__ = [
