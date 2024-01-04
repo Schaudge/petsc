@@ -658,6 +658,8 @@ PetscErrorCode DMDestroy(DM *dm)
   if (!*dm) PetscFunctionReturn(PETSC_SUCCESS);
   PetscValidHeaderSpecific(*dm, DM_CLASSID, 1);
 
+  PetscCall(PetscObjectDestroy(&(*dm)->dmtao));
+
   /* count all non-cyclic references in the doubly-linked list of coarse<->fine meshes */
   PetscCall(DMCountNonCyclicReferences_Internal(*dm, PETSC_TRUE, PETSC_TRUE, &cnt));
   --((PetscObject)*dm)->refct;
