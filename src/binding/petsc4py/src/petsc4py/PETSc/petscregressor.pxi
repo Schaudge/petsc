@@ -1,6 +1,6 @@
 cdef extern from * nogil:
 
-    ctypedef const char* PetscRegressorType "PetscRegressorType"
+    ctypedef const char* PetscRegressorType
     PetscRegressorType PETSCREGRESSORLINEAR
 
     PetscErrorCode PetscRegressorCreate(MPI_Comm,PetscRegressor*)
