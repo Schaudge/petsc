@@ -285,6 +285,8 @@ int main(int argc, char **argv)
   PetscCall(PetscOptionsGetInt(NULL, NULL, "-g_type", &user.g_type, &flg));
   /* Determines whether y is zeros, or random */
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-central_vec", &user.y_bool, &flg));
+  /* if sketch is 1, DM is used for primary objective */
+  PetscCall(PetscOptionsGetBool(NULL, NULL, "-sketch", &user.sketch, &flg));
   PetscCall(PetscOptionsGetReal(NULL, NULL, "-stepsize", &user.stepsize, &flg));
 
   PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &x));
