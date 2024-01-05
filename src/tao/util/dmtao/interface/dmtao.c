@@ -498,7 +498,7 @@ PetscErrorCode DMTaoSetUp(DM dm)
   DMTao       tdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm, DMTAO_CLASSID, 1);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   if (dm->setupcalled) PetscFunctionReturn(PETSC_SUCCESS);
   if (!((PetscObject)dm)->type_name) PetscCall(DMTaoSetType(dm, default_type));
   PetscTryTypeMethod(dm, setup);
