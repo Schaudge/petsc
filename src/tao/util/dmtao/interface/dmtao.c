@@ -47,26 +47,28 @@ static PetscErrorCode DMTaoDestroy(DMTao *kdm)
 
 .seealso: [](ch_tao), `DMTao`, `PetscViewerASCIIOpen()`
 @*/
-PetscErrorCode DMTaoView(DMTao kdm, PetscViewer viewer)
+PetscErrorCode DMTaoView(DM kdm, PetscViewer viewer)
 {
   PetscBool isascii, isbinary;
+  DMTao     tdm;
 
   PetscFunctionBegin;
   PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &isascii));
   PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERBINARY, &isbinary));
+  PetscCall(DMGetDMTao(kdm, &tdm));
   if (isascii) {
 #if defined(PETSC_SERIALIZE_FUNCTIONS)
-    PetscCall(PetscObjectPrintClassNamePrefixType((PetscObject)kdm, viewer));
+    PetscCall(PetscObjectPrintClassNamePrefixType((PetscObject)tdm, viewer));
 
     const char *fname;
 
-    PetscCall(PetscFPTFind(kdm->ops->computeobjective, &fname));
+    PetscCall(PetscFPTFind(tdm->ops->computeobjective, &fname));
     if (fname) PetscCall(PetscViewerASCIIPrintf(viewer, "Objective used by DMTao: %s\n", fname));
-    PetscCall(PetscFPTFind(kdm->ops->computegradient, &fname));
+    PetscCall(PetscFPTFind(tdm->ops->computegradient, &fname));
     if (fname) PetscCall(PetscViewerASCIIPrintf(viewer, "Gradient function used by DMTao: %s\n", fname));
-    PetscCall(PetscFPTFind(kdm->ops->computeobjectiveandgradient, &fname));
+    PetscCall(PetscFPTFind(tdm->ops->computeobjectiveandgradient, &fname));
     if (fname) PetscCall(PetscViewerASCIIPrintf(viewer, "Objective and Gradient function used by DMTao: %s\n", fname));
-    PetscCall(PetscViewerASCIIPrintf(viewer, "DMTao scale=%g,", (double)kdm->scale));
+    PetscCall(PetscViewerASCIIPrintf(viewer, "DMTao scale=%g,", (double)tdm->scale));
 
     /* TODO pushtabascii what to print here? */
 #endif
@@ -80,9 +82,9 @@ PetscErrorCode DMTaoView(DMTao kdm, PetscViewer viewer)
     struct {
       PetscErrorCode (*objgrad)(DM, Vec, PetscReal *, Vec, void *);
     } objgradstruct;
-    objstruct.obj         = kdm->ops->computeobjective;
-    gradstruct.grad       = kdm->ops->computegradient;
-    objgradstruct.objgrad = kdm->ops->computeobjectiveandgradient;
+    objstruct.obj         = tdm->ops->computeobjective;
+    gradstruct.grad       = tdm->ops->computegradient;
+    objgradstruct.objgrad = tdm->ops->computeobjectiveandgradient;
     PetscCall(PetscViewerBinaryWrite(viewer, &objstruct, 1, PETSC_FUNCTION));
     PetscCall(PetscViewerBinaryWrite(viewer, &gradstruct, 1, PETSC_FUNCTION));
     PetscCall(PetscViewerBinaryWrite(viewer, &objgradstruct, 1, PETSC_FUNCTION));
@@ -411,7 +413,7 @@ PetscErrorCode DMTaoGetObjectiveAndGradient(DM dm, PetscErrorCode (**obj)(DM, Ve
   Collective
 
   Input Parameter:
-. dm - the `DMTao` context
+. dm - the `DM` context
 
   Options Database Keys:
 + -dmtao_type <type>   - The type of `DMTao` (L1,L2,KL,SimplexUSER)
@@ -465,11 +467,14 @@ PetscErrorCode DMTaoSetFromOptions(DM dm)
 
 .seealso: [](ch_tao), `Tao`, `DMTao`, `DMTaoView()`, `PetscObjectViewFromOptions()`, `DMTaoCreate()`
 @*/
-PetscErrorCode DMTaoViewFromOptions(DMTao dm, PetscObject obj, const char name[])
+PetscErrorCode DMTaoViewFromOptions(DM dm, PetscObject obj, const char name[])
 {
+  DMTao tdm;
+
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm, DMTAO_CLASSID, 1);
-  PetscCall(PetscObjectViewFromOptions((PetscObject)dm, obj, name));
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTao(dm, &tdm));
+  PetscCall(PetscObjectViewFromOptions((PetscObject)tdm, obj, name));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -486,41 +491,41 @@ PetscErrorCode DMTaoViewFromOptions(DMTao dm, PetscObject obj, const char name[]
 
 .seealso: [](ch_tao), `Tao`, `DMTao`, `DMTaoCreate()`, `DMTaoApply()`
 @*/
-PetscErrorCode DMTaoSetUp(DMTao dm)
+PetscErrorCode DMTaoSetUp(DM dm)
 {
   const char *default_type = DMTAOL2;
   PetscBool   flg;
-  DM          originaldm;
+  DMTao       tdm;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DMTAO_CLASSID, 1);
   if (dm->setupcalled) PetscFunctionReturn(PETSC_SUCCESS);
-  PetscCall(DMTaoGetParentDM(dm, &originaldm));
-  if (!((PetscObject)originaldm)->type_name) PetscCall(DMTaoSetType(originaldm, default_type));
+  if (!((PetscObject)dm)->type_name) PetscCall(DMTaoSetType(dm, default_type));
   PetscTryTypeMethod(dm, setup);
-  if (dm->usetaoroutines) {
-    PetscCall(TaoIsObjectiveDefined(dm->dm_subtao, &flg));
-    dm->hasobjective = flg;
-    PetscCall(TaoIsGradientDefined(dm->dm_subtao, &flg));
-    dm->hasgradient = flg;
-    PetscCall(TaoIsObjectiveAndGradientDefined(dm->dm_subtao, &flg));
-    dm->hasobjectiveandgradient = flg;
+  PetscCall(DMGetDMTaoWrite(dm, &tdm));
+  if (tdm->usetaoroutines) {
+    PetscCall(TaoIsObjectiveDefined(tdm->dm_subtao, &flg));
+    tdm->hasobjective = flg;
+    PetscCall(TaoIsGradientDefined(tdm->dm_subtao, &flg));
+    tdm->hasgradient = flg;
+    PetscCall(TaoIsObjectiveAndGradientDefined(tdm->dm_subtao, &flg));
+    tdm->hasobjectiveandgradient = flg;
     /* TODO Hessian */
   } else {
-    if (dm->ops->computeobjective) {
-      dm->hasobjective = PETSC_TRUE;
+    if (tdm->ops->computeobjective) {
+      tdm->hasobjective = PETSC_TRUE;
     } else {
-      dm->hasobjective = PETSC_FALSE;
+      tdm->hasobjective = PETSC_FALSE;
     }
-    if (dm->ops->computegradient) {
-      dm->hasgradient = PETSC_TRUE;
+    if (tdm->ops->computegradient) {
+      tdm->hasgradient = PETSC_TRUE;
     } else {
-      dm->hasgradient = PETSC_FALSE;
+      tdm->hasgradient = PETSC_FALSE;
     }
-    if (dm->ops->computeobjectiveandgradient) {
-      dm->hasobjectiveandgradient = PETSC_TRUE;
+    if (tdm->ops->computeobjectiveandgradient) {
+      tdm->hasobjectiveandgradient = PETSC_TRUE;
     } else {
-      dm->hasobjectiveandgradient = PETSC_FALSE;
+      tdm->hasobjectiveandgradient = PETSC_FALSE;
     }
   }
   dm->setupcalled = PETSC_TRUE;
@@ -1065,8 +1070,8 @@ PetscErrorCode DMTaoApplyProximalMap(DM dm0, DM dm1, PetscReal lambda, Vec y, Ve
   /* TODO DMTAO_Eval vs. DMTAO_APPLY ? */
   PetscCall(PetscLogEventBegin(DMTAO_Eval, dm0, dm1, y, x));
   /* TODO do we want view for both, or just the primary objective? */
-  PetscCall(DMTaoViewFromOptions(tdm0, NULL, "-dm_tao_view"));
-  PetscCall(DMTaoViewFromOptions(tdm1, NULL, "-dm_tao_view"));
+  PetscCall(DMTaoViewFromOptions(dm0, NULL, "-dm_tao_view"));
+  PetscCall(DMTaoViewFromOptions(dm1, NULL, "-dm_tao_view"));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

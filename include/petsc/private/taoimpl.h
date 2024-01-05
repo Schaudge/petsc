@@ -237,7 +237,7 @@ struct _p_Tao {
 };
 
 PETSC_EXTERN PetscErrorCode DMGetDMTao(DM, DMTao *);
-PETSC_EXTERN PetscErrorCode DMTaoView(DMTao, PetscViewer);
+PETSC_EXTERN PetscErrorCode DMTaoGetParentDM(DMTao, DM *);
 PETSC_EXTERN PetscErrorCode DMGetDMTaoWrite(DM, DMTao *);
 
 PETSC_EXTERN PetscLogEvent TAO_Solve;

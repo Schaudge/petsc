@@ -591,17 +591,13 @@ PETSC_EXTERN PetscErrorCode DMCopyDMTao(DM, DM);
 PETSC_EXTERN PetscErrorCode DMTaoInitializePackage(void);
 
 PETSC_EXTERN PetscErrorCode DMTaoSetFromOptions(DM);
-PETSC_EXTERN PetscErrorCode DMTaoSetUp(DMTao);
-PETSC_EXTERN PetscErrorCode DMTaoMonitor(DMTao, PetscInt, PetscReal, PetscReal);
-PETSC_EXTERN PetscErrorCode DMTaoView(DMTao, PetscViewer);
-PETSC_EXTERN PetscErrorCode DMTaoViewFromOptions(DMTao, PetscObject, const char[]);
+PETSC_EXTERN PetscErrorCode DMTaoSetUp(DM);
+PETSC_EXTERN PetscErrorCode DMTaoView(DM, PetscViewer);
+PETSC_EXTERN PetscErrorCode DMTaoViewFromOptions(DM, PetscObject, const char[]);
 
-PETSC_EXTERN PetscErrorCode DMTaoSetOptionsPrefix(DMTao, const char prefix[]);
-PETSC_EXTERN PetscErrorCode DMTaoAppendOptionsPrefix(DMTao, const char[]);
-PETSC_EXTERN PetscErrorCode DMTaoGetOptionsPrefix(DMTao, const char *[]);
+/* TODO DMTao Options Prefix ? */
 PETSC_EXTERN PetscErrorCode DMTaoGetCentralVector(DM, Vec *);
 PETSC_EXTERN PetscErrorCode DMTaoSetCentralVector(DM, Vec);
-PETSC_EXTERN PetscErrorCode DMTaoSetInitialStepLength(DMTao, PetscReal);
 
 PETSC_EXTERN PetscErrorCode DMTaoGetType(DM, DMTaoType *);
 PETSC_EXTERN PetscErrorCode DMTaoSetType(DM, DMTaoType);
@@ -627,8 +623,6 @@ PETSC_EXTERN PetscErrorCode DMTaoComputeGradient(DM, Vec, Vec);
 
 PETSC_EXTERN PetscErrorCode TaoSetDMSize(Tao, PetscInt);
 PETSC_EXTERN PetscErrorCode TaoGetDMSize(Tao, PetscInt *);
-
-PETSC_EXTERN PetscErrorCode DMTaoGetParentDM(DMTao, DM *);
 
 PETSC_EXTERN PetscErrorCode DMTaoCreate_Simplex(MPI_Comm, DM *, Mat, Vec, PetscReal, PetscReal);
 PETSC_EXTERN PetscErrorCode DMTaoCreate_L2(MPI_Comm, DM *, Mat, Vec);
