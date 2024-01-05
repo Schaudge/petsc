@@ -9,7 +9,6 @@ PETSC_EXTERN PetscBool      DMTaoRegisterAllCalled;
 PETSC_EXTERN PetscErrorCode TaoRegisterAll(void);
 PETSC_EXTERN PetscErrorCode DMTaoRegisterAll(void);
 
-typedef struct _p_DMTao  *DMTao;
 typedef struct _DMTaoOps *DMTaoOps;
 struct _DMTaoOps {
   PetscErrorCode (*computeobjective)(DM, Vec, PetscReal *, void *);

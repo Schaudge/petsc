@@ -41,6 +41,15 @@ PETSC_EXTERN const char *const TaoSubsetTypes[];
 S*/
 typedef struct _p_Tao *Tao;
 
+/*S
+     DMTao - Abstract PETSc object that manages data for Tao object.
+
+   Level: advanced
+
+.seealso: [](ch_tao), `DMTaoCreate()`, `DMTaoDestroy()`, `DMTaoSetType()`, `DMTaoType`
+S*/
+typedef struct _p_DMTao *DMTao;
+
 /*E
      TaoADMMUpdateType - Determine spectral penalty update routine for Lagrange augmented term for `TAOADMM`.
 
