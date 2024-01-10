@@ -445,10 +445,35 @@ static PetscErrorCode MatLMVMCDDFPUpdateMultData(Mat B)
 }
 
 /* Solves for
- * [ I | -S R^{-T} ] [  I  | 0 ] [ H_0 | 0 ] [ I | Y ] [      I      ]
- *                   [-----+---] [-----+---] [---+---] [-------------]
- *                   [ Y^T | I ] [  0  | D ] [ 0 | I ] [ -R^{-1} S^T ]  */
 
+   H_0 - [ S | H_0 Y] [ -D  |    R^T    ]^-1 [   S^T   ]
+                      [-----+-----------]    [---------]
+                      [  R  | Y^T H_0 Y ]    [ Y^T H_0 ]
+
+   Above is equivalent to
+
+   H_0 - [ S | H_0 Y] [[     I     | 0 ][ -D  | 0 ][ I | -D^{-1} R^T ]]^-1 [   S^T   ]
+                      [[-----------+---][-----+---][---+-------------]]    [---------]
+                      [[ -R D^{-1} | I ][  0  | J ][ 0 |       I     ]]    [ Y^T H_0 ]
+
+   where J = Y^T H_0 Y + R D^{-1} R^T
+
+   becomes
+
+   H_0 - [ S | H_0 Y] [ I | D^{-1} R^T ][ -D^{-1}  |   0    ][    I     | 0 ] [   S^T   ]
+                      [---+------------][----------+--------][----------+---] [---------]
+                      [ 0 |     I      ][     0    | J^{-1} ][ R D^{-1} | I ] [ Y^T H_0 ]
+
+                      =
+
+   H_0 + [ S | H_0 Y] [ D^{-1} | 0 ][ I | R^T ][ I |    0    ][     I    | 0 ] [   S^T   ]
+                      [--------+---][---+-----][---+---------][----------+---] [---------]
+                      [ 0      | I ][ 0 |  I  ][ 0 | -J^{-1} ][ R D^{-1} | I ] [ Y^T H_0 ]
+
+                      (Note that YtS_triu_strict is L^T)
+   Byrd, Nocedal, Schnabel 1994
+
+*/
 static PetscErrorCode MatSolve_LMVMCDDFP(Mat H, Vec F, Vec dX)
 {
   Mat_LMVM   *lmvm = (Mat_LMVM*)H->data;
@@ -486,7 +511,7 @@ static PetscErrorCode MatSolve_LMVMCDDFP(Mat H, Vec F, Vec dX)
   }
 
   PetscCall(VecPointwiseMultAsync_Private(ldfp->rwork3, ldfp->rwork1, ldfp->inv_diag_vec, dctx));
-
+  //TODO below is L, we need R
   PetscCall(MatMultTransposeAdd(ldfp->YtS_triu_strict, ldfp->rwork3, ldfp->rwork2, ldfp->rwork2));
 
   if (!ldfp->rwork2_local) PetscCall(VecCreateLocalVector(ldfp->rwork2, &ldfp->rwork2_local));
@@ -504,7 +529,7 @@ static PetscErrorCode MatSolve_LMVMCDDFP(Mat H, Vec F, Vec dX)
   PetscCall(VecRestoreLocalVector(ldfp->rwork3, ldfp->rwork3_local));
   PetscCall(VecRestoreLocalVectorRead(ldfp->rwork2, ldfp->rwork2_local));
   PetscCall(VecScale(ldfp->rwork3, -1.0));
-
+  //TODO below is L, we need R
   PetscCall(MatMultAdd(ldfp->YtS_triu_strict, ldfp->rwork3, ldfp->rwork1, ldfp->rwork1));
 
   PetscCall(VecPointwiseMultAsync_Private(ldfp->rwork1, ldfp->rwork1, ldfp->inv_diag_vec, dctx));
