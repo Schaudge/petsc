@@ -121,6 +121,7 @@ typedef const char *MatType;
 #define MATDUMMY                     "dummy"
 #define MATLMVM                      "lmvm"
 #define MATLMVMDFP                   "lmvmdfp"
+#define MATLMVMCDDFP                 "lmvmcddfp"
 #define MATLMVMBFGS                  "lmvmbfgs"
 #define MATLMVMCDBFGS                "lmvmcdbfgs"
 #define MATLMVMSR1                   "lmvmsr1"

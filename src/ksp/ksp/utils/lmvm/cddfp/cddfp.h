@@ -5,7 +5,7 @@
 */
 
 typedef struct {
-  Mat       diag_bfgs;                                   /* diagonalized Hessian init */
+  Mat       diag_dfp;                                   /* diagonalized Hessian init */
 
   PetscInt  num_updates;
   PetscInt  num_mult_updates;
@@ -26,7 +26,7 @@ typedef struct {
   Vec       local_work_vec, local_work_vec_copy;
   Vec       cyclic_work_vec;
   MatType   dense_type;
-  MatLBFGSType strategy;
+  MatLDFPType strategy;
   MatLMVMSymBroydenScaleType scale_type;
 
   PetscInt         S_count, St_count, Y_count, Yt_count;

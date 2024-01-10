@@ -986,6 +986,13 @@ typedef enum {
 } MatLBFGSType;
 PETSC_EXTERN const char *const MatLBFGSTypes[];
 
+typedef enum {
+  MAT_LDFP_BASIC,
+  MAT_LDFP_CD_REORDER,
+  MAT_LDFP_CD_INPLACE
+} MatLDFPType;
+PETSC_EXTERN const char *const MatLDFPTypes[];
+
 PETSC_EXTERN PetscErrorCode MatCreateSchurComplement(Mat, Mat, Mat, Mat, Mat, Mat *);
 PETSC_EXTERN PetscErrorCode MatSchurComplementGetKSP(Mat, KSP *);
 PETSC_EXTERN PetscErrorCode MatSchurComplementSetKSP(Mat, KSP);
@@ -1002,6 +1009,7 @@ PETSC_EXTERN PetscErrorCode MatCreateSchurComplementPmat(Mat, Mat, Mat, Mat, Mat
 PETSC_EXTERN PetscErrorCode MatCreateLMVMDFP(MPI_Comm, PetscInt, PetscInt, Mat *);
 PETSC_EXTERN PetscErrorCode MatCreateLMVMBFGS(MPI_Comm, PetscInt, PetscInt, Mat *);
 PETSC_EXTERN PetscErrorCode MatCreateLMVMCDBFGS(MPI_Comm,PetscInt,PetscInt,Mat *);
+PETSC_EXTERN PetscErrorCode MatCreateLMVMCDDFP(MPI_Comm,PetscInt,PetscInt,Mat *);
 PETSC_EXTERN PetscErrorCode MatCreateLMVMSR1(MPI_Comm, PetscInt, PetscInt, Mat *);
 PETSC_EXTERN PetscErrorCode MatCreateLMVMBroyden(MPI_Comm, PetscInt, PetscInt, Mat *);
 PETSC_EXTERN PetscErrorCode MatCreateLMVMBadBroyden(MPI_Comm, PetscInt, PetscInt, Mat *);

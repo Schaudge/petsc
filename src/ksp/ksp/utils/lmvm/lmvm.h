@@ -66,6 +66,7 @@ PETSC_INTERN PetscErrorCode MatCreate_LMVM(Mat);
 
 /* Create functions for derived LMVM types */
 PETSC_EXTERN PetscErrorCode MatCreate_LMVMDFP(Mat);
+PETSC_EXTERN PetscErrorCode MatCreate_LMVMCDDFP(Mat);
 PETSC_EXTERN PetscErrorCode MatCreate_LMVMBFGS(Mat);
 PETSC_EXTERN PetscErrorCode MatCreate_LMVMCDBFGS(Mat);
 PETSC_EXTERN PetscErrorCode MatCreate_LMVMSR1(Mat);

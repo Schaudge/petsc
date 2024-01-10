@@ -1,5 +1,6 @@
 #include <../src/ksp/ksp/utils/lmvm/symbrdn/symbrdn.h> /*I "petscksp.h" I*/
 #include <../src/ksp/ksp/utils/lmvm/cdbfgs/cdbfgs.h>
+#include <../src/ksp/ksp/utils/lmvm/cddfp/cddfp.h>
 #include <../src/ksp/ksp/utils/lmvm/diagbrdn/diagbrdn.h>
 #include <petsc/private/kspimpl.h>
 #include <petscdevice.h>
@@ -600,17 +601,18 @@ PetscErrorCode MatLMVMSymBroydenSetDelta(Mat B, PetscScalar delta)
 {
   Mat_LMVM    *lmvm = (Mat_LMVM *)B->data;
   Mat_SymBrdn *lsb  = (Mat_SymBrdn *)lmvm->ctx;
-  PetscBool    is_bfgs, is_dfp, is_symbrdn, is_symbadbrdn, is_cdbfgs;
+  PetscBool    is_bfgs, is_dfp, is_symbrdn, is_symbadbrdn, is_cdbfgs, is_cddfp;
   PetscReal    del_min, del_max, del_buf;
 
   PetscFunctionBegin;
   PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMBFGS, &is_bfgs));
   PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMCDBFGS, &is_cdbfgs));
+  PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMCDDFP, &is_cddfp));
   PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMDFP, &is_dfp));
   PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMSYMBROYDEN, &is_symbrdn));
   PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMSYMBADBROYDEN, &is_symbadbrdn));
 
-  if (is_bfgs || is_cdbfgs || is_dfp || is_symbrdn || is_symbadbrdn) {
+  if (is_bfgs || is_cdbfgs || is_dfp || is_symbrdn || is_symbadbrdn || is_cddfp) {
     lsb     = (Mat_SymBrdn*)lmvm->ctx;
     del_min = lsb->delta_min;
     del_max = lsb->delta_max;
@@ -621,7 +623,7 @@ PetscErrorCode MatLMVMSymBroydenSetDelta(Mat B, PetscScalar delta)
   del_buf = PetscAbsReal(PetscRealPart(delta));
   del_buf = PetscMin(del_buf, del_max);
   del_buf = PetscMax(del_buf, del_min);
-  if (!is_cdbfgs) {
+  if (!is_cdbfgs || !is_cddfp) {
     lsb->delta = del_buf;
   }
   PetscFunctionReturn(PETSC_SUCCESS);
