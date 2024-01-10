@@ -9,13 +9,13 @@ typedef struct {
 
   PetscInt  num_updates;
   PetscInt  num_mult_updates;
-  Mat       Sfull, Yfull, BS; // Stored in recycled order
+  Mat       Sfull, Yfull, HY; // Stored in recycled order
   Mat       StY_triu;        // triu(StY) is the R matrix
   Vec       StFprev;
   Vec       YtXprev;
   Mat       YtS_triu_strict; // strict_triu(YtS) is the L^T matrix
   Mat       LDLt;
-  Mat       StBS;
+  Mat       YtHY;
   Mat       J;
   Mat       temp_mat;
   Vec       diag_vec;
@@ -41,5 +41,5 @@ typedef struct {
 
 PETSC_INTERN PetscErrorCode MatView_LMVMCDDFP(Mat, PetscViewer);
 
-PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlace_CUPM(PetscBool, PetscInt, const PetscScalar[], PetscInt, PetscScalar[], PetscInt);
-PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlaceCyclic_CUPM(PetscBool, PetscInt, PetscInt, const PetscScalar[], PetscInt, PetscScalar[], PetscInt);
+PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlace_CUPM_DFP(PetscBool, PetscInt, const PetscScalar[], PetscInt, PetscScalar[], PetscInt);
+PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlaceCyclic_CUPM_DFP(PetscBool, PetscInt, PetscInt, const PetscScalar[], PetscInt, PetscScalar[], PetscInt);

@@ -1,4 +1,4 @@
-#include "cdbfgs.h"
+#include "cddfp.h"
 #include "petsc/private/cupminterface.hpp"
 #include <petsc/private/cupmobject.hpp>
 
@@ -89,7 +89,7 @@ template struct UpperTriangular<DeviceType::HIP>;
 
 } // namespace Petsc
 
-PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlace_CUPM(PetscBool hermitian_transpose, PetscInt n, const PetscScalar A[], PetscInt lda, PetscScalar x[], PetscInt stride)
+PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlace_CUPM_DFP(PetscBool hermitian_transpose, PetscInt n, const PetscScalar A[], PetscInt lda, PetscScalar x[], PetscInt stride)
 {
   using ::Petsc::device::cupm::impl::UpperTriangular;
   using ::Petsc::device::cupm::DeviceType;
@@ -117,7 +117,7 @@ PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlace_CUPM(PetscBool hermit
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlaceCyclic_CUPM(PetscBool hermitian_transpose, PetscInt n, PetscInt oldest_index, const PetscScalar A[], PetscInt lda, PetscScalar x[], PetscInt stride)
+PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlaceCyclic_CUPM_DFP(PetscBool hermitian_transpose, PetscInt n, PetscInt oldest_index, const PetscScalar A[], PetscInt lda, PetscScalar x[], PetscInt stride)
 {
   using ::Petsc::device::cupm::impl::UpperTriangular;
   using ::Petsc::device::cupm::DeviceType;
