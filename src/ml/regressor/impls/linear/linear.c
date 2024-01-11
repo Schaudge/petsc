@@ -255,7 +255,7 @@ PetscErrorCode PetscRegressorLinearGetKSP(PetscRegressor regressor, KSP *ksp)
 
 .seealso: PetscRegressorLinearGetIntercept()
 @*/
-PETSC_EXTERN PetscErrorCode PetscRegressorLinearGetCoefficients(PetscRegressor regressor, Vec *coefficients)
+PetscErrorCode PetscRegressorLinearGetCoefficients(PetscRegressor regressor, Vec *coefficients)
 {
   PETSCREGRESSOR_LINEAR *linear = (PETSCREGRESSOR_LINEAR *)regressor->data;
 
@@ -281,7 +281,7 @@ PETSC_EXTERN PetscErrorCode PetscRegressorLinearGetCoefficients(PetscRegressor r
 
 .seealso: PetscRegressorLinearGetCoefficients()
 @*/
-PETSC_EXTERN PetscErrorCode PetscRegressorLinearGetIntercept(PetscRegressor regressor, PetscScalar *intercept)
+PetscErrorCode PetscRegressorLinearGetIntercept(PetscRegressor regressor, PetscScalar *intercept)
 {
   PETSCREGRESSOR_LINEAR *linear = (PETSCREGRESSOR_LINEAR *)regressor->data;
 
