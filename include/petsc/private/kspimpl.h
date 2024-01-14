@@ -441,7 +441,26 @@ static inline PetscErrorCode KSP_PCMatApply(KSP ksp, Mat X, Mat Y)
   if (ksp->transpose_solve) {
     PetscBool flg;
     PetscCall(PetscObjectTypeCompareAny((PetscObject)ksp->pc, &flg, PCNONE, PCICC, PCCHOLESKY, ""));
-    PetscCheck(flg, PetscObjectComm((PetscObject)ksp), PETSC_ERR_SUP, "PCMatApplyTranspose() not yet implemented for nonsymmetric PC");
+    if (!flg) {
+      Mat A;
+      PetscCall(PetscObjectTypeCompareAny((PetscObject)ksp->pc, &flg, PCILU, PCLU, ""));
+      if (flg) {
+        PetscCall(PCFactorGetMatrix(ksp->pc, &A));
+        PetscCall(MatMatSolveTranspose(A, X, Y));
+      } else {
+        Vec      x, y;
+        PetscInt n;
+        PetscCall(MatGetSize(X, NULL, &n));
+        for (PetscInt i = 0; i < n; ++i) {
+          PetscCall(MatDenseGetColumnVecRead(X, i, &x));
+          PetscCall(MatDenseGetColumnVecWrite(Y, i, &y));
+          PetscCall(PCApplyTranspose(ksp->pc, x, y));
+          PetscCall(MatDenseGetColumnVecWrite(Y, i, &y));
+          PetscCall(MatDenseGetColumnVecRead(X, i, &x));
+        }
+      }
+      PetscFunctionReturn(PETSC_SUCCESS);
+    }
   }
   PetscCall(PCMatApply(ksp->pc, X, Y));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -453,7 +472,26 @@ static inline PetscErrorCode KSP_PCMatApplyTranspose(KSP ksp, Mat X, Mat Y)
   if (!ksp->transpose_solve) {
     PetscBool flg;
     PetscCall(PetscObjectTypeCompareAny((PetscObject)ksp->pc, &flg, PCNONE, PCICC, PCCHOLESKY, ""));
-    PetscCheck(flg, PetscObjectComm((PetscObject)ksp), PETSC_ERR_SUP, "PCMatApplyTranspose() not yet implemented for nonsymmetric PC");
+    if (!flg) {
+      Mat A;
+      PetscCall(PetscObjectTypeCompareAny((PetscObject)ksp->pc, &flg, PCILU, PCLU, ""));
+      if (flg) {
+        PetscCall(PCFactorGetMatrix(ksp->pc, &A));
+        PetscCall(MatMatSolveTranspose(A, X, Y));
+      } else {
+        Vec      x, y;
+        PetscInt n;
+        PetscCall(MatGetSize(X, NULL, &n));
+        for (PetscInt i = 0; i < n; ++i) {
+          PetscCall(MatDenseGetColumnVecRead(X, i, &x));
+          PetscCall(MatDenseGetColumnVecWrite(Y, i, &y));
+          PetscCall(PCApplyTranspose(ksp->pc, x, y));
+          PetscCall(MatDenseGetColumnVecWrite(Y, i, &y));
+          PetscCall(MatDenseGetColumnVecRead(X, i, &x));
+        }
+      }
+      PetscFunctionReturn(PETSC_SUCCESS);
+    }
   }
   PetscCall(PCMatApply(ksp->pc, X, Y));
   PetscFunctionReturn(PETSC_SUCCESS);
