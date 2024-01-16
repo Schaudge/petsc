@@ -142,10 +142,10 @@ cdef inline TAO TAO_(PetscTAO p):
     ob.obj[0] = newRef(p)
     return ob
 
-cdef inline Regressor Regressor_(PetscRegressor p):
-    cdef Regressor ob = Regressor.__new__(Regressor)
-    ob.obj[0] = newRef(p)
-    return ob
+#cdef inline PetscRegressor PetscRegressor_(PetscRegressor p):
+#    cdef PetscRegressor ob = PetscRegressor.__new__(PetscRegressor)
+#    ob.obj[0] = newRef(p)
+#    return ob
 
 # --------------------------------------------------------------------
 
@@ -2958,238 +2958,23 @@ cdef PetscErrorCode TaoPostStep_Python(
 
 # --------------------------------------------------------------------
 
-
-cdef extern from * nogil:
-    struct _RegressorOps:
-      PetscErrorCode (*destroy)(PetscRegressor) except PETSC_ERR_PYTHON
-      PetscErrorCode (*setup)(PetscRegressor) except PETSC_ERR_PYTHON
-      PetscErrorCode (*reset)(PetscRegressor) except PETSC_ERR_PYTHON
-      PetscErrorCode (*fit)(PetscRegressor,PetscMat,PetscVec) except PETSC_ERR_PYTHON
-      PetscErrorCode (*predict)(PetscRegressor,PetscMat,PetscVec) except PETSC_ERR_PYTHON
-      PetscErrorCode (*setfromoptions)(PetscRegressor,PetscOptionItems*) except PETSC_ERR_PYTHON
-      PetscErrorCode (*view)(PetscRegressor,PetscViewer) except PETSC_ERR_PYTHON
-    ctypedef _RegressorOps *RegressorOps
-    struct _p_PetscRegressor:
-        void *data
-        RegressorOps ops
-        PetscInt niter, max_it
-        PetscInt ksp_its, ksp_tot_its
-        PetscKSP ksp
-        PetscVec gradient
-        PetscVec stepdirection
-
-@cython.internal
-cdef class _PyRegressor(_PyObj): pass
-cdef inline _PyRegressor PyRegressor(PetscRegressor regressor):
-    if regressor != NULL and regressor.data != NULL:
-        return <_PyRegressor>regressor.data
-    else:
-        return _PyRegressor.__new__(_PyRegressor)
-
-cdef public PetscErrorCode PetscRegressorPythonGetContext(PetscRegressor reg, void **ctx) \
-    except PETSC_ERR_PYTHON:
-    FunctionBegin(b"PetscRegressorPythonGetContext")
-    PyRegressor(reg).getcontext(ctx)
-    return FunctionEnd()
-
-cdef public PetscErrorCode PetscRegressorPythonSetContext(PetscRegressor reg, void *ctx) \
-    except PETSC_ERR_PYTHON:
-    FunctionBegin(b"PetscRegressorPythonSetContext")
-    PyRegressor(reg).setcontext(ctx, Regressor_(reg))
-    return FunctionEnd()
-
-cdef PetscErrorCode PetscRegressorPythonSetType_PYTHON(PetscRegressor regressor, char name[]) \
-    except PETSC_ERR_PYTHON with gil:
-    FunctionBegin(b"PetscRegressorPythonSetType_PYTHON")
-    if name == NULL: return FunctionEnd() # XXX
-    cdef object ctx = createcontext(name)
-
-cdef PetscErrorCode RegressorFit_Python(
-    PetscRegressor regressor,
-    PetscMat       X,
-    PetscVec       y,
-    ) \
-    except PETSC_ERR_PYTHON with gil:
-    FunctionBegin(b"RegressorFit_Python")
-    cdef fit = PyRegressor(regressor).fit
-    if fit is not None:
-        fit(Regressor_(regressor), Mat_(X), Vec_(y))#TODO else default?
-    return FunctionEnd()
-    PetscRegressorPythonSetContext(regressor, <void*>ctx)
-    PyRegressor(regressor).setname(name)
-    return FunctionEnd()
-
-cdef inline PetscErrorCode RegressorReset_Python_inner(
-    PetscRegressor reg,
-    ) \
-    except PETSC_ERR_PYTHON with gil:
-    cdef reset = PyRegressor(reg).reset
-    if reset is not None:
-        reset(Regressor_(reg))#TODO else default?
-    return PETSC_SUCCESS
-
-cdef PetscErrorCode RegressorReset_Python(
-    PetscRegressor reg,
-    ) \
-    except PETSC_ERR_PYTHON nogil:
-    if getRef(reg) == 0: return PETSC_SUCCESS
-    FunctionBegin(b"RegressorReset_Python")
-    if Py_IsInitialized(): RegressorReset_Python_inner(reg)
-    return FunctionEnd()
-
-cdef PetscErrorCode PetscRegressorPythonGetType_PYTHON(PetscRegressor regressor, const char *name[]) \
-    except PETSC_ERR_PYTHON with gil:
-    FunctionBegin(b"PetscRegressorPythonGetType_PYTHON")
-    name[0] = PyRegressor(regressor).getname()
-    return FunctionEnd()
-
-cdef PetscErrorCode RegressorCreate_Python(
-    PetscRegressor regressor,
-    ) \
-    except PETSC_ERR_PYTHON with gil:
-    FunctionBegin(b"RegressorCreate_Python")
-    #
-    cdef RegressorOps ops    = regressor.ops
-    ops.destroy        = RegressorDestroy_Python
-    ops.view           = RegressorView_Python
-    ops.fit            = RegressorFit_Python
-    ops.reset          = RegressorReset_Python
-    ops.predict        = RegressorPredict_Python
-    ops.setup          = RegressorSetUp_Python
-    ops.setfromoptions = RegressorSetFromOptions_Python
-    #
-    CHKERR( PetscObjectComposeFunction(
-            <PetscObject>regressor, b"PetscRegressorPythonSetType_C",
-            <PetscVoidFunction>PetscRegressorPythonSetType_PYTHON) )
-    CHKERR( PetscObjectComposeFunction(
-            <PetscObject>regressor, b"PetscRegressorPythonGetType_C",
-            <PetscVoidFunction>PetscRegressorPythonGetType_PYTHON) )
-    #
-    #
-    cdef ctx = PyRegressor(NULL)
-    regressor.data = <void*> ctx
-    Py_INCREF(<PyObject*>regressor.data)
-    return FunctionEnd()
-
-cdef inline PetscErrorCode RegressorDestroy_Python_inner(
-    PetscRegressor regressor,
-    ) \
-    except PETSC_ERR_PYTHON with gil:
-    try:
-        addRef(regressor)
-        PetscRegressorPythonSetContext(regressor, NULL)
-    finally:
-        delRef(regressor)
-        Py_DECREF(<PyObject*>regressor.data)
-        regressor.data = NULL
-    return PETSC_SUCCESS
-
-cdef PetscErrorCode RegressorDestroy_Python(
-    PetscRegressor regressor,
-    ) \
-    except PETSC_ERR_PYTHON nogil:
-    FunctionBegin(b"RegressorDestroy_Python")
-    CHKERR( PetscObjectComposeFunction(
-            <PetscObject>regressor, b"PetscRegressorPythonSetType_C",
-            <PetscVoidFunction>NULL) )
-    CHKERR( PetscObjectComposeFunction(
-            <PetscObject>regressor, b"PetscRegressorPythonGetType_C",
-            <PetscVoidFunction>NULL) )
-    #
-    if Py_IsInitialized(): RegressorDestroy_Python_inner(regressor)
-    return FunctionEnd()
-
-cdef PetscErrorCode RegressorSetUp_Python(
-    PetscRegressor regressor,
-    ) \
-    except PETSC_ERR_PYTHON with gil:
-    FunctionBegin(b"RegressorSetUp_Python")
-    cdef char name[2048]
-    cdef PetscBool found = PETSC_FALSE
-    if PyRegressor(regressor).self is None:
-        CHKERR( PetscOptionsGetString(NULL,
-                getPrefix(regressor), b"-regressor_python_type",
-                name, sizeof(name), &found) )
-        if found and name[0]:
-            CHKERR( PetscRegressorPythonSetType_PYTHON(regressor, name) )
-    if PyRegressor(regressor).self is None:
-        return PetscSETERR(PETSC_ERR_USER,
-            "Python context not set, call one of \n"
-            " * PetscRegressorPythonSetType(regressor, \"[package.]module.class\")\n"
-            " * RegressorSetFromOptions(regressor) and pass option "
-            "-regressor_python_type [package.]module.class")
-    #
-    cdef setUp = PyRegressor(regressor).setUp
-    if setUp is not None:
-        setUp(Regressor_(regressor))
-    return FunctionEnd()
-
-cdef PetscErrorCode RegressorSetFromOptions_Python(
-    PetscRegressor regressor,
-    PetscOptionItems *PetscOptionsObject,
-    ) \
-    except PETSC_ERR_PYTHON with gil:
-    FunctionBegin(b"RegressorSetFromOptions_Python")
-    #
-    cdef char name[2048], *defval = PyRegressor(regressor).getname()
-    cdef PetscBool found = PETSC_FALSE
-    cdef PetscOptionItems *opts "PetscOptionsObject" = PetscOptionsObject
-    CHKERR( PetscOptionsString(
-            b"-regressor_python_type", b"Python [package.]module[.{class|function}]",
-            b"PetscRegressorPythonSetType", defval, name, sizeof(name), &found) ); <void>opts;
-    if found and name[0]:
-        CHKERR( PetscRegressorPythonSetType_PYTHON(regressor, name) )
-    #
-    cdef setFromOptions = PyRegressor(regressor).setFromOptions
-    if setFromOptions is not None:
-        setFromOptions(Regressor_(regressor))
-    return FunctionEnd()
-
-cdef PetscErrorCode RegressorPredict_Python(
-    PetscRegressor reg,
-    PetscMat       X,
-    PetscVec       y,
-    ) \
-    except PETSC_ERR_PYTHON with gil:
-    FunctionBegin(b"RegressorPredict_Python")
-    cdef predict = PyRegressor(reg).predict
-    if predict is not None:
-        predict(Regressor_(reg), Mat_(X), Vec_(y))
-    return FunctionEnd()
-
-cdef PetscErrorCode RegressorFit_Python(
-    PetscRegressor reg,
-    PetscMat       X,
-    PetscVec       y,
-    ) \
-    except PETSC_ERR_PYTHON with gil:
-    FunctionBegin(b"RegressorFit_Python")
-    cdef fit = PyRegressor(reg).fit
-    if fit is not None:
-        fit(Regressor_(reg), Mat_(X), Vec_(y))
-    return FunctionEnd()
-
-cdef PetscErrorCode RegressorView_Python(
-    PetscRegressor regressor,
-    PetscViewer vwr,
-    ) \
-    except PETSC_ERR_PYTHON with gil:
-    FunctionBegin(b"RegressorView_Python")
-    viewcontext(PyRegressor(regressor), vwr)
-    cdef view = PyRegressor(regressor).view
-    if view is not None:
-        view(Regressor_(regressor), Viewer_(vwr))
-    return FunctionEnd()
-
-cdef PetscErrorCode RegressorSolve_Python_default(
-    PetscRegressor regressor,
-    PetscMat       X,
-    PetscVec       y,
-    ) \
-    except PETSC_ERR_PYTHON with gil:
-    FunctionBegin(b"RegressorSolve_Python_default")
-    #TODO ??
-    return FunctionEnd()
+#cdef extern from * nogil:
+#    struct _RegressorOps:
+#      PetscErrorCode (*destroy)(PetscRegressor) except PETSC_ERR_PYTHON
+#      PetscErrorCode (*setup)(PetscRegressor) except PETSC_ERR_PYTHON
+#      PetscErrorCode (*fit)(PetscRegressor) except PETSC_ERR_PYTHON
+#      PetscErrorCode (*predict)(PetscRegressor) except PETSC_ERR_PYTHON
+#      PetscErrorCode (*setfromoptions)(PetscRegressor,PetscOptionItems*) except PETSC_ERR_PYTHON
+#      PetscErrorCode (*view)(PetscRegressor,PetscViewer) except PETSC_ERR_PYTHON
+#    ctypedef _RegressorOps *RegressorOps
+#    struct _p_PetscRegressor:
+#        void *data
+#        RegressorOps ops
+#        Mat training
+#        Vec target
+#        Tao tao
+#        PetscReal regularizer_weight
+#        PetscBool regularizer_weigth_is_set
 
 # --------------------------------------------------------------------
 
@@ -3233,7 +3018,6 @@ cdef extern from * nogil:
   ctypedef PetscErrorCode SNESCreateFunction (PetscSNES) except PETSC_ERR_PYTHON
   ctypedef PetscErrorCode TSCreateFunction   (PetscTS)   except PETSC_ERR_PYTHON
   ctypedef PetscErrorCode TaoCreateFunction  (PetscTAO)  except PETSC_ERR_PYTHON
-  ctypedef PetscErrorCode PetscRegressorCreateFunction  (PetscRegressor)  except PETSC_ERR_PYTHON
 
   PetscErrorCode MatRegister  (const char[],MatCreateFunction* )
   PetscErrorCode PCRegister   (const char[],PCCreateFunction*  )
@@ -3241,7 +3025,6 @@ cdef extern from * nogil:
   PetscErrorCode SNESRegister (const char[],SNESCreateFunction*)
   PetscErrorCode TSRegister   (const char[],TSCreateFunction*  )
   PetscErrorCode TaoRegister  (const char[],TaoCreateFunction* )
-  PetscErrorCode PetscRegressorRegister  (const char[],PetscRegressorCreateFunction* )
 
   PetscErrorCode (*PetscPythonMonitorSet_C) \
       (PetscObject, const char[]) except PETSC_ERR_PYTHON
@@ -3257,7 +3040,6 @@ cdef public PetscErrorCode PetscPythonRegisterAll() except PETSC_ERR_PYTHON:
     CHKERR( SNESRegister( SNESPYTHON, SNESCreate_Python ) )
     CHKERR( TSRegister  ( TSPYTHON,   TSCreate_Python   ) )
     CHKERR( TaoRegister ( TAOPYTHON,  TaoCreate_Python  ) )
-    CHKERR( PetscRegressorRegister ( PETSCREGRESSORPYTHON,  PetscRegressorCreate_Python  ) )
 
     # Python monitors
     global PetscPythonMonitorSet_C

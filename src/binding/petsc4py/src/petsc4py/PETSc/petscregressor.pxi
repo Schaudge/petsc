@@ -2,7 +2,6 @@ cdef extern from * nogil:
 
     ctypedef const char* PetscRegressorType
     PetscRegressorType PETSCREGRESSORLINEAR
-    PetscRegressorType PETSCREGRESSORPYTHON
 
     PetscErrorCode PetscRegressorCreate(MPI_Comm,PetscRegressor*)
     PetscErrorCode PetscRegressorReset(PetscRegressor)
