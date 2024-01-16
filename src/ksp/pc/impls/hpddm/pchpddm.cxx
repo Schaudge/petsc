@@ -2326,6 +2326,7 @@ static PetscErrorCode PCSetUp_HPDDM(PC pc)
           PetscContainer container;
           PetscReal     *threshold = new PetscReal(static_cast<PetscReal>(10.0) * PetscSqrtReal(PETSC_SMALL));
 
+#if 0
           if (!data->levels[0]->pc) {
             PetscCall(PCCreate(PetscObjectComm((PetscObject)pc), &data->levels[0]->pc));
             PetscCall(PetscSNPrintf(prefix, sizeof(prefix), "%spc_hpddm_levels_1_", pcpre ? pcpre : ""));
@@ -2333,6 +2334,7 @@ static PetscErrorCode PCSetUp_HPDDM(PC pc)
             PetscCall(PCSetOperators(data->levels[0]->pc, A, P));
             PetscCall(PCSetType(data->levels[0]->pc, PCASM));
           }
+#endif
           PetscCall(PetscOptionsGetReal(nullptr, ((PetscObject)data->levels[0]->pc)->prefix, "-svd_relative_threshold", threshold, nullptr));
           PetscCheck(*threshold >= static_cast<PetscReal>(-1.0) && *threshold <= static_cast<PetscReal>(1.0), PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Current value %g not in allowed range [0; 1]", (double)*threshold);
           PetscCall(PetscContainerCreate(PetscObjectComm((PetscObject)A), &container));
@@ -2619,10 +2621,12 @@ static PetscErrorCode PCSetUp_HPDDM(PC pc)
       if (!std::get<0>(*ctx)[1]) {
         PetscCall(PetscObjectCompose((PetscObject)pc, "_PCHPDDM_Schur", nullptr));
         PetscCall(PetscFree(ctx));
+#if 0
         if (!data->share) {
           PetscCall(ISDestroy(&uis));
           PetscCall(MatDestroy(&C));
         }
+#endif
       }
     }
     PetscCall(ISDestroy(&loc));
