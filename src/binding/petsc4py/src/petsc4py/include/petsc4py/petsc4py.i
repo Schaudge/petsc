@@ -598,7 +598,7 @@ SWIG_From_dec(Type)(Type v) {
 %petsc4py_objt( Petsc , DualSpace      , PetscDualSpace         , PETSC_DUALSPACE        )
 
 %petsc4py_objt( Petsc , DMLabel        , PetscDMLabel           , PETSC_DMLABEL          )
-%petsc4py_objt( Petsc , Regressor      , PetscRegressor         , PETSC_REGRESSOR        )
+%petsc4py_objt( Petsc , PetscRegressor , PetscRegressor         , PETSC_REGRESSOR        )
 
 /* ---------------------------------------------------------------- */
 

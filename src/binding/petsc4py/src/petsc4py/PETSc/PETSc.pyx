@@ -570,7 +570,7 @@ cdef int register() except -1:
     PyPetscType_Register(PETSC_DMLABEL_CLASSID,          DMLabel)
     PyPetscType_Register(PETSC_SPACE_CLASSID,            Space)
     PyPetscType_Register(PETSC_DUALSPACE_CLASSID,        DualSpace)
-    PyPetscType_Register(PETSC_REGRESSOR_CLASSID,        Regressor)
+    PyPetscType_Register(PETSC_REGRESSOR_CLASSID,        PetscRegressor)
     return 0 # and we are done, enjoy !!
 
 # --------------------------------------------------------------------
