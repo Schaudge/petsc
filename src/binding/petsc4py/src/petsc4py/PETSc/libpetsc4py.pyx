@@ -2958,23 +2958,23 @@ cdef PetscErrorCode TaoPostStep_Python(
 
 # --------------------------------------------------------------------
 
-#cdef extern from * nogil:
-#    struct _RegressorOps:
-#      PetscErrorCode (*destroy)(PPetscRegressor) except PETSC_ERR_PYTHON
-#      PetscErrorCode (*setup)(PPetscRegressor) except PETSC_ERR_PYTHON
-#      PetscErrorCode (*fit)(PPetscRegressor) except PETSC_ERR_PYTHON
-#      PetscErrorCode (*predict)(PPetscRegressor) except PETSC_ERR_PYTHON
-#      PetscErrorCode (*setfromoptions)(PPetscRegressor,PetscOptionItems*) except PETSC_ERR_PYTHON
-#      PetscErrorCode (*view)(PPetscRegressor,PetscViewer) except PETSC_ERR_PYTHON
-#    ctypedef _RegressorOps *RegressorOps
-#    struct _p_PetscRegressor:
-#        void *data
-#        RegressorOps ops
-#        Mat training
-#        Vec target
-#        Tao tao
-#        PetscReal regularizer_weight
-#        PetscBool regularizer_weigth_is_set
+cdef extern from * nogil:
+    struct _RegressorOps:
+      PetscErrorCode (*destroy)(PPetscRegressor) except PETSC_ERR_PYTHON
+      PetscErrorCode (*setup)(PPetscRegressor) except PETSC_ERR_PYTHON
+      PetscErrorCode (*fit)(PPetscRegressor) except PETSC_ERR_PYTHON
+      PetscErrorCode (*predict)(PPetscRegressor) except PETSC_ERR_PYTHON
+      PetscErrorCode (*setfromoptions)(PPetscRegressor,PetscOptionItems*) except PETSC_ERR_PYTHON
+      PetscErrorCode (*view)(PPetscRegressor,PetscViewer) except PETSC_ERR_PYTHON
+    ctypedef _RegressorOps *RegressorOps
+    struct _p_PetscRegressor:
+        void *data
+        RegressorOps ops
+        PetscMat training
+        PetscVec target
+        PetscTAO tao
+        PetscReal regularizer_weight
+        PetscBool regularizer_weigth_is_set
 
 # --------------------------------------------------------------------
 
