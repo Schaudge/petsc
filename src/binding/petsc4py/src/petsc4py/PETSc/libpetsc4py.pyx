@@ -2975,7 +2975,156 @@ cdef extern from * nogil:
         PetscTAO tao
         PetscReal regularizer_weight
         PetscBool regularizer_weigth_is_set
-#
+
+@cython.internal
+cdef class _PyPetscRegressor(_PyObj): pass
+cdef inline _PyPetscRegressor PyPetscRegressor(PetscRegressor reg):
+    if reg != NULL and reg.data != NULL:
+        return <_PyPetscRegressor>reg.data
+    else:
+        return _PyPetscRegressor.__new__(_PyPetscRegressor)
+
+cdef public PetscErrorCode PetscRegressorPythonGetContext(PetscRegressor reg, void **ctx) \
+    except PETSC_ERR_PYTHON:
+    FunctionBegin(b"PetscRegressorPythonGetContext")
+    PyPetscRegressor(reg).getcontext(ctx)
+    return FunctionEnd()
+
+cdef public PetscErrorCode PetscRegressorPythonSetContext(PetscRegressor reg, void *ctx) \
+    except PETSC_ERR_PYTHON:
+    FunctionBegin(b"PetscRegressorPythonSetContext")
+    PyPetscRegressor(reg).setcontext(ctx, Regressor_(reg))
+    return FunctionEnd()
+
+cdef PetscErrorCode PetscRegressorPythonSetType_PYTHON(PetscRegressor reg, char name[]) \
+    except PETSC_ERR_PYTHON with gil:
+    FunctionBegin(b"PetscRegressorPythonSetType_PYTHON")
+    if name == NULL: return FunctionEnd() # XXX
+    cdef object ctx = createcontext(name)
+    PetscRegressorPythonSetContext(reg, <void*>ctx)
+    PyPetscRegressor(reg).setname(name)
+    return FunctionEnd()
+
+cdef PetscErrorCode PetscRegressorPythonGetType_PYTHON(PetscRegressor reg, const char *name[]) \
+    except PETSC_ERR_PYTHON with gil:
+    FunctionBegin(b"PetscRegressorPythonGetType_PYTHON")
+    name[0] = PyPetscRegressor(reg).getname()
+    return FunctionEnd()
+
+cdef PetscErrorCode TaoCreate_Python(
+    PetscTAO tao,
+    ) \
+    except PETSC_ERR_PYTHON with gil:
+    FunctionBegin(b"TaoCreate_Python")
+    #
+    cdef TaoOps ops    = tao.ops
+    ops.destroy        = TaoDestroy_Python
+    ops.view           = TaoView_Python
+    ops.solve          = TaoSolve_Python
+    ops.setup          = TaoSetUp_Python
+    ops.setfromoptions = TaoSetFromOptions_Python
+    #
+    CHKERR( PetscObjectComposeFunction(
+            <PetscObject>tao, b"TaoPythonSetType_C",
+            <PetscVoidFunction>TaoPythonSetType_PYTHON) )
+    CHKERR( PetscObjectComposeFunction(
+            <PetscObject>tao, b"TaoPythonGetType_C",
+            <PetscVoidFunction>TaoPythonGetType_PYTHON) )
+    #
+    CHKERR( TaoCreateDefaultLineSearch(tao) )
+    CHKERR( TaoCreateDefaultKSP(tao) )
+    #
+    cdef ctx = PyTao(NULL)
+    tao.data = <void*> ctx
+    Py_INCREF(<PyObject*>tao.data)
+    return FunctionEnd()
+
+cdef inline PetscErrorCode TaoDestroy_Python_inner(
+    PetscTAO tao,
+    ) \
+    except PETSC_ERR_PYTHON with gil:
+    try:
+        addRef(tao)
+        TaoPythonSetContext(tao, NULL)
+    finally:
+        delRef(tao)
+        Py_DECREF(<PyObject*>tao.data)
+        tao.data = NULL
+    return PETSC_SUCCESS
+
+cdef PetscErrorCode TaoDestroy_Python(
+    PetscTAO tao,
+    ) \
+    except PETSC_ERR_PYTHON nogil:
+    FunctionBegin(b"TaoDestroy_Python")
+    CHKERR( PetscObjectComposeFunction(
+            <PetscObject>tao, b"TaoPythonSetType_C",
+            <PetscVoidFunction>NULL) )
+    CHKERR( PetscObjectComposeFunction(
+            <PetscObject>tao, b"TaoPythonGetType_C",
+            <PetscVoidFunction>NULL) )
+    #
+    if Py_IsInitialized(): TaoDestroy_Python_inner(tao)
+    return FunctionEnd()
+
+cdef PetscErrorCode TaoSetUp_Python(
+    PetscTAO tao,
+    ) \
+    except PETSC_ERR_PYTHON with gil:
+    FunctionBegin(b"TaoSetUp_Python")
+    cdef char name[2048]
+    cdef PetscBool found = PETSC_FALSE
+    if PyTao(tao).self is None:
+        CHKERR( PetscOptionsGetString(NULL,
+                getPrefix(tao), b"-tao_python_type",
+                name, sizeof(name), &found) )
+        if found and name[0]:
+            CHKERR( TaoPythonSetType_PYTHON(tao, name) )
+    if PyTao(tao).self is None:
+        return PetscSETERR(PETSC_ERR_USER,
+            "Python context not set, call one of \n"
+            " * TaoPythonSetType(tao, \"[package.]module.class\")\n"
+            " * TaoSetFromOptions(tao) and pass option "
+            "-tao_python_type [package.]module.class")
+    #
+    cdef setUp = PyTao(tao).setUp
+    if setUp is not None:
+        setUp(TAO_(tao))
+    return FunctionEnd()
+
+cdef PetscErrorCode TaoSetFromOptions_Python(
+    PetscTAO tao,
+    PetscOptionItems *PetscOptionsObject,
+    ) \
+    except PETSC_ERR_PYTHON with gil:
+    FunctionBegin(b"TaoSetFromOptions_Python")
+    #
+    cdef char name[2048], *defval = PyTao(tao).getname()
+    cdef PetscBool found = PETSC_FALSE
+    cdef PetscOptionItems *opts "PetscOptionsObject" = PetscOptionsObject
+    CHKERR( PetscOptionsString(
+            b"-tao_python_type", b"Python [package.]module[.{class|function}]",
+            b"TaoPythonSetType", defval, name, sizeof(name), &found) ); <void>opts;
+    if found and name[0]:
+        CHKERR( TaoPythonSetType_PYTHON(tao, name) )
+    #
+    cdef setFromOptions = PyTao(tao).setFromOptions
+    if setFromOptions is not None:
+        setFromOptions(TAO_(tao))
+    CHKERR( KSPSetFromOptions(tao.ksp) )
+    return FunctionEnd()
+
+cdef PetscErrorCode TaoView_Python(
+    PetscTAO tao,
+    PetscViewer vwr,
+    ) \
+    except PETSC_ERR_PYTHON with gil:
+    FunctionBegin(b"TaoView_Python")
+    viewcontext(PyTao(tao), vwr)
+    cdef view = PyTao(tao).view
+    if view is not None:
+        view(TAO_(tao), Viewer_(vwr))
+    return FunctionEnd()
 # --------------------------------------------------------------------
 
 cdef PetscErrorCode PetscPythonMonitorSet_Python(
@@ -3018,6 +3167,7 @@ cdef extern from * nogil:
   ctypedef PetscErrorCode SNESCreateFunction (PetscSNES) except PETSC_ERR_PYTHON
   ctypedef PetscErrorCode TSCreateFunction   (PetscTS)   except PETSC_ERR_PYTHON
   ctypedef PetscErrorCode TaoCreateFunction  (PetscTAO)  except PETSC_ERR_PYTHON
+  ctypedef PetscErrorCode PetscRegressorCreateFunction  (PetscRegressor)  except PETSC_ERR_PYTHON
 
   PetscErrorCode MatRegister  (const char[],MatCreateFunction* )
   PetscErrorCode PCRegister   (const char[],PCCreateFunction*  )
@@ -3025,6 +3175,8 @@ cdef extern from * nogil:
   PetscErrorCode SNESRegister (const char[],SNESCreateFunction*)
   PetscErrorCode TSRegister   (const char[],TSCreateFunction*  )
   PetscErrorCode TaoRegister  (const char[],TaoCreateFunction* )
+  PetscErrorCode PetscRegressorRegister  (const char[],PetscRegressor
+                                          CreateFunction* )
 
   PetscErrorCode (*PetscPythonMonitorSet_C) \
       (PetscObject, const char[]) except PETSC_ERR_PYTHON
@@ -3040,6 +3192,7 @@ cdef public PetscErrorCode PetscPythonRegisterAll() except PETSC_ERR_PYTHON:
     CHKERR( SNESRegister( SNESPYTHON, SNESCreate_Python ) )
     CHKERR( TSRegister  ( TSPYTHON,   TSCreate_Python   ) )
     CHKERR( TaoRegister ( TAOPYTHON,  TaoCreate_Python  ) )
+    CHKERR( PetscRegressorRegister ( PETSCREGRESSORPYTHON,  PetscRegressorCreate_Python  ) )
 
     # Python monitors
     global PetscPythonMonitorSet_C
