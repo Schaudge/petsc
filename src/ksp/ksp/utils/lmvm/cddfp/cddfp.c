@@ -446,29 +446,29 @@ static PetscErrorCode MatLMVMCDDFPUpdateMultData(Mat B)
 
 /* Solves for
 
-   H_0 - [ S | H_0 Y] [ -D  |    R^T    ]^-1 [   S^T   ]
+   H_0 - [ S | H_0 Y] [ -D  |    R      ]^-1 [   S^T   ]
                       [-----+-----------]    [---------]
-                      [  R  | Y^T H_0 Y ]    [ Y^T H_0 ]
+                      [ R^T | Y^T H_0 Y ]    [ Y^T H_0 ]
 
    Above is equivalent to
 
-   H_0 - [ S | H_0 Y] [[     I     | 0 ][ -D  | 0 ][ I | -D^{-1} R^T ]]^-1 [   S^T   ]
-                      [[-----------+---][-----+---][---+-------------]]    [---------]
-                      [[ -R D^{-1} | I ][  0  | J ][ 0 |       I     ]]    [ Y^T H_0 ]
+   H_0 - [ S | H_0 Y] [[      I      | 0 ][ -D | 0 ][ I | -D^{-1} R ]]^-1 [   S^T   ]
+                      [[-------------+---][----+---][---+-----------]]    [---------]
+                      [[ -R^T D^{-1} | I ][  0 | J ][ 0 |     I     ]]    [ Y^T H_0 ]
 
-   where J = Y^T H_0 Y + R D^{-1} R^T
+   where J = Y^T H_0 Y + R^T D^{-1} R
 
    becomes
 
-   H_0 - [ S | H_0 Y] [ I | D^{-1} R^T ][ -D^{-1}  |   0    ][    I     | 0 ] [   S^T   ]
-                      [---+------------][----------+--------][----------+---] [---------]
-                      [ 0 |     I      ][     0    | J^{-1} ][ R D^{-1} | I ] [ Y^T H_0 ]
+   H_0 - [ S | H_0 Y] [ I | D^{-1} R ][ -D^{-1}  |   0    ][      I     | 0 ] [   S^T   ]
+                      [---+----------][----------+--------][------------+---] [---------]
+                      [ 0 |     I    ][     0    | J^{-1} ][ R^T D^{-1} | I ] [ Y^T H_0 ]
 
                       =
 
-   H_0 + [ S | H_0 Y] [ D^{-1} | 0 ][ I | R^T ][ I |    0    ][     I    | 0 ] [   S^T   ]
-                      [--------+---][---+-----][---+---------][----------+---] [---------]
-                      [ 0      | I ][ 0 |  I  ][ 0 | -J^{-1} ][ R D^{-1} | I ] [ Y^T H_0 ]
+   H_0 + [ S | H_0 Y] [ D^{-1} | 0 ][ I | R  ][ I |    0    ][      I     | 0 ] [   S^T   ]
+                      [--------+---][---+----][---+---------][------------+---] [---------]
+                      [ 0      | I ][ 0 | I  ][ 0 | -J^{-1} ][ R^T D^{-1} | I ] [ Y^T H_0 ]
 
                       (Note that YtS_triu_strict is L^T)
    Byrd, Nocedal, Schnabel 1994
@@ -554,13 +554,14 @@ static PetscErrorCode MatSolve_LMVMCDDFP(Mat H, Vec F, Vec dX)
                       ---------------------------------+--------] [---------]
                       [             R^{-1}             |   0    ] [ S^T B_0 ]
 
+   (Note: R above is right triangular part of YTS)
    which becomes,
 
-   [ I | -Y R^{-T} ] [  I  | 0 ] [ B_0 | 0 ] [ I | S ] [      I      ]
+   [ I | -Y L^{-1} ] [  I  | 0 ] [ B_0 | 0 ] [ I | S ] [      I      ]
                      [-----+---] [-----+---] [---+---] [-------------]
-                     [ S^T | I ] [  0  | D ] [ 0 | I ] [ -R^{-1} Y^T ]
+                     [ S^T | I ] [  0  | D ] [ 0 | I ] [ -L^{-T} Y^T ]
 
-   (Note: R here is upper triangular, not strictly upper triangular)
+   (Note: L above is right triangular part of STY)
 
 */
 static PetscErrorCode MatMult_LMVMCDDFP(Mat B, Vec X, Vec Z)
@@ -599,7 +600,7 @@ static PetscErrorCode MatMult_LMVMCDDFP(Mat B, Vec X, Vec Z)
 
   /* Reordering rwork1, as STY is in history order, while Y is in recycled order */
   if (ldfp->strategy == MAT_LDFP_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, rwork1));
-  PetscCall(MatUpperTriangularSolveInPlace(B, ldfp->StY_triu, rwork1, PETSC_FALSE));
+  PetscCall(MatUpperTriangularSolveInPlace(B, ldfp->YtS_triu_strict, rwork1, PETSC_TRUE));
   PetscCall(VecScaleAsync_Private(rwork1, -1.0, dctx));
   if (ldfp->strategy == MAT_LDFP_CD_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(B, rwork1));
 
@@ -614,7 +615,7 @@ static PetscErrorCode MatMult_LMVMCDDFP(Mat B, Vec X, Vec Z)
   ldfp->St_count++;
 
   if (ldfp->strategy == MAT_LDFP_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, rwork1));
-  PetscCall(MatUpperTriangularSolveInPlace(B, ldfp->StY_triu, rwork1, PETSC_TRUE));
+  PetscCall(MatUpperTriangularSolveInPlace(B, ldfp->YtS_triu_strict, rwork1, PETSC_FALSE));
   PetscCall(VecScaleAsync_Private(rwork1, -1.0, dctx));
   if (ldfp->strategy == MAT_LDFP_CD_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(B, rwork1));
 

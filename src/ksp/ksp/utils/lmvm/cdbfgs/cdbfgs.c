@@ -436,7 +436,7 @@ static PetscErrorCode MatLMVMCDBFGSUpdateMultData(Mat B)
   PetscCall(MatSetFactorType(J_local, MAT_FACTOR_NONE));
   PetscCall(MatGetLDLT(B, lbfgs->J));
   PetscCall(MatAXPY(lbfgs->J, 1.0, lbfgs->StBS, SAME_NONZERO_PATTERN));
-  if (m_local) {
+  if (m_local && lbfgs->mult_type) {
     PetscCall(MatSetOption(J_local, MAT_SPD, PETSC_TRUE));
     PetscCall(MatCholeskyFactor(J_local, NULL, NULL));
   }
@@ -547,9 +547,9 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
 
    which becomes,
 
-   [ I | -Y R^{-T} ] [  I  | 0 ] [ B_0 | 0 ] [ I | S ] [      I      ]
+   [ I | -Y L^{-1} ] [  I  | 0 ] [ B_0 | 0 ] [ I | S ] [      I      ]
                      [-----+---] [-----+---] [---+---] [-------------]
-                     [ S^T | I ] [  0  | D ] [ 0 | I ] [ -R^{-1} Y^T ]
+                     [ S^T | I ] [  0  | D ] [ 0 | I ] [ -L^{-T} Y^T ]
 
    (Note: R here is upper triangular, not strictly upper triangular)
 
@@ -641,7 +641,10 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   }
 
   PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
-//  PetscCall(MatLMVMCDBFGSUpdateMultData(B));
+  PetscCall(MatLMVMCDBFGSUpdateMultData(B));
+  //TODO test delete later
+  if (!lbfgs->temp_mat) PetscCall(MatDuplicate(lbfgs->YtS_triu_strict, MAT_SHARE_NONZERO_PATTERN, &lbfgs->temp_mat));
+  PetscCall(MatTransposeMatMult(lbfgs->Sfull,lbfgs->Yfull, MAT_REUSE_MATRIX, PETSC_DEFAULT, &lbfgs->temp_mat));
 
   PetscCall(PetscObjectStateGet((PetscObject)X, &Xstate));
   if (X == lbfgs->Xprev_ref && Xstate == lbfgs->Xprev_state) {
@@ -653,7 +656,12 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
 
   /* Reordering rwork1, as STY is in history order, while Y is in recycled order */
   if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, rwork1));
-  PetscCall(MatUpperTriangularSolveInPlace(B, lbfgs->StY_triu, rwork1, PETSC_FALSE));
+  //TODO yts_triu_strict is strictly ut. fix later.?
+  if (!lbfgs->temp_mat) PetscCall(MatDuplicate(lbfgs->YtS_triu_strict, MAT_SHARE_NONZERO_PATTERN, &lbfgs->temp_mat));
+  PetscCall(MatCopy(lbfgs->YtS_triu_strict, lbfgs->temp_mat, SAME_NONZERO_PATTERN));
+  PetscCall(MatDiagonalSet(lbfgs->temp_mat, lbfgs->diag_vec, INSERT_VALUES));
+//  PetscCall(MatUpperTriangularSolveInPlace(B, lbfgs->YtS_triu_strict, rwork1, PETSC_TRUE));
+  PetscCall(MatUpperTriangularSolveInPlace(B, lbfgs->temp_mat, rwork1, PETSC_FALSE));
   PetscCall(VecScaleAsync_Private(rwork1, -1.0, dctx));
   if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(B, rwork1));
 
@@ -668,7 +676,8 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   lbfgs->St_count++;
 
   if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, rwork1));
-  PetscCall(MatUpperTriangularSolveInPlace(B, lbfgs->StY_triu, rwork1, PETSC_TRUE));
+//  PetscCall(MatUpperTriangularSolveInPlace(B, lbfgs->YtS_triu_strict, rwork1, PETSC_FALSE));
+  PetscCall(MatUpperTriangularSolveInPlace(B, lbfgs->temp_mat, rwork1, PETSC_TRUE));
   PetscCall(VecScaleAsync_Private(rwork1, -1.0, dctx));
   if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(B, rwork1));
 
