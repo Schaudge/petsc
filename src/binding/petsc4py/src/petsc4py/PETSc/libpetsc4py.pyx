@@ -142,10 +142,10 @@ cdef inline TAO TAO_(PetscTAO p):
     ob.obj[0] = newRef(p)
     return ob
 
-#cdef inline PetscRegressor PetscRegressor_(PPetscRegressor p):
-#    cdef PetscRegressor ob = PetscRegressor.__new__(PetscRegressor)
-#    ob.obj[0] = newRef(p)
-#    return ob
+cdef inline Regressor Regressor_(PetscRegressor p):
+    cdef Regressor ob = Regressor.__new__(Regressor)
+    ob.obj[0] = newRef(p)
+    return ob
 
 # --------------------------------------------------------------------
 
@@ -2958,23 +2958,23 @@ cdef PetscErrorCode TaoPostStep_Python(
 
 # --------------------------------------------------------------------
 
-#cdef extern from * nogil:
-#    struct _RegressorOps:
-#      PetscErrorCode (*destroy)(PPetscRegressor) except PETSC_ERR_PYTHON
-#      PetscErrorCode (*setup)(PPetscRegressor) except PETSC_ERR_PYTHON
-#      PetscErrorCode (*fit)(PPetscRegressor) except PETSC_ERR_PYTHON
-#      PetscErrorCode (*predict)(PPetscRegressor) except PETSC_ERR_PYTHON
-#      PetscErrorCode (*setfromoptions)(PPetscRegressor,PetscOptionItems*) except PETSC_ERR_PYTHON
-#      PetscErrorCode (*view)(PPetscRegressor,PetscViewer) except PETSC_ERR_PYTHON
-#    ctypedef _RegressorOps *RegressorOps
-#    struct _p_PetscRegressor:
-#        void *data
-#        RegressorOps ops
-#        PetscMat training
-#        PetscVec target
-#        PetscTAO tao
-#        PetscReal regularizer_weight
-#        PetscBool regularizer_weigth_is_set
+cdef extern from * nogil:
+    struct _RegressorOps:
+      PetscErrorCode (*destroy)(PetscRegressor) except PETSC_ERR_PYTHON
+      PetscErrorCode (*setup)(PetscRegressor) except PETSC_ERR_PYTHON
+      PetscErrorCode (*fit)(PetscRegressor) except PETSC_ERR_PYTHON
+      PetscErrorCode (*predict)(PetscRegressor) except PETSC_ERR_PYTHON
+      PetscErrorCode (*setfromoptions)(PetscRegressor,PetscOptionItems*) except PETSC_ERR_PYTHON
+      PetscErrorCode (*view)(PetscRegressor,PetscViewer) except PETSC_ERR_PYTHON
+    ctypedef _RegressorOps *RegressorOps
+    struct _p_PetscRegressor:
+        void *data
+        RegressorOps ops
+        PetscMat training
+        PetscVec target
+        PetscTAO tao
+        PetscReal regularizer_weight
+        PetscBool regularizer_weigth_is_set
 #
 # --------------------------------------------------------------------
 
