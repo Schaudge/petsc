@@ -108,7 +108,7 @@ cdef extern from "<petsc.h>":
     ctypedef _p_PetscPartitioner* PetscPartitioner "PetscPartitioner"
 
     struct _p_PetscRegressor
-    ctypedef _p_PetscRegressor* PPetscRegressor "PetscRegressor"
+    ctypedef _p_PetscRegressor* PetscRegressor "PetscRegressor"
 
 # --------------------------------------------------------------------
 
@@ -308,11 +308,11 @@ ctypedef public api class DMLabel(Object) [
     ]:
     cdef PetscDMLabel dmlabel
 
-ctypedef public api class PetscRegressor(Object) [
+ctypedef public api class Regressor(Object) [
     type   PyPetscRegressor_Type,
     object PyPetscRegressorObject,
     ]:
-    cdef PPetscRegressor regressor
+    cdef PetscRegressor regressor
 
 # --------------------------------------------------------------------
 

@@ -1,11 +1,11 @@
 # --------------------------------------------------------------------
 
-class PetscRegressorType:
+class RegressorType:
     LINEAR = S_(PETSCREGRESSORLINEAR)
 
-cdef class PetscRegressor(Object):
+cdef class Regressor(Object):
 
-    Type = PetscRegressorType
+    Type = RegressorType
 
     def __cinit__(self):
         self.obj = <PetscObject*> &self.regressor
@@ -46,7 +46,7 @@ cdef class PetscRegressor(Object):
 
         """
         cdef MPI_Comm ccomm = def_Comm(comm, PETSC_COMM_DEFAULT)
-        cdef PPetscRegressor newregressor = NULL
+        cdef PetscRegressor newregressor = NULL
         CHKERR( PetscRegressorCreate(ccomm, &newregressor) )
         CHKERR( PetscCLEAR(self.obj) ); self.regressor = newregressor
         return self
@@ -141,8 +141,8 @@ cdef class PetscRegressor(Object):
         getType, petsc.PetscRegressorSetType
 
         """
-        cdef PPetscRegressorType cval = NULL
+        cdef PetscRegressorType cval = NULL
         regressor_type = str2bytes(regressor_type, &cval)
         CHKERR( PetscRegressorSetType(self.regressor, cval) )
 
-del PetscRegressorType
+del RegressorType

@@ -1,14 +1,14 @@
 cdef extern from * nogil:
 
-    ctypedef const char* PPetscRegressorType "PetscRegressorType"
-    PPetscRegressorType PETSCREGRESSORLINEAR
+    ctypedef const char* PetscRegressorType
+    PetscRegressorType PETSCREGRESSORLINEAR
 
-    PetscErrorCode PetscRegressorCreate(MPI_Comm,PPetscRegressor*)
-    PetscErrorCode PetscRegressorReset(PPetscRegressor)
-    PetscErrorCode PetscRegressorDestroy(PPetscRegressor*)
-    PetscErrorCode PetscRegressorSetType(PPetscRegressor,PPetscRegressorType)
-    PetscErrorCode PetscRegressorSetUp(PPetscRegressor)
-    PetscErrorCode PetscRegressorSetFromOptions(PPetscRegressor)
-    PetscErrorCode PetscRegressorView(PPetscRegressor,PetscViewer)
-    PetscErrorCode PetscRegressorFit(PPetscRegressor,PetscMat,PetscVec)
-    PetscErrorCode PetscRegressorPredict(PPetscRegressor,PetscMat,PetscVec)
+    PetscErrorCode PetscRegressorCreate(MPI_Comm,PetscRegressor*)
+    PetscErrorCode PetscRegressorReset(PetscRegressor)
+    PetscErrorCode PetscRegressorDestroy(PetscRegressor*)
+    PetscErrorCode PetscRegressorSetType(PetscRegressor,PetscRegressorType)
+    PetscErrorCode PetscRegressorSetUp(PetscRegressor)
+    PetscErrorCode PetscRegressorSetFromOptions(PetscRegressor)
+    PetscErrorCode PetscRegressorView(PetscRegressor,PetscViewer)
+    PetscErrorCode PetscRegressorFit(PetscRegressor,PetscMat,PetscVec)
+    PetscErrorCode PetscRegressorPredict(PetscRegressor,PetscMat,PetscVec)
