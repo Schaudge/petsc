@@ -499,8 +499,8 @@ static PetscErrorCode MatSolve_LMVMCDDFP(Mat H, Vec F, Vec dX)
   }
 
   PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
-
   PetscCall(MatLMVMCDDFPUpdateMultData(H));
+
   PetscCall(MatMultTransposeColumnRange(ldfp->Sfull, F, ldfp->rwork1, 0, h));
   ldfp->St_count++;
   PetscCall(MatMultTransposeColumnRange(ldfp->Yfull, dX, ldfp->rwork2, 0, h));
@@ -512,7 +512,13 @@ static PetscErrorCode MatSolve_LMVMCDDFP(Mat H, Vec F, Vec dX)
 
   PetscCall(VecPointwiseMultAsync_Private(ldfp->rwork3, ldfp->rwork1, ldfp->inv_diag_vec, dctx));
   //TODO below is L, we need R
-  PetscCall(MatMultTransposeAdd(ldfp->YtS_triu_strict, ldfp->rwork3, ldfp->rwork2, ldfp->rwork2));
+  //Dumb way to get strictly upper triangular. fix later
+  if (!ldfp->temp_mat) PetscCall(MatDuplicate(ldfp->StY_triu, MAT_SHARE_NONZERO_PATTERN, &ldfp->temp_mat));
+  PetscCall(MatCopy(ldfp->StY_triu, ldfp->temp_mat, SAME_NONZERO_PATTERN));
+  PetscCall(VecZeroEntries(ldfp->rwork4));
+  PetscCall(MatDiagonalSet(ldfp->temp_mat, ldfp->rwork4, INSERT_VALUES));
+  //PetscCall(MatMultTransposeAdd(ldfp->temp_mat, ldfp->rwork3, ldfp->rwork2, ldfp->rwork2));
+  PetscCall(MatMultAdd(ldfp->temp_mat, ldfp->rwork3, ldfp->rwork2, ldfp->rwork2));
 
   if (!ldfp->rwork2_local) PetscCall(VecCreateLocalVector(ldfp->rwork2, &ldfp->rwork2_local));
   if (!ldfp->rwork3_local) PetscCall(VecCreateLocalVector(ldfp->rwork3, &ldfp->rwork3_local));
@@ -530,7 +536,8 @@ static PetscErrorCode MatSolve_LMVMCDDFP(Mat H, Vec F, Vec dX)
   PetscCall(VecRestoreLocalVectorRead(ldfp->rwork2, ldfp->rwork2_local));
   PetscCall(VecScale(ldfp->rwork3, -1.0));
   //TODO below is L, we need R
-  PetscCall(MatMultAdd(ldfp->YtS_triu_strict, ldfp->rwork3, ldfp->rwork1, ldfp->rwork1));
+  //PetscCall(MatMultAdd(ldfp->temp_mat, ldfp->rwork3, ldfp->rwork1, ldfp->rwork1));
+  PetscCall(MatMultTransposeAdd(ldfp->temp_mat, ldfp->rwork3, ldfp->rwork1, ldfp->rwork1));
 
   PetscCall(VecPointwiseMultAsync_Private(ldfp->rwork1, ldfp->rwork1, ldfp->inv_diag_vec, dctx));
 
@@ -589,6 +596,7 @@ static PetscErrorCode MatMult_LMVMCDDFP(Mat B, Vec X, Vec Z)
   }
 
   PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+  PetscCall(MatLMVMCDDFPUpdateMultData(B));
 
   PetscCall(PetscObjectStateGet((PetscObject)X, &Xstate));
   if (X == ldfp->Xprev_ref && Xstate == ldfp->Xprev_state) {
@@ -600,7 +608,10 @@ static PetscErrorCode MatMult_LMVMCDDFP(Mat B, Vec X, Vec Z)
 
   /* Reordering rwork1, as STY is in history order, while Y is in recycled order */
   if (ldfp->strategy == MAT_LDFP_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, rwork1));
-  PetscCall(MatUpperTriangularSolveInPlace(B, ldfp->YtS_triu_strict, rwork1, PETSC_TRUE));
+  if (!ldfp->temp_mat) PetscCall(MatDuplicate(ldfp->YtS_triu_strict, MAT_SHARE_NONZERO_PATTERN, &ldfp->temp_mat));
+  PetscCall(MatCopy(ldfp->YtS_triu_strict, ldfp->temp_mat, SAME_NONZERO_PATTERN));
+  PetscCall(MatDiagonalSet(ldfp->temp_mat, ldfp->diag_vec, INSERT_VALUES));
+  PetscCall(MatUpperTriangularSolveInPlace(B, ldfp->temp_mat, rwork1, PETSC_FALSE));
   PetscCall(VecScaleAsync_Private(rwork1, -1.0, dctx));
   if (ldfp->strategy == MAT_LDFP_CD_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(B, rwork1));
 
@@ -615,7 +626,7 @@ static PetscErrorCode MatMult_LMVMCDDFP(Mat B, Vec X, Vec Z)
   ldfp->St_count++;
 
   if (ldfp->strategy == MAT_LDFP_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, rwork1));
-  PetscCall(MatUpperTriangularSolveInPlace(B, ldfp->YtS_triu_strict, rwork1, PETSC_FALSE));
+  PetscCall(MatUpperTriangularSolveInPlace(B, ldfp->temp_mat, rwork1, PETSC_TRUE));
   PetscCall(VecScaleAsync_Private(rwork1, -1.0, dctx));
   if (ldfp->strategy == MAT_LDFP_CD_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(B, rwork1));
 
@@ -958,6 +969,7 @@ static PetscErrorCode MatLMVMCDDFPResetDetructive(Mat B)
   PetscCall(VecDestroy(&ldfp->rwork1));
   PetscCall(VecDestroy(&ldfp->rwork2));
   PetscCall(VecDestroy(&ldfp->rwork3));
+  PetscCall(VecDestroy(&ldfp->rwork4));
   PetscCall(VecDestroy(&ldfp->rwork2_local));
   PetscCall(VecDestroy(&ldfp->rwork3_local));
   PetscCall(VecDestroy(&ldfp->cyclic_work_vec));
@@ -1059,9 +1071,11 @@ static PetscErrorCode MatAllocate_LMVMCDDFP(Mat B, Vec X, Vec F)
       PetscCall(MatShift(ldfp->StY_triu, 1.0));
       PetscCall(MatCreateVecs(ldfp->StY_triu, &ldfp->diag_vec, &ldfp->rwork1));
       PetscCall(MatCreateVecs(ldfp->StY_triu, &ldfp->rwork2, &ldfp->rwork3));
+      PetscCall(MatCreateVecs(ldfp->StY_triu, NULL, &ldfp->rwork4));
       PetscCall(VecZeroEntries(ldfp->rwork1));
       PetscCall(VecZeroEntries(ldfp->rwork2));
       PetscCall(VecZeroEntries(ldfp->rwork3));
+      PetscCall(VecZeroEntries(ldfp->rwork4));
       PetscCall(VecZeroEntries(ldfp->diag_vec));
     }
     PetscCall(VecDuplicate(lmvm->Xprev, &ldfp->column_work));
