@@ -994,7 +994,7 @@ static PetscErrorCode MatCopy_LMVMCDBFGS(Mat B, Mat M, MatStructure str)
 
 /*------------------------------------------------------------*/
 
-static PetscErrorCode MatLMVMCDBFGSResetDetructive(Mat B)
+static PetscErrorCode MatLMVMCDBFGSResetDestructive(Mat B)
 {
   Mat_LMVM   *lmvm  = (Mat_LMVM*)B->data;
   Mat_CDBFGS *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
@@ -1056,7 +1056,7 @@ static PetscErrorCode MatReset_LMVMCDBFGS(Mat B, PetscBool destructive)
   if (lbfgs->StFprev) PetscCall(VecZeroEntries(lbfgs->StFprev));
   if (lbfgs->YtXprev) PetscCall(VecZeroEntries(lbfgs->YtXprev));
   if (destructive) {
-    PetscCall(MatLMVMCDBFGSResetDetructive(B));
+    PetscCall(MatLMVMCDBFGSResetDestructive(B));
   }
   lbfgs->num_updates = 0;
   lbfgs->num_mult_updates = 0;
@@ -1148,7 +1148,7 @@ static PetscErrorCode MatDestroy_LMVMCDBFGS(Mat B)
   Mat_CDBFGS *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
 
   PetscFunctionBegin;
-  PetscCall(MatLMVMCDBFGSResetDetructive(B));
+  PetscCall(MatLMVMCDBFGSResetDestructive(B));
   PetscCall(MatDestroy(&lbfgs->diag_bfgs));
   PetscCall(PetscFree(lmvm->ctx));
   PetscCall(MatDestroy_LMVM(B));
