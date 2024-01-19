@@ -972,7 +972,7 @@ static PetscErrorCode MatLMVMCDDFPResetDetructive(Mat B)
   PetscCall(VecDestroy(&ldfp->rwork4));
   PetscCall(VecDestroy(&ldfp->rwork2_local));
   PetscCall(VecDestroy(&ldfp->rwork3_local));
-  PetscCall(VecDestroy(&ldfp->cyclic_work_vec));
+  if (!ldfp->cyclic_work_vec) PetscCall(VecDestroy(&ldfp->cyclic_work_vec));
   ldfp->allocated = PETSC_FALSE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
