@@ -10,6 +10,7 @@ PetscErrorCode PetscKokkosFinalize_Private(void)
 {
   PetscFunctionBegin;
   PetscCallCXX(delete PetscKokkosExecutionSpacePtr);
+  PetscKokkosExecutionSpacePtr = nullptr;
   Kokkos::finalize();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
