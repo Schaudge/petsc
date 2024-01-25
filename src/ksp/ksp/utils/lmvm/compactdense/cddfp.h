@@ -1,7 +1,7 @@
 #include <../src/ksp/ksp/utils/lmvm/lmvm.h>
 
 /*
-  Compact dense representation for the limited-memory BFGS method.
+  Compact dense representation for the limited-memory DFP method.
 */
 
 typedef struct {
@@ -26,7 +26,7 @@ typedef struct {
   Vec       local_work_vec, local_work_vec_copy;
   Vec       cyclic_work_vec;
   MatType   dense_type;
-  MatLDFPType strategy;
+  MatLMVMCompactDenseType strategy;
   MatLMVMSymBroydenScaleType scale_type;
 
   PetscInt         S_count, St_count, Y_count, Yt_count;
@@ -41,5 +41,14 @@ typedef struct {
 
 PETSC_INTERN PetscErrorCode MatView_LMVMCDDFP(Mat, PetscViewer);
 
-PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlace_CUPM_DFP(PetscBool, PetscInt, const PetscScalar[], PetscInt, PetscScalar[], PetscInt);
-PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlaceCyclic_CUPM_DFP(PetscBool, PetscInt, PetscInt, const PetscScalar[], PetscInt, PetscScalar[], PetscInt);
+PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlace_CUPM(PetscBool, PetscInt, const PetscScalar[], PetscInt, PetscScalar[], PetscInt);
+PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlaceCyclic_CUPM(PetscBool, PetscInt, PetscInt, const PetscScalar[], PetscInt, PetscScalar[], PetscInt);
+PETSC_INTERN PETSC_UNUSED PetscErrorCode MatMultColumnRange(Mat, Vec, Vec, PetscInt, PetscInt);
+PETSC_INTERN PetscErrorCode MatMultAddColumnRange(Mat, Vec, Vec, Vec, PetscInt, PetscInt);
+PETSC_INTERN PetscErrorCode MatMultTransposeColumnRange(Mat, Vec, Vec, PetscInt, PetscInt);
+PETSC_INTERN PetscErrorCode MatMultTransposeAddColumnRange(Mat, Vec, Vec, Vec, PetscInt, PetscInt);
+PETSC_INTERN PetscErrorCode VecCyclicShift(Mat, Vec, PetscInt, Vec);
+PETSC_INTERN PetscErrorCode VecRecycleOrderToHistoryOrder(Mat, Vec, PetscInt, Vec);
+PETSC_INTERN PetscErrorCode VecHistoryOrderToRecycleOrder(Mat, Vec, PetscInt, Vec);
+PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlace(Mat, Mat, Vec, PetscBool, PetscInt, MatLMVMCompactDenseType);
+PETSC_INTERN PetscErrorCode MatMove_LR3(Mat, Mat, PetscInt, Mat);

@@ -1,4 +1,5 @@
 #include "cdbfgs.h"
+#include "cddfp.h"
 #include "petsc/private/cupminterface.hpp"
 #include <petsc/private/cupmobject.hpp>
 

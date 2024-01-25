@@ -1,6 +1,6 @@
 #include <../src/ksp/ksp/utils/lmvm/symbrdn/symbrdn.h> /*I "petscksp.h" I*/
-#include <../src/ksp/ksp/utils/lmvm/cdbfgs/cdbfgs.h>
-#include <../src/ksp/ksp/utils/lmvm/cddfp/cddfp.h>
+#include <../src/ksp/ksp/utils/lmvm/compactdense/cdbfgs.h>
+#include <../src/ksp/ksp/utils/lmvm/compactdense/cddfp.h>
 #include <../src/ksp/ksp/utils/lmvm/diagbrdn/diagbrdn.h>
 #include <petsc/private/kspimpl.h>
 #include <petscdevice.h>

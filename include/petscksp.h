@@ -978,7 +978,7 @@ typedef enum {
   MAT_LMVM_SYMBROYDEN_SCALE_USER     = 3
 } MatLMVMSymBroydenScaleType;
 PETSC_EXTERN const char *const MatLMVMSymBroydenScaleTypes[];
-
+#if 0
 typedef enum {
   MAT_LBFGS_BASIC,
   MAT_LBFGS_CD_REORDER,
@@ -992,6 +992,14 @@ typedef enum {
   MAT_LDFP_CD_INPLACE
 } MatLDFPType;
 PETSC_EXTERN const char *const MatLDFPTypes[];
+#endif
+
+typedef enum {
+  MAT_LMVM_CD_BASIC,
+  MAT_LMVM_CD_REORDER,
+  MAT_LMVM_CD_INPLACE
+} MatLMVMCompactDenseType;
+PETSC_EXTERN const char *const MatLMVMCompactDenseTypes[];
 
 PETSC_EXTERN PetscErrorCode MatCreateSchurComplement(Mat, Mat, Mat, Mat, Mat, Mat *);
 PETSC_EXTERN PetscErrorCode MatSchurComplementGetKSP(Mat, KSP *);

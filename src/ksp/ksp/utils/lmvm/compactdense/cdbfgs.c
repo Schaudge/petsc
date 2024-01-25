@@ -1,4 +1,4 @@
-#include <../src/ksp/ksp/utils/lmvm/cdbfgs/cdbfgs.h> /*I "petscksp.h" I*/
+#include <../src/ksp/ksp/utils/lmvm/compactdense/cdbfgs.h> /*I "petscksp.h" I*/
 #include <../src/ksp/ksp/utils/lmvm/diagbrdn/diagbrdn.h>
 #include <petscblaslapack.h>
 #include <petscmat.h>
@@ -13,44 +13,6 @@
 #include <petsc/private/vecimpl.h>
 #include <cuda_profiler_api.h>
 #endif
-
-static PETSC_UNUSED PetscErrorCode MatMultColumnRange(Mat A, Vec xx, Vec yy, PetscInt c_start, PetscInt c_end)
-{
-  PetscFunctionBegin;
-  PetscCall(PetscLogEventBegin(MAT_Mult, (PetscObject)A, NULL, NULL, NULL));
-  PetscUseMethod(A, "MatMultColumnRange_C", (Mat, Vec, Vec, PetscInt, PetscInt), (A, xx, yy, c_start, c_end));
-  PetscCall(PetscLogEventEnd(MAT_Mult, (PetscObject)A, NULL, NULL, NULL));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-static PetscErrorCode MatMultAddColumnRange(Mat A, Vec xx, Vec zz, Vec yy, PetscInt c_start, PetscInt c_end)
-{
-  PetscFunctionBegin;
-  PetscCall(PetscLogEventBegin(MAT_MultAdd, (PetscObject)A, NULL, NULL, NULL));
-  PetscUseMethod(A, "MatMultAddColumnRange_C", (Mat, Vec, Vec, Vec, PetscInt, PetscInt), (A, xx, zz, yy, c_start, c_end));
-  PetscCall(PetscLogEventEnd(MAT_MultAdd, (PetscObject)A, NULL, NULL, NULL));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-static PetscErrorCode MatMultTransposeColumnRange(Mat A, Vec xx, Vec yy, PetscInt c_start, PetscInt c_end)
-{
-  PetscFunctionBegin;
-  PetscCall(PetscLogEventBegin(MAT_MultTranspose, (PetscObject)A, NULL, NULL, NULL));
-  PetscUseMethod(A, "MatMultTransposeColumnRange_C", (Mat, Vec, Vec, PetscInt, PetscInt), (A, xx, yy, c_start, c_end));
-  PetscCall(PetscLogEventEnd(MAT_MultTranspose, (PetscObject)A, NULL, NULL, NULL));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-static PetscErrorCode MatMultTransposeAddColumnRange(Mat A, Vec xx, Vec zz, Vec yy, PetscInt c_start, PetscInt c_end)
-{
-  PetscFunctionBegin;
-  PetscCall(PetscLogEventBegin(MAT_MultTransposeAdd, (PetscObject)A, NULL, NULL, NULL));
-  PetscUseMethod(A, "MatMultTransposeAddColumnRange_C", (Mat, Vec, Vec, Vec, PetscInt, PetscInt), (A, xx, zz, yy, c_start, c_end));
-  PetscCall(PetscLogEventEnd(MAT_MultTransposeAdd, (PetscObject)A, NULL, NULL, NULL));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-const char *const MatLBFGSTypes[] = {"basic", "cd_reorder", "cd_inplace", "MatLBFGSType", "MAT_LBFGS_", NULL};
 
 PetscLogEvent CDBFGS_MatMult;
 PetscLogEvent CDBFGS_MatSolve;
@@ -142,183 +104,6 @@ PetscErrorCode MatCDBFGSApplyJ0Inv(Mat B, Vec F, Vec dX)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-// shift a vector so that whatever is at index d becomes index 0
-static PetscErrorCode VecCyclicShift(Mat B, Vec X, PetscInt d)
-{
-  Mat_LMVM    *lmvm  = (Mat_LMVM*)B->data;
-  Mat_CDBFGS  *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
-  PetscInt     m = lmvm->m;
-  PetscInt     n;
-  const PetscScalar *src;
-  PetscScalar *dest;
-  PetscMemType src_memtype;
-  PetscMemType dest_memtype;
-  PetscDeviceContext dctx;
-
-  PetscFunctionBegin;
-  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
-  PetscCall(VecGetLocalSize(X, &n));
-  if (!lbfgs->cyclic_work_vec) PetscCall(VecDuplicate(X, &lbfgs->cyclic_work_vec));
-  PetscCall(VecCopyAsync_Private(X, lbfgs->cyclic_work_vec, dctx));
-  PetscCall(VecGetArrayReadAndMemType(lbfgs->cyclic_work_vec, &src, &src_memtype));
-  PetscCall(VecGetArrayWriteAndMemType(X, &dest, &dest_memtype));
-  if (n == 0) { // no work on this process
-    PetscCall(VecRestoreArrayWriteAndMemType(X, &dest));
-    PetscCall(VecRestoreArrayReadAndMemType(lbfgs->cyclic_work_vec, &src));
-    PetscFunctionReturn(PETSC_SUCCESS);
-  }
-  PetscAssert(src_memtype == dest_memtype, PETSC_COMM_SELF, PETSC_ERR_PLIB, "memtype of duplicate does not match");
-  if (PetscMemTypeHost(src_memtype)) {
-    PetscCall(PetscArraycpy(dest, &src[d], m - d));
-    PetscCall(PetscArraycpy(&dest[m-d], src, d));
-  } else {
-    PetscDeviceContext dctx;
-
-    PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
-    PetscCall(PetscDeviceRegisterMemory(dest, dest_memtype, m * sizeof(*dest)));
-    PetscCall(PetscDeviceRegisterMemory(src, src_memtype, m * sizeof(*src)));
-    PetscCall(PetscDeviceArrayCopy(dctx, dest, &src[d], m - d));
-    PetscCall(PetscDeviceArrayCopy(dctx, &dest[m - d], src, d));
-  }
-  PetscCall(VecRestoreArrayWriteAndMemType(X, &dest));
-  PetscCall(VecRestoreArrayReadAndMemType(lbfgs->cyclic_work_vec, &src));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-static PetscErrorCode VecRecycleOrderToHistoryOrder(Mat B, Vec X)
-{
-  Mat_LMVM    *lmvm  = (Mat_LMVM*)B->data;
-  Mat_CDBFGS  *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
-  PetscInt     m = lmvm->m;
-  PetscInt     k = lbfgs->num_updates;
-  PetscInt     oldest_index;
-
-  PetscFunctionBegin;
-  oldest_index = recycle_index(m, oldest_update(m, k));
-  if (oldest_index == 0) PetscFunctionReturn(PETSC_SUCCESS); // vector is already in history order
-  PetscCall(VecCyclicShift(B, X, oldest_index));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-static PetscErrorCode VecHistoryOrderToRecycleOrder(Mat B, Vec X)
-{
-  Mat_LMVM    *lmvm  = (Mat_LMVM*)B->data;
-  Mat_CDBFGS  *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
-  PetscInt     m = lmvm->m;
-  PetscInt     k = lbfgs->num_updates;
-  PetscInt     oldest_index;
-
-  PetscFunctionBegin;
-  oldest_index = recycle_index(m, oldest_update(m, k));
-  if (oldest_index == 0) PetscFunctionReturn(PETSC_SUCCESS); // vector is already in recycle order
-  PetscCall(VecCyclicShift(B, X, m - oldest_index));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-static PetscErrorCode MatUpperTriangularSolveInPlace_Internal(MatLBFGSType lbfgs_type, PetscMemType memtype, PetscBool hermitian_transpose, PetscInt N, PetscInt oldest_index, const PetscScalar A[], PetscInt lda, PetscScalar x[], PetscInt stride)
-{
-  PetscFunctionBegin;
-  // if oldest_index == 0, the two strategies are equivalent, redirect to the simpler one
-  if (oldest_index == 0) lbfgs_type = MAT_LBFGS_CD_REORDER;
-  switch (lbfgs_type) {
-  case MAT_LBFGS_CD_REORDER:
-    if (PetscMemTypeHost(memtype)) {
-      PetscBLASInt n, lda_blas, one = 1;
-      PetscCall(PetscBLASIntCast(N, &n));
-      PetscCall(PetscBLASIntCast(lda, &lda_blas));
-      PetscCallBLAS("BLAStrsv", BLAStrsv_("U", hermitian_transpose ? "C" : "N", "NotUnitTriangular", &n, A, &lda_blas, x, &one));
-      PetscCall(PetscLogFlops(1.0 * n * n));
-    } else if (PetscMemTypeDevice(memtype)) {
-      PetscCall(MatUpperTriangularSolveInPlace_CUPM(hermitian_transpose, N, A, lda, x, 1));
-    } else SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "Unsupported memtype");
-    break;
-  case MAT_LBFGS_CD_INPLACE:
-    if (PetscMemTypeHost(memtype)) {
-      PetscBLASInt n_old, n_new, lda_blas, one = 1;
-      PetscScalar  minus_one = -1.0;
-      PetscScalar  sone = 1.0;
-      PetscCall(PetscBLASIntCast(N - oldest_index, &n_old));
-      PetscCall(PetscBLASIntCast(oldest_index, &n_new));
-      PetscCall(PetscBLASIntCast(lda, &lda_blas));
-      if (!hermitian_transpose) {
-        PetscCallBLAS("BLAStrsv", BLAStrsv_("U", "N", "NotUnitTriangular", &n_new, A, &lda_blas, x, &one));
-        PetscCallBLAS("BLASgemv", BLASgemv_("N", &n_old, &n_new, &minus_one, &A[oldest_index], &lda_blas, x, &one, &sone, &x[oldest_index], &one));
-        PetscCallBLAS("BLAStrsv", BLAStrsv_("U", "N", "NotUnitTriangular", &n_old, &A[oldest_index * (lda + 1)], &lda_blas, &x[oldest_index], &one));
-      } else {
-        PetscCallBLAS("BLAStrsv", BLAStrsv_("U", "C", "NotUnitTriangular", &n_old, &A[oldest_index * (lda + 1)], &lda_blas, &x[oldest_index], &one));
-        PetscCallBLAS("BLASgemv", BLASgemv_("C", &n_old, &n_new, &minus_one, &A[oldest_index], &lda_blas, &x[oldest_index], &one, &sone, x, &one));
-        PetscCallBLAS("BLAStrsv", BLAStrsv_("U", "C", "NotUnitTriangular", &n_new, A, &lda_blas, x, &one));
-      }
-      PetscCall(PetscLogFlops(1.0 * N * N));
-    } else if (PetscMemTypeDevice(memtype)) {
-      PetscCall(MatUpperTriangularSolveInPlaceCyclic_CUPM(hermitian_transpose, N, oldest_index, A, lda, x, stride));
-    } else SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "Unsupported memtype");
-    break;
-  default:
-    PetscUnreachable();
-  }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-static PetscErrorCode MatUpperTriangularSolveInPlace(Mat B, Mat Amat, Vec X, PetscBool hermitian_transpose)
-{
-  Mat_LMVM    *lmvm  = (Mat_LMVM*)B->data;
-  Mat_CDBFGS  *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
-  PetscInt     m = lmvm->m;
-  PetscInt     k = lbfgs->num_updates;
-  PetscInt     h, local_n;
-  PetscInt     oldest_index;
-  PetscInt     lda;
-  PetscScalar *x;
-  PetscMemType memtype_r, memtype_x;
-  const PetscScalar *A;
-
-  PetscFunctionBegin;
-  h = k - oldest_update(m, k);
-  if (!h) PetscFunctionReturn(PETSC_SUCCESS);
-  PetscCall(VecGetLocalSize(X, &local_n));
-  PetscCall(VecGetArrayAndMemType(X, &x, &memtype_x));
-  PetscCall(MatDenseGetArrayReadAndMemType(Amat, &A, &memtype_r));
-  if (!local_n) {
-    PetscCall(MatDenseRestoreArrayReadAndMemType(Amat, &A));
-    PetscCall(VecRestoreArrayAndMemType(X, &x));
-    PetscFunctionReturn(PETSC_SUCCESS);
-  }
-  PetscAssert(memtype_x == memtype_r, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incompatible device pointers");
-  PetscCall(MatDenseGetLDA(lbfgs->StY_triu, &lda));
-  oldest_index = recycle_index(m, oldest_update(m, k));
-  PetscCall(MatUpperTriangularSolveInPlace_Internal(lbfgs->strategy, memtype_x, hermitian_transpose, h, oldest_index, A, lda, x, 1));
-  PetscCall(VecRestoreArrayWriteAndMemType(X, &x));
-  PetscCall(MatDenseRestoreArrayReadAndMemType(Amat, &A));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/* Shifts R[end-m_keep:end,end-m_keep:end] to R[0:m_keep, 0:m_keep] */
-
-static PetscErrorCode MatMove_LR3(Mat B, Mat R, PetscInt m_keep)
-{
-  Mat_LMVM     *lmvm  = (Mat_LMVM*)B->data;
-  Mat_CDBFGS   *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
-  PetscInt     M;
-  Mat          mat_local, local_sub, local_temp, temp_sub;
-
-  PetscFunctionBegin;
-  if (!lbfgs->temp_mat) PetscCall(MatDuplicate(R, MAT_SHARE_NONZERO_PATTERN, &lbfgs->temp_mat));
-  PetscCall(MatGetLocalSize(R, &M, NULL));
-  if (M == 0) PetscFunctionReturn(PETSC_SUCCESS);
-
-  PetscCall(MatDenseGetLocalMatrix(R, &mat_local));
-  PetscCall(MatDenseGetLocalMatrix(lbfgs->temp_mat, &local_temp));
-  PetscCall(MatDenseGetSubMatrix(mat_local, lmvm->m - m_keep, lmvm->m, lmvm->m - m_keep, lmvm->m, &local_sub));
-  PetscCall(MatDenseGetSubMatrix(local_temp, lmvm->m - m_keep, lmvm->m, lmvm->m - m_keep, lmvm->m, &temp_sub));
-  PetscCall(MatCopy(local_sub, temp_sub, SAME_NONZERO_PATTERN));
-  PetscCall(MatDenseRestoreSubMatrix(mat_local, &local_sub));
-  PetscCall(MatDenseGetSubMatrix(mat_local, 0, m_keep, 0, m_keep, &local_sub));
-  PetscCall(MatCopy(temp_sub, local_sub, SAME_NONZERO_PATTERN));
-  PetscCall(MatDenseRestoreSubMatrix(mat_local, &local_sub));
-  PetscCall(MatDenseRestoreSubMatrix(local_temp, &temp_sub));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
 
 // This is not Bunch-Kaufman LDLT: here L is strictly lower triangular part of STY
 static PetscErrorCode MatGetLDLT(Mat B, Mat result)
@@ -379,7 +164,7 @@ static PetscErrorCode MatLMVMCDBFGSUpdateMultData(Mat B)
     Vec      Bs_j;
     Vec      StBs_j;
     PetscInt S_idx = recycle_index(m, j);
-    PetscInt StBS_idx = lbfgs->strategy == MAT_LBFGS_CD_INPLACE ? S_idx : history_index(m, k, j);
+    PetscInt StBS_idx = lbfgs->strategy == MAT_LMVM_CD_INPLACE ? S_idx : history_index(m, k, j);
 
     PetscCall(MatDenseGetColumnVecWrite(lbfgs->BS, S_idx, &Bs_j));
     PetscCall(MatDenseGetColumnVecRead(lbfgs->Sfull, S_idx, &s_j));
@@ -388,29 +173,29 @@ static PetscErrorCode MatLMVMCDBFGSUpdateMultData(Mat B)
     PetscCall(MatDenseGetColumnVecWrite(lbfgs->StBS, StBS_idx, &StBs_j));
     PetscCall(MatMultTransposeColumnRange(lbfgs->Sfull, Bs_j, StBs_j, 0, h));
     lbfgs->St_count++;
-    if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, StBs_j));
+    if (lbfgs->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, StBs_j, lbfgs->num_updates, lbfgs->cyclic_work_vec));
     PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->StBS, StBS_idx, &StBs_j));
     PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->BS, S_idx, &Bs_j));
   }
   prev_oldest = oldest_update(m, lbfgs->num_mult_updates);
-  if (lbfgs->strategy == MAT_LBFGS_CD_REORDER && prev_oldest < oldest_update(m, k)) {
+  if (lbfgs->strategy == MAT_LMVM_CD_REORDER && prev_oldest < oldest_update(m, k)) {
     // move the YtS entries that have been computed and need to be kept back up
     PetscInt m_keep = m - (oldest_update(m, k) - prev_oldest);
 
-    PetscCall(MatMove_LR3(B, lbfgs->YtS_triu_strict, m_keep));
+    PetscCall(MatMove_LR3(B, lbfgs->YtS_triu_strict, m_keep, lbfgs->temp_mat));
   }
   PetscCall(MatGetLocalSize(lbfgs->YtS_triu_strict, &m_local, NULL));
   j_0 = PetscMax(lbfgs->num_mult_updates, oldest_update(m, k));
   for (PetscInt j = j_0; j < k; j++) {
     PetscInt S_idx   = recycle_index(m, j);
-    PetscInt YtS_idx = lbfgs->strategy == MAT_LBFGS_CD_INPLACE ? S_idx : history_index(m, k, j);
+    PetscInt YtS_idx = lbfgs->strategy == MAT_LMVM_CD_INPLACE ? S_idx : history_index(m, k, j);
     Vec      s_j, Yts_j;
 
     PetscCall(MatDenseGetColumnVecRead(lbfgs->Sfull, S_idx, &s_j));
     PetscCall(MatDenseGetColumnVecWrite(lbfgs->YtS_triu_strict, YtS_idx, &Yts_j));
     PetscCall(MatMultTransposeColumnRange(lbfgs->Yfull, s_j, Yts_j, 0, h));
     lbfgs->Yt_count++;
-    if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, Yts_j));
+    if (lbfgs->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, Yts_j, lbfgs->num_updates, lbfgs->cyclic_work_vec));
     PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->YtS_triu_strict, YtS_idx, &Yts_j));
     PetscCall(MatDenseRestoreColumnVecRead(lbfgs->Sfull, S_idx, &s_j));
     // zero the corresponding row
@@ -483,10 +268,10 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   }
 
   /* Reordering rwork1, as STY is in history order, while S is in recycled order */
-  if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(H, rwork1));
-  PetscCall(MatUpperTriangularSolveInPlace(H, lbfgs->StY_triu, rwork1, PETSC_FALSE));
+  if (lbfgs->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(H, rwork1, lbfgs->num_updates, lbfgs->cyclic_work_vec));
+  PetscCall(MatUpperTriangularSolveInPlace(H, lbfgs->StY_triu, rwork1, PETSC_FALSE, lbfgs->num_updates, lbfgs->strategy));
   PetscCall(VecScaleAsync_Private(rwork1, -1.0, dctx));
-  if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(H, rwork1));
+  if (lbfgs->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(H, rwork1, lbfgs->num_updates, lbfgs->cyclic_work_vec));
 
   PetscCall(VecCopyAsync_Private(F, lbfgs->column_work, dctx));
   PetscCall(MatMultAddColumnRange(lbfgs->Yfull, rwork1, lbfgs->column_work, lbfgs->column_work, 0, h));
@@ -498,10 +283,10 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   PetscCall(MatMultTransposeAddColumnRange(lbfgs->Yfull, dX, rwork1, rwork1, 0, h));
   lbfgs->Yt_count++;
 
-  if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(H, rwork1));
-  PetscCall(MatUpperTriangularSolveInPlace(H, lbfgs->StY_triu, rwork1, PETSC_TRUE));
+  if (lbfgs->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(H, rwork1, lbfgs->num_updates, lbfgs->cyclic_work_vec));
+  PetscCall(MatUpperTriangularSolveInPlace(H, lbfgs->StY_triu, rwork1, PETSC_TRUE, lbfgs->num_updates, lbfgs->strategy));
   PetscCall(VecScaleAsync_Private(rwork1, -1.0, dctx));
-  if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(H, rwork1));
+  if (lbfgs->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(H, rwork1, lbfgs->num_updates, lbfgs->cyclic_work_vec));
 
   PetscCall(MatMultAddColumnRange(lbfgs->Sfull, rwork1, dX, dX, 0, h));
   lbfgs->S_count++;
@@ -590,9 +375,9 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   lbfgs->Yt_count++;
   PetscCall(MatMultTransposeColumnRange(lbfgs->Sfull, Z, lbfgs->rwork2, 0, h));
   lbfgs->St_count++;
-  if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) {
-    PetscCall(VecRecycleOrderToHistoryOrder(B, lbfgs->rwork1));
-    PetscCall(VecRecycleOrderToHistoryOrder(B, lbfgs->rwork2));
+  if (lbfgs->strategy == MAT_LMVM_CD_REORDER) {
+    PetscCall(VecRecycleOrderToHistoryOrder(B, lbfgs->rwork1, lbfgs->num_updates, lbfgs->cyclic_work_vec));
+    PetscCall(VecRecycleOrderToHistoryOrder(B, lbfgs->rwork2, lbfgs->num_updates, lbfgs->cyclic_work_vec));
   }
 
   PetscCall(VecPointwiseMultAsync_Private(lbfgs->rwork3, lbfgs->rwork1, lbfgs->inv_diag_vec, dctx));
@@ -619,9 +404,9 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
 
   PetscCall(VecPointwiseMultAsync_Private(lbfgs->rwork1, lbfgs->rwork1, lbfgs->inv_diag_vec, dctx));
 
-  if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) {
-    PetscCall(VecHistoryOrderToRecycleOrder(B, lbfgs->rwork1));
-    PetscCall(VecHistoryOrderToRecycleOrder(B, lbfgs->rwork3));
+  if (lbfgs->strategy == MAT_LMVM_CD_REORDER) {
+    PetscCall(VecHistoryOrderToRecycleOrder(B, lbfgs->rwork1, lbfgs->num_updates, lbfgs->cyclic_work_vec));
+    PetscCall(VecHistoryOrderToRecycleOrder(B, lbfgs->rwork3, lbfgs->num_updates, lbfgs->cyclic_work_vec));
   }
 
   PetscCall(MatMultAddColumnRange(lbfgs->Yfull, lbfgs->rwork1, Z, Z, 0, h));
@@ -655,15 +440,14 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   }
 
   /* Reordering rwork1, as STY is in history order, while Y is in recycled order */
-  if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, rwork1));
+  if (lbfgs->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, rwork1, lbfgs->num_updates, lbfgs->cyclic_work_vec));
   //TODO yts_triu_strict is strictly ut. fix later.?
   if (!lbfgs->temp_mat) PetscCall(MatDuplicate(lbfgs->YtS_triu_strict, MAT_SHARE_NONZERO_PATTERN, &lbfgs->temp_mat));
   PetscCall(MatCopy(lbfgs->YtS_triu_strict, lbfgs->temp_mat, SAME_NONZERO_PATTERN));
   PetscCall(MatDiagonalSet(lbfgs->temp_mat, lbfgs->diag_vec, INSERT_VALUES));
-//  PetscCall(MatUpperTriangularSolveInPlace(B, lbfgs->YtS_triu_strict, rwork1, PETSC_TRUE));
-  PetscCall(MatUpperTriangularSolveInPlace(B, lbfgs->temp_mat, rwork1, PETSC_FALSE));
+  PetscCall(MatUpperTriangularSolveInPlace(B, lbfgs->temp_mat, rwork1, PETSC_FALSE, lbfgs->num_updates, lbfgs->strategy));
   PetscCall(VecScaleAsync_Private(rwork1, -1.0, dctx));
-  if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(B, rwork1));
+  if (lbfgs->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(B, rwork1, lbfgs->num_updates, lbfgs->cyclic_work_vec));
 
   PetscCall(VecCopyAsync_Private(X, lbfgs->column_work, dctx));
   PetscCall(MatMultAddColumnRange(lbfgs->Sfull, rwork1, lbfgs->column_work, lbfgs->column_work, 0, h));
@@ -675,11 +459,10 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   PetscCall(MatMultTransposeAddColumnRange(lbfgs->Sfull, Z, rwork1, rwork1, 0, h));
   lbfgs->St_count++;
 
-  if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, rwork1));
-//  PetscCall(MatUpperTriangularSolveInPlace(B, lbfgs->YtS_triu_strict, rwork1, PETSC_FALSE));
-  PetscCall(MatUpperTriangularSolveInPlace(B, lbfgs->temp_mat, rwork1, PETSC_TRUE));
+  if (lbfgs->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, rwork1, lbfgs->num_updates, lbfgs->cyclic_work_vec));
+  PetscCall(MatUpperTriangularSolveInPlace(B, lbfgs->temp_mat, rwork1, PETSC_TRUE, lbfgs->num_updates, lbfgs->strategy));
   PetscCall(VecScaleAsync_Private(rwork1, -1.0, dctx));
-  if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(B, rwork1));
+  if (lbfgs->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(B, rwork1, lbfgs->num_updates, lbfgs->cyclic_work_vec));
 
   PetscCall(MatMultAddColumnRange(lbfgs->Yfull, rwork1, Z, Z, 0, h));
   lbfgs->Y_count++;
@@ -746,8 +529,8 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
 
       if (lmvm->k != m-1) {
         lmvm->k++;
-      } else if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) {
-        PetscCall(MatMove_LR3(B, lbfgs->StY_triu, m - 1));
+      } else if (lbfgs->strategy == MAT_LMVM_CD_REORDER) {
+        PetscCall(MatMove_LR3(B, lbfgs->StY_triu, m - 1, lbfgs->temp_mat));
       }
 
       /* First update the S^T matrix */
@@ -760,7 +543,7 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       PetscCall(VecCopyAsync_Private(lmvm->Fprev, workvec1, dctx));
       PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->Yfull, idx, &workvec1));
 
-      StYidx = (lbfgs->strategy == MAT_LBFGS_CD_REORDER) ? history_index(m, lbfgs->num_updates, k) : idx;
+      StYidx = (lbfgs->strategy == MAT_LMVM_CD_REORDER) ? history_index(m, lbfgs->num_updates, k) : idx;
 
       { // implement the scheme of Byrd, Nocedal, and Schnabel to save a MatMultTranspose call in the common case the
         // H_k is immediately applied to F after begin updated.   The S^T y computation can be split up as S^T (F - F_prev)
@@ -797,7 +580,7 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
         // Now add StFprev: this_sy_col == S^T (F - Fprev) == S^T y
         PetscCall(VecAXPYAsync_Private(this_sy_col, 1.0, lbfgs->StFprev, dctx));
 
-        if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, this_sy_col));
+        if (lbfgs->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, this_sy_col, lbfgs->num_updates, lbfgs->cyclic_work_vec));
         PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->StY_triu, StYidx, &this_sy_col));
       }
 
@@ -830,10 +613,10 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       }
 
       PetscCall(MatGetDiagonal(lbfgs->StY_triu, lbfgs->diag_vec));
-      if (lbfgs->strategy == MAT_LBFGS_CD_REORDER) {
+      if (lbfgs->strategy == MAT_LMVM_CD_REORDER) {
         if (!lbfgs->diag_vec_recycle_order) PetscCall(VecDuplicate(lbfgs->diag_vec, &lbfgs->diag_vec_recycle_order));
         PetscCall(VecCopyAsync_Private(lbfgs->diag_vec, lbfgs->diag_vec_recycle_order, dctx));
-        PetscCall(VecHistoryOrderToRecycleOrder(B, lbfgs->diag_vec_recycle_order));
+        PetscCall(VecHistoryOrderToRecycleOrder(B, lbfgs->diag_vec_recycle_order, lbfgs->num_updates, lbfgs->cyclic_work_vec));
       } else {
         if (!lbfgs->diag_vec_recycle_order) {
           PetscCall(PetscObjectReference((PetscObject)lbfgs->diag_vec));
@@ -1220,7 +1003,7 @@ static PetscErrorCode MatSetFromOptions_LMVMCDBFGS(Mat B, PetscOptionItems *Pets
   PetscFunctionBegin;
   PetscCall(MatSetFromOptions_LMVM(B, PetscOptionsObject));
   PetscOptionsBegin(PetscObjectComm((PetscObject)B), ((PetscObject)B)->prefix,  "Compact dense BFGS method (MATLMVMCDBFGS)", NULL);
-  PetscCall(PetscOptionsEnum("-mat_lbfgs_type", "Implementation options for L-BFGS", "MatLBFGSType", MatLBFGSTypes, (PetscEnum)lbfgs->strategy, (PetscEnum *)&lbfgs->strategy, NULL));
+  PetscCall(PetscOptionsEnum("-mat_lbfgs_type", "Implementation options for L-BFGS", "MatLMVMCompactDenseType", MatLMVMCompactDenseTypes, (PetscEnum)lbfgs->strategy, (PetscEnum *)&lbfgs->strategy, NULL));
   PetscCall(PetscOptionsEnum("-mat_lmvm_scale_type", "(developer) scaling type applied to J0", "MatLMVMSymBrdnScaleType", MatLMVMSymBroydenScaleTypes, (PetscEnum)lbfgs->scale_type, (PetscEnum *)&lbfgs->scale_type, NULL));
   PetscCall(PetscOptionsBool("-mat_lbfgs_mult_type", "True for Cholesky type MatMult_CDBFGS, False for DFP type..", "", lbfgs->mult_type, &lbfgs->mult_type, NULL));
   lbfgs->allocated       = PETSC_FALSE;
@@ -1268,7 +1051,7 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   lbfgs->mult_type       = PETSC_FALSE;
   lbfgs->watchdog        = 0;
   lbfgs->max_seq_rejects = lmvm->m/2;
-  lbfgs->strategy        = MAT_LBFGS_CD_INPLACE;
+  lbfgs->strategy        = MAT_LMVM_CD_INPLACE;
   lbfgs->scale_type      = MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL;
 
   PetscCall(MatCreate(PetscObjectComm((PetscObject)B), &lbfgs->diag_bfgs));

@@ -2,7 +2,7 @@
 
 LIBBASE  = libpetscksp
 MANSEC   = KSP
-DIRS     = sr1 dfp bfgs cddfp cdbfgs symbrdn brdn diagbrdn tests
+DIRS     = sr1 dfp bfgs compactdense symbrdn brdn diagbrdn tests
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules.doc
