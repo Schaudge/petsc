@@ -558,7 +558,11 @@ static PetscErrorCode DMBFVTKWritePiece_VTU(DM dm, PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_VTKWriteAll(PetscObject odm, PetscViewer viewer)
+#if !defined(DMBF_XD_VTKWriteAll)
+static
+#endif
+  PetscErrorCode
+  DMBF_XD_VTKWriteAll(PetscObject odm, PetscViewer viewer)
 {
   DM                       dm  = (DM)odm;
   PetscViewer_VTK         *vtk = (PetscViewer_VTK *)viewer->data;

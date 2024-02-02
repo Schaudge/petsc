@@ -1372,7 +1372,7 @@ static PetscErrorCode DMLocalToGlobalEnd_BF(DM dm, Vec loc, InsertMode mode, Vec
 
   Level: beginner
 
-.seealso: DMGetDimension(), DMBFGetLocalSize(), DMBFGetGlobalSize(), DMBFGetGhostSize()
+.seealso: `DMGetDimension()`, `DMBFGetLocalSize()`, `DMBFGetGlobalSize()`, `DMBFGetGhostSize()`
 @*/
 PetscErrorCode DMBFGetInfo(DM dm, PetscInt *dim, PetscInt *nLocal, PetscInt *nGlobal, PetscInt *nGhost)
 {

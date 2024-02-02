@@ -7,7 +7,7 @@
     #include "bf_3d_amr.h"
   #endif
 
-/* default definitions, to be overwritten if this files is included */
+/* default definitions, to be overwritten when this files is included */
   #if !defined(DM_BF_XD_Cells)
 typedef struct _p_DM_BF_XD_Cells DM_BF_XD_Cells;
   #endif
@@ -77,7 +77,11 @@ struct _p_DM_BF_XD_Cells {
   p4est_mesh_t  *mesh;
 };
 
-PetscErrorCode DMBF_XD_CellsCreate(DM dm, DM_BF_XD_Topology *topology, DM_BF_XD_Cells **cells, PetscErrorCode (*setUpUserFnAfterP4est)(DM, void *))
+  #if !defined(DMBF_XD_CellsCreate)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_CellsCreate(DM dm, DM_BF_XD_Topology *topology, DM_BF_XD_Cells **cells, PetscErrorCode (*setUpUserFnAfterP4est)(DM, void *))
 {
   p4est_connectivity_t *connectivity;
   PetscErrorCode        ierr;
@@ -99,7 +103,11 @@ PetscErrorCode DMBF_XD_CellsCreate(DM dm, DM_BF_XD_Topology *topology, DM_BF_XD_
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_CellsDestroy(DM dm, DM_BF_XD_Cells *cells)
+  #if !defined(DMBF_XD_CellsDestroy)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_CellsDestroy(DM dm, DM_BF_XD_Cells *cells)
 {
   PetscErrorCode ierr;
 
@@ -119,9 +127,13 @@ PetscErrorCode DMBF_XD_CellsDestroy(DM dm, DM_BF_XD_Cells *cells)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_CellsClone(/*IN    */ DM_BF_XD_Cells  *origCells,
-                                  /*OUT   */ DM_BF_XD_Cells **clonedCells,
-                                  /*IN/OUT*/ DM               clonedDm)
+  #if !defined(DMBF_XD_CellsClone)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_CellsClone(/*IN    */ DM_BF_XD_Cells  *origCells,
+                     /*OUT   */ DM_BF_XD_Cells **clonedCells,
+                     /*IN/OUT*/ DM               clonedDm)
 {
   PetscErrorCode ierr;
 
@@ -135,10 +147,14 @@ PetscErrorCode DMBF_XD_CellsClone(/*IN    */ DM_BF_XD_Cells  *origCells,
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_CellsCoarsen(/*IN    */ DM_BF_XD_Cells  *origCells,
-                                    /*OUT   */ DM_BF_XD_Cells **coarseCells,
-                                    /*IN/OUT*/ DM               coarseDm,
-                                    /*IN    */ PetscInt         minLevel)
+  #if !defined(DMBF_XD_CellsCoarsen)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_CellsCoarsen(/*IN    */ DM_BF_XD_Cells  *origCells,
+                       /*OUT   */ DM_BF_XD_Cells **coarseCells,
+                       /*IN/OUT*/ DM               coarseDm,
+                       /*IN    */ PetscInt         minLevel)
 {
   PetscErrorCode ierr;
 
@@ -154,10 +170,14 @@ PetscErrorCode DMBF_XD_CellsCoarsen(/*IN    */ DM_BF_XD_Cells  *origCells,
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_CellsRefine(/*IN    */ DM_BF_XD_Cells  *origCells,
-                                   /*OUT   */ DM_BF_XD_Cells **fineCells,
-                                   /*IN/OUT*/ DM               fineDm,
-                                   /*IN    */ PetscInt         maxLevel)
+  #if !defined(DMBF_XD_CellsRefine)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_CellsRefine(/*IN    */ DM_BF_XD_Cells  *origCells,
+                      /*OUT   */ DM_BF_XD_Cells **fineCells,
+                      /*IN/OUT*/ DM               fineDm,
+                      /*IN    */ PetscInt         maxLevel)
 {
   PetscErrorCode ierr;
 
@@ -173,10 +193,14 @@ PetscErrorCode DMBF_XD_CellsRefine(/*IN    */ DM_BF_XD_Cells  *origCells,
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_CellsAmrAdapt(/*IN    */ DM_BF_XD_Cells  *origCells,
-                                     /*OUT   */ DM_BF_XD_Cells **adapCells,
-                                     /*IN/OUT*/ DM               adapDm,
-                                     /*IN    */ DM_BF_AmrOps *amrOps, PetscInt minLevel, PetscInt maxLevel, const DM_BF_Shape *cellMemoryShape)
+  #if !defined(DMBF_XD_CellsAmrAdapt)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_CellsAmrAdapt(/*IN    */ DM_BF_XD_Cells  *origCells,
+                        /*OUT   */ DM_BF_XD_Cells **adapCells,
+                        /*IN/OUT*/ DM               adapDm,
+                        /*IN    */ DM_BF_AmrOps *amrOps, PetscInt minLevel, PetscInt maxLevel, const DM_BF_Shape *cellMemoryShape)
 {
   p4est_t       *orig_p4est = origCells->p4est;
   p4est_t       *adap_p4est;
@@ -201,7 +225,11 @@ PetscErrorCode DMBF_XD_CellsAmrAdapt(/*IN    */ DM_BF_XD_Cells  *origCells,
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_CellsAmrPartition(/*IN/OUT*/ DM_BF_XD_Cells *cells)
+  #if !defined(DMBF_XD_CellsAmrPartition)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_CellsAmrPartition(/*IN/OUT*/ DM_BF_XD_Cells *cells)
 {
   PetscFunctionBegin;
   CHKERRQ(DMBF_XD_AmrPartition(cells->p4est));
@@ -210,8 +238,12 @@ PetscErrorCode DMBF_XD_CellsAmrPartition(/*IN/OUT*/ DM_BF_XD_Cells *cells)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_CellsAmrFinalize(/*IN/OUT*/ DM dm, DM_BF_XD_Cells *cells, DM_BF_Cell *bfCells,
-                                        /*IN    */ const DM_BF_Shape *cellMemoryShape)
+  #if !defined(DMBF_XD_CellsAmrFinalize)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_CellsAmrFinalize(/*IN/OUT*/ DM dm, DM_BF_XD_Cells *cells, DM_BF_Cell *bfCells,
+                           /*IN    */ const DM_BF_Shape *cellMemoryShape)
 {
   PetscFunctionBegin;
   CHKERRQ(DMBF_XD_IterateCopyP4estCells(dm, bfCells, cellMemoryShape));
@@ -219,7 +251,11 @@ PetscErrorCode DMBF_XD_CellsAmrFinalize(/*IN/OUT*/ DM dm, DM_BF_XD_Cells *cells,
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_GetSizes(DM dm, DM_BF_XD_Cells *cells, PetscInt *nLocal, PetscInt *nGlobal, PetscInt *nGhost)
+  #if !defined(DMBF_XD_GetSizes)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_GetSizes(DM dm, DM_BF_XD_Cells *cells, PetscInt *nLocal, PetscInt *nGlobal, PetscInt *nGhost)
 {
   PetscFunctionBegin;
   PetscAssertPointer(nLocal, 3);
@@ -232,7 +268,11 @@ PetscErrorCode DMBF_XD_GetSizes(DM dm, DM_BF_XD_Cells *cells, PetscInt *nLocal, 
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_GetLocalToGlobalIndices(DM dm, DM_BF_XD_Cells *cells, PetscInt *fromIdx, PetscInt *toIdx)
+  #if !defined(DMBF_XD_GetLocalToGlobalIndices)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_GetLocalToGlobalIndices(DM dm, DM_BF_XD_Cells *cells, PetscInt *fromIdx, PetscInt *toIdx)
 {
   p4est_t          *p4est = cells->p4est;
   p4est_ghost_t    *ghost = cells->ghost;
@@ -294,14 +334,22 @@ PetscErrorCode DMBF_XD_GetLocalToGlobalIndices(DM dm, DM_BF_XD_Cells *cells, Pet
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_CellsGetP4est(DM_BF_XD_Cells *cells, void *p4est)
+  #if !defined(DMBF_XD_CellsGetP4est)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_CellsGetP4est(DM_BF_XD_Cells *cells, void *p4est)
 {
   PetscFunctionBegin;
   *(void **)p4est = cells->p4est;
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_CellsGetGhost(DM_BF_XD_Cells *cells, void *ghost)
+  #if !defined(DMBF_XD_CellsGetGhost)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_CellsGetGhost(DM_BF_XD_Cells *cells, void *ghost)
 {
   PetscErrorCode ierr;
 
@@ -314,7 +362,11 @@ PetscErrorCode DMBF_XD_CellsGetGhost(DM_BF_XD_Cells *cells, void *ghost)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_CellsGetP4estMesh(DM_BF_XD_Cells *cells, void *mesh)
+  #if !defined(DMBF_XD_CellsGetP4estMesh)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_CellsGetP4estMesh(DM_BF_XD_Cells *cells, void *mesh)
 {
   PetscErrorCode ierr;
 

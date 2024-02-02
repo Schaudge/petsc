@@ -2,7 +2,7 @@
 
   #include "bf_xd.h"
 
-/* default definitions, to be overwritten if this files is included */
+/* default definitions, to be overwritten when this files is included */
   #if !defined(DM_BF_XD_Topology)
 typedef struct _p_DM_BF_XD_Topology DM_BF_XD_Topology;
   #endif
@@ -22,7 +22,11 @@ struct _p_DM_BF_XD_Topology {
   p4est_connectivity_t *connectivity;
 };
 
-PetscErrorCode DMBF_XD_TopologyCreate(DM dm, DM_BF_XD_Topology **topology, PetscErrorCode (*setUpUserFnAfterConnectivity)(DM, void *))
+  #if !defined(DMBF_XD_TopologyCreate)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_TopologyCreate(DM dm, DM_BF_XD_Topology **topology, PetscErrorCode (*setUpUserFnAfterConnectivity)(DM, void *))
 {
   PetscErrorCode ierr;
 
@@ -39,7 +43,11 @@ PetscErrorCode DMBF_XD_TopologyCreate(DM dm, DM_BF_XD_Topology **topology, Petsc
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_TopologyDestroy(DM dm, DM_BF_XD_Topology *topology)
+  #if !defined(DMBF_XD_TopologyDestroy)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_TopologyDestroy(DM dm, DM_BF_XD_Topology *topology)
 {
   PetscErrorCode ierr;
 
@@ -54,7 +62,11 @@ PetscErrorCode DMBF_XD_TopologyDestroy(DM dm, DM_BF_XD_Topology *topology)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_TopologyClone(DM_BF_XD_Topology *srcTopology, DM_BF_XD_Topology **trgTopology, DM trgDm)
+  #if !defined(DMBF_XD_TopologyClone)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_TopologyClone(DM_BF_XD_Topology *srcTopology, DM_BF_XD_Topology **trgTopology, DM trgDm)
 {
   PetscFunctionBegin;
   (*trgTopology) = srcTopology;
@@ -62,7 +74,11 @@ PetscErrorCode DMBF_XD_TopologyClone(DM_BF_XD_Topology *srcTopology, DM_BF_XD_To
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_TopologyGetConnectivity(DM_BF_XD_Topology *topology, void *connectivity)
+  #if !defined(DMBF_XD_TopologyGetConnectivity)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_TopologyGetConnectivity(DM_BF_XD_Topology *topology, void *connectivity)
 {
   PetscFunctionBegin;
   *(void **)connectivity = topology->connectivity;

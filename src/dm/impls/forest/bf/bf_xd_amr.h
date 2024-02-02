@@ -26,7 +26,11 @@ static int _p_refine_uniformly(p4est_t *p4est, p4est_topidx_t which_tree, p4est_
   return (0 <= amrCtx->maxLevel && quadrant->level < amrCtx->maxLevel);
 }
 
-PetscErrorCode DMBF_XD_AmrCoarsenUniformly(p4est_t *p4est, PetscInt minLevel)
+  #if !defined(DMBF_XD_AmrCoarsenUniformly)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_AmrCoarsenUniformly(p4est_t *p4est, PetscInt minLevel)
 {
   void        *user_pointer = p4est->user_pointer;
   DM_BF_AmrCtx amrCtx;
@@ -45,7 +49,11 @@ PetscErrorCode DMBF_XD_AmrCoarsenUniformly(p4est_t *p4est, PetscInt minLevel)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_AmrRefineUniformly(p4est_t *p4est, PetscInt maxLevel)
+  #if !defined(DMBF_XD_AmrRefineUniformly)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_AmrRefineUniformly(p4est_t *p4est, PetscInt maxLevel)
 {
   void        *user_pointer = p4est->user_pointer;
   DM_BF_AmrCtx amrCtx;
@@ -108,7 +116,11 @@ static int _p_refine_via_flag(p4est_t *p4est, p4est_topidx_t tree, p4est_quadran
   return (DM_ADAPT_REFINE == cell->adaptFlag) && (0 <= amrCtx->maxLevel && quadrant->level < amrCtx->maxLevel);
 }
 
-PetscErrorCode DMBF_XD_AmrAdapt(p4est_t *p4est, PetscInt minLevel, PetscInt maxLevel)
+  #if !defined(DMBF_XD_AmrAdapt)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_AmrAdapt(p4est_t *p4est, PetscInt minLevel, PetscInt maxLevel)
 {
   void        *user_pointer = p4est->user_pointer;
   DM_BF_AmrCtx amrCtx;
@@ -127,7 +139,11 @@ PetscErrorCode DMBF_XD_AmrAdapt(p4est_t *p4est, PetscInt minLevel, PetscInt maxL
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_AmrAdaptData(p4est_t *orig_p4est, p4est_t *adap_p4est, DM dm, DM_BF_AmrOps *amrOps)
+  #if !defined(DMBF_XD_AmrAdaptData)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_AmrAdaptData(p4est_t *orig_p4est, p4est_t *adap_p4est, DM dm, DM_BF_AmrOps *amrOps)
 {
   const p4est_locidx_t orig_n_quads = orig_p4est->local_num_quadrants;
   const p4est_locidx_t adap_n_quads = adap_p4est->local_num_quadrants;
@@ -193,7 +209,11 @@ PetscErrorCode DMBF_XD_AmrAdaptData(p4est_t *orig_p4est, p4est_t *adap_p4est, DM
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_AmrPartition(p4est_t *p4est)
+  #if !defined(DMBF_XD_AmrPartition)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_AmrPartition(p4est_t *p4est)
 {
   PetscFunctionBegin;
   PetscCallP4est(p4est_partition_ext, (p4est, 1 /*partition_for_coarsening*/, NULL /*weight_fn*/));

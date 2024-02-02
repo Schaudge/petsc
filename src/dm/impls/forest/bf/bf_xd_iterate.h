@@ -107,7 +107,11 @@ static void _p_iterSetUp(p4est_iter_volume_info_t *info, void *ctx)
   }
 }
 
-PetscErrorCode DMBF_XD_IterateSetUpCells(DM dm, DM_BF_Cell *cells, const DM_BF_Shape *cellMemoryShape)
+  #if !defined(DMBF_XD_IterateSetUpCells)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_IterateSetUpCells(DM dm, DM_BF_Cell *cells, const DM_BF_Shape *cellMemoryShape)
 {
   DM_BF_SetUpCtx iterCtx;
   PetscErrorCode ierr;
@@ -142,7 +146,11 @@ PetscErrorCode DMBF_XD_IterateSetUpCells(DM dm, DM_BF_Cell *cells, const DM_BF_S
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_IterateSetUpP4estCells(DM dm, const DM_BF_Shape *cellMemoryShape)
+  #if !defined(DMBF_XD_IterateSetUpP4estCells)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_IterateSetUpP4estCells(DM dm, const DM_BF_Shape *cellMemoryShape)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm, DM_CLASSID, 1, DMBF);
@@ -158,7 +166,11 @@ static void _p_iterCopy(p4est_iter_volume_info_t *info, void *ctx)
   CHKERRV(PetscMemcpy(cell, info->quad->p.user_data, iterCtx->memory->size));
 }
 
-PetscErrorCode DMBF_XD_IterateCopyP4estCells(DM dm, DM_BF_Cell *cells, const DM_BF_Shape *cellMemoryShape)
+  #if !defined(DMBF_XD_IterateCopyP4estCells)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_IterateCopyP4estCells(DM dm, DM_BF_Cell *cells, const DM_BF_Shape *cellMemoryShape)
 {
   DM_BF_SetUpCtx iterCtx;
   PetscErrorCode ierr;
@@ -234,7 +246,11 @@ static void _p_iterSetCellData(p4est_iter_volume_info_t *info, void *ctx)
   }
 }
 
-PetscErrorCode DMBF_XD_IterateSetCellData(DM dm, DM_BF_Cell *cells, size_t cellSize, size_t cellOffsetDataRead, size_t cellOffsetDataReadWrite, const PetscInt *valsPerElemRead, PetscInt nValsPerElemRead, const PetscInt *valsPerElemReadWrite, PetscInt nValsPerElemReadWrite, Vec *vecRead, Vec *vecReadWrite)
+  #if !defined(DMBF_XD_IterateSetCellData)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_IterateSetCellData(DM dm, DM_BF_Cell *cells, size_t cellSize, size_t cellOffsetDataRead, size_t cellOffsetDataReadWrite, const PetscInt *valsPerElemRead, PetscInt nValsPerElemRead, const PetscInt *valsPerElemReadWrite, PetscInt nValsPerElemReadWrite, Vec *vecRead, Vec *vecReadWrite)
 {
   DM_BF_SetCellDataIterCtx iterCtx;
   PetscInt                 i;
@@ -343,7 +359,11 @@ static void _p_iterSetCellFields(p4est_iter_volume_info_t *info, void *ctx)
   }
 }
 
-PetscErrorCode DMBF_XD_IterateSetCellFields(DM dm, DM_BF_Cell *cells, size_t cellSize, size_t cellOffsetDataRead, size_t cellOffsetDataReadWrite, const PetscInt *valsPerElemRead, PetscInt nValsPerElemRead, const PetscInt *valsPerElemReadWrite, PetscInt nValsPerElemReadWrite, Vec *vecRead, Vec *vecReadWrite, PetscInt nFieldsRead, PetscInt *fieldsRead, PetscInt nFieldsReadWrite, PetscInt *fieldsReadWrite)
+  #if !defined(DMBF_XD_IterateSetCellFields)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_IterateSetCellFields(DM dm, DM_BF_Cell *cells, size_t cellSize, size_t cellOffsetDataRead, size_t cellOffsetDataReadWrite, const PetscInt *valsPerElemRead, PetscInt nValsPerElemRead, const PetscInt *valsPerElemReadWrite, PetscInt nValsPerElemReadWrite, Vec *vecRead, Vec *vecReadWrite, PetscInt nFieldsRead, PetscInt *fieldsRead, PetscInt nFieldsReadWrite, PetscInt *fieldsReadWrite)
 {
   DM_BF_SetCellFieldsIterCtx iterCtx;
   PetscInt                   i, j, fn, di;
@@ -475,7 +495,11 @@ static void _p_iterGetCellData(p4est_iter_volume_info_t *info, void *ctx)
   }
 }
 
-PetscErrorCode DMBF_XD_IterateGetCellData(DM dm, DM_BF_Cell *cells, size_t cellSize, size_t cellOffsetDataRead, size_t cellOffsetDataReadWrite, const PetscInt *valsPerElemRead, PetscInt nValsPerElemRead, const PetscInt *valsPerElemReadWrite, PetscInt nValsPerElemReadWrite, Vec *vecRead, Vec *vecReadWrite)
+  #if !defined(DMBF_XD_IterateGetCellData)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_IterateGetCellData(DM dm, DM_BF_Cell *cells, size_t cellSize, size_t cellOffsetDataRead, size_t cellOffsetDataReadWrite, const PetscInt *valsPerElemRead, PetscInt nValsPerElemRead, const PetscInt *valsPerElemReadWrite, PetscInt nValsPerElemReadWrite, Vec *vecRead, Vec *vecReadWrite)
 {
   DM_BF_GetCellDataIterCtx iterCtx;
   PetscInt                 i;
@@ -584,7 +608,11 @@ static void _p_iterGetCellFields(p4est_iter_volume_info_t *info, void *ctx)
   }
 }
 
-PetscErrorCode DMBF_XD_IterateGetCellFields(DM dm, DM_BF_Cell *cells, size_t cellSize, size_t cellOffsetDataRead, size_t cellOffsetDataReadWrite, const PetscInt *valsPerElemRead, PetscInt nValsPerElemRead, const PetscInt *valsPerElemReadWrite, PetscInt nValsPerElemReadWrite, Vec *vecRead, Vec *vecReadWrite, PetscInt nFieldsRead, PetscInt *fieldsRead, PetscInt nFieldsReadWrite, PetscInt *fieldsReadWrite)
+  #if !defined(DMBF_XD_IterateGetCellFields)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_IterateGetCellFields(DM dm, DM_BF_Cell *cells, size_t cellSize, size_t cellOffsetDataRead, size_t cellOffsetDataReadWrite, const PetscInt *valsPerElemRead, PetscInt nValsPerElemRead, const PetscInt *valsPerElemReadWrite, PetscInt nValsPerElemReadWrite, Vec *vecRead, Vec *vecReadWrite, PetscInt nFieldsRead, PetscInt *fieldsRead, PetscInt nFieldsReadWrite, PetscInt *fieldsReadWrite)
 {
   DM_BF_GetCellFieldsIterCtx iterCtx;
   PetscInt                   i, j, fn, di;
@@ -678,7 +706,11 @@ PetscErrorCode DMBF_XD_IterateGetCellFields(DM dm, DM_BF_Cell *cells, size_t cel
  * GHOST CELLS
  **************************************/
 
-PetscErrorCode DMBF_XD_IterateGhostExchange(DM dm, DM_BF_Cell *cells, size_t cellSize)
+  #if !defined(DMBF_XD_IterateGhostExchange)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_IterateGhostExchange(DM dm, DM_BF_Cell *cells, size_t cellSize)
 {
   DM_BF_Cell    *ghostCells;
   PetscErrorCode ierr;
@@ -733,7 +765,11 @@ static void _p_iterVolume(p4est_iter_volume_info_t *info, void *ctx)
   cell->vecViewReadWrite = PETSC_NULLPTR;
 }
 
-PetscErrorCode DMBF_XD_IterateOverCellsVectors(DM dm, DM_BF_Cell *cells, size_t cellSize, PetscErrorCode (*iterCell)(DM, DM_BF_Cell *, void *), void *userIterCtx, Vec *vecRead, PetscInt nVecsRead, Vec *vecReadWrite, PetscInt nVecsReadWrite)
+  #if !defined(DMBF_XD_IterateOverCellsVectors)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_IterateOverCellsVectors(DM dm, DM_BF_Cell *cells, size_t cellSize, PetscErrorCode (*iterCell)(DM, DM_BF_Cell *, void *), void *userIterCtx, Vec *vecRead, PetscInt nVecsRead, Vec *vecReadWrite, PetscInt nVecsReadWrite)
 {
   DM_BF_CellIterCtx iterCtx;
   PetscInt          blockSize[3] = {1, 1, 1};
@@ -745,8 +781,8 @@ PetscErrorCode DMBF_XD_IterateOverCellsVectors(DM dm, DM_BF_Cell *cells, size_t 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm, DM_CLASSID, 1, DMBF);
   PetscValidFunction(iterCell, 2);
-  if (nVecsRead) PetscAssertPointer(vecRead, 4);
-  if (nVecsReadWrite) PetscAssertPointer(vecReadWrite, 6);
+  if (nVecsRead) PetscAssertPointer(vecRead, 6);
+  if (nVecsReadWrite) PetscAssertPointer(vecReadWrite, 8);
   /* calculate number of entries per cell */
   ierr = DMBFGetInfo(dm, &dim, &n, &N, PETSC_NULLPTR);
   CHKERRQ(ierr);
@@ -891,7 +927,11 @@ static void _p_iterFace(p4est_iter_face_info_t *info, void *ctx)
   CHKERRV(iterCtx->iterFace(iterCtx->dm, face, iterCtx->userIterCtx));
 }
 
-PetscErrorCode DMBF_XD_IterateOverFaces(DM dm, DM_BF_Cell *cells, size_t cellSize, PetscErrorCode (*iterFace)(DM, DM_BF_Face *, void *), void *userIterCtx)
+  #if !defined(DMBF_XD_IterateOverFaces)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_IterateOverFaces(DM dm, DM_BF_Cell *cells, size_t cellSize, PetscErrorCode (*iterFace)(DM, DM_BF_Face *, void *), void *userIterCtx)
 {
   DM_BF_FaceIterCtx iterCtx;
   PetscErrorCode    ierr;
@@ -1056,7 +1096,11 @@ static void _p_iterFVMatAssembly(p4est_iter_face_info_t *info, void *ctx)
   CHKERRV(MatSetValuesLocal(iterCtx->M, bs * len, iterCtx->rowIndices, bs * len, iterCtx->colIndices, iterCtx->cellCoeff, ADD_VALUES));
 }
 
-PetscErrorCode DMBF_XD_IterateFVMatAssembly(DM dm, DM_BF_Cell *cells, size_t cellSize, Mat M, PetscErrorCode (*iterFace)(DM, DM_BF_Face *, PetscReal *, void *), void *userIterCtx)
+  #if !defined(DMBF_XD_IterateFVMatAssembly)
+static
+  #endif
+  PetscErrorCode
+  DMBF_XD_IterateFVMatAssembly(DM dm, DM_BF_Cell *cells, size_t cellSize, Mat M, PetscErrorCode (*iterFace)(DM, DM_BF_Face *, PetscReal *, void *), void *userIterCtx)
 {
   DM_BF_FVMatAssemblyIterCtx iterCtx;
   PetscErrorCode             ierr;
