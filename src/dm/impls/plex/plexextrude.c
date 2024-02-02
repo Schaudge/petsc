@@ -112,6 +112,28 @@ PetscErrorCode DMPlexExtrude(DM dm, PetscInt layers, PetscReal thickness, PetscB
     }
   }
   // It is too hard to raise the dimension of a discretization, so just remake it
+  if (periodic) {
+    const PetscReal *maxCell, *Lstart, *L;
+    PetscReal        emaxCell[3], eLstart[3], eL[3];
+    PetscReal        th;
+    PetscInt         dim, edim, Nl;
+
+    PetscCall(DMGetDimension(dm, &dim));
+    PetscCall(DMGetDimension(*edm, &edim));
+    PetscCall(DMGetPeriodicity(dm, &maxCell, &Lstart, &L));
+    PetscCall(DMPlexTransformExtrudeGetLayers(tr, &Nl));
+    PetscCall(DMPlexTransformExtrudeGetThickness(tr, &th));
+    for (PetscInt d = 0; d < dim; ++d) {
+      emaxCell[d] = maxCell ? maxCell[d] : 0.0;
+      eLstart[d]  = Lstart ? Lstart[d] : 0.0;
+      eL[d]       = L ? L[d] : 0.0;
+    }
+    emaxCell[edim - 1] = th / Nl;
+    eLstart[edim - 1]  = 0.;
+    eL[edim - 1]       = th;
+    PetscCall(DMSetPeriodicity(*edm, emaxCell, eLstart, eL));
+    PetscCall(DMLocalizeCoordinates(*edm));
+  }
   PetscCall(DMGetCoordinateDM(dm, &cdm));
   PetscCall(DMGetField(cdm, 0, NULL, &disc));
   PetscCall(PetscObjectGetClassId(disc, &id));
@@ -122,6 +144,7 @@ PetscErrorCode DMPlexExtrude(DM dm, PetscInt layers, PetscReal thickness, PetscB
     PetscCall(PetscFEGetBasisSpace((PetscFE)disc, &sp));
     PetscCall(PetscSpaceGetDegree(sp, &deg, NULL));
     PetscCall(DMPlexCreateCoordinateSpace(*edm, deg, PETSC_TRUE, NULL));
+    PetscCall(DMViewFromOptions(*edm, NULL, "-dm_view_fuck_2"));
   }
   PetscCall(DMPlexTransformCreateDiscLabels(tr, *edm));
   PetscCall(DMPlexTransformDestroy(&tr));

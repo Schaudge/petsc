@@ -1095,6 +1095,7 @@ PetscErrorCode DMSetCoordinateDisc(DM dm, PetscFE disc, PetscBool project)
     } else {
       Mat In;
 
+      // TODO: This is wrong for periodic meshes. We need to do matrix-free, where we get the coordinate element vectors on the correct sheet
       PetscCall(DMCreateInterpolation(cdmOld, cdmNew, &In, NULL));
       PetscCall(MatMult(In, coordsOld, coordsNew));
       PetscCall(MatDestroy(&In));

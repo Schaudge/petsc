@@ -3,7 +3,7 @@
 #include <petscblaslapack.h>
 #include <petsctime.h>
 
-const char *const DMPlexCoordMaps[] = {"none", "shear", "flare", "annulus", "shell", "unknown", "DMPlexCoordMap", "DM_COORD_MAP_", NULL};
+const char *const DMPlexCoordMaps[] = {"none", "shear", "flare", "annulus", "shell", "cylindrical_shell", "unknown", "DMPlexCoordMap", "DM_COORD_MAP_", NULL};
 
 /*@
   DMPlexFindVertices - Try to find DAG points based on their coordinates.
@@ -3885,6 +3885,27 @@ void coordMap_shell(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uO
   xp[0] = rp * PetscCosReal(thetap) * PetscCosReal(phip);
   xp[1] = rp * PetscCosReal(thetap) * PetscSinReal(phip);
   xp[2] = rp * PetscSinReal(thetap);
+}
+
+/*
+  We would like to map the unit cube to a cylindrical shell between cylinders of radius 1 and 2. We want to map the bottom surface onto the inner cylinder and the upper surface onto the outer, letting z be the radius.
+
+    r'   = x + r_i
+    phi' = c * z
+    z'   = y
+
+*/
+void coordMap_cylindrical_shell(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar xp[])
+{
+  const PetscReal ri   = PetscRealPart(constants[0]);
+  const PetscReal c    = PetscRealPart(constants[1]);
+  const PetscReal rp   = x[0] + ri;
+  const PetscReal phip = -c * x[2];
+
+  xp[0] = rp * PetscCosReal(phip);
+  xp[1] = rp * PetscSinReal(phip);
+  xp[2] = x[1];
+  printf("(%f, %f, %f) --> (%f, %f, %f)\n", x[0], x[1], x[2], xp[0], xp[1], xp[2]);
 }
 
 /*@C

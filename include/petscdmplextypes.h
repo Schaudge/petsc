@@ -41,11 +41,12 @@ PETSC_EXTERN const char *const DMPlexShapes[];
   DMPlexCoordMap - The coordinate mapping used for automatic mesh creation.
 
   Values:
-+ `DM_COORD_MAP_NONE`    - The identity map
-. `DM_COORD_MAP_SHEAR`   - The shear (additive) map along some dimension
-. `DM_COORD_MAP_FLARE`   - The flare (multiplicative) map along some dimension
-. `DM_COORD_MAP_ANNULUS` - The map from a rectangle to an annulus
-. `DM_COORD_MAP_SHELL`   - The map from a rectangular solid to an spherical shell
++ `DM_COORD_MAP_NONE`              - The identity map
+. `DM_COORD_MAP_SHEAR`             - The shear (additive) map along some dimension
+. `DM_COORD_MAP_FLARE`             - The flare (multiplicative) map along some dimension
+. `DM_COORD_MAP_ANNULUS`           - The map from a rectangle to an annulus
+. `DM_COORD_MAP_SHELL`             - The map from a rectangular solid to an spherical shell
+- `DM_COORD_MAP_CYLINDRICAL_SHELL` - The map from a rectangular solid to a cylindrical shell
 
   Level: beginner
 
@@ -57,6 +58,7 @@ typedef enum {
   DM_COORD_MAP_FLARE,
   DM_COORD_MAP_ANNULUS,
   DM_COORD_MAP_SHELL,
+  DM_COORD_MAP_CYLINDRICAL_SHELL,
   DM_COORD_MAP_UNKNOWN
 } DMPlexCoordMap;
 PETSC_EXTERN const char *const DMPlexCoordMaps[];

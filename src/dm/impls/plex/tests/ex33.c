@@ -249,6 +249,38 @@ int main(int argc, char **argv)
       requires: double
       args: -dm_refine 2 -dm_coord_petscspace_degree 4 -petscfe_default_quadrature_order 4 -tol .006
 
+
+  testset:
+    # Volume: 4 \pi (4 - 1) = 37.6991118431
+    args: -dm_plex_simplex 0 -dm_plex_box_faces 1,1 -dm_plex_box_upper 1.,4. \
+          -dm_extrude 4 -dm_plex_transform_extrude_use_tensor 0 -dm_plex_transform_extrude_periodic \
+          -volume 37.6991118431 -dm_coord_remap -dm_coord_map cylindrical_shell
+
+    test:
+      suffix: cyl_shell_0
+      requires: double
+      args: -dm_coord_petscspace_degree 1 -petscfe_default_quadrature_order 1 -volume 24.0 -tol 1.0e-7
+
+    test:
+      suffix: cyl_shell_1
+      requires: double
+      args: -dm_extrude 16 -dm_coord_petscspace_degree 1 -petscfe_default_quadrature_order 1 -tol 1.0
+
+    test:
+      suffix: cyl_shell_2
+      requires: double
+      args: -dm_extrude 16 -dm_coord_petscspace_degree 2 -petscfe_default_quadrature_order 2 -tol 1.0e-7
+
+    test:
+      suffix: cyl_shell_3
+      requires: double
+      args: -dm_extrude 16 -dm_coord_petscspace_degree 3 -petscfe_default_quadrature_order 3 -tol 1.0e-7
+
+    test:
+      suffix: cyl_shell_4
+      requires: double
+      args: -dm_extrude 16 -dm_coord_petscspace_degree 4 -petscfe_default_quadrature_order 4 -tol 1.0e-7
+
   test:
     # Volume: 1.0
     suffix: gmsh_q2

@@ -4541,6 +4541,15 @@ static PetscErrorCode DMSetFromOptions_Plex(DM dm, PetscOptionItems *PetscOption
         }
         PetscCheck(Np == 2, comm, PETSC_ERR_ARG_WRONG, "The spherical shell coordinate map must have 2 parameters, not %" PetscInt_FMT, Np);
         break;
+      case DM_COORD_MAP_CYLINDRICAL_SHELL:
+        mapFunc = coordMap_cylindrical_shell;
+        if (!Np) {
+          Np        = 2;
+          params[0] = 1.;
+          params[1] = 2. * PETSC_PI;
+        }
+        PetscCheck(Np == 2, comm, PETSC_ERR_ARG_WRONG, "The cylindrical shell coordinate map must have 2 parameters, not %" PetscInt_FMT, Np);
+        break;
       default:
         mapFunc = coordMap_identity;
       }
