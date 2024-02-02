@@ -3,6 +3,6 @@
 
   #include <petscdmbf.h> /*I "petscdmbf.h" I*/
 
-PetscErrorCode DMBF_2D_VTKWriteAll(PetscObject, PetscViewer);
+PETSC_EXTERN PetscErrorCode DMBF_2D_VTKWriteAll(PetscObject, PetscViewer);
 
 #endif /* defined(PETSCDMBF_2D_VTU_H) */

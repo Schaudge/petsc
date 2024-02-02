@@ -11,11 +11,11 @@
   #endif
   #include "bf_xd.h"
 
-PetscErrorCode DMBF_3D_AmrCoarsenUniformly(p4est_t *, PetscInt);
-PetscErrorCode DMBF_3D_AmrRefineUniformly(p4est_t *, PetscInt);
-PetscErrorCode DMBF_3D_AmrAdapt(p4est_t *, PetscInt, PetscInt);
-PetscErrorCode DMBF_3D_AmrAdaptData(p4est_t *, p4est_t *, DM, DM_BF_AmrOps *);
-PetscErrorCode DMBF_3D_AmrPartition(p4est_t *);
+PETSC_EXTERN PetscErrorCode DMBF_3D_AmrCoarsenUniformly(p4est_t *, PetscInt);
+PETSC_EXTERN PetscErrorCode DMBF_3D_AmrRefineUniformly(p4est_t *, PetscInt);
+PETSC_EXTERN PetscErrorCode DMBF_3D_AmrAdapt(p4est_t *, PetscInt, PetscInt);
+PETSC_EXTERN PetscErrorCode DMBF_3D_AmrAdaptData(p4est_t *, p4est_t *, DM, DM_BF_AmrOps *);
+PETSC_EXTERN PetscErrorCode DMBF_3D_AmrPartition(p4est_t *);
 
   /* rename generic functions that are the same for 2D and 3D */
   #define DMBF_XD_AmrCoarsenUniformly DMBF_3D_AmrCoarsenUniformly
