@@ -120,8 +120,10 @@ int main(int argc, char **argv)
 }
 
 /*TEST
+  build:
+    requires: p4est
+
   testset:
-    requires: p4est !single
 
     test:
       args: -dm_forest_topology unit -dm_forest_initial_refinement 2
