@@ -31,10 +31,10 @@ int main(int argc, char **argv)
   ierr = PetscInitialize(&argc, &argv, (char *)0, help);
   if (ierr) return ierr;
 
-  PetscPrintf(PETSC_COMM_WORLD, "[%s] Begin\n", _name);
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] Begin\n", _name));
 
   // create DM
-  PetscPrintf(PETSC_COMM_WORLD, "[%s] Create DM\n", _name);
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] Create DM\n", _name));
   ierr = DMCreate(PETSC_COMM_WORLD, &dm);
   CHKERRQ(ierr);
   ierr = DMSetType(dm, "bf");
@@ -47,10 +47,10 @@ int main(int argc, char **argv)
   // print DM type
   ierr = DMGetType(dm, &dmtype);
   CHKERRQ(ierr);
-  PetscPrintf(PETSC_COMM_WORLD, "[%s] DM type = %s\n", _name, dmtype);
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] DM type = %s\n", _name, dmtype));
 
   // set cell data shapes
-  PetscPrintf(PETSC_COMM_WORLD, "[%s] Set cell data shape\n", _name);
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] Set cell data shape\n", _name));
   ierr = DMBFSetCellDataShape(dm, CELLDATA_SHAPE, CELLDATA_N_, CELLDATA_D_);
   CHKERRQ(ierr);
   // check cell data shapes
@@ -60,11 +60,11 @@ int main(int argc, char **argv)
 
     ierr = DMBFGetCellDataShape(dm, &shapeElements, &n, &d);
     CHKERRQ(ierr);
-    PetscPrintf(PETSC_COMM_WORLD, "[%s] Shape elements dim=(%d,%d)\n", _name, n, d);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] Shape elements dim=(%" PetscInt_FMT ",%" PetscInt_FMT ")\n", _name, n, d));
     for (i = 0; i < n; i++) {
-      PetscPrintf(PETSC_COMM_WORLD, "[%s]   %d: ", _name, i);
-      for (j = 0; j < d; j++) { PetscPrintf(PETSC_COMM_WORLD, "%d ", shapeElements[i * d + j]); }
-      PetscPrintf(PETSC_COMM_WORLD, "\n");
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s]   %" PetscInt_FMT ": ", _name, i));
+      for (j = 0; j < d; j++) { PetscCall(PetscPrintf(PETSC_COMM_WORLD, "%" PetscInt_FMT " ", shapeElements[i * d + j])); }
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\n"));
     }
     if (shapeElements) {
       ierr = PetscFree(shapeElements);
@@ -73,7 +73,7 @@ int main(int argc, char **argv)
   }
 
   // setup DM
-  PetscPrintf(PETSC_COMM_WORLD, "[%s] Set up DM\n", _name);
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] Set up DM\n", _name));
   ierr = DMSetUp(dm);
   CHKERRQ(ierr);
 
@@ -83,25 +83,25 @@ int main(int argc, char **argv)
 
     ierr = DMBFGetInfo(dm, &dim, &n, &N, &ng);
     CHKERRQ(ierr);
-    PetscPrintf(PETSC_COMM_WORLD, "[%s] Info about the DM\n", _name);
-    PetscPrintf(PETSC_COMM_WORLD, "[%s] - dimension              = %" PetscInt_FMT "\n", _name, dim);
-    PetscPrintf(PETSC_COMM_WORLD, "[%s] - number of local cells  = %" PetscInt_FMT "\n", _name, n);
-    PetscPrintf(PETSC_COMM_WORLD, "[%s] - number of global cells = %" PetscInt_FMT "\n", _name, N);
-    PetscPrintf(PETSC_COMM_WORLD, "[%s] - number of ghost cells  = %" PetscInt_FMT "\n", _name, ng);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] Info about the DM\n", _name));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] - dimension              = %" PetscInt_FMT "\n", _name, dim));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] - number of local cells  = %" PetscInt_FMT "\n", _name, n));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] - number of global cells = %" PetscInt_FMT "\n", _name, N));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] - number of ghost cells  = %" PetscInt_FMT "\n", _name, ng));
   }
 
   // create derived objects
-  PetscPrintf(PETSC_COMM_WORLD, "[%s] Create vectors\n", _name);
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] Create vectors\n", _name));
   ierr = DMCreateGlobalVector(dm, &v);
   CHKERRQ(ierr);
-  PetscPrintf(PETSC_COMM_WORLD, "[%s] Create matrices\n", _name);
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] Create matrices\n", _name));
   ierr = DMSetMatType(dm, MATSHELL);
   CHKERRQ(ierr);
   ierr = DMCreateMatrix(dm, &A);
   CHKERRQ(ierr);
 
   // destroy objects
-  PetscPrintf(PETSC_COMM_WORLD, "[%s] Destroy\n", _name);
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] Destroy\n", _name));
   ierr = MatDestroy(&A);
   CHKERRQ(ierr);
   ierr = VecDestroy(&v);
@@ -109,7 +109,7 @@ int main(int argc, char **argv)
   ierr = DMDestroy(&dm);
   CHKERRQ(ierr);
 
-  PetscPrintf(PETSC_COMM_WORLD, "[%s] End\n", _name);
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] End\n", _name));
 
   // finalize Petsc
   ierr = PetscFinalize();
