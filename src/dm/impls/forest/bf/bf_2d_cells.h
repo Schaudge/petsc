@@ -5,7 +5,7 @@
 
 typedef struct _p_DM_BF_2D_Cells DM_BF_2D_Cells;
 
-PETSC_EXTERN PetscErrorCode DMBF_2D_CellsCreate(DM, DM_BF_2D_Topology *, DM_BF_2D_Cells **, PetscErrorCode (*)(DM, void *));
+PETSC_EXTERN PetscErrorCode DMBF_2D_CellsCreate(DM, DM_BF_2D_Cells **, PetscErrorCode (*)(DM, void *));
 PETSC_EXTERN PetscErrorCode DMBF_2D_CellsDestroy(DM, DM_BF_2D_Cells *);
 PETSC_EXTERN PetscErrorCode DMBF_2D_CellsClone(DM_BF_2D_Cells *, DM_BF_2D_Cells **, DM);
 

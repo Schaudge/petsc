@@ -1,13 +1,12 @@
 #pragma once
 
 #include <petscdmbf.h> /*I "petscdmbf.h" I*/
-#include <petscdm.h>   /*I "petscdm.h" I*/
 
 //#if defined(PETSC_USE_DEBUG)
 //#define PETSC_USE_DMBF_VERBOSE_HI // this flag is normally deactivated; use only for development purposes
 //#endif
 
-PETSC_EXTERN PetscErrorCode DMBFGetCoonectivity(DM, void *);
+PETSC_EXTERN PetscErrorCode DMBFGetConnectivity(DM, void *);
 PETSC_EXTERN PetscErrorCode DMBFGetP4est(DM, void *);
 PETSC_EXTERN PetscErrorCode DMBFGetGhost(DM, void *);
 
@@ -36,7 +35,7 @@ PETSC_EXTERN PetscErrorCode DMBFShapeGetToInt(const DM_BF_Shape *, PetscInt **, 
 
 static inline size_t _p_DMBFShapeOffset(const DM_BF_Shape *shape, PetscInt nmax)
 {
-  const size_t n = (0 <= nmax && nmax < shape->n ? nmax : shape->n);
+  const size_t n = (0 <= nmax && (size_t)nmax < shape->n ? (size_t)nmax : shape->n);
   size_t       i, j, s, size = 0;
 
   if (!shape->list) { return size; }
@@ -71,7 +70,7 @@ static inline size_t _p_cellMemoryOffset(const DM_BF_Shape *memory, PetscInt mem
   case DMBF_CELLMEMIDX_END:
     return memory->size;
   default:
-    if (memoryIndex < memory->n) {
+    if ((size_t)memoryIndex < memory->n) {
       return _p_DMBFShapeOffset(memory, memoryIndex);
     } else {
       SETERRABORT(PETSC_COMM_SELF, PETSC_ERR_SUP, "Unreachable code");
