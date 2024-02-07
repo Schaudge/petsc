@@ -1028,7 +1028,7 @@ static PetscErrorCode DMBFSetOps(DM dm)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode DMCreate_BF(DM dm)
+PETSC_EXTERN PetscErrorCode DMCreate_BF(DM dm)
 {
   DM_BF         *bf;
   PetscErrorCode ierr;
