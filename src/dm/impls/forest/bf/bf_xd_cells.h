@@ -18,18 +18,23 @@ static PetscErrorCode DMBF_XD_P4estCreate(DM dm, p4est_connectivity_t *connectiv
 {
   PetscInt       initLevel;
   PetscErrorCode ierr;
+  #if defined(PETSC_HAVE_MPIUNI)
+  sc_MPI_Comm comm = sc_MPI_COMM_WORLD;
+  #else
+  MPI_Comm comm = PetscObjectComm((PetscObject)dm);
+  #endif
 
   PetscFunctionBegin;
   PetscCheck(connectivity, PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_WRONGSTATE, "Connectivity does not exist");
   ierr = DMForestGetInitialRefinement(dm, &initLevel);
   CHKERRQ(ierr);
   PetscCallP4estReturn(*p4est, p4est_new_ext,
-                       (PetscObjectComm((PetscObject)dm), connectivity, 0, /* minimum number of quadrants per processor */
-                        initLevel,                                         /* level of refinement */
-                        1,                                                 /* uniform refinement */
-                        0,                                                 /* quadrant data size */
-                        NULL,                                              /* quadrant init function */
-                        (void *)dm)                                        /* this DM is the user context */
+                       (comm, connectivity, 0, /* minimum number of quadrants per processor */
+                        initLevel,             /* level of refinement */
+                        1,                     /* uniform refinement */
+                        0,                     /* quadrant data size */
+                        NULL,                  /* quadrant init function */
+                        (void *)dm)            /* this DM is the user context */
   );
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -305,11 +310,11 @@ static
   }
   /* set indices of ghost cells */
   for (i = 0; i < ng; i++) {
-    quad = sc_array_index(&ghost->ghosts, i);             /* get ghost quadrant i */
-    t    = quad->p.piggy3.which_tree;                     /* get tree # of ghost quadrant i */
-    rank = p4est_quadrant_find_owner(p4est, t, -1, quad); /* get mpirank of ghost quadrant i */
-    lid  = quad->p.piggy3.local_num;                      /* get local id of ghost quadrant i on mpirank rank */
-    gid  = p4est->global_first_quadrant[rank] + lid;      /* translate local id to global id */
+    quad = (p4est_quadrant_t *)sc_array_index(&(ghost->ghosts), i); /* get ghost quadrant i */
+    t    = quad->p.piggy3.which_tree;                               /* get tree # of ghost quadrant i */
+    rank = p4est_quadrant_find_owner(p4est, t, -1, quad);           /* get mpirank of ghost quadrant i */
+    lid  = quad->p.piggy3.local_num;                                /* get local id of ghost quadrant i on mpirank rank */
+    gid  = p4est->global_first_quadrant[rank] + lid;                /* translate local id to global id */
     switch (P4EST_DIM) {
     case 2:
       for (k = 0; k < blockSize[1]; k++) {
