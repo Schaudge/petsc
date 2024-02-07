@@ -153,7 +153,6 @@ static
   int                  i;
   const size_t         cellSize = orig_p4est->data_size;
   DM_BF_Cell          *orig_cell[P4EST_CHILDREN], *adap_cell[P4EST_CHILDREN];
-  PetscErrorCode       ierr;
 
   PetscFunctionBegin;
   /* check input */
@@ -176,8 +175,7 @@ static
         orig_cell[i] = (DM_BF_Cell *)orig_quad->p.user_data;
       }
       adap_cell[0] = (DM_BF_Cell *)adap_quad->p.user_data;
-      ierr         = amrOps->projectToCoarse(dm, orig_cell, P4EST_CHILDREN, adap_cell, 1, amrOps->projectToCoarseCtx);
-      CHKERRQ(ierr);
+      PetscCall(amrOps->projectToCoarse(dm, orig_cell, P4EST_CHILDREN, adap_cell, 1, amrOps->projectToCoarseCtx));
       /* skip the next 2^dim fine elements of the original mesh */
       orig_quadid += P4EST_CHILDREN;
       /* go to the next element of the adapted mesh */
@@ -188,8 +186,7 @@ static
         PetscCallP4estReturn(adap_quad, p4est_find_quadrant_cumulative, (adap_p4est, adap_quadid + i, NULL, NULL));
         adap_cell[i] = (DM_BF_Cell *)adap_quad->p.user_data;
       }
-      ierr = amrOps->projectToFine(dm, orig_cell, 1, adap_cell, P4EST_CHILDREN, amrOps->projectToFineCtx);
-      CHKERRQ(ierr);
+      PetscCall(amrOps->projectToFine(dm, orig_cell, 1, adap_cell, P4EST_CHILDREN, amrOps->projectToFineCtx));
       /* go to the next element of the original mesh */
       orig_quadid += 1;
       /* skip the next 2^dim fine elements of the adapted mesh */
@@ -197,8 +194,7 @@ static
     } else { /* otherwise this element has not changed */
       orig_cell[0] = (DM_BF_Cell *)orig_quad->p.user_data;
       adap_cell[0] = (DM_BF_Cell *)adap_quad->p.user_data;
-      ierr         = PetscMemcpy(adap_cell[0], orig_cell[0], cellSize);
-      CHKERRQ(ierr);
+      PetscCall(PetscMemcpy(adap_cell[0], orig_cell[0], cellSize));
       /* go to next element */
       orig_quadid += 1;
       adap_quadid += 1;

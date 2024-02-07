@@ -28,17 +28,10 @@ static
   PetscErrorCode
   DMBF_XD_TopologyCreate(DM dm, DM_BF_XD_Topology **topology, PetscErrorCode (*setUpUserFnAfterConnectivity)(DM, void *))
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  ierr = PetscNew(topology);
-  CHKERRQ(ierr);
-  ierr = DMBF_XD_ConnectivityCreate(dm, &(*topology)->connectivity);
-  CHKERRQ(ierr);
-  if (setUpUserFnAfterConnectivity) {
-    ierr = setUpUserFnAfterConnectivity(dm, (void *)(*topology)->connectivity);
-    CHKERRQ(ierr);
-  }
+  PetscCall(PetscNew(topology));
+  PetscCall(DMBF_XD_ConnectivityCreate(dm, &(*topology)->connectivity));
+  if (setUpUserFnAfterConnectivity) { PetscCall(setUpUserFnAfterConnectivity(dm, (void *)(*topology)->connectivity)); }
   (*topology)->refct = 1;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -49,15 +42,11 @@ static
   PetscErrorCode
   DMBF_XD_TopologyDestroy(DM dm, DM_BF_XD_Topology *topology)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
   topology->refct -= 1;
   if (!topology->refct) {
-    ierr = DMBF_XD_ConnectivityDestroy(dm, topology->connectivity);
-    CHKERRQ(ierr);
-    ierr = PetscFree(topology);
-    CHKERRQ(ierr);
+    PetscCall(DMBF_XD_ConnectivityDestroy(dm, topology->connectivity));
+    PetscCall(PetscFree(topology));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

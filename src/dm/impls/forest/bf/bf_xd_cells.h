@@ -16,8 +16,7 @@ typedef struct _p_DM_BF_XD_Cells DM_BF_XD_Cells;
 
 static PetscErrorCode DMBF_XD_P4estCreate(DM dm, p4est_connectivity_t *connectivity, p4est_t **p4est)
 {
-  PetscInt       initLevel;
-  PetscErrorCode ierr;
+  PetscInt initLevel;
   #if defined(PETSC_HAVE_MPIUNI)
   sc_MPI_Comm comm = sc_MPI_COMM_WORLD;
   #else
@@ -26,8 +25,7 @@ static PetscErrorCode DMBF_XD_P4estCreate(DM dm, p4est_connectivity_t *connectiv
 
   PetscFunctionBegin;
   PetscCheck(connectivity, PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_WRONGSTATE, "Connectivity does not exist");
-  ierr = DMForestGetInitialRefinement(dm, &initLevel);
-  CHKERRQ(ierr);
+  PetscCall(DMForestGetInitialRefinement(dm, &initLevel));
   PetscCallP4estReturn(*p4est, p4est_new_ext,
                        (comm, connectivity, 0, /* minimum number of quadrants per processor */
                         initLevel,             /* level of refinement */
@@ -91,22 +89,14 @@ static
   DMBF_XD_CellsCreate(DM dm, DM_BF_XD_Cells **cells, PetscErrorCode (*setUpUserFnAfterP4est)(DM, void *))
 {
   p4est_connectivity_t *connectivity;
-  PetscErrorCode        ierr;
 
   PetscFunctionBegin;
-  ierr = PetscNew(cells);
-  CHKERRQ(ierr);
-  ierr = DMBFGetConnectivity(dm, &connectivity);
-  CHKERRQ(ierr);
-  ierr = DMBF_XD_P4estCreate(dm, connectivity, &(*cells)->p4est);
-  CHKERRQ(ierr);
-  if (setUpUserFnAfterP4est) {
-    ierr = setUpUserFnAfterP4est(dm, (void *)(*cells)->p4est);
-    CHKERRQ(ierr);
-  }
-  ierr = DMBF_XD_GhostCreate((*cells)->p4est, &(*cells)->ghost);
-  CHKERRQ(ierr);
-  //ierr = DMBF_XD_P4estMeshCreate((*cells)->p4est,(*cells)->ghost,&(*cells)->mesh);CHKERRQ(ierr);
+  PetscCall(PetscNew(cells));
+  PetscCall(DMBFGetConnectivity(dm, &connectivity));
+  PetscCall(DMBF_XD_P4estCreate(dm, connectivity, &(*cells)->p4est));
+  if (setUpUserFnAfterP4est) { PetscCall(setUpUserFnAfterP4est(dm, (void *)(*cells)->p4est)); }
+  PetscCall(DMBF_XD_GhostCreate((*cells)->p4est, &(*cells)->ghost));
+  //PetscCall(DMBF_XD_P4estMeshCreate((*cells)->p4est,(*cells)->ghost,&(*cells)->mesh);CHKERRQ(ierr));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -116,21 +106,11 @@ static
   PetscErrorCode
   DMBF_XD_CellsDestroy(DM dm, DM_BF_XD_Cells *cells)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  if (cells->mesh) {
-    ierr = DMBF_XD_P4estMeshDestroy(cells->mesh);
-    CHKERRQ(ierr);
-  }
-  if (cells->ghost) {
-    ierr = DMBF_XD_GhostDestroy(cells->ghost);
-    CHKERRQ(ierr);
-  }
-  ierr = DMBF_XD_P4estDestroy(dm, cells->p4est);
-  CHKERRQ(ierr);
-  ierr = PetscFree(cells);
-  CHKERRQ(ierr);
+  if (cells->mesh) { PetscCall(DMBF_XD_P4estMeshDestroy(cells->mesh)); }
+  if (cells->ghost) { PetscCall(DMBF_XD_GhostDestroy(cells->ghost)); }
+  PetscCall(DMBF_XD_P4estDestroy(dm, cells->p4est));
+  PetscCall(PetscFree(cells));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -142,15 +122,11 @@ static
                      /*OUT   */ DM_BF_XD_Cells **clonedCells,
                      /*IN/OUT*/ DM               clonedDm)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  ierr = PetscNew(clonedCells);
-  CHKERRQ(ierr);
+  PetscCall(PetscNew(clonedCells));
   PetscCallP4estReturn((*clonedCells)->p4est, p4est_copy_ext, (origCells->p4est, 0 /*!copy data*/, 1 /*duplicate mpicomm*/));
-  ierr = DMBF_XD_GhostCreate((*clonedCells)->p4est, &(*clonedCells)->ghost);
-  CHKERRQ(ierr);
-  //ierr = DMBF_XD_P4estMeshCreate((*clonedCells)->p4est,(*clonedCells)->ghost,&(*clonedCells)->mesh);CHKERRQ(ierr);
+  PetscCall(DMBF_XD_GhostCreate((*clonedCells)->p4est, &(*clonedCells)->ghost));
+  //PetscCall(DMBF_XD_P4estMeshCreate((*clonedCells)->p4est,(*clonedCells)->ghost,&(*clonedCells)->mesh);CHKERRQ(ierr));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -163,17 +139,12 @@ static
                        /*IN/OUT*/ DM               coarseDm,
                        /*IN    */ PetscInt         minLevel)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  ierr = PetscNew(coarseCells);
-  CHKERRQ(ierr);
+  PetscCall(PetscNew(coarseCells));
   PetscCallP4estReturn((*coarseCells)->p4est, p4est_copy_ext, (origCells->p4est, 0 /*!copy data*/, 1 /*duplicate mpicomm*/));
-  ierr = DMBF_XD_AmrCoarsenUniformly((*coarseCells)->p4est, minLevel);
-  CHKERRQ(ierr);
-  ierr = DMBF_XD_GhostCreate((*coarseCells)->p4est, &(*coarseCells)->ghost);
-  CHKERRQ(ierr);
-  //ierr = DMBF_XD_P4estMeshCreate((*coarseCells)->p4est,(*coarseCells)->ghost,&(*coarseCells)->mesh);CHKERRQ(ierr);
+  PetscCall(DMBF_XD_AmrCoarsenUniformly((*coarseCells)->p4est, minLevel));
+  PetscCall(DMBF_XD_GhostCreate((*coarseCells)->p4est, &(*coarseCells)->ghost));
+  //PetscCall(DMBF_XD_P4estMeshCreate((*coarseCells)->p4est,(*coarseCells)->ghost,&(*coarseCells)->mesh);CHKERRQ(ierr));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -186,17 +157,12 @@ static
                       /*IN/OUT*/ DM               fineDm,
                       /*IN    */ PetscInt         maxLevel)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  ierr = PetscNew(fineCells);
-  CHKERRQ(ierr);
+  PetscCall(PetscNew(fineCells));
   PetscCallP4estReturn((*fineCells)->p4est, p4est_copy_ext, (origCells->p4est, 0 /*!copy data*/, 1 /*duplicate mpicomm*/));
-  ierr = DMBF_XD_AmrRefineUniformly((*fineCells)->p4est, maxLevel);
-  CHKERRQ(ierr);
-  ierr = DMBF_XD_GhostCreate((*fineCells)->p4est, &(*fineCells)->ghost);
-  CHKERRQ(ierr);
-  //ierr = DMBF_XD_P4estMeshCreate((*fineCells)->p4est,(*fineCells)->ghost,&(*fineCells)->mesh);CHKERRQ(ierr);
+  PetscCall(DMBF_XD_AmrRefineUniformly((*fineCells)->p4est, maxLevel));
+  PetscCall(DMBF_XD_GhostCreate((*fineCells)->p4est, &(*fineCells)->ghost));
+  //PetscCall(DMBF_XD_P4estMeshCreate((*fineCells)->p4est,(*fineCells)->ghost,&(*fineCells)->mesh);CHKERRQ(ierr));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -209,26 +175,21 @@ static
                         /*IN/OUT*/ DM               adapDm,
                         /*IN    */ DM_BF_AmrOps *amrOps, PetscInt minLevel, PetscInt maxLevel, const DM_BF_Shape *cellMemoryShape)
 {
-  p4est_t       *orig_p4est = origCells->p4est;
-  p4est_t       *adap_p4est;
-  PetscErrorCode ierr;
+  p4est_t *orig_p4est = origCells->p4est;
+  p4est_t *adap_p4est;
 
   PetscFunctionBegin;
-  ierr = PetscNew(adapCells);
-  CHKERRQ(ierr);
+  PetscCall(PetscNew(adapCells));
   /* create copy of p4est */
   PetscCallP4estReturn((*adapCells)->p4est, p4est_copy_ext, (orig_p4est, 0 /*!copy data*/, 1 /*duplicate mpicomm*/));
   adap_p4est = (*adapCells)->p4est;
   /* adapt cells of p4est */
-  ierr = DMBF_XD_AmrAdapt(adap_p4est, minLevel, maxLevel);
-  CHKERRQ(ierr);
+  PetscCall(DMBF_XD_AmrAdapt(adap_p4est, minLevel, maxLevel));
   /* create and setup cell data owned by p4est */
   PetscCallP4est(p4est_reset_data, (adap_p4est, cellMemoryShape->size, NULL /*init_fn*/, orig_p4est->user_pointer));
-  ierr = DMBF_XD_IterateSetUpP4estCells(adapDm, cellMemoryShape);
-  CHKERRQ(ierr);
+  PetscCall(DMBF_XD_IterateSetUpP4estCells(adapDm, cellMemoryShape));
   /* adapt cell data */
-  ierr = DMBF_XD_AmrAdaptData(orig_p4est, adap_p4est, adapDm, amrOps);
-  CHKERRQ(ierr);
+  PetscCall(DMBF_XD_AmrAdaptData(orig_p4est, adap_p4est, adapDm, amrOps));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -289,12 +250,10 @@ static
   p4est_quadrant_t *quad;
   p4est_topidx_t    t;
   int               rank;
-  PetscErrorCode    ierr;
 
   PetscFunctionBegin;
   /* get sizes */
-  ierr = DMBFGetBlockSize(dm, blockSize);
-  CHKERRQ(ierr);
+  PetscCall(DMBFGetBlockSize(dm, blockSize));
   bs     = blockSize[0] * blockSize[1] * blockSize[2];
   n      = p4est->local_num_quadrants;
   ng     = ghost->ghosts.elem_count;
@@ -358,13 +317,8 @@ static
   PetscErrorCode
   DMBF_XD_CellsGetGhost(DM_BF_XD_Cells *cells, void *ghost)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  if (!cells->ghost) {
-    ierr = DMBF_XD_GhostCreate(cells->p4est, &cells->ghost);
-    CHKERRQ(ierr);
-  }
+  if (!cells->ghost) { PetscCall(DMBF_XD_GhostCreate(cells->p4est, &cells->ghost)); }
   *(void **)ghost = cells->ghost;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -375,16 +329,10 @@ static
   PetscErrorCode
   DMBF_XD_CellsGetP4estMesh(DM_BF_XD_Cells *cells, void *mesh)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
   if (!cells->mesh) {
-    if (!cells->ghost) {
-      ierr = DMBF_XD_GhostCreate(cells->p4est, &cells->ghost);
-      CHKERRQ(ierr);
-    }
-    ierr = DMBF_XD_P4estMeshCreate(cells->p4est, cells->ghost, &cells->mesh);
-    CHKERRQ(ierr);
+    if (!cells->ghost) { PetscCall(DMBF_XD_GhostCreate(cells->p4est, &cells->ghost)); }
+    PetscCall(DMBF_XD_P4estMeshCreate(cells->p4est, cells->ghost, &cells->mesh));
   }
   *(void **)mesh = cells->mesh;
   PetscFunctionReturn(PETSC_SUCCESS);

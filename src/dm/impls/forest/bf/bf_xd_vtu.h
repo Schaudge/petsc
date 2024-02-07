@@ -22,8 +22,6 @@ static PetscErrorCode DMBFGetVTKVertexCoordinates(DM dm, PetscVTUReal *point_dat
 {
   p4est_t *p4est;
 
-  PetscErrorCode ierr;
-
   PetscVTUReal hx, hy, eta_x, eta_y, eta_z = 0.0;
 
   PetscVTUReal xyz[3]; /* 3 not P4EST_DIM */
@@ -51,10 +49,8 @@ static PetscErrorCode DMBFGetVTKVertexCoordinates(DM dm, PetscVTUReal *point_dat
 #endif
 
   PetscFunctionBegin;
-  ierr = DMBFGetP4est(dm, &p4est);
-  CHKERRQ(ierr);
-  ierr = DMBFGetBlockSize(dm, blockSize);
-  CHKERRQ(ierr);
+  PetscCall(DMBFGetP4est(dm, &p4est));
+  PetscCall(DMBFGetBlockSize(dm, blockSize));
 
   bs0 = blockSize[0];
   bs1 = blockSize[1];
@@ -166,7 +162,6 @@ static PetscErrorCode DMBFGetVTKCellTypes(DM dm, PetscVTKType *type_data, PetscI
 
 static PetscErrorCode DMBFGetVTKTreeIDs(DM dm, PetscVTKInt *treeids, PetscInt nCells)
 {
-  PetscErrorCode ierr;
   PetscInt       il, num_quads, zz;
   p4est_t       *p4est;
   p4est_topidx_t jt, first_local_tree, last_local_tree;
@@ -176,10 +171,8 @@ static PetscErrorCode DMBFGetVTKTreeIDs(DM dm, PetscVTKInt *treeids, PetscInt nC
 
   PetscFunctionBegin;
 
-  ierr = DMBFGetP4est(dm, &p4est);
-  CHKERRQ(ierr);
-  ierr = DMBFGetBlockSize(dm, blockSize);
-  CHKERRQ(ierr);
+  PetscCall(DMBFGetP4est(dm, &p4est));
+  PetscCall(DMBFGetBlockSize(dm, blockSize));
   bs0 = blockSize[0];
   bs1 = blockSize[1];
   bs2 = blockSize[2];
@@ -216,8 +209,7 @@ static PetscErrorCode DMBFGetVTKMPIRank(DM dm, PetscVTKInt *mpirank, PetscInt nC
 
 static PetscErrorCode DMBFGetVTKQuadRefinementLevel(DM dm, PetscVTKInt *quadlevel, PetscInt nCells)
 {
-  PetscErrorCode ierr;
-  PetscInt       i, k, Q, q;
+  PetscInt i, k, Q, q;
 
   p4est_topidx_t    tt, first_local_tree, last_local_tree;
   sc_array_t       *trees, *tquadrants;
@@ -228,10 +220,8 @@ static PetscErrorCode DMBFGetVTKQuadRefinementLevel(DM dm, PetscVTKInt *quadleve
 
   PetscFunctionBegin;
 
-  ierr = DMBFGetP4est(dm, &p4est);
-  CHKERRQ(ierr);
-  ierr = DMBFGetBlockSize(dm, blockSize);
-  CHKERRQ(ierr);
+  PetscCall(DMBFGetP4est(dm, &p4est));
+  PetscCall(DMBFGetBlockSize(dm, blockSize));
   bs0 = blockSize[0];
   bs1 = blockSize[1];
   bs2 = blockSize[2];
@@ -263,7 +253,6 @@ static PetscErrorCode DMBFVTKWritePiece_VTU(DM dm, PetscViewer viewer)
   PetscViewer_VTK         *vtk = (PetscViewer_VTK *)viewer->data;
   PetscViewerVTKObjectLink link;
   FILE                    *f;
-  PetscErrorCode           ierr;
   const char              *byte_order = PetscBinaryBigEndian() ? "BigEndian" : "LittleEndian";
   PetscInt                 locSize, nPoints, nCells;
   PetscInt                 bs, bs0, bs1, bs2, blockSize[3] = {1, 1, 1};
@@ -284,29 +273,21 @@ static PetscErrorCode DMBFVTKWritePiece_VTU(DM dm, PetscViewer viewer)
     if (vtk->filename[n] == '.') break;
   }
 
-  ierr = PetscStrncpy(noext, vtk->filename, n + 1);
-  CHKERRQ(ierr);
+  PetscCall(PetscStrncpy(noext, vtk->filename, n + 1));
   PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
-  ierr = PetscSNPrintf(lfname, sizeof(lfname), "%s_%04d.vtu", noext, rank);
-  CHKERRQ(ierr);
-  ierr = PetscFOpen(PETSC_COMM_SELF, lfname, "wb", &f);
-  CHKERRQ(ierr);
-  ierr = PetscFPrintf(PETSC_COMM_SELF, f, "<?xml version=\"1.0\"?>\n");
-  CHKERRQ(ierr);
-  ierr = PetscFPrintf(PETSC_COMM_SELF, f, "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"%s\">\n", byte_order);
-  CHKERRQ(ierr);
-  ierr = PetscFPrintf(PETSC_COMM_SELF, f, "  <UnstructuredGrid>\n");
-  CHKERRQ(ierr);
+  PetscCall(PetscSNPrintf(lfname, sizeof(lfname), "%s_%04d.vtu", noext, rank));
+  PetscCall(PetscFOpen(PETSC_COMM_SELF, lfname, "wb", &f));
+  PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "<?xml version=\"1.0\"?>\n"));
+  PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"%s\">\n", byte_order));
+  PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "  <UnstructuredGrid>\n"));
 
   /* Get number of cells and number of points.
    * A cell corner is redundantly included on each of its supporting cells, giving
    * P4EST_CHILDREN*locSize local corners.
    */
 
-  ierr = DMBFGetBlockSize(dm, blockSize);
-  CHKERRQ(ierr);
-  ierr = DMBFGetLocalSize(dm, &locSize);
-  CHKERRQ(ierr);
+  PetscCall(DMBFGetBlockSize(dm, blockSize));
+  PetscCall(DMBFGetLocalSize(dm, &locSize));
 
   bs0 = blockSize[0];
   bs1 = blockSize[1];
@@ -316,34 +297,28 @@ static PetscErrorCode DMBFVTKWritePiece_VTU(DM dm, PetscViewer viewer)
   nCells  = locSize * bs;
   nPoints = P4EST_CHILDREN * nCells;
 
-  ierr = PetscFPrintf(PETSC_COMM_SELF, f, "    <Piece NumberOfPoints=\"%" PetscInt_FMT "\" NumberOfCells=\"%" PetscInt_FMT "\">\n", nPoints, nCells);
-  CHKERRQ(ierr);
-  ierr = PetscFPrintf(PETSC_COMM_SELF, f, "      <Points>\n");
-  CHKERRQ(ierr);
+  PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "    <Piece NumberOfPoints=\"%" PetscInt_FMT "\" NumberOfCells=\"%" PetscInt_FMT "\">\n", nPoints, nCells));
+  PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "      <Points>\n"));
 
   /* For each dimension 1,2,3, one coordinate */
 
-  ierr = PetscFPrintf(PETSC_COMM_SELF, f,
-                      "        <DataArray type=\"%s\" Name=\"Position\""
-                      " NumberOfComponents=\"3\" format=\"appended\" offset=\"%" PetscInt_FMT "\" />\n",
-                      precision, offset);
-  CHKERRQ(ierr);
+  PetscCall(PetscFPrintf(PETSC_COMM_SELF, f,
+                         "        <DataArray type=\"%s\" Name=\"Position\""
+                         " NumberOfComponents=\"3\" format=\"appended\" offset=\"%" PetscInt_FMT "\" />\n",
+                         precision, offset));
 
   offset += 4; /* sizeof(int) in bytes */
   offset += 3 * sizeof(PetscVTUReal) * nPoints;
 
-  ierr = PetscFPrintf(PETSC_COMM_SELF, f, "      </Points>\n");
-  CHKERRQ(ierr);
-  ierr = PetscFPrintf(PETSC_COMM_SELF, f, "      <Cells>\n");
-  CHKERRQ(ierr);
+  PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "      </Points>\n"));
+  PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "      <Cells>\n"));
 
   /* P4EST_CHILDREN indices for each cell. */
 
-  ierr = PetscFPrintf(PETSC_COMM_SELF, f,
-                      "        <DataArray type=\"%s\" Name=\"connectivity\""
-                      " format=\"%s\" offset=\"%" PetscInt_FMT "\" />\n",
-                      "Int32", "appended", offset);
-  CHKERRQ(ierr);
+  PetscCall(PetscFPrintf(PETSC_COMM_SELF, f,
+                         "        <DataArray type=\"%s\" Name=\"connectivity\""
+                         " format=\"%s\" offset=\"%" PetscInt_FMT "\" />\n",
+                         "Int32", "appended", offset));
 
   offset += 4;
   offset += sizeof(PetscVTKInt) * nPoints;
@@ -362,43 +337,37 @@ static PetscErrorCode DMBFVTKWritePiece_VTU(DM dm, PetscViewer viewer)
 
   /* Cell types. Right now VTK_PIXEL (orthogonal quad, x, y aligned).*/
 
-  ierr = PetscFPrintf(PETSC_COMM_SELF, f,
-                      "        <DataArray type=\"UInt8\" Name=\"types\""
-                      " format=\"%s\" offset=\"%" PetscInt_FMT "\" />\n",
-                      "appended", offset); // might need to change
-  CHKERRQ(ierr);
+  PetscCall(PetscFPrintf(PETSC_COMM_SELF, f,
+                         "        <DataArray type=\"UInt8\" Name=\"types\""
+                         " format=\"%s\" offset=\"%" PetscInt_FMT "\" />\n",
+                         "appended", offset)); // might need to change
 
   offset += 4;
   offset += sizeof(PetscVTKType) * nCells;
 
-  ierr = PetscFPrintf(PETSC_COMM_SELF, f, "      </Cells>\n");
-  CHKERRQ(ierr);
+  PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "      </Cells>\n"));
 
   /* Start writing cell data headers */
 
-  ierr = PetscFPrintf(PETSC_COMM_SELF, f, "      <CellData>\n");
-  CHKERRQ(ierr);
+  PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "      <CellData>\n"));
 
   /* Cell MPIrank */
 
-  ierr = PetscFPrintf(PETSC_COMM_SELF, f, "        <DataArray type=\"Int32\" Name=\"Rank\" NumberOfComponents=\"1\" format=\"appended\" offset=\"%" PetscInt_FMT "\" />\n", offset);
-  CHKERRQ(ierr);
+  PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "        <DataArray type=\"Int32\" Name=\"Rank\" NumberOfComponents=\"1\" format=\"appended\" offset=\"%" PetscInt_FMT "\" />\n", offset));
 
   offset += 4;
   offset += sizeof(PetscVTKInt) * nCells;
 
   /* Cell tree ID */
 
-  ierr = PetscFPrintf(PETSC_COMM_SELF, f, "        <DataArray type=\"Int32\" Name=\"TreeID\" NumberOfComponents=\"1\" format=\"appended\" offset=\"%" PetscInt_FMT "\" />\n", offset);
-  CHKERRQ(ierr);
+  PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "        <DataArray type=\"Int32\" Name=\"TreeID\" NumberOfComponents=\"1\" format=\"appended\" offset=\"%" PetscInt_FMT "\" />\n", offset));
 
   offset += 4;
   offset += sizeof(PetscVTKInt) * nCells;
 
   /* Cell refinement level */
 
-  ierr = PetscFPrintf(PETSC_COMM_SELF, f, "        <DataArray type=\"Int32\" Name=\"Level\" NumberOfComponents=\"1\" format=\"appended\" offset=\"%" PetscInt_FMT "\" />\n", offset);
-  CHKERRQ(ierr);
+  PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "        <DataArray type=\"Int32\" Name=\"Level\" NumberOfComponents=\"1\" format=\"appended\" offset=\"%" PetscInt_FMT "\" />\n", offset));
 
   offset += 4;
   offset += sizeof(PetscVTKInt) * nCells;
@@ -411,83 +380,65 @@ static PetscErrorCode DMBFVTKWritePiece_VTU(DM dm, PetscViewer viewer)
 
     if ((link->ft != PETSC_VTK_CELL_FIELD) && (link->ft != PETSC_VTK_CELL_VECTOR_FIELD)) continue;
     if (((PetscObject)v)->name || link != vtk->link) { /* If the object is already named, use it. If it is past the first link, name it to disambiguate. */
-      ierr = PetscObjectGetName((PetscObject)v, &vecname);
-      CHKERRQ(ierr);
+      PetscCall(PetscObjectGetName((PetscObject)v, &vecname));
     }
 
     if (link->ft == PETSC_VTK_CELL_FIELD) {
       /* TODO? does not handle complex case: see plexvtu.c */
-      ierr = PetscFPrintf(PETSC_COMM_SELF, f, "        <DataArray type=\"%s\" Name=\"%s\" NumberOfComponents=\"1\" format=\"appended\" offset=\"%" PetscInt_FMT "\" />\n", precision, vecname, offset);
-      CHKERRQ(ierr);
+      PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "        <DataArray type=\"%s\" Name=\"%s\" NumberOfComponents=\"1\" format=\"appended\" offset=\"%" PetscInt_FMT "\" />\n", precision, vecname, offset));
 
       offset += 4;
       offset += sizeof(PetscVTUReal) * nCells;
 
     } else if (link->ft == PETSC_VTK_CELL_VECTOR_FIELD) {
-      ierr = PetscFPrintf(PETSC_COMM_SELF, f, "        <DataArray type=\"%s\" Name=\"%s\" NumberOfComponents=\"3\" format=\"appended\" offset=\"%" PetscInt_FMT "\" />\n", precision, vecname, offset);
-      CHKERRQ(ierr);
+      PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "        <DataArray type=\"%s\" Name=\"%s\" NumberOfComponents=\"3\" format=\"appended\" offset=\"%" PetscInt_FMT "\" />\n", precision, vecname, offset));
 
       offset += 4;
       offset += 3 * sizeof(PetscVTUReal) * nCells;
     }
   }
 
-  ierr = PetscFPrintf(PETSC_COMM_SELF, f, "      </CellData>\n");
-  CHKERRQ(ierr);
-  ierr = PetscFPrintf(PETSC_COMM_SELF, f, "    </Piece>\n");
-  CHKERRQ(ierr);
-  ierr = PetscFPrintf(PETSC_COMM_SELF, f, "  </UnstructuredGrid>\n");
-  CHKERRQ(ierr);
-  ierr = PetscFPrintf(PETSC_COMM_SELF, f, "  <AppendedData encoding=\"raw\">\n");
-  CHKERRQ(ierr);
+  PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "      </CellData>\n"));
+  PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "    </Piece>\n"));
+  PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "  </UnstructuredGrid>\n"));
+  PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "  <AppendedData encoding=\"raw\">\n"));
 
-  ierr = PetscFPrintf(PETSC_COMM_SELF, f, "_");
-  CHKERRQ(ierr);
+  PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "_"));
 
   // allocate workspace
-  ierr = PetscMalloc1(3 * nPoints * sizeof(PetscVTUReal), &float_data);
-  CHKERRQ(ierr);
-  ierr = PetscMalloc1(nPoints * sizeof(PetscVTKInt), &int_data);
-  CHKERRQ(ierr);
-  ierr = PetscMalloc1(nCells * sizeof(PetscVTKType), &type_data);
-  CHKERRQ(ierr);
+  PetscCall(PetscMalloc1(3 * nPoints * sizeof(PetscVTUReal), &float_data));
+  PetscCall(PetscMalloc1(nPoints * sizeof(PetscVTKInt), &int_data));
+  PetscCall(PetscMalloc1(nCells * sizeof(PetscVTKType), &type_data));
 
-  ierr = DMBFGetVTKVertexCoordinates(dm, float_data, nPoints);
-  CHKERRQ(ierr);
+  PetscCall(DMBFGetVTKVertexCoordinates(dm, float_data, nPoints));
   bytes = PetscVTKIntCast(3 * sizeof(PetscVTUReal) * nPoints);
   fwrite(&bytes, sizeof(PetscVTKInt), 1, f);
   fwrite(float_data, sizeof(PetscVTUReal), 3 * nPoints, f);
 
-  ierr = DMBFGetVTKConnectivity(dm, int_data, nPoints);
-  CHKERRQ(ierr);
+  PetscCall(DMBFGetVTKConnectivity(dm, int_data, nPoints));
   bytes = PetscVTKIntCast(sizeof(PetscVTKInt) * nPoints);
   fwrite(&bytes, sizeof(PetscVTKInt), 1, f);
   fwrite(int_data, sizeof(PetscVTKInt), nPoints, f);
 
-  ierr = DMBFGetVTKCellOffsets(dm, int_data, nCells);
-  CHKERRQ(ierr);
+  PetscCall(DMBFGetVTKCellOffsets(dm, int_data, nCells));
   fwrite(&bytes, sizeof(PetscVTKInt), 1, f);
   fwrite(int_data, sizeof(PetscVTKInt), nCells, f);
 
-  ierr = DMBFGetVTKCellTypes(dm, type_data, nCells);
-  CHKERRQ(ierr);
+  PetscCall(DMBFGetVTKCellTypes(dm, type_data, nCells));
   bytes = PetscVTKIntCast(sizeof(PetscVTKType) * nCells);
   fwrite(&bytes, sizeof(PetscVTKInt), 1, f);
   fwrite(type_data, sizeof(PetscVTKType), nCells, f);
 
-  ierr = DMBFGetVTKMPIRank(dm, int_data, nCells);
-  CHKERRQ(ierr);
+  PetscCall(DMBFGetVTKMPIRank(dm, int_data, nCells));
   bytes = PetscVTKIntCast(sizeof(PetscVTKInt) * nCells);
   fwrite(&bytes, sizeof(PetscVTKInt), 1, f);
   fwrite(int_data, sizeof(PetscVTKInt), nCells, f);
 
-  ierr = DMBFGetVTKTreeIDs(dm, int_data, nCells);
-  CHKERRQ(ierr);
+  PetscCall(DMBFGetVTKTreeIDs(dm, int_data, nCells));
   fwrite(&bytes, sizeof(PetscVTKInt), 1, f);
   fwrite(int_data, sizeof(PetscVTKInt), nCells, f);
 
-  ierr = DMBFGetVTKQuadRefinementLevel(dm, int_data, nCells);
-  CHKERRQ(ierr);
+  PetscCall(DMBFGetVTKQuadRefinementLevel(dm, int_data, nCells));
   fwrite(&bytes, sizeof(PetscVTKInt), 1, f);
   fwrite(int_data, sizeof(PetscVTKInt), nCells, f);
 
@@ -498,29 +449,26 @@ static PetscErrorCode DMBFVTKWritePiece_VTU(DM dm, PetscViewer viewer)
 
     if ((link->ft != PETSC_VTK_CELL_FIELD) && (link->ft != PETSC_VTK_CELL_VECTOR_FIELD)) continue;
     if (((PetscObject)v)->name || link != vtk->link) { /* If the object is already named, use it. If it is past the first link, name it to disambiguate. */
-      ierr = PetscObjectGetName((PetscObject)v, &vecname);
-      CHKERRQ(ierr);
+      PetscCall(PetscObjectGetName((PetscObject)v, &vecname));
     }
 
     if (link->ft == PETSC_VTK_CELL_FIELD) {
       /* TODO: does not handle complex case: see plexvtu.c */
       /* TODO: PetscVTUReal or PetscReal? */
-      /* ierr = VecGetArray(v,&sdata);CHKERRQ(ierr);
+      /* PetscCall(VecGetArray(v,&sdata);CHKERRQ(ierr));
       for(PetscInt i = 0; i < nCells; i++) {
         float_data[i] = (PetscVTUReal) sdata[i];
-      }       ierr = VecRestoreArrayRead(v,&sdata);CHKERRQ(ierr); */
+      }       PetscCall(VecRestoreArrayRead(v,&sdata);CHKERRQ(ierr)); */
 
       bytes     = PetscVTKIntCast(sizeof(PetscVTUReal) * nCells);
       write_ret = fwrite(&bytes, sizeof(PetscVTKInt), 1, f);
       PetscCheck(write_ret == 1, PETSC_COMM_SELF, PETSC_ERR_FILE_WRITE, "VTK write failed");
 
-      ierr = VecGetArrayRead(v, &vec_data);
-      CHKERRQ(ierr);
+      PetscCall(VecGetArrayRead(v, &vec_data));
       for (PetscInt i = 0; i < nCells; i++) { float_data[i] = PetscRealPart(vec_data[i]); }
       write_ret = fwrite(float_data, sizeof(PetscVTUReal), nCells, f);
       PetscCheck(write_ret == (size_t)nCells, PETSC_COMM_SELF, PETSC_ERR_FILE_WRITE, "Vec write to VTU failed");
-      ierr = VecRestoreArrayRead(v, &vec_data);
-      CHKERRQ(ierr);
+      PetscCall(VecRestoreArrayRead(v, &vec_data));
 
     } else if (link->ft == PETSC_VTK_CELL_VECTOR_FIELD) {
       bytes     = PetscVTKIntCast(3 * sizeof(PetscVTUReal) * nCells);
@@ -528,8 +476,7 @@ static PetscErrorCode DMBFVTKWritePiece_VTU(DM dm, PetscViewer viewer)
 
       PetscCheck(write_ret == 1, PETSC_COMM_SELF, PETSC_ERR_FILE_WRITE, "VTK write failed");
 
-      ierr = VecGetArrayRead(v, &vec_data);
-      CHKERRQ(ierr);
+      PetscCall(VecGetArrayRead(v, &vec_data));
       if (P4EST_DIM == 2) {
         for (PetscInt i = 0; i < nCells; i++) {
           float_data[3 * i + 0] = PetscRealPart(vec_data[2 * i + 0]);
@@ -544,22 +491,19 @@ static PetscErrorCode DMBFVTKWritePiece_VTU(DM dm, PetscViewer viewer)
         }
       }
       write_ret = fwrite(float_data, sizeof(PetscVTUReal), 3 * nCells, f);
-      ierr      = VecRestoreArrayRead(v, &vec_data);
-      CHKERRQ(ierr);
+      PetscCall(VecRestoreArrayRead(v, &vec_data));
 
       PetscCheck(write_ret == (size_t)(3 * nCells), PETSC_COMM_SELF, PETSC_ERR_FILE_WRITE, "Vec write to VTU failed");
     }
   }
 
-  ierr = PetscFPrintf(PETSC_COMM_SELF, f, "\n  </AppendedData>\n");
-  CHKERRQ(ierr);
-  ierr = PetscFPrintf(PETSC_COMM_SELF, f, "</VTKFile>\n");
-  CHKERRQ(ierr);
+  PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "\n  </AppendedData>\n"));
+  PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "</VTKFile>\n"));
 
   // destroy workspace
-  ierr = PetscFree(float_data);
-  ierr = PetscFree(int_data);
-  ierr = PetscFree(type_data);
+  PetscCall(PetscFree(float_data));
+  PetscCall(PetscFree(int_data));
+  PetscCall(PetscFree(type_data));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -573,7 +517,6 @@ static
   PetscViewer_VTK         *vtk = (PetscViewer_VTK *)viewer->data;
   PetscViewerVTKObjectLink link;
   FILE                    *f;
-  PetscErrorCode           ierr;
   const char              *byte_order = PetscBinaryBigEndian() ? "BigEndian" : "LittleEndian";
   char                     gfname[PETSC_MAX_PATH_LEN];
   char                     noext[PETSC_MAX_PATH_LEN];
@@ -582,8 +525,7 @@ static
 
   PetscFunctionBegin;
 
-  ierr = DMBFVTKWritePiece_VTU(dm, viewer);
-  CHKERRQ(ierr);
+  PetscCall(DMBFVTKWritePiece_VTU(dm, viewer));
 
   PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
   PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD, &size));
@@ -593,35 +535,22 @@ static
       if (vtk->filename[n] == '.') break;
     }
 
-    ierr = PetscStrncpy(noext, vtk->filename, n + 1);
-    CHKERRQ(ierr);
-    ierr = PetscSNPrintf(gfname, sizeof(gfname), "%s.pvtu", noext);
-    CHKERRQ(ierr);
-    ierr = PetscFOpen(PETSC_COMM_SELF, gfname, "wb", &f);
-    CHKERRQ(ierr);
-    ierr = PetscFPrintf(PETSC_COMM_SELF, f, "<?xml version=\"1.0\"?>\n");
-    CHKERRQ(ierr);
-    ierr = PetscFPrintf(PETSC_COMM_SELF, f, "<VTKFile type=\"PUnstructuredGrid\" version=\"0.1\" byte_order=\"%s\">\n", byte_order);
-    CHKERRQ(ierr);
-    ierr = PetscFPrintf(PETSC_COMM_SELF, f, "  <PUnstructuredGrid GhostLevel=\"0\">\n");
-    CHKERRQ(ierr);
-    ierr = PetscFPrintf(PETSC_COMM_SELF, f, "    <PPoints>\n");
-    CHKERRQ(ierr);
-    ierr = PetscFPrintf(PETSC_COMM_SELF, f,
-                        "      <PDataArray type=\"%s\" Name=\"Position\""
-                        " NumberOfComponents=\"3\" format=\"appended\"  />\n",
-                        precision);
-    CHKERRQ(ierr);
-    ierr = PetscFPrintf(PETSC_COMM_SELF, f, "    </PPoints>\n");
-    CHKERRQ(ierr);
-    ierr = PetscFPrintf(PETSC_COMM_SELF, f, "    <PCellData>\n");
-    CHKERRQ(ierr);
-    ierr = PetscFPrintf(PETSC_COMM_SELF, f, "      <PDataArray type=\"Int32\" Name=\"Rank\" NumberOfComponents=\"1\" format=\"appended\" />\n");
-    CHKERRQ(ierr);
-    ierr = PetscFPrintf(PETSC_COMM_SELF, f, "      <PDataArray type=\"Int32\" Name=\"TreeID\" NumberOfComponents=\"1\" format=\"appended\" />\n");
-    CHKERRQ(ierr);
-    ierr = PetscFPrintf(PETSC_COMM_SELF, f, "      <PDataArray type=\"Int32\" Name=\"Level\" NumberOfComponents=\"1\" format=\"appended\" />\n");
-    CHKERRQ(ierr);
+    PetscCall(PetscStrncpy(noext, vtk->filename, n + 1));
+    PetscCall(PetscSNPrintf(gfname, sizeof(gfname), "%s.pvtu", noext));
+    PetscCall(PetscFOpen(PETSC_COMM_SELF, gfname, "wb", &f));
+    PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "<?xml version=\"1.0\"?>\n"));
+    PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "<VTKFile type=\"PUnstructuredGrid\" version=\"0.1\" byte_order=\"%s\">\n", byte_order));
+    PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "  <PUnstructuredGrid GhostLevel=\"0\">\n"));
+    PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "    <PPoints>\n"));
+    PetscCall(PetscFPrintf(PETSC_COMM_SELF, f,
+                           "      <PDataArray type=\"%s\" Name=\"Position\""
+                           " NumberOfComponents=\"3\" format=\"appended\"  />\n",
+                           precision));
+    PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "    </PPoints>\n"));
+    PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "    <PCellData>\n"));
+    PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "      <PDataArray type=\"Int32\" Name=\"Rank\" NumberOfComponents=\"1\" format=\"appended\" />\n"));
+    PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "      <PDataArray type=\"Int32\" Name=\"TreeID\" NumberOfComponents=\"1\" format=\"appended\" />\n"));
+    PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "      <PDataArray type=\"Int32\" Name=\"Level\" NumberOfComponents=\"1\" format=\"appended\" />\n"));
 
     for (link = vtk->link; link; link = link->next) {
       const char *vecname = "";
@@ -629,24 +558,21 @@ static
 
       if ((link->ft != PETSC_VTK_CELL_FIELD) && (link->ft != PETSC_VTK_CELL_VECTOR_FIELD)) continue;
       if (((PetscObject)v)->name || link != vtk->link) { /* If the object is already named, use it. If it is past the first link, name it to disambiguate. */
-        ierr = PetscObjectGetName((PetscObject)v, &vecname);
-        CHKERRQ(ierr);
+        PetscCall(PetscObjectGetName((PetscObject)v, &vecname));
       }
 
       if (link->ft == PETSC_VTK_CELL_FIELD) {
         /* TODO? does not handle complex case: see plexvtu.c */
-        ierr = PetscFPrintf(PETSC_COMM_SELF, f, "      <PDataArray type=\"%s\" Name=\"%s\" NumberOfComponents=\"1\" format=\"appended\" />\n", precision, vecname);
-        CHKERRQ(ierr);
+        PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "      <PDataArray type=\"%s\" Name=\"%s\" NumberOfComponents=\"1\" format=\"appended\" />\n", precision, vecname));
       } else if (link->ft == PETSC_VTK_CELL_VECTOR_FIELD) {
-        ierr = PetscFPrintf(PETSC_COMM_SELF, f, "      <PDataArray type=\"%s\" Name=\"%s\" NumberOfComponents=\"3\" format=\"appended\" />\n", precision, vecname);
-        CHKERRQ(ierr);
+        PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "      <PDataArray type=\"%s\" Name=\"%s\" NumberOfComponents=\"3\" format=\"appended\" />\n", precision, vecname));
       }
     }
 
-    ierr = PetscFPrintf(PETSC_COMM_SELF, f, "    </PCellData>\n");
-    for (PetscVTKInt r = 0; r < size; r++) { ierr = PetscFPrintf(PETSC_COMM_SELF, f, "    <Piece Source=\"%s_%04d.vtu\"/>\n", noext, r); }
-    ierr = PetscFPrintf(PETSC_COMM_SELF, f, "  </PUnstructuredGrid>\n");
-    ierr = PetscFPrintf(PETSC_COMM_SELF, f, "</VTKFile>");
+    PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "    </PCellData>\n"));
+    for (PetscVTKInt r = 0; r < size; r++) { PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "    <Piece Source=\"%s_%04d.vtu\"/>\n", noext, r)); }
+    PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "  </PUnstructuredGrid>\n"));
+    PetscCall(PetscFPrintf(PETSC_COMM_SELF, f, "</VTKFile>"));
   }
 
   PetscFunctionReturn(PETSC_SUCCESS);
