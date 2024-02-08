@@ -391,7 +391,7 @@ static PetscErrorCode MatMult_LMVMCDDFP(Mat B, Vec X, Vec Z)
 
   /* Reordering rwork1, as STY is in history order, while Y is in recycled order */
   if (ldfp->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, rwork1, ldfp->num_updates, ldfp->cyclic_work_vec));
-  PetscCall(MatUpperTriangularSolveInPlace(B, ldfp->YtS_triu, rwork1, PETSC_TRUE, ldfp->num_updates, ldfp->strategy));
+  PetscCall(MatUpperTriangularSolveInPlace(B, ldfp->YtS_triu, rwork1, PETSC_FALSE, ldfp->num_updates, ldfp->strategy));
   PetscCall(VecScaleAsync_Private(rwork1, -1.0, dctx));
   if (ldfp->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(B, rwork1, ldfp->num_updates, ldfp->cyclic_work_vec));
 
@@ -406,7 +406,7 @@ static PetscErrorCode MatMult_LMVMCDDFP(Mat B, Vec X, Vec Z)
   ldfp->St_count++;
 
   if (ldfp->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, rwork1, ldfp->num_updates, ldfp->cyclic_work_vec));
-  PetscCall(MatUpperTriangularSolveInPlace(B, ldfp->YtS_triu, rwork1, PETSC_FALSE, ldfp->num_updates, ldfp->strategy));
+  PetscCall(MatUpperTriangularSolveInPlace(B, ldfp->YtS_triu, rwork1, PETSC_TRUE, ldfp->num_updates, ldfp->strategy));
   PetscCall(VecScaleAsync_Private(rwork1, -1.0, dctx));
   if (ldfp->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(B, rwork1, ldfp->num_updates, ldfp->cyclic_work_vec));
 
@@ -505,6 +505,7 @@ static PetscErrorCode MatUpdate_LMVMCDDFP(Mat B, Vec X, Vec F)
         }
         PetscCall(VecGetLocalSize(ldfp->YtXprev, &local_n));
         PetscCall(VecGetArrayAndMemType(ldfp->YtXprev, &YtXprev, &memtype));
+
         if (local_n) {
           if (PetscMemTypeHost(memtype)) {
             YtXprev[idx] = ytXprev;
@@ -516,17 +517,18 @@ static PetscErrorCode MatUpdate_LMVMCDDFP(Mat B, Vec X, Vec F)
         }
         PetscCall(VecRestoreArrayAndMemType(ldfp->YtXprev, &YtXprev));
 
+        // Now YtXprev is updated for the new Y vector.  Write -YtXprev into the appropriate row
+        PetscCall(MatDenseGetColumnVecWrite(ldfp->YtS_triu, YtSidx, &this_sy_col));
+        //PetscCall(VecAXPBYAsync_Private(this_sy_col, -1.0, 0.0, ldfp->YtXprev, dctx));
+        PetscCall(MatMultTransposeColumnRange(ldfp->Yfull, lmvm->Xprev, this_sy_col, 0, h_new));
 
         // Now compute the new YtXprev
         PetscCall(MatMultTransposeColumnRange(ldfp->Yfull, X, ldfp->YtXprev, 0, h_new));
         ldfp->Yt_count++;
 
-        // Now YtXprev is updated for the new Y vector.  Write -YtXprev into the appropriate row
-        PetscCall(MatDenseGetColumnVecWrite(ldfp->YtS_triu, YtSidx, &this_sy_col));
-        PetscCall(VecAXPBYAsync_Private(this_sy_col, -1.0, 0.0, ldfp->YtXprev, dctx));
-
         // Now add StFprev: this_sy_col == Y^T (X - Xprev) == Y^T s
-        PetscCall(VecAXPYAsync_Private(this_sy_col, 1.0, ldfp->YtXprev, dctx));
+        //PetscCall(VecAXPBYAsync_Private(this_sy_col, 1.0, 0.0, ldfp->YtXprev, dctx));
+        //PetscCall(VecAXPYAsync_Private(this_sy_col, 1.0, ldfp->YtXprev, dctx));
 
         if (ldfp->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, this_sy_col, ldfp->num_updates, ldfp->cyclic_work_vec));
         PetscCall(MatDenseRestoreColumnVecWrite(ldfp->YtS_triu, YtSidx, &this_sy_col));
