@@ -108,18 +108,18 @@ static PetscErrorCode set_NAN_coordinates_cellfn(DM dm, DM_BF_Cell *cell, void *
 {
   size_t i, j, k; // indices for centers
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   for (i = ILO_GUARD; i < IHI_GUARD; i++) cell->data[CELLDATA_XC][i] = NAN;
   for (j = JLO_GUARD; j < JHI_GUARD; j++) cell->data[CELLDATA_YC][j] = NAN;
   for (k = KLO_GUARD; k < KHI_GUARD; k++) cell->data[CELLDATA_ZC][k] = NAN;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode print_coordinates_cellfn(DM dm, DM_BF_Cell *cell, void *ctx)
 {
   size_t i, j, k; // indices for centers
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   PetscPrintf(PETSC_COMM_SELF, "%s: cell global index %i\n", __func__, cell->indexGlobal);
   PetscPrintf(PETSC_COMM_SELF, "  xc  i=[%i..%i] ", ILO_GUARD, IHI_GUARD);
   for (i = ILO_GUARD; i < IHI_GUARD; i++) { PetscPrintf(PETSC_COMM_SELF, "%g ", cell->data[CELLDATA_XC][i]); }
@@ -128,7 +128,7 @@ PetscErrorCode print_coordinates_cellfn(DM dm, DM_BF_Cell *cell, void *ctx)
   PetscPrintf(PETSC_COMM_SELF, "\n  zc  k=[%i..%i] ", KLO_GUARD, KHI_GUARD);
   for (k = KLO_GUARD; k < KHI_GUARD; k++) { PetscPrintf(PETSC_COMM_SELF, "%g ", cell->data[CELLDATA_ZC][k]); }
   PetscPrintf(PETSC_COMM_SELF, "\n");
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode setup_coordinates_cellfn(DM dm, DM_BF_Cell *cell, void *ctx)
@@ -147,8 +147,8 @@ static PetscErrorCode setup_coordinates_cellfn(DM dm, DM_BF_Cell *cell, void *ct
   size_t i, j, k;    // indices for centers
   size_t i0, j0, k0; // indices beginning at zero
 
-  PetscFunctionBegin;
-  CHKERRQ(set_NAN_coordinates_cellfn(dm, cell, ctx));
+  PetscFunctionBeginUser;
+  PetscCall(set_NAN_coordinates_cellfn(dm, cell, ctx));
   // calculate centered coordinates
   for (i = ILO; i < IHI; i++) {
     i0                         = i - ILO;
@@ -162,7 +162,7 @@ static PetscErrorCode setup_coordinates_cellfn(DM dm, DM_BF_Cell *cell, void *ct
     k0                         = k - KLO;
     cell->data[CELLDATA_ZC][k] = (PetscScalar)(((PetscReal)k0 + 0.5) * hz * z_length + z_corner);
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode setup_coordinates_guard_layer_facefn(DM dm, DM_BF_Face *face, void *ctx)
@@ -177,7 +177,7 @@ static PetscErrorCode setup_coordinates_guard_layer_facefn(DM dm, DM_BF_Face *fa
   // indices
   size_t cellId;
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   if (isHangingL) {
     scaleL = 2.0;
     scaleR = 0.5;
@@ -231,15 +231,15 @@ static PetscErrorCode setup_coordinates_guard_layer_facefn(DM dm, DM_BF_Face *fa
   default:
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Unknown face direction %i", face->dir);
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode setup_coordinates(DM dm)
 {
-  PetscFunctionBegin;
-  CHKERRQ(DMBFIterateOverCells(dm, setup_coordinates_cellfn, PETSC_NULLPTR));
-  CHKERRQ(DMBFIterateOverFaces(dm, setup_coordinates_guard_layer_facefn, PETSC_NULLPTR));
-  PetscFunctionReturn(0);
+  PetscFunctionBeginUser;
+  PetscCall(DMBFIterateOverCells(dm, setup_coordinates_cellfn, PETSC_NULLPTR));
+  PetscCall(DMBFIterateOverFaces(dm, setup_coordinates_guard_layer_facefn, PETSC_NULLPTR));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /***************************************
@@ -253,16 +253,16 @@ static PetscErrorCode set_NAN_unknowns_cellfn(DM dm, DM_BF_Cell *cell, void *ctx
   // indices
   size_t idx;
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   for (idx = 0; idx < NZ_GUARD * NY_GUARD * NX_GUARD; idx++) unk[idx] = NAN;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode set_NAN_unknowns(DM dm)
 {
-  PetscFunctionBegin;
-  CHKERRQ(DMBFIterateOverCells(dm, set_NAN_unknowns_cellfn, PETSC_NULLPTR));
-  PetscFunctionReturn(0);
+  PetscFunctionBeginUser;
+  PetscCall(DMBFIterateOverCells(dm, set_NAN_unknowns_cellfn, PETSC_NULLPTR));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode print_unknowns_cellfn(DM dm, DM_BF_Cell *cell, void *ctx)
@@ -273,7 +273,7 @@ PetscErrorCode print_unknowns_cellfn(DM dm, DM_BF_Cell *cell, void *ctx)
   size_t k, i;    // indices for centers
   int    jSigned; // indices for centers
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   PetscPrintf(PETSC_COMM_SELF, "%s: cell global index %i\n", __func__, cell->indexGlobal);
   for (k = KLO_GUARD; k < KHI_GUARD; k++) {
     // Note: loop backwards over signed integer to avoid wrapping behavior
@@ -284,7 +284,7 @@ PetscErrorCode print_unknowns_cellfn(DM dm, DM_BF_Cell *cell, void *ctx)
     }
     PetscPrintf(PETSC_COMM_SELF, "\n");
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode set_unknowns_cellfn(DM dm, DM_BF_Cell *cell, void *ctx)
@@ -296,7 +296,7 @@ static PetscErrorCode set_unknowns_cellfn(DM dm, DM_BF_Cell *cell, void *ctx)
   size_t i, j, k;    // indices for centers
   size_t i0, j0, k0; // indices beginning at zero
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   for (k = KLO; k < KHI; k++) {
     k0 = k - KLO;
     for (j = JLO; j < JHI; j++) {
@@ -307,7 +307,7 @@ static PetscErrorCode set_unknowns_cellfn(DM dm, DM_BF_Cell *cell, void *ctx)
       }
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode get_unknowns_cellfn(DM dm, DM_BF_Cell *cell, void *ctx)
@@ -319,7 +319,7 @@ static PetscErrorCode get_unknowns_cellfn(DM dm, DM_BF_Cell *cell, void *ctx)
   size_t i, j, k;    // indices for centers
   size_t i0, j0, k0; // indices beginning at zero
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   for (k = KLO; k < KHI; k++) {
     k0 = k - KLO;
     for (j = JLO; j < JHI; j++) {
@@ -330,21 +330,21 @@ static PetscErrorCode get_unknowns_cellfn(DM dm, DM_BF_Cell *cell, void *ctx)
       }
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode set_unknowns(DM dm, Vec unk)
 {
-  PetscFunctionBegin;
-  CHKERRQ(DMBFIterateOverCellsVectors(dm, set_unknowns_cellfn, PETSC_NULLPTR, &unk, 1, PETSC_NULLPTR, 0));
-  PetscFunctionReturn(0);
+  PetscFunctionBeginUser;
+  PetscCall(DMBFIterateOverCellsVectors(dm, set_unknowns_cellfn, PETSC_NULLPTR, &unk, 1, PETSC_NULLPTR, 0));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode get_unknowns(DM dm, Vec unk)
 {
-  PetscFunctionBegin;
-  CHKERRQ(DMBFIterateOverCellsVectors(dm, get_unknowns_cellfn, PETSC_NULLPTR, PETSC_NULLPTR, 0, &unk, 1));
-  PetscFunctionReturn(0);
+  PetscFunctionBeginUser;
+  PetscCall(DMBFIterateOverCellsVectors(dm, get_unknowns_cellfn, PETSC_NULLPTR, PETSC_NULLPTR, 0, &unk, 1));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 typedef struct _p_set_unknowns_from_function_ctx {
@@ -363,24 +363,24 @@ static PetscErrorCode set_unknowns_from_function_cellfn(DM dm, DM_BF_Cell *cell,
   // indices
   size_t i, j, k; // indices for centers
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   for (k = KLO; k < KHI; k++) {
     for (j = JLO; j < JHI; j++) {
       for (i = ILO; i < IHI; i++) { unk[k * NJG + j * NIG + i] = c->fn(xc[i], yc[j], zc[k], c->time); }
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode set_unknowns_from_function(DM dm, SpaceTimeFn_3D fn, PetscReal time)
 {
   set_unknowns_from_function_ctx_t callback_ctx;
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   callback_ctx.fn   = fn;
   callback_ctx.time = time;
-  CHKERRQ(DMBFIterateOverCells(dm, set_unknowns_from_function_cellfn, &callback_ctx));
-  PetscFunctionReturn(0);
+  PetscCall(DMBFIterateOverCells(dm, set_unknowns_from_function_cellfn, &callback_ctx));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode fill_unknowns_guard_layer_facefn(DM dm, DM_BF_Face *face, void *ctx)
@@ -395,7 +395,7 @@ static PetscErrorCode fill_unknowns_guard_layer_facefn(DM dm, DM_BF_Face *face, 
   // indices
   size_t i, j, k; // indices for centers
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   if (isBoundary) {
     PetscScalar *xc, *yc, *zc, *unk;
 
@@ -682,7 +682,7 @@ static PetscErrorCode fill_unknowns_guard_layer_facefn(DM dm, DM_BF_Face *face, 
       SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Unknown face direction %i", face->dir);
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /***************************************
@@ -722,7 +722,7 @@ static PetscErrorCode apply_operator_cellfn(DM dm, DM_BF_Cell *cell, void *ctx)
   // indices
   size_t i, j, k; // indices for centers
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   // compute along x-direction
   for (k = KLO; k < KHI; k++) {
     for (j = JLO; j < JHI; j++) {
@@ -776,24 +776,19 @@ static PetscErrorCode apply_operator_cellfn(DM dm, DM_BF_Cell *cell, void *ctx)
       }
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode apply_operator(DM dm)
 {
-  AppCtx        *ctx;
-  PetscErrorCode ierr;
+  AppCtx *ctx;
 
-  PetscFunctionBegin;
-  ierr = DMGetApplicationContext(dm, &ctx);
-  CHKERRQ(ierr);
-  ierr = DMBFCommunicateGhostCells(dm);
-  CHKERRQ(ierr);
-  ierr = DMBFIterateOverFaces(dm, fill_unknowns_guard_layer_facefn, ctx);
-  CHKERRQ(ierr);
-  ierr = DMBFIterateOverCells(dm, apply_operator_cellfn, ctx);
-  CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionBeginUser;
+  PetscCall(DMGetApplicationContext(dm, &ctx));
+  PetscCall(DMBFCommunicateGhostCells(dm));
+  PetscCall(DMBFIterateOverFaces(dm, fill_unknowns_guard_layer_facefn, ctx));
+  PetscCall(DMBFIterateOverCells(dm, apply_operator_cellfn, ctx));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /***************************************
@@ -810,7 +805,7 @@ static PetscErrorCode amr_refine_at_initial_condition(DM dm, DM_BF_Cell *cell, v
   // indices
   size_t i, j, k; // indices for centers
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   // check if any x-coordinate is inside sphere of refinement
   flagx = DM_ADAPT_KEEP;
   for (i = ILO; i < IHI; i++) {
@@ -832,7 +827,7 @@ static PetscErrorCode amr_refine_at_initial_condition(DM dm, DM_BF_Cell *cell, v
   } else {
     cell->adaptFlag = DM_ADAPT_KEEP;
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /**
@@ -849,9 +844,9 @@ static PetscErrorCode amr_project(DM dm, DM_BF_Cell **origCells, PetscInt nOrigC
   size_t i, j, k; // indices for centers
   size_t cellId;
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   for (cellId = 0; cellId < nProjCells; cellId++) {
-    CHKERRQ(setup_coordinates_cellfn(dm, projCells[cellId], ctx));
+    PetscCall(setup_coordinates_cellfn(dm, projCells[cellId], ctx));
     xc  = projCells[cellId]->data[CELLDATA_XC];
     yc  = projCells[cellId]->data[CELLDATA_YC];
     zc  = projCells[cellId]->data[CELLDATA_ZC];
@@ -862,13 +857,13 @@ static PetscErrorCode amr_project(DM dm, DM_BF_Cell **origCells, PetscInt nOrigC
       }
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode amr_project_no_op(DM dm, DM_BF_Cell **origCells, PetscInt nOrigCells, DM_BF_Cell **projCells, PetscInt nProjCells, void *ctx)
 {
-  PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionBeginUser;
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode amr_flag_logDR(DM dm, DM_BF_Cell *cell, void *ctx)
@@ -883,7 +878,7 @@ static PetscErrorCode amr_flag_logDR(DM dm, DM_BF_Cell *cell, void *ctx)
   // indices
   size_t i, j, k; // indices for centers
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   // compute min and max magnitudes inside the cell
   magn_min = magn_max = PetscAbsScalar(unk[KLO * NJG + JLO * NIG + ILO]);
   for (k = KLO; k < KHI; k++) {
@@ -908,7 +903,7 @@ static PetscErrorCode amr_flag_logDR(DM dm, DM_BF_Cell *cell, void *ctx)
   if (indicator < tol_lo) cell->adaptFlag = DM_ADAPT_COARSEN;
   else if (tol_hi < indicator) cell->adaptFlag = DM_ADAPT_REFINE;
   else cell->adaptFlag = DM_ADAPT_KEEP;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /***************************************
@@ -917,28 +912,20 @@ static PetscErrorCode amr_flag_logDR(DM dm, DM_BF_Cell *cell, void *ctx)
 
 static PetscErrorCode visualize_timestep(MPI_Comm comm, Vec sol, PetscInt timestep)
 {
-  PetscViewer    viewer;
-  char           filepath[PETSC_MAX_PATH_LEN];
-  PetscErrorCode ierr;
+  PetscViewer viewer;
+  char        filepath[PETSC_MAX_PATH_LEN];
 
-  PetscFunctionBegin;
-  ierr = PetscSNPrintf(filepath, sizeof(filepath), "ex3_solution_ts%04i.vtu", timestep);
-  CHKERRQ(ierr);
+  PetscFunctionBeginUser;
+  PetscCall(PetscSNPrintf(filepath, sizeof(filepath), "ex3_solution_ts%04i.vtu", timestep));
 
-  ierr = PetscViewerCreate(comm, &viewer);
-  CHKERRQ(ierr);
-  ierr = PetscViewerSetType(viewer, PETSCVIEWERVTK);
-  CHKERRQ(ierr);
-  ierr = PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
-  CHKERRQ(ierr);
-  ierr = PetscViewerFileSetName(viewer, filepath);
-  CHKERRQ(ierr);
-  ierr = VecView(sol, viewer);
-  CHKERRQ(ierr);
+  PetscCall(PetscViewerCreate(comm, &viewer));
+  PetscCall(PetscViewerSetType(viewer, PETSCVIEWERVTK));
+  PetscCall(PetscViewerFileSetMode(viewer, FILE_MODE_WRITE));
+  PetscCall(PetscViewerFileSetName(viewer, filepath));
+  PetscCall(VecView(sol, viewer));
 
-  ierr = PetscViewerDestroy(&viewer);
-  CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(PetscViewerDestroy(&viewer));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 typedef struct _p_compute_error_ctx {
@@ -963,7 +950,7 @@ static PetscErrorCode compute_error_at_timestep_cellfn(DM dm, DM_BF_Cell *cell, 
   // indices
   size_t i, j, k; // indices for centers
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   for (k = KLO; k < KHI; k++) {
     for (j = JLO; j < JHI; j++) {
       for (i = ILO; i < IHI; i++) {
@@ -974,32 +961,27 @@ static PetscErrorCode compute_error_at_timestep_cellfn(DM dm, DM_BF_Cell *cell, 
       }
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode compute_error_at_timestep(DM dm, SpaceTimeFn_3D exact, PetscReal time, PetscReal *error_abs, PetscReal *error_rel)
 {
   MPI_Comm            dmComm;
   PetscReal           error_glo, exact_glo;
-  PetscErrorCode      ierr;
   compute_error_ctx_t callback_ctx;
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   callback_ctx.fn            = exact;
   callback_ctx.time          = time;
   callback_ctx.error_sum_loc = 0.0;
   callback_ctx.exact_sum_loc = 0.0;
-  ierr                       = DMBFIterateOverCells(dm, compute_error_at_timestep_cellfn, &callback_ctx);
-  CHKERRQ(ierr);
-  ierr = PetscObjectGetComm((PetscObject)dm, &dmComm);
-  CHKERRQ(ierr);
-  ierr = MPIU_Allreduce(&callback_ctx.error_sum_loc, &error_glo, 1, MPIU_REAL, MPI_SUM, dmComm);
-  CHKERRMPI(ierr);
-  ierr = MPIU_Allreduce(&callback_ctx.exact_sum_loc, &exact_glo, 1, MPIU_REAL, MPI_SUM, dmComm);
-  CHKERRMPI(ierr);
+  PetscCall(DMBFIterateOverCells(dm, compute_error_at_timestep_cellfn, &callback_ctx));
+  PetscCall(PetscObjectGetComm((PetscObject)dm, &dmComm));
+  PetscCallMPI(MPIU_Allreduce(&callback_ctx.error_sum_loc, &error_glo, 1, MPIU_REAL, MPI_SUM, dmComm));
+  PetscCallMPI(MPIU_Allreduce(&callback_ctx.exact_sum_loc, &exact_glo, 1, MPIU_REAL, MPI_SUM, dmComm));
   if (error_abs) { *error_abs = PetscSqrtReal(error_glo); }
   if (error_rel) { *error_rel = PetscSqrtReal(error_glo) / exact_glo; }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode evolve(DM *dm, PetscInt n_timesteps, Vec *sol, PetscBool useInit)
@@ -1011,13 +993,10 @@ PetscErrorCode evolve(DM *dm, PetscInt n_timesteps, Vec *sol, PetscBool useInit)
   const PetscBool write_vis = PETSC_TRUE;
   PetscInt        timestep;
   PetscReal       error_abs, error_rel;
-  PetscErrorCode  ierr;
 
-  PetscFunctionBegin;
-  ierr = PetscObjectGetComm((PetscObject)*dm, &dmComm);
-  CHKERRQ(ierr);
-  ierr = DMGetApplicationContext(*dm, &ctx);
-  CHKERRQ(ierr);
+  PetscFunctionBeginUser;
+  PetscCall(PetscObjectGetComm((PetscObject)*dm, &dmComm));
+  PetscCall(DMGetApplicationContext(*dm, &ctx));
   // setup dynamic AMR
   amrOps.setAmrFlag         = amr_flag_logDR;
   amrOps.setAmrFlagCtx      = PETSC_NULLPTR;
@@ -1025,63 +1004,45 @@ PetscErrorCode evolve(DM *dm, PetscInt n_timesteps, Vec *sol, PetscBool useInit)
   amrOps.projectToFine      = amr_project;
   amrOps.projectToFineCtx   = ctx;
   amrOps.projectToCoarseCtx = ctx;
-  ierr                      = DMBFAMRSetOperators(*dm, &amrOps);
-  CHKERRQ(ierr);
+  PetscCall(DMBFAMRSetOperators(*dm, &amrOps));
   // set initial condition
-  if (useInit) {
-    ierr = set_unknowns(*dm, *sol);
-    CHKERRQ(ierr);
-  }
+  if (useInit) { PetscCall(set_unknowns(*dm, *sol)); }
   // run time steps
   for (timestep = 0; timestep < n_timesteps; timestep++) {
-    ierr = compute_error_at_timestep(*dm, ctx->exact, ctx->time, &error_abs, &error_rel);
-    CHKERRQ(ierr);
+    PetscCall(compute_error_at_timestep(*dm, ctx->exact, ctx->time, &error_abs, &error_rel));
     PetscPrintf(PETSC_COMM_WORLD, "[%s] %4i time step, t=%.8f, dt=%g, L2-norm error abs=%.4e rel=%.4e\n", __func__, timestep, ctx->time, ctx->dt, error_abs, error_rel);
     if (!(timestep % ctx->dynamic_amr_freq)) { // if perform AMR
-      ierr = VecDestroy(sol);
-      CHKERRQ(ierr);
+      PetscCall(VecDestroy(sol));
 
       PetscPrintf(PETSC_COMM_WORLD, "[%s] Run dynamic AMR\n", __func__);
-      ierr = DMBFAMRFlag(*dm);
-      CHKERRQ(ierr);
-      ierr = DMBFAMRAdapt(*dm, &adapt);
-      CHKERRQ(ierr);
-      ierr = DMDestroy(dm);
-      CHKERRQ(ierr);
+      PetscCall(DMBFAMRFlag(*dm));
+      PetscCall(DMBFAMRAdapt(*dm, &adapt));
+      PetscCall(DMDestroy(dm));
       *dm = adapt;
 
       // re-set DM context
-      ierr = DMSetApplicationContext(*dm, ctx);
-      CHKERRQ(ierr);
+      PetscCall(DMSetApplicationContext(*dm, ctx));
       // re-initialize coordinates
-      ierr = setup_coordinates(*dm);
+      PetscCall(setup_coordinates(*dm));
       // re-create solution vector
-      ierr = DMCreateGlobalVector(*dm, sol);
-      CHKERRQ(ierr);
-      ierr = PetscObjectSetName((PetscObject)*sol, "solution");
-      CHKERRQ(ierr);
+      PetscCall(DMCreateGlobalVector(*dm, sol));
+      PetscCall(PetscObjectSetName((PetscObject)*sol, "solution"));
     }
     if (write_vis) { // if write vis files
-      ierr = get_unknowns(*dm, *sol);
-      CHKERRQ(ierr);
-      ierr = visualize_timestep(dmComm, *sol, timestep);
-      CHKERRQ(ierr);
+      PetscCall(get_unknowns(*dm, *sol));
+      PetscCall(visualize_timestep(dmComm, *sol, timestep));
     }
-    ierr = apply_operator(*dm);
-    CHKERRQ(ierr);
+    PetscCall(apply_operator(*dm));
     ctx->time += ctx->dt;
   }
-  ierr = compute_error_at_timestep(*dm, ctx->exact, ctx->time, &error_abs, &error_rel);
-  CHKERRQ(ierr);
+  PetscCall(compute_error_at_timestep(*dm, ctx->exact, ctx->time, &error_abs, &error_rel));
   PetscPrintf(PETSC_COMM_WORLD, "[%s] %4i time step, t=%.8f, dt=%g, L2-norm error abs=%.4e rel=%.4e\n", __func__, timestep, ctx->time, ctx->dt, error_abs, error_rel);
   // store solution
-  ierr = get_unknowns(*dm, *sol);
-  CHKERRQ(ierr);
+  PetscCall(get_unknowns(*dm, *sol));
   if (write_vis) { // if write vis files
-    ierr = visualize_timestep(dmComm, *sol, timestep);
-    CHKERRQ(ierr);
+    PetscCall(visualize_timestep(dmComm, *sol, timestep));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /***************************************
@@ -1121,32 +1082,28 @@ int main(int argc, char **argv)
   PetscReal      max_time = 1.5;
   Vec            sol;
   AppCtx         ctx;
-  PetscErrorCode ierr;
+  PetscErrorCode init_ierr;
 
   // initialize Petsc
-  ierr = PetscInitialize(&argc, &argv, (char *)0, help);
-  if (ierr) return ierr;
+  PetscFunctionBeginUser;
+  init_ierr = PetscInitialize(&argc, &argv, (char *)0, help);
+  if (PETSC_SUCCESS != init_ierr) { return init_ierr; }
 
+  // begin main
   PetscPrintf(PETSC_COMM_WORLD, "[%s] Begin\n", funcname);
 
   // create DM
   PetscPrintf(PETSC_COMM_WORLD, "[%s] Create DM\n", funcname);
-  ierr = DMCreate(PETSC_COMM_WORLD, &dm);
-  CHKERRQ(ierr);
-  ierr = DMSetType(dm, "bf");
-  CHKERRQ(ierr);
+  PetscCall(DMCreate(PETSC_COMM_WORLD, &dm));
+  PetscCall(DMSetType(dm, "bf"));
 
   // set DM options
-  ierr = DMSetDimension(dm, 3);
-  CHKERRQ(ierr);
-  ierr = DMSetFromOptions(dm);
-  CHKERRQ(ierr);
+  PetscCall(DMSetDimension(dm, 3));
+  PetscCall(DMSetFromOptions(dm));
   // set cell data shapes
-  ierr = DMBFSetCellDataShape(dm, CELLDATA_SHAPE, CELLDATA_N_, CELLDATA_D_);
-  CHKERRQ(ierr);
-  //ierr = DMBFSetCellDataVSize(dm,sizeof(cellData_t));CHKERRQ(ierr); //TODO unused at the moment
-  ierr = DMBFSetBlockSize(dm, blockSize);
-  CHKERRQ(ierr);
+  PetscCall(DMBFSetCellDataShape(dm, CELLDATA_SHAPE, CELLDATA_N_, CELLDATA_D_));
+  //PetscCall(DMBFSetCellDataVSize(dm,sizeof(cellData_t))); //TODO unused at the moment
+  PetscCall(DMBFSetBlockSize(dm, blockSize));
 
   // set application-specific data
   ctx.bc               = g;
@@ -1154,22 +1111,17 @@ int main(int argc, char **argv)
   ctx.exact            = u;
   ctx.time             = 0.0;
   ctx.dynamic_amr_freq = 5;
-  ierr                 = PetscMalloc2(NX_GUARD * NY_GUARD * NZ_GUARD, &ctx.buffer1, NX_GUARD * NY_GUARD * NZ_GUARD, &ctx.buffer2);
-  CHKERRQ(ierr);
-  ierr = DMSetApplicationContext(dm, &ctx);
-  CHKERRQ(ierr);
+  PetscCall(PetscMalloc2(NX_GUARD * NY_GUARD * NZ_GUARD, &ctx.buffer1, NX_GUARD * NY_GUARD * NZ_GUARD, &ctx.buffer2));
+  PetscCall(DMSetApplicationContext(dm, &ctx));
 
   // setup DM
-  ierr = DMSetUp(dm);
-  CHKERRQ(ierr);
+  PetscCall(DMSetUp(dm));
 
   // initialize coordinates
-  ierr = setup_coordinates(dm);
+  PetscCall(setup_coordinates(dm));
   // initialize unknowns
-  ierr = set_NAN_unknowns(dm);
-  CHKERRQ(ierr);
-  ierr = set_unknowns_from_function(dm, u, 0.0 /*time*/);
-  CHKERRQ(ierr);
+  PetscCall(set_NAN_unknowns(dm));
+  PetscCall(set_unknowns_from_function(dm, u, 0.0 /*time*/));
 
   // run initial AMR
   {
@@ -1183,38 +1135,29 @@ int main(int argc, char **argv)
     amrOps.projectToFine      = amr_project_no_op;
     amrOps.projectToFineCtx   = PETSC_NULLPTR;
     amrOps.projectToCoarseCtx = PETSC_NULLPTR;
-    ierr                      = DMBFAMRSetOperators(dm, &amrOps);
-    CHKERRQ(ierr);
+    PetscCall(DMBFAMRSetOperators(dm, &amrOps));
 
     for (amr_step = 0; amr_step < n_amr_steps; amr_step++) {
       PetscPrintf(PETSC_COMM_WORLD, "[%s] Run initial AMR step %i of %i\n", funcname, amr_step, n_amr_steps);
-      ierr = DMBFAMRFlag(dm);
-      CHKERRQ(ierr);
-      ierr = DMBFAMRAdapt(dm, &adapt);
-      CHKERRQ(ierr);
-      ierr = DMDestroy(&dm);
-      CHKERRQ(ierr);
+      PetscCall(DMBFAMRFlag(dm));
+      PetscCall(DMBFAMRAdapt(dm, &adapt));
+      PetscCall(DMDestroy(&dm));
       dm = adapt;
 
       // re-set DM context
-      ierr = DMSetApplicationContext(dm, &ctx);
-      CHKERRQ(ierr);
+      PetscCall(DMSetApplicationContext(dm, &ctx));
       // re-initialize coordinates
-      ierr = setup_coordinates(dm);
+      PetscCall(setup_coordinates(dm));
       // re-initialize unknowns
-      ierr = set_NAN_unknowns(dm);
-      CHKERRQ(ierr);
-      ierr = set_unknowns_from_function(dm, u, 0.0 /*time*/);
-      CHKERRQ(ierr);
+      PetscCall(set_NAN_unknowns(dm));
+      PetscCall(set_unknowns_from_function(dm, u, 0.0 /*time*/));
     }
     PetscPrintf(PETSC_COMM_WORLD, "[%s] Finished initial AMR (%i steps)\n", funcname, amr_step);
   }
 
   // create solution vector
-  ierr = DMCreateGlobalVector(dm, &sol);
-  CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject)sol, "solution");
-  CHKERRQ(ierr);
+  PetscCall(DMCreateGlobalVector(dm, &sol));
+  PetscCall(PetscObjectSetName((PetscObject)sol, "solution"));
 
   // set time step and number of steps
   {
@@ -1222,10 +1165,8 @@ int main(int argc, char **argv)
     PetscInt  maxlevel, n = 6;
     PetscBool isset;
 
-    ierr = PetscOptionsGetRealArray(PETSC_NULLPTR, PETSC_NULLPTR, "-dm_p4est_brick_bounds", B, &n, &isset);
-    CHKERRQ(ierr);
-    ierr = DMForestGetMaximumRefinement(dm, &maxlevel);
-    CHKERRQ(ierr);
+    PetscCall(PetscOptionsGetRealArray(PETSC_NULLPTR, PETSC_NULLPTR, "-dm_p4est_brick_bounds", B, &n, &isset));
+    PetscCall(DMForestGetMaximumRefinement(dm, &maxlevel));
     hx = (B[1] - B[0]) / (PetscPowReal(2.0, maxlevel) * NX);
     hy = (B[3] - B[2]) / (PetscPowReal(2.0, maxlevel) * NY);
     hz = (B[5] - B[4]) / (PetscPowReal(2.0, maxlevel) * NZ);
@@ -1239,31 +1180,26 @@ int main(int argc, char **argv)
     ctx.dt *= 0.5; // reduce dt such that CFL<1
     PetscPrintf(PETSC_COMM_WORLD, "[%s] Compute dt=%g\n", funcname, ctx.dt);
 
-    ierr = PetscOptionsGetReal(PETSC_NULLPTR, PETSC_NULLPTR, "-max_time", &max_time, &isset);
-    CHKERRQ(ierr);
+    PetscCall(PetscOptionsGetReal(PETSC_NULLPTR, PETSC_NULLPTR, "-max_time", &max_time, &isset));
     n_timesteps = (PetscInt)PetscCeilReal(max_time / ctx.dt);
     PetscPrintf(PETSC_COMM_WORLD, "[%s] Max time=%g, number of time steps=%i\n", funcname, max_time, n_timesteps);
   }
 
   // run time steps
   PetscPrintf(PETSC_COMM_WORLD, "[%s] Evolve in time\n", funcname);
-  ierr = evolve(&dm, n_timesteps, &sol, 0 /*don't use sol as initial condition*/);
-  CHKERRQ(ierr);
+  PetscCall(evolve(&dm, n_timesteps, &sol, 0 /*don't use sol as initial condition*/));
 
   // destroy Petsc objects
-  ierr = VecDestroy(&sol);
-  CHKERRQ(ierr);
-  ierr = DMDestroy(&dm);
-  CHKERRQ(ierr);
-  ierr = PetscFree2(ctx.buffer1, ctx.buffer2);
-  CHKERRQ(ierr);
+  PetscCall(VecDestroy(&sol));
+  PetscCall(DMDestroy(&dm));
+  PetscCall(PetscFree2(ctx.buffer1, ctx.buffer2));
 
+  // end main
   PetscPrintf(PETSC_COMM_WORLD, "[%s] End\n", funcname);
 
   // finalize Petsc
-  ierr = PetscFinalize();
-  CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(PetscFinalize());
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*

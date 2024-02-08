@@ -27,64 +27,54 @@ int main(int argc, char **argv)
   DMType         dmtype;
   Vec            v;
   Mat            A;
-  PetscErrorCode ierr;
+  PetscErrorCode init_ierr;
 
   // initialize Petsc
-  ierr = PetscInitialize(&argc, &argv, (char *)0, help);
-  if (ierr) return ierr;
+  PetscFunctionBeginUser;
+  init_ierr = PetscInitialize(&argc, &argv, (char *)0, help);
+  if (PETSC_SUCCESS != init_ierr) { return init_ierr; }
 
+  // begin main
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] Begin\n", _name));
 
   // create DM
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] Create DM\n", _name));
-  ierr = DMCreate(PETSC_COMM_WORLD, &dm);
-  CHKERRQ(ierr);
-  ierr = DMSetType(dm, "bf");
-  CHKERRQ(ierr);
+  PetscCall(DMCreate(PETSC_COMM_WORLD, &dm));
+  PetscCall(DMSetType(dm, "bf"));
   // set DM options
-  ierr = DMSetDimension(dm, 3);
-  CHKERRQ(ierr);
-  ierr = DMSetFromOptions(dm);
-  CHKERRQ(ierr);
+  PetscCall(DMSetDimension(dm, 3));
+  PetscCall(DMSetFromOptions(dm));
   // print DM type
-  ierr = DMGetType(dm, &dmtype);
-  CHKERRQ(ierr);
+  PetscCall(DMGetType(dm, &dmtype));
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] DM type = %s\n", _name, dmtype));
 
   // set cell data shapes
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] Set cell data shape\n", _name));
-  ierr = DMBFSetCellDataShape(dm, CELLDATA_SHAPE, CELLDATA_N_, CELLDATA_D_);
-  CHKERRQ(ierr);
+  PetscCall(DMBFSetCellDataShape(dm, CELLDATA_SHAPE, CELLDATA_N_, CELLDATA_D_));
   // check cell data shapes
   {
     PetscInt *shapeElements = PETSC_NULLPTR;
     PetscInt  n, d, i, j;
 
-    ierr = DMBFGetCellDataShape(dm, &shapeElements, &n, &d);
-    CHKERRQ(ierr);
+    PetscCall(DMBFGetCellDataShape(dm, &shapeElements, &n, &d));
     PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] Shape elements dim=(%" PetscInt_FMT ",%" PetscInt_FMT ")\n", _name, n, d));
     for (i = 0; i < n; i++) {
       PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s]   %" PetscInt_FMT ": ", _name, i));
       for (j = 0; j < d; j++) { PetscCall(PetscPrintf(PETSC_COMM_WORLD, "%" PetscInt_FMT " ", shapeElements[i * d + j])); }
       PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\n"));
     }
-    if (shapeElements) {
-      ierr = PetscFree(shapeElements);
-      CHKERRQ(ierr);
-    }
+    if (shapeElements) { PetscCall(PetscFree(shapeElements)); }
   }
 
   // setup DM
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] Set up DM\n", _name));
-  ierr = DMSetUp(dm);
-  CHKERRQ(ierr);
+  PetscCall(DMSetUp(dm));
 
   // print info
   {
     PetscInt dim, n, N, ng;
 
-    ierr = DMBFGetInfo(dm, &dim, &n, &N, &ng);
-    CHKERRQ(ierr);
+    PetscCall(DMBFGetInfo(dm, &dim, &n, &N, &ng));
     PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] Info about the DM\n", _name));
     PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] - dimension              = %" PetscInt_FMT "\n", _name, dim));
     PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] - number of local cells  = %" PetscInt_FMT "\n", _name, n));
@@ -94,29 +84,23 @@ int main(int argc, char **argv)
 
   // create derived objects
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] Create vectors\n", _name));
-  ierr = DMCreateGlobalVector(dm, &v);
-  CHKERRQ(ierr);
+  PetscCall(DMCreateGlobalVector(dm, &v));
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] Create matrices\n", _name));
-  ierr = DMSetMatType(dm, MATSHELL);
-  CHKERRQ(ierr);
-  ierr = DMCreateMatrix(dm, &A);
-  CHKERRQ(ierr);
+  PetscCall(DMSetMatType(dm, MATSHELL));
+  PetscCall(DMCreateMatrix(dm, &A));
 
   // destroy objects
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] Destroy\n", _name));
-  ierr = MatDestroy(&A);
-  CHKERRQ(ierr);
-  ierr = VecDestroy(&v);
-  CHKERRQ(ierr);
-  ierr = DMDestroy(&dm);
-  CHKERRQ(ierr);
+  PetscCall(MatDestroy(&A));
+  PetscCall(VecDestroy(&v));
+  PetscCall(DMDestroy(&dm));
 
+  // end main
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] End\n", _name));
 
   // finalize Petsc
-  ierr = PetscFinalize();
-  CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(PetscFinalize());
+  return 0;
 }
 
 /*TEST

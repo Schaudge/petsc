@@ -91,9 +91,9 @@ typedef struct {
 
 PetscErrorCode init_cell_data(DM dm, DM_BF_Cell *cell, void *ctx)
 {
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
-  CHKERRQ(PetscArrayzero(cell->data[STENCIL], STENCIL_LEN));
+  PetscCall(PetscArrayzero(cell->data[STENCIL], STENCIL_LEN));
 
   cell->data[CENTER_COORD_X][0] = cell->corner[0] + .5 * cell->sidelength[0];
   cell->data[CENTER_COORD_Y][0] = cell->corner[1] + .5 * cell->sidelength[1];
@@ -120,14 +120,14 @@ PetscErrorCode init_cell_data(DM dm, DM_BF_Cell *cell, void *ctx)
   cell->data[FACE_COORD_Z][FACE_ZL] = cell->corner[2];
   cell->data[FACE_COORD_Z][FACE_ZR] = cell->corner[2] + cell->sidelength[2];
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode print_cell_data(DM dm, DM_BF_Cell *cell, void *ctx)
 {
   size_t i, j, k;
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
   PetscPrintf(PETSC_COMM_SELF, "%s: cell global index %i\n", __func__, cell->indexGlobal);
   PetscPrintf(PETSC_COMM_SELF, "  adaptFlag %i\n", cell->adaptFlag);
@@ -151,7 +151,7 @@ PetscErrorCode print_cell_data(DM dm, DM_BF_Cell *cell, void *ctx)
   for (k = 0; k < N_FACE_COORDS_Z; k++) { PetscPrintf(PETSC_COMM_SELF, "%g ", cell->data[FACE_COORD_Z][k]); }
   PetscPrintf(PETSC_COMM_SELF, "\n");
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode set_up_boundary_condition(DM dm, DM_BF_Face *face, void *ctx)
@@ -163,7 +163,7 @@ PetscErrorCode set_up_boundary_condition(DM dm, DM_BF_Face *face, void *ctx)
   const PetscScalar hz         = cell->data[FACE_COORD_Z][FACE_ZR] - cell->data[FACE_COORD_Z][FACE_ZL];
   PetscBool         isBoundary = (DM_BF_FACEBOUNDARY_NONE != face->boundary);
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
   if (isBoundary) {
     PetscScalar h, bndryFaceMidpoint_x, bndryFaceMidpoint_y, bndryFaceMidpoint_z;
@@ -190,7 +190,7 @@ PetscErrorCode set_up_boundary_condition(DM dm, DM_BF_Face *face, void *ctx)
     cell->data[STENCIL][CENTER] += -2 * user->bc(bndryFaceMidpoint_x, bndryFaceMidpoint_y, bndryFaceMidpoint_z) / (h * h);
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode interpolate_source(DM dm, DM_BF_Cell *cell, void *ctx)
@@ -201,11 +201,11 @@ PetscErrorCode interpolate_source(DM dm, DM_BF_Cell *cell, void *ctx)
   PetscScalar  y            = cell->data[CENTER_COORD_Y][0];
   PetscScalar  z            = cell->data[CENTER_COORD_Z][0];
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
   *readWriteVal = user->src(x, y, z) + cell->data[STENCIL][CENTER];
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode interpolate_exact(DM dm, DM_BF_Cell *cell, void *ctx)
@@ -216,22 +216,22 @@ PetscErrorCode interpolate_exact(DM dm, DM_BF_Cell *cell, void *ctx)
   PetscScalar  y            = cell->data[CENTER_COORD_Y][0];
   PetscScalar  z            = cell->data[CENTER_COORD_Z][0];
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
   *readWriteVal = user->bc(x, y, z);
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode _p_dmbf_poisson_set_unk_cellfn(DM dm, DM_BF_Cell *cell, void *ctx)
 {
   const PetscScalar *vecReadVal = cell->vecViewRead[0];
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
   cell->data[STENCIL][CENTER] = *vecReadVal;
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -257,7 +257,7 @@ static PetscErrorCode _p_dmbf_poisson_set_guards_facefn(DM dm, DM_BF_Face *face,
   const PetscBool X_DIR      = (face->dir == DM_BF_FACEDIR_XNEG || face->dir == DM_BF_FACEDIR_XPOS);
   const PetscBool Z_DIR      = (face->dir == DM_BF_FACEDIR_ZNEG || face->dir == DM_BF_FACEDIR_ZPOS);
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
   if (isBoundary) {
     DM_BF_Cell *cell               = nCellsL ? face->cellL[0] : face->cellR[0];
@@ -323,7 +323,7 @@ static PetscErrorCode _p_dmbf_poisson_set_guards_facefn(DM dm, DM_BF_Face *face,
     }
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode apply_mass_matrix(DM dm, DM_BF_Cell *cell, void *ctx)
@@ -334,9 +334,9 @@ PetscErrorCode apply_mass_matrix(DM dm, DM_BF_Cell *cell, void *ctx)
   const PetscScalar mass         = hx * hy * hz;
   PetscScalar      *valReadWrite = cell->vecViewReadWrite[0];
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   *valReadWrite *= mass;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode _p_dmbf_poisson_apply_operator_cellfn(DM dm, DM_BF_Cell *cell, void *ctx)
@@ -346,44 +346,34 @@ static PetscErrorCode _p_dmbf_poisson_apply_operator_cellfn(DM dm, DM_BF_Cell *c
   const PetscScalar hz           = cell->data[FACE_COORD_Z][FACE_ZR] - cell->data[FACE_COORD_Z][FACE_ZL];
   PetscScalar      *valReadWrite = cell->vecViewReadWrite[0];
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   *valReadWrite = (cell->data[STENCIL][GUARD_XL] - 2 * cell->data[STENCIL][CENTER] + cell->data[STENCIL][GUARD_XR]) / (hx * hx) + (cell->data[STENCIL][GUARD_YL] - 2 * cell->data[STENCIL][CENTER] + cell->data[STENCIL][GUARD_YR]) / (hy * hy) +
                   (cell->data[STENCIL][GUARD_ZL] - 2 * cell->data[STENCIL][CENTER] + cell->data[STENCIL][GUARD_ZR]) / (hz * hz);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode apply_operator_dm(DM dm, Vec in, Vec out)
 {
-  AppCtx        *user;
-  PetscErrorCode ierr;
+  AppCtx *user;
 
-  PetscFunctionBegin;
-  ierr = DMGetApplicationContext(dm, &user);
-  CHKERRQ(ierr);
-  ierr = DMBFIterateOverCellsVectors(dm, _p_dmbf_poisson_set_unk_cellfn, user, &in, 1, PETSC_NULLPTR, 0);
-  CHKERRQ(ierr);
-  ierr = DMBFCommunicateGhostCells(dm);
-  CHKERRQ(ierr);
-  ierr = DMBFIterateOverFaces(dm, _p_dmbf_poisson_set_guards_facefn, user);
-  CHKERRQ(ierr);
-  ierr = DMBFIterateOverCellsVectors(dm, _p_dmbf_poisson_apply_operator_cellfn, user, PETSC_NULLPTR, 0, &out, 1);
-  CHKERRQ(ierr);
-  ierr = DMBFIterateOverCellsVectors(dm, apply_mass_matrix, user, PETSC_NULLPTR, 0, &out, 1);
-  CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionBeginUser;
+  PetscCall(DMGetApplicationContext(dm, &user));
+  PetscCall(DMBFIterateOverCellsVectors(dm, _p_dmbf_poisson_set_unk_cellfn, user, &in, 1, PETSC_NULLPTR, 0));
+  PetscCall(DMBFCommunicateGhostCells(dm));
+  PetscCall(DMBFIterateOverFaces(dm, _p_dmbf_poisson_set_guards_facefn, user));
+  PetscCall(DMBFIterateOverCellsVectors(dm, _p_dmbf_poisson_apply_operator_cellfn, user, PETSC_NULLPTR, 0, &out, 1));
+  PetscCall(DMBFIterateOverCellsVectors(dm, apply_mass_matrix, user, PETSC_NULLPTR, 0, &out, 1));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode apply_operator_mf(Mat K, Vec in, Vec out)
 {
-  DM             dm;
-  PetscErrorCode ierr;
+  DM dm;
 
-  PetscFunctionBegin;
-  ierr = MatGetDM(K, &dm);
-  CHKERRQ(ierr);
-  ierr = apply_operator_dm(dm, in, out);
-  CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionBeginUser;
+  PetscCall(MatGetDM(K, &dm));
+  PetscCall(apply_operator_dm(dm, in, out));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static inline PetscScalar g(PetscScalar x, PetscScalar y, PetscScalar z)
@@ -405,19 +395,19 @@ PetscErrorCode amr_refine_center(DM dm, DM_BF_Cell *cell, void *ctx)
   PetscScalar y = PetscMin(PetscAbs(cell->corner[1]), PetscAbs(cell->corner[1] + cell->sidelength[1]));
   PetscScalar r = PetscSqrtReal(PetscSqr(x) + PetscSqr(y));
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   if (r < 5 * 1e-2) {
     cell->adaptFlag = DM_ADAPT_REFINE;
   } else {
     cell->adaptFlag = DM_ADAPT_KEEP;
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode proj_no_op(DM dm, DM_BF_Cell **cellsFine, PetscInt i, DM_BF_Cell **cellsCoarse, PetscInt j, void *ctx)
 {
-  PetscFunctionBegin;
-  PetscFunctionReturn(0);
+  PetscFunctionBeginUser;
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 int main(int argc, char **argv)
@@ -430,38 +420,33 @@ int main(int argc, char **argv)
   PetscReal      inf_norm, l2_norm;
   AppCtx         ctx;
   PetscViewer    viewer;
-  PetscErrorCode ierr;
+  PetscErrorCode init_ierr;
 
   // initialize Petsc
-  ierr = PetscInitialize(&argc, &argv, (char *)0, help);
-  if (ierr) return ierr;
+  PetscFunctionBeginUser;
+  init_ierr = PetscInitialize(&argc, &argv, (char *)0, help);
+  if (PETSC_SUCCESS != init_ierr) { return init_ierr; }
 
+  // begin main
   PetscPrintf(PETSC_COMM_WORLD, "[%s] Begin\n", funcname);
 
   // create DM
   PetscPrintf(PETSC_COMM_WORLD, "[%s] Create DM\n", funcname);
-  ierr = DMCreate(PETSC_COMM_WORLD, &dm);
-  CHKERRQ(ierr);
-  ierr = DMSetType(dm, "bf");
-  CHKERRQ(ierr);
+  PetscCall(DMCreate(PETSC_COMM_WORLD, &dm));
+  PetscCall(DMSetType(dm, "bf"));
 
   // set DM options
-  ierr = DMSetDimension(dm, 3);
-  CHKERRQ(ierr);
-  ierr = DMSetFromOptions(dm);
-  CHKERRQ(ierr);
+  PetscCall(DMSetDimension(dm, 3));
+  PetscCall(DMSetFromOptions(dm));
   // set cell data shapes
-  ierr = DMBFSetCellDataShape(dm, CELLDATA_SHAPE, CELLDATA_N_FIELDS, 2);
-  CHKERRQ(ierr);
-  //ierr = DMBFSetCellDataVSize(dm,sizeof(cellData_t));CHKERRQ(ierr); //TODO unused at the moment
+  PetscCall(DMBFSetCellDataShape(dm, CELLDATA_SHAPE, CELLDATA_N_FIELDS, 2));
+  //PetscCall(DMBFSetCellDataVSize(dm,sizeof(cellData_t))); //TODO unused at the moment
 
   // set application-specific data
-  ierr = DMSetApplicationContext(dm, &ctx);
-  CHKERRQ(ierr);
+  PetscCall(DMSetApplicationContext(dm, &ctx));
 
   // setup DM
-  ierr = DMSetUp(dm);
-  CHKERRQ(ierr);
+  PetscCall(DMSetUp(dm));
 
   // run initial AMR
   {
@@ -476,133 +461,85 @@ int main(int argc, char **argv)
     amrOps.projectToFineCtx   = PETSC_NULLPTR;
     amrOps.projectToCoarseCtx = PETSC_NULLPTR;
 
-    ierr = DMBFAMRSetOperators(dm, &amrOps);
-    CHKERRQ(ierr);
+    PetscCall(DMBFAMRSetOperators(dm, &amrOps));
 
-    ierr = DMForestGetInitialRefinement(dm, &initRefinement);
-    CHKERRQ(ierr);
-    ierr = DMForestGetMaximumRefinement(dm, &maxRefinement);
-    CHKERRQ(ierr);
+    PetscCall(DMForestGetInitialRefinement(dm, &initRefinement));
+    PetscCall(DMForestGetMaximumRefinement(dm, &maxRefinement));
 
     for (l = 0; l < maxRefinement - initRefinement; l++) {
       PetscPrintf(PETSC_COMM_WORLD, "[%s] Run initial AMR (step %i of max %i)\n", funcname, l + 1, maxRefinement - initRefinement);
-      ierr = DMBFAMRFlag(dm);
-      CHKERRQ(ierr);
-      ierr = DMBFAMRAdapt(dm, &adapt);
-      CHKERRQ(ierr);
-      ierr = DMDestroy(&dm);
-      CHKERRQ(ierr);
+      PetscCall(DMBFAMRFlag(dm));
+      PetscCall(DMBFAMRAdapt(dm, &adapt));
+      PetscCall(DMDestroy(&dm));
       dm = adapt;
     }
     if (l) { PetscPrintf(PETSC_COMM_WORLD, "[%s] Finished initial AMR (%i steps)\n", funcname, l); }
   }
 
   // initialize cell data
-  ierr = DMBFIterateOverCells(dm, init_cell_data, PETSC_NULLPTR);
-  CHKERRQ(ierr);
+  PetscCall(DMBFIterateOverCells(dm, init_cell_data, PETSC_NULLPTR));
 
   ctx.src = f;
   ctx.bc  = g;
 
   // create vectors
-  ierr = DMCreateGlobalVector(dm, &sol);
-  CHKERRQ(ierr);
-  ierr = VecDuplicate(sol, &rhs);
-  CHKERRQ(ierr);
-  ierr = VecDuplicate(sol, &exact);
-  CHKERRQ(ierr);
+  PetscCall(DMCreateGlobalVector(dm, &sol));
+  PetscCall(VecDuplicate(sol, &rhs));
+  PetscCall(VecDuplicate(sol, &exact));
 
-  ierr = PetscObjectSetName((PetscObject)sol, "sol");
-  CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject)rhs, "rhs");
-  CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject)exact, "exact");
-  CHKERRQ(ierr);
+  PetscCall(PetscObjectSetName((PetscObject)sol, "sol"));
+  PetscCall(PetscObjectSetName((PetscObject)rhs, "rhs"));
+  PetscCall(PetscObjectSetName((PetscObject)exact, "exact"));
 
-  ierr = DMBFIterateOverFaces(dm, set_up_boundary_condition, &ctx);
-  CHKERRQ(ierr);
-  ierr = DMBFIterateOverCellsVectors(dm, interpolate_source, &ctx, PETSC_NULLPTR, 0, &rhs, 1);
-  CHKERRQ(ierr);
+  PetscCall(DMBFIterateOverFaces(dm, set_up_boundary_condition, &ctx));
+  PetscCall(DMBFIterateOverCellsVectors(dm, interpolate_source, &ctx, PETSC_NULLPTR, 0, &rhs, 1));
 
-  ierr = DMSetMatType(dm, MATSHELL);
-  CHKERRQ(ierr);
-  ierr = DMCreateMatrix(dm, &A);
-  CHKERRQ(ierr);
-  ierr = MatSetOperation(A, MATOP_MULT, (void (*)(void))apply_operator_mf);
-  CHKERRQ(ierr);
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
-  CHKERRQ(ierr);
-  ierr = PetscViewerSetType(viewer, PETSCVIEWERVTK);
-  CHKERRQ(ierr);
-  ierr = PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
-  CHKERRQ(ierr);
-  ierr = PetscViewerFileSetName(viewer, "ex2_solution.vtu");
-  CHKERRQ(ierr);
-  ierr = VecView(rhs, viewer);
-  CHKERRQ(ierr);
+  PetscCall(DMSetMatType(dm, MATSHELL));
+  PetscCall(DMCreateMatrix(dm, &A));
+  PetscCall(MatSetOperation(A, MATOP_MULT, (void (*)(void))apply_operator_mf));
+  PetscCall(PetscViewerCreate(PETSC_COMM_WORLD, &viewer));
+  PetscCall(PetscViewerSetType(viewer, PETSCVIEWERVTK));
+  PetscCall(PetscViewerFileSetMode(viewer, FILE_MODE_WRITE));
+  PetscCall(PetscViewerFileSetName(viewer, "ex2_solution.vtu"));
+  PetscCall(VecView(rhs, viewer));
 
-  ierr = KSPCreate(PETSC_COMM_WORLD, &ksp);
-  CHKERRQ(ierr);
-  ierr = KSPSetOperators(ksp, A, A);
-  CHKERRQ(ierr);
-  ierr = KSPSetFromOptions(ksp);
-  CHKERRQ(ierr);
-  ierr = DMBFIterateOverCellsVectors(dm, apply_mass_matrix, &ctx, PETSC_NULLPTR, 0, &rhs, 1);
-  CHKERRQ(ierr);
-  ierr = KSPSolve(ksp, rhs, sol);
-  CHKERRQ(ierr);
+  PetscCall(KSPCreate(PETSC_COMM_WORLD, &ksp));
+  PetscCall(KSPSetOperators(ksp, A, A));
+  PetscCall(KSPSetFromOptions(ksp));
+  PetscCall(DMBFIterateOverCellsVectors(dm, apply_mass_matrix, &ctx, PETSC_NULLPTR, 0, &rhs, 1));
+  PetscCall(KSPSolve(ksp, rhs, sol));
 
-  ierr = VecView(sol, viewer);
-  CHKERRQ(ierr);
-  ierr = DMBFIterateOverCellsVectors(dm, interpolate_exact, &ctx, PETSC_NULLPTR, 0, &exact, 1);
-  CHKERRQ(ierr);
-  ierr = VecView(exact, viewer);
-  CHKERRQ(ierr);
-  ierr = VecAXPY(exact, -1, sol);
-  CHKERRQ(ierr);
+  PetscCall(VecView(sol, viewer));
+  PetscCall(DMBFIterateOverCellsVectors(dm, interpolate_exact, &ctx, PETSC_NULLPTR, 0, &exact, 1));
+  PetscCall(VecView(exact, viewer));
+  PetscCall(VecAXPY(exact, -1, sol));
   error = exact;
-  ierr  = PetscObjectSetName((PetscObject)error, "error");
-  CHKERRQ(ierr);
-  ierr = VecAbs(error);
-  CHKERRQ(ierr);
-  ierr = VecView(error, viewer);
-  CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);
-  CHKERRQ(ierr);
+  PetscCall(PetscObjectSetName((PetscObject)error, "error"));
+  PetscCall(VecAbs(error));
+  PetscCall(VecView(error, viewer));
+  PetscCall(PetscViewerDestroy(&viewer));
 
-  ierr = VecNorm(error, NORM_INFINITY, &inf_norm);
-  CHKERRQ(ierr);
-  ierr = VecCopy(error, rhs);
-  CHKERRQ(ierr);
-  ierr = DMBFIterateOverCellsVectors(dm, apply_mass_matrix, &ctx, PETSC_NULLPTR, 0, &error, 1);
-  CHKERRQ(ierr);
-  ierr = VecDot(error, rhs, &l2_norm);
-  CHKERRQ(ierr);
+  PetscCall(VecNorm(error, NORM_INFINITY, &inf_norm));
+  PetscCall(VecCopy(error, rhs));
+  PetscCall(DMBFIterateOverCellsVectors(dm, apply_mass_matrix, &ctx, PETSC_NULLPTR, 0, &error, 1));
+  PetscCall(VecDot(error, rhs, &l2_norm));
   l2_norm = PetscSqrtReal(l2_norm);
-  ierr    = PetscPrintf(PETSC_COMM_WORLD, "[%s] Linf error: %1.15f\n", funcname, inf_norm);
-  CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "[%s] L2 error:   %1.15f\n", funcname, l2_norm);
-  CHKERRQ(ierr);
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] Linf error: %1.15f\n", funcname, inf_norm));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "[%s] L2 error:   %1.15f\n", funcname, l2_norm));
 
   // destroy Petsc objects
-  ierr = VecDestroy(&sol);
-  CHKERRQ(ierr);
-  ierr = VecDestroy(&rhs);
-  CHKERRQ(ierr);
-  ierr = VecDestroy(&exact);
-  CHKERRQ(ierr);
-  ierr = MatDestroy(&A);
-  CHKERRQ(ierr);
-  ierr = DMDestroy(&dm);
-  CHKERRQ(ierr);
-  ierr = KSPDestroy(&ksp);
-  CHKERRQ(ierr);
+  PetscCall(VecDestroy(&sol));
+  PetscCall(VecDestroy(&rhs));
+  PetscCall(VecDestroy(&exact));
+  PetscCall(MatDestroy(&A));
+  PetscCall(DMDestroy(&dm));
+  PetscCall(KSPDestroy(&ksp));
 
+  // end main
   PetscPrintf(PETSC_COMM_WORLD, "[%s] End\n", funcname);
 
   // finalize Petsc
-  ierr = PetscFinalize();
-  CHKERRQ(ierr);
+  PetscCall(PetscFinalize());
   PetscFunctionReturn(0);
 }
 
