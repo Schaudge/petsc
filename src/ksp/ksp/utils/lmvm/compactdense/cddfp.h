@@ -10,10 +10,12 @@ typedef struct {
   PetscInt  num_updates;
   PetscInt  num_mult_updates;
   Mat       Sfull, Yfull, HY; // Stored in recycled order
-  Mat       StY_triu;        // triu(StY) is the R matrix
   Vec       StFprev;
   Vec       YtXprev;
-  Mat       YtS_triu_strict; // strict_triu(YtS) is the L^T matrix
+//  Mat       StY_triu;        // triu(StY) is the R matrix
+//  Mat       YtS_triu_strict; // strict_triu(YtS) is the L^T matrix
+  Mat       YtS_triu;        // strict_triu(YtS) is the R matrix
+  Mat       StY_triu_strict; // strict_triu(YtS) is the L^T matrix
   Mat       LDLt;
   Mat       YtHY;
   Mat       J;
