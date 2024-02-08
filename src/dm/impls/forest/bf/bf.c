@@ -63,7 +63,7 @@ static PetscInt _p_dim(DM dm)
 {
   PetscInt dim;
 
-  CHKERRABORT(_p_comm(dm), DMGetDimension(dm, &dim));
+  PetscCallAbort(_p_comm(dm), DMGetDimension(dm, &dim));
   return dim;
 }
 
@@ -71,7 +71,7 @@ static PetscInt _p_nCells(DM dm)
 {
   PetscInt dim, n;
 
-  CHKERRABORT(_p_comm(dm), DMBFGetInfo(dm, &dim, &n, PETSC_NULLPTR, PETSC_NULLPTR));
+  PetscCallAbort(_p_comm(dm), DMBFGetInfo(dm, &dim, &n, PETSC_NULLPTR, PETSC_NULLPTR));
   return n;
 }
 
@@ -111,7 +111,7 @@ static PetscErrorCode DMBFCheck(DM dm)
 
   PetscFunctionBegin;
   /* check type of DM */
-  CHKERRQ(PetscObjectTypeCompare((PetscObject)dm, DMBF, &isCorrectDM));
+  PetscCall(PetscObjectTypeCompare((PetscObject)dm, DMBF, &isCorrectDM));
   PetscCheck(isCorrectDM, _p_comm(dm), PETSC_ERR_ARG_WRONGSTATE, "Type of DM is %s, but has to be %s", ((PetscObject)dm)->type_name, DMBF);
   /* check cells */
   bf = _p_getBF(dm);
@@ -816,13 +816,13 @@ static PetscErrorCode DMSetFromOptions_BF(DM dm, PetscOptionItems *PetscOptionsO
   }
   //TODO
   //char              stringBuffer[256];
-  //PetscCall(PetscOptionsHead(PetscOptionsObject,"DM" P4EST_STRING " options");CHKERRQ(ierr));
-  //PetscCall(PetscOptionsBool("-dm_p4est_partition_for_coarsening","partition forest to allow for coarsening","DMP4estSetPartitionForCoarsening",pforest->partition_for_coarsening,&(pforest->partition_for_coarsening),NULL);CHKERRQ(ierr));
-  //PetscCall(PetscOptionsString("-dm_p4est_ghost_label_name","the name of the ghost label when converting from a DMPlex",NULL,NULL,stringBuffer,sizeof(stringBuffer),&flg);CHKERRQ(ierr));
-  //PetscCall(PetscOptionsTail();CHKERRQ(ierr));
+  //PetscCall(PetscOptionsHead(PetscOptionsObject,"DM" P4EST_STRING " options"));
+  //PetscCall(PetscOptionsBool("-dm_p4est_partition_for_coarsening","partition forest to allow for coarsening","DMP4estSetPartitionForCoarsening",pforest->partition_for_coarsening,&(pforest->partition_for_coarsening),NULL));
+  //PetscCall(PetscOptionsString("-dm_p4est_ghost_label_name","the name of the ghost label when converting from a DMPlex",NULL,NULL,stringBuffer,sizeof(stringBuffer),&flg));
+  //PetscCall(PetscOptionsTail());
   //if (flg) {
-  //  PetscCall(PetscFree(pforest->ghostName);CHKERRQ(ierr));
-  //  PetscCall(PetscStrallocpy(stringBuffer,&pforest->ghostName);CHKERRQ(ierr));
+  //  PetscCall(PetscFree(pforest->ghostName));
+  //  PetscCall(PetscStrallocpy(stringBuffer,&pforest->ghostName));
   //}
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1043,11 +1043,11 @@ static PetscErrorCode DMCreateGlobalVector_BF(DM dm, Vec *vec)
   PetscCall(VecSetDM(*vec, dm));
   PetscCall(VecSetOperation(*vec, VECOP_VIEW, (void (*)(void))VecView_BF));
   //TODO
-  //PetscCall(VecSetOperation(*g,VECOP_VIEW,(void (*)(void))VecView_MPI_DA);CHKERRQ(ierr));
-  //PetscCall(VecSetOperation(*vec, VECOP_VIEWNATIVE, (void (*)(void))VecView_pforest_Native);CHKERRQ(ierr));
-  //PetscCall(VecSetOperation(*g,VECOP_LOAD,(void (*)(void))VecLoad_Default_DA);CHKERRQ(ierr));
-  //PetscCall(VecSetOperation(*vec, VECOP_LOADNATIVE, (void (*)(void))VecLoad_pforest_Native);CHKERRQ(ierr));
-  //PetscCall(VecSetOperation(*g,VECOP_DUPLICATE,(void (*)(void))VecDuplicate_MPI_DA);CHKERRQ(ierr));
+  //PetscCall(VecSetOperation(*g,VECOP_VIEW,(void (*)(void))VecView_MPI_DA));
+  //PetscCall(VecSetOperation(*vec, VECOP_VIEWNATIVE, (void (*)(void))VecView_pforest_Native));
+  //PetscCall(VecSetOperation(*g,VECOP_LOAD,(void (*)(void))VecLoad_Default_DA));
+  //PetscCall(VecSetOperation(*vec, VECOP_LOADNATIVE, (void (*)(void))VecLoad_pforest_Native));
+  //PetscCall(VecSetOperation(*g,VECOP_DUPLICATE,(void (*)(void))VecDuplicate_MPI_DA));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1355,7 +1355,7 @@ static PetscErrorCode DMCoarsen_BF(DM dm, MPI_Comm comm, DM *coarseDm)
   PetscPrintf(PETSC_COMM_WORLD, "%s\n", __func__);
 #endif
   PetscValidHeaderSpecificType(dm, DM_CLASSID, 1, DMBF);
-  CHKERRQ(DMBFCheck(dm));
+  PetscCall(DMBFCheck(dm));
   {
     PetscMPIInt mpiComparison;
     MPI_Comm    dmcomm = _p_comm(dm);
@@ -1382,7 +1382,7 @@ static PetscErrorCode DMCoarsen_BF(DM dm, MPI_Comm comm, DM *coarseDm)
     _p_SETERRQ_UNREACHABLE(dm);
   }
   PetscCall(DMBFCloneFinalize(*coarseDm));
-  CHKERRQ(DMBFCheck(*coarseDm));
+  PetscCall(DMBFCheck(*coarseDm));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1396,7 +1396,7 @@ static PetscErrorCode DMRefine_BF(DM dm, MPI_Comm comm, DM *fineDm)
   PetscPrintf(PETSC_COMM_WORLD, "%s\n", __func__);
 #endif
   PetscValidHeaderSpecificType(dm, DM_CLASSID, 1, DMBF);
-  CHKERRQ(DMBFCheck(dm));
+  PetscCall(DMBFCheck(dm));
   {
     PetscMPIInt mpiComparison;
     MPI_Comm    dmcomm = _p_comm(dm);
@@ -1423,7 +1423,7 @@ static PetscErrorCode DMRefine_BF(DM dm, MPI_Comm comm, DM *fineDm)
     _p_SETERRQ_UNREACHABLE(dm);
   }
   PetscCall(DMBFCloneFinalize(*fineDm));
-  CHKERRQ(DMBFCheck(*fineDm));
+  PetscCall(DMBFCheck(*fineDm));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1446,7 +1446,7 @@ PetscErrorCode DMBFAMRFlag(DM dm)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm, DM_CLASSID, 1, DMBF);
-  CHKERRQ(DMBFCheck(dm));
+  PetscCall(DMBFCheck(dm));
   bf = _p_getBF(dm);
   PetscCheck(bf->amrOps, _p_comm(dm), PETSC_ERR_ARG_WRONGSTATE, "AMR operators do not exist");
   /* set data pointers of all ghost cells */
@@ -1469,7 +1469,7 @@ PetscErrorCode DMBFAMRAdapt(DM dm, DM *adaptedDm)
   PetscPrintf(PETSC_COMM_WORLD, "%s\n", __func__);
 #endif
   PetscValidHeaderSpecificType(dm, DM_CLASSID, 1, DMBF);
-  CHKERRQ(DMBFCheck(dm));
+  PetscCall(DMBFCheck(dm));
   PetscCall(DMBFCloneInit(dm, adaptedDm));
   PetscCall(DMForestGetMinimumRefinement(*adaptedDm, &minLevel));
   PetscCall(DMForestGetMaximumRefinement(*adaptedDm, &maxLevel));
@@ -1511,7 +1511,7 @@ PetscErrorCode DMBFAMRAdapt(DM dm, DM *adaptedDm)
   /* create forest-of-tree nodes */
   //TODO create nodes
   /* check resulting DM */
-  CHKERRQ(DMBFCheck(*adaptedDm));
+  PetscCall(DMBFCheck(*adaptedDm));
   /* mark that adapted DM is set up */
   (*adaptedDm)->setupcalled = PETSC_TRUE;
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -1550,7 +1550,7 @@ PetscErrorCode DMBFIterateOverCellsVectors(DM dm, PetscErrorCode (*iterCell)(DM,
 PetscErrorCode DMBFIterateOverCells(DM dm, PetscErrorCode (*iterCell)(DM, DM_BF_Cell *, void *), void *userIterCtx)
 {
   PetscFunctionBegin;
-  CHKERRQ(DMBFIterateOverCellsVectors(dm, iterCell, userIterCtx, PETSC_NULLPTR, 0, PETSC_NULLPTR, 0));
+  PetscCall(DMBFIterateOverCellsVectors(dm, iterCell, userIterCtx, PETSC_NULLPTR, 0, PETSC_NULLPTR, 0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1722,7 +1722,7 @@ PetscErrorCode DMBFFVMatAssemble(DM dm, Mat mat, PetscErrorCode (*iterFace)(DM, 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm, DM_CLASSID, 1, DMBF);
   PetscValidFunction(iterFace, 2);
-  CHKERRQ(DMBFCheck(dm));
+  PetscCall(DMBFCheck(dm));
   bf = _p_getBF(dm);
   PetscCall(MatZeroEntries(mat));
   switch (_p_dim(dm)) {

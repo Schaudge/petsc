@@ -455,10 +455,10 @@ static PetscErrorCode DMBFVTKWritePiece_VTU(DM dm, PetscViewer viewer)
     if (link->ft == PETSC_VTK_CELL_FIELD) {
       /* TODO: does not handle complex case: see plexvtu.c */
       /* TODO: PetscVTUReal or PetscReal? */
-      /* PetscCall(VecGetArray(v,&sdata);CHKERRQ(ierr));
+      /* PetscCall(VecGetArray(v,&sdata));
       for(PetscInt i = 0; i < nCells; i++) {
         float_data[i] = (PetscVTUReal) sdata[i];
-      }       PetscCall(VecRestoreArrayRead(v,&sdata);CHKERRQ(ierr)); */
+      }       PetscCall(VecRestoreArrayRead(v,&sdata)); */
 
       bytes     = PetscVTKIntCast(sizeof(PetscVTUReal) * nCells);
       write_ret = fwrite(&bytes, sizeof(PetscVTKInt), 1, f);

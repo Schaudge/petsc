@@ -84,6 +84,7 @@ static void _p_iterSetUp(p4est_iter_volume_info_t *info, void *ctx)
   DM_BF_SetUpCtx *iterCtx = (DM_BF_SetUpCtx *)ctx;
   DM_BF_Cell     *cell    = PETSC_NULLPTR;
 
+  PetscFunctionBegin;
   /* get cell */
   switch (iterCtx->mode) {
   case SET_DMBF_CELLS:
@@ -95,7 +96,7 @@ static void _p_iterSetUp(p4est_iter_volume_info_t *info, void *ctx)
   }
   /* get cell info */
   _p_getInfo(info->p4est, info->quad, info->treeid, info->quadid, 0, cell);
-  CHKERRV(DMBFCellInitialize(cell, iterCtx->memory));
+  PetscCallVoid(DMBFCellInitialize(cell, iterCtx->memory));
   /* assign cell to forest quadrant */
   switch (iterCtx->mode) {
   case SET_DMBF_CELLS:
@@ -104,6 +105,7 @@ static void _p_iterSetUp(p4est_iter_volume_info_t *info, void *ctx)
   case SET_P4EST_CELLS:
     break;
   }
+  PetscFunctionReturnVoid();
 }
 
   #if !defined(DMBF_XD_IterateSetUpCells)
@@ -150,7 +152,7 @@ static
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm, DM_CLASSID, 1, DMBF);
-  CHKERRQ(DMBF_XD_IterateSetUpCells(dm, PETSC_NULLPTR, cellMemoryShape));
+  PetscCall(DMBF_XD_IterateSetUpCells(dm, PETSC_NULLPTR, cellMemoryShape));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -159,7 +161,9 @@ static void _p_iterCopy(p4est_iter_volume_info_t *info, void *ctx)
   DM_BF_SetUpCtx *iterCtx = (DM_BF_SetUpCtx *)ctx;
   DM_BF_Cell     *cell    = _p_getCellPtr(iterCtx->cells, iterCtx->memory->size, info->p4est, info->treeid, info->quadid, 0 /*!ghost*/);
 
-  CHKERRV(PetscMemcpy(cell, info->quad->p.user_data, iterCtx->memory->size));
+  PetscFunctionBegin;
+  PetscCallVoid(PetscMemcpy(cell, info->quad->p.user_data, iterCtx->memory->size));
+  PetscFunctionReturnVoid();
 }
 
   #if !defined(DMBF_XD_IterateCopyP4estCells)
@@ -665,6 +669,7 @@ static void _p_iterVolume(p4est_iter_volume_info_t *info, void *ctx)
   DM_BF_CellIterCtx *iterCtx = (DM_BF_CellIterCtx *)ctx;
   DM_BF_Cell        *cell    = _p_getCellPtr(iterCtx->cells, iterCtx->cellSize, info->p4est, info->treeid, info->quadid, 0 /*!ghost*/);
 
+  PetscFunctionBegin;
   /* assign vector view to cell */
   cell->vecViewRead      = iterCtx->cellVecViewRead;
   cell->vecViewReadWrite = iterCtx->cellVecViewReadWrite;
@@ -675,6 +680,7 @@ static void _p_iterVolume(p4est_iter_volume_info_t *info, void *ctx)
   /* remove vector view from cell */
   cell->vecViewRead      = PETSC_NULLPTR;
   cell->vecViewReadWrite = PETSC_NULLPTR;
+  PetscFunctionReturnVoid();
 }
 
   #if !defined(DMBF_XD_IterateOverCellsVectors)
@@ -761,6 +767,7 @@ static void _p_iterFace(p4est_iter_face_info_t *info, void *ctx)
   const PetscBool    isBoundary = (PetscBool)(1 == info->sides.elem_count);
   PetscInt           i;
 
+  PetscFunctionBegin;
   #if defined(PETSC_USE_DEBUG)
   face->cellL[0] = PETSC_NULLPTR;
   face->cellL[1] = PETSC_NULLPTR;
@@ -811,7 +818,8 @@ static void _p_iterFace(p4est_iter_face_info_t *info, void *ctx)
     }
   }
   /* call face function */
-  CHKERRV(iterCtx->iterFace(iterCtx->dm, face, iterCtx->userIterCtx));
+  PetscCallVoid(iterCtx->iterFace(iterCtx->dm, face, iterCtx->userIterCtx));
+  PetscFunctionReturnVoid();
 }
 
   #if !defined(DMBF_XD_IterateOverFaces)
@@ -867,6 +875,7 @@ static void _p_iterFVMatAssembly(p4est_iter_face_info_t *info, void *ctx)
   PetscInt                    blockSize[3] = {1, 1, 1};
   PetscInt                    i, j, k = 0, len = 0, bs, idx;
 
+  PetscFunctionBegin;
   #if defined(PETSC_USE_DEBUG)
   face->cellL[0] = PETSC_NULLPTR;
   face->cellL[1] = PETSC_NULLPTR;
@@ -878,7 +887,7 @@ static void _p_iterFVMatAssembly(p4est_iter_face_info_t *info, void *ctx)
   face->cellR[3] = PETSC_NULLPTR;
   #endif
 
-  CHKERRV(DMBFGetBlockSize(iterCtx->dm, blockSize)); /* set indices of values to set in matrix */
+  PetscCallVoid(DMBFGetBlockSize(iterCtx->dm, blockSize)); /* set indices of values to set in matrix */
   bs = blockSize[0] * blockSize[1] * blockSize[2];
 
   /* get cell and vector data */
@@ -976,8 +985,9 @@ static void _p_iterFVMatAssembly(p4est_iter_face_info_t *info, void *ctx)
     }
   }
   /* call face function */
-  CHKERRV(iterCtx->iterFace(iterCtx->dm, face, iterCtx->cellCoeff, iterCtx->userIterCtx));
-  CHKERRV(MatSetValuesLocal(iterCtx->M, bs * len, iterCtx->rowIndices, bs * len, iterCtx->colIndices, iterCtx->cellCoeff, ADD_VALUES));
+  PetscCallVoid(iterCtx->iterFace(iterCtx->dm, face, iterCtx->cellCoeff, iterCtx->userIterCtx));
+  PetscCallVoid(MatSetValuesLocal(iterCtx->M, bs * len, iterCtx->rowIndices, bs * len, iterCtx->colIndices, iterCtx->cellCoeff, ADD_VALUES));
+  PetscFunctionReturnVoid();
 }
 
   #if !defined(DMBF_XD_IterateFVMatAssembly)

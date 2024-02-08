@@ -87,7 +87,7 @@ PetscErrorCode DMBFShapeIsValid(const DM_BF_Shape *shape, PetscBool *isValid)
   PetscAssertPointer(shape, 1);
   PetscAssertPointer(isValid, 2);
   *isValid = PETSC_TRUE;
-  CHKERRQ(DMBFShapeIsSetUp(shape, isValid));
+  PetscCall(DMBFShapeIsSetUp(shape, isValid));
   if (!(*isValid)) { PetscFunctionReturn(PETSC_SUCCESS); }
   *isValid = (PetscBool)(shape->size == _p_DMBFShapeSize(shape));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -98,7 +98,7 @@ PetscErrorCode DMBFShapeCheckSetUp(const DM_BF_Shape *shape)
   PetscBool isSetUp;
 
   PetscFunctionBegin;
-  CHKERRQ(DMBFShapeIsSetUp(shape, &isSetUp));
+  PetscCall(DMBFShapeIsSetUp(shape, &isSetUp));
   PetscCheck(isSetUp, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Shape is not set up");
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -108,7 +108,7 @@ PetscErrorCode DMBFShapeCheckValid(const DM_BF_Shape *shape)
   PetscBool isValid;
 
   PetscFunctionBegin;
-  CHKERRQ(DMBFShapeIsValid(shape, &isValid));
+  PetscCall(DMBFShapeIsValid(shape, &isValid));
   PetscCheck(isValid, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Shape is invalid");
   PetscFunctionReturn(PETSC_SUCCESS);
 }
