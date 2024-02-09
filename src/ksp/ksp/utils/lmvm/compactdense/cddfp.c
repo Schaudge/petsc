@@ -104,7 +104,7 @@ PetscErrorCode MatCDDFPApplyJ0Inv(Mat B, Vec F, Vec dX)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-// here R is strictly upper triangular part of STY
+/* here R is strictly upper triangular part of STY */
 static PetscErrorCode MatGetRTDR(Mat B, Mat result)
 {
   Mat_LMVM   *lmvm  = (Mat_LMVM*)B->data;
@@ -197,7 +197,7 @@ static PetscErrorCode MatLMVMCDDFPUpdateMultData(Mat B)
     if (ldfp->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, Sty_j, ldfp->num_updates, ldfp->cyclic_work_vec));
     PetscCall(MatDenseRestoreColumnVecWrite(ldfp->StY_triu_strict, StY_idx, &Sty_j));
     PetscCall(MatDenseRestoreColumnVecRead(ldfp->Yfull, Y_idx, &y_j));
-    // zero the corresponding row
+    /* zero the corresponding row */
     if (m_local > 0) {
       Mat StY_local, StY_row;
 
@@ -270,8 +270,6 @@ static PetscErrorCode MatSolve_LMVMCDDFP(Mat H, Vec F, Vec dX)
   Mat J_local;
 
   PetscFunctionBegin;
-  //printf("F, Solve \n");
-  //VecView(F,NULL);
   PetscCall(PetscLogEventBegin(CDDFP_MatSolve, H, F, dX,0));
   VecCheckSameSize(F, 2, dX, 3);
   VecCheckMatCompatible(H, dX, 3, F, 2);
@@ -280,8 +278,6 @@ static PetscErrorCode MatSolve_LMVMCDDFP(Mat H, Vec F, Vec dX)
   /* Start with the B0 term */
   PetscCall(MatCDDFPApplyJ0Inv(H, F, dX));
   if (!ldfp->num_updates) {
-  //printf("dX, Solve \n");
-  //VecView(dX,NULL);
     PetscCall(PetscLogEventEnd(CDDFP_MatSolve, H, F, dX, 0));
     PetscFunctionReturn(PETSC_SUCCESS); /* No updates stored yet */
   }
@@ -331,8 +327,6 @@ static PetscErrorCode MatSolve_LMVMCDDFP(Mat H, Vec F, Vec dX)
   PetscCall(MatMultAddColumnRange(ldfp->HY, ldfp->rwork3, dX, dX, 0, h));
   ldfp->Y_count++;
   PetscCall(PetscLogEventEnd(CDDFP_MatSolve, H, F, dX,0));
-  //printf("dX, Solve: \n");
-  //VecView(dX,NULL);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -365,8 +359,6 @@ static PetscErrorCode MatMult_LMVMCDDFP(Mat B, Vec X, Vec Z)
   PetscObjectState   Xstate;
 
   PetscFunctionBegin;
-  //printf("X, Mult: \n");
-  //VecView(X,NULL);
   PetscCall(PetscLogEventBegin(CDDFP_MatMult, B, X, Z,0));
   VecCheckSameSize(X, 2, Z, 3);
   VecCheckMatCompatible(B, X, 2, Z, 3);
@@ -413,8 +405,6 @@ static PetscErrorCode MatMult_LMVMCDDFP(Mat B, Vec X, Vec Z)
   PetscCall(MatMultAddColumnRange(ldfp->Yfull, rwork1, Z, Z, 0, h));
   ldfp->Y_count++;
   PetscCall(PetscLogEventEnd(CDDFP_MatMult, B, X, Z,0));
-  //printf("Z, Mult: \n");
-  //VecView(Z,NULL);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -441,7 +431,6 @@ static PetscErrorCode MatUpdate_LMVMCDDFP(Mat B, Vec X, Vec F)
     PetscScalar dotFX[2];
     PetscScalar dotXF[2];
     PetscScalar stFprev;
-    PetscScalar ytXprev;
 
     /* Compute the new (S = X - Xprev) and (Y = F - Fprev) vectors */
     PetscCall(VecAYPXAsync_Private(lmvm->Xprev, -1.0, X, dctx));
@@ -455,7 +444,6 @@ static PetscErrorCode MatUpdate_LMVMCDDFP(Mat B, Vec X, Vec F)
     PetscCall(VecAYPXAsync_Private(lmvm->Fprev, -1.0, F, dctx));
     PetscCall(VecDot(lmvm->Fprev, lmvm->Fprev, &yTy));
     stFprev = dotFX[0];
-    ytXprev = dotXF[0];
     curvature = (dotFX[1] - dotFX[0]); // s^T y
     if (PetscRealPart(yTy) < lmvm->eps) {
       curvtol = 0.0;
@@ -495,40 +483,19 @@ static PetscErrorCode MatUpdate_LMVMCDDFP(Mat B, Vec X, Vec F)
       { // implement the scheme of Byrd, Nocedal, and Schnabel to save a MatMultTranspose call in the common case the
         // B_k is immediately applied to X after begin updated.   The Y^T x computation can be split up as Y^T (X - X_prev)
         Vec      this_sy_col;
-        PetscInt local_n;
-        PetscScalar *YtXprev;
-        PetscMemType memtype;
 
         if (!ldfp->YtXprev) {
           PetscCall(VecDuplicate(ldfp->rwork1, &ldfp->YtXprev));
           PetscCall(VecZeroEntries(ldfp->YtXprev));
         }
-        PetscCall(VecGetLocalSize(ldfp->YtXprev, &local_n));
-        PetscCall(VecGetArrayAndMemType(ldfp->YtXprev, &YtXprev, &memtype));
 
-        if (local_n) {
-          if (PetscMemTypeHost(memtype)) {
-            YtXprev[idx] = ytXprev;
-          } else {
-            PetscCall(PetscDeviceRegisterMemory(&ytXprev, PETSC_MEMTYPE_HOST, 1 * sizeof(ytXprev)));
-            PetscCall(PetscDeviceRegisterMemory(YtXprev, memtype, local_n * sizeof(*YtXprev)));
-            PetscCall(PetscDeviceArrayCopy(dctx, &YtXprev[idx], &ytXprev, 1));
-          }
-        }
-        PetscCall(VecRestoreArrayAndMemType(ldfp->YtXprev, &YtXprev));
-
-        // Now YtXprev is updated for the new Y vector.  Write -YtXprev into the appropriate row
         PetscCall(MatDenseGetColumnVecWrite(ldfp->YtS_triu, YtSidx, &this_sy_col));
-        //PetscCall(VecAXPBYAsync_Private(this_sy_col, -1.0, 0.0, ldfp->YtXprev, dctx));
+        /* Unlike cdbfgs, due to initial gradient, additional MatMult is introduced per update */
         PetscCall(MatMultTransposeColumnRange(ldfp->Yfull, lmvm->Xprev, this_sy_col, 0, h_new));
 
-        // Now compute the new YtXprev
+        /* Now compute the new YtXprev */
         PetscCall(MatMultTransposeColumnRange(ldfp->Yfull, X, ldfp->YtXprev, 0, h_new));
         ldfp->Yt_count++;
-
-        // Now add StFprev: this_sy_col == Y^T (X - Xprev) == Y^T s
-        //PetscCall(VecAXPBYAsync_Private(this_sy_col, 1.0, 0.0, ldfp->YtXprev, dctx));
-        //PetscCall(VecAXPYAsync_Private(this_sy_col, 1.0, ldfp->YtXprev, dctx));
 
         if (ldfp->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, this_sy_col, ldfp->num_updates, ldfp->cyclic_work_vec));
         PetscCall(MatDenseRestoreColumnVecWrite(ldfp->YtS_triu, YtSidx, &this_sy_col));
@@ -580,7 +547,7 @@ static PetscErrorCode MatUpdate_LMVMCDDFP(Mat B, Vec X, Vec F)
         PetscCall(VecDot(lmvm->Fprev, lmvm->Fprev, &yTy));
         diagctx->sigma = sTy / yTy;
       } else if (ldfp->scale_type == MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL) {
-        // Diagonal Barzilai-Borwein after Park et al.
+        // Diagonal Barzilai-Borwein after Park et al. TODO
         PetscBool   bb = PETSC_FALSE;
         PetscBool   forward = PETSC_TRUE;
         PetscScalar sTy = curvature;
@@ -677,8 +644,6 @@ static PetscErrorCode MatUpdate_LMVMCDDFP(Mat B, Vec X, Vec F)
     switch (ldfp->scale_type) {
     case MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL:
       PetscCall(VecSetAsync_Private(diagctx->invD, diagctx->delta, dctx));
-      //printf("h:\n");
-      //PetscCall(VecView(diagctx->invD, PETSC_VIEWER_STDOUT_(PetscObjectComm((PetscObject)B))));
       break;
     case MAT_LMVM_SYMBROYDEN_SCALE_SCALAR:
       diagctx->sigma = diagctx->delta;

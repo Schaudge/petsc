@@ -37,8 +37,6 @@ PetscErrorCode MatSolve_LMVMDFP(Mat B, Vec F, Vec dX)
   PetscValidHeaderSpecific(dX, VEC_CLASSID, 3);
   VecCheckSameSize(F, 2, dX, 3);
   VecCheckMatCompatible(B, dX, 3, F, 2);
-  //printf("F, Solve \n");
-  //VecView(F,NULL);
 
   if (ldfp->needQ) {
     /* Start the loop for (Q[k] = (B_k)^{-1} * Y[k]) */
@@ -68,8 +66,6 @@ PetscErrorCode MatSolve_LMVMDFP(Mat B, Vec F, Vec dX)
     /* Update dX_{i+1} = (B^{-1})_{i+1} * f */
     PetscCall(VecAXPBYPCZ(dX, -PetscRealPart(ytx) / ldfp->ytq[i], PetscRealPart(stf) / ldfp->yts[i], 1.0, ldfp->Q[i], lmvm->S[i]));
   }
-  //printf("dX, Solve \n");
-  //VecView(dX,NULL);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -108,8 +104,6 @@ PetscErrorCode MatMult_LMVMDFP(Mat B, Vec X, Vec Z)
   PetscFunctionBegin;
   /* Copy the function into the work vector for the first loop */
   PetscCall(VecCopy(X, ldfp->work));
-  //printf("X, Solve \n");
-  //VecView(X,NULL);
 
   /* Start the first loop */
   PetscCall(PetscMalloc1(lmvm->k + 1, &alpha));
@@ -129,8 +123,6 @@ PetscErrorCode MatMult_LMVMDFP(Mat B, Vec X, Vec Z)
     PetscCall(VecAXPY(Z, alpha[i] - beta, lmvm->Y[i]));
   }
   PetscCall(PetscFree(alpha));
-  //printf("Z, Solve \n");
-  //VecView(Z,NULL);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

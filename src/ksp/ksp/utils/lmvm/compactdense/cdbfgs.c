@@ -727,8 +727,6 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     switch (lbfgs->scale_type) {
     case MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL:
       PetscCall(VecSetAsync_Private(diagctx->invD, diagctx->delta, dctx));
-      //printf("h:\n");
-      //PetscCall(VecView(diagctx->invD, PETSC_VIEWER_STDOUT_(PetscObjectComm((PetscObject)B))));
       break;
     case MAT_LMVM_SYMBROYDEN_SCALE_SCALAR:
       diagctx->sigma = diagctx->delta;
