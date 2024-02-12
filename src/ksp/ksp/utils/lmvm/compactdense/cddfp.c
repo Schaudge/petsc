@@ -701,14 +701,13 @@ static PetscErrorCode MatLMVMCDDFPResetDestructive(Mat B)
   PetscCall(MatDestroy(&ldfp->Sfull));
   PetscCall(MatDestroy(&ldfp->Yfull));
   PetscCall(MatDestroy(&ldfp->HY));
-  //PetscCall(MatDestroy(&ldfp->StY_triu));
   PetscCall(MatDestroy(&ldfp->YtS_triu));
   PetscCall(VecDestroy(&ldfp->StFprev));
+  PetscCall(VecDestroy(&ldfp->YtXprev));
   PetscCall(VecDestroy(&ldfp->Fprev_ref));
   PetscCall(VecDestroy(&ldfp->Xprev_ref));
   ldfp->Fprev_state = 0;
   ldfp->Xprev_state = 0;
-  //PetscCall(MatDestroy(&ldfp->YtS_triu_strict));
   PetscCall(MatDestroy(&ldfp->StY_triu_strict));
   PetscCall(MatDestroy(&ldfp->YtHY));
   PetscCall(MatDestroy(&ldfp->J));
@@ -817,12 +816,7 @@ static PetscErrorCode MatAllocate_LMVMCDDFP(Mat B, Vec X, Vec F)
       PetscCall(MatDuplicate(ldfp->Yfull, MAT_SHARE_NONZERO_PATTERN, &ldfp->HY));
       PetscCall(MatZeroEntries(ldfp->Sfull));
       PetscCall(MatZeroEntries(ldfp->Yfull));
-      // initialize StY_triu to identity so it is invertible
-      //PetscCall(MatZeroEntries(ldfp->StY_triu));
-      //PetscCall(MatShift(ldfp->StY_triu, 1.0));
-      //PetscCall(MatCreateVecs(ldfp->StY_triu, &ldfp->diag_vec, &ldfp->rwork1));
-      //PetscCall(MatCreateVecs(ldfp->StY_triu, &ldfp->rwork2, &ldfp->rwork3));
-      //PetscCall(MatCreateVecs(ldfp->StY_triu, NULL, &ldfp->rwork4));
+      // initialize YtS_triu to identity so it is invertible
       PetscCall(MatZeroEntries(ldfp->YtS_triu));
       PetscCall(MatShift(ldfp->YtS_triu, 1.0));
       PetscCall(MatCreateVecs(ldfp->YtS_triu, &ldfp->diag_vec, &ldfp->rwork1));
@@ -835,8 +829,6 @@ static PetscErrorCode MatAllocate_LMVMCDDFP(Mat B, Vec X, Vec F)
       PetscCall(VecZeroEntries(ldfp->diag_vec));
     }
     PetscCall(VecDuplicate(lmvm->Xprev, &ldfp->column_work));
-    //TODO hacky way to turn diagbrdn lmvm off...
-    //PetscCall(MatLMVMSetJ0Scale(B,1.));
     if (!(lmvm->J0 || lmvm->user_pc || lmvm->user_ksp || lmvm->user_scale)) {
       PetscCall(MatLMVMAllocate(ldfp->diag_dfp, X, F));
     }

@@ -786,6 +786,7 @@ static PetscErrorCode MatLMVMCDBFGSResetDestructive(Mat B)
   PetscCall(MatDestroy(&lbfgs->BS));
   PetscCall(MatDestroy(&lbfgs->StY_triu));
   PetscCall(VecDestroy(&lbfgs->StFprev));
+  PetscCall(VecDestroy(&lbfgs->YtXprev));
   PetscCall(VecDestroy(&lbfgs->Fprev_ref));
   PetscCall(VecDestroy(&lbfgs->Xprev_ref));
   lbfgs->Fprev_state = 0;
