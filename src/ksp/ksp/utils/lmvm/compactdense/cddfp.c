@@ -719,10 +719,9 @@ static PetscErrorCode MatLMVMCDDFPResetDestructive(Mat B)
   PetscCall(VecDestroy(&ldfp->rwork1));
   PetscCall(VecDestroy(&ldfp->rwork2));
   PetscCall(VecDestroy(&ldfp->rwork3));
-  PetscCall(VecDestroy(&ldfp->rwork4));
   PetscCall(VecDestroy(&ldfp->rwork2_local));
   PetscCall(VecDestroy(&ldfp->rwork3_local));
-  if (!ldfp->cyclic_work_vec) PetscCall(VecDestroy(&ldfp->cyclic_work_vec));
+  PetscCall(VecDestroy(&ldfp->cyclic_work_vec));
   ldfp->allocated = PETSC_FALSE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -821,11 +820,10 @@ static PetscErrorCode MatAllocate_LMVMCDDFP(Mat B, Vec X, Vec F)
       PetscCall(MatShift(ldfp->YtS_triu, 1.0));
       PetscCall(MatCreateVecs(ldfp->YtS_triu, &ldfp->diag_vec, &ldfp->rwork1));
       PetscCall(MatCreateVecs(ldfp->YtS_triu, &ldfp->rwork2, &ldfp->rwork3));
-      PetscCall(MatCreateVecs(ldfp->YtS_triu, NULL, &ldfp->rwork4));
+      PetscCall(VecDuplicate(ldfp->rwork2, &ldfp->cyclic_work_vec));
       PetscCall(VecZeroEntries(ldfp->rwork1));
       PetscCall(VecZeroEntries(ldfp->rwork2));
       PetscCall(VecZeroEntries(ldfp->rwork3));
-      PetscCall(VecZeroEntries(ldfp->rwork4));
       PetscCall(VecZeroEntries(ldfp->diag_vec));
     }
     PetscCall(VecDuplicate(lmvm->Xprev, &ldfp->column_work));

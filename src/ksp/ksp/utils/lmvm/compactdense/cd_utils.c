@@ -99,11 +99,6 @@ static inline PetscInt recycle_index(PetscInt m, PetscInt idx)
   return idx % m;
 }
 
-static inline PetscInt history_index(PetscInt m, PetscInt num_updates, PetscInt idx)
-{
-  return (idx - num_updates) + PetscMin(m, num_updates);
-}
-
 static inline PetscInt oldest_update(PetscInt m, PetscInt idx)
 {
   return PetscMax(0, idx - m);
