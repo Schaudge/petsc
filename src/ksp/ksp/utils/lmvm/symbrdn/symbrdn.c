@@ -600,7 +600,6 @@ PetscErrorCode MatCreate_LMVMSymBrdn(Mat B)
 PetscErrorCode MatLMVMSymBroydenSetDelta(Mat B, PetscScalar delta)
 {
   Mat_LMVM    *lmvm = (Mat_LMVM *)B->data;
-  Mat_SymBrdn *lsb  = (Mat_SymBrdn *)lmvm->ctx;
   PetscBool    is_bfgs, is_dfp, is_symbrdn, is_symbadbrdn, is_cdbfgs, is_cddfp;
   PetscReal    del_min, del_max, del_buf;
 
@@ -612,18 +611,49 @@ PetscErrorCode MatLMVMSymBroydenSetDelta(Mat B, PetscScalar delta)
   PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMSYMBROYDEN, &is_symbrdn));
   PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMSYMBADBROYDEN, &is_symbadbrdn));
 
-  if (is_bfgs || is_cdbfgs || is_dfp || is_symbrdn || is_symbadbrdn || is_cddfp) {
+  if (is_bfgs || is_dfp || is_symbrdn || is_symbadbrdn) {
+    Mat_SymBrdn *lsb  = (Mat_SymBrdn *)lmvm->ctx;
+
     lsb     = (Mat_SymBrdn*)lmvm->ctx;
     del_min = lsb->delta_min;
     del_max = lsb->delta_max;
+  } else if (is_cdbfgs) {
+    Mat_CDBFGS *lbfgs     = (Mat_CDBFGS*)lmvm->ctx;
+    Mat_LMVM *dbase       = (Mat_LMVM*)lbfgs->diag_bfgs->data;
+    Mat_DiagBrdn *diagctx = (Mat_DiagBrdn *) dbase->ctx;
+
+    del_min = diagctx->delta_min;
+    del_max = diagctx->delta_max;
+  } else if (is_cddfp) {
+    Mat_CDDFP *ldfp       = (Mat_CDDFP*)lmvm->ctx;
+    Mat_LMVM *dbase       = (Mat_LMVM*)ldfp->diag_dfp->data;
+    Mat_DiagBrdn *diagctx = (Mat_DiagBrdn *) dbase->ctx;
+
+    del_min = diagctx->delta_min;
+    del_max = diagctx->delta_max;
   } else {
-    SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "diagonal scaling only available for SymBrdn-derived types (CDBFGS, BFGS, DFP, SymBrdn, SymBadBrdn\n");
+    SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "diagonal scaling only available for SymBrdn-derived types (CDBFGS, BFGS, CDDFP, DFP, SymBrdn, SymBadBrdn\n");
   }
 
   del_buf = PetscAbsReal(PetscRealPart(delta));
   del_buf = PetscMin(del_buf, del_max);
   del_buf = PetscMax(del_buf, del_min);
-  if (!is_cdbfgs || !is_cddfp) {
+  if (is_cdbfgs) {//TODO merge cd struct later?
+    Mat_CDBFGS   *lbfgs   = (Mat_CDBFGS*)lmvm->ctx;
+    Mat_LMVM     *dbase   = (Mat_LMVM*)lbfgs->diag_bfgs->data;
+    Mat_DiagBrdn *diagctx = (Mat_DiagBrdn *) dbase->ctx;
+
+    diagctx->delta = del_buf;
+  } else if (is_cddfp) {
+    Mat_CDDFP    *ldfp    = (Mat_CDDFP*)lmvm->ctx;
+    Mat_LMVM     *dbase   = (Mat_LMVM*)ldfp->diag_dfp->data;
+    Mat_DiagBrdn *diagctx = (Mat_DiagBrdn *) dbase->ctx;
+
+    diagctx->delta = del_buf;
+  } else {
+    Mat_SymBrdn *lsb  = (Mat_SymBrdn *)lmvm->ctx;
+
+    lsb        = (Mat_SymBrdn*)lmvm->ctx;
     lsb->delta = del_buf;
   }
   PetscFunctionReturn(PETSC_SUCCESS);
