@@ -559,7 +559,7 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
         PetscCall(VecDot(lmvm->Fprev, lmvm->Fprev, &yTy));
         diagctx->sigma = sTy / yTy;
       } else if (lbfgs->scale_type == MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL) {
-        // Diagonal Barzilai-Borwein after Park et al.
+        // Diagonal Barzilai-Borwein after Park et al. TODO
         PetscBool   bb = PETSC_FALSE;
         PetscBool   forward = PETSC_TRUE;
         PetscScalar sTy = curvature;
@@ -833,6 +833,7 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       PetscCall(MatShift(lbfgs->StY_triu, 1.0));
       PetscCall(MatCreateVecs(lbfgs->StY_triu, &lbfgs->diag_vec, &lbfgs->rwork1));
       PetscCall(MatCreateVecs(lbfgs->StY_triu, &lbfgs->rwork2, &lbfgs->rwork3));
+      PetscCall(VecDuplicate(lbfgs->rwork2, &lbfgs->cyclic_work_vec));
       PetscCall(VecZeroEntries(lbfgs->rwork1));
       PetscCall(VecZeroEntries(lbfgs->rwork2));
       PetscCall(VecZeroEntries(lbfgs->rwork3));
