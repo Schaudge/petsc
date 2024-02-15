@@ -504,16 +504,12 @@ PetscErrorCode DMPlexSnapToGeomModel_EGADS_Internal(DM dm, PetscInt p, ego model
 
   Level: intermediate
 
-<<<<<<< HEAD
-.seealso: [](chapter_unstructured), `DM`, `DMPLEX`, `DMRefine()`, `DMPlexCreate()`, `DMPlexSetRefinementUniform()`
-=======
   Note:
   Returns the original coordinates if no geometry model is found. Right now the only supported geometry model is EGADS.
 
   The coordinate dimension may be different from the coordinate dimension of the `dm`, for example if the transformation is extrusion.
 
 .seealso: [](ch_unstructured), `DM`, `DMPLEX`, `DMRefine()`, `DMPlexCreate()`, `DMPlexSetRefinementUniform()`
->>>>>>> 8579a77e518f8bbdb61a33f5e2413d661e908eee
 @*/
 PetscErrorCode DMPlexSnapToGeomModel(DM dm, PetscInt p, PetscInt dE, const PetscScalar mcoords[], PetscScalar gcoords[])
 {
@@ -4370,7 +4366,9 @@ PetscErrorCode DMPlexGetGeomModelTUV(DM dm)
 
   // Define t, u, v arrays to be stored in a PetscContainer after populated
   PetscScalar  *t_point, *u_point, *v_point;
-  PetscMalloc3(vEnd - vStart, &t_point, vEnd - vStart, &u_point, vEnd - vStart, &v_point);
+  PetscCall(PetscMalloc1(vEnd - vStart, &t_point));
+  PetscCall(PetscMalloc1(vEnd - vStart, &u_point));
+  PetscCall(PetscMalloc1(vEnd - vStart, &v_point));
 
   for (v = vStart; v < vEnd; ++v) {
     PetscScalar *vcoords;
@@ -4427,8 +4425,13 @@ PetscErrorCode DMPlexGetGeomModelTUV(DM dm)
       PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &t_pointObj));
       PetscCall(PetscContainerSetPointer(t_pointObj, t_point));
       PetscCall(PetscObjectCompose((PetscObject) dm, "Point - Edge t Parameter", (PetscObject) t_pointObj));
+      PetscCall(PetscContainerSetUserDestroy(t_pointObj, PetscContainerUserDestroyDefault));
       PetscCall(PetscContainerDestroy(&t_pointObj));
     } else {
+      void *old;
+
+      PetscCall(PetscContainerGetPointer(t_pointObj, &old));
+      PetscCall(PetscFree(old));
       PetscCall(PetscContainerSetPointer(t_pointObj, t_point));
     }
 
@@ -4437,8 +4440,13 @@ PetscErrorCode DMPlexGetGeomModelTUV(DM dm)
       PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &u_pointObj));
       PetscCall(PetscContainerSetPointer(u_pointObj, u_point));
       PetscCall(PetscObjectCompose((PetscObject) dm, "Point - Face u Parameter", (PetscObject) u_pointObj));
+      PetscCall(PetscContainerSetUserDestroy(u_pointObj, PetscContainerUserDestroyDefault));
       PetscCall(PetscContainerDestroy(&u_pointObj));
     } else {
+      void *old;
+
+      PetscCall(PetscContainerGetPointer(u_pointObj, &old));
+      PetscCall(PetscFree(old));
       PetscCall(PetscContainerSetPointer(u_pointObj, u_point));
     }
 
@@ -4447,8 +4455,13 @@ PetscErrorCode DMPlexGetGeomModelTUV(DM dm)
       PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &v_pointObj));
       PetscCall(PetscContainerSetPointer(v_pointObj, v_point));
       PetscCall(PetscObjectCompose((PetscObject) dm, "Point - Face v Parameter", (PetscObject) v_pointObj));
+      PetscCall(PetscContainerSetUserDestroy(v_pointObj, PetscContainerUserDestroyDefault));
       PetscCall(PetscContainerDestroy(&v_pointObj));
     } else {
+      void *old;
+
+      PetscCall(PetscContainerGetPointer(v_pointObj, &old));
+      PetscCall(PetscFree(old));
       PetscCall(PetscContainerSetPointer(v_pointObj, v_point));
     }
   }
@@ -5275,5 +5288,272 @@ PetscErrorCode DMPlexFreeGeomObject(DM dm, PetscGeom *geomObj)
   if (islite) {EGlite_free(geomObj);}
   else        {EG_free(geomObj);}
 #endif
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  DMPlexGetGeomCntrlPntAndWeightData - Gets Control Point and Associated Weight Data for the Geometry attached to the DMPlex .
+
+  Not collective
+
+  Input Parameters:
++ dm                  - The DMPlex object with an attached PetscContainer storing a CAD Geometry object
+
+
+  Output Parameter:
+. cpHashTable         - Hash Table containing the relationship between FACE ID and Control Point IDs.
+. cpCoordDataLength   - Length of cpCoordData Array.
+. cpCoordData         - Array holding the Geometry Control Point Coordinate Data.
+. maxNumEquiv         - Maximum Number of Equivalent Control Points (Control Points with the same coordinates but different IDs).
+. cpEquiv             - Matrix with a size(Number of Control Points, Number or Control Points) which stores a value of 1.0 in locations where Control Points with different IDS (row or column) have the same coordinates
+. wHashTable          - Hash Table containing the relationship between FACE ID and Control Point Weight.
+. wDataLength         - Length of wData Array.
+. wData               - Array holding the Weight for an associated Geometry Control Point.
+
+  Notes:
+    1) Must Call DMPLexGeomDataAndGrads() before calling this function.
+
+  Level: intermediate
+
+.seealso:
+@*/
+PetscErrorCode DMPlexGetGeomCntrlPntAndWeightData(DM dm, PetscHMapI *cpHashTable, PetscInt *cpCoordDataLength, PetscScalar **cpCoordData, PetscInt *maxNumEquiv, Mat *cpEquiv, PetscHMapI *wHashTable, PetscInt *wDataLength, PetscScalar **wData)
+{
+  PetscFunctionBeginHot;
+#ifdef PETSC_HAVE_EGADS
+  PetscContainer  modelObj, cpHashTableObj, wHashTableObj, cpCoordDataObj, wDataObj, cpCoordDataLengthObj, wDataLengthObj, cpEquivObj, maxNumRelateObj;
+  PetscInt       *cpCoordDataLengthPtr, *wDataLengthPtr, *maxNumEquivPtr;
+  PetscHMapI      cpHashTableTemp, wHashTableTemp;
+  PetscScalar    *cpCoordDataTemp, *wDataTemp;
+  Mat             cpEquivTemp;
+
+  /* Determine which type of EGADS model is attached to the DM */
+  PetscCall(PetscObjectQuery((PetscObject) dm, "EGADS Model", (PetscObject *) &modelObj));
+  if (!modelObj) {
+    PetscCall(PetscObjectQuery((PetscObject) dm, "EGADSlite Model", (PetscObject *) &modelObj));
+  }
+
+  if (!modelObj) {PetscFunctionReturn(PETSC_SUCCESS);}
+
+  // Look to see if DM has Container for Geometry Control Point Data
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Hash Table", (PetscObject *)&cpHashTableObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Coordinates", (PetscObject *)&cpCoordDataObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Coordinate Data Length", (PetscObject *)&cpCoordDataLengthObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Weights Hash Table", (PetscObject *)&wHashTableObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Weight Data", (PetscObject *)&wDataObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Weight Data Length", (PetscObject *)&wDataLengthObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Equivalancy Matrix", (PetscObject *)&cpEquivObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Maximum Number Control Point Equivalency", (PetscObject *)&maxNumRelateObj));
+
+  // Get attached EGADS model Control Point and Weights Hash Tables and Data Arrays (pointer)
+  PetscCall(PetscContainerGetPointer(cpHashTableObj, (void **)&cpHashTableTemp));
+  PetscCall(PetscContainerGetPointer(cpCoordDataObj, (void **)&cpCoordDataTemp));
+  PetscCall(PetscContainerGetPointer(cpCoordDataLengthObj, (void **)&cpCoordDataLengthPtr));
+  PetscCall(PetscContainerGetPointer(wHashTableObj, (void **)&wHashTableTemp));
+  PetscCall(PetscContainerGetPointer(wDataObj, (void **)&wDataTemp));
+  PetscCall(PetscContainerGetPointer(wDataLengthObj, (void **)&wDataLengthPtr));
+  PetscCall(PetscContainerGetPointer(cpEquivObj, (void **)&cpEquivTemp));
+  PetscCall(PetscContainerGetPointer(maxNumRelateObj, (void **)&maxNumEquivPtr));
+
+  *cpCoordDataLength = *cpCoordDataLengthPtr;
+  *wDataLength = *wDataLengthPtr;
+  *maxNumEquiv = *maxNumEquivPtr;
+  *cpEquiv = cpEquivTemp;
+  *cpHashTable = cpHashTableTemp;
+  *wHashTable = wHashTableTemp;
+  *cpCoordData = cpCoordDataTemp;
+  *wData = wDataTemp;
+#endif
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  DMPlexGetGeomGradData - Gets Point, Surface and Volume Gradients with respect to changes in Control Points and their associated Weights for the Geometry attached to the DMPlex .
+
+  Not collective
+
+  Input Parameters:
++ dm                  - The DMPlex object with an attached PetscContainer storing a CAD Geometry object
+
+
+  Output Parameter:
+. cpSurfGradHashTable - Hash Table Relating the Control Point ID to the the Row in the cpSurfGrad Matrix
+. cpSurfGrad          - Matrix containing the Surface Gradient with respect to the Control Point Data. Data is ranged where the Row corresponds to Control Point ID and the Columns are associated with the Geometric FACE.
+. cpArraySize         - The size of arrays gradSACP and gradVolCP and is equal to 3 * total number of Control Points in the Geometry
+. gradSACP            - Array containing the Surface Area Gradient with respect to Control Point Data. Data is arranged by Control Point ID * 3 where 3 is for the coordinate dimension.
+. gradVolCP           - Array contianing the Volume Gradient with respect to Control Point Data. Data is arranged by Control Point ID * 3 where 3 is for the coordinate dimension.
+. wArraySize          - The size of arrayws gradSAW and gradVolW and is equal to the total number of Control Points in the Geometry.
+. gradSAW             - Array containing the Surface Area Gradient with respect to Control Point Weight. Data is arranged by Control Point ID.
+. gradVolW            - Array containing the Volume Gradient with respect to Control Point Weight. Data is arranged by Control Point ID.
+
+  Notes:
+    1) Must Call DMPLexGeomDataAndGrads() before calling this function.
+    2) gradVolCP and gradVolW are only available when DMPlexGeomDataAndGrads() is called with fullGeomGrad = PETSC_TRUE.
+
+  Level: intermediate
+
+.seealso: DMPlexGeomDataAndGrads
+@*/
+PetscErrorCode DMPlexGetGeomGradData(DM dm, PetscHMapI *cpSurfGradHashTable, Mat *cpSurfGrad, PetscInt *cpArraySize, PetscScalar **gradSACP, PetscScalar **gradVolCP, PetscInt *wArraySize, PetscScalar **gradSAW, PetscScalar **gradVolW)
+{
+  PetscFunctionBeginHot;
+#ifdef PETSC_HAVE_EGADS
+  PetscContainer  modelObj, cpSurfGradHashTableObj, cpSurfGradObj, cpArraySizeObj, gradSACPObj, gradVolCPObj, wArraySizeObj, gradSAWObj, gradVolWObj;
+  PetscInt       *cpArraySizePtr, *wArraySizePtr;
+  PetscHMapI      cpSurfGradHashTableTemp;
+  PetscScalar    *gradSACPTemp, *gradVolCPTemp, *gradSAWTemp, *gradVolWTemp;
+  Mat             cpSurfGradTemp;
+
+  /* Determine which type of EGADS model is attached to the DM */
+  PetscCall(PetscObjectQuery((PetscObject) dm, "EGADS Model", (PetscObject *) &modelObj));
+  if (!modelObj) {
+    PetscCall(PetscObjectQuery((PetscObject) dm, "EGADSlite Model", (PetscObject *) &modelObj));
+  }
+
+  if (!modelObj) {PetscFunctionReturn(PETSC_SUCCESS);}
+
+  // Look to see if DM has Container for Geometry Control Point Data
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Surface Gradient Hash Table", (PetscObject *)&cpSurfGradHashTableObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Surface Gradient Matrix", (PetscObject *)&cpSurfGradObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Coordinate Data Length", (PetscObject *)&cpArraySizeObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Surface Area Control Point Gradient", (PetscObject *)&gradSACPObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Volume Control Point Gradient", (PetscObject *)&gradVolCPObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Weight Data Length", (PetscObject *)&wArraySizeObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Surface Area Weights Gradient", (PetscObject *)&gradSAWObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Volume Weights Gradient", (PetscObject *)&gradVolWObj));
+
+  // Get attached EGADS model Control Point and Weights Hash Tables and Data Arrays (pointer)
+  if (cpSurfGradHashTableObj) {
+    PetscCall(PetscContainerGetPointer(cpSurfGradHashTableObj, (void **)&cpSurfGradHashTableTemp));
+    *cpSurfGradHashTable = cpSurfGradHashTableTemp;
+  }
+
+  if (cpSurfGradObj) {
+    PetscCall(PetscContainerGetPointer(cpSurfGradObj, (void **)&cpSurfGradTemp));
+    *cpSurfGrad = cpSurfGradTemp;
+  }
+
+  if (cpArraySizeObj) {
+    PetscCall(PetscContainerGetPointer(cpArraySizeObj, (void **)&cpArraySizePtr));
+    *cpArraySize = *cpArraySizePtr;
+  }
+
+  if (gradSACPObj) {
+    PetscCall(PetscContainerGetPointer(gradSACPObj, (void **)&gradSACPTemp));
+    *gradSACP = gradSACPTemp;
+  }
+
+  if (gradVolCPObj) {
+    PetscCall(PetscContainerGetPointer(gradVolCPObj, (void **)&gradVolCPTemp));
+    *gradVolCP = gradVolCPTemp;
+  }
+
+  if (wArraySizeObj) {
+    PetscCall(PetscContainerGetPointer(wArraySizeObj, (void **)&wArraySizePtr));
+    *wArraySize = *wArraySizePtr;
+  }
+
+  if (gradSAWObj) {
+    PetscCall(PetscContainerGetPointer(gradSAWObj, (void **)&gradSAWTemp));
+    *gradSAW = gradSAWTemp;
+  }
+
+  if (gradVolWObj) {
+    PetscCall(PetscContainerGetPointer(gradVolWObj, (void **)&gradVolWTemp));
+    *gradVolW = gradVolWTemp;
+  }
+#endif
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  DMPlexGetGeomCntrlPntMaps - Gets arrays which maps Control Point IDs to their associated Geometry FACE, EDGE, and VERTEX.
+
+  Not collective
+
+  Input Parameters:
++ dm                  - The DMPlex object with an attached PetscContainer storing a CAD Geometry object
+
+
+  Output Parameter:
+. numCntrlPnts              - Number of Control Points defining the Geometry attached to the DMPlex
+. cntrlPntFaceMap           - Array containing the FACE ID for the Control Point. Array index corresponds to Control Point ID.
+. cntrlPntWeightFaceMap     - Array containing the FACE ID for the Control Point Weight. Array index corresponds to Control Point ID.
+. cntrlPntEdgeMap           - Array containing the EDGE ID for the Control Point. Array index corresponds to Control Point ID.
+. cntrlPntWeightEdgeMap     - Array containing the EDGE ID for the Control Point Weight. Array index corresponds to Control Point ID.
+. cntrlPntVertexMap         - Array containing the VERTEX ID for the Control Point. Array index corresponds to Control Point ID.
+. cntrlPntWeightVertexMap   - Array containing the VERTEX ID for the Control Point Weight. Array index corresponds to Control Point ID.
+
+  Notes:
+    1) Arrays are initialized to -1. Array elements with a -1 value indicates that the Control Point or Control Point Weight not associated with the referenced Geometric entity in the array name.
+
+  Level: intermediate
+
+.seealso: DMPlexGeomDataAndGrads
+@*/
+PetscErrorCode DMPlexGetGeomCntrlPntMaps(DM dm, PetscInt *numCntrlPnts, PetscInt **cntrlPntFaceMap, PetscInt **cntrlPntWeightFaceMap, PetscInt **cntrlPntEdgeMap, PetscInt **cntrlPntWeightEdgeMap, PetscInt **cntrlPntVertexMap, PetscInt **cntrlPntWeightVertexMap)
+{
+  PetscFunctionBeginHot;
+#ifdef PETSC_HAVE_EGADS
+  PetscContainer  modelObj, numCntrlPntsObj, cntrlPntFaceMapObj, cntrlPntWeightFaceMapObj, cntrlPntEdgeMapObj, cntrlPntWeightEdgeMapObj, cntrlPntVertexMapObj, cntrlPntWeightVertexMapObj;
+  PetscInt       *numCntrlPntsPtr, *cntrlPntFaceMapPtr, *cntrlPntWeightFaceMapPtr, *cntrlPntEdgeMapPtr, *cntrlPntWeightEdgeMapPtr, *cntrlPntVertexMapPtr, *cntrlPntWeightVertexMapPtr;
+
+  /* Determine which type of EGADS model is attached to the DM */
+  PetscCall(PetscObjectQuery((PetscObject) dm, "EGADS Model", (PetscObject *) &modelObj));
+  if (!modelObj) {
+    PetscCall(PetscObjectQuery((PetscObject) dm, "EGADSlite Model", (PetscObject *) &modelObj));
+  }
+
+  if (!modelObj) {PetscFunctionReturn(PETSC_SUCCESS);}
+
+  // Look to see if DM has Container for Geometry Control Point Data
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Weight Data Length", (PetscObject *)&numCntrlPntsObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point - Face Map", (PetscObject *)&cntrlPntFaceMapObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Weight - Face Map", (PetscObject *)&cntrlPntWeightFaceMapObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point - Edge Map", (PetscObject *)&cntrlPntEdgeMapObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Weight - Edge Map", (PetscObject *)&cntrlPntWeightEdgeMapObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point - Vertex Map", (PetscObject *)&cntrlPntVertexMapObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Weight - Vertex Map", (PetscObject *)&cntrlPntWeightVertexMapObj));
+
+  // Get attached EGADS model Control Point and Weights Hash Tables and Data Arrays (pointer)
+  if (numCntrlPntsObj) {
+    PetscCall(PetscContainerGetPointer(numCntrlPntsObj, (void **)&numCntrlPntsPtr));
+    *numCntrlPnts = *numCntrlPntsPtr;
+  }
+
+  if (cntrlPntFaceMapObj) {
+    PetscCall(PetscContainerGetPointer(cntrlPntFaceMapObj, (void **)&cntrlPntFaceMapPtr));
+    *cntrlPntFaceMap = cntrlPntFaceMapPtr;
+  }
+
+  if (cntrlPntWeightFaceMapObj) {
+    PetscCall(PetscContainerGetPointer(cntrlPntWeightFaceMapObj, (void **)&cntrlPntWeightFaceMapPtr));
+    *cntrlPntWeightFaceMap = cntrlPntWeightFaceMapPtr;
+  }
+
+  if (cntrlPntEdgeMapObj) {
+    PetscCall(PetscContainerGetPointer(cntrlPntEdgeMapObj, (void **)&cntrlPntEdgeMapPtr));
+    *cntrlPntEdgeMap = cntrlPntEdgeMapPtr;
+  }
+
+  if (cntrlPntWeightEdgeMapObj) {
+    PetscCall(PetscContainerGetPointer(cntrlPntWeightEdgeMapObj, (void **)&cntrlPntWeightEdgeMapPtr));
+    *cntrlPntWeightEdgeMap = cntrlPntWeightEdgeMapPtr;
+  }
+
+  if (cntrlPntVertexMapObj) {
+    PetscCall(PetscContainerGetPointer(cntrlPntVertexMapObj, (void **)&cntrlPntVertexMapPtr));
+    *cntrlPntVertexMap = cntrlPntVertexMapPtr;
+  }
+
+  if (cntrlPntWeightVertexMapObj) {
+    PetscCall(PetscContainerGetPointer(cntrlPntWeightVertexMapObj, (void **)&cntrlPntWeightVertexMapPtr));
+    *cntrlPntWeightVertexMap = cntrlPntWeightVertexMapPtr;
+  }
+
+#endif
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
