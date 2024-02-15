@@ -5,15 +5,17 @@ static const char help[] = "Test of PETSC/CAD Shape Modification Technology";
 
 static PetscErrorCode surfArea(DM dm)
 {
-  DMLabel   bodyLabel, faceLabel;
-  double    surfaceArea = 0., volume = 0.;
-  PetscReal vol, centroid[3], normal[3];
-  PetscInt  dim, cStart, cEnd, fStart, fEnd;
-  PetscInt  bodyID, faceID;
-  MPI_Comm  comm;
+  DMLabel     bodyLabel, faceLabel;
+  double      surfaceArea = 0., volume = 0.;
+  PetscReal   vol, centroid[3], normal[3];
+  PetscInt    dim, cStart, cEnd, fStart, fEnd;
+  PetscInt    bodyID, faceID;
+  MPI_Comm    comm;
+  const char *name;
 
   PetscFunctionBeginUser;
   PetscCall(PetscObjectGetComm((PetscObject)dm, &comm));
+  PetscCall(PetscObjectGetName((PetscObject)dm, &name));
   PetscCall(DMGetDimension(dm, &dim));
   PetscCall(PetscPrintf(comm, "    dim = %" PetscInt_FMT "\n", dim));
   PetscCall(DMGetLabel(dm, "EGADS Body ID", &bodyLabel));
@@ -51,10 +53,10 @@ static PetscErrorCode surfArea(DM dm)
   }
 
   if (dim == 2) {
-	  PetscCall(PetscPrintf(comm, "    Surface Area = %.6e \n\n", (double)surfaceArea));
+	  PetscCall(PetscPrintf(comm, "%s Surface Area = %.6e \n\n", name, (double)surfaceArea));
   } else if (dim == 3) {
-	  PetscCall(PetscPrintf(comm, "    Volume = %.6e \n", (double)volume));
-	  PetscCall(PetscPrintf(comm, "    Surface Area = %.6e \n\n", (double)surfaceArea));
+	  PetscCall(PetscPrintf(comm, "%s Volume = %.6e \n", name, (double)volume));
+	  PetscCall(PetscPrintf(comm, "%s Surface Area = %.6e \n\n", name, (double)surfaceArea));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -67,11 +69,13 @@ int main(int argc, char *argv[])
   /* PETSc variables */
   DM             dm;
   MPI_Comm       comm;
-  PetscContainer modelObj, cpHashTableObj, wHashTableObj, cpCoordDataObj, wDataObj, cpCoordDataLengthObj, wDataLengthObj;
+  PetscContainer modelObj, cpHashTableObj, wHashTableObj, cpCoordDataLengthObj, wDataLengthObj;
+  Vec            cntrlPtCoordsVec, cntrlPtWeightsVec;
   PetscScalar   *cpCoordData, *wData;
   PetscInt       cpCoordDataLength = 0, wDataLength = 0;
   PetscInt      *cpCoordDataLengthPtr, *wDataLengthPtr;
   PetscHMapI     cpHashTable, wHashTable;
+  PetscInt       Nr = 2;
 
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
   comm = PETSC_COMM_WORLD;
@@ -80,8 +84,8 @@ int main(int argc, char *argv[])
   PetscCall(DMPlexDistributeSetDefault(dm, PETSC_FALSE));
   PetscCall(DMSetFromOptions(dm));
 
-  // Refines Surface Mesh per option -dm_refine
-  PetscCall(DMViewFromOptions(dm, NULL, "-dm_view1"));		// Use this one for surface only meshes
+  PetscCall(PetscObjectSetName((PetscObject)dm, "Original Surface"));
+  PetscCall(DMViewFromOptions(dm, NULL, "-dm_view"));
   PetscCall(surfArea(dm));
 
   // Expose Geometry Definition Data and Calculate Surface Gradients
@@ -96,18 +100,18 @@ int main(int argc, char *argv[])
 
   // Look to see if DM has Container for Geometry Control Point Data
   PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Hash Table", (PetscObject *)&cpHashTableObj));
-  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Coordinates", (PetscObject *)&cpCoordDataObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Coordinates", (PetscObject *)&cntrlPtCoordsVec));
   PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Coordinate Data Length", (PetscObject *)&cpCoordDataLengthObj));
   PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Weights Hash Table", (PetscObject *)&wHashTableObj));
-  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Weight Data", (PetscObject *)&wDataObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Weight Data", (PetscObject *)&cntrlPtWeightsVec));
   PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Weight Data Length", (PetscObject *)&wDataLengthObj));
 
   // Get attached EGADS model Control Point and Weights Hash Tables and Data Arrays (pointer)
   PetscCall(PetscContainerGetPointer(cpHashTableObj, (void **)&cpHashTable));
-  PetscCall(PetscContainerGetPointer(cpCoordDataObj, (void **)&cpCoordData));
+  PetscCall(VecGetArrayWrite(cntrlPtCoordsVec, &cpCoordData));
   PetscCall(PetscContainerGetPointer(cpCoordDataLengthObj, (void **)&cpCoordDataLengthPtr));
   PetscCall(PetscContainerGetPointer(wHashTableObj, (void **)&wHashTable));
-  PetscCall(PetscContainerGetPointer(wDataObj, (void **)&wData));
+  PetscCall(VecGetArrayWrite(cntrlPtWeightsVec, &wData));
   PetscCall(PetscContainerGetPointer(wDataLengthObj, (void **)&wDataLengthPtr));
 
   cpCoordDataLength = *cpCoordDataLengthPtr;
@@ -157,35 +161,32 @@ int main(int argc, char *argv[])
   PetscCall(DMPlexFreeGeomObject(dm, fobjs));
 
   // Modify Control Points of Geometry
-  PetscCall(DMPlexModifyGeomModel(dm, comm, cpCoordData, wData, PETSC_FALSE, PETSC_TRUE, "newModel_wFunction_clean_20221112.stp"));
+  PetscCall(PetscObjectSetName((PetscObject)dm, "Modified Surface"));
+  // TODO Wrap EG_saveModel() in a Plex viewer to manage file access
+  PetscCall(DMPlexModifyGeomModel(dm, comm, cpCoordData, wData, PETSC_FALSE, PETSC_TRUE, "newModel.stp"));
+  PetscCall(VecRestoreArrayWrite(cntrlPtCoordsVec, &cpCoordData));
+  PetscCall(VecRestoreArrayWrite(cntrlPtWeightsVec, &wData));
 
   // Inflate Mesh to Geometry
   PetscCall(DMPlexInflateToGeomModel(dm, PETSC_FALSE));
   PetscCall(surfArea(dm));
 
   // Output .hdf5 file
-  PetscCall(DMViewFromOptions(dm, NULL, "-dm_view2"));
+  PetscCall(DMViewFromOptions(dm, NULL, "-dm_view"));
 
-  // Perform 1st Refinement on the Mesh attached to the new geometry
-  PetscCall(DMSetFromOptions(dm));
-  PetscCall(DMViewFromOptions(dm, NULL, "-dm_view3"));
-  PetscCall(surfArea(dm));
+  for (PetscInt r = 0; r < Nr; ++r) {
+    char name[PETSC_MAX_PATH_LEN];
 
-  // Perform 2nd Refinement on the Mesh attached to the new geometry
-  PetscCall(DMSetFromOptions(dm));
-  PetscCall(DMViewFromOptions(dm, NULL, "-dm_view4"));
-  PetscCall(surfArea(dm));
+    // Perform refinement on the Mesh attached to the new geometry
+    PetscCall(DMSetFromOptions(dm));
+    PetscCall(PetscSNPrintf(name, PETSC_MAX_PATH_LEN, "Modified Surface refinement %" PetscInt_FMT, r));
+    PetscCall(PetscObjectSetName((PetscObject)dm, name));
+    PetscCall(DMViewFromOptions(dm, NULL, "-dm_view"));
+    PetscCall(surfArea(dm));
+  }
 
-  // Perform 3 Refinement on the Mesh attached to the new geometry
-  PetscCall(DMSetFromOptions(dm));
-  PetscCall(DMViewFromOptions(dm, NULL, "-dm_view5"));
-  PetscCall(surfArea(dm));
-
-   // Perform 4 Refinement on the Mesh attached to the new geometry
-  PetscCall(DMSetFromOptions(dm));
-  PetscCall(DMViewFromOptions(dm, NULL, "-dm_view6"));
-  PetscCall(surfArea(dm));
-
+  // TODO Check for circular reference loop in EGADS: egadsBase.c:929
+  PetscCall(DMDestroy(&dm));
   PetscCall(PetscFinalize());
   return 0;
 }
@@ -194,13 +195,9 @@ int main(int argc, char *argv[])
 
   test:
     suffix: sphere_shapeMod
+    temporaries: newModel.stp
     args: -dm_plex_filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/sphere_example.stp \
-          -dm_refine 1 -dm_plex_geom_print_model 1 -dm_plex_geom_shape_opt 1 \
-          -dm_view1 hdf5:mesh_shapeMod_sphere.h5 \
-          -dm_view2 hdf5:mesh_shapeMod_inflated.h5 \
-          -dm_view3 hdf5:mesh_shapeMod_inflated_Refine1.h5 \
-          -dm_view4 hdf5:mesh_shapeMod_inflated_Refine2.h5 \
-          -dm_view5 hdf5:mesh_shapeMod_inflated_Refine3.h5 \
-          -dm_view6 hdf5:mesh_shapeMod_inflated_Refine4.h5
+          -dm_refine -dm_plex_geom_print_model 1 -dm_plex_geom_shape_opt 1 \
+          -dm_view hdf5:mesh_shapeMod_sphere.h5
 
 TEST*/
