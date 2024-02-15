@@ -3925,11 +3925,12 @@ static PetscErrorCode DMPlexCreateFromOptions_Internal(PetscOptionItems *PetscOp
   DMPolytopeType cell    = DM_POLYTOPE_TRIANGLE;
   PetscInt       dim     = 2;
   PetscBool      simplex = PETSC_TRUE, interpolate = PETSC_TRUE, adjCone = PETSC_FALSE, adjClosure = PETSC_TRUE, refDomain = PETSC_FALSE;
-  PetscBool      flg, flg2, fflg, bdfflg, nameflg;
+  PetscBool      flg, flg2, fflg, bdfflg, nameflg, bdnameflg;
   MPI_Comm       comm;
   char           filename[PETSC_MAX_PATH_LEN]   = "<unspecified>";
   char           bdFilename[PETSC_MAX_PATH_LEN] = "<unspecified>";
   char           plexname[PETSC_MAX_PATH_LEN]   = "";
+  char           bdPlexname[PETSC_MAX_PATH_LEN] = "";
   const char    *option;
 
   PetscFunctionBegin;
@@ -3939,6 +3940,7 @@ static PetscErrorCode DMPlexCreateFromOptions_Internal(PetscOptionItems *PetscOp
   PetscCall(PetscOptionsString("-dm_plex_filename", "File containing a mesh", "DMPlexCreateFromFile", filename, filename, sizeof(filename), &fflg));
   PetscCall(PetscOptionsString("-dm_plex_boundary_filename", "File containing a mesh boundary", "DMPlexCreateFromFile", bdFilename, bdFilename, sizeof(bdFilename), &bdfflg));
   PetscCall(PetscOptionsString("-dm_plex_name", "Name of the mesh in the file", "DMPlexCreateFromFile", plexname, plexname, sizeof(plexname), &nameflg));
+  PetscCall(PetscOptionsString("-bd_dm_plex_name", "Name of the boundary mesh in the file", "DMPlexCreateFromFile", bdPlexname, bdPlexname, sizeof(bdPlexname), &bdnameflg));
   PetscCall(PetscOptionsEnum("-dm_plex_cell", "Cell shape", "", DMPolytopeTypes, (PetscEnum)cell, (PetscEnum *)&cell, NULL));
   PetscCall(PetscOptionsBool("-dm_plex_reference_cell_domain", "Use a reference cell domain", "", refDomain, &refDomain, NULL));
   PetscCall(PetscOptionsEnum("-dm_plex_shape", "Shape for built-in mesh", "", DMPlexShapes, (PetscEnum)shape, (PetscEnum *)&shape, &flg));
@@ -3975,9 +3977,11 @@ static PetscErrorCode DMPlexCreateFromOptions_Internal(PetscOptionItems *PetscOp
   } else if (bdfflg) {
     DM bdm, dmnew;
 
-    PetscCall(DMPlexCreateFromFile(PetscObjectComm((PetscObject)dm), bdFilename, plexname, interpolate, &bdm));
+    PetscCall(DMPlexCreateFromFile(PetscObjectComm((PetscObject)dm), bdFilename, bdPlexname, interpolate, &bdm));
+    if (!((PetscObject)bdm)->name && bdnameflg) PetscCall(PetscObjectSetName((PetscObject)bdm, bdPlexname));
     PetscCall(PetscObjectSetOptionsPrefix((PetscObject)bdm, "bd_"));
     PetscCall(DMSetFromOptions(bdm));
+    PetscCall(DMViewFromOptions(bdm, NULL, "-dm_view"));
     PetscCall(DMPlexGenerate(bdm, NULL, interpolate, &dmnew));
     PetscCall(DMDestroy(&bdm));
     PetscCall(DMPlexCopy_Internal(dm, PETSC_FALSE, PETSC_FALSE, dmnew));
