@@ -363,6 +363,8 @@ class KSPHPDDMType(object):
     BGCRODR                   = KSP_HPDDM_TYPE_BGCRODR
     BFBCG                     = KSP_HPDDM_TYPE_BFBCG
     PREONLY                   = KSP_HPDDM_TYPE_PREONLY
+    ORTHODIR                  = KSP_HPDDM_TYPE_ORTHODIR
+    BORTHODIR                 = KSP_HPDDM_TYPE_BORTHODIR
 
 # --------------------------------------------------------------------
 

@@ -326,21 +326,25 @@ PETSC_DEPRECATED_FUNCTION(3, 14, 0, "KSPMatSolve()", ) static inline PetscErrorC
 .   `KSP_HPDDM_TYPE_GCRODR`          - Generalized Conjugate Residual method with inner Orthogonalization and Deflated Restarting
 .   `KSP_HPDDM_TYPE_BGCRODR`         - block GCRODR
 .   `KSP_HPDDM_TYPE_BFBCG`           - breakdown-free BCG
--   `KSP_HPDDM_TYPE_PREONLY`         - apply the preconditioner only
+.   `KSP_HPDDM_TYPE_PREONLY`         - apply the preconditioner only
+.   `KSP_HPDDM_TYPE_ORTHODIR`        - ORTHODIR
+-   `KSP_HPDDM_TYPE_BORTHODIR`       - block ORTHODIR
 
     Level: intermediate
 
 .seealso: [](ch_ksp), `KSPHPDDM`, `KSPHPDDMSetType()`
 E*/
 typedef enum {
-  KSP_HPDDM_TYPE_GMRES   = 0,
-  KSP_HPDDM_TYPE_BGMRES  = 1,
-  KSP_HPDDM_TYPE_CG      = 2,
-  KSP_HPDDM_TYPE_BCG     = 3,
-  KSP_HPDDM_TYPE_GCRODR  = 4,
-  KSP_HPDDM_TYPE_BGCRODR = 5,
-  KSP_HPDDM_TYPE_BFBCG   = 6,
-  KSP_HPDDM_TYPE_PREONLY = 7
+  KSP_HPDDM_TYPE_GMRES     = 0,
+  KSP_HPDDM_TYPE_BGMRES    = 1,
+  KSP_HPDDM_TYPE_CG        = 2,
+  KSP_HPDDM_TYPE_BCG       = 3,
+  KSP_HPDDM_TYPE_GCRODR    = 4,
+  KSP_HPDDM_TYPE_BGCRODR   = 5,
+  KSP_HPDDM_TYPE_BFBCG     = 6,
+  KSP_HPDDM_TYPE_PREONLY   = 7,
+  KSP_HPDDM_TYPE_ORTHODIR  = 8,
+  KSP_HPDDM_TYPE_BORTHODIR = 9
 } KSPHPDDMType;
 PETSC_EXTERN const char *const KSPHPDDMTypes[];
 

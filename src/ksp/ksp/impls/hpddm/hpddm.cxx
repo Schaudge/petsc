@@ -1,7 +1,7 @@
 #define HPDDM_MIXED_PRECISION 1
 #include <petsc/private/petschpddm.h> /*I "petscksp.h" I*/
 
-const char *const KSPHPDDMTypes[]          = {KSPGMRES, "bgmres", KSPCG, "bcg", "gcrodr", "bgcrodr", "bfbcg", KSPPREONLY};
+const char *const KSPHPDDMTypes[]          = {KSPGMRES, "bgmres", KSPCG, "bcg", "gcrodr", "bgcrodr", "bfbcg", KSPPREONLY, "orthodir", "borthodir"};
 const char *const KSPHPDDMPrecisionTypes[] = {"HALF", "SINGLE", "DOUBLE", "QUADRUPLE", "KSPHPDDMPrecisionType", "KSP_HPDDM_PRECISION_", nullptr};
 const char *const HPDDMOrthogonalization[] = {"cgs", "mgs"};
 const char *const HPDDMQR[]                = {"cholqr", "cgs", "mgs"};
@@ -49,7 +49,7 @@ static PetscErrorCode KSPSetFromOptions_HPDDM(KSP ksp, PetscOptionItems *PetscOp
       data->cntl[1] = i;
       if (i > 0) PetscCall(KSPSetPCSide(ksp, PC_RIGHT));
     }
-    if (data->cntl[0] == HPDDM_KRYLOV_METHOD_BGMRES || data->cntl[0] == HPDDM_KRYLOV_METHOD_BGCRODR || data->cntl[0] == HPDDM_KRYLOV_METHOD_BFBCG) {
+    if (data->cntl[0] == HPDDM_KRYLOV_METHOD_BGMRES || data->cntl[0] == HPDDM_KRYLOV_METHOD_BGCRODR || data->cntl[0] == HPDDM_KRYLOV_METHOD_BFBCG || data->cntl[0] == HPDDM_KRYLOV_METHOD_BORTHODIR) {
       data->rcntl[0] = (PetscAbsReal(data->rcntl[0] - static_cast<PetscReal>(PETSC_DECIDE)) < PETSC_SMALL ? -1.0 : data->rcntl[0]);
       PetscCall(PetscOptionsReal("-ksp_hpddm_deflation_tol", "Tolerance when deflating right-hand sides inside block methods", "KSPHPDDM", data->rcntl[0], data->rcntl, nullptr));
       i = (data->scntl[data->cntl[0] != HPDDM_KRYLOV_METHOD_BFBCG] == static_cast<unsigned short>(PETSC_DECIDE) ? 1 : PetscMax(1, data->scntl[data->cntl[0] != HPDDM_KRYLOV_METHOD_BFBCG]));
@@ -113,7 +113,7 @@ static PetscErrorCode KSPView_HPDDM(KSP ksp, PetscViewer viewer)
   if (op && ascii) {
     PetscCall(PetscViewerASCIIPrintf(viewer, "HPDDM type: %s%s\n", KSPHPDDMTypes[std::min(static_cast<PetscInt>(data->cntl[0]), static_cast<PetscInt>(PETSC_STATIC_ARRAY_LENGTH(KSPHPDDMTypes) - 1))], data->cntl[1] == HPDDM_VARIANT_FLEXIBLE ? " (with support for variable preconditioning)" : ""));
     PetscCall(PetscViewerASCIIPrintf(viewer, "precision: %s\n", KSPHPDDMPrecisionTypes[data->precision]));
-    if (data->cntl[0] == HPDDM_KRYLOV_METHOD_BGMRES || data->cntl[0] == HPDDM_KRYLOV_METHOD_BGCRODR || data->cntl[0] == HPDDM_KRYLOV_METHOD_BFBCG) {
+    if (data->cntl[0] == HPDDM_KRYLOV_METHOD_BGMRES || data->cntl[0] == HPDDM_KRYLOV_METHOD_BGCRODR || data->cntl[0] == HPDDM_KRYLOV_METHOD_BFBCG || data->cntl[0] == HPDDM_KRYLOV_METHOD_BORTHODIR) {
       if (PetscAbsReal(data->rcntl[0] - static_cast<PetscReal>(PETSC_DECIDE)) < PETSC_SMALL) PetscCall(PetscViewerASCIIPrintf(viewer, "no deflation at restarts\n"));
       else PetscCall(PetscViewerASCIIPrintf(viewer, "deflation tolerance: %g\n", static_cast<double>(data->rcntl[0])));
     }
@@ -150,7 +150,7 @@ static PetscErrorCode KSPSetUp_HPDDM(KSP ksp)
         if (ksp->pc_side_set == PC_RIGHT) data->cntl[1] = HPDDM_VARIANT_RIGHT;
         if (data->cntl[1] > 0) PetscCall(KSPSetPCSide(ksp, PC_RIGHT));
       }
-      if (data->cntl[0] == HPDDM_KRYLOV_METHOD_BGMRES || data->cntl[0] == HPDDM_KRYLOV_METHOD_BGCRODR || data->cntl[0] == HPDDM_KRYLOV_METHOD_BFBCG) {
+      if (data->cntl[0] == HPDDM_KRYLOV_METHOD_BGMRES || data->cntl[0] == HPDDM_KRYLOV_METHOD_BGCRODR || data->cntl[0] == HPDDM_KRYLOV_METHOD_BFBCG || data->cntl[0] == HPDDM_KRYLOV_METHOD_BORTHODIR) {
         data->rcntl[0]                                          = -1.0; /* no deflation by default */
         data->scntl[data->cntl[0] != HPDDM_KRYLOV_METHOD_BFBCG] = 1;    /* Krylov subspace not enlarged by default */
       } else data->scntl[data->cntl[0] != HPDDM_KRYLOV_METHOD_BCG] = 0;

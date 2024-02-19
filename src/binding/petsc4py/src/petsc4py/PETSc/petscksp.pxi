@@ -90,6 +90,8 @@ cdef extern from * nogil:
         KSP_HPDDM_TYPE_BGCRODR
         KSP_HPDDM_TYPE_BFBCG
         KSP_HPDDM_TYPE_PREONLY
+        KSP_HPDDM_TYPE_ORTHODIR
+        KSP_HPDDM_TYPE_BORTHODIR
 
     ctypedef PetscErrorCode (*PetscKSPCtxDel)(void*)
 
