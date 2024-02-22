@@ -1394,7 +1394,7 @@ char assert_aligned[(sizeof(struct mystruct)==16)*2-1];
           #include <tuple>
           #include <cuda_runtime.h>
 
-          __host__ __device__ tuple_get(std::tuple<int, int>& x)
+          __host__ __device__ int tuple_get(std::tuple<int, int>& x)
           {
             return std::get<0>(x);
           }
@@ -1403,7 +1403,7 @@ char assert_aligned[(sizeof(struct mystruct)==16)*2-1];
           {
             std::tuple<int, int> tup{x, y};
 
-            *ret = tuple_get(tup)
+            *ret = tuple_get(tup);
           }
 
 
