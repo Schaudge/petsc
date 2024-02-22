@@ -456,7 +456,7 @@ inline PetscErrorCode VecSeq_CUPM<T>::AYPXAsync_(Vec yin, const ManagedScalar &a
   PetscFunctionBegin;
   PetscCall(PetscObjectTypeCompareAny(PetscObjectCast(xin), &xiscupm, VECSEQCUPM(), VECMPICUPM(), ""));
   if (!xiscupm) {
-    PetscCall(VecAYPX_Seq(yin, alpha, xin));
+    PetscCall(VecAYPX_Seq(yin, alpha.front(dctx), xin));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
   PetscCall(PetscDeviceContextGetOptionalNullContext_Internal(&dctx));
