@@ -35,16 +35,10 @@ functionend:
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-#define VecScatterSkip(sf,x,y,addv)        \
-  if (addv == INSERT_VALUES) {               \
-    PetscObjectId partnerid, scatterid;\
-    PetscObjectState partnerstate, mystate;\
-\
-    PetscCall(PetscObjectStateGet((PetscObject)x,&partnerstate));\
-    PetscCall(PetscObjectStateGet((PetscObject)y,&mystate));\
-    PetscCall(PetscObjectGetId((PetscObject)x,&partnerid));\
-    PetscCall(PetscObjectGetId((PetscObject)sf,&scatterid));\
-    if (y->scattercache.partnerstate == partnerstate && y->scattercache.mystate == mystate && y->scattercache.partnerid == partnerid && y->scattercache.scatterid == scatterid) PetscFunctionReturn(PETSC_SUCCESS);\
+#define VecScatterSkip(sf, x, y, addv) \
+  if (addv == INSERT_VALUES) { \
+    if (y->scattercache.partnerstate == ((PetscObject)x)->state && y->scattercache.mystate == ((PetscObject)y)->state && y->scattercache.partnerid == ((PetscObject)x)->id && y->scattercache.scatterid == ((PetscObject)sf)->id) \
+      PetscFunctionReturn(PETSC_SUCCESS); \
   }
 
 static PetscErrorCode VecScatterBegin_Internal(VecScatter sf, Vec x, Vec y, InsertMode addv, ScatterMode mode)
@@ -55,7 +49,7 @@ static PetscErrorCode VecScatterBegin_Internal(VecScatter sf, Vec x, Vec y, Inse
   PetscMemType xmtype = PETSC_MEMTYPE_HOST, ymtype = PETSC_MEMTYPE_HOST;
 
   PetscFunctionBegin;
-  VecScatterSkip(sf,x,y,addv);
+  VecScatterSkip(sf, x, y, addv);
   if (x != y) PetscCall(VecLockReadPush(x));
   PetscCall(VecGetArrayReadAndMemType(x, &sf->vscat.xdata, &xmtype));
   PetscCall(VecGetArrayAndMemType(y, &sf->vscat.ydata, &ymtype));
@@ -92,7 +86,7 @@ static PetscErrorCode VecScatterEnd_Internal(VecScatter sf, Vec x, Vec y, Insert
   PetscMPIInt size;
 
   PetscFunctionBegin;
-  VecScatterSkip(sf,x,y,addv);
+  VecScatterSkip(sf, x, y, addv);
 
   /* SCATTER_FORWARD_LOCAL indicates ignoring inter-process communication */
   PetscCallMPI(MPI_Comm_size(PetscObjectComm((PetscObject)sf), &size));
@@ -114,10 +108,10 @@ static PetscErrorCode VecScatterEnd_Internal(VecScatter sf, Vec x, Vec y, Insert
   if (x != y) PetscCall(VecLockReadPop(x));
   PetscCall(VecRestoreArrayAndMemType(y, &sf->vscat.ydata));
   PetscCall(VecLockWriteSet(y, PETSC_FALSE));
-  PetscCall(PetscObjectStateGet((PetscObject)x,&y->scattercache.partnerstate));
-  PetscCall(PetscObjectStateGet((PetscObject)y,&y->scattercache.mystate));
-  PetscCall(PetscObjectGetId((PetscObject)x,&y->scattercache.partnerid));
-  PetscCall(PetscObjectGetId((PetscObject)sf,&y->scattercache.scatterid));
+  y->scattercache.partnerstate = ((PetscObject)x)->state;
+  y->scattercache.mystate      = ((PetscObject)y)->state;
+  y->scattercache.partnerid    = ((PetscObject)x)->id;
+  y->scattercache.scatterid    = ((PetscObject)sf)->id;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
