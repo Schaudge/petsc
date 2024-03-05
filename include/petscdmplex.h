@@ -589,11 +589,14 @@ PETSC_EXTERN PetscErrorCode DMPlexGetGeomModelFaceLoops(DM, PetscGeom, PetscGeom
 PETSC_EXTERN PetscErrorCode DMPlexGetGeomModelFaceEdges(DM, PetscGeom, PetscGeom, PetscGeom **, PetscInt *);
 PETSC_EXTERN PetscErrorCode DMPlexGetGeomModelEdgeNodes(DM, PetscGeom, PetscGeom, PetscGeom **, PetscInt *);
 PETSC_EXTERN PetscErrorCode DMPlexGetGeomBodyMassProperties(DM, PetscGeom, PetscScalar *, PetscScalar *, PetscScalar **, PetscInt *, PetscScalar **, PetscInt *);
+PETSC_EXTERN PetscErrorCode DMPlexRestoreGeomBodyMassProperties(DM, PetscGeom, PetscScalar *, PetscScalar *, PetscScalar **, PetscInt *, PetscScalar **, PetscInt *);
 PETSC_EXTERN PetscErrorCode DMPlexGetGeomID(DM, PetscGeom, PetscGeom, PetscInt *);
 PETSC_EXTERN PetscErrorCode DMPlexGetGeomObject(DM, PetscGeom, PetscInt, PetscInt, PetscGeom *);
 PETSC_EXTERN PetscErrorCode DMPlexGetGeomFaceNumOfControlPoints(DM, PetscGeom face, PetscInt *);
 PETSC_EXTERN PetscErrorCode DMPlexFreeGeomObject(DM, PetscGeom *);
 PETSC_EXTERN PetscErrorCode DMPlexGetGeomCntrlPntAndWeightData(DM, PetscHMapI *, PetscInt *, PetscScalar **, PetscInt *, Mat *, PetscHMapI *, PetscInt *, PetscScalar **);
+PETSC_EXTERN PetscErrorCode DMPlexRestoreGeomCntrlPntAndWeightData(DM, PetscHMapI *, PetscInt *, PetscScalar **, PetscInt *, Mat *, PetscHMapI *, PetscInt *, PetscScalar **);
 PETSC_EXTERN PetscErrorCode DMPlexGetGeomGradData(DM, PetscHMapI *, Mat *, PetscInt *, PetscScalar **, PetscScalar **, PetscInt *, PetscScalar **, PetscScalar **);
+PETSC_EXTERN PetscErrorCode DMPlexRestoreGeomGradData(DM, PetscHMapI *, Mat *, PetscInt *, PetscScalar **, PetscScalar **, PetscInt *, PetscScalar **, PetscScalar **);
 PETSC_EXTERN PetscErrorCode DMPlexGetGeomCntrlPntMaps(DM dm, PetscInt *, PetscInt **, PetscInt **, PetscInt **, PetscInt **, PetscInt **, PetscInt **);
 #endif

@@ -2788,6 +2788,12 @@ PetscErrorCode DMPlex_Surface_Grad(DM dm)
 	PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode DestroyHashMap(void *p)
+{
+  PetscFunctionBegin;
+  PetscCall(PetscHMapIDestroy((PetscHMapI *)&p));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 /*@C
   DMPlexGeomDataAndGrads - Exposes Control Points and Control Point Weights defining the underlying geometry allowing user manipulation of the geometry.
@@ -2938,22 +2944,28 @@ PetscErrorCode DMPlexGeomDataAndGrads(DM dm, PetscBool fullGeomGrad)
 	cpCoordDataLengthPtr = &cpCoordDataLength;
 	wDataLengthPtr = &wDataLength;
 
+  Vec cntrlPtCoordsVec, cntrlPtWeightsVec;
 	PetscScalar *cntrlPtCoords, *cntrlPtWeights;
-	PetscMalloc1(cpCoordDataLength, &cntrlPtCoords);
-	PetscMalloc1(wDataLength, &cntrlPtWeights);
+  PetscCall(VecCreateSeq(PETSC_COMM_SELF, cpCoordDataLength, &cntrlPtCoordsVec));
+  PetscCall(VecCreateSeq(PETSC_COMM_SELF, wDataLength, &cntrlPtWeightsVec));
 
   // For dSA/dCPi
+  Vec gradSACPVec, gradSAWVec, gradVCPVec, gradVWVec;
   PetscScalar *gradSACP, *gradSAW, *gradVCP, *gradVW;
-  PetscMalloc1(cpCoordDataLength, &gradSACP);
-  PetscMalloc1(wDataLength, &gradSAW);
-  PetscMalloc1(cpCoordDataLength, &gradVCP);
-  PetscMalloc1(wDataLength, &gradVW);
+  PetscCall(VecCreateSeq(PETSC_COMM_SELF, cpCoordDataLength, &gradSACPVec));
+  PetscCall(VecCreateSeq(PETSC_COMM_SELF, wDataLength, &gradSAWVec));
+  PetscCall(VecCreateSeq(PETSC_COMM_SELF, cpCoordDataLength, &gradVCPVec));
+  PetscCall(VecCreateSeq(PETSC_COMM_SELF, wDataLength, &gradVWVec));
 
   // Control Point - Vertex/Edge/Face Relationship
   PetscInt  *cp_vertex, *cp_edge, *cp_face;
   PetscInt  *w_vertex, *w_edge, *w_face;
-  PetscMalloc3(totalNumCPs, &cp_vertex, totalNumCPs, &cp_edge, totalNumCPs, &cp_face);
-  PetscMalloc3(wDataLength, &w_vertex, wDataLength, &w_edge, wDataLength, &w_face);
+  PetscCall(PetscMalloc1(totalNumCPs, &cp_vertex));
+  PetscCall(PetscMalloc1(totalNumCPs, &cp_edge));
+  PetscCall(PetscMalloc1(totalNumCPs, &cp_face));
+  PetscCall(PetscMalloc1(wDataLength, &w_vertex));
+  PetscCall(PetscMalloc1(wDataLength, &w_edge));
+  PetscCall(PetscMalloc1(wDataLength, &w_face));
 
 	for (int ii = 0; ii < Nf; ++ii) {
 	  // Need to Populate Control Point Coordinates and Weight Vectors
@@ -2984,6 +2996,7 @@ PetscErrorCode DMPlexGeomDataAndGrads(DM dm, PetscBool fullGeomGrad)
 
 	  if (!hashKeyFound)  {PetscCall(PetscHMapISet(faceCntrlPtRow_Start, id, cntr));}
 
+    PetscCall(VecGetArrayWrite(cntrlPtCoordsVec, &cntrlPtCoords));
 	  offsetCoord = bpinfo[3] + bpinfo[6];
 	  for (int jj = 0; jj < 3 * bpinfo[2] * bpinfo[5]; ++jj) {
 	    cntrlPtCoords[cntr] = bprv[offsetCoord + jj];
@@ -2998,6 +3011,7 @@ PetscErrorCode DMPlexGeomDataAndGrads(DM dm, PetscBool fullGeomGrad)
       wRowStart = wcntr;
 	  }
 
+    PetscCall(VecGetArrayWrite(cntrlPtWeightsVec, &cntrlPtWeights));
 	  offsetWeight = bpinfo[3] + bpinfo[6] + (3 * bpinfo[2] * bpinfo[5]);
 	  for (int jj = 0; jj < bpinfo[2] * bpinfo[5]; ++jj) {
 	    cntrlPtWeights[wcntr] = bprv[offsetWeight + jj];
@@ -3005,6 +3019,7 @@ PetscErrorCode DMPlexGeomDataAndGrads(DM dm, PetscBool fullGeomGrad)
       w_face[wcntr] = id;
       wcntr += 1;
 	  }
+    PetscCall(VecRestoreArrayWrite(cntrlPtWeightsVec, &cntrlPtWeights));
 
     // Associate Control Points with Vertix IDs
     PetscScalar xcp, ycp, zcp;
@@ -3228,6 +3243,7 @@ PetscErrorCode DMPlexGeomDataAndGrads(DM dm, PetscBool fullGeomGrad)
     if (maxRelateTemp > maxNumRelate) {maxNumRelate = maxRelateTemp;}
   }
   maxNumRelatePtr = &maxNumRelate;
+  PetscCall(VecRestoreArrayWrite(cntrlPtCoordsVec, &cntrlPtCoords));
 
   // Assemble Point Surface Grad Matrix
 	MatAssemblyBegin(cpEquiv, MAT_FINAL_ASSEMBLY);
@@ -3235,9 +3251,9 @@ PetscErrorCode DMPlexGeomDataAndGrads(DM dm, PetscBool fullGeomGrad)
 
 	// Attach Control Point and Weight Data to DM
 	{
-	  PetscContainer cpOrgObj, cpCoordObj, cpCoordLengthObj;
-	  PetscContainer wOrgObj, wValObj, wDataLengthObj;
-    PetscContainer cpEquivObj, cp_faceObj, cp_edgeObj, cp_vertexObj;
+	  PetscContainer cpOrgObj, cpCoordLengthObj;
+	  PetscContainer wOrgObj, wDataLengthObj;
+    PetscContainer cp_faceObj, cp_edgeObj, cp_vertexObj;
     PetscContainer w_faceObj, w_edgeObj, w_vertexObj;
     PetscContainer maxNumRelateObj;
 
@@ -3251,15 +3267,8 @@ PetscErrorCode DMPlexGeomDataAndGrads(DM dm, PetscBool fullGeomGrad)
       PetscCall(PetscContainerSetPointer(cpOrgObj, faceCntrlPtRow_Start));
     }
 
-    PetscCall(PetscObjectQuery((PetscObject) dm, "Control Point Coordinates", (PetscObject *) &cpCoordObj));
-    if (!cpCoordObj) {
-      PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &cpCoordObj));
-      PetscCall(PetscContainerSetPointer(cpCoordObj, cntrlPtCoords));
-      PetscCall(PetscObjectCompose((PetscObject) dm, "Control Point Coordinates", (PetscObject) cpCoordObj));
-      PetscCall(PetscContainerDestroy(&cpCoordObj));
-    } else {
-      PetscCall(PetscContainerSetPointer(cpCoordObj, cntrlPtCoords));
-    }
+    PetscCall(PetscObjectCompose((PetscObject) dm, "Control Point Coordinates", (PetscObject)cntrlPtCoordsVec));
+    PetscCall(VecDestroy(&cntrlPtCoordsVec));
 
     PetscCall(PetscObjectQuery((PetscObject) dm, "Control Point Coordinate Data Length", (PetscObject *) &cpCoordLengthObj));
     if (!cpCoordLengthObj) {
@@ -3281,15 +3290,8 @@ PetscErrorCode DMPlexGeomDataAndGrads(DM dm, PetscBool fullGeomGrad)
       PetscCall(PetscContainerSetPointer(wOrgObj, faceCPWeightsRow_Start));
     }
 
-    PetscCall(PetscObjectQuery((PetscObject) dm, "Control Point Weight Data", (PetscObject *) &wValObj));
-    if (!wValObj) {
-      PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &wValObj));
-      PetscCall(PetscContainerSetPointer(wValObj, cntrlPtWeights));
-      PetscCall(PetscObjectCompose((PetscObject) dm, "Control Point Weight Data", (PetscObject) wValObj));
-      PetscCall(PetscContainerDestroy(&wValObj));
-    } else {
-      PetscCall(PetscContainerSetPointer(wValObj, cntrlPtWeights));
-    }
+    PetscCall(PetscObjectCompose((PetscObject) dm, "Control Point Weight Data", (PetscObject)cntrlPtWeightsVec));
+    PetscCall(VecDestroy(&cntrlPtWeightsVec));
 
     PetscCall(PetscObjectQuery((PetscObject) dm, "Control Point Weight Data Length", (PetscObject *) &wDataLengthObj));
     if (!wDataLengthObj) {
@@ -3301,15 +3303,7 @@ PetscErrorCode DMPlexGeomDataAndGrads(DM dm, PetscBool fullGeomGrad)
       PetscCall(PetscContainerSetPointer(wDataLengthObj, wDataLengthPtr));
     }
 
-    PetscCall(PetscObjectQuery((PetscObject) dm, "Control Point Equivalancy Matrix", (PetscObject *) &cpEquivObj));
-    if (!cpEquivObj) {
-      PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &cpEquivObj));
-      PetscCall(PetscContainerSetPointer(cpEquivObj, cpEquiv));
-      PetscCall(PetscObjectCompose((PetscObject) dm, "Control Point Equivalancy Matrix", (PetscObject) cpEquivObj));
-      PetscCall(PetscContainerDestroy(&cpEquivObj));
-    } else {
-      PetscCall(PetscContainerSetPointer(cpEquivObj, cpEquiv));
-    }
+    PetscCall(PetscObjectCompose((PetscObject) dm, "Control Point Equivalancy Matrix", (PetscObject) cpEquiv));
 
     PetscCall(PetscObjectQuery((PetscObject) dm, "Maximum Number Control Point Equivalency", (PetscObject *) &maxNumRelateObj));
     if (!maxNumRelateObj) {
@@ -3325,9 +3319,14 @@ PetscErrorCode DMPlexGeomDataAndGrads(DM dm, PetscBool fullGeomGrad)
     if (!cp_faceObj) {
       PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &cp_faceObj));
       PetscCall(PetscContainerSetPointer(cp_faceObj, cp_face));
+      PetscCall(PetscContainerSetUserDestroy(cp_faceObj, PetscContainerUserDestroyDefault));
       PetscCall(PetscObjectCompose((PetscObject) dm, "Control Point - Face Map", (PetscObject) cp_faceObj));
       PetscCall(PetscContainerDestroy(&cp_faceObj));
     } else {
+      void *tmp;
+
+      PetscCall(PetscContainerGetPointer(cp_faceObj, &tmp));
+      PetscCall(PetscFree(tmp));
       PetscCall(PetscContainerSetPointer(cp_faceObj, cp_face));
     }
 
@@ -3335,9 +3334,14 @@ PetscErrorCode DMPlexGeomDataAndGrads(DM dm, PetscBool fullGeomGrad)
     if (!w_faceObj) {
       PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &w_faceObj));
       PetscCall(PetscContainerSetPointer(w_faceObj, w_face));
+      PetscCall(PetscContainerSetUserDestroy(w_faceObj, PetscContainerUserDestroyDefault));
       PetscCall(PetscObjectCompose((PetscObject) dm, "Control Point Weight - Face Map", (PetscObject) w_faceObj));
       PetscCall(PetscContainerDestroy(&w_faceObj));
     } else {
+      void *tmp;
+
+      PetscCall(PetscContainerGetPointer(w_faceObj, &tmp));
+      PetscCall(PetscFree(tmp));
       PetscCall(PetscContainerSetPointer(w_faceObj, w_face));
     }
 
@@ -3345,9 +3349,14 @@ PetscErrorCode DMPlexGeomDataAndGrads(DM dm, PetscBool fullGeomGrad)
     if (!cp_edgeObj) {
       PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &cp_edgeObj));
       PetscCall(PetscContainerSetPointer(cp_edgeObj, cp_edge));
+      PetscCall(PetscContainerSetUserDestroy(cp_edgeObj, PetscContainerUserDestroyDefault));
       PetscCall(PetscObjectCompose((PetscObject) dm, "Control Point - Edge Map", (PetscObject) cp_edgeObj));
       PetscCall(PetscContainerDestroy(&cp_edgeObj));
     } else {
+      void *tmp;
+
+      PetscCall(PetscContainerGetPointer(cp_edgeObj, &tmp));
+      PetscCall(PetscFree(tmp));
       PetscCall(PetscContainerSetPointer(cp_edgeObj, cp_edge));
     }
 
@@ -3355,9 +3364,14 @@ PetscErrorCode DMPlexGeomDataAndGrads(DM dm, PetscBool fullGeomGrad)
     if (!w_edgeObj) {
       PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &w_edgeObj));
       PetscCall(PetscContainerSetPointer(w_edgeObj, w_edge));
+      PetscCall(PetscContainerSetUserDestroy(w_edgeObj, PetscContainerUserDestroyDefault));
       PetscCall(PetscObjectCompose((PetscObject) dm, "Control Point Weight - Edge Map", (PetscObject) w_edgeObj));
       PetscCall(PetscContainerDestroy(&w_edgeObj));
     } else {
+      void *tmp;
+
+      PetscCall(PetscContainerGetPointer(w_edgeObj, &tmp));
+      PetscCall(PetscFree(tmp));
       PetscCall(PetscContainerSetPointer(w_edgeObj, w_edge));
     }
 
@@ -3365,9 +3379,14 @@ PetscErrorCode DMPlexGeomDataAndGrads(DM dm, PetscBool fullGeomGrad)
     if (!cp_vertexObj) {
       PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &cp_vertexObj));
       PetscCall(PetscContainerSetPointer(cp_vertexObj, cp_vertex));
+      PetscCall(PetscContainerSetUserDestroy(cp_vertexObj, PetscContainerUserDestroyDefault));
       PetscCall(PetscObjectCompose((PetscObject) dm, "Control Point - Vertex Map", (PetscObject) cp_vertexObj));
       PetscCall(PetscContainerDestroy(&cp_vertexObj));
     } else {
+      void *tmp;
+
+      PetscCall(PetscContainerGetPointer(cp_vertexObj, &tmp));
+      PetscCall(PetscFree(tmp));
       PetscCall(PetscContainerSetPointer(cp_vertexObj, cp_vertex));
     }
 
@@ -3375,10 +3394,15 @@ PetscErrorCode DMPlexGeomDataAndGrads(DM dm, PetscBool fullGeomGrad)
     if (!w_vertexObj) {
       PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &w_vertexObj));
       PetscCall(PetscContainerSetPointer(w_vertexObj, w_vertex));
+      PetscCall(PetscContainerSetUserDestroy(w_vertexObj, PetscContainerUserDestroyDefault));
       PetscCall(PetscObjectCompose((PetscObject) dm, "Control Point Weight - Vertex Map", (PetscObject) w_vertexObj));
       PetscCall(PetscContainerDestroy(&w_vertexObj));
     } else {
-      PetscCall(PetscContainerSetPointer(cp_vertexObj, w_vertexObj));
+      void *tmp;
+
+      PetscCall(PetscContainerGetPointer(w_vertexObj, &tmp));
+      PetscCall(PetscFree(tmp));
+      PetscCall(PetscContainerSetPointer(w_vertexObj, w_vertex));
     }
 	}
 
@@ -3408,6 +3432,10 @@ PetscErrorCode DMPlexGeomDataAndGrads(DM dm, PetscBool fullGeomGrad)
 
 	// CYCLE THROUGH FACEs
   PetscScalar  maxGrad = 0.;
+  PetscCall(VecGetArrayWrite(gradSACPVec, &gradSACP));
+  PetscCall(VecGetArrayWrite(gradSAWVec, &gradSAW));
+  PetscCall(VecGetArrayWrite(gradVCPVec, &gradVCP));
+  PetscCall(VecGetArrayWrite(gradVWVec, &gradVW));
 	for (int ii = 0; ii < Nf; ++ii) {
 	  ego		          face = fobjs[ii];
 	  ego            *eobjs, *nobjs;
@@ -3860,74 +3888,42 @@ PetscErrorCode DMPlexGeomDataAndGrads(DM dm, PetscBool fullGeomGrad)
       }
     }
   }
+  PetscCall(MatDestroy(&cpEquiv));
+  PetscCall(VecRestoreArrayWrite(gradSACPVec, &gradSACP));
+  PetscCall(VecRestoreArrayWrite(gradSAWVec, &gradSAW));
+  PetscCall(VecRestoreArrayWrite(gradVCPVec, &gradVCP));
+  PetscCall(VecRestoreArrayWrite(gradVWVec, &gradVW));
 
 	// Attach Surface Gradient Hash Table and Matrix to DM
 	{
-	  PetscContainer surfGradOrgObj, surfGradObj;
-    PetscContainer gradSACPObj, gradSAWObj;
-    PetscContainer gradVCPObj, gradVWObj;
+	  PetscContainer surfGradOrgObj;
 
     PetscCall(PetscObjectQuery((PetscObject) dm, "Surface Gradient Hash Table", (PetscObject *) &surfGradOrgObj));
     if (!surfGradOrgObj) {
       PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &surfGradOrgObj));
       PetscCall(PetscContainerSetPointer(surfGradOrgObj, pointSurfGradRow_Start));
+      PetscCall(PetscContainerSetUserDestroy(surfGradOrgObj, DestroyHashMap));
       PetscCall(PetscObjectCompose((PetscObject) dm, "Surface Gradient Hash Table", (PetscObject) surfGradOrgObj));
       PetscCall(PetscContainerDestroy(&surfGradOrgObj));
     } else {
       PetscCall(PetscContainerSetPointer(surfGradOrgObj, pointSurfGradRow_Start));
     }
 
-    PetscCall(PetscObjectQuery((PetscObject) dm, "Surface Gradient Matrix", (PetscObject *) &surfGradObj));
-    if (!surfGradObj) {
-      PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &surfGradObj));
-      PetscCall(PetscContainerSetPointer(surfGradObj, pointSurfGrad));
-      PetscCall(PetscObjectCompose((PetscObject) dm, "Surface Gradient Matrix", (PetscObject) surfGradObj));
-      PetscCall(PetscContainerDestroy(&surfGradObj));
-    } else {
-      PetscCall(PetscContainerSetPointer(surfGradObj, pointSurfGrad));
-    }
+    PetscCall(PetscObjectCompose((PetscObject) dm, "Surface Gradient Matrix", (PetscObject)pointSurfGrad));
+    PetscCall(MatDestroy(&pointSurfGrad));
 
-    PetscCall(PetscObjectQuery((PetscObject) dm, "Surface Area Control Point Gradient", (PetscObject *) &gradSACPObj));
-    if (!gradSACPObj) {
-      PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &gradSACPObj));
-      PetscCall(PetscContainerSetPointer(gradSACPObj, gradSACP));
-      PetscCall(PetscObjectCompose((PetscObject) dm, "Surface Area Control Point Gradient", (PetscObject) gradSACPObj));
-      PetscCall(PetscContainerDestroy(&gradSACPObj));
-    } else {
-      PetscCall(PetscContainerSetPointer(gradSACPObj, gradSACP));
-    }
+    PetscCall(PetscObjectCompose((PetscObject) dm, "Surface Area Control Point Gradient", (PetscObject) gradSACPVec));
+    PetscCall(VecDestroy(&gradSACPVec));
 
-    PetscCall(PetscObjectQuery((PetscObject) dm, "Surface Area Weights Gradient", (PetscObject *) &gradSAWObj));
-    if (!gradSAWObj) {
-      PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &gradSAWObj));
-      PetscCall(PetscContainerSetPointer(gradSAWObj, gradSAW));
-      PetscCall(PetscObjectCompose((PetscObject) dm, "Surface Area Weights Gradient", (PetscObject) gradSAWObj));
-      PetscCall(PetscContainerDestroy(&gradSAWObj));
-    } else {
-      PetscCall(PetscContainerSetPointer(gradSAWObj, gradSAW));
-    }
+    PetscCall(PetscObjectCompose((PetscObject) dm, "Surface Area Weights Gradient", (PetscObject) gradSAWVec));
+    PetscCall(VecDestroy(&gradSAWVec));
 
     if (fullGeomGrad) {
-      PetscCall(PetscObjectQuery((PetscObject) dm, "Volume Control Point Gradient", (PetscObject *) &gradVCPObj));
-      if (!gradVCPObj) {
-        PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &gradVCPObj));
-        PetscCall(PetscContainerSetPointer(gradVCPObj, gradVCP));
-        PetscCall(PetscObjectCompose((PetscObject) dm, "Volume Control Point Gradient", (PetscObject) gradVCPObj));
-        PetscCall(PetscContainerDestroy(&gradVCPObj));
-      } else {
-        PetscCall(PetscContainerSetPointer(gradVCPObj, gradVCP));
-      }
-
-      PetscCall(PetscObjectQuery((PetscObject) dm, "Volume Weights Gradient", (PetscObject *) &gradVWObj));
-      if (!gradVWObj) {
-        PetscCall(PetscContainerCreate(PETSC_COMM_SELF, &gradVWObj));
-        PetscCall(PetscContainerSetPointer(gradVWObj, gradVW));
-        PetscCall(PetscObjectCompose((PetscObject) dm, "Volume Weights Gradient", (PetscObject) gradVWObj));
-        PetscCall(PetscContainerDestroy(&gradVWObj));
-      } else {
-        PetscCall(PetscContainerSetPointer(gradVWObj, gradVW));
-      }
+      PetscCall(PetscObjectCompose((PetscObject) dm, "Volume Control Point Gradient", (PetscObject) gradVCPVec));
+      PetscCall(PetscObjectCompose((PetscObject) dm, "Volume Weights Gradient", (PetscObject) gradVWVec));
     }
+    PetscCall(VecDestroy(&gradVCPVec));
+    PetscCall(VecDestroy(&gradVWVec));
 	}
 	if (islite) {EGlite_free(fobjs);}   // Could be replaced with DMPlexFreeGeomObject()
   else        {EG_free(fobjs);}
@@ -5232,7 +5228,7 @@ PetscErrorCode DMPlexGetGeomBodyMassProperties(DM dm, PetscGeom body, PetscScala
                PetscCall(PetscPrintf(PETSC_COMM_SELF, " All returned values are equal to 0 \n"));}
   else        {PetscCall(EG_getMassProperties(body, geomData));}
 
-  PetscMalloc2(3, centerOfGravity, 9, inertiaMatrixCOG);
+  PetscCall(PetscMalloc2(3, centerOfGravity, 9, inertiaMatrixCOG));
 
   if (!islite) {
     *volume = geomData[0];
@@ -5250,6 +5246,13 @@ PetscErrorCode DMPlexGetGeomBodyMassProperties(DM dm, PetscGeom body, PetscScala
     *IMCOGsize = 0;
   }
 #endif
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode DMPlexRestoreGeomBodyMassProperties(DM dm, PetscGeom body, PetscScalar *volume, PetscScalar *surfArea, PetscScalar **centerOfGravity, PetscInt *COGsize, PetscScalar **inertiaMatrixCOG, PetscInt *IMCOGsize)
+{
+  PetscFunctionBegin;
+  PetscCall(PetscFree2(*centerOfGravity, *inertiaMatrixCOG));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -5319,14 +5322,12 @@ PetscErrorCode DMPlexFreeGeomObject(DM dm, PetscGeom *geomObj)
 @*/
 PetscErrorCode DMPlexGetGeomCntrlPntAndWeightData(DM dm, PetscHMapI *cpHashTable, PetscInt *cpCoordDataLength, PetscScalar **cpCoordData, PetscInt *maxNumEquiv, Mat *cpEquiv, PetscHMapI *wHashTable, PetscInt *wDataLength, PetscScalar **wData)
 {
-  PetscFunctionBeginHot;
-#ifdef PETSC_HAVE_EGADS
-  PetscContainer  modelObj, cpHashTableObj, wHashTableObj, cpCoordDataObj, wDataObj, cpCoordDataLengthObj, wDataLengthObj, cpEquivObj, maxNumRelateObj;
+  PetscContainer  modelObj, cpHashTableObj, wHashTableObj, cpCoordDataLengthObj, wDataLengthObj, maxNumRelateObj;
+  Vec             cntrlPtCoordsVec, cntrlPtWeightsVec;
   PetscInt       *cpCoordDataLengthPtr, *wDataLengthPtr, *maxNumEquivPtr;
   PetscHMapI      cpHashTableTemp, wHashTableTemp;
-  PetscScalar    *cpCoordDataTemp, *wDataTemp;
-  Mat             cpEquivTemp;
 
+  PetscFunctionBeginHot;
   /* Determine which type of EGADS model is attached to the DM */
   PetscCall(PetscObjectQuery((PetscObject) dm, "EGADS Model", (PetscObject *) &modelObj));
   if (!modelObj) {
@@ -5337,34 +5338,40 @@ PetscErrorCode DMPlexGetGeomCntrlPntAndWeightData(DM dm, PetscHMapI *cpHashTable
 
   // Look to see if DM has Container for Geometry Control Point Data
   PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Hash Table", (PetscObject *)&cpHashTableObj));
-  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Coordinates", (PetscObject *)&cpCoordDataObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Coordinates", (PetscObject *)&cntrlPtCoordsVec));
   PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Coordinate Data Length", (PetscObject *)&cpCoordDataLengthObj));
   PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Weights Hash Table", (PetscObject *)&wHashTableObj));
-  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Weight Data", (PetscObject *)&wDataObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Weight Data", (PetscObject *)&cntrlPtWeightsVec));
   PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Weight Data Length", (PetscObject *)&wDataLengthObj));
-  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Equivalancy Matrix", (PetscObject *)&cpEquivObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Equivalancy Matrix", (PetscObject *)cpEquiv));
   PetscCall(PetscObjectQuery((PetscObject)dm, "Maximum Number Control Point Equivalency", (PetscObject *)&maxNumRelateObj));
 
   // Get attached EGADS model Control Point and Weights Hash Tables and Data Arrays (pointer)
   PetscCall(PetscContainerGetPointer(cpHashTableObj, (void **)&cpHashTableTemp));
-  PetscCall(PetscContainerGetPointer(cpCoordDataObj, (void **)&cpCoordDataTemp));
   PetscCall(PetscContainerGetPointer(cpCoordDataLengthObj, (void **)&cpCoordDataLengthPtr));
   PetscCall(PetscContainerGetPointer(wHashTableObj, (void **)&wHashTableTemp));
-  PetscCall(PetscContainerGetPointer(wDataObj, (void **)&wDataTemp));
   PetscCall(PetscContainerGetPointer(wDataLengthObj, (void **)&wDataLengthPtr));
-  PetscCall(PetscContainerGetPointer(cpEquivObj, (void **)&cpEquivTemp));
   PetscCall(PetscContainerGetPointer(maxNumRelateObj, (void **)&maxNumEquivPtr));
 
   *cpCoordDataLength = *cpCoordDataLengthPtr;
   *wDataLength = *wDataLengthPtr;
   *maxNumEquiv = *maxNumEquivPtr;
-  *cpEquiv = cpEquivTemp;
   *cpHashTable = cpHashTableTemp;
   *wHashTable = wHashTableTemp;
-  *cpCoordData = cpCoordDataTemp;
-  *wData = wDataTemp;
-#endif
+  PetscCall(VecGetArrayWrite(cntrlPtCoordsVec, cpCoordData));
+  PetscCall(VecGetArrayWrite(cntrlPtWeightsVec, wData));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
+PetscErrorCode DMPlexRestoreGeomCntrlPntAndWeightData(DM dm, PetscHMapI *cpHashTable, PetscInt *cpCoordDataLength, PetscScalar **cpCoordData, PetscInt *maxNumEquiv, Mat *cpEquiv, PetscHMapI *wHashTable, PetscInt *wDataLength, PetscScalar **wData)
+{
+  Vec cntrlPtCoordsVec, cntrlPtWeightsVec;
+
+  PetscFunctionBeginHot;
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Coordinates", (PetscObject *)&cntrlPtCoordsVec));
+  PetscCall(VecRestoreArrayWrite(cntrlPtCoordsVec, cpCoordData));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Weight Data", (PetscObject *)&cntrlPtWeightsVec));
+  PetscCall(VecRestoreArrayWrite(cntrlPtWeightsVec, wData));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -5397,14 +5404,12 @@ PetscErrorCode DMPlexGetGeomCntrlPntAndWeightData(DM dm, PetscHMapI *cpHashTable
 @*/
 PetscErrorCode DMPlexGetGeomGradData(DM dm, PetscHMapI *cpSurfGradHashTable, Mat *cpSurfGrad, PetscInt *cpArraySize, PetscScalar **gradSACP, PetscScalar **gradVolCP, PetscInt *wArraySize, PetscScalar **gradSAW, PetscScalar **gradVolW)
 {
-  PetscFunctionBeginHot;
-#ifdef PETSC_HAVE_EGADS
-  PetscContainer  modelObj, cpSurfGradHashTableObj, cpSurfGradObj, cpArraySizeObj, gradSACPObj, gradVolCPObj, wArraySizeObj, gradSAWObj, gradVolWObj;
-  PetscInt       *cpArraySizePtr, *wArraySizePtr;
-  PetscHMapI      cpSurfGradHashTableTemp;
-  PetscScalar    *gradSACPTemp, *gradVolCPTemp, *gradSAWTemp, *gradVolWTemp;
-  Mat             cpSurfGradTemp;
+  PetscContainer modelObj, cpSurfGradHashTableObj, cpArraySizeObj, wArraySizeObj;
+  Vec            gradSACPVec, gradVolCPVec, gradSAWVec, gradVolWVec;
+  PetscInt      *cpArraySizePtr, *wArraySizePtr;
+  PetscHMapI     cpSurfGradHashTableTemp;
 
+  PetscFunctionBeginHot;
   /* Determine which type of EGADS model is attached to the DM */
   PetscCall(PetscObjectQuery((PetscObject) dm, "EGADS Model", (PetscObject *) &modelObj));
   if (!modelObj) {
@@ -5415,13 +5420,13 @@ PetscErrorCode DMPlexGetGeomGradData(DM dm, PetscHMapI *cpSurfGradHashTable, Mat
 
   // Look to see if DM has Container for Geometry Control Point Data
   PetscCall(PetscObjectQuery((PetscObject)dm, "Surface Gradient Hash Table", (PetscObject *)&cpSurfGradHashTableObj));
-  PetscCall(PetscObjectQuery((PetscObject)dm, "Surface Gradient Matrix", (PetscObject *)&cpSurfGradObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Surface Gradient Matrix", (PetscObject *)cpSurfGrad));
   PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Coordinate Data Length", (PetscObject *)&cpArraySizeObj));
-  PetscCall(PetscObjectQuery((PetscObject)dm, "Surface Area Control Point Gradient", (PetscObject *)&gradSACPObj));
-  PetscCall(PetscObjectQuery((PetscObject)dm, "Volume Control Point Gradient", (PetscObject *)&gradVolCPObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Surface Area Control Point Gradient", (PetscObject *)&gradSACPVec));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Volume Control Point Gradient", (PetscObject *)&gradVolCPVec));
   PetscCall(PetscObjectQuery((PetscObject)dm, "Control Point Weight Data Length", (PetscObject *)&wArraySizeObj));
-  PetscCall(PetscObjectQuery((PetscObject)dm, "Surface Area Weights Gradient", (PetscObject *)&gradSAWObj));
-  PetscCall(PetscObjectQuery((PetscObject)dm, "Volume Weights Gradient", (PetscObject *)&gradVolWObj));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Surface Area Weights Gradient", (PetscObject *)&gradSAWVec));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Volume Weights Gradient", (PetscObject *)&gradVolWVec));
 
   // Get attached EGADS model Control Point and Weights Hash Tables and Data Arrays (pointer)
   if (cpSurfGradHashTableObj) {
@@ -5429,42 +5434,37 @@ PetscErrorCode DMPlexGetGeomGradData(DM dm, PetscHMapI *cpSurfGradHashTable, Mat
     *cpSurfGradHashTable = cpSurfGradHashTableTemp;
   }
 
-  if (cpSurfGradObj) {
-    PetscCall(PetscContainerGetPointer(cpSurfGradObj, (void **)&cpSurfGradTemp));
-    *cpSurfGrad = cpSurfGradTemp;
-  }
-
   if (cpArraySizeObj) {
     PetscCall(PetscContainerGetPointer(cpArraySizeObj, (void **)&cpArraySizePtr));
     *cpArraySize = *cpArraySizePtr;
   }
 
-  if (gradSACPObj) {
-    PetscCall(PetscContainerGetPointer(gradSACPObj, (void **)&gradSACPTemp));
-    *gradSACP = gradSACPTemp;
-  }
-
-  if (gradVolCPObj) {
-    PetscCall(PetscContainerGetPointer(gradVolCPObj, (void **)&gradVolCPTemp));
-    *gradVolCP = gradVolCPTemp;
-  }
+  if (gradSACPVec) PetscCall(VecGetArrayWrite(gradSACPVec, gradSACP));
+  if (gradVolCPVec) PetscCall(VecGetArrayWrite(gradVolCPVec, gradVolCP));
+  if (gradSAWVec) PetscCall(VecGetArrayWrite(gradSAWVec, gradSAW));
+  if (gradVolWVec) PetscCall(VecGetArrayWrite(gradVolWVec, gradVolW));
 
   if (wArraySizeObj) {
     PetscCall(PetscContainerGetPointer(wArraySizeObj, (void **)&wArraySizePtr));
     *wArraySize = *wArraySizePtr;
   }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
-  if (gradSAWObj) {
-    PetscCall(PetscContainerGetPointer(gradSAWObj, (void **)&gradSAWTemp));
-    *gradSAW = gradSAWTemp;
-  }
+PetscErrorCode DMPlexRestoreGeomGradData(DM dm, PetscHMapI *cpSurfGradHashTable, Mat *cpSurfGrad, PetscInt *cpArraySize, PetscScalar **gradSACP, PetscScalar **gradVolCP, PetscInt *wArraySize, PetscScalar **gradSAW, PetscScalar **gradVolW)
+{
+  Vec gradSACPVec, gradVolCPVec, gradSAWVec, gradVolWVec;
 
-  if (gradVolWObj) {
-    PetscCall(PetscContainerGetPointer(gradVolWObj, (void **)&gradVolWTemp));
-    *gradVolW = gradVolWTemp;
-  }
-#endif
+  PetscFunctionBegin;
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Surface Area Control Point Gradient", (PetscObject *)&gradSACPVec));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Volume Control Point Gradient", (PetscObject *)&gradVolCPVec));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Surface Area Weights Gradient", (PetscObject *)&gradSAWVec));
+  PetscCall(PetscObjectQuery((PetscObject)dm, "Volume Weights Gradient", (PetscObject *)&gradVolWVec));
 
+  if (gradSACPVec) PetscCall(VecRestoreArrayWrite(gradSACPVec, gradSACP));
+  if (gradVolCPVec) PetscCall(VecRestoreArrayWrite(gradVolCPVec, gradVolCP));
+  if (gradSAWVec) PetscCall(VecRestoreArrayWrite(gradSAWVec, gradSAW));
+  if (gradVolWVec) PetscCall(VecRestoreArrayWrite(gradVolWVec, gradVolW));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
