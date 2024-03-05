@@ -946,16 +946,27 @@ static PetscErrorCode CreateConesIS_Private(DM dm, PetscInt cStart, PetscInt cEn
 
 static PetscErrorCode DMPlexTopologyView_HDF5_XDMF_Private(DM dm, IS globalCellNumbers, PetscViewer viewer)
 {
-  DM       cdm;
-  DMLabel  depthLabel, ctLabel;
-  IS       cellIS;
-  PetscInt dim, depth, cellHeight, c, n = 0;
+  DM                   cdm;
+  DMLabel              depthLabel, ctLabel;
+  IS                   cellIS;
+  PetscInt             dim, depth, cellHeight, c, n = 0;
+  DMPlexStorageVersion version;
+  char                 group[PETSC_MAX_PATH_LEN];
 
   PetscFunctionBegin;
-  PetscCall(PetscViewerHDF5PushGroup(viewer, "/viz"));
-  PetscCall(PetscViewerHDF5WriteGroup(viewer, NULL));
+  PetscCall(PetscViewerHDF5GetDMPlexStorageVersionWriting(viewer, &version));
+  if (DMPlexStorageVersionGE(version, 2, 0, 0)) {
+    const char *name;
 
+    PetscCall(DMPlexGetHDF5Name_Private(dm, &name));
+    PetscCall(PetscSNPrintf(group, sizeof(group), "/topologies/%s/viz", name));
+  } else {
+    PetscCall(PetscSNPrintf(group, sizeof(group), "/viz"));
+  }
+  PetscCall(PetscViewerHDF5PushGroup(viewer, group));
+  PetscCall(PetscViewerHDF5WriteGroup(viewer, NULL));
   PetscCall(PetscViewerHDF5PopGroup(viewer));
+
   PetscCall(DMGetDimension(dm, &dim));
   PetscCall(DMPlexGetDepth(dm, &depth));
   PetscCall(DMGetCoordinateDM(dm, &cdm));
@@ -966,6 +977,7 @@ static PetscErrorCode DMPlexTopologyView_HDF5_XDMF_Private(DM dm, IS globalCellN
     const DMPolytopeType ict = (DMPolytopeType)c;
     PetscInt             pStart, pEnd, dep, numCorners;
     PetscBool            output = PETSC_FALSE, doOutput;
+    char                 tgroup[PETSC_MAX_PATH_LEN];
 
     if (ict == DM_POLYTOPE_FV_GHOST) continue;
     PetscCall(DMLabelGetStratumBounds(ctLabel, ict, &pStart, &pEnd));
@@ -977,13 +989,11 @@ static PetscErrorCode DMPlexTopologyView_HDF5_XDMF_Private(DM dm, IS globalCellN
     if (!doOutput) continue;
     PetscCall(CreateConesIS_Private(dm, pStart, pEnd, globalCellNumbers, &numCorners, &cellIS));
     if (!n) {
-      PetscCall(PetscViewerHDF5PushGroup(viewer, "/viz/topology"));
+      PetscCall(PetscSNPrintf(tgroup, sizeof(tgroup), "%s/topology", group));
     } else {
-      char group[PETSC_MAX_PATH_LEN];
-
-      PetscCall(PetscSNPrintf(group, PETSC_MAX_PATH_LEN, "/viz/topology_%" PetscInt_FMT, n));
-      PetscCall(PetscViewerHDF5PushGroup(viewer, group));
+      PetscCall(PetscSNPrintf(tgroup, sizeof(tgroup), "%s/topology_%" PetscInt_FMT, group, n));
     }
+    PetscCall(PetscViewerHDF5PushGroup(viewer, tgroup));
     PetscCall(ISView(cellIS, viewer));
     PetscCall(PetscViewerHDF5WriteObjectAttribute(viewer, (PetscObject)cellIS, "cell_corners", PETSC_INT, (void *)&numCorners));
     PetscCall(PetscViewerHDF5WriteObjectAttribute(viewer, (PetscObject)cellIS, "cell_dim", PETSC_INT, (void *)&dim));
@@ -1078,15 +1088,18 @@ PetscErrorCode DMPlexCoordinatesView_HDF5_Internal(DM dm, PetscViewer viewer)
 
 static PetscErrorCode DMPlexCoordinatesView_HDF5_XDMF_Private(DM dm, PetscViewer viewer)
 {
-  DM               cdm;
-  Vec              coordinatesLocal, newcoords;
-  PetscSection     cSection, cGlobalSection;
-  PetscScalar     *coords, *ncoords;
-  DMLabel          cutLabel, cutVertexLabel = NULL;
-  const PetscReal *L;
-  PetscReal        lengthScale;
-  PetscInt         vStart, vEnd, v, bs, N, coordSize, dof, off, d;
-  PetscBool        localized, embedded;
+  DM                   cdm;
+  Vec                  coordinatesLocal, newcoords;
+  PetscSection         cSection, cGlobalSection;
+  PetscScalar         *coords, *ncoords;
+  DMLabel              cutLabel, cutVertexLabel = NULL;
+  const PetscReal     *L;
+  PetscReal            lengthScale;
+  PetscInt             vStart, vEnd, v, bs, N, coordSize, dof, off, d;
+  PetscBool            localized, embedded;
+  DMPlexStorageVersion version;
+  char                 group[PETSC_MAX_PATH_LEN];
+  char                 ggroup[PETSC_MAX_PATH_LEN];
 
   PetscFunctionBegin;
   PetscCall(DMPlexGetDepthStratum(dm, 0, &vStart, &vEnd));
@@ -1094,12 +1107,12 @@ static PetscErrorCode DMPlexCoordinatesView_HDF5_XDMF_Private(DM dm, PetscViewer
   PetscCall(DMGetCoordinatesLocal(dm, &coordinatesLocal));
   PetscCall(VecGetBlockSize(coordinatesLocal, &bs));
   PetscCall(DMGetCoordinatesLocalized(dm, &localized));
-  if (localized == PETSC_FALSE) PetscFunctionReturn(PETSC_SUCCESS);
   PetscCall(DMGetPeriodicity(dm, NULL, NULL, &L));
   PetscCall(DMGetCoordinateDM(dm, &cdm));
   PetscCall(DMGetLocalSection(cdm, &cSection));
   PetscCall(DMGetGlobalSection(cdm, &cGlobalSection));
   PetscCall(DMGetLabel(dm, "periodic_cut", &cutLabel));
+  if (L && localized == PETSC_FALSE) PetscFunctionReturn(PETSC_SUCCESS);
   N = 0;
 
   PetscCall(DMPlexCreateCutVertexLabel_Private(dm, cutLabel, &cutVertexLabel));
@@ -1197,10 +1210,21 @@ static PetscErrorCode DMPlexCoordinatesView_HDF5_XDMF_Private(DM dm, PetscViewer
   PetscCall(VecRestoreArray(newcoords, &ncoords));
   PetscCall(PetscObjectSetName((PetscObject)newcoords, "vertices"));
   PetscCall(VecScale(newcoords, lengthScale));
-  PetscCall(PetscViewerHDF5PushGroup(viewer, "/viz"));
+
+  PetscCall(PetscViewerHDF5GetDMPlexStorageVersionWriting(viewer, &version));
+  if (DMPlexStorageVersionGE(version, 2, 0, 0)) {
+    const char *name;
+
+    PetscCall(DMPlexGetHDF5Name_Private(dm, &name));
+    PetscCall(PetscSNPrintf(group, sizeof(group), "/topologies/%s/viz", name));
+  } else {
+    PetscCall(PetscSNPrintf(group, sizeof(group), "/viz"));
+  }
+  PetscCall(PetscViewerHDF5PushGroup(viewer, group));
   PetscCall(PetscViewerHDF5WriteGroup(viewer, NULL));
   PetscCall(PetscViewerHDF5PopGroup(viewer));
-  PetscCall(PetscViewerHDF5PushGroup(viewer, "/viz/geometry"));
+  PetscCall(PetscSNPrintf(ggroup, sizeof(ggroup), "%s/geometry", group));
+  PetscCall(PetscViewerHDF5PushGroup(viewer, ggroup));
   PetscCall(VecView(newcoords, viewer));
   PetscCall(PetscViewerHDF5PopGroup(viewer));
   PetscCall(VecDestroy(&newcoords));
