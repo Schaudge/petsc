@@ -4,6 +4,38 @@ import h5py
 import numpy as np
 import os, sys
 
+class Grid:
+  def __init__(self, h5, topoPath, geomPath, name = "Mesh"):
+    self.topoPath     = topoPath
+    self.geomPath     = geomPath
+    self.name         = name
+    self.cellsName    = '%s_cells' % self.name
+    self.verticesName = '%s_vertices' % self.name
+
+    topo = h5[topoPath]
+    self.cells       = topo['cells']
+    self.numCells    = self.cells.shape[0]
+    self.numCorners  = self.cells.shape[1]
+    self.cellDim     = topo['cells'].attrs['cell_dim']
+
+    geom = h5[geomPath]
+    self.vertices    = geom['vertices']
+    self.numVertices = self.vertices.shape[0]
+    self.spaceDim    = self.vertices.shape[1]
+    return
+
+class Swarm:
+  def __init__(self, h5, particlePath, fieldPath):
+    self.spaceDim = -1
+    self.Np       = 0
+    self.fields   = []
+    if 'particles' in h5:
+      sw.Np       = h5[particlePath]['coordinates'].shape[0]
+      sw.spaceDim = h5[particlePath]['coordinates'].shape[1]
+    if 'particle_fields' in h5:
+      sw.fields   = h5[fieldPath].items()
+    return
+
 class Xdmf:
   def __init__(self, filename):
     self.filename = filename
@@ -40,15 +72,15 @@ class Xdmf:
 ''' % (cellsName, numCells, numCorners, topologyPath))
     return
 
-  def writeVertices(self, fp, geometryPath, numVertices, spaceDim):
+  def writeVertices(self, fp, geometryPath, numVertices, spaceDim, verticesName = "vertices"):
     fp.write('''\
-    <DataItem Name="vertices"
+    <DataItem Name="%s"
               Format="HDF"
               Dimensions="%d %d">
       &HeavyData;:/%s/vertices
     </DataItem>
     <!-- ============================================================ -->
-''' % (numVertices, spaceDim, geometryPath))
+''' % (verticesName, numVertices, spaceDim, geometryPath))
     return
 
   def writeLocations(self, fp, numParticles, spaceDim):
@@ -75,13 +107,13 @@ class Xdmf:
     return
 
   #http://www.xdmf.org/index.php/XDMF_Model_and_Format#Topology
-  def writeHybridSpaceGridHeader(self, fp):
+  def writeMultipleSpaceGridHeader(self, fp):
     fp.write('      <Grid Name="domain" GridType="Collection">\n')
     return
 
-  def writeSpaceGridHeader(self, fp, numCells, numCorners, cellDim, spaceDim, cellsName = "cells"):
+  def writeSpaceGridHeader(self, fp, numCells, numCorners, cellDim, spaceDim, name = "Domain", cellsName = "cells", verticesName = "vertices"):
     fp.write('''\
-      <Grid Name="domain" GridType="Uniform">
+      <Grid Name="%s" GridType="Uniform">
         <Topology
            TopologyType="%s"
            NumberOfElements="%d">
@@ -91,10 +123,10 @@ class Xdmf:
         </Topology>
         <Geometry GeometryType="%s">
           <DataItem Reference="XML">
-            /Xdmf/Domain/DataItem[@Name="vertices"]
+            /Xdmf/Domain/DataItem[@Name="%s"]
           </DataItem>
         </Geometry>
-''' % (self.cellMap[cellDim][numCorners], numCells, cellsName, "XYZ" if spaceDim > 2 else "XY"))
+''' % (name, self.cellMap[cellDim][numCorners], numCells, cellsName, "XYZ" if spaceDim > 2 else "XY", verticesName))
     return
 
   def writeFieldSingle(self, fp, numSteps, timestep, spaceDim, name, f, domain):
@@ -226,94 +258,67 @@ class Xdmf:
     fp.write('  </Domain>\n</Xdmf>\n')
     return
 
-  def write(self, hdfFilename, topologyPath, numCells, numCorners, cellDim, htopologyPath, numHCells, numHCorners, geometryPath, numVertices, spaceDim, time, vfields, cfields, numParticles, pfields):
+  def writeSwarm(self, fp, time, sw):
+    useTime = not (len(time) < 2 and time[0] == -1)
+    if sw.Np == 0: return
+    self.writeLocations(fp, sw.Np, sw.spaceDim)
+    if useTime: self.writeTimeGridHeader(fp, time)
+    for t in range(len(time)):
+      self.writeParticleGridHeader(fp, sw.Np, sw.spaceDim)
+      for pf in sw.fields:
+        self.writeParticleField(fp, pf[0], sw.Np, int(pf[1].attrs['Nc']))
+      self.writeSpaceGridFooter(fp)
+    if useTime: self.writeTimeGridFooter(fp)
+    return
+
+  def write(self, hdfFilename, grids, time, vfields, cfields, sw):
     useTime = not (len(time) < 2 and time[0] == -1)
     with open(self.filename, 'w') as fp:
       self.writeHeader(fp, hdfFilename)
       # Field information
-      self.writeCells(fp, topologyPath, numCells, numCorners)
-      if numHCells:
-        self.writeCells(fp, htopologyPath, numHCells, numHCorners, "hcells")
-      self.writeVertices(fp, geometryPath, numVertices, spaceDim)
+      for grid in grids:
+        self.writeCells(fp, grid.topoPath, grid.numCells, grid.numCorners, grid.cellsName)
+        self.writeVertices(fp, grid.geomPath, grid.numVertices, grid.spaceDim, grid.verticesName)
       if useTime: self.writeTimeGridHeader(fp, time)
       for t in range(len(time)):
-        if numHCells:
-          self.writeHybridSpaceGridHeader(fp)
-          self.writeSpaceGridHeader(fp, numHCells, numHCorners, cellDim, spaceDim, "hcells")
+        if len(grids) > 1: self.writeMultipleSpaceGridHeader(fp)
+        for grid in grids:
+          self.writeSpaceGridHeader(fp, grid.numCells, grid.numCorners, grid.cellDim, grid.spaceDim, grid.name, grid.cellsName, grid.verticesName)
+          # TODO Obivously field stuff is not quite right here
+          for vf in vfields: self.writeField(fp, len(time), t, grid.cellDim, grid.spaceDim, '/vertex_fields/'+vf[0], vf, 'Node')
+          for cf in cfields: self.writeField(fp, len(time), t, grid.cellDim, grid.spaceDim, '/cell_fields/'+cf[0], cf, 'Cell')
           self.writeSpaceGridFooter(fp)
-        self.writeSpaceGridHeader(fp, numCells, numCorners, cellDim, spaceDim)
-        for vf in vfields: self.writeField(fp, len(time), t, cellDim, spaceDim, '/vertex_fields/'+vf[0], vf, 'Node')
-        for cf in cfields: self.writeField(fp, len(time), t, cellDim, spaceDim, '/cell_fields/'+cf[0], cf, 'Cell')
-        self.writeSpaceGridFooter(fp)
-        if numHCells:
-          self.writeSpaceGridFooter(fp)
+        if len(grids) > 1: self.writeSpaceGridFooter(fp)
       if useTime: self.writeTimeGridFooter(fp)
-      if numParticles:
-        self.writeLocations(fp, numParticles, spaceDim)
-        if useTime: self.writeTimeGridHeader(fp, time)
-        for t in range(len(time)):
-          self.writeParticleGridHeader(fp, numParticles, spaceDim)
-          for pf in pfields:
-            self.writeParticleField(fp, pf[0], numParticles, int(pf[1].attrs['Nc']))
-          self.writeSpaceGridFooter(fp)
-        if useTime: self.writeTimeGridFooter(fp)
+      self.writeSwarm(fp, time, sw)
       self.writeFooter(fp)
     return
 
 def generateXdmf(hdfFilename, xdmfFilename = None):
   if xdmfFilename is None:
     xdmfFilename = os.path.splitext(hdfFilename)[0] + '.xmf'
-  # Read mesh
-  h5          = h5py.File(hdfFilename, 'r')
-  if 'viz' in h5 and 'geometry' in h5['viz']:
-    geomPath  = 'viz/geometry'
-    geom      = h5['viz']['geometry']
-  else:
-    geomPath  = 'geometry'
-    geom      = h5['geometry']
-  if 'viz' in h5 and 'topology' in h5['viz']:
-    topoPath  = 'viz/topology'
-    topo      = h5['viz']['topology']
-  else:
-    topoPath  = 'topology'
-    topo      = h5['topology']
-  if 'viz' in h5 and 'hybrid_topology' in h5['viz']:
-    htopoPath = 'viz/hybrid_topology'
-    htopo     = h5['viz']['hybrid_topology']
-  else:
-    htopoPath = None
-    htopo     = None
-  vertices    = geom['vertices']
-  numVertices = vertices.shape[0]
-  spaceDim    = vertices.shape[1]
-  cells       = topo['cells']
-  numCells    = cells.shape[0]
-  numCorners  = cells.shape[1]
-  cellDim     = topo['cells'].attrs['cell_dim']
-  if htopo:
-    hcells      = htopo['cells']
-    numHCells   = hcells.shape[0]
-    numHCorners = hcells.shape[1]
-  else:
-    numHCells   = 0
-    numHCorners = 0
+  h5      = h5py.File(hdfFilename, 'r')
+  grids   = []
+  time    = [-1]
+  vfields = []
+  cfields = []
+  if 'viz' in h5:
+    grids.append(Grid(h5, 'viz/topology', 'viz/geometry'))
+  if 'topology' in h5 and 'geometry' in h5:
+    grids.append(Grid(h5, 'topology', 'geometry'))
+  if 'topologies' in h5:
+    for dm in h5['topologies']:
+      if 'viz' in h5['topologies'][dm]:
+        grids.append(Grid(h5, 'topologies/'+dm+'/viz/topology', 'topologies/'+dm+'/viz/geometry', dm))
   if 'time' in h5:
-    time      = np.array(h5['time']).flatten()
-  else:
-    time      = [-1]
-  vfields     = []
-  cfields     = []
-  pfields     = []
-  pfields     = []
-  if 'vertex_fields' in h5: vfields = h5['vertex_fields'].items()
-  if 'cell_fields' in h5: cfields = h5['cell_fields'].items()
-  numParticles = 0
-  if 'particles' in h5:
-    numParticles = h5['particles']['coordinates'].shape[0]
-  if 'particle_fields' in h5: pfields = h5['particle_fields'].items()
+    time = np.array(h5['time']).flatten()
+  if 'vertex_fields' in h5:
+    vfields = h5['vertex_fields'].items()
+  if 'cell_fields' in h5:
+    cfields = h5['cell_fields'].items()
+  sw = Swarm(h5, 'particles', 'particle_fields')
 
-  # Write Xdmf
-  Xdmf(xdmfFilename).write(hdfFilename, topoPath, numCells, numCorners, cellDim, htopoPath, numHCells, numHCorners, geomPath, numVertices, spaceDim, time, vfields, cfields, numParticles, pfields)
+  Xdmf(xdmfFilename).write(hdfFilename, grids, time, vfields, cfields, sw)
   h5.close()
   return
 
