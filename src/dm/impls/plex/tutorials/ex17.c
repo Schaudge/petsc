@@ -3,17 +3,24 @@ static const char help[] = "Test of PETSc CAD Shape Optimization & Mesh Modifica
 #include <petscdmplex.h>
 #include <petsc/private/hashmapi.h>
 
+typedef struct {
+  char     filename[PETSC_MAX_PATH_LEN];
+  PetscInt saMaxIter; // Maximum number of iterations of shape optimization loop
+} AppCtx;
+
 static PetscErrorCode surfArea(DM dm)
 {
-  DMLabel   bodyLabel, faceLabel;
-  double    surfaceArea = 0., volume = 0.;
-  PetscReal vol, centroid[3], normal[3];
-  PetscInt  dim, cStart, cEnd, fStart, fEnd;
-  PetscInt  bodyID, faceID;
-  MPI_Comm  comm;
+  DMLabel     bodyLabel, faceLabel;
+  double      surfaceArea = 0., volume = 0.;
+  PetscReal   vol, centroid[3], normal[3];
+  PetscInt    dim, cStart, cEnd, fStart, fEnd;
+  PetscInt    bodyID, faceID;
+  MPI_Comm    comm;
+  const char *name;
 
   PetscFunctionBeginUser;
   PetscCall(PetscObjectGetComm((PetscObject)dm, &comm));
+  PetscCall(PetscObjectGetName((PetscObject)dm, &name));
   PetscCall(DMGetDimension(dm, &dim));
   PetscCall(PetscPrintf(comm, "    dim = %" PetscInt_FMT "\n", dim));
   PetscCall(DMGetLabel(dm, "EGADS Body ID", &bodyLabel));
@@ -51,12 +58,26 @@ static PetscErrorCode surfArea(DM dm)
   }
 
   if (dim == 2) {
-	  PetscCall(PetscPrintf(comm, "    Surface Area = %.6e \n\n", (double)surfaceArea));
+	  PetscCall(PetscPrintf(comm, "%s Surface Area = %.6e \n\n", name, (double)surfaceArea));
   } else if (dim == 3) {
-	  PetscCall(PetscPrintf(comm, "    Volume = %.6e \n", (double)volume));
-	  PetscCall(PetscPrintf(comm, "    Surface Area = %.6e \n\n", (double)surfaceArea));
+	  PetscCall(PetscPrintf(comm, "%s Volume = %.6e \n", name, (double)volume));
+	  PetscCall(PetscPrintf(comm, "%s Surface Area = %.6e \n\n", name, (double)surfaceArea));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
+{
+  PetscFunctionBeginUser;
+  options->filename[0] = '\0';
+  options->saMaxIter   = 200;
+
+  PetscOptionsBegin(comm, "", "DMPlex w/CAD Options", "DMPlex w/CAD");
+  PetscOptionsString("-filename", "The CAD/Geometry file", "ex18.c", options->filename, options->filename, PETSC_MAX_PATH_LEN, NULL);
+  PetscOptionsBoundedInt("-sa_max_iter", "The maximum number of iterates for the shape optimization loop", "ex18.c", options->saMaxIter, &options->saMaxIter, NULL, 0);
+  PetscOptionsEnd();
+
+  PetscFunctionReturn(0);
 }
 
 int main(int argc, char *argv[])
@@ -67,37 +88,68 @@ int main(int argc, char *argv[])
   /* PETSc variables */
   DM          dmNozzle = NULL;
   MPI_Comm    comm;
-  PetscInt    maxLoopNum = 200;
+  AppCtx      ctx;
   PetscScalar equivR = 0.0;
+  const char  baseName[] = "Nozzle_Mesh";
 
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
   comm = PETSC_COMM_WORLD;
-  PetscCall(DMCreate(PETSC_COMM_WORLD, &dmNozzle));
-  PetscCall(DMSetType(dmNozzle, DMPLEX));
-  PetscCall(DMPlexDistributeSetDefault(dmNozzle, PETSC_FALSE));
-  PetscCall(DMSetFromOptions(dmNozzle));
+  PetscCall(ProcessOptions(comm, &ctx));
+
+  PetscCall(DMPlexCreateFromFile(comm, ctx.filename, "EGADS", PETSC_TRUE, &dmNozzle));
+  PetscCall(PetscObjectSetName((PetscObject)dmNozzle, baseName));
+  //PetscCall(DMCreate(PETSC_COMM_WORLD, &dmNozzle));
+  //PetscCall(DMSetType(dmNozzle, DMPLEX));
+  //PetscCall(DMPlexDistributeSetDefault(dmNozzle, PETSC_FALSE));
+  //PetscCall(DMSetFromOptions(dmNozzle));
+
+  // Get Common Viewer to store all Mesh Results
+  PetscViewer         viewer;
+  PetscViewerFormat   format;
+  PetscBool           flg;
+  PetscInt            num = 0;
+  PetscViewerType     viewType;
+  PetscViewerFormat   viewFormat;
+  PetscCall(PetscOptionsGetViewer(PETSC_COMM_WORLD, NULL, NULL, "-dm_view_test", &viewer, &format, &flg));
+  //PetscCall(PetscViewerPushFormat(viewer, format));
+  if (flg) {
+    PetscCall(PetscPrintf(PETSC_COMM_SELF, "  flg = TRUE \n"));
+    PetscCall(PetscViewerGetType(viewer, &viewType));
+    PetscCall(PetscViewerPushFormat(viewer, PETSC_VIEWER_HDF5_PETSC));      // PetscOptionsGetViewer returns &format as PETSC_VIEWER_DEFAULT need PETSC_VIEWER_HDF5_PETSC to save multiple DMPlexes in a single .h5 file.
+    PetscCall(PetscViewerGetFormat(viewer, &viewFormat));
+    PetscCall(PetscPrintf(PETSC_COMM_SELF, "  viewer type = %s \n", viewType));
+    PetscCall(PetscPrintf(PETSC_COMM_SELF, "  viewer format = %d \n", viewFormat));
+  }
 
   // Refines Surface Mesh per option -dm_refine
   PetscCall(DMSetFromOptions(dmNozzle));
   PetscCall(DMViewFromOptions(dmNozzle, NULL, "-dm_view"));
+  //PetscCall(DMGetOutputSequenceNumber(dmNozzle, &num, NULL));
+  //PetscCall(DMSetOutputSequenceNumber(dmNozzle, num, -1));
+  num += 1;
+  PetscCall(DMView(dmNozzle, viewer));
   PetscCall(surfArea(dmNozzle));
 
-  for (PetscInt saloop = 0; saloop < maxLoopNum + 1; ++saloop) {
-    PetscContainer  modelObj, cpHashTableObj, wHashTableObj, cpCoordDataObj, wDataObj, cpCoordDataLengthObj, wDataLengthObj;
-    PetscContainer  gradSACPObj, gradSAWObj;
-    PetscContainer  cpEquivObj, maxNumRelateObj;
-    PetscScalar    *cpCoordData, *wData, *gradSACP, *gradSAW, *gradVolCP, *gradVolW;
-    PetscInt        cpArraySize, wArraySize;
-    PetscInt       *cpCoordDataLengthPtr, *wDataLengthPtr, *maxNumRelatePtr;
-    PetscHMapI      cpHashTable, wHashTable, cpSurfGradHT;
-    Mat             cpEquiv, cpSurfGrad;
-    char            stpName[50];
 
-    if (saloop == 0) {
-      PetscCall(PetscStrcpy(stpName, "newGeometry_clean_1.stp"));
-      PetscCall(DMSetFromOptions(dmNozzle));
+  for (PetscInt saloop = 0, seqNum = 0; saloop < ctx.saMaxIter; ++saloop) {
+    PetscContainer modelObj;
+    //PetscContainer gradSACPObj, gradSAWObj;
+    PetscScalar    *cpCoordData, *wData, *gradSACP, *gradSAW;
+    PetscInt       cpCoordDataLength, wDataLength, maxNumEquiv;
+    PetscHMapI     cpHashTable, wHashTable;
+    Mat            cpEquiv;
+    char           stpName[PETSC_MAX_PATH_LEN];
+    char           meshName[PETSC_MAX_PATH_LEN];
+
+    PetscCall(PetscSNPrintf(meshName, PETSC_MAX_PATH_LEN, "%s_Step_%" PetscInt_FMT, baseName, saloop));
+    PetscCall(PetscObjectSetName((PetscObject)dmNozzle, meshName));
+    // Save Step File of Updated Geometry at designated iterations
+    if (saloop == 1 || saloop == 2 || saloop == 5 || saloop == 20 || saloop == 50 || saloop == 100 || saloop == 150 ||
+        saloop == 200 || saloop == 300 || saloop == 400 || saloop == 500) {
+      PetscCall(PetscSNPrintf(stpName, sizeof(stpName), "newGeom_clean_%d.stp", saloop));
     }
-    if (saloop == 1) PetscCall(PetscStrcpy(stpName, "newGeometry_clean_2.stp"));
+
+    if (saloop == 0) PetscCall(DMSetFromOptions(dmNozzle));
 
     // Expose Geometry Definition Data and Calculate Surface Gradients
     PetscCall(DMPlexGeomDataAndGrads(dmNozzle, PETSC_FALSE));
@@ -107,8 +159,37 @@ int main(int argc, char *argv[])
 
     // Get attached EGADS model (pointer)
     PetscCall(PetscContainerGetPointer(modelObj, (void **)&model));
-    
-    // Get Geometric Data from CAD Model attached to DMPlex
+
+    // Look to see if DM has Container for Geometry Control Point Data
+    //PetscCall(PetscObjectQuery((PetscObject)dmNozzle, "Control Point Hash Table", (PetscObject *)&cpHashTableObj));
+    //PetscCall(PetscObjectQuery((PetscObject)dmNozzle, "Control Point Coordinates", (PetscObject *)&cpCoordDataObj));
+    //PetscCall(PetscObjectQuery((PetscObject)dmNozzle, "Control Point Coordinate Data Length", (PetscObject *)&cpCoordDataLengthObj));
+    //PetscCall(PetscObjectQuery((PetscObject)dmNozzle, "Control Point Weights Hash Table", (PetscObject *)&wHashTableObj));
+    //PetscCall(PetscObjectQuery((PetscObject)dmNozzle, "Control Point Weight Data", (PetscObject *)&wDataObj));
+    //PetscCall(PetscObjectQuery((PetscObject)dmNozzle, "Control Point Weight Data Length", (PetscObject *)&wDataLengthObj));
+    ////PetscCall(PetscObjectQuery((PetscObject)dmNozzle, "Surface Area Control Point Gradient", (PetscObject *)&gradSACPObj));
+    ////PetscCall(PetscObjectQuery((PetscObject)dmNozzle, "Surface Area Weights Gradient", (PetscObject *)&gradSAWObj));
+    //PetscCall(PetscObjectQuery((PetscObject)dmNozzle, "Control Point Equivalancy Matrix", (PetscObject *)&cpEquivObj));
+    //PetscCall(PetscObjectQuery((PetscObject)dmNozzle, "Maximum Number Control Point Equivalency", (PetscObject *)&maxNumRelateObj));
+
+    // Get attached EGADS model Control Point and Weights Hash Tables and Data Arrays (pointer)
+    //PetscCall(PetscContainerGetPointer(cpHashTableObj, (void **)&cpHashTable));
+    //PetscCall(PetscContainerGetPointer(cpCoordDataObj, (void **)&cpCoordData));
+    //PetscCall(PetscContainerGetPointer(cpCoordDataLengthObj, (void **)&cpCoordDataLengthPtr));
+    //PetscCall(PetscContainerGetPointer(wHashTableObj, (void **)&wHashTable));
+    //PetscCall(PetscContainerGetPointer(wDataObj, (void **)&wData));
+    //PetscCall(PetscContainerGetPointer(wDataLengthObj, (void **)&wDataLengthPtr));
+    ////PetscCall(PetscContainerGetPointer(gradSACPObj, (void **)&gradSACP));
+    ////PetscCall(PetscContainerGetPointer(gradSAWObj, (void **)&gradSAW));
+    //PetscCall(PetscContainerGetPointer(cpEquivObj, (void **)&cpEquiv));
+    //PetscCall(PetscContainerGetPointer(maxNumRelateObj, (void **)&maxNumRelatePtr));
+
+    // Trying out new Function
+    PetscInt    cpArraySize, wArraySize;
+    PetscHMapI  cpSurfGradHT;
+    Mat         cpSurfGrad;
+    PetscScalar *gradVolCP, *gradVolW;
+
     PetscCall(DMPlexGetGeomCntrlPntAndWeightData(dmNozzle, &cpHashTable, &cpCoordDataLength, &cpCoordData, &maxNumEquiv, &cpEquiv, &wHashTable, &wDataLength, &wData));
     PetscCall(DMPlexGetGeomGradData(dmNozzle, &cpSurfGradHT, &cpSurfGrad, &cpArraySize, &gradSACP, &gradVolCP, &wArraySize, &gradSAW, &gradVolW));
 
@@ -223,49 +304,9 @@ int main(int argc, char *argv[])
     PetscCall(DMPlexGetGeomModelBodyFaces(dmNozzle, newbody, &fobjs, &Nf));
 
     // Save Step File of Updated Geometry at designated iterations
-    if (saloop == 1) {
+    if (saloop == 1 || saloop == 2 || saloop == 5 || saloop == 20 || saloop == 50 || saloop == 100 || saloop == 150 ||
+        saloop == 200 || saloop == 300 || saloop == 400 || saloop == 500) {
       writeFile = PETSC_TRUE;
-      PetscStrcpy(stpName, "newGeom_clean_1.stp");
-    }
-    if (saloop == 2) {
-      writeFile = PETSC_TRUE;
-      PetscStrcpy(stpName, "newGeom_clean_2.stp");
-    }
-    if (saloop == 5) {
-      writeFile = PETSC_TRUE;
-      PetscStrcpy(stpName, "newGeom_clean_5.stp");
-    }
-    if (saloop == 20) {
-      writeFile = PETSC_TRUE;
-      PetscStrcpy(stpName, "newGeom_clean_20.stp");
-    }
-    if (saloop == 50) {
-      writeFile = PETSC_TRUE;
-      PetscStrcpy(stpName, "newGeom_clean_50.stp");
-    }
-    if (saloop == 100) {
-      writeFile = PETSC_TRUE;
-      PetscStrcpy(stpName, "newGeom_clean_100.stp");
-    }
-    if (saloop == 150) {
-      writeFile = PETSC_TRUE;
-      PetscStrcpy(stpName, "newGeom_clean_150.stp");
-    }
-    if (saloop == 200) {
-      writeFile = PETSC_TRUE;
-      PetscStrcpy(stpName, "newGeom_clean_200.stp");
-    }
-    if (saloop == 300) {
-      writeFile = PETSC_TRUE;
-      PetscStrcpy(stpName, "newGeom_clean_300.stp");
-    }
-    if (saloop == 400) {
-      writeFile = PETSC_TRUE;
-      PetscStrcpy(stpName, "newGeom_clean_400.stp");
-    }
-    if (saloop == 500) {
-      writeFile = PETSC_TRUE;
-      PetscStrcpy(stpName, "newGeom_clean_500.stp");
     }
 
     // Modify Geometry and Inflate Mesh to New Geoemetry
@@ -273,37 +314,39 @@ int main(int argc, char *argv[])
     PetscCall(DMPlexInflateToGeomModel(dmNozzle, PETSC_TRUE));
 
     // Periodically Refine and Write Mesh to hdf5 file
-    if (saloop == 0)   {PetscCall(DMViewFromOptions(dmNozzle, NULL, "-dm_view7"));}
-    if (saloop == 1)   {PetscCall(DMViewFromOptions(dmNozzle, NULL, "-dm_view8"));}
-    if (saloop == 5)   {PetscCall(DMViewFromOptions(dmNozzle, NULL, "-dm_view10"));}
-    if (saloop == 20)  {PetscCall(DMViewFromOptions(dmNozzle, NULL, "-dm_view11"));}
-    if (saloop == 50)  {PetscCall(DMViewFromOptions(dmNozzle, NULL, "-dm_view12"));}
-    if (saloop == 100) {PetscCall(DMViewFromOptions(dmNozzle, NULL, "-dm_view13"));}
-    if (saloop == 150) {PetscCall(DMViewFromOptions(dmNozzle, NULL, "-dm_view14"));}
-    if (saloop == 200) {
-      PetscCall(DMViewFromOptions(dmNozzle, NULL, "-dm_view15"));
-
-      PetscCall(DMSetFromOptions(dmNozzle));
-      PetscCall(DMViewFromOptions(dmNozzle, NULL, "-dm_view22"));
-
-      PetscCall(DMSetFromOptions(dmNozzle));
-      PetscCall(DMViewFromOptions(dmNozzle, NULL, "-dm_view23"));
+    if (saloop == 0) {
+      PetscCall(DMViewFromOptions(dmNozzle, NULL, "-dm_view7"));
+      //PetscCall(DMGetOutputSequenceNumber(dmNozzle, &num, NULL));
+      PetscCall(PetscPrintf(PETSC_COMM_SELF, "  num = %d \n", num));
+      //PetscCall(DMGetOutputSequenceNumber(dmNozzle, NULL, &num));
+      //PetscCall(DMSetOutputSequenceNumber(dmNozzle, num, saloop));
+      num += 1;
+      PetscCall(PetscObjectSetName((PetscObject)dmNozzle, "nozzle_meshes_1"));
+      //PetscCall(PetscViewerFileSetMode(viewer, FILE_MODE_APPEND));
+      PetscCall(DMView(dmNozzle, viewer));
     }
-    if (saloop == 300) {PetscCall(DMViewFromOptions(dmNozzle, NULL, "-dm_view17"));}
-    if (saloop == 400) {PetscCall(DMViewFromOptions(dmNozzle, NULL, "-dm_view19"));}
-    if (saloop == 500) {
-      PetscCall(DMViewFromOptions(dmNozzle, NULL, "-dm_view21"));
+    if (saloop == 1 || saloop == 5 || saloop == 20 || saloop == 50 || saloop == 100 || saloop == 150 || saloop == 200 || saloop == 300 || saloop == 400 || saloop == 500)   {
+      PetscCall(DMViewFromOptions(dmNozzle, NULL, "-dm_view"));
+      PetscCall(DMSetOutputSequenceNumber(dmNozzle, seqNum++, saloop));
+      PetscCall(DMView(dmNozzle, viewer));
+      if (saloop == 200 || saloop == 500) {
+        PetscCall(DMSetFromOptions(dmNozzle));
+        PetscCall(DMViewFromOptions(dmNozzle, NULL, "-dm_view"));
+        PetscCall(DMSetOutputSequenceNumber(dmNozzle, seqNum++, saloop));
+        PetscCall(DMView(dmNozzle, viewer));
 
-      PetscCall(DMSetFromOptions(dmNozzle));
-      PetscCall(DMViewFromOptions(dmNozzle, NULL, "-dm_view22"));
-
-      PetscCall(DMSetFromOptions(dmNozzle));
-      PetscCall(DMViewFromOptions(dmNozzle, NULL, "-dm_view23"));
+        PetscCall(DMSetFromOptions(dmNozzle));
+        PetscCall(DMViewFromOptions(dmNozzle, NULL, "-dm_view"));
+        PetscCall(DMSetOutputSequenceNumber(dmNozzle, seqNum++, saloop));
+        PetscCall(DMView(dmNozzle, viewer));
+      }
     }
+    PetscCall(DMPlexRestoreGeomBodyMassProperties(dmNozzle, body, &volume, &surfaceArea, &centerOfGravity, &COGsize, &inertiaMatrixCOG, &IMCOGsize));
+    PetscCall(DMPlexRestoreGeomCntrlPntAndWeightData(dmNozzle, &cpHashTable, &cpCoordDataLength, &cpCoordData, &maxNumEquiv, &cpEquiv, &wHashTable, &wDataLength, &wData));
+    PetscCall(DMPlexRestoreGeomGradData(dmNozzle, &cpSurfGradHT, &cpSurfGrad, &cpArraySize, &gradSACP, &gradVolCP, &wArraySize, &gradSAW, &gradVolW));
     PetscCall(DMPlexFreeGeomObject(dmNozzle, fobjs));
   }
-
-  /* Close EGADSlite file */
+  PetscCall(DMDestroy(&dmNozzle));
   PetscCall(PetscFinalize());
 }
 
@@ -311,24 +354,10 @@ int main(int argc, char *argv[])
 
   test:
     suffix: minSA
-    args: -dm_plex_filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/abstract_minSA.stp \
+    temporaries: newGeom_clean_1.stp newGeom_clean_2.stp newGeom_clean_5.stp
+    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/abstract_minSA.stp \
           -dm_refine 1 -dm_plex_geom_print_model 1 -dm_plex_geom_shape_opt 1 \
-          -dm_view hdf5:mesh_minSA_abstract.h5 \
-          -dm_view1 hdf5:mesh_minSA_vol_abstract.h5 \
-          -dm_view2 hdf5:mesh_minSA_vol_abstract_inflated.h5 \
-          -dm_view3 hdf5:mesh_minSA_vol_abstract_Refine.h5 \
-          -dm_view4 hdf5:mesh_minSA_vol_abstract_Refine2.h5 \
-          -dm_view5 hdf5:mesh_minSA_vol_abstract_Refine3.h5 \
-          -dm_view6 hdf5:mesh_minSA_vol_abstract_Refine4.h5 \
-          -dm_view7 hdf5:mesh_minSA_itr1.h5 \
-          -dm_view8 hdf5:mesh_minSA_itr2.h5 \
-          -dm_view10 hdf5:mesh_minSA_itr5.h5 \
-          -dm_view11 hdf5:mesh_minSA_itr20.h5 \
-          -dm_view12 hdf5:mesh_minSA_itr50.h5 \
-          -dm_view13 hdf5:mesh_minSA_itr100.h5 \
-          -dm_view14 hdf5:mesh_minSA_itr150.h5 \
-          -dm_view15 hdf5:mesh_minSA_itr200.h5 \
-          -dm_view22 hdf5:mesh_minSA_itr200r1.h5 \
-          -dm_view23 hdf5:mesh_minSA_itr200r2.h5
+          -dm_plex_view_hdf5_storage_version 3.0.0 \
+          -dm_view hdf5:mesh_minSA_abstract.h5::append
 
 TEST*/
