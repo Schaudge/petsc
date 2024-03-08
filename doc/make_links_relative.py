@@ -21,3 +21,8 @@ def make_links_relative(root, placeholder=PETSC_DOC_OUT_ROOT_PLACEHOLDER):
                 with fileinput.FileInput(filename_from_root, inplace=True) as file:
                     for line in file:
                         print(line.replace(placeholder, relpath), end='')  # prints to file
+
+    # Also fix 'href="/manualpages..' to 'href="./manualpages..' in index.html
+    with fileinput.FileInput('index.html', inplace=True) as file:
+        for line in file:
+            print(line.replace('"/manualpages/', '"./manualpages/'), end='')
