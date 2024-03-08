@@ -282,6 +282,7 @@ PetscErrorCode MatCreate_LMVMBrdn(Mat B)
 PetscErrorCode MatCreateLMVMBroyden(MPI_Comm comm, PetscInt n, PetscInt N, Mat *B)
 {
   PetscFunctionBegin;
+  PetscCall(KSPInitializePackage());
   PetscCall(MatCreate(comm, B));
   PetscCall(MatSetSizes(*B, n, n, N, N));
   PetscCall(MatSetType(*B, MATLMVMBROYDEN));

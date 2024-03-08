@@ -45,7 +45,6 @@ PETSC_INTERN PetscErrorCode MatView_LMVMCDBFGS(Mat, PetscViewer);
 
 PETSC_INTERN PetscErrorCode              MatUpperTriangularSolveInPlace_CUPM(PetscBool, PetscInt, const PetscScalar[], PetscInt, PetscScalar[], PetscInt);
 PETSC_INTERN PetscErrorCode              MatUpperTriangularSolveInPlaceCyclic_CUPM(PetscBool, PetscInt, PetscInt, const PetscScalar[], PetscInt, PetscScalar[], PetscInt);
-PETSC_INTERN PETSC_UNUSED PetscErrorCode MatMultColumnRange(Mat, Vec, Vec, PetscInt, PetscInt);
 PETSC_INTERN PetscErrorCode              MatMultAddColumnRange(Mat, Vec, Vec, Vec, PetscInt, PetscInt);
 PETSC_INTERN PetscErrorCode              MatMultTransposeColumnRange(Mat, Vec, Vec, PetscInt, PetscInt);
 PETSC_INTERN PetscErrorCode              MatMultTransposeAddColumnRange(Mat, Vec, Vec, Vec, PetscInt, PetscInt);

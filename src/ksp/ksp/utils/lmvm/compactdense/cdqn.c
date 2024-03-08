@@ -54,7 +54,7 @@ static PetscErrorCode MatView_LMVMCDQN(Mat B, PetscViewer pv)
 }
 
 /*------------------------------------------------------------*/
-
+static PetscErrorCode MatReset_LMVMCDQN(Mat, PetscBool);
 static PetscErrorCode MatAllocate_LMVMCDQN(Mat B, Vec X, Vec F)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
@@ -76,7 +76,7 @@ static PetscErrorCode MatAllocate_LMVMCDQN(Mat B, Vec X, Vec F)
       /* Given X vector has a different type than allocated X-type data structures.
          We need to destroy all of this and duplicate again out of the given vector. */
       allocate = PETSC_TRUE;
-      PetscCall(MatLMVMReset(B, PETSC_TRUE));
+      PetscCall(MatReset_LMVMCDQN(B, PETSC_TRUE));
     } else {
       VecCheckMatCompatible(B, X, 2, F, 3);
     }
@@ -298,7 +298,12 @@ static PetscErrorCode MatReset_LMVMCDQN(Mat B, PetscBool destructive)
 
   PetscFunctionBegin;
   lqn->watchdog = 0;
-  if (lqn->scale_type == MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL) PetscCall(MatLMVMReset(lqn->diag_qn, destructive));
+  if (lqn->scale_type == MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL) {
+    Mat_LMVM     *dbase   = (Mat_LMVM *)lqn->diag_qn->data;
+    Mat_DiagBrdn *diagctx = (Mat_DiagBrdn *)dbase->ctx;
+    if (!diagctx->allocated) PetscCall(MatLMVMAllocate(lqn->diag_qn, lmvm->Xprev, lmvm->Fprev));
+    PetscCall(MatLMVMReset(lqn->diag_qn, destructive));
+  }
   if (lqn->Sfull) PetscCall(MatZeroEntries(lqn->Sfull));
   if (lqn->Yfull) PetscCall(MatZeroEntries(lqn->Yfull));
   if (lqn->BS) PetscCall(MatZeroEntries(lqn->BS));
@@ -732,6 +737,7 @@ PetscErrorCode MatCreate_LMVMCDQN(Mat B)
 PetscErrorCode MatCreateLMVMCDQN(MPI_Comm comm, PetscInt n, PetscInt N, Mat *B)
 {
   PetscFunctionBegin;
+  PetscCall(KSPInitializePackage());
   PetscCall(MatCreate(comm, B));
   PetscCall(MatSetSizes(*B, n, n, N, N));
   PetscCall(MatSetType(*B, MATLMVMCDQN));
@@ -1161,6 +1167,7 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
 PetscErrorCode MatCreateLMVMCDBFGS(MPI_Comm comm, PetscInt n, PetscInt N, Mat *B)
 {
   PetscFunctionBegin;
+  PetscCall(KSPInitializePackage());
   PetscCall(MatCreate(comm, B));
   PetscCall(MatSetSizes(*B, n, n, N, N));
   PetscCall(MatSetType(*B, MATLMVMCDBFGS));
@@ -1533,6 +1540,7 @@ PetscErrorCode MatCreate_LMVMCDDFP(Mat B)
 PetscErrorCode MatCreateLMVMCDDFP(MPI_Comm comm, PetscInt n, PetscInt N, Mat *B)
 {
   PetscFunctionBegin;
+  PetscCall(KSPInitializePackage());
   PetscCall(MatCreate(comm, B));
   PetscCall(MatSetSizes(*B, n, n, N, N));
   PetscCall(MatSetType(*B, MATLMVMCDDFP));

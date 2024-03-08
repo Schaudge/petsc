@@ -309,6 +309,7 @@ PetscErrorCode MatCreate_LMVMSR1(Mat B)
 PetscErrorCode MatCreateLMVMSR1(MPI_Comm comm, PetscInt n, PetscInt N, Mat *B)
 {
   PetscFunctionBegin;
+  PetscCall(KSPInitializePackage());
   PetscCall(MatCreate(comm, B));
   PetscCall(MatSetSizes(*B, n, n, N, N));
   PetscCall(MatSetType(*B, MATLMVMSR1));

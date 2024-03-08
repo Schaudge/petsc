@@ -187,4 +187,9 @@ int main(int argc, char **argv)
     output_file: output/rosenbrock1_31.out
     args: -n 10 -tao_type bqnktr -test_lmvm -tao_max_it 10 -tao_bqnk_mat_type lmvmcdqn -tao_bqnk_mat_lmvm_scale_type none -tao_bqnk_mat_lqn_type {{inplace reorder}}
 
+  test:
+    suffix: test_cdqn_diag
+    output_file: output/rosenbrock1_32.out
+    args: -n 10 -tao_type bqnktr -test_lmvm -tao_max_it 10 -tao_bqnk_mat_type lmvmcdqn -tao_bqnk_mat_lmvm_scale_type diagonal -tao_bqnk_mat_lqn_type {{inplace reorder}}
+
 TEST*/

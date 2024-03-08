@@ -16,15 +16,6 @@
 
 const char *const MatLMVMCompactDenseTypes[] = {"basic", "reorder", "inplace", "MatLMVMCompactDenseType", "MAT_LMVM_CD_", NULL};
 
-PETSC_INTERN PETSC_UNUSED PetscErrorCode MatMultColumnRange(Mat A, Vec xx, Vec yy, PetscInt c_start, PetscInt c_end)
-{
-  PetscFunctionBegin;
-  PetscCall(PetscLogEventBegin(MAT_Mult, (PetscObject)A, NULL, NULL, NULL));
-  PetscUseMethod(A, "MatMultColumnRange_C", (Mat, Vec, Vec, PetscInt, PetscInt), (A, xx, yy, c_start, c_end));
-  PetscCall(PetscLogEventEnd(MAT_Mult, (PetscObject)A, NULL, NULL, NULL));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 PETSC_INTERN PetscErrorCode MatMultAddColumnRange(Mat A, Vec xx, Vec zz, Vec yy, PetscInt c_start, PetscInt c_end)
 {
   PetscFunctionBegin;

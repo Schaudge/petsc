@@ -371,12 +371,14 @@ static PetscErrorCode MatSetFromOptions_DiagBrdn(Mat B, PetscOptionItems *PetscO
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode MatSetUp_DiagBrdn(Mat);
 static PetscErrorCode MatReset_DiagBrdn(Mat B, PetscBool destructive)
 {
   Mat_LMVM     *lmvm = (Mat_LMVM *)B->data;
   Mat_DiagBrdn *ldb  = (Mat_DiagBrdn *)lmvm->ctx;
 
   PetscFunctionBegin;
+  if (!ldb->allocated) PetscCall(MatSetUp_DiagBrdn(B));
   PetscCall(VecSet(ldb->invD, ldb->delta));
   if (destructive && ldb->allocated) {
     PetscCall(PetscFree3(ldb->yty, ldb->yts, ldb->sts));
@@ -549,6 +551,7 @@ PetscErrorCode MatCreate_LMVMDiagBrdn(Mat B)
 PetscErrorCode MatCreateLMVMDiagBroyden(MPI_Comm comm, PetscInt n, PetscInt N, Mat *B)
 {
   PetscFunctionBegin;
+  PetscCall(KSPInitializePackage());
   PetscCall(MatCreate(comm, B));
   PetscCall(MatSetSizes(*B, n, n, N, N));
   PetscCall(MatSetType(*B, MATLMVMDIAGBROYDEN));
