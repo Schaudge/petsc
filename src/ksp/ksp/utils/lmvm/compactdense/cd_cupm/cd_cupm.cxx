@@ -114,7 +114,6 @@ PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlace_CUPM(PetscBool hermit
   default:
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "Unsupported device type %s", PetscDeviceTypes[device_type]);
   }
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -142,7 +141,6 @@ PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlaceCyclic_CUPM(PetscBool 
   default:
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "Unsupported device type %s", PetscDeviceTypes[device_type]);
   }
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 #endif

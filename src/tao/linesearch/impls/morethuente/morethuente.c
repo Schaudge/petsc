@@ -40,7 +40,7 @@ static PetscErrorCode TaoLineSearchMonitor_MT(TaoLineSearch ls)
 
 static PetscErrorCode TaoLineSearchApply_MT(TaoLineSearch ls, Vec x, PetscReal *f, Vec g, Vec s)
 {
-  TaoLineSearch_MT  *mt     = (TaoLineSearch_MT *)(ls->data);
+  TaoLineSearch_MT  *mt     = (TaoLineSearch_MT *)ls->data;
   PetscReal          xtrapf = 4.0;
   PetscReal          finit, width, width1, dginit, fm, fxm, fym, dgm, dgxm, dgym;
   PetscReal          dgx, dgy, dg, dg2, fx, fy, stx, sty, dgtest;

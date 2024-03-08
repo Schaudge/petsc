@@ -181,7 +181,6 @@ static PetscErrorCode MatSetUp_LMVMCDQN(Mat B)
     PetscCall(VecDestroy(&Xtmp));
     PetscCall(VecDestroy(&Ftmp));
   }
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

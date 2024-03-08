@@ -1075,11 +1075,10 @@ static PetscErrorCode MatMultColumnRangeKernel_SeqDense(Mat A, Vec xx, Vec yy, P
     if (trans) {
       if (herm) PetscCallBLAS("BLASgemv", BLASgemv_("C", &m, &n, &_DOne, v + c_start * mat->lda, &mat->lda, x, &_One, &_DZero, y + c_start, &_One));
       else PetscCallBLAS("BLASgemv", BLASgemv_("T", &m, &n, &_DOne, v + c_start * mat->lda, &mat->lda, x, &_One, &_DZero, y + c_start, &_One));
-      PetscCall(PetscLogFlops(2.0 * m * n - n));
     } else {
-      PetscCallBLAS("BLASgemv", BLASgemv_("N", &m, &n, &_DOne, v + c_start * mat->lda, &(mat->lda), x + c_start, &_One, &_DZero, y, &_One));
-      PetscCall(PetscLogFlops(2.0 * m * n - m));
+      PetscCallBLAS("BLASgemv", BLASgemv_("N", &m, &n, &_DOne, v + c_start * mat->lda, &mat->lda, x + c_start, &_One, &_DZero, y, &_One));
     }
+    PetscCall(PetscLogFlops(2.0 * m * n - n));
   }
   PetscCall(VecRestoreArrayRead(xx, &x));
   PetscCall(VecRestoreArrayWrite(yy, &y));
@@ -1136,10 +1135,10 @@ static PetscErrorCode MatMultAddColumnRangeKernel_SeqDense(Mat A, Vec xx, Vec zz
   PetscCall(VecGetArray(yy, &y));
   PetscCall(VecGetArrayRead(xx, &x));
   if (trans) {
-    if (herm) PetscCallBLAS("BLASgemv", BLASgemv_("C", &m, &n, &_DOne, v + c_start * mat->lda, &(mat->lda), x, &_One, &_DOne, y + c_start, &_One));
-    else PetscCallBLAS("BLASgemv", BLASgemv_("T", &m, &n, &_DOne, v + c_start * mat->lda, &(mat->lda), x, &_One, &_DOne, y + c_start, &_One));
+    if (herm) PetscCallBLAS("BLASgemv", BLASgemv_("C", &m, &n, &_DOne, v + c_start * mat->lda, &mat->lda, x, &_One, &_DOne, y + c_start, &_One));
+    else PetscCallBLAS("BLASgemv", BLASgemv_("T", &m, &n, &_DOne, v + c_start * mat->lda, &mat->lda, x, &_One, &_DOne, y + c_start, &_One));
   } else {
-    PetscCallBLAS("BLASgemv", BLASgemv_("N", &m, &n, &_DOne, v + c_start * mat->lda, &(mat->lda), x + c_start, &_One, &_DOne, y, &_One));
+    PetscCallBLAS("BLASgemv", BLASgemv_("N", &m, &n, &_DOne, v + c_start * mat->lda, &mat->lda, x + c_start, &_One, &_DOne, y, &_One));
   }
   PetscCall(VecRestoreArrayRead(xx, &x));
   PetscCall(VecRestoreArray(yy, &y));
