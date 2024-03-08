@@ -43,13 +43,13 @@ typedef struct {
 PETSC_INTERN PetscErrorCode MatView_LMVMCDDFP(Mat, PetscViewer);
 PETSC_INTERN PetscErrorCode MatView_LMVMCDBFGS(Mat, PetscViewer);
 
-PETSC_INTERN PetscErrorCode              MatUpperTriangularSolveInPlace_CUPM(PetscBool, PetscInt, const PetscScalar[], PetscInt, PetscScalar[], PetscInt);
-PETSC_INTERN PetscErrorCode              MatUpperTriangularSolveInPlaceCyclic_CUPM(PetscBool, PetscInt, PetscInt, const PetscScalar[], PetscInt, PetscScalar[], PetscInt);
-PETSC_INTERN PetscErrorCode              MatMultAddColumnRange(Mat, Vec, Vec, Vec, PetscInt, PetscInt);
-PETSC_INTERN PetscErrorCode              MatMultTransposeColumnRange(Mat, Vec, Vec, PetscInt, PetscInt);
-PETSC_INTERN PetscErrorCode              MatMultTransposeAddColumnRange(Mat, Vec, Vec, Vec, PetscInt, PetscInt);
-PETSC_INTERN PetscErrorCode              VecCyclicShift(Mat, Vec, PetscInt, Vec);
-PETSC_INTERN PetscErrorCode              VecRecycleOrderToHistoryOrder(Mat, Vec, PetscInt, Vec);
-PETSC_INTERN PetscErrorCode              VecHistoryOrderToRecycleOrder(Mat, Vec, PetscInt, Vec);
-PETSC_INTERN PetscErrorCode              MatUpperTriangularSolveInPlace(Mat, Mat, Vec, PetscBool, PetscInt, MatLMVMCompactDenseType);
-PETSC_INTERN PetscErrorCode              MatMove_LR3(Mat, Mat, PetscInt);
+PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlace_CUPM(PetscBool, PetscInt, const PetscScalar[], PetscInt, PetscScalar[], PetscInt);
+PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlaceCyclic_CUPM(PetscBool, PetscInt, PetscInt, const PetscScalar[], PetscInt, PetscScalar[], PetscInt);
+PETSC_INTERN PetscErrorCode MatMultAddColumnRange(Mat, Vec, Vec, Vec, PetscInt, PetscInt);
+PETSC_INTERN PetscErrorCode MatMultTransposeColumnRange(Mat, Vec, Vec, PetscInt, PetscInt);
+PETSC_INTERN PetscErrorCode MatMultTransposeAddColumnRange(Mat, Vec, Vec, Vec, PetscInt, PetscInt);
+PETSC_INTERN PetscErrorCode VecCyclicShift(Mat, Vec, PetscInt, Vec);
+PETSC_INTERN PetscErrorCode VecRecycleOrderToHistoryOrder(Mat, Vec, PetscInt, Vec);
+PETSC_INTERN PetscErrorCode VecHistoryOrderToRecycleOrder(Mat, Vec, PetscInt, Vec);
+PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlace(Mat, Mat, Vec, PetscBool, PetscInt, MatLMVMCompactDenseType);
+PETSC_INTERN PetscErrorCode MatMove_LR3(Mat, Mat, PetscInt);
