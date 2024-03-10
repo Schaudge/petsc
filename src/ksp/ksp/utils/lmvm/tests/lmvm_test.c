@@ -5,9 +5,9 @@ const char help[] = "Coverage and edge case test for LMVM";
 
 int main(int argc, char **argv)
 {
-  PetscInt      type = 0, n = 10;
-  Vec           x, g;
-  Mat           B;
+  PetscInt type = 0, n = 10;
+  Vec      x, g;
+  Mat      B;
 
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
   PetscOptionsBegin(PETSC_COMM_WORLD, NULL, help, "KSP");
