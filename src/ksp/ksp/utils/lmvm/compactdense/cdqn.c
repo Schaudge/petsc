@@ -537,7 +537,7 @@ static PetscErrorCode MatUpdate_LMVMCDQN(Mat B, Vec X, Vec F)
         PetscCall(VecDot(lmvm->Fprev, lmvm->Fprev, &yTy));
         diagctx->sigma = PetscRealPart(sTy) / PetscRealPart(yTy);
       } else if (lqn->scale_type == MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL) {
-        PetscScalar sTy     = curvature;
+        PetscScalar sTy = curvature;
         PetscScalar sTDs, yTDy;
 
         if (!diagctx->invD) {
