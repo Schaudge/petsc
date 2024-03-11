@@ -537,9 +537,8 @@ static PetscErrorCode MatUpdate_LMVMCDQN(Mat B, Vec X, Vec F)
         PetscCall(VecDot(lmvm->Fprev, lmvm->Fprev, &yTy));
         diagctx->sigma = PetscRealPart(sTy) / PetscRealPart(yTy);
       } else if (lqn->scale_type == MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL) {
-        PetscBool   forward = PETSC_TRUE;
         PetscScalar sTy     = curvature;
-        PetscReal   mu      = 0.25;
+        PetscScalar sTDs, yTDy;
 
         if (!diagctx->invD) {
           PetscCall(VecDuplicate(lmvm->Fprev, &diagctx->invD));
@@ -549,38 +548,18 @@ static PetscErrorCode MatUpdate_LMVMCDQN(Mat B, Vec X, Vec F)
         if (!diagctx->V) PetscCall(VecDuplicate(lmvm->Fprev, &diagctx->V));
         if (!diagctx->W) PetscCall(VecDuplicate(lmvm->Fprev, &diagctx->W));
 
-        if (forward) {
-          PetscScalar sTDs, yTDy;
-
-          /* diagonal Broyden */
-          PetscCall(VecReciprocalAsync_Private(diagctx->invD, dctx));
-          PetscCall(VecPointwiseMultAsync_Private(diagctx->V, diagctx->invD, lmvm->Xprev, dctx));
-          PetscCall(VecPointwiseMultAsync_Private(diagctx->U, lmvm->Fprev, lmvm->Fprev, dctx));
-          PetscCall(VecAXPYAsync_Private(diagctx->invD, 1.0 / sTy, diagctx->U, dctx));
-          PetscCall(VecDot(diagctx->V, lmvm->Xprev, &sTDs));
-          PetscCall(VecPointwiseMultAsync_Private(diagctx->V, diagctx->V, diagctx->V, dctx));
-          PetscCall(VecAXPYAsync_Private(diagctx->invD, -1.0 / PetscMax(PetscRealPart(sTDs), diagctx->tol), diagctx->V, dctx));
-          PetscCall(VecReciprocalAsync_Private(diagctx->invD, dctx));
-          PetscCall(VecAbsAsync_Private(diagctx->invD, dctx));
-          PetscCall(VecDot(diagctx->U, diagctx->invD, &yTDy));
-          PetscCall(VecScaleAsync_Private(diagctx->invD, PetscRealPart(sTy) / PetscRealPart(yTDy), dctx));
-        } else {
-          PetscScalar sTs;
-          PetscCall(VecDot(lmvm->Xprev, lmvm->Xprev, &sTs));
-
-          PetscCall(VecSetAsync_Private(diagctx->V, PetscRealPart(sTy) / PetscRealPart(yTy), dctx));
-          PetscCall(VecPointwiseMinAsync_Private(diagctx->V, diagctx->V, diagctx->invD, dctx)); /* lower bound = min(invD, sTy / yTy) */
-          PetscCall(VecSetAsync_Private(diagctx->W, PetscRealPart(sTs) / PetscRealPart(sTy), dctx));
-          PetscCall(VecPointwiseMaxAsync_Private(diagctx->W, diagctx->W, diagctx->invD, dctx)); /* lower bound = max(invD, sTs / sTy) */
-
-          PetscCall(VecPointwiseMultAsync_Private(diagctx->U, lmvm->Fprev, lmvm->Xprev, dctx));
-          PetscCall(VecAYPXAsync_Private(diagctx->invD, mu, diagctx->U, dctx));
-          PetscCall(VecPointwiseMultAsync_Private(diagctx->U, lmvm->Fprev, lmvm->Fprev, dctx));
-          PetscCall(VecShiftAsync_Private(diagctx->U, mu, dctx));
-          PetscCall(VecPointwiseDivideAsync_Private(diagctx->invD, diagctx->invD, diagctx->U, dctx)); /* (s o y + mu invD) / (y o y + mu) */
-          PetscCall(VecPointwiseMaxAsync_Private(diagctx->invD, diagctx->invD, diagctx->V, dctx));    /* enforce lower bound              */
-          PetscCall(VecPointwiseMinAsync_Private(diagctx->invD, diagctx->invD, diagctx->W, dctx));    /* enforce upper bound              */
-        }
+        /* diagonal Broyden */
+        PetscCall(VecReciprocalAsync_Private(diagctx->invD, dctx));
+        PetscCall(VecPointwiseMultAsync_Private(diagctx->V, diagctx->invD, lmvm->Xprev, dctx));
+        PetscCall(VecPointwiseMultAsync_Private(diagctx->U, lmvm->Fprev, lmvm->Fprev, dctx));
+        PetscCall(VecAXPYAsync_Private(diagctx->invD, 1.0 / sTy, diagctx->U, dctx));
+        PetscCall(VecDot(diagctx->V, lmvm->Xprev, &sTDs));
+        PetscCall(VecPointwiseMultAsync_Private(diagctx->V, diagctx->V, diagctx->V, dctx));
+        PetscCall(VecAXPYAsync_Private(diagctx->invD, -1.0 / PetscMax(PetscRealPart(sTDs), diagctx->tol), diagctx->V, dctx));
+        PetscCall(VecReciprocalAsync_Private(diagctx->invD, dctx));
+        PetscCall(VecAbsAsync_Private(diagctx->invD, dctx));
+        PetscCall(VecDot(diagctx->U, diagctx->invD, &yTDy));
+        PetscCall(VecScaleAsync_Private(diagctx->invD, PetscRealPart(sTy) / PetscRealPart(yTDy), dctx));
       }
     } else {
       /* Update is bad, skip it */
