@@ -1,7 +1,7 @@
 #include <../src/ksp/ksp/utils/lmvm/lmvm.h>
 
 /*
-  Compact dense representation for the limited-memory BFGS/DFP method.
+  dense representation for the limited-memory BFGS/DFP method.
 */
 
 typedef struct {
@@ -28,7 +28,7 @@ typedef struct {
   Vec                        local_work_vec, local_work_vec_copy;
   Vec                        cyclic_work_vec;
   MatType                    dense_type;
-  MatLMVMCompactDenseType    strategy;
+  MatLMVMDenseType           strategy;
   MatLMVMSymBroydenScaleType scale_type;
 
   PetscInt         S_count, St_count, Y_count, Yt_count;
@@ -51,5 +51,5 @@ PETSC_INTERN PetscErrorCode MatMultTransposeAddColumnRange(Mat, Vec, Vec, Vec, P
 PETSC_INTERN PetscErrorCode VecCyclicShift(Mat, Vec, PetscInt, Vec);
 PETSC_INTERN PetscErrorCode VecRecycleOrderToHistoryOrder(Mat, Vec, PetscInt, Vec);
 PETSC_INTERN PetscErrorCode VecHistoryOrderToRecycleOrder(Mat, Vec, PetscInt, Vec);
-PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlace(Mat, Mat, Vec, PetscBool, PetscInt, MatLMVMCompactDenseType);
+PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlace(Mat, Mat, Vec, PetscBool, PetscInt, MatLMVMDenseType);
 PETSC_INTERN PetscErrorCode MatMove_LR3(Mat, Mat, PetscInt);

@@ -1029,11 +1029,11 @@ PETSC_EXTERN const char *const MatLMVMSymBroydenScaleTypes[];
 PETSC_EXTERN PetscErrorCode MatLMVMSymBroydenSetScaleType(Mat, MatLMVMSymBroydenScaleType);
 
 typedef enum {
-  MAT_LMVM_CD_BASIC,
-  MAT_LMVM_CD_REORDER,
-  MAT_LMVM_CD_INPLACE
-} MatLMVMCompactDenseType;
-PETSC_EXTERN const char *const MatLMVMCompactDenseTypes[];
+  MAT_LMVM_DENSE_BASIC,
+  MAT_LMVM_DENSE_REORDER,
+  MAT_LMVM_DENSE_INPLACE
+} MatLMVMDenseType;
+PETSC_EXTERN const char *const MatLMVMDenseTypes[];
 
 PETSC_EXTERN PetscErrorCode KSPSetDM(KSP, DM);
 PETSC_EXTERN PetscErrorCode KSPSetDMActive(KSP, PetscBool);

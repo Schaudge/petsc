@@ -126,7 +126,7 @@ static PetscErrorCode MatAllocate_LMVMDQN(Mat B, Vec X, Vec F)
         PetscCall(MatCreateVecs(lqn->StY_triu, &lqn->diag_vec, &lqn->rwork1));
         PetscCall(MatCreateVecs(lqn->StY_triu, &lqn->rwork2, &lqn->rwork3));
       } else {
-        SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "MatAllocate_LMVMDQN is only available for compact-dense derived types. (DBFGS, DDFP, DQN");
+        SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "MatAllocate_LMVMDQN is only available for dense derived types. (DBFGS, DDFP, DQN");
       }
       /* initialize StY_triu and YtS_triu to identity, if they exist, so it is invertible */
       if (lqn->StY_triu) {
@@ -196,16 +196,16 @@ static PetscErrorCode MatSetFromOptions_LMVMDQN_Private(Mat B, PetscOptionItems 
   PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMDDFP, &is_ddfp));
   PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMDQN, &is_dqn));
   if (is_dqn) {
-    PetscCall(PetscOptionsEnum("-mat_lqn_type", "Implementation options for L-QN", "MatLMVMCompactDenseType", MatLMVMCompactDenseTypes, (PetscEnum)lqn->strategy, (PetscEnum *)&lqn->strategy, NULL));
+    PetscCall(PetscOptionsEnum("-mat_lqn_type", "Implementation options for L-QN", "MatLMVMDenseType", MatLMVMDenseTypes, (PetscEnum)lqn->strategy, (PetscEnum *)&lqn->strategy, NULL));
     PetscCall(PetscOptionsEnum("-mat_lmvm_scale_type", "(developer) scaling type applied to J0", "MatLMVMSymBrdnScaleType", MatLMVMSymBroydenScaleTypes, (PetscEnum)lqn->scale_type, (PetscEnum *)&lqn->scale_type, NULL));
   } else if (is_dbfgs) {
-    PetscCall(PetscOptionsEnum("-mat_lbfgs_type", "Implementation options for L-BFGS", "MatLMVMCompactDenseType", MatLMVMCompactDenseTypes, (PetscEnum)lqn->strategy, (PetscEnum *)&lqn->strategy, NULL));
+    PetscCall(PetscOptionsEnum("-mat_lbfgs_type", "Implementation options for L-BFGS", "MatLMVMDenseType", MatLMVMDenseTypes, (PetscEnum)lqn->strategy, (PetscEnum *)&lqn->strategy, NULL));
     PetscCall(PetscOptionsEnum("-mat_lmvm_scale_type", "(developer) scaling type applied to J0", "MatLMVMSymBrdnScaleType", MatLMVMSymBroydenScaleTypes, (PetscEnum)lqn->scale_type, (PetscEnum *)&lqn->scale_type, NULL));
   } else if (is_ddfp) {
-    PetscCall(PetscOptionsEnum("-mat_ldfp_type", "Implementation options for L-DFP", "MatLMVMCompactDenseType", MatLMVMCompactDenseTypes, (PetscEnum)lqn->strategy, (PetscEnum *)&lqn->strategy, NULL));
+    PetscCall(PetscOptionsEnum("-mat_ldfp_type", "Implementation options for L-DFP", "MatLMVMDenseType", MatLMVMDenseTypes, (PetscEnum)lqn->strategy, (PetscEnum *)&lqn->strategy, NULL));
     PetscCall(PetscOptionsEnum("-mat_lmvm_scale_type", "(developer) scaling type applied to J0", "MatLMVMSymBrdnScaleType", MatLMVMSymBroydenScaleTypes, (PetscEnum)lqn->scale_type, (PetscEnum *)&lqn->scale_type, NULL));
   } else {
-    SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "MatSetFromOptions_LMVMDQN is only available for compact-dense derived types. (DBFGS, DDFP, DQN");
+    SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "MatSetFromOptions_LMVMDQN is only available for dense derived types. (DBFGS, DDFP, DQN");
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -218,7 +218,7 @@ static PetscErrorCode MatSetFromOptions_LMVMDQN(Mat B, PetscOptionItems *PetscOp
 
   PetscFunctionBegin;
   PetscCall(MatSetFromOptions_LMVM(B, PetscOptionsObject));
-  PetscOptionsBegin(PetscObjectComm((PetscObject)B), ((PetscObject)B)->prefix, "Compact dense QN method (MATLMVMDQN,MATLMVMDBFGS,MATLMVMDDFP)", NULL);
+  PetscOptionsBegin(PetscObjectComm((PetscObject)B), ((PetscObject)B)->prefix, "Dense QN method (MATLMVMDQN,MATLMVMDBFGS,MATLMVMDDFP)", NULL);
   PetscCall(MatSetFromOptions_LMVMDQN_Private(B, PetscOptionsObject));
   lqn->allocated = PETSC_FALSE;
   PetscOptionsEnd();
@@ -400,7 +400,7 @@ static PetscErrorCode MatUpdate_LMVMDQN(Mat B, Vec X, Vec F)
 
       if (lmvm->k != m - 1) {
         lmvm->k++;
-      } else if (lqn->strategy == MAT_LMVM_CD_REORDER) {
+      } else if (lqn->strategy == MAT_LMVM_DENSE_REORDER) {
         if (is_dqn) {
           PetscCall(MatMove_LR3(B, lqn->StY_triu, m - 1));
           PetscCall(MatMove_LR3(B, lqn->YtS_triu, m - 1));
@@ -409,7 +409,7 @@ static PetscErrorCode MatUpdate_LMVMDQN(Mat B, Vec X, Vec F)
         } else if (is_ddfp) {
           PetscCall(MatMove_LR3(B, lqn->YtS_triu, m - 1));
         } else {
-          SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "MatUpdate_LMVMDQN is only available for compact-dense derived types. (DBFGS, DDFP, DQN");
+          SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "MatUpdate_LMVMDQN is only available for dense derived types. (DBFGS, DDFP, DQN");
         }
       }
 
@@ -423,7 +423,7 @@ static PetscErrorCode MatUpdate_LMVMDQN(Mat B, Vec X, Vec F)
       PetscCall(VecCopyAsync_Private(lmvm->Fprev, workvec1, dctx));
       PetscCall(MatDenseRestoreColumnVecWrite(lqn->Yfull, idx, &workvec1));
 
-      StYidx = (lqn->strategy == MAT_LMVM_CD_REORDER) ? history_index(m, lqn->num_updates, k) : idx;
+      StYidx = (lqn->strategy == MAT_LMVM_DENSE_REORDER) ? history_index(m, lqn->num_updates, k) : idx;
 
       { /* implement the scheme of Byrd, Nocedal, and Schnabel to save a MatMultTranspose call in the common case the       *
          * H_k is immediately applied to F after begin updated.   The S^T y computation can be split up as S^T (F - F_prev) */
@@ -461,7 +461,7 @@ static PetscErrorCode MatUpdate_LMVMDQN(Mat B, Vec X, Vec F)
           /* Now add StFprev: this_sy_col == S^T (F - Fprev) == S^T y */
           PetscCall(VecAXPYAsync_Private(this_sy_col, 1.0, lqn->StFprev, dctx));
 
-          if (lqn->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, this_sy_col, lqn->num_updates, lqn->cyclic_work_vec));
+          if (lqn->strategy == MAT_LMVM_DENSE_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, this_sy_col, lqn->num_updates, lqn->cyclic_work_vec));
           PetscCall(MatDenseRestoreColumnVecWrite(lqn->StY_triu, StYidx, &this_sy_col));
         } else {
           PetscCall(MatMultTransposeColumnRange(lqn->Sfull, F, lqn->StFprev, 0, h_new));
@@ -490,7 +490,7 @@ static PetscErrorCode MatUpdate_LMVMDQN(Mat B, Vec X, Vec F)
           PetscCall(MatMultTransposeColumnRange(lqn->Yfull, X, lqn->YtXprev, 0, h_new));
           lqn->Yt_count++;
 
-          if (lqn->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, this_sy_col, lqn->num_updates, lqn->cyclic_work_vec));
+          if (lqn->strategy == MAT_LMVM_DENSE_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, this_sy_col, lqn->num_updates, lqn->cyclic_work_vec));
           PetscCall(MatDenseRestoreColumnVecWrite(lqn->YtS_triu, StYidx, &this_sy_col));
         } else {
           PetscCall(VecGetLocalSize(lqn->YtXprev, &local_n));
@@ -517,10 +517,10 @@ static PetscErrorCode MatUpdate_LMVMDQN(Mat B, Vec X, Vec F)
       } else if (is_ddfp) {
         PetscCall(MatGetDiagonal(lqn->YtS_triu, lqn->diag_vec));
       } else {
-        SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "MatUpdate_LMVMDQN is only available for compact-dense derived types. (DBFGS, DDFP, DQN");
+        SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "MatUpdate_LMVMDQN is only available for dense derived types. (DBFGS, DDFP, DQN");
       }
 
-      if (lqn->strategy == MAT_LMVM_CD_REORDER) {
+      if (lqn->strategy == MAT_LMVM_DENSE_REORDER) {
         if (!lqn->diag_vec_recycle_order) PetscCall(VecDuplicate(lqn->diag_vec, &lqn->diag_vec_recycle_order));
         PetscCall(VecCopyAsync_Private(lqn->diag_vec, lqn->diag_vec_recycle_order, dctx));
         PetscCall(VecHistoryOrderToRecycleOrder(B, lqn->diag_vec_recycle_order, lqn->num_updates, lqn->cyclic_work_vec));
@@ -648,7 +648,7 @@ static PetscErrorCode MatSolve_LMVMDQN(Mat H, Vec F, Vec dX)
 }
 
 /*
-  This compact dense representation uses Davidon-Fletcher-Powell (DFP) for MatMult,
+  This dense representation uses Davidon-Fletcher-Powell (DFP) for MatMult,
   and Broyden-Fletcher-Goldfarb-Shanno (BFGS) for MatSolve. This implementation
   results in avoiding costly Cholesky factorization, at the cost of duality cap.
   Please refer to MatLMVMDDFP and MatLMVMDBFGS for more information.
@@ -682,7 +682,7 @@ PetscErrorCode MatCreate_LMVMDQN(Mat B)
   ldfp->allocated       = PETSC_FALSE;
   ldfp->watchdog        = 0;
   ldfp->max_seq_rejects = lmvm->m / 2;
-  ldfp->strategy        = MAT_LMVM_CD_INPLACE;
+  ldfp->strategy        = MAT_LMVM_DENSE_INPLACE;
   ldfp->scale_type      = MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL;
 
   PetscCall(MatCreate(PetscObjectComm((PetscObject)B), &ldfp->diag_qn));
@@ -692,7 +692,7 @@ PetscErrorCode MatCreate_LMVMDQN(Mat B)
 }
 
 /*@
-  MatCreateLMVMDQN - Creates a compact dense representation of the limited-memory
+  MatCreateLMVMDQN - Creates a dense representation of the limited-memory
   Quasi-Newton approximation to a Hessian.
 
   Collective
@@ -846,7 +846,7 @@ static PetscErrorCode MatLMVMDBFGSUpdateMultData(Mat B)
     Vec      Bs_j;
     Vec      StBs_j;
     PetscInt S_idx    = recycle_index(m, j);
-    PetscInt StBS_idx = lbfgs->strategy == MAT_LMVM_CD_INPLACE ? S_idx : history_index(m, k, j);
+    PetscInt StBS_idx = lbfgs->strategy == MAT_LMVM_DENSE_INPLACE ? S_idx : history_index(m, k, j);
 
     PetscCall(MatDenseGetColumnVecWrite(lbfgs->BS, S_idx, &Bs_j));
     PetscCall(MatDenseGetColumnVecRead(lbfgs->Sfull, S_idx, &s_j));
@@ -855,12 +855,12 @@ static PetscErrorCode MatLMVMDBFGSUpdateMultData(Mat B)
     PetscCall(MatDenseGetColumnVecWrite(lbfgs->StBS, StBS_idx, &StBs_j));
     PetscCall(MatMultTransposeColumnRange(lbfgs->Sfull, Bs_j, StBs_j, 0, h));
     lbfgs->St_count++;
-    if (lbfgs->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, StBs_j, lbfgs->num_updates, lbfgs->cyclic_work_vec));
+    if (lbfgs->strategy == MAT_LMVM_DENSE_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, StBs_j, lbfgs->num_updates, lbfgs->cyclic_work_vec));
     PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->StBS, StBS_idx, &StBs_j));
     PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->BS, S_idx, &Bs_j));
   }
   prev_oldest = oldest_update(m, lbfgs->num_mult_updates);
-  if (lbfgs->strategy == MAT_LMVM_CD_REORDER && prev_oldest < oldest_update(m, k)) {
+  if (lbfgs->strategy == MAT_LMVM_DENSE_REORDER && prev_oldest < oldest_update(m, k)) {
     /* move the YtS entries that have been computed and need to be kept back up */
     PetscInt m_keep = m - (oldest_update(m, k) - prev_oldest);
 
@@ -870,14 +870,14 @@ static PetscErrorCode MatLMVMDBFGSUpdateMultData(Mat B)
   j_0 = PetscMax(lbfgs->num_mult_updates, oldest_update(m, k));
   for (PetscInt j = j_0; j < k; j++) {
     PetscInt S_idx   = recycle_index(m, j);
-    PetscInt YtS_idx = lbfgs->strategy == MAT_LMVM_CD_INPLACE ? S_idx : history_index(m, k, j);
+    PetscInt YtS_idx = lbfgs->strategy == MAT_LMVM_DENSE_INPLACE ? S_idx : history_index(m, k, j);
     Vec      s_j, Yts_j;
 
     PetscCall(MatDenseGetColumnVecRead(lbfgs->Sfull, S_idx, &s_j));
     PetscCall(MatDenseGetColumnVecWrite(lbfgs->YtS_triu_strict, YtS_idx, &Yts_j));
     PetscCall(MatMultTransposeColumnRange(lbfgs->Yfull, s_j, Yts_j, 0, h));
     lbfgs->Yt_count++;
-    if (lbfgs->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, Yts_j, lbfgs->num_updates, lbfgs->cyclic_work_vec));
+    if (lbfgs->strategy == MAT_LMVM_DENSE_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, Yts_j, lbfgs->num_updates, lbfgs->cyclic_work_vec));
     PetscCall(MatDenseRestoreColumnVecWrite(lbfgs->YtS_triu_strict, YtS_idx, &Yts_j));
     PetscCall(MatDenseRestoreColumnVecRead(lbfgs->Sfull, S_idx, &s_j));
     /* zero the corresponding row */
@@ -948,10 +948,10 @@ static PetscErrorCode MatSolve_LMVMDBFGS(Mat H, Vec F, Vec dX)
   }
 
   /* Reordering rwork1, as STY is in history order, while S is in recycled order */
-  if (lbfgs->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(H, rwork1, lbfgs->num_updates, lbfgs->cyclic_work_vec));
+  if (lbfgs->strategy == MAT_LMVM_DENSE_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(H, rwork1, lbfgs->num_updates, lbfgs->cyclic_work_vec));
   PetscCall(MatUpperTriangularSolveInPlace(H, lbfgs->StY_triu, rwork1, PETSC_FALSE, lbfgs->num_updates, lbfgs->strategy));
   PetscCall(VecScaleAsync_Private(rwork1, -1.0, dctx));
-  if (lbfgs->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(H, rwork1, lbfgs->num_updates, lbfgs->cyclic_work_vec));
+  if (lbfgs->strategy == MAT_LMVM_DENSE_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(H, rwork1, lbfgs->num_updates, lbfgs->cyclic_work_vec));
 
   PetscCall(VecCopyAsync_Private(F, lbfgs->column_work, dctx));
   PetscCall(MatMultAddColumnRange(lbfgs->Yfull, rwork1, lbfgs->column_work, lbfgs->column_work, 0, h));
@@ -963,10 +963,10 @@ static PetscErrorCode MatSolve_LMVMDBFGS(Mat H, Vec F, Vec dX)
   PetscCall(MatMultTransposeAddColumnRange(lbfgs->Yfull, dX, rwork1, rwork1, 0, h));
   lbfgs->Yt_count++;
 
-  if (lbfgs->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(H, rwork1, lbfgs->num_updates, lbfgs->cyclic_work_vec));
+  if (lbfgs->strategy == MAT_LMVM_DENSE_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(H, rwork1, lbfgs->num_updates, lbfgs->cyclic_work_vec));
   PetscCall(MatUpperTriangularSolveInPlace(H, lbfgs->StY_triu, rwork1, PETSC_TRUE, lbfgs->num_updates, lbfgs->strategy));
   PetscCall(VecScaleAsync_Private(rwork1, -1.0, dctx));
-  if (lbfgs->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(H, rwork1, lbfgs->num_updates, lbfgs->cyclic_work_vec));
+  if (lbfgs->strategy == MAT_LMVM_DENSE_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(H, rwork1, lbfgs->num_updates, lbfgs->cyclic_work_vec));
 
   PetscCall(MatMultAddColumnRange(lbfgs->Sfull, rwork1, dX, dX, 0, h));
   lbfgs->S_count++;
@@ -1033,7 +1033,7 @@ static PetscErrorCode MatMult_LMVMDBFGS(Mat B, Vec X, Vec Z)
   lbfgs->Yt_count++;
   PetscCall(MatMultTransposeColumnRange(lbfgs->Sfull, Z, lbfgs->rwork2, 0, h));
   lbfgs->St_count++;
-  if (lbfgs->strategy == MAT_LMVM_CD_REORDER) {
+  if (lbfgs->strategy == MAT_LMVM_DENSE_REORDER) {
     PetscCall(VecRecycleOrderToHistoryOrder(B, lbfgs->rwork1, lbfgs->num_updates, lbfgs->cyclic_work_vec));
     PetscCall(VecRecycleOrderToHistoryOrder(B, lbfgs->rwork2, lbfgs->num_updates, lbfgs->cyclic_work_vec));
   }
@@ -1062,7 +1062,7 @@ static PetscErrorCode MatMult_LMVMDBFGS(Mat B, Vec X, Vec Z)
 
   PetscCall(VecPointwiseMultAsync_Private(lbfgs->rwork1, lbfgs->rwork1, lbfgs->inv_diag_vec, dctx));
 
-  if (lbfgs->strategy == MAT_LMVM_CD_REORDER) {
+  if (lbfgs->strategy == MAT_LMVM_DENSE_REORDER) {
     PetscCall(VecHistoryOrderToRecycleOrder(B, lbfgs->rwork1, lbfgs->num_updates, lbfgs->cyclic_work_vec));
     PetscCall(VecHistoryOrderToRecycleOrder(B, lbfgs->rwork3, lbfgs->num_updates, lbfgs->cyclic_work_vec));
   }
@@ -1075,7 +1075,7 @@ static PetscErrorCode MatMult_LMVMDBFGS(Mat B, Vec X, Vec Z)
 }
 
 /*
-  This compact-dense  representation  reduces the L-BFGS update to a series of
+  This dense representation reduces the L-BFGS update to a series of
   matrix-vector products with CD matrices in lieu of the conventional matrix-free
   two-loop algorithm. For most problems on CPUs, this representation is not as fast
   as the regular implementation provided via MATLMVMBFGS. However, it may be faster
@@ -1110,7 +1110,7 @@ PetscErrorCode MatCreate_LMVMDBFGS(Mat B)
   lbfgs->allocated       = PETSC_FALSE;
   lbfgs->watchdog        = 0;
   lbfgs->max_seq_rejects = lmvm->m / 2;
-  lbfgs->strategy        = MAT_LMVM_CD_INPLACE;
+  lbfgs->strategy        = MAT_LMVM_DENSE_INPLACE;
   lbfgs->scale_type      = MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL;
 
   PetscCall(MatCreate(PetscObjectComm((PetscObject)B), &lbfgs->diag_qn));
@@ -1122,7 +1122,7 @@ PetscErrorCode MatCreate_LMVMDBFGS(Mat B)
 /*------------------------------------------------------------*/
 
 /*@
-  MatCreateLMVMDBFGS - Creates a compact dense (CD) representation of the limited-memory
+  MatCreateLMVMDBFGS - Creates a dense representation of the limited-memory
   Broyden-Fletcher-Goldfarb-Shanno (BFGS) approximation to a Hessian.
 
   Collective
@@ -1210,7 +1210,7 @@ static PetscErrorCode MatLMVMDDFPUpdateSolveData(Mat B)
     Vec      Hy_j;
     Vec      YtHy_j;
     PetscInt Y_idx    = recycle_index(m, j);
-    PetscInt YtHY_idx = ldfp->strategy == MAT_LMVM_CD_INPLACE ? Y_idx : history_index(m, k, j);
+    PetscInt YtHY_idx = ldfp->strategy == MAT_LMVM_DENSE_INPLACE ? Y_idx : history_index(m, k, j);
 
     PetscCall(MatDenseGetColumnVecWrite(ldfp->HY, Y_idx, &Hy_j));
     PetscCall(MatDenseGetColumnVecRead(ldfp->Yfull, Y_idx, &y_j));
@@ -1219,12 +1219,12 @@ static PetscErrorCode MatLMVMDDFPUpdateSolveData(Mat B)
     PetscCall(MatDenseGetColumnVecWrite(ldfp->YtHY, YtHY_idx, &YtHy_j));
     PetscCall(MatMultTransposeColumnRange(ldfp->Yfull, Hy_j, YtHy_j, 0, h));
     ldfp->Yt_count++;
-    if (ldfp->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, YtHy_j, ldfp->num_updates, ldfp->cyclic_work_vec));
+    if (ldfp->strategy == MAT_LMVM_DENSE_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, YtHy_j, ldfp->num_updates, ldfp->cyclic_work_vec));
     PetscCall(MatDenseRestoreColumnVecWrite(ldfp->YtHY, YtHY_idx, &YtHy_j));
     PetscCall(MatDenseRestoreColumnVecWrite(ldfp->HY, Y_idx, &Hy_j));
   }
   prev_oldest = oldest_update(m, ldfp->num_mult_updates);
-  if (ldfp->strategy == MAT_LMVM_CD_REORDER && prev_oldest < oldest_update(m, k)) {
+  if (ldfp->strategy == MAT_LMVM_DENSE_REORDER && prev_oldest < oldest_update(m, k)) {
     /* move the YtS entries that have been computed and need to be kept back up */
     PetscInt m_keep = m - (oldest_update(m, k) - prev_oldest);
 
@@ -1234,14 +1234,14 @@ static PetscErrorCode MatLMVMDDFPUpdateSolveData(Mat B)
   j_0 = PetscMax(ldfp->num_mult_updates, oldest_update(m, k));
   for (PetscInt j = j_0; j < k; j++) {
     PetscInt Y_idx   = recycle_index(m, j);
-    PetscInt StY_idx = ldfp->strategy == MAT_LMVM_CD_INPLACE ? Y_idx : history_index(m, k, j);
+    PetscInt StY_idx = ldfp->strategy == MAT_LMVM_DENSE_INPLACE ? Y_idx : history_index(m, k, j);
     Vec      y_j, Sty_j;
 
     PetscCall(MatDenseGetColumnVecRead(ldfp->Yfull, Y_idx, &y_j));
     PetscCall(MatDenseGetColumnVecWrite(ldfp->StY_triu_strict, StY_idx, &Sty_j));
     PetscCall(MatMultTransposeColumnRange(ldfp->Sfull, y_j, Sty_j, 0, h));
     ldfp->St_count++;
-    if (ldfp->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, Sty_j, ldfp->num_updates, ldfp->cyclic_work_vec));
+    if (ldfp->strategy == MAT_LMVM_DENSE_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, Sty_j, ldfp->num_updates, ldfp->cyclic_work_vec));
     PetscCall(MatDenseRestoreColumnVecWrite(ldfp->StY_triu_strict, StY_idx, &Sty_j));
     PetscCall(MatDenseRestoreColumnVecRead(ldfp->Yfull, Y_idx, &y_j));
     /* zero the corresponding row */
@@ -1332,7 +1332,7 @@ static PetscErrorCode MatSolve_LMVMDDFP(Mat H, Vec F, Vec dX)
   ldfp->St_count++;
   PetscCall(MatMultTransposeColumnRange(ldfp->Yfull, dX, ldfp->rwork2, 0, h));
   ldfp->Yt_count++;
-  if (ldfp->strategy == MAT_LMVM_CD_REORDER) {
+  if (ldfp->strategy == MAT_LMVM_DENSE_REORDER) {
     PetscCall(VecRecycleOrderToHistoryOrder(H, ldfp->rwork1, ldfp->num_updates, ldfp->cyclic_work_vec));
     PetscCall(VecRecycleOrderToHistoryOrder(H, ldfp->rwork2, ldfp->num_updates, ldfp->cyclic_work_vec));
   }
@@ -1360,7 +1360,7 @@ static PetscErrorCode MatSolve_LMVMDDFP(Mat H, Vec F, Vec dX)
 
   PetscCall(VecPointwiseMultAsync_Private(ldfp->rwork1, ldfp->rwork1, ldfp->inv_diag_vec, dctx));
 
-  if (ldfp->strategy == MAT_LMVM_CD_REORDER) {
+  if (ldfp->strategy == MAT_LMVM_DENSE_REORDER) {
     PetscCall(VecHistoryOrderToRecycleOrder(H, ldfp->rwork1, ldfp->num_updates, ldfp->cyclic_work_vec));
     PetscCall(VecHistoryOrderToRecycleOrder(H, ldfp->rwork3, ldfp->num_updates, ldfp->cyclic_work_vec));
   }
@@ -1422,10 +1422,10 @@ static PetscErrorCode MatMult_LMVMDDFP(Mat B, Vec X, Vec Z)
   }
 
   /* Reordering rwork1, as STY is in history order, while Y is in recycled order */
-  if (ldfp->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, rwork1, ldfp->num_updates, ldfp->cyclic_work_vec));
+  if (ldfp->strategy == MAT_LMVM_DENSE_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, rwork1, ldfp->num_updates, ldfp->cyclic_work_vec));
   PetscCall(MatUpperTriangularSolveInPlace(B, ldfp->YtS_triu, rwork1, PETSC_FALSE, ldfp->num_updates, ldfp->strategy));
   PetscCall(VecScaleAsync_Private(rwork1, -1.0, dctx));
-  if (ldfp->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(B, rwork1, ldfp->num_updates, ldfp->cyclic_work_vec));
+  if (ldfp->strategy == MAT_LMVM_DENSE_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(B, rwork1, ldfp->num_updates, ldfp->cyclic_work_vec));
 
   PetscCall(VecCopyAsync_Private(X, ldfp->column_work, dctx));
   PetscCall(MatMultAddColumnRange(ldfp->Sfull, rwork1, ldfp->column_work, ldfp->column_work, 0, h));
@@ -1437,10 +1437,10 @@ static PetscErrorCode MatMult_LMVMDDFP(Mat B, Vec X, Vec Z)
   PetscCall(MatMultTransposeAddColumnRange(ldfp->Sfull, Z, rwork1, rwork1, 0, h));
   ldfp->St_count++;
 
-  if (ldfp->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, rwork1, ldfp->num_updates, ldfp->cyclic_work_vec));
+  if (ldfp->strategy == MAT_LMVM_DENSE_REORDER) PetscCall(VecRecycleOrderToHistoryOrder(B, rwork1, ldfp->num_updates, ldfp->cyclic_work_vec));
   PetscCall(MatUpperTriangularSolveInPlace(B, ldfp->YtS_triu, rwork1, PETSC_TRUE, ldfp->num_updates, ldfp->strategy));
   PetscCall(VecScaleAsync_Private(rwork1, -1.0, dctx));
-  if (ldfp->strategy == MAT_LMVM_CD_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(B, rwork1, ldfp->num_updates, ldfp->cyclic_work_vec));
+  if (ldfp->strategy == MAT_LMVM_DENSE_REORDER) PetscCall(VecHistoryOrderToRecycleOrder(B, rwork1, ldfp->num_updates, ldfp->cyclic_work_vec));
 
   PetscCall(MatMultAddColumnRange(ldfp->Yfull, rwork1, Z, Z, 0, h));
   ldfp->Y_count++;
@@ -1448,7 +1448,7 @@ static PetscErrorCode MatMult_LMVMDDFP(Mat B, Vec X, Vec Z)
 }
 
 /*
-  This compact-dense  representation  reduces the L-DFP update to a series of
+  This dense representation reduces the L-DFP update to a series of
   matrix-vector products with CD matrices in lieu of the conventional matrix-free
   two-loop algorithm. For most problems on CPUs, this representation is not as fast
   as the regular implementation provided via MATLMVMDFP. However, it may be faster
@@ -1483,7 +1483,7 @@ PetscErrorCode MatCreate_LMVMDDFP(Mat B)
   ldfp->allocated       = PETSC_FALSE;
   ldfp->watchdog        = 0;
   ldfp->max_seq_rejects = lmvm->m / 2;
-  ldfp->strategy        = MAT_LMVM_CD_INPLACE;
+  ldfp->strategy        = MAT_LMVM_DENSE_INPLACE;
   ldfp->scale_type      = MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL;
 
   PetscCall(MatCreate(PetscObjectComm((PetscObject)B), &ldfp->diag_qn));
@@ -1495,7 +1495,7 @@ PetscErrorCode MatCreate_LMVMDDFP(Mat B)
 /*------------------------------------------------------------*/
 
 /*@
-  MatCreateLMVMDDFP - Creates a compact dense (CD) representation of the limited-memory
+  MatCreateLMVMDDFP - Creates a dense representation of the limited-memory
   Davidon-Fletcher-Powell (DFP) approximation to a Hessian.
 
   Collective

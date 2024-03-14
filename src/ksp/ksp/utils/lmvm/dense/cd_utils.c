@@ -14,7 +14,7 @@
   #include <cuda_profiler_api.h>
 #endif
 
-const char *const MatLMVMCompactDenseTypes[] = {"basic", "reorder", "inplace", "MatLMVMCompactDenseType", "MAT_LMVM_CD_", NULL};
+const char *const MatLMVMDenseTypes[] = {"basic", "reorder", "inplace", "MatLMVMDenseType", "MAT_LMVM_DENSE_", NULL};
 
 PETSC_INTERN PetscErrorCode MatMultAddColumnRange(Mat A, Vec xx, Vec zz, Vec yy, PetscInt c_start, PetscInt c_end)
 {
@@ -120,13 +120,13 @@ PETSC_INTERN PetscErrorCode VecHistoryOrderToRecycleOrder(Mat B, Vec X, PetscInt
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlace_Internal(MatLMVMCompactDenseType type, PetscMemType memtype, PetscBool hermitian_transpose, PetscInt N, PetscInt oldest_index, const PetscScalar A[], PetscInt lda, PetscScalar x[], PetscInt stride)
+PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlace_Internal(MatLMVMDenseType type, PetscMemType memtype, PetscBool hermitian_transpose, PetscInt N, PetscInt oldest_index, const PetscScalar A[], PetscInt lda, PetscScalar x[], PetscInt stride)
 {
   PetscFunctionBegin;
   /* if oldest_index == 0, the two strategies are equivalent, redirect to the simpler one */
-  if (oldest_index == 0) type = MAT_LMVM_CD_REORDER;
+  if (oldest_index == 0) type = MAT_LMVM_DENSE_REORDER;
   switch (type) {
-  case MAT_LMVM_CD_REORDER:
+  case MAT_LMVM_DENSE_REORDER:
     if (PetscMemTypeHost(memtype)) {
       PetscBLASInt n, lda_blas, one = 1;
       PetscCall(PetscBLASIntCast(N, &n));
@@ -139,7 +139,7 @@ PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlace_Internal(MatLMVMCompa
 #endif
     } else SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "Unsupported memtype");
     break;
-  case MAT_LMVM_CD_INPLACE:
+  case MAT_LMVM_DENSE_INPLACE:
     if (PetscMemTypeHost(memtype)) {
       PetscBLASInt n_old, n_new, lda_blas, one = 1;
       PetscScalar  minus_one = -1.0;
@@ -169,7 +169,7 @@ PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlace_Internal(MatLMVMCompa
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlace(Mat B, Mat Amat, Vec X, PetscBool hermitian_transpose, PetscInt num_updates, MatLMVMCompactDenseType strategy)
+PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlace(Mat B, Mat Amat, Vec X, PetscBool hermitian_transpose, PetscInt num_updates, MatLMVMDenseType strategy)
 {
   Mat_LMVM          *lmvm = (Mat_LMVM *)B->data;
   PetscInt           m    = lmvm->m;
