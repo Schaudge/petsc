@@ -14,12 +14,12 @@
   #include <cuda_profiler_api.h>
 #endif
 
-static PetscErrorCode MatMult_LMVMCDQN(Mat, Vec, Vec);
-static PetscErrorCode MatMult_LMVMCDBFGS(Mat, Vec, Vec);
-static PetscErrorCode MatMult_LMVMCDDFP(Mat, Vec, Vec);
-static PetscErrorCode MatSolve_LMVMCDQN(Mat, Vec, Vec);
-static PetscErrorCode MatSolve_LMVMCDBFGS(Mat, Vec, Vec);
-static PetscErrorCode MatSolve_LMVMCDDFP(Mat, Vec, Vec);
+static PetscErrorCode MatMult_LMVMDQN(Mat, Vec, Vec);
+static PetscErrorCode MatMult_LMVMDBFGS(Mat, Vec, Vec);
+static PetscErrorCode MatMult_LMVMDDFP(Mat, Vec, Vec);
+static PetscErrorCode MatSolve_LMVMDQN(Mat, Vec, Vec);
+static PetscErrorCode MatSolve_LMVMDBFGS(Mat, Vec, Vec);
+static PetscErrorCode MatSolve_LMVMDDFP(Mat, Vec, Vec);
 
 static inline PetscInt recycle_index(PetscInt m, PetscInt idx)
 {
@@ -38,10 +38,10 @@ static inline PetscInt oldest_update(PetscInt m, PetscInt idx)
 
 /*------------------------------------------------------------*/
 
-static PetscErrorCode MatView_LMVMCDQN(Mat B, PetscViewer pv)
+static PetscErrorCode MatView_LMVMDQN(Mat B, PetscViewer pv)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
-  Mat_CDQN *ldfp = (Mat_CDQN *)lmvm->ctx;
+  Mat_DQN  *ldfp = (Mat_DQN *)lmvm->ctx;
 
   PetscBool isascii;
 
@@ -54,20 +54,20 @@ static PetscErrorCode MatView_LMVMCDQN(Mat B, PetscViewer pv)
 }
 
 /*------------------------------------------------------------*/
-static PetscErrorCode MatReset_LMVMCDQN(Mat, PetscBool);
-static PetscErrorCode MatAllocate_LMVMCDQN(Mat B, Vec X, Vec F)
+static PetscErrorCode MatReset_LMVMDQN(Mat, PetscBool);
+static PetscErrorCode MatAllocate_LMVMDQN(Mat B, Vec X, Vec F)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
-  Mat_CDQN *lqn  = (Mat_CDQN *)lmvm->ctx;
-  PetscBool is_cdbfgs, is_cddfp, is_cdqn, same, allocate = PETSC_FALSE;
+  Mat_DQN  *lqn  = (Mat_DQN *)lmvm->ctx;
+  PetscBool is_dbfgs, is_ddfp, is_dqn, same, allocate = PETSC_FALSE;
   VecType   vec_type;
   PetscInt  m, n, M, N;
   MPI_Comm  comm = PetscObjectComm((PetscObject)B);
 
   PetscFunctionBegin;
-  PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMCDBFGS, &is_cdbfgs));
-  PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMCDDFP, &is_cddfp));
-  PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMCDQN, &is_cdqn));
+  PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMDBFGS, &is_dbfgs));
+  PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMDDFP, &is_ddfp));
+  PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMDQN, &is_dqn));
 
   if (lmvm->allocated) {
     PetscCall(VecGetType(X, &vec_type));
@@ -76,7 +76,7 @@ static PetscErrorCode MatAllocate_LMVMCDQN(Mat B, Vec X, Vec F)
       /* Given X vector has a different type than allocated X-type data structures.
          We need to destroy all of this and duplicate again out of the given vector. */
       allocate = PETSC_TRUE;
-      PetscCall(MatReset_LMVMCDQN(B, PETSC_TRUE));
+      PetscCall(MatReset_LMVMDQN(B, PETSC_TRUE));
     } else {
       VecCheckMatCompatible(B, X, 2, F, 3);
     }
@@ -102,31 +102,31 @@ static PetscErrorCode MatAllocate_LMVMCDQN(Mat B, Vec X, Vec F)
       M = lmvm->m;
       m = (rank == 0) ? M : 0;
 
-      /* For CDBFGS: Create data needed for MatSolve() eagerly; data needed for MatMult() will be created on demand
-       * For CDDFP : Create data needed for MatMult() eagerly; data needed for MatSolve() will be created on demand
-       * For CDQN  : Create all data eagerly */
+      /* For DBFGS: Create data needed for MatSolve() eagerly; data needed for MatMult() will be created on demand
+       * For DDFP : Create data needed for MatMult() eagerly; data needed for MatSolve() will be created on demand
+       * For DQN  : Create all data eagerly */
       PetscCall(VecGetType(X, &vec_type));
       PetscCall(MatCreateDenseFromVecType(comm, vec_type, n, m, N, M, -1, NULL, &lqn->Sfull));
       PetscCall(MatDuplicate(lqn->Sfull, MAT_SHARE_NONZERO_PATTERN, &lqn->Yfull));
       PetscCall(MatZeroEntries(lqn->Sfull));
       PetscCall(MatZeroEntries(lqn->Yfull));
-      if (is_cdqn) {
+      if (is_dqn) {
         PetscCall(MatCreateDenseFromVecType(comm, vec_type, m, m, M, M, -1, NULL, &lqn->StY_triu));
         PetscCall(MatCreateDenseFromVecType(comm, vec_type, m, m, M, M, -1, NULL, &lqn->YtS_triu));
         PetscCall(MatCreateVecs(lqn->StY_triu, &lqn->diag_vec, &lqn->rwork1));
         PetscCall(MatCreateVecs(lqn->StY_triu, &lqn->rwork2, &lqn->rwork3));
-      } else if (is_cddfp) {
+      } else if (is_ddfp) {
         PetscCall(MatCreateDenseFromVecType(comm, vec_type, m, m, M, M, -1, NULL, &lqn->YtS_triu));
         PetscCall(MatDuplicate(lqn->Sfull, MAT_SHARE_NONZERO_PATTERN, &lqn->HY));
         PetscCall(MatCreateVecs(lqn->YtS_triu, &lqn->diag_vec, &lqn->rwork1));
         PetscCall(MatCreateVecs(lqn->YtS_triu, &lqn->rwork2, &lqn->rwork3));
-      } else if (is_cdbfgs) {
+      } else if (is_dbfgs) {
         PetscCall(MatCreateDenseFromVecType(comm, vec_type, m, m, M, M, -1, NULL, &lqn->StY_triu));
         PetscCall(MatDuplicate(lqn->Sfull, MAT_SHARE_NONZERO_PATTERN, &lqn->BS));
         PetscCall(MatCreateVecs(lqn->StY_triu, &lqn->diag_vec, &lqn->rwork1));
         PetscCall(MatCreateVecs(lqn->StY_triu, &lqn->rwork2, &lqn->rwork3));
       } else {
-        SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "MatAllocate_LMVMCDQN is only available for compact-dense derived types. (CDBFGS, CDDFP, CDQN");
+        SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "MatAllocate_LMVMDQN is only available for compact-dense derived types. (DBFGS, DDFP, DQN");
       }
       /* initialize StY_triu and YtS_triu to identity, if they exist, so it is invertible */
       if (lqn->StY_triu) {
@@ -154,7 +154,7 @@ static PetscErrorCode MatAllocate_LMVMCDQN(Mat B, Vec X, Vec F)
 
 /*------------------------------------------------------------*/
 
-static PetscErrorCode MatSetUp_LMVMCDQN(Mat B)
+static PetscErrorCode MatSetUp_LMVMDQN(Mat B)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
 
@@ -177,7 +177,7 @@ static PetscErrorCode MatSetUp_LMVMCDQN(Mat B)
       PetscCall(VecCreateMPI(comm, n, N, &Xtmp));
       PetscCall(VecCreateMPI(comm, m, M, &Ftmp));
     }
-    PetscCall(MatAllocate_LMVMCDQN(B, Xtmp, Ftmp));
+    PetscCall(MatAllocate_LMVMDQN(B, Xtmp, Ftmp));
     PetscCall(VecDestroy(&Xtmp));
     PetscCall(VecDestroy(&Ftmp));
   }
@@ -185,41 +185,41 @@ static PetscErrorCode MatSetUp_LMVMCDQN(Mat B)
 }
 
 /*------------------------------------------------------------*/
-static PetscErrorCode MatSetFromOptions_LMVMCDQN_Private(Mat B, PetscOptionItems *PetscOptionsObject)
+static PetscErrorCode MatSetFromOptions_LMVMDQN_Private(Mat B, PetscOptionItems *PetscOptionsObject)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
-  Mat_CDQN *lqn  = (Mat_CDQN *)lmvm->ctx;
-  PetscBool is_cdbfgs, is_cddfp, is_cdqn;
+  Mat_DQN  *lqn  = (Mat_DQN *)lmvm->ctx;
+  PetscBool is_dbfgs, is_ddfp, is_dqn;
 
   PetscFunctionBegin;
-  PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMCDBFGS, &is_cdbfgs));
-  PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMCDDFP, &is_cddfp));
-  PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMCDQN, &is_cdqn));
-  if (is_cdqn) {
+  PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMDBFGS, &is_dbfgs));
+  PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMDDFP, &is_ddfp));
+  PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMDQN, &is_dqn));
+  if (is_dqn) {
     PetscCall(PetscOptionsEnum("-mat_lqn_type", "Implementation options for L-QN", "MatLMVMCompactDenseType", MatLMVMCompactDenseTypes, (PetscEnum)lqn->strategy, (PetscEnum *)&lqn->strategy, NULL));
     PetscCall(PetscOptionsEnum("-mat_lmvm_scale_type", "(developer) scaling type applied to J0", "MatLMVMSymBrdnScaleType", MatLMVMSymBroydenScaleTypes, (PetscEnum)lqn->scale_type, (PetscEnum *)&lqn->scale_type, NULL));
-  } else if (is_cdbfgs) {
+  } else if (is_dbfgs) {
     PetscCall(PetscOptionsEnum("-mat_lbfgs_type", "Implementation options for L-BFGS", "MatLMVMCompactDenseType", MatLMVMCompactDenseTypes, (PetscEnum)lqn->strategy, (PetscEnum *)&lqn->strategy, NULL));
     PetscCall(PetscOptionsEnum("-mat_lmvm_scale_type", "(developer) scaling type applied to J0", "MatLMVMSymBrdnScaleType", MatLMVMSymBroydenScaleTypes, (PetscEnum)lqn->scale_type, (PetscEnum *)&lqn->scale_type, NULL));
-  } else if (is_cddfp) {
+  } else if (is_ddfp) {
     PetscCall(PetscOptionsEnum("-mat_ldfp_type", "Implementation options for L-DFP", "MatLMVMCompactDenseType", MatLMVMCompactDenseTypes, (PetscEnum)lqn->strategy, (PetscEnum *)&lqn->strategy, NULL));
     PetscCall(PetscOptionsEnum("-mat_lmvm_scale_type", "(developer) scaling type applied to J0", "MatLMVMSymBrdnScaleType", MatLMVMSymBroydenScaleTypes, (PetscEnum)lqn->scale_type, (PetscEnum *)&lqn->scale_type, NULL));
   } else {
-    SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "MatSetFromOptions_LMVMCDQN is only available for compact-dense derived types. (CDBFGS, CDDFP, CDQN");
+    SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "MatSetFromOptions_LMVMDQN is only available for compact-dense derived types. (DBFGS, DDFP, DQN");
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 /*------------------------------------------------------------*/
 
-static PetscErrorCode MatSetFromOptions_LMVMCDQN(Mat B, PetscOptionItems *PetscOptionsObject)
+static PetscErrorCode MatSetFromOptions_LMVMDQN(Mat B, PetscOptionItems *PetscOptionsObject)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
-  Mat_CDQN *lqn  = (Mat_CDQN *)lmvm->ctx;
+  Mat_DQN  *lqn  = (Mat_DQN *)lmvm->ctx;
 
   PetscFunctionBegin;
   PetscCall(MatSetFromOptions_LMVM(B, PetscOptionsObject));
-  PetscOptionsBegin(PetscObjectComm((PetscObject)B), ((PetscObject)B)->prefix, "Compact dense QN method (MATLMVMCDQN,MATLMVMCDBFGS,MATLMVMCDDFP)", NULL);
-  PetscCall(MatSetFromOptions_LMVMCDQN_Private(B, PetscOptionsObject));
+  PetscOptionsBegin(PetscObjectComm((PetscObject)B), ((PetscObject)B)->prefix, "Compact dense QN method (MATLMVMDQN,MATLMVMDBFGS,MATLMVMDDFP)", NULL);
+  PetscCall(MatSetFromOptions_LMVMDQN_Private(B, PetscOptionsObject));
   lqn->allocated = PETSC_FALSE;
   PetscOptionsEnd();
   if (lqn->scale_type == MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL) {
@@ -235,10 +235,10 @@ static PetscErrorCode MatSetFromOptions_LMVMCDQN(Mat B, PetscOptionItems *PetscO
 
 /*------------------------------------------------------------*/
 
-static PetscErrorCode MatLMVMCDQNResetDestructive(Mat B)
+static PetscErrorCode MatLMVMDQNResetDestructive(Mat B)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
-  Mat_CDQN *lqn  = (Mat_CDQN *)lmvm->ctx;
+  Mat_DQN  *lqn  = (Mat_DQN *)lmvm->ctx;
 
   PetscFunctionBegin;
   PetscCall(MatDestroy(&lqn->Sfull));
@@ -275,13 +275,13 @@ static PetscErrorCode MatLMVMCDQNResetDestructive(Mat B)
 
 /*------------------------------------------------------------*/
 
-static PetscErrorCode MatDestroy_LMVMCDQN(Mat B)
+static PetscErrorCode MatDestroy_LMVMDQN(Mat B)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
-  Mat_CDQN *lqn  = (Mat_CDQN *)lmvm->ctx;
+  Mat_DQN  *lqn  = (Mat_DQN *)lmvm->ctx;
 
   PetscFunctionBegin;
-  PetscCall(MatLMVMCDQNResetDestructive(B));
+  PetscCall(MatLMVMDQNResetDestructive(B));
   PetscCall(MatDestroy(&lqn->diag_qn));
   PetscCall(PetscFree(lmvm->ctx));
   PetscCall(MatDestroy_LMVM(B));
@@ -290,10 +290,10 @@ static PetscErrorCode MatDestroy_LMVMCDQN(Mat B)
 
 /*------------------------------------------------------------*/
 
-static PetscErrorCode MatReset_LMVMCDQN(Mat B, PetscBool destructive)
+static PetscErrorCode MatReset_LMVMDQN(Mat B, PetscBool destructive)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
-  Mat_CDQN *lqn  = (Mat_CDQN *)lmvm->ctx;
+  Mat_DQN  *lqn  = (Mat_DQN *)lmvm->ctx;
 
   PetscFunctionBegin;
   lqn->watchdog = 0;
@@ -331,7 +331,7 @@ static PetscErrorCode MatReset_LMVMCDQN(Mat B, PetscBool destructive)
   lqn->Xprev_state = 0;
   if (lqn->StFprev) PetscCall(VecZeroEntries(lqn->StFprev));
   if (lqn->YtXprev) PetscCall(VecZeroEntries(lqn->YtXprev));
-  if (destructive) { PetscCall(MatLMVMCDQNResetDestructive(B)); }
+  if (destructive) { PetscCall(MatLMVMDQNResetDestructive(B)); }
   lqn->num_updates      = 0;
   lqn->num_mult_updates = 0;
   PetscCall(MatReset_LMVM(B, destructive));
@@ -340,14 +340,14 @@ static PetscErrorCode MatReset_LMVMCDQN(Mat B, PetscBool destructive)
 
 /*------------------------------------------------------------*/
 
-static PetscErrorCode MatUpdate_LMVMCDQN(Mat B, Vec X, Vec F)
+static PetscErrorCode MatUpdate_LMVMDQN(Mat B, Vec X, Vec F)
 {
   Mat_LMVM     *lmvm    = (Mat_LMVM *)B->data;
-  Mat_CDQN     *lqn     = (Mat_CDQN *)lmvm->ctx;
+  Mat_DQN      *lqn     = (Mat_DQN *)lmvm->ctx;
   Mat_LMVM     *dbase   = (Mat_LMVM *)lqn->diag_qn->data;
   Mat_DiagBrdn *diagctx = (Mat_DiagBrdn *)dbase->ctx;
 
-  PetscBool          is_cddfp, is_cdbfgs, is_cdqn;
+  PetscBool          is_ddfp, is_dbfgs, is_dqn;
   PetscScalar        curvature, yTy;
   PetscReal          curvtol;
   Vec                workvec1;
@@ -355,9 +355,9 @@ static PetscErrorCode MatUpdate_LMVMCDQN(Mat B, Vec X, Vec F)
 
   PetscFunctionBegin;
   if (!lmvm->m) PetscFunctionReturn(PETSC_SUCCESS);
-  PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMCDBFGS, &is_cdbfgs));
-  PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMCDDFP, &is_cddfp));
-  PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMCDQN, &is_cdqn));
+  PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMDBFGS, &is_dbfgs));
+  PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMDDFP, &is_ddfp));
+  PetscCall(PetscObjectTypeCompare((PetscObject)B, MATLMVMDQN, &is_dqn));
   PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
   if (lmvm->prev_set) {
     Vec         FX[2];
@@ -401,15 +401,15 @@ static PetscErrorCode MatUpdate_LMVMCDQN(Mat B, Vec X, Vec F)
       if (lmvm->k != m - 1) {
         lmvm->k++;
       } else if (lqn->strategy == MAT_LMVM_CD_REORDER) {
-        if (is_cdqn) {
+        if (is_dqn) {
           PetscCall(MatMove_LR3(B, lqn->StY_triu, m - 1));
           PetscCall(MatMove_LR3(B, lqn->YtS_triu, m - 1));
-        } else if (is_cdbfgs) {
+        } else if (is_dbfgs) {
           PetscCall(MatMove_LR3(B, lqn->StY_triu, m - 1));
-        } else if (is_cddfp) {
+        } else if (is_ddfp) {
           PetscCall(MatMove_LR3(B, lqn->YtS_triu, m - 1));
         } else {
-          SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "MatUpdate_LMVMCDQN is only available for compact-dense derived types. (CDBFGS, CDDFP, CDQN");
+          SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "MatUpdate_LMVMDQN is only available for compact-dense derived types. (DBFGS, DDFP, DQN");
         }
       }
 
@@ -448,7 +448,7 @@ static PetscErrorCode MatUpdate_LMVMCDQN(Mat B, Vec X, Vec F)
         }
         PetscCall(VecRestoreArrayAndMemType(lqn->StFprev, &StFprev));
 
-        if (is_cdqn || is_cdbfgs) {
+        if (is_dqn || is_dbfgs) {
           Vec this_sy_col;
           /* Now StFprev is updated for the new S vector.  Write -StFprev into the appropriate row */
           PetscCall(MatDenseGetColumnVecWrite(lqn->StY_triu, StYidx, &this_sy_col));
@@ -480,10 +480,10 @@ static PetscErrorCode MatUpdate_LMVMCDQN(Mat B, Vec X, Vec F)
           PetscCall(VecZeroEntries(lqn->YtXprev));
         }
 
-        if (is_cdqn || is_cddfp) {
+        if (is_dqn || is_ddfp) {
           Vec this_sy_col;
           PetscCall(MatDenseGetColumnVecWrite(lqn->YtS_triu, StYidx, &this_sy_col));
-          /* Unlike cdbfgs, due to initial gradient, additional MatMult is introduced per update */
+          /* Unlike dbfgs, due to initial gradient, additional MatMult is introduced per update */
           PetscCall(MatMultTransposeColumnRange(lqn->Yfull, lmvm->Xprev, this_sy_col, 0, h_new));
 
           /* Now compute the new YtXprev */
@@ -512,12 +512,12 @@ static PetscErrorCode MatUpdate_LMVMCDQN(Mat B, Vec X, Vec F)
         }
       }
 
-      if (is_cdbfgs || is_cdqn) {
+      if (is_dbfgs || is_dqn) {
         PetscCall(MatGetDiagonal(lqn->StY_triu, lqn->diag_vec));
-      } else if (is_cddfp) {
+      } else if (is_ddfp) {
         PetscCall(MatGetDiagonal(lqn->YtS_triu, lqn->diag_vec));
       } else {
-        SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "MatUpdate_LMVMCDQN is only available for compact-dense derived types. (CDBFGS, CDDFP, CDQN");
+        SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "MatUpdate_LMVMDQN is only available for compact-dense derived types. (DBFGS, DDFP, DQN");
       }
 
       if (lqn->strategy == MAT_LMVM_CD_REORDER) {
@@ -619,12 +619,12 @@ static PetscErrorCode MatUpdate_LMVMCDQN(Mat B, Vec X, Vec F)
 
 /*------------------------------------------------------------*/
 
-static PetscErrorCode MatCopy_LMVMCDQN(Mat B, Mat M, MatStructure str)
+static PetscErrorCode MatCopy_LMVMDQN(Mat B, Mat M, MatStructure str)
 {
   Mat_LMVM *bdata = (Mat_LMVM *)B->data;
-  Mat_CDQN *blqn  = (Mat_CDQN *)bdata->ctx;
+  Mat_DQN  *blqn  = (Mat_DQN *)bdata->ctx;
   Mat_LMVM *mdata = (Mat_LMVM *)M->data;
-  Mat_CDQN *mlqn  = (Mat_CDQN *)mdata->ctx;
+  Mat_DQN  *mlqn  = (Mat_DQN *)mdata->ctx;
 
   PetscFunctionBegin;
   mlqn->watchdog        = blqn->watchdog;
@@ -633,17 +633,17 @@ static PetscErrorCode MatCopy_LMVMCDQN(Mat B, Mat M, MatStructure str)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode MatMult_LMVMCDQN(Mat B, Vec X, Vec Z)
+static PetscErrorCode MatMult_LMVMDQN(Mat B, Vec X, Vec Z)
 {
   PetscFunctionBegin;
-  PetscCall(MatMult_LMVMCDDFP(B, X, Z));
+  PetscCall(MatMult_LMVMDDFP(B, X, Z));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode MatSolve_LMVMCDQN(Mat H, Vec F, Vec dX)
+static PetscErrorCode MatSolve_LMVMDQN(Mat H, Vec F, Vec dX)
 {
   PetscFunctionBegin;
-  PetscCall(MatSolve_LMVMCDBFGS(H, F, dX));
+  PetscCall(MatSolve_LMVMDBFGS(H, F, dX));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -651,31 +651,31 @@ static PetscErrorCode MatSolve_LMVMCDQN(Mat H, Vec F, Vec dX)
   This compact dense representation uses Davidon-Fletcher-Powell (DFP) for MatMult,
   and Broyden-Fletcher-Goldfarb-Shanno (BFGS) for MatSolve. This implementation
   results in avoiding costly Cholesky factorization, at the cost of duality cap.
-  Please refer to MatLMVMCDDFP and MatLMVMCDBFGS for more information.
+  Please refer to MatLMVMDDFP and MatLMVMDBFGS for more information.
 */
-PetscErrorCode MatCreate_LMVMCDQN(Mat B)
+PetscErrorCode MatCreate_LMVMDQN(Mat B)
 {
   Mat_LMVM *lmvm;
-  Mat_CDQN *ldfp;
+  Mat_DQN  *ldfp;
 
   PetscFunctionBegin;
   PetscCall(MatCreate_LMVM(B));
-  PetscCall(PetscObjectChangeTypeName((PetscObject)B, MATLMVMCDQN));
+  PetscCall(PetscObjectChangeTypeName((PetscObject)B, MATLMVMDQN));
   PetscCall(MatSetOption(B, MAT_SPD, PETSC_TRUE));
   PetscCall(MatSetOption(B, MAT_SPD_ETERNAL, PETSC_TRUE));
-  B->ops->view           = MatView_LMVMCDQN;
-  B->ops->setup          = MatSetUp_LMVMCDQN;
-  B->ops->setfromoptions = MatSetFromOptions_LMVMCDQN;
-  B->ops->destroy        = MatDestroy_LMVMCDQN;
+  B->ops->view           = MatView_LMVMDQN;
+  B->ops->setup          = MatSetUp_LMVMDQN;
+  B->ops->setfromoptions = MatSetFromOptions_LMVMDQN;
+  B->ops->destroy        = MatDestroy_LMVMDQN;
 
   lmvm                = (Mat_LMVM *)B->data;
   lmvm->square        = PETSC_TRUE;
-  lmvm->ops->allocate = MatAllocate_LMVMCDQN;
-  lmvm->ops->reset    = MatReset_LMVMCDQN;
-  lmvm->ops->update   = MatUpdate_LMVMCDQN;
-  lmvm->ops->mult     = MatMult_LMVMCDQN;
-  lmvm->ops->solve    = MatSolve_LMVMCDQN;
-  lmvm->ops->copy     = MatCopy_LMVMCDQN;
+  lmvm->ops->allocate = MatAllocate_LMVMDQN;
+  lmvm->ops->reset    = MatReset_LMVMDQN;
+  lmvm->ops->update   = MatUpdate_LMVMDQN;
+  lmvm->ops->mult     = MatMult_LMVMDQN;
+  lmvm->ops->solve    = MatSolve_LMVMDQN;
+  lmvm->ops->copy     = MatCopy_LMVMDQN;
 
   PetscCall(PetscNew(&ldfp));
   lmvm->ctx             = (void *)ldfp;
@@ -692,7 +692,7 @@ PetscErrorCode MatCreate_LMVMCDQN(Mat B)
 }
 
 /*@
-  MatCreateLMVMCDQN - Creates a compact dense representation of the limited-memory
+  MatCreateLMVMDQN - Creates a compact dense representation of the limited-memory
   Quasi-Newton approximation to a Hessian.
 
   Collective
@@ -710,25 +710,25 @@ PetscErrorCode MatCreate_LMVMCDQN(Mat B)
 
   Level: advanced
 
-.seealso: `MatCreate()`, `MATLMVM`, `MATLMVMCDBFGS`, `MATLMVMCDDFP`, `MatCreateLMVMCDDFP()`, `MatCreateLMVMCDBFGS()`
+.seealso: `MatCreate()`, `MATLMVM`, `MATLMVMDBFGS`, `MATLMVMDDFP`, `MatCreateLMVMDDFP()`, `MatCreateLMVMDBFGS()`
 @*/
-PetscErrorCode MatCreateLMVMCDQN(MPI_Comm comm, PetscInt n, PetscInt N, Mat *B)
+PetscErrorCode MatCreateLMVMDQN(MPI_Comm comm, PetscInt n, PetscInt N, Mat *B)
 {
   PetscFunctionBegin;
   PetscCall(KSPInitializePackage());
   PetscCall(MatCreate(comm, B));
   PetscCall(MatSetSizes(*B, n, n, N, N));
-  PetscCall(MatSetType(*B, MATLMVMCDQN));
+  PetscCall(MatSetType(*B, MATLMVMDQN));
   PetscCall(MatSetUp(*B));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*------------------------------------------------------------*/
 
-static PetscErrorCode MatCDQNApplyJ0Fwd(Mat B, Vec X, Vec Z)
+static PetscErrorCode MatDQNApplyJ0Fwd(Mat B, Vec X, Vec Z)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
-  Mat_CDQN *lqn  = (Mat_CDQN *)lmvm->ctx;
+  Mat_DQN  *lqn  = (Mat_DQN *)lmvm->ctx;
 
   PetscFunctionBegin;
   if (lmvm->J0 || lmvm->user_pc || lmvm->user_ksp || lmvm->user_scale) {
@@ -758,10 +758,10 @@ static PetscErrorCode MatCDQNApplyJ0Fwd(Mat B, Vec X, Vec Z)
 
 /*------------------------------------------------------------*/
 
-static PetscErrorCode MatCDQNApplyJ0Inv(Mat B, Vec F, Vec dX)
+static PetscErrorCode MatDQNApplyJ0Inv(Mat B, Vec F, Vec dX)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
-  Mat_CDQN *lqn  = (Mat_CDQN *)lmvm->ctx;
+  Mat_DQN  *lqn  = (Mat_DQN *)lmvm->ctx;
 
   PetscFunctionBegin;
   if (lmvm->J0 || lmvm->user_pc || lmvm->user_ksp || lmvm->user_scale) {
@@ -793,7 +793,7 @@ static PetscErrorCode MatCDQNApplyJ0Inv(Mat B, Vec F, Vec dX)
 static PetscErrorCode MatGetLDLT(Mat B, Mat result)
 {
   Mat_LMVM *lmvm  = (Mat_LMVM *)B->data;
-  Mat_CDQN *lbfgs = (Mat_CDQN *)lmvm->ctx;
+  Mat_DQN  *lbfgs = (Mat_DQN *)lmvm->ctx;
   PetscInt  m_local;
 
   PetscFunctionBegin;
@@ -811,10 +811,10 @@ static PetscErrorCode MatGetLDLT(Mat B, Mat result)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode MatLMVMCDBFGSUpdateMultData(Mat B)
+static PetscErrorCode MatLMVMDBFGSUpdateMultData(Mat B)
 {
   Mat_LMVM *lmvm  = (Mat_LMVM *)B->data;
-  Mat_CDQN *lbfgs = (Mat_CDQN *)lmvm->ctx;
+  Mat_DQN  *lbfgs = (Mat_DQN *)lmvm->ctx;
   PetscInt  m     = lmvm->m, m_local;
   PetscInt  k     = lbfgs->num_updates;
   PetscInt  h     = k - oldest_update(m, k);
@@ -850,7 +850,7 @@ static PetscErrorCode MatLMVMCDBFGSUpdateMultData(Mat B)
 
     PetscCall(MatDenseGetColumnVecWrite(lbfgs->BS, S_idx, &Bs_j));
     PetscCall(MatDenseGetColumnVecRead(lbfgs->Sfull, S_idx, &s_j));
-    PetscCall(MatCDQNApplyJ0Fwd(B, s_j, Bs_j));
+    PetscCall(MatDQNApplyJ0Fwd(B, s_j, Bs_j));
     PetscCall(MatDenseRestoreColumnVecRead(lbfgs->Sfull, S_idx, &s_j));
     PetscCall(MatDenseGetColumnVecWrite(lbfgs->StBS, StBS_idx, &StBs_j));
     PetscCall(MatMultTransposeColumnRange(lbfgs->Sfull, Bs_j, StBs_j, 0, h));
@@ -916,10 +916,10 @@ static PetscErrorCode MatLMVMCDBFGSUpdateMultData(Mat B)
  *                   [-----+---] [-----+---] [---+---] [-------------]
  *                   [ Y^T | I ] [  0  | D ] [ 0 | I ] [ -R^{-1} S^T ]  */
 
-static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
+static PetscErrorCode MatSolve_LMVMDBFGS(Mat H, Vec F, Vec dX)
 {
   Mat_LMVM          *lmvm  = (Mat_LMVM *)H->data;
-  Mat_CDQN          *lbfgs = (Mat_CDQN *)lmvm->ctx;
+  Mat_DQN           *lbfgs = (Mat_DQN *)lmvm->ctx;
   PetscDeviceContext dctx;
   Vec                rwork1 = lbfgs->rwork1;
   PetscInt           m      = lmvm->m;
@@ -933,7 +933,7 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
 
   /* Block Version */
   if (!lbfgs->num_updates) {
-    PetscCall(MatCDQNApplyJ0Inv(H, F, dX));
+    PetscCall(MatDQNApplyJ0Inv(H, F, dX));
     PetscFunctionReturn(PETSC_SUCCESS); /* No updates stored yet */
   }
 
@@ -958,7 +958,7 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
   lbfgs->Y_count++;
 
   PetscCall(VecPointwiseMultAsync_Private(rwork1, lbfgs->diag_vec_recycle_order, rwork1, dctx));
-  PetscCall(MatCDQNApplyJ0Inv(H, lbfgs->column_work, dX));
+  PetscCall(MatDQNApplyJ0Inv(H, lbfgs->column_work, dX));
 
   PetscCall(MatMultTransposeAddColumnRange(lbfgs->Yfull, dX, rwork1, rwork1, 0, h));
   lbfgs->Yt_count++;
@@ -1002,14 +1002,14 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat H, Vec F, Vec dX)
    Byrd, Nocedal, Schnabel 1994
 
    Alternative approach: considering the fact that DFP is dual to BFGS, use MatMult of DPF:
-   (See cddfp.c's MatMult_LMVMCDDFP)
+   (See ddfp.c's MatMult_LMVMDDFP)
 
 */
 
-static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
+static PetscErrorCode MatMult_LMVMDBFGS(Mat B, Vec X, Vec Z)
 {
   Mat_LMVM          *lmvm  = (Mat_LMVM *)B->data;
-  Mat_CDQN          *lbfgs = (Mat_CDQN *)lmvm->ctx;
+  Mat_DQN           *lbfgs = (Mat_DQN *)lmvm->ctx;
   Mat                J_local;
   PetscInt           m_local;
   PetscInt           m = lmvm->m;
@@ -1023,12 +1023,12 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
 
   /* Cholesky Version */
   /* Start with the B0 term */
-  PetscCall(MatCDQNApplyJ0Fwd(B, X, Z));
+  PetscCall(MatDQNApplyJ0Fwd(B, X, Z));
   if (!lbfgs->num_updates) { PetscFunctionReturn(PETSC_SUCCESS); /* No updates stored yet */ }
 
   PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
 
-  PetscCall(MatLMVMCDBFGSUpdateMultData(B));
+  PetscCall(MatLMVMDBFGSUpdateMultData(B));
   PetscCall(MatMultTransposeColumnRange(lbfgs->Yfull, X, lbfgs->rwork1, 0, h));
   lbfgs->Yt_count++;
   PetscCall(MatMultTransposeColumnRange(lbfgs->Sfull, Z, lbfgs->rwork2, 0, h));
@@ -1081,29 +1081,29 @@ static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
   as the regular implementation provided via MATLMVMBFGS. However, it may be faster
   on GPUs for large enough problems (note: requires CUDA/HIP/KOKKOS).
 */
-PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
+PetscErrorCode MatCreate_LMVMDBFGS(Mat B)
 {
   Mat_LMVM *lmvm;
-  Mat_CDQN *lbfgs;
+  Mat_DQN  *lbfgs;
 
   PetscFunctionBegin;
   PetscCall(MatCreate_LMVM(B));
-  PetscCall(PetscObjectChangeTypeName((PetscObject)B, MATLMVMCDBFGS));
+  PetscCall(PetscObjectChangeTypeName((PetscObject)B, MATLMVMDBFGS));
   PetscCall(MatSetOption(B, MAT_SPD, PETSC_TRUE));
   PetscCall(MatSetOption(B, MAT_SPD_ETERNAL, PETSC_TRUE));
-  B->ops->view           = MatView_LMVMCDQN;
-  B->ops->setup          = MatSetUp_LMVMCDQN;
-  B->ops->setfromoptions = MatSetFromOptions_LMVMCDQN;
-  B->ops->destroy        = MatDestroy_LMVMCDQN;
+  B->ops->view           = MatView_LMVMDQN;
+  B->ops->setup          = MatSetUp_LMVMDQN;
+  B->ops->setfromoptions = MatSetFromOptions_LMVMDQN;
+  B->ops->destroy        = MatDestroy_LMVMDQN;
 
   lmvm                = (Mat_LMVM *)B->data;
   lmvm->square        = PETSC_TRUE;
-  lmvm->ops->allocate = MatAllocate_LMVMCDQN;
-  lmvm->ops->reset    = MatReset_LMVMCDQN;
-  lmvm->ops->update   = MatUpdate_LMVMCDQN;
-  lmvm->ops->mult     = MatMult_LMVMCDBFGS;
-  lmvm->ops->solve    = MatSolve_LMVMCDBFGS;
-  lmvm->ops->copy     = MatCopy_LMVMCDQN;
+  lmvm->ops->allocate = MatAllocate_LMVMDQN;
+  lmvm->ops->reset    = MatReset_LMVMDQN;
+  lmvm->ops->update   = MatUpdate_LMVMDQN;
+  lmvm->ops->mult     = MatMult_LMVMDBFGS;
+  lmvm->ops->solve    = MatSolve_LMVMDBFGS;
+  lmvm->ops->copy     = MatCopy_LMVMDQN;
 
   PetscCall(PetscNew(&lbfgs));
   lmvm->ctx              = (void *)lbfgs;
@@ -1122,7 +1122,7 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
 /*------------------------------------------------------------*/
 
 /*@
-  MatCreateLMVMCDBFGS - Creates a compact dense (CD) representation of the limited-memory
+  MatCreateLMVMDBFGS - Creates a compact dense (CD) representation of the limited-memory
   Broyden-Fletcher-Goldfarb-Shanno (BFGS) approximation to a Hessian.
 
   Collective
@@ -1140,15 +1140,15 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
 
   Level: advanced
 
-.seealso: `MatCreate()`, `MATLMVM`, `MATLMVMCDBFGS`, `MatCreateLMVMBFGS()`
+.seealso: `MatCreate()`, `MATLMVM`, `MATLMVMDBFGS`, `MatCreateLMVMBFGS()`
 @*/
-PetscErrorCode MatCreateLMVMCDBFGS(MPI_Comm comm, PetscInt n, PetscInt N, Mat *B)
+PetscErrorCode MatCreateLMVMDBFGS(MPI_Comm comm, PetscInt n, PetscInt N, Mat *B)
 {
   PetscFunctionBegin;
   PetscCall(KSPInitializePackage());
   PetscCall(MatCreate(comm, B));
   PetscCall(MatSetSizes(*B, n, n, N, N));
-  PetscCall(MatSetType(*B, MATLMVMCDBFGS));
+  PetscCall(MatSetType(*B, MATLMVMDBFGS));
   PetscCall(MatSetUp(*B));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1157,7 +1157,7 @@ PetscErrorCode MatCreateLMVMCDBFGS(MPI_Comm comm, PetscInt n, PetscInt N, Mat *B
 static PetscErrorCode MatGetRTDR(Mat B, Mat result)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
-  Mat_CDQN *ldfp = (Mat_CDQN *)lmvm->ctx;
+  Mat_DQN  *ldfp = (Mat_DQN *)lmvm->ctx;
   PetscInt  m_local;
 
   PetscFunctionBegin;
@@ -1175,10 +1175,10 @@ static PetscErrorCode MatGetRTDR(Mat B, Mat result)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode MatLMVMCDDFPUpdateSolveData(Mat B)
+static PetscErrorCode MatLMVMDDFPUpdateSolveData(Mat B)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
-  Mat_CDQN *ldfp = (Mat_CDQN *)lmvm->ctx;
+  Mat_DQN  *ldfp = (Mat_DQN *)lmvm->ctx;
   PetscInt  m    = lmvm->m, m_local;
   PetscInt  k    = ldfp->num_updates;
   PetscInt  h    = k - oldest_update(m, k);
@@ -1214,7 +1214,7 @@ static PetscErrorCode MatLMVMCDDFPUpdateSolveData(Mat B)
 
     PetscCall(MatDenseGetColumnVecWrite(ldfp->HY, Y_idx, &Hy_j));
     PetscCall(MatDenseGetColumnVecRead(ldfp->Yfull, Y_idx, &y_j));
-    PetscCall(MatCDQNApplyJ0Inv(B, y_j, Hy_j));
+    PetscCall(MatDQNApplyJ0Inv(B, y_j, Hy_j));
     PetscCall(MatDenseRestoreColumnVecRead(ldfp->Yfull, Y_idx, &y_j));
     PetscCall(MatDenseGetColumnVecWrite(ldfp->YtHY, YtHY_idx, &YtHy_j));
     PetscCall(MatMultTransposeColumnRange(ldfp->Yfull, Hy_j, YtHy_j, 0, h));
@@ -1305,10 +1305,10 @@ static PetscErrorCode MatLMVMCDDFPUpdateSolveData(Mat B)
    Byrd, Nocedal, Schnabel 1994
 
 */
-static PetscErrorCode MatSolve_LMVMCDDFP(Mat H, Vec F, Vec dX)
+static PetscErrorCode MatSolve_LMVMDDFP(Mat H, Vec F, Vec dX)
 {
   Mat_LMVM          *lmvm = (Mat_LMVM *)H->data;
-  Mat_CDQN          *ldfp = (Mat_CDQN *)lmvm->ctx;
+  Mat_DQN           *ldfp = (Mat_DQN *)lmvm->ctx;
   PetscInt           m    = lmvm->m;
   PetscInt           k    = ldfp->num_updates;
   PetscInt           h    = k - oldest_update(m, k);
@@ -1322,11 +1322,11 @@ static PetscErrorCode MatSolve_LMVMCDDFP(Mat H, Vec F, Vec dX)
 
   /* Cholesky Version */
   /* Start with the B0 term */
-  PetscCall(MatCDQNApplyJ0Inv(H, F, dX));
+  PetscCall(MatDQNApplyJ0Inv(H, F, dX));
   if (!ldfp->num_updates) { PetscFunctionReturn(PETSC_SUCCESS); /* No updates stored yet */ }
 
   PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
-  PetscCall(MatLMVMCDDFPUpdateSolveData(H));
+  PetscCall(MatLMVMDDFPUpdateSolveData(H));
 
   PetscCall(MatMultTransposeColumnRange(ldfp->Sfull, F, ldfp->rwork1, 0, h));
   ldfp->St_count++;
@@ -1389,10 +1389,10 @@ static PetscErrorCode MatSolve_LMVMCDDFP(Mat H, Vec F, Vec dX)
    (Note: L above is right triangular part of STY)
 
 */
-static PetscErrorCode MatMult_LMVMCDDFP(Mat B, Vec X, Vec Z)
+static PetscErrorCode MatMult_LMVMDDFP(Mat B, Vec X, Vec Z)
 {
   Mat_LMVM          *lmvm   = (Mat_LMVM *)B->data;
-  Mat_CDQN          *ldfp   = (Mat_CDQN *)lmvm->ctx;
+  Mat_DQN           *ldfp   = (Mat_DQN *)lmvm->ctx;
   Vec                rwork1 = ldfp->rwork1;
   PetscInt           m      = lmvm->m;
   PetscInt           k      = ldfp->num_updates;
@@ -1407,7 +1407,7 @@ static PetscErrorCode MatMult_LMVMCDDFP(Mat B, Vec X, Vec Z)
   /* DFP Version. Erway, Jain, Marcia, 2013, Theorem 1 */
   /* Block Version */
   if (!ldfp->num_updates) {
-    PetscCall(MatCDQNApplyJ0Fwd(B, X, Z));
+    PetscCall(MatDQNApplyJ0Fwd(B, X, Z));
     PetscFunctionReturn(PETSC_SUCCESS); /* No updates stored yet */
   }
 
@@ -1432,7 +1432,7 @@ static PetscErrorCode MatMult_LMVMCDDFP(Mat B, Vec X, Vec Z)
   ldfp->S_count++;
 
   PetscCall(VecPointwiseMultAsync_Private(rwork1, ldfp->diag_vec_recycle_order, rwork1, dctx));
-  PetscCall(MatCDQNApplyJ0Fwd(B, ldfp->column_work, Z));
+  PetscCall(MatDQNApplyJ0Fwd(B, ldfp->column_work, Z));
 
   PetscCall(MatMultTransposeAddColumnRange(ldfp->Sfull, Z, rwork1, rwork1, 0, h));
   ldfp->St_count++;
@@ -1454,29 +1454,29 @@ static PetscErrorCode MatMult_LMVMCDDFP(Mat B, Vec X, Vec Z)
   as the regular implementation provided via MATLMVMDFP. However, it may be faster
   on GPUs for large enough problems (note: requires CUDA/HIP/KOKKOS).
 */
-PetscErrorCode MatCreate_LMVMCDDFP(Mat B)
+PetscErrorCode MatCreate_LMVMDDFP(Mat B)
 {
   Mat_LMVM *lmvm;
-  Mat_CDQN *ldfp;
+  Mat_DQN  *ldfp;
 
   PetscFunctionBegin;
   PetscCall(MatCreate_LMVM(B));
-  PetscCall(PetscObjectChangeTypeName((PetscObject)B, MATLMVMCDDFP));
+  PetscCall(PetscObjectChangeTypeName((PetscObject)B, MATLMVMDDFP));
   PetscCall(MatSetOption(B, MAT_SPD, PETSC_TRUE));
   PetscCall(MatSetOption(B, MAT_SPD_ETERNAL, PETSC_TRUE));
-  B->ops->view           = MatView_LMVMCDQN;
-  B->ops->setup          = MatSetUp_LMVMCDQN;
-  B->ops->setfromoptions = MatSetFromOptions_LMVMCDQN;
-  B->ops->destroy        = MatDestroy_LMVMCDQN;
+  B->ops->view           = MatView_LMVMDQN;
+  B->ops->setup          = MatSetUp_LMVMDQN;
+  B->ops->setfromoptions = MatSetFromOptions_LMVMDQN;
+  B->ops->destroy        = MatDestroy_LMVMDQN;
 
   lmvm                = (Mat_LMVM *)B->data;
   lmvm->square        = PETSC_TRUE;
-  lmvm->ops->allocate = MatAllocate_LMVMCDQN;
-  lmvm->ops->reset    = MatReset_LMVMCDQN;
-  lmvm->ops->update   = MatUpdate_LMVMCDQN;
-  lmvm->ops->mult     = MatMult_LMVMCDDFP;
-  lmvm->ops->solve    = MatSolve_LMVMCDDFP;
-  lmvm->ops->copy     = MatCopy_LMVMCDQN;
+  lmvm->ops->allocate = MatAllocate_LMVMDQN;
+  lmvm->ops->reset    = MatReset_LMVMDQN;
+  lmvm->ops->update   = MatUpdate_LMVMDQN;
+  lmvm->ops->mult     = MatMult_LMVMDDFP;
+  lmvm->ops->solve    = MatSolve_LMVMDDFP;
+  lmvm->ops->copy     = MatCopy_LMVMDQN;
 
   PetscCall(PetscNew(&ldfp));
   lmvm->ctx             = (void *)ldfp;
@@ -1495,7 +1495,7 @@ PetscErrorCode MatCreate_LMVMCDDFP(Mat B)
 /*------------------------------------------------------------*/
 
 /*@
-  MatCreateLMVMCDDFP - Creates a compact dense (CD) representation of the limited-memory
+  MatCreateLMVMDDFP - Creates a compact dense (CD) representation of the limited-memory
   Davidon-Fletcher-Powell (DFP) approximation to a Hessian.
 
   Collective
@@ -1513,15 +1513,15 @@ PetscErrorCode MatCreate_LMVMCDDFP(Mat B)
 
   Level: advanced
 
-.seealso: `MatCreate()`, `MATLMVM`, `MATLMVMCDDFP`, `MatCreateLMVMDFP()`
+.seealso: `MatCreate()`, `MATLMVM`, `MATLMVMDDFP`, `MatCreateLMVMDFP()`
 @*/
-PetscErrorCode MatCreateLMVMCDDFP(MPI_Comm comm, PetscInt n, PetscInt N, Mat *B)
+PetscErrorCode MatCreateLMVMDDFP(MPI_Comm comm, PetscInt n, PetscInt N, Mat *B)
 {
   PetscFunctionBegin;
   PetscCall(KSPInitializePackage());
   PetscCall(MatCreate(comm, B));
   PetscCall(MatSetSizes(*B, n, n, N, N));
-  PetscCall(MatSetType(*B, MATLMVMCDDFP));
+  PetscCall(MatSetType(*B, MATLMVMDDFP));
   PetscCall(MatSetUp(*B));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

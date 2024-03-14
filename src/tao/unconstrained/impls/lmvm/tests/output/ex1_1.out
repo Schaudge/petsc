@@ -14,7 +14,7 @@ Tao Object: 1 MPI process
     Gradient steps: 1
     LMVM Matrix:
       Mat Object: (tao_lmvm_) 1 MPI process
-        type: lmvmcdbfgs
+        type: lmvmdbfgs
         Max. storage: 20
         Used storage: 9
         Number of updates: 9

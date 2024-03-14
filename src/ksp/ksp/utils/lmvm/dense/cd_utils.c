@@ -205,7 +205,7 @@ PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlace(Mat B, Mat Amat, Vec 
 PETSC_INTERN PetscErrorCode MatMove_LR3(Mat B, Mat R, PetscInt m_keep)
 {
   Mat_LMVM *lmvm = (Mat_LMVM *)B->data;
-  Mat_CDQN *lqn  = (Mat_CDQN *)lmvm->ctx;
+  Mat_DQN  *lqn  = (Mat_DQN *)lmvm->ctx;
   PetscInt  M;
   Mat       mat_local, local_sub, local_temp, temp_sub;
 

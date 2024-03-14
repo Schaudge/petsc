@@ -11,18 +11,18 @@ int main(int argc, char **argv)
 
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
   PetscOptionsBegin(PETSC_COMM_WORLD, NULL, help, "KSP");
-  /* LMVM Types. 0: LMVMCDBFGS, 1: LMVMCDDFP, 2: LMVMCDQN */
+  /* LMVM Types. 0: LMVMDBFGS, 1: LMVMDDFP, 2: LMVMDQN */
   PetscCall(PetscOptionsInt("-type", "LMVM Type", __FILE__, type, &type, NULL));
   PetscOptionsEnd();
   PetscCall(VecCreateMPI(PETSC_COMM_WORLD, PETSC_DETERMINE, n, &x));
   PetscCall(VecSetFromOptions(x));
   PetscCall(VecDuplicate(x, &g));
   if (type == 0) {
-    PetscCall(MatCreateLMVMCDBFGS(PETSC_COMM_WORLD, PETSC_DETERMINE, n, &B));
+    PetscCall(MatCreateLMVMDBFGS(PETSC_COMM_WORLD, PETSC_DETERMINE, n, &B));
   } else if (type == 1) {
-    PetscCall(MatCreateLMVMCDDFP(PETSC_COMM_WORLD, PETSC_DETERMINE, n, &B));
+    PetscCall(MatCreateLMVMDDFP(PETSC_COMM_WORLD, PETSC_DETERMINE, n, &B));
   } else if (type == 2) {
-    PetscCall(MatCreateLMVMCDQN(PETSC_COMM_WORLD, PETSC_DETERMINE, n, &B));
+    PetscCall(MatCreateLMVMDQN(PETSC_COMM_WORLD, PETSC_DETERMINE, n, &B));
   } else {
     SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_INCOMP, "Incompatible LMVM Type.");
   }

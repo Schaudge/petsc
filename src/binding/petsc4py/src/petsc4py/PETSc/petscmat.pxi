@@ -75,10 +75,10 @@ cdef extern from * nogil:
     PetscMatType MATDUMMY
     PetscMatType MATLMVM
     PetscMatType MATLMVMDFP
-    PetscMatType MATLMVMCDDFP
+    PetscMatType MATLMVMDDFP
     PetscMatType MATLMVMBFGS
-    PetscMatType MATLMVMCDBFGS
-    PetscMatType MATLMVMCDQN
+    PetscMatType MATLMVMDBFGS
+    PetscMatType MATLMVMDQN
     PetscMatType MATLMVMSR1
     PetscMatType MATLMVMBROYDEN
     PetscMatType MATLMVMBADBROYDEN
