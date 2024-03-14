@@ -1,4 +1,4 @@
-#include <../src/ksp/ksp/utils/lmvm/compactdense/cdqn.h> /*I "petscksp.h" I*/
+#include <../src/ksp/ksp/utils/lmvm/dense/cdqn.h> /*I "petscksp.h" I*/
 #include <../src/ksp/ksp/utils/lmvm/diagbrdn/diagbrdn.h>
 #include <petscblaslapack.h>
 #include <petscmat.h>
