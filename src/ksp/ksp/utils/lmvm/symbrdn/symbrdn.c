@@ -1,5 +1,5 @@
 #include <../src/ksp/ksp/utils/lmvm/symbrdn/symbrdn.h> /*I "petscksp.h" I*/
-#include <../src/ksp/ksp/utils/lmvm/dense/cdqn.h>
+#include <../src/ksp/ksp/utils/lmvm/dense/denseqn.h>
 #include <../src/ksp/ksp/utils/lmvm/diagbrdn/diagbrdn.h>
 #include <petsc/private/kspimpl.h>
 #include <petscdevice.h>

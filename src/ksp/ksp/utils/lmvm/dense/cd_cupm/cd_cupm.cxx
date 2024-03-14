@@ -1,4 +1,4 @@
-#include "../cdqn.h"
+#include "../denseqn.h"
 #include <petsc/private/cupminterface.hpp>
 #include <petsc/private/cupmobject.hpp>
 
