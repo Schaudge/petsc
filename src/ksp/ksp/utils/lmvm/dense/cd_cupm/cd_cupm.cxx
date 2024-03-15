@@ -2,7 +2,6 @@
 #include <petsc/private/cupminterface.hpp>
 #include <petsc/private/cupmobject.hpp>
 
-#if !defined(PETSC_USE_COMPLEX)
 namespace Petsc
 {
 
@@ -28,13 +27,15 @@ PetscErrorCode UpperTriangular<T>::SolveInPlace(PetscDeviceContext dctx, PetscBo
 {
   cupmBlasInt_t    n;
   cupmBlasHandle_t handle;
+  auto             _A = cupmScalarPtrCast(A);
+  auto             _x = cupmScalarPtrCast(x);
 
   PetscFunctionBegin;
   if (!N) PetscFunctionReturn(PETSC_SUCCESS);
   PetscCall(PetscCUPMBlasIntCast(N, &n));
   PetscCall(GetHandlesFrom_(dctx, &handle));
   PetscCall(PetscLogGpuTimeBegin());
-  PetscCallCUPMBLAS(cupmBlasXtrsv(handle, CUPMBLAS_FILL_MODE_UPPER, hermitian_transpose ? CUPMBLAS_OP_C : CUPMBLAS_OP_N, CUPMBLAS_DIAG_NON_UNIT, n, A, lda, x, stride));
+  PetscCallCUPMBLAS(cupmBlasXtrsv(handle, CUPMBLAS_FILL_MODE_UPPER, hermitian_transpose ? CUPMBLAS_OP_C : CUPMBLAS_OP_N, CUPMBLAS_DIAG_NON_UNIT, n, _A, lda, _x, stride));
   PetscCall(PetscLogGpuTimeEnd());
 
   PetscCall(PetscLogGpuFlops(1.0 * N * N));
@@ -47,8 +48,10 @@ PetscErrorCode UpperTriangular<T>::SolveInPlaceCyclic(PetscDeviceContext dctx, P
   cupmBlasInt_t         n_old, n_new;
   cupmBlasPointerMode_t pointer_mode;
   cupmBlasHandle_t      handle;
-  PetscScalar           sone      = 1.0;
-  PetscScalar           minus_one = -1.0;
+  auto                  sone      = cupmScalarCast(1.0);
+  auto                  minus_one = cupmScalarCast(-1.0);
+  auto                  _A = cupmScalarPtrCast(A);
+  auto                  _x = cupmScalarPtrCast(x);
 
   PetscFunctionBegin;
   if (!N) PetscFunctionReturn(PETSC_SUCCESS);
@@ -59,13 +62,13 @@ PetscErrorCode UpperTriangular<T>::SolveInPlaceCyclic(PetscDeviceContext dctx, P
   PetscCallCUPMBLAS(cupmBlasGetPointerMode(handle, &pointer_mode));
   PetscCallCUPMBLAS(cupmBlasSetPointerMode(handle, CUPMBLAS_POINTER_MODE_HOST));
   if (!hermitian_transpose) {
-    PetscCallCUPMBLAS(cupmBlasXtrsv(handle, CUPMBLAS_FILL_MODE_UPPER, CUPMBLAS_OP_N, CUPMBLAS_DIAG_NON_UNIT, n_new, A, lda, x, stride));
-    PetscCallCUPMBLAS(cupmBlasXgemv(handle, CUPMBLAS_OP_N, n_old, n_new, &minus_one, &A[oldest_index], lda, x, stride, &sone, &x[oldest_index], stride));
-    PetscCallCUPMBLAS(cupmBlasXtrsv(handle, CUPMBLAS_FILL_MODE_UPPER, CUPMBLAS_OP_N, CUPMBLAS_DIAG_NON_UNIT, n_old, &A[oldest_index * (lda + 1)], lda, &x[oldest_index], stride));
+    PetscCallCUPMBLAS(cupmBlasXtrsv(handle, CUPMBLAS_FILL_MODE_UPPER, CUPMBLAS_OP_N, CUPMBLAS_DIAG_NON_UNIT, n_new, _A, lda, _x, stride));
+    PetscCallCUPMBLAS(cupmBlasXgemv(handle, CUPMBLAS_OP_N, n_old, n_new, &minus_one, &_A[oldest_index], lda, _x, stride, &sone, &_x[oldest_index], stride));
+    PetscCallCUPMBLAS(cupmBlasXtrsv(handle, CUPMBLAS_FILL_MODE_UPPER, CUPMBLAS_OP_N, CUPMBLAS_DIAG_NON_UNIT, n_old, &_A[oldest_index * (lda + 1)], lda, &_x[oldest_index], stride));
   } else {
-    PetscCallCUPMBLAS(cupmBlasXtrsv(handle, CUPMBLAS_FILL_MODE_UPPER, CUPMBLAS_OP_C, CUPMBLAS_DIAG_NON_UNIT, n_old, &A[oldest_index * (lda + 1)], lda, &x[oldest_index], stride));
-    PetscCallCUPMBLAS(cupmBlasXgemv(handle, CUPMBLAS_OP_C, n_old, n_new, &minus_one, &A[oldest_index], lda, &x[oldest_index], stride, &sone, x, stride));
-    PetscCallCUPMBLAS(cupmBlasXtrsv(handle, CUPMBLAS_FILL_MODE_UPPER, CUPMBLAS_OP_C, CUPMBLAS_DIAG_NON_UNIT, n_new, A, lda, x, stride));
+    PetscCallCUPMBLAS(cupmBlasXtrsv(handle, CUPMBLAS_FILL_MODE_UPPER, CUPMBLAS_OP_C, CUPMBLAS_DIAG_NON_UNIT, n_old, &_A[oldest_index * (lda + 1)], lda, &_x[oldest_index], stride));
+    PetscCallCUPMBLAS(cupmBlasXgemv(handle, CUPMBLAS_OP_C, n_old, n_new, &minus_one, &_A[oldest_index], lda, &_x[oldest_index], stride, &sone, _x, stride));
+    PetscCallCUPMBLAS(cupmBlasXtrsv(handle, CUPMBLAS_FILL_MODE_UPPER, CUPMBLAS_OP_C, CUPMBLAS_DIAG_NON_UNIT, n_new, _A, lda, _x, stride));
   }
   PetscCallCUPMBLAS(cupmBlasSetPointerMode(handle, pointer_mode));
   PetscCall(PetscLogGpuTimeEnd());
@@ -143,4 +146,3 @@ PETSC_INTERN PetscErrorCode MatUpperTriangularSolveInPlaceCyclic_CUPM(PetscBool 
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-#endif
