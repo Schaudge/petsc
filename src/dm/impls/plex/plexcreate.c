@@ -3842,14 +3842,14 @@ static PetscErrorCode DMPlexCreateBoundaryLabel_Private(DM dm, const char name[]
 /*
   We use the last coordinate as the radius, the inner radius is lower[dim-1] and the outer radius is upper[dim-1]. Then we map the first coordinate around the circle.
 
-    (x, y) -> (r, theta) = (x[1], (x[0] - lower[0]) * 2\pi/(upper[0] - lower[0]))
+    (x, y) -> (r, theta) = (x[1], 2\pi (upper[0] - x[0])/(upper[0] - lower[0]))
 */
 static void boxToAnnulus(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
 {
   const PetscReal low = PetscRealPart(constants[0]);
   const PetscReal upp = PetscRealPart(constants[1]);
   const PetscReal r   = PetscRealPart(u[1]);
-  const PetscReal th  = 2. * PETSC_PI * (PetscRealPart(u[0]) - low) / (upp - low);
+  const PetscReal th  = 2. * PETSC_PI * (upp - PetscRealPart(u[0])) / (upp - low);
 
   f0[0] = r * PetscCosReal(th);
   f0[1] = r * PetscSinReal(th);

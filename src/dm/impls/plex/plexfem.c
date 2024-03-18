@@ -878,6 +878,97 @@ PetscErrorCode DMPlexCreateBasisRotation(DM dm, PetscReal alpha, PetscReal beta,
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+typedef struct {
+  PetscInt     dim; // The dimension of R
+  PetscScalar *R;   // The rotation matrix, transforming a vector in the local basis to the global basis
+} SphericalCtx;
+
+static PetscErrorCode DMPlexBasisTransformSetUp_Spherical_Internal(DM dm, void *ctx)
+{
+  SphericalCtx *sc  = (SphericalCtx *)ctx;
+  PetscInt      dim = sc->dim;
+
+  PetscFunctionBegin;
+  PetscCall(PetscMalloc1(PetscSqr(dim), &sc->R));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode DMPlexBasisTransformDestroy_Spherical_Internal(DM dm, void *ctx)
+{
+  SphericalCtx *sc = (SphericalCtx *)ctx;
+
+  PetscFunctionBegin;
+  PetscCall(PetscFree(sc->R));
+  PetscCall(PetscFree(sc));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode CreateSphericalRotation_Private(PetscInt dim, const PetscReal x[], PetscBool toSpherical, PetscScalar R[])
+{
+  PetscFunctionBeginHot;
+  switch (dim) {
+  case 2:
+  {
+    const PetscReal r  = PetscSqrtReal(x[0] * x[0] + x[1] * x[1]);
+    const PetscReal ct = x[0] / r;
+    const PetscReal st = x[1] / r;
+    if (toSpherical) {
+      R[0] = ct;
+      R[1] = -st;
+      R[2] = st;
+      R[3] = ct;
+    } else {
+      R[0] = ct;
+      R[1] = st;
+      R[2] = -st;
+      R[3] = ct;
+    }
+  }
+  break;
+  default: SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "No support for dimension %" PetscInt_FMT, dim);
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode DMPlexBasisTransformGetMatrix_Spherical_Internal(DM dm, const PetscReal x[], PetscBool l2g, const PetscScalar **A, void *ctx)
+{
+  SphericalCtx *sc = (SphericalCtx *)ctx;
+
+  PetscFunctionBeginHot;
+  PetscAssertPointer(ctx, 5);
+  PetscCall(CreateSphericalRotation_Private(sc->dim, x, l2g, sc->R));
+  *A = sc->R;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  DMPlexCreateBasisSpherical - Create an internal transformation from the global basis in spherical coordinates, used to specify boundary conditions and global solutions, to a local basis in Cartesian coordinates, appropriate for discretization integrals and assembly.
+
+  Input Parameters:
+. dm - The `DM`
+
+  Level: developer
+
+.seealso: [](ch_unstructured), `DM`, `DMPLEX`, `DMPlexGlobalToLocalBasis()`, `DMPlexLocalToGlobalBasis()`
+@*/
+PetscErrorCode DMPlexCreateBasisSpherical(DM dm)
+{
+  SphericalCtx *sc;
+  PetscInt      cdim;
+
+  PetscFunctionBegin;
+  PetscCall(DMGetCoordinateDim(dm, &cdim));
+  PetscCall(PetscMalloc1(1, &sc));
+  dm->transformCtx       = sc;
+  dm->transformSetUp     = DMPlexBasisTransformSetUp_Spherical_Internal;
+  dm->transformDestroy   = DMPlexBasisTransformDestroy_Spherical_Internal;
+  dm->transformGetMatrix = DMPlexBasisTransformGetMatrix_Spherical_Internal;
+  sc->dim                = cdim;
+  PetscCall((*dm->transformSetUp)(dm, dm->transformCtx));
+  PetscCall(DMConstructBasisTransform_Internal(dm));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /*@C
   DMPlexInsertBoundaryValuesEssential - Insert boundary values into a local vector using a function of the coordinates
 

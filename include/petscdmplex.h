@@ -507,6 +507,7 @@ PETSC_EXTERN PetscErrorCode DMPlexMetricIntersection3(DM, Vec, Vec, Vec, Vec);
 PETSC_EXTERN PetscErrorCode DMPlexGlobalToLocalBasis(DM, Vec);
 PETSC_EXTERN PetscErrorCode DMPlexLocalToGlobalBasis(DM, Vec);
 PETSC_EXTERN PetscErrorCode DMPlexCreateBasisRotation(DM, PetscReal, PetscReal, PetscReal);
+PETSC_EXTERN PetscErrorCode DMPlexCreateBasisSpherical(DM);
 
 /* storage version */
 #define DMPLEX_STORAGE_VERSION_FIRST  "1.0.0"

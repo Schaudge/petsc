@@ -2,6 +2,7 @@
 #include <petsc/private/dmimpl.h>      /*I      "petscdm.h"          I*/
 #include <petsc/private/dmlabelimpl.h> /*I      "petscdmlabel.h"     I*/
 #include <petsc/private/petscdsimpl.h> /*I      "petscds.h"     I*/
+#include <petsc/private/petscfeimpl.h>
 #include <petscdmplex.h>
 #include <petscdmceed.h>
 #include <petscdmfield.h>
@@ -2608,14 +2609,43 @@ PetscErrorCode DMHasBasisTransform(DM dm, PetscBool *flg)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode DMConstructBasisTransform_Internal(DM dm)
+static PetscErrorCode DMGetContainingCell_Private(DM dm, PetscInt p, PetscInt *cell)
 {
-  PetscSection s, ts;
-  PetscScalar *ta;
-  PetscInt     cdim, pStart, pEnd, p, Nf, f, Nc, dof;
+  const PetscInt *supp;
+  PetscInt        suppSize, newP = p;
 
   PetscFunctionBegin;
+  do {
+    *cell = newP;
+    PetscCall(DMPlexGetSupportSize(dm, newP, &suppSize));
+    PetscCall(DMPlexGetSupport(dm, newP, &supp));
+    newP = suppSize ? supp[0] : -1;
+  } while (suppSize);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode DMConstructBasisTransform_Internal(DM dm)
+{
+  DMField         coordField;
+  PetscQuadrature vquad;
+  IS              pIS;
+  PetscSection    s, ts;
+  PetscScalar    *ta;
+  PetscInt        cdim, dim, pStart, pEnd, p, Nf;
+
+  PetscFunctionBegin;
+  {
+    PetscReal *point, *weight;
+
+    PetscCall(PetscMalloc1(1, &point));
+    PetscCall(PetscMalloc1(1, &weight));
+    point[0]  = 0.;
+    weight[0] = 1.;
+    PetscCall(PetscQuadratureCreate(PETSC_COMM_SELF, &vquad));
+    PetscCall(PetscQuadratureSetData(vquad, 0, 1, 1, point, weight));
+  }
   PetscCall(DMGetCoordinateDim(dm, &cdim));
+  PetscCall(DMGetCoordinateField(dm, &coordField));
   PetscCall(DMGetLocalSection(dm, &s));
   PetscCall(PetscSectionGetChart(s, &pStart, &pEnd));
   PetscCall(PetscSectionGetNumFields(s, &Nf));
@@ -2623,36 +2653,81 @@ PetscErrorCode DMConstructBasisTransform_Internal(DM dm)
   PetscCall(DMGetLocalSection(dm->transformDM, &ts));
   PetscCall(PetscSectionSetNumFields(ts, Nf));
   PetscCall(PetscSectionSetChart(ts, pStart, pEnd));
-  for (f = 0; f < Nf; ++f) {
+  for (PetscInt f = 0; f < Nf; ++f) {
+    PetscInt Nc;
+
     PetscCall(PetscSectionGetFieldComponents(s, f, &Nc));
-    /* We could start to label fields by their transformation properties */
+    // Assume only vectors transform, we could start to label fields by their transformation properties
     if (Nc != cdim) continue;
     for (p = pStart; p < pEnd; ++p) {
+      PetscDS         ds;
+      PetscFE         fe;
+      PetscDualSpace  sp, hsp;
+      PetscQuadrature intNodes;
+      PetscInt        dof, cell, h, Np;
+
       PetscCall(PetscSectionGetFieldDof(s, p, f, &dof));
       if (!dof) continue;
-      PetscCall(PetscSectionSetFieldDof(ts, p, f, PetscSqr(cdim)));
-      PetscCall(PetscSectionAddDof(ts, p, PetscSqr(cdim)));
+      PetscCall(DMGetContainingCell_Private(dm, p, &cell));
+      PetscCall(DMGetCellDS(dm, cell, &ds, NULL));
+      // TODO Should translate fields here
+      PetscCall(PetscDSGetDiscretization(ds, f, (PetscObject *)&fe));
+      PetscCall(PetscFEGetDualSpace(fe, &sp));
+      PetscCall(DMPlexGetPointHeight(dm, p, &h));
+      PetscCall(PetscDualSpaceGetHeightSubspace(sp, h, &hsp));
+      PetscCall(PetscDualSpaceGetInteriorData(hsp, &intNodes, NULL));
+      PetscCall(PetscQuadratureGetData(intNodes, NULL, NULL, &Np, NULL, NULL));
+      PetscCall(PetscSectionSetFieldDof(ts, p, f, Np * PetscSqr(cdim)));
+      PetscCall(PetscSectionAddDof(ts, p, Np * PetscSqr(cdim)));
     }
   }
   PetscCall(PetscSectionSetUp(ts));
   PetscCall(DMCreateLocalVector(dm->transformDM, &dm->transform));
   PetscCall(VecGetArray(dm->transform, &ta));
+  PetscCall(ISCreateGeneral(PETSC_COMM_SELF, 1, &p, PETSC_USE_POINTER, &pIS));
   for (p = pStart; p < pEnd; ++p) {
-    for (f = 0; f < Nf; ++f) {
+    for (PetscInt f = 0; f < Nf; ++f) {
+      PetscDS         ds;
+      PetscFE         fe;
+      PetscDualSpace  sp, hsp;
+      PetscQuadrature intNodes;
+      PetscInt        dof, cell, h, Np;
+
       PetscCall(PetscSectionGetFieldDof(ts, p, f, &dof));
       if (dof) {
-        PetscReal          x[3] = {0.0, 0.0, 0.0};
+        const PetscReal   *points;
+        PetscReal         *x;
         PetscScalar       *tva;
         const PetscScalar *A;
+        PetscFEGeom       *fegeom;
 
-        /* TODO Get quadrature point for this dual basis vector for coordinate */
-        PetscCall((*dm->transformGetMatrix)(dm, x, PETSC_TRUE, &A, dm->transformCtx));
+        PetscCall(DMGetContainingCell_Private(dm, p, &cell));
+        PetscCall(DMGetCellDS(dm, cell, &ds, NULL));
+        // TODO Should translate fields here
+        PetscCall(PetscDSGetWorkspace(ds, &x, NULL, NULL, NULL, NULL));
+        PetscCall(PetscDSGetDiscretization(ds, f, (PetscObject *)&fe));
+        PetscCall(PetscFEGetDualSpace(fe, &sp));
+        PetscCall(DMPlexGetPointHeight(dm, p, &h));
+        PetscCall(PetscDualSpaceGetHeightSubspace(sp, h, &hsp));
+        if (h < dim) PetscCall(PetscDualSpaceGetInteriorData(hsp, &intNodes, NULL));
+        else intNodes = vquad;
+        PetscCall(PetscQuadratureGetData(intNodes, &dim, NULL, &Np, &points, NULL));
+        PetscCall(DMFieldCreateFEGeom(coordField, pIS, intNodes, PETSC_FALSE, &fegeom));
         PetscCall(DMPlexPointLocalFieldRef(dm->transformDM, p, f, ta, (void *)&tva));
-        PetscCall(PetscArraycpy(tva, A, PetscSqr(cdim)));
+        PetscCheck(dim == fegeom->dim, PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "Reference spatial dimension %" PetscInt_FMT " != %" PetscInt_FMT " dual basis spatial dimension", fegeom->dim, dim);
+        PetscCheck(dof == Np * PetscSqr(cdim), PETSC_COMM_SELF, PETSC_ERR_ARG_INCOMP, "Dof on point %" PetscInt_FMT ": %" PetscInt_FMT " != %" PetscInt_FMT " number of points * mat size", p, dof, Np * PetscSqr(cdim));
+        for (PetscInt q = 0; q < Np; ++q) {
+          if (fegeom->isAffine) CoordinatesRefToReal(cdim, fegeom->dim, fegeom->xi, fegeom->v, fegeom->J, &points[q * dim], x);
+          PetscCall((*dm->transformGetMatrix)(dm, fegeom->isAffine ? x : &fegeom->v[q * cdim], PETSC_TRUE, &A, dm->transformCtx));
+          PetscCall(PetscArraycpy(&tva[q * PetscSqr(cdim)], A, PetscSqr(cdim)));
+        }
+        PetscCall(PetscFEGeomDestroy(&fegeom));
       }
     }
   }
+  PetscCall(ISDestroy(&pIS));
   PetscCall(VecRestoreArray(dm->transform, &ta));
+  PetscCall(PetscQuadratureDestroy(&vquad));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
