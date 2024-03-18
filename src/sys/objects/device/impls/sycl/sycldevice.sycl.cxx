@@ -82,8 +82,11 @@ public:
     switch (attr) {
     case PETSC_DEVICE_ATTR_SIZE_T_SHARED_MEM_PER_BLOCK:
       *static_cast<std::size_t *>(value) = syclDevice_.get_info<::sycl::info::device::local_mem_size>();
-    case PETSC_DEVICE_ATTR_MAX:
       break;
+    // SYCL device info does not provice compute capability numbers
+    // https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#_device_information_descriptors
+    case PETSC_DEVICE_ATTR_MAX:
+      PetscUnreachable();
     }
     PetscFunctionReturn(PETSC_SUCCESS);
   }

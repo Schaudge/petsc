@@ -152,8 +152,15 @@ PetscErrorCode Device<T>::DeviceInternal::getattribute(PetscDeviceAttribute attr
   switch (attr) {
   case PETSC_DEVICE_ATTR_SIZE_T_SHARED_MEM_PER_BLOCK:
     *static_cast<std::size_t *>(value) = prop().sharedMemPerBlock;
-  case PETSC_DEVICE_ATTR_MAX:
     break;
+  case PETSC_DEVICE_ATTR_INT_COMPUTE_CAPABILITY_MAJOR:
+    *static_cast<int *>(value) = prop().major;
+    break;
+  case PETSC_DEVICE_ATTR_INT_COMPUTE_CAPABILITY_MINOR:
+    *static_cast<int *>(value) = prop().minor;
+    break;
+  case PETSC_DEVICE_ATTR_MAX:
+    PetscUnreachable();
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

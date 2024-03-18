@@ -264,8 +264,10 @@ PETSC_EXTERN const char *const PetscDeviceTypes[];
   PetscDeviceAttribute - Attribute detailing a property or feature of a `PetscDevice`
 
   Values:
-+ `PETSC_DEVICE_ATTR_SIZE_T_SHARED_MEM_PER_BLOCK` - The maximum amount of shared memory per block in a device kernel
-- `PETSC_DEVICE_ATTR_MAX`                         - Invalid attribute, do not use
++ `PETSC_DEVICE_ATTR_SIZE_T_SHARED_MEM_PER_BLOCK`  - The maximum amount of shared memory per block in a device kernel
+. `PETSC_DEVICE_ATTR_INT_COMPUTE_CAPABILITY_MAJOR` - The major compute capability of the device
+. `PETSC_DEVICE_ATTR_INT_COMPUTE_CAPABILITY_MINOR` - The minor compute capability of the device
+- `PETSC_DEVICE_ATTR_MAX`                          - Invalid attribute, do not use
 
   Level: beginner
 
@@ -273,6 +275,8 @@ PETSC_EXTERN const char *const PetscDeviceTypes[];
 E*/
 typedef enum {
   PETSC_DEVICE_ATTR_SIZE_T_SHARED_MEM_PER_BLOCK,
+  PETSC_DEVICE_ATTR_INT_COMPUTE_CAPABILITY_MAJOR,
+  PETSC_DEVICE_ATTR_INT_COMPUTE_CAPABILITY_MINOR,
   PETSC_DEVICE_ATTR_MAX
 } PetscDeviceAttribute;
 PETSC_EXTERN const char *const PetscDeviceAttributes[];
