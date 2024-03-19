@@ -224,24 +224,7 @@ PetscErrorCode PetscTraceBackErrorHandler(MPI_Comm comm, int line, const char *f
       if (mess) ierr = (*PetscErrorPrintf)("%s\n", mess);
 #if defined(PETSC_HAVE_CUDA_MIN_ARCH)
       int confCudaArch = PETSC_HAVE_CUDA_MIN_ARCH; // if PETSc was configured with numbered CUDA arches, get the min arch.
-      int runCudaArch  = 0;                        // use 0 to indicate the code has never initialized a cuda device.
-      // Query the current PetscDevice and get the runtime cuda arch number
-      if (PetscDeviceInitialized(PETSC_DEVICE_CUDA)) {
-        PetscDeviceContext dctx;
-        PetscDevice        device;
-        PetscDeviceType    dtype;
-        int                major, minor;
-
-        ierr = PetscDeviceContextGetCurrentContext(&dctx);
-        ierr = PetscDeviceContextGetDevice(dctx, &device);
-        ierr = PetscDeviceGetType(device, &dtype);
-        if (dtype != PETSC_DEVICE_CUDA) ierr = (*PetscErrorPrintf)("The current PETSc device type is not CUDA!");
-        ierr = PetscDeviceGetAttribute(device, PETSC_DEVICE_ATTR_INT_COMPUTE_CAPABILITY_MAJOR, &major);
-        ierr = PetscDeviceGetAttribute(device, PETSC_DEVICE_ATTR_INT_COMPUTE_CAPABILITY_MINOR, &minor);
-
-        runCudaArch = major * 10 + minor;
-      }
-
+      int runCudaArch  = PetscDeviceCUPMRuntimeArch; // 0 indicates the code has never initialized a cuda device.
       if (runCudaArch && confCudaArch > runCudaArch) {
         ierr = (*PetscErrorPrintf)("WARNING! Run on a CUDA device with GPU architecture %d, but PETSc was configured with a minimal GPU architecture %d.\n", runCudaArch, confCudaArch);
         ierr = (*PetscErrorPrintf)("If it is a cudaErrorNoKernelImageForDevice error, you may need to reconfigure PETSc with --with-cuda-arch=%d or --with-cuda-arch=%d,%d\n", runCudaArch, runCudaArch, confCudaArch);
