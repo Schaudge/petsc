@@ -370,6 +370,7 @@ static PetscErrorCode SpeedOfSound_PG(const PetscReal gamma, const EulerNode *x,
  * f_i(x) = u_i*x+(0,0,...,p,...,p*u_i)^T
  *
  */
+// Flops:
 static PetscErrorCode EulerFlux(Physics phys, const PetscReal *n, const EulerNode *x, EulerNode *f)
 {
   Physics_Euler *eu = (Physics_Euler *)phys->data;
@@ -400,6 +401,7 @@ L10:
   return ret_val;
 } /* cvmgp_ */
 
+// Flops: 0
 static PetscScalar cvmgm_(PetscScalar *a, PetscScalar *b, PetscScalar *test)
 {
   /* System generated locals */
@@ -413,6 +415,7 @@ L10:
   return ret_val;
 } /* cvmgm_ */
 
+// Flops: 115
 static int riem1mdt(PetscScalar *gaml, PetscScalar *gamr, PetscScalar *rl, PetscScalar *pl, PetscScalar *uxl, PetscScalar *rr, PetscScalar *pr, PetscScalar *uxr, PetscScalar *rstarl, PetscScalar *rstarr, PetscScalar *pstar, PetscScalar *ustar)
 {
   /* Initialized data */
@@ -591,6 +594,7 @@ static PetscScalar sign(PetscScalar x)
 }
 /*        Riemann Solver */
 /* -------------------------------------------------------------------- */
+// Flops 2D: riem1mdt + cvmgm_ * 13 + 78
 static int riemannsolver(PetscScalar *xcen, PetscScalar *xp, PetscScalar *dtt, PetscScalar *rl, PetscScalar *uxl, PetscScalar *pl, PetscScalar *utl, PetscScalar *ubl, PetscScalar *gaml, PetscScalar *rho1l, PetscScalar *rr, PetscScalar *uxr, PetscScalar *pr, PetscScalar *utr, PetscScalar *ubr, PetscScalar *gamr, PetscScalar *rho1r, PetscScalar *rx, PetscScalar *uxm, PetscScalar *px, PetscScalar *utx, PetscScalar *ubx, PetscScalar *gam, PetscScalar *rho1)
 {
   /* System generated locals */
@@ -684,6 +688,7 @@ static int riemannsolver(PetscScalar *xcen, PetscScalar *xp, PetscScalar *dtt, P
   return iwave;
 }
 
+// Flops 2D: 73 + riemann
 static int godunovflux(const PetscScalar *ul, const PetscScalar *ur, PetscScalar *flux, const PetscReal *nn, int ndim, PetscReal gamma)
 {
   /* System generated locals */
@@ -793,6 +798,7 @@ static int godunovflux(const PetscScalar *ul, const PetscScalar *ur, PetscScalar
 } /* godunovflux_ */
 
 /* PetscReal* => EulerNode* conversion */
+// Flops: (3 * dim + 1) + godunov + (dim + 2) Flops 2D: 277
 static void PhysicsRiemann_Euler_Godunov(PetscInt dim, PetscInt Nf, const PetscReal *qp, const PetscReal *n, const PetscScalar *xL, const PetscScalar *xR, PetscInt numConstants, const PetscScalar constants[], PetscScalar *flux, Physics phys)
 {
   Physics_Euler  *eu    = (Physics_Euler *)phys->data;
@@ -849,6 +855,7 @@ static void PhysicsRiemann_Euler_Godunov(PetscInt dim, PetscInt Nf, const PetscR
 }
 
 #ifdef PETSC_HAVE_LIBCEED
+// Flops: (dim + 2) * 2 + flux
 CEED_QFUNCTION(PhysicsRiemann_Euler_Godunov_CEED)(void *ctx, CeedInt Q, const CeedScalar *const in[], CeedScalar *const out[])
 {
   const CeedScalar    *xL = in[0], *xR = in[1], *geom = in[2];

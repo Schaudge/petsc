@@ -38,11 +38,13 @@ PetscErrorCode DMPlexTSComputeRHSFunctionFVMCEED(DM dm, PetscReal time, Vec locX
   Ceed       ceed;
   DMCeed     sd = dm->dmceed;
   CeedVector clocX, clocF;
+  PetscInt   cStart, cEnd;
 #endif
 
 #ifdef PETSC_HAVE_LIBCEED
   PetscFunctionBegin;
   PetscCall(DMGetCeed(dm, &ceed));
+  PetscCall(DMPlexGetHeightStratum(dm, 0, &cStart, &cEnd));
   PetscCheck(sd, PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_WRONGSTATE, "This DM has no CEED data. Call DMCeedCreate() before computing the residual.");
   if (time == 0.) PetscCall(DMCeedComputeGeometry(dm, sd));
   PetscCall(DMGetField(dm, 0, NULL, (PetscObject *)&fv));
@@ -51,7 +53,10 @@ PetscErrorCode DMPlexTSComputeRHSFunctionFVMCEED(DM dm, PetscReal time, Vec locX
   PetscCall(VecZeroEntries(locF));
   PetscCall(VecGetCeedVectorRead(locX, ceed, &clocX));
   PetscCall(VecGetCeedVector(locF, ceed, &clocF));
+  PetscCall(PetscLogGpuTimeBegin());
   PetscCallCEED(CeedOperatorApplyAdd(sd->op, clocX, clocF, CEED_REQUEST_IMMEDIATE));
+  PetscCall(PetscLogGpuTimeEnd());
+  PetscCall(PetscLogGpuFlops(277.0 * (cEnd - cStart)));
   PetscCall(VecRestoreCeedVectorRead(locX, &clocX));
   PetscCall(VecRestoreCeedVector(locF, &clocF));
   PetscCall(DMLocalToGlobalBegin(dm, locF, ADD_VALUES, F));
