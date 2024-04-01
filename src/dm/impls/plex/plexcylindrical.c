@@ -12,7 +12,7 @@ PetscErrorCode DMLocatePoints_Plex_Cylindrical(DM dm, Vec v, DMPointLocationType
 
   PetscFunctionBegin;
   PetscCall(VecGetBlockSize(v, &bs));
-  PetscCheck(bs == 3, "Cylindrical meshes take 3D coordinates, not %" PetscInt_FMT, bs);
+  PetscCheck(bs == 3, PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_WRONG, "Cylindrical meshes take 3D coordinates, not %" PetscInt_FMT, bs);
   PetscCall(VecCreate(PetscObjectComm((PetscObject)v), &v2d));
   PetscCall(VecGetType(v, &vtype));
   PetscCall(VecSetType(v2d, vtype));
