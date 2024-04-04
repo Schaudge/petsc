@@ -436,6 +436,8 @@ PetscErrorCode MatHeaderMerge(Mat A, Mat *C)
   Mat_Product     *product;
   Mat_Redundant   *redundant;
   PetscObjectState state;
+  PetscFunctionList qlist;
+  PetscObjectList olist;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(A, MAT_CLASSID, 1);
@@ -452,6 +454,8 @@ PetscErrorCode MatHeaderMerge(Mat A, Mat *C)
   mprefix   = ((PetscObject)A)->prefix;
   product   = A->product;
   redundant = A->redundant;
+  qlist     = ((PetscObject)A)->qlist;
+  olist     = ((PetscObject)A)->olist;
 
   /* zero these so the destroy below does not free them */
   ((PetscObject)A)->type_name = NULL;
@@ -468,8 +472,6 @@ PetscErrorCode MatHeaderMerge(Mat A, Mat *C)
   PetscCall(PetscFree(A->defaultrandtype));
   PetscCall(PetscLayoutDestroy(&A->rmap));
   PetscCall(PetscLayoutDestroy(&A->cmap));
-  PetscCall(PetscFunctionListDestroy(&((PetscObject)A)->qlist));
-  PetscCall(PetscObjectListDestroy(&((PetscObject)A)->olist));
   PetscCall(PetscComposedQuantitiesDestroy((PetscObject)A));
 
   /* copy C over to A */
@@ -486,10 +488,8 @@ PetscErrorCode MatHeaderMerge(Mat A, Mat *C)
   ((PetscObject)A)->state     = state + 1;
   A->product                  = product;
   A->redundant                = redundant;
-
-  /* since these two are copied into A we do not want them destroyed in C */
-  ((PetscObject)*C)->qlist = NULL;
-  ((PetscObject)*C)->olist = NULL;
+  ((PetscObject)A)->qlist     = qlist;
+  ((PetscObject)A)->olist     = olist;
 
   PetscCall(PetscHeaderDestroy(C));
   PetscFunctionReturn(PETSC_SUCCESS);
