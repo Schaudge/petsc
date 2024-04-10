@@ -444,6 +444,56 @@ PetscErrorCode DMPlexSNESComputeResidualCEED(DM dm, Vec locX, Vec locF, void *us
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+PetscErrorCode DMPlexSNESComputeJacobianCeed(DM dm, Vec locX, Mat Jac, Mat JacP, void *user)
+{
+  Ceed               ceed;
+  DMCeed             sd = dm->dmceed;
+  CeedVector         clocX, cVals;
+  const PetscScalar *a;
+  const CeedScalar  *vals;
+  CeedInt           *rows, *cols;
+  CeedSize           nnz;
+  PetscMemType       mtype;
+  PetscInt           Nds;
+
+  PetscFunctionBegin;
+  PetscCall(DMGetCeed(dm, &ceed));
+  PetscCheck(sd, PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_WRONGSTATE, "This DM has no CEED data. Call DMCeedCreate() before computing the residual.");
+
+  PetscCall(DMGetNumDS(dm, &Nds));
+  if (Nds) {
+    PetscDS   ds;
+    PetscBool hasJac, hasPrec;
+
+    PetscCall(DMGetRegionNumDS(dm, 0, NULL, NULL, &ds, NULL));
+    PetscCall(PetscDSHasJacobian(ds, &hasJac));
+    PetscCall(PetscDSHasJacobianPreconditioner(ds, &hasPrec));
+    if (hasJac && hasPrec) PetscCall(MatZeroEntries(Jac));
+    PetscCall(MatZeroEntries(JacP));
+  }
+
+  // TODO:
+  // 1. How do the locX values get into the linear kernel
+  // 2. Make the linear kernel
+  PetscCheck(sizeof(PetscInt) == sizeof(CeedInt), PetscObjectComm((PetscObject)dm), PETSC_ERR_SUP, "Do not yet support mismatch between PetscInt and CeedInt");
+  PetscCheck(sizeof(PetscScalar) == sizeof(CeedScalar), PetscObjectComm((PetscObject)dm), PETSC_ERR_SUP, "Do not yet support mismatch between PetscScalar and CeedScalar");
+  PetscCall(VecGetCeedVectorRead(locX, ceed, &clocX));
+  PetscCallCEED(CeedOperatorLinearAssembleSymbolic(sd->opJ, &nnz, &rows, &cols));
+  PetscCallCEED(CeedOperatorLinearAssemble(sd->opJ, cVals));
+  PetscCall(MatSetPreallocationCOO(JacP, nnz, rows, cols));
+  PetscCallCEED(CeedVectorCreate(ceed, nnz, &cVals));
+  PetscCall(VecGetArrayReadAndMemType(locX, &a, &mtype));
+  PetscCall(VecRestoreArrayReadAndMemType(locX, &a));
+  PetscCallCEED(CeedVectorGetArrayRead(cVals, mtype & 0x01 ? CEED_MEM_DEVICE : CEED_MEM_HOST, &vals));
+  PetscCall(MatSetValuesCOO(JacP, vals, ADD_VALUES));
+  PetscCallCEED(CeedVectorRestoreArrayRead(cVals, &vals));
+  free(rows);
+  free(cols);
+  PetscCallCEED(CeedVectorDestroy(&cVals));
+  PetscCall(VecRestoreCeedVectorRead(locX, &clocX));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 #endif
 
 /*@
@@ -581,7 +631,7 @@ PetscErrorCode DMSNESComputeJacobianAction(DM dm, Vec X, Vec Y, Vec F, void *use
 
 .seealso: [](ch_snes), `DMPLEX`, `Mat`
 @*/
-PetscErrorCode DMPlexSNESComputeJacobianFEM(DM dm, Vec X, Mat Jac, Mat JacP, void *user)
+PetscErrorCode DMPlexSNESComputeJacobianFEM(DM dm, Vec locX, Mat Jac, Mat JacP, void *user)
 {
   DM        plex;
   IS        allcellIS;
@@ -618,7 +668,7 @@ PetscErrorCode DMPlexSNESComputeJacobianFEM(DM dm, Vec X, Mat Jac, Mat JacP, voi
       if (hasJac && hasPrec) PetscCall(MatZeroEntries(Jac));
       PetscCall(MatZeroEntries(JacP));
     }
-    PetscCall(DMPlexComputeJacobian_Internal(plex, key, cellIS, 0.0, 0.0, X, NULL, Jac, JacP, user));
+    PetscCall(DMPlexComputeJacobian_Internal(plex, key, cellIS, 0.0, 0.0, locX, NULL, Jac, JacP, user));
     PetscCall(ISDestroy(&cellIS));
   }
   PetscCall(ISDestroy(&allcellIS));

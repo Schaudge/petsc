@@ -191,4 +191,8 @@ PETSC_EXTERN PetscErrorCode PetscFEOpenCLGetRealType(PetscFE, PetscDataType *);
     #define PLEXFE_QFUNCTION(fname, f0_name, f1_name)
   #endif
 
+  #ifndef PLEXFE_QFUNCTION_LINEAR
+    #define PLEXFE_QFUNCTION_LINEAR(fname, g0_name, g1_name, g2_name, g3_name)
+  #endif
+
 #endif

@@ -1712,6 +1712,10 @@ PetscErrorCode DMPlexRemapMigrationSF(PetscSF sfOverlap, PetscSF sfMigration, Pe
     for (PetscInt l = 0; l < noldleaves; ++l) permRemote[oldLeaves[l]] = oldRemote[l];
     oldRemote = permRemote;
   }
+  // TODO: We are getting a failure here in BcastBegin()
+  //   It fails in the pack. We are taking values from the roots, so these are being
+  // pulled out from oldRemote. We need to check that the root indices (remotes from sfOverlap)
+  // are all in [0, oldLeaves).
   PetscCall(PetscSFBcastBegin(sfOverlap, MPIU_2INT, oldRemote, newRemote, MPI_REPLACE));
   PetscCall(PetscSFBcastEnd(sfOverlap, MPIU_2INT, oldRemote, newRemote, MPI_REPLACE));
   if (oldLeaves) PetscCall(PetscFree(oldRemote));

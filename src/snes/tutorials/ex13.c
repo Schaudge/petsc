@@ -93,6 +93,45 @@ static void g3_uu(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff
 
 PLEXFE_QFUNCTION(Laplace, f0_trig_inhomogeneous_u, f1_u)
 
+#ifdef PETSC_HAVE_LIBCEED
+CEED_QFUNCTION(PlexQFunctionLinearLaplace)(void *ctx, const CeedInt Q, const CeedScalar *const *in, CeedScalar *const *out) \
+{ \
+  const CeedScalar *u = in[0], *du = in[1], *qdata = in[2]; \
+  CeedScalar       *v = out[0], *dv = out[1]; \
+  const PetscInt    NcI  = 1; \
+  const PetscInt    NcJ  = 1; \
+  const PetscInt    cdim = 2; \
+\
+  CeedPragmaSIMD for (CeedInt i = 0; i < Q; ++i) \
+  { \
+    const PetscInt   uOff[2]    = {0, Nc}; \
+    const PetscInt   uOff_x[2]  = {0, Nc * cdim}; \
+    const CeedScalar x[2]       = {qdata[i + Q * 1], qdata[i + Q * 2]}; \
+    const CeedScalar invJ[2][2] = { \
+      {qdata[i + Q * 3], qdata[i + Q * 5]}, \
+      {qdata[i + Q * 4], qdata[i + Q * 6]} \
+    }; \
+    const CeedScalar u_x[2] = {invJ[0][0] * du[i + Q * 0] + invJ[1][0] * du[i + Q * 1], invJ[0][1] * du[i + Q * 0] + invJ[1][1] * du[i + Q * 1]}; \
+    PetscScalar      g0[NcI * NcJ]; \
+    PetscScalar      g1[NcI * cdim * NcJ]; \
+    PetscScalar      g2[NcI * NcJ * cdim]; \
+    PetscScalar      g3[NcI * cdim * NcJ * cdim]; \
+\
+    for (PetscInt k = 0; k < Nc; ++k) f0[k] = 0; \
+    for (PetscInt k = 0; k < Nc * cdim; ++k) f1[k] = 0; \
+    g0_name(2, 1, 0, uOff, uOff_x, u, NULL, u_x, NULL, NULL, NULL, NULL, NULL, 0.0, x, 0, NULL, g0); \
+    g1_name(2, 1, 0, uOff, uOff_x, u, NULL, u_x, NULL, NULL, NULL, NULL, NULL, 0.0, x, 0, NULL, g1); \
+    g2_name(2, 1, 0, uOff, uOff_x, u, NULL, u_x, NULL, NULL, NULL, NULL, NULL, 0.0, x, 0, NULL, g2); \
+    g3_name(2, 1, 0, uOff, uOff_x, u, NULL, u_x, NULL, NULL, NULL, NULL, NULL, 0.0, x, 0, NULL, g3); \
+\
+    dv[i + Q * 0] = qdata[i + Q * 0] * (invJ[0][0] * f1[0] + invJ[0][1] * f1[1]); \
+    dv[i + Q * 1] = qdata[i + Q * 0] * (invJ[1][0] * f1[0] + invJ[1][1] * f1[1]); \
+    v[i]          = qdata[i + Q * 0] * f0[0]; \
+  } \
+  return CEED_ERROR_SUCCESS; \
+}
+#endif
+
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 {
   PetscFunctionBeginUser;

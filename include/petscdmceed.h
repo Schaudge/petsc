@@ -35,6 +35,7 @@ struct _PETSc_DMCEED {
   char               *funcSource; // Plex Function source as text
   CeedQFunction       qf;         // QFunction expressing the operator action
   CeedOperator        op;         // Operator action for this object
+  CeedOperator        opJ;        // Linearized operator action for this object
   DMCeed              geom;       // Operator computing geometric data at quadrature points
   CeedElemRestriction erq;        // Map from PETSc local vector to quadrature points
   CeedVector          qd;         // Geometric data at quadrature points used in calculating the qfunction
