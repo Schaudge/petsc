@@ -1120,7 +1120,7 @@ PetscErrorCode TSARKIMEXFinalizePackage(void)
 /*@C
   TSARKIMEXRegister - register a `TSARKIMEX` scheme by providing the entries in the Butcher tableau and optionally embedded approximations and interpolation
 
-  Logically Collective.
+  Logically Collective
 
   Input Parameters:
 + name     - identifier for method
@@ -2141,7 +2141,7 @@ static PetscErrorCode TSLoad_ARKIMEX(TS ts, PetscViewer viewer)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/*@C
+/*@
   TSARKIMEXSetType - Set the type of `TSARKIMEX` scheme
 
   Logically Collective
@@ -2167,7 +2167,7 @@ PetscErrorCode TSARKIMEXSetType(TS ts, TSARKIMEXType arktype)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/*@C
+/*@
   TSARKIMEXGetType - Get the type of `TSARKIMEX` scheme
 
   Logically Collective
@@ -2385,7 +2385,7 @@ static PetscErrorCode TSDIRKSetType_DIRK(TS ts, TSDIRKType dirktype)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/*@C
+/*@
   TSDIRKSetType - Set the type of `TSDIRK` scheme
 
   Logically Collective
@@ -2410,7 +2410,7 @@ PetscErrorCode TSDIRKSetType(TS ts, TSDIRKType dirktype)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/*@C
+/*@
   TSDIRKGetType - Get the type of `TSDIRK` scheme
 
   Logically Collective

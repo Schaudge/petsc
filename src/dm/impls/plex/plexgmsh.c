@@ -1407,7 +1407,7 @@ static PetscErrorCode GmshCreateFE(MPI_Comm comm, const char prefix[], PetscBool
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/*@C
+/*@
   DMPlexCreateGmshFromFile - Create a `DMPLEX` mesh from a Gmsh file
 
   Input Parameters:
