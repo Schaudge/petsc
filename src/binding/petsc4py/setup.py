@@ -66,7 +66,7 @@ def long_description():
 url = F('https://gitlab.com/{name}/{name}')
 pypiroot = F('https://pypi.io/packages/source')
 pypislug = F('{pyname}')[0] + F('/{pyname}')
-tarball = F('{pyname}-%s.tar.gz' % get_version())
+tarball = F('{{pyname}}-{get_version()}.tar.gz')
 download = '/'.join([pypiroot, pypislug, tarball])
 
 classifiers = """
@@ -162,7 +162,7 @@ def extensions():
             pa = os.environ.get('PETSC_ARCH', '')
             depends += glob_join(pd, 'include', '*.h')
             depends += glob_join(pd, 'include', pkg, 'private', '*.h')
-            depends += glob_join(pd, pa, 'include', '%sconf.h' % pkg)
+            depends += glob_join(pd, pa, 'include', f'{pkg}conf.h')
     #
     include_dirs = []
     numpy_include = os.environ.get('NUMPY_INCLUDE')
@@ -215,7 +215,7 @@ def get_release():
     release = 1
     rootdir = os.path.abspath(os.path.join(topdir, *[os.path.pardir] * 3))
     version_h = os.path.join(rootdir, 'include', F('{name}version.h'))
-    release_macro = '%s_VERSION_RELEASE' % F('{name}').upper()
+    release_macro = '{}_VERSION_RELEASE'.format(F('{name}').upper())
     version_re = re.compile(r'#define\s+%s\s+([-]*\d+)' % release_macro)
     if os.path.exists(version_h) and os.path.isfile(version_h):
         with open(version_h, 'r') as f:

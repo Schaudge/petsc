@@ -440,7 +440,7 @@ class BaseTestPlexHDF5:
         )
 
     def outfile(self):
-        return os.path.join('./temp_test_dmplex_%s.h5' % self._name())
+        return os.path.join(f'./temp_test_dmplex_{self._name()}.h5')
 
     def informat(self):
         return PETSc.Viewer.Format.HDF5_XDMF
@@ -464,11 +464,11 @@ class BaseTestPlexHDF5:
         return os.path.join(
             PETSC_DIR,
             'src/dm/impls/plex/tutorials/',
-            'output/ex5_%s.out' % self._name(),
+            f'output/ex5_{self._name()}.out',
         )
 
     def tmp_output_file(self):
-        return os.path.join('./temp_test_dmplex_%s.out' % self._name())
+        return os.path.join(f'./temp_test_dmplex_{self._name()}.out')
 
     def outputText(self, msg, comm):
         if not comm.rank:
@@ -520,7 +520,7 @@ class BaseTestPlexHDF5:
                 # Test DM is indeed distributed
                 flg = plex.isDistributed()
                 self.outputText(
-                    'Loaded mesh distributed? %s\n' % str(flg).upper(), comm
+                    f'Loaded mesh distributed? {str(flg).upper()}\n', comm
                 )
                 # Interpolate
                 plex.interpolate()

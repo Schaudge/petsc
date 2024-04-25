@@ -91,7 +91,7 @@ def cython_chk(VERSION, verbose=True):
             return
         ruler, ws, nl = '*' * 80, ' ', '\n'
         pyexe = sys.executable
-        advise = '$ %s -m pip install --upgrade cython' % pyexe
+        advise = f'$ {pyexe} -m pip install --upgrade cython'
 
         def printer(*s):
             sys.stderr.write(' '.join(s) + '\n')
@@ -120,7 +120,7 @@ def cython_chk(VERSION, verbose=True):
         return False
     #
     if verbose:
-        log.info('using Cython %s' % CYTHON_VERSION)
+        log.info(f'using Cython {CYTHON_VERSION}')
     return True
 
 
@@ -147,11 +147,11 @@ def cython_run(
             return
     finally:
         os.chdir(cwd)
-    require = 'Cython >= %s' % VERSION
+    require = f'Cython >= {VERSION}'
     if setuptools and not cython_chk(VERSION, verbose=False):
         if sys.modules.get('Cython'):
             removed = getattr(sys.modules['Cython'], '__version__', '')
-            log.info('removing Cython %s from sys.modules' % removed)
+            log.info(f'removing Cython {removed} from sys.modules')
             pkgname = re.compile(r'cython(\.|$)', re.IGNORECASE)
             for modname in list(sys.modules.keys()):
                 if pkgname.match(modname):
@@ -162,12 +162,12 @@ def cython_run(
                 if hasattr(setuptools, 'SetuptoolsDeprecationWarning'):
                     category = setuptools.SetuptoolsDeprecationWarning
                     warnings.simplefilter('ignore', category)
-                log.info("fetching build requirement '%s'" % require)
+                log.info(f"fetching build requirement '{require}'")
                 install_setup_requires({'setup_requires': [require]})
         except Exception:
-            log.info("failed to fetch build requirement '%s'" % require)
+            log.info(f"failed to fetch build requirement '{require}'")
     if not cython_chk(VERSION):
-        raise DistutilsError("unsatisfied build requirement '%s'" % require)
+        raise DistutilsError(f"unsatisfied build requirement '{require}'")
     #
     log.info("cythonizing '%s' -> '%s'", source, target)
     from cythonize import cythonize
@@ -226,7 +226,7 @@ class PetscConfig:
         if not petsc_dir:
             raise DistutilsError('PETSc not found')
         if not os.path.isdir(petsc_dir):
-            raise DistutilsError('invalid PETSC_DIR: %s' % petsc_dir)
+            raise DistutilsError(f'invalid PETSC_DIR: {petsc_dir}')
         self.version = self._get_petsc_version(petsc_dir)
         self.configdict = self._get_petsc_config(petsc_dir, petsc_arch)
         self.PETSC_DIR = self['PETSC_DIR']
@@ -287,8 +287,8 @@ class PetscConfig:
         with open(petscvariables) as f:
             contents += f.read()
         #
-        confstr = 'PETSC_DIR  = %s\n' % PETSC_DIR
-        confstr += 'PETSC_ARCH = %s\n' % PETSC_ARCH
+        confstr = f'PETSC_DIR  = {PETSC_DIR}\n'
+        confstr += f'PETSC_ARCH = {PETSC_ARCH}\n'
         confstr += contents
         return makefile(StringIO(confstr))
 
@@ -401,21 +401,21 @@ class PetscConfig:
         version = '.'.join([str(i) for i in self.version[0]])
         release = ('development', 'release')[self.version[1]]
         version_info = version + ' ' + release
-        integer_size = '%s-bit' % self['PETSC_INDEX_SIZE']
+        integer_size = '{}-bit'.format(self['PETSC_INDEX_SIZE'])
         scalar_type = self['PETSC_SCALAR']
         precision = self['PETSC_PRECISION']
         language = self['PETSC_LANGUAGE']
         compiler = self['PCC']
         linker = self['PCC_LINKER']
-        log.info('PETSC_DIR:    %s' % PETSC_DIR)
-        log.info('PETSC_ARCH:   %s' % PETSC_ARCH)
-        log.info('version:      %s' % version_info)
-        log.info('integer-size: %s' % integer_size)
-        log.info('scalar-type:  %s' % scalar_type)
-        log.info('precision:    %s' % precision)
-        log.info('language:     %s' % language)
-        log.info('compiler:     %s' % compiler)
-        log.info('linker:       %s' % linker)
+        log.info(f'PETSC_DIR:    {PETSC_DIR}')
+        log.info(f'PETSC_ARCH:   {PETSC_ARCH}')
+        log.info(f'version:      {version_info}')
+        log.info(f'integer-size: {integer_size}')
+        log.info(f'scalar-type:  {scalar_type}')
+        log.info(f'precision:    {precision}')
+        log.info(f'language:     {language}')
+        log.info(f'compiler:     {compiler}')
+        log.info(f'linker:       {linker}')
 
 
 # --------------------------------------------------------------------
@@ -453,7 +453,7 @@ class config(_config):
             return
         petsc_arch = config.get_petsc_arch(self.petsc_dir, self.petsc_arch)
         log.info('-' * 70)
-        log.info('PETSC_DIR:   %s' % self.petsc_dir)
+        log.info(f'PETSC_DIR:   {self.petsc_dir}')
         arch_list = petsc_arch
         if not arch_list:
             arch_list = [None]
@@ -466,12 +466,12 @@ class config(_config):
             compiler = conf['PCC']
             linker = conf['PCC_LINKER']
             log.info('-' * 70)
-            log.info('PETSC_ARCH:  %s' % archname)
-            log.info(' * scalar-type: %s' % scalar_type)
-            log.info(' * precision:   %s' % precision)
-            log.info(' * language:    %s' % language)
-            log.info(' * compiler:    %s' % compiler)
-            log.info(' * linker:      %s' % linker)
+            log.info(f'PETSC_ARCH:  {archname}')
+            log.info(f' * scalar-type: {scalar_type}')
+            log.info(f' * precision:   {precision}')
+            log.info(f' * language:    {language}')
+            log.info(f' * compiler:    {compiler}')
+            log.info(f' * linker:      {linker}')
         log.info('-' * 70)
 
     # @staticmethod
@@ -496,7 +496,7 @@ class config(_config):
     # @staticmethod
     def chk_petsc_dir(petsc_dir):
         if not os.path.isdir(petsc_dir):
-            log.error('invalid PETSC_DIR: %s (ignored)' % petsc_dir)
+            log.error(f'invalid PETSC_DIR: {petsc_dir} (ignored)')
             return None
         return petsc_dir
 
@@ -530,7 +530,7 @@ class config(_config):
             if os.path.isdir(arch_path):
                 valid_archs.append(arch)
             else:
-                log.warn('invalid PETSC_ARCH: %s (ignored)' % arch)
+                log.warn(f'invalid PETSC_ARCH: {arch} (ignored)')
         return valid_archs
 
     chk_petsc_arch = staticmethod(chk_petsc_arch)
@@ -690,7 +690,7 @@ class build_ext(_build_ext):
         execute(
             write_file,
             (config_file, config_data),
-            msg='writing %s' % config_file,
+            msg=f'writing {config_file}',
             verbose=self.verbose,
             dry_run=self.dry_run,
         )

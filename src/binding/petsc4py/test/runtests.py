@@ -234,7 +234,7 @@ def print_banner(options):
         writeln(getpackageinfo('numpy'))
         for entry in components:
             writeln(getlibraryinfo(entry))
-            writeln(getpackageinfo('%s4py' % entry.lower()))
+            writeln(getpackageinfo(f'{entry.lower()}4py'))
 
 
 def load_tests(options, args):
@@ -251,7 +251,7 @@ def load_tests(options, args):
     testloader = unittest.TestLoader()
     if options.patterns:
         testloader.testNamePatterns = [
-            ('*%s*' % p) if ('*' not in p) else p for p in options.patterns
+            (f'*{p}*') if ('*' not in p) else p for p in options.patterns
         ]
     include = exclude = None
     if options.include:
@@ -293,7 +293,7 @@ def shutdown(success):
 
 
 def main(args=None):
-    pkgname = '%s4py' % components[-1].lower()
+    pkgname = f'{components[-1].lower()}4py'
     parser = getoptionparser()
     (options, args) = parser.parse_args(args)
     setup_python(options)
