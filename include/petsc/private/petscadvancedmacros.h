@@ -1,7 +1,5 @@
 #pragma once
 
-#include <petscmacros.h>
-
 /* ------------------------------ Like petscmacros.h but advanced ------------------------------ */
 
 #define PETSC_IF_INTERNAL_0(result_if_true, ...) __VA_ARGS__

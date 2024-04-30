@@ -1,7 +1,7 @@
 #include <petsc/private/logimpl.h> /*I "petscsys.h" I*/
 #include <petsc/private/loghandlerimpl.h>
 #include <petscdevice.h>
-#include <nvToolsExt.h>
+#include <nvtx3/nvToolsExt.h>
 
 static PetscErrorCode PetscLogHandlerEventBegin_NVTX(PetscLogHandler handler, PetscLogEvent event, PetscObject o1, PetscObject o2, PetscObject o3, PetscObject o4)
 {
