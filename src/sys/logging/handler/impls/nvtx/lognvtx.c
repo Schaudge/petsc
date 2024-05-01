@@ -1,7 +1,14 @@
 #include <petsc/private/logimpl.h> /*I "petscsys.h" I*/
 #include <petsc/private/loghandlerimpl.h>
 #include <petscdevice.h>
-#include <nvToolsExt.h>
+
+// Don't know when nvtx3 appeared in which CUDAToolkit version, but from https://github.com/NVIDIA/NVTX/tags and
+// https://developer.nvidia.com/cuda-toolkit-archive, we take cuda-11.0 as the one having nvtx3.
+#if PETSC_PKG_CUDA_VERSION_GE(11, 0, 0)
+  #include <nvtx3/nvToolsExt.h>
+#else
+  #include <nvToolsExt.h>
+#endif
 
 static PetscErrorCode PetscLogHandlerEventBegin_NVTX(PetscLogHandler handler, PetscLogEvent event, PetscObject o1, PetscObject o2, PetscObject o3, PetscObject o4)
 {
