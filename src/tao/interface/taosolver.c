@@ -1,5 +1,6 @@
 #include <petsc/private/taoimpl.h> /*I "petsctao.h" I*/
 #include <petsc/private/snesimpl.h>
+#include <petscdm.h>
 
 PetscBool         TaoRegisterAllCalled = PETSC_FALSE;
 PetscFunctionList TaoList              = NULL;
@@ -69,6 +70,31 @@ static PetscErrorCode TaoSetUpEW_Private(Tao tao)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode TaoDMEnlarge_Static(Tao tao, PetscInt NdmtNew)
+{
+  DM        *tmpdm;
+  PetscReal *s_tmpdm;
+  PetscInt   Nf = tao->num_terms, f;
+
+  PetscFunctionBegin;
+  if (Nf >= NdmtNew) PetscFunctionReturn(PETSC_SUCCESS);
+  PetscCall(PetscMalloc1(NdmtNew, &tmpdm));
+  PetscCall(PetscCalloc1(NdmtNew, &s_tmpdm));
+  for (f = 0; f < Nf; ++f) {
+    tmpdm[f]   = tao->dms[f];
+    s_tmpdm[f] = tao->dm_scales[f];
+  }
+  for (f = Nf; f < NdmtNew; ++f) {
+    tmpdm[f]   = NULL;
+  }
+  PetscCall(PetscFree(tao->dms));
+  PetscCall(PetscFree(tao->dm_scales));
+  tao->num_terms = NdmtNew;
+  tao->dms       = tmpdm;
+  tao->dm_scales = s_tmpdm;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /*@
   TaoCreate - Creates a Tao solver
 
@@ -96,12 +122,14 @@ PetscErrorCode TaoCreate(MPI_Comm comm, Tao *newtao)
   PetscCall(TaoInitializePackage());
 
   PetscCall(TaoLineSearchInitializePackage());
+  PetscCall(DMTaoInitializePackage());
   PetscCall(PetscHeaderCreate(tao, TAO_CLASSID, "Tao", "Optimization solver", "Tao", comm, TaoDestroy, TaoView));
 
   /* Set non-NULL defaults */
   tao->ops->convergencetest = TaoDefaultConvergenceTest;
   tao->max_it               = 10000;
   tao->max_funcs            = -1;
+  tao->num_terms            = 0;
 #if defined(PETSC_USE_REAL_SINGLE)
   tao->gatol = 1e-5;
   tao->grtol = 1e-5;
@@ -227,6 +255,8 @@ PetscErrorCode TaoSetUp(Tao tao)
 @*/
 PetscErrorCode TaoDestroy(Tao *tao)
 {
+  PetscInt i;
+
   PetscFunctionBegin;
   if (!*tao) PetscFunctionReturn(PETSC_SUCCESS);
   PetscValidHeaderSpecific(*tao, TAO_CLASSID, 1);
@@ -239,7 +269,10 @@ PetscErrorCode TaoDestroy(Tao *tao)
   PetscCall(KSPDestroy(&(*tao)->ksp));
   PetscCall(SNESDestroy(&(*tao)->snes_ewdummy));
   PetscCall(TaoLineSearchDestroy(&(*tao)->linesearch));
-
+  for (i = 0; i < (*tao)->num_terms; i++) { PetscCall(DMDestroy(&(*tao)->dms[i])); }
+  PetscCall(PetscFree((*tao)->dms));
+  PetscCall(PetscFree((*tao)->dm_scales));
+  if ((*tao)->is_child_dm) { PetscCall(PetscObjectCompose((PetscObject)*tao, "TaoGetParentDM", NULL)); }
   if ((*tao)->ops->convergencedestroy) {
     PetscCall((*(*tao)->ops->convergencedestroy)((*tao)->cnvP));
     if ((*tao)->jacobian_state_inv) PetscCall(MatDestroy(&(*tao)->jacobian_state_inv));
@@ -590,6 +623,7 @@ PetscErrorCode TaoView(Tao tao, PetscViewer viewer)
 {
   PetscBool isascii, isstring;
   TaoType   type;
+  PetscInt  i;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
@@ -617,6 +651,20 @@ PetscErrorCode TaoView(Tao tao, PetscViewer viewer)
       PetscCall(KSPView(tao->ksp, viewer));
       PetscCall(PetscViewerASCIIPrintf(viewer, "total KSP iterations: %" PetscInt_FMT "\n", tao->ksp_tot_its));
       PetscCall(PetscViewerASCIIPopTab(viewer));
+    }
+    if (tao->reg) {
+      PetscCall(PetscViewerASCIIPushTab(viewer));
+      PetscCall(PetscViewerASCIIPrintf(viewer, "DMTao Regularizer scale: %g\n", tao->reg_scale));
+      PetscCall(DMTaoView(tao->reg, viewer));
+      PetscCall(PetscViewerASCIIPopTab(viewer));
+    }
+    if (tao->dms) {
+      for (i = 0; i < tao->num_terms; i++) {
+        PetscCall(PetscViewerASCIIPushTab(viewer));
+        PetscCall(PetscViewerASCIIPrintf(viewer, "DMTao scale: %g\n", tao->dm_scales[i]));
+        PetscCall(DMTaoView(tao->dms[i], viewer));
+        PetscCall(PetscViewerASCIIPopTab(viewer));
+      }
     }
 
     PetscCall(PetscViewerASCIIPushTab(viewer));
@@ -2754,5 +2802,163 @@ PetscErrorCode TaoMonitorDrawCtxDestroy(TaoMonitorDrawCtx *ictx)
   PetscFunctionBegin;
   PetscCall(PetscViewerDestroy(&(*ictx)->viewer));
   PetscCall(PetscFree(*ictx));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  TaoGetDMSize - Gets the number `DM` for a `Tao` solver.
+
+  Logically Collective
+
+  Input Parameters:
++ tao - the `Tao` context
+- num - the number of `DM` terms
+
+  Level: intermediate
+
+.seealso: [](ch_tao), `Tao`, `TaoSetDM()`
+@*/
+PetscErrorCode TaoGetDMSize(Tao tao, PetscInt *num)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
+  *num = tao->num_terms;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  TaoSetDMSize - Sets the number `DM` for a `Tao` solver.
+
+  Logically Collective
+
+  Input Parameters:
+. tao - the `Tao` context
+
+  Output Parameters:
+. num - The number of `DM`
+
+  Level: intermediate
+
+.seealso: [](ch_tao), `Tao`, `TaoSetDM()`
+@*/
+PetscErrorCode TaoSetDMSize(Tao tao, PetscInt num)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
+  tao->num_terms = num;
+  //I actullay may not need this func.... TODO static enlarge stuff here
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  TaoAddDM - Sets an DM to Tao object.
+
+  Input Parameters:
++ tao   - Tao solver context
+. dm    - DM context
+- scale - scale for DMTao
+
+  Level: advanced
+
+.seealso: `DMTao`
+@*/
+PetscErrorCode TaoAddDM(Tao tao, DM dm, PetscReal scale)
+{
+  DMTao tdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 2);
+  PetscValidLogicalCollectiveReal(tao, scale, 3);
+  PetscCall(PetscObjectReference((PetscObject)dm));
+  PetscCall(TaoDMEnlarge_Static(tao, tao->num_terms + 1));
+  /* Subtracting by one as it is incremented in above func */
+  tao->dms[tao->num_terms - 1]       = dm;
+  tao->dm_scales[tao->num_terms - 1] = scale;
+  PetscCall(DMGetDMTao(dm, &tdm));
+  if (!tdm->workvec) { PetscCall(VecDuplicate(tao->solution, &tdm->workvec)); }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  TaoSetDM - Sets an DM to Tao object, at a given index.
+
+  Input Parameters:
++ tao   - Tao solver context
+. dm    - DM context
+. idx   - The index at which to place DM
+- scale - scale for DMTao
+
+  Level: advanced
+
+.seealso: `DMTao`
+@*/
+PetscErrorCode TaoSetDM(Tao tao, DM dm, PetscInt idx, PetscReal scale)
+{
+  DMTao tdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 2);
+  PetscValidLogicalCollectiveReal(tao, scale, 4);
+  PetscCheck(idx >= 0, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Index number %" PetscInt_FMT " must be non-negative", idx);
+  PetscCall(PetscObjectReference((PetscObject)dm));
+  PetscCall(TaoDMEnlarge_Static(tao, idx + 1));
+  if (!tao->dms[idx]) PetscCall(DMDestroy(&tao->dms[idx]));
+  tao->dms[idx]       = dm;
+  tao->dm_scales[idx] = scale;
+  PetscCall(DMGetDMTao(dm, &tdm));
+  if (!tdm->workvec) { PetscCall(VecDuplicate(tao->solution, &tdm->workvec)); }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  TaoClearDM - Remove all `DM` from `Tao`
+
+  Logically Collective
+
+  Input Parameters:
+. tao - Tao solver context
+
+  Level: intermediate
+
+.seealso: `DMTao`, `Tao`
+@*/
+PetscErrorCode TaoClearDM(Tao tao)
+{
+  PetscInt i;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
+  for (i = 0; i < tao->num_terms; i++) PetscCall(DMDestroy(&tao->dms[i]));
+  PetscCall(PetscFree(tao->dms));
+  tao->num_terms = 0;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  TaoGetDM - Return the `DM` for a given index.
+
+  Not Collective
+
+  Input Parameters:
++ tao - Tao solver context
+- idx - The index number
+
+  Output Parameters:
++ dm    - The `DM` at desired index.
+- scale - The according scale parameter for the `DM`
+
+  Level: intermediate
+
+.seealso: `DMTao`, `Tao`
+@*/
+PetscErrorCode TaoGetDM(Tao tao, PetscInt idx, DM *dm, PetscReal *scale)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
+  PetscCheck((idx >= 0) && (idx < tao->num_terms), PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Index number %" PetscInt_FMT " must be in [0, %" PetscInt_FMT ")", idx, tao->num_terms);
+  *dm    = tao->dms[idx];
+  *scale = tao->dm_scales[idx];
   PetscFunctionReturn(PETSC_SUCCESS);
 }
