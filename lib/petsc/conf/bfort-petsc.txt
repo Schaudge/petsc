@@ -200,6 +200,7 @@ native    TaoConvergedReason
 native    TaoADMMUpdateType
 native    TaoADMMRegularizerType
 native    TaoALMMType
+native    TaoFBType
 native    TaoSubsetType
 
 # petscsys.h
@@ -342,6 +343,7 @@ char PetscSpaceType
 char PetscRandomType
 char TaoType
 char TaoLineSearchType
+char DMTaoType
 char TSType
 char TSTrajectoryType
 char TSSSPType
