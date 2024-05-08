@@ -80,6 +80,7 @@ struct _TaoOps {
   PetscErrorCode (*convergencedestroy)(void *);
 
   /* Methods set by solver */
+  PetscErrorCode (*computefixedpoint)(Tao, Vec, Vec, PetscReal, Mat, void *);
   PetscErrorCode (*computedual)(Tao, Vec, Vec);
   PetscErrorCode (*setup)(Tao);
   PetscErrorCode (*solve)(Tao);
@@ -97,6 +98,7 @@ struct _p_Tao {
   void *user_objgradP;
   void *user_gradP;
   void *user_hessP;
+  void *user_fpiP;
   void *user_lsresP;
   void *user_lsjacP;
   void *user_conP;
@@ -182,6 +184,7 @@ struct _p_Tao {
   PetscInt ngrads;
   PetscInt nfuncgrads;
   PetscInt nhess;
+  PetscInt nfpi;
   PetscInt niter;
   PetscInt ntotalits;
   PetscInt nconstraints;
@@ -259,6 +262,7 @@ PETSC_EXTERN PetscLogEvent TAO_ObjGradEval;
 PETSC_EXTERN PetscLogEvent TAO_HessianEval;
 PETSC_EXTERN PetscLogEvent TAO_ConstraintsEval;
 PETSC_EXTERN PetscLogEvent TAO_JacobianEval;
+PETSC_EXTERN PetscLogEvent TAO_FixedPointEval;
 PETSC_EXTERN PetscLogEvent DMTAO_Eval;
 PETSC_EXTERN PetscLogEvent DMTAO_ApplyProx;
 

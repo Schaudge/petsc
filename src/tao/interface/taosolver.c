@@ -14,6 +14,7 @@ PetscLogEvent TAO_ObjGradEval;
 PetscLogEvent TAO_HessianEval;
 PetscLogEvent TAO_JacobianEval;
 PetscLogEvent TAO_ConstraintsEval;
+PetscLogEvent TAO_FixedPointEval;
 
 const char *TaoSubSetTypes[] = {"subvec", "mask", "matrixfree", "TaoSubSetType", "TAO_SUBSET_", NULL};
 
