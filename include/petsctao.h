@@ -245,6 +245,8 @@ typedef const char *TaoType;
 #define TAOALMM     "almm"
 #define TAOPYTHON   "python"
 #define TAOSNES     "snes"
+#define TAOFB       "fb"
+#define TAOCV       "cv"
 
 /*J
   DMTaoType - String with the name of a `DMTao` method
@@ -551,6 +553,29 @@ PETSC_EXTERN PetscErrorCode TaoBoundStep(Vec, Vec, Vec, IS, IS, IS, PetscReal, V
 PETSC_EXTERN PetscErrorCode TaoBoundSolution(Vec, Vec, Vec, PetscReal, PetscInt *, Vec);
 
 PETSC_EXTERN PetscErrorCode MatCreateSubMatrixFree(Mat, IS, IS, Mat *);
+
+//TODO either we can have proxutils.c that have general setting functions, or have specific ones?
+#if 0
+PETSC_EXTERN PetscErrorCode TaoFBSetSmoothTerm(Tao, DM);
+PETSC_EXTERN PetscErrorCode TaoFBSetNonSmoothTerm(Tao, DM);
+PETSC_EXTERN PetscErrorCode TaoFBSetUseLipApprox(Tao, PetscBool);
+PETSC_EXTERN PetscErrorCode TaoFBUseAcceleration(Tao, PetscBool); //TODO Acceleration vs Momentum vs Nesterov? This is FISTA
+PETSC_EXTERN PetscErrorCode TaoFBUseAdaptiveStep(Tao, PetscBool);
+
+PETSC_EXTERN PetscErrorCode TaoCVSetSmoothTerm(Tao, DM);
+PETSC_EXTERN PetscErrorCode TaoCVSetNonSmoothTerm(Tao, DM);
+PETSC_EXTERN PetscErrorCode TaoCVSetNonSmoothTermWithLinearMap(Tao, DM, Mat, PetscReal);
+PETSC_EXTERN PetscErrorCode TaoCVUseAcceleration(Tao, PetscBool); //TODO Acceleration vs Momentum vs Nesterov?
+PETSC_EXTERN PetscErrorCode TaoCVUseAdaptiveStep(Tao, PetscBool);
+#else
+PETSC_EXTERN PetscErrorCode TaoPSSetLipschitz(Tao, PetscReal);
+PETSC_EXTERN PetscErrorCode TaoPSSetUseLipApprox(Tao, PetscBool);
+PETSC_EXTERN PetscErrorCode TaoPSSetSmoothTerm(Tao, DM, PetscReal);
+PETSC_EXTERN PetscErrorCode TaoPSSetNonSmoothTerm(Tao, DM, PetscReal);
+PETSC_EXTERN PetscErrorCode TaoPSSetNonSmoothTermWithLinearMap(Tao, DM, Mat, PetscReal, PetscReal);
+PETSC_EXTERN PetscErrorCode TaoPSUseAcceleration(Tao, PetscBool); //TODO Acceleration vs Momentum vs Nesterov?
+PETSC_EXTERN PetscErrorCode TaoPSUseAdaptiveStep(Tao, PetscBool);
+#endif
 
 PETSC_EXTERN PetscErrorCode TaoSetRegularizer(Tao, DM, PetscReal);
 PETSC_EXTERN PetscErrorCode TaoGetRegularizer(Tao, DM *);

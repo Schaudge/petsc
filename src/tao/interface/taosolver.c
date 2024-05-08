@@ -14,6 +14,7 @@ PetscLogEvent TAO_ObjGradEval;
 PetscLogEvent TAO_HessianEval;
 PetscLogEvent TAO_JacobianEval;
 PetscLogEvent TAO_ConstraintsEval;
+PetscLogEvent TAO_FixedPointEval;
 
 const char *TaoSubSetTypes[] = {"subvec", "mask", "matrixfree", "TaoSubSetType", "TAO_SUBSET_", NULL};
 
@@ -717,6 +718,10 @@ PetscErrorCode TaoView(Tao tao, PetscViewer viewer)
       if (tao->max_funcs == PETSC_UNLIMITED) PetscCall(PetscViewerASCIIPrintf(viewer, "    (max: unlimited)\n"));
       else PetscCall(PetscViewerASCIIPrintf(viewer, "    (max: %" PetscInt_FMT ")\n", tao->max_funcs));
     }
+    if (tao->nproxs > 0) {
+      PetscCall(PetscViewerASCIIPrintf(viewer, "total number of proximal mapping evaluations=%" PetscInt_FMT ",", tao->nproxs));
+      PetscCall(PetscViewerASCIIPrintf(viewer, "    (max: %" PetscInt_FMT ")\n", tao->max_funcs));
+    }
     if (tao->nhess > 0) PetscCall(PetscViewerASCIIPrintf(viewer, "total number of Hessian evaluations=%" PetscInt_FMT "\n", tao->nhess));
     if (tao->nconstraints > 0) PetscCall(PetscViewerASCIIPrintf(viewer, "total number of constraint function evaluations=%" PetscInt_FMT "\n", tao->nconstraints));
     if (tao->njac > 0) PetscCall(PetscViewerASCIIPrintf(viewer, "total number of Jacobian evaluations=%" PetscInt_FMT "\n", tao->njac));
@@ -1389,7 +1394,7 @@ PetscErrorCode TaoGetLineSearch(Tao tao, TaoLineSearch *ls)
 PetscErrorCode TaoAddLineSearchCounts(Tao tao)
 {
   PetscBool flg;
-  PetscInt  nfeval, ngeval, nfgeval;
+  PetscInt  nfeval, ngeval, nfgeval, nproxeval;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
@@ -1397,9 +1402,11 @@ PetscErrorCode TaoAddLineSearchCounts(Tao tao)
     PetscCall(TaoLineSearchIsUsingTaoRoutines(tao->linesearch, &flg));
     if (!flg) {
       PetscCall(TaoLineSearchGetNumberFunctionEvaluations(tao->linesearch, &nfeval, &ngeval, &nfgeval));
+      PetscCall(TaoLineSearchGetNumberProxEvaluations(tao->linesearch, &nproxeval));
       tao->nfuncs += nfeval;
       tao->ngrads += ngeval;
       tao->nfuncgrads += nfgeval;
+      tao->nproxs += nproxeval;
     }
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -1454,6 +1461,7 @@ PetscErrorCode TaoResetStatistics(Tao tao)
   tao->nfuncs       = 0;
   tao->nfuncgrads   = 0;
   tao->ngrads       = 0;
+  tao->nproxs       = 0;
   tao->nhess        = 0;
   tao->njac         = 0;
   tao->nconstraints = 0;

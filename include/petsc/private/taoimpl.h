@@ -99,6 +99,7 @@ struct _p_Tao {
   void *user_objgradP;
   void *user_gradP;
   void *user_hessP;
+  void *user_fpiP;
   void *user_lsresP;
   void *user_lsjacP;
   void *user_conP;
@@ -182,6 +183,7 @@ struct _p_Tao {
   PetscInt ngrads;
   PetscInt nfuncgrads;
   PetscInt nhess;
+  PetscInt nproxs;
   PetscInt niter;
   PetscInt ntotalits;
   PetscInt nconstraints;
