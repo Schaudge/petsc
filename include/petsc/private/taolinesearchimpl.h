@@ -30,6 +30,7 @@ struct _p_TaoLineSearch {
   PetscBool setupcalled;
   PetscBool usegts;
   PetscBool usetaoroutines;
+  PetscBool usedm;
   PetscBool hasobjective;
   PetscBool hasgradient;
   PetscBool hasobjectiveandgradient;
@@ -63,6 +64,7 @@ struct _p_TaoLineSearch {
   PetscReal stepmax; /* upper bound for step */
 
   Tao tao;
+  DM  dm;
 };
 
 PETSC_EXTERN PetscLogEvent TAOLINESEARCH_Apply;
