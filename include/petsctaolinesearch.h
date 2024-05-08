@@ -56,6 +56,7 @@ typedef enum {
 .   `TAOLINESEARCHGPCG`     - "gpcg"
 .   `TAOLINESEARCHARMIJO`   - "armijo" simple backtracking line search enforcing only the sufficient decrease condition
 .   `TAOLINESEARCHOWARMIJO` - "owarmijo"
+.   `TAOLINESEARCHPSARMIJO` - "psarmijo"
 -   `TAOLINESEARCHIPM`      - "ipm"
 
    Options Database Key:
@@ -71,6 +72,7 @@ typedef const char *TaoLineSearchType;
 #define TAOLINESEARCHGPCG     "gpcg"
 #define TAOLINESEARCHARMIJO   "armijo"
 #define TAOLINESEARCHOWARMIJO "owarmijo"
+#define TAOLINESEARCHPSARMIJO "psarmijo"
 #define TAOLINESEARCHIPM      "ipm"
 
 PETSC_EXTERN PetscClassId      TAOLINESEARCH_CLASSID;
@@ -101,6 +103,7 @@ PETSC_EXTERN PetscErrorCode TaoLineSearchGetType(TaoLineSearch, TaoLineSearchTyp
 PETSC_EXTERN PetscErrorCode TaoLineSearchSetType(TaoLineSearch, TaoLineSearchType);
 
 PETSC_EXTERN PetscErrorCode TaoLineSearchIsUsingTaoRoutines(TaoLineSearch, PetscBool *);
+PETSC_EXTERN PetscErrorCode TaoLineSearchIsUsingDM(TaoLineSearch, PetscBool *);
 PETSC_EXTERN PetscErrorCode TaoLineSearchSetObjectiveAndGTSRoutine(TaoLineSearch, PetscErrorCode (*)(TaoLineSearch, Vec, Vec, PetscReal *, PetscReal *, void *), void *);
 PETSC_EXTERN PetscErrorCode TaoLineSearchSetObjectiveRoutine(TaoLineSearch, PetscErrorCode (*)(TaoLineSearch, Vec, PetscReal *, void *), void *);
 PETSC_EXTERN PetscErrorCode TaoLineSearchSetGradientRoutine(TaoLineSearch, PetscErrorCode (*)(TaoLineSearch, Vec, Vec, void *), void *);
@@ -110,6 +113,7 @@ PETSC_EXTERN PetscErrorCode TaoLineSearchComputeObjective(TaoLineSearch, Vec, Pe
 PETSC_EXTERN PetscErrorCode TaoLineSearchComputeGradient(TaoLineSearch, Vec, Vec);
 PETSC_EXTERN PetscErrorCode TaoLineSearchComputeObjectiveAndGradient(TaoLineSearch, Vec, PetscReal *, Vec);
 PETSC_EXTERN PetscErrorCode TaoLineSearchComputeObjectiveAndGTS(TaoLineSearch, Vec, PetscReal *, PetscReal *);
+PETSC_EXTERN PetscErrorCode TaoLineSearchComputeProximalMap(TaoLineSearch, PetscReal, Vec, Vec, PetscBool);
 PETSC_EXTERN PetscErrorCode TaoLineSearchSetVariableBounds(TaoLineSearch, Vec, Vec);
 
 PETSC_EXTERN PetscErrorCode TaoLineSearchInitializePackage(void);
@@ -117,3 +121,4 @@ PETSC_EXTERN PetscErrorCode TaoLineSearchFinalizePackage(void);
 
 PETSC_EXTERN PetscErrorCode TaoLineSearchRegister(const char[], PetscErrorCode (*)(TaoLineSearch));
 PETSC_EXTERN PetscErrorCode TaoLineSearchUseTaoRoutines(TaoLineSearch, Tao);
+PETSC_EXTERN PetscErrorCode TaoLineSearchUseDM(TaoLineSearch, DM);
