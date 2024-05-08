@@ -14,6 +14,7 @@
 #define TaoADMMRegularizerType PetscEnum
 #define TaoALMMType PetscEnum
 #define TaoBNCGType PetscEnum
+#define TaoFBType PetscEnum
 #define TaoSubsetType PetscEnum
 
 #define TAOLMVM     'lmvm'
@@ -50,6 +51,7 @@
 #define TAOALMM     'almm'
 #define TAOPYTHON   'python'
 #define TAOSNES     'snes'
+#define TAOFB       'fb'
 
 #define TAOLINESEARCHUNIT     'unit'
 #define TAOLINESEARCHMT       'more-thuente'

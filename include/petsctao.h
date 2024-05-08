@@ -134,6 +134,53 @@ M*/
 M*/
 
 /*E
+   TaoFBType - Determine update type of `TAOFB` for step size
+
+  Level: advanced
+
+.seealso: [](ch_tao), `Tao`, `TAOFB`, `TaoFBSetType()`
+E*/
+typedef enum {
+  TAO_FB_FISTA,
+  TAO_FB_SPARSA,
+  TAO_FB_LV,
+} TaoFBType;
+PETSC_EXTERN const char *const TaoFBTypes[];
+
+/*MC
+  TAO_FB_FISTA - Fast iterative shrinkage algorithm.
+
+  Level: advanced
+
+  Note:
+  User needs to provided appropriate routines and type for regularizer solver
+
+.seealso: [](ch_tao), `Tao`, `TAOFB`, `TaoFBSetType()`
+M*/
+
+/*MC
+  TAO_FB_SPARSA - Proximal gradient with adaptive stepsize
+
+  Level: advanced
+
+  Note:
+  User needs to provided appropriate routines and type for regularizer solver
+
+.seealso: [](ch_tao), `Tao`, `TAOFB`, `TaoFBSetType()`
+M*/
+
+/*MC
+  TAO_FB_LV - Loris-Verhoeven type splitting algorithm.
+
+  Level: advanced
+
+  Note:
+  User needs to supply linear mapping for the proximal term.
+
+.seealso: [](ch_tao), `Tao`, `TAOFB`, `TaoFBSetType()`
+M*/
+
+/*E
    TaoALMMType - Determine the augmented Lagrangian formulation used in the `TAOALMM` subproblem.
 
    Values:
@@ -245,6 +292,7 @@ typedef const char *TaoType;
 #define TAOALMM     "almm"
 #define TAOPYTHON   "python"
 #define TAOSNES     "snes"
+#define TAOFB       "fb"
 
 /*J
   DMTaoType - String with the name of a `DMTao` method
@@ -545,6 +593,14 @@ PETSC_EXTERN PetscErrorCode TaoBoundStep(Vec, Vec, Vec, IS, IS, IS, PetscReal, V
 PETSC_EXTERN PetscErrorCode TaoBoundSolution(Vec, Vec, Vec, PetscReal, PetscInt *, Vec);
 
 PETSC_EXTERN PetscErrorCode MatCreateSubMatrixFree(Mat, IS, IS, Mat *);
+
+PETSC_EXTERN PetscErrorCode TaoFBSetType(Tao, TaoFBType);
+PETSC_EXTERN PetscErrorCode TaoFBGetType(Tao, TaoFBType *);
+PETSC_EXTERN PetscErrorCode TaoFBSetSmoothTerm(Tao, DM);
+PETSC_EXTERN PetscErrorCode TaoFBSetNonSmoothTerm(Tao, DM);
+PETSC_EXTERN PetscErrorCode TaoFBSetNonSmoothTermWithLinearMap(Tao, DM, Mat, PetscReal);
+PETSC_EXTERN PetscErrorCode TaoFBSetLipschitz(Tao, PetscReal);
+PETSC_EXTERN PetscErrorCode TaoFBSetUseLipApprox(Tao, PetscBool);
 
 PETSC_EXTERN PetscErrorCode TaoSetRegularizer(Tao, DM, PetscReal);
 PETSC_EXTERN PetscErrorCode TaoGetRegularizer(Tao, DM *);
