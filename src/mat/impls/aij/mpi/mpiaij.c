@@ -7827,8 +7827,8 @@ PETSC_INTERN PetscErrorCode MatCreateGraph_Simple_AIJ(Mat Amat, PetscBool symmet
           PetscCall(MatRestoreRow(c, brow, &nc2, &cols2, NULL));
         }
       }
-      PetscCall(MPIU_Allreduce(MPI_IN_PLACE, &is_bad, 1, MPIU_INT, MPI_SUM, PetscObjectComm((PetscObject)Gmat)));
-      if (is_bad > 0) {
+      PetscCall(MPIU_Allreduce(&is_bad, &kk, 1, MPIU_INT, MPI_SUM, PetscObjectComm((PetscObject)Gmat)));
+      if (kk > 0) {
         PetscCall(PetscFree2(d_nnz, o_nnz));
         PetscCall(PetscInfo(Amat, "Found sparse blocks - revert to slow method\n"));
         goto old_bs;
@@ -7920,6 +7920,8 @@ PETSC_INTERN PetscErrorCode MatCreateGraph_Simple_AIJ(Mat Amat, PetscBool symmet
       const PetscScalar *vals;
       const PetscInt    *idx;
       PetscInt          *d_nnz, *o_nnz, *w0, *w1, *w2;
+      jj = 0; // dummy call for empty processors
+      PetscCall(MPIU_Allreduce(&jj, &kk, 1, MPIU_INT, MPI_SUM, PetscObjectComm((PetscObject)Gmat)));
     old_bs:
       /*
        Determine the preallocation needed for the scalar matrix derived from the vector matrix.
