@@ -1,4 +1,4 @@
-# mpirun -n 4 python3.12 ex76.py -pc_hpddm_levels_1_sub_pc_type lu -pc_hpddm_levels_1_eps_nev 20 -pc_hpddm_levels_1_eps_threshold 0.1 -ksp_monitor
+# mpirun -n 4 python3.12 ex76.py -pc_hpddm_levels_1_sub_pc_type lu -pc_hpddm_levels_1_eps_nev 20 -pc_hpddm_levels_1_eps_threshold 0.1 -ksp_monitor -P0 ::ascii_info -A0 ::ascii_info
 
 import sys
 import petsc4py
@@ -39,3 +39,8 @@ ksp.solve(b, x)
 gc, oc = pc.getHPDDMComplexities()
 if rank == 0:
   print("grid complexity = ", gc, ", operator complexity = ", oc, sep = "")
+
+P0 = pc.createHPDDMDeflationMat()
+P0.viewFromOptions("-P0")
+A0 = A.ptap(P0)
+A0.viewFromOptions("-A0")
