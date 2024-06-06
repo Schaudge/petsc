@@ -305,7 +305,7 @@ static PetscErrorCode DMSwarmComputeMassMatrix_Private(DM dmc, DM dmf, Mat mass,
   PetscInt         dim, Nf, field, cStart, cEnd, cell, totDim, maxC = 0, totNc = 0, Nq, coordDim, num_missing = 0;
   PetscQuadrature  quad = NULL; // flag for non-affine and same for all fields
   PetscFEGeom      fegeom;
-  PetscReal       *coords;
+  PetscReal       *coords, *wt_scaled;
   const PetscReal *quadPoints, *quadWeights;
 
   PetscFunctionBegin;
@@ -378,7 +378,15 @@ static PetscErrorCode DMSwarmComputeMassMatrix_Private(DM dmc, DM dmf, Mat mass,
     PetscCall(PetscQuadratureGetData(quad, NULL, &qNc, &Nq, &quadPoints, &quadWeights));
     PetscCheck(!(qNc != 1) || !(qNc != totNc), PetscObjectComm((PetscObject)dmf), PETSC_ERR_ARG_SIZ, "Quadrature components %" PetscInt_FMT " != %" PetscInt_FMT " field components", qNc, totNc);
   } else Nq = 1;
-  PetscCall(PetscMalloc4(coordDim * Nq, &coords, Nq, &fegeom.detJ, coordDim * coordDim * Nq, &fegeom.J, coordDim * coordDim * Nq, &fegeom.invJ));
+  PetscCall(PetscMalloc5(coordDim * Nq, &coords, Nq, &fegeom.detJ, coordDim * coordDim * Nq, &fegeom.J, coordDim * coordDim * Nq, &fegeom.invJ, Nq, &wt_scaled));
+  if (quad) {
+    PetscReal sum = 0;
+    for (PetscInt q = 0; q < Nq; ++q) sum += quadWeights[q];
+    for (PetscInt q = 0; q < Nq; ++q) wt_scaled[q] = quadWeights[q] / sum;
+  } else {
+    wt_scaled[0] = 1;
+    Nq           = 1;
+  }
   /* count non-zeros */
   PetscCall(DMSwarmSortGetAccess(dmc));
   for (field = 0; field < Nf; ++field) {
@@ -470,7 +478,7 @@ static PetscErrorCode DMSwarmComputeMassMatrix_Private(DM dmc, DM dmf, Mat mass,
             for (PetscInt c = 0; c < Nc; ++c) {
               // TODO Need field offset on particle and field here
               /* B[(p*pdim + i)*Nc + c] is the value at point p for basis function i and component c */
-              elemMat[(j * totNc + c) * numFIndices + i * Nc + c] += Tcoarse->T[0][(j * numFIndices + i * Nc + c) * Nc + c] * (useDeltaFunction ? 1.0 : fegeom.detJ[q]);
+              elemMat[(j * totNc + c) * numFIndices + i * Nc + c] += wt_scaled[q] * Tcoarse->T[0][(j * numFIndices + i * Nc + c) * Nc + c] * (useDeltaFunction ? 1.0 : fegeom.detJ[q]);
             }
           }
         }
@@ -486,16 +494,12 @@ static PetscErrorCode DMSwarmComputeMassMatrix_Private(DM dmc, DM dmf, Mat mass,
     }
     PetscCall(DMSwarmRestoreField(dmc, DMSwarmPICField_coor, NULL, NULL, (void **)&fieldVals));
   }
-  PetscCall(PetscFree4(coords, fegeom.detJ, fegeom.J, fegeom.invJ));
+  PetscCall(PetscFree5(coords, fegeom.detJ, fegeom.J, fegeom.invJ, wt_scaled));
   PetscCall(PetscFree4(elemMat, rowIDXs, xi, fieldV_cell));
   PetscCall(DMSwarmSortRestoreAccess(dmc));
   PetscCall(MatAssemblyBegin(mass, MAT_FINAL_ASSEMBLY));
   PetscCall(MatAssemblyEnd(mass, MAT_FINAL_ASSEMBLY));
-  // normalize to row sum = 1
-  if (Nq != 1) {
-    PetscCall(PetscInfo(dmf, "Scale particle mass matrix by 1 / %d\n", (int)Nq));
-    PetscCall(MatScale(mass, 1. / (double)Nq));
-  }
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
