@@ -486,7 +486,6 @@ static PetscErrorCode DMSwarmComputeMassMatrix_Private(DM dmc, DM dmf, Mat mass,
   PetscCall(DMSwarmSortRestoreAccess(dmc));
   PetscCall(MatAssemblyBegin(mass, MAT_FINAL_ASSEMBLY));
   PetscCall(MatAssemblyEnd(mass, MAT_FINAL_ASSEMBLY));
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
