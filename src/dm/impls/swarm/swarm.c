@@ -300,7 +300,7 @@ static PetscErrorCode DMSwarmComputeMassMatrix_Private(DM dmc, DM dmf, Mat mass,
   PetscLayout     rLayout, colLayout;
   PetscInt       *dnz, *onz;
   PetscInt        locRows, locCols, rStart, colStart, colEnd, *rowIDXs;
-  PetscReal      *xi, *v0, v0ref[3] = {-1.0, -1.0, -1.0}, *fieldV_cell;
+  PetscReal      *xi, *v0, v0ref[3] = {-1.0, -1.0, -1.0}, detJ, *fieldV_cell;
   PetscScalar    *elemMat;
   PetscInt        dim, Nf, Nq, field, cStart, cEnd, cell, totDim, maxC = 0, totNc = 0, coordDim, num_missing = 0;
   PetscQuadrature quad = NULL; // flag for non-affine and same for all fields
@@ -449,8 +449,9 @@ static PetscErrorCode DMSwarmComputeMassMatrix_Private(DM dmc, DM dmf, Mat mass,
       PetscCall(DMSwarmSortGetPointsPerCell(dmc, cell, &numCIndices, &cindices));
       if (!quad) {
         for (PetscInt j = 0; j < numCIndices; ++j) CoordinatesRealToRef(dim, dim, v0ref, v0, fegeom.invJ, &fieldVals[cindices[j] * dim], &xi[j * dim]);
+        detJ = fegeom.detJ[0];
       } else {
-        fegeom.detJ[0] = 1;                          // delta so no detJ used
+        detJ = 1;                                    // delta so no detJ used
         for (PetscInt j = 0; j < numCIndices; ++j) { // copy points into array
           for (PetscInt d = 0; d < coordDim; ++d) fieldV_cell[j * dim + d] = fieldVals[cindices[j] * dim + d];
         }
@@ -465,7 +466,7 @@ static PetscErrorCode DMSwarmComputeMassMatrix_Private(DM dmc, DM dmf, Mat mass,
           for (PetscInt c = 0; c < Nc; ++c) {
             // TODO Need field offset on particle and field here
             /* B[(p*pdim + i)*Nc + c] is the value at point p for basis function i and component c */
-            elemMat[(j * totNc + c) * numFIndices + i * Nc + c] += Tcoarse->T[0][(j * numFIndices + i * Nc + c) * Nc + c] * (useDeltaFunction ? 1.0 : fegeom.detJ[0]);
+            elemMat[(j * totNc + c) * numFIndices + i * Nc + c] += Tcoarse->T[0][(j * numFIndices + i * Nc + c) * Nc + c] * (useDeltaFunction ? 1.0 : detJ);
           }
         }
       }
