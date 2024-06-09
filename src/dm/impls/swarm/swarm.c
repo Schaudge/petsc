@@ -422,9 +422,9 @@ static PetscErrorCode DMSwarmComputeMassMatrix_Private(DM dmc, DM dmf, Mat mass,
     }
   }
   PetscCall(PetscHSetIJDestroy(&ht));
+  PetscCheck(num_missing == 0, PetscObjectComm((PetscObject)dmf), PETSC_ERR_SUP, "seem to have hanging nodes, which is not supported (p4est)");
   PetscCall(MatXAIJSetPreallocation(mass, 1, dnz, onz, NULL, NULL));
-  PetscCall(MatSetOption(mass, MAT_NEW_NONZERO_ALLOCATION_ERR, num_missing == 0 ? PETSC_TRUE : PETSC_FALSE));
-  if (num_missing) PetscCall(PetscInfo(dmf, "Warning: seem to have hanging nodes, which is not supported (p4est)\n"));
+  PetscCall(MatSetOption(mass, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_TRUE));
   PetscCall(PetscFree2(dnz, onz));
   PetscCall(PetscMalloc4(maxC * totNc * totDim, &elemMat, maxC * totNc, &rowIDXs, maxC * dim, &xi, maxC * dim, &fieldV_cell));
   for (field = 0; field < Nf; ++field) {
