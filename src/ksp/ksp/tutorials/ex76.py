@@ -35,12 +35,22 @@ ksp.setOperators(A)
 
 b, x = A.createVecs()
 b.setRandom()
-ksp.solve(b, x)
-gc, oc = pc.getHPDDMComplexities()
+pc.setUp()
 if rank == 0:
-  print("grid complexity = ", gc, ", operator complexity = ", oc, sep = "")
+  kspCoarse = pc.getHPDDMCoarseSolve()
+  kspCoarse.view()
+  # kspCoarse.getOperators()[0]
+pc.getHPDDMSubPC(1).setUp()
+kspFine = pc.getHPDDMSubPC(1).getASMSubKSP()
+if rank == 0:
+  kspFine[0].view()
+  # kspFine[0].getOperators()[0]
 
 P0 = pc.createHPDDMDeflationMat()
 P0.viewFromOptions("-P0")
 A0 = A.ptap(P0)
 A0.viewFromOptions("-A0")
+ksp.solve(b, x)
+gc, oc = pc.getHPDDMComplexities()
+if rank == 0:
+  print("grid complexity = ", gc, ", operator complexity = ", oc, sep = "")
