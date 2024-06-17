@@ -301,7 +301,8 @@ typedef const char *TaoType;
 + `DMTAOL1`      - L1 regularization, |x|_1
 . `DMTAOL2`      - L2 regularization, |x|_2^2
 . `DMTAOSIMPLEX` - Simplex Constraint
-- `DMTAOSHELL`   - Empty Shell
+. `DMTAOSHELL`   - Empty Shell
+- `DMTAOPYTHON`  - Python DMTao
 
   Level: beginner
 
@@ -312,6 +313,7 @@ typedef const char *DMTaoType;
 #define DMTAOL2      "l2"
 #define DMTAOSIMPLEX "simplex"
 #define DMTAOSHELL   "shell"
+#define DMTAOPYTHON  "python"
 
 PETSC_EXTERN PetscClassId      TAO_CLASSID;
 PETSC_EXTERN PetscClassId      DMTAO_CLASSID;
@@ -401,7 +403,7 @@ PETSC_EXTERN PetscErrorCode TaoSolve(Tao);
 PETSC_EXTERN PetscErrorCode TaoRegister(const char[], PetscErrorCode (*)(Tao));
 PETSC_EXTERN PetscErrorCode TaoRegisterDestroy(void);
 
-PETSC_EXTERN PetscErrorCode DMTaoRegister(const char[], PetscErrorCode (*)(DM));
+PETSC_EXTERN PetscErrorCode DMTaoRegister(const char[], PetscErrorCode (*)(DMTao));
 PETSC_EXTERN PetscErrorCode DMTaoRegisterDestroy(void);
 
 PETSC_EXTERN PetscErrorCode TaoGetConvergedReason(Tao, TaoConvergedReason *);
@@ -618,8 +620,8 @@ PETSC_EXTERN PetscErrorCode DMTaoInitializePackage(void);
 
 PETSC_EXTERN PetscErrorCode DMTaoSetFromOptions(DM);
 PETSC_EXTERN PetscErrorCode DMTaoSetUp(DM);
-PETSC_EXTERN PetscErrorCode DMTaoView(DMTao, PetscViewer);
-PETSC_EXTERN PetscErrorCode DMTaoViewFromOptions(DMTao, PetscObject, const char[]);
+PETSC_EXTERN PetscErrorCode DMTaoView(DM, PetscViewer);
+PETSC_EXTERN PetscErrorCode DMTaoViewFromOptions(DM, PetscObject, const char[]);
 
 PETSC_EXTERN PetscErrorCode DMTaoGetCentralVector(DM, Vec *);
 PETSC_EXTERN PetscErrorCode DMTaoSetCentralVector(DM, Vec);
@@ -666,8 +668,11 @@ PETSC_EXTERN PetscErrorCode DMTaoShellSetContext(DM, void *);
 PETSC_EXTERN PetscErrorCode DMTaoShellGetContext(DM, void *);
 PETSC_EXTERN PetscErrorCode DMTaoShellSetProximalMap(DM, PetscErrorCode (*)(DMTao, DMTao, PetscReal, Vec, Vec, PetscBool));
 
-PETSC_EXTERN PetscErrorCode DMTaoSetOptionsPrefix(DMTao, const char prefix[]);
-PETSC_EXTERN PetscErrorCode DMTaoAppendOptionsPrefix(DMTao, const char[]);
-PETSC_EXTERN PetscErrorCode DMTaoGetOptionsPrefix(DMTao, const char *[]);
+PETSC_EXTERN PetscErrorCode DMTaoSetOptionsPrefix(DM, const char prefix[]);
+PETSC_EXTERN PetscErrorCode DMTaoAppendOptionsPrefix(DM, const char[]);
+PETSC_EXTERN PetscErrorCode DMTaoGetOptionsPrefix(DM, const char *[]);
+
+PETSC_EXTERN PetscErrorCode DMTaoPythonSetType(DM, const char[]);
+PETSC_EXTERN PetscErrorCode DMTaoPythonGetType(DM, const char *[]);
 
 #include <petsctao_deprecations.h>

@@ -2171,3 +2171,5 @@ cdef class TAOLineSearch(Object):
 
 del TAOLineSearchType
 del TAOLineSearchConvergedReason
+
+# --------------------------------------------------------------------

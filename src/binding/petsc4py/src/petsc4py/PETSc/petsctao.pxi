@@ -242,6 +242,7 @@ cdef extern from * nogil:
     PetscErrorCode TaoLineSearchSetObjectiveAndGradientRoutine(PetscTAOLineSearch, PetscTaoLineSearchObjGrad, void*)
     PetscErrorCode TaoLineSearchApply(PetscTAOLineSearch, PetscVec, PetscReal*, PetscVec, PetscVec, PetscReal*, PetscTAOLineSearchConvergedReason*)
 
+
 # --------------------------------------------------------------------
 
 cdef inline TAO ref_TAO(PetscTAO tao):
@@ -566,3 +567,4 @@ cdef PetscErrorCode TAOLS_ObjGrad(PetscTAOLineSearch _ls,
     retv = objgrad(ls, x, g, *args, **kargs)
     _f[0] = asReal(retv)
     return PETSC_SUCCESS
+
