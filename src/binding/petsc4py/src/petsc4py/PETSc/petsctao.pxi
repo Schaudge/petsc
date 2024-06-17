@@ -35,6 +35,7 @@ cdef extern from * nogil:
     PetscTAOType TAOALMM
     PetscTAOType TAOPYTHON
     PetscTAOType TAOFB
+    PetscTAOType TAOCV
 
     ctypedef enum PetscTAOConvergedReason "TaoConvergedReason":
         # iterating
@@ -242,6 +243,7 @@ cdef extern from * nogil:
     PetscErrorCode TaoLineSearchSetGradientRoutine(PetscTAOLineSearch, PetscTaoLineSearchGradient, void*)
     PetscErrorCode TaoLineSearchSetObjectiveAndGradientRoutine(PetscTAOLineSearch, PetscTaoLineSearchObjGrad, void*)
     PetscErrorCode TaoLineSearchApply(PetscTAOLineSearch, PetscVec, PetscReal*, PetscVec, PetscVec, PetscReal*, PetscTAOLineSearchConvergedReason*)
+
 
 # --------------------------------------------------------------------
 
@@ -567,3 +569,4 @@ cdef PetscErrorCode TAOLS_ObjGrad(PetscTAOLineSearch _ls,
     retv = objgrad(ls, x, g, *args, **kargs)
     _f[0] = asReal(retv)
     return PETSC_SUCCESS
+
