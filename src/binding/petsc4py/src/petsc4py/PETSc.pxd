@@ -268,7 +268,6 @@ ctypedef public api class TAOLineSearch(Object) [
     ]:
     cdef PetscTAOLineSearch taols
 
-
 ctypedef public api class AO(Object) [
     type   PyPetscAO_Type,
     object PyPetscAOObject,

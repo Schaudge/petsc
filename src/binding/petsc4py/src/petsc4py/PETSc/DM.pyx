@@ -55,6 +55,13 @@ class DMReorderDefaultFlag(object):
     FALSE  = DM_REORDER_DEFAULT_FALSE
     TRUE   = DM_REORDER_DEFAULT_TRUE
 
+class DMTAOType(object):
+    """DMTao type."""
+    L1      = S_(DMTAOL1)
+    L2      = S_(DMTAOL2)
+    SIMPLEX = S_(DMTAOSIMPLEX)
+    SHELL   = S_(DMTAOSHELL)
+
 # --------------------------------------------------------------------
 
 
@@ -64,6 +71,7 @@ cdef class DM(Object):
     Type         = DMType
     BoundaryType = DMBoundaryType
     PolytopeType = DMPolytopeType
+    TAOType      = DMTAOType
 
     ReorderDefaultFlag = DMReorderDefaultFlag
 
@@ -2256,6 +2264,57 @@ cdef class DM(Object):
         else:
             CHKERR(DMSNESSetJacobian(self.dm, NULL, NULL))
 
+    def setTAOObjective(
+        self, objective : DMTAOObjectiveFunction,
+        args: tuple[Any, ...] | None = None,
+        kargs: dict[str, Any] | None = None) -> None:
+        """Set the `DMTao` objective evaluation function.
+
+        Logically collective.
+
+        Parameters
+        ----------
+        objective
+            The objective callback.
+        args
+            Positional arguments for the callback.
+        kargs
+            Keyword arguments for the callback.
+
+        See Also
+        --------
+        petsc.DMTaoSetObjective
+
+        """
+        if args  is None: args  = ()
+        if kargs is None: kargs = {}
+        context = (objective, args, kargs)
+        self.set_attr('__objective__', context)
+        CHKERR(DMTaoSetObjective(self.dm, DMTAO_Objective, <void*>context))
+
+    def applyproximalmap(
+        self, DM dm1, PetscReal scale, Vec y, Vec x, PetscBool flg) -> None:
+        """Computes proximal mapping of DMTaoa
+
+        Logically collective.
+
+        Parameters
+        ----------
+
+        """
+        if dm1 is not None:
+            CHKERR(DMTaoApplyProximalMap(self.dm, dm1.dm, scale, y.vec, x.vec, flg))
+        else:
+            CHKERR(DMTaoApplyProximalMap(self.dm, NULL, scale, y.vec, x.vec, flg))
+
+    def setTAOType(self, dmtao_type: DMTAOType | str) -> None:
+        cdef PetscDMTAOType ctype = NULL
+        print(dmtao_type)
+        dmtao_type = str2bytes(dmtao_type, &ctype)
+        print(dmtao_type)
+        print(ctype)
+        CHKERR(DMTaoSetType(self.dm, ctype))
+
     def addCoarsenHook(
         self,
         coarsenhook: DMCoarsenHookFunction,
@@ -2333,5 +2392,6 @@ del DMType
 del DMBoundaryType
 del DMPolytopeType
 del DMReorderDefaultFlag
+del DMTAOType
 
 # --------------------------------------------------------------------

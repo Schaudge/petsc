@@ -195,6 +195,12 @@ cdef extern from * nogil:
     PetscErrorCode TaoPythonSetType(PetscTAO, char[])
     PetscErrorCode TaoPythonGetType(PetscTAO, char*[])
 
+    ctypedef const char* PetscDMTAOType "DMTaoType"
+    PetscDMTAOType DMTAOL1
+    PetscDMTAOType DMTAOL2
+    PetscDMTAOType DMTAOSIMPLEX
+    PetscDMTAOType DMTAOSHELL
+
     ctypedef const char* PetscTAOLineSearchType "TaoLineSearchType"
     PetscTAOLineSearchType TAOLINESEARCHUNIT
     PetscTAOLineSearchType TAOLINESEARCHARMIJO
@@ -241,6 +247,13 @@ cdef extern from * nogil:
     PetscErrorCode TaoLineSearchSetGradientRoutine(PetscTAOLineSearch, PetscTaoLineSearchGradient, void*)
     PetscErrorCode TaoLineSearchSetObjectiveAndGradientRoutine(PetscTAOLineSearch, PetscTaoLineSearchObjGrad, void*)
     PetscErrorCode TaoLineSearchApply(PetscTAOLineSearch, PetscVec, PetscReal*, PetscVec, PetscVec, PetscReal*, PetscTAOLineSearchConvergedReason*)
+
+    ctypedef PetscErrorCode PetscDMTaoObjective(PetscDM, PetscVec, PetscReal*, void*) except PETSC_ERR_PYTHON
+
+    PetscErrorCode DMTaoSetType(PetscDM, PetscDMTAOType)
+
+    PetscErrorCode DMTaoSetObjective(PetscDM, PetscDMTaoObjective, void*)
+
 
 # --------------------------------------------------------------------
 
@@ -566,3 +579,23 @@ cdef PetscErrorCode TAOLS_ObjGrad(PetscTAOLineSearch _ls,
     retv = objgrad(ls, x, g, *args, **kargs)
     _f[0] = asReal(retv)
     return PETSC_SUCCESS
+
+# --------------------------------------------------------------------
+
+cdef PetscErrorCode DMTAO_Objective(PetscDM   _dm,
+                                    PetscVec  _x,
+                                    PetscReal *_f,
+                                    void      *ctx) except PETSC_ERR_PYTHON with gil:
+
+    cdef DM dm = ref_DM(_dm)
+    cdef Vec x = ref_Vec(_x)
+    cdef object context = dm.get_attr("__objective__")
+    if context is None and ctx != NULL: context = <object>ctx
+    assert context is not None and type(context) is tuple # sanity check
+    (objective, args, kargs) = context
+    retv = objective(dm, x, *args, **kargs)
+    _f[0] = asReal(retv)
+    return PETSC_SUCCESS
+
+
+

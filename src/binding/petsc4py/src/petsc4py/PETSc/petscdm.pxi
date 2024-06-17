@@ -201,6 +201,8 @@ cdef extern from * nogil:
 
     PetscErrorCode DMCoarsenHookAdd(PetscDM, PetscDMCoarsenHook, PetscDMRestrictHook, void*)
 
+    PetscErrorCode DMTaoApplyProximalMap(PetscDM, PetscDM, PetscReal, PetscVec, PetscVec, PetscBool)
+
 # --------------------------------------------------------------------
 
 cdef inline PetscDMBoundaryType asBoundaryType(object boundary) \
