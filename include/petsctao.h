@@ -403,7 +403,7 @@ PETSC_EXTERN PetscErrorCode TaoSolve(Tao);
 PETSC_EXTERN PetscErrorCode TaoRegister(const char[], PetscErrorCode (*)(Tao));
 PETSC_EXTERN PetscErrorCode TaoRegisterDestroy(void);
 
-PETSC_EXTERN PetscErrorCode DMTaoRegister(const char[], PetscErrorCode (*)(DM));
+PETSC_EXTERN PetscErrorCode DMTaoRegister(const char[], PetscErrorCode (*)(DMTao));
 PETSC_EXTERN PetscErrorCode DMTaoRegisterDestroy(void);
 
 PETSC_EXTERN PetscErrorCode TaoGetConvergedReason(Tao, TaoConvergedReason *);

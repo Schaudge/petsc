@@ -1,9 +1,9 @@
 #include <petsc/private/taoimpl.h>
 
-PETSC_EXTERN PetscErrorCode DMTaoCreate_L1_Private(DM);
-PETSC_EXTERN PetscErrorCode DMTaoCreate_L2_Private(DM);
-PETSC_EXTERN PetscErrorCode DMTaoCreate_Simplex_Private(DM);
-PETSC_EXTERN PetscErrorCode DMTaoCreate_Shell_Private(DM);
+PETSC_EXTERN PetscErrorCode DMTaoCreate_L1_Private(DMTao);
+PETSC_EXTERN PetscErrorCode DMTaoCreate_L2_Private(DMTao);
+PETSC_EXTERN PetscErrorCode DMTaoCreate_Simplex_Private(DMTao);
+PETSC_EXTERN PetscErrorCode DMTaoCreate_Shell_Private(DMTao);
 static PetscBool            DMTaoPackageInitialized = PETSC_FALSE;
 
 /*@C

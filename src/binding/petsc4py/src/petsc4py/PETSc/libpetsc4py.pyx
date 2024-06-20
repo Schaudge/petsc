@@ -2904,11 +2904,9 @@ cdef PetscErrorCode DMTaoPythonGetType_PYTHON(PetscDM dm, const char *name[]) \
     return FunctionEnd()
 
 cdef PetscErrorCode DMTaoCreate_Python(
-    PetscDM dm,
+    PetscDMTAO dmtao,
     ) except PETSC_ERR_PYTHON with gil:
     FunctionBegin(b"DMTaoCreate_Python")
-    cdef PetscDMTAO dmtao = NULL
-    CHKERR(DMGetDMTaoWrite(dm, &dmtao))
     cdef DMTaoOps tops    = dmtao.ops
     tops.destroy          = DMTaoDestroy_Python
     tops.view             = DMTaoView_Python
@@ -2919,10 +2917,10 @@ cdef PetscErrorCode DMTaoCreate_Python(
     #don't want to create DMPYTHON just for that
     #TODO need special flag in C file for DMTAOPYTHON...
     CHKERR(PetscObjectComposeFunction(
-            <PetscObject>dm, b"DMTaoPythonSetType_C",
+            <PetscObject>dmtao, b"DMTaoPythonSetType_C",
             <PetscVoidFunction>DMTaoPythonSetType_PYTHON))
     CHKERR(PetscObjectComposeFunction(
-            <PetscObject>dm, b"DMTaoPythonGetType_C",
+            <PetscObject>dmtao, b"DMTaoPythonGetType_C",
             <PetscVoidFunction>DMTaoPythonGetType_PYTHON))
     #
     cdef ctx = PyDMTao(NULL)
@@ -2948,10 +2946,10 @@ cdef PetscErrorCode DMTaoDestroy_Python(
     cdef PetscDM pdm = NULL
     CHKERR(DMTaoGetParentDM(dmtao, &pdm))
     CHKERR(PetscObjectComposeFunction(
-            <PetscObject>pdm, b"DMTaoPythonSetType_C",
+            <PetscObject>dmtao, b"DMTaoPythonSetType_C",
             <PetscVoidFunction>NULL))
     CHKERR(PetscObjectComposeFunction(
-            <PetscObject>pdm, b"DMTaoPythonGetType_C",
+            <PetscObject>dmtao, b"DMTaoPythonGetType_C",
             <PetscVoidFunction>NULL))
     #
     if Py_IsInitialized(): DMTaoDestroy_Python_inner(pdm)
@@ -3063,13 +3061,13 @@ cdef PetscErrorCode PetscPythonMonitorSet_Python(
 
 cdef extern from * nogil:
 
-    ctypedef PetscErrorCode MatCreateFunction   (PetscMat)  except PETSC_ERR_PYTHON
-    ctypedef PetscErrorCode PCCreateFunction    (PetscPC)   except PETSC_ERR_PYTHON
-    ctypedef PetscErrorCode KSPCreateFunction   (PetscKSP)  except PETSC_ERR_PYTHON
-    ctypedef PetscErrorCode SNESCreateFunction  (PetscSNES) except PETSC_ERR_PYTHON
-    ctypedef PetscErrorCode TSCreateFunction    (PetscTS)   except PETSC_ERR_PYTHON
-    ctypedef PetscErrorCode TaoCreateFunction   (PetscTAO)  except PETSC_ERR_PYTHON
-    ctypedef PetscErrorCode DMTaoCreateFunction (PetscDM)   except PETSC_ERR_PYTHON
+    ctypedef PetscErrorCode MatCreateFunction   (PetscMat)   except PETSC_ERR_PYTHON
+    ctypedef PetscErrorCode PCCreateFunction    (PetscPC)    except PETSC_ERR_PYTHON
+    ctypedef PetscErrorCode KSPCreateFunction   (PetscKSP)   except PETSC_ERR_PYTHON
+    ctypedef PetscErrorCode SNESCreateFunction  (PetscSNES)  except PETSC_ERR_PYTHON
+    ctypedef PetscErrorCode TSCreateFunction    (PetscTS)    except PETSC_ERR_PYTHON
+    ctypedef PetscErrorCode TaoCreateFunction   (PetscTAO)   except PETSC_ERR_PYTHON
+    ctypedef PetscErrorCode DMTaoCreateFunction (PetscDMTAO) except PETSC_ERR_PYTHON
 
     PetscErrorCode MatRegister   (const char[], MatCreateFunction*)
     PetscErrorCode PCRegister    (const char[], PCCreateFunction*)

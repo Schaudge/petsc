@@ -180,10 +180,7 @@ cdef class TAO(Object):
 
         """
         cdef PetscTAOType ctype = NULL
-        print(tao_type)
         tao_type = str2bytes(tao_type, &ctype)
-        print(tao_type)
-        print(ctype)
         CHKERR(TaoSetType(self.tao, ctype))
 
     def getType(self) -> str:
