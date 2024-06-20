@@ -80,11 +80,11 @@ PetscErrorCode DMTaoGetVM(DM dm, Mat *vm)
   Collective
 
   Input Parameters:
-+ tdm    - the `DMTao` context
++ dm     - the `DM` context
 - viewer - visualization context
 
   Options Database Key:
-. -dm_tao_view - Calls `DMTaoView()` at the end of `DMTaoApplyProximalMap()`.
+. -dmtao_view - Calls `DMTaoView()` at the end of `DMTaoApplyProximalMap()`.
 
   Level: beginner
 
@@ -98,14 +98,15 @@ PetscErrorCode DMTaoGetVM(DM dm, Mat *vm)
 
 .seealso: [](ch_tao), `DMTao`, `PetscViewerASCIIOpen()`
 @*/
-PetscErrorCode DMTaoView(DMTao tdm, PetscViewer viewer)
+PetscErrorCode DMTaoView(DM dm, PetscViewer viewer)
 {
   PetscBool isascii, isstring;
   DMTaoType type;
-  DM        pdm;
+  DMTao     tdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(tdm, DMTAO_CLASSID, 1);
+  PetscValidHeaderSpecific(dm, DMTAO_CLASSID, 1);
+  PetscCall(DMGetDMTao(dm, &tdm));
   if (!viewer) PetscCall(PetscViewerASCIIGetStdout(((PetscObject)tdm)->comm, &viewer));
   PetscValidHeaderSpecific(viewer, PETSC_VIEWER_CLASSID, 2);
   PetscCheckSameComm(tdm, 1, viewer, 2);
@@ -124,8 +125,7 @@ PetscErrorCode DMTaoView(DMTao tdm, PetscViewer viewer)
     PetscCall(PetscViewerASCIIPrintf(viewer, "total number of proximal mapping evaluations=%" PetscInt_FMT "\n", tdm->nproxeval));
     PetscCall(PetscViewerASCIIPopTab(viewer));
   } else if (isstring) {
-    PetscCall(DMTaoGetParentDM(tdm, &pdm));
-    PetscCall(DMTaoGetType(pdm, &type));
+    PetscCall(DMTaoGetType(dm, &type));
     PetscCall(PetscViewerStringSPrintf(viewer, " %-3.3s", type));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -176,7 +176,6 @@ static PetscErrorCode DMTaoCopy(DMTao kdm, DMTao nkdm)
   nkdm->ops->computeobjectiveandgradient = kdm->ops->computeobjectiveandgradient;
   nkdm->ops->setup                       = kdm->ops->setup;
   nkdm->ops->destroy                     = kdm->ops->destroy;
-  nkdm->ops->applyproximalmap            = kdm->ops->applyproximalmap;
   nkdm->ops->view                        = kdm->ops->view;
   nkdm->ops->setfromoptions              = kdm->ops->setfromoptions;
   nkdm->ops->reset                       = kdm->ops->reset;
@@ -399,7 +398,7 @@ PetscErrorCode DMTaoSetObjectiveAndGradient(DM dm, PetscErrorCode (*func)(DM dm,
 . dm - the `DM` context
 
   Options Database Keys:
-+ -dmtao_type <type>   - The type of `DMTao` (L1,L2,KL,SimplexUSER)
++ -dmtao_type <type>   - The type of `DMTao` (L1,L2,KL,Simplex,Shell,Python)
 - -dmtao_view          - display line-search results to standard output
 
   Level: beginner
@@ -436,7 +435,7 @@ PetscErrorCode DMTaoSetFromOptions(DM dm)
   Collective
 
   Input Parameters:
-+ tdm  - the `DMTao` object
++ tdm  - the `DM` object
 . obj  - Optional object
 - name - command line option
 
@@ -447,10 +446,13 @@ PetscErrorCode DMTaoSetFromOptions(DM dm)
 
 .seealso: [](ch_tao), `Tao`, `DMTao`, `DMTaoView()`, `PetscObjectViewFromOptions()`, `DMTaoCreate()`
 @*/
-PetscErrorCode DMTaoViewFromOptions(DMTao tdm, PetscObject obj, const char name[])
+PetscErrorCode DMTaoViewFromOptions(DM dm, PetscObject obj, const char name[])
 {
+  DMTao tdm;
+
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(tdm, DMTAO_CLASSID, 1);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTao(dm, &tdm));
   PetscCall(PetscObjectViewFromOptions((PetscObject)tdm, obj, name));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -549,7 +551,6 @@ PetscErrorCode DMTaoSetType(DM dm, DMTaoType type)
   //TODO check if compute things are null?
   tdm->ops->setup            = NULL;
   tdm->ops->destroy          = NULL;
-  tdm->ops->applyproximalmap = NULL;
   tdm->ops->view             = NULL;
   tdm->ops->setfromoptions   = NULL;
   tdm->setupcalled           = PETSC_FALSE;
@@ -1096,8 +1097,8 @@ PetscErrorCode DMTaoApplyProximalMap(DM dm0, DM dm1, PetscReal lambda, Vec y, Ve
   PetscCall(PetscLogEventEnd(DMTAO_ApplyProx, dm0, dm1, y, x));
 
   /* TODO do we want view for both, or just the primary objective? */
-  PetscCall(DMTaoViewFromOptions(tdm0, NULL, "-dm_tao_view"));
-  if (dm1) PetscCall(DMTaoViewFromOptions(tdm1, NULL, "-dm_tao_view"));
+  PetscCall(DMTaoViewFromOptions(dm0, NULL, "-dmtao_view"));
+  if (dm1) PetscCall(DMTaoViewFromOptions(dm1, NULL, "-dmtao_view"));
   tdm0->nproxeval++;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1161,8 +1162,8 @@ PetscErrorCode DMTaoReset(DM dm)
   Collective
 
   Input Parameters:
-+ tdm - the `DMTao` solver context
-- p   - the prefix string to prepend to all line search requests
++ dm - the `DM` context
+- p  - the prefix string to prepend to all line search requests
 
   Level: advanced
 
@@ -1174,8 +1175,11 @@ PetscErrorCode DMTaoReset(DM dm)
 
 .seealso: [](ch_tao), `Tao`, `DMTao`, `DMTaoSetOptionsPrefix()`, `DMTaoGetOptionsPrefix()`
 @*/
-PetscErrorCode DMTaoAppendOptionsPrefix(DMTao tdm, const char p[])
+PetscErrorCode DMTaoAppendOptionsPrefix(DM dm, const char p[])
 {
+  DMTao tdm;
+
+  PetscCall(DMGetDMTao(dm, &tdm));
   return PetscObjectAppendOptionsPrefix((PetscObject)tdm, p);
 }
 
@@ -1186,7 +1190,7 @@ PetscErrorCode DMTaoAppendOptionsPrefix(DMTao tdm, const char p[])
   Not Collective
 
   Input Parameter:
-. tdm - the `DMTao` context
+. tdm - the `DM` context
 
   Output Parameter:
 . p - pointer to the prefix string used is returned
@@ -1199,8 +1203,11 @@ PetscErrorCode DMTaoAppendOptionsPrefix(DMTao tdm, const char p[])
 
 .seealso: [](ch_tao), `Tao`, `DMTao`, `DMTaoSetOptionsPrefix()`, `DMTaoAppendOptionsPrefix()`
 @*/
-PetscErrorCode DMTaoGetOptionsPrefix(DMTao tdm, const char *p[])
+PetscErrorCode DMTaoGetOptionsPrefix(DM dm, const char *p[])
 {
+  DMTao tdm;
+
+  PetscCall(DMGetDMTao(dm, &tdm));
   return PetscObjectGetOptionsPrefix((PetscObject)tdm, p);
 }
 
@@ -1211,8 +1218,8 @@ PetscErrorCode DMTaoGetOptionsPrefix(DMTao tdm, const char *p[])
   Logically Collective
 
   Input Parameters:
-+ tdm - the `DMTao` context
-- p   - the prefix string to prepend to all `tdm` option requests
++ dm - the `DM` context
+- p  - the prefix string to prepend to all `tdm` option requests
 
   Level: advanced
 
@@ -1231,13 +1238,16 @@ PetscErrorCode DMTaoGetOptionsPrefix(DMTao tdm, const char *p[])
 
   This would enable use of different options for each system, such as
 .vb
-      -sys1_dm_tao_type l1
-      -sys2_dm_tao_type l2
+      -sys1_dmtao_type l1
+      -sys2_dmtao_type l2
 .ve
 
 .seealso: [](ch_tao), `Tao`, `DMTao`, `DMTaoAppendOptionsPrefix()`, `DMTaoGetOptionsPrefix()`
 @*/
-PetscErrorCode DMTaoSetOptionsPrefix(DMTao tdm, const char p[])
+PetscErrorCode DMTaoSetOptionsPrefix(DM dm, const char p[])
 {
+  DMTao tdm;
+
+  PetscCall(DMGetDMTao(dm, &tdm));
   return PetscObjectSetOptionsPrefix((PetscObject)tdm, p);
 }
