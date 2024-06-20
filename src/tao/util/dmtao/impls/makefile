@@ -1,7 +1,7 @@
 -include ../../../../petscdir.mk
 #requiresscalar    real
 
-DIRS     = l2 l1 simplex shell
+DIRS     = l2 l1 simplex shell python
 LIBBASE  = libpetsctao
 
 include ${PETSC_DIR}/lib/petsc/conf/variables

@@ -61,6 +61,7 @@ class DMTAOType(object):
     L2      = S_(DMTAOL2)
     SIMPLEX = S_(DMTAOSIMPLEX)
     SHELL   = S_(DMTAOSHELL)
+    PYTHON  = S_(DMTAOPYTHON)
 
 # --------------------------------------------------------------------
 
@@ -2292,7 +2293,63 @@ cdef class DM(Object):
         self.set_attr('__objective__', context)
         CHKERR(DMTaoSetObjective(self.dm, DMTAO_Objective, <void*>context))
 
-    def applyproximalmap(
+    def setTAOGradient(
+        self, gradient : DMTAOGradientFunction,
+        args: tuple[Any, ...] | None = None,
+        kargs: dict[str, Any] | None = None) -> None:
+        """Set the gradient evaluation callback.
+
+        Logically collective.
+
+        Parameters
+        ----------
+        gradient
+            The gradient callback.
+        args
+            Positional arguments for the callback.
+        kargs
+            Keyword arguments for the callback.
+
+        See Also
+        --------
+        setObjective, setObjectiveGradient, setHessian, petsc.TaoSetGradient
+
+        """
+        if args is None: args = ()
+        if kargs is None: kargs = {}
+        context = (gradient, args, kargs)
+        self.set_attr('__gradient__', context)
+        CHKERR(DMTaoSetGradient(self.dm, DMTAO_Gradient, <void*>context))
+
+    def setTAOObjectiveGradient(
+        self, objgrad: DMTAOObjectiveGradientFunction,
+        args: tuple[Any, ...] | None = None,
+        kargs: dict[str, Any] | None = None) -> None:
+        """Set the objective function and gradient evaluation callback.
+
+        Logically collective.
+
+        Parameters
+        ----------
+        objgrad
+            The objective function and gradient callback.
+        args
+            Positional arguments for the callback.
+        kargs
+            Keyword arguments for the callback.
+
+        See Also
+        --------
+        setTAOObjective, setTAOGradient, petsc.DMTaoSetObjectiveAndGradient
+
+        """
+        if args is None: args = ()
+        if kargs is None: kargs = {}
+        context = (objgrad, args, kargs)
+        self.set_attr("__objgrad__", context)
+        CHKERR(DMTaoSetObjectiveAndGradient(self.dm, DMTAO_ObjGrad, <void*>context))
+
+    def applyTAOproximalmap(
         self, DM dm1, PetscReal scale, Vec y, Vec x, PetscBool flg) -> None:
         """Computes proximal mapping of DMTaoa
 
@@ -2300,6 +2357,20 @@ cdef class DM(Object):
 
         Parameters
         ----------
+        dm1
+            The `DM` context that contains regularizer `DMTao` context
+        scale
+            The scale of regularizer
+        y
+            Input vector
+        x
+            Solution output vector
+        flg
+            Boolean to denote conjugate
+
+        See Also
+        --------
+        petsc.DMTaoApplyProximalMap
 
         """
         if dm1 is not None:
@@ -2308,12 +2379,148 @@ cdef class DM(Object):
             CHKERR(DMTaoApplyProximalMap(self.dm, NULL, scale, y.vec, x.vec, flg))
 
     def setTAOType(self, dmtao_type: DMTAOType | str) -> None:
+        """Set the type of the `DMTao`.
+
+        Logically collective.
+
+        Parameters
+        ----------
+        tao_type
+            The type of the `DMTao` object.
+
+        See Also
+        --------
+        getType, petsc.DMTaoSetType
+
+        """
         cdef PetscDMTAOType ctype = NULL
-        print(dmtao_type)
         dmtao_type = str2bytes(dmtao_type, &ctype)
-        print(dmtao_type)
-        print(ctype)
         CHKERR(DMTaoSetType(self.dm, ctype))
+
+    def createTAOPython(self, context: Any = None, comm: Comm | None = None) -> Self:
+        """Create an `DMTao` of Python type.
+
+        Collective.
+
+        Parameters
+        ----------
+        context
+            An instance of the Python class implementing the required methods.
+        comm
+            MPI communicator, defaults to `Sys.getDefaultComm`.
+
+        See Also
+        --------
+        setTAOType, setTAOPythonContext
+
+        """
+        cdef MPI_Comm ccomm = def_Comm(comm, PETSC_COMM_DEFAULT)
+        cdef PetscDM dm = NULL
+        CHKERR(DMCreate(ccomm, &dm))
+        CHKERR(PetscCLEAR(self.obj)); self.dm = dm
+        CHKERR(DMTaoSetType(self.dm, DMTAOPYTHON))
+        CHKERR(DMTaoPythonSetContext(self.dm, <void*>context))
+        return self
+
+    def setTAOPythonContext(self, context: Any) -> None:
+        """Set the instance of the class implementing the required Python methods.
+
+        Not collective.
+
+        See Also
+        --------
+        petsc_python_dmtao, getTAOPythonContext
+
+        """
+        CHKERR(DMTaoPythonSetContext(self.dm, <void*>context))
+
+    def getTAOPythonContext(self) -> Any:
+        """Return the fully qualified Python name of the class used by the `DMTao`.
+
+        Not collective.
+
+        See Also
+        --------
+        petsc_python_dmtao, setTAOPythonContext, setTAOPythonType
+        petsc.DMTaoPythonGetType
+
+        """
+        cdef void *context = NULL
+        CHKERR(DMTaoPythonGetContext(self.dm, &context))
+        if context == NULL: return None
+        else: return <object> context
+
+    def setTAOPythonType(self, py_type: str) -> None:
+        """Set the fully qualified Python name of the class to be used.
+
+        Collective.
+
+        See Also
+        --------
+        petsc_python_dmtao, setTAOPythonContext, getTAOPythonType
+        petsc.DMTaoPythonSetType
+
+        """
+        cdef const char *cval = NULL
+        py_type = str2bytes(py_type, &cval)
+        CHKERR(DMTaoPythonSetType(self.dm, cval))
+
+    def getTAOPythonType(self) -> str:
+        """Return the fully qualified Python name of the class used by the `DMTao`.
+
+        Not collective.
+
+        See Also
+        --------
+        petsc_python_dmtao, setDMPythonContext, setDMPythonType
+        petsc.DMTaoPythonGetType
+
+        """
+        cdef const char *cval = NULL
+        CHKERR(DMTaoPythonGetType(self.dm, &cval))
+        return bytes2str(cval)
+
+    def setTAOOptionsPrefix(self, prefix: str | None) -> None:
+        """Set the prefix used for searching for options in the database.
+
+        Logically collective.
+
+        See Also
+        --------
+        petsc_options, getTAOOptionsPrefix, petsc.DMTaoSetOptionsPrefix
+
+        """
+        cdef const char *cval = NULL
+        prefix = str2bytes(prefix, &cval)
+        CHKERR(DMTaoSetOptionsPrefix(self.dm, cval))
+
+    def getTAOOptionsPrefix(self) -> str:
+        """Return the prefix used for searching for options in the database.
+
+        Not collective.
+
+        See Also
+        --------
+        petsc_options, setTAOOptionsPrefix, petsc.DMTaoGetOptionsPrefix
+
+        """
+        cdef const char *cval = NULL
+        CHKERR(DMTaoGetOptionsPrefix(self.dm, &cval))
+        return bytes2str(cval)
+
+    def appendOptionsPrefix(self, prefix: str | None) -> None:
+        """Append to the prefix used for searching for options in the database.
+
+        Logically collective.
+
+        See Also
+        --------
+        petsc_options, setTAOOptionsPrefix, petsc.DMTaoAppendOptionsPrefix
+
+        """
+        cdef const char *cval = NULL
+        prefix = str2bytes(prefix, &cval)
+        CHKERR(DMTaoAppendOptionsPrefix(self.dm, cval))
 
     def addCoarsenHook(
         self,

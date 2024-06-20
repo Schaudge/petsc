@@ -83,7 +83,9 @@ __all__ = [
     'TAOLSObjectiveFunction',
     'TAOLSGradientFunction',
     'TAOLSObjectiveGradientFunction',
-    'DMTAOObjective',
+    'DMTAOObjectiveFunction',
+    'DMTAOGradientFunction',
+    'DMTAOObjectiveGradientFunction',
 ]
 
 # --- Sys ---
@@ -414,5 +416,11 @@ TAOLSGradientFunction = Callable[[TAOLineSearch, Vec, Vec], None]
 TAOLSObjectiveGradientFunction = Callable[[TAOLineSearch, Vec, Vec], float]
 """`TAOLineSearch` objective function and gradient callback."""
 
-DMTAOObjective = Callable[[DM, Vec], float]
-"""`DMTao` objective function callback."""
+DMTAOObjectiveFunction = Callable[[DM, Vec], float]
+"""`DMTAO` objective function callback."""
+
+DMTAOGradientFunction = Callable[[DM, Vec, Vec], None]
+"""`DMTAO` objective function callback."""
+
+DMTAOObjectiveGradientFunction = Callable[[DM, Vec, Vec], float]
+"""`DMTAO` objective function and gradient callback."""
