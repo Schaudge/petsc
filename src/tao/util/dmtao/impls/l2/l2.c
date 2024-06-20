@@ -126,16 +126,14 @@ static PetscErrorCode DMTaoComputeObjectiveAndGradient_L2(DM dm, Vec X, PetscRea
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode DMTaoApplyProximalMap_L2(DM dm0, DM dm1, PetscReal lambda, Vec y, Vec x, PetscBool flg)
+static PetscErrorCode DMTaoApplyProximalMap_L2(DMTao tdm0, DMTao tdm1, PetscReal lambda, Vec y, Vec x, PetscBool flg)
 {
   PetscBool is_0_l2;
-  DMTao     tdm0;
 
   PetscFunctionBegin;
-  PetscCall(DMGetDMTao(dm0, &tdm0));
   PetscCall(PetscObjectTypeCompare((PetscObject)tdm0, DMTAOL2, &is_0_l2));
   //TODO
-  PetscAssert(is_0_l2, PetscObjectComm((PetscObject)dm0), PETSC_ERR_USER, "L2 Square does not have proximal map.");
+  PetscAssert(is_0_l2, PetscObjectComm((PetscObject)tdm0), PETSC_ERR_USER, "L2 Square does not have proximal map.");
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -150,20 +148,18 @@ M*/
 PETSC_EXTERN PetscErrorCode DMTaoCreate_L2_Private(DMTao dm)
 {
   DMTao_L2 *l2ctx;
-  DM        pdm;
 
   PetscFunctionBegin;
   PetscAssertPointer(dm, 1);
   PetscValidHeaderSpecific(dm, DMTAO_CLASSID, 1);
 
   PetscCall(PetscNew(&l2ctx));
-  PetscCall(DMTaoGetParentDM(dm, &pdm));
 
-  pdm->ops->applyproximalmap = DMTaoApplyProximalMap_L2;
 
   l2ctx->workvec2 = NULL;
   dm->data        = (void *)l2ctx;
 
+  dm->ops->applyproximalmap            = DMTaoApplyProximalMap_L2;
   dm->ops->setup                       = NULL;
   dm->ops->destroy                     = DMTaoDestroy_L2;
   dm->ops->view                        = DMTaoView_L2;

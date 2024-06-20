@@ -3,5 +3,5 @@
 
 typedef struct {
   void *data;
-  PetscErrorCode (*applyproximalmap)(DM, DM, PetscReal, Vec, Vec, PetscBool);
+  PetscErrorCode (*applyproximalmap)(DMTao, DMTao, PetscReal, Vec, Vec, PetscBool);
 } DMTao_Shell;

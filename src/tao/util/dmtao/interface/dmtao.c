@@ -1089,9 +1089,9 @@ PetscErrorCode DMTaoApplyProximalMap(DM dm0, DM dm1, PetscReal lambda, Vec y, Ve
   PetscCheck(lambda >= 0, PetscObjectComm((PetscObject)dm0), PETSC_ERR_USER, "Lambda scale cannot be negative");
   PetscCall(PetscLogEventBegin(DMTAO_ApplyProx, dm0, dm1, y, x));
   if (dm1) {
-    PetscTryTypeMethod(dm0, applyproximalmap, dm1, lambda, y, x, is_cj);
+    PetscTryTypeMethod(tdm0, applyproximalmap, tdm1, lambda, y, x, is_cj);
   } else {
-    PetscTryTypeMethod(dm0, applyproximalmap, NULL, lambda, y, x, is_cj);
+    PetscTryTypeMethod(tdm0, applyproximalmap, NULL, lambda, y, x, is_cj);
   }
   if (is_cj) PetscCall(VecAYPX(x, -1., y));
   PetscCall(PetscLogEventEnd(DMTAO_ApplyProx, dm0, dm1, y, x));

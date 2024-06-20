@@ -42,26 +42,22 @@ static inline PetscReal Clip_Internal(PetscReal in, PetscReal tmax)
 
 //TODO only supporting comm size one i think?
 /* https://arxiv.org/pdf/1101.6081.pdf */
-static PetscErrorCode DMTaoApplyProximalMap_Simplex(DM dm0, DM dm1, PetscReal lambda, Vec y, Vec x, PetscBool flg)
+static PetscErrorCode DMTaoApplyProximalMap_Simplex(DMTao tdm0, DMTao tdm1, PetscReal lambda, Vec y, Vec x, PetscBool flg)
 {
   PetscBool  is_0_s, is_1_l2  = PETSC_TRUE;
   PetscBool  is_vm_diag, bget = PETSC_FALSE;
   PetscReal *xarray, *yarray, tmax, min, sum, size, cumsum = 0;
   PetscInt   len, i;
   Mat        vm;
-  DMTao      tdm0, tdm1;
+  DM         dm1;
 
   PetscFunctionBegin;
-  PetscCall(DMGetDMTao(dm0, &tdm0));
   PetscCall(PetscObjectTypeCompare((PetscObject)tdm0, DMTAOSIMPLEX, &is_0_s));
-  if (dm1) {
-    PetscCall(DMGetDMTao(dm1, &tdm1));
-    PetscCall(PetscObjectTypeCompare((PetscObject)tdm1, DMTAOL2, &is_1_l2));
-  }
+  PetscCall(PetscObjectTypeCompare((PetscObject)tdm1, DMTAOL2, &is_1_l2));
 
-  PetscCheck(is_0_s, PetscObjectComm((PetscObject)dm0), PETSC_ERR_USER, "DMTaoApplyProximalMap_Simplex requires first DMTao to be of DMTAOSIMPLEX type.");
+  PetscCheck(is_0_s, PetscObjectComm((PetscObject)tdm0), PETSC_ERR_USER, "DMTaoApplyProximalMap_Simplex requires first DMTao to be of DMTAOSIMPLEX type.");
   /* dm1 == NULL assumes L2 type */
-  PetscCheck(is_1_l2, PetscObjectComm((PetscObject)dm1), PETSC_ERR_USER, "DMTaoApplyProximalMap_Simplex only upports L2 regularizer type.");
+  if (tdm1) PetscCheck(is_1_l2, PetscObjectComm((PetscObject)tdm1), PETSC_ERR_USER, "DMTaoApplyProximalMap_Simplex only upports L2 regularizer type.");
 
   DMTao_Simplex *sctx = (DMTao_Simplex *)tdm0->data;
 
@@ -70,12 +66,13 @@ static PetscErrorCode DMTaoApplyProximalMap_Simplex(DM dm0, DM dm1, PetscReal la
   PetscCall(VecMin(y, NULL, &min));
   if (PetscAbsReal(sum - size) < sctx->tol) { PetscFunctionReturn(PETSC_SUCCESS); }
 
-  if (dm1) {
+  if (tdm1) {
+    PetscCall(DMTaoGetParentDM(tdm1, &dm1));
     PetscCall(DMTaoGetVM(dm1, &vm));
     if (vm) {
       //TODO VM SIMPLEX
       PetscCall(PetscObjectTypeCompare((PetscObject)vm, MATDIAGONAL, &is_vm_diag));
-      PetscCheck(is_vm_diag, PetscObjectComm((PetscObject)dm0), PETSC_ERR_USER, "DMTaoApplyProximalMap_Simplex only supports diagonal VM matrix.");
+      PetscCheck(is_vm_diag, PetscObjectComm((PetscObject)tdm1), PETSC_ERR_USER, "DMTaoApplyProximalMap_Simplex only supports diagonal VM matrix.");
     }
   }
   PetscCall(VecGetSize(y, &len));
@@ -158,7 +155,6 @@ M*/
 PETSC_EXTERN PetscErrorCode DMTaoCreate_Simplex_Private(DMTao dm)
 {
   DMTao_Simplex *ctx;
-  DM             pdm;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DMTAO_CLASSID, 1);
@@ -170,8 +166,7 @@ PETSC_EXTERN PetscErrorCode DMTaoCreate_Simplex_Private(DMTao dm)
 #else
   ctx->tol = 1.e-6;
 #endif
-  PetscCall(DMTaoGetParentDM(dm, &pdm));
-  pdm->ops->applyproximalmap = DMTaoApplyProximalMap_Simplex;
+  dm->ops->applyproximalmap  = DMTaoApplyProximalMap_Simplex;
   dm->data                   = (void *)ctx;
   dm->ops->setup             = NULL;
   dm->ops->destroy           = DMTaoContextDestroy_Simplex;

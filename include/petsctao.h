@@ -668,7 +668,7 @@ PETSC_EXTERN PetscErrorCode DMTaoSimplexSetContext(DM, PetscReal, PetscReal);
 PETSC_EXTERN PetscErrorCode DMTaoL1SetContext(DM, PetscReal, PetscReal);
 PETSC_EXTERN PetscErrorCode DMTaoShellSetContext(DM, void *);
 PETSC_EXTERN PetscErrorCode DMTaoShellGetContext(DM, void *);
-PETSC_EXTERN PetscErrorCode DMTaoShellSetProximalMap(DM, PetscErrorCode (*)(DM, DM, PetscReal, Vec, Vec, PetscBool));
+PETSC_EXTERN PetscErrorCode DMTaoShellSetProximalMap(DM, PetscErrorCode (*)(DMTao, DMTao, PetscReal, Vec, Vec, PetscBool));
 
 PETSC_EXTERN PetscErrorCode DMTaoSetOptionsPrefix(DM, const char prefix[]);
 PETSC_EXTERN PetscErrorCode DMTaoAppendOptionsPrefix(DM, const char[]);

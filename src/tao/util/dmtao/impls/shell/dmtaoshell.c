@@ -27,20 +27,18 @@ static PetscErrorCode DMTaoView_Shell(DMTao dm, PetscViewer viewer)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode DMTaoApplyProximalMap_Shell(DM dm0, DM dm1, PetscReal lambda, Vec y, Vec x, PetscBool flg)
+static PetscErrorCode DMTaoApplyProximalMap_Shell(DMTao tdm0, DMTao tdm1, PetscReal lambda, Vec y, Vec x, PetscBool flg)
 {
   PetscBool is_0_shell;
-  DMTao     tdm0;
 
   PetscFunctionBegin;
-  PetscCall(DMGetDMTao(dm0, &tdm0));
   PetscCall(PetscObjectTypeCompare((PetscObject)tdm0, DMTAOSHELL, &is_0_shell));
-  PetscCheck(is_0_shell, PetscObjectComm((PetscObject)dm0), PETSC_ERR_ARG_WRONGSTATE, "DMTaoApplyProximalMap_Shell requires first DMTao to be of Shell type");
+  PetscCheck(is_0_shell, PetscObjectComm((PetscObject)tdm0), PETSC_ERR_ARG_WRONGSTATE, "DMTaoApplyProximalMap_Shell requires first DMTao to be of Shell type");
 
   DMTao_Shell *shell = (DMTao_Shell *)tdm0->data;
 
-  PetscCheck(shell->applyproximalmap, PetscObjectComm((PetscObject)dm0), PETSC_ERR_ARG_WRONGSTATE, "Must call DMTaoShellSetProximalMap() first");
-  PetscCall((*shell->applyproximalmap)(dm0, dm1, lambda, y, x, flg));
+  PetscCheck(shell->applyproximalmap, PetscObjectComm((PetscObject)tdm0), PETSC_ERR_ARG_WRONGSTATE, "Must call DMTaoShellSetProximalMap() first");
+  PetscCall((*shell->applyproximalmap)(tdm0, tdm1, lambda, y, x, flg));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -118,8 +116,8 @@ PetscErrorCode DMTaoShellGetContext(DM dm, void *ctx)
 - applyproximalmap - the application-provided proximal map routine
 
   Calling sequence of `applyproximalmap`:
-+ dm0    - the `DM` primary  context
-. dm1    - the `DM` regularizer context
++ dm0    - the `DMTao` primary  context
+. dm1    - the `DMTao` regularizer context
 . lambda - the scale of regularizer
 . y      - the central vector of regularizer
 . x      - the solution vector
@@ -129,7 +127,7 @@ PetscErrorCode DMTaoShellGetContext(DM dm, void *ctx)
 
 .seealso: `DMTao`, `DMTAOSHELL`, `DMTaoShellSetContext()`, `DMTaoShellGetContext()`
 @*/
-PetscErrorCode DMTaoShellSetProximalMap(DM dm, PetscErrorCode (*applyproximalmap)(DM dm0, DM dm1, PetscReal lambda, Vec y, Vec x, PetscBool is_cj))
+PetscErrorCode DMTaoShellSetProximalMap(DM dm, PetscErrorCode (*applyproximalmap)(DMTao dm0, DMTao dm1, PetscReal lambda, Vec y, Vec x, PetscBool is_cj))
 {
   DMTao tdm;
 
@@ -153,13 +151,11 @@ M*/
 PETSC_EXTERN PetscErrorCode DMTaoCreate_Shell_Private(DMTao dm)
 {
   DMTao_Shell *ctx;
-  DM           pdm;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DMTAO_CLASSID, 1);
   PetscCall(PetscNew(&ctx));
-  PetscCall(DMTaoGetParentDM(dm, &pdm));
-  pdm->ops->applyproximalmap = DMTaoApplyProximalMap_Shell;
+  dm->ops->applyproximalmap  = DMTaoApplyProximalMap_Shell;
   dm->data                   = (void *)ctx;
   dm->ops->setup             = DMTaoSetUp_Shell;
   dm->ops->destroy           = DMTaoContextDestroy_Shell;

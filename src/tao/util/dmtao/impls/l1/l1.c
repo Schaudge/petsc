@@ -81,21 +81,18 @@ PetscErrorCode DMTaoL1SetContext(DM dm, PetscReal lb, PetscReal ub)
 .  x - output vector
 
 @ */
-static PetscErrorCode DMTaoApplyProximalMap_L1(DM dm0, DM dm1, PetscReal step, Vec y, Vec x, PetscBool flg)
+static PetscErrorCode DMTaoApplyProximalMap_L1(DMTao tdm0, DMTao tdm1, PetscReal step, Vec y, Vec x, PetscBool flg)
 {
   PetscBool is_0_l1, is_1_l2 = PETSC_TRUE;
-  DMTao     tdm0, tdm1;
 
   PetscFunctionBegin;
-  PetscCall(DMGetDMTao(dm0, &tdm0));
   PetscCall(PetscObjectTypeCompare((PetscObject)tdm0, DMTAOL1, &is_0_l1));
-  if (dm1) {
-    PetscCall(DMGetDMTao(dm1, &tdm1));
+  PetscCheck(is_0_l1, PetscObjectComm((PetscObject)tdm0), PETSC_ERR_USER, "DMTaoApplyProximalMap_L1 requires first DMTao to be of L1 type");
+  if (tdm1) {
     PetscCall(PetscObjectTypeCompare((PetscObject)tdm1, DMTAOL2, &is_1_l2));
+    PetscCheck(is_1_l2, PetscObjectComm((PetscObject)tdm1), PETSC_ERR_USER, "DMTaoApplyProximalMap_L1 requires second DMTao to be of L2 type");
   }
-  PetscCheck(is_0_l1, PetscObjectComm((PetscObject)dm0), PETSC_ERR_USER, "DMTaoApplyProximalMap_L1 requires first DMTao to be of L1 type");
   /* dm1 == NULL assumes L2 type */
-  PetscCheck(is_1_l2, PetscObjectComm((PetscObject)dm1), PETSC_ERR_USER, "DMTaoApplyProximalMap_L1 requires second DMTao to be of L2 type");
 
   DMTao_L1 *ctx = (DMTao_L1 *)tdm0->data;
 
@@ -121,21 +118,19 @@ M*/
 PETSC_EXTERN PetscErrorCode DMTaoCreate_L1_Private(DMTao dm)
 {
   DMTao_L1 *ctx;
-  DM        pdm;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DMTAO_CLASSID, 1);
   PetscCall(PetscNew(&ctx));
-  PetscCall(DMTaoGetParentDM(dm, &pdm));
-  pdm->ops->applyproximalmap = DMTaoApplyProximalMap_L1;
   /* Default is 0,0 - i.e., no-op */
-  ctx->lb                 = 0.;
-  ctx->ub                 = 0.;
-  dm->data                = (void *)ctx;
-  dm->ops->setup          = NULL;
-  dm->ops->destroy        = DMTaoContextDestroy_L1;
-  dm->ops->view           = DMTaoView_L1;
-  dm->ops->setfromoptions = DMTaoSetFromOptions_L1;
-  dm->ops->reset          = NULL;
+  ctx->lb                   = 0.;
+  ctx->ub                   = 0.;
+  dm->ops->applyproximalmap = DMTaoApplyProximalMap_L1;
+  dm->data                  = (void *)ctx;
+  dm->ops->setup            = NULL;
+  dm->ops->destroy          = DMTaoContextDestroy_L1;
+  dm->ops->view             = DMTaoView_L1;
+  dm->ops->setfromoptions   = DMTaoSetFromOptions_L1;
+  dm->ops->reset            = NULL;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

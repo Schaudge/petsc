@@ -2852,7 +2852,7 @@ cdef extern from * nogil:
         PetscErrorCode (*setup)(PetscDMTAO) except PETSC_ERR_PYTHON
         PetscErrorCode (*setfromoptions)(PetscDMTAO, PetscOptionItems*) except PETSC_ERR_PYTHON
         PetscErrorCode (*view)(PetscDMTAO, PetscViewer) except PETSC_ERR_PYTHON
-        PetscErrorCode (*applyproximalmap)(PetscDM, PetscDM, PetscReal, PetscVec, PetscVec, PetscBool) except PETSC_ERR_PYTHON
+        PetscErrorCode (*applyproximalmap)(PetscDMTAO, PetscDMTAO, PetscReal, PetscVec, PetscVec, PetscBool) except PETSC_ERR_PYTHON
     ctypedef _DMTaoOps *DMTaoOps
     struct _p_DMTAO:
         void *data
@@ -3016,18 +3016,16 @@ cdef PetscErrorCode DMTaoView_Python(
     return FunctionEnd()
 
 cdef PetscErrorCode DMTaoApplyProximalMap_Python(
-    PetscDM dm0, PetscDM dm1, PetscReal scale, PetscVec y, PetscVec g, PetscBool flg,
+    PetscDMTAO tdm0, PetscDMTAO tdm1, PetscReal scale, PetscVec y, PetscVec g, PetscBool flg,
     ) except PETSC_ERR_PYTHON with gil:
     FunctionBegin(b"DMTaoApplyProximalMap_Python")
 
-    cdef PetscDMTAO dmtao0 = NULL
-    CHKERR(DMGetDMTao(dm0, &dmtao0))
-    cdef apply = PyDMTao(dmtao0).applyproximalmap
+    cdef apply = PyDMTao(tdm0).applyproximalmap
     if apply is not None:
-        if dm1 is not NULL:
-            apply(DM_(dm0), DM_(dm1), toReal(scale), Vec_(y), Vec_(g), toBool(flg) )
+        if tdm1 is not NULL:
+            apply(DMTAO_(tdm0), DMTAO_(tdm1), toReal(scale), Vec_(y), Vec_(g), toBool(flg) )
         else:
-            apply(DM_(dm0), None, toReal(scale), Vec_(y), Vec_(g), toBool(flg) )
+            apply(DMTAO_(tdm0), None, toReal(scale), Vec_(y), Vec_(g), toBool(flg) )
     return FunctionEnd()
 
 # --------------------------------------------------------------------
