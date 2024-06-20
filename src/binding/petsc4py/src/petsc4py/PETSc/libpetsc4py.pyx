@@ -2858,10 +2858,6 @@ cdef extern from * nogil:
         void *data
         DMTaoOps ops
 
-cdef extern from * nogil: # custom.h
-    PetscErrorCode DMSetProxOps(PetscDM, PetscErrorCode (*applyproximalmap)(PetscDM, PetscDM, PetscReal, PetscVec, PetscVec, PetscBool))
-    PetscErrorCode DMGetProxOps(PetscDM, PetscErrorCode (**applyproximalmap)(PetscDM, PetscDM, PetscReal, PetscVec, PetscVec, PetscBool))
-
 # --------------------------------------------------------------------
 
 @cython.internal
