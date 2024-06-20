@@ -213,10 +213,6 @@ cdef extern from * nogil:
     PetscErrorCode DMTaoAppendOptionsPrefix(PetscDM, char[])
     PetscErrorCode DMTaoGetOptionsPrefix(PetscDM, char*[])
 
-    ctypedef PetscErrorCode (*applyproximalmap)(PetscDM, PetscDM, PetscReal, PetscVec, PetscVec, PetscBool) except PETSC_ERR_PYTHON
-
-    ctypedef PetscErrorCode PetscDMTaoProx(PetscDM, PetscDM, PetscReal, PetscVec, PetscVec, PetscBool) except PETSC_ERR_PYTHON
-
     ctypedef PetscErrorCode PetscDMTaoObjective(PetscDM, PetscVec, PetscReal*, void*) except PETSC_ERR_PYTHON
     ctypedef PetscErrorCode PetscDMTaoGradient(PetscDM, PetscVec, PetscVec, void*) except PETSC_ERR_PYTHON
     ctypedef PetscErrorCode PetscDMTaoObjGrad(PetscDM, PetscVec, PetscReal*, PetscVec, void*) except PETSC_ERR_PYTHON
