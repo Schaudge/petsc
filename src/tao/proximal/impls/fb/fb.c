@@ -511,7 +511,6 @@ static PetscErrorCode TaoView_FB(Tao tao, PetscViewer viewer)
 {
   PetscBool isascii;
   TAO_FB   *fb = (TAO_FB *)tao->data;
-  DMTao     tdm;
 
   PetscFunctionBegin;
   PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &isascii));
@@ -520,18 +519,15 @@ static PetscErrorCode TaoView_FB(Tao tao, PetscViewer viewer)
     PetscCall(PetscViewerASCIIPrintf(viewer, "FB Type: %s\n", TaoFBTypes[fb->type]));
     if (fb->smoothterm) {
     PetscCall(PetscViewerASCIIPrintf(viewer, "Smooth Term:\n"));
-    PetscCall(DMGetDMTao(fb->smoothterm, &tdm));
-    PetscCall(DMTaoView(tdm, viewer));
+    PetscCall(DMTaoView(fb->smoothterm, viewer));
     }
     if (fb->proxterm) {PetscCall(PetscViewerASCIIPrintf(viewer, "Proximal Term:\n"));
-      PetscCall(DMGetDMTao(fb->proxterm, &tdm));
-      PetscCall(DMTaoView(tdm, viewer));
+      PetscCall(DMTaoView(fb->proxterm, viewer));
     }
     //TODO do i need view for reg? prob not now...
     if (fb->reg) {
       PetscCall(PetscViewerASCIIPrintf(viewer, "Regularizer Term:\n"));
-      PetscCall(DMGetDMTao(fb->reg, &tdm));
-      PetscCall(DMTaoView(tdm, viewer));
+      PetscCall(DMTaoView(fb->reg, viewer));
     }
     if (fb->lmap) {
       PetscCall(PetscViewerASCIIPrintf(viewer, "Linear Operator:\n"));
