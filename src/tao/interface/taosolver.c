@@ -625,7 +625,6 @@ PetscErrorCode TaoView(Tao tao, PetscViewer viewer)
   PetscBool isascii, isstring;
   TaoType   type;
   PetscInt  i;
-  DMTao     dmtao;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
@@ -655,20 +654,16 @@ PetscErrorCode TaoView(Tao tao, PetscViewer viewer)
       PetscCall(PetscViewerASCIIPopTab(viewer));
     }
     if (tao->reg) {
-      DMTao tdm;
-      PetscCall(DMGetDMTao(tao->reg, &tdm));
       PetscCall(PetscViewerASCIIPushTab(viewer));
       PetscCall(PetscViewerASCIIPrintf(viewer, "DMTao Regularizer scale: %g\n", tao->reg_scale));
-      PetscCall(DMTaoView(tdm, viewer));
+      PetscCall(DMTaoView(tao->reg, viewer));
       PetscCall(PetscViewerASCIIPopTab(viewer));
     }
     if (tao->dms) {
       for (i = 0; i < tao->num_terms; i++) {
-        DMTao tdm;
-        PetscCall(DMGetDMTao(tao->reg, &tdm));
         PetscCall(PetscViewerASCIIPushTab(viewer));
         PetscCall(PetscViewerASCIIPrintf(viewer, "DMTao scale: %g\n", tao->dm_scales[i]));
-        PetscCall(DMTaoView(tdm, viewer));
+        PetscCall(DMTaoView(tao->dms[i], viewer));
         PetscCall(PetscViewerASCIIPopTab(viewer));
       }
     }
@@ -772,12 +767,6 @@ PetscErrorCode TaoView(Tao tao, PetscViewer viewer)
     PetscCall(TaoGetType(tao, &type));
     PetscCall(PetscViewerStringSPrintf(viewer, " %-3.3s", type));
   }
-  PetscCall(PetscViewerASCIIPushTab(viewer));
-  for (i = 0; i < tao->num_terms; i++) {
-    PetscCall(DMGetDMTao(tao->dms[i], &dmtao));
-    PetscCall(DMTaoView(dmtao, viewer));
-  }
-  PetscCall(PetscViewerASCIIPopTab(viewer));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
