@@ -19,6 +19,7 @@ struct _DMTaoOps {
   PetscErrorCode (*view)(DMTao, PetscViewer);
   PetscErrorCode (*setfromoptions)(DMTao, PetscOptionItems *);
   PetscErrorCode (*reset)(DMTao);
+  PetscErrorCode (*applyproximalmap)(DM, DM, PetscReal, Vec, Vec, PetscBool); /* TODO only for DMTAOPYTHON */
 };
 
 struct _p_DMTao {
