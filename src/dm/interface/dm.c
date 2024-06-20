@@ -655,8 +655,6 @@ PetscErrorCode DMDestroy(DM *dm)
   if (!*dm) PetscFunctionReturn(PETSC_SUCCESS);
   PetscValidHeaderSpecific(*dm, DM_CLASSID, 1);
 
-  PetscCall(PetscObjectDestroy(&(*dm)->dmtao));
-
   /* count all non-cyclic references in the doubly-linked list of coarse<->fine meshes */
   PetscCall(DMCountNonCyclicReferences_Internal(*dm, PETSC_TRUE, PETSC_TRUE, &cnt));
   --((PetscObject)*dm)->refct;
@@ -742,6 +740,7 @@ PetscErrorCode DMDestroy(DM *dm)
   PetscCall(PetscObjectDestroy(&(*dm)->dmksp));
   PetscCall(PetscObjectDestroy(&(*dm)->dmsnes));
   PetscCall(PetscObjectDestroy(&(*dm)->dmts));
+  PetscCall(PetscObjectDestroy(&(*dm)->dmtao));
 
   if ((*dm)->ctx && (*dm)->ctxdestroy) PetscCall((*(*dm)->ctxdestroy)(&(*dm)->ctx));
   PetscCall(MatFDColoringDestroy(&(*dm)->fd));
