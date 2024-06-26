@@ -9,6 +9,7 @@ struct _TaoLineSearchOps {
   PetscErrorCode (*computegradient)(TaoLineSearch, Vec, Vec, void *);
   PetscErrorCode (*computeobjectiveandgradient)(TaoLineSearch, Vec, PetscReal *, Vec, void *);
   PetscErrorCode (*computeobjectiveandgts)(TaoLineSearch, Vec, Vec, PetscReal *, PetscReal *, void *);
+  PetscErrorCode (*computeproximalmap)(TaoLineSearch, PetscReal, Vec, Vec, PetscBool, void *);
   PetscErrorCode (*setup)(TaoLineSearch);
   PetscErrorCode (*apply)(TaoLineSearch, Vec, PetscReal *, Vec, Vec);
   PetscErrorCode (*view)(TaoLineSearch, PetscViewer);

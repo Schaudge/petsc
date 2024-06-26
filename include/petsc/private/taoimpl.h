@@ -81,7 +81,6 @@ struct _TaoOps {
   PetscErrorCode (*convergencedestroy)(void *);
 
   /* Methods set by solver */
-  PetscErrorCode (*computefixedpoint)(Tao, Vec, Vec, PetscReal, Mat, void *);
   PetscErrorCode (*computedual)(Tao, Vec, Vec);
   PetscErrorCode (*setup)(Tao);
   PetscErrorCode (*solve)(Tao);
@@ -263,7 +262,6 @@ PETSC_EXTERN PetscLogEvent TAO_ObjGradEval;
 PETSC_EXTERN PetscLogEvent TAO_HessianEval;
 PETSC_EXTERN PetscLogEvent TAO_ConstraintsEval;
 PETSC_EXTERN PetscLogEvent TAO_JacobianEval;
-PETSC_EXTERN PetscLogEvent TAO_FixedPointEval;
 PETSC_EXTERN PetscLogEvent DMTAO_Eval;
 PETSC_EXTERN PetscLogEvent DMTAO_ApplyProx;
 

@@ -613,7 +613,7 @@ PETSC_EXTERN PetscErrorCode TaoCreate_FB(Tao tao)
   tao->ops->setfromoptions    = TaoSetFromOptions_FB;
   tao->ops->view              = TaoView_FB;
   tao->ops->solve             = TaoSolve_FB;
-  tao->ops->computefixedpoint = TaoFixedPoint_FB;
+  tao->ops->computefixedpoint = TaoFixedPoint_FB; //TODO change to TaoComputeFixedPoint_FB
   tao->ops->convergencetest   = TaoConvergenceTest_FB;
 
   tao->data = (void *)fb;

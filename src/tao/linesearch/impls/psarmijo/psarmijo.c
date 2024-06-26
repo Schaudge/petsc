@@ -153,7 +153,7 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
     ls->step = ls->step * armP->eta;
     /* FPI for FB assumes x_k - step*gradf(x_k) as an input TODO fix for LV */
     PetscCall(VecWAXPY(armP->work, -ls->step, g, xold));
-    PetscCall(TaoComputeFixedPoint(ls->tao, armP->work, xnew, ls->step, NULL));
+    PetscCall(TaoLineSearchComputeProximalMap(ls, ls->step, armP->work, xnew, PETSC_FALSE));
 
     /* Calculate function at new iterate */
     PetscCall(TaoLineSearchComputeObjective(ls, xnew, &fk1));

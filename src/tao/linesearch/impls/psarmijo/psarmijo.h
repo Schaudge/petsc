@@ -4,15 +4,15 @@
  splitting algorithms.
 
  Given a function f, the current iterate x_k, and a next iterate
- x_{k+1}, find the biggest stepsize such that
+ x_{k+1}, find the biggest stepsize tau_k such that
 
-    f(x_{k+1}) <= f(x_k) + <grad f(x_{k),S_k> + (1/(2*tau_k))*|S_k|^2
+    f(x_{k+1}) < f(x_k) + <grad f(x_k),S_k> + (1/(2*tau_k))*|S_k|^2
 
  where S_k is x_{k+1} - x_k.
  The nonmonotone modification of this linesearch replaces the f(x_k) term
- with a reference value, R, and seeks to find the smallest i such that:
+ with a reference value, R, and seeks to find the x_{k+1} that satisfies
 
-    f(x_{k+1}) <= R + <grad f(x_{k),S_k> + (1/(2*tau_k))*|S_k|^2
+    f(x_{k+1}) < R + <grad f(x_k),S_k> + (1/(2*tau_k))*|S_k|^2
 
  This modification does effect neither the convergence nor rate of
  convergence of an algorithm when R is chosen appropriately.
