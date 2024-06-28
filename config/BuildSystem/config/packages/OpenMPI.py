@@ -21,7 +21,8 @@ class Configure(config.package.GNUPackage):
     config.package.GNUPackage.setupDependencies(self, framework)
     self.cuda           = framework.require('config.packages.cuda',self)
     self.hwloc          = framework.require('config.packages.hwloc',self)
-    self.odeps          = [self.hwloc]
+    self.zlib           = framework.require('config.packages.zlib',self)
+    self.odeps          = [self.hwloc,self.zlib]
     return
 
   def formGNUConfigureArgs(self):
@@ -52,6 +53,8 @@ class Configure(config.package.GNUPackage):
       args.append('--with-hwloc="'+self.hwloc.directory+'"')
     else:
       args.append('--with-hwloc=internal')
+    if self.zlib.found:
+      args.append('--with-zlib="'+self.zlib.directory+'"')
     # https://www.open-mpi.org/faq/?category=building#libevent-or-hwloc-errors-when-linking-fortran
     args.append('--with-libevent=internal')
     args.append('--with-pmix=internal')
