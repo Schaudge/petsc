@@ -748,6 +748,58 @@ PetscErrorCode DMTaoGetLipschitz(DM dm, PetscReal *lip)
 }
 
 /*@
+  DMTaoSetStrongConvexity - Sets strong convexity constant of of `DMTao` object.
+
+  Logically Collective
+
+  Input Parameters:
++ dm - the `DM` context
+- sc - the strong convexity constant
+
+  Level: intermediate
+
+.seealso: [](ch_tao), `Tao`, `DMTao`, `DMTaoGetStrongConvexity()`
+@*/
+PetscErrorCode DMTaoSetStrongConvexity(DM dm, PetscReal sc)
+{
+  DMTao tdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscValidLogicalCollectiveReal(dm, sc, 2);
+  PetscCheck(sc >= 0, PetscObjectComm((PetscObject)dm), PETSC_ERR_USER, "StrongConvexity value has to be non-negative.");
+  PetscCall(DMGetDMTaoWrite(dm, &tdm));
+  tdm->sc = sc;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  DMTaoGetStrongConvexity - Get strong convexity constant of DMTao.
+
+  Not Collective
+
+  Input Parameter:
+. dm - the `DM` context
+
+  Output Parameter:
+. sc - the current strong convexity constant.
+
+  Level: intermediate
+
+.seealso: [](ch_tao), `Tao`, `DMTao`
+@*/
+PetscErrorCode DMTaoGetStrongConvexity(DM dm, PetscReal *sc)
+{
+  DMTao tdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTao(dm, &tdm));
+  *sc = tdm->sc;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
   TaoSetRegularizer - Sets an DMTao to Tao object.
   It treats DMTao object as a regularizer to primary objective.
   TaoSetSolution needs to be called before this routine.
