@@ -17,8 +17,8 @@ typedef struct {
   ProblemType probType;
   PetscInt    m, n, k; //A : m x n, k : signal sparsity
   Mat         A;
-  Vec         x0, x, workvec, b;
-  PetscReal   scale, noise;
+  Vec         x0, x, workvec, workvec2, workvec3, b;
+  PetscReal   scale, optimum;
 } AppCtx;
 
 /* Objective and Gradient
@@ -55,51 +55,30 @@ PetscErrorCode UserObjGrad(Tao tao, Vec X, PetscReal *f, Vec G, void *ptr)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode Shuffle_List(PetscInt *indices, PetscInt n, PetscRandom rctx)
-{
-  PetscInt  i, j, temp;
-  PetscReal rand;
-
-  PetscFunctionBegin;
-  for (i = 0; i < n - 2; i++) {
-    PetscCall(PetscRandomSetInterval(rctx, i, n));
-    PetscCall(PetscRandomGetValueReal(rctx, &rand));
-
-    j          = (PetscInt)rand;
-    temp       = indices[j];
-    indices[j] = indices[i];
-    indices[i] = temp;
-  }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 PetscErrorCode DataCreate(AppCtx *user)
 {
   PetscRandom rctx;
-  PetscReal   norm, *array;
-  PetscInt    i, *indices;
-  IS          is;
+  PetscReal   norm, *array, *array2, *array3, randreal;
+  PetscInt    i, *indices, p, temp, temp2;
 
   PetscFunctionBegin;
   PetscCall(PetscRandomCreate(PETSC_COMM_SELF, &rctx));
   PetscCall(PetscRandomSetFromOptions(rctx));
 
+  p = PetscCeilInt(user->n , user->k);
+
   PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->n, &user->x));
   PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->n, &user->x0));
+  PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->n, &user->workvec2));
   PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->m, &user->workvec));
+  PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->m, &user->workvec3));
   PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->m, &user->b));
   PetscCall(VecSet(user->x0, 0.));
 
-  //perm = randperm(N);
-  //x(perm(1:K)) = 1;
-  PetscCall(PetscMalloc1(user->n, &indices));
-  for (i = 0; i < user->n; i++) indices[i] = i;
-  PetscCall(Shuffle_List(indices, user->n, rctx));
-  /* Re-setting interval to be 0-1 */
-  PetscCall(PetscRandomSetInterval(rctx, 0, 1.));
-  PetscCall(ISCreate(PETSC_COMM_WORLD, &is));
-  PetscCall(ISGetPointSubrange(is, 0, user->k, indices));
-  PetscCall(VecISSet(user->x, is, 1));
+  //workvec: y_star
+  PetscCall(VecSetRandom(user->workvec, rctx));
+  PetscCall(VecNorm(user->workvec, NORM_2, &norm));
+  PetscCall(VecScale(user->workvec, 1/norm));
 
   PetscCall(MatCreateSeqDense(PETSC_COMM_WORLD, user->m, user->n, NULL, &user->A));
   PetscCall(MatDenseGetArray(user->A, &array));
@@ -111,26 +90,68 @@ PetscErrorCode DataCreate(AppCtx *user)
     PetscCall(PetscRandomGetValueReal(rctx, &a[0]));
     PetscCall(PetscPDFSampleGaussian1D(a, NULL, &array[i]));
   }
-  PetscCall(MatNorm(user->A, NORM_FROBENIUS, &norm));
   PetscCall(MatDenseRestoreArray(user->A, &array));
   PetscCall(MatAssemblyBegin(user->A, MAT_FINAL_ASSEMBLY));
   PetscCall(MatAssemblyEnd(user->A, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatScale(user->A, 2.));
+  PetscCall(MatShift(user->A, -1.));
 
-  PetscCall(MatMult(user->A, user->x, user->b));
+  PetscCall(MatMultTranspose(user->A, user->workvec, user->workvec2));
+  PetscCall(VecAbs(user->workvec2));
+  PetscCall(VecCopy(user->workvec2, user->x)); // using x vec as workvec for sortperm
+  PetscCall(PetscMalloc1(user->n, &indices));
+  for (i = 0; i < user->n; i++) indices[i] = i;
 
-  /* b = A*x + noise*randn(m) */
-  PetscCall(VecGetArray(user->workvec, &array));
-  for (i = 0; i < user->m; i++) {
-    PetscReal a[1] = {0.};
+  /* indices: perm, workvec2: CTy, x0: alpha */
+  PetscCall(VecGetArray(user->x, &array));
+  PetscCall(VecGetArray(user->workvec2, &array2));
+  PetscCall(VecGetArray(user->x0, &array3));
+  PetscCall(PetscSortRealWithArrayInt(user->n, array, indices)); //in increasing order
 
-    PetscCall(PetscRandomGetValueReal(rctx, &a[0]));
-    PetscCall(PetscPDFSampleGaussian1D(a, NULL, &array[i]));
+  for (i = 0; i < user->n; i++) {
+    temp = indices[i];
+    if (i > user->n - p) { //TODO julia 1-indexing crap..
+      array3[temp] = user->scale / array2[temp];
+    } else {
+      temp2 = array2[temp];
+      if (temp < 0.1*user->scale) {
+        array3[temp] = user->scale;
+      } else {
+        PetscCall(PetscRandomGetValueReal(rctx, &randreal));
+        array3[temp] = user->scale * randreal / temp2;
+      }
+    }
   }
-  PetscCall(VecRestoreArray(user->workvec, &array));
-  PetscCall(VecAXPY(user->b, user->noise, user->workvec));
+  PetscCall(VecRestoreArray(user->x, &array));
+  PetscCall(VecRestoreArray(user->workvec2, &array2));
+  PetscCall(VecRestoreArray(user->x0, &array3));
+
+  PetscCall(MatDiagonalScale(user->A, NULL, user->x0));
+
+  // generate the primal solution
+  // x0 is x_star
+  PetscCall(VecSet(user->x0, 0.));
+  PetscCall(VecGetArray(user->x0, &array));
+  for (i = 0; i < user->n; i++) {
+    if (i > user->n - p) {
+      temp = indices[i];
+      PetscCall(PetscRandomGetValueReal(rctx, &randreal));
+      PetscCall(MatGetColumnVector(user->A, user->workvec3, temp-1));
+      PetscCall(VecDot(user->workvec3, user->workvec, &norm));
+      array[temp] = randreal*PetscSqrtReal((int) p) * PetscSign(norm);
+    }
+  }
+  PetscCall(VecRestoreArray(user->x0, &array));
+
+  PetscCall(MatMultAdd(user->A, user->x0, user->workvec, user->b));
+
+  PetscCall(VecNorm(user->workvec, NORM_2, &norm));
+  user->optimum = norm/2.;
+
+  PetscCall(VecNorm(user->x0, NORM_1, &norm));
+  user->optimum += user->scale*norm;
 
   PetscCall(PetscFree(indices));
-  PetscCall(ISDestroy(&is));
   PetscCall(PetscRandomDestroy(&rctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -153,11 +174,10 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *user)
   PetscInt probtype;
 
   PetscFunctionBegin;
-  user->k        = 4;
+  user->k        = 5;
   user->n        = 20;
   user->m        = 10;
   user->scale    = 1.e-4;
-  user->noise    = 0.01;
   user->probType = USE_TAO;
   PetscOptionsBegin(comm, "", "Forward-backward example", "TAO");
   probtype = user->probType;
@@ -170,7 +190,6 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *user)
   PetscCall(PetscOptionsGetInt(NULL, NULL, "-n", &user->n, NULL));
   PetscCall(PetscOptionsGetInt(NULL, NULL, "-m", &user->m, NULL));
   PetscCall(PetscOptionsGetReal(NULL, NULL, "-scale", &user->scale, NULL));
-  PetscCall(PetscOptionsGetReal(NULL, NULL, "-noise", &user->noise, NULL));
   PetscOptionsEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -192,7 +211,6 @@ int main(int argc, char **argv)
   PetscCall(TaoCreate(PETSC_COMM_WORLD, &tao));
   PetscCall(TaoSetSolution(tao, user.x0));
   PetscCall(TaoSetType(tao, TAOFB));
-  PetscCall(TaoFBSetType(tao, TAO_FB_FISTA));
   PetscCall(DMCreate(PETSC_COMM_WORLD, &fdm));
   PetscCall(DMCreate(PETSC_COMM_WORLD, &gdm));
   PetscCall(DMTaoSetType(gdm, DMTAOL1));
@@ -200,18 +218,18 @@ int main(int argc, char **argv)
   switch (user.probType) {
   case USE_TAO:
     PetscCall(TaoSetObjectiveAndGradient(tao, NULL, UserObjGrad, (void *)&user));
-    PetscCall(TaoFBSetLipschitz(tao, matnorm));
+    PetscCall(TaoPSSetLipschitz(tao, matnorm));
     break;
   case USE_DM:
     PetscCall(DMTaoSetObjectiveAndGradient(fdm, UserObjGrad_DM, (void *)&user));
     PetscCall(DMTaoSetLipschitz(fdm, matnorm));
-    PetscCall(TaoFBSetSmoothTerm(tao, fdm));
+    PetscCall(TaoPSSetSmoothTerm(tao, fdm));
     break;
   default:
     SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid problem formulation type.");
   }
 
-  PetscCall(TaoFBSetNonSmoothTerm(tao, gdm));
+  PetscCall(TaoPSSetNonSmoothTerm(tao, gdm));
   PetscCall(TaoSetFromOptions(tao));
   PetscCall(TaoSolve(tao));
 
