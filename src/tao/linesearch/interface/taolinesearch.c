@@ -133,6 +133,9 @@ PetscErrorCode TaoLineSearchCreate(MPI_Comm comm, TaoLineSearch *newls)
   ls->stepmax  = 1.0e+20;
   ls->step     = 1.0;
   ls->initstep = 1.0;
+  ls->dm       = NULL;
+  ls->prox     = NULL;
+  ls->prox_reg = NULL;
   *newls       = ls;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -596,6 +599,35 @@ PetscErrorCode TaoLineSearchIsUsingTaoRoutines(TaoLineSearch ls, PetscBool *flg)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ls, TAOLINESEARCH_CLASSID, 1);
   *flg = ls->usetaoroutines;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  TaoLineSearchSetProx - Sets the `DM` contexts that contain
+  appropriate proximal mapping. Used for TAOLINESEARCHPSARMIJO
+
+  Logically Collective
+
+  Input Parameters:
++ ls - the `TaoLineSearch` context
+. dm - the `DM` context that contains appropriate proximal mapping
+- dm - the `DM` context for regularizing metric. This may be NULL
+
+  Level: advanced
+
+  Notes:
+  This routine is used in `TAOLINESEARCHPSARMIJO` to compute proximal mapping.
+
+.seealso: [](ch_tao), `Tao`, `TaoLineSearch`, `TaoLineSearchCreate()`, `TaoLineSearchSetGradientRoutine()`, `TaoLineSearchSetObjectiveAndGradientRoutine()`, `TaoLineSearchUseTaoRoutines()`
+@*/
+PetscErrorCode TaoLineSearchSetProx(TaoLineSearch ls, DM dm0, DM dm1)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(ls, TAOLINESEARCH_CLASSID, 1);
+  PetscValidHeaderSpecific(dm0, DM_CLASSID, 2);
+  if (dm1) PetscValidHeaderSpecific(dm1, DM_CLASSID, 2);
+  ls->prox = dm0;
+  if (dm1) ls->prox_reg = dm1;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

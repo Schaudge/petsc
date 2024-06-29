@@ -48,7 +48,6 @@ static PetscErrorCode TaoLineSearchView_PSArmijo(TaoLineSearch ls, PetscViewer p
    Input Parameters:
 +  ls   - TaoLineSearch context
 .  xold - x_k
-.  xnew - search direction (x_{k+1})
 .  f    - f(x_k)
 .  g    - grad_f(x_k). same as tao->gradient
 -  step - initial estimate of step length (Set via TaoLSSetInitialStep)
@@ -57,24 +56,14 @@ static PetscErrorCode TaoLineSearchView_PSArmijo(TaoLineSearch ls, PetscViewer p
 +  f    - f(x_{k+1})
 .  xnew - x_{k+1} that satisfies the condition
 -  step - final step length
-
-   Info is set to one of:
-.   0 - the line search succeeds; the sufficient decrease
-   condition hold
-
-   negative number if an input parameter is invalid
--   -1 -  step < 0
-
-   positive number > 1 if the line search otherwise terminates
-+    1 -  Step is at the lower bound, stepmin.
 @ */
 static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, PetscReal *f, Vec g, Vec xnew)
 {
   TaoLineSearch_PSARMIJO *armP = (TaoLineSearch_PSARMIJO *)ls->data;
   PetscInt                i, its = 0;
-  PetscReal               ref, cert;
+  PetscReal               ref, cert; /* cert = R + <gradf(x), xnew - x> + 1/2step * |xnew - x|_2^2 */
   PetscReal               diffnorm, inprod;
-  PetscReal               fk1; /* f(x_{k+1}) */
+  PetscReal               fk1; /* f(xnew) */
   MPI_Comm                comm;
 
   PetscFunctionBegin;
@@ -130,40 +119,43 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
   }
 
   ls->step = ls->initstep;
-  /* work  : x_k - step*grad_f(x_k) */
+  // Input is prox_g(x- step * gradf(x))
 
   /* Calculate function at new iterate */
   PetscCall(TaoLineSearchComputeObjective(ls, xnew, &fk1));
-  /* work2 : x_{k+1} - x_k */
+  /* Check criteria */
   PetscCall(VecWAXPY(armP->work2, -1., xold, xnew));
   PetscCall(VecTDot(armP->work2, armP->work2, &diffnorm));
   PetscCall(VecTDot(armP->work2, g, &inprod));
-  cert = ref + inprod + (1 / (2 * ls->step)) * diffnorm - fk1;
+  cert = inprod + (1 / (2 * ls->step)) * diffnorm + ref;
 
-  if (cert > ls->rtol) {
+  if ((cert - fk1) > ls->rtol) {
     ls->reason = TAOLINESEARCH_SUCCESS;
     PetscFunctionReturn(PETSC_SUCCESS);
   }
 
-  while (cert <= ls->rtol && ls->nfeval < ls->max_funcs) {
+  while ((fk1 - cert) <= ls->rtol && ls->nfeval < ls->max_funcs) {
     /* Calculate iterate */
     ++its;
 
-    /* Note: usual eta: SPARSA:0.2, FISTA:0.5 */
+    /* Note: usual eta: FISTA:0.5 */
     ls->step = ls->step * armP->eta;
-    /* FPI for FB assumes x_k - step*gradf(x_k) as an input TODO fix for LV */
-    PetscCall(VecWAXPY(armP->work, -ls->step, g, xold));
-    PetscCall(TaoLineSearchComputeProximalMap(ls, ls->step, armP->work, xnew, PETSC_FALSE));
 
+    /* FB: input to prox: x_k - step*gradf(x_k)
+     * DY: input to prox: z - step*u - step*gradf(z) -> input g for DY needs to be u-gradf(z) TODO*/
+    PetscCall(VecWAXPY(armP->work, -ls->step, g, xold));
+    /* Note: DMTaoApplyProximalMap's step is for f(x)+step*g(x,y).
+     * Thus, need pass stepsize as 1/2step                          */
+    PetscCall(DMTaoApplyProximalMap(ls->prox, ls->prox_reg, 1/(2*ls->step), armP->work, xnew, PETSC_FALSE));
     /* Calculate function at new iterate */
     PetscCall(TaoLineSearchComputeObjective(ls, xnew, &fk1));
     /* work2 : x_{k+1} - x_k */
     PetscCall(VecWAXPY(armP->work2, -1., xold, xnew));
     PetscCall(VecTDot(armP->work2, armP->work2, &diffnorm));
     PetscCall(VecTDot(armP->work2, g, &inprod));
-    cert = ref + inprod + (1 / (2 * ls->step)) * diffnorm - fk1;
+    cert = ref + inprod + (1 / (2 * ls->step)) * diffnorm;
 
-    if (cert > ls->rtol) {
+    if ((cert -fk1) > ls->rtol) {
       ls->reason = TAOLINESEARCH_SUCCESS;
       PetscFunctionReturn(PETSC_SUCCESS);
     }
@@ -178,6 +170,9 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
   } else if (ls->nfeval >= ls->max_funcs) {
     PetscCall(PetscInfo(ls, "Number of line search function evals (%" PetscInt_FMT ") > maximum allowed (%" PetscInt_FMT ")\n", ls->nfeval, ls->max_funcs));
     ls->reason = TAOLINESEARCH_HALTED_MAXFCN;
+  } else if (ls->step < ls->stepmin) {
+    PetscCall(PetscInfo(ls, "Step length is below tolernace.\n"));
+    ls->reason = TAOLINESEARCH_HALTED_RTOL;
   }
   if (ls->reason) PetscFunctionReturn(PETSC_SUCCESS);
 

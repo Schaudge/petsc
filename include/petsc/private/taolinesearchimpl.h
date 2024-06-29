@@ -65,7 +65,9 @@ struct _p_TaoLineSearch {
   PetscReal stepmax; /* upper bound for step */
 
   Tao tao;
-  DM  dm;
+  DM  dm;   /* DM that contains obj, grad routines */
+  DM  prox; /* DM that contains proximal map. For PSARMIJO */
+  DM  prox_reg;
 };
 
 PETSC_EXTERN PetscLogEvent TAOLINESEARCH_Apply;
