@@ -6,46 +6,22 @@
 #include <petsc/private/taoimpl.h>
 #include <petsc/private/taolinesearchimpl.h>
 
-const char *const TaoFBTypes[] = {"fista", "sparsa", "lv", "TaoFBType", "TAO_FB_", NULL};
+static PetscBool  fasta_cited       = PETSC_FALSE;
+static PetscBool  adapgm_cited      = PETSC_FALSE;
+static const char fasta_citation[]  = "@article{goldstein2015fasta,\n"
+                                      "title={FASTA: A generalized implementation of forward-backward splitting},\n"
+                                      "author={Goldstein, Tom and Studer, Christoph and Baraniuk, Richard},\n"
+                                      "journal={arXiv preprint arXiv:1501.04979},\n"
+                                      " year={2015}\n"
+                                      "}\n";
+static const char adapgm_citation[] = "@article{latafat2023convergence,\n"
+                                      "title={On the convergence of adaptive first order methods: proximal gradient and alternating minimization algorithms},\n"
+                                      "author={Latafat, Puya and Themelis, Andreas and Patrinos, Panagiotis},\n"
+                                      "journal={arXiv preprint arXiv:2311.18431},\n"
+                                      "year={2023}\n"
+                                      "}\n";
 
-static PetscBool  cited      = PETSC_FALSE;
-static const char citation[] = "@article{goldstein2015fasta,\n"
-                               "title={FASTA: A generalized implementation of forward-backward splitting},\n"
-                               "author={Goldstein, Tom and Studer, Christoph and Baraniuk, Richard},\n"
-                               "journal={arXiv preprint arXiv:1501.04979},\n"
-                               " year={2015}\n"
-                               "} \n";
-
-static PetscErrorCode TaoFBGetType_FB(Tao tao, TaoFBType *type)
-{
-  TAO_FB *fb = (TAO_FB *)tao->data;
-
-  PetscFunctionBegin;
-  *type = fb->type;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-static PetscErrorCode TaoFBSetType_FB(Tao tao, TaoFBType type)
-{
-  TAO_FB *fb = (TAO_FB *)tao->data;
-
-  PetscFunctionBegin;
-  fb->type = type;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/*@
-  TaoFBSetUseLipApprox - Determine whether to compute initial Lipschitz
-  constant approximation or not.
-
-  Input Parameters:
-+ tao - the `Tao` context for the `TAOFB` solver
-- use - Bool to denote whether to compute initial approximiation
-
-  Level: advanced
-
-.seealso: `Tao`, `TAOFB`
-@*/
+#if 0
 PetscErrorCode TaoFBSetUseLipApprox(Tao tao, PetscBool flag)
 {
   TAO_FB *fb = (TAO_FB *)tao->data;
@@ -57,85 +33,6 @@ PetscErrorCode TaoFBSetUseLipApprox(Tao tao, PetscBool flag)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/*@
-  TaoFBSetType - Determine the forward-backward algorithm type.
-
-  Input Parameters:
-+ tao  - the `Tao` context for the `TAOFB` solver
-- type - forward-backward algorithm type
-
-  Level: advanced
-
-.seealso: `Tao`, `TAOFB`, `TaoFBGetType()`, `TaoFBType`
-@*/
-PetscErrorCode TaoFBSetType(Tao tao, TaoFBType type)
-{
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
-  PetscValidLogicalCollectiveEnum(tao, type, 2);
-  PetscTryMethod(tao, "TaoFBSetType_C", (Tao, TaoFBType), (tao, type));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/*@
-  TaoFBGetType - Retrieve the forward-backward type.
-
-  Input Parameter:
-. tao - the `Tao` context for the `TAOFB` solver
-
-  Output Parameter:
-. type - forward-backward algorithm type
-
-  Level: advanced
-
-.seealso: `Tao`, `TAOFB`, `TaoFBSetType()`, `TaoFBType`
-@*/
-PetscErrorCode TaoFBGetType(Tao tao, TaoFBType *type)
-{
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
-  PetscTryMethod(tao, "TaoFBGetType_C", (Tao, TaoFBType *), (tao, type));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/*@
-  TaoFBSetLipschitz - Set user-defined Lipschitz constant of the gradient term.
-  Users can use this routine if the smooth term is set via `Tao` object.
-  If the smooth term is set via `DMTao` object, then users can use
-  `DMTaoSetLipschitz()` routine.
-
-  Input Parameters:
-+ tao - the `Tao` context for the `TAOFB` solver
-- lip - Lipschitz constant of gradient term
-
-  Level: advanced
-
-.seealso: `TAOFB`, `Tao`, `TaoFBGetLipschitz()`
-@*/
-PetscErrorCode TaoFBSetLipschitz(Tao tao, PetscReal lip)
-{
-  TAO_FB *fb = (TAO_FB *)tao->data;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
-  PetscValidLogicalCollectiveReal(tao, lip, 2);
-  fb->lip     = lip;
-  fb->lip_set = PETSC_TRUE;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/*@
-  TaoFBSetNonSmoothTerm - Set non-smooth objective term for
-  forward-backward problem - h(x).
-
-  Input Parameters:
-+ tao - the `Tao` context for the `TAOFB` solver
-- dm  - the `DMTao` context containing non-smooth objective
-
-  Level: advanced
-
-.seealso: `TAOFB`, `Tao`, `TaoFBSetNonSmoothTermWithLinearMap()`
-@*/
 PetscErrorCode TaoFBSetNonSmoothTerm(Tao tao, DM dm)
 {
   TAO_FB *fb = (TAO_FB *)tao->data;
@@ -149,51 +46,6 @@ PetscErrorCode TaoFBSetNonSmoothTerm(Tao tao, DM dm)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/*@
-  TaoFBSetNonSmoothTermWithLinearMap - Set non-smooth objective term
-  with linear mapping for forward-backward problem - g(Ax).
-
-  Input Parameters:
-+ tao  - the `Tao` context for the `TAOFB` solver
-. dm   - the `DMTao` context containing non-smooth objective
-. mat  - the linear mapping matrix
-- norm - norm of the linear mapping matrix, if avaliable. Set as zero if unknown
-
-  Level: advanced
-
-.seealso: `TAOFB`, `Tao`, `TaoFBSetNonSmoothTerm()`
-@*/
-PetscErrorCode TaoFBSetNonSmoothTermWithLinearMap(Tao tao, DM dm, Mat mat, PetscReal norm)
-{
-  TAO_FB *fb = (TAO_FB *)tao->data;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
-  PetscValidHeaderSpecific(dm, DM_CLASSID, 2);
-  PetscCall(PetscObjectReference((PetscObject)dm));
-  if (mat) {
-    PetscValidHeaderSpecific(mat, MAT_CLASSID, 3);
-    PetscCall(PetscObjectReference((PetscObject)mat));
-  }
-  PetscValidLogicalCollectiveReal(tao, norm, 4);
-  fb->proxterm  = dm;
-  fb->lmap      = mat;
-  fb->lmap_norm = norm;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/*@
-  TaoFBSetSmoothTerm - Set smooth objective term for forward-backward problem.
-  This smooth objective - f(x) -  must have gradient term available.
-
-  Input Parameters:
-+ tao - the `Tao` context for the `TAOFB` solver
-- dm  - the `DMTao` context containing smooth objective
-
-  Level: advanced
-
-.seealso: `TAOFB`, `Tao`, `TaoFBSetNonSmoothTerm()`
-@*/
 PetscErrorCode TaoFBSetSmoothTerm(Tao tao, DM dm)
 {
   TAO_FB *fb = (TAO_FB *)tao->data;
@@ -208,6 +60,7 @@ PetscErrorCode TaoFBSetSmoothTerm(Tao tao, DM dm)
   fb->smoothterm = dm;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+#endif
 
 static PetscErrorCode TaoConvergenceTest_FB(Tao tao, void *dummy)
 {
@@ -256,84 +109,48 @@ static PetscErrorCode TaoConvergenceTest_FB(Tao tao, void *dummy)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/* Fixed Point Characterization of the problem.
- * Essentially solves the problem for only one iteration.
- * Needed by linesearch routine
- *
- * out = prox_g(in - step*grad_f(in)).
- *
- * For FISTA and SPARSA, input vector is assumed to be input for proximal mapping,
- * i.e., in := x - step*gradf(x), to avoid unncessary computation.                 */
-static PetscErrorCode TaoFixedPoint_FB(Tao tao, Vec in, Vec out, PetscReal step, Mat vm, void *ctx)
-{
-  TAO_FB *fb = (TAO_FB *)tao->data;
-
-  PetscFunctionBegin;
-  switch (fb->type) {
-  case TAO_FB_FISTA:
-  case TAO_FB_SPARSA:
-    PetscCall(DMTaoApplyProximalMap(fb->proxterm, fb->reg, step, in, out, PETSC_FALSE));
-    break;
-  case TAO_FB_LV:
-    SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Not supporting fixed-point iteration for LV type..");
-    break;
-  }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 static PetscErrorCode TaoSolve_FB(Tao tao)
 {
   TAO_FB                      *fb = (TAO_FB *)tao->data;
-  PetscReal                    f, temp, temp2, gnorm;
+  PetscReal                    f, gnorm;
   TaoLineSearchConvergedReason ls_status = TAOLINESEARCH_CONTINUE_ITERATING;
 
   PetscFunctionBegin;
-  PetscCheck(fb->lip >= 0, PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Lipschitz constant cannot be negative");
   PetscCheck(tao->step >= 0, PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Stepsize cannot be negative");
+  PetscCheck(!(fb->use_accel && fb->use_adapt), PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "TaoFB only supports either acceleration or adaptive step, not both");
+  if (!fb->lip_set) PetscCall(DMTaoGetLipschitz(fb->smoothterm, &fb->lip));
 
-  switch (fb->type) {
-  case TAO_FB_FISTA:
-  case TAO_FB_SPARSA:
-  {
-    if (fb->approx_lip || !fb->lip_set) {
-      PetscReal   gradnorm, xnorm;
-      PetscRandom rctx;
 
-      PetscCall(PetscRandomCreate(PETSC_COMM_SELF, &rctx));
-      PetscCall(PetscRandomSetFromOptions(rctx));
-      /* Structure from FASTA paper, Goldstein et al. */
-      PetscCall(VecSetRandom(fb->workvec, rctx));
-      PetscCall(VecSetRandom(fb->workvec2, rctx));
-      /* If TaoFBSetSmoothTerm has been called, will use DM for gradient.
-       * Otherwise, use one set via TaoSetGradient */
-      if (fb->smoothterm) {
-        PetscCall(DMTaoComputeGradient(fb->smoothterm, fb->workvec, fb->x_old));
-        PetscCall(DMTaoComputeGradient(fb->smoothterm, fb->workvec2, fb->grad_old));
-      } else {
-        PetscCall(TaoComputeGradient(tao, fb->workvec, fb->x_old));
-        PetscCall(TaoComputeGradient(tao, fb->workvec2, fb->grad_old));
-      }
-      PetscCall(VecAXPY(fb->grad_old, -1., fb->x_old));
-      PetscCall(VecAXPY(fb->workvec, -1., fb->workvec2));
-      PetscCall(VecNorm(fb->grad_old, NORM_2, &gradnorm));
-      PetscCall(VecNorm(fb->workvec, NORM_2, &xnorm));
+  if (fb->approx_lip || fb->lip == 0) {
+    /* Approximating initial Lipschitz number via two random vectors */
+    PetscReal   gradnorm, xnorm;
+    PetscRandom rctx;
 
-      fb->lip   = gradnorm / xnorm;
-      fb->lip   = PetscMax(fb->lip, 1.e-6);
-      tao->step = 2. / fb->lip / 10.;
-
-      PetscCall(PetscRandomDestroy(&rctx));
-    } else if (fb->lip_set) {
-      tao->step = 1. / fb->lip;
+    PetscCall(PetscRandomCreate(PETSC_COMM_SELF, &rctx));
+    PetscCall(PetscRandomSetFromOptions(rctx));
+    PetscCall(VecSetRandom(fb->workvec, rctx));
+    PetscCall(VecSetRandom(fb->workvec2, rctx));//TODO are they different? check later
+    /* If TaoFBSetSmoothTerm has been called, will use DM for gradient.
+     * Otherwise, use one set via TaoSetGradient */
+    if (fb->smoothterm) {
+      PetscCall(DMTaoComputeGradient(fb->smoothterm, fb->workvec, fb->x_old));
+      PetscCall(DMTaoComputeGradient(fb->smoothterm, fb->workvec2, fb->grad_old));
+    } else {
+      PetscCall(TaoComputeGradient(tao, fb->workvec, fb->x_old));
+      PetscCall(TaoComputeGradient(tao, fb->workvec2, fb->grad_old));
     }
-  }
-    break;
-  case TAO_FB_LV:
-    tao->step = 0.99*2/1.53395234e-04;//TODO lv example hardcode
-    fb->sigma_lv = 1/(tao->step*4);
-    break;
-  default:
-    break;
+    PetscCall(VecAXPY(fb->grad_old, -1., fb->x_old));
+    PetscCall(VecAXPY(fb->workvec, -1., fb->workvec2));
+    PetscCall(VecNorm(fb->grad_old, NORM_2, &gradnorm));
+    PetscCall(VecNorm(fb->workvec, NORM_2, &xnorm));
+
+    fb->lip   = gradnorm / xnorm;
+    fb->lip   = PetscMax(fb->lip, 1.e-6);
+    tao->step = 2. / fb->lip / 10.;
+
+    PetscCall(PetscRandomDestroy(&rctx));
+  } else if (fb->lip > 0) {
+    tao->step = 1. / fb->lip;//TODO what if lip is set but want to use some set init step? There is no TaoSetInitialStep, so maybe TaoPSSetIntialStep? or former suffices?
   }
 
   fb->step_old = tao->step;
@@ -354,141 +171,82 @@ static PetscErrorCode TaoSolve_FB(Tao tao)
 
   tao->reason = TAO_CONTINUE_ITERATING;
 
-  switch (fb->type) {
-  case TAO_FB_FISTA:
-  case TAO_FB_SPARSA:
-    PetscCall(VecCopy(tao->solution, fb->dualvec));
-    break;
-  case TAO_FB_LV:
-    /*s_0 = x_0 + step *L^T u_0. s = workvec, a = workvec2,
-     * but u is initialized as 0, and s as x, thus omit */
-    break;
-  default:
-    SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid forward-backward type.");
+  if (fb->use_accel) {
+    PetscCall(PetscCitationsRegister(fasta_citation, &fasta_cited));
+    /* FISTA: workvec2 = z_accel_1, workvec = z_accel_0 */
+    PetscCall(VecCopy(tao->solution, fb->workvec2));
   }
-
-  PetscCall(PetscCitationsRegister(citation, &cited));
+  if (fb->use_adapt) PetscCall(PetscCitationsRegister(adapgm_citation, &adapgm_cited));
 
   while (tao->reason == TAO_CONTINUE_ITERATING) {
     PetscCall(VecCopy(tao->solution, fb->x_old));
     PetscCall(VecCopy(tao->gradient, fb->grad_old));
 
-    /* Duplicate switch statement, as FISTA and SPARSA share large body of code */
-    switch (fb->type) {
-    case TAO_FB_FISTA:
-    case TAO_FB_SPARSA:
-      PetscCall(VecWAXPY(fb->workvec2, -tao->step, tao->gradient, tao->solution));
-      PetscCall(DMTaoApplyProximalMap(fb->proxterm, fb->reg, tao->step, fb->workvec2, tao->solution, PETSC_FALSE));
+    if (fb->use_adapt) {
+      //TODO adaPGM stepsize stuff here
+      //temp \gets sqrt(norm(xnew - xold)
+    }
 
-      /* -tao_ls_max_funcs 0 -> no linesearch, but constant stepsize
-       Constant stepsize needs to be properly chosen for the algorithm to converge.
-       -tao_ls_max_funcs 1 -> monotonic linesearch
+    if (fb->use_accel) {
+      /* FISTA: workvec = z_accel_old, workvec2 = z_accel_new */
+      PetscCall(VecCopy(fb->workvec2, fb->workvec));
+    }
+
+    PetscCall(VecWAXPY(fb->workvec2, -tao->step, tao->gradient, tao->solution)); // overwriting workvec, z1 as input for prox, x-step*gradf(x)
+    PetscCall(DMTaoApplyProximalMap(fb->proxterm, fb->reg, 1/(2*tao->step), fb->workvec2, tao->solution, PETSC_FALSE)); //solution is no z_1
+
+    /* -tao_ls_max_funcs 0 -> no linesearch, but constant stepsize
+       In this case, constant stepsize needs to be properly chosen for the algorithm to converge.
+
+       -tao_ls_max_funcs 1  -> monotonic linesearch
        -tao_ls_max_funcs >1 -> nonmonotonic linesearch, and size is set via -tao_ls_PSArmijo_memory_size */
-      if (tao->linesearch->max_funcs != 0) {
-        PetscCall(TaoLineSearchSetInitialStepLength(tao->linesearch, tao->step));
-        PetscCall(TaoLineSearchApply(tao->linesearch, fb->x_old, &f, tao->gradient, tao->solution, &tao->step, &ls_status));
-        PetscCall(TaoAddLineSearchCounts(tao));
-        if (ls_status != TAOLINESEARCH_SUCCESS) {
-          //TODO is resetting to 1 the best choice?
-          PetscInfo(tao, "Line search failed at iteration %" PetscInt_FMT ": resetting stepsize to 1.\n", tao->niter);
-          tao->step = 1.;
-        }
-        PetscCall(TaoLineSearchGetStepLength(tao->linesearch, &tao->step));
+    if (!fb->use_adapt && tao->linesearch->max_funcs != 0) {
+      PetscCall(TaoLineSearchSetInitialStepLength(tao->linesearch, tao->step));
+      PetscCall(TaoLineSearchApply(tao->linesearch, tao->solution, &f, tao->gradient, fb->workvec2, &tao->step, &ls_status));
+      /* Now, workvec2 = z_accel_new for FISTA, = xnew for else */
+      PetscCall(TaoAddLineSearchCounts(tao));
+      /* Linesearch failure. Abort */
+      if (ls_status != TAOLINESEARCH_SUCCESS && ls_status != TAOLINESEARCH_SUCCESS_USER) {
+        tao->step   = 1.0;
+        tao->reason = TAO_DIVERGED_LS_FAILURE;
       }
-
-      PetscCall(TaoGradientNorm(tao, tao->gradient, NORM_2, &temp));
-      PetscCall(VecAXPY(fb->workvec2, -1., tao->solution));
-      PetscCall(VecNorm(fb->workvec2, NORM_2, &temp2));
-      fb->gnorm_norm = PetscMax(temp, temp2 / tao->step) + tao->grtol;
-      break;
-    case TAO_FB_LV:
-      /* workvec2 = a: x_k - step*gradf(x_k) - s_k */
-      PetscCall(VecAXPBYPCZ(fb->workvec2, 1, -tao->step, 0, tao->solution, tao->gradient));
-      PetscCall(VecAXPY(fb->workvec2, -1., fb->s_vec_lv));
-      /* s =  s + rho * a */
-      PetscCall(VecAXPY(fb->s_vec_lv, fb->rho_lv, fb->workvec2));
-      /* workvec2: x + a */
-      PetscCall(VecAXPY(fb->workvec2, 1., tao->solution));
-      /* dualwork : u + sigma*A(x+a) */
-      PetscCall(MatMult(fb->lmap, fb->workvec2, fb->dualwork));
-      PetscCall(VecScale(fb->dualwork, fb->sigma_lv));
-      PetscCall(VecAXPY(fb->dualwork, 1., fb->dualvec));
-
-      PetscCall(DMTaoApplyProximalMap(fb->proxterm, fb->reg, fb->sigma_lv, fb->dualwork, fb->dualwork2, PETSC_TRUE));
-      PetscCall(VecAXPBY(fb->dualvec, fb->rho_lv, 1 - fb->rho_lv, fb->dualwork2));
-      PetscCall(MatMultTranspose(fb->lmap, fb->dualvec, fb->workvec2));
-      PetscCall(VecWAXPY(tao->solution, -tao->step, fb->workvec2, fb->s_vec_lv));
-      //TODO linesearch for adaptive stepsize
-      fb->gnorm_norm = 0.;//TODO ???
-      break;
-    default:
-      SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid forward-backward type.");
+      PetscCall(TaoLineSearchGetStepLength(tao->linesearch, &tao->step));
     }
 
-    PetscCall(VecWAXPY(fb->workvec, -1., fb->x_old, tao->solution));
-    PetscCall(VecNorm(fb->workvec, NORM_2, &gnorm));
-    gnorm /= tao->step;
     tao->niter++;
-    PetscCall(TaoLogConvergenceHistory(tao, f, gnorm, 0.0, tao->ksp_its));
-    PetscCall(TaoMonitor(tao, tao->niter, f, gnorm, 0.0, tao->step));
-    PetscUseTypeMethod(tao, convergencetest, tao->cnvP);
 
-    /* Adaptive stepsize, and acceleration part */
-    switch (fb->type) {
-    case TAO_FB_FISTA:
-      /* Restart FISTA */
-      /* workvec = xnew - xold, dualvec: x_accel1, workvec2: x_accel1 - x_accel0 */
-      PetscCall(VecWAXPY(fb->workvec2, -1., fb->dualvec, tao->solution));
-      PetscCall(VecCopy(tao->solution, fb->dualvec));
-      /* workvec2 = x_accel1 - x_accel0 */
-      PetscCall(VecTDot(fb->workvec, fb->workvec2, &temp));
+    if (fb->use_accel) {
+      /* |x-z|/step convergene test */
+      PetscCall(VecWAXPY(fb->workvec3, -1., tao->solution, fb->workvec));
+      PetscCall(VecNorm(fb->workvec3, NORM_2, &gnorm));
+      gnorm /= tao->step;
+      //TODO check convergence criteria...
+      PetscCall(TaoLogConvergenceHistory(tao, f, gnorm, 0.0, tao->ksp_its));
+      PetscCall(TaoMonitor(tao, tao->niter, f, gnorm, 0.0, tao->step));
+      PetscUseTypeMethod(tao, convergencetest, tao->cnvP);
 
-      fb->t_fista_old = (temp < 0) ? 1 : fb->t_fista;
+      fb->t_fista_old = (fb->fista_beta < 0) ? 1 : fb->t_fista;
       fb->t_fista     = (1. + PetscSqrtReal(1. + 4. * fb->t_fista_old * fb->t_fista_old)) / 2.;
-      temp            = (fb->t_fista_old - 1) / (fb->t_fista);
-
-      PetscCall(VecWAXPY(tao->solution, temp, fb->workvec2, fb->dualvec));
+      fb->fista_beta  = (fb->t_fista_old - 1) / (fb->t_fista);
+      /* tao->solution,x,  is now z_1, and we want
+       * x = z_1 + (theta_0 -1 / theta_1) (z_1 - z_0) */
+      PetscCall(VecAXPBY(tao->solution,  -fb->fista_beta, 1 + fb->fista_beta, fb->workvec));
+      /* Now update f and grad */
       if (fb->smoothterm) {
         PetscCall(DMTaoComputeObjectiveAndGradient(fb->smoothterm, tao->solution, &f, tao->gradient));
       } else {
         PetscCall(TaoComputeObjectiveAndGradient(tao, tao->solution, &f, tao->gradient));
       }
-      break;
-    case TAO_FB_SPARSA: {
-      /* Adaptive stepsize. Will use Barzila-Borwein for default */
-      PetscReal snorm, sfnorm, bb_1, bb_2;
-
-      if (fb->smoothterm) {
-        PetscCall(DMTaoComputeObjectiveAndGradient(fb->smoothterm, tao->solution, &f, tao->gradient));
-      } else {
-        PetscCall(TaoComputeObjectiveAndGradient(tao, tao->solution, &f, tao->gradient));
-      }
-      /* workvec: diffx, workvec2: diffgrad */
-      PetscCall(VecWAXPY(fb->workvec2, -1., fb->grad_old, tao->gradient));
-      PetscCall(VecTDot(fb->workvec, fb->workvec2, &temp));
-      PetscCall(VecNorm(fb->workvec, NORM_2, &snorm));
-      PetscCall(VecNorm(fb->workvec2, NORM_2, &sfnorm));
-
-      bb_1      = (snorm * snorm) / temp;
-      bb_2      = temp / (sfnorm * sfnorm);
-      bb_2      = PetscMax(bb_2, 0);
-      tao->step = (2 * bb_2 > bb_1) ? bb_2 : bb_1 - fb->bb_param * bb_2;
-
-      if (tao->step <= 0 || PetscIsInfOrNanReal(tao->step)) tao->step = fb->step_old * 1.5;
+    } else {
     }
 
-    //CASE TAO_FB_BB3? Stabilized BB?
-    //case TAO_FB_VMPG_BB: //Park et al
-    //case TAO_FB_ADAPGM: Latafat etc..
-    break;
-    case TAO_FB_LV:
-      break;
-    default:
-      SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid forward-backward type.");
-    }
+    //Logging
+    //TODO gnorm?
+    PetscCall(TaoLogConvergenceHistory(tao, f, 0, 0.0, tao->ksp_its));
+    PetscCall(TaoMonitor(tao, tao->niter, f, 0, 0.0, tao->step));
+    PetscUseTypeMethod(tao, convergencetest, tao->cnvP);
+    //TODO VM
   }
-  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoFBSetType_C", NULL));
-  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoFBGetType_C", NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -501,7 +259,8 @@ static PetscErrorCode TaoSetFromOptions_FB(Tao tao, PetscOptionItems *PetscOptio
   PetscCall(PetscOptionsReal("-tao_fb_initial_step", "Initial stepsize for forward-backward algorithm", "", tao->step, &tao->step, NULL));
   PetscCall(PetscOptionsReal("-tao_fb_bb_param", "Threshold parameter for Barzila-Borwein  stepsize rule for SPARSA algorithm", "", fb->bb_param, &fb->bb_param, NULL));
   PetscCall(PetscOptionsBool("-tao_fb_approx_lip", "Approximate Lipschitz in the beginning", "", fb->approx_lip, &fb->approx_lip, NULL));
-  PetscCall(PetscOptionsEnum("-tao_fb_type", "Forward-backward solver type", "TaoFBType", TaoFBTypes, (PetscEnum)fb->type, (PetscEnum *)&fb->type, NULL));
+  PetscCall(PetscOptionsBool("-tao_fb_accel", "Use Acceleration (Nesterov-type)", "", fb->use_accel, &fb->use_accel, NULL));
+  PetscCall(PetscOptionsBool("-tao_fb_adaptive", "Use adaptive stepsize (adaPGM)", "", fb->use_adapt, &fb->use_adapt, NULL));
   PetscCall(TaoLineSearchSetFromOptions(tao->linesearch));
   PetscOptionsHeadEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -516,7 +275,6 @@ static PetscErrorCode TaoView_FB(Tao tao, PetscViewer viewer)
   PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &isascii));
   if (isascii) {
     PetscCall(PetscViewerASCIIPushTab(viewer));
-    PetscCall(PetscViewerASCIIPrintf(viewer, "FB Type: %s\n", TaoFBTypes[fb->type]));
     if (fb->smoothterm) {
     PetscCall(PetscViewerASCIIPrintf(viewer, "Smooth Term:\n"));
     PetscCall(DMTaoView(fb->smoothterm, viewer));
@@ -582,8 +340,6 @@ static PetscErrorCode TaoDestroy_FB(Tao tao)
   TAO_FB *fb = (TAO_FB *)tao->data;
 
   PetscFunctionBegin;
-  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoFBSetType_C", NULL));
-  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoFBGetType_C", NULL));
   PetscCall(VecDestroy(&fb->s_vec_lv));
   PetscCall(VecDestroy(&fb->workvec));
   PetscCall(VecDestroy(&fb->workvec2));
@@ -613,27 +369,26 @@ PETSC_EXTERN PetscErrorCode TaoCreate_FB(Tao tao)
   tao->ops->setfromoptions    = TaoSetFromOptions_FB;
   tao->ops->view              = TaoView_FB;
   tao->ops->solve             = TaoSolve_FB;
-  tao->ops->computefixedpoint = TaoFixedPoint_FB; //TODO change to TaoComputeFixedPoint_FB
   tao->ops->convergencetest   = TaoConvergenceTest_FB;
 
   tao->data = (void *)fb;
 
   fb->t_fista     = 1;
   fb->t_fista_old = 1;
-  fb->lip         = 0;
-  fb->mu_f        = 0;
+  fb->fista_beta  = 0.;
+  fb->mu_fg       = 0.;
   fb->gnorm_norm  = 0.;
   fb->bb_param    = 0.5;
   fb->lmap_norm   = 0.;
   fb->sigma_lv    = 1.;
   fb->rho_lv      = 1.; //TODO whats optimal init?
-  fb->type        = TAO_FB_FISTA;
   fb->lmap        = NULL;
   fb->smoothterm  = NULL;
   fb->proxterm    = NULL;
   fb->lip_set     = PETSC_FALSE;
-  fb->mu_set      = PETSC_FALSE;
   fb->approx_lip  = PETSC_TRUE;
+  fb->use_accel   = PETSC_TRUE;
+  fb->use_adapt   = PETSC_FALSE;
 
   /* Non-monotonic linesearch
    *
@@ -645,8 +400,5 @@ PETSC_EXTERN PetscErrorCode TaoCreate_FB(Tao tao)
   PetscCall(PetscObjectIncrementTabLevel((PetscObject)tao->linesearch, (PetscObject)tao, 1));
   PetscCall(TaoLineSearchSetType(tao->linesearch, armijo_type));
   PetscCall(TaoLineSearchSetOptionsPrefix(tao->linesearch, tao->hdr.prefix));
-
-  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoFBSetType_C", TaoFBSetType_FB));
-  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoFBGetType_C", TaoFBGetType_FB));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
