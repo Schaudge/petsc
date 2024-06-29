@@ -1,3 +1,12 @@
+      Interface
+      subroutine SNESVISetComputeVariableBounds(snes,func,ierr)
+      import tSNES
+        SNES snes
+        external :: func
+        PetscErrorCode, intent(out) :: ierr
+      end subroutine SNESVISetComputeVariableBounds
+      end Interface
+
 #if defined(PETSC_HAVE_FORTRAN_TYPE_STAR)
       Interface
       subroutine DMDASNESSetFunctionLocal(dm,imode,func,ctx,ierr)

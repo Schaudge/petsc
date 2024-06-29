@@ -4,6 +4,7 @@
 #include <petsc/private/f90impl.h>
 
 #if defined(PETSC_HAVE_FORTRAN_CAPS)
+  #define snesvisetcomputevariablebounds_  SNESVISETCOMPUTEVARIABLEBOUNDS
   #define snessetpicard_                   SNESSETPICARD
   #define snessolve_                       SNESSOLVE
   #define snescomputejacobiandefault_      SNESCOMPUTEJACOBIANDEFAULT
@@ -32,6 +33,7 @@
   #define snesnewtontrdcsetpostcheck_      SNESNEWTONTRDCSETPOSTCHECK
   #define matmffdcomputejacobian_          MATMFFDCOMPUTEJACOBIAN
 #elif !defined(PETSC_HAVE_FORTRAN_UNDERSCORE)
+  #define snesvisetcomputevariablebounds_  snesvisetcomputevariablebounds
   #define snessetpicard_                   snessetpicard
   #define snessolve_                       snessolve
   #define snescomputejacobiandefault_      snescomputejacobiandefault
@@ -73,11 +75,13 @@ static struct {
   PetscFortranCallbackId update;
   PetscFortranCallbackId trprecheck;
   PetscFortranCallbackId trpostcheck;
+  PetscFortranCallbackId vicomputevariablebounds;
 #if defined(PETSC_HAVE_F90_2PTR_ARG)
   PetscFortranCallbackId function_pgiptr;
   PetscFortranCallbackId objective_pgiptr;
   PetscFortranCallbackId trprecheck_pgiptr;
   PetscFortranCallbackId trpostcheck_pgiptr;
+  PetscFortranCallbackId vicomputevariablebounds_pgiptr;
 #endif
 } _cb;
 
@@ -150,6 +154,15 @@ static PetscErrorCode oursnesfunction(SNES snes, Vec x, Vec f, void *ctx)
   PetscCall(PetscObjectGetFortranCallback((PetscObject)snes, PETSC_FORTRAN_CALLBACK_CLASS, _cb.function_pgiptr, NULL, &ptr));
 #endif
   PetscObjectUseFortranCallback(snes, _cb.function, (SNES *, Vec *, Vec *, void *, PetscErrorCode *PETSC_F90_2PTR_PROTO_NOVAR), (&snes, &x, &f, _ctx, &ierr PETSC_F90_2PTR_PARAM(ptr)));
+}
+
+static PetscErrorCode oursnesvicomputevariablebounds(SNES snes, Vec low, Vec high)
+{
+#if defined(PETSC_HAVE_F90_2PTR_ARG)
+  void *ptr;
+  PetscCall(PetscObjectGetFortranCallback((PetscObject)snes, PETSC_FORTRAN_CALLBACK_CLASS, _cb.vicomputevariablebounds_pgiptr, NULL, &ptr));
+#endif
+  PetscObjectUseFortranCallback(snes, _cb.vicomputevariablebounds, (SNES *, Vec *, Vec *, PetscErrorCode * PETSC_F90_2PTR_PROTO_NOVAR), (&snes, &low, &high, &ierr PETSC_F90_2PTR_PARAM(ptr)));
 }
 
 static PetscErrorCode oursnesobjective(SNES snes, Vec x, PetscReal *v, void *ctx)
@@ -251,11 +264,6 @@ PETSC_EXTERN void snessetpicard_(SNES *snes, Vec *r, void (*func)(SNES *, Vec *,
   if (!*ierr) *ierr = SNESSetPicard(*snes, *r, oursnespicardfunction, *A, *B, oursnespicardjacobian, NULL);
 }
 
-/*
-   These are not usually called from Fortran but allow Fortran users
-   to transparently set these monitors from .F code
-*/
-
 PETSC_EXTERN void snessetfunction_(SNES *snes, Vec *r, SNESFunctionFn func, void *ctx, PetscErrorCode *ierr PETSC_F90_2PTR_PROTO(ptr))
 {
   *ierr = PetscObjectSetFortranCallback((PetscObject)*snes, PETSC_FORTRAN_CALLBACK_CLASS, &_cb.function, (PetscVoidFn *)func, ctx);
@@ -265,6 +273,17 @@ PETSC_EXTERN void snessetfunction_(SNES *snes, Vec *r, SNESFunctionFn func, void
   if (*ierr) return;
 #endif
   *ierr = SNESSetFunction(*snes, *r, oursnesfunction, NULL);
+}
+
+PETSC_EXTERN void snesvisetcomputevariablebounds_(SNES *snes, void (*func)(SNES, Vec, Vec), PetscErrorCode *ierr PETSC_F90_2PTR_PROTO(ptr))
+{
+  *ierr = PetscObjectSetFortranCallback((PetscObject)*snes, PETSC_FORTRAN_CALLBACK_CLASS, &_cb.vicomputevariablebounds, (PetscVoidFn *)func, NULL);
+  if (*ierr) return;
+#if defined(PETSC_HAVE_F90_2PTR_ARG)
+  *ierr = PetscObjectSetFortranCallback((PetscObject)*snes, PETSC_FORTRAN_CALLBACK_CLASS, &_cb.vicomputevariablebounds_pgiptr, NULL, ptr);
+  if (*ierr) return;
+#endif
+  *ierr = SNESVISetComputeVariableBounds(*snes, oursnesvicomputevariablebounds);
 }
 
 PETSC_EXTERN void snessetobjective_(SNES *snes, void (*func)(SNES *, Vec *, PetscReal *, void *, PetscErrorCode *), void *ctx, PetscErrorCode *ierr PETSC_F90_2PTR_PROTO(ptr))
