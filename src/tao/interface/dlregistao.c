@@ -48,7 +48,6 @@ PetscErrorCode TaoInitializePackage(void)
   PetscCall(PetscLogEventRegister("TaoHessianEval", TAO_CLASSID, &TAO_HessianEval));
   PetscCall(PetscLogEventRegister("TaoConstrEval", TAO_CLASSID, &TAO_ConstraintsEval));
   PetscCall(PetscLogEventRegister("TaoJacobianEval", TAO_CLASSID, &TAO_JacobianEval));
-  PetscCall(PetscLogEventRegister("TaoFixedPointEval", TAO_CLASSID, &TAO_FixedPointEval));
   /* Process Info */
   {
     PetscClassId classids[1];
