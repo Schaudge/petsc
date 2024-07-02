@@ -19,8 +19,6 @@ typedef struct {
   PetscReal lip; /* L_f */
   PetscReal mu_fg; /* mu_f + mu_g */
 
-  PetscReal tau_lv, sigma_lv, rho_lv; /* tau, sigma for LV. sigma=1/(tau |L|^2) */
-
   PetscReal step_old;
   PetscReal gnorm_norm; /* Normalizer for relative error. max(|gradf|, |xdiff/step|) + eps */
 

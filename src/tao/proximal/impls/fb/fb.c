@@ -42,7 +42,6 @@ PetscErrorCode TaoFBSetNonSmoothTerm(Tao tao, DM dm)
   PetscValidHeaderSpecific(dm, DM_CLASSID, 2);
   PetscCall(PetscObjectReference((PetscObject)dm));
   fb->proxterm = dm;
-  fb->lmap     = NULL;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -173,27 +172,64 @@ static PetscErrorCode TaoSolve_FB(Tao tao)
 
   if (fb->use_accel) {
     PetscCall(PetscCitationsRegister(fasta_citation, &fasta_cited));
-    /* FISTA: workvec2 = z_accel_1, workvec = z_accel_0 */
-    PetscCall(VecCopy(tao->solution, fb->workvec2));
+    /* FISTA: dualvec = z_accel_1, workvec = z_accel_0 */
+    PetscCall(VecCopy(tao->solution, fb->dualvec));
   }
-  if (fb->use_adapt) PetscCall(PetscCitationsRegister(adapgm_citation, &adapgm_cited));
+  if (fb->use_adapt) {
+    /* TODO initial stepsize update) */
+    PetscCall(PetscCitationsRegister(adapgm_citation, &adapgm_cited));
+  }
 
   while (tao->reason == TAO_CONTINUE_ITERATING) {
     PetscCall(VecCopy(tao->solution, fb->x_old));
     PetscCall(VecCopy(tao->gradient, fb->grad_old));
 
     if (fb->use_adapt) {
+      PetscReal grad_x_dot, graddiffnorm, xdiffnorm, L, C, min1, min2;
+      /* workvec: v, which is x - step*gradf(x) */
       //TODO adaPGM stepsize stuff here
       //temp \gets sqrt(norm(xnew - xold)
+      /* Gradient eval happens before prox for adaPGM, but after prox for FISTA-variants */
+      if (fb->smoothterm) {
+        PetscCall(DMTaoComputeObjectiveAndGradient(fb->smoothterm, tao->solution, &f, tao->gradient));
+      } else {
+        PetscCall(TaoComputeObjectiveAndGradient(tao, tao->solution, &f, tao->gradient));
+      }
+      /* workvec: (z-x)/step + gradf(x) */
+      PetscCall(VecWAXPY(fb->workvec, -1., tao->solution, fb->dualvec));
+      PetscCall(VecAYPX(fb->workvec, 1/tao->step, tao->gradient));
+      PetscCall(VecNorm(fb->workvec, NORM_2, &gnorm));
+
+      // step update
+      // workvec  : gradf(xnew) - gradf(xold)
+      // workvec3 : xnew - xold
+      PetscCall(VecWAXPY(fb->workvec, -1., fb->grad_old, tao->gradient));
+      PetscCall(VecWAXPY(fb->workvec3, -1., fb->x_old, tao->solution));
+      PetscCall(VecTDot(fb->workvec, fb->workvec3, &grad_x_dot));
+      PetscCall(VecNorm(fb->workvec3, NORM_2, &xdiffnorm));
+      PetscCall(VecNorm(fb->workvec, NORM_2, &graddiffnorm));
+      L = grad_x_dot / xdiffnorm;
+      C = graddiffnorm / grad_x_dot;
+
+      min1 = tao->step * PetscSqrtReal(1+ tao->step/fb->step_old);
+      min2 = tao->step / (2 * PetscSqrtReal(PetscMax(tao->step * L * (tao->step * C - 1), 0)));
+
+      //i need another step_old copy, aka sigma ?
+      tao->step    = PetscMin(min1, min2);
+      fb->step_old = tao->step;
+
+      PetscCall(TaoLogConvergenceHistory(tao, f, PetscSqrtReal(gnorm*gnorm), 0.0, tao->ksp_its));
+      PetscCall(TaoMonitor(tao, tao->niter, f, PetscSqrtReal(gnorm*gnorm), 0.0, tao->step));
+      PetscUseTypeMethod(tao, convergencetest, tao->cnvP);
     }
 
     if (fb->use_accel) {
-      /* FISTA: workvec = z_accel_old, workvec2 = z_accel_new */
-      PetscCall(VecCopy(fb->workvec2, fb->workvec));
+      /* FISTA: workvec = z_accel_old, dualvec = z_accel_new */
+      PetscCall(VecCopy(fb->dualvec, fb->workvec));
     }
 
-    PetscCall(VecWAXPY(fb->workvec2, -tao->step, tao->gradient, tao->solution)); // overwriting workvec, z1 as input for prox, x-step*gradf(x)
-    PetscCall(DMTaoApplyProximalMap(fb->proxterm, fb->reg, 1/(2*tao->step), fb->workvec2, tao->solution, PETSC_FALSE)); //solution is no z_1
+    PetscCall(VecWAXPY(fb->dualvec, -tao->step, tao->gradient, tao->solution)); // overwriting workvec, z1 as input for prox, x-step*gradf(x)
+    PetscCall(DMTaoApplyProximalMap(fb->proxterm, fb->reg, 1/(2*tao->step), fb->dualvec, tao->solution, PETSC_FALSE)); //solution is no z_1
 
     /* -tao_ls_max_funcs 0 -> no linesearch, but constant stepsize
        In this case, constant stepsize needs to be properly chosen for the algorithm to converge.
@@ -202,8 +238,8 @@ static PetscErrorCode TaoSolve_FB(Tao tao)
        -tao_ls_max_funcs >1 -> nonmonotonic linesearch, and size is set via -tao_ls_PSArmijo_memory_size */
     if (!fb->use_adapt && tao->linesearch->max_funcs != 0) {
       PetscCall(TaoLineSearchSetInitialStepLength(tao->linesearch, tao->step));
-      PetscCall(TaoLineSearchApply(tao->linesearch, tao->solution, &f, tao->gradient, fb->workvec2, &tao->step, &ls_status));
-      /* Now, workvec2 = z_accel_new for FISTA, = xnew for else */
+      PetscCall(TaoLineSearchApply(tao->linesearch, tao->solution, &f, tao->gradient, fb->dualvec, &tao->step, &ls_status));
+      /* Now, dualvec = z_accel_new for FISTA, = xnew for else */
       PetscCall(TaoAddLineSearchCounts(tao));
       /* Linesearch failure. Abort */
       if (ls_status != TAOLINESEARCH_SUCCESS && ls_status != TAOLINESEARCH_SUCCESS_USER) {
@@ -218,11 +254,11 @@ static PetscErrorCode TaoSolve_FB(Tao tao)
     if (fb->use_accel) {
       /* |x-z|/step convergene test */
       PetscCall(VecWAXPY(fb->workvec3, -1., tao->solution, fb->workvec));
-      PetscCall(VecNorm(fb->workvec3, NORM_2, &gnorm));
-      gnorm /= tao->step;
+      PetscCall(VecNorm(fb->workvec3, NORM_2, &tao->residual));
+      tao->residual /= tao->step;
       //TODO check convergence criteria...
-      PetscCall(TaoLogConvergenceHistory(tao, f, gnorm, 0.0, tao->ksp_its));
-      PetscCall(TaoMonitor(tao, tao->niter, f, gnorm, 0.0, tao->step));
+      PetscCall(TaoLogConvergenceHistory(tao, f, tao->residual, 0.0, tao->ksp_its));
+      PetscCall(TaoMonitor(tao, tao->niter, f, tao->residual, 0.0, tao->step));
       PetscUseTypeMethod(tao, convergencetest, tao->cnvP);
 
       fb->t_fista_old = (fb->fista_beta < 0) ? 1 : fb->t_fista;
@@ -238,13 +274,8 @@ static PetscErrorCode TaoSolve_FB(Tao tao)
         PetscCall(TaoComputeObjectiveAndGradient(tao, tao->solution, &f, tao->gradient));
       }
     } else {
+      /* Non FISTA type, which includes vanilla, and adaPGM */
     }
-
-    //Logging
-    //TODO gnorm?
-    PetscCall(TaoLogConvergenceHistory(tao, f, 0, 0.0, tao->ksp_its));
-    PetscCall(TaoMonitor(tao, tao->niter, f, 0, 0.0, tao->step));
-    PetscUseTypeMethod(tao, convergencetest, tao->cnvP);
     //TODO VM
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -287,10 +318,6 @@ static PetscErrorCode TaoView_FB(Tao tao, PetscViewer viewer)
       PetscCall(PetscViewerASCIIPrintf(viewer, "Regularizer Term:\n"));
       PetscCall(DMTaoView(fb->reg, viewer));
     }
-    if (fb->lmap) {
-      PetscCall(PetscViewerASCIIPrintf(viewer, "Linear Operator:\n"));
-      PetscCall(MatView(fb->lmap, viewer));
-    }
     PetscCall(PetscViewerASCIIPopTab(viewer));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -305,18 +332,7 @@ static PetscErrorCode TaoSetUp_FB(Tao tao)
   if (!fb->workvec) PetscCall(VecDuplicate(tao->solution, &fb->workvec));
   if (!fb->workvec2) PetscCall(VecDuplicate(tao->solution, &fb->workvec2));
   if (!fb->workvec3) PetscCall(VecDuplicate(tao->solution, &fb->workvec3));
-  /* dualvec is same size as sol if lmap is not set.
-   * If lmap is set, it is same as leftside of matrix */
-  if (!fb->dualvec) {
-    if (fb->lmap) {
-      PetscCall(MatCreateVecs(fb->lmap, NULL, &fb->dualvec));
-      PetscCall(MatCreateVecs(fb->lmap, NULL, &fb->dualwork));
-      PetscCall(MatCreateVecs(fb->lmap, NULL, &fb->dualwork2));
-      PetscCall(VecZeroEntries(fb->dualvec));
-    } else {
-      PetscCall(VecDuplicate(tao->solution, &fb->dualvec));
-    }
-  }
+  if (!fb->dualvec) PetscCall(VecDuplicate(tao->solution, &fb->dualvec));
   if (!fb->x_old) PetscCall(VecDuplicate(tao->solution, &fb->x_old));
   if (!fb->grad_old) PetscCall(VecDuplicate(tao->solution, &fb->grad_old));
   if (!fb->s_vec_lv) {
@@ -351,7 +367,6 @@ static PetscErrorCode TaoDestroy_FB(Tao tao)
   PetscCall(DMDestroy(&fb->reg));
   PetscCall(DMDestroy(&fb->smoothterm));
   PetscCall(DMDestroy(&fb->proxterm));
-  PetscCall(MatDestroy(&fb->lmap));
   PetscCall(PetscFree(tao->data));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -379,10 +394,6 @@ PETSC_EXTERN PetscErrorCode TaoCreate_FB(Tao tao)
   fb->mu_fg       = 0.;
   fb->gnorm_norm  = 0.;
   fb->bb_param    = 0.5;
-  fb->lmap_norm   = 0.;
-  fb->sigma_lv    = 1.;
-  fb->rho_lv      = 1.; //TODO whats optimal init?
-  fb->lmap        = NULL;
   fb->smoothterm  = NULL;
   fb->proxterm    = NULL;
   fb->lip_set     = PETSC_FALSE;

@@ -159,7 +159,13 @@ PetscErrorCode TaoPSSetNonSmoothTermWithLinearMap(Tao tao, DM dm, Mat mat, Petsc
     PetscValidLogicalCollectiveReal(tao, norm, 4);
     cv->g_prox      = dm;
     cv->g_lmap      = mat;
-    cv->g_lmap_norm = norm;
+    if (norm) {
+      cv->g_lmap_norm   = norm;
+      cv->lmap_norm_set = PETSC_TRUE;
+    } else {
+      cv->g_lmap_norm   = 0.;
+      cv->lmap_norm_set = PETSC_FALSE;
+    }
   } else SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid Tao type.");
   PetscFunctionReturn(PETSC_SUCCESS);
 }
