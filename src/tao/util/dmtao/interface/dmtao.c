@@ -696,7 +696,7 @@ PetscErrorCode DMTaoGetCentralVector(DM dm, Vec *y)
 }
 
 /*@
-  DMTaoSetLipschitz - Sets Lipschitz constant of of `DMTao` object.
+  DMTaoSetLipschitz - Sets Lipschitz constant of `DMTao` object.
 
   Logically Collective
 
