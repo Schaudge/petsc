@@ -55,11 +55,78 @@ PetscErrorCode UserObjGrad(Tao tao, Vec X, PetscReal *f, Vec G, void *ptr)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+PetscErrorCode manualData(AppCtx *user)
+{
+  PetscFunctionBegin;
+  MatSetValue(user->A, 0, 0, 0.493886, INSERT_VALUES);
+  MatSetValue(user->A, 1, 0, 0.493602, INSERT_VALUES);
+  MatSetValue(user->A, 2, 0, 0.95334, INSERT_VALUES);
+  MatSetValue(user->A, 3, 0, -0.159568, INSERT_VALUES);
+  MatSetValue(user->A, 4, 0, 0.440955, INSERT_VALUES);
+
+  MatSetValue(user->A, 0, 1, -0.126165, INSERT_VALUES);
+  MatSetValue(user->A, 1, 1, 0.0667351, INSERT_VALUES);
+  MatSetValue(user->A, 2, 1, -0.709366, INSERT_VALUES);
+  MatSetValue(user->A, 3, 1, -0.806696, INSERT_VALUES);
+  MatSetValue(user->A, 4, 1, 0.39602, INSERT_VALUES);
+
+  MatSetValue(user->A, 0, 2, -0.0594853, INSERT_VALUES);
+  MatSetValue(user->A, 1, 2, -0.972651, INSERT_VALUES);
+  MatSetValue(user->A, 2, 2, 0.690508, INSERT_VALUES);
+  MatSetValue(user->A, 3, 2, 0.00638238, INSERT_VALUES);
+  MatSetValue(user->A, 4, 2, -0.981031, INSERT_VALUES);
+
+  MatSetValue(user->A, 0, 3, 0.989288, INSERT_VALUES);
+  MatSetValue(user->A, 1, 3, 0.672411, INSERT_VALUES);
+  MatSetValue(user->A, 2, 3, 0.0625485, INSERT_VALUES);
+  MatSetValue(user->A, 3, 3, -0.643244, INSERT_VALUES);
+  MatSetValue(user->A, 4, 3, -0.195779, INSERT_VALUES);
+
+  MatSetValue(user->A, 0, 4, -0.207008, INSERT_VALUES);
+  MatSetValue(user->A, 1, 4, -0.487988, INSERT_VALUES);
+  MatSetValue(user->A, 2, 4, -0.777435, INSERT_VALUES);
+  MatSetValue(user->A, 3, 4, 0.950613, INSERT_VALUES);
+  MatSetValue(user->A, 4, 4, 0.307498, INSERT_VALUES);
+
+  MatSetValue(user->A, 0, 5, 0.816804, INSERT_VALUES);
+  MatSetValue(user->A, 1, 5, 0.140358, INSERT_VALUES);
+  MatSetValue(user->A, 2, 5, 0.450445, INSERT_VALUES);
+  MatSetValue(user->A, 3, 5, 0.715589, INSERT_VALUES);
+  MatSetValue(user->A, 4, 5, -0.474396, INSERT_VALUES);
+
+  MatSetValue(user->A, 0, 6, 0.309691, INSERT_VALUES);
+  MatSetValue(user->A, 1, 6, 0.874254, INSERT_VALUES);
+  MatSetValue(user->A, 2, 6, 0.201755, INSERT_VALUES);
+  MatSetValue(user->A, 3, 6, -0.552453, INSERT_VALUES);
+  MatSetValue(user->A, 4, 6, -0.462365, INSERT_VALUES);
+
+  MatSetValue(user->A, 0, 7, 0.259592, INSERT_VALUES);
+  MatSetValue(user->A, 1, 7, -0.309828, INSERT_VALUES);
+  MatSetValue(user->A, 2, 7, 0.893619, INSERT_VALUES);
+  MatSetValue(user->A, 3, 7, 0.639405, INSERT_VALUES);
+  MatSetValue(user->A, 4, 7, -0.72335, INSERT_VALUES);
+
+  MatSetValue(user->A, 0, 8, -0.520142, INSERT_VALUES);
+  MatSetValue(user->A, 1, 8, 0.53352, INSERT_VALUES);
+  MatSetValue(user->A, 2, 8, -0.243375, INSERT_VALUES);
+  MatSetValue(user->A, 3, 8, -0.380436, INSERT_VALUES);
+  MatSetValue(user->A, 4, 8, 0.532067, INSERT_VALUES);
+
+  MatSetValue(user->A, 0, 9, -0.582464, INSERT_VALUES);
+  MatSetValue(user->A, 1, 9, 0.431009, INSERT_VALUES);
+  MatSetValue(user->A, 2, 9, -0.361007, INSERT_VALUES);
+  MatSetValue(user->A, 3, 9, -0.154164, INSERT_VALUES);
+  MatSetValue(user->A, 4, 9, 0.415068, INSERT_VALUES);
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode DataCreate(AppCtx *user)
 {
   PetscRandom rctx;
   PetscReal   norm, *array, *array2, *array3, randreal;
   PetscInt    i, *indices, p, temp, temp2;
+  PetscViewer viewer;
 
   PetscFunctionBegin;
   PetscCall(PetscRandomCreate(PETSC_COMM_SELF, &rctx));
@@ -80,9 +147,14 @@ PetscErrorCode DataCreate(AppCtx *user)
   PetscCall(VecNorm(user->workvec, NORM_2, &norm));
   PetscCall(VecScale(user->workvec, 1/norm));
 
+  VecSetValue(user->workvec, 0, 0.34817899371580235, INSERT_VALUES);
+  VecSetValue(user->workvec, 1, 0.05882732877575909, INSERT_VALUES);
+  VecSetValue(user->workvec, 2, 0.7399056632723374, INSERT_VALUES);
+  VecSetValue(user->workvec, 3, 0.07378183042153355, INSERT_VALUES);
+  VecSetValue(user->workvec, 4, 0.5678085810212193, INSERT_VALUES);
+
   PetscCall(MatCreateSeqDense(PETSC_COMM_WORLD, user->m, user->n, NULL, &user->A));
   PetscCall(MatDenseGetArray(user->A, &array));
-
   /* Gaussian Matrix, MATLAB equivalent of A = randn(m,n) */
   for (i = 0; i < user->m * user->n; i++) {
     PetscReal a[1] = {0.};
@@ -91,10 +163,12 @@ PetscErrorCode DataCreate(AppCtx *user)
     PetscCall(PetscPDFSampleGaussian1D(a, NULL, &array[i]));
   }
   PetscCall(MatDenseRestoreArray(user->A, &array));
-  PetscCall(MatAssemblyBegin(user->A, MAT_FINAL_ASSEMBLY));
-  PetscCall(MatAssemblyEnd(user->A, MAT_FINAL_ASSEMBLY));
   PetscCall(MatScale(user->A, 2.));
   PetscCall(MatShift(user->A, -1.));
+
+  manualData(user); //somehow cant load julia mat....
+  PetscCall(MatAssemblyBegin(user->A, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyEnd(user->A, MAT_FINAL_ASSEMBLY));
 
   PetscCall(MatMultTranspose(user->A, user->workvec, user->workvec2));
   PetscCall(VecAbs(user->workvec2));
@@ -153,6 +227,7 @@ PetscErrorCode DataCreate(AppCtx *user)
 
   PetscCall(PetscFree(indices));
   PetscCall(PetscRandomDestroy(&rctx));
+  PetscCall(PetscViewerDestroy(&viewer));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
