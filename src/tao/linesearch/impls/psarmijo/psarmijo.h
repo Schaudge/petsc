@@ -28,6 +28,12 @@
  memory is used to store the previous function values.  The memory is
  initialized 5.
 
+ It should be noted that general Armijo-type linesearch is looking for
+ search direction, which is x + step*d. Howvever, for proxiaml-type algorithms,
+ the search direction is NOT a linear combination of two vectors, but rather
+ an output of a proximal operator, which is often called as a ``solution map".
+ Therefore, PSARMIJO requires a proximal operator inside the linesearch context.
+
  References:
 + * - Armijo, "Minimization of Functions Having Lipschitz Continuous
     First-Partial Derivatives," Pacific Journal of Mathematics, volume 16,
