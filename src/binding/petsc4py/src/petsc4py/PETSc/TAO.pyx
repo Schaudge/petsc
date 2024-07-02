@@ -42,6 +42,7 @@ class TAOType:
     ALMM     = S_(TAOALMM)
     PYTHON   = S_(TAOPYTHON)
     FB       = S_(TAOFB)
+    CV       = S_(TAOCV)
 
 
 class TAOConvergedReason:
