@@ -609,9 +609,10 @@ PetscErrorCode TaoLineSearchIsUsingTaoRoutines(TaoLineSearch ls, PetscBool *flg)
   Logically Collective
 
   Input Parameters:
-+ ls - the `TaoLineSearch` context
-. dm - the `DM` context that contains appropriate proximal mapping
-- dm - the `DM` context for regularizing metric. This may be NULL
++ ls     - the `TaoLineSearch` context
+. dm0    - the `DM` context that contains appropriate proximal mapping
+. scale0 - scale of dm0 object
+- dm1    - the `DM` context for regularizing metric. This may be NULL
 
   Level: advanced
 
@@ -620,14 +621,20 @@ PetscErrorCode TaoLineSearchIsUsingTaoRoutines(TaoLineSearch ls, PetscBool *flg)
 
 .seealso: [](ch_tao), `Tao`, `TaoLineSearch`, `TaoLineSearchCreate()`, `TaoLineSearchSetGradientRoutine()`, `TaoLineSearchSetObjectiveAndGradientRoutine()`, `TaoLineSearchUseTaoRoutines()`
 @*/
-PetscErrorCode TaoLineSearchSetProx(TaoLineSearch ls, DM dm0, DM dm1)
+PetscErrorCode TaoLineSearchSetProx(TaoLineSearch ls, DM dm0, PetscReal scale0, DM dm1)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ls, TAOLINESEARCH_CLASSID, 1);
   PetscValidHeaderSpecific(dm0, DM_CLASSID, 2);
+  PetscCheck(scale0 >= 0, PetscObjectComm((PetscObject)ls), PETSC_ERR_USER, "Scale needs to be non-negative.");
   if (dm1) PetscValidHeaderSpecific(dm1, DM_CLASSID, 2);
-  ls->prox = dm0;
-  if (dm1) ls->prox_reg = dm1;
+  ls->prox       = dm0;
+  ls->prox_scale = scale0;
+  if (dm1) {
+    ls->prox_reg = dm1;
+  } else {
+    ls->prox_reg = NULL;
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

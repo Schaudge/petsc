@@ -131,17 +131,20 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
 
   ls->step = ls->initstep;
 
+  //TODO not wokring for non-monotone rn...
   if (isfb) {
     // Input is prox_g(x- step * gradf(x))
     /* Calculate function at new iterate */
-    PetscCall(TaoLineSearchComputeObjective(ls, xnew, &fk1));
+    PetscCall(TaoLineSearchComputeObjective(ls, xnew, &fk1));//technically dont need this? default f?
+    PetscCall(TaoLineSearchComputeObjective(ls, xold, &temp));//TODO maybe temp should be ref or something
     /* Check criteria */
-    PetscCall(VecWAXPY(armP->work2, -1., xold, xnew));
+    PetscCall(VecWAXPY(armP->work2, -1., xnew, xold));
     PetscCall(VecTDot(armP->work2, armP->work2, &diffnorm));
     PetscCall(VecTDot(armP->work2, g, &inprod));
-    cert = inprod + (1 / (2 * ls->step)) * diffnorm + ref;
-    cert -= fk1;
-    if (cert > ls->rtol) {
+    cert = temp -(inprod + (1 / (2 * ls->step)) * diffnorm + fk1);
+
+    /* for backtracking fista, xold seems to be z */
+    if (cert < ls->rtol) {
       ls->reason = TAOLINESEARCH_SUCCESS;
       PetscFunctionReturn(PETSC_SUCCESS);
     }
@@ -164,7 +167,7 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
     cert = PETSC_INFINITY; // For TAOCV, linesearch needs to go at least once
   } else SETERRQ(PetscObjectComm((PetscObject)ls->tao), PETSC_ERR_USER, "Invalid Tao type.");
 
-  while (cert <= ls->rtol && ls->nfeval < ls->max_funcs) {
+  while (cert >= ls->rtol && ls->nfeval < ls->max_funcs) {
     /* Calculate iterate */
     ++its;
 
@@ -177,17 +180,17 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
       PetscCall(VecWAXPY(armP->work, -ls->step, g, xold));
       /* Note: DMTaoApplyProximalMap's step is for f(x)+step*g(x,y).
        * Thus, need pass stepsize as 1/2step                          */
-      PetscCall(DMTaoApplyProximalMap(ls->prox, ls->prox_reg, 1/(2*ls->step), armP->work, xnew, PETSC_FALSE));
+      PetscCall(DMTaoApplyProximalMap(ls->prox, ls->prox_reg, ls->step*ls->prox_scale, armP->work, xnew, PETSC_FALSE));
       /* Calculate function at new iterate */
-      PetscCall(TaoLineSearchComputeObjective(ls, xnew, &fk1));
+      PetscCall(TaoLineSearchComputeObjective(ls, xnew, &temp));
+//      PetscCall(TaoLineSearchComputeObjective(ls, xold, &fk1));
       /* work2 : x_{k+1} - x_k */
       PetscCall(VecWAXPY(armP->work2, -1., xold, xnew));
       PetscCall(VecTDot(armP->work2, armP->work2, &diffnorm));
       PetscCall(VecTDot(armP->work2, g, &inprod));
-      cert = ref + inprod + (1 / (2 * ls->step)) * diffnorm;
-      cert -= fk1;
+      cert = temp - (inprod + (1 / (2 * ls->step)) * diffnorm + fk1);
 
-      if (cert > ls->rtol) {
+      if (cert < ls->rtol) {
         ls->reason = TAOLINESEARCH_SUCCESS;
         PetscFunctionReturn(PETSC_SUCCESS);
       }

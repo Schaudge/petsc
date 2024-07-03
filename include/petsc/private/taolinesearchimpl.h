@@ -68,6 +68,7 @@ struct _p_TaoLineSearch {
   DM  dm;   /* DM that contains obj, grad routines */
   DM  prox; /* DM that contains proximal map. For PSARMIJO */
   DM  prox_reg;
+  PetscReal prox_scale;
 };
 
 PETSC_EXTERN PetscLogEvent TAOLINESEARCH_Apply;
