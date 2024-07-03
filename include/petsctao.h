@@ -566,9 +566,9 @@ PETSC_EXTERN PetscErrorCode TaoCVUseAdaptiveStep(Tao, PetscBool);
 #else
 PETSC_EXTERN PetscErrorCode TaoPSSetLipschitz(Tao, PetscReal);
 PETSC_EXTERN PetscErrorCode TaoPSSetUseLipApprox(Tao, PetscBool);
-PETSC_EXTERN PetscErrorCode TaoPSSetSmoothTerm(Tao, DM);
-PETSC_EXTERN PetscErrorCode TaoPSSetNonSmoothTerm(Tao, DM);
-PETSC_EXTERN PetscErrorCode TaoPSSetNonSmoothTermWithLinearMap(Tao, DM, Mat, PetscReal);
+PETSC_EXTERN PetscErrorCode TaoPSSetSmoothTerm(Tao, DM, PetscReal);
+PETSC_EXTERN PetscErrorCode TaoPSSetNonSmoothTerm(Tao, DM, PetscReal);
+PETSC_EXTERN PetscErrorCode TaoPSSetNonSmoothTermWithLinearMap(Tao, DM, Mat, PetscReal, PetscReal);
 PETSC_EXTERN PetscErrorCode TaoPSUseAcceleration(Tao, PetscBool); //TODO Acceleration vs Momentum vs Nesterov?
 PETSC_EXTERN PetscErrorCode TaoPSUseAdaptiveStep(Tao, PetscBool);
 #endif

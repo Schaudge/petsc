@@ -13,6 +13,9 @@ typedef struct {
   PetscReal step_old;
   PetscReal gnorm_norm;
   PetscReal g_lmap_norm;
+  PetscReal f_scale;
+  PetscReal g_scale;
+  PetscReal h_scale;
   PetscReal lip;
   PetscReal rho;
   PetscReal sigma;

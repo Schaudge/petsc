@@ -21,6 +21,8 @@ typedef struct {
 
   PetscReal step_old;
   PetscReal gnorm_norm; /* Normalizer for relative error. max(|gradf|, |xdiff/step|) + eps */
+  PetscReal f_scale;
+  PetscReal prox_scale;
 
   PetscBool use_accel;
   PetscBool use_adapt;
