@@ -105,7 +105,7 @@ PetscErrorCode DMTaoView(DM dm, PetscViewer viewer)
   DMTao     tdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm, DMTAO_CLASSID, 1);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   PetscCall(DMGetDMTao(dm, &tdm));
   if (!viewer) PetscCall(PetscViewerASCIIGetStdout(((PetscObject)tdm)->comm, &viewer));
   PetscValidHeaderSpecific(viewer, PETSC_VIEWER_CLASSID, 2);
