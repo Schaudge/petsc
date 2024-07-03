@@ -3,6 +3,8 @@
 
 #include <petsctao.h>
 #include <petscdm.h>
+#include <petscksp.h>
+#include <petscmat.h>
 
 static char help[] = "This example demonstrates TaoFB to solve proximal algorithm. \n";
 
@@ -16,9 +18,9 @@ typedef enum {
 typedef struct {
   ProblemType probType;
   PetscInt    m, n, k; //A : m x n, k : signal sparsity
-  Mat         A;
+  Mat         A, ATA;
   Vec         x0, x, workvec, workvec2, workvec3, b;
-  PetscReal   scale, optimum;
+  PetscReal   scale, optimum, lip;
 } AppCtx;
 
 /* Objective and Gradient
@@ -124,9 +126,8 @@ PetscErrorCode manualData(AppCtx *user)
 PetscErrorCode DataCreate(AppCtx *user)
 {
   PetscRandom rctx;
-  PetscReal   norm, *array, *array2, *array3, randreal;
-  PetscInt    i, *indices, p, temp, temp2;
-  PetscViewer viewer;
+  PetscReal   norm, *array, *array2, *array3, temp2;
+  PetscInt    i, *indices, p, temp;
 
   PetscFunctionBegin;
   PetscCall(PetscRandomCreate(PETSC_COMM_SELF, &rctx));
@@ -182,17 +183,23 @@ PetscErrorCode DataCreate(AppCtx *user)
   PetscCall(VecGetArray(user->x0, &array3));
   PetscCall(PetscSortRealWithArrayInt(user->n, array, indices)); //in increasing order
 
-  for (i = 0; i < user->n; i++) {
+  PetscReal randarr[6] = {0.8812782509403484, 0.9318977128510509, 0.8367505346120852,
+                       0.9813388392678519, 0.3942976628581718, 0.06878420133755148};
+   PetscInt j = 0;
+//  for (i = 0; i < user->n; i++) {
+  for (i = user->n - 1; i >= 0; i--) {
     temp = indices[i];
-    if (i > user->n - p) { //TODO julia 1-indexing crap..
+    if (i >= user->n - p) { //TODO julia 1-indexing crap..
       array3[temp] = user->scale / array2[temp];
     } else {
       temp2 = array2[temp];
-      if (temp < 0.1*user->scale) {
+      if (temp2 < 0.1*user->scale) {
         array3[temp] = user->scale;
       } else {
-        PetscCall(PetscRandomGetValueReal(rctx, &randreal));
-        array3[temp] = user->scale * randreal / temp2;
+//        PetscCall(PetscRandomGetValueReal(rctx, &randreal));
+//        array3[temp] = user->scale * randreal / temp2;
+        array3[temp] = user->scale * randarr[j]/ temp2;
+        j++;
       }
     }
   }
@@ -206,13 +213,21 @@ PetscErrorCode DataCreate(AppCtx *user)
   // x0 is x_star
   PetscCall(VecSet(user->x0, 0.));
   PetscCall(VecGetArray(user->x0, &array));
-  for (i = 0; i < user->n; i++) {
-    if (i > user->n - p) {
+
+//  PetscReal randarr2[2] = {0.6325038460017051, 0.0438830190403352};
+  PetscReal randarr2[2] = {0.8812782509403484, 0.9318977128510509};
+  j = 0;
+
+//  for (i = 0; i < user->n; i++) {
+  for (i = user->n - 1; i >= 0; i--) {
+    if (i >= user->n - p) {
       temp = indices[i];
-      PetscCall(PetscRandomGetValueReal(rctx, &randreal));
-      PetscCall(MatGetColumnVector(user->A, user->workvec3, temp-1));
+//      PetscCall(PetscRandomGetValueReal(rctx, &randreal));
+      PetscCall(MatGetColumnVector(user->A, user->workvec3, temp));
       PetscCall(VecDot(user->workvec3, user->workvec, &norm));
-      array[temp] = randreal*PetscSqrtReal((int) p) * PetscSign(norm);
+//      array[temp] = randreal*PetscSqrtReal((int) p) * PetscSign(norm);
+      array[temp] = randarr2[j]/PetscSqrtReal((double) p) * PetscSign(norm);
+      j++;
     }
   }
   PetscCall(VecRestoreArray(user->x0, &array));
@@ -227,7 +242,29 @@ PetscErrorCode DataCreate(AppCtx *user)
 
   PetscCall(PetscFree(indices));
   PetscCall(PetscRandomDestroy(&rctx));
-  PetscCall(PetscViewerDestroy(&viewer));
+
+  PetscCall(MatTransposeMatMult(user->A, user->A, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &user->ATA));
+
+  KSP       ksp;
+  PetscReal emax, emin;
+
+  PetscCall(KSPCreate(PETSC_COMM_WORLD, &ksp));
+  PetscCall(KSPSetType(ksp, KSPCG));
+  PetscCall(KSPSetOperators(ksp, user->ATA, user->ATA));
+  PetscCall(KSPSetFromOptions(ksp));
+  PetscCall(KSPSetComputeEigenvalues(ksp, PETSC_TRUE));
+  PetscCall(KSPSetUp(ksp));
+  PetscCall(VecSetRandom(user->x, rctx));
+  PetscCall(KSPSolve(ksp, user->x, user->workvec2));
+  PetscCall(KSPComputeExtremeSingularValues(ksp, &emax, &emin));
+
+  user->lip = emax * emax;
+  //Note: for 5*10, julia gives (scale=10), 35.65014107630037, petsc 44.923013618611812
+  user->lip = 35.65014107630037*35.65014107630037;
+
+  PetscCall(VecSet(user->x, 0.));
+  PetscCall(MatDestroy(&user->ATA));
+  PetscCall(KSPDestroy(&ksp));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -238,6 +275,8 @@ PetscErrorCode DataDestroy(AppCtx *user)
   PetscCall(VecDestroy(&user->x0));
   PetscCall(VecDestroy(&user->b));
   PetscCall(VecDestroy(&user->workvec));
+  PetscCall(VecDestroy(&user->workvec2));
+  PetscCall(VecDestroy(&user->workvec3));
   PetscCall(MatDestroy(&user->A));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -252,7 +291,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *user)
   user->k        = 5;
   user->n        = 20;
   user->m        = 10;
-  user->scale    = 1.e-4;
+  user->scale    = 1.;
   user->probType = USE_TAO;
   PetscOptionsBegin(comm, "", "Forward-backward example", "TAO");
   probtype = user->probType;
@@ -274,17 +313,16 @@ int main(int argc, char **argv)
   DM        fdm, gdm;
   Tao       tao;
   AppCtx    user;
-  PetscReal v1, v2, matnorm;
+  PetscReal v1, v2;
 
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, (char *)0, help));
   PetscCall(ProcessOptions(PETSC_COMM_WORLD, &user));
   PetscCheck(user.n > 2, PETSC_COMM_WORLD, PETSC_ERR_USER, "Problem size needs to be greater than 2.");
   PetscCall(DataCreate(&user));
-  MatNorm(user.A, NORM_FROBENIUS, &matnorm);
 
   PetscCall(TaoCreate(PETSC_COMM_WORLD, &tao));
-  PetscCall(TaoSetSolution(tao, user.x0));
+  PetscCall(TaoSetSolution(tao, user.x));
   PetscCall(TaoSetType(tao, TAOFB));
   PetscCall(DMCreate(PETSC_COMM_WORLD, &fdm));
   PetscCall(DMCreate(PETSC_COMM_WORLD, &gdm));
@@ -293,25 +331,25 @@ int main(int argc, char **argv)
   switch (user.probType) {
   case USE_TAO:
     PetscCall(TaoSetObjectiveAndGradient(tao, NULL, UserObjGrad, (void *)&user));
-    PetscCall(TaoPSSetLipschitz(tao, matnorm));
+    PetscCall(TaoPSSetLipschitz(tao, user.lip));
     break;
   case USE_DM:
     PetscCall(DMTaoSetObjectiveAndGradient(fdm, UserObjGrad_DM, (void *)&user));
-    PetscCall(DMTaoSetLipschitz(fdm, matnorm));
-    PetscCall(TaoPSSetSmoothTerm(tao, fdm));
+    PetscCall(DMTaoSetLipschitz(fdm, user.lip));
+    PetscCall(TaoPSSetSmoothTerm(tao, fdm, 1));
     break;
   default:
     SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid problem formulation type.");
   }
 
-  PetscCall(TaoPSSetNonSmoothTerm(tao, gdm));
+  PetscCall(TaoPSSetNonSmoothTerm(tao, gdm, user.scale));
   PetscCall(TaoSetFromOptions(tao));
   PetscCall(TaoSolve(tao));
 
   /* compute the error */
+  PetscCall(VecNorm(user.x0, NORM_2, &v2));
   PetscCall(VecAXPY(user.x0, -1, user.x));
   PetscCall(VecNorm(user.x0, NORM_2, &v1));
-  PetscCall(VecNorm(user.x, NORM_2, &v2));
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "relative reconstruction error: ||x-xGT||/||xGT|| = %6.4e.\n", (double)(v1 / v2)));
 
   PetscCall(DataDestroy(&user));
