@@ -184,7 +184,7 @@ struct _p_Tao {
   PetscInt ngrads;
   PetscInt nfuncgrads;
   PetscInt nhess;
-  PetscInt nfpi;
+  PetscInt nproxs;
   PetscInt niter;
   PetscInt ntotalits;
   PetscInt nconstraints;
