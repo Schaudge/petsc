@@ -56,6 +56,7 @@ struct _p_TaoLineSearch {
   PetscInt                     nfeval;
   PetscInt                     ngeval;
   PetscInt                     nfgeval;
+  PetscInt                     nproxeval;
   TaoLineSearchConvergedReason reason;
 
   PetscReal rtol;    /* relative tol for acceptable step (rtol>0) */
