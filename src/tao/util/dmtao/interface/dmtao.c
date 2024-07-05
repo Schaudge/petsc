@@ -886,11 +886,13 @@ PetscErrorCode DMTaoComputeObjective(DM dm, Vec x, PetscReal *f)
   if (tdm->usetaoroutines) {
     PetscCall(TaoComputeObjective(tdm->dm_subtao, x, f));
   } else {
-    PetscCheck(tdm->ops->computeobjective || tdm->ops->computeobjectiveandgradient, PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_WRONGSTATE, "DMTao does not have objective function set");
     if (tdm->ops->computeobjective) PetscCallBack("DMTao callback objective", (*tdm->ops->computeobjective)(dm, x, f, tdm->userctx_func));
-    else {
+    else if (tdm->ops->computeobjectiveandgradient) {
       if (!tdm->workvec) { PetscCall(VecDuplicate(x, &tdm->workvec)); }
       PetscCallBack("DMTao callback objective/gradient", (*tdm->ops->computeobjectiveandgradient)(dm, x, f, tdm->workvec, tdm->userctx_funcgrad));
+    } else {
+      /* No objective function. Return 0. TODO should there be PetscInfo here? */
+      *f = 0.;
     }
   }
   PetscCall(PetscLogEventEnd(DMTAO_Eval, dm, x, NULL, NULL));

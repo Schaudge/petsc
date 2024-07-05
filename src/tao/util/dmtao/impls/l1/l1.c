@@ -35,6 +35,24 @@ static PetscErrorCode DMTaoView_L1(DMTao dm, PetscViewer pv)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode DMTaoComputeObjective_L1(DM dm, Vec X, PetscReal *f, void *ctx)
+{
+  Vec   y;
+  DMTao tdm;
+
+  PetscFunctionBegin;
+  PetscCall(DMGetDMTao(dm, &tdm));
+  PetscCall(DMTaoGetCentralVector(dm, &y));
+  //TODO ignoring VM for now
+
+  if (y) {
+    PetscCall(VecWAXPY(tdm->workvec, -1., y, X));
+    PetscCall(VecNorm(tdm->workvec, NORM_1, f));
+  } else PetscCall(VecNorm(X, NORM_1, f));
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /*@
   DMTaoL1SetContext - sets the upperbound and lowerbound context for `DMTAOL1`
 
@@ -126,6 +144,7 @@ PETSC_EXTERN PetscErrorCode DMTaoCreate_L1_Private(DMTao dm)
   ctx->lb                   = 0.;
   ctx->ub                   = 0.;
   dm->ops->applyproximalmap = DMTaoApplyProximalMap_L1;
+  dm->ops->computeobjective = DMTaoComputeObjective_L1;
   dm->data                  = (void *)ctx;
   dm->ops->setup            = NULL;
   dm->ops->destroy          = DMTaoContextDestroy_L1;
