@@ -145,8 +145,8 @@ static PetscErrorCode TaoFB_ComputeResidual_And_LogConv_Private(Tao tao, PetscRe
 
   PetscFunctionBegin;
 
-#if 0
   PetscCall(VecNorm(tao->gradient, NORM_2, &gradnorm));
+#if 0
   PetscCall(VecWAXPY(fb->workvec3, -1., tao->solution, fb->dualvec));
   PetscCall(VecScale(fb->workvec3, 1/tao->step));
   PetscCall(VecNorm(fb->workvec3, NORM_2, &gnorm0));
@@ -167,9 +167,18 @@ static PetscErrorCode TaoFB_ComputeResidual_And_LogConv_Private(Tao tao, PetscRe
     tao->residual = PetscSqrtReal(gnorm);
   } else if (!fb->use_accel && !fb->use_adapt && tao->linesearch->max_funcs > 0) {
     /* Backtracking PG */
-    PetscCall(VecWAXPY(fb->workvec3, -1., tao->solution, fb->dualvec));
+    //need to update dualvec, xhat as our stepsize may have changed. TODO petscstateref to avoid this?
+    PetscCall(VecWAXPY(fb->workvec3, -1., tao->solution, fb->x_old));
     PetscCall(VecNorm(fb->workvec3, NORM_2, &tao->residual));
     tao->residual /= tao->step;
+
+    //xhat update
+    PetscCall(VecWAXPY(fb->workvec3, -1., tao->gradient, fb->x_old));
+    PetscCall(VecAXPY(fb->workvec3, -1., tao->solution));
+    PetscCall(VecNorm(fb->workvec3, NORM_2, &gnorm0));
+
+    gnorm0     /= tao->step;
+    tao->gnorm0 = PetscMax(gradnorm, gnorm0) + tao->gttol;
   } else if (fb->use_accel) {
     /* Nesterov-types, both backtracking and fixed */
     PetscCall(VecWAXPY(fb->workvec3, -1., tao->solution, fb->dualvec));
@@ -274,7 +283,7 @@ static PetscErrorCode TaoSolve_FB(Tao tao)
   if (fb->use_adapt) {
     /* TODO initial stepsize update) */
     PetscCall(PetscCitationsRegister(adapgm_citation, &adapgm_cited));
-  }
+  }//TODO dualvec for backtracking PG is not set... just got lucky with veczero...
 
 //TODO fixed nesterov, muf mug stuff
   while (tao->reason == TAO_CONTINUE_ITERATING) {
@@ -285,8 +294,9 @@ static PetscErrorCode TaoSolve_FB(Tao tao)
     if (!fb->use_accel && !fb->use_adapt && tao->linesearch->max_funcs > 0) tao->step *= fb->eta;
 
     /* Note: DMTaoApplyProximalMap's scale is 1/(2*step) */
-    if (fb->use_accel || (!fb->use_accel && !fb->use_adapt && tao->linesearch->max_funcs > 0)) {
-      /* Nesterov-type, and backtracking PG */
+//    if (fb->use_accel || (!fb->use_accel && !fb->use_adapt && tao->linesearch->max_funcs > 0)) {
+    if (fb->use_accel) {
+      /* Nesterov-type, and backtracking PG (nope TODO trying) */
       PetscCall(VecWAXPY(fb->workvec, -tao->step, tao->gradient, fb->dualvec));
       PetscCall(DMTaoApplyProximalMap(fb->proxterm, fb->reg, tao->step*fb->prox_scale, fb->workvec, tao->solution, PETSC_FALSE));
       tao->nproxs++;
@@ -305,7 +315,7 @@ static PetscErrorCode TaoSolve_FB(Tao tao)
     if (!fb->use_adapt && tao->linesearch->max_funcs > 0) {
       //TODO not sure whether this works for backtracking nesterov
       PetscCall(TaoLineSearchSetInitialStepLength(tao->linesearch, tao->step));
-      PetscCall(TaoLineSearchApply(tao->linesearch, fb->dualvec, &f, tao->gradient, tao->solution, &tao->step, &ls_status));
+      PetscCall(TaoLineSearchApply(tao->linesearch, fb->x_old, &f, tao->gradient, tao->solution, &tao->step, &ls_status));
       PetscCall(TaoAddLineSearchCounts(tao));
       /* Linesearch failure. Abort */
       if (ls_status != TAOLINESEARCH_SUCCESS && ls_status != TAOLINESEARCH_SUCCESS_USER) {
