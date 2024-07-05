@@ -11,16 +11,22 @@ static char help[] = "This example demonstrates TaoFB to solve proximal algorith
 /* https://github.com/tomgoldstein/fasta-matlab/blob/master/test_sparseLeastSquares.m */
 
 typedef enum {
+  PROB_LASSO,
+  PROB_LOG_REG
+} ProbType;
+
+typedef enum {
   USE_TAO,
   USE_DM
-} ProblemType;
+} FormType;
 
 typedef struct {
-  ProblemType probType;
-  PetscInt    m, n, k; //A : m x n, k : signal sparsity
-  Mat         A, ATA;
-  Vec         x0, x, workvec, workvec2, workvec3, b;
-  PetscReal   scale, optimum, lip;
+  ProbType  probType;
+  FormType  formType;
+  PetscInt  m, n, k; //A : m x n, k : signal sparsity
+  Mat       A, ATA;
+  Vec       x0, x, workvec, workvec2, workvec3, b;
+  PetscReal scale, optimum, lip;
 } AppCtx;
 
 /* Objective and Gradient
@@ -130,141 +136,165 @@ PetscErrorCode DataCreate(AppCtx *user)
   PetscInt    i, *indices, p, temp;
 
   PetscFunctionBegin;
-  PetscCall(PetscRandomCreate(PETSC_COMM_SELF, &rctx));
-  PetscCall(PetscRandomSetFromOptions(rctx));
+  switch (user->probType) {
+  case PROB_LASSO:
+    PetscCall(PetscRandomCreate(PETSC_COMM_SELF, &rctx));
+    PetscCall(PetscRandomSetFromOptions(rctx));
 
-  p = PetscCeilInt(user->n , user->k);
+    p = PetscCeilInt(user->n , user->k);
 
-  PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->n, &user->x));
-  PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->n, &user->x0));
-  PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->n, &user->workvec2));
-  PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->m, &user->workvec));
-  PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->m, &user->workvec3));
-  PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->m, &user->b));
-  PetscCall(VecSet(user->x0, 0.));
+    PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->n, &user->x));
+    PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->n, &user->x0));
+    PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->n, &user->workvec2));
+    PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->m, &user->workvec));
+    PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->m, &user->workvec3));
+    PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->m, &user->b));
+    PetscCall(VecSet(user->x0, 0.));
 
-  //workvec: y_star
-  PetscCall(VecSetRandom(user->workvec, rctx));
-  PetscCall(VecNorm(user->workvec, NORM_2, &norm));
-  PetscCall(VecScale(user->workvec, 1/norm));
+    //workvec: y_star
+    PetscCall(VecSetRandom(user->workvec, rctx));
+    PetscCall(VecNorm(user->workvec, NORM_2, &norm));
+    PetscCall(VecScale(user->workvec, 1/norm));
 
-  VecSetValue(user->workvec, 0, 0.34817899371580235, INSERT_VALUES);
-  VecSetValue(user->workvec, 1, 0.05882732877575909, INSERT_VALUES);
-  VecSetValue(user->workvec, 2, 0.7399056632723374, INSERT_VALUES);
-  VecSetValue(user->workvec, 3, 0.07378183042153355, INSERT_VALUES);
-  VecSetValue(user->workvec, 4, 0.5678085810212193, INSERT_VALUES);
+    VecSetValue(user->workvec, 0, 0.34817899371580235, INSERT_VALUES);
+    VecSetValue(user->workvec, 1, 0.05882732877575909, INSERT_VALUES);
+    VecSetValue(user->workvec, 2, 0.7399056632723374, INSERT_VALUES);
+    VecSetValue(user->workvec, 3, 0.07378183042153355, INSERT_VALUES);
+    VecSetValue(user->workvec, 4, 0.5678085810212193, INSERT_VALUES);
 
-  PetscCall(MatCreateSeqDense(PETSC_COMM_WORLD, user->m, user->n, NULL, &user->A));
-  PetscCall(MatDenseGetArray(user->A, &array));
-  /* Gaussian Matrix, MATLAB equivalent of A = randn(m,n) */
-  for (i = 0; i < user->m * user->n; i++) {
-    PetscReal a[1] = {0.};
+    PetscCall(MatCreateSeqDense(PETSC_COMM_WORLD, user->m, user->n, NULL, &user->A));
+    PetscCall(MatDenseGetArray(user->A, &array));
+    /* Gaussian Matrix, MATLAB equivalent of A = randn(m,n) */
+    for (i = 0; i < user->m * user->n; i++) {
+      PetscReal a[1] = {0.};
 
-    PetscCall(PetscRandomGetValueReal(rctx, &a[0]));
-    PetscCall(PetscPDFSampleGaussian1D(a, NULL, &array[i]));
-  }
-  PetscCall(MatDenseRestoreArray(user->A, &array));
-  PetscCall(MatScale(user->A, 2.));
-  PetscCall(MatShift(user->A, -1.));
+      PetscCall(PetscRandomGetValueReal(rctx, &a[0]));
+      PetscCall(PetscPDFSampleGaussian1D(a, NULL, &array[i]));
+    }
+    PetscCall(MatDenseRestoreArray(user->A, &array));
+    PetscCall(MatScale(user->A, 2.));
+    PetscCall(MatShift(user->A, -1.));
 
-  manualData(user); //somehow cant load julia mat....
-  PetscCall(MatAssemblyBegin(user->A, MAT_FINAL_ASSEMBLY));
-  PetscCall(MatAssemblyEnd(user->A, MAT_FINAL_ASSEMBLY));
+    manualData(user); //somehow cant load julia mat....
+    PetscCall(MatAssemblyBegin(user->A, MAT_FINAL_ASSEMBLY));
+    PetscCall(MatAssemblyEnd(user->A, MAT_FINAL_ASSEMBLY));
 
-  PetscCall(MatMultTranspose(user->A, user->workvec, user->workvec2));
-  PetscCall(VecAbs(user->workvec2));
-  PetscCall(VecCopy(user->workvec2, user->x)); // using x vec as workvec for sortperm
-  PetscCall(PetscMalloc1(user->n, &indices));
-  for (i = 0; i < user->n; i++) indices[i] = i;
+    PetscCall(MatMultTranspose(user->A, user->workvec, user->workvec2));
+    PetscCall(VecAbs(user->workvec2));
+    PetscCall(VecCopy(user->workvec2, user->x)); // using x vec as workvec for sortperm
+    PetscCall(PetscMalloc1(user->n, &indices));
+    for (i = 0; i < user->n; i++) indices[i] = i;
 
-  /* indices: perm, workvec2: CTy, x0: alpha */
-  PetscCall(VecGetArray(user->x, &array));
-  PetscCall(VecGetArray(user->workvec2, &array2));
-  PetscCall(VecGetArray(user->x0, &array3));
-  PetscCall(PetscSortRealWithArrayInt(user->n, array, indices)); //in increasing order
+    /* indices: perm, workvec2: CTy, x0: alpha */
+    PetscCall(VecGetArray(user->x, &array));
+    PetscCall(VecGetArray(user->workvec2, &array2));
+    PetscCall(VecGetArray(user->x0, &array3));
+    PetscCall(PetscSortRealWithArrayInt(user->n, array, indices)); //in increasing order
 
-  PetscReal randarr[6] = {0.8812782509403484, 0.9318977128510509, 0.8367505346120852,
-                       0.9813388392678519, 0.3942976628581718, 0.06878420133755148};
-   PetscInt j = 0;
-//  for (i = 0; i < user->n; i++) {
-  for (i = user->n - 1; i >= 0; i--) {
-    temp = indices[i];
-    if (i >= user->n - p) { //TODO julia 1-indexing crap..
-      array3[temp] = user->scale / array2[temp];
-    } else {
-      temp2 = array2[temp];
-      if (temp2 < 0.1*user->scale) {
-        array3[temp] = user->scale;
+    PetscReal randarr[6] = {0.8812782509403484, 0.9318977128510509, 0.8367505346120852,
+                         0.9813388392678519, 0.3942976628581718, 0.06878420133755148};
+     PetscInt j = 0;
+  //  for (i = 0; i < user->n; i++) {
+    for (i = user->n - 1; i >= 0; i--) {
+      temp = indices[i];
+      if (i >= user->n - p) { //TODO julia 1-indexing crap..
+        array3[temp] = user->scale / array2[temp];
       } else {
-//        PetscCall(PetscRandomGetValueReal(rctx, &randreal));
-//        array3[temp] = user->scale * randreal / temp2;
-        array3[temp] = user->scale * randarr[j]/ temp2;
+        temp2 = array2[temp];
+        if (temp2 < 0.1*user->scale) {
+          array3[temp] = user->scale;
+        } else {
+  //        PetscCall(PetscRandomGetValueReal(rctx, &randreal));
+  //        array3[temp] = user->scale * randreal / temp2;
+          array3[temp] = user->scale * randarr[j]/ temp2;
+          j++;
+        }
+      }
+    }
+    PetscCall(VecRestoreArray(user->x, &array));
+    PetscCall(VecRestoreArray(user->workvec2, &array2));
+    PetscCall(VecRestoreArray(user->x0, &array3));
+
+    PetscCall(MatDiagonalScale(user->A, NULL, user->x0));
+
+    // generate the primal solution
+    // x0 is x_star
+    PetscCall(VecSet(user->x0, 0.));
+    PetscCall(VecGetArray(user->x0, &array));
+
+  //  PetscReal randarr2[2] = {0.6325038460017051, 0.0438830190403352};
+    PetscReal randarr2[2] = {0.8812782509403484, 0.9318977128510509};
+    j = 0;
+
+  //  for (i = 0; i < user->n; i++) {
+    for (i = user->n - 1; i >= 0; i--) {
+      if (i >= user->n - p) {
+        temp = indices[i];
+  //      PetscCall(PetscRandomGetValueReal(rctx, &randreal));
+        PetscCall(MatGetColumnVector(user->A, user->workvec3, temp));
+        PetscCall(VecDot(user->workvec3, user->workvec, &norm));
+  //      array[temp] = randreal*PetscSqrtReal((int) p) * PetscSign(norm);
+        array[temp] = randarr2[j]/PetscSqrtReal((double) p) * PetscSign(norm);
         j++;
       }
     }
-  }
-  PetscCall(VecRestoreArray(user->x, &array));
-  PetscCall(VecRestoreArray(user->workvec2, &array2));
-  PetscCall(VecRestoreArray(user->x0, &array3));
+    PetscCall(VecRestoreArray(user->x0, &array));
+    PetscCall(MatMultAdd(user->A, user->x0, user->workvec, user->b));
+    PetscCall(VecNorm(user->workvec, NORM_2, &norm));
+    user->optimum = norm/2.;
 
-  PetscCall(MatDiagonalScale(user->A, NULL, user->x0));
+    PetscCall(VecNorm(user->x0, NORM_1, &norm));
+    user->optimum += user->scale*norm;
 
-  // generate the primal solution
-  // x0 is x_star
-  PetscCall(VecSet(user->x0, 0.));
-  PetscCall(VecGetArray(user->x0, &array));
+    PetscCall(PetscFree(indices));
+    PetscCall(PetscRandomDestroy(&rctx));
+    PetscCall(MatTransposeMatMult(user->A, user->A, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &user->ATA));
 
-//  PetscReal randarr2[2] = {0.6325038460017051, 0.0438830190403352};
-  PetscReal randarr2[2] = {0.8812782509403484, 0.9318977128510509};
-  j = 0;
+    KSP       ksp;
+    PetscReal emax, emin;
 
-//  for (i = 0; i < user->n; i++) {
-  for (i = user->n - 1; i >= 0; i--) {
-    if (i >= user->n - p) {
-      temp = indices[i];
-//      PetscCall(PetscRandomGetValueReal(rctx, &randreal));
-      PetscCall(MatGetColumnVector(user->A, user->workvec3, temp));
-      PetscCall(VecDot(user->workvec3, user->workvec, &norm));
-//      array[temp] = randreal*PetscSqrtReal((int) p) * PetscSign(norm);
-      array[temp] = randarr2[j]/PetscSqrtReal((double) p) * PetscSign(norm);
-      j++;
+    PetscCall(KSPCreate(PETSC_COMM_WORLD, &ksp));
+    PetscCall(KSPSetType(ksp, KSPCG));
+    PetscCall(KSPSetOperators(ksp, user->ATA, user->ATA));
+    PetscCall(KSPSetFromOptions(ksp));
+    PetscCall(KSPSetComputeEigenvalues(ksp, PETSC_TRUE));
+    PetscCall(KSPSetUp(ksp));
+    PetscCall(VecSetRandom(user->x, rctx));
+    PetscCall(KSPSolve(ksp, user->x, user->workvec2));
+    PetscCall(KSPComputeExtremeSingularValues(ksp, &emax, &emin));
+
+    user->lip = emax * emax;
+    //Note: for 5*10, julia gives (scale=10), 35.65014107630037, petsc 44.923013618611812
+    user->lip = 35.65014107630037*35.65014107630037;
+
+    PetscCall(VecSet(user->x, 0.));
+    PetscCall(MatDestroy(&user->ATA));
+    PetscCall(KSPDestroy(&ksp));
+    break;
+  case PROB_LOG_REG:
+    {
+      PetscViewer viewer;
+      char mat_data[] = "matrix-heart-scale.dat";
+      char vec_data[] = "vector-heart-scale.dat";
+
+      PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, mat_data, FILE_MODE_READ, &viewer));
+      PetscCall(MatCreate(PETSC_COMM_WORLD, &user->A));
+      PetscCall(MatSetType(user->A, MATSEQAIJ));
+      PetscCall(MatLoad(user->A, viewer));
+
+      /* Lip is computed via
+       * A1 = [A; VecOnes(m)];
+       * Lip = Norm(A1 @ A1') / 4 / m */
+      user->lip = 1.052285051684358;
+
+      PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, vec_data, FILE_MODE_READ, &viewer));
+      PetscCall(VecCreate(PETSC_COMM_WORLD, &user->b));
+      PetscCall(VecLoad(user->b, viewer));
+      PetscCall(PetscViewerDestroy(&viewer));
     }
+    break;
+  break;
   }
-  PetscCall(VecRestoreArray(user->x0, &array));
-
-  PetscCall(MatMultAdd(user->A, user->x0, user->workvec, user->b));
-
-  PetscCall(VecNorm(user->workvec, NORM_2, &norm));
-  user->optimum = norm/2.;
-
-  PetscCall(VecNorm(user->x0, NORM_1, &norm));
-  user->optimum += user->scale*norm;
-
-  PetscCall(PetscFree(indices));
-  PetscCall(PetscRandomDestroy(&rctx));
-
-  PetscCall(MatTransposeMatMult(user->A, user->A, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &user->ATA));
-
-  KSP       ksp;
-  PetscReal emax, emin;
-
-  PetscCall(KSPCreate(PETSC_COMM_WORLD, &ksp));
-  PetscCall(KSPSetType(ksp, KSPCG));
-  PetscCall(KSPSetOperators(ksp, user->ATA, user->ATA));
-  PetscCall(KSPSetFromOptions(ksp));
-  PetscCall(KSPSetComputeEigenvalues(ksp, PETSC_TRUE));
-  PetscCall(KSPSetUp(ksp));
-  PetscCall(VecSetRandom(user->x, rctx));
-  PetscCall(KSPSolve(ksp, user->x, user->workvec2));
-  PetscCall(KSPComputeExtremeSingularValues(ksp, &emax, &emin));
-
-  user->lip = emax * emax;
-  //Note: for 5*10, julia gives (scale=10), 35.65014107630037, petsc 44.923013618611812
-  user->lip = 35.65014107630037*35.65014107630037;
-
-  PetscCall(VecSet(user->x, 0.));
-  PetscCall(MatDestroy(&user->ATA));
-  PetscCall(KSPDestroy(&ksp));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -283,22 +313,27 @@ PetscErrorCode DataDestroy(AppCtx *user)
 
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *user)
 {
-  const char *probTypes[2] = {"use_tao", "use_dm"};
+  const char *formTypes[2] = {"use_tao", "use_dm"};
+  const char *probTypes[2] = {"prob_lasso", "prob_log_reg"};
 
-  PetscInt probtype;
+  PetscInt formtype, probtype;
 
   PetscFunctionBegin;
   user->k        = 5;
   user->n        = 20;
   user->m        = 10;
   user->scale    = 1.;
-  user->probType = USE_TAO;
+  user->formType = USE_TAO;
+  user->probType = PROB_LASSO;
+  formtype       = user->formType;
+  probtype       = user->probType;
+
   PetscOptionsBegin(comm, "", "Forward-backward example", "TAO");
-  probtype = user->probType;
+  PetscCall(PetscOptionsEList("-formation", "Decide whether to use Tao or DM to setup problem statement.", "fb_example.c", formTypes, 2, formTypes[user->formType], &formtype, NULL));
+  PetscCall(PetscOptionsEList("-problem", "Decide which problem to solve.", "fb_example.c", probTypes, 2, probTypes[user->probType], &probtype, NULL));
 
-  PetscCall(PetscOptionsEList("-problem", "Decide whether to use Tao or DM to setup problem statement.", "fb_example.c", probTypes, 2, probTypes[user->probType], &probtype, NULL));
-
-  user->probType = (ProblemType)probtype;
+  user->formType = (FormType)formtype;
+  user->probType = (ProbType)probtype;
 
   PetscCall(PetscOptionsGetInt(NULL, NULL, "-k", &user->k, NULL));
   PetscCall(PetscOptionsGetInt(NULL, NULL, "-n", &user->n, NULL));
@@ -328,7 +363,7 @@ int main(int argc, char **argv)
   PetscCall(DMCreate(PETSC_COMM_WORLD, &gdm));
   PetscCall(DMTaoSetType(gdm, DMTAOL1));
 
-  switch (user.probType) {
+  switch (user.formType) {
   case USE_TAO:
     PetscCall(TaoSetObjectiveAndGradient(tao, NULL, UserObjGrad, (void *)&user));
     PetscCall(TaoPSSetLipschitz(tao, user.lip));
@@ -367,25 +402,25 @@ int main(int argc, char **argv)
 
    test:
       suffix: use_tao0
-      args: -problem use_tao -tao_fb_approx_lip 0
+      args: -formation use_tao -tao_fb_approx_lip 0
       output_file: output/fb_example.out
       requires: !single
 
    test:
       suffix: use_tao1
-      args: -problem use_tao -tao_fb_approx_lip 1
+      args: -formation use_tao -tao_fb_approx_lip 1
       output_file: output/fb_example.out
       requires: !single
 
    test:
       suffix: use_dm0
-      args: -problem use_dm -tao_fb_approx_lip 0
+      args: -formation use_dm -tao_fb_approx_lip 0
       output_file: output/fb_example.out
       requires: !single
 
    test:
       suffix: use_dm1
-      args: -problem use_dm -tao_fb_approx_lip 1
+      args: -formation use_dm -tao_fb_approx_lip 1
       output_file: output/fb_example.out
       requires: !single
 
