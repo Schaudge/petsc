@@ -147,10 +147,10 @@ static PetscErrorCode TaoSolve_FB(Tao tao)
     PetscCall(PetscCitationsRegister(fasta_citation, &fasta_cited));
     PetscCall(VecCopy(tao->solution, fb->x_old));
   }
+
   if (fb->use_adapt) PetscCall(PetscCitationsRegister(adapgm_citation, &adapgm_cited));
   PetscCall(TaoFB_ObjGrad_Private(tao, tao->solution, &f, tao->gradient));
 
-  //TODO nesterov, muf mug stuff
   while (tao->reason == TAO_CONTINUE_ITERATING) {
     if (!fb->use_accel) {
       PetscCall(VecCopy(tao->solution, fb->x_old));
@@ -158,21 +158,20 @@ static PetscErrorCode TaoSolve_FB(Tao tao)
     }
 
     /* Backtrackig PG stepsize scaling */
-    if (!fb->use_accel && !fb->use_adapt && tao->linesearch->max_funcs > 0) tao->step *= fb->xi;
+    if (!fb->use_adapt && tao->linesearch->max_funcs > 0) tao->step *= fb->xi;
 
     /* Note: DMTaoApplyProximalMap's scale is 1/(2*step) */
     PetscCall(VecWAXPY(fb->dualvec, -tao->step, tao->gradient, tao->solution));
     PetscCall(DMTaoApplyProximalMap(fb->proxterm, fb->reg, tao->step*fb->prox_scale, fb->dualvec, tao->solution, PETSC_FALSE));
+    //PetscCall(TaoFB_Obj_Private(tao, tao->solution, &f));
     tao->nproxs++;
 
     /* -tao_ls_max_funcs 0 -> no linesearch, but constant stepsize
        In this case, constant stepsize needs to be properly chosen for the algorithm to converge.
-       TODO not so sure aboutt theory about nonmonotonic for nesterov-type
        -tao_ls_PSArmijo_memory_size  1 -> monotonic linesearch
        -tao_ls_PSArmijo_memory_size >1 -> nonmonotonic linesearch */
     if (!fb->use_adapt && tao->linesearch->max_funcs > 0) {
       fb->step_old = tao->step;
-      //TODO not sure whether this works for backtracking nesterov
       PetscCall(TaoLineSearchSetInitialStepLength(tao->linesearch, tao->step));
       PetscCall(TaoLineSearchApply(tao->linesearch, fb->x_old, &f, tao->gradient, tao->solution, &tao->step, &ls_status));
       PetscCall(TaoAddLineSearchCounts(tao));
@@ -184,6 +183,8 @@ static PetscErrorCode TaoSolve_FB(Tao tao)
       PetscCall(TaoLineSearchGetStepLength(tao->linesearch, &tao->step));
     }
 
+    //TODO i guess since linesearch above gives us updated func value, we dont need to
+    //re compute obj, so just do grad eval?
     /* Post-processings */
     /* Fixed PGM  and adaPGM */
     if (fb->use_adapt) PetscCall(TaoFB_ObjGrad_Private(tao, tao->solution, &f, tao->gradient));
@@ -264,8 +265,6 @@ static PetscErrorCode TaoSetUp_FB(Tao tao)
   if (!fb->dualvec) PetscCall(VecDuplicate(tao->solution, &fb->dualvec));
   if (!fb->x_old) PetscCall(VecDuplicate(tao->solution, &fb->x_old));
   if (!fb->grad_old) PetscCall(VecDuplicate(tao->solution, &fb->grad_old));
-  //TODO option to set regularizer type??
-  //if L is set, should default stepsize be that?
   PetscCall(DMCreate(PetscObjectComm((PetscObject)tao), &fb->reg));
   PetscCall(DMTaoSetType(fb->reg, DMTAOL2));
   if (fb->smoothterm) {
