@@ -65,7 +65,6 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
   PetscInt                i, its = 0;
   PetscReal               ref, cert; /* cert = R + <gradf(x), xnew - x> + 1/2step * |xnew - x|_2^2 */
   PetscReal               diffnorm, inprod;
-  PetscReal               fk1; /* f(xnew) */
   MPI_Comm                comm;
   TaoType                 type;
   PetscBool               isfb, iscv;
@@ -107,47 +106,45 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
 
   if (ls->reason != TAOLINESEARCH_CONTINUE_ITERATING) PetscFunctionReturn(PETSC_SUCCESS);
 
-
   PetscCall(TaoGetType(ls->tao, &type));
   PetscCall(PetscObjectTypeCompare((PetscObject)ls->tao, TAOFB, &isfb));
   PetscCall(PetscObjectTypeCompare((PetscObject)ls->tao, TAOCV, &iscv));
 
-  //TODO maybe i should skip all the memory stuff if TAOCV since there is no non-monotonic theory about TAOCV
   /* Check to see of the memory has been allocated.  If not, allocate
      the historical array and populate it with the initial function values. */
-  if (!armP->memory) PetscCall(PetscMalloc1(armP->memorySize, &armP->memory));
+  if (armP->memorySize > 1) {
+    if (!armP->memory) PetscCall(PetscMalloc1(armP->memorySize, &armP->memory));
 
-  if (!armP->memorySetup) {
-    for (i = 0; i < armP->memorySize; i++) armP->memory[i] = (*f);
-    armP->current     = 0;
-    armP->memorySetup = PETSC_TRUE;
-  }
+    if (!armP->memorySetup) {
+      for (i = 0; i < armP->memorySize; i++) armP->memory[i] = 0.;
+      armP->current               = 0;
+      armP->memorySetup           = PETSC_TRUE;
+      armP->memory[armP->current] = *f;
+    }
 
-  /* Calculate reference value (MAX) */
-  ref = armP->memory[0];
-
-  for (i = 1; i < armP->memorySize; i++) {
-    if (armP->memory[i] > ref) { ref = armP->memory[i]; }
-  }
+    /* Calculate reference value (MAX) */
+    ref = armP->memory[0];
+    for (i = 1; i < armP->memorySize; i++) {
+      if (armP->memory[i] > ref) { ref = armP->memory[i]; }
+    }
+  } else ref = *f;
 
   ls->step = ls->initstep;
 
-  //TODO not wokring for non-monotone rn...
   if (isfb) {
     // Input is prox_g(x- step * gradf(x))
     /* Calculate function at new iterate */
-    PetscCall(TaoLineSearchComputeObjective(ls, xnew, &fk1));//technically dont need this? default f?
-    PetscCall(TaoLineSearchComputeObjective(ls, xold, &temp));//TODO maybe temp should be ref or something
+    PetscCall(TaoLineSearchComputeObjective(ls, xnew, &temp));
     /* Check criteria */
     PetscCall(VecWAXPY(armP->work2, -1., xold, xnew));
     PetscCall(VecTDot(armP->work2, armP->work2, &diffnorm));
     PetscCall(VecTDot(armP->work2, g, &inprod));
-    cert = fk1 -(inprod + (1 / (2 * ls->step)) * diffnorm + temp);
+    cert = temp -(inprod + (1 / (2 * ls->step)) * diffnorm + ref);
 
-    /* for backtracking fista, xold seems to be z */
+    /* accept xnew */
     if (cert < ls->rtol) {
+      PetscCall(TaoLineSearchComputeObjective(ls, xnew, f));
       ls->reason = TAOLINESEARCH_SUCCESS;
-      PetscFunctionReturn(PETSC_SUCCESS);
     }
   } else if (iscv) {
     TAO_CV   *cv = (TAO_CV *)ls->tao->data;
@@ -173,30 +170,22 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
     ++its;
 
     if (isfb) {
-      /* Note: usual eta: FISTA:0.5 */
       ls->step = ls->step * armP->eta;
 
       /* FB: input to prox: x_k - step*gradf(x_k)
        * Adaptive DY: input to prox: z - step*u - step*gradf(z) -> input g for DY needs to be u-gradf(z), not just gradf(z) TODO*/
       PetscCall(VecWAXPY(armP->work, -ls->step, g, xold));
-      /* Note: DMTaoApplyProximalMap's step is for f(x)+step*g(x,y).
-       * Thus, need pass stepsize as 1/2step                          */
       PetscCall(DMTaoApplyProximalMap(ls->prox, ls->prox_reg, ls->step*ls->prox_scale, armP->work, xnew, PETSC_FALSE));
       ls->nproxeval++;
       /* Calculate function at new iterate */
-      PetscCall(TaoLineSearchComputeObjective(ls, xnew, &fk1));
-//      PetscCall(TaoLineSearchComputeObjective(ls, xold, &fk1));
-      /* work2 : x_{k+1} - x_k */
+      PetscCall(TaoLineSearchComputeObjective(ls, xnew, f));
       PetscCall(VecWAXPY(armP->work2, -1., xold, xnew));
       PetscCall(VecTDot(armP->work2, armP->work2, &diffnorm));
       PetscCall(VecTDot(armP->work2, g, &inprod));
-      cert = fk1 - (inprod + (1 / (2 * ls->step)) * diffnorm + temp);
 
-      if (cert < ls->rtol) {
-        ls->reason = TAOLINESEARCH_SUCCESS;
-        PetscCall(TaoLineSearchMonitor(ls, its, *f, ls->step));
-        PetscFunctionReturn(PETSC_SUCCESS);
-      }
+      cert = *f - (inprod + (1 / (2 * ls->step)) * diffnorm + ref);
+
+      PetscCall(TaoLineSearchMonitor(ls, its, *f, ls->step));
     } else if (iscv) {
       TAO_CV   *cv = (TAO_CV *)ls->tao->data;
 
@@ -232,7 +221,6 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
       }
       cv->g_lmap_norm *= cv->r;
     } else SETERRQ(PetscObjectComm((PetscObject)ls->tao), PETSC_ERR_USER, "Invalid Tao type.");
-
   }
 
   /* Check termination */
@@ -246,13 +234,16 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
     PetscCall(PetscInfo(ls, "Step length is below tolernace.\n"));
     ls->reason = TAOLINESEARCH_HALTED_RTOL;
   }
+
+  if (armP->memorySize > 1) {
+    armP->current++;
+    if (armP->current >= armP->memorySize) armP->current = 0;
+    armP->memory[armP->current] = *f;
+  }
   if (ls->reason) PetscFunctionReturn(PETSC_SUCCESS);
 
   /* Successful termination, update memory. Only FIFO for PSARMIJO */
-  ls->reason                    = TAOLINESEARCH_SUCCESS;
-  armP->memory[armP->current++] = *f;
-  if (armP->current >= armP->memorySize) armP->current = 0;
-
+  ls->reason = TAOLINESEARCH_SUCCESS;
   PetscCall(PetscInfo(ls, "%" PetscInt_FMT " prox evals in line search, step = %10.4f\n", ls->nproxeval, (double)ls->step));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
