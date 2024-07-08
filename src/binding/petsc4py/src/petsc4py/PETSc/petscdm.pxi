@@ -203,6 +203,8 @@ cdef extern from * nogil:
     PetscDMTAOType DMTAOL1
     PetscDMTAOType DMTAOL2
     PetscDMTAOType DMTAOSIMPLEX
+    PetscDMTAOType DMTAOBOX
+    PetscDMTAOType DMTAOZERO
     PetscDMTAOType DMTAOSHELL
     PetscDMTAOType DMTAOPYTHON
 

@@ -60,6 +60,8 @@ class DMTAOType(object):
     L1      = S_(DMTAOL1)
     L2      = S_(DMTAOL2)
     SIMPLEX = S_(DMTAOSIMPLEX)
+    BOX     = S_(DMTAOBOX)
+    ZERO    = S_(DMTAOZERO)
     SHELL   = S_(DMTAOSHELL)
     PYTHON  = S_(DMTAOPYTHON)
 
