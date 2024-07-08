@@ -5,14 +5,14 @@ typedef struct {
 
   DM smoothterm, reg, g_prox, h_prox;
 
-  Mat g_lmap;
-  Vec workvec, workvec2, grad_old, x_old, v;
-  Vec dualvec, dualvec_old, dualvec_work, Ax, Ax_old, ATy;
+  Mat h_lmap; /* m * n */
+  Vec workvec, workvec2, grad_old, x_old, ATy; // size n
+  Vec dualvec, dualvec_old, dualvec_work, Ax, Ax_old; // size m. dualvec = y
   Vec dualvec_test, ATy_test;
 
   PetscReal step_old;
   PetscReal gnorm_norm;
-  PetscReal g_lmap_norm;
+  PetscReal h_lmap_norm;
   PetscReal f_scale;
   PetscReal g_scale;
   PetscReal h_scale;

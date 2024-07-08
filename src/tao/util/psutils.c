@@ -86,7 +86,7 @@ PetscErrorCode TaoPSSetUseLipApprox(Tao tao, PetscBool flag)
 
 /*@
   TaoPSSetNonSmoothTerm - Set non-smooth objective term for
-  proximal splitting problem - h(x).
+  proximal splitting problem - g(x).
 
   Input Parameters:
 + tao   - the `Tao` context for the `TAOFB` and `TAOCV` solver
@@ -119,15 +119,15 @@ PetscErrorCode TaoPSSetNonSmoothTerm(Tao tao, DM dm, PetscReal scale)
   } else if (iscv) {
     TAO_CV *cv = (TAO_CV *)tao->data;
 
-    cv->h_prox  = dm;
-    cv->h_scale = scale;
+    cv->g_prox  = dm;
+    cv->g_scale = scale;
   } else SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid Tao type.");
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
   TaoPSSetNonSmoothTermWithLinearMap - Set non-smooth objective term
-  with linear mapping for proximal splitting problem - g(Ax).
+  with linear mapping for proximal splitting problem - h(Ax).
 
   Input Parameters:
 + tao   - the `Tao` context for the `TAOCV` solver
@@ -162,14 +162,14 @@ PetscErrorCode TaoPSSetNonSmoothTermWithLinearMap(Tao tao, DM dm, Mat mat, Petsc
       PetscCall(PetscObjectReference((PetscObject)mat));
     }
     PetscValidLogicalCollectiveReal(tao, norm, 4);
-    cv->g_prox      = dm;
-    cv->g_lmap      = mat;
-    cv->g_scale     = scale;
+    cv->h_prox      = dm;
+    cv->h_lmap      = mat;
+    cv->h_scale     = scale;
     if (norm) {
-      cv->g_lmap_norm   = norm;
+      cv->h_lmap_norm   = norm;
       cv->lmap_norm_set = PETSC_TRUE;
     } else {
-      cv->g_lmap_norm   = 0.;
+      cv->h_lmap_norm   = 0.;
       cv->lmap_norm_set = PETSC_FALSE;
     }
   } else SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid Tao type.");
