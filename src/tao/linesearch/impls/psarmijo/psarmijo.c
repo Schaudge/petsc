@@ -148,7 +148,7 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
     }
   } else if (iscv) {
     TAO_CV   *cv = (TAO_CV *)ls->tao->data;
-    xi  = cv->pd_ratio * ls->tao->step * cv->g_lmap_norm;
+    xi  = cv->pd_ratio * ls->tao->step * cv->h_lmap_norm;
     xi *= xi;
 
     PetscCall(VecWAXPY(cv->workvec, -1., cv->grad_old, ls->tao->gradient));
@@ -161,7 +161,7 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
     C = (graddiffnorm*graddiffnorm) / grad_x_dot;
     D = ls->tao->step* L * (ls->tao->step * C - 1);
 
-    cv->g_lmap_norm *= cv->R;
+    cv->h_lmap_norm *= cv->R;
     cert = PETSC_INFINITY; // For TAOCV, linesearch needs to go at least once
   } else SETERRQ(PetscObjectComm((PetscObject)ls->tao), PETSC_ERR_USER, "Invalid Tao type.");
 
@@ -190,9 +190,9 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
       TAO_CV   *cv = (TAO_CV *)ls->tao->data;
 
       min1      = ls->tao->step * PetscSqrtReal(1 + ls->tao->step / cv->step_old);
-      min2      = 1 / (2 * cv->nu * cv->pd_ratio * cv->g_lmap_norm);
+      min2      = 1 / (2 * cv->nu * cv->pd_ratio * cv->h_lmap_norm);
       temp      = 1 - 4*xi*(1+ls->tao->gatol)*(1+ls->tao->gatol);
-      temp2     = cv->pd_ratio * cv->g_lmap_norm * ls->tao->step; //Unlike no linesearch, this "xi" uses updated norm estimate
+      temp2     = cv->pd_ratio * cv->h_lmap_norm * ls->tao->step; //Unlike no linesearch, this "xi" uses updated norm estimate
       temp3     = PetscSqrtReal(D*D + temp*temp2*temp2);
       min3      = ls->tao->step * PetscSqrtReal(temp / (2*(1+ls->tao->gatol)*(temp3 +D)));
       step_new  = PetscMin(min1, PetscMin(min2, min3));
@@ -202,15 +202,15 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
       PetscCall(VecWAXPY(cv->dualvec_work, -cv->sigma * rho, cv->Ax_old, cv->dualvec));
       PetscCall(VecAXPY(cv->dualvec_work, cv->sigma*(1+rho), cv->Ax));
       PetscCall(DMTaoApplyProximalMap(cv->h_prox, cv->reg, 1/(2*cv->sigma), cv->dualvec_work, cv->dualvec_test, PETSC_TRUE));
-      PetscCall(MatMultTranspose(cv->g_lmap, cv->dualvec_test, cv->workvec));
+      PetscCall(MatMultTranspose(cv->h_lmap, cv->dualvec_test, cv->workvec));
       /* norm1 = norm(ATy_test - ATy */
       PetscCall(VecWAXPY(cv->workvec2, -1., cv->ATy, cv->workvec));
       PetscCall(VecNorm(cv->workvec2, NORM_2, &norm1));
       /* norm2 = norm(y_test - y) */
       PetscCall(VecWAXPY(cv->dualvec_old, -1., cv->dualvec_test, cv->dualvec));
       PetscCall(VecNorm(cv->dualvec_old, NORM_2, &norm2));
-      cert = cv->g_lmap_norm - norm1 / norm2;
-      if (cv->g_lmap_norm >= norm1 / norm2) {
+      cert = cv->h_lmap_norm - norm1 / norm2;
+      if (cv->h_lmap_norm >= norm1 / norm2) {
         cv->step_old  = ls->tao->step;
         ls->tao->step = step_new;
         PetscCall(VecCopy(cv->dualvec_test, cv->dualvec));
@@ -219,7 +219,7 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
         PetscCall(TaoLineSearchMonitor(ls, its, *f, ls->step));
         PetscFunctionReturn(PETSC_SUCCESS);
       }
-      cv->g_lmap_norm *= cv->r;
+      cv->h_lmap_norm *= cv->r;
     } else SETERRQ(PetscObjectComm((PetscObject)ls->tao), PETSC_ERR_USER, "Invalid Tao type.");
   }
 
