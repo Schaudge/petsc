@@ -51,10 +51,10 @@ PetscErrorCode UserObjGrad(Tao tao, Vec X, PetscReal *f, Vec G, void *ptr)
   PetscReal temp1, temp2;
 
   PetscFunctionBegin;
-  PetscCall(MatMult(user->Q, X, user->workvec));
-  PetscCall(VecTDot(user->workvec, user->workvec, &temp1));
+  PetscCall(MatMult(user->Q, X, G));
+  PetscCall(VecTDot(G, X, &temp1));
   PetscCall(VecTDot(X, user->q, &temp2));
-  PetscCall(VecAXPY(user->workvec, +1., user->q));
+  PetscCall(VecAXPY(G, +1., user->q));
   *f = 0.5*temp1 + temp2;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -136,7 +136,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *user)
 
   PetscFunctionBegin;
   user->t        = 0.1;
-  user->C        = 1.;
+  user->C        = 0.1;
   user->formType = USE_TAO;
   formtype       = user->formType;
 
@@ -168,26 +168,29 @@ int main(int argc, char **argv)
   PetscCall(DMCreate(PETSC_COMM_WORLD, &fdm));
   PetscCall(DMCreate(PETSC_COMM_WORLD, &gdm));
   PetscCall(DMCreate(PETSC_COMM_WORLD, &hdm));
-  PetscCall(DMTaoSetType(gdm, DMTAOL1));
-  PetscCall(DMTaoSetType(hdm, DMTAOL1));
+  PetscCall(DMTaoSetType(gdm, DMTAOBOX));
+  PetscCall(DMTaoSetType(hdm, DMTAOZERO));
+
+  PetscReal zr = 0.;
+  //TODO how to deal with this kind of situation?
+  PetscCall(DMTaoBoxSetContext(gdm, &zr, &user.C, NULL, NULL));
 
   switch (user.formType) {
   case USE_TAO:
     PetscCall(TaoSetObjectiveAndGradient(tao, NULL, UserObjGrad, (void *)&user));
-    PetscCall(TaoPSSetLipschitz(tao, user.lip));
-    PetscCall(TaoPSSetNonSmoothTerm(tao, hdm, 1));
+//    PetscCall(TaoPSSetLipschitz(tao, user.lip));
     break;
   case USE_DM:
     PetscCall(DMTaoSetObjectiveAndGradient(fdm, UserObjGrad_DM, (void *)&user));
-    PetscCall(DMTaoSetLipschitz(fdm, user.lip));
+//    PetscCall(DMTaoSetLipschitz(fdm, user.lip));
     PetscCall(TaoPSSetSmoothTerm(tao, fdm, 1));
     break;
   default:
     SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid problem formulation type.");
   }
 
-  PetscCall(TaoPSSetNonSmoothTerm(tao, hdm, 1));
-  PetscCall(TaoPSSetNonSmoothTermWithLinearMap(tao, gdm, NULL, 0., 1.));
+  PetscCall(TaoPSSetNonSmoothTerm(tao, gdm, 1));
+  PetscCall(TaoPSSetNonSmoothTermWithLinearMap(tao, hdm, user.A, user.matnorm, 1.));
 
   PetscCall(TaoSetFromOptions(tao));
   PetscCall(TaoSolve(tao));
