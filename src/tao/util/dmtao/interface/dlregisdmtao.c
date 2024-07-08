@@ -3,6 +3,8 @@
 PETSC_EXTERN PetscErrorCode DMTaoCreate_L1_Private(DMTao);
 PETSC_EXTERN PetscErrorCode DMTaoCreate_L2_Private(DMTao);
 PETSC_EXTERN PetscErrorCode DMTaoCreate_Simplex_Private(DMTao);
+PETSC_EXTERN PetscErrorCode DMTaoCreate_Box_Private(DMTao);
+PETSC_EXTERN PetscErrorCode DMTaoCreate_Zero_Private(DMTao);
 PETSC_EXTERN PetscErrorCode DMTaoCreate_Shell_Private(DMTao);
 static PetscBool            DMTaoPackageInitialized = PETSC_FALSE;
 
@@ -41,6 +43,8 @@ PetscErrorCode DMTaoInitializePackage(void)
   PetscCall(DMTaoRegister(DMTAOL2, DMTaoCreate_L2_Private));
   PetscCall(DMTaoRegister(DMTAOL1, DMTaoCreate_L1_Private));
   PetscCall(DMTaoRegister(DMTAOSIMPLEX, DMTaoCreate_Simplex_Private));
+  PetscCall(DMTaoRegister(DMTAOBOX, DMTaoCreate_Box_Private));
+  PetscCall(DMTaoRegister(DMTAOZERO, DMTaoCreate_Zero_Private));
   PetscCall(DMTaoRegister(DMTAOSHELL, DMTaoCreate_Shell_Private));
   PetscCall(PetscLogEventRegister("DMTaoEval", DMTAO_CLASSID, &DMTAO_Eval));
 #endif

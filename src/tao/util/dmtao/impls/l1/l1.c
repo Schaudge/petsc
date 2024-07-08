@@ -76,7 +76,7 @@ PetscErrorCode DMTaoL1SetContext(DM dm, PetscReal lb, PetscReal ub)
   PetscBool is_l2;
 
   PetscFunctionBegin;
-  PetscCall(DMGetDMTao(dm, &tdm));
+  PetscCall(DMGetDMTaoWrite(dm, &tdm));
   PetscCall(PetscObjectTypeCompare((PetscObject)tdm, DMTAOL2, &is_l2));
 
   DMTao_L1 *ctx = (DMTao_L1 *)tdm->data;
@@ -120,8 +120,6 @@ static PetscErrorCode DMTaoApplyProximalMap_L1(DMTao tdm0, DMTao tdm1, PetscReal
   } else {
     PetscCall(TaoSoftThreshold(y, ctx->lb, ctx->ub, x));
   }
-  /* Conjugate version */
-  if (flg) PetscCall(VecAYPX(y, -1., x));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

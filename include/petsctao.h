@@ -255,6 +255,8 @@ typedef const char *TaoType;
 + `DMTAOL1`      - L1 regularization, |x|_1
 . `DMTAOL2`      - L2 regularization, |x|_2^2
 . `DMTAOSIMPLEX` - Simplex Constraint
+. `DMTAOBOX`     - Box Constraint
+. `DMTAOZERO`    - Zero Cone
 . `DMTAOSHELL`   - Empty Shell
 - `DMTAOPYTHON`  - Python DMTao
 
@@ -266,6 +268,8 @@ typedef const char *DMTaoType;
 #define DMTAOL1      "l1"
 #define DMTAOL2      "l2"
 #define DMTAOSIMPLEX "simplex"
+#define DMTAOBOX     "box"
+#define DMTAOZERO    "zero"
 #define DMTAOSHELL   "shell"
 #define DMTAOPYTHON  "python"
 
@@ -633,6 +637,7 @@ PETSC_EXTERN PetscErrorCode DMTaoComputeGradient(DM, Vec, Vec);
 
 PETSC_EXTERN PetscErrorCode DMTaoSimplexSetContext(DM, PetscReal, PetscReal);
 PETSC_EXTERN PetscErrorCode DMTaoL1SetContext(DM, PetscReal, PetscReal);
+PETSC_EXTERN PetscErrorCode DMTaoBoxSetContext(DM, PetscReal *, PetscReal *, Vec, Vec);
 PETSC_EXTERN PetscErrorCode DMTaoShellSetContext(DM, void *);
 PETSC_EXTERN PetscErrorCode DMTaoShellGetContext(DM, void *);
 PETSC_EXTERN PetscErrorCode DMTaoShellSetProximalMap(DM, PetscErrorCode (*)(DMTao, DMTao, PetscReal, Vec, Vec, PetscBool));

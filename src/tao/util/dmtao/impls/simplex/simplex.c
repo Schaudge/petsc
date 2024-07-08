@@ -97,10 +97,6 @@ static PetscErrorCode DMTaoApplyProximalMap_Simplex(DMTao tdm0, DMTao tdm1, Pets
   for (i = 0; i < len; i++) { xarray[i] = Clip_Internal(yarray[i], tmax); }
   PetscCall(VecRestoreArray(y, &yarray));
   PetscCall(VecRestoreArray(x, &xarray));
-
-  /* Conjugate version */
-  if (flg) PetscCall(VecAYPX(y, -1., x));
-  //TODO support diag vm metric
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -127,7 +123,7 @@ PetscErrorCode DMTaoSimplexSetContext(DM dm, PetscReal size, PetscReal tol)
   DMTao     tdm;
 
   PetscFunctionBegin;
-  PetscCall(DMGetDMTao(dm, &tdm));
+  PetscCall(DMGetDMTaoWrite(dm, &tdm));
   PetscCall(PetscObjectTypeCompare((PetscObject)tdm, DMTAOSIMPLEX, &is_s));
 
   if (!is_s) PetscFunctionReturn(PETSC_SUCCESS);

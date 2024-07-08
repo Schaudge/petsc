@@ -64,6 +64,8 @@
 #define DMTAOL1      'l1'
 #define DMTAOL2      'l2'
 #define DMTAOSIMPLEX 'simplex'
+#define DMTAOBOX     'box'
+#define DMTAOZERO    'zero'
 #define DMTAOSHELL   'shell'
 #define DMTAOPYTHON  'python'
 
