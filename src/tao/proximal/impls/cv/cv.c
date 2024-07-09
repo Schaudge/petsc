@@ -81,6 +81,7 @@ static PetscErrorCode TaoCV_ObjGrad_Private(Tao tao, Vec x, PetscReal *f, Vec g)
 /* if operator norm of linear map is not set, we estimate it, and store the
  * estimate inside of cv->h_lmap_norm. */
 //TODO I have this implemented in PSARMIJO too, but...
+//this needs pd_ratio, eta, x, x_old, grad, grad_old,  step, step_old, nu, sigma, lmap, dualvecs? Aty
 static PetscErrorCode TaoCV_Stepsize_With_LS_Private(Tao tao)
 {
   TAO_CV   *cv = (TAO_CV *)tao->data;
@@ -120,7 +121,7 @@ static PetscErrorCode TaoCV_Stepsize_With_LS_Private(Tao tao)
     PetscCall(VecWAXPY(cv->dualvec_work, -cv->sigma * rho, cv->Ax_old, cv->dualvec));
     PetscCall(VecAXPY(cv->dualvec_work, cv->sigma*(1+rho), cv->Ax));
     /* dualvec: y = prox_h*(w, sigma) */
-    PetscCall(DMTaoApplyProximalMap(cv->h_prox, cv->reg, cv->sigma, cv->dualvec_work, cv->dualvec_test, PETSC_TRUE));
+    PetscCall(DMTaoApplyProximalMap(cv->h_prox, cv->reg, cv->sigma*cv->h_scale, cv->dualvec_work, cv->dualvec_test, PETSC_TRUE));
     /* workvec : A^T * y_test */
     PetscCall(MatMultTranspose(cv->h_lmap, cv->dualvec_test, cv->workvec));
     /* norm1 = norm(ATy_test - ATy) */
