@@ -207,8 +207,8 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
       PetscCall(VecWAXPY(cv->workvec2, -1., cv->ATy, cv->workvec));
       PetscCall(VecNorm(cv->workvec2, NORM_2, &norm1));
       /* norm2 = norm(y_test - y) */
-      PetscCall(VecWAXPY(cv->dualvec_old, -1., cv->dualvec_test, cv->dualvec));
-      PetscCall(VecNorm(cv->dualvec_old, NORM_2, &norm2));
+      PetscCall(VecWAXPY(cv->dualvec_work2, -1., cv->dualvec_test, cv->dualvec));
+      PetscCall(VecNorm(cv->dualvec_work2, NORM_2, &norm2));
       cert = cv->h_lmap_norm - norm1 / norm2;
       if (cv->h_lmap_norm >= norm1 / norm2) {
         cv->step_old  = ls->tao->step;
