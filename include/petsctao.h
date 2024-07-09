@@ -649,4 +649,7 @@ PETSC_EXTERN PetscErrorCode DMTaoGetOptionsPrefix(DM, const char *[]);
 PETSC_EXTERN PetscErrorCode DMTaoPythonSetType(DM, const char[]);
 PETSC_EXTERN PetscErrorCode DMTaoPythonGetType(DM, const char *[]);
 
+/* prox calculus rules options */
+PETSC_EXTERN PetscErrorCode DMTaoSetTranslationVector(DM, Vec);
+PETSC_EXTERN PetscErrorCode DMTaoSetScaling(DM, PetscReal);
 #include <petsctao_deprecations.h>

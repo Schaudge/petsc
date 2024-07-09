@@ -52,6 +52,9 @@ struct _p_DMTao {
   Tao dm_subtao;
   Mat vm;
 
+  Vec       translation;
+  PetscReal scaling; /* Note: this is scaling factor. This scales input vector, as in f(x) -> f(scale*x), NOT f(x)->scale*f(x) */
+
   Mat       lmap;      /* Linear mapping matrix, if available */
   PetscReal lmap_norm; /* Norm of the linear mapping matrix, if available */
   Vec       y, workvec;

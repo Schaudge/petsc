@@ -1,5 +1,6 @@
 #include <petsc/private/taoimpl.h> /*I "petsctao.h" I*/
 #include <petsc/private/dmimpl.h>  /*I "petscdm.h" I*/
+#include <petsc/private/vecimpl.h>  /*I "petscvec.h" I*/
 
 PetscBool         DMTaoRegisterAllCalled = PETSC_FALSE;
 PetscFunctionList DMTaoList              = NULL;
@@ -8,6 +9,17 @@ PetscClassId DMTAO_CLASSID = 0;
 
 PetscLogEvent DMTAO_Eval;
 PetscLogEvent DMTAO_ApplyProx;
+
+static PetscErrorCode DMTaoCreateWorkvec_Private(DMTao tdm0, Vec x)
+{
+  PetscFunctionBegin;
+  if (!tdm0->workvec) { PetscCall(VecDuplicate(x, &tdm0->workvec)); }
+  else if (tdm0->workvec->map->n != x->map->n) {
+    PetscCall(VecDestroy(&tdm0->workvec));
+    PetscCall(VecDuplicate(x, &tdm0->workvec));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 static PetscErrorCode DMTaoDestroy(DMTao *kdm)
 {
@@ -21,6 +33,68 @@ static PetscErrorCode DMTaoDestroy(DMTao *kdm)
   }
   if ((*kdm)->ops->destroy) PetscCall(((*kdm)->ops->destroy)(*kdm));
   PetscCall(PetscHeaderDestroy(kdm));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  DMTaoSetScaling - Sets scaling factor to `DMTao` object
+  f(x) -> f(scale*x)
+  prox_f(x) -> (1/scale)*prox_f(scale*x).
+  This does NOT scale the function, as in
+  (FALSE) f(x) -> scale*f(x)
+
+  If translation vector a is set, then it becomes
+  f(x) -> f(scale*x + a)
+  prox_f(x) -> 1/scale * (prox_{scale^2,g} (scale*x + a) - a)
+
+  Collective
+
+  Input Parameters:
++ dm    - the `DM` context
+- scale - the scaling factor
+
+  Level: beginner
+
+.seealso: [](ch_tao), `DMTao`, `DMTaoSetTranslationVector()`
+@*/
+PetscErrorCode DMTaoSetScaling(DM dm, PetscReal scale)
+{
+  DMTao tdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTao(dm, &tdm));
+  tdm->scaling = scale;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  DMTaoSetTranslationVector - Sets translation vector to `DMTao` object
+  f(x) -> f(x + a)
+  prox_f(x) -> prox_f(x + a) - a.
+
+  If scaling is set, then it becomes
+  f(x) -> f(scale*x + a)
+  prox_f(x) -> 1/scale * (prox_{scale^2,g} (scale*x + a) - a)
+
+  Collective
+
+  Input Parameters:
++ dm - the `DM` context
+- a  - the translation vector
+
+  Level: beginner
+
+.seealso: [](ch_tao), `DMTao`, `DMTaoSetScaling()`
+@*/
+PetscErrorCode DMTaoSetTranslationVector(DM dm, Vec a)
+{
+  DMTao tdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCall(DMGetDMTao(dm, &tdm));
+  tdm->translation = a;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -139,17 +213,19 @@ static PetscErrorCode DMTaoCreate(MPI_Comm comm, DMTao *kdm)
   PetscAssertPointer(kdm, 2);
   PetscCall(DMTaoInitializePackage());
   PetscCall(PetscHeaderCreate(tdm, DMTAO_CLASSID, "DMTao", "DMTao", "DMTao", comm, DMTaoDestroy, DMTaoView));
-  tdm->lipschitz = 0.;
-  tdm->sc        = 0.;
-  tdm->lmap_norm = 0.;
-  tdm->nfeval    = 0;
-  tdm->ngeval    = 0;
-  tdm->nfgeval   = 0;
-  tdm->nproxeval = 0;
-  tdm->lip_set   = PETSC_FALSE;
-  tdm->sc_set    = PETSC_FALSE;
-  tdm->lmap      = NULL;
-  *kdm           = tdm;
+  tdm->lipschitz   = 0.;
+  tdm->sc          = 0.;
+  tdm->lmap_norm   = 0.;
+  tdm->scaling     = 0.;
+  tdm->nfeval      = 0;
+  tdm->ngeval      = 0;
+  tdm->nfgeval     = 0;
+  tdm->nproxeval   = 0;
+  tdm->lip_set     = PETSC_FALSE;
+  tdm->sc_set      = PETSC_FALSE;
+  tdm->lmap        = NULL;
+  tdm->translation = NULL;
+  *kdm             = tdm;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -468,7 +544,7 @@ PetscErrorCode DMTaoViewFromOptions(DM dm, PetscObject obj, const char name[])
 
   Level: developer
 
-.seealso: [](ch_tao), `Tao`, `DMTao`, `DMTaoCreate()`, `DMTaoApply()`
+.seealso: [](ch_tao), `Tao`, `DMTao`, `DMTaoCreate()`, `DMTaoApplyProximalMap()`
 @*/
 PetscErrorCode DMTaoSetUp(DM dm)
 {
@@ -1126,8 +1202,9 @@ PetscErrorCode DMTaoRegister(const char sname[], PetscErrorCode (*func)(DMTao))
 @*/
 PetscErrorCode DMTaoApplyProximalMap(DM dm0, DM dm1, PetscReal lambda, Vec y, Vec x, PetscBool is_cj)
 {
-  PetscInt low1, low2, high1, high2;
-  DMTao    tdm0, tdm1;
+  PetscReal lambda_scaled;
+  PetscInt  low1, low2, high1, high2;
+  DMTao     tdm0, tdm1;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm0, DM_CLASSID, 1);
@@ -1141,13 +1218,64 @@ PetscErrorCode DMTaoApplyProximalMap(DM dm0, DM dm1, PetscReal lambda, Vec y, Ve
   PetscCall(VecGetOwnershipRange(x, &low2, &high2));
   PetscCheck(low1 == low2 && high1 == high2, PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "Incompatible vector local lengths");
   PetscCheck(lambda >= 0, PetscObjectComm((PetscObject)dm0), PETSC_ERR_USER, "Lambda scale cannot be negative");
+  if (tdm0->translation) PetscCheck(x->map->N == tdm0->translation->map->N, PetscObjectComm((PetscObject)dm0), PETSC_ERR_USER, "Translation vector needs to be of same as size as input/output vectors");
   PetscCall(PetscLogEventBegin(DMTAO_ApplyProx, dm0, dm1, y, x));
-  if (dm1) {
-    PetscTryTypeMethod(tdm0, applyproximalmap, tdm1, lambda, y, x, is_cj);
+
+  //TODO another issue with double initializing as zero...
+  //technically this means that f(0*x)-> no-op, but we mean it as
+  //if scale == 0, scale is not set....
+  /* scaling and translation, if applicable */
+  if (tdm0->scaling > 0 || tdm0->translation) {
+    PetscCall(DMTaoCreateWorkvec_Private(tdm0, x));
+    PetscCall(VecCopy(y, tdm0->workvec));
+    if (!is_cj) {
+      if (tdm0->scaling > 0) PetscCall(VecScale(tdm0->workvec, tdm0->scaling));
+      if (tdm0->translation) PetscCall(VecAXPY(tdm0->workvec, 1., tdm0->translation));
+      lambda_scaled = (tdm0->scaling > 0) ? lambda*tdm0->scaling*tdm0->scaling : lambda;
+      if (dm1) {
+        PetscTryTypeMethod(tdm0, applyproximalmap, tdm1, lambda_scaled, tdm0->workvec, x, is_cj);
+      } else {
+        PetscTryTypeMethod(tdm0, applyproximalmap, NULL, lambda_scaled, tdm0->workvec, x, is_cj);
+      }
+      if (tdm0->translation) PetscCall(VecAXPY(x, -1., tdm0->translation));
+      if (tdm0->scaling > 0) PetscCall(VecScale(x, 1/tdm0->scaling));
+    } else {
+      /* prox_{step, f*}(x) = x - step*prox_{1/step, f}(x/step) *
+       * Scaling and translation:
+       * prox_{1/step, f}(x/step) => 1/scale * (prox_{scale*scale/step, f} (scale*x/step + a) - a) */
+      if (tdm0->scaling > 0) PetscCall(VecScale(tdm0->workvec, tdm0->scaling));
+      PetscCall(VecScale(tdm0->workvec, 1/lambda));
+      if (tdm0->translation) PetscCall(VecAXPY(tdm0->workvec, 1., tdm0->translation));
+      lambda_scaled = (tdm0->scaling > 0) ? tdm0->scaling*tdm0->scaling/lambda : 1/lambda;
+      if (dm1) {
+        PetscTryTypeMethod(tdm0, applyproximalmap, tdm1, lambda_scaled, tdm0->workvec, x, is_cj);
+      } else {
+        PetscTryTypeMethod(tdm0, applyproximalmap, NULL, lambda_scaled, tdm0->workvec, x, is_cj);
+      }
+      if (tdm0->translation) PetscCall(VecAXPY(x, -1., tdm0->translation));
+      if (tdm0->scaling > 0) PetscCall(VecScale(x, 1/tdm0->scaling));
+      PetscCall(VecAYPX(x, -lambda, y));
+    }
   } else {
-    PetscTryTypeMethod(tdm0, applyproximalmap, NULL, lambda, y, x, is_cj);
+    if (!is_cj) {
+      if (dm1) {
+        PetscTryTypeMethod(tdm0, applyproximalmap, tdm1, lambda, y, x, is_cj);
+      } else {
+        PetscTryTypeMethod(tdm0, applyproximalmap, NULL, lambda, y, x, is_cj);
+      }
+    } else {
+      PetscCall(DMTaoCreateWorkvec_Private(tdm0, x));
+      PetscCall(VecCopy(y, tdm0->workvec));
+      PetscCall(VecScale(tdm0->workvec, 1/lambda));
+      if (dm1) {
+        PetscTryTypeMethod(tdm0, applyproximalmap, tdm1, 1/lambda, tdm0->workvec, x, is_cj);
+      } else {
+        PetscTryTypeMethod(tdm0, applyproximalmap, NULL, 1/lambda, tdm0->workvec, x, is_cj);
+      }
+      PetscCall(VecAYPX(x, -lambda, y));
+    }
   }
-  if (is_cj) PetscCall(VecAYPX(x, -1., y));
+  //TODO if conjugate part is done inside impls, then we can (sometimes) exploit nice structures of each proxs?
   PetscCall(PetscLogEventEnd(DMTAO_ApplyProx, dm0, dm1, y, x));
 
   /* TODO do we want view for both, or just the primary objective? */
