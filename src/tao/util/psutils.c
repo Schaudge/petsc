@@ -215,7 +215,7 @@ PetscErrorCode TaoPSSetSmoothTerm(Tao tao, DM dm, PetscReal scale)
     TAO_CV *cv = (TAO_CV *)tao->data;
 
     cv->smoothterm = dm;
-    cv->f_scale    = 1;
+    cv->f_scale    = scale;
   } else SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid Tao type.");
   PetscFunctionReturn(PETSC_SUCCESS);
 }
