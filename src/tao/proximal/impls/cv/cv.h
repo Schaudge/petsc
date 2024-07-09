@@ -7,7 +7,7 @@ typedef struct {
 
   Mat h_lmap; /* m * n */
   Vec workvec, workvec2, grad_old, x_old, ATy; // size n
-  Vec dualvec, dualvec_old, dualvec_work, Ax, Ax_old; // size m. dualvec = y
+  Vec dualvec, dualvec_work, dualvec_work2, Ax, Ax_old; // size m. dualvec = y
   Vec dualvec_test, ATy_test;
 
   PetscReal step_old;
@@ -24,6 +24,6 @@ typedef struct {
   PetscReal pd_ratio; //t variable
   PetscReal R; //scale factor for estimating linear map norm. Must be <= 1.
   PetscReal r; //backtracking parameter > 1
-
+  PetscReal tol; //maybe use gattol, gttol etc? TODO
   PetscBool use_accel, use_adapt, approx_lip, lip_set, lmap_norm_set, approx_lmap_norm;
 } TAO_CV;
