@@ -141,6 +141,12 @@ PetscErrorCode DataCreate(AppCtx *user)
     PetscCall(MatDenseRestoreArray(user->A, &matarr));
     PetscCall(VecRestoreArray(y, &vecarr));
     PetscCall(MatNorm(user->A, NORM_FROBENIUS, &user->matnorm));
+
+    PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->m, &user->x));
+    PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->m, &user->x0));
+    PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->m, &user->workvec2));
+    PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->m, &user->workvec));
+    PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->m, &user->workvec3));
     break;
   case LAD:
   {
@@ -177,6 +183,12 @@ PetscErrorCode DataCreate(AppCtx *user)
     PetscCall(MatDenseGetColumnVecWrite(user->A, user->n, &a_col));
     PetscCall(VecSet(a_col, 1.));
     PetscCall(MatDenseRestoreColumnVecWrite(user->A, user->n, &a_col));
+
+    PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->n+1, &user->x));
+    PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->n+1, &user->x0));
+    PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->n+1, &user->workvec2));
+    PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->n+1, &user->workvec));
+    PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->n+1, &user->workvec3));
   }
     break;
   default:
@@ -184,11 +196,6 @@ PetscErrorCode DataCreate(AppCtx *user)
   }
 
   //TODO matcreatevecs(A, x, NULL)
-  PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->n+1, &user->x));
-  PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->n+1, &user->x0));
-  PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->n+1, &user->workvec2));
-  PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->n+1, &user->workvec));
-  PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->n+1, &user->workvec3));
   PetscCall(VecSet(user->x0, 0.));
   PetscCall(VecSet(user->x, 0.));
 
