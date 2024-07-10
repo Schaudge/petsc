@@ -14,54 +14,6 @@ static const char citation[] = "@article{latafat2023adaptive,\n"
                                "pages={4},\n"
                                "year={2023}"
                                "}\n";
-#if 0
-static PetscErrorCode TaoConvergenceTest_CV(Tao tao, void *dummy)
-{
-  TAO_CV            *cv    = (TAO_CV *)tao->data;
-  PetscInt           niter = tao->niter, nfuncs = PetscMax(tao->nfuncs, tao->nfuncgrads);
-  PetscInt           max_funcs = tao->max_funcs;
-  PetscReal          gnorm = tao->residual, gnorm0 = tao->gnorm0;
-  PetscReal          f     = tao->fc;
-  PetscReal          gatol = tao->gatol, grtol = tao->grtol, gttol = tao->gttol;
-  PetscReal          catol = tao->catol, crtol = tao->crtol;
-  PetscReal          fmin = tao->fmin, cnorm = tao->cnorm;
-  TaoConvergedReason reason = tao->reason;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
-  if (reason != TAO_CONTINUE_ITERATING) PetscFunctionReturn(PETSC_SUCCESS);
-
-  if (PetscIsInfOrNanReal(f)) {
-    PetscCall(PetscInfo(tao, "Failed to converged, function value is Inf or NaN\n"));
-    reason = TAO_DIVERGED_NAN;
-  } else if (f <= fmin && cnorm <= catol) {
-    PetscCall(PetscInfo(tao, "Converged due to function value %g < minimum function value %g\n", (double)f, (double)fmin));
-    reason = TAO_CONVERGED_MINF;
-  } else if (gnorm <= gatol && cnorm <= catol) {
-    PetscCall(PetscInfo(tao, "Converged due to residual norm ||g(X)||=%g < %g\n", (double)gnorm, (double)gatol));
-    reason = TAO_CONVERGED_GATOL;
-  } else if (f != 0 && PetscAbsReal(gnorm / cv->gnorm_norm) <= grtol && cnorm <= crtol) {
-    PetscCall(PetscInfo(tao, "Converged due to residual ||g(X)||/|f(X)| =%g < %g\n", (double)(gnorm / cv->gnorm_norm), (double)grtol));
-    reason = TAO_CONVERGED_GRTOL;
-  } else if (gnorm0 != 0 && ((gttol == 0 && gnorm == 0) || gnorm / gnorm0 < gttol) && cnorm <= crtol) {
-    PetscCall(PetscInfo(tao, "Converged due to relative residual norm ||g(X)||/||g(X0)|| = %g < %g\n", (double)(gnorm / gnorm0), (double)gttol));
-    reason = TAO_CONVERGED_GTTOL;
-  } else if (max_funcs >= 0 && nfuncs > max_funcs) {
-    PetscCall(PetscInfo(tao, "Exceeded maximum number of function evaluations: %" PetscInt_FMT " > %" PetscInt_FMT "\n", nfuncs, max_funcs));
-    reason = TAO_DIVERGED_MAXFCN;
-  } else if (tao->lsflag != 0) {
-    PetscCall(PetscInfo(tao, "Tao Line Search failure.\n"));
-    reason = TAO_DIVERGED_LS_FAILURE;
-  } else if (niter >= tao->max_it) {
-    PetscCall(PetscInfo(tao, "Exceeded maximum number of iterations: %" PetscInt_FMT " > %" PetscInt_FMT "\n", niter, tao->max_it));
-    reason = TAO_DIVERGED_MAXITS;
-  } else {
-    reason = TAO_CONTINUE_ITERATING;
-  }
-  tao->reason = reason;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-#endif
 
 static PetscErrorCode TaoCV_ObjGrad_Private(Tao tao, Vec x, PetscReal *f, Vec g)
 {
@@ -78,8 +30,6 @@ static PetscErrorCode TaoCV_ObjGrad_Private(Tao tao, Vec x, PetscReal *f, Vec g)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/* if operator norm of linear map is not set, we estimate it, and store the
- * estimate inside of cv->h_lmap_norm. */
 //TODO I have this implemented in PSARMIJO too, but...
 //this needs pd_ratio, eta, x, x_old, grad, grad_old,  step, step_old, nu, sigma, lmap, dualvecs? Aty
 static PetscErrorCode TaoCV_Stepsize_With_LS_Private(Tao tao)
@@ -139,8 +89,8 @@ static PetscErrorCode TaoCV_Stepsize_With_LS_Private(Tao tao)
     }
     cv->eta *= cv->r;
     iter++;
+    if (iter >= 100) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER, "LS loop stuck");
   }
-  printf(" end of ls, iter %d \n", iter);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -159,8 +109,8 @@ static PetscErrorCode TaoCV_Stepsize_No_LS_Private(Tao tao)
   PetscCall(VecNorm(cv->workvec2, NORM_2, &xdiffnorm));
   PetscCall(VecNorm(cv->workvec, NORM_2, &graddiffnorm));
 
-  L = grad_x_dot / (xdiffnorm*xdiffnorm);
-  C = (graddiffnorm*graddiffnorm) / grad_x_dot;
+  L = (xdiffnorm == 0) ? 0 : grad_x_dot / (xdiffnorm*xdiffnorm);
+  C = (grad_x_dot == 0) ? 0 : (graddiffnorm*graddiffnorm) / grad_x_dot;
   D = tao->step* L * (tao->step * C - 1);
 
   min1         = tao->step * PetscSqrtReal(1 + tao->step / cv->step_old);
@@ -176,9 +126,10 @@ static PetscErrorCode TaoCV_Stepsize_No_LS_Private(Tao tao)
 
 static PetscErrorCode TaoSolve_CV(Tao tao)
 {
-  TAO_CV    *cv = (TAO_CV *)tao->data;
-  PetscReal  f, gnorm, lip, rho;
-  PetscReal  pri_res_norm, dual_res_norm;
+  TAO_CV                      *cv = (TAO_CV *)tao->data;
+  PetscReal                    f, gnorm, lip, rho;
+  PetscReal                    pri_res_norm, dual_res_norm, g_val, h_val;
+//  TaoLineSearchConvergedReason ls_status = TAOLINESEARCH_CONTINUE_ITERATING;
 
   PetscFunctionBegin;
   PetscCheck(tao->step >= 0, PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Stepsize cannot be negative");
@@ -189,6 +140,9 @@ static PetscErrorCode TaoSolve_CV(Tao tao)
   else lip = 0.;
   PetscCall(PetscCitationsRegister(citation, &cited));
 
+  //f can be missing (becomes PDHG), but both g and h need to be present - (i.e., does not suppoer LV/PAPC)
+  //does not support missing lmap, that is, does not support Douglas-Rachford
+  //TODO bunch of check/assert about combinations...
   cv->lip = lip;
 
   if (tao->step == 0 && cv->h_lmap_norm > 0) tao->step = 1 / (2* cv->nu * cv->pd_ratio * cv->h_lmap_norm);
@@ -232,8 +186,7 @@ static PetscErrorCode TaoSolve_CV(Tao tao)
     PetscCall(VecAXPBYPCZ(cv->workvec, 1., 1., 1., tao->gradient, cv->ATy));
     PetscCall(VecNorm(cv->workvec, NORM_2, &pri_res_norm));
 
-    // update stepsize
-    //TODO should we bother with non-adaptive CV?
+    // update stepsize. no vanilla Condat-Vu
     if (cv->lmap_norm_set) {
       PetscCall(TaoCV_Stepsize_No_LS_Private(tao));
       rho = tao->step / cv->step_old;
@@ -245,9 +198,11 @@ static PetscErrorCode TaoSolve_CV(Tao tao)
       /* dualvec: y = prox_h*(w, sigma) */
       PetscCall(DMTaoApplyProximalMap(cv->h_prox, cv->reg, cv->sigma*cv->h_scale, cv->dualvec_work, cv->dualvec, PETSC_TRUE));
     } else {
-      //PetscCall(TaoLineSearchApply(tao->linesearch, tao->solution, &f, tao->gradient, fb->dualvec, &tao->step, &ls_status));
-      //calling this a linesearch a-la Armijo is a strech....
       PetscCall(TaoCV_Stepsize_With_LS_Private(tao)); //prox_h is done inside this routine for linesearch version
+      //calling this a linesearch a-la Armijo is a strech....
+      // this LS inputs are not really "real" in that all things are done internally...
+      // LS needs: x1, x0, grad_1, grad_0, Ax_old, dualvec(y), sigma, pd_ratio, nu, eta
+      //PetscCall(TaoLineSearchApply(tao->linesearch, cv->dualvec, &f, tao->gradient, tao->solution, &tao->step, &ls_status));
     }
 
     PetscCall(VecAXPY(cv->dualvec_work, -1., cv->dualvec));
@@ -257,9 +212,13 @@ static PetscErrorCode TaoSolve_CV(Tao tao)
 
     tao->residual = PetscSqrtReal(pri_res_norm*pri_res_norm) + PetscSqrtReal(dual_res_norm*dual_res_norm);
 
+    PetscCall(DMTaoComputeObjective(cv->g_prox, tao->solution, &g_val));
+    g_val *= cv->g_scale;
+    PetscCall(DMTaoComputeObjective(cv->h_prox, cv->Ax, &h_val));
+    h_val *= cv->h_scale;
     /* convergence test */
-    PetscCall(TaoLogConvergenceHistory(tao, f, tao->residual, 0.0, tao->ksp_its));
-    PetscCall(TaoMonitor(tao, tao->niter, f, tao->residual, 0.0, tao->step));
+    PetscCall(TaoLogConvergenceHistory(tao, f+g_val+h_val, tao->residual, 0.0, tao->ksp_its));
+    PetscCall(TaoMonitor(tao, tao->niter, f+g_val+h_val, tao->residual, 0.0, tao->step));
     PetscUseTypeMethod(tao, convergencetest, tao->cnvP);
     tao->niter++;
 
@@ -331,7 +290,6 @@ static PetscErrorCode TaoSetUp_CV(Tao tao)
   if (!cv->x_old) PetscCall(VecDuplicate(tao->solution, &cv->x_old));
   if (!cv->grad_old) PetscCall(VecDuplicate(tao->solution, &cv->grad_old));
   if (!cv->ATy) PetscCall(VecDuplicate(tao->solution, &cv->ATy));
-  if (!cv->ATy_test || !cv->lmap_norm_set) PetscCall(VecDuplicate(tao->solution, &cv->ATy_test));//TODO ?
   /* dual sized vectors */
   if (!cv->Ax) PetscCall(MatCreateVecs(cv->h_lmap, NULL, &cv->Ax));
   if (!cv->Ax_old) PetscCall(MatCreateVecs(cv->h_lmap, NULL, &cv->Ax_old));
@@ -363,7 +321,6 @@ static PetscErrorCode TaoDestroy_CV(Tao tao)
   PetscCall(VecDestroy(&cv->Ax));
   PetscCall(VecDestroy(&cv->Ax_old));
   PetscCall(VecDestroy(&cv->ATy));
-  PetscCall(VecDestroy(&cv->ATy_test));
   PetscCall(VecDestroy(&cv->dualvec));
   PetscCall(VecDestroy(&cv->dualvec_work));
   PetscCall(VecDestroy(&cv->dualvec_work2));
@@ -387,11 +344,12 @@ PETSC_EXTERN PetscErrorCode TaoCreate_CV(Tao tao)
   tao->ops->setfromoptions    = TaoSetFromOptions_CV;
   tao->ops->view              = TaoView_CV;
   tao->ops->solve             = TaoSolve_CV;
-//  tao->ops->convergencetest   = TaoConvergenceTest_CV;
   tao->ops->convergencetest   = TaoDefaultConvergenceTest;
 
   tao->data = (void *)cv;
 
+  cv->h_scale     = 1.;
+  cv->g_scale     = 1.;
   cv->gnorm_norm  = 0.;
   cv->tol         = 1.e-6;
   cv->R           = 0.95;

@@ -7,8 +7,7 @@ typedef struct {
 
   Mat h_lmap; /* m * n */
   Vec workvec, workvec2, grad_old, x_old, ATy; // size n
-  Vec dualvec, dualvec_work, dualvec_work2, Ax, Ax_old; // size m. dualvec = y
-  Vec dualvec_test, ATy_test;
+  Vec dualvec, dualvec_work, dualvec_test, dualvec_work2, Ax, Ax_old; // size m. dualvec = y
 
   PetscReal step_old;
   PetscReal gnorm_norm;
