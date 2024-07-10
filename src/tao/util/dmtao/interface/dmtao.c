@@ -215,7 +215,6 @@ static PetscErrorCode DMTaoCreate(MPI_Comm comm, DMTao *kdm)
   PetscCall(PetscHeaderCreate(tdm, DMTAO_CLASSID, "DMTao", "DMTao", "DMTao", comm, DMTaoDestroy, DMTaoView));
   tdm->lipschitz   = 0.;
   tdm->sc          = 0.;
-  tdm->lmap_norm   = 0.;
   tdm->scaling     = 0.;
   tdm->nfeval      = 0;
   tdm->ngeval      = 0;
@@ -223,7 +222,6 @@ static PetscErrorCode DMTaoCreate(MPI_Comm comm, DMTao *kdm)
   tdm->nproxeval   = 0;
   tdm->lip_set     = PETSC_FALSE;
   tdm->sc_set      = PETSC_FALSE;
-  tdm->lmap        = NULL;
   tdm->translation = NULL;
   *kdm             = tdm;
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -267,8 +265,6 @@ static PetscErrorCode DMTaoCopy(DMTao kdm, DMTao nkdm)
   nkdm->sc               = kdm->sc;
   nkdm->sc_set           = kdm->sc_set;
 
-  nkdm->lmap      = kdm->lmap;
-  nkdm->lmap_norm = kdm->lmap_norm;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
