@@ -29,7 +29,8 @@ PetscErrorCode TaoPSSetLipschitz(Tao tao, PetscReal lip)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
   PetscValidLogicalCollectiveReal(tao, lip, 2);
-  PetscCheck(lip > 0, PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Lipschitz value has to be greater than zero.");
+  /* Note: zero lip means to approximate it in the beginning */
+  PetscCheck(lip >= 0, PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Lipschitz value has to be nonnegative.");
   PetscCall(TaoGetType(tao, &type));
   PetscCall(PetscObjectTypeCompare((PetscObject)tao, TAOFB, &isfb));
   PetscCall(PetscObjectTypeCompare((PetscObject)tao, TAOCV, &iscv));

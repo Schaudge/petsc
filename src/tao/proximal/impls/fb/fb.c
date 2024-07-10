@@ -62,6 +62,10 @@ static PetscErrorCode TaoFB_ComputeResidual_And_LogConv_Private(Tao tao, PetscRe
   PetscCall(VecWAXPY(fb->workvec2, -1., tao->solution, fb->x_old));
   PetscCall(VecNorm(fb->workvec2, NORM_2, &tao->residual));
 
+  if (PetscIsInfOrNanReal(tao->residual)) {
+    PetscCall(PetscInfo(tao, "Failed to converged, residual value is Inf or NaN\n"));
+    tao->reason = TAO_DIVERGED_NAN;
+  }
   tao->residual /= tao->step;
 
   if (!fb->use_accel && tao->linesearch->max_funcs == 0 && (fb->step_old == tao->step)) {
@@ -73,6 +77,10 @@ static PetscErrorCode TaoFB_ComputeResidual_And_LogConv_Private(Tao tao, PetscRe
   }
   gnorm0     /= tao->step;
   tao->gnorm0 = PetscMax(gradnorm, gnorm0) + tao->gttol;
+  if (PetscIsInfOrNanReal(tao->gnorm0)) {
+    PetscCall(PetscInfo(tao, "Failed to converged, residual value is Inf or NaN\n"));
+    tao->reason = TAO_DIVERGED_NAN;
+  }
 
   PetscCall(TaoLogConvergenceHistory(tao, f, tao->residual, 0.0, tao->ksp_its));
   PetscCall(TaoMonitor(tao, tao->niter, f, tao->residual, 0.0, tao->step));
@@ -133,7 +141,7 @@ static PetscErrorCode TaoSolve_FB(Tao tao)
 
     fb->lip   = gradnorm / xnorm;
     fb->lip   = PetscMax(fb->lip, 1.e-6);
-    tao->step = 2. / fb->lip / 10.;
+    tao->step = 2. / fb->lip / 10;
 
     PetscCall(PetscRandomDestroy(&rctx));
   } else if (fb->lip > 0) {
@@ -312,6 +320,8 @@ PETSC_EXTERN PetscErrorCode TaoCreate_FB(Tao tao)
 
   tao->data = (void *)fb;
 
+  fb->f_scale     = 1.;
+  fb->prox_scale  = 1.;
   fb->t_fista     = 1;
   fb->t_fista_old = 1;
   fb->fista_beta  = 0.;
