@@ -240,8 +240,6 @@ PetscErrorCode DataCreate(AppCtx *user)
     PetscCall(VecSet(user->x0, 0.));
     PetscCall(VecGetArray(user->x0, &array));
 
-
-  //  for (i = 0; i < user->n; i++) {
     for (i = user->n - 1; i >= 0; i--) {
       if (i >= user->n - p) {
         temp = indices[i];
@@ -295,11 +293,6 @@ PetscErrorCode DataCreate(AppCtx *user)
       PetscCall(VecCreate(PETSC_COMM_WORLD, &user->b));
       PetscCall(VecLoad(user->b, viewer));
       PetscCall(PetscViewerDestroy(&viewer));
-
-     // PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->m, &user->xsub));
-     // PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->m, &user->gsub));
-     // PetscCall(VecSetFromOptions(user->xsub));
-     // PetscCall(VecSetFromOptions(user->gsub));
       PetscCall(ISCreateStride(PETSC_COMM_WORLD, user->n, 0, 1, &user->is_set));
     }
     break;
@@ -325,8 +318,6 @@ PetscErrorCode DataDestroy(AppCtx *user)
     PetscCall(VecDestroy(&user->workvecM));
     PetscCall(VecDestroy(&user->workvecM2));
     PetscCall(VecDestroy(&user->workvecM3));
-   // PetscCall(VecDestroy(&user->xsub));
-   // PetscCall(VecDestroy(&user->gsub));
     PetscCall(ISDestroy(&user->is_set));
     break;
   default:
