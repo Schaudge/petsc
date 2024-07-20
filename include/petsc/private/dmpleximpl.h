@@ -256,6 +256,7 @@ typedef struct {
   PetscInt  printL2;
   PetscInt  printLocate;
   PetscReal printTol;
+  PetscInt  printAdj;
 } DM_Plex;
 
 PETSC_INTERN PetscErrorCode DMPlexCopy_Internal(DM, PetscBool, PetscBool, DM);
