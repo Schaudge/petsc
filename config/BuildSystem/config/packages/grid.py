@@ -2,15 +2,21 @@ import config.package
 
 class Configure(config.package.GNUPackage):
   def __init__(self, framework):
+    import os
     config.package.GNUPackage.__init__(self, framework)
-    self.gitcommit      = '796abfad80625d81bb16af7ff6ec612a836f17d8'
-    self.download       = ['git://https://github.com/paboyle/Grid.git','https://github.com/paboyle/Grid/archive/'+self.gitcommit+'.tar.gz']
+    self.gitcommit      = 'da593796123f99307b486350f8b2ef6ae7d2c375'
+    self.download       = ['git://https://github.com/paboyle/Grid.git']
     self.buildLanguages = ['Cxx']
     self.maxCxxVersion  = 'c++17'
+    self.includes       = ['Grid/Grid.h']
+    self.liblist        = [['libGrid.a']]
+    self.includedir     = os.path.join('include', 'Grid')
     return
 
   def setupDependencies(self, framework):
     config.package.Package.setupDependencies(self, framework)
+    self.fftw  = framework.require('config.packages.fftw', self)
+    self.fftwf3 = framework.require('config.packages.fftw-3', self)
     self.ssl   = framework.require('config.packages.ssl', self)
     self.gmp   = framework.require('config.packages.gmp', self)
     self.mpfr  = framework.require('config.packages.mpfr', self)
@@ -37,12 +43,18 @@ class Configure(config.package.GNUPackage):
       self.logPrintBox('Linking Eigen to ' +self.PACKAGE)
       eigenDir = os.path.join(self.installDir, 'include', 'eigen3', 'Eigen')
       gridDir  = os.path.join(self.packageDir, 'Grid', 'Eigen')
+      gridInclude = os.path.join(self.installDir, 'include', 'Grid', 'Eigen')
       if not os.path.lexists(gridDir):
         os.symlink(eigenDir, gridDir)
       eigenDir = os.path.join(self.installDir, 'include', 'eigen3', 'unsupported', 'Eigen')
       eigenUnDir  = os.path.join(self.installDir, 'include', 'eigen3', 'Eigen', 'unsupported')
       if not os.path.lexists(eigenUnDir):
         os.symlink(eigenDir, eigenUnDir)
+      if not os.path.lexists(self.includeDir):
+        self.logPrintBox('Creating Eigen include link for ' +self.PACKAGE)
+        os.makedirs(os.path.join(self.packageDir, 'Grid'))
+        if not os.path.lexists(gridInclude):
+          os.symlink(eigenDir, gridInclude)
     except OSError as e:
       raise RuntimeError('Error linking Eigen to ' + self.PACKAGE+': '+str(e))
 
@@ -58,6 +70,7 @@ class Configure(config.package.GNUPackage):
         f.write('eigen_files =\\\n')
         for filename in files[:-1]:
           f.write('  ' + os.path.join(root, filename) + ' \\\n')
+          print(os.path.join(root, filename))
         f.write('  ' + os.path.join(root, files[-1]) + '\n')
 
     except RuntimeError as e:
@@ -72,3 +85,11 @@ class Configure(config.package.GNUPackage):
       raise RuntimeError('Error generating Make.inc in ' + self.PACKAGE+': '+str(e))
     config.package.GNUPackage.preInstall(self)
     return
+  
+  def postInstall(self, output, mkfile):
+    import os
+    self.logPrintBox('Generating Eigen include links for ' +self.PACKAGE)
+    eigenDir = os.path.join(self.installDir, 'include', 'eigen3', 'Eigen')
+    gridDir  = os.path.join(self.installDir, 'include', 'Grid', 'Eigen')
+    if not os.path.lexists(gridDir):
+        os.symlink(eigenDir, gridDir)
