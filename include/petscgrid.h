@@ -15,6 +15,6 @@ typedef enum {
 } GRID_LOAD_TYPE;
 
 PETSC_EXTERN PetscErrorCode PetscSetGauge_Grid(DM, PetscReal, GRID_LOAD_TYPE, int, char**, const char*);
-PETSC_EXTERN PetscErrorCode PetscSetGauge_Grid5D(DM, GRID_LOAD_TYPE, int, char**, const char*);
+PETSC_EXTERN PetscErrorCode PetscSetGauge_Grid5D(DM, GRID_LOAD_TYPE, PetscBool, int, char**, const char*);
 PETSC_EXTERN PetscErrorCode PetscCheckDwfWithGrid(DM, Mat, Vec,Vec);
 #endif

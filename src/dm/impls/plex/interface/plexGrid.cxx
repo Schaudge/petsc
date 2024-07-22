@@ -324,17 +324,18 @@ PetscErrorCode CheckDwfWithGrid(DM dm, Mat dw, Vec psi,Vec res)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode FormGauge5D(DM  dm, GRID_LOAD_TYPE type, int argc, char** argv, const char* filename) {
+static PetscErrorCode FormGauge5D(DM  dm, GRID_LOAD_TYPE type, PetscBool isPV, int argc, char** argv, const char* filename) {
   // These parameteres need to be moved out. 
   DomainWallParameters p;
   FieldMetaData header;
 
   p.M5   = 1.8;  
-  p.m    = 0.01;
+  if (isPV) p.m = 1.0;
+  else p.m = 0.01;
   p.Ls   = 8;
   
   PetscFunctionBegin;
-  Grid::Grid_init(&argc,&argv);
+  if (!isPV) Grid::Grid_init(&argc,&argv);
   SetDomainWallParameters(&p);
   Coordinate latt_size   = GridDefaultLatt();
   Coordinate simd_layout = GridDefaultSimd(Nd,vComplexD::Nsimd());
@@ -393,11 +394,12 @@ extern "C" {
     PetscFunctionReturn(PETSC_SUCCESS);
   }
 
-  PetscErrorCode PetscSetGauge_Grid5D(DM dm, GRID_LOAD_TYPE type, int argc, char** argv, const char* filename){
+  PetscErrorCode PetscSetGauge_Grid5D(DM dm, GRID_LOAD_TYPE type, PetscBool isPV, int argc, char** argv, const char* filename){
     PetscFunctionBegin;
-    PetscCall(Grid::FormGauge5D(dm, type, argc, argv, filename));
+    PetscCall(Grid::FormGauge5D(dm, type, isPV, argc, argv, filename));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
+
   PetscErrorCode PetscCheckDwfWithGrid(DM dm, Mat dw, Vec psi,Vec res) {
     PetscFunctionBegin;
     PetscCall(Grid::CheckDwfWithGrid(dm, dw, psi,res));

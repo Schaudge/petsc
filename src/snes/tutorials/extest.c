@@ -38,12 +38,13 @@ typedef struct {
   PetscBool     write_ic;
   PetscReal     mass;
   PetscBool     DWsqr;
+  Mat           pv;
 } AppCtx;
 
 PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 {
   PetscFunctionBegin;
-  options->usePV      = PETSC_TRUE;
+  options->usePV      = PETSC_FALSE;
   options->useEPS     = PETSC_FALSE;
   options->normalEq   = PETSC_FALSE;
   options->domainWall = 0;
@@ -488,11 +489,49 @@ static PetscErrorCode DdwfDagDdwf(Mat M, Vec u, Vec f)
 
   PetscCall(MatGetDM(M, &dm));
   PetscCall(DMCreateGlobalVector(dm, &tmp));
+  PetscCall(VecZeroEntries(tmp));// There is no guarantee thise vec is zerod when pulled from the dm
   DdwfInternal(M,u,tmp,PETSC_FALSE);
   DdwfInternal(M,tmp,f,PETSC_TRUE);
   PetscCall(VecDestroy(&tmp));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+static PetscErrorCode PrecOp(Mat M, Vec u, Vec f)
+{
+  Vec tmp;
+  DM  dm;
+  AppCtx *user;
+
+  PetscFunctionBegin;
+
+  PetscCall(MatShellGetContext(M, &user));
+  PetscCall(MatGetDM(M, &dm));
+  PetscCall(DMCreateGlobalVector(dm, &tmp));
+  PetscCall(VecZeroEntries(tmp));// There is no guarantee thise vec is zerod when pulled from the dm
+  DdwfInternal(M,u,tmp,PETSC_FALSE);
+  DdwfInternal(user->pv,tmp,f,PETSC_TRUE);
+  PetscCall(VecDestroy(&tmp));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode PrecOpDag(Mat M, Vec u, Vec f)
+{
+  Vec tmp;
+  DM  dm;
+  AppCtx *user;
+
+  PetscFunctionBegin;
+
+  PetscCall(MatShellGetContext(M, &user));
+  PetscCall(MatGetDM(M, &dm));
+  PetscCall(DMCreateGlobalVector(dm, &tmp));
+  PetscCall(VecZeroEntries(tmp));// There is no guarantee thise vec is zerod when pulled from the dm
+  DdwfInternal(M,u,tmp,PETSC_TRUE);
+  DdwfInternal(user->pv,tmp,f,PETSC_FALSE);
+  PetscCall(VecDestroy(&tmp));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /*
  -----------------------------------------------------------------------------------
 */
@@ -804,12 +843,12 @@ static PetscErrorCode TestFreeField(DM dm)
 }
 #endif
 
-static PetscErrorCode SetUpDW(DM dm, Mat *DWOperator, AppCtx *user, int argc, char **argv) {
+static PetscErrorCode SetUpDW(DM dm, Mat *DWOperator, PetscBool isPV, AppCtx *user, int argc, char **argv) {
   Vec      u;
   PetscInt locSize;
 
   PetscFunctionBegin;
-  PetscCall(PetscSetGauge_Grid5D(dm, GRID_LATTICE_FILE, argc, argv, user->gridFile));
+  PetscCall(PetscSetGauge_Grid5D(dm, GRID_LATTICE_FILE, isPV, argc, argv, user->gridFile));
   PetscCall(DMCreateLocalVector(dm, &u));
   PetscCall(VecGetLocalSize(u, &locSize));
   PetscCall(MatCreateShell(PETSC_COMM_WORLD, locSize, locSize, PETSC_DECIDE, PETSC_DECIDE, user, DWOperator));
@@ -818,13 +857,29 @@ static PetscErrorCode SetUpDW(DM dm, Mat *DWOperator, AppCtx *user, int argc, ch
   PetscCall(VecDestroy(&u));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+// Gauge should be set and these functions should operator only on configured operators with their associated DMs
+
+static PetscErrorCode SetUpPreconditionedOperator(DM dm, Mat *Prec, AppCtx *user) {
+  Vec      u;
+  PetscInt locSize;
+
+  PetscFunctionBegin;
+  PetscCall(DMCreateLocalVector(dm, &u));
+  PetscCall(VecGetLocalSize(u, &locSize));
+  PetscCall(MatCreateShell(PETSC_COMM_WORLD, locSize, locSize, PETSC_DECIDE, PETSC_DECIDE, user, Prec));
+  PetscCall(MatShellSetOperation(*Prec, MATOP_MULT, (void(*)(void))PrecOp));
+  PetscCall(MatShellSetOperation(*Prec, MATOP_MULT_TRANSPOSE, (void(*)(void))PrecOpDag));
+  PetscCall(VecDestroy(&u));
+  PetscFunctionReturn(PETSC_SUCCESS);
+
+}
 
 static PetscErrorCode SetUpSqrDW(DM dm, Mat *DWOperator, AppCtx *user, int argc, char **argv) {
   Vec      u;
   PetscInt locSize;
 
   PetscFunctionBegin;
-  PetscCall(PetscSetGauge_Grid5D(dm, GRID_LATTICE_FILE, argc, argv, user->gridFile));
+  PetscCall(PetscSetGauge_Grid5D(dm, GRID_LATTICE_FILE, PETSC_FALSE, argc, argv, user->gridFile));
   PetscCall(DMCreateLocalVector(dm, &u));
   PetscCall(VecGetLocalSize(u, &locSize));
   PetscCall(MatCreateShell(PETSC_COMM_WORLD, locSize, locSize, PETSC_DECIDE, PETSC_DECIDE, user, DWOperator));
@@ -1882,7 +1937,8 @@ static PetscErrorCode TestCoarsening(MPI_Comm comm, DM dm, Mat M, Mat MC, Mat R,
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
+// PV test
+// ./extest -dm_plex_dim 5 -dm_plex_shape hypercubic -dm_plex_box_faces 8,8,8,8,8 -grid_load_type 3 -grid_file ${GRID_LATTICE_FILE} --grid 8.8.8.8 -use_pv -eig_eps_monitor -eig_eps_nev 200 -eig_eps_smallest_real 
 int main(int argc, char **argv)
 {
   DM     dm, cdm;
@@ -1919,10 +1975,33 @@ int main(int argc, char **argv)
   }
   else if (user.domainWall) {
     PetscCall(PetscPrintf(comm, "Running standard domain wall operator.\n"));
-    PetscCall(SetUpDW(dm, &M, &user, argc, argv));
+    PetscCall(SetUpDW(dm, &M, PETSC_FALSE, &user, argc, argv));
     PetscCall(MatSetDM(M, dm));
-    PetscCall(SolveDW_Fine_Eig(comm, dm, M, &user));
-    //PetscCheckDwfWithGrid(dm, M, u,f);
+    //PetscCall(SolveDW_Fine_Eig(comm, dm, M, &user));
+    PetscCheckDwfWithGrid(dm, M, u,f);
+  }
+  else if (user.usePV) {
+    DM pvdm;
+    Mat P, precOp;
+    // Just represent the matrix as a unit mass on the diagonal?
+    // currently m is stored in the gauge links, so we may need to
+    // break that out of SetGauge5D in plexGrid.cxx 
+    PetscCall(CreateMesh(comm, &user, &pvdm));
+    PetscCall(DMSetApplicationContext(pvdm, &user));
+    PetscCall(SetupDiscretization(pvdm, &user));
+    PetscCall(SetupAuxDiscretization(pvdm, &user));
+
+    PetscCall(SetUpDW(dm, &M, PETSC_FALSE, &user, argc, argv));
+    PetscCall(SetUpDW(pvdm, &P, PETSC_TRUE, &user, argc, argv));
+    
+    PetscCall(MatSetDM(P, pvdm));
+    user.pv = P;
+    PetscCall(MatShellSetContext(M, (void*)&user));
+
+    PetscCall(SetUpPreconditionedOperator(dm, &precOp, &user));
+    PetscCall(MatSetDM(precOp, dm));
+    PetscCall(SolveDW_Fine_Eig(comm, dm, precOp, &user));
+
   }
   else {
     PetscCall(SetupWilson(dm, PETSC_TRUE, &M, &user, argc, argv));
