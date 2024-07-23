@@ -1,9 +1,7 @@
 #include <../src/tao/proximal/impls/fb/fb.h> /*I "petsctao.h" I*/
-#include <petsctao.h>
-#include <petsctaolinesearch.h>
-#include <petscdm.h>
 #include <petsc/private/petscimpl.h>
 #include <petsc/private/taoimpl.h>
+#include <petsc/private/dmimpl.h>
 #include <petsc/private/taolinesearchimpl.h>
 
 static PetscBool  fasta_cited       = PETSC_FALSE;
@@ -78,7 +76,7 @@ static PetscErrorCode TaoFB_ComputeResidual_And_LogConv_Private(Tao tao, PetscRe
   gnorm0     /= tao->step;
   tao->gnorm0 = PetscMax(gradnorm, gnorm0) + tao->gttol;
   if (PetscIsInfOrNanReal(tao->gnorm0)) {
-    PetscCall(PetscInfo(tao, "Failed to converged, residual value is Inf or NaN\n"));
+    PetscCall(PetscInfo(tao, "Failed to converged, relative residual norm is Inf or NaN\n"));
     tao->reason = TAO_DIVERGED_NAN;
   }
 
@@ -114,10 +112,10 @@ static PetscErrorCode TaoSolve_FB(Tao tao)
   PetscCheck(tao->step >= 0, PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Stepsize cannot be negative");
   PetscCheck(fb->xi >= 1, PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Backtracing scale factor needs to be equal or greater than 1");
   PetscCheck(!(fb->use_accel && fb->use_adapt), PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "TaoFB only supports either acceleration or adaptive step, not both");
-  if (!fb->lip_set) PetscCall(DMTaoGetLipschitz(fb->smoothterm, &fb->lip));
+  if (!fb->lip_set && fb->smoothterm) PetscCall(DMTaoGetLipschitz(fb->smoothterm, &fb->lip));
+  else fb->lip = 0.;
 
-  //TODO what if lip is set but want to use some set init step? There is no TaoSetInitialStep, so maybe TaoPSSetIntialStep? or former suffices?
-  if (fb->approx_lip || fb->lip == 0) {//TODO if lip is set, should we still approximate lip?
+  if (fb->lip == 0) {
     /* Approximating initial Lipschitz number via two random vectors */
     PetscReal   gradnorm, xnorm;
     PetscRandom rctx;
@@ -229,7 +227,6 @@ static PetscErrorCode TaoSetFromOptions_FB(Tao tao, PetscOptionItems *PetscOptio
   PetscOptionsHeadBegin(PetscOptionsObject, "Forward backward problem that solves f(x)+g(x), where you have gradient of f(x), and proximal operator of g(x).");
   PetscCall(PetscOptionsReal("-tao_fb_initial_step", "Initial stepsize for forward-backward algorithm", "", tao->step, &tao->step, NULL));
   PetscCall(PetscOptionsReal("-tao_fb_ls_scale", "Scaling parameter for backtracking proximal gradient", "", fb->xi, &fb->xi, NULL));
-  PetscCall(PetscOptionsBool("-tao_fb_approx_lip", "Approximate Lipschitz in the beginning", "", fb->approx_lip, &fb->approx_lip, NULL));
   PetscCall(PetscOptionsBool("-tao_fb_accel", "Use Acceleration (Nesterov-type)", "", fb->use_accel, &fb->use_accel, NULL));
   PetscCall(PetscOptionsBool("-tao_fb_adaptive", "Use adaptive stepsize (adaPGM)", "", fb->use_adapt, &fb->use_adapt, NULL));
   PetscCall(TaoLineSearchSetFromOptions(tao->linesearch));
@@ -247,10 +244,11 @@ static PetscErrorCode TaoView_FB(Tao tao, PetscViewer viewer)
   if (isascii) {
     PetscCall(PetscViewerASCIIPushTab(viewer));
     if (fb->smoothterm) {
-    PetscCall(PetscViewerASCIIPrintf(viewer, "Smooth Term:\n"));
-    PetscCall(DMTaoView(fb->smoothterm, viewer));
+      PetscCall(PetscViewerASCIIPrintf(viewer, "Smooth Term:\n"));
+      PetscCall(DMTaoView(fb->smoothterm, viewer));
     }
-    if (fb->proxterm) {PetscCall(PetscViewerASCIIPrintf(viewer, "Proximal Term:\n"));
+    if (fb->proxterm) {
+      PetscCall(PetscViewerASCIIPrintf(viewer, "Proximal Term:\n"));
       PetscCall(DMTaoView(fb->proxterm, viewer));
     }
     if (fb->reg) {
@@ -329,7 +327,6 @@ PETSC_EXTERN PetscErrorCode TaoCreate_FB(Tao tao)
   fb->smoothterm  = NULL;
   fb->proxterm    = NULL;
   fb->lip_set     = PETSC_FALSE;
-  fb->approx_lip  = PETSC_TRUE;
   fb->use_accel   = PETSC_TRUE;
   fb->use_adapt   = PETSC_FALSE;
 

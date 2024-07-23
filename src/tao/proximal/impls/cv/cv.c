@@ -267,8 +267,8 @@ static PetscErrorCode TaoView_CV(Tao tao, PetscViewer viewer)
       PetscCall(PetscViewerASCIIPrintf(viewer, "Non-smooth Term g(x):\n"));
       PetscCall(DMTaoView(cv->g_prox, viewer));
     }
-    if (cv->g_prox) {
-      PetscCall(PetscViewerASCIIPrintf(viewer, "Non-smooth Term g(Ax):\n"));
+    if (cv->h_prox) {
+      PetscCall(PetscViewerASCIIPrintf(viewer, "Non-smooth Term h(Ax):\n"));
       PetscCall(DMTaoView(cv->g_prox, viewer));
       PetscCall(PetscViewerASCIIPrintf(viewer, "Linear map of Non-smooth Term h(Ax):\n"));
       PetscCall(MatView(cv->h_lmap, viewer));
@@ -362,12 +362,6 @@ PETSC_EXTERN PetscErrorCode TaoCreate_CV(Tao tao)
   cv->use_accel   = PETSC_TRUE;
   cv->use_adapt   = PETSC_FALSE;
 
-  /* Non-monotonic linesearch
-   *
-   * \hat{f}_k = max(f_{k-1},f_{k-2}, ... , f_{k-min(M,k)}), where M is linesearch history size
-   * f(x_{k+1}) < \hat{f}_k + \langle x_{k+1} - x_k, grad_f(x_k) \rangle + (1/(2 step)) |x_{k+1} - x_k |^2
-   *
-   */
   PetscCall(TaoLineSearchCreate(PetscObjectComm((PetscObject)tao), &tao->linesearch));
   PetscCall(PetscObjectIncrementTabLevel((PetscObject)tao->linesearch, (PetscObject)tao, 1));
   PetscCall(TaoLineSearchSetType(tao->linesearch, armijo_type));

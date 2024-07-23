@@ -50,42 +50,6 @@ PetscErrorCode TaoPSSetLipschitz(Tao tao, PetscReal lip)
 }
 
 /*@
-  TaoPSSetUseLipApprox - Determine whether to compute initial Lipschitz
-  constant approximation or not.
-
-  Input Parameters:
-+ tao - the `Tao` context for the `TAOFB` or `TAOCV` solver
-- use - Bool to denote whether to compute initial approximiation
-
-  Level: advanced
-
-.seealso: `Tao`, `TAOFB`
-@*/
-PetscErrorCode TaoPSSetUseLipApprox(Tao tao, PetscBool flag)
-{
-  TaoType   type;
-  PetscBool isfb,iscv;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
-  PetscValidLogicalCollectiveBool(tao, flag, 2);
-  PetscCall(TaoGetType(tao, &type));
-  PetscCall(PetscObjectTypeCompare((PetscObject)tao, TAOFB, &isfb));
-  PetscCall(PetscObjectTypeCompare((PetscObject)tao, TAOCV, &iscv));
-
-  if (isfb) {
-    TAO_FB *fb = (TAO_FB *)tao->data;
-
-    fb->approx_lip = flag;
-  } else if (iscv) {
-    TAO_CV *cv = (TAO_CV *)tao->data;
-
-    cv->approx_lip = flag;
-  }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/*@
   TaoPSSetNonSmoothTerm - Set non-smooth objective term for
   proximal splitting problem - g(x).
 

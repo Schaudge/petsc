@@ -19,6 +19,5 @@ typedef struct {
   PetscBool use_accel;
   PetscBool use_adapt;
 
-  PetscBool approx_lip;
   PetscBool lip_set;
 } TAO_FB;
