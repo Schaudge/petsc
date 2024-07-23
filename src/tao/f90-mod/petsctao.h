@@ -20,6 +20,9 @@
       type, extends(tPetscObject) :: tDMTao
       end type tDMTao
       DMTao, parameter :: PETSC_NULL_DM_TAO = tDMTao(0)
+#if defined(_WIN32) && defined(PETSC_USE_SHARED_LIBRARIES)
+!DEC$ ATTRIBUTES DLLEXPORT::PETSC_NULL_DM_TAO
+#endif
 
       PetscEnum, parameter ::  TAO_CONVERGED_GATOL = 3
       PetscEnum, parameter ::  TAO_CONVERGED_GRTOL = 4
