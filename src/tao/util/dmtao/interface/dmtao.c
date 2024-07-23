@@ -351,7 +351,7 @@ PetscErrorCode DMGetDMTaoWrite(DM dm, DMTao *tdm)
   Note:
   The context is copied by reference. This function does not ensure that a context exists.
 
-.seealso: `DMGetDMTao()`, `TaoSetDM()`
+.seealso: `DMGetDMTao()`
 @*/
 PetscErrorCode DMCopyDMTao(DM dmsrc, DM dmdest)
 {
@@ -471,7 +471,7 @@ PetscErrorCode DMTaoSetObjectiveAndGradient(DM dm, PetscErrorCode (*func)(DM dm,
 
   Options Database Keys:
 + -dmtao_type <type>   - The type of `DMTao` (L1,L2,KL,Simplex,Shell,Python)
-- -dmtao_view          - display line-search results to standard output
+- -dmtao_view          - display information to standard output
 
   Level: beginner
 
@@ -707,8 +707,7 @@ PetscErrorCode DMTaoUseTaoRoutines(DM dm, Tao tao)
   PetscCall(DMGetDMTaoWrite(dm, &tdm));
   tdm->dm_subtao      = tao;
   tdm->usetaoroutines = PETSC_TRUE;
-  tao->is_child_dm    = PETSC_TRUE;
-  /* Unsetting Composing is done in taosolver.c at TaoDestroy() */
+  tao->is_child_dm    = PETSC_FALSE;
   PetscCall(PetscObjectCompose((PetscObject)tao, "TaoGetParentDM", (PetscObject)dm));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -920,11 +919,7 @@ PetscErrorCode TaoGetRegularizer(Tao tao, DM *dm)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
   PetscAssertPointer(dm, 2);
-  if (tao->is_child_dm) {
-    PetscCall(PetscObjectQuery((PetscObject)tao, "TaoGetParentDM", (PetscObject *)dm));
-  } else {
-    *dm = tao->reg;
-  }
+  *dm = tao->reg;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1278,6 +1273,30 @@ PetscErrorCode DMTaoApplyProximalMap(DM dm0, DM dm1, PetscReal lambda, Vec y, Ve
   PetscCall(DMTaoViewFromOptions(dm0, NULL, "-dmtao_view"));
   if (dm1) PetscCall(DMTaoViewFromOptions(dm1, NULL, "-dmtao_view"));
   tdm0->nproxeval++;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  TaoGetParentDM  - Gets pointer to parent `DM`, used by Tao set via
+  `DMTaoUseTaoRoutines()`
+
+  Collective
+
+  Input Parameter:
+. tao - the `Tao` context
+
+  Output Parameter:
+. pdm - the parent `DM` context
+
+  Level: advanced
+
+.seealso: `DMTAO`
+@*/
+PetscErrorCode TaoGetParentDM(Tao tao, DM *pdm)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
+  PetscCall(PetscObjectQuery((PetscObject)tao, "TaoGetParentDM", (PetscObject *)pdm));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

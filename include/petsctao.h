@@ -555,37 +555,19 @@ PETSC_EXTERN PetscErrorCode TaoBoundSolution(Vec, Vec, Vec, PetscReal, PetscInt 
 
 PETSC_EXTERN PetscErrorCode MatCreateSubMatrixFree(Mat, IS, IS, Mat *);
 
-//TODO either we can have proxutils.c that have general setting functions, or have specific ones?
-#if 0
-PETSC_EXTERN PetscErrorCode TaoFBSetSmoothTerm(Tao, DM);
-PETSC_EXTERN PetscErrorCode TaoFBSetNonSmoothTerm(Tao, DM);
-PETSC_EXTERN PetscErrorCode TaoFBSetUseLipApprox(Tao, PetscBool);
-PETSC_EXTERN PetscErrorCode TaoFBUseAcceleration(Tao, PetscBool); //TODO Acceleration vs Momentum vs Nesterov? This is FISTA
-PETSC_EXTERN PetscErrorCode TaoFBUseAdaptiveStep(Tao, PetscBool);
-
-PETSC_EXTERN PetscErrorCode TaoCVSetSmoothTerm(Tao, DM);
-PETSC_EXTERN PetscErrorCode TaoCVSetNonSmoothTerm(Tao, DM);
-PETSC_EXTERN PetscErrorCode TaoCVSetNonSmoothTermWithLinearMap(Tao, DM, Mat, PetscReal);
-PETSC_EXTERN PetscErrorCode TaoCVUseAcceleration(Tao, PetscBool); //TODO Acceleration vs Momentum vs Nesterov?
-PETSC_EXTERN PetscErrorCode TaoCVUseAdaptiveStep(Tao, PetscBool);
-#else
 PETSC_EXTERN PetscErrorCode TaoPSSetLipschitz(Tao, PetscReal);
-PETSC_EXTERN PetscErrorCode TaoPSSetUseLipApprox(Tao, PetscBool);
 PETSC_EXTERN PetscErrorCode TaoPSSetSmoothTerm(Tao, DM, PetscReal);
 PETSC_EXTERN PetscErrorCode TaoPSSetNonSmoothTerm(Tao, DM, PetscReal);
 PETSC_EXTERN PetscErrorCode TaoPSSetNonSmoothTermWithLinearMap(Tao, DM, Mat, PetscReal, PetscReal);
 PETSC_EXTERN PetscErrorCode TaoPSUseAcceleration(Tao, PetscBool); //TODO Acceleration vs Momentum vs Nesterov?
 PETSC_EXTERN PetscErrorCode TaoPSUseAdaptiveStep(Tao, PetscBool);
-#endif
 
 PETSC_EXTERN PetscErrorCode TaoSetRegularizer(Tao, DM, PetscReal);
 PETSC_EXTERN PetscErrorCode TaoGetRegularizer(Tao, DM *);
 
 PETSC_EXTERN PetscErrorCode TaoAddDM(Tao, DM, PetscReal);
-PETSC_EXTERN PetscErrorCode TaoSetDM(Tao, DM, PetscInt, PetscReal);
 PETSC_EXTERN PetscErrorCode TaoGetDM(Tao, PetscInt, DM *, PetscReal *);
 PETSC_EXTERN PetscErrorCode TaoGetDMSize(Tao, PetscInt *);
-PETSC_EXTERN PetscErrorCode TaoSetDMSize(Tao, PetscInt);
 PETSC_EXTERN PetscErrorCode TaoClearDM(Tao);
 
 PETSC_EXTERN PetscErrorCode DMCopyDMTao(DM, DM);
@@ -618,6 +600,7 @@ PETSC_EXTERN PetscErrorCode DMTaoSetStrongConvexity(DM, PetscReal);
 PETSC_EXTERN PetscErrorCode DMTaoGetStrongConvexity(DM, PetscReal *);
 
 PETSC_EXTERN PetscErrorCode TaoClearDMTaos(Tao);
+PETSC_EXTERN PetscErrorCode TaoGetParentDM(Tao, DM *);
 
 PETSC_EXTERN PetscErrorCode DMTaoApplyProximalMap(DM, DM, PetscReal, Vec, Vec, PetscBool);
 
@@ -638,7 +621,7 @@ PETSC_EXTERN PetscErrorCode DMTaoComputeGradient(DM, Vec, Vec);
 
 PETSC_EXTERN PetscErrorCode DMTaoSimplexSetContext(DM, PetscReal, PetscReal);
 PETSC_EXTERN PetscErrorCode DMTaoL1SetContext(DM, PetscReal, PetscReal);
-PETSC_EXTERN PetscErrorCode DMTaoBoxSetContext(DM, PetscReal *, PetscReal *, Vec, Vec);
+PETSC_EXTERN PetscErrorCode DMTaoBoxSetContext(DM, PetscReal, PetscReal, Vec, Vec);
 PETSC_EXTERN PetscErrorCode DMTaoShellSetContext(DM, void *);
 PETSC_EXTERN PetscErrorCode DMTaoShellGetContext(DM, void *);
 PETSC_EXTERN PetscErrorCode DMTaoShellSetProximalMap(DM, PetscErrorCode (*)(DMTao, DMTao, PetscReal, Vec, Vec, PetscBool));

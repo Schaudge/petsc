@@ -99,7 +99,6 @@ struct _p_Tao {
   void *user_objgradP;
   void *user_gradP;
   void *user_hessP;
-  void *user_fpiP;
   void *user_lsresP;
   void *user_lsjacP;
   void *user_conP;
@@ -123,16 +122,12 @@ struct _p_Tao {
   PetscBool setupcalled;
   void     *data;
 
-  /* Currently differentiating regularizer DM and list of DMs */
-  DM *dms;
-  DM  reg;
-
+  DM        *dms;
+  DM         reg;
   PetscReal *dm_scales;
   PetscReal  reg_scale;
-
-  PetscInt num_terms;
-
-  PetscBool is_child_dm;
+  PetscInt   num_terms;
+  PetscBool  is_child_dm; /* TRUE if Tao object is set via DMTaoUseTaoRoutines, FALSE otherwise */
 
   Vec        solution;
   Vec        gradient;

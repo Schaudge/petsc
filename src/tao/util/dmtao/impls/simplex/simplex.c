@@ -75,8 +75,10 @@ static PetscErrorCode DMTaoApplyProximalMap_Simplex(DMTao tdm0, DMTao tdm1, Pets
       PetscCheck(is_vm_diag, PetscObjectComm((PetscObject)tdm1), PETSC_ERR_USER, "DMTaoApplyProximalMap_Simplex only supports diagonal VM matrix.");
     }
   }
-  PetscCall(VecGetSize(y, &len));
-  PetscCall(VecGetArray(y, &yarray));
+  if (!tdm0->workvec) PetscCall(VecDuplicate(y, &tdm0->workvec));
+  PetscCall(VecCopy(y, tdm0->workvec));
+  PetscCall(VecGetSize(tdm0->workvec, &len));
+  PetscCall(VecGetArray(tdm0->workvec, &yarray));
   PetscCall(PetscSortReal(len, yarray));
 
   /* Not thinking about parallelism right now... */
@@ -90,13 +92,15 @@ static PetscErrorCode DMTaoApplyProximalMap_Simplex(DMTao tdm0, DMTao tdm1, Pets
       break;
     }
   }
+  PetscCall(VecRestoreArray(tdm0->workvec, &yarray));
   if (!bget) { tmax = (cumsum - size) / len; }
 
   /* Ideally, VecShift(y, -tmax), and set all neg to 0 in two kernel calls... */
   PetscCall(VecGetArray(x, &xarray));
+  PetscCall(VecGetArray(y, &yarray));
   for (i = 0; i < len; i++) { xarray[i] = Clip_Internal(yarray[i], tmax); }
-  PetscCall(VecRestoreArray(y, &yarray));
   PetscCall(VecRestoreArray(x, &xarray));
+  PetscCall(VecRestoreArray(y, &yarray));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

@@ -10,8 +10,6 @@ static PetscErrorCode DMTaoContextDestroy_Box(DMTao dm)
   PetscFunctionBegin;
   PetscCall(VecDestroy(&ctx->lb_vec));
   PetscCall(VecDestroy(&ctx->ub_vec));
-  PetscCall(PetscFree(ctx->lb_real));
-  PetscCall(PetscFree(ctx->ub_real));
   PetscCall(PetscFree(dm->data));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -22,8 +20,8 @@ static PetscErrorCode DMTaoSetFromOptions_Box(DMTao dm, PetscOptionItems *PetscO
 
   PetscFunctionBegin;
   PetscOptionsHeadBegin(PetscOptionsObject, "DMTao Box options");
-  PetscCall(PetscOptionsReal("-dmtao_box_lb_real", "DMTao Box lower bound double.", "", *ctx->lb_real, ctx->lb_real, NULL));
-  PetscCall(PetscOptionsReal("-dmtao_box_ub_real", "DMTao Box upper bound double.", "", *ctx->ub_real, ctx->ub_real, NULL));
+  PetscCall(PetscOptionsReal("-dmtao_box_lb_real", "DMTao Box lower bound double.", "", ctx->lb_real, &ctx->lb_real, NULL));
+  PetscCall(PetscOptionsReal("-dmtao_box_ub_real", "DMTao Box upper bound double.", "", ctx->ub_real, &ctx->ub_real, NULL));
   PetscOptionsHeadEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -37,9 +35,9 @@ static PetscErrorCode DMTaoView_Box(DMTao dm, PetscViewer pv)
   PetscCall(PetscObjectTypeCompare((PetscObject)pv, PETSCVIEWERASCII, &isascii));
   if (isascii) {
     PetscCall(PetscViewerASCIIPrintf(pv, "  DMTao Box"));
-    if (ctx->lb_real && ctx->ub_real) PetscCall(PetscViewerASCIIPrintf(pv, ": lb=%g ub=%g ", (double)*(ctx->lb_real), (double)*(ctx->ub_real)));
-    else if (ctx->lb_real) PetscCall(PetscViewerASCIIPrintf(pv, ": lb=%g ", (double)*(ctx->lb_real)));
-    else if (ctx->ub_real) PetscCall(PetscViewerASCIIPrintf(pv, ": ub=%g ", (double)*(ctx->ub_real)));
+    if (ctx->lb_real && ctx->ub_real) PetscCall(PetscViewerASCIIPrintf(pv, ": lb=%g ub=%g ", (double)(ctx->lb_real), (double)(ctx->ub_real)));
+    else if (ctx->lb_real) PetscCall(PetscViewerASCIIPrintf(pv, ": lb=%g ", (double)(ctx->lb_real)));
+    else if (ctx->ub_real) PetscCall(PetscViewerASCIIPrintf(pv, ": ub=%g ", (double)(ctx->ub_real)));
 
     if (ctx->lb_vec) {
       PetscCall(PetscViewerASCIIPushTab(pv));
@@ -61,12 +59,13 @@ static PetscErrorCode DMTaoView_Box(DMTao dm, PetscViewer pv)
   DMTaoBoxSetContext - sets the upperbound and lowerbound context for `DMTAOBox`.
   One can set either real number bounds, or vector bounds. In all cases,
   condition lb <= ub needs to be strictly satisfied, and if vectors are given,
-  sizes of lb and ub needs to match.
+  sizes of lb and ub needs to match. If both lb_real and lb_vec are provided,
+  lb_real is ignored. Likewise for ub_real and ub_vec.
 
   Logically Collective
 
   Input Parameters:
-+ dm - the `DM` containing `DMTAOBox`
++ dm - the `DM` containing `DMTAOBOX`
 . lb_real - lowerbound, real number
 . ub_real - upperbound, real number
 . lb_vec  - lowerbound, vector
@@ -79,24 +78,20 @@ static PetscErrorCode DMTaoView_Box(DMTao dm, PetscViewer pv)
 
 .seealso: `DMTao`, `DMTAOBox`
 @*/
-PetscErrorCode DMTaoBoxSetContext(DM dm, PetscReal *lb_real, PetscReal *ub_real, Vec lb_vec, Vec ub_vec)
+PetscErrorCode DMTaoBoxSetContext(DM dm, PetscReal lb_real, PetscReal ub_real, Vec lb_vec, Vec ub_vec)
 {
   DMTao     tdm;
   PetscReal l_max, u_min;
 
   PetscFunctionBegin;
   /* Four cases:
-   * 1: lb_real, ub_real,
-   * 2: lb_real, ub_vec,
-   * 3: lb_vec,  ub_real,
-   * 4: lb_vec,  ub_vec  */
-  //TODO For Set Routine, i am using pointer for real, bc I want to be able to pass NULL for real if possible...
-  //is this okay?
-  //TODO ideally, it would be something like !(lb_real ^ lb_vec)...
-  PetscCheck(!(lb_real && lb_vec),PetscObjectComm((PetscObject)dm), PETSC_ERR_USER, "Only one of the lower bound double or Vec needs to be set");
-  PetscCheck(!(ub_real && ub_vec),PetscObjectComm((PetscObject)dm), PETSC_ERR_USER, "Only one of the upper bound double or Vec needs to be set");
-  if (lb_real) PetscAssertPointer(lb_real, 2);
-  if (ub_real) PetscAssertPointer(ub_real, 3);
+   * 1: lb_vec,  ub_vec,
+   * 2: lb_vec,  ub_real,
+   * 3: lb_real, ub_vec,
+   * 4: lb_real, ub_real */
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscValidLogicalCollectiveReal(dm, lb_real, 2);
+  PetscValidLogicalCollectiveReal(dm, ub_real, 3);
   if (lb_vec) {
     PetscValidHeaderSpecific(lb_vec, VEC_CLASSID, 4);
     PetscCall(PetscObjectReference((PetscObject)lb_vec));
@@ -107,27 +102,29 @@ PetscErrorCode DMTaoBoxSetContext(DM dm, PetscReal *lb_real, PetscReal *ub_real,
     PetscCall(PetscObjectReference((PetscObject)ub_vec));
     PetscCall(VecMin(ub_vec, NULL, &u_min));
   }
-  /* Case 1 */
-  if (lb_real && ub_real) PetscCheck(*lb_real <= *ub_real, PetscObjectComm((PetscObject)dm), PETSC_ERR_USER, "lower bound needs to be equal or less than upper bound");
-  /* Case 2 */
-  else if (lb_real && ub_vec) PetscCheck(*lb_real <= u_min, PetscObjectComm((PetscObject)dm), PETSC_ERR_USER, "lower bound needs to be equal or less than upper bound");
-  /* Case 3 */
-  else if (lb_vec && ub_real) PetscCheck(l_max <= *ub_real, PetscObjectComm((PetscObject)dm), PETSC_ERR_USER, "lower bound needs to be equal or less than upper bound");
-  /* Case 4 */
-  else if (lb_vec && ub_vec) {
+  /* Case 1. Ignore lb_real and ub_real */
+  if (lb_vec && ub_vec) {
     PetscCheckSameTypeAndComm(lb_vec, 4, ub_vec, 5);
     VecCheckSameSize(lb_vec, 4, ub_vec, 5);
     PetscCheck(l_max <= u_min, PetscObjectComm((PetscObject)dm), PETSC_ERR_USER, "lower bound needs to be equal or less than upper bound");
-  } else PetscUnreachable();
-
+  }
+  /* Case 2. Ignore lb_real */
+  else if (lb_vec) PetscCheck(l_max <= ub_real, PetscObjectComm((PetscObject)dm), PETSC_ERR_USER, "lower bound needs to be equal or less than upper bound");
+  /* Case 3. Ignore ub_real */
+  else if (ub_vec) PetscCheck(lb_real <= u_min, PetscObjectComm((PetscObject)dm), PETSC_ERR_USER, "lower bound needs to be equal or less than upper bound");
+  /* Case 4 */
+  else {
+    PetscCheck(lb_real <= ub_real, PetscObjectComm((PetscObject)dm), PETSC_ERR_USER, "lower bound needs to be equal or less than upper bound");
+  }
   PetscCall(DMGetDMTaoWrite(dm, &tdm));
 
   DMTao_Box *ctx = (DMTao_Box *)tdm->data;
 
-  if (lb_real) *(ctx->lb_real) = *lb_real;
-  if (ub_real) *(ctx->ub_real) = *ub_real;
-  if (lb_vec) ctx->lb_vec= lb_vec;
-  if (ub_vec) ctx->ub_vec= ub_vec;
+  ctx->lb_real = lb_real;
+  ctx->ub_real = ub_real;
+
+  if (lb_vec) ctx->lb_vec   = lb_vec;
+  if (ub_vec) ctx->ub_vec   = ub_vec;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -161,7 +158,6 @@ static PetscErrorCode DMTaoApplyProximalMap_Box(DMTao tdm0, DMTao tdm1, PetscRea
 
   DMTao_Box *ctx = (DMTao_Box *)tdm0->data;
 
-
   PetscCall(VecGetLocalSize(x, &n));
   PetscCall(VecGetArray(x, &xarray));
   PetscCall(VecGetArray(y, &yarray));
@@ -169,51 +165,43 @@ static PetscErrorCode DMTaoApplyProximalMap_Box(DMTao tdm0, DMTao tdm1, PetscRea
   if (ctx->ub_vec) PetscCall(VecGetArray(ctx->ub_vec, &uarray));
 
   /* Four cases:
-   * 1: lb_real, ub_real,
-   * 2: lb_real, ub_vec,
-   * 3: lb_vec,  ub_real,
-   * 4: lb_vec,  ub_vec  */
-  if (ctx->lb_real && ctx->ub_real) {
+   * 1: lb_vec,  ub_vec,
+   * 2: lb_vec,  ub_real,
+   * 3: lb_real, ub_vec,
+   * 4: lb_real, ub_real */
+  if (ctx->lb_vec && ctx->ub_vec) {
     /* Case 1 */
-    //TODO is ther VecPointwiseMax/Min, but for scalar/real?
-    PetscCall(VecGetArray(x, &xarray));
-    PetscCall(VecGetArray(y, &yarray));
-    for (i = 0; i < n; i++) xarray[i] = PetscMin(PetscMax(yarray[i], *ctx->lb_real), *ctx->ub_real);
-    PetscCall(VecRestoreArray(x, &xarray));
-    PetscCall(VecRestoreArray(y, &yarray));
-  } else if (ctx->lb_real && ctx->ub_vec) {
-    /* Case 2 */
-    PetscCall(VecGetArray(x, &xarray));
-    PetscCall(VecGetArray(y, &yarray));
-    PetscCall(VecGetArray(ctx->ub_vec, &uarray));
-    for (i = 0; i < n; i++) xarray[i] = PetscMin(PetscMax(yarray[i], *ctx->lb_real), uarray[i]);
-    PetscCall(VecRestoreArray(x, &xarray));
-    PetscCall(VecRestoreArray(y, &yarray));
-    PetscCall(VecRestoreArray(ctx->ub_vec, &uarray));
-  } else if (ctx->lb_vec && ctx->ub_real) {
-    /* Case 3 */
+    PetscCall(VecPointwiseMax(x, y, ctx->lb_vec));
+    PetscCall(VecPointwiseMin(x, x, ctx->ub_vec));
+  }
+  else if (ctx->lb_vec) {
+    /* Case 2. Ignore lb_real */
     PetscCall(VecGetArray(x, &xarray));
     PetscCall(VecGetArray(y, &yarray));
     PetscCall(VecGetArray(ctx->lb_vec, &larray));
-    for (i = 0; i < n; i++) xarray[i] = PetscMin(PetscMax(yarray[i], larray[i]), *ctx->ub_real);
+    for (i = 0; i < n; i++) xarray[i] = PetscMin(PetscMax(yarray[i], larray[i]), ctx->ub_real);
     PetscCall(VecRestoreArray(x, &xarray));
     PetscCall(VecRestoreArray(y, &yarray));
     PetscCall(VecRestoreArray(ctx->lb_vec, &larray));
-  } else if (ctx->lb_vec && ctx->ub_vec) {
+  }
+  else if (ctx->ub_vec) {
+    /* Case 3. Ignore ub_real */
+    PetscCall(VecGetArray(x, &xarray));
+    PetscCall(VecGetArray(y, &yarray));
+    PetscCall(VecGetArray(ctx->ub_vec, &uarray));
+    for (i = 0; i < n; i++) xarray[i] = PetscMin(PetscMax(yarray[i], ctx->lb_real), uarray[i]);
+    PetscCall(VecRestoreArray(x, &xarray));
+    PetscCall(VecRestoreArray(y, &yarray));
+    PetscCall(VecRestoreArray(ctx->ub_vec, &uarray));
+  }
+  else {
     /* Case 4 */
-    PetscCall(VecPointwiseMax(x, y, ctx->lb_vec));
-    PetscCall(VecPointwiseMin(x, x, ctx->ub_vec));
-    //for (i = 0; i < n; i++) xarray[i] = PetscMin(PetscMax(yarray[i], larray[i]), uarray[i]);
-  } else PetscUnreachable();
-
-
-//  PetscCall(VecRestoreArray(x, &xarray));
-//  PetscCall(VecRestoreArray(y, &yarray));
-//  if (ctx->lb_vec) PetscCall(VecRestoreArray(ctx->lb_vec, &larray));
-//  if (ctx->ub_vec) PetscCall(VecRestoreArray(ctx->ub_vec, &uarray));
-
-  /* Conjugate version */
-  if (flg) PetscCall(VecAYPX(y, -1., x));
+    PetscCall(VecGetArray(x, &xarray));
+    PetscCall(VecGetArray(y, &yarray));
+    for (i = 0; i < n; i++) xarray[i] = PetscMin(PetscMax(yarray[i], ctx->lb_real), ctx->ub_real);
+    PetscCall(VecRestoreArray(x, &xarray));
+    PetscCall(VecRestoreArray(y, &yarray));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -233,10 +221,10 @@ PETSC_EXTERN PetscErrorCode DMTaoCreate_Box_Private(DMTao dm)
   PetscValidHeaderSpecific(dm, DMTAO_CLASSID, 1);
   PetscCall(PetscNew(&ctx));
 
-  PetscCall(PetscMalloc1(1, &ctx->lb_real));
-  PetscCall(PetscMalloc1(1, &ctx->ub_real));
-  ctx->lb_vec = NULL;
-  ctx->ub_vec = NULL;
+  ctx->lb_real = 0.;
+  ctx->ub_real = 0.;
+  ctx->lb_vec  = NULL;
+  ctx->ub_vec  = NULL;
 
   dm->ops->applyproximalmap = DMTaoApplyProximalMap_Box;
   dm->ops->computeobjective = NULL; //Ignoring obj func for indicator functions...
@@ -246,6 +234,5 @@ PETSC_EXTERN PetscErrorCode DMTaoCreate_Box_Private(DMTao dm)
   dm->ops->view             = DMTaoView_Box;
   dm->ops->setfromoptions   = DMTaoSetFromOptions_Box;
   dm->ops->reset            = NULL;
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
