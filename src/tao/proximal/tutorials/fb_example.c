@@ -8,7 +8,7 @@
 
 static char help[] = "This example demonstrates TaoFB to solve proximal algorithm. \n";
 
-/* https://github.com/tomgoldstein/fasta-matlab/blob/master/test_sparseLeastSquares.m */
+//ADAPGM example. Nesterov lasso construction
 
 typedef enum {
   PROB_LASSO,

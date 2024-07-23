@@ -7,7 +7,7 @@
  * -> f(x) + g(x) + h(Ax),
  *  where f(x) = 0.5 x^T Q x + x^T q
  *        g(x) : box constraint indicator function
- *        h(x) : zeron cone indicator function
+ *        h(x) : zero cone indicator function
  *
  * least absolute deviation:
  *
@@ -271,12 +271,10 @@ int main(int argc, char **argv)
   switch (user.probType) {
   case DUAL_SVM:
   {
-    PetscReal zr = 0.;
 
     PetscCall(DMTaoSetType(gdm, DMTAOBOX));
     PetscCall(DMTaoSetType(hdm, DMTAOZERO));
-    //TODO how to deal with this kind of situation?
-    PetscCall(DMTaoBoxSetContext(gdm, &zr, &user.C, NULL, NULL));
+    PetscCall(DMTaoBoxSetContext(gdm, 0, user.C, NULL, NULL));
   }
     break;
   case LAD:
