@@ -720,7 +720,8 @@ PetscErrorCode TaoView(Tao tao, PetscViewer viewer)
     }
     if (tao->nproxs > 0) {
       PetscCall(PetscViewerASCIIPrintf(viewer, "total number of proximal mapping evaluations=%" PetscInt_FMT ",", tao->nproxs));
-      PetscCall(PetscViewerASCIIPrintf(viewer, "    (max: %" PetscInt_FMT ")\n", tao->max_funcs));
+      if (tao->max_funcs == PETSC_UNLIMITED) PetscCall(PetscViewerASCIIPrintf(viewer, "      (max: unlimited)\n"));
+      else PetscCall(PetscViewerASCIIPrintf(viewer, "      (max: %" PetscInt_FMT ")\n", tao->max_funcs));
     }
     if (tao->nhess > 0) PetscCall(PetscViewerASCIIPrintf(viewer, "total number of Hessian evaluations=%" PetscInt_FMT "\n", tao->nhess));
     if (tao->nconstraints > 0) PetscCall(PetscViewerASCIIPrintf(viewer, "total number of constraint function evaluations=%" PetscInt_FMT "\n", tao->nconstraints));
