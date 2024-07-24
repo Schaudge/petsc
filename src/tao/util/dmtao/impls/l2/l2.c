@@ -30,13 +30,11 @@ static PetscErrorCode DMTaoView_L2(DMTao dm, PetscViewer pv)
 static PetscErrorCode DMTaoComputeObjective_L2(DM dm, Vec X, PetscReal *f, void *ctx)
 {
   Vec   y;
-  Mat   vm;
   DMTao tdm;
 
   PetscFunctionBegin;
   PetscCall(DMGetDMTao(dm, &tdm));
   PetscCall(DMTaoGetCentralVector(dm, &y));
-  PetscCall(DMTaoGetVM(dm, &vm));
 
   DMTao_L2 *l2ctx = (DMTao_L2 *)tdm->data;
 
@@ -44,84 +42,46 @@ static PetscErrorCode DMTaoComputeObjective_L2(DM dm, Vec X, PetscReal *f, void 
 
   if (y) {
     PetscCall(VecWAXPY(tdm->workvec, -1., y, X));
-    if (vm) {
-      PetscCall(MatMult(vm, tdm->workvec, l2ctx->workvec2));
-      PetscCall(VecTDot(tdm->workvec, l2ctx->workvec2, f));
-    } else {
-      PetscCall(VecNorm(tdm->workvec, NORM_2, f));
-    }
+    PetscCall(VecNorm(tdm->workvec, NORM_2, f));
   } else {
-    if (vm) {
-      PetscCall(MatMult(vm, X, tdm->workvec));
-      PetscCall(VecTDot(X, tdm->workvec, f));
-    } else {
-      PetscCall(VecNorm(X, NORM_2, f));
-    }
+    PetscCall(VecNorm(X, NORM_2, f));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode DMTaoComputeGradient_L2(DM dm, Vec X, Vec G, void *ctx)
 {
-  Mat   vm;
   Vec   y;
   DMTao tdm;
 
   PetscFunctionBegin;
   PetscCall(DMGetDMTao(dm, &tdm));
   PetscCall(DMTaoGetCentralVector(dm, &y));
-  PetscCall(DMTaoGetVM(dm, &vm));
 
   if (y) {
-    if (vm) {
-      PetscCall(VecAXPBYPCZ(tdm->workvec, 2, -2, 0, X, y));
-      PetscCall(MatMult(vm, tdm->workvec, G));
-    } else {
-      PetscCall(VecAXPBYPCZ(G, 2, -2, 0, X, y));
-    }
+    PetscCall(VecAXPBYPCZ(G, 2, -2, 0, X, y));
   } else {
-    if (vm) {
-      PetscCall(VecAXPBY(tdm->workvec, 2, 0., X));
-      PetscCall(MatMult(vm, tdm->workvec, G));
-    } else {
-      PetscCall(VecAXPBY(G, 2, 0., X));
-    }
+    PetscCall(VecAXPBY(G, 2, 0., X));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode DMTaoComputeObjectiveAndGradient_L2(DM dm, Vec X, PetscReal *f, Vec G, void *ctx)
 {
-  Mat   vm;
   Vec   y;
   DMTao tdm;
 
   PetscFunctionBegin;
   PetscCall(DMGetDMTao(dm, &tdm));
   PetscCall(DMTaoGetCentralVector(dm, &y));
-  PetscCall(DMTaoGetVM(dm, &vm));
-
-  DMTao_L2 *l2ctx = (DMTao_L2 *)tdm->data;
 
   if (y) {
-    if (vm) {
-      PetscCall(VecAXPBYPCZ(tdm->workvec, 2, -2, 0, X, y));
-      PetscCall(MatMult(vm, tdm->workvec, G));
-      PetscCall(VecTDot(tdm->workvec, l2ctx->workvec2, f));
-    } else {
-      PetscCall(VecAXPBYPCZ(G, 1, -1, 0, X, y));
-      PetscCall(VecTDot(G, G, f));
-      PetscCall(VecScale(G, 2.));
-    }
+    PetscCall(VecAXPBYPCZ(G, 1, -1, 0, X, y));
+    PetscCall(VecTDot(G, G, f));
+    PetscCall(VecScale(G, 2.));
   } else {
-    if (vm) {
-      PetscCall(MatMult(vm, X, G));
-      PetscCall(VecTDot(X, G, f));
-      PetscCall(VecScale(G, 2));
-    } else {
-      PetscCall(VecTDot(X, X, f));
-      PetscCall(VecAXPBY(G, 2, 0., X));
-    }
+    PetscCall(VecTDot(X, X, f));
+    PetscCall(VecAXPBY(G, 2, 0., X));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

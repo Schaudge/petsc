@@ -439,23 +439,23 @@ PetscErrorCode DMTaoSetObjectiveAndGradient(DM dm, PetscErrorCode (*func)(DM dm,
 @*/
 PetscErrorCode DMTaoSetFromOptions(DM dm)
 {
-  const char *default_type = DMTAOL2;
+  DMTaoType   default_type = DMTAOL2;
   char        type[256];
   PetscBool   flg;
   DMTao       tdm;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-  PetscObjectOptionsBegin((PetscObject)dm);
-  if (((PetscObject)dm)->type_name) default_type = ((PetscObject)dm)->type_name;
+  PetscCall(DMGetDMTaoWrite(dm, &tdm));
+  PetscObjectOptionsBegin((PetscObject)tdm);
+  if (((PetscObject)tdm)->type_name) default_type = ((PetscObject)tdm)->type_name;
   /* Check for type from options */
   PetscCall(PetscOptionsFList("-dmtao_type", "DMTao type", "DMTaoSetType", DMTaoList, default_type, type, 256, &flg));
   if (flg) {
     PetscCall(DMTaoSetType(dm, type));
-  } else if (!((PetscObject)dm)->type_name) {
+  } else if (!((PetscObject)tdm)->type_name) {
     PetscCall(DMTaoSetType(dm, default_type));
   }
-  PetscCall(DMGetDMTaoWrite(dm, &tdm));
   PetscTryTypeMethod(tdm, setfromoptions, PetscOptionsObject);
   PetscOptionsEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -597,7 +597,7 @@ PetscErrorCode DMTaoSetType(DM dm, DMTaoType type)
   Not Collective
 
   Input Parameter:
-. tdm - the `DM` context
+. dm - the `DM` context
 
   Output Parameter:
 . type - the DMTao algorithm in effect
@@ -606,10 +606,14 @@ PetscErrorCode DMTaoSetType(DM dm, DMTaoType type)
 
 .seealso: `DMTao`
 @*/
-PetscErrorCode DMTaoGetType(DM tdm, DMTaoType *type)
+PetscErrorCode DMTaoGetType(DM dm, DMTaoType *type)
 {
+  DMTao tdm;
+
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(tdm, DM_CLASSID, 1);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscAssertPointer(type, 2);
+  PetscCall(DMGetDMTao(dm, &tdm));
   *type = ((PetscObject)tdm)->type_name;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -45,10 +45,9 @@ static inline PetscReal Clip_Internal(PetscReal in, PetscReal tmax)
 static PetscErrorCode DMTaoApplyProximalMap_Simplex(DMTao tdm0, DMTao tdm1, PetscReal lambda, Vec y, Vec x, PetscBool flg)
 {
   PetscBool  is_0_s, is_1_l2  = PETSC_TRUE;
-  PetscBool  is_vm_diag, bget = PETSC_FALSE;
+  PetscBool  bget = PETSC_FALSE;
   PetscReal *xarray, *yarray, tmax, min, sum, size, cumsum = 0;
   PetscInt   len, i;
-  Mat        vm;
   DM         dm1;
 
   PetscFunctionBegin;
@@ -66,15 +65,7 @@ static PetscErrorCode DMTaoApplyProximalMap_Simplex(DMTao tdm0, DMTao tdm1, Pets
   PetscCall(VecMin(y, NULL, &min));
   if (PetscAbsReal(sum - size) < sctx->tol) { PetscFunctionReturn(PETSC_SUCCESS); }
 
-  if (tdm1) {
-    PetscCall(DMTaoGetParentDM(tdm1, &dm1));
-    PetscCall(DMTaoGetVM(dm1, &vm));
-    if (vm) {
-      //TODO VM SIMPLEX
-      PetscCall(PetscObjectTypeCompare((PetscObject)vm, MATDIAGONAL, &is_vm_diag));
-      PetscCheck(is_vm_diag, PetscObjectComm((PetscObject)tdm1), PETSC_ERR_USER, "DMTaoApplyProximalMap_Simplex only supports diagonal VM matrix.");
-    }
-  }
+  if (tdm1) PetscCall(DMTaoGetParentDM(tdm1, &dm1));
   if (!tdm0->workvec) PetscCall(VecDuplicate(y, &tdm0->workvec));
   PetscCall(VecCopy(y, tdm0->workvec));
   PetscCall(VecGetSize(tdm0->workvec, &len));
