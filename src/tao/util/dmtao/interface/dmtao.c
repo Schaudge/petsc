@@ -732,6 +732,8 @@ PetscErrorCode DMTaoGetCentralVector(DM dm, Vec *y)
 
 /*@
   DMTaoSetLipschitz - Sets Lipschitz constant of `DMTao` object.
+  Lipschitz constant must be non-negative. Lipschitz constant of
+  zero denotes that it is unknown.
 
   Logically Collective
 
@@ -750,7 +752,7 @@ PetscErrorCode DMTaoSetLipschitz(DM dm, PetscReal lip)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   PetscValidLogicalCollectiveReal(dm, lip, 2);
-  PetscCheck(lip > 0, PetscObjectComm((PetscObject)dm), PETSC_ERR_USER, "Lipschitz value has to be greater than zero.");
+  PetscCheck(lip >= 0, PetscObjectComm((PetscObject)dm), PETSC_ERR_USER, "Lipschitz value must be non-negative");
   PetscCall(DMGetDMTaoWrite(dm, &tdm));
   tdm->lipschitz = lip;
   PetscFunctionReturn(PETSC_SUCCESS);
