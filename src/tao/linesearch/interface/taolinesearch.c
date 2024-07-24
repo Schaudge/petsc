@@ -925,10 +925,10 @@ PetscErrorCode TaoLineSearchComputeObjective(TaoLineSearch ls, Vec x, PetscReal 
   PetscValidHeaderSpecific(x, VEC_CLASSID, 2);
   PetscAssertPointer(f, 3);
   PetscCheckSameComm(ls, 1, x, 2);
-  if (ls->usetaoroutines) {
-    PetscCall(TaoComputeObjective(ls->tao, x, f));
-  } else if (ls->usedm) {
+  if (ls->usedm) {
     PetscCall(DMTaoComputeObjective(ls->dm, x, f));
+  } else if (ls->usetaoroutines) {
+    PetscCall(TaoComputeObjective(ls->tao, x, f));
   } else {
     PetscCheck(ls->ops->computeobjective || ls->ops->computeobjectiveandgradient || ls->ops->computeobjectiveandgts, PetscObjectComm((PetscObject)ls), PETSC_ERR_ARG_WRONGSTATE, "Line Search does not have objective function set");
     PetscCall(PetscLogEventBegin(TAOLINESEARCH_Eval, ls, 0, 0, 0));
@@ -974,10 +974,10 @@ PetscErrorCode TaoLineSearchComputeObjectiveAndGradient(TaoLineSearch ls, Vec x,
   PetscValidHeaderSpecific(g, VEC_CLASSID, 4);
   PetscCheckSameComm(ls, 1, x, 2);
   PetscCheckSameComm(ls, 1, g, 4);
-  if (ls->usetaoroutines) {
-    PetscCall(TaoComputeObjectiveAndGradient(ls->tao, x, f, g));
-  } else if (ls->usedm) {
+  if (ls->usedm) {
     PetscCall(DMTaoComputeObjectiveAndGradient(ls->dm, x, f, g));
+  } else if (ls->usetaoroutines) {
+    PetscCall(TaoComputeObjectiveAndGradient(ls->tao, x, f, g));
   } else {
     PetscCall(PetscLogEventBegin(TAOLINESEARCH_Eval, ls, 0, 0, 0));
     if (ls->ops->computeobjectiveandgradient) PetscCallBack("TaoLineSearch callback objective/gradient", (*ls->ops->computeobjectiveandgradient)(ls, x, f, g, ls->userctx_funcgrad));
@@ -1022,10 +1022,10 @@ PetscErrorCode TaoLineSearchComputeGradient(TaoLineSearch ls, Vec x, Vec g)
   PetscValidHeaderSpecific(g, VEC_CLASSID, 3);
   PetscCheckSameComm(ls, 1, x, 2);
   PetscCheckSameComm(ls, 1, g, 3);
-  if (ls->usetaoroutines) {
-    PetscCall(TaoComputeGradient(ls->tao, x, g));
-  } else if (ls->usedm) {
+  if (ls->usedm) {
     PetscCall(DMTaoComputeGradient(ls->dm, x, g));
+  } else if (ls->usetaoroutines) {
+    PetscCall(TaoComputeGradient(ls->tao, x, g));
   } else {
     PetscCall(PetscLogEventBegin(TAOLINESEARCH_Eval, ls, 0, 0, 0));
     if (ls->ops->computegradient) PetscCallBack("TaoLineSearch callback gradient", (*ls->ops->computegradient)(ls, x, g, ls->userctx_grad));
