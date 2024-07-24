@@ -41,7 +41,7 @@ typedef struct {
   PetscInt  m, n;
   Mat       Q, A;
   Vec       x0, x, workvec, workvec2, workvec3, q, y_translation;
-  PetscReal C, t, lip, matnorm;
+  PetscReal C, t, lip, matnorm, g_scale;
 } AppCtx;
 
 PetscErrorCode LAD_UserObjGrad_DM(DM dm, Vec X, PetscReal *f, Vec G, void *ptr)
@@ -232,6 +232,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *user)
   PetscFunctionBegin;
   user->t        = 0.1;
   user->C        = 0.1;
+  user->g_scale  = 10.;
   user->formType = USE_TAO;
   user->probType = DUAL_SVM;
   formtype       = user->formType;
@@ -244,17 +245,19 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *user)
   user->formType = (FormType)formtype;
   user->probType = (ProbType)probtype;
 
+  /* Box constraint for SVM */
   PetscCall(PetscOptionsGetReal(NULL, NULL, "-C", &user->C, NULL));
   PetscCall(PetscOptionsGetReal(NULL, NULL, "-t", &user->t, NULL));
+  PetscCall(PetscOptionsGetReal(NULL, NULL, "-g_scale", &user->g_scale, NULL));
   PetscOptionsEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 int main(int argc, char **argv)
 {
-  DM        fdm, gdm, hdm;
-  Tao       tao;
-  AppCtx    user;
+  DM     fdm, gdm, hdm;
+  Tao    tao;
+  AppCtx user;
 
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, (char *)0, help));
@@ -271,7 +274,6 @@ int main(int argc, char **argv)
   switch (user.probType) {
   case DUAL_SVM:
   {
-
     PetscCall(DMTaoSetType(gdm, DMTAOBOX));
     PetscCall(DMTaoSetType(hdm, DMTAOZERO));
     PetscCall(DMTaoBoxSetContext(gdm, 0, user.C, NULL, NULL));
@@ -285,7 +287,6 @@ int main(int argc, char **argv)
   default:
     SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid problem type.");
   }
-
 
   switch (user.probType) {
   case DUAL_SVM:
@@ -305,7 +306,7 @@ int main(int argc, char **argv)
     break;
   case LAD:
   {
-    // LAD's f(x) = Zero()  TODO does this work? effectively PDHG....
+    // LAD's f(x) = Zero()  TODO effectively PDHG....adaPDM - PDHG does give you worse stepsize bounds though...
     switch (user.formType) {
     case USE_TAO:
       PetscCall(TaoSetObjectiveAndGradient(tao, NULL, LAD_UserObjGrad, NULL));
@@ -323,7 +324,7 @@ int main(int argc, char **argv)
     SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid problem type.");
   }
 
-  PetscCall(TaoPSSetNonSmoothTerm(tao, gdm, 10));
+  PetscCall(TaoPSSetNonSmoothTerm(tao, gdm, user.g_scale));
   PetscCall(TaoPSSetNonSmoothTermWithLinearMap(tao, hdm, user.A, user.matnorm, 1.));
 
   PetscCall(TaoSetFromOptions(tao));
@@ -345,14 +346,14 @@ int main(int argc, char **argv)
    test:
       suffix: svm
       localrunfiles: matrix-heart-scale.dat vector-heart-scale.dat
-      args: -formation use_tao -problem dual_svm
+      args: -formation use_tao -problem dual_svm -g_scale 1
       output_file: output/cv_example.out
       requires: !single
 
    test:
       suffix: lad
       localrunfiles: matrix-housing-scale.dat vector-housing-scale.dat
-      args: -formation use_tao -problem lad
+      args: -formation use_tao -problem lad -g_scale 10
       output_file: output/cv_example.out
       requires: !single
 
