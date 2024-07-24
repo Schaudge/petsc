@@ -137,7 +137,6 @@ static PetscErrorCode TaoSolve_CV(Tao tao)
   PetscCheck(cv->r > 1, PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Backtracking factor needs to be greater than 1");
   PetscCheck(!(cv->use_accel && cv->use_adapt), PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "TaoCV only supports either acceleration or adaptive step, not both");
   if (cv->smoothterm) PetscCall(DMTaoGetLipschitz(cv->smoothterm, &lip));
-  else lip = 0.;
   PetscCall(PetscCitationsRegister(citation, &cited));
 
   //f can be missing (becomes PDHG), but both g and h need to be present - (i.e., does not suppoer LV/PAPC)
@@ -242,7 +241,6 @@ static PetscErrorCode TaoSetFromOptions_CV(Tao tao, PetscOptionItems *PetscOptio
   //TODO TaoCVSetInitialNormEstimate(Tao, PetscReal) ?
   PetscCall(PetscOptionsReal("-tao_cv_eta", "Initial linear map norm estimate. Must be nonnegative", "", cv->eta, &cv->eta, NULL));
   PetscCall(PetscOptionsReal("-tao_cv_tol", "Stepsize tolerance parameter", "", cv->tol, &cv->tol, NULL));
-  PetscCall(PetscOptionsBool("-tao_cv_approx_lip", "Approximate Lipschitz in the beginning", "", cv->approx_lip, &cv->approx_lip, NULL));
   PetscCall(PetscOptionsBool("-tao_cv_accel", "Use Acceleration (Nesterov-type)", "", cv->use_accel, &cv->use_accel, NULL));
   PetscCall(PetscOptionsBool("-tao_cv_adaptive", "Use adaptive stepsize (adaPDM)", "", cv->use_adapt, &cv->use_adapt, NULL));
   PetscCall(TaoLineSearchSetFromOptions(tao->linesearch));
@@ -259,6 +257,12 @@ static PetscErrorCode TaoView_CV(Tao tao, PetscViewer viewer)
   PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &isascii));
   if (isascii) {
     PetscCall(PetscViewerASCIIPushTab(viewer));
+    PetscCall(PetscViewerASCIIPrintf(viewer, "Norm estimate factor: R=%g\n", (double)cv->R));
+    PetscCall(PetscViewerASCIIPrintf(viewer, "Primal-dual ratio: ratio=%g\n", (double)cv->pd_ratio));
+    PetscCall(PetscViewerASCIIPrintf(viewer, "Backtracking paramter: r=%g\n", (double)cv->r));
+    PetscCall(PetscViewerASCIIPrintf(viewer, "Stepsize scale parameter: nu=%g\n", (double)cv->nu));
+    if (cv->use_accel) PetscCall(PetscViewerASCIIPrintf(viewer, "Using Nesterov-type acceleration\n"));
+    else if (cv->use_adapt) PetscCall(PetscViewerASCIIPrintf(viewer, "Using adaPDM-type adaptive stepsize\n"));
     if (cv->smoothterm) {
       PetscCall(PetscViewerASCIIPrintf(viewer, "Smooth Term:\n"));
       PetscCall(DMTaoView(cv->smoothterm, viewer));
@@ -346,6 +350,9 @@ PETSC_EXTERN PetscErrorCode TaoCreate_CV(Tao tao)
   tao->ops->solve             = TaoSolve_CV;
   tao->ops->convergencetest   = TaoDefaultConvergenceTest;
 
+  PetscCall(TaoParametersInitialize(tao));
+  PetscObjectParameterSetDefault(tao, max_it, 1000);
+
   tao->data = (void *)cv;
 
   cv->h_scale     = 1.;
@@ -358,7 +365,6 @@ PETSC_EXTERN PetscErrorCode TaoCreate_CV(Tao tao)
   cv->nu          = 1.2;
   cv->eta         = 1.;
   cv->smoothterm  = NULL;
-  cv->approx_lip  = PETSC_TRUE;
   cv->use_accel   = PETSC_TRUE;
   cv->use_adapt   = PETSC_FALSE;
 

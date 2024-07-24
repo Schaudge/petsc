@@ -24,5 +24,5 @@ typedef struct {
   PetscReal R; //scale factor for estimating linear map norm. Must be <= 1.
   PetscReal r; //backtracking parameter > 1
   PetscReal tol; //maybe use gattol, gttol etc? TODO
-  PetscBool use_accel, use_adapt, approx_lip, lip_set, lmap_norm_set, approx_lmap_norm;
+  PetscBool use_accel, use_adapt, lip_set, lmap_norm_set, approx_lmap_norm;
 } TAO_CV;
