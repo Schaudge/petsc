@@ -415,7 +415,7 @@ PetscErrorCode TaoSetFromOptions(Tao tao)
   PetscViewer monviewer;
   PetscBool   flg, found;
   MPI_Comm    comm;
-  PetscReal   catol, crtol, gatol, grtol, gttol;
+  PetscReal   catol, crtol, gatol, grtol, gttol, step;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
@@ -453,6 +453,10 @@ PetscErrorCode TaoSetFromOptions(Tao tao)
   PetscCall(PetscOptionsReal("-tao_grtol", "Stop if norm of gradient divided by the function value is less than", "TaoSetTolerances", tao->grtol, &grtol, NULL));
   PetscCall(PetscOptionsReal("-tao_gttol", "Stop if the norm of the gradient is less than the norm of the initial gradient times tol", "TaoSetTolerances", tao->gttol, &gttol, NULL));
   PetscCall(TaoSetTolerances(tao, gatol, grtol, gttol));
+
+  step = tao->step;
+  PetscCall(PetscOptionsReal("-tao_initial_step", "Sets initial stepsize", "TaoSetInitialStep", tao->step, &step, NULL));
+  PetscCall(TaoSetInitialStep(tao, step));
 
   PetscCall(PetscOptionsInt("-tao_max_it", "Stop if iteration number exceeds", "TaoSetMaximumIterations", tao->max_it, &tao->max_it, &flg));
   if (flg) PetscCall(TaoSetMaximumIterations(tao, tao->max_it));
@@ -589,6 +593,29 @@ PetscErrorCode TaoSetFromOptions(Tao tao)
   PetscOptionsEnd();
 
   if (tao->linesearch) PetscCall(TaoLineSearchSetFromOptions(tao->linesearch));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  TaoSetInitialStep - Sets initial step for `TaoSolve()`.
+
+  Logically Collective
+
+  Input Parameters:
++ tao  - the `Tao` context
+. step - Initial stepsize. Must be non-negative.
+
+  Level: beginner
+
+.seealso: [](ch_tao), `Tao`
+@*/
+PetscErrorCode TaoSetInitialStep(Tao tao, PetscReal step)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
+  PetscValidLogicalCollectiveReal(tao, step, 2);
+  PetscCheck(step >= 0, PetscObjectComm((PetscObject)tao), PETSC_ERR_ARG_OUTOFRANGE, "Negative stepsize not allowed");
+  tao->step = step;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
