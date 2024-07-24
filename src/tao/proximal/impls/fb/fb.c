@@ -112,8 +112,7 @@ static PetscErrorCode TaoSolve_FB(Tao tao)
   PetscCheck(tao->step >= 0, PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Stepsize cannot be negative");
   PetscCheck(fb->xi >= 1, PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Backtracing scale factor needs to be equal or greater than 1");
   PetscCheck(!(fb->use_accel && fb->use_adapt), PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "TaoFB only supports either acceleration or adaptive step, not both");
-  if (!fb->lip_set && fb->smoothterm) PetscCall(DMTaoGetLipschitz(fb->smoothterm, &fb->lip));
-  else fb->lip = 0.;
+  if (fb->smoothterm) PetscCall(DMTaoGetLipschitz(fb->smoothterm, &fb->lip));
 
   if (fb->lip == 0) {
     /* Approximating initial Lipschitz number via two random vectors */
@@ -142,7 +141,7 @@ static PetscErrorCode TaoSolve_FB(Tao tao)
     tao->step = 2. / fb->lip / 10;
 
     PetscCall(PetscRandomDestroy(&rctx));
-  } else if (fb->lip > 0) {
+  } else {
     tao->step = 1. / fb->lip;
   }
 
@@ -243,6 +242,9 @@ static PetscErrorCode TaoView_FB(Tao tao, PetscViewer viewer)
   PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &isascii));
   if (isascii) {
     PetscCall(PetscViewerASCIIPushTab(viewer));
+    PetscCall(PetscViewerASCIIPrintf(viewer, "Backtracking linesearch scaling paramtera: xi=%g\n", (double)fb->xi));
+    if (fb->use_accel) PetscCall(PetscViewerASCIIPrintf(viewer, "Using Nesterov-type acceleration\n"));
+    else if (fb->use_adapt) PetscCall(PetscViewerASCIIPrintf(viewer, "Using adaPGM-type adaptive stepsize\n"));
     if (fb->smoothterm) {
       PetscCall(PetscViewerASCIIPrintf(viewer, "Smooth Term:\n"));
       PetscCall(DMTaoView(fb->smoothterm, viewer));
@@ -273,11 +275,10 @@ static PetscErrorCode TaoSetUp_FB(Tao tao)
   if (!fb->grad_old) PetscCall(VecDuplicate(tao->solution, &fb->grad_old));
   PetscCall(DMCreate(PetscObjectComm((PetscObject)tao), &fb->reg));
   PetscCall(DMTaoSetType(fb->reg, DMTAOL2));
-  if (fb->smoothterm) {
-    PetscCall(TaoLineSearchUseDM(tao->linesearch, fb->smoothterm));
-  } else {
-    PetscCall(TaoLineSearchUseTaoRoutines(tao->linesearch, tao));
-  }
+  /* If UseDM is set, Tao Routines will not be computed.
+   * However, LS still needs Tao object to find its TaoType */
+  PetscCall(TaoLineSearchUseTaoRoutines(tao->linesearch, tao));
+  if (fb->smoothterm) PetscCall(TaoLineSearchUseDM(tao->linesearch, fb->smoothterm));
   PetscCall(TaoLineSearchSetProx(tao->linesearch, fb->proxterm, fb->prox_scale, fb->reg));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -316,8 +317,13 @@ PETSC_EXTERN PetscErrorCode TaoCreate_FB(Tao tao)
   tao->ops->solve             = TaoSolve_FB;
   tao->ops->convergencetest   = TaoDefaultConvergenceTest;
 
+
+  PetscCall(TaoParametersInitialize(tao));
+  PetscObjectParameterSetDefault(tao, max_it, 1000);
+
   tao->data = (void *)fb;
 
+  fb->lip         = 0.;
   fb->f_scale     = 1.;
   fb->prox_scale  = 1.;
   fb->t_fista     = 1;
