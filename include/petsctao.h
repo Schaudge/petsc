@@ -585,10 +585,6 @@ PETSC_EXTERN PetscErrorCode DMTaoSetCentralVector(DM, Vec);
 PETSC_EXTERN PetscErrorCode DMTaoGetType(DM, DMTaoType *);
 PETSC_EXTERN PetscErrorCode DMTaoSetType(DM, DMTaoType);
 
-//TODO not using these yet..
-PETSC_EXTERN PetscErrorCode DMTaoSetVM(DM, Mat);
-PETSC_EXTERN PetscErrorCode DMTaoGetVM(DM, Mat *);
-
 PETSC_EXTERN PetscErrorCode DMTaoGetParentDM(DMTao, DM *);
 PETSC_EXTERN PetscErrorCode DMTaoReset(DM);
 PETSC_EXTERN PetscErrorCode DMGetDMTao(DM, DMTao *);
@@ -596,8 +592,6 @@ PETSC_EXTERN PetscErrorCode DMGetDMTaoWrite(DM, DMTao *);
 
 PETSC_EXTERN PetscErrorCode DMTaoSetLipschitz(DM, PetscReal);
 PETSC_EXTERN PetscErrorCode DMTaoGetLipschitz(DM, PetscReal *);
-PETSC_EXTERN PetscErrorCode DMTaoSetStrongConvexity(DM, PetscReal);
-PETSC_EXTERN PetscErrorCode DMTaoGetStrongConvexity(DM, PetscReal *);
 
 PETSC_EXTERN PetscErrorCode TaoClearDMTaos(Tao);
 PETSC_EXTERN PetscErrorCode TaoGetParentDM(Tao, DM *);

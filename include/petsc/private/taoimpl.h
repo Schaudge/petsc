@@ -53,9 +53,9 @@ struct _p_DMTao {
   Mat vm;
 
   Vec       translation;
-  PetscReal scaling; /* Note: this is scaling factor. This scales input vector, as in f(x) -> f(scale*x), NOT f(x)->scale*f(x) */
-
   Vec       y, workvec;
+  PetscReal scaling; /* Note: this is scaling factor. This scales input vector, as in f(x) -> f(scale*x), NOT f(x)->scale*f(x) */
+  PetscBool scaling_set;
 };
 
 typedef struct _TaoOps *TaoOps;
@@ -249,7 +249,9 @@ PETSC_EXTERN PetscLogEvent TAO_ObjGradEval;
 PETSC_EXTERN PetscLogEvent TAO_HessianEval;
 PETSC_EXTERN PetscLogEvent TAO_ConstraintsEval;
 PETSC_EXTERN PetscLogEvent TAO_JacobianEval;
-PETSC_EXTERN PetscLogEvent DMTAO_Eval;
+PETSC_EXTERN PetscLogEvent DMTAO_ObjectiveEval;
+PETSC_EXTERN PetscLogEvent DMTAO_GradientEval;
+PETSC_EXTERN PetscLogEvent DMTAO_ObjGradEval;
 PETSC_EXTERN PetscLogEvent DMTAO_ApplyProx;
 
 static inline PetscErrorCode TaoLogConvergenceHistory(Tao tao, PetscReal obj, PetscReal resid, PetscReal cnorm, PetscInt totits)

@@ -7,7 +7,9 @@ PetscFunctionList DMTaoList              = NULL;
 
 PetscClassId DMTAO_CLASSID = 0;
 
-PetscLogEvent DMTAO_Eval;
+PetscLogEvent DMTAO_ObjectiveEval;
+PetscLogEvent DMTAO_GradientEval;
+PetscLogEvent DMTAO_ObjGradEval;
 PetscLogEvent DMTAO_ApplyProx;
 
 static PetscErrorCode DMTaoCreateWorkvec_Private(DMTao tdm0, Vec x)
@@ -38,14 +40,15 @@ static PetscErrorCode DMTaoDestroy(DMTao *kdm)
 
 /*@
   DMTaoSetScaling - Sets scaling factor to `DMTao` object
-  f(x) -> f(scale*x)
-  prox_f(x) -> (1/scale)*prox_f(scale*x).
+  f(x)             -> f(scale*x)
+  prox_{step,f}(x) -> (1/scale)*prox_{step*scale^2,f}(scale*x).
+
   This does NOT scale the function, as in
   (FALSE) f(x) -> scale*f(x)
 
   If translation vector a is set, then it becomes
-  f(x) -> f(scale*x + a)
-  prox_f(x) -> 1/scale * (prox_{scale^2,g} (scale*x + a) - a)
+  f(x)             -> f(scale*x + a)
+  prox_{step,f}(x) -> 1/scale * (prox_{step*scale^2,f} (scale*x + a) - a)
 
   Collective
 
@@ -63,19 +66,22 @@ PetscErrorCode DMTaoSetScaling(DM dm, PetscReal scale)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscCheck(scale > 0, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "DMTao scale must be greater than zero");
   PetscCall(DMGetDMTao(dm, &tdm));
-  tdm->scaling = scale;
+
+  tdm->scaling     = scale;
+  tdm->scaling_set = PETSC_TRUE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@
   DMTaoSetTranslationVector - Sets translation vector to `DMTao` object
-  f(x) -> f(x + a)
-  prox_f(x) -> prox_f(x + a) - a.
+  f(x)             -> f(x + a)
+  prox_{step,f}(x) -> prox_{step,f}(x + a) - a.
 
   If scaling is set, then it becomes
-  f(x) -> f(scale*x + a)
-  prox_f(x) -> 1/scale * (prox_{scale^2,g} (scale*x + a) - a)
+  f(x)             -> f(scale*x + a)
+  prox_{step,f}(x) -> 1/scale * (prox_{step*scale^2,f} (scale*x + a) - a)
 
   Collective
 
@@ -93,58 +99,11 @@ PetscErrorCode DMTaoSetTranslationVector(DM dm, Vec a)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  if (a) PetscValidHeaderSpecific(a, VEC_CLASSID, 2);
+  PetscCall(PetscObjectReference((PetscObject)a));
   PetscCall(DMGetDMTao(dm, &tdm));
+  PetscCall(VecDestroy(&tdm->translation));
   tdm->translation = a;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/*@
-  DMTaoSetVM - Sets variable metric matrix to `DMTao` object
-
-  Collective
-
-  Input Parameters:
-+ dm - the `DM` context
-- vm - the variable metric matrix
-
-  Level: beginner
-
-.seealso: [](ch_tao), `DMTao`, `DMTaoGetVM()`
-@*/
-PetscErrorCode DMTaoSetVM(DM dm, Mat vm)
-{
-  DMTao tdm;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-  PetscCall(DMGetDMTao(dm, &tdm));
-  tdm->vm = vm;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/*@
-  DMTaoGetVM - Gets the variable metric matrix of `DMTao` object
-
-  Collective
-
-  Input Parameters:
-. dm - the `DM` context
-
-  Output Parameter:
-. vm - the variable metric matrix
-
-  Level: beginner
-
-.seealso: [](ch_tao), `DMTao`, `DMTaoSetVM()`
-@*/
-PetscErrorCode DMTaoGetVM(DM dm, Mat *vm)
-{
-  DMTao tdm;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-  PetscCall(DMGetDMTao(dm, &tdm));
-  *vm = tdm->vm;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -221,6 +180,7 @@ static PetscErrorCode DMTaoCreate(MPI_Comm comm, DMTao *kdm)
   tdm->nfgeval     = 0;
   tdm->nproxeval   = 0;
   tdm->lip_set     = PETSC_FALSE;
+  tdm->scaling_set = PETSC_FALSE;
   tdm->sc_set      = PETSC_FALSE;
   tdm->translation = NULL;
   *kdm             = tdm;
@@ -616,16 +576,16 @@ PetscErrorCode DMTaoSetType(DM dm, DMTaoType type)
   PetscCheck(r, PetscObjectComm((PetscObject)tdm), PETSC_ERR_ARG_UNKNOWN_TYPE, "Unable to find requested DMTao type %s", type);
   PetscTryTypeMethod(tdm, destroy);
 
-  tdm->nfeval    = 0;
-  tdm->ngeval    = 0;
-  tdm->nfgeval   = 0;
-  tdm->nproxeval = 0;
-  //TODO check if compute things are null?
-  tdm->ops->setup            = NULL;
-  tdm->ops->destroy          = NULL;
-  tdm->ops->view             = NULL;
-  tdm->ops->setfromoptions   = NULL;
-  tdm->setupcalled           = PETSC_FALSE;
+  tdm->nfeval              = 0;
+  tdm->ngeval              = 0;
+  tdm->nfgeval             = 0;
+  tdm->nproxeval           = 0;
+  tdm->ops->setup          = NULL;
+  tdm->ops->destroy        = NULL;
+  tdm->ops->view           = NULL;
+  tdm->ops->setfromoptions = NULL;
+  tdm->setupcalled         = PETSC_FALSE;
+
   PetscCall((*r)(tdm));
   PetscCall(PetscObjectChangeTypeName((PetscObject)tdm, type));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -819,58 +779,6 @@ PetscErrorCode DMTaoGetLipschitz(DM dm, PetscReal *lip)
 }
 
 /*@
-  DMTaoSetStrongConvexity - Sets strong convexity constant of of `DMTao` object.
-
-  Logically Collective
-
-  Input Parameters:
-+ dm - the `DM` context
-- sc - the strong convexity constant
-
-  Level: intermediate
-
-.seealso: [](ch_tao), `Tao`, `DMTao`, `DMTaoGetStrongConvexity()`
-@*/
-PetscErrorCode DMTaoSetStrongConvexity(DM dm, PetscReal sc)
-{
-  DMTao tdm;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-  PetscValidLogicalCollectiveReal(dm, sc, 2);
-  PetscCheck(sc >= 0, PetscObjectComm((PetscObject)dm), PETSC_ERR_USER, "StrongConvexity value has to be non-negative.");
-  PetscCall(DMGetDMTaoWrite(dm, &tdm));
-  tdm->sc = sc;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/*@
-  DMTaoGetStrongConvexity - Get strong convexity constant of DMTao.
-
-  Not Collective
-
-  Input Parameter:
-. dm - the `DM` context
-
-  Output Parameter:
-. sc - the current strong convexity constant.
-
-  Level: intermediate
-
-.seealso: [](ch_tao), `Tao`, `DMTao`
-@*/
-PetscErrorCode DMTaoGetStrongConvexity(DM dm, PetscReal *sc)
-{
-  DMTao tdm;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-  PetscCall(DMGetDMTao(dm, &tdm));
-  *sc = tdm->sc;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/*@
   TaoSetRegularizer - Sets an DMTao to Tao object.
   It treats DMTao object as a regularizer to primary objective.
   TaoSetSolution needs to be called before this routine.
@@ -948,22 +856,32 @@ PetscErrorCode DMTaoComputeObjective(DM dm, Vec x, PetscReal *f)
   PetscValidHeaderSpecific(x, VEC_CLASSID, 2);
   PetscAssertPointer(f, 3);
   PetscCheckSameComm(dm, 1, x, 2);
+  PetscCall(VecLockReadPush(x));
   PetscCall(DMGetDMTao(dm, &tdm));
-  PetscCall(PetscLogEventBegin(DMTAO_Eval, tdm, x, NULL, NULL));
   if (tdm->usetaoroutines) {
+    PetscCall(PetscLogEventBegin(DMTAO_ObjectiveEval, tdm, x, NULL, NULL));
     PetscCall(TaoComputeObjective(tdm->dm_subtao, x, f));
+    PetscCall(PetscLogEventEnd(DMTAO_ObjectiveEval, dm, x, NULL, NULL));
+    tdm->nfeval++; //TODO subtao nfeval??
   } else {
-    if (tdm->ops->computeobjective) PetscCallBack("DMTao callback objective", (*tdm->ops->computeobjective)(dm, x, f, tdm->userctx_func));
-    else if (tdm->ops->computeobjectiveandgradient) {
-      if (!tdm->workvec) { PetscCall(VecDuplicate(x, &tdm->workvec)); }
+    if (tdm->ops->computeobjective) {
+      PetscCall(PetscLogEventBegin(DMTAO_ObjectiveEval, tdm, x, NULL, NULL));
+      PetscCallBack("DMTao callback objective", (*tdm->ops->computeobjective)(dm, x, f, tdm->userctx_func));
+      PetscCall(PetscLogEventEnd(DMTAO_ObjectiveEval, dm, x, NULL, NULL));
+      tdm->nfeval++;
+    } else if (tdm->ops->computeobjectiveandgradient) {
+      PetscCall(PetscLogEventBegin(DMTAO_ObjGradEval, tdm, x, NULL, NULL));
+      if (!tdm->workvec) { PetscCall(VecDuplicate(x, &tdm->workvec)); } //TODO workvec comm check etc...
       PetscCallBack("DMTao callback objective/gradient", (*tdm->ops->computeobjectiveandgradient)(dm, x, f, tdm->workvec, tdm->userctx_funcgrad));
+      PetscCall(PetscLogEventEnd(DMTAO_ObjGradEval, tdm, x, NULL, NULL));
+      tdm->nfgeval++;
     } else {
-      /* No objective function. Return 0. TODO should there be PetscInfo here? */
+      /* No objective function. Return 0. TODO */
       *f = 0.;
     }
   }
-  PetscCall(PetscLogEventEnd(DMTAO_Eval, dm, x, NULL, NULL));
-  tdm->nfeval++;
+  PetscCall(PetscInfo(dm, "DMTao Function evaluation: %20.19e\n", (double)(*f)));
+  PetscCall(VecLockReadPop(x));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -991,24 +909,35 @@ PetscErrorCode DMTaoComputeObjectiveAndGradient(DM dm, Vec x, PetscReal *f, Vec 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   PetscValidHeaderSpecific(x, VEC_CLASSID, 2);
-  PetscAssertPointer(f, 3);
   PetscValidHeaderSpecific(g, VEC_CLASSID, 4);
   PetscCheckSameComm(dm, 1, x, 2);
   PetscCheckSameComm(dm, 1, g, 4);
+  PetscCall(VecLockReadPush(x));
   PetscCall(DMGetDMTao(dm, &tdm));
-  PetscCall(PetscLogEventBegin(DMTAO_Eval, tdm, x, g, NULL));
   if (tdm->usetaoroutines) {
+    PetscCall(PetscLogEventBegin(DMTAO_ObjGradEval, tdm, x, g, NULL));
     PetscCall(TaoComputeObjectiveAndGradient(tdm->dm_subtao, x, f, g));
+    PetscCall(PetscLogEventEnd(DMTAO_ObjGradEval, tdm, x, g, NULL));
+    tdm->nfgeval++;
   } else {
-    if (tdm->ops->computeobjectiveandgradient) PetscCallBack("DMTao callback objective/gradient", (*tdm->ops->computeobjectiveandgradient)(dm, x, f, g, tdm->userctx_funcgrad));
-    else {
+    if (tdm->ops->computeobjectiveandgradient) {
+      PetscCall(PetscLogEventBegin(DMTAO_ObjGradEval, tdm, x, g, NULL));
+      PetscCallBack("DMTao callback objective/gradient", (*tdm->ops->computeobjectiveandgradient)(dm, x, f, g, tdm->userctx_funcgrad));
+      PetscCall(PetscLogEventEnd(DMTAO_ObjGradEval, tdm, x, g, NULL));
+      tdm->nfgeval++;
+    } else if (tdm->ops->computeobjective && tdm->ops->computegradient){
+      PetscCall(PetscLogEventBegin(DMTAO_ObjectiveEval, tdm, x, NULL, NULL));
       PetscCallBack("DMTao callback objective", (*tdm->ops->computeobjective)(dm, x, f, tdm->userctx_func));
+      PetscCall(PetscLogEventEnd(DMTAO_ObjectiveEval, dm, x, NULL, NULL));
+      PetscCall(PetscLogEventBegin(DMTAO_GradientEval, tdm, x, g, NULL));
       PetscCallBack("DMTao callback gradient", (*tdm->ops->computegradient)(dm, x, g, tdm->userctx_grad));
-    }
-    PetscCall(PetscInfo(dm, "DMTao Function evaluation: %14.12e\n", (double)(*f)));
+      PetscCall(PetscLogEventEnd(DMTAO_GradientEval, dm, x, g, NULL));
+      tdm->nfeval++;
+      tdm->ngeval++;
+    } else SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_WRONGSTATE, "Either DMTaoSetObjective() and DMTaoSetGradient not set, or not available for this DMTaoType");
   }
-  PetscCall(PetscLogEventEnd(DMTAO_Eval, tdm, x, g, NULL));
-  tdm->nfgeval++;
+  PetscCall(PetscInfo(dm, "DMTao Function evaluation: %20.19e\n", (double)(*f)));
+  PetscCall(VecLockReadPop(x));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1039,16 +968,28 @@ PetscErrorCode DMTaoComputeGradient(DM dm, Vec x, Vec g)
   PetscValidHeaderSpecific(g, VEC_CLASSID, 3);
   PetscCheckSameComm(dm, 1, x, 2);
   PetscCheckSameComm(dm, 1, g, 3);
+  PetscCall(VecLockReadPush(x));
   PetscCall(DMGetDMTao(dm, &tdm));
-  PetscCall(PetscLogEventBegin(DMTAO_Eval, tdm, x, g, NULL));
   if (tdm->usetaoroutines) {
+    PetscCall(PetscLogEventBegin(DMTAO_GradientEval, tdm, x, g, NULL));
     PetscCall(TaoComputeGradient(tdm->dm_subtao, x, g));
+    PetscCall(PetscLogEventEnd(DMTAO_GradientEval, tdm, x, g, NULL));
+    tdm->ngeval++;
   } else {
-    if (tdm->ops->computegradient) PetscCallBack("DMTao callback gradient", (*tdm->ops->computegradient)(dm, x, g, tdm->userctx_grad));
-    else PetscCallBack("DMTao callback objective/gradient", (*tdm->ops->computeobjectiveandgradient)(dm, x, &fdummy, g, tdm->userctx_funcgrad));
+    if (tdm->ops->computegradient) {
+      PetscCall(PetscLogEventBegin(DMTAO_GradientEval, tdm, x, g, NULL));
+      PetscCallBack("DMTao callback gradient", (*tdm->ops->computegradient)(dm, x, g, tdm->userctx_grad));
+      PetscCall(PetscLogEventEnd(DMTAO_GradientEval, tdm, x, g, NULL));
+      tdm->ngeval++;
+    }
+    else if (tdm->ops->computeobjectiveandgradient) {
+      PetscCall(PetscLogEventBegin(DMTAO_ObjGradEval, tdm, x, g, NULL));
+      PetscCallBack("DMTao callback objective/gradient", (*tdm->ops->computeobjectiveandgradient)(dm, x, &fdummy, g, tdm->userctx_funcgrad));
+      PetscCall(PetscLogEventEnd(DMTAO_ObjGradEval, tdm, x, g, NULL));
+      tdm->nfgeval++;
+    } else SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_WRONGSTATE, "Either DMTaoSetGradient not set, or not available for this DMTaoType");
   }
-  PetscCall(PetscLogEventEnd(DMTAO_Eval, tdm, x, g, NULL));
-  tdm->ngeval++;
+  PetscCall(VecLockReadPop(x));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1078,7 +1019,10 @@ PetscErrorCode DMTaoIsObjectiveDefined(DM dm, PetscBool *flg)
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   PetscCall(DMGetDMTao(dm, &tdm));
   if (tdm->ops->computeobjective == NULL) *flg = PETSC_FALSE;
-  else *flg = PETSC_TRUE;
+  else if (tdm->usetaoroutines) {
+    if (tdm->dm_subtao->ops->computeobjective == NULL) *flg = PETSC_FALSE;
+    else *flg = PETSC_TRUE;
+  } else *flg = PETSC_TRUE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1108,7 +1052,10 @@ PetscErrorCode DMTaoIsGradientDefined(DM dm, PetscBool *flg)
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   PetscCall(DMGetDMTao(dm, &tdm));
   if (tdm->ops->computegradient == NULL) *flg = PETSC_FALSE;
-  else *flg = PETSC_TRUE;
+  else if (tdm->usetaoroutines) {
+    if (tdm->dm_subtao->ops->computegradient == NULL) *flg = PETSC_FALSE;
+    else *flg = PETSC_TRUE;
+  } else *flg = PETSC_TRUE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1138,7 +1085,10 @@ PetscErrorCode DMTaoIsObjectiveAndGradientDefined(DM dm, PetscBool *flg)
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   PetscCall(DMGetDMTao(dm, &tdm));
   if (tdm->ops->computeobjectiveandgradient == NULL) *flg = PETSC_FALSE;
-  else *flg = PETSC_TRUE;
+  else if (tdm->usetaoroutines) {
+    if (tdm->dm_subtao->ops->computeobjectiveandgradient == NULL) *flg = PETSC_FALSE;
+    else *flg = PETSC_TRUE;
+  } else *flg = PETSC_TRUE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1212,11 +1162,8 @@ PetscErrorCode DMTaoApplyProximalMap(DM dm0, DM dm1, PetscReal lambda, Vec y, Ve
   if (tdm0->translation) PetscCheck(x->map->N == tdm0->translation->map->N, PetscObjectComm((PetscObject)dm0), PETSC_ERR_USER, "Translation vector needs to be of same as size as input/output vectors");
   PetscCall(PetscLogEventBegin(DMTAO_ApplyProx, dm0, dm1, y, x));
 
-  //TODO another issue with double initializing as zero...
-  //technically this means that f(0*x)-> no-op, but we mean it as
-  //if scale == 0, scale is not set....
   /* scaling and translation, if applicable */
-  if (tdm0->scaling > 0 || tdm0->translation) {
+  if (tdm0->scaling_set || tdm0->translation) {
     PetscCall(DMTaoCreateWorkvec_Private(tdm0, x));
     PetscCall(VecCopy(y, tdm0->workvec));
     if (!is_cj) {
@@ -1266,7 +1213,6 @@ PetscErrorCode DMTaoApplyProximalMap(DM dm0, DM dm1, PetscReal lambda, Vec y, Ve
       PetscCall(VecAYPX(x, -lambda, y));
     }
   }
-  //TODO if conjugate part is done inside impls, then we can (sometimes) exploit nice structures of each proxs?
   PetscCall(PetscLogEventEnd(DMTAO_ApplyProx, dm0, dm1, y, x));
 
   /* TODO do we want view for both, or just the primary objective? */

@@ -46,7 +46,10 @@ PetscErrorCode DMTaoInitializePackage(void)
   PetscCall(DMTaoRegister(DMTAOBOX, DMTaoCreate_Box_Private));
   PetscCall(DMTaoRegister(DMTAOZERO, DMTaoCreate_Zero_Private));
   PetscCall(DMTaoRegister(DMTAOSHELL, DMTaoCreate_Shell_Private));
-  PetscCall(PetscLogEventRegister("DMTaoEval", DMTAO_CLASSID, &DMTAO_Eval));
+  PetscCall(PetscLogEventRegister("DMTaoApplyPRox", DMTAO_CLASSID, &DMTAO_ApplyProx));
+  PetscCall(PetscLogEventRegister("DMTaoObjectiveEval", DMTAO_CLASSID, &DMTAO_ObjectiveEval));
+  PetscCall(PetscLogEventRegister("DMTaoGradientEval", DMTAO_CLASSID, &DMTAO_GradientEval));
+  PetscCall(PetscLogEventRegister("DMTaoObjectiveGradientEval", DMTAO_CLASSID, &DMTAO_ObjGradEval));
 #endif
   PetscCall(PetscRegisterFinalize(DMTaoFinalizePackage));
   PetscFunctionReturn(PETSC_SUCCESS);
