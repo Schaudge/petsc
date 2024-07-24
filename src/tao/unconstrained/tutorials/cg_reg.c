@@ -394,10 +394,10 @@ int main(int argc, char **argv)
   PetscCall(TaoSetObjectiveAndGradient(tao_full, NULL, FullUserObjGrad, (void *)&user));
 
   /* Sketch: try to set DM for main objective */
-  PetscCall(DMCreate(PETSC_COMM_SELF, &fdm));
+  PetscCall(DMCreate(PETSC_COMM_WORLD, &fdm));
   PetscCall(DMTaoSetType(fdm, DMTAOSHELL));
   PetscCall(DMTaoSetFromOptions(fdm));
-  PetscCall(DMCreate(PETSC_COMM_SELF, &gdm));
+  PetscCall(DMCreate(PETSC_COMM_WORLD, &gdm));
 
   /* f(x) form */
   switch (user.mainFormType) {
@@ -447,9 +447,6 @@ int main(int argc, char **argv)
   default:
     SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid main problem formulation type.");
   }
-
-  /* Create DM, g(x,y) = 0.5 \|x-y\|_2^2 */
-  PetscCall(DMCreate(PetscObjectComm((PetscObject)tao), &gdm));
 
   /* Set DMTao */
   switch (user.regFormType) {
@@ -527,10 +524,12 @@ int main(int argc, char **argv)
 /*TEST
 
    build:
-      requires: !complex !__float128 !single !defined(PETSC_USE_64BIT_INDICES)
+      requires: !complex
 
-   test
+   test:
       nsize: {{1 2 4}}
       args: -main_compose {{use_dm use_dm_subtao use_tao}} -main_form {{objgrad objandgrad}} -reg_compose {{set_reg add_dm}} -reg_form {{objgrad objandgrad builtin subtao_objgrad subtao_obj_and_grad}} -yvec {{0 1}}
+      output_file: output/cg_reg_000.out
+      requires: !single
 
 TEST*/
