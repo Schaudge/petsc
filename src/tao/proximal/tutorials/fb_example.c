@@ -5,6 +5,7 @@
 #include <petscdm.h>
 #include <petscksp.h>
 #include <petscmat.h>
+#include <petsc/private/taoimpl.h>
 
 static char help[] = "This example demonstrates TaoFB to solve proximal algorithm. \n";
 
@@ -171,7 +172,7 @@ PetscErrorCode DataCreate(AppCtx *user)
   PetscFunctionBegin;
   switch (user->probType) {
   case PROB_LASSO:
-    PetscCall(PetscRandomCreate(PETSC_COMM_SELF, &rctx));
+    PetscCall(PetscRandomCreate(PETSC_COMM_WORLD, &rctx));
     PetscCall(PetscRandomSetFromOptions(rctx));
 
     p = PetscCeilInt(user->n , user->k);
@@ -260,6 +261,7 @@ PetscErrorCode DataCreate(AppCtx *user)
     PetscCall(PetscFree(indices));
     PetscCall(PetscRandomDestroy(&rctx));
 
+    /* Note: technically, one can use (|A|_op)^2 as Lipschitz constant, but we avoid it here */
     user->lip = 0.;
     break;
   case PROB_LOG_REG:
@@ -389,7 +391,7 @@ int main(int argc, char **argv)
     case USE_DM:
       PetscCall(DMTaoSetObjectiveAndGradient(fdm, UserObjGrad_DM, (void *)&user));
       PetscCall(DMTaoSetLipschitz(fdm, user.lip));
-      PetscCall(TaoPSSetSmoothTerm(tao, fdm, 1));
+      PetscCall(TaoPSSetSmoothTerm(tao, fdm, 1.));
       break;
     default:
       SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid problem type.");
@@ -406,7 +408,7 @@ int main(int argc, char **argv)
     case USE_DM:
       PetscCall(DMTaoSetObjectiveAndGradient(fdm, Log_UserObjGrad_DM, (void *)&user));
       PetscCall(DMTaoSetLipschitz(fdm, user.lip));
-      PetscCall(TaoPSSetSmoothTerm(tao, fdm, 1));
+      PetscCall(TaoPSSetSmoothTerm(tao, fdm, 1.));
       break;
     default:
       SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid problem formulation type.");
@@ -449,26 +451,53 @@ int main(int argc, char **argv)
       requires: !complex
 
    test:
-      suffix: use_tao0
-      args: -formation use_tao -tao_fb_approx_lip 0
+      suffix: lasso_no_ls
+      nsize: {{1 2 4}}
+      args: -problem prob_lasso -formation {{use_tao use_dm}} -tao_fb_accel 0 -tao_fb_adaptive 0 -scale 10 -tao_ls_max_funcs 0
       output_file: output/fb_example.out
       requires: !single
 
    test:
-      suffix: use_tao1
-      args: -formation use_tao -tao_fb_approx_lip 1
+      suffix: lasso_ls
+      nsize: {{1 2 4}}
+      args: -problem prob_lasso -formation {{use_tao use_dm}} -tao_fb_accel 0 -tao_fb_adaptive 0 -scale 10 -tao_ls_max_funcs 30 -tao_fb_ls_scale 1.05
       output_file: output/fb_example.out
       requires: !single
 
    test:
-      suffix: use_dm0
-      args: -formation use_dm -tao_fb_approx_lip 0
+      suffix: lasso_non_mon_ls
+      nsize: {{1 2 4}}
+      args: -problem prob_lasso -formation {{use_tao use_dm}} -tao_fb_accel 0 -tao_fb_adaptive 0 -scale 10 -tao_ls_max_funcs 30 -tao_ls_PSArmijo_memory_size 5 -tao_fb_ls_scale 1.05
       output_file: output/fb_example.out
       requires: !single
 
    test:
-      suffix: use_dm1
-      args: -formation use_dm -tao_fb_approx_lip 1
+      suffix: lasso_fista
+      nsize: {{1 2 4}}
+      args: -problem prob_lasso -formation {{use_tao use_dm}} -tao_fb_accel 1 -tao_fb_adaptive 0 -scale 10
+      output_file: output/fb_example.out
+      requires: !single
+
+   test:
+      suffix: lasso_ada
+      nsize: {{1 2 4}}
+      args: -problem prob_lasso -formation {{use_tao use_dm}} -tao_fb_accel 0 -tao_fb_adaptive 1
+      output_file: output/fb_example.out
+      requires: !single
+
+   test:
+      suffix: logreg_fista
+      localrunfiles: matrix-heart-scale.dat vector-heart-scale.dat
+      nsize: {{1 2 4}}
+      args: -problem prob_log_reg -formation {{use_tao use_dm}} -scale 0.01 -tao_fb_accel 1 -tao_fb_adaptive 0
+      output_file: output/fb_example.out
+      requires: !single
+
+   test:
+      suffix: logreg_ada
+      localrunfiles: matrix-heart-scale.dat vector-heart-scale.dat
+      nsize: {{1 2 4}}
+      args: -problem prob_log_reg -formation {{use_tao use_dm}} -scale 0.01 -tao_fb_accel 0 -tao_fb_adaptive 1
       output_file: output/fb_example.out
       requires: !single
 

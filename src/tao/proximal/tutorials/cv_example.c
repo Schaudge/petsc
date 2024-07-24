@@ -336,3 +336,24 @@ int main(int argc, char **argv)
   PetscCall(PetscFinalize());
   return 0;
 }
+
+/*TEST
+
+   build:
+      requires: !complex
+
+   test:
+      suffix: svm
+      localrunfiles: matrix-heart-scale.dat vector-heart-scale.dat
+      args: -formation use_tao -problem dual_svm
+      output_file: output/cv_example.out
+      requires: !single
+
+   test:
+      suffix: lad
+      localrunfiles: matrix-housing-scale.dat vector-housing-scale.dat
+      args: -formation use_tao -problem lad
+      output_file: output/cv_example.out
+      requires: !single
+
+TEST*/
