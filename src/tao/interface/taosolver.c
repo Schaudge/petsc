@@ -207,6 +207,7 @@ PetscErrorCode TaoSolve(Tao tao)
   PetscCall(PetscLogEventEnd(TAO_Solve, tao, 0, 0, 0));
 
   PetscCall(VecViewFromOptions(tao->solution, (PetscObject)tao, "-tao_view_solution"));
+  if (tao->dualvec) PetscCall(VecViewFromOptions(tao->dualvec, (PetscObject)tao, "-tao_view_dual_solution"));
 
   tao->ntotalits += tao->niter;
 
@@ -294,6 +295,7 @@ PetscErrorCode TaoDestroy(Tao *tao)
   PetscCall(VecDestroy(&(*tao)->solution));
   PetscCall(VecDestroy(&(*tao)->gradient));
   PetscCall(VecDestroy(&(*tao)->ls_res));
+  PetscCall(VecDestroy(&(*tao)->dualvec));
 
   if ((*tao)->gradient_norm) {
     PetscCall(PetscObjectDereference((PetscObject)(*tao)->gradient_norm));
@@ -372,33 +374,35 @@ PetscErrorCode TaoKSPSetUseEW(Tao tao, PetscBool flag)
 . tao - the `Tao` solver context
 
   Options Database Keys:
-+ -tao_type <type>             - The algorithm that Tao uses (lmvm, nls, etc.)
-. -tao_gatol <gatol>           - absolute error tolerance for ||gradient||
-. -tao_grtol <grtol>           - relative error tolerance for ||gradient||
-. -tao_gttol <gttol>           - reduction of ||gradient|| relative to initial gradient
-. -tao_max_it <max>            - sets maximum number of iterations
-. -tao_max_funcs <max>         - sets maximum number of function evaluations
-. -tao_fmin <fmin>             - stop if function value reaches fmin
-. -tao_steptol <tol>           - stop if trust region radius less than <tol>
-. -tao_trust0 <t>              - initial trust region radius
-. -tao_view_solution           - view the solution at the end of the optimization process
-. -tao_monitor                 - prints function value and residual norm at each iteration
-. -tao_monitor_short           - same as `-tao_monitor`, but truncates very small values
-. -tao_monitor_constraint_norm - prints objective value, gradient, and constraint norm at each iteration
-. -tao_monitor_globalization   - prints information about the globalization at each iteration
-. -tao_monitor_solution        - prints solution vector at each iteration
-. -tao_monitor_ls_residual     - prints least-squares residual vector at each iteration
-. -tao_monitor_step            - prints step vector at each iteration
-. -tao_monitor_gradient        - prints gradient vector at each iteration
-. -tao_monitor_solution_draw   - graphically view solution vector at each iteration
-. -tao_monitor_step_draw       - graphically view step vector at each iteration
-. -tao_monitor_gradient_draw   - graphically view gradient at each iteration
-. -tao_monitor_cancel          - cancels all monitors (except those set with command line)
-. -tao_fd_gradient             - use gradient computed with finite differences
-. -tao_fd_hessian              - use hessian computed with finite differences
-. -tao_mf_hessian              - use matrix-free Hessian computed with finite differences
-. -tao_view                    - prints information about the Tao after solving
-- -tao_converged_reason        - prints the reason Tao stopped iterating
++ -tao_type <type>                - The algorithm that Tao uses (lmvm, nls, etc.)
+. -tao_gatol <gatol>              - absolute error tolerance for ||gradient||
+. -tao_grtol <grtol>              - relative error tolerance for ||gradient||
+. -tao_gttol <gttol>              - reduction of ||gradient|| relative to initial gradient
+. -tao_max_it <max>               - sets maximum number of iterations
+. -tao_max_funcs <max>            - sets maximum number of function evaluations
+. -tao_fmin <fmin>                - stop if function value reaches fmin
+. -tao_steptol <tol>              - stop if trust region radius less than <tol>
+. -tao_trust0 <t>                 - initial trust region radius
+. -tao_view_solution              - view the solution at the end of the optimization process
+. -tao_view_dual_solution         - view the dual solution at the end of the optimization process
+. -tao_monitor                    - prints function value and residual norm at each iteration
+. -tao_monitor_short              - same as `-tao_monitor`, but truncates very small values
+. -tao_monitor_constraint_norm    - prints objective value, gradient, and constraint norm at each iteration
+. -tao_monitor_globalization      - prints information about the globalization at each iteration
+. -tao_monitor_solution           - prints solution vector at each iteration
+. -tao_monitor_dual_solution      - prints dual  solution vector at each iteration
+. -tao_monitor_ls_residual        - prints least-squares residual vector at each iteration
+. -tao_monitor_step               - prints step vector at each iteration
+. -tao_monitor_gradient           - prints gradient vector at each iteration
+. -tao_monitor_dual_solution_draw - graphically view dual solution vector at each iteration
+. -tao_monitor_step_draw          - graphically view step vector at each iteration
+. -tao_monitor_gradient_draw      - graphically view gradient at each iteration
+. -tao_monitor_cancel             - cancels all monitors (except those set with command line)
+. -tao_fd_gradient                - use gradient computed with finite differences
+. -tao_fd_hessian                 - use hessian computed with finite differences
+. -tao_mf_hessian                 - use matrix-free Hessian computed with finite differences
+. -tao_view                       - prints information about the Tao after solving
+- -tao_converged_reason           - prints the reason Tao stopped iterating
 
   Level: beginner
 
@@ -486,6 +490,12 @@ PetscErrorCode TaoSetFromOptions(Tao tao)
     PetscCall(TaoMonitorSet(tao, TaoMonitorSolution, monviewer, (PetscErrorCode(*)(void **))PetscViewerDestroy));
   }
 
+  PetscCall(PetscOptionsString("-tao_monitor_dual_solution", "View dual solution vector after each iteration", "TaoMonitorSet", "stdout", monfilename, sizeof(monfilename), &flg));
+  if (flg) {
+    PetscCall(PetscViewerASCIIOpen(comm, monfilename, &monviewer));
+    PetscCall(TaoMonitorSet(tao, TaoMonitorDualSolution, monviewer, (PetscErrorCode(*)(void **))PetscViewerDestroy));
+  }
+
   PetscCall(PetscOptionsBool("-tao_converged_reason", "Print reason for Tao converged", "TaoSolve", tao->printreason, &tao->printreason, NULL));
   PetscCall(PetscOptionsString("-tao_monitor_gradient", "View gradient vector for each iteration", "TaoMonitorSet", "stdout", monfilename, sizeof(monfilename), &flg));
   if (flg) {
@@ -541,6 +551,15 @@ PetscErrorCode TaoSetFromOptions(Tao tao)
     PetscInt          howoften = 1;
     PetscCall(TaoMonitorDrawCtxCreate(PetscObjectComm((PetscObject)tao), NULL, NULL, PETSC_DECIDE, PETSC_DECIDE, 300, 300, howoften, &drawctx));
     PetscCall(TaoMonitorSet(tao, TaoMonitorSolutionDraw, drawctx, (PetscErrorCode(*)(void **))TaoMonitorDrawCtxDestroy));
+  }
+
+  flg = PETSC_FALSE;
+  PetscCall(PetscOptionsBool("-tao_monitor_dual_solution_draw", "Plot dual solution vector at each iteration", "TaoMonitorSet", flg, &flg, NULL));
+  if (flg) {
+    TaoMonitorDrawCtx drawctx;
+    PetscInt          howoften = 1;
+    PetscCall(TaoMonitorDrawCtxCreate(PetscObjectComm((PetscObject)tao), NULL, NULL, PETSC_DECIDE, PETSC_DECIDE, 300, 300, howoften, &drawctx));
+    PetscCall(TaoMonitorSet(tao, TaoMonitorDualSolutionDraw, drawctx, (PetscErrorCode(*)(void **))TaoMonitorDrawCtxDestroy));
   }
 
   flg = PETSC_FALSE;
@@ -1468,6 +1487,32 @@ PetscErrorCode TaoGetSolution(Tao tao, Vec *X)
 }
 
 /*@
+  TaoGetDualSolution - Returns the vector with the current dual solution from the `Tao` object
+  Currently only available for `TAOCV` type.
+
+  Not Collective
+
+  Input Parameter:
+. tao - the `Tao` context
+
+  Output Parameter:
+. X - the current dual solution
+
+  Level: intermediate
+
+.seealso: [](ch_tao), `Tao`, `TaoSolve()`, `TAOCV`
+@*/
+PetscErrorCode TaoGetDualSolution(Tao tao, Vec *X)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
+  PetscAssertPointer(X, 2);
+  PetscCheck(tao->dualvec, PetscObjectComm((PetscObject)tao), PETSC_ERR_SUP, "Dual Solution unavailable.");
+  *X = tao->dualvec;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
   TaoResetStatistics - Initialize the statistics collected by the `Tao` object.
   These statistics include the iteration number, residual norms, and convergence status.
   This routine gets called before solving each optimization problem.
@@ -1879,6 +1924,33 @@ PetscErrorCode TaoMonitorSolution(Tao tao, void *ctx)
 }
 
 /*@C
+  TaoMonitorDualSolution - Views the dual solution at each iteration of `TaoSolve()`
+
+  Collective
+
+  Input Parameters:
++ tao - the `Tao` context
+- ctx - `PetscViewer` context or `NULL`
+
+  Options Database Key:
+. -tao_monitor_dual_solution - view the dual solution
+
+  Level: advanced
+
+.seealso: [](ch_tao), `Tao`, `TaoMonitorDefaultShort()`, `TaoMonitorSet()`
+@*/
+PetscErrorCode TaoMonitorDualSolution(Tao tao, void *ctx)
+{
+  PetscViewer viewer = (PetscViewer)ctx;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
+  PetscValidHeaderSpecific(viewer, PETSC_VIEWER_CLASSID, 2);
+  if (tao->dualvec) PetscCall(VecView(tao->dualvec, viewer));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
   TaoMonitorGradient - Views the gradient at each iteration of `TaoSolve()`
 
   Collective
@@ -1961,6 +2033,38 @@ PetscErrorCode TaoMonitorSolutionDraw(Tao tao, void *ctx)
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
   if (!(((ictx->howoften > 0) && (!(tao->niter % ictx->howoften))) || ((ictx->howoften == -1) && tao->reason))) PetscFunctionReturn(PETSC_SUCCESS);
   PetscCall(VecView(tao->solution, ictx->viewer));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
+  TaoMonitorDualSolutionDraw - Plots the dual solution at each iteration of `TaoSolve()`
+
+  Collective
+
+  Input Parameters:
++ tao - the `Tao` context
+- ctx - `TaoMonitorDraw` context
+
+  Options Database Key:
+. -tao_monitor_dual_solution_draw - draw the solution at each iteration
+
+  Level: advanced
+
+  Note:
+  The context created by `TaoMonitorDrawCtxCreate()`, along with `TaoMonitorDualSolutionDraw()`, and `TaoMonitorDrawCtxDestroy()`
+  are passed to `TaoMonitorSet()` to monitor the solution graphically.
+
+.seealso: [](ch_tao), `Tao`, `TaoMonitorSolution()`, `TaoMonitorSet()`, `TaoMonitorGradientDraw()`, `TaoMonitorDrawCtxCreate()`,
+          `TaoMonitorDrawCtxDestroy()`
+@*/
+PetscErrorCode TaoMonitorDualSolutionDraw(Tao tao, void *ctx)
+{
+  TaoMonitorDrawCtx ictx = (TaoMonitorDrawCtx)ctx;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
+  if (!(((ictx->howoften > 0) && (!(tao->niter % ictx->howoften))) || ((ictx->howoften == -1) && tao->reason))) PetscFunctionReturn(PETSC_SUCCESS);
+  if (tao->dualvec) PetscCall(VecView(tao->dualvec, ictx->viewer));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
