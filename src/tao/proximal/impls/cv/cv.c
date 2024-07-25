@@ -68,7 +68,7 @@ static PetscErrorCode TaoCV_Stepsize_With_LS_Private(Tao tao)
     cv->sigma = cv->pd_ratio*cv->pd_ratio*step_new;
 
     /* dualvec_work: w = y + sigma *((1+rho) * Ax - rho * Ax_old) */
-    PetscCall(VecWAXPY(cv->dualvec_work, -cv->sigma * rho, cv->Ax_old, cv->dualvec));
+    PetscCall(VecWAXPY(cv->dualvec_work, -cv->sigma * rho, cv->Ax_old, tao->dualvec));
     PetscCall(VecAXPY(cv->dualvec_work, cv->sigma*(1+rho), cv->Ax));
     /* dualvec: y = prox_h*(w, sigma) */
     PetscCall(DMTaoApplyProximalMap(cv->h_prox, cv->reg, cv->sigma*cv->h_scale, cv->dualvec_work, cv->dualvec_test, PETSC_TRUE));
@@ -78,12 +78,12 @@ static PetscErrorCode TaoCV_Stepsize_With_LS_Private(Tao tao)
     PetscCall(VecWAXPY(cv->workvec2, -1., cv->ATy, cv->workvec));
     PetscCall(VecNorm(cv->workvec2, NORM_2, &norm1));
     /* norm2 = norm(y_test - y) */
-    PetscCall(VecWAXPY(cv->dualvec_work2, -1., cv->dualvec_test, cv->dualvec));
+    PetscCall(VecWAXPY(cv->dualvec_work2, -1., cv->dualvec_test, tao->dualvec));
     PetscCall(VecNorm(cv->dualvec_work2, NORM_2, &norm2));
     if (cv->eta >= norm1 / norm2) {
       cv->step_old = tao->step;
       tao->step    = step_new;
-      PetscCall(VecCopy(cv->dualvec_test, cv->dualvec));
+      PetscCall(VecCopy(cv->dualvec_test, tao->dualvec));
       PetscCall(VecCopy(cv->workvec, cv->ATy));
       break;
     }
@@ -161,7 +161,7 @@ static PetscErrorCode TaoSolve_CV(Tao tao)
   PetscCall(VecCopy(tao->gradient, cv->grad_old));
   PetscCall(VecCopy(cv->Ax, cv->Ax_old));
   PetscCall(VecSet(cv->ATy, 0.));
-  PetscCall(VecSet(cv->dualvec, 0.));
+  PetscCall(VecSet(tao->dualvec, 0.));
 
   PetscCall(MatMult(cv->h_lmap, tao->solution, cv->Ax));
   PetscCall(TaoCV_ObjGrad_Private(tao, tao->solution, &f, tao->gradient));
@@ -191,11 +191,11 @@ static PetscErrorCode TaoSolve_CV(Tao tao)
       rho = tao->step / cv->step_old;
 
       /* dualvec_work: w = y + sigma *((1+rho) * Ax - rho * Ax_old) */
-      PetscCall(VecWAXPY(cv->dualvec_work, -cv->sigma*rho, cv->Ax_old, cv->dualvec));
+      PetscCall(VecWAXPY(cv->dualvec_work, -cv->sigma*rho, cv->Ax_old, tao->dualvec));
       PetscCall(VecAXPY(cv->dualvec_work, cv->sigma * (1+rho), cv->Ax));
 
       /* dualvec: y = prox_h*(w, sigma) */
-      PetscCall(DMTaoApplyProximalMap(cv->h_prox, cv->reg, cv->sigma*cv->h_scale, cv->dualvec_work, cv->dualvec, PETSC_TRUE));
+      PetscCall(DMTaoApplyProximalMap(cv->h_prox, cv->reg, cv->sigma*cv->h_scale, cv->dualvec_work, tao->dualvec, PETSC_TRUE));
     } else {
       PetscCall(TaoCV_Stepsize_With_LS_Private(tao)); //prox_h is done inside this routine for linesearch version
       //calling this a linesearch a-la Armijo is a strech....
@@ -204,7 +204,7 @@ static PetscErrorCode TaoSolve_CV(Tao tao)
       //PetscCall(TaoLineSearchApply(tao->linesearch, cv->dualvec, &f, tao->gradient, tao->solution, &tao->step, &ls_status));
     }
 
-    PetscCall(VecAXPY(cv->dualvec_work, -1., cv->dualvec));
+    PetscCall(VecAXPY(cv->dualvec_work, -1., tao->dualvec));
     PetscCall(VecScale(cv->dualvec_work, 1/cv->sigma));
     PetscCall(VecAXPY(cv->dualvec_work, -1., cv->Ax));
     PetscCall(VecNorm(cv->dualvec_work, NORM_2, &dual_res_norm));
@@ -222,7 +222,7 @@ static PetscErrorCode TaoSolve_CV(Tao tao)
     tao->niter++;
 
     /* post-processing */
-    PetscCall(MatMultTranspose(cv->h_lmap, cv->dualvec, cv->ATy));//TODO dont need this for LS version.
+    PetscCall(MatMultTranspose(cv->h_lmap, tao->dualvec, cv->ATy));//TODO dont need this for LS version.
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -297,7 +297,7 @@ static PetscErrorCode TaoSetUp_CV(Tao tao)
   /* dual sized vectors */
   if (!cv->Ax) PetscCall(MatCreateVecs(cv->h_lmap, NULL, &cv->Ax));
   if (!cv->Ax_old) PetscCall(MatCreateVecs(cv->h_lmap, NULL, &cv->Ax_old));
-  if (!cv->dualvec) PetscCall(MatCreateVecs(cv->h_lmap, NULL, &cv->dualvec));
+  if (!tao->dualvec) PetscCall(MatCreateVecs(cv->h_lmap, NULL, &tao->dualvec));
   if (!cv->dualvec_test || !cv->lmap_norm_set) PetscCall(MatCreateVecs(cv->h_lmap, NULL, &cv->dualvec_test));
   if (!cv->dualvec_work) PetscCall(MatCreateVecs(cv->h_lmap, NULL, &cv->dualvec_work));
   if (!cv->dualvec_work2) PetscCall(MatCreateVecs(cv->h_lmap, NULL, &cv->dualvec_work2));
@@ -325,12 +325,14 @@ static PetscErrorCode TaoDestroy_CV(Tao tao)
   PetscCall(VecDestroy(&cv->Ax));
   PetscCall(VecDestroy(&cv->Ax_old));
   PetscCall(VecDestroy(&cv->ATy));
-  PetscCall(VecDestroy(&cv->dualvec));
   PetscCall(VecDestroy(&cv->dualvec_work));
   PetscCall(VecDestroy(&cv->dualvec_work2));
   PetscCall(VecDestroy(&cv->dualvec_test));
+  PetscCall(MatDestroy(&cv->h_lmap));
   PetscCall(DMDestroy(&cv->reg));
   PetscCall(DMDestroy(&cv->smoothterm));
+  PetscCall(DMDestroy(&cv->g_prox));
+  PetscCall(DMDestroy(&cv->h_prox));
   PetscCall(PetscFree(tao->data));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
