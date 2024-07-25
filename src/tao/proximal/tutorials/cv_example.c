@@ -118,6 +118,7 @@ PetscErrorCode DataCreate(AppCtx *user)
     PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, vec_data1, FILE_MODE_READ, &viewer));
     PetscCall(VecCreate(PETSC_COMM_WORLD, &y));
     PetscCall(VecLoad(y, viewer));
+    PetscCall(PetscViewerDestroy(&viewer));
 
     PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, mat_data1, FILE_MODE_READ, &viewer));
     PetscCall(MatCreate(PETSC_COMM_WORLD, &X));
@@ -126,6 +127,7 @@ PetscErrorCode DataCreate(AppCtx *user)
     PetscCall(MatGetSize(X, &user->m, &user->n));
     PetscCall(MatMatTransposeMult(X, X, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &user->Q));
     PetscCall(MatDiagonalScale(user->Q, y, y));
+    PetscCall(PetscViewerDestroy(&viewer));
 
     PetscCall(MatCreate(PETSC_COMM_WORLD, &user->A));
     PetscCall(MatSetType(user->A, MATSEQDENSE));
@@ -147,6 +149,7 @@ PetscErrorCode DataCreate(AppCtx *user)
     PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->m, &user->workvec2));
     PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->m, &user->workvec));
     PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->m, &user->workvec3));
+    PetscCall(VecDestroy(&y));
     break;
   case LAD:
   {
@@ -156,12 +159,14 @@ PetscErrorCode DataCreate(AppCtx *user)
     PetscCall(VecCreate(PETSC_COMM_WORLD, &user->y_translation));
     PetscCall(VecLoad(user->y_translation, viewer));
     PetscCall(VecScale(user->y_translation, -1.));
+    PetscCall(PetscViewerDestroy(&viewer));
 
     PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, mat_data2, FILE_MODE_READ, &viewer));
     PetscCall(MatCreate(PETSC_COMM_WORLD, &X));
     PetscCall(MatSetType(X, MATSEQAIJ));
     PetscCall(MatLoad(X, viewer));
     PetscCall(MatGetSize(X, &user->m, &user->n));
+    PetscCall(PetscViewerDestroy(&viewer));
 
     PetscCall(MatCreate(PETSC_COMM_WORLD, &user->A));
     PetscCall(MatSetType(user->A, MATSEQDENSE));
@@ -202,7 +207,6 @@ PetscErrorCode DataCreate(AppCtx *user)
   PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->m, &user->q));
   PetscCall(VecSet(user->q, -1));
 
-  PetscCall(PetscViewerDestroy(&viewer));
   PetscCall(MatDestroy(&X));
   PetscCall(VecDestroy(&y));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -334,6 +338,7 @@ int main(int argc, char **argv)
   PetscCall(TaoDestroy(&tao));
   PetscCall(DMDestroy(&fdm));
   PetscCall(DMDestroy(&gdm));
+  PetscCall(DMDestroy(&hdm));
   PetscCall(PetscFinalize());
   return 0;
 }
