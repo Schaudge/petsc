@@ -77,8 +77,10 @@ PetscErrorCode DataCreate(AppCtx *user)
   PetscRandom rctx;
 
   PetscFunctionBeginUser;
-  PetscCall(VecCreateSeq(PETSC_COMM_SELF, user->n, &user->x));
-  PetscCall(VecCreateSeq(PETSC_COMM_SELF, user->n, &user->y));
+  PetscCall(VecCreate(PETSC_COMM_WORLD, &user->x));
+  PetscCall(VecSetSizes(user->x, PETSC_DECIDE, user->n));
+  PetscCall(VecSetFromOptions(user->x));
+  PetscCall(VecDuplicate(user->x, &user->y));
   PetscCall(PetscRandomCreate(PETSC_COMM_WORLD, &rctx));
   PetscCall(PetscRandomSetFromOptions(rctx));
   PetscCall(PetscRandomSetInterval(rctx, -10, 10));
@@ -92,11 +94,11 @@ PetscErrorCode DataCreate(AppCtx *user)
   PetscCall(VecSetRandom(user->y, rctx));
 
   if (user->lb_use_vec) {
-    PetscCall(VecCreate(PETSC_COMM_WORLD, &user->lb_vec));
+    PetscCall(VecDuplicate(user->x, &user->lb_vec));
     PetscCall(VecSet(user->lb_vec, user->lb));
   }
   if (user->ub_use_vec) {
-    PetscCall(VecCreate(PETSC_COMM_WORLD, &user->ub_vec));
+    PetscCall(VecDuplicate(user->x, &user->ub_vec));
     PetscCall(VecSet(user->ub_vec, user->ub));
   }
   PetscCall(PetscRandomDestroy(&rctx));
@@ -125,8 +127,8 @@ int main(int argc, char **argv)
 
   PetscCall(ProcessOptions(PETSC_COMM_WORLD, &user));
   PetscCall(DataCreate(&user));
-  PetscCall(DMCreate(PETSC_COMM_SELF, &dm0));
-  PetscCall(DMCreate(PETSC_COMM_SELF, &dm1));
+  PetscCall(DMCreate(PETSC_COMM_WORLD, &dm0));
+  PetscCall(DMCreate(PETSC_COMM_WORLD, &dm1));
 
   switch (user.problem) {
   case PROBLEM_L1:
