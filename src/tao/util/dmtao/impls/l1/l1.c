@@ -43,13 +43,12 @@ static PetscErrorCode DMTaoComputeObjective_L1(DM dm, Vec X, PetscReal *f, void 
   PetscFunctionBegin;
   PetscCall(DMGetDMTao(dm, &tdm));
   PetscCall(DMTaoGetCentralVector(dm, &y));
-  //TODO ignoring VM for now
 
   if (y) {
+    PetscCall(DMTaoSetWorkVec(dm, X));
     PetscCall(VecWAXPY(tdm->workvec, -1., y, X));
     PetscCall(VecNorm(tdm->workvec, NORM_1, f));
   } else PetscCall(VecNorm(X, NORM_1, f));
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

@@ -1,15 +1,10 @@
 #include <petsc/private/taoimpl.h> /*I "petsctao.h" I*/
 #include <petsc/private/dmimpl.h> /*I "petscdm.h" I*/
-#include <../src/tao/util/dmtao/impls/l2/l2.h>
 
 /* L2 Norm |x|_2^2 DMTao */
-//TODO L2 really means L2 norm squared... But i think its fine
 static PetscErrorCode DMTaoDestroy_L2(DMTao dm)
 {
-  DMTao_L2 *l2ctx = (DMTao_L2 *)dm->data;
-
   PetscFunctionBegin;
-  if (l2ctx->workvec2) PetscCall(VecDestroy(&l2ctx->workvec2));
   PetscCall(PetscFree(dm->data));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -36,16 +31,11 @@ static PetscErrorCode DMTaoComputeObjective_L2(DM dm, Vec X, PetscReal *f, void 
   PetscCall(DMGetDMTao(dm, &tdm));
   PetscCall(DMTaoGetCentralVector(dm, &y));
 
-  DMTao_L2 *l2ctx = (DMTao_L2 *)tdm->data;
-
-  if (!l2ctx->workvec2) PetscCall(VecDuplicate(tdm->workvec, &l2ctx->workvec2));
-
   if (y) {
+    PetscCall(DMTaoSetWorkVec(dm, X));
     PetscCall(VecWAXPY(tdm->workvec, -1., y, X));
     PetscCall(VecNorm(tdm->workvec, NORM_2, f));
-  } else {
-    PetscCall(VecNorm(X, NORM_2, f));
-  }
+  } else PetscCall(VecNorm(X, NORM_2, f));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -58,11 +48,8 @@ static PetscErrorCode DMTaoComputeGradient_L2(DM dm, Vec X, Vec G, void *ctx)
   PetscCall(DMGetDMTao(dm, &tdm));
   PetscCall(DMTaoGetCentralVector(dm, &y));
 
-  if (y) {
-    PetscCall(VecAXPBYPCZ(G, 2, -2, 0, X, y));
-  } else {
-    PetscCall(VecAXPBY(G, 2, 0., X));
-  }
+  if (y) PetscCall(VecAXPBYPCZ(G, 2, -2, 0, X, y));
+  else PetscCall(VecAXPBY(G, 2, 0., X));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -92,12 +79,11 @@ static PetscErrorCode DMTaoApplyProximalMap_L2(DMTao tdm0, DMTao tdm1, PetscReal
 
   PetscFunctionBegin;
   PetscCall(PetscObjectTypeCompare((PetscObject)tdm0, DMTAOL2, &is_0_l2));
-  //TODO
   PetscAssert(is_0_l2, PetscObjectComm((PetscObject)tdm0), PETSC_ERR_USER, "L2 Square does not have proximal map.");
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/* TODO Need to implement Hessian Routine */
+/* TODO Hessian Routine */
 
 /*MC
      DMTAOL2 - L2 norm DMTao. This DMTao object represents |x-y|_2^2.
@@ -107,17 +93,11 @@ M*/
 
 PETSC_EXTERN PetscErrorCode DMTaoCreate_L2_Private(DMTao dm)
 {
-  DMTao_L2 *l2ctx;
-
   PetscFunctionBegin;
   PetscAssertPointer(dm, 1);
   PetscValidHeaderSpecific(dm, DMTAO_CLASSID, 1);
 
-  PetscCall(PetscNew(&l2ctx));
-
-
-  l2ctx->workvec2 = NULL;
-  dm->data        = (void *)l2ctx;
+  dm->data = NULL;
 
   dm->ops->applyproximalmap            = DMTaoApplyProximalMap_L2;
   dm->ops->setup                       = NULL;

@@ -593,6 +593,7 @@ PETSC_EXTERN PetscErrorCode DMTaoGetParentDM(DMTao, DM *);
 PETSC_EXTERN PetscErrorCode DMTaoReset(DM);
 PETSC_EXTERN PetscErrorCode DMGetDMTao(DM, DMTao *);
 PETSC_EXTERN PetscErrorCode DMGetDMTaoWrite(DM, DMTao *);
+PETSC_EXTERN PetscErrorCode DMTaoSetWorkVec(DM, Vec);
 
 PETSC_EXTERN PetscErrorCode DMTaoSetLipschitz(DM, PetscReal);
 PETSC_EXTERN PetscErrorCode DMTaoGetLipschitz(DM, PetscReal *);

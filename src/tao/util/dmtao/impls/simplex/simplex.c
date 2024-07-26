@@ -40,15 +40,19 @@ static inline PetscReal Clip_Internal(PetscReal in, PetscReal tmax)
   return PetscMax(0, in - tmax);
 }
 
-//TODO only supporting comm size one i think?
+//TODO PetscParallelSortReal
 /* https://arxiv.org/pdf/1101.6081.pdf */
 static PetscErrorCode DMTaoApplyProximalMap_Simplex(DMTao tdm0, DMTao tdm1, PetscReal lambda, Vec y, Vec x, PetscBool flg)
 {
-  PetscBool  is_0_s, is_1_l2  = PETSC_TRUE;
-  PetscBool  bget = PETSC_FALSE;
-  PetscReal *xarray, *yarray, tmax, min, sum, size, cumsum = 0;
-  PetscInt   len, i;
-  DM         dm1;
+  const PetscReal *xdata, *perm_vecmpi_data;
+  DMTao_Simplex *sctx = (DMTao_Simplex *)tdm0->data;
+  PetscBool      is_0_s, is_1_l2  = PETSC_TRUE;
+  PetscBool      bget = PETSC_FALSE;
+  PetscReal     *xarray, *yarray, tmax, min, max, sum, size, cumsum = 0, *rperm;
+  PetscMPIInt    mpi_size;
+  PetscInt       len, i, n, N, *iperm;
+  VecScatter     vscat;
+  Vec            xseq, perm_vecseq, perm_vecmpi; //TODO this in sctx?
 
   PetscFunctionBegin;
   PetscCall(PetscObjectTypeCompare((PetscObject)tdm0, DMTAOSIMPLEX, &is_0_s));
@@ -58,40 +62,82 @@ static PetscErrorCode DMTaoApplyProximalMap_Simplex(DMTao tdm0, DMTao tdm1, Pets
   /* dm1 == NULL assumes L2 type */
   if (tdm1) PetscCheck(is_1_l2, PetscObjectComm((PetscObject)tdm1), PETSC_ERR_USER, "DMTaoApplyProximalMap_Simplex only upports L2 regularizer type.");
 
-  DMTao_Simplex *sctx = (DMTao_Simplex *)tdm0->data;
-
   size = sctx->size;
   PetscCall(VecSum(y, &sum));
   PetscCall(VecMin(y, NULL, &min));
-  if (PetscAbsReal(sum - size) < sctx->tol) { PetscFunctionReturn(PETSC_SUCCESS); }
+  PetscCall(VecMax(y, NULL, &max));
+  if (PetscAbsReal(sum - size) < sctx->tol && min >= 0 && max <= size) { PetscFunctionReturn(PETSC_SUCCESS); }
 
-  if (tdm1) PetscCall(DMTaoGetParentDM(tdm1, &dm1));
-  if (!tdm0->workvec) PetscCall(VecDuplicate(y, &tdm0->workvec));
+  /* Note: DMTaoSetWorkVec is done in parent DMTaoApplyProximalMap */
+  PetscCallMPI(MPI_Comm_size(PetscObjectComm((PetscObject)y), &mpi_size));
   PetscCall(VecCopy(y, tdm0->workvec));
-  PetscCall(VecGetSize(tdm0->workvec, &len));
-  PetscCall(VecGetArray(tdm0->workvec, &yarray));
-  PetscCall(PetscSortReal(len, yarray));
+  if (mpi_size == 1) {
+    PetscCall(VecGetSize(tdm0->workvec, &len));
+    PetscCall(VecGetArray(tdm0->workvec, &yarray));
+    PetscCall(PetscSortReal(len, yarray));
 
-  /* Not thinking about parallelism right now... */
-  /* Scalar Version. Technically one can do cumulative sum,
-   * but VecCumSum/PrefixSum isn't there yet. */
-  for (i = len - 1; i >= 0; i--) {
-    cumsum += yarray[i];
-    tmax = (cumsum - size) / (len - i);
-    if (tmax >= yarray[i - 1]) {
-      bget = PETSC_TRUE;
-      break;
+    /* Not thinking about parallelism right now... */
+    /* Scalar Version. Technically one can do cumulative sum,
+     * but VecCumSum/PrefixSum isn't there yet. */
+    for (i = len - 1; i >= 0; i--) {
+      cumsum += yarray[i];
+      tmax = (cumsum - size) / (len - i);
+      if (tmax >= yarray[i - 1]) {
+        bget = PETSC_TRUE;
+        break;
+      }
     }
-  }
-  PetscCall(VecRestoreArray(tdm0->workvec, &yarray));
-  if (!bget) { tmax = (cumsum - size) / len; }
+    PetscCall(VecRestoreArray(tdm0->workvec, &yarray));
+    if (!bget) { tmax = (cumsum - size) / len; }
 
-  /* Ideally, VecShift(y, -tmax), and set all neg to 0 in two kernel calls... */
-  PetscCall(VecGetArray(x, &xarray));
-  PetscCall(VecGetArray(y, &yarray));
-  for (i = 0; i < len; i++) { xarray[i] = Clip_Internal(yarray[i], tmax); }
-  PetscCall(VecRestoreArray(x, &xarray));
-  PetscCall(VecRestoreArray(y, &yarray));
+    /* Ideally, VecShift(y, -tmax), and set all neg to 0 in two kernel calls... */
+    PetscCall(VecGetArray(x, &xarray));
+    PetscCall(VecGetArray(y, &yarray));
+    for (i = 0; i < len; i++) { xarray[i] = Clip_Internal(yarray[i], tmax); }
+    PetscCall(VecRestoreArray(x, &xarray));
+    PetscCall(VecRestoreArray(y, &yarray));
+  } else {
+    /* Parallel case */
+    /* By Junchao Zhang */
+    /* perm_vecmpi has the same layout as x. It will store permutation of x (in real) */
+    PetscCall(VecDuplicate(x, &perm_vecmpi));
+    /* Gather x to xseq on rank 0. xseq on other ranks are actually empty */
+    PetscCall(VecScatterCreateToZero(x,&vscat,&xseq));
+    PetscCall(VecScatterBegin(vscat,x,xseq,INSERT_VALUES,SCATTER_FORWARD));
+    PetscCall(VecScatterEnd(vscat,x,xseq,INSERT_VALUES,SCATTER_FORWARD));
+
+    PetscCall(VecGetLocalSize(xseq, &N));
+    PetscCall(PetscMalloc2(N, &iperm, N, &rperm));
+    for (i = 0; i < N; i++) iperm[i] = i;
+    PetscCall(VecGetArrayRead(xseq, &xdata));
+    PetscCall(PetscSortRealWithPermutation(N,xdata,iperm));
+    PetscCall(VecRestoreArrayRead(xseq,&xdata));
+
+    /* Convert iperm[] to rperm[], i.e., 1 to 1.0, 2 to 2.0, etc */
+    for (i = 0; i < N; i++) rperm[i] = (PetscScalar)iperm[i];
+
+    /* Wrap rperm[] in a sequential vector perm_vecseq */
+    PetscCall(VecCreateSeqWithArray(PETSC_COMM_SELF,1,N,rperm,&perm_vecseq));
+
+    /* Do reverse vecscatter to scatter values in perm_vecseq to perm_vecmpi */
+    PetscCall(VecScatterBegin(vscat,perm_vecseq,perm_vecmpi,INSERT_VALUES,SCATTER_REVERSE));
+    PetscCall(VecScatterEnd(vscat,perm_vecseq,perm_vecmpi,INSERT_VALUES,SCATTER_REVERSE));
+
+    /* Free perm_vecseq, iperm, rperm */
+    PetscCall(VecDestroy(&perm_vecseq));
+    PetscCall(PetscFree2(iperm,rperm));
+
+    /* Read values from perm_vecmpi can convert 1.0 to 1, 2.0 to 2, etc */
+    PetscCall(VecGetArrayRead(perm_vecmpi,&perm_vecmpi_data));
+    PetscCall(VecGetLocalSize(x,&n));
+    PetscCall(PetscMalloc1(n,&iperm)); /* Allocate iperm again, in different size */
+    for (i=0; i<n; i++) iperm[i] = (PetscInt)perm_vecmpi_data[i];
+    PetscCall(VecRestoreArrayRead(perm_vecmpi,&perm_vecmpi_data));
+    /* iperm[] now has the permutation in PetscInt. In a global view, if j = iperm[i], then i-th entry of a sorted x[] would be x[j] */
+    PetscCall(VecScatterDestroy(&vscat));
+    PetscCall(VecDestroy(&xseq));
+    PetscCall(VecDestroy(&perm_vecmpi));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -135,10 +181,9 @@ PetscErrorCode DMTaoSimplexSetContext(DM dm, PetscReal size, PetscReal tol)
 Simplex is defined by x_i >= 0, \sum x = size.
 If size=1, it is a unit simplex. Proximal mapping is an orthogonal
 projection on to this simplex.
-TODO support VM
 
    Options Database Keys:
-+      -dmtao_simplex_tol <r> - tolerance
++      -dmtao_simplex_tol <r>  - tolerance
 -      -dmtao_simplex_size <r> - size of simplex
 
   Level: beginner

@@ -12,23 +12,13 @@ PetscLogEvent DMTAO_GradientEval;
 PetscLogEvent DMTAO_ObjGradEval;
 PetscLogEvent DMTAO_ApplyProx;
 
-static PetscErrorCode DMTaoCreateWorkvec_Private(DMTao tdm0, Vec x)
-{
-  PetscFunctionBegin;
-  if (!tdm0->workvec) { PetscCall(VecDuplicate(x, &tdm0->workvec)); }
-  else if (tdm0->workvec->map->n != x->map->n) {
-    PetscCall(VecDestroy(&tdm0->workvec));
-    PetscCall(VecDuplicate(x, &tdm0->workvec));
-  }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 static PetscErrorCode DMTaoDestroy(DMTao *kdm)
 {
   PetscFunctionBegin;
   if (!*kdm) PetscFunctionReturn(PETSC_SUCCESS);
   PetscValidHeaderSpecific((*kdm), DMTAO_CLASSID, 1);
   PetscCall(VecDestroy(&(*kdm)->workvec));
+  PetscCall(VecDestroy(&(*kdm)->translation));
   if (--((PetscObject)(*kdm))->refct > 0) {
     *kdm = NULL;
     PetscFunctionReturn(PETSC_SUCCESS);
@@ -37,6 +27,51 @@ static PetscErrorCode DMTaoDestroy(DMTao *kdm)
   PetscCall(PetscHeaderDestroy(kdm));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+/*@
+  DMTaoSetWorkVec - Allocates a work vectors with same comm, type, and size
+  to be used internally by `DMTAO`
+
+  Input Parameters:
++ dm - the `DM` context
+- x  - the template vector to duplicate from
+
+  Level: developer
+
+.seealso: [](ch_tao), `DMTAO`
+@*/
+PetscErrorCode DMTaoSetWorkVec(DM dm, Vec x)
+{
+  DMTao tdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscValidHeaderSpecific(x, VEC_CLASSID, 2);
+  PetscCall(DMGetDMTaoWrite(dm, &tdm));
+
+  if (!tdm->workvec) PetscCall(VecDuplicate(x, &tdm->workvec));
+  else {
+    /* Check if existing workvec matches given vector's structure */
+    VecType     worktype;
+    PetscBool   sametype;
+    PetscMPIInt mpiflg;
+    PetscInt    low1, low2, high1, high2;
+
+    PetscCall(VecGetType(tdm->workvec, &worktype));
+    PetscCall(PetscObjectTypeCompare((PetscObject)x, worktype, &sametype));
+    PetscCallMPI(MPI_Comm_compare(PetscObjectComm((PetscObject)(x)), PetscObjectComm((PetscObject)(tdm->workvec)), &mpiflg));
+    PetscCall(VecGetOwnershipRange(x, &low2, &high2));
+    PetscCall(VecGetOwnershipRange(tdm->workvec, &low1, &high1));
+
+    if (sametype && mpiflg && (low1 == low2) && (high1 == high2)) PetscFunctionReturn(PETSC_SUCCESS);
+    else {
+      PetscCall(VecDestroy(&tdm->workvec));
+      PetscCall(VecDuplicate(x, &tdm->workvec));
+    }
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 
 /*@
   DMTaoSetScaling - Sets scaling factor to `DMTao` object
@@ -811,7 +846,8 @@ PetscErrorCode TaoSetRegularizer(Tao tao, DM dm, PetscReal scale)
   tao->reg       = dm;
   tao->reg_scale = scale;
   PetscCheck(tao->solution, PetscObjectComm((PetscObject)dm), PETSC_ERR_USER, "TaoSetSolution needs to be called first.");
-  if (!tdm->workvec) { PetscCall(VecDuplicate(tao->solution, &tdm->workvec)); }
+
+  PetscCall(DMTaoSetWorkVec(dm, tao->solution));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -877,7 +913,7 @@ PetscErrorCode DMTaoComputeObjective(DM dm, Vec x, PetscReal *f)
       tdm->nfeval++;
     } else if (tdm->ops->computeobjectiveandgradient) {
       PetscCall(PetscLogEventBegin(DMTAO_ObjGradEval, tdm, x, NULL, NULL));
-      if (!tdm->workvec) { PetscCall(VecDuplicate(x, &tdm->workvec)); } //TODO workvec comm check etc...
+      PetscCall(DMTaoSetWorkVec(dm, x));
       PetscCallBack("DMTao callback objective/gradient", (*tdm->ops->computeobjectiveandgradient)(dm, x, f, tdm->workvec, tdm->userctx_funcgrad));
       PetscCall(PetscLogEventEnd(DMTAO_ObjGradEval, tdm, x, NULL, NULL));
       tdm->nfgeval++;
@@ -1168,9 +1204,9 @@ PetscErrorCode DMTaoApplyProximalMap(DM dm0, DM dm1, PetscReal lambda, Vec y, Ve
   if (tdm0->translation) PetscCheck(x->map->N == tdm0->translation->map->N, PetscObjectComm((PetscObject)dm0), PETSC_ERR_USER, "Translation vector needs to be of same as size as input/output vectors");
   PetscCall(PetscLogEventBegin(DMTAO_ApplyProx, dm0, dm1, y, x));
 
+  PetscCall(DMTaoSetWorkVec(dm0, x));
   /* scaling and translation, if applicable */
   if (tdm0->scaling_set || tdm0->translation) {
-    PetscCall(DMTaoCreateWorkvec_Private(tdm0, x));
     PetscCall(VecCopy(y, tdm0->workvec));
     if (!is_cj) {
       if (tdm0->scaling > 0) PetscCall(VecScale(tdm0->workvec, tdm0->scaling));
@@ -1208,7 +1244,6 @@ PetscErrorCode DMTaoApplyProximalMap(DM dm0, DM dm1, PetscReal lambda, Vec y, Ve
         PetscTryTypeMethod(tdm0, applyproximalmap, NULL, lambda, y, x, is_cj);
       }
     } else {
-      PetscCall(DMTaoCreateWorkvec_Private(tdm0, x));
       PetscCall(VecCopy(y, tdm0->workvec));
       PetscCall(VecScale(tdm0->workvec, 1/lambda));
       if (dm1) {
