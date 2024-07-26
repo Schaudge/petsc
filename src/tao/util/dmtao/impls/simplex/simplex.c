@@ -44,15 +44,15 @@ static inline PetscReal Clip_Internal(PetscReal in, PetscReal tmax)
 /* https://arxiv.org/pdf/1101.6081.pdf */
 static PetscErrorCode DMTaoApplyProximalMap_Simplex(DMTao tdm0, DMTao tdm1, PetscReal lambda, Vec y, Vec x, PetscBool flg)
 {
-  const PetscReal *xdata, *perm_vecmpi_data;
   DMTao_Simplex *sctx = (DMTao_Simplex *)tdm0->data;
   PetscBool      is_0_s, is_1_l2  = PETSC_TRUE;
   PetscBool      bget = PETSC_FALSE;
-  PetscReal     *xarray, *yarray, tmax, min, max, sum, size, cumsum = 0, *rperm;
-  PetscMPIInt    mpi_size;
-  PetscInt       len, i, n, N, *iperm;
+  PetscReal     *xarray, *yarray, tmax, min, max, sum, size, cumsum = 0;
+  PetscMPIInt    mpi_size, rank;
+  MPI_Comm       comm;
+  PetscInt       len, i, N;
   VecScatter     vscat;
-  Vec            xseq, perm_vecseq, perm_vecmpi; //TODO this in sctx?
+  Vec            yseq; //TODO this in sctx?
 
   PetscFunctionBegin;
   PetscCall(PetscObjectTypeCompare((PetscObject)tdm0, DMTAOSIMPLEX, &is_0_s));
@@ -69,7 +69,9 @@ static PetscErrorCode DMTaoApplyProximalMap_Simplex(DMTao tdm0, DMTao tdm1, Pets
   if (PetscAbsReal(sum - size) < sctx->tol && min >= 0 && max <= size) { PetscFunctionReturn(PETSC_SUCCESS); }
 
   /* Note: DMTaoSetWorkVec is done in parent DMTaoApplyProximalMap */
-  PetscCallMPI(MPI_Comm_size(PetscObjectComm((PetscObject)y), &mpi_size));
+  PetscCall(PetscObjectGetComm((PetscObject)y, &comm));
+  PetscCallMPI(MPI_Comm_size(comm, &mpi_size));
+  PetscCallMPI(MPI_Comm_rank(comm, &rank));
   PetscCall(VecCopy(y, tdm0->workvec));
   if (mpi_size == 1) {
     PetscCall(VecGetSize(tdm0->workvec, &len));
@@ -98,45 +100,39 @@ static PetscErrorCode DMTaoApplyProximalMap_Simplex(DMTao tdm0, DMTao tdm1, Pets
     PetscCall(VecRestoreArray(y, &yarray));
   } else {
     /* Parallel case */
-    /* By Junchao Zhang */
-    /* perm_vecmpi has the same layout as x. It will store permutation of x (in real) */
-    PetscCall(VecDuplicate(x, &perm_vecmpi));
-    /* Gather x to xseq on rank 0. xseq on other ranks are actually empty */
-    PetscCall(VecScatterCreateToZero(x,&vscat,&xseq));
-    PetscCall(VecScatterBegin(vscat,x,xseq,INSERT_VALUES,SCATTER_FORWARD));
-    PetscCall(VecScatterEnd(vscat,x,xseq,INSERT_VALUES,SCATTER_FORWARD));
+    /* Gather x to yseq on rank 0. yseq on other ranks are actually empty */
+    PetscCall(VecScatterCreateToZero(y,&vscat,&yseq));
+    PetscCall(VecScatterBegin(vscat,y,yseq,INSERT_VALUES,SCATTER_FORWARD));
+    PetscCall(VecScatterEnd(vscat,y,yseq,INSERT_VALUES,SCATTER_FORWARD));
 
-    PetscCall(VecGetLocalSize(xseq, &N));
-    PetscCall(PetscMalloc2(N, &iperm, N, &rperm));
-    for (i = 0; i < N; i++) iperm[i] = i;
-    PetscCall(VecGetArrayRead(xseq, &xdata));
-    PetscCall(PetscSortRealWithPermutation(N,xdata,iperm));
-    PetscCall(VecRestoreArrayRead(xseq,&xdata));
+    PetscCall(VecGetLocalSize(yseq, &N));
+    if (N > 0) {
+      PetscCall(VecGetArray(yseq, &yarray));
+      PetscCall(PetscSortReal(N,yarray));
 
-    /* Convert iperm[] to rperm[], i.e., 1 to 1.0, 2 to 2.0, etc */
-    for (i = 0; i < N; i++) rperm[i] = (PetscScalar)iperm[i];
+      for (i = N - 1; i >= 0; i--) {
+        cumsum += yarray[i];
+        tmax = (cumsum - size) / (N - i);
+        if (tmax >= yarray[i - 1]) {
+          bget = PETSC_TRUE;
+          break;
+        }
+      }
+      PetscCall(VecRestoreArray(yseq,&yarray));
+    }
+    if (rank == 0 && !bget) tmax = (cumsum - size) / N;
 
-    /* Wrap rperm[] in a sequential vector perm_vecseq */
-    PetscCall(VecCreateSeqWithArray(PETSC_COMM_SELF,1,N,rperm,&perm_vecseq));
+    PetscCallMPI(MPI_Bcast(&tmax, 1, MPIU_REAL, 0, comm));
+    /* Ideally, VecShift(y, -tmax), and set all neg to 0 in two kernel calls... */
+    PetscCall(VecGetArray(x, &xarray));
+    PetscCall(VecGetArray(y, &yarray));
+    PetscCall(VecGetLocalSize(y, &len));
+    for (i = 0; i < len; i++) { xarray[i] = Clip_Internal(yarray[i], tmax); }
+    PetscCall(VecRestoreArray(x, &xarray));
+    PetscCall(VecRestoreArray(y, &yarray));
 
-    /* Do reverse vecscatter to scatter values in perm_vecseq to perm_vecmpi */
-    PetscCall(VecScatterBegin(vscat,perm_vecseq,perm_vecmpi,INSERT_VALUES,SCATTER_REVERSE));
-    PetscCall(VecScatterEnd(vscat,perm_vecseq,perm_vecmpi,INSERT_VALUES,SCATTER_REVERSE));
-
-    /* Free perm_vecseq, iperm, rperm */
-    PetscCall(VecDestroy(&perm_vecseq));
-    PetscCall(PetscFree2(iperm,rperm));
-
-    /* Read values from perm_vecmpi can convert 1.0 to 1, 2.0 to 2, etc */
-    PetscCall(VecGetArrayRead(perm_vecmpi,&perm_vecmpi_data));
-    PetscCall(VecGetLocalSize(x,&n));
-    PetscCall(PetscMalloc1(n,&iperm)); /* Allocate iperm again, in different size */
-    for (i=0; i<n; i++) iperm[i] = (PetscInt)perm_vecmpi_data[i];
-    PetscCall(VecRestoreArrayRead(perm_vecmpi,&perm_vecmpi_data));
-    /* iperm[] now has the permutation in PetscInt. In a global view, if j = iperm[i], then i-th entry of a sorted x[] would be x[j] */
     PetscCall(VecScatterDestroy(&vscat));
-    PetscCall(VecDestroy(&xseq));
-    PetscCall(VecDestroy(&perm_vecmpi));
+    PetscCall(VecDestroy(&yseq));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
