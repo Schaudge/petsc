@@ -25,12 +25,12 @@ int PetscToGrid(DM dm,Vec psi,Lattice<vobj> &g_psi)
   GridBase *grid = g_psi.Grid();
   uint64_t lsites = grid->lSites();
   std::vector<sobj> scalardata(lsites);
-  
+
   const PetscScalar *psih;
   PetscInt           dim, vStart, vEnd;
   PetscSection       s;
 
-  
+
   PetscCall(DMGetDimension(dm, &dim));
   PetscCall(DMGetLocalSection(dm, &s));
   PetscCall(DMPlexGetDepthStratum(dm, 0, &vStart, &vEnd));
@@ -49,7 +49,7 @@ int PetscToGrid(DM dm,Vec psi,Lattice<vobj> &g_psi)
     }
   }
   assert(idx==lsites);
-  vectorizeFromLexOrdArray(scalardata,g_psi);    
+  vectorizeFromLexOrdArray(scalardata,g_psi);
   PetscFunctionReturn(0);
 }
 
@@ -62,13 +62,13 @@ int GridToPetsc(DM dm,Vec psi,Lattice<vobj> &g_psi)
   GridBase *grid = g_psi.Grid();
   uint64_t lsites = grid->lSites();
   std::vector<sobj> scalardata(lsites);
-  unvectorizeToLexOrdArray(scalardata,g_psi);    
+  unvectorizeToLexOrdArray(scalardata,g_psi);
 
   PetscScalar *psih;
   PetscInt           dim, vStart, vEnd;
   PetscSection       s;
 
-  
+
   PetscCall(DMGetDimension(dm, &dim));
   PetscCall(DMGetLocalSection(dm, &s));
   PetscCall(DMPlexGetDepthStratum(dm, 0, &vStart, &vEnd));
@@ -100,7 +100,7 @@ static PetscErrorCode SetGauge_Grid(DM dm, LatticeGaugeField & Umu)
   uint64_t lsites = grid->lSites();
   std::vector<sobj> scalardata(lsites);
   unvectorizeToLexOrdArray(scalardata,Umu);
-  
+
   DM           auxDM;
   Vec          auxVec, globalVector;
   PetscSection s;
@@ -117,7 +117,7 @@ static PetscErrorCode SetGauge_Grid(DM dm, LatticeGaugeField & Umu)
   // Get the ownership range of the global vector and reduce by degrees of freedom
   PetscCall(DMGetGlobalVector(auxDM, &globalVector));
   PetscCall(VecGetOwnershipRange(globalVector, &low, &high));
-  low = low/9; high = high/9;// remove dofs and just use the edge numbering. 
+  low = low/9; high = high/9;// remove dofs and just use the edge numbering.
   PetscSynchronizedPrintf(PETSC_COMM_WORLD, "edge range on this process: %" PetscInt_FMT " %" PetscInt_FMT  "high-low: %" PetscInt_FMT "\n", low, high, high-low);
   PetscSynchronizedFlush(PETSC_COMM_WORLD, PETSC_STDOUT);
   PetscCall(DMPlexGetDepthStratum(dm, 1, &eStart, &eEnd));// these are edges, not vertices!!!!!!
@@ -174,7 +174,7 @@ static PetscErrorCode SetGauge_Grid5D(DM dm, LatticeGaugeField & Umu, PetscInt L
     if ( d==0 ) { // Unit link in s-dim
       if ( ss == Ls-1 ) {
 	      PetscCall(VecSetValuesSection(auxVec, s, i, idm, INSERT_VALUES));
-      } else { 
+      } else {
 	      PetscCall(VecSetValuesSection(auxVec, s, i, id, INSERT_VALUES));
       }
     } else {
@@ -191,16 +191,11 @@ static PetscErrorCode SetGauge_Grid5D(DM dm, LatticeGaugeField & Umu, PetscInt L
 
 
 static PetscErrorCode FormGauge(DM  dm, PetscReal shift, GRID_LOAD_TYPE type, int argc, char** argv, const char* filename) {
-  DomainWallParameters p;
   FieldMetaData header;
 
   PetscFunctionBegin;
   Grid::Grid_init(&argc,&argv);
-  
-  p.M5   = 1.8;
-  p.m    = 0.01;
-  p.Ls   = 8;
-  
+
   Coordinate latt_size   = GridDefaultLatt();
   Coordinate simd_layout = GridDefaultSimd(Nd,vComplexD::Nsimd());//1 is Nd ?
   Coordinate mpi_layout  = GridDefaultMpi();
@@ -241,13 +236,13 @@ static PetscErrorCode FormGauge(DM  dm, PetscReal shift, GRID_LOAD_TYPE type, in
 PetscErrorCode CheckDwfWithGrid(DM dm, Mat dw, Vec psi,Vec res)
 {
   DomainWallParameters p;
-  p.M5   = 1.8;  
+  p.M5   = 1.8;
   p.m    = 0.01;
   p.Ls   = 8;
-  
+
   PetscFunctionBegin;
   SetDomainWallParameters(&p);
-  
+
   Coordinate latt_size   = GridDefaultLatt();
   Coordinate simd_layout = GridDefaultSimd(Nd,vComplexD::Nsimd());
   Coordinate mpi_layout  = GridDefaultMpi();
@@ -258,7 +253,7 @@ PetscErrorCode CheckDwfWithGrid(DM dm, Mat dw, Vec psi,Vec res)
   std::vector<int> seeds({1,2,3,4});
   GridParallelRNG          pRNG(&GRID);
   pRNG.SeedFixedIntegers(seeds);
-  
+
   LatticeGaugeFieldD Umu(&GRID);
   LatticeGaugeField     U_GT(&GRID); // Gauge transformed field
   LatticeColourMatrix   g(&GRID);    // local Gauge xform matrix
@@ -268,13 +263,13 @@ PetscErrorCode CheckDwfWithGrid(DM dm, Mat dw, Vec psi,Vec res)
   FieldMetaData header;
   NerscIO::readConfiguration(Umu, header, name);
   U_GT = Umu;
-  
+
   ////////////////////////////////////////////////////
   // DWF test
   ////////////////////////////////////////////////////
   GridCartesian         * FGrid   = SpaceTimeGrid::makeFiveDimGrid(p.Ls,&GRID);
   GridRedBlackCartesian * FrbGrid = SpaceTimeGrid::makeFiveDimRedBlackGrid(p.Ls,&GRID);
-  
+
   LatticeFermionD    g_src(FGrid);
   LatticeFermionD    g_res(FGrid); // Grid result
   LatticeFermionD    p_res(FGrid); // Petsc result
@@ -284,9 +279,9 @@ PetscErrorCode CheckDwfWithGrid(DM dm, Mat dw, Vec psi,Vec res)
 //  SetGauge_Grid5D(dm,U_GT,p.Ls,p.m);
 
   PetscToGrid(dm,psi,g_src);
-  
+
   DomainWallFermionD DWF(U_GT,*FGrid,*FrbGrid,GRID,RBGRID,p.m,p.M5);
-    
+
   //  DWF.Dhop(g_src,g_res,0); Passes with no 5d term
   RealD t0=usecond();
   DWF.M(g_src,g_res);
@@ -294,8 +289,8 @@ PetscErrorCode CheckDwfWithGrid(DM dm, Mat dw, Vec psi,Vec res)
   //PetscCall(Ddwf(dw, psi, res)); // Applies DW
   PetscCall(MatMult(dw, psi, res));
   RealD t2=usecond();
-  PetscToGrid(dm,res,p_res); 
-  
+  PetscToGrid(dm,res,p_res);
+
   diff = p_res - g_res;
 
   std::cout << "******************************"<<std::endl;
@@ -310,8 +305,8 @@ PetscErrorCode CheckDwfWithGrid(DM dm, Mat dw, Vec psi,Vec res)
 
   //PetscCall(DdwfDag(dw, psi, res)); // Applies DW
   PetscCall(MatMultTranspose(dw, psi, res));
-  PetscToGrid(dm,res,p_res); 
-  
+  PetscToGrid(dm,res,p_res);
+
   diff = p_res - g_res;
 
   std::cout << "******************************"<<std::endl;
@@ -324,30 +319,30 @@ PetscErrorCode CheckDwfWithGrid(DM dm, Mat dw, Vec psi,Vec res)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode FormGauge5D(DM  dm, GRID_LOAD_TYPE type, PetscBool isPV, int argc, char** argv, const char* filename) {
-  // These parameteres need to be moved out. 
+static PetscErrorCode FormGauge5D(DM  dm, GRID_LOAD_TYPE type, PetscBool isPV, PetscInt Ls, int argc, char** argv, const char* filename) {
+  // These parameteres need to be moved out.
   DomainWallParameters p;
   FieldMetaData header;
 
-  p.M5   = 1.8;  
+  p.M5   = 1.8;
   if (isPV) p.m = 1.0;
   else p.m = 0.01;
-  p.Ls   = 8;
-  
+  p.Ls   = Ls;
+
   PetscFunctionBegin;
   if (!isPV) Grid::Grid_init(&argc,&argv);
   SetDomainWallParameters(&p);
   Coordinate latt_size   = GridDefaultLatt();
   Coordinate simd_layout = GridDefaultSimd(Nd,vComplexD::Nsimd());
   Coordinate mpi_layout  = GridDefaultMpi();
-  
+
   GridCartesian         GRID(latt_size,simd_layout,mpi_layout);
   GridRedBlackCartesian RBGRID(&GRID);
 
   std::vector<int> seeds({1,2,3,4});
   GridParallelRNG          pRNG(&GRID);
   pRNG.SeedFixedIntegers(seeds);
-  
+
   LatticeGaugeFieldD Umu(&GRID);
   LatticeGaugeField     U_GT(&GRID); // Gauge transformed field
   LatticeColourMatrix   g(&GRID);    // local Gauge xform matrix
@@ -385,7 +380,7 @@ NAMESPACE_END(Grid);
 extern "C" {
   /*
     Sets Gauge links by using grid. Supported types are cold, tepid, and hot lattice configurations
-    as well as checkpointed lattice files. 
+    as well as checkpointed lattice files.
   */
   PetscErrorCode  PetscSetGauge_Grid(DM dm, PetscReal shift, GRID_LOAD_TYPE type, int argc, char** argv, const char* filename)
   {
@@ -394,9 +389,9 @@ extern "C" {
     PetscFunctionReturn(PETSC_SUCCESS);
   }
 
-  PetscErrorCode PetscSetGauge_Grid5D(DM dm, GRID_LOAD_TYPE type, PetscBool isPV, int argc, char** argv, const char* filename){
+  PetscErrorCode PetscSetGauge_Grid5D(DM dm, GRID_LOAD_TYPE type, PetscBool isPV, PetscInt Ls, int argc, char** argv, const char* filename){
     PetscFunctionBegin;
-    PetscCall(Grid::FormGauge5D(dm, type, isPV, argc, argv, filename));
+    PetscCall(Grid::FormGauge5D(dm, type, isPV, Ls, argc, argv, filename));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
 

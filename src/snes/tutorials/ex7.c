@@ -14,6 +14,7 @@ static char help[] = "Fermions on a hypercubic lattice.\n\n";
 */
 // Wilson quark mass
 const PetscReal M = -0.92;
+//const PetscReal M = 0.1;
 
 static inline void TwoSpinAccumulate(PetscInt, PetscBool, PetscInt, const PetscScalar*, PetscScalar*);
 static inline void TwoSpinProject(PetscInt , PetscBool , PetscInt,const PetscScalar*,PetscScalar*);
@@ -32,12 +33,18 @@ typedef struct {
   PetscBool     write_eig;
   PetscInt      numEigenVectors;
   PetscBool     testCoarsening;
+  PetscReal     shift;
+  PetscBool     load_ic;
+  PetscBool     write_ic;
+  PetscReal     mass;
+  PetscBool     DWsqr;
+  Mat           pv;
 } AppCtx;
 
 PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 {
   PetscFunctionBegin;
-  options->usePV      = PETSC_TRUE;
+  options->usePV      = PETSC_FALSE;
   options->useEPS     = PETSC_FALSE;
   options->normalEq   = PETSC_FALSE;
   options->domainWall = 0;
@@ -48,6 +55,11 @@ PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->write_eig  = PETSC_FALSE;
   options->numEigenVectors = 4096;
   options->testCoarsening = PETSC_FALSE;
+  options->shift          = 0.01;
+  options->write_ic       = PETSC_TRUE;
+  options->load_ic        = PETSC_FALSE;
+  options->mass           = -0.92;
+  options->DWsqr          = PETSC_FALSE;
 
   PetscOptionsBegin(comm, "", "Meshing Problem Options", "DMPLEX");
   PetscCall(PetscOptionsBool("-coarsen", "flag to set up coarse grid", "ex7.c", options->coarsen, &options->coarsen, NULL));
@@ -60,7 +72,12 @@ PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   PetscCall(PetscOptionsGetString(NULL, NULL, "-grid_file", options->gridFile, sizeof(options->gridFile), NULL));
   PetscCall(PetscOptionsInt("-run_domain_wall", "Number of 5D slices", "ex7.c", options->domainWall, &options->domainWall, NULL));
   PetscCall(PetscOptionsBool("-load_sol", "Flag to load a solution from a previous solve.", "ex7.c", options->load_sol, &options->load_sol, NULL));
+  PetscCall(PetscOptionsBool("-run_squared_domain_wall", "Use squared operator", "ex7.c", options->DWsqr, &options->DWsqr, NULL));
   PetscCall(PetscOptionsBool("-write_sol", "Flag to write the solution from current solve to disc.", "ex7.c", options->write_sol, &options->write_sol, NULL));
+  PetscCall(PetscOptionsBool("-write_ic", "Flag to write the solution from current solve to disc.", "ex7.c", options->write_ic, &options->write_ic, NULL));
+  PetscCall(PetscOptionsBool("-load_ic", "Flag to write the solution from current solve to disc.", "ex7.c", options->load_ic, &options->load_ic, NULL));
+  PetscCall(PetscOptionsReal("-temperature", "Temperature shift for initial guage field configuration", "ex7.c", options->shift, &options->shift, NULL));
+  PetscCall(PetscOptionsReal("-mass", "fermion mass parameter", "ex7.c", options->mass, &options->mass, NULL));
   //PetscCall(PetscOptionsEnum("-grid_load_type", "How to initialize data from grid", NULL, GRID_LOAD_TYPE, (PetscEnum)options->gauge_type, (PetscEnum *)&options->gauge_type, NULL));
   PetscOptionsEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -234,14 +251,14 @@ static PetscErrorCode ComputeAction(PetscInt d, PetscBool forward, PetscBool dag
   PetscScalar tmp[12], utmp[12];
   PetscBool gforward;
 
-  PetscFunctionBegin;
+  PetscFunctionBeginHot;
   if ( dag ) {
     if ( forward ) gforward = PETSC_FALSE;
     else           gforward = PETSC_TRUE;
   } else {
     gforward = forward;
   }
-  
+
   for (PetscInt c = 0; c < 3; ++c) TwoSpinProject(d, forward, 3, &psi[c], &tmp[c]);
   for (PetscInt beta = 0; beta < 4; ++beta) {
     if (forward) DMPlex_Mult3D_Internal(U, 1, &tmp[beta * 3], &utmp[beta * 3]);
@@ -262,9 +279,11 @@ static PetscErrorCode ComputeResidual(Mat F, Vec u, Vec f, PetscBool dag)
   const PetscScalar *ua;
   PetscScalar       *fa, *link;
   PetscInt           dim, vStart, vEnd;
+  AppCtx            *user;
 
   PetscFunctionBeginUser;
   PetscCall(MatGetDM(F, &dm));
+  PetscCall(DMGetApplicationContext(dm, &user));
   PetscCall(DMGetDimension(dm, &dim));
   PetscCall(DMGetLocalSection(dm, &s));
   PetscCall(DMPlexGetDepthStratum(dm, 0, &vStart, &vEnd));
@@ -276,13 +295,8 @@ static PetscErrorCode ComputeResidual(Mat F, Vec u, Vec f, PetscBool dag)
   PetscCall(VecGetDM(gauge, &dmAux));
   PetscCall(DMGetLocalSection(dmAux, &sGauge));
   PetscCall(VecGetArray(gauge, &link));
-  PetscInt low, high;
-  PetscCall(VecGetOwnershipRange(u, &low, &high));
-//  PetscSynchronizedPrintf(PETSC_COMM_WORLD, "vertex range on this process: %" PetscInt_FMT " %" PetscInt_FMT  "end-start: %" PetscInt_FMT "\n", vStart, vEnd, vEnd-vStart);
-  PetscSynchronizedFlush(PETSC_COMM_WORLD, PETSC_STDOUT);
-  // Loop over y using the local ownership range and the range of the vertices. Assumes 12 dofs per vertex
-  //for (PetscInt v = vStart; v < vEnd; ++v) {
-  for (PetscInt v = vStart+(low/12); v < high/12; ++v){
+  // Loop over y
+  for (PetscInt v = vStart; v < vEnd; ++v) {
     const PetscInt *supp;
     PetscInt        xdof, xoff;
 
@@ -290,7 +304,7 @@ static PetscErrorCode ComputeResidual(Mat F, Vec u, Vec f, PetscBool dag)
     PetscCall(PetscSectionGetDof(s, v, &xdof));
     PetscCall(PetscSectionGetOffset(s, v, &xoff));
     // Diagonal
-    for (PetscInt i = 0; i < xdof; ++i) fa[xoff + i] += (M + 4) * ua[xoff + i];
+    for (PetscInt i = 0; i < xdof; ++i) fa[xoff + i] += (user->mass + 4) * ua[xoff + i];
     // Loop over mu
     for (PetscInt d = 0; d < dim; ++d) {
       const PetscInt *cone;
@@ -473,13 +487,51 @@ static PetscErrorCode DdwfDagDdwf(Mat M, Vec u, Vec f)
   Vec tmp;
   DM  dm;
 
+  PetscFunctionBegin;
   PetscCall(MatGetDM(M, &dm));
   PetscCall(DMCreateGlobalVector(dm, &tmp));
+  PetscCall(VecZeroEntries(tmp));// There is no guarantee thise vec is zerod when pulled from the dm
   DdwfInternal(M,u,tmp,PETSC_FALSE);
   DdwfInternal(M,tmp,f,PETSC_TRUE);
   PetscCall(VecDestroy(&tmp));
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+static PetscErrorCode PrecOp(Mat M, Vec u, Vec f)
+{
+  Vec tmp;
+  DM  dm;
+  AppCtx *user;
+
+  PetscFunctionBegin;
+  PetscCall(MatShellGetContext(M, &user));
+  PetscCall(MatGetDM(M, &dm));
+  PetscCall(DMCreateGlobalVector(dm, &tmp));
+  PetscCall(VecZeroEntries(tmp));// There is no guarantee thise vec is zerod when pulled from the dm
+  DdwfInternal(M,u,tmp,PETSC_FALSE);
+  DdwfInternal(user->pv,tmp,f,PETSC_TRUE);
+  PetscCall(VecDestroy(&tmp));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode PrecOpDag(Mat M, Vec u, Vec f)
+{
+  Vec tmp;
+  DM  dm;
+  AppCtx *user;
+
+  PetscFunctionBegin;
+
+  PetscCall(MatShellGetContext(M, &user));
+  PetscCall(MatGetDM(M, &dm));
+  PetscCall(DMCreateGlobalVector(dm, &tmp));
+  PetscCall(VecZeroEntries(tmp));// There is no guarantee thise vec is zerod when pulled from the dm
+  DdwfInternal(M,u,tmp,PETSC_TRUE);
+  DdwfInternal(user->pv,tmp,f,PETSC_FALSE);
+  PetscCall(VecDestroy(&tmp));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /*
  -----------------------------------------------------------------------------------
 */
@@ -791,12 +843,12 @@ static PetscErrorCode TestFreeField(DM dm)
 }
 #endif
 
-static PetscErrorCode SetUpDW(DM dm, Mat *DWOperator, AppCtx *user, int argc, char **argv) {
+static PetscErrorCode SetUpDW(DM dm, Mat *DWOperator, PetscBool isPV, PetscInt Ls, AppCtx *user, int argc, char **argv) {
   Vec      u;
   PetscInt locSize;
 
   PetscFunctionBegin;
-  PetscCall(PetscSetGauge_Grid5D(dm, GRID_LATTICE_FILE, argc, argv, user->gridFile));
+  PetscCall(PetscSetGauge_Grid5D(dm, GRID_LATTICE_FILE, isPV, Ls, argc, argv, user->gridFile));
   PetscCall(DMCreateLocalVector(dm, &u));
   PetscCall(VecGetLocalSize(u, &locSize));
   PetscCall(MatCreateShell(PETSC_COMM_WORLD, locSize, locSize, PETSC_DECIDE, PETSC_DECIDE, user, DWOperator));
@@ -805,26 +857,53 @@ static PetscErrorCode SetUpDW(DM dm, Mat *DWOperator, AppCtx *user, int argc, ch
   PetscCall(VecDestroy(&u));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+// Gauge should be set and these functions should operator only on configured operators with their associated DMs
+
+static PetscErrorCode SetUpPreconditionedOperator(DM dm, Mat *Prec, AppCtx *user) {
+  Vec      u;
+  PetscInt locSize;
+
+  PetscFunctionBegin;
+  PetscCall(DMCreateLocalVector(dm, &u));
+  PetscCall(VecGetLocalSize(u, &locSize));
+  PetscCall(MatCreateShell(PETSC_COMM_WORLD, locSize, locSize, PETSC_DECIDE, PETSC_DECIDE, user, Prec));
+  PetscCall(MatShellSetOperation(*Prec, MATOP_MULT, (void(*)(void))PrecOp));
+  PetscCall(MatShellSetOperation(*Prec, MATOP_MULT_TRANSPOSE, (void(*)(void))PrecOpDag));
+  PetscCall(VecDestroy(&u));
+  PetscFunctionReturn(PETSC_SUCCESS);
+
+}
+
+static PetscErrorCode SetUpSqrDW(DM dm, Mat *DWOperator, PetscInt Ls, AppCtx *user, int argc, char **argv) {
+  Vec      u;
+  PetscInt locSize;
+
+  PetscFunctionBegin;
+  PetscCall(PetscSetGauge_Grid5D(dm, GRID_LATTICE_FILE, PETSC_FALSE, Ls, argc, argv, user->gridFile));
+  PetscCall(DMCreateLocalVector(dm, &u));
+  PetscCall(VecGetLocalSize(u, &locSize));
+  PetscCall(MatCreateShell(PETSC_COMM_WORLD, locSize, locSize, PETSC_DECIDE, PETSC_DECIDE, user, DWOperator));
+  PetscCall(MatShellSetOperation(*DWOperator, MATOP_MULT, (void(*)(void))DdwfDagDdwf));
+  PetscCall(MatShellSetOperation(*DWOperator, MATOP_MULT_TRANSPOSE, (void(*)(void))DdwfDagDdwf));
+  PetscCall(VecDestroy(&u));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 static PetscErrorCode SetupWilson(DM dm, PetscBool setGauge, Mat *WilsonOperator, AppCtx *user, int argc, char **argv) {
     Vec      u;
-    PetscInt locSize, size;
+    PetscInt locSize;
 
     PetscFunctionBegin;
     // Grid load type support still needed with error checking for dimensionality on the lattice files
     if (setGauge) {
-      //PetscCall(PetscSetGauge_Grid(dm, GRID_LATTICE_TEPID, argc, argv, "ckpoint_lat.4000"));
-      PetscCall(SetGauge_Identity(dm));
+      PetscCall(PetscSetGauge_Grid(dm, user->shift, GRID_LATTICE_TEPID, argc, argv, "ckpoint_lat.4000"));
+      //PetscCall(SetGauge_Identity(dm));
     }
-    PetscCall(DMCreateGlobalVector(dm, &u));
-    // Configure the matshell to represent the operator. This should conform to global sizes
+    PetscCall(DMCreateLocalVector(dm, &u));
+    // Configure the matshell to represent the operator, this probably doesn't change much
     PetscCall(VecGetLocalSize(u, &locSize));
-    PetscCall(VecGetSize(u, &size));
-    PetscSynchronizedPrintf(PETSC_COMM_WORLD, "Mat size local: %" PetscInt_FMT "\n", locSize);
-    PetscSynchronizedFlush(PETSC_COMM_WORLD, PETSC_STDOUT);
-    PetscSynchronizedPrintf(PETSC_COMM_WORLD, "Mat size global: %" PetscInt_FMT "\n", size);
-    PetscSynchronizedFlush(PETSC_COMM_WORLD, PETSC_STDOUT);
-    PetscCall(MatCreateShell(PETSC_COMM_WORLD, PETSC_DECIDE, PETSC_DECIDE, size, size, user, WilsonOperator));
+    PetscCall(DMCreateLocalVector(dm, &u));
+    PetscCall(MatCreateShell(PETSC_COMM_WORLD, locSize, locSize, PETSC_DECIDE, PETSC_DECIDE, user, WilsonOperator));
     PetscCall(MatShellSetOperation(*WilsonOperator, MATOP_MULT, (void(*)(void))ComputeResidual_Forward));
     PetscCall(MatShellSetOperation(*WilsonOperator, MATOP_MULT_TRANSPOSE, (void(*)(void))ComputeResidual_Dagger));
     PetscCall(VecDestroy(&u));
@@ -837,7 +916,7 @@ static PetscErrorCode SetupWilson(DM dm, PetscBool setGauge, Mat *WilsonOperator
     Mat         M_min, M_max;
     PetscScalar max_eigenvalue, min_eigenvalue;
     PetscInt    nMin, nMax;
-  
+
     PetscFunctionBegin;
     /* ----- min eigenvalues ------*/
     PetscCall(MatDuplicate(M, MAT_DO_NOT_COPY_VALUES, &M_min));
@@ -870,13 +949,13 @@ static PetscErrorCode SetupWilson(DM dm, PetscBool setGauge, Mat *WilsonOperator
 */
 static PetscErrorCode SolveSystem(DM dm, Mat M, PetscBool useSpectrum, AppCtx *user) {
   PetscScalar min = -1, max = -1; // min and max eigenvalues from slepc, if present
-  KSP         ksp;// Linear solver 
+  KSP         ksp;// Linear solver
   Mat         NE; // matrix for the normal equations
   Vec         u, f;
   PetscRandom r;
 
   PetscFunctionBegin;
-  // Protect any slepc operations so we can pull them out easily if needed for MR. 
+  // Protect any slepc operations so we can pull them out easily if needed for MR.
   #ifdef PETSC_HAVE_SLEPC
     if (useSpectrum) PetscCall(GetSpectralBounds(M, &min, &max));
     else if (user->normalEq) {
@@ -888,7 +967,7 @@ static PetscErrorCode SolveSystem(DM dm, Mat M, PetscBool useSpectrum, AppCtx *u
       PetscCall(EPSSetOptionsPrefix(epsNE, "ne_"));
       PetscCall(EPSSetFromOptions(epsNE));
     }
-  #else 
+  #else
     if (useSpectrum) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Use of spectral bounds specified but SLEPc not installed or not linked correctly");
   #endif
   PetscCall(DMGetLocalVector(dm, &u));
@@ -922,7 +1001,7 @@ static PetscErrorCode SetupCoarseSpace(MPI_Comm comm, DM *cdm, AppCtx *user){
 
 // Restriction operator for the gauge fields. Perform link
 // concatenation on the fine space to produce a DM representing
-// the coarse space. 
+// the coarse space.
 static PetscErrorCode RestrictGaugeField(DM fdm, DM cdm)
 {
   DM                 fdmAux, cdmAux;
@@ -955,18 +1034,16 @@ static PetscErrorCode RestrictGaugeField(DM fdm, DM cdm)
   PetscCall(VecGetArray(cgauge, &clinks));
   // Start at vStart, loop over the vertices and get the right edges
   // of the neighboring vertices, concatinate. Doing right edges in
-  // all dimensions avoids double counting vertices. Offset into 
+  // all dimensions avoids double counting vertices. Offset into
   // depth computed from dimensions t, z, y, x
   //
   // TODO: Fix for parallel
   // TODO: Rewrite to leverage ordering of the supports to make it simpler
-  // HACK: nt/2 is assuming an even division of each dimension per processor assuming a multi processor example w/ 16 processors reducing
-  // the amount of the mesh on the local process by a factor of 2 in each dimension for 2^d reduction -> 16 procs 
   PetscInt cv=cvStart;
-  for (PetscInt t = 0; t < nt/2; t+=2){
-    for (PetscInt z = 0; z < nz/2; z+=2){
-      for (PetscInt y = 0; y < ny/2; y+=2){
-        for (PetscInt x = 0; x < nx/2; x+=2, cv++){
+  for (PetscInt t = 0; t < nt; t+=2){
+    for (PetscInt z = 0; z < nz; z+=2){
+      for (PetscInt y = 0; y < ny; y+=2){
+        for (PetscInt x = 0; x < nx; x+=2, cv++){
           const PetscInt *supp, *cSupp;
           PetscInt        xdof, xoff;
           PetscInt        toff, zoff, yoff, v;
@@ -988,14 +1065,14 @@ static PetscErrorCode RestrictGaugeField(DM fdm, DM cdm)
             // this may need to come from cone
             PetscCall(DMPlexGetCone(fdm, supp[2*d+1], &cone2));
             PetscCall(DMPlexGetSupport(fdm, cone2[1], &suppsupp));
-      
+
             PetscCall(DMPlexGetSupport(cdm, cv, &cSupp));
             PetscCall(PetscSectionGetOffset(csGauge, cSupp[2*d+1], &coff));
 
             PetscCall(PetscSectionGetOffset(fsGauge, suppsupp[2*d + 1], &rrgoff));
             PetscCall(PetscSectionGetDof(fsGauge, suppsupp[2*d + 1], &gdoff));
             for (PetscInt dof = 0; dof < gdoff; dof++){
-              // dim 3 stride 1 
+              // dim 3 stride 1
               DMPlex_MatMult3D_Internal(&flinks[rgoff], 3, 3, &flinks[rrgoff], &clinks[coff]);
               //clinks[coff+dof] = (0.5)*(flinks[rgoff+dof] * flinks[rrgoff+dof]);// update to product
             }
@@ -1010,7 +1087,7 @@ static PetscErrorCode RestrictGaugeField(DM fdm, DM cdm)
   PetscFunctionReturn(0);
 }
 
-// Matrix free multiplication routine to give to MatShell representing 
+// Matrix free multiplication routine to give to MatShell representing
 // Injection or Full weight restriction. The fine solution is passed in
 // as u to output v as the coarse solution. M must have the fine (non-
 // auxiliar) DM
@@ -1020,10 +1097,9 @@ static PetscErrorCode RestrictSolution_FullWeight(Mat M, Vec u, Vec c){
   PetscScalar       *ca;
   PetscInt           faces[4], nf=4, nt, nz, ny, nx;
   PetscInt           cvStart, cvEnd, vStart, vEnd, v, cv;
-  PetscInt           dim, fStart, fEnd, cStart, cEnd;
+  PetscInt           dim;
   PetscBool          flg;
   PetscSection       s, cs;
-  Vec                lu, lc;
   AppCtx            *user;
 
   PetscFunctionBegin;
@@ -1035,38 +1111,27 @@ static PetscErrorCode RestrictSolution_FullWeight(Mat M, Vec u, Vec c){
   // make sure its empty
   PetscCall(VecZeroEntries(c));
   PetscCall(DMGetDimension(fdm, &dim));
-  PetscCall(DMGetLocalVector(fdm, &lu));
-  PetscCall(DMGlobalToLocal(fdm, u, INSERT_VALUES, lu));
   PetscCall(DMGetLocalSection(fdm, &s));
   PetscCall(DMGetLocalSection(cdm, &cs));
   PetscCall(DMPlexGetDepthStratum(fdm, 0, &vStart, &vEnd));
   PetscCall(DMPlexGetDepthStratum(cdm, 0, &cvStart, &cvEnd));
-  PetscCall(VecGetArrayRead(lu, &ua));//Get the local vector that includes the halo
+  cv = cvStart;
+  PetscCall(VecGetArrayRead(u, &ua));
   PetscCall(VecGetArray(c, &ca));
   // loop over vertices on the fine grid and get their associated
   // fermion field values
-  // HACK: nt/2 is assuming an even division of each dimension per processor assuming a multi processor example w/ 16 processors reducing
-  // the amount of the mesh on the local process by a factor of 2 in each dimension for 2^d reduction -> 16 procs 
-  //
-  // We need to account for the local portion being larger than an even division due to the overlap. This takes a global vector, the global matrix, etc
-  // so here we only need to get the actual ownership range of the vertices from the global vector, not from the full depth stratum. The local section does not
-  // conform to the global sizes evenly subdivided per process due to the halo. 
-  PetscCall(VecGetOwnershipRange(u, &fStart, &fEnd));
-  PetscCall(VecGetOwnershipRange(c, &cStart, &cEnd));
-  //cv = cvStart;
-  cv = cvStart;
-  for (PetscInt t = 0; t < nt/2; t+=2){
-    for (PetscInt z = 0; z < nz/2; z+=2){
-      for (PetscInt y = 0; y < ny/2; y+=2){
-        for (PetscInt x = 0; x < nx/2; x+=2, cv++){
+  for (PetscInt t = 0; t < nt; t+=2){
+    for (PetscInt z = 0; z < nz; z+=2){
+      for (PetscInt y = 0; y < ny; y+=2){
+        for (PetscInt x = 0; x < nx; x+=2, cv++){
           const PetscInt *cone;
           const PetscInt *supp;
           PetscInt        uoff, goff, xdof, toff, zoff, yoff, coff;
-            
+
           toff = t*nx*ny*nz;
           zoff = z*nx*ny;
           yoff = y*nx;
-          v = vStart +  toff + zoff + yoff + x;//vStart + toff + zoff + yoff + x;
+          v = vStart + toff + zoff + yoff + x;
           PetscCall(DMPlexGetSupport(fdm, v, &supp));
           PetscCall(PetscSectionGetDof(s, v, &xdof));
           PetscCall(PetscSectionGetOffset(s, v, &uoff));
@@ -1092,7 +1157,7 @@ static PetscErrorCode RestrictSolution_FullWeight(Mat M, Vec u, Vec c){
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-// Matrix free multiplication routine to give to MatShell representing 
+// Matrix free multiplication routine to give to MatShell representing
 // prolongation. The fine solution is passed in
 // as u to output v as the coarse solution. M must have the fine (non-
 // auxiliar) DM
@@ -1126,16 +1191,14 @@ static PetscErrorCode Interpolation_FullWeight(Mat M, Vec c, Vec u){
   PetscCall(VecGetArrayRead(c, &ca));
   // loop over vertices on the fine grid and get their associated
   // fermion field values
-  // HACK: nt/2 is assuming an even division of each dimension per processor assuming a multi processor example w/ 16 processors reducing
-  // the amount of the mesh on the local process by a factor of 2 in each dimension for 2^d reduction -> 16 procs 
-  for (PetscInt t = 0; t < nt/2; t+=2){
-    for (PetscInt z = 0; z < nz/2; z+=2){
-      for (PetscInt y = 0; y < ny/2; y+=2){
-        for (PetscInt x = 0; x < nx/2; x+=2, cv++){
+  for (PetscInt t = 0; t < nt; t+=2){
+    for (PetscInt z = 0; z < nz; z+=2){
+      for (PetscInt y = 0; y < ny; y+=2){
+        for (PetscInt x = 0; x < nx; x+=2, cv++){
           const PetscInt *cone;
           const PetscInt *supp;
           PetscInt        uoff, goff, xdof, toff, zoff, yoff, coff;
-            
+
           toff = t*nx*ny*nz;
           zoff = z*nx*ny;
           yoff = y*nx;
@@ -1150,154 +1213,45 @@ static PetscErrorCode Interpolation_FullWeight(Mat M, Vec c, Vec u){
             PetscCall(DMPlexGetCone(fdm, supp[2 * d + 0], &cone));
             PetscCall(PetscSectionGetOffset(s, cone[0], &uoff));
             for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/2. * ca[coff+dof];// One half, because these only get contributions from 1/4*dim of the neighbors because of the star stencil
+            #if 1
+
             for (PetscInt e = 0; e < dim; ++e) {
               const PetscInt* supp2, *cone2;
+
               PetscCall(DMPlexGetSupport(fdm, cone[0], &supp2));
               if (d == e) continue;
+
               // Left vertex
               PetscCall(DMPlexGetCone(fdm, supp2[2 * e + 0], &cone2));
               PetscCall(PetscSectionGetOffset(s, cone2[0], &uoff));
               for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/8. * ca[coff+dof];// 1/16 because of the double counting of the two paths to the vertex from the original coarse vertex
+
               for (PetscInt f = 0; f < dim; ++f) {
                 const PetscInt* supp3, *cone3;
-                if (f == d || f == e) continue; 
+                if (f == d || f == e) continue;
+
                 PetscCall(DMPlexGetSupport(fdm, cone2[0], &supp3));
+
                 PetscCall(DMPlexGetCone(fdm, supp3[2 * f + 0], &cone3));
                 PetscCall(PetscSectionGetOffset(s, cone3[0], &uoff));
                 for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/48. * ca[coff+dof];
+
                 for (PetscInt g = 0; g < dim; ++g){
                   const PetscInt* supp4, *cone4;
                   if (g == d || g == e || g == f) continue;
                   PetscCall(DMPlexGetSupport(fdm, cone3[0], &supp4));
+
                   PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 0], &cone4));
                   PetscCall(PetscSectionGetOffset(s, cone4[0], &uoff));
                   for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
+
                   PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 1], &cone4));
                   PetscCall(PetscSectionGetOffset(s, cone4[1], &uoff));
                   for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
+
                 }
-                PetscCall(DMPlexGetCone(fdm, supp3[2 * f + 1], &cone3));
-                PetscCall(PetscSectionGetOffset(s, cone3[1], &uoff));
-                for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/48. * ca[coff+dof];
-                for (PetscInt g = 0; g < dim; ++g){
-                  const PetscInt* supp4, *cone4;
-                  if (g == d || g == e || g == f) continue;
-                  PetscCall(DMPlexGetSupport(fdm, cone3[1], &supp4));
-                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 0], &cone4));
-                  PetscCall(PetscSectionGetOffset(s, cone4[0], &uoff));
-                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
-                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 1], &cone4));
-                  PetscCall(PetscSectionGetOffset(s, cone4[1], &uoff));
-                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
-                }
-              }
-              // Right vertex
-              PetscCall(DMPlexGetCone(fdm, supp2[2 * e + 1], &cone2));
-              PetscCall(PetscSectionGetOffset(s, cone2[1], &uoff));
-              for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/8. * ca[coff+dof];
-              for (PetscInt f = 0; f < dim; ++f) {
-                const PetscInt* supp3, *cone3;
-                if (f == d || f == e) continue; 
-                PetscCall(DMPlexGetSupport(fdm, cone2[1], &supp3));
-                PetscCall(DMPlexGetCone(fdm, supp3[2 * f + 0], &cone3));
-                PetscCall(PetscSectionGetOffset(s, cone3[0], &uoff));
-                for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/48. * ca[coff+dof];
-                for (PetscInt g = 0; g < dim; ++g){
-                  const PetscInt* supp4, *cone4;
-                  if (g == d || g == e || g == f) continue;
-                  PetscCall(DMPlexGetSupport(fdm, cone3[0], &supp4));
-                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 0], &cone4));
-                  PetscCall(PetscSectionGetOffset(s, cone4[0], &uoff));
-                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
-                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 1], &cone4));
-                  PetscCall(PetscSectionGetOffset(s, cone4[1], &uoff));
-                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
-                }
-                PetscCall(DMPlexGetCone(fdm, supp3[2 * f + 1], &cone3));
-                PetscCall(PetscSectionGetOffset(s, cone3[1], &uoff));
-                for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/48. * ca[coff+dof];
-                for (PetscInt g = 0; g < dim; ++g){
-                  const PetscInt* supp4, *cone4;
-                  if (g == d || g == e || g == f) continue;
-                  PetscCall(DMPlexGetSupport(fdm, cone3[1], &supp4));
-                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 0], &cone4));
-                  PetscCall(PetscSectionGetOffset(s, cone4[0], &uoff));
-                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
-                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 1], &cone4));
-                  PetscCall(PetscSectionGetOffset(s, cone4[1], &uoff));
-                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
-                }
-              }
-            }
-            // Right vertex
-            PetscCall(DMPlexGetCone(fdm, supp[2 * d + 1], &cone));
-            PetscCall(PetscSectionGetOffset(s, cone[1], &uoff));
-            for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/2. * ca[coff+dof];
-            for (PetscInt e = 0; e < dim; ++e) {
-              const PetscInt* supp2, *cone2;
-              PetscCall(DMPlexGetSupport(fdm, cone[1], &supp2));
-              if (d == e) continue;
-              // Left vertex
-              PetscCall(DMPlexGetCone(fdm, supp2[2 * e + 0], &cone2));
-              PetscCall(PetscSectionGetOffset(s, cone2[0], &uoff));
-              for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/8. * ca[coff+dof];// 1/16 because of the double counting of the two paths to the vertex from the original coarse vertex
-              for (PetscInt f = 0; f < dim; ++f) {
-                const PetscInt* supp3, *cone3;
-                if (f == d || f == e) continue; 
-                PetscCall(DMPlexGetSupport(fdm, cone2[0], &supp3));
-                PetscCall(DMPlexGetCone(fdm, supp3[2 * f + 0], &cone3));
-                PetscCall(PetscSectionGetOffset(s, cone3[0], &uoff));
-                for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/48. * ca[coff+dof];
-                for (PetscInt g = 0; g < dim; ++g){
-                  const PetscInt* supp4, *cone4;
-                  if (g == d || g == e || g == f) continue;
-                  PetscCall(DMPlexGetSupport(fdm, cone3[0], &supp4));
-                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 0], &cone4));
-                  PetscCall(PetscSectionGetOffset(s, cone4[0], &uoff));
-                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
-                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 1], &cone4));
-                  PetscCall(PetscSectionGetOffset(s, cone4[1], &uoff));
-                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
-                }
-                PetscCall(DMPlexGetCone(fdm, supp3[2 * f + 1], &cone3));
-                PetscCall(PetscSectionGetOffset(s, cone3[1], &uoff));
-                for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/48. * ca[coff+dof];
-                for (PetscInt g = 0; g < dim; ++g){
-                  const PetscInt* supp4, *cone4;
-                  if (g == d || g == e || g == f) continue;
-                  PetscCall(DMPlexGetSupport(fdm, cone3[1], &supp4));
-                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 0], &cone4));
-                  PetscCall(PetscSectionGetOffset(s, cone4[0], &uoff));
-                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
-                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 1], &cone4));
-                  PetscCall(PetscSectionGetOffset(s, cone4[1], &uoff));
-                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
-                }
-              }
-              // Right vertex
-              PetscCall(DMPlexGetCone(fdm, supp2[2 * e + 1], &cone2));
-              PetscCall(PetscSectionGetOffset(s, cone2[1], &uoff));
-              for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/8. * ca[coff+dof];
-              for (PetscInt f = 0; f < dim; ++f) {
-                const PetscInt* supp3, *cone3;
-                if (f == d || f == e) continue; 
-                PetscCall(DMPlexGetSupport(fdm, cone2[1], &supp3));
-                PetscCall(DMPlexGetCone(fdm, supp3[2 * f + 0], &cone3));
-                PetscCall(PetscSectionGetOffset(s, cone3[0], &uoff));
-                for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/48. * ca[coff+dof];
-                for (PetscInt g = 0; g < dim; ++g){
-                  const PetscInt* supp4, *cone4;
-                  if (g == d || g == e || g == f) continue;
-                  PetscCall(DMPlexGetSupport(fdm, cone3[0], &supp4));
-                
-                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 0], &cone4));
-                  PetscCall(PetscSectionGetOffset(s, cone4[0], &uoff));
-                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
-                  
-                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 1], &cone4));
-                  PetscCall(PetscSectionGetOffset(s, cone4[1], &uoff));
-                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
-                }
+
+
                 PetscCall(DMPlexGetCone(fdm, supp3[2 * f + 1], &cone3));
                 PetscCall(PetscSectionGetOffset(s, cone3[1], &uoff));
                 for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/48. * ca[coff+dof];
@@ -1306,15 +1260,188 @@ static PetscErrorCode Interpolation_FullWeight(Mat M, Vec c, Vec u){
                   const PetscInt* supp4, *cone4;
                   if (g == d || g == e || g == f) continue;
                   PetscCall(DMPlexGetSupport(fdm, cone3[1], &supp4));
+
                   PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 0], &cone4));
                   PetscCall(PetscSectionGetOffset(s, cone4[0], &uoff));
                   for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
+
                   PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 1], &cone4));
                   PetscCall(PetscSectionGetOffset(s, cone4[1], &uoff));
                   for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
+
                 }
+
               }
+
+              // Right vertex
+              PetscCall(DMPlexGetCone(fdm, supp2[2 * e + 1], &cone2));
+              PetscCall(PetscSectionGetOffset(s, cone2[1], &uoff));
+              for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/8. * ca[coff+dof];
+              for (PetscInt f = 0; f < dim; ++f) {
+                const PetscInt* supp3, *cone3;
+                if (f == d || f == e) continue;
+
+                PetscCall(DMPlexGetSupport(fdm, cone2[1], &supp3));
+
+                PetscCall(DMPlexGetCone(fdm, supp3[2 * f + 0], &cone3));
+                PetscCall(PetscSectionGetOffset(s, cone3[0], &uoff));
+                for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/48. * ca[coff+dof];
+
+                for (PetscInt g = 0; g < dim; ++g){
+                  const PetscInt* supp4, *cone4;
+                  if (g == d || g == e || g == f) continue;
+                  PetscCall(DMPlexGetSupport(fdm, cone3[0], &supp4));
+
+                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 0], &cone4));
+                  PetscCall(PetscSectionGetOffset(s, cone4[0], &uoff));
+                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
+
+                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 1], &cone4));
+                  PetscCall(PetscSectionGetOffset(s, cone4[1], &uoff));
+                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
+
+                }
+
+
+                PetscCall(DMPlexGetCone(fdm, supp3[2 * f + 1], &cone3));
+                PetscCall(PetscSectionGetOffset(s, cone3[1], &uoff));
+                for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/48. * ca[coff+dof];
+
+                for (PetscInt g = 0; g < dim; ++g){
+                  const PetscInt* supp4, *cone4;
+                  if (g == d || g == e || g == f) continue;
+                  PetscCall(DMPlexGetSupport(fdm, cone3[1], &supp4));
+
+                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 0], &cone4));
+                  PetscCall(PetscSectionGetOffset(s, cone4[0], &uoff));
+                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
+
+                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 1], &cone4));
+                  PetscCall(PetscSectionGetOffset(s, cone4[1], &uoff));
+                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
+
+                }
+
+              }
+
             }
+            #endif
+            // Right vertex
+            PetscCall(DMPlexGetCone(fdm, supp[2 * d + 1], &cone));
+            PetscCall(PetscSectionGetOffset(s, cone[1], &uoff));
+            for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/2. * ca[coff+dof];
+            #if 1
+            for (PetscInt e = 0; e < dim; ++e) {
+              const PetscInt* supp2, *cone2;
+
+              PetscCall(DMPlexGetSupport(fdm, cone[1], &supp2));
+              if (d == e) continue;
+
+              // Left vertex
+              PetscCall(DMPlexGetCone(fdm, supp2[2 * e + 0], &cone2));
+              PetscCall(PetscSectionGetOffset(s, cone2[0], &uoff));
+              for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/8. * ca[coff+dof];// 1/16 because of the double counting of the two paths to the vertex from the original coarse vertex
+
+              for (PetscInt f = 0; f < dim; ++f) {
+                const PetscInt* supp3, *cone3;
+                if (f == d || f == e) continue;
+
+                PetscCall(DMPlexGetSupport(fdm, cone2[0], &supp3));
+
+                PetscCall(DMPlexGetCone(fdm, supp3[2 * f + 0], &cone3));
+                PetscCall(PetscSectionGetOffset(s, cone3[0], &uoff));
+                for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/48. * ca[coff+dof];
+
+                for (PetscInt g = 0; g < dim; ++g){
+                  const PetscInt* supp4, *cone4;
+                  if (g == d || g == e || g == f) continue;
+                  PetscCall(DMPlexGetSupport(fdm, cone3[0], &supp4));
+
+                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 0], &cone4));
+                  PetscCall(PetscSectionGetOffset(s, cone4[0], &uoff));
+                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
+
+                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 1], &cone4));
+                  PetscCall(PetscSectionGetOffset(s, cone4[1], &uoff));
+                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
+
+                }
+
+
+                PetscCall(DMPlexGetCone(fdm, supp3[2 * f + 1], &cone3));
+                PetscCall(PetscSectionGetOffset(s, cone3[1], &uoff));
+                for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/48. * ca[coff+dof];
+
+                for (PetscInt g = 0; g < dim; ++g){
+                  const PetscInt* supp4, *cone4;
+                  if (g == d || g == e || g == f) continue;
+                  PetscCall(DMPlexGetSupport(fdm, cone3[1], &supp4));
+
+                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 0], &cone4));
+                  PetscCall(PetscSectionGetOffset(s, cone4[0], &uoff));
+                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
+
+                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 1], &cone4));
+                  PetscCall(PetscSectionGetOffset(s, cone4[1], &uoff));
+                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
+
+                }
+
+              }
+
+              // Right vertex
+              PetscCall(DMPlexGetCone(fdm, supp2[2 * e + 1], &cone2));
+              PetscCall(PetscSectionGetOffset(s, cone2[1], &uoff));
+              for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/8. * ca[coff+dof];
+              for (PetscInt f = 0; f < dim; ++f) {
+                const PetscInt* supp3, *cone3;
+                if (f == d || f == e) continue;
+
+                PetscCall(DMPlexGetSupport(fdm, cone2[1], &supp3));
+
+                PetscCall(DMPlexGetCone(fdm, supp3[2 * f + 0], &cone3));
+                PetscCall(PetscSectionGetOffset(s, cone3[0], &uoff));
+                for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/48. * ca[coff+dof];
+
+                for (PetscInt g = 0; g < dim; ++g){
+                  const PetscInt* supp4, *cone4;
+                  if (g == d || g == e || g == f) continue;
+                  PetscCall(DMPlexGetSupport(fdm, cone3[0], &supp4));
+
+                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 0], &cone4));
+                  PetscCall(PetscSectionGetOffset(s, cone4[0], &uoff));
+                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
+
+                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 1], &cone4));
+                  PetscCall(PetscSectionGetOffset(s, cone4[1], &uoff));
+                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
+
+                }
+
+
+                PetscCall(DMPlexGetCone(fdm, supp3[2 * f + 1], &cone3));
+                PetscCall(PetscSectionGetOffset(s, cone3[1], &uoff));
+                for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/48. * ca[coff+dof];
+
+                for (PetscInt g = 0; g < dim; ++g){
+                  const PetscInt* supp4, *cone4;
+                  if (g == d || g == e || g == f) continue;
+                  PetscCall(DMPlexGetSupport(fdm, cone3[1], &supp4));
+
+                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 0], &cone4));
+                  PetscCall(PetscSectionGetOffset(s, cone4[0], &uoff));
+                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
+
+                  PetscCall(DMPlexGetCone(fdm, supp4[2 * g + 1], &cone4));
+                  PetscCall(PetscSectionGetOffset(s, cone4[1], &uoff));
+                  for (PetscInt dof = 0; dof < xdof; ++dof) ua[uoff+dof] += 1/384. * ca[coff+dof];
+
+                }
+
+              }
+
+            }
+            #endif
           }
         }
       }
@@ -1327,7 +1454,7 @@ static PetscErrorCode Interpolation_FullWeight(Mat M, Vec c, Vec u){
 
 
 
-// Matrix free multiplication routine to give to MatShell representing 
+// Matrix free multiplication routine to give to MatShell representing
 // Injection or Full weight restriction. The fine solution is passed in
 // as u to output v as the coarse solution. M must have the fine (non-
 // auxiliar) DM
@@ -1342,10 +1469,10 @@ static PetscErrorCode SetupRestriction(DM dm, Mat *RestrictionOperator, AppCtx *
     PetscInt locSize;
 
     PetscFunctionBegin;
-    PetscCall(DMCreateGlobalVector(dm, &u));// was local
+    PetscCall(DMCreateLocalVector(dm, &u));
     // Configure the matshell to represent the operator, this probably doesn't change much
-    PetscCall(VecGetSize(u, &locSize));//reduction of size is 1/2^dim, was localsize but now we want global 
-    PetscCall(MatCreateShell(PETSC_COMM_WORLD, PETSC_DECIDE, PETSC_DECIDE, locSize/16, locSize,  user, RestrictionOperator));//locsize/16
+    PetscCall(VecGetLocalSize(u, &locSize));//reduction of size is 1/2^dim
+    PetscCall(MatCreateShell(PETSC_COMM_WORLD, locSize/16, locSize, PETSC_DECIDE, PETSC_DECIDE, user, RestrictionOperator));
     PetscCall(MatShellSetOperation(*RestrictionOperator, MATOP_MULT, (void(*)(void))RestrictSolution_FullWeight));
     PetscCall(MatShellSetOperation(*RestrictionOperator, MATOP_MULT_TRANSPOSE, (void(*)(void))Interpolation_FullWeight));
     PetscCall(MatSetDM(*RestrictionOperator, dm));
@@ -1371,7 +1498,7 @@ static PetscErrorCode MonitorProjectError(KSP ksp, PetscInt it, PetscReal rnorm,
     // load the solution to compute the error
     {
       PetscViewer viewer;
- 
+
       PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, "solution.dat", FILE_MODE_READ, &viewer));
       PetscCall(VecCreate(PETSC_COMM_WORLD, &uhat));
       PetscCall(VecLoad(uhat, viewer));
@@ -1382,15 +1509,15 @@ static PetscErrorCode MonitorProjectError(KSP ksp, PetscInt it, PetscReal rnorm,
     VecViewFromOptions(uhat, NULL, "-uhat_view");
     VecViewFromOptions(u, NULL, "-u_view");
     VecViewFromOptions(error, NULL, "-error_view");
-    
 
-    for (PetscInt i = 0; i < 4096; ++i) {
+
+    for (PetscInt i = 0; i < 100; ++i) {
       PetscViewer viewer;
-      char eigenVector[12];
+      char eigenVector[15];
       Vec eigenVectorR;
       PetscScalar proj;
 
-      PetscCall(PetscSNPrintf(eigenVector, 12, "eig%"PetscInt_FMT".dat", i));
+      PetscCall(PetscSNPrintf(eigenVector, 15, "eig%"PetscInt_FMT".dat", i));
       PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, eigenVector, FILE_MODE_READ, &viewer));
       PetscCall(VecCreate(PETSC_COMM_WORLD, &eigenVectorR));
       PetscCall(VecLoad(eigenVectorR, viewer));
@@ -1417,7 +1544,7 @@ static PetscErrorCode MonitorProjectError(KSP ksp, PetscInt it, PetscReal rnorm,
       PetscCall(VecDot(eigenVectorR, error, &proj));
       /*
         before loop, create vec of the size of number of eigenvectors (num rows), get out array, put proj in the array value for i
-        put in print statement, or just do vecview which defaults to a histogram for draw, get histogram of coefficients. 
+        put in print statement, or just do vecview which defaults to a histogram for draw, get histogram of coefficients.
       */
       PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Iterate %"PetscInt_FMT": %f %f\n", it, PetscRealPart(proj), PetscImaginaryPart(proj)));
     }
@@ -1432,13 +1559,13 @@ static PetscErrorCode MonitorProjectError(KSP ksp, PetscInt it, PetscReal rnorm,
 static PetscErrorCode SolveSystemError(MPI_Comm comm, DM dm, Mat M, Mat MC, Mat R, AppCtx *user){
   PetscScalar min, max;
   KSP         ksp;// Linear solver
-  PC          pc; 
+  PC          pc;
   Mat         NE; // matrix for the normal equations
   Vec         u, f, uhat;
   PetscRandom r;
 
   PetscFunctionBegin;
-  // Protect any slepc operations so we can pull them out easily if needed for MR. 
+  // Protect any slepc operations so we can pull them out easily if needed for MR.
   #ifdef PETSC_HAVE_SLEPC
     if (0) PetscCall(GetSpectralBounds(M, &min, &max));
     else if (user->normalEq) {
@@ -1451,10 +1578,10 @@ static PetscErrorCode SolveSystemError(MPI_Comm comm, DM dm, Mat M, Mat MC, Mat 
       PetscCall(EPSSetOptionsPrefix(epsNE, "ne_"));
       PetscCall(EPSSetFromOptions(epsNE));
     }
-  #else 
+  #else
     if (0) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Use of spectral bounds specified but SLEPc not installed or not linked correctly");
   #endif
-  
+
   PetscCall(DMGetLocalVector(dm, &f));
   // Configure the solution vectors. We may need to store it if we wish to use it to
   // compute the error at a later solve. We need to ensure it is the same input vector
@@ -1473,7 +1600,7 @@ static PetscErrorCode SolveSystemError(MPI_Comm comm, DM dm, Mat M, Mat MC, Mat 
     PetscCall(PetscRandomSetType(r, PETSCRAND48));
     PetscCall(VecSetRandom(u, r));
     PetscCall(PetscRandomDestroy(&r));
-    // write the initial vector 
+    // write the initial vector
     if (user->write_sol) {
       PetscViewer viewer;
       PetscCall(PetscViewerBinaryOpen(comm, "ic.dat", FILE_MODE_WRITE, &viewer));
@@ -1486,7 +1613,7 @@ static PetscErrorCode SolveSystemError(MPI_Comm comm, DM dm, Mat M, Mat MC, Mat 
   EPS      eig;
   KSP      smoother_c, smoother_f;
   PetscInt ncv;
-  
+
   // Setup SLEPc to get the eigenvectors. We can use this to evaluate
   // the behavior of the eigenvalues in regards to the error at each
   // iteration of the solve, and verify what the smoother is doing to
@@ -1497,7 +1624,7 @@ static PetscErrorCode SolveSystemError(MPI_Comm comm, DM dm, Mat M, Mat MC, Mat 
   PetscCall(EPSSetOperators(eig, M, NULL));
   PetscCall(EPSSetOptionsPrefix(eig, "eig_"));
   PetscCall(EPSSetFromOptions(eig));
-  
+
   if (user->load_sol) PetscCall(EPSSolve(eig));
   user->eps = eig;// we will need this later
   #endif
@@ -1518,28 +1645,85 @@ static PetscErrorCode SolveSystemError(MPI_Comm comm, DM dm, Mat M, Mat MC, Mat 
   PetscCall(KSPSetApplicationContext(ksp, user));
   PetscCall(KSPMonitorSet(ksp, MonitorProjectError, user, NULL));
   PetscCall(KSPSolve(ksp, u, f));
-  
+
   // Cleanup
   PetscCall(DMRestoreLocalVector(dm, &u));
   PetscCall(DMRestoreLocalVector(dm, &f));
   PetscCall(KSPDestroy(&ksp));
-  
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode SolveDW_Fine(MPI_Comm comm, DM dm, Mat M, AppCtx *user){
+  KSP         kspFine;
+  EPS         eig;
+  Vec         u, f;
+  PetscRandom r;
+  PetscInt    ncv;
+
+  PetscFunctionBegin;
+  PetscCall(DMGetGlobalVector(dm, &u));
+  PetscCall(DMGetGlobalVector(dm, &f));
+  // Configure the input vectors, this is not a real fermion field
+  PetscCall(PetscRandomCreate(comm, &r));
+  PetscCall(PetscRandomSetType(r, PETSCRAND48));
+  PetscCall(VecSetRandom(u, r));
+  PetscCall(PetscRandomDestroy(&r));
+  PetscCall(KSPCreate(comm, &kspFine));
+  PetscCall(KSPSetOperators(kspFine, M, M));
+  PetscCall(KSPSetOptionsPrefix(kspFine, "ksp_fine_"));
+  PetscCall(KSPSetFromOptions(kspFine));
+  PetscCall(KSPSetApplicationContext(kspFine, user));
+  PetscCall(KSPSolve(kspFine, u, f));
+  if (user->write_sol) {
+    PetscViewer viewer;
+
+    PetscCall(PetscViewerBinaryOpen(comm, "dw_fine_solution.dat", FILE_MODE_WRITE, &viewer));
+    PetscCall(VecView(f, viewer));
+    PetscCall(PetscViewerDestroy(&viewer));
+  }
+  PetscCall(KSPDestroy(&kspFine));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode SolveDW_Fine_Eig(MPI_Comm comm, DM dm, Mat M, AppCtx *user){
+  KSP         kspFine;
+  EPS         eig;
+  Vec         u, f;
+  PetscRandom r;
+  PetscInt    ncv;
+
+  PetscFunctionBegin;
+
+  PetscCall(EPSCreate(comm, &eig));
+  PetscCall(EPSSetOperators(eig, M, NULL));
+  PetscCall(EPSSetOptionsPrefix(eig, "eig_"));
+  PetscCall(EPSSetFromOptions(eig));
+  PetscCall(EPSSolve(eig));
+  PetscCall(EPSGetConverged(eig, &ncv));
+  PetscCall(EPSGetOperators(eig, &M, NULL));
+  for (PetscInt i = 0; i < ncv; ++i){
+    PetscScalar eigr, eigi;
+
+    PetscCall(EPSGetEigenvalue(eig, i, &eigr, &eigi));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD, "%"PetscInt_FMT": %g %g\n", i, PetscRealPart(eigr), PetscImaginaryPart(eigr)));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode SolveFineAndCoarse(MPI_Comm comm, DM dm, Mat M, Mat MC, Mat R, AppCtx *user){
   PetscScalar min, max;
   KSP         ksp;// Linear solver
-  PC          pc; 
+  PC          pc;
   Mat         NE; // matrix for the normal equations
   Vec         u, f, uhat, error;
   PetscRandom r;
 
   PetscFunctionBegin;
-  
-  //PetscCall(DMGetGlobalVector(dm, &u));// this shouldn't be here
+
+  PetscCall(DMGetLocalVector(dm, &u));
   // Configure the input vectors, this is not a real fermion field
-if (user->load_sol){
+if (user->load_ic){
     PetscViewer viewer;
 
     PetscCall(PetscViewerBinaryOpen(comm, "ic.dat", FILE_MODE_READ, &viewer));
@@ -1548,21 +1732,21 @@ if (user->load_sol){
     PetscCall(PetscViewerDestroy(&viewer));
   }
   else{
-    PetscCall(DMGetGlobalVector(dm, &u));
+    PetscCall(DMGetLocalVector(dm, &u));
     // Configure the input vectors, this is not a real fermion field
-    PetscCall(PetscRandomCreate(comm, &r));
+    PetscCall(PetscRandomCreate(PETSC_COMM_SELF, &r));
     PetscCall(PetscRandomSetType(r, PETSCRAND48));
     PetscCall(VecSetRandom(u, r));
     PetscCall(PetscRandomDestroy(&r));
-    // write the initial vector 
-    if (user->write_sol) {
+    // write the initial vector
+    if (user->write_ic) {
       PetscViewer viewer;
       PetscCall(PetscViewerBinaryOpen(comm, "ic.dat", FILE_MODE_WRITE, &viewer));
       PetscCall(VecView(u, viewer));
       PetscCall(PetscViewerDestroy(&viewer));
     }
   }
-  PetscCall(DMGetGlobalVector(dm, &f));
+  PetscCall(DMGetLocalVector(dm, &f));
 
   VecViewFromOptions(u, NULL, "-ic_view");
 
@@ -1570,7 +1754,7 @@ if (user->load_sol){
   // then use that to compute the error
   {
     KSP kspFine;
-    
+
     PetscCall(KSPCreate(comm, &kspFine));
     PetscCall(KSPSetOperators(kspFine, M, M));
     PetscCall(KSPSetOptionsPrefix(kspFine, "ksp_fine_"));
@@ -1597,8 +1781,8 @@ if (user->load_sol){
     Vec phiCoarse, fCoarse;
 
     PetscCall(DMGetCoarseDM(dm, &cdm));
-    PetscCall(DMGetGlobalVector(cdm, &phiCoarse));//Get vectors conforming to coarse space dofs
-    PetscCall(DMGetGlobalVector(cdm, &fCoarse));
+    PetscCall(DMGetLocalVector(cdm, &phiCoarse));//Get vectors conforming to coarse space dofs
+    PetscCall(DMGetLocalVector(cdm, &fCoarse));
     PetscCall(KSPCreate(comm, &kspCoarse));
     PetscCall(KSPSetOperators(kspCoarse, MC, MC));
     PetscCall(KSPSetOptionsPrefix(kspCoarse, "ksp_coarse_"));
@@ -1622,7 +1806,7 @@ if (user->load_sol){
   PetscReal projectedNorm;
   PetscCall(VecNorm(fCProj, NORM_2, &projectedNorm));
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Projected Norm: %f\n", projectedNorm));
-  
+
   // Setup SLEPc to get the eigenvectors. We can use this to evaluate
   // the behavior of the eigenvalues in regards to the error at each
   // iteration of the solve, and verify what the smoother is doing to
@@ -1631,11 +1815,13 @@ if (user->load_sol){
   // experimenting with writing out the eigenvectors because this is terrible
   // to rerun after every little thing
   if (user->write_eig) {
+    PetscCall(PetscPrintf(comm, "creating eps\n"));
     PetscCall(EPSCreate(comm, &eig));
     PetscCall(EPSSetOperators(eig, M, NULL));
     PetscCall(EPSSetOptionsPrefix(eig, "eig_"));
     PetscCall(EPSSetFromOptions(eig));
     // Do the eigensolve on the fine operator
+    PetscCall(PetscPrintf(comm, "solving\n"));
     PetscCall(EPSSolve(eig));
 
     PetscCall(EPSGetConverged(eig, &ncv));
@@ -1643,39 +1829,38 @@ if (user->load_sol){
 
     // Compute and ouptut |fine solution - projected coarse solution| \cdot eigenvector
     Vec eigenVectorI, eigenVectorR;
-    for (PetscInt i = 0; i < 4096; ++i){
+    for (PetscInt i = 0; i < 100; ++i){
       PetscScalar proj;
       PetscViewer viewer;
-      char eigenVector[12];
-    
+      char eigenVector[15];
+
       PetscCall(MatCreateVecs(M, NULL, &eigenVectorI));// Imaginary part (will not be zeroed)
       PetscCall(MatCreateVecs(M, NULL, &eigenVectorR));// this will be zeroed
       PetscCall(EPSGetEigenvector(eig, i, eigenVectorR, eigenVectorI));
       // write the eigenvectors out;
-      PetscCall(PetscSNPrintf(eigenVector, 12, "eig%"PetscInt_FMT".dat", i));
+      PetscCall(PetscSNPrintf(eigenVector, 15, "eig%"PetscInt_FMT".dat", i));
       PetscCall(PetscViewerBinaryOpen(comm, eigenVector, FILE_MODE_WRITE, &viewer));
       PetscCall(VecView(eigenVectorR, viewer));
       PetscCall(PetscViewerFlush(viewer));
       PetscCall(PetscViewerDestroy(&viewer));
-      
       PetscCall(VecDot(eigenVectorR, error, &proj));
       PetscReal norm;
       PetscCall(VecNorm(eigenVectorR, NORM_2, &norm));
       PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Error: %f %f Mod Coef.: %f Norm: %f\n", PetscRealPart(proj), PetscImaginaryPart(proj), PetscSqrtReal(PetscSqr(PetscRealPart(proj))+PetscSqr(PetscImaginaryPart(proj))), norm));
-    
+      PetscCall(PetscPrintf(comm, "cleaning up\n"));
       PetscCall(VecDestroy(&eigenVectorI));
       PetscCall(VecDestroy(&eigenVectorR));
     }
   }
   else {
     // get the number of eigenvectors from the user, default is 10
-    for (PetscInt i = 0; i < 4096; ++i) {
+    for (PetscInt i = 0; i < 100; ++i) {
       PetscViewer viewer;
-      char eigenVector[12];
+      char eigenVector[15];
       Vec eigenVectorR;
       PetscScalar proj;
 
-      PetscCall(PetscSNPrintf(eigenVector, 12, "eig%"PetscInt_FMT".dat", i));
+      PetscCall(PetscSNPrintf(eigenVector, 15, "eig%"PetscInt_FMT".dat", i));
       PetscCall(PetscViewerBinaryOpen(comm, eigenVector, FILE_MODE_READ, &viewer));
       PetscCall(VecCreate(comm, &eigenVectorR));
       PetscCall(VecLoad(eigenVectorR, viewer));
@@ -1689,7 +1874,7 @@ if (user->load_sol){
       PetscCall(VecDestroy(&eigenVectorR));
     }
   }
-  
+  // Compute the error of the smoother, we need to solve for the eigenbasis first so do this after the eigensolve.
   {
     KSP kspFineSmoother;
 
@@ -1699,6 +1884,7 @@ if (user->load_sol){
     PetscCall(KSPSetFromOptions(kspFineSmoother));
     PetscCall(KSPSetApplicationContext(kspFineSmoother, user));
     PetscCall(KSPMonitorSet(kspFineSmoother, MonitorProjectError, user, NULL));
+    PetscCall(KSPSetInitialGuessNonzero(kspFineSmoother, PETSC_TRUE));
     PetscCall(KSPSolve(kspFineSmoother, u, fCProj));
   }
   PetscCall(EPSDestroy(&eig));
@@ -1708,7 +1894,7 @@ if (user->load_sol){
 static PetscErrorCode TestCoarsening(MPI_Comm comm, DM dm, Mat M, Mat MC, Mat R, AppCtx *user){
   PetscScalar min, max;
   KSP         ksp;// Linear solver
-  PC          pc; 
+  PC          pc;
   Mat         NE; // matrix for the normal equations
   Vec         u, f, uhat, error;
   PetscRandom r;
@@ -1727,6 +1913,13 @@ static PetscErrorCode TestCoarsening(MPI_Comm comm, DM dm, Mat M, Mat MC, Mat R,
   PetscCall(VecNorm(u, NORM_2, &normF));
 
   PetscCall(DMGetCoarseDM(dm, &cdm));
+
+  Vec fine, coarse;
+  PetscCall(DMGetAuxiliaryVec(dm, NULL, 0, 0,&fine));
+  PetscCall(DMGetAuxiliaryVec(dm, NULL, 0, 0,&coarse));
+  PetscCall(VecViewFromOptions(fine, NULL, "-fine_field_view"));
+  PetscCall(VecViewFromOptions(coarse, NULL, "-coarse_field_view"));
+
   PetscCall(DMGetLocalVector(cdm, &uhat));
 
   PetscCall(MatMult(R, u, uhat));
@@ -1743,7 +1936,8 @@ static PetscErrorCode TestCoarsening(MPI_Comm comm, DM dm, Mat M, Mat MC, Mat R,
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
+// PV test
+// ./extest -dm_plex_dim 5 -dm_plex_shape hypercubic -dm_plex_box_faces 8,8,8,8,8 -grid_load_type 3 -grid_file ${GRID_LATTICE_FILE} --grid 8.8.8.8 -use_pv -eig_eps_monitor -eig_eps_nev 200 -eig_eps_smallest_real
 int main(int argc, char **argv)
 {
   DM     dm, cdm;
@@ -1764,9 +1958,45 @@ int main(int argc, char **argv)
   PetscCall(DMSetApplicationContext(dm, &user));
   PetscCall(SetupDiscretization(dm, &user));
   PetscCall(SetupAuxDiscretization(dm, &user));
-  if (user.domainWall) {
-    PetscCall(SetUpDW(dm, &M, &user, argc, argv));
+
+  PetscCall(DMCreateGlobalVector(dm, &u));
+  PetscCall(DMCreateGlobalVector(dm, &f));
+
+  PetscCall(PetscRandomCreate(PETSC_COMM_SELF, &r));
+  PetscCall(PetscRandomSetType(r, PETSCRAND48));
+  PetscCall(VecSetRandom(u, r));
+  PetscCall(PetscRandomDestroy(&r));
+  if (user.DWsqr){
+    PetscCall(PetscPrintf(comm, "Running squared domain wall operator.\n"));
+    PetscCall(SetUpSqrDW(dm, &M, 16, &user, argc, argv));
     PetscCall(MatSetDM(M, dm));
+    PetscCall(SolveDW_Fine(comm, dm, M, &user));
+  }
+  else if (user.domainWall) {
+    PetscCall(PetscPrintf(comm, "Running standard domain wall operator.\n"));
+    PetscCall(SetUpDW(dm, &M, PETSC_FALSE, 16, &user, argc, argv));
+    PetscCall(MatSetDM(M, dm));
+    //PetscCall(SolveDW_Fine_Eig(comm, dm, M, &user));
+    PetscCheckDwfWithGrid(dm, M, u,f);
+  }
+  else if (user.usePV) {
+    DM pvdm;
+    Mat P, precOp;
+    // Just represent the matrix as a unit mass on the diagonal?
+    // currently m is stored in the gauge links, so we may need to
+    // break that out of SetGauge5D in plexGrid.cxx
+    PetscCall(CreateMesh(comm, &user, &pvdm));
+    PetscCall(DMSetApplicationContext(pvdm, &user));
+    PetscCall(SetupDiscretization(pvdm, &user));
+    PetscCall(SetupAuxDiscretization(pvdm, &user));
+    PetscCall(SetUpDW(dm, &M, PETSC_FALSE, 16, &user, argc, argv));
+    PetscCall(SetUpDW(pvdm, &P, PETSC_TRUE, 16, &user, argc, argv));
+    PetscCall(MatSetDM(P, pvdm));
+    user.pv = P;
+    PetscCall(MatShellSetContext(M, (void*)&user));
+    PetscCall(SetUpPreconditionedOperator(dm, &precOp, &user));
+    PetscCall(MatSetDM(precOp, dm));
+    PetscCall(SolveDW_Fine(comm, dm, precOp, &user));
   }
   else {
     PetscCall(SetupWilson(dm, PETSC_TRUE, &M, &user, argc, argv));
@@ -1792,19 +2022,67 @@ int main(int argc, char **argv)
       PetscCall(DMDestroy(&cdm));
     }
   }
-  PetscCall(MatSetDM(M, dm));
-  PetscCall(MatViewFromOptions(M, NULL, "-operator_view"));
-  //PetscCall(SolveSystem(dm, M, PETSC_FALSE, &user));
   PetscCall(MatDestroy(&M));
   PetscCall(DMDestroy(&dm));
   PetscCall(PetscFinalize());
   return 0;
 }
+/*
+./extest -dm_plex_dim 4 -dm_plex_shape hypercubic -dm_plex_box_faces 8,8,8,8 -dm_view -coarsen -coarse_dm_plex_dim 4 -coarse_dm_plex_shape hypercubic -coarse_dm_plex_box_faces 4,4,4,4 -grid_file ckpoint_lat.4000 -grid_load_type 2 -eig_eps_type krylovschur -eig_eps_monitor -eig_eps_view -eig_eps_nev 100 -eig_eps_non_hermitian -eig_eps_max_it 10000 --grid 8.8.8.8 -ksp_fine_ksp_type bcgs -ksp_fine_ksp_rtol 1e-12 -ksp_fine_pc_type none -ksp_fine_ksp_max_it 10000 -ksp_coarse_ksp_type bcgs -ksp_coarse_ksp_pc_type none -ksp_coarse_ksp_rtol 1e-12 -ksp_coarse_ksp_max_it 10000 -ksp_fine_ksp_monitor -ksp_coarse_ksp_monitor  -ksp_gmres_breakdown_tolerance 1000 -ksp_monitor -ksp_gmres_restart 1000 -use_fine_and_coarse -ksp_smoother_ksp_initial_guess_nonzero -ksp_smoother_ksp_type bcgs -ksp_smoother_ksp_rtol 1e-12 -ksp_smoother_pc_type none -ksp_smoother_ksp_max_its 1000 -ksp_smoother_ksp_monitor -write_sol -save_eigenbasis -temperature 0.012 >> test_t0012.out
 
+for DW run that converges, use cgne w/
+./extest -dm_plex_dim 5 -dm_plex_shape hypercubic -dm_plex_box_faces 16,16,16,16,32 -dm_view -sol_view -ksp_fine_ksp_type cgne -ksp_fine_ksp_monitor -ksp_fine_ksp_view -ksp_fine_ksp_rtol 1e-12 -ksp_fine_ksp_atol 1e-50 -ksp_fine_ksp_max_it 1000 -ksp_fine_pc_type none -grid_load_type 3 -grid_file ${GRID_LATTICE_FILE} --grid 16.16.16.32 -log_view -run_domain_wall 1
+*/
 /*TEST
-
   build:
     requires: complex
+  testset:
+    requires: fftw
+    suffix: pv_
+    args: -dm_plex_dim 5 -dm_plex_shape hypercubic -dm_plex_box_faces 8,8,8,8,8 -grid_load_type 3 -grid_file ${GRID_LATTICE_FILE}\
+          --grid 8.8.8.8 -use_pv -log_view
+    test:
+      suffix: cg
+      args: -ksp_fine_ksp_type cg -ksp_fine_ksp_max_it 50000 -ksp_fine_ksp_rtol 1e-14
+    test:
+      suffix: cgne
+      args: -ksp_fine_ksp_type cgne -ksp_fine_ksp_max_it 50000 -ksp_fine_ksp_rtol 1e-14
+    test:
+      suffix: bicg
+      args: -ksp_fine_ksp_type bicg -ksp_fine_ksp_max_it 50000 -ksp_fine_ksp_rtol 1e-14
+    test:
+      suffix: tfqmr
+      args: -ksp_fine_ksp_type tfqmr -ksp_fine_ksp_max_it 50000 -ksp_fine_ksp_rtol 1e-14
+    test:
+      suffix: lsqr
+      args: -ksp_fine_ksp_type lsqr -pc_type none -ksp_fine_ksp_max_it 50000 -ksp_fine_ksp_rtol 1e-14
+    test:
+      suffix: cgr
+      args: -ksp_fine_ksp_type cgr -ksp_fine_ksp_max_it 50000 -ksp_fine_ksp_rtol 1e-14
+    test:
+      suffix: cgs
+      args: -ksp_fine_ksp_type cgs -ksp_fine_ksp_max_it 50000 -ksp_fine_ksp_rtol 1e-14
+    test:
+      suffix: tcqmr
+      args: -ksp_fine_ksp_type tcqmr -ksp_fine_ksp_max_it 50000 -ksp_fine_ksp_rtol 1e-14
+  test:
+    requires: fftw
+    suffix: wilson_find_mass
+    args: -dm_plex_dim 4 -dm_plex_shape hypercubic -dm_view\
+          -dm_plex_box_faces 8,8,8,8\
+          -coarsen -coarse_dm_plex_dim 4 -coarse_dm_plex_shape hypercubic\
+          -coarse_dm_plex_box_faces 4,4,4,4\
+          -grid_file ckpoint_lat.4000 -grid_load_type 2\
+          -eig_eps_type krylovschur -eig_eps_monitor -eig_eps_view -eig_eps_nev 100 -eig_eps_non_hermitian -eig_eps_max_it 10000\
+          -ksp_fine_ksp_type bcgs -ksp_fine_ksp_rtol 1e-12 -ksp_fine_pc_type none -ksp_fine_ksp_max_it 10000\
+          -ksp_coarse_ksp_type bcgs -ksp_coarse_ksp_pc_type none -ksp_coarse_ksp_rtol 1e-12 -ksp_coarse_ksp_max_it 10000\
+          -ksp_fine_ksp_monitor -ksp_coarse_ksp_monitor  -ksp_gmres_breakdown_tolerance 1000 -ksp_monitor -ksp_gmres_restart 1000\
+          -use_fine_and_coarse\
+          -ksp_smoother_ksp_initial_guess_nonzero -ksp_smoother_ksp_type bcgs -ksp_smoother_ksp_rtol 1e-12\
+          -ksp_smoother_pc_type none -ksp_smoother_ksp_max_its 1000 -ksp_smoother_ksp_monitor\
+          -write_sol -save_eigenbasis -load_ic\
+          -temperature {{0.01 0.001 0.0001 0.00001}} -mass {{0.001 0.01 0.1 0.11 0.12 0.13 0.2 0.3 0.4 0.5 0.6 0.7}}\
+          --grid 8.8.8.8
   test:
     requires: fftw
     suffix: wilson_restriction
@@ -1825,7 +2103,7 @@ int main(int argc, char **argv)
           -ksp_type cg -ksp_monitor -ksp_view -ksp_rtol 1e-12 -ksp_atol 1e-50 -ksp_max_it 1000\
           -pc_type none\
           -grid_load_type 3\
-          -grid_file ${GRID_LATTIC_FILE}\
+          -grid_file ${GRID_LATTICE_FILE}\
           --grid 16.16.16.32\
           -log_view\
           -run_domain_wall 1
@@ -1837,7 +2115,7 @@ int main(int argc, char **argv)
           -ksp_type cgne -ksp_monitor -ksp_view -ksp_rtol 1e-12 -ksp_atol 1e-50 -ksp_max_it 1000\
           -pc_type none\
           -grid_load_type 3\
-          -grid_file ${GRID_LATTIC_FILE}\
+          -grid_file ${GRID_LATTICE_FILE}\
           --grid 16.16.16.32\
           -log_view\
           -run_domain_wall 1
@@ -1848,7 +2126,7 @@ int main(int argc, char **argv)
           -ksp_type bicg -ksp_monitor -ksp_view -ksp_rtol 1e-12 -ksp_atol 1e-50 -ksp_max_it 1000\
           -pc_type none\
           -grid_load_type 3\
-          -grid_file ${GRID_LATTIC_FILE}\
+          -grid_file ${GRID_LATTICE_FILE}\
           --grid 16.16.16.32\
           -log_view\
           -run_domain_wall 1
@@ -1859,7 +2137,7 @@ int main(int argc, char **argv)
           -ksp_type bcgs -ksp_monitor -ksp_view -ksp_rtol 1e-12 -ksp_atol 1e-50 -ksp_max_it 1000\
           -pc_type none\
           -grid_load_type 3\
-          -grid_file ${GRID_LATTIC_FILE}\
+          -grid_file ${GRID_LATTICE_FILE}\
           --grid 16.16.16.32\
           -log_view\
           -run_domain_wall 1
@@ -1870,7 +2148,7 @@ int main(int argc, char **argv)
           -ksp_type gmres -ksp_monitor -ksp_view -ksp_rtol 1e-12 -ksp_atol 1e-50 -ksp_max_it 1000\
           -pc_type none\
           -grid_load_type 3\
-          -grid_file ${GRID_LATTIC_FILE}\
+          -grid_file ${GRID_LATTICE_FILE}\
           --grid 16.16.16.32\
           -log_view\
           -run_domain_wall 1
@@ -1881,7 +2159,7 @@ int main(int argc, char **argv)
           -ksp_type tfqmr -ksp_monitor -ksp_view -ksp_rtol 1e-12 -ksp_atol 1e-50 -ksp_max_it 1000\
           -pc_type none\
           -grid_load_type 3\
-          -grid_file ${GRID_LATTIC_FILE}\
+          -grid_file ${GRID_LATTICE_FILE}\
           --grid 16.16.16.32\
           -log_view\
           -run_domain_wall 1
@@ -1892,7 +2170,7 @@ int main(int argc, char **argv)
           -ksp_type qmrcgs -ksp_monitor -ksp_view -ksp_rtol 1e-12 -ksp_atol 1e-50 -ksp_max_it 1000\
           -pc_type none\
           -grid_load_type 3\
-          -grid_file ${GRID_LATTIC_FILE}\
+          -grid_file ${GRID_LATTICE_FILE}\
           --grid 16.16.16.32\
           -log_view\
           -run_domain_wall 1
@@ -1903,7 +2181,7 @@ int main(int argc, char **argv)
           -ksp_type cgs -ksp_monitor -ksp_view -ksp_rtol 1e-12 -ksp_atol 1e-50 -ksp_max_it 1000\
           -pc_type none\
           -grid_load_type 3\
-          -grid_file ${GRID_LATTIC_FILE}\
+          -grid_file ${GRID_LATTICE_FILE}\
           --grid 16.16.16.32\
           -log_view\
           -run_domain_wall 1
@@ -1914,7 +2192,7 @@ int main(int argc, char **argv)
           -ksp_type gcr -ksp_monitor -ksp_view -ksp_rtol 1e-12 -ksp_atol 1e-50 -ksp_max_it 1000\
           -pc_type none\
           -grid_load_type 3\
-          -grid_file ${GRID_LATTIC_FILE}\
+          -grid_file ${GRID_LATTICE_FILE}\
           --grid 16.16.16.32\
           -log_view\
           -run_domain_wall 1
@@ -1925,7 +2203,7 @@ int main(int argc, char **argv)
           -ksp_type cgls -ksp_monitor -ksp_view -ksp_rtol 1e-12 -ksp_atol 1e-50 -ksp_max_it 1000\
           -pc_type none\
           -grid_load_type 3\
-          -grid_file ${GRID_LATTIC_FILE}\
+          -grid_file ${GRID_LATTICE_FILE}\
           --grid 16.16.16.32\
           -log_view\
           -run_domain_wall 1
@@ -1936,27 +2214,26 @@ int main(int argc, char **argv)
           -ksp_type lcd -ksp_monitor -ksp_view -ksp_rtol 1e-12 -ksp_atol 1e-50 -ksp_max_it 1000\
           -pc_type none\
           -grid_load_type 3\
-          -grid_file ${GRID_LATTIC_FILE}\
+          -grid_file ${GRID_LATTICE_FILE}\
           --grid 16.16.16.32\
           -log_view\
           -run_domain_wall 1
   testset:
-     args: -dm_plex_dim 5 -dm_plex_shape hypercubic -dm_plex_box_faces 16,16,16,16,32 -dm_view -sol_view \
-           -ksp_monitor -ksp_view -ksp_rtol 1e-12 -ksp_atol 1e-50 -ksp_max_it 1000\
-           -pc_type none\
-           -grid_load_type 3\
-           -grid_file ${GRID_LATTIC_FILE}\
-           --grid 16.16.16.32\
-           -log_view\
-           -run_domain_wall 1
-     test:
-       suffix: domain_wall_5d_plex_pc_none_tcqmr
-       args: -ksp_type tcqmr
-     test:
-       suffix: domain_wall_5d_plex_pc_none_lsqr
-       args: -ksp_type lsqr
-     test:
-       suffix: domain_wall_5d_plex_pc_none_cr
-       args: -ksp_type cr
-
+    args: -dm_plex_dim 5 -dm_plex_shape hypercubic -dm_plex_box_faces 16,16,16,16,32 -dm_view -sol_view \
+          -ksp_monitor -ksp_view -ksp_rtol 1e-12 -ksp_atol 1e-50 -ksp_max_it 1000\
+          -pc_type none\
+          -grid_load_type 3\
+          -grid_file ${GRID_LATTICE_FILE}\
+          --grid 16.16.16.32\
+          -log_view\
+          -run_domain_wall 1
+    test:
+      suffix: domain_wall_5d_plex_pc_none_tcqmr
+      args: -ksp_type tcqmr
+    test:
+      suffix: domain_wall_5d_plex_pc_none_lsqr
+      args: -ksp_type lsqr
+    test:
+      suffix: domain_wall_5d_plex_pc_none_cr
+      args: -ksp_type cr
 TEST*/
