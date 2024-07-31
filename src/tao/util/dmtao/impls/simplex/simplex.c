@@ -4,7 +4,11 @@
 
 static PetscErrorCode DMTaoContextDestroy_Simplex(DMTao dm)
 {
+  DMTao_Simplex *ctx = (DMTao_Simplex *)dm->data;
+
   PetscFunctionBegin;
+  PetscCall(VecScatterDestroy(&ctx->vscat));
+  PetscCall(VecDestroy(&ctx->yseq));
   PetscCall(PetscFree(dm->data));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -51,8 +55,6 @@ static PetscErrorCode DMTaoApplyProximalMap_Simplex(DMTao tdm0, DMTao tdm1, Pets
   PetscMPIInt    mpi_size, rank;
   MPI_Comm       comm;
   PetscInt       len, i, N;
-  VecScatter     vscat;
-  Vec            yseq; //TODO this in sctx?
 
   PetscFunctionBegin;
   PetscCall(PetscObjectTypeCompare((PetscObject)tdm0, DMTAOSIMPLEX, &is_0_s));
@@ -101,13 +103,13 @@ static PetscErrorCode DMTaoApplyProximalMap_Simplex(DMTao tdm0, DMTao tdm1, Pets
   } else {
     /* Parallel case */
     /* Gather x to yseq on rank 0. yseq on other ranks are actually empty */
-    PetscCall(VecScatterCreateToZero(y,&vscat,&yseq));
-    PetscCall(VecScatterBegin(vscat,y,yseq,INSERT_VALUES,SCATTER_FORWARD));
-    PetscCall(VecScatterEnd(vscat,y,yseq,INSERT_VALUES,SCATTER_FORWARD));
+    PetscCall(VecScatterCreateToZero(y,&sctx->vscat,&sctx->yseq));
+    PetscCall(VecScatterBegin(sctx->vscat,y,sctx->yseq,INSERT_VALUES,SCATTER_FORWARD));
+    PetscCall(VecScatterEnd(sctx->vscat,y,sctx->yseq,INSERT_VALUES,SCATTER_FORWARD));
 
-    PetscCall(VecGetLocalSize(yseq, &N));
+    PetscCall(VecGetLocalSize(sctx->yseq, &N));
     if (N > 0) {
-      PetscCall(VecGetArray(yseq, &yarray));
+      PetscCall(VecGetArray(sctx->yseq, &yarray));
       PetscCall(PetscSortReal(N,yarray));
 
       for (i = N - 1; i >= 0; i--) {
@@ -118,7 +120,7 @@ static PetscErrorCode DMTaoApplyProximalMap_Simplex(DMTao tdm0, DMTao tdm1, Pets
           break;
         }
       }
-      PetscCall(VecRestoreArray(yseq,&yarray));
+      PetscCall(VecRestoreArray(sctx->yseq,&yarray));
     }
     if (rank == 0 && !bget) tmax = (cumsum - size) / N;
 
@@ -130,9 +132,6 @@ static PetscErrorCode DMTaoApplyProximalMap_Simplex(DMTao tdm0, DMTao tdm1, Pets
     for (i = 0; i < len; i++) { xarray[i] = Clip_Internal(yarray[i], tmax); }
     PetscCall(VecRestoreArray(x, &xarray));
     PetscCall(VecRestoreArray(y, &yarray));
-
-    PetscCall(VecScatterDestroy(&vscat));
-    PetscCall(VecDestroy(&yseq));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -192,7 +191,9 @@ PETSC_EXTERN PetscErrorCode DMTaoCreate_Simplex_Private(DMTao dm)
   PetscValidHeaderSpecific(dm, DMTAO_CLASSID, 1);
   PetscCall(PetscNew(&ctx));
   /* Default is unit simplex */
-  ctx->size = 1;
+  ctx->size  = 1;
+  ctx->yseq  = NULL;
+  ctx->vscat = NULL;
 #if defined(PETSC_USE_REAL_SINGLE)
   ctx->tol = 1.e-5;
 #else
