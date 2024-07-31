@@ -105,6 +105,8 @@ PetscErrorCode DataCreate(AppCtx *user)
     PetscCall(VecSetValue(user->y, 7, 0.4916463120924144, INSERT_VALUES));
     PetscCall(VecSetValue(user->y, 8, 0.7904820492718084, INSERT_VALUES));
     PetscCall(VecSetValue(user->y, 9, 0.8997814408807109, INSERT_VALUES));
+    PetscCall(VecAssemblyBegin(user->y));
+    PetscCall(VecAssemblyEnd(user->y));
 
     PetscCall(VecSetValue(user->translation, 0, 0.060737874431129546, INSERT_VALUES));
     PetscCall(VecSetValue(user->translation, 1, 0.49646079597471915, INSERT_VALUES));
@@ -116,6 +118,8 @@ PetscErrorCode DataCreate(AppCtx *user)
     PetscCall(VecSetValue(user->translation, 7, 0.7840427519120119, INSERT_VALUES));
     PetscCall(VecSetValue(user->translation, 8, 0.918772655097436, INSERT_VALUES));
     PetscCall(VecSetValue(user->translation, 9, 0.7845177219058284, INSERT_VALUES));
+    PetscCall(VecAssemblyBegin(user->translation));
+    PetscCall(VecAssemblyEnd(user->translation));
   } else {
     PetscCall(PetscRandomCreate(PETSC_COMM_WORLD, &rctx));
     PetscCall(PetscRandomSetFromOptions(rctx));
