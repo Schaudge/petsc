@@ -1,6 +1,7 @@
 /* TAOFB example. Solves 0.5 |Ax-b|_2^2 + \lambda |x|_1,
  * with A is Gaussian random with size M*N, and b is a measurement vector of size M. */
 
+#include <petscviewer.h>
 #include <petsctao.h>
 #include <petscdm.h>
 #include <petscksp.h>
@@ -167,13 +168,16 @@ PetscErrorCode DataCreate(AppCtx *user)
 {
   PetscRandom rctx;
   PetscReal   norm, *array, *array2, *array3, temp2, randreal;
-  PetscInt    i, *indices, p, temp, m_mat_local, n_mat_local;
+  PetscInt    i, *indices, p, temp, m_mat_local, n_mat_local, n_vec_local;
+  PetscMPIInt size, rank;
+  MPI_Comm    comm;
 
   PetscFunctionBegin;
   switch (user->probType) {
   case PROB_LASSO:
     PetscCall(PetscRandomCreate(PETSC_COMM_WORLD, &rctx));
     PetscCall(PetscRandomSetFromOptions(rctx));
+
 
     p = PetscCeilInt(user->n , user->k);
 
@@ -191,11 +195,19 @@ PetscErrorCode DataCreate(AppCtx *user)
 
     PetscCall(VecSet(user->x0, 0.));
 
+    PetscCall(PetscObjectGetComm((PetscObject)user->x, &comm));
+    PetscCallMPI(MPI_Comm_size(comm, &size));
+    PetscCallMPI(MPI_Comm_rank(comm, &rank));
+
     //workvec: y_star
     PetscCall(VecSetRandom(user->workvec, rctx));
     PetscCall(VecNorm(user->workvec, NORM_2, &norm));
     PetscCall(VecScale(user->workvec, 1/norm));
+
+    PetscInt m_local;
+    PetscCall(VecGetLocalSize(user->workvec, &m_local));
     PetscCall(MatCreateDense(PETSC_COMM_WORLD, PETSC_DECIDE, PETSC_DECIDE, user->m, user->n, NULL, &user->A));
+
     PetscCall(MatGetLocalSize(user->A, &m_mat_local, &n_mat_local));
     PetscCall(MatDenseGetArray(user->A, &array));
     /* Gaussian Matrix, MATLAB equivalent of A = randn(m,n) TODO CUDA version */
@@ -214,42 +226,68 @@ PetscErrorCode DataCreate(AppCtx *user)
     PetscCall(MatMultTranspose(user->A, user->workvec, user->workvec2));
     PetscCall(VecAbs(user->workvec2));
     PetscCall(VecCopy(user->workvec2, user->x)); // using x vec as workvec for sortperm
-    PetscCall(PetscMalloc1(user->n, &indices));
-    for (i = 0; i < user->n; i++) indices[i] = i;
+
+    Vec        xseq, workvec2seq, x0seq;
+    VecScatter vscat;
+
+    PetscCall(VecScatterCreateToZero(user->x, &vscat, &xseq));
+    PetscCall(VecScatterBegin(vscat, user->x, xseq, INSERT_VALUES, SCATTER_FORWARD));
+    PetscCall(VecScatterEnd(vscat, user->x, xseq, INSERT_VALUES, SCATTER_FORWARD));
+
+    PetscCall(VecScatterCreateToZero(user->workvec2, &vscat, &workvec2seq));
+    PetscCall(VecScatterBegin(vscat,user->workvec2, workvec2seq, INSERT_VALUES, SCATTER_FORWARD));
+    PetscCall(VecScatterEnd(vscat, user->workvec2, workvec2seq, INSERT_VALUES, SCATTER_FORWARD));
+
+    PetscCall(VecScatterCreateToZero(user->x0, &vscat, &x0seq));
+    PetscCall(VecScatterBegin(vscat,user->x0, x0seq, INSERT_VALUES, SCATTER_FORWARD));
+    PetscCall(VecScatterEnd(vscat, user->x0, x0seq, INSERT_VALUES, SCATTER_FORWARD));
+
+    PetscCall(VecGetSize(xseq, &n_vec_local));
+    PetscCall(PetscMalloc1(n_vec_local, &indices));
+    for (i = 0; i < n_vec_local; i++) indices[i] = i;
 
     /* indices: perm, workvec2: CTy, x0: alpha */
-    PetscCall(VecGetArray(user->x, &array));
-    PetscCall(VecGetArray(user->workvec2, &array2));
-    PetscCall(VecGetArray(user->x0, &array3));
-    PetscCall(PetscSortRealWithArrayInt(user->n, array, indices)); //in increasing order
+    /* only doen on rank 0 */
+    if (n_vec_local > 0) {
+      PetscCall(VecGetArray(xseq, &array));
+      PetscCall(VecGetArray(workvec2seq, &array2));
+      PetscCall(VecGetArray(x0seq, &array3));
+      PetscCall(PetscSortRealWithArrayInt(n_vec_local, array, indices)); //in increasing order
 
-    for (i = user->n - 1; i >= 0; i--) {
-      temp = indices[i];
-      if (i >= user->n - p) {
-        array3[temp] = user->scale / array2[temp];
-      } else {
-        temp2 = array2[temp];
-        if (temp2 < 0.1*user->scale) {
-          array3[temp] = user->scale;
+      for (i = n_vec_local - 1; i >= 0; i--) {
+        temp = indices[i];
+        if (i >= n_vec_local - p) {
+          array3[temp] = user->scale / array2[temp];
         } else {
-          PetscCall(PetscRandomGetValueReal(rctx, &randreal));
-          array3[temp] = user->scale * randreal / temp2;
+          temp2 = array2[temp];
+          if (temp2 < 0.1*user->scale) {
+            array3[temp] = user->scale;
+          } else {
+            PetscCall(PetscRandomGetValueReal(rctx, &randreal));
+            array3[temp] = user->scale * randreal / temp2;
+          }
         }
       }
+      PetscCall(VecRestoreArray(xseq, &array));
+      PetscCall(VecRestoreArray(workvec2seq, &array2));
+      PetscCall(VecRestoreArray(x0seq, &array3));
     }
-    PetscCall(VecRestoreArray(user->x, &array));
-    PetscCall(VecRestoreArray(user->workvec2, &array2));
-    PetscCall(VecRestoreArray(user->x0, &array3));
+    /* reverse scatter */
+    PetscCall(VecScatterBegin(vscat, x0seq, user->x0, INSERT_VALUES, SCATTER_REVERSE));
+    PetscCall(VecScatterEnd(vscat, x0seq, user->x0, INSERT_VALUES, SCATTER_REVERSE));
 
     PetscCall(MatDiagonalScale(user->A, NULL, user->x0));
 
     // generate the primal solution
     // x0 is x_star
     PetscCall(VecSet(user->x0, 0.));
-    PetscCall(VecGetArray(user->x0, &array));
+    PetscCall(VecScatterBegin(vscat,user->x0, x0seq, INSERT_VALUES, SCATTER_FORWARD));
+    PetscCall(VecScatterEnd(vscat, user->x0, x0seq, INSERT_VALUES, SCATTER_FORWARD));
+    PetscCall(VecGetSize(x0seq, &n_vec_local));
+    PetscCall(VecGetArray(x0seq, &array));
 
-    for (i = user->n - 1; i >= 0; i--) {
-      if (i >= user->n - p) {
+    for (i = n_vec_local - 1; i >= 0; i--) {
+      if (i >= n_vec_local - p) {
         temp = indices[i];
         PetscCall(PetscRandomGetValueReal(rctx, &randreal));
         PetscCall(MatGetColumnVector(user->A, user->workvec3, temp));
@@ -257,7 +295,7 @@ PetscErrorCode DataCreate(AppCtx *user)
         array[temp] = randreal*PetscSqrtReal((int) p) * PetscSign(norm);
       }
     }
-    PetscCall(VecRestoreArray(user->x0, &array));
+    PetscCall(VecRestoreArray(x0seq, &array));
     PetscCall(MatMultAdd(user->A, user->x0, user->workvec, user->b));
     PetscCall(VecNorm(user->workvec, NORM_2, &norm));
     user->optimum = norm/2.;
@@ -267,6 +305,9 @@ PetscErrorCode DataCreate(AppCtx *user)
 
     PetscCall(PetscFree(indices));
     PetscCall(PetscRandomDestroy(&rctx));
+    PetscCall(VecDestroy(&xseq));
+    PetscCall(VecDestroy(&workvec2seq));
+    PetscCall(VecDestroy(&x0seq));
 
     /* Note: technically, one can use (|A|_op)^2 as Lipschitz constant, but we avoid it here */
     user->lip = 0.;
