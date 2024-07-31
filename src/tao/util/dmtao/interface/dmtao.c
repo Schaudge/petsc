@@ -18,6 +18,7 @@ static PetscErrorCode DMTaoDestroy(DMTao *kdm)
   if (!*kdm) PetscFunctionReturn(PETSC_SUCCESS);
   PetscValidHeaderSpecific((*kdm), DMTAO_CLASSID, 1);
   PetscCall(VecDestroy(&(*kdm)->workvec));
+  PetscCall(VecDestroy(&(*kdm)->workvec2));
   PetscCall(VecDestroy(&(*kdm)->translation));
   if (--((PetscObject)(*kdm))->refct > 0) {
     *kdm = NULL;
@@ -1207,15 +1208,16 @@ PetscErrorCode DMTaoApplyProximalMap(DM dm0, DM dm1, PetscReal lambda, Vec y, Ve
   PetscCall(DMTaoSetWorkVec(dm0, x));
   /* scaling and translation, if applicable */
   if (tdm0->scaling_set || tdm0->translation) {
-    PetscCall(VecCopy(y, tdm0->workvec));
+    PetscCall(VecDuplicate(y, &tdm0->workvec2));
+    PetscCall(VecCopy(y, tdm0->workvec2));
     if (!is_cj) {
-      if (tdm0->scaling > 0) PetscCall(VecScale(tdm0->workvec, tdm0->scaling));
-      if (tdm0->translation) PetscCall(VecAXPY(tdm0->workvec, 1., tdm0->translation));
+      if (tdm0->scaling > 0) PetscCall(VecScale(tdm0->workvec2, tdm0->scaling));
+      if (tdm0->translation) PetscCall(VecAXPY(tdm0->workvec2, 1., tdm0->translation));
       lambda_scaled = (tdm0->scaling > 0) ? lambda*tdm0->scaling*tdm0->scaling : lambda;
       if (dm1) {
-        PetscTryTypeMethod(tdm0, applyproximalmap, tdm1, lambda_scaled, tdm0->workvec, x, is_cj);
+        PetscTryTypeMethod(tdm0, applyproximalmap, tdm1, lambda_scaled, tdm0->workvec2, x, is_cj);
       } else {
-        PetscTryTypeMethod(tdm0, applyproximalmap, NULL, lambda_scaled, tdm0->workvec, x, is_cj);
+        PetscTryTypeMethod(tdm0, applyproximalmap, NULL, lambda_scaled, tdm0->workvec2, x, is_cj);
       }
       if (tdm0->translation) PetscCall(VecAXPY(x, -1., tdm0->translation));
       if (tdm0->scaling > 0) PetscCall(VecScale(x, 1/tdm0->scaling));
@@ -1223,14 +1225,14 @@ PetscErrorCode DMTaoApplyProximalMap(DM dm0, DM dm1, PetscReal lambda, Vec y, Ve
       /* prox_{step, f*}(x) = x - step*prox_{1/step, f}(x/step) *
        * Scaling and translation:
        * prox_{1/step, f}(x/step) => 1/scale * (prox_{scale*scale/step, f} (scale*x/step + a) - a) */
-      if (tdm0->scaling > 0) PetscCall(VecScale(tdm0->workvec, tdm0->scaling));
-      PetscCall(VecScale(tdm0->workvec, 1/lambda));
-      if (tdm0->translation) PetscCall(VecAXPY(tdm0->workvec, 1., tdm0->translation));
+      if (tdm0->scaling > 0) PetscCall(VecScale(tdm0->workvec2, tdm0->scaling));
+      PetscCall(VecScale(tdm0->workvec2, 1/lambda));
+      if (tdm0->translation) PetscCall(VecAXPY(tdm0->workvec2, 1., tdm0->translation));
       lambda_scaled = (tdm0->scaling > 0) ? tdm0->scaling*tdm0->scaling/lambda : 1/lambda;
       if (dm1) {
-        PetscTryTypeMethod(tdm0, applyproximalmap, tdm1, lambda_scaled, tdm0->workvec, x, is_cj);
+        PetscTryTypeMethod(tdm0, applyproximalmap, tdm1, lambda_scaled, tdm0->workvec2, x, is_cj);
       } else {
-        PetscTryTypeMethod(tdm0, applyproximalmap, NULL, lambda_scaled, tdm0->workvec, x, is_cj);
+        PetscTryTypeMethod(tdm0, applyproximalmap, NULL, lambda_scaled, tdm0->workvec2, x, is_cj);
       }
       if (tdm0->translation) PetscCall(VecAXPY(x, -1., tdm0->translation));
       if (tdm0->scaling > 0) PetscCall(VecScale(x, 1/tdm0->scaling));
@@ -1244,12 +1246,13 @@ PetscErrorCode DMTaoApplyProximalMap(DM dm0, DM dm1, PetscReal lambda, Vec y, Ve
         PetscTryTypeMethod(tdm0, applyproximalmap, NULL, lambda, y, x, is_cj);
       }
     } else {
-      PetscCall(VecCopy(y, tdm0->workvec));
-      PetscCall(VecScale(tdm0->workvec, 1/lambda));
+      PetscCall(VecDuplicate(y, &tdm0->workvec2));
+      PetscCall(VecCopy(y, tdm0->workvec2));
+      PetscCall(VecScale(tdm0->workvec2, 1/lambda));
       if (dm1) {
-        PetscTryTypeMethod(tdm0, applyproximalmap, tdm1, 1/lambda, tdm0->workvec, x, is_cj);
+        PetscTryTypeMethod(tdm0, applyproximalmap, tdm1, 1/lambda, tdm0->workvec2, x, is_cj);
       } else {
-        PetscTryTypeMethod(tdm0, applyproximalmap, NULL, 1/lambda, tdm0->workvec, x, is_cj);
+        PetscTryTypeMethod(tdm0, applyproximalmap, NULL, 1/lambda, tdm0->workvec2, x, is_cj);
       }
       PetscCall(VecAYPX(x, -lambda, y));
     }

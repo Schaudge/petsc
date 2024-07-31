@@ -53,7 +53,7 @@ struct _p_DMTao {
   Mat vm;
 
   Vec       translation;
-  Vec       y, workvec;
+  Vec       y, workvec, workvec2;
   PetscReal scaling; /* Note: this is scaling factor. This scales input vector, as in f(x) -> f(scale*x), NOT f(x)->scale*f(x) */
   PetscBool scaling_set;
 };
