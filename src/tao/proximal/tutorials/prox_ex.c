@@ -20,8 +20,10 @@ typedef struct {
   PetscReal   stepsize, simp; /* simp: size of simplex */
   PetscReal   tol;
   PetscBool   l2_null;
+  PetscBool   compare; /* compare: compare against known implementation's output, for a given fixed input */
+  PetscBool   conj, trans;
   PetscBool   lb_use_vec, ub_use_vec;
-  Vec         x, x_test, y;
+  Vec         x, x_test, y, translation;
   Vec         lb_vec, ub_vec;
 } AppCtx;
 
@@ -32,18 +34,22 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *user)
   PetscInt probtype;
 
   PetscFunctionBeginUser;
-  user->n          = 10;
-  user->stepsize   = 1;
-  user->lb         = -1;
-  user->ub         = 1;
-  user->simp       = 1.;
-  user->tol        = 1.e-12;
-  user->problem    = PROBLEM_L1;
-  user->l2_null    = PETSC_FALSE;
-  user->lb_use_vec = PETSC_FALSE;
-  user->ub_use_vec = PETSC_FALSE;
-  user->lb_vec     = NULL;
-  user->ub_vec     = NULL;
+  user->n           = 10;
+  user->stepsize    = 1;
+  user->lb          = -1;
+  user->ub          = 1;
+  user->simp        = 1.;
+  user->tol         = 1.e-12;
+  user->problem     = PROBLEM_L1;
+  user->l2_null     = PETSC_FALSE;
+  user->lb_use_vec  = PETSC_FALSE;
+  user->ub_use_vec  = PETSC_FALSE;
+  user->lb_vec      = NULL;
+  user->ub_vec      = NULL;
+  user->translation = NULL;
+  user->compare     = PETSC_FALSE;
+  user->conj        = PETSC_FALSE;
+  user->trans       = PETSC_FALSE;
 
   PetscOptionsBegin(comm, "", "DMTaoApplyProximalMap example", "DMTAO");
   probtype = user->problem;
@@ -68,6 +74,9 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *user)
   PetscCall(PetscOptionsGetReal(NULL, NULL, "-simplex", &user->simp, NULL));
   /* whether to use NULL for regularizer */
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-l2_null", &user->l2_null, NULL));
+  PetscCall(PetscOptionsGetBool(NULL, NULL, "-compare", &user->compare, NULL));
+  PetscCall(PetscOptionsGetBool(NULL, NULL, "-conjugate", &user->conj, NULL));
+  PetscCall(PetscOptionsGetBool(NULL, NULL, "-trans", &user->trans, NULL));
   PetscOptionsEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -77,31 +86,59 @@ PetscErrorCode DataCreate(AppCtx *user)
   PetscRandom rctx;
 
   PetscFunctionBeginUser;
+  if (user->compare) user->n = 10;
   PetscCall(VecCreate(PETSC_COMM_WORLD, &user->x));
   PetscCall(VecSetSizes(user->x, PETSC_DECIDE, user->n));
   PetscCall(VecSetFromOptions(user->x));
   PetscCall(VecDuplicate(user->x, &user->y));
-  PetscCall(PetscRandomCreate(PETSC_COMM_WORLD, &rctx));
-  PetscCall(PetscRandomSetFromOptions(rctx));
-  PetscCall(PetscRandomSetInterval(rctx, -10, 10));
-  /* x : Random vec, from -10 to 10 */
-  PetscCall(PetscRandomSetSeed(rctx, 1234));
-  PetscCall(VecSetRandom(user->x, rctx));
-  PetscCall(VecDuplicate(user->x, &user->x_test));
-  PetscCall(VecCopy(user->x, user->x_test));
-  /* y : Random vec, from -10 to 10 */
-  PetscCall(PetscRandomSetSeed(rctx, 5678));
-  PetscCall(VecSetRandom(user->y, rctx));
 
-  if (user->lb_use_vec) {
-    PetscCall(VecDuplicate(user->x, &user->lb_vec));
-    PetscCall(VecSet(user->lb_vec, user->lb));
+  if (user->compare) {
+    /* For compare, we only consider n=10 case */
+    PetscCall(VecDuplicate(user->x, &user->translation));
+    PetscCall(VecSetValue(user->y, 0, 0.02857960253900471, INSERT_VALUES));
+    PetscCall(VecSetValue(user->y, 1, 0.14333157985879008, INSERT_VALUES));
+    PetscCall(VecSetValue(user->y, 2, 0.28154697515689864, INSERT_VALUES));
+    PetscCall(VecSetValue(user->y, 3, 0.9268354991954233, INSERT_VALUES));
+    PetscCall(VecSetValue(user->y, 4, 0.715563357908833, INSERT_VALUES));
+    PetscCall(VecSetValue(user->y, 5, 0.4148839001405926, INSERT_VALUES));
+    PetscCall(VecSetValue(user->y, 6, 0.026817896781998973, INSERT_VALUES));
+    PetscCall(VecSetValue(user->y, 7, 0.4916463120924144, INSERT_VALUES));
+    PetscCall(VecSetValue(user->y, 8, 0.7904820492718084, INSERT_VALUES));
+    PetscCall(VecSetValue(user->y, 9, 0.8997814408807109, INSERT_VALUES));
+
+    PetscCall(VecSetValue(user->translation, 0, 0.060737874431129546, INSERT_VALUES));
+    PetscCall(VecSetValue(user->translation, 1, 0.49646079597471915, INSERT_VALUES));
+    PetscCall(VecSetValue(user->translation, 2, 0.027066487687314678, INSERT_VALUES));
+    PetscCall(VecSetValue(user->translation, 3, 0.5514576238447866, INSERT_VALUES));
+    PetscCall(VecSetValue(user->translation, 4, 0.40964774474973276, INSERT_VALUES));
+    PetscCall(VecSetValue(user->translation, 5, 0.8692584910615239, INSERT_VALUES));
+    PetscCall(VecSetValue(user->translation, 6, 0.3665635927535068, INSERT_VALUES));
+    PetscCall(VecSetValue(user->translation, 7, 0.7840427519120119, INSERT_VALUES));
+    PetscCall(VecSetValue(user->translation, 8, 0.918772655097436, INSERT_VALUES));
+    PetscCall(VecSetValue(user->translation, 9, 0.7845177219058284, INSERT_VALUES));
+  } else {
+    PetscCall(PetscRandomCreate(PETSC_COMM_WORLD, &rctx));
+    PetscCall(PetscRandomSetFromOptions(rctx));
+    PetscCall(PetscRandomSetInterval(rctx, -10, 10));
+    /* x : Random vec, from -10 to 10 */
+    PetscCall(PetscRandomSetSeed(rctx, 1234));
+    PetscCall(VecSetRandom(user->x, rctx));
+    PetscCall(VecDuplicate(user->x, &user->x_test));
+    PetscCall(VecCopy(user->x, user->x_test));
+    /* y : Random vec, from -10 to 10 */
+    PetscCall(PetscRandomSetSeed(rctx, 5678));
+    PetscCall(VecSetRandom(user->y, rctx));
+
+    if (user->lb_use_vec) {
+      PetscCall(VecDuplicate(user->x, &user->lb_vec));
+      PetscCall(VecSet(user->lb_vec, user->lb));
+    }
+    if (user->ub_use_vec) {
+      PetscCall(VecDuplicate(user->x, &user->ub_vec));
+      PetscCall(VecSet(user->ub_vec, user->ub));
+    }
+    PetscCall(PetscRandomDestroy(&rctx));
   }
-  if (user->ub_use_vec) {
-    PetscCall(VecDuplicate(user->x, &user->ub_vec));
-    PetscCall(VecSet(user->ub_vec, user->ub));
-  }
-  PetscCall(PetscRandomDestroy(&rctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -113,6 +150,7 @@ PetscErrorCode DataDestroy(AppCtx *user)
   PetscCall(VecDestroy(&user->y));
   if (user->lb_vec) PetscCall(VecDestroy(&user->lb_vec));
   if (user->ub_vec) PetscCall(VecDestroy(&user->ub_vec));
+  if (user->translation) PetscCall(VecDestroy(&user->translation));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -159,10 +197,12 @@ int main(int argc, char **argv)
     SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER, "Unsupported problem type!");
   }
 
+  if (user.trans) PetscCall(DMTaoSetTranslationVector(dm0, user.translation));
+
   if (user.l2_null) {
-    PetscCall(DMTaoApplyProximalMap(dm0, NULL, user.stepsize, user.y, user.x, PETSC_FALSE));
+    PetscCall(DMTaoApplyProximalMap(dm0, NULL, user.stepsize, user.y, user.x, user.conj));
   } else {
-    PetscCall(DMTaoApplyProximalMap(dm0, dm1, user.stepsize, user.y, user.x, PETSC_FALSE));
+    PetscCall(DMTaoApplyProximalMap(dm0, dm1, user.stepsize, user.y, user.x, user.conj));
   }
 
   switch (user.problem) {
@@ -213,6 +253,7 @@ int main(int argc, char **argv)
 
   PetscCall(DMDestroy(&dm0));
   PetscCall(DMDestroy(&dm1));
+  PetscCall(VecViewFromOptions(user.x, NULL, "-solution_vec_view"));
   PetscCall(DataDestroy(&user));
   PetscCall(PetscFinalize());
   return 0;
