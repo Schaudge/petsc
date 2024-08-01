@@ -686,6 +686,7 @@ PetscErrorCode TaoViewFromOptions(Tao A, PetscObject obj, const char name[])
 @*/
 PetscErrorCode TaoView(Tao tao, PetscViewer viewer)
 {
+  DMTao     tdm;
   PetscBool isascii, isstring;
   TaoType   type;
   PetscInt  i;
@@ -711,14 +712,16 @@ PetscErrorCode TaoView(Tao tao, PetscViewer viewer)
     if (tao->reg) {
       PetscCall(PetscViewerASCIIPushTab(viewer));
       PetscCall(PetscViewerASCIIPrintf(viewer, "DMTao Regularizer scale: %g\n", tao->reg_scale));
-      PetscCall(DMTaoView(tao->reg, viewer));
+      PetscCall(DMGetDMTao(tao->reg, &tdm));
+      PetscCall(DMTaoView(tdm, viewer));
       PetscCall(PetscViewerASCIIPopTab(viewer));
     }
     if (tao->dms) {
       for (i = 0; i < tao->num_terms; i++) {
         PetscCall(PetscViewerASCIIPushTab(viewer));
         PetscCall(PetscViewerASCIIPrintf(viewer, "DMTao scale: %g\n", tao->dm_scales[i]));
-        PetscCall(DMTaoView(tao->dms[i], viewer));
+        PetscCall(DMGetDMTao(tao->dms[i], &tdm));
+        PetscCall(DMTaoView(tdm, viewer));
         PetscCall(PetscViewerASCIIPopTab(viewer));
       }
     }
