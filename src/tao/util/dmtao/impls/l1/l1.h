@@ -2,6 +2,5 @@
 #include <petsc/private/taoimpl.h>
 
 typedef struct {
-  PetscReal lb;
-  PetscReal ub;
+  PetscReal lam;
 } DMTao_L1;

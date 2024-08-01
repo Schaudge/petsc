@@ -619,7 +619,7 @@ PETSC_EXTERN PetscErrorCode DMTaoComputeObjectiveAndGradient(DM, Vec, PetscReal 
 PETSC_EXTERN PetscErrorCode DMTaoComputeGradient(DM, Vec, Vec);
 
 PETSC_EXTERN PetscErrorCode DMTaoSimplexSetContext(DM, PetscReal, PetscReal);
-PETSC_EXTERN PetscErrorCode DMTaoL1SetContext(DM, PetscReal, PetscReal);
+PETSC_EXTERN PetscErrorCode DMTaoL1SetContext(DM, PetscReal);
 PETSC_EXTERN PetscErrorCode DMTaoBoxSetContext(DM, PetscReal, PetscReal, Vec, Vec);
 PETSC_EXTERN PetscErrorCode DMTaoShellSetContext(DM, void *);
 PETSC_EXTERN PetscErrorCode DMTaoShellGetContext(DM, void *);

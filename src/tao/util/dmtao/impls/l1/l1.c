@@ -15,8 +15,7 @@ static PetscErrorCode DMTaoSetFromOptions_L1(DMTao dm, PetscOptionItems *PetscOp
 
   PetscFunctionBegin;
   PetscOptionsHeadBegin(PetscOptionsObject, "DMTao L1options");
-  PetscCall(PetscOptionsReal("-dmtao_l1_lb", "DMTao SoftThreshold lower bound.", "", ctx->lb, &ctx->lb, NULL));
-  PetscCall(PetscOptionsReal("-dmtao_l1_ub", "DMTao SoftThreshold upper bound.", "", ctx->ub, &ctx->ub, NULL));
+  PetscCall(PetscOptionsReal("-dmtao_l1_scale", "DMTao SoftThreshold scale.", "", ctx->lam, &ctx->lam, NULL));
   PetscOptionsHeadEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -30,7 +29,7 @@ static PetscErrorCode DMTaoView_L1(DMTao dm, PetscViewer pv)
   PetscCall(PetscObjectTypeCompare((PetscObject)pv, PETSCVIEWERASCII, &isascii));
   if (isascii) {
     PetscCall(PetscViewerASCIIPrintf(pv, "  DMTao L1"));
-    PetscCall(PetscViewerASCIIPrintf(pv, ": lba=%g uba=%g ", (double)ctx->lb, (double)ctx->ub));
+    PetscCall(PetscViewerASCIIPrintf(pv, ": scale=%g ", (double)ctx->lam));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -53,23 +52,21 @@ static PetscErrorCode DMTaoComputeObjective_L1(DM dm, Vec X, PetscReal *f, void 
 }
 
 /*@
-  DMTaoL1SetContext - sets the upperbound and lowerbound context for `DMTAOL1`
+  DMTaoL1SetContext - sets lambda scaling constant for `DMTAOL1`.
+  It should be noted that this lambda scale is \lambda * |x|_1, NOT
+  |\lambda x|_1. For the latter, see `DMTaoSetScaling()`.
 
   Logically Collective
 
   Input Parameters:
-+ dm - the `DM` containing `DMTAOL1`
-. lb - lowerbound
-- ub - upperbound
++ dm  - the `DM` containing `DMTAOL1`
+- lam - lambda scale
 
   Level: advanced
 
-  Fortran Notes:
-  The context can only be an integer or a `PetscObject`
-
 .seealso: `DMTao`, `DMTAOL1`
 @*/
-PetscErrorCode DMTaoL1SetContext(DM dm, PetscReal lb, PetscReal ub)
+PetscErrorCode DMTaoL1SetContext(DM dm, PetscReal lam)
 {
   DMTao     tdm;
   PetscBool is_l2;
@@ -80,8 +77,7 @@ PetscErrorCode DMTaoL1SetContext(DM dm, PetscReal lb, PetscReal ub)
 
   DMTao_L1 *ctx = (DMTao_L1 *)tdm->data;
 
-  ctx->lb = lb;
-  ctx->ub = ub;
+  ctx->lam = lam;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -101,6 +97,7 @@ PetscErrorCode DMTaoL1SetContext(DM dm, PetscReal lb, PetscReal ub)
 static PetscErrorCode DMTaoApplyProximalMap_L1(DMTao tdm0, DMTao tdm1, PetscReal step, Vec y, Vec x, PetscBool flg)
 {
   PetscBool is_0_l1, is_1_l2 = PETSC_TRUE;
+  PetscReal scale;
 
   PetscFunctionBegin;
   PetscCall(PetscObjectTypeCompare((PetscObject)tdm0, DMTAOL1, &is_0_l1));
@@ -113,12 +110,8 @@ static PetscErrorCode DMTaoApplyProximalMap_L1(DMTao tdm0, DMTao tdm1, PetscReal
 
   DMTao_L1 *ctx = (DMTao_L1 *)tdm0->data;
 
-  //TODO VM L2 reg
-  if (ctx->lb == 0 && ctx->ub == 0) {
-    PetscCall(TaoSoftThreshold(y, -step, step, x));
-  } else {
-    PetscCall(TaoSoftThreshold(y, ctx->lb, ctx->ub, x));
-  }
+  scale = (ctx->lam == 0) ? step : ctx->lam*step;
+  PetscCall(TaoSoftThreshold(y, -scale, scale, x));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -137,9 +130,8 @@ PETSC_EXTERN PetscErrorCode DMTaoCreate_L1_Private(DMTao dm)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DMTAO_CLASSID, 1);
   PetscCall(PetscNew(&ctx));
-  /* Default is 0,0 - i.e., no-op */
-  ctx->lb                   = 0.;
-  ctx->ub                   = 0.;
+
+  ctx->lam                  = 1.;
   dm->ops->applyproximalmap = DMTaoApplyProximalMap_L1;
   dm->ops->computeobjective = DMTaoComputeObjective_L1;
   dm->data                  = (void *)ctx;
