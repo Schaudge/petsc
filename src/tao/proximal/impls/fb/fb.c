@@ -235,6 +235,7 @@ static PetscErrorCode TaoSetFromOptions_FB(Tao tao, PetscOptionItems *PetscOptio
 
 static PetscErrorCode TaoView_FB(Tao tao, PetscViewer viewer)
 {
+  DMTao     tdm;
   PetscBool isascii;
   TAO_FB   *fb = (TAO_FB *)tao->data;
 
@@ -247,15 +248,18 @@ static PetscErrorCode TaoView_FB(Tao tao, PetscViewer viewer)
     else if (fb->use_adapt) PetscCall(PetscViewerASCIIPrintf(viewer, "Using adaPGM-type adaptive stepsize\n"));
     if (fb->smoothterm) {
       PetscCall(PetscViewerASCIIPrintf(viewer, "Smooth Term:\n"));
-      PetscCall(DMTaoView(fb->smoothterm, viewer));
+      PetscCall(DMGetDMTao(fb->smoothterm, &tdm));
+      PetscCall(DMTaoView(tdm, viewer));
     }
     if (fb->proxterm) {
       PetscCall(PetscViewerASCIIPrintf(viewer, "Proximal Term:\n"));
-      PetscCall(DMTaoView(fb->proxterm, viewer));
+      PetscCall(DMGetDMTao(fb->proxterm, &tdm));
+      PetscCall(DMTaoView(tdm, viewer));
     }
     if (fb->reg) {
       PetscCall(PetscViewerASCIIPrintf(viewer, "Regularizer Term:\n"));
-      PetscCall(DMTaoView(fb->reg, viewer));
+      PetscCall(DMGetDMTao(fb->reg, &tdm));
+      PetscCall(DMTaoView(tdm, viewer));
     }
     PetscCall(PetscViewerASCIIPopTab(viewer));
   }

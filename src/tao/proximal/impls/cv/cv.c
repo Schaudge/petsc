@@ -250,6 +250,7 @@ static PetscErrorCode TaoSetFromOptions_CV(Tao tao, PetscOptionItems *PetscOptio
 
 static PetscErrorCode TaoView_CV(Tao tao, PetscViewer viewer)
 {
+  DMTao     tdm;
   PetscBool isascii;
   TAO_CV   *cv = (TAO_CV *)tao->data;
 
@@ -265,15 +266,18 @@ static PetscErrorCode TaoView_CV(Tao tao, PetscViewer viewer)
     else if (cv->use_adapt) PetscCall(PetscViewerASCIIPrintf(viewer, "Using adaPDM-type adaptive stepsize\n"));
     if (cv->smoothterm) {
       PetscCall(PetscViewerASCIIPrintf(viewer, "Smooth Term:\n"));
-      PetscCall(DMTaoView(cv->smoothterm, viewer));
+      PetscCall(DMGetDMTao(cv->smoothterm, &tdm));
+      PetscCall(DMTaoView(tdm, viewer));
     }
     if (cv->g_prox) {
       PetscCall(PetscViewerASCIIPrintf(viewer, "Non-smooth Term g(x):\n"));
-      PetscCall(DMTaoView(cv->g_prox, viewer));
+      PetscCall(DMGetDMTao(cv->g_prox, &tdm));
+      PetscCall(DMTaoView(tdm, viewer));
     }
     if (cv->h_prox) {
       PetscCall(PetscViewerASCIIPrintf(viewer, "Non-smooth Term h(Ax):\n"));
-      PetscCall(DMTaoView(cv->g_prox, viewer));
+      PetscCall(DMGetDMTao(cv->h_prox, &tdm));
+      PetscCall(DMTaoView(tdm, viewer));
       PetscCall(PetscViewerASCIIPrintf(viewer, "Linear map of Non-smooth Term h(Ax):\n"));
       PetscCall(MatView(cv->h_lmap, viewer));
     }
