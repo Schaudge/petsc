@@ -28,10 +28,6 @@ typedef struct {
   Vec         lb_vec, ub_vec;
 } AppCtx;
 
-typedef struct {
-  char solFileName[PETSC_MAX_PATH_LEN];
-} SolFileName;
-
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *user)
 {
   const char *probTypes[4] = {"l1", "simplex", "box", "zero"};
@@ -272,7 +268,7 @@ PetscErrorCode CheckSolution(AppCtx *user)
       PetscCall(VecMin(user->x, NULL, &min));
       PetscCall(VecMax(user->x, NULL, &max));
       PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Smallest element of solution: %e\n", (double)min));
-      PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Largest element of solution: %e\n", (double)min));
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Largest element of solution: %e\n", (double)max));
     }
       break;
     default:
@@ -360,19 +356,63 @@ int main(int argc, char **argv)
       requires: !complex
 
    test:
+      nsize: {{1 2 4}}
       suffix: soft
       args: -problem l1 -l2_null {{0 1}}
-      output_file: output/prox_ex_soft00.out
+      output_file: output/prox_ex_soft.out
       requires: !single
 
    test:
+      nsize: {{1 2 4}}
+      suffix: soft_compare
+      localrunfiles: prox_ex_compare_input_x_y prox_ex_compare_l1_0_dot_1_sol
+      args: -problem l1 -l2_null {{0 1}} -compare 1 -conjugate {{1 0}} -trans{{0 1}}
+      output_file: output/prox_ex_soft_compare.out
+      requires: !single
+
+   test:
+      nsize: {{1 2 4}}
       suffix: simplex
       args: -problem simplex -l2_null {{0 1}}
-      output_file: output/prox_ex_simplex00.out
+      output_file: output/prox_ex_simplex.out
       requires: !single
 
    test:
+      nsize: {{1 2 4}}
+      suffix: simplex_compare
+      localrunfiles: prox_ex_compare_input_x_y prox_ex_compare_simplex_1_dot_1_sol
+      args: -problem simplex -l2_null {{0 1}} -compare 1 -conjugate {{0 1}} -trans {{0 1}}
+      output_file: output/prox_ex_simplex_compare.out
+      requires: !single
+
+   test:
+      nsize: {{1 2 4}}
       suffix: box
-      args: -problem box -l2_null {{0 1}}
+      args: -problem box -l2_null {{0 1}} -lb_use_vec {{0 1}} -ub_use_vec {{0 1}}
+      output_file: output/prox_ex_box.out
+      requires: !single
+
+   test:
+      nsize: {{1 2 4}}
+      suffix: box_compare
+      localrunfiles: prox_ex_compare_input_x_y prox_ex_compare_box_neg_0_dot_2_pos_0_dot_3_sol
+      args: -problem box -l2_null {{0 1}} -compare 1 -conjugate {{0 1}} -trans {{0 1}}
+      output_file: output/prox_ex_box_compare.out
+      requires: !single
+
+   test:
+      nsize: {{1 2 4}}
+      suffix: zero
+      args: -problem zero -l2_null {{0 1}}
+      output_file: output/prox_ex_zero.out
+      requires: !single
+
+   test:
+      nsize: {{1 2 4}}
+      suffix: zero_compare
+      localrunfiles: prox_ex_compare_input_x_y
+      args: -problem zero -l2_null {{0 1}} -compare 1 -conjugate {{0 1}} -trans {{0 1}}
+      output_file: output/prox_ex_zero_compare.out
+      requires: !single
 
 TEST*/
