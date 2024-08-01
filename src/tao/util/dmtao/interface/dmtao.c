@@ -149,7 +149,7 @@ PetscErrorCode DMTaoSetTranslationVector(DM dm, Vec a)
   Collective
 
   Input Parameters:
-+ dm     - the `DM` context
++ tdm    - the `DMTao` context
 - viewer - visualization context
 
   Options Database Key:
@@ -167,15 +167,14 @@ PetscErrorCode DMTaoSetTranslationVector(DM dm, Vec a)
 
 .seealso: [](ch_tao), `DMTao`, `PetscViewerASCIIOpen()`
 @*/
-PetscErrorCode DMTaoView(DM dm, PetscViewer viewer)
+PetscErrorCode DMTaoView(DMTao tdm, PetscViewer viewer)
 {
   PetscBool isascii, isstring;
   DMTaoType type;
-  DMTao     tdm;
+  DM        pdm;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-  PetscCall(DMGetDMTao(dm, &tdm));
+  PetscValidHeaderSpecific(tdm, DMTAO_CLASSID, 1);
   if (!viewer) PetscCall(PetscViewerASCIIGetStdout(((PetscObject)tdm)->comm, &viewer));
   PetscValidHeaderSpecific(viewer, PETSC_VIEWER_CLASSID, 2);
   PetscCheckSameComm(tdm, 1, viewer, 2);
@@ -194,7 +193,8 @@ PetscErrorCode DMTaoView(DM dm, PetscViewer viewer)
     PetscCall(PetscViewerASCIIPrintf(viewer, "total number of proximal mapping evaluations=%" PetscInt_FMT "\n", tdm->nproxeval));
     PetscCall(PetscViewerASCIIPopTab(viewer));
   } else if (isstring) {
-    PetscCall(DMTaoGetType(dm, &type));
+    PetscCall(DMTaoGetParentDM(tdm, &pdm));
+    PetscCall(DMTaoGetType(pdm, &type));
     PetscCall(PetscViewerStringSPrintf(viewer, " %-3.3s", type));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -503,7 +503,7 @@ PetscErrorCode DMTaoSetFromOptions(DM dm)
   Collective
 
   Input Parameters:
-+ tdm  - the `DM` object
++ tdm  - the `DMTAO` object
 . obj  - Optional object
 - name - command line option
 
@@ -514,13 +514,10 @@ PetscErrorCode DMTaoSetFromOptions(DM dm)
 
 .seealso: [](ch_tao), `Tao`, `DMTao`, `DMTaoView()`, `PetscObjectViewFromOptions()`, `DMTaoCreate()`
 @*/
-PetscErrorCode DMTaoViewFromOptions(DM dm, PetscObject obj, const char name[])
+PetscErrorCode DMTaoViewFromOptions(DMTao tdm, PetscObject obj, const char name[])
 {
-  DMTao tdm;
-
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-  PetscCall(DMGetDMTao(dm, &tdm));
+  PetscValidHeaderSpecific(tdm, DMTAO_CLASSID, 1);
   PetscCall(PetscObjectViewFromOptions((PetscObject)tdm, obj, name));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1260,8 +1257,8 @@ PetscErrorCode DMTaoApplyProximalMap(DM dm0, DM dm1, PetscReal lambda, Vec y, Ve
   PetscCall(PetscLogEventEnd(DMTAO_ApplyProx, dm0, dm1, y, x));
 
   /* TODO do we want view for both, or just the primary objective? */
-  PetscCall(DMTaoViewFromOptions(dm0, NULL, "-dmtao_view"));
-  if (dm1) PetscCall(DMTaoViewFromOptions(dm1, NULL, "-dmtao_view"));
+  PetscCall(DMTaoViewFromOptions(tdm0, NULL, "-dmtao_view"));
+  if (dm1) PetscCall(DMTaoViewFromOptions(tdm1, NULL, "-dmtao_view"));
   tdm0->nproxeval++;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

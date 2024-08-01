@@ -580,8 +580,8 @@ PETSC_EXTERN PetscErrorCode DMTaoInitializePackage(void);
 
 PETSC_EXTERN PetscErrorCode DMTaoSetFromOptions(DM);
 PETSC_EXTERN PetscErrorCode DMTaoSetUp(DM);
-PETSC_EXTERN PetscErrorCode DMTaoView(DM, PetscViewer);
-PETSC_EXTERN PetscErrorCode DMTaoViewFromOptions(DM, PetscObject, const char[]);
+PETSC_EXTERN PetscErrorCode DMTaoView(DMTao, PetscViewer);
+PETSC_EXTERN PetscErrorCode DMTaoViewFromOptions(DMTao, PetscObject, const char[]);
 
 PETSC_EXTERN PetscErrorCode DMTaoGetCentralVector(DM, Vec *);
 PETSC_EXTERN PetscErrorCode DMTaoSetCentralVector(DM, Vec);
