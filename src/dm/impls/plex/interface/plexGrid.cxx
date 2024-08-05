@@ -327,7 +327,7 @@ static PetscErrorCode FormGauge5D(DM  dm, GRID_LOAD_TYPE type, PetscBool isPV, P
   p.M5   = 1.8;
   if (isPV) p.m = 1.0;
   else p.m = 0.01;
-  p.Ls   = Ls;
+  p.Ls   = 8;
 
   PetscFunctionBegin;
   if (!isPV) Grid::Grid_init(&argc,&argv);
@@ -347,6 +347,7 @@ static PetscErrorCode FormGauge5D(DM  dm, GRID_LOAD_TYPE type, PetscBool isPV, P
   LatticeGaugeField     U_GT(&GRID); // Gauge transformed field
   LatticeColourMatrix   g(&GRID);    // local Gauge xform matrix
   std::cout << "Setting gauge to Grid for Ls="<<p.Ls<<std::endl;
+  PetscPrintf(PETSC_COMM_WORLD, "ls in petsc %" PetscInt_FMT "\n", p.Ls);
   switch (type){
     case 0:
       SU3::ColdConfiguration(pRNG, Umu);

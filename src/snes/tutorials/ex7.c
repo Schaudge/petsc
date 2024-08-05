@@ -1966,11 +1966,12 @@ int main(int argc, char **argv)
   PetscCall(PetscRandomSetType(r, PETSCRAND48));
   PetscCall(VecSetRandom(u, r));
   PetscCall(PetscRandomDestroy(&r));
+  PetscPrintf(comm, "%s\n", user.gridFile);
   if (user.DWsqr){
     PetscCall(PetscPrintf(comm, "Running squared domain wall operator.\n"));
-    PetscCall(SetUpSqrDW(dm, &M, 16, &user, argc, argv));
+    PetscCall(SetUpSqrDW(dm, &M, 8, &user, argc, argv));
     PetscCall(MatSetDM(M, dm));
-    PetscCall(SolveDW_Fine(comm, dm, M, &user));
+    PetscCall(SolveDW_Fine_Eig(comm, dm, M, &user));
   }
   else if (user.domainWall) {
     PetscCall(PetscPrintf(comm, "Running standard domain wall operator.\n"));
