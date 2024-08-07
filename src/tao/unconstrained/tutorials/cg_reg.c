@@ -401,8 +401,7 @@ int main(int argc, char **argv)
 
   /* f(x) form */
   switch (user.mainFormType) {
-  case MAIN_FORM_OBJGRAD:
-  {
+  case MAIN_FORM_OBJGRAD: {
     switch (user.mainComposeType) {
     case COMPOSE_MAIN_VIA_TAO:
       PetscCall(TaoSetObjectiveAndGradient(tao, NULL, UserObjGrad, (void *)&user));
@@ -419,10 +418,8 @@ int main(int argc, char **argv)
     default:
       SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid main problem formulation type.");
     }
-  }
-    break;
-  case MAIN_FORM_OBJ_AND_GRAD:
-  {
+  } break;
+  case MAIN_FORM_OBJ_AND_GRAD: {
     switch (user.mainComposeType) {
     case COMPOSE_MAIN_VIA_TAO:
       PetscCall(TaoSetObjective(tao, UserObj, (void *)&user));
@@ -442,8 +439,7 @@ int main(int argc, char **argv)
     default:
       SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid main problem formulation type.");
     }
-  }
-    break;
+  } break;
   default:
     SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid main problem formulation type.");
   }

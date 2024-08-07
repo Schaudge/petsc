@@ -33,7 +33,7 @@ typedef struct {
 
 PetscErrorCode Log_UserObjGrad_DM(DM dm, Vec X, PetscReal *f, Vec G, void *ptr)
 {
-  AppCtx        *user = (AppCtx *)ptr;
+  AppCtx        *user  = (AppCtx *)ptr;
   const PetscInt ix[1] = {user->n};
   PetscReal      xlast, gradmean;
   PetscMPIInt    size, rank;
@@ -49,8 +49,8 @@ PetscErrorCode Log_UserObjGrad_DM(DM dm, Vec X, PetscReal *f, Vec G, void *ptr)
   PetscCall(MatMult(user->A, user->xsub, user->workvecM));
   PetscCall(VecRestoreSubVector(X, user->is_set, &user->xsub));
 
-  if (rank == (size-1)) PetscCall(VecGetValues(X, 1, ix, &xlast));
-  PetscCallMPI(MPI_Bcast(&xlast, 1, MPIU_REAL, size-1, comm));
+  if (rank == (size - 1)) PetscCall(VecGetValues(X, 1, ix, &xlast));
+  PetscCallMPI(MPI_Bcast(&xlast, 1, MPIU_REAL, size - 1, comm));
   PetscCall(VecShift(user->workvecM, xlast));
 
   /* workvecM2 = 1 + exp(-workvecM) */
@@ -81,7 +81,7 @@ PetscErrorCode Log_UserObjGrad_DM(DM dm, Vec X, PetscReal *f, Vec G, void *ptr)
   /* grad[0:end-1] */
   PetscCall(VecGetSubVector(G, user->is_set, &user->gsub));
   PetscCall(MatMultTranspose(user->A, user->workvecM, user->gsub));
-  PetscCall(VecScale(user->gsub, 1./((double) user->m)));
+  PetscCall(VecScale(user->gsub, 1. / ((double)user->m)));
   PetscCall(VecRestoreSubVector(G, user->is_set, &user->gsub));
   /* grad[end] = mean(1/workvcM2 - y) */
   PetscCall(VecSetValue(G, user->n, gradmean, INSERT_VALUES));
@@ -92,7 +92,7 @@ PetscErrorCode Log_UserObjGrad_DM(DM dm, Vec X, PetscReal *f, Vec G, void *ptr)
 
 PetscErrorCode Log_UserObjGrad(Tao tao, Vec X, PetscReal *f, Vec G, void *ptr)
 {
-  AppCtx        *user = (AppCtx *)ptr;
+  AppCtx        *user  = (AppCtx *)ptr;
   const PetscInt ix[1] = {user->n};
   PetscReal      xlast, gradmean;
   PetscMPIInt    size, rank;
@@ -108,8 +108,8 @@ PetscErrorCode Log_UserObjGrad(Tao tao, Vec X, PetscReal *f, Vec G, void *ptr)
   PetscCall(MatMult(user->A, user->xsub, user->workvecM));
   PetscCall(VecRestoreSubVector(X, user->is_set, &user->xsub));
 
-  if (rank == (size-1)) PetscCall(VecGetValues(X, 1, ix, &xlast));
-  PetscCallMPI(MPI_Bcast(&xlast, 1, MPIU_REAL, size-1, comm));
+  if (rank == (size - 1)) PetscCall(VecGetValues(X, 1, ix, &xlast));
+  PetscCallMPI(MPI_Bcast(&xlast, 1, MPIU_REAL, size - 1, comm));
   PetscCall(VecShift(user->workvecM, xlast));
 
   /* workvecM2 = 1 + exp(-workvecM) */
@@ -140,7 +140,7 @@ PetscErrorCode Log_UserObjGrad(Tao tao, Vec X, PetscReal *f, Vec G, void *ptr)
   /* grad[0:end-1] */
   PetscCall(VecGetSubVector(G, user->is_set, &user->gsub));
   PetscCall(MatMultTranspose(user->A, user->workvecM, user->gsub));
-  PetscCall(VecScale(user->gsub, 1./((double) user->m)));
+  PetscCall(VecScale(user->gsub, 1. / ((double)user->m)));
   PetscCall(VecRestoreSubVector(G, user->is_set, &user->gsub));
   /* grad[end] = mean(1/workvcM2 - y) */
   PetscCall(VecSetValue(G, user->n, gradmean, INSERT_VALUES));
@@ -199,7 +199,7 @@ PetscErrorCode DataCreate(AppCtx *user)
     PetscCall(PetscRandomCreate(PETSC_COMM_WORLD, &rctx));
     PetscCall(PetscRandomSetFromOptions(rctx));
 
-    p = PetscCeilInt(user->n , user->k);
+    p = PetscCeilInt(user->n, user->k);
 
     PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->n, &user->x));
     PetscCall(VecCreateSeq(PETSC_COMM_WORLD, user->n, &user->x0));
@@ -212,7 +212,7 @@ PetscErrorCode DataCreate(AppCtx *user)
     //workvec: y_star
     PetscCall(VecSetRandom(user->workvec, rctx));
     PetscCall(VecNorm(user->workvec, NORM_2, &norm));
-    PetscCall(VecScale(user->workvec, 1/norm));
+    PetscCall(VecScale(user->workvec, 1 / norm));
     PetscCall(MatCreateSeqDense(PETSC_COMM_WORLD, user->m, user->n, NULL, &user->A));
     PetscCall(MatDenseGetArray(user->A, &array));
     /* Gaussian Matrix, MATLAB equivalent of A = randn(m,n) */
@@ -246,7 +246,7 @@ PetscErrorCode DataCreate(AppCtx *user)
         array3[temp] = user->scale / array2[temp];
       } else {
         temp2 = array2[temp];
-        if (temp2 < 0.1*user->scale) {
+        if (temp2 < 0.1 * user->scale) {
           array3[temp] = user->scale;
         } else {
           PetscCall(PetscRandomGetValueReal(rctx, &randreal));
@@ -271,16 +271,16 @@ PetscErrorCode DataCreate(AppCtx *user)
         PetscCall(PetscRandomGetValueReal(rctx, &randreal));
         PetscCall(MatGetColumnVector(user->A, user->workvec3, temp));
         PetscCall(VecDot(user->workvec3, user->workvec, &norm));
-        array[temp] = randreal*PetscSqrtReal((int) p) * PetscSign(norm);
+        array[temp] = randreal * PetscSqrtReal((int)p) * PetscSign(norm);
       }
     }
     PetscCall(VecRestoreArray(user->x0, &array));
     PetscCall(MatMultAdd(user->A, user->x0, user->workvec, user->b));
     PetscCall(VecNorm(user->workvec, NORM_2, &norm));
-    user->optimum = norm/2.;
+    user->optimum = norm / 2.;
 
     PetscCall(VecNorm(user->x0, NORM_1, &norm));
-    user->optimum += user->scale*norm;
+    user->optimum += user->scale * norm;
 
     PetscCall(PetscFree(indices));
     PetscCall(PetscRandomDestroy(&rctx));
@@ -288,51 +288,49 @@ PetscErrorCode DataCreate(AppCtx *user)
     /* Note: technically, one can use (|A|_op)^2 as Lipschitz constant, but we avoid it here */
     user->lip = 0.;
     break;
-  case PROB_LOG_REG:
-    {
-      PetscViewer viewer;
-      PetscInt    low, high;
-      char mat_data[] = "matrix-heart-scale.dat";
-      char vec_data[] = "vector-heart-scale_1_0.dat";
+  case PROB_LOG_REG: {
+    PetscViewer viewer;
+    PetscInt    low, high;
+    char        mat_data[] = "matrix-heart-scale.dat";
+    char        vec_data[] = "vector-heart-scale_1_0.dat";
 
-      user->scale = 0.01;
+    user->scale = 0.01;
 
-      PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, mat_data, FILE_MODE_READ, &viewer));
-      PetscCall(MatCreate(PETSC_COMM_WORLD, &user->A));
-      PetscCall(MatSetType(user->A, MATMPIAIJ));
-      PetscCall(MatLoad(user->A, viewer));
-      PetscCall(PetscViewerDestroy(&viewer));
-      PetscCall(MatGetSize(user->A, &user->m, &user->n));
+    PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, mat_data, FILE_MODE_READ, &viewer));
+    PetscCall(MatCreate(PETSC_COMM_WORLD, &user->A));
+    PetscCall(MatSetType(user->A, MATMPIAIJ));
+    PetscCall(MatLoad(user->A, viewer));
+    PetscCall(PetscViewerDestroy(&viewer));
+    PetscCall(MatGetSize(user->A, &user->m, &user->n));
 
-      PetscCall(MatCreateVecs(user->A, NULL, &user->workvecM));
-      PetscCall(MatCreateVecs(user->A, NULL, &user->workvecM2));
-      PetscCall(MatCreateVecs(user->A, NULL, &user->workvecM3));
+    PetscCall(MatCreateVecs(user->A, NULL, &user->workvecM));
+    PetscCall(MatCreateVecs(user->A, NULL, &user->workvecM2));
+    PetscCall(MatCreateVecs(user->A, NULL, &user->workvecM3));
 
-      PetscCall(VecCreate(PETSC_COMM_WORLD, &user->x));
-      PetscCall(VecSetSizes(user->x, PETSC_DECIDE, user->n+1));
-      PetscCall(VecSetFromOptions(user->x));
-      PetscCall(VecDuplicate(user->x, &user->workvec));
-      PetscCall(VecDuplicate(user->x, &user->workvec2));
-      PetscCall(VecSet(user->x,0));
+    PetscCall(VecCreate(PETSC_COMM_WORLD, &user->x));
+    PetscCall(VecSetSizes(user->x, PETSC_DECIDE, user->n + 1));
+    PetscCall(VecSetFromOptions(user->x));
+    PetscCall(VecDuplicate(user->x, &user->workvec));
+    PetscCall(VecDuplicate(user->x, &user->workvec2));
+    PetscCall(VecSet(user->x, 0));
 
-      /* Lip is computed via
+    /* Lip is computed via
        * A1 = [A; VecOnes(m)];
        * Lip = Norm(A1 @ A1') / 4 / m */
-      user->lip = 1.052285051684358;
+    user->lip = 1.052285051684358;
 
-      PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, vec_data, FILE_MODE_READ, &viewer));
-      PetscCall(VecCreate(PETSC_COMM_WORLD, &user->b));
-      PetscCall(VecLoad(user->b, viewer));
-      PetscCall(PetscViewerDestroy(&viewer));
-      PetscCall(PetscObjectGetComm((PetscObject)user->x, &comm));
-      PetscCallMPI(MPI_Comm_size(comm, &size));
-      PetscCallMPI(MPI_Comm_rank(comm, &rank));
+    PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, vec_data, FILE_MODE_READ, &viewer));
+    PetscCall(VecCreate(PETSC_COMM_WORLD, &user->b));
+    PetscCall(VecLoad(user->b, viewer));
+    PetscCall(PetscViewerDestroy(&viewer));
+    PetscCall(PetscObjectGetComm((PetscObject)user->x, &comm));
+    PetscCallMPI(MPI_Comm_size(comm, &size));
+    PetscCallMPI(MPI_Comm_rank(comm, &rank));
 
-      PetscCall(MatGetOwnershipRangeColumn(user->A, &low, &high));
-      PetscCall(ISCreateStride(PETSC_COMM_WORLD, high-low, low, 1, &user->is_set));
-    }
+    PetscCall(MatGetOwnershipRangeColumn(user->A, &low, &high));
+    PetscCall(ISCreateStride(PETSC_COMM_WORLD, high - low, low, 1, &user->is_set));
+  } break;
     break;
-  break;
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -416,8 +414,7 @@ int main(int argc, char **argv)
   PetscCall(DMTaoL1SetContext(gdm, user.scale));
 
   switch (user.probType) {
-  case PROB_LASSO:
-  {
+  case PROB_LASSO: {
     switch (user.formType) {
     case USE_TAO:
       PetscCall(TaoSetObjectiveAndGradient(tao, NULL, UserObjGrad, (void *)&user));
@@ -431,10 +428,8 @@ int main(int argc, char **argv)
     default:
       SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid problem type.");
     }
-  }
-    break;
-  case PROB_LOG_REG:
-  {
+  } break;
+  case PROB_LOG_REG: {
     switch (user.formType) {
     case USE_TAO:
       PetscCall(TaoSetObjectiveAndGradient(tao, NULL, Log_UserObjGrad, (void *)&user));
@@ -448,8 +443,7 @@ int main(int argc, char **argv)
     default:
       SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid problem formulation type.");
     }
-  }
-    break;
+  } break;
   default:
     SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid problem formulation type.");
   }

@@ -17,7 +17,7 @@ typedef enum {
 typedef struct {
   ProblemType problem;
   PetscScalar lb, ub;
-  PetscInt    n;              /* dimension */
+  PetscInt    n;                   /* dimension */
   PetscReal   stepsize, lam, simp; /* simp: size of simplex */
   PetscReal   tol;
   PetscBool   l2_null;
@@ -204,8 +204,7 @@ PetscErrorCode CheckSolution(AppCtx *user)
     PetscCall(VecDuplicate(user->x, &sol_conj_trans));
 
     switch (user->problem) {
-    case PROBLEM_L1:
-    {
+    case PROBLEM_L1: {
       // SoftTresh with scale 0.1
       char filename[] = "prox_ex_compare_l1_0_dot_1_sol";
       PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename, FILE_MODE_READ, &fd));
@@ -214,10 +213,8 @@ PetscErrorCode CheckSolution(AppCtx *user)
       PetscCall(VecLoad(sol_conj, fd));
       PetscCall(VecLoad(sol_conj_trans, fd));
       PetscCall(PetscViewerDestroy(&fd));
-    }
-      break;
-    case PROBLEM_SIMPLEX:
-    {
+    } break;
+    case PROBLEM_SIMPLEX: {
       char filename[] = "prox_ex_compare_simplex_1_dot_1_sol";
       PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename, FILE_MODE_READ, &fd));
       PetscCall(VecLoad(sol, fd));
@@ -225,10 +222,8 @@ PetscErrorCode CheckSolution(AppCtx *user)
       PetscCall(VecLoad(sol_conj, fd));
       PetscCall(VecLoad(sol_conj_trans, fd));
       PetscCall(PetscViewerDestroy(&fd));
-    }
-      break;
-    case PROBLEM_BOX:
-    {
+    } break;
+    case PROBLEM_BOX: {
       // Box with [-0.2, 0.3]
       char filename[] = "prox_ex_compare_box_neg_0_dot_2_pos_0_dot_3_sol";
       PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename, FILE_MODE_READ, &fd));
@@ -237,8 +232,7 @@ PetscErrorCode CheckSolution(AppCtx *user)
       PetscCall(VecLoad(sol_conj, fd));
       PetscCall(VecLoad(sol_conj_trans, fd));
       PetscCall(PetscViewerDestroy(&fd));
-    }
-      break;
+    } break;
     case PROBLEM_ZERO:
       PetscCall(VecSet(sol, 0.));
       PetscCall(VecCopy(user->y, sol_conj));
@@ -280,8 +274,7 @@ PetscErrorCode CheckSolution(AppCtx *user)
         PetscCall(PetscPrintf(PETSC_COMM_WORLD, "error between DMTaoApplyProximalMap and SoftThreshold: %e\n", (double)vec_dist));
       }
       break;
-    case PROBLEM_SIMPLEX:
-    {
+    case PROBLEM_SIMPLEX: {
       PetscReal sum, min, max;
       PetscCall(VecSum(user->x, &sum));
       PetscCall(VecMin(user->x, NULL, &min));
@@ -296,19 +289,16 @@ PetscErrorCode CheckSolution(AppCtx *user)
       } else {
         PetscCall(PetscPrintf(PETSC_COMM_WORLD, "distance between VecSum and Simplex Size: %e\n", (double)vec_dist));
       }
-    }
-      break;
+    } break;
     case PROBLEM_BOX:
-    case PROBLEM_ZERO:
-    {
+    case PROBLEM_ZERO: {
       PetscReal min, max;
 
       PetscCall(VecMin(user->x, NULL, &min));
       PetscCall(VecMax(user->x, NULL, &max));
       PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Smallest element of solution: %e\n", (double)min));
       PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Largest element of solution: %e\n", (double)max));
-    }
-      break;
+    } break;
     default:
       SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER, "Unsupported problem type!");
     }
@@ -349,7 +339,7 @@ int main(int argc, char **argv)
     PetscCall(DMTaoSetType(dm1, DMTAOL2));
     PetscCall(DMTaoL1SetContext(dm0, user.lam));
     /* Try built-in Soft-Threshold */
-    PetscCall(TaoSoftThreshold(user.y, -user.lam*user.stepsize, user.lam*user.stepsize, user.x_test));
+    PetscCall(TaoSoftThreshold(user.y, -user.lam * user.stepsize, user.lam * user.stepsize, user.x_test));
     break;
   case PROBLEM_SIMPLEX:
     PetscCall(PetscPrintf(PETSC_COMM_WORLD, "DMTAOSIMPLEX Case\n"));
@@ -375,7 +365,7 @@ int main(int argc, char **argv)
   if (user.trans) PetscCall(DMTaoSetTranslationVector(dm0, user.translation));
 
   /* Solving same problem few times to simulate iteration */
-  for (i=0; i<5; i++) {
+  for (i = 0; i < 5; i++) {
     if (user.l2_null) {
       PetscCall(DMTaoApplyProximalMap(dm0, NULL, user.stepsize, user.y, user.x, user.conj));
     } else {

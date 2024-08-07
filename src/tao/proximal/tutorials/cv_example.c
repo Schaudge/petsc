@@ -48,7 +48,7 @@ PetscErrorCode LAD_UserObjGrad_DM(DM dm, Vec X, PetscReal *f, Vec G, void *ptr)
 {
   PetscFunctionBegin;
   f = 0;
-  PetscCall(VecSet(G,0.));
+  PetscCall(VecSet(G, 0.));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 //TODO how to handle null obj?
@@ -58,7 +58,7 @@ PetscErrorCode LAD_UserObjGrad(Tao tao, Vec X, PetscReal *f, Vec G, void *ptr)
 {
   PetscFunctionBegin;
   f = 0;
-  PetscCall(VecSet(G,0.));
+  PetscCall(VecSet(G, 0.));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -76,7 +76,7 @@ PetscErrorCode SVM_UserObjGrad_DM(DM dm, Vec X, PetscReal *f, Vec G, void *ptr)
   PetscCall(VecTDot(G, X, &temp1));
   PetscCall(VecTDot(X, user->q, &temp2));
   PetscCall(VecAXPY(G, +1., user->q));
-  *f = 0.5*temp1 + temp2;
+  *f = 0.5 * temp1 + temp2;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -94,7 +94,7 @@ PetscErrorCode SVM_UserObjGrad(Tao tao, Vec X, PetscReal *f, Vec G, void *ptr)
   PetscCall(VecTDot(G, X, &temp1));
   PetscCall(VecTDot(X, user->q, &temp2));
   PetscCall(VecAXPY(G, +1., user->q));
-  *f = 0.5*temp1 + temp2;
+  *f = 0.5 * temp1 + temp2;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -209,8 +209,7 @@ PetscErrorCode DataCreate(AppCtx *user)
     PetscCall(VecDestroy(&yseq));
     PetscCall(VecScatterDestroy(&vscat));
     break;
-  case LAD:
-  {
+  case LAD: {
     Vec x_col, a_col;
 
     PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, vec_data2, FILE_MODE_READ, &viewer));
@@ -228,7 +227,7 @@ PetscErrorCode DataCreate(AppCtx *user)
 
     PetscCall(MatCreate(PETSC_COMM_WORLD, &user->A));
     PetscCall(MatSetType(user->A, MATMPIDENSE));
-    PetscCall(MatSetSizes(user->A, PETSC_DECIDE, PETSC_DECIDE, user->m, user->n+1));
+    PetscCall(MatSetSizes(user->A, PETSC_DECIDE, PETSC_DECIDE, user->m, user->n + 1));
     PetscCall(MatSetFromOptions(user->A));
     PetscCall(MatSetUp(user->A));
     PetscCall(MatAssemblyBegin(user->A, MAT_FINAL_ASSEMBLY));
@@ -253,7 +252,7 @@ PetscErrorCode DataCreate(AppCtx *user)
     PetscCall(MatDenseRestoreColumnVecWrite(user->A, user->n, &a_col));
 
     PetscCall(VecCreate(PETSC_COMM_WORLD, &user->x));
-    PetscCall(VecSetSizes(user->x, PETSC_DECIDE, user->n+1));
+    PetscCall(VecSetSizes(user->x, PETSC_DECIDE, user->n + 1));
     PetscCall(VecSetFromOptions(user->x));
     PetscCall(VecDuplicate(user->x, &user->x0));
     PetscCall(VecDuplicate(user->x, &user->workvec));
@@ -261,8 +260,7 @@ PetscErrorCode DataCreate(AppCtx *user)
     PetscCall(VecDuplicate(user->x, &user->workvec3));
     PetscCall(VecDestroy(&a_col));
     PetscCall(VecDestroy(&x_col));
-  }
-    break;
+  } break;
   default:
     SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER, "Invalid problem type.");
   }
@@ -342,13 +340,11 @@ int main(int argc, char **argv)
   PetscCall(DMCreate(PETSC_COMM_WORLD, &hdm));
 
   switch (user.probType) {
-  case DUAL_SVM:
-  {
+  case DUAL_SVM: {
     PetscCall(DMTaoSetType(gdm, DMTAOBOX));
     PetscCall(DMTaoSetType(hdm, DMTAOZERO));
     PetscCall(DMTaoBoxSetContext(gdm, 0, user.C, NULL, NULL));
-  }
-    break;
+  } break;
   case LAD:
     PetscCall(DMTaoSetType(gdm, DMTAOL1));
     PetscCall(DMTaoSetType(hdm, DMTAOL1));
@@ -359,8 +355,7 @@ int main(int argc, char **argv)
   }
 
   switch (user.probType) {
-  case DUAL_SVM:
-  {
+  case DUAL_SVM: {
     switch (user.formType) {
     case USE_TAO:
       PetscCall(TaoSetObjectiveAndGradient(tao, NULL, SVM_UserObjGrad, (void *)&user));
@@ -372,10 +367,8 @@ int main(int argc, char **argv)
     default:
       SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid problem formulation type.");
     }
-  }
-    break;
-  case LAD:
-  {
+  } break;
+  case LAD: {
     // LAD's f(x) = Zero()  TODO effectively PDHG....adaPDM - PDHG does give you worse stepsize bounds though...
     switch (user.formType) {
     case USE_TAO:
@@ -388,8 +381,7 @@ int main(int argc, char **argv)
     default:
       SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid problem formulation type.");
     }
-  }
-    break;
+  } break;
   default:
     SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid problem type.");
   }
