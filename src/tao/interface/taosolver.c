@@ -85,9 +85,7 @@ static PetscErrorCode TaoDMEnlarge_Static(Tao tao, PetscInt NdmtNew)
     tmpdm[f]   = tao->dms[f];
     s_tmpdm[f] = tao->dm_scales[f];
   }
-  for (f = Nf; f < NdmtNew; ++f) {
-    tmpdm[f]   = NULL;
-  }
+  for (f = Nf; f < NdmtNew; ++f) { tmpdm[f] = NULL; }
   PetscCall(PetscFree(tao->dms));
   PetscCall(PetscFree(tao->dm_scales));
   tao->num_terms = NdmtNew;
