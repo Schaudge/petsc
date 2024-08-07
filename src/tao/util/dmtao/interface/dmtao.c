@@ -1,6 +1,6 @@
 #include <petsc/private/taoimpl.h> /*I "petsctao.h" I*/
 #include <petsc/private/dmimpl.h>  /*I "petscdm.h" I*/
-#include <petsc/private/vecimpl.h>  /*I "petscvec.h" I*/
+#include <petsc/private/vecimpl.h> /*I "petscvec.h" I*/
 
 PetscBool         DMTaoRegisterAllCalled = PETSC_FALSE;
 PetscFunctionList DMTaoList              = NULL;
@@ -64,7 +64,7 @@ PetscErrorCode DMTaoSetWorkVec(DM dm, Vec x, PetscInt n)
   //VecDestroy(&workvec); VecDuplicate(workvec); and this seems like dangerous dangling pointer issue...?
   if (!tdm->workvec) PetscCall(VecDuplicate(x, &tdm->workvec));
   else {
-      /* Check if existing workvec matches given vector's structure */
+    /* Check if existing workvec matches given vector's structure */
 
     PetscCall(VecGetType(tdm->workvec, &worktype));
     PetscCall(PetscObjectTypeCompare((PetscObject)x, worktype, &sametype));
@@ -495,10 +495,10 @@ PetscErrorCode DMTaoSetObjectiveAndGradient(DM dm, PetscErrorCode (*func)(DM dm,
 @*/
 PetscErrorCode DMTaoSetFromOptions(DM dm)
 {
-  DMTaoType   default_type = DMTAOL2;
-  char        type[256];
-  PetscBool   flg;
-  DMTao       tdm;
+  DMTaoType default_type = DMTAOL2;
+  char      type[256];
+  PetscBool flg;
+  DMTao     tdm;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
@@ -985,7 +985,7 @@ PetscErrorCode DMTaoComputeObjectiveAndGradient(DM dm, Vec x, PetscReal *f, Vec 
       PetscCallBack("DMTao callback objective/gradient", (*tdm->ops->computeobjectiveandgradient)(dm, x, f, g, tdm->userctx_funcgrad));
       PetscCall(PetscLogEventEnd(DMTAO_ObjGradEval, tdm, x, g, NULL));
       tdm->nfgeval++;
-    } else if (tdm->ops->computeobjective && tdm->ops->computegradient){
+    } else if (tdm->ops->computeobjective && tdm->ops->computegradient) {
       PetscCall(PetscLogEventBegin(DMTAO_ObjectiveEval, tdm, x, NULL, NULL));
       PetscCallBack("DMTao callback objective", (*tdm->ops->computeobjective)(dm, x, f, tdm->userctx_func));
       PetscCall(PetscLogEventEnd(DMTAO_ObjectiveEval, dm, x, NULL, NULL));
@@ -1041,8 +1041,7 @@ PetscErrorCode DMTaoComputeGradient(DM dm, Vec x, Vec g)
       PetscCallBack("DMTao callback gradient", (*tdm->ops->computegradient)(dm, x, g, tdm->userctx_grad));
       PetscCall(PetscLogEventEnd(DMTAO_GradientEval, tdm, x, g, NULL));
       tdm->ngeval++;
-    }
-    else if (tdm->ops->computeobjectiveandgradient) {
+    } else if (tdm->ops->computeobjectiveandgradient) {
       PetscCall(PetscLogEventBegin(DMTAO_ObjGradEval, tdm, x, g, NULL));
       PetscCallBack("DMTao callback objective/gradient", (*tdm->ops->computeobjectiveandgradient)(dm, x, &fdummy, g, tdm->userctx_funcgrad));
       PetscCall(PetscLogEventEnd(DMTAO_ObjGradEval, tdm, x, g, NULL));
@@ -1231,29 +1230,29 @@ PetscErrorCode DMTaoApplyProximalMap(DM dm0, DM dm1, PetscReal lambda, Vec y, Ve
     if (!is_cj) {
       if (tdm0->scaling > 0) PetscCall(VecScale(tdm0->workvec2, tdm0->scaling));
       if (tdm0->translation) PetscCall(VecAXPY(tdm0->workvec2, 1., tdm0->translation));
-      lambda_scaled = (tdm0->scaling > 0) ? lambda*tdm0->scaling*tdm0->scaling : lambda;
+      lambda_scaled = (tdm0->scaling > 0) ? lambda * tdm0->scaling * tdm0->scaling : lambda;
       if (dm1) {
         PetscTryTypeMethod(tdm0, applyproximalmap, tdm1, lambda_scaled, tdm0->workvec2, x, is_cj);
       } else {
         PetscTryTypeMethod(tdm0, applyproximalmap, NULL, lambda_scaled, tdm0->workvec2, x, is_cj);
       }
       if (tdm0->translation) PetscCall(VecAXPY(x, -1., tdm0->translation));
-      if (tdm0->scaling > 0) PetscCall(VecScale(x, 1/tdm0->scaling));
+      if (tdm0->scaling > 0) PetscCall(VecScale(x, 1 / tdm0->scaling));
     } else {
       /* prox_{step, f*}(x) = x - step*prox_{1/step, f}(x/step) *
        * Scaling and translation:
        * prox_{1/step, f}(x/step) => 1/scale * (prox_{scale*scale/step, f} (scale*x/step + a) - a) */
       if (tdm0->scaling > 0) PetscCall(VecScale(tdm0->workvec2, tdm0->scaling));
-      PetscCall(VecScale(tdm0->workvec2, 1/lambda));
+      PetscCall(VecScale(tdm0->workvec2, 1 / lambda));
       if (tdm0->translation) PetscCall(VecAXPY(tdm0->workvec2, 1., tdm0->translation));
-      lambda_scaled = (tdm0->scaling > 0) ? tdm0->scaling*tdm0->scaling/lambda : 1/lambda;
+      lambda_scaled = (tdm0->scaling > 0) ? tdm0->scaling * tdm0->scaling / lambda : 1 / lambda;
       if (dm1) {
         PetscTryTypeMethod(tdm0, applyproximalmap, tdm1, lambda_scaled, tdm0->workvec2, x, is_cj);
       } else {
         PetscTryTypeMethod(tdm0, applyproximalmap, NULL, lambda_scaled, tdm0->workvec2, x, is_cj);
       }
       if (tdm0->translation) PetscCall(VecAXPY(x, -1., tdm0->translation));
-      if (tdm0->scaling > 0) PetscCall(VecScale(x, 1/tdm0->scaling));
+      if (tdm0->scaling > 0) PetscCall(VecScale(x, 1 / tdm0->scaling));
       PetscCall(VecAYPX(x, -lambda, y));
     }
   } else {
@@ -1267,11 +1266,11 @@ PetscErrorCode DMTaoApplyProximalMap(DM dm0, DM dm1, PetscReal lambda, Vec y, Ve
     } else {
       PetscCall(DMTaoSetWorkVec(dm0, x, 2));
       PetscCall(VecCopy(y, tdm0->workvec2));
-      PetscCall(VecScale(tdm0->workvec2, 1/lambda));
+      PetscCall(VecScale(tdm0->workvec2, 1 / lambda));
       if (dm1) {
-        PetscTryTypeMethod(tdm0, applyproximalmap, tdm1, 1/lambda, tdm0->workvec2, x, is_cj);
+        PetscTryTypeMethod(tdm0, applyproximalmap, tdm1, 1 / lambda, tdm0->workvec2, x, is_cj);
       } else {
-        PetscTryTypeMethod(tdm0, applyproximalmap, NULL, 1/lambda, tdm0->workvec2, x, is_cj);
+        PetscTryTypeMethod(tdm0, applyproximalmap, NULL, 1 / lambda, tdm0->workvec2, x, is_cj);
       }
       PetscCall(VecAYPX(x, -lambda, y));
     }

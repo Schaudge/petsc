@@ -1,5 +1,5 @@
 #include <petsc/private/taoimpl.h> /*I "petsctao.h" I*/
-#include <petsc/private/dmimpl.h> /*I "petscdm.h" I*/
+#include <petsc/private/dmimpl.h>  /*I "petscdm.h" I*/
 #include <../src/tao/util/dmtao/impls/shell/dmtaoshell.h>
 
 static PetscErrorCode DMTaoContextDestroy_Shell(DMTao dm)
@@ -155,12 +155,12 @@ PETSC_EXTERN PetscErrorCode DMTaoCreate_Shell_Private(DMTao dm)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DMTAO_CLASSID, 1);
   PetscCall(PetscNew(&ctx));
-  dm->ops->applyproximalmap  = DMTaoApplyProximalMap_Shell;
-  dm->data                   = (void *)ctx;
-  dm->ops->setup             = DMTaoSetUp_Shell;
-  dm->ops->destroy           = DMTaoContextDestroy_Shell;
-  dm->ops->view              = DMTaoView_Shell;
-  dm->ops->setfromoptions    = DMTaoSetFromOptions_Shell;
-  dm->ops->reset             = NULL;
+  dm->ops->applyproximalmap = DMTaoApplyProximalMap_Shell;
+  dm->data                  = (void *)ctx;
+  dm->ops->setup            = DMTaoSetUp_Shell;
+  dm->ops->destroy          = DMTaoContextDestroy_Shell;
+  dm->ops->view             = DMTaoView_Shell;
+  dm->ops->setfromoptions   = DMTaoSetFromOptions_Shell;
+  dm->ops->reset            = NULL;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

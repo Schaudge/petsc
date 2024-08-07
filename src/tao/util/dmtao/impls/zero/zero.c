@@ -1,5 +1,5 @@
 #include <petsc/private/taoimpl.h> /*I "petsctao.h" I*/
-#include <petsc/private/dmimpl.h> /*I "petscdm.h" I*/
+#include <petsc/private/dmimpl.h>  /*I "petscdm.h" I*/
 
 static PetscErrorCode DMTaoContextDestroy_Zero(DMTao dm)
 {
@@ -22,9 +22,7 @@ static PetscErrorCode DMTaoView_Zero(DMTao tdm, PetscViewer pv)
 
   PetscFunctionBegin;
   PetscCall(PetscObjectTypeCompare((PetscObject)pv, PETSCVIEWERASCII, &isascii));
-  if (isascii) {
-    PetscCall(PetscViewerASCIIPrintf(pv, "  DMTao Zero \n"));
-  }
+  if (isascii) { PetscCall(PetscViewerASCIIPrintf(pv, "  DMTao Zero \n")); }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -46,12 +44,12 @@ PETSC_EXTERN PetscErrorCode DMTaoCreate_Zero_Private(DMTao dm)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DMTAO_CLASSID, 1);
-  dm->ops->applyproximalmap  = DMTaoApplyProximalMap_Zero;
-  dm->data                   = NULL;
-  dm->ops->setup             = NULL;
-  dm->ops->destroy           = DMTaoContextDestroy_Zero;
-  dm->ops->view              = DMTaoView_Zero;
-  dm->ops->setfromoptions    = DMTaoSetFromOptions_Zero;
-  dm->ops->reset             = NULL;
+  dm->ops->applyproximalmap = DMTaoApplyProximalMap_Zero;
+  dm->data                  = NULL;
+  dm->ops->setup            = NULL;
+  dm->ops->destroy          = DMTaoContextDestroy_Zero;
+  dm->ops->view             = DMTaoView_Zero;
+  dm->ops->setfromoptions   = DMTaoSetFromOptions_Zero;
+  dm->ops->reset            = NULL;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -1,5 +1,5 @@
 #include <petsc/private/taoimpl.h> /*I "petsctao.h" I*/
-#include <petsc/private/dmimpl.h> /*I "petscdm.h" I*/
+#include <petsc/private/dmimpl.h>  /*I "petscdm.h" I*/
 
 /* L2 Norm |x|_2^2 DMTao */
 static PetscErrorCode DMTaoDestroy_L2(DMTao dm)
@@ -15,9 +15,7 @@ static PetscErrorCode DMTaoView_L2(DMTao dm, PetscViewer pv)
 
   PetscFunctionBegin;
   PetscCall(PetscObjectTypeCompare((PetscObject)pv, PETSCVIEWERASCII, &isascii));
-  if (isascii) {
-    PetscCall(PetscViewerASCIIPrintf(pv, "  DMTao L2\n"));
-  }
+  if (isascii) { PetscCall(PetscViewerASCIIPrintf(pv, "  DMTao L2\n")); }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

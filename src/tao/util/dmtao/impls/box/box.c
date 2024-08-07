@@ -1,5 +1,5 @@
 #include <petsc/private/taoimpl.h> /*I "petsctao.h" I*/
-#include <petsc/private/dmimpl.h> /*I "petscdm.h" I*/
+#include <petsc/private/dmimpl.h>  /*I "petscdm.h" I*/
 #include <petsc/private/vecimpl.h> /*I "petscvec.h" I*/
 #include <../src/tao/util/dmtao/impls/box/box.h>
 
@@ -116,7 +116,8 @@ PetscErrorCode DMTaoBoxSetContext(DM dm, PetscReal lb_real, PetscReal ub_real, V
     PetscCheck(l_max <= u_min, PetscObjectComm((PetscObject)dm), PETSC_ERR_USER, "lower bound needs to be equal or less than upper bound");
   }
   /* Case 2. Ignore lb_real */
-  else if (lb_vec) PetscCheck(l_max <= ub_real, PetscObjectComm((PetscObject)dm), PETSC_ERR_USER, "lower bound needs to be equal or less than upper bound");
+  else if (lb_vec)
+    PetscCheck(l_max <= ub_real, PetscObjectComm((PetscObject)dm), PETSC_ERR_USER, "lower bound needs to be equal or less than upper bound");
   /* Case 3. Ignore ub_real */
   else if (ub_vec) PetscCheck(lb_real <= u_min, PetscObjectComm((PetscObject)dm), PETSC_ERR_USER, "lower bound needs to be equal or less than upper bound");
   /* Case 4 */
@@ -142,9 +143,9 @@ PetscErrorCode DMTaoBoxSetContext(DM dm, PetscReal lb_real, PetscReal ub_real, V
 @ */
 static PetscErrorCode DMTaoApplyProximalMap_Box(DMTao tdm0, DMTao tdm1, PetscReal step, Vec y, Vec x, PetscBool flg)
 {
-  PetscBool is_0_box, is_1_l2 = PETSC_TRUE;
+  PetscBool  is_0_box, is_1_l2 = PETSC_TRUE;
   PetscReal *larray, *uarray, *yarray, *xarray;
-  PetscInt  i, n;
+  PetscInt   i, n;
 
   PetscFunctionBegin;
   PetscCall(PetscObjectTypeCompare((PetscObject)tdm0, DMTAOBOX, &is_0_box));
@@ -172,8 +173,7 @@ static PetscErrorCode DMTaoApplyProximalMap_Box(DMTao tdm0, DMTao tdm1, PetscRea
     /* Case 1 */
     PetscCall(VecPointwiseMax(x, y, ctx->lb_vec));
     PetscCall(VecPointwiseMin(x, x, ctx->ub_vec));
-  }
-  else if (ctx->lb_vec) {
+  } else if (ctx->lb_vec) {
     /* Case 2. Ignore lb_real */
     PetscCall(VecGetArray(x, &xarray));
     PetscCall(VecGetArray(y, &yarray));
@@ -182,8 +182,7 @@ static PetscErrorCode DMTaoApplyProximalMap_Box(DMTao tdm0, DMTao tdm1, PetscRea
     PetscCall(VecRestoreArray(x, &xarray));
     PetscCall(VecRestoreArray(y, &yarray));
     PetscCall(VecRestoreArray(ctx->lb_vec, &larray));
-  }
-  else if (ctx->ub_vec) {
+  } else if (ctx->ub_vec) {
     /* Case 3. Ignore ub_real */
     PetscCall(VecGetArray(x, &xarray));
     PetscCall(VecGetArray(y, &yarray));
@@ -192,8 +191,7 @@ static PetscErrorCode DMTaoApplyProximalMap_Box(DMTao tdm0, DMTao tdm1, PetscRea
     PetscCall(VecRestoreArray(x, &xarray));
     PetscCall(VecRestoreArray(y, &yarray));
     PetscCall(VecRestoreArray(ctx->ub_vec, &uarray));
-  }
-  else {
+  } else {
     /* Case 4 */
     PetscCall(VecGetArray(x, &xarray));
     PetscCall(VecGetArray(y, &yarray));

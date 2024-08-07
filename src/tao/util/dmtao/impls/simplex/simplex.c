@@ -1,5 +1,5 @@
 #include <petsc/private/taoimpl.h> /*I "petsctao.h" I*/
-#include <petsc/private/dmimpl.h> /*I "petscdm.h" I*/
+#include <petsc/private/dmimpl.h>  /*I "petscdm.h" I*/
 #include <../src/tao/util/dmtao/impls/simplex/simplex.h>
 
 static PetscErrorCode DMTaoContextDestroy_Simplex(DMTao dm)
@@ -49,7 +49,7 @@ static inline PetscReal Clip_Internal(PetscReal in, PetscReal tmax)
 static PetscErrorCode DMTaoApplyProximalMap_Simplex(DMTao tdm0, DMTao tdm1, PetscReal lambda, Vec y, Vec x, PetscBool flg)
 {
   DMTao_Simplex *sctx = (DMTao_Simplex *)tdm0->data;
-  PetscBool      is_0_s, is_1_l2  = PETSC_TRUE;
+  PetscBool      is_0_s, is_1_l2 = PETSC_TRUE;
   PetscBool      bget = PETSC_FALSE;
   PetscReal     *xarray, *yarray, tmax, min, max, sum, size, cumsum = 0;
   PetscMPIInt    mpi_size, rank;
@@ -103,22 +103,22 @@ static PetscErrorCode DMTaoApplyProximalMap_Simplex(DMTao tdm0, DMTao tdm1, Pets
   } else {
     /* Parallel case */
     /* Gather x to yseq on rank 0. yseq on other ranks are actually empty */
-    if (!sctx->vscat) PetscCall(VecScatterCreateToZero(y,&sctx->vscat,&sctx->yseq));
+    if (!sctx->vscat) PetscCall(VecScatterCreateToZero(y, &sctx->vscat, &sctx->yseq));
     else {
-       /* Check whether existing VecScatter is same size as vector input */
-       //TODO ideally i would want something like VecScatterCheckCompat(vscat, y);
-       //and then decide whether to destroy-create again...
-       PetscCall(VecScatterDestroy(&sctx->vscat));
-       PetscCall(VecDestroy(&sctx->yseq));
-       PetscCall(VecScatterCreateToZero(y,&sctx->vscat,&sctx->yseq));
+      /* Check whether existing VecScatter is same size as vector input */
+      //TODO ideally i would want something like VecScatterCheckCompat(vscat, y);
+      //and then decide whether to destroy-create again...
+      PetscCall(VecScatterDestroy(&sctx->vscat));
+      PetscCall(VecDestroy(&sctx->yseq));
+      PetscCall(VecScatterCreateToZero(y, &sctx->vscat, &sctx->yseq));
     }
-    PetscCall(VecScatterBegin(sctx->vscat,y,sctx->yseq,INSERT_VALUES,SCATTER_FORWARD));
-    PetscCall(VecScatterEnd(sctx->vscat,y,sctx->yseq,INSERT_VALUES,SCATTER_FORWARD));
+    PetscCall(VecScatterBegin(sctx->vscat, y, sctx->yseq, INSERT_VALUES, SCATTER_FORWARD));
+    PetscCall(VecScatterEnd(sctx->vscat, y, sctx->yseq, INSERT_VALUES, SCATTER_FORWARD));
 
     PetscCall(VecGetLocalSize(sctx->yseq, &N));
     if (N > 0) {
       PetscCall(VecGetArray(sctx->yseq, &yarray));
-      PetscCall(PetscSortReal(N,yarray));
+      PetscCall(PetscSortReal(N, yarray));
 
       for (i = N - 1; i >= 0; i--) {
         cumsum += yarray[i];
@@ -128,7 +128,7 @@ static PetscErrorCode DMTaoApplyProximalMap_Simplex(DMTao tdm0, DMTao tdm1, Pets
           break;
         }
       }
-      PetscCall(VecRestoreArray(sctx->yseq,&yarray));
+      PetscCall(VecRestoreArray(sctx->yseq, &yarray));
     }
     if (rank == 0 && !bget) tmax = (cumsum - size) / N;
 
@@ -207,12 +207,12 @@ PETSC_EXTERN PetscErrorCode DMTaoCreate_Simplex_Private(DMTao dm)
 #else
   ctx->tol = 1.e-6;
 #endif
-  dm->ops->applyproximalmap  = DMTaoApplyProximalMap_Simplex;
-  dm->data                   = (void *)ctx;
-  dm->ops->setup             = NULL;
-  dm->ops->destroy           = DMTaoContextDestroy_Simplex;
-  dm->ops->view              = DMTaoView_Simplex;
-  dm->ops->setfromoptions    = DMTaoSetFromOptions_Simplex;
-  dm->ops->reset             = NULL;
+  dm->ops->applyproximalmap = DMTaoApplyProximalMap_Simplex;
+  dm->data                  = (void *)ctx;
+  dm->ops->setup            = NULL;
+  dm->ops->destroy          = DMTaoContextDestroy_Simplex;
+  dm->ops->view             = DMTaoView_Simplex;
+  dm->ops->setfromoptions   = DMTaoSetFromOptions_Simplex;
+  dm->ops->reset            = NULL;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

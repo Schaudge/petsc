@@ -1,5 +1,5 @@
 #include <petsc/private/taoimpl.h> /*I "petsctao.h" I*/
-#include <petsc/private/dmimpl.h> /*I "petscdm.h" I*/
+#include <petsc/private/dmimpl.h>  /*I "petscdm.h" I*/
 #include <../src/tao/util/dmtao/impls/l1/l1.h>
 
 static PetscErrorCode DMTaoContextDestroy_L1(DMTao dm)
@@ -111,7 +111,7 @@ static PetscErrorCode DMTaoApplyProximalMap_L1(DMTao tdm0, DMTao tdm1, PetscReal
 
   DMTao_L1 *ctx = (DMTao_L1 *)tdm0->data;
 
-  scale = (ctx->lam == 0) ? step : ctx->lam*step;
+  scale = (ctx->lam == 0) ? step : ctx->lam * step;
   PetscCall(TaoSoftThreshold(y, -scale, scale, x));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
