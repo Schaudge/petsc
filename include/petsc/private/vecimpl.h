@@ -252,6 +252,7 @@ PETSC_INTERN PetscErrorCode VecStashScatterBegin_Private(VecStash *, const Petsc
 PETSC_INTERN PetscErrorCode VecStashScatterGetMesg_Private(VecStash *, PetscMPIInt *, PetscInt **, PetscScalar **, PetscInt *);
 PETSC_INTERN PetscErrorCode VecStashSortCompress_Private(VecStash *);
 PETSC_INTERN PetscErrorCode VecStashGetOwnerList_Private(VecStash *, PetscLayout, PetscMPIInt *, PetscMPIInt **);
+PETSC_INTERN PetscErrorCode VecScatterIsCompatible_Local(VecScatter, Vec, Vec, ScatterMode, PetscBool *);
 
 PETSC_SINGLE_LIBRARY_INTERN PetscErrorCode VecStashExpand_Private(VecStash *, PetscInt);
 
