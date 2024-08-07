@@ -65,10 +65,10 @@ struct _p_TaoLineSearch {
   PetscReal stepmin; /* lower bound for step */
   PetscReal stepmax; /* upper bound for step */
 
-  Tao tao;
-  DM  dm;   /* DM that contains obj, grad routines */
-  DM  prox; /* DM that contains proximal map. For PSARMIJO */
-  DM  prox_reg;
+  Tao       tao;
+  DM        dm;   /* DM that contains obj, grad routines */
+  DM        prox; /* DM that contains proximal map. For PSARMIJO */
+  DM        prox_reg;
   PetscReal prox_scale;
 };
 

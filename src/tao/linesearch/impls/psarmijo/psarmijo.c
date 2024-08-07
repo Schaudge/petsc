@@ -139,7 +139,7 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
     PetscCall(VecWAXPY(armP->work2, -1., xold, xnew));
     PetscCall(VecTDot(armP->work2, armP->work2, &diffnorm));
     PetscCall(VecTDot(armP->work2, g, &inprod));
-    cert = temp -(inprod + (1 / (2 * ls->step)) * diffnorm + ref);
+    cert = temp - (inprod + (1 / (2 * ls->step)) * diffnorm + ref);
 
     /* accept xnew */
     if (cert < ls->rtol) {
@@ -147,8 +147,8 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
       ls->reason = TAOLINESEARCH_SUCCESS;
     }
   } else if (iscv) {
-    TAO_CV   *cv = (TAO_CV *)ls->tao->data;
-    xi  = cv->pd_ratio * ls->tao->step * cv->eta * (1+ls->tao->gatol);
+    TAO_CV *cv = (TAO_CV *)ls->tao->data;
+    xi         = cv->pd_ratio * ls->tao->step * cv->eta * (1 + ls->tao->gatol);
     xi *= xi;
 
     PetscCall(VecWAXPY(cv->workvec, -1., cv->grad_old, ls->tao->gradient));
@@ -157,9 +157,9 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
     PetscCall(VecNorm(cv->workvec2, NORM_2, &xdiffnorm));
     PetscCall(VecNorm(cv->workvec, NORM_2, &graddiffnorm));
 
-    L = (xdiffnorm == 0) ? 0 : grad_x_dot / (xdiffnorm*xdiffnorm);
-    C = (grad_x_dot == 0) ? 0 : (graddiffnorm*graddiffnorm) / grad_x_dot;
-    D = ls->tao->step* L * (ls->tao->step * C - 1);
+    L = (xdiffnorm == 0) ? 0 : grad_x_dot / (xdiffnorm * xdiffnorm);
+    C = (grad_x_dot == 0) ? 0 : (graddiffnorm * graddiffnorm) / grad_x_dot;
+    D = ls->tao->step * L * (ls->tao->step * C - 1);
 
     cv->eta *= cv->R;
     cert = PETSC_INFINITY; // For TAOCV, linesearch needs to go at least once
@@ -175,7 +175,7 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
       /* FB: input to prox: x_k - step*gradf(x_k)
        * Adaptive DY: input to prox: z - step*u - step*gradf(z) -> input g for DY needs to be u-gradf(z), not just gradf(z) TODO*/
       PetscCall(VecWAXPY(armP->work, -ls->step, g, xold));
-      PetscCall(DMTaoApplyProximalMap(ls->prox, ls->prox_reg, ls->step*ls->prox_scale, armP->work, xnew, PETSC_FALSE));
+      PetscCall(DMTaoApplyProximalMap(ls->prox, ls->prox_reg, ls->step * ls->prox_scale, armP->work, xnew, PETSC_FALSE));
       ls->nproxeval++;
       /* Calculate function at new iterate */
       PetscCall(TaoLineSearchComputeObjective(ls, xnew, f));
@@ -192,23 +192,23 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
        *
        * eta \geq |A^T (y_new - y) | / |y_new - y|,
        * where y_new = prox_{sigma, h^*} (y + sigma((1+stepnew/stepold) Ax - stepnew/step Ax_old)) */
-      TAO_CV   *cv = (TAO_CV *)ls->tao->data;
+      TAO_CV *cv = (TAO_CV *)ls->tao->data;
 
       min1      = ls->tao->step * PetscSqrtReal(1 + ls->tao->step / cv->step_old);
       min2      = 1 / (2 * cv->nu * cv->pd_ratio * cv->eta);
-      temp      = 1 - 4*xi;
+      temp      = 1 - 4 * xi;
       temp2     = cv->pd_ratio * cv->eta * ls->tao->step; //Unlike no linesearch, this "xi" uses updated norm estimate
-      temp3     = PetscSqrtReal(D*D + temp*temp2*temp2);
-      min3      = ls->tao->step * PetscSqrtReal(temp / (2*(1+ls->tao->gatol)*(temp3 +D)));
+      temp3     = PetscSqrtReal(D * D + temp * temp2 * temp2);
+      min3      = ls->tao->step * PetscSqrtReal(temp / (2 * (1 + ls->tao->gatol) * (temp3 + D)));
       step_new  = PetscMin(min1, PetscMin(min2, min3));
       rho       = step_new / ls->tao->step;
-      cv->sigma = cv->pd_ratio*cv->pd_ratio*step_new;
+      cv->sigma = cv->pd_ratio * cv->pd_ratio * step_new;
 
       /* dualvec_work: w = y + sigma *((1+rho) * Ax - rho * Ax_old) */
       PetscCall(VecWAXPY(cv->dualvec_work, -cv->sigma * rho, cv->Ax_old, ls->tao->dualvec));
-      PetscCall(VecAXPY(cv->dualvec_work, cv->sigma*(1+rho), cv->Ax));
+      PetscCall(VecAXPY(cv->dualvec_work, cv->sigma * (1 + rho), cv->Ax));
       /* dualvec: y = prox_h*(w, sigma) */
-      PetscCall(DMTaoApplyProximalMap(cv->h_prox, cv->reg, cv->sigma*cv->h_scale, cv->dualvec_work, cv->dualvec_test, PETSC_TRUE));
+      PetscCall(DMTaoApplyProximalMap(cv->h_prox, cv->reg, cv->sigma * cv->h_scale, cv->dualvec_work, cv->dualvec_test, PETSC_TRUE));
       /* workvec : A^T * y_test */
       PetscCall(MatMultTranspose(cv->h_lmap, cv->dualvec_test, cv->workvec));
       /* norm1 = norm(ATy_test - ATy) */
@@ -217,7 +217,7 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
       /* norm2 = norm(y_test - y) */
       PetscCall(VecWAXPY(cv->dualvec_work2, -1., cv->dualvec_test, ls->tao->dualvec));
       PetscCall(VecNorm(cv->dualvec_work2, NORM_2, &norm2));
-      cert =  -cv->eta + norm1 / norm2;
+      cert = -cv->eta + norm1 / norm2;
       if (cert <= ls->ftol) {
         cv->step_old  = ls->tao->step;
         ls->tao->step = step_new;
@@ -225,7 +225,7 @@ static PetscErrorCode TaoLineSearchApply_PSArmijo(TaoLineSearch ls, Vec xold, Pe
         PetscCall(VecCopy(cv->workvec, cv->ATy));
         break;
       }
-      PetscCall(TaoLineSearchMonitor(ls, its, cert, ls->step));//Technically not logging function value...
+      PetscCall(TaoLineSearchMonitor(ls, its, cert, ls->step)); //Technically not logging function value...
       cv->h_lmap_norm *= cv->r;
     } else SETERRQ(PetscObjectComm((PetscObject)ls->tao), PETSC_ERR_USER, "Invalid Tao type.");
   }
