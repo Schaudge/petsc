@@ -1,5 +1,5 @@
 #include <petsc/private/taoimpl.h>
-#include <petsc/private/dmimpl.h> /*I "petscdm.h" I*/
+#include <petsc/private/dmimpl.h>            /*I "petscdm.h" I*/
 #include <../src/tao/proximal/impls/fb/fb.h> /*I "petsctao.h" I*/
 #include <../src/tao/proximal/impls/cv/cv.h> /*I "petsctao.h" I*/
 
@@ -24,7 +24,7 @@
 PetscErrorCode TaoPSSetLipschitz(Tao tao, PetscReal lip)
 {
   TaoType   type;
-  PetscBool isfb,iscv;
+  PetscBool isfb, iscv;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
@@ -65,7 +65,7 @@ PetscErrorCode TaoPSSetLipschitz(Tao tao, PetscReal lip)
 PetscErrorCode TaoPSSetNonSmoothTerm(Tao tao, DM dm, PetscReal scale)
 {
   TaoType   type;
-  PetscBool isfb,iscv;
+  PetscBool isfb, iscv;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
@@ -127,9 +127,9 @@ PetscErrorCode TaoPSSetNonSmoothTermWithLinearMap(Tao tao, DM dm, Mat mat, Petsc
       PetscCall(PetscObjectReference((PetscObject)mat));
     }
     PetscValidLogicalCollectiveReal(tao, norm, 4);
-    cv->h_prox      = dm;
-    cv->h_lmap      = mat;
-    cv->h_scale     = scale;
+    cv->h_prox  = dm;
+    cv->h_lmap  = mat;
+    cv->h_scale = scale;
     if (norm) {
       cv->h_lmap_norm   = norm;
       cv->lmap_norm_set = PETSC_TRUE;
@@ -157,8 +157,8 @@ PetscErrorCode TaoPSSetNonSmoothTermWithLinearMap(Tao tao, DM dm, Mat mat, Petsc
 PetscErrorCode TaoPSSetSmoothTerm(Tao tao, DM dm, PetscReal scale)
 {
   TaoType   type;
-  PetscBool isfb,iscv;
-  DMTao   tdm;
+  PetscBool isfb, iscv;
+  DMTao     tdm;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
@@ -200,7 +200,7 @@ PetscErrorCode TaoPSSetSmoothTerm(Tao tao, DM dm, PetscReal scale)
 PetscErrorCode TaoPSUseAcceleration(Tao tao, PetscBool flag)
 {
   TaoType   type;
-  PetscBool isfb,iscv;
+  PetscBool isfb, iscv;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
@@ -236,7 +236,7 @@ PetscErrorCode TaoPSUseAcceleration(Tao tao, PetscBool flag)
 PetscErrorCode TaoPSUseAdaptiveStep(Tao tao, PetscBool flag)
 {
   TaoType   type;
-  PetscBool isfb,iscv;
+  PetscBool isfb, iscv;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);

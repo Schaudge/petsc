@@ -6,7 +6,7 @@
 #include <petsc/private/taoimpl.h>
 #include <petsc/private/taolinesearchimpl.h>
 
-static PetscBool  cited = PETSC_FALSE;
+static PetscBool  cited      = PETSC_FALSE;
 static const char citation[] = "@article{latafat2023adaptive,\n"
                                "title={Adaptive proximal algorithms for convex optimization under local Lipschitz continuity of the gradient},\n"
                                "author={Latafat, Puya and Themelis, Andreas and Stella, Lorenzo and Patrinos, Panagiotis},\n"
@@ -39,7 +39,7 @@ static PetscErrorCode TaoCV_Stepsize_With_LS_Private(Tao tao)
 
   PetscFunctionBegin;
   // TODO should we use eta for norm estimate, or just use h_map_norm? set bool is still false
-  xi  = cv->pd_ratio * tao->step * cv->eta * (1+tao->gatol);
+  xi = cv->pd_ratio * tao->step * cv->eta * (1 + tao->gatol);
   xi *= xi;
 
   PetscCall(VecWAXPY(cv->workvec, -1., cv->grad_old, tao->gradient));
@@ -48,30 +48,30 @@ static PetscErrorCode TaoCV_Stepsize_With_LS_Private(Tao tao)
   PetscCall(VecNorm(cv->workvec2, NORM_2, &xdiffnorm));
   PetscCall(VecNorm(cv->workvec, NORM_2, &graddiffnorm));
 
-  L = (xdiffnorm == 0) ? 0 : grad_x_dot / (xdiffnorm*xdiffnorm);
-  C = (grad_x_dot == 0) ? 0 : (graddiffnorm*graddiffnorm) / grad_x_dot;
-  D = tao->step* L * (tao->step * C - 1);
+  L = (xdiffnorm == 0) ? 0 : grad_x_dot / (xdiffnorm * xdiffnorm);
+  C = (grad_x_dot == 0) ? 0 : (graddiffnorm * graddiffnorm) / grad_x_dot;
+  D = tao->step * L * (tao->step * C - 1);
 
-//  cv->h_lmap_norm *= cv->R;
+  //  cv->h_lmap_norm *= cv->R;
   cv->eta *= cv->R;
 
   PetscInt iter = 0;
   while (1) {
     min1      = tao->step * PetscSqrtReal(1 + tao->step / cv->step_old);
     min2      = 1 / (2 * cv->nu * cv->pd_ratio * cv->eta);
-    temp      = 1 - 4*xi;
+    temp      = 1 - 4 * xi;
     temp2     = cv->pd_ratio * cv->eta * tao->step; //Unlike no linesearch, this "xi" uses updated norm estimate
-    temp3     = PetscSqrtReal(D*D + temp*temp2*temp2);
-    min3      = tao->step * PetscSqrtReal(temp / (2*(1+tao->gatol)*(temp3 +D)));
+    temp3     = PetscSqrtReal(D * D + temp * temp2 * temp2);
+    min3      = tao->step * PetscSqrtReal(temp / (2 * (1 + tao->gatol) * (temp3 + D)));
     step_new  = PetscMin(min1, PetscMin(min2, min3));
     rho       = step_new / tao->step;
-    cv->sigma = cv->pd_ratio*cv->pd_ratio*step_new;
+    cv->sigma = cv->pd_ratio * cv->pd_ratio * step_new;
 
     /* dualvec_work: w = y + sigma *((1+rho) * Ax - rho * Ax_old) */
     PetscCall(VecWAXPY(cv->dualvec_work, -cv->sigma * rho, cv->Ax_old, tao->dualvec));
-    PetscCall(VecAXPY(cv->dualvec_work, cv->sigma*(1+rho), cv->Ax));
+    PetscCall(VecAXPY(cv->dualvec_work, cv->sigma * (1 + rho), cv->Ax));
     /* dualvec: y = prox_h*(w, sigma) */
-    PetscCall(DMTaoApplyProximalMap(cv->h_prox, cv->reg, cv->sigma*cv->h_scale, cv->dualvec_work, cv->dualvec_test, PETSC_TRUE));
+    PetscCall(DMTaoApplyProximalMap(cv->h_prox, cv->reg, cv->sigma * cv->h_scale, cv->dualvec_work, cv->dualvec_test, PETSC_TRUE));
     /* workvec : A^T * y_test */
     PetscCall(MatMultTranspose(cv->h_lmap, cv->dualvec_test, cv->workvec));
     /* norm1 = norm(ATy_test - ATy) */
@@ -100,7 +100,7 @@ static PetscErrorCode TaoCV_Stepsize_No_LS_Private(Tao tao)
   PetscReal xi, grad_x_dot, xdiffnorm, graddiffnorm, L, C, D, min1, min2, min3, temp, temp2;
 
   PetscFunctionBegin;
-  xi  = cv->pd_ratio * tao->step * cv->h_lmap_norm;
+  xi = cv->pd_ratio * tao->step * cv->h_lmap_norm;
   xi *= xi;
 
   PetscCall(VecWAXPY(cv->workvec, -1., cv->grad_old, tao->gradient));
@@ -109,27 +109,27 @@ static PetscErrorCode TaoCV_Stepsize_No_LS_Private(Tao tao)
   PetscCall(VecNorm(cv->workvec2, NORM_2, &xdiffnorm));
   PetscCall(VecNorm(cv->workvec, NORM_2, &graddiffnorm));
 
-  L = (xdiffnorm == 0) ? 0 : grad_x_dot / (xdiffnorm*xdiffnorm);
-  C = (grad_x_dot == 0) ? 0 : (graddiffnorm*graddiffnorm) / grad_x_dot;
-  D = tao->step* L * (tao->step * C - 1);
+  L = (xdiffnorm == 0) ? 0 : grad_x_dot / (xdiffnorm * xdiffnorm);
+  C = (grad_x_dot == 0) ? 0 : (graddiffnorm * graddiffnorm) / grad_x_dot;
+  D = tao->step * L * (tao->step * C - 1);
 
   min1         = tao->step * PetscSqrtReal(1 + tao->step / cv->step_old);
   min2         = 1 / (2 * cv->nu * cv->pd_ratio * cv->h_lmap_norm);
-  temp         = 1 - 4*xi*(1+tao->gatol)*(1+tao->gatol);
-  temp2        = PetscSqrtReal(D*D + xi*temp);
-  min3         = tao->step * PetscSqrtReal(temp / (2*(1+tao->gatol)*(temp2 +D)));
+  temp         = 1 - 4 * xi * (1 + tao->gatol) * (1 + tao->gatol);
+  temp2        = PetscSqrtReal(D * D + xi * temp);
+  min3         = tao->step * PetscSqrtReal(temp / (2 * (1 + tao->gatol) * (temp2 + D)));
   cv->step_old = tao->step;
   tao->step    = PetscMin(min1, PetscMin(min2, min3));
-  cv->sigma    = cv->pd_ratio*cv->pd_ratio*tao->step;
+  cv->sigma    = cv->pd_ratio * cv->pd_ratio * tao->step;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode TaoSolve_CV(Tao tao)
 {
-  TAO_CV                      *cv = (TAO_CV *)tao->data;
-  PetscReal                    f, gnorm, lip, rho;
-  PetscReal                    pri_res_norm, dual_res_norm, g_val, h_val;
-//  TaoLineSearchConvergedReason ls_status = TAOLINESEARCH_CONTINUE_ITERATING;
+  TAO_CV   *cv = (TAO_CV *)tao->data;
+  PetscReal f, gnorm, lip, rho;
+  PetscReal pri_res_norm, dual_res_norm, g_val, h_val;
+  //  TaoLineSearchConvergedReason ls_status = TAOLINESEARCH_CONTINUE_ITERATING;
 
   PetscFunctionBegin;
   PetscCheck(tao->step >= 0, PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Stepsize cannot be negative");
@@ -143,9 +143,9 @@ static PetscErrorCode TaoSolve_CV(Tao tao)
   //TODO bunch of check/assert about combinations...
   cv->lip = lip;
 
-  if (tao->step == 0 && cv->h_lmap_norm > 0) tao->step = 1 / (2* cv->nu * cv->pd_ratio * cv->h_lmap_norm);
-  else if (tao->step == 0 && cv->h_lmap_norm == 0) tao->step = 1 / (2* cv->nu * cv->pd_ratio * cv->eta);
-  cv->sigma = tao->step* cv->pd_ratio * cv->pd_ratio;
+  if (tao->step == 0 && cv->h_lmap_norm > 0) tao->step = 1 / (2 * cv->nu * cv->pd_ratio * cv->h_lmap_norm);
+  else if (tao->step == 0 && cv->h_lmap_norm == 0) tao->step = 1 / (2 * cv->nu * cv->pd_ratio * cv->eta);
+  cv->sigma = tao->step * cv->pd_ratio * cv->pd_ratio;
 
   cv->step_old = tao->step;
 
@@ -171,8 +171,8 @@ static PetscErrorCode TaoSolve_CV(Tao tao)
     PetscCall(VecAXPY(cv->workvec, -tao->step, cv->ATy));
 
     /* x = prog_g(v, step) */
-    PetscCall(VecCopy(tao->solution, cv->x_old));//TODO Axprev, gradprev copy here
-    PetscCall(DMTaoApplyProximalMap(cv->g_prox, cv->reg, tao->step*cv->g_scale, cv->workvec, tao->solution, PETSC_FALSE));
+    PetscCall(VecCopy(tao->solution, cv->x_old)); //TODO Axprev, gradprev copy here
+    PetscCall(DMTaoApplyProximalMap(cv->g_prox, cv->reg, tao->step * cv->g_scale, cv->workvec, tao->solution, PETSC_FALSE));
     /* update Ax, and grad */
     PetscCall(VecCopy(cv->Ax, cv->Ax_old));
     PetscCall(VecCopy(tao->gradient, cv->grad_old));
@@ -180,7 +180,7 @@ static PetscErrorCode TaoSolve_CV(Tao tao)
     PetscCall(TaoCV_ObjGrad_Private(tao, tao->solution, &f, tao->gradient));
     /* workvec = (v - x)/step + grad_x + ATy */
     PetscCall(VecAXPY(cv->workvec, -1., tao->solution));
-    PetscCall(VecScale(cv->workvec, 1/tao->step));
+    PetscCall(VecScale(cv->workvec, 1 / tao->step));
     PetscCall(VecAXPBYPCZ(cv->workvec, 1., 1., 1., tao->gradient, cv->ATy));
     PetscCall(VecNorm(cv->workvec, NORM_2, &pri_res_norm));
 
@@ -190,11 +190,11 @@ static PetscErrorCode TaoSolve_CV(Tao tao)
       rho = tao->step / cv->step_old;
 
       /* dualvec_work: w = y + sigma *((1+rho) * Ax - rho * Ax_old) */
-      PetscCall(VecWAXPY(cv->dualvec_work, -cv->sigma*rho, cv->Ax_old, tao->dualvec));
-      PetscCall(VecAXPY(cv->dualvec_work, cv->sigma * (1+rho), cv->Ax));
+      PetscCall(VecWAXPY(cv->dualvec_work, -cv->sigma * rho, cv->Ax_old, tao->dualvec));
+      PetscCall(VecAXPY(cv->dualvec_work, cv->sigma * (1 + rho), cv->Ax));
 
       /* dualvec: y = prox_h*(w, sigma) */
-      PetscCall(DMTaoApplyProximalMap(cv->h_prox, cv->reg, cv->sigma*cv->h_scale, cv->dualvec_work, tao->dualvec, PETSC_TRUE));
+      PetscCall(DMTaoApplyProximalMap(cv->h_prox, cv->reg, cv->sigma * cv->h_scale, cv->dualvec_work, tao->dualvec, PETSC_TRUE));
     } else {
       PetscCall(TaoCV_Stepsize_With_LS_Private(tao)); //prox_h is done inside this routine for linesearch version
       //calling this a linesearch a-la Armijo is a strech....
@@ -204,24 +204,24 @@ static PetscErrorCode TaoSolve_CV(Tao tao)
     }
 
     PetscCall(VecAXPY(cv->dualvec_work, -1., tao->dualvec));
-    PetscCall(VecScale(cv->dualvec_work, 1/cv->sigma));
+    PetscCall(VecScale(cv->dualvec_work, 1 / cv->sigma));
     PetscCall(VecAXPY(cv->dualvec_work, -1., cv->Ax));
     PetscCall(VecNorm(cv->dualvec_work, NORM_2, &dual_res_norm));
 
-    tao->residual = PetscSqrtReal(pri_res_norm*pri_res_norm) + PetscSqrtReal(dual_res_norm*dual_res_norm);
+    tao->residual = PetscSqrtReal(pri_res_norm * pri_res_norm) + PetscSqrtReal(dual_res_norm * dual_res_norm);
 
     PetscCall(DMTaoComputeObjective(cv->g_prox, tao->solution, &g_val));
     g_val *= cv->g_scale;
     PetscCall(DMTaoComputeObjective(cv->h_prox, cv->Ax, &h_val));
     h_val *= cv->h_scale;
     /* convergence test */
-    PetscCall(TaoLogConvergenceHistory(tao, f+g_val+h_val, tao->residual, 0.0, tao->ksp_its));
-    PetscCall(TaoMonitor(tao, tao->niter, f+g_val+h_val, tao->residual, 0.0, tao->step));
+    PetscCall(TaoLogConvergenceHistory(tao, f + g_val + h_val, tao->residual, 0.0, tao->ksp_its));
+    PetscCall(TaoMonitor(tao, tao->niter, f + g_val + h_val, tao->residual, 0.0, tao->step));
     PetscUseTypeMethod(tao, convergencetest, tao->cnvP);
     tao->niter++;
 
     /* post-processing */
-    PetscCall(MatMultTranspose(cv->h_lmap, tao->dualvec, cv->ATy));//TODO dont need this for LS version.
+    PetscCall(MatMultTranspose(cv->h_lmap, tao->dualvec, cv->ATy)); //TODO dont need this for LS version.
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -343,28 +343,28 @@ PETSC_EXTERN PetscErrorCode TaoCreate_CV(Tao tao)
   PetscFunctionBegin;
   PetscCall(PetscNew(&cv));
 
-  tao->ops->destroy           = TaoDestroy_CV;
-  tao->ops->setup             = TaoSetUp_CV;
-  tao->ops->setfromoptions    = TaoSetFromOptions_CV;
-  tao->ops->view              = TaoView_CV;
-  tao->ops->solve             = TaoSolve_CV;
-  tao->ops->convergencetest   = TaoDefaultConvergenceTest;
+  tao->ops->destroy         = TaoDestroy_CV;
+  tao->ops->setup           = TaoSetUp_CV;
+  tao->ops->setfromoptions  = TaoSetFromOptions_CV;
+  tao->ops->view            = TaoView_CV;
+  tao->ops->solve           = TaoSolve_CV;
+  tao->ops->convergencetest = TaoDefaultConvergenceTest;
 
   PetscCall(TaoParametersInitialize(tao));
   PetscObjectParameterSetDefault(tao, max_it, 1000);
 
   tao->data = (void *)cv;
 
-  cv->h_scale     = 1.;
-  cv->g_scale     = 1.;
-  cv->gnorm_norm  = 0.;
-  cv->tol         = 1.e-6;
-  cv->R           = 0.95;
-  cv->r           = 2.;
-  cv->pd_ratio    = 0.01;
-  cv->nu          = 1.2;
-  cv->eta         = 1.;
-  cv->smoothterm  = NULL;
+  cv->h_scale    = 1.;
+  cv->g_scale    = 1.;
+  cv->gnorm_norm = 0.;
+  cv->tol        = 1.e-6;
+  cv->R          = 0.95;
+  cv->r          = 2.;
+  cv->pd_ratio   = 0.01;
+  cv->nu         = 1.2;
+  cv->eta        = 1.;
+  cv->smoothterm = NULL;
 
   PetscCall(TaoLineSearchCreate(PetscObjectComm((PetscObject)tao), &tao->linesearch));
   PetscCall(PetscObjectIncrementTabLevel((PetscObject)tao->linesearch, (PetscObject)tao, 1));

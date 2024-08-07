@@ -41,7 +41,7 @@ static PetscErrorCode TaoFB_ADAPGM_Update_Stepsize_Private(Tao tao)
 
   L            = grad_x_dot / xdiff;
   C            = graddiff / grad_x_dot;
-  min1         = tao->step * PetscSqrtReal(1+ tao->step/fb->step_old);
+  min1         = tao->step * PetscSqrtReal(1 + tao->step / fb->step_old);
   min2         = tao->step / (2 * PetscSqrtReal(PetscMax(tao->step * L * (tao->step * C - 1), 0)));
   fb->step_old = tao->step;
   tao->step    = PetscMin(min1, min2);
@@ -50,7 +50,7 @@ static PetscErrorCode TaoFB_ADAPGM_Update_Stepsize_Private(Tao tao)
 
 static PetscErrorCode TaoFB_ComputeResidual_And_LogConv_Private(Tao tao, PetscReal f)
 {
-  TAO_FB    *fb = (TAO_FB *)tao->data;
+  TAO_FB   *fb = (TAO_FB *)tao->data;
   PetscReal gnorm0, gradnorm;
 
   PetscFunctionBegin;
@@ -71,7 +71,7 @@ static PetscErrorCode TaoFB_ComputeResidual_And_LogConv_Private(Tao tao, PetscRe
     PetscCall(VecWAXPY(fb->workvec2, -tao->step, fb->grad_old, fb->x_old));
     PetscCall(VecNorm(fb->workvec2, NORM_2, &gnorm0));
   }
-  gnorm0     /= tao->step;
+  gnorm0 /= tao->step;
   tao->gnorm0 = PetscMax(gradnorm, gnorm0) + tao->gttol;
   if (PetscIsInfOrNanReal(tao->gnorm0)) {
     PetscCall(PetscInfo(tao, "Failed to converged, relative residual norm is Inf or NaN\n"));
@@ -165,7 +165,7 @@ static PetscErrorCode TaoSolve_FB(Tao tao)
 
     /* Note: DMTaoApplyProximalMap's scale is 1/(2*step) */
     PetscCall(VecWAXPY(fb->dualvec, -tao->step, tao->gradient, tao->solution));
-    PetscCall(DMTaoApplyProximalMap(fb->proxterm, fb->reg, tao->step*fb->prox_scale, fb->dualvec, tao->solution, PETSC_FALSE));
+    PetscCall(DMTaoApplyProximalMap(fb->proxterm, fb->reg, tao->step * fb->prox_scale, fb->dualvec, tao->solution, PETSC_FALSE));
     //PetscCall(TaoFB_Obj_Private(tao, tao->solution, &f));
     tao->nproxs++;
 
@@ -194,12 +194,12 @@ static PetscErrorCode TaoSolve_FB(Tao tao)
 
     PetscCall(DMTaoComputeObjective(fb->proxterm, tao->solution, &f_prox));
     f_prox *= fb->prox_scale;
-    PetscCall(TaoFB_ComputeResidual_And_LogConv_Private(tao, f+f_prox));
+    PetscCall(TaoFB_ComputeResidual_And_LogConv_Private(tao, f + f_prox));
 
     if (!fb->use_accel && !fb->use_adapt) {
       /* fixed and backtracking PGM */
       PetscCall(TaoFB_ObjGrad_Private(tao, tao->solution, &f, tao->gradient));
-     } else if (fb->use_accel) {
+    } else if (fb->use_accel) {
       /* Nesterov-type */
       fb->t_fista_old = fb->t_fista;
       fb->t_fista     = (1. + PetscSqrtReal(1. + 4. * fb->t_fista_old * fb->t_fista_old)) / 2.;
@@ -207,11 +207,11 @@ static PetscErrorCode TaoSolve_FB(Tao tao)
 
       PetscCall(VecCopy(tao->solution, fb->x_old));
       PetscCall(VecCopy(tao->gradient, fb->grad_old));
-      PetscCall(VecAXPBY(tao->solution, -fb->fista_beta, 1+fb->fista_beta, fb->x_old));
+      PetscCall(VecAXPBY(tao->solution, -fb->fista_beta, 1 + fb->fista_beta, fb->x_old));
       PetscCall(TaoFB_ObjGrad_Private(tao, tao->solution, &f, tao->gradient));
-     } else if (fb->use_adapt) {
-       PetscCall(TaoFB_ADAPGM_Update_Stepsize_Private(tao));
-     }
+    } else if (fb->use_adapt) {
+      PetscCall(TaoFB_ADAPGM_Update_Stepsize_Private(tao));
+    }
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -312,12 +312,12 @@ PETSC_EXTERN PetscErrorCode TaoCreate_FB(Tao tao)
 
   tao->gttol = 1.e-8;
 
-  tao->ops->destroy           = TaoDestroy_FB;
-  tao->ops->setup             = TaoSetUp_FB;
-  tao->ops->setfromoptions    = TaoSetFromOptions_FB;
-  tao->ops->view              = TaoView_FB;
-  tao->ops->solve             = TaoSolve_FB;
-  tao->ops->convergencetest   = TaoDefaultConvergenceTest;
+  tao->ops->destroy         = TaoDestroy_FB;
+  tao->ops->setup           = TaoSetUp_FB;
+  tao->ops->setfromoptions  = TaoSetFromOptions_FB;
+  tao->ops->view            = TaoView_FB;
+  tao->ops->solve           = TaoSolve_FB;
+  tao->ops->convergencetest = TaoDefaultConvergenceTest;
 
   PetscCall(TaoParametersInitialize(tao));
   PetscObjectParameterSetDefault(tao, max_it, 1000);
