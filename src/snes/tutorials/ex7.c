@@ -1937,7 +1937,7 @@ static PetscErrorCode TestCoarsening(MPI_Comm comm, DM dm, Mat M, Mat MC, Mat R,
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 // PV test
-// ./extest -dm_plex_dim 5 -dm_plex_shape hypercubic -dm_plex_box_faces 8,8,8,8,8 -grid_load_type 3 -grid_file ${GRID_LATTICE_FILE} --grid 8.8.8.8 -use_pv -eig_eps_monitor -eig_eps_nev 200 -eig_eps_smallest_real
+// ./ex7 -dm_plex_dim 5 -dm_plex_shape hypercubic -dm_plex_box_faces 8,8,8,8,8 -grid_load_type 3 -grid_file ${GRID_LATTICE_FILE} --grid 8.8.8.8 -use_pv -eig_eps_monitor -eig_eps_nev 200 -eig_eps_smallest_real
 int main(int argc, char **argv)
 {
   DM     dm, cdm;
@@ -2029,10 +2029,12 @@ int main(int argc, char **argv)
   return 0;
 }
 /*
-./extest -dm_plex_dim 4 -dm_plex_shape hypercubic -dm_plex_box_faces 8,8,8,8 -dm_view -coarsen -coarse_dm_plex_dim 4 -coarse_dm_plex_shape hypercubic -coarse_dm_plex_box_faces 4,4,4,4 -grid_file ckpoint_lat.4000 -grid_load_type 2 -eig_eps_type krylovschur -eig_eps_monitor -eig_eps_view -eig_eps_nev 100 -eig_eps_non_hermitian -eig_eps_max_it 10000 --grid 8.8.8.8 -ksp_fine_ksp_type bcgs -ksp_fine_ksp_rtol 1e-12 -ksp_fine_pc_type none -ksp_fine_ksp_max_it 10000 -ksp_coarse_ksp_type bcgs -ksp_coarse_ksp_pc_type none -ksp_coarse_ksp_rtol 1e-12 -ksp_coarse_ksp_max_it 10000 -ksp_fine_ksp_monitor -ksp_coarse_ksp_monitor  -ksp_gmres_breakdown_tolerance 1000 -ksp_monitor -ksp_gmres_restart 1000 -use_fine_and_coarse -ksp_smoother_ksp_initial_guess_nonzero -ksp_smoother_ksp_type bcgs -ksp_smoother_ksp_rtol 1e-12 -ksp_smoother_pc_type none -ksp_smoother_ksp_max_its 1000 -ksp_smoother_ksp_monitor -write_sol -save_eigenbasis -temperature 0.012 >> test_t0012.out
+./ex7 -dm_plex_dim 4 -dm_plex_shape hypercubic -dm_plex_box_faces 8,8,8,8 -dm_view -coarsen -coarse_dm_plex_dim 4 -coarse_dm_plex_shape hypercubic -coarse_dm_plex_box_faces 4,4,4,4 -grid_file ckpoint_lat.4000 -grid_load_type 2 -eig_eps_type krylovschur -eig_eps_monitor -eig_eps_view -eig_eps_nev 100 -eig_eps_non_hermitian -eig_eps_max_it 10000 --grid 8.8.8.8 -ksp_fine_ksp_type bcgs -ksp_fine_ksp_rtol 1e-12 -ksp_fine_pc_type none -ksp_fine_ksp_max_it 10000 -ksp_coarse_ksp_type bcgs -ksp_coarse_ksp_pc_type none -ksp_coarse_ksp_rtol 1e-12 -ksp_coarse_ksp_max_it 10000 -ksp_fine_ksp_monitor -ksp_coarse_ksp_monitor  -ksp_gmres_breakdown_tolerance 1000 -ksp_monitor -ksp_gmres_restart 1000 -use_fine_and_coarse -ksp_smoother_ksp_initial_guess_nonzero -ksp_smoother_ksp_type bcgs -ksp_smoother_ksp_rtol 1e-12 -ksp_smoother_pc_type none -ksp_smoother_ksp_max_its 1000 -ksp_smoother_ksp_monitor -write_sol -save_eigenbasis -temperature 0.012 >> test_t0012.out
+
+./ex7 -dm_plex_dim 5 -dm_plex_shape hypercubic -dm_plex_box_faces 8,8,8,8,8 -grid_load_type 3 -grid_file ${GRID_LATTICE_FILE} --grid 8.8.8.8 -log_view -run_squared_domain_wall 1 -eig_eps_nev 100 -eig_eps_hermitian -eig_eps_tol 1e-16 -eig_eps_monitor -log_view -eig_eps_smallest_real  > output/square_dw_smallest_log_8x8.out
 
 for DW run that converges, use cgne w/
-./extest -dm_plex_dim 5 -dm_plex_shape hypercubic -dm_plex_box_faces 16,16,16,16,32 -dm_view -sol_view -ksp_fine_ksp_type cgne -ksp_fine_ksp_monitor -ksp_fine_ksp_view -ksp_fine_ksp_rtol 1e-12 -ksp_fine_ksp_atol 1e-50 -ksp_fine_ksp_max_it 1000 -ksp_fine_pc_type none -grid_load_type 3 -grid_file ${GRID_LATTICE_FILE} --grid 16.16.16.32 -log_view -run_domain_wall 1
+./ex7 -dm_plex_dim 5 -dm_plex_shape hypercubic -dm_plex_box_faces 16,16,16,16,32 -dm_view -sol_view -ksp_fine_ksp_type cgne -ksp_fine_ksp_monitor -ksp_fine_ksp_view -ksp_fine_ksp_rtol 1e-12 -ksp_fine_ksp_atol 1e-50 -ksp_fine_ksp_max_it 1000 -ksp_fine_pc_type none -grid_load_type 3 -grid_file ${GRID_LATTICE_FILE} --grid 16.16.16.32 -log_view -run_domain_wall 1
 */
 /*TEST
   build:

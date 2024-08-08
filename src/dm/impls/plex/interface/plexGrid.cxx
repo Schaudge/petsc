@@ -327,7 +327,7 @@ static PetscErrorCode FormGauge5D(DM  dm, GRID_LOAD_TYPE type, PetscBool isPV, P
   p.M5   = 1.8;
   if (isPV) p.m = 1.0;
   else p.m = 0.01;
-  p.Ls   = 8;
+  p.Ls   = Ls;
 
   PetscFunctionBegin;
   if (!isPV) Grid::Grid_init(&argc,&argv);
