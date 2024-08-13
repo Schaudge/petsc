@@ -1971,7 +1971,7 @@ int main(int argc, char **argv)
     PetscCall(PetscPrintf(comm, "Running squared domain wall operator.\n"));
     PetscCall(SetUpSqrDW(dm, &M, 8, &user, argc, argv));
     PetscCall(MatSetDM(M, dm));
-    PetscCall(SolveDW_Fine_Eig(comm, dm, M, &user));
+    PetscCall(SolveDW_Fine(comm, dm, M, &user));
   }
   else if (user.domainWall) {
     PetscCall(PetscPrintf(comm, "Running standard domain wall operator.\n"));

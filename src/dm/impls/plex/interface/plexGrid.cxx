@@ -237,7 +237,7 @@ PetscErrorCode CheckDwfWithGrid(DM dm, Mat dw, Vec psi,Vec res)
 {
   DomainWallParameters p;
   p.M5   = 1.8;
-  p.m    = 0.01;
+  p.m    = 0.001;
   p.Ls   = 8;
 
   PetscFunctionBegin;
@@ -326,7 +326,7 @@ static PetscErrorCode FormGauge5D(DM  dm, GRID_LOAD_TYPE type, PetscBool isPV, P
 
   p.M5   = 1.8;
   if (isPV) p.m = 1.0;
-  else p.m = 0.01;
+  else p.m = 0.001;
   p.Ls   = Ls;
 
   PetscFunctionBegin;
