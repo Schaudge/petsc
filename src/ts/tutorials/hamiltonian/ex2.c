@@ -2244,4 +2244,9 @@ int main(int argc, char **argv)
                  -em_fieldsplit_field_pc_factor_mat_solver_type superlu_dist \
                -em_fieldsplit_potential_pc_type svd
 
+   test:
+     suffix: paper
+     nsize: 8
+     args: -dm_plex_dim 2 -dm_plex_simplex 0 -dm_plex_box_bd periodic,none -dm_plex_box_faces 160,1 -dm_view -dm_plex_box_lower 0,-0.5 -dm_plex_box_upper 12.5664,0.5 -dm_swarm_num_species 1 -vdm_plex_dim 1 -vdm_plex_simplex 0 -vdm_plex_box_faces 2000 -vdm_plex_box_lower -10 -vdm_plex_box_upper 10 -petscspace_degree 1 -em_type primal -em_pc_type svd -em_snes_atol 1.e-12 -ts_type basicsymplectic -ts_basicsymplectic_type 1 -ts_max_time 10 -ts_max_steps 1000 -ts_dt 0.3 -fake_1D -cosine_coefficients 0.01,0.5 -charges -1.0,1.0 -perturbed_weights -monitor_efield -dm_plex_hash_location -sw_view
+
 TEST*/
