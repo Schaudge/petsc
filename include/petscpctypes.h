@@ -76,6 +76,7 @@ typedef const char *PCType;
 #define PCHPDDM              "hpddm"
 #define PCH2OPUS             "h2opus"
 #define PCMPI                "mpi"
+#define PCCARRIER            "carrier"
 
 /*E
     PCSide - If the preconditioner is to be applied to the left, right
@@ -548,3 +549,6 @@ typedef enum {
   PCGAMG_LAYOUT_COMPACT,
   PCGAMG_LAYOUT_SPREAD
 } PCGAMGLayoutType;
+
+typedef const char *PCCarrierType;
+#define PC_CARRIER_GMRES "gmres"
