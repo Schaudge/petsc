@@ -1085,6 +1085,68 @@ static PetscErrorCode DMPlexCreateNodeNumbering(DM dm, PetscInt *num_local_nodes
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static void evaluate_coordinates(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar xnew[])
+{
+  for (PetscInt i = 0; i < dim; i++) xnew[i] = x[i];
+}
+
+// See MR !5970 for the original implementation and issue 1506 for discussion of why this needs to exist now
+// tl;dr DMCreateInterpolation doesn't work with isoperiodic boundaries
+PetscErrorCode DMSetCoordinateDisc_LocalProjection(DM dm, PetscFE disc, PetscBool project)
+{
+  DM        cdmOld;
+  Vec       coordsOld;
+  PetscFE   discOld;
+  PetscBool same_space;
+  DMField   cf;
+  PetscFunctionBegin;
+
+  PetscCall(DMGetCoordinateDM(dm, &cdmOld));
+  PetscCall(PetscObjectReference((PetscObject)cdmOld));
+  PetscCall(DMGetField(cdmOld, 0, NULL, (PetscObject *)&discOld));
+  PetscCall(DMGetCoordinates(dm, &coordsOld));
+  {
+    PetscDualSpace dsOld, ds;
+    PetscCall(PetscFEGetDualSpace(discOld, &dsOld));
+    PetscCall(PetscFEGetDualSpace(disc, &ds));
+    PetscCall(PetscDualSpaceEqual(dsOld, ds, &same_space));
+  }
+  PetscCall(DMGetCoordinateField(dm, &cf));
+  PetscCall(PetscObjectReference((PetscObject)cf));
+
+  PetscCall(DMSetCoordinateDisc(dm, disc, PETSC_FALSE));
+
+  if (project) {
+    DM  cdmNew;
+    Vec coordsNew;
+    PetscCall(DMGetCoordinateDM(dm, &cdmNew));
+    PetscCall(DMCreateGlobalVector(cdmNew, &coordsNew));
+
+    if (same_space) {
+      PetscCall(VecCopy(coordsOld, coordsNew));
+    } else {
+      void (*funcs[])(PetscInt, PetscInt, PetscInt, const PetscInt[], const PetscInt[], const PetscScalar[], const PetscScalar[], const PetscScalar[], const PetscInt[], const PetscInt[], const PetscScalar[], const PetscScalar[], const PetscScalar[], PetscReal, const PetscReal[], PetscInt, const PetscScalar[], PetscScalar[]) = {evaluate_coordinates};
+      // We can't call DMProjectField directly because it depends on KSP for DMGlobalToLocalSolve(), but we can use the core strategy
+      Vec X_new_loc;
+      PetscCall(DMCreateLocalVector(cdmNew, &X_new_loc));
+      PetscCall(DMSetCoordinateDM(cdmNew, cdmOld));
+      // See DMPlexRemapGeometry() for a similar pattern handling the coordinate field
+      cdmNew->coordinates[0].field = cf;
+      PetscCall(DMProjectFieldLocal(cdmNew, 0.0, NULL, funcs, INSERT_VALUES, X_new_loc));
+      cdmNew->coordinates[0].field = NULL;
+      PetscCall(DMSetCoordinateDM(cdmNew, NULL));
+      PetscCall(DMLocalToGlobal(cdmNew, X_new_loc, INSERT_VALUES, coordsNew));
+      PetscCall(VecDestroy(&X_new_loc));
+
+      PetscCall(DMSetCoordinates(dm, coordsNew));
+      PetscCall(VecDestroy(&coordsNew));
+    }
+  }
+  PetscCall(DMDestroy(&cdmOld));
+  PetscCall(DMFieldDestroy(&cf));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode DMView_PlexCGNS(DM dm, PetscViewer viewer)
 {
   PetscViewer_CGNS *cgv = (PetscViewer_CGNS *)viewer->data;
@@ -1156,7 +1218,7 @@ PetscErrorCode DMView_PlexCGNS(DM dm, PetscViewer viewer)
       }
       PetscCall(DMPlexIsSimplex(dm, &is_simplex));
       PetscCall(PetscFECreateLagrange(PetscObjectComm((PetscObject)dm), topo_dim, coord_dim, is_simplex, field_order, quadrature_order, &fe));
-      PetscCall(DMSetCoordinateDisc(colloc_dm, fe, PETSC_TRUE));
+      PetscCall(DMSetCoordinateDisc_LocalProjection(colloc_dm, fe, PETSC_TRUE));
       PetscCall(PetscFEDestroy(&fe));
     } else {
       PetscCall(PetscObjectReference((PetscObject)dm));
