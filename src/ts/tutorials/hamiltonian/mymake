@@ -5,40 +5,13 @@ all: ex2
 NP=1
 NPART=32000
 NCELL=160
-
-run:
-	-${MPIEXEC} -n ${NP} ${PRE} ./ex2 ${POST} -dm_plex_dim 2 -fake_1D -dm_plex_simplex 0 -dm_plex_box_faces ${NCELL},1 -dm_plex_box_lower 0.,-0.5 -dm_plex_box_upper 12.5664,0.5 -dm_plex_box_bd periodic,none -vdm_plex_dim 1 -vdm_plex_simplex 0 -vdm_plex_box_faces ${NPART} -vdm_plex_box_lower -10 -vdm_plex_box_upper 10 -dm_swarm_num_species 1 -charges -1.,1. -cosine_coefficients 0.01,0.5 -perturbed_weights -total_weight 1. -ts_type basicsymplectic -ts_basicsymplectic_type 1 -ts_dt 0.03 -em_snes_atol 1.e-12 -em_snes_error_if_not_converged -em_ksp_error_if_not_converged -output_step 1 -check_vel_res -cosine_coefficients 0.0,0.5 -em_type primal -petscspace_degree 1 -em_pc_type svd -ts_max_time 500 -ts_max_steps 1000 -petscfe_default_quadrature_order 2 -petscspace_degree 2 -monitor_efield -options_left -log_view | tee out_${NCELL}_${NPART}.txt
-
-test:
-	-${MPIEXEC} -n ${NP} ${PRE} ./ex2 ${POST} -dm_plex_dim 2 -fake_1D -dm_plex_simplex 0 -dm_plex_box_faces 10,1 \
-             -dm_plex_box_lower 0.,-0.5 -dm_plex_box_upper 12.5664,0.5 \
-             -dm_plex_box_bd periodic,none \
-           -vdm_plex_dim 1 -vdm_plex_simplex 0 -vdm_plex_box_faces 10 \
-             -vdm_plex_box_lower -10 -vdm_plex_box_upper 10 \
-           -dm_swarm_num_species 1 -dm_swarm_num_particles 100 \
-           -charges -1.,1. \
-             -cosine_coefficients 0.01,0.5 -perturbed_weights -total_weight 1. \
-           -ts_type basicsymplectic -ts_basicsymplectic_type 1 \
-             -ts_dt 0.03 -ts_max_time 500 -ts_max_steps 10000 \
-           -em_snes_atol 1.e-12 -em_snes_error_if_not_converged -em_ksp_error_if_not_converged \
-           -output_step 1 -check_vel_res -cosine_coefficients 0.0,0.5 -em_type primal -petscspace_degree 1 -em_pc_type svd -monitor_efield
-
-two_s:
-	-${MPIEXEC} -n ${NP} ${PRE} ./ex2 ${POST} -dm_plex_dim 2 -fake_1D -dm_plex_simplex 0 -dm_plex_box_faces 36,1 \
-             -dm_plex_box_lower 0.,-0.5 -dm_plex_box_upper 12.5664,0.5 \
-             -dm_plex_box_bd periodic,none \
-           -vdm_plex_dim 1 -vdm_plex_simplex 0 -vdm_plex_box_faces 10 \
-             -vdm_plex_box_lower -3 -vdm_plex_box_upper 3 \
-           -dm_swarm_num_species 1 -twostream \
-           -charges -1.,1. -sigma 1.0e-8 \
-             -cosine_coefficients 0.01,0.5 -perturbed_weights -total_weight 1. \
-           -ts_type basicsymplectic -ts_basicsymplectic_type 2 \
-             -ts_dt 0.01 -ts_max_time 5 -ts_max_steps 10 \
-           -em_snes_atol 1.e-15 -em_snes_error_if_not_converged -em_ksp_error_if_not_converged \
-           -output_step 1 -check_vel_res -em_type primal -petscfe_default_quadrature_order 2 -petscspace_degree 2 -monitor_efield
+NSTEP=1000
 
 paper:
-	-${MPIEXEC} -n ${NP} ${PRE} ./ex2 ${POST} -dm_plex_dim 2 -dm_plex_simplex 0 -dm_plex_box_bd periodic,none -dm_plex_box_faces ${NCELL},1 -dm_view -dm_plex_box_lower 0,-0.5 -dm_plex_box_upper 12.5664,0.5 -dm_swarm_num_species 1 -vdm_plex_dim 1 -vdm_plex_simplex 0 -vdm_plex_box_faces ${NPART} -vdm_plex_box_lower -10 -vdm_plex_box_upper 10 -petscspace_degree 1 -em_type primal -em_pc_type svd -em_snes_atol 1.e-12 -ts_type basicsymplectic -ts_basicsymplectic_type 1 -ts_max_time 50 -ts_max_steps 1000 -ts_dt 0.3 -fake_1D -cosine_coefficients 0.01,0.5 -charges -1.0,1.0 -perturbed_weights -monitor_efield -dm_plex_hash_location -sw_view -log_viewxx -options_left | tee out_${NCELL}_${NPART}_paper.txt
+	-${MPIEXEC} -n ${NP} ${PRE} ./ex2 ${POST} -dm_plex_dim 2 -dm_plex_simplex 0 -dm_plex_box_bd periodic,none -dm_plex_box_faces ${NCELL},1 -dm_view -dm_plex_box_lower 0,-0.5 -dm_plex_box_upper 12.5664,0.5 -dm_swarm_num_species 1 -vdm_plex_simplex 0 -vdm_plex_box_faces ${NPART} -vdm_plex_box_lower -10 -vdm_plex_box_upper 10 -petscspace_degree 1 -em_type primal -em_pc_type svd -em_snes_atol 1.e-12 -ts_type basicsymplectic -ts_basicsymplectic_type 1 -ts_max_time 50 -ts_max_steps ${NSTEP} -ts_dt 0.3 -fake_1D -cosine_coefficients 0.01,0.5 -charges -1.0,1.0 -perturbed_weights -monitor_efield -dm_plex_hash_location -vcdm_plex_dim 2 -vdm_view -log_viewxx -options_left -vel_amr_refine 3 -quiet_start -phase_monitor ${EXTRA} | tee out_${NCELL}_${NPART}_paper.txt
+
+lldb:
+	-sudo lldb ./ex2 -- -dm_plex_dim 2 -dm_plex_simplex 0 -dm_plex_box_bd periodic,none -dm_plex_box_faces ${NCELL},1 -dm_view -dm_plex_box_lower 0,-0.5 -dm_plex_box_upper 12.5664,0.5 -dm_swarm_num_species 1 -vdm_plex_simplex 0 -vdm_plex_box_faces ${NPART} -vdm_plex_box_lower -10 -vdm_plex_box_upper 10 -petscspace_degree 1 -em_type primal -em_pc_type svd -em_snes_atol 1.e-12 -ts_type basicsymplectic -ts_basicsymplectic_type 1 -ts_max_time 50 -ts_max_steps ${NSTEP} -ts_dt 0.3 -fake_1D -cosine_coefficients 0.01,0.5 -charges -1.0,1.0 -perturbed_weights -monitor_efield -dm_plex_hash_location -vcdm_plex_dim 2 -vdm_view -log_viewxx -options_left -vel_amr_refine 3 -quiet_start -phase_monitor ${EXTRA}
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules

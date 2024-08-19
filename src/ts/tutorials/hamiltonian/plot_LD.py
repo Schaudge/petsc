@@ -34,11 +34,11 @@ for filename in sys.argv[1:]: # just one
     ncells_str = parts[1]
     npart_str = parts[2]
     stepi = 0
-    for text in open(filename,"r"): 
+    for text in open(filename,"r"):
         words = text.split()
         n = len(words)
         # Global Np = 128000 Global cells = 64
-        if n > 1 and words[0] == 'Global': 
+        if n > 1 and words[0] == 'Global':
             npart_str2 = words[3]
             ncells_str2 = words[7]
         elif n > 1 and words[0] == 'E:' and float(words[1]) > 0 :
@@ -46,7 +46,7 @@ for filename in sys.argv[1:]: # just one
             Emax[stepi] = float(words[5])
             stepi = stepi + 1
     nfiles = nfiles + 1
-#print (t_0 * Temps[:idx,0])
+print (ncells_str,npart_str,ncells_str2,npart_str2)
 #marks = ['s','o', 'D', 'P']
 styles = ['k:','bD:', 'go-', 'go:']
 styles2 = ['k:']
@@ -63,7 +63,7 @@ ylabel = r'$E_{max}$'
 df = pd.DataFrame(data=Emax[:stepi], index=Times[:stepi], columns=series_name)
 ax = df.plot(lw=1, style=styles, markersize=1, logx=False, logy=True, grid=True, legend=False)
 pstr = format(int(npart_str2), ',')
-title=r'$E_{max}$ ' + ncells_str2 + ' cells, ' + pstr  + ' particles'
+title=r'$E_{max}$ ' + ncells_str2 + ' cells; ' + pstr  + ' particles'
 ax.set_title(title, pad=20, fontdict={'fontsize':14}) # , fontdict={'fontsize':16}
 patches, labels = ax.get_legend_handles_labels()
 ax.legend(patches, labels, loc='best', fontsize=10) #, fontsize=14
@@ -75,7 +75,7 @@ xmin, xmax, ymin, ymax = plt.axis([xmin, xmax, ymin, ymax])
 #ax.set_xlabel(xlabel + normal_species + r', ($t_0=$' + t_0_arr[nfiles] + ')') #, fontdict={'fontsize':16})
 ax.set_xlabel('Time () ', fontdict={'fontsize':16}) #, fontdict={'fontsize':16})
 ax.set_ylabel(ylabel, fontdict={'fontsize':16}) #, fontdict={'fontsize':16})
-plt.savefig('E-max' + ncells_str + '-'+ npart_str + '.png', bbox_inches='tight')
+plt.savefig('E-max' + ncells_str + '-'+ npart_str2 + '.png', bbox_inches='tight')
 plt.show()
 
 #cm = sns.light_palette("green_r", as_cmap=True)
