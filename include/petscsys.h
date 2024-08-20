@@ -297,11 +297,34 @@ M*/
 .seealso: `PETSC_DECIDE`, `PETSC_IGNORE`, `PETSC_DETERMINE`, `PETSC_CURRENT`, `PETSC_UNLIMITED'
 M*/
 
+/*MC
+   PETSC_DUPLICATE - value that can be passed when specifying the size of a distributed object (such as `VecSetSizes()` and `MatSetSizes()`)
+   to indicate that the corresponding `PetscLayout` should have the type `PETSC_LAYOUT_DUPLICATE`.
+
+   Level: advanced
+
+   Example Usage:
+.vb
+   // Create a vector with 10 values that are duplicated on every process at all times
+   VecCreateMPI(comm, PETSC_DUPLICATE, 10, &v);
+
+   // Create a dense 10x10 matrix with values that are duplicated on every process at all times
+   MatCreateDense(comm, PETSC_DUPLICATE, 10, PETSC_DUPLICATE, 10, NULL, &mat1);
+
+   // Create a dense 100x10 matrix that has its rows partitioned,
+   // that can be multiplied with a duplicated vector (like v above)
+   MatCreateDense(comm, PETSC_DECIDE, 100, PETSC_DUPLICATE, 10, NULL, &mat1);
+.ve
+
+.seealso: `PETSC_DECIDE`, `PETSC_DETERMINE`, `PetscLayout`
+M*/
+
 /* These MUST be preprocessor defines! see https://gitlab.com/petsc/petsc/-/issues/1370 */
 #define PETSC_DECIDE    (-1)
 #define PETSC_DETERMINE PETSC_DECIDE
 #define PETSC_CURRENT   (-2)
 #define PETSC_UNLIMITED (-3)
+#define PETSC_DUPLICATE (-4)
 /*  PETSC_DEFAULT is deprecated in favor of PETSC_CURRENT for use in KSPSetTolerances() and similar functions */
 #define PETSC_DEFAULT PETSC_CURRENT
 
