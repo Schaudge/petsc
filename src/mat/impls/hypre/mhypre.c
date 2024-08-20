@@ -2414,6 +2414,7 @@ PETSC_EXTERN PetscErrorCode MatCreate_HYPRE(Mat B)
 #endif
 
   PetscFunctionBegin;
+  PetscHYPREInitialize();
   PetscCall(PetscNew(&hB));
 
   hB->inner_free      = PETSC_TRUE;
@@ -2479,6 +2480,5 @@ PETSC_EXTERN PetscErrorCode MatCreate_HYPRE(Mat B)
   PetscCall(MatSetVecType(B, VECCUDA));
   #endif
 #endif
-  PetscHYPREInitialize();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
