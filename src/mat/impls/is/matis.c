@@ -3677,6 +3677,17 @@ static PetscErrorCode MatSetBlockSizes_IS(Mat A, PetscInt rbs, PetscInt cbs)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode MatCreateGraph_IS(Mat A, PetscBool symmetrize, PetscBool scale, PetscReal filter, PetscInt index_size, PetscInt index[], Mat *a_Gmat)
+{
+  Mat tA;
+
+  PetscFunctionBegin;
+  PetscCall(MatISGetAssembled_Private(A, &tA));
+  PetscCall(MatCreateGraph(tA, symmetrize, scale, filter, index_size, index, a_Gmat));
+  PetscCall(MatISRestoreAssembled_Private(A, &tA));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /*MC
   MATIS - MATIS = "is" - A matrix type to be used for non-overlapping domain decomposition methods (e.g. `PCBDDC` or `KSPFETIDP`).
   This stores the matrices in globally unassembled form and the parallel matrix vector product is handled "implicitly".
@@ -3751,6 +3762,7 @@ PETSC_EXTERN PetscErrorCode MatCreate_IS(Mat A)
   A->ops->createsubmatrices       = MatCreateSubMatrices_IS;
   A->ops->increaseoverlap         = MatIncreaseOverlap_IS;
   A->ops->setblocksizes           = MatSetBlockSizes_IS;
+  A->ops->creategraph             = MatCreateGraph_IS;
 
   /* special MATIS functions */
   PetscCall(PetscObjectComposeFunction((PetscObject)A, "MatISSetLocalMatType_C", MatISSetLocalMatType_IS));
