@@ -1224,6 +1224,7 @@ static PetscErrorCode PCGAMGConstructProlongator_AGG(PC pc, Mat Amat, PetscCoars
   PetscReal     *data_w_ghost;
   PetscInt       myCrs0, nbnodes = 0, *flid_fgid;
   MatType        mtype;
+  PetscBool      ismatis;
 
   PetscFunctionBegin;
   PetscCall(PetscObjectGetComm((PetscObject)Amat, &comm));
@@ -1248,10 +1249,14 @@ static PetscErrorCode PCGAMGConstructProlongator_AGG(PC pc, Mat Amat, PetscCoars
 
   /* create prolongator, create P matrix */
   PetscCall(MatGetType(Amat, &mtype));
+  PetscCall(PetscStrcmp(mtype, MATIS, &ismatis));
   PetscCall(MatCreate(comm, &Prol));
   PetscCall(MatSetSizes(Prol, nloc * bs, nLocalSelected * col_bs, PETSC_DETERMINE, PETSC_DETERMINE));
   PetscCall(MatSetBlockSizes(Prol, bs, col_bs)); // should this be before MatSetSizes?
-  PetscCall(MatSetType(Prol, mtype));
+  if (!ismatis) PetscCall(MatSetType(Prol, mtype));
+  else { /* TODO device */
+    PetscCall(MatSetType(Prol, MATAIJ));
+  }
 #if PetscDefined(HAVE_DEVICE)
   PetscBool flg;
   PetscCall(MatBoundToCPU(Amat, &flg));
@@ -1436,8 +1441,16 @@ static PetscErrorCode PCGAMGOptimizeProlongator_AGG(PC pc, Mat Amat, Mat *a_P)
 
   /* smooth P0 */
   if (pc_gamg_agg->nsmooths > 0) {
-    Vec diag;
+    Vec       diag;
+    PetscBool ismatis;
 
+    PetscCall(PetscObjectTypeCompare((PetscObject)Amat, MATIS, &ismatis));
+    if (ismatis) {
+      MatType ptype;
+
+      PetscCall(MatGetType(Prol, &ptype));
+      PetscCall(MatConvert(Amat, ptype, MAT_INITIAL_MATRIX, &Amat));
+    }
     /* TODO: Set a PCFailedReason and exit the building of the AMG preconditioner */
     PetscCheck(emax != 0.0, PetscObjectComm((PetscObject)pc), PETSC_ERR_PLIB, "Computed maximum singular value as zero");
 
@@ -1467,6 +1480,7 @@ static PetscErrorCode PCGAMGOptimizeProlongator_AGG(PC pc, Mat Amat, Mat *a_P)
       Prol = tMat;
       PetscCall(PetscLogEventEnd(petsc_gamg_setup_events[GAMG_OPTSM], 0, 0, 0, 0));
     }
+    if (ismatis) PetscCall(MatDestroy(&Amat));
     PetscCall(VecDestroy(&diag));
   }
   PetscCall(PetscLogEventEnd(petsc_gamg_setup_events[GAMG_OPT], 0, 0, 0, 0));
