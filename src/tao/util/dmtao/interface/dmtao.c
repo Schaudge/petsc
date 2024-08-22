@@ -12,7 +12,19 @@ PetscLogEvent DMTAO_GradientEval;
 PetscLogEvent DMTAO_ObjGradEval;
 PetscLogEvent DMTAO_ApplyProx;
 
-static PetscErrorCode DMTaoDestroy(DMTao *kdm)
+/*@
+  DMTaoDestroy - Destroys a `DMTao` object
+
+  Collective
+
+  Input Parameter:
+. kdm - The `DMTao` object
+
+  Level: beginner
+
+.seealso: [](ch_dmbase), `DM`, `DMTao`
+@*/
+PetscErrorCode DMTaoDestroy(DMTao *kdm)
 {
   PetscFunctionBegin;
   if (!*kdm) PetscFunctionReturn(PETSC_SUCCESS);
