@@ -486,6 +486,31 @@ static PetscErrorCode MonitorEField(TS ts, PetscInt step, PetscReal t, Vec U, vo
   /* PetscCall(PetscDrawLGAddPoint(user->drawlg_ef, &t, &lgEmax)); */
   /* PetscCall(PetscDrawLGDraw(user->drawlg_ef)); */
   /* PetscCall(PetscDrawSave(user->drawef)); */
+  if (user->fake_1D) {
+    PetscInt np;
+    PetscCall(DMSwarmGetField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&x));
+    PetscCall(DMSwarmGetField(sw, "velocity", NULL, NULL, (void **)&v));
+    PetscCall(DMSwarmGetLocalSize(sw, &np));
+    for (int p = 0; p < np; ++p) {
+      for (int d = 0; d < dim; ++d) {
+        if (d > 0) {
+          x[p * dim + d] = v[p * dim]; // put V[0] into x[1] for viz
+        }
+      }
+    }
+    PetscCall(DMSwarmRestoreField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&x));
+    PetscCall(DMSwarmRestoreField(sw, "velocity", NULL, NULL, (void **)&v));
+    char line[128];
+    PetscCall(PetscSNPrintf(line, 128, "e_phase_%04d.xmf", step));
+    PetscCall(DMSwarmViewXDMF(sw, line));
+    PetscCall(DMSwarmGetField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&x));
+    PetscCall(DMSwarmGetField(sw, "velocity", NULL, NULL, (void **)&v));
+    for (int p = 0; p < np; ++p) {
+      for (d = 1; d < dim; ++d) x[p * dim + d] = 0;
+    }
+    PetscCall(DMSwarmRestoreField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&x));
+    PetscCall(DMSwarmRestoreField(sw, "velocity", NULL, NULL, (void **)&v));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -954,8 +979,8 @@ static PetscErrorCode InitializeParticles_PerturbedWeights(DM sw, AppCtx *user)
     PetscCall(DMCreate(PETSC_COMM_SELF, &vdm)); // local temp DM but gets command line args
     PetscCall(DMSetType(vdm, DMPLEX));
     PetscCall(DMPlexSetOptionsPrefix(vdm, "v"));
-    PetscCheck(Np_cell_vdm%(PetscPowInt(2, user->velocity_amr_refine + 1)) == 0, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Np_cell %" PetscInt_FMT " mod PetscPowInt(2, user->velocity_amr_refine + 1) %d = %d != 0", Np_cell_vdm, (int)PetscPowInt(2, user->velocity_amr_refine + 1), (int)Np_cell_vdm%(PetscPowInt(2, user->velocity_amr_refine + 1)));
     if (user->phase_amr) {
+      PetscCheck(Np_cell_vdm%(PetscPowInt(2, user->velocity_amr_refine + 1)) == 0, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Np_cell %" PetscInt_FMT " mod PetscPowInt(2, user->velocity_amr_refine + 1) %d = %d != 0", Np_cell_vdm, (int)PetscPowInt(2, user->velocity_amr_refine + 1), (int)Np_cell_vdm%(PetscPowInt(2, user->velocity_amr_refine + 1)));
       NphaseSpaceCellCoarse = Np_cell_vdm / PetscPowInt(2, user->velocity_amr_refine + 1); // what a non-AMR grid with uniform finest cell would be -- use with phase
     } else {
       NphaseSpaceCellCoarse = user->particles_phase_cell;
@@ -1065,7 +1090,6 @@ static PetscErrorCode InitializeParticles_PerturbedWeights(DM sw, AppCtx *user)
           v[p * dim + d] = (p_coords[offset + pdim*(q+1)] + p_coords[offset + pdim*q])/2; // 1D
         } else v[p * dim + d] = vmin[0] + (q + 0.5) * (vmax[0] - vmin[0]) / Npc; // uniform grid
         if (user->fake_1D && d > 0) {
-          v[p * dim + d] = 0;
           x[p * dim + d] = v[p * dim]; // put V[0] into x[1] for viz
         }
       }
