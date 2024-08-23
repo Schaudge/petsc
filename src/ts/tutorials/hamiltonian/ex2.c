@@ -886,11 +886,12 @@ static PetscErrorCode InitializeParticles_PerturbedWeights(DM sw, AppCtx *user)
   DM           vdm, dm;
   PetscScalar *weight;
   PetscReal   *x, *v, vmin[3], vmax[3], gmin[3], gmax[3], xi0[3];
-  PetscInt    *N, Ns, dim, *cellid, *species, Np, Nc, xStart, xEnd, Npc, npart_dummy, vStart, vEnd;
+  PetscInt    *N, Ns, dim, *cellid, *species, xStart, Np, xEnd, Np_cell_vdm, npart_dummy, vStart, vEnd, NphaseSpaceCellCoarse = 0, offsets[16];
   PetscInt     Np_global, Nc_global, p, q, s, c, d, cv;
   PetscBool    flg;
   PetscMPIInt  size, rank;
   Parameter   *param;
+  const PetscInt cell_period = (user->numAMR < 1) ? 1 : PetscPowInt(2, user->numAMR - 1); // number of fine phase space cells in X in the coarsest cell
 
   PetscFunctionBegin;
   PetscCallMPI(MPI_Comm_size(PetscObjectComm((PetscObject)sw), &size));
@@ -903,10 +904,16 @@ static PetscErrorCode InitializeParticles_PerturbedWeights(DM sw, AppCtx *user)
   npart_dummy = Ns;
   PetscCall(PetscOptionsIntArray("-dm_swarm_num_particles", "The target number of particles (not used)", "", N, &npart_dummy, NULL));
   PetscOptionsEnd();
-
+  for (c = 0; c < cell_period; ++c) {
+    for (q = 0, p = cell_period, offsets[c] = -1 ; q < user->numAMR + 1 && offsets[c] == -1 ; q++, p = p / 2) {
+      if (c%p == 0) offsets[c] = q;
+    }
+  }
   PetscCall(DMGetDimension(sw, &dim)); // >= 2
   PetscCall(DMSwarmGetCellDM(sw, &dm));
   PetscCall(DMPlexGetHeightStratum(dm, 0, &xStart, &xEnd));
+  const PetscInt Nc = (xEnd - xStart);
+  PetscCheck(Nc%cell_period == 0, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Np_cell %" PetscInt_FMT " cell_period %d", Nc, (int)cell_period);
 
   PetscCall(DMCreate(PETSC_COMM_SELF, &vdm)); // local temp DM but gets command line args
   PetscCall(DMSetType(vdm, DMPLEX));
@@ -917,12 +924,12 @@ static PetscErrorCode InitializeParticles_PerturbedWeights(DM sw, AppCtx *user)
   PetscCall(DMViewFromOptions(vdm, NULL, "-dm_view"));
   PetscCall(DMPlexGetHeightStratum(vdm, 0, &vStart, &vEnd)); // get number of particles
   PetscCall(DMGetBoundingBox(vdm, vmin, vmax));
-  Npc = vEnd - vStart;
+  Np_cell_vdm = vEnd - vStart;
 
   PetscCall(PetscBagGetData(user->bag, (void **)&param));
   if (user->numAMR > 0) { /* we have the velocity bounds - velocity cont. mesh (this is called twice?) */
     char newname[PETSC_MAX_PATH_LEN];
-    PetscInt Npc_new, NphaseSpaceCellCoarse;
+    PetscInt Npc_new;
     if (user->vcDMPlex) PetscCall(DMDestroy(&user->vcDMPlex)); // called twice?
     PetscCall(PetscSNPrintf(newname, PETSC_MAX_PATH_LEN, "-vcdm_plex_box_lower %g,-.5 -vcdm_plex_box_upper %g,.5 -vcdm_plex_box_bd none,none -vcdm_plex_simplex 0", vmin[0], vmax[0]));
     PetscCall(PetscOptionsInsertString(NULL, newname));
@@ -930,7 +937,7 @@ static PetscErrorCode InitializeParticles_PerturbedWeights(DM sw, AppCtx *user)
     PetscCall(PetscOptionsInsertString(NULL, newname));
     PetscCall(DMCreate(PETSC_COMM_SELF, &user->vcDMPlex));
     PetscCall(DMSetType(user->vcDMPlex, DMPLEX));
-    PetscCall(DMPlexSetOptionsPrefix(user->vcDMPlex, "vc")); /* PetscPowInt(2, user->numAMR + 1); */
+    PetscCall(DMPlexSetOptionsPrefix(user->vcDMPlex, "vc"));
     PetscCall(DMSetFromOptions(user->vcDMPlex));
     PetscCall(PetscObjectSetName((PetscObject)user->vcDMPlex, "Particle continuum grid"));
     PetscCall(DMViewFromOptions(user->vcDMPlex, NULL, "-dm_view"));
@@ -939,8 +946,8 @@ static PetscErrorCode InitializeParticles_PerturbedWeights(DM sw, AppCtx *user)
     PetscCall(DMCreate(PETSC_COMM_SELF, &vdm)); // local temp DM but gets command line args
     PetscCall(DMSetType(vdm, DMPLEX));
     PetscCall(DMPlexSetOptionsPrefix(vdm, "v"));
-    PetscCheck(Npc%(PetscPowInt(2, user->numAMR + 1)) == 0, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Npc %" PetscInt_FMT " PetscPowInt(2, user->numAMR + 1) %d", Npc, (int)PetscPowInt(2, user->numAMR + 1));
-    NphaseSpaceCellCoarse = Npc / PetscPowInt(2, user->numAMR + 1); // what a non-AMR grid with uniform finest cell would be
+    PetscCheck(Np_cell_vdm%(PetscPowInt(2, user->numAMR + 1)) == 0, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Np_cell %" PetscInt_FMT " mod PetscPowInt(2, user->numAMR + 1) %d = %d != 0", Np_cell_vdm, (int)PetscPowInt(2, user->numAMR + 1), (int)Np_cell_vdm%(PetscPowInt(2, user->numAMR + 1)));
+    NphaseSpaceCellCoarse = Np_cell_vdm / PetscPowInt(2, user->numAMR + 1); // what a non-AMR grid with uniform finest cell would be
     Npc_new = 2 * (user->numAMR + 1) * NphaseSpaceCellCoarse;
     PetscCall(PetscSNPrintf(newname, PETSC_MAX_PATH_LEN, "-vdm_plex_box_faces %" PetscInt_FMT ",%" PetscInt_FMT, Npc_new, (user->fake_1D ? 1 : Npc_new)));
     PetscCall(PetscOptionsInsertString(NULL, newname));
@@ -948,8 +955,8 @@ static PetscErrorCode InitializeParticles_PerturbedWeights(DM sw, AppCtx *user)
     PetscCall(PetscObjectSetName((PetscObject)vdm, "New 1D Particle grid reduced with AMR"));
     PetscCall(DMViewFromOptions(vdm, NULL, "-dm_view"));
     PetscCall(DMPlexGetHeightStratum(vdm, 0, &vStart, &vEnd)); // get number of particles
-    PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Particle count per cell reduce from %d to %d (%d) with AMR\n", Npc, vEnd - vStart, Npc_new));
-    Npc = vEnd - vStart;
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Particle count per cell reduce from %d to %d (%d) with AMR\n", Np_cell_vdm, vEnd - vStart, Npc_new));
+    Np_cell_vdm = vEnd - vStart;
     Vec          c_coordinates, p_coordinates;
     PetscScalar  *c_coords,*p_coords,vc_points[41]; // 2^20 (AMR < 20)
     PetscInt     cdim, pdim, p, pStart, pEnd, kk, nc, np;
@@ -986,22 +993,23 @@ static PetscErrorCode InitializeParticles_PerturbedWeights(DM sw, AppCtx *user)
     PetscCall(VecRestoreArrayWrite(c_coordinates, &c_coords));
     PetscCall(VecRestoreArrayWrite(p_coordinates, &p_coords));
     PetscCall(DMViewFromOptions(vdm, NULL, "-dm_view"));
-  }
+  } else NphaseSpaceCellCoarse = Np_cell_vdm / 4; // make Np == Np_cell_vdm
+  Np = Nc/cell_period * 2 * (3 * cell_period - 1) * NphaseSpaceCellCoarse;
 
   PetscCall(DMGetBoundingBox(dm, gmin, gmax));
   PetscCall(PetscBagGetData(user->bag, (void **)&param));
-  Np = (cEnd - cStart) * (vEnd - vStart);
-  Nc = (cEnd - cStart);
-  PetscCallMPI(MPIU_Allreduce(&Np, &Np_global, 1, MPIU_INT, MPIU_SUM, PETSC_COMM_WORLD));
-  PetscCallMPI(MPIU_Allreduce(&Nc, &Nc_global, 1, MPIU_INT, MPIU_SUM, PETSC_COMM_WORLD));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Global Np = %" PetscInt_FMT " Global cells = %" PetscInt_FMT "\n", Np_global, Nc_global));
+  PetscCall(MPIU_Allreduce(&Np, &Np_global, 1, MPIU_INT, MPIU_SUM, PETSC_COMM_WORLD));
+  PetscCall(MPIU_Allreduce(&Nc, &Nc_global, 1, MPIU_INT, MPIU_SUM, PETSC_COMM_WORLD));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Global Np = %" PetscInt_FMT " Global cells = %" PetscInt_FMT " local particles = %" PetscInt_FMT " local cells = %" PetscInt_FMT "\n", Np_global, Nc_global, Np, Nc));
   PetscCall(DMSwarmSetLocalSizes(sw, Np, 0));
   PetscCall(DMSwarmGetField(sw, DMSwarmPICField_cellid, NULL, NULL, (void **)&cellid));
   for (c = 0, p = 0; c < xEnd - xStart; ++c) {
+    const PetscInt offset = offsets[c%cell_period], Npc = user->numAMR == 0 ? Np_cell_vdm : 2 * (user->numAMR + 1 - offset) * NphaseSpaceCellCoarse;
     for (s = 0; s < Ns; ++s) {
-      for (q = 0; q < Npc; ++q, ++p) cellid[p] = c;
+      for (q = 0; q < Npc ; ++q, ++p) cellid[p] = c;
     }
   }
+  PetscCheck(p == Np, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Number of particles %" PetscInt_FMT " != final index %" PetscInt_FMT, Np, p);
   PetscCall(DMSwarmRestoreField(sw, DMSwarmPICField_cellid, NULL, NULL, (void **)&cellid));
   PetscCall(PetscFree(N));
 
@@ -1022,20 +1030,21 @@ static PetscErrorCode InitializeParticles_PerturbedWeights(DM sw, AppCtx *user)
   PetscCall(VecGetLocalSize(p_coordinates, &np));
   PetscCall(DMPlexGetHeightStratum(vdm, 0, &pStart, &pEnd));
   for (c = 0; c < xEnd - xStart; ++c) {
-    const PetscInt cell = c + xStart;
+    const PetscInt cell = c + xStart, offset = offsets[c%cell_period] * NphaseSpaceCellCoarse;
     PetscInt      *pidx, Npc;
     PetscReal      centroid[3], volume, dv[3];
     PetscCall(DMSwarmSortGetPointsPerCell(sw, c, &Npc, &pidx));
     PetscCall(DMPlexComputeCellGeometryFVM(dm, cell, &volume, centroid, NULL));
-    for (d = 0; d < dim; ++d) dv[d] =  (vmax[d] - vmin[d]) / Npc;
+    for (d = 0; d < dim; ++d) dv[d] =  (vmax[d] - vmin[d]) / Npc; // not used
     for (q = 0; q < Npc; ++q) {
       const PetscInt p = pidx[q];
       for (d = 0; d < dim; ++d) {
-        const PetscReal xi = (PetscReal)(2*(q+1) - 1) / (PetscReal)(2*Npc); // 1/2N ... 1 - 1/2N
         x[p * dim + d] = centroid[d]; // uniform grid in x
-        if (user->quiet > 0) v[p * dim + d] = vmin[0] + dv[d] + xi * (vmax[d] - vmin[d] - 3*dv[d]) + (PetscReal)(c%user->quiet)/(PetscReal)(user->quiet - 1) * dv[d];
-        else if (user->fake_1D && d == 0) {
-          v[p * dim + d] = (p_coords[pdim*(q+1)] + p_coords[pdim*q])/2; // 1D
+        if (user->quiet > 0) { // not used, no AMR
+          const PetscReal xi = (PetscReal)(2*(q+1) - 1) / (PetscReal)(2*Npc); // 1/2N ... 1 - 1/2N
+          v[p * dim + d] = vmin[0] + dv[d] + xi * (vmax[d] - vmin[d] - 3*dv[d]) + (PetscReal)(c%user->quiet)/(PetscReal)(user->quiet - 1) * dv[d];
+        } else if (user->fake_1D && d == 0 && user->numAMR > 0) {
+          v[p * dim + d] = (p_coords[offset + pdim*(q+1)] + p_coords[offset + pdim*q])/2; // 1D
         } else v[p * dim + d] = vmin[0] + (q + 0.5) * (vmax[0] - vmin[0]) / Npc; // uniform grid
         if (user->fake_1D && d > 0) {
           v[p * dim + d] = 0;
@@ -1066,7 +1075,8 @@ static PetscErrorCode InitializeParticles_PerturbedWeights(DM sw, AppCtx *user)
   /* Integrate the density function to get the weights of particles in each cell */
   for (d = 0; d < dim; ++d) xi0[d] = -1.0;
   for (c = xStart; c < xEnd; ++c) {
-    PetscReal          v0_x[3], J_x[9], invJ_x[9], detJ_x, xr_x[3], den_x;
+    const PetscInt offset = offsets[(c-xStart)%cell_period] * NphaseSpaceCellCoarse;
+    PetscReal          v0_x[3], J_x[9], invJ_x[9], detJ_x, xr_x[3], den_x, dx;
     PetscInt          *pidx, Npc, q;
     PetscInt           Ncx;
     const PetscScalar *array_x;
@@ -1099,16 +1109,16 @@ static PetscErrorCode InitializeParticles_PerturbedWeights(DM sw, AppCtx *user)
     /* PetscCall(PetscSynchronizedPrintf(PETSC_COMM_WORLD, "c:%" PetscInt_FMT " [x_a,x_b] = %1.15f,%1.15f -> cell weight = %1.15f\n", ordering[c], (double)PetscRealPart(coords_x[0]), (double)PetscRealPart(coords_x[2]), (double)weight_x[c])); */
     PetscCall(ISRestoreIndices(globalOrdering, &ordering));
     totalcellweight += weight_x[c];
-    // Confirm the number of particles per spatial cell conforms to the size of the velocity grid
-    PetscCheck(Npc == vEnd - vStart, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Number of particles %" PetscInt_FMT " in cell (rank %d/%d) != %" PetscInt_FMT " number of velocity vertices", Npc, rank, size, vEnd - vStart);
-
+    // Confirm the number of particles per spatial cell conforms to the size of the velocity grid -- not with AMR
+    // PetscCheck(Npc == vEnd - vStart, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Number of particles %" PetscInt_FMT " in cell (rank %d/%d) != %" PetscInt_FMT " number of velocity vertices", Npc, rank, size, vEnd - vStart);
     /* Set weights to be gaussian in velocity cells (using exact solution) */
-    for (cv = 0; cv < vEnd - vStart; ++cv) {
+    dx = (PetscReal)PetscPowInt(2, user->numAMR == 0 ? 0 : user->numAMR - offsets[(c-xStart)%cell_period] - 1);
+    for (cv = 0; cv < Npc ; ++cv) {
       PetscInt           Nc;
       const PetscScalar *array_v;
       PetscScalar       *coords_v = NULL;
       PetscBool          isDG;
-      PetscCall(DMPlexGetCellCoordinates(vdm, cv, &isDG, &Nc, &array_v, &coords_v)); // coords_v is clearly 1D
+      PetscCall(DMPlexGetCellCoordinates(vdm, cv + offset, &isDG, &Nc, &array_v, &coords_v)); // coords_v is clearly 1D
 
       const PetscInt p = pidx[cv];
       // Two stream function from 1/2pi v^2 e^(-v^2/2)
@@ -1116,12 +1126,17 @@ static PetscErrorCode InitializeParticles_PerturbedWeights(DM sw, AppCtx *user)
         weight_v[p] = 1. / (PetscSqrtReal(2 * PETSC_PI)) * ((coords_v[0] * PetscExpReal(-PetscSqr(coords_v[0]) / 2.)) - (coords_v[1] * PetscExpReal(-PetscSqr(coords_v[1]) / 2.))) - 0.5 * PetscErfReal(coords_v[0] / PetscSqrtReal(2.)) + 0.5 * (PetscErfReal(coords_v[1] / PetscSqrtReal(2.)));
       else weight_v[p] = 0.5 * (PetscErfReal(coords_v[1] / PetscSqrtReal(2.)) - PetscErfReal(coords_v[0] / PetscSqrtReal(2.)));
 
+      weight_v[p] *= dx; // AMR extra width
       weight[p] = user->totalWeight * weight_v[p] * weight_x[c];
-      if (weight[p] > 1.) PetscCall(PetscPrintf(PETSC_COMM_WORLD, "weights: %g * %g * %g = %g\n", user->totalWeight, weight_v[p], weight_x[c], weight[p]));
-      /* PetscCall(PetscPrintf(PETSC_COMM_WORLD, "%"PetscInt_FMT": particle %"PetscInt_FMT": %g, weight_v: %g weight_x: %g\n", c, p, weight[p], weight_v[p], weight_x[c])); */
+      // if (weight[p] > 1.) PetscCall(PetscPrintf(PETSC_COMM_WORLD, "weights: %g * %g * %g = %g\n", user->totalWeight, weight_v[p], weight_x[c], weight[p]));
+      // PetscCall(PetscPrintf(PETSC_COMM_WORLD, "%"PetscInt_FMT".%"PetscInt_FMT": V weight %g. phase cell v bound = %g %g. dx = %g\n", c, p, weight_v[p], coords_v[0], coords_v[1], dx));
       weightsum += weight[p];
 
-      PetscCall(DMPlexRestoreCellCoordinates(vdm, cv, &isDG, &Nc, &array_v, &coords_v));
+      PetscCall(DMPlexRestoreCellCoordinates(vdm, cv + offset, &isDG, &Nc, &array_v, &coords_v));
+      if (cv%NphaseSpaceCellCoarse == NphaseSpaceCellCoarse - 1) { // last one in batch
+        if (dx > 1.0 && cv < Npc/2) dx = dx / 2.0;
+        else if ((cv - Npc/2) == 2*NphaseSpaceCellCoarse - 1 || dx > 1.0) dx = dx * 2.0;
+      }
     }
     PetscCall(DMPlexRestoreCellCoordinates(dm, c, &isDGx, &Ncx, &array_x, &coords_x));
     PetscCall(PetscFree(pidx));
@@ -1141,8 +1156,10 @@ static PetscErrorCode InitializeParticles_PerturbedWeights(DM sw, AppCtx *user)
   PetscCall(DMSwarmRestoreField(sw, "velocity", NULL, NULL, (void **)&v));
 
   if (user->fake_1D) {
-    //const char *fieldnames[] = {"velocity"};
-    if (user->phase_1X_1V_monitor) PetscCall(DMSwarmViewXDMF(sw, "phase.xmf"));
+    char line[128];
+    int amr = user->numAMR, np = Np_global;
+    PetscCall(PetscSNPrintf(line, 128, "phase_%d_%d.xmf", amr, np));
+    if (user->phase_1X_1V_monitor) PetscCall(DMSwarmViewXDMF(sw, line));
     PetscCall(DMSwarmSortGetAccess(sw));
     PetscCall(DMSwarmGetField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&x));
     for (c = 0; c < xEnd - xStart; ++c) {
