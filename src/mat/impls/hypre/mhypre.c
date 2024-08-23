@@ -2449,6 +2449,7 @@ PETSC_EXTERN PetscErrorCode MatCreate_HYPRE(Mat B)
   B->ops->productsetfromoptions = MatProductSetFromOptions_HYPRE;
 #if defined(PETSC_HAVE_HYPRE_DEVICE)
   B->ops->bindtocpu = MatBindToCPU_HYPRE;
+  /* Get hypre's default memory location. Users can control this using the corresponding HYPRE_SetMemoryLocation API */
   PetscCallExternal(HYPRE_GetMemoryLocation, &memory_location);
   B->boundtocpu = (memory_location == HYPRE_MEMORY_HOST) ? PETSC_TRUE : PETSC_FALSE;
 #endif
