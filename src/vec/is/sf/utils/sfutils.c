@@ -106,6 +106,44 @@ PetscErrorCode PetscSFGetGraphLayout(PetscSF sf, PetscLayout *layout, PetscInt *
 }
 
 /*@
+  PetscSFCreateLayout - Create a PetscLayout for a PetscSF.
+
+  Collective
+
+  Input Parameter:
+. sf - star forest
+
+  Output Parameter:
+. layout - PetscLayout
+
+  Level: advanced
+
+  Notes:
+  This is only to be used to describe data where leaf and root values need to
+  be kept identical at all times.  For example, a vector where every value is
+  the same on each process (see `PETSC_DUPLICATE`) can be created from a
+  PetscSF created with the graph pattern `PETSCSF_PATTERN_GATHER`.
+  You should not use this to create a layout for a local DM vector from
+  a global DM vector.  The target usage of the layouts created by this routine
+  are vectors / matrices of global parameters that should kept consistent
+  on all processes at all times.
+
+@*/
+PetscErrorCode PetscSFCreateLayout(PetscSF sf, PetscLayout *layout)
+{
+  MPI_Comm comm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(sf, PETSCSF_CLASSID, 1);
+  PetscAssertPointer(layout, 2);
+
+  PetscCall(PetscObjectGetComm((PetscObject)sf, &comm));
+  SETERRQ(comm, PETSC_ERR_PLIB, "To be implemented");
+  
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
   PetscSFSetGraphSection - Sets the `PetscSF` graph encoding the parallel dof overlap based upon the `PetscSection` describing the data layout.
 
   Input Parameters:

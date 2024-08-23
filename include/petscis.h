@@ -286,6 +286,7 @@ struct _n_PetscLayout {
   PetscBool              setupcalled;  /* Forbid setup more than once */
   PetscInt               oldn, oldN;   /* Checking if setup is allowed */
   PetscInt               oldbs;        /* And again */
+  PetscSF                sf;           /* sf for layouts of values that should always be identical (NULL if layout is a perfect partitioning) */
 };
 
 PETSC_EXTERN PetscErrorCode PetscLayoutCreate(MPI_Comm, PetscLayout *);

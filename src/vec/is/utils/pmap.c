@@ -3,6 +3,7 @@
 */
 
 #include <petsc/private/isimpl.h> /*I "petscis.h" I*/
+#include <petscsf.h>
 
 /*@
   PetscLayoutCreate - Allocates `PetscLayout` object
@@ -129,6 +130,7 @@ PetscErrorCode PetscLayoutDestroy(PetscLayout *map)
   if (!(*map)->refcnt--) {
     if ((*map)->range_alloc) PetscCall(PetscFree((*map)->range));
     PetscCall(ISLocalToGlobalMappingDestroy(&(*map)->mapping));
+    PetscCall(PetscSFDestroy(&(*map)->sf));
     PetscCall(PetscFree(*map));
   }
   *map = NULL;
