@@ -1,7 +1,5 @@
 import sys
 import petsc4py
-import pywt
-import math
 petsc4py.init(sys.argv)
 
 from petsc4py import PETSc
@@ -78,6 +76,13 @@ x1.copy(x2)
 
 dm0.applyTAOproximalmap(dm1, thresh, y1, x1, False)
 
+import pdb
+pdb.set_trace()
+dmtest = PETSc.DM()
+dmtest.createTAOPython(MyDMTao(), comm=PETSc.COMM_WORLD)
+dmtest.destroy()
+
+
 # DMTAOPYTHON
 dmpy0 = PETSc.DM()
 dmpy0.create(PETSc.COMM_WORLD)
@@ -91,3 +96,5 @@ x2.viewFromOptions('-view_sol_py')
 
 test = x1.equal(x2)
 print(test)
+
+dmpy0.destroy()

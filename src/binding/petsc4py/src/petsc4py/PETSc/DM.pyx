@@ -82,8 +82,9 @@ cdef class DM(Object):
     #
 
     def __cinit__(self):
-        self.obj = <PetscObject*> &self.dm
-        self.dm  = NULL
+        self.obj         = <PetscObject*> &self.dm
+        self.dm          = NULL
+        self.dmtaopython = 0
 
     def view(self, Viewer viewer=None) -> None:
         """View the `DM`.
@@ -140,6 +141,13 @@ cdef class DM(Object):
         petsc.DMDestroy
 
         """
+        cdef PetscDMTAO dmtao = NULL
+        if self.dmtaopython == 1:
+            print("inside destroy1")
+            CHKERR(DMGetDMTaoWrite(self.dm, &dmtao))
+            print("inside destroy2")
+            CHKERR(DMTaoDestroy(&dmtao))
+            print("inside destroy3")
         CHKERR(DMDestroy(&self.dm))
         return self
 
@@ -2453,10 +2461,13 @@ cdef class DM(Object):
         """
         cdef MPI_Comm ccomm = def_Comm(comm, PETSC_COMM_DEFAULT)
         cdef PetscDM dm = NULL
+        cdef PetscDMTAO dmtao = NULL
+        self.dmtaopython = 1
         CHKERR(DMCreate(ccomm, &dm))
         CHKERR(PetscCLEAR(self.obj)); self.dm = dm
+        CHKERR(DMGetDMTaoWrite(self.dm, &dmtao))
         CHKERR(DMTaoSetType(self.dm, DMTAOPYTHON))
-        CHKERR(DMTaoPythonSetContext(self.dm, <void*>context))
+        CHKERR(DMTaoPythonSetContext(dmtao, <void*>context))
         return self
 
     def setTAOPythonContext(self, context: Any) -> None:
@@ -2465,7 +2476,9 @@ cdef class DM(Object):
         Not collective.
 
         """
-        CHKERR(DMTaoPythonSetContext(self.dm, <void*>context))
+        cdef PetscDMTAO dmtao = NULL
+        CHKERR(DMGetDMTaoWrite(self.dm, &dmtao))
+        CHKERR(DMTaoPythonSetContext(dmtao, <void*>context))
 
     def getTAOPythonContext(self) -> Any:
         """Return the fully qualified Python name of the class used by the DMTao.
@@ -2474,7 +2487,9 @@ cdef class DM(Object):
 
         """
         cdef void *context = NULL
-        CHKERR(DMTaoPythonGetContext(self.dm, &context))
+        cdef PetscDMTAO dmtao = NULL
+        CHKERR(DMGetDMTaoWrite(self.dm, &dmtao))
+        CHKERR(DMTaoPythonGetContext(dmtao, &context))
         if context == NULL: return None
         else: return <object> context
 
@@ -2497,6 +2512,18 @@ cdef class DM(Object):
         cdef const char *cval = NULL
         CHKERR(DMTaoPythonGetType(self.dm, &cval))
         return bytes2str(cval)
+
+    def setTAOFromOptions(self) -> None:
+        """Configure the object from the options database.
+
+        Collective.
+
+        See Also
+        --------
+        petsc_options
+
+        """
+        CHKERR(DMTaoSetFromOptions(self.dm))
 
     def addCoarsenHook(
         self,
@@ -2576,6 +2603,7 @@ cdef class DMTAO(Object):
     """DMTAO Object."""
 
     def __cinit__(self):
+        # TODO: DMTao Prefix Options
         self.obj   = <PetscObject*> &self.dmtao
         self.dmtao = NULL
 
@@ -2593,6 +2621,7 @@ cdef class DMTAO(Object):
         cdef PetscViewer vwr = NULL
         if viewer is not None: vwr = viewer.vwr
         CHKERR(DMTaoView(self.dmtao, vwr))
+
 
 # --------------------------------------------------------------------
 

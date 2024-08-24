@@ -2839,38 +2839,30 @@ cdef inline _PyDMTao PyDMTao(PetscDMTAO dmtao):
     else:
         return _PyDMTao.__new__(_PyDMTao)
 
-cdef public PetscErrorCode DMTaoPythonGetContext(PetscDM dm, void **ctx) \
+cdef public PetscErrorCode DMTaoPythonGetContext(PetscDMTAO dmtao, void **ctx) \
     except PETSC_ERR_PYTHON:
     FunctionBegin(b"DMTaoPythonGetContext")
-    cdef PetscDMTAO dmtao = NULL
-    CHKERR(DMGetDMTao(dm, &dmtao))
     PyDMTao(dmtao).getcontext(ctx)
     return FunctionEnd()
 
-cdef public PetscErrorCode DMTaoPythonSetContext(PetscDM dm, void *ctx) \
+cdef public PetscErrorCode DMTaoPythonSetContext(PetscDMTAO dmtao, void *ctx) \
     except PETSC_ERR_PYTHON:
     FunctionBegin(b"DMTaoPythonSetContext")
-    cdef PetscDMTAO dmtao = NULL
-    CHKERR(DMGetDMTaoWrite(dm, &dmtao))
     PyDMTao(dmtao).setcontext(ctx, DMTAO_(dmtao))
     return FunctionEnd()
 
-cdef PetscErrorCode DMTaoPythonSetType_PYTHON(PetscDM dm, const char *name) \
+cdef PetscErrorCode DMTaoPythonSetType_PYTHON(PetscDMTAO dmtao, const char *name) \
     except PETSC_ERR_PYTHON with gil:
     FunctionBegin(b"DMTaoPythonSetType_PYTHON")
     if name == NULL: return FunctionEnd() # XXX
     cdef object ctx = createcontext(name)
-    cdef PetscDMTAO dmtao = NULL
-    CHKERR(DMGetDMTaoWrite(dm, &dmtao))
-    CHKERR(DMTaoPythonSetContext(dm, <void*>ctx))
+    CHKERR(DMTaoPythonSetContext(dmtao, <void*>ctx))
     PyDMTao(dmtao).setname(name)
     return FunctionEnd()
 
-cdef PetscErrorCode DMTaoPythonGetType_PYTHON(PetscDM dm, const char *name[]) \
+cdef PetscErrorCode DMTaoPythonGetType_PYTHON(PetscDMTAO dmtao, const char *name[]) \
     except PETSC_ERR_PYTHON with gil:
     FunctionBegin(b"DMTaoPythonGetType_PYTHON")
-    cdef PetscDMTAO dmtao = NULL
-    CHKERR(DMGetDMTao(dm, &dmtao))
     name[0] = PyDMTao(dmtao).getname()
     return FunctionEnd()
 
@@ -2897,21 +2889,19 @@ cdef PetscErrorCode DMTaoCreate_Python(
     return FunctionEnd()
 
 cdef inline PetscErrorCode DMTaoDestroy_Python_inner(
-    PetscDM dm,
+    PetscDMTAO dmtao,
     ) except PETSC_ERR_PYTHON with gil:
     try:
-        CHKERR(PetscObjectReference(<PetscObject>dm))
-        CHKERR(DMTaoPythonSetContext(dm, NULL))
+        CHKERR(PetscObjectReference(<PetscObject>dmtao))
+        CHKERR(DMTaoPythonSetContext(dmtao, NULL))
     finally:
-        CHKERR(PetscObjectDereference(<PetscObject>dm))
+        CHKERR(PetscObjectDereference(<PetscObject>dmtao))
     return PETSC_SUCCESS
 
 cdef PetscErrorCode DMTaoDestroy_Python(
     PetscDMTAO dmtao,
     ) except PETSC_ERR_PYTHON nogil:
     FunctionBegin(b"DMTaoDestroy_Python")
-    cdef PetscDM pdm = NULL
-    CHKERR(DMTaoGetParentDM(dmtao, &pdm))
     CHKERR(PetscObjectComposeFunction(
             <PetscObject>dmtao, b"DMTaoPythonSetType_C",
             <PetscVoidFunction>NULL))
@@ -2919,7 +2909,7 @@ cdef PetscErrorCode DMTaoDestroy_Python(
             <PetscObject>dmtao, b"DMTaoPythonGetType_C",
             <PetscVoidFunction>NULL))
     #
-    if Py_IsInitialized(): DMTaoDestroy_Python_inner(pdm)
+    if Py_IsInitialized(): DMTaoDestroy_Python_inner(dmtao)
     return FunctionEnd()
 
 cdef PetscErrorCode DMTaoSetUp_Python(
@@ -2928,14 +2918,12 @@ cdef PetscErrorCode DMTaoSetUp_Python(
     FunctionBegin(b"DMTaoSetUp_Python")
     cdef char name[2048]
     cdef PetscBool found = PETSC_FALSE
-    cdef PetscDM pdm = NULL
     if PyDMTao(dmtao).self is None:
         CHKERR(PetscOptionsGetString(NULL,
                getPrefix(dmtao), b"-dmtao_python_type",
                name, sizeof(name), &found))
         if found and name[0]:
-            CHKERR(DMTaoGetParentDM(dmtao, &pdm))
-            CHKERR(DMTaoPythonSetType_PYTHON(pdm, name))
+            CHKERR(DMTaoPythonSetType_PYTHON(dmtao, name))
     if PyDMTao(dmtao).self is None:
         return PetscSETERR(PETSC_ERR_USER,
                            "Python context not set, call one of \n"
@@ -2956,13 +2944,11 @@ cdef PetscErrorCode DMTaoSetFromOptions_Python(
     cdef char name[2048], *defval = PyDMTao(dmtao).getname()
     cdef PetscBool found = PETSC_FALSE
     cdef PetscOptionItems *opts "PetscOptionsObject" = PetscOptionsObject
-    cdef PetscDM pdm = NULL
     CHKERR(PetscOptionsString(
             b"-dmtao_python_type", b"Python [package.]module[.{class|function}]",
             b"DMTaoPythonSetType", defval, name, sizeof(name), &found)); <void>opts
     if found and name[0]:
-        CHKERR(DMTaoGetParentDM(dmtao, &pdm))
-        CHKERR(DMTaoPythonSetType_PYTHON(pdm, name))
+        CHKERR(DMTaoPythonSetType_PYTHON(dmtao, name))
     #
     cdef setFromOptions = PyDMTao(dmtao).setFromOptions
     if setFromOptions is not None:

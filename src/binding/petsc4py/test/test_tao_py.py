@@ -61,14 +61,17 @@ class MyTao:
 
 class TestTaoPython(unittest.TestCase):
     def setUp(self):
+        print("set upt begin")
         self.tao = PETSc.TAO()
         self.tao.createPython(MyTao(), comm=PETSc.COMM_SELF)
         ctx = self.tao.getPythonContext()
         self.assertEqual(getrefcount(ctx), 3)
         self.assertEqual(ctx.log['create'], 1)
         self.nsolve = 0
+        print("set upt end")
 
     def tearDown(self):
+        print("tear down begin")
         ctx = self.tao.getPythonContext()
         self.assertEqual(getrefcount(ctx), 3)
         self.assertTrue('destroy' not in ctx.log)
@@ -77,13 +80,17 @@ class TestTaoPython(unittest.TestCase):
         PETSc.garbage_cleanup()
         self.assertEqual(ctx.log['destroy'], 1)
         self.assertEqual(getrefcount(ctx), 2)
+        print("tear down end")
 
     def testGetType(self):
+        print("get type begin")
         ctx = self.tao.getPythonContext()
         pytype = f'{ctx.__module__}.{type(ctx).__name__}'
         self.assertTrue(self.tao.getPythonType() == pytype)
+        print("get type end")
 
     def testSolve(self):
+        print("test solve begin")
         tao = self.tao
         ctx = tao.getPythonContext()
         x = PETSc.Vec().create(tao.getComm())
@@ -135,6 +142,7 @@ class TestTaoPython(unittest.TestCase):
         self.assertTrue(ctx.log['step'] == n)
         self.assertEqual(cnt_up, 2 * n)
         tao.cancelMonitor()
+        print("test solve end")
 
 
 # --------------------------------------------------------------------

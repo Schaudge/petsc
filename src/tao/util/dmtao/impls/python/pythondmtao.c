@@ -25,7 +25,7 @@ PetscErrorCode DMTaoPythonSetType(DM dm, const char pyname[])
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   PetscAssertPointer(pyname, 2);
   PetscCall(DMGetDMTao(dm, &tdm));
-  PetscTryMethod(tdm, "TaoPythonSetType_C", (DMTao, const char[]), (tdm, pyname));
+  PetscTryMethod(tdm, "DMTaoPythonSetType_C", (DMTao, const char[]), (tdm, pyname));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
