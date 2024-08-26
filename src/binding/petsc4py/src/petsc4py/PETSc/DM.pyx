@@ -142,12 +142,12 @@ cdef class DM(Object):
 
         """
         cdef PetscDMTAO dmtao = NULL
-        if self.dmtaopython == 1:
-            print("inside destroy1")
-            CHKERR(DMGetDMTaoWrite(self.dm, &dmtao))
-            print("inside destroy2")
-            CHKERR(DMTaoDestroy(&dmtao))
-            print("inside destroy3")
+        #if self.dmtaopython == 1:
+        #    print("inside destroy1")
+        #    CHKERR(DMGetDMTaoWrite(self.dm, &dmtao))
+        #    print("inside destroy2")
+        #    CHKERR(DMTaoDestroy(&dmtao))
+        #    print("inside destroy3")
         CHKERR(DMDestroy(&self.dm))
         return self
 
