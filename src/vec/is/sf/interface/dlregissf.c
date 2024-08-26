@@ -12,6 +12,8 @@ PetscLogEvent PETSCSF_ReduceBegin;
 PetscLogEvent PETSCSF_ReduceEnd;
 PetscLogEvent PETSCSF_FetchAndOpBegin;
 PetscLogEvent PETSCSF_FetchAndOpEnd;
+PetscLogEvent PETSCSF_AllreduceBegin;
+PetscLogEvent PETSCSF_AllreduceEnd;
 PetscLogEvent PETSCSF_EmbedSF;
 PetscLogEvent PETSCSF_DistSect;
 PetscLogEvent PETSCSF_SectSF;
@@ -49,6 +51,8 @@ PetscErrorCode PetscSFInitializePackage(void)
   PetscCall(PetscLogEventRegister("SFReduceEnd", PETSCSF_CLASSID, &PETSCSF_ReduceEnd));
   PetscCall(PetscLogEventRegister("SFFetchOpBegin", PETSCSF_CLASSID, &PETSCSF_FetchAndOpBegin));
   PetscCall(PetscLogEventRegister("SFFetchOpEnd", PETSCSF_CLASSID, &PETSCSF_FetchAndOpEnd));
+  PetscCall(PetscLogEventRegister("SFAllreduceBegin", PETSCSF_CLASSID, &PETSCSF_AllreduceBegin));
+  PetscCall(PetscLogEventRegister("SFAllreduceEnd", PETSCSF_CLASSID, &PETSCSF_AllreduceEnd));
   PetscCall(PetscLogEventRegister("SFCreateEmbed", PETSCSF_CLASSID, &PETSCSF_EmbedSF));
   PetscCall(PetscLogEventRegister("SFDistSection", PETSCSF_CLASSID, &PETSCSF_DistSect));
   PetscCall(PetscLogEventRegister("SFSectionSF", PETSCSF_CLASSID, &PETSCSF_SectSF));

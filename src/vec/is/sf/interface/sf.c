@@ -97,6 +97,90 @@ PetscErrorCode PetscSFCreate(MPI_Comm comm, PetscSF *sf)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode PetscSFCreateAllreduceSF_Internal(PetscSF sf, PetscSF *allredsf_p, PetscSF *allredrootsf_p)
+{
+  PetscSFNode *root_data, *leaf_data, *allred_iremote, *allredroot_iremote;
+  PetscInt     minleaf, maxleaf, nleaves, nleaves_range, *allred_ilocal, *allredroot_ilocal;
+  PetscInt     nroots;
+  MPI_Comm     comm;
+  PetscMPIInt  rank;
+  PetscInt     num_allred_leaves, num_allredroot_leaves;
+  const PetscInt *sparse_leaves;
+  PetscSF      allredsf, allredrootsf;
+
+  PetscFunctionBegin;
+  PetscCall(PetscObjectGetComm((PetscObject)sf, &comm));
+  PetscCallMPI(MPI_Comm_rank(comm, &rank));
+
+  PetscCall(PetscSFGetLeafRange(sf, &minleaf, &maxleaf));
+  nleaves_range = maxleaf + 1 - minleaf;
+  PetscCall(PetscSFGetGraph(sf, &nroots, &nleaves, &sparse_leaves, NULL));
+  PetscCall(PetscMalloc2(nroots, &root_data, nleaves_range, &leaf_data));
+  for (PetscInt i = 0; i < nroots; i++) {
+    root_data[i].rank = -1;
+    root_data[i].index = -1;
+  }
+  for (PetscInt i = 0; i < nleaves_range; i++) {
+    leaf_data[i].rank = -1;
+    leaf_data[i].index = -1;
+  }
+  for (PetscInt i = 0; i < nleaves; i++) {
+    PetscInt j = sparse_leaves ? sparse_leaves[i] : i;
+
+    leaf_data[j - minleaf].rank = rank;
+    leaf_data[j - minleaf].index = j;
+  }
+  PetscCall(PetscSFReduceBegin(sf, MPIU_2INT, &leaf_data[-minleaf], root_data, MPI_REPLACE));
+  PetscCall(PetscSFReduceEnd(sf, MPIU_2INT, &leaf_data[-minleaf], root_data, MPI_REPLACE));
+  PetscCall(PetscSFBcastBegin(sf, MPIU_2INT, root_data, &leaf_data[-minleaf], MPI_REPLACE));
+  PetscCall(PetscSFBcastEnd(sf, MPIU_2INT, root_data, &leaf_data[-minleaf], MPI_REPLACE));
+
+  num_allred_leaves = nleaves;
+  for (PetscInt i = 0; i < nleaves; i++) {
+    PetscInt j = sparse_leaves ? sparse_leaves[i] : i;
+    PetscSFNode this_node = leaf_data[j - minleaf];
+
+    // this leaf is designated the root of the allreduce operation
+    if (this_node.rank == rank && this_node.index == j) num_allred_leaves--;
+  }
+  num_allredroot_leaves = nleaves - num_allred_leaves;
+
+  PetscCall(PetscMalloc1(num_allred_leaves, &allred_ilocal));
+  PetscCall(PetscMalloc1(num_allred_leaves, &allred_iremote));
+  PetscCall(PetscMalloc1(num_allredroot_leaves, &allredroot_ilocal));
+  PetscCall(PetscMalloc1(num_allredroot_leaves, &allredroot_iremote));
+  for (PetscInt i = 0, k = 0, l = 0; i < nleaves; i++) {
+    PetscInt j = sparse_leaves ? sparse_leaves[i] : i;
+    PetscSFNode this_node = leaf_data[j - minleaf];
+
+    // this leaf is designated the root of the allreduce operation
+    if (this_node.rank == rank && this_node.index == j) {
+      allredroot_ilocal[l]    = j;
+      allredroot_iremote[l++] = this_node;
+    } else {
+      allred_ilocal[k]    = j;
+      allred_iremote[k++] = this_node;
+    }
+  }
+  PetscCall(PetscSFDuplicate(sf, PETSCSF_DUPLICATE_CONFONLY, &allredsf));
+  PetscCall(PetscSFSetGraph(allredsf, maxleaf + 1, num_allred_leaves, allred_ilocal, PETSC_OWN_POINTER, allred_iremote, PETSC_OWN_POINTER));
+  PetscCall(PetscSFDuplicate(sf, PETSCSF_DUPLICATE_CONFONLY, &allredrootsf));
+  PetscCall(PetscSFSetGraph(allredrootsf, maxleaf + 1, num_allredroot_leaves, allredroot_ilocal, PETSC_OWN_POINTER, allredroot_iremote, PETSC_OWN_POINTER));
+  PetscCall(PetscFree2(root_data, leaf_data));
+  *allredsf_p = allredsf;
+  *allredrootsf_p = allredrootsf;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode PetscSFGetAllreduceSF_Internal(PetscSF sf, PetscSF *allredsf, PetscSF *allredrootsf)
+{
+  PetscFunctionBegin;
+  if (!sf->allredsf) PetscCall(PetscSFCreateAllreduceSF_Internal(sf, &(sf->allredsf), &(sf->allredrootsf)));
+  if (allredsf) *allredsf = sf->allredsf;
+  if (allredrootsf) *allredrootsf = sf->allredrootsf;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /*@
   PetscSFReset - Reset a star forest so that different sizes or neighbors can be used
 
@@ -134,6 +218,8 @@ PetscErrorCode PetscSFReset(PetscSF sf)
 
   if (sf->multi) sf->multi->multi = NULL;
   PetscCall(PetscSFDestroy(&sf->multi));
+  PetscCall(PetscSFDestroy(&sf->allredsf));
+  PetscCall(PetscSFDestroy(&sf->allredrootsf));
 
   PetscCall(PetscLayoutDestroy(&sf->map));
 
@@ -1638,6 +1724,53 @@ PetscErrorCode PetscSFReduceEnd(PetscSF sf, MPI_Datatype unit, const void *leafd
   if (!sf->vscat.logging) PetscCall(PetscLogEventEnd(PETSCSF_ReduceEnd, sf, 0, 0, 0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+/*@
+  PetscSFAllreduceWithMemTypeBegin - Description
+
+@*/
+PetscErrorCode PetscSFAllreduceWithMemTypeBegin(PetscSF sf, MPI_Datatype unit, PetscMemType leafinmtype, const void *leafindata, PetscMemType leafoutmtype, void *leafoutdata, MPI_Op op)
+{
+  PetscSF allredsf, allredrootsf;
+
+  PetscFunctionBegin;
+  PetscCall(PetscSFGetAllreduceSF_Internal(sf, &allredsf, &allredrootsf));
+  if (leafoutdata != leafindata) {
+    // "bcast" that is just a sparse copy from leafindata to leafoutdata
+    PetscCall(PetscSFBcastBegin(allredrootsf, unit, leafindata, leafoutdata, MPI_REPLACE));
+    PetscCall(PetscSFBcastEnd(allredrootsf, unit, leafindata, leafoutdata, MPI_REPLACE));
+  }
+  PetscCall(PetscSFReduceBegin(allredsf, unit, leafindata, leafoutdata, op));
+  PetscCall(PetscSFReduceEnd(allredsf, unit, leafindata, leafoutdata, op));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  PetscSFAllreduceBegin - Description
+
+@*/
+PetscErrorCode PetscSFAllreduceBegin(PetscSF sf, MPI_Datatype unit, const void *leafindata, void *leafoutdata, MPI_Op op)
+{
+  PetscFunctionBegin;
+  PetscCall(PetscSFAllreduceWithMemTypeBegin(sf, unit, PETSC_MEMTYPE_HOST, leafindata, PETSC_MEMTYPE_HOST, leafoutdata, op));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  PetscSFAllreduceEnd - Description
+
+@*/
+PetscErrorCode PetscSFAllreduceEnd(PetscSF sf, MPI_Datatype unit, const void *leafindata, void *leafoutdata, MPI_Op op)
+{
+  PetscSF allredsf;
+
+  PetscFunctionBegin;
+  PetscCall(PetscSFGetAllreduceSF_Internal(sf, &allredsf, NULL));
+  PetscCall(PetscSFBcastBegin(allredsf, unit, leafoutdata, leafoutdata, MPI_REPLACE));
+  PetscCall(PetscSFBcastEnd(allredsf, unit, leafoutdata, leafoutdata, MPI_REPLACE));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 
 /*@C
   PetscSFFetchAndOpBegin - begin operation that fetches values from root and updates atomically by applying operation using my leaf value,

@@ -54,3 +54,28 @@ PetscSF Object: 4 MPI processes
 [1] 0: 1210 3201
 [2] 0: 2310 4301
 [3] 0: 3410 1401
+## Pre-Allreduce input leaf data
+[0] 0: 100 101
+[1] 0: 200 201 202
+[2] 0: 300 301 302
+[3] 0: 400 401 402
+## Pre-Allreduce output leaf data
+[0] 0: -2 -2
+[1] 0: -2 -2 -2
+[2] 0: -2 -2 -2
+[3] 0: -2 -2 -2
+## Post-Allreduce input leaf data
+[0] 0: 100 101
+[1] 0: 200 201 202
+[2] 0: 300 301 302
+[3] 0: 400 401 402
+## Post-Allreduce output leaf data
+[0] 0: 100 101
+[1] 0: 200 201 906
+[2] 0: 300 301 906
+[3] 0: 400 401 906
+## Post-Inplace-Allreduce output leaf data
+[0] 0: 100 101
+[1] 0: 200 201 2718
+[2] 0: 300 301 2718
+[3] 0: 400 401 2718

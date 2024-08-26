@@ -41,7 +41,7 @@ int main(int argc, char **argv)
   PetscSFNode *remote;
   PetscMPIInt  rank, size;
   PetscSF      sf, vsf;
-  PetscBool    test_all, test_bcast, test_bcastop, test_reduce, test_degree, test_fetchandop, test_gather, test_scatter, test_embed, test_invert, test_sf_distribute, test_char, test_vector = PETSC_FALSE;
+  PetscBool    test_all, test_bcast, test_bcastop, test_reduce, test_allreduce, test_degree, test_fetchandop, test_gather, test_scatter, test_embed, test_invert, test_sf_distribute, test_char, test_vector = PETSC_FALSE;
   MPI_Op       mop = MPI_OP_NULL; /* initialize to prevent compiler warnings with cxx_quad build */
   char         opstring[256];
   PetscBool    strflg;
@@ -60,6 +60,8 @@ int main(int argc, char **argv)
   PetscCall(PetscOptionsBool("-test_bcastop", "Test broadcast and reduce", "", test_bcastop, &test_bcastop, NULL));
   test_reduce = test_all;
   PetscCall(PetscOptionsBool("-test_reduce", "Test reduction", "", test_reduce, &test_reduce, NULL));
+  test_allreduce = test_all;
+  PetscCall(PetscOptionsBool("-test_allreduce", "Test allreduction", "", test_allreduce, &test_allreduce, NULL));
   test_char = test_all;
   PetscCall(PetscOptionsBool("-test_char", "Test signed char, unsigned char, and char", "", test_char, &test_char, NULL));
   mop = MPI_SUM;
@@ -269,6 +271,37 @@ int main(int argc, char **argv)
     PetscCall(PetscViewerASCIIPrintf(PETSC_VIEWER_STDOUT_WORLD, "## Reduce Rootdata\n"));
     PetscCall(PetscIntView(nrootsalloc, rootdata, PETSC_VIEWER_STDOUT_WORLD));
     PetscCall(PetscFree2(rootdata, leafdata));
+  }
+
+  if (test_reduce) { /* Allreduce leafdata to leafdata, skipping rootdata */
+    PetscInt *leafindata, *leafoutdata;
+    PetscCall(PetscMalloc2(nleavesalloc, &leafindata, nleavesalloc, &leafoutdata));
+    /* Initialize rootdata buffer in which the result of the reduction will appear. */
+    for (i = 0; i < nleavesalloc; i++) leafindata[i] = -1;
+    for (i = 0; i < nleaves; i++) leafindata[i * stride] = 100 * (rank + 1) + i;
+    /* Set leaf values to reduce. */
+    for (i = 0; i < nleavesalloc; i++) leafoutdata[i] = -2;
+    PetscCall(PetscViewerASCIIPrintf(PETSC_VIEWER_STDOUT_WORLD, "## Pre-Allreduce input leaf data\n"));
+    PetscCall(PetscIntView(nleavesalloc, leafindata, PETSC_VIEWER_STDOUT_WORLD));
+    PetscCall(PetscViewerASCIIPrintf(PETSC_VIEWER_STDOUT_WORLD, "## Pre-Allreduce output leaf data\n"));
+    PetscCall(PetscIntView(nleavesalloc, leafoutdata, PETSC_VIEWER_STDOUT_WORLD));
+    /* Perform all reduction. Computation or other communication can be performed between the begin and end calls.
+     * This example sums the values, but other MPI_Ops can be used (e.g MPI_MAX, MPI_PROD). */
+    PetscCall(PetscSFAllreduceBegin(sf, MPIU_INT, leafindata, leafoutdata, mop));
+    PetscCall(PetscSFAllreduceEnd(sf, MPIU_INT, leafindata, leafoutdata, mop));
+    PetscCall(PetscViewerASCIIPrintf(PETSC_VIEWER_STDOUT_WORLD, "## Post-Allreduce input leaf data\n"));
+    PetscCall(PetscIntView(nleavesalloc, leafindata, PETSC_VIEWER_STDOUT_WORLD));
+    PetscCall(PetscViewerASCIIPrintf(PETSC_VIEWER_STDOUT_WORLD, "## Post-Allreduce output leaf data\n"));
+    PetscCall(PetscIntView(nleavesalloc, leafoutdata, PETSC_VIEWER_STDOUT_WORLD));
+
+    /* Allreduce can be performed in place */
+    PetscCall(PetscSFAllreduceBegin(sf, MPIU_INT, leafoutdata, leafoutdata, mop));
+    PetscCall(PetscSFAllreduceEnd(sf, MPIU_INT, leafoutdata, leafoutdata, mop));
+
+    PetscCall(PetscViewerASCIIPrintf(PETSC_VIEWER_STDOUT_WORLD, "## Post-Inplace-Allreduce output leaf data\n"));
+    PetscCall(PetscIntView(nleavesalloc, leafoutdata, PETSC_VIEWER_STDOUT_WORLD));
+
+    PetscCall(PetscFree2(leafindata, leafoutdata));
   }
 
   if (test_reduce && test_char) { /* Reduce with signed char */

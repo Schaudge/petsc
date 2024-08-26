@@ -175,6 +175,10 @@ PETSC_EXTERN PetscErrorCode PetscSFReduceBegin(PetscSF, MPI_Datatype, const void
 PETSC_EXTERN PetscErrorCode PetscSFReduceEnd(PetscSF, MPI_Datatype, const void *, void *, MPI_Op) PETSC_ATTRIBUTE_MPI_POINTER_WITH_TYPE(3, 2) PETSC_ATTRIBUTE_MPI_POINTER_WITH_TYPE(4, 2);
 PETSC_EXTERN PetscErrorCode PetscSFReduceWithMemTypeBegin(PetscSF, MPI_Datatype, PetscMemType, const void *, PetscMemType, void *, MPI_Op) PETSC_ATTRIBUTE_MPI_POINTER_WITH_TYPE(4, 2) PETSC_ATTRIBUTE_MPI_POINTER_WITH_TYPE(6, 2);
 
+PETSC_EXTERN PetscErrorCode PetscSFAllreduceBegin(PetscSF, MPI_Datatype, const void *, void *, MPI_Op) PETSC_ATTRIBUTE_MPI_POINTER_WITH_TYPE(3, 2) PETSC_ATTRIBUTE_MPI_POINTER_WITH_TYPE(4, 2);
+PETSC_EXTERN PetscErrorCode PetscSFAllreduceEnd(PetscSF, MPI_Datatype, const void *, void *, MPI_Op) PETSC_ATTRIBUTE_MPI_POINTER_WITH_TYPE(3, 2) PETSC_ATTRIBUTE_MPI_POINTER_WITH_TYPE(4, 2);
+PETSC_EXTERN PetscErrorCode PetscSFAllreduceWithMemTypeBegin(PetscSF, MPI_Datatype, PetscMemType, const void *, PetscMemType, void *, MPI_Op) PETSC_ATTRIBUTE_MPI_POINTER_WITH_TYPE(4, 2) PETSC_ATTRIBUTE_MPI_POINTER_WITH_TYPE(6, 2);
+
 /* Atomically modifies (using provided operation) rootdata using leafdata from each leaf, value at root at time of modification is returned in leafupdate. */
 PETSC_EXTERN PetscErrorCode PetscSFFetchAndOpBegin(PetscSF, MPI_Datatype, void *, const void *, void *, MPI_Op) PETSC_ATTRIBUTE_MPI_POINTER_WITH_TYPE(3, 2) PETSC_ATTRIBUTE_MPI_POINTER_WITH_TYPE(4, 2) PETSC_ATTRIBUTE_MPI_POINTER_WITH_TYPE(5, 2);
 PETSC_EXTERN PetscErrorCode PetscSFFetchAndOpEnd(PetscSF, MPI_Datatype, void *, const void *, void *, MPI_Op) PETSC_ATTRIBUTE_MPI_POINTER_WITH_TYPE(3, 2) PETSC_ATTRIBUTE_MPI_POINTER_WITH_TYPE(4, 2) PETSC_ATTRIBUTE_MPI_POINTER_WITH_TYPE(5, 2);

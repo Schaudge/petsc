@@ -14,6 +14,8 @@ PETSC_EXTERN PetscLogEvent PETSCSF_BcastBegin;
 PETSC_EXTERN PetscLogEvent PETSCSF_BcastEnd;
 PETSC_EXTERN PetscLogEvent PETSCSF_ReduceBegin;
 PETSC_EXTERN PetscLogEvent PETSCSF_ReduceEnd;
+PETSC_EXTERN PetscLogEvent PETSCSF_AllreduceBegin;
+PETSC_EXTERN PetscLogEvent PETSCSF_AllreduceEnd;
 PETSC_EXTERN PetscLogEvent PETSCSF_FetchAndOpBegin;
 PETSC_EXTERN PetscLogEvent PETSCSF_FetchAndOpEnd;
 PETSC_EXTERN PetscLogEvent PETSCSF_EmbedSF;
@@ -55,6 +57,8 @@ struct _PetscSFOps {
   PetscErrorCode (*ReduceEnd)(PetscSF, MPI_Datatype, const void *, void *, MPI_Op);
   PetscErrorCode (*FetchAndOpBegin)(PetscSF, MPI_Datatype, PetscMemType, void *, PetscMemType, const void *, void *, MPI_Op);
   PetscErrorCode (*FetchAndOpEnd)(PetscSF, MPI_Datatype, void *, const void *, void *, MPI_Op);
+  PetscErrorCode (*AllreduceBegin)(PetscSF, MPI_Datatype, PetscMemType, const void *, PetscMemType, void *, MPI_Op);
+  PetscErrorCode (*AllreduceEnd)(PetscSF, MPI_Datatype, const void *, void *, MPI_Op);
   PetscErrorCode (*BcastToZero)(PetscSF, MPI_Datatype, PetscMemType, const void *, PetscMemType, void *); /* For internal use only */
   PetscErrorCode (*GetRootRanks)(PetscSF, PetscInt *, const PetscMPIInt **, const PetscInt **, const PetscInt **, const PetscInt **);
   PetscErrorCode (*GetLeafRanks)(PetscSF, PetscInt *, const PetscMPIInt **, const PetscInt **, const PetscInt **);
@@ -116,6 +120,8 @@ struct _p_PetscSF {
   MPI_Group      outgroup;             /* Group of processes connected to my leaves */
   PetscSF        multi;                /* Internal graph used to implement gather and scatter operations */
   PetscSF        rankssf;              /* Internal graph used to implement communications with root ranks */
+  PetscSF        allredsf;             /* Internal graph used to implement allreduce communications */
+  PetscSF        allredrootsf;         /* Internal graph used to fill roots for allreduce communications */
   PetscBool      graphset;             /* Flag indicating that the graph has been set, required before calling communication routines */
   PetscBool      setupcalled;          /* Type and communication structures have been set up */
   PetscSFPattern pattern;              /* Pattern of the graph */
@@ -159,6 +165,9 @@ PETSC_EXTERN PetscErrorCode PetscSFRegisterAll(void);
 
 PETSC_INTERN PetscErrorCode PetscSFCreateLocalSF_Private(PetscSF, PetscSF *);
 PETSC_INTERN PetscErrorCode PetscSFBcastToZero_Private(PetscSF, MPI_Datatype, const void *, void *) PETSC_ATTRIBUTE_MPI_POINTER_WITH_TYPE(3, 2) PETSC_ATTRIBUTE_MPI_POINTER_WITH_TYPE(4, 2);
+
+PETSC_INTERN PetscErrorCode PetscSFAllreduceBeginDefault(PetscSF, MPI_Datatype, PetscMemType, const void *, PetscMemType, void *, MPI_Op);
+PETSC_INTERN PetscErrorCode PetscSFAllreduceEndDefault(PetscSF, MPI_Datatype, const void *, void *, MPI_Op);
 
 PETSC_EXTERN PetscErrorCode MPIPetsc_Type_unwrap(MPI_Datatype, MPI_Datatype *, PetscBool *);
 PETSC_EXTERN PetscErrorCode MPIPetsc_Type_compare(MPI_Datatype, MPI_Datatype, PetscBool *);

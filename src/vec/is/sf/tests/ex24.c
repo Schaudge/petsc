@@ -86,15 +86,40 @@ static PetscErrorCode createSparseSF(MPI_Comm comm, PetscSF *sf)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode createSparseGatherSF(MPI_Comm comm, PetscSF *sf)
+{
+  PetscLayout layout;
+  PetscInt    local_size;
+  PetscMPIInt rank;
+
+  PetscFunctionBegin;
+  PetscCall(PetscLayoutCreate(comm, &layout));
+  PetscCallMPI(MPI_Comm_rank(comm, &rank));
+  local_size = (rank & 1);
+  PetscCall(PetscLayoutSetLocalSize(layout, local_size));
+  PetscCall(PetscLayoutSetUp(layout));
+  PetscCall(PetscSFCreate(comm, sf));
+  PetscCall(PetscSFSetGraphWithPattern(*sf, layout, PETSCSF_PATTERN_GATHER));
+  PetscCall(PetscLayoutDestroy(&layout));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 int main(int argc, char **argv)
 {
   PetscSF sf;
 
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
+
   PetscCall(createSparseSF(PETSC_COMM_WORLD, &sf));
   PetscCall(PetscSFSetFromOptions(sf));
   PetscCall(testOverlappingCommunication(sf));
   PetscCall(PetscSFDestroy(&sf));
+
+  PetscCall(createSparseGatherSF(PETSC_COMM_WORLD, &sf));
+  PetscCall(PetscSFSetFromOptions(sf));
+  PetscCall(testOverlappingCommunication(sf));
+  PetscCall(PetscSFDestroy(&sf));
+
   PetscCall(PetscFinalize());
   return 0;
 }
