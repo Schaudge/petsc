@@ -15,7 +15,6 @@ class Configure(config.package.CMakePackage):
     self.functions        = ['pssytrd']
     self.functionsFortran = 1
     self.buildLanguages   = ['FC']
-    self.precisions       = ['single','double']
     self.downloadonWindows= 1
     self.makerulename     = 'scalapack'
     self.minCmakeVersion  = (3,9,0)

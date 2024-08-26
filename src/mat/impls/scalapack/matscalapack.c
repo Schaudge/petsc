@@ -1,5 +1,7 @@
 #include <petsc/private/petscscalapack.h> /*I "petscmat.h" I*/
+#include <petscconf.h>
 
+#if defined(PETSC_USE_REAL_SINGLE) || defined(PETSC_USE_REAL_DOUBLE)
 const char       ScaLAPACKCitation[] = "@BOOK{scalapack-user-guide,\n"
                                        "       AUTHOR = {L. S. Blackford and J. Choi and A. Cleary and E. D'Azevedo and\n"
                                        "                 J. Demmel and I. Dhillon and J. Dongarra and S. Hammarling and\n"
@@ -1939,3 +1941,4 @@ PetscErrorCode MatCreateScaLAPACK(MPI_Comm comm, PetscInt mb, PetscInt nb, Petsc
   PetscCall(MatSetUp(*A));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+#endif
