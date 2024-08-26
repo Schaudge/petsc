@@ -110,6 +110,7 @@ typedef struct {
   PetscInt    checkVRes; /* Flag to check/output velocity residuals for nightly tests */
   PetscInt    phase_amr; /* period of phase space AMR */
   PetscInt    velocity_amr_refine; /* number of refinements around origin for velocity space continuum grid */
+  PetscInt    particle_sub_refine;
 } AppCtx;
 
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
@@ -158,6 +159,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->checkVRes              = 0;
   options->phase_amr              = 0;
   options->velocity_amr_refine    = 0;
+  options->particle_sub_refine    = 1; // k: 4^k part/cell, need > 4 for Q2,  > 9 for Q3
 
   PetscOptionsBegin(comm, "", "Landau Damping and Two Stream options", "DMSWARM");
   PetscCall(PetscOptionsBool("-error", "Flag to print the error", "ex2.c", options->error, &options->error, NULL));
@@ -178,7 +180,8 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   PetscCall(PetscOptionsRealArray("-charges", "Species charges", "ex2.c", options->charges, &maxSpecies, NULL));
   PetscCall(PetscOptionsEnum("-em_type", "Type of electrostatic solver", "ex2.c", EMTypes, (PetscEnum)options->em, (PetscEnum *)&options->em, NULL));
   PetscCall(PetscOptionsBoundedInt("-phase_amr_period", "Full phase space AMR refinement period (0 for no AMR)", "ex2.c", options->phase_amr, &options->phase_amr, NULL, 0));
-  PetscCall(PetscOptionsBoundedInt("-velocity_amr_refine", "Number of refinements around origin for velocity space continuum grid", "ex2.c", options->velocity_amr_refine, &options->velocity_amr_refine, NULL, 0));
+  PetscCall(PetscOptionsBoundedInt("-velocity_amr_refine", "Number of refinements steps for velocity space continuum grid", "ex2.c", options->velocity_amr_refine, &options->velocity_amr_refine, NULL, 0));
+  PetscCall(PetscOptionsBoundedInt("-particle_sub_refine", "Number of refinements for sub particle grid", "ex2.c", options->particle_sub_refine, &options->particle_sub_refine, NULL, 0)); // > 0
   PetscOptionsEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -2110,6 +2113,7 @@ PetscErrorCode PreStep(TS ts)
       PetscInt         Nq_x;
       const PetscReal *wq_x, *xq_x;
       PetscReal       *weight_x;
+      Vec              sub_rho;
       // copy weights & coordinates
       /* const PetscScalar *wsrc, *xsrc; */
       /* PetscScalar       *wdest, *xdest; */
@@ -2152,22 +2156,53 @@ PetscErrorCode PreStep(TS ts)
       PetscCall(VecViewFromOptions(rho, NULL, linevec));
       PetscCall(DMRestoreGlobalVector(dm, &rho));
       // refine grid, to make new phase_dm
-      if (iter < user->velocity_amr_refine) {
-        //PetscDS prob;
-        DMLabel adaptLabel = NULL;
-        PetscInt cStart, cEnd, c;
-        //PetscCall(DMGetDS(phase_dm, &prob));
-        PetscCall(DMConvert(phase_dm, DMPLEX, &plex));
-        PetscCall(DMPlexGetHeightStratum(plex, 0, &cStart, &cEnd));
-        PetscCall(DMLabelCreate(PETSC_COMM_SELF, "adapt", &adaptLabel));
-        for (c = cStart; c < cEnd; c++) PetscCall(DMLabelSetValue(adaptLabel, c, DM_ADAPT_REFINE)); // uniform refinement
-        PetscCall(DMDestroy(&plex));
-        
-        PetscCall(DMAdaptLabel(phase_dm, adaptLabel, &adaptedDM));
-        PetscCall(DMLabelDestroy(&adaptLabel));
-        phase_dm = adaptedDM;
-      }
+      DMLabel adaptLabel = NULL;
+      PetscInt cStart, cEnd, c;
+      PetscCall(DMConvert(phase_dm, DMPLEX, &plex));
+      PetscCall(DMPlexGetHeightStratum(plex, 0, &cStart, &cEnd));
+      PetscCall(DMLabelCreate(PETSC_COMM_SELF, "adapt", &adaptLabel));
+      for (c = cStart; c < cEnd; c++) PetscCall(DMLabelSetValue(adaptLabel, c, DM_ADAPT_REFINE)); // uniform refinement
+      PetscCall(DMDestroy(&plex));
+      PetscCall(DMAdaptLabel(phase_dm, adaptLabel, &adaptedDM));
+      PetscCall(DMLabelDestroy(&adaptLabel));
+      phase_dm = adaptedDM;
+      // project rho onto new AMR grid sub_rho -- TODO
+
     }
+    // create new particles, grid
+    DM dmpart;
+    PetscCall(DMClone(phase_dm, &dmpart));
+    for (PetscInt sub_iter = 0 ; sub_iter < user->particle_sub_refine ; sub_iter++) {
+      DM newdm;
+      PetscCall(DMRefine(dmpart, PetscObjectComm((PetscObject)sw), &newdm));
+      PetscCall(DMDestroy(&dmpart));
+      dmpart = newdm;
+      PetscCall(PetscObjectSetName((PetscObject)dmpart, "Particle Mesh"));
+      PetscCall(DMViewFromOptions(dmpart, NULL, "-part_dm_view"));
+      PetscCall(DMSetFromOptions(dmpart));
+      // project rho onto new AMR grid sub_rho -- TODO
+      
+    }
+    // create particles from centroids (easy)
+    PetscInt cStart, cEnd, np_loc, np_glob;
+    PetscCall(DMPlexGetHeightStratum(dmpart, 0, &cStart, &cEnd));
+    np_loc = cEnd - cStart;
+    PetscCall(MPIU_Allreduce(&np_loc, &np_glob, 1, MPIU_INT, MPIU_SUM, PETSC_COMM_WORLD));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD, "New number of global phase space cells = %" PetscInt_FMT "\n", np_glob));
+    for (PetscInt c = 0; c < cEnd - cStart; ++c) {
+      const PetscInt cell = c + cStart;
+      PetscReal      centroid[3], volume;
+      PetscCall(DMPlexComputeCellGeometryFVM(dmpart, cell, &volume, centroid, NULL));
+      // get rho(centroid)
+      
+      // create particle
+      for (int d = 0; d < dim; ++d) {
+        //x[p * dim + d] = centroid[d];
+      }
+      // weight = rho (centroid)
+    }
+    PetscCall(DMDestroy(&dmpart));
+
     //
     PetscCall(DMConvert(phase_dm, DMPLEX, &plex));
     PetscCall(DMDestroy(&phase_dm));
