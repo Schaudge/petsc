@@ -1,4 +1,4 @@
-static char help[] = "Landau Damping/Two Stream instability test using Vlasov-Poisson equations\n";
+static char help[] = "Landau Damping/Two Stream instability test using Vlasov-Poisson equations, with simple AMR\n";
 
 /*
   To run the code with particles sinusoidally perturbed in x space use the test "pp_poisson_bsi_1d_4" or "pp_poisson_bsi_2d_4"
