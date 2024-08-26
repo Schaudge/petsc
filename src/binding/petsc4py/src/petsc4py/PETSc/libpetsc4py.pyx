@@ -2856,7 +2856,7 @@ cdef PetscErrorCode DMTaoPythonSetType_PYTHON(PetscDMTAO dmtao, const char *name
     FunctionBegin(b"DMTaoPythonSetType_PYTHON")
     if name == NULL: return FunctionEnd() # XXX
     cdef object ctx = createcontext(name)
-    CHKERR(DMTaoPythonSetContext(dmtao, <void*>ctx))
+    DMTaoPythonSetContext(dmtao, <void*>ctx)
     PyDMTao(dmtao).setname(name)
     return FunctionEnd()
 
@@ -2892,10 +2892,12 @@ cdef inline PetscErrorCode DMTaoDestroy_Python_inner(
     PetscDMTAO dmtao,
     ) except PETSC_ERR_PYTHON with gil:
     try:
-        CHKERR(PetscObjectReference(<PetscObject>dmtao))
-        CHKERR(DMTaoPythonSetContext(dmtao, NULL))
+        addRef(dmtao)
+        DMTaoPythonSetContext(dmtao, NULL)
     finally:
-        CHKERR(PetscObjectDereference(<PetscObject>dmtao))
+        delRef(dmtao)
+        Py_DECREF(<PyObject*>dmtao.data)
+        dmtao.data = NULL
     return PETSC_SUCCESS
 
 cdef PetscErrorCode DMTaoDestroy_Python(
@@ -2927,8 +2929,8 @@ cdef PetscErrorCode DMTaoSetUp_Python(
     if PyDMTao(dmtao).self is None:
         return PetscSETERR(PETSC_ERR_USER,
                            "Python context not set, call one of \n"
-                           " * DMTaoPythonSetType(dm, \"[package.]module.class\")\n"
-                           " * DMTaoSetFromOptions(dm) and pass option "
+                           " * DMTaoPythonSetType(dmtao, \"[package.]module.class\")\n"
+                           " * DMTaoSetFromOptions(dmtao) and pass option "
                            "-dmtao_python_type [package.]module.class")
     #
     cdef setUp = PyDMTao(dmtao).setUp

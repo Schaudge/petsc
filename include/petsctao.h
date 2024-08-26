@@ -629,8 +629,8 @@ PETSC_EXTERN PetscErrorCode DMTaoSetOptionsPrefix(DMTao, const char prefix[]);
 PETSC_EXTERN PetscErrorCode DMTaoAppendOptionsPrefix(DMTao, const char[]);
 PETSC_EXTERN PetscErrorCode DMTaoGetOptionsPrefix(DMTao, const char *[]);
 
-PETSC_EXTERN PetscErrorCode DMTaoPythonSetType(DM, const char[]);
-PETSC_EXTERN PetscErrorCode DMTaoPythonGetType(DM, const char *[]);
+PETSC_EXTERN PetscErrorCode DMTaoPythonSetType(DMTao, const char[]);
+PETSC_EXTERN PetscErrorCode DMTaoPythonGetType(DMTao, const char *[]);
 
 PETSC_EXTERN PetscErrorCode DMTaoDestroy(DMTao *);
 

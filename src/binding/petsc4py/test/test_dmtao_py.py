@@ -72,9 +72,9 @@ class TestDMTaoPython(unittest.TestCase):
 
     def testGetType(self):
         print("get type")
-        ctx = self.dm.getPythonContext()
+        ctx = self.dm.getTAOPythonContext()
         pytype = f'{ctx.__module__}.{type(ctx).__name__}'
-        self.assertTrue(self.dm.getPythonType() == pytype)
+        self.assertTrue(self.dm.getTAOPythonType() == pytype)
 
     def testProx(self):
         print("test prox begin")

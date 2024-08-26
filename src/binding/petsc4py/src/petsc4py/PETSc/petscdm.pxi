@@ -227,8 +227,8 @@ cdef extern from * nogil:
     PetscErrorCode DMTaoSetObjective(PetscDM, PetscDMTaoObjective, void*)
     PetscErrorCode DMTaoSetGradient(PetscDM, PetscDMTaoGradient, void*)
     PetscErrorCode DMTaoSetObjectiveAndGradient(PetscDM, PetscDMTaoObjGrad, void*)
-    PetscErrorCode DMTaoPythonSetType(PetscDM, char[])
-    PetscErrorCode DMTaoPythonGetType(PetscDM, char*[])
+    PetscErrorCode DMTaoPythonSetType(PetscDMTAO, char[])
+    PetscErrorCode DMTaoPythonGetType(PetscDMTAO, char*[])
 
     PetscErrorCode DMGetDMTao(PetscDM, PetscDMTAO *)
     PetscErrorCode DMGetDMTaoWrite(PetscDM, PetscDMTAO *)

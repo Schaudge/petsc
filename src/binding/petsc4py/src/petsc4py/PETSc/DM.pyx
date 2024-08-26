@@ -2500,8 +2500,10 @@ cdef class DM(Object):
 
         """
         cdef const char *cval = NULL
+        cdef PetscDMTAO dmtao = NULL
         py_type = str2bytes(py_type, &cval)
-        CHKERR(DMTaoPythonSetType(self.dm, cval))
+        CHKERR(DMGetDMTaoWrite(self.dm, &dmtao))
+        CHKERR(DMTaoPythonSetType(dmtao, cval))
 
     def getTAOPythonType(self) -> str:
         """Return the fully qualified Python name of the class used by the DMTao.
@@ -2510,7 +2512,9 @@ cdef class DM(Object):
 
         """
         cdef const char *cval = NULL
-        CHKERR(DMTaoPythonGetType(self.dm, &cval))
+        cdef PetscDMTAO dmtao = NULL
+        CHKERR(DMGetDMTaoWrite(self.dm, &dmtao))
+        CHKERR(DMTaoPythonGetType(dmtao, &cval))
         return bytes2str(cval)
 
     def setTAOFromOptions(self) -> None:

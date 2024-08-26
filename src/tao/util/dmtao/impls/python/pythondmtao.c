@@ -7,7 +7,7 @@
    Collective
 
    Input Parameters:
-+  dm     - The `DM` context to contain `DMTao` context
++  dmta   - The `DMTao` context to contain `DMTao` context
 -  pyname - full dotted Python name [package].module[.{class|function}]
 
    Options Database Key:
@@ -17,15 +17,12 @@
 
 .seealso: `DMTaoCreate()`, `DMTaoSetType()`, `DMTAOPYTHON`, `PetscPythonInitialize()`
 @*/
-PetscErrorCode DMTaoPythonSetType(DM dm, const char pyname[])
+PetscErrorCode DMTaoPythonSetType(DMTao dmtao, const char pyname[])
 {
-  DMTao tdm;
-
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscValidHeaderSpecific(dmtao, DMTAO_CLASSID, 1);
   PetscAssertPointer(pyname, 2);
-  PetscCall(DMGetDMTao(dm, &tdm));
-  PetscTryMethod(tdm, "DMTaoPythonSetType_C", (DMTao, const char[]), (tdm, pyname));
+  PetscTryMethod(dmtao, "DMTaoPythonSetType_C", (DMTao, const char[]), (dmtao, pyname));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -35,7 +32,7 @@ PetscErrorCode DMTaoPythonSetType(DM dm, const char pyname[])
    Not Collective
 
    Input Parameter:
-.  dm - the `DM` context
+.  dmtao - the `DMTao` context
 
    Output Parameter:
 .  pyname - full dotted Python name [package].module[.{class|function}]
@@ -44,14 +41,11 @@ PetscErrorCode DMTaoPythonSetType(DM dm, const char pyname[])
 
 .seealso: `DMTaoCreate()`, `DMTaoSetType()`, `DMTAOPYTHON`, `PetscPythonInitialize()`, `DMTaoPythonSetType()`
 @*/
-PetscErrorCode DMTaoPythonGetType(DM dm, const char *pyname[])
+PetscErrorCode DMTaoPythonGetType(DMTao dmtao, const char *pyname[])
 {
-  DMTao tdm;
-
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscValidHeaderSpecific(dmtao, DMTAO_CLASSID, 1);
   PetscAssertPointer(pyname, 2);
-  PetscCall(DMGetDMTao(dm, &tdm));
-  PetscUseMethod(dm, "DMTaoPythonGetType_C", (DMTao, const char *[]), (tdm, pyname));
+  PetscUseMethod(dmtao, "DMTaoPythonGetType_C", (DMTao, const char *[]), (dmtao, pyname));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
