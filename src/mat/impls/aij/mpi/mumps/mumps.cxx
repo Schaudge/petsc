@@ -66,6 +66,11 @@ typedef MUMPS_INT PetscMUMPSInt;
 #define PETSC_MUMPS_INT_MAX 2147483647
 #define PETSC_MUMPS_INT_MIN -2147483648
 
+#if defined(__clang__)
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wzero-as-null-pointer-constant"
+#endif
+
 /* Cast PetscInt to PetscMUMPSInt. Usually there is no overflow since <a> is row/col indices or some small integers*/
 static inline PetscErrorCode PetscMUMPSIntCast(PetscCount a, PetscMUMPSInt *b)
 {
@@ -3834,3 +3839,7 @@ PETSC_INTERN PetscErrorCode MatSolverTypeRegister_MUMPS(void)
   PetscCall(MatSolverTypeRegister(MATSOLVERMUMPS, MATNEST, MAT_FACTOR_CHOLESKY, MatGetFactor_nest_mumps));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+#if defined(__clang__)
+  #pragma clang diagnostic pop
+#endif
