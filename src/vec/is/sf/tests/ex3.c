@@ -81,6 +81,14 @@ int main(int argc, char **argv)
 
   PetscCall(VecView(x, PETSC_VIEWER_STDOUT_WORLD));
   PetscCall(VecView(gy2, PETSC_VIEWER_STDOUT_WORLD));
+
+  PetscCall(PetscArraycpy(leafdata, leafupdate, nleaves));
+  PetscCall(VecZeroEntries(gy2));
+  /* allreduce is a reduction over only the leaf data for each root.  because a gathersf has one leaf per root, it should just be a memcpy */
+  PetscCall(PetscSFAllreduceBegin(gathersf, MPIU_SCALAR, leafdata, leafupdate, op));
+  PetscCall(PetscSFAllreduceEnd(gathersf, MPIU_SCALAR, leafdata, leafupdate, op));
+  PetscCall(VecView(gy2, PETSC_VIEWER_STDOUT_WORLD));
+
   PetscCall(VecDestroy(&gy2));
 
   PetscCall(VecRestoreArray(y2, &leafupdate));
@@ -141,6 +149,23 @@ int main(int argc, char **argv)
 
   PetscCall(VecView(x, PETSC_VIEWER_STDOUT_WORLD));
   PetscCall(VecView(gy2, PETSC_VIEWER_STDOUT_WORLD));
+
+  PetscCall(PetscArraycpy(leafdata, leafupdate, nleaves));
+  PetscCall(VecZeroEntries(gy2));
+  /* allreduce is a reduction over only the leaf data for each root.
+     assuming the fetchandop happened in order, this should to the following:
+     rank 0: leafdata   = [1,1*N]
+     rank 1: leafdata   = [3,3*N]
+     rank 2: leafdata   = [5,5*N]
+   + ...
+   ----------------------------
+     rank *: leafupdate = [Q,Q*N], where Q = P+P*(P-1)
+   */
+
+  PetscCall(PetscSFAllreduceBegin(allgathersf, MPIU_SCALAR, leafdata, leafupdate, op));
+  PetscCall(PetscSFAllreduceEnd(allgathersf, MPIU_SCALAR, leafdata, leafupdate, op));
+  PetscCall(VecView(gy2, PETSC_VIEWER_STDOUT_WORLD));
+
   PetscCall(VecDestroy(&gy2));
 
   PetscCall(VecRestoreArray(y2, &leafupdate));
@@ -199,6 +224,14 @@ int main(int argc, char **argv)
 
   PetscCall(VecView(x, PETSC_VIEWER_STDOUT_WORLD));
   PetscCall(VecView(gy2, PETSC_VIEWER_STDOUT_WORLD));
+
+  PetscCall(PetscArraycpy(leafdata, leafupdate, nleaves));
+  PetscCall(VecZeroEntries(gy2));
+  /* allreduce is a reduction over only the leaf data for each root.  because an alltoallsf has one leaf per root, it should just be a memcpy */
+  PetscCall(PetscSFAllreduceBegin(alltoallsf, MPIU_SCALAR, leafdata, leafupdate, op));
+  PetscCall(PetscSFAllreduceEnd(alltoallsf, MPIU_SCALAR, leafdata, leafupdate, op));
+  PetscCall(VecView(gy2, PETSC_VIEWER_STDOUT_WORLD));
+
   PetscCall(VecDestroy(&gy2));
 
   PetscCall(VecRestoreArray(y2, &leafupdate));

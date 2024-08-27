@@ -28,6 +28,20 @@ Process [0]
 9.
 10.
 Process [1]
+Vec Object: leafupdate 2 MPI processes
+  type: mpi
+Process [0]
+1.
+2.
+3.
+4.
+5.
+6.
+7.
+8.
+9.
+10.
+Process [1]
 
 Testing PetscSFFetchAndOp on a PETSCSF_PATTERN_ALLGATHER graph with op = MPI_SUM
 Vec Object: rootdata 2 MPI processes
@@ -68,6 +82,30 @@ Process [1]
 24.
 27.
 30.
+Vec Object: leafupdate 2 MPI processes
+  type: mpi
+Process [0]
+4.
+8.
+12.
+16.
+20.
+24.
+28.
+32.
+36.
+40.
+Process [1]
+4.
+8.
+12.
+16.
+20.
+24.
+28.
+32.
+36.
+40.
 
 Testing PetscSFFetchAndOp on a PETSCSF_PATTERN_ALLTOALL graph with op = MPI_SUM
 Vec Object: rootdata 2 MPI processes
@@ -78,6 +116,14 @@ Process [0]
 Process [1]
 6.
 8.
+Vec Object: leafupdate 2 MPI processes
+  type: mpi
+Process [0]
+1.
+3.
+Process [1]
+2.
+4.
 Vec Object: leafupdate 2 MPI processes
   type: mpi
 Process [0]

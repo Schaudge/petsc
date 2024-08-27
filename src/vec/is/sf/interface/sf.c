@@ -162,9 +162,9 @@ static PetscErrorCode PetscSFCreateAllreduceSF_Internal(PetscSF sf, PetscSF *all
       allred_iremote[k++] = this_node;
     }
   }
-  PetscCall(PetscSFDuplicate(sf, PETSCSF_DUPLICATE_CONFONLY, &allredsf));
+  PetscCall(PetscSFCreate(PetscObjectComm((PetscObject)sf), &allredsf));
   PetscCall(PetscSFSetGraph(allredsf, maxleaf + 1, num_allred_leaves, allred_ilocal, PETSC_OWN_POINTER, allred_iremote, PETSC_OWN_POINTER));
-  PetscCall(PetscSFDuplicate(sf, PETSCSF_DUPLICATE_CONFONLY, &allredrootsf));
+  PetscCall(PetscSFCreate(PetscObjectComm((PetscObject)sf), &allredrootsf));
   PetscCall(PetscSFSetGraph(allredrootsf, maxleaf + 1, num_allredroot_leaves, allredroot_ilocal, PETSC_OWN_POINTER, allredroot_iremote, PETSC_OWN_POINTER));
   PetscCall(PetscFree2(root_data, leaf_data));
   *allredsf_p = allredsf;
@@ -1725,23 +1725,43 @@ PetscErrorCode PetscSFReduceEnd(PetscSF sf, MPI_Datatype unit, const void *leafd
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode PetscSFAllreduceWithMemTypeBegin_Default(PetscSF sf, MPI_Datatype unit, PetscMemType leafinmtype, const void *leafindata, PetscMemType leafoutmtype, void *leafoutdata, MPI_Op op)
+{
+  PetscSF allredsf, allredrootsf;
+
+  PetscFunctionBegin;
+  PetscCall(PetscSFGetAllreduceSF_Internal(sf, &allredsf, &allredrootsf));
+  PetscCall(PetscSFSetUp(allredsf));
+  PetscCall(PetscSFSetUp(allredrootsf));
+  // "bcast" that is just a sparse copy from leafindata to leafoutdata
+  PetscCall(PetscSFBcastBegin(allredrootsf, unit, leafindata, leafoutdata, MPI_REPLACE));
+  PetscCall(PetscSFBcastEnd(allredrootsf, unit, leafindata, leafoutdata, MPI_REPLACE));
+  PetscCall(PetscSFReduceBegin(allredsf, unit, leafindata, leafoutdata, op));
+  PetscCall(PetscSFReduceEnd(allredsf, unit, leafindata, leafoutdata, op));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode PetscSFAllreduceEnd_Default(PetscSF sf, MPI_Datatype unit, const void *leafindata, void *leafoutdata, MPI_Op op)
+{
+  PetscSF allredsf;
+
+  PetscFunctionBegin;
+  PetscCall(PetscSFGetAllreduceSF_Internal(sf, &allredsf, NULL));
+  PetscCall(PetscSFBcastBegin(allredsf, unit, leafoutdata, leafoutdata, MPI_REPLACE));
+  PetscCall(PetscSFBcastEnd(allredsf, unit, leafoutdata, leafoutdata, MPI_REPLACE));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /*@
   PetscSFAllreduceWithMemTypeBegin - Description
 
 @*/
 PetscErrorCode PetscSFAllreduceWithMemTypeBegin(PetscSF sf, MPI_Datatype unit, PetscMemType leafinmtype, const void *leafindata, PetscMemType leafoutmtype, void *leafoutdata, MPI_Op op)
 {
-  PetscSF allredsf, allredrootsf;
-
   PetscFunctionBegin;
-  PetscCall(PetscSFGetAllreduceSF_Internal(sf, &allredsf, &allredrootsf));
-  if (leafoutdata != leafindata) {
-    // "bcast" that is just a sparse copy from leafindata to leafoutdata
-    PetscCall(PetscSFBcastBegin(allredrootsf, unit, leafindata, leafoutdata, MPI_REPLACE));
-    PetscCall(PetscSFBcastEnd(allredrootsf, unit, leafindata, leafoutdata, MPI_REPLACE));
-  }
-  PetscCall(PetscSFReduceBegin(allredsf, unit, leafindata, leafoutdata, op));
-  PetscCall(PetscSFReduceEnd(allredsf, unit, leafindata, leafoutdata, op));
+  PetscValidHeaderSpecific(sf, PETSCSF_CLASSID, 1);
+  if (sf->ops->AllreduceBegin) PetscUseTypeMethod(sf, AllreduceBegin, unit, leafinmtype, leafindata, leafoutmtype, leafoutdata, op);
+  else PetscCall(PetscSFAllreduceWithMemTypeBegin_Default(sf, unit, leafinmtype, leafindata, leafoutmtype, leafoutdata, op));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1762,12 +1782,10 @@ PetscErrorCode PetscSFAllreduceBegin(PetscSF sf, MPI_Datatype unit, const void *
 @*/
 PetscErrorCode PetscSFAllreduceEnd(PetscSF sf, MPI_Datatype unit, const void *leafindata, void *leafoutdata, MPI_Op op)
 {
-  PetscSF allredsf;
-
   PetscFunctionBegin;
-  PetscCall(PetscSFGetAllreduceSF_Internal(sf, &allredsf, NULL));
-  PetscCall(PetscSFBcastBegin(allredsf, unit, leafoutdata, leafoutdata, MPI_REPLACE));
-  PetscCall(PetscSFBcastEnd(allredsf, unit, leafoutdata, leafoutdata, MPI_REPLACE));
+  PetscValidHeaderSpecific(sf, PETSCSF_CLASSID, 1);
+  if (sf->ops->AllreduceEnd) PetscUseTypeMethod(sf, AllreduceEnd, unit, leafindata, leafoutdata, op);
+  else PetscCall(PetscSFAllreduceEnd_Default(sf, unit, leafindata, leafoutdata, op));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
