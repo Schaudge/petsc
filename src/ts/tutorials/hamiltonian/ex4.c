@@ -2075,11 +2075,12 @@ PetscErrorCode PreStep(TS ts)
   if (user->phase_amr && stepi%user->phase_amr == 0) {
     DM         dm, /* phase_swarm, */ phase_dm, plex, adaptedDM;
     PetscInt   phase_cells[2] = {4,2}, npoints;
-    PetscInt   nfaces[3]={1,1,1}, d = 3,n = 2, dim = 2;
+    PetscInt   nfaces[3]={1,1,1}, d = 3,n = 2, dim = 2, Np;
     char line[128];
     PetscFE fe;
     Mat             M_p;
     Vec             rho, f;
+    PetscReal *x, *weight, *x_orig, *weight_orig;
     PetscCall(DMSwarmGetLocalSize(sw, &npoints));
     PetscCall(DMSwarmGetCellDM(sw, &dm));
     PetscOptionsBegin(PetscObjectComm((PetscObject)dm), "", "Landau Damping and Two Stream options", "DMSWARM");
@@ -2092,6 +2093,19 @@ PetscErrorCode PreStep(TS ts)
     PetscCall(PetscOptionsInsertString(NULL, line)); // hack in new size grid
     PetscCall(DMSetFromOptions(phase_dm));
     PetscCall(PetscOptionsClearValue(NULL, "-dm_plex_box_faces")); // clear this as used every AMR step
+    // cache particles
+    /* PetscCall(DMSwarmGetLocalSize(sw, &Np)); */
+    /* PetscCall(DMSwarmGetField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&x)); */
+    /* PetscCall(DMSwarmGetField(sw, "w_q", NULL, NULL, (void **)&weight)); */
+    /* PetscCall(PetscCalloc2(dim*Np, &x_orig, Np, &weight_orig)); */
+    /* for (int p = 0; p < Np; ++p) { */
+    /*   for (int d = 0; d < 1; ++d) { */
+    /*     x_orig[p*dim + d] = x[p*dim + d]; */
+    /*   } */
+    /*   weight_orig[p] = weight[p]; */
+    /* } */
+    /* PetscCall(DMSwarmRestoreField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&x)); */
+    /* PetscCall(DMSwarmRestoreField(sw, "w_q", NULL, NULL, (void **)&weight)); */
     // create phase swarm
     /* PetscCall(DMCreate(PetscObjectComm((PetscObject)dm), &phase_swarm)); */
     /* PetscCall(DMSetType(phase_swarm, DMSWARM)); */
@@ -2140,17 +2154,18 @@ PetscErrorCode PreStep(TS ts)
       PetscCall(PetscFEDestroy(&fe));
       PetscCall(DMViewFromOptions(phase_dm, NULL, "-phase_dm_view"));
       // put swarm on AMR grid
-      PetscCall(DMCreateMassMatrix(sw, phase_dm, &M_p));
+      PetscCall(DMSwarmSetCellDM(sw, phase_dm));
+      PetscCall(DMCreateMassMatrix(sw, phase_dm, &M_p)); // project same particles to each grid
       PetscCall(DMGetGlobalVector(phase_dm, &rho));
       PetscCall(PetscObjectSetName((PetscObject)rho, "rho"));
       PetscCall(DMSwarmCreateGlobalVectorFromField(sw, "w_q", &f));
       PetscCall(PetscObjectSetName((PetscObject)f, "particle weight"));
       PetscCall(MatMultTranspose(M_p, f, rho));
+      PetscCall(VecViewFromOptions(f, NULL, "-phase_weights_view"));
+      PetscCall(DMSwarmDestroyGlobalVectorFromField(sw, "w_q", &f));
       // view
       PetscCall(MatViewFromOptions(M_p, NULL, "-phase_mp_view"));
       //PetscCall(MatViewFromOptions(M, NULL, "-phase_m_view"));
-      PetscCall(VecViewFromOptions(f, NULL, "-phase_weights_view"));
-      PetscCall(DMSwarmDestroyGlobalVectorFromField(sw, "w_q", &f));
       linedm[13] = '0' + iter; linevec[14] = '0' + iter;
       PetscCall(DMViewFromOptions(phase_dm, NULL, linedm));
       PetscCall(VecViewFromOptions(rho, NULL, linevec));
@@ -2161,14 +2176,15 @@ PetscErrorCode PreStep(TS ts)
       PetscCall(DMConvert(phase_dm, DMPLEX, &plex));
       PetscCall(DMPlexGetHeightStratum(plex, 0, &cStart, &cEnd));
       PetscCall(DMLabelCreate(PETSC_COMM_SELF, "adapt", &adaptLabel));
-      for (c = cStart; c < cEnd; c++) PetscCall(DMLabelSetValue(adaptLabel, c, DM_ADAPT_REFINE)); // uniform refinement
+      for (c = cStart; c < cEnd; c++) {
+        PetscCall(DMLabelSetValue(adaptLabel, c, DM_ADAPT_REFINE)); // uniform refinement
+      }
       PetscCall(DMDestroy(&plex));
       PetscCall(DMAdaptLabel(phase_dm, adaptLabel, &adaptedDM));
       PetscCall(DMLabelDestroy(&adaptLabel));
       phase_dm = adaptedDM;
-      // project rho onto new AMR grid sub_rho -- TODO
-
     }
+    /* PetscCall(PetscFree2(x_orig, weight_orig)); */
     // create new particles, grid
     DM dmpart;
     PetscCall(DMClone(phase_dm, &dmpart));
