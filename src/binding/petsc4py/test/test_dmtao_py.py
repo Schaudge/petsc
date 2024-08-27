@@ -76,11 +76,11 @@ class TestDMTaoPython(unittest.TestCase):
         x.copy(x_l1_test)
 
         dml1= PETSc.DM()
-        dml1.create(PETSc.COMM_WORLD)
+        dml1.create(dm.getComm())
         dml1.setTAOType(PETSc.DM.TAOType.L1)
 
         dml2 = PETSc.DM()
-        dml2.create(PETSc.COMM_WORLD)
+        dml2.create(dm.getComm())
         dml2.setTAOType(PETSc.DM.TAOType.L2)
 
         # Solve built-in version
