@@ -62,6 +62,8 @@ PETSC_INTERN PetscErrorCode PetscSFCreate_Gather(PetscSF sf)
 
   /* Inherit from Gatherv */
   sf->ops->FetchAndOpBegin = PetscSFFetchAndOpBegin_Gatherv;
+  sf->ops->AllreduceBegin  = PetscSFAllreduceBegin_Gatherv;
+  sf->ops->AllreduceEnd    = PetscSFAllreduceEnd_Gatherv;
 
   sf->ops->SetCommunicationOps = PetscSFSetCommunicationOps_Gather;
 

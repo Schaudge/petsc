@@ -208,6 +208,8 @@ PETSC_INTERN PetscErrorCode PetscSFCreate_Alltoall(PetscSF sf)
 
   /* Inherit from Gatherv. Each root has only one leaf connected, which enables this inheritance */
   sf->ops->FetchAndOpBegin = PetscSFFetchAndOpBegin_Gatherv;
+  sf->ops->AllreduceBegin  = PetscSFAllreduceBegin_Gatherv;
+  sf->ops->AllreduceEnd    = PetscSFAllreduceEnd_Gatherv;
 
   /* Alltoall stuff */
   sf->ops->GetGraph             = PetscSFGetGraph_Alltoall;

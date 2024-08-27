@@ -50,6 +50,28 @@ PETSC_INTERN PetscErrorCode PetscSFFetchAndOpBegin_Gatherv(PetscSF sf, MPI_Datat
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+PETSC_INTERN PetscErrorCode PetscSFAllreduceBegin_Gatherv(PetscSF sf, MPI_Datatype unit, PetscMemType leafinmtype, const void *leafindata, PetscMemType leafoutmtype, void *leafoutdata, MPI_Op op)
+{
+  PetscSFLink        link;
+
+  PetscFunctionBegin;
+  // create a phony link just to get the proper memcpy method
+  PetscCall(PetscSFLinkCreate(sf, unit, leafinmtype, leafindata, leafoutmtype, leafoutdata, op, PETSCSF_BCAST, &link));
+  PetscCall((*link->Memcpy)(link, leafoutmtype, leafoutdata, leafinmtype, leafindata, (size_t) sf->nleaves * link->unitbytes));
+  if (PetscMemTypeDevice(leafinmtype) && PetscMemTypeHost(leafoutmtype)) PetscCall((*link->SyncStream)(link)); /* Sync the device to host memcpy */
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode PetscSFAllreduceEnd_Gatherv(PetscSF sf, MPI_Datatype unit, const void *leafindata, void *leafoutdata, MPI_Op op)
+{
+  PetscSFLink        link;
+
+  PetscFunctionBegin;
+  PetscCall(PetscSFLinkGetInUse(sf, unit, leafindata, leafoutdata, PETSC_OWN_POINTER, &link));
+  PetscCall(PetscSFLinkReclaim(sf, &link));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PETSC_INTERN PetscErrorCode PetscSFCreate_Gatherv(PetscSF sf)
 {
   PetscSF_Gatherv *dat = (PetscSF_Gatherv *)sf->data;
@@ -72,6 +94,8 @@ PETSC_INTERN PetscErrorCode PetscSFCreate_Gatherv(PetscSF sf)
 
   /* Gatherv stuff */
   sf->ops->FetchAndOpBegin = PetscSFFetchAndOpBegin_Gatherv;
+  sf->ops->AllreduceBegin  = PetscSFAllreduceBegin_Gatherv;
+  sf->ops->AllreduceEnd    = PetscSFAllreduceEnd_Gatherv;
 
   sf->ops->SetCommunicationOps = PetscSFSetCommunicationOps_Gatherv;
 
