@@ -183,6 +183,7 @@ PETSC_EXTERN PetscErrorCode MPIPetsc_Type_compare_contig(MPI_Datatype, MPI_Datat
   #define MPIU_Iallgather(a, b, c, d, e, f, g, req)      MPI_Iallgather(a, b, c, d, e, f, g, req)
   #define MPIU_Iallgatherv(a, b, c, d, e, f, g, h, req)  MPI_Iallgatherv(a, b, c, d, e, f, g, h, req)
   #define MPIU_Ialltoall(a, b, c, d, e, f, g, req)       MPI_Ialltoall(a, b, c, d, e, f, g, req)
+  #define MPIU_Iallreduce(a, b, c, d, e, f, req)         MPI_Iallreduce(a, b, c, d, e, f, req)
 #else
   /* Ignore req, the MPI_Request argument, and use MPI blocking collectives. One should initialize req
    to MPI_REQUEST_NULL so that one can do MPI_Wait(req,status) no matter the call is blocking or not.
@@ -196,6 +197,7 @@ PETSC_EXTERN PetscErrorCode MPIPetsc_Type_compare_contig(MPI_Datatype, MPI_Datat
   #define MPIU_Iallgather(a, b, c, d, e, f, g, req)      MPI_Allgather(a, b, c, d, e, f, g)
   #define MPIU_Iallgatherv(a, b, c, d, e, f, g, h, req)  MPI_Allgatherv(a, b, c, d, e, f, g, h)
   #define MPIU_Ialltoall(a, b, c, d, e, f, g, req)       MPI_Alltoall(a, b, c, d, e, f, g)
+  #define MPIU_Iallreduce(a, b, c, d, e, f, req)         MPI_Allreduce(a, b, c, d, e, f)
 #endif
 
 PETSC_EXTERN PetscErrorCode VecScatterGetRemoteCount_Private(VecScatter, PetscBool, PetscInt *, PetscInt *);

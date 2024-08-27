@@ -129,6 +129,8 @@ PETSC_INTERN PetscErrorCode PetscSFCreate_Allgather(PetscSF sf)
   sf->ops->CreateLocalSF   = PetscSFCreateLocalSF_Allgatherv;
   sf->ops->GetGraph        = PetscSFGetGraph_Allgatherv;
   sf->ops->GetLeafRanks    = PetscSFGetLeafRanks_Allgatherv;
+  sf->ops->AllreduceBegin  = PetscSFAllreduceBegin_Allgatherv;
+  sf->ops->AllreduceEnd    = PetscSFAllreduceEnd_Allgatherv;
 
   /* Allgather stuff */
   sf->ops->SetUp       = PetscSFSetUp_Allgather;

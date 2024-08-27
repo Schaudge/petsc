@@ -10,6 +10,7 @@ typedef struct {
   /* special treatment for one-to-all patterns detected at setup time */
   PetscBool   bcast_pattern; /* bcast here means one-to-all; we might do MPI_Reduce with this pattern */
   PetscMPIInt bcast_root;    /* the root rank in MPI_Bcast */
+  PetscSF     dummy_allredsf; /* sf used to generate leaf2leaf links for allreduce */
 } PetscSF_Allgatherv;
 
 PETSC_INTERN PetscErrorCode PetscSFSetUp_Allgather(PetscSF);
@@ -23,3 +24,5 @@ PETSC_INTERN PetscErrorCode PetscSFGetLeafRanks_Allgatherv(PetscSF, PetscInt *, 
 PETSC_INTERN PetscErrorCode PetscSFCreateLocalSF_Allgatherv(PetscSF, PetscSF *);
 PETSC_INTERN PetscErrorCode PetscSFGetGraph_Allgatherv(PetscSF, PetscInt *, PetscInt *, const PetscInt **, const PetscSFNode **);
 PETSC_INTERN PetscErrorCode PetscSFReduceEnd_Allgatherv(PetscSF, MPI_Datatype, const void *, void *, MPI_Op);
+PETSC_INTERN PetscErrorCode PetscSFAllreduceBegin_Allgatherv(PetscSF, MPI_Datatype, PetscMemType, const void *, PetscMemType, void *, MPI_Op);
+PETSC_INTERN PetscErrorCode PetscSFAllreduceEnd_Allgatherv(PetscSF, MPI_Datatype, const void *, void *, MPI_Op);

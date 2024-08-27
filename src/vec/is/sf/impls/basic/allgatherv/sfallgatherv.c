@@ -1,4 +1,5 @@
 #include <../src/vec/is/sf/impls/basic/allgatherv/sfallgatherv.h>
+#include <../src/vec/is/sf/impls/basic/sfbasic.h>
 
 /* PetscSFGetGraph is non-collective. An implementation should not have collective calls */
 PETSC_INTERN PetscErrorCode PetscSFGetGraph_Allgatherv(PetscSF sf, PetscInt *nroots, PetscInt *nleaves, const PetscInt **ilocal, const PetscSFNode **iremote)
@@ -88,6 +89,7 @@ PETSC_INTERN PetscErrorCode PetscSFReset_Allgatherv(PetscSF sf)
     PetscCall(PetscSFLinkDestroy(sf, link));
   }
   dat->avail = NULL;
+  PetscCall(PetscSFDestroy(&dat->dummy_allredsf));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -189,6 +191,64 @@ PETSC_INTERN PetscErrorCode PetscSFReduceEnd_Allgatherv(PetscSF sf, MPI_Datatype
   } else {
     PetscCall(PetscSFReduceEnd_Basic(sf, unit, leafdata, rootdata, op));
   }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode PetscSFAllreduceBegin_Allgatherv(PetscSF sf, MPI_Datatype unit, PetscMemType leafinmtype, const void *leafindata, PetscMemType leafoutmtype, void *leafoutdata, MPI_Op op)
+{
+  PetscSFLink         link;
+  MPI_Comm            comm;
+  void               *leafoutbuf = NULL, *leafinbuf = NULL;
+  MPI_Request        *req = NULL;
+  PetscSF_Allgatherv *dat = (PetscSF_Allgatherv *)sf->data;
+
+  PetscFunctionBegin;
+  PetscCall(PetscObjectGetComm((PetscObject)sf, &comm));
+  if (!dat->dummy_allredsf) {
+    PetscSFNode *remote;
+    PetscMPIInt rank;
+    PetscSF_Basic *bas;
+
+    PetscCall(PetscSFCreate(PetscObjectComm((PetscObject)sf), &dat->dummy_allredsf));
+
+    PetscCall(PetscMalloc1(sf->nleaves, &remote));
+    PetscCallMPI(MPI_Comm_rank(comm, &rank));
+    for (PetscInt i = 0; i < sf->nleaves; i++) {
+      remote[i].rank = rank;
+      remote[i].index = i;
+    }
+    PetscCall(PetscSFSetGraph(dat->dummy_allredsf, sf->nleaves, sf->nleaves, NULL, PETSC_OWN_POINTER, remote, PETSC_OWN_POINTER));
+    PetscCall(PetscSFSetUp(dat->dummy_allredsf));
+    dat->dummy_allredsf->leafbuflen[PETSCSF_REMOTE] = sf->nleaves;
+    dat->dummy_allredsf->leafbuflen[PETSCSF_LOCAL] = 0;
+    dat->dummy_allredsf->leafstart[PETSCSF_REMOTE] = 0;
+    bas = (PetscSF_Basic *)dat->dummy_allredsf->data;
+    bas->rootbuflen[PETSCSF_REMOTE] = sf->nleaves;
+    bas->rootbuflen[PETSCSF_LOCAL] = 0;
+    bas->rootstart[PETSCSF_REMOTE] = 0;
+    dat->dummy_allredsf->nleafreqs = 0;
+    bas->nrootreqs = 1;
+  }
+  /* we use MPI_REPLACE instead of the true op because it should be possible to use in place buffers no matter what op is, and PetscSFLink only prepares
+     in place buffers if op == MPI_REPLACE */
+  PetscCall(PetscSFLinkCreate(dat->dummy_allredsf, unit, leafoutmtype, leafoutdata, leafinmtype, leafindata, MPI_REPLACE, PETSCSF_REDUCE, &link));
+  PetscCall(PetscSFLinkPackLeafData(dat->dummy_allredsf, link, PETSCSF_REMOTE, leafindata));
+  PetscCall(PetscSFLinkCopyLeafBufferInCaseNotUseGpuAwareMPI(dat->dummy_allredsf, link, PETSC_TRUE /* device2host before sending */));
+  PetscCall(PetscSFLinkGetMPIBuffersAndRequests(dat->dummy_allredsf, link, PETSCSF_LEAF2ROOT, &leafoutbuf, &leafinbuf, &req, NULL));
+  PetscCall(PetscSFLinkSyncStreamBeforeCallMPI(sf->dummy_allredsf, link));
+  PetscCallMPI(MPIU_Iallreduce(leafinbuf, leafoutbuf, sf->nleaves, unit, op, comm, req));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PETSC_INTERN PetscErrorCode PetscSFAllreduceEnd_Allgatherv(PetscSF sf, MPI_Datatype unit, const void *leafindata, void *leafoutdata, MPI_Op op)
+{
+  PetscSFLink         link;
+  PetscSF_Allgatherv *dat = (PetscSF_Allgatherv *)sf->data;
+
+  PetscFunctionBegin;
+  PetscCall(PetscSFLinkGetInUse(dat->dummy_allredsf, unit, leafoutdata, leafindata, PETSC_OWN_POINTER, &link));
+  PetscCall(PetscSFLinkFinishCommunication(dat->dummy_allredsf, link, PETSCSF_LEAF2ROOT));
+  PetscCall(PetscSFLinkReclaim(dat->dummy_allredsf, &link));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -429,6 +489,8 @@ PETSC_INTERN PetscErrorCode PetscSFCreate_Allgatherv(PetscSF sf)
   sf->ops->FetchAndOpEnd   = PetscSFFetchAndOpEnd_Allgatherv;
   sf->ops->CreateLocalSF   = PetscSFCreateLocalSF_Allgatherv;
   sf->ops->BcastToZero     = PetscSFBcastToZero_Allgatherv;
+  sf->ops->AllreduceBegin  = PetscSFAllreduceBegin_Allgatherv;
+  sf->ops->AllreduceEnd    = PetscSFAllreduceEnd_Allgatherv;
 
   sf->collective = PETSC_TRUE;
 
