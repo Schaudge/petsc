@@ -237,7 +237,7 @@ static PetscErrorCode TaoFB_ComputeResidual_And_LogConv_Private(Tao tao, PetscRe
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode TaoPSSetSmoothTerm_FB(Tao tao, PetscInt idx)
+static PetscErrorCode TaoPSSetSmoothTerm_FB(Tao tao, PetscInt idx)
 {
   TAO_FB *fb = (TAO_FB *)tao->data;
   DMTao   tdm;
@@ -253,7 +253,7 @@ PetscErrorCode TaoPSSetSmoothTerm_FB(Tao tao, PetscInt idx)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode TaoPSSetNonSmoothTerm_FB(Tao tao, PetscInt idx)
+static PetscErrorCode TaoPSSetNonSmoothTerm_FB(Tao tao, PetscInt idx)
 {
   TAO_FB *fb = (TAO_FB *)tao->data;
 
@@ -265,7 +265,7 @@ PetscErrorCode TaoPSSetNonSmoothTerm_FB(Tao tao, PetscInt idx)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode TaoPSUseAdaptiveStep_FB(Tao tao, PetscBool flg)
+static PetscErrorCode TaoPSUseAdaptiveStep_FB(Tao tao, PetscBool flg)
 {
   TAO_FB *fb = (TAO_FB *)tao->data;
 
@@ -275,7 +275,7 @@ PetscErrorCode TaoPSUseAdaptiveStep_FB(Tao tao, PetscBool flg)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode TaoPSUseAcceleration_FB(Tao tao, PetscBool flg)
+static PetscErrorCode TaoPSUseAcceleration_FB(Tao tao, PetscBool flg)
 {
   TAO_FB *fb = (TAO_FB *)tao->data;
 
@@ -285,7 +285,7 @@ PetscErrorCode TaoPSUseAcceleration_FB(Tao tao, PetscBool flg)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode TaoPSSetLipschitz_FB(Tao tao, PetscReal lip)
+static PetscErrorCode TaoPSSetLipschitz_FB(Tao tao, PetscReal lip)
 {
   TAO_FB *fb = (TAO_FB *)tao->data;
 

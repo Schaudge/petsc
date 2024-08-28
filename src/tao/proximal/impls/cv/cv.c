@@ -166,7 +166,7 @@ static PetscErrorCode TaoCV_Stepsize_No_LS_Private(Tao tao)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode TaoPSSetSmoothTerm_CV(Tao tao, PetscInt idx)
+static PetscErrorCode TaoPSSetSmoothTerm_CV(Tao tao, PetscInt idx)
 {
   TAO_CV *cv = (TAO_CV *)tao->data;
 
@@ -178,7 +178,7 @@ PetscErrorCode TaoPSSetSmoothTerm_CV(Tao tao, PetscInt idx)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode TaoPSSetNonSmoothTerm_CV(Tao tao, PetscInt idx)
+static PetscErrorCode TaoPSSetNonSmoothTerm_CV(Tao tao, PetscInt idx)
 {
   TAO_CV *cv = (TAO_CV *)tao->data;
 
@@ -190,7 +190,7 @@ PetscErrorCode TaoPSSetNonSmoothTerm_CV(Tao tao, PetscInt idx)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode TaoPSSetNonSmoothTermWithLinearMap_CV(Tao tao, PetscInt idx, Mat mat, PetscReal norm)
+static PetscErrorCode TaoPSSetNonSmoothTermWithLinearMap_CV(Tao tao, PetscInt idx, Mat mat, PetscReal norm)
 {
   TAO_CV *cv = (TAO_CV *)tao->data;
 
@@ -216,7 +216,7 @@ PetscErrorCode TaoPSSetNonSmoothTermWithLinearMap_CV(Tao tao, PetscInt idx, Mat 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode TaoPSSetLipschitz_CV(Tao tao, PetscReal lip)
+static PetscErrorCode TaoPSSetLipschitz_CV(Tao tao, PetscReal lip)
 {
   TAO_CV *cv = (TAO_CV *)tao->data;
 
