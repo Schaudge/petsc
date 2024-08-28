@@ -2181,6 +2181,7 @@ PetscErrorCode PreStep(TS ts)
       }
       PetscCall(DMDestroy(&plex));
       PetscCall(DMAdaptLabel(phase_dm, adaptLabel, &adaptedDM));
+      PetscCall(DMDestroy(&phase_dm));
       PetscCall(DMLabelDestroy(&adaptLabel));
       phase_dm = adaptedDM;
     }
