@@ -561,7 +561,7 @@ PETSC_EXTERN PetscErrorCode MatCreateSubMatrixFree(Mat, IS, IS, Mat *);
 
 PETSC_EXTERN PetscErrorCode TaoPSSetLipschitz(Tao, PetscReal);
 PETSC_EXTERN PetscErrorCode TaoPSSetSmoothTerm(Tao, PetscInt);
-PETSC_EXTERN PetscErrorCode TaoPSSetNonSmoothTerm(Tao, PetscInt );
+PETSC_EXTERN PetscErrorCode TaoPSSetNonSmoothTerm(Tao, PetscInt);
 PETSC_EXTERN PetscErrorCode TaoPSSetNonSmoothTermWithLinearMap(Tao, PetscInt, Mat, PetscReal);
 PETSC_EXTERN PetscErrorCode TaoPSUseAcceleration(Tao, PetscBool);
 PETSC_EXTERN PetscErrorCode TaoPSUseAdaptiveStep(Tao, PetscBool);

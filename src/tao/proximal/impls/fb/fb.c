@@ -44,10 +44,10 @@ static PetscErrorCode TaoFB_Grad_Private(Tao tao, Vec x, Vec g)
       PetscCall(PetscLogEventEnd(TAO_GradientEval, tao, x, g, NULL));
       tao->ngrads++;
     } else if (tao->ops->computeobjectiveandgradient) {
-    PetscCall(PetscLogEventBegin(TAO_ObjGradEval, tao, x, g, NULL));
-    PetscCallBack("Tao callback objective/gradient", (*tao->ops->computeobjectiveandgradient)(tao, x, &dummy, g, tao->user_objgradP));
-    PetscCall(PetscLogEventEnd(TAO_ObjGradEval, tao, x, g, NULL));
-    tao->nfuncgrads++;
+      PetscCall(PetscLogEventBegin(TAO_ObjGradEval, tao, x, g, NULL));
+      PetscCallBack("Tao callback objective/gradient", (*tao->ops->computeobjectiveandgradient)(tao, x, &dummy, g, tao->user_objgradP));
+      PetscCall(PetscLogEventEnd(TAO_ObjGradEval, tao, x, g, NULL));
+      tao->nfuncgrads++;
     } else SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_ARG_WRONGSTATE, "TaoSetGradient() has not been called");
   }
   PetscCall(VecLockReadPop(x));
