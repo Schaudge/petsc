@@ -10,6 +10,9 @@
 #include "cupmallocator.hpp"
 #include "cupmstream.hpp"
 #include "cupmevent.hpp"
+#include "cupmthrustutility.hpp"
+
+#include <thrust/equal.h>
 
 namespace Petsc
 {
@@ -205,6 +208,7 @@ public:
   static PetscErrorCode memFree(PetscDeviceContext, PetscMemType, void **) noexcept;
   static PetscErrorCode memCopy(PetscDeviceContext, void *PETSC_RESTRICT, const void *PETSC_RESTRICT, std::size_t, PetscDeviceCopyMode) noexcept;
   static PetscErrorCode memSet(PetscDeviceContext, PetscMemType, void *, PetscInt, std::size_t) noexcept;
+  static PetscErrorCode memCmp(PetscDeviceContext, PetscMemType, const void *, PetscMemType, const void *, std::size_t, PetscBool *) noexcept;
   static PetscErrorCode createEvent(PetscDeviceContext, PetscEvent) noexcept;
   static PetscErrorCode recordEvent(PetscDeviceContext, PetscEvent) noexcept;
   static PetscErrorCode waitForEvent(PetscDeviceContext, PetscEvent) noexcept;
@@ -229,6 +233,7 @@ public:
     PetscDesignatedInitializer(memfree, memFree),
     PetscDesignatedInitializer(memcopy, memCopy),
     PetscDesignatedInitializer(memset, memSet),
+    PetscDesignatedInitializer(memcmp, memCmp),
     PetscDesignatedInitializer(createevent, createEvent),
     PetscDesignatedInitializer(recordevent, recordEvent),
     PetscDesignatedInitializer(waitforevent, waitForEvent)
@@ -487,6 +492,45 @@ inline PetscErrorCode DeviceContext<T>::memSet(PetscDeviceContext dctx, PetscMem
   PetscCall(check_current_device_(dctx));
   PetscCall(check_memtype_(mtype, "zeroing"));
   PetscCallCUPM(cupmMemsetAsync(ptr, static_cast<int>(v), n, impls_cast_(dctx)->stream.get_stream()));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+template <DeviceType T>
+inline PetscErrorCode DeviceContext<T>::memCmp(PetscDeviceContext dctx, PetscMemType mtype1, const void *str1, PetscMemType mtype2, const void *str2, std::size_t len, PetscBool *e) noexcept
+{
+  const auto stream = impls_cast_(dctx)->stream.get_stream();
+
+  PetscFunctionBegin;
+  PetscCall(check_current_device_(dctx));
+  PetscCall(check_memtype_(mtype1, "comparing"));
+  PetscCall(check_memtype_(mtype2, "comparing"));
+  {
+    auto s1 = static_cast<const char *>(str1);
+    auto s2 = static_cast<const char *>(str2);
+    void *alloc_s1 = nullptr;
+    void *alloc_s2 = nullptr;
+    bool equal;
+
+    const auto mode = PetscMemTypeToDeviceCopyMode(mtype1, mtype2);
+    if (mode == PETSC_DEVICE_COPY_HTOH) {
+      PetscCall(PetscMemcmp(str1, str2, len, e));
+      PetscFunctionReturn(PETSC_SUCCESS);
+    } else if (mode == PETSC_DEVICE_COPY_DTOH) {
+      PetscCall(memAlloc(dctx, PETSC_FALSE, mtype2, len, PETSC_MEMALIGN, &alloc_s1));
+      PetscCall(memCopy(dctx, alloc_s1, str1, len, PETSC_DEVICE_COPY_HTOD));
+      PetscCall(PetscLogCpuToGpu(len));
+      s1 = static_cast<const char *>(alloc_s1);
+    } else if (mode == PETSC_DEVICE_COPY_HTOD) {
+      PetscCall(memAlloc(dctx, PETSC_FALSE, mtype1, len, PETSC_MEMALIGN, &alloc_s2));
+      PetscCall(memCopy(dctx, alloc_s2, str2, len, PETSC_DEVICE_COPY_HTOD));
+      PetscCall(PetscLogCpuToGpu(len));
+      s2 = static_cast<const char *>(alloc_s2);
+    }
+    PetscCallThrust(equal = THRUST_CALL(thrust::equal, impls_cast_(dctx)->stream.get_stream(), s1, s1 + len, s2));
+    if (alloc_s1 != nullptr) PetscCall(memFree(dctx, mtype2, &alloc_s1));
+    if (alloc_s2 != nullptr) PetscCall(memFree(dctx, mtype2, &alloc_s2));
+    *e = static_cast<PetscBool>(equal);
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

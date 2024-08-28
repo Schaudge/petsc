@@ -235,7 +235,7 @@ PETSC_INTERN PetscErrorCode PetscSFAllreduceBegin_Allgatherv(PetscSF sf, MPI_Dat
   PetscCall(PetscSFLinkPackLeafData(dat->dummy_allredsf, link, PETSCSF_REMOTE, leafindata));
   PetscCall(PetscSFLinkCopyLeafBufferInCaseNotUseGpuAwareMPI(dat->dummy_allredsf, link, PETSC_TRUE /* device2host before sending */));
   PetscCall(PetscSFLinkGetMPIBuffersAndRequests(dat->dummy_allredsf, link, PETSCSF_LEAF2ROOT, &leafoutbuf, &leafinbuf, &req, NULL));
-  PetscCall(PetscSFLinkSyncStreamBeforeCallMPI(sf->dummy_allredsf, link));
+  PetscCall(PetscSFLinkSyncStreamBeforeCallMPI(dat->dummy_allredsf, link));
   PetscCallMPI(MPIU_Iallreduce(leafinbuf, leafoutbuf, sf->nleaves, unit, op, comm, req));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

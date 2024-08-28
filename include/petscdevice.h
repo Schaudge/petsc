@@ -109,12 +109,14 @@ PETSC_EXTERN PetscErrorCode PetscDeviceAllocate_Private(PetscDeviceContext, Pets
 PETSC_EXTERN PetscErrorCode PetscDeviceDeallocate_Private(PetscDeviceContext, void *PETSC_RESTRICT);
 PETSC_EXTERN PetscErrorCode PetscDeviceMemcpy(PetscDeviceContext, void *PETSC_RESTRICT, const void *PETSC_RESTRICT, size_t);
 PETSC_EXTERN PetscErrorCode PetscDeviceMemset(PetscDeviceContext, void *PETSC_RESTRICT, PetscInt, size_t);
+PETSC_EXTERN PetscErrorCode PetscDeviceMemcmp(PetscDeviceContext, const void *, const void *, size_t, PetscBool *);
 #else
   #include <string.h> // memset()
   #define PetscDeviceAllocate_Private(PetscDeviceContext, clear, PetscMemType, size, alignment, ptr) PetscMallocA(1, (clear), __LINE__, PETSC_FUNCTION_NAME, __FILE__, (size), (ptr))
   #define PetscDeviceDeallocate_Private(PetscDeviceContext, ptr)                                     PetscFree(ptr)
   #define PetscDeviceMemcpy(PetscDeviceContext, dest, src, size)                                     PetscMemcpy((dest), (src), (size))
   #define PetscDeviceMemset(PetscDeviceContext, ptr, v, size)                                        ((void)memset((ptr), (unsigned char)(v), (size)), PETSC_SUCCESS)
+  #define PetscDeviceMemcmp(PetscDeviceContext, st1, str2, len, e)                                   PetscMemcmp((str1), (str2), (len), (e))
 #endif /* PetscDefined(HAVE_CXX) */
 
 /*MC

@@ -500,6 +500,50 @@ PetscErrorCode PetscDeviceMemcpy(PetscDeviceContext dctx, void *PETSC_RESTRICT d
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/*@C
+  PetscDeviceMemcmp - Memcmp device-aware memory
+
+  Not Collective, Auto-dependency aware
+
+  Input Parameters:
++ dctx - The `PetscDeviceContext` used to memset the memory
+. str1 - The pointer to the start of the first memory region
+. str2 - The pointer to the start of the second memory region
+- len  - The number of bytes to compare in the memory regions
+
+  Output Parameters:
+. e - `PETSC_TRUE` if the memory regions are bitwise equal
+
+.seealso: `PetscDeviceArrayZero()`, `PetscDeviceMalloc()`, `PetscDeviceCalloc()`,
+`PetscDeviceFree()`
+@*/
+PetscErrorCode PetscDeviceMemcmp(PetscDeviceContext dctx, const void *str1, const void *str2, std::size_t len, PetscBool *e)
+{
+  PetscFunctionBegin;
+  PetscAssertPointer(e, 4);
+  if (!len || str1 == str2) {
+    *e = PETSC_TRUE;
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
+  PetscCall(PetscDeviceContextGetOptionalNullContext_Internal(&dctx));
+  {
+    const auto &str1_attr = memory_map.search_for(str1, true)->second;
+    const auto &str2_attr = memory_map.search_for(str2, true)->second;
+    const auto  mode      = PetscMemTypeToDeviceCopyMode(str1_attr.mtype, str2_attr.mtype);
+
+    PetscCall(PetscDeviceContextMarkIntentFromID(dctx, str1_attr.id, PETSC_MEMORY_ACCESS_READ, "memcmp (str1)"));
+    PetscCall(PetscDeviceContextMarkIntentFromID(dctx, str2_attr.id, PETSC_MEMORY_ACCESS_READ, "memcmp (str2)"));
+    // perform the memcmp
+    if (dctx->ops->memcmp) {
+      PetscUseTypeMethod(dctx, memcmp, str1_attr.mtype, str1, str2_attr.mtype, str2, len, e);
+    } else {
+      PetscCall(PetscDeviceCheckCapable_Private(dctx, mode == PETSC_DEVICE_COPY_HTOH, "comparing"));
+      PetscCall(PetscMemcmp(str1, str2, len, e));
+    }
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 // PetscClangLinter pragma disable: -fdoc-section-header-unknown
 /*@C
   PetscDeviceMemset - Memset device-aware memory
