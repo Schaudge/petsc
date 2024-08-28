@@ -27,6 +27,19 @@ extern void PetscSFCheckGraphSet(PetscSF, int);
 const char *const PetscSFDuplicateOptions[]     = {"CONFONLY", "RANKS", "GRAPH", "PetscSFDuplicateOption", "PETSCSF_DUPLICATE_", NULL};
 const char *const PetscSFConcatenateRootModes[] = {"local", "shared", "global", "PetscSFConcatenateRootMode", "PETSCSF_CONCATENATE_ROOTMODE_", NULL};
 
+PETSC_INTERN PetscErrorCode PetscSFGetDatatypeSize(PetscSF sf, MPI_Datatype unit, size_t *size_bytes)
+{
+  MPI_Aint lb, lb_true, bytes, bytes_true;
+
+  PetscFunctionBegin;
+  PetscCallMPI(MPI_Type_get_extent(unit, &lb, &bytes));
+  PetscCallMPI(MPI_Type_get_true_extent(unit, &lb_true, &bytes_true));
+  PetscCheck(lb == 0 && lb_true == 0, PetscObjectComm((PetscObject)sf), PETSC_ERR_SUP, "No support for unit type with nonzero lower bound, write petsc-maint@mcs.anl.gov if you want this feature");
+  PetscCheck(bytes == bytes_true, PetscObjectComm((PetscObject)sf), PETSC_ERR_SUP, "No support for unit type with modified extent, write petsc-maint@mcs.anl.gov if you want this feature");
+  *size_bytes = bytes;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /*@
   PetscSFCreate - create a star forest communication context
 
@@ -1789,6 +1802,34 @@ PetscErrorCode PetscSFAllreduceEnd(PetscSF sf, MPI_Datatype unit, const void *le
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/*@
+  PetscSFLeavesAreEqual - Description
+
+@*/
+PetscErrorCode PetscSFLeavesAreEqual(PetscSF sf, MPI_Datatype unit, const void *leafdata, PetscBool *equal)
+{
+  PetscMemType mtype;
+  PetscDeviceContext dctx;
+  size_t bytes, len;
+  PetscInt minleaf, maxleaf;
+  void *leafcopy;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(sf, PETSCSF_CLASSID, 1);
+  PetscAssertPointer(equal, 4);
+  PetscCall(PetscSFGetDatatypeSize(sf, unit, &bytes));
+  PetscCall(PetscGetMemType(leafdata, &mtype));
+  PetscCall(PetscDeviceContextGetCurrentContext(&dctx));
+  PetscCall(PetscSFGetLeafRange(sf, &minleaf, &maxleaf));
+  len = (size_t)(maxleaf + 1 - minleaf) * bytes;
+  PetscCall(PetscDeviceAllocate_Private(dctx, PETSC_FALSE, mtype, len, PETSC_MEMALIGN, &leafcopy));
+  PetscCall(PetscDeviceMemcpy(dctx, leafcopy, &leafdata[minleaf * bytes], len));
+  PetscCall(PetscSFAllreduceWithMemTypeBegin(sf, unit, mtype, leafdata, mtype, &leafcopy[-(minleaf * bytes)], MPI_REPLACE));
+  PetscCall(PetscSFAllreduceEnd(sf, unit, leafdata, &leafcopy[-(minleaf * bytes)], MPI_REPLACE));
+  PetscCall(PetscMemcmp(&leafdata[minleaf * bytes], leafcopy, len, equal));
+  PetscCall(PetscDeviceFree(dctx, leafcopy));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 /*@C
   PetscSFFetchAndOpBegin - begin operation that fetches values from root and updates atomically by applying operation using my leaf value,

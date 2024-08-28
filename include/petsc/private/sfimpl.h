@@ -173,6 +173,8 @@ PETSC_EXTERN PetscErrorCode MPIPetsc_Type_unwrap(MPI_Datatype, MPI_Datatype *, P
 PETSC_EXTERN PetscErrorCode MPIPetsc_Type_compare(MPI_Datatype, MPI_Datatype, PetscBool *);
 PETSC_EXTERN PetscErrorCode MPIPetsc_Type_compare_contig(MPI_Datatype, MPI_Datatype, PetscInt *);
 
+PETSC_INTERN PetscErrorCode PetscSFGetDatatypeSize(PetscSF, MPI_Datatype, size_t *);
+
 #if defined(PETSC_HAVE_MPI_NONBLOCKING_COLLECTIVES)
   #define MPIU_Ibcast(a, b, c, d, e, req)                MPI_Ibcast(a, b, c, d, e, req)
   #define MPIU_Ireduce(a, b, c, d, e, f, g, req)         MPI_Ireduce(a, b, c, d, e, f, g, req)
