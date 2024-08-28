@@ -398,6 +398,7 @@ int main(int argc, char **argv)
   Tao       tao;
   AppCtx    user;
   PetscReal v1, v2;
+  PetscInt  dm_idx = 0;
 
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, (char *)0, help));
@@ -423,7 +424,9 @@ int main(int argc, char **argv)
     case USE_DM:
       PetscCall(DMTaoSetObjectiveAndGradient(fdm, UserObjGrad_DM, (void *)&user));
       PetscCall(DMTaoSetLipschitz(fdm, user.lip));
-      PetscCall(TaoPSSetSmoothTerm(tao, fdm, 1.));
+      PetscCall(TaoAddDM(tao, fdm, 1.));
+      PetscCall(TaoPSSetSmoothTerm(tao, dm_idx));
+      dm_idx++;
       break;
     default:
       SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid problem type.");
@@ -438,7 +441,9 @@ int main(int argc, char **argv)
     case USE_DM:
       PetscCall(DMTaoSetObjectiveAndGradient(fdm, Log_UserObjGrad_DM, (void *)&user));
       PetscCall(DMTaoSetLipschitz(fdm, user.lip));
-      PetscCall(TaoPSSetSmoothTerm(tao, fdm, 1.));
+      PetscCall(TaoAddDM(tao, fdm, 1.));
+      PetscCall(TaoPSSetSmoothTerm(tao, dm_idx));
+      dm_idx++;
       break;
     default:
       SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid problem formulation type.");
@@ -448,7 +453,8 @@ int main(int argc, char **argv)
     SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid problem formulation type.");
   }
 
-  PetscCall(TaoPSSetNonSmoothTerm(tao, gdm, 1.));
+  PetscCall(TaoAddDM(tao, gdm, 1.));
+  PetscCall(TaoPSSetNonSmoothTerm(tao, dm_idx));
   PetscCall(TaoSetFromOptions(tao));
   PetscCall(TaoSolve(tao));
 
@@ -481,31 +487,31 @@ int main(int argc, char **argv)
 
    test:
       suffix: lasso_no_ls
-      args: -problem prob_lasso -formation {{use_tao use_dm}} -tao_fb_accel 0 -tao_fb_adaptive 0 -scale 10 -tao_ls_max_funcs 0 -tao_max_it 1000
+      args: -problem prob_lasso -formation use_dm -tao_fb_accel 0 -tao_fb_adaptive 0 -scale 10 -tao_ls_max_funcs 0 -tao_max_it 1000
       output_file: output/fb_example_lasso_no_ls.out
       requires: !single
 
    test:
       suffix: lasso_ls
-      args: -problem prob_lasso -formation {{use_tao use_dm}} -tao_fb_accel 0 -tao_fb_adaptive 0 -scale 10 -tao_ls_max_funcs 30 -tao_fb_ls_scale 1.05 -tao_max_it 1000
+      args: -problem prob_lasso -formation use_dm -tao_fb_accel 0 -tao_fb_adaptive 0 -scale 10 -tao_ls_max_funcs 30 -tao_fb_ls_scale 1.05 -tao_max_it 1000
       output_file: output/fb_example_lasso_ls.out
       requires: !single
 
    test:
       suffix: lasso_non_mon_ls
-      args: -problem prob_lasso -formation {{use_tao use_dm}} -tao_fb_accel 0 -tao_fb_adaptive 0 -scale 10 -tao_ls_max_funcs 30 -tao_ls_PS_memory_size 5 -tao_fb_ls_scale 1.05 -tao_max_it 1000
+      args: -problem prob_lasso -formation use_dm -tao_fb_accel 0 -tao_fb_adaptive 0 -scale 10 -tao_ls_max_funcs 30 -tao_ls_PS_memory_size 5 -tao_fb_ls_scale 1.05 -tao_max_it 1000
       output_file: output/fb_example_lasso_non_mon_ls.out
       requires: !single
 
    test:
       suffix: lasso_fista
-      args: -problem prob_lasso -formation {{use_tao use_dm}} -tao_fb_accel 1 -tao_fb_adaptive 0 -scale 10 -tao_max_it 1000
+      args: -problem prob_lasso -formation use_dm -tao_fb_accel 1 -tao_fb_adaptive 0 -scale 10 -tao_max_it 1000
       output_file: output/fb_example_lasso_fista.out
       requires: !single
 
    test:
       suffix: lasso_ada
-      args: -problem prob_lasso -formation {{use_tao use_dm}} -tao_fb_accel 0 -tao_fb_adaptive 1 -scale 10 -tao_max_it 2000
+      args: -problem prob_lasso -formation use_dm -tao_fb_accel 0 -tao_fb_adaptive 1 -scale 10 -tao_max_it 2000
       output_file: output/fb_example_lasso_ada.out
       requires: !single
 
@@ -513,7 +519,7 @@ int main(int argc, char **argv)
       suffix: logreg_fista
       nsize: {{1 2}}
       localrunfiles: matrix-heart-scale.dat vector-heart-scale_1_0.dat
-      args: -problem prob_log_reg -formation {{use_tao use_dm}} -scale 0.01 -tao_fb_accel 1 -tao_fb_adaptive 0 -tao_converged_reason -tao_max_it 2000
+      args: -problem prob_log_reg -formation use_dm -scale 0.01 -tao_fb_accel 1 -tao_fb_adaptive 0 -tao_converged_reason -tao_max_it 2000
       output_file: output/fb_example_logreg_fista.out
       requires: !single
 
@@ -521,7 +527,7 @@ int main(int argc, char **argv)
       suffix: logreg_ada
       nsize: {{1 2 4}}
       localrunfiles: matrix-heart-scale.dat vector-heart-scale_1_0.dat
-      args: -problem prob_log_reg -formation {{use_tao use_dm}} -scale 0.01 -tao_fb_accel 0 -tao_fb_adaptive 1 -tao_max_it 1000 -tao_converged_reason
+      args: -problem prob_log_reg -formation use_dm -scale 0.01 -tao_fb_accel 0 -tao_fb_adaptive 1 -tao_max_it 1000 -tao_converged_reason
       output_file: output/fb_example_logreg_ada.out
       requires: !single
 

@@ -329,9 +329,10 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *user)
 
 int main(int argc, char **argv)
 {
-  DM     fdm, gdm, hdm;
-  Tao    tao;
-  AppCtx user;
+  DM       fdm, gdm, hdm;
+  Tao      tao;
+  AppCtx   user;
+  PetscInt dm_idx = 0;
 
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, (char *)0, help));
@@ -368,7 +369,9 @@ int main(int argc, char **argv)
       break;
     case USE_DM:
       PetscCall(DMTaoSetObjectiveAndGradient(fdm, SVM_UserObjGrad_DM, (void *)&user));
-      PetscCall(TaoPSSetSmoothTerm(tao, fdm, 1));
+      PetscCall(TaoAddDM(tao, fdm, 1.));
+      PetscCall(TaoPSSetSmoothTerm(tao, dm_idx));
+      dm_idx++;
       break;
     default:
       SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid problem formulation type.");
@@ -382,7 +385,9 @@ int main(int argc, char **argv)
       break;
     case USE_DM:
       PetscCall(DMTaoSetObjectiveAndGradient(fdm, LAD_UserObjGrad_DM, (void *)&user));
-      PetscCall(TaoPSSetSmoothTerm(tao, fdm, 0));
+      PetscCall(TaoAddDM(tao, fdm, 0.));
+      PetscCall(TaoPSSetSmoothTerm(tao, dm_idx));
+      dm_idx++;
       break;
     default:
       SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid problem formulation type.");
@@ -392,9 +397,13 @@ int main(int argc, char **argv)
     SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Invalid problem type.");
   }
 
-  PetscCall(TaoPSSetNonSmoothTerm(tao, gdm, user.g_scale));
-  if (!user.set_norm) PetscCall(TaoPSSetNonSmoothTermWithLinearMap(tao, hdm, user.A, 0., 1.));
-  else PetscCall(TaoPSSetNonSmoothTermWithLinearMap(tao, hdm, user.A, user.matnorm, 1.));
+  PetscCall(TaoAddDM(tao, gdm, user.g_scale));
+  PetscCall(TaoPSSetNonSmoothTerm(tao, dm_idx));
+  dm_idx++;
+
+  PetscCall(TaoAddDM(tao, hdm, 1.));
+  if (!user.set_norm) PetscCall(TaoPSSetNonSmoothTermWithLinearMap(tao, dm_idx, user.A, 0.));
+  else PetscCall(TaoPSSetNonSmoothTermWithLinearMap(tao, dm_idx, user.A, user.matnorm));
 
   PetscCall(TaoSetFromOptions(tao));
   PetscCall(TaoSolve(tao));
@@ -418,7 +427,7 @@ int main(int argc, char **argv)
       suffix: svm_norm
       nsize: {{1 2 4}}
       localrunfiles: matrix-heart-scale.dat vector-heart-scale.dat
-      args: -formation {{use_tao use_dm}} -problem dual_svm -g_scale 1 -tao_converged_reason -tao_max_it 1000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -tao_ls_max_funcs 0 -set_norm 1
+      args: -formation use_dm -problem dual_svm -g_scale 1 -tao_converged_reason -tao_max_it 1000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -tao_ls_max_funcs 0 -set_norm 1
       output_file: output/cv_example_svm_norm.out
       requires: !single
 
@@ -426,7 +435,7 @@ int main(int argc, char **argv)
       suffix: svm_norm_ls
       nsize: {{1 2 4}}
       localrunfiles: matrix-heart-scale.dat vector-heart-scale.dat
-      args: -formation {{use_tao use_dm}} -problem dual_svm -g_scale 1 -tao_converged_reason -tao_max_it 2000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -tao_ls_max_funcs 30 -set_norm 1
+      args: -formation use_dm -problem dual_svm -g_scale 1 -tao_converged_reason -tao_max_it 2000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -tao_ls_max_funcs 30 -set_norm 1
       output_file: output/cv_example_svm_norm_ls.out
       requires: !single
 
@@ -434,7 +443,7 @@ int main(int argc, char **argv)
       suffix: svm_ls
       nsize: {{1 2 4}}
       localrunfiles: matrix-heart-scale.dat vector-heart-scale.dat
-      args: -formation {{use_tao use_dm}} -problem dual_svm -g_scale 1 -tao_converged_reason -tao_max_it 1000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -set_norm 0 -tao_ls_max_funcs 30
+      args: -formation use_dm -problem dual_svm -g_scale 1 -tao_converged_reason -tao_max_it 1000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -set_norm 0 -tao_ls_max_funcs 30
       output_file: output/cv_example_svm_ls.out
       requires: !single
 
@@ -442,7 +451,7 @@ int main(int argc, char **argv)
       suffix: lad_norm
       nsize: {{1 2 4}}
       localrunfiles: matrix-housing-scale.dat vector-housing-scale.dat
-      args: -formation {{use_tao use_dm}} -problem lad -g_scale 10 -tao_max_it 1000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -tao_ls_max_funcs 0 -set_norm 1
+      args: -formation use_dm -problem lad -g_scale 10 -tao_max_it 1000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -tao_ls_max_funcs 0 -set_norm 1
       output_file: output/cv_example_lad_norm.out
       requires: !single
 
@@ -450,7 +459,7 @@ int main(int argc, char **argv)
       suffix: lad_norm_ls
       nsize: {{1 2 4}}
       localrunfiles: matrix-housing-scale.dat vector-housing-scale.dat
-      args: -formation {{use_tao use_dm}} -problem lad -g_scale 10 -tao_max_it 1000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -set_norm 1 -tao_ls_max_funcs 30
+      args: -formation use_dm -problem lad -g_scale 10 -tao_max_it 1000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -set_norm 1 -tao_ls_max_funcs 30
       output_file: output/cv_example_lad_norm_ls.out
       requires: !single
 
@@ -458,7 +467,7 @@ int main(int argc, char **argv)
       suffix: lad_ls
       nsize: {{1 2 4}}
       localrunfiles: matrix-housing-scale.dat vector-housing-scale.dat
-      args: -formation {{use_tao use_dm}} -problem lad -g_scale 10 -tao_max_it 1000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -set_norm 0 -tao_ls_max_funcs 30
+      args: -formation use_dm -problem lad -g_scale 10 -tao_max_it 1000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -set_norm 0 -tao_ls_max_funcs 30
       output_file: output/cv_example_lad_ls.out
       requires: !single
 

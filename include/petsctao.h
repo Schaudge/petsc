@@ -560,10 +560,10 @@ PETSC_EXTERN PetscErrorCode TaoBoundSolution(Vec, Vec, Vec, PetscReal, PetscInt 
 PETSC_EXTERN PetscErrorCode MatCreateSubMatrixFree(Mat, IS, IS, Mat *);
 
 PETSC_EXTERN PetscErrorCode TaoPSSetLipschitz(Tao, PetscReal);
-PETSC_EXTERN PetscErrorCode TaoPSSetSmoothTerm(Tao, DM, PetscReal);
-PETSC_EXTERN PetscErrorCode TaoPSSetNonSmoothTerm(Tao, DM, PetscReal);
-PETSC_EXTERN PetscErrorCode TaoPSSetNonSmoothTermWithLinearMap(Tao, DM, Mat, PetscReal, PetscReal);
-PETSC_EXTERN PetscErrorCode TaoPSUseAcceleration(Tao, PetscBool); //TODO Acceleration vs Momentum vs Nesterov?
+PETSC_EXTERN PetscErrorCode TaoPSSetSmoothTerm(Tao, PetscInt);
+PETSC_EXTERN PetscErrorCode TaoPSSetNonSmoothTerm(Tao, PetscInt );
+PETSC_EXTERN PetscErrorCode TaoPSSetNonSmoothTermWithLinearMap(Tao, PetscInt, Mat, PetscReal);
+PETSC_EXTERN PetscErrorCode TaoPSUseAcceleration(Tao, PetscBool);
 PETSC_EXTERN PetscErrorCode TaoPSUseAdaptiveStep(Tao, PetscBool);
 
 PETSC_EXTERN PetscErrorCode TaoSetRegularizer(Tao, DM, PetscReal);

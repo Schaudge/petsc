@@ -132,14 +132,16 @@ PETSC_EXTERN PetscErrorCode DMTaoCreate_L1_Private(DMTao dm)
   PetscValidHeaderSpecific(dm, DMTAO_CLASSID, 1);
   PetscCall(PetscNew(&ctx));
 
-  ctx->lam                  = 1.;
-  dm->ops->applyproximalmap = DMTaoApplyProximalMap_L1;
-  dm->ops->computeobjective = DMTaoComputeObjective_L1;
-  dm->data                  = (void *)ctx;
-  dm->ops->setup            = NULL;
-  dm->ops->destroy          = DMTaoContextDestroy_L1;
-  dm->ops->view             = DMTaoView_L1;
-  dm->ops->setfromoptions   = DMTaoSetFromOptions_L1;
-  dm->ops->reset            = NULL;
+  ctx->lam                             = 1.;
+  dm->ops->applyproximalmap            = DMTaoApplyProximalMap_L1;
+  dm->ops->computeobjective            = DMTaoComputeObjective_L1;
+  dm->ops->computegradient             = NULL;
+  dm->ops->computeobjectiveandgradient = NULL;
+  dm->data                             = (void *)ctx;
+  dm->ops->setup                       = NULL;
+  dm->ops->destroy                     = DMTaoContextDestroy_L1;
+  dm->ops->view                        = DMTaoView_L1;
+  dm->ops->setfromoptions              = DMTaoSetFromOptions_L1;
+  dm->ops->reset                       = NULL;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

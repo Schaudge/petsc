@@ -20,7 +20,7 @@ PetscLogEvent DMTAO_ApplyProx;
   Input Parameter:
 . kdm - The `DMTao` object
 
-  Level: beginner
+  Level: intermediate
 
 .seealso: [](ch_dmbase), `DM`, `DMTao`
 @*/
@@ -911,7 +911,7 @@ PetscErrorCode TaoGetRegularizer(Tao tao, DM *dm)
   Output Parameter:
 . f - Objective value at `x`
 
-  Level: beginner
+  Level: intermediate
 
 .seealso: [](ch_tao), `Tao`, `DMTao`, `DMTaoComputeGradient()`, `DMTaoComputeObjectiveAndGradient()`, `DMTaoSetObjective()`
 @*/
@@ -966,7 +966,7 @@ PetscErrorCode DMTaoComputeObjective(DM dm, Vec x, PetscReal *f)
 + f - Objective value at `x`
 - g - Gradient vector at `x`
 
-  Level: beginner
+  Level: intermediate
 
 .seealso: [](ch_tao), `Tao`, `DMTao`, `DMTaoComputeGradient()`, `DMTaoSetObjective()`
 @*/
@@ -987,6 +987,7 @@ PetscErrorCode DMTaoComputeObjectiveAndGradient(DM dm, Vec x, PetscReal *f, Vec 
     PetscCall(TaoComputeObjectiveAndGradient(tdm->dm_subtao, x, f, g));
     PetscCall(PetscLogEventEnd(DMTAO_ObjGradEval, tdm, x, g, NULL));
     tdm->nfgeval++;
+    PetscCall(PetscInfo(dm, "DMTao Function evaluation: %20.19e\n", (double)(*f)));
   } else {
     if (tdm->ops->computeobjectiveandgradient) {
       PetscCall(PetscLogEventBegin(DMTAO_ObjGradEval, tdm, x, g, NULL));
@@ -1002,7 +1003,10 @@ PetscErrorCode DMTaoComputeObjectiveAndGradient(DM dm, Vec x, PetscReal *f, Vec 
       PetscCall(PetscLogEventEnd(DMTAO_GradientEval, dm, x, g, NULL));
       tdm->nfeval++;
       tdm->ngeval++;
-    } else SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_WRONGSTATE, "Either DMTaoSetObjective() and DMTaoSetGradient not set, or not available for this DMTaoType");
+    } else {
+      /* No objective function. Return 0. */
+      *f = 0.;
+    }
   }
   PetscCall(PetscInfo(dm, "DMTao Function evaluation: %20.19e\n", (double)(*f)));
   PetscCall(VecLockReadPop(x));
@@ -1021,7 +1025,7 @@ PetscErrorCode DMTaoComputeObjectiveAndGradient(DM dm, Vec x, PetscReal *f, Vec 
   Output Parameter:
 . g - gradient vector
 
-  Level: beginner
+  Level: intermediate
 
 .seealso: [](ch_tao), `Tao`, `DMTao`, `DMTaoComputeObjective()`, `DMTaoComputeObjectiveAndGradient()`, `DMTaoSetGradient()`
 @*/
@@ -1054,7 +1058,7 @@ PetscErrorCode DMTaoComputeGradient(DM dm, Vec x, Vec g)
       PetscCallBack("DMTao callback objective/gradient", (*tdm->ops->computeobjectiveandgradient)(dm, x, &fdummy, g, tdm->userctx_funcgrad));
       PetscCall(PetscLogEventEnd(DMTAO_ObjGradEval, tdm, x, g, NULL));
       tdm->nfgeval++;
-    } else SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_WRONGSTATE, "Either DMTaoSetGradient not set, or not available for this DMTaoType");
+    }
   }
   PetscCall(VecLockReadPop(x));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -1204,7 +1208,7 @@ PetscErrorCode DMTaoRegister(const char sname[], PetscErrorCode (*func)(DMTao))
   Output Parameter:
 . x - the solution vector
 
-  Level: beginner
+  Level: intermediate
 
 .seealso: [](ch_tao), `Tao`, `DMTao`, `DMTaoCreate()`
 @*/

@@ -95,18 +95,44 @@ static PetscErrorCode TaoCV_LineSearch_PostUpdate_Private(TaoLineSearch ls, Vec 
   cv->eta *= cv->r;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-static PetscErrorCode TaoCV_ObjGrad_Private(Tao tao, Vec x, PetscReal *f, Vec g)
+static PetscErrorCode TaoCV_ObjGrad_Private(Tao tao, Vec X, PetscReal *f, Vec G)
 {
   TAO_CV *cv = (TAO_CV *)tao->data;
 
   PetscFunctionBegin;
+  /* Note: this is quasi-duplicate of taosolver_fg.c,
+   * but need this to avoid computing tao->dms objgrad */
+  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
+  PetscValidHeaderSpecific(X, VEC_CLASSID, 2);
+  PetscValidHeaderSpecific(G, VEC_CLASSID, 4);
+  PetscCheckSameComm(tao, 1, X, 2);
+  PetscCheckSameComm(tao, 1, G, 4);
+  PetscCall(VecLockReadPush(X));
   if (cv->smoothterm) {
-    PetscCall(DMTaoComputeObjectiveAndGradient(cv->smoothterm, x, f, g));
+    PetscCall(DMTaoComputeObjectiveAndGradient(cv->smoothterm, X, f, G));
     *f *= cv->f_scale;
-    PetscCall(VecScale(g, cv->f_scale));
+    PetscCall(VecScale(G, cv->f_scale));
   } else {
-    PetscCall(TaoComputeObjectiveAndGradient(tao, x, f, g));
+    if (tao->ops->computeobjectiveandgradient) {
+      PetscCall(PetscLogEventBegin(TAO_ObjGradEval, tao, X, G, NULL));
+      if (tao->ops->computegradient == TaoDefaultComputeGradient) {
+        PetscCall(TaoComputeObjective(tao, X, f));
+        PetscCall(TaoDefaultComputeGradient(tao, X, G, NULL));
+      } else PetscCallBack("Tao callback objective/gradient", (*tao->ops->computeobjectiveandgradient)(tao, X, f, G, tao->user_objgradP));
+      PetscCall(PetscLogEventEnd(TAO_ObjGradEval, tao, X, G, NULL));
+      tao->nfuncgrads++;
+    } else if (tao->ops->computeobjective && tao->ops->computegradient) {
+      PetscCall(PetscLogEventBegin(TAO_ObjectiveEval, tao, X, NULL, NULL));
+      PetscCallBack("Tao callback objective", (*tao->ops->computeobjective)(tao, X, f, tao->user_objP));
+      PetscCall(PetscLogEventEnd(TAO_ObjectiveEval, tao, X, NULL, NULL));
+      tao->nfuncs++;
+      PetscCall(PetscLogEventBegin(TAO_GradientEval, tao, X, G, NULL));
+      PetscCallBack("Tao callback gradient", (*tao->ops->computegradient)(tao, X, G, tao->user_gradP));
+      PetscCall(PetscLogEventEnd(TAO_GradientEval, tao, X, G, NULL));
+      tao->ngrads++;
+    } else SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_ARG_WRONGSTATE, "TaoSetObjective() or TaoSetGradient() not set");
   }
+  PetscCall(VecLockReadPop(X));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -137,6 +163,68 @@ static PetscErrorCode TaoCV_Stepsize_No_LS_Private(Tao tao)
   cv->step_old = tao->step;
   tao->step    = PetscMin(min1, PetscMin(min2, min3));
   cv->sigma    = cv->pd_ratio * cv->pd_ratio * tao->step;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode TaoPSSetSmoothTerm_CV(Tao tao, PetscInt idx)
+{
+  TAO_CV *cv = (TAO_CV *)tao->data;
+
+  PetscFunctionBegin;
+  //TODO check whether idx is valid
+  cv->smoothterm = tao->dms[idx];
+  cv->f_scale    = tao->dm_scales[idx];
+  PetscCall(PetscObjectReference((PetscObject)cv->smoothterm));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode TaoPSSetNonSmoothTerm_CV(Tao tao, PetscInt idx)
+{
+  TAO_CV *cv = (TAO_CV *)tao->data;
+
+  PetscFunctionBegin;
+  //TODO check whether idx is valid
+  cv->g_prox  = tao->dms[idx];
+  cv->g_scale = tao->dm_scales[idx];
+  PetscCall(PetscObjectReference((PetscObject)cv->g_prox));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode TaoPSSetNonSmoothTermWithLinearMap_CV(Tao tao, PetscInt idx, Mat mat, PetscReal norm)
+{
+  TAO_CV *cv = (TAO_CV *)tao->data;
+
+  PetscFunctionBegin;
+  /* Referencing mat here, as destory happens in this file */
+  if (mat) {
+    PetscValidHeaderSpecific(mat, MAT_CLASSID, 3);
+    PetscCall(PetscObjectReference((PetscObject)mat));
+  }
+  PetscValidLogicalCollectiveReal(tao, norm, 4);
+  //TODO check whether idx is valid
+  cv->h_prox  = tao->dms[idx];
+  cv->h_lmap  = mat;
+  cv->h_scale = tao->dm_scales[idx];
+  PetscCall(PetscObjectReference((PetscObject)cv->h_prox));
+  if (norm > 0) {
+    cv->h_lmap_norm   = norm;
+    cv->lmap_norm_set = PETSC_TRUE;
+  } else {
+    cv->h_lmap_norm   = 0.;
+    cv->lmap_norm_set = PETSC_FALSE;
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode TaoPSSetLipschitz_CV(Tao tao, PetscReal lip)
+{
+  TAO_CV *cv = (TAO_CV *)tao->data;
+
+  PetscFunctionBegin;
+  PetscValidLogicalCollectiveReal(tao, lip, 2);
+  PetscCheck(lip >= 0, PetscObjectComm((PetscObject)tao), PETSC_ERR_USER, "Lipschitz value has to be nonnegative.");
+  cv->lip     = lip;
+  cv->lip_set = PETSC_TRUE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -363,14 +451,30 @@ static PetscErrorCode TaoDestroy_CV(Tao tao)
   PetscCall(DMDestroy(&cv->smoothterm));
   PetscCall(DMDestroy(&cv->g_prox));
   PetscCall(DMDestroy(&cv->h_prox));
+  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoPSSetSmoothTerm_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoPSSetNonSmoothTerm_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoPSSetNonSmoothTermWithLinearMap_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoPSSetLipschitz_C", NULL));
   PetscCall(PetscFree(tao->data));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/*MC
+     TAOCV -   Condat-Vu proximal splitting algorithm.
+
+   Options Database Keys:
++      -tao_cv_norm_estimate_factor <r> - Matrix norm estimate factor
+.      -tao_cv_primal_dual_ratio <r> - Primal-dual ratio factor
+.      -tao_cv_backtracking_parameter <r> - Linesearch backtracking parameter
+-      -tao_cv_theta <r> - Stepsize scaling parameter
+
+  Level: beginner
+M*/
+
 PETSC_EXTERN PetscErrorCode TaoCreate_CV(Tao tao)
 {
   TAO_CV     *cv;
-  const char *armijo_type = TAOLINESEARCHPS;
+  const char *ls_type = TAOLINESEARCHPS;
 
   PetscFunctionBegin;
   PetscCall(PetscNew(&cv));
@@ -399,7 +503,12 @@ PETSC_EXTERN PetscErrorCode TaoCreate_CV(Tao tao)
 
   PetscCall(TaoLineSearchCreate(PetscObjectComm((PetscObject)tao), &tao->linesearch));
   PetscCall(PetscObjectIncrementTabLevel((PetscObject)tao->linesearch, (PetscObject)tao, 1));
-  PetscCall(TaoLineSearchSetType(tao->linesearch, armijo_type));
+  PetscCall(TaoLineSearchSetType(tao->linesearch, ls_type));
   PetscCall(TaoLineSearchSetOptionsPrefix(tao->linesearch, tao->hdr.prefix));
+
+  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoPSSetSmoothTerm_C", TaoPSSetSmoothTerm_CV));
+  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoPSSetNonSmoothTerm_C", TaoPSSetNonSmoothTerm_CV));
+  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoPSSetNonSmoothTermWithLinearMap_C", TaoPSSetNonSmoothTermWithLinearMap_CV));
+  PetscCall(PetscObjectComposeFunction((PetscObject)tao, "TaoPSSetLipschitz_C", TaoPSSetLipschitz_CV));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
