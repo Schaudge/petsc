@@ -15,7 +15,7 @@ int main(int argc, char **argv)
   MPI_Op       op = MPI_SUM;
   char         opname[64];
   const char  *mpiopname;
-  PetscBool    flag, isreplace, issum;
+  PetscBool    flag, isreplace, issum, leavesequal;
 
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, (char *)0, help));
@@ -33,6 +33,7 @@ int main(int argc, char **argv)
     op        = MPIU_SUM;
     mpiopname = "MPI_SUM";
   } else SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, "Unsupported argument (%s) to -op, which must be 'replace' or 'sum'", opname);
+  PetscCall(PetscSFInitializePackage());
 
   PetscCall(VecCreate(PETSC_COMM_WORLD, &x));
   PetscCall(VecSetFromOptions(x));
@@ -87,6 +88,8 @@ int main(int argc, char **argv)
   /* allreduce is a reduction over only the leaf data for each root.  because a gathersf has one leaf per root, it should just be a memcpy */
   PetscCall(PetscSFAllreduceBegin(gathersf, MPIU_SCALAR, leafdata, leafupdate, op));
   PetscCall(PetscSFAllreduceEnd(gathersf, MPIU_SCALAR, leafdata, leafupdate, op));
+  PetscCall(PetscSFLeavesAreEqual(gathersf, MPIU_SCALAR, leafupdate, &leavesequal));
+  PetscCheck(leavesequal, PETSC_COMM_WORLD, PETSC_ERR_PLIB, "Leaves of the same root are not equal after allreduce");
   PetscCall(VecView(gy2, PETSC_VIEWER_STDOUT_WORLD));
 
   PetscCall(VecDestroy(&gy2));
@@ -164,6 +167,8 @@ int main(int argc, char **argv)
 
   PetscCall(PetscSFAllreduceBegin(allgathersf, MPIU_SCALAR, leafdata, leafupdate, op));
   PetscCall(PetscSFAllreduceEnd(allgathersf, MPIU_SCALAR, leafdata, leafupdate, op));
+  PetscCall(PetscSFLeavesAreEqual(allgathersf, MPIU_SCALAR, leafupdate, &leavesequal));
+  PetscCheck(leavesequal, PETSC_COMM_WORLD, PETSC_ERR_PLIB, "Leaves of the same root are not equal after allreduce");
   PetscCall(VecView(gy2, PETSC_VIEWER_STDOUT_WORLD));
 
   PetscCall(VecDestroy(&gy2));
@@ -230,6 +235,8 @@ int main(int argc, char **argv)
   /* allreduce is a reduction over only the leaf data for each root.  because an alltoallsf has one leaf per root, it should just be a memcpy */
   PetscCall(PetscSFAllreduceBegin(alltoallsf, MPIU_SCALAR, leafdata, leafupdate, op));
   PetscCall(PetscSFAllreduceEnd(alltoallsf, MPIU_SCALAR, leafdata, leafupdate, op));
+  PetscCall(PetscSFLeavesAreEqual(alltoallsf, MPIU_SCALAR, leafupdate, &leavesequal));
+  PetscCheck(leavesequal, PETSC_COMM_WORLD, PETSC_ERR_PLIB, "Leaves of the same root are not equal after allreduce");
   PetscCall(VecView(gy2, PETSC_VIEWER_STDOUT_WORLD));
 
   PetscCall(VecDestroy(&gy2));

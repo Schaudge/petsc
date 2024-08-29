@@ -1812,7 +1812,7 @@ PetscErrorCode PetscSFLeavesAreEqual(PetscSF sf, MPI_Datatype unit, const void *
   PetscDeviceContext dctx;
   size_t bytes, len;
   PetscInt minleaf, maxleaf;
-  void *leafcopy;
+  void *leafstart, *leafcopy, *leafcopystart;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(sf, PETSCSF_CLASSID, 1);
@@ -1823,10 +1823,16 @@ PetscErrorCode PetscSFLeavesAreEqual(PetscSF sf, MPI_Datatype unit, const void *
   PetscCall(PetscSFGetLeafRange(sf, &minleaf, &maxleaf));
   len = (size_t)(maxleaf + 1 - minleaf) * bytes;
   PetscCall(PetscDeviceAllocate_Private(dctx, PETSC_FALSE, mtype, len, PETSC_MEMALIGN, &leafcopy));
-  PetscCall(PetscDeviceMemcpy(dctx, leafcopy, &leafdata[minleaf * bytes], len));
-  PetscCall(PetscSFAllreduceWithMemTypeBegin(sf, unit, mtype, leafdata, mtype, &leafcopy[-(minleaf * bytes)], MPI_REPLACE));
-  PetscCall(PetscSFAllreduceEnd(sf, unit, leafdata, &leafcopy[-(minleaf * bytes)], MPI_REPLACE));
-  PetscCall(PetscMemcmp(&leafdata[minleaf * bytes], leafcopy, len, equal));
+  leafstart = (void *)&((char *)leafdata)[minleaf * bytes];
+  leafcopystart = (void *)&((char *)leafcopy)[-minleaf * bytes];
+  if (PetscMemTypeHost(mtype)) PetscCall(PetscMemcpy(leafcopy, leafstart, len));
+  else PetscCall(PetscDeviceMemcpy(dctx, leafcopy, leafstart, len));
+  PetscCall(PetscSFAllreduceWithMemTypeBegin(sf, unit, mtype, leafdata, mtype, leafcopystart, MPI_REPLACE));
+  PetscCall(PetscSFAllreduceEnd(sf, unit, leafdata, leafcopystart, MPI_REPLACE));
+  *equal = PETSC_TRUE;
+  if (PetscMemTypeHost(mtype)) PetscCall(PetscMemcmp(leafstart, leafcopy, len, equal));
+  else PetscCall(PetscDeviceMemcmp(dctx, leafstart, leafcopy, len, equal));
+  PetscCallMPI(MPIU_Allreduce(MPI_IN_PLACE, equal, 1, MPIU_BOOL, MPI_LAND, PetscObjectComm((PetscObject)sf)));
   PetscCall(PetscDeviceFree(dctx, leafcopy));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

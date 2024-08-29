@@ -209,7 +209,7 @@ PETSC_INTERN PetscErrorCode PetscSFAllreduceBegin_Allgatherv(PetscSF sf, MPI_Dat
     PetscMPIInt rank;
     PetscSF_Basic *bas;
 
-    PetscCall(PetscSFCreate(PetscObjectComm((PetscObject)sf), &dat->dummy_allredsf));
+    PetscCall(PetscSFCreate(comm, &dat->dummy_allredsf));
 
     PetscCall(PetscMalloc1(sf->nleaves, &remote));
     PetscCallMPI(MPI_Comm_rank(comm, &rank));
@@ -236,7 +236,15 @@ PETSC_INTERN PetscErrorCode PetscSFAllreduceBegin_Allgatherv(PetscSF sf, MPI_Dat
   PetscCall(PetscSFLinkCopyLeafBufferInCaseNotUseGpuAwareMPI(dat->dummy_allredsf, link, PETSC_TRUE /* device2host before sending */));
   PetscCall(PetscSFLinkGetMPIBuffersAndRequests(dat->dummy_allredsf, link, PETSCSF_LEAF2ROOT, &leafoutbuf, &leafinbuf, &req, NULL));
   PetscCall(PetscSFLinkSyncStreamBeforeCallMPI(dat->dummy_allredsf, link));
-  PetscCallMPI(MPIU_Iallreduce(leafinbuf, leafoutbuf, sf->nleaves, unit, op, comm, req));
+  if (op == MPI_REPLACE) {
+    PetscMPIInt rank;
+
+    PetscCallMPI(MPI_Comm_rank(comm, &rank));
+    if (rank == 0) PetscCall((*link->Memcpy)(link, link->rootmtype_mpi, leafoutbuf, link->leafmtype_mpi, leafinbuf, sf->nleaves * link->unitbytes));
+    PetscCallMPI(MPI_Ibcast(rank == 0 ? leafinbuf : leafoutbuf, sf->nleaves, unit, 0, comm, req));
+  } else {
+    PetscCallMPI(MPIU_Iallreduce(leafinbuf, leafoutbuf, sf->nleaves, unit, op, comm, req));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
