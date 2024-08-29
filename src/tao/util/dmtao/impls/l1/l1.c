@@ -120,7 +120,7 @@ static PetscErrorCode DMTaoApplyProximalMap_L1(DMTao tdm0, DMTao tdm1, PetscReal
    DMTAOL1 - L1 Norm DMTao object. This represents |x-y|_1, and has
    soft-thresholding for a proximal map.
 
-  Level: beginner
+  Level: intermediate
 
 .seealso: `DMTao`
 M*/

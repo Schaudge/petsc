@@ -86,7 +86,7 @@ static PetscErrorCode DMTaoApplyProximalMap_L2(DMTao tdm0, DMTao tdm1, PetscReal
 /*MC
      DMTAOL2 - L2 norm DMTao. This DMTao object represents |x-y|_2^2.
 
-  Level: beginner
+  Level: intermediate
 M*/
 
 PETSC_EXTERN PetscErrorCode DMTaoCreate_L2_Private(DMTao dm)

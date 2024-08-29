@@ -38,7 +38,7 @@ static PetscErrorCode DMTaoApplyProximalMap_Zero(DMTao tdm0, DMTao tdm1, PetscRe
    Indicator function of the set containing the origin.
    Its proximal mapping returns zero vector.
 
-  Level: beginner
+  Level: intermediate
 M*/
 PETSC_EXTERN PetscErrorCode DMTaoCreate_Zero_Private(DMTao dm)
 {

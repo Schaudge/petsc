@@ -186,10 +186,10 @@ If size=1, it is a unit simplex. Proximal mapping is an orthogonal
 projection on to this simplex.
 
    Options Database Keys:
-+      -dmtao_simplex_tol <r>  - tolerance
++      -dmtao_simplex_tol <r> - tolerance
 -      -dmtao_simplex_size <r> - size of simplex
 
-  Level: beginner
+  Level: intermediate
 M*/
 PETSC_EXTERN PetscErrorCode DMTaoCreate_Simplex_Private(DMTao dm)
 {

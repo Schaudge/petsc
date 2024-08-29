@@ -207,7 +207,7 @@ static PetscErrorCode DMTaoApplyProximalMap_Box(DMTao tdm0, DMTao tdm1, PetscRea
    DMTAOBOX - Box constraint DMTao object. This represents a convex set, where
    C = {x: lb \leq x \leq ub}. Lowerbound and upperbound must satisfy lb \leq ub.
 
-  Level: beginner
+  Level: intermediate
 
 .seealso: `DMTao`
 M*/

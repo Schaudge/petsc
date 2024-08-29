@@ -122,7 +122,7 @@ PetscErrorCode DMTaoSetWorkVec(DM dm, Vec x, PetscInt n)
 + dm    - the `DM` context
 - scale - the scaling factor
 
-  Level: beginner
+  Level: intermediate
 
 .seealso: [](ch_tao), `DMTao`, `DMTaoSetTranslationVector()`
 @*/
@@ -154,7 +154,7 @@ PetscErrorCode DMTaoSetScaling(DM dm, PetscReal scale)
 + dm - the `DM` context
 - a  - the translation vector
 
-  Level: beginner
+  Level: intermediate
 
 .seealso: [](ch_tao), `DMTao`, `DMTaoSetScaling()`
 @*/
@@ -184,7 +184,7 @@ PetscErrorCode DMTaoSetTranslationVector(DM dm, Vec a)
   Options Database Key:
 . -dmtao_view - Calls `DMTaoView()` at the end of `DMTaoApplyProximalMap()`.
 
-  Level: beginner
+  Level: intermediate
 
   Notes:
   The available visualization contexts include
@@ -403,7 +403,7 @@ PetscErrorCode DMCopyDMTao(DM dmsrc, DM dmdest)
 . f   - function value
 - ctx - [optional] user-defined function context
 
-  Level: beginner
+  Level: intermediate
 
 .seealso: `DMTaoSetGradient()`, `DMTaoSetObjectiveAndGradient()`
 @*/
@@ -435,7 +435,7 @@ PetscErrorCode DMTaoSetObjective(DM dm, PetscErrorCode (*func)(DM dm, Vec x, Pet
 . g   - gradient value (output)
 - ctx - [optional] user-defined function context
 
-  Level: beginner
+  Level: intermediate
 
 .seealso: `DMTaoSetObjective()`, `DMTaoSetObjectiveAndGradient()`
 @*/
@@ -497,7 +497,7 @@ PetscErrorCode DMTaoSetObjectiveAndGradient(DM dm, PetscErrorCode (*func)(DM dm,
 + -dmtao_type <type> - The type of `DMTao` (L1,L2,KL,Simplex,Shell,Python)
 - -dmtao_view        - display information to standard output
 
-  Level: beginner
+  Level: intermediate
 
 .seealso: `DMTao`
 @*/
@@ -616,7 +616,7 @@ PetscErrorCode DMTaoSetUp(DM dm)
   Options Database Key:
 . -dmtao_type <type> - select which method DMTao should use at runtime
 
-  Level: beginner
+  Level: intermediate
 
 .seealso: [](ch_tao), `Tao`, `DMTao`, `DMTaoType`, `DMTaoCreate()`, `DMTaoGetType()`,
 @*/
