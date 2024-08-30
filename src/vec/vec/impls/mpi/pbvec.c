@@ -140,12 +140,12 @@ static PetscErrorCode VecAssemblySend_MPI_Private(MPI_Comm comm, const PetscMPII
      receiver is expecting them.
    */
   if (hdr->count || (x->first_assembly_done && x->sendptrs[rankid].ints)) {
-    PetscCallMPI(MPI_Isend(x->sendptrs[rankid].ints, hdr->count, MPIU_INT, rank, tag[0], comm, &req[0]));
-    PetscCallMPI(MPI_Isend(x->sendptrs[rankid].scalars, hdr->count, MPIU_SCALAR, rank, tag[1], comm, &req[1]));
+    PetscCallMPI(MPIU_Isend(x->sendptrs[rankid].ints, hdr->count, MPIU_INT, rank, tag[0], comm, &req[0]));
+    PetscCallMPI(MPIU_Isend(x->sendptrs[rankid].scalars, hdr->count, MPIU_SCALAR, rank, tag[1], comm, &req[1]));
   }
   if (hdr->bcount || (x->first_assembly_done && x->sendptrs[rankid].intb)) {
-    PetscCallMPI(MPI_Isend(x->sendptrs[rankid].intb, hdr->bcount, MPIU_INT, rank, tag[2], comm, &req[2]));
-    PetscCallMPI(MPI_Isend(x->sendptrs[rankid].scalarb, hdr->bcount * bs, MPIU_SCALAR, rank, tag[3], comm, &req[3]));
+    PetscCallMPI(MPIU_Isend(x->sendptrs[rankid].intb, hdr->bcount, MPIU_INT, rank, tag[2], comm, &req[2]));
+    PetscCallMPI(MPIU_Isend(x->sendptrs[rankid].scalarb, hdr->bcount * bs, MPIU_SCALAR, rank, tag[3], comm, &req[3]));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -163,9 +163,9 @@ static PetscErrorCode VecAssemblyRecv_MPI_Private(MPI_Comm comm, const PetscMPII
 
   if (hdr->count) {
     PetscCall(PetscSegBufferGet(x->segrecvint, hdr->count, &frame->ints));
-    PetscCallMPI(MPI_Irecv(frame->ints, hdr->count, MPIU_INT, rank, tag[0], comm, &req[0]));
+    PetscCallMPI(MPIU_Irecv(frame->ints, hdr->count, MPIU_INT, rank, tag[0], comm, &req[0]));
     PetscCall(PetscSegBufferGet(x->segrecvscalar, hdr->count, &frame->scalars));
-    PetscCallMPI(MPI_Irecv(frame->scalars, hdr->count, MPIU_SCALAR, rank, tag[1], comm, &req[1]));
+    PetscCallMPI(MPIU_Irecv(frame->scalars, hdr->count, MPIU_SCALAR, rank, tag[1], comm, &req[1]));
     frame->pendings = 2;
   } else {
     frame->ints     = NULL;
@@ -175,9 +175,9 @@ static PetscErrorCode VecAssemblyRecv_MPI_Private(MPI_Comm comm, const PetscMPII
 
   if (hdr->bcount) {
     PetscCall(PetscSegBufferGet(x->segrecvint, hdr->bcount, &frame->intb));
-    PetscCallMPI(MPI_Irecv(frame->intb, hdr->bcount, MPIU_INT, rank, tag[2], comm, &req[2]));
+    PetscCallMPI(MPIU_Irecv(frame->intb, hdr->bcount, MPIU_INT, rank, tag[2], comm, &req[2]));
     PetscCall(PetscSegBufferGet(x->segrecvscalar, hdr->bcount * bs, &frame->scalarb));
-    PetscCallMPI(MPI_Irecv(frame->scalarb, hdr->bcount * bs, MPIU_SCALAR, rank, tag[3], comm, &req[3]));
+    PetscCallMPI(MPIU_Irecv(frame->scalarb, hdr->bcount * bs, MPIU_SCALAR, rank, tag[3], comm, &req[3]));
     frame->pendingb = 2;
   } else {
     frame->intb     = NULL;

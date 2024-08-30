@@ -1605,3 +1605,6 @@ struct _n_PetscObjectList {
   PetscObject     obj;
   PetscObjectList next;
 };
+
+#include <petsc/private/mpiutils.h>
+

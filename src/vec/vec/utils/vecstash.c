@@ -259,8 +259,8 @@ PetscErrorCode VecStashScatterBegin_Private(VecStash *stash, const PetscInt *own
   PetscCall(PetscMalloc2(nreceives * nmax * bs, &rvalues, nreceives * nmax, &rindices));
   PetscCall(PetscMalloc1(2 * nreceives, &recv_waits));
   for (i = 0, count = 0; i < nreceives; i++) {
-    PetscCallMPI(MPI_Irecv(rvalues + bs * nmax * i, bs * nmax, MPIU_SCALAR, MPI_ANY_SOURCE, tag1, comm, recv_waits + count++));
-    PetscCallMPI(MPI_Irecv(rindices + nmax * i, nmax, MPIU_INT, MPI_ANY_SOURCE, tag2, comm, recv_waits + count++));
+    PetscCallMPI(MPIU_Irecv(rvalues + bs * nmax * i, bs * nmax, MPIU_SCALAR, MPI_ANY_SOURCE, tag1, comm, recv_waits + count++));
+    PetscCallMPI(MPIU_Irecv(rindices + nmax * i, nmax, MPIU_INT, MPI_ANY_SOURCE, tag2, comm, recv_waits + count++));
   }
 
   /* do sends:
@@ -286,8 +286,8 @@ PetscErrorCode VecStashScatterBegin_Private(VecStash *stash, const PetscInt *own
 
   for (i = 0, count = 0; i < size; i++) {
     if (nprocs[2 * i + 1]) {
-      PetscCallMPI(MPI_Isend(svalues + bs * start[i], bs * nprocs[2 * i], MPIU_SCALAR, i, tag1, comm, send_waits + count++));
-      PetscCallMPI(MPI_Isend(sindices + start[i], nprocs[2 * i], MPIU_INT, i, tag2, comm, send_waits + count++));
+      PetscCallMPI(MPIU_Isend(svalues + bs * start[i], bs * nprocs[2 * i], MPIU_SCALAR, i, tag1, comm, send_waits + count++));
+      PetscCallMPI(MPIU_Isend(sindices + start[i], nprocs[2 * i], MPIU_INT, i, tag2, comm, send_waits + count++));
     }
   }
   PetscCall(PetscFree(owner));

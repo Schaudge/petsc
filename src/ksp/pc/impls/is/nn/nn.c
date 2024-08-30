@@ -247,8 +247,8 @@ PetscErrorCode PCNNCreateCoarseMatrix(PC pc)
     PetscCall(PetscObjectGetNewTag((PetscObject)pc, &tag));
     PetscCall(PetscMalloc2(n_neigh + 1, &send_request, n_neigh + 1, &recv_request));
     for (i = 1; i < n_neigh; i++) {
-      PetscCallMPI(MPI_Isend((void *)DZ_OUT[i], n_shared[i], MPIU_SCALAR, neigh[i], tag, PetscObjectComm((PetscObject)pc), &send_request[i]));
-      PetscCallMPI(MPI_Irecv((void *)DZ_IN[i], n_shared[i], MPIU_SCALAR, neigh[i], tag, PetscObjectComm((PetscObject)pc), &recv_request[i]));
+      PetscCallMPI(MPIU_Isend((void *)DZ_OUT[i], n_shared[i], MPIU_SCALAR, neigh[i], tag, PetscObjectComm((PetscObject)pc), &send_request[i]));
+      PetscCallMPI(MPIU_Irecv((void *)DZ_IN[i], n_shared[i], MPIU_SCALAR, neigh[i], tag, PetscObjectComm((PetscObject)pc), &recv_request[i]));
     }
   }
 

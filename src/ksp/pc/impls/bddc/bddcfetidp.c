@@ -339,8 +339,8 @@ PetscErrorCode PCBDDCSetupFETIDPMatContext(FETIDPMat_ctx fetidpmat_ctx)
       for (j = 0; j < pcis->n_shared[i]; j++) send_buffer[ptrs_buffer[i - 1] + j] = array[pcis->shared[i][j]];
       PetscCall(PetscMPIIntCast(ptrs_buffer[i] - ptrs_buffer[i - 1], &buf_size));
       PetscCall(PetscMPIIntCast(pcis->neigh[i], &neigh));
-      PetscCallMPI(MPI_Isend(&send_buffer[ptrs_buffer[i - 1]], buf_size, MPIU_SCALAR, neigh, 0, comm, &send_reqs[i - 1]));
-      PetscCallMPI(MPI_Irecv(&recv_buffer[ptrs_buffer[i - 1]], buf_size, MPIU_SCALAR, neigh, 0, comm, &recv_reqs[i - 1]));
+      PetscCallMPI(MPIU_Isend(&send_buffer[ptrs_buffer[i - 1]], buf_size, MPIU_SCALAR, neigh, 0, comm, &send_reqs[i - 1]));
+      PetscCallMPI(MPIU_Irecv(&recv_buffer[ptrs_buffer[i - 1]], buf_size, MPIU_SCALAR, neigh, 0, comm, &recv_reqs[i - 1]));
     }
     PetscCall(VecRestoreArrayRead(pcis->vec1_N, (const PetscScalar **)&array));
     if (pcis->n_neigh > 0) PetscCallMPI(MPI_Waitall(pcis->n_neigh - 1, recv_reqs, MPI_STATUSES_IGNORE));

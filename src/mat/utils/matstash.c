@@ -557,8 +557,8 @@ static PetscErrorCode MatStashScatterBegin_Ref(Mat mat, MatStash *stash, PetscIn
 
   for (i = 0, count = 0; i < size; i++) {
     if (sizes[i]) {
-      PetscCallMPI(MPI_Isend(sindices + 2 * startv[i], 2 * nlengths[i], MPIU_INT, i, tag1, comm, send_waits + count++));
-      PetscCallMPI(MPI_Isend(svalues + bs2 * startv[i], bs2 * nlengths[i], MPIU_SCALAR, i, tag2, comm, send_waits + count++));
+      PetscCallMPI(MPIU_Isend(sindices + 2 * startv[i], 2 * nlengths[i], MPIU_INT, i, tag1, comm, send_waits + count++));
+      PetscCallMPI(MPIU_Isend(svalues + bs2 * startv[i], bs2 * nlengths[i], MPIU_SCALAR, i, tag2, comm, send_waits + count++));
     }
   }
 #if defined(PETSC_USE_INFO)
@@ -786,7 +786,7 @@ static PetscErrorCode MatStashBTSSend_Private(MPI_Comm comm, const PetscMPIInt t
 
   PetscFunctionBegin;
   PetscCheck(rank == stash->sendranks[rankid], comm, PETSC_ERR_PLIB, "BTS Send rank %d does not match sendranks[%d] %d", rank, rankid, stash->sendranks[rankid]);
-  PetscCallMPI(MPI_Isend(stash->sendframes[rankid].buffer, hdr->count, stash->blocktype, rank, tag[0], comm, &req[0]));
+  PetscCallMPI(MPIU_Isend(stash->sendframes[rankid].buffer, hdr->count, stash->blocktype, rank, tag[0], comm, &req[0]));
   stash->sendframes[rankid].count   = hdr->count;
   stash->sendframes[rankid].pending = 1;
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -805,7 +805,7 @@ static PetscErrorCode MatStashBTSRecv_Private(MPI_Comm comm, const PetscMPIInt t
   PetscFunctionBegin;
   PetscCall(PetscSegBufferGet(stash->segrecvframe, 1, &frame));
   PetscCall(PetscSegBufferGet(stash->segrecvblocks, hdr->count, &frame->buffer));
-  PetscCallMPI(MPI_Irecv(frame->buffer, hdr->count, stash->blocktype, rank, tag[0], comm, &req[0]));
+  PetscCallMPI(MPIU_Irecv(frame->buffer, hdr->count, stash->blocktype, rank, tag[0], comm, &req[0]));
   frame->count   = hdr->count;
   frame->pending = 1;
   PetscFunctionReturn(PETSC_SUCCESS);

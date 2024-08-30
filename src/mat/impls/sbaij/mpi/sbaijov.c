@@ -309,7 +309,7 @@ static PetscErrorCode MatIncreaseOverlap_MPISBAIJ_Once(Mat C, PetscInt is_max, I
   k = 0;
   for (proc_id = 0; proc_id < size; proc_id++) { /* send data1 to processor [proc_id] */
     if (len_s[proc_id]) {
-      PetscCallMPI(MPI_Isend(data1_start[proc_id], len_s[proc_id], MPIU_INT, proc_id, tag1, comm, s_waits1 + k));
+      PetscCallMPI(MPIU_Isend(data1_start[proc_id], len_s[proc_id], MPIU_INT, proc_id, tag1, comm, s_waits1 + k));
       k++;
     }
   }
@@ -344,7 +344,7 @@ static PetscErrorCode MatIncreaseOverlap_MPISBAIJ_Once(Mat C, PetscInt is_max, I
     if (flag) {
       PetscCallMPI(MPI_Get_count(&r_status, MPIU_INT, &len));
       proc_id = r_status.MPI_SOURCE;
-      PetscCallMPI(MPI_Irecv(odata1, len, MPIU_INT, proc_id, r_status.MPI_TAG, comm, &r_req));
+      PetscCallMPI(MPIU_Irecv(odata1, len, MPIU_INT, proc_id, r_status.MPI_TAG, comm, &r_req));
       PetscCallMPI(MPI_Wait(&r_req, &r_status));
 
       /*  Process messages */
@@ -362,7 +362,7 @@ static PetscErrorCode MatIncreaseOverlap_MPISBAIJ_Once(Mat C, PetscInt is_max, I
       for (i = 0; i < odata2[0]; i++) len += odata2[1 + i];
 
       /* Send messages back */
-      PetscCallMPI(MPI_Isend(odata2, len, MPIU_INT, proc_id, tag2, comm, s_waits2 + k));
+      PetscCallMPI(MPIU_Isend(odata2, len, MPIU_INT, proc_id, tag2, comm, s_waits2 + k));
       k++;
       odata2 += len;
       len_unused -= len;
@@ -400,7 +400,7 @@ static PetscErrorCode MatIncreaseOverlap_MPISBAIJ_Once(Mat C, PetscInt is_max, I
 
       proc_id = r_status.MPI_SOURCE;
 
-      PetscCallMPI(MPI_Irecv(data2, len, MPIU_INT, proc_id, r_status.MPI_TAG, comm, &r_req));
+      PetscCallMPI(MPIU_Irecv(data2, len, MPIU_INT, proc_id, r_status.MPI_TAG, comm, &r_req));
       PetscCallMPI(MPI_Wait(&r_req, &r_status));
       if (len > 1 + is_max) { /* Add data2 into data */
         data2_i = data2 + 1 + is_max;

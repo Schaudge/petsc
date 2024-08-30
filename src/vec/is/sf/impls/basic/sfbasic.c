@@ -355,7 +355,7 @@ PETSC_INTERN PetscErrorCode PetscSFBcastBegin_Basic(PetscSF sf, MPI_Datatype uni
   PetscCall(PetscSFLinkCreate(sf, unit, rootmtype, rootdata, leafmtype, leafdata, op, PETSCSF_BCAST, &link));
   /* Pack rootdata to rootbuf for remote communication */
   PetscCall(PetscSFLinkPackRootData(sf, link, PETSCSF_REMOTE, rootdata));
-  /* Start communication, e.g., post MPI_Isend */
+  /* Start communication, e.g., post MPIU_Isend */
   PetscCall(PetscSFLinkStartCommunication(sf, link, PETSCSF_ROOT2LEAF));
   /* Do local scatter (i.e., self to self communication), which overlaps with the remote communication above */
   PetscCall(PetscSFLinkScatterLocal(sf, link, PETSCSF_ROOT2LEAF, (void *)rootdata, leafdata, op));

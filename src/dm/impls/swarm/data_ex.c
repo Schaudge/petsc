@@ -540,8 +540,8 @@ PetscErrorCode DMSwarmDataExPackFinalize(DMSwarmDataEx de)
   /* init */
   for (i = 0; i < np; ++i) de->messages_to_be_recvieved[i] = -1;
   /* figure out the recv counts here */
-  for (i = 0; i < np; ++i) PetscCallMPI(MPI_Isend(&de->messages_to_be_sent[i], 1, MPIU_INT, de->neighbour_procs[i], de->send_tags[i], de->comm, &de->_requests[i]));
-  for (i = 0; i < np; ++i) PetscCallMPI(MPI_Irecv(&de->messages_to_be_recvieved[i], 1, MPIU_INT, de->neighbour_procs[i], de->recv_tags[i], de->comm, &de->_requests[np + i]));
+  for (i = 0; i < np; ++i) PetscCallMPI(MPIU_Isend(&de->messages_to_be_sent[i], 1, MPIU_INT, de->neighbour_procs[i], de->send_tags[i], de->comm, &de->_requests[i]));
+  for (i = 0; i < np; ++i) PetscCallMPI(MPIU_Irecv(&de->messages_to_be_recvieved[i], 1, MPIU_INT, de->neighbour_procs[i], de->recv_tags[i], de->comm, &de->_requests[np + i]));
   PetscCallMPI(MPI_Waitall(2 * np, de->_requests, de->_stats));
   /* create space for the data to be recvieved */
   total = 0;
@@ -575,7 +575,7 @@ PetscErrorCode DMSwarmDataExBegin(DMSwarmDataEx de)
   for (i = 0; i < np; ++i) {
     PetscCall(PetscMPIIntCast(de->messages_to_be_sent[i] * de->unit_message_size, &length));
     dest = ((char *)de->send_message) + de->unit_message_size * de->message_offsets[i];
-    PetscCallMPI(MPI_Isend(dest, length, MPI_CHAR, de->neighbour_procs[i], de->send_tags[i], de->comm, &de->_requests[i]));
+    PetscCallMPI(MPIU_Isend(dest, length, MPI_CHAR, de->neighbour_procs[i], de->send_tags[i], de->comm, &de->_requests[i]));
   }
   PetscCall(PetscLogEventEnd(DMSWARM_DataExchangerBegin, 0, 0, 0, 0));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -605,7 +605,7 @@ PetscErrorCode DMSwarmDataExEnd(DMSwarmDataEx de)
   for (i = 0; i < np; ++i) {
     PetscCall(PetscMPIIntCast(de->messages_to_be_recvieved[i] * de->unit_message_size, &length));
     dest = ((char *)de->recv_message) + de->unit_message_size * message_recv_offsets[i];
-    PetscCallMPI(MPI_Irecv(dest, length, MPI_CHAR, de->neighbour_procs[i], de->recv_tags[i], de->comm, &de->_requests[np + i]));
+    PetscCallMPI(MPIU_Irecv(dest, length, MPI_CHAR, de->neighbour_procs[i], de->recv_tags[i], de->comm, &de->_requests[np + i]));
   }
   PetscCallMPI(MPI_Waitall(2 * np, de->_requests, de->_stats));
   PetscCall(PetscFree(message_recv_offsets));

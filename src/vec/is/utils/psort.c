@@ -5,7 +5,7 @@
 static PetscErrorCode PetscParallelSortInt_Bitonic_Merge(MPI_Comm comm, PetscMPIInt tag, PetscMPIInt rankStart, PetscMPIInt rankEnd, PetscMPIInt rank, PetscMPIInt n, PetscInt keys[], PetscInt buffer[], PetscBool forward)
 {
   PetscInt diff;
-  PetscInt split, mid, partner;
+  PetscMPIInt split, mid, partner;
 
   PetscFunctionBegin;
   diff = rankEnd - rankStart;
@@ -48,8 +48,7 @@ static PetscErrorCode PetscParallelSortInt_Bitonic_Merge(MPI_Comm comm, PetscMPI
 /* This is the bitonic sort that works on non-power-of-2 sizes found at http://www.iti.fh-flensburg.de/lang/algorithmen/sortieren/bitonic/oddn.htm */
 static PetscErrorCode PetscParallelSortInt_Bitonic_Recursive(MPI_Comm comm, PetscMPIInt tag, PetscMPIInt rankStart, PetscMPIInt rankEnd, PetscMPIInt rank, PetscMPIInt n, PetscInt keys[], PetscInt buffer[], PetscBool forward)
 {
-  PetscInt diff;
-  PetscInt mid;
+  PetscMPIInt diff, mid;
 
   PetscFunctionBegin;
   diff = rankEnd - rankStart;
@@ -171,7 +170,7 @@ static PetscErrorCode PetscParallelRedistribute(PetscLayout map, PetscInt n, Pet
   PetscMPIInt  size, rank;
   PetscInt     myOffset, nextOffset;
   PetscInt     i;
-  PetscMPIInt  total, filled;
+  PetscInt  total, filled;
   PetscMPIInt  sender, nfirst, nsecond;
   PetscMPIInt  firsttag, secondtag;
   MPI_Request  firstreqrcv;
@@ -189,8 +188,8 @@ static PetscErrorCode PetscParallelRedistribute(PetscLayout map, PetscInt n, Pet
   PetscCallMPI(MPI_Scan(&n, &nextOffset, 1, MPIU_INT, MPI_SUM, map->comm));
   myOffset = nextOffset - n;
   total    = map->range[rank + 1] - map->range[rank];
-  if (total > 0) PetscCallMPI(MPI_Irecv(arrayout, total, MPIU_INT, MPI_ANY_SOURCE, firsttag, map->comm, &firstreqrcv));
-  for (i = 0, nsecond = 0, nfirst = 0; i < size; i++) {
+  if (total > 0) PetscCallMPI(MPIU_Irecv(arrayout, total, MPIU_INT, MPI_ANY_SOURCE, firsttag, map->comm, &firstreqrcv));
+  for (PetscMPIInt i = 0, nsecond = 0, nfirst = 0; i < size; i++) {
     PetscInt itotal;
     PetscInt overlap, oStart, oEnd;
 
@@ -201,13 +200,13 @@ static PetscErrorCode PetscParallelRedistribute(PetscLayout map, PetscInt n, Pet
     overlap = oEnd - oStart;
     if (map->range[i] >= myOffset && map->range[i] < nextOffset) {
       /* send first message */
-      PetscCallMPI(MPI_Isend(&arrayin[map->range[i] - myOffset], overlap, MPIU_INT, i, firsttag, map->comm, &firstreqs[nfirst++]));
+      PetscCallMPI(MPIU_Isend(&arrayin[map->range[i] - myOffset], overlap, MPIU_INT, i, firsttag, map->comm, &firstreqs[nfirst++]));
     } else if (overlap > 0) {
       /* send second message */
-      PetscCallMPI(MPI_Isend(&arrayin[oStart - myOffset], overlap, MPIU_INT, i, secondtag, map->comm, &secondreqs[nsecond++]));
+      PetscCallMPI(MPIU_Isend(&arrayin[oStart - myOffset], overlap, MPIU_INT, i, secondtag, map->comm, &secondreqs[nsecond++]));
     } else if (overlap == 0 && myOffset > map->range[i] && myOffset < map->range[i + 1]) {
       /* send empty second message */
-      PetscCallMPI(MPI_Isend(&arrayin[oStart - myOffset], 0, MPIU_INT, i, secondtag, map->comm, &secondreqs[nsecond++]));
+      PetscCallMPI(MPIU_Isend(&arrayin[oStart - myOffset], 0, MPIU_INT, i, secondtag, map->comm, &secondreqs[nsecond++]));
     }
   }
   filled = 0;

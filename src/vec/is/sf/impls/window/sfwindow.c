@@ -66,7 +66,7 @@ static PetscErrorCode PetscSFWindowGetDataTypes(PetscSF sf, MPI_Datatype unit, c
 {
   PetscSF_Window    *w = (PetscSF_Window *)sf->data;
   PetscSFDataLink    link;
-  PetscInt           i, nranks;
+  PetscInt           nranks;
   const PetscInt    *roffset, *rmine, *rremote;
   const PetscMPIInt *ranks;
 
@@ -87,16 +87,16 @@ static PetscErrorCode PetscSFWindowGetDataTypes(PetscSF sf, MPI_Datatype unit, c
   PetscCall(PetscNew(&link));
   PetscCallMPI(MPI_Type_dup(unit, &link->unit));
   PetscCall(PetscMalloc2(nranks, &link->mine, nranks, &link->remote));
-  for (i = 0; i < nranks; i++) {
+  for (PetscMPIInt i = 0; i < (PetscMPIInt)nranks; i++) {
     PetscInt     rcount = roffset[i + 1] - roffset[i];
     PetscMPIInt *rmine, *rremote;
+
 #if !defined(PETSC_USE_64BIT_INDICES)
     rmine   = sf->rmine + sf->roffset[i];
     rremote = sf->rremote + sf->roffset[i];
 #else
-    PetscInt j;
     PetscCall(PetscMalloc2(rcount, &rmine, rcount, &rremote));
-    for (j = 0; j < rcount; j++) {
+    for (PetscInt j = 0; j < rcount; j++) {
       PetscCall(PetscMPIIntCast(sf->rmine[sf->roffset[i] + j], rmine + j));
       PetscCall(PetscMPIIntCast(sf->rremote[sf->roffset[i] + j], rremote + j));
     }

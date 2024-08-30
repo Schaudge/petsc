@@ -1076,7 +1076,7 @@ PetscErrorCode PetscOptionsPrefixPush(PetscOptions options, const char prefix[])
   PetscCall(PetscStrlen(prefix, &n));
   PetscCheck(n + 1 <= sizeof(options->prefix) - start, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Maximum prefix length %zu exceeded", sizeof(options->prefix));
   PetscCall(PetscArraycpy(options->prefix + start, prefix, n + 1));
-  options->prefixstack[options->prefixind++] = start + (int)n;
+  options->prefixstack[options->prefixind++] = (int)(start + n);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

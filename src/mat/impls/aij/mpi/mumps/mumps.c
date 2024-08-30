@@ -1930,9 +1930,9 @@ static PetscErrorCode MatMumpsGatherNonzerosOnMaster(MatReuse reuse, Mat_MUMPS *
           count  = (PetscMPIInt)PetscMin(mumps->recvcount[i], (PetscMPIInt)PETSC_MPI_INT_MAX);
           remain = mumps->recvcount[i] - count;
           while (count > 0) {
-            PetscCallMPI(MPI_Irecv(irn, count, MPIU_MUMPSINT, i, mumps->tag, mumps->omp_comm, &mumps->reqs[nreqs++]));
-            PetscCallMPI(MPI_Irecv(jcn, count, MPIU_MUMPSINT, i, mumps->tag, mumps->omp_comm, &mumps->reqs[nreqs++]));
-            PetscCallMPI(MPI_Irecv(val, count, MPIU_SCALAR, i, mumps->tag, mumps->omp_comm, &mumps->reqs[nreqs++]));
+            PetscCallMPI(MPIU_Irecv(irn, count, MPIU_MUMPSINT, i, mumps->tag, mumps->omp_comm, &mumps->reqs[nreqs++]));
+            PetscCallMPI(MPIU_Irecv(jcn, count, MPIU_MUMPSINT, i, mumps->tag, mumps->omp_comm, &mumps->reqs[nreqs++]));
+            PetscCallMPI(MPIU_Irecv(val, count, MPIU_SCALAR, i, mumps->tag, mumps->omp_comm, &mumps->reqs[nreqs++]));
             irn += count;
             jcn += count;
             val += count;
@@ -1947,9 +1947,9 @@ static PetscErrorCode MatMumpsGatherNonzerosOnMaster(MatReuse reuse, Mat_MUMPS *
         count  = (PetscMPIInt)PetscMin(mumps->nnz, (PetscMPIInt)PETSC_MPI_INT_MAX);
         remain = mumps->nnz - count;
         while (count > 0) {
-          PetscCallMPI(MPI_Isend(irn, count, MPIU_MUMPSINT, 0, mumps->tag, mumps->omp_comm, &mumps->reqs[nreqs++]));
-          PetscCallMPI(MPI_Isend(jcn, count, MPIU_MUMPSINT, 0, mumps->tag, mumps->omp_comm, &mumps->reqs[nreqs++]));
-          PetscCallMPI(MPI_Isend(val, count, MPIU_SCALAR, 0, mumps->tag, mumps->omp_comm, &mumps->reqs[nreqs++]));
+          PetscCallMPI(MPIU_Isend(irn, count, MPIU_MUMPSINT, 0, mumps->tag, mumps->omp_comm, &mumps->reqs[nreqs++]));
+          PetscCallMPI(MPIU_Isend(jcn, count, MPIU_MUMPSINT, 0, mumps->tag, mumps->omp_comm, &mumps->reqs[nreqs++]));
+          PetscCallMPI(MPIU_Isend(val, count, MPIU_SCALAR, 0, mumps->tag, mumps->omp_comm, &mumps->reqs[nreqs++]));
           irn += count;
           jcn += count;
           val += count;
@@ -1965,7 +1965,7 @@ static PetscErrorCode MatMumpsGatherNonzerosOnMaster(MatReuse reuse, Mat_MUMPS *
           count  = (PetscMPIInt)PetscMin(mumps->recvcount[i], (PetscMPIInt)PETSC_MPI_INT_MAX);
           remain = mumps->recvcount[i] - count;
           while (count > 0) {
-            PetscCallMPI(MPI_Irecv(val, count, MPIU_SCALAR, i, mumps->tag, mumps->omp_comm, &mumps->reqs[nreqs++]));
+            PetscCallMPI(MPIU_Irecv(val, count, MPIU_SCALAR, i, mumps->tag, mumps->omp_comm, &mumps->reqs[nreqs++]));
             val += count;
             count = (PetscMPIInt)PetscMin(remain, (PetscMPIInt)PETSC_MPI_INT_MAX);
             remain -= count;
@@ -1976,7 +1976,7 @@ static PetscErrorCode MatMumpsGatherNonzerosOnMaster(MatReuse reuse, Mat_MUMPS *
         count  = (PetscMPIInt)PetscMin(mumps->nnz, (PetscMPIInt)PETSC_MPI_INT_MAX);
         remain = mumps->nnz - count;
         while (count > 0) {
-          PetscCallMPI(MPI_Isend(val, count, MPIU_SCALAR, 0, mumps->tag, mumps->omp_comm, &mumps->reqs[nreqs++]));
+          PetscCallMPI(MPIU_Isend(val, count, MPIU_SCALAR, 0, mumps->tag, mumps->omp_comm, &mumps->reqs[nreqs++]));
           val += count;
           count = (PetscMPIInt)PetscMin(remain, (PetscMPIInt)PETSC_MPI_INT_MAX);
           remain -= count;

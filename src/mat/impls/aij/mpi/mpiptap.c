@@ -426,7 +426,7 @@ PetscErrorCode MatPtAPSymbolic_MPIAIJ_MPIAIJ_scalable(Mat A, Mat P, PetscReal fi
   for (proc = 0, k = 0; proc < size; proc++) {
     if (!len_s[proc]) continue;
     i = owners_co[proc];
-    PetscCallMPI(MPI_Isend(coj + coi[i], len_s[proc], MPIU_INT, proc, tagj, comm, swaits + k));
+    PetscCallMPI(MPIU_Isend(coj + coi[i], len_s[proc], MPIU_INT, proc, tagj, comm, swaits + k));
     k++;
   }
 
@@ -481,7 +481,7 @@ PetscErrorCode MatPtAPSymbolic_MPIAIJ_MPIAIJ_scalable(Mat A, Mat P, PetscReal fi
       buf_si[nrows + 1]   = prmap[i] - owners[proc]; /* local row index */
       nrows++;
     }
-    PetscCallMPI(MPI_Isend(buf_si, len_si[proc], MPIU_INT, proc, tagi, comm, swaits + k));
+    PetscCallMPI(MPIU_Isend(buf_si, len_si[proc], MPIU_INT, proc, tagi, comm, swaits + k));
     k++;
     buf_si += len_si[proc];
   }
@@ -1715,7 +1715,7 @@ PetscErrorCode MatPtAPSymbolic_MPIAIJ_MPIAIJ(Mat A, Mat P, PetscReal fill, Mat C
   for (proc = 0, k = 0; proc < size; proc++) {
     if (!len_s[proc]) continue;
     i = owners_co[proc];
-    PetscCallMPI(MPI_Isend(coj + coi[i], len_s[proc], MPIU_INT, proc, tagj, comm, swaits + k));
+    PetscCallMPI(MPIU_Isend(coj + coi[i], len_s[proc], MPIU_INT, proc, tagj, comm, swaits + k));
     k++;
   }
 
@@ -1770,7 +1770,7 @@ PetscErrorCode MatPtAPSymbolic_MPIAIJ_MPIAIJ(Mat A, Mat P, PetscReal fill, Mat C
       buf_si[nrows + 1]   = prmap[i] - owners[proc]; /* local row index */
       nrows++;
     }
-    PetscCallMPI(MPI_Isend(buf_si, len_si[proc], MPIU_INT, proc, tagi, comm, swaits + k));
+    PetscCallMPI(MPIU_Isend(buf_si, len_si[proc], MPIU_INT, proc, tagi, comm, swaits + k));
     k++;
     buf_si += len_si[proc];
   }

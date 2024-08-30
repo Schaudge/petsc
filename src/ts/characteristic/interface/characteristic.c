@@ -554,7 +554,7 @@ PetscErrorCode CharacteristicSendCoordinatesBegin(Characteristic c)
   PetscCall(PetscArrayzero(c->needCount, c->numNeighbors));
   for (i = 0; i < c->queueSize; i++) c->needCount[c->queue[i].proc]++;
   c->fillCount[0] = 0;
-  for (n = 1; n < c->numNeighbors; n++) PetscCallMPI(MPI_Irecv(&c->fillCount[n], 1, MPIU_INT, c->neighbors[n], tag, PetscObjectComm((PetscObject)c), &c->request[n - 1]));
+  for (n = 1; n < c->numNeighbors; n++) PetscCallMPI(MPIU_Irecv(&c->fillCount[n], 1, MPIU_INT, c->neighbors[n], tag, PetscObjectComm((PetscObject)c), &c->request[n - 1]));
   for (n = 1; n < c->numNeighbors; n++) PetscCallMPI(MPI_Send(&c->needCount[n], 1, MPIU_INT, c->neighbors[n], tag, PetscObjectComm((PetscObject)c)));
   PetscCallMPI(MPI_Waitall(c->numNeighbors - 1, c->request, c->status));
   /* Initialize the remote queue */
@@ -578,7 +578,7 @@ PetscErrorCode CharacteristicSendCoordinatesBegin(Characteristic c)
   /* Send and Receive requests for values at t_n+1/2, giving the coordinates for interpolation */
   for (n = 1; n < c->numNeighbors; n++) {
     PetscCall(PetscInfo(NULL, "Receiving %" PetscInt_FMT " requests for values from proc %d\n", c->fillCount[n], c->neighbors[n]));
-    PetscCallMPI(MPI_Irecv(&(c->queueRemote[c->remoteOffsets[n]]), c->fillCount[n], c->itemType, c->neighbors[n], tag, PetscObjectComm((PetscObject)c), &c->request[n - 1]));
+    PetscCallMPI(MPIU_Irecv(&(c->queueRemote[c->remoteOffsets[n]]), c->fillCount[n], c->itemType, c->neighbors[n], tag, PetscObjectComm((PetscObject)c), &c->request[n - 1]));
   }
   for (n = 1; n < c->numNeighbors; n++) {
     PetscCall(PetscInfo(NULL, "Sending %" PetscInt_FMT " requests for values from proc %d\n", c->needCount[n], c->neighbors[n]));
@@ -612,7 +612,7 @@ PetscErrorCode CharacteristicGetValuesBegin(Characteristic c)
 
   PetscFunctionBegin;
   /* SEND AND RECEIVE FILLED REQUESTS for velocities at t_n+1/2 */
-  for (n = 1; n < c->numNeighbors; n++) PetscCallMPI(MPI_Irecv(&(c->queue[c->localOffsets[n]]), c->needCount[n], c->itemType, c->neighbors[n], tag, PetscObjectComm((PetscObject)c), &c->request[n - 1]));
+  for (n = 1; n < c->numNeighbors; n++) PetscCallMPI(MPIU_Irecv(&(c->queue[c->localOffsets[n]]), c->needCount[n], c->itemType, c->neighbors[n], tag, PetscObjectComm((PetscObject)c), &c->request[n - 1]));
   for (n = 1; n < c->numNeighbors; n++) PetscCallMPI(MPI_Send(&(c->queueRemote[c->remoteOffsets[n]]), c->fillCount[n], c->itemType, c->neighbors[n], tag, PetscObjectComm((PetscObject)c)));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

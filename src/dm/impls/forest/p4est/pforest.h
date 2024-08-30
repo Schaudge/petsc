@@ -2184,7 +2184,7 @@ static PetscErrorCode DMPforestGetCellCoveringSF(MPI_Comm comm, p4est_t *p4estC,
       continue;
     }
 
-    PetscCallMPI(MPI_Irecv(&recv[2 * (p - startC)], 2, MPIU_INT, p, tag, comm, &recvReqs[p - startC]));
+    PetscCallMPI(MPIU_Irecv(&recv[2 * (p - startC)], 2, MPIU_INT, p, tag, comm, &recvReqs[p - startC]));
   }
   PetscCall(DMPforestComputeOverlappingRanks(p4estC->mpisize, p4estC->mpirank, p4estC, p4estF, &startF, &endF));
   PetscCall(PetscMalloc2(2 * (endF - startF), &send, endF - startF, &sendReqs));
@@ -2235,7 +2235,7 @@ static PetscErrorCode DMPforestGetCellCoveringSF(MPI_Comm comm, p4est_t *p4estC,
     }
     send[2 * (p - startF)]     = firstCell;
     send[2 * (p - startF) + 1] = lastCell - firstCell;
-    PetscCallMPI(MPI_Isend(&send[2 * (p - startF)], 2, MPIU_INT, p, tag, comm, &sendReqs[p - startF]));
+    PetscCallMPI(MPIU_Isend(&send[2 * (p - startF)], 2, MPIU_INT, p, tag, comm, &sendReqs[p - startF]));
   }
   PetscCallMPI(MPI_Waitall((PetscMPIInt)(endC - startC), recvReqs, MPI_STATUSES_IGNORE));
   PetscCall(PetscSectionCreate(PETSC_COMM_SELF, &section));

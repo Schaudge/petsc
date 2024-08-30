@@ -7826,7 +7826,7 @@ static PetscErrorCode PCBDDCMatISGetSubassemblingPattern(Mat mat, PetscInt *n_su
 
       PetscCall(PetscObjectGetNewTag((PetscObject)subdomain_adj, &tag));
       PetscCall(PetscMalloc1(rend - rstart, &reqs));
-      for (i = rstart; i < rend; i++) PetscCallMPI(MPI_Isend(is_indices + i - rstart, 1, MPIU_INT, i, tag, subcomm, &reqs[i - rstart]));
+      for (i = rstart; i < rend; i++) PetscCallMPI(MPIU_Isend(is_indices + i - rstart, 1, MPIU_INT, i, tag, subcomm, &reqs[i - rstart]));
       PetscCallMPI(MPI_Recv(&idx, 1, MPIU_INT, MPI_ANY_SOURCE, tag, subcomm, MPI_STATUS_IGNORE));
       PetscCallMPI(MPI_Waitall(rend - rstart, reqs, MPI_STATUSES_IGNORE));
       PetscCall(PetscFree(reqs));
@@ -8093,29 +8093,29 @@ static PetscErrorCode PCBDDCMatISSubassemble(Mat mat, IS is_sends, PetscInt n_su
   ptr_vecs    = recv_buffer_vecs;
   for (i = 0; i < n_recvs; i++) {
     source_dest = onodes[i];
-    PetscCallMPI(MPI_Irecv(ptr_idxs, olengths_idxs[i], MPIU_INT, source_dest, tag_idxs, comm, &recv_req_idxs[i]));
-    PetscCallMPI(MPI_Irecv(ptr_vals, olengths_vals[i], MPIU_SCALAR, source_dest, tag_vals, comm, &recv_req_vals[i]));
+    PetscCallMPI(MPIU_Irecv(ptr_idxs, olengths_idxs[i], MPIU_INT, source_dest, tag_idxs, comm, &recv_req_idxs[i]));
+    PetscCallMPI(MPIU_Irecv(ptr_vals, olengths_vals[i], MPIU_SCALAR, source_dest, tag_vals, comm, &recv_req_vals[i]));
     ptr_idxs += olengths_idxs[i];
     ptr_vals += olengths_vals[i];
     if (nis) {
       source_dest = onodes_is[i];
-      PetscCallMPI(MPI_Irecv(ptr_idxs_is, olengths_idxs_is[i], MPIU_INT, source_dest, tag_idxs_is, comm, &recv_req_idxs_is[i]));
+      PetscCallMPI(MPIU_Irecv(ptr_idxs_is, olengths_idxs_is[i], MPIU_INT, source_dest, tag_idxs_is, comm, &recv_req_idxs_is[i]));
       ptr_idxs_is += olengths_idxs_is[i];
     }
     if (nvecs) {
       source_dest = onodes[i];
-      PetscCallMPI(MPI_Irecv(ptr_vecs, olengths_idxs[i] - 2, MPIU_SCALAR, source_dest, tag_vecs, comm, &recv_req_vecs[i]));
+      PetscCallMPI(MPIU_Irecv(ptr_vecs, olengths_idxs[i] - 2, MPIU_SCALAR, source_dest, tag_vecs, comm, &recv_req_vecs[i]));
       ptr_vecs += olengths_idxs[i] - 2;
     }
   }
   for (i = 0; i < n_sends; i++) {
     PetscCall(PetscMPIIntCast(is_indices[i], &source_dest));
-    PetscCallMPI(MPI_Isend(send_buffer_idxs, ilengths_idxs[source_dest], MPIU_INT, source_dest, tag_idxs, comm, &send_req_idxs[i]));
-    PetscCallMPI(MPI_Isend((PetscScalar *)send_buffer_vals, ilengths_vals[source_dest], MPIU_SCALAR, source_dest, tag_vals, comm, &send_req_vals[i]));
-    if (nis) PetscCallMPI(MPI_Isend(send_buffer_idxs_is, ilengths_idxs_is[source_dest], MPIU_INT, source_dest, tag_idxs_is, comm, &send_req_idxs_is[i]));
+    PetscCallMPI(MPIU_Isend(send_buffer_idxs, ilengths_idxs[source_dest], MPIU_INT, source_dest, tag_idxs, comm, &send_req_idxs[i]));
+    PetscCallMPI(MPIU_Isend((PetscScalar *)send_buffer_vals, ilengths_vals[source_dest], MPIU_SCALAR, source_dest, tag_vals, comm, &send_req_vals[i]));
+    if (nis) PetscCallMPI(MPIU_Isend(send_buffer_idxs_is, ilengths_idxs_is[source_dest], MPIU_INT, source_dest, tag_idxs_is, comm, &send_req_idxs_is[i]));
     if (nvecs) {
       PetscCall(VecGetArray(nnsp_vec[0], &send_buffer_vecs));
-      PetscCallMPI(MPI_Isend(send_buffer_vecs, ilengths_idxs[source_dest] - 2, MPIU_SCALAR, source_dest, tag_vecs, comm, &send_req_vecs[i]));
+      PetscCallMPI(MPIU_Isend(send_buffer_vecs, ilengths_idxs[source_dest] - 2, MPIU_SCALAR, source_dest, tag_vecs, comm, &send_req_vecs[i]));
     }
   }
   PetscCall(ISRestoreIndices(is_sends_internal, &is_indices));

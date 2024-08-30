@@ -13,7 +13,7 @@
 
       ! Settings:
       integer, parameter        :: verbose=0               ! 0: silent, >=1 : increasing amount of debugging output
-      integer, parameter        :: msgLen = 30             ! number of reals which is sent with MPI_Isend
+      integer, parameter        :: msgLen = 30             ! number of reals which is sent with MPIU_Isend
       PetscReal, parameter      :: second=0.1;             ! time is sped up by a factor 10
 
       ! Codes
@@ -86,7 +86,7 @@
          PetscCallA(PetscLogFlops(23000d0,ierr))
          PetscCallA(PetscSleep(1*second, ierr))
          if (size>1) then
-           PetscCallMPIA(MPI_Isend( message, msgLen, MPI_DOUBLE_PRECISION,mod(rank+1,size),tagMsg+rank, PETSC_COMM_WORLD, req, ierr))
+           PetscCallMPIA(MPIU_Isend( message, msgLen, MPI_DOUBLE_PRECISION,mod(rank+1,size),tagMsg+rank, PETSC_COMM_WORLD, req, ierr))
            PetscCallMPIA(MPI_Recv( message, msgLen, MPI_DOUBLE_PRECISION,mod(rank-1+size,size),tagMsg+mod(rank-1+size,size), PETSC_COMM_WORLD,status, ierr))
            PetscCallMPIA(MPI_Wait(req,MPI_STATUS_IGNORE,ierr))
            msgLen_c_int = msgLen
@@ -201,7 +201,7 @@
          PetscCallA(PetscLogFlops(23000d0,ierr))
          PetscCallA(PetscSleep(1*second, ierr))
          if (size>1) then
-           PetscCallMPIA(MPI_Isend( message, msgLen, MPI_DOUBLE_PRECISION,mod(rank+1,size),tagMsg+rank, PETSC_COMM_WORLD, req, ierr))
+           PetscCallMPIA(MPIU_Isend( message, msgLen, MPI_DOUBLE_PRECISION,mod(rank+1,size),tagMsg+rank, PETSC_COMM_WORLD, req, ierr))
            PetscCallMPIA(MPI_Recv( message, msgLen, MPI_DOUBLE_PRECISION,mod(rank-1+size,size),tagMsg+mod(rank-1+size,size), PETSC_COMM_WORLD,status, ierr))
            PetscCallMPIA(MPI_Wait(req,MPI_STATUS_IGNORE,ierr))
            msgLen_c_int = msgLen

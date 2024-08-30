@@ -39,7 +39,7 @@ PetscErrorCode PetscStrToArray(const char s[], char sp, int *argc, char ***args)
   PetscBool flg = PETSC_FALSE;
 
   if (!s) n = 0;
-  else n = (PetscInt)strlen(s);
+  else n = (int)strlen(s);
   *argc = 0;
   *args = NULL;
   for (; n > 0; n--) { /* remove separator chars at the end - and will empty the string if all chars are separator chars */

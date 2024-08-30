@@ -19,17 +19,17 @@ static PetscErrorCode ExchangeArrayByRank_Private(PetscObject obj, MPI_Datatype 
   PetscCall(PetscMalloc2(nrranks, &rreq, nsranks, &sreq));
   /* exchange array size */
   PetscCall(PetscObjectGetNewTag(obj, &tag));
-  for (r = 0; r < nrranks; r++) PetscCallMPI(MPI_Irecv(&rsize[r], 1, MPIU_INT, rranks[r], tag, comm, &rreq[r]));
-  for (r = 0; r < nsranks; r++) PetscCallMPI(MPI_Isend(&ssize[r], 1, MPIU_INT, sranks[r], tag, comm, &sreq[r]));
+  for (r = 0; r < nrranks; r++) PetscCallMPI(MPIU_Irecv(&rsize[r], 1, MPIU_INT, rranks[r], tag, comm, &rreq[r]));
+  for (r = 0; r < nsranks; r++) PetscCallMPI(MPIU_Isend(&ssize[r], 1, MPIU_INT, sranks[r], tag, comm, &sreq[r]));
   PetscCallMPI(MPI_Waitall(nrranks, rreq, MPI_STATUSES_IGNORE));
   PetscCallMPI(MPI_Waitall(nsranks, sreq, MPI_STATUSES_IGNORE));
   /* exchange array */
   PetscCall(PetscObjectGetNewTag(obj, &tag));
   for (r = 0; r < nrranks; r++) {
     PetscCall(PetscMalloc(rsize[r] * unitsize, &rarr[r]));
-    PetscCallMPI(MPI_Irecv(rarr[r], rsize[r], dt, rranks[r], tag, comm, &rreq[r]));
+    PetscCallMPI(MPIU_Irecv(rarr[r], rsize[r], dt, rranks[r], tag, comm, &rreq[r]));
   }
-  for (r = 0; r < nsranks; r++) PetscCallMPI(MPI_Isend(sarr[r], ssize[r], dt, sranks[r], tag, comm, &sreq[r]));
+  for (r = 0; r < nsranks; r++) PetscCallMPI(MPIU_Isend(sarr[r], ssize[r], dt, sranks[r], tag, comm, &sreq[r]));
   PetscCallMPI(MPI_Waitall(nrranks, rreq, MPI_STATUSES_IGNORE));
   PetscCallMPI(MPI_Waitall(nsranks, sreq, MPI_STATUSES_IGNORE));
   PetscCall(PetscFree2(rreq, sreq));

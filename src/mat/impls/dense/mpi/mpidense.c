@@ -2241,8 +2241,8 @@ static PetscErrorCode MatMatTransposeMultNumeric_MPIDense_MPIDense_Cyclic(Mat A,
       sendsiz = cK * bn;
       recvsiz = cK * nextbn;
       recvbuf = (i & 1) ? abt->buf[0] : abt->buf[1];
-      PetscCallMPI(MPI_Isend(sendbuf, sendsiz, MPIU_SCALAR, sendto, abt->tag, comm, &reqs[0]));
-      PetscCallMPI(MPI_Irecv(recvbuf, recvsiz, MPIU_SCALAR, recvfrom, abt->tag, comm, &reqs[1]));
+      PetscCallMPI(MPIU_Isend(sendbuf, sendsiz, MPIU_SCALAR, sendto, abt->tag, comm, &reqs[0]));
+      PetscCallMPI(MPIU_Irecv(recvbuf, recvsiz, MPIU_SCALAR, recvfrom, abt->tag, comm, &reqs[1]));
     }
 
     /* local aseq * sendbuf^T */

@@ -190,7 +190,7 @@ static PetscErrorCode PCSetUp_Redistribute(PC pc)
       PetscCall(PetscMalloc3(recvtotal, &rvalues, nrecvs, &source, nrecvs, &recv_waits));
       count = 0;
       for (i = 0; i < nrecvs; i++) {
-        PetscCallMPI(MPI_Irecv((rvalues + count), olengths1[i], MPIU_INT, onodes1[i], tag, comm, recv_waits + i));
+        PetscCallMPI(MPIU_Irecv((rvalues + count), olengths1[i], MPIU_INT, onodes1[i], tag, comm, recv_waits + i));
         count += olengths1[i];
       }
 
@@ -211,7 +211,7 @@ static PetscErrorCode PCSetUp_Redistribute(PC pc)
       for (i = 1; i < size; i++) starts[i] = starts[i - 1] + sizes[i - 1];
       count = 0;
       for (i = 0; i < size; i++) {
-        if (sizes[i]) PetscCallMPI(MPI_Isend(svalues + starts[i], sizes[i], MPIU_INT, i, tag, comm, send_waits + count++));
+        if (sizes[i]) PetscCallMPI(MPIU_Isend(svalues + starts[i], sizes[i], MPIU_INT, i, tag, comm, send_waits + count++));
       }
 
       /*  wait on receives */

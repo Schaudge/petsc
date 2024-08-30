@@ -239,8 +239,8 @@ PetscErrorCode AOCreateMapping(MPI_Comm comm, PetscInt napp, const PetscInt myap
   PetscInt   *petscPerm, *appPerm;
   PetscInt   *petsc;
   PetscMPIInt size, rank, *lens, *disp, nnapp;
-  PetscInt    N, start;
-  PetscInt    i;
+  PetscCount  N;
+  PetscInt    i, start;
 
   PetscFunctionBegin;
   PetscAssertPointer(aoout, 5);
@@ -256,16 +256,16 @@ PetscErrorCode AOCreateMapping(MPI_Comm comm, PetscInt napp, const PetscInt myap
   PetscCallMPI(MPI_Comm_size(comm, &size));
   PetscCallMPI(MPI_Comm_rank(comm, &rank));
   PetscCall(PetscMalloc2(size, &lens, size, &disp));
-  nnapp = napp;
+  PetscCall(PetscMPIIntCast(napp,&nnapp));
   PetscCallMPI(MPI_Allgather(&nnapp, 1, MPI_INT, lens, 1, MPI_INT, comm));
   N = 0;
   for (i = 0; i < size; i++) {
-    disp[i] = N;
+    PetscCall(PetscMPIIntCast(N,&disp[i]));
     N += lens[i];
   }
   aomap->N = N;
-  ao->N    = N;
-  ao->n    = N;
+  ao->N = N;
+  ao->n = N;
 
   /* If mypetsc is 0 then use "natural" numbering */
   if (!mypetsc) {
