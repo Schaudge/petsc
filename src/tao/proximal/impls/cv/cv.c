@@ -422,7 +422,12 @@ static PetscErrorCode TaoDestroy_CV(Tao tao)
 .      -tao_cv_backtracking_parameter <r> - Linesearch backtracking parameter
 -      -tao_cv_theta <r> - Stepsize scaling parameter
 
-  Level: beginner
+   Level: beginner
+
+   Note:
+   See {cite}`latafat2023adaptive`.
+
+.seealso: `Tao`, `TaoType`, `TAOFB`
 M*/
 
 PETSC_EXTERN PetscErrorCode TaoCreate_CV(Tao tao)

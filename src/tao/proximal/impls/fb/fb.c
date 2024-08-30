@@ -16,8 +16,10 @@ static const char fasta_citation[]  = "@article{goldstein2015fasta,\n"
 static const char adapgm_citation[] = "@article{latafat2023convergence,\n"
                                       "title={On the convergence of adaptive first order methods: proximal gradient and alternating minimization algorithms},\n"
                                       "author={Latafat, Puya and Themelis, Andreas and Patrinos, Panagiotis},\n"
-                                      "journal={arXiv preprint arXiv:2311.18431},\n"
-                                      "year={2023}\n"
+                                      "booktitle={6th Annual Learning for Dynamics and Control Conference},\n"
+                                      "pages={197--208},\n"
+                                      "year={2024},\n"
+                                      "organization={PMLR},\n"
                                       "}\n";
 
 static PetscErrorCode TaoFB_LineSearch_PreApply_Private(TaoLineSearch ls, Vec in, PetscReal *f, Vec out, Vec g)
@@ -420,7 +422,12 @@ static PetscErrorCode TaoDestroy_FB(Tao tao)
 .      -tao_fb_accel - Use Nesterov-type acceleration
 -      -tao_fb_adaptive - Use adaPGM-type adaptive stepsize
 
-  Level: beginner
+   Level: beginner
+
+   Note:
+   See {cite}`goldstein2015fasta`, {cite}`latafat2024convergence`.
+
+.seealso: `Tao`, `TaoType, `TAOCV`
 M*/
 
 PETSC_EXTERN PetscErrorCode TaoCreate_FB(Tao tao)
