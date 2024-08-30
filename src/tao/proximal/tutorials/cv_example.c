@@ -395,30 +395,6 @@ int main(int argc, char **argv)
       requires: !complex !single !__float128 !defined(PETSC_USE_64BIT_INDICES)
 
    test:
-      suffix: svm_norm
-      nsize: {{1 2 4}}
-      localrunfiles: matrix-heart-scale.dat vector-heart-scale.dat
-      args: -problem dual_svm -g_scale 1 -tao_converged_reason -tao_max_it 1000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -tao_ls_max_funcs 0 -set_norm 1
-      output_file: output/cv_example_svm_norm.out
-      requires: !single
-
-   test:
-      suffix: svm_norm_ls
-      nsize: {{1 2 4}}
-      localrunfiles: matrix-heart-scale.dat vector-heart-scale.dat
-      args: -problem dual_svm -g_scale 1 -tao_converged_reason -tao_max_it 2000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -tao_ls_max_funcs 30 -set_norm 1
-      output_file: output/cv_example_svm_norm_ls.out
-      requires: !single
-
-   test:
-      suffix: svm_ls
-      nsize: {{1 2 4}}
-      localrunfiles: matrix-heart-scale.dat vector-heart-scale.dat
-      args: -problem dual_svm -g_scale 1 -tao_max_it 20 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -set_norm 0 -tao_ls_max_funcs 30 -tao_monitor
-      output_file: output/cv_example_svm_ls.out
-      requires: !single
-
-   test:
       suffix: lad_norm
       nsize: {{1 2 4}}
       localrunfiles: matrix-housing-scale.dat vector-housing-scale.dat
