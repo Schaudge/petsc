@@ -70,6 +70,7 @@ DMSwarmDataExEnd()
 */
 #include <petscvec.h>
 #include <petscmat.h>
+#include <petsc/private/petscimpl.h>
 
 #include "../src/dm/impls/swarm/data_ex.h"
 

@@ -179,11 +179,13 @@ PetscErrorCode PetscSFSetGraphSection(PetscSF sf, PetscSection localSection, Pet
     PetscCheck(d - c == gsize, comm, PETSC_ERR_ARG_WRONG, "Point %" PetscInt_FMT ": Global dof %" PetscInt_FMT " != %" PetscInt_FMT " size - number of constraints", p, gsize, d - c);
     if (gdof < 0) {
       for (d = 0; d < gsize; ++d, ++l) {
-        PetscInt offset = -(goff + 1) + d, r;
+        PetscInt offset = -(goff + 1) + d, ir;
+        PetscMPIInt r;
 
-        PetscCall(PetscFindInt(offset, size + 1, ranges, &r));
+        PetscCall(PetscFindInt(offset, size + 1, ranges, &ir));
+        PetscCall(PetscMPIIntCast(ir,&r));
         if (r < 0) r = -(r + 2);
-        PetscCheck(!(r < 0) && !(r >= size), PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Point %" PetscInt_FMT " mapped to invalid process %" PetscInt_FMT " (%" PetscInt_FMT ", %" PetscInt_FMT ")", p, r, gdof, goff);
+        PetscCheck(!(r < 0) && !(r >= size), PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Point %" PetscInt_FMT " mapped to invalid process %d (%" PetscInt_FMT ", %" PetscInt_FMT ")", p, r, gdof, goff);
         remote[l].rank  = r;
         remote[l].index = offset - ranges[r];
       }
@@ -271,7 +273,7 @@ PetscErrorCode PetscSFDistributeSection(PetscSF sf, PetscSection rootSection, Pe
   rpEnd = PetscMax(rpStart, rpEnd);
   /* see if we can avoid creating the embedded SF, since it can cost more than an allreduce */
   sub[0] = (PetscBool)(nroots != rpEnd - rpStart);
-  PetscCall(MPIU_Allreduce(MPI_IN_PLACE, sub, 2 + numFields, MPIU_BOOL, MPI_LOR, PetscObjectComm((PetscObject)sf)));
+  PetscCall(MPIU_Allreduce(MPI_IN_PLACE, sub, (PetscMPIInt)(2 + numFields), MPIU_BOOL, MPI_LOR, PetscObjectComm((PetscObject)sf)));
   if (sub[0]) {
     PetscCall(ISCreateStride(PETSC_COMM_SELF, rpEnd - rpStart, rpStart, 1, &selected));
     PetscCall(ISGetIndices(selected, &indices));
@@ -457,7 +459,7 @@ PetscErrorCode PetscSFCreateSectionSF(PetscSF sf, PetscSection rootSection, Pets
   /* Create new index graph */
   for (i = 0, ind = 0; i < numPoints; ++i) {
     PetscInt localPoint = localPoints ? localPoints[i] : i;
-    PetscInt rank       = remotePoints[i].rank;
+    PetscMPIInt rank       = remotePoints[i].rank;
 
     if ((localPoint >= lpStart) && (localPoint < lpEnd)) {
       PetscInt remoteOffset = remoteOffsets[localPoint - lpStart];
@@ -932,7 +934,7 @@ PetscErrorCode PetscSFCreateStridedSF(PetscSF sf, PetscInt bs, PetscInt ldr, Pet
   PetscCall(PetscSFBcastEnd(rankssf, MPIU_INT, &ldr, ldrs, MPI_REPLACE));
 
   for (PetscInt i = 0, rold = -1, lda = -1; i < nl; i++) {
-    const PetscInt r  = iremote[i].rank;
+    const PetscMPIInt r  = iremote[i].rank;
     const PetscInt ii = iremote[i].index;
 
     if (r == rank) lda = ldr;
@@ -941,7 +943,7 @@ PetscErrorCode PetscSFCreateStridedSF(PetscSF sf, PetscInt bs, PetscInt ldr, Pet
 
       for (j = 0; j < nranks; j++)
         if (sfrremote[j].rank == r) break;
-      PetscCheck(j < nranks, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Unable to locate neighbor rank %" PetscInt_FMT, r);
+      PetscCheck(j < nranks, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Unable to locate neighbor rank %d", r);
       lda = ldrs[j];
     }
     rold = r;

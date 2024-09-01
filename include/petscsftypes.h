@@ -57,8 +57,8 @@ typedef const char *PetscSFType;
 .seealso: `PetscSF`, `PetscSFSetGraph()`
 S*/
 typedef struct {
-  PetscInt rank;  /* Rank of owner */
   PetscInt index; /* Index of node on rank */
+  PetscMPIInt rank;  /* Rank of owner */
 } PetscSFNode;
 
 /*S

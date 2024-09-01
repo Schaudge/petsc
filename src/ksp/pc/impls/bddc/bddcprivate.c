@@ -3297,11 +3297,12 @@ PetscErrorCode PCBDDCAdaptiveSelection(PC pc)
   if (mss) {
     PetscScalar  sdummy  = 0.;
     PetscBLASInt B_itype = 1;
-    PetscBLASInt B_N = mss, idummy = 0;
+    PetscBLASInt B_N, idummy = 0;
     PetscReal    rdummy = 0., zero = 0.0;
     PetscReal    eps = 0.0; /* dlamch? */
 
     PetscCheck(sub_schurs->is_symmetric, PETSC_COMM_SELF, PETSC_ERR_SUP, "Not yet implemented");
+    PetscCall(PetscBLASIntCast(mss, &B_N));
     B_lwork = -1;
     /* some implementations may complain about NULL pointers, even if we are querying */
     S       = &sdummy;
@@ -3642,7 +3643,7 @@ PetscErrorCode PCBDDCAdaptiveSelection(PC pc)
                 }
               }
               PetscCall(PetscArraycpy(eigv, S, B_N * ne));
-              B_neigs = ne;
+              PetscCall(PetscBLASIntCast(ne,&B_neigs));
             }
             break;
           default:
@@ -3650,7 +3651,7 @@ PetscErrorCode PCBDDCAdaptiveSelection(PC pc)
           }
         }
       } else if (!same_data) { /* this is just to see all the eigenvalues */
-        B_IU = PetscMax(1, PetscMin(B_N, nmax));
+        PetscCall(PetscBLASIntCast(PetscMax(1, PetscMin(B_N, nmax)),&B_IU));
         B_IL = 1;
 #if defined(PETSC_USE_COMPLEX)
         PetscCallBLAS("LAPACKsygvx", LAPACKsygvx_(&B_itype, "V", "I", "L", &B_N, St, &B_N, S, &B_N, &lower, &upper, &B_IL, &B_IU, &eps, &B_neigs, eigs, eigv, &B_N, work, &B_lwork, rwork, B_iwork, B_ifail, &B_ierr));
@@ -3680,7 +3681,7 @@ PetscErrorCode PCBDDCAdaptiveSelection(PC pc)
       if (B_neigs > nmax) {
         if (pcbddc->dbg_flag) PetscCall(PetscViewerASCIISynchronizedPrintf(pcbddc->dbg_viewer, "   found %" PetscBLASInt_FMT " eigs, more than maximum required %" PetscInt_FMT ".\n", B_neigs, nmax));
         if (upart) eigs_start = scal ? 0 : B_neigs - nmax;
-        B_neigs = nmax;
+        PetscCall(PetscBLASIntCast(nmax, &B_neigs));
       }
 
       nmin_s = PetscMin(nmin, B_N);
@@ -3689,15 +3690,15 @@ PetscErrorCode PCBDDCAdaptiveSelection(PC pc)
 
         if (upart) {
           if (scal) {
-            B_IU = nmin_s;
+            PetscCall(PetscBLASIntCast(nmin_s,&B_IU));
             B_IL = B_neigs + 1;
           } else {
-            B_IL = B_N - nmin_s + 1;
+            PetscCall(PetscBLASIntCast(B_N - nmin_s + 1,&B_IL));
             B_IU = B_N - B_neigs;
           }
         } else {
           B_IL = B_neigs + 1;
-          B_IU = nmin_s;
+          PetscCall(PetscBLASIntCast(nmin_s,&B_IU));
         }
         if (pcbddc->dbg_flag) {
           PetscCall(PetscViewerASCIISynchronizedPrintf(pcbddc->dbg_viewer, "   found %" PetscBLASInt_FMT " eigs, less than minimum required %" PetscInt_FMT ". Asking for %" PetscBLASInt_FMT " to %" PetscBLASInt_FMT " incl (fortran like)\n", B_neigs, nmin, B_IL, B_IU));
@@ -7500,7 +7501,7 @@ PetscErrorCode PCBDDCAnalyzeInterface(PC pc)
       PetscCheck(pcbddc->mat_graph->cnloc == pc->pmat->rmap->n, PETSC_COMM_SELF, PETSC_ERR_USER, "Invalid number of local coordinates! Got %" PetscInt_FMT ", expected %" PetscInt_FMT, pcbddc->mat_graph->cnloc, pc->pmat->rmap->n);
       PetscCall(MatGetLocalSize(matis->A, &n, NULL));
       PetscCall(PetscMalloc1(pcbddc->mat_graph->cdim * n, &lcoords));
-      PetscCallMPI(MPI_Type_contiguous(pcbddc->mat_graph->cdim, MPIU_REAL, &dimrealtype));
+      PetscCallMPI(MPI_Type_contiguous((PetscMPIInt)pcbddc->mat_graph->cdim, MPIU_REAL, &dimrealtype));
       PetscCallMPI(MPI_Type_commit(&dimrealtype));
       PetscCall(PetscSFBcastBegin(matis->sf, dimrealtype, pcbddc->mat_graph->coords, lcoords, MPI_REPLACE));
       PetscCall(PetscSFBcastEnd(matis->sf, dimrealtype, pcbddc->mat_graph->coords, lcoords, MPI_REPLACE));
@@ -7721,7 +7722,8 @@ static PetscErrorCode PCBDDCMatISGetSubassemblingPattern(Mat mat, PetscInt *n_su
     Mat             subdomain_adj;
     IS              new_ranks, new_ranks_contig;
     MatPartitioning partitioner;
-    PetscInt        rstart = 0, rend = 0;
+    PetscInt        rstart, rend;
+    PetscMPIInt     irstart, irend;
     PetscInt       *is_indices, *oldranks;
     PetscMPIInt     size;
     PetscBool       aggregate;
@@ -7750,6 +7752,8 @@ static PetscErrorCode PCBDDCMatISGetSubassemblingPattern(Mat mat, PetscInt *n_su
       }
       PetscCall(MatCreateAIJ(subcomm, lrows, lrows, size, size, 50, NULL, 50, NULL, &subdomain_adj));
       PetscCall(MatGetOwnershipRange(subdomain_adj, &rstart, &rend));
+      irstart = (PetscMPIInt) rstart;  /* from construction these are always less than size */
+      irend = (PetscMPIInt) rend;
       PetscCall(MatSetOption(subdomain_adj, MAT_NEW_NONZERO_LOCATION_ERR, PETSC_FALSE));
       PetscCall(MatSetOption(subdomain_adj, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE));
       row   = nrank;
@@ -7826,9 +7830,9 @@ static PetscErrorCode PCBDDCMatISGetSubassemblingPattern(Mat mat, PetscInt *n_su
 
       PetscCall(PetscObjectGetNewTag((PetscObject)subdomain_adj, &tag));
       PetscCall(PetscMalloc1(rend - rstart, &reqs));
-      for (i = rstart; i < rend; i++) PetscCallMPI(MPIU_Isend(is_indices + i - rstart, 1, MPIU_INT, i, tag, subcomm, &reqs[i - rstart]));
-      PetscCallMPI(MPI_Recv(&idx, 1, MPIU_INT, MPI_ANY_SOURCE, tag, subcomm, MPI_STATUS_IGNORE));
-      PetscCallMPI(MPI_Waitall(rend - rstart, reqs, MPI_STATUSES_IGNORE));
+      for (PetscMPIInt i = irstart; i < irend; i++) PetscCallMPI(MPIU_Isend(is_indices + i - rstart, 1, MPIU_INT, i, tag, subcomm, &reqs[i - rstart]));
+      PetscCallMPI(MPIU_Recv(&idx, 1, MPIU_INT, MPI_ANY_SOURCE, tag, subcomm, MPI_STATUS_IGNORE));
+      PetscCallMPI(MPI_Waitall(irend - irstart, reqs, MPI_STATUSES_IGNORE));
       PetscCall(PetscFree(reqs));
       if (procs_candidates) { /* shift the pattern on non-active candidates (if any) */
         PetscAssert(oldranks, PETSC_COMM_SELF, PETSC_ERR_PLIB, "This should not happen");
@@ -9724,7 +9728,7 @@ static PetscErrorCode MatAIJExtractRows(Mat A, IS rows, Mat *sA)
     /* SF graph for nonzeros */
     c = 0;
     for (PetscInt i = 0; i < ni; i++) {
-      const PetscInt rank  = iremotes[i].rank;
+      const PetscMPIInt rank  = iremotes[i].rank;
       const PetscInt rsize = ldata[2 * i];
       for (PetscInt j = 0; j < rsize; j++) {
         remotes[c].rank  = rank;

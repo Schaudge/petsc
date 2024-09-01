@@ -27,7 +27,8 @@ typedef struct {
 static PetscErrorCode VecView_MPI_Draw_DA2d_Zoom(PetscDraw draw, void *ctx)
 {
   ZoomCtx           *zctx = (ZoomCtx *)ctx;
-  PetscInt           m, n, i, j, k, dof, id, c1, c2, c3, c4;
+  PetscInt           m, n, i, j, k, dof, id;
+  int                c1, c2, c3, c4;
   PetscReal          min, max, x1, x2, x3, x4, y_1, y2, y3, y4;
   const PetscScalar *xy, *v;
 
@@ -614,7 +615,7 @@ static PetscErrorCode DMDAArrayMPIIO(DM da, PetscViewer viewer, Vec xin, PetscBo
   PetscCall(PetscMPIIntCast(dd->xs / dof, lstarts + 1));
   PetscCall(PetscMPIIntCast(dd->ys, lstarts + 2));
   PetscCall(PetscMPIIntCast(dd->zs, lstarts + 3));
-  PetscCallMPI(MPI_Type_create_subarray(da->dim + 1, gsizes, lsizes, lstarts, MPI_ORDER_FORTRAN, MPIU_SCALAR, &view));
+  PetscCallMPI(MPI_Type_create_subarray((PetscMPIInt)(da->dim + 1), gsizes, lsizes, lstarts, MPI_ORDER_FORTRAN, MPIU_SCALAR, &view));
   PetscCallMPI(MPI_Type_commit(&view));
 
   PetscCall(PetscViewerBinaryGetMPIIODescriptor(viewer, &mfdes));

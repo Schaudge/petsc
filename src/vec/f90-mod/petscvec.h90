@@ -60,7 +60,7 @@
       subroutine PetscSFGetRootRanks(sf,nranks,ranks,roffset,rmine,rremote,ierr)
           import tPetscSF
           PetscSF :: sf
-          PetscInt :: nranks
+          PetscMPIInt :: nranks
           PetscMPIInt, pointer :: ranks(:)
           PetscInt, pointer :: roffset(:),rmine(:),rremote(:)
           PetscErrorCode :: ierr

@@ -435,9 +435,9 @@ static PetscErrorCode PCTelescopeSetUp_dmda_repart(PC pc, PC_Telescope sred, PC_
   if (_range_k_re) PetscCall(PetscArraycpy(ctx->range_k_re, _range_k_re, ctx->Pp_re));
 
   /* TODO: use a single MPI call */
-  PetscCallMPI(MPI_Bcast(ctx->range_i_re, ctx->Mp_re, MPIU_INT, 0, comm));
-  PetscCallMPI(MPI_Bcast(ctx->range_j_re, ctx->Np_re, MPIU_INT, 0, comm));
-  PetscCallMPI(MPI_Bcast(ctx->range_k_re, ctx->Pp_re, MPIU_INT, 0, comm));
+  PetscCallMPI(MPI_Bcast(ctx->range_i_re, (PetscMPIInt)ctx->Mp_re, MPIU_INT, 0, comm));
+  PetscCallMPI(MPI_Bcast(ctx->range_j_re, (PetscMPIInt)ctx->Np_re, MPIU_INT, 0, comm));
+  PetscCallMPI(MPI_Bcast(ctx->range_k_re, (PetscMPIInt)ctx->Pp_re, MPIU_INT, 0, comm));
 
   PetscCall(PetscMalloc3(ctx->Mp_re, &ctx->start_i_re, ctx->Np_re, &ctx->start_j_re, ctx->Pp_re, &ctx->start_k_re));
 

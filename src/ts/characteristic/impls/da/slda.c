@@ -57,7 +57,7 @@ static PetscErrorCode CharacteristicSetUp_DA(Characteristic c)
   c->queueSize = 0;
 
   /* Allocate communication structures */
-  PetscCheck(c->numNeighbors > 0, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Invalid number of neighbors %" PetscInt_FMT ". Call CharactersiticSetNeighbors() before setup.", c->numNeighbors);
+  PetscCheck(c->numNeighbors > 0, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Invalid number of neighbors %d. Call CharactersiticSetNeighbors() before setup.", c->numNeighbors);
   PetscCall(PetscMalloc1(c->numNeighbors, &c->needCount));
   PetscCall(PetscMalloc1(c->numNeighbors, &c->localOffsets));
   PetscCall(PetscMalloc1(c->numNeighbors, &c->fillCount));

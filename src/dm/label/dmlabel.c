@@ -1831,7 +1831,7 @@ PetscErrorCode DMLabelDistribute(DMLabel label, PetscSF sf, DMLabel *labelNew)
   PetscCallMPI(MPI_Bcast(&nameSize, 1, MPIU_INT, 0, comm));
   PetscCall(PetscMalloc1(nameSize + 1, &name));
   if (rank == 0) PetscCall(PetscArraycpy(name, lname, nameSize + 1));
-  PetscCallMPI(MPI_Bcast(name, nameSize + 1, MPI_CHAR, 0, comm));
+  PetscCallMPI(MPI_Bcast(name, (PetscMPIInt)(nameSize + 1), MPI_CHAR, 0, comm));
   PetscCall(DMLabelCreate(PETSC_COMM_SELF, name, labelNew));
   PetscCall(PetscFree(name));
   /* Bcast defaultValue */
@@ -1948,7 +1948,7 @@ PetscErrorCode DMLabelGather(DMLabel label, PetscSF sf, DMLabel *labelNew)
   PetscCallMPI(MPI_Bcast(&nameSize, 1, MPIU_INT, 0, comm));
   PetscCall(PetscMalloc1(nameSize + 1, &name));
   if (rank == 0) PetscCall(PetscArraycpy(name, lname, nameSize + 1));
-  PetscCallMPI(MPI_Bcast(name, nameSize + 1, MPI_CHAR, 0, comm));
+  PetscCallMPI(MPI_Bcast(name, (PetscMPIInt)(nameSize + 1), MPI_CHAR, 0, comm));
   PetscCall(DMLabelCreate(PETSC_COMM_SELF, name, labelNew));
   PetscCall(PetscFree(name));
   /* Gather rank/index pairs of leaves into local roots to build

@@ -221,12 +221,12 @@ PetscErrorCode MatPtAPSymbolic_MPIAIJ_MPIAIJ_scalable(Mat A, Mat P, PetscReal fi
   Mat                      P_loc, P_oth;
   PetscFreeSpaceList       free_space = NULL, current_space = NULL;
   PetscInt                 am = A->rmap->n, pm = P->rmap->n, pN = P->cmap->N, pn = P->cmap->n;
-  PetscInt                *lnk, i, k, pnz, row, nsend;
-  PetscMPIInt              tagi, tagj, *len_si, *len_s, *len_ri, nrecv;
+  PetscInt                *lnk, i, k, pnz, row;
+  PetscMPIInt              tagi, tagj, *len_si, *len_s, *len_ri, nrecv, nsend, proc;
   PETSC_UNUSED PetscMPIInt icompleted = 0;
   PetscInt               **buf_rj, **buf_ri, **buf_ri_k;
   const PetscInt          *owners;
-  PetscInt                 len, proc, *dnz, *onz, nzi, nspacedouble;
+  PetscInt                 len, *dnz, *onz, nzi, nspacedouble;
   PetscInt                 nrows, *buf_s, *buf_si, *buf_si_i, **nextrow, **nextci;
   MPI_Request             *swaits, *rwaits;
   MPI_Status              *sstatus, rstatus;
@@ -1500,20 +1500,21 @@ PetscErrorCode MatPtAPSymbolic_MPIAIJ_MPIAIJ_allatonce_merged(Mat A, Mat P, Pets
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+
 PetscErrorCode MatPtAPSymbolic_MPIAIJ_MPIAIJ(Mat A, Mat P, PetscReal fill, Mat Cmpi)
 {
   Mat_APMPI               *ptap;
   Mat_MPIAIJ              *a = (Mat_MPIAIJ *)A->data, *p = (Mat_MPIAIJ *)P->data;
   MPI_Comm                 comm;
-  PetscMPIInt              size, rank;
+  PetscMPIInt              size, rank, nsend, proc;
   PetscFreeSpaceList       free_space = NULL, current_space = NULL;
   PetscInt                 am = A->rmap->n, pm = P->rmap->n, pN = P->cmap->N, pn = P->cmap->n;
-  PetscInt                *lnk, i, k, pnz, row, nsend;
+  PetscInt                *lnk, i, k, pnz, row;
   PetscBT                  lnkbt;
   PetscMPIInt              tagi, tagj, *len_si, *len_s, *len_ri, nrecv;
   PETSC_UNUSED PetscMPIInt icompleted = 0;
   PetscInt               **buf_rj, **buf_ri, **buf_ri_k;
-  PetscInt                 len, proc, *dnz, *onz, *owners, nzi, nspacedouble;
+  PetscInt                 len, *dnz, *onz, *owners, nzi, nspacedouble;
   PetscInt                 nrows, *buf_s, *buf_si, *buf_si_i, **nextrow, **nextci;
   MPI_Request             *swaits, *rwaits;
   MPI_Status              *sstatus, rstatus;

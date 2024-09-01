@@ -1441,8 +1441,9 @@ PetscErrorCode DMPlexPartitionLabelCreateSF(DM dm, DMLabel label, PetscBool sort
 
   /* Now add remote points */
   for (n = 0; n < nNeighbors; ++n) {
-    const PetscInt nn = neighbors[n];
+    PetscMPIInt nn;
 
+      PetscCall(PetscMPIIntCast(neighbors[n],&nn));
     PetscCall(DMLabelGetStratumSize(label, nn, &numPoints));
     if (nn == myRank || numPoints <= 0) continue;
     PetscCall(DMLabelGetStratumIS(label, nn, &remoteRootIS));

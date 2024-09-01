@@ -18,8 +18,8 @@ static const char help[] = "Test star forest communication (PetscSF)\n\n";
 static PetscErrorCode PetscSFViewCustomLocals_Private(PetscSF sf, const PetscInt locals[], PetscViewer viewer)
 {
   const PetscSFNode *iremote;
-  PetscInt           i, nroots, nleaves, nranks;
-  PetscMPIInt        rank;
+  PetscInt           i, nroots, nleaves;
+  PetscMPIInt        rank, nranks;
 
   PetscFunctionBeginUser;
   PetscCallMPI(MPI_Comm_rank(PetscObjectComm((PetscObject)sf), &rank));
@@ -27,8 +27,8 @@ static PetscErrorCode PetscSFViewCustomLocals_Private(PetscSF sf, const PetscInt
   PetscCall(PetscSFGetRootRanks(sf, &nranks, NULL, NULL, NULL, NULL));
   PetscCall(PetscViewerASCIIPushTab(viewer));
   PetscCall(PetscViewerASCIIPushSynchronized(viewer));
-  PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, "[%d] Number of roots=%" PetscInt_FMT ", leaves=%" PetscInt_FMT ", remote ranks=%" PetscInt_FMT "\n", rank, nroots, nleaves, nranks));
-  for (i = 0; i < nleaves; i++) PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, "[%d] %" PetscInt_FMT " <- (%" PetscInt_FMT ",%" PetscInt_FMT ")\n", rank, locals[i], iremote[i].rank, iremote[i].index));
+  PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, "[%d] Number of roots=%" PetscInt_FMT ", leaves=%" PetscInt_FMT ", remote ranks=%d\n", rank, nroots, nleaves, nranks));
+  for (i = 0; i < nleaves; i++) PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, "[%d] %" PetscInt_FMT " <- (%d,%" PetscInt_FMT ")\n", rank, locals[i], iremote[i].rank, iremote[i].index));
   PetscCall(PetscViewerFlush(viewer));
   PetscCall(PetscViewerASCIIPopTab(viewer));
   PetscCall(PetscViewerASCIIPopSynchronized(viewer));
@@ -113,9 +113,9 @@ int main(int argc, char **argv)
     nleavesalloc = size;
     mine         = NULL;
     PetscCall(PetscMalloc1(nleaves, &remote));
-    for (i = 0; i < size; i++) {
-      remote[i].rank  = i;
-      remote[i].index = rank;
+    for (PetscMPIInt ii = 0; ii < size; ii++) {
+      remote[ii].rank  = ii;
+      remote[ii].index = rank;
     }
   } else {
     nroots       = 2 + (PetscInt)(rank == 0);

@@ -429,7 +429,8 @@ static PetscErrorCode VecView_Plex_Local_Draw_2D(Vec v, PetscViewer viewer)
         PetscScalar       *coords = NULL, *a = NULL;
         const PetscScalar *coords_arr;
         PetscBool          isDG;
-        PetscInt           numCoords, color[4] = {-1, -1, -1, -1};
+        PetscInt           numCoords;
+        int                color[4] = {-1, -1, -1, -1};
 
         PetscCall(DMPlexPointLocalRead(fdm, c, array, &a));
         if (a) {
@@ -1792,7 +1793,7 @@ static PetscErrorCode DrawPolygon_Private(DM dm, PetscDraw draw, PetscInt cell, 
 {
   PetscReal   centroid[2] = {0., 0.};
   PetscMPIInt rank;
-  PetscInt    fillColor;
+  PetscMPIInt    fillColor;
 
   PetscFunctionBegin;
   PetscCallMPI(MPI_Comm_rank(PetscObjectComm((PetscObject)dm), &rank));
@@ -7863,30 +7864,31 @@ PETSC_INTERN PetscErrorCode DMPlexAnchorsModifyMat_Internal(DM dm, PetscSection 
 
     if (multiplyRight) {
       PetscScalar *newNewValues = NULL;
-      PetscBLASInt M            = newNumIndices;
-      PetscBLASInt N            = numRows;
-      PetscBLASInt K            = numIndices;
+      PetscBLASInt M, N, K;
       PetscScalar  a = 1.0, b = 0.0;
 
       PetscCheck(numCols == numIndices, PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_SIZ, "values matrix has the wrong number of columns: %" PetscInt_FMT ", expected %" PetscInt_FMT, numCols, numIndices);
 
+      PetscCall(PetscBLASIntCast(newNumIndices,&M));
+      PetscCall(PetscBLASIntCast(numRows,&N));
+      PetscCall(PetscBLASIntCast(numIndices,&K));
       PetscCall(DMGetWorkArray(dm, numRows * newNumIndices, MPIU_SCALAR, &newNewValues));
       // row-major to column-major conversion, right multiplication becomes left multiplication
       PetscCallBLAS("BLASgemm", BLASgemm_("N", "N", &M, &N, &K, &a, modMat, &M, newValues, &K, &b, newNewValues, &M));
-
       numCols   = newNumIndices;
       newValues = newNewValues;
     }
 
     if (multiplyLeft) {
       PetscScalar *newNewValues = NULL;
-      PetscBLASInt M            = numCols;
-      PetscBLASInt N            = newNumIndices;
-      PetscBLASInt K            = numIndices;
+      PetscBLASInt M, N, K;
       PetscScalar  a = 1.0, b = 0.0;
 
       PetscCheck(numRows == numIndices, PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_SIZ, "values matrix has the wrong number of rows: %" PetscInt_FMT ", expected %" PetscInt_FMT, numRows, numIndices);
 
+      PetscCall(PetscBLASIntCast(numCols,&M));
+      PetscCall(PetscBLASIntCast(newNumIndices,&N));
+      PetscCall(PetscBLASIntCast(numIndices,&K));
       PetscCall(DMGetWorkArray(dm, newNumIndices * numCols, MPIU_SCALAR, &newNewValues));
       // row-major to column-major conversion, left multiplication becomes right multiplication
       PetscCallBLAS("BLASgemm", BLASgemm_("N", "T", &M, &N, &K, &a, newValues, &M, modMat, &N, &b, newNewValues, &M));
@@ -8915,7 +8917,7 @@ PetscErrorCode DMPlexCreatePointNumbering(DM dm, IS *globalPointNumbers)
       starts[d] = -1;
     }
   else PetscCall(PetscSortIntWithArray(depth + 1, starts, depths));
-  PetscCall(MPIU_Allreduce(depths, gdepths, depth + 1, MPIU_INT, MPI_MAX, PetscObjectComm((PetscObject)dm)));
+  PetscCall(MPIU_Allreduce(depths, gdepths, (PetscMPIInt)(depth + 1), MPIU_INT, MPI_MAX, PetscObjectComm((PetscObject)dm)));
   for (d = 0; d <= depth; ++d) PetscCheck(starts[d] < 0 || depths[d] == gdepths[d], PETSC_COMM_SELF, PETSC_ERR_PLIB, "Expected depth %" PetscInt_FMT ", found %" PetscInt_FMT, depths[d], gdepths[d]);
   // Note here that 'shift' is collective, so that the numbering is stratified by depth
   for (d = 0; d <= depth; ++d) {
@@ -9515,7 +9517,7 @@ PetscErrorCode DMPlexCheckPointSF(DM dm, PetscSF pointSF, PetscBool allowExtraRo
 
   /* Check Point SF has no local points referenced */
   for (l = 0; l < nleaves; l++) {
-    PetscAssert(remotes[l].rank != (PetscInt)rank, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Point SF contains local point %" PetscInt_FMT " <- (%" PetscInt_FMT ",%" PetscInt_FMT ")", locals ? locals[l] : l, remotes[l].rank, remotes[l].index);
+    PetscAssert(remotes[l].rank != (PetscInt)rank, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Point SF contains local point %" PetscInt_FMT " <- (%d,%" PetscInt_FMT ")", locals ? locals[l] : l, remotes[l].rank, remotes[l].index);
   }
 
   /* Check there are no cells in interface */

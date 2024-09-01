@@ -343,7 +343,7 @@ PetscErrorCode PCBDDCSetupFETIDPMatContext(FETIDPMat_ctx fetidpmat_ctx)
       PetscCallMPI(MPIU_Irecv(&recv_buffer[ptrs_buffer[i - 1]], buf_size, MPIU_SCALAR, neigh, 0, comm, &recv_reqs[i - 1]));
     }
     PetscCall(VecRestoreArrayRead(pcis->vec1_N, (const PetscScalar **)&array));
-    if (pcis->n_neigh > 0) PetscCallMPI(MPI_Waitall(pcis->n_neigh - 1, recv_reqs, MPI_STATUSES_IGNORE));
+    if (pcis->n_neigh > 0) PetscCallMPI(MPI_Waitall((PetscMPIInt)(pcis->n_neigh - 1), recv_reqs, MPI_STATUSES_IGNORE));
     /* put values in correct places */
     for (i = 1; i < pcis->n_neigh; i++) {
       for (j = 0; j < pcis->n_shared[i]; j++) {
@@ -353,7 +353,7 @@ PetscErrorCode PCBDDCSetupFETIDPMatContext(FETIDPMat_ctx fetidpmat_ctx)
         all_factors[k][neigh_position] = recv_buffer[ptrs_buffer[i - 1] + j];
       }
     }
-    if (pcis->n_neigh > 0) PetscCallMPI(MPI_Waitall(pcis->n_neigh - 1, send_reqs, MPI_STATUSES_IGNORE));
+    if (pcis->n_neigh > 0) PetscCallMPI(MPI_Waitall((PetscMPIInt)(pcis->n_neigh - 1), send_reqs, MPI_STATUSES_IGNORE));
     PetscCall(PetscFree(send_reqs));
     PetscCall(PetscFree(recv_reqs));
     PetscCall(PetscFree(send_buffer));

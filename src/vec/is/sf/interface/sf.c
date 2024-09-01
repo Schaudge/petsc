@@ -1,3 +1,4 @@
+
 #include <petsc/private/sfimpl.h> /*I "petscsf.h" I*/
 #include <petsc/private/hashseti.h>
 #include <petsc/private/viewerimpl.h>
@@ -886,7 +887,7 @@ PetscErrorCode PetscSFView(PetscSF sf, PetscViewer viewer)
   PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &iascii));
   if (iascii && viewer->format != PETSC_VIEWER_ASCII_MATLAB) {
     PetscMPIInt rank;
-    PetscInt    ii, i, j;
+    PetscInt    j;
 
     PetscCall(PetscObjectPrintClassNamePrefixType((PetscObject)sf, viewer));
     PetscCall(PetscViewerASCIIPushTab(viewer));
@@ -898,19 +899,21 @@ PetscErrorCode PetscSFView(PetscSF sf, PetscViewer viewer)
       }
       PetscCallMPI(MPI_Comm_rank(PetscObjectComm((PetscObject)sf), &rank));
       PetscCall(PetscViewerASCIIPushSynchronized(viewer));
-      PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, "[%d] Number of roots=%" PetscInt_FMT ", leaves=%" PetscInt_FMT ", remote ranks=%" PetscInt_FMT "\n", rank, sf->nroots, sf->nleaves, sf->nranks));
-      for (i = 0; i < sf->nleaves; i++) PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, "[%d] %" PetscInt_FMT " <- (%" PetscInt_FMT ",%" PetscInt_FMT ")\n", rank, sf->mine ? sf->mine[i] : i, sf->remote[i].rank, sf->remote[i].index));
+      PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, "[%d] Number of roots=%" PetscInt_FMT ", leaves=%" PetscInt_FMT ", remote ranks=%d\n", rank, sf->nroots, sf->nleaves, sf->nranks));
+      for (PetscInt i = 0; i < sf->nleaves; i++) PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, "[%d] %" PetscInt_FMT " <- (%d,%" PetscInt_FMT ")\n", rank, sf->mine ? sf->mine[i] : i, sf->remote[i].rank, sf->remote[i].index));
       PetscCall(PetscViewerFlush(viewer));
       PetscCall(PetscViewerGetFormat(viewer, &format));
       if (format == PETSC_VIEWER_ASCII_INFO_DETAIL) {
         PetscMPIInt *tmpranks, *perm;
+
         PetscCall(PetscMalloc2(sf->nranks, &tmpranks, sf->nranks, &perm));
         PetscCall(PetscArraycpy(tmpranks, sf->ranks, sf->nranks));
-        for (i = 0; i < sf->nranks; i++) perm[i] = i;
+        for (PetscMPIInt i = 0; i < sf->nranks; i++) perm[i] = i;
         PetscCall(PetscSortMPIIntWithArray(sf->nranks, tmpranks, perm));
         PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, "[%d] Roots referenced by my leaves, by rank\n", rank));
-        for (ii = 0; ii < sf->nranks; ii++) {
-          i = perm[ii];
+        for (PetscMPIInt ii = 0; ii < sf->nranks; ii++) {
+          PetscMPIInt i = perm[ii];
+
           PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, "[%d] %d: %" PetscInt_FMT " edges\n", rank, sf->ranks[i], sf->roffset[i + 1] - sf->roffset[i]));
           for (j = sf->roffset[i]; j < sf->roffset[i + 1]; j++) PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, "[%d]    %" PetscInt_FMT " <- %" PetscInt_FMT "\n", rank, sf->rmine[j], sf->rremote[j]));
         }
@@ -944,7 +947,7 @@ PetscErrorCode PetscSFView(PetscSF sf, PetscViewer viewer)
 
 .seealso: `PetscSF`, `PetscSFGetLeafRanks()`
 @*/
-PetscErrorCode PetscSFGetRootRanks(PetscSF sf, PetscInt *nranks, const PetscMPIInt **ranks, const PetscInt **roffset, const PetscInt **rmine, const PetscInt **rremote)
+PetscErrorCode PetscSFGetRootRanks(PetscSF sf, PetscMPIInt *nranks, const PetscMPIInt **ranks, const PetscInt **roffset, const PetscInt **rmine, const PetscInt **rremote)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(sf, PETSCSF_CLASSID, 1);
@@ -980,7 +983,7 @@ PetscErrorCode PetscSFGetRootRanks(PetscSF sf, PetscInt *nranks, const PetscMPII
 
 .seealso: `PetscSF`, `PetscSFGetRootRanks()`
 @*/
-PetscErrorCode PetscSFGetLeafRanks(PetscSF sf, PetscInt *niranks, const PetscMPIInt **iranks, const PetscInt **ioffset, const PetscInt **irootloc)
+PetscErrorCode PetscSFGetLeafRanks(PetscSF sf, PetscMPIInt *niranks, const PetscMPIInt **iranks, const PetscInt **ioffset, const PetscInt **irootloc)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(sf, PETSCSF_CLASSID, 1);
@@ -1021,25 +1024,28 @@ PetscErrorCode PetscSFSetUpRanks(PetscSF sf, MPI_Group dgroup)
 {
   PetscHMapI    table;
   PetscHashIter pos;
-  PetscMPIInt   size, groupsize, *groupranks;
-  PetscInt     *rcount, *ranks;
-  PetscInt      i, irank = -1, orank = -1;
+  PetscMPIInt   size, groupsize, *groupranks, *ranks;
+  PetscInt     *rcount;
+  PetscInt     irank, sfnrank, ranksi;
+  PetscMPIInt  i, orank = -1;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(sf, PETSCSF_CLASSID, 1);
   PetscSFCheckGraphSet(sf, 1);
   PetscCallMPI(MPI_Comm_size(PetscObjectComm((PetscObject)sf), &size));
   PetscCall(PetscHMapICreateWithSize(10, &table));
-  for (i = 0; i < sf->nleaves; i++) {
+  for ( i = 0; i < sf->nleaves; i++) {
     /* Log 1-based rank */
     PetscCall(PetscHMapISetWithMode(table, sf->remote[i].rank + 1, 1, ADD_VALUES));
   }
-  PetscCall(PetscHMapIGetSize(table, &sf->nranks));
+  PetscCall(PetscHMapIGetSize(table, &sfnrank));
+  PetscCall(PetscMPIIntCast(sfnrank,&sf->nranks));
   PetscCall(PetscMalloc4(sf->nranks, &sf->ranks, sf->nranks + 1, &sf->roffset, sf->nleaves, &sf->rmine, sf->nleaves, &sf->rremote));
   PetscCall(PetscMalloc2(sf->nranks, &rcount, sf->nranks, &ranks));
   PetscHashIterBegin(table, pos);
   for (i = 0; i < sf->nranks; i++) {
-    PetscHashIterGetKey(table, pos, ranks[i]);
+    PetscHashIterGetKey(table, pos, ranksi);
+    PetscCall(PetscMPIIntCast(ranksi,&ranks[i]));
     PetscHashIterGetVal(table, pos, rcount[i]);
     PetscHashIterNext(table, pos);
     ranks[i]--; /* Convert back to 0-based */
@@ -1050,11 +1056,12 @@ PetscErrorCode PetscSFSetUpRanks(PetscSF sf, MPI_Group dgroup)
   {
     MPI_Group    group = MPI_GROUP_NULL;
     PetscMPIInt *dgroupranks;
+
     PetscCallMPI(MPI_Comm_group(PetscObjectComm((PetscObject)sf), &group));
     PetscCallMPI(MPI_Group_size(dgroup, &groupsize));
     PetscCall(PetscMalloc1(groupsize, &dgroupranks));
     PetscCall(PetscMalloc1(groupsize, &groupranks));
-    for (i = 0; i < groupsize; i++) dgroupranks[i] = i;
+    for ( i = 0; i < groupsize; i++) dgroupranks[i] = i;
     if (groupsize) PetscCallMPI(MPI_Group_translate_ranks(dgroup, groupsize, dgroupranks, group, groupranks));
     PetscCallMPI(MPI_Group_free(&group));
     PetscCall(PetscFree(dgroupranks));
@@ -1069,7 +1076,8 @@ PetscErrorCode PetscSFSetUpRanks(PetscSF sf, MPI_Group dgroup)
       if (!InList(ranks[sf->ndranks], groupsize, groupranks)) break;
     }
     if (sf->ndranks < i) { /* Swap ranks[sf->ndranks] with ranks[i] */
-      PetscInt tmprank, tmpcount;
+      PetscMPIInt tmprank;
+      PetscInt tmpcount;
 
       tmprank             = ranks[i];
       tmpcount            = rcount[i];
@@ -1081,8 +1089,8 @@ PetscErrorCode PetscSFSetUpRanks(PetscSF sf, MPI_Group dgroup)
     }
   }
   PetscCall(PetscFree(groupranks));
-  PetscCall(PetscSortIntWithArray(sf->ndranks, ranks, rcount));
-  if (rcount) PetscCall(PetscSortIntWithArray(sf->nranks - sf->ndranks, ranks + sf->ndranks, rcount + sf->ndranks));
+  PetscCall(PetscSortMPIIntWithIntArray(sf->ndranks, ranks, rcount));
+  if (rcount) PetscCall(PetscSortMPIIntWithIntArray(sf->nranks - sf->ndranks, ranks + sf->ndranks, rcount + sf->ndranks));
   sf->roffset[0] = 0;
   for (i = 0; i < sf->nranks; i++) {
     PetscCall(PetscMPIIntCast(ranks[i], sf->ranks + i));
@@ -1100,7 +1108,7 @@ PetscErrorCode PetscSFSetUpRanks(PetscSF sf, MPI_Group dgroup)
       }
       orank = sf->remote[i].rank;
     }
-    PetscCheck(irank >= 0, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Could not find rank %" PetscInt_FMT " in array", sf->remote[i].rank);
+    PetscCheck(irank >= 0, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Could not find rank %d in array", sf->remote[i].rank);
     sf->rmine[sf->roffset[irank] + rcount[irank]]   = sf->mine ? sf->mine[i] : i;
     sf->rremote[sf->roffset[irank] + rcount[irank]] = sf->remote[i].index;
     rcount[irank]++;
@@ -1134,7 +1142,7 @@ PetscErrorCode PetscSFGetGroups(PetscSF sf, MPI_Group *incoming, MPI_Group *outg
   if (sf->ingroup == MPI_GROUP_NULL) {
     PetscInt        i;
     const PetscInt *indegree;
-    PetscMPIInt     rank, *outranks, *inranks;
+    PetscMPIInt     rank, *outranks, *inranks, indegree0;
     PetscSFNode    *remote;
     PetscSF         bgcount;
 
@@ -1155,7 +1163,8 @@ PetscErrorCode PetscSFGetGroups(PetscSF sf, MPI_Group *incoming, MPI_Group *outg
     PetscCall(PetscSFGatherBegin(bgcount, MPI_INT, outranks, inranks));
     PetscCall(PetscSFGatherEnd(bgcount, MPI_INT, outranks, inranks));
     PetscCallMPI(MPI_Comm_group(PetscObjectComm((PetscObject)sf), &group));
-    PetscCallMPI(MPI_Group_incl(group, indegree[0], inranks, &sf->ingroup));
+    PetscCall(PetscMPIIntCast(indegree[0],&indegree0));
+    PetscCallMPI(MPI_Group_incl(group, indegree0, inranks, &sf->ingroup));
     PetscCallMPI(MPI_Group_free(&group));
     PetscCall(PetscFree2(inranks, outranks));
     PetscCall(PetscSFDestroy(&bgcount));
@@ -1194,7 +1203,7 @@ PetscErrorCode PetscSFGetRanksSF(PetscSF sf, PetscSF *rsf)
   if (!sf->rankssf) {
     PetscSFNode       *rremotes;
     const PetscMPIInt *ranks;
-    PetscInt           nranks;
+    PetscMPIInt       nranks;
 
     PetscCall(PetscSFGetRootRanks(sf, &nranks, &ranks, NULL, NULL, NULL));
     PetscCall(PetscMalloc1(nranks, &rremotes));
@@ -1768,7 +1777,7 @@ PetscErrorCode PetscSFFetchAndOpEnd(PetscSF sf, MPI_Datatype unit, void *rootdat
 
 .seealso: `PetscSF`, `PetscSFGatherBegin()`, `PetscSFComputeDegreeEnd()`
 @*/
-PetscErrorCode PetscSFComputeDegreeBegin(PetscSF sf, const PetscInt **degree)
+PetscErrorCode PetscSFComputeDegreeBegin(PetscSF sf, const PetscInt *degree[])
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(sf, PETSCSF_CLASSID, 1);
@@ -2573,13 +2582,13 @@ PetscErrorCode PetscSFConcatenate(MPI_Comm comm, PetscInt nsfs, PetscSF sfs[], P
       if (rootMode == PETSCSF_CONCATENATE_ROOTMODE_LOCAL) {
         for (i = 0; i < nr; i++) {
           tmp_rootdata[i].index = i + rootOffset;
-          tmp_rootdata[i].rank  = (PetscInt)rank;
+          tmp_rootdata[i].rank  = rank;
         }
         rootOffset += nr;
       } else {
         for (i = 0; i < nr; i++) {
           tmp_rootdata[i].index = i;
-          tmp_rootdata[i].rank  = (PetscInt)rank;
+          tmp_rootdata[i].rank  = rank;
         }
       }
       PetscCall(PetscSFBcastBegin(tmp_sf, MPIU_2INT, tmp_rootdata, tmp_leafdata, MPI_REPLACE));

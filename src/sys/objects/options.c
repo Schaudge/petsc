@@ -2607,6 +2607,50 @@ PetscErrorCode PetscOptionsGetInt(PetscOptions options, const char pre[], const 
 }
 
 /*@C
+  PetscOptionsGetMPIInt - Gets the MPI integer value for a particular option in the database.
+
+  Not Collective
+
+  Input Parameters:
++ options - options database, use `NULL` for default global database
+. pre     - the string to prepend to the name or `NULL`
+- name    - the option one is seeking
+
+  Output Parameters:
++ ivalue - the MPI integer value to return
+- set    - `PETSC_TRUE` if found, else `PETSC_FALSE`
+
+  Level: beginner
+
+  Notes:
+  If the user does not supply the option `ivalue` is NOT changed. Thus
+  you should ALWAYS initialize the `ivalue` if you access it without first checking that the `set` flag is true.
+
+  Accepts the special values `determine`, `decide` and `unlimited`.
+
+  Accepts the deprecated value `default`.
+
+.seealso: `PetscOptionsGetReal()`, `PetscOptionsHasName()`, `PetscOptionsGetString()`,
+          `PetscOptionsGetIntArray()`, `PetscOptionsGetRealArray()`, `PetscOptionsBool()`
+          `PetscOptionsInt()`, `PetscOptionsString()`, `PetscOptionsReal()`,
+          `PetscOptionsName()`, `PetscOptionsBegin()`, `PetscOptionsEnd()`, `PetscOptionsHeadBegin()`,
+          `PetscOptionsStringArray()`, `PetscOptionsRealArray()`, `PetscOptionsScalar()`,
+          `PetscOptionsBoolGroupBegin()`, `PetscOptionsBoolGroup()`, `PetscOptionsBoolGroupEnd()`,
+          `PetscOptionsFList()`, `PetscOptionsEList()`
+@*/
+PetscErrorCode PetscOptionsGetMPIInt(PetscOptions options, const char pre[], const char name[], PetscMPIInt *ivalue, PetscBool *set)
+{
+  PetscInt  value;
+  PetscBool   flag;
+
+  PetscFunctionBegin;
+  PetscCall(PetscOptionsGetInt(options, pre, name, &value, &flag));
+  if (flag) PetscCall(PetscMPIIntCast(value,ivalue));
+  if (set) *set = flag;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@C
   PetscOptionsGetReal - Gets the double precision value for a particular
   option in the database.
 

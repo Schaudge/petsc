@@ -191,7 +191,8 @@ static PetscErrorCode VecAssemblyBegin_MPI_BTS(Vec X)
 {
   Vec_MPI *x = (Vec_MPI *)X->data;
   MPI_Comm comm;
-  PetscInt i, j, jb, bs;
+  PetscMPIInt i;
+  PetscInt  j, jb, bs;
 
   PetscFunctionBegin;
   if (X->stash.donotstash) PetscFunctionReturn(PETSC_SUCCESS);
@@ -200,6 +201,7 @@ static PetscErrorCode VecAssemblyBegin_MPI_BTS(Vec X)
   PetscCall(VecGetBlockSize(X, &bs));
   if (PetscDefined(USE_DEBUG)) {
     InsertMode addv;
+
     PetscCall(MPIU_Allreduce((PetscEnum *)&X->stash.insertmode, (PetscEnum *)&addv, 1, MPIU_ENUM, MPI_BOR, comm));
     PetscCheck(addv != (ADD_VALUES | INSERT_VALUES), comm, PETSC_ERR_ARG_NOTSAMETYPE, "Some processors inserted values while others added");
   }
@@ -211,10 +213,11 @@ static PetscErrorCode VecAssemblyBegin_MPI_BTS(Vec X)
   if (!x->sendranks) {
     PetscMPIInt nowners, bnowners, *owners, *bowners;
     PetscInt    ntmp;
+
     PetscCall(VecStashGetOwnerList_Private(&X->stash, X->map, &nowners, &owners));
     PetscCall(VecStashGetOwnerList_Private(&X->bstash, X->map, &bnowners, &bowners));
     PetscCall(PetscMergeMPIIntArray(nowners, owners, bnowners, bowners, &ntmp, &x->sendranks));
-    x->nsendranks = ntmp;
+    PetscCall(PetscMPIIntCast(ntmp,&x->nsendranks));
     PetscCall(PetscFree(owners));
     PetscCall(PetscFree(bowners));
     PetscCall(PetscMalloc1(x->nsendranks, &x->sendhdr));
@@ -222,6 +225,7 @@ static PetscErrorCode VecAssemblyBegin_MPI_BTS(Vec X)
   }
   for (i = 0, j = 0, jb = 0; i < x->nsendranks; i++) {
     PetscMPIInt rank         = x->sendranks[i];
+
     x->sendhdr[i].insertmode = X->stash.insertmode;
     /* Initialize pointers for non-empty stashes the first time around.  Subsequent assemblies with
      * VEC_SUBSET_OFF_PROC_ENTRIES will leave the old pointers (dangling because the stash has been collected) when
@@ -304,15 +308,20 @@ static PetscErrorCode VecAssemblyEnd_MPI_BTS(Vec X)
       PetscScalar *recvscalar;
       PetscBool    intmsg   = (PetscBool)(some_indices[ii] % 2 == 0);
       PetscBool    blockmsg = (PetscBool)((some_indices[ii] % 4) / 2 == 1);
+
       npending--;
       if (!blockmsg) { /* Scalar stash */
         PetscMPIInt count;
+
         if (--frame[i].pendings > 0) continue;
         if (x->use_status) {
           PetscCallMPI(MPI_Get_count(&some_statuses[ii], intmsg ? MPIU_INT : MPIU_SCALAR, &count));
-        } else count = x->recvhdr[i].count;
+        } else {
+          PetscCall(PetscMPIIntCast(x->recvhdr[i].count,&count));
+        }
         for (j = 0, recvint = frame[i].ints, recvscalar = frame[i].scalars; j < count; j++, recvint++) {
           PetscInt loc = *recvint - X->map->rstart;
+
           PetscCheck(*recvint >= X->map->rstart && X->map->rend > *recvint, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Received vector entry %" PetscInt_FMT " out of local range [%" PetscInt_FMT ",%" PetscInt_FMT ")]", *recvint, X->map->rstart, X->map->rend);
           switch (imode) {
           case ADD_VALUES:
@@ -331,7 +340,9 @@ static PetscErrorCode VecAssemblyEnd_MPI_BTS(Vec X)
         if (x->use_status) {
           PetscCallMPI(MPI_Get_count(&some_statuses[ii], intmsg ? MPIU_INT : MPIU_SCALAR, &count));
           if (!intmsg) count /= bs; /* Convert from number of scalars to number of blocks */
-        } else count = x->recvhdr[i].bcount;
+        } else {
+           PetscCall(PetscMPIIntCast(x->recvhdr[i].bcount,&count));
+        }
         for (j = 0, recvint = frame[i].intb, recvscalar = frame[i].scalarb; j < count; j++, recvint++) {
           PetscInt loc = (*recvint) * bs - X->map->rstart;
           switch (imode) {

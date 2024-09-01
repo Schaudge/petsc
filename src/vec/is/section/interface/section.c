@@ -1441,6 +1441,7 @@ PetscErrorCode PetscSectionGetConstrainedStorageSize(PetscSection s, PetscInt *s
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+
 /*@
   PetscSectionCreateGlobalSection - Create a parallel section describing the global layout using
   a local (sequential) `PetscSection` on each MPI process and a `PetscSF` describing the section point overlap.

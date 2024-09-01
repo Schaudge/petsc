@@ -1,3 +1,4 @@
+
 #define PETSCDM_DLL
 #include <petsc/private/dmpleximpl.h> /*I   "petscdmplex.h"   I*/
 #include <petsc/private/hashmapi.h>
@@ -805,7 +806,7 @@ static PetscErrorCode GmshReadElements_v40(GmshFile *gmsh, GmshMesh *mesh)
     PetscCall(GmshCellTypeCheck(cellType));
     numVerts = GmshCellMap[cellType].numVerts;
     numNodes = GmshCellMap[cellType].numNodes;
-    numTags  = entity->numTags;
+    numTags  = (int) entity->numTags;
     PetscCall(PetscViewerRead(viewer, &numElements, 1, NULL, PETSC_LONG));
     if (byteSwap) PetscCall(PetscByteSwap(&numElements, PETSC_LONG, 1));
     PetscCall(GmshBufferGet(gmsh, (1 + numNodes) * numElements, sizeof(int), &ibuf));

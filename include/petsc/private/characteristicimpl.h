@@ -70,7 +70,7 @@ struct _p_Characteristic {
   Queue        queueRemote; /* Queue of Items to send to other processes */
   PetscInt     queueRemoteSize;
   PetscInt     queueRemoteMax;
-  PetscInt     numNeighbors;  /* Number of neighboring processes */
+  PetscMPIInt     numNeighbors;  /* Number of neighboring processes */
   PetscMPIInt *neighbors;     /* Ranks of neighbors */
   PetscInt    *needCount;     /* Number of Items requested from other processes */
   PetscInt    *localOffsets;  /* Offset into queue for each process (Prefix sums of need_count) */

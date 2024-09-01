@@ -1,3 +1,4 @@
+
 #include <petsc/private/dmpleximpl.h>  /*I      "petscdmplex.h"   I*/
 #include <petsc/private/dmlabelimpl.h> /*I      "petscdmlabel.h"  I*/
 
@@ -961,6 +962,7 @@ PetscErrorCode DMPlexStratifyMigrationSF(DM dm, PetscSF sf, PetscSF *migrationSF
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+
 /*@
   DMPlexDistributeField - Distribute field data to match a given `PetscSF`, usually the `PetscSF` from mesh distribution
 
@@ -1176,6 +1178,7 @@ static PetscErrorCode DMPlexDistributeCones(DM dm, PetscSF migrationSF, ISLocalT
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
 
 static PetscErrorCode DMPlexDistributeCoordinates(DM dm, PetscSF migrationSF, DM dmParallel)
 {
@@ -1512,6 +1515,7 @@ PetscErrorCode DMPlexCreatePointSF(DM dm, PetscSF migrationSF, PetscBool ownersh
     MPI_Op       op;
     MPI_Datatype datatype;
     Petsc3Int   *rootVote = NULL, *leafVote = NULL;
+
     /* If balancing, we compute a random cyclic shift of the rank for each remote point. That way, the max will evenly distribute among ranks. */
     if (balance) {
       PetscRandom r;
@@ -1553,7 +1557,7 @@ PetscErrorCode DMPlexCreatePointSF(DM dm, PetscSF migrationSF, PetscBool ownersh
     PetscCallMPI(MPI_Op_free(&op));
     PetscCallMPI(MPI_Type_free(&datatype));
     for (p = 0; p < nroots; p++) {
-      rootNodes[p].rank  = rootVote[p].rank;
+      rootNodes[p].rank  = (PetscMPIInt)rootVote[p].rank;
       rootNodes[p].index = rootVote[p].index;
     }
     PetscCall(PetscFree(leafVote));

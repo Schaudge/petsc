@@ -151,7 +151,7 @@ static PetscErrorCode VecView_MPI_ASCII(Vec xin, PetscViewer viewer)
         state 4: Output both, CELL_DATA last
       */
       static PetscInt stateId     = -1;
-      int             outputState = 0;
+      PetscInt        outputState = 0;
       int             doOutput    = 0;
       PetscBool       hasState;
       PetscInt        bs, b;
@@ -362,7 +362,7 @@ static PetscErrorCode VecView_MPI_ASCII(Vec xin, PetscViewer viewer)
         /* this may be a collective operation so make sure everyone calls it */
         PetscCall(PetscObjectGetName((PetscObject)xin, &name));
       }
-      PetscCallMPI(MPI_Send((void *)xarray, xin->map->n, MPIU_SCALAR, 0, tag, PetscObjectComm((PetscObject)xin)));
+      PetscCallMPI(MPIU_Send((void *)xarray, xin->map->n, MPIU_SCALAR, 0, tag, PetscObjectComm((PetscObject)xin)));
     }
   }
   PetscCall(PetscViewerFlush(viewer));

@@ -1,3 +1,4 @@
+
 #include <petsc/private/sfimpl.h>
 
 #if !defined(PETSC_HAVE_MPI_COMBINER_DUP) && !defined(MPI_COMBINER_DUP) /* We have no way to interpret output of MPI_Type_get_envelope without this. */

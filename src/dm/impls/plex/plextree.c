@@ -3430,7 +3430,7 @@ static PetscErrorCode DMPlexTransferInjectorTree(DM coarse, DM fine, PetscSF coa
     for (p = pStartF, nleavesToParents = 0; p < pEndF; p++) {
       if (parentNodeAndIdFine[p - pStartF][0] >= 0) {
         ilocalToParents[nleavesToParents]        = p - pStartF;
-        iremoteToParents[nleavesToParents].rank  = parentNodeAndIdFine[p - pStartF][0];
+        PetscCall(PetscMPIIntCast(parentNodeAndIdFine[p - pStartF][0],&iremoteToParents[nleavesToParents].rank));
         iremoteToParents[nleavesToParents].index = parentNodeAndIdFine[p - pStartF][1];
         nleavesToParents++;
       }

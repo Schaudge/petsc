@@ -390,7 +390,7 @@ PetscErrorCode ISColoringCreate(MPI_Comm comm, PetscInt ncolors, PetscInt n, con
   Collective
 
   Input Parameters:
-+ ito    - an `IS` describes where each entry will be mapped. Negative target rank will be ignored
++ ito    - an `IS` describes to which rank each entry will be mapped. Negative target rank will be ignored
 - toindx - an `IS` describes what indices should send. `NULL` means sending natural numbering
 
   Output Parameter:
@@ -447,7 +447,7 @@ PetscErrorCode ISBuildTwoSided(IS ito, IS toindx, IS *rows)
   if (toindx) PetscCall(ISGetIndices(toindx, &toindx_indices));
   for (PetscInt i = 0; i < ito_ln; i++) {
     if (ito_indices[i] < 0) continue;
-    target_rank                              = ito_indices[i];
+    PetscCall(PetscMPIIntCast(ito_indices[i],&target_rank));
     send_indices[tooffsets_tmp[target_rank]] = toindx ? toindx_indices[i] : (i + rstart);
     tooffsets_tmp[target_rank]++;
   }
@@ -516,8 +516,9 @@ PetscErrorCode ISPartitioningToNumbering(IS part, IS *is)
 {
   MPI_Comm        comm;
   IS              ndorder;
-  PetscInt        i, np, npt, n, *starts = NULL, *sums = NULL, *lsizes = NULL, *newi = NULL;
+  PetscInt        n, *starts = NULL, *sums = NULL, *lsizes = NULL, *newi = NULL;
   const PetscInt *indices = NULL;
+  PetscMPIInt     np, npt;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(part, IS_CLASSID, 1);
@@ -535,22 +536,22 @@ PetscErrorCode ISPartitioningToNumbering(IS part, IS *is)
   PetscCall(ISGetLocalSize(part, &n));
   PetscCall(ISGetIndices(part, &indices));
   np = 0;
-  for (i = 0; i < n; i++) np = PetscMax(np, indices[i]);
-  PetscCall(MPIU_Allreduce(&np, &npt, 1, MPIU_INT, MPI_MAX, comm));
+  for (PetscInt i = 0; i < n; i++) PetscCall(PetscMPIIntCast(PetscMax(np, indices[i]),&np));
+  PetscCall(MPIU_Allreduce(&np, &npt, 1, MPI_INT, MPI_MAX, comm));
   np = npt + 1; /* so that it looks like a MPI_Comm_size output */
 
   /*
-        lsizes - number of elements of each partition on this particular processor
-        sums - total number of "previous" nodes for any particular partition
-        starts - global number of first element in each partition on this processor
+     lsizes - number of elements of each partition on this particular processor
+     sums - total number of "previous" nodes for any particular partition
+     starts - global number of first element in each partition on this processor
   */
   PetscCall(PetscMalloc3(np, &lsizes, np, &starts, np, &sums));
   PetscCall(PetscArrayzero(lsizes, np));
-  for (i = 0; i < n; i++) lsizes[indices[i]]++;
+  for (PetscInt i = 0; i < n; i++) lsizes[indices[i]]++;
   PetscCall(MPIU_Allreduce(lsizes, sums, np, MPIU_INT, MPI_SUM, comm));
   PetscCallMPI(MPI_Scan(lsizes, starts, np, MPIU_INT, MPI_SUM, comm));
-  for (i = 0; i < np; i++) starts[i] -= lsizes[i];
-  for (i = 1; i < np; i++) {
+  for (PetscMPIInt i = 0; i < np; i++) starts[i] -= lsizes[i];
+  for (PetscMPIInt i = 1; i < np; i++) {
     sums[i] += sums[i - 1];
     starts[i] += sums[i - 1];
   }
@@ -559,7 +560,7 @@ PetscErrorCode ISPartitioningToNumbering(IS part, IS *is)
       For each local index give it the new global number
   */
   PetscCall(PetscMalloc1(n, &newi));
-  for (i = 0; i < n; i++) newi[i] = starts[indices[i]]++;
+  for (PetscInt i = 0; i < n; i++) newi[i] = starts[indices[i]]++;
   PetscCall(PetscFree3(lsizes, starts, sums));
 
   PetscCall(ISRestoreIndices(part, &indices));
@@ -734,16 +735,17 @@ PetscErrorCode ISAllGather(IS is, IS *isout)
 PetscErrorCode ISAllGatherColors(MPI_Comm comm, PetscInt n, ISColoringValue lindices[], PetscInt *outN, ISColoringValue *outindices[])
 {
   ISColoringValue *indices;
-  PetscInt         i, N;
-  PetscMPIInt      size, *offsets = NULL, *sizes = NULL, nn = n;
+  PetscInt         N;
+  PetscMPIInt      size, *offsets = NULL, *sizes = NULL, nn;
 
   PetscFunctionBegin;
+  PetscCall(PetscMPIIntCast(n,&nn));
   PetscCallMPI(MPI_Comm_size(comm, &size));
   PetscCall(PetscMalloc2(size, &sizes, size, &offsets));
 
   PetscCallMPI(MPI_Allgather(&nn, 1, MPI_INT, sizes, 1, MPI_INT, comm));
   offsets[0] = 0;
-  for (i = 1; i < size; i++) offsets[i] = offsets[i - 1] + sizes[i - 1];
+  for (PetscMPIInt i = 1; i < size; i++) offsets[i] = offsets[i - 1] + sizes[i - 1];
   N = offsets[size - 1] + sizes[size - 1];
   PetscCall(PetscFree2(sizes, offsets));
 

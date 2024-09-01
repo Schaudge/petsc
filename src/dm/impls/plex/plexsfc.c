@@ -25,7 +25,7 @@ static unsigned ZCodeSplit1(ZCode z)
   return (unsigned)z;
 }
 
-static ZCode ZEncode1(unsigned t)
+static ZCode ZEncode1(PetscInt t)
 {
   ZCode z = t;
   z       = (z | (z << 18)) & 0777000000777;
@@ -224,7 +224,7 @@ static PetscErrorCode DMPlexCreateBoxMesh_Tensor_SFC_Periodicity_Private(DM dm, 
     PetscCheck(sorted, PETSC_COMM_SELF, PETSC_ERR_PLIB, "minz not sorted; possible duplicates not checked");
     for (PetscCount i = 0; i < num_faces;) {
       ZCode    z           = donor_minz[i];
-      PetscInt remote_rank = ZCodeFind(z, size + 1, layout->zstarts), remote_count = 0;
+      PetscMPIInt remote_rank = (PetscMPIInt)ZCodeFind(z, size + 1, layout->zstarts), remote_count = 0;
 
       if (remote_rank < 0) remote_rank = -(remote_rank + 1) - 1;
       // Process all the vertices on this rank
@@ -799,7 +799,7 @@ PetscErrorCode DMPlexCreateBoxMesh_Tensor_SFC_Internal(DM dm, PetscInt dim, cons
     PetscCall(PetscMalloc1(num_ghosts, &ghosts));
     for (PetscInt i = 0; i < num_ghosts;) {
       ZCode    z           = vert_z[owned_verts + i];
-      PetscInt remote_rank = ZCodeFind(z, size + 1, layout.zstarts), remote_count = 0;
+      PetscMPIInt remote_rank = (PetscMPIInt)ZCodeFind(z, size + 1, layout.zstarts), remote_count = 0;
       if (remote_rank < 0) remote_rank = -(remote_rank + 1) - 1;
       // We have a new remote rank; find all the ghost indices (which are contiguous in vert_z)
 

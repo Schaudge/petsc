@@ -1,3 +1,4 @@
+
 /*
    This file contains routines for sorting integers. Values are sorted in place.
    One can use src/sys/tests/ex52.c for benchmarking.
@@ -651,6 +652,31 @@ PetscErrorCode PetscSortIntWithArrayPair(PetscCount n, PetscInt X[], PetscInt Y[
 }
 
 /*@
+  PetscSortIntWithMPIIntArray - Sorts an array of `PetscInt` in place in increasing order;
+  changes a second array of `PetscMPI` to match the sorted first array.
+
+  Not Collective
+
+  Input Parameters:
++ n - number of values
+. X - array of integers
+- Y - second array of `PetscMPIInt` (signed integers)
+
+  Level: intermediate
+
+.seealso: `PetscIntSortSemiOrderedWithArray()`, `PetscSortReal()`, `PetscSortIntPermutation()`, `PetscSortInt()`, `PetscSortIntWithArray()`
+@*/
+PetscErrorCode PetscSortIntWithMPIIntArray(PetscCount n, PetscInt X[], PetscMPIInt Y[])
+{
+  PetscInt   pivot, t1;
+  PetscMPIInt t2;
+
+  PetscFunctionBegin;
+  QuickSort2(PetscSortIntWithMPIIntArray, X, Y, n, pivot, t1, t2);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
   PetscSortIntWithCountArray - Sorts an array of `PetscInt` in place in increasing order;
   changes a second array of `PetscCount` to match the sorted first array.
 
@@ -659,7 +685,7 @@ PetscErrorCode PetscSortIntWithArrayPair(PetscCount n, PetscInt X[], PetscInt Y[
   Input Parameters:
 + n - number of values
 . X - array of integers
-- Y - second array of PetscCounts (signed integers)
+- Y - second array of `PetscCount` (signed integers)
 
   Level: intermediate
 

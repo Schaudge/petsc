@@ -528,7 +528,7 @@ PetscErrorCode CharacteristicSolve(Characteristic c, PetscReal dt, Vec solution)
 PetscErrorCode CharacteristicSetNeighbors(Characteristic c, PetscInt numNeighbors, PetscMPIInt neighbors[])
 {
   PetscFunctionBegin;
-  c->numNeighbors = numNeighbors;
+  c->numNeighbors = (PetscMPIInt)numNeighbors;
   PetscCall(PetscFree(c->neighbors));
   PetscCall(PetscMalloc1(numNeighbors, &c->neighbors));
   PetscCall(PetscArraycpy(c->neighbors, neighbors, numNeighbors));
@@ -555,7 +555,7 @@ PetscErrorCode CharacteristicSendCoordinatesBegin(Characteristic c)
   for (i = 0; i < c->queueSize; i++) c->needCount[c->queue[i].proc]++;
   c->fillCount[0] = 0;
   for (n = 1; n < c->numNeighbors; n++) PetscCallMPI(MPIU_Irecv(&c->fillCount[n], 1, MPIU_INT, c->neighbors[n], tag, PetscObjectComm((PetscObject)c), &c->request[n - 1]));
-  for (n = 1; n < c->numNeighbors; n++) PetscCallMPI(MPI_Send(&c->needCount[n], 1, MPIU_INT, c->neighbors[n], tag, PetscObjectComm((PetscObject)c)));
+  for (n = 1; n < c->numNeighbors; n++) PetscCallMPI(MPIU_Send(&c->needCount[n], 1, MPIU_INT, c->neighbors[n], tag, PetscObjectComm((PetscObject)c)));
   PetscCallMPI(MPI_Waitall(c->numNeighbors - 1, c->request, c->status));
   /* Initialize the remote queue */
   c->queueLocalMax = c->localOffsets[0] = 0;
@@ -582,7 +582,7 @@ PetscErrorCode CharacteristicSendCoordinatesBegin(Characteristic c)
   }
   for (n = 1; n < c->numNeighbors; n++) {
     PetscCall(PetscInfo(NULL, "Sending %" PetscInt_FMT " requests for values from proc %d\n", c->needCount[n], c->neighbors[n]));
-    PetscCallMPI(MPI_Send(&(c->queue[c->localOffsets[n]]), c->needCount[n], c->itemType, c->neighbors[n], tag, PetscObjectComm((PetscObject)c)));
+    PetscCallMPI(MPIU_Send(&(c->queue[c->localOffsets[n]]), c->needCount[n], c->itemType, c->neighbors[n], tag, PetscObjectComm((PetscObject)c)));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -613,7 +613,7 @@ PetscErrorCode CharacteristicGetValuesBegin(Characteristic c)
   PetscFunctionBegin;
   /* SEND AND RECEIVE FILLED REQUESTS for velocities at t_n+1/2 */
   for (n = 1; n < c->numNeighbors; n++) PetscCallMPI(MPIU_Irecv(&(c->queue[c->localOffsets[n]]), c->needCount[n], c->itemType, c->neighbors[n], tag, PetscObjectComm((PetscObject)c), &c->request[n - 1]));
-  for (n = 1; n < c->numNeighbors; n++) PetscCallMPI(MPI_Send(&(c->queueRemote[c->remoteOffsets[n]]), c->fillCount[n], c->itemType, c->neighbors[n], tag, PetscObjectComm((PetscObject)c)));
+  for (n = 1; n < c->numNeighbors; n++) PetscCallMPI(MPIU_Send(&(c->queueRemote[c->remoteOffsets[n]]), c->fillCount[n], c->itemType, c->neighbors[n], tag, PetscObjectComm((PetscObject)c)));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
