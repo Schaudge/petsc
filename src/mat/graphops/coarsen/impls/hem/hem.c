@@ -1000,7 +1000,7 @@ static PetscErrorCode MatCoarsenApply_HEM_private(Mat a_Gmat, const PetscInt n_i
         PetscCall(PetscMPIIntCast(ii[lid + 1] - ii[lid],&n));
         aj = PetscSafePointerPlusOffset(matA->j, ii[lid]);
         ap = PetscSafePointerPlusOffset(matA->a, ii[lid]);
-        for (PetscInt jj = 0; jj < n; jj++) {
+        for (PetscMPIInt jj = 0; jj < n; jj++) {
           PetscInt lidj = aj[jj];
 
           if (lid_matched[lidj]) continue; /* this is new - can change local max */
@@ -1011,7 +1011,7 @@ static PetscErrorCode MatCoarsenApply_HEM_private(Mat a_Gmat, const PetscInt n_i
           PetscCall(PetscMPIIntCast(ii[ix + 1] - ii[ix],&n));
           ap = matB->a + ii[ix];
           aj = matB->j + ii[ix];
-          for (PetscInt jj = 0; jj < n; jj++) {
+          for (PetscMPIInt jj = 0; jj < n; jj++) {
             PetscInt lidj = aj[jj];
 
             if (lghost_matched[lidj]) continue;

@@ -8115,7 +8115,7 @@ static PetscErrorCode PCBDDCMatISSubassemble(Mat mat, IS is_sends, PetscInt n_su
   for (i = 0; i < n_sends; i++) {
     PetscCall(PetscMPIIntCast(is_indices[i], &source_dest));
     PetscCallMPI(MPIU_Isend(send_buffer_idxs, ilengths_idxs[source_dest], MPIU_INT, source_dest, tag_idxs, comm, &send_req_idxs[i]));
-    PetscCallMPI(MPIU_Isend((PetscScalar *)send_buffer_vals, ilengths_vals[source_dest], MPIU_SCALAR, source_dest, tag_vals, comm, &send_req_vals[i]));
+    PetscCallMPI(MPIU_Isend(send_buffer_vals, ilengths_vals[source_dest], MPIU_SCALAR, source_dest, tag_vals, comm, &send_req_vals[i]));
     if (nis) PetscCallMPI(MPIU_Isend(send_buffer_idxs_is, ilengths_idxs_is[source_dest], MPIU_INT, source_dest, tag_idxs_is, comm, &send_req_idxs_is[i]));
     if (nvecs) {
       PetscCall(VecGetArray(nnsp_vec[0], &send_buffer_vecs));

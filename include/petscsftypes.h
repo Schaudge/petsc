@@ -54,12 +54,16 @@ typedef const char *PetscSFType;
     remote(1)%index = 1 * stride
 .ve
 
+  Use  `MPI_SF_NODE` when performing MPI operations on arrays of `PetscSFNode`
+
 .seealso: `PetscSF`, `PetscSFSetGraph()`
 S*/
 typedef struct {
   PetscInt index; /* Index of node on rank */
-  PetscMPIInt rank;  /* Rank of owner */
+  PetscInt rank;  /* Rank of owner */
 } PetscSFNode;
+
+#define MPIU_SF_NODE MPIU_2INT
 
 /*S
      VecScatter - Object used to manage communication of data

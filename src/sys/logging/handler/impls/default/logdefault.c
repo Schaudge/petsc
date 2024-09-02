@@ -422,7 +422,7 @@ static PetscErrorCode PetscLogHandlerObjectCreate_Default(PetscLogHandler h, Pet
     PetscCall(PetscMemzero(new_object.name, sizeof(new_object.name)));
     PetscCall(PetscMemzero(new_object.info, sizeof(new_object.info)));
     PetscAssert(obj->id >= 1, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Object ids from PetscObjectNewId_Internal() start at 1");
-    PetscCall(PetscInt64Cast(obj->id, &objid));
+    PetscCall(PetscIntCast(obj->id, &objid));
     PetscCall(PetscLogObjectArrayResize(def->petsc_objects, objid));
     PetscCall(PetscLogObjectArraySet(def->petsc_objects, objid - 1, new_object));
   }
@@ -474,7 +474,7 @@ static PetscErrorCode PetscLogHandlerObjectDestroy_Default(PetscLogHandler h, Pe
     PetscInt objid;
 
     PetscAssert(obj->id >= 1, PETSC_COMM_SELF, PETSC_ERR_PLIB, "Object ids from PetscObjectNewId_Internal() start at 1");
-    PetscCall(PetscInt64Cast(obj->id - 1, &objid));
+    PetscCall(PetscIntCast(obj->id - 1, &objid));
     PetscCall(PetscLogObjectArrayGetRef(def->petsc_objects, objid, &obj_entry));
     if (obj->name) PetscCall(PetscStrncpy(obj_entry->name, obj->name, 64));
     obj_entry->obj = NULL;
@@ -860,7 +860,7 @@ static PetscErrorCode PetscLogHandlerLogObjectState_Default(PetscLogHandler hand
     Object  *obj_entry = NULL;
     PetscInt objid;
 
-    PetscCall(PetscInt64Cast(obj->id - 1, &objid));
+    PetscCall(PetscIntCast(obj->id - 1, &objid));
     PetscCall(PetscLogObjectArrayGetRef(def->petsc_objects, objid, &obj_entry));
     PetscCall(PetscVSNPrintf(obj_entry->info, 64, format, &fullLength, Argp));
   }

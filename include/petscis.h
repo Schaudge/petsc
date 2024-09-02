@@ -265,7 +265,7 @@ PETSC_EXTERN PetscErrorCode ISAllGatherColors(MPI_Comm, PetscInt, ISColoringValu
    Note:
    Errors if the integer is negative
 
-.seealso: `ISColoringValue`, `ISColoringCreate()`, `PetscBLASInt`, `PetscMPIInt`, `PetscInt`, `PetscMPIIntCast()`, `PetscIntCast()`, `PetscCountCast()`
+.seealso: `ISColoringValue`, `ISColoringCreate()`, `PetscBLASInt`, `PetscMPIInt`, `PetscInt`, `PetscMPIIntCast()`, `PetscIntCast()`
 @*/
 static inline PetscErrorCode ISColoringValueCast(PetscCount a, ISColoringValue *b)
 {

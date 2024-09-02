@@ -1967,8 +1967,8 @@ PetscErrorCode DMLabelGather(DMLabel label, PetscSF sf, DMLabel *labelNew)
   PetscCall(PetscSFComputeDegreeEnd(sf, &rootDegree));
   for (p = 0, nmultiroots = 0; p < nroots; ++p) nmultiroots += rootDegree[p];
   PetscCall(PetscMalloc1(nmultiroots, &rootPoints));
-  PetscCall(PetscSFGatherBegin(sf, MPIU_2INT, leafPoints, rootPoints));
-  PetscCall(PetscSFGatherEnd(sf, MPIU_2INT, leafPoints, rootPoints));
+  PetscCall(PetscSFGatherBegin(sf, MPIU_SF_NODE, leafPoints, rootPoints));
+  PetscCall(PetscSFGatherEnd(sf, MPIU_SF_NODE, leafPoints, rootPoints));
   PetscCall(PetscSFCreate(comm, &sfLabel));
   PetscCall(PetscSFSetGraph(sfLabel, nroots, nmultiroots, NULL, PETSC_OWN_POINTER, rootPoints, PETSC_OWN_POINTER));
   /* Migrate label over inverted SF to pull stratum values at leaves into roots. */

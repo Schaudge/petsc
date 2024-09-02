@@ -1193,7 +1193,7 @@ static PetscErrorCode MatConvertToTriples_nest_xaij(Mat A, PetscInt shift, MatRe
           for (PetscInt k = 0; k < mumps->nnz; k++) pjcns_w[k] = mumps->jcn[k];
         } else pjcns_w = (PetscInt *)mumps->jcn; /* This cast is needed only to silence warnings for 64bit integers builds */
         PetscCall(PetscSFCreate(PetscObjectComm((PetscObject)A), &csf));
-        PetscCall(PetscCountCast(mumps->nnz, &innz));
+        PetscCall(PetscIntCast(mumps->nnz, &innz));
         PetscCall(PetscSFSetGraphLayout(csf, cmap, innz, NULL, PETSC_OWN_POINTER, pjcns_w));
         PetscCall(PetscSFBcastBegin(csf, MPIU_INT, cidx, pjcns_w, MPI_REPLACE));
         PetscCall(PetscSFBcastEnd(csf, MPIU_INT, cidx, pjcns_w, MPI_REPLACE));

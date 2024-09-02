@@ -113,7 +113,7 @@ static PetscErrorCode PetscWeakFormGetFunction_Private(PetscWeakForm wf, PetscHM
     *n    = 0;
     *func = NULL;
   } else {
-    PetscCall(PetscCountCast(chunk.size, n));
+    PetscCall(PetscIntCast(chunk.size, n));
     *func = (void (**)(void)) & wf->funcs->array[chunk.start];
   }
   PetscFunctionReturn(PETSC_SUCCESS);

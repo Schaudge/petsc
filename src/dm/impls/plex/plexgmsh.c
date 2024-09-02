@@ -253,7 +253,7 @@ static PetscErrorCode GmshRead(GmshFile *gmsh, void *buf, PetscCount count, Pets
   PetscInt icount;
 
   PetscFunctionBegin;
-  PetscCall(PetscCountCast(count, &icount));
+  PetscCall(PetscIntCast(count, &icount));
   PetscCall(PetscViewerRead(gmsh->viewer, buf, icount, NULL, dtype));
   if (gmsh->byteSwap) PetscCall(PetscByteSwap(buf, dtype, icount));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -264,7 +264,7 @@ static PetscErrorCode GmshReadString(GmshFile *gmsh, char *buf, PetscCount count
   PetscInt icount;
 
   PetscFunctionBegin;
-  PetscCall(PetscCountCast(count, &icount));
+  PetscCall(PetscIntCast(count, &icount));
   PetscCall(PetscViewerRead(gmsh->viewer, buf, icount, NULL, PETSC_STRING));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -684,7 +684,7 @@ static PetscErrorCode GmshReadEntities_v40(GmshFile *gmsh, GmshMesh *mesh)
       if (byteSwap) PetscCall(PetscByteSwap(entity->bbox, PETSC_DOUBLE, 6));
       PetscCall(PetscViewerRead(viewer, &lnum, 1, NULL, PETSC_LONG));
       if (byteSwap) PetscCall(PetscByteSwap(&lnum, PETSC_LONG, 1));
-      PetscCall(PetscCountCast(lnum, &num));
+      PetscCall(PetscIntCast(lnum, &num));
       PetscCall(GmshBufferGet(gmsh, num, sizeof(int), &ibuf));
       PetscCall(PetscViewerRead(viewer, ibuf, num, NULL, PETSC_ENUM));
       if (byteSwap) PetscCall(PetscByteSwap(ibuf, PETSC_ENUM, num));
@@ -694,7 +694,7 @@ static PetscErrorCode GmshReadEntities_v40(GmshFile *gmsh, GmshMesh *mesh)
       PetscCall(PetscViewerRead(viewer, &lnum, 1, NULL, PETSC_LONG));
       if (byteSwap) PetscCall(PetscByteSwap(&lnum, PETSC_LONG, 1));
       PetscCall(GmshBufferGet(gmsh, lnum, sizeof(int), &ibuf));
-      PetscCall(PetscCountCast(lnum, &num));
+      PetscCall(PetscIntCast(lnum, &num));
       PetscCall(PetscViewerRead(viewer, ibuf, num, NULL, PETSC_ENUM));
       if (byteSwap) PetscCall(PetscByteSwap(ibuf, PETSC_ENUM, num));
     }
@@ -725,7 +725,7 @@ static PetscErrorCode GmshReadNodes_v40(GmshFile *gmsh, GmshMesh *mesh)
   PetscCall(PetscViewerRead(viewer, &numTotalNodes, 1, NULL, PETSC_LONG));
   if (byteSwap) PetscCall(PetscByteSwap(&numTotalNodes, PETSC_LONG, 1));
   PetscCall(GmshNodesCreate(numTotalNodes, &nodes));
-  PetscCall(PetscCountCast(numTotalNodes, &mesh->numNodes));
+  PetscCall(PetscIntCast(numTotalNodes, &mesh->numNodes));
   mesh->nodelist = nodes;
   for (n = 0, block = 0; block < numEntityBlocks; ++block) {
     PetscCall(PetscViewerRead(viewer, info, 3, NULL, PETSC_ENUM));
@@ -737,7 +737,7 @@ static PetscErrorCode GmshReadNodes_v40(GmshFile *gmsh, GmshMesh *mesh)
       PetscInt icnt;
 
       PetscCall(GmshBufferGet(gmsh, numNodes, nbytes, &cbuf));
-      PetscCall(PetscCountCast(numNodes * nbytes, &icnt));
+      PetscCall(PetscIntCast(numNodes * nbytes, &icnt));
       PetscCall(PetscViewerRead(viewer, cbuf, icnt, NULL, PETSC_CHAR));
       for (node = 0; node < numNodes; ++node, ++n) {
         char   *cnid = cbuf + node * nbytes, *cxyz = cnid + sizeof(int);
@@ -794,7 +794,7 @@ static PetscErrorCode GmshReadElements_v40(GmshFile *gmsh, GmshMesh *mesh)
   PetscCall(PetscViewerRead(viewer, &numTotalElements, 1, NULL, PETSC_LONG));
   if (byteSwap) PetscCall(PetscByteSwap(&numTotalElements, PETSC_LONG, 1));
   PetscCall(GmshElementsCreate(numTotalElements, &elements));
-  PetscCall(PetscCountCast(numTotalElements, &mesh->numElems));
+  PetscCall(PetscIntCast(numTotalElements, &mesh->numElems));
   mesh->elements = elements;
   for (c = 0, block = 0; block < numEntityBlocks; ++block) {
     PetscCall(PetscViewerRead(viewer, info, 3, NULL, PETSC_ENUM));
@@ -810,7 +810,7 @@ static PetscErrorCode GmshReadElements_v40(GmshFile *gmsh, GmshMesh *mesh)
     PetscCall(PetscViewerRead(viewer, &numElements, 1, NULL, PETSC_LONG));
     if (byteSwap) PetscCall(PetscByteSwap(&numElements, PETSC_LONG, 1));
     PetscCall(GmshBufferGet(gmsh, (1 + numNodes) * numElements, sizeof(int), &ibuf));
-    PetscCall(PetscCountCast((1 + numNodes) * numElements, &icnt));
+    PetscCall(PetscIntCast((1 + numNodes) * numElements, &icnt));
     PetscCall(PetscViewerRead(viewer, ibuf, icnt, NULL, PETSC_ENUM));
     if (byteSwap) PetscCall(PetscByteSwap(ibuf, PETSC_ENUM, (1 + numNodes) * numElements));
     for (elem = 0; elem < numElements; ++elem, ++c) {
@@ -949,7 +949,7 @@ static PetscErrorCode GmshReadEntities_v41(GmshFile *gmsh, GmshMesh *mesh)
       PetscCall(GmshBufferGet(gmsh, numTags, sizeof(int), &tags));
       PetscCall(GmshReadInt(gmsh, tags, numTags));
       PetscCheck(numTags <= GMSH_MAX_TAGS, PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "PETSc currently supports up to %" PetscInt_FMT " tags per entity, not %" PetscCount_FMT, (PetscInt)GMSH_MAX_TAGS, numTags);
-      PetscCall(PetscCountCast(numTags, &entity->numTags));
+      PetscCall(PetscIntCast(numTags, &entity->numTags));
       for (PetscInt i = 0; i < entity->numTags; ++i) entity->tags[i] = tags[i];
       if (dim == 0) continue;
       PetscCall(GmshReadPetscCount(gmsh, &numTags, 1));
@@ -1009,8 +1009,8 @@ static PetscErrorCode GmshReadNodes_v41(GmshFile *gmsh, GmshMesh *mesh)
       for (PetscInt t = numTags; t < GMSH_MAX_TAGS; ++t) tags[n * GMSH_MAX_TAGS + t] = -1;
     }
   }
-  PetscCall(PetscCountCast(sizes[2], &gmsh->nodeStart));
-  PetscCall(PetscCountCast(sizes[3] + 1, &gmsh->nodeEnd));
+  PetscCall(PetscIntCast(sizes[2], &gmsh->nodeStart));
+  PetscCall(PetscIntCast(sizes[3] + 1, &gmsh->nodeEnd));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1037,7 +1037,7 @@ static PetscErrorCode GmshReadElements_v41(GmshFile *gmsh, GmshMesh *mesh)
   numEntityBlocks = sizes[0];
   numElements     = sizes[1];
   PetscCall(GmshElementsCreate(numElements, &elements));
-  PetscCall(PetscCountCast(numElements, &mesh->numElems));
+  PetscCall(PetscIntCast(numElements, &mesh->numElems));
   mesh->elements = elements;
   if (numEntityBlocks && !mesh->entities) PetscCall(PetscInfo(NULL, "File specifies %" PetscCount_FMT " entity blocks, but was missing the $Entities section\n", numEntityBlocks));
   for (c = 0, block = 0; block < numEntityBlocks; ++block) {
@@ -1060,9 +1060,9 @@ static PetscErrorCode GmshReadElements_v41(GmshFile *gmsh, GmshMesh *mesh)
       element->id       = id[0];
       element->dim      = dim;
       element->cellType = cellType;
-      PetscCall(PetscCountCast(numVerts, &element->numVerts));
-      PetscCall(PetscCountCast(numNodes, &element->numNodes));
-      PetscCall(PetscCountCast(numTags, &element->numTags));
+      PetscCall(PetscIntCast(numVerts, &element->numVerts));
+      PetscCall(PetscIntCast(numNodes, &element->numNodes));
+      PetscCall(PetscIntCast(numTags, &element->numTags));
       PetscCall(PetscSegBufferGet(mesh->segbuf, element->numNodes, &element->nodes));
       for (p = 0; p < element->numNodes; p++) element->nodes[p] = nodeMap[nodes[p]];
       for (p = 0; p < element->numTags; p++) element->tags[p] = entity->tags[p];

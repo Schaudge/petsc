@@ -955,7 +955,7 @@ PetscErrorCode DMNetworkRegisterComponent(DM dm, const char *name, size_t size, 
   component = &network->component[network->ncomponent];
 
   PetscCall(PetscStrncpy(component->name, name, sizeof(component->name)));
-  PetscCall(PetscCountCast(size / sizeof(DMNetworkComponentGenericDataType), &component->size));
+  PetscCall(PetscIntCast(size / sizeof(DMNetworkComponentGenericDataType), &component->size));
   *key = network->ncomponent;
   network->ncomponent++;
   PetscFunctionReturn(PETSC_SUCCESS);

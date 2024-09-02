@@ -217,7 +217,7 @@ static PetscErrorCode DMPlexCreateBoxMesh_Tensor_SFC_Periodicity_Private(DM dm, 
       for (PetscInt j = 1; j < csize; j++) minz = PetscMin(minz, donor_verts[i * csize + j]);
       donor_minz[i] = minz;
     }
-    PetscCall(PetscCountCast(num_faces, &inum_faces));
+    PetscCall(PetscIntCast(num_faces, &inum_faces));
     PetscCall(PetscSortedInt64(inum_faces, (const PetscInt64 *)donor_minz, &sorted));
     // If a donor vertex were chosen to broker multiple faces, we would have a logic error.
     // Checking for sorting is a cheap check that there are no duplicates.
@@ -439,8 +439,8 @@ static PetscErrorCode DMPlexCreateIsoperiodicPointSF_Private(DM dm, PetscInt num
       }
 
       PetscCall(PetscMalloc1(leaf_offset, &leaf_donor_closure));
-      PetscCall(PetscSFBcastBegin(sf_closure, MPIU_2INT, donor_closure, leaf_donor_closure, MPI_REPLACE));
-      PetscCall(PetscSFBcastEnd(sf_closure, MPIU_2INT, donor_closure, leaf_donor_closure, MPI_REPLACE));
+      PetscCall(PetscSFBcastBegin(sf_closure, MPIU_SF_NODE, donor_closure, leaf_donor_closure, MPI_REPLACE));
+      PetscCall(PetscSFBcastEnd(sf_closure, MPIU_SF_NODE, donor_closure, leaf_donor_closure, MPI_REPLACE));
       PetscCall(PetscSFDestroy(&sf_closure));
       PetscCall(PetscFree(donor_closure));
     }
@@ -527,6 +527,7 @@ PetscErrorCode DMPlexMigrateIsoperiodicFaceSF_Internal(DM old_dm, DM dm, PetscSF
     PetscSFNode       *new_leafdata, *rootdata, *leafdata;
     const PetscInt    *old_local, *point_local;
     const PetscSFNode *old_remote, *point_remote;
+
     PetscCall(PetscSFGetGraph(plex->periodic.face_sfs[f], &old_npoints, &old_nleaf, &old_local, &old_remote));
     PetscCall(PetscSFGetGraph(sf_migration, NULL, &new_nleaf, NULL, NULL));
     PetscCall(PetscSFGetGraph(sf_point, &new_npoints, &point_nleaf, &point_local, &point_remote));
@@ -543,8 +544,8 @@ PetscErrorCode DMPlexMigrateIsoperiodicFaceSF_Internal(DM old_dm, DM dm, PetscSF
       new_leafdata[j] = point_remote[i];
     }
     // REPLACE is okay because every leaf agrees about the new owners
-    PetscCall(PetscSFReduceBegin(sf_migration, MPIU_2INT, new_leafdata, rootdata, MPI_REPLACE));
-    PetscCall(PetscSFReduceEnd(sf_migration, MPIU_2INT, new_leafdata, rootdata, MPI_REPLACE));
+    PetscCall(PetscSFReduceBegin(sf_migration, MPIU_SF_NODE, new_leafdata, rootdata, MPI_REPLACE));
+    PetscCall(PetscSFReduceEnd(sf_migration, MPIU_SF_NODE, new_leafdata, rootdata, MPI_REPLACE));
     // rootdata now contains the new owners
 
     // Send to leaves of old space
@@ -552,12 +553,12 @@ PetscErrorCode DMPlexMigrateIsoperiodicFaceSF_Internal(DM old_dm, DM dm, PetscSF
       leafdata[i].rank  = -1;
       leafdata[i].index = -1;
     }
-    PetscCall(PetscSFBcastBegin(plex->periodic.face_sfs[f], MPIU_2INT, rootdata, leafdata, MPI_REPLACE));
-    PetscCall(PetscSFBcastEnd(plex->periodic.face_sfs[f], MPIU_2INT, rootdata, leafdata, MPI_REPLACE));
+    PetscCall(PetscSFBcastBegin(plex->periodic.face_sfs[f], MPIU_SF_NODE, rootdata, leafdata, MPI_REPLACE));
+    PetscCall(PetscSFBcastEnd(plex->periodic.face_sfs[f], MPIU_SF_NODE, rootdata, leafdata, MPI_REPLACE));
 
     // Send to new leaf space
-    PetscCall(PetscSFBcastBegin(sf_migration, MPIU_2INT, leafdata, new_leafdata, MPI_REPLACE));
-    PetscCall(PetscSFBcastEnd(sf_migration, MPIU_2INT, leafdata, new_leafdata, MPI_REPLACE));
+    PetscCall(PetscSFBcastBegin(sf_migration, MPIU_SF_NODE, leafdata, new_leafdata, MPI_REPLACE));
+    PetscCall(PetscSFBcastEnd(sf_migration, MPIU_SF_NODE, leafdata, new_leafdata, MPI_REPLACE));
 
     PetscInt     nface = 0, *new_local;
     PetscSFNode *new_remote;
@@ -636,10 +637,10 @@ PetscErrorCode DMPeriodicCoordinateSetUp_Internal(DM dm)
     PetscCall(PetscSegBufferGetSize(seg, &count));
     PetscCall(PetscSegBufferExtractAlloc(seg, &ind));
     PetscCall(PetscSegBufferDestroy(&seg));
-    PetscCall(PetscCountCast(count, &isize));
+    PetscCall(PetscIntCast(count, &isize));
     PetscCall(ISCreateBlock(PETSC_COMM_SELF, dim, isize, ind, PETSC_OWN_POINTER, &isdof));
 
-    PetscCall(PetscCountCast(count * dim, &vsize));
+    PetscCall(PetscIntCast(count * dim, &vsize));
     PetscCall(DMGetLocalVector(dm, &L));
     PetscCall(VecCreate(PETSC_COMM_SELF, &P));
     PetscCall(VecSetSizes(P, vsize, vsize));

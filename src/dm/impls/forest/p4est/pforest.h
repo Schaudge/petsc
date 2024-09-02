@@ -1227,8 +1227,8 @@ static PetscErrorCode DMSetUp_pforest(DM dm)
           }
           for (i = 0; i < nleaves; i++) remotesAll[(leaves ? leaves[i] : i) + cLocalStart] = remotes[i];
           PetscCall(PetscSFSetUp(cellSF));
-          PetscCall(PetscSFBcastBegin(cellSF, MPIU_2INT, remotesAll, remotesAll, MPI_REPLACE));
-          PetscCall(PetscSFBcastEnd(cellSF, MPIU_2INT, remotesAll, remotesAll, MPI_REPLACE));
+          PetscCall(PetscSFBcastBegin(cellSF, MPIU_SF_NODE, remotesAll, remotesAll, MPI_REPLACE));
+          PetscCall(PetscSFBcastEnd(cellSF, MPIU_SF_NODE, remotesAll, remotesAll, MPI_REPLACE));
           nleavesNew = 0;
           for (i = 0; i < nleaves; i++) {
             if (remotesAll[i].rank >= 0) nleavesNew++;
@@ -1270,8 +1270,8 @@ static PetscErrorCode DMSetUp_pforest(DM dm)
             remotesNewRoot[i].rank  = rank;
             remotesNewRoot[i].index = i + cLocalStart;
           }
-          PetscCall(PetscSFBcastBegin(coarseToPreFine, MPIU_2INT, remotesNewRoot, remotesNew, MPI_REPLACE));
-          PetscCall(PetscSFBcastEnd(coarseToPreFine, MPIU_2INT, remotesNewRoot, remotesNew, MPI_REPLACE));
+          PetscCall(PetscSFBcastBegin(coarseToPreFine, MPIU_SF_NODE, remotesNewRoot, remotesNew, MPI_REPLACE));
+          PetscCall(PetscSFBcastEnd(coarseToPreFine, MPIU_SF_NODE, remotesNewRoot, remotesNew, MPI_REPLACE));
           PetscCall(PetscFree(remotesNewRoot));
           PetscCall(PetscMalloc1(nleavesCellSF, &remotesExpanded));
           for (i = 0; i < nleavesCellSF; i++) {
@@ -1280,8 +1280,8 @@ static PetscErrorCode DMSetUp_pforest(DM dm)
           }
           for (i = 0; i < nleaves; i++) remotesExpanded[leaves ? leaves[i] : i] = remotesNew[i];
           PetscCall(PetscFree(remotesNew));
-          PetscCall(PetscSFBcastBegin(preCellSF, MPIU_2INT, remotesExpanded, remotesExpanded, MPI_REPLACE));
-          PetscCall(PetscSFBcastEnd(preCellSF, MPIU_2INT, remotesExpanded, remotesExpanded, MPI_REPLACE));
+          PetscCall(PetscSFBcastBegin(preCellSF, MPIU_SF_NODE, remotesExpanded, remotesExpanded, MPI_REPLACE));
+          PetscCall(PetscSFBcastEnd(preCellSF, MPIU_SF_NODE, remotesExpanded, remotesExpanded, MPI_REPLACE));
 
           nleavesExpanded = 0;
           for (i = 0; i < nleavesCellSF; i++) {

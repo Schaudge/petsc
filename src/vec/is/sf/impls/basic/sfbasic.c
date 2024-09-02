@@ -19,7 +19,6 @@ static PetscErrorCode PetscSFLinkInitMPIRequests_Persistent_Basic(PetscSF sf, Pe
   if (bas->rootbuflen[PETSCSF_REMOTE] && !link->rootreqsinited[direction][rootmtype_mpi][rootdirect_mpi]) {
     PetscCall(PetscSFGetRootInfo_Basic(sf, &nrootranks, &ndrootranks, NULL, &rootoffset, NULL));
     if (direction == PETSCSF_LEAF2ROOT) {
-      
       for (PetscMPIInt i = ndrootranks, j = 0; i < nrootranks; i++, j++) {
         disp = (rootoffset[i] - rootoffset[ndrootranks]) * link->unitbytes;
         cnt  = rootoffset[i + 1] - rootoffset[i];

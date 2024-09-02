@@ -101,7 +101,7 @@ PetscErrorCode PetscSortReal(PetscCount n, PetscReal v[])
   } else {
     PetscInt N;
 
-    PetscCall(PetscCountCast(n, &N));
+    PetscCall(PetscIntCast(n, &N));
     PetscCall(PetscSortReal_Private(v, N - 1));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -180,7 +180,7 @@ PetscErrorCode PetscSortRealWithArrayInt(PetscCount n, PetscReal r[], PetscInt I
   } else {
     PetscInt N;
 
-    PetscCall(PetscCountCast(n, &N));
+    PetscCall(PetscIntCast(n, &N));
     PetscCall(PetscSortRealWithArrayInt_Private(r, Ii, N - 1));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -215,7 +215,7 @@ PetscErrorCode PetscFindReal(PetscReal key, PetscCount n, const PetscReal t[], P
     PetscFunctionReturn(PETSC_SUCCESS);
   }
   PetscAssertPointer(t, 3);
-  PetscCall(PetscCountCast(n, &hi));
+  PetscCall(PetscIntCast(n, &hi));
   while (hi - lo > 1) {
     PetscInt mid = lo + (hi - lo) / 2;
     PetscAssert(t[lo] <= t[mid] && t[mid] <= t[hi - 1], PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Input array was not sorted: (%g, %g, %g)", (double)t[lo], (double)t[mid], (double)t[hi - 1]);

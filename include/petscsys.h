@@ -1714,7 +1714,7 @@ PETSC_EXTERN PetscErrorCode MPIU_File_read_at_all(MPI_File, MPI_Offset, void *, 
 #endif
 
 /*@C
-   PetscIntCast - casts a `PetscInt64` (which is 64 bits in size) to a `PetscInt` (which may be 32-bits in size), generates an
+   PetscIntCast - casts a `PetscInt64`, `PetscCount`, or `size_t` to a `PetscInt` (which may be 32-bits in size), generates an
    error if the `PetscInt` is not large enough to hold the number.
 
    Not Collective; No Fortran Support
@@ -1732,73 +1732,16 @@ PETSC_EXTERN PetscErrorCode MPIU_File_read_at_all(MPI_File, MPI_Offset, void *, 
 
 .seealso: `PetscBLASInt`, `PetscMPIInt`, `PetscInt`, `PetscMPIIntCast()`, `PetscBLASIntCast()`, `PetscIntMultError()`, `PetscIntSumError()`
 @*/
-static inline PetscErrorCode PetscIntCast(PetscInt64 a, PetscInt *b)
+static inline PetscErrorCode PetscIntCast(PetscCount a, PetscInt *b)
 {
   PetscFunctionBegin;
-  // if using 64-bit indices already then this comparison is tautologically true
-  PetscCheck(a < PETSC_MAX_INT, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "%" PetscInt64_FMT " is too big for PetscInt, you may need to ./configure using --with-64-bit-indices", a);
+  PetscCheck(sizeof(PetscInt64) <= sizeof(PetscInt) || a < (PetscCount)PETSC_MAX_INT, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "%" PetscCount_FMT " is too big for PetscInt, you may need to ./configure using --with-64-bit-indices", a);
   if (b) *b = (PetscInt)a;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   PetscCountCast - casts a `PetscCount` to a `PetscInt` (which may be 32-bits in size), generates an
-   error if the `PetscInt` is not large enough to hold the number.
-
-   Not Collective; No Fortran Support
-
-   Input Parameter:
-.  a - the `PetscCount` value
-
-   Output Parameter:
-.  b - the resulting `PetscInt` value
-
-   Level: advanced
-
-   Note:
-   If integers needed for the applications are too large to fit in 32-bit integers you can ./configure using `--with-64-bit-indices` to make `PetscInt` use 64-bit integers
-
-.seealso: `PetscCount`, `PetscBLASInt`, `PetscMPIInt`, `PetscInt`, `PetscMPIIntCast()`, `PetscBLASIntCast()`, `PetscIntMultError()`, `PetscIntSumError()`, `PetscIntCast()`
-@*/
-static inline PetscErrorCode PetscCountCast(PetscCount a, PetscInt *b)
-{
-  PetscFunctionBegin;
-  *b = 0;
-  PetscCheck(sizeof(PetscCount) <= sizeof(PetscInt) || a <= PETSC_MAX_INT, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "%" PetscCount_FMT " is too big for PetscInt, you may need to ./configure using --with-64-bit-indices", a);
-  *b = (PetscInt)a;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/*@C
-   PetscInt64Cast - casts a `PetscInt64` to a `PetscInt` (which may be 32-bits in size), generates an
-   error if the `PetscInt` is not large enough to hold the number.
-
-   Not Collective; No Fortran Support
-
-   Input Parameter:
-.  a - the `PetscInt64` value
-
-   Output Parameter:
-.  b - the resulting `PetscInt` value
-
-   Level: advanced
-
-   Note:
-   If integers needed for the applications are too large to fit in 32-bit integers you can ./configure using `--with-64-bit-indices` to make `PetscInt` use 64-bit integers
-
-.seealso: `PetscInt64`, `PetscCount`, `PetscBLASInt`, `PetscMPIInt`, `PetscInt`, `PetscMPIIntCast()`, `PetscBLASIntCast()`, `PetscIntMultError()`, `PetscIntSumError()`, `PetscIntCast()`
-@*/
-static inline PetscErrorCode PetscInt64Cast(PetscInt64 a, PetscInt *b)
-{
-  PetscFunctionBegin;
-  *b = 0;
-  PetscCheck(sizeof(PetscInt64) <= sizeof(PetscInt) || a <= PETSC_MAX_INT, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "%" PetscInt64_FMT " is too big for PetscInt, you may need to ./configure using --with-64-bit-indices", a);
-  *b = (PetscInt)a;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/*@C
-   PetscBLASIntCast - casts a `PetscInt` (which may be 64-bits in size) to a `PetscBLASInt` (which may be 32-bits in size), generates an
+   PetscBLASIntCast - casts a `PetscInt` (which may be 64-bits in size) or `PetscInt64` to a `PetscBLASInt` (which may be 32-bits in size), generates an
    error if the `PetscBLASInt` is not large enough to hold the number.
 
    Not Collective; No Fortran Support
@@ -1814,14 +1757,13 @@ static inline PetscErrorCode PetscInt64Cast(PetscInt64 a, PetscInt *b)
    Note:
    Errors if the integer is negative since PETSc calls to BLAS/LAPACK never need to cast negative integer inputs
 
-.seealso: `PetscBLASInt`, `PetscMPIInt`, `PetscInt`, `PetscMPIIntCast()`, `PetscIntCast()`, `PetscCountCast()`
+.seealso: `PetscBLASInt`, `PetscMPIInt`, `PetscInt`, `PetscMPIIntCast()`, `PetscIntCast()`
 @*/
-static inline PetscErrorCode PetscBLASIntCast(PetscInt a, PetscBLASInt *b)
+static inline PetscErrorCode PetscBLASIntCast(PetscCount a, PetscBLASInt *b)
 {
   PetscFunctionBegin;
-  *b = 0;
-  if (PetscDefined(USE_64BIT_INDICES) && !PetscDefined(HAVE_64BIT_BLAS_INDICES)) {
-    PetscCheck(a <= PETSC_BLAS_INT_MAX, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "%" PetscInt_FMT " is too big for BLAS/LAPACK, which is restricted to 32-bit integers. Either you have an invalidly large integer error in your code or you must ./configure PETSc with --with-64-bit-blas-indices for the case you are running", a);
+  if (!PetscDefined(HAVE_64BIT_BLAS_INDICES)) {
+    PetscCheck(a <= (PetscBLASInt)PETSC_BLAS_INT_MAX, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "%" PetscCount_FMT " is too big for BLAS/LAPACK, which is restricted to 32-bit integers. Either you have an invalidly large integer error in your code or you must ./configure PETSc with --with-64-bit-blas-indices for the case you are running", a);
   }
   PetscCheck(a >= 0, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Passing negative integer to BLAS/LAPACK routine");
   *b = (PetscBLASInt)a;
@@ -1846,12 +1788,12 @@ static inline PetscErrorCode PetscBLASIntCast(PetscInt a, PetscBLASInt *b)
 
 .seealso: `PetscCuBLASInt`, `PetscBLASInt`, `PetscMPIInt`, `PetscInt`, `PetscBLASIntCast()`, `PetscMPIIntCast()`, `PetscIntCast()`
 @*/
-static inline PetscErrorCode PetscCuBLASIntCast(PetscInt a, PetscCuBLASInt *b)
+static inline PetscErrorCode PetscCuBLASIntCast(PetscCount a, PetscCuBLASInt *b)
 {
   PetscFunctionBegin;
   *b = 0;
-  PetscCheck(a <= PETSC_CUBLAS_INT_MAX, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "%" PetscInt_FMT " is too big for cuBLAS, which is restricted to 32-bit integers.", a);
-  PetscCheck(a >= 0, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Passing negative integer %" PetscInt_FMT "to cuBLAS routine", a);
+  PetscCheck(a <= (PetscCount)PETSC_CUBLAS_INT_MAX, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "%" PetscCount_FMT " is too big for cuBLAS, which is restricted to 32-bit integers.", a);
+  PetscCheck(a >= 0, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Passing negative integer %" PetscCount_FMT "to cuBLAS routine", a);
   *b = (PetscCuBLASInt)a;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1874,18 +1816,18 @@ static inline PetscErrorCode PetscCuBLASIntCast(PetscInt a, PetscCuBLASInt *b)
 
 .seealso: `PetscHipBLASInt`, `PetscBLASInt`, `PetscMPIInt`, `PetscInt`, `PetscBLASIntCast()`, `PetscMPIIntCast()`, `PetscIntCast()`
 @*/
-static inline PetscErrorCode PetscHipBLASIntCast(PetscInt a, PetscHipBLASInt *b)
+static inline PetscErrorCode PetscHipBLASIntCast(PetscCount a, PetscHipBLASInt *b)
 {
   PetscFunctionBegin;
   *b = 0;
-  PetscCheck(a <= PETSC_HIPBLAS_INT_MAX, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "%" PetscInt_FMT " is too big for hipBLAS, which is restricted to 32-bit integers.", a);
-  PetscCheck(a >= 0, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Passing negative integer %" PetscInt_FMT "to hipBLAS routine", a);
+  PetscCheck(a <= (PetscCount)PETSC_HIPBLAS_INT_MAX, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "%" PetscCount_FMT " is too big for hipBLAS, which is restricted to 32-bit integers.", a);
+  PetscCheck(a >= 0, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Passing negative integer %" PetscCount_FMT "to hipBLAS routine", a);
   *b = (PetscHipBLASInt)a;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*@C
-   PetscMPIIntCast - casts a `PetscInt` (which may be 64-bits in size) to a `PetscMPIInt` (which may be 32-bits in size), generates an
+   PetscMPIIntCast - casts a `PetscInt` (which may be 64-bits in size) or `PetscCount` to a `PetscMPIInt` (which may be 32-bits in size), generates an
    error if the `PetscMPIInt` is not large enough to hold the number.
 
    Not Collective; No Fortran Support
@@ -1904,7 +1846,7 @@ static inline PetscErrorCode PetscMPIIntCast(PetscCount a, PetscMPIInt *b)
 {
   PetscFunctionBegin;
   *b = 0;
-  PetscCheck(a <= PETSC_MPI_INT_MAX, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "%" PetscCount_FMT " is too big for MPI buffer length. Maximum supported value is %d", a, PETSC_MPI_INT_MAX);
+  PetscCheck(a <= (PetscCount)PETSC_MPI_INT_MAX, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "%" PetscCount_FMT " is too big for MPI buffer length. Maximum supported value is %d", a, PETSC_MPI_INT_MAX);
   *b = (PetscMPIInt)a;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

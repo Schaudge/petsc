@@ -390,7 +390,7 @@ static PetscErrorCode PetscSFGetWindow(PetscSF sf, MPI_Datatype unit, void *arra
   PetscCallMPI(MPI_Type_get_extent(unit, &lb, &bytes));
   PetscCallMPI(MPI_Type_get_true_extent(unit, &lb_true, &bytes_true));
   PetscCheck(lb == 0 && lb_true == 0, PetscObjectComm((PetscObject)sf), PETSC_ERR_SUP, "No support for unit type with nonzero lower bound, write petsc-maint@mcs.anl.gov if you want this feature");
-  PetscCheck(bytes == bytes_true, PetscObjectComm((PetscObject)sf), PETSC_ERR_SUP, "No support for unit type with modified extent, write petsc-maint@mcs.anl.gov if you want this feature");
+  PetscCheck(bytes == bytes_true, PetscObjectComm((PetscObject)sf), PETSC_ERR_SUP, "No support for unit type with modified extent, bytes %d true bytes %d petsc-maint@mcs.anl.gov if you want this feature",(int)bytes,(int)bytes_true);
   if (w->flavor != PETSCSF_WINDOW_FLAVOR_CREATE) reuse = PETSC_TRUE;
   for (link = w->wins; reuse && link; link = link->next) {
     PetscBool winok = PETSC_FALSE;
@@ -825,9 +825,10 @@ static PetscErrorCode PetscSFBcastBegin_Window(PetscSF sf, MPI_Datatype unit, Pe
   PetscCall(PetscSFGetRootRanks(sf, &nranks, &ranks, NULL, NULL, NULL));
   PetscCall(PetscSFWindowGetDataTypes(sf, unit, &mine, &remote));
   PetscCall(PetscSFGetWindow(sf, unit, (void *)rootdata, w->sync, PETSC_TRUE, MPI_MODE_NOPUT | MPI_MODE_NOPRECEDE, MPI_MODE_NOPUT, 0, &target_disp, &reqs, &win));
+  CHKMEMQ;
   for (PetscMPIInt i = 0; i < nranks; i++) {
     MPI_Aint tdp = target_disp ? target_disp[i] : 0;
-
+  CHKMEMQ;
     if (w->sync == PETSCSF_WINDOW_SYNC_LOCK) {
       PetscCallMPI(MPI_Win_lock(MPI_LOCK_SHARED, ranks[i], MPI_MODE_NOCHECK, win));
 #if defined(PETSC_HAVE_MPI_RGET)
@@ -836,7 +837,9 @@ static PetscErrorCode PetscSFBcastBegin_Window(PetscSF sf, MPI_Datatype unit, Pe
       PetscCallMPI(MPI_Get(leafdata, 1, mine[i], ranks[i], tdp, 1, remote[i], win));
 #endif
     } else {
+        CHKMEMQ;
       PetscCallMPI(MPI_Get(leafdata, 1, mine[i], ranks[i], tdp, 1, remote[i], win));
+        CHKMEMQ;
     }
   }
   PetscFunctionReturn(PETSC_SUCCESS);

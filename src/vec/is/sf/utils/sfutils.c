@@ -212,7 +212,7 @@ PetscErrorCode PetscSFSetGraphSection(PetscSF sf, PetscSection localSection, Pet
 - rootSection - Section defined on root space
 
   Output Parameters:
-+ remoteOffsets - root offsets in leaf storage, or NULL
++ remoteOffsets - root offsets in leaf storage, or `NULL`
 - leafSection   - Section defined on the leaf space
 
   Level: advanced
@@ -277,6 +277,7 @@ PetscErrorCode PetscSFDistributeSection(PetscSF sf, PetscSection rootSection, Pe
   if (sub[0]) {
     PetscCall(ISCreateStride(PETSC_COMM_SELF, rpEnd - rpStart, rpStart, 1, &selected));
     PetscCall(ISGetIndices(selected, &indices));
+    printf("creating embeeded\n");
     PetscCall(PetscSFCreateEmbeddedRootSF(sf, rpEnd - rpStart, indices, &embedSF));
     PetscCall(ISRestoreIndices(selected, &indices));
     PetscCall(ISDestroy(&selected));
@@ -316,6 +317,9 @@ PetscErrorCode PetscSFDistributeSection(PetscSF sf, PetscSection rootSection, Pe
     PetscCall(PetscMalloc1(lpEnd - lpStart, remoteOffsets));
     PetscCall(PetscSFBcastBegin(embedSF, MPIU_INT, PetscSafePointerPlusOffset(rootSection->atlasOff, -rpStart), PetscSafePointerPlusOffset(*remoteOffsets, -lpStart), MPI_REPLACE));
     PetscCall(PetscSFBcastEnd(embedSF, MPIU_INT, PetscSafePointerPlusOffset(rootSection->atlasOff, -rpStart), PetscSafePointerPlusOffset(*remoteOffsets, -lpStart), MPI_REPLACE));
+    for (int i=0; i< lpEnd - lpStart; i++ ) {
+      PetscCheck((*remoteOffsets)[i] >=0 ,PETSC_COMM_SELF,PETSC_ERR_PLIB,"illegal rank");
+    }
   }
   PetscCall(PetscSectionInvalidateMaxDof_Internal(leafSection));
   PetscCall(PetscSectionSetUp(leafSection));
@@ -461,10 +465,12 @@ PetscErrorCode PetscSFCreateSectionSF(PetscSF sf, PetscSection rootSection, Pets
     PetscInt localPoint = localPoints ? localPoints[i] : i;
     PetscMPIInt rank       = remotePoints[i].rank;
 
+    PetscCheck(rank > -1 && rank < 2,PETSC_COMM_SELF,PETSC_ERR_PLIB,"illegal rank");
     if ((localPoint >= lpStart) && (localPoint < lpEnd)) {
       PetscInt remoteOffset = remoteOffsets[localPoint - lpStart];
       PetscInt loff, dof, d;
 
+      PetscCheck(remoteOffset >= 0,PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"bad remote offset");
       PetscCall(PetscSectionGetOffset(leafSection, localPoint, &loff));
       PetscCall(PetscSectionGetDof(leafSection, localPoint, &dof));
       for (d = 0; d < dof; ++d, ++ind) {
@@ -746,8 +752,8 @@ PetscErrorCode PetscSFCreateByMatchingIndices(PetscLayout layout, PetscInt numRo
     buffer[i].index = -1;
     buffer[i].rank  = -1;
   }
-  PetscCall(PetscSFReduceBegin(sf1, MPIU_2INT, owners, buffer, MPI_MAXLOC));
-  PetscCall(PetscSFReduceEnd(sf1, MPIU_2INT, owners, buffer, MPI_MAXLOC));
+  PetscCall(PetscSFReduceBegin(sf1, MPIU_SF_NODE, owners, buffer, MPI_MAXLOC));
+  PetscCall(PetscSFReduceEnd(sf1, MPIU_SF_NODE, owners, buffer, MPI_MAXLOC));
   /* Bcast: buffer -> owners */
   if (!flag) {
     /* leafIndices is different from rootIndices */
@@ -755,8 +761,8 @@ PetscErrorCode PetscSFCreateByMatchingIndices(PetscLayout layout, PetscInt numRo
     PetscCall(PetscSFSetGraphLayout(sf1, layout, numLeafIndices, NULL, PETSC_OWN_POINTER, leafIndices));
     PetscCall(PetscMalloc1(numLeafIndices, &owners));
   }
-  PetscCall(PetscSFBcastBegin(sf1, MPIU_2INT, buffer, owners, MPI_REPLACE));
-  PetscCall(PetscSFBcastEnd(sf1, MPIU_2INT, buffer, owners, MPI_REPLACE));
+  PetscCall(PetscSFBcastBegin(sf1, MPIU_SF_NODE, buffer, owners, MPI_REPLACE));
+  PetscCall(PetscSFBcastEnd(sf1, MPIU_SF_NODE, buffer, owners, MPI_REPLACE));
   for (i = 0; i < numLeafIndices; ++i) PetscCheck(owners[i].rank >= 0, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Global point %" PetscInt_FMT " was unclaimed", leafIndices[i]);
   PetscCall(PetscFree(buffer));
   if (sfA) {

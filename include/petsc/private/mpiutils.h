@@ -5,14 +5,14 @@
 PETSC_EXTERN PetscErrorCode PetscGatherNumberOfMessages_Private(MPI_Comm, const PetscMPIInt[], const PetscInt[], PetscMPIInt *);
 PETSC_EXTERN PetscErrorCode PetscGatherMessageLengths_Private(MPI_Comm, PetscMPIInt, PetscMPIInt, const PetscInt[], PetscMPIInt **, PetscInt **);
 
-#if !defined(PETSC_HAVE_MPI_LARGE_COUNT) /* No matter PetscInt is 32-bit or 64-bit, without MPI large count we always do casting before MPI calls */
-/* Cast PetscInt <a> to PetscMPIInt <b>, where <a> is likely used for the 'count' argument in MPI routines.
+#if !defined(PETSC_HAVE_MPI_LARGE_COUNT) /* No matter PetscInt is 32-bit or 64-bit, without MPI large count we always cast before MPI calls */
+/* Cast PetscCount <a> to PetscMPIInt <b>, where <a> is likely used for the 'count' argument in MPI routines.
     It is similar to PetscMPIIntCast() except that here it returns an MPI error code.
   */
-static inline PetscMPIInt PetscMPIIntCast_Internal(PetscInt a, PetscMPIInt *b)
+static inline PetscMPIInt PetscMPIIntCast_Internal(PetscCount a, PetscMPIInt *b)
 {
+  if (PetscUnlikely(a > (PetscCount) PETSC_MPI_INT_MAX)) return MPI_ERR_COUNT;
   *b = (PetscMPIInt)(a);
-  if (PetscDefined(USE_64BIT_INDICIES) && PetscUnlikely(a > PETSC_MPI_INT_MAX)) return MPI_ERR_COUNT;
   return MPI_SUCCESS;
 }
 
@@ -26,7 +26,7 @@ static inline PetscMPIInt MPIU_Get_count(MPI_Status *status, MPI_Datatype dtype,
   PetscFunctionReturn(MPI_SUCCESS);
 }
 
-static inline PetscMPIInt MPIU_Send(const void *buf, PetscInt count, MPI_Datatype datatype, PetscMPIInt dest, PetscMPIInt tag, MPI_Comm comm)
+static inline PetscMPIInt MPIU_Send(const void *buf, PetscCount count, MPI_Datatype datatype, PetscMPIInt dest, PetscMPIInt tag, MPI_Comm comm)
 {
   PetscMPIInt count2;
 
@@ -36,7 +36,7 @@ static inline PetscMPIInt MPIU_Send(const void *buf, PetscInt count, MPI_Datatyp
   PetscFunctionReturn(MPI_SUCCESS);
 }
 
-static inline PetscMPIInt MPIU_Send_init(const void *buf, PetscInt count, MPI_Datatype datatype, PetscMPIInt dest, PetscMPIInt tag, MPI_Comm comm, MPI_Request *request)
+static inline PetscMPIInt MPIU_Send_init(const void *buf, PetscCount count, MPI_Datatype datatype, PetscMPIInt dest, PetscMPIInt tag, MPI_Comm comm, MPI_Request *request)
 {
   PetscMPIInt count2;
 

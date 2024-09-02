@@ -1213,6 +1213,7 @@ PetscErrorCode DMPlexInterpolatePointSF(DM dm, PetscSF pointSF)
   PetscCall(PetscHMapIJCreate(&remoteHash));
   for (l = 0; l < Nl; ++l) {
     PetscHashIJKey key;
+
     key.i = remotePoints[l].index;
     key.j = remotePoints[l].rank;
     PetscCall(PetscHMapIJSet(remoteHash, key, l));
@@ -1277,8 +1278,8 @@ PetscErrorCode DMPlexInterpolatePointSF(DM dm, PetscSF pointSF)
     PetscCall(PetscSFCreateSectionSF(sfInverse, candidateSection, remoteOffsets, candidateRemoteSection, &sfCandidates));
     PetscCall(PetscSectionGetStorageSize(candidateRemoteSection, &candidatesRemoteSize));
     PetscCall(PetscMalloc1(candidatesRemoteSize, &candidatesRemote));
-    PetscCall(PetscSFBcastBegin(sfCandidates, MPIU_2INT, candidates, candidatesRemote, MPI_REPLACE));
-    PetscCall(PetscSFBcastEnd(sfCandidates, MPIU_2INT, candidates, candidatesRemote, MPI_REPLACE));
+    PetscCall(PetscSFBcastBegin(sfCandidates, MPIU_SF_NODE, candidates, candidatesRemote, MPI_REPLACE));
+    PetscCall(PetscSFBcastEnd(sfCandidates, MPIU_SF_NODE, candidates, candidatesRemote, MPI_REPLACE));
     PetscCall(PetscSFDestroy(&sfInverse));
     PetscCall(PetscSFDestroy(&sfCandidates));
     PetscCall(PetscFree(remoteOffsets));
@@ -1415,8 +1416,8 @@ PetscErrorCode DMPlexInterpolatePointSF(DM dm, PetscSF pointSF)
     PetscCall(PetscSectionGetStorageSize(claimSection, &claimsSize));
     PetscCall(PetscMalloc1(claimsSize, &claims));
     for (p = 0; p < claimsSize; ++p) claims[p].rank = -1;
-    PetscCall(PetscSFBcastBegin(sfClaims, MPIU_2INT, candidatesRemote, claims, MPI_REPLACE));
-    PetscCall(PetscSFBcastEnd(sfClaims, MPIU_2INT, candidatesRemote, claims, MPI_REPLACE));
+    PetscCall(PetscSFBcastBegin(sfClaims, MPIU_SF_NODE, candidatesRemote, claims, MPI_REPLACE));
+    PetscCall(PetscSFBcastEnd(sfClaims, MPIU_SF_NODE, candidatesRemote, claims, MPI_REPLACE));
     PetscCall(PetscSFDestroy(&sfClaims));
     PetscCall(PetscFree(remoteOffsets));
     PetscCall(PetscObjectSetName((PetscObject)claimSection, "Claim Section"));

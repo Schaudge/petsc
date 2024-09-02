@@ -63,7 +63,7 @@ PetscErrorCode TSHistoryGetNumSteps(TSHistory tsh, PetscInt *n)
 {
   PetscFunctionBegin;
   PetscAssertPointer(n, 2);
-  PetscCall(PetscCountCast(tsh->n, n));
+  PetscCall(PetscIntCast(tsh->n, n));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -160,7 +160,7 @@ PetscErrorCode TSHistorySetHistory(TSHistory tsh, PetscInt n, PetscReal hist[], 
 PetscErrorCode TSHistoryGetHistory(TSHistory tsh, PetscInt *n, const PetscReal *hist[], const PetscInt *hist_id[], PetscBool *sorted)
 {
   PetscFunctionBegin;
-  if (n) PetscCall(PetscCountCast(tsh->n, n));
+  if (n) PetscCall(PetscIntCast(tsh->n, n));
   if (hist) *hist = tsh->hist;
   if (hist_id) *hist_id = tsh->hist_id;
   if (sorted) *sorted = tsh->sorted;

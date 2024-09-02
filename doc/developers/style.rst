@@ -71,7 +71,7 @@ PETSc and standard datatypes
   32-bit version.
 
 # ``PetscCount`` is a 64-bit integer and should be used for array sizes (number of entries)
-  and indices that may become large. ``PetscCountCast()`` should always be used when converting
+  and indices that may become large. ``PetscIntCast()`` should always be used when converting
   to ``PetscInt``. Since, by default and array of ``PetscCount`` requires twice the memory
   of an array of ``PetscInt`` most index arrays (such as ``ISGetIndices()`` use ``PetscInt``,
   when these arrays get too large than ``--with-64-bit-indices`` must be used to

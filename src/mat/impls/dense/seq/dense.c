@@ -877,7 +877,7 @@ PetscErrorCode MatCholeskyFactor_SeqDense(Mat A, IS perm, const MatFactorInfo *f
       PetscCall(PetscFPTrapPush(PETSC_FP_TRAP_OFF));
       PetscCallBLAS("LAPACKsytrf", LAPACKsytrf_("L", &n, mat->v, &mat->lda, mat->pivots, &dummy, &mat->lfwork, &info));
       PetscCall(PetscFPTrapPop());
-      PetscCall(PetscBLASIntCast((PetscCount)PetscRealPart(dummy),&mat->lfwork));
+      PetscCall(PetscBLASIntCast((PetscCount)(PetscRealPart(dummy)),&mat->lfwork));
       PetscCall(PetscMalloc1(mat->lfwork, &mat->fwork));
     }
     PetscCall(PetscFPTrapPush(PETSC_FP_TRAP_OFF));
@@ -941,7 +941,7 @@ PetscErrorCode MatQRFactor_SeqDense(Mat A, IS col, const MatFactorInfo *minfo)
     PetscCall(PetscFPTrapPush(PETSC_FP_TRAP_OFF));
     PetscCallBLAS("LAPACKgeqrf", LAPACKgeqrf_(&m, &n, mat->v, &mat->lda, mat->tau, &dummy, &mat->lfwork, &info));
     PetscCall(PetscFPTrapPop());
-    PetscCall(PetscBLASIntCast((PetscCount)PetscRealPart(dummy),&mat->lfwork));
+    PetscCall(PetscBLASIntCast((PetscCount)(PetscRealPart(dummy)),&mat->lfwork));
     PetscCall(PetscMalloc1(mat->lfwork, &mat->fwork));
   }
   PetscCall(PetscFPTrapPush(PETSC_FP_TRAP_OFF));

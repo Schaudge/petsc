@@ -886,7 +886,7 @@ static PetscErrorCode MatStashScatterBegin_BTS(Mat mat, MatStash *stash, PetscIn
       }
       stash->sendframes[sendno].buffer  = sendblock_rowstart;
       stash->sendframes[sendno].pending = 0;
-      PetscCall(PetscCountCast(i - rowstart, &stash->sendhdr[sendno].count));
+      PetscCall(PetscIntCast(i - rowstart, &stash->sendhdr[sendno].count));
       sendno++;
       rowstart = i;
     }

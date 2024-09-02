@@ -121,7 +121,7 @@ static PetscErrorCode PetscViewerHDF5ReadSizes_Private(PetscViewer viewer, HDF5R
   }
 
   /* Get global size */
-  PetscCall(PetscCountCast(bs * ctx->dims[ctx->lenInd], &N));
+  PetscCall(PetscIntCast(bs * ctx->dims[ctx->lenInd], &N));
 
   /* Set global size, blocksize and type if not yet set */
   if (map->bs < 0) {

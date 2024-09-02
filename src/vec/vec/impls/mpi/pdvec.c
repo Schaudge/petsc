@@ -1107,7 +1107,7 @@ PetscErrorCode VecSetPreallocationCOO_MPI(Vec x, PetscCount coo_n, const PetscIn
       maxNsend = maxNsend2;
     }
     sendto[nsend] = owner;
-    PetscCall(PetscCountCast(p - k, &nentries[nsend]));
+    PetscCall(PetscIntCast(p - k, &nentries[nsend]));
     nsend++;
     k = p;
   }
@@ -1146,7 +1146,7 @@ PetscErrorCode VecSetPreallocationCOO_MPI(Vec x, PetscCount coo_n, const PetscIn
     PetscCheck(offsets[k] >= 0, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Number of SF roots is too large for PetscInt");
     for (q = 0; q < nentries[k]; q++, p++) {
       iremote[p].rank = sendto[k];
-      PetscCall(PetscCountCast(offsets[k] + q, &iremote[p].index));
+      PetscCall(PetscIntCast(offsets[k] + q, &iremote[p].index));
     }
   }
   PetscCall(PetscSFSetGraph(sf2, nroots, nleaves, NULL, PETSC_OWN_POINTER, iremote, PETSC_OWN_POINTER));

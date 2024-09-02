@@ -657,7 +657,7 @@ PetscErrorCode PetscSFLinkSetUp_Host(PetscSF sf, PetscSFLink link, MPI_Datatype 
       else if (nbyte % 2 == 0) PackInit_DumbType_char_2_0(link);
       else if (nbyte == 1) PackInit_DumbType_char_1_1(link);
       else if (nbyte % 1 == 0) PackInit_DumbType_char_1_0(link);
-      PetscCall(PetscCountCast(nbyte, &link->bs));
+      PetscCall(PetscIntCast(nbyte, &link->bs));
       link->unitbytes = nbyte;
       link->basicunit = MPI_BYTE;
     } else {
@@ -917,9 +917,9 @@ static PetscErrorCode PetscSFLinkPackRootData_Private(PetscSF sf, PetscSFLink li
 {
   const PetscInt *rootindices = NULL;
   PetscInt        count, start;
-  PetscErrorCode (*Pack)(PetscSFLink, PetscInt, PetscInt, PetscSFPackOpt, const PetscInt *, const void *, void *) = NULL;
   PetscMemType   rootmtype                                                                                        = link->rootmtype;
   PetscSFPackOpt opt                                                                                              = NULL;
+  PetscErrorCode (*Pack)(PetscSFLink, PetscInt, PetscInt, PetscSFPackOpt, const PetscInt *, const void *, void *) = NULL;
 
   PetscFunctionBegin;
   if (!link->rootdirect[scope]) { /* If rootdata works directly as rootbuf, skip packing */
@@ -935,9 +935,9 @@ static PetscErrorCode PetscSFLinkPackLeafData_Private(PetscSF sf, PetscSFLink li
 {
   const PetscInt *leafindices = NULL;
   PetscInt        count, start;
-  PetscErrorCode (*Pack)(PetscSFLink, PetscInt, PetscInt, PetscSFPackOpt, const PetscInt *, const void *, void *) = NULL;
   PetscMemType   leafmtype                                                                                        = link->leafmtype;
   PetscSFPackOpt opt                                                                                              = NULL;
+  PetscErrorCode (*Pack)(PetscSFLink, PetscInt, PetscInt, PetscSFPackOpt, const PetscInt *, const void *, void *) = NULL;
 
   PetscFunctionBegin;
   if (!link->leafdirect[scope]) { /* If leafdata works directly as rootbuf, skip packing */
@@ -982,9 +982,9 @@ static PetscErrorCode PetscSFLinkUnpackRootData_Private(PetscSF sf, PetscSFLink 
   const PetscInt *rootindices = NULL;
   PetscInt        count, start;
   PetscSF_Basic  *bas                                                                                                    = (PetscSF_Basic *)sf->data;
-  PetscErrorCode (*UnpackAndOp)(PetscSFLink, PetscInt, PetscInt, PetscSFPackOpt, const PetscInt *, void *, const void *) = NULL;
   PetscMemType   rootmtype                                                                                               = link->rootmtype;
   PetscSFPackOpt opt                                                                                                     = NULL;
+  PetscErrorCode (*UnpackAndOp)(PetscSFLink, PetscInt, PetscInt, PetscSFPackOpt, const PetscInt *, void *, const void *) = NULL;
 
   PetscFunctionBegin;
   if (!link->rootdirect[scope]) { /* If rootdata works directly as rootbuf, skip unpacking */
@@ -1085,12 +1085,12 @@ PetscErrorCode PetscSFLinkScatterLocal(PetscSF sf, PetscSFLink link, PetscSFDire
   const PetscInt *rootindices = NULL, *leafindices = NULL;
   PetscInt        count, rootstart, leafstart;
   PetscSF_Basic  *bas                                                                                                                                                 = (PetscSF_Basic *)sf->data;
-  PetscErrorCode (*ScatterAndOp)(PetscSFLink, PetscInt, PetscInt, PetscSFPackOpt, const PetscInt *, const void *, PetscInt, PetscSFPackOpt, const PetscInt *, void *) = NULL;
   PetscMemType   rootmtype = link->rootmtype, leafmtype = link->leafmtype, srcmtype, dstmtype;
   PetscSFPackOpt leafopt = NULL, rootopt = NULL;
   PetscInt       buflen = sf->leafbuflen[PETSCSF_LOCAL];
   char          *srcbuf = NULL, *dstbuf = NULL;
   PetscBool      dstdups;
+  PetscErrorCode (*ScatterAndOp)(PetscSFLink, PetscInt, PetscInt, PetscSFPackOpt, const PetscInt *, const void *, PetscInt, PetscSFPackOpt, const PetscInt *, void *) = NULL;
 
   PetscFunctionBegin;
   if (!buflen) PetscFunctionReturn(PETSC_SUCCESS);
@@ -1147,9 +1147,9 @@ PetscErrorCode PetscSFLinkFetchAndOpLocal(PetscSF sf, PetscSFLink link, void *ro
   const PetscInt *rootindices = NULL, *leafindices = NULL;
   PetscInt        count, rootstart, leafstart;
   PetscSF_Basic  *bas                                                                                                                                                            = (PetscSF_Basic *)sf->data;
-  PetscErrorCode (*FetchAndOpLocal)(PetscSFLink, PetscInt, PetscInt, PetscSFPackOpt, const PetscInt *, void *, PetscInt, PetscSFPackOpt, const PetscInt *, const void *, void *) = NULL;
   const PetscMemType rootmtype = link->rootmtype, leafmtype = link->leafmtype;
   PetscSFPackOpt     leafopt = NULL, rootopt = NULL;
+  PetscErrorCode (*FetchAndOpLocal)(PetscSFLink, PetscInt, PetscInt, PetscSFPackOpt, const PetscInt *, void *, PetscInt, PetscSFPackOpt, const PetscInt *, const void *, void *) = NULL;
 
   PetscFunctionBegin;
   if (!bas->rootbuflen[PETSCSF_LOCAL]) PetscFunctionReturn(PETSC_SUCCESS);

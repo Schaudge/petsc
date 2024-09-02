@@ -314,7 +314,7 @@ PetscErrorCode PetscSortInt(PetscCount n, PetscInt X[])
 
   PetscFunctionBegin;
   if (n) PetscAssertPointer(X, 2);
-  PetscCall(PetscCountCast(n, &N));
+  PetscCall(PetscIntCast(n, &N));
   QuickSort1(PetscSortInt, X, N, pivot, t1);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -512,7 +512,7 @@ PetscErrorCode PetscFindInt(PetscInt key, PetscCount n, const PetscInt X[], Pets
     PetscFunctionReturn(PETSC_SUCCESS);
   }
   PetscAssertPointer(X, 3);
-  PetscCall(PetscCountCast(n, &hi));
+  PetscCall(PetscIntCast(n, &hi));
   while (hi - lo > 1) {
     PetscInt mid = lo + (hi - lo) / 2;
     PetscAssert(X[lo] <= X[mid] && X[mid] <= X[hi - 1], PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Input array was not sorted: (%" PetscInt_FMT ", %" PetscInt_FMT ", %" PetscInt_FMT ")", X[lo], X[mid], X[hi - 1]);
@@ -598,7 +598,7 @@ PetscErrorCode PetscFindMPIInt(PetscMPIInt key, PetscCount n, const PetscMPIInt 
     if (key < X[mid]) hi = mid;
     else lo = mid;
   }
-  PetscCall(PetscCountCast(key == X[lo] ? lo : -(lo + (key > X[lo]) + 1), loc));
+  PetscCall(PetscIntCast(key == X[lo] ? lo : -(lo + (key > X[lo]) + 1), loc));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

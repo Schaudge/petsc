@@ -159,7 +159,7 @@ PetscErrorCode readData(MPI_Comm comm, himaInfo *hinfo)
     }
     fclose(fd);
   }
-  PetscCallMPI(MPI_Bcast(v, 2 * num, MPIU_REAL, 0, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Bcast(v, (PetscMPIInt)(2 * num), MPIU_REAL, 0, PETSC_COMM_WORLD));
   /* ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] vol %g, ... %g; St0 %g, ... %g\n",rank,hinfo->vol[0],hinfo->vol[num-1],hinfo->St0 [0],hinfo->St0[num-1]); */
   PetscFunctionReturn(PETSC_SUCCESS);
 }

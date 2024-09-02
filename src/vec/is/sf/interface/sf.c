@@ -327,17 +327,17 @@ PetscErrorCode PetscSFSetUp(PetscSF sf)
 . sf - star forest
 
   Options Database Keys:
-+ -sf_type                                                                                                         - implementation type, see `PetscSFSetType()`
-. -sf_rank_order                                                                                                   - sort composite points for gathers and scatters in rank order, gathers are non-deterministic otherwise
-. -sf_use_default_stream                                                                                           - Assume callers of `PetscSF` computed the input root/leafdata with the default CUDA stream. `PetscSF` will also
-                            use the default stream to process data. Therefore, no stream synchronization is needed between `PetscSF` and its caller (default: true).
-                            If true, this option only works with `-use_gpu_aware_mpi 1`.
-. -sf_use_stream_aware_mpi                                                                                         - Assume the underlying MPI is CUDA-stream aware and `PetscSF` won't sync streams for send/recv buffers passed to MPI (default: false).
-                               If true, this option only works with `-use_gpu_aware_mpi 1`.
++ -sf_type                       - implementation type, see `PetscSFSetType()`
+. -sf_rank_order                 - sort composite points for gathers and scatters in rank order, gathers are non-deterministic otherwise
+. -sf_use_default_stream         - Assume callers of `PetscSF` computed the input root/leafdata with the default CUDA stream. `PetscSF` will also
+                                   use the default stream to process data. Therefore, no stream synchronization is needed between `PetscSF` and its caller (default: true).
+                                   If true, this option only works with `-use_gpu_aware_mpi 1`.
+ -sf_use_stream_aware_mpi        - Assume the underlying MPI is CUDA-stream aware and `PetscSF` won't sync streams for send/recv buffers passed to MPI (default: false).
+                                   If true, this option only works with `-use_gpu_aware_mpi 1`.
 
-- -sf_backend cuda | hip | kokkos -Select the device backend SF uses. Currently `PetscSF` has these backends: cuda - hip and Kokkos.
-                              On CUDA (HIP) devices, one can choose cuda (hip) or kokkos with the default being kokkos. On other devices,
-                              the only available is kokkos.
+- -sf_backend <cuda,hip,kokkos> - Select the device backend`PetscSF` uses. Currently `PetscSF` has these backends: cuda - hip and Kokkos.
+                                  On CUDA (HIP) devices, one can choose cuda (hip) or kokkos with the default being kokkos. On other devices,
+                                  the only available is kokkos.
 
   Level: intermediate
 
@@ -474,6 +474,15 @@ PetscErrorCode PetscSFSetGraph(PetscSF sf, PetscInt nroots, PetscInt nleaves, Pe
   }
 
   PetscCall(PetscLogEventBegin(PETSCSF_SetGraph, sf, 0, 0, 0));
+  if (PetscDefined(USE_DEBUG)) {
+    PetscMPIInt size;
+
+    PetscCallMPI(MPI_Comm_size(PetscObjectComm((PetscObject)sf),&size));
+    for (PetscInt i=0; i<nleaves; i++) {
+      PetscCheck(iremote[i].rank >= -1 && iremote[i].rank < size,PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"iremote contains incorrect rank values");
+      PetscCheck(iremote[i].index >= 0,PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"iremote contains incorrect index values");
+    }
+  }
 
   sf->nroots  = nroots;
   sf->nleaves = nleaves;
@@ -522,6 +531,15 @@ PetscErrorCode PetscSFSetGraph(PetscSF sf, PetscInt nroots, PetscInt nleaves, Pe
     sf->mine_alloc = NULL;
   } else {
     sf->mine_alloc = ilocal;
+  }
+  if (PetscDefined(USE_DEBUG)) {
+    PetscMPIInt size;
+
+    PetscCallMPI(MPI_Comm_size(PetscObjectComm((PetscObject)sf),&size));
+    for (PetscInt i=0; i<nleaves; i++) {
+      PetscCheck(iremote[i].rank >= -1 && iremote[i].rank < size,PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"iremote contains incorrect rank values");
+      PetscCheck(iremote[i].index >= 0,PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"iremote contains incorrect index values");
+    }
   }
   sf->remote = iremote;
   if (remotemode == PETSC_USE_POINTER) {
@@ -680,8 +698,8 @@ PetscErrorCode PetscSFCreateInverseSF(PetscSF sf, PetscSF *isf)
     roots[i].rank  = -1;
     roots[i].index = -1;
   }
-  PetscCall(PetscSFReduceBegin(sf, MPIU_2INT, leaves, roots, MPI_REPLACE));
-  PetscCall(PetscSFReduceEnd(sf, MPIU_2INT, leaves, roots, MPI_REPLACE));
+  PetscCall(PetscSFReduceBegin(sf, MPIU_SF_NODE, leaves, roots, MPI_REPLACE));
+  PetscCall(PetscSFReduceEnd(sf, MPIU_SF_NODE, leaves, roots, MPI_REPLACE));
 
   /* Check whether our leaves are sparse */
   for (i = 0, count = 0; i < nroots; i++)
@@ -2082,8 +2100,9 @@ PetscErrorCode PetscSFCompose(PetscSF sfA, PetscSF sfB, PetscSF *sfBA)
     leafdataB[i].rank  = -1;
     leafdataB[i].index = -1;
   }
-  PetscCall(PetscSFBcastBegin(sfB, MPIU_2INT, remotePointsA, PetscSafePointerPlusOffset(leafdataB, -minleaf), MPI_REPLACE));
-  PetscCall(PetscSFBcastEnd(sfB, MPIU_2INT, remotePointsA, PetscSafePointerPlusOffset(leafdataB, -minleaf), MPI_REPLACE));
+  PetscCall(PetscSFBcastBegin(sfB, MPIU_SF_NODE, remotePointsA, PetscSafePointerPlusOffset(leafdataB, -minleaf), MPI_REPLACE));
+  PetscCall(PetscSFBcastEnd(sfB, MPIU_SF_NODE, remotePointsA, PetscSafePointerPlusOffset(leafdataB, -minleaf), MPI_REPLACE));
+  CHKMEMQ;
   PetscCall(PetscFree(reorderedRemotePointsA));
 
   denseB = (PetscBool)!localPointsB;
@@ -2201,8 +2220,8 @@ PetscErrorCode PetscSFComposeInverse(PetscSF sfA, PetscSF sfB, PetscSF *sfBA)
     remotePointsBA[i].index = -1;
   }
 
-  PetscCall(PetscSFReduceBegin(sfB, MPIU_2INT, PetscSafePointerPlusOffset(reorderedRemotePointsA, -minleaf), remotePointsBA, op));
-  PetscCall(PetscSFReduceEnd(sfB, MPIU_2INT, PetscSafePointerPlusOffset(reorderedRemotePointsA, -minleaf), remotePointsBA, op));
+  PetscCall(PetscSFReduceBegin(sfB, MPIU_SF_NODE, PetscSafePointerPlusOffset(reorderedRemotePointsA, -minleaf), remotePointsBA, op));
+  PetscCall(PetscSFReduceEnd(sfB, MPIU_SF_NODE, PetscSafePointerPlusOffset(reorderedRemotePointsA, -minleaf), remotePointsBA, op));
   PetscCall(PetscFree(reorderedRemotePointsA));
   for (i = 0, numLeavesBA = 0; i < numRootsB; i++) {
     if (remotePointsBA[i].rank == -1) continue;
@@ -2591,8 +2610,8 @@ PetscErrorCode PetscSFConcatenate(MPI_Comm comm, PetscInt nsfs, PetscSF sfs[], P
           tmp_rootdata[i].rank  = rank;
         }
       }
-      PetscCall(PetscSFBcastBegin(tmp_sf, MPIU_2INT, tmp_rootdata, tmp_leafdata, MPI_REPLACE));
-      PetscCall(PetscSFBcastEnd(tmp_sf, MPIU_2INT, tmp_rootdata, tmp_leafdata, MPI_REPLACE));
+      PetscCall(PetscSFBcastBegin(tmp_sf, MPIU_SF_NODE, tmp_rootdata, tmp_leafdata, MPI_REPLACE));
+      PetscCall(PetscSFBcastEnd(tmp_sf, MPIU_SF_NODE, tmp_rootdata, tmp_leafdata, MPI_REPLACE));
       PetscCall(PetscSFDestroy(&tmp_sf));
       PetscCall(PetscFree(tmp_rootdata));
     }

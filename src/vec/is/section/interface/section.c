@@ -1291,7 +1291,7 @@ PetscErrorCode PetscSectionSetUp(PetscSection s)
 {
   PetscInt        f;
   const PetscInt *pind   = NULL;
-  PetscInt64      offset = 0;
+  PetscCount      offset = 0;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(s, PETSC_SECTION_CLASSID, 1);
@@ -1302,7 +1302,7 @@ PetscErrorCode PetscSectionSetUp(PetscSection s)
   PetscCheck(s->includesConstraints, PETSC_COMM_SELF, PETSC_ERR_SUP, "PetscSectionSetUp is currently unsupported for includesConstraints = PETSC_TRUE");
   if (s->perm) PetscCall(ISGetIndices(s->perm, &pind));
   if (s->pointMajor) {
-    PetscInt64 foff;
+    PetscCount foff;
     for (PetscInt p = 0; p < s->pEnd - s->pStart; ++p) {
       const PetscInt q = pind ? pind[p] : p;
 
@@ -2443,13 +2443,13 @@ static PetscErrorCode PetscSectionView_ASCII(PetscSection s, PetscViewer viewer)
   for (p = 0; p < s->pEnd - s->pStart; ++p) {
     if (s->bc && s->bc->atlasDof[p] > 0) {
       PetscInt b;
-      PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, "  (%4" PetscInt_FMT ") dim %2" PetscInt_FMT " offset %3" PetscInt_FMT " constrained", p + s->pStart, s->atlasDof[p], s->atlasOff[p]));
+      PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, "  (%4" PetscInt_FMT ") dof %2" PetscInt_FMT " offset %3" PetscInt_FMT " constrained", p + s->pStart, s->atlasDof[p], s->atlasOff[p]));
       if (s->bcIndices) {
         for (b = 0; b < s->bc->atlasDof[p]; ++b) PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, " %" PetscInt_FMT, s->bcIndices[s->bc->atlasOff[p] + b]));
       }
       PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, "\n"));
     } else {
-      PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, "  (%4" PetscInt_FMT ") dim %2" PetscInt_FMT " offset %3" PetscInt_FMT "\n", p + s->pStart, s->atlasDof[p], s->atlasOff[p]));
+      PetscCall(PetscViewerASCIISynchronizedPrintf(viewer, "  (%4" PetscInt_FMT ") dof %2" PetscInt_FMT " offset %3" PetscInt_FMT "\n", p + s->pStart, s->atlasDof[p], s->atlasOff[p]));
     }
   }
   PetscCall(PetscViewerFlush(viewer));

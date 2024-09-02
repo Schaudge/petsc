@@ -328,7 +328,7 @@ PetscErrorCode PetscBinaryRead(int fd, void *data, PetscCount num, PetscInt *cou
   PetscCheck(!m || count, PETSC_COMM_SELF, PETSC_ERR_FILE_READ, "Read past end of file");
 
   num = n / typesize;                               /* Should we require `n % typesize == 0` ? */
-  if (count) PetscCall(PetscCountCast(num, count)); /* TODO: This is most likely wrong for PETSC_BIT_LOGICAL */
+  if (count) PetscCall(PetscIntCast(num, count)); /* TODO: This is most likely wrong for PETSC_BIT_LOGICAL */
 
 #if defined(PETSC_USE_REAL___FLOAT128)
   if ((type == PETSC_REAL || type == PETSC_COMPLEX) && readdouble) {

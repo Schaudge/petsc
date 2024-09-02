@@ -2446,7 +2446,7 @@ PetscErrorCode KSPGetResidualHistory(KSP ksp, const PetscReal *a[], PetscInt *na
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ksp, KSP_CLASSID, 1);
   if (a) *a = ksp->res_hist;
-  if (na) PetscCall(PetscCountCast(ksp->res_hist_len, na));
+  if (na) PetscCall(PetscIntCast(ksp->res_hist_len, na));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -2525,7 +2525,7 @@ PetscErrorCode KSPGetErrorHistory(KSP ksp, const PetscReal *a[], PetscInt *na)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ksp, KSP_CLASSID, 1);
   if (a) *a = ksp->err_hist;
-  if (na) PetscCall(PetscCountCast(ksp->err_hist_len, na));
+  if (na) PetscCall(PetscIntCast(ksp->err_hist_len, na));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

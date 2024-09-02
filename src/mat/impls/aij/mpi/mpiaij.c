@@ -6201,7 +6201,7 @@ static PetscErrorCode MatMergeEntries_Internal(Mat mat, const PetscInt j1[], con
       t2++;
       t++;
     }
-    PetscCall(PetscCountCast(t, i + r + 1));
+    PetscCall(PetscIntCast(t, i + r + 1));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -6507,7 +6507,7 @@ PetscErrorCode MatSetPreallocationCOO_MPIAIJ(Mat mat, PetscCount coo_n, PetscInt
       maxNsend = maxNsend2;
     }
     sendto[nsend] = owner;
-    PetscCall(PetscCountCast(p - k, &nentries[nsend]));
+    PetscCall(PetscIntCast(p - k, &nentries[nsend]));
     nsend++;
     k = p;
   }
@@ -6546,7 +6546,7 @@ PetscErrorCode MatSetPreallocationCOO_MPIAIJ(Mat mat, PetscCount coo_n, PetscInt
     PetscCheck(offsets[k] >= 0, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Number of SF roots is too large for PetscInt");
     for (q = 0; q < nentries[k]; q++, p++) {
       iremote[p].rank = sendto[k];
-      PetscCall(PetscCountCast(offsets[k] + q, &iremote[p].index));
+      PetscCall(PetscIntCast(offsets[k] + q, &iremote[p].index));
     }
   }
   PetscCall(PetscSFSetGraph(sf2, nroots, nleaves, NULL, PETSC_OWN_POINTER, iremote, PETSC_OWN_POINTER));
@@ -7115,12 +7115,12 @@ static PetscErrorCode MatProductNumeric_MPIAIJBACKEND(Mat C)
   for (i = 0, n_d = 0, n_o = 0; i < mmdata->cp; i++) {
     PetscInt noff;
 
-    PetscCall(PetscCountCast(mmdata->off[i + 1] - mmdata->off[i], &noff));
+    PetscCall(PetscIntCast(mmdata->off[i + 1] - mmdata->off[i], &noff));
     if (mmdata->mptmp[i]) continue;
     if (noff) {
       PetscInt nown;
 
-      PetscCall(PetscCountCast(mmdata->own[i + 1] - mmdata->own[i], &nown));
+      PetscCall(PetscIntCast(mmdata->own[i + 1] - mmdata->own[i], &nown));
       PetscCall(MatSeqAIJCopySubArray(mmdata->mp[i], noff, mmdata->off[i], mmdata->coo_w + n_o));
       PetscCall(MatSeqAIJCopySubArray(mmdata->mp[i], nown, mmdata->own[i], mmdata->coo_v + n_d));
       n_o += noff;
@@ -7552,7 +7552,7 @@ PetscErrorCode MatProductSymbolic_MPIAIJBACKEND(Mat C)
 
     PetscCall(PetscSFCreate(PetscObjectComm((PetscObject)C), &mmdata->sf));
     PetscInt incoo_o;
-    PetscCall(PetscCountCast(ncoo_o, &incoo_o));
+    PetscCall(PetscIntCast(ncoo_o, &incoo_o));
     PetscCall(PetscSFSetGraphLayout(mmdata->sf, C->rmap, incoo_o /*nleaves*/, NULL /*ilocal*/, PETSC_OWN_POINTER, coo_i));
     PetscCall(PetscSFGetMultiSF(mmdata->sf, &msf));
     PetscCall(PetscSFGetGraph(msf, &ncoo2 /*nroots*/, NULL, NULL, NULL));

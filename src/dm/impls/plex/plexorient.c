@@ -479,8 +479,8 @@ PetscErrorCode DMPlexOrient(DM dm)
       rorntComp[face].index = faceComp[face - fStart];
     }
     /* Communicate boundary edge orientations */
-    PetscCall(PetscSFBcastBegin(sf, MPIU_2INT, rorntComp, lorntComp, MPI_REPLACE));
-    PetscCall(PetscSFBcastEnd(sf, MPIU_2INT, rorntComp, lorntComp, MPI_REPLACE));
+    PetscCall(PetscSFBcastBegin(sf, MPIU_SF_NODE, rorntComp, lorntComp, MPI_REPLACE));
+    PetscCall(PetscSFBcastEnd(sf, MPIU_SF_NODE, rorntComp, lorntComp, MPI_REPLACE));
   }
   /* Get process adjacency */
   PetscCall(PetscMalloc2(numComponents, &numNeighbors, numComponents, &neighbors));
@@ -560,7 +560,7 @@ PetscErrorCode DMPlexOrient(DM dm)
     }
     if (rank == 0) PetscCall(PetscMalloc2(displs[size], &adj, displs[size], &val));
     PetscCall(PetscMPIIntCast(totNeighbors,&itotNeighbors));
-    PetscCallMPI(MPI_Gatherv(nrankComp, itotNeighbors, MPIU_2INT, adj, recvcounts, displs, MPIU_2INT, 0, comm));
+    PetscCallMPI(MPI_Gatherv(nrankComp, itotNeighbors, MPIU_SF_NODE, adj, recvcounts, displs, MPIU_SF_NODE, 0, comm));
     PetscCallMPI(MPI_Gatherv(match, itotNeighbors, MPIU_BOOL, val, recvcounts, displs, MPIU_BOOL, 0, comm));
     PetscCall(PetscFree2(numNeighbors, neighbors));
     if (rank == 0) {
@@ -846,8 +846,8 @@ PetscErrorCode DMPlexOrientCells_Internal(DM dm, IS cellIS, IS faceIS)
       rorntComp[face].index = faceComp[GetPointIndex(face, fStart, fEnd, faces)];
     }
     // Communicate boundary edge orientations
-    PetscCall(PetscSFBcastBegin(sf, MPIU_2INT, rorntComp, lorntComp, MPI_REPLACE));
-    PetscCall(PetscSFBcastEnd(sf, MPIU_2INT, rorntComp, lorntComp, MPI_REPLACE));
+    PetscCall(PetscSFBcastBegin(sf, MPIU_SF_NODE, rorntComp, lorntComp, MPI_REPLACE));
+    PetscCall(PetscSFBcastEnd(sf, MPIU_SF_NODE, rorntComp, lorntComp, MPI_REPLACE));
   }
   /* Get process adjacency */
   PetscCall(PetscMalloc2(Ncomp, &numNeighbors, Ncomp, &neighbors));
@@ -935,7 +935,7 @@ PetscErrorCode DMPlexOrientCells_Internal(DM dm, IS cellIS, IS faceIS)
     }
     if (rank == 0) PetscCall(PetscMalloc2(displs[size], &adj, displs[size], &val));
     PetscCall(PetscMPIIntCast(totNeighbors,&itotNeighbors));
-    PetscCallMPI(MPI_Gatherv(nrankComp, itotNeighbors, MPIU_2INT, adj, recvcounts, displs, MPIU_2INT, 0, comm));
+    PetscCallMPI(MPI_Gatherv(nrankComp, itotNeighbors, MPIU_SF_NODE, adj, recvcounts, displs, MPIU_SF_NODE, 0, comm));
     PetscCallMPI(MPI_Gatherv(match, itotNeighbors, MPIU_BOOL, val, recvcounts, displs, MPIU_BOOL, 0, comm));
     PetscCall(PetscFree2(numNeighbors, neighbors));
     if (rank == 0) {
