@@ -144,7 +144,6 @@ PetscErrorCode DataCreate(AppCtx *user)
   Vec         yseq;
   PetscInt    seq_local_n;
 
-
   PetscFunctionBegin;
   user->Q = NULL;
   user->A = NULL;
