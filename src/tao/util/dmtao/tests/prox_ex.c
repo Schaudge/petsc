@@ -141,8 +141,8 @@ PetscErrorCode DataCreate(AppCtx *user)
   if (user->compare) {
     /* For compare, we only consider n=10 case */
     PetscViewer viewer;
-    int fd;
-    off_t off, offset;
+    int         fd;
+    off_t       off, offset;
 
     PetscCall(VecDuplicate(user->x, &user->translation));
     PetscCall(VecDuplicate(user->x, &user->sol));
@@ -165,13 +165,13 @@ PetscErrorCode DataCreate(AppCtx *user)
     case PROBLEM_L1:
       user->lam = 0.1;
       /* Skip two empty int per Vec */
-      off = PETSC_BINARY_INT_SIZE*8 + PETSC_BINARY_DOUBLE_SIZE*40;
+      off = PETSC_BINARY_INT_SIZE * 8 + PETSC_BINARY_DOUBLE_SIZE * 40;
       // PetscBinarySeek skip four 10 sized vectors
       break;
     case PROBLEM_SIMPLEX:
       user->simp     = 1.1;
       user->stepsize = 1.; //Currently not allowing stepsize for simplex
-      off = PETSC_BINARY_INT_SIZE*16 + PETSC_BINARY_DOUBLE_SIZE*80;
+      off            = PETSC_BINARY_INT_SIZE * 16 + PETSC_BINARY_DOUBLE_SIZE * 80;
       break;
     case PROBLEM_ZERO:
       break;
@@ -223,7 +223,7 @@ PetscErrorCode DataCreate(AppCtx *user)
 
 PetscErrorCode CheckSolution(AppCtx *user)
 {
-  PetscReal   vec_dist, vec_sum;
+  PetscReal vec_dist, vec_sum;
 
   PetscFunctionBeginUser;
   if (!user->x_test) PetscCall(VecDuplicate(user->x, &user->x_test));
