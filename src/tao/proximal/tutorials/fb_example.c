@@ -23,6 +23,7 @@ typedef struct {
   Vec       x0, x, workvec, workvec2, workvec3, b, xsub, gsub, workvecM, workvecM2, workvecM3;
   IS        is_set;
   PetscReal scale, optimum, lip;
+  char      file[PETSC_MAX_PATH_LEN];
 } AppCtx;
 
 PetscErrorCode Log_UserObjGrad_DM(DM dm, Vec X, PetscReal *f, Vec G, void *ptr)
@@ -285,16 +286,24 @@ PetscErrorCode DataCreate(AppCtx *user)
   case PROB_LOG_REG: {
     PetscViewer viewer;
     PetscInt    low, high;
-    char        mat_data[] = "matrix-heart-scale.dat";
-    char        vec_data[] = "vector-heart-scale_1_0.dat";
+    Vec         temp; /* Temporary vector to hold part of binary that is not used */
 
     user->scale = 0.01;
 
-    PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, mat_data, FILE_MODE_READ, &viewer));
+    /* Loading Matrix and vector */
+    PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, user->file, FILE_MODE_READ, &viewer));
     PetscCall(MatCreate(PETSC_COMM_WORLD, &user->A));
+    PetscCall(VecCreate(PETSC_COMM_WORLD, &temp));
+    PetscCall(VecCreate(PETSC_COMM_WORLD, &user->b));
     PetscCall(MatSetType(user->A, MATMPIAIJ));
     PetscCall(MatLoad(user->A, viewer));
+    PetscCall(VecLoad(temp, viewer));
+    PetscCall(VecLoad(user->b, viewer));
     PetscCall(PetscViewerDestroy(&viewer));
+    /* destroy temp vec */
+    PetscCall(VecDestroy(&temp));
+
+    /* get size */
     PetscCall(MatGetSize(user->A, &user->m, &user->n));
 
     PetscCall(MatCreateVecs(user->A, NULL, &user->workvecM));
@@ -313,10 +322,6 @@ PetscErrorCode DataCreate(AppCtx *user)
        * Lip = Norm(A1 @ A1') / 4 / m */
     user->lip = 1.052285051684358;
 
-    PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, vec_data, FILE_MODE_READ, &viewer));
-    PetscCall(VecCreate(PETSC_COMM_WORLD, &user->b));
-    PetscCall(VecLoad(user->b, viewer));
-    PetscCall(PetscViewerDestroy(&viewer));
     PetscCall(PetscObjectGetComm((PetscObject)user->x, &comm));
     PetscCallMPI(MPI_Comm_size(comm, &size));
     PetscCallMPI(MPI_Comm_rank(comm, &rank));
@@ -377,6 +382,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *user)
   PetscCall(PetscOptionsGetInt(NULL, NULL, "-n", &user->n, NULL));
   PetscCall(PetscOptionsGetInt(NULL, NULL, "-m", &user->m, NULL));
   PetscCall(PetscOptionsGetReal(NULL, NULL, "-scale", &user->scale, NULL));
+  PetscCall(PetscOptionsGetString(NULL, NULL, "-f", user->file, sizeof(user->file), NULL));
   PetscOptionsEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -452,7 +458,7 @@ int main(int argc, char **argv)
 /*TEST
 
    build:
-      requires: !complex !single !__float128 !defined(PETSC_USE_64BIT_INDICES)
+      requires: !complex !single !__float128 !defined(PETSC_USE_64BIT_INDICES) datafilespath
 
    test:
       suffix: lasso_no_ls
@@ -487,16 +493,14 @@ int main(int argc, char **argv)
    test:
       suffix: logreg_fista
       nsize: {{1 2}}
-      localrunfiles: matrix-heart-scale.dat vector-heart-scale_1_0.dat
-      args: -problem prob_log_reg -scale 0.01 -tao_fb_accel 1 -tao_fb_adaptive 0 -tao_converged_reason -tao_max_it 2000
+      args: -problem prob_log_reg -scale 0.01 -tao_fb_accel 1 -tao_fb_adaptive 0 -tao_converged_reason -tao_max_it 2000 -f ${DATAFILESPATH}/tao/heart-scale.dat
       output_file: output/fb_example_logreg_fista.out
       requires: !single
 
    test:
       suffix: logreg_ada
       nsize: {{1 2 4}}
-      localrunfiles: matrix-heart-scale.dat vector-heart-scale_1_0.dat
-      args: -problem prob_log_reg -scale 0.01 -tao_fb_accel 0 -tao_fb_adaptive 1 -tao_max_it 1000 -tao_converged_reason -tao_monitor
+      args: -problem prob_log_reg -scale 0.01 -tao_fb_accel 0 -tao_fb_adaptive 1 -tao_max_it 1000 -tao_converged_reason -tao_monitor -f ${DATAFILESPATH}/tao/heart-scale.dat
       output_file: output/fb_example_logreg_ada.out
       requires: !single
 

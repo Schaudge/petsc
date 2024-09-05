@@ -37,6 +37,7 @@ typedef struct {
   Vec       x0, x, workvec, workvec2, workvec3, q, y_translation;
   PetscReal C, lip, matnorm, g_scale;
   PetscBool set_norm;
+  char      file[PETSC_MAX_PATH_LEN];
 } AppCtx;
 
 PetscErrorCode LAD_UserObjGrad_DM(DM dm, Vec X, PetscReal *f, Vec G, void *ptr)
@@ -143,29 +144,23 @@ PetscErrorCode DataCreate(AppCtx *user)
   Vec         yseq;
   PetscInt    seq_local_n;
 
-  char mat_data1[] = "matrix-heart-scale.dat";
-  char vec_data1[] = "vector-heart-scale.dat";
-  char mat_data2[] = "matrix-housing-scale.dat";
-  char vec_data2[] = "vector-housing-scale.dat";
 
   PetscFunctionBegin;
   user->Q = NULL;
   user->A = NULL;
   switch (user->probType) {
   case DUAL_SVM:
-    PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, vec_data1, FILE_MODE_READ, &viewer));
+    PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, user->file, FILE_MODE_READ, &viewer));
+    PetscCall(MatCreate(PETSC_COMM_WORLD, &X));
     PetscCall(VecCreate(PETSC_COMM_WORLD, &y));
+    PetscCall(MatSetType(X, MATMPIAIJ));
+    PetscCall(MatLoad(X, viewer));
     PetscCall(VecLoad(y, viewer));
     PetscCall(PetscViewerDestroy(&viewer));
 
-    PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, mat_data1, FILE_MODE_READ, &viewer));
-    PetscCall(MatCreate(PETSC_COMM_WORLD, &X));
-    PetscCall(MatSetType(X, MATMPIAIJ));
-    PetscCall(MatLoad(X, viewer));
     PetscCall(MatGetSize(X, &user->m, &user->n));
     PetscCall(MatMatTransposeMult(X, X, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &user->Q));
     PetscCall(MatDiagonalScale(user->Q, y, y));
-    PetscCall(PetscViewerDestroy(&viewer));
 
     PetscCall(MatCreate(PETSC_COMM_WORLD, &user->A));
     PetscCall(MatSetType(user->A, MATMPIDENSE));
@@ -209,18 +204,16 @@ PetscErrorCode DataCreate(AppCtx *user)
   case LAD: {
     Vec x_col, a_col;
 
-    PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, vec_data2, FILE_MODE_READ, &viewer));
-    PetscCall(VecCreate(PETSC_COMM_WORLD, &user->y_translation));
-    PetscCall(VecLoad(user->y_translation, viewer));
-    PetscCall(VecScale(user->y_translation, -1.));
-    PetscCall(PetscViewerDestroy(&viewer));
-
-    PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, mat_data2, FILE_MODE_READ, &viewer));
+    PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, user->file, FILE_MODE_READ, &viewer));
     PetscCall(MatCreate(PETSC_COMM_WORLD, &X));
+    PetscCall(VecCreate(PETSC_COMM_WORLD, &user->y_translation));
     PetscCall(MatSetType(X, MATMPIAIJ));
     PetscCall(MatLoad(X, viewer));
-    PetscCall(MatGetSize(X, &user->m, &user->n));
+    PetscCall(VecLoad(user->y_translation, viewer));
     PetscCall(PetscViewerDestroy(&viewer));
+
+    PetscCall(VecScale(user->y_translation, -1.));
+    PetscCall(MatGetSize(X, &user->m, &user->n));
 
     PetscCall(MatCreate(PETSC_COMM_WORLD, &user->A));
     PetscCall(MatSetType(user->A, MATMPIDENSE));
@@ -312,6 +305,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *user)
   /* Box constraint for SVM */
   PetscCall(PetscOptionsGetReal(NULL, NULL, "-C", &user->C, NULL));
   PetscCall(PetscOptionsGetReal(NULL, NULL, "-g_scale", &user->g_scale, NULL));
+  PetscCall(PetscOptionsGetString(NULL, NULL, "-f", user->file, sizeof(user->file), NULL));
   PetscOptionsEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -392,53 +386,47 @@ int main(int argc, char **argv)
 /*TEST
 
    build:
-      requires: !complex !single !__float128 !defined(PETSC_USE_64BIT_INDICES)
+      requires: !complex !single !__float128 !defined(PETSC_USE_64BIT_INDICES) datafilespath
 
    test:
       suffix: svm_norm
       nsize: {{1 2 4}}
-      localrunfiles: matrix-heart-scale.dat vector-heart-scale.dat
-      args: -problem dual_svm -g_scale 1 -tao_converged_reason -tao_max_it 1000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -tao_ls_max_funcs 0 -set_norm 1
+      args: -problem dual_svm -g_scale 1 -tao_converged_reason -tao_max_it 1000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -tao_ls_max_funcs 0 -set_norm 1 -f ${DATAFILESPATH}/tao/heart-scale.dat
       output_file: output/cv_example_svm_norm.out
       requires: !single
 
    test:
       suffix: svm_norm_ls
       nsize: {{1 2 4}}
-      localrunfiles: matrix-heart-scale.dat vector-heart-scale.dat
-      args: -problem dual_svm -g_scale 1 -tao_converged_reason -tao_max_it 2000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -tao_ls_max_funcs 30 -set_norm 1
+      args: -problem dual_svm -g_scale 1 -tao_converged_reason -tao_max_it 2000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -tao_ls_max_funcs 30 -set_norm 1 -f ${DATAFILESPATH}/tao/heart-scale.dat
       output_file: output/cv_example_svm_norm_ls.out
       requires: !single
 
    test:
       suffix: svm_ls
       nsize: {{1 2 4}}
-      localrunfiles: matrix-heart-scale.dat vector-heart-scale.dat
-      args: -problem dual_svm -g_scale 1 -tao_max_it 20 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -set_norm 0 -tao_ls_max_funcs 30 -tao_monitor
+      args: -problem dual_svm -g_scale 1 -tao_max_it 20 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -set_norm 0 -tao_ls_max_funcs 30 -tao_monitor -f ${DATAFILESPATH}/tao/heart-scale.dat
       output_file: output/cv_example_svm_ls.out
       requires: !single
 
    test:
       suffix: lad_norm
       nsize: {{1 2 4}}
-      localrunfiles: matrix-housing-scale.dat vector-housing-scale.dat
-      args: -problem lad -g_scale 10 -tao_max_it 1000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -tao_ls_max_funcs 0 -set_norm 1
+      args: -problem lad -g_scale 10 -tao_max_it 1000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -tao_ls_max_funcs 0 -set_norm 1 -f ${DATAFILESPATH}/tao/housing-scale.dat
       output_file: output/cv_example_lad_norm.out
       requires: !single
 
    test:
       suffix: lad_norm_ls
       nsize: {{1 2 4}}
-      localrunfiles: matrix-housing-scale.dat vector-housing-scale.dat
-      args: -problem lad -g_scale 10 -tao_max_it 1000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -set_norm 1 -tao_ls_max_funcs 30
+      args: -problem lad -g_scale 10 -tao_max_it 1000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -set_norm 1 -tao_ls_max_funcs 30 -f ${DATAFILESPATH}/tao/housing-scale.dat
       output_file: output/cv_example_lad_norm_ls.out
       requires: !single
 
    test:
       suffix: lad_ls
       nsize: {{1 2 4}}
-      localrunfiles: matrix-housing-scale.dat vector-housing-scale.dat
-      args: -problem lad -g_scale 10 -tao_max_it 1000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -set_norm 0 -tao_ls_max_funcs 30
+      args: -problem lad -g_scale 10 -tao_max_it 1000 -tao_cv_primal_dual_ratio 1 -C 0.1 -tao_gttol 1.e-5 -set_norm 0 -tao_ls_max_funcs 30 -f ${DATAFILESPATH}/tao/housing-scale.dat
       output_file: output/cv_example_lad_ls.out
       requires: !single
 
