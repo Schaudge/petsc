@@ -142,7 +142,7 @@ PetscErrorCode DataCreate(AppCtx *user)
     /* For compare, we only consider n=10 case */
     PetscViewer viewer;
     int         fd;
-    off_t       off, offset;
+    off_t       offset, off = 0;
 
     PetscCall(VecDuplicate(user->x, &user->translation));
     PetscCall(VecDuplicate(user->x, &user->sol));
