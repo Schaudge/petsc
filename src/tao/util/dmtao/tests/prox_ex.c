@@ -26,6 +26,8 @@ typedef struct {
   PetscBool   lb_use_vec, ub_use_vec;
   Vec         x, x_test, y, translation;
   Vec         lb_vec, ub_vec;
+  Vec         sol, sol_trans, sol_conj, sol_conj_trans;
+  char        file[PETSC_MAX_PATH_LEN];
 } AppCtx;
 
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *user)
@@ -80,6 +82,8 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *user)
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-compare", &user->compare, NULL));
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-conjugate", &user->conj, NULL));
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-trans", &user->trans, NULL));
+  /* file name */
+  PetscCall(PetscOptionsGetString(NULL, NULL, "-f", user->file, sizeof(user->file), NULL));
   PetscOptionsEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -136,32 +140,62 @@ PetscErrorCode DataCreate(AppCtx *user)
 
   if (user->compare) {
     /* For compare, we only consider n=10 case */
-    PetscViewer fd;
-    char        inputFile[] = "prox_ex_compare_input_x_y";
+    PetscViewer viewer;
+    int fd;
+    off_t off, offset;
 
-    PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, inputFile, FILE_MODE_READ, &fd));
-    PetscCall(VecLoad(user->y, fd));
     PetscCall(VecDuplicate(user->x, &user->translation));
-    PetscCall(VecLoad(user->translation, fd));
-    PetscCall(PetscViewerDestroy(&fd));
+    PetscCall(VecDuplicate(user->x, &user->sol));
+    PetscCall(VecDuplicate(user->x, &user->sol_trans));
+    PetscCall(VecDuplicate(user->x, &user->sol_conj));
+    PetscCall(VecDuplicate(user->x, &user->sol_conj_trans));
+
+    /* load viewer */
+    PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, user->file, FILE_MODE_READ, &viewer));
+    /* load x, y */
+    PetscCall(VecLoad(user->y, viewer));
+    PetscCall(VecLoad(user->translation, viewer));
 
     switch (user->problem) {
-    case PROBLEM_L1:
-      user->lam = 0.1;
-      break;
     case PROBLEM_BOX:
       user->lb = -0.2;
       user->ub = 0.3;
+      off      = 0;
+      break;
+    case PROBLEM_L1:
+      user->lam = 0.1;
+      /* Skip two empty int per Vec */
+      off = PETSC_BINARY_INT_SIZE*8 + PETSC_BINARY_DOUBLE_SIZE*40;
+      // PetscBinarySeek skip four 10 sized vectors
       break;
     case PROBLEM_SIMPLEX:
       user->simp     = 1.1;
       user->stepsize = 1.; //Currently not allowing stepsize for simplex
+      off = PETSC_BINARY_INT_SIZE*16 + PETSC_BINARY_DOUBLE_SIZE*80;
       break;
     case PROBLEM_ZERO:
       break;
     default:
       SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER, "Unsupported problem type!");
     }
+    // Order of vectors in binary: Box, L1, Simplex
+    PetscCall(PetscViewerBinaryGetDescriptor(viewer, &fd));
+    PetscCall(PetscBinarySeek(fd, off, PETSC_BINARY_SEEK_CUR, &offset));
+    switch (user->problem) {
+    case PROBLEM_BOX:
+    case PROBLEM_L1:
+    case PROBLEM_SIMPLEX:
+      PetscCall(VecLoad(user->sol, viewer));
+      PetscCall(VecLoad(user->sol_trans, viewer));
+      PetscCall(VecLoad(user->sol_conj, viewer));
+      PetscCall(VecLoad(user->sol_conj_trans, viewer));
+      break;
+    case PROBLEM_ZERO:
+      break;
+    default:
+      SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER, "Unsupported problem type!");
+    }
+    PetscCall(PetscViewerDestroy(&viewer));
   } else {
     PetscCall(PetscRandomCreate(PETSC_COMM_WORLD, &rctx));
     PetscCall(PetscRandomSetFromOptions(rctx));
@@ -190,64 +224,31 @@ PetscErrorCode DataCreate(AppCtx *user)
 PetscErrorCode CheckSolution(AppCtx *user)
 {
   PetscReal   vec_dist, vec_sum;
-  PetscViewer fd;
 
   PetscFunctionBeginUser;
   if (!user->x_test) PetscCall(VecDuplicate(user->x, &user->x_test));
 
   if (user->compare) {
-    Vec sol, sol_trans, sol_conj, sol_conj_trans;
-
-    PetscCall(VecDuplicate(user->x, &sol));
-    PetscCall(VecDuplicate(user->x, &sol_trans));
-    PetscCall(VecDuplicate(user->x, &sol_conj));
-    PetscCall(VecDuplicate(user->x, &sol_conj_trans));
-
     switch (user->problem) {
-    case PROBLEM_L1: {
-      // SoftTresh with scale 0.1
-      char filename[] = "prox_ex_compare_l1_0_dot_1_sol";
-      PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename, FILE_MODE_READ, &fd));
-      PetscCall(VecLoad(sol, fd));
-      PetscCall(VecLoad(sol_trans, fd));
-      PetscCall(VecLoad(sol_conj, fd));
-      PetscCall(VecLoad(sol_conj_trans, fd));
-      PetscCall(PetscViewerDestroy(&fd));
-    } break;
-    case PROBLEM_SIMPLEX: {
-      char filename[] = "prox_ex_compare_simplex_1_dot_1_sol";
-      PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename, FILE_MODE_READ, &fd));
-      PetscCall(VecLoad(sol, fd));
-      PetscCall(VecLoad(sol_trans, fd));
-      PetscCall(VecLoad(sol_conj, fd));
-      PetscCall(VecLoad(sol_conj_trans, fd));
-      PetscCall(PetscViewerDestroy(&fd));
-    } break;
-    case PROBLEM_BOX: {
-      // Box with [-0.2, 0.3]
-      char filename[] = "prox_ex_compare_box_neg_0_dot_2_pos_0_dot_3_sol";
-      PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename, FILE_MODE_READ, &fd));
-      PetscCall(VecLoad(sol, fd));
-      PetscCall(VecLoad(sol_trans, fd));
-      PetscCall(VecLoad(sol_conj, fd));
-      PetscCall(VecLoad(sol_conj_trans, fd));
-      PetscCall(PetscViewerDestroy(&fd));
-    } break;
+    case PROBLEM_L1:
+    case PROBLEM_SIMPLEX:
+    case PROBLEM_BOX:
+      break;
     case PROBLEM_ZERO:
-      PetscCall(VecSet(sol, 0.));
-      PetscCall(VecCopy(user->y, sol_conj));
-      PetscCall(VecCopy(user->translation, sol_trans));
-      PetscCall(VecScale(sol_trans, -1.));
-      PetscCall(VecWAXPY(sol_conj_trans, 1., user->y, user->translation));
+      PetscCall(VecSet(user->sol, 0.));
+      PetscCall(VecCopy(user->y, user->sol_conj));
+      PetscCall(VecCopy(user->translation, user->sol_trans));
+      PetscCall(VecScale(user->sol_trans, -1.));
+      PetscCall(VecWAXPY(user->sol_conj_trans, 1., user->y, user->translation));
       break;
     default:
       SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER, "Unsupported problem type!");
     }
 
-    if (user->conj && user->trans) PetscCall(VecWAXPY(user->x_test, -1., user->x, sol_conj_trans));
-    else if (user->conj && !user->trans) PetscCall(VecWAXPY(user->x_test, -1., user->x, sol_conj));
-    else if (!user->conj && user->trans) PetscCall(VecWAXPY(user->x_test, -1., user->x, sol_trans));
-    else if (!user->conj && !user->trans) PetscCall(VecWAXPY(user->x_test, -1., user->x, sol));
+    if (user->conj && user->trans) PetscCall(VecWAXPY(user->x_test, -1., user->x, user->sol_conj_trans));
+    else if (user->conj && !user->trans) PetscCall(VecWAXPY(user->x_test, -1., user->x, user->sol_conj));
+    else if (!user->conj && user->trans) PetscCall(VecWAXPY(user->x_test, -1., user->x, user->sol_trans));
+    else if (!user->conj && !user->trans) PetscCall(VecWAXPY(user->x_test, -1., user->x, user->sol));
     else PetscUnreachable();
 
     PetscCall(VecAbs(user->x_test));
@@ -256,10 +257,6 @@ PetscErrorCode CheckSolution(AppCtx *user)
     else if (vec_sum < 1.e-6) PetscCall(PetscPrintf(PETSC_COMM_WORLD, "distance between ground truth and solution: < 1.e-6\n"));
     else PetscCall(PetscPrintf(PETSC_COMM_WORLD, "distance ground truth and solution: %e\n", (double)vec_sum));
 
-    PetscCall(VecDestroy(&sol));
-    PetscCall(VecDestroy(&sol_trans));
-    PetscCall(VecDestroy(&sol_conj));
-    PetscCall(VecDestroy(&sol_conj_trans));
   } else {
     switch (user->problem) {
     case PROBLEM_L1:
@@ -315,6 +312,12 @@ PetscErrorCode DataDestroy(AppCtx *user)
   if (user->lb_vec) PetscCall(VecDestroy(&user->lb_vec));
   if (user->ub_vec) PetscCall(VecDestroy(&user->ub_vec));
   if (user->translation) PetscCall(VecDestroy(&user->translation));
+  if (user->compare) {
+    PetscCall(VecDestroy(&user->sol));
+    PetscCall(VecDestroy(&user->sol_trans));
+    PetscCall(VecDestroy(&user->sol_conj));
+    PetscCall(VecDestroy(&user->sol_conj_trans));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -388,7 +391,7 @@ int main(int argc, char **argv)
 /*TEST
 
    build:
-      requires: !complex !single !__float128 !defined(PETSC_USE_64BIT_INDICES)
+      requires: !complex !single !__float128 !defined(PETSC_USE_64BIT_INDICES) datafilespath
 
    test:
       nsize: {{1 2 4}}
@@ -400,8 +403,7 @@ int main(int argc, char **argv)
    test:
       nsize: {{1 2 4}}
       suffix: soft_compare
-      localrunfiles: prox_ex_compare_input_x_y prox_ex_compare_l1_0_dot_1_sol
-      args: -problem l1 -l2_null {{0 1}} -compare 1 -conjugate {{1 0}} -trans{{0 1}}
+      args: -problem l1 -l2_null {{0 1}} -compare 1 -conjugate {{1 0}} -trans{{0 1}} -f ${DATAFILESPATH}/tao/prox_ex_compare.dat
       output_file: output/prox_ex_soft_compare.out
       requires: !single
 
@@ -415,8 +417,7 @@ int main(int argc, char **argv)
    test:
       nsize: {{1 2 4}}
       suffix: simplex_compare
-      localrunfiles: prox_ex_compare_input_x_y prox_ex_compare_simplex_1_dot_1_sol
-      args: -problem simplex -l2_null {{0 1}} -compare 1 -conjugate {{0 1}} -trans {{0 1}}
+      args: -problem simplex -l2_null {{0 1}} -compare 1 -conjugate {{0 1}} -trans {{0 1}} -f ${DATAFILESPATH}/tao/prox_ex_compare.dat
       output_file: output/prox_ex_simplex_compare.out
       requires: !single
 
@@ -430,8 +431,7 @@ int main(int argc, char **argv)
    test:
       nsize: {{1 2 4}}
       suffix: box_compare
-      localrunfiles: prox_ex_compare_input_x_y prox_ex_compare_box_neg_0_dot_2_pos_0_dot_3_sol
-      args: -problem box -l2_null {{0 1}} -compare 1 -conjugate {{0 1}} -trans {{0 1}}
+      args: -problem box -l2_null {{0 1}} -compare 1 -conjugate {{0 1}} -trans {{0 1}} -f ${DATAFILESPATH}/tao/prox_ex_compare.dat
       output_file: output/prox_ex_box_compare.out
       requires: !single
 
@@ -445,8 +445,7 @@ int main(int argc, char **argv)
    test:
       nsize: {{1 2 4}}
       suffix: zero_compare
-      localrunfiles: prox_ex_compare_input_x_y
-      args: -problem zero -l2_null {{0 1}} -compare 1 -conjugate {{0 1}} -trans {{0 1}}
+      args: -problem zero -l2_null {{0 1}} -compare 1 -conjugate {{0 1}} -trans {{0 1}} -f ${DATAFILESPATH}/tao/prox_ex_compare.dat
       output_file: output/prox_ex_zero_compare.out
       requires: !single
 
