@@ -40,6 +40,10 @@ class Retriever(logger.Logger):
     for url in urls:
       parsed = urlparse_local.urlparse(url)
       if self.isGitURL(url):
+        git_url = self.removePrefix(url,'git://')
+        git_ssh_github_url = git_url.replace('https://github.com/','git@github.com:')
+        self.git_urls.append(git_url)
+        self.git_urls.append(git_ssh_github_url)
         self.git_urls.append(self.removePrefix(url,'git://'))
       elif parsed[0] == 'hg'or (parsed[0] == 'ssh' and parsed[1].startswith('hg@')):
         self.hg_urls.append(self.removePrefix(url,'hg://'))
@@ -49,6 +53,8 @@ class Retriever(logger.Logger):
         self.link_urls.append(self.removePrefix(url,'link://'))
       else:
         self.tarball_urls.extend([url])
+        if url.startswith('https://github.com/'):
+          self.tarball_urls.extend(['https://web.cels.anl.gov/projects/petsc/download/externalpackages/'+ url.split('/')[-1]])
 
   def isDirectoryGitRepo(self, directory):
     if not hasattr(self.sourceControl, 'git'):
