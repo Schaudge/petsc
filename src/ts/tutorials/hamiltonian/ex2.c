@@ -26,6 +26,7 @@ static char help[] = "Landau Damping/Two Stream instability test using Vlasov-Po
 #include <petscdraw.h>
 #include <petsc/private/dmpleximpl.h>  /* For norm and dot */
 #include <petsc/private/petscfeimpl.h> /* For interpolation */
+#include <petsc/private/dmswarmimpl.h> /* For swarm debugging */
 #include "petscdm.h"
 #include "petscdmlabel.h"
 
@@ -109,6 +110,8 @@ typedef struct {
   PetscBool   twostream;
   PetscBool   checkweights;
   PetscInt    checkVRes; /* Flag to check/output velocity residuals for nightly tests */
+
+  PetscLogEvent RhsXEvent, RhsVEvent, ESolveEvent, ETabEvent;
 } AppCtx;
 
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
@@ -176,6 +179,11 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   PetscCall(PetscOptionsRealArray("-charges", "Species charges", "ex2.c", options->charges, &maxSpecies, NULL));
   PetscCall(PetscOptionsEnum("-em_type", "Type of electrostatic solver", "ex2.c", EMTypes, (PetscEnum)options->em, (PetscEnum *)&options->em, NULL));
   PetscOptionsEnd();
+
+  PetscCall(PetscLogEventRegister("RhsX", TS_CLASSID, &options->RhsXEvent));
+  PetscCall(PetscLogEventRegister("RhsV", TS_CLASSID, &options->RhsVEvent));
+  PetscCall(PetscLogEventRegister("ESolve", TS_CLASSID, &options->ESolveEvent));
+  PetscCall(PetscLogEventRegister("ETab", TS_CLASSID, &options->ETabEvent));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -341,7 +349,7 @@ static PetscErrorCode computeParticleMoments(DM sw, PetscReal moments[3], AppCtx
       for (d = 0; d < dim; ++d) mom[2] += PetscRealPart(w[idx]) * c[d] * c[d];
       //if (w[idx] < 0. ) PetscPrintf(PETSC_COMM_WORLD, "error, negative weight %" PetscInt_FMT " \n", idx);
     }
-    PetscCall(PetscFree(pidx));
+    PetscCall(DMSwarmSortRestorePointsPerCell(sw, cell, &Np, &pidx));
   }
   PetscCall(DMSwarmRestoreField(sw, "velocity", NULL, NULL, (void **)&coords));
   PetscCall(DMSwarmRestoreField(sw, "w_q", NULL, NULL, (void **)&w));
@@ -561,7 +569,7 @@ static PetscErrorCode MonitorPositions_2D(TS ts, PetscInt step, PetscReal t, Vec
           PetscCall(PetscDrawSPAddPoint(user->positionDrawSP, &x[p * dim], &v[p * dim]));
         }
       }
-      PetscCall(PetscFree(pidx));
+      PetscCall(DMSwarmSortRestorePointsPerCell(sw, c, &Npc, &pidx));
     }
     PetscCall(PetscDrawSPDraw(user->positionDrawSP, PETSC_TRUE));
     PetscCall(PetscDrawSave(user->positionDraw));
@@ -610,7 +618,7 @@ static PetscErrorCode MonitorPoisson(TS ts, PetscInt step, PetscReal t, Vec U, v
       }
       xval = (c + 0.5) * ((upper[0] - lower[0]) / (cEnd - cStart));
       PetscCall(PetscDrawSPAddPoint(user->EDrawSP, &xval, &Esum));
-      PetscCall(PetscFree(pidx));
+      PetscCall(DMSwarmSortRestorePointsPerCell(sw, c, &Npc, &pidx));
     }
     for (c = 0; c < (cEnd - cStart); ++c) {
       xval = (c + 0.5) * ((upper[0] - lower[0]) / (cEnd - cStart));
@@ -847,15 +855,243 @@ PetscErrorCode PetscPDFCosine2D(const PetscReal x[], const PetscReal scale[], Pe
   return PETSC_SUCCESS;
 }
 
-PetscErrorCode PetscPDFCosine1D_TwoStream(const PetscReal x[], const PetscReal scale[], PetscReal p[])
+static PetscErrorCode CreateVelocityDM(DM sw, DM *vdm)
 {
-  const PetscReal alpha = scale ? scale[0] : 0.0;
-  const PetscReal k     = scale ? scale[1] : 1.;
-  p[0]                  = (1. + alpha * PetscCosReal(k * x[0]));
-  return PETSC_SUCCESS;
+  PetscFunctionBegin;
+  PetscCall(DMCreate(PETSC_COMM_SELF, vdm));
+  PetscCall(DMSetType(*vdm, DMPLEX));
+  PetscCall(DMPlexSetOptionsPrefix(*vdm, "v"));
+  PetscCall(DMSetFromOptions(*vdm));
+  PetscCall(DMViewFromOptions(*vdm, NULL, "-dm_view"));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode InitializeParticles_Centroid(DM sw, PetscBool force1D)
+{
+  DM_Swarm  *swarm = (DM_Swarm *)sw->data;
+  DM         xdm, vdm;
+  PetscReal  vmin[3], vmax[3];
+  PetscReal *x, *v;
+  PetscInt  *species, *cellid;
+  PetscInt   dim, xcStart, xcEnd, vcStart, vcEnd, Ns, Np, Npc, debug;
+  PetscBool  flg;
+  MPI_Comm   comm;
+
+  PetscFunctionBegin;
+  PetscCall(PetscObjectGetComm((PetscObject)sw, &comm));
+
+  PetscOptionsBegin(comm, "", "DMSwarm Options", "DMSWARM");
+  PetscCall(DMSwarmGetNumSpecies(sw, &Ns));
+  PetscCall(PetscOptionsInt("-dm_swarm_num_species", "The number of species", "DMSwarmSetNumSpecies", Ns, &Ns, &flg));
+  if (flg) PetscCall(DMSwarmSetNumSpecies(sw, Ns));
+  PetscCall(PetscOptionsBoundedInt("-dm_swarm_print_coords", "Debug output level for particle coordinate computations", "InitializeParticles", 0, &swarm->printCoords, NULL, 0));
+  PetscCall(PetscOptionsBoundedInt("-dm_swarm_print_weights", "Debug output level for particle weight computations", "InitializeWeights", 0, &swarm->printWeights, NULL, 0));
+  PetscOptionsEnd();
+  debug = swarm->printCoords;
+
+  PetscCall(DMGetDimension(sw, &dim));
+  PetscCall(DMSwarmGetCellDM(sw, &xdm));
+  PetscCall(DMPlexGetHeightStratum(xdm, 0, &xcStart, &xcEnd));
+
+  PetscCall(PetscObjectQuery((PetscObject)sw, "__vdm__", (PetscObject *)&vdm));
+  if (!vdm) {
+    PetscCall(CreateVelocityDM(sw, &vdm));
+    PetscCall(PetscObjectCompose((PetscObject)sw, "__vdm__", (PetscObject)vdm));
+    PetscCall(DMDestroy(&vdm));
+    PetscCall(PetscObjectQuery((PetscObject)sw, "__vdm__", (PetscObject *)&vdm));
+  }
+  PetscCall(DMPlexGetHeightStratum(vdm, 0, &vcStart, &vcEnd));
+
+  // One particle per centroid on the tensor product grid
+  Npc = (vcEnd - vcStart) * Ns;
+  Np  = (xcEnd - xcStart) * Npc;
+  PetscCall(DMSwarmSetLocalSizes(sw, Np, 0));
+  if (debug) {
+    PetscInt gNp;
+    PetscCall(MPIU_Allreduce(&Np, &gNp, 1, MPIU_INT, MPIU_SUM, comm));
+    PetscCall(PetscPrintf(comm, "Global Np = %" PetscInt_FMT "\n", gNp));
+  }
+
+  // Set species and cellid
+  PetscCall(DMSwarmGetField(sw, "species", NULL, NULL, (void **)&species));
+  PetscCall(DMSwarmGetField(sw, DMSwarmPICField_cellid, NULL, NULL, (void **)&cellid));
+  for (PetscInt c = 0, p = 0; c < xcEnd - xcStart; ++c) {
+    for (PetscInt s = 0; s < Ns; ++s) {
+      for (PetscInt q = 0; q < Npc / Ns; ++q, ++p) {
+        species[p] = s;
+        cellid[p]  = c;
+      }
+    }
+  }
+  PetscCall(DMSwarmRestoreField(sw, "species", NULL, NULL, (void **)&species));
+  PetscCall(DMSwarmRestoreField(sw, DMSwarmPICField_cellid, NULL, NULL, (void **)&cellid));
+
+  // Set particle coordinates
+  PetscCall(DMSwarmGetField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&x));
+  PetscCall(DMSwarmGetField(sw, "velocity", NULL, NULL, (void **)&v));
+  PetscCall(DMSwarmSortGetAccess(sw));
+  PetscCall(DMGetBoundingBox(vdm, vmin, vmax));
+  PetscCall(DMGetCoordinatesLocalSetUp(xdm));
+  for (PetscInt c = 0; c < xcEnd - xcStart; ++c) {
+    const PetscInt cell = c + xcStart;
+    PetscInt      *pidx, Npc;
+    PetscReal      centroid[3], volume;
+
+    PetscCall(DMSwarmSortGetPointsPerCell(sw, c, &Npc, &pidx));
+    PetscCall(DMPlexComputeCellGeometryFVM(xdm, cell, &volume, centroid, NULL));
+    for (PetscInt s = 0; s < Ns; ++s) {
+      for (PetscInt q = 0; q < Npc / Ns; ++q) {
+        const PetscInt p = pidx[q * Ns + s];
+
+        for (PetscInt d = 0; d < dim; ++d) {
+          x[p * dim + d] = centroid[d];
+          v[p * dim + d] = vmin[0] + (q + 0.5) * ((vmax[0] - vmin[0]) / (Npc / Ns));
+          if (force1D && d > 0) v[p * dim + d] = 0.;
+        }
+      }
+    }
+    PetscCall(DMSwarmSortRestorePointsPerCell(sw, c, &Npc, &pidx));
+  }
+  PetscCall(DMSwarmSortRestoreAccess(sw));
+  PetscCall(DMSwarmRestoreField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&x));
+  PetscCall(DMSwarmRestoreField(sw, "velocity", NULL, NULL, (void **)&v));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*
+  InitializeWeights - Compute weight for each local particle
+
+  Input Parameters:
++ sw          - The `DMSwarm`
+. totalWeight - The sum of all particle weights
+. force1D     - Flag to treat the problem as 1D
+. func        - The PDF for the particle spatial distribution
+- param       - The PDF parameters
+
+  Notes:
+  The PDF for velocity is assumed to be a Gaussian
+
+  The particle weights are returned in the `w_q` field of `sw`.
+*/
+static PetscErrorCode InitializeWeights(DM sw, PetscReal totalWeight, PetscBool force1D, PetscProbFunc func, const PetscReal param[])
+{
+  DM               xdm, vdm;
+  PetscScalar     *weight;
+  PetscQuadrature  xquad;
+  const PetscReal *xq, *xwq;
+  const PetscInt   order = 5;
+  PetscReal       *xqd   = NULL, xi0[3];
+  PetscReal        xwtot = 0., pwtot = 0.;
+  PetscInt         xNq;
+  PetscInt         dim, Ns, xcStart, xcEnd, vcStart, vcEnd, debug = ((DM_Swarm *)sw->data)->printWeights;
+  MPI_Comm         comm;
+  PetscMPIInt      rank;
+
+  PetscFunctionBegin;
+  PetscCall(PetscObjectGetComm((PetscObject)sw, &comm));
+  PetscCallMPI(MPI_Comm_rank(comm, &rank));
+  PetscCall(DMGetDimension(sw, &dim));
+  PetscCall(DMSwarmGetCellDM(sw, &xdm));
+  PetscCall(DMSwarmGetNumSpecies(sw, &Ns));
+  PetscCall(DMPlexGetHeightStratum(xdm, 0, &xcStart, &xcEnd));
+  PetscCall(PetscObjectQuery((PetscObject)sw, "__vdm__", (PetscObject *)&vdm));
+  PetscCall(DMPlexGetHeightStratum(vdm, 0, &vcStart, &vcEnd));
+
+  // Setup Quadrature for spatial and velocity weight calculations
+  if (force1D) PetscCall(PetscDTGaussTensorQuadrature(1, 1, order, -1.0, 1.0, &xquad));
+  else PetscCall(PetscDTGaussTensorQuadrature(dim, 1, order, -1.0, 1.0, &xquad));
+  PetscCall(PetscQuadratureGetData(xquad, NULL, NULL, &xNq, &xq, &xwq));
+  if (force1D) {
+    PetscCall(PetscCalloc1(xNq * dim, &xqd));
+    for (PetscInt q = 0; q < xNq; ++q) xqd[q * dim] = xq[q];
+  }
+  for (PetscInt d = 0; d < dim; ++d) xi0[d] = -1.0;
+
+  // Integrate the density function to get the weights of particles in each cell
+  PetscCall(DMGetCoordinatesLocalSetUp(vdm));
+  PetscCall(DMSwarmSortGetAccess(sw));
+  PetscCall(DMSwarmGetField(sw, "w_q", NULL, NULL, (void **)&weight));
+  for (PetscInt c = xcStart; c < xcEnd; ++c) {
+    PetscReal          xv0[3], xJ[9], xinvJ[9], xdetJ, xqr[3], xden, xw = 0.;
+    PetscInt          *pidx, Npc;
+    PetscInt           xNc;
+    const PetscScalar *xarray;
+    PetscScalar       *xcoords = NULL;
+    PetscBool          xisDG;
+
+    PetscCall(DMPlexGetCellCoordinates(xdm, c, &xisDG, &xNc, &xarray, &xcoords));
+    PetscCall(DMSwarmSortGetPointsPerCell(sw, c, &Npc, &pidx));
+    PetscCheck(Npc == (vcEnd - vcStart) * Ns, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Number of particles %" PetscInt_FMT " in cell (rank %d) != %" PetscInt_FMT " number of velocity vertices", Npc, rank, (vcEnd - vcStart) * Ns);
+    PetscCall(DMPlexComputeCellGeometryFEM(xdm, c, NULL, xv0, xJ, xinvJ, &xdetJ));
+    for (PetscInt q = 0; q < xNq; ++q) {
+      // Transform quadrature points from ref space to real space
+      if (force1D) CoordinatesRefToReal(dim, dim, xi0, xv0, xJ, &xqd[q * dim], xqr);
+      else CoordinatesRefToReal(dim, dim, xi0, xv0, xJ, &xq[q * dim], xqr);
+      // Get probability density at quad point
+      //   No need to scale xqr since PDF will be periodic
+      PetscCall((*func)(xqr, param, &xden));
+      if (force1D) xdetJ = xJ[0]; // Only want x contribution
+      xw += xden * (xwq[q] * xdetJ);
+    }
+    xwtot += xw;
+    if (debug) {
+      IS              globalOrdering;
+      const PetscInt *ordering;
+
+      PetscCall(DMPlexGetCellNumbering(xdm, &globalOrdering));
+      PetscCall(ISGetIndices(globalOrdering, &ordering));
+      PetscCall(PetscSynchronizedPrintf(comm, "c:%" PetscInt_FMT " [x_a,x_b] = %1.15f,%1.15f -> cell weight = %1.15f\n", ordering[c], (double)PetscRealPart(xcoords[0]), (double)PetscRealPart(xcoords[2]), (double)xw));
+      PetscCall(ISRestoreIndices(globalOrdering, &ordering));
+    }
+    // Set weights to be Gaussian in velocity cells
+    for (PetscInt vc = vcStart; vc < vcEnd; ++vc) {
+      const PetscInt     p  = pidx[vc * Ns + 0];
+      PetscReal          vw = 0.;
+      PetscInt           vNc;
+      const PetscScalar *varray;
+      PetscScalar       *vcoords = NULL;
+      PetscBool          visDG;
+
+      PetscCall(DMPlexGetCellCoordinates(vdm, vc, &visDG, &vNc, &varray, &vcoords));
+      // TODO: Fix 2 stream Ask Joe
+      //   Two stream function from 1/2pi v^2 e^(-v^2/2)
+      //   vw = 1. / (PetscSqrtReal(2 * PETSC_PI)) * (((coords_v[0] * PetscExpReal(-PetscSqr(coords_v[0]) / 2.)) - (coords_v[1] * PetscExpReal(-PetscSqr(coords_v[1]) / 2.)))) - 0.5 * PetscErfReal(coords_v[0] / PetscSqrtReal(2.)) + 0.5 * (PetscErfReal(coords_v[1] / PetscSqrtReal(2.)));
+      vw = 0.5 * (PetscErfReal(vcoords[1] / PetscSqrtReal(2.)) - PetscErfReal(vcoords[0] / PetscSqrtReal(2.)));
+
+      weight[p] = totalWeight * vw * xw;
+      pwtot    += weight[p];
+      PetscCheck(weight[p] <= 1., PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Particle %" PetscInt_FMT " weight exceeeded 1: %g, %g, %g", p, xw, vw, totalWeight);
+      PetscCall(DMPlexRestoreCellCoordinates(vdm, vc, &visDG, &vNc, &varray, &vcoords));
+      if (debug) PetscPrintf(comm, "particle %" PetscInt_FMT ": %g, vw: %g xw: %g\n", p, weight[p], vw, xw);
+    }
+    PetscCall(DMPlexRestoreCellCoordinates(xdm, c, &xisDG, &xNc, &xarray, &xcoords));
+    PetscCall(DMSwarmSortRestorePointsPerCell(sw, c, &Npc, &pidx));
+  }
+  PetscCall(DMSwarmRestoreField(sw, "w_q", NULL, NULL, (void **)&weight));
+  PetscCall(DMSwarmSortRestoreAccess(sw));
+  PetscCall(PetscQuadratureDestroy(&xquad));
+  if (force1D) PetscCall(PetscFree(xqd));
+
+  if (debug) {
+    PetscReal wtot[2] = {pwtot, xwtot}, gwtot[2];
+
+    PetscCall(MPIU_Allreduce(wtot, gwtot, 2, MPIU_REAL, MPIU_SUM, PETSC_COMM_WORLD));
+    PetscCall(PetscPrintf(comm, "particle weight sum = %1.10f cell weight sum = %1.10f\n", (double)gwtot[0], (double)gwtot[1]));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode InitializeParticles_PerturbedWeights(DM sw, AppCtx *user)
+{
+  PetscReal scale[2] = {user->cosine_coefficients[0], user->cosine_coefficients[1]};
+
+  PetscFunctionBegin;
+  PetscCall(InitializeParticles_Centroid(sw, user->fake_1D));
+  PetscCall(InitializeWeights(sw, user->totalWeight, user->fake_1D, user->fake_1D ? PetscPDFCosine1D : PetscPDFCosine2D, scale));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode InitializeParticles_PerturbedWeights_Old(DM sw, AppCtx *user)
 {
   DM           vdm, dm;
   PetscScalar *weight;
@@ -926,11 +1162,11 @@ static PetscErrorCode InitializeParticles_PerturbedWeights(DM sw, AppCtx *user)
 
       for (d = 0; d < dim; ++d) {
         x[p * dim + d] = centroid[d];
-        v[p * dim + d] = vmin[0] + (q + 0.5) * (vmax[0] - vmin[0]) / Npc;
+        v[p * dim + d] = vmin[d] + (q + 0.5) * (vmax[d] - vmin[d]) / Npc;
         if (user->fake_1D && d > 0) v[p * dim + d] = 0;
       }
     }
-    PetscCall(PetscFree(pidx));
+    PetscCall(DMSwarmSortRestorePointsPerCell(sw, c, &Npc, &pidx));
   }
   PetscCall(DMGetCoordinatesLocalSetUp(vdm));
 
@@ -971,8 +1207,7 @@ static PetscErrorCode InitializeParticles_PerturbedWeights(DM sw, AppCtx *user)
 
       /*Transform quadrature points from real space to ideal real space (0, 2PI/k)*/
       if (user->fake_1D) {
-        if (user->twostream) PetscCall(PetscPDFCosine1D_TwoStream(xr_x, scale, &den_x));
-        else PetscCall(PetscPDFCosine1D(xr_x, scale, &den_x));
+        PetscCall(PetscPDFCosine1D(xr_x, scale, &den_x));
         detJ_x = J_x[0];
       } else PetscCall(PetscPDFCosine2D(xr_x, scale, &den_x));
       /*We have to transform the quadrature weights as well*/
@@ -1011,7 +1246,7 @@ static PetscErrorCode InitializeParticles_PerturbedWeights(DM sw, AppCtx *user)
       PetscCall(DMPlexRestoreCellCoordinates(vdm, cv, &isDG, &Nc, &array_v, &coords_v));
     }
     PetscCall(DMPlexRestoreCellCoordinates(dm, c, &isDGx, &Ncx, &array_x, &coords_x));
-    PetscCall(PetscFree(pidx));
+    PetscCall(DMSwarmSortRestorePointsPerCell(sw, c, &Npc, &pidx));
   }
   PetscCall(PetscSynchronizedFlush(PETSC_COMM_WORLD, PETSC_STDOUT));
   PetscReal global_cellweight, global_weightsum;
@@ -1027,6 +1262,13 @@ static PetscErrorCode InitializeParticles_PerturbedWeights(DM sw, AppCtx *user)
   PetscCall(DMSwarmRestoreField(sw, "species", NULL, NULL, (void **)&species));
   PetscCall(DMSwarmRestoreField(sw, "velocity", NULL, NULL, (void **)&v));
   PetscCall(DMDestroy(&vdm));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+// Right now, we will assume that the spatial and velocity grids are regular, which will speed up point location immensely
+static PetscErrorCode DMSwarmRemap(DM sw, AppCtx *user)
+{
+  PetscFunctionBegin;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1245,12 +1487,12 @@ static PetscErrorCode ComputeFieldAtParticles_Primal(SNES snes, DM sw, PetscReal
   Vec             phi, locPhi, rho, f;
   PetscReal      *coords;
   PetscInt        dim, cStart, cEnd, Np;
-  PetscQuadrature q;
 
   PetscFunctionBegin;
+  PetscCall(DMGetApplicationContext(sw, (void *)&user));
+  PetscCall(PetscLogEventBegin(user->ESolveEvent, snes, sw, 0, 0));
   PetscCall(DMGetDimension(sw, &dim));
   PetscCall(DMSwarmGetLocalSize(sw, &Np));
-  PetscCall(DMGetApplicationContext(sw, (void *)&user));
 
   KSP         ksp;
   Vec         rho0;
@@ -1326,6 +1568,7 @@ static PetscErrorCode ComputeFieldAtParticles_Primal(SNES snes, DM sw, PetscReal
   PetscCall(DMGlobalToLocalBegin(dm, phi, INSERT_VALUES, locPhi));
   PetscCall(DMGlobalToLocalEnd(dm, phi, INSERT_VALUES, locPhi));
   PetscCall(DMRestoreGlobalVector(dm, &phi));
+  PetscCall(PetscLogEventEnd(user->ESolveEvent, snes, sw, 0, 0));
 
   PetscCall(DMGetDS(dm, &ds));
   PetscCall(PetscDSGetDiscretization(ds, 0, (PetscObject *)&fe));
@@ -1333,6 +1576,7 @@ static PetscErrorCode ComputeFieldAtParticles_Primal(SNES snes, DM sw, PetscReal
   PetscCall(DMPlexGetHeightStratum(dm, 0, &cStart, &cEnd));
   PetscCall(DMSwarmGetField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&coords));
 
+  PetscCall(PetscLogEventBegin(user->ETabEvent, snes, sw, 0, 0));
   for (PetscInt c = cStart; c < cEnd; ++c) {
     PetscTabulation tab;
     PetscScalar    *clPhi = NULL;
@@ -1355,7 +1599,6 @@ static PetscErrorCode ComputeFieldAtParticles_Primal(SNES snes, DM sw, PetscReal
       const PetscInt   p        = points[cp];
 
       for (PetscInt d = 0; d < dim; ++d) E[p * dim + d] = 0.;
-      PetscCall(PetscFEGetQuadrature(fe, &q));
       PetscCall(PetscFEFreeInterpolateGradient_Static(fe, basisDer, clPhi, dim, invJ, NULL, cp, &E[p * dim]));
       for (PetscInt d = 0; d < dim; ++d) {
         E[p * dim + d] *= -1.0;
@@ -1366,11 +1609,12 @@ static PetscErrorCode ComputeFieldAtParticles_Primal(SNES snes, DM sw, PetscReal
     PetscCall(DMRestoreWorkArray(dm, Ncp * dim, MPIU_REAL, &pcoord));
     PetscCall(DMRestoreWorkArray(dm, Ncp * dim, MPIU_REAL, &refcoord));
     PetscCall(PetscTabulationDestroy(&tab));
-    PetscCall(PetscFree(points));
+    PetscCall(DMSwarmSortRestorePointsPerCell(sw, c, &Ncp, &points));
   }
   PetscCall(DMSwarmRestoreField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&coords));
   PetscCall(DMSwarmSortRestoreAccess(sw));
   PetscCall(DMRestoreLocalVector(dm, &locPhi));
+  PetscCall(PetscLogEventEnd(user->ETabEvent, snes, sw, 0, 0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1392,9 +1636,10 @@ static PetscErrorCode ComputeFieldAtParticles_Mixed(SNES snes, DM sw, PetscReal 
   const char     *tmp;
 
   PetscFunctionBegin;
+  PetscCall(DMGetApplicationContext(sw, &user));
+  PetscCall(PetscLogEventBegin(user->ESolveEvent, snes, sw, 0, 0));
   PetscCall(DMGetDimension(sw, &dim));
   PetscCall(DMSwarmGetLocalSize(sw, &Np));
-  PetscCall(DMGetApplicationContext(sw, &user));
 
   /* Create the charges rho */
   PetscCall(SNESGetDM(snes, &dm));
@@ -1478,7 +1723,9 @@ static PetscErrorCode ComputeFieldAtParticles_Mixed(SNES snes, DM sw, PetscReal 
   PetscCall(DMGlobalToLocalBegin(dm, phi, INSERT_VALUES, locPhi));
   PetscCall(DMGlobalToLocalEnd(dm, phi, INSERT_VALUES, locPhi));
   PetscCall(DMRestoreGlobalVector(dm, &phi));
+  PetscCall(PetscLogEventEnd(user->ESolveEvent, snes, sw, 0, 0));
 
+  PetscCall(PetscLogEventBegin(user->ETabEvent, snes, sw, 0, 0));
   PetscCall(DMGetDS(dm, &ds));
   PetscCall(PetscDSGetDiscretization(ds, 0, (PetscObject *)&fe));
   PetscCall(DMSwarmSortGetAccess(sw));
@@ -1518,12 +1765,13 @@ static PetscErrorCode ComputeFieldAtParticles_Mixed(SNES snes, DM sw, PetscReal 
     PetscCall(DMRestoreWorkArray(dm, Ncp * dim, MPIU_REAL, &pcoord));
     PetscCall(DMRestoreWorkArray(dm, Ncp * dim, MPIU_REAL, &refcoord));
     PetscCall(PetscTabulationDestroy(&tab));
-    PetscCall(PetscFree(points));
+    PetscCall(DMSwarmSortRestorePointsPerCell(sw, c, &Ncp, &points));
   }
   PetscCall(PetscFEDestroyCellGeometry(fe, &feGeometry));
   PetscCall(DMSwarmRestoreField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&coords));
   PetscCall(DMSwarmSortRestoreAccess(sw));
   PetscCall(DMRestoreLocalVector(dm, &locPhi));
+  PetscCall(PetscLogEventEnd(user->ETabEvent, snes, sw, 0, 0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1643,6 +1891,7 @@ static PetscErrorCode RHSFunctionX(TS ts, PetscReal t, Vec V, Vec Xres, void *ct
   PetscInt           Np, p, d, dim;
 
   PetscFunctionBeginUser;
+  PetscCall(PetscLogEventBegin(user->RhsXEvent, ts, 0, 0, 0));
   PetscCall(TSGetDM(ts, &sw));
   PetscCall(DMGetDimension(sw, &dim));
   PetscCall(VecGetLocalSize(Xres, &Np));
@@ -1657,6 +1906,7 @@ static PetscErrorCode RHSFunctionX(TS ts, PetscReal t, Vec V, Vec Xres, void *ct
   }
   PetscCall(VecRestoreArrayRead(V, &v));
   PetscCall(VecRestoreArray(Xres, &xres));
+  PetscCall(PetscLogEventEnd(user->RhsXEvent, ts, 0, 0, 0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1673,6 +1923,7 @@ static PetscErrorCode RHSFunctionV(TS ts, PetscReal t, Vec X, Vec Vres, void *ct
   Parameter         *param;
 
   PetscFunctionBeginUser;
+  PetscCall(PetscLogEventBegin(user->RhsVEvent, ts, 0, 0, 0));
   PetscCall(TSGetDM(ts, &sw));
   PetscCall(DMGetDimension(sw, &dim));
   PetscCall(DMSwarmGetField(sw, "initCoordinates", NULL, NULL, (void **)&coords));
@@ -1715,6 +1966,7 @@ static PetscErrorCode RHSFunctionV(TS ts, PetscReal t, Vec X, Vec Vres, void *ct
   PetscCall(DMSwarmRestoreField(sw, "initCoordinates", NULL, NULL, (void **)&coords));
   PetscCall(DMSwarmRestoreField(sw, "initVelocity", NULL, NULL, (void **)&vel));
   PetscCall(DMSwarmRestoreField(sw, "E_field", NULL, NULL, (void **)&E));
+  PetscCall(PetscLogEventEnd(user->RhsVEvent, ts, 0, 0, 0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -2166,8 +2418,10 @@ int main(int argc, char **argv)
                  -em_fieldsplit_field_pc_factor_mat_solver_type superlu_dist \
                -em_fieldsplit_potential_pc_type svd
 
+   # For an eyeball check, we use
+   # -ts_max_steps 1000 -dm_plex_box_faces 10,1 -vdm_plex_box_faces 2000 -monitor_efield
    # For verification, we use
-   # -dm_plex_box_faces 100,1 -vdm_plex_box_faces 8000 -dm_swarm_num_particles 800000
+   # -ts_max_steps 1000 -dm_plex_box_faces 100,1 -vdm_plex_box_faces 8000 -dm_swarm_num_particles 800000 -monitor_efield
    # -ts_monitor_sp_swarm_multi_species 0 -ts_monitor_sp_swarm_retain 0 -ts_monitor_sp_swarm_phase 1 -draw_size 500,500
    testset:
      nsize: {{1 2}}
