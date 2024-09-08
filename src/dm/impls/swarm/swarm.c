@@ -384,7 +384,7 @@ static PetscErrorCode DMSwarmComputeMassMatrix_Private(DM dmc, DM dmf, Mat mass,
             }
           }
         }
-        PetscCall(PetscFree(cindices));
+        PetscCall(DMSwarmSortRestorePointsPerCell(dmc, cell, &numCIndices, &cindices));
       }
       PetscCall(DMPlexRestoreClosureIndices(dmf, fsection, globalFSection, cell, PETSC_FALSE, &numFIndices, &findices, NULL, NULL));
     }
@@ -434,7 +434,7 @@ static PetscErrorCode DMSwarmComputeMassMatrix_Private(DM dmc, DM dmf, Mat mass,
         for (PetscInt c = 0; c < Nc; ++c) rowIDXs[j * Nc + c] = cindices[j] * totNc + c + rStart;
       if (0) PetscCall(DMPrintCellMatrix(cell, name, numCIndices * Nc, numFIndices, elemMat));
       PetscCall(MatSetValues(mass, numCIndices * Nc, rowIDXs, numFIndices, findices, elemMat, ADD_VALUES));
-      PetscCall(PetscFree(cindices));
+      PetscCall(DMSwarmSortRestorePointsPerCell(dmc, cell, &numCIndices, &cindices));
       PetscCall(DMPlexRestoreClosureIndices(dmf, fsection, globalFSection, cell, PETSC_FALSE, &numFIndices, &findices, NULL, NULL));
       PetscCall(PetscTabulationDestroy(&Tcoarse));
     }
@@ -591,7 +591,7 @@ static PetscErrorCode DMSwarmComputeMassMatrixSquare_Private(DM dmc, DM dmf, Mat
       }
     }
 #endif
-    PetscCall(PetscFree(cindices));
+    PetscCall(DMSwarmSortRestorePointsPerCell(dmc, cell, &numCIndices, &cindices));
   }
   PetscCall(PetscHSetIJDestroy(&ht));
   PetscCall(MatXAIJSetPreallocation(mass, 1, dnz, onz, NULL, NULL));
@@ -652,7 +652,7 @@ static PetscErrorCode DMSwarmComputeMassMatrixSquare_Private(DM dmc, DM dmf, Mat
       }
       PetscCall(MatSetValues(mass, numCIndices, rowIDXs, numCIndices, rowIDXs, elemMatSq, ADD_VALUES));
       /* TODO off-diagonal */
-      PetscCall(PetscFree(cindices));
+      PetscCall(DMSwarmSortRestorePointsPerCell(dmc, cell, &numCIndices, &cindices));
       PetscCall(DMPlexRestoreClosureIndices(dmf, fsection, globalFSection, cell, PETSC_FALSE, &numFIndices, &findices, NULL, NULL));
     }
     PetscCall(DMSwarmRestoreField(dmc, DMSwarmPICField_coor, NULL, NULL, (void **)&coords));
@@ -1775,7 +1775,7 @@ PetscErrorCode DMSwarmGetCellSwarm(DM sw, PetscInt cellID, DM cellswarm)
   PetscCall(DMSwarmSortGetPointsPerCell(sw, cellID, &particles, &pids));
   PetscCall(DMSwarmDataBucketCreateFromSubset(original->db, particles, pids, &((DM_Swarm *)cellswarm->data)->db));
   PetscCall(DMSwarmSortRestoreAccess(sw));
-  PetscCall(PetscFree(pids));
+  PetscCall(DMSwarmSortRestorePointsPerCell(sw, cellID, &particles, &pids));
   PetscCall(DMSwarmGetCellDM(sw, &dmc));
   PetscCall(DMLabelCreate(PetscObjectComm((PetscObject)sw), "singlecell", &label));
   PetscCall(DMAddLabel(dmc, label));
@@ -1817,7 +1817,7 @@ PetscErrorCode DMSwarmRestoreCellSwarm(DM sw, PetscInt cellID, DM cellswarm)
   /* Free memory, destroy cell dm */
   PetscCall(DMSwarmGetCellDM(cellswarm, &dmc));
   PetscCall(DMDestroy(&dmc));
-  PetscCall(PetscFree(pids));
+  PetscCall(DMSwarmSortRestorePointsPerCell(sw, cellID, &particles, &pids));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
