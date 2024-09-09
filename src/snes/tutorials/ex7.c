@@ -1664,7 +1664,7 @@ static PetscErrorCode SolveDW_Fine(MPI_Comm comm, DM dm, Mat M, AppCtx *user){
   PetscFunctionBegin;
   PetscCall(DMGetGlobalVector(dm, &u));
   PetscCall(DMGetGlobalVector(dm, &f));
-  // Configure the input vectors, this is not a real fermion field
+  // Configure the input vectors
   PetscCall(PetscRandomCreate(comm, &r));
   PetscCall(PetscRandomSetType(r, PETSCRAND48));
   PetscCall(VecSetRandom(u, r));
@@ -1936,8 +1936,8 @@ static PetscErrorCode TestCoarsening(MPI_Comm comm, DM dm, Mat M, Mat MC, Mat R,
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-// PV test
-// ./ex7 -dm_plex_dim 5 -dm_plex_shape hypercubic -dm_plex_box_faces 8,8,8,8,8 -grid_load_type 3 -grid_file ${GRID_LATTICE_FILE} --grid 8.8.8.8 -use_pv -eig_eps_monitor -eig_eps_nev 200 -eig_eps_smallest_real
+// BCGS test case
+//./ex7 -dm_plex_box_faces 16,16,16,32,16 --grid 16.16.16.32 -dm_plex_dim 5 -dm_plex_shape hypercubic -grid_file ${GRID_LATTICE_FILE} -grid_load_type 3 -ksp_fine_ksp_atol 1.0e-80 -ksp_fine_ksp_converged_reason -ksp_fine_ksp_max_it 50000 -ksp_fine_ksp_monitor -ksp_fine_ksp_rtol 1e-16 -ksp_fine_ksp_type bcgs -log_view -use_pv
 int main(int argc, char **argv)
 {
   DM     dm, cdm;
@@ -1998,6 +1998,7 @@ int main(int argc, char **argv)
     PetscCall(SetUpPreconditionedOperator(dm, &precOp, &user));
     PetscCall(MatSetDM(precOp, dm));
     PetscCall(SolveDW_Fine(comm, dm, precOp, &user));
+    PetscCall(SolveDW_Fine_Eig(comm, dm, precOp, &user));
   }
   else {
     PetscCall(SetupWilson(dm, PETSC_TRUE, &M, &user, argc, argv));
