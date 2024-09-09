@@ -20,7 +20,6 @@ locale.setlocale(locale.LC_ALL, '')
 #plt.rcParams.update({'font.weight': "bold"})
 ncells_str = "0"
 npart_strLoc = "0"
-ncells_str2 = "0"
 npart_str_global = "0"
 nfiles = 0
 max_steps=500
@@ -54,7 +53,6 @@ for filename in sys.argv[1:]:
         n = len(words)
         # Global Np = 128000 Global cells = 64
         if n > 1 and words[0] == 'Global':
-            ncells_str2 = words[7] # not needed
             npart_str_global = words[3]
             npart_global = int(npart_str_global)
             npart_str_global = format(int(npart_str_global), ',')
@@ -79,7 +77,7 @@ for filename in sys.argv[1:]:
                 Emax[stepi,amr_id, 2] = float(words[5])
             stepi = stepi + 1
     nfiles = nfiles + 1
-    print ('num particles: ', npart_loc, npart_str_global, ', num cells: ', ncells_str, ncells_str2)
+    print ('num particles: ', npart_loc, npart_str_global, ', num cells: ', ncells_str)
 #n_np = len(NPs_loc)
 #print(num_glab_p[:,0:n_np])
 #marks = ['s','o', 'D', 'P']
@@ -95,19 +93,15 @@ series_name_AMR = ['No AMR','1 AMR level','2 AMR level','3 AMR level']
 # printing result 
 #print("The data type converted Matrix : " + str(series_name_Np))
 ylabel = r'$E_{max}$'
-print (Emax[0:3,amr_min:amr_max,0])
-print(num_glab_p,'amr_max',amr_max)
-print (Emax[0:3,amr_min:amr_max,1])
-print (Emax[0:3,amr_min:amr_max,2])
 #
 # plot AMR vs NPART = 1024
 #
-titles = [name_str + ': ' + ncells_str2 + ' cells', name_str + ': ' + ncells_str2 + ' cells, ~160K particles', name_str + ': ' + ncells_str2 + ' cells (extra)']
+titles = [name_str + ': ' + ncells_str + ' cells', name_str + ': ' + ncells_str + ' cells, ~160K particles', name_str + ': ' + ncells_str + ' cells (extra)']
 if sum(sum(Emax[:stepi,amr_min:amr_max,0])) > 0:
     print ('series_name_AMR_GP = ',series_name_AMR_GP)
     df = pd.DataFrame(data=Emax[:stepi,amr_min:amr_max,0], index=Times[:stepi], columns=series_name_AMR_GP)
     ax = df.plot(lw=1, style=styles, markersize=1, logx=False, logy=True, grid=True, legend=False)
-    title = titles[0] #name_str + ': ' + ncells_str2 + ' cells'
+    title = titles[0] #name_str + ': ' + ncells_str + ' cells'
     ax.set_title(title, pad=20, fontdict={'fontsize':14}) # , fontdict={'fontsize':16}
     patches, labels = ax.get_legend_handles_labels()
     ax.legend(patches, labels, loc='best', fontsize=10) #, fontsize=14
@@ -128,7 +122,7 @@ if sum(sum(Emax[:stepi,amr_min:amr_max,1])) > 0:
     print(series_name_AMR[amr_min:amr_max])
     df = pd.DataFrame(data=Emax[:stepi,amr_min:amr_max,1], index=Times[:stepi], columns=series_name_AMR[amr_min:amr_max])
     ax = df.plot(lw=1, style=styles, markersize=1, logx=False, logy=True, grid=True, legend=False)
-    title = titles[1] #title = name_str + ': ' + ncells_str2 + ' cells, ~160K particles'
+    title = titles[1] #title = name_str + ': ' + ncells_str + ' cells, ~160K particles'
     ax.set_title(title, pad=20, fontdict={'fontsize':14}) # , fontdict={'fontsize':16}
     patches, labels = ax.get_legend_handles_labels()
     ax.legend(patches, labels, loc='best', fontsize=10) #, fontsize=14
@@ -149,7 +143,7 @@ if sum(sum(Emax[:stepi,amr_min:amr_max,2])) > 0:
     print(series_name_AMR[amr_min:amr_max])
     df = pd.DataFrame(data=Emax[:stepi,amr_min:amr_max,2], index=Times[:stepi], columns=series_name_AMR[amr_min:amr_max])
     ax = df.plot(lw=1, style=styles, markersize=1, logx=False, logy=True, grid=True, legend=False)
-    title = titles[2] #title = name_str + ': ' + ncells_str2 + ' cells, ~160K particles'
+    title = titles[2] #title = name_str + ': ' + ncells_str + ' cells, ~160K particles'
     ax.set_title(title, pad=20, fontdict={'fontsize':14}) # , fontdict={'fontsize':16}
     patches, labels = ax.get_legend_handles_labels()
     ax.legend(patches, labels, loc='best', fontsize=10) #, fontsize=14
