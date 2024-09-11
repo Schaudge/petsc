@@ -1269,6 +1269,12 @@ static PetscErrorCode InitializeParticles_PerturbedWeights_Old(DM sw, AppCtx *us
 static PetscErrorCode DMSwarmRemap(DM sw, AppCtx *user)
 {
   PetscFunctionBegin;
+  // Create a new centroid swarm without weights
+  // TODO Could we use halos in the existing grids?
+  // Iterate over particles in the original swarm
+  //   Loop over all grid points within 2 spacings of the particle
+  //   Add weight to new particles from original particle using interpolation function
+  // Replace original swarm with new swarm?
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -2431,8 +2437,7 @@ int main(int argc, char **argv)
              -dm_plex_box_bd periodic,none \
            -vdm_plex_dim 1 -vdm_plex_simplex 0 -vdm_plex_box_faces 10 \
              -vdm_plex_box_lower -10 -vdm_plex_box_upper 10 \
-           -dm_swarm_num_species 1 -dm_swarm_num_particles 100 \
-           -charges -1.,1. \
+           -dm_swarm_num_species 1 -charges -1.,1. \
              -cosine_coefficients 0.01,0.5 -perturbed_weights -total_weight 1. \
            -ts_type basicsymplectic -ts_basicsymplectic_type 1 \
              -ts_dt 0.03 -ts_max_time 500 -ts_max_steps 1 \
