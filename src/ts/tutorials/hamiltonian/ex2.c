@@ -1265,15 +1265,121 @@ static PetscErrorCode InitializeParticles_PerturbedWeights_Old(DM sw, AppCtx *us
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/*
+@article{MyersColellaVanStraalen2017,
+   title   = {A 4th-order particle-in-cell method with phase-space remapping for the {Vlasov-Poisson} equation},
+   author  = {Andrew Myers and Phillip Colella and Brian Van Straalen},
+   journal = {SIAM Journal on Scientific Computing},
+   volume  = {39},
+   issue   = {3},
+   pages   = {B467-B485},
+   doi     = {10.1137/16M105962X},
+   issn    = {10957197},
+   year    = {2017},
+}
+*/
+static PetscErrorCode W_3_Interpolation_Private(PetscReal x, PetscReal *w)
+{
+  const PetscReal ax = PetscAbsReal(x);
+
+  PetscFunctionBegin;
+  *w = 0.;
+  // W_3(x) = 1 − 5/2 |x}^2 + 3/2 |x|^3   0 \le |x| \le 1
+  if (ax <= 1.) *w = 1. - 2.5 * PetscSqr(ax) + 1.5 * PetscSqr(ax) * ax;
+  //              1/2 (2 − |x|)^2 (1 − |x|)   2 \le |x| \le 2
+  else if (ax <= 2.) *w = 0.5 * PetscSqr(2 - ax) * (1. - ax);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 // Right now, we will assume that the spatial and velocity grids are regular, which will speed up point location immensely
 static PetscErrorCode DMSwarmRemap(DM sw, AppCtx *user)
 {
+  DM         rsw, xdm, vdm;
+  PetscReal  xmin[3], xmax[3], vmin[3], vmax[3];
+  PetscInt   xend[3], vend[3];
+  PetscReal *x, *v, *w, *rw;
+  PetscReal  hx = 0., hv = 0.;
+  PetscInt   dim, xcStart, xcEnd, vcStart, vcEnd;
+
   PetscFunctionBegin;
+  PetscCall(DMGetDimension(sw, &dim));
   // Create a new centroid swarm without weights
-  // TODO Could we use halos in the existing grids?
+  PetscCall(DMCreate(PetscObjectComm((PetscObject)sw), &rsw));
+  PetscCall(DMSetType(rsw, DMSWARM));
+  PetscCall(DMSetDimension(rsw, dim));
+  PetscCall(InitializeParticles_Centroid(sw, user->fake_1D));
+  // Assume quad mesh and calculate cell diameters (TODO this could be more robust)
+  {
+    const PetscScalar *array;
+    PetscScalar       *coords;
+    PetscBool          isDG;
+    PetscInt           Nc;
+
+    PetscCall(DMSwarmGetCellDM(sw, &xdm));
+    PetscCall(DMPlexGetHeightStratum(xdm, 0, &xcStart, &xcEnd));
+    PetscCall(DMPlexGetCellCoordinates(xdm, xcStart, &isDG, &Nc, &array, &coords));
+    hx = coords[1 * Nc + 0] - coords[0 * Nc + 0];
+    PetscCall(DMPlexRestoreCellCoordinates(xdm, xcStart, &isDG, &Nc, &array, &coords));
+    PetscCall(PetscObjectQuery((PetscObject)sw, "__vdm__", (PetscObject *)&vdm));
+    PetscCall(DMPlexGetHeightStratum(vdm, 0, &vcStart, &vcEnd));
+    PetscCall(DMPlexGetCellCoordinates(vdm, vcStart, &isDG, &Nc, &array, &coords));
+    hv = coords[1 * Nc + 0] - coords[0 * Nc + 0];
+    PetscCall(DMPlexRestoreCellCoordinates(vdm, vcStart, &isDG, &Nc, &array, &coords));
+  }
   // Iterate over particles in the original swarm
-  //   Loop over all grid points within 2 spacings of the particle
-  //   Add weight to new particles from original particle using interpolation function
+  PetscCall(DMSwarmGetField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&x));
+  PetscCall(DMSwarmGetField(sw, "velocity", NULL, NULL, (void **)&v));
+  PetscCall(DMSwarmGetField(sw, "w_q", NULL, NULL, (void **)&w));
+  PetscCall(DMSwarmGetField(rsw, "w_q", NULL, NULL, (void **)&rw));
+  PetscCall(DMSwarmSortGetAccess(sw));
+  PetscCall(DMGetBoundingBox(vdm, vmin, vmax));
+  PetscCall(DMGetCoordinatesLocalSetUp(xdm));
+  for (PetscInt c = 0; c < xcEnd - xcStart; ++c) {
+    const PetscInt  cell = c + xcStart;
+    PetscInt       *pidx, Npc;
+
+    PetscCall(DMSwarmSortGetPointsPerCell(sw, c, &Npc, &pidx));
+    for (PetscInt q = 0; q < Npc; ++q) {
+      const PetscInt  p  = pidx[q];
+      const PetscReal wp = w[p];
+      PetscReal       Wx[3], Wv[3];
+      PetscInt        xs[3], vs[3];
+
+      PetscCall(PetscPrintf(PETSC_COMM_SELF, "Interpolating particle %d\n", p));
+      // Determine center for stencil
+      for (PetscInt d = 0; d < dim; ++d) {
+        const PetscReal xp = x[p * dim + d];
+        const PetscReal vp = v[p * dim + d];
+
+        xs[d] = PetscFloorReal(xp / hx);
+        vs[d] = PetscFloorReal(vp / hv);
+      }
+      // Loop over all grid points within 2 spacings of the particle
+      for (PetscInt xi = PetscMax(xs[0] - 1, 0); xi < PetscMin(xs[0] + 3, xend[0]); ++xi) {
+        PetscCall(W_3_Interpolation_Private((xi * hx - x[p * dim + 0]) / hx, &Wx[0]));
+        for (PetscInt xj = PetscMax(xs[1] - 1, 0); xj < PetscMin(xs[1] + 3, xend[1]); ++xj) {
+          PetscCall(W_3_Interpolation_Private((xj * hx - x[p * dim + 1]) / hx, &Wx[1]));
+          for (PetscInt vi = PetscMax(vs[0] - 1, 0); vi < PetscMin(xs[0] + 3, vend[0]); ++vi) {
+            PetscCall(W_3_Interpolation_Private((vi * hv - v[p * dim + 0]) / hv, &Wv[0]));
+            for (PetscInt vj = PetscMax(vs[1] - 1, 0); vj < PetscMin(xs[1] + 3, vend[1]); ++vj) {
+              const PetscInt rp = ((xi * xend[1] + xj) * vend[0] + vi) * vend[1] + vj;
+
+              PetscCall(W_3_Interpolation_Private((vj * hv - v[p * dim + 1]) / hv, &Wv[1]));
+              PetscCall(PetscPrintf(PETSC_COMM_SELF, "  Depositing on particle (%d, %d, %d, %d)\n", xi, xj, vi, vj));
+              // Add weight to new particles from original particle using interpolation function
+              rw[rp] += wp * Wx[0] * Wx[1] * Wv[0] * Wv[1];
+            }
+          }
+        }
+      }
+    }
+    PetscCall(DMSwarmSortRestorePointsPerCell(sw, c, &Npc, &pidx));
+  }
+  PetscCall(DMSwarmSortRestoreAccess(sw));
+  PetscCall(DMSwarmRestoreField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&x));
+  PetscCall(DMSwarmRestoreField(sw, "velocity", NULL, NULL, (void **)&v));
+  PetscCall(DMSwarmRestoreField(sw, "w_q", NULL, NULL, (void **)&w));
+  PetscCall(DMSwarmGetField(rsw, "w_q", NULL, NULL, (void **)&rw));
   // Replace original swarm with new swarm?
   PetscFunctionReturn(PETSC_SUCCESS);
 }
