@@ -275,6 +275,7 @@ struct _p_DM {
   DMReorderDefaultFlag reorderSection;     /* Reorder the local section by default */
   MatOrderingType      reorderSectionType; /* The type of reordering */
 
+  //TODO: Should remove this if not using isoperiodic on coordinateDM
   // Affine transform applied in DMGlobalToLocal
   struct {
     PetscInt    num_affines;

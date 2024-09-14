@@ -981,12 +981,6 @@ PetscErrorCode DMPlexSetIsoperiodicFaceSF(DM dm, PetscInt num_face_sfs, PetscSF 
   plex->periodic.num_face_sfs = num_face_sfs;
   PetscCall(PetscCalloc1(num_face_sfs, &plex->periodic.face_sfs));
   for (PetscInt i = 0; i < num_face_sfs; i++) plex->periodic.face_sfs[i] = face_sfs[i];
-
-  DM cdm = dm->coordinates[0].dm; // Can't DMGetCoordinateDM because it automatically creates one
-  if (cdm) {
-    PetscCall(DMPlexSetIsoperiodicFaceSF(cdm, num_face_sfs, face_sfs));
-    if (face_sfs) cdm->periodic.setup = DMPeriodicCoordinateSetUp_Internal;
-  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

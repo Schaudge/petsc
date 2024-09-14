@@ -174,6 +174,7 @@ PetscErrorCode DMClone(DM dm, DM *newdm)
       PetscCall(MPIU_Allreduce(&pEnd, &pEndMax, 1, MPIU_INT, MPI_MAX, PetscObjectComm((PetscObject)dm)));
       if (pEndMax >= 0) {
         PetscCall(DMClone(dm->coordinates[i].dm, &ncdm));
+        PetscCall(PetscObjectComposeFunction((PetscObject)ncdm, "DMGetIsoperiodicPointSF_C", NULL));
         PetscCall(DMCopyDisc(dm->coordinates[i].dm, ncdm));
         PetscCall(DMSetLocalSection(ncdm, cs));
         if (dm->coordinates[i].dm->periodic.setup) {
