@@ -1109,10 +1109,6 @@ PetscErrorCode DMSetCoordinateDisc(DM dm, PetscFE disc, PetscBool project)
     PetscCall(DMGetDS(cdmNew, &nds));
     PetscCall(PetscDSCopyConstants(ds, nds));
   }
-  if (cdmOld->periodic.setup) {
-    cdmNew->periodic.setup = cdmOld->periodic.setup;
-    PetscCall(cdmNew->periodic.setup(cdmNew));
-  }
   if (dm->setfromoptionscalled) PetscCall(DMSetFromOptions(cdmNew));
   if (project) {
     PetscCall(DMGetCoordinates(dm, &coordsOld));
