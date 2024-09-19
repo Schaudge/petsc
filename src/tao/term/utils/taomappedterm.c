@@ -1,14 +1,14 @@
 #include <petsc/private/taoimpl.h>
 
-PETSC_INTERN PetscErrorCode TaoMappedTermSetData(TaoMappedTerm *mt, const char *name, PetscReal scale, TaoTerm term, Mat map)
+PETSC_INTERN PetscErrorCode TaoMappedTermSetData(TaoMappedTerm *mt, const char *prefix, PetscReal scale, TaoTerm term, Mat map)
 {
   PetscBool same_name;
 
   PetscFunctionBegin;
-  PetscCall(PetscStrcmp(name, mt->name, &same_name));
+  PetscCall(PetscStrcmp(prefix, mt->prefix, &same_name));
   if (!same_name) {
-    PetscCall(PetscFree(mt->name));
-    PetscCall(PetscStrallocpy(name, &mt->name));
+    PetscCall(PetscFree(mt->prefix));
+    PetscCall(PetscStrallocpy(prefix, &mt->prefix));
   }
   if (term != mt->term) {
     PetscCall(VecDestroy(&mt->_unmapped_gradient));
@@ -35,14 +35,13 @@ PETSC_INTERN PetscErrorCode TaoMappedTermReset(TaoMappedTerm *mt)
   PetscCall(VecDestroy(&mt->_mapped_gradient));
   PetscCall(MatDestroy(&mt->_mapped_H));
   PetscCall(MatDestroy(&mt->_mapped_Hpre));
-  PetscCall(PetscFree(mt->prefix));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PETSC_INTERN PetscErrorCode TaoMappedTermGetData(TaoMappedTerm *mt, const char **name, PetscReal *scale, TaoTerm *term, Mat *map)
+PETSC_INTERN PetscErrorCode TaoMappedTermGetData(TaoMappedTerm *mt, const char **prefix, PetscReal *scale, TaoTerm *term, Mat *map)
 {
   PetscFunctionBegin;
-  if (name) *name = mt->name;
+  if (prefix) *prefix = mt->prefix;
   if (term) *term = mt->term;
   if (scale) *scale = mt->scale;
   if (map) *map = mt->map;

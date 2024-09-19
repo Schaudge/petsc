@@ -68,9 +68,11 @@ M*/
 PETSC_INTERN PetscErrorCode TaoTermCreate_Halfl2squared(TaoTerm term)
 {
   PetscFunctionBegin;
+  PetscCall(TaoTermCreate_ElementwiseDivergence_Internal(term));
   term->ops->objective            = TaoTermObjective_Halfl2squared;
   term->ops->gradient             = TaoTermGradient_Halfl2squared;
   term->ops->objectiveandgradient = TaoTermObjectiveAndGradient_Halfl2squared;
   term->ops->hessian              = TaoTermHessian_Halfl2squared;
+  term->ops->destroy              = TaoTermDestroy_ElementwiseDivergence_Internal;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
