@@ -125,12 +125,16 @@ static PetscErrorCode TaoTermView_TaoCallbacks(TaoTerm term, PetscViewer viewer)
   PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &iascii));
   if (iascii) {
     if (!tt->tao) {
-      PetscCall(PetscViewerASCIIPrintf(viewer, "TaoTerm is not attached to a Tao\n"));
+      PetscCall(PetscViewerASCIIPrintf(viewer, "not attached to a Tao\n"));
     } else {
-      const char *name;
+      const char *name = "[name omitted]";
+      const char *prefix;
 
-      PetscCall(PetscObjectGetName((PetscObject)tt->tao, &name));
-      PetscCall(PetscViewerASCIIPrintf(viewer, "TaoTerm is attached to Tao %s\n", name));
+      if (!PetscCIEnabled) PetscCall(PetscObjectGetName((PetscObject)tt->tao, &name));
+      else if (tt->tao->hdr.name) name = tt->tao->hdr.name;
+      PetscCall(PetscObjectGetOptionsPrefix((PetscObject)tt->tao, &prefix));
+      if (prefix) PetscCall(PetscViewerASCIIPrintf(viewer, "attached to Tao %s (%s)\n", name, prefix));
+      else PetscCall(PetscViewerASCIIPrintf(viewer, "attached to Tao %s\n", name));
     }
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -325,15 +329,17 @@ static PetscErrorCode TaoTermIsHessianDefined_TaoCallbacks(TaoTerm term, PetscBo
 }
 
 static PetscErrorCode TaoTermCreate_TaoCallbacks_Internal(TaoTerm term, const char obj[], const char set_obj[], const char grad[], const char set_grad[], const char objgrad[], const char set_objgrad[], const char hess[], const char set_hess[])
-
 {
   TaoTerm_TaoCallbacks *tt;
   char                  buf[256];
   size_t                len = PETSC_STATIC_ARRAY_LENGTH(buf);
 
   PetscFunctionBegin;
+  term->parameters_type = TAOTERM_PARAMETERS_NONE;
+
   PetscCall(PetscNew(&tt));
-  term->data                               = (void *)tt;
+  term->data = (void *)tt;
+
   term->ops->destroy                       = TaoTermDestroy_TaoCallbacks;
   term->ops->objective                     = TaoTermObjective_TaoCallbacks;
   term->ops->gradient                      = TaoTermGradient_TaoCallbacks;
