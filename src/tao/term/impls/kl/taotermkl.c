@@ -10,5 +10,7 @@ MC*/
 PETSC_INTERN PetscErrorCode TaoTermCreate_KL(TaoTerm term)
 {
   PetscFunctionBegin;
+  PetscCall(TaoTermCreate_ElementwiseDivergence_Internal(term));
+  term->ops->destroy = TaoTermDestroy_ElementwiseDivergence_Internal;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -9,6 +9,8 @@ int main(int argc, char **argv)
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
 
   PetscCall(TaoTermCreate(PETSC_COMM_WORLD, &term));
+  PetscCall(TaoTermSetSolutionSizes(term, PETSC_DECIDE, 10, PETSC_DECIDE));
+  PetscCall(TaoTermSetParametersSizes(term, PETSC_DECIDE, 7, PETSC_DECIDE));
   PetscCall(PetscObjectSetName((PetscObject)term, "example TaoTerm"));
   PetscCall(TaoTermSetFromOptions(term));
   PetscCall(TaoTermSetUp(term));

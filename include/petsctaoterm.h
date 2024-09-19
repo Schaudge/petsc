@@ -47,12 +47,58 @@ PETSC_EXTERN PetscErrorCode TaoTermCreate(MPI_Comm, TaoTerm *);
 PETSC_EXTERN PetscErrorCode TaoTermDestroy(TaoTerm *);
 PETSC_EXTERN PetscErrorCode TaoTermView(TaoTerm, PetscViewer);
 PETSC_EXTERN PetscErrorCode TaoTermSetUp(TaoTerm);
+PETSC_EXTERN PetscErrorCode TaoTermGetType(TaoTerm, TaoTermType *);
 PETSC_EXTERN PetscErrorCode TaoTermSetType(TaoTerm, TaoTermType);
 PETSC_EXTERN PetscErrorCode TaoTermSetFromOptions(TaoTerm);
 
+/*E
+    TaoTermParametersType - Ways a `TaoTerm` can accept parameter vectors in `TaoTermObjective()` and related functions
+
+   Values:
++  `TAOTERM_PARAMETERS_OPTIONAL` - the term has default parameters that will be used if parameters are omitted
+.  `TAOTERM_PARAMETERS_NONE`     - the term is not parametric, passing parameters is an error
+-  `TAOTERM_PARAMETERS_REQUIRED` - the term requires parameters, omitting parameters is an error
+
+   Level: intermediate
+
+.seealso: `TaoTerm`, `TaoTermGetParametersType()`
+E*/
+typedef enum {
+  TAOTERM_PARAMETERS_OPTIONAL,
+  TAOTERM_PARAMETERS_NONE,
+  TAOTERM_PARAMETERS_REQUIRED
+} TaoTermParametersType;
+PETSC_EXTERN const char *const TaoTermParametersTypes[];
+
+PETSC_EXTERN PetscErrorCode TaoTermGetParametersType(TaoTerm, TaoTermParametersType *);
+
+/*E
+    TaoTermDuplicateOption - Aspects to preserve when duplicating a `TaoTerm`
+
+   Values:
++  `TAOTERM_DUPLICATE_SIZEONLY` - size of the solution space only, user must call `TaoTermSetType()`
+-  `TAOTERM_DUPLICATE_TYPE`     - `TaoTermType` preserved
+
+   Level: intermediate
+
+.seealso: `TaoTerm`, `TaoTermDuplicate()`
+E*/
+typedef enum {
+  TAOTERM_DUPLICATE_SIZEONLY,
+  TAOTERM_DUPLICATE_TYPE,
+} TaoTermDuplicateOption;
+
+PETSC_EXTERN PetscErrorCode TaoTermDuplicate(TaoTerm, TaoTermDuplicateOption, TaoTerm *);
+
+PETSC_EXTERN PetscErrorCode TaoTermSetSolutionSizes(TaoTerm, PetscInt, PetscInt, PetscInt);
+PETSC_EXTERN PetscErrorCode TaoTermGetSolutionSizes(TaoTerm, PetscInt *, PetscInt *, PetscInt *);
 PETSC_EXTERN PetscErrorCode TaoTermSetSolutionTemplate(TaoTerm, Vec);
+PETSC_EXTERN PetscErrorCode TaoTermSetParametersSizes(TaoTerm, PetscInt, PetscInt, PetscInt);
+PETSC_EXTERN PetscErrorCode TaoTermGetParametersSizes(TaoTerm, PetscInt *, PetscInt *, PetscInt *);
 PETSC_EXTERN PetscErrorCode TaoTermSetParametersTemplate(TaoTerm, Vec);
+PETSC_EXTERN PetscErrorCode TaoTermSetVecTypes(TaoTerm, VecType, VecType);
 PETSC_EXTERN PetscErrorCode TaoTermGetVecTypes(TaoTerm, VecType *, VecType *);
+PETSC_EXTERN PetscErrorCode TaoTermSetLayouts(TaoTerm, PetscLayout, PetscLayout);
 PETSC_EXTERN PetscErrorCode TaoTermGetLayouts(TaoTerm, PetscLayout *, PetscLayout *);
 PETSC_EXTERN PetscErrorCode TaoTermCreateVecs(TaoTerm, Vec *, Vec *);
 PETSC_EXTERN PetscErrorCode TaoTermCreateHessianMatrices(TaoTerm, Mat *, Mat *);

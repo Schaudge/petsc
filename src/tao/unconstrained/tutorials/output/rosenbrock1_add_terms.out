@@ -21,24 +21,30 @@ Tao Object: 1 MPI process
     nls ksp iter: 0
     nls ksp othr: 0
   Objective function:
-    Scale: 1.
+    Scale (tao_objective_scale): 1.
     Function:
-      TaoTerm Object: 1 MPI process
+      TaoTerm Object: (objective_) 1 MPI process
         type: sum
+        solution vector space: N = 2 [VecType seq (taoterm_solution_vec_type)]
+        solution vector space: (optional) K = 2 [VecType nest (taoterm_parameters_vec_type)]
         Sum of 2 terms:
           Summand 0:
-            Scale: 1.
+            Scale (taoterm_sum_callbacks_scale): 1.
             Map: unmapped
             Term:
-              TaoTerm Object: (callbacks_) 1 MPI process
+              TaoTerm Object: 1 MPI process
                 type: taocallbacks
-                TaoTerm is attached to Tao Tao_0x84000000_0
+                solution vector space: N = 2 [VecType seq (taoterm_solution_vec_type)]
+                parameter vector space: (none)
+                attached to Tao [name omitted]
           Summand 1:
-            Scale: 1.
+            Scale (taoterm_sum_reg_scale): 1.
             Map: unmapped
             Term:
               TaoTerm Object: (reg_) 1 MPI process
                 type: halfl2squared
+                solution vector space: N = 2 [VecType seq (taoterm_solution_vec_type)]
+                solution vector space: (optional) K = 2 [VecType seq (taoterm_parameters_vec_type)]
     Map: unmapped
   TaoLineSearch Object: 1 MPI process
     type: more-thuente

@@ -41,7 +41,6 @@ typedef struct _n_TaoMappedTerm TaoMappedTerm;
 
 struct _n_TaoMappedTerm {
   char     *prefix;
-  char     *name;
   TaoTerm   term;
   PetscReal scale;
   Mat       map;
@@ -256,10 +255,12 @@ struct _TaoTermOps {
 
 struct _p_TaoTerm {
   PETSCHEADER(struct _TaoTermOps);
-  void     *data;
-  PetscBool setup_called;
-  Mat       solution_factory; // dummies used to create vectors
-  Mat       parameters_factory;
+  void                 *data;
+  PetscBool             setup_called;
+  Mat                   solution_factory; // dummies used to create vectors
+  Mat                   parameters_factory;
+  Mat                   parameters_factory_orig; // copy so that parameter_factor can be made a reference of solution_factory if parameter space == vector space
+  TaoTermParametersType parameters_type;
 };
 
 PETSC_INTERN PetscErrorCode TaoTermRegisterAll(void);
@@ -268,6 +269,9 @@ PETSC_INTERN PetscErrorCode TaoTermCreateTaoCallbacks(Tao, TaoTerm *);
 PETSC_INTERN PetscErrorCode TaoTermCreateBRGNRegularizer(Tao, TaoTerm *);
 PETSC_INTERN PetscErrorCode TaoTermCreateADMMMisfit(Tao, TaoTerm *);
 PETSC_INTERN PetscErrorCode TaoTermCreateADMMRegularizer(Tao, TaoTerm *);
+
+PETSC_INTERN PetscErrorCode TaoTermCreate_ElementwiseDivergence_Internal(TaoTerm);
+PETSC_INTERN PetscErrorCode TaoTermDestroy_ElementwiseDivergence_Internal(TaoTerm);
 
 PETSC_INTERN PetscErrorCode TaoTermTaoCallbacksSetObjective(TaoTerm, PetscErrorCode (*)(Tao, Vec, PetscReal *, void *), void *);
 PETSC_INTERN PetscErrorCode TaoTermTaoCallbacksSetGradient(TaoTerm, PetscErrorCode (*)(Tao, Vec, Vec, void *), void *);
