@@ -330,6 +330,7 @@ PETSC_EXTERN PetscErrorCode VecSqrtAbs(Vec);
 PETSC_EXTERN PetscErrorCode VecLog(Vec);
 PETSC_EXTERN PetscErrorCode VecExp(Vec);
 PETSC_EXTERN PetscErrorCode VecAbs(Vec);
+PETSC_EXTERN PetscErrorCode VecSign(Vec);
 PETSC_EXTERN PetscErrorCode VecDuplicate(Vec, Vec *);
 PETSC_EXTERN PetscErrorCode VecDuplicateVecs(Vec, PetscInt, Vec *[]);
 PETSC_EXTERN PetscErrorCode VecDestroyVecs(PetscInt, Vec *[]);
