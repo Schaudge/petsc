@@ -208,6 +208,7 @@ PETSC_INTERN PetscLogEvent TAOTERM_ObjectiveEval;
 PETSC_INTERN PetscLogEvent TAOTERM_GradientEval;
 PETSC_INTERN PetscLogEvent TAOTERM_ObjGradEval;
 PETSC_INTERN PetscLogEvent TAOTERM_HessianEval;
+PETSC_INTERN PetscLogEvent TAOTERM_HessianMult;
 
 static inline PetscErrorCode TaoLogConvergenceHistory(Tao tao, PetscReal obj, PetscReal resid, PetscReal cnorm, PetscInt totits)
 {
@@ -239,6 +240,7 @@ struct _TaoTermOps {
   PetscErrorCode (*objectiveandgradient)(TaoTerm, Vec, Vec, PetscReal *, Vec);
   PetscErrorCode (*gradient)(TaoTerm, Vec, Vec, Vec);
   PetscErrorCode (*hessian)(TaoTerm, Vec, Vec, Mat, Mat);
+  PetscErrorCode (*hessianmult)(TaoTerm, Vec, Vec, Vec, Vec);
   PetscErrorCode (*proximalmap)(TaoTerm, Vec, PetscReal, TaoTerm, Vec, PetscReal, Vec);
 
   PetscErrorCode (*isobjectivedefined)(TaoTerm, PetscBool *);
