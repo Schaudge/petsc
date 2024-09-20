@@ -122,9 +122,10 @@ PetscErrorCode TaoTermSetUp(TaoTerm term)
 . term - a `TaoTerm`
 
   Options Database Keys:
-+ -taoterm_type <type>                - tao, shell, dm, separable, l1, linf, l2squared, quadratic, kl, `TaoTermType` for complete list
-. -taoterm_solution_vec_type <type>   - `VecType` for complete list of vector types
-. -taoterm_parameters_vec_type <type> - `VecType` for complete list of vector types
++ -taoterm_type <type>                              - tao, shell, dm, separable, l1, linf, l2squared, quadratic, kl, `TaoTermType` for complete list
+. -taoterm_solution_vec_type <type>                 - `VecType` for complete list of vector types
+. -taoterm_parameters_vec_type <type>               - `VecType` for complete list of vector types
+- -taoterm_parameters_type <optional,none,required> - `TAOTERM_PARAMETERS_OPTIONAL`, `TAOTERM_PARAMETERS_NONE`, `TAOTERM_PARAMETERS_REQUIRED`
 
   Level: beginner
 
@@ -157,6 +158,7 @@ PetscErrorCode TaoTermSetFromOptions(TaoTerm term)
     PetscCall(PetscOptionsFList("-taoterm_parameters_vec_type", "Parameters vector type", "TaoTermSetVecTypes", VecList, params_type, typeName, 256, &opt));
     if (opt) PetscCall(TaoTermSetVecTypes(term, NULL, typeName));
   }
+  PetscCall(PetscOptionsEnum("-taoterm_parameters_type", "Parameters requirement type", "TaoTermSetParametersType", TaoTermParametersTypes, (PetscEnum)term->parameters_type, (PetscEnum *)&term->parameters_type, NULL));
   PetscTryTypeMethod(term, setfromoptions, PetscOptionsObject);
   PetscOptionsEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -1014,6 +1016,31 @@ PetscErrorCode TaoTermDuplicate(TaoTerm term, TaoTermDuplicateOption opt, TaoTer
 }
 
 /*@
+  TaoTermSetParametersType - The way a `TaoTerm` can accept parameters
+
+  Logically collective
+
+  Input Parameter:
++ term            - a `TaoTerm`
+- parameters_type - `TAOTERM_PARAMETERS_OPTIONAL`, `TAOTERM_PARAMETERS_NONE`, `TAOTERM_PARAMETERS_REQUIRED`
+
+  Level: advanced
+
+  Options Database Keys:
+. -taoterm_parameters_type <optional,none,required> - `TAOTERM_PARAMETERS_OPTIONAL`, `TAOTERM_PARAMETERS_NONE`, `TAOTERM_PARAMETERS_REQUIRED`
+
+
+.seealso: [](ch_tao), `Tao`, `TaoTerm`, `TaoTermParametersType`, `TaoTermGetParametersType()`
+@*/
+PetscErrorCode TaoTermSetParametersType(TaoTerm term, TaoTermParametersType parameters_type)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
+  term->parameters_type = parameters_type;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
   TaoTermGetParametersType - The way a `TaoTerm` can accept parameters
 
   Not collective
@@ -1026,7 +1053,7 @@ PetscErrorCode TaoTermDuplicate(TaoTerm term, TaoTermDuplicateOption opt, TaoTer
 
   Level: intermediate
 
-.seealso: [](ch_tao), `Tao`, `TaoTerm`, `TaoTermParametersType`
+.seealso: [](ch_tao), `Tao`, `TaoTerm`, `TaoTermParametersType`, `TaoTermGetParametersType()`
 @*/
 PetscErrorCode TaoTermGetParametersType(TaoTerm term, TaoTermParametersType *parameters_type)
 {

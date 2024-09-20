@@ -328,6 +328,7 @@ static PetscErrorCode TaoSetUp_BRGN(Tao tao)
     }
     PetscCall(TaoTermSetSolutionTemplate(l1, gn->y));
     PetscCall(TaoTermSetType(l1, TAOTERML1));
+    PetscCall(TaoTermL1SetEpsilon(l1, gn->epsilon));
 
     PetscCall(PetscObjectReference((PetscObject)gn->D));
     PetscCall(MatDestroy(&gn->regularizer_term.map));

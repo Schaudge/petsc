@@ -5,6 +5,7 @@ typedef struct _n_TaoTerm_L1 TaoTerm_L1;
 struct _n_TaoTerm_L1 {
   Vec              diff; // caches $x - p$
   Vec              d;    // caches $d_i = sqrt((diff_i)^2 + epsilon^2)
+  Vec              diag;
   PetscReal        d_epsilon;
   PetscReal        d_sum;
   PetscObjectId    d_x_id, d_p_id;
@@ -21,6 +22,7 @@ static PetscErrorCode TaoTermDestroy_L1(TaoTerm term)
   term->data = NULL;
   PetscCall(VecDestroy(&l1->diff));
   PetscCall(VecDestroy(&l1->d));
+  PetscCall(VecDestroy(&l1->diag));
   PetscCall(PetscFree(l1));
   PetscCall(TaoTermDestroy_ElementwiseDivergence_Internal(term));
   PetscCall(PetscObjectComposeFunction((PetscObject)term, "TaoTermL1SetEpsilon_C", NULL));
@@ -65,42 +67,104 @@ static PetscErrorCode TaoTermL1ComputeData(TaoTerm term, Vec x, Vec params, Vec 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode TaoTermObjective_L1(TaoTerm term, Vec x, Vec params, PetscReal *value)
+static PetscErrorCode TaoTermObjective_L1_Internal(TaoTerm term, Vec diff, Vec d, PetscReal *value)
 {
   TaoTerm_L1 *l1 = (TaoTerm_L1 *)term->data;
-  Vec      diff, d;
 
   PetscFunctionBegin;
-  PetscCall(TaoTermL1ComputeData(term, x, params, &diff, &d));
   if (l1->epsilon == 0.0) {
     PetscCall(VecNorm(diff, NORM_1, value));
   } else {
     PetscScalar sum;
     PetscInt    n;
 
-    PetscCall(VecGetSize(x, &n));
+    PetscCall(VecGetSize(d, &n));
     PetscCall(VecSum(d, &sum));
     *value = PetscRealPart(sum) - n * l1->epsilon;
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode TaoTermGradient_L1(TaoTerm term, Vec x, Vec params, Vec g)
+static PetscErrorCode TaoTermObjective_L1(TaoTerm term, Vec x, Vec params, PetscReal *value)
 {
-  TaoTerm_L1 *l1 = (TaoTerm_L1 *)term->data;
   Vec      diff, d;
 
   PetscFunctionBegin;
   PetscCall(TaoTermL1ComputeData(term, x, params, &diff, &d));
+  PetscCall(TaoTermObjective_L1_Internal(term, diff, d, value));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode TaoTermGradient_L1_Internal(TaoTerm term, Vec diff, Vec d, Vec g)
+{
+  TaoTerm_L1 *l1 = (TaoTerm_L1 *)term->data;
+
+  PetscFunctionBegin;
   if (l1->epsilon == 0.0) {
     if (!l1->epsilon_warning) {
       l1->epsilon_warning = PETSC_TRUE;
       PetscCall(PetscInfo(term, "Asking for gradient of l1 norm, which is not smooth.  Consider smoothing the TaoTerm with TaoTermL1SetEpsilon() or using a Tao that does not require gradients"));
     }
-    // TODO VecElementwiseSign()
+    PetscCall(VecCopy(diff, g));
+    PetscCall(VecSign(g));
   } else {
     PetscCall(VecPointwiseDivide(g, diff, d));
   }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode TaoTermGradient_L1(TaoTerm term, Vec x, Vec params, Vec g)
+{
+  Vec      diff, d;
+
+  PetscFunctionBegin;
+  PetscCall(TaoTermL1ComputeData(term, x, params, &diff, &d));
+  PetscCall(TaoTermGradient_L1_Internal(term, diff, d, g));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode TaoTermObjectiveAndGradient_L1(TaoTerm term, Vec x, Vec params, PetscReal *value, Vec g)
+{
+  Vec      diff, d;
+
+  PetscFunctionBegin;
+  PetscCall(TaoTermL1ComputeData(term, x, params, &diff, &d));
+  PetscCall(TaoTermObjective_L1_Internal(term, diff, d, value));
+  PetscCall(TaoTermGradient_L1_Internal(term, diff, d, g));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode TaoTermHessian_L1_Internal(TaoTerm term, Vec diff, Vec d, Mat H)
+{
+  TaoTerm_L1 *l1 = (TaoTerm_L1 *)term->data;
+
+  PetscFunctionBegin;
+  if (l1->epsilon == 0.0) {
+    if (!l1->epsilon_warning) {
+      l1->epsilon_warning = PETSC_TRUE;
+      PetscCall(PetscInfo(term, "Asking for Hessian of l1 norm, which is not smooth.  Consider smoothing the TaoTerm with TaoTermL1SetEpsilon() or using a Tao that does not require Hessians"));
+    }
+    PetscCall(MatZeroEntries(H));
+  } else {
+    if (!l1->diag) PetscCall(VecDuplicate(d, &l1->diag));
+    PetscCall(VecCopy(d, l1->diag));
+    PetscCall(VecPointwiseMult(l1->diag, l1->diag, d));
+    PetscCall(VecPointwiseMult(l1->diag, l1->diag, d));
+    PetscCall(VecReciprocal(l1->diag));
+    PetscCall(VecScale(l1->diag, l1->epsilon * l1->epsilon));
+    PetscCall(MatDiagonalSet(H, l1->diag, INSERT_VALUES));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode TaoTermHessian_L1(TaoTerm term, Vec x, Vec params, Mat H, Mat Hpre)
+{
+  Vec      diff, d;
+
+  PetscFunctionBegin;
+  PetscCall(TaoTermL1ComputeData(term, x, params, &diff, &d));
+  if (H) PetscCall(TaoTermHessian_L1_Internal(term, diff, d, H));
+  if (Hpre && Hpre != H) PetscCall(TaoTermHessian_L1_Internal(term, diff, d, Hpre));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -176,6 +240,28 @@ static PetscErrorCode TaoTermL1GetEpsilon_L1(TaoTerm term, PetscReal *epsilon)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode TaoTermView_L1(TaoTerm term, PetscViewer viewer)
+{
+  TaoTerm_L1 *l1 = (TaoTerm_L1 *)term->data;
+  PetscBool   is_ascii;
+
+  PetscFunctionBegin;
+  PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &is_ascii));
+  if (is_ascii) PetscCall(PetscViewerASCIIPrintf(viewer, "epsilon (taoterm_l1_epsilon): %g\n", (double)l1->epsilon));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode TaoTermSetFromOptions_L1(TaoTerm term, PetscOptionItems *PetscOptionsObject)
+{
+  TaoTerm_L1 *l1 = (TaoTerm_L1 *)term->data;
+
+  PetscFunctionBegin;
+  PetscOptionsHeadBegin(PetscOptionsObject, "TaoTerm l1 options");
+  PetscCall(PetscOptionsBoundedReal("-taoterm_l1_epsilon", "smoothing parameter", "TaoTermL1SetEpsilon", l1->epsilon, &l1->epsilon, NULL, 0.0));
+  PetscOptionsHeadEnd();
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /*MC
   TAOTERML1 - A `TaoTerm` that computes $\|x - p\|_1$, for solution $x$ and parameters $p$.
 
@@ -194,9 +280,15 @@ PETSC_INTERN PetscErrorCode TaoTermCreate_L1(TaoTerm term)
   PetscCall(TaoTermCreate_ElementwiseDivergence_Internal(term));
   PetscCall(PetscNew(&l1));
   term->data = (void *)l1;
-  term->ops->destroy   = TaoTermDestroy_L1;
-  term->ops->objective = TaoTermObjective_L1;
-  term->ops->gradient  = TaoTermGradient_L1;
+
+  term->ops->destroy              = TaoTermDestroy_L1;
+  term->ops->view                 = TaoTermView_L1;
+  term->ops->setfromoptions       = TaoTermSetFromOptions_L1;
+  term->ops->objective            = TaoTermObjective_L1;
+  term->ops->gradient             = TaoTermGradient_L1;
+  term->ops->objectiveandgradient = TaoTermObjectiveAndGradient_L1;
+  term->ops->hessian              = TaoTermHessian_L1;
+
   PetscCall(PetscObjectComposeFunction((PetscObject)term, "TaoTermL1SetEpsilon_C", TaoTermL1SetEpsilon_L1));
   PetscCall(PetscObjectComposeFunction((PetscObject)term, "TaoTermL1GetEpsilon_C", TaoTermL1GetEpsilon_L1));
   PetscFunctionReturn(PETSC_SUCCESS);
