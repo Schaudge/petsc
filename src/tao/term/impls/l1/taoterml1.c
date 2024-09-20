@@ -3,15 +3,18 @@
 typedef struct _n_TaoTerm_L1 TaoTerm_L1;
 
 struct _n_TaoTerm_L1 {
+  PetscReal        epsilon;
+  PetscBool        epsilon_warning;
   Vec              diff; // caches $x - p$
   Vec              d;    // caches $d_i = sqrt((diff_i)^2 + epsilon^2)
-  Vec              diag;
   PetscReal        d_epsilon;
   PetscReal        d_sum;
   PetscObjectId    d_x_id, d_p_id;
   PetscObjectState d_x_state, d_p_state;
-  PetscReal        epsilon;
-  PetscBool        epsilon_warning;
+  Vec              diag;
+  PetscObjectId    diag_x_id, diag_p_id;
+  PetscObjectState diag_x_state, diag_p_state;
+  PetscReal        diag_epsilon;
 };
 
 static PetscErrorCode TaoTermDestroy_L1(TaoTerm term)
@@ -32,10 +35,10 @@ static PetscErrorCode TaoTermDestroy_L1(TaoTerm term)
 
 static PetscErrorCode TaoTermL1ComputeData(TaoTerm term, Vec x, Vec params, Vec *_diff, Vec *d)
 {
-  TaoTerm_L1 *l1 = (TaoTerm_L1 *)term->data;
-  PetscObjectId x_id, p_id = 0;
+  TaoTerm_L1      *l1 = (TaoTerm_L1 *)term->data;
+  PetscObjectId    x_id, p_id       = 0;
   PetscObjectState x_state, p_state = 0;
-  Vec diff = x;
+  Vec              diff = x;
 
   PetscFunctionBegin;
   PetscCall(PetscObjectGetId((PetscObject)x, &x_id));
@@ -45,12 +48,12 @@ static PetscErrorCode TaoTermL1ComputeData(TaoTerm term, Vec x, Vec params, Vec 
     PetscCall(PetscObjectStateGet((PetscObject)params, &p_state));
   }
   if (l1->d_x_id != x_id || l1->d_x_state != x_state || l1->d_p_id != p_id || l1->d_p_state != p_state || l1->d_epsilon != l1->epsilon) {
-    l1->d_x_id = x_id;
+    l1->d_x_id    = x_id;
     l1->d_x_state = x_state;
-    l1->d_p_id = p_id;
+    l1->d_p_id    = p_id;
     l1->d_p_state = p_state;
     l1->d_epsilon = l1->epsilon;
-    diff = x;
+    diff          = x;
     if (params) {
       if (!l1->diff) PetscCall(VecDuplicate(x, &l1->diff));
       PetscCall(VecWAXPY(l1->diff, -1.0, params, x));
@@ -63,7 +66,39 @@ static PetscErrorCode TaoTermL1ComputeData(TaoTerm term, Vec x, Vec params, Vec 
     }
   }
   *_diff = diff;
-  *d = l1->d;
+  *d     = l1->d;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode TaoTermL1ComputeDiag(TaoTerm term, Vec x, Vec params, Vec *diag)
+{
+  Vec              diff, d;
+  TaoTerm_L1      *l1 = (TaoTerm_L1 *)term->data;
+  PetscObjectId    x_id, p_id       = 0;
+  PetscObjectState x_state, p_state = 0;
+
+  PetscFunctionBegin;
+  PetscCall(TaoTermL1ComputeData(term, x, params, &diff, &d));
+  PetscCall(PetscObjectGetId((PetscObject)x, &x_id));
+  PetscCall(PetscObjectStateGet((PetscObject)x, &x_state));
+  if (params) {
+    PetscCall(PetscObjectGetId((PetscObject)params, &p_id));
+    PetscCall(PetscObjectStateGet((PetscObject)params, &p_state));
+  }
+  if (l1->diag_x_id != x_id || l1->diag_x_state != x_state || l1->diag_p_id != p_id || l1->diag_p_state != p_state || l1->diag_epsilon != l1->epsilon) {
+    l1->diag_x_id    = x_id;
+    l1->diag_x_state = x_state;
+    l1->diag_p_id    = p_id;
+    l1->diag_p_state = p_state;
+    l1->diag_epsilon = l1->epsilon;
+    if (!l1->diag) PetscCall(VecDuplicate(x, &l1->diag));
+    PetscCall(VecCopy(d, l1->diag));
+    PetscCall(VecPointwiseMult(l1->diag, l1->diag, d));
+    PetscCall(VecPointwiseMult(l1->diag, l1->diag, d));
+    PetscCall(VecReciprocal(l1->diag));
+    PetscCall(VecScale(l1->diag, l1->epsilon * l1->epsilon));
+  }
+  *diag = l1->diag;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -87,7 +122,7 @@ static PetscErrorCode TaoTermObjective_L1_Internal(TaoTerm term, Vec diff, Vec d
 
 static PetscErrorCode TaoTermObjective_L1(TaoTerm term, Vec x, Vec params, PetscReal *value)
 {
-  Vec      diff, d;
+  Vec diff, d;
 
   PetscFunctionBegin;
   PetscCall(TaoTermL1ComputeData(term, x, params, &diff, &d));
@@ -115,7 +150,7 @@ static PetscErrorCode TaoTermGradient_L1_Internal(TaoTerm term, Vec diff, Vec d,
 
 static PetscErrorCode TaoTermGradient_L1(TaoTerm term, Vec x, Vec params, Vec g)
 {
-  Vec      diff, d;
+  Vec diff, d;
 
   PetscFunctionBegin;
   PetscCall(TaoTermL1ComputeData(term, x, params, &diff, &d));
@@ -125,7 +160,7 @@ static PetscErrorCode TaoTermGradient_L1(TaoTerm term, Vec x, Vec params, Vec g)
 
 static PetscErrorCode TaoTermObjectiveAndGradient_L1(TaoTerm term, Vec x, Vec params, PetscReal *value, Vec g)
 {
-  Vec      diff, d;
+  Vec diff, d;
 
   PetscFunctionBegin;
   PetscCall(TaoTermL1ComputeData(term, x, params, &diff, &d));
@@ -134,7 +169,7 @@ static PetscErrorCode TaoTermObjectiveAndGradient_L1(TaoTerm term, Vec x, Vec pa
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode TaoTermHessian_L1_Internal(TaoTerm term, Vec diff, Vec d, Mat H)
+static PetscErrorCode TaoTermHessian_L1_Internal(TaoTerm term, Vec diag, Mat H)
 {
   TaoTerm_L1 *l1 = (TaoTerm_L1 *)term->data;
 
@@ -146,25 +181,46 @@ static PetscErrorCode TaoTermHessian_L1_Internal(TaoTerm term, Vec diff, Vec d, 
     }
     PetscCall(MatZeroEntries(H));
   } else {
-    if (!l1->diag) PetscCall(VecDuplicate(d, &l1->diag));
-    PetscCall(VecCopy(d, l1->diag));
-    PetscCall(VecPointwiseMult(l1->diag, l1->diag, d));
-    PetscCall(VecPointwiseMult(l1->diag, l1->diag, d));
-    PetscCall(VecReciprocal(l1->diag));
-    PetscCall(VecScale(l1->diag, l1->epsilon * l1->epsilon));
-    PetscCall(MatDiagonalSet(H, l1->diag, INSERT_VALUES));
+    PetscCall(MatDiagonalSet(H, diag, INSERT_VALUES));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode TaoTermHessian_L1(TaoTerm term, Vec x, Vec params, Mat H, Mat Hpre)
 {
-  Vec      diff, d;
+  Vec diag;
 
   PetscFunctionBegin;
-  PetscCall(TaoTermL1ComputeData(term, x, params, &diff, &d));
-  if (H) PetscCall(TaoTermHessian_L1_Internal(term, diff, d, H));
-  if (Hpre && Hpre != H) PetscCall(TaoTermHessian_L1_Internal(term, diff, d, Hpre));
+  PetscCall(TaoTermL1ComputeDiag(term, x, params, &diag));
+  if (H) PetscCall(TaoTermHessian_L1_Internal(term, diag, H));
+  if (Hpre && Hpre != H) PetscCall(TaoTermHessian_L1_Internal(term, diag, Hpre));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode TaoTermHessianMult_L1_Internal(TaoTerm term, Vec diag, Vec v, Vec Hv)
+{
+  TaoTerm_L1 *l1 = (TaoTerm_L1 *)term->data;
+
+  PetscFunctionBegin;
+  if (l1->epsilon == 0.0) {
+    if (!l1->epsilon_warning) {
+      l1->epsilon_warning = PETSC_TRUE;
+      PetscCall(PetscInfo(term, "Asking for Hessian of l1 norm, which is not smooth.  Consider smoothing the TaoTerm with TaoTermL1SetEpsilon() or using a Tao that does not require Hessians"));
+    }
+    PetscCall(VecZeroEntries(Hv));
+  } else {
+    PetscCall(VecPointwiseMult(Hv, v, diag));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode TaoTermHessianMult_L1(TaoTerm term, Vec x, Vec params, Vec v, Vec Hv)
+{
+  Vec diag;
+
+  PetscFunctionBegin;
+  PetscCall(TaoTermL1ComputeDiag(term, x, params, &diag));
+  PetscCall(TaoTermHessianMult_L1_Internal(term, diag, v, Hv));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -288,6 +344,7 @@ PETSC_INTERN PetscErrorCode TaoTermCreate_L1(TaoTerm term)
   term->ops->gradient             = TaoTermGradient_L1;
   term->ops->objectiveandgradient = TaoTermObjectiveAndGradient_L1;
   term->ops->hessian              = TaoTermHessian_L1;
+  term->ops->hessianmult          = TaoTermHessianMult_L1;
 
   PetscCall(PetscObjectComposeFunction((PetscObject)term, "TaoTermL1SetEpsilon_C", TaoTermL1SetEpsilon_L1));
   PetscCall(PetscObjectComposeFunction((PetscObject)term, "TaoTermL1GetEpsilon_C", TaoTermL1GetEpsilon_L1));

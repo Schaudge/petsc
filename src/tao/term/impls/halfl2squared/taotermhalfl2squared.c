@@ -58,6 +58,13 @@ static PetscErrorCode TaoTermHessian_Halfl2squared(TaoTerm term, Vec x, Vec para
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+static PetscErrorCode TaoTermHessianMult_Halfl2squared(TaoTerm term, Vec x, Vec params, Vec v, Vec Hv)
+{
+  PetscFunctionBegin;
+  PetscCall(VecCopy(v, Hv));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /*MC
   TAOTERMHALFL2SQUARED - A `TaoTerm` that computes $\tfrac{1}{2}\|x - p\|_2^2$, for solution $x$ and parameters $p$.
 
@@ -69,10 +76,11 @@ PETSC_INTERN PetscErrorCode TaoTermCreate_Halfl2squared(TaoTerm term)
 {
   PetscFunctionBegin;
   PetscCall(TaoTermCreate_ElementwiseDivergence_Internal(term));
+  term->ops->destroy              = TaoTermDestroy_ElementwiseDivergence_Internal;
   term->ops->objective            = TaoTermObjective_Halfl2squared;
   term->ops->gradient             = TaoTermGradient_Halfl2squared;
   term->ops->objectiveandgradient = TaoTermObjectiveAndGradient_Halfl2squared;
   term->ops->hessian              = TaoTermHessian_Halfl2squared;
-  term->ops->destroy              = TaoTermDestroy_ElementwiseDivergence_Internal;
+  term->ops->hessianmult          = TaoTermHessianMult_Halfl2squared;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
