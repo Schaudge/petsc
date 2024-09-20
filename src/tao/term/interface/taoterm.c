@@ -7,6 +7,7 @@ PetscLogEvent TAOTERM_ObjectiveEval;
 PetscLogEvent TAOTERM_GradientEval;
 PetscLogEvent TAOTERM_ObjGradEval;
 PetscLogEvent TAOTERM_HessianEval;
+PetscLogEvent TAOTERM_HessianMult;
 
 const char *const TaoTermParametersTypes[] = {"optional", "none", "required", "TaoTermParametesrsType", "TAOTERM_PARAMETERS_", NULL};
 
@@ -450,7 +451,8 @@ PetscErrorCode TaoTermObjectiveAndGradient(TaoTerm term, Vec x, Vec params, Pets
 .seealso: [](ch_tao), `Tao`, `TaoTerm`,
           `TaoTermObjective()`,
           `TaoTermGradient()`,
-          `TaoTermObjectiveAndGradient()`
+          `TaoTermObjectiveAndGradient()`,
+          `TaoTermHessianMult()`
 @*/
 PetscErrorCode TaoTermHessian(TaoTerm term, Vec x, Vec params, Mat H, Mat Hpre)
 {
@@ -475,6 +477,52 @@ PetscErrorCode TaoTermHessian(TaoTerm term, Vec x, Vec params, Mat H, Mat Hpre)
   PetscCall(PetscLogEventBegin(TAOTERM_HessianEval, term, NULL, NULL, NULL));
   PetscUseTypeMethod(term, hessian, x, params, H, Hpre);
   PetscCall(PetscLogEventEnd(TAOTERM_HessianEval, term, NULL, NULL, NULL));
+  if (params) PetscCall(VecLockReadPop(params));
+  PetscCall(VecLockReadPop(x));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  TaoTermHessianMult - Evaluate the Hessian-vector product of a `TaoTerm` for a given set of solution variables and parameters
+
+  Collective
+
+  Input Parameters:
++ term   - a `TaoTerm` representing a parametric function $f(x; p)$
+. x      - the solution variable $x$ in $f(x; p)$
+. params - the parameters $p$ in $f(x; p)$ (may be NULL if the term is not parametric)
+- v      - a vector in the solution space
+
+  Output Parameters:
++ Hv - the product Hessian matrix $\nabla_x^2 f(x;p) v$
+
+  Level: intermediate
+
+.seealso: [](ch_tao), `Tao`, `TaoTerm`,
+          `TaoTermObjective()`,
+          `TaoTermGradient()`,
+          `TaoTermObjectiveAndGradient()`,
+          `TaoTermHessian()`
+@*/
+PetscErrorCode TaoTermHessianMult(TaoTerm term, Vec x, Vec params, Vec v, Vec Hv)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
+  PetscValidHeaderSpecific(x, VEC_CLASSID, 2);
+  PetscCheckSameComm(term, 1, x, 2);
+  PetscCall(VecLockReadPush(x));
+  if (params) {
+    PetscValidHeaderSpecific(params, VEC_CLASSID, 3);
+    PetscCheckSameComm(term, 1, params, 3);
+    PetscCall(VecLockReadPush(params));
+  }
+  PetscValidHeaderSpecific(v, VEC_CLASSID, 4);
+  PetscCheckSameComm(term, 1, v, 4);
+  PetscCall(VecLockReadPush(v));
+  PetscCall(PetscLogEventBegin(TAOTERM_HessianMult, term, NULL, NULL, NULL));
+  PetscUseTypeMethod(term, hessianmult, x, params, v, Hv);
+  PetscCall(PetscLogEventEnd(TAOTERM_HessianMult, term, NULL, NULL, NULL));
+  PetscCall(VecLockReadPop(v));
   if (params) PetscCall(VecLockReadPop(params));
   PetscCall(VecLockReadPop(x));
   PetscFunctionReturn(PETSC_SUCCESS);
