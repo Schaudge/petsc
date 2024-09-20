@@ -269,7 +269,7 @@ static PetscErrorCode TaoTermSumSetSubterm_Sum(TaoTerm term, PetscInt index, con
   PetscCheck(index >= 0 && index < sum->n_terms, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Index %" PetscInt_FMT " is not in [0, %" PetscInt_FMT ")", index, sum->n_terms);
   summand = &sum->terms[index];
   if (prefix == NULL) {
-    PetscCall(PetscSNPrintf(subterm_x_, 256, "subterm_%" PetscInt_FMT, sum->n_terms));
+    PetscCall(PetscSNPrintf(subterm_x_, 256, "subterm_%" PetscInt_FMT "_", index));
     prefix = subterm_x_;
   }
   PetscCall(TaoMappedTermSetData(summand, prefix, scale, subterm, map));

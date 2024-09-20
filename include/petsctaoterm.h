@@ -70,6 +70,7 @@ typedef enum {
 } TaoTermParametersType;
 PETSC_EXTERN const char *const TaoTermParametersTypes[];
 
+PETSC_EXTERN PetscErrorCode TaoTermSetParametersType(TaoTerm, TaoTermParametersType);
 PETSC_EXTERN PetscErrorCode TaoTermGetParametersType(TaoTerm, TaoTermParametersType *);
 
 /*E
