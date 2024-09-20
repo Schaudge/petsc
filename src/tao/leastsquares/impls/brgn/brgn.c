@@ -317,6 +317,35 @@ static PetscErrorCode TaoSetUp_BRGN(Tao tao)
     PetscCall(VecSet(gn->x_old, 0.0));
   }
 
+  if (gn->reg_type == BRGN_REGULARIZATION_L1DICT) {
+    TaoTerm l1;
+
+    PetscCall(TaoTermDuplicate(gn->orig_callbacks, TAOTERM_DUPLICATE_SIZEONLY, &l1));
+    if (!gn->y) {
+      if (gn->D) PetscCall(MatCreateVecs(gn->D, NULL, &gn->y));
+      else PetscCall(VecDuplicate(tao->solution, &gn->y));
+      PetscCall(VecZeroEntries(gn->y));
+    }
+    PetscCall(TaoTermSetSolutionTemplate(l1, gn->y));
+    PetscCall(TaoTermSetType(l1, TAOTERML1));
+
+    PetscCall(PetscObjectReference((PetscObject)gn->D));
+    PetscCall(MatDestroy(&gn->regularizer_term.map));
+    gn->regularizer_term.map = gn->D;
+
+    PetscCall(TaoTermDestroy(&gn->regularizer_term.term));
+    gn->regularizer_term.term = l1;
+  } else if (gn->reg_type == BRGN_REGULARIZATION_L2PURE || gn->reg_type == BRGN_REGULARIZATION_L2PROX) {
+    TaoTerm l2;
+
+    PetscCall(TaoTermDuplicate(gn->orig_callbacks, TAOTERM_DUPLICATE_SIZEONLY, &l2));
+    PetscCall(TaoTermSetType(l2, TAOTERMHALFL2SQUARED));
+
+    PetscCall(MatDestroy(&gn->regularizer_term.map));
+    PetscCall(TaoTermDestroy(&gn->regularizer_term.term));
+    gn->regularizer_term.term = l2;
+  }
+
   if (BRGN_REGULARIZATION_L1DICT == gn->reg_type) {
     if (!gn->y) {
       if (gn->D) {
