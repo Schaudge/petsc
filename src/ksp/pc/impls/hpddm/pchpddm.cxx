@@ -1529,6 +1529,7 @@ static PetscErrorCode KSPPostSolve_SchurCorrection(KSP, Vec b, Vec x, void *cont
 static PetscErrorCode MatMult_Harmonic(Mat, Vec, Vec);
 static PetscErrorCode MatMultTranspose_Harmonic(Mat, Vec, Vec);
 static PetscErrorCode MatProduct_AB_Harmonic(Mat, Mat, Mat, void *);
+static PetscErrorCode MatView_Harmonic(Mat, PetscViewer);
 static PetscErrorCode MatDestroy_Harmonic(Mat);
 
 static PetscErrorCode PCSetUp_HPDDM(PC pc)
@@ -2230,6 +2231,7 @@ static PetscErrorCode PCSetUp_HPDDM(PC pc)
               PetscCall(MatShellSetOperation(data->aux, MATOP_MULT, (void (*)(void))MatMult_Harmonic));
               PetscCall(MatShellSetOperation(data->aux, MATOP_MULT_TRANSPOSE, (void (*)(void))MatMultTranspose_Harmonic));
               PetscCall(MatShellSetMatProductOperation(data->aux, MATPRODUCT_AB, nullptr, MatProduct_AB_Harmonic, nullptr, MATDENSE, MATDENSE));
+              PetscCall(MatShellSetOperation(data->aux, MATOP_VIEW, (void (*)(void))MatView_Harmonic));
               PetscCall(MatShellSetOperation(data->aux, MATOP_DESTROY, (void (*)(void))MatDestroy_Harmonic));
               PetscCall(MatDestroySubMatrices(1, &a));
             }
@@ -3080,6 +3082,52 @@ static PetscErrorCode MatProduct_AB_Harmonic(Mat S, Mat X, Mat Y, void *)
     PetscCall(MatDenseRestoreColumnVecRead(A, i, &a));
   }
   PetscCall(MatDestroy(&A));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode MatView_Harmonic(Mat A, PetscViewer viewer)
+{
+  Harmonic          h;
+  Mat               B;
+  PetscViewer       subviewer;
+  PetscViewerFormat format;
+  PetscBool         ascii;
+  const char       *name;
+
+  PetscFunctionBegin;
+  PetscCall(PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &ascii));
+  if (ascii) {
+    PetscCall(PetscViewerGetFormat(viewer, &format));
+    if (format == PETSC_VIEWER_ASCII_INFO_DETAIL) {
+      PetscCall(PetscViewerFileGetName(viewer, &name));
+      if (name) {
+        char       *tmp;
+        std::string prefix, suffix;
+        size_t      pos;
+
+        PetscCall(PetscStrstr(name, ".", &tmp));
+        if (tmp) {
+          pos    = std::distance(const_cast<char *>(name), tmp);
+          prefix = std::string(name, pos);
+          suffix = std::string(name + pos + 1);
+        } else prefix = name;
+        PetscCall(MatShellGetContext(A, &h));
+        PetscCall(PetscViewerBinaryOpen(PETSC_COMM_SELF, std::string(prefix + "_is_0" + (tmp ? ("." + suffix) : "")).c_str(), FILE_MODE_WRITE, &subviewer));
+        PetscCall(ISView(h->is[0], subviewer));
+        PetscCall(PetscViewerDestroy(&subviewer));
+        PetscCall(PetscViewerBinaryOpen(PETSC_COMM_SELF, std::string(prefix + "_is_1" + (tmp ? ("." + suffix) : "")).c_str(), FILE_MODE_WRITE, &subviewer));
+        PetscCall(ISView(h->is[1], subviewer));
+        PetscCall(PetscViewerDestroy(&subviewer));
+        PetscCall(PetscViewerBinaryOpen(PETSC_COMM_SELF, std::string(prefix + "_A" + (tmp ? ("." + suffix) : "")).c_str(), FILE_MODE_WRITE, &subviewer));
+        PetscCall(MatView(h->A[0], subviewer));
+        PetscCall(PetscViewerDestroy(&subviewer));
+        PetscCall(KSPGetOperators(h->ksp, &B, NULL));
+        PetscCall(PetscViewerBinaryOpen(PETSC_COMM_SELF, std::string(prefix + "_B" + (tmp ? ("." + suffix) : "")).c_str(), FILE_MODE_WRITE, &subviewer));
+        PetscCall(MatView(B, subviewer));
+        PetscCall(PetscViewerDestroy(&subviewer));
+      }
+    }
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
