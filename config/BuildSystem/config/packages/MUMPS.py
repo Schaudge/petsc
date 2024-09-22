@@ -52,11 +52,19 @@ class Configure(config.package.Package):
       if self.argDB.get(arg):
         raise RuntimeError('MUMPS cannot be used with %s' % arg)
     if self.scalartypes.precision == 'single':
-      if self.scalartypes.scalartype == 'real': l = 's'
-      else: l = 'c'
+      if self.scalartypes.scalartype == 'real':
+        l = 's'
+        o = 'd'
+      else:
+        l = 'c'
+        o = 'z'
     else:
-      if self.scalartypes.scalartype == 'real': l = 'd'
-      else: l = 'z'
+      if self.scalartypes.scalartype == 'real':
+        l = 'd'
+        o = 's'
+      else:
+        l = 'z'
+        o = 'c'
     self.functions = [l+'mumps_c']
     self.includes  = [l+'mumps_c.h']
     liblist_common = [['libmumps_common.a','libpord.a','libpthread.a'],
@@ -65,7 +73,7 @@ class Configure(config.package.Package):
                      ['libmumps_common.a','libpord.a','libpthread.a','libmpiseq.a']]
     self.liblist   = []
     for libc in liblist_common:
-       self.liblist.append(['lib'+l+'mumps.a'] + libc)
+       self.liblist.append(['lib'+l+'mumps.a'] + ['lib'+o+'mumps.a'] + libc)
     config.package.Package.configureLibrary(self)
 
   def consistencyChecks(self):
