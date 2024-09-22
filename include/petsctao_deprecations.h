@@ -13,15 +13,15 @@ PETSC_DEPRECATED_FUNCTION(3, 17, 0, "TaoSetObjective()", ) static inline PetscEr
 }
 PETSC_DEPRECATED_FUNCTION(3, 17, 0, "TaoGetGradient()", ) static inline PetscErrorCode TaoGetGradientVector(Tao t, Vec *v)
 {
-  return TaoGetGradient(t, v, PETSC_NULLPTR, PETSC_NULLPTR);
+  return TaoGetGradient(t, v, NULL, NULL);
 }
 PETSC_DEPRECATED_FUNCTION(3, 17, 0, "TaoSetGradient()", ) static inline PetscErrorCode TaoSetGradientRoutine(Tao t, PetscErrorCode (*f)(Tao, Vec, Vec, void *), void *c)
 {
-  return TaoSetGradient(t, PETSC_NULLPTR, f, c);
+  return TaoSetGradient(t, NULL, f, c);
 }
 PETSC_DEPRECATED_FUNCTION(3, 17, 0, "TaoSetObjectiveAndGradient()", ) static inline PetscErrorCode TaoSetObjectiveAndGradientRoutine(Tao t, PetscErrorCode (*f)(Tao, Vec, PetscReal *, Vec, void *), void *c)
 {
-  return TaoSetObjectiveAndGradient(t, PETSC_NULLPTR, f, c);
+  return TaoSetObjectiveAndGradient(t, NULL, f, c);
 }
 PETSC_DEPRECATED_FUNCTION(3, 17, 0, "TaoSetHessian()", ) static inline PetscErrorCode TaoSetHessianRoutine(Tao t, Mat H, Mat P, PetscErrorCode (*f)(Tao, Vec, Mat, Mat, void *), void *c)
 {

@@ -368,28 +368,28 @@ int main(int argc, char *argv[])
   PetscCall(SNESCreate(PETSC_COMM_WORLD, &snes));
   switch (user->ptype) {
   case 0:
-    PetscCall(DMCompositeGetAccess(pack, X, &Xu, PETSC_NULLPTR));
-    PetscCall(DMCompositeGetAccess(pack, F, &Fu, PETSC_NULLPTR));
+    PetscCall(DMCompositeGetAccess(pack, X, &Xu, NULL));
+    PetscCall(DMCompositeGetAccess(pack, F, &Fu, NULL));
     PetscCall(DMCreateMatrix(dau, &B));
     PetscCall(SNESSetFunction(snes, Fu, FormFunction_All, user));
     PetscCall(SNESSetJacobian(snes, B, B, FormJacobian_All, user));
     PetscCall(SNESSetFromOptions(snes));
     PetscCall(SNESSetDM(snes, dau));
     PetscCall(SNESSolve(snes, NULL, Xu));
-    PetscCall(DMCompositeRestoreAccess(pack, X, &Xu, PETSC_NULLPTR));
-    PetscCall(DMCompositeRestoreAccess(pack, F, &Fu, PETSC_NULLPTR));
+    PetscCall(DMCompositeRestoreAccess(pack, X, &Xu, NULL));
+    PetscCall(DMCompositeRestoreAccess(pack, F, &Fu, NULL));
     break;
   case 1:
-    PetscCall(DMCompositeGetAccess(pack, X, PETSC_NULLPTR, &Xk));
-    PetscCall(DMCompositeGetAccess(pack, F, PETSC_NULLPTR, &Fk));
+    PetscCall(DMCompositeGetAccess(pack, X, NULL, &Xk));
+    PetscCall(DMCompositeGetAccess(pack, F, NULL, &Fk));
     PetscCall(DMCreateMatrix(dak, &B));
     PetscCall(SNESSetFunction(snes, Fk, FormFunction_All, user));
     PetscCall(SNESSetJacobian(snes, B, B, FormJacobian_All, user));
     PetscCall(SNESSetFromOptions(snes));
     PetscCall(SNESSetDM(snes, dak));
     PetscCall(SNESSolve(snes, NULL, Xk));
-    PetscCall(DMCompositeRestoreAccess(pack, X, PETSC_NULLPTR, &Xk));
-    PetscCall(DMCompositeRestoreAccess(pack, F, PETSC_NULLPTR, &Fk));
+    PetscCall(DMCompositeRestoreAccess(pack, X, NULL, &Xk));
+    PetscCall(DMCompositeRestoreAccess(pack, F, NULL, &Fk));
     break;
   case 2:
     PetscCall(DMCreateMatrix(pack, &B));

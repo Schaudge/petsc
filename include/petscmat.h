@@ -2115,11 +2115,11 @@ PETSC_EXTERN PetscErrorCode MatComputeOperatorTranspose(Mat, MatType, Mat *);
 
 PETSC_DEPRECATED_FUNCTION(3, 12, 0, "MatComputeOperator()", ) static inline PetscErrorCode MatComputeExplicitOperator(Mat A, Mat *B)
 {
-  return MatComputeOperator(A, PETSC_NULLPTR, B);
+  return MatComputeOperator(A, NULL, B);
 }
 PETSC_DEPRECATED_FUNCTION(3, 12, 0, "MatComputeOperatorTranspose()", ) static inline PetscErrorCode MatComputeExplicitOperatorTranspose(Mat A, Mat *B)
 {
-  return MatComputeOperatorTranspose(A, PETSC_NULLPTR, B);
+  return MatComputeOperatorTranspose(A, NULL, B);
 }
 
 PETSC_EXTERN PetscErrorCode MatCreateKAIJ(Mat, PetscInt, PetscInt, const PetscScalar[], const PetscScalar[], Mat *);

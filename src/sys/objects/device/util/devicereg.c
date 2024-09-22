@@ -36,7 +36,7 @@ const char *const PetscStreamTypes[] = {
   "max",
   "PetscStreamType",
   "PETSC_STREAM_",
-  PETSC_NULLPTR
+  NULL
 };
 
 const char *const PetscDeviceContextJoinModes[] = {
@@ -45,7 +45,7 @@ const char *const PetscDeviceContextJoinModes[] = {
   "no_sync",
   "PetscDeviceContextJoinMode",
   "PETSC_DEVICE_CONTEXT_JOIN_",
-  PETSC_NULLPTR
+  NULL
 };
 
 const char *const PetscDeviceTypes[] = {
@@ -56,7 +56,7 @@ const char *const PetscDeviceTypes[] = {
   "max",
   "PetscDeviceType",
   "PETSC_DEVICE_",
-  PETSC_NULLPTR
+  NULL
 };
 
 const char *const PetscDeviceInitTypes[] = {
@@ -65,7 +65,7 @@ const char *const PetscDeviceInitTypes[] = {
   "eager",
   "PetscDeviceInitType",
   "PETSC_DEVICE_INIT_",
-  PETSC_NULLPTR
+  NULL
 };
 
 #ifdef __cplusplus
@@ -86,7 +86,7 @@ const char *const PetscDeviceAttributes[] = {
   "max",
   "PetscDeviceAttribute",
   "PETSC_DEVICE_ATTR_",
-  PETSC_NULLPTR
+  NULL
 };
 // clang-format on
 

@@ -359,60 +359,6 @@ M*/
 #endif
 
 /*MC
-  PETSC_NULLPTR - Standard way of indicating a null value or pointer
-
-  No Fortran Support
-
-  Level: beginner
-
-  Notes:
-  Equivalent to `NULL` in C source, and `nullptr` in C++ source. Note that for the purposes of
-  interoperability between C and C++, setting a pointer to `PETSC_NULLPTR` in C++ is functonially
-  equivalent to setting the same pointer to `NULL` in C. That is to say that the following
-  expressions are equivalent\:
-
-.vb
-  ptr == PETSC_NULLPTR
-  ptr == NULL
-  ptr == 0
-  !ptr
-
-  ptr = PETSC_NULLPTR
-  ptr = NULL
-  ptr = 0
-.ve
-
-  and for completeness' sake\:
-
-.vb
-  PETSC_NULLPTR == NULL
-.ve
-
-  Example Usage:
-.vb
-  // may be used in place of '\0' or other such terminators in the definition of char arrays
-  const char *const MyEnumTypes[] = {
-    "foo",
-    "bar",
-    PETSC_NULLPTR
-  };
-
-  // may be used to nullify objects
-  PetscObject obj = PETSC_NULLPTR;
-
-  // may be used in any function expecting NULL
-  PetscInfo(PETSC_NULLPTR,"Lorem Ipsum Dolor");
-.ve
-
-  Developer Notes:
-  `PETSC_NULLPTR` must be used in place of `NULL` in all C++ source files. Using `NULL` in source
-  files compiled with a C++ compiler may lead to unexpected side-effects in function overload
-  resolution and/or compiler warnings.
-
-.seealso: `PETSC_CONSTEXPR_14`, `PETSC_NODISCARD`
-M*/
-
-/*MC
   PETSC_CONSTEXPR_14 - C++14 constexpr
 
   No Fortran Support
@@ -438,7 +384,7 @@ M*/
   }
 .ve
 
-.seealso: `PETSC_NULLPTR`, `PETSC_NODISCARD`
+.seealso: `PETSC_NODISCARD`
 M*/
 
 /*MC
@@ -487,15 +433,11 @@ M*/
   (void)g;         // warnings)
 .ve
 
-.seealso: `PETSC_NULLPTR`, `PETSC_CONSTEXPR_14`
+.seealso: `PETSC_CONSTEXPR_14`
 M*/
 
 /* C++11 features */
-#if defined(__cplusplus) || (PETSC_C_VERSION >= 23)
-  #define PETSC_NULLPTR nullptr
-#else
-  #define PETSC_NULLPTR NULL
-#endif
+#define PETSC_NULLPTR NULL
 
 /* C++14 features */
 #if PETSC_CPP_VERSION >= 14

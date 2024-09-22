@@ -387,7 +387,7 @@ M*/
   #define PetscDrawCollectiveBegin(draw) \
     do { \
       jmp_buf _Petsc_jmpbuf; \
-      PetscXIOErrorHandlerFn *volatile _Petsc_xioerrhdl = PETSC_NULLPTR; \
+      PetscXIOErrorHandlerFn *volatile _Petsc_xioerrhdl = NULL; \
       PetscBool _Petsc_isdrawx, _Petsc_xioerr, _Petsc_xioerr_local = PETSC_FALSE; \
       PetscCall(PetscObjectTypeCompare((PetscObject)(draw), PETSC_DRAW_X, &_Petsc_isdrawx)); \
       if (_Petsc_isdrawx) { \
