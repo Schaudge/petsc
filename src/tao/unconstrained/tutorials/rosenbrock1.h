@@ -20,7 +20,7 @@ static PetscErrorCode AppCtxCreateSolution(AppCtx *usr, Vec *solution)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode AppCtxCreateHessianMatrices(AppCtx *usr, Mat *H, Mat *Hpre)
+static PETSC_UNUSED PetscErrorCode AppCtxCreateHessianMatrices(AppCtx *usr, Mat *H, Mat *Hpre)
 {
   Mat hessian;
 
@@ -100,7 +100,7 @@ static PetscErrorCode AppCtxFormFunctionGradient(AppCtx *user, Vec X, PetscReal 
 + H     - Hessian matrix
 - Hpre  - Hessian preconditioner
 */
-PetscErrorCode AppCtxFormHessian(AppCtx *user, Vec X, Mat H, Mat Hpre)
+static PetscErrorCode AppCtxFormHessian(AppCtx *user, Vec X, Mat H, Mat Hpre)
 {
   PetscInt           ind[2];
   PetscReal          alpha = user->alpha;
@@ -109,6 +109,7 @@ PetscErrorCode AppCtxFormHessian(AppCtx *user, Vec X, Mat H, Mat Hpre)
   PetscBool          assembled;
 
   PetscFunctionBeginUser;
+  if (H == NULL) H = Hpre;
   /* Zero existing matrix entries */
   PetscCall(MatAssembled(H, &assembled));
   if (assembled) PetscCall(MatZeroEntries(H));
