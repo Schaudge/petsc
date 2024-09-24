@@ -85,7 +85,6 @@ static PetscErrorCode MatAXPY_BasicWithTypeCompare(Mat Y, PetscScalar a, Mat X, 
     if (flg) {
       Vec d_X, d_Y;
 
-
       PetscCall(MatDiagonalGetDiagonal(X, &d_X));
 
       PetscCall(PetscObjectQuery((PetscObject)Y, "__MatAXPY_BasicWithTypeCompare_Diagonal", (PetscObject *)&d_Y));

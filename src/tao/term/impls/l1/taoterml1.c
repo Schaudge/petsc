@@ -139,7 +139,7 @@ static PetscErrorCode TaoTermGradient_L1_Internal(TaoTerm term, Vec diff, Vec d,
   if (l1->epsilon == 0.0) {
     if (!l1->epsilon_warning) {
       l1->epsilon_warning = PETSC_TRUE;
-      PetscCall(PetscInfo(term, "Asking for gradient of l1 norm, which is not smooth.  Consider smoothing the TaoTerm with TaoTermL1SetEpsilon() or using a Tao that does not require gradients"));
+      PetscCall(PetscInfo(term, "Asking for gradient of l1 norm, which is not smooth.  Consider smoothing the TaoTerm with TaoTermL1SetEpsilon() or using a Tao that does not require gradients\n"));
     }
     PetscCall(VecCopy(diff, g));
     PetscCall(VecSign(g));
@@ -178,7 +178,7 @@ static PetscErrorCode TaoTermHessian_L1_Internal(TaoTerm term, Vec diag, Mat H)
   if (l1->epsilon == 0.0) {
     if (!l1->epsilon_warning) {
       l1->epsilon_warning = PETSC_TRUE;
-      PetscCall(PetscInfo(term, "Asking for Hessian of l1 norm, which is not smooth.  Consider smoothing the TaoTerm with TaoTermL1SetEpsilon() or using a Tao that does not require Hessians"));
+      PetscCall(PetscInfo(term, "Asking for Hessian of l1 norm, which is not smooth.  Consider smoothing the TaoTerm with TaoTermL1SetEpsilon() or using a Tao that does not require Hessians\n"));
     }
     PetscCall(MatZeroEntries(H));
   } else {
@@ -208,7 +208,7 @@ static PetscErrorCode TaoTermHessianMult_L1_Internal(TaoTerm term, Vec diag, Vec
   if (l1->epsilon == 0.0) {
     if (!l1->epsilon_warning) {
       l1->epsilon_warning = PETSC_TRUE;
-      PetscCall(PetscInfo(term, "Asking for Hessian of l1 norm, which is not smooth.  Consider smoothing the TaoTerm with TaoTermL1SetEpsilon() or using a Tao that does not require Hessians"));
+      PetscCall(PetscInfo(term, "Asking for Hessian of l1 norm, which is not smooth.  Consider smoothing the TaoTerm with TaoTermL1SetEpsilon() or using a Tao that does not require Hessians\n"));
     }
     PetscCall(VecZeroEntries(Hv));
   } else {

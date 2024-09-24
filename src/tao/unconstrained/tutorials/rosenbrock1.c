@@ -345,5 +345,4 @@ PetscErrorCode FormHessian(Tao tao, Vec X, Mat H, Mat Hpre, void *ptr)
      requires: !single
      args: -tao_type nls -tao_add_objective_terms reg_ -reg_taoterm_type l1 -reg_taoterm_l1_epsilon 0.4 -objective_taoterm_sum_reg_scale 0.3 -tao_monitor_short -tao_view -objective_taoterm_hessian_pre_is_hessian 0 -reg_taoterm_hessian_pre_is_hessian 0
 
-
 TEST*/
