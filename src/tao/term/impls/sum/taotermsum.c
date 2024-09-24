@@ -1,10 +1,8 @@
 #include <petsc/private/taoimpl.h> /*I "petsctao.h" I*/
 
-
 typedef struct _n_TaoTerm_Sum TaoTerm_Sum;
 
-typedef struct _n_TaoTermSumHessCache
-{
+typedef struct _n_TaoTermSumHessCache {
   PetscObjectId    x_id;
   PetscObjectId    p_id;
   PetscObjectState x_state;
@@ -14,8 +12,8 @@ typedef struct _n_TaoTermSumHessCache
 } TaoTermSumHessCache;
 
 struct _n_TaoTerm_Sum {
-  PetscInt       n_terms;
-  TaoMappedTerm *terms;
+  PetscInt            n_terms;
+  TaoMappedTerm      *terms;
   TaoTermSumHessCache hessian_cache;
 };
 
@@ -33,15 +31,14 @@ static PetscErrorCode TaoTermSumVecArrayGetSubvec(Vec vecs[], PetscInt i, Vec *s
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-
 static PetscErrorCode TaoTermSumHessCacheReset(TaoTermSumHessCache *cache)
 {
   PetscFunctionBegin;
   for (PetscInt i = 0; i < cache->n_terms; i++) PetscCall(MatDestroy(&cache->hessians[i]));
   PetscCall(PetscFree(cache->hessians));
   cache->n_terms = 0;
-  cache->x_id = 0;
-  cache->p_id = 0;
+  cache->x_id    = 0;
+  cache->p_id    = 0;
   cache->x_state = 0;
   cache->p_state = 0;
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -49,8 +46,8 @@ static PetscErrorCode TaoTermSumHessCacheReset(TaoTermSumHessCache *cache)
 
 static PetscErrorCode TaoTermSumHessCacheGetHessians(TaoTerm term, Vec x, Vec params, TaoTermSumHessCache *cache, Mat **hessians)
 {
-  TaoTerm_Sum *sum = (TaoTerm_Sum *)term->data;
-  PetscObjectId x_id, p_id = 0;
+  TaoTerm_Sum     *sum = (TaoTerm_Sum *)term->data;
+  PetscObjectId    x_id, p_id       = 0;
   PetscObjectState x_state, p_state = 0;
 
   PetscFunctionBegin;
@@ -70,14 +67,14 @@ static PetscErrorCode TaoTermSumHessCacheGetHessians(TaoTerm term, Vec x, Vec pa
   PetscCall(PetscObjectStateGet((PetscObject)x, &x_state));
   if (params) {
     PetscCall(PetscObjectGetId((PetscObject)params, &p_id));
-    PetscCall(PetscObjectStateGet((PetscObject)params,  &p_state));
+    PetscCall(PetscObjectStateGet((PetscObject)params, &p_state));
   }
   if (x_id != cache->x_id || x_state != cache->x_state || p_id != cache->p_id || p_state != cache->p_state) {
     Vec *sub_params = NULL;
 
-    cache->x_id = x_id;
+    cache->x_id    = x_id;
     cache->x_state = x_state;
-    cache->p_id = p_id;
+    cache->p_id    = p_id;
     cache->p_state = p_state;
     if (params) PetscCall(VecNestGetSubVecsRead(params, NULL, &sub_params));
     for (PetscInt i = 0; i < sum->n_terms; i++) {
@@ -407,10 +404,10 @@ static PetscErrorCode TaoTermSumSetSubtermHessianMatrices_Sum(TaoTerm term, Pets
   if (!summand->map) {
     // accept inputs in either position
     unmapped_H = unmapped_H ? unmapped_H : mapped_H;
-    mapped_H = NULL;
+    mapped_H   = NULL;
 
     unmapped_Hpre = unmapped_Hpre ? unmapped_Hpre : mapped_Hpre;
-    mapped_Hpre = NULL;
+    mapped_Hpre   = NULL;
   }
 
   PetscCall(PetscObjectReference((PetscObject)unmapped_H));
@@ -428,7 +425,6 @@ static PetscErrorCode TaoTermSumSetSubtermHessianMatrices_Sum(TaoTerm term, Pets
   PetscCall(PetscObjectReference((PetscObject)mapped_Hpre));
   PetscCall(MatDestroy(&summand->_mapped_Hpre));
   summand->_mapped_Hpre = mapped_Hpre;
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

@@ -88,9 +88,7 @@ PetscErrorCode TaoTermView(TaoTerm term, PetscViewer viewer)
     }
     if (term->ops->createhessianmatrices == TaoTermCreateHessianMatricesDefault) {
       PetscCall(PetscViewerASCIIPrintf(viewer, "default Hessian MatType (taoterm_hessian_mat_type): %s\n", term->H_mattype ? term->H_mattype : "(undefined)"));
-      if (!term->Hpre_is_H) {
-        PetscCall(PetscViewerASCIIPrintf(viewer, "default Hessian preconditioning MatType (taoterm_hessian_pre_mat_type): %s\n", term->Hpre_mattype ? term->Hpre_mattype : "(undefined)"));
-      }
+      if (!term->Hpre_is_H) { PetscCall(PetscViewerASCIIPrintf(viewer, "default Hessian preconditioning MatType (taoterm_hessian_pre_mat_type): %s\n", term->Hpre_mattype ? term->Hpre_mattype : "(undefined)")); }
     }
     if (term->ops->view) { PetscUseTypeMethod(term, view, viewer); }
     PetscCall(PetscViewerASCIIPopTab(viewer));
@@ -314,7 +312,7 @@ PetscErrorCode TaoTermCreate(MPI_Comm comm, TaoTerm *term)
   PetscCall(MatSetLayouts(_term->parameters_factory, rlayout, zero_layout));
   PetscCall(PetscLayoutDestroy(&zero_layout));
   _term->Hpre_is_H = PETSC_TRUE;
-  *term = _term;
+  *term            = _term;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -729,6 +727,7 @@ PetscErrorCode TaoTermIsCreateHessianMatricesDefined(TaoTerm term, PetscBool *is
 PetscErrorCode TaoTermSetSolutionSizes(TaoTerm term, PetscInt n, PetscInt N, PetscInt bs)
 {
   PetscLayout layout;
+
   PetscFunctionBegin;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
   PetscCall(MatGetLayouts(term->solution_factory, &layout, NULL));
@@ -791,6 +790,7 @@ PetscErrorCode TaoTermGetSolutionSizes(TaoTerm term, PetscInt *n, PetscInt *N, P
 PetscErrorCode TaoTermSetParametersSizes(TaoTerm term, PetscInt k, PetscInt K, PetscInt bs)
 {
   PetscLayout layout;
+
   PetscFunctionBegin;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
   PetscCall(MatGetLayouts(term->parameters_factory, &layout, NULL));
@@ -1103,7 +1103,7 @@ PetscErrorCode TaoTermCreateHessianMatrices(TaoTerm term, Mat *H, Mat *Hpre)
 @*/
 PetscErrorCode TaoTermCreateHessianMatricesDefault(TaoTerm term, Mat *H, Mat *Hpre)
 {
-  PetscBool Hpre_is_H;
+  PetscBool   Hpre_is_H;
   const char *H_mattype;
   const char *Hpre_mattype;
 
@@ -1280,7 +1280,6 @@ PetscErrorCode TaoTermDuplicate(TaoTerm term, TaoTermDuplicateOption opt, TaoTer
 
   Options Database Keys:
 . -taoterm_parameters_type <optional,none,required> - `TAOTERM_PARAMETERS_OPTIONAL`, `TAOTERM_PARAMETERS_NONE`, `TAOTERM_PARAMETERS_REQUIRED`
-
 
 .seealso: [](ch_tao), `Tao`, `TaoTerm`, `TaoTermParametersType`, `TaoTermGetParametersType()`
 @*/
