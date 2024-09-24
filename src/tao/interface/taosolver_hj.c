@@ -317,12 +317,15 @@ PetscErrorCode TaoTestHessian(Tao tao)
   Developer Notes:
   The Hessian test mechanism follows `SNESTestJacobian()`.
 
+  If there is no separate preconditioning matrix, `TaoComputeHessian(tao, X, H, NULL)` and `TaoComputeHessian(tao, X, H, H)` are equivalent.
+
 .seealso: [](ch_tao), `Tao`, `TaoComputeObjective()`, `TaoComputeObjectiveAndGradient()`, `TaoSetHessian()`
 @*/
 PetscErrorCode TaoComputeHessian(Tao tao, Vec X, Mat H, Mat Hpre)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
+  if (Hpre == H) Hpre = NULL;
   PetscCall(TaoMappedTermHessian(&tao->objective_term, X, NULL, INSERT_VALUES, H, Hpre));
   PetscCall(TaoTestHessian(tao));
   tao->nhess++;

@@ -63,6 +63,7 @@ static PetscErrorCode TaoTermL1ComputeData(TaoTerm term, Vec x, Vec params, Vec 
       if (!l1->d) PetscCall(VecDuplicate(x, &l1->d));
       PetscCall(VecPointwiseMult(l1->d, diff, diff));
       PetscCall(VecShift(l1->d, l1->epsilon * l1->epsilon));
+      PetscCall(VecSqrtAbs(l1->d));
     }
   }
   *_diff = diff;
@@ -191,6 +192,8 @@ static PetscErrorCode TaoTermHessian_L1(TaoTerm term, Vec x, Vec params, Mat H, 
   Vec diag;
 
   PetscFunctionBegin;
+  PetscCall(TaoTermUpdateHessianShells(term, x, params, &H, &Hpre));
+  if (!H && !Hpre) PetscFunctionReturn(PETSC_SUCCESS);
   PetscCall(TaoTermL1ComputeDiag(term, x, params, &diag));
   if (H) PetscCall(TaoTermHessian_L1_Internal(term, diag, H));
   if (Hpre && Hpre != H) PetscCall(TaoTermHessian_L1_Internal(term, diag, Hpre));
@@ -337,14 +340,18 @@ PETSC_INTERN PetscErrorCode TaoTermCreate_L1(TaoTerm term)
   PetscCall(PetscNew(&l1));
   term->data = (void *)l1;
 
-  term->ops->destroy              = TaoTermDestroy_L1;
-  term->ops->view                 = TaoTermView_L1;
-  term->ops->setfromoptions       = TaoTermSetFromOptions_L1;
-  term->ops->objective            = TaoTermObjective_L1;
-  term->ops->gradient             = TaoTermGradient_L1;
-  term->ops->objectiveandgradient = TaoTermObjectiveAndGradient_L1;
-  term->ops->hessian              = TaoTermHessian_L1;
-  term->ops->hessianmult          = TaoTermHessianMult_L1;
+  term->ops->destroy               = TaoTermDestroy_L1;
+  term->ops->view                  = TaoTermView_L1;
+  term->ops->setfromoptions        = TaoTermSetFromOptions_L1;
+  term->ops->objective             = TaoTermObjective_L1;
+  term->ops->gradient              = TaoTermGradient_L1;
+  term->ops->objectiveandgradient  = TaoTermObjectiveAndGradient_L1;
+  term->ops->hessian               = TaoTermHessian_L1;
+  term->ops->hessianmult           = TaoTermHessianMult_L1;
+  term->ops->createhessianmatrices = TaoTermCreateHessianMatricesDefault;
+
+  if (!term->H_mattype) PetscCall(PetscStrallocpy(MATSHELL, &term->H_mattype));
+  if (!term->Hpre_mattype) PetscCall(PetscStrallocpy(MATDIAGONAL, &term->Hpre_mattype));
 
   PetscCall(PetscObjectComposeFunction((PetscObject)term, "TaoTermL1SetEpsilon_C", TaoTermL1SetEpsilon_L1));
   PetscCall(PetscObjectComposeFunction((PetscObject)term, "TaoTermL1GetEpsilon_C", TaoTermL1GetEpsilon_L1));

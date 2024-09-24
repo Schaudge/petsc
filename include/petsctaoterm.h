@@ -9,8 +9,8 @@
   Values:
 + `TAOTERMTAOCALLBACKS`    - uses the callback functions set in `TaoSetObjective()`, `TaoSetGradient()`, etc.
 + `TAOTERMBRGNREGULARIZER` - uses the callback functions set in `TaoBRGNSetRegularizerObjectiveAndGradientRoutine()`, etc.
-+ `TAOTERMADMMREGULARIZER` - uses the callback functions set in `TaoADMMSetRegularizerObjectiveAndGradientRoutine()`, etc.
-+ `TAOTERMADMMMISFIT`      - uses the callback functions set in `TaoADMMSetMisfitObjectiveAndGradientRoutine()`, etc.
+. `TAOTERMADMMREGULARIZER` - uses the callback functions set in `TaoADMMSetRegularizerObjectiveAndGradientRoutine()`, etc.
+. `TAOTERMADMMMISFIT`      - uses the callback functions set in `TaoADMMSetMisfitObjectiveAndGradientRoutine()`, etc.
 . `TAOTERMSHELL`           - a container for arbitrary user-defined callbacks
 . `TAOTERMSUM`             - a sum of multiple other `TaoTerm`s
 . `TAOTERMDM`              - a term whose value and operations are determined by a `DM`
@@ -103,6 +103,9 @@ PETSC_EXTERN PetscErrorCode TaoTermSetLayouts(TaoTerm, PetscLayout, PetscLayout)
 PETSC_EXTERN PetscErrorCode TaoTermGetLayouts(TaoTerm, PetscLayout *, PetscLayout *);
 PETSC_EXTERN PetscErrorCode TaoTermCreateVecs(TaoTerm, Vec *, Vec *);
 PETSC_EXTERN PetscErrorCode TaoTermCreateHessianMatrices(TaoTerm, Mat *, Mat *);
+PETSC_EXTERN PetscErrorCode TaoTermCreateHessianMatricesDefault(TaoTerm, Mat *, Mat *);
+PETSC_EXTERN PetscErrorCode TaoTermSetCreateHessianMode(TaoTerm, PetscBool, MatType, MatType);
+PETSC_EXTERN PetscErrorCode TaoTermGetCreateHessianMode(TaoTerm, PetscBool *, MatType *, MatType *);
 
 PETSC_EXTERN PetscErrorCode TaoTermObjective(TaoTerm, Vec, Vec, PetscReal *);
 PETSC_EXTERN PetscErrorCode TaoTermGradient(TaoTerm, Vec, Vec, Vec);
@@ -132,6 +135,7 @@ PETSC_EXTERN PetscErrorCode TaoTermSumAddSubterm(TaoTerm, const char[], PetscRea
 PETSC_EXTERN PetscErrorCode TaoTermSumConcatenateParameters(TaoTerm, Vec[], Vec *);
 PETSC_EXTERN PetscErrorCode TaoTermSumGetParameters(TaoTerm, Vec, Vec **);
 PETSC_EXTERN PetscErrorCode TaoTermSumRestoreParameters(TaoTerm, Vec, Vec **);
+PETSC_EXTERN PetscErrorCode TaoTermSumSetSubtermHessianMatrices(TaoTerm, PetscInt, Mat, Mat, Mat, Mat);
 
 PETSC_EXTERN PetscErrorCode TaoTermL1SetEpsilon(TaoTerm, PetscReal);
 PETSC_EXTERN PetscErrorCode TaoTermL1GetEpsilon(TaoTerm, PetscReal *);
@@ -141,3 +145,7 @@ PETSC_EXTERN PetscErrorCode TaoTermIsGradientDefined(TaoTerm, PetscBool *);
 PETSC_EXTERN PetscErrorCode TaoTermIsObjectiveAndGradientDefined(TaoTerm, PetscBool *);
 PETSC_EXTERN PetscErrorCode TaoTermIsHessianDefined(TaoTerm, PetscBool *);
 PETSC_EXTERN PetscErrorCode TaoTermIsCreateHessianMatricesDefined(TaoTerm, PetscBool *);
+
+PETSC_EXTERN PetscErrorCode TaoTermCreateHessianShell(TaoTerm, Mat *);
+PETSC_EXTERN PetscErrorCode TaoTermUpdateHessianShell(TaoTerm, Mat, Vec, Vec);
+PETSC_EXTERN PetscErrorCode TaoTermUpdateHessianShells(TaoTerm, Vec, Vec, Mat *, Mat *);

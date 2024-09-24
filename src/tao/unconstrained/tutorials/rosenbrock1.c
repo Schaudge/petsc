@@ -326,8 +326,24 @@ PetscErrorCode FormHessian(Tao tao, Vec X, Mat H, Mat Hpre, void *ptr)
      args: -snes_monitor ::ascii_info_detail -tao_type snes -snes_type newtonls -snes_atol 1.e-4 -pc_type lmvm -tao_mf_hessian
 
    test:
-     suffix: add_terms
+     suffix: add_terms_l2_no_pre
      requires: !single
-     args: -tao_type nls -tao_add_objective_terms reg_ -reg_taoterm_type halfl2squared -tao_monitor_short -tao_view
+     args: -tao_type nls -tao_add_objective_terms reg_ -reg_taoterm_type halfl2squared -objective_taoterm_sum_reg_scale 0.3 -tao_monitor_short -tao_view
+
+   test:
+     suffix: add_terms_l2_pre
+     requires: !single
+     args: -tao_type nls -tao_add_objective_terms reg_ -reg_taoterm_type halfl2squared -objective_taoterm_sum_reg_scale 0.3 -tao_monitor_short -tao_view -objective_taoterm_hessian_pre_is_hessian 0 -reg_taoterm_hessian_pre_is_hessian 0
+
+   test:
+     suffix: add_terms_l1_no_pre
+     requires: !single
+     args: -tao_type nls -tao_add_objective_terms reg_ -reg_taoterm_type l1 -reg_taoterm_l1_epsilon 0.4 -objective_taoterm_sum_reg_scale 0.3 -tao_monitor_short -tao_view
+
+   test:
+     suffix: add_terms_l1_pre
+     requires: !single
+     args: -tao_type nls -tao_add_objective_terms reg_ -reg_taoterm_type l1 -reg_taoterm_l1_epsilon 0.4 -objective_taoterm_sum_reg_scale 0.3 -tao_monitor_short -tao_view -objective_taoterm_hessian_pre_is_hessian 0 -reg_taoterm_hessian_pre_is_hessian 0
+
 
 TEST*/

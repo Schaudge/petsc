@@ -3010,6 +3010,9 @@ PetscErrorCode TaoAddObjectiveTerm(Tao tao, const char prefix[], PetscReal scale
     PetscCall(PetscObjectAppendOptionsPrefix((PetscObject)old_sum, "objective_"));
     PetscCall(TaoTermSumSetNumSubterms(old_sum, 1));
     PetscCall(TaoTermSumSetSubterm(old_sum, 0, tao->objective_term.term == tao->orig_callbacks ? "callbacks_" : NULL, tao->objective_term.scale, tao->objective_term.term, tao->objective_term.map));
+    PetscCall(TaoTermSumSetSubtermHessianMatrices(old_sum, 0, NULL, NULL, tao->hessian, tao->hessian_pre));
+    PetscCall(MatDestroy(&tao->hessian));
+    PetscCall(MatDestroy(&tao->hessian_pre));
     PetscCall(TaoMappedTermReset(&tao->objective_term));
     PetscCall(TaoMappedTermSetData(&tao->objective_term, "objective_", 1.0, old_sum, NULL));
     PetscCall(TaoTermDestroy(&old_sum));

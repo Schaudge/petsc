@@ -10,7 +10,6 @@ to define the Rosenbrock function.\n";
 static PetscErrorCode FormFunctionGradient(TaoTerm, Vec, Vec, PetscReal *, Vec);
 static PetscErrorCode FormHessian(TaoTerm, Vec, Vec, Mat, Mat);
 static PetscErrorCode CreateVecs(TaoTerm, Vec *, Vec *);
-static PetscErrorCode CreateHessianMatrices(TaoTerm, Mat *, Mat *);
 
 int main(int argc, char **argv)
 {
@@ -39,8 +38,10 @@ int main(int argc, char **argv)
 
   /* Define the objective function */
   PetscCall(TaoTermCreateShell(comm, (void *)&user, NULL /* no destructor is needed for `user` */, &objective));
+  PetscCall(TaoTermSetParametersType(objective, TAOTERM_PARAMETERS_NONE));
   PetscCall(TaoTermShellSetCreateVecs(objective, CreateVecs));
-  PetscCall(TaoTermShellSetCreateHessianMatrices(objective, CreateHessianMatrices));
+  PetscCall(TaoTermShellSetCreateHessianMatrices(objective, TaoTermCreateHessianMatricesDefault));
+  PetscCall(TaoTermSetCreateHessianMode(objective, PETSC_TRUE /* H == Hpre */, MATBAIJ, NULL));
   PetscCall(TaoTermShellSetObjectiveAndGradient(objective, FormFunctionGradient));
   PetscCall(TaoTermShellSetHessian(objective, FormHessian));
 
@@ -126,16 +127,6 @@ static PetscErrorCode CreateVecs(TaoTerm term, Vec *solution, Vec *parameters_un
   PetscFunctionBeginUser;
   PetscCall(TaoTermShellGetContext(term, &user));
   PetscCall(AppCtxCreateSolution(user, solution));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-static PetscErrorCode CreateHessianMatrices(TaoTerm term, Mat *H, Mat *Hpre)
-{
-  AppCtx *user;
-
-  PetscFunctionBeginUser;
-  PetscCall(TaoTermShellGetContext(term, &user));
-  PetscCall(AppCtxCreateHessianMatrices(user, H, Hpre));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

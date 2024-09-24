@@ -34,6 +34,8 @@ PetscErrorCode TaoTermDestroy(TaoTerm *term)
   }
 
   PetscTryTypeMethod(*term, destroy);
+  PetscCall(PetscFree((*term)->H_mattype));
+  PetscCall(PetscFree((*term)->Hpre_mattype));
   PetscCall(MatDestroy(&(*term)->solution_factory));
   PetscCall(MatDestroy(&(*term)->parameters_factory));
   PetscCall(MatDestroy(&(*term)->parameters_factory_orig));
@@ -84,6 +86,12 @@ PetscErrorCode TaoTermView(TaoTerm term, PetscViewer viewer)
       PetscCall(MatGetSize(term->parameters_factory, &K, NULL));
       PetscCall(PetscViewerASCIIPrintf(viewer, "solution vector space: (%s) K = %" PetscInt_FMT " [VecType %s (taoterm_parameters_vec_type)]\n", TaoTermParametersTypes[term->parameters_type], K, parameters_vec_type));
     }
+    if (term->ops->createhessianmatrices == TaoTermCreateHessianMatricesDefault) {
+      PetscCall(PetscViewerASCIIPrintf(viewer, "default Hessian MatType (taoterm_hessian_mat_type): %s\n", term->H_mattype ? term->H_mattype : "(undefined)"));
+      if (!term->Hpre_is_H) {
+        PetscCall(PetscViewerASCIIPrintf(viewer, "default Hessian preconditioning MatType (taoterm_hessian_pre_mat_type): %s\n", term->Hpre_mattype ? term->Hpre_mattype : "(undefined)"));
+      }
+    }
     if (term->ops->view) { PetscUseTypeMethod(term, view, viewer); }
     PetscCall(PetscViewerASCIIPopTab(viewer));
   }
@@ -104,13 +112,35 @@ PetscErrorCode TaoTermView(TaoTerm term, PetscViewer viewer)
 @*/
 PetscErrorCode TaoTermSetUp(TaoTerm term)
 {
+  PetscInt N;
+
   PetscFunctionBegin;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
   if (term->setup_called) PetscFunctionReturn(PETSC_SUCCESS);
   term->setup_called = PETSC_TRUE;
   PetscTryTypeMethod(term, setup);
+  PetscCall(MatGetSize(term->solution_factory, &N, NULL));
+  if (N < 0 && term->ops->createvecs) {
+    Vec sol_template;
+
+    PetscCall(TaoTermCreateVecs(term, &sol_template, NULL));
+    PetscCall(TaoTermSetSolutionTemplate(term, sol_template));
+    PetscCall(VecDestroy(&sol_template));
+  }
   PetscCall(MatSetUp(term->solution_factory));
-  if (term->parameters_type != TAOTERM_PARAMETERS_NONE) PetscCall(MatSetUp(term->parameters_factory));
+  if (term->parameters_type != TAOTERM_PARAMETERS_NONE) {
+    PetscInt K;
+
+    PetscCall(MatGetSize(term->parameters_factory, &K, NULL));
+    if (K < 0 && term->ops->createvecs) {
+      Vec params_template;
+
+      PetscCall(TaoTermCreateVecs(term, NULL, &params_template));
+      PetscCall(TaoTermSetParametersTemplate(term, params_template));
+      PetscCall(VecDestroy(&params_template));
+    }
+    PetscCall(MatSetUp(term->parameters_factory));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -126,7 +156,10 @@ PetscErrorCode TaoTermSetUp(TaoTerm term)
 + -taoterm_type <type>                              - tao, shell, dm, separable, l1, linf, l2squared, quadratic, kl, `TaoTermType` for complete list
 . -taoterm_solution_vec_type <type>                 - `VecType` for complete list of vector types
 . -taoterm_parameters_vec_type <type>               - `VecType` for complete list of vector types
-- -taoterm_parameters_type <optional,none,required> - `TAOTERM_PARAMETERS_OPTIONAL`, `TAOTERM_PARAMETERS_NONE`, `TAOTERM_PARAMETERS_REQUIRED`
+. -taoterm_parameters_type <optional,none,required> - `TAOTERM_PARAMETERS_OPTIONAL`, `TAOTERM_PARAMETERS_NONE`, `TAOTERM_PARAMETERS_REQUIRED`
+. -taoterm_hessian_pre_is_hessian <bool>            - Whether `TaoTermCreateHessianMatrices()` should make a separate preconditioning matrix
+. -taoterm_hessian_mat_type <type>                  - `MatType` for Hessian matrix created by `TaoTermCreateHessianMatrices()`
+- -taoterm_hessian_pre_mat_type <type>              - `MatType` for Hessian preconditioning matrix created by `TaoTermCreateHessianMatrices()`
 
   Level: beginner
 
@@ -135,31 +168,45 @@ PetscErrorCode TaoTermSetUp(TaoTerm term)
 PetscErrorCode TaoTermSetFromOptions(TaoTerm term)
 {
   const char *deft = TAOTERMSHELL;
-  char        type[256];
   PetscBool   flg;
+  char        typeName[256];
+  VecType     sol_type, params_type;
+  PetscBool   opt;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
   if (((PetscObject)term)->type_name) deft = ((PetscObject)term)->type_name;
   PetscObjectOptionsBegin((PetscObject)term);
-  PetscCall(PetscOptionsFList("-taoterm_type", "TaoTerm type", "TaoTermType", TaoTermList, deft, type, 256, &flg));
+  PetscCall(PetscOptionsFList("-taoterm_type", "TaoTerm type", "TaoTermType", TaoTermList, deft, typeName, 256, &flg));
   if (flg) {
-    PetscCall(TaoTermSetType(term, type));
+    PetscCall(TaoTermSetType(term, typeName));
   } else {
     PetscCall(TaoTermSetType(term, deft));
   }
-  {
-    VecType   sol_type, params_type;
-    char      typeName[256];
-    PetscBool opt;
-
-    PetscCall(TaoTermGetVecTypes(term, &sol_type, &params_type));
-    PetscCall(PetscOptionsFList("-taoterm_solution_vec_type", "Solution vector type", "TaoTermSetVecTypes", VecList, sol_type, typeName, 256, &opt));
-    if (opt) PetscCall(TaoTermSetVecTypes(term, typeName, NULL));
-    PetscCall(PetscOptionsFList("-taoterm_parameters_vec_type", "Parameters vector type", "TaoTermSetVecTypes", VecList, params_type, typeName, 256, &opt));
-    if (opt) PetscCall(TaoTermSetVecTypes(term, NULL, typeName));
-  }
+  PetscCall(TaoTermGetVecTypes(term, &sol_type, &params_type));
+  PetscCall(PetscOptionsFList("-taoterm_solution_vec_type", "Solution vector type", "TaoTermSetVecTypes", VecList, sol_type, typeName, 256, &opt));
+  if (opt) PetscCall(TaoTermSetVecTypes(term, typeName, NULL));
+  PetscCall(PetscOptionsFList("-taoterm_parameters_vec_type", "Parameters vector type", "TaoTermSetVecTypes", VecList, params_type, typeName, 256, &opt));
+  if (opt) PetscCall(TaoTermSetVecTypes(term, NULL, typeName));
   PetscCall(PetscOptionsEnum("-taoterm_parameters_type", "Parameters requirement type", "TaoTermSetParametersType", TaoTermParametersTypes, (PetscEnum)term->parameters_type, (PetscEnum *)&term->parameters_type, NULL));
+  PetscCall(PetscOptionsBool("-taoterm_hessian_pre_is_hessian", "If the Hessian and its preconditioning matrix should be the same", "TaoTermSetCreateHessianMode", term->Hpre_is_H, &term->Hpre_is_H, NULL));
+
+  deft = MATSHELL;
+  if (term->H_mattype) deft = term->H_mattype;
+  PetscCall(PetscOptionsFList("-taoterm_hessian_mat_type", "Hessian mat type", "TaoTermSetCreateHessianMode", MatList, deft, typeName, 256, &opt));
+  if (opt) {
+    PetscCall(PetscFree(term->H_mattype));
+    PetscCall(PetscStrallocpy(typeName, &term->H_mattype));
+  }
+
+  deft = MATAIJ;
+  if (term->Hpre_mattype) deft = term->Hpre_mattype;
+  PetscCall(PetscOptionsFList("-taoterm_hessian_pre_mat_type", "Hessian preconditioning mat type", "TaoTermSetCreateHessianMode", MatList, deft, typeName, 256, &opt));
+  if (opt) {
+    PetscCall(PetscFree(term->Hpre_mattype));
+    PetscCall(PetscStrallocpy(typeName, &term->Hpre_mattype));
+  }
+
   PetscTryTypeMethod(term, setfromoptions, PetscOptionsObject);
   PetscOptionsEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -266,6 +313,7 @@ PetscErrorCode TaoTermCreate(MPI_Comm comm, TaoTerm *term)
   PetscCall(MatGetLayouts(_term->parameters_factory, &rlayout, &clayout));
   PetscCall(MatSetLayouts(_term->parameters_factory, rlayout, zero_layout));
   PetscCall(PetscLayoutDestroy(&zero_layout));
+  _term->Hpre_is_H = PETSC_TRUE;
   *term = _term;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -448,6 +496,10 @@ PetscErrorCode TaoTermObjectiveAndGradient(TaoTerm term, Vec x, Vec params, Pets
 
   Level: beginner
 
+  Note:
+  If there is no separate preconditioning matrix, then `TaoTermHessian(term, x, params, H, NULL)`
+  and `TaoTermHessian(term, x, params, H, H)` are equivalent.
+
 .seealso: [](ch_tao), `Tao`, `TaoTerm`,
           `TaoTermObjective()`,
           `TaoTermGradient()`,
@@ -457,6 +509,7 @@ PetscErrorCode TaoTermObjectiveAndGradient(TaoTerm term, Vec x, Vec params, Pets
 PetscErrorCode TaoTermHessian(TaoTerm term, Vec x, Vec params, Mat H, Mat Hpre)
 {
   PetscFunctionBegin;
+  if (Hpre == H) Hpre = NULL;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
   PetscValidHeaderSpecific(x, VEC_CLASSID, 2);
   PetscCall(VecLockReadPush(x));
@@ -1023,6 +1076,157 @@ PetscErrorCode TaoTermCreateHessianMatrices(TaoTerm term, Mat *H, Mat *Hpre)
   if (H) PetscAssertPointer(H, 2);
   if (Hpre) PetscAssertPointer(Hpre, 3);
   PetscUseTypeMethod(term, createhessianmatrices, H, Hpre);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  TaoTermCreateHessianMatricesDefault - Default routine for creating hessian matrices that can be used by many `TaoTerm` implementations
+
+  Collective
+
+  Input Parameter:
+. term - a `TaoTerm`
+
+  Output Parameters:
++ H    - (optional) a matrix that can store the Hessian computed in `TaoTermHessian()`
+- Hpre - (optional) a preconditioner matrix that can be computed in `TaoTermHessian()`
+
+  Level: developer
+
+  Developer Note:
+  The behavior of this routine is determined by `TaoTermSetCreateHessianMode()`.
+  If `Hpre_is_H`, then the same matrix will be returned for `H` and `Hpre`,
+  otherwise they will be separate matrices, with the matrix types `H_mattype` and `Hpre_mattype`.
+  If either type is `MATSHELL`, then it will create a shell matrix with `TaoTermCreateHessianShell()`.
+
+.seealso: [](ch_tao), `Tao`, `TaoTerm`, `TaoTermHessian()`, `TaoTermSetCreateHessianMode()`, `TaoTermGetCreateHessianMode()`
+@*/
+PetscErrorCode TaoTermCreateHessianMatricesDefault(TaoTerm term, Mat *H, Mat *Hpre)
+{
+  PetscBool Hpre_is_H;
+  const char *H_mattype;
+  const char *Hpre_mattype;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
+  PetscCall(TaoTermGetCreateHessianMode(term, &Hpre_is_H, &H_mattype, &Hpre_mattype));
+
+  if (H || (Hpre && Hpre_is_H)) {
+    Mat       _H;
+    PetscBool is_shell = PETSC_FALSE;
+
+    if (H_mattype) PetscCall(PetscStrcmp(H_mattype, MATSHELL, &is_shell));
+    if (is_shell) {
+      PetscCall(TaoTermCreateHessianShell(term, &_H));
+    } else {
+      PetscLayout sol_layout;
+      VecType     sol_vec_type;
+
+      PetscCall(MatCreate(PetscObjectComm((PetscObject)term), &_H));
+      PetscCall(TaoTermGetLayouts(term, &sol_layout, NULL));
+      PetscCall(MatSetLayouts(_H, sol_layout, sol_layout));
+      PetscCall(TaoTermGetVecTypes(term, &sol_vec_type, NULL));
+      PetscCall(MatSetVecType(_H, sol_vec_type));
+      if (H_mattype) PetscCall(MatSetType(_H, H_mattype));
+      PetscCall(MatSetOption(_H, MAT_SYMMETRIC, PETSC_TRUE));
+      PetscCall(MatSetOption(_H, MAT_SYMMETRY_ETERNAL, PETSC_TRUE));
+    }
+
+    if (H) {
+      PetscCall(PetscObjectReference((PetscObject)_H));
+      *H = _H;
+    }
+    if (Hpre && Hpre_is_H) {
+      PetscCall(PetscObjectReference((PetscObject)_H));
+      *Hpre = _H;
+    }
+    PetscCall(MatDestroy(&_H));
+  }
+  if (Hpre && !Hpre_is_H) {
+    Mat       _Hpre;
+    PetscBool is_shell = PETSC_FALSE;
+
+    if (Hpre_mattype) PetscCall(PetscStrcmp(Hpre_mattype, MATSHELL, &is_shell));
+    if (is_shell) {
+      PetscCall(TaoTermCreateHessianShell(term, &_Hpre));
+    } else {
+      PetscLayout sol_layout;
+      VecType     sol_vec_type;
+
+      PetscCall(MatCreate(PetscObjectComm((PetscObject)term), &_Hpre));
+      PetscCall(TaoTermGetLayouts(term, &sol_layout, NULL));
+      PetscCall(MatSetLayouts(_Hpre, sol_layout, sol_layout));
+      PetscCall(TaoTermGetVecTypes(term, &sol_vec_type, NULL));
+      PetscCall(MatSetVecType(_Hpre, sol_vec_type));
+      if (Hpre_mattype) PetscCall(MatSetType(_Hpre, Hpre_mattype));
+      PetscCall(MatSetOption(_Hpre, MAT_SYMMETRIC, PETSC_TRUE));
+      PetscCall(MatSetOption(_Hpre, MAT_SYMMETRY_ETERNAL, PETSC_TRUE));
+    }
+    *Hpre = _Hpre;
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  TaoTermSetCreateHessianMode - Determine the behavior of `TaoTermCreateHessianMatricesDefault()`.
+
+  Logically collective
+
+  Input Parameters:
++ term         - a `TaoTerm`
+. Hpre_is_H    - should `TaoTermCreateHessianMatricesDefault()` make one matrix for `H` and `Hpre`?
+. H_mattype    - the `MatType` to create for `H`
+- Hpre_mattype - the `MatType` to create for `Hpre`
+
+  Level: developer
+
+  Options Database Keys:
++ -taoterm_hessian_pre_is_hessian <bool> - Whether `TaoTermCreateHessianMatrices()` should make a separate preconditioning matrix
+. -taoterm_hessian_mat_type <type>       - `MatType` for Hessian matrix created by `TaoTermCreateHessianMatrices()`
+- -taoterm_hessian_pre_mat_type <type>   - `MatType` for Hessian preconditioning matrix created by `TaoTermCreateHessianMatrices()`
+
+.seealso: [](ch_tao), `Tao`, `TaoTerm`, `TaoTermHessian()`, `TaoTermGetCreateHessianMode()`, `TaoTermCreateHessianMatricesDefault()`
+@*/
+PetscErrorCode TaoTermSetCreateHessianMode(TaoTerm term, PetscBool Hpre_is_H, const char H_mattype[], const char Hpre_mattype[])
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
+  term->Hpre_is_H = Hpre_is_H;
+  if (H_mattype != term->H_mattype) {
+    PetscCall(PetscFree(term->H_mattype));
+    if (H_mattype) PetscCall(PetscStrallocpy(H_mattype, &term->H_mattype));
+  }
+  if (Hpre_mattype != term->Hpre_mattype) {
+    PetscCall(PetscFree(term->Hpre_mattype));
+    if (Hpre_mattype) PetscCall(PetscStrallocpy(Hpre_mattype, &term->Hpre_mattype));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  TaoTermGetCreateHessianMode - Get the behavior of `TaoTermCreateHessianMatricesDefault()`.
+
+  Not collective
+
+  Input Parameter:
+. term - a `TaoTerm`
+
+  Ouput Parameters:
+. Hpre_is_H    - (optional) should `TaoTermCreateHessianMatricesDefault()` make one matrix for `H` and `Hpre`?
+. H_mattype    - (optional) the `MatType` to create for `H`
+- Hpre_mattype - (optional) the `MatType` to create for `Hpre`
+
+  Level: developer
+
+.seealso: [](ch_tao), `Tao`, `TaoTerm`, `TaoTermHessian()`, `TaoTermGetCreateHessianMode()`, `TaoTermCreateHessianMatricesDefault()`
+@*/
+PetscErrorCode TaoTermGetCreateHessianMode(TaoTerm term, PetscBool *Hpre_is_H, const char *H_mattype[], const char *Hpre_mattype[])
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
+  if (Hpre_is_H) *Hpre_is_H = term->Hpre_is_H;
+  if (H_mattype) *H_mattype = term->H_mattype;
+  if (Hpre_mattype) *Hpre_mattype = term->Hpre_mattype;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

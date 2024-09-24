@@ -1,11 +1,97 @@
 #include <petsc/private/taoimpl.h> /*I "petsctao.h" I*/
 
+
 typedef struct _n_TaoTerm_Sum TaoTerm_Sum;
+
+typedef struct _n_TaoTermSumHessCache
+{
+  PetscObjectId    x_id;
+  PetscObjectId    p_id;
+  PetscObjectState x_state;
+  PetscObjectState p_state;
+  PetscInt         n_terms;
+  Mat             *hessians;
+} TaoTermSumHessCache;
 
 struct _n_TaoTerm_Sum {
   PetscInt       n_terms;
   TaoMappedTerm *terms;
+  TaoTermSumHessCache hessian_cache;
 };
+
+// convert zero-length vectors to NULL
+static PetscErrorCode TaoTermSumVecArrayGetSubvec(Vec vecs[], PetscInt i, Vec *subvec)
+{
+  PetscInt N;
+
+  PetscFunctionBegin;
+  *subvec = NULL;
+  if (vecs) {
+    PetscCall(VecGetSize(vecs[i], &N));
+    if (N > 0) { *subvec = vecs[i]; }
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
+static PetscErrorCode TaoTermSumHessCacheReset(TaoTermSumHessCache *cache)
+{
+  PetscFunctionBegin;
+  for (PetscInt i = 0; i < cache->n_terms; i++) PetscCall(MatDestroy(&cache->hessians[i]));
+  PetscCall(PetscFree(cache->hessians));
+  cache->n_terms = 0;
+  cache->x_id = 0;
+  cache->p_id = 0;
+  cache->x_state = 0;
+  cache->p_state = 0;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode TaoTermSumHessCacheGetHessians(TaoTerm term, Vec x, Vec params, TaoTermSumHessCache *cache, Mat **hessians)
+{
+  TaoTerm_Sum *sum = (TaoTerm_Sum *)term->data;
+  PetscObjectId x_id, p_id = 0;
+  PetscObjectState x_state, p_state = 0;
+
+  PetscFunctionBegin;
+  if (sum->n_terms != cache->n_terms) PetscCall(TaoTermSumHessCacheReset(cache));
+  if (!cache->n_terms) {
+    cache->n_terms = sum->n_terms;
+    PetscCall(PetscCalloc1(sum->n_terms, &cache->hessians));
+    for (PetscInt i = 0; i < sum->n_terms; i++) {
+      TaoMappedTerm *summand = &sum->terms[i];
+      if (summand->_unmapped_H) {
+        PetscCall(PetscObjectReference((PetscObject)summand->_unmapped_H));
+        cache->hessians[i] = summand->_unmapped_H;
+      } else PetscCall(TaoTermCreateHessianMatrices(summand->term, &cache->hessians[i], NULL));
+    }
+  }
+  PetscCall(PetscObjectGetId((PetscObject)x, &x_id));
+  PetscCall(PetscObjectStateGet((PetscObject)x, &x_state));
+  if (params) {
+    PetscCall(PetscObjectGetId((PetscObject)params, &p_id));
+    PetscCall(PetscObjectStateGet((PetscObject)params,  &p_state));
+  }
+  if (x_id != cache->x_id || x_state != cache->x_state || p_id != cache->p_id || p_state != cache->p_state) {
+    Vec *sub_params = NULL;
+
+    cache->x_id = x_id;
+    cache->x_state = x_state;
+    cache->p_id = p_id;
+    cache->p_state = p_state;
+    if (params) PetscCall(VecNestGetSubVecsRead(params, NULL, &sub_params));
+    for (PetscInt i = 0; i < sum->n_terms; i++) {
+      TaoMappedTerm *summand = &sum->terms[i];
+      Vec            sub_param;
+
+      PetscCall(TaoTermSumVecArrayGetSubvec(sub_params, i, &sub_param));
+      PetscCall(TaoTermHessian(summand->term, x, params, cache->hessians[i], NULL));
+    }
+    if (params) PetscCall(VecNestRestoreSubVecsRead(params, NULL, &sub_params));
+  }
+  *hessians = cache->hessians;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 /*@
   TaoTermSumConcatenateParameters - Concatenate the parameters for subterms into a parameter vector for a `TAOTERMSUM`
@@ -55,6 +141,8 @@ static PetscErrorCode TaoTermDestroy_Sum(TaoTerm term)
 
   PetscFunctionBegin;
   for (PetscInt i = 0; i < sum->n_terms; i++) PetscCall(TaoMappedTermReset(&sum->terms[i]));
+  for (PetscInt i = 0; i < sum->hessian_cache.n_terms; i++) PetscCall(MatDestroy(&sum->hessian_cache.hessians[i]));
+  PetscCall(PetscFree(sum->hessian_cache.hessians));
   PetscCall(PetscFree(sum->terms));
   PetscCall(PetscFree(sum));
   term->data = NULL;
@@ -66,6 +154,7 @@ static PetscErrorCode TaoTermDestroy_Sum(TaoTerm term)
   PetscCall(PetscObjectComposeFunction((PetscObject)term, "TaoTermSumGetSubterm_C", NULL));
   PetscCall(PetscObjectComposeFunction((PetscObject)term, "TaoTermSumSetSubterm_C", NULL));
   PetscCall(PetscObjectComposeFunction((PetscObject)term, "TaoTermSumAddSubterm_C", NULL));
+  PetscCall(PetscObjectComposeFunction((PetscObject)term, "TaoTermSumSetSubtermHessianMatrices_C", NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -277,6 +366,73 @@ static PetscErrorCode TaoTermSumSetSubterm_Sum(TaoTerm term, PetscInt index, con
 }
 
 /*@
+  TaoTermSumSetSubtermHessianMatrices - Set Hessian matrices that can be used internally by a `TAOTERMSUM`
+
+  Logically collective
+
+  Input Parameters:
++ term            - a `TaoTerm` of type `TAOTERMSUM`
+. index           - the index for the subterm from `TaoTermSumSetSubterm() or `TaoTermSumAddSubterm()`
+. unmapped_H      - (optional) mapped Hessian matrix
+. unmmapped_Hpre  - (optional) mapped Hessian matrix for preconditioning
+. mapped_H     - (optional) Hessian matrix
+- mapped_Hpre  - (optional) Hessian matrix for preconditioning
+
+  Level: advanced
+
+  Notes:
+  If the subterm has the form $g(x) = \alpha f(Ax; p)$, the "mapped" Hessians should be able to hold the Hessian
+  $\nabla^2 g$ and the unmapped Hessians should be able to hold the Hssian $\nabla_x^2 f$.  If the subterm is not mapped,
+  just pass the unmapped Hessians (e.g. `TaoTermSumSetSubtermHessianMatrices(term, 0, H, Hpre, NULL, NULL)`).
+
+.seealso: [](ch_tao), `Tao`, `TaoTerm`, `TAOTERMSUM`
+@*/
+PetscErrorCode TaoTermSumSetSubtermHessianMatrices(TaoTerm term, PetscInt index, Mat unmapped_H, Mat unmapped_Hpre, Mat mapped_H, Mat mapped_Hpre)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
+  PetscTryMethod(term, "TaoTermSumSetSubtermHessianMatrices_C", (TaoTerm, PetscInt, Mat, Mat, Mat, Mat), (term, index, unmapped_H, unmapped_Hpre, mapped_H, mapped_Hpre));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode TaoTermSumSetSubtermHessianMatrices_Sum(TaoTerm term, PetscInt index, Mat unmapped_H, Mat unmapped_Hpre, Mat mapped_H, Mat mapped_Hpre)
+{
+  TaoTerm_Sum   *sum = (TaoTerm_Sum *)term->data;
+  TaoMappedTerm *summand;
+
+  PetscFunctionBegin;
+  PetscCheck(index >= 0 && index < sum->n_terms, PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Index %" PetscInt_FMT " is not in [0, %" PetscInt_FMT ")", index, sum->n_terms);
+  summand = &sum->terms[index];
+
+  if (!summand->map) {
+    // accept inputs in either position
+    unmapped_H = unmapped_H ? unmapped_H : mapped_H;
+    mapped_H = NULL;
+
+    unmapped_Hpre = unmapped_Hpre ? unmapped_Hpre : mapped_Hpre;
+    mapped_Hpre = NULL;
+  }
+
+  PetscCall(PetscObjectReference((PetscObject)unmapped_H));
+  PetscCall(MatDestroy(&summand->_unmapped_H));
+  summand->_unmapped_H = unmapped_H;
+
+  PetscCall(PetscObjectReference((PetscObject)unmapped_Hpre));
+  PetscCall(MatDestroy(&summand->_unmapped_Hpre));
+  summand->_unmapped_Hpre = unmapped_Hpre;
+
+  PetscCall(PetscObjectReference((PetscObject)mapped_H));
+  PetscCall(MatDestroy(&summand->_mapped_H));
+  summand->_mapped_H = mapped_H;
+
+  PetscCall(PetscObjectReference((PetscObject)mapped_Hpre));
+  PetscCall(MatDestroy(&summand->_mapped_Hpre));
+  summand->_mapped_Hpre = mapped_Hpre;
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
   TaoTermSumAddSubterm - Append a subterm to the terms being summed
 
   Collective
@@ -357,27 +513,13 @@ static PetscErrorCode TaoTermSetFromOptions_Sum(TaoTerm term, PetscOptionItems *
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-// convert zero-length vectors to NULL
-static PetscErrorCode TaoTermSumVecArrayGetSubvec(Vec vecs[], PetscInt i, Vec *subvec)
-{
-  PetscInt N;
-
-  PetscFunctionBegin;
-  *subvec = NULL;
-  if (vecs) {
-    PetscCall(VecGetSize(vecs[i], &N));
-    if (N > 0) { *subvec = vecs[i]; }
-  }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 static PetscErrorCode TaoTermObjective_Sum(TaoTerm term, Vec x, Vec params, PetscReal *value)
 {
   TaoTerm_Sum *sum        = (TaoTerm_Sum *)term->data;
   Vec         *sub_params = NULL;
 
   PetscFunctionBegin;
-  if (params) PetscCall(VecNestGetSubVecs(params, NULL, &sub_params));
+  if (params) PetscCall(VecNestGetSubVecsRead(params, NULL, &sub_params));
   for (PetscInt i = 0; i < sum->n_terms; i++) {
     TaoMappedTerm *summand = &sum->terms[i];
     Vec            sub_param;
@@ -385,6 +527,7 @@ static PetscErrorCode TaoTermObjective_Sum(TaoTerm term, Vec x, Vec params, Pets
     PetscCall(TaoTermSumVecArrayGetSubvec(sub_params, i, &sub_param));
     PetscCall(TaoMappedTermObjective(summand, x, sub_param, i == 0 ? INSERT_VALUES : ADD_VALUES, value));
   }
+  if (params) PetscCall(VecNestRestoreSubVecsRead(params, NULL, &sub_params));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -394,7 +537,7 @@ static PetscErrorCode TaoTermGradient_Sum(TaoTerm term, Vec x, Vec params, Vec g
   Vec         *sub_params = NULL;
 
   PetscFunctionBegin;
-  if (params) PetscCall(VecNestGetSubVecs(params, NULL, &sub_params));
+  if (params) PetscCall(VecNestGetSubVecsRead(params, NULL, &sub_params));
   for (PetscInt i = 0; i < sum->n_terms; i++) {
     TaoMappedTerm *summand = &sum->terms[i];
     Vec            sub_param;
@@ -402,6 +545,7 @@ static PetscErrorCode TaoTermGradient_Sum(TaoTerm term, Vec x, Vec params, Vec g
     PetscCall(TaoTermSumVecArrayGetSubvec(sub_params, i, &sub_param));
     PetscCall(TaoMappedTermGradient(summand, x, sub_param, i == 0 ? INSERT_VALUES : ADD_VALUES, g));
   }
+  if (params) PetscCall(VecNestRestoreSubVecsRead(params, NULL, &sub_params));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -411,13 +555,14 @@ static PetscErrorCode TaoTermObjectiveAndGradient_Sum(TaoTerm term, Vec x, Vec p
   Vec         *sub_params = NULL;
 
   PetscFunctionBegin;
-  if (params) PetscCall(VecNestGetSubVecs(params, NULL, &sub_params));
+  if (params) PetscCall(VecNestGetSubVecsRead(params, NULL, &sub_params));
   for (PetscInt i = 0; i < sum->n_terms; i++) {
     TaoMappedTerm *summand   = &sum->terms[i];
     Vec            sub_param = sub_params ? sub_params[i] : NULL;
 
     PetscCall(TaoMappedTermObjectiveAndGradient(summand, x, sub_param, i == 0 ? INSERT_VALUES : ADD_VALUES, value, g));
   }
+  if (params) PetscCall(VecNestRestoreSubVecsRead(params, NULL, &sub_params));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -427,7 +572,9 @@ static PetscErrorCode TaoTermHessian_Sum(TaoTerm term, Vec x, Vec params, Mat H,
   Vec         *sub_params = NULL;
 
   PetscFunctionBegin;
-  if (params) PetscCall(VecNestGetSubVecs(params, NULL, &sub_params));
+  PetscCall(TaoTermUpdateHessianShells(term, x, params, &H, &Hpre));
+  if (!H && !Hpre) PetscFunctionReturn(PETSC_SUCCESS);
+  if (params) PetscCall(VecNestGetSubVecsRead(params, NULL, &sub_params));
   for (PetscInt i = 0; i < sum->n_terms; i++) {
     TaoMappedTerm *summand = &sum->terms[i];
     Vec            sub_param;
@@ -435,6 +582,27 @@ static PetscErrorCode TaoTermHessian_Sum(TaoTerm term, Vec x, Vec params, Mat H,
     PetscCall(TaoTermSumVecArrayGetSubvec(sub_params, i, &sub_param));
     PetscCall(TaoMappedTermHessian(summand, x, sub_param, i == 0 ? INSERT_VALUES : ADD_VALUES, H, Hpre == H ? NULL : Hpre));
   }
+  if (params) PetscCall(VecNestRestoreSubVecsRead(params, NULL, &sub_params));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode TaoTermHessianMult_Sum(TaoTerm term, Vec x, Vec params, Vec v, Vec Hv)
+{
+  TaoTerm_Sum *sum        = (TaoTerm_Sum *)term->data;
+  Vec         *sub_params = NULL;
+  Mat         *hessians;
+
+  PetscFunctionBegin;
+  if (params) PetscCall(VecNestGetSubVecsRead(params, NULL, &sub_params));
+  PetscCall(TaoTermSumHessCacheGetHessians(term, x, params, &sum->hessian_cache, &hessians));
+  for (PetscInt i = 0; i < sum->n_terms; i++) {
+    TaoMappedTerm *summand = &sum->terms[i];
+    Vec            sub_param;
+
+    PetscCall(TaoTermSumVecArrayGetSubvec(sub_params, i, &sub_param));
+    PetscCall(TaoMappedTermHessianMult(summand, x, sub_param, hessians[i], v, i == 0 ? INSERT_VALUES : ADD_VALUES, Hv));
+  }
+  if (params) PetscCall(VecNestRestoreSubVecsRead(params, NULL, &sub_params));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -531,19 +699,24 @@ PETSC_INTERN PetscErrorCode TaoTermCreate_Sum(TaoTerm term)
   term->data            = (void *)sum;
   term->parameters_type = TAOTERM_PARAMETERS_OPTIONAL;
 
-  term->ops->destroy              = TaoTermDestroy_Sum;
-  term->ops->view                 = TaoTermView_Sum;
-  term->ops->setfromoptions       = TaoTermSetFromOptions_Sum;
-  term->ops->objective            = TaoTermObjective_Sum;
-  term->ops->gradient             = TaoTermGradient_Sum;
-  term->ops->objectiveandgradient = TaoTermObjectiveAndGradient_Sum;
-  term->ops->hessian              = TaoTermHessian_Sum;
-  term->ops->setup                = TaoTermSetUp_Sum;
-  term->ops->createvecs           = TaoTermCreateVecs_Sum;
+  term->ops->destroy               = TaoTermDestroy_Sum;
+  term->ops->view                  = TaoTermView_Sum;
+  term->ops->setfromoptions        = TaoTermSetFromOptions_Sum;
+  term->ops->objective             = TaoTermObjective_Sum;
+  term->ops->gradient              = TaoTermGradient_Sum;
+  term->ops->objectiveandgradient  = TaoTermObjectiveAndGradient_Sum;
+  term->ops->hessian               = TaoTermHessian_Sum;
+  term->ops->hessianmult           = TaoTermHessianMult_Sum;
+  term->ops->setup                 = TaoTermSetUp_Sum;
+  term->ops->createvecs            = TaoTermCreateVecs_Sum;
+  term->ops->createhessianmatrices = TaoTermCreateHessianMatricesDefault;
   PetscCall(PetscObjectComposeFunction((PetscObject)term, "TaoTermSumGetNumSubterms_C", TaoTermSumGetNumSubterms_Sum));
   PetscCall(PetscObjectComposeFunction((PetscObject)term, "TaoTermSumSetNumSubterms_C", TaoTermSumSetNumSubterms_Sum));
   PetscCall(PetscObjectComposeFunction((PetscObject)term, "TaoTermSumGetSubterm_C", TaoTermSumGetSubterm_Sum));
   PetscCall(PetscObjectComposeFunction((PetscObject)term, "TaoTermSumSetSubterm_C", TaoTermSumSetSubterm_Sum));
   PetscCall(PetscObjectComposeFunction((PetscObject)term, "TaoTermSumAddSubterm_C", TaoTermSumAddSubterm_Sum));
+  PetscCall(PetscObjectComposeFunction((PetscObject)term, "TaoTermSumSetSubtermHessianMatrices_C", TaoTermSumSetSubtermHessianMatrices_Sum));
+  if (!term->H_mattype) PetscCall(PetscStrallocpy(MATSHELL, &term->H_mattype));
+  if (!term->Hpre_mattype) PetscCall(PetscStrallocpy(MATAIJ, &term->Hpre_mattype));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

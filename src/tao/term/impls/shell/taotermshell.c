@@ -128,6 +128,7 @@ static PetscErrorCode TaoTermView_Shell(TaoTerm term, PetscViewer viewer)
     else PetscCall(PetscViewerASCIIPrintf(viewer, "No user context has been set\n"));
 
     PetscCall(PetscViewerASCIIPrintf(viewer, "The following methods have been set:"));
+    PetscCall(PetscViewerASCIIUseTabs(viewer, PETSC_FALSE));
     any = PETSC_FALSE;
     if (term->ops->objective) {
       any = PETSC_TRUE;
@@ -151,6 +152,7 @@ static PetscErrorCode TaoTermView_Shell(TaoTerm term, PetscViewer viewer)
     }
     if (!any) PetscCall(PetscViewerASCIIPrintf(viewer, " (none)"));
     PetscCall(PetscViewerASCIIPrintf(viewer, "\n"));
+    PetscCall(PetscViewerASCIIUseTabs(viewer, PETSC_TRUE));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
