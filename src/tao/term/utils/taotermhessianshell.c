@@ -36,11 +36,11 @@ static PetscErrorCode MatMult_TaoTermHessianShell(Mat shell, Vec v, Vec y)
   if (hess->params) PetscCall(PetscObjectStateGet((PetscObject)hess->params, &params_state));
   if (!hess->x_state_change_warning && x_state != hess->x_state) {
     hess->x_state_change_warning = PETSC_TRUE;
-    PetscCall(PetscInfo(hess->term, "x vector may have changed since TaoTermUpdateHessianShell() was called"));
+    PetscCall(PetscInfo(hess->term, "x vector may have changed since TaoTermUpdateHessianShell() was called\n"));
   }
   if (!hess->params_state_change_warning && params_state != hess->params_state) {
     hess->params_state_change_warning = PETSC_TRUE;
-    PetscCall(PetscInfo(hess->term, "parameter vector may have changed since TaoTermUpdateHessianShell() was called"));
+    PetscCall(PetscInfo(hess->term, "parameter vector may have changed since TaoTermUpdateHessianShell() was called\n"));
   }
   PetscCall(TaoTermHessianMult(hess->term, hess->x, hess->params, v, y));
   PetscFunctionReturn(PETSC_SUCCESS);
