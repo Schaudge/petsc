@@ -279,7 +279,7 @@ static PetscErrorCode TaoTermL1SetEpsilon_L1(TaoTerm term, PetscReal epsilon)
 
   Level: advanced
 
-.seealso: [](ch_tao), `Tao`, `TaoTerm`, `TAOTERML1`, `TaoTermL1GetEpsilon()`
+.seealso: [](ch_tao), `Tao`, `TaoTerm`, `TAOTERML1`
 @*/
 PetscErrorCode TaoTermL1GetEpsilon(TaoTerm term, PetscReal *epsilon)
 {

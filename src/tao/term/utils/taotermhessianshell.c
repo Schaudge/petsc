@@ -2,8 +2,7 @@
 
 typedef struct _n_TaoTermHessianShell TaoTermHessianShell;
 
-struct _n_TaoTermHessianShell
-{
+struct _n_TaoTermHessianShell {
   TaoTerm          term; // has to be a weak reference to avoid a cycle
   Vec              x;
   Vec              params;
@@ -31,7 +30,7 @@ static PetscErrorCode MatMult_TaoTermHessianShell(Mat shell, Vec v, Vec y)
   TaoTermHessianShell *hess;
 
   PetscFunctionBegin;
-  PetscCall(MatShellGetContext(shell, (void *) &hess));
+  PetscCall(MatShellGetContext(shell, (void *)&hess));
   PetscCall(PetscObjectStateGet((PetscObject)hess->x, &x_state));
   if (hess->params) PetscCall(PetscObjectStateGet((PetscObject)hess->params, &params_state));
   if (!hess->x_state_change_warning && x_state != hess->x_state) {
@@ -107,7 +106,7 @@ PetscErrorCode TaoTermUpdateHessianShell(TaoTerm term, Mat shell, Vec x, Vec par
   TaoTermHessianShell *hess;
 
   PetscFunctionBegin;
-  PetscCall(MatShellGetContext(shell, (void *) &hess));
+  PetscCall(MatShellGetContext(shell, (void *)&hess));
   PetscCheck(hess->term == term, PetscObjectComm((PetscObject)term), PETSC_ERR_ARG_INCOMP, "Hessian shell matrix does not come from this TaoTerm");
   PetscCall(PetscObjectReference((PetscObject)x));
   PetscCall(VecDestroy(&hess->x));
@@ -118,7 +117,7 @@ PetscErrorCode TaoTermUpdateHessianShell(TaoTerm term, Mat shell, Vec x, Vec par
   hess->params = params;
   if (params) PetscCall(PetscObjectStateGet((PetscObject)params, &hess->params_state));
   else hess->params_state = 0;
-  hess->x_state_change_warning = PETSC_FALSE;
+  hess->x_state_change_warning      = PETSC_FALSE;
   hess->params_state_change_warning = PETSC_FALSE;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -133,13 +132,15 @@ PetscErrorCode TaoTermUpdateHessianShell(TaoTerm term, Mat shell, Vec x, Vec par
 . x      - a solution vector
 . params - a parameters vector
 . H      - pointer to the `H` argument of `TaoTermHessian()`; if it is a `MATSHELL`, it will be updated and the pointer will then point to `NULL`
-+ Hpre   - pointer to the `Hpre` argument of `TaoTermHessian()`; if it is a `MATSHELL`, it will be updated and the pointer will then point to `NULL`
+- Hpre   - pointer to the `Hpre` argument of `TaoTermHessian()`; if it is a `MATSHELL`, it will be updated and the pointer will then point to `NULL`
 
   Level: developer
 
   Developer Note:
-  This function is to simplify implementing `TaoTermHessian()` when an implementation can optionally use a `MATSHELL` for its Hessian matrices:
-  call this function at the start of `TaoTermHessian()`, and then only proceed to assemby `H` and/or `Hpre` if they are not `NULL`.
+  This function is to simplify implementing `TaoTermHessian()` when an
+  implementation can optionally use a `MATSHELL` for its Hessian matrices: call
+  this function at the start of `TaoTermHessian()`, and then only proceed to
+  assemby `H` and/or `Hpre` if they are not `NULL`.
 
 .seealso: [](ch_tao), `Tao`, `TaoTerm`, `TaoTermHessianMult()`, `TaoTermCreateHessianShell()`
 @*/

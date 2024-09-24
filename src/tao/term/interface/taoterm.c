@@ -264,6 +264,8 @@ PetscErrorCode TaoTermSetType(TaoTerm term, TaoTermType type)
   Output Parameter:
 . type - the `TaoTermType`
 
+  Level: beginner
+
 .seealso: [](ch_tao), `Tao`, `TaoTerm`, `TaoTermType`, `TaoTermCreate()`, `TaoTermDestroy()`, `TaoTermView()`, `TaoTermSetUp()`, `TaoTermSetType()`
 @*/
 PetscErrorCode TaoTermGetType(TaoTerm term, TaoTermType *type)
@@ -545,7 +547,7 @@ PetscErrorCode TaoTermHessian(TaoTerm term, Vec x, Vec params, Mat H, Mat Hpre)
 - v      - a vector in the solution space
 
   Output Parameters:
-+ Hv - the product Hessian matrix $\nabla_x^2 f(x;p) v$
+. Hv - the product Hessian matrix $\nabla_x^2 f(x;p) v$
 
   Level: intermediate
 
@@ -900,8 +902,8 @@ PetscErrorCode TaoTermGetLayouts(TaoTerm term, PetscLayout *solution_layout, Pet
   Collective
 
   Input Parameters:
-+ term     - a `TaoTerm`
-- template - a vector with the desired size, layout, and `VecType` of solution vectors for `TaoTerm`
++ term         - a `TaoTerm`
+- sol_template - a vector with the desired size, layout, and `VecType` of solution vectors for `TaoTerm`
 
   Level: intermediate
 
@@ -910,7 +912,7 @@ PetscErrorCode TaoTermGetLayouts(TaoTerm term, PetscLayout *solution_layout, Pet
   `TaoGermSetParametersTemplate()`,
   `TaoTermCreateVecs()`
 @*/
-PetscErrorCode TaoTermSetSolutionTemplate(TaoTerm term, Vec template)
+PetscErrorCode TaoTermSetSolutionTemplate(TaoTerm term, Vec sol_template)
 {
   PetscLayout layout;
   PetscLayout clayout;
@@ -918,10 +920,10 @@ PetscErrorCode TaoTermSetSolutionTemplate(TaoTerm term, Vec template)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
-  PetscValidHeaderSpecific(template, VEC_CLASSID, 2);
-  PetscCheckSameComm(term, 1, template, 2);
-  PetscCall(VecGetType(template, &vec_type));
-  PetscCall(VecGetLayout(template, &layout));
+  PetscValidHeaderSpecific(sol_template, VEC_CLASSID, 2);
+  PetscCheckSameComm(term, 1, sol_template, 2);
+  PetscCall(VecGetType(sol_template, &vec_type));
+  PetscCall(VecGetLayout(sol_template, &layout));
   PetscCall(MatGetLayouts(term->solution_factory, NULL, &clayout));
   PetscCall(MatSetLayouts(term->solution_factory, layout, clayout));
   PetscCall(MatSetVecType(term->solution_factory, vec_type));
@@ -934,8 +936,8 @@ PetscErrorCode TaoTermSetSolutionTemplate(TaoTerm term, Vec template)
   Collective
 
   Input Parameters:
-+ term     - a `TaoTerm`
-- template - a vector with the desired size, layout, and `VecType` of parameter vectors for `TaoTerm`
++ term            - a `TaoTerm`
+- params_template - a vector with the desired size, layout, and `VecType` of parameter vectors for `TaoTerm`
 
   Level: intermediate
 
@@ -944,7 +946,7 @@ PetscErrorCode TaoTermSetSolutionTemplate(TaoTerm term, Vec template)
   `TaoGermSetSolutionTemplate()`,
   `TaoTermCreateVecs()`
 @*/
-PetscErrorCode TaoTermSetParametersTemplate(TaoTerm term, Vec template)
+PetscErrorCode TaoTermSetParametersTemplate(TaoTerm term, Vec params_template)
 {
   PetscLayout layout;
   PetscLayout clayout;
@@ -952,10 +954,10 @@ PetscErrorCode TaoTermSetParametersTemplate(TaoTerm term, Vec template)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
-  PetscValidHeaderSpecific(template, VEC_CLASSID, 2);
-  PetscCheckSameComm(term, 1, template, 2);
-  PetscCall(VecGetType(template, &vec_type));
-  PetscCall(VecGetLayout(template, &layout));
+  PetscValidHeaderSpecific(params_template, VEC_CLASSID, 2);
+  PetscCheckSameComm(term, 1, params_template, 2);
+  PetscCall(VecGetType(params_template, &vec_type));
+  PetscCall(VecGetLayout(params_template, &layout));
   PetscCall(MatGetLayouts(term->parameters_factory, NULL, &clayout));
   PetscCall(MatSetLayouts(term->parameters_factory, layout, clayout));
   PetscCall(MatSetVecType(term->parameters_factory, vec_type));
@@ -972,7 +974,7 @@ PetscErrorCode TaoTermSetParametersTemplate(TaoTerm term, Vec template)
 . solution_type   - the `VecType` for the solution space
 - parameters_type - the `VecType` for the parameter space
 
-  level: advanced
+  Level: advanced
 
 .seealso: [](ch_tao), `Tao`, `TaoTerm`,
   `TaoTermGetVecTypes()`,
@@ -1211,14 +1213,14 @@ PetscErrorCode TaoTermSetCreateHessianMode(TaoTerm term, PetscBool Hpre_is_H, co
   Input Parameter:
 . term - a `TaoTerm`
 
-  Ouput Parameters:
-. Hpre_is_H    - (optional) should `TaoTermCreateHessianMatricesDefault()` make one matrix for `H` and `Hpre`?
+  Output Parameter:
++ Hpre_is_H    - (optional) should `TaoTermCreateHessianMatricesDefault()` make one matrix for `H` and `Hpre`?
 . H_mattype    - (optional) the `MatType` to create for `H`
 - Hpre_mattype - (optional) the `MatType` to create for `Hpre`
 
   Level: developer
 
-.seealso: [](ch_tao), `Tao`, `TaoTerm`, `TaoTermHessian()`, `TaoTermGetCreateHessianMode()`, `TaoTermCreateHessianMatricesDefault()`
+.seealso: [](ch_tao), `Tao`, `TaoTerm`, `TaoTermHessian()`, `TaoTermCreateHessianMatricesDefault()`
 @*/
 PetscErrorCode TaoTermGetCreateHessianMode(TaoTerm term, PetscBool *Hpre_is_H, const char *H_mattype[], const char *Hpre_mattype[])
 {
@@ -1240,7 +1242,7 @@ PetscErrorCode TaoTermGetCreateHessianMode(TaoTerm term, PetscBool *Hpre_is_H, c
 - opt  - `TAOTERM_DUPLICATE_SIZEONLY` or `TAOTERM_DUPLICATE_TYPE`
 
   Output Parameter:
-+ newterm - the duplicate `TaoTerm`
+. newterm - the duplicate `TaoTerm`
 
   Level: intermediate
 
@@ -1304,7 +1306,7 @@ PetscErrorCode TaoTermSetParametersType(TaoTerm term, TaoTermParametersType para
 
   Level: intermediate
 
-.seealso: [](ch_tao), `Tao`, `TaoTerm`, `TaoTermParametersType`, `TaoTermGetParametersType()`
+.seealso: [](ch_tao), `Tao`, `TaoTerm`, `TaoTermParametersType`
 @*/
 PetscErrorCode TaoTermGetParametersType(TaoTerm term, TaoTermParametersType *parameters_type)
 {
