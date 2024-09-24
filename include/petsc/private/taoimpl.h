@@ -263,6 +263,9 @@ struct _p_TaoTerm {
   Mat                   parameters_factory;
   Mat                   parameters_factory_orig; // copy so that parameter_factor can be made a reference of solution_factory if parameter space == vector space
   TaoTermParametersType parameters_type;
+  PetscBool             Hpre_is_H;
+  char                 *H_mattype;
+  char                 *Hpre_mattype;
 };
 
 PETSC_INTERN PetscErrorCode TaoTermRegisterAll(void);
@@ -292,6 +295,7 @@ PETSC_INTERN PetscErrorCode TaoMappedTermObjective(TaoMappedTerm *, Vec, Vec, In
 PETSC_INTERN PetscErrorCode TaoMappedTermGradient(TaoMappedTerm *, Vec, Vec, InsertMode, Vec);
 PETSC_INTERN PetscErrorCode TaoMappedTermObjectiveAndGradient(TaoMappedTerm *, Vec, Vec, InsertMode, PetscReal *, Vec);
 PETSC_INTERN PetscErrorCode TaoMappedTermHessian(TaoMappedTerm *, Vec, Vec, InsertMode, Mat, Mat);
+PETSC_INTERN PetscErrorCode TaoMappedTermHessianMult(TaoMappedTerm *, Vec, Vec, Mat, Vec, InsertMode, Vec);
 PETSC_INTERN PetscErrorCode TaoMappedTermSetUp(TaoMappedTerm *);
 PETSC_INTERN PetscErrorCode TaoMappedTermCreateVecs(TaoMappedTerm *, Vec *, Vec *);
 PETSC_INTERN PetscErrorCode TaoMappedTermCreateHessianMatrices(TaoMappedTerm *, Mat *, Mat *);

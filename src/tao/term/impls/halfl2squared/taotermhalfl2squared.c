@@ -47,6 +47,7 @@ static PetscErrorCode TaoTermGradient_Halfl2squared(TaoTerm term, Vec x, Vec par
 static PetscErrorCode TaoTermHessian_Halfl2squared(TaoTerm term, Vec x, Vec params, Mat H, Mat Hpre)
 {
   PetscFunctionBegin;
+  PetscCall(TaoTermUpdateHessianShells(term, x, params, &H, &Hpre));
   if (H) {
     PetscCall(MatZeroEntries(H));
     PetscCall(MatShift(H, 1.0));
@@ -76,11 +77,14 @@ PETSC_INTERN PetscErrorCode TaoTermCreate_Halfl2squared(TaoTerm term)
 {
   PetscFunctionBegin;
   PetscCall(TaoTermCreate_ElementwiseDivergence_Internal(term));
-  term->ops->destroy              = TaoTermDestroy_ElementwiseDivergence_Internal;
-  term->ops->objective            = TaoTermObjective_Halfl2squared;
-  term->ops->gradient             = TaoTermGradient_Halfl2squared;
-  term->ops->objectiveandgradient = TaoTermObjectiveAndGradient_Halfl2squared;
-  term->ops->hessian              = TaoTermHessian_Halfl2squared;
-  term->ops->hessianmult          = TaoTermHessianMult_Halfl2squared;
+  term->ops->destroy               = TaoTermDestroy_ElementwiseDivergence_Internal;
+  term->ops->objective             = TaoTermObjective_Halfl2squared;
+  term->ops->gradient              = TaoTermGradient_Halfl2squared;
+  term->ops->objectiveandgradient  = TaoTermObjectiveAndGradient_Halfl2squared;
+  term->ops->hessian               = TaoTermHessian_Halfl2squared;
+  term->ops->hessianmult           = TaoTermHessianMult_Halfl2squared;
+  term->ops->createhessianmatrices = TaoTermCreateHessianMatricesDefault;
+  if (!term->H_mattype) PetscCall(PetscStrallocpy(MATSHELL, &term->H_mattype));
+  if (!term->Hpre_mattype) PetscCall(PetscStrallocpy(MATCONSTANTDIAGONAL, &term->Hpre_mattype));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
