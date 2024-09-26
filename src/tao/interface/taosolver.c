@@ -131,6 +131,7 @@ PetscErrorCode TaoCreate(MPI_Comm comm, Tao *newtao)
   tao->hist_reset = PETSC_TRUE;
 
   PetscCall(TaoTermCreateTaoCallbacks(tao, &tao->orig_callbacks));
+  PetscCall(PetscObjectSetOptionsPrefix((PetscObject)tao->orig_callbacks, "callbacks_"));
   PetscCall(TaoMappedTermSetData(&tao->objective_term, "objective_", 1.0, tao->orig_callbacks, NULL));
   PetscCall(TaoResetStatistics(tao));
   *newtao = tao;

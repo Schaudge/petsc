@@ -19,12 +19,12 @@ PETSC_INTERN PetscErrorCode TaoMappedTermSetData(TaoMappedTerm *mt, const char *
   PetscCall(TaoTermDestroy(&mt->term));
   mt->term  = term;
   mt->scale = scale;
-  if (map) {
-    if (map != mt->map) { PetscCall(VecDestroy(&mt->_map_output)); }
-    PetscCall(PetscObjectReference((PetscObject)map));
-    PetscCall(MatDestroy(&mt->map));
-    mt->map = map;
+  if (map != mt->map) {
+    PetscCall(VecDestroy(&mt->_map_output));
   }
+  PetscCall(PetscObjectReference((PetscObject)map));
+  PetscCall(MatDestroy(&mt->map));
+  mt->map = map;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
