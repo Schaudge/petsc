@@ -690,7 +690,7 @@ PetscErrorCode TaoComputeUpdate(Tao tao, PetscReal *f)
 static
 PetscErrorCode TaoGetVecs(Tao tao, Vec *X, Vec *G, Vec *S)
 {
-  PetscBool has_g;
+  PetscBool has_g = PETSC_FALSE;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tao,TAO_CLASSID,1);
