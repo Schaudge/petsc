@@ -13,8 +13,13 @@ Tao Object: 2 MPI processes
     BFGS steps: 0
     Gradient steps: 0
   Objective function:
-    Scale: 1.
-    Function: defined by callbacks
+    Scale (tao_objective_scale): 1.
+    Function:
+      TaoTerm Object: (callbacks_) 2 MPI processes
+        type: taocallbacks
+        solution vector space: N = 100 [VecType mpi (taoterm_solution_vec_type)]
+        parameter vector space: (none)
+        attached to Tao [name omitted]
     Map: unmapped
   TaoLineSearch Object: 2 MPI processes
     type: more-thuente

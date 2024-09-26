@@ -128,12 +128,21 @@ int main(int argc, char **argv)
   at the same time.  Evaluating both at once may be more efficient that
   evaluating each separately.
 */
-PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *f, Vec G, void *ptr)
+static PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *f, Vec G, void *ptr)
 {
   AppCtx *user = (AppCtx *)ptr;
 
   PetscFunctionBeginUser;
   PetscCall(AppCtxFormFunctionGradient(user, X, f, G));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode FormHessianSingle(Tao tao, Vec X, Mat H, void *ptr)
+{
+  AppCtx *user = (AppCtx *)ptr;
+
+  PetscFunctionBegin;
+  PetscCall(AppCtxFormHessianSingle(user, X, H));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -152,12 +161,10 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *f, Vec G, void *p
   Note:  Providing the Hessian may not be necessary.  Only some solvers
   require this matrix.
 */
-PetscErrorCode FormHessian(Tao tao, Vec X, Mat H, Mat Hpre, void *ptr)
+static PetscErrorCode FormHessian(Tao tao, Vec X, Mat H, Mat Hpre, void *ptr)
 {
-  AppCtx *user = (AppCtx *)ptr;
-
   PetscFunctionBeginUser;
-  PetscCall(AppCtxFormHessian(user, X, H, Hpre));
+  PetscCall(TaoComputeHessianSingle(tao, X, H, Hpre, FormHessianSingle, SAME_NONZERO_PATTERN, ptr));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

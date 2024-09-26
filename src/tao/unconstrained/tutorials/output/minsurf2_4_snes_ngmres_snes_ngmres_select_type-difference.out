@@ -54,8 +54,13 @@ Tao Object: 1 MPI process
         tolerances: relative=1.000000e-08, absolute=1.000000e-15, lambda=1.000000e-08
         maximum iterations=1
   Objective function:
-    Scale: 1.
-    Function: defined by callbacks
+    Scale (tao_objective_scale): 1.
+    Function:
+      TaoTerm Object: (callbacks_) 1 MPI process
+        type: taocallbacks
+        solution vector space: N = 100 [VecType seq (taoterm_solution_vec_type)]
+        parameter vector space: (none)
+        attached to Tao [name omitted]
     Map: unmapped
   convergence tolerances: gatol=1e-08,   grtol=1e-08,   steptol=0.,   gttol=0.
   Residual in Function/Gradient:=5.10103e-05

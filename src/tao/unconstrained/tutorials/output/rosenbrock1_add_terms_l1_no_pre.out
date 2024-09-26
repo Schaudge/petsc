@@ -34,7 +34,7 @@ Tao Object: 1 MPI process
             Scale (taoterm_sum_callbacks_scale): 1.
             Map: unmapped
             Term:
-              TaoTerm Object: 1 MPI process
+              TaoTerm Object: (callbacks_) 1 MPI process
                 type: taocallbacks
                 solution vector space: N = 2 [VecType seq (taoterm_solution_vec_type)]
                 parameter vector space: (none)
