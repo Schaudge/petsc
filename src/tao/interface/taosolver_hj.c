@@ -332,7 +332,7 @@ PetscErrorCode TaoComputeHessian(Tao tao, Vec X, Mat H, Mat Hpre)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/*@
+/*@C
   TaoComputeHessianSingle - Handle the computation of optional Hessian and Hessian preconditioning matrices from a routine for computing just one.
 
   Logically collective
@@ -347,10 +347,10 @@ PetscErrorCode TaoComputeHessian(Tao tao, Vec X, Mat H, Mat Hpre)
 - ctx            - the user context supplied in `TaoSetHessian()`
 
   Calling sequence of `func`:
-+ tao  - the `Tao` context
-. x    - input vector
-. H    - Hessian matrix
-- ctx  - the user context
++ tao - the `Tao` context
+. x   - input vector
+. H   - Hessian matrix
+- ctx - the user context
 
   Level: intermediate
 

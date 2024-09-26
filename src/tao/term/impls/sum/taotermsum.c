@@ -368,12 +368,12 @@ static PetscErrorCode TaoTermSumSetSubterm_Sum(TaoTerm term, PetscInt index, con
   Logically collective
 
   Input Parameters:
-+ term        - a `TaoTerm` of type `TAOTERMSUM`
-. index       - the index for the subterm from `TaoTermSumSetSubterm() or `TaoTermSumAddSubterm()`
-. unmapped_H  - (optional) mapped Hessian matrix
-. unmapped_Hpre  - (optional) mapped Hessian matrix for preconditioning
-. mapped_H    - (optional) Hessian matrix
-- mapped_Hpre - (optional) Hessian matrix for preconditioning
++ term          - a `TaoTerm` of type `TAOTERMSUM`
+. index         - the index for the subterm from `TaoTermSumSetSubterm() or `TaoTermSumAddSubterm()`
+. unmapped_H    - (optional) mapped Hessian matrix
+. unmapped_Hpre - (optional) mapped Hessian matrix for preconditioning
+. mapped_H      - (optional) Hessian matrix
+- mapped_Hpre   - (optional) Hessian matrix for preconditioning
 
   Level: advanced
 
