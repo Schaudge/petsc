@@ -636,7 +636,6 @@ static PetscErrorCode FormHessianSingle(Tao tao, Vec X, Mat H, void *ptr)
 
   PetscCall(VecRestoreArrayReadAndMemType(X, &x));
   PetscCall(VecRestoreArrayReadAndMemType(user->off_process_values, &o));
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
