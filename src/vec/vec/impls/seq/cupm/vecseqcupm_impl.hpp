@@ -724,12 +724,7 @@ namespace detail
 {
 
 struct Sign {
-  PETSC_HOSTDEVICE_INLINE_DECL PetscScalar operator()(const PetscScalar &s) const noexcept
-  {
-    const auto one = static_cast<cupmReal_t>(1.0);
-
-    return copysign(one, PetscRealPart(s));
-  }
+  PETSC_HOSTDEVICE_INLINE_DECL PetscScalar operator()(const PetscScalar &s) const noexcept { return copysign(PetscReal(1.0), PetscRealPart(s)); }
 };
 
 } // namespace detail
