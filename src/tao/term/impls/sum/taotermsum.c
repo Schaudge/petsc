@@ -586,7 +586,7 @@ static PetscErrorCode TaoTermHessianMult_Sum(TaoTerm term, Vec x, Vec params, Ve
 {
   TaoTerm_Sum *sum        = (TaoTerm_Sum *)term->data;
   Vec         *sub_params = NULL;
-  Mat         *hessians;
+  Mat         *hessians   = NULL;
 
   PetscFunctionBegin;
   if (params) PetscCall(VecNestGetSubVecsRead(params, NULL, &sub_params));
