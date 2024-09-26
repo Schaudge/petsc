@@ -241,7 +241,7 @@ PetscErrorCode TaoTermSetType(TaoTerm term, TaoTermType type)
   PetscCall(PetscObjectTypeCompare((PetscObject)term, type, &issame));
   if (issame) PetscFunctionReturn(PETSC_SUCCESS);
 
-  PetscCall(PetscFunctionListFind(TaoTermList, type, (void (**)(void)) & create));
+  PetscCall(PetscFunctionListFind(TaoTermList, type, (void (**)(void))&create));
   PetscCheck(create, PetscObjectComm((PetscObject)term), PETSC_ERR_ARG_UNKNOWN_TYPE, "Unable to find requested TaoTerm type %s", type);
 
   /* Destroy the existing term information */
@@ -585,7 +585,7 @@ PetscErrorCode TaoTermHessian(TaoTerm term, Vec x, Vec params, Mat H, Mat Hpre)
 
 .seealso: [](ch_tao), `Tao`, `TaoTermHessian()`
 @*/
-PetscErrorCode TaoTermHessianSingle(TaoTerm term, Vec x, Vec params, Mat H, Mat Hpre, PetscErrorCode (*func) (TaoTerm term, Vec x, Vec params, Mat H), MatStructure copy_structure)
+PetscErrorCode TaoTermHessianSingle(TaoTerm term, Vec x, Vec params, Mat H, Mat Hpre, PetscErrorCode (*func)(TaoTerm term, Vec x, Vec params, Mat H), MatStructure copy_structure)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);

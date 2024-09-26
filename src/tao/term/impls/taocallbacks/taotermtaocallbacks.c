@@ -144,7 +144,7 @@ PETSC_INTERN PetscErrorCode TaoTermTaoCallbacksSetObjective(TaoTerm term, PetscE
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
-  PetscTryMethod(term, "TaoTermTaoCallbacksSetObjective_C", (TaoTerm, PetscErrorCode(*)(Tao, Vec, PetscReal *, void *), void *), (term, tao_obj, ctx));
+  PetscTryMethod(term, "TaoTermTaoCallbacksSetObjective_C", (TaoTerm, PetscErrorCode (*)(Tao, Vec, PetscReal *, void *), void *), (term, tao_obj, ctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -164,7 +164,7 @@ PETSC_INTERN PetscErrorCode TaoTermTaoCallbacksGetObjective(TaoTerm term, PetscE
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
   if (tao_obj) *tao_obj = NULL;
   if (ctx) *ctx = NULL;
-  PetscTryMethod(term, "TaoTermTaoCallbacksSetObjective_C", (TaoTerm, PetscErrorCode(**)(Tao, Vec, PetscReal *, void *), void **), (term, tao_obj, ctx));
+  PetscTryMethod(term, "TaoTermTaoCallbacksSetObjective_C", (TaoTerm, PetscErrorCode (**)(Tao, Vec, PetscReal *, void *), void **), (term, tao_obj, ctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -182,7 +182,7 @@ PETSC_INTERN PetscErrorCode TaoTermTaoCallbacksSetGradient(TaoTerm term, PetscEr
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
-  PetscTryMethod(term, "TaoTermTaoCallbacksSetGradient_C", (TaoTerm, PetscErrorCode(*)(Tao, Vec, Vec, void *), void *), (term, tao_grad, ctx));
+  PetscTryMethod(term, "TaoTermTaoCallbacksSetGradient_C", (TaoTerm, PetscErrorCode (*)(Tao, Vec, Vec, void *), void *), (term, tao_grad, ctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -202,7 +202,7 @@ PETSC_INTERN PetscErrorCode TaoTermTaoCallbacksGetGradient(TaoTerm term, PetscEr
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
   if (tao_grad) *tao_grad = NULL;
   if (ctx) *ctx = NULL;
-  PetscTryMethod(term, "TaoTermTaoCallbacksSetGradient_C", (TaoTerm, PetscErrorCode(**)(Tao, Vec, Vec, void *), void **), (term, tao_grad, ctx));
+  PetscTryMethod(term, "TaoTermTaoCallbacksSetGradient_C", (TaoTerm, PetscErrorCode (**)(Tao, Vec, Vec, void *), void **), (term, tao_grad, ctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -220,7 +220,7 @@ PETSC_INTERN PetscErrorCode TaoTermTaoCallbacksSetObjAndGrad(TaoTerm term, Petsc
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
-  PetscTryMethod(term, "TaoTermTaoCallbacksSetObjAndGrad_C", (TaoTerm, PetscErrorCode(*)(Tao, Vec, PetscReal *, Vec, void *), void *), (term, tao_objgrad, ctx));
+  PetscTryMethod(term, "TaoTermTaoCallbacksSetObjAndGrad_C", (TaoTerm, PetscErrorCode (*)(Tao, Vec, PetscReal *, Vec, void *), void *), (term, tao_objgrad, ctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -240,7 +240,7 @@ PETSC_INTERN PetscErrorCode TaoTermTaoCallbacksGetObjAndGrad(TaoTerm term, Petsc
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
   if (tao_objgrad) *tao_objgrad = NULL;
   if (ctx) *ctx = NULL;
-  PetscTryMethod(term, "TaoTermTaoCallbacksSetObjAndGrad_C", (TaoTerm, PetscErrorCode(**)(Tao, Vec, PetscReal *, Vec, void *), void **), (term, tao_objgrad, ctx));
+  PetscTryMethod(term, "TaoTermTaoCallbacksSetObjAndGrad_C", (TaoTerm, PetscErrorCode (**)(Tao, Vec, PetscReal *, Vec, void *), void **), (term, tao_objgrad, ctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -258,7 +258,7 @@ PETSC_INTERN PetscErrorCode TaoTermTaoCallbacksSetHessian(TaoTerm term, PetscErr
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
-  PetscTryMethod(term, "TaoTermTaoCallbacksSetHessian_C", (TaoTerm, PetscErrorCode(*)(Tao, Vec, Mat, Mat, void *), void *), (term, tao_hess, ctx));
+  PetscTryMethod(term, "TaoTermTaoCallbacksSetHessian_C", (TaoTerm, PetscErrorCode (*)(Tao, Vec, Mat, Mat, void *), void *), (term, tao_hess, ctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -278,7 +278,7 @@ PETSC_INTERN PetscErrorCode TaoTermTaoCallbacksGetHessian(TaoTerm term, PetscErr
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
   if (tao_hess) *tao_hess = NULL;
   if (ctx) *ctx = NULL;
-  PetscTryMethod(term, "TaoTermTaoCallbacksSetHessian_C", (TaoTerm, PetscErrorCode(**)(Tao, Vec, Mat, Mat, void *), void **), (term, tao_hess, ctx));
+  PetscTryMethod(term, "TaoTermTaoCallbacksSetHessian_C", (TaoTerm, PetscErrorCode (**)(Tao, Vec, Mat, Mat, void *), void **), (term, tao_hess, ctx));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

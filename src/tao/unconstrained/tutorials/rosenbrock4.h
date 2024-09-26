@@ -657,7 +657,6 @@ static PetscErrorCode FormHessianSingle(Tao tao, Vec X, Mat H, void *ptr)
 */
 static PetscErrorCode FormHessian(Tao tao, Vec X, Mat H, Mat Hpre, void *ptr)
 {
-
   PetscFunctionBeginUser;
   if (H) PetscCall(FormHessianSingle(tao, X, H, ptr));
   if (Hpre && Hpre != H) {
