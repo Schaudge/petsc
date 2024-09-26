@@ -214,7 +214,7 @@ PetscErrorCode TaoTermShellSetObjective(TaoTerm term, PetscErrorCode (*objective
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
-  PetscTryMethod(term, "TaoTermShellSetObjective_C", (TaoTerm, PetscErrorCode(*)(TaoTerm, Vec, Vec, PetscReal *)), (term, objective));
+  PetscTryMethod(term, "TaoTermShellSetObjective_C", (TaoTerm, PetscErrorCode (*)(TaoTerm, Vec, Vec, PetscReal *)), (term, objective));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -253,7 +253,7 @@ PetscErrorCode TaoTermShellSetGradient(TaoTerm term, PetscErrorCode (*gradient)(
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
-  PetscTryMethod(term, "TaoTermShellSetGradient_C", (TaoTerm, PetscErrorCode(*)(TaoTerm, Vec, Vec, Vec)), (term, gradient));
+  PetscTryMethod(term, "TaoTermShellSetGradient_C", (TaoTerm, PetscErrorCode (*)(TaoTerm, Vec, Vec, Vec)), (term, gradient));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -293,7 +293,7 @@ PetscErrorCode TaoTermShellSetObjectiveAndGradient(TaoTerm term, PetscErrorCode 
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
-  PetscTryMethod(term, "TaoTermShellSetObjectiveAndGradient_C", (TaoTerm, PetscErrorCode(*)(TaoTerm, Vec, Vec, PetscReal *, Vec)), (term, objandgrad));
+  PetscTryMethod(term, "TaoTermShellSetObjectiveAndGradient_C", (TaoTerm, PetscErrorCode (*)(TaoTerm, Vec, Vec, PetscReal *, Vec)), (term, objandgrad));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -333,7 +333,7 @@ PetscErrorCode TaoTermShellSetHessian(TaoTerm term, PetscErrorCode (*hessian)(Ta
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
-  PetscTryMethod(term, "TaoTermShellSetHessian_C", (TaoTerm, PetscErrorCode(*)(TaoTerm, Vec, Vec, Mat, Mat)), (term, hessian));
+  PetscTryMethod(term, "TaoTermShellSetHessian_C", (TaoTerm, PetscErrorCode (*)(TaoTerm, Vec, Vec, Mat, Mat)), (term, hessian));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -375,7 +375,7 @@ PetscErrorCode TaoTermShellSetProximalMap(TaoTerm term, PetscErrorCode (*proxima
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
-  PetscTryMethod(term, "TaoTermShellSetProximalMap_C", (TaoTerm, PetscErrorCode(*)(TaoTerm, Vec, PetscReal, TaoTerm, Vec, PetscReal, Vec)), (term, proximalmap));
+  PetscTryMethod(term, "TaoTermShellSetProximalMap_C", (TaoTerm, PetscErrorCode (*)(TaoTerm, Vec, PetscReal, TaoTerm, Vec, PetscReal, Vec)), (term, proximalmap));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -412,7 +412,7 @@ PetscErrorCode TaoTermShellSetView(TaoTerm term, PetscErrorCode (*view)(TaoTerm 
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
-  PetscTryMethod(term, "TaoTermShellSetView_C", (TaoTerm, PetscErrorCode(*)(TaoTerm, PetscViewer)), (term, view));
+  PetscTryMethod(term, "TaoTermShellSetView_C", (TaoTerm, PetscErrorCode (*)(TaoTerm, PetscViewer)), (term, view));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -446,7 +446,7 @@ PetscErrorCode TaoTermShellSetCreateVecs(TaoTerm term, PetscErrorCode (*createve
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
-  PetscTryMethod(term, "TaoTermShellSetCreateVecs_C", (TaoTerm, PetscErrorCode(*)(TaoTerm, Vec *, Vec *)), (term, createvecs));
+  PetscTryMethod(term, "TaoTermShellSetCreateVecs_C", (TaoTerm, PetscErrorCode (*)(TaoTerm, Vec *, Vec *)), (term, createvecs));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -480,7 +480,7 @@ PetscErrorCode TaoTermShellSetCreateHessianMatrices(TaoTerm term, PetscErrorCode
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
-  PetscTryMethod(term, "TaoTermShellSetCreateHessianMatrices_C", (TaoTerm, PetscErrorCode(*)(TaoTerm, Mat *, Mat *)), (term, createmats));
+  PetscTryMethod(term, "TaoTermShellSetCreateHessianMatrices_C", (TaoTerm, PetscErrorCode (*)(TaoTerm, Mat *, Mat *)), (term, createmats));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
