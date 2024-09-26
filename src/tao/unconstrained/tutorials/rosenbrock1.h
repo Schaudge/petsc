@@ -90,7 +90,7 @@ static PetscErrorCode AppCtxFormFunctionGradient(AppCtx *user, Vec X, PetscReal 
 }
 
 /*
-  AppCtxFormHessian - Evaluates Hessian matrix.
+  AppCtxFormHessianSingle - Evaluates Hessian matrix.
 
   Input Parameters:
 + tao   - the Tao context
@@ -100,7 +100,7 @@ static PetscErrorCode AppCtxFormFunctionGradient(AppCtx *user, Vec X, PetscReal 
 + H     - Hessian matrix
 - Hpre  - Hessian preconditioner
 */
-static PetscErrorCode AppCtxFormHessian(AppCtx *user, Vec X, Mat H, Mat Hpre)
+static PetscErrorCode AppCtxFormHessianSingle(AppCtx *user, Vec X, Mat H)
 {
   PetscInt           ind[2];
   PetscReal          alpha = user->alpha;
@@ -109,7 +109,6 @@ static PetscErrorCode AppCtxFormHessian(AppCtx *user, Vec X, Mat H, Mat Hpre)
   PetscBool          assembled;
 
   PetscFunctionBeginUser;
-  if (H == NULL) H = Hpre;
   /* Zero existing matrix entries */
   PetscCall(MatAssembled(H, &assembled));
   if (assembled) PetscCall(MatZeroEntries(H));

@@ -90,8 +90,13 @@ Tao Object: 1 MPI process
     Not a descent direction: 0
     Line search fails: 0
   Objective function:
-    Scale: 1.
-    Function: defined by callbacks
+    Scale (tao_objective_scale): 1.
+    Function:
+      TaoTerm Object: (callbacks_) 1 MPI process
+        type: taocallbacks
+        solution vector space: N = 48 [VecType seq (taoterm_solution_vec_type)]
+        parameter vector space: (none)
+        attached to Tao [name omitted]
     Map: unmapped
   TaoLineSearch Object: 1 MPI process
     type: more-thuente

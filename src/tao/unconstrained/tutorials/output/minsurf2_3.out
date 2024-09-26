@@ -23,8 +23,13 @@ Tao Object: 3 MPI processes
     Gradient steps: 0
     Reset steps: 0
   Objective function:
-    Scale: 1.
-    Function: defined by callbacks
+    Scale (tao_objective_scale): 1.
+    Function:
+      TaoTerm Object: (callbacks_) 3 MPI processes
+        type: taocallbacks
+        solution vector space: N = 100 [VecType mpi (taoterm_solution_vec_type)]
+        parameter vector space: (none)
+        attached to Tao [name omitted]
     Map: unmapped
   TaoLineSearch Object: 3 MPI processes
     type: more-thuente

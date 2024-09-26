@@ -45,11 +45,13 @@ Tao Object: 1 MPI process
             Number of rejects: 0
             Number of resets: 4
       Objective function:
-        Scale: 1.
+        Scale (tao_objective_scale): 1.
         Function:
           TaoTerm Object: (callbacks_) 1 MPI process
             type: taocallbacks
-            TaoTerm is attached to Tao Tao_0x84000000_0
+            solution vector space: N = 48 [VecType seq (taoterm_solution_vec_type)]
+            parameter vector space: (none)
+            attached to Tao [name omitted]
         Map: unmapped
       TaoLineSearch Object: (tao_bnk_cg_) 1 MPI process
         type: more-thuente
@@ -82,8 +84,13 @@ Tao Object: 1 MPI process
       iter: 0
       othr: 0
   Objective function:
-    Scale: 1.
-    Function: defined by callbacks
+    Scale (tao_objective_scale): 1.
+    Function:
+      TaoTerm Object: (callbacks_) 1 MPI process
+        type: taocallbacks
+        solution vector space: N = 48 [VecType seq (taoterm_solution_vec_type)]
+        parameter vector space: (none)
+        attached to Tao [name omitted]
     Map: unmapped
   TaoLineSearch Object: 1 MPI process
     type: more-thuente
