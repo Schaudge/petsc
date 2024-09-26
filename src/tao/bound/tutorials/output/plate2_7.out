@@ -17,8 +17,13 @@ Tao Object: 3 MPI processes
     using variable bounds
     Termination reason: 1
   Objective function:
-    Scale: 1.
-    Function: defined by callbacks
+    Scale (tao_objective_scale): 1.
+    Function:
+      TaoTerm Object: (callbacks_) 3 MPI processes
+        type: taocallbacks
+        solution vector space: N = 96 [VecType mpi (taoterm_solution_vec_type)]
+        parameter vector space: (none)
+        attached to Tao [name omitted]
     Map: unmapped
   TaoLineSearch Object: 3 MPI processes
     type: gpcg
