@@ -535,7 +535,7 @@ PetscErrorCode TaoTermHessian(TaoTerm term, Vec x, Vec params, Mat H, Mat Hpre)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/*@
+/*@C
   TaoTermHessianSingle - Handle the computation of optional Hessian and Hessian preconditioning matrices from a routine for computing just one.
 
   Logically collective
@@ -553,8 +553,7 @@ PetscErrorCode TaoTermHessian(TaoTerm term, Vec x, Vec params, Mat H, Mat Hpre)
 + term   - the `TaoTerm` context
 . x      - the input vector
 . params - the parameter vector
-. H      - Hessian matrix
-- ctx    - the user context
+- H      - Hessian matrix
 
   Level: intermediate
 
@@ -590,7 +589,7 @@ PetscErrorCode TaoTermHessianSingle(TaoTerm term, Vec x, Vec params, Mat H, Mat 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
   PetscValidHeaderSpecific(x, VEC_CLASSID, 2);
-  if (params) PetscValidHeaderSpecific(x, VEC_CLASSID, 3);
+  if (params) PetscValidHeaderSpecific(params, VEC_CLASSID, 3);
   if (H) PetscValidHeaderSpecific(H, MAT_CLASSID, 4);
   if (Hpre) PetscValidHeaderSpecific(Hpre, MAT_CLASSID, 5);
   if (H) PetscCallBack("TaoTermHessiansSingle() H", (*func)(term, x, params, H));
