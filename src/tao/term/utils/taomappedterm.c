@@ -203,6 +203,12 @@ static PetscErrorCode TaoMappedTermSetHessians(TaoMappedTerm *mt, InsertMode mod
   PetscFunctionBegin;
   if (mt->map) {
     // currently only implements Gauss-Newton Hessian approximation
+    // if:
+    //   unmapped_H and mt->map are the existing mat products that were used to compute mapped_H
+    //   AND
+    //   they have not changed since the last time that MatPtAP was called, then, do not recomputed mapped_H
+    // PetscObjectGetId() // is this the same Mat that was used last time
+    // PetscObjectStateGet() // state is an increasing counter that increases every time an object may have changed
     if (mapped_H) PetscCall(MatPtAP(unmapped_H, mt->map, MAT_REUSE_MATRIX, PETSC_DETERMINE, &mapped_H));
     if (mapped_Hpre) PetscCall(MatPtAP(unmapped_Hpre, mt->map, MAT_REUSE_MATRIX, PETSC_DETERMINE, &mapped_Hpre));
   }
@@ -218,6 +224,11 @@ static PetscErrorCode TaoMappedTermSetHessians(TaoMappedTerm *mt, InsertMode mod
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// computes hessian of alpha * f(Ax)
+// the TaoTerm provides H_f = d^2 f
+// so this returns alpha * A^T H_f A
+// if this is a least squares problem, H_f is simple, and doesn't update every time
+// can we detect whether H_f changed and avoid recomputation of A^T H_f A if it has been computed before?
 PETSC_INTERN PetscErrorCode TaoMappedTermHessian(TaoMappedTerm *mt, Vec x, Vec params, InsertMode mode, Mat H, Mat Hpre)
 {
   Vec Ax;
