@@ -1,0 +1,56 @@
+-include ../../../../petscdir.mk
+
+all: ex2
+
+NP=1
+NPART=200
+NCELL=160
+NSTEP=1000
+MTIME=20
+EX=ex2
+NAME=Landau-damping
+
+runc0:
+	-${MPIEXEC} -n ${NP} ./${EX} -dm_plex_dim 2 -fake_1D -dm_plex_simplex 0 -dm_plex_box_faces ${NCELL},1 -dm_plex_box_lower 0.,-0.5 -dm_plex_box_upper 12.5664,0.5 -dm_plex_box_bd periodic,none -vdm_plex_dim 1 -vdm_plex_simplex 0 -vdm_plex_box_faces ${NPART} -vdm_plex_box_lower -10 -vdm_plex_box_upper 10 -dm_swarm_num_species 1 -charges -1.,1. -perturbed_weights -total_weight 1. -ts_type basicsymplectic -ts_basicsymplectic_type 1 -ts_dt 0.03 -ts_max_time ${MTIME} -ts_max_steps ${NSTEP} -em_snes_atol 1.e-12 -em_snes_error_if_not_converged -em_ksp_error_if_not_converged -output_step 1000 -check_vel_res -options_left -monitor_efield -cosine_coefficients 0.01,0.5  -em_type primal -petscspace_degree 1 -em_pc_type svd  ${EXTRA} | tee out_${NCELL}_${NPART}_1_${NAME}-C0_${NP}procs.txt
+
+runrt:
+	-${MPIEXEC} -n ${NP} ./${EX} -dm_plex_dim 2 -fake_1D -dm_plex_simplex 0 -dm_plex_box_faces 10,1 -dm_plex_box_lower 0.,-0.5 -dm_plex_box_upper 12.5664,0.5 -dm_plex_box_bd periodic,none -vdm_plex_dim 1 -vdm_plex_simplex 0 -vdm_plex_box_faces 10 -vdm_plex_box_lower -10 -vdm_plex_box_upper 10 -dm_swarm_num_species 1 -charges -1.,1. -cosine_coefficients 0.01,0.5 -perturbed_weights -total_weight 1. -ts_type basicsymplectic -ts_basicsymplectic_type 1 -ts_dt 0.03 -ts_max_time ${MTIME} -ts_max_steps 1 -em_snes_atol 1.e-12 -em_snes_error_if_not_converged -em_ksp_error_if_not_converged -output_step 1 -check_vel_res -options_left -monitor_efield -cosine_coefficients 0.01,0.5 -em_type mixed \
+               -potential_petscspace_degree 0 \
+               -potential_petscdualspace_lagrange_use_moments \
+               -potential_petscdualspace_lagrange_moment_order 2 \
+               -field_petscspace_degree 2 -field_petscfe_default_quadrature_order 1 \
+               -field_petscspace_type sum \
+                 -field_petscspace_variables 2 \
+                 -field_petscspace_components 2 \
+                 -field_petscspace_sum_spaces 2 \
+                 -field_petscspace_sum_concatenate true \
+                 -field_sumcomp_0_petscspace_variables 2 \
+                 -field_sumcomp_0_petscspace_type tensor \
+                 -field_sumcomp_0_petscspace_tensor_spaces 2 \
+                 -field_sumcomp_0_petscspace_tensor_uniform false \
+                 -field_sumcomp_0_tensorcomp_0_petscspace_degree 1 \
+                 -field_sumcomp_0_tensorcomp_1_petscspace_degree 0 \
+                 -field_sumcomp_1_petscspace_variables 2 \
+                 -field_sumcomp_1_petscspace_type tensor \
+                 -field_sumcomp_1_petscspace_tensor_spaces 2 \
+                 -field_sumcomp_1_petscspace_tensor_uniform false \
+                 -field_sumcomp_1_tensorcomp_0_petscspace_degree 0 \
+                 -field_sumcomp_1_tensorcomp_1_petscspace_degree 1 \
+               -field_petscdualspace_form_degree -1 \
+               -field_petscdualspace_order 1 \
+               -field_petscdualspace_lagrange_trimmed true \
+             -em_snes_error_if_not_converged \
+             -em_ksp_type preonly -em_ksp_error_if_not_converged \
+             -em_pc_type fieldsplit -em_pc_fieldsplit_type schur \
+               -em_pc_fieldsplit_schur_fact_type full -em_pc_fieldsplit_schur_precondition full \
+               -em_fieldsplit_field_pc_type lu \
+                 -em_fieldsplit_field_pc_factor_mat_solver_type superlu_dist \
+               -em_fieldsplit_potential_pc_type svd ${EXTRA} | tee out_${NCELL}_${NPART}_1_${NAME}-RT_${NP}procs.txt
+
+# -dm_plex_dim 2 -fake_1D -dm_plex_simplex 0 -dm_plex_box_faces ${NCELL},1 -dm_plex_box_lower 0.,-0.5 -dm_plex_box_upper 12.5664,0.5 -dm_plex_box_bd periodic,none -vdm_plex_dim 1 -vdm_plex_simplex 0 -vdm_plex_box_faces ${NPART} -vdm_plex_box_lower -10 -vdm_plex_box_upper 10 -dm_swarm_num_species 1 -charges -1.,1. -sigma 1.0e-8 -cosine_coefficients 0.01,0.5 -perturbed_weights -total_weight 1. -ts_type basicsymplectic -ts_basicsymplectic_type 2 -ts_dt 0.1 -ts_max_time 30 -ts_max_steps ${NSTEP} -em_snes_atol 1.e-15 -em_snes_error_if_not_converged -em_ksp_error_if_not_converged -output_step $1 -check_vel_res -monitor_efield -em_type primal -petscfe_default_quadrature_order 1 -petscspace_degree 1 -em_pc_type svd -options_left ${EXTRA} | tee out_${NCELL}_${NPART}_${AMR}_${NAME}-C0_${NP}procs.txt
+
+lldb:
+	-sudo lldb ./${EX} -- 
+
+include ${PETSC_DIR}/lib/petsc/conf/variables
+include ${PETSC_DIR}/lib/petsc/conf/rules
