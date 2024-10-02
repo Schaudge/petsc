@@ -43,6 +43,8 @@ Changes: Development
 
 .. rubric:: Mat:
 
+- Add ``MatConstantDiagonalGetConstant()``
+
 .. rubric:: MatCoarsen:
 
 .. rubric:: PC:
