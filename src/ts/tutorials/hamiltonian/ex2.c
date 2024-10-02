@@ -110,6 +110,10 @@ typedef struct {
   PetscBool   checkweights;
   PetscInt    checkVRes; /* Flag to check/output velocity residuals for nightly tests */
   PetscReal   m_n0;      // for entropy: m0 * mass / global_weight
+  PetscInt    resample_period;
+  Mat         M_p0;      // Particles to resample with
+  PetscReal  *PICField_coor; // cache original coordinates : x
+  PetscReal  *velocity; // cache original coordinates : v
 } AppCtx;
 
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
@@ -157,6 +161,10 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->checkweights           = PETSC_FALSE;
   options->checkVRes              = 0;
   options->m_n0                   = 0;
+  options->M_p0                   = NULL;
+  options->resample_period        = 0;
+  options->PICField_coor   = NULL;
+  options->velocity   = NULL;
 
   PetscOptionsBegin(comm, "", "Landau Damping and Two Stream options", "DMSWARM");
   PetscCall(PetscOptionsBool("-error", "Flag to print the error", "ex2.c", options->error, &options->error, NULL));
@@ -176,6 +184,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   PetscCall(PetscOptionsRealArray("-cosine_coefficients", "Amplitude and frequency of cosine equation used in initialization", "ex2.c", options->cosine_coefficients, &d, NULL));
   PetscCall(PetscOptionsRealArray("-charges", "Species charges", "ex2.c", options->charges, &maxSpecies, NULL));
   PetscCall(PetscOptionsEnum("-em_type", "Type of electrostatic solver", "ex2.c", EMTypes, (PetscEnum)options->em, (PetscEnum *)&options->em, NULL));
+  PetscCall(PetscOptionsInt("-resample_period", "Number of time steps between resampling", "ex2.c", options->resample_period, &options->resample_period, NULL));
   PetscOptionsEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1237,6 +1246,7 @@ static PetscErrorCode CreateSwarm(DM dm, AppCtx *user, DM *sw)
     PetscCall(DMSwarmDestroyGlobalVectorFromField(*sw, DMSwarmPICField_coor, &gc));
     PetscCall(DMSwarmDestroyGlobalVectorFromField(*sw, "initCoordinates", &gc0));
     PetscCall(DMSwarmCreateGlobalVectorFromField(*sw, "velocity", &gv));
+    PetscCall(VecViewFromOptions(gv, NULL, "-velocity_vec_view"));
     PetscCall(DMSwarmCreateGlobalVectorFromField(*sw, "initVelocity", &gv0));
     PetscCall(VecCopy(gv, gv0));
     PetscCall(VecViewFromOptions(gv, NULL, "-ic_v_view"));
@@ -1354,9 +1364,13 @@ static PetscErrorCode ComputeFieldAtParticles_Primal(SNES snes, DM sw, PetscReal
   PetscCall(VecViewFromOptions(rho, NULL, "-rho_view"));
   PetscCall(DMRestoreGlobalVector(dm, &rho0));
   PetscCall(KSPDestroy(&ksp));
-  PetscCall(MatDestroy(&M_p));
   PetscCall(MatDestroy(&M));
-
+  if (user->resample_period && !user->M_p0) {
+    PetscCall(PetscInfo(sw, "Save M_p\n"));
+    user->M_p0 = M_p; // this now has the correct size
+  } else {
+    PetscCall(MatDestroy(&M_p));
+  }
   PetscCall(DMGetGlobalVector(dm, &phi));
   PetscCall(PetscObjectSetName((PetscObject)phi, "potential"));
   PetscCall(VecSet(phi, 0.0));
@@ -2080,6 +2094,162 @@ static PetscErrorCode MigrateParticles(TS ts)
   PetscCall(InitializeSolveAndSwarm(ts, PETSC_FALSE));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+/*
+  resampling
+  */
+typedef struct {
+  Mat MpTrans;
+  Mat Mp;
+  Vec ff;
+  Vec uu;
+} MatShellCtx;
+
+PetscErrorCode MatMultMtM_SeqAIJ(Mat MtM, Vec xx, Vec yy)
+{
+  MatShellCtx *matshellctx;
+
+  PetscFunctionBeginUser;
+  PetscCall(MatShellGetContext(MtM, &matshellctx));
+  PetscCheck(matshellctx, PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "No context");
+  PetscCall(MatMult(matshellctx->Mp, xx, matshellctx->ff));
+  PetscCall(MatMult(matshellctx->MpTrans, matshellctx->ff, yy));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode MatMultAddMtM_SeqAIJ(Mat MtM, Vec xx, Vec yy, Vec zz)
+{
+  MatShellCtx *matshellctx;
+
+  PetscFunctionBeginUser;
+  PetscCall(MatShellGetContext(MtM, &matshellctx));
+  PetscCheck(matshellctx, PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "No context");
+  PetscCall(MatMult(matshellctx->Mp, xx, matshellctx->ff));
+  PetscCall(MatMultAdd(matshellctx->MpTrans, matshellctx->ff, yy, zz));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
+static PetscErrorCode Resample(TS ts)
+{
+  PetscInt     step, dim;
+  AppCtx      *user;
+  DM           sw, cdm;
+  PetscFunctionBeginUser;
+
+  PetscCall(TSGetDM(ts, &sw));
+  PetscCall(TSGetStepNumber(ts, &step));
+  PetscCall(DMGetApplicationContext(sw, &user));
+  if (user->resample_period && step % user->resample_period == 0) {
+    PetscCall(DMGetDimension(sw, &dim));
+    if ( !user->PICField_coor ) { // step = 0
+      PetscInt np;
+      const PetscReal *x, *v;
+      /* PetscCall(DMCreateMassMatrix(sw, cdm, &user->M_p0)); */
+      /* PetscCall(MatViewFromOptions(user->M_p0, NULL, "-ex2_Mp_mat_view")); */
+      PetscCall(PetscInfo(sw, "save coords, step %d \n", (int)step));
+      // cache coords (assume fake_1D)
+      PetscCall(DMSwarmGetLocalSize(sw, &np));
+      PetscCall(PetscCalloc2(np, &user->PICField_coor, np, &user->velocity));
+      PetscCall(DMSwarmGetField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&x));
+      PetscCall(DMSwarmGetField(sw, "velocity", NULL, NULL, (void **)&v));
+      for (int p = 0; p < np; ++p) {
+        //for (int d = 0; d < dim; ++d) {
+        user->PICField_coor[p] = x[p * dim];
+        user->velocity[p] = v[p * dim]; // put V[0] into x[1] for viz
+      }
+      PetscCall(DMSwarmRestoreField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&x));
+      PetscCall(DMSwarmRestoreField(sw, "velocity", NULL, NULL, (void **)&v));
+    } else { // resample
+      Vec          ff, rho;
+      KSP          ksp;
+      Mat          MtM, D = NULL, M_p = user->M_p0;
+      PetscInt     N, M, nzl;
+      MatShellCtx *matshellctx = NULL;
+      PC           pc;
+      PetscCall(PetscInfo(sw, "doit\n"));
+      //PetscCall(DMSwarmGetCellDM(sw, &cdm));
+      PetscCall(SNESGetDM(user->snes, &cdm));
+      // 1) particles to grid: rho = Mp' w
+      // PetscCall(MatCreateVecs(M_p, &rho, NULL));
+      PetscCall(DMGetGlobalVector(cdm, &rho));
+      PetscCall(DMSwarmCreateGlobalVectorFromField(sw, "w_q", &ff));
+      PetscCall(MatMultTranspose(M_p, ff, rho)); // rho <-- M'_p w
+      PetscCall(DMSwarmDestroyGlobalVectorFromField(sw, "w_q", &ff));
+      PetscCall(VecViewFromOptions(rho, NULL, "-resample_vec_view"));
+      // 2) pseudo-inverse, first part: (Mp' Mp)^-1
+      PetscCall(KSPCreate(PETSC_COMM_SELF, &ksp));
+      PetscCall(KSPSetType(ksp, KSPCG));
+      PetscCall(KSPGetPC(ksp, &pc));
+      PetscCall(PCSetType(pc, PCJACOBI));
+      PetscCall(KSPSetOptionsPrefix(ksp, "ftop_"));
+      PetscCall(KSPSetFromOptions(ksp));
+      // create solver matrix
+      PetscCall(MatGetLocalSize(M_p, &M, &N));
+      PetscCheck(N < M, PETSC_COMM_WORLD, PETSC_ERR_PLIB, "need to N_p > N_v Moore-Penrose pseudo-inverse");
+      PetscCall(PetscNew(&matshellctx));
+      PetscCall(MatCreateVecs(M_p, &matshellctx->uu, &matshellctx->ff));
+      PetscCall(MatCreateShell(PetscObjectComm((PetscObject)cdm), N, N, PETSC_DECIDE, PETSC_DECIDE, matshellctx, &MtM));
+      PetscCall(MatTranspose(M_p, MAT_INITIAL_MATRIX, &matshellctx->MpTrans));
+      matshellctx->Mp = M_p;
+      PetscCall(MatShellSetOperation(MtM, MATOP_MULT, (void (*)(void))MatMultMtM_SeqAIJ));
+      PetscCall(MatShellSetOperation(MtM, MATOP_MULT_ADD, (void (*)(void))MatMultAddMtM_SeqAIJ));
+      PetscCall(MatCreateSeqAIJ(PETSC_COMM_SELF, N, N, 1, NULL, &D));
+      PetscCall(MatViewFromOptions(matshellctx->MpTrans, NULL, "-ftop2_MpT_mat_view"));
+      for (PetscInt i = 0; i < N; i++) {
+        const PetscScalar *vals;
+        const PetscInt    *cols;
+        PetscScalar        dot = 0;
+        PetscCall(MatGetRow(matshellctx->MpTrans, i, &nzl, &cols, &vals));
+        for (PetscInt ii = 0; ii < nzl; ii++) dot += PetscSqr(vals[ii]);
+        PetscCheck(dot > PETSC_MACHINE_EPSILON, PETSC_COMM_WORLD, PETSC_ERR_PLIB, "empty row in pseudo-inverse %d", (int)i);
+        PetscCall(MatSetValue(D, i, i, dot, INSERT_VALUES));
+      }
+      PetscCall(MatAssemblyBegin(D, MAT_FINAL_ASSEMBLY));
+      PetscCall(MatAssemblyEnd(D, MAT_FINAL_ASSEMBLY));
+      PetscCall(PetscInfo(sw, "createMtMKSP Have %" PetscInt_FMT " eqs, nzl = %" PetscInt_FMT "\n", N, nzl));
+      PetscCall(KSPSetOperators(ksp, MtM, D));
+      PetscCall(MatViewFromOptions(D, NULL, "-ftop2_D_mat_view"));
+      PetscCall(MatViewFromOptions(M_p, NULL, "-ftop2_Mp_mat_view"));
+      PetscCall(MatViewFromOptions(matshellctx->MpTrans, NULL, "-ftop2_MpTranspose_mat_view"));
+      // 3) pseudo-inverse solve
+      PetscCall(DMSwarmCreateGlobalVectorFromField(sw, "w_q", &ff)); // this grabs access
+      PetscCall(KSPSolve(ksp, rho, matshellctx->uu));
+      // mat destroy rho
+      PetscCall(DMRestoreGlobalVector(cdm, &rho));
+      // 4) with Moore-Penrose apply Mp: M_p (Mp' Mp)^-1 M_p'
+      PetscCall(MatMult(M_p, matshellctx->uu, ff));
+      PetscCall(VecViewFromOptions(ff, NULL, "-resample_vec_view"));
+      PetscCall(DMSwarmDestroyGlobalVectorFromField(sw, "w_q", &ff));
+      // cleanup
+      PetscCall(MatDestroy(&D));
+      PetscCall(MatDestroy(&MtM));
+      PetscCall(MatDestroy(&matshellctx->MpTrans));
+      PetscCall(VecDestroy(&matshellctx->ff));
+      PetscCall(VecDestroy(&matshellctx->uu));
+      PetscCall(PetscFree(matshellctx));
+      PetscCall(KSPDestroy(&ksp));
+      // reset swarms coordinates, need to change swarm size here in parallel
+      {
+        PetscReal *x, *v;
+        PetscInt np;
+        PetscCall(DMSwarmGetLocalSize(sw, &np));
+        PetscCall(DMSwarmGetField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&x));
+        PetscCall(DMSwarmGetField(sw, "velocity", NULL, NULL, (void **)&v));
+        for (int p = 0; p < np; ++p) {
+          //for (int d = 0; d < dim; ++d) {
+          x[p * dim] = user->PICField_coor[p];
+          v[p * dim] = user->velocity[p]; // put V[0] into x[1] for viz
+          //printf("%d) x = %e %e, v = %e %e\n", p, x[p * dim], x[p * dim + 1], v[p * dim], v[p * dim + 1]);
+        }
+        PetscCall(DMSwarmRestoreField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&x));
+        PetscCall(DMSwarmRestoreField(sw, "velocity", NULL, NULL, (void **)&v));
+        PetscCall(DMSwarmMigrate(sw, PETSC_TRUE));
+        PetscCall(DMSwarmTSRedistribute(ts));
+      }
+    }
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 int main(int argc, char **argv)
 {
@@ -2123,13 +2293,16 @@ int main(int argc, char **argv)
   PetscCall(TSSetComputeInitialCondition(ts, InitializeSolve));
   PetscCall(TSSetComputeExactError(ts, ComputeError));
   PetscCall(TSSetPostStep(ts, MigrateParticles));
+  PetscCall(TSSetPreStep(ts, Resample));
   PetscCall(CreateSolution(ts));
   PetscCall(TSGetSolution(ts, &u));
   PetscCall(TSComputeInitialCondition(ts, u));
   PetscCall(CheckNonNegativeWeights(sw, &user));
   PetscCall(TSSolve(ts, NULL));
 
-  PetscCall(SNESDestroy(&user.snes));
+  PetscCall(SNESDestroy(&user.snes)); // move to destructor ?
+  if (user.M_p0) PetscCall(MatDestroy(&user.M_p0));
+  if (user.PICField_coor) PetscCall(PetscFree2(user.PICField_coor, user.velocity));
   PetscCall(TSDestroy(&ts));
   PetscCall(DMDestroy(&sw));
   PetscCall(DMDestroy(&dm));
