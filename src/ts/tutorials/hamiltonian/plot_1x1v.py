@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #
-#                0   1   2   3 4                 5
-# ./plot_1x1v.py out_160_200_1_Landau-damping-C0_8procs.txt
+#                0   1   2   3 4                 5      6
+# ./plot_1x1v.py out_160_200_1_Landau-damping-C0_8procs_uni[false|].txt
 #
 import sys, os, math, glob
 import matplotlib.pyplot as plt
@@ -37,6 +37,9 @@ for filename in sys.argv[1:]:
     npart_loc = parts[2]
     #np = int(npart_str_loc)
     name_str = parts[4] # should all be the same
+    amr_str = parts[6]
+    if amr_str == 'unifalse': amr_str = ', v AMR'
+    else: amr_str = ''
     #print(name_str)
     name_str = name_str.replace("-", " ")
     stepi = 0
@@ -80,7 +83,7 @@ ylabel = r'$E_{max}$'
 #
 # plot Emax
 #
-titles = [name_str + ': ' + ncells_str + ' cells', name_str + ': ' + ncells_str + ' cells, ~160K particles', name_str + ': ' + ncells_str + ' cells, ' + f'{int(npart_loc) * int(ncells_str):,}' + ' particles']
+titles = [name_str + ': ' + ncells_str + ' cells', name_str + ': ' + ncells_str + ' cells, ~160K particles', name_str + ': ' + ncells_str + ' cells, ' + f'{int(npart_loc) * int(ncells_str):,}' + ' particles' + amr_str]
 if sum(Emax[:stepi]) > 0:
     df = pd.DataFrame(data=Emax[:stepi], index=Times[:stepi], columns=series_name_AMR)
     ax = df.plot(lw=1, style=styles, markersize=1, logx=False, logy=True, grid=True, legend=False)
