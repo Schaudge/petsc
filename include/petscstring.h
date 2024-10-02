@@ -141,7 +141,7 @@ static inline PetscErrorCode PetscStrallocpy(const char s[], char *t[])
 {
   PetscFunctionBegin;
   PetscAssertPointer_Private(t, 2);
-  *t = PETSC_NULLPTR;
+  *t = NULL;
   if (s) {
     size_t len;
     char  *tmp;
@@ -360,7 +360,7 @@ static inline PetscErrorCode PetscStrncmp(const char a[], const char b[], size_t
 @*/
 static inline PetscErrorCode PetscStrrstr(const char a[], const char b[], char *tmp[])
 {
-  const char *ltmp = PETSC_NULLPTR;
+  const char *ltmp = NULL;
 
   PetscFunctionBegin;
   PetscAssertPointer_Private(a, 1);

@@ -38,7 +38,7 @@ PETSC_INTERN PetscErrorCode PetscInitFortran_Private(PetscBool, const char *, Pe
 #define FIXCHAR(a, n, b) \
   do { \
     if ((a) == PETSC_NULL_CHARACTER_Fortran) { \
-      (b) = (a) = PETSC_NULLPTR; \
+      (b) = (a) = NULL; \
     } else { \
       while (((n) > 0) && ((a)[(n) - 1] == ' ')) (n)--; \
       *ierr = PetscMalloc1((n) + 1, &(b)); \
@@ -93,13 +93,13 @@ PETSC_INTERN PetscErrorCode PetscInitFortran_Private(PetscBool, const char *, Pe
 
 #define CHKFORTRANNULL(a) \
   do { \
-    if (FORTRANNULLINTEGER(a) || FORTRANNULLENUM(a) || FORTRANNULLDOUBLE(a) || FORTRANNULLSCALAR(a) || FORTRANNULLREAL(a) || FORTRANNULLBOOL(a) || FORTRANNULLFUNCTION(a) || FORTRANNULLCHARACTER(a) || FORTRANNULLMPICOMM(a)) { a = PETSC_NULLPTR; } \
+    if (FORTRANNULLINTEGER(a) || FORTRANNULLENUM(a) || FORTRANNULLDOUBLE(a) || FORTRANNULLSCALAR(a) || FORTRANNULLREAL(a) || FORTRANNULLBOOL(a) || FORTRANNULLFUNCTION(a) || FORTRANNULLCHARACTER(a) || FORTRANNULLMPICOMM(a)) a = NULL; \
   } while (0)
 
 #define CHKFORTRANNULLINTEGER(a) \
   do { \
     if (FORTRANNULLINTEGER(a) || FORTRANNULLENUM(a)) { \
-      a = PETSC_NULLPTR; \
+      a = NULL; \
     } else if (FORTRANNULLDOUBLE(a) || FORTRANNULLSCALAR(a) || FORTRANNULLREAL(a) || FORTRANNULLBOOL(a) || FORTRANNULLFUNCTION(a) || FORTRANNULLCHARACTER(a) || FORTRANNULLMPICOMM(a)) { \
       *ierr = PetscError(PETSC_COMM_SELF, __LINE__, PETSC_FUNCTION_NAME, __FILE__, PETSC_ERR_ARG_WRONG, PETSC_ERROR_INITIAL, "Use PETSC_NULL_INTEGER"); \
       *ierr = PETSC_ERR_ARG_BADPTR; \
@@ -110,7 +110,7 @@ PETSC_INTERN PetscErrorCode PetscInitFortran_Private(PetscBool, const char *, Pe
 #define CHKFORTRANNULLSCALAR(a) \
   do { \
     if (FORTRANNULLSCALAR(a)) { \
-      a = PETSC_NULLPTR; \
+      a = NULL; \
     } else if (FORTRANNULLINTEGER(a) || FORTRANNULLDOUBLE(a) || FORTRANNULLREAL(a) || FORTRANNULLBOOL(a) || FORTRANNULLFUNCTION(a) || FORTRANNULLCHARACTER(a) || FORTRANNULLMPICOMM(a)) { \
       *ierr = PetscError(PETSC_COMM_SELF, __LINE__, PETSC_FUNCTION_NAME, __FILE__, PETSC_ERR_ARG_WRONG, PETSC_ERROR_INITIAL, "Use PETSC_NULL_SCALAR"); \
       *ierr = PETSC_ERR_ARG_BADPTR; \
@@ -121,7 +121,7 @@ PETSC_INTERN PetscErrorCode PetscInitFortran_Private(PetscBool, const char *, Pe
 #define CHKFORTRANNULLDOUBLE(a) \
   do { \
     if (FORTRANNULLDOUBLE(a)) { \
-      a = PETSC_NULLPTR; \
+      a = NULL; \
     } else if (FORTRANNULLINTEGER(a) || FORTRANNULLSCALAR(a) || FORTRANNULLREAL(a) || FORTRANNULLBOOL(a) || FORTRANNULLFUNCTION(a) || FORTRANNULLCHARACTER(a) || FORTRANNULLMPICOMM(a)) { \
       *ierr = PetscError(PETSC_COMM_SELF, __LINE__, PETSC_FUNCTION_NAME, __FILE__, PETSC_ERR_ARG_WRONG, PETSC_ERROR_INITIAL, "Use PETSC_NULL_DOUBLE"); \
       *ierr = PETSC_ERR_ARG_BADPTR; \
@@ -132,7 +132,7 @@ PETSC_INTERN PetscErrorCode PetscInitFortran_Private(PetscBool, const char *, Pe
 #define CHKFORTRANNULLREAL(a) \
   do { \
     if (FORTRANNULLREAL(a)) { \
-      a = PETSC_NULLPTR; \
+      a = NULL; \
     } else if (FORTRANNULLINTEGER(a) || FORTRANNULLDOUBLE(a) || FORTRANNULLSCALAR(a) || FORTRANNULLBOOL(a) || FORTRANNULLFUNCTION(a) || FORTRANNULLCHARACTER(a) || FORTRANNULLMPICOMM(a)) { \
       *ierr = PetscError(PETSC_COMM_SELF, __LINE__, PETSC_FUNCTION_NAME, __FILE__, PETSC_ERR_ARG_WRONG, PETSC_ERROR_INITIAL, "Use PETSC_NULL_REAL"); \
       *ierr = PETSC_ERR_ARG_BADPTR; \
@@ -143,7 +143,7 @@ PETSC_INTERN PetscErrorCode PetscInitFortran_Private(PetscBool, const char *, Pe
 #define CHKFORTRANNULLOBJECT(a) \
   do { \
     if (!(*(void **)a)) { \
-      a = PETSC_NULLPTR; \
+      a = NULL; \
     } else if (FORTRANNULLINTEGER(a) || FORTRANNULLDOUBLE(a) || FORTRANNULLSCALAR(a) || FORTRANNULLREAL(a) || FORTRANNULLBOOL(a) || FORTRANNULLFUNCTION(a) || FORTRANNULLCHARACTER(a) || FORTRANNULLMPICOMM(a)) { \
       *ierr = PetscError(PETSC_COMM_SELF, __LINE__, PETSC_FUNCTION_NAME, __FILE__, PETSC_ERR_ARG_WRONG, PETSC_ERROR_INITIAL, "Use PETSC_NULL_XXX where XXX is the name of a particular object class"); \
       *ierr = PETSC_ERR_ARG_BADPTR; \
@@ -154,7 +154,7 @@ PETSC_INTERN PetscErrorCode PetscInitFortran_Private(PetscBool, const char *, Pe
 #define CHKFORTRANNULLBOOL(a) \
   do { \
     if (FORTRANNULLBOOL(a)) { \
-      a = PETSC_NULLPTR; \
+      a = NULL; \
     } else if (FORTRANNULLSCALAR(a) || FORTRANNULLINTEGER(a) || FORTRANNULLDOUBLE(a) || FORTRANNULLSCALAR(a) || FORTRANNULLREAL(a) || FORTRANNULLFUNCTION(a) || FORTRANNULLCHARACTER(a) || FORTRANNULLMPICOMM(a)) { \
       *ierr = PetscError(PETSC_COMM_SELF, __LINE__, PETSC_FUNCTION_NAME, __FILE__, PETSC_ERR_ARG_WRONG, PETSC_ERROR_INITIAL, "Use PETSC_NULL_BOOL"); \
       *ierr = PETSC_ERR_ARG_BADPTR; \
@@ -165,7 +165,7 @@ PETSC_INTERN PetscErrorCode PetscInitFortran_Private(PetscBool, const char *, Pe
 #define CHKFORTRANNULLFUNCTION(a) \
   do { \
     if (FORTRANNULLFUNCTION(a)) { \
-      a = PETSC_NULLPTR; \
+      a = NULL; \
     } else if (FORTRANNULLOBJECT(a) || FORTRANNULLSCALAR(a) || FORTRANNULLDOUBLE(a) || FORTRANNULLREAL(a) || FORTRANNULLINTEGER(a) || FORTRANNULLBOOL(a) || FORTRANNULLCHARACTER(a) || FORTRANNULLMPICOMM(a)) { \
       *ierr = PetscError(PETSC_COMM_SELF, __LINE__, PETSC_FUNCTION_NAME, __FILE__, PETSC_ERR_ARG_WRONG, PETSC_ERROR_INITIAL, "Use PETSC_NULL_FUNCTION"); \
       *ierr = PETSC_ERR_ARG_BADPTR; \
@@ -176,7 +176,7 @@ PETSC_INTERN PetscErrorCode PetscInitFortran_Private(PetscBool, const char *, Pe
 #define CHKFORTRANNULLMPICOMM(a) \
   do { \
     if (FORTRANNULLMPICOMM(a)) { \
-      a = PETSC_NULLPTR; \
+      a = NULL; \
     } else if (FORTRANNULLINTEGER(a) || FORTRANNULLDOUBLE(a) || FORTRANNULLSCALAR(a) || FORTRANNULLREAL(a) || FORTRANNULLBOOL(a) || FORTRANNULLFUNCTION(a) || FORTRANNULLCHARACTER(a)) { \
       *ierr = PetscError(PETSC_COMM_SELF, __LINE__, PETSC_FUNCTION_NAME, __FILE__, PETSC_ERR_ARG_WRONG, PETSC_ERROR_INITIAL, "Use PETSC_NULL_MPI_COMM"); \
       *ierr = PETSC_ERR_ARG_BADPTR; \
@@ -247,9 +247,8 @@ typedef PETSC_UINTPTR_T PetscFortranAddr;
 
 static inline PetscViewer PetscPatchDefaultViewers(PetscViewer *v)
 {
-  if (!v) return PETSC_NULLPTR;
-  if (!(*(void **)v)) return PETSC_NULLPTR;
-  switch (*(PetscFortranAddr *)v) {
+  if (!v || !(*(void **)v)) return NULL;
+  switch ((*(PetscFortranAddr *)v)) {
   case PETSC_VIEWER_DRAW_WORLD_FORTRAN:
     return PETSC_VIEWER_DRAW_WORLD;
   case PETSC_VIEWER_DRAW_SELF_FORTRAN:

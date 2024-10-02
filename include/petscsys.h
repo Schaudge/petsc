@@ -179,7 +179,7 @@ PETSC_EXTERN FILE *PETSC_STDERR;
   Handle inclusion when using clang compiler with CUDA support
   __float128 is not available for the device
 */
-#if defined(__clang__) && defined(__CUDA_ARCH__)
+#if defined(__clang__) && (defined(__CUDA_ARCH__) || defined(__HIPCC__))
   #define PETSC_SKIP_REAL___FLOAT128
 #endif
 
@@ -206,8 +206,8 @@ PETSC_EXTERN PetscBool PETSC_RUNNING_ON_VALGRIND;
 
 .seealso: `PETSC_DECIDE`, `PETSC_DEFAULT`, `PETSC_DETERMINE`
 M*/
-#define PETSC_IGNORE PETSC_NULLPTR
-#define PETSC_NULL   PETSC_DEPRECATED_MACRO(3, 19, 0, "PETSC_NULLPTR", ) PETSC_NULLPTR
+#define PETSC_IGNORE NULL
+#define PETSC_NULL   PETSC_DEPRECATED_MACRO(3, 19, 0, "NULL", ) NULL
 
 /*MC
    PETSC_UNLIMITED - standard way of passing an integer or floating point parameter to indicate PETSc there is no bound on the value allowed
@@ -933,7 +933,7 @@ M*/
 
 .seealso: `PetscNew()`, `PetscMalloc()`, `PetscMalloc1()`, `PetscCalloc1()`
 M*/
-#define PetscFree(a) ((PetscErrorCode)((*PetscTrFree)((void *)(a), __LINE__, PETSC_FUNCTION_NAME, __FILE__) || ((a) = PETSC_NULLPTR, PETSC_SUCCESS)))
+#define PetscFree(a) ((PetscErrorCode)((*PetscTrFree)((void *)(a), __LINE__, PETSC_FUNCTION_NAME, __FILE__) || ((a) = NULL, PETSC_SUCCESS)))
 
 /*MC
    PetscFree2 - Frees 2 chunks of memory obtained with `PetscMalloc2()`
@@ -2393,7 +2393,7 @@ static inline PetscErrorCode PetscCitationsRegister(const char cit[], PetscBool 
   PetscFunctionBegin;
   if (set && *set) PetscFunctionReturn(PETSC_SUCCESS);
   PetscCall(PetscStrlen(cit, &len));
-  PetscCall(PetscSegBufferGet(PetscCitationsList, len, &vstring));
+  PetscCall(PetscSegBufferGet(PetscCitationsList, (PetscCount)len, &vstring));
   PetscCall(PetscArraycpy(vstring, cit, len));
   if (set) *set = PETSC_TRUE;
   PetscFunctionReturn(PETSC_SUCCESS);

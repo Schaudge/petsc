@@ -101,7 +101,7 @@ PETSC_EXTERN PetscErrorCode PCGetOptionsPrefix(PC, const char *[]);
 PETSC_EXTERN PetscErrorCode PCComputeOperator(PC, MatType, Mat *);
 PETSC_DEPRECATED_FUNCTION(3, 12, 0, "PCComputeOperator()", ) static inline PetscErrorCode PCComputeExplicitOperator(PC A, Mat *B)
 {
-  return PCComputeOperator(A, PETSC_NULLPTR, B);
+  return PCComputeOperator(A, NULL, B);
 }
 
 /*

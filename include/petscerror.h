@@ -1045,7 +1045,7 @@ M*/
     do { \
       PetscStackUpdateLine; \
       PetscErrorCode ierr_petsc_call_throw_ = __VA_ARGS__; \
-      if (PetscUnlikely(ierr_petsc_call_throw_ != PETSC_SUCCESS)) PetscError(PETSC_COMM_SELF, __LINE__, PETSC_FUNCTION_NAME, __FILE__, ierr_petsc_call_throw_, PETSC_ERROR_IN_CXX, PETSC_NULLPTR); \
+      if (PetscUnlikely(ierr_petsc_call_throw_ != PETSC_SUCCESS)) PetscError(PETSC_COMM_SELF, __LINE__, PETSC_FUNCTION_NAME, __FILE__, ierr_petsc_call_throw_, PETSC_ERROR_IN_CXX, NULL); \
     } while (0)
 
   /*MC
@@ -1454,7 +1454,7 @@ PETSC_EXTERN PetscStack petscstack;
           stack__.file[stack__.currentsize] = file__; \
           stack__.line[stack__.currentsize] = line__; \
         } else { \
-          stack__.file[stack__.currentsize] = PETSC_NULLPTR; \
+          stack__.file[stack__.currentsize] = NULL; \
           stack__.line[stack__.currentsize] = 0; \
         } \
         stack__.petscroutine[stack__.currentsize] = petsc_routine__; \
@@ -1470,8 +1470,8 @@ PETSC_EXTERN PetscStack petscstack;
       if (--stack__.currentsize < PETSCSTACKSIZE) { \
         PetscCheckAbort(!stack__.check || stack__.petscroutine[stack__.currentsize] != 1 || stack__.function[stack__.currentsize] == (const char *)(func__), PETSC_COMM_SELF, PETSC_ERR_PLIB, "Invalid stack: push from %s %s:%d. Pop from %s %s:%d.\n", \
                         stack__.function[stack__.currentsize], stack__.file[stack__.currentsize], stack__.line[stack__.currentsize], func__, __FILE__, __LINE__); \
-        stack__.function[stack__.currentsize]     = PETSC_NULLPTR; \
-        stack__.file[stack__.currentsize]         = PETSC_NULLPTR; \
+        stack__.function[stack__.currentsize]     = NULL; \
+        stack__.file[stack__.currentsize]         = NULL; \
         stack__.line[stack__.currentsize]         = 0; \
         stack__.petscroutine[stack__.currentsize] = 0; \
       } \
@@ -1625,8 +1625,8 @@ M*/
     do { \
       PetscStackSAWsTakeAccess(); \
       if (petscstack.currentsize > 0 && --petscstack.currentsize < PETSCSTACKSIZE) { \
-        petscstack.function[petscstack.currentsize]     = PETSC_NULLPTR; \
-        petscstack.file[petscstack.currentsize]         = PETSC_NULLPTR; \
+        petscstack.function[petscstack.currentsize]     = NULL; \
+        petscstack.file[petscstack.currentsize]         = NULL; \
         petscstack.line[petscstack.currentsize]         = 0; \
         petscstack.petscroutine[petscstack.currentsize] = 0; \
       } \

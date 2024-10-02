@@ -173,7 +173,7 @@ typedef struct {
 
 #define MatSeqXAIJGetOptions_Private(A) \
   { \
-    const PetscBool oldvalues = (PetscBool)(A != PETSC_NULLPTR); \
+    const PetscBool oldvalues = (PetscBool)(A != NULL); \
     PetscInt        nonew = 0, nounused = 0; \
     PetscBool       roworiented = PETSC_FALSE; \
     if (oldvalues) { \

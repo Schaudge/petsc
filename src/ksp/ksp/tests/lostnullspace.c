@@ -89,7 +89,7 @@ int main(int argc, char **args)
   PetscCall(PetscViewerDestroy(&viewer));
 
   PetscCall(MatNullSpaceCreate(PETSC_COMM_WORLD, PETSC_FALSE, 6, rigid_mode, &near_null_space));
-  PetscCall(KSPGetOperators(sub_ksp[1], &K, PETSC_NULLPTR));
+  PetscCall(KSPGetOperators(sub_ksp[1], &K, NULL));
   PetscCall(MatSetNearNullSpace(K, near_null_space));
   PetscCall(MatSetBlockSize(K, 3));
 
@@ -102,13 +102,13 @@ int main(int argc, char **args)
   PetscCall(ISGetIndices(is_mech, &bc_mech_indexes));
 
   // check that MatZeroRows() without MAT_KEEP_NONZERO_PATTERN does not remove the near null spaces attached to the submatrices
-  PetscCall(PetscOptionsHasName(PETSC_NULLPTR, PETSC_NULLPTR, "-columns", &has_columns));
+  PetscCall(PetscOptionsHasName(NULL, NULL, "-columns", &has_columns));
   if (has_columns == PETSC_TRUE) {
-    PetscCall(MatZeroRowsColumns(A, 3, bc_mech_indexes, 1, PETSC_NULLPTR, PETSC_NULLPTR));
-    PetscCall(MatZeroRowsColumns(A, 1, bc_thermal_indexes, 1, PETSC_NULLPTR, PETSC_NULLPTR));
+    PetscCall(MatZeroRowsColumns(A, 3, bc_mech_indexes, 1, NULL, NULL));
+    PetscCall(MatZeroRowsColumns(A, 1, bc_thermal_indexes, 1, NULL, NULL));
   } else {
-    PetscCall(MatZeroRows(A, 3, bc_mech_indexes, 1, PETSC_NULLPTR, PETSC_NULLPTR));
-    PetscCall(MatZeroRows(A, 1, bc_thermal_indexes, 1, PETSC_NULLPTR, PETSC_NULLPTR));
+    PetscCall(MatZeroRows(A, 3, bc_mech_indexes, 1, NULL, NULL));
+    PetscCall(MatZeroRows(A, 1, bc_thermal_indexes, 1, NULL, NULL));
   }
   PetscCall(ISRestoreIndices(is_mech, &bc_mech_indexes));
   PetscCall(ISRestoreIndices(is_thermal, &bc_thermal_indexes));

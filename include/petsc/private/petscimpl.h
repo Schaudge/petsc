@@ -180,15 +180,15 @@ PETSC_EXTERN_TYPEDEF typedef PetscObjectViewFn *PetscObjectViewFunction;
   Input Parameters:
 + classid    - The classid associated with this object (for example `VEC_CLASSID`)
 . class_name - String name of class; should be static (for example "Vec"), may be
-               `PETSC_NULLPTR`
+               `NULL`
 . descr      - String containing short description; should be static (for example "Vector"),
-               may be `PETSC_NULLPTR`
+               may be `NULL`
 . mansec     - String indicating section in manual pages; should be static (for example "Vec"),
-               may be `PETSC_NULLPTR`
+               may be `NULL`
 . comm       - The MPI Communicator
 . destroy    - The destroy routine for this object (for example `VecDestroy()`)
 - view       - The view routine for this object (for example `VecView()`), may be
-               `PETSC_NULLPTR`
+               `NULL`
 
   Output Parameter:
 . h - The newly created `PetscObject`
@@ -235,10 +235,10 @@ PETSC_EXTERN_TYPEDEF typedef PetscObjectViewFn *PetscObjectViewFunction;
   MyCPetscObject obj;
 
   // assume MY_PETSC_CLASSID is already registered
-  PetscHeaderCreate(obj, MY_PETSC_CLASSID, "MyObject", "A custom PetscObject", PETSC_NULLPTR, PETSC_COMM_SELF, MyObjectDestroy, MyObjectView);
+  PetscHeaderCreate(obj, MY_PETSC_CLASSID, "MyObject", "A custom PetscObject", NULL, PETSC_COMM_SELF, MyObjectDestroy, MyObjectView);
 
   // OK, only destroy function must be given, all others may be NULL
-  PetscHeaderCreate(obj, MY_PETSC_CLASSID, PETSC_NULLPTR, PETSC_NULLPTR, PETSC_NULLPTR, PETSC_COMM_SELF, MyObjectDestroy, PETSC_NULLPTR);
+  PetscHeaderCreate(obj, MY_PETSC_CLASSID, NULL, NULL, NULL, PETSC_COMM_SELF, MyObjectDestroy, NULL);
 
   // ERROR must be a single-level pointer
   PetscHeaderCreate(&obj, ...);
@@ -321,7 +321,7 @@ PETSC_INTERN PetscObjectId  PetscObjectNewId_Internal(void);
   Level: developer
 
   Notes:
-  `h` is freed and set to `PETSC_NULLPTR` when this routine returns.
+  `h` is freed and set to `NULL` when this routine returns.
 
   Example Usage:
 .vb

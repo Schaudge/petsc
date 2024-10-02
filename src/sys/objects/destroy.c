@@ -328,7 +328,7 @@ typedef enum {
   PETSC_FINALIZE_FUNC_WITH_CTX
 } PetscFinalizeType;
 
-static const char *const PetscFinalizeTypes[] = {"PETSC_FINALIZE_EMPTY", "PETSC_FINALIZE_OBJECT", "PETSC_FINALIZE_FUNC", "PETSC_FINALIZE_FUNC_WITH_CTX", PETSC_NULLPTR};
+static const char *const PetscFinalizeTypes[] = {"PETSC_FINALIZE_EMPTY", "PETSC_FINALIZE_OBJECT", "PETSC_FINALIZE_FUNC", "PETSC_FINALIZE_FUNC_WITH_CTX", NULL};
 
 typedef struct {
   union ThunkUnion

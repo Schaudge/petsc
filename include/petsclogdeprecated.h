@@ -81,7 +81,7 @@ struct _n_PetscStageLog {
   PetscClassRegLog classLog;
 };
 
-PETSC_DEPRECATED_OBJECT(3, 20, 0, "PetscLogGetState()", "PetscStageLog is no longer used.") PETSC_UNUSED static PetscStageLog petsc_stageLog = PETSC_NULLPTR;
+PETSC_DEPRECATED_OBJECT(3, 20, 0, "PetscLogGetState()", "PetscStageLog is no longer used.") PETSC_UNUSED static PetscStageLog petsc_stageLog = NULL;
 
 /*@C
   PetscLogGetStageLog - Deprecated.
@@ -96,7 +96,7 @@ PETSC_DEPRECATED_OBJECT(3, 20, 0, "PetscLogGetState()", "PetscStageLog is no lon
 @*/
 PETSC_DEPRECATED_FUNCTION(3, 20, 0, "PetscLogGetState()", "PetscStageLog is no longer used.") static inline PetscErrorCode PetscLogGetStageLog(PetscStageLog *s)
 {
-  *s = PETSC_NULLPTR;
+  *s = NULL;
   return PETSC_SUCCESS;
 }
 
@@ -129,14 +129,14 @@ PETSC_DEPRECATED_FUNCTION(3, 20, 0, "PetscLogStateEventGetInfo()", "PetscStageLo
 {
   (void)a;
   (void)b;
-  *c = PETSC_NULLPTR;
+  *c = NULL;
   return PETSC_SUCCESS;
 }
 
-PETSC_DEPRECATED_OBJECT(3, 20, 0, "PetscLogLegacyCallbacksBegin()", ) PETSC_UNUSED static PetscErrorCode (*PetscLogPLB)(PetscLogEvent, int, PetscObject, PetscObject, PetscObject, PetscObject) = PETSC_NULLPTR;
-PETSC_DEPRECATED_OBJECT(3, 20, 0, "PetscLogLegacyCallbacksBegin()", ) PETSC_UNUSED static PetscErrorCode (*PetscLogPLE)(PetscLogEvent, int, PetscObject, PetscObject, PetscObject, PetscObject) = PETSC_NULLPTR;
-PETSC_DEPRECATED_OBJECT(3, 20, 0, "PetscLogLegacyCallbacksBegin()", ) PETSC_UNUSED static PetscErrorCode (*PetscLogPHC)(PetscObject)                                                            = PETSC_NULLPTR;
-PETSC_DEPRECATED_OBJECT(3, 20, 0, "PetscLogLegacyCallbacksBegin()", ) PETSC_UNUSED static PetscErrorCode (*PetscLogPHD)(PetscObject)                                                            = PETSC_NULLPTR;
+PETSC_DEPRECATED_OBJECT(3, 20, 0, "PetscLogLegacyCallbacksBegin()", ) PETSC_UNUSED static PetscErrorCode (*PetscLogPLB)(PetscLogEvent, int, PetscObject, PetscObject, PetscObject, PetscObject) = NULL;
+PETSC_DEPRECATED_OBJECT(3, 20, 0, "PetscLogLegacyCallbacksBegin()", ) PETSC_UNUSED static PetscErrorCode (*PetscLogPLE)(PetscLogEvent, int, PetscObject, PetscObject, PetscObject, PetscObject) = NULL;
+PETSC_DEPRECATED_OBJECT(3, 20, 0, "PetscLogLegacyCallbacksBegin()", ) PETSC_UNUSED static PetscErrorCode (*PetscLogPHC)(PetscObject)                                                            = NULL;
+PETSC_DEPRECATED_OBJECT(3, 20, 0, "PetscLogLegacyCallbacksBegin()", ) PETSC_UNUSED static PetscErrorCode (*PetscLogPHD)(PetscObject)                                                            = NULL;
 
 PETSC_DEPRECATED_FUNCTION(3, 20, 0, "nothing", "PETSc does not guarantee a stack property of logging events.") static inline PetscErrorCode PetscLogPushCurrentEvent_Internal(PetscLogEvent e)
 {
@@ -181,5 +181,5 @@ PETSC_DEPRECATED_FUNCTION(3, 20, 0, "PetscLogDefaultBegin()", ) static inline Pe
 PETSC_DEPRECATED_FUNCTION(3, 20, 0, "PetscLogLegacyCallbacksBegin()", )
 static inline PetscErrorCode PetscLogSet(PetscErrorCode (*a)(int, int, PetscObject, PetscObject, PetscObject, PetscObject), PetscErrorCode (*b)(int, int, PetscObject, PetscObject, PetscObject, PetscObject))
 {
-  return PetscLogLegacyCallbacksBegin(a, b, PETSC_NULLPTR, PETSC_NULLPTR);
+  return PetscLogLegacyCallbacksBegin(a, b, NULL, NULL);
 }

@@ -287,7 +287,7 @@ PetscErrorCode PetscDeviceRegisterMemory(const void *PETSC_RESTRICT ptr, PetscMe
   Memory allocated with this function must be freed with `PetscDeviceFree()` (or
   `PetscDeviceDeallocate_Private()`).
 
-  If `n` is zero, then `ptr` is set to `PETSC_NULLPTR`.
+  If `n` is zero, then `ptr` is set to `NULL`.
 
   This routine falls back to using `PetscMalloc1()` or `PetscCalloc1()` (depending on the value
   of `clear`) if PETSc was not configured with device support. The user should note that
@@ -369,7 +369,7 @@ PetscErrorCode PetscDeviceAllocate_Private(PetscDeviceContext dctx, PetscBool cl
   `PetscDeviceAllocate_Private()`, or registered with the system via `PetscDeviceRegisterMemory()`.
 
   The user should prefer `PetscDeviceFree()` over this routine as it automatically sets `ptr`
-  to `PETSC_NULLPTR` on successful deallocation.
+  to `NULL` on successful deallocation.
 
   `ptr` may be `NULL`.
 

@@ -87,6 +87,9 @@ int main(int argc, char **args)
   PetscCall(PCHPDDMHasNeumannMat(pc, PETSC_FALSE)); /* PETSC_TRUE is fine as well, just testing */
   if (share == PETSC_BOOL3_UNKNOWN) PetscCall(PCHPDDMSetSTShareSubKSP(pc, PetscBool3ToBool(share)));
   flg = PETSC_FALSE;
+  PetscCall(PetscOptionsHasName(NULL, NULL, "-pc_hpddm_levels_1_svd_relative_threshold", &flg));
+  if (flg && rank == 2) PetscCall(PetscOptionsInsertString(NULL, "-pc_hpddm_levels_1_svd_view_mat0 ascii:foobar.bin:ascii_info_detail"));
+  flg = PETSC_FALSE;
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-set_rhs", &flg, NULL));
   if (flg) {          /* user-provided RHS for concurrent generalized eigenvalue problems                          */
     Mat      a, c, P; /* usually assembled automatically in PCHPDDM, this is solely for testing PCHPDDMSetRHSMat() */

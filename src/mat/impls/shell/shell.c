@@ -844,7 +844,7 @@ set:
     A, MATPRODUCT_AB, usersymbolic, usernumeric, userdestroy,MATSEQAIJ, MATDENSE
   );
   // create B of type SEQAIJ etc..
-  MatProductCreate(A, B, PETSC_NULLPTR, &C);
+  MatProductCreate(A, B, NULL, &C);
   MatProductSetType(C, MATPRODUCT_AB);
   MatProductSetFromOptions(C);
   MatProductSymbolic(C); // actually runs the user defined symbolic operation
