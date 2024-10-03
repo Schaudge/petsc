@@ -16,6 +16,9 @@
 . `TAOTERMDM`              - a term whose value and operations are determined by a `DM`
 . `TAOTERML1`              - $\|x - \theta\|_1$, where $\theta$ are the `TaoTerm` parameters
 . `TAOTERMLINF`            - $\|x - \theta\|_\infty$
+. `TAOTERMZERO`            - Indicator function of the set containing the origin - zero cone
+. `TAOTERMBOX`             - Indicator function of the box constraint, $lb \leq x \leq ub$
+. `TAOTERMSIMPLEX`         - Indicator function of the simplex, $x \geq 0, \sum_i x_i = \alpha$.
 . `TAOTERML2SQUARED`       - $\|x - \theta\|_2^2$
 . `TAOTERMQUADRATIC`       - a quadratic form $(x - \theta)^T Q (x - \theta)$ for a matrix $Q$
 - `TAOTERMKL`              - the KL divergence $D_{KL}(x \| \theta)$
@@ -34,6 +37,9 @@ typedef const char *TaoTermType;
 #define TAOTERMDM              "dm"
 #define TAOTERML1              "l1"
 #define TAOTERMLINF            "linf"
+#define TAOTERMZERO            "zero"
+#define TAOTERMBOX             "box"
+#define TAOTERMSIMPLEX         "simplex"
 #define TAOTERMHALFL2SQUARED   "halfl2squared"
 #define TAOTERMQUADRATIC       "quadratic"
 #define TAOTERMKL              "kl"
@@ -147,6 +153,13 @@ PETSC_EXTERN PetscErrorCode TaoTermSumSetSubtermHessianMatrices(TaoTerm, PetscIn
 
 PETSC_EXTERN PetscErrorCode TaoTermL1SetEpsilon(TaoTerm, PetscReal);
 PETSC_EXTERN PetscErrorCode TaoTermL1GetEpsilon(TaoTerm, PetscReal *);
+
+PETSC_EXTERN PetscErrorCode TaoTermBoxSetContext(TaoTerm, PetscReal, PetscReal, Vec, Vec);
+
+PETSC_EXTERN PetscErrorCode TaoTermSimplexSetContext(TaoTerm, PetscReal, PetscReal);
+//OR TODO
+PETSC_EXTERN PetscErrorCode TaoTermSimplexSetSize(TaoTerm, PetscReal);
+PETSC_EXTERN PetscErrorCode TaoTermSimplexSetEpsilon(TaoTerm, PetscReal);
 
 PETSC_EXTERN PetscErrorCode TaoTermIsObjectiveDefined(TaoTerm, PetscBool *);
 PETSC_EXTERN PetscErrorCode TaoTermIsGradientDefined(TaoTerm, PetscBool *);

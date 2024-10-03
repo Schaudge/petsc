@@ -320,3 +320,5 @@ PETSC_INTERN PetscErrorCode TaoMappedTermHessianMult(TaoMappedTerm *, Vec, Vec, 
 PETSC_INTERN PetscErrorCode TaoMappedTermSetUp(TaoMappedTerm *);
 PETSC_INTERN PetscErrorCode TaoMappedTermCreateVecs(TaoMappedTerm *, Vec *, Vec *);
 PETSC_INTERN PetscErrorCode TaoMappedTermCreateHessianMatrices(TaoMappedTerm *, Mat *, Mat *);
+
+PETSC_INTERN PetscErrorCode TaoTermProxL2FindOps_Internal(Vec, Vec, PetscReal, PetscReal, TaoTermProxMapL2Op *);

@@ -11,6 +11,9 @@ PETSC_INTERN PetscErrorCode TaoTermCreate_ADMMMisfit(TaoTerm);
 PETSC_INTERN PetscErrorCode TaoTermCreate_Sum(TaoTerm);
 PETSC_INTERN PetscErrorCode TaoTermCreate_Halfl2squared(TaoTerm);
 PETSC_INTERN PetscErrorCode TaoTermCreate_L1(TaoTerm);
+PETSC_INTERN PetscErrorCode TaoTermCreate_Zero(TaoTerm);
+PETSC_INTERN PetscErrorCode TaoTermCreate_Box(TaoTerm);
+PETSC_INTERN PetscErrorCode TaoTermCreate_Simplex(TaoTerm);
 PETSC_INTERN PetscErrorCode TaoTermCreate_KL(TaoTerm);
 
 /*@C
@@ -60,6 +63,9 @@ PETSC_INTERN PetscErrorCode TaoTermRegisterAll(void)
   PetscCall(TaoTermRegister(TAOTERMSUM, TaoTermCreate_Sum));
   PetscCall(TaoTermRegister(TAOTERMHALFL2SQUARED, TaoTermCreate_Halfl2squared));
   PetscCall(TaoTermRegister(TAOTERML1, TaoTermCreate_L1));
+  PetscCall(TaoTermRegister(TAOTERMZERO, TaoTermCreate_Zero));
+  PetscCall(TaoTermRegister(TAOTERMBOX, TaoTermCreate_Box));
+  PetscCall(TaoTermRegister(TAOTERMSIMPLEX, TaoTermCreate_Simplex));
   PetscCall(TaoTermRegister(TAOTERMKL, TaoTermCreate_KL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
