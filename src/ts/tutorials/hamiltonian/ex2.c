@@ -116,6 +116,7 @@ typedef struct {
   PetscReal  *PICField_coor;
   PetscReal  *velocity;
   PetscBool   uniform_velocity; // not AMR in v space
+  PetscReal   v_amr_grading_factor;
 } AppCtx;
 
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
@@ -169,6 +170,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->PICField_coor = NULL;
   options->velocity = NULL;
   options->uniform_velocity      = PETSC_TRUE;
+  options->v_amr_grading_factor      = 0.05;
 
   PetscOptionsBegin(comm, "", "Landau Damping and Two Stream options", "DMSWARM");
   PetscCall(PetscOptionsBool("-error", "Flag to print the error", "ex2.c", options->error, &options->error, NULL));
@@ -190,6 +192,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   PetscCall(PetscOptionsEnum("-em_type", "Type of electrostatic solver", "ex2.c", EMTypes, (PetscEnum)options->em, (PetscEnum *)&options->em, NULL));
   PetscCall(PetscOptionsInt("-resample_period", "Number of time steps between resampling", "ex2.c", options->resample_period, &options->resample_period, NULL));
   PetscCall(PetscOptionsBool("-uniform_velocity", "Uniform velocity grid, otherwise a graded mesh", "ex2.c", options->uniform_velocity, &options->uniform_velocity, NULL));
+  PetscCall(PetscOptionsReal("-v_amr_grading_factor", "Mysterious parameter for velocity space grading", "ex2.c", options->v_amr_grading_factor, &options->v_amr_grading_factor, NULL));
   PetscOptionsEnd();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1003,7 +1006,7 @@ static PetscErrorCode InitializeParticles_PerturbedWeights(DM sw, AppCtx *user)
       PetscCall(VecGetArray(coordinates, &coords));
       for (i = 0; i < N; i += cdim) {
         PetscScalar x = coords[i];
-        if (PetscAbsReal(x) > vmax[0]/2) coords[i] *= 1 + PetscSqr(PetscAbsReal(x) - vmax[0]/2) * .05;
+        if (PetscAbsReal(x) > vmax[0]/2) coords[i] *= 1 + PetscSqr(PetscAbsReal(x) - vmax[0]/2) * user->v_amr_grading_factor;
         if (coords[i] > max_v) max_v = coords[i];
       }
       // scale down & set
@@ -2212,9 +2215,11 @@ static PetscErrorCode Resample(TS ts)
       PetscCall(DMSetApplicationContext(sw_0, user));
       PetscCall(PetscObjectSetName((PetscObject)sw_0, "Initial Swarm for resampling"));
       PetscCall(DMPlexGetHeightStratum(cdm, 0, &cStart, &cEnd)); // low order cells local
+      PetscCheck((cEnd - cStart)%2 == 0, PETSC_COMM_WORLD, PETSC_ERR_PLIB, "#cells mod 2 %d != 0", (int)(cEnd - cStart)%2);
       Np = (cEnd - cStart) * (vEnd - vStart);
       PetscCall(DMSwarmSetLocalSizes(sw_0, Np, 0));
       Npc = vEnd - vStart;
+      PetscCheck(Npc%2 == 0, PETSC_COMM_WORLD, PETSC_ERR_PLIB, "#part/cell mod 2 %d != 0", (int)Npc%2);
       PetscCall(DMSwarmGetNumSpecies(sw, &Ns));
       PetscCall(DMSwarmSetNumSpecies(sw_0, Ns));
       // resample plex
@@ -2255,20 +2260,29 @@ static PetscErrorCode Resample(TS ts)
       PetscCall(DMSwarmRestoreField(sw_0, DMSwarmPICField_coor, NULL, NULL, (void **)&phase_coords));
       // add vdm and cdm coords to resample_plex
       {
-        Vec          coordinates;
+        Vec          coordinates,vcoordinates;
         PetscScalar *coords;
-        PetscInt     cdim, N, bs, i;
+        const PetscScalar *vcoords;
+        PetscInt     cdim, N, Nv, bs, i, v, k, nCells = (cEnd - cStart) / 2;
         // create 1D AMR particles (not Landau)
         PetscCall(DMGetCoordinateDim(resample_plex, &cdim)); // 2 or 3 = ph_dim
         PetscCall(DMGetCoordinates(resample_plex, &coordinates));
         PetscCall(VecGetLocalSize(coordinates, &N));
         PetscCall(VecGetBlockSize(coordinates, &bs));
         PetscCall(VecGetArray(coordinates, &coords));
-        for (i = 0; i < N; i += cdim) {
-          PetscScalar x = coords[i];
-          printf ("%e %e\n",x,coords[i+1]);
+        PetscCall(DMGetCoordinateDim(user->vdm, &vdim)); // 1
+        PetscCall(DMGetCoordinates(user->vdm, &vcoordinates));
+        PetscCall(VecGetLocalSize(vcoordinates, &Nv));
+        PetscCall(VecGetBlockSize(vcoordinates, &bs));
+        PetscCall(VecGetArrayRead(vcoordinates, &vcoords));
+        for (i = v = 0; v < Nv ; v += 2*vdim) {    // Nv = 7: v = 0, 2, 4, 6
+          for (k = 0 ; k < nCells ; k++, i += cdim) {  // periodic: Nc = 2: c = 0, 1
+            coords[i + 1] = vcoords[v];
+            //printf ("%d.%d.%d) x = %e, v = %e --> %e ; N = %d, Nv = %d, crStart = %d, crEnd = %d\n", v, i, k, coords[i + 0], coords[i + 1], coords[i + 1], N, Nv, cStart, cEnd);
+          }
         }
         PetscCall(VecRestoreArray(coordinates, &coords));
+        PetscCall(VecRestoreArrayRead(vcoordinates, &vcoords));
         PetscCall(DMSetCoordinates(resample_plex, coordinates));
         PetscCall(DMGetCoordinatesLocalSetUp(resample_plex));
       }
