@@ -2202,7 +2202,7 @@ static PetscErrorCode Resample(TS ts)
     ph_dim = 1 + vdim; // 1X + 1 [or 2]V
     if ( !user->M_p0 ) { // step = 0
       DM sw_phase, resample_plex;
-      PetscInt np, vStart, vEnd, cStart, cEnd, Np, Np_cell, *cellid, Ns;
+      PetscInt vStart, vEnd, cStart, cEnd, Np, Np_cell, Ns;
       const PetscReal *src_x, *src_v;
       PetscReal *phase_coords, vmin[3], vmax[3], xmin_re[3], xmax_re[3], xmin[3], xmax[3];
       PetscFE fe;
@@ -2232,8 +2232,11 @@ static PetscErrorCode Resample(TS ts)
       PetscCall(DMSetFromOptions(resample_plex));
       PetscCall(DMSetDimension(resample_plex, ph_dim));
       // hardwire order to 2 - not working (Matt)
-      PetscCall(PetscFECreateDefault(PETSC_COMM_SELF, ph_dim, 1, PETSC_FALSE, NULL, 2, &fe));
+      PetscCall(PetscOptionsInsertString(NULL, "-resample_petscspace_degree 2"));
+      PetscCall(PetscFECreateDefault(PETSC_COMM_SELF, ph_dim, 1, PETSC_FALSE, "resample_", 2, &fe));
+      PetscCall(PetscObjectSetName((PetscObject)fe, "resample-Q2"));
       PetscCall(DMSetField(resample_plex, 0, NULL, (PetscObject)fe));
+      PetscCall(PetscFEViewFromOptions(fe, NULL, "-fe_view"));
       PetscCall(PetscFEDestroy(&fe));
       PetscCall(DMCreateDS(resample_plex));
       PetscCall(PetscObjectSetName((PetscObject)resample_plex, "resample plex"));
@@ -2245,17 +2248,16 @@ static PetscErrorCode Resample(TS ts)
       PetscCheck(xmax[0] == xmax_re[0] && vmax[0] == xmax_re[1], PETSC_COMM_WORLD, PETSC_ERR_PLIB, "(max) Bounding box inconsistant %e == %e & %e == %e", (double)xmax[0], (double)xmax_re[0], (double)vmax[0], (double)xmax_re[1]);
       // continue with sw_phase, put in phase space coords
       PetscCall(DMSwarmSetCellDM(sw_phase, resample_plex));
-      PetscCall(DMSwarmGetLocalSize(sw_phase, &np)); printf ("\t\t************ NP = %d\n", np);
       // duplicate swarm with velocity coordinate added & and cache x and v
-      PetscCall(PetscMalloc2(np, &user->part_crd_x, np, &user->velocity));
+      PetscCall(PetscMalloc2(Np, &user->part_crd_x, Np, &user->velocity));
       PetscCall(DMSwarmGetField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&src_x));
       PetscCall(DMSwarmGetField(sw, "velocity", NULL, NULL, (void **)&src_v));
       PetscCall(DMSwarmGetField(sw_phase, DMSwarmPICField_coor, NULL, NULL, (void **)&phase_coords));
-      for (int p = 0; p < np; ++p) {
+      for (int p = 0; p < Np; ++p) {
         user->part_crd_x[p]        = phase_coords[p * ph_dim + 0] = src_x[p * swdim + 0]; // x
         user->velocity[p*vdim + 0] = phase_coords[p * ph_dim + 1] = src_v[p * swdim + 0]; // v
         if (ph_dim == 3) user->velocity[p*vdim + 1] = phase_coords[p * ph_dim + 2] = 0; // todo
-        printf ("\t\t%d) Add coord to phase space grid = %e, %e, swdim = %d\n", p, src_x[p * swdim + 0], src_v[p * swdim + 0], swdim);
+        // printf ("\t\t%d) Add coord to phase space grid = %e, %e, swdim = %d\n", p, src_x[p * swdim + 0], src_v[p * swdim + 0], swdim);
       }
       PetscCall(DMSwarmRestoreField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&src_x));
       PetscCall(DMSwarmRestoreField(sw, "velocity", NULL, NULL, (void **)&src_v));
@@ -2279,9 +2281,9 @@ static PetscErrorCode Resample(TS ts)
         PetscCall(VecGetArrayRead(vcoordinates, &vcoords));
         for (i = v = 0; v < Nv ; v += 2*vdim) {    // Nv = 7: v = 0, 2, 4, 6
           for (k = 0 ; k < nCells_x ; k++, i += cdim) {  // periodic: Nc = 2: c = 0, 1
-            PetscReal y = phcoords[i + 1];
+            //PetscReal y = phcoords[i + 1];
             phcoords[i + 1] = vcoords[v];
-            printf ("\t%d.%d.%d) x = %e, v = %e --> %e ; N = %d, Nv = %d, nCells_x = %d\n", i, k, v, phcoords[i + 0], y, phcoords[i + 1], N, Nv, nCells_x);
+            //printf ("\t%d.%d.%d) x = %e, v = %e --> %e ; N = %d, Nv = %d, nCells_x = %d\n", i, k, v, phcoords[i + 0], y, phcoords[i + 1], N, Nv, nCells_x);
           }
         }
         PetscCall(VecRestoreArray(phcoordinates, &phcoords));
@@ -2289,25 +2291,7 @@ static PetscErrorCode Resample(TS ts)
         PetscCall(DMSetCoordinates(resample_plex, phcoordinates));
         PetscCall(DMGetCoordinatesLocalSetUp(resample_plex));
       }
-      PetscCall(DMSwarmGetField(sw_phase, DMSwarmPICField_cellid, NULL, NULL, (void **)&cellid));
-      for (int c = 0, p = 0; c < cEnd - cStart; ++c) {
-        for (int s = 0; s < Ns; ++s) {
-          for (int q = 0; q < Np_cell; ++q, ++p) cellid[p] = c; // wrong!!!!!!!!!
-        }
-      }
-      PetscCall(DMSwarmRestoreField(sw_phase, DMSwarmPICField_cellid, NULL, NULL, (void **)&cellid));
-      // PetscCall(DMSetFromOptions(sw_phase)); // call this??? only num species use on command like
-PetscCall(DMSwarmGetLocalSize(sw_phase, &np)); printf ("\t\t************ NP = %d\n", np);
       PetscCall(DMSwarmMigrate(sw_phase, PETSC_TRUE));
-PetscCall(DMSwarmGetLocalSize(sw_phase, &np)); printf ("\t\t************ NP = %d\n", np);
-      PetscCall(DMSwarmGetLocalSize(sw_phase, &np));
-      PetscCall(DMSwarmGetField(sw_phase, DMSwarmPICField_cellid, NULL, NULL, (void **)&cellid));
-      for (int c = 0, p = 0; c < cEnd - cStart; ++c) {
-        for (int s = 0; s < Ns; ++s) {
-          for (int q = 0; q < Np_cell; ++q, ++p) printf ("\tcellid[%d/%d] = %d\n",p,np,cellid[p]);
-        }
-      }
-      PetscCall(DMSwarmRestoreField(sw_phase, DMSwarmPICField_cellid, NULL, NULL, (void **)&cellid));
 
       PetscCall(PetscObjectSetName((PetscObject)sw_phase, "Resample Particles (copy)"));
       PetscCall(DMViewFromOptions(sw_phase, NULL, "-sw_view"));
