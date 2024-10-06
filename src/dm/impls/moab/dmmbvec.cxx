@@ -7,7 +7,7 @@
 #define USE_NATIVE_PETSCVEC
 
 /* declare some private DMMoab specific overrides */
-static PetscErrorCode DMCreateVector_Moab_Private(DM, moab::Tag, const moab::Range *, PetscBool , PetscBool , Vec *);
+static PetscErrorCode DMCreateVector_Moab_Private(DM, moab::Tag, const moab::Range *, PetscBool, PetscBool, Vec *);
 static PetscErrorCode DMVecCtxDestroy_Moab(void **);
 static PetscErrorCode DMVecDuplicate_Moab(Vec, Vec *);
 #ifdef MOAB_HAVE_MPI
