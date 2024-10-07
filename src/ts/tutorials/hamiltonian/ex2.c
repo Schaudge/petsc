@@ -1378,8 +1378,7 @@ static PetscErrorCode ComputeFieldAtParticles_Primal(SNES snes, DM sw, PetscReal
   PetscCall(DMSwarmVectorDefineField(sw, "w_q"));
   PetscCall(DMCreateMassMatrix(sw, dm, &M_p));
   PetscCall(DMSwarmVectorDefineField(sw, oldField));
-PetscCall(PetscObjectSetName((PetscObject)M_p, "ComputeFieldAtParticles_Primal"));
-PetscCall(MatViewFromOptions(M_p, NULL, "-resample_mat_view"));
+
   PetscCall(DMCreateMassMatrix(dm, dm, &M));
   PetscCall(DMGetGlobalVector(dm, &rho0));
   PetscCall(PetscObjectSetName((PetscObject)rho0, "Charge density (rho0) from Primal Compute"));
@@ -2317,18 +2316,18 @@ static PetscErrorCode Resample(TS ts)
       PetscInt     N, M, nzl;
       MatShellCtx *matshellctx = NULL;
       PC           pc;
+      char        oldField[PETSC_MAX_PATH_LEN];
+      const char *tmp;
       PetscCall(PetscInfo(sw, "Resampled to original particle grid\n"));
-      // 1) particles to grid: rho = M_p' w
-      PetscCall(DMGetGlobalVector(sw_dm, &rho));
-      PetscCall(DMSwarmCreateGlobalVectorFromField(sw, "w_q", &ff));
+      // make M_p
+      PetscCall(DMSwarmVectorGetField(sw, &tmp));
+      PetscCall(PetscStrncpy(oldField, tmp, PETSC_MAX_PATH_LEN));
+      PetscCall(DMSwarmVectorDefineField(sw, "w_q"));
       PetscCall(DMCreateMassMatrix(sw, sw_dm, &M_p_));
-
-PetscCall(MatViewFromOptions(M_p_, NULL, "-resample_mat_view"));
-PetscCall(MatGetLocalSize(M_p_, &M, &N)); printf("******* M=%d N=%d\n",M,N);
-PetscCall(VecGetLocalSize(rho, &M)); PetscCall(VecGetLocalSize(ff, &N)); printf("******* rho=%d w=%d\n",M,N);
-//PetscCall(PetscObjectSetName((PetscObject)sw_dm, "Resample Particles (copy)"));
-PetscCall(DMViewFromOptions(sw_dm, NULL, "-sw_view"));
-
+      PetscCall(DMSwarmVectorDefineField(sw, oldField));
+      // 1) particles to grid: rho = M_p' w
+      PetscCall(DMSwarmCreateGlobalVectorFromField(sw, "w_q", &ff));
+      PetscCall(DMGetGlobalVector(sw_dm, &rho));
       PetscCall(MatMultTranspose(M_p_, ff, rho)); // rho <-- M'_p w
       PetscCall(MatDestroy(&M_p_));
 PetscCall(PetscObjectSetName((PetscObject)ff, "pre resampling W"));
