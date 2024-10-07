@@ -939,7 +939,7 @@ static PetscErrorCode InitializeParticles_PerturbedWeights(DM sw, AppCtx *user)
   DM           dm;
   PetscScalar *weight;
   PetscReal   *x, *v, vmin[3], vmax[3], gmin[3], gmax[3], xi0[3];
-  PetscInt     Ns, swdim, *cellid, *species, Np, cStart, cEnd, Npc;
+  PetscInt     Ns, swdim, *cellid, *species, Np, cStart, cEnd, Np_cell;
   PetscInt     Np_global, p, q, s, c, d, cv, vStart, vEnd;
   PetscBool    flg;
   PetscMPIInt  size, rank;
@@ -976,11 +976,13 @@ static PetscErrorCode InitializeParticles_PerturbedWeights(DM sw, AppCtx *user)
   PetscCallMPI(MPIU_Allreduce(&Np, &Np_global, 1, MPIU_INT, MPIU_SUM, PETSC_COMM_WORLD));
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Global Np = %" PetscInt_FMT "\n", Np_global));
   PetscCall(DMSwarmSetLocalSizes(sw, Np, 0));
-  Npc = vEnd - vStart;
+  Np_cell = vEnd - vStart;
+
+  // without this it segvs
   PetscCall(DMSwarmGetField(sw, DMSwarmPICField_cellid, NULL, NULL, (void **)&cellid));
   for (c = 0, p = 0; c < cEnd - cStart; ++c) {
     for (s = 0; s < Ns; ++s) {
-      for (q = 0; q < Npc; ++q, ++p) cellid[p] = c;
+      for (q = 0; q < Np_cell; ++q, ++p) cellid[p] = c;
     }
   }
   PetscCall(DMSwarmRestoreField(sw, DMSwarmPICField_cellid, NULL, NULL, (void **)&cellid));
@@ -1376,7 +1378,8 @@ static PetscErrorCode ComputeFieldAtParticles_Primal(SNES snes, DM sw, PetscReal
   PetscCall(DMSwarmVectorDefineField(sw, "w_q"));
   PetscCall(DMCreateMassMatrix(sw, dm, &M_p));
   PetscCall(DMSwarmVectorDefineField(sw, oldField));
-
+PetscCall(PetscObjectSetName((PetscObject)M_p, "ComputeFieldAtParticles_Primal"));
+PetscCall(MatViewFromOptions(M_p, NULL, "-resample_mat_view"));
   PetscCall(DMCreateMassMatrix(dm, dm, &M));
   PetscCall(DMGetGlobalVector(dm, &rho0));
   PetscCall(PetscObjectSetName((PetscObject)rho0, "Charge density (rho0) from Primal Compute"));
@@ -2179,7 +2182,7 @@ PetscErrorCode MatMultAddMtM_SeqAIJ(Mat MtM, Vec xx, Vec yy, Vec zz)
   PetscCall(MatMultAdd(matshellctx->MpTrans, matshellctx->ff, yy, zz));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
+#define VELOCITY_COARSEN_FACTOR 3
 // pre solve
 static PetscErrorCode Resample(TS ts)
 {
@@ -2202,7 +2205,7 @@ static PetscErrorCode Resample(TS ts)
     ph_dim = 1 + vdim; // 1X + 1 [or 2]V
     if ( !user->M_p0 ) { // step = 0
       DM sw_phase, resample_plex;
-      PetscInt vStart, vEnd, cStart, cEnd, Np, Np_cell, Ns;
+      PetscInt vStart, vEnd, cStart, cEnd, Ns;
       const PetscReal *src_x, *src_v;
       PetscReal *phase_coords, vmin[3], vmax[3], xmin_re[3], xmax_re[3], xmin[3], xmax[3];
       PetscFE fe;
@@ -2219,10 +2222,10 @@ static PetscErrorCode Resample(TS ts)
       PetscCall(PetscObjectSetName((PetscObject)sw_phase, "Initial phase Swarm for resampling"));
       PetscCall(DMPlexGetHeightStratum(sw_dm, 0, &cStart, &cEnd)); // low order cells local, 1D cell array
       PetscCheck((cEnd - cStart)%2 == 0, PETSC_COMM_WORLD, PETSC_ERR_PLIB, "#cells mod 2 %d != 0", (int)(cEnd - cStart)%2);
-      Np = (cEnd - cStart) * (vEnd - vStart);
+      const PetscInt Np = (cEnd - cStart) * (vEnd - vStart);
       PetscCall(DMSwarmSetLocalSizes(sw_phase, Np, 0));
-      Np_cell = vEnd - vStart;
-      PetscCheck(Np_cell%2 == 0, PETSC_COMM_WORLD, PETSC_ERR_PLIB, "#part/cell mod 2 %d != 0", (int)Np_cell%2);
+      const PetscInt Np_cell = vEnd - vStart;
+      PetscCheck(Np_cell%VELOCITY_COARSEN_FACTOR == 0, PETSC_COMM_WORLD, PETSC_ERR_PLIB, "#part/cell mod 2 %d != 0", (int)Np_cell%2);
       PetscCall(DMSwarmGetNumSpecies(sw, &Ns));
       PetscCall(DMSwarmSetNumSpecies(sw_phase, Ns));
       // resample plex
@@ -2257,7 +2260,7 @@ static PetscErrorCode Resample(TS ts)
         user->part_crd_x[p]        = phase_coords[p * ph_dim + 0] = src_x[p * swdim + 0]; // x
         user->velocity[p*vdim + 0] = phase_coords[p * ph_dim + 1] = src_v[p * swdim + 0]; // v
         if (ph_dim == 3) user->velocity[p*vdim + 1] = phase_coords[p * ph_dim + 2] = 0; // todo
-        // printf ("\t\t%d) Add coord to phase space grid = %e, %e, swdim = %d\n", p, src_x[p * swdim + 0], src_v[p * swdim + 0], swdim);
+        //printf ("\t\t%d) Add coord to phase space grid = %e, %e, swdim = %d\n", p, src_x[p * swdim + 0], src_v[p * swdim + 0], swdim);
       }
       PetscCall(DMSwarmRestoreField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&src_x));
       PetscCall(DMSwarmRestoreField(sw, "velocity", NULL, NULL, (void **)&src_v));
@@ -2279,7 +2282,7 @@ static PetscErrorCode Resample(TS ts)
         PetscCall(VecGetLocalSize(vcoordinates, &Nv));
         PetscCall(VecGetBlockSize(vcoordinates, &bs));
         PetscCall(VecGetArrayRead(vcoordinates, &vcoords));
-        for (i = v = 0; v < Nv ; v += 2*vdim) {    // Nv = 7: v = 0, 2, 4, 6
+        for (i = v = 0; v < Nv ; v += VELOCITY_COARSEN_FACTOR*vdim) {    // Nv = 7: v = 0, 3, 6, 9
           for (k = 0 ; k < nCells_x ; k++, i += cdim) {  // periodic: Nc = 2: c = 0, 1
             //PetscReal y = phcoords[i + 1];
             phcoords[i + 1] = vcoords[v];
@@ -2291,7 +2294,10 @@ static PetscErrorCode Resample(TS ts)
         PetscCall(DMSetCoordinates(resample_plex, phcoordinates));
         PetscCall(DMGetCoordinatesLocalSetUp(resample_plex));
       }
+
+      PetscCall(DMSwarmGetLocalSize(sw_phase, &Ns)); printf ("\t\tPre-migrate #particles = %d\n", Ns);
       PetscCall(DMSwarmMigrate(sw_phase, PETSC_TRUE));
+      PetscCall(DMSwarmGetLocalSize(sw_phase, &Ns)); printf ("\t\tPost-migrate #particles = %d\n", Ns);
 
       PetscCall(PetscObjectSetName((PetscObject)sw_phase, "Resample Particles (copy)"));
       PetscCall(DMViewFromOptions(sw_phase, NULL, "-sw_view"));
@@ -2316,6 +2322,13 @@ static PetscErrorCode Resample(TS ts)
       PetscCall(DMGetGlobalVector(sw_dm, &rho));
       PetscCall(DMSwarmCreateGlobalVectorFromField(sw, "w_q", &ff));
       PetscCall(DMCreateMassMatrix(sw, sw_dm, &M_p_));
+
+PetscCall(MatViewFromOptions(M_p_, NULL, "-resample_mat_view"));
+PetscCall(MatGetLocalSize(M_p_, &M, &N)); printf("******* M=%d N=%d\n",M,N);
+PetscCall(VecGetLocalSize(rho, &M)); PetscCall(VecGetLocalSize(ff, &N)); printf("******* rho=%d w=%d\n",M,N);
+//PetscCall(PetscObjectSetName((PetscObject)sw_dm, "Resample Particles (copy)"));
+PetscCall(DMViewFromOptions(sw_dm, NULL, "-sw_view"));
+
       PetscCall(MatMultTranspose(M_p_, ff, rho)); // rho <-- M'_p w
       PetscCall(MatDestroy(&M_p_));
 PetscCall(PetscObjectSetName((PetscObject)ff, "pre resampling W"));
