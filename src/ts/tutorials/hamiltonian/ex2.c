@@ -111,7 +111,8 @@ typedef struct {
   PetscInt    checkVRes; /* Flag to check/output velocity residuals for nightly tests */
   PetscReal   m_n0;      // for entropy: m0 * mass / global_weight
   PetscInt    resample_period;
-  Mat         M_p0;      // Particles to resample with
+  Mat         M_p0;      // Particles to resample with Q2
+  DM          phase_plex; // Phase space DM of fake 1D DM used for physics
   DM          vdm;
   PetscReal  *part_crd_x;
   PetscReal  *velocity;
@@ -166,6 +167,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->m_n0                   = 0;
   options->resample_period        = 0;
   options->M_p0                   = NULL;
+  options->phase_plex            = NULL;
   options->vdm = NULL;
   options->part_crd_x = NULL;
   options->velocity = NULL;
@@ -315,6 +317,7 @@ static PetscErrorCode DestroyContext(AppCtx *user)
   if (user->part_crd_x) {
     PetscCall(PetscFree2(user->part_crd_x, user->velocity));
     PetscCall(MatDestroy(&user->M_p0));
+    PetscCall(DMDestroy(&user->phase_plex));
   }
   if (user->vdm) PetscCall(DMDestroy(&user->vdm));
 
@@ -2228,43 +2231,26 @@ static PetscErrorCode Resample(TS ts)
       PetscCall(DMSwarmGetNumSpecies(sw, &Ns));
       PetscCall(DMSwarmSetNumSpecies(sw_phase, Ns));
       // resample plex
+      // PetscCall(PetscOptionsInsertString(NULL, "-resample_petscspace_degree 2 -resample_dm_plex_dim 2 -resample_dm_plex_simplex 0 -resample_dm_plex_box_bd periodic,none"));
+      PetscCall(PetscOptionsInsertString(NULL, "-resample_dm_plex_box_bd periodic,none -resample_dm_plex_simplex 0 -resample_petscspace_degree 2 -resample_dm_plex_dim 2"));
       PetscCall(DMCreate(PetscObjectComm((PetscObject)sw), &resample_plex));
       PetscCall(DMSetType(resample_plex, DMPLEX));
+      //PetscCall(DMSetDimension(resample_plex, ph_dim));
       PetscCall(DMPlexSetOptionsPrefix(resample_plex, "resample_"));
       PetscCall(DMSetFromOptions(resample_plex));
-      PetscCall(DMSetDimension(resample_plex, ph_dim));
-      // hardwire order to 2 - not working (Matt)
-      PetscCall(PetscOptionsInsertString(NULL, "-resample_petscspace_degree 2"));
+      // hardwire order to 2, simplex, degree, (we seem to need this and the command line options???)
       PetscCall(PetscFECreateDefault(PETSC_COMM_SELF, ph_dim, 1, PETSC_FALSE, "resample_", 2, &fe));
       PetscCall(PetscObjectSetName((PetscObject)fe, "resample-Q2"));
       PetscCall(DMSetField(resample_plex, 0, NULL, (PetscObject)fe));
       PetscCall(PetscFEViewFromOptions(fe, NULL, "-fe_view"));
       PetscCall(PetscFEDestroy(&fe));
       PetscCall(DMCreateDS(resample_plex));
-      PetscCall(PetscObjectSetName((PetscObject)resample_plex, "resample plex"));
-      PetscCall(DMViewFromOptions(resample_plex, NULL, "-dm_view"));
       // check size, with vdm (could add 2V Landau)
       PetscCall(DMGetBoundingBox(resample_plex, xmin_re, xmax_re));
       PetscCall(DMGetBoundingBox(sw_dm, xmin, xmax));
       PetscCheck(xmin[0] == xmin_re[0] && vmin[0] == xmin_re[1], PETSC_COMM_WORLD, PETSC_ERR_PLIB, "(min) Bounding box inconsistant %e == %e & %e == %e", (double)xmin[0], (double)xmin_re[0], (double)vmin[0], (double)xmin_re[1]);
       PetscCheck(xmax[0] == xmax_re[0] && vmax[0] == xmax_re[1], PETSC_COMM_WORLD, PETSC_ERR_PLIB, "(max) Bounding box inconsistant %e == %e & %e == %e", (double)xmax[0], (double)xmax_re[0], (double)vmax[0], (double)xmax_re[1]);
-      // continue with sw_phase, put in phase space coords
-      PetscCall(DMSwarmSetCellDM(sw_phase, resample_plex));
-      // duplicate swarm with velocity coordinate added & and cache x and v
-      PetscCall(PetscMalloc2(Np, &user->part_crd_x, Np, &user->velocity));
-      PetscCall(DMSwarmGetField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&src_x));
-      PetscCall(DMSwarmGetField(sw, "velocity", NULL, NULL, (void **)&src_v));
-      PetscCall(DMSwarmGetField(sw_phase, DMSwarmPICField_coor, NULL, NULL, (void **)&phase_coords));
-      for (int p = 0; p < Np; ++p) {
-        user->part_crd_x[p]        = phase_coords[p * ph_dim + 0] = src_x[p * swdim + 0]; // x
-        user->velocity[p*vdim + 0] = phase_coords[p * ph_dim + 1] = src_v[p * swdim + 0]; // v
-        if (ph_dim == 3) user->velocity[p*vdim + 1] = phase_coords[p * ph_dim + 2] = 0; // todo
-        //printf ("\t\t%d) Add coord to phase space grid = %e, %e, swdim = %d\n", p, src_x[p * swdim + 0], src_v[p * swdim + 0], swdim);
-      }
-      PetscCall(DMSwarmRestoreField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&src_x));
-      PetscCall(DMSwarmRestoreField(sw, "velocity", NULL, NULL, (void **)&src_v));
-      PetscCall(DMSwarmRestoreField(sw_phase, DMSwarmPICField_coor, NULL, NULL, (void **)&phase_coords));
-      // move vertices in velocity space for AMR: if (!user->uniform_velocity) {
+      // move vertices in velocity space for AMR (just a check if 'uniform_velocity'): if (!user->uniform_velocity) {
       {
         Vec          phcoordinates,vcoordinates;
         PetscScalar *phcoords;
@@ -2293,21 +2279,42 @@ static PetscErrorCode Resample(TS ts)
         PetscCall(DMSetCoordinates(resample_plex, phcoordinates));
         PetscCall(DMGetCoordinatesLocalSetUp(resample_plex));
       }
-
+      // phase space view
+      PetscCall(PetscObjectSetName((PetscObject)resample_plex, "resample plex"));
+      PetscCall(DMViewFromOptions(resample_plex, NULL, "-dm_view"));
+      // continue with sw_phase, put in phase space coords
+      PetscCall(DMSwarmSetCellDM(sw_phase, resample_plex));
+      // duplicate swarm with velocity coordinate added & and cache x and v
+      PetscCall(PetscMalloc2(Np, &user->part_crd_x, Np, &user->velocity));
+      PetscCall(DMSwarmGetField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&src_x));
+      PetscCall(DMSwarmGetField(sw, "velocity", NULL, NULL, (void **)&src_v));
+      PetscCall(DMSwarmGetField(sw_phase, DMSwarmPICField_coor, NULL, NULL, (void **)&phase_coords));
+      for (int p = 0; p < Np; ++p) {
+        user->part_crd_x[p]        = phase_coords[p * ph_dim + 0] = src_x[p * swdim + 0]; // x
+        user->velocity[p*vdim + 0] = phase_coords[p * ph_dim + 1] = src_v[p * swdim + 0]; // v
+        if (ph_dim == 3) user->velocity[p*vdim + 1] = phase_coords[p * ph_dim + 2] = 0; // todo
+        //printf ("\t\t%d) Add coord to phase space grid = %e, %e, swdim = %d\n", p, src_x[p * swdim + 0], src_v[p * swdim + 0], swdim);
+      }
+      PetscCall(DMSwarmRestoreField(sw, DMSwarmPICField_coor, NULL, NULL, (void **)&src_x));
+      PetscCall(DMSwarmRestoreField(sw, "velocity", NULL, NULL, (void **)&src_v));
+      PetscCall(DMSwarmRestoreField(sw_phase, DMSwarmPICField_coor, NULL, NULL, (void **)&phase_coords));
+      // migrate
       PetscCall(DMSwarmGetLocalSize(sw_phase, &Ns)); printf ("\t\tPre-migrate #particles = %d\n", Ns);
       PetscCall(DMSwarmMigrate(sw_phase, PETSC_TRUE));
       PetscCall(DMSwarmGetLocalSize(sw_phase, &Ns)); printf ("\t\tPost-migrate #particles = %d\n", Ns);
-
+      // phase space mesh view
       PetscCall(PetscObjectSetName((PetscObject)sw_phase, "Resample Particles (copy)"));
       PetscCall(DMViewFromOptions(sw_phase, NULL, "-sw_view"));
       // make M_p0
       PetscCall(DMCreateMassMatrix(sw_phase, resample_plex, &user->M_p0));
       PetscCall(DMSwarmViewXDMF(sw_phase, "sw_phase.xmf"));
+      PetscCall(PetscObjectSetName((PetscObject)user->M_p0, "resampling orignal mesh in phase space (M_p0)"));
       PetscCall(MatViewFromOptions(user->M_p0, NULL, "-resample_mat_view"));
+      // cleanup
       PetscInt M,N;
       PetscCall(MatGetSize(user->M_p0, &M, &N));
       PetscCall(DMDestroy(&sw_phase));
-      PetscCall(DMDestroy(&resample_plex));
+      user->phase_plex = resample_plex;
       PetscCall(PetscInfo(sw, "Setup resampling swarm, save coords, step %d, M_p[ %" PetscInt_FMT ", %" PetscInt_FMT "]\n", (int)step, M, N));
     } else { // resample - w_bar = M_p_bar (M_p_bar' M_p_bar)^-1 M_p' w
       Vec          ff, rho;
@@ -2318,13 +2325,18 @@ static PetscErrorCode Resample(TS ts)
       PC           pc;
       char        oldField[PETSC_MAX_PATH_LEN];
       const char *tmp;
-      PetscCall(PetscInfo(sw, "Resampled to original particle grid\n"));
+      PetscCall(PetscInfo(sw, "to original particle grid\n"));
       // make M_p
+      PetscCall(DMSwarmSetCellDM(sw, user->phase_plex));
+      PetscCall(DMSwarmMigrate(sw, PETSC_TRUE));
       PetscCall(DMSwarmVectorGetField(sw, &tmp));
       PetscCall(PetscStrncpy(oldField, tmp, PETSC_MAX_PATH_LEN));
       PetscCall(DMSwarmVectorDefineField(sw, "w_q"));
-      PetscCall(DMCreateMassMatrix(sw, sw_dm, &M_p_));
+      PetscCall(DMCreateMassMatrix(sw, user->phase_plex, &M_p_));
       PetscCall(DMSwarmVectorDefineField(sw, oldField));
+      PetscCall(PetscObjectSetName((PetscObject)M_p_, "resampling M_p"));
+      PetscCall(MatViewFromOptions(M_p_, NULL, "-resample_mat_view"));
+      PetscCall(DMSwarmSetCellDM(sw, sw_dm));
       // 1) particles to grid: rho = M_p' w
       PetscCall(DMSwarmCreateGlobalVectorFromField(sw, "w_q", &ff));
       PetscCall(DMGetGlobalVector(sw_dm, &rho));
@@ -2342,7 +2354,8 @@ PetscCall(VecViewFromOptions(ff, NULL, "-resample_vec_view"));
       PetscCall(KSPSetFromOptions(ksp));
       // create solver matrix
       PetscCall(MatGetLocalSize(M_p_bar, &M, &N));
-      PetscCheck(N < M, PETSC_COMM_WORLD, PETSC_ERR_PLIB, "need to N_p > N_v Moore-Penrose pseudo-inverse");
+printf("M_p_bar: M %d, N = %d\n",M,N);
+      PetscCheck(N <= M, PETSC_COMM_WORLD, PETSC_ERR_PLIB, "need to N_p %d > N_v %d Moore-Penrose pseudo-inverse",N,M);
       PetscCall(PetscNew(&matshellctx));
       PetscCall(MatCreateVecs(M_p_bar, &matshellctx->uu, &matshellctx->ff));
       PetscCall(MatCreateShell(PetscObjectComm((PetscObject)sw_dm), N, N, PETSC_DECIDE, PETSC_DECIDE, matshellctx, &MtM));
@@ -2370,6 +2383,10 @@ PetscCall(VecViewFromOptions(ff, NULL, "-resample_vec_view"));
       PetscCall(MatViewFromOptions(matshellctx->MpTrans, NULL, "-ftop2_MpTranspose_mat_view"));
       // 3) pseudo-inverse solve
       PetscCall(DMSwarmCreateGlobalVectorFromField(sw, "w_q", &ff)); // this grabs access
+PetscCall(MatGetLocalSize(MtM, &M, &N));printf("MtM: M %d, N = %d\n",M,N);
+PetscCall(MatGetLocalSize(D, &M, &N));printf("D: M %d, N = %d\n",M,N);
+PetscCall(VecGetLocalSize(rho, &N));printf("rho: N = %d\n",N);
+PetscCall(VecGetLocalSize(matshellctx->uu, &N));printf("matshellctx->uu: N = %d\n",N);
       PetscCall(KSPSolve(ksp, rho, matshellctx->uu));
       PetscCall(DMRestoreGlobalVector(sw_dm, &rho));
       // 4) map back to particles: M_p_bar c'
