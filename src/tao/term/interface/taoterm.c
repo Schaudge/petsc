@@ -177,7 +177,9 @@ PetscErrorCode TaoTermSetUp(TaoTerm term)
 . -taoterm_parameters_mode <optional,none,required> - `TAOTERM_PARAMETERS_OPTIONAL`, `TAOTERM_PARAMETERS_NONE`, `TAOTERM_PARAMETERS_REQUIRED`
 . -taoterm_hessian_pre_is_hessian <bool>            - Whether `TaoTermCreateHessianMatricesDefault()` should make a separate preconditioning matrix
 . -taoterm_hessian_mat_type <type>                  - `MatType` for Hessian matrix created by `TaoTermCreateHessianMatricesDefault()`
-- -taoterm_hessian_pre_mat_type <type>              - `MatType` for Hessian preconditioning matrix created by `TaoTermCreateHessianMatricesDefault()`
+. -taoterm_hessian_pre_mat_type <type>              - `MatType` for Hessian preconditioning matrix created by `TaoTermCreateHessianMatricesDefault()`
+. -taoterm_fd_delta <real>                          - Increment for finite difference derivative approximations in `TaoTermGradientFD()`
+- -taoterm_gradient_use_fd <bool>                   - Use finite differences in `TaoTermGradient()`, overriding other user-provided or buit-in routines
 
   Level: beginner
 
@@ -196,6 +198,7 @@ PetscErrorCode TaoTermSetFromOptions(TaoTerm term)
   char        typeName[256];
   VecType     sol_type, params_type;
   PetscBool   opt;
+  PetscBool   use_fd = PETSC_FALSE;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
@@ -230,6 +233,10 @@ PetscErrorCode TaoTermSetFromOptions(TaoTerm term)
     PetscCall(PetscFree(term->Hpre_mattype));
     PetscCall(PetscStrallocpy(typeName, &term->Hpre_mattype));
   }
+
+  PetscCall(PetscOptionsBoundedReal("-taoterm_fd_delta", "Finite difference increment", "TaoTermSetFDDelta", term->fd_delta, &term->fd_delta, NULL, 0.0));
+  PetscCall(PetscOptionsBool("-taoterm_gradient_use_fd", "Use finite differences in TaoTermGradient()", "TaoTermGradientUseFDPush", use_fd, &use_fd, NULL));
+  if (use_fd) PetscCall(TaoTermGradientUseFDPush(term));
 
   PetscTryTypeMethod(term, setfromoptions, PetscOptionsObject);
   PetscOptionsEnd();
@@ -365,6 +372,7 @@ PetscErrorCode TaoTermCreate(MPI_Comm comm, TaoTerm *term)
   PetscCall(MatSetLayouts(_term->parameters_factory, rlayout, zero_layout));
   PetscCall(PetscLayoutDestroy(&zero_layout));
   _term->Hpre_is_H = PETSC_TRUE;
+  _term->fd_delta  = 0.5 * PETSC_SQRT_MACHINE_EPSILON;
   *term            = _term;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -463,7 +471,11 @@ PetscErrorCode TaoTermGradient(TaoTerm term, Vec x, Vec params, Vec g)
   }
   PetscCheckSameComm(term, 1, g, 4);
   VecCheckSameSize(x, 2, g, 4);
-  if (term->ops->gradient) {
+  if (term->fd_grad_level > 0) {
+    PetscCall(PetscLogEventBegin(TAOTERM_GradientEval, term, NULL, NULL, NULL));
+    PetscCall(TaoTermGradientFD(term, x, params, g));
+    PetscCall(PetscLogEventEnd(TAOTERM_GradientEval, term, NULL, NULL, NULL));
+  } else if (term->ops->gradient) {
     PetscCall(PetscLogEventBegin(TAOTERM_GradientEval, term, NULL, NULL, NULL));
     PetscUseTypeMethod(term, gradient, x, params, g);
     PetscCall(PetscLogEventEnd(TAOTERM_GradientEval, term, NULL, NULL, NULL));
@@ -519,6 +531,12 @@ PetscErrorCode TaoTermObjectiveAndGradient(TaoTerm term, Vec x, Vec params, Pets
   PetscValidHeaderSpecific(g, VEC_CLASSID, 5);
   PetscCheckSameComm(term, 1, g, 5);
   VecCheckSameSize(x, 2, g, 5);
+  if (term->fd_grad_level > 0) {
+    PetscCall(TaoTermObjective(term, x, params, value));
+    PetscCall(PetscLogEventBegin(TAOTERM_GradientEval, term, NULL, NULL, NULL));
+    PetscCall(TaoTermGradientFD(term, x, params, g));
+    PetscCall(PetscLogEventEnd(TAOTERM_GradientEval, term, NULL, NULL, NULL));
+  }
   if (term->ops->objectiveandgradient) {
     PetscCall(PetscLogEventBegin(TAOTERM_ObjGradEval, term, NULL, NULL, NULL));
     PetscUseTypeMethod(term, objectiveandgradient, x, params, value, g);
@@ -1577,5 +1595,126 @@ PetscErrorCode TaoTermGetParametersMode(TaoTerm term, TaoTermParametersMode *par
   PetscFunctionBegin;
   PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
   *parameters_mode = term->parameters_mode;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  TaoTermGetFDDelta - Get the increment used for finite difference derivative approximations in methods like `TaoTermGradientFD()`
+
+  Not collective
+
+  Input Parameter:
+. term - a `TaoTerm`
+
+  Output Parameter:
+. delta - the finite difference increment
+
+  Options Database Keys:
+. -taoterm_fd_delta <delta> - the above increment
+
+  Level: advanced
+
+.seealso: [](sec_tao_term),
+          `TaoTerm`,
+          `TaoTermSetFDDelta()`,
+          `TaoTermGradientFD()`,
+          `TaoTermGradientUseFDPush()`,
+          `TaoTermGradientUseFDPop()`,
+@*/
+PetscErrorCode TaoTermGetFDDelta(TaoTerm term, PetscReal *delta)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
+  *delta = term->fd_delta;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  TaoTermSetFDDelta - Set the increment used for finite difference derivative approximations in methods like `TaoTermGradientFD()`
+
+  Logically collective
+
+  Input Parameters:
++ term - a `TaoTerm`
+- delta - the finite difference increment
+
+  Options Database Keys:
+. -taoterm_fd_delta <delta> - the above increment
+
+  Level: advanced
+
+.seealso: [](sec_tao_term),
+          `TaoTerm`,
+          `TaoTermGetFDDelta()`,
+          `TaoTermGradientFD()`,
+          `TaoTermGradientUseFDPush()`,
+          `TaoTermGradientUseFDPop()`,
+@*/
+PetscErrorCode TaoTermSetFDDelta(TaoTerm term, PetscReal delta)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
+  PetscValidLogicalCollectiveReal(term, delta, 2);
+  PetscCheck(delta > 0.0, PetscObjectComm((PetscObject)term), PETSC_ERR_ARG_OUTOFRANGE, "finite difference increment must be positive");
+  term->fd_delta = delta;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  TaoTermGradientUseFDPush - Use finite differences instead of the user-provided or built-in gradient method in `TaoTermGradient()`.
+
+  Logically collective
+
+  Input Parameter:
+. term - a `TaoTerm`
+
+  Options Database Keys:
+. -taoterm_gradient_use_fd <bool> - pushes 
+
+  Level: advanced
+
+  Note:
+  This increments an internal counter: finite differences will be used whenever the counter is greater than zero.  Use
+  `TaoTermGradientUseFDPop()` to undo.
+
+.seealso: [](sec_tao_term),
+          `TaoTerm`,
+          `TaoTermGetFDDelta()`,
+          `TaoTermSetFDDelta()`,
+          `TaoTermGradientUseFDPop()`,
+@*/
+PetscErrorCode TaoTermGradientUseFDPush(TaoTerm term)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
+  term->fd_grad_level++;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/*@
+  TaoTermGradientUseFDPop - Stop using finite differences in `TaoTermGradient()`.
+
+  Logically collective
+
+  Input Parameter:
+. term - a `TaoTerm`
+
+  Level: advanced
+
+  Note:
+  This decrements an internal counter: finite differences will be used whenever the counter is greater than zero,
+  undoing `TaoTermGradientUseFDPush()`.
+
+.seealso: [](sec_tao_term),
+          `TaoTerm`,
+          `TaoTermGetFDDelta()`,
+          `TaoTermSetFDDelta()`,
+          `TaoTermGradientUseFDPush()`,
+@*/
+PetscErrorCode TaoTermGradientUseFDPop(TaoTerm term)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(term, TAOTERM_CLASSID, 1);
+  term->fd_grad_level--;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

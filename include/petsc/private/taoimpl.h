@@ -269,6 +269,8 @@ struct _p_TaoTerm {
   PetscBool             Hpre_is_H; // Hessian mode data
   char                 *H_mattype;
   char                 *Hpre_mattype;
+  PetscReal             fd_delta; // increment for TaoTermGradientFD()
+  PetscInt              fd_grad_level; // push/pop using finite difference for the gradient
 };
 
 PETSC_INTERN PetscErrorCode TaoTermRegisterAll(void);

@@ -193,3 +193,9 @@ PETSC_EXTERN PetscErrorCode TaoTermIsCreateHessianMatricesDefined(TaoTerm, Petsc
 PETSC_EXTERN PetscErrorCode TaoTermCreateHessianShell(TaoTerm, Mat *);
 PETSC_EXTERN PetscErrorCode TaoTermUpdateHessianShell(TaoTerm, Mat, Vec, Vec);
 PETSC_EXTERN PetscErrorCode TaoTermUpdateHessianShells(TaoTerm, Vec, Vec, Mat *, Mat *);
+
+PETSC_EXTERN PetscErrorCode TaoTermGetFDDelta(TaoTerm, PetscReal *);
+PETSC_EXTERN PetscErrorCode TaoTermSetFDDelta(TaoTerm, PetscReal);
+PETSC_EXTERN PetscErrorCode TaoTermGradientFD(TaoTerm, Vec, Vec, Vec);
+PETSC_EXTERN PetscErrorCode TaoTermGradientUseFDPush(TaoTerm);
+PETSC_EXTERN PetscErrorCode TaoTermGradientUseFDPop(TaoTerm);
