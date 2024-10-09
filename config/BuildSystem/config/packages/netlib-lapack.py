@@ -12,6 +12,7 @@ class Configure(config.package.CMakePackage):
     self.functionsFortran       = 1
     self.buildLanguages         = ['FC']
     self.minCmakeVersion        = (2,8,3)
+    self.cinterface             = False
     return
 
   def setupHelp(self, help):
