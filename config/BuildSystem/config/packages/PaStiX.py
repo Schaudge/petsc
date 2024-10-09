@@ -36,13 +36,13 @@ class Configure(config.package.CMakePackage):
     args = config.package.CMakePackage.formCMakeConfigureArgs(self)
 
     if hasattr(self.blaslapack, 'netliblapack') and not self.blaslapack.netliblapack.cinterface:
-      raise RuntimeError('If you use PaStiX with netlib-lapack you have to add the option --download-netlib-lapack-cinterface=1')
+      raise RuntimeError('If you use PaStiX with netlib-lapack you have to add the option --with-netlib-lapack-c-bindings')
 
     if not self.libraries.check(self.dlib, 'cblas_dgemm'):
-      raise RuntimeError('PaStiX requires a BLAS library with cblas support. Suggest specifying MKL for ex. --with-blaslapack-dir=${MKLROOT}, or --download-netlib-lapack --download-netlib-lapack-cinterface=1')
+      raise RuntimeError('PaStiX requires a BLAS library with cblas support. Suggest specifying MKL for ex. --with-blaslapack-dir=${MKLROOT}, or --download-netlib-lapack --with-netlib-lapack-c-bindings')
 
     if not self.libraries.check(self.dlib, 'LAPACKE_dlange'):
-      raise RuntimeError('PaStiX requires a LAPACK library with LAPACKE support. Suggest specifying MKL for ex. --with-blaslapack-dir=${MKLROOT}, or --download-netlib-lapack --download-netlib-lapack-cinterface=1')
+      raise RuntimeError('PaStiX requires a LAPACK library with LAPACKE support. Suggest specifying MKL for ex. --with-blaslapack-dir=${MKLROOT}, or --download-netlib-lapack --with-netlib-lapack-c-bindings')
 
     if not self.ptscotch.found and not self.metis.found:
       raise RuntimeError('PaStiX requires an ordering library: either METIS or SCOTCH')
