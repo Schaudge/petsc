@@ -750,8 +750,10 @@ static void flux(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[
     const PetscScalar C10 = C01;
     const PetscScalar C11 = u[uOff[C_FIELD_ID] + 2] + r;
 
-    f[0] = -C00 * gradp[0] - C01 * gradp[1];
-    f[1] = -C10 * gradp[0] - C11 * gradp[1];
+    //f[0] = -C00 * gradp[0] - C01 * gradp[1];
+    //f[1] = -C10 * gradp[0] - C11 * gradp[1];
+    f[0] = gradp[0];
+    f[1] = gradp[1];
   } else {
     const PetscScalar C00 = u[uOff[C_FIELD_ID]] + r;
     const PetscScalar C01 = u[uOff[C_FIELD_ID] + 1];
