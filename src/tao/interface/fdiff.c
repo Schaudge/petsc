@@ -40,45 +40,23 @@ static PetscErrorCode Fsnes(SNES snes, Vec X, Vec G, void *ctx)
   to take advantage of sparsity in the problem.  Although
   not recommended for general use
   in large-scale applications, it can be useful in checking the
-  correctness of a user-provided gradient.  Use the tao method TAOTEST
-  to get an indication of whether your gradient is correct.
+  correctness of a user-provided gradient using the command-line option `-tao_test_gradient`
   This finite difference gradient evaluation can be set using the routine `TaoSetGradient()` or by using the command line option -tao_fd_gradient
 
-.seealso: `Tao`, `TaoSetGradient()`
+.seealso: `Tao`, `TaoSetGradient()`, `TaoTermGradientFD()`
 @*/
 PetscErrorCode TaoDefaultComputeGradient(Tao tao, Vec Xin, Vec G, void *dummy)
 {
-  Vec          X;
-  PetscScalar *g;
-  PetscReal    f, f2;
-  PetscInt     low, high, N, i;
-  PetscBool    flg;
-  PetscReal    h = .5 * PETSC_SQRT_MACHINE_EPSILON;
+  PetscBool flg;
+  PetscReal h;
 
   PetscFunctionBegin;
+  PetscCall(TaoTermGetFDDelta(tao->objective_term.term, &h));
   PetscCall(PetscOptionsGetReal(((PetscObject)tao)->options, ((PetscObject)tao)->prefix, "-tao_fd_delta", &h, &flg));
-  PetscCall(VecDuplicate(Xin, &X));
-  PetscCall(VecCopy(Xin, X));
-  PetscCall(VecGetSize(X, &N));
-  PetscCall(VecGetOwnershipRange(X, &low, &high));
-  PetscCall(VecSetOption(X, VEC_IGNORE_OFF_PROC_ENTRIES, PETSC_TRUE));
-  PetscCall(VecGetArray(G, &g));
-  for (i = 0; i < N; i++) {
-    PetscCall(VecSetValue(X, i, -h, ADD_VALUES));
-    PetscCall(VecAssemblyBegin(X));
-    PetscCall(VecAssemblyEnd(X));
-    PetscCall(TaoComputeObjective(tao, X, &f));
-    PetscCall(VecSetValue(X, i, 2.0 * h, ADD_VALUES));
-    PetscCall(VecAssemblyBegin(X));
-    PetscCall(VecAssemblyEnd(X));
-    PetscCall(TaoComputeObjective(tao, X, &f2));
-    PetscCall(VecSetValue(X, i, -h, ADD_VALUES));
-    PetscCall(VecAssemblyBegin(X));
-    PetscCall(VecAssemblyEnd(X));
-    if (i >= low && i < high) g[i - low] = (f2 - f) / (2.0 * h);
-  }
-  PetscCall(VecRestoreArray(G, &g));
-  PetscCall(VecDestroy(&X));
+  if (flg) PetscCall(TaoTermSetFDDelta(tao->objective_term.term, h));
+  PetscCall(TaoTermGradientUseFDPush(tao->objective_term.term));
+  PetscCall(TaoMappedTermGradient(&tao->objective_term, Xin, tao->objective_parameters, INSERT_VALUES, G));
+  PetscCall(TaoTermGradientUseFDPop(tao->objective_term.term));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
